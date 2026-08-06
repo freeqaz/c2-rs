@@ -23,10 +23,36 @@ Kinds are the three that carried GRID T's claim:
 
 Counters are separate and all printed (STATUS trap 5).
 
+INSTRUMENT REPAIR — the first run of this file scored TWO REAL ANSWERS as OUT OF
+REGIME
+--------------------------------------------------------------------------------
+`work/w-seam/gridt2.out.v1` is kept as the record.  It read `selected 36 /
+GRADED 26 / IDENT 26 / DIFFER 0 / out-of-regime 10`, and two of those ten were
+the instrument declining to see a result that was on the line:
+
+* **`D11-argcall`** — the run really does NOT transfer.  c2 parks the object in
+  **r10, a VOLATILE**, because `r3` is wanted for the call argument, the store
+  base changes *mid-run* (`stw 11,0(3)` then `stw 11,4(10)`), and the constants
+  take `r11`/**`r9`** where the leaf takes `r11`/`r10`.  Scored out of regime
+  because "the stores do not share one base" — which is exactly the finding.
+* **`D12-nonvoid`** — the run DOES transfer.  What broke the base check is the
+  *result* store `stw 3,8(31)`, which sits **after the `bl`** and is not part of
+  the run at all.
+* **`D5`/`D6`** — a genuinely two-base run, identical in leaf and framed forms.
+  The check required one base because the PLAN canonicalisation needs one; it
+  does not need one to compare raw text.
+
+The repair is three rules, and it is the same class as w-alloc2 §4.3 (board
+#843): **split the body at the first branch** so post-call statements are never
+mixed into the run; **compare raw text whenever either side has more than one
+base**, reporting IDENT or DIFFER but never PLAN; and never let a base check
+turn a difference into a silence.
+
 Usage:  gridt2.py [--only SUBSTR] [--jobs N]
 """
 
 import os
+import re
 import sys
 import concurrent.futures as cf
 
@@ -127,6 +153,19 @@ def run_cell(a):
     return name, dis(cpp)
 
 
+BRANCH = re.compile(r"^b[l]? \.[-+]\d+$")
+
+
+def pre_call(words):
+    """The words up to and including the first branch — the region the run
+    lives in.  A statement after the first `bl` is a different statement and is
+    not part of the run (`D12-nonvoid`'s result store is the witness)."""
+    for i, w in enumerate(words):
+        if BRANCH.match(w):
+            return words[:i + 1]
+    return words
+
+
 def main():
     only, jobs = None, 8
     argv = sys.argv[1:]
@@ -163,14 +202,12 @@ def main():
                 print("  %-14s %-3s | COMPILE FAILED" % (cfg, kind))
                 continue
             reached += 1
-            run, saves, frame = split_body(words)
+            run, saves, frame = split_body(pre_call(words))
             b = base_of(run)
-            if b is None:
-                print("  %-14s %-3s | OUT OF REGIME: stores do not share one base"
-                      % (cfg, kind))
-                oor += 1
-                continue
-            cr = canon(run, b)
+            # A multi-base run is compared RAW.  The base is needed only for the
+            # PLAN canonicalisation, and requiring it turned `D11-argcall`'s
+            # answer into a silence on the first run of this file.
+            cr = canon(run, b) if b is not None else run
             if kind == "L":
                 if frame != 1:
                     print("  %-14s %-3s | OUT OF REGIME: leaf has %d frame words"
@@ -194,7 +231,7 @@ def main():
             if run == lrun:
                 v = "IDENT"
                 ident += 1
-            elif cr == lcr:
+            elif b is not None and lb is not None and cr == lcr:
                 v = "PLAN"
                 plan_only += 1
                 notes.append((cfg, kind, "base r%s -> r%s" % (lb, b)))
