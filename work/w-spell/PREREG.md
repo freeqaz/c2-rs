@@ -354,3 +354,42 @@ scored, side by side, on every cell.
 **B5 (new):** the rival is scored beside #865 in the same run, and if #865 and
 the rival disagree on `N6` the lane reports which one the obj chose and does not
 reword either.
+
+---
+
+### ADDENDUM 3 — 2026-08-06 · GRID X, the two-lane disagreement
+
+Committed **before** `bisect.py` exists, and before any of its cells is
+compiled. GRID H is graded (`holdout_grade.out`).
+
+GRID H turned up something worse than a refuted rule: **two lanes' objs
+disagree at what should be the same configuration.**
+
+```text
+  self producer, 2 store bases, ru = 3, cu = 5, constant's run first in source
+    this lane   H2-self-2base-r3k5     the PRODUCER takes the top register
+    w-alloc2    F1-r3k5                the CONSTANT does
+```
+
+and the same at `(ru 2, cu 4)` against w-alloc2's `F2-off-r2k4`. If that is
+real, the population table is not a function of the four axes it is drawn on,
+and **that matters more than either rule**. Three differences between the two
+cells are known and are the ones this grid removes one at a time:
+
+1. **how the address is spelled relative to the bind** — this lane writes
+   `(int)&s->inner` and stores through `q`; w-alloc2 writes `(int)&q`;
+2. **the struct layout** — w-alloc2 puts the constant's slots at 0..28 and
+   `inner` at 64; this lane puts them at 48 and 112;
+3. **the source order** — `F2-off-*` puts the register-derived stores first,
+   `F1-*` does not. (`F1-r3k5` shares this lane's order, so this axis alone
+   cannot explain that row.)
+
+| # | claim |
+|---|---|
+| **X1** | the disagreement **REPRODUCES**: at `(3,5)` the `&s->inner` spelling and the `&q` spelling give different winners with everything else held fixed |
+| **X2** | the axis is the **address spelling**, not the layout: moving the offsets to w-alloc2's while keeping `&s->inner` does not flip the cell |
+| **X3** | at `(1,1)` — where every lane on record agrees — all configurations give `prod`, so the grid has a control that can go red |
+
+**If X1 loses**, the disagreement is not the spelling and the lane reports an
+unexplained two-lane discrepancy rather than inventing a third cause. Either
+outcome is reported; neither is fitted on.
