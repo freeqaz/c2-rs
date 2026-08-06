@@ -43,7 +43,7 @@
 //! | **S3** | the port emits **nothing around the call**: an empty argument setup, and for a `Seq` an identity tail | `t04` (register move), `t05` (arithmetic), `t06` (pointer offset). Every one of w-seq's 503 SPLICE-0 failures is a **field** of the callee's body rewritten — a source rename (286), a destination rename (123), a displacement fold (~92) — and a non-identity setup is the thing that rewrites it |
 //! | **S4** | the callee is not the caller | `t12`. `INLINE_PREDICATE.md` §4 grades `recurse` **336/336** declined by c2 as well |
 //! | **S5** | the callee is defined in **this bundle**, unambiguously | `t14`, the control: an undefined callee keeps its REL24 |
-//! | **S6** | the port composes a complete body for the callee, with **no frame**, and that body is **not itself spliced** | `t09` — an unlowerable callee. The one-level restriction is [`splice_body`]'s `allow_splice: false` recursion, and `t11` is the measurement of whether c2 closes the chain |
+//! | **S6** | the port composes a complete body for the **chain's end**, with **no frame** | `t09` — an unlowerable callee. And `t11` — **the fixpoint**: when the callee itself splices, its emitted COMDAT is *its* callee's body, so the walk steps down. c2 closes the chain, measured two independent ways in "the fixpoint" below |
 //! | **S7** | that body is at most [`INLINE_UNBOUNDED_BYTES`] bytes, and the callee is not varargs | `t13`. See below — this is the inline decision, taken on the safe side of its own boundary |
 //! | **S8** | the caller materializes no data symbol of its own | the caller's whole body is discarded and an `F`-side data reference would go with it |
 //! | **S9** | mechanism **E** does not fire for the caller | `elide.rs` keeps its answer; one function, one rule |
@@ -94,6 +94,36 @@
 //! > §4.3's `s12` is the same four lines. This rule *fixes* that cell rather than
 //! > adding to it, and `work/w-splice/relocheck.py` verifies the relocation set
 //! > of every function it moves, per symbol, against the reference obj.
+//!
+//! # THE FIXPOINT — registered as a question, and both answers agree
+//!
+//! `work/w-splice/PREREG.md` §4 registered *"does c2 close a two-step splice
+//! chain?"* as a **question**, with the port taking one level either way. It
+//! shipped at one level, and two independent measurements said that was wrong:
+//!
+//! * **`t11`**, a compiled cell — `int h(int a){return a+1;} int g(int a){return
+//!   h(a);} int f(int a){return g(a);}` — c2 emits **`?h`'s two words for all
+//!   three functions**;
+//! * **the workload's relocation check**, which the one-level rule forced into
+//!   existence: **150 of 945** spliced functions relocated against the chain's
+//!   *intermediate* where c2 relocates against its *end*.
+//!   `??1length_error@stlpmtx_std@@` named `??1__Named_exception@stlpmtx_std@@`
+//!   and c2 names `??1exception@std@@`, 145 times in that one shape; the other
+//!   five are `??1?$_List_base@…` where c2 names `?clear@?$_List_base@…`. **All
+//!   150 were this, and none was a different target.**
+//!
+//! So the walk follows the chain to the first link that does **not** splice and
+//! takes that body. Termination is structural — a step either repeats a name,
+//! which is the `S6-chain-cycle` refusal, or admits a new one, and the bundle
+//! has finitely many — with a ceiling behind it so that an edit breaking that
+//! argument refuses instead of walking forever. Mechanism E reached the same
+//! shape from the other direction (`elide.rs`, board #946): a chain, and a cycle
+//! that is never admitted.
+//!
+//! **S7 still needs only one size check.** `INLINE-P`'s `s` is the callee's own
+//! *emitted* size, and an intermediate that splices emits exactly the chain-end
+//! body — c2's COMDAT for it *is* that body — so `s` is the same number at every
+//! edge of the chain.
 //!
 //! # Where it may NOT fire — [`crate::PortC2::build`]
 //!
@@ -281,15 +311,30 @@ impl<'a> TuContext<'a> {
         Some((self.rows[i].1?, self.rows[i].2))
     }
 
-    /// Does this bundle define `name` **at all**, whether or not its IL parsed?
+    /// Does this bundle carry `name` **at all** — whether or not its IL parsed,
+    /// and whether or not exactly one row claims it?
     ///
     /// The distinction [`TuContext::definition`] cannot make, and the one a
     /// refusal census needs: a callee this TU does not define is an external and
     /// no mechanism can be about it, while a callee it defines and the parser
     /// refuses is a *priced* rung — `w-seq` §5 ranks those productions and the
     /// largest blocks 573 differs on its own.
-    pub fn defines(&self, name: &str) -> bool {
-        self.unique_row(name).is_some()
+    ///
+    /// **It deliberately does not require the row to be unique.** An ambiguous
+    /// name is one this TU *does* define, twice; reading it as "not defined
+    /// here" is how one function slipped past `S6-chain-truncated` and
+    /// relocated against `??1?$_Rb_tree@…` where c2 relocates against
+    /// `?clear@?$_Rb_tree@…` — a wrong relocation FUNCTION BYTE MATCH scores
+    /// `exact` (board #882).
+    pub fn mentions(&self, name: &str) -> bool {
+        self.rows
+            .binary_search_by(|(n, _, _)| (*n).cmp(name))
+            .is_ok()
+    }
+
+    /// More than one row claims `name`, so no single definition can be resolved.
+    pub fn ambiguous(&self, name: &str) -> bool {
+        self.mentions(name) && self.unique_row(name).is_none()
     }
 
     /// The single row for `name`, or `None` when zero or **more than one**
@@ -467,13 +512,47 @@ pub fn splice_callee_why<'a>(
     // **external** callee is nobody's mechanism, and a callee this TU defines
     // whose IL the parser refuses is `w-seq` §5's production table — 1,774
     // differs deep, and the largest single production blocks 573 of them.
-    if !tu.defines(callee) {
+    if !tu.mentions(callee) {
         return Err("S5-callee-extern");
+    }
+    if tu.ambiguous(callee) {
+        return Err("S5-callee-ambiguous");
     }
     if tu.definition(callee).is_none() {
         return Err("S6-callee-parse-refused");
     }
     self_named(tu, callee).ok_or("S5-callee-extern")
+}
+
+/// **Every callee this body names**, from the decoded fields and never from a
+/// byte offset (#644).
+///
+/// Used by `S6-chain-truncated` to ask the one question that separates a chain
+/// that *ended* from one the port could not follow: does the chain's last link
+/// still name a function this TU defines?
+///
+/// Deliberately a local copy of the shape `crates/c2-harness/src/gap/fnbytes.rs`
+/// walks for its forensics rather than a shared one: that one is a diagnostic
+/// over a *census row* and this is a clause of an emitter's predicate, and the
+/// emitter must not depend on the instrument that grades it.
+fn port_callees(f: &IlFunction) -> Vec<&str> {
+    let mut v: Vec<&str> = Vec::new();
+    if let Some(c) = f.tail_call.as_deref() {
+        v.push(c);
+    }
+    if let Some(fc) = f.framed_call.as_ref() {
+        v.push(fc.callee.as_str());
+    }
+    if let Some(cs) = f.call_seq.as_ref() {
+        for c in &cs.calls {
+            v.push(c.callee.as_str());
+        }
+    }
+    if let Some(cp) = f.cond_pair.as_ref() {
+        v.push(cp.then_arm.callee.as_str());
+        v.push(cp.else_arm.callee.as_str());
+    }
+    v
 }
 
 /// **Is this call's argument mapping the IDENTITY** — every argument register
@@ -555,56 +634,170 @@ pub fn splice_body_why<'a>(
     mode: OptMode,
     tu: &TuContext<'a>,
 ) -> Result<ComdatBody<'a>, SpliceDecline> {
-    let callee = splice_callee_why(f, selected, tu).map_err(SpliceDecline::Refused)?;
-    // **S7, the varargs half.** `N_max = 0` categorically (§6.18.5). MSVC
-    // terminates a varargs argument list with `Z` where an ordinary one ends
-    // `@`, so the mangled name ends `ZZ` — read off the name because that is
-    // where §2's table says it is readable, IL side and obj side alike.
-    if callee.ends_with("ZZ") {
-        return Err(SpliceDecline::Refused("S7-varargs"));
+    let mut callee = splice_callee_why(f, selected, tu).map_err(SpliceDecline::Refused)?;
+    // **THE CHAIN.** `S6-chain` below walks it; `seen` is what makes a cycle
+    // terminate, and the ceiling is what makes a broken edit terminate too.
+    let mut seen: Vec<&str> = vec![callee];
+    let ceiling = tu.len() + 1;
+    loop {
+        // **S7, the varargs half.** `N_max = 0` categorically (§6.18.5). MSVC
+        // terminates a varargs argument list with `Z` where an ordinary one ends
+        // `@`, so the mangled name ends `ZZ` — read off the name because that is
+        // where §2's table says it is readable, IL side and obj side alike.
+        if callee.ends_with("ZZ") {
+            return Err(SpliceDecline::Refused("S7-varargs"));
+        }
+        let Some((g, opt_word)) = tu.definition(callee) else {
+            return Err(SpliceDecline::Refused("S5-callee-extern"));
+        };
+        // The callee's own mode. A callee under a different `#pragma optimize`
+        // than its caller allocates a chain intermediate to a different register
+        // (`OptMode`'s doc), so splicing across that boundary would emit the
+        // wrong register field. `None` is "the caller does not track it per
+        // function", and then the TU has already been refused unless every
+        // function shares a mode.
+        let g_mode = match opt_word {
+            Some(_) => match opt_mode_of_word(opt_word) {
+                Ok(m) => m,
+                Err(_) => return Err(SpliceDecline::Refused("S6-callee-opt-mode")),
+            },
+            None => mode,
+        };
+        if g_mode != mode {
+            return Err(SpliceDecline::Refused("S6-mode-mismatch"));
+        }
+        // **S6.** The port must have a body for the callee — `t09` is the cell
+        // where it does not.
+        let Ok(g_sel) = crate::codegen::select_function(g, g_mode) else {
+            return Err(SpliceDecline::Refused("S6-callee-refused"));
+        };
+        // **S6-CHAIN — THE FIXPOINT, and it is measured rather than assumed.**
+        //
+        // If the callee ITSELF splices, its own emitted COMDAT is not the branch
+        // the port would lower it to: it is *its* callee's body. So the caller
+        // must take that one, and the walk steps down.
+        //
+        // `work/w-splice/PREREG.md` §4 registered this as a QUESTION with the
+        // port taking one level either way. Both answers came back and they
+        // agree:
+        //
+        // * `t11` — `int h(int a){return a+1;} int g(int a){return h(a);}
+        //   int f(int a){return g(a);}` — c2 emits **`?h`'s two words for all
+        //   three**, so `splice0(?f)` against `ref(?g)` grades `exact`;
+        // * the workload, through the relocation check the one-level rule
+        //   forced: **150 of 945** spliced functions named the chain's
+        //   *intermediate* where c2 named its *end* —
+        //   `??1length_error@stlpmtx_std@@` relocating against
+        //   `??1__Named_exception@stlpmtx_std@@` where c2 relocates against
+        //   `??1exception@std@@`, 145 times in that shape. Every one of the 150
+        //   was this and none was a different target.
+        //
+        // The one-level rule therefore could not ship: `PREREG.md` §3 item 4
+        // makes a relocation disagreement a decline-floor failure, and 150 of
+        // them is not a rounding.
+        if let Ok(next) = splice_callee_why(g, &g_sel, tu) {
+            if seen.contains(&next) {
+                // A cycle. `elide.rs`'s least fixpoint never *seeds* one and so
+                // never admits one; this walk reaches the same answer by
+                // construction, and c2 declines a recursive callee too
+                // (`INLINE_PREDICATE.md` §4, `recurse` 336/336).
+                return Err(SpliceDecline::Refused("S6-chain-cycle"));
+            }
+            if seen.len() > ceiling {
+                // Unreachable while `seen` is checked above — a step either
+                // repeats a name or admits a new one, and the bundle has
+                // finitely many. Here so that an edit which breaks that
+                // argument REFUSES instead of walking forever.
+                return Err(SpliceDecline::Refused("S6-chain-ceiling"));
+            }
+            seen.push(next);
+            callee = next;
+            continue;
+        }
+        // **S6-CHAIN-TRUNCATED — the chain must END, not be CUT OFF.**
+        //
+        // The walk stops at the first link whose own predicate declines. There
+        // are two completely different reasons that happens and only one of them
+        // is an ending:
+        //
+        // * the link names **no same-TU callee** — an external, or nothing at
+        //   all. c2 has no body to expand either, so this is where c2 stops too
+        //   and the body is the answer;
+        // * the link names a callee this TU **defines** and the port cannot
+        //   follow — its IL is parse-refused, it has an argument setup, it is a
+        //   multi-call body. c2 is under no such restriction, and **it does not
+        //   stop there**: measured, 72 spliced functions relocated against
+        //   `??1?$_List_base@…` where c2 relocates against
+        //   `?clear@?$_List_base@…`, which is one link further down a chain the
+        //   port cannot read. Every one of the 77 residual disagreements after
+        //   the fixpoint landed was this.
+        //
+        // So a truncated chain **refuses**. The port does not know where c2
+        // stopped, and a relocation against the wrong symbol is invisible to
+        // FUNCTION BYTE MATCH — board **#882** — which makes guessing here the
+        // one thing this lane must not do.
+        if port_callees(g).into_iter().any(|c| tu.mentions(c)) {
+            return Err(SpliceDecline::Refused("S6-chain-truncated"));
+        }
+        // The chain's end: this callee emits its own body, so that body is the
+        // caller's. Composed with `allow_splice: false` — the walk above has
+        // already established that this link does not splice, and asking again
+        // through the composition would be the same question with a second
+        // implementation.
+        let Ok(body) = crate::comdat::body_of(g, g_sel, g_mode, tu, false) else {
+            return Err(SpliceDecline::Refused("S6-callee-no-compose"));
+        };
+        // **S6, the frame half.** A framed callee carries a prologue, an
+        // epilogue and a `.pdata` record whose association is a property of the
+        // function it belongs to. Splicing one into a caller is a cell nobody
+        // graded.
+        if body.frame.is_some() {
+            return Err(SpliceDecline::Refused("S6-callee-framed"));
+        }
+        // **S6-CHAIN-OPEN — the chain's end may carry NO CALL AT ALL, and this
+        // clause is a measured retreat.**
+        //
+        // `S6-chain-truncated` above asks whether the end still names a callee
+        // *this TU's census carries*. One workload function got past it:
+        // `??1CharPollableSorter@@QAA@XZ` spliced to a body whose branch names
+        // `??1?$_Rb_tree@PAVObject@Hmx@@…`, and c2 relocates against
+        // `?clear@?$_Rb_tree@…` one link further down. That callee has **no
+        // census row in its TU at all** — `c2rs census` on `Character.cpp`
+        // prints zero rows matching it — so it sits in the `unbound` population
+        // (9,225 rows of this workload) and the port cannot tell it from a
+        // genuine external. c2 can: it inlined it, which is proof it is defined
+        // in that obj.
+        //
+        // So a chain that ends *in a call* is refused. It costs **4** spliced
+        // functions of 727 — **3 whose relocation the check verified CORRECT**
+        // (`t10`'s shape: the callee really does call an external, and the port
+        // really does name it) and **1 verified wrong**. Keeping the three would
+        // mean keeping the one, because nothing the port can read separates
+        // them, and a wrong relocation under byte-exact text is exactly board
+        // **#882**'s 4,664.
+        //
+        // The rung that recovers the three is named and not taken: give the port
+        // a defined-name set that does not come from the census — the `.gl`
+        // knows which names this TU defines — and then re-grade the one.
+        if !body.calls.is_empty() {
+            return Err(SpliceDecline::Refused("S6-chain-open"));
+        }
+        // **S7.** The inline decision, on the side of its own boundary where it
+        // is categorical in both linkage classes.
+        //
+        // **One check covers every link of the chain.** `INLINE-P`'s `s` is the
+        // callee's own *emitted* size, and an intermediate that splices emits
+        // exactly this body — c2's COMDAT for it *is* the chain's end body — so
+        // `s` is the same number at every edge and testing it once tests it
+        // everywhere.
+        if body.text.is_empty() {
+            return Err(SpliceDecline::Refused("S7-callee-empty-text"));
+        }
+        if body.text.len() > INLINE_UNBOUNDED_BYTES {
+            return Err(SpliceDecline::Refused("S7-callee-over-64B"));
+        }
+        return Ok(body);
     }
-    let Some((g, opt_word)) = tu.definition(callee) else {
-        return Err(SpliceDecline::Refused("S5-callee-not-defined-here"));
-    };
-    // The callee's own mode. A callee under a different `#pragma optimize` than
-    // its caller allocates a chain intermediate to a different register
-    // (`OptMode`'s doc), so splicing across that boundary would emit the wrong
-    // register field. `None` is "the caller does not track it per function", and
-    // then the TU has already been refused unless every function shares a mode.
-    let g_mode = match opt_word {
-        Some(_) => match opt_mode_of_word(opt_word) {
-            Ok(m) => m,
-            Err(_) => return Err(SpliceDecline::Refused("S6-callee-opt-mode")),
-        },
-        None => mode,
-    };
-    if g_mode != mode {
-        return Err(SpliceDecline::Refused("S6-mode-mismatch"));
-    }
-    // **S6.** The port must have a body for the callee — `t09` is the cell where
-    // it does not — and that body is built with the splice DISABLED, which is
-    // the one-level restriction.
-    let Ok(g_sel) = crate::codegen::select_function(g, g_mode) else {
-        return Err(SpliceDecline::Refused("S6-callee-refused"));
-    };
-    let Ok(body) = crate::comdat::body_of(g, g_sel, g_mode, tu, false) else {
-        return Err(SpliceDecline::Refused("S6-callee-no-compose"));
-    };
-    // **S6, the frame half.** A framed callee carries a prologue, an epilogue
-    // and a `.pdata` record whose association is a property of the function it
-    // belongs to. Splicing one into a caller is a cell nobody graded.
-    if body.frame.is_some() {
-        return Err(SpliceDecline::Refused("S6-callee-framed"));
-    }
-    // **S7.** The inline decision, on the side of its own boundary where it is
-    // categorical in both linkage classes.
-    if body.text.is_empty() {
-        return Err(SpliceDecline::Refused("S7-callee-empty-text"));
-    }
-    if body.text.len() > INLINE_UNBOUNDED_BYTES {
-        return Err(SpliceDecline::Refused("S7-callee-over-64B"));
-    }
-    Ok(body)
 }
 
 #[cfg(test)]
@@ -947,54 +1140,124 @@ mod tests {
         }
     }
 
-    /// **THE ONE-LEVEL RESTRICTION.** `h` is lowerable, `g` splices `h`, and
-    /// `f` splices **`g`'s own lowering** — a branch to `?g`… no: `g`'s own
-    /// lowering is a branch to `?h`, so `f` gets that. What `f` must NOT get is
-    /// `h`'s body, because nothing in this rung measured whether c2 closes the
-    /// chain (`t11`).
+    /// **THE FIXPOINT** — `t11`, and the 150 relocation witnesses that forced
+    /// it. `h` is lowerable, `g` splices `h`, and `f` must get **`h`'s body**
+    /// and not `g`'s one branch word.
+    ///
+    /// c2 closes the chain: `t11` compiles this exact source and c2 emits `?h`'s
+    /// two words for all three functions. The one-level rule that shipped first
+    /// named the intermediate in **150 of 945** spliced functions' relocations
+    /// where c2 named the end.
     #[test]
-    fn the_splice_takes_exactly_one_level() {
+    fn the_splice_closes_the_chain() {
         let funcs = vec![
             leaf("?h@@YAHH@Z"),
             tail("?g@@YAHH@Z", "?h@@YAHH@Z"),
             tail("?f@@YAHH@Z", "?g@@YAHH@Z"),
         ];
         let h = spliced(&funcs, 1).expect("?g splices ?h");
-        let f = spliced(&funcs, 2).expect("?f splices ?g's own lowering");
+        let f = spliced(&funcs, 2).expect("?f splices through ?g to ?h");
         assert_eq!(h.len(), 8, "?h is `addi r3,r3,1 ; blr`");
         assert_eq!(
-            f,
-            vec![0x48, 0x00, 0x00, 0x00],
-            "THE SPLICE CLOSED A CHAIN IT WAS NOT GRADED ON: ?f must get ?g's \
-             OWN lowering — one branch word — and never ?h's body. Whether c2 \
-             closes it is work/w-splice/'s t11 and is a separate rung"
+            f, h,
+            "THE CHAIN WAS NOT CLOSED: ?f must get ?h's BODY, not ?g's branch \
+             word. GRID-T t11 grades c2 emitting ?h's two words for all three, \
+             and the workload's relocation check found the one-level rule \
+             naming the intermediate 150 times"
         );
     }
 
-    /// The spliced body inherits the **callee's** relocations, at the callee's
-    /// own offsets, and never one against the callee. `t10` is the compiled
-    /// cell; this is the same statement where a test can hold it.
+    /// A chain of four, and every member below the top gets the same body. The
+    /// depth is not special-cased anywhere, which is the property this pins.
     #[test]
-    fn the_spliced_body_inherits_the_callees_relocations() {
+    fn the_chain_closes_at_every_depth() {
+        let funcs = vec![
+            leaf("?h@@YAHH@Z"),
+            tail("?g3@@YAHH@Z", "?h@@YAHH@Z"),
+            tail("?g2@@YAHH@Z", "?g3@@YAHH@Z"),
+            tail("?g1@@YAHH@Z", "?g2@@YAHH@Z"),
+            tail("?f@@YAHH@Z", "?g1@@YAHH@Z"),
+        ];
+        let want = spliced(&funcs, 1).expect("?g3 splices ?h");
+        for i in 2..funcs.len() {
+            assert_eq!(
+                spliced(&funcs, i).as_ref(),
+                Some(&want),
+                "{} did not reach the chain's end",
+                funcs[i].mangled_name
+            );
+        }
+    }
+
+    /// **A CYCLE TERMINATES AND REFUSES.** `?a` splices `?b` splices `?a`: the
+    /// walk repeats a name, and a repeated name is the refusal rather than a
+    /// deeper step. `elide.rs`'s least fixpoint never seeds a cycle and never
+    /// admits one; this reaches the same answer from the other direction.
+    #[test]
+    fn a_chain_cycle_terminates_and_refuses() {
+        let funcs = vec![
+            tail("?a@@YAHH@Z", "?b@@YAHH@Z"),
+            tail("?b@@YAHH@Z", "?a@@YAHH@Z"),
+            tail("?f@@YAHH@Z", "?a@@YAHH@Z"),
+        ];
+        for i in 0..funcs.len() {
+            assert!(
+                spliced(&funcs, i).is_none(),
+                "A CYCLE WAS SPLICED: the walk must refuse, not recurse — {}",
+                funcs[i].mangled_name
+            );
+        }
+    }
+
+    /// **S6-CHAIN-OPEN** — a chain whose end still calls something is refused,
+    /// and this is the cell that used to be `t10`'s positive.
+    ///
+    /// `void ext(); void g(){ext();} void f(){g();}` — c2 emits `b ?ext` for
+    /// `?f` and the port would emit `b ?ext` too, which is RIGHT. It is refused
+    /// anyway: on the workload the identical shape produced 3 verified-correct
+    /// relocations and **1 verified wrong** one, and nothing the port can read
+    /// separates them — the wrong one's next link has no census row in its TU,
+    /// so it reads as an external and is not. Board #882 is a wrong relocation
+    /// under byte-exact text, and 3 right is not worth 1 wrong here.
+    #[test]
+    fn a_chain_that_ends_in_a_call_is_refused() {
         let funcs = vec![
             tail("?g@@YAXXZ", "?ext@@YAXXZ"),
             tail("?f@@YAXXZ", "?g@@YAXXZ"),
         ];
         let tu = ctx(&funcs);
         let sel = select_function(&funcs[1], OptMode::O1).unwrap();
+        // The structural half holds — the refusal is S6-chain-open's alone.
+        assert!(splice_callee(&funcs[1], &sel, &tu).is_some());
+        assert!(
+            splice_body(&funcs[1], &sel, OptMode::O1, &tu)
+                .unwrap()
+                .is_none(),
+            "A CHAIN ENDING IN A CALL WAS SPLICED: the port cannot tell that \
+             callee from one this TU defines whose census row is unbound, and \
+             the workload has one of each"
+        );
+    }
+
+    /// …and the property that clause protects, stated where a test can hold it:
+    /// **a spliced body never relocates against its own callee.** Every body the
+    /// rule now emits carries the chain end's relocations, and the chain end has
+    /// none.
+    #[test]
+    fn a_spliced_body_never_relocates_against_its_callee() {
+        let funcs = vec![leaf("?g@@YAHH@Z"), tail("?f@@YAHH@Z", "?g@@YAHH@Z")];
+        let tu = ctx(&funcs);
+        let sel = select_function(&funcs[1], OptMode::O1).unwrap();
         let body = splice_body(&funcs[1], &sel, OptMode::O1, &tu)
             .unwrap()
-            .expect("?g is defined here, lowerable and unframed");
-        assert_eq!(body.text, vec![0x48, 0x00, 0x00, 0x00]);
-        let names: Vec<&str> = body.calls.iter().map(|c| c.callee).collect();
-        assert_eq!(
-            names,
-            vec!["?ext@@YAXXZ"],
-            "BOARD #882: both bodies are the word 48000000 and only the \
-             relocation tells them apart. ?f must relocate against ?ext — the \
-             callee's own target — and never against ?g"
+            .expect("t01's shape");
+        assert!(
+            body.calls.is_empty(),
+            "BOARD #882: the caller must acquire no REL24 at all here — not one \
+             against ?g, which is the relocation the ordinary Tail arm emits and \
+             the one c2 does not"
         );
-        assert_eq!(body.calls[0].reloc_offset, 0);
+        assert!(body.data_refs.is_empty());
     }
 
     /// A name defined once resolves; the ambiguity guard must not reject the

@@ -253,6 +253,86 @@ pub fn compare_body(port: &[u8], reference: &[u8]) -> FnByte {
     }
 }
 
+/// **Does a spliced body's relocation set agree with the reference obj's?**
+///
+/// The check FBM does not do and cannot: a `.text` COMDAT's raw data does not
+/// contain its relocations, so two bodies that are both the word `48000000`
+/// against two different targets compare `exact` (board **#882**,
+/// `fnbyte-exact-relocated` = 4,664). Lane `w-splice` ships a rule that replaces
+/// a caller's relocations with its callee's, so for the functions it moves that
+/// gap is the whole question.
+///
+/// Compared as **(target name, in-section offset)** sets, per symbol:
+///
+/// * the port side is the spliced [`c2_core::comdat::ComdatBody`]'s `calls` and
+///   `data_refs` — the relocation sites `PortC2::build` would register;
+/// * the reference side is the reference obj's own relocation records for the
+///   **same COMDAT**, `PAIR` records excluded because a `PAIR`'s
+///   `SymbolTableIndex` is a displacement rather than an index and it always
+///   accompanies the `REFHI`/`REFLO` already counted.
+///
+/// The verdict is a short stable string so a scan can histogram it. `no-relocs`
+/// is printed rather than folded into `ok`: "both sides are empty" and "both
+/// sides carry the same three targets" are different observations and one of
+/// them is a much weaker statement.
+fn reloc_verdict(
+    body: &c2_core::comdat::ComdatBody<'_>,
+    reference: Option<&Vec<(u32, u16, Option<String>)>>,
+) -> (String, String) {
+    let Some(reference) = reference else {
+        // The reference obj's relocation table did not decode. Never `ok`.
+        return ("ref-unreadable".to_string(), String::new());
+    };
+    let mut port: Vec<(String, u32)> = body
+        .calls
+        .iter()
+        .map(|c| (c.callee.to_string(), c.reloc_offset))
+        .chain(
+            body.data_refs
+                .iter()
+                .flat_map(|d| data_ref_sites(d)),
+        )
+        .collect();
+    let mut refs: Vec<(String, u32)> = reference
+        .iter()
+        .filter(|(_, ty, target)| {
+            *ty & c2_obj::IMAGE_REL_PPC_TYPEMASK != c2_obj::IMAGE_REL_PPC_PAIR
+                && target.is_some()
+        })
+        .map(|(va, _, target)| (target.clone().unwrap_or_default(), *va))
+        .collect();
+    port.sort();
+    refs.sort();
+    if port == refs {
+        return if port.is_empty() {
+            ("no-relocs".to_string(), String::new())
+        } else {
+            (format!("ok|n{}", port.len()), String::new())
+        };
+    }
+    // A disagreement is named by WHAT disagrees, because the two failures need
+    // different work: a target-name mismatch is the #882 hazard landing, and an
+    // offset mismatch is a body whose relocation sites moved.
+    let pn: Vec<&str> = port.iter().map(|(n, _)| n.as_str()).collect();
+    let rn: Vec<&str> = refs.iter().map(|(n, _)| n.as_str()).collect();
+    let witness = format!("port={}|ref={}", pn.join(","), rn.join(","));
+    if pn == rn {
+        (format!("offset-differs|n{}", port.len()), witness)
+    } else {
+        (format!("target-differs|port{}|ref{}", pn.len(), rn.len()), witness)
+    }
+}
+
+/// The relocation **sites** one data reference registers, as `(symbol, offset)`.
+///
+/// A named data symbol's address is materialized by a `lis`/`addi` pair and
+/// takes a REFHI/PAIR/REFLO/PAIR quad, of which two records name the symbol.
+/// Only those two are compared, for the reason [`reloc_verdict`] gives about
+/// `PAIR`.
+fn data_ref_sites(d: &c2_core::coff::DataRef<'_>) -> Vec<(String, u32)> {
+    vec![(d.name.to_string(), d.hi_off), (d.name.to_string(), d.lo_off)]
+}
+
 /// The census row's `.ex` optimization word, or `None` when no row binds this
 /// emitted symbol — the same three-valued answer `grade_one` reads, kept in one
 /// place so the splice counter and the composition cannot disagree about which
@@ -766,6 +846,30 @@ pub(super) fn measure(
                 Default::default()
             }
         };
+    // **The reference obj's relocation RECORDS, by COMDAT** — the same walk one
+    // field wider: target name and in-section offset, not just a count. Read for
+    // the splice's own check (`reloc_verdict`), which is the one question FBM's
+    // byte compare structurally cannot answer about the bodies this port now
+    // moves. `None` is a decode failure and is its own printed row, never an
+    // empty map read as agreement.
+    //
+    // **Three relocation readers, three questions, and they are not
+    // interchangeable**: `relocs` (counts) says *whether* a body relocates,
+    // `reloc_sites` says *which word* the linker owns, `call_targets` says
+    // *what a REL24 points at*, and this one carries the whole record —
+    // offset, raw type and target — because the splice compares a body's
+    // entire relocation SET against the reference's, data references included.
+    #[allow(clippy::type_complexity)]
+    let refrelocs: std::collections::BTreeMap<String, Vec<(u32, u16, Option<String>)>> =
+        match ref_obj.text_comdat_relocs() {
+            Some(v) => v.into_iter().collect(),
+            None => {
+                *res.emit
+                    .entry("fnbyte-reloc-records-unreadable".into())
+                    .or_insert(0) += 1;
+                Default::default()
+            }
+        };
     // **The relocation TARGETS** (lane `w-drop3`, board #984) — `REL24` only, by
     // name. `reloc_sites` above says *which word* the linker owns; this says
     // *what it points at*, and nothing else in this file can tell two
@@ -875,11 +979,45 @@ pub(super) fn measure(
             {
                 let (m, s) = sel;
                 match c2_core::splice::splice_body_why(f, &s, m, &tu) {
-                    Ok(_) => {
+                    Ok(b) => {
                         *res.emit.entry("fnbyte-spliced".into()).or_insert(0) += 1;
                         *res.emit
                             .entry(format!("fnbyte-spliced|{}", graded.shape))
                             .or_insert(0) += 1;
+                        // **THE RELOCATION CHECK, and it is not FBM's.**
+                        //
+                        // A spliced body inherits the CALLEE's relocations,
+                        // resolved in the callee's context. FBM compares a
+                        // `.text` COMDAT's raw bytes, which do not contain
+                        // relocations, so it calls two bodies that are both
+                        // `48000000` against different targets `exact` — board
+                        // **#882**, 4,664 credited functions. This mechanism
+                        // moves 945 functions' relocation sets at once, so the
+                        // one thing FBM cannot see is exactly the thing it
+                        // changes, and it is checked here per symbol rather
+                        // than argued in a rung.
+                        //
+                        // Verdict per spliced function: the port's REL24 sites
+                        // and data-symbol references against the reference
+                        // obj's own relocation records for the SAME COMDAT, by
+                        // target name and by in-section offset.
+                        let rv = reloc_verdict(&b, refrelocs.get(name.as_str()));
+                        *res.emit
+                            .entry(format!("fnbyte-spliced-reloc|{}", rv.0))
+                            .or_insert(0) += 1;
+                        if !rv.0.starts_with("ok|") && rv.0 != "no-relocs" {
+                            // A disagreement is a NAMED function with both
+                            // target lists beside it, never a count: #882 was
+                            // credited for 4,664 functions on a count, and the
+                            // first thing a lane needs is which symbol and
+                            // which target.
+                            *res.emit
+                                .entry(format!(
+                                    "fnbyte-spliced-reloc-fn|{}|{}|{name}",
+                                    rv.0, rv.1
+                                ))
+                                .or_insert(0) += 1;
+                        }
                         if v == FnByte::Exact {
                             *res.emit.entry("fnbyte-spliced-exact".into()).or_insert(0) += 1;
                         } else {

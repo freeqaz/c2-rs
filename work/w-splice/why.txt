@@ -1,19 +1,16 @@
-=== THE RULE FIRED === (311 functions)
-     311  tail
-     306  the judge agrees (byte-exact)
-       5  the judge does NOT
-       tail     ??1DisplacementNode@@UAA@XZ                                src/system/hamobj/ErrorNode.cpp
-       tail     ??1Ham1DisplacementNode@@UAA@XZ                            src/system/hamobj/ErrorNode.cpp
-       tail     ??1EventSinkElem@MsgSinks@@QAA@XZ                          src/system/obj/Msg.cpp
-       tail     ??1DxRndTexMgr@@UAA@XZ                                     src/system/rnddx9/TexMgr.cpp
-       tail     ??1?$Key@VTexPtr@RndMatAnim@@@@QAA@XZ                      src/system/rndobj/MatAnim.cpp
+=== THE RULE FIRED === (723 functions)
+     634  seq
+      89  tail
+     723  the judge agrees (byte-exact)
+       0  the judge does NOT
 
-=== IT DECLINED, AND THE BODY IS STILL A DIFFER === (3098)
+=== IT DECLINED, AND THE BODY IS STILL A DIFFER === (2472)
   each row is what a widening would have to buy
-     951   30.7%  tail     S3-tail-setup
-     816   26.3%  seq      S3-seq-setup-frame-only
-     725   23.4%  seq      S2-multi-call
-     480   15.5%  tail     S6-callee-parse-refused
-     123    4.0%  framed   S1-framed
+     951   38.5%  tail     S3-tail-setup
+     725   29.3%  seq      S2-multi-call
+     480   19.4%  tail     S6-callee-parse-refused
+     182    7.4%  seq      S6-callee-parse-refused
+     123    5.0%  framed   S1-framed
+       6    0.2%  tail     S6-chain-truncated
+       3    0.1%  tail     S6-chain-open
        2    0.1%  tail     S8-caller-data-sym
-       1    0.0%  tail     S6-callee-framed

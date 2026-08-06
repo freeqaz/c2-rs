@@ -1,0 +1,8 @@
+=== SPLICED FUNCTIONS, RELOCATION SET vs THE REFERENCE OBJ ===
+  spliced functions            : 723
+  with a relocation verdict    : 723
+  objs whose reloc table failed: 0
+     723  100.0%  no-relocs
+
+  DISAGREEMENTS: 0
+  (PREREG §3 item 4: any disagreement is a decline-floor failure)

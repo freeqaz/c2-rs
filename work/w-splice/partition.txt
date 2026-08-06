@@ -1,9 +1,9 @@
 TUs graded at both ends: 878
 differs, base:   3195
-differs, tip :   2469
+differs, tip :   2472
 
-=== CONVERTED (differs -> exact), per (TU, emit_name): 726
-  distinct symbols: 246
+=== CONVERTED (differs -> exact), per (TU, emit_name): 723
+  distinct symbols: 245
        62  ??0?$_List_iterator@PAVObjectDir@@U?$_Nonconst_traits@PAVObjectDir@@@stlpmtx_std@@@stlpmtx_std@@QAA@
        62  ??0?$_List_iterator@VString@@U?$_Nonconst_traits@VString@@@stlpmtx_std@@@stlpmtx_std@@QAA@PAU_List_n
        61  ??0?$_List_iterator@PAVObjectDir@@U?$_Const_traits@PAVObjectDir@@@stlpmtx_std@@@stlpmtx_std@@QAA@PAU
