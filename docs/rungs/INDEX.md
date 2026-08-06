@@ -82,6 +82,7 @@ the header block this table is read from.
 | 2026-08-05 | W45 | [w-wire](2026-08-05-w-wire.md) | 2 | 706,557 → 711,426 / 2,463,393 (28.68 % → 28.88 %), +4,869; |
 | 2026-08-06 | w-alloc2 | [w-alloc2](2026-08-06-w-alloc2.md) | 12 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |
 | 2026-08-06 | w-bytes | [w-bytes](2026-08-06-w-bytes.md) | 10 | 39177/178975 → 39177/178975 (21.89% → 21.89%), +0 |
+| 2026-08-06 | w-drop3 | [w-drop3](2026-08-06-w-drop3.md) | 9 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |
 | 2026-08-06 | w-fnbyte | [w-fnbyte](2026-08-06-w-fnbyte.md) | 12 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |
 | 2026-08-06 | w-magic | [w-magic](2026-08-06-w-magic.md) | 8 | 711,427 → **711,427** (28.88%, **+0**). Emitted 39,177 → |
 | 2026-08-06 | w-refbind | [w-refbind](2026-08-06-w-refbind.md) | 12 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |
