@@ -21,3 +21,4 @@ t20_offset_1200.cpp
 t21_offset_negative.cpp
 t22_offset_65540.cpp
 t23_wide_token.cpp
+t24_wide_target_token.cpp
