@@ -160,7 +160,9 @@ Both samples are `sha256`-frozen (`work/w-inline/sample_a.txt`,
 cell was compiled.
 
 **The step is where §6.17.4 + §6.17.5 say it is.** 11,866 `EXTERNAL` +
-`SELECT_ANY` workload callees, observed inline rate by index:
+`SELECT_ANY` callees of SAMPLE-A (the *diagnostic* sample — SAMPLE-B's own
+accuracy is the hold-out number and is in the table above), observed inline
+rate by index:
 
 ```
    index  <=24   36   44   52   60   64 | 68   72   80   92  >=112
