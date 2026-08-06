@@ -57,7 +57,7 @@
 //! |---|---|---|
 //! | `fnbyte-exact` | the port's complete body is byte-identical to c2's | **yes** |
 //! | `fnbyte-differs` | the port's complete body differs | no |
-//! | `fnbyte-partial` | the port selected, but this shape's body is finished by the COFF emitter (a branch word that encodes its own `.text` offset, a frame, a pooled constant) — the harness must not reconstruct it | no |
+//! | `fnbyte-partial` | the port selected, and the **port's own `/Gy` composition** declined this body (a pooled FP constant; a frame or call sequence the port cannot lay out). Not a harness limit — see below | no |
 //! | `fnbyte-refused` | the port refuses this function | no |
 //! | `fnbyte-unbound` | no census row binds this emitted symbol, or two do | no |
 //! | `fnbyte-nobytes` | the COMDAT's raw data did not decode | no |
@@ -250,6 +250,23 @@ pub fn compare_body(port: &[u8], reference: &[u8]) -> FnByte {
     }
 }
 
+/// The `fnbyte-partial|…` tag for a shape whose `/Gy` composition declined.
+///
+/// `float-const` keeps its historical name — it is the one shape whose decline
+/// is documented in `docs/FUNCTION_BYTE_MATCH.md` §3.1 and quoted elsewhere.
+/// Everything else gets `-compose`, because `seq` alone would read as "the
+/// instrument does not grade `seq`", which is the opposite of true.
+fn compose_tag(shape: &'static str) -> &'static str {
+    match shape {
+        "float-const" => "float-const",
+        "seq" => "seq-compose",
+        "framed" => "framed-compose",
+        "tail" => "tail-compose",
+        "cond-pair" => "cond-pair-compose",
+        other => other,
+    }
+}
+
 /// One emitted symbol's verdict, with the **shape** that produced it and the
 /// stage that declined when there is no body.
 ///
@@ -290,10 +307,15 @@ pub fn grade_one(
     };
     match complete_body(func, census.opt_word) {
         Ok((shape, port)) => g(compare_body(&port, bytes), shape, None),
-        // The `/Gy` composition has no obj model for the shape — today only a
-        // pooled FP constant, which the PORT refuses under `/Gy`. It keeps the
-        // `partial` bucket because the body's bytes were never compared.
-        Err((shape, Decline::GyShape)) => g(FnByte::Partial(shape), shape, Some(Decline::GyShape)),
+        // The `/Gy` composition has no obj model for the shape. It keeps the
+        // `partial` bucket because the body's bytes were never compared — and
+        // the tag says `-compose` for every shape but the pooled FP constant, so
+        // `partial by shape: seq 2` cannot be misread as "the instrument is
+        // still blind to `seq`". It is blind to two `seq` bodies whose own
+        // composition the port declined; the other 222 are graded.
+        Err((shape, Decline::GyShape)) => {
+            g(FnByte::Partial(compose_tag(shape)), shape, Some(Decline::GyShape))
+        }
         // Everything else is a refusal: the port does not emit this function.
         Err((shape, d)) => g(FnByte::Refused, shape, Some(d)),
     }
