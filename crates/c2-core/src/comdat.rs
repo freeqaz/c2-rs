@@ -50,6 +50,7 @@
 
 use crate::codegen::{self, OptMode};
 use crate::coff;
+use crate::elide::{drops_tail_call, TuEmptyCallees};
 use crate::{data_refs_of, BackendError};
 use c2_il::IlFunction;
 
@@ -137,9 +138,10 @@ pub struct ComdatBody<'a> {
 pub fn comdat_function_body<'a>(
     f: &'a IlFunction,
     mode: OptMode,
+    tu: &TuEmptyCallees,
 ) -> Result<ComdatBody<'a>, ComdatDecline> {
     let selected = codegen::select_function(f, mode).map_err(ComdatDecline::Selector)?;
-    comdat_body_from_selected(f, selected, mode)
+    comdat_body_from_selected(f, selected, mode, tu)
 }
 
 /// [`comdat_function_body`] with the selection already made — the entry point a
@@ -149,10 +151,18 @@ pub fn comdat_function_body<'a>(
 /// `mode` is still required: `call_seq_text` reads it for the W10/W11 block
 /// structure, which is the one place the two optimization modes differ by more
 /// than a register field (`codegen::OptMode`'s own doc).
+///
+/// `tu` is the bundle's **same-TU empty-bodied callees**
+/// ([`crate::elide::TuEmptyCallees`]). It is a required parameter rather than an
+/// `Option` for the reason that module's docs give: mechanism E is the one fact
+/// in this composition that is *not* a property of one function, and a caller
+/// that forgot to supply it would silently emit a call c2 does not emit. Pass
+/// [`TuEmptyCallees::none`] to state "no bundle, therefore no elision" out loud.
 pub fn comdat_body_from_selected<'a>(
     f: &'a IlFunction,
     selected: codegen::Selected,
     mode: OptMode,
+    tu: &TuEmptyCallees,
 ) -> Result<ComdatBody<'a>, ComdatDecline> {
     let shape = selected_tag(&selected);
     let mut frame: Option<coff::Frame> = None;
@@ -273,6 +283,22 @@ pub fn comdat_body_from_selected<'a>(
                 });
             }
             (t, calls)
+        }
+        // **MECHANISM E — the call c2 does not emit** (`crate::elide`,
+        // `docs/INLINE_PREDICATE.md` §1). A tail call whose callee is defined in
+        // this same bundle with an EMPTY body leaves no branch, no REL24 and no
+        // external symbol: c2's whole body for the caller is one `blr`, and the
+        // argument setup goes with the call. Measured on 30 graded cells against
+        // real c2 at the workload's own flags AND with `/Ob0` appended — the
+        // second compilation is what separates this from inline expansion, which
+        // is NOT modeled here and must not be.
+        //
+        // Asked before the ordinary `Tail` arm rather than inside it, because
+        // the two produce different bodies from the same selection and the
+        // adjacency is the whole rule: `Selected::Tail`'s bytes are the setup,
+        // and E discards them.
+        codegen::Selected::Tail(_) if drops_tail_call(f, tu) => {
+            (codegen::encode_blr().to_vec(), Vec::new())
         }
         // Each function's text starts at offset 0 of its own COMDAT section, so
         // the branch offset is just the setup's length.

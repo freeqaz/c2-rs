@@ -110,6 +110,7 @@
 
 use c2_core::codegen::{opt_mode_of_word, select_function};
 use c2_core::comdat::{comdat_body_from_selected, selected_tag, ComdatDecline};
+use c2_core::elide::TuEmptyCallees;
 use c2_il::{FnCensus, IlFunction};
 use c2_obj::ObjImage;
 
@@ -206,11 +207,12 @@ impl Decline {
 fn complete_body(
     func: &IlFunction,
     opt_word: Option<u32>,
+    tu: &TuEmptyCallees,
 ) -> Result<(&'static str, Vec<u8>), (&'static str, Decline)> {
     let mode = opt_mode_of_word(opt_word).map_err(|_| ("opt-mode", Decline::OptMode))?;
     let selected = select_function(func, mode).map_err(|_| ("refused", Decline::Selector))?;
     let shape = selected_tag(&selected);
-    match comdat_body_from_selected(func, selected, mode) {
+    match comdat_body_from_selected(func, selected, mode, tu) {
         Ok(b) => {
             debug_assert_eq!(b.shape, shape);
             Ok((shape, b.text))
@@ -283,13 +285,28 @@ pub struct Graded {
     pub decline: Option<Decline>,
 }
 
+/// **The bundle-level context the composition needs**, built from the same
+/// census rows FBM grades — see [`c2_core::elide`].
+///
+/// Mechanism E is the one fact in a `/Gy` body that is not a property of the
+/// function alone, so it is derived from **every** census row that parsed, not
+/// from the emitted subset: an empty-bodied callee is a callee whether or not it
+/// is itself in FBM's denominator. A row that did not parse contributes nothing,
+/// which is the conservative direction — the port keeps its branch and the
+/// function keeps whatever verdict it had.
+pub fn tu_empty_callees(census: &[(FnCensus, Result<IlFunction, &'static str>)]) -> TuEmptyCallees {
+    TuEmptyCallees::of(census.iter().filter_map(|(_, g)| g.as_ref().ok()))
+}
+
 /// Grade one emitted symbol.
 ///
 /// `row` is the unique census row that binds it (`None` when zero or two rows
-/// do), `bytes` its COMDAT's raw data.
+/// do), `bytes` its COMDAT's raw data, `tu` the bundle's empty-bodied callees
+/// (see [`tu_empty_callees`]).
 pub fn grade_one(
     row: Option<&(FnCensus, Result<IlFunction, &'static str>)>,
     bytes: Option<&[u8]>,
+    tu: &TuEmptyCallees,
 ) -> Graded {
     let g = |verdict, shape, decline| Graded {
         verdict,
@@ -305,7 +322,7 @@ pub fn grade_one(
     let Ok(func) = gate else {
         return g(FnByte::Refused, "parse-refused", Some(Decline::Selector));
     };
-    match complete_body(func, census.opt_word) {
+    match complete_body(func, census.opt_word, tu) {
         Ok((shape, port)) => g(compare_body(&port, bytes), shape, None),
         // The `/Gy` composition has no obj model for the shape. It keeps the
         // `partial` bucket because the body's bytes were never compared — and
@@ -332,11 +349,12 @@ pub fn grade_one(
 fn differ_witness(
     row: Option<&(FnCensus, Result<IlFunction, &'static str>)>,
     reference: &[u8],
+    tu: &TuEmptyCallees,
 ) -> String {
     let Some((census, Ok(func))) = row else {
         return "first@-".to_string();
     };
-    let Ok((_, port)) = complete_body(func, census.opt_word) else {
+    let Ok((_, port)) = complete_body(func, census.opt_word, tu) else {
         return "first@-".to_string();
     };
     let hex = |b: &[u8]| -> String {
@@ -379,6 +397,11 @@ pub(super) fn measure(
         *res.emit.entry("fnbyte-obj-unreadable".into()).or_insert(0) += 1;
         return;
     };
+    // **Mechanism E's one bundle-level input**, resolved once per TU over every
+    // census row that parsed — never per function, and never from the emitted
+    // subset alone. See [`tu_empty_callees`] and `c2_core::elide`.
+    let tu = tu_empty_callees(census);
+    *res.emit.entry("fnbyte-tu-empty-callees".into()).or_insert(0) += tu.len();
     let mut claim: std::collections::BTreeMap<&str, Vec<usize>> =
         std::collections::BTreeMap::new();
     for (i, (f, _)) in census.iter().enumerate() {
@@ -422,7 +445,7 @@ pub(super) fn measure(
             Some([i]) => Some(&census[*i]),
             _ => None,
         };
-        let graded = grade_one(row, Some(bytes.as_slice()));
+        let graded = grade_one(row, Some(bytes.as_slice()), &tu);
         let v = graded.verdict;
         *res.emit.entry(v.key()).or_insert(0) += 1;
         if v.bare() != v.key() {
@@ -486,7 +509,7 @@ pub(super) fn measure(
                 .entry(format!(
                     "fnbyte-differs-fn|{}|w{port_words}/{ref_words}/eq{equal_words}|{}|{name}",
                     graded.shape,
-                    differ_witness(row, bytes),
+                    differ_witness(row, bytes, &tu),
                 ))
                 .or_insert(0) += 1;
             *res.emit

@@ -17,6 +17,7 @@ pub use c2_obj::ObjImage;
 pub mod codegen;
 pub mod coff;
 pub mod comdat;
+pub mod elide;
 pub mod passes;
 
 use std::fmt;
@@ -512,6 +513,19 @@ impl PortC2 {
         // `.text` section, so the texts are kept separate rather than packed.
         // The order rule is the same one — measured at `/O1` too, where it
         // decides the section table itself and not just offsets within `.text`.
+        // **MECHANISM E's one input** (`crate::elide`): which of this bundle's
+        // own functions have empty bodies. Resolved once per TU, here, because
+        // it is the only place that sees every function — the per-function
+        // composition below cannot derive it and must not guess it.
+        //
+        // Unreachable on today's accept boundary: `IlBundle::functions()`
+        // refuses any TU that defines one of its own callees, so `tu_empty` is
+        // non-empty only for a TU whose empty-bodied function nobody calls.
+        // Built unconditionally anyway — the FBM instrument runs the same
+        // composition over the *census*, where it does fire, and one
+        // composition with two contexts is how those two stay in agreement.
+        let tu_empty = elide::TuEmptyCallees::of(&funcs);
+
         if self.fn_level_linking {
             let mut texts: Vec<Vec<u8>> = Vec::with_capacity(funcs.len());
             let mut placed: Vec<coff::Function> = Vec::with_capacity(funcs.len());
@@ -525,7 +539,7 @@ impl PortC2 {
             // carries the reason the harness must call this and never a copy.
             for &fi in &order {
                 let f = &funcs[fi];
-                let body = comdat::comdat_function_body(f, mode)?;
+                let body = comdat::comdat_function_body(f, mode, &tu_empty)?;
                 placed.push(coff::Function {
                     name: &f.mangled_name,
                     text_offset: 0,
@@ -663,6 +677,29 @@ impl PortC2 {
                     }
                     text.extend_from_slice(&body);
                     (calls, Vec::new())
+                }
+                // **MECHANISM E, refused rather than modeled on the PACKED
+                // path.** The `/Gy` composition emits one `blr` here
+                // (`crate::elide`); the packed emitter would have to shorten the
+                // function, which moves every later function's `.text` offset,
+                // every branch displacement built on it and the `.pdata`
+                // association numbers. Nothing measures that, so it refuses.
+                //
+                // Unreachable today — `IlBundle::functions()` refuses any TU
+                // that defines one of its own callees, which is a superset of
+                // this condition — and it is written out anyway so that the two
+                // emitters cannot silently disagree about one rule if that
+                // refusal is ever narrowed.
+                codegen::Selected::Tail(_) if elide::drops_tail_call(f, &tu_empty) => {
+                    return Err(BackendError::NotImplemented(
+                        "a call the front end drops (its callee is defined in \
+                         this TU with an empty body) inside a PACKED `.text`: \
+                         the elision shortens the caller, and no capture \
+                         measures what that does to the following functions' \
+                         offsets. Modeled under /Gy only — docs/INLINE_PREDICATE.md \
+                         §1, crates/c2-core/src/elide.rs"
+                            .to_string(),
+                    ))
                 }
                 // Tail call. A void bare call (an empty setup) is a single
                 // `b <callee>` (REL24) at this offset; an integer or multi-argument
