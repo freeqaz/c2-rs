@@ -110,7 +110,7 @@
 
 use c2_core::codegen::{opt_mode_of_word, select_function};
 use c2_core::comdat::{comdat_body_from_selected, selected_tag, ComdatDecline};
-use c2_core::elide::TuEmptyCallees;
+use c2_core::elide::{Reduction, TuEmptyCallees};
 use c2_il::{FnCensus, IlFunction};
 use c2_obj::ObjImage;
 
@@ -320,11 +320,20 @@ pub struct Graded {
 /// A row with no `emit_name` contributes nothing: it binds no emitted symbol, so
 /// nothing can reach it under that name either.
 pub fn tu_empty_callees(census: &[(FnCensus, Result<IlFunction, &'static str>)]) -> TuEmptyCallees {
-    TuEmptyCallees::of_named(
-        census
-            .iter()
-            .filter_map(|(c, g)| Some((c.emit_name.as_deref()?, g.as_ref().ok()?))),
-    )
+    TuEmptyCallees::of_rows(census.iter().filter_map(|(c, g)| {
+        let name = c.emit_name.as_deref()?;
+        match g.as_ref().ok() {
+            Some(f) => Some((name, Reduction::Parsed(f))),
+            // **Board #980.** A row that did not parse contributes an edge when —
+            // and only when — `c2-il`'s dead-temporary reader could read one out
+            // of it. Every other refused row still contributes nothing, which is
+            // the conservative direction the paragraph above describes.
+            //
+            // The row's verdict does not move: it is still `Blocked`, still
+            // `fnbyte-refused`, and `IlBundle::functions` still refuses its TU.
+            None => Some((name, Reduction::NoEffectCall(c.no_effect_callee.as_deref()?))),
+        }
+    }))
 }
 
 /// Grade one emitted symbol.
@@ -619,6 +628,64 @@ pub(super) fn measure(
             }
         }
     }
+    // **Board #980 — the dead-temporary reader, counted where it fires and
+    // graded against the judge's own bytes.** Three positive counts, because
+    // "the reader recognized N bodies" and "the fixpoint admitted N" and "c2
+    // agrees about N" are three different claims and a lane that prints only the
+    // last cannot say which of the first two moved:
+    //
+    // * `-noeffect-rows` — refused census rows the reader read.
+    // * `-noeffect-admitted` — of those, the ones whose callee actually reduces
+    //   to nothing, i.e. the ones the fixpoint took.
+    // * `-noeffect-ref-blr` / `-noeffect-ref-other` — **the known answer.** For
+    //   an admitted row, c2's own `.text` COMDAT must be the single word
+    //   `4e800020`. `-ref-other` is the alarm, and it is printed rather than
+    //   inferred from a subtraction. A row c2 emits no COMDAT for at all is in
+    //   neither: it is `-noeffect-ref-absent`.
+    for (c, _) in census {
+        let Some(callee) = c.no_effect_callee.as_deref() else {
+            continue;
+        };
+        *res.emit.entry("fnbyte-noeffect-rows".into()).or_insert(0) += 1;
+        if !tu.reduces_to_nothing(callee) {
+            // **Why the chain stopped**, split so the residue is attributable
+            // rather than a single number. The reader firing and the fixpoint
+            // taking it are two different events, and the gap between them is
+            // the callee's own disposition — exactly the axis `w-seq` §2 had to
+            // add to make "1,774 name a refused callee" mean anything.
+            let found = census
+                .iter()
+                .find(|(c2, _)| c2.emit_name.as_deref() == Some(callee));
+            let key = match found {
+                None => "fnbyte-noeffect-callee-unbound",
+                Some((_, Ok(_))) => "fnbyte-noeffect-callee-parsed-live",
+                Some((_, Err(_))) => "fnbyte-noeffect-callee-refused",
+            };
+            *res.emit.entry(key.into()).or_insert(0) += 1;
+            // **The road ahead, by production.** When the chain stops at a
+            // refused callee, name the production it stopped at — the same
+            // widening-order histogram the census itself is, restricted to the
+            // one population this rule is blocked on. Without it the residue is
+            // a single number and the next rung has nothing to aim at.
+            if let Some((c2, Err(_))) = found {
+                *res.emit
+                    .entry(format!("fnbyte-noeffect-stop|{}", c2.verdict.key()))
+                    .or_insert(0) += 1;
+            }
+            continue;
+        }
+        *res.emit.entry("fnbyte-noeffect-admitted".into()).or_insert(0) += 1;
+        let key = match c
+            .emit_name
+            .as_deref()
+            .and_then(|n| entries.iter().find(|(e, _)| e == n))
+        {
+            Some((_, b)) if b.as_slice() == [0x4E, 0x80, 0x00, 0x20] => "fnbyte-noeffect-ref-blr",
+            Some(_) => "fnbyte-noeffect-ref-other",
+            None => "fnbyte-noeffect-ref-absent",
+        };
+        *res.emit.entry(key.into()).or_insert(0) += 1;
+    }
     let mut claim: std::collections::BTreeMap<&str, Vec<usize>> =
         std::collections::BTreeMap::new();
     for (i, (f, _)) in census.iter().enumerate() {
@@ -742,6 +809,39 @@ pub(super) fn measure(
                 if v == FnByte::Exact {
                     *res.emit.entry("fnbyte-elided-exact".into()).or_insert(0) += 1;
                 }
+            }
+        }
+        // **Board #980's residue, priced where it lives.** A `differs` whose
+        // whole reference body is one `4e800020` is a function c2 emits nothing
+        // for and the port emits a call for — the cluster this lane is about.
+        // For each one still standing, name the CALLEE's own blocking
+        // production, and when that callee is itself a recognized no-effect body
+        // name its callee's. Two levels, because the chain in this family is
+        // three deep (`_Destroy_Range` → `__destroy_range` → the tag-dispatch
+        // leaf) and a one-level count would say "memset" for every row and price
+        // nothing.
+        if matches!(v, FnByte::Differs { .. }) && bytes.as_slice() == [0x4E, 0x80, 0x00, 0x20] {
+            let callee = match row {
+                Some((_, Ok(f))) => f.tail_call.as_deref(),
+                _ => None,
+            };
+            let key = |n: Option<&str>| -> String {
+                match n.and_then(|n| census.iter().find(|(c, _)| c.emit_name.as_deref() == Some(n)))
+                {
+                    None => "callee-unbound".to_string(),
+                    Some((c, _)) => c.verdict.key(),
+                }
+            };
+            *res.emit
+                .entry(format!("fnbyte-blr-stop|{}", key(callee)))
+                .or_insert(0) += 1;
+            let grand = callee
+                .and_then(|n| census.iter().find(|(c, _)| c.emit_name.as_deref() == Some(n)))
+                .and_then(|(c, _)| c.no_effect_callee.as_deref());
+            if grand.is_some() {
+                *res.emit
+                    .entry(format!("fnbyte-blr-stop2|{}", key(grand)))
+                    .or_insert(0) += 1;
             }
         }
         accounted += 1;

@@ -136,6 +136,12 @@ pub(crate) fn no_effect_call(seg: &[u8]) -> Option<u32> {
     // ---- the argument region: a closed vocabulary of three forms ------------
     let mut temps = 0usize;
     loop {
+        // Source-line markers are decode-only — c2 emits nothing at one — and a
+        // real workload body carries them between statements and inside argument
+        // lists alike. Eating them here is what the accepted shapes do at every
+        // statement boundary; **it widens nothing**, because the vocabulary below
+        // is still closed and a marker is not a member of it.
+        eat_opt_stmt_marker(seg, &mut p);
         match *seg.get(p)? {
             0x4C => {
                 p += 1;
@@ -169,6 +175,12 @@ pub(crate) fn no_effect_call(seg: &[u8]) -> Option<u32> {
     if !eat_byte(seg, &mut p, 0x4B) {
         return None;
     }
+    // The `}` of the statement, as a line marker. `eat_return_head` opens on the
+    // `3A` directly, so a body whose call and whose return are on two source
+    // lines — which is every one in the workload — needs this and the pinned
+    // one-line cell does not. Measured: without it the reader fires **0** times
+    // on the 878-TU workload and 1 time on the hand cell.
+    eat_opt_stmt_marker(seg, &mut p);
     // The fail-closed terminal: this must reach the end of the segment, which is
     // what makes the walk total and the "read nowhere else" claim structural.
     eat_return_plumbing(seg, &mut p, false, depth).ok()?;
@@ -419,6 +431,19 @@ mod tests {
         seg.push(0x26);
         seg.push(0x11);
         assert_eq!(no_effect_call(&seg), None);
+    }
+
+    /// **The source-line markers a real body carries.** The pinned cell puts its
+    /// call and its return on one line; every workload body does not, and a
+    /// `4F 01 <line>` sits between the `4B` and the return plumbing. Splicing one
+    /// in must not change the answer — measured the hard way, this reader fired
+    /// **0** times on the whole workload until it ate them.
+    #[test]
+    fn a_line_marker_before_the_return_plumbing_is_eaten() {
+        let mut seg = DEAD_TEMP_CALL.to_vec();
+        let k = at(&[0x4C, 0x4B, 0x3A]);
+        seg.splice(k + 2..k + 2, [0x4F, 0x01, 0x46]);
+        assert_eq!(no_effect_call(&seg), Some(DEAD_TEMP_CALLEE));
     }
 
     /// **An ordinary void call with no temporary is not this shape** — it has its

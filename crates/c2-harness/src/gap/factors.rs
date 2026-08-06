@@ -1278,6 +1278,52 @@ impl GapReport {
             ] {
                 m.push((k, self.emit_total(k).to_string()));
             }
+            // **Board #980's own counters** — the dead-temporary reader that
+            // feeds mechanism E a callee it could not previously establish.
+            // Emitted unconditionally, zeros included, for the same reason the
+            // three above are: a reader that stopped firing would read as "no
+            // news".
+            //
+            // `-ref-other` is the **alarm**: for every row the fixpoint admitted
+            // on this reader's evidence, c2's own `.text` COMDAT is asserted to
+            // be one `4e800020`. A nonzero here says the rule fired on a body c2
+            // emits bytes for, and it is a positive count rather than a
+            // subtraction so it cannot be mistaken for absence.
+            for k in [
+                "fnbyte-noeffect-rows",
+                "fnbyte-noeffect-admitted",
+                "fnbyte-noeffect-ref-blr",
+                "fnbyte-noeffect-ref-other",
+                "fnbyte-noeffect-ref-absent",
+                "fnbyte-noeffect-callee-unbound",
+                "fnbyte-noeffect-callee-parsed-live",
+                "fnbyte-noeffect-callee-refused",
+            ] {
+                m.push((k, self.emit_total(k).to_string()));
+            }
+            // The stop histogram's top rows — the widening order for board
+            // #980's rule. `Box::leak` for the same reason the shape census
+            // leaks: this function's signature is `&'static str` and the key
+            // half is data-derived. Bounded at 8 rows per report.
+            for (key, n) in self.fn_byte_noeffect_stops().into_iter().take(8) {
+                m.push((
+                    Box::leak(format!("fnbyte-noeffect-stop-{key}").into_boxed_str()),
+                    n.to_string(),
+                ));
+            }
+            // The residue of board #980's own cluster, at both levels of the
+            // chain. Top 6 each; a row here is a production and a count of
+            // functions it holds, which is what a follow-on rung is sized off.
+            for (prefix, tag) in
+                [("fnbyte-blr-stop|", "blr-stop"), ("fnbyte-blr-stop2|", "blr-stop2")]
+            {
+                for (key, n) in self.fn_byte_blr_stops(prefix).into_iter().take(6) {
+                    m.push((
+                        Box::leak(format!("fnbyte-{tag}-{key}").into_boxed_str()),
+                        n.to_string(),
+                    ));
+                }
+            }
             // **Board #322's own keys.** The four shapes FBM used to decline are
             // graded now, so the collector needs to be able to say *which* shape
             // moved and *which* stage still declines — a corpus total cannot.

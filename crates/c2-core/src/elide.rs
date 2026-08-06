@@ -178,6 +178,37 @@
 
 use c2_il::IlFunction;
 
+/// **What one definition contributes to the fixpoint** — and the reason there are
+/// two variants is board **#980**.
+///
+/// E's step asks one question of a body: *does c2 emit anything for it, given
+/// what its callee does*. Until 2026-08-08 the only body that could answer was
+/// one the IL parser **accepted**, because the answer was read off
+/// [`IlFunction`]. The 370 differs of board #980 are the case where the answer is
+/// readable and the body is not accepted: its whole content is one discarded call
+/// plus a temporary the body's own grammar proves nothing else reads
+/// (`c2-il`'s `body::shapes::no_effect`, `FnCensus::no_effect_callee`).
+///
+/// So the input is a *reduction fact* rather than a parsed function, and the two
+/// variants are the two ways a caller can have one. Both feed the **same**
+/// fixpoint, the same cycle refusal and the same round ceiling — a refused body
+/// contributes a **link and never a seed**, so nothing about termination changes:
+/// a chain of nothing but `NoEffectCall`s is still never admitted, because
+/// nothing in it seeds.
+#[derive(Debug, Clone, Copy)]
+pub enum Reduction<'a> {
+    /// A body the parser accepted. Seeds when [`IlFunction::empty_body`]; steps
+    /// when it is an elidable tail call ([`elidable_step`]).
+    Parsed(&'a IlFunction),
+    /// A body the parser **REFUSED**, whose grammar nonetheless proves that it
+    /// emits nothing but a call to this callee. Never seeds.
+    ///
+    /// The refusal is unchanged by this: the row is still `FnVerdict::Blocked`,
+    /// still `fnbyte-refused`, and `IlBundle::functions` still refuses its whole
+    /// TU. What it contributes is one edge of the graph.
+    NoEffectCall(&'a str),
+}
+
 /// The **same-TU callees that reduce to nothing** in one IL bundle: conditions 1
 /// and 2 of [`drops_tail_call`], resolved once per TU instead of once per call —
 /// and closed under E itself, which is the whole of board #924.
@@ -251,9 +282,18 @@ impl TuEmptyCallees {
     /// TU carries thousands of census rows, and a quadratic membership test here
     /// would be paid on every TU of every scan.
     pub fn of_named<'a>(named: impl IntoIterator<Item = (&'a str, &'a IlFunction)>) -> Self {
-        let mut rows: Vec<(&str, &IlFunction)> =
-            named.into_iter().filter(|(n, _)| !n.is_empty()).collect();
-        rows.sort_unstable_by_key(|(n, _)| *n);
+        Self::of_rows(named.into_iter().map(|(n, f)| (n, Reduction::Parsed(f))))
+    }
+
+    /// [`TuEmptyCallees::of_named`] over [`Reduction`]s — the general form, and
+    /// the one a caller with **refused** rows needs (board #980).
+    ///
+    /// Identical for a `Parsed`-only input, byte for byte: `of_named` is a
+    /// wrapper over this and every existing test goes through it unchanged.
+    pub fn of_rows<'a>(rows: impl IntoIterator<Item = (&'a str, Reduction<'a>)>) -> Self {
+        let mut rows: Vec<(&str, Reduction<'a>)> =
+            rows.into_iter().filter(|(n, _)| !n.is_empty()).collect();
+        rows.sort_by_key(|(n, _)| *n);
 
         // ---- one node per distinct name ------------------------------------
         //
@@ -270,9 +310,14 @@ impl TuEmptyCallees {
             let mut all_empty = true;
             let mut step: Option<Option<&str>> = None;
             while j < rows.len() && rows[j].0 == name {
-                let f = rows[j].1;
-                all_empty &= f.empty_body;
-                let here = elidable_step(f);
+                // A REFUSED no-effect body never seeds — it is a link and only a
+                // link, so a chain built entirely of them is never admitted and
+                // the termination argument below is unchanged.
+                let (seeds, here) = match rows[j].1 {
+                    Reduction::Parsed(f) => (f.empty_body, elidable_step(f)),
+                    Reduction::NoEffectCall(callee) => (false, Some(callee)),
+                };
+                all_empty &= seeds;
                 step = Some(match step {
                     None => here,
                     // Two definitions that step to different callees, or one
