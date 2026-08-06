@@ -6,7 +6,7 @@ CELL s08_framed_add
     | 
     | void ext_anchor();
     | void anchor() { ext_anchor(); }
-== /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a20bfde3e9178642e/work/w-seq/caps/s08_framed_add.obj  machine=0x01f2 nsec=7 nsym=21 size=1142
+== <worktree>/work/w-seq/caps/s08_framed_add.obj  machine=0x01f2 nsec=7 nsym=21 size=1142
 -- .text #5 (8 B) ?g@@YAHH@Z
    0000  38630001  addi 3, 3, 1                    
    0004  4e800020  blr                             
@@ -23,7 +23,7 @@ CELL s11_two_arg_perm
     | 
     | void ext_anchor();
     | void anchor() { ext_anchor(); }
-== /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a20bfde3e9178642e/work/w-seq/caps/s11_two_arg_perm.obj  machine=0x01f2 nsec=7 nsym=21 size=1144
+== <worktree>/work/w-seq/caps/s11_two_arg_perm.obj  machine=0x01f2 nsec=7 nsym=21 size=1144
 -- .text #5 (8 B) ?g@@YAHHH@Z
    0000  7c641850  sub	3, 3, 4                     
    0004  4e800020  blr                             
@@ -40,7 +40,7 @@ CELL s14_cmp_callee
     | 
     | void ext_anchor();
     | void anchor() { ext_anchor(); }
-== /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a20bfde3e9178642e/work/w-seq/caps/s14_cmp_callee.obj  machine=0x01f2 nsec=7 nsym=21 size=1182
+== <worktree>/work/w-seq/caps/s14_cmp_callee.obj  machine=0x01f2 nsec=7 nsym=21 size=1182
 -- .text #5 (28 B) ?g@@YAHH@Z
    0000  39600003  li 11, 3                        
    0004  7d435810  subc	10, 11, 3                  
@@ -68,7 +68,7 @@ CELL s12_callee_calls_extern
     | 
     | void ext_anchor();
     | void anchor() { ext_anchor(); }
-== /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a20bfde3e9178642e/work/w-seq/caps/s12_callee_calls_extern.obj  machine=0x01f2 nsec=7 nsym=22 size=1190
+== <worktree>/work/w-seq/caps/s12_callee_calls_extern.obj  machine=0x01f2 nsec=7 nsym=22 size=1190
 -- .text #5 (4 B) ?g@@YAXXZ
    0000  48000000  b .+0                             ; REL24 -> [14] ?ext@@YAXXZ
 -- .text #6 (4 B) ?f@@YAXXZ

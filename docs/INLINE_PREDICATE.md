@@ -246,6 +246,35 @@ side-effecting setup has to re-grade this.
 
 ## 2. Mechanism I — `INLINE-P`, and it is prior art
 
+> ### 2026-08-08 — **what mechanism I's BYTES are is now measured, on 3,195 workload functions, and it is not what this page implies.**
+>
+> Lane `w-seq` ([`rungs/2026-08-08-w-seq.md`](rungs/2026-08-08-w-seq.md)) took the
+> residual `fnbyte-differs` **3,195** and resolved every differing body's callee
+> set against the same TU's census rows. **2,801 (87.7 %) are mechanism I**, 369
+> are E behind a parse refusal, and 25 are neither and are named (board **#966**).
+>
+> The page below answers *whether* c2 inlines. It says nothing about *what the
+> caller's bytes then are*, and the two candidate answers separate cleanly:
+>
+> | hypothesis | graded | exact |
+> |---|---:|---:|
+> | **SPLICE-P** — the port's argument setup ++ c2's callee body | 2,470 | **578** — and **578 of 578** where the port emits no setup, **0 of 953** where it does (#967) |
+> | **SPLICE-0** — c2's callee body **alone**, the setup discarded | 2,470 | **1,967** — `seq` **816/816**, `tail` 1,151/1,531, `framed` **0/123** (#968) |
+> | **SPLICE-N** — two or more callees, concatenated | 548 | **0** |
+>
+> **When SPLICE-0 fails it fails in ONE FIELD** (#969): a source register rename
+> `r3 → r4` (286, `?Release@Object@Hmx@@`), a destination rename `r3 → r11` (123,
+> every `framed` differ), a displacement fold (~92). **No reorder appears in any
+> of the 503 failures** — the schedule is not perturbed, the register allocation
+> and the frame are.
+>
+> **Worth on today's port: 726**, the subset where SPLICE-0 is exact *and* the
+> port already lowers the callee byte-exactly. The other 1,241 need a parser
+> widening first, and #970 prices those productions. **Nothing shipped** — the
+> spec is `w-seq` §6 and its first clause is that this is not a substitute for
+> §3's decision rule, whose 2.84 % residual is still **NOT MODELLED** below.
+
+
 Every constant below is transcribed from `docs/LABEL_COUNTER.md` §6.15–§6.20 and
 carries its section number. **This document derives none of them.** It grades
 them, on a corpus and at flags those rounds never used.

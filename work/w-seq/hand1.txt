@@ -7,7 +7,7 @@ CELL s01_void_tail_no_setup
     | 
     | void ext_anchor();
     | void anchor() { ext_anchor(); }
-== /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a20bfde3e9178642e/work/w-seq/caps/s01_void_tail_no_setup.obj  machine=0x01f2 nsec=8 nsym=24 size=1258
+== <worktree>/work/w-seq/caps/s01_void_tail_no_setup.obj  machine=0x01f2 nsec=8 nsym=24 size=1258
 -- .text #6 (8 B) ?g@@YAHH@Z
    0000  38630001  addi 3, 3, 1                    
    0004  4e800020  blr                             
@@ -24,7 +24,7 @@ CELL s03_reg_move_setup
     | 
     | void ext_anchor();
     | void anchor() { ext_anchor(); }
-== /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a20bfde3e9178642e/work/w-seq/caps/s03_reg_move_setup.obj  machine=0x01f2 nsec=7 nsym=21 size=1147
+== <worktree>/work/w-seq/caps/s03_reg_move_setup.obj  machine=0x01f2 nsec=7 nsym=21 size=1147
 -- .text #5 (8 B) ?g@@YAHH@Z
    0000  38630001  addi 3, 3, 1                    
    0004  4e800020  blr                             
