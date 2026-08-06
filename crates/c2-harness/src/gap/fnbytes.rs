@@ -786,11 +786,16 @@ pub(super) fn measure(
         // as a *deletion* — which is exactly how 140 mechanism-I bodies came to
         // be filed as "the port omits a call c2 makes".
         if matches!(v, FnByte::Exact | FnByte::Differs { .. }) {
-            match (row, call_targets.get(name.as_str())) {
-                (Some((c, Ok(f))), Some(reftargets))
-                    if port_call_targets(f, c.opt_word, &tu).is_some() =>
-                {
-                    let pt = port_call_targets(f, c.opt_word, &tu).expect("checked");
+            // `port_call_targets` recomposes the body, so it is called ONCE and
+            // the "the port has no body here" case falls through to `ungraded`
+            // with the two lookups — a guard that called it and then called it
+            // again in the arm would pay for every graded function twice.
+            let pt = match row {
+                Some((c, Ok(f))) => port_call_targets(f, c.opt_word, &tu),
+                _ => None,
+            };
+            match (pt, call_targets.get(name.as_str())) {
+                (Some(pt), Some(reftargets)) => {
                     // Compared as `(offset, name)` pairs, in emitted order. The
                     // offset is carried because a call at the right site to the
                     // wrong symbol and a call to the right symbol from the wrong
