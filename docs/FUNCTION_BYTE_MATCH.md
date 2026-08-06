@@ -122,7 +122,7 @@ green about relocations the port does not emit is worse than the blind one it
 replaced.*
 
 **The old count stays derivable.** `fnbyte-exact-bytes` republishes the previous
-`fnbyte-exact` predicate and read **35,982** at both ends of the widening —
+`fnbyte-exact` predicate and read **35,986** at both ends of the widening —
 `exact + reloc-differs + reloc-unknown`, to the digit. `fnbyte-reloc-graded +
 fnbyte-reloc-unknown = fnbyte-exact-bytes` is a second positive identity with its
 own broken-counter (`fnbyte-reloc-partition-broken`, known answer 0), because a
@@ -221,7 +221,7 @@ any one of its functions is out of class, so *whole-obj* similarity is indeed
 undefined on 99.1 % of TUs. But `codegen::select_function` answers **per
 function**, and the reference obj's per-COMDAT bytes are already extractable
 (`ObjImage::text_comdat_functions_with_bytes`, added for the listing seam). The
-port's output is therefore defined on **38,458 of 178,975 emitted functions
+port's output is therefore defined on **38,458 of 178,977 emitted functions
 (21.5 %)**, and 29,084 of those can be graded against c2's own bytes today.
 
 The refutation matters for a reason beyond bookkeeping. §2.1's argument was that
@@ -285,17 +285,17 @@ are byte-identical at both ends, 20 keys are new, and nothing outside the
 
 | | before | after |
 |---|---:|---:|
-| **FBM** | 0.20106 | **0.19625** |
-| **exact** | 35,982 | **35,121** — *shrank, and that is the finding* |
+| **FBM** | 0.20108 | **0.19627** |
+| **exact** | 35,986 | **35,125** — *shrank, and that is the finding* |
 | **NEW `fnbyte-reloc-differs`** | — | **861** |
 | `-differs-target` · `-count` · `-offset` · `-type` · `-section-target` | — | **861 · 0 · 0 · 0 · 0** |
-| **NEW `fnbyte-exact-bytes`** (the OLD `exact`) | — | **35,982** — recovered to the digit |
-| **NEW `fnbyte-reloc-graded` / `-reloc-unknown`** | — | **35,982 / 0** |
+| **NEW `fnbyte-exact-bytes`** (the OLD `exact`) | — | **35,986** — recovered to the digit |
+| **NEW `fnbyte-reloc-graded` / `-reloc-unknown`** | — | **35,986 / 0** |
 | `fnbyte-exact-relocated` | 4,664 (ungraded) | **3,803 (graded and credited)**; `-reloc-graded-relocated` **4,664** |
 | `tail` exact / reloc-differs | 5,567 / — | **4,722 / 845** |
 | `seq` exact / reloc-differs | 609 / — | **593 / 16** |
 | `cond-pair` · `plain` · `float` exact | 4 · 29,352 · 450 | **unchanged — none of these relocate wrongly** |
-| differs · whole-TU · partial · refused · unbound · denominator | 3,195 · 2 · 0 · 130,573 · 9,225 · 178,975 | **unchanged** |
+| differs · whole-TU · partial · refused · unbound · denominator | 3,195 · 2 · 0 · 130,579 · 9,217 · 178,977 | **unchanged** |
 | controls: partition-broken · reloc-reach-broken · match-TU differs · **match-TU RELOC-differs** · census disagree | 0 · — · 0 · — · 0 | **0 · 0 · 0 · 0 · 0** |
 | residue: `-reloc-table-unreadable` · `-reloc-index-desync` | — | **0 · 0** |
 | **NEW** `fnbyte-reloc-vs-calltarget-{both, reloc-only, calltarget-only}` | — | **861 · 0 · 0** |
@@ -328,7 +328,7 @@ the wrong *function*. The families (`fnbyte-reloc-fam|…`):
 
 | n | family | reading |
 |---:|---|---|
-| **528** | `tail\|target\|local->local\|blocked` | the port's own target is a body the parser refused, so whether it calls what c2 named is **not answerable here** — priced by production: `expr-call-in-expr-recv-field-off0-then-chain-bind-whole` 348 · `…-intrinsic-this-adjust-then-chain-bind-whole` 103 · `expr-ternary` 50 · two more |
+| **529** | `tail\|target\|local->local\|blocked` | the port's own target is a body the parser refused, so whether it calls what c2 named is **not answerable here** — priced by production: `expr-call-in-expr-recv-field-off0-then-chain-bind-whole` 348 · `…-intrinsic-this-adjust-then-chain-bind-whole` 103 · `expr-ternary` 50 · two more |
 | **169** | `tail\|target\|local->local\|unrelated` | edges existed and none reached c2's target |
 | **73 + 69** | `tail\|target\|local->local\|chain2` / `chain1` | **`s12`'s mechanism, proven on the workload**: c2 named what the port's own callee calls, one or two steps along |
 | **16** | `seq\|target\|local->extern\|chain1` | the same, with the reference naming an external |
@@ -361,7 +361,7 @@ thing that changed is what the port composes for one `Selected` shape.
 | **differs** | **4,711** | **3,338** |
 | `tail` exact / differs | 4,051 / 3,047 | **5,424 / 1,674** |
 | differs witnesses (distinct symbols) | 1,950 | **1,405** |
-| whole-TU · partial · refused · unbound · denominator | 2 · 0 · 130,573 · 9,225 · 178,975 | **unchanged** |
+| whole-TU · partial · refused · unbound · denominator | 2 · 0 · 130,579 · 9,217 · 178,977 | **unchanged** |
 | `fnbyte-exact-relocated` | 4,664 | **4,664** — the new bodies carry no relocation |
 | **NEW** `fnbyte-elided` / `fnbyte-elided-exact` | — | **1,373 / 1,373** |
 | **NEW** `fnbyte-name-disagree` | — | **74,955** |
@@ -395,7 +395,7 @@ instrument.
 | whole-TU (oracle-certified) | 5 | **2** — three of the five are now credited by the route itself |
 | **differs** | **0** | **4,711** |
 | partial (FBM's under-report) | 9,375 | **0** |
-| refused · unbound · denominator | 130,573 · 9,225 · 178,975 | **unchanged** |
+| refused · unbound · denominator | 130,579 · 9,217 · 178,977 | **unchanged** |
 | `fnbyte-exact-relocated` (trap 6) | 0 | **4,664** |
 | controls: partition-broken · match-TU differs · census disagree | 0 · 0 · 0 | **0 · 0 · 0** |
 
@@ -424,13 +424,13 @@ Workload scan, 878 TUs, `capture-fail 7 / graded 871`, tree `64f4754`
 
 | | |
 |---|---|
-| **FBM** | **(29,084 + 2) / 178,975 = 0.16251** |
+| **FBM** | **(29,084 + 2) / 178,977 = 0.16251** |
 | exact (per-function route) | 29,084 (16.25 %) |
 | whole-TU (oracle-certified) | 2 |
 | **differs** | **0** |
 | partial (FBM's under-report) | 9,374 (5.24 %) — `tail` 7,098 · `seq` 2,150 · `framed` 123 · `cond-pair` 3 |
 | refused | 131,292 (73.36 %) |
-| unbound | 9,225 (5.15 %) |
+| unbound | 9,217 (5.15 %) |
 | no-bytes / obj-unreadable / partition breaks | 0 / 0 / 0 |
 | controls: match-TU differs · census/gate disagree on emitted | 0 · 0 |
 | **credited functions carrying a relocation** (§7.7) | **0** |
@@ -468,7 +468,7 @@ Two identities worth keeping:
    which is not a smaller gain, it is an **alarm**. The general form is worth
    keeping: *when an instrument widens, the new population splits, and a lane
    that budgeted only for the credit will read the split as a shortfall.*
-3. **`unbound` is an instrument limit wearing a port's clothes.** 9,225 emitted
+3. **`unbound` is an instrument limit wearing a port's clothes.** 9,217 emitted
    symbols bind to no census row; those are the emitted-census residue
    (`GAPS.md` §8) under a second name. A binding repair moves FBM without the
    codegen moving. Read it beside `emit-residue-*`, which already splits that
