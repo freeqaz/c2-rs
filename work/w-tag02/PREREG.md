@@ -121,3 +121,38 @@ This lane may use **#936–#945** and no others.
 ## Addenda
 
 *(dated, appended, never a rewrite of the above)*
+
+### Addendum A — 2026-08-06, after the §2 grid was captured and read
+
+The §2 grid **refuted P2 and P2′ together**, and the refutation is what this
+addendum is for. `t09_struct_offset` spells `02 ec 09 · 04 · 04` and
+`t10_array_offset` spells `02 e3 09 · 08 · 04` — so the slot P2 called a
+*constant separator* is the **byte offset**, and P2′ named three places for the
+offset, none of which was that one. Six more cells, registered before they are
+compiled, to close the encoding of the two fields that are now known to be two
+different fields:
+
+| cell | source | axis, and the claim it can kill |
+|---|---|---|
+| `t18_offset_128` | `struct S{char pad[128];int b;}; S s; int* p=&s.b;` | **P17** — the offset is a byte at `0x80`, not a varint escape. Dies if `0x80` is followed by a payload |
+| `t19_offset_160` | `int arr[64]; int* p=&arr[40];` | offset `0xA0` — a high-bit byte that is **not** `0x80` |
+| `t20_offset_1200` | `int arr[1024]; int* p=&arr[300];` | offset `0x4B0` — **P18**: an offset past one byte needs *some* wider form; I predict `80` + LE**32**, the same escape the scalar value uses at width 4 |
+| `t21_offset_negative` | `int arr[4]; int* p=arr-1;` | a negative offset, if `cl` accepts it as a constant |
+| `t22_offset_65540` | `struct S{char pad[65536];int b;}; S s; int* p=&s.b;` | offset `0x10004` — past a 16-bit form, which separates LE16 from LE32 |
+| `t23_wide_token` | 31,000 objects, then `int* deep=&gi;` | **P19** — the **target** token in its 4-byte form. `t17`'s 302 objects only reached `0x0b10`; the 2-byte form ends when the stream's second byte gets its high bit, so this is the only cell that exercises `read_token_var`'s escape on a tag-`02` target |
+
+**P20** (registered now): `<n>` reads `04` on **every** tag-`02` element of the
+combined grid, and the reader treats any other value as unmeasured and refuses.
+It cannot be varied on a 32-bit target by any construct in the grid, so this is
+an **observed** constant, not a known one, and it is written down as such.
+
+**P21 — a hazard the §2 grid found and the prereg did not have.**
+`t14_const_ptr` (`int gi; int* const cp = &gi;`) puts a tag-`02` record in `.in`
+and c2 emits **no `.data`, no section and no symbol** for `cp`: the obj is
+`gi`'s `.bss` and the shell. `data_tu`'s existing drop rule requires
+`!external && !initialized && !referenced`, and this object **is** initialized —
+so a reader widening that hands `data_tu` four bytes for `cp` produces an obj
+with a `.data` section c2 does not emit. That is P13's mechanism with a
+*different* trigger than P13 named, and the cell is now a required member of the
+differential set: OLD refuses, NEW must **also** refuse, and refusing for the
+right reason is what the test has to pin.
