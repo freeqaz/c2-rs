@@ -236,3 +236,121 @@ vocab-gap 861 · port-error 0 · capture-fail 7 · FRONTIER 17 · `fnbyte-differ
 ## 8. Addenda
 
 Each addendum is dated and committed **before** the grid it declares exists.
+
+---
+
+### ADDENDUM 1 — 2026-08-06 · the candidate RULE W2, and GRID H
+
+Committed **before** `holdout.py` exists. GRID S is measured (`spellgrid.out`,
+160 selected / 160 reached / **146 graded** / 14 out of regime) and `fit.py` has
+scored two candidates on it **and on the four prior lanes' committed logs**
+(`fit.out`, 388 cells, nothing compiled). This addendum registers what §5's
+frozen holdout will grade, and it does so with the fit numbers already known —
+which is stated plainly rather than hidden, because a holdout is only worth
+anything if the thing it grades was frozen *first*.
+
+#### A1.1 What GRID S showed, in one table
+
+Four groups, and the group is **not** a function of the mnemonic
+(PREREG **S2 is a MISS**: `self` and `cross` are both `addi rX,r3,K` and
+disagree at 1-vs-1):
+
+```text
+  self     (addi interior, stored into the object it points at)   P everywhere
+  cross addi add srawi                                            P iff ru >= 2
+  extsh lwz                                                       P iff cu == 1
+  sub and or xor neg not slwi srwi                                P iff ru >= 2
+                                                                    and cu == 1
+                                                                    and bases 1
+```
+
+#### A1.2 RULE W is REFUTED before its own holdout exists
+
+`fit.py` scores RULE W — *(ru≥2 ∨ A) ∧ (cu=1 ∨ B) ∧ (bases=1 ∨ A ∨ B)* — on
+**388** cells drawn from this lane and from `w-refbind/holdout_dis.txt`,
+`w-refbind/bindgrid_dis.txt`, `w-next/allocgrid.out`, `w-seam/grida.out` and
+`w-alloc2/freshgrid.out`. It is **WRONG on 7**, every one a `self` producer at
+`cu ≥ 3`, so it **loses to the incumbent** (§0.1) and is not a shipping
+candidate. That is the fourth allocation key on this project to die on cells it
+was not fitted on, and it died without needing a new compile.
+
+#### A1.3 RULE W2 — the candidate GRID H grades
+
+RULE W with its one refuted clause replaced by a magnitude **published before
+this lane existed** (w-alloc2 §4: *"the bonus is a MAGNITUDE, not an override
+— the producer wins at 1-vs-1 and 1-vs-2 and loses at 1-vs-3 and 1-vs-4"*,
+i.e. H-self's `2·ru + 3 > 2·cu`):
+
+```text
+  self      : 2*ru + 3 > 2*cu                       (H-self's magnitude)
+  add-form  : ru >= 2                               add addi addis addic srawi sraw
+  load/ext  : cu == 1                               lwz lhz lha lbz ld extsh extsb extsw
+  neither   : ru >= 2 and cu == 1 and bases == 1    everything else
+```
+
+Fit, from `fit.out`: **right 388 | WRONG 0 | refused 0** over all six
+populations, against the incumbent's **right 0 | WRONG 0 | refused 388**. The
+two WRONG columns are the comparison; the incumbent still wins any tie, because
+a refusal is never wrong and RULE W2's warranty is the size of its holdout.
+
+#### A1.4 GRID H — registered now, frozen next
+
+The `add-form` branch is unbounded in `cu` and the `load/ext` branch is
+unbounded in `ru`, and GRID S reached only `cu = 3` and `ru = 3`. Those are the
+two places RULE W2 is most likely to die, and GRID H goes to both.
+
+| # | claim | what kills it |
+|---|---|---|
+| **H1** | ≥ 40 never-fitted cells graded | fewer |
+| **H2** | **RULE W2 misses at least one cell.** Registered as the expected outcome, on the record of four dead keys | zero misses |
+| **H2a** | if it misses, the misses are in the `add-form`-at-high-`cu` family | misses elsewhere |
+| **H4** | **the CLASS PRINCIPLE places every fresh mnemonic correctly.** The frozen class table (`rule.py`'s `CLASS`) predicts `sraw` in the add-form group, `extsb`/`lhz`/`lbz` in the load/ext group, and `subfic`/`andi.`/`ori`/`xori`/`andc`/`slw`/`srw`/`mullw` in neither — none of which GRID S measured. **This is the claim §3 demands and the one most likely to lose**; a single misplaced mnemonic means RULE W2 is a lookup table and not a rule | one misplaced mnemonic |
+| **H5** | an observed mnemonic absent from the frozen class table is scored as a **rule refusal**, printed separately, and is neither a hit nor a miss | — |
+
+Axes GRID H varies that GRID S did not: eleven **fresh mnemonics**; use counts
+`(4,1) (1,2) (2,4) (2,5) (3,5) (4,5) (3,3)`; a **fresh signature** with an extra
+formal so every register moves (the axis that broke w-refbind's grader); fresh
+struct offsets; a fresh constant value; and a **three-producer** partition.
+
+Frozen exactly as w-refbind did it: `holdout.py --freeze` writes every source
+and a prediction TSV carrying each source's sha256 and compiles nothing;
+`--grade` re-checks every sha256 and reads the frozen prediction column.
+
+---
+
+### ADDENDUM 2 — 2026-08-06 · GRID B, #865's holdout
+
+Committed **before** `basegrid2.py` exists; §6 above already fixes B1–B4 and
+this addendum only fixes the cell list and the frozen-prediction mechanics.
+
+**#865** — *the schedule pins to source order iff the body carries more than one
+distinct store-base value.* Frozen predictions, sha256-checked, graded on the
+**emitted store order** against the **source store order**, both derived from
+displacements this grid makes distinct per statement (no positional reader,
+#644).
+
+Every cell puts the constant's run FIRST in source, which is the order
+w-refbind found the one-base schedule breaks (it hoists the producer's stores
+above the constant's), so a cell cannot pass by having matched already.
+
+| cell | bases | #865 says | the rival says |
+|---|---|---|---|
+| `N1` one formal, no bind | 1 | not pinned | not pinned |
+| `N2` bind at displacement **0** | 1 | not pinned | not pinned |
+| `N3` two formals, runs split across them | 2 | **pinned** | **pinned** |
+| `N4` one formal + a used bind at non-zero displacement | 2 | **pinned** | **pinned** |
+| `N5` **three** formals, three runs | 3 | **pinned** | **pinned** |
+| `N6` **three runs across two bases, constant and producer SHARING one** | 2 | **pinned** | **NOT pinned** |
+| `N7` a **derived** base (`S* p = s->next;`) | 2 | **pinned** | **pinned** |
+| `N8` two formals, both runs off the second | 1 | not pinned | not pinned |
+| `N9` **four** bases | 4 | **pinned** | **pinned** |
+| `N10` bind at displacement 0 **beside** a genuine second base | 2 | **pinned** | **pinned** |
+
+**`N6` is the discriminator w-refbind §5.2 named and did not build.** The rival
+it separates is *"the constant's store and the producer's stores have different
+bases"*, which agrees with #865 on every cell that lane compiled. Both are
+scored, side by side, on every cell.
+
+**B5 (new):** the rival is scored beside #865 in the same run, and if #865 and
+the rival disagree on `N6` the lane reports which one the obj chose and does not
+reword either.
