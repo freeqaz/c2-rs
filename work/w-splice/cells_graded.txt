@@ -1,59 +1,91 @@
 
 == t01_empty_setup_tail
-   NO ROW
+   verdict   plain     exact          1
+   verdict   tail      exact          2
+   SPLICE FIRED on tail     1
+   reloc     no-relocs                1
 
 == t02_empty_setup_bigger_callee
-   differs   tail    splice0=exact     -                      ?f@@YAHH@Z
-       w1/3/eq0  first@0:port=48000000,ref=546b103a
-   refused-clause  S5-callee-not-defined-here       1
+   verdict   parse-refused refused    1
+   verdict   tail      differs        1
+   verdict   tail      exact          1
+   refused   tail      S6-callee-parse-refused 1
+   DIFFERS   tail    splice0=exact    ?f@@YAHH@Z
+             w1/3/eq0  first@0:port=48000000,ref=546b103a
 
 == t03_seq_identity_tail
-   NO ROW
+   verdict   parse-refused refused    1
+   verdict   tail      exact          1
 
 == t04_reg_move_setup
-   differs   tail    splice0=differs   -                      ?f@@YAHHH@Z
-       w2/2/eq0  first@0:port=7c832378,ref=38640001
-   refused-clause  S3-tail-setup                    1
+   verdict   plain     exact          1
+   verdict   tail      differs        1
+   verdict   tail      exact          1
+   refused   tail      S3-tail-setup          1
+   DIFFERS   tail    splice0=differs  ?f@@YAHHH@Z
+             w2/2/eq0  first@0:port=7c832378,ref=38640001
 
 == t05_arith_setup
-   differs   tail    splice0=differs   -                      ?f@@YAHH@Z
-       w2/2/eq0  first@0:port=38630001,ref=38630002
-   refused-clause  S3-tail-setup                    1
+   verdict   plain     exact          1
+   verdict   tail      differs        1
+   verdict   tail      exact          1
+   refused   tail      S3-tail-setup          1
+   DIFFERS   tail    splice0=differs  ?f@@YAHH@Z
+             w2/2/eq0  first@0:port=38630001,ref=38630002
 
 == t06_ptr_offset_setup
-   NO ROW
+   verdict   parse-refused refused    1
+   verdict   plain     exact          1
+   verdict   tail      exact          1
 
 == t07_framed_caller
-   differs   framed  splice0=differs   -                      ?f@@YAHH@Z
-       w9/2/eq0  first@0:port=7d8802a6,ref=38630003
-   refused-clause  S1-framed                        1
+   verdict   framed    differs        1
+   verdict   plain     exact          1
+   verdict   tail      exact          1
+   refused   framed    S1-framed              1
+   DIFFERS   framed  splice0=differs  ?f@@YAHH@Z
+             w9/2/eq0  first@0:port=7d8802a6,ref=38630003
 
 == t08_two_calls
-   differs   seq     splice0=-         -                      ?f@@YAXXZ
-       w9/7/eq0  first@0:port=7d8802a6,ref=3d200000
-   refused-clause  S2-multi-call                    1
+   verdict   parse-refused refused    2
+   verdict   seq       differs        1
+   verdict   tail      exact          1
+   refused   seq       S2-multi-call          1
+   DIFFERS   seq     splice0=-        ?f@@YAXXZ
+             w9/7/eq0  first@0:port=7d8802a6,ref=3d200000
 
 == t09_unlowerable_callee
-   differs   tail    splice0=exact     -                      ?f@@YAHH@Z
-       w1/12/eq0  first@0:port=48000000,ref=7c6b1b78
-   refused-clause  S5-callee-not-defined-here       1
+   verdict   parse-refused refused    1
+   verdict   tail      differs        1
+   verdict   tail      exact          1
+   refused   tail      S6-callee-parse-refused 1
+   DIFFERS   tail    splice0=exact    ?f@@YAHH@Z
+             w1/12/eq0  first@0:port=48000000,ref=7c6b1b78
 
 == t10_callee_calls_extern
-   NO ROW
+   verdict   tail      exact          3
 
 == t11_fixpoint_two_steps
-   differs   tail    splice0=exact     FIRED->differs         ?f@@YAHH@Z
-       w1/2/eq0  first@0:port=48000000,ref=38630001
+   verdict   plain     exact          1
+   verdict   tail      exact          3
+   SPLICE FIRED on tail     2
+   reloc     no-relocs                2
 
 == t12_self_recursion
-   differs   tail    splice0=exact     -                      ?f@@YAHH@Z
-       w1/6/eq0  first@0:port=48000000,ref=2f030000
-   refused-clause  S5-callee-not-defined-here       1
+   verdict   parse-refused refused    1
+   verdict   tail      differs        1
+   verdict   tail      exact          1
+   refused   tail      S6-callee-parse-refused 1
+   DIFFERS   tail    splice0=exact    ?f@@YAHH@Z
+             w1/6/eq0  first@0:port=48000000,ref=2f030000
 
 == t13_size_boundary
-   differs   tail    splice0=exact     -                      ?f@@YAHHHHH@Z
-       w1/25/eq0  first@0:port=48000000,ref=fbe1fff8
-   refused-clause  S5-callee-not-defined-here       1
+   verdict   parse-refused refused    1
+   verdict   tail      differs        1
+   verdict   tail      exact          1
+   refused   tail      S6-callee-parse-refused 1
+   DIFFERS   tail    splice0=exact    ?f@@YAHHHHH@Z
+             w1/25/eq0  first@0:port=48000000,ref=fbe1fff8
 
 == t14_extern_callee_control
-   NO ROW
+   verdict   tail      exact          2
