@@ -1,0 +1,45 @@
+  cell         | nprod | u   | observed | predict  | verdict
+  ------------------------------------------------------------------------------------
+  M-u0p1x2     | 1     | 0   | 0        | 0        | HIT
+  M-u0p2       | 2     | 0   | 1        | 1        | HIT
+  M-u0p2x41    | 2     | 0   | 1        | 1        | HIT
+  M-u0p3       | 3     | 0   | 2        | 2        | HIT
+  M-u0p3x111   | 3     | 0   | 2        | 2        | HIT
+  M-u1p1x1     | 1     | 1   | 1        | 1        | HIT
+  M-u1p1x2     | 1     | 1   | 1        | 1        | HIT
+  M-u1p1x6     | 1     | 1   | 1        | 1        | HIT
+  M-u1p2       | 2     | 1   | 2        | 2        | HIT
+  M-u1p2x11    | 2     | 1   | 2        | 2        | HIT
+  M-u1p3       | 3     | 1   | 3        | 3        | HIT
+  M-u1p3x111   | 3     | 1   | 3        | 3        | HIT
+  M-u2p0       | 0     | 2   | 1        | 1        | HIT
+  M-u2p1x2     | 1     | 2   | 2        | 2        | HIT
+  M-u2p1x3     | 1     | 2   | 2        | 2        | HIT
+  M-u2p1x5     | 1     | 2   | 2        | 2        | HIT
+  M-u2p2       | 2     | 2   | 3        | 3        | HIT
+  M-u2p2x22    | 2     | 2   | 3        | 3        | HIT
+  M-u2p3       | 3     | 2   | 4        | 4        | HIT
+  M-u3p0       | 0     | 3   | 1        | 2        | **MISS**
+  M-u3p1x2     | 1     | 3   | 2        | 3        | **MISS**
+  M-u3p2       | 2     | 3   | 3        | 4        | **MISS**
+  M-u3p2x33    | 2     | 3   | 3        | 4        | **MISS**
+  M-u3p3       | 3     | 3   | 4        | 5        | **MISS**
+
+  RULE UNDER TEST:  stores_before_mr = nprod - 1 + u
+                    (u = leading unproduced stores in the EMITTED order)
+
+  selected 24 | reached 24 | GRADED 24 | hit 19 | MISS 5 | out-of-regime 0 | compile-failed 0
+
+  MISSES — the deliverable if there are any:
+    M-u3p0       nprod 0 u 3  observed 1  predicted 2
+      run: stw 4, 0(3) ; stw 5, 4(3) ; stw 3, 8(3)   [mr at run index 1]
+    M-u3p1x2     nprod 1 u 3  observed 2  predicted 3
+      run: li 11, 7 ; stw 4, 0(3) ; stw 5, 4(3) ; stw 3, 8(3) ; stw 11, 32(3) ; stw 11, 36(3)   [mr at run index 3]
+    M-u3p2       nprod 2 u 3  observed 3  predicted 4
+      run: li 11, 7 ; stw 4, 0(3) ; li 10, 9 ; stw 5, 4(3) ; stw 3, 8(3) ; stw 11, 32(3) ; stw 11, 36(3) ; stw 10, 40(3)   [mr at run index 5]
+    M-u3p2x33    nprod 2 u 3  observed 3  predicted 4
+      run: li 10, 7 ; stw 4, 0(3) ; li 11, 9 ; stw 5, 4(3) ; stw 3, 8(3) ; stw 10, 32(3) ; stw 10, 36(3) ; stw 10, 40(3) ; stw 11, 44(3) ; stw 11, 48(3) ; stw 11, 52(3)   [mr at run index 5]
+    M-u3p3       nprod 3 u 3  observed 4  predicted 5
+      run: li 11, 7 ; stw 4, 0(3) ; li 10, 9 ; stw 5, 4(3) ; li 9, 11 ; stw 3, 8(3) ; stw 11, 32(3) ; stw 11, 36(3) ; stw 11, 40(3) ; stw 10, 44(3) ; stw 10, 48(3) ; stw 9, 52(3)   [mr at run index 7]
+
+  ==> The rule is REFUTED on 5 fresh cell(s).
