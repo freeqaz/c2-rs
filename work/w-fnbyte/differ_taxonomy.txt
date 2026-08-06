@@ -1,0 +1,81 @@
+differs total (from witness keys): 4711
+diverge at word 0: 4529   later: 182
+distinct signatures: 61   TUs carrying a differ: 601
+
+by shape:
+    3047  tail
+    1541  seq
+     123  framed
+
+families:
+    1886  A  c2's whole body is a bare `blr`
+    1484  B  c2 emitted FEWER words, no shared prefix
+    1157  C  c2 emitted MORE words, no shared prefix
+     184  D  shared prefix, then a divergence
+
+families x shape:
+    1886  A  c2's whole body is a bare `blr`  [tail]
+     123  B  c2 emitted FEWER words, no shared prefix  [framed]
+    1361  B  c2 emitted FEWER words, no shared prefix  [seq]
+    1157  C  c2 emitted MORE words, no shared prefix  [tail]
+     180  D  shared prefix, then a divergence  [seq]
+       4  D  shared prefix, then a divergence  [tail]
+
+top signatures:
+    1516  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020
+          e.g. ??1?$_STLP_alloc_proxy@PAHHV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+     804  seq|w12/2/eq0|first@0:port=7d8802a6,ref=90830000
+          e.g. ??0?$_List_iterator@HU?$_Nonconst_traits@H@stlpmtx_std@@@stlpmtx_std@@QAA@PAU_List_node_base@1@@Z
+     542  seq|w19/6/eq0|first@0:port=7d8802a6,ref=81630000
+          e.g. ??$?8PAUHamMoveKey@@@stlpmtx_std@@YA_NABV?$reverse_iterator@PAUHamMoveKey@@@0@0@Z
+     370  tail|w2/1/eq0|first@0:port=38a00000,ref=4e800020
+          e.g. ??$_Destroy_Range@PAH@stlpmtx_std@@YAXPAH0@Z
+     286  tail|w3/7/eq0|first@0:port=7c832378,ref=81640008
+          e.g. ?Release@Object@Hmx@@QAAXPAVObjRef@@@Z
+     235  tail|w1/3/eq0|first@0:port=48000000,ref=81630000
+          e.g. ??C?$_List_iterator@UAccomplishmentCondition@@U?$_Const_traits@UAccomplishmentCondition@@@stlpmtx_std@@@stlpmtx_std@@QBAPBUAccomplishmentCondition@@XZ
+     140  seq|w13/20/eq8|first@8:port=38210060,ref=3d600000
+          e.g. ??$Obj@VHamMove@@@DataArray@@QBAPAVHamMove@@H@Z
+     135  tail|w2/12/eq0|first@0:port=38a00000,ref=7d8802a6
+          e.g. ??$_Destroy_Range@PAUNode@?$ObjPtrVec@VRndTransformable@@VObjectDir@@@@@stlpmtx_std@@YAXPAUNode@?$ObjPtrVec@VRndTransformable@@VObjectDir@@@@0@Z
+     123  framed|w9/3/eq0|first@0:port=7d8802a6,ref=81630004
+          e.g. ?back@?$vector@VSymbol@@V?$StlNodeAlloc@VSymbol@@@stlpmtx_std@@@stlpmtx_std@@QAAAAVSymbol@@XZ
+      89  tail|w1/2/eq0|first@0:port=48000000,ref=80630000
+          e.g. ?front@?$vector@PAVCampaignEra@@V?$StlNodeAlloc@PAVCampaignEra@@@stlpmtx_std@@@stlpmtx_std@@QAAAAPAVCampaignEra@@XZ
+      74  tail|w1/8/eq0|first@0:port=48000000,ref=2b040000
+          e.g. ??$__uninitialized_fill_n@PAMIM@stlpmtx_std@@YAPAMPAMIABMABU__true_type@0@@Z
+      66  tail|w2/20/eq0|first@0:port=38a00000,ref=7d8802a6
+          e.g. ??$_Destroy_Range@PAUGoalAcquisitionInfo@@@stlpmtx_std@@YAXPAUGoalAcquisitionInfo@@0@Z
+      44  tail|w1/4/eq0|first@0:port=48000000,ref=3d600000
+          e.g. ??1ChallengeScoreCmp@@UAA@XZ
+      33  tail|w2/6/eq0|first@0:port=38630004,ref=81630008
+          e.g. ??1?$pair@$$CBVSymbol@@VDataNode@@@stlpmtx_std@@QAA@XZ
+      30  tail|w1/16/eq0|first@0:port=48000000,ref=3d600000
+          e.g. ??1ConstraintSystem@CharBlendBone@@QAA@XZ
+      29  tail|w1/9/eq0|first@0:port=48000000,ref=80830000
+          e.g. ??1?$vector@_NV?$StlNodeAlloc@_N@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+      28  seq|w9/9/eq8|first@4:port=4bfffff1,ref=80630004
+          e.g. ?Type@DataArray@@QAA?AW4DataType@@H@Z
+      16  tail|w1/7/eq0|first@0:port=48000000,ref=81630008
+          e.g. ?_S_minimum@?$_Rb_tree@VSymbol@@U?$less@VSymbol@@@stlpmtx_std@@V1@U?$_Identity@VSymbol@@@3@U?$_SetTraitsT@VSymbol@@@priv@3@V?$StlNodeAlloc@VSymbol@@@3@@stlpmtx_std@@KAPAU_Rb_tree_node_base@2@PAU32@@Z
+      16  tail|w1/7/eq0|first@0:port=48000000,ref=8163000c
+          e.g. ?_S_maximum@?$_Rb_tree@VSymbol@@U?$less@VSymbol@@@stlpmtx_std@@V1@U?$_Identity@VSymbol@@@3@U?$_SetTraitsT@VSymbol@@@priv@3@V?$StlNodeAlloc@VSymbol@@@3@@stlpmtx_std@@KAPAU_Rb_tree_node_base@2@PAU32@@Z
+      16  tail|w2/16/eq0|first@0:port=3863000c,ref=3d600000
+          e.g. ??1?$FlowPtr@VObject@Hmx@@@@QAA@XZ
+
+top TUs:
+      65  src/system/rndobj/Utl.cpp
+      60  src/lazer/meta_ham/AccomplishmentManager.cpp
+      55  src/system/rndobj/PropAnim.cpp
+      52  src/system/rndobj/Mesh.cpp
+      51  src/system/world/LightPreset.cpp
+      50  src/system/hamobj/HamDirector.cpp
+      49  src/system/world/Crowd.cpp
+      48  src/lazer/meta_ham/HamSongMgr.cpp
+      47  src/system/rndobj/Text.cpp
+      43  src/system/char/Character.cpp
+      43  src/system/rndobj/AmbientOcclusion.cpp
+      42  src/system/hamobj/MoveDir.cpp
+      39  src/system/hamobj/MoveMgr.cpp
+      38  src/lazer/meta_ham/MetaPerformer.cpp
+      36  src/system/obj/Dir.cpp
