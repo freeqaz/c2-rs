@@ -1251,7 +1251,16 @@ impl GapReport {
             // names produced 14 wrong bodies and zero right ones. It is
             // published so no later lane keys another name-matched fact off the
             // positional binding without seeing the number first.
-            for k in ["fnbyte-elided", "fnbyte-elided-exact", "fnbyte-name-disagree"] {
+            // `fnbyte-elided-ref-reloc` is w-drop3's caveat closed for this
+            // population: known answer **0**, because an elided body is one
+            // `4e800020` and carries no relocation for a symbol to disagree
+            // about. Printed, not inferred.
+            for k in [
+                "fnbyte-elided",
+                "fnbyte-elided-exact",
+                "fnbyte-elided-ref-reloc",
+                "fnbyte-name-disagree",
+            ] {
                 m.push((k, self.emit_total(k).to_string()));
             }
             // **THE RELOCATION TARGET** (lane `w-drop3`, boards #984–#986) —

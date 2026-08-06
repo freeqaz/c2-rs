@@ -808,6 +808,25 @@ pub(super) fn measure(
                 *res.emit.entry("fnbyte-elided".into()).or_insert(0) += 1;
                 if v == FnByte::Exact {
                     *res.emit.entry("fnbyte-elided-exact".into()).or_insert(0) += 1;
+                    // **The relocation-target caveat, answered rather than
+                    // argued** (lane `w-drop3`, boards #984-#986): a `/Gy` call
+                    // word carries the same placeholder displacement whatever it
+                    // calls, so byte equality on a call word says nothing about
+                    // WHOM it calls, and 861 bodies FBM credits as exact
+                    // relocate against the wrong symbol.
+                    //
+                    // An elided body cannot be one of them, and this is the
+                    // positive count that says so: mechanism E's whole output is
+                    // the single word `4e800020`, which is not a call word and
+                    // takes no relocation. **Known answer 0** - a nonzero here
+                    // means the port credited an elision for a c2 body that
+                    // still relocates, which would be a wrong emit of exactly
+                    // the kind `-calltarget-disagree` was built to see.
+                    if relocs.get(name.as_str()).copied().unwrap_or(0) > 0 {
+                        *res.emit
+                            .entry("fnbyte-elided-ref-reloc".into())
+                            .or_insert(0) += 1;
+                    }
                 }
             }
         }
