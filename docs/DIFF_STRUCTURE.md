@@ -335,14 +335,17 @@ sums to 3,195 exactly.
 |---|---:|---:|---|---|
 | **c2's body makes no call or branch at all**; the port's does | **2,521** | 78.9 % | [`INLINE_PREDICATE.md`](INLINE_PREDICATE.md) mechanism **I** — and **E**'s neighbourhood for the 370 whose c2 body is `blr` alone | **named, unmodelled.** E is shipped (`elide.rs`, 1,516 bodies); I is not, and holds at 0.9716 on a 100-TU hold-out |
 | c2 still calls, but a **different, longer** body than the port's tail branch | 491 | 15.4 % | the same mechanism partially applied — c2 inlined some of the chain | same |
-| **the port omits a call c2 makes** | **140** | 4.4 % | nothing on the board before this lane | **new — board #979** |
+| ~~**the port omits a call c2 makes**~~ — **REFUTED (§3.2, #985): the port omits nothing; c2 inlined the port's SECOND callee, and the byte test could not see the relocation target** | **140** | 4.4 % | `INLINE_PREDICATE.md` mechanism **I**, like row 1 | **row 1's population is 2,521 + 140** |
 | c2 replaced **one of two** calls with a load, same body length | 38 | 1.2 % | mechanism I, one call deep | same as row 1 |
 | an **immediate** is wrong (`addi r3,r3,4` vs `…,8`) | 2 | 0.1 % | ordinary codegen | the only wrong *number* in 3,195 bodies |
 | three long singletons | 3 | 0.1 % | unclassified individually | named in the JSONL by symbol |
 | **pure scheduling permutations** | **0** | 0 % | — | **the schedule is not a defect on this population** |
 
-**What is genuinely unexplained is small and is named.** The 140-body cluster is
-new (§3.2) and reproducible to the word. The `same-len | sub-only | imm` pair (2
+**What is genuinely unexplained is small and is named.** ~~The 140-body cluster is
+new (§3.2) and reproducible to the word.~~ **(2026-08-06: it is reproducible to
+the word and it is not new — §3.2's banner. It is mechanism I, so this table's
+"one new and perfectly uniform cluster" reads 0, and the 95.5 % that is "one
+already-named mechanism" reads 99.9 %.)** The `same-len | sub-only | imm` pair (2
 bodies, `addi r3,r3,4` against `addi r3,r3,8` — a structure offset) is the only
 place in 3,195 bodies where the port picks a wrong *number*. Three long
 singletons are not individually classified and are named here so nobody has to
