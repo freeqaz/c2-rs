@@ -76,7 +76,11 @@ OFF_INNER, OFF_INNER2 = 96, 128
 # ---- H1: ten producer spellings H-self has never been shown -----------------
 # (tag, C++ expression, regex over ONE printed instruction)
 H1 = [
-    ("subf",  "u - v",              r"^subf\s+(\d+),"),
+    # c2 prints the EXTENDED mnemonic `sub`, not `subf` — board #843, third
+    # instance, and the first grade run scored all six of these OUT OF REGIME
+    # because this regex read `^subf`.  `work/w-refbind/holdout_grade_v1.out`
+    # is that run, committed before the fix.
+    ("subf",  "u - v",              r"^(?:subf|sub)\s+(\d+),"),
     ("and",   "u & v",              r"^and\s+(\d+),"),
     ("or",    "u | v",              r"^or\s+(\d+),"),
     ("xor",   "u ^ v",              r"^xor\s+(\d+),"),
@@ -234,16 +238,22 @@ STORES = ("stw", "sth", "stb", "std", "stwu", "stwx")
 
 
 def slot(words, rx):
+    """(register, index of its defining instruction), or (None, None).
+
+    Returns the emission INDEX as well as the register, so the ORDER axis and
+    the ALLOC axis are read separately and never conflated.
+    """
     hits = {(int(m.group(1)), i)
             for i, m in ((i, rx.match(w)) for i, w in enumerate(words)) if m}
     regs = {r for r, _ in hits}
     if len(regs) != 1:
-        return None
+        return None, None
     reg = regs.pop()
+    idx = min(i for r, i in hits if r == reg)
     defs = sum(1 for w in words
                if (lambda m: m and int(m.group(1)) == reg
                    and not w.startswith(STORES))(DEST_RX.match(w)))
-    return reg if defs == 1 else None
+    return (reg, idx) if defs == 1 else (None, None)
 
 
 def run_cell(a):
@@ -288,9 +298,11 @@ def grade(jobs):
     creg_rx = re.compile(CONST_RX)
     reached = graded = oor = fail = 0
     stat = {}
-    print("\n  %-34s %-11s | %-5s %-5s | %-6s %-6s | %s"
-          % ("cell", "partition", "prod", "const", "OBS", "FROZEN", "verdict"))
-    print("  " + "-" * 104)
+    order_stat = {}
+    print("\n  %-34s %-11s | %-5s %-5s | %-6s | %-6s %-6s | %s"
+          % ("cell", "partition", "prod", "const", "ORDER",
+             "OBS", "FROZEN", "verdict"))
+    print("  " + "-" * 112)
     for r in live:
         name, part, tag, mode, ru, cu, slf, partition, kr, kc, pred, _ = r
         w = res[name]
@@ -300,8 +312,8 @@ def grade(jobs):
             continue
         reached += 1
         dislog.write("== %s\n%s\n\n" % (name, "\n".join(w)))
-        preg = slot(w, re.compile(rx[name]))
-        creg = slot(w, creg_rx)
+        preg, pidx = slot(w, re.compile(rx[name]))
+        creg, cidx = slot(w, creg_rx)
         if preg is None or creg is None:
             print("  %-34s %-11s | OUT OF REGIME (prod=%s const=%s)"
                   % (name, partition, preg, creg))
@@ -310,10 +322,14 @@ def grade(jobs):
             continue
         graded += 1
         obs = "prod" if preg > creg else "const"
+        order = "prod" if pidx < cidx else "const"
         ok = (obs == pred)
         stat.setdefault(partition, [0, 0, 0])[0 if ok else 1] += 1
-        print("  %-34s %-11s | r%-4d r%-4d | %-6s %-6s | %s"
-              % (name, partition, preg, creg, obs, pred,
+        o = order_stat.setdefault(mode, [0, 0])
+        o[0] += 1
+        o[1] += (order == "const")
+        print("  %-34s %-11s | r%-4d r%-4d | %-6s | %-6s %-6s | %s"
+              % (name, partition, preg, creg, order, obs, pred,
                  "HIT" if ok else "**MISS**"))
     dislog.close()
 
@@ -330,6 +346,12 @@ def grade(jobs):
           % (hold[0] + hold[1], hold[1],
              "HIT (H-self is REFUTED)" if hold[1] >= 3 else "**MISS**"))
 
+    print("\n  ORDER axis, independently of R5 — how many cells emit the"
+          " CONSTANT first:")
+    for m in MODES:
+        n, c = order_stat.get(m, [0, 0])
+        print("    mode %-5s : %d of %d graded" % (m, c, n))
+
     # ---- the misses, by axis, because that is the deliverable --------------
     print("\n  MISSES by binding mode (the axis H-self had never seen vary):")
     for mode in MODES:
@@ -338,7 +360,8 @@ def grade(jobs):
             if r[3] != mode or r[0] not in res or res[r[0]] is None:
                 continue
             w = res[r[0]]
-            preg, creg = slot(w, re.compile(rx[r[0]])), slot(w, creg_rx)
+            preg, _ = slot(w, re.compile(rx[r[0]]))
+            creg, _ = slot(w, creg_rx)
             if preg is None or creg is None:
                 continue
             n += 1
