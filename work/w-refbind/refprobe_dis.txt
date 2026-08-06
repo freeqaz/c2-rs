@@ -1,0 +1,224 @@
+== Q0-none-inner.shift
+slwi 11, 4, 3
+li 10, 7
+stw 11, 96(3)
+stw 11, 100(3)
+stw 10, 32(3)
+blr
+
+== Q0-none-inner.add
+add 11, 4, 5
+li 10, 7
+stw 11, 96(3)
+stw 11, 100(3)
+stw 10, 32(3)
+blr
+
+== Q0-ref-inner.shift
+li 11, 7
+slwi 10, 4, 3
+stw 11, 32(3)
+stw 10, 96(3)
+stw 10, 100(3)
+blr
+
+== Q0-ref-inner.add
+li 10, 7
+add 11, 4, 5
+stw 10, 32(3)
+stw 11, 96(3)
+stw 11, 100(3)
+blr
+
+== Q1-none-head.shift
+slwi 11, 4, 3
+li 10, 7
+stw 11, 0(3)
+stw 11, 4(3)
+stw 10, 32(3)
+blr
+
+== Q1-none-head.add
+add 11, 4, 5
+li 10, 7
+stw 11, 0(3)
+stw 11, 4(3)
+stw 10, 32(3)
+blr
+
+== Q1-ref-head.shift
+slwi 11, 4, 3
+li 10, 7
+stw 11, 0(3)
+stw 11, 4(3)
+stw 10, 32(3)
+blr
+
+== Q1-ref-head.add
+add 11, 4, 5
+li 10, 7
+stw 11, 0(3)
+stw 11, 4(3)
+stw 10, 32(3)
+blr
+
+== Q1-ref-inner2.shift
+li 11, 7
+slwi 10, 4, 3
+stw 11, 32(3)
+stw 10, 128(3)
+stw 10, 132(3)
+blr
+
+== Q1-ref-inner2.add
+li 10, 7
+add 11, 4, 5
+stw 10, 32(3)
+stw 11, 128(3)
+stw 11, 132(3)
+blr
+
+== Q2-scalar-refs.shift
+li 11, 7
+slwi 10, 4, 3
+stw 11, 32(3)
+stw 10, 96(3)
+stw 10, 100(3)
+blr
+
+== Q2-scalar-refs.add
+li 10, 7
+add 11, 4, 5
+stw 10, 32(3)
+stw 11, 96(3)
+stw 11, 100(3)
+blr
+
+== Q2-scalar-ref-one.shift
+li 11, 7
+slwi 10, 4, 3
+stw 11, 32(3)
+stw 10, 96(3)
+stw 10, 100(3)
+blr
+
+== Q2-scalar-ref-one.add
+li 10, 7
+add 11, 4, 5
+stw 10, 32(3)
+stw 11, 96(3)
+stw 11, 100(3)
+blr
+
+== Q3-ref-const-side.shift
+li 11, 7
+slwi 10, 4, 3
+stw 11, 96(3)
+stw 10, 0(3)
+stw 10, 4(3)
+blr
+
+== Q3-ref-const-side.add
+li 10, 7
+add 11, 4, 5
+stw 10, 96(3)
+stw 11, 0(3)
+stw 11, 4(3)
+blr
+
+== Q3-none-const-side.shift
+slwi 11, 4, 3
+li 10, 7
+stw 11, 0(3)
+stw 11, 4(3)
+stw 10, 96(3)
+blr
+
+== Q3-none-const-side.add
+add 11, 4, 5
+li 10, 7
+stw 11, 0(3)
+stw 11, 4(3)
+stw 10, 96(3)
+blr
+
+== Q4-unnamed.shift
+slwi 11, 4, 3
+li 10, 7
+stw 11, 96(3)
+stw 11, 100(3)
+stw 10, 32(3)
+blr
+
+== Q4-unnamed.add
+add 11, 4, 5
+li 10, 7
+stw 11, 96(3)
+stw 11, 100(3)
+stw 10, 32(3)
+blr
+
+== Q5-const-ptr.shift
+li 11, 7
+slwi 10, 4, 3
+stw 11, 32(3)
+stw 10, 96(3)
+stw 10, 100(3)
+blr
+
+== Q5-const-ptr.add
+li 10, 7
+add 11, 4, 5
+stw 10, 32(3)
+stw 11, 96(3)
+stw 11, 100(3)
+blr
+
+== Q6-one-through.shift
+li 11, 7
+slwi 10, 4, 3
+stw 11, 32(3)
+stw 10, 96(3)
+stw 10, 100(3)
+blr
+
+== Q6-one-through.add
+li 10, 7
+add 11, 4, 5
+stw 10, 32(3)
+stw 11, 96(3)
+stw 11, 100(3)
+blr
+
+== Q7-ref-formal.shift
+li 11, 7
+slwi 10, 5, 3
+stw 11, 32(3)
+stw 10, 0(4)
+stw 10, 4(4)
+blr
+
+== Q7-ref-formal.add
+li 10, 7
+add 11, 5, 6
+stw 10, 32(3)
+stw 11, 0(4)
+stw 11, 4(4)
+blr
+
+== Q8-ref-deep.shift
+li 11, 7
+slwi 10, 4, 3
+stw 11, 32(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== Q8-ref-deep.add
+li 10, 7
+add 11, 4, 5
+stw 10, 32(3)
+stw 11, 112(3)
+stw 11, 116(3)
+blr
+

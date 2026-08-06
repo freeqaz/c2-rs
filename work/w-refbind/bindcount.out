@@ -1,0 +1,28 @@
+  spelling     binds | prod  const | ORDER  ALLOC  | emitted
+  ------------------------------------------------------------------------------------------------
+  self         0     | r11   r10   | prod   prod   | addi li stw stw stw blr
+  self         1     | r11   r10   | const  prod   | li addi stw stw stw blr
+  self         2     | r11   r9    | const  prod   | lwz li addi stw stw stw stw blr
+  self         3     | r11   r9    | const  prod   | lwz li addi stw lwz stw stw stw stw blr
+  addi         0     | r11   r10   | prod   prod   | addi li stw stw stw blr
+  addi         1     | r11   r10   | const  prod   | li addi stw stw stw blr
+  addi         2     | r11   r9    | const  prod   | lwz li addi stw stw stw stw blr
+  addi         3     | r11   r9    | const  prod   | lwz li addi stw lwz stw stw stw stw blr
+  add          0     | r11   r10   | prod   prod   | add li stw stw stw blr
+  add          1     | r11   r10   | const  prod   | li add stw stw stw blr
+  add          2     | r11   r9    | const  prod   | lwz li add stw stw stw stw blr
+  add          3     | r11   r9    | const  prod   | lwz li add stw lwz stw stw stw stw blr
+  shift        0     | r11   r10   | prod   prod   | slwi li stw stw stw blr
+  shift        1     | r10   r11   | const  const  | li slwi stw stw stw blr
+  shift        2     | r9    r10   | const  const  | lwz li slwi stw stw stw stw blr
+  shift        3     | r9    r10   | const  const  | lwz li slwi stw lwz stw stw stw stw blr
+
+  GRADED 16 | out-of-regime 0 | compile-failed 0 | of 16
+
+  R11 as registered — n = 1, 2, 3 agree with each other, and n = 0 is the unbound answer:
+    self     n0 prod,prod     | n1 const,prod  n2 const,prod  n3 const,prod  ->  flag
+    addi     n0 prod,prod     | n1 const,prod  n2 const,prod  n3 const,prod  ->  flag
+    add      n0 prod,prod     | n1 const,prod  n2 const,prod  n3 const,prod  ->  flag
+    shift    n0 prod,prod     | n1 const,const  n2 const,const  n3 const,const  ->  flag
+
+    spellings constant across 1..3 binds: 4 | varying: 0 | ungraded: 0

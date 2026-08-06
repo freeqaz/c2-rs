@@ -1,0 +1,748 @@
+== P1-self-none-r1k1
+li 10, 7
+addi 11, 3, 64
+stw 10, 0(3)
+stw 11, 64(3)
+blr
+
+== P1-self-none-r2k1
+addi 11, 3, 64
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+blr
+
+== P1-self-none-r3k1
+addi 11, 3, 64
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+stw 11, 72(3)
+blr
+
+== P1-self-none-r4k1
+addi 11, 3, 64
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+stw 11, 72(3)
+stw 11, 76(3)
+blr
+
+== P1-self-none-r5k1
+addi 11, 3, 64
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+stw 11, 72(3)
+stw 11, 76(3)
+stw 11, 80(3)
+blr
+
+== P1-self-ref-r1k1
+li 10, 7
+addi 11, 3, 64
+stw 10, 0(3)
+stw 11, 64(3)
+blr
+
+== P1-self-ref-r2k1
+li 10, 7
+addi 11, 3, 64
+stw 10, 0(3)
+stw 11, 64(3)
+stw 11, 68(3)
+blr
+
+== P1-self-ref-r3k1
+li 10, 7
+addi 11, 3, 64
+stw 10, 0(3)
+stw 11, 64(3)
+stw 11, 68(3)
+stw 11, 72(3)
+blr
+
+== P1-self-ref-r4k1
+li 10, 7
+addi 11, 3, 64
+stw 10, 0(3)
+stw 11, 64(3)
+stw 11, 68(3)
+stw 11, 72(3)
+stw 11, 76(3)
+blr
+
+== P1-self-ref-r5k1
+li 10, 7
+addi 11, 3, 64
+stw 10, 0(3)
+stw 11, 64(3)
+stw 11, 68(3)
+stw 11, 72(3)
+stw 11, 76(3)
+stw 11, 80(3)
+blr
+
+== P1-addi-none-r1k1
+li 11, 7
+addi 10, 4, 5
+stw 11, 0(3)
+stw 10, 64(3)
+blr
+
+== P1-addi-none-r2k1
+addi 11, 4, 5
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+blr
+
+== P1-addi-none-r3k1
+addi 11, 4, 5
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+stw 11, 72(3)
+blr
+
+== P1-addi-none-r4k1
+addi 11, 4, 5
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+stw 11, 72(3)
+stw 11, 76(3)
+blr
+
+== P1-addi-none-r5k1
+addi 11, 4, 5
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+stw 11, 72(3)
+stw 11, 76(3)
+stw 11, 80(3)
+blr
+
+== P1-addi-ref-r1k1
+li 11, 7
+addi 10, 4, 5
+stw 11, 0(3)
+stw 10, 64(3)
+blr
+
+== P1-addi-ref-r2k1
+li 10, 7
+addi 11, 4, 5
+stw 10, 0(3)
+stw 11, 64(3)
+stw 11, 68(3)
+blr
+
+== P1-addi-ref-r3k1
+li 10, 7
+addi 11, 4, 5
+stw 10, 0(3)
+stw 11, 64(3)
+stw 11, 68(3)
+stw 11, 72(3)
+blr
+
+== P1-addi-ref-r4k1
+li 10, 7
+addi 11, 4, 5
+stw 10, 0(3)
+stw 11, 64(3)
+stw 11, 68(3)
+stw 11, 72(3)
+stw 11, 76(3)
+blr
+
+== P1-addi-ref-r5k1
+li 10, 7
+addi 11, 4, 5
+stw 10, 0(3)
+stw 11, 64(3)
+stw 11, 68(3)
+stw 11, 72(3)
+stw 11, 76(3)
+stw 11, 80(3)
+blr
+
+== P1-add-none-r1k1
+li 11, 7
+add 10, 4, 5
+stw 11, 0(3)
+stw 10, 64(3)
+blr
+
+== P1-add-none-r2k1
+add 11, 4, 5
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+blr
+
+== P1-add-none-r3k1
+add 11, 4, 5
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+stw 11, 72(3)
+blr
+
+== P1-add-none-r4k1
+add 11, 4, 5
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+stw 11, 72(3)
+stw 11, 76(3)
+blr
+
+== P1-add-none-r5k1
+add 11, 4, 5
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+stw 11, 72(3)
+stw 11, 76(3)
+stw 11, 80(3)
+blr
+
+== P1-add-ref-r1k1
+li 11, 7
+add 10, 4, 5
+stw 11, 0(3)
+stw 10, 64(3)
+blr
+
+== P1-add-ref-r2k1
+li 10, 7
+add 11, 4, 5
+stw 10, 0(3)
+stw 11, 64(3)
+stw 11, 68(3)
+blr
+
+== P1-add-ref-r3k1
+li 10, 7
+add 11, 4, 5
+stw 10, 0(3)
+stw 11, 64(3)
+stw 11, 68(3)
+stw 11, 72(3)
+blr
+
+== P1-add-ref-r4k1
+li 10, 7
+add 11, 4, 5
+stw 10, 0(3)
+stw 11, 64(3)
+stw 11, 68(3)
+stw 11, 72(3)
+stw 11, 76(3)
+blr
+
+== P1-add-ref-r5k1
+li 10, 7
+add 11, 4, 5
+stw 10, 0(3)
+stw 11, 64(3)
+stw 11, 68(3)
+stw 11, 72(3)
+stw 11, 76(3)
+stw 11, 80(3)
+blr
+
+== P1-shift-none-r1k1
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 10, 64(3)
+blr
+
+== P1-shift-none-r2k1
+slwi 11, 4, 3
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+blr
+
+== P1-shift-none-r3k1
+slwi 11, 4, 3
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+stw 11, 72(3)
+blr
+
+== P1-shift-none-r4k1
+slwi 11, 4, 3
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+stw 11, 72(3)
+stw 11, 76(3)
+blr
+
+== P1-shift-none-r5k1
+slwi 11, 4, 3
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+stw 11, 72(3)
+stw 11, 76(3)
+stw 11, 80(3)
+blr
+
+== P1-shift-ref-r1k1
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 10, 64(3)
+blr
+
+== P1-shift-ref-r2k1
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 10, 64(3)
+stw 10, 68(3)
+blr
+
+== P1-shift-ref-r3k1
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 10, 64(3)
+stw 10, 68(3)
+stw 10, 72(3)
+blr
+
+== P1-shift-ref-r4k1
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 10, 64(3)
+stw 10, 68(3)
+stw 10, 72(3)
+stw 10, 76(3)
+blr
+
+== P1-shift-ref-r5k1
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 10, 64(3)
+stw 10, 68(3)
+stw 10, 72(3)
+stw 10, 76(3)
+stw 10, 80(3)
+blr
+
+== P2-shift-ptr-r2k1
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 10, 64(3)
+stw 10, 68(3)
+blr
+
+== P2-shift-ptr-r1k1
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 10, 64(3)
+blr
+
+== P2-shift-iptr-r2k1
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 10, 64(3)
+stw 10, 68(3)
+blr
+
+== P2-shift-iptr-r1k1
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 10, 64(3)
+blr
+
+== P2-shift-ref-unused-r2k1
+slwi 11, 4, 3
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+blr
+
+== P2-shift-ref-unused-r1k1
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 10, 64(3)
+blr
+
+== P2-shift-ptr-unused-r2k1
+slwi 11, 4, 3
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+blr
+
+== P2-shift-ptr-unused-r1k1
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 10, 64(3)
+blr
+
+== P2-shift-ref-other-r2k1
+slwi 11, 4, 3
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+blr
+
+== P2-shift-ref-other-r1k1
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 10, 64(3)
+blr
+
+== P2-shift-local-int-r2k1
+slwi 11, 4, 3
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+blr
+
+== P2-shift-local-int-r1k1
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 10, 64(3)
+blr
+
+== P2-shift-outer-ref-r2k1
+slwi 11, 4, 3
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+blr
+
+== P2-shift-outer-ref-r1k1
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 10, 64(3)
+blr
+
+== P2-shift-val-temp-r2k1
+slwi 11, 4, 3
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+blr
+
+== P2-shift-val-temp-r1k1
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 10, 64(3)
+blr
+
+== P2-self-ptr-r2k1
+li 10, 7
+addi 11, 3, 64
+stw 10, 0(3)
+stw 11, 64(3)
+stw 11, 68(3)
+blr
+
+== P2-self-ptr-r1k1
+li 10, 7
+addi 11, 3, 64
+stw 10, 0(3)
+stw 11, 64(3)
+blr
+
+== P2-self-iptr-r2k1
+li 10, 7
+addi 11, 3, 64
+stw 10, 0(3)
+stw 11, 64(3)
+stw 11, 68(3)
+blr
+
+== P2-self-iptr-r1k1
+li 10, 7
+addi 11, 3, 64
+stw 10, 0(3)
+stw 11, 64(3)
+blr
+
+== P2-self-ref-unused-r2k1
+addi 11, 3, 64
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+blr
+
+== P2-self-ref-unused-r1k1
+li 10, 7
+addi 11, 3, 64
+stw 10, 0(3)
+stw 11, 64(3)
+blr
+
+== P2-self-ptr-unused-r2k1
+addi 11, 3, 64
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+blr
+
+== P2-self-ptr-unused-r1k1
+li 10, 7
+addi 11, 3, 64
+stw 10, 0(3)
+stw 11, 64(3)
+blr
+
+== P2-self-ref-other-r2k1
+addi 11, 3, 64
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+blr
+
+== P2-self-ref-other-r1k1
+li 10, 7
+addi 11, 3, 64
+stw 10, 0(3)
+stw 11, 64(3)
+blr
+
+== P2-self-local-int-r2k1
+addi 11, 3, 64
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+blr
+
+== P2-self-local-int-r1k1
+li 10, 7
+addi 11, 3, 64
+stw 10, 0(3)
+stw 11, 64(3)
+blr
+
+== P2-self-outer-ref-r2k1
+addi 11, 3, 64
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+blr
+
+== P2-self-outer-ref-r1k1
+li 10, 7
+addi 11, 3, 64
+stw 10, 0(3)
+stw 11, 64(3)
+blr
+
+== P2-self-val-temp-r2k1
+addi 11, 3, 64
+li 10, 7
+stw 11, 64(3)
+stw 11, 68(3)
+stw 10, 0(3)
+blr
+
+== P2-self-val-temp-r1k1
+li 10, 7
+addi 11, 3, 64
+stw 10, 0(3)
+stw 11, 64(3)
+blr
+
+== P3-shift-none-r1k2
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 11, 4(3)
+stw 10, 64(3)
+blr
+
+== P3-shift-none-r1k3
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 11, 4(3)
+stw 11, 8(3)
+stw 10, 64(3)
+blr
+
+== P3-shift-none-r2k3
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 10, 64(3)
+stw 10, 68(3)
+stw 11, 4(3)
+stw 11, 8(3)
+blr
+
+== P3-shift-none-r3k2
+slwi 10, 4, 3
+li 11, 7
+stw 10, 64(3)
+stw 10, 68(3)
+stw 11, 0(3)
+stw 11, 4(3)
+stw 10, 72(3)
+blr
+
+== P3-shift-ref-r1k2
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 11, 4(3)
+stw 10, 64(3)
+blr
+
+== P3-shift-ref-r1k3
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 11, 4(3)
+stw 11, 8(3)
+stw 10, 64(3)
+blr
+
+== P3-shift-ref-r2k3
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 11, 4(3)
+stw 11, 8(3)
+stw 10, 64(3)
+stw 10, 68(3)
+blr
+
+== P3-shift-ref-r3k2
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 11, 4(3)
+stw 10, 64(3)
+stw 10, 68(3)
+stw 10, 72(3)
+blr
+
+== P3-add-none-r1k2
+li 11, 7
+add 10, 4, 5
+stw 11, 0(3)
+stw 11, 4(3)
+stw 10, 64(3)
+blr
+
+== P3-add-none-r1k3
+li 11, 7
+add 10, 4, 5
+stw 11, 0(3)
+stw 11, 4(3)
+stw 11, 8(3)
+stw 10, 64(3)
+blr
+
+== P3-add-none-r2k3
+li 10, 7
+add 11, 4, 5
+stw 10, 0(3)
+stw 11, 64(3)
+stw 10, 4(3)
+stw 10, 8(3)
+stw 11, 68(3)
+blr
+
+== P3-add-none-r3k2
+add 11, 4, 5
+li 10, 7
+stw 11, 64(3)
+stw 10, 0(3)
+stw 10, 4(3)
+stw 11, 68(3)
+stw 11, 72(3)
+blr
+
+== P3-add-ref-r1k2
+li 11, 7
+add 10, 4, 5
+stw 11, 0(3)
+stw 11, 4(3)
+stw 10, 64(3)
+blr
+
+== P3-add-ref-r1k3
+li 11, 7
+add 10, 4, 5
+stw 11, 0(3)
+stw 11, 4(3)
+stw 11, 8(3)
+stw 10, 64(3)
+blr
+
+== P3-add-ref-r2k3
+li 10, 7
+add 11, 4, 5
+stw 10, 0(3)
+stw 10, 4(3)
+stw 10, 8(3)
+stw 11, 64(3)
+stw 11, 68(3)
+blr
+
+== P3-add-ref-r3k2
+li 10, 7
+add 11, 4, 5
+stw 10, 0(3)
+stw 10, 4(3)
+stw 11, 64(3)
+stw 11, 68(3)
+stw 11, 72(3)
+blr
+

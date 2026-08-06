@@ -1,0 +1,98 @@
+  frozen rows 82 | source sha256 re-checked: 82 OK, 0 MOVED
+
+  cell                               partition   | prod  const | OBS    FROZEN | verdict
+  --------------------------------------------------------------------------------------------------------
+  H1-subf-none-r1k1                  HOLDOUT     | OUT OF REGIME (prod=None const=11)
+  H1-subf-none-r2k1                  HOLDOUT     | OUT OF REGIME (prod=None const=10)
+  H1-subf-none-r1k2                  HOLDOUT     | OUT OF REGIME (prod=None const=11)
+  H1-subf-ref-r1k1                   HOLDOUT     | OUT OF REGIME (prod=None const=11)
+  H1-subf-ref-r2k1                   HOLDOUT     | OUT OF REGIME (prod=None const=11)
+  H1-subf-ref-r1k2                   HOLDOUT     | OUT OF REGIME (prod=None const=11)
+  H1-and-none-r1k1                   HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-and-none-r2k1                   HOLDOUT     | r11   r10   | prod   prod   | HIT
+  H1-and-none-r1k2                   HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-and-ref-r1k1                    HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-and-ref-r2k1                    HOLDOUT     | r10   r11   | const  prod   | **MISS**
+  H1-and-ref-r1k2                    HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-or-none-r1k1                    HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-or-none-r2k1                    HOLDOUT     | r11   r10   | prod   prod   | HIT
+  H1-or-none-r1k2                    HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-or-ref-r1k1                     HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-or-ref-r2k1                     HOLDOUT     | r10   r11   | const  prod   | **MISS**
+  H1-or-ref-r1k2                     HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-xor-none-r1k1                   HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-xor-none-r2k1                   HOLDOUT     | r11   r10   | prod   prod   | HIT
+  H1-xor-none-r1k2                   HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-xor-ref-r1k1                    HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-xor-ref-r2k1                    HOLDOUT     | r10   r11   | const  prod   | **MISS**
+  H1-xor-ref-r1k2                    HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-neg-none-r1k1                   HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-neg-none-r2k1                   HOLDOUT     | r11   r10   | prod   prod   | HIT
+  H1-neg-none-r1k2                   HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-neg-ref-r1k1                    HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-neg-ref-r2k1                    HOLDOUT     | r10   r11   | const  prod   | **MISS**
+  H1-neg-ref-r1k2                    HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-nor-none-r1k1                   HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-nor-none-r2k1                   HOLDOUT     | r11   r10   | prod   prod   | HIT
+  H1-nor-none-r1k2                   HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-nor-ref-r1k1                    HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-nor-ref-r2k1                    HOLDOUT     | r10   r11   | const  prod   | **MISS**
+  H1-nor-ref-r1k2                    HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-srawi-none-r1k1                 HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-srawi-none-r2k1                 HOLDOUT     | r11   r10   | prod   prod   | HIT
+  H1-srawi-none-r1k2                 HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-srawi-ref-r1k1                  HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-srawi-ref-r2k1                  HOLDOUT     | r11   r10   | prod   prod   | HIT
+  H1-srawi-ref-r1k2                  HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-srwi-none-r1k1                  HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-srwi-none-r2k1                  HOLDOUT     | r11   r10   | prod   prod   | HIT
+  H1-srwi-none-r1k2                  HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-srwi-ref-r1k1                   HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-srwi-ref-r2k1                   HOLDOUT     | r10   r11   | const  prod   | **MISS**
+  H1-srwi-ref-r1k2                   HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-extsh-none-r1k1                 HOLDOUT     | r11   r10   | prod   const  | **MISS**
+  H1-extsh-none-r2k1                 HOLDOUT     | r11   r10   | prod   prod   | HIT
+  H1-extsh-none-r1k2                 HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-extsh-ref-r1k1                  HOLDOUT     | r11   r10   | prod   const  | **MISS**
+  H1-extsh-ref-r2k1                  HOLDOUT     | r11   r10   | prod   prod   | HIT
+  H1-extsh-ref-r1k2                  HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-lwz-none-r1k1                   HOLDOUT     | r11   r10   | prod   const  | **MISS**
+  H1-lwz-none-r2k1                   HOLDOUT     | r11   r10   | prod   prod   | HIT
+  H1-lwz-none-r1k2                   HOLDOUT     | r10   r11   | const  const  | HIT
+  H1-lwz-ref-r1k1                    HOLDOUT     | r11   r10   | prod   const  | **MISS**
+  H1-lwz-ref-r2k1                    HOLDOUT     | OUT OF REGIME (prod=None const=10)
+  H1-lwz-ref-r1k2                    HOLDOUT     | r10   r11   | const  const  | HIT
+  H2-self-inner2-none-r1k1           HOLDOUT     | r11   r10   | prod   prod   | HIT
+  H2-self-inner2-none-r2k1           HOLDOUT     | r11   r10   | prod   prod   | HIT
+  H2-self-inner2-none-r1k2           HOLDOUT     | r11   r10   | prod   prod   | HIT
+  H2-self-inner2-ref-r1k1            fit-shaped  | r11   r10   | prod   prod   | HIT
+  H2-self-inner2-ref-r2k1            fit-shaped  | r11   r10   | prod   prod   | HIT
+  H2-self-inner2-ref-r1k2            fit-shaped  | r11   r10   | prod   prod   | HIT
+  H2-self-interior-none-r1k1         AMBIGUOUS   | r10   r11   | const  prod   | **MISS**
+  H2-self-interior-none-r2k1         AMBIGUOUS   | r11   r10   | prod   prod   | HIT
+  H2-self-interior-none-r1k2         AMBIGUOUS   | r10   r11   | const  prod   | **MISS**
+  H2-self-interior-ref-r1k1          AMBIGUOUS   | OUT OF REGIME (prod=None const=10)
+  H2-self-interior-ref-r2k1          AMBIGUOUS   | OUT OF REGIME (prod=None const=10)
+  H2-self-interior-ref-r1k2          AMBIGUOUS   | OUT OF REGIME (prod=None const=10)
+  H2-notself-cross-none-r1k1         HOLDOUT     | r10   r11   | const  const  | HIT
+  H2-notself-cross-none-r2k1         HOLDOUT     | r11   r10   | prod   prod   | HIT
+  H2-notself-cross-none-r1k2         HOLDOUT     | r10   r11   | const  const  | HIT
+  H2-notself-cross-ref-r1k1          HOLDOUT     | r10   r11   | const  const  | HIT
+  H2-notself-cross-ref-r2k1          HOLDOUT     | r11   r10   | prod   prod   | HIT
+  H2-notself-cross-ref-r1k2          HOLDOUT     | r10   r11   | const  const  | HIT
+  H3-tie-and-none-r1k1               HOLDOUT     | r10   r11   | const  const  | HIT
+  H3-tie-and-ref-r1k1                HOLDOUT     | r10   r11   | const  const  | HIT
+  H3-tie-neg-none-r1k1               HOLDOUT     | r10   r11   | const  const  | HIT
+  H3-tie-neg-ref-r1k1                HOLDOUT     | r10   r11   | const  const  | HIT
+
+  reached 82 | GRADED 72 | out-of-regime 10 | compile-failed 0 | of 82 live rows
+    AMBIGUOUS   hit 1 | MISS 2 | out-of-regime 3
+    HOLDOUT     hit 56 | MISS 10 | out-of-regime 7
+    fit-shaped  hit 3 | MISS 0 | out-of-regime 0
+
+  R5 as registered — H-self records >= 3 misses on the NEVER-FITTED rows alone:
+    never-fitted graded 66 | misses 10 -> HIT (H-self is REFUTED)
+
+  MISSES by binding mode (the axis H-self had never seen vary):
+    mode none  : 38 graded, 4 MISS
+    mode ref   : 34 graded, 8 MISS

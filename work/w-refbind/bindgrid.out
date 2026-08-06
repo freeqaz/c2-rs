@@ -1,0 +1,176 @@
+  cell                               | prod  const | ORDER  | ALLOC  | emitted
+  ------------------------------------------------------------------------------------------------------------
+  P1-self-none-r1k1                  | r11   r10   | const  | prod   | li addi stw stw blr
+  P1-self-none-r2k1                  | r11   r10   | prod   | prod   | addi li stw stw stw blr
+  P1-self-none-r3k1                  | r11   r10   | prod   | prod   | addi li stw stw stw stw blr
+  P1-self-none-r4k1                  | r11   r10   | prod   | prod   | addi li stw stw stw stw stw blr
+  P1-self-none-r5k1                  | r11   r10   | prod   | prod   | addi li stw stw stw stw stw stw blr
+  P1-self-ref-r1k1                   | r11   r10   | const  | prod   | li addi stw stw blr
+  P1-self-ref-r2k1                   | r11   r10   | const  | prod   | li addi stw stw stw blr
+  P1-self-ref-r3k1                   | r11   r10   | const  | prod   | li addi stw stw stw stw blr
+  P1-self-ref-r4k1                   | r11   r10   | const  | prod   | li addi stw stw stw stw stw blr
+  P1-self-ref-r5k1                   | r11   r10   | const  | prod   | li addi stw stw stw stw stw stw blr
+  P1-addi-none-r1k1                  | r10   r11   | const  | const  | li addi stw stw blr
+  P1-addi-none-r2k1                  | r11   r10   | prod   | prod   | addi li stw stw stw blr
+  P1-addi-none-r3k1                  | r11   r10   | prod   | prod   | addi li stw stw stw stw blr
+  P1-addi-none-r4k1                  | r11   r10   | prod   | prod   | addi li stw stw stw stw stw blr
+  P1-addi-none-r5k1                  | r11   r10   | prod   | prod   | addi li stw stw stw stw stw stw blr
+  P1-addi-ref-r1k1                   | r10   r11   | const  | const  | li addi stw stw blr
+  P1-addi-ref-r2k1                   | r11   r10   | const  | prod   | li addi stw stw stw blr
+  P1-addi-ref-r3k1                   | r11   r10   | const  | prod   | li addi stw stw stw stw blr
+  P1-addi-ref-r4k1                   | r11   r10   | const  | prod   | li addi stw stw stw stw stw blr
+  P1-addi-ref-r5k1                   | r11   r10   | const  | prod   | li addi stw stw stw stw stw stw blr
+  P1-add-none-r1k1                   | r10   r11   | const  | const  | li add stw stw blr
+  P1-add-none-r2k1                   | r11   r10   | prod   | prod   | add li stw stw stw blr
+  P1-add-none-r3k1                   | r11   r10   | prod   | prod   | add li stw stw stw stw blr
+  P1-add-none-r4k1                   | r11   r10   | prod   | prod   | add li stw stw stw stw stw blr
+  P1-add-none-r5k1                   | r11   r10   | prod   | prod   | add li stw stw stw stw stw stw blr
+  P1-add-ref-r1k1                    | r10   r11   | const  | const  | li add stw stw blr
+  P1-add-ref-r2k1                    | r11   r10   | const  | prod   | li add stw stw stw blr
+  P1-add-ref-r3k1                    | r11   r10   | const  | prod   | li add stw stw stw stw blr
+  P1-add-ref-r4k1                    | r11   r10   | const  | prod   | li add stw stw stw stw stw blr
+  P1-add-ref-r5k1                    | r11   r10   | const  | prod   | li add stw stw stw stw stw stw blr
+  P1-shift-none-r1k1                 | r10   r11   | const  | const  | li slwi stw stw blr
+  P1-shift-none-r2k1                 | r11   r10   | prod   | prod   | slwi li stw stw stw blr
+  P1-shift-none-r3k1                 | r11   r10   | prod   | prod   | slwi li stw stw stw stw blr
+  P1-shift-none-r4k1                 | r11   r10   | prod   | prod   | slwi li stw stw stw stw stw blr
+  P1-shift-none-r5k1                 | r11   r10   | prod   | prod   | slwi li stw stw stw stw stw stw blr
+  P1-shift-ref-r1k1                  | r10   r11   | const  | const  | li slwi stw stw blr
+  P1-shift-ref-r2k1                  | r10   r11   | const  | const  | li slwi stw stw stw blr
+  P1-shift-ref-r3k1                  | r10   r11   | const  | const  | li slwi stw stw stw stw blr
+  P1-shift-ref-r4k1                  | r10   r11   | const  | const  | li slwi stw stw stw stw stw blr
+  P1-shift-ref-r5k1                  | r10   r11   | const  | const  | li slwi stw stw stw stw stw stw blr
+  P2-shift-ptr-r2k1                  | r10   r11   | const  | const  | li slwi stw stw stw blr
+  P2-shift-ptr-r1k1                  | r10   r11   | const  | const  | li slwi stw stw blr
+  P2-shift-iptr-r2k1                 | r10   r11   | const  | const  | li slwi stw stw stw blr
+  P2-shift-iptr-r1k1                 | r10   r11   | const  | const  | li slwi stw stw blr
+  P2-shift-ref-unused-r2k1           | r11   r10   | prod   | prod   | slwi li stw stw stw blr
+  P2-shift-ref-unused-r1k1           | r10   r11   | const  | const  | li slwi stw stw blr
+  P2-shift-ptr-unused-r2k1           | r11   r10   | prod   | prod   | slwi li stw stw stw blr
+  P2-shift-ptr-unused-r1k1           | r10   r11   | const  | const  | li slwi stw stw blr
+  P2-shift-ref-other-r2k1            | r11   r10   | prod   | prod   | slwi li stw stw stw blr
+  P2-shift-ref-other-r1k1            | r10   r11   | const  | const  | li slwi stw stw blr
+  P2-shift-local-int-r2k1            | r11   r10   | prod   | prod   | slwi li stw stw stw blr
+  P2-shift-local-int-r1k1            | r10   r11   | const  | const  | li slwi stw stw blr
+  P2-shift-outer-ref-r2k1            | r11   r10   | prod   | prod   | slwi li stw stw stw blr
+  P2-shift-outer-ref-r1k1            | r10   r11   | const  | const  | li slwi stw stw blr
+  P2-shift-val-temp-r2k1             | r11   r10   | prod   | prod   | slwi li stw stw stw blr
+  P2-shift-val-temp-r1k1             | r10   r11   | const  | const  | li slwi stw stw blr
+  P2-self-ptr-r2k1                   | r11   r10   | const  | prod   | li addi stw stw stw blr
+  P2-self-ptr-r1k1                   | r11   r10   | const  | prod   | li addi stw stw blr
+  P2-self-iptr-r2k1                  | r11   r10   | const  | prod   | li addi stw stw stw blr
+  P2-self-iptr-r1k1                  | r11   r10   | const  | prod   | li addi stw stw blr
+  P2-self-ref-unused-r2k1            | r11   r10   | prod   | prod   | addi li stw stw stw blr
+  P2-self-ref-unused-r1k1            | r11   r10   | const  | prod   | li addi stw stw blr
+  P2-self-ptr-unused-r2k1            | r11   r10   | prod   | prod   | addi li stw stw stw blr
+  P2-self-ptr-unused-r1k1            | r11   r10   | const  | prod   | li addi stw stw blr
+  P2-self-ref-other-r2k1             | r11   r10   | prod   | prod   | addi li stw stw stw blr
+  P2-self-ref-other-r1k1             | r11   r10   | const  | prod   | li addi stw stw blr
+  P2-self-local-int-r2k1             | r11   r10   | prod   | prod   | addi li stw stw stw blr
+  P2-self-local-int-r1k1             | r11   r10   | const  | prod   | li addi stw stw blr
+  P2-self-outer-ref-r2k1             | r11   r10   | prod   | prod   | addi li stw stw stw blr
+  P2-self-outer-ref-r1k1             | r11   r10   | const  | prod   | li addi stw stw blr
+  P2-self-val-temp-r2k1              | r11   r10   | prod   | prod   | addi li stw stw stw blr
+  P2-self-val-temp-r1k1              | r11   r10   | const  | prod   | li addi stw stw blr
+  P3-shift-none-r1k2                 | r10   r11   | const  | const  | li slwi stw stw stw blr
+  P3-shift-none-r1k3                 | r10   r11   | const  | const  | li slwi stw stw stw stw blr
+  P3-shift-none-r2k3                 | r10   r11   | const  | const  | li slwi stw stw stw stw stw blr
+  P3-shift-none-r3k2                 | r10   r11   | prod   | const  | slwi li stw stw stw stw stw blr
+  P3-shift-ref-r1k2                  | r10   r11   | const  | const  | li slwi stw stw stw blr
+  P3-shift-ref-r1k3                  | r10   r11   | const  | const  | li slwi stw stw stw stw blr
+  P3-shift-ref-r2k3                  | r10   r11   | const  | const  | li slwi stw stw stw stw stw blr
+  P3-shift-ref-r3k2                  | r10   r11   | const  | const  | li slwi stw stw stw stw stw blr
+  P3-add-none-r1k2                   | r10   r11   | const  | const  | li add stw stw stw blr
+  P3-add-none-r1k3                   | r10   r11   | const  | const  | li add stw stw stw stw blr
+  P3-add-none-r2k3                   | r11   r10   | const  | prod   | li add stw stw stw stw stw blr
+  P3-add-none-r3k2                   | r11   r10   | prod   | prod   | add li stw stw stw stw stw blr
+  P3-add-ref-r1k2                    | r10   r11   | const  | const  | li add stw stw stw blr
+  P3-add-ref-r1k3                    | r10   r11   | const  | const  | li add stw stw stw stw blr
+  P3-add-ref-r2k3                    | r11   r10   | const  | prod   | li add stw stw stw stw stw blr
+  P3-add-ref-r3k2                    | r11   r10   | const  | prod   | li add stw stw stw stw stw blr
+
+  reached 88 | GRADED 88 | out-of-regime 0 | compile-failed 0 | of 88
+
+  R2 — T(spelling, binding) = smallest reg use count taking r11
+       against a 1-use constant, searched over 1..5. inf = never.
+  spelling | T(no binding)  T(binding)     | flip?
+  --------------------------------------------------------
+  self     | 1              1              | no
+  addi     | 2              2              | no
+  add      | 2              2              | no
+  shift    | 2              inf            | YES
+
+  R1 — pairs identical but for the binding (none -> ref):
+  pair                           | ORDER            | ALLOC           
+  ------------------------------------------------------------------------
+  P1-add-*-r1k1                  | const  -> const     | const  -> const  
+  P1-add-*-r2k1                  | prod   -> const  MOVE | prod   -> prod   
+  P1-add-*-r3k1                  | prod   -> const  MOVE | prod   -> prod   
+  P1-add-*-r4k1                  | prod   -> const  MOVE | prod   -> prod   
+  P1-add-*-r5k1                  | prod   -> const  MOVE | prod   -> prod   
+  P1-addi-*-r1k1                 | const  -> const     | const  -> const  
+  P1-addi-*-r2k1                 | prod   -> const  MOVE | prod   -> prod   
+  P1-addi-*-r3k1                 | prod   -> const  MOVE | prod   -> prod   
+  P1-addi-*-r4k1                 | prod   -> const  MOVE | prod   -> prod   
+  P1-addi-*-r5k1                 | prod   -> const  MOVE | prod   -> prod   
+  P1-self-*-r1k1                 | const  -> const     | prod   -> prod   
+  P1-self-*-r2k1                 | prod   -> const  MOVE | prod   -> prod   
+  P1-self-*-r3k1                 | prod   -> const  MOVE | prod   -> prod   
+  P1-self-*-r4k1                 | prod   -> const  MOVE | prod   -> prod   
+  P1-self-*-r5k1                 | prod   -> const  MOVE | prod   -> prod   
+  P1-shift-*-r1k1                | const  -> const     | const  -> const  
+  P1-shift-*-r2k1                | prod   -> const  MOVE | prod   -> const  MOVE
+  P1-shift-*-r3k1                | prod   -> const  MOVE | prod   -> const  MOVE
+  P1-shift-*-r4k1                | prod   -> const  MOVE | prod   -> const  MOVE
+  P1-shift-*-r5k1                | prod   -> const  MOVE | prod   -> const  MOVE
+  P3-add-*-r1k2                  | const  -> const     | const  -> const  
+  P3-add-*-r1k3                  | const  -> const     | const  -> const  
+  P3-add-*-r2k3                  | const  -> const     | prod   -> prod   
+  P3-add-*-r3k2                  | prod   -> const  MOVE | prod   -> prod   
+  P3-shift-*-r1k2                | const  -> const     | const  -> const  
+  P3-shift-*-r1k3                | const  -> const     | const  -> const  
+  P3-shift-*-r2k3                | const  -> const     | const  -> const  
+  P3-shift-*-r3k2                | prod   -> const  MOVE | const  -> const  
+
+  R1: 28 pairs | ORDER moved 18 | of those, constant moved EARLIER 18, WRONG DIRECTION 0
+  R1 as registered (EVERY pair moves the constant earlier): MISS
+  ALLOC moved in 4 of 28 pairs
+
+  R3 — the mode bisection, at the two deciding points.  ref-like = same ORDER+ALLOC as mode `ref`;  none-like = as `none`.
+  spell    ru/cu | mode `none` | mode `ref`  | each mode
+  shift    2/1   | prod,prod   | const,const |
+      ptr            const,const ref-like   (addresses through a temp)
+      iptr           const,const ref-like   (addresses through a temp)
+      ref-unused     prod,prod   none-like  
+      ptr-unused     prod,prod   none-like  
+      ref-other      prod,prod   none-like  
+      local-int      prod,prod   none-like  
+      outer-ref      prod,prod   none-like  (addresses through a temp)
+      val-temp       prod,prod   none-like  
+  shift    1/1   | const,const | const,const |
+      ptr            const,const ref-like   (addresses through a temp)
+      iptr           const,const ref-like   (addresses through a temp)
+      ref-unused     const,const ref-like   
+      ptr-unused     const,const ref-like   
+      ref-other      const,const ref-like   
+      local-int      const,const ref-like   
+      outer-ref      const,const ref-like   (addresses through a temp)
+      val-temp       const,const ref-like   
+  self     2/1   | prod,prod   | const,prod  |
+      ptr            const,prod  ref-like   (addresses through a temp)
+      iptr           const,prod  ref-like   (addresses through a temp)
+      ref-unused     prod,prod   none-like  
+      ptr-unused     prod,prod   none-like  
+      ref-other      prod,prod   none-like  
+      local-int      prod,prod   none-like  
+      outer-ref      prod,prod   none-like  (addresses through a temp)
+      val-temp       prod,prod   none-like  
+  self     1/1   | const,prod  | const,prod  |
+      ptr            const,prod  ref-like   (addresses through a temp)
+      iptr           const,prod  ref-like   (addresses through a temp)
+      ref-unused     const,prod  ref-like   
+      ptr-unused     const,prod  ref-like   
+      ref-other      const,prod  ref-like   
+      local-int      const,prod  ref-like   
+      outer-ref      const,prod  ref-like   (addresses through a temp)
+      val-temp       const,prod  ref-like   

@@ -1,0 +1,7 @@
+FROZEN 82 cells -> work/w-refbind/holdout_pred.tsv
+  HOLDOUT     73
+  fit-shaped  3
+  AMBIGUOUS   6
+  predicted prod 34 | predicted const 48
+  sources under work/w-refbind/holdout
+  NOTHING COMPILED.
