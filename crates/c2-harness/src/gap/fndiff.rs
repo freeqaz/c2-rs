@@ -758,7 +758,22 @@ pub struct DiffSig {
     /// **The positive accounting identity.** `false` means this row's alignment
     /// does not add up and the row must not be believed.
     pub accounting_ok: bool,
+    /// Both bodies whole, up to [`BODY_CAP`] words each — what a side-by-side
+    /// rendering needs and no summary can substitute for.
+    ///
+    /// These are the port's and c2's `.text` words for **one function**, in a
+    /// gitignored scratch file. They are not a corpus dump and they are not
+    /// committable (`CLAUDE.md`: no raw byte dumps in the repo); the file lives
+    /// under `work/` like every other lane artifact.
+    pub port_hex: Vec<u32>,
+    pub ref_hex: Vec<u32>,
+    pub body_truncated: bool,
 }
+
+/// How many words of each body a row carries. Every differing body in the dc3
+/// workload is far shorter than this; the cap exists so one outlier cannot make
+/// the file unreadable, and it is reported per row rather than silently applied.
+pub const BODY_CAP: usize = 64;
 
 /// How many substitutions a row carries verbatim. Enough to decode a cluster's
 /// worked example by hand; short enough that the JSONL stays a text file.
@@ -825,6 +840,9 @@ pub fn signature(
         ins_words: Vec::new(),
         del_words: Vec::new(),
         accounting_ok: false,
+        port_hex: p.iter().take(BODY_CAP).copied().collect(),
+        ref_hex: r.iter().take(BODY_CAP).copied().collect(),
+        body_truncated: p.len() > BODY_CAP || r.len() > BODY_CAP,
     };
 
     let mut seen_diff = false;
@@ -996,7 +1014,8 @@ impl DiffSig {
              \"sub_at_reloc\":{},\"del_at_reloc\":{},\"reloc_count\":{},\
              \"reloc_unaligned\":{},\"oe\":{},\"accounting_ok\":{},\
              \"samples\":[{}],\"samples_truncated\":{},\"ins_words\":[{}],\
-             \"del_words\":[{}],\"csig\":{},\"sig\":{}}}",
+             \"del_words\":[{}],\"port_hex\":[{}],\"ref_hex\":[{}],\
+             \"body_truncated\":{},\"csig\":{},\"sig\":{}}}",
             crate::jstr(&self.tu),
             crate::jstr(&self.sym),
             crate::jstr(self.shape),
@@ -1022,6 +1041,9 @@ impl DiffSig {
             self.samples_truncated,
             wlist(&self.ins_words),
             wlist(&self.del_words),
+            wlist(&self.port_hex),
+            wlist(&self.ref_hex),
+            self.body_truncated,
             crate::jstr(&self.csig()),
             crate::jstr(&self.sig()),
         )
