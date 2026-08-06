@@ -255,7 +255,7 @@ block's.
 | **emitted-function census** | in-class ∩ *code c2 actually emits* | gradeable by the differential on its own |
 | per-function census | **a driver** — it ranks rungs, and does that superbly | the target. "census → 100 %" is **retired** (§8.1) |
 | **PROGRESS MASS** (`P = mean(a,b,c,f)`) | **a driver** — the *ranking* metric, and the only one that can say which of two lanes moved more on a day TU match read 8 before and after ([`PROGRESS_METRIC.md`](PROGRESS_METRIC.md)) | a completion percentage. `P = 0.21` does **not** mean 21 % done — the four terms are necessary, not sufficient. Its `f` term inherits trap 2 whole |
-| **FUNCTION BYTE MATCH** (`FBM`) | **a driver** — the byte-exact differential asked *per emitted function* instead of per TU, so partial progress inside a TU is visible ([`FUNCTION_BYTE_MATCH.md`](FUNCTION_BYTE_MATCH.md)). The **only** continuous number on this page graded by the oracle's own bytes. **Quote it with `fnbyte-differs`, which was 0 until 2026-08-06, then 4,711, then 3,338, and is 3,195 since 2026-08-07 — quote it from a scan** | sufficient, and not a floor-free reading. A `.text` body is a *subset* of the obj, so `FBM = 1.0` would still not mean a matching TU. **The under-report it used to carry is CLOSED** — `fnbyte-partial` was 9,375 and is **0** (board #322, lane `w-fnbyte`); of that population **4,664 turned out byte-exact and 4,711 turned out WRONG**, so the widening bought +0.026 of ratio and one standing alarm that is no longer green by construction. `fnbyte-partial` is still printed, and prints `NONE` rather than vanishing |
+| **FUNCTION BYTE MATCH** (`FBM`) | **a driver** — the byte-exact differential asked *per emitted function* instead of per TU, so partial progress inside a TU is visible ([`FUNCTION_BYTE_MATCH.md`](FUNCTION_BYTE_MATCH.md)). The **only** continuous number on this page graded by the oracle's own bytes. **Quote it with `fnbyte-differs`, which was 0 until 2026-08-06, then 4,711, then 3,338, and is 3,195 since 2026-08-07 — quote it from a scan** | sufficient, and not a floor-free reading. A `.text` body is a *subset* of the obj, so `FBM = 1.0` would still not mean a matching TU. **The under-report it used to carry is CLOSED** — `fnbyte-partial` was 9,375 and is **0** (board #322, lane `w-fnbyte`); of that population **4,664 turned out byte-exact and 4,711 turned out WRONG**, so the widening bought +0.026 of ratio and one standing alarm that is no longer green by construction. `fnbyte-partial` is still printed, and prints `NONE` rather than vanishing. **And `exact` is not a clean credit: 861 of the 35,982 relocate against a symbol c2 does not name** (board #986 — a `/Gy` branch word cannot carry its callee, so FBM's byte test scores the word equal). `gap-metric fnbyte-calltarget-disagree-exact`, on every scan |
 | emit-set ceiling (28/871 gate-anchored) | TUs where `.ex` segments == obj COMDATs — the most TU match can reach **before** Phase 7 exists | reachable by widening |
 | emit-set MODEL ceiling (338/871) | TUs where a segment-driven model binds every emitted symbol | the same thing as the line above (see below) |
 | mismatch count | an **alarm** — and on **2026-08-04 it FIRED, four times over**: board **#232**, **#259** (a family of six), **#263** and **#276**. **All four are closed on `33cbdbe`.** Before that day it had never fired, and that record was doing more reassuring than it had earned | ~~"it has never fired"~~; and never evidence of correctness, before or after (see the coverage bound). **Nor is "four found and closed" a completeness claim** — three of the four were found by lanes building probe grids for unrelated rungs, so the rate says more about how many grids were built that day than about how many defects remain |
@@ -544,6 +544,30 @@ misleading without them.
    > boards **#946**–**#955**, `rungs/2026-08-07-w-fix.md`. **Quote
    > `fnbyte-differs` from a scan and not from this page — it has moved THREE
    > times in two days.**
+   >
+   > > **⚠ 2026-08-06 — `fnbyte-exact` IS NOT A CLEAN CREDIT EITHER: 861 of the
+   > > 35,982 relocate against a symbol c2 does not name.** Lane `w-drop3` read
+   > > the reference obj's **relocation targets** rather than its bytes
+   > > (`c2_obj::ObjImage::text_comdat_call_targets`, board **#984**) and
+   > > compared them with the port's own `REL24` list. Of 39,177 graded
+   > > functions, **4,056 disagree: all 3,195 `differs`, and 861 `exact`.**
+   > >
+   > > **The cause is that a `/Gy` branch word cannot carry its callee** — c2
+   > > writes the placeholder displacement `-(offset of the branch word)` for
+   > > every target alike, so `??1?$list@H…`'s `48000000 → ?clear@…` and the
+   > > port's `48000000 → ??1?$_List_base@H…` are the same four bytes. Board
+   > > **#882** ("4,664 credited functions carry a relocation FBM does not
+   > > check") was that gap as a caveat; **861** is the part of it that is
+   > > wrong.
+   > >
+   > > **`mismatch` is still 0 and `functions()` is untouched** — all 861 sit in
+   > > refused TUs, so what is wrong is the credit, not an obj, and the hazard is
+   > > the next `functions()` widening. **This is the FOURTH time an instrument
+   > > widening has retracted a claim on this page and the first time none of the
+   > > four came from a gate**; it also **refuted a published board row**, #979's
+   > > "the port omits a call c2 makes", which was a byte test misreading a
+   > > substitution as a deletion. Boards **#984**–**#989**;
+   > > [`rungs/2026-08-06-w-drop3.md`](rungs/2026-08-06-w-drop3.md).
 
 3. **A residue shrinking is not the thing the residue is a proxy for.** §9.20.3
    raised the `.gl` name-distance bound and watched `records_nameless` fall
