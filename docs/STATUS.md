@@ -334,6 +334,21 @@ because the ladder is greedy and re-ranks.)
   `/EHsc`. EH's records land in **plain `.rdata`**, which the writer already
   has, so **Phase 5 moves C by zero**; rung three is an **RTTI** rung. EH blocks
   by factor **D**, over **740** objs, not 676.
+
+  > **2026-08-07 — the ladder's top step has now been declined TWICE, by two
+  > lanes, at two masters.** `w-rdata` priced the minimal `.rdata$r` obj at
+  > **seven** independent refusals; **`w-rtti` was briefed to ship it anyway,
+  > re-derived the price at `9827bcf`, and found all seven still unpaid** —
+  > `c2rs census` reads `0/1 functions in class` at `expr-op-0x27`, and
+  > `c2-il`'s `.gl` data-record reader returns **0 of the 6 data records** in
+  > that obj against **2 of 2** on a `.data` control. `factor-c` is **169
+  > before and after**, and all 77 `gap-metric` lines were byte-identical
+  > across the lane. Two things did move: `OBJ_RDATA_R_SHAPE.md` is
+  > **re-verified on 72 fresh objs (21 of 23 claims held, two did not)**, and
+  > **board #301 is closed** — a `Section` literal in an emitter nothing calls
+  > can no longer inflate C, measured by a counterfactual in which the *older*
+  > guard stays green. Boards **#926**–**#933**;
+  > [`rungs/2026-08-07-w-rtti.md`](rungs/2026-08-07-w-rtti.md).
 * **13 is closed over this workload as measured, not closed by the language** —
   `#pragma init_seg("name")` mints a user-chosen name. Measured **0**
   occurrences in the workload's 78,746 source files (grep calibrated first), so

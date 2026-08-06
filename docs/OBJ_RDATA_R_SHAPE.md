@@ -1,8 +1,11 @@
 # `.rdata$r` — the RTTI record graph, measured
 
-**Status: SPECIFICATION ONLY. Nothing in `crates/` emits `.rdata$r`, and lane
-`w-rdata` deliberately did not add it to `PORT_WRITER_SECTIONS`** — see §9 for
-why, and `rungs/2026-08-04-w-rdata.md` for the decision. This file stands to
+**Status: SPECIFICATION ONLY, and RE-VERIFIED (§0.1). Nothing in `crates/` emits
+`.rdata$r`; lane `w-rdata` deliberately did not add it to
+`PORT_WRITER_SECTIONS` and lane `w-rtti` — briefed to add it — re-derived the
+price and declined again** (§8.1, `rungs/2026-08-07-w-rtti.md`). See §9 for why,
+and §9.1 for the guard that now makes the decision enforceable rather than a
+matter of lane discipline. This file stands to
 `.rdata$r` as [`OBJ_DATA_BSS_SHAPE.md`](OBJ_DATA_BSS_SHAPE.md) stood to
 `coff/data.rs`: measure first, then write the writer against a caller.
 
@@ -40,6 +43,43 @@ the ladder is greedy and re-ranks after each step, so those two figures are
 
 Every count in this file is from one of those two sets or from the census.
 Nothing is extrapolated.
+
+### §0.1 RE-VERIFIED 2026-08-06 on 72 fresh objs — lane `w-rtti`, board #926
+
+**Everything below was re-checked on cells this file was NOT derived from**, by
+`work/w-rtti/verify.py` (which reads the COFF through `scripts/gt_dump.py`'s
+`Obj` and gets its relocation names from `crates/c2-obj/src/reloc.rs`, so no
+table is copied). The grid is 18 sources — templates with one and two
+parameters, a class nested in a *class*, a four-deep chain, virtual inheritance
+with a **single** base, two virtual bases, a secondary base with its own
+virtuals, an anonymous namespace, a long template name, `dllexport`, three
+classes in one TU, a two-level diamond, abstract-with-concrete-derived, virtual
+destructors on both levels, `novtable` on the base only, and a member-pointer
+member — frozen in `work/w-rtti/grid_list.txt` **before** anything was captured,
+plus two known-answer controls that ARE this file's own cells. Captured at four
+profiles (`/O1`, `/Od`, `/Ox`, `/GR-`) = **72 objs**, and at `/O1`
+**139 `.rdata$r` sections + 35 `??_R0` `.data` COMDATs = 174 records**.
+
+**21 of 23 claims HELD. Two did not, and one rule needed re-cutting:**
+
+| claim | result at `/O1` |
+|---|---|
+| `.rdata$r` Characteristics `0x40301040` | **HELD 139/139** |
+| `.rdata$r` COMDAT Selection 2 | **HELD 139/139** |
+| every relocation is `ADDR32` | **HELD 268/268** |
+| the aux `CheckSum` is `coff_checksum` | **HELD 174/174** |
+| `??_R0` in `.data`, `0xC0301040`, Selection 2 | **HELD 35/35** each |
+| `??_R0` size `8+strlen+1`, unpadded, name, spare 0 | **HELD 35/35** each |
+| `??_R4` 20 B · `??_R3` 16 B · `??_R1` 28 B | **HELD** 27 / 35 / 42 |
+| `??_R2` NULL-terminated · `size == 4*(n+1)` | **HELD 35/35** each |
+| `??_R1`'s four fields are spelled in its own name | **HELD 42/42** |
+| **`??_7` vftable: Selection 6, symbol `Value` 4** | **HELD 27/27** |
+| **`??_8` vbtable: Selection 6, symbol `Value` 4** | **REFUTED 0/4** — see §3.1 |
+| the DFS pre-order (§5) | **HELD 21/21** — after re-cutting the group, §6.1 |
+
+The two corrections are §3.1 and §6.1. Neither changes a record's bytes; both
+change what a writer would have to *do*, which is the only kind of correction
+that matters here.
 
 ---
 
@@ -214,6 +254,30 @@ The **vftable**'s own `.rdata` is `0x4030_1040` too but Selection **6**
 (LARGEST), and its defining symbol's `Value` is **4**, not 0: the COL pointer
 occupies `vftable[-1]` and the symbol names the first virtual slot.
 
+### §3.1 CORRECTION — `??_8` is NOT `??_7`, and Selection 6 is a `/GR` property
+
+Two things the paragraph above gets wrong, both found by `w-rtti`'s fresh grid
+(§0.1) and both stated as counts:
+
+**(a) A `??_8` VBTABLE is Selection 2 and `Value` 0 — 0 of 4.** §6 below lumps
+`??_7` and `??_8` together as *"the vftable/vbtable block"* and this paragraph
+states one rule for the block. The rule is the **vftable's**: `??_7` holds
+**27/27**, and every one of the four `??_8` vbtables in the grid
+(`??_8Vd@@7B@`, `??_8R@@7B@`, `??_8Dia@@7BLft@@@`, `??_8Dia@@7BRgt@@@` — the
+virtual-inheritance cells) reads Selection **2** and `Value` **0**. Its
+Characteristics are `0x4030_1040`, 4/4, so the two records differ in exactly the
+two fields a writer would have to set. The reason is the same one that explains
+the `??_7` values: there is no complete-object locator at `vbtable[-1]`, so
+there is nothing for the symbol to be displaced past.
+
+**(b) Selection 6 / `Value` 4 is conditional on `/GR`.** At `/GR-` the same 27
+vftables read Selection **2** and `Value` **0** — **0/27** on both, over the same
+18 sources. Without RTTI there is no COL to sit at `vftable[-1]`, so the vftable
+loses both the displacement and the LARGEST selection. This file only ever
+measured `/GR` cells, so it recorded a `/GR`-conditional fact as an
+unconditional one. It is not a live hazard — the workload is 100 % `/GR` — but a
+writer keyed on "a vftable is Selection 6" is keyed on the wrong thing.
+
 ---
 
 ## §4 The bytes are DERIVABLE — 3,337 of 3,570 from names alone
@@ -239,6 +303,14 @@ That is the price of the record graph, stated as a number: **three class-layout
 integers per class**, and everything else follows from the names. Those three are
 what c1xx computes and hands to c2; they are not recoverable from a mangled
 symbol, which is why they are the reader's job and not the writer's.
+
+> **⚠ 2026-08-06 — "not recoverable" is true of the NAME and false of the
+> STREAM, and this sentence sent the price down the wrong road.** All three are
+> spelled literally in `.in`, alongside every other field of every record — see
+> **§8.1**, which has the bytes. §4 is a correct measurement of *what a
+> name-only synthesizer can do* and was read downstream as *what a reader must
+> derive*. A reader does not have to derive any of it; it has to decode one more
+> `.in` element tag. Board **#931**.
 
 ---
 
@@ -304,6 +376,36 @@ function's, and the order follows the function emission order — reversing the
 two definitions in the source reverses the two blocks in the obj, with an
 unrelated plain function keeping its own position on either side.
 
+### §6.1 CORRECTION — the group is cut at the VFTABLE BLOCK, not at the `.text`
+
+`w-rtti` (§0.1). The paragraph above and §5 are individually right and compose
+wrongly: **§5's DFS is a per-group rule, and the group boundary is not the
+`.text` COMDAT.** Measured, as the two counts a reader has to choose between:
+
+| DFS model | `/O1` | `/Od` | `/Ox` |
+|---|---:|---:|---:|
+| one global walk rooted at every vftable in reverse section order | 16/18 objs | — | — |
+| a walk per group, group cut at each `.text` COMDAT | 21/21 groups | 17/19 | 16/18 |
+| **a walk per group, group cut at each VFTABLE RUN** | **21/21** | **22/22** | **21/21** |
+
+The `.text` cut fails because **the `.text` COMDAT is not always there.**
+`f11_three_classes.cpp` defines three polymorphic classes and their three
+constructors; at `/O1` the obj carries three `.text` COMDATs and three
+vftable+RTTI blocks, and at **`/Od` and `/Ox` it carries ONE `.text` COMDAT and
+still three blocks** — `??0C2@@QAA@XZ` is emitted and `??0C3`/`??0C1` are not,
+while all three vftables and all twelve records are. The block order is
+unchanged across all three modes and is the order the constructors are
+**defined** in (C2, C3, C1 — deliberately not the declaration order), so the
+ordering key is the *function*, not the section it did or did not get.
+
+§2's *"a `.rdata$r` TU always has at least one `.text` COMDAT"* survives this —
+it is still true on every one of the 72 objs, and the four probes in
+`work/w-rtti/probe/` looked for a counterexample on purpose and did not find
+one (a namespace-scope object of a polymorphic class is **statically**
+initialized here, vfptr relocation and all, and *still* drags the constructor
+COMDAT in). What does not survive is the stronger reading that the `.text`
+COMDATs and the RTTI blocks are in bijection.
+
 ---
 
 ## §7 `/Od` emits TWO vftables where every optimized mode emits ONE
@@ -324,6 +426,15 @@ grid — `g01`/`g02` are byte-stable across `/Od`, `/O1` and `/Ox` in record cou
 — so the divergence needs the base-and-derived shape specifically, and a writer
 keyed on "one vftable per class defined here" is right at every optimized mode
 and wrong at `/Od`.
+
+**CONFIRMED 2026-08-06 on a fresh cell** (`w-rtti`, §0.1). `f14_vdtor_derived.cpp`
+is exactly that shape — virtual destructors on base *and* derived — and it reads
+**4 records / 1 vftable at `/O1` and at `/Ox`, and 8 records / 2 vftables at
+`/Od`**. It is the **only** one of the eighteen sources whose record *count*
+moves with the optimization mode; `f08_anon_namespace` and `f11_three_classes`
+move their section counts at `/Od` and `/Ox` (§6.1) with their record counts
+fixed. So the sentence above is right, and the shape it needs is narrower than
+"base and derived": it needs the virtual **destructor** on both levels.
 
 ---
 
@@ -354,6 +465,67 @@ record, and a `.pdata`.
 **Items 1 and 2 are the binding ones**, and they are not in this lane's seam.
 Reported to lane `w-vocab` rather than implemented.
 
+### §8.1 RE-DERIVED 2026-08-06 — still seven, all seven still unpaid, and item 2 is a DIFFERENT problem than this page says
+
+Lane `w-rtti` was briefed to ship the writer and re-priced it first, at master
+`9827bcf` — 20+ commits and several `c2-il` widenings after `w-rdata`. **The
+count is still seven and not one of them has been paid.** The two that were
+re-measured directly:
+
+**Item 1 — `expr-op-0x27` still refuses, measured.** `c2rs census` on §2's own
+source reads **`0/1 functions in class`**, blocking key `expr-op-0x27`, and
+`c2rs diff` reads `ReferenceReplay=ByteExact (ref=1033B replay=1033B)
+Port=NotImplemented`. The reference half is byte-exact and the port half is an
+honest refusal, which is the boundary working.
+
+**Item 2 is not "a graph reader" and not a derivation problem — it is a `.gl`
+record kind `c2-il` cannot see AT ALL.** Measured with a throwaway spike over
+`gl_data_objects_ordered`, with a positive control so that a zero is a reading
+and not a broken probe:
+
+| capture | records the `.gl` data reader returns |
+|---|---:|
+| `wsect_data_two.cpp` — the positive control | **2 of 2** |
+| §2's minimal RTTI TU — 11 sections, 6 of them data | **0** |
+| a namespace-scope object of a polymorphic class | **1 of 12** — the `$initializer$`, not the object and not one record |
+
+**Zero of eleven.** Not the four `??_R*`, not the `??_R0` in `.data`, not the
+vftable — and in the third row not even the plain statically-initialized
+`?g@@3UA@@A`, because its initializer carries a **relocation**. So the reader is
+blind to (a) every COMDAT record and (b) every initializer with a symbol
+reference, and a `.rdata$r` writer needs both.
+
+**And the good news, which is the part that makes the next lane cheaper: the
+three layout integers §4 calls "the reader's job" are LITERALLY IN `.in`.** §4
+scored a synthesizer that rebuilds records from mangled names and left
+`??_R4.offset`, `??_R4.cdOffset` and `??_R3.attributes` as the irreducible
+residue. They do not have to be derived. The minimal TU's `.in` spells every
+record's contents element by element, including the ones §4 could not reach:
+
+```text
+  ??_R1 …  07 00 f7 09 00 · 02 f4 09 00 04 · 01 02 04 00 · 01 01 04 00
+           · 01 01 04 80 ffffffff · 01 01 04 00 · 01 02 04 40 · 02 f5 09 00 04
+                                    ^^ pdisp = -1        ^^ attributes = 0x40
+  ??_R3 …  07 00 f5 09 00 · 01 02 04 00 · 01 02 04 00 · 01 02 04 01 · 02 f6 09 00 04
+                                                          ^^ numBaseClasses = 1
+  ??_R0 …  07 00 f4 09 00 · 02 f8 09 00 04 · 01 03 04 00 · 03 08 ".?AUA@@" 00
+                             ^^ reloc to ??_7type_info@@6B@   ^^ tag 03, the name
+```
+
+Element tags `01` (scalar) and `03` (byte string) are **already read** by
+[`crates/c2-il/src/func/ininit.rs`] and [`inlit.rs`]. The one missing tag is
+**`02` — `<token> 00 <n>`, the address of another symbol** — which that module
+names `InInitResidue::SymbolAddress` and refuses by design, citing
+`OBJ_DATA_BSS_SHAPE.md` §8.6's *"unexercised"*. **That single element tag is the
+relocation, and it is the same tag the third row of the table above trips over.**
+
+So item 2's price is not a derivation engine. It is: teach `.gl`'s data-record
+reader the COMDAT/section-name attribute, and teach `.in` element tag `02`. Both
+are ordinary reader work with a graded consumer already in the tree
+(`emit_data_obj`). **The count of seven does not change** — a cheaper fact is
+still a fact — but the *shape* of the two binding ones does, and this page said
+the wrong thing about the harder of them.
+
 ---
 
 ## §9 Why `PORT_WRITER_SECTIONS` was NOT extended
@@ -379,6 +551,41 @@ Two things stop that hole from being open:
 
 So the honest order is: this document, then the `c2-il` reader, then the writer
 **with a caller**, then the constant. Not the constant first.
+
+### §9.1 2026-08-06 — THE REMAINING HOLE IS CLOSED (board #301, lane `w-rtti`)
+
+The second bullet above — *"a `Section { name: … }` literal in an emitter with
+**no caller** would satisfy that test and still inflate C"* — is no longer open.
+`coff::tests::every_production_emitter_has_a_lib_rs_caller` asserts that every
+`pub fn emit_*` which exists in a **non-test** build is named by `lib.rs`, and
+`emit_mvp_obj` (whose only caller was a test, and which §10 of
+`rungs/2026-08-04-w-rdata.md` called *"luck, not a guarantee"*) is `#[cfg(test)]`
+rather than exempted, because an allow-list is the thing that goes stale.
+
+**Measured, not asserted** — `work/w-rtti/counterfactual.sh` breaks the tree in
+each of the two ways that inflate C and reports which guard catches which:
+
+```text
+### BASE
+  the_writer_vocabulary_…  ok        every_production_emitter_…  ok
+### BREAK 1 — the constant only, no Section literal
+  the_writer_vocabulary_…  FAILED    every_production_emitter_…  ok
+### BREAK 2 — the constant PLUS an uncalled emitter that builds the Section
+  the_writer_vocabulary_…  ok        every_production_emitter_…  FAILED
+### RESTORE
+  git status --porcelain crates/ = 0 path(s)
+  the_writer_vocabulary_…  ok        every_production_emitter_…  ok
+```
+
+BREAK 2's row is the whole point: the vocabulary test is **green** over a
+`.rdata$r` literal nothing calls, exactly as this section predicted, and the new
+test is the only thing that says no.
+
+**The guard caught its own author first.** The test read `pub fn emit_*_obj` for
+one commit, and BREAK 2's emitter was named `emit_rtti_obj_counterfactual` —
+which does not *end* in `_obj` — so the population excluded it and BREAK 2 passed
+both tests on the first run. The suffix was an allow-list wearing a different
+hat. It reads every `pub fn emit_*` now.
 
 ---
 

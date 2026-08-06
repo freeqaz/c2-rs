@@ -1,0 +1,94 @@
+  MISS VFT7-sel6              f01_template_inst.obj ??_7?$Tm@H@@6B@ sel=2
+  MISS VFT7-value4            f01_template_inst.obj ??_7?$Tm@H@@6B@ value=0
+  MISS VFT7-sel6              f02_template_two_args.obj ??_7?$Tw@DJ@@6B@ sel=2
+  MISS VFT7-value4            f02_template_two_args.obj ??_7?$Tw@DJ@@6B@ value=0
+  MISS VFT7-sel6              f03_nested_in_class.obj ??_7Inner@Outer@@6B@ sel=2
+  MISS VFT7-value4            f03_nested_in_class.obj ??_7Inner@Outer@@6B@ value=0
+  MISS VFT7-sel6              f04_chain4.obj ??_7L3@@6B@ sel=2
+  MISS VFT7-value4            f04_chain4.obj ??_7L3@@6B@ value=0
+  MISS VFT7-sel6              f05_virtual_only.obj ??_7Vd@@6BVb@@@ sel=2
+  MISS VFT7-value4            f05_virtual_only.obj ??_7Vd@@6BVb@@@ value=0
+  MISS VFT7-sel6              f05_virtual_only.obj ??_7Vd@@6B0@@ sel=2
+  MISS VFT7-value4            f05_virtual_only.obj ??_7Vd@@6B0@@ value=0
+  MISS VBT8-sel6              f05_virtual_only.obj ??_8Vd@@7B@ sel=2
+  MISS VBT8-value4            f05_virtual_only.obj ??_8Vd@@7B@ value=0
+  MISS VFT7-sel6              f06_two_virtual_bases.obj ??_7R@@6BQ@@@ sel=2
+  MISS VFT7-value4            f06_two_virtual_bases.obj ??_7R@@6BQ@@@ value=0
+  MISS VFT7-sel6              f06_two_virtual_bases.obj ??_7R@@6BP@@@ sel=2
+  MISS VFT7-value4            f06_two_virtual_bases.obj ??_7R@@6BP@@@ value=0
+  MISS VFT7-sel6              f06_two_virtual_bases.obj ??_7R@@6B0@@ sel=2
+  MISS VFT7-value4            f06_two_virtual_bases.obj ??_7R@@6B0@@ value=0
+  MISS VBT8-sel6              f06_two_virtual_bases.obj ??_8R@@7B@ sel=2
+  MISS VBT8-value4            f06_two_virtual_bases.obj ??_8R@@7B@ value=0
+  MISS VFT7-sel6              f07_secondary_virtuals.obj ??_7S3@@6BS2@@@ sel=2
+  MISS VFT7-value4            f07_secondary_virtuals.obj ??_7S3@@6BS2@@@ value=0
+  MISS VFT7-sel6              f07_secondary_virtuals.obj ??_7S3@@6BS1@@@ sel=2
+  MISS VFT7-value4            f07_secondary_virtuals.obj ??_7S3@@6BS1@@@ value=0
+  MISS VFT7-sel6              f08_anon_namespace.obj ??_7An@?A0x172a9365@@6B@ sel=2
+  MISS VFT7-value4            f08_anon_namespace.obj ??_7An@?A0x172a9365@@6B@ value=0
+  MISS VFT7-sel6              f09_longname.obj ??_7?$AVeryLongTemplateNameForPaddingProbe@HDF@@6B@ sel=2
+  MISS VFT7-value4            f09_longname.obj ??_7?$AVeryLongTemplateNameForPaddingProbe@HDF@@6B@ value=0
+  MISS VFT7-sel6              f10_dllexport.obj ??_7Ex@@6B@ sel=2
+  MISS VFT7-value4            f10_dllexport.obj ??_7Ex@@6B@ value=0
+  MISS VFT7-sel6              f11_three_classes.obj ??_7C2@@6B@ sel=2
+  MISS VFT7-value4            f11_three_classes.obj ??_7C2@@6B@ value=0
+  MISS VFT7-sel6              f11_three_classes.obj ??_7C3@@6B@ sel=2
+  MISS VFT7-value4            f11_three_classes.obj ??_7C3@@6B@ value=0
+  MISS VFT7-sel6              f11_three_classes.obj ??_7C1@@6B@ sel=2
+  MISS VFT7-value4            f11_three_classes.obj ??_7C1@@6B@ value=0
+  MISS VFT7-sel6              f12_diamond_deep.obj ??_7Dia@@6BVbase@@@ sel=2
+  MISS VFT7-value4            f12_diamond_deep.obj ??_7Dia@@6BVbase@@@ value=0
+  MISS VFT7-sel6              f12_diamond_deep.obj ??_7Dia@@6BRgt@@@ sel=2
+  MISS VFT7-value4            f12_diamond_deep.obj ??_7Dia@@6BRgt@@@ value=0
+  MISS VFT7-sel6              f12_diamond_deep.obj ??_7Dia@@6BLft@@@ sel=2
+  MISS VFT7-value4            f12_diamond_deep.obj ??_7Dia@@6BLft@@@ value=0
+  MISS VBT8-sel6              f12_diamond_deep.obj ??_8Dia@@7BRgt@@@ sel=2
+  MISS VBT8-value4            f12_diamond_deep.obj ??_8Dia@@7BRgt@@@ value=0
+  MISS VBT8-sel6              f12_diamond_deep.obj ??_8Dia@@7BLft@@@ sel=2
+  MISS VBT8-value4            f12_diamond_deep.obj ??_8Dia@@7BLft@@@ value=0
+  MISS VFT7-sel6              f13_abstract_derived.obj ??_7Ab@@6B@ sel=2
+  MISS VFT7-value4            f13_abstract_derived.obj ??_7Ab@@6B@ value=0
+  MISS VFT7-sel6              f13_abstract_derived.obj ??_7Cn@@6B@ sel=2
+  MISS VFT7-value4            f13_abstract_derived.obj ??_7Cn@@6B@ value=0
+  MISS VFT7-sel6              f14_vdtor_derived.obj ??_7Vd0@@6B@ sel=2
+  MISS VFT7-value4            f14_vdtor_derived.obj ??_7Vd0@@6B@ value=0
+  MISS VFT7-sel6              f15_novtable_derived.obj ??_7Nd@@6B@ sel=2
+  MISS VFT7-value4            f15_novtable_derived.obj ??_7Nd@@6B@ value=0
+  MISS VFT7-sel6              f16_member_ptr_and_array.obj ??_7Mp@@6B@ sel=2
+  MISS VFT7-value4            f16_member_ptr_and_array.obj ??_7Mp@@6B@ value=0
+  MISS VFT7-sel6              k01_control_minimal.obj ??_7A@@6B@ sel=2
+  MISS VFT7-value4            k01_control_minimal.obj ??_7A@@6B@ value=0
+  MISS VFT7-sel6              k02_control_derived.obj ??_7D@@6B@ sel=2
+  MISS VFT7-value4            k02_control_derived.obj ??_7D@@6B@ value=0
+
+obj                              nsec  .rdata$r  ??_R0  vftbl
+f01_template_inst.obj               6         0      0      1
+f02_template_two_args.obj           6         0      0      1
+f03_nested_in_class.obj             6         0      0      1
+f04_chain4.obj                      7         0      0      1
+f05_virtual_only.obj                9         0      0      3
+f06_two_virtual_bases.obj          10         0      0      4
+f07_secondary_virtuals.obj          8         0      0      2
+f08_anon_namespace.obj              9         0      0      1
+f09_longname.obj                    6         0      0      1
+f10_dllexport.obj                   8         0      0      1
+f11_three_classes.obj              10         0      0      3
+f12_diamond_deep.obj               12         0      0      5
+f13_abstract_derived.obj            8         0      0      2
+f14_vdtor_derived.obj               9         0      0      1
+f15_novtable_derived.obj            7         0      0      1
+f16_member_ptr_and_array.obj        6         0      0      1
+k01_control_minimal.obj             6         0      0      1
+k02_control_derived.obj             7         0      0      1
+
+objs=18  .rdata$r-sections=0  ??_R0-data-comdats=0  records=0
+
+CLAIM P6-groups-dont-interleave HELD     18/18
+CLAIM VBT8-chars             HELD     4/4
+CLAIM VBT8-sel6              REFUTED  0/4
+CLAIM VBT8-value4            REFUTED  0/4
+CLAIM VFT7-chars             HELD     27/27
+CLAIM VFT7-sel6              REFUTED  0/27
+CLAIM VFT7-value4            REFUTED  0/27
+
+claims=7 refuted=4

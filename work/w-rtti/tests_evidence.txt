@@ -1,0 +1,42 @@
+cargo test --workspace --release  —  aggregated
+
+targets=28 passed=917 failed=0 ignored=1
+
+test binaries run: 23
+doc-test targets:  5  (c2_core, c2_harness, c2_il, c2_obj, c2_reference)
+targets reporting FAILED: 0
+
+Every `test result:` line, in order:
+  ok      passed=223  failed=0   ignored=0
+  ok      passed=130  failed=0   ignored=0
+  ok      passed=0    failed=0   ignored=0
+  ok      passed=2    failed=0   ignored=0
+  ok      passed=1    failed=0   ignored=0
+  ok      passed=14   failed=0   ignored=0
+  ok      passed=3    failed=0   ignored=0
+  ok      passed=18   failed=0   ignored=0
+  ok      passed=4    failed=0   ignored=0
+  ok      passed=3    failed=0   ignored=0
+  ok      passed=1    failed=0   ignored=0
+  ok      passed=1    failed=0   ignored=0
+  ok      passed=6    failed=0   ignored=0
+  ok      passed=2    failed=0   ignored=0
+  ok      passed=4    failed=0   ignored=0
+  ok      passed=2    failed=0   ignored=0
+  ok      passed=449  failed=0   ignored=0
+  ok      passed=1    failed=0   ignored=0
+  ok      passed=27   failed=0   ignored=0
+  ok      passed=1    failed=0   ignored=0
+  ok      passed=15   failed=0   ignored=0
+  ok      passed=3    failed=0   ignored=0
+  ok      passed=7    failed=0   ignored=0
+  ok      passed=0    failed=0   ignored=0
+  ok      passed=0    failed=0   ignored=0
+  ok      passed=0    failed=0   ignored=1
+  ok      passed=0    failed=0   ignored=0
+  ok      passed=0    failed=0   ignored=0
+
+A target count is quoted because `cargo test --workspace` STOPS at the
+first failing target: a run that fails early reports a SMALLER passed
+count and a SMALLER target count, which reads exactly like tests having
+been deleted (docs/rungs/2026-08-04-w-rdata.md SS7).

@@ -42,14 +42,22 @@ use super::*;
 /// scan happily reports the whole `+421` over a writer that emits nothing.
 /// **The scan is not the control. This test is.**
 ///
-/// **Open:** a `Section { name: … }` literal inside an emitter that **nothing
-/// calls** satisfies that test and still inflates C. That is precisely what
-/// `container::bss_deferred_layout` was — a `.bss` layout the differential had
-/// never graded one byte of, which disagreed with reality on the walk *and* on
-/// the free list once a real caller was written — and board **#278** deleted it.
-/// `emit_mvp_obj` below is the live instance of the class today: its only caller
-/// is a test. It inflates nothing, because every name it emits is also emitted
-/// by a called emitter, and that is luck rather than a guarantee.
+/// **CLOSED 2026-08-06, board #301, lane `w-rtti`:** a `Section { name: … }`
+/// literal inside an emitter that **nothing calls** satisfies that test and
+/// still inflates C. That is precisely what `container::bss_deferred_layout` was
+/// — a `.bss` layout the differential had never graded one byte of, which
+/// disagreed with reality on the walk *and* on the free list once a real caller
+/// was written — and board **#278** deleted it.
+/// `coff::tests::every_production_emitter_has_a_lib_rs_caller` now asserts that
+/// every `pub fn emit_*` present in a non-test build is named by `lib.rs`, and
+/// `emit_mvp_obj` below is `#[cfg(test)]` rather than exempted from it.
+///
+/// **Measured, not asserted** — `work/w-rtti/counterfactual.sh` breaks the tree
+/// both ways and reports which guard catches which: BREAK 1 (the constant
+/// alone) turns the vocabulary test red and leaves this one green; BREAK 2 (the
+/// constant **plus** an uncalled emitter carrying a real `.rdata$r` `Section`)
+/// leaves the vocabulary test **green** and turns this one red. Both restore to
+/// `git status --porcelain crates/` = 0.
 ///
 /// # What is NOT here, and what it would cost
 ///
@@ -124,6 +132,19 @@ use super::*;
 /// graph. Lane `w-rdata` measured all of that and **declined to add the name**,
 /// because a vocabulary entry with no caller behind it is +421 of reachability
 /// the port does not have.
+///
+/// **Lane `w-rtti` was briefed to add it anyway, re-derived the price at this
+/// master, and declined again** (`docs/rungs/2026-08-07-w-rtti.md`;
+/// `OBJ_RDATA_R_SHAPE.md` §8.1). Two of the seven were re-measured directly and
+/// both are still unpaid: `c2rs census` on the minimal source still reads
+/// **`0/1 functions in class`** at `expr-op-0x27`, and `c2-il`'s `.gl`
+/// data-record reader returns **0 of the 11 sections' 6 data records** on that
+/// TU — against **2 of 2** on a `.data` control, so the zero is a reading and
+/// not a broken probe. What did move is the *shape* of the reader's job: the
+/// three class-layout integers `OBJ_RDATA_R_SHAPE.md` §4 calls irreducible are
+/// spelled literally in `.in`, and the one thing standing between the existing
+/// [`c2_il`] initializer reader and every RTTI record is **element tag `02`**,
+/// the symbol-address element it currently refuses by design.
 pub const PORT_WRITER_SECTIONS: [&str; 10] = [
     ".drectve",
     ".debug$S",
@@ -140,6 +161,23 @@ pub const PORT_WRITER_SECTIONS: [&str; 10] = [
 /// * `mangled_name` — the function's mangled symbol (from `.gl`), e.g.
 ///   `?add3@@YAHHHH@Z`.
 /// * `text` — the `.text` bytes from codegen (12 for `add3`).
+///
+/// # `#[cfg(test)]` — board **#301**, closed by lane `w-rtti`
+///
+/// **Its only caller is [`super::tests`], and an emitter with no production
+/// caller is the second half of the [`PORT_WRITER_SECTIONS`] hole.** A
+/// `Section { name: … }` literal reached only from a test satisfies
+/// `the_writer_vocabulary_is_every_section_name_this_file_emits` and still
+/// inflates factor **C**, which is what `container::bss_deferred_layout` was
+/// before board #278 deleted it. This one inflated nothing — every name it
+/// emits is also emitted by a called emitter — and `w-rdata` §10 recorded that
+/// as *"luck, not a guarantee"*.
+///
+/// Making it test-only turns the luck into a guarantee without deleting a
+/// fixture eight tests use: `every_production_emitter_has_a_lib_rs_caller` can
+/// now assert the property over the emitters that exist in a **release** build,
+/// where this function does not.
+#[cfg(test)]
 pub fn emit_mvp_obj(obj_name: &str, mangled_name: &str, text: &[u8]) -> Vec<u8> {
     // Label counter unused: a `Function::plain` has no frame, so no `$M`/`$T`.
     emit_obj(obj_name, &[Function::plain(mangled_name, 0)], text, 0)
