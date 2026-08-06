@@ -79,6 +79,15 @@ const RECORD_TAG: u8 = 0x00;
 /// The element tag this reader handles: a scalar constant.
 const ELEMENT_SCALAR: u8 = 0x01;
 
+/// The element tag for **the address of another symbol** — `02 <target-token>
+/// <offset> <n>` (board #931, `work/w-tag02/GRAMMAR.md`).
+const ELEMENT_SYMBOL_ADDRESS: u8 = 0x02;
+
+/// The `<n>` a tag-`02` element must carry. **OBSERVED constant, not a known
+/// one**: every pointer on this 32-bit target is four bytes, so no cell in the
+/// 24-cell grid can vary it. Any other value refuses.
+const ADDRESS_WIDTH: u8 = 0x04;
+
 /// The byte that closes an initializer record. Shared with [`super::inlit`].
 const RECORD_END: u8 = 0x07;
 
@@ -281,24 +290,95 @@ fn read_value(inb: &[u8], p: &mut usize, width: u8) -> Result<Vec<u8>, InInitRes
     Ok(v)
 }
 
+/// Read the tag-`02` **offset** field: a byte below `0x80`, else `0x80` + a
+/// little-endian i32.
+///
+/// **This is the third place the crate has to spell a varint and it is not
+/// interchangeable with either neighbour.** [`super::inlit`]'s length escape is
+/// `80` + LE**16**; [`read_value`]'s escape width comes from the element's own
+/// width byte — and here the width byte comes *after* the value, so it cannot
+/// be consulted. Measured at `0`, `4`, `8`, `0x80`, `0xA0`, `0x4B0`, `0x10000`
+/// and **`-4`**; the escape is LE32 in every one of the five that escape.
+///
+/// The short form is restricted to `00..7F`, deliberately, even though
+/// [`super::readers::read_varint`]'s short form is a **signed** byte: every
+/// measured negative offset escapes (`-4` is `80 fc ff ff ff`, not `fc`), so a
+/// high-bit byte here is a desync and not a sign-extended offset, and reading it
+/// as `-5` would put four wrong bytes in a `.data` **and** claim the wrong
+/// relocation addend. `ininit.rs` already applies exactly this rule to scalar
+/// values; the two agree on purpose.
+fn read_offset(inb: &[u8], p: &mut usize) -> Result<i32, InInitResidue> {
+    let b0 = *inb.get(*p).ok_or(InInitResidue::Truncated)?;
+    if b0 < 0x80 {
+        *p += 1;
+        return Ok(b0 as i32);
+    }
+    if b0 != 0x80 {
+        return Err(InInitResidue::ValueDidNotFrame);
+    }
+    let lo = *p + 1;
+    let hi = lo.checked_add(4).ok_or(InInitResidue::Truncated)?;
+    if hi > inb.len() {
+        return Err(InInitResidue::Truncated);
+    }
+    *p = hi;
+    Ok(i32::from_le_bytes([inb[lo], inb[lo + 1], inb[lo + 2], inb[lo + 3]]))
+}
+
 /// Parse the element run of one record, starting just past its [`RECORD_TAG`].
-fn read_elements(inb: &[u8], p: &mut usize) -> Result<(Vec<u8>, usize), InInitResidue> {
+///
+/// Returns the object's bytes in the obj's order, the element count (arity) and
+/// the symbol addresses the run carries, each keyed to its byte offset in the
+/// object.
+fn read_elements(
+    inb: &[u8],
+    p: &mut usize,
+) -> Result<(Vec<u8>, usize, Vec<InSymbolRef>), InInitResidue> {
     let mut out: Vec<u8> = Vec::new();
     let mut n = 0usize;
+    let mut refs: Vec<InSymbolRef> = Vec::new();
     loop {
         let tag = *inb.get(*p).ok_or(InInitResidue::Truncated)?;
         if tag == RECORD_END {
             *p += 1;
-            return Ok((out, n));
+            return Ok((out, n, refs));
+        }
+        if tag == ELEMENT_SYMBOL_ADDRESS {
+            // `02 <target-token> <offset> <n>` — the address of another symbol.
+            // MEASURED on 24 frozen cells; `work/w-tag02/GRAMMAR.md` is the
+            // byte table and `docs/OBJ_DATA_BSS_SHAPE.md` §8.6 is the entry this
+            // closes.
+            let (target, tw) =
+                read_token_var(inb, *p + 1).ok_or(InInitResidue::Truncated)?;
+            let mut q = *p + 1 + tw;
+            let addend = read_offset(inb, &mut q)?;
+            // The trailing width. **`04` is the only value the grid can produce
+            // — every pointer on this target is four bytes — so it is an
+            // OBSERVED constant, not a known one, and anything else is refused
+            // rather than believed to be a width.**
+            match *inb.get(q).ok_or(InInitResidue::Truncated)? {
+                ADDRESS_WIDTH => {}
+                _ => return Err(InInitResidue::SymbolAddress),
+            }
+            q += 1;
+            // The element's contribution to the raw bytes is the addend as a
+            // big-endian i32 — measured on `t21_offset_negative`, whose `.data`
+            // reads `ff ff ff fc`. The relocation supplies the rest, which is
+            // why it rides out in its own channel.
+            refs.push(InSymbolRef { at: out.len() as u32, target, addend });
+            out.extend_from_slice(&addend.to_be_bytes());
+            *p = q;
+            n += 1;
+            if out.len() > 1 << 16 {
+                return Err(InInitResidue::ValueDidNotFrame);
+            }
+            continue;
         }
         if tag != ELEMENT_SCALAR {
-            // `02` is a symbol address, `03` a string literal, and anything else
-            // is unmeasured. All three refuse — none of them is a constant this
-            // writer can put in a `.data`.
-            return Err(match tag {
-                0x02 => InInitResidue::SymbolAddress,
-                _ => InInitResidue::UnknownType,
-            });
+            // `03` is a string literal ([`super::inlit`] reads those on their
+            // own), and anything else is unmeasured. Both refuse — neither is a
+            // constant this reader can put in a `.data`.
+            return Err(InInitResidue::UnknownType);
         }
         let ty = *inb.get(*p + 1).ok_or(InInitResidue::Truncated)?;
         let width = *inb.get(*p + 2).ok_or(InInitResidue::Truncated)?;
@@ -344,7 +424,28 @@ pub(crate) fn in_scalar_initializers(inb: &[u8]) -> InInitCensus {
     let mut elements = 0usize;
     let mut i = 0usize;
     while i + 1 < inb.len() {
-        if inb[i] != RECORD_TAG || inb[i + 1] != ELEMENT_SCALAR {
+        // **TWO anchors, and they are deliberately not symmetric.**
+        //
+        // `00 01` is the original: a record whose first element is a scalar. It
+        // is left byte-for-byte as it was, because every number the workload
+        // scan reports about this reader — `records`, `elements`, the residue
+        // histogram — is a number about *that* scan, and a lane that widened it
+        // would have no before/after to compare.
+        //
+        // `00 02` is new, and it is the whole reason a pure pointer initializer
+        // was invisible rather than refused: `int* gp = &gi;` spells
+        // `<tok> 00 02 e3 09 00 04 07`, so the old anchor never matched it and
+        // its token simply had no value (the unit test named
+        // `a_pure_symbol_address_record_is_never_scanned` pinned exactly that).
+        // `00 02` is a much commoner byte pair than `00 01` — it occurs inside
+        // every four-byte escape payload whose third byte is 2 — so this arm
+        // requires the record to **frame all the way to its `07`** before it
+        // counts anything at all. A candidate that does not frame is not a
+        // record, contributes to neither `records` nor the residue, and the scan
+        // resumes one byte on.
+        let anchor_scalar = inb[i] == RECORD_TAG && inb[i + 1] == ELEMENT_SCALAR;
+        let anchor_address = inb[i] == RECORD_TAG && inb[i + 1] == ELEMENT_SYMBOL_ADDRESS;
+        if !anchor_scalar && !anchor_address {
             i += 1;
             continue;
         }
@@ -363,13 +464,21 @@ pub(crate) fn in_scalar_initializers(inb: &[u8]) -> InInitCensus {
                 continue;
             }
             let mut p = i + 1;
+            let parsed = read_elements(inb, &mut p);
+            if anchor_address && !matches!(&parsed, Ok((b, _, _)) if !b.is_empty()) {
+                // The fail-closed arm. Not a record: count nothing, resync by one.
+                break;
+            }
             records += 1;
-            match read_elements(inb, &mut p) {
-                Ok((bytes, n)) if !bytes.is_empty() => {
+            match parsed {
+                Ok((bytes, n, r)) if !bytes.is_empty() => {
                     elements += n;
                     match values.get(&tok) {
                         None => {
                             values.insert(tok, Some(bytes));
+                            if !r.is_empty() {
+                                refs.insert(tok, r);
+                            }
                         }
                         Some(Some(prev)) if *prev != bytes => {
                             values.insert(tok, None);
@@ -492,32 +601,212 @@ mod tests {
         assert_eq!(got.records, 1);
     }
 
-    /// **A record whose FIRST element is not scalar is not seen at all**, and
-    /// that is safe rather than sloppy: the scan anchors on `00 01`, so
-    /// `int* gp = &gi;` (`<tok> 00 02 e3 09 00 04 07`, MEASURED) never matches
-    /// and its token simply has no value. The caller requires a value for every
-    /// initialized object, so *not found* and *refused* are the same verdict —
-    /// but only the mixed case below can reach the residue, so it is the one
-    /// that is asserted.
+    /// **A record whose first element is a SYMBOL ADDRESS is read now** — and
+    /// this test is the record of what it used to say, because the widening is
+    /// the lane's whole subject.
+    ///
+    /// Until board **#931** it was called
+    /// `a_pure_symbol_address_record_is_never_scanned` and asserted
+    /// `records == 0`: the scan anchored on `00 01` alone, so `int* gp = &gi;`
+    /// (`<tok> 00 02 e3 09 00 04 07`, MEASURED then and re-measured on
+    /// `work/w-tag02/grid/t01_ptr_to_global.cpp` now) never matched and its token
+    /// simply had no value. Invisible, not refused — which is why the `.gl` data
+    /// reader returned **1 of 12** records on the `struct A{virtual void f();int
+    /// a;}; A g;` TU that #931 was filed from.
     #[test]
-    fn a_pure_symbol_address_record_is_never_scanned() {
+    fn a_pure_symbol_address_record_is_read_and_carries_its_reference() {
         let got = in_scalar_initializers(&record([0xe4, 0x09], &[0x02, 0xe3, 0x09, 0x00, 0x04]));
-        assert!(got.values.get(&0xe409).is_none(), "no value, which is what the caller checks");
-        assert_eq!(got.records, 0, "and it was never framed, so it is not residue either");
+        assert_eq!(got.records, 1, "framed now — it used to be invisible");
+        assert_eq!(
+            got.values.get(&0xe409).map(|v| v.as_slice()),
+            Some(&[0, 0, 0, 0][..]),
+            "the addend, which is what the obj's raw bytes hold"
+        );
+        assert_eq!(
+            got.refs.get(&0xe409).map(|v| v.as_slice()),
+            Some(&[InSymbolRef { at: 0, target: 0xe309, addend: 0 }][..]),
+            "and the reference, WITHOUT which those four bytes are a wrong obj"
+        );
+        assert_eq!(got.elements, 1, "ARITY");
+        assert!(got.residue.is_empty());
     }
 
-    /// **The dangerous shape is the MIXED aggregate** — `struct{int a; int* p;}`
-    /// — whose first element *is* scalar, so the scan enters the record and must
-    /// refuse when it reaches the address element rather than returning a
-    /// truncated four bytes for an eight-byte object.
+    /// **The mixed aggregate** — `struct{int a; int* p;} s = {7, &gi};`, which is
+    /// `work/w-tag02/grid/t13_mixed_struct.cpp` and whose real obj reads
+    /// `.data = 00 00 00 07 00 00 00 00` with **one ADDR32 at offset 4**.
+    ///
+    /// Until #931 this asserted `residue == [(tok, SymbolAddress)]` — the record
+    /// was entered through its scalar first element and then refused whole,
+    /// rather than returning a truncated four bytes for an eight-byte object.
+    /// The refusal was right for a reader that could not place the relocation;
+    /// what makes reading it right now is that the offset **4** comes out with
+    /// the bytes and is checkable against the obj.
     #[test]
-    fn a_mixed_aggregate_refuses_instead_of_returning_a_prefix() {
+    fn a_mixed_aggregate_yields_both_elements_and_the_reference_at_offset_4() {
         let got = in_scalar_initializers(&record(
             [0xe4, 0x09],
-            &[0x01, 0x01, 0x04, 0x01, 0x02, 0xe3, 0x09, 0x00, 0x04],
+            &[0x01, 0x01, 0x04, 0x07, 0x02, 0xe3, 0x09, 0x00, 0x04],
         ));
-        assert!(got.values.get(&0xe409).is_none(), "NOT the first element's 4 bytes");
-        assert_eq!(got.residue, vec![(0xe409, InInitResidue::SymbolAddress)]);
+        assert_eq!(
+            got.values.get(&0xe409).map(|v| v.as_slice()),
+            Some(&[0, 0, 0, 7, 0, 0, 0, 0][..]),
+        );
+        assert_eq!(
+            got.refs.get(&0xe409).map(|v| v.as_slice()),
+            Some(&[InSymbolRef { at: 4, target: 0xe309, addend: 0 }][..]),
+        );
+        assert_eq!(got.elements, 2, "ARITY: two elements in one record");
+        assert!(got.residue.is_empty());
+    }
+
+    /// **The measured tag-02 cells, byte for byte** —
+    /// `work/w-tag02/GRAMMAR.md` §2. Every row was read off a real capture of a
+    /// frozen `sha256`'d source at the workload's own flags; the right-hand
+    /// column is the obj's `.data` bytes and its relocation, read out of the obj
+    /// by `scripts/gt_dump.py` and not from this reader.
+    #[test]
+    fn the_measured_symbol_address_cells_decode() {
+        // (cell, .in element bytes, obj bytes, addend)
+        let cases: [(&str, &[u8], &[u8], i32); 7] = [
+            ("t01 int* gp = &gi;", &[0x02, 0xe3, 0x09, 0x00, 0x04], &[0, 0, 0, 0], 0),
+            ("t09 &s.b (offset 4)", &[0x02, 0xe3, 0x09, 0x04, 0x04], &[0, 0, 0, 4], 4),
+            ("t10 &arr[2] (offset 8)", &[0x02, 0xe3, 0x09, 0x08, 0x04], &[0, 0, 0, 8], 8),
+            (
+                "t18 &s.b (offset 128 — the escape boundary)",
+                &[0x02, 0xe3, 0x09, 0x80, 0x80, 0x00, 0x00, 0x00, 0x04],
+                &[0, 0, 0, 0x80],
+                128,
+            ),
+            (
+                "t20 &arr[300] (offset 1200)",
+                &[0x02, 0xe3, 0x09, 0x80, 0xb0, 0x04, 0x00, 0x00, 0x04],
+                &[0, 0, 0x04, 0xb0],
+                1200,
+            ),
+            (
+                "t21 arr - 1 (offset -4 — NEGATIVE, and it escapes)",
+                &[0x02, 0xe3, 0x09, 0x80, 0xfc, 0xff, 0xff, 0xff, 0x04],
+                &[0xff, 0xff, 0xff, 0xfc],
+                -4,
+            ),
+            (
+                "t22 &s.b (offset 65536)",
+                &[0x02, 0xe3, 0x09, 0x80, 0x00, 0x00, 0x01, 0x00, 0x04],
+                &[0, 0x01, 0x00, 0x00],
+                65536,
+            ),
+        ];
+        for (cell, elem, want, addend) in cases {
+            let got = in_scalar_initializers(&record([0xe4, 0x09], elem));
+            assert_eq!(got.values.get(&0xe409).map(|v| v.as_slice()), Some(want), "{cell}");
+            assert_eq!(
+                got.refs.get(&0xe409).map(|v| v.as_slice()),
+                Some(&[InSymbolRef { at: 0, target: 0xe309, addend }][..]),
+                "{cell}"
+            );
+        }
+    }
+
+    /// **The 4-byte target-token form** — `t24_wide_target_token.cpp`, 31,000
+    /// objects deep, MEASURED as `02 fb 82 01 00 · 00 · 04`. This is the only
+    /// cell in the grid that exercises `read_token_var`'s escape on a tag-02
+    /// *target*: `t17`'s 302 objects only reached `0x0b10`, and the 2-byte form
+    /// runs until the stream's second byte gets its high bit.
+    #[test]
+    fn a_target_token_past_the_two_byte_form_is_read_at_four_bytes() {
+        let got = in_scalar_initializers(&record(
+            [0xe4, 0x09],
+            &[0x02, 0xfb, 0x82, 0x01, 0x00, 0x00, 0x04],
+        ));
+        assert_eq!(
+            got.refs.get(&0xe409).map(|v| v.as_slice()),
+            Some(&[InSymbolRef { at: 0, target: 0xfb82_0100, addend: 0 }][..]),
+        );
+        assert_eq!(got.values.get(&0xe409).map(|v| v.as_slice()), Some(&[0, 0, 0, 0][..]));
+    }
+
+    /// **An array of pointers is several tag-02 elements in ONE record, and
+    /// their offsets are the walk** — `t08_ptr_array.cpp`, whose obj carries two
+    /// ADDR32 at 0 and 4. `at` is the arity axis for this element kind: a reader
+    /// that lost the second reference would leave `records` and the residue
+    /// untouched (`docs/STATUS.md` trap 4).
+    #[test]
+    fn several_addresses_in_one_record_keep_their_offsets() {
+        let got = in_scalar_initializers(&record(
+            [0xe5, 0x09],
+            &[0x02, 0xe3, 0x09, 0x00, 0x04, 0x02, 0xe4, 0x09, 0x00, 0x04],
+        ));
+        assert_eq!(
+            got.refs.get(&0xe509).map(|v| v.as_slice()),
+            Some(
+                &[
+                    InSymbolRef { at: 0, target: 0xe309, addend: 0 },
+                    InSymbolRef { at: 4, target: 0xe409, addend: 0 },
+                ][..]
+            ),
+        );
+        assert_eq!(got.elements, 2, "ARITY");
+        assert_eq!(got.values.get(&0xe509).map(|v| v.len()), Some(8));
+    }
+
+    /// **The two refusals a tag-02 element can reach**, both fail-closed.
+    ///
+    /// `<n>` other than `04` is refused rather than believed to be a width:
+    /// nothing in the 24-cell grid can vary it, so it is an *observed* constant.
+    /// A short-form offset in `81..FF` is refused rather than sign-extended:
+    /// every measured negative offset **escapes** (`-4` is `80 fc ff ff ff`),
+    /// so a high-bit byte there is a desync — the same rule `read_value` already
+    /// applies to scalar values, and the opposite of what
+    /// `super::readers::read_varint` does, whose short form IS signed.
+    #[test]
+    fn an_unmeasured_address_width_and_a_high_bit_offset_both_refuse() {
+        let got = in_scalar_initializers(&record([0xe4, 0x09], &[0x02, 0xe3, 0x09, 0x00, 0x08]));
+        assert!(got.values.get(&0xe409).is_none(), "n = 08 is unmeasured");
+        assert!(got.refs.get(&0xe409).is_none());
+
+        let got = in_scalar_initializers(&record(
+            [0xe4, 0x09],
+            &[0x01, 0x01, 0x04, 0x07, 0x02, 0xe3, 0x09, 0xfb, 0x04],
+        ));
+        assert_eq!(
+            got.residue,
+            vec![(0xe409, InInitResidue::ValueDidNotFrame)],
+            "a high-bit short-form offset is a desync, not -5"
+        );
+        assert!(got.values.get(&0xe409).is_none());
+    }
+
+    /// **The `00 02` anchor is fail-closed and the `00 01` anchor is not**, and
+    /// the asymmetry is deliberate. `00 02` occurs inside any four-byte escape
+    /// payload whose third byte is 2, so a candidate that does not frame all the
+    /// way to its `07` is not a record: it contributes to neither `records` nor
+    /// the residue. Leaving the older anchor alone is what makes the workload's
+    /// before/after numbers comparable at all.
+    #[test]
+    fn an_address_anchor_that_does_not_frame_counts_nothing() {
+        // `<tok> 00 02 …` that runs off the end without a terminator.
+        let v = vec![0xe4, 0x09, 0x00, 0x02, 0xe3, 0x09, 0x00, 0x04];
+        let got = in_scalar_initializers(&v);
+        assert_eq!(got.records, 0, "no terminator, so not a record");
+        assert!(got.residue.is_empty(), "and not residue either");
+
+        // The same bytes with the `07` present ARE a record.
+        let mut ok = v.clone();
+        ok.push(0x07);
+        assert_eq!(in_scalar_initializers(&ok).records, 1);
+    }
+
+    /// **A poisoned token drops its references with its bytes.** Two records
+    /// disagreeing about one token leaves no value, and a relocation whose slot
+    /// has no bytes is a relocation into nothing.
+    #[test]
+    fn an_ambiguous_token_drops_its_references_too() {
+        let mut v = record([0xe4, 0x09], &[0x02, 0xe3, 0x09, 0x00, 0x04]);
+        v.extend_from_slice(&record([0xe4, 0x09], &[0x01, 0x01, 0x04, 0x03]));
+        let got = in_scalar_initializers(&v);
+        assert!(got.values.get(&0xe409).is_none());
+        assert!(got.refs.get(&0xe409).is_none(), "the refs go with the bytes");
+        assert_eq!(got.conflicts, 1);
     }
 
     /// **The two refusals a scalar record can reach**, each named in the residue

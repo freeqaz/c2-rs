@@ -96,6 +96,29 @@ pub struct DataObj<'a> {
     /// The declaration-order key — Rule A2's walk for `.data` (§5.3, §5.6).
     /// Only its **order** is used; the value itself is never emitted.
     pub decl_index: u32,
+    /// **The `.data` relocations this object's initializer implies** — one per
+    /// `.in` element tag `02` (board **#931**, `work/w-tag02/GRAMMAR.md`).
+    ///
+    /// `bytes` already holds each one's addend, so a writer that ignored this
+    /// field would emit a section whose raw bytes are right and whose relocation
+    /// table is empty. That obj links to the wrong address; board **#232**'s
+    /// shape, and the reason [`emit_data_obj`] refuses rather than dropping any
+    /// entry it cannot place.
+    pub relocs: &'a [DataObjReloc<'a>],
+}
+
+/// One `IMAGE_REL_PPC_ADDR32` into a `.data` object (board #931).
+///
+/// **No `PAIR`** — `docs/OBJ_DYNINIT_SHAPE.md` §3.2 gives every REFHI/REFLO a
+/// trailing PAIR and gives ADDR32 none, and all 31 tag-02 elements of the
+/// w-tag02 grid confirm it in the obj: one record each, `NumberOfRelocations`
+/// exactly the number of pointer slots.
+pub struct DataObjReloc<'a> {
+    /// Byte offset of the slot **within the owning object**.
+    pub at: u32,
+    /// The target's COFF symbol name. Must be one of the objects in the same
+    /// `emit_data_obj` call — see that function's class check.
+    pub target: &'a str,
 }
 
 /// The most objects this writer will place in one non-COMDAT section.
@@ -214,6 +237,31 @@ pub fn emit_data_obj(obj_name: &str, objects: &[DataObj<'_>]) -> Option<Vec<u8>>
             return None;
         }
     }
+    // **The relocation class check** (board #931). Each clause is a case nothing
+    // measured, and each one refuses rather than dropping the record — a dropped
+    // relocation is a `.data` whose bytes are right and whose *addresses* are
+    // wrong, which is board #232's direction.
+    for o in objects {
+        for r in o.relocs {
+            // A relocation into a `.bss` object patches file bytes that do not
+            // exist.
+            o.bytes?;
+            // Every slot is four bytes wide and must lie inside its object.
+            if r.at.checked_add(4)? > o.size {
+                return None;
+            }
+            // **The target must be one of this call's own objects.** An
+            // undefined external needs a symbol record spliced in at index 5,
+            // *between* `.debug$S`'s aux and the `.XBLD$W` C2 watermark —
+            // MEASURED on `t03_ptr_to_extern` and `t05_ptr_to_func`, which also
+            // shows a function target carrying `Type = 0x0020` where a data one
+            // carries `0x0000`. That is a symbol-table shape this writer does
+            // not model, so it refuses; it is not a property of tag `02`.
+            if !objects.iter().any(|q| q.symbol == r.target) {
+                return None;
+            }
+        }
+    }
 
     // ---- layout ----
     //
@@ -285,8 +333,64 @@ pub fn emit_data_obj(obj_name: &str, objects: &[DataObj<'_>]) -> Option<Vec<u8>>
         });
         Some(sections.len() - 1)
     };
+    // ---- the symbol table's shape, computed BEFORE anything is written ----
+    //
+    // A relocation record carries a `SymbolTableIndex`, so the indices have to
+    // be known before the section payloads go out — and they are a pure
+    // function of the order the records are written in, which is spelled out in
+    // the symbol-table block far below. Deriving them here and asserting them
+    // there is what stops the two from drifting; a stale index is the bug that
+    // block's own comment already records once, at file offset 716.
+    //
+    // **Rule Y1** for `.bss`: every EXTERNAL first in reverse `.gl` order, then
+    // every STATIC in declaration order. Two sorts, two keys.
+    let bss_symbol_order: Vec<usize> = {
+        let mut ext: Vec<usize> = (0..bss.len()).filter(|&i| bss[i].external).collect();
+        ext.reverse();
+        let mut statics: Vec<usize> = (0..bss.len()).filter(|&i| !bss[i].external).collect();
+        statics.sort_by_key(|&i| bss[i].decl_index);
+        ext.extend(statics);
+        ext
+    };
+    // 0 @comp.id · 1,2 .drectve · 3,4 .debug$S · 5,6 .XBLD$W(C2) · 7 __C2_11886
+    let first_bss_symbol = 10u32;
+    let sym_c1 = if bss.is_empty() { 8 } else { first_bss_symbol + bss.len() as u32 };
+    let first_data_symbol = sym_c1 + 5;
+    let mut sym_of: std::collections::BTreeMap<&str, u32> = std::collections::BTreeMap::new();
+    for (slot, &i) in bss_symbol_order.iter().enumerate() {
+        sym_of.insert(bss[i].symbol, first_bss_symbol + slot as u32);
+    }
+    for (slot, &i) in data_walk.iter().enumerate() {
+        sym_of.insert(data[i].symbol, first_data_symbol + slot as u32);
+    }
+
+    // ---- the `.data` relocation records ----
+    //
+    // `(VirtualAddress, SymbolTableIndex, Type)`, ADDR32 and **no PAIR**
+    // (`docs/OBJ_DYNINIT_SHAPE.md` §3.2). `VirtualAddress` is the slot's offset
+    // in the SECTION, so the owning object's own offset is added to the slot's
+    // offset within it.
+    //
+    // Sorted by ascending `VirtualAddress`. **The grid does not separate that
+    // from "the walk order"** — every multi-relocation cell in it (`t08`, `t15`)
+    // has the two coincide — so this is the reading the objs are consistent
+    // with, and it is written down as unseparated rather than as established.
+    let mut data_relocs: Vec<(u32, u32, u16)> = Vec::new();
+    for (i, o) in data.iter().enumerate() {
+        for r in o.relocs {
+            data_relocs.push((data_offsets[i] + r.at, *sym_of.get(r.target)?, REL_PPC_ADDR32));
+        }
+    }
+    data_relocs.sort_by_key(|r| r.0);
+    if data_relocs.len() > u16::MAX as usize {
+        return None;
+    }
+
     let n_sections = sections.len();
-    let n_reloc_of = vec![0u16; n_sections];
+    let mut n_reloc_of = vec![0u16; n_sections];
+    if let Some(si) = sec_data {
+        n_reloc_of[si] = data_relocs.len() as u16;
+    }
     let (ptrs, reloc_ptr, ptr_symtab) = layout_sections(&sections, &n_reloc_of);
 
     // ---- symbol count ----
@@ -306,6 +410,16 @@ pub fn emit_data_obj(obj_name: &str, objects: &[DataObj<'_>]) -> Option<Vec<u8>>
         // `.bss` writes nothing at all, whatever its `SizeOfRawData`.
         debug_assert_eq!(s.file_len(), s.raw.len());
         b.bytes(&s.raw);
+        // The relocation table sits immediately after its section's raw bytes,
+        // which is what `layout_sections` reserved room for.
+        if sec_data == Some(i) && !data_relocs.is_empty() {
+            debug_assert_eq!(b.0.len(), reloc_ptr[i].unwrap());
+            for (va, sym, ty) in &data_relocs {
+                b.u32(*va);
+                b.u32(*sym);
+                b.u16(*ty);
+            }
+        }
     }
     debug_assert_eq!(b.0.len(), ptr_symtab);
 
@@ -345,13 +459,15 @@ pub fn emit_data_obj(obj_name: &str, objects: &[DataObj<'_>]) -> Option<Vec<u8>>
         emit_section_symbol(&mut b, &sections[si], (si + 1) as i16, 0);
         // **Rule Y1** — externals in reverse `.gl` order, then statics in
         // declaration order. Neither block is in address order, and the two use
-        // DIFFERENT keys, which is why this is two sorts and not one.
-        let mut order: Vec<usize> = (0..bss.len()).filter(|&i| bss[i].external).collect();
-        order.reverse();
-        let mut statics: Vec<usize> = (0..bss.len()).filter(|&i| !bss[i].external).collect();
-        statics.sort_by_key(|&i| bss[i].decl_index);
-        order.extend(statics);
-        for i in order {
+        // DIFFERENT keys, which is why this is two sorts and not one. Derived
+        // once, far above, because the relocation records need the resulting
+        // indices before this point in the file.
+        for &i in &bss_symbol_order {
+            debug_assert_eq!(
+                ((b.0.len() - ptr_symtab) / SYMBOL_LEN) as u32,
+                sym_of[bss[i].symbol],
+                "the index the relocation records were written with"
+            );
             let o = bss[i];
             emit_symbol(
                 &mut b,
@@ -368,14 +484,25 @@ pub fn emit_data_obj(obj_name: &str, objects: &[DataObj<'_>]) -> Option<Vec<u8>>
     // ahead of it: 4 with one, 3 without. Derived from `sec_bss`, never
     // hard-coded — a stale index here is the bug the block above documents.
     let sec_c1 = if sec_bss.is_some() { 4 } else { 3 };
+    debug_assert_eq!(((b.0.len() - ptr_symtab) / SYMBOL_LEN) as u32, sym_c1, "C1 watermark slot");
     emit_section_symbol(&mut b, &sections[sec_c1], (sec_c1 + 1) as i16, 0);
     emit_external_symbol(&mut b, &mut strtab, NAME_C1, (sec_c1 + 1) as i16, 0x0000);
 
     if let Some(si) = sec_data {
-        emit_section_symbol(&mut b, &sections[si], (si + 1) as i16, 0);
+        // **The aux record's `NumberOfRelocations` is a SECOND place the count
+        // lives**, beside the section header's own field, and the differential
+        // caught it reading 0 while the header read 1 — a `.data` with a
+        // relocation was otherwise byte-identical. Passed from the same vector
+        // the records were written from.
+        emit_section_symbol(&mut b, &sections[si], (si + 1) as i16, n_reloc_of[si]);
         // `.data`'s group is declaration order, which here is also ascending
         // address — `data_walk` is that order already.
         for &i in &data_walk {
+            debug_assert_eq!(
+                ((b.0.len() - ptr_symtab) / SYMBOL_LEN) as u32,
+                sym_of[data[i].symbol],
+                "the index the relocation records were written with"
+            );
             let o = data[i];
             emit_symbol(
                 &mut b,
@@ -405,7 +532,72 @@ mod tests {
         bytes: Option<&'a [u8]>,
         decl_index: u32,
     ) -> DataObj<'a> {
-        DataObj { symbol, size, natural_align, external, bytes, decl_index }
+        DataObj { symbol, size, natural_align, external, bytes, decl_index, relocs: &[] }
+    }
+
+    /// The same, with relocations — board #931's cells.
+    fn obj_rel<'a>(
+        symbol: &'a str,
+        size: u32,
+        natural_align: u32,
+        external: bool,
+        bytes: Option<&'a [u8]>,
+        decl_index: u32,
+        relocs: &'a [DataObjReloc<'a>],
+    ) -> DataObj<'a> {
+        DataObj { symbol, size, natural_align, external, bytes, decl_index, relocs }
+    }
+
+    /// The **raw symbol-table index** of a named symbol — the number a
+    /// relocation record carries, which counts aux records and is therefore NOT
+    /// the position in [`symbols_of`]'s aux-free list. Getting those two
+    /// confused is what made this file's first relocation tests read `6` where
+    /// the obj said `10`.
+    fn sym_index_of(img: &[u8], name: &str) -> u32 {
+        let ptr = u32::from_le_bytes([img[8], img[9], img[10], img[11]]) as usize;
+        let n = u32::from_le_bytes([img[12], img[13], img[14], img[15]]) as usize;
+        let strtab = ptr + n * SYMBOL_LEN;
+        let mut i = 0usize;
+        while i < n {
+            let r = &img[ptr + i * SYMBOL_LEN..ptr + i * SYMBOL_LEN + SYMBOL_LEN];
+            let got = if r[..4] == [0, 0, 0, 0] {
+                let off = u32::from_le_bytes([r[4], r[5], r[6], r[7]]) as usize;
+                let s = &img[strtab + off..];
+                String::from_utf8_lossy(&s[..s.iter().position(|&c| c == 0).unwrap()]).to_string()
+            } else {
+                String::from_utf8_lossy(&r[..8]).trim_end_matches('\0').to_string()
+            };
+            if got == name {
+                return i as u32;
+            }
+            i += 1 + r[17] as usize;
+        }
+        panic!("no symbol named {name}");
+    }
+
+    /// `(VirtualAddress, SymbolTableIndex, Type)` for every relocation of every
+    /// section, read back **out of the emitted bytes** rather than from this
+    /// file's intermediates.
+    fn relocs_of(img: &[u8]) -> Vec<(String, u32, u32, u16)> {
+        let n = u16::from_le_bytes([img[2], img[3]]) as usize;
+        let mut out = Vec::new();
+        for i in 0..n {
+            let h = &img[20 + i * 40..20 + i * 40 + 40];
+            let name = String::from_utf8_lossy(&h[..8]).trim_end_matches('\0').to_string();
+            let u = |o: usize| u32::from_le_bytes([h[o], h[o + 1], h[o + 2], h[o + 3]]);
+            let ptr = u(24) as usize;
+            let cnt = u16::from_le_bytes([h[32], h[33]]) as usize;
+            for r in 0..cnt {
+                let rec = &img[ptr + r * RELOC_LEN..ptr + r * RELOC_LEN + RELOC_LEN];
+                out.push((
+                    name.clone(),
+                    u32::from_le_bytes([rec[0], rec[1], rec[2], rec[3]]),
+                    u32::from_le_bytes([rec[4], rec[5], rec[6], rec[7]]),
+                    u16::from_le_bytes([rec[8], rec[9]]),
+                ));
+            }
+        }
+        out
     }
 
     /// Read a section header's `(name, SizeOfRawData, PointerToRawData,
@@ -448,6 +640,212 @@ mod tests {
             i += 1 + r[17] as usize;
         }
         out
+    }
+
+    /// **`t01_ptr_to_global` — `int gi; int* gp = &gi;`** — the whole of board
+    /// #931 in one obj: a four-byte `.data` of zeroes plus one ADDR32 into the
+    /// TU's own `.bss` object. The reference obj is
+    /// `work/w-tag02/obj/t01_ptr_to_global.obj` and this cell is graded
+    /// **byte-exact** by `work/w-tag02/grade.sh`; the assertions below are the
+    /// unit-level pins on the fields that were wrong on the way there.
+    #[test]
+    fn a_pointer_initializer_emits_one_addr32_into_this_tus_own_object() {
+        let zero = [0u8; 4];
+        let rel = [DataObjReloc { at: 0, target: "?gi@@3HA" }];
+        let img = emit_data_obj(
+            "Z:\\t\\x.obj",
+            &[
+                obj("?gi@@3HA", 4, 4, true, None, 0),
+                obj_rel("?gp@@3PAHA", 4, 4, true, Some(&zero), 1, &rel),
+            ],
+        )
+        .unwrap();
+        let secs = sections_of(&img);
+        let idx_gi = sym_index_of(&img, "?gi@@3HA");
+        assert_eq!(
+            relocs_of(&img),
+            vec![(".data".to_string(), 0u32, idx_gi, REL_PPC_ADDR32)],
+            "one ADDR32 at VA 0 naming this TU's own `?gi`, and NO PAIR"
+        );
+        // **The count lives in TWO places and the differential caught exactly
+        // this**: the section header's `NumberOfRelocations` was right while the
+        // section symbol's aux record still read 0, and the objs were otherwise
+        // byte-identical. Both are asserted, from the emitted bytes.
+        let data_hdr = secs.iter().position(|s| s.0 == ".data").unwrap();
+        let h = &img[20 + data_hdr * 40..20 + data_hdr * 40 + 40];
+        assert_eq!(u16::from_le_bytes([h[32], h[33]]), 1, "section header NumberOfRelocations");
+        let ptr = u32::from_le_bytes([img[8], img[9], img[10], img[11]]) as usize;
+        let sec_sym = {
+            // the `.data` section symbol is the record just before `?gp`
+            let mut i = 0usize;
+            let n = u32::from_le_bytes([img[12], img[13], img[14], img[15]]) as usize;
+            let mut found = 0usize;
+            while i < n {
+                let r = &img[ptr + i * SYMBOL_LEN..ptr + i * SYMBOL_LEN + SYMBOL_LEN];
+                if &r[..5] == b".data" {
+                    found = i;
+                }
+                i += 1 + r[17] as usize;
+            }
+            found
+        };
+        let aux = &img[ptr + (sec_sym + 1) * SYMBOL_LEN..][..SYMBOL_LEN];
+        assert_eq!(
+            u16::from_le_bytes([aux[4], aux[5]]),
+            1,
+            "aux NumberOfRelocations — the field that was 0 while the header said 1"
+        );
+    }
+
+    /// **The relocation's `SymbolTableIndex` follows Rule Y1's `.bss` order, not
+    /// the input order** — so an obj whose two `.bss` objects the symbol table
+    /// lists in reverse still names the right one. This is the assertion that
+    /// would have gone red had the indices been computed from the input vector
+    /// instead of from the order the records are written in.
+    #[test]
+    fn the_relocations_symbol_index_follows_the_symbol_table_and_not_the_input() {
+        let zero = [0u8; 4];
+        let rel = [DataObjReloc { at: 0, target: "?gj@@3HA" }];
+        let img = emit_data_obj(
+            "Z:\\t\\x.obj",
+            &[
+                obj("?gi@@3HA", 4, 4, true, None, 0),
+                obj("?gj@@3HA", 4, 4, true, None, 1),
+                obj_rel("?p@@3PAHA", 4, 4, true, Some(&zero), 2, &rel),
+            ],
+        )
+        .unwrap();
+        let syms = symbols_of(&img);
+        // Y1 puts the externals in REVERSE `.gl` order, so `?gj` is listed first.
+        let names: Vec<&str> =
+            syms.iter().filter(|s| s.0.starts_with('?')).map(|s| s.0.as_str()).collect();
+        assert_eq!(names, vec!["?gj@@3HA", "?gi@@3HA", "?p@@3PAHA"]);
+        let want = sym_index_of(&img, "?gj@@3HA");
+        assert_eq!(relocs_of(&img), vec![(".data".to_string(), 0, want, REL_PPC_ADDR32)]);
+    }
+
+    /// **Two relocations in one object keep their offsets, ascending** —
+    /// `t08_ptr_array` (`int* ap[2] = {&gi,&gj};`), whose real obj carries
+    /// ADDR32 at VA 0 and VA 4.
+    #[test]
+    fn an_array_of_pointers_emits_one_relocation_per_slot() {
+        let zero = [0u8; 8];
+        let rel = [
+            DataObjReloc { at: 0, target: "?gi@@3HA" },
+            DataObjReloc { at: 4, target: "?gj@@3HA" },
+        ];
+        let img = emit_data_obj(
+            "Z:\\t\\x.obj",
+            &[
+                obj("?gi@@3HA", 4, 4, true, None, 0),
+                obj("?gj@@3HA", 4, 4, true, None, 1),
+                obj_rel("?ap@@3PAPAHA", 8, 4, true, Some(&zero), 2, &rel),
+            ],
+        )
+        .unwrap();
+        let got: Vec<(u32, u16)> = relocs_of(&img).into_iter().map(|r| (r.1, r.3)).collect();
+        assert_eq!(got, vec![(0, REL_PPC_ADDR32), (4, REL_PPC_ADDR32)]);
+    }
+
+    /// **The addend rides in the raw bytes, and a negative one is four `ff`s** —
+    /// `t21_offset_negative` (`int arr[4]; int* p = arr - 1;`), whose real
+    /// `.data` reads `ff ff ff fc`. The section's CheckSum is taken over those
+    /// bytes, so an addend the writer dropped would move the aux record too.
+    #[test]
+    fn a_negative_addend_is_in_the_raw_bytes_and_in_the_checksum() {
+        let neg = [0xffu8, 0xff, 0xff, 0xfc];
+        let rel = [DataObjReloc { at: 0, target: "?arr@@3PAHA" }];
+        let img = emit_data_obj(
+            "Z:\\t\\x.obj",
+            &[
+                obj("?arr@@3PAHA", 16, 4, true, None, 0),
+                obj_rel("?p@@3PAHA", 4, 4, true, Some(&neg), 1, &rel),
+            ],
+        )
+        .unwrap();
+        let secs = sections_of(&img);
+        let (_, _, ptr, _) = secs.iter().find(|s| s.0 == ".data").unwrap().clone();
+        assert_eq!(&img[ptr as usize..ptr as usize + 4], &neg[..]);
+        assert_eq!(relocs_of(&img).len(), 1);
+    }
+
+    /// **The three refusals a relocation can reach**, each a case nothing
+    /// measured, and each refusing rather than dropping the record — a dropped
+    /// relocation is a `.data` right about its contents and wrong about its
+    /// addresses, which is board #232's direction.
+    #[test]
+    fn the_relocation_refusals_are_refusals_and_not_dropped_records() {
+        let zero = [0u8; 4];
+        // 1. An UNDEFINED external target: it needs a symbol record spliced in
+        //    at index 5, which this writer does not model (`t03`, `t05`).
+        let rel = [DataObjReloc { at: 0, target: "?ge@@3HA" }];
+        assert!(
+            emit_data_obj(
+                "Z:\\t\\x.obj",
+                &[obj_rel("?gp@@3PAHA", 4, 4, true, Some(&zero), 0, &rel)]
+            )
+            .is_none(),
+            "target is not one of this call's objects"
+        );
+        // 2. A slot that runs off the end of its object.
+        let rel = [DataObjReloc { at: 4, target: "?gi@@3HA" }];
+        assert!(
+            emit_data_obj(
+                "Z:\\t\\x.obj",
+                &[
+                    obj("?gi@@3HA", 4, 4, true, None, 0),
+                    obj_rel("?gp@@3PAHA", 4, 4, true, Some(&zero), 1, &rel),
+                ]
+            )
+            .is_none(),
+            "at + 4 > size"
+        );
+        // 3. A relocation into a `.bss` object: there are no file bytes to patch.
+        let rel = [DataObjReloc { at: 0, target: "?gi@@3HA" }];
+        assert!(
+            emit_data_obj(
+                "Z:\\t\\x.obj",
+                &[
+                    obj("?gi@@3HA", 4, 4, true, None, 0),
+                    obj_rel("?b@@3PAHA", 4, 4, true, None, 1, &rel),
+                ]
+            )
+            .is_none(),
+            "no raw bytes for a relocation to sit in"
+        );
+    }
+
+    /// **A self-reference is legal and is not a cycle** — `t16_ptr_to_self`
+    /// (`struct N{N* next;}; N n = {&n};`), byte-exact against real c2. The
+    /// relocation names the very object it lives inside.
+    #[test]
+    fn an_object_may_name_itself() {
+        let zero = [0u8; 4];
+        let rel = [DataObjReloc { at: 0, target: "?n@@3UN@@A" }];
+        let img =
+            emit_data_obj("Z:\\t\\x.obj", &[obj_rel("?n@@3UN@@A", 4, 4, true, Some(&zero), 0, &rel)])
+                .unwrap();
+        let want = sym_index_of(&img, "?n@@3UN@@A");
+        assert_eq!(relocs_of(&img), vec![(".data".to_string(), 0, want, REL_PPC_ADDR32)]);
+    }
+
+    /// **An obj with no relocations is byte-identical to what this writer
+    /// emitted before board #931** — the counterfactual that says the new field
+    /// costs the old class nothing. Built from the same call twice: once with an
+    /// empty `relocs` slice and once with the field absent is not expressible, so
+    /// the check is that the relocation table is empty and both count fields are
+    /// 0, which is what "absent" meant.
+    #[test]
+    fn a_relocation_free_obj_carries_no_relocation_table_at_all() {
+        let d = [0u8, 0, 0, 7];
+        let img =
+            emit_data_obj("Z:\\t\\x.obj", &[obj("?a@@3HA", 4, 4, true, Some(&d), 0)]).unwrap();
+        assert!(relocs_of(&img).is_empty());
+        let secs = sections_of(&img);
+        let i = secs.iter().position(|s| s.0 == ".data").unwrap();
+        let h = &img[20 + i * 40..20 + i * 40 + 40];
+        assert_eq!(u32::from_le_bytes([h[24], h[25], h[26], h[27]]), 0, "PointerToRelocations");
+        assert_eq!(u16::from_le_bytes([h[32], h[33]]), 0, "NumberOfRelocations");
     }
 
     /// **Rule S1's section order, which prereg P3 got backwards on every

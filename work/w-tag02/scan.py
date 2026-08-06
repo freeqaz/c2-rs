@@ -79,17 +79,37 @@ def parse_record(b, p):
                                  "span": b[q:q2].hex(" ")}))
             q = q2
         elif tag == 0x02:
+            # `02 <target-token> <offset> <n>`.
+            #
+            # The offset was read as ONE BYTE in this file's first revision, and
+            # that revision scored 0 tag-02 elements on t18..t22 — the five cells
+            # built to put a large offset there. The hexdump said why:
+            # `02 ec 09 · 80 80 00 00 00 · 04` is `0x80` + a little-endian i32,
+            # the same escape the scalar value uses at width 4. Kept as a comment
+            # rather than silently corrected, because the disagreement between
+            # this instrument and the crate's was the thing that found it.
             t2 = read_token(b, q + 1)
             if t2 is None:
                 return None
             tgt, tw2 = t2
             q2 = q + 1 + tw2
-            if q2 + 1 >= len(b):
+            if q2 >= len(b):
                 return None
-            sep, n = b[q2], b[q2 + 1]
-            elems.append(("02", {"target": tgt, "target_w": tw2, "sep": sep, "n": n,
-                                 "span": b[q:q2 + 2].hex(" ")}))
-            q = q2 + 2
+            if b[q2] < 0x80:
+                off, q3 = b[q2], q2 + 1
+            elif b[q2] == 0x80:
+                if q2 + 5 > len(b):
+                    return None
+                off = int.from_bytes(b[q2 + 1:q2 + 5], "little", signed=True)
+                q3 = q2 + 5
+            else:
+                return None
+            if q3 >= len(b):
+                return None
+            n = b[q3]
+            elems.append(("02", {"target": tgt, "target_w": tw2, "sep": off, "n": n,
+                                 "span": b[q:q3 + 1].hex(" ")}))
+            q = q3 + 1
         elif tag == 0x03:
             if q + 1 >= len(b):
                 return None
