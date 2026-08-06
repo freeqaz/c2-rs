@@ -1,0 +1,56 @@
+  MISS VBT8-sel6              f05_virtual_only.obj ??_8Vd@@7B@ sel=2
+  MISS VBT8-value4            f05_virtual_only.obj ??_8Vd@@7B@ value=0
+  MISS VBT8-sel6              f06_two_virtual_bases.obj ??_8R@@7B@ sel=2
+  MISS VBT8-value4            f06_two_virtual_bases.obj ??_8R@@7B@ value=0
+  MISS VBT8-sel6              f12_diamond_deep.obj ??_8Dia@@7BRgt@@@ sel=2
+  MISS VBT8-value4            f12_diamond_deep.obj ??_8Dia@@7BRgt@@@ value=0
+  MISS VBT8-sel6              f12_diamond_deep.obj ??_8Dia@@7BLft@@@ sel=2
+  MISS VBT8-value4            f12_diamond_deep.obj ??_8Dia@@7BLft@@@ value=0
+
+obj                              nsec  .rdata$r  ??_R0  vftbl
+f01_template_inst.obj              11         4      1      1
+f02_template_two_args.obj          11         4      1      1
+f03_nested_in_class.obj            11         4      1      1
+f04_chain4.obj                     24        13      4      1
+f05_virtual_only.obj               20         9      2      3
+f06_two_virtual_bases.obj          27        14      3      4
+f07_secondary_virtuals.obj         23        12      3      2
+f08_anon_namespace.obj             14         4      1      1
+f09_longname.obj                   11         4      1      1
+f10_dllexport.obj                  13         4      1      1
+f11_three_classes.obj              25        12      3      3
+f12_diamond_deep.obj               38        21      5      5
+f13_abstract_derived.obj           18         8      2      2
+f14_vdtor_derived.obj              14         4      1      1
+f15_novtable_derived.obj           16         7      2      1
+f16_member_ptr_and_array.obj       11         4      1      1
+k01_control_minimal.obj            11         4      1      1
+k02_control_derived.obj            16         7      2      1
+
+objs=18  .rdata$r-sections=139  ??_R0-data-comdats=35  records=174
+
+CLAIM P5-rdata$r-chars       HELD     139/139
+CLAIM P5-rdata$r-sel2        HELD     139/139
+CLAIM P5-reloc-ADDR32        HELD     268/268
+CLAIM P6-DFS-order           HELD     21/21
+CLAIM P6-groups-dont-interleave HELD     18/18
+CLAIM P7-checksum            HELD     174/174
+CLAIM P8-R0-chars            HELD     35/35
+CLAIM P8-R0-name             HELD     35/35
+CLAIM P8-R0-sel2             HELD     35/35
+CLAIM P8-R0-size             HELD     35/35
+CLAIM P8-R0-spare0           HELD     35/35
+CLAIM R1-fields-in-name      HELD     42/42
+CLAIM R2-null-terminated     HELD     35/35
+CLAIM R3count-eq-R2size      HELD     35/35
+CLAIM SZ-R1-28               HELD     42/42
+CLAIM SZ-R3-16               HELD     35/35
+CLAIM SZ-R4-20               HELD     27/27
+CLAIM VBT8-chars             HELD     4/4
+CLAIM VBT8-sel6              REFUTED  0/4
+CLAIM VBT8-value4            REFUTED  0/4
+CLAIM VFT7-chars             HELD     27/27
+CLAIM VFT7-sel6              HELD     27/27
+CLAIM VFT7-value4            HELD     27/27
+
+claims=23 refuted=2
