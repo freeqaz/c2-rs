@@ -395,16 +395,24 @@ collect_gap() {
     # different routes (the port's per-function selector, and the oracle's own
     # whole-obj verdict) and a reader must be able to tell them apart.
     emit fnbyte-match "$(val_or_missing "$(_metric_row "$_log" \
-        'FBM = @ · @ exact + @ whole-TU of @ emitted functions, over @ TUs (@ at 100%)' \
+        'FBM = @ · @ exact + @ whole-TU of @ emitted functions, over @ TUs (@ at 100%); @ are byte-exact before relocations are graded' \
         fnbyte-match fnbyte-exact fnbyte-whole-tu fnbyte-denominator fnbyte-tus \
-        fnbyte-tus-full)")"
+        fnbyte-tus-full fnbyte-exact-bytes)")"
     # The partition, with the instrument's OWN under-report first. A row that
     # published the ratio and dropped `fnbyte-partial` would hide the size of
     # what FBM cannot yet grade, which is the shape this project charges for.
+    #
+    # **`fnbyte-reloc-unknown` is the same shape one field along** (lane
+    # `w-relo`): the byte-exact functions whose reference relocation table did
+    # not decode, i.e. the population RELOC-EQ could NOT reach. It renders
+    # beside `reloc-differs` for the same reason `partial` renders beside the
+    # ratio, and its own must-fail mutation is in `--check`.
     emit fnbyte-partition "$(val_or_missing "$(_metric_row "$_log" \
-        'partial @ (FBM under-reports by this) · differs @ · refused @ · unbound @ · @ credited fns carry a reloc FBM does not check · controls: partition-broken @, match-TU differs @, census disagree @' \
-        fnbyte-partial fnbyte-differs fnbyte-refused fnbyte-unbound \
-        fnbyte-exact-relocated fnbyte-partition-broken fnbyte-match-tu-differs \
+        'partial @ (FBM under-reports by this) · differs @ · reloc-differs @ · reloc-unknown @ (UNGRADED residue) · refused @ · unbound @ · @ credited fns relocate, every record graded · controls: partition-broken @, reloc-reach-broken @, match-TU differs @, match-TU reloc-differs @, census disagree @' \
+        fnbyte-partial fnbyte-differs fnbyte-reloc-differs fnbyte-reloc-unknown \
+        fnbyte-refused fnbyte-unbound \
+        fnbyte-exact-relocated fnbyte-partition-broken fnbyte-reloc-partition-broken \
+        fnbyte-match-tu-differs fnbyte-match-tu-reloc-differs \
         fnbyte-census-disagree)")"
     emit fnbyte-per-tu "$(val_or_missing "$(_metric_row "$_log" \
         '@ of @ TUs with emitted functions are 100% byte-exact per function' \
@@ -497,6 +505,12 @@ summary: 100 port Match, 0 mismatch, 110 not-implemented (of 210)
     gap-metric fnbyte-whole-tu 2
     gap-metric fnbyte-tus-full 4
     gap-metric fnbyte-tus 865
+    gap-metric fnbyte-exact-bytes 29084
+    gap-metric fnbyte-reloc-differs 0
+    gap-metric fnbyte-reloc-unknown 0
+    gap-metric fnbyte-reloc-graded 29084
+    gap-metric fnbyte-reloc-partition-broken 0
+    gap-metric fnbyte-match-tu-reloc-differs 0
 EOF
     # Known answers against the captured report above. These call the SAME
     # functions the collectors call — corrupt a parser and this goes red.
@@ -632,6 +646,32 @@ EOF
     [ "$(val_or_missing "$_got")" = "NO-RESULT" ] \
         || { echo "CHECK FAIL: an FBM partition missing fnbyte-partial did not render NO-RESULT"; \
              fails=$((fails+1)); }
+
+    # **MUST-FAIL MUTATION — the RELOCATION verdict must never render without
+    # its UNGRADED residue** (lane `w-relo`, `docs/STATUS.md` trap 0).
+    # `fnbyte-reloc-differs 0` beside a silent `fnbyte-reloc-unknown` reads as
+    # "every relocation checks out" when what happened may be that none was
+    # graded — the exact shape of objdiff's `total_code == 0 -> 100.0`, one
+    # field along. Mutation: delete the residue key; the partition row must go
+    # empty, never render a clean-looking verdict over an unstated population.
+    noresid_log="$work_dir/noresidue.log"
+    grep -v 'gap-metric fnbyte-reloc-unknown ' "$probe_log" > "$noresid_log"
+    _got=$(_metric_row "$noresid_log" \
+        'reloc-differs @ · reloc-unknown @ · controls: @, @' \
+        fnbyte-reloc-differs fnbyte-reloc-unknown \
+        fnbyte-reloc-partition-broken fnbyte-match-tu-reloc-differs)
+    [ -z "$_got" ] \
+        || { echo "CHECK FAIL: the relocation verdict rendered without its ungraded residue: '$_got'"; \
+             fails=$((fails+1)); }
+    [ "$(val_or_missing "$_got")" = "NO-RESULT" ] \
+        || { echo "CHECK FAIL: a relocation row missing fnbyte-reloc-unknown did not render NO-RESULT"; \
+             fails=$((fails+1)); }
+
+    # And the reach identity's own zero must PARSE as zero, not as absent — the
+    # same argument the `match-TU differs` pin makes, for the five-alarm control.
+    check_metric fnbyte-reloc-partition-broken  '0' || fails=$((fails+1))
+    check_metric fnbyte-match-tu-reloc-differs  '0' || fails=$((fails+1))
+    check_metric fnbyte-exact-bytes         '29084' || fails=$((fails+1))
 
     # **MUST-FAIL MUTATION — the ratio must never render without its
     # denominator.** `FBM = 0.16251` alone reads as "16 % done" and is not; the
