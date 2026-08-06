@@ -1,0 +1,39 @@
+  cell                       obj      KEY ILX   clause    w-spell
+  --------------------------------------------------------------------------
+  S-self-1base-r1k1          prod     prod      SELF-1B   prod
+  S-self-1base-r2k1          prod     prod      SELF-1B   prod
+  S-self-1base-r3k1          prod     prod      SELF-1B   prod
+  S-self-1base-r2k2          prod     prod      SELF-1B   prod
+  S-self-1base-r2k3          prod     prod      SELF-1B   prod
+  S-self-2base-r1k1          prod     prod      SELF-2B   prod
+  S-self-2base-r2k1          prod     prod      SELF-2B   prod
+  S-self-2base-r3k1          prod     prod      SELF-2B   prod
+  S-self-2base-r2k2          prod     prod      SELF-2B   prod
+  S-self-2base-r2k3          prod     prod      SELF-2B   prod
+  S-cross-1base-r1k1         const    const     CROSS     const
+  S-cross-1base-r2k1         prod     prod      CROSS     prod
+  S-cross-1base-r3k1         prod     prod      CROSS     prod
+  S-cross-1base-r2k2         prod     prod      CROSS     prod
+  S-cross-1base-r2k3         prod     prod      CROSS     prod
+  S-cross-2base-r1k1         const    const     CROSS     const
+  S-cross-2base-r2k1         prod     prod      CROSS     prod
+  S-cross-2base-r3k1         prod     prod      CROSS     prod
+  S-cross-2base-r2k2         prod     prod      CROSS     prod
+  S-cross-2base-r2k3         prod     prod      CROSS     prod
+  X-A-r3k5                   prod     prod      SELF-2B   prod
+  X-A-r2k4                   prod     prod      SELF-2B   prod
+  X-A-r1k1                   prod     prod      SELF-2B   prod
+  X-B-r3k5                   const    const     LOAD      const
+  X-B-r2k4                   const    const     LOAD      const
+  X-B-r1k1                   prod     prod      LOAD      prod
+  X-E-r3k5                   const    const     SELF-1B   const
+  X-E-r2k4                   const    const     SELF-1B   const
+  X-E-r1k1                   prod     prod      SELF-1B   prod
+  X-F-r3k5                   const    const     LOAD      const
+  X-F-r2k4                   const    const     LOAD      const
+  X-F-r1k1                   prod     prod      LOAD      prod
+
+  selected 32 | reached 32 | GRADED 32 | out-of-domain 0 | compile-failed 0
+  KEY ILX on the prior lanes' own configurations:  hit 32 | MISS 0
+  cross-check against w-spell's published tables:  agree 32 | DISAGREE 0
+  the shipped refusal on the same 32 cells:  right 0 | WRONG 0 | refused 32

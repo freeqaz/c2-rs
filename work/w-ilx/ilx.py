@@ -90,25 +90,24 @@ OFF_INNER, OFF_F0 = 96, 32
 FSLOT = "0123456789abcdef"
 
 
-def body(expr, ru, cu, bind):
+def body(expr, ru, cu, bind, regfirst=False):
     """The GRID S / GRID X body shape: the constant's run first, then the
     producer's.  `bind` puts `L& q = s->inner;` at the head and stores through
-    it — w-spell's `2base` and GRID X's A/B/C/D."""
+    it — w-spell's `2base` and GRID X's A/B/C/D.  `regfirst` swaps the two runs,
+    which is GRID X's `F`."""
     out = []
     pslot = "s->inner.a%d"
     if bind:
         out.append("    L& q = s->inner;")
         pslot = "q.a%d"
-    for i in range(cu):
-        out.append("    s->f%s = 7;" % FSLOT[i])
-    for i in range(ru):
-        out.append("    %s = %s;" % (pslot % i, expr))
-    return out
+    const = ["    s->f%s = 7;" % FSLOT[i] for i in range(cu)]
+    prod = ["    %s = %s;" % (pslot % i, expr) for i in range(ru)]
+    return out + (prod + const if regfirst else const + prod)
 
 
-def source(expr, ru, cu, bind):
+def source(expr, ru, cu, bind, regfirst=False):
     return (STRUCT + "void g(S* s, int u, int v) {\n"
-            + "\n".join(body(expr, ru, cu, bind)) + "\n}\n")
+            + "\n".join(body(expr, ru, cu, bind, regfirst)) + "\n}\n")
 
 
 # tag -> (left-label, left-spec, right-label, right-spec, expected)
