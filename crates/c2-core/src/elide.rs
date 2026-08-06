@@ -139,28 +139,31 @@ impl TuEmptyCallees {
     /// `mangled_name` — `IlBundle::functions()`, where the gate's own in-TU
     /// callee refusal already compares resolved callee names against that same
     /// list.
+    /// Sorted once and scanned in runs rather than searched per row: a workload
+    /// TU carries thousands of census rows, and a quadratic membership test here
+    /// would be paid on every TU of every scan.
     pub fn of_named<'a>(named: impl IntoIterator<Item = (&'a str, bool)>) -> Self {
+        let mut rows: Vec<(&str, bool)> =
+            named.into_iter().filter(|(n, _)| !n.is_empty()).collect();
+        rows.sort_unstable();
         let mut empty: Vec<String> = Vec::new();
-        let mut disagree: Vec<&str> = Vec::new();
-        let mut seen: Vec<(&str, bool)> = Vec::new();
-        for (n, is_empty) in named {
-            if n.is_empty() {
-                continue;
+        let mut i = 0;
+        while i < rows.len() {
+            let name = rows[i].0;
+            let mut j = i;
+            let mut all_empty = true;
+            while j < rows.len() && rows[j].0 == name {
+                all_empty &= rows[j].1;
+                j += 1;
             }
-            if let Some((_, prev)) = seen.iter().find(|(m, _)| *m == n) {
-                if *prev != is_empty {
-                    disagree.push(n);
-                }
-            } else {
-                seen.push((n, is_empty));
+            // A name defined twice with bodies that disagree about emptiness
+            // admits neither: telling the two spellings apart needs something
+            // this type does not have, and refusing is the honest answer.
+            if all_empty {
+                empty.push(name.to_string());
             }
+            i = j;
         }
-        for (n, e) in seen {
-            if e && !disagree.contains(&n) {
-                empty.push(n.to_string());
-            }
-        }
-        empty.sort();
         Self { empty }
     }
 

@@ -1,0 +1,27 @@
+lane gate: preflight on /tmp
+  keep    /tmp/c2rs-gate-1214174       LIVE — pid 1214174 is a running gate (a concurrent lane)
+  keep    /tmp/c2rs-gate-1621573       this run
+  keep    /tmp/c2rs-gate-963286        recent — 1 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-754114        recent — 2 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-3945365       recent — 3 of 3 finished runs kept for their logs
+reap:   0 stale run tree(s) removed, 5 kept (1 live, 3 recent, 1 this run)
+disk:   /tmp — free 31.8 GiB / 850,326 inodes (floors: 2.0 GiB / 150,000 inodes)
+
+lane gate: 18 lanes from <repo>/scripts/lanes.txt
+  run dir: /tmp/c2rs-gate-1621573   (per-lane run dirs under /tmp/c2rs-gate-1621573/lanes/)
+building the harness (no-op if current)
+    Finished `release` profile [optimized] target(s) in 0.00s
+harness: /tmp/c2rs-gate-1621573/c2rs
+  pinned from <repo>/target/release/c2rs  built 2026-08-06 03:43:09
+  sha 9e88b774bb1c  tree 5e4f6ae
+
+wall clock: 15s for 18 lanes at --jobs 6 (C2RS_JOBS=8)
+
+generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-1621573/sweep 0  (jobs 6)
+    60 fragments, 16710 cases total (16710 .cpp on disk)
+  sweeping 16710 of 16710 generated cases
+    grading at 6 job(s)
+  checked=16710 mismatches=0 graded=16614 ungraded=96 unknown=0
+  (166s)
+
+mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-1621573/cross 0  (jobs 6)

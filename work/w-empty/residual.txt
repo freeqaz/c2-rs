@@ -1,0 +1,17 @@
+differs BEFORE 4711   AFTER 3338
+  left  1373      entered 0   <- the second is the regression direction
+
+FAMILY A (c2's whole body is a bare `blr`): 1886 -> 513
+
+--- CONVERTED, by symbol family ---
+    1373  ??1?$_STLP_alloc_proxy
+  distinct symbols: 545 over 469 TUs
+  witness word-shapes: [('w1/1/eq0', 1373)]
+
+--- RESIDUAL family A, by symbol family ---
+     370  ??$_Destroy_Range
+     143  ??1?$_Rb_tree_base
+  witness word-shapes: [('w2/1/eq0', 370), ('w1/1/eq0', 143)]
+
+--- ENTERED differs (must be empty) ---
+  (none)

@@ -1,0 +1,50 @@
+==============================================================
+MUTATION 1 — is_empty_callee answers true for every name (drops SAME-TU)
+==============================================================
+  (c2-core unit tests RED too)
+  cell tests:  11 FAILED
+    thread 'an_indirect_call_site_is_still_refused_by_the_il_parser' (1596305) panicked at crates/c2-harness/tests/empty_elision.rs:103:20:
+    assertion `left == right` failed: cell `f09_fnptr`: the ANCHOR control is not Exact — this capture graded nothing trustworthy, so no verdict below it means anything
+    thread 'a_returning_callee_is_not_elided' (1596303) panicked at crates/c2-harness/tests/empty_elision.rs:103:20:
+    assertion `left == right` failed: cell `c19_ret_param`: the ANCHOR control is not Exact — this capture graded nothing trustworthy, so no verdict below it means anything
+    thread 'an_empty_same_tu_callee_leaves_the_caller_a_bare_blr' (1596304) panicked at crates/c2-harness/tests/empty_elision.rs:103:20:
+    assertion `left == right` failed: cell `c00_empty`: the ANCHOR control is not Exact — this capture graded nothing trustworthy, so no verdict below it means anything
+    gap-metric fnbyte-exact 34189
+    gap-metric fnbyte-differs 4988
+    gap-metric fnbyte-partition-broken 0
+    gap-metric fnbyte-elided 5208
+  RESULT: RED
+==============================================================
+MUTATION 2 — of_named admits every same-TU name (drops EMPTINESS)
+==============================================================
+  (c2-core unit tests RED too)
+  cell tests:  7 FAILED
+    thread 'a_returning_callee_is_not_elided' (1600349) panicked at crates/c2-harness/tests/empty_elision.rs:191:5:
+    THE EMPTINESS CONDITION WAS DROPPED: `int g(int a){return a;}` has a non-empty IL body and is mechanism I, not E. Its caller came back Exact, which means the port emitted `blr` for a callee whose body it has not established does nothing — the same bytes for the wrong reason, and the next callee like it will be wrong bytes
+    thread 'elide::tests::a_callee_this_tu_does_not_define_is_not_elided' (1600445) panicked at crates/c2-core/src/elide.rs:264:9:
+    assertion `left == right` failed: no definition, so no name is admitted
+    thread 'elide::tests::a_same_tu_empty_callee_is_elided' (1600449) panicked at crates/c2-core/src/elide.rs:254:9:
+    assertion `left == right` failed
+    gap-metric fnbyte-exact 35669
+    gap-metric fnbyte-differs 3508
+    gap-metric fnbyte-partition-broken 0
+    gap-metric fnbyte-elided 1929
+  RESULT: RED
+==============================================================
+MUTATION 3 — of_named admits exactly the NON-empty names (inverts EMPTINESS)
+==============================================================
+  (c2-core unit tests RED too)
+  cell tests:  10 FAILED
+    thread 'a_returning_callee_is_not_elided' (1604449) panicked at crates/c2-harness/tests/empty_elision.rs:191:5:
+    THE EMPTINESS CONDITION WAS DROPPED: `int g(int a){return a;}` has a non-empty IL body and is mechanism I, not E. Its caller came back Exact, which means the port emitted `blr` for a callee whose body it has not established does nothing — the same bytes for the wrong reason, and the next callee like it will be wrong bytes
+    thread 'the_argument_setup_goes_with_the_dropped_call' (1604452) panicked at crates/c2-harness/tests/empty_elision.rs:164:5:
+    assertion `left == right` failed: E discards the argument setup as well as the branch; a rule that kept the setup would leave `li r3,5 ; blr` against c2's single word
+    thread 'an_empty_same_tu_callee_leaves_the_caller_a_bare_blr' (1604450) panicked at crates/c2-harness/tests/empty_elision.rs:139:5:
+    assertion `left == right` failed: `void g(){} void f(){ g(); }`: c2 emits no branch and no relocation for `?f`, and the port must not either
+    gap-metric fnbyte-exact 34296
+    gap-metric fnbyte-differs 4881
+    gap-metric fnbyte-partition-broken 0
+    gap-metric fnbyte-elided 556
+  RESULT: RED
+
+mutations run: 3, green (BAD): 0

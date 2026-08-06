@@ -1,0 +1,6 @@
+cargo test --workspace --release, aggregated over every target's `test result:` line
+targets=29 passed=928 failed=0
+baseline at master 9827bcf: targets=28 passed=916 failed=0
+delta: +1 target (crates/c2-harness/tests/empty_elision.rs), +12 tests
+        (7 c2-core::elide unit tests + 5 toolchain-backed cell tests)
+        916 + 12 = 928 and 28 + 1 = 29 — the arithmetic closes
