@@ -110,7 +110,8 @@
 
 use c2_core::codegen::{opt_mode_of_word, select_function};
 use c2_core::comdat::{comdat_body_from_selected, selected_tag, ComdatDecline};
-use c2_core::elide::{Reduction, TuEmptyCallees};
+use c2_core::elide::Reduction;
+use c2_core::splice::TuContext;
 use c2_il::{FnCensus, IlFunction};
 use c2_obj::ObjImage;
 
@@ -207,7 +208,7 @@ impl Decline {
 fn complete_body(
     func: &IlFunction,
     opt_word: Option<u32>,
-    tu: &TuEmptyCallees,
+    tu: &TuContext,
 ) -> Result<(&'static str, Vec<u8>), (&'static str, Decline)> {
     let mode = opt_mode_of_word(opt_word).map_err(|_| ("opt-mode", Decline::OptMode))?;
     let selected = select_function(func, mode).map_err(|_| ("refused", Decline::Selector))?;
@@ -250,6 +251,16 @@ pub fn compare_body(port: &[u8], reference: &[u8]) -> FnByte {
         ref_words: rw,
         equal_words: equal,
     }
+}
+
+/// The census row's `.ex` optimization word, or `None` when no row binds this
+/// emitted symbol — the same three-valued answer `grade_one` reads, kept in one
+/// place so the splice counter and the composition cannot disagree about which
+/// mode they asked under.
+fn census_opt_word(
+    row: Option<&(FnCensus, Result<IlFunction, &'static str>)>,
+) -> Option<u32> {
+    row.and_then(|(c, _)| c.opt_word)
 }
 
 /// The `fnbyte-partial|…` tag for a shape whose `/Gy` composition declined.
@@ -319,20 +330,39 @@ pub struct Graded {
 ///
 /// A row with no `emit_name` contributes nothing: it binds no emitted symbol, so
 /// nothing can reach it under that name either.
-pub fn tu_empty_callees(census: &[(FnCensus, Result<IlFunction, &'static str>)]) -> TuEmptyCallees {
-    TuEmptyCallees::of_rows(census.iter().filter_map(|(c, g)| {
+pub fn tu_empty_callees<'a>(
+    census: &'a [(FnCensus, Result<IlFunction, &'static str>)],
+) -> TuContext<'a> {
+    // **One row per emitted symbol this TU binds, and the row says what each
+    // mechanism can make of it** (`c2_core::splice::TuContext::of_rows`).
+    //
+    // `Some(Reduction::Parsed)`      both mechanisms: E may close through it,
+    //                                the splice may compose a chain end out of
+    //                                it.
+    // `Some(Reduction::NoEffectCall)` **board #980**, lane `w-inl0` — a row the
+    //                                parser REFUSED whose grammar still proves
+    //                                it emits nothing but a call. E gets the
+    //                                edge; the splice gets nothing, because
+    //                                there are no bytes to splice.
+    // `None`                         a refused row neither mechanism can use —
+    //                                and it is still passed, because
+    //                                `TuContext::mentions` is what tells a
+    //                                chain that ENDED from one the port could
+    //                                not FOLLOW. A refused row missing from the
+    //                                context reads as an external, and
+    //                                `S6-chain-truncated` would stop firing.
+    //
+    // #980's conservative direction is preserved exactly: only a refused row
+    // with a readable `no_effect_callee` contributes an E edge, its verdict
+    // does not move — still `Blocked`, still `fnbyte-refused` — and
+    // `IlBundle::functions` still refuses its TU.
+    TuContext::of_rows(census.iter().filter_map(|(c, g)| {
         let name = c.emit_name.as_deref()?;
-        match g.as_ref().ok() {
-            Some(f) => Some((name, Reduction::Parsed(f))),
-            // **Board #980.** A row that did not parse contributes an edge when —
-            // and only when — `c2-il`'s dead-temporary reader could read one out
-            // of it. Every other refused row still contributes nothing, which is
-            // the conservative direction the paragraph above describes.
-            //
-            // The row's verdict does not move: it is still `Blocked`, still
-            // `fnbyte-refused`, and `IlBundle::functions` still refuses its TU.
-            None => Some((name, Reduction::NoEffectCall(c.no_effect_callee.as_deref()?))),
-        }
+        let reduction = match g.as_ref().ok() {
+            Some(f) => Some(Reduction::Parsed(f)),
+            None => c.no_effect_callee.as_deref().map(Reduction::NoEffectCall),
+        };
+        Some((name, reduction, c.opt_word))
     }))
 }
 
@@ -344,7 +374,7 @@ pub fn tu_empty_callees(census: &[(FnCensus, Result<IlFunction, &'static str>)])
 pub fn grade_one(
     row: Option<&(FnCensus, Result<IlFunction, &'static str>)>,
     bytes: Option<&[u8]>,
-    tu: &TuEmptyCallees,
+    tu: &TuContext,
 ) -> Graded {
     let g = |verdict, shape, decline| Graded {
         verdict,
@@ -410,7 +440,7 @@ const MAX_CALLTARGET_WITNESSES: usize = 4;
 fn port_call_targets(
     f: &IlFunction,
     opt_word: Option<u32>,
-    tu: &TuEmptyCallees,
+    tu: &TuContext,
 ) -> Option<Vec<(u32, String)>> {
     let mode = opt_mode_of_word(opt_word).ok()?;
     let body = c2_core::comdat::comdat_function_body(f, mode, tu).ok()?;
@@ -425,7 +455,7 @@ fn port_call_targets(
 fn differ_witness(
     row: Option<&(FnCensus, Result<IlFunction, &'static str>)>,
     reference: &[u8],
-    tu: &TuEmptyCallees,
+    tu: &TuContext,
 ) -> String {
     let Some((census, Ok(func))) = row else {
         return "first@-".to_string();
@@ -508,7 +538,7 @@ fn callee_disposition(
     callee: &str,
     claim: &std::collections::BTreeMap<&str, Vec<usize>>,
     census: &[(FnCensus, Result<IlFunction, &'static str>)],
-    tu: &TuEmptyCallees,
+    tu: &TuContext,
     refbytes: &std::collections::BTreeMap<&str, &[u8]>,
 ) -> String {
     let Some([i]) = claim.get(callee).map(Vec::as_slice) else {
@@ -825,6 +855,41 @@ pub(super) fn measure(
                     if relocs.get(name.as_str()).copied().unwrap_or(0) > 0 {
                         *res.emit
                             .entry("fnbyte-elided-ref-reloc".into())
+                            .or_insert(0) += 1;
+                    }
+                }
+            }
+            // **MECHANISM I, counted the same way and for the same reason**
+            // (`c2_core::splice`, lane w-splice). A delta between two scans
+            // measures the NET; what a rule did is a positive count, printed
+            // with the judge's verdict beside it. `fnbyte-spliced` is how many
+            // bodies the splice produced and `fnbyte-spliced-exact` how many of
+            // those c2 agrees with — the two being equal is the claim, and the
+            // pair being printed is what makes a future divergence visible
+            // instead of arithmetic.
+            //
+            // Calls the port's OWN predicate against the same context the
+            // composition just used, never a copy of it.
+            if let Ok(sel) = opt_mode_of_word(census_opt_word(row))
+                .and_then(|m| select_function(f, m).map(|s| (m, s)))
+            {
+                let (m, s) = sel;
+                if c2_core::splice::splice_body(f, &s, m, &tu)
+                    .ok()
+                    .flatten()
+                    .is_some()
+                {
+                    *res.emit.entry("fnbyte-spliced".into()).or_insert(0) += 1;
+                    *res.emit
+                        .entry(format!("fnbyte-spliced|{}", graded.shape))
+                        .or_insert(0) += 1;
+                    if v == FnByte::Exact {
+                        *res.emit.entry("fnbyte-spliced-exact".into()).or_insert(0) += 1;
+                    } else {
+                        // Named, never a remainder: a splice the judge rejects
+                        // is the one row a net count would hide.
+                        *res.emit
+                            .entry(format!("fnbyte-spliced-differs-fn|{}|{name}", graded.shape))
                             .or_insert(0) += 1;
                     }
                 }
