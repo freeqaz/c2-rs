@@ -62,14 +62,14 @@ cost this project real work more than once.
 > 63,335 graded**.
 
 <!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->
-Collected 2026-08-05 · tree `50013bd` · binary `76e790ef15a6` · workload `20a48363`
+Collected 2026-08-06 · tree `f61db31` · binary `ae13470e648f` · workload `798ae68c`
 
 | metric | value |
 |---|---|
-| Workspace tests (cargo test --workspace --release) | 871 passed, 0 failed, 27 targets |
-| Oracle self-test (c2rs selftest) | 260 PASS, 0 FAIL |
-| Fixture port gate (c2rs perf) | 123 port Match, 0 mismatch, 137 not-implemented (of 260) |
-| Port speedup, geomean over matched fixtures | 608x geomean over matched fixtures |
+| Workspace tests (cargo test --workspace --release) | 916 passed, 0 failed, 28 targets |
+| Oracle self-test (c2rs selftest) | 265 PASS, 0 FAIL |
+| Fixture port gate (c2rs perf) | 124 port Match, 0 mismatch, 141 not-implemented (of 265) |
+| Port speedup, geomean over matched fixtures | 633x geomean over matched fixtures |
 | 878-TU dc3 workload scan (c2rs gap) | match 10, mismatch 0, codegen-gap 0, vocab-gap 861, capture-fail 7 |
 | Per-function census (driver, not target) | 711427/2463393 functions in class (28.88%) |
 | Emitted-function census | 39177/178975 emitted functions in class (21.89%) |
@@ -86,8 +86,8 @@ Collected 2026-08-05 · tree `50013bd` · binary `76e790ef15a6` · workload `20a
 | Emit-predicate worth, B∧C − A∧B∧C (board #213) | +124 TUs (B∧C − A∧B∧C) |
 | Factor-C section ladder (writer names / workload names / next step) | 10 writer names of 13 workload names; 3 steps left, next +.rdata$r → C = 590 |
 | PROGRESS MASS (driver, not target — docs/PROGRESS_METRIC.md) | P = 0.20828 · emitted in class 39177/178975 · mismatch-zeroed TUs 0 |
-| FUNCTION BYTE MATCH (driver, not target — docs/FUNCTION_BYTE_MATCH.md) | FBM = 0.16654 · 29802 exact + 5 whole-TU of 178975 emitted functions, over 865 TUs (6 at 100%) |
-| FBM partition (the under-report, and the controls) | partial 9375 (FBM under-reports by this) · differs 0 · refused 130573 · unbound 9225 · 0 credited fns carry a reloc FBM does not check · controls: partition-broken 0, match-TU differs 0, census disagree 0 |
+| FUNCTION BYTE MATCH (driver, not target — docs/FUNCTION_BYTE_MATCH.md) | FBM = 0.19259 · 34466 exact + 2 whole-TU of 178975 emitted functions, over 865 TUs (6 at 100%) |
+| FBM partition (the under-report, and the controls) | partial 0 (FBM under-reports by this) · differs 4711 · refused 130573 · unbound 9225 · 4664 credited fns carry a reloc FBM does not check · controls: partition-broken 0, match-TU differs 0, census disagree 0 |
 | Per-TU FBM (how close is the other 870) | 6 of 865 TUs with emitted functions are 100% byte-exact per function |
 
 <!-- END GENERATED -->
@@ -97,9 +97,32 @@ Collected 2026-08-05 · tree `50013bd` · binary `76e790ef15a6` · workload `20a
 ## The one-paragraph answer
 
 The **foundation is proven and fast**: standalone replay of the real `c2.dll` is
-byte-exact on all 871 capturable TUs of a real Xbox 360 game, and the port is
-byte-exact on every shape a standing instrument grades. The **payoff metric has
-moved for the first time**:
+byte-exact on all 871 capturable TUs of a real Xbox 360 game, and every obj the
+port has ever emitted matches — `mismatch` is 0 and has been through every gate
+in this document.
+
+> **⚠ 2026-08-06 — the clause that used to close that sentence, *"and the port is
+> byte-exact on every shape a standing instrument grades"*, is RETRACTED.** Lane
+> `w-fnbyte` widened FUNCTION BYTE MATCH to the four `/Gy` call shapes it had
+> been declining (board #322) and **`fnbyte-differs` went 0 → 4,711**: of the
+> 9,375 emitted functions the instrument could not previously see, **4,664 are
+> byte-exact and 4,711 are not**, and **`framed` is 0 of 123**. A standing
+> instrument grades those shapes now and the port is **not** byte-exact on them.
+>
+> **`mismatch` is still 0 and this is not a live wrong emit.**
+> `IlBundle::functions()` refuses every TU carrying one of the 4,711, so none has
+> ever reached an obj. What is wrong is the **emitted census's claim** — the
+> PROGRESS MASS's `f` numerator — and the hazard is the *next* `functions()`
+> widening, because every one of the 4,711 is already accepted by the
+> per-function gate. Boards **#876**–**#879**;
+> [`rungs/2026-08-06-w-fnbyte.md`](rungs/2026-08-06-w-fnbyte.md).
+>
+> This is the *third* time a sentence in this paragraph has been retracted by an
+> instrument widening (see the two below), and the pattern is now the point:
+> **every such retraction has come from widening an instrument, never from a
+> gate going red.** A green gate is a statement about the instruments.
+
+The **payoff metric has moved for the first time**:
 TU match is **10/878** (this paragraph read **8** until 2026-08-05 and the
 generated block above is the source), up from a 6 that had held across a per-function census run
 from 4.45 % to 28.69 %. The two new TUs are
