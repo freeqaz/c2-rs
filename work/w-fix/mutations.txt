@@ -1,0 +1,45 @@
+==============================================================
+MUTATION 1 — the already-admitted skip is deleted (removes THE RECURSION GUARD)
+==============================================================
+  failing tests: 12
+    assertion `left == right` failed: depth 3: every name reduces to nothing
+    assertion `left == right` failed: ?h seeds, ?g1 and ?f close
+    assertion `left == right` failed: ?h ?g2 ?g1 ?f, and neither ?a nor ?b
+    assertion `left == right` failed: stop at link 1: ?g2@@YAXXZ must elide — the chain STOPS at a non-empty body (GRID-3 k5/k6/k7: verdict I at every edge at or above it)
+    assertion `left == right` failed
+    assertion `left == right` failed
+    gap-metric fnbyte-exact 34466
+    gap-metric fnbyte-differs 4711
+    gap-metric fnbyte-partition-broken 0
+    gap-metric fnbyte-elided 0
+  RESULT: RED
+==============================================================
+MUTATION 2 — every elidable tail call is admitted regardless of its callee (FIXPOINT THROUGH A NON-EMPTY LINK)
+==============================================================
+  failing tests: 16
+    assertion `left == right` failed: no definition, so no name is admitted
+    assertion `left == right` failed: A CYCLE WAS TREATED AS REDUCING TO NOTHING: it is never SEEDED, so the least fixpoint must never admit it — and c2 agrees, GRID-3 k10 grades ?a -> ?b CALL and ?b -> ?a I, neither member a blr
+    assertion `left == right` failed: ?h ?g2 ?g1 ?f, and neither ?a nor ?b
+    assertion `left == right` failed: stop at link 1: ?f@@YAXXZ must NOT elide — the chain STOPS at a non-empty body (GRID-3 k5/k6/k7: verdict I at every edge at or above it)
+    assertion `left == right` failed: only ?h
+    assertion `left == right` failed
+    gap-metric fnbyte-exact 35669
+    gap-metric fnbyte-differs 3508
+    gap-metric fnbyte-partition-broken 0
+    gap-metric fnbyte-elided 1839
+  RESULT: RED
+==============================================================
+MUTATION 3 — a two-node call cycle is seeded (A CYCLE TREATED AS REDUCING TO NOTHING)
+==============================================================
+  failing tests: 7
+    assertion `left == right` failed: A CYCLE WAS TREATED AS REDUCING TO NOTHING: it is never SEEDED, so the least fixpoint must never admit it — and c2 agrees, GRID-3 k10 grades ?a -> ?b CALL and ?b -> ?a I, neither member a blr
+    assertion `left == right` failed: ?h ?g2 ?g1 ?f, and neither ?a nor ?b
+    assertion `left == right` failed
+    A CYCLE WAS TREATED AS REDUCING TO NOTHING: `?a@@YAXXZ` is in a call cycle that no empty body seeds, and c2 emits a branch for it
+    gap-metric fnbyte-exact 35982
+    gap-metric fnbyte-differs 3195
+    gap-metric fnbyte-partition-broken 0
+    gap-metric fnbyte-elided 1516
+  RESULT: RED
+
+mutations run: 3, green (BAD): 0, hung (WORSE): 0

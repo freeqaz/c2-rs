@@ -87,28 +87,29 @@ run_one() {
 }
 
 # ---- 1. remove the recursion guard -----------------------------------------
-# `changed` is set on every round once anything is in the set, so the loop never
-# quiesces. It must TERMINATE anyway — via the ceiling — and go red there.
+# THE GUARD IS `if in_r[i] { continue; }`, and it is the whole monotonicity
+# argument: without it an already-admitted name is re-admitted every round, so
+# `changed` is set forever and the iteration never quiesces. It must TERMINATE
+# anyway — via the round ceiling — and go red there.
+#
+# A FIRST ATTEMPT AT THIS MUTATION CAME BACK GREEN and is recorded rather than
+# quietly replaced: setting `changed` from `in_r[j]` instead of from the
+# transition looks like the same edit and is not, because the skip above it
+# means a node with an admitted callee is never revisited. A mutation that
+# leaves the guard in place tests nothing, which is exactly what it reported.
 python3 - "$E" <<'PY'
 import sys
 p = sys.argv[1]
 s = open(p).read()
-old = """                if let Ok(j) = names.binary_search_by(|n| (*n).cmp(callee)) {
-                    if in_r[j] {
-                        in_r[i] = true;
-                        changed = true;
-                    }
-                }"""
-new = """                if let Ok(j) = names.binary_search_by(|n| (*n).cmp(callee)) {
-                    if in_r[j] {
-                        in_r[i] = true;
-                    }
-                    changed = changed || in_r[j];
-                }"""
+old = """                if in_r[i] {
+                    continue;
+                }
+                let Some(callee) = link[i] else { continue };"""
+new = """                let Some(callee) = link[i] else { continue };"""
 assert old in s, "mutation 1 anchor moved"
 open(p, "w").write(s.replace(old, new))
 PY
-run_one 1 "the step re-reports progress for an already-admitted name (removes THE RECURSION GUARD)"
+run_one 1 "the already-admitted skip is deleted (removes THE RECURSION GUARD)"
 
 # ---- 2. apply the fixpoint through a non-empty link ------------------------
 python3 - "$E" <<'PY'
