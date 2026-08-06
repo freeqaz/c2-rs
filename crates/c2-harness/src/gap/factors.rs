@@ -1244,6 +1244,13 @@ impl GapReport {
             // Emitted unconditionally (including the zeros) for the reason every
             // control on this page is: a key that appears only when nonzero
             // makes absence read as success.
+            //
+            // `Box::leak` because this function's signature is
+            // `Vec<(&'static str, String)>` — an interface `scripts/status.sh`
+            // and four tests parse — and the shape half of these keys is
+            // data-derived. The leak is bounded by the number of distinct
+            // (shape, verdict) pairs the `Selected` enum can produce, which is
+            // at most 7 × 6, per call; `metrics()` is called once per report.
             for (shape, verdict, n) in self.fn_byte_shape_census() {
                 m.push((
                     Box::leak(format!("fnbyte-shape-{shape}-{verdict}").into_boxed_str()),
