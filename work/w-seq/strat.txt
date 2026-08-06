@@ -1,0 +1,26 @@
+=== SPLICE-0 by (port words == 1?) x reference length ===
+    the /QXSTALLS control: if SPLICE-0 tracked SIZE rather than the
+    presence of a setup, the two strata would not separate cleanly.
+
+  pw==1 (no setup)
+    len         exact  differs     rate
+    rw<=2          97        0   100.0%
+    rw<=3         236        0   100.0%
+    rw<=4          45        0   100.0%
+    rw<=6           3        0   100.0%
+    rw<=8         110        0   100.0%
+    rw<=12         46        0   100.0%
+    rw<=20         41        0   100.0%
+    ALL           578        0   100.0%
+
+  pw>1  (a setup)
+    len         exact  differs     rate
+    rw<=1         370        0   100.0%
+    rw<=2         804        2    99.8%
+    rw<=3           5      123     3.9%
+    rw<=4           0        6     0.0%
+    rw<=6           0       34     0.0%
+    rw<=8           7      286     2.4%
+    rw<=12        137       27    83.5%
+    rw<=20         66       25    72.5%
+    ALL          1389      503    73.4%

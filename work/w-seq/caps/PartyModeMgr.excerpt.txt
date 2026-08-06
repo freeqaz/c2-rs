@@ -1,0 +1,7 @@
+-- .text #821 (12 B) ?back@?$vector@PAVPartyModePlayer@@V?$StlNodeAlloc@PAVPartyModePlayer@@@stlpmtx_std@@@stlpmtx_std@@QAAAAPAVPartyModePlayer@@XZ
+   0000  81630004  lwz 11, 4(3)                    
+   0004  386bfffc  addi 3, 11, -4                  
+   0008  4e800020  blr                             
+-- .text #250 (8 B) ?end@?$vector@PAVPartyModePlayer@@V?$StlNodeAlloc@PAVPartyModePlayer@@@stlpmtx_std@@@stlpmtx_std@@QAAPAPAVPartyModePlayer@@XZ
+   0000  80630004  lwz 3, 4(3)                     
+   0004  4e800020  blr                             

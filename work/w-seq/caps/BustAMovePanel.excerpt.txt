@@ -1,0 +1,20 @@
+-- .text #66 (28 B) ?Release@Object@Hmx@@QAAXPAVObjRef@@@Z
+   0000  81640008  lwz 11, 8(4)                    
+   0004  81440004  lwz 10, 4(4)                    
+   0008  914b0004  stw 10, 4(11)                   
+   000c  81640004  lwz 11, 4(4)                    
+   0010  81440008  lwz 10, 8(4)                    
+   0014  914b0008  stw 10, 8(11)                   
+   0018  4e800020  blr                             
+-- .text #59 (28 B) ?Release@ObjRef@@IAAXPAV1@@Z
+   0000  81630008  lwz 11, 8(3)                    
+   0004  81430004  lwz 10, 4(3)                    
+   0008  914b0004  stw 10, 4(11)                   
+   000c  81630004  lwz 11, 4(3)                    
+   0010  81430008  lwz 10, 8(3)                    
+   0014  914b0008  stw 10, 8(11)                   
+   0018  4e800020  blr                             
+-- .text #739 (4 B) ??$_Destroy_Range@PAH@stlpmtx_std@@YAXPAH0@Z
+   0000  4e800020  blr                             
+-- .text #556 (4 B) ??$__destroy_range@PAHH@stlpmtx_std@@YAXPAH00@Z
+   0000  4e800020  blr                             

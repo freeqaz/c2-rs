@@ -1,0 +1,77 @@
+================================================================
+CELL s08_framed_add
+    | // GRID-S cell s08_framed_add — the caller is FRAMED — the `?back@?$vector@…` family's shape
+    | int g(int a) { return a + 1; }
+    | int f(int a) { return g(a) + 2; }
+    | 
+    | void ext_anchor();
+    | void anchor() { ext_anchor(); }
+== <worktree>/work/w-seq/caps/s08_framed_add.obj  machine=0x01f2 nsec=7 nsym=21 size=1142
+-- .text #5 (8 B) ?g@@YAHH@Z
+   0000  38630001  addi 3, 3, 1                    
+   0004  4e800020  blr                             
+-- .text #6 (8 B) ?f@@YAHH@Z
+   0000  38630003  addi 3, 3, 3                    
+   0004  4e800020  blr                             
+-- .text #7 (4 B) ?anchor@@YAXXZ
+   0000  48000000  b .+0                             ; REL24 -> [20] ?ext_anchor@@YAXXZ
+================================================================
+CELL s11_two_arg_perm
+    | // GRID-S cell s11_two_arg_perm — setup is a two-register permutation (#843: `sub` is not `subf`)
+    | int g(int a, int b) { return a - b; }
+    | int f(int a, int b) { return g(b, a); }
+    | 
+    | void ext_anchor();
+    | void anchor() { ext_anchor(); }
+== <worktree>/work/w-seq/caps/s11_two_arg_perm.obj  machine=0x01f2 nsec=7 nsym=21 size=1144
+-- .text #5 (8 B) ?g@@YAHHH@Z
+   0000  7c641850  sub	3, 3, 4                     
+   0004  4e800020  blr                             
+-- .text #6 (8 B) ?f@@YAHHH@Z
+   0000  7c632050  sub	3, 4, 3                     
+   0004  4e800020  blr                             
+-- .text #7 (4 B) ?anchor@@YAXXZ
+   0000  48000000  b .+0                             ; REL24 -> [20] ?ext_anchor@@YAXXZ
+================================================================
+CELL s14_cmp_callee
+    | // GRID-S cell s14_cmp_callee — the callee is a comparison leaf, a different port shape
+    | int g(int a) { return a > 3; }
+    | int f(int a) { return g(a); }
+    | 
+    | void ext_anchor();
+    | void anchor() { ext_anchor(); }
+== <worktree>/work/w-seq/caps/s14_cmp_callee.obj  machine=0x01f2 nsec=7 nsym=21 size=1182
+-- .text #5 (28 B) ?g@@YAHH@Z
+   0000  39600003  li 11, 3                        
+   0004  7d435810  subc	10, 11, 3                  
+   0008  7c6b5a38  eqv 11, 3, 11                   
+   000c  556b0ffe  srwi 11, 11, 31                 
+   0010  7d6b0194  addze 11, 11                    
+   0014  556307fe  clrlwi	3, 11, 31                
+   0018  4e800020  blr                             
+-- .text #6 (28 B) ?f@@YAHH@Z
+   0000  39600003  li 11, 3                        
+   0004  7d435810  subc	10, 11, 3                  
+   0008  7c6b5a38  eqv 11, 3, 11                   
+   000c  556b0ffe  srwi 11, 11, 31                 
+   0010  7d6b0194  addze 11, 11                    
+   0014  556307fe  clrlwi	3, 11, 31                
+   0018  4e800020  blr                             
+-- .text #7 (4 B) ?anchor@@YAXXZ
+   0000  48000000  b .+0                             ; REL24 -> [20] ?ext_anchor@@YAXXZ
+================================================================
+CELL s12_callee_calls_extern
+    | // GRID-S cell s12_callee_calls_extern — CONTROL — the callee is not lowerable-leaf; c2 keeps a call
+    | void ext();
+    | void g() { ext(); }
+    | void f() { g(); }
+    | 
+    | void ext_anchor();
+    | void anchor() { ext_anchor(); }
+== <worktree>/work/w-seq/caps/s12_callee_calls_extern.obj  machine=0x01f2 nsec=7 nsym=22 size=1190
+-- .text #5 (4 B) ?g@@YAXXZ
+   0000  48000000  b .+0                             ; REL24 -> [14] ?ext@@YAXXZ
+-- .text #6 (4 B) ?f@@YAXXZ
+   0000  48000000  b .+0                             ; REL24 -> [14] ?ext@@YAXXZ
+-- .text #7 (4 B) ?anchor@@YAXXZ
+   0000  48000000  b .+0                             ; REL24 -> [21] ?ext_anchor@@YAXXZ

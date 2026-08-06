@@ -1,0 +1,63 @@
+=== SPLICE VERDICT x port-word count === (this is the P1 table)
+  framed  differs  pw9     123 of   123  (100.0%)
+  seq     differs  pw12    816 of   816  (100.0%)
+  tail    differs  pw2     665 of   665  (100.0%)
+  tail    differs  pw3     288 of   288  (100.0%)
+  tail    exact    pw1     578 of   578  (100.0%)
+
+=== SPLICE VERDICT x (port/ref/callee words), top 40 ===
+    804  seq     differs  pw12/rw2/cw2
+    370  tail    differs  pw2/rw1/cw1
+    286  tail    differs  pw3/rw7/cw7
+    236  tail    exact    pw1/rw3/cw3
+    135  tail    differs  pw2/rw12/cw12
+    123  framed  differs  pw9/rw3/cw2
+     97  tail    exact    pw1/rw2/cw2
+     76  tail    exact    pw1/rw8/cw8
+     66  tail    differs  pw2/rw20/cw20
+     45  tail    exact    pw1/rw4/cw4
+     34  tail    differs  pw2/rw6/cw6
+     34  tail    exact    pw1/rw7/cw7
+     30  tail    exact    pw1/rw16/cw16
+     29  tail    exact    pw1/rw9/cw9
+     25  tail    differs  pw2/rw16/cw16
+     18  tail    differs  pw2/rw10/cw9
+     17  tail    exact    pw1/rw10/cw10
+      9  tail    differs  pw2/rw11/cw10
+      7  seq     differs  pw12/rw7/cw7
+      6  tail    exact    pw1/rw13/cw13
+      5  seq     differs  pw12/rw3/cw3
+      4  tail    differs  pw2/rw4/cw4
+      4  tail    exact    pw1/rw18/cw18
+      3  tail    exact    pw1/rw6/cw6
+      2  tail    differs  pw2/rw2/cw2
+      2  tail    differs  pw2/rw10/cw10
+      2  tail    differs  pw3/rw4/cw2
+      1  tail    exact    pw1/rw20/cw20
+
+=== SPLICE FAILURE WITNESSES === (1892 failures, 25 distinct)
+    804   42.5%  seq|first@0:spl=7d8802a6,ref=90830000
+    370   19.6%  tail|first@0:spl=38a00000,ref=4e800020
+    286   15.1%  tail|first@0:spl=7c832378,ref=81640008
+    201   10.6%  tail|first@0:spl=38a00000,ref=7d8802a6
+    123    6.5%  framed|first@0:spl=7d8802a6,ref=81630004
+     33    1.7%  tail|first@0:spl=38630004,ref=81630008
+     16    0.8%  tail|first@0:spl=3863000c,ref=3d600000
+     12    0.6%  seq|first@0:spl=7d8802a6,ref=39600000
+      9    0.5%  tail|first@0:spl=38630004,ref=80830004
+      8    0.4%  tail|first@0:spl=38630004,ref=3d600000
+      5    0.3%  tail|first@0:spl=38630008,ref=80830008
+      3    0.2%  tail|first@0:spl=3863000c,ref=8083000c
+      3    0.2%  tail|first@0:spl=38630024,ref=80830024
+      3    0.2%  tail|first@0:spl=38630038,ref=80830038
+      2    0.1%  tail|first@0:spl=38630024,ref=3d600000
+      2    0.1%  tail|first@0:spl=38630004,ref=38630008
+      2    0.1%  tail|first@0:spl=38a00000,ref=7c6b1b78
+      2    0.1%  tail|first@1:spl=386b0000,ref=396b0000
+      2    0.1%  tail|first@0:spl=38630034,ref=3d600000
+      1    0.1%  tail|first@0:spl=38630014,ref=80830014
+      1    0.1%  tail|first@0:spl=38630050,ref=3d600000
+      1    0.1%  tail|first@0:spl=38630010,ref=80830010
+      1    0.1%  tail|first@0:spl=38630008,ref=8163000c
+      1    0.1%  tail|first@0:spl=38630048,ref=80830048
+      1    0.1%  tail|first@0:spl=38630044,ref=80830044
