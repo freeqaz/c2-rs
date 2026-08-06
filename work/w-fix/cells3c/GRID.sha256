@@ -1,0 +1,6 @@
+78ece65afc416bd99df4d9211d716a247f734ce132e257c4a1e91fbea4c7d27e  n1_fp_arg_mid  edges=g1->h;f->g1
+acbedc21d6994716c75089782e87689e58a0bb42b6fe70ca8f111c02ef8e1443  n2_member_mid  edges=S::g1->S::h;f->S::g1
+a40f9e4e64c8a902935974221cde3eb0bdda26150067f452d744b71016ee7798  n3_virtual_mid  edges=S::g1->S::h;f->S::g1
+110073481f5962a61d2b366b7088728d4dc002239aeb1d627a9e7b9b64b971bd  n4_inline_mid  edges=g1->h;f->g1
+0734c72713b38683e11c79b9d5ecf0a6c0f54cf1e432a54fc6f2cceb65c4948e  n5_three_args_mid  edges=g1->h;f->g1
+88b0d60a7b820a1d34675e10d9aa8e8d06ada80ed7d251db30266d29c6aa8b8b  n6_ctor_chain  edges=C::C->B::B;B::B->A::A
