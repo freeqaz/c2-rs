@@ -1,0 +1,6 @@
+-- .text #16 (8 B) ??0_List_iterator_base@stlpmtx_std@@QAA@PAU_List_node_base@1@@Z
+   0000  90830000  stw 4, 0(3)                     
+   0004  4e800020  blr                             
+-- .text #296 (8 B) ??0?$_List_iterator@VString@@U?$_Nonconst_traits@VString@@@stlpmtx_std@@@stlpmtx_std@@QAA@PAU_List_node_base@1@@Z
+   0000  90830000  stw 4, 0(3)                     
+   0004  4e800020  blr                             

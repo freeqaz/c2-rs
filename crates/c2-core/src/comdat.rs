@@ -170,14 +170,17 @@ pub fn comdat_body_from_selected<'a>(
     body_of(f, selected, mode, tu, true)
 }
 
-/// [`comdat_body_from_selected`] with the splice's **one-level** switch exposed.
+/// [`comdat_body_from_selected`] with the splice's **re-entry** switch exposed.
 ///
-/// `allow_splice` is `true` for every caller but one: [`crate::splice`]'s own
-/// recursion into the callee passes `false`, which is what makes the mechanism
-/// take exactly one level. It is a parameter rather than a depth counter because
-/// one level is the whole of what `work/w-splice/`'s grid graded — a second
-/// level is a separate rung with its own cell (`t11`), and a counter would
-/// invite raising it without one.
+/// `allow_splice` is `true` for every caller but one: [`crate::splice`]'s walk
+/// composes the chain's END with `false`, because it has already established —
+/// by asking the predicate itself, link by link — that this body does not
+/// splice. Asking again here would be the same question with a second
+/// implementation, and it is the recursion that would then have no base case.
+///
+/// It is a boolean and not a depth counter on purpose: the depth is bounded by
+/// the walk's own `seen` set and its ceiling, in `splice.rs`, where the
+/// termination argument lives beside the cycle refusal it depends on.
 pub(crate) fn body_of<'a>(
     f: &'a IlFunction,
     selected: codegen::Selected,

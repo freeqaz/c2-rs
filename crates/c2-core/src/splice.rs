@@ -595,10 +595,13 @@ fn self_named<'a>(tu: &TuContext<'a>, name: &str) -> Option<&'a str> {
 /// exists so that a future edit which stops doing that goes red rather than
 /// silent.
 ///
-/// The recursion into the callee is **one level**: `allow_splice` is `false`, so
-/// `body(G)` is `G`'s own lowering and never `G`'s callee's. Whether c2 closes
-/// the chain is `t11`'s measurement and `work/w-splice/` records what it said;
-/// the port takes one level in this rung either way.
+/// **The chain is walked, not stepped once.** `splice_body_why` follows it to
+/// the first link whose own predicate declines, and takes *that* body — c2
+/// closes the chain and `t11` plus 150 workload relocation witnesses say so
+/// ("THE FIXPOINT" above). The composition of that final body is asked with
+/// `allow_splice: false`, because the walk has already established that this
+/// link does not splice and asking again through the composition would be the
+/// same question with a second implementation.
 pub fn splice_body<'a>(
     f: &IlFunction,
     selected: &Selected,
