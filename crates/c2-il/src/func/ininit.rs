@@ -793,6 +793,7 @@ pub(crate) fn in_scalar_initializers(inb: &[u8]) -> InInitCensus {
         // and require its decoded width to land exactly there — the same
         // discipline `gl_symbol_index` and `in_string_literals` apply.
         let mut matched = false;
+        let mut fail_closed_here = false;
         for w in [4usize, 2] {
             if i < w {
                 continue;
@@ -812,6 +813,13 @@ pub(crate) fn in_scalar_initializers(inb: &[u8]) -> InInitCensus {
                 // 384,129 records that were in neither `records` nor the
                 // residue — 239,279 of them before this lane's widening.
                 fail_closed += 1;
+                // `matched` stays false so the scan resumes one byte on,
+                // exactly as before — but this candidate is fail-closed and
+                // **not** a no-token one, and counting it in both is what the
+                // first run of this counter did (`no_token` read 3,340 beside
+                // `fail_closed` 3,340 on the 878-TU scan, which is one
+                // population wearing two labels).
+                fail_closed_here = true;
                 break;
             }
             records += 1;
@@ -852,8 +860,12 @@ pub(crate) fn in_scalar_initializers(inb: &[u8]) -> InInitCensus {
         if !matched {
             // Neither token width read back to land exactly on the anchor, so
             // no record was started. **#961**: the third silent population, and
-            // the one nothing had ever counted.
-            no_token += 1;
+            // the one nothing had ever counted. The three are DISJOINT by
+            // construction — a fail-closed candidate leaves `matched` false too,
+            // and counting it here as well is the bug the first scan caught.
+            if !fail_closed_here {
+                no_token += 1;
+            }
             i += 1;
         }
     }
@@ -1618,6 +1630,27 @@ mod tests {
         ok.push(0x07);
         let got = in_scalar_initializers(&ok);
         assert_eq!(got.records, 1);
+        assert_eq!(got.fail_closed, 0);
+    }
+
+    /// **The three #961 populations are DISJOINT**, and the first run of the
+    /// counters proved they were not: the 878-TU scan printed `no_token` at
+    /// 3,340 beside `fail_closed` at 3,340, which is one population wearing two
+    /// labels — the fail-closed arm leaves `matched` false, so it fell through
+    /// into the no-token branch as well.
+    ///
+    /// A counter that double-counts is worse than no counter, because #961 is
+    /// about a denominator being believable.
+    #[test]
+    fn a_fail_closed_candidate_is_not_also_counted_as_a_no_token_one() {
+        let got = in_scalar_initializers(&[0xe4, 0x09, 0x00, 0x02, 0xe3, 0x09, 0x00, 0x04]);
+        assert_eq!(got.fail_closed, 1);
+        assert_eq!(got.no_token, 0, "one candidate, one label");
+
+        // A `00 01` anchor with no readable token before it IS a no-token one,
+        // and is not fail-closed: the fail-closed arm is `00 02` only.
+        let got = in_scalar_initializers(&[0x00, 0x01, 0x01, 0x04, 0x03, 0x07]);
+        assert_eq!(got.no_token, 1);
         assert_eq!(got.fail_closed, 0);
     }
 

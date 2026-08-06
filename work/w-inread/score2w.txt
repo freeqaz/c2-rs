@@ -1,0 +1,108 @@
+TUs 850   |E| 174417   |E in U| 173907   |U| 1506586   |E outside U| 510
+
+== THE `.in` READER — INSTREAM vs w-tag02's STRICT GRAMMAR ==
+  streams consumed to the last byte : instream 850/850  strict 850/850
+  records                           : instream 879377  strict 879377
+  elements (ARITY)                  : 3751539  = 01 1473589 + 02 1885700 + 03 277336 + 08 114914
+  TAG-02 SYMBOL-ADDRESS elements    : 1885700
+  ... offset short form 0x81..0xFF  : 0   <-- P1, the ONLY byte the two readers disagree on
+  ... offset ESCAPED (80 + LE32)    : 0
+  ... trailing <n> != 04            : 0
+  `02`-node U-names  (the channel)  : instream 245148  strict 245148  LOST 0, of which emitted 0
+  strict desync reasons             : NONE
+  TUs where the two readers differ  : 0 
+
+== THE SHIPPING READER (`crates/c2-il` acceptance) ON THE SAME STREAMS ==
+  records the sequential parse frames         : 879377
+  ... NEVER ANCHORED (first element 03 or 08) : 144850   <-- in neither `records` nor the residue
+  ... FAIL-CLOSED (`00 02` that did not frame): 0   <-- likewise invisible
+  ... counted as records                      : 734527 (accepted 734393 + residue 134)
+  residue by reason                           : {'floating-point': 134}
+  TAG-02 symbol addresses the crate KEEPS     : 1885700 of 1885700 (1.0000)
+  ... lost to a never-anchored record         : 0
+  ... lost to the fail-closed arm             : 0
+  ... lost to a refused record                : 0
+  `02`-node U-names the crate KEEPS           : 245148 of 245148 ; LOST 0, of which EMITTED 0
+
+== MODELS, INSTREAM  (the incumbent reader) ==
+  variant           |P|      prec    recall        F1 |  EXACT     /850 KA vs w-emitp §2.2
+  RGL            129604   1.00000   0.74307   0.85260 |    132  0.15529 REPRODUCES
+  INIT           613532   0.27289   0.95991   0.42496 |     34  0.04000 REPRODUCES
+  SKIP           400998   0.36420   0.83732   0.50761 |     34  0.04000 REPRODUCES
+  JFP            150833   0.99899   0.86391   0.92655 |    132  0.15529 REPRODUCES
+  JFP_ALIAS      156479   0.99825   0.89558   0.94413 |    308  0.36235 REPRODUCES
+  ORACLE         167213   0.99997   0.95867   0.97888 |    151  0.17765 REPRODUCES
+  ALIAS_IN       171805   0.99997   0.98500   0.99243 |    472  0.55529 REPRODUCES
+
+== MODELS, STRICT    (w-tag02's measured grammar) ==
+  variant           |P|      prec    recall        F1 |  EXACT     /850 
+  RGL            129604   1.00000   0.74307   0.85260 |    132  0.15529 
+  INIT           613532   0.27289   0.95991   0.42496 |     34  0.04000 
+  SKIP           400998   0.36420   0.83732   0.50761 |     34  0.04000 
+  JFP            150833   0.99899   0.86391   0.92655 |    132  0.15529 
+  JFP_ALIAS      156479   0.99825   0.89558   0.94413 |    308  0.36235 
+  ORACLE         167213   0.99997   0.95867   0.97888 |    151  0.17765 
+  ALIAS_IN       171805   0.99997   0.98500   0.99243 |    472  0.55529 
+
+== MODELS, CRATE     (what `crates/c2-il` can see today) ==
+  variant           |P|      prec    recall        F1 |  EXACT     /850 
+  RGL            129604   1.00000   0.74307   0.85260 |    132  0.15529 
+  INIT           613532   0.27289   0.95991   0.42496 |     34  0.04000 
+  SKIP           400998   0.36420   0.83732   0.50761 |     34  0.04000 
+  JFP            150833   0.99899   0.86391   0.92655 |    132  0.15529 
+  JFP_ALIAS      156479   0.99825   0.89558   0.94413 |    308  0.36235 
+  ORACLE         167213   0.99997   0.95867   0.97888 |    151  0.17765 
+  ALIAS_IN       171805   0.99997   0.98500   0.99243 |    472  0.55529 
+
+== PER-TU EXACT, BY NAME — the only number trap 8 says matters ==
+  RGL         instream  132  strict  132  crate  132 | strict-vs-instream GAINED 0 LOST 0 | crate-vs-strict GAINED 0 LOST 0
+  INIT        instream   34  strict   34  crate   34 | strict-vs-instream GAINED 0 LOST 0 | crate-vs-strict GAINED 0 LOST 0
+  SKIP        instream   34  strict   34  crate   34 | strict-vs-instream GAINED 0 LOST 0 | crate-vs-strict GAINED 0 LOST 0
+  JFP         instream  132  strict  132  crate  132 | strict-vs-instream GAINED 0 LOST 0 | crate-vs-strict GAINED 0 LOST 0
+  JFP_ALIAS   instream  308  strict  308  crate  308 | strict-vs-instream GAINED 0 LOST 0 | crate-vs-strict GAINED 0 LOST 0
+  ORACLE      instream  151  strict  151  crate  151 | strict-vs-instream GAINED 0 LOST 0 | crate-vs-strict GAINED 0 LOST 0
+  ALIAS_IN    instream  472  strict  472  crate  472 | strict-vs-instream GAINED 0 LOST 0 | crate-vs-strict GAINED 0 LOST 0
+
+== THE RESIDUAL OF THE BEST NO-TRUTH MODEL (JFP_ALIAS) AND OF THE CEILING (ALIAS_IN) ==
+  JFP_ALIAS  false negatives 17702 ; false positives 274
+      FN  14766  83.41%  free / file-scope function
+      FN   1728   9.76%  `$` in qualified name (template instantiation OR adjustor thunk)
+      FN    851   4.81%  undecorated (extern "C" / CRT)
+      FN    137   0.77%  VIRTUAL member  (reached only via a vtable slot)
+      FN    136   0.77%  non-virtual member
+      FN     53   0.30%  ??_G/??_E deleting dtor  (vtable slot, SYNTHESIZED, #152)
+      FN     14   0.08%  other (0)
+      FN      7   0.04%  static member
+      FN      6   0.03%  other (2)
+      FN      4   0.02%  other (1)
+      FP    125  ??_G/??_E deleting dtor  (vtable slot, SYNTHESIZED, #152)
+      FP    125  `$` in qualified name (template instantiation OR adjustor thunk)
+      FP     24  VIRTUAL member  (reached only via a vtable slot)
+  ALIAS_IN  false negatives 2107 ; false positives 5
+      FN    798  37.87%  `$` in qualified name (template instantiation OR adjustor thunk)
+      FN    532  25.25%  non-virtual member
+      FN    339  16.09%  ??_G/??_E deleting dtor  (vtable slot, SYNTHESIZED, #152)
+      FN    213  10.11%  static member
+      FN    109   5.17%  free / file-scope function
+      FN     91   4.32%  VIRTUAL member  (reached only via a vtable slot)
+      FN     14   0.66%  other (0)
+      FN      6   0.28%  other (2)
+      FN      4   0.19%  other (1)
+      FN      1   0.05%  undecorated (extern "C" / CRT)
+      FP      4  non-virtual member
+      FP      1  other (3)
+
+== w-emitp §3.2 RECOMPUTED — the channel that is NOT the alias ==
+  emitted names with NO tag-0x0E `.gl` record : 510 over 162 TUs
+  ALIAS_IN with ZERO in-U residual            : 515 TUs
+  ... of those, per-TU EXACT                  : 472
+  ... blocked SOLELY by outside-U names       : 43 TUs
+
+== WHERE THE NO-TRUTH MODEL'S PER-TU FAILURES ARE CONCENTRATED ==
+  TUs not exact under JFP_ALIAS: 542 of 850
+  ... whose ONLY defect is outside-U names   : 22
+  ... under-predicting only (FN>0, FP=0)     : 435
+  ... over-predicting only  (FP>0, FN=0)     : 26
+  ... both                                   : 58
+  ... ONE symbol away from exact             : 13
+  ... <=3 symbols away                       : 60

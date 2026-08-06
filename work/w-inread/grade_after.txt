@@ -1,0 +1,284 @@
+gap scan: 26 TUs, 8 flags, jobs=6, replay-every=0
+  capture cache: DISABLED (--no-cache)
+provenance:
+  c2-rs      b0df3ed8f831 (clean)  <WORKTREE>
+  binary     d0aca6760027bafc  <WORKTREE>/target/release/c2rs
+  workload   (none — fixtures)
+  wibo       wibo 1.2.0-c2rs.1 (Linux x86_64)  <HOME>/code/milohax/wibo/build/release/wibo
+  cl.exe     <REPO>/compilers/X360/16.00.11886.00/cl.exe
+  c2.dll     <REPO>/compilers/X360/16.00.11886.00/c2.dll
+  c1xx.dll   <REPO>/compilers/X360/16.00.11886.00/c1xx.dll
+  strace     /usr/bin/strace
+  mingw      /usr/bin/i686-w64-mingw32-gcc
+  [1/26] match        z:<WORKTREE>\work\w-inread\grid\z02_partial_array.cpp
+  [2/26] match        z:<WORKTREE>\work\w-inread\grid\z01_partial_struct.cpp
+  [3/26] match        z:<WORKTREE>\work\w-inread\grid\z03_fill_252.cpp
+  [4/26] match        z:<WORKTREE>\work\w-inread\grid\z05_fill_124.cpp
+  [5/26] match        z:<WORKTREE>\work\w-inread\grid\z06_fill_then_ptr.cpp
+  [6/26] match        z:<WORKTREE>\work\w-inread\grid\z04_fill_128.cpp
+  [7/26] match        z:<WORKTREE>\work\w-inread\grid\z09_null_data_ptr.cpp
+  [8/26] vocab-gap    z:<WORKTREE>\work\w-inread\grid\z07_bases.cpp  (il function decode failed)
+  [9/26] vocab-gap    z:<WORKTREE>\work\w-inread\grid\z08_throw.cpp  (il function decode failed)
+  [10/26] match        z:<WORKTREE>\work\w-inread\grid\z11_data_ptr_4.cpp
+  [11/26] match        z:<WORKTREE>\work\w-inread\grid\z12_data_ptr_big.cpp
+  [12/26] match        z:<WORKTREE>\work\w-inread\grid\z10_null_fn_ptr.cpp
+  [13/26] match        z:<WORKTREE>\work\w-inread\grid\z15_fill_1196.cpp
+  [14/26] vocab-gap    z:<WORKTREE>\work\w-inread\grid\z14_typedesc.cpp  (il function decode failed)
+  [15/26] match        z:<WORKTREE>\work\w-inread\grid\z13_fn_ptr_4.cpp
+  [16/26] match        z:<WORKTREE>\work\w-inread\grid\z16_ptr_then_fill.cpp
+  [17/26] match        z:<WORKTREE>\work\w-inread\grid\z17_two_fills.cpp
+  [18/26] match        z:<WORKTREE>\work\w-inread\grid\z18_fill_7_bytes.cpp
+  [19/26] codegen-gap  z:<WORKTREE>\work\w-inread\grid\z20_null_fn_ptr_only.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
+  [20/26] match        z:<WORKTREE>\work\w-inread\grid\z21_null_data_ptr_only.cpp
+  [21/26] match        z:<WORKTREE>\work\w-inread\grid\z19_fill_3_bytes.cpp
+  [22/26] match        z:<WORKTREE>\work\w-inread\grid\z23_short_fill.cpp
+  [23/26] match        z:<WORKTREE>\work\w-inread\grid\z24_bool_fill.cpp
+  [24/26] match        z:<WORKTREE>\work\w-inread\grid\z22_fn_ptr_big.cpp
+  [25/26] codegen-gap  z:<WORKTREE>\work\w-inread\grid\z25_pmd_shape.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
+  [26/26] match        z:<WORKTREE>\work\w-inread\grid\z26_fill_only.cpp
+
+SPLITTER ANCHORS (ROADMAP §10.11/§10.12) — the census splits `.ex` on `4C 4F 11`, the port on `4F 1F`
+  gate-side segment count KNOWN for 26 of 26 captured TUs; UNKNOWN for 0 (no `.ex` at all). Read through `IlBundle::ex_segment_count`, a PURE reader of the `4F 1F` split — not `functions()`, which is an acceptance decision and returns None for every vocab-gap TU, leaving this knowable for only the 6 that already match.
+  of the 26 known: 26 agree with `fn_total`, 0 disagree (0 where the gate sees MORE segments, 0 where the census does)
+  emit-set ceiling, LO-anchored, over ALL graded TUs: 24
+  emit-set ceiling, GATE-anchored (`4F 1F`, what the port consumes), over the 26 known: 24 (+0 entering, -0 leaving vs the LO-anchored set)
+  gate-anchored control on matching TUs: 0 violations over 21 matching TUs whose gate count is known
+
+PHASE 7 FACTORS (ROADMAP §10.19/§10.21, boards #160/#179) — the model is A and B and C and (D or E), over 26 graded TUs
+  A  emit set reachable   `.ex` segments == obj `.text` COMDATs      24  (gate-anchored `4F 1F`; 24 on the census's `4C 4F 11` anchor)
+  B  binding complete     every emitted symbol binds                 26
+  C  section shape        obj sections subset of the writer's 10      23
+  D  per-fn acceptance    every emitted COMDAT in class              23  (23 of them emit nothing at all)
+  E  whole-TU acceptance  a REGISTERED whole-TU recognizer takes it  21  (2 in the registry)
+    D and E are the two readings of ONE question — does the port have an accepted route to this TU's contents. Neither is necessary alone (measured: D fails on the whole-TU matches, E on the per-function ones); the DISJUNCTION is the term.
+  B and C jointly (the near-term ceiling, measured per TU — NOT a product of marginals, §8.6): 23
+  A and B and C: 23   |   A and B and C and D (§10.19's original, refuted): 23   |   A and B and C and (D or E): 23   |   TUs the differential graded `match`: 21
+  section headers: 26 objs read, 0 did not decode (outside C, fail-closed)
+    whole-TU recognizer `dyninit-??__E` accepts 0 graded TU(s)
+    whole-TU recognizer `data-only-tu` accepts 21 graded TU(s)
+  the joint is NOT the match set — 2 in the joint only (["z:\\home\\free\\code\\milohax\\c2-rs\\.claude\\worktrees\\agent-a8febc44a98dcae5f\\work\\w-inread\\grid\\z20_null_fn_ptr_only.cpp", "z:\\home\\free\\code\\milohax\\c2-rs\\.claude\\worktrees\\agent-a8febc44a98dcae5f\\work\\w-inread\\grid\\z25_pmd_shape.cpp"]), 0 matching but outside some factor ([]). The second list is the ALARM: every factor is meant to be NECESSARY, so a matching TU outside one voids the bound it carries.
+  known-answer control — matching TUs failing each NECESSARY term (all must be 0, over 21 matching TUs): A 0 B 0 C 0 D-or-E 0
+    diagnostics, NOT required to be 0 (neither disjunct is necessary alone): D 0 E 0
+  SECTION VOCABULARY — 10 distinct names across the workload (objs carrying each):
+       26 objs  [writer]  .XBLD$W
+       26 objs  [writer]  .data
+       26 objs  [writer]  .debug$S
+       26 objs  [writer]  .drectve
+        4 objs  [writer]  .bss
+        3 objs  [writer]  .text
+        2 objs  [writer]  .rdata
+        2 objs  [  ---]  .rdata$r
+        1 objs  [writer]  .pdata
+        1 objs  [  ---]  .xdata$x
+  FRONTIER — 0 graded TUs satisfy A and B and C, are NOT a match, and are outside BOTH acceptance paths (not D, not E), so per-function codegen breadth is the whole remaining distance (blocked emitted | emitted | src):
+  FRONTIER BY `.text` BYTE FRACTION (board #500) — how much of each TU's `.text` the port already produces a body for, BY BYTE. Board #465 counted FUNCTIONS and was refuted by the TU registered to confirm it (mmio: 72.7% by function, 16.8% by byte, DECLINED; xboxmem: 50.0% by function, 54.5% by byte, CONVERTED). n = 2 outcomes — this ranks, it does not license. `exact` is the oracle-graded floor under `accepted`; a TU with no `.text` bytes prints n/a, NEVER 100%. 0 of 0 frontier TUs have NO denominator, and 0 are at EXACTLY 0% — TUs where codegen breadth has not begun:
+     accepted/total bytes    frac   exact  remain | src   (REMAIN = total - accepted = the PowerPC still to write. A FOURTH unit, printed and NOT chosen between: it agrees with `frac` on both outcome cells and DISAGREES with it at this frontier's head.)
+  BYTE-FRACTION CONTROL (board #501) — a `match` TU is byte-identical to c2's obj, so the port produced a body for every `.text` byte in it and its fraction MUST read 100%. 0 of 21 matched TUs do; 0 fall short; 21 have no `.text` denominator (a TU that defines data and no functions — board #276's shape — which is a 100%-free zero, not a failure).
+    no shortfall. (A count, not a status: the 0 is the evidence.)
+  FRONTIER BY CFG REACHABILITY (board #720) — CAN THE EMITTER EXPRESS THIS TU AT ALL? `Selected` covers THREE control-flow shapes: straight-line, ONE two-arm conditional, and — since lane `w-hash`, board #761 — ONE loop, the pointer-walk accumulate of `codegen::ptr_walk_loop`. **That third one is a transcription of a single function class, not a loop lowering**: twenty words, two immediate fields, `/O1` only, and every other loop shape still has no representation at all. This line read `no variant encodes a backward branch, so NO loop of any kind has a representation` until `Sort.cpp` converted; the correction is here rather than beside the old claim. This is not a quantity of progress like #269/#465/#500 — a TU can be one 8-byte function from matching and be unreachable because those 8 bytes are a loop. INSTRUMENT, never a gate. 0 of 0 frontier TUs are reachable:
+    LABEL CHANNEL (board #742) — `$M`/`$T` are the ONLY way the value of c2's compiler-label counter reaches an obj, and `coff::plan_labels` mints them for a FRAMED function and nothing else. A leaf loop charges that counter +1..+4 while `plan_labels` charges 0 (17 seed-free cells, docs/LABEL_COUNTER.md §4.2), which is the whole stated justification for `codegen::labels` invariant 4 refusing every BACKWARD branch. On a `label-free` obj that error has nowhere to land — and that is now SHIPPED rather than observed: `IlFunction::label_slots` returns `None` for the one loop shape the port emits, so a TU pairing it with a framed function refuses and a TU without one converts (boards #746/#747, `fixtures/cpp/whash_loop_then_framed.cpp` and its control). 0 of 0 frontier TUs are label-free; of the 0 blocked on `cflow-loop`, 0 are. NOT a licence — every one is still gated on codegen that does not exist, and the counter is only the FIRST of that TU's refusals.
+    CONTROL src/xdk/nuispeech/xboxmem.cpp: absent from this scan's list — NOT a pass, not evaluated.
+    SUB-CLASS NARROWING (board #778) — the screen can now hold a PARTIAL claim (`CfgClass{class, Whole | Keys(&[..])}`), and this is the bracket that keeps a restriction NARROWER OR EQUAL rather than wider. `admits` is `class == class && <sub>`, so `Keys` only ever CONJOINS: a restriction can remove an admitted (class,key) pair and never add one. That is algebra; these four numbers are the measurement, re-derived from this scan's own frontier. BOTTOM 0 ⊆ ENUMERATED 0 == SHIPPED 0 ⊆ TOP 0, of 0 frontier TUs (0 classes in TOP, 0 (class,key) pairs enumerated).
+      BOTTOM=every entry restricted to NO keys (must be 0 — it is the live exercise of the `Keys` path and the detector for a matcher that ignores its key); ENUMERATED=every entry rewritten as the exact key set this scan observed (must equal SHIPPED); TOP=every class the frontier mentions, wholesale — a HYPOTHETICAL the port has no claim to, printed so the refusal has a size: 0 of the 0 frontier TUs are held back by CFG class alone.
+      SHIPPED reachable: []
+      NESTING: PASS — 0 violations over the 3 checks (BOTTOM⊆SHIPPED⊆TOP, ENUMERATED==SHIPPED), taken as SETS by name.
+      LEDGER — 4 entries, 0 of them RESTRICTED. A restricted entry is a claim about named census keys, and two ways it goes quietly wrong are counted here: a listed key no scan witnesses (a claim doing nothing — trap 5 with the claim still on the page) and a key `admits` accepts that the entry does not list (the matcher and the declaration disagreeing, which is what an exact→prefix slip looks like). unwitnessed 0, intruders 0.
+        cflow-straight                   | WHOLE    |    3 keys observed,    3 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+        cflow-straight+expr-modeled      | WHOLE    |    0 keys observed,    0 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+        cflow-if-1                       | WHOLE    |    0 keys observed,    0 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+        cflow-if-1+expr-modeled          | WHOLE    |    0 keys observed,    0 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+      NOT A LICENCE, and #778 is closed as a MECHANISM only: `cflow-loop` did NOT enter the list in the lane that built this. The list is still a hand-maintained mirror of a `c2-core` enum; what changed is that a lane which has measured part of a class can now write down which part, and the reachability figure it produces is bracketed above.
+  A PERFECT EMIT PREDICATE (board #213) — reachability, NOT conversions: every TU below is still gated on codegen that does not exist.
+    as REACH:    B and C 23 less A and B and C 23 = +0
+    as FRONTIER: frontier-if-A 0 less FRONTIER 0 = +0
+    the two agree (0). They are still different questions — they coincide only while no TU inside B and C fails A with an acceptance path already covering it, which is a fact about this corpus.
+  GREEDY LADDER — next section name to teach the writer, and the resulting C (2 steps from 23 to 26):
+    +.rdata$r     C =    25   (+2)
+    +.xdata$x     C =    26   (+1)
+
+  PROGRESS MASS — a PROGRESS metric, NEVER a correctness signal (docs/PROGRESS_METRIC.md).
+    The byte-exact differential is the SOLE judge; `match` below is the only correctness count.
+    No term rewards emitted bytes: P counts proven preconditions (A, B, C against the reference obj)
+    and honest acceptance (the emitted census). A TU graded `mismatch` contributes 0 to every
+    numerator, so a wrong emit always scores below the refusal it replaced.
+    P = mean(a, b, c, f) over 26 graded TUs = 0.70192
+      a  emit-set reachable (A)          24/26  = 0.92308
+      b  binding complete (B)            26/26  = 1.00000
+      c  section shape (C)               23/26  = 0.88462
+      f  emitted fns in class        0/4  = 0.00000
+    mismatch-zeroed TUs: 0
+
+  FUNCTION BYTE MATCH (FBM) — a PROGRESS instrument, NEVER a gate (docs/FUNCTION_BYTE_MATCH.md).
+    The judge's own predicate — byte-identical to real c2 — asked per EMITTED FUNCTION instead of
+    per TU. No partial credit: a wrong body scores exactly what a refusal scores, which is 0.
+    The denominator is counted off c2's obj, so refusing more never shrinks it.
+    FBM = (0 + 0)/4 emitted functions byte-exact = 0.00000
+      exact              0  ( 0.00%)   CREDITED — per-function route, bytes identical to c2's
+      whole-TU           0  ( 0.00%)   CREDITED — on a TU the differential graded `match`; the judge certified the whole obj
+      differs            0  ( 0.00%)   complete port body, bytes differ
+      partial            0  ( 0.00%)   selected; the PORT's own /Gy composition declined the body (board #322 closed the harness's half)
+      refused            4  (100.00%)   the port declines the function
+      unbound            0  ( 0.00%)   no census row claims the symbol
+      no-bytes           0  ( 0.00%)   COMDAT raw data did not decode
+    objs unreadable (contribute NO denominator): 0   partition breaks (known answer 0): 0
+    KNOWN-ANSWER CONTROL — per-function bodies that DIFFER on a TU the oracle graded `match` (must be 0): 0
+    census/gate disagreement on EMITTED fns (the error term on the emitted census, target 0): 0
+    NOTE: the six buckets partition the denominator by the PER-FUNCTION route alone; on a `match` TU the whole-obj verdict supersedes them.
+    BYTES ARE NOT THE WHOLE FUNCTION: 0 of the credited functions carry a relocation, whose
+    target FBM does NOT check — a `.text` COMDAT's raw bytes do not contain its relocations.
+    partial by shape: NONE — every selected shape was reconstructed and graded (4 emitted functions)
+    graded by shape × verdict: parse-refused/refused 4
+    per-TU FBM over 3 TUs with emitted functions — ≥100%: 0, ≥90%: 0, ≥50%: 0, ≥10%: 0
+
+  GAP-METRICS — stable `key value` pairs for scripts/status.sh; keys are an interface, do not rename. The projection `emit-predicate-worth` = `b-and-c` − `a-and-b-and-c` is derived HERE on purpose (board #213):
+    gap-metric tu-total 26
+    gap-metric graded 26
+    gap-metric match 21
+    gap-metric mismatch 0
+    gap-metric codegen-gap 2
+    gap-metric vocab-gap 3
+    gap-metric port-error 0
+    gap-metric capture-fail 0
+    gap-metric factor-a 24
+    gap-metric factor-a-lo 24
+    gap-metric factor-b 26
+    gap-metric factor-c 23
+    gap-metric factor-d 23
+    gap-metric factor-e 21
+    gap-metric b-and-c 23
+    gap-metric a-and-b-and-c 23
+    gap-metric a-and-b-and-c-and-d 23
+    gap-metric a-and-b-and-c-and-d-or-e 23
+    gap-metric frontier 0
+    gap-metric frontier-if-a 0
+    gap-metric emit-predicate-worth 0
+    gap-metric writer-sections 10
+    gap-metric cfg-reach-bottom 0
+    gap-metric cfg-reach-enumerated 0
+    gap-metric cfg-reach-shipped 0
+    gap-metric cfg-reach-top 0
+    gap-metric cfg-bounds-violations 0
+    gap-metric cfg-subclass-entries 4
+    gap-metric cfg-subclass-restricted 0
+    gap-metric cfg-subclass-unwitnessed 0
+    gap-metric cfg-subclass-intruders 0
+    gap-metric workload-sections 10
+    gap-metric ladder-steps 2
+    gap-metric ladder-head .rdata$r
+    gap-metric ladder-head-c 25
+    gap-metric progress-mass 0.70192
+    gap-metric progress-emitted-in-class 0
+    gap-metric progress-emitted-total 4
+    gap-metric progress-mismatch-zeroed 0
+    gap-metric fnbyte-match 0.00000
+    gap-metric fnbyte-exact 0
+    gap-metric fnbyte-denominator 4
+    gap-metric fnbyte-differs 0
+    gap-metric fnbyte-partial 0
+    gap-metric fnbyte-refused 4
+    gap-metric fnbyte-unbound 0
+    gap-metric fnbyte-partition-broken 0
+    gap-metric fnbyte-census-disagree 0
+    gap-metric fnbyte-exact-relocated 0
+    gap-metric fnbyte-match-tu-differs 0
+    gap-metric fnbyte-whole-tu 0
+    gap-metric fnbyte-tus-full 0
+    gap-metric fnbyte-tus 3
+    gap-metric fnbyte-elided 0
+    gap-metric fnbyte-elided-exact 0
+    gap-metric fnbyte-name-disagree 0
+    gap-metric fnbyte-shape-parse-refused-refused 4
+    gap-metric fnbyte-decline-opt-mode 0
+    gap-metric fnbyte-decline-selector 4
+    gap-metric fnbyte-decline-gy-shape 0
+    gap-metric fnbyte-decline-data-ref 0
+    gap-metric fnbyte-differs-witnesses 0
+    gap-metric bytefrac-control-full 0
+    gap-metric bytefrac-control-no-denominator 21
+    gap-metric bytefrac-control-shortfall-explained 0
+    gap-metric bytefrac-control-unexplained 0
+  GAP-FACTOR-TUS: NOT REQUESTED — pass `--factors-tsv PATH` for the per-TU A/B/C/D/E membership. The joints above are counts; `|{some per-TU set} and B and C|` cannot be got from one, and multiplying a rate by a joint count is how `B and C` stayed published at 107 after C moved.
+
+GAP REPORT (26 TUs in 0.2s)
+  match            21   80.8%
+  mismatch          0    0.0%
+  codegen-gap       2    7.7%
+  vocab-gap         3   11.5%
+  port-error        0    0.0%
+  capture-fail      0    0.0%
+
+  FUNCTION CENSUS (P2b): 0/6 functions in class (0.00%)
+  census/gate disagreement: 0  (the port accepts every function above)
+
+  EMITTED CENSUS (§8): 0/4 emitted functions in class (0.00%)
+    bound 4  |  residue 0: 0 compiler-generated (no IL body), 0 unexplained  (0.00% of the denominator)
+    ceiling if every residue symbol were in class: 0 (0.00%)
+    ground truth: 21 byte-exact TUs, every emitted symbol bound to an in-class row (residue 0)
+    binding: 6 records, 0 nameless, 0 before the first row, 0 row-conflicts, 0 name-conflicts, 0 accounting breaks, 0 unreadable objs
+    binding arity (#144 — residue 0 is not a control): 6 record offsets against 6 records, 0 arity breaks (known answer 0)
+    .in initializers: 1009 records = 1009 accepted + 0 residue, 1289 elements (ARITY), 1009 values (TOKENS, not records), 0 duplicate records, 0 conflicts, 0 accounting breaks (known answer 0)
+    .in symbol addresses (element tag 02, board #931): 40 elements over 30 records
+    .in UNANCHORED (the denominator, board #961): 0 records whose first element is a tag-03 blob or a tag-08 fill, 0 `00 02` candidates dropped by the fail-closed arm, 0 anchors with no token — none of these is in `records` OR in the residue
+      .in residue symbol-address              0
+      .in residue floating-point              0
+      .in residue unknown-type                0
+      .in residue unknown-width               0
+      .in residue value-did-not-frame         0
+      .in residue truncated                   0
+    TU distance to matching (blocked functions) — ≤0: 0, ≤1: 1, ≤10: 3, ≤100: 3, ≤1000: 3
+    TU distance to matching (blocked EMITTED functions) — ≤0: 0, ≤1: 2, ≤10: 3, ≤100: 3, ≤1000: 3
+    emit-set ceiling: 24 of 26 graded TUs have `.ex` segments == obj `.text` COMDATs — the most TU match can reach before ROADMAP §8.3 Phase 7 (violations among matching TUs, must be 0: 0)
+    emit-set MODEL ceiling: 26 of 26 TUs bind every emitted symbol today; 26 would if `bind.rs` lost none; 0 carry an emitted symbol with NO `.gl` body record and are a wall for any segment-driven model
+      unbound emitted symbols: 0 have a body record (instrument defect), 0 have none (wall) — nesting invariant, must hold: today <= repaired (true), repaired + wall == graded (true)
+    the widening order OVER EMITTED CODE (4 blocked):
+            2 ( 50.0%)  expr-op-0x27
+            1 ( 25.0%)  body-0x9B
+            1 ( 25.0%)  expr-intrinsic-this-adjust
+    TUs within 100 blocked functions of matching: 3 (blocked | emitted in-class/emitted | src)
+          1 |    0/1    | z:<WORKTREE>\work\w-inread\grid\z08_throw.cpp [vocab-gap]
+          2 |    0/1    | z:<WORKTREE>\work\w-inread\grid\z14_typedesc.cpp [vocab-gap]
+          3 |    0/2    | z:<WORKTREE>\work\w-inread\grid\z07_bases.cpp [vocab-gap]
+  blocking features (the widening order):
+          2 ( 33.3%)  data-sym-not-extern:eof
+          2 ( 33.3%)  expr-op-0x27
+          1 ( 16.7%)  body-0x9B
+          1 ( 16.7%)  expr-intrinsic-this-adjust
+  frame class (CALL tokens per body — decode-only, §18):
+          3 ( 50.0%)  calls-0
+          3 ( 50.0%)  calls-1
+          0 (  0.0%)  calls-2plus
+  control-flow class (statement layer, decode-only): 4 of 6 bodies decoded end to end (66.7%)
+          4 ( 66.7%)  cflow-straight
+          2 ( 33.3%)  cf-no-body
+  EH class (maxState, decode-only): 0 of 6 bodies have maxState >= 1 and need the whole EH record (0.0%)
+          4 ( 66.7%)  eh-none       blocked       4
+          2 ( 33.3%)  eh-unknown    blocked       2
+    blocked residue, by census key (accepted shapes excluded):
+          2           eh-unknown|BLOCKED|data-sym-not-extern:eof
+    in-class control group (ACCEPTED functions, never a rung):
+    maxState x statement-count (the refuted predicate, for reconciliation):
+          2           eh-migrate|eh-unknown|eh-unknown
+  grammar completeness (decode-only): 6 of 6 bodies read
+          4 ( 66.7%)  complete-none                   blocked       4
+          2 ( 33.3%)  complete-whole:segment-end      blocked       2
+    grammar-COMPLETE and blocked, both producers summed: 2
+  body dispatch (which recognizer claimed the body, decode-only): 6 of 6 bodies tagged on the dispatch axis, 6 on the production axis
+          2 ( 33.3%)  disp-expr-load                    blocked       2
+          2 ( 33.3%)  disp-member-call                  blocked       2
+          1 ( 16.7%)  disp-assign                       blocked       1
+          1 ( 16.7%)  disp-body-byte                    blocked       1
+    blocked residue of the arms that never enter a member-call production:
+          2           disp-expr-load|BLOCKED|expr-op-0x27
+          1           disp-body-byte|BLOCKED|body-0x9B
+  member-call production first blocker (decode-only): 0 bodies entered a production, declined, and reached NO tagged bail — the tag-coverage residue (target 0)
+          3 ( 50.0%)  prod-not-entered                  blocked       3
+          2 ( 33.3%)  prod-accepted                     blocked       2
+          1 ( 16.7%)  tail-recv-not-a-plain-b9-load/no-b9-this-adjust  blocked       1
+          2           prod-accepted|BLOCKED|data-sym-not-extern:eof
+          1           tail-recv-not-a-plain-b9-load/no-b9-this-adjust|BLOCKED|expr-intrinsic-this-adjust
+
+  top vocab gaps:
+        3 x il function decode failed
+
+  top codegen gaps:
+        2 x a TU that defines no functions but whose `.gl` names storage the bare four-secti…

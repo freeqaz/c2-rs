@@ -63,9 +63,13 @@ fn in_init_probe() {
         };
         let residue: Vec<String> =
             r.residue_by_reason.iter().map(|(k, n)| format!("{k}={n}")).collect();
+        // `unanchored`, `failclosed` and `notoken` are board **#961** — the
+        // denominator `records` is silent about. They are printed here beside it
+        // and never added into it, so a reconciliation can grade the anchor
+        // scan's reach against a sequential parse of the same stream.
         println!(
             "{name}\trecords={} elements={} values={} conflicts={} residue={} symrefs={} \
-             records_with_symrefs={} [{}]",
+             records_with_symrefs={} unanchored={} failclosed={} notoken={} [{}]",
             r.records,
             r.elements,
             r.values,
@@ -73,6 +77,9 @@ fn in_init_probe() {
             r.residue,
             r.sym_refs,
             r.records_with_sym_refs,
+            r.unanchored,
+            r.fail_closed,
+            r.no_token,
             residue.join(" "),
         );
         // The object-level view: what `data_tu` makes of the same bundle. A

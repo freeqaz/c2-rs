@@ -1,0 +1,43 @@
+== THE PRE-w-inread ANCHOR SCAN, EMULATED, OVER 850 TUs ==
+  records it framed                                : 518098
+  tag-02 symbol addresses it read                  : 1439270
+  ... in records the SEQUENTIAL parse also frames   : 1427984
+  ... in records the sequential parse does NOT      : 11286  <== THE EXTRA
+  records it framed that the sequential parse does not: 11286
+
+== THE PER-TU DISTRIBUTION OF THE EXTRA ==
+    extra symbol addresses = 0    :   44 TUs
+    extra symbol addresses = 14   :  804 TUs
+    extra symbol addresses = 15   :    2 TUs
+
+== SAMPLE: the stream offsets the anchor scan re-anchored at ==
+  src/system/synth_xbox/soundtouch/source/SoundStretch extra=15
+      offset 736      token 0100  symbol addresses 1
+      offset 777      token 0100  symbol addresses 1
+      offset 818      token 0100  symbol addresses 1
+      offset 907      token 0404  symbol addresses 1
+  src/system/os/Debug.cpp                              extra=15
+      offset 736      token 0100  symbol addresses 1
+      offset 777      token 0100  symbol addresses 1
+      offset 818      token 0100  symbol addresses 1
+      offset 907      token 0404  symbol addresses 1
+  src/system/world/World.cpp                           extra=14
+      offset 736      token 0100  symbol addresses 1
+      offset 777      token 0100  symbol addresses 1
+      offset 818      token 0100  symbol addresses 1
+      offset 907      token 0404  symbol addresses 1
+  src/system/world/ThreeDSoundManager.cpp              extra=14
+      offset 736      token 0100  symbol addresses 1
+      offset 777      token 0100  symbol addresses 1
+      offset 818      token 0100  symbol addresses 1
+      offset 907      token 0404  symbol addresses 1
+  src/system/world/SpotlightEnder.cpp                  extra=14
+      offset 736      token 0100  symbol addresses 1
+      offset 777      token 0100  symbol addresses 1
+      offset 818      token 0100  symbol addresses 1
+      offset 907      token 0404  symbol addresses 1
+  src/system/world/SpotlightDrawer_NG.cpp              extra=14
+      offset 736      token 0100  symbol addresses 1
+      offset 777      token 0100  symbol addresses 1
+      offset 818      token 0100  symbol addresses 1
+      offset 907      token 0404  symbol addresses 1

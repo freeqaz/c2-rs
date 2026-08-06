@@ -1,0 +1,36 @@
+TUs: channel 850 ; crate probe 850 ; common 850
+
+== THE SAME 850 STREAMS, TWO READERS ==
+                                      channel (A)    crate (B)      B/A
+  `.in` records                            879377       737862   0.8391
+  elements (ARITY)                        3751539      3606391   0.9613
+  tag-02 symbol addresses                 1885700      1885700   1.0000
+  records the crate REFUSES                     -         3469
+  records carrying a symbol address             -       692292
+
+  crate residue by reason: {'floating-point': 178, 'unknown-type': 3291}
+
+== GRADING THE TRANSCRIPTION — `strictin.parse_records_crate` (T) against the crate's own cursor (B) ==
+                                     transcript T      crate B      T/B
+  records                                  734527       737862   0.9955
+  elements                                3606360      3606391   1.0000
+  tag-02 symbol addresses                 1885700      1885700   1.0000
+  records carrying one                     692292       692292   1.0000
+  residue records                             134         3469   0.0386
+  TUs where T and B agree EXACTLY: records 127/850 ; symbol addresses 850/850 ; records-carrying-one 850/850
+
+== THE 12 TUs WHERE THE CRATE SEES FEWEST OF THE CHANNEL'S SYMBOL ADDRESSES ==
+  TU                                                     channel     crate    unseen
+  src/xdk/xlrc/xlrcimpl.cpp                                    0         0         0
+  src/xdk/xjson/jsonwriter.cpp                                 0         0         0
+  src/xdk/nuispeech/xboxmem.cpp                                0         0         0
+  src/xdk/nuispeech/xboxheap.cpp                               0         0         0
+  src/xdk/nuispeech/mmio.cpp                                   0         0         0
+  src/xdk/nuiapi/nuidetroit.cpp                                0         0         0
+  src/xdk/nuiapi/headtracker.cpp                              32        32         0
+  src/xdk/LIBCMT/vswprnc.cpp                                   0         0         0
+  src/xdk/LIBCMT/vsnprnc.cpp                                   0         0         0
+  src/xdk/LIBCMT/undname.cpp                                   0         0         0
+  src/xdk/LIBCMT/rtti.cpp                                     55        55         0
+  src/xdk/LIBCMT/osfinfo.cpp                                   0         0         0
+  TUs where the crate sees FEWER: 0 ; equal: 850 ; MORE: 0

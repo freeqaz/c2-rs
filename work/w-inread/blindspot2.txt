@@ -1,0 +1,12 @@
+records framed 879377 ; the crate keeps 734393 (0.8351)
+tag-02 symbol addresses 1885700 ; the crate keeps 1885700 (1.0000) ; LOSES 0
+
+== WHY A RECORD IS LOST — the FIRST element `read_elements` refuses ==
+  blame                                         records  sym addrs      TUs
+  NONE                                           144850          0      818
+  scalar type 05 (floating point)                   134          0       66
+
+== THE LOST RECORDS BY THEIR FIRST ELEMENT ==
+  first=03                                       144848
+  first=01                                          134
+  first=08                                            2
