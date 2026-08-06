@@ -1,0 +1,39 @@
+
+  GRID S + GRID X, the FIT population (fit.out) — 32 graded cells
+
+  rule                  right  WRONG refused
+  ----------------------------------------------------
+  shipped refusal           0      0     32   <- the decline floor
+  KEY ILX (frozen)         32      0      0
+  cu<=ru+1 (#892)          28      4      0
+  clause-1-alone           24      8      0
+  always-prod              24      8      0
+  always-const              8     24      0
+
+  GRID V, the FROZEN HOLDOUT (holdout_grade.out) — 45 graded cells
+
+  rule                  right  WRONG refused
+  ----------------------------------------------------
+  shipped refusal           0      0     45   <- the decline floor
+  KEY ILX (frozen)         31     14      0
+  cu<=ru+1 (#892)          39      6      0
+  clause-1-alone           30     15      0
+  always-prod              23     22      0
+  always-const             22     23      0
+
+  BOTH POPULATIONS — 77 graded cells
+
+  rule                  right  WRONG refused
+  ----------------------------------------------------
+  shipped refusal           0      0     77   <- the decline floor
+  KEY ILX (frozen)         63     14      0
+  cu<=ru+1 (#892)          67     10      0
+  clause-1-alone           54     23      0
+  always-prod              47     30      0
+  always-const             30     47      0
+
+  Every rule above with WRONG > 0 LOSES to the shipped refusal.
+  None is proposed for shipping and none is fitted here: `cu<=ru+1` is board #892's
+  published wording and the rest are prior lanes'.  A rule scoring well on a table
+  it was scored against after the table existed has the standing RULE W2 had at 388
+  of 388, which is none.
