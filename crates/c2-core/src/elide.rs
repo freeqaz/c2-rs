@@ -33,12 +33,22 @@
 //! too.** That is not an inference. `work/w-empty/`'s GRID-1 (32 cells, stamp
 //! `fea9877e`) and GRID-2 (8 cells, stamp `187e899a`) compile every cell twice
 //! against real `c2` under wibo — once at the workload's flags and once with
-//! `/Ob0` appended, so that "no REL24" cannot confuse E with I — and in **all
-//! thirty** cells graded `E` the caller's whole `.text` COMDAT is one
+//! `/Ob0` appended, so that "no REL24" cannot confuse E with I — and in **29 of
+//! the 30** cells graded `E` the caller's whole `.text` COMDAT is one
 //! `4e800020`, whatever the setup would have been: a register permutation
 //! (`f02_perm`, 4 port words), an arithmetic argument (`f03_expr_arg`, 2), a
 //! literal (`g05_const_arg`, 2), an FP argument (`g02_float_arg`), three
 //! formals (`g06_three_args`), a global's address (`g01_data_addr_arg`).
+//!
+//! **The thirtieth is `f05_side_effect_arg` and it is stated rather than
+//! rounded away.** `int sink; void g(int a){} void f(){ g(sink++); }` is E — the
+//! call vanishes — and the caller keeps **four** words, because `sink++` has a
+//! side effect that survives its argument. So the shipped body is *"one `blr`"*
+//! only for a setup that is a pure computation over formals and literals, which
+//! every `Selected::Tail` setup is by construction. The port **refuses** `f05`'s
+//! caller outright (`expr-call-in-expr-op-0x35`), so no shipped rule depends on
+//! that being true; if a later widening admits a side-effecting argument setup
+//! into `Selected::Tail`, this rule must be re-graded before it may fire there.
 //!
 //! # Why each condition is there, with the cell that put it there
 //!

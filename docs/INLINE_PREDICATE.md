@@ -198,12 +198,15 @@ functions (every `??$_Destroy_Range@…` whose callee is refused as
 
 ## 1.5 The caller's whole body collapses — the setup goes with the call
 
-In **all thirty** cells graded E, the caller's entire `.text` COMDAT is one
+In **29 of the 30** cells graded E, the caller's entire `.text` COMDAT is one
 `4e800020`, whatever its argument setup would have been: a four-word register
 permutation, a two-word literal, an FP argument, three formals, a global's
-address. The one exception is an argument with a **side effect** — `g(sink++)`
-keeps the increment and drops the call — and the port refuses that caller
-outright, so no shipped rule depends on it.
+address. **The thirtieth is an argument with a side effect** — `g(sink++)` drops
+the call and keeps the increment, four words — so the rule is *"E discards the
+call and a **pure** setup with it"*, not *"E makes the caller a `blr`"*. The port
+refuses that caller outright, and every `Selected::Tail` setup is pure by
+construction, so nothing shipped depends on it — but a widening that admits a
+side-effecting setup has to re-grade this.
 
 ---
 
