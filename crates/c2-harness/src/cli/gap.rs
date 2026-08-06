@@ -421,14 +421,17 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
             );
             // EVERY reason, including the zeroes — a residue reason that stops
             // occurring must read `0` and not vanish (trap 5).
-            for reason in [
-                "symbol-address",
-                "floating-point",
-                "unknown-type",
-                "unknown-width",
-                "value-did-not-frame",
-                "truncated",
-            ] {
+            //
+            // **Driven from `InInitResidue::ALL`, because a hand-kept copy of
+            // this list is the same trap one level down and it fired.** The six
+            // names used to be spelled out here; `w-inread` added three
+            // (`pointer-width`, `zero-fill`, `inline-bytes`), the reader
+            // reported them, `scan.rs` aggregated them under their own keys —
+            // and this loop printed the other six and no one of the three, so
+            // the first 878-TU run of the widened reader showed a residue
+            // histogram that silently did not sum to `in-init-residue`. A
+            // reason that CANNOT be printed is worse than one that reads `0`.
+            for reason in c2_il::InInitResidue::ALL.iter().map(|r| r.key()) {
                 println!(
                     "      .in residue {reason:<20} {:>8}",
                     report.emit_total(&format!("in-init-residue-{reason}")),
