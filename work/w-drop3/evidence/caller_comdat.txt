@@ -1,0 +1,22 @@
+-- .text #592 (80 B) ??$Obj@VHamUser@@@DataArray@@QBAPAVHamUser@@H@Z
+   0000  7d8802a6  mflr 12                         
+   0004  9181fff8  stw 12, -8(1)                   
+   0008  fbe1fff0  std 31, -16(1)                  
+   000c  9421ffa0  stwu 1, -96(1)                  
+   0010  7c7f1b78  mr	31, 3                        
+   0014  4bffffed  bl .-20                           ; REL24 -> [224] ?Node@DataArray@@QBAAAVDataNode@@H@Z
+   0018  7fe4fb78  mr	4, 31                        
+   001c  4bffffe5  bl .-28                           ; REL24 -> [1373] ?GetObj@DataNode@@QBAPAVObject@Hmx@@PBVDataArray@@@Z
+   0020  3d600000  lis 11, 0                         ; REFHI -> [1239] ??_R0?AVObject@Hmx@@@8  ; PAIR -> [0] @comp.id
+   0024  3d400000  lis 10, 0                         ; REFHI -> [1372] ??_R0?AVHamUser@@@8  ; PAIR -> [0] @comp.id
+   0028  38ab0000  addi 5, 11, 0                     ; REFLO -> [1239] ??_R0?AVObject@Hmx@@@8  ; PAIR -> [0] @comp.id
+   002c  38ca0000  addi 6, 10, 0                     ; REFLO -> [1372] ??_R0?AVHamUser@@@8  ; PAIR -> [0] @comp.id
+   0030  38800000  li 4, 0                         
+   0034  38e00000  li 7, 0                         
+   0038  4bffffc9  bl .-56                           ; REL24 -> [1247] __RTDynamicCast
+   003c  38210060  addi 1, 1, 96                   
+   0040  8181fff8  lwz 12, -8(1)                   
+   0044  7d8803a6  mtlr 12                         
+   0048  ebe1fff0  ld 31, -16(1)                   
+   004c  4e800020  blr                             
+-- .pdata #593 raw

@@ -665,6 +665,27 @@ impl GapReport {
         v
     }
 
+    /// **Every function whose CALL TARGETS disagree**, port list against real
+    /// c2's `REL24` targets (lane `w-drop3`, board **#985**).
+    ///
+    /// Restricted to the `exact` bucket and bounded per TU by
+    /// `MAX_CALLTARGET_WITNESSES` — unlike
+    /// [`Self::fn_byte_differ_witnesses`], whose population has known answer 0,
+    /// this one has a known answer in the thousands (every mechanism-I body
+    /// disagrees by count), so an unbounded list would be a transcript rather
+    /// than evidence. The **counts** beside it are unbounded.
+    pub fn fn_byte_call_target_witnesses(&self) -> Vec<String> {
+        let mut v: Vec<String> = self
+            .emit_histogram()
+            .into_iter()
+            .filter_map(|(k, _)| {
+                Some(k.strip_prefix("fnbyte-calltarget-witness|")?.to_string())
+            })
+            .collect();
+        v.sort();
+        v
+    }
+
     /// [`Self::fn_byte_differ_witnesses`] **collapsed to signatures**:
     /// `(shape|words|first-disagreeing-word, distinct functions, one example
     /// symbol)`, most frequent first.

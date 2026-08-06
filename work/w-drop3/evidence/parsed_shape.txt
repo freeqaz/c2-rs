@@ -1,0 +1,9 @@
+### idx=7267 name=??$Obj@VHamUser@@@DataArray@@QBAPAVHamUser@@H@Z seg=[0x1df74a..0x1df867) len=285 verdict=call-sequence-value
+  params=[227739392, 3905553920] empty_body=false ops=0
+  framed_call=None
+  tail_call=None
+  call_seq: 2 calls, tail=CallValue { add_k: 0 }, saved=[0], guard=false, early=0
+    call[0] callee=?Node@DataArray@@QBAAAVDataNode@@H@Z arg_ops=0 arg_sources=Some([0, 1]) link_args=None
+    call[1] callee=??$Obj@VHamUser@@@DataNode@@QBAPAVHamUser@@PBVDataArray@@@Z arg_ops=0 arg_sources=None link_args=Some([Formal(0)])
+### idx=8536 name=??$Obj@VHamUser@@@DataNode@@QBAPAVHamUser@@PBVDataArray@@@Z seg=[0x24332f..0x24340b) len=220 verdict=expr-intrinsic-dynamic-cast
+  PARSE: Err(blocked)

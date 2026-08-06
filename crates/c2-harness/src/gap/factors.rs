@@ -1254,6 +1254,30 @@ impl GapReport {
             for k in ["fnbyte-elided", "fnbyte-elided-exact", "fnbyte-name-disagree"] {
                 m.push((k, self.emit_total(k).to_string()));
             }
+            // **THE RELOCATION TARGET** (lane `w-drop3`, boards #984–#986) —
+            // whom the port's body calls, against whom c2's does, by symbol
+            // name, over the graded population.
+            //
+            // `fnbyte-exact-relocated` above says how many credited bodies carry
+            // a relocation the byte test never checked (**#882**). These say how
+            // many of them **point somewhere else**, which is the question that
+            // number was standing in for. Emitted unconditionally, zeros
+            // included: `-disagree-exact` is a control whose known answer is a
+            // count, and a key that appeared only when nonzero would make a
+            // wrong emit's absence read as success.
+            for k in [
+                "fnbyte-calltarget-graded",
+                "fnbyte-calltarget-agree",
+                "fnbyte-calltarget-disagree",
+                "fnbyte-calltarget-disagree-exact",
+                "fnbyte-calltarget-disagree-differs",
+                "fnbyte-calltarget-disagree-name",
+                "fnbyte-calltarget-disagree-count",
+                "fnbyte-calltarget-ungraded",
+                "fnbyte-call-targets-unreadable",
+            ] {
+                m.push((k, self.emit_total(k).to_string()));
+            }
             // **Board #322's own keys.** The four shapes FBM used to decline are
             // graded now, so the collector needs to be able to say *which* shape
             // moved and *which* stage still declines — a corpus total cannot.

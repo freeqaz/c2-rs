@@ -269,6 +269,85 @@ impl ObjImage {
         Some(out)
     }
 
+    /// **Which symbol each `.text` COMDAT CALLS**, by name, in offset order —
+    /// the `REL24` targets and nothing else.
+    ///
+    /// [`ObjImage::text_comdat_reloc_sites`] answers *"is this word one the
+    /// linker owns"*; this answers *"and what does it point at"*. The two are
+    /// different questions and only the second can tell two byte-identical
+    /// branch words apart.
+    ///
+    /// # Why a byte compare cannot answer this
+    ///
+    /// Under `/Gy` a call to a symbol outside the COMDAT is emitted with a
+    /// placeholder displacement of **`-(offset of the branch word)`**, i.e. it
+    /// points at offset 0 of the section it sits in, for *every* callee. So two
+    /// bodies that call two entirely different functions from the same word
+    /// index carry the **same four bytes**. Lane `w-drop3` measured the
+    /// consequence on the workload: 140 bodies where the port emits
+    /// `bl ??$Obj@…@DataNode@@…` and c2 emits `bl ?GetObj@DataNode@@…` at the
+    /// same offset, both `4bffffe5`, and the byte instrument scored the word
+    /// **equal**. Board **#882**'s "4,664 credited functions carry a relocation
+    /// FBM does not check" is that gap, and this reader is what lets it be
+    /// counted rather than restated.
+    ///
+    /// `PAIR` records are excluded by construction — [`Reloc::sym`] is a
+    /// displacement rather than a symbol index on those (rev 6.0), so naming one
+    /// would be reading a number as an index. Every other base type is excluded
+    /// too: the question here is *calls*, and widening it to data references
+    /// would mix a call graph with an address-taken set.
+    ///
+    /// Same fail-closed contract as every other walk: `None` the moment
+    /// anything does not decode — a symbol index past the table, an aux slot, a
+    /// long name whose string-table offset does not resolve. A **short** target
+    /// list is the dangerous answer, because it reads as "this body calls
+    /// fewer things than it does", which is absence-as-success.
+    pub fn text_comdat_call_targets(&self) -> Option<Vec<(String, Vec<(u32, String)>)>> {
+        let b = &self.0;
+        let (_, sym_end) = self.coff_layout()?;
+        let psym = u32::from_le_bytes([b[8], b[9], b[10], b[11]]) as usize;
+        let nsym = u32::from_le_bytes([b[12], b[13], b[14], b[15]]) as usize;
+        let strtab = &b[sym_end..];
+        // Name per symbol-table *slot*. Aux slots stay `None`: a relocation that
+        // named one would be a decode failure, and this is how it is detected
+        // rather than papered over.
+        let mut names: Vec<Option<String>> = vec![None; nsym];
+        let mut i = 0usize;
+        while i < nsym {
+            let o = psym + i * SYMBOL_LEN;
+            let naux = b[o + 17] as usize;
+            let name = if b[o..o + 4] == [0, 0, 0, 0] {
+                let at = u32::from_le_bytes([b[o + 4], b[o + 5], b[o + 6], b[o + 7]]) as usize;
+                str_at(strtab, at)?
+            } else {
+                String::from_utf8_lossy(&b[o..o + 8])
+                    .trim_end_matches('\0')
+                    .to_owned()
+            };
+            names[i] = Some(name);
+            i = i.checked_add(1)?.checked_add(naux)?;
+            if i > nsym {
+                return None;
+            }
+        }
+        let all = self.relocations()?;
+        let mut out = Vec::new();
+        for (name, s) in self.text_comdat_entries()? {
+            let mut v: Vec<(u32, String)> = Vec::new();
+            for r in all.iter().filter(|r| r.section == s) {
+                if r.base() != crate::reloc::IMAGE_REL_PPC_REL24 {
+                    continue;
+                }
+                let idx = usize::try_from(r.sym).ok()?;
+                let target = names.get(idx)?.clone()?;
+                v.push((r.va, target));
+            }
+            v.sort_unstable();
+            out.push((name, v));
+        }
+        Some(out)
+    }
+
     /// **Every compiler-label symbol (`$M<n>` / `$T<n>`) in the obj**, in
     /// symbol-table order — the *only* channel through which the value of c2's
     /// compiler-label counter reaches an object file.
@@ -597,6 +676,156 @@ mod tests {
                 ("?gv@@3HA", 3, 2, 0),
             ],
         )
+    }
+
+    /// [`coff`] plus a relocation table for one section: `(section index
+    /// 0-based, records)` where each record is `(va, symbol slot, packed type)`.
+    /// The records are appended past the string table and the section header's
+    /// `PointerToRelocations` / `NumberOfRelocations` are patched to point at
+    /// them, which is where a real obj puts them relative to the parts [`coff`]
+    /// already writes.
+    fn coff_with_relocs(
+        sections: &[(&str, bool)],
+        symbols: &[(&str, i16, u8, u8)],
+        sec: usize,
+        records: &[(u32, u32, u16)],
+    ) -> Vec<u8> {
+        let mut out = coff(sections, symbols);
+        let ptr = out.len() as u32;
+        for (va, sym, ty) in records {
+            out.extend_from_slice(&va.to_le_bytes());
+            out.extend_from_slice(&sym.to_le_bytes());
+            out.extend_from_slice(&ty.to_le_bytes());
+        }
+        let o = COFF_HEADER_LEN + sec * SECTION_HEADER_LEN;
+        out[o + 24..o + 28].copy_from_slice(&ptr.to_le_bytes());
+        out[o + 32..o + 34].copy_from_slice(&(records.len() as u16).to_le_bytes());
+        out
+    }
+
+    /// Symbols for the call-target tests. A relocation's `SymbolTableIndex`
+    /// names a **slot**, and an aux record occupies one, so the indices are
+    /// written out here rather than counted at each call site:
+    /// `.text` 0 (+1 aux) · `?caller` 2 · `?callee` 3 · `?other` 4 ·
+    /// `?g` 5 (+1 aux, so slot 6 is the aux) · `.data` 7.
+    const CALL_SYMS: &[(&str, i16, u8, u8)] = &[
+        (".text", 1, IMAGE_SYM_CLASS_STATIC, 1),
+        ("?caller@@YAXXZ", 1, 2, 0),
+        ("?callee@@YAXXZ", 0, 2, 0),
+        ("?other@@YAXXZ", 0, 2, 0),
+        ("?g@@YAXXZ", 0, 2, 1),
+        (".data", 2, IMAGE_SYM_CLASS_STATIC, 1),
+    ];
+
+    /// **The whole reason this reader exists** (board #984): under `/Gy` a call
+    /// out of a COMDAT is emitted with the placeholder displacement
+    /// `-(offset of the word)` whatever the callee is, so two branch words that
+    /// call two different functions are byte-identical and only the relocation
+    /// table can tell them apart.
+    #[test]
+    fn a_call_target_is_named_by_its_relocation_and_not_by_its_bytes() {
+        let obj = ObjImage::new(coff_with_relocs(
+            &[(".text", true), (".data", false)],
+            CALL_SYMS,
+            0,
+            &[(0x0, 3, crate::reloc::IMAGE_REL_PPC_REL24)],
+        ));
+        assert_eq!(
+            obj.text_comdat_call_targets(),
+            Some(vec![(
+                "?caller@@YAXXZ".to_string(),
+                vec![(0x0, "?callee@@YAXXZ".to_string())]
+            )]),
+            "the REL24 names slot 3, which is ?callee"
+        );
+    }
+
+    /// Only `REL24`. A `REFHI`/`REFLO` pair is a *data* reference, and a `PAIR`
+    /// record's `sym` field is a displacement rather than an index (rev 6.0), so
+    /// naming one would be reading a number as a symbol. Both `PAIR`s here carry
+    /// a displacement that is also a valid slot, which is the case a
+    /// base-type-blind reader gets wrong.
+    #[test]
+    fn only_rel24_records_are_call_targets() {
+        let obj = ObjImage::new(coff_with_relocs(
+            &[(".text", true), (".data", false)],
+            CALL_SYMS,
+            0,
+            &[
+                (0x0, 4, crate::reloc::IMAGE_REL_PPC_REFHI),
+                (0x0, 2, crate::reloc::IMAGE_REL_PPC_PAIR),
+                (0x8, 4, crate::reloc::IMAGE_REL_PPC_REFLO),
+                (0x8, 2, crate::reloc::IMAGE_REL_PPC_PAIR),
+                (0xc, 5, crate::reloc::IMAGE_REL_PPC_REL24),
+            ],
+        ));
+        assert_eq!(
+            obj.text_comdat_call_targets(),
+            Some(vec![(
+                "?caller@@YAXXZ".to_string(),
+                vec![(0xc, "?g@@YAXXZ".to_string())]
+            )]),
+            "four data-reference records must contribute no call target"
+        );
+    }
+
+    /// A flag bit on the packed type word must not hide the record: `REL24 |
+    /// BRTAKEN` is `0x0206` and is still a call.
+    #[test]
+    fn a_modifier_bit_does_not_hide_a_call_target() {
+        let obj = ObjImage::new(coff_with_relocs(
+            &[(".text", true), (".data", false)],
+            CALL_SYMS,
+            0,
+            &[(
+                0x4,
+                3,
+                crate::reloc::IMAGE_REL_PPC_REL24 | crate::reloc::IMAGE_REL_PPC_BRTAKEN,
+            )],
+        ));
+        assert_eq!(
+            obj.text_comdat_call_targets().map(|v| v[0].1.len()),
+            Some(1),
+            "a whole-word type compare is the defect Reloc::base() exists to prevent"
+        );
+    }
+
+    /// Fail-closed: a `SymbolTableIndex` past the table is `None` for the whole
+    /// walk, never a short list. A short list reads as "this body calls fewer
+    /// things than it does", which is absence-as-success.
+    #[test]
+    fn a_symbol_index_past_the_table_returns_no_answer_at_all() {
+        let obj = ObjImage::new(coff_with_relocs(
+            &[(".text", true), (".data", false)],
+            CALL_SYMS,
+            0,
+            &[(0x0, 9999, crate::reloc::IMAGE_REL_PPC_REL24)],
+        ));
+        assert_eq!(obj.text_comdat_call_targets(), None);
+    }
+
+    /// …and so is a relocation naming an AUX slot, which carries no name.
+    #[test]
+    fn a_relocation_naming_an_aux_slot_returns_no_answer_at_all() {
+        let obj = ObjImage::new(coff_with_relocs(
+            &[(".text", true), (".data", false)],
+            CALL_SYMS,
+            0,
+            &[(0x0, 6, crate::reloc::IMAGE_REL_PPC_REL24)],
+        ));
+        assert_eq!(obj.text_comdat_call_targets(), None);
+    }
+
+    /// A COMDAT with no relocations at all is an EMPTY target list, not an
+    /// absent row: "calls nothing" and "did not decode" are different answers,
+    /// and the caller distinguishes them.
+    #[test]
+    fn a_comdat_with_no_relocations_is_an_empty_list_and_not_an_absent_row() {
+        let obj = ObjImage::new(coff(&[(".text", true), (".data", false)], CALL_SYMS));
+        assert_eq!(
+            obj.text_comdat_call_targets(),
+            Some(vec![("?caller@@YAXXZ".to_string(), Vec::new())])
+        );
     }
 
     #[test]

@@ -11,8 +11,20 @@ already wrong at **word 0**; and of the 5,189 substituted instruction words,
 to decode**.
 
 Measured at tree `0c8a185` on the 878-TU dc3 workload, `/GR /O1 /Oi /EHsc`.
-Lane `w-bytes`; boards **#976**–**#985**;
+Lane `w-bytes`; boards **#976**–**#983** (the header read `#976`–`#985` and
+`#984`/`#985` are `w-drop3`'s — corrected 2026-08-06);
 [`rungs/2026-08-06-w-bytes.md`](rungs/2026-08-06-w-bytes.md).
+
+> **⚠ §3.2 and one row of §4 are REFUTED, and §6 is why.** Lane `w-drop3` read
+> the reference obj's **relocation targets** as well as its bytes: a `/Gy`
+> branch word carries the same four bytes for every callee, so the equality this
+> whole page's alignment is built on credits a relocated word it never checked.
+> The 140-body cluster is **mechanism I misread as a deletion**, and **861
+> functions this page's `exact` bucket credits call a different symbol than c2
+> does**. Boards **#984**–**#989**;
+> [`rungs/2026-08-06-w-drop3.md`](rungs/2026-08-06-w-drop3.md). **The rest of
+> the page stands**: §2's byte counts, §2.1's field census and §3's transfer
+> census are all measurements the relocation blindness does not touch.
 
 > **This page is an instrument's output, not a licence.** Nothing here reaches a
 > numerator, appears in an accept/refuse path, or grades the port. The judge is
@@ -209,7 +221,48 @@ E**, which closed 1,516 bodies of exactly this *outcome* by a different *test* �
 E fires when the callee's body is literally empty. Here the callee is not empty;
 inlining it is what makes it nothing.
 
-### 3.2 Worked example — cluster 4 (140 bodies), the one pointing the other way
+### 3.2 Worked example — cluster 4 (140 bodies), ~~the one pointing the other way~~
+
+> ## ⚠ 2026-08-06 — **THIS SECTION IS REFUTED. The port does not omit a call.**
+>
+> Lane `w-drop3` read the IL and then real c2's own **relocation table**, and
+> both halves of this section's reading are wrong. Boards **#985**, **#987**;
+> [`rungs/2026-08-06-w-drop3.md`](rungs/2026-08-06-w-drop3.md).
+>
+> **The port emits the calls the source has, and c2 inlined one of them.**
+> `??$Obj@V…@@DataArray@@` is `return Node(i).Obj<T>(this);` and the port parses
+> it as a WCH/WCL **chain** — two calls, correctly:
+>
+> ```text
+>  port  ?Node@DataArray@@…      →  ??$Obj@V…@@DataNode@@…   (link_args=[Formal(0)])
+>  c2    ?Node@DataArray@@…      →  ?GetObj@DataNode@@…      →  __RTDynamicCast
+> ```
+>
+> **c2's second `bl` relocates to `?GetObj@DataNode@@`, not to the callee the
+> port names.** `DataNode::Obj<T>` is `return dynamic_cast<T*>(GetObj(source));`
+> and c2 expanded it; its own COMDAT in the same obj is the "missing" seven words
+> verbatim. This is **mechanism I** — `w-seq`'s family (a) — and not a new
+> mechanism at all.
+>
+> **Why it looked like a deletion.** Under `/Gy` a call out of a COMDAT is
+> emitted with the placeholder displacement `-(offset of the branch word)`
+> **whatever the callee is**, so the port's `bl ??$Obj@…@DataNode@@` and c2's
+> `bl ?GetObj@DataNode@@` are both `4bffffe5`. The alignment below is an LCS
+> under **byte** equality, so it scored word 7 `=` and reported **7 deletions**
+> where the truth is **1 substitution + 7 insertions**. Board **#989**: a
+> cluster's *edit shape* is only as fine as the equality it is built on, and this
+> table's `=` rows at words 5 and 7 are the demonstration.
+>
+> **And the `.rdata` string pair is RTTI.** `r5`/`r6` are
+> `??_R0?AVObject@Hmx@@@8` and `??_R0?AV<T>@@@8`, the type descriptors of
+> `__RTDynamicCast(pv, VfDelta, SrcType, TargetType, isReference)` — `r4` and
+> `r7` are its `VfDelta` and `isReference`, both 0, ABI slot for slot. The 11
+> relocations are **3 REL24 + 2 × (REFHI + PAIR) + 2 × (REFLO + PAIR)**.
+>
+> The section is kept **as written** rather than rewritten: it was quoted as a
+> fix spec in §5 and in board #979, and the record of what a relocation-blind
+> byte test said is worth more than a tidy page.
+
 
 `src/lazer/game/Game.cpp` · `??$Obj@VHamUser@@@DataArray@@QBAPAVHamUser@@H@Z` ·
 port 13 words, c2 20 words, c2 relocations **11**. The port's body is a strict
@@ -294,14 +347,17 @@ sums to 3,195 exactly.
 |---|---:|---:|---|---|
 | **c2's body makes no call or branch at all**; the port's does | **2,521** | 78.9 % | [`INLINE_PREDICATE.md`](INLINE_PREDICATE.md) mechanism **I** — and **E**'s neighbourhood for the 370 whose c2 body is `blr` alone | **named, unmodelled.** E is shipped (`elide.rs`, 1,516 bodies); I is not, and holds at 0.9716 on a 100-TU hold-out |
 | c2 still calls, but a **different, longer** body than the port's tail branch | 491 | 15.4 % | the same mechanism partially applied — c2 inlined some of the chain | same |
-| **the port omits a call c2 makes** | **140** | 4.4 % | nothing on the board before this lane | **new — board #979** |
+| ~~**the port omits a call c2 makes**~~ — **REFUTED (§3.2, #985): the port omits nothing; c2 inlined the port's SECOND callee, and the byte test could not see the relocation target** | **140** | 4.4 % | `INLINE_PREDICATE.md` mechanism **I**, like row 1 | **row 1's population is 2,521 + 140** |
 | c2 replaced **one of two** calls with a load, same body length | 38 | 1.2 % | mechanism I, one call deep | same as row 1 |
 | an **immediate** is wrong (`addi r3,r3,4` vs `…,8`) | 2 | 0.1 % | ordinary codegen | the only wrong *number* in 3,195 bodies |
 | three long singletons | 3 | 0.1 % | unclassified individually | named in the JSONL by symbol |
 | **pure scheduling permutations** | **0** | 0 % | — | **the schedule is not a defect on this population** |
 
-**What is genuinely unexplained is small and is named.** The 140-body cluster is
-new (§3.2) and reproducible to the word. The `same-len | sub-only | imm` pair (2
+**What is genuinely unexplained is small and is named.** ~~The 140-body cluster is
+new (§3.2) and reproducible to the word.~~ **(2026-08-06: it is reproducible to
+the word and it is not new — §3.2's banner. It is mechanism I, so this table's
+"one new and perfectly uniform cluster" reads 0, and the 95.5 % that is "one
+already-named mechanism" reads 99.9 %.)** The `same-len | sub-only | imm` pair (2
 bodies, `addi r3,r3,4` against `addi r3,r3,8` — a structure offset) is the only
 place in 3,195 bodies where the port picks a wrong *number*. Three long
 singletons are not individually classified and are named here so nobody has to
@@ -344,11 +400,24 @@ Three specs fall out, ranked by bodies per unit of new mechanism:
    relocation observable reads "nothing happened" on a self-recursive body that
    is plainly not nothing, so a rule keyed on relocations alone is not sound and
    must be keyed on the callee.
-2. **The `DataArray::Obj<T>` cluster — 140 bodies, one template, one missing
+2. ~~**The `DataArray::Obj<T>` cluster — 140 bodies, one template, one missing
    7-word call.** Not an inlining question at all: the port emits two of three
    calls in a `seq` and drops the third. Board **#979**. Smallest and most
    mechanical of the three; the missing sequence is byte-identical across all
-   140, so a fix has an exact known answer.
+   140, so a fix has an exact known answer.~~
+
+   > **⚠ WITHDRAWN 2026-08-06 — every clause of that sentence is false.** It
+   > **is** an inlining question, the port drops nothing, and there are two
+   > calls in the source rather than three. §3.2's banner and board **#985**
+   > have the compiler's own relocation table. The 140 are **mechanism I**, so
+   > they belong to spec 3 below and the population there is **3,190**, not
+   > 3,050.
+   >
+   > **What a fix lane must not take from this row**: that the cluster is
+   > *cheap*. Lane `w-drop3` was briefed on this spec, took it, and found no
+   > sound emitter change at this rung — board **#988** kills all three
+   > candidates by name, including the honest-refusal escape hatch, which
+   > cannot be grounded on any rule that does not also shrink `fnbyte-exact`.
 3. **The main inline population — 3,050 bodies** (2,521 + 491 + 38). This needs the predicate, and
    `INLINE_PREDICATE.md` §1.2's six places the chain stops all apply. Not a
    small target; listed here so its size is on the record next to the two that
@@ -358,3 +427,76 @@ Three specs fall out, ranked by bodies per unit of new mechanism:
 conversion. Closing a cluster moves `fnbyte-differs` and moves TU match by zero
 unless the whole TU's every other defect also closes — trap 8's shape, and the
 `w-empty`/`w-fix` precedent: 1,516 bodies closed, TU match `10 → 10`.
+
+---
+
+## 6. What the byte test could not see — the CALL TARGET
+
+**Everything above §5 compares `.text` bytes, and a `/Gy` branch word cannot
+carry its callee.** c2 writes a call out of a COMDAT with the placeholder
+displacement `-(offset of the branch word)` — the same four bytes for every
+target alike — so two bodies calling two entirely different functions are
+byte-identical and every alignment, every cluster key and every `=` row on this
+page scores that word equal.
+
+That is board **#882** (`fnbyte-exact-relocated`: 4,664 credited functions carry
+a relocation FBM does not check) stated as a caveat. Lane `w-drop3` made it a
+count. Boards **#984**–**#989**;
+[`rungs/2026-08-06-w-drop3.md`](rungs/2026-08-06-w-drop3.md).
+
+| | |
+|---|---|
+| the reference side | `c2_obj::ObjImage::text_comdat_call_targets` — `REL24` targets by symbol name, per COMDAT, in offset order |
+| the port side | `c2_core::comdat::comdat_function_body`'s own `calls` list — **the emitter's**, never a second walk over `IlFunction` |
+| the comparison | `(offset, name)` pairs, in emitted order |
+| the counts | `gap-metric fnbyte-calltarget-*` on **every** scan |
+
+### 6.1 The result, on the 878-TU workload
+
+| key | value |
+|---|---:|
+| `fnbyte-calltarget-graded` | **39,177** — exactly `exact 35,982 + differs 3,195` |
+| `-ungraded` · `fnbyte-call-targets-unreadable` | **0** · **0** |
+| `-agree` | 35,121 |
+| **`-disagree`** | **4,056** |
+| — of which the byte test calls **`differs`** | **3,195** — *all of them* |
+| — of which the byte test calls **`exact`** | **861** |
+| by call **count** · by **name** at the same count | 2,867 · 1,189 |
+
+**Two readings, and the second is the one that costs something.**
+
+1. **All 3,195 differing bodies call the wrong things.** §3 derived "one
+   mechanism" from opcodes; this derives it from the symbol table, with no
+   alignment in the loop. The two agree.
+2. **861 bodies the judge's byte test CREDITS relocate against a different
+   symbol than c2 does.** Hand-verified from an obj this lane compiled
+   (`src/lazer/game/BustAMovePanel.cpp`):
+
+   ```text
+   ??1?$list@H…@QAA@XZ        48000000   b  →  ?clear@?$_List_base@H…@QAAXXZ   ← c2
+   ??1?$list@H…@QAA@XZ        48000000   b  →  ??1?$_List_base@H…@QAA@XZ       ← the port
+   ```
+
+   Same four bytes. c2 inlined `~_List_base()`, which is itself a one-word tail
+   call to `clear`. `fnbyte-exact` counts this.
+
+**`mismatch` is still 0 and `IlBundle::functions()` is untouched** — every one of
+the 861 sits in a TU the parser refuses, so none has reached an obj. What is
+wrong is the *credit*, exactly as board #878 says of the 3,195, and the hazard is
+the next `functions()` widening.
+
+### 6.2 What this does to the rest of the page
+
+**A cluster's byte counts are a measurement; its EDIT SHAPE is a hypothesis.**
+The alignment is an LCS over 4-byte words under byte equality, which is strictly
+coarser than instruction equality wherever a relocation sits — so a substitution
+under a relocation is invisible and the edit shape reported around it can be
+wrong. §3.2 is the worked instance: `del-only` on bodies whose true edit is one
+substitution and seven insertions.
+
+**Not repaired here, on purpose.** Making the alignment relocation-aware would
+move every count in §2's published table and would move `fnbyte-exact` itself;
+that is a lane with its own before/after, not a side effect of the lane that
+found it. Board **#989**. What ships instead is the number, printed beside the
+cluster table on every scan, so the coarseness is visible rather than assumed
+away.

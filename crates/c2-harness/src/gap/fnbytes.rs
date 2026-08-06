@@ -375,6 +375,44 @@ pub fn grade_one(
 /// answer is 0, so the cost is paid exactly when something is wrong and the
 /// evidence is worth more than the cycles. `-` when there is no body at all
 /// (unreachable from the `Differs` arm; representable rather than a panic).
+/// At most this many `fnbyte-calltarget-witness|…` keys per TU. A witness is
+/// worth its bytes only until the population repeats; the *counts* beside it are
+/// unbounded and are what a lane sizes work off.
+const MAX_CALLTARGET_WITNESSES: usize = 4;
+
+/// **Whom the PORT's body would call**, in emitted order, as mangled names —
+/// `(offset, callee)` per `REL24` site.
+///
+/// The other side of `ObjImage::text_comdat_call_targets`, and the whole point
+/// is that bytes cannot carry it: a `/Gy` placeholder displacement is
+/// `-(offset)` for every callee alike.
+///
+/// **Taken from [`c2_core::comdat::comdat_function_body`]'s own `calls` list,
+/// never re-derived from the `IlFunction`.** A second walk over
+/// `tail_call` / `call_seq` / `cond_pair` / `framed_call` would be a *copy* of
+/// the writer's relocation rule, and the two would drift — mechanism E alone
+/// (`Selected::Tail` with `drops_tail_call`) emits no branch and no `REL24` at
+/// all, so a copy that forgot it would report 1,516 calls that are not there.
+/// `docs/GAPS.md` §6 "one fact, one locator"; the same discipline
+/// `comdat_body_from_selected` is called for rather than reimplemented above.
+///
+/// `None` is the port having no body here (refused / declined), which is a
+/// different answer from "calls nothing" and is filed as `ungraded`.
+fn port_call_targets(
+    f: &IlFunction,
+    opt_word: Option<u32>,
+    tu: &TuEmptyCallees,
+) -> Option<Vec<(u32, String)>> {
+    let mode = opt_mode_of_word(opt_word).ok()?;
+    let body = c2_core::comdat::comdat_function_body(f, mode, tu).ok()?;
+    Some(
+        body.calls
+            .iter()
+            .map(|c| (c.reloc_offset, c.callee.to_string()))
+            .collect(),
+    )
+}
+
 fn differ_witness(
     row: Option<&(FnCensus, Result<IlFunction, &'static str>)>,
     reference: &[u8],
@@ -631,6 +669,23 @@ pub(super) fn measure(
                 Default::default()
             }
         };
+    // **The relocation TARGETS** (lane `w-drop3`, board #984) — `REL24` only, by
+    // name. `reloc_sites` above says *which word* the linker owns; this says
+    // *what it points at*, and nothing else in this file can tell two
+    // byte-identical branch words apart. Same fail-closed contract, same
+    // printed-not-inferred residue.
+    let call_targets: std::collections::BTreeMap<String, Vec<(u32, String)>> =
+        match ref_obj.text_comdat_call_targets() {
+            Some(v) => v.into_iter().collect(),
+            None => {
+                *res.emit
+                    .entry("fnbyte-call-targets-unreadable".into())
+                    .or_insert(0) += 1;
+                Default::default()
+            }
+        };
+    let tu_label = src_name.clone();
+    let mut witnesses = 0usize;
     let mut accounted = 0usize;
     // **The byte-fraction ranker's accumulators** (lane w-tu3, board #500). Same
     // walk, same denominator source, one extra unit: `.text` COMDAT *bytes*
@@ -703,6 +758,107 @@ pub(super) fn measure(
         }
         if v == FnByte::Exact && relocs.get(name.as_str()).copied().unwrap_or(0) > 0 {
             *res.emit.entry("fnbyte-exact-relocated".into()).or_insert(0) += 1;
+        }
+        // **WHOM DOES THE BODY CALL** — the relocation TARGET, not the
+        // relocation count (lane `w-drop3`, boards #984–#986).
+        //
+        // Everything above compares `.text` bytes. A `/Gy` call to a symbol
+        // outside the COMDAT is emitted with the placeholder displacement
+        // `-(offset of the branch word)` **whatever the callee is**, so two
+        // bodies calling two different functions from the same word index carry
+        // the same four bytes and every byte test above scores that word
+        // `equal`. That is board **#882** — the 4,664 credited functions whose
+        // relocations FBM does not check — and until this key existed it was a
+        // caveat with no number.
+        //
+        // Compared as an ORDERED LIST OF NAMES: the port's own call set (its
+        // `IlFunction`, which is what its emitter relocates from) against the
+        // reference COMDAT's `REL24` targets (real c2's own symbol table).
+        // Filtering to `REL24` is what makes the two sides the same question —
+        // the port's list is calls, so a data reference on either side would be
+        // a category error rather than a disagreement.
+        //
+        // **Additive and diagnostic only.** No FBM bucket moves, nothing here
+        // reaches an accept path, and no emitter consults it: it is read off the
+        // judge's output, so an emitter that used it would be grading itself on
+        // the answer (`text_comdat_label_symbols`'s standing rule). What it
+        // buys is that a *substitution under a relocation* can no longer present
+        // as a *deletion* — which is exactly how 140 mechanism-I bodies came to
+        // be filed as "the port omits a call c2 makes".
+        if matches!(v, FnByte::Exact | FnByte::Differs { .. }) {
+            // `port_call_targets` recomposes the body, so it is called ONCE and
+            // the "the port has no body here" case falls through to `ungraded`
+            // with the two lookups — a guard that called it and then called it
+            // again in the arm would pay for every graded function twice.
+            let pt = match row {
+                Some((c, Ok(f))) => port_call_targets(f, c.opt_word, &tu),
+                _ => None,
+            };
+            match (pt, call_targets.get(name.as_str())) {
+                (Some(pt), Some(reftargets)) => {
+                    // Compared as `(offset, name)` pairs, in emitted order. The
+                    // offset is carried because a call at the right site to the
+                    // wrong symbol and a call to the right symbol from the wrong
+                    // site are different defects, and a name-only compare would
+                    // score the second one green.
+                    let port: Vec<String> =
+                        pt.iter().map(|(o, n)| format!("{o:#x}:{n}")).collect();
+                    let refs: Vec<String> = reftargets
+                        .iter()
+                        .map(|(o, n)| format!("{o:#x}:{n}"))
+                        .collect();
+                    *res.emit.entry("fnbyte-calltarget-graded".into()).or_insert(0) += 1;
+                    if port == refs {
+                        *res.emit.entry("fnbyte-calltarget-agree".into()).or_insert(0) += 1;
+                    } else {
+                        *res.emit
+                            .entry("fnbyte-calltarget-disagree".into())
+                            .or_insert(0) += 1;
+                        // Split by the byte verdict, because only one half can
+                        // mislead: a `differs` body was already called wrong, and
+                        // an **`exact`** body with a different callee is a wrong
+                        // emit the numerator is crediting.
+                        let bucket = if v == FnByte::Exact { "exact" } else { "differs" };
+                        *res.emit
+                            .entry(format!("fnbyte-calltarget-disagree-{bucket}"))
+                            .or_insert(0) += 1;
+                        // Count-vs-name, because they price different work: a
+                        // count disagreement is a call the port did not emit at
+                        // all (mechanism I or E), a same-count name disagreement
+                        // is a relocation against the wrong symbol.
+                        let kind = if port.len() == refs.len() { "name" } else { "count" };
+                        *res.emit
+                            .entry(format!("fnbyte-calltarget-disagree-{kind}"))
+                            .or_insert(0) += 1;
+                        // **Witnessed only in the `exact` bucket.** A `differs`
+                        // body is already named by `fnbyte-differs-fn|` and
+                        // clustered by `DIFF_STRUCTURE.md`; the news here is the
+                        // body the judge's byte test **credits** while its
+                        // relocation points elsewhere, and mixing the two would
+                        // let 3,195 already-reported rows crowd the cap.
+                        if v == FnByte::Exact && witnesses < MAX_CALLTARGET_WITNESSES {
+                            witnesses += 1;
+                            *res.emit
+                                .entry(format!(
+                                    "fnbyte-calltarget-witness|{}|{}|port={}|ref={}",
+                                    tu_label,
+                                    name,
+                                    port.join(","),
+                                    refs.join(",")
+                                ))
+                                .or_insert(0) += 1;
+                        }
+                    }
+                }
+                // Printed rather than skipped (STATUS trap 5): a body the port
+                // parsed but whose reference targets did not decode, or the
+                // reverse, is not an agreement.
+                _ => {
+                    *res.emit
+                        .entry("fnbyte-calltarget-ungraded".into())
+                        .or_insert(0) += 1;
+                }
+            }
         }
         // **The census/gate disagreement, restricted to the EMITTED
         // population.** `GapReport::fn_gate_disagreement` measures it over all
