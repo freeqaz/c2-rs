@@ -239,6 +239,22 @@ audit() {
         grep -n "^#\{1,4\} .*#$n\b" "$ROADMAP" | tail -1 | sed 's/^/      R:/'
     done
     [ "$n_stale" -eq 0 ] && printf '  (none — every heading-level re-measurement is cited by its row)\n'
+
+    # -- check 7: duplicate row numbers ----------------------------------
+    # Two sessions racing on the namespace minted #976-#985 twice (w-bytes and
+    # w-inread, 2026-08-08), and six re-gates ran green over the duplicates —
+    # nothing looked. A row number is an identity: every citation of #N in a
+    # rung, a doc or a commit message resolves through it, so a duplicate makes
+    # every one of those citations ambiguous forever. Printed as COUNT + LIST
+    # like every other check; the count is the output, not an "OK".
+    dups=$(grep -oE '^\| \*\*[0-9]+\*\*' "$BOARD" | grep -oE '[0-9]+' | sort -n | uniq -d)
+    n_dups=$(printf '%s' "$dups" | grep -c '^[0-9]' || true)
+    printf '\nDUPLICATE ROW NUMBERS (two rows claim one identity): %s\n' "$n_dups"
+    [ -n "$dups" ] && printf '%s\n' "$dups" | while read -r n; do
+        [ -n "$n" ] || continue
+        grep -n "^| \*\*$n\*\*" "$BOARD" | sed 's/\(.\{100\}\).*/\1/;s/^/  BOARD.md:/'
+    done
+    [ "$n_dups" -eq 0 ] && printf '  (none — every row number names exactly one row)\n'
     return 0
 }
 

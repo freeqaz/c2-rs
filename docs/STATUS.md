@@ -484,10 +484,10 @@ misleading without them.
    > * the counter shipped **double-counting** — `no_token` read 3,340 beside
    >   `fail_closed` 3,340 on the first 878-TU run, one population wearing two
    >   labels — and it was caught only because the two happened to be equal
-   >   (**#982**).
+   >   (**#1002**).
    >
    > **The generalization one level further: a denominator is not published
-   > until it has been printed on both sides of a change.** #976–#985,
+   > until it has been printed on both sides of a change.** #996–#1005,
    > [`rungs/2026-08-08-w-inread.md`](rungs/2026-08-08-w-inread.md) §3.
 
 1. **`mismatch 0` is not evidence of correctness.** 863 of 878 TUs refuse before
