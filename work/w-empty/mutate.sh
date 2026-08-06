@@ -44,7 +44,7 @@ run_one() {
         return
     }
     red=0
-    log="work/w-empty/mut$n.log"
+    log="${TMPDIR:-/tmp}/w-empty-mut$n.log"
     cargo test --release -p c2-harness --test empty_elision > "$log" 2>&1 || red=1
     cargo test --release -p c2-core --lib elide >> "$log" 2>&1 || {
         red=1
@@ -92,11 +92,8 @@ python3 - "$E" <<'PY'
 import sys
 p = sys.argv[1]
 s = open(p).read()
-old = """        for (n, e) in seen {
-            if e && !disagree.contains(&n) {"""
-new = """        for (n, e) in seen {
-            let _ = e;
-            if !disagree.contains(&n) {"""
+old = """            if all_empty {"""
+new = """            if all_empty || true {"""
 assert old in s, "mutation 2 anchor moved"
 open(p, "w").write(s.replace(old, new))
 PY
@@ -107,10 +104,8 @@ python3 - "$E" <<'PY'
 import sys
 p = sys.argv[1]
 s = open(p).read()
-old = """        for (n, e) in seen {
-            if e && !disagree.contains(&n) {"""
-new = """        for (n, e) in seen {
-            if !e && !disagree.contains(&n) {"""
+old = """            if all_empty {"""
+new = """            if !all_empty {"""
 assert old in s, "mutation 3 anchor moved"
 open(p, "w").write(s.replace(old, new))
 PY
