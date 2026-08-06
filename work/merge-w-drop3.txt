@@ -1,0 +1,52 @@
+merge w-drop3: #979 is refuted — there is no dropped call — and 861 bodies FBM credits as exact relocate against the wrong symbol
+
+The cheapest-looking cluster on DIFF_STRUCTURE's table was the one whose
+signature was an artefact. #979 said the port's seq "emits two of three
+calls and drops the third." There are TWO calls in the source, the port
+reads both, and c2 inlined one: DataArray::Obj<T>(i) is
+Node(i).Obj<T>(this), a WCH/WCL chain, and c2's own relocation table
+shows its second bl going to ?GetObj@DataNode@@ — it expanded
+DataNode::Obj<T> (= dynamic_cast<T*>(GetObj(source))), whose COMDAT in
+the same obj is the "missing" seven words verbatim. Mechanism I, folded
+back into DIFF_STRUCTURE §4. The two relocated halves are RTTI type
+descriptors (__RTDynamicCast's SrcType/TargetType), not a string pair —
+the brief's shape guess refuted too.
+
+WHY THE INSTRUMENT MISREAD IT (#989-renamed... rows #984-#989): a /Gy
+call carries the placeholder displacement -(offset of the branch word)
+for EVERY callee, so both sides' call words were byte-equal and fndiff's
+LCS scored a SUBSTITUTED call as `=`, rendering 1 substitution + 7
+insertions as 7 deletions. A diff instrument keyed on byte equality
+cannot see "same bytes, different symbol."
+
+NEITHER LANDING WAS AVAILABLE, AND THE PREREG'S STOP HELD (#988):
+emitting the call needs an inline decision procedure plus RTTI machinery
+declined twice; refusing needs a rule that fires on these 140 but not on
+the ~6,180 tail/seq bodies that are exact BECAUSE c2 did not inline
+their callee — every grammar-grounded candidate shrinks fnbyte-exact,
+registered as an unconditional stop. Zero emitted bytes changed, zero
+partition movers, by construction.
+
+WHAT SHIPPED INSTEAD OUTRANKS THE FIX: read WHOM a body calls
+(ObjImage::text_comdat_call_targets, REL24 targets by name) against the
+emitter's own calls list. Of 39,177 graded: 4,056 disagree — all 3,195
+differs, AND 861 THAT FBM CALLS EXACT: bodies whose obj would relocate
+against the wrong symbol. #882's "credited functions carry a relocation
+FBM does not check" now has a number, in STATUS as a caveat on the FBM
+row. Seven families, not one — six destructor chains plus 50 bodies of
+ordinary game code (?SetObj -> ?SetObjConcrete, verified not an alias) —
+so #925's one-template caution does not repeat. Hand-verified witness:
+??1?$list@H is 48000000 -> ?clear@ in c2, 48000000 -> ??1?$_List_base@H
+in the port.
+
+Rebased twice: past w-inread's merge, then past the b231974 namespace
+repair — the second rebase re-introduced the stale #976-#985 w-inread
+rows from the branch's context and the new board_audit check 7 caught
+the duplicates before this merge; resolved by deleting the stale block
+and splicing #984-#989 into numeric position.
+
+The lane's own scan.sh shipped with trap 5 (path off by one read
+SKIP-as-success); fixed and recorded in the rung. Board #984-#989,
+rungs/2026-08-06-w-drop3.md, DIFF_STRUCTURE §3.2 banner + §6, STATUS
+trap 2. Tests 987/31 on the lane's base; post-merge counts on this tree
+in the re-gate. Gate 18/18 PASS twice on the lane, 0 mismatch anywhere.
