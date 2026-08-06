@@ -140,11 +140,18 @@ def dis(obj):
     return res
 
 
-def observe(words, ru, cu):
+def observe(words, ru, cu, pbase=OFF_INNER, cbase=OFF_F0):
     """w-spell's grader, verbatim in behaviour: the producer's register is read
-    off its own store's DISPLACEMENT, so no regex names a base register."""
-    poff = [OFF_INNER + 4 * i for i in range(ru)]
-    coff = [OFF_F0 + 4 * i for i in range(cu)]
+    off its own store's DISPLACEMENT, so no regex names a base register.
+
+    `pbase`/`cbase` are the two runs' first store offsets and DEFAULT to GRID
+    I's layout.  They are parameters because the first `holdout.py --grade` run
+    used the defaults against GRID V's fresh struct and all 45 cells came back
+    `OOR prod regs 0` — the instrument reporting that it had matched nothing,
+    which is STATUS trap 5 doing its job.  Had `observe` returned a verdict
+    instead of a counter, that grade would have looked like a result."""
+    poff = [pbase + 4 * i for i in range(ru)]
+    coff = [cbase + 4 * i for i in range(cu)]
     st = [(i, int(m.group(2)), int(m.group(3)))
           for i, m in ((i, STORE_RX.match(w)) for i, w in enumerate(words)) if m]
     pr = {s[1] for s in st if s[2] in poff}

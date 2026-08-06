@@ -1,0 +1,57 @@
+  cell                       clause    frozen   obj      
+  ----------------------------------------------------------------------
+  V1-self-mid-r1k1           SELF-1B   prod     prod     
+  V1-self-mid-r3k4           SELF-1B   prod     prod     
+  V1-self-mid-r3k5           SELF-1B   const    const    
+  V1-self-mid-r2k5           SELF-1B   const    const    
+  V1-self-mid-r4k2           SELF-1B   prod     prod     
+  V2-self-in1-r1k1           SELF-1B   prod     prod     
+  V2-self-in1-r3k4           SELF-1B   prod     prod     
+  V2-self-in1-r3k5           SELF-1B   const    const    
+  V2-self-in1-r2k5           SELF-1B   const    const    
+  V2-self-in1-r4k2           SELF-1B   prod     prod     
+  V3-cross-in2-r1k1          CROSS     const    const    
+  V3-cross-in2-r3k4          CROSS     prod     prod     
+  V3-cross-in2-r3k5          CROSS     prod     const    **MISS**
+  V3-cross-in2-r2k5          CROSS     prod     const    **MISS**
+  V3-cross-in2-r4k2          CROSS     prod     prod     
+  V4-cross-tail-r1k1         CROSS     const    const    
+  V4-cross-tail-r3k4         CROSS     prod     prod     
+  V4-cross-tail-r3k5         CROSS     prod     const    **MISS**
+  V4-cross-tail-r2k5         CROSS     prod     const    **MISS**
+  V4-cross-tail-r4k2         CROSS     prod     prod     
+  V5-otherptr-r1k1           CROSS     const    const    
+  V5-otherptr-r3k4           CROSS     prod     prod     
+  V5-otherptr-r3k5           CROSS     prod     const    **MISS**
+  V5-otherptr-r2k5           CROSS     prod     const    **MISS**
+  V5-otherptr-r4k2           CROSS     prod     prod     
+  V6-bindload-r1k1           LOAD      prod     prod     
+  V6-bindload-r3k4           LOAD      const    prod     **MISS**
+  V6-bindload-r3k5           LOAD      const    const    
+  V6-bindload-r2k5           LOAD      const    const    
+  V6-bindload-r4k2           LOAD      const    prod     **MISS**
+  V7-bindself-r1k1           SELF-2B   prod     prod     
+  V7-bindself-r3k4           SELF-2B   prod     prod     
+  V7-bindself-r3k5           SELF-2B   prod     prod     
+  V7-bindself-r2k5           SELF-2B   prod     const    **MISS**
+  V7-bindself-r4k2           SELF-2B   prod     prod     
+  V8-bindcross-r1k1          CROSS     const    const    
+  V8-bindcross-r3k4          CROSS     prod     prod     
+  V8-bindcross-r3k5          CROSS     prod     const    **MISS**
+  V8-bindcross-r2k5          CROSS     prod     const    **MISS**
+  V8-bindcross-r4k2          CROSS     prod     prod     
+  V9-ptrlocal-r1k1           LOAD      prod     const    **MISS**
+  V9-ptrlocal-r3k4           LOAD      const    prod     **MISS**
+  V9-ptrlocal-r3k5           LOAD      const    const    
+  V9-ptrlocal-r2k5           LOAD      const    const    
+  V9-ptrlocal-r4k2           LOAD      const    prod     **MISS**
+
+  frozen 45 | sha256 45 OK, 0 MOVED | reached 45 | GRADED 45 | out-of-domain 0 | compile-failed 0
+  KEY ILX on the frozen holdout:  hit 31 | MISS 14
+      CROSS     hit 12 | MISS  8
+      LOAD      hit  5 | MISS  5
+      SELF-1B   hit 10 | MISS  0
+      SELF-2B   hit  4 | MISS  1
+  the shipped refusal on the same 45 cells:  right 0 | WRONG 0 | refused 45
+  V2 (registered: KEY ILX misses at least one) -> HIT
+  V3 (control: >= 3 (1,1) cells, and they do not all predict one way) -> 9 cells, predictions ['const', 'prod']

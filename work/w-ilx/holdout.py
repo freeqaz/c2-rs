@@ -177,7 +177,7 @@ def grade():
             print("  %-26s COMPILE FAILED" % name)
             continue
         reached += 1
-        obj = observe(words, ru, cu)
+        obj = observe(words, ru, cu, OFF_IN1, 0)
         if obj.startswith("OOR"):
             oodom += 1
             print("  %-26s %-9s %-8s %-8s %s" % (name, cl, pr, "OOR", obj))
