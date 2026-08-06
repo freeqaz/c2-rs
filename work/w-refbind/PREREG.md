@@ -324,6 +324,39 @@ Graded at the deciding point (register-derived producer at 2 uses, constant at 1
 over `self`, `addi`, `add` and `shift`, with `0, 1, 2, 3` binds. The extra binds
 are bound to sub-objects the measured stores do not touch, so nothing else moves.
 
+### 9.6 — 2026-08-06, before `formalprobe.py` exists: the reference FORMAL
+
+**Stated first, because it is not a prediction.** `refprobe.out` scored its two
+`Q7-ref-formal` cells OUT OF REGIME, and this file's §4 first attributed that to
+#644. **That attribution was wrong** and was caught by reading the recorded
+disassembly instead of trusting it: the extra formal moves `u` and `v` into `r5`
+and `r6`, and the producer regexes are anchored on `r4`/`r5`, so the matcher saw
+nothing. Reading the recorded lines by hand, **both cells look ref-like**:
+
+```text
+  Q7-ref-formal.shift   li 11,7 | slwi 10,5,3 | stw 11,32(3) | stw 10,0(4) | stw 10,4(4)
+  Q7-ref-formal.add     li 10,7 | add  11,5,6 | stw 10,32(3) | stw 11,0(4) | stw 11,4(4)
+```
+
+A reference formal arrives **in a register** and its stores are at displacements
+**0 and 4** off it — so under §5's description (*"a bind statement with a
+non-zero displacement"*) it should be **none**-like, and it is not.
+
+> **R12.** The reference-formal body's `.ex` contains a **`0x26`** statement —
+> `c1xx` materialises a bind for a reference parameter's use, and #856's
+> description survives.
+>
+> **LOSES** if it does not, which would make *"a non-zero-displacement `0x26`
+> bind"* **sufficient but not necessary** for the ref-like schedule and leave a
+> second, unidentified way into it. That is the more important outcome and it is
+> registered as the losing branch on purpose.
+
+Graded by a matched three-cell probe at one signature — a direct spelling through
+a **second pointer formal**, the same spelling with a bind, and the reference
+formal — plus an `.ex` capture of the reference-formal body. The producer regexes
+are rewritten for the shifted formal registers, which is the defect this addendum
+opens by admitting.
+
 R4 is scored by capturing the IL for the deciding pair
 (`P1-shift-none-r2k1` / `P1-shift-ref-r2k1`) with `c2rs capture --keep-il` at the
 **workload's own flags**, and comparing the five captured files byte-for-byte and
