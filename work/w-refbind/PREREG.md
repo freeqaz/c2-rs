@@ -304,6 +304,26 @@ address bound to a name and stored into itself). It is graded and it is
 **counted separately** from the never-fitted rows; R5's `≥ 3 misses` is scored on
 the never-fitted count alone, so a miss in that corner cannot carry the claim.
 
+### 9.5 — 2026-08-06, before `bindcount.py` exists: is it a flag or a count?
+
+`ilcmp.out` (committed at `f3dc74a`) reduced #839 to a `0x26` bind statement whose
+**displacement** decides the outcome. The obvious next question, and the one a
+next lane would need answered before modelling it, is whether c2 is reacting to
+*the presence of such a value* or to *how many of them the body carries*.
+
+> **R11.** It is a **flag**. A body carrying **two** or **three** distinct
+> non-zero-displacement binds emits the same ORDER and the same ALLOC as one, for
+> every producer spelling graded.
+>
+> **LOSES** if any count moves either readout — in particular if `add` or `addi`,
+> which hold their threshold at 2 under one bind (#857), lose it under two or
+> three. That loss would make the bind a **producer-like** entity competing for
+> the pool, which is a different model and a bigger one.
+
+Graded at the deciding point (register-derived producer at 2 uses, constant at 1)
+over `self`, `addi`, `add` and `shift`, with `0, 1, 2, 3` binds. The extra binds
+are bound to sub-objects the measured stores do not touch, so nothing else moves.
+
 R4 is scored by capturing the IL for the deciding pair
 (`P1-shift-none-r2k1` / `P1-shift-ref-r2k1`) with `c2rs capture --keep-il` at the
 **workload's own flags**, and comparing the five captured files byte-for-byte and
