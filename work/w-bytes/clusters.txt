@@ -3,7 +3,7 @@
 
 ===  1349 (42.2%)  seq|port-longer|sub+ins|opcode
       lengths: 12w->2w x804, 19w->6w x542, 13w->1w x1
-      calls:   port bodies with a b/bl 1349/1349; c2 bodies with one 1/1349; c2 bodies with NO relocation 1348/1349
+      calls:   port bodies with a control transfer 1349/1349; c2 bodies with one 1/1349; c2 bodies with NO relocation 1348/1349
       spread:  461 TUs, top src/system/world/Crowd.cpp x22
       example: src/lazer/game/BustAMovePanel.cpp  ??0?$_List_iterator@VSymbol@@U?$_Nonconst_traits@VSymbol@@@stlpmtx_std@@@stlpmtx_std@@QAA@PAU_Li
                port 12w | c2 2w | reloc 0
@@ -22,7 +22,7 @@
 
 ===  1157 (36.2%)  tail|ref-longer|sub+del|opcode
       lengths: 3w->7w x286, 1w->3w x236, 2w->12w x135
-      calls:   port bodies with a b/bl 1157/1157; c2 bodies with one 358/1157; c2 bodies with NO relocation 725/1157
+      calls:   port bodies with a control transfer 1157/1157; c2 bodies with one 491/1157; c2 bodies with NO relocation 725/1157
       spread:  475 TUs, top src/system/rndobj/PropAnim.cpp x17
       example: src/App.cpp  ?Release@Object@Hmx@@QAAXPAVObjRef@@@Z
                port 3w | c2 7w | reloc 0
@@ -36,7 +36,7 @@
 
 ===   370 (11.6%)  tail|port-longer|sub+ins|opcode
       lengths: 2w->1w x370
-      calls:   port bodies with a b/bl 370/370; c2 bodies with one 0/370; c2 bodies with NO relocation 370/370
+      calls:   port bodies with a control transfer 370/370; c2 bodies with one 0/370; c2 bodies with NO relocation 370/370
       spread:  211 TUs, top src/system/rndobj/Utl.cpp x8
       example: src/lazer/game/BustAMovePanel.cpp  ??$_Destroy_Range@PAH@stlpmtx_std@@YAXPAH0@Z
                port 2w | c2 1w | reloc 0
@@ -45,7 +45,7 @@
 
 ===   140 (4.4%)  seq|ref-longer|del-only|-
       lengths: 13w->20w x140
-      calls:   port bodies with a b/bl 140/140; c2 bodies with one 140/140; c2 bodies with NO relocation 0/140
+      calls:   port bodies with a control transfer 140/140; c2 bodies with one 140/140; c2 bodies with NO relocation 0/140
       spread:  101 TUs, top src/lazer/meta_ham/AppLabel.cpp x4
       example: src/lazer/game/Game.cpp  ??$Obj@VHamUser@@@DataArray@@QBAPAVHamUser@@H@Z
                port 13w | c2 20w | reloc 11
@@ -72,7 +72,7 @@
 
 ===   123 (3.8%)  framed|port-longer|sub+ins|opcode
       lengths: 9w->3w x123
-      calls:   port bodies with a b/bl 123/123; c2 bodies with one 0/123; c2 bodies with NO relocation 123/123
+      calls:   port bodies with a control transfer 123/123; c2 bodies with one 0/123; c2 bodies with NO relocation 123/123
       spread:  76 TUs, top src/system/rndobj/PropAnim.cpp x7
       example: src/lazer/game/Game.cpp  ?back@?$vector@VSymbol@@V?$StlNodeAlloc@VSymbol@@@stlpmtx_std@@@stlpmtx_std@@QAAAAVSymbol@@XZ
                port 9w | c2 3w | reloc 0
@@ -88,7 +88,7 @@
 
 ===    38 (1.2%)  seq|same-len|sub-only|opcode
       lengths: 9w->9w x38
-      calls:   port bodies with a b/bl 38/38; c2 bodies with one 38/38; c2 bodies with NO relocation 0/38
+      calls:   port bodies with a control transfer 38/38; c2 bodies with one 38/38; c2 bodies with NO relocation 0/38
       spread:  28 TUs, top src/system/obj/DataFunc.cpp x4
       example: src/lazer/meta_ham/AccomplishmentConditional.cpp  ?Type@DataArray@@QAA?AW4DataType@@H@Z
                port 9w | c2 9w | reloc 1
@@ -104,7 +104,7 @@
 
 ===    12 (0.4%)  seq|port-longer|sub+ins|mixed:reg+disp+opcode
       lengths: 12w->7w x7, 12w->3w x5
-      calls:   port bodies with a b/bl 12/12; c2 bodies with one 0/12; c2 bodies with NO relocation 12/12
+      calls:   port bodies with a control transfer 12/12; c2 bodies with one 0/12; c2 bodies with NO relocation 12/12
       spread:  10 TUs, top src/system/char/CharDriver.cpp x2
       example: src/lazer/meta_ham/AccomplishmentCharacterListConditional.cpp  ??0?$vector@_NV?$StlNodeAlloc@_N@stlpmtx_std@@@stlpmtx_std@@QAA@ABV?$StlNodeAlloc@_N@1@@Z
                port 12w | c2 7w | reloc 0
@@ -123,7 +123,7 @@
 
 ===     2 (0.1%)  tail|same-len|sub-only|imm
       lengths: 2w->2w x2
-      calls:   port bodies with a b/bl 2/2; c2 bodies with one 2/2; c2 bodies with NO relocation 0/2
+      calls:   port bodies with a control transfer 2/2; c2 bodies with one 2/2; c2 bodies with NO relocation 0/2
       spread:  2 TUs, top src/system/char/CharPollGroup.cpp x1
       example: src/system/char/CharPollGroup.cpp  ??1?$pair@QAVObject@Hmx@@UDep@CharPollableSorter@@@stlpmtx_std@@QAA@XZ
                port 2w | c2 2w | reloc 1
@@ -132,7 +132,7 @@
 
 ===     2 (0.1%)  tail|ref-longer|sub+del|opcode+reg
       lengths: 3w->4w x2
-      calls:   port bodies with a b/bl 2/2; c2 bodies with one 0/2; c2 bodies with NO relocation 0/2
+      calls:   port bodies with a control transfer 2/2; c2 bodies with one 0/2; c2 bodies with NO relocation 0/2
       spread:  1 TUs, top src/system/hamobj/MoveDir.cpp x2
       example: src/system/hamobj/MoveDir.cpp  ?MoveIdx@MoveDir@@QBAHXZ
                port 3w | c2 4w | reloc 4
@@ -143,7 +143,7 @@
 
 ===     1 (0.0%)  seq|ref-longer|sub+ins+del|opcode
       lengths: 21w->26w x1
-      calls:   port bodies with a b/bl 1/1; c2 bodies with one 1/1; c2 bodies with NO relocation 0/1
+      calls:   port bodies with a control transfer 1/1; c2 bodies with one 1/1; c2 bodies with NO relocation 0/1
       spread:  1 TUs, top src/keygen_xbox.cpp x1
       example: src/keygen_xbox.cpp  ?supershuffle@@YAXPAD@Z
                port 21w | c2 26w | reloc 5
@@ -178,7 +178,7 @@
 
 ===     1 (0.0%)  seq|ref-longer|sub+del|opcode
       lengths: 13w->43w x1
-      calls:   port bodies with a b/bl 1/1; c2 bodies with one 1/1; c2 bodies with NO relocation 0/1
+      calls:   port bodies with a control transfer 1/1; c2 bodies with one 1/1; c2 bodies with NO relocation 0/1
       spread:  1 TUs, top src/system/synth/Sequence.cpp x1
       example: src/system/synth/Sequence.cpp  ?Init@Sequence@@SAXXZ
                port 13w | c2 43w | reloc 36

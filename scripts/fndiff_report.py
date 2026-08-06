@@ -234,6 +234,27 @@ def align(a, b):
     return out
 
 
+def has_transfer(hexes):
+    """**THE CALL AXIS** — does this body transfer control anywhere other than
+    by its own terminal `blr`?
+
+    This is the one summary that separates "c2 lowered this differently" from
+    "c2 did not make the call at all", and it is the predicate every count in
+    `docs/DIFF_STRUCTURE.md` §3 uses. Counting bare `b`/`bl` (primary 18) is not
+    enough — an indirect call is `bctrl` (primary 19, XO 528) and a conditional
+    tail is primary 16 — so all three primaries are tested, and the terminal
+    `blr` is excluded because every well-formed body has one.
+    """
+    ws = [int(x, 16) for x in hexes]
+    if not ws:
+        return False
+    body = ws[:-1] if ws[-1] == 0x4E800020 else ws
+    return any(
+        (w >> 26) in (16, 18) or ((w >> 26) == 19 and ((w >> 1) & 0x3FF) in (16, 528))
+        for w in body
+    )
+
+
 def side_by_side(row):
     """objdiff's rendering: the two bodies aligned, one instruction per line."""
     p = [int(w, 16) for w in row["port_hex"]]
@@ -287,15 +308,10 @@ def main(argv):
         tus = Counter(r["tu"] for r in v)
         print(f"=== {len(v):>5} ({100.0 * len(v) / len(rows):.1f}%)  {key}")
         print(f"      lengths: " + ", ".join(f"{a}w->{b}w x{n}" for (a, b), n in lens.most_common(3)))
-        # **THE CALL AXIS.** Whether each side's body contains a `b`/`bl`
-        # (primary 18) at all is the one summary that separates "c2 lowered this
-        # differently" from "c2 did not make the call". Printed for both sides,
-        # with c2's relocation count beside it, because a body with no branch and
-        # no relocation makes no call by any route.
-        pc = sum(1 for r in v if any(int(w, 16) >> 26 == 18 for w in r["port_hex"]))
-        rc = sum(1 for r in v if any(int(w, 16) >> 26 == 18 for w in r["ref_hex"]))
+        pc = sum(1 for r in v if has_transfer(r["port_hex"]))
+        rc = sum(1 for r in v if has_transfer(r["ref_hex"]))
         nr = sum(1 for r in v if r["reloc_count"] == 0)
-        print(f"      calls:   port bodies with a b/bl {pc}/{len(v)}; "
+        print(f"      calls:   port bodies with a control transfer {pc}/{len(v)}; "
               f"c2 bodies with one {rc}/{len(v)}; c2 bodies with NO relocation {nr}/{len(v)}")
         print(f"      spread:  {len(tus)} TUs, top {tus.most_common(1)[0][0]} x{tus.most_common(1)[0][1]}")
         ex = max(v, key=lambda r: (r["port_words"], r["ref_words"]) == lens.most_common(1)[0][0])
