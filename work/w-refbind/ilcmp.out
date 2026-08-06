@@ -1,0 +1,24 @@
+  none       .db=705  .ex=2868  .gl=329  .in=439  .sy=68
+  ref        .db=721  .ex=2877  .gl=328  .in=439  .sy=89
+  head       .db=721  .ex=2877  .gl=329  .in=439  .sy=89
+  unnamed    .db=705  .ex=2868  .gl=332  .in=439  .sy=68
+
+  per-stream size, and identity against `none`:
+  stream     none                    ref                     head                    unnamed               
+  .db        705 SAME e6088434       721 DIFF 482ec367       721 DIFF 482ec367       705 SAME e6088434     
+  .ex        2868 SAME faffd1b2      2877 DIFF 97f2caf7      2877 DIFF a0a45f67      2868 SAME faffd1b2    
+  .gl        329 SAME e3c40ca6       328 DIFF f209bb24       329 DIFF ea18ece0       332 DIFF 127896a1     
+  .in        439 SAME 3c73d6d4       439 SAME 3c73d6d4       439 SAME 3c73d6d4       439 SAME 3c73d6d4     
+  .sy        68 SAME cc005f9d        89 DIFF 91f34404        89 DIFF 91f34404        68 SAME cc005f9d      
+
+  `ref` (bind at displacement 96) vs `head` (bind at 0):
+    equal length: True | differing byte offsets: ['0xaaf']
+      ref  @0aaf  0c 0a 86 43 81 20 33 86 41 74 60 27 86 43 86 20 32 86 43 89
+      head @0aaf  0c 0a 86 43 81 20 33 86 41 74 00 27 86 43 86 20 32 86 43 89
+
+  `none` vs `ref` — the edit window (first diff 0xaa1, common tail 1):
+    none 146B: b9 0c 0a 86 43 81 20 33 86 41 74 20 27 86 43 f4 08 33 86 41 74 07 32 86 41 74 4b 4f 01 0b b9 0c 0a 86 43 81 20 33 86 41 74 60 27 86 43 86 20 33 86 41 74 00 27 86 43 f4 08 b9 0d 0a 86 41 74 33 86 41 74 03 09 32 86 41 74 4b 4f 01 0c b9 0c 0a 86 43 81 20 33 86 41 74 60 27 86 43 86 20 33 86 41 74 04 27 86 43 f4 08 b9 0d 0a 86 41 74 33 86 41 74 03 09 32 86 41 74 4b 4f 01 0d 3a 10 0a 54 02 29 10 0a 4f 12 47 54 01 54 00 4f 02 20 00 4f 01 0e
+    ref  155B: 26 11 0a b9 0c 0a 86 43 81 20 33 86 41 74 60 27 86 43 86 20 32 86 43 89 20 4b 4f 01 0b b9 0c 0a 86 43 81 20 33 86 41 74 20 27 86 43 f4 08 33 86 41 74 07 32 86 41 74 4b 4f 01 0c b9 11 0a 86 43 85 20 33 86 41 74 00 27 86 43 f4 08 b9 0d 0a 86 41 74 33 86 41 74 03 09 32 86 41 74 4b 4f 01 0d b9 11 0a 86 43 85 20 33 86 41 74 04 27 86 43 f4 08 b9 0d 0a 86 41 74 33 86 41 74 03 09 32 86 41 74 4b 4f 01 0e 3a 10 0a 54 02 29 10 0a 4f 12 47 54 01 54 00 4f 02 20 00 4f 01 0f
+
+  R4 as registered — `.ex` of the bound spelling is STRICTLY LARGER:
+    none 2868 bytes | ref 2877 bytes | HIT
