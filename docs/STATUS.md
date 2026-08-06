@@ -62,14 +62,14 @@ cost this project real work more than once.
 > 63,335 graded**.
 
 <!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->
-Collected 2026-08-06 · tree `f61db31` · binary `ae13470e648f` · workload `798ae68c`
+Collected 2026-08-06 · tree `dcb7b91` · binary `9c74c2ad4f56` · workload `798ae68c`
 
 | metric | value |
 |---|---|
-| Workspace tests (cargo test --workspace --release) | 916 passed, 0 failed, 28 targets |
+| Workspace tests (cargo test --workspace --release) | 928 passed, 0 failed, 29 targets |
 | Oracle self-test (c2rs selftest) | 265 PASS, 0 FAIL |
 | Fixture port gate (c2rs perf) | 124 port Match, 0 mismatch, 141 not-implemented (of 265) |
-| Port speedup, geomean over matched fixtures | 633x geomean over matched fixtures |
+| Port speedup, geomean over matched fixtures | 637x geomean over matched fixtures |
 | 878-TU dc3 workload scan (c2rs gap) | match 10, mismatch 0, codegen-gap 0, vocab-gap 861, capture-fail 7 |
 | Per-function census (driver, not target) | 711427/2463393 functions in class (28.88%) |
 | Emitted-function census | 39177/178975 emitted functions in class (21.89%) |
@@ -86,8 +86,8 @@ Collected 2026-08-06 · tree `f61db31` · binary `ae13470e648f` · workload `798
 | Emit-predicate worth, B∧C − A∧B∧C (board #213) | +124 TUs (B∧C − A∧B∧C) |
 | Factor-C section ladder (writer names / workload names / next step) | 10 writer names of 13 workload names; 3 steps left, next +.rdata$r → C = 590 |
 | PROGRESS MASS (driver, not target — docs/PROGRESS_METRIC.md) | P = 0.20828 · emitted in class 39177/178975 · mismatch-zeroed TUs 0 |
-| FUNCTION BYTE MATCH (driver, not target — docs/FUNCTION_BYTE_MATCH.md) | FBM = 0.19259 · 34466 exact + 2 whole-TU of 178975 emitted functions, over 865 TUs (6 at 100%) |
-| FBM partition (the under-report, and the controls) | partial 0 (FBM under-reports by this) · differs 4711 · refused 130573 · unbound 9225 · 4664 credited fns carry a reloc FBM does not check · controls: partition-broken 0, match-TU differs 0, census disagree 0 |
+| FUNCTION BYTE MATCH (driver, not target — docs/FUNCTION_BYTE_MATCH.md) | FBM = 0.20026 · 35839 exact + 2 whole-TU of 178975 emitted functions, over 865 TUs (6 at 100%) |
+| FBM partition (the under-report, and the controls) | partial 0 (FBM under-reports by this) · differs 3338 · refused 130573 · unbound 9225 · 4664 credited fns carry a reloc FBM does not check · controls: partition-broken 0, match-TU differs 0, census disagree 0 |
 | Per-TU FBM (how close is the other 870) | 6 of 865 TUs with emitted functions are 100% byte-exact per function |
 
 <!-- END GENERATED -->
