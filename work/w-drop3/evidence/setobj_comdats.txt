@@ -1,0 +1,16 @@
+-- .text #835 (48 B) ?SetObj@?$ObjRefConcrete@VObject@Hmx@@VObjectDir@@@@QAAPAVObject@Hmx@@PAV23@@Z
+   0000  7d8802a6  mflr 12                         
+   0004  9181fff8  stw 12, -8(1)                   
+   0008  fbe1fff0  std 31, -16(1)                  
+   000c  9421ffa0  stwu 1, -96(1)                  
+   0010  7c7f1b78  mr	31, 3                        
+   0014  4bffffed  bl .-20                           ; REL24 -> [3507] ?SetObjConcrete@?$ObjRefConcrete@VObject@Hmx@@VObjectDir@@@@QAAXPAVObject@Hmx@@@Z
+   0018  807f000c  lwz 3, 12(31)                   
+   001c  38210060  addi 1, 1, 96                   
+   0020  8181fff8  lwz 12, -8(1)                   
+   0024  7d8803a6  mtlr 12                         
+   0028  ebe1fff0  ld 31, -16(1)                   
+   002c  4e800020  blr                             
+-- .text #985 (4 B) ?Replace@?$ObjRefConcrete@VObject@Hmx@@VObjectDir@@@@UAAXPAVObject@Hmx@@@Z
+   0000  48000000  b .+0                             ; REL24 -> [3507] ?SetObjConcrete@?$ObjRefConcrete@VObject@Hmx@@VObjectDir@@@@QAAXPAVObject@Hmx@@@Z
+-- .text #986 (12 B) ?begin@?$ObjPtrList@VObject@Hmx@@VObjectDir@@@@QBA?AViterator@1@XZ
