@@ -303,25 +303,45 @@ def n_max(f, leaf, drop_leaf_term=False):
 # ---------------------------------------------------------------------------
 
 HDR = ("obj\tcallee\tsize\tlinkage\tselection\tnparams\tvarargs\tleaf\tindex\t"
-       "nmax\tinternal_callers\tself_recursive\tverdict")
+       "nmax\tord_callers\tfunclet_callers\tself_recursive\tverdict")
 
 
-def grade(path, fns, drop_leaf_term=False):
+def caller_kind(n):
+    """Which SITE class a caller is.
+
+    `__unwind$N` / `__catch$N` / `__ehhandler$N` are the funclets `/EHsc`
+    generates, and `/O1 /GS- /c` — every capture in §6.15-§6.20 — cannot contain
+    one (addendum 1, R1). The test is `__` + `$` rather than a list of three
+    prefixes, because the `$N` counter is a *compilation-local* number: it does
+    not survive a re-compile at different flags, so a funclet edge cannot be
+    paired across the two objs even in principle. Matching them by name would
+    silently pair two different funclets.
+    """
+    if n.startswith("__") and "$" in n:
+        return "funclet"
+    return "ordinary"
+
+
+def grade(path, fns, drop_leaf_term=False, exclude_funclets=False):
     rows = []
-    callers = {n: set() for n in fns}
+    ordc = {n: set() for n in fns}
+    func = {n: set() for n in fns}
     selfrec = {n: False for n in fns}
     for f in fns.values():
         for t in f.rel24:
-            if t in fns:
-                if t == f.name:
-                    selfrec[t] = True
-                else:
-                    callers[t].add(f.name)
+            if t not in fns:
+                continue
+            if t == f.name:
+                selfrec[t] = True
+            elif caller_kind(f.name) == "funclet":
+                func[t].add(f.name)
+            else:
+                ordc[t].add(f.name)
     base = os.path.basename(path)
     for name, f in fns.items():
         leaf = is_leaf(f, fns)
         nm = n_max(f, leaf, drop_leaf_term)
-        nc = len(callers[name])
+        nc = len(ordc[name]) + (0 if exclude_funclets else len(func[name]))
         if nm >= UNBOUNDED:
             verdict = "FALSIFIED" if nc > 0 else "unresolvable-always"
         elif nm == 0:
@@ -336,7 +356,7 @@ def grade(path, fns, drop_leaf_term=False):
             int(bool(f.varargs)), int(leaf),
             sched_index(f, False if drop_leaf_term else leaf),
             "inf" if nm >= UNBOUNDED else nm,
-            nc, int(selfrec[name]), verdict,
+            len(ordc[name]), len(func[name]), int(selfrec[name]), verdict,
         ))
     return rows
 
@@ -391,12 +411,14 @@ def main(argv):
     if "--selftest" in argv:
         return selftest()
     tsv = None
-    drop_leaf = "--drop-leaf-term" in argv
     if "--tsv" in argv:
         tsv = argv[argv.index("--tsv") + 1]
         argv = [a for a in argv if a != tsv]
     objs = [a for a in argv if not a.startswith("--")]
-    out = []
+
+    # Every obj is read ONCE; the four readings are four gradings of the same
+    # parse, so the 2x2 below cannot be a comparison of two different corpora.
+    parsed = []
     for p in objs:
         try:
             fns = read_obj(p)
@@ -404,16 +426,37 @@ def main(argv):
             print(f"UNREADABLE {p}: {e}", file=sys.stderr)
             continue
         annotate_params(fns)
-        out.extend(grade(p, fns, drop_leaf))
-    lines = [HDR] + ["\t".join(str(c) for c in r) for r in out]
+        parsed.append((p, fns))
+
+    variants = [
+        ("leaf-term  · funclet sites COUNTED", False, False),
+        ("leaf-term  · funclet sites EXCLUDED", False, True),
+        ("NO leaf-tm · funclet sites COUNTED", True, False),
+        ("NO leaf-tm · funclet sites EXCLUDED", True, True),
+    ]
+    print(f"objs read: {len(parsed)} of {len(objs)}", file=sys.stderr)
+    print(f"{'variant':38s} {'resolvable':>10s} {'FALSIFIED':>10s} {'rate':>8s}",
+          file=sys.stderr)
+    main_rows = None
+    for label, dl, ef in variants:
+        rows = []
+        for p, fns in parsed:
+            rows.extend(grade(p, fns, dl, ef))
+        if main_rows is None:
+            main_rows = rows
+        n_f = sum(1 for r in rows if r[-1].startswith("FALSIFIED"))
+        n_r = sum(1 for r in rows if not r[-1].startswith("unresolvable"))
+        rate = n_f / n_r if n_r else 0.0
+        print(f"{label:38s} {n_r:10d} {n_f:10d} {rate:8.4f}", file=sys.stderr)
+        if (dl, ef) == ("--drop-leaf-term" in argv, "--exclude-funclets" in argv):
+            main_rows = rows
+    lines = [HDR] + ["\t".join(str(c) for c in r) for r in main_rows]
     if tsv:
         open(tsv, "w").write("\n".join(lines) + "\n")
-    else:
-        print("\n".join(lines))
     tot = {}
-    for r in out:
+    for r in main_rows:
         tot[r[-1]] = tot.get(r[-1], 0) + 1
-    print("objs graded:", len(objs), " functions:", len(out), file=sys.stderr)
+    print(" functions:", len(main_rows), file=sys.stderr)
     for k in sorted(tot):
         print(f"  {k:24s} {tot[k]}", file=sys.stderr)
     return 0
