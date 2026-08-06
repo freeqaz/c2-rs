@@ -317,7 +317,7 @@ pub fn tu_empty_callees(census: &[(FnCensus, Result<IlFunction, &'static str>)])
     TuEmptyCallees::of_named(
         census
             .iter()
-            .filter_map(|(c, g)| Some((c.emit_name.as_deref()?, g.as_ref().ok()?.empty_body))),
+            .filter_map(|(c, g)| Some((c.emit_name.as_deref()?, g.as_ref().ok()?))),
     )
 }
 

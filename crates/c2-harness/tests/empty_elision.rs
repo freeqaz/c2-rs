@@ -27,6 +27,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use c2_core::elide::TuEmptyCallees;
 use c2_harness::gap::fnbytes::{grade_one, tu_empty_callees, FnByte};
 use c2_reference::Toolchain;
 
@@ -53,19 +54,21 @@ fn work(tag: &str) -> PathBuf {
 /// Returns `(shape, verdict, symbol, reference bytes)` per emitted `.text`
 /// COMDAT, exactly as `super::gap::fnbytes::measure` would — the port's body is
 /// composed by `c2_core::comdat`, which is what `PortC2::build` calls.
-fn grade_cell(tc: &Toolchain, dir: &Path, name: &str, body: &str) -> Vec<(&'static str, FnByte, String, Vec<u8>)> {
+type Rows = Vec<(&'static str, FnByte, String, Vec<u8>)>;
+
+fn grade_cell(tc: &Toolchain, dir: &Path, name: &str, body: &str) -> (Rows, TuEmptyCallees) {
     let cpp = dir.join(format!("{name}.cpp"));
     std::fs::write(&cpp, format!("{body}{ANCHOR}")).unwrap();
     let flags: Vec<String> = FLAGS.iter().map(|s| s.to_string()).collect();
     let src = c2_reference::to_wibo_path(&cpp);
     let Ok(cap) = tc.capture_reference_with(&src, dir, &flags, None) else {
-        return Vec::new();
+        return (Vec::new(), TuEmptyCallees::none());
     };
     let (Some(census), Some(entries)) = (
         cap.bundle.census_functions(),
         cap.ref_obj.text_comdat_functions_with_bytes(),
     ) else {
-        return Vec::new();
+        return (Vec::new(), TuEmptyCallees::none());
     };
     let mut claim: BTreeMap<&str, Vec<usize>> = BTreeMap::new();
     for (i, (f, _)) in census.iter().enumerate() {
@@ -83,7 +86,7 @@ fn grade_cell(tc: &Toolchain, dir: &Path, name: &str, body: &str) -> Vec<(&'stat
         let g = grade_one(row, Some(bytes.as_slice()), &tu);
         out.push((g.shape, g.verdict, sym.clone(), bytes.clone()));
     }
-    out
+    (out, tu)
 }
 
 /// One row by symbol, with the anchor control checked first.
@@ -129,7 +132,7 @@ fn an_empty_same_tu_callee_leaves_the_caller_a_bare_blr() {
         return;
     };
     let d = work("fires");
-    let rows = grade_cell(&tc, &d, "c00", "void g() {}\nvoid f() { g(); }\n");
+    let (rows, _tu) = grade_cell(&tc, &d, "c00", "void g() {}\nvoid f() { g(); }\n");
     let r = row(&rows, "?f@@YAXXZ", "c00_empty");
     assert_eq!(
         r.0, "tail",
@@ -159,7 +162,7 @@ fn the_argument_setup_goes_with_the_dropped_call() {
     };
     let d = work("setup");
     // `g05_const_arg`: without E the port emits `li r3,5 ; b ?g` — two words.
-    let rows = grade_cell(&tc, &d, "g05", "void g(int a) {}\nvoid f() { g(5); }\n");
+    let (rows, _tu) = grade_cell(&tc, &d, "g05", "void g(int a) {}\nvoid f() { g(5); }\n");
     let r = row(&rows, "?f@@YAXXZ", "g05_const_arg");
     assert_eq!(
         r.1,
@@ -181,7 +184,7 @@ fn a_returning_callee_is_not_elided() {
     // `c19_ret_param`. c2's `?f` here IS a bare `blr` too — but by mechanism I,
     // which `/Ob0` separates (`docs/INLINE_PREDICATE.md` §1) and which this port
     // does not model. The predicate must decline on the BODY, not on the bytes.
-    let rows = grade_cell(
+    let (rows, _tu) = grade_cell(
         &tc,
         &d,
         "c19",
@@ -209,7 +212,7 @@ fn a_callee_this_tu_does_not_define_is_not_elided() {
     let d = work("extern");
     // `c22_extern_callee`: the identical call, to a `?g` this TU does not define.
     // c2 keeps the REL24 at `/O1` and at `/Ob0`.
-    let rows = grade_cell(&tc, &d, "c22", "void g();\nvoid f() { g(); }\n");
+    let (rows, _tu) = grade_cell(&tc, &d, "c22", "void g();\nvoid f() { g(); }\n");
     let r = row(&rows, "?f@@YAXXZ", "c22_extern_callee");
     assert_ne!(
         r.3, BLR,
@@ -250,7 +253,7 @@ fn an_indirect_call_site_is_still_refused_by_the_il_parser() {
             "?f@@YAXPAUS@@@Z",
         ),
     ] {
-        let rows = grade_cell(&tc, &d, cell, src);
+        let (rows, _tu) = grade_cell(&tc, &d, cell, src);
         let r = row(&rows, sym, cell);
         assert_eq!(
             (r.0, r.1),
@@ -262,6 +265,232 @@ fn an_indirect_call_site_is_still_refused_by_the_il_parser() {
              Got shape `{}` verdict {:?}",
             r.0,
             r.1
+        );
+    }
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+// ===========================================================================
+// THE FIXPOINT — board #924, lane `w-fix`. Every case below is a cell of
+// `work/w-fix/cells3*`, graded there against real c2 per CALL EDGE at the
+// workload's flags and again at `/Ob0`; these tests grade the PORT's bytes for
+// the same cells through the same `grade_one` the 878-TU scan runs.
+// ===========================================================================
+
+/// `k4_chain_d4` — four empty-bodied links. c2 emits **every** function in this
+/// TU as one `4e800020`, and one-step E reaches only the bottom link.
+///
+/// Going red here means the closure stopped propagating: the port emits a
+/// branch where c2 emits nothing, which is `fnbyte-differs` and not a wrong obj
+/// (`IlBundle::functions()` refuses the TU) — but it is the rule failing.
+#[test]
+fn a_chain_of_empty_callees_collapses_at_every_link() {
+    let Some(tc) = Toolchain::locate() else {
+        println!("SKIP: toolchain absent");
+        return;
+    };
+    let d = work("chain4");
+    let (rows, tu) = grade_cell(
+        &tc,
+        &d,
+        "k4",
+        "void h() {}\nvoid g3() { h(); }\nvoid g2() { g3(); }\n\
+         void g1() { g2(); }\nvoid f() { g1(); }\n",
+    );
+    for sym in ["?g3@@YAXXZ", "?g2@@YAXXZ", "?g1@@YAXXZ", "?f@@YAXXZ"] {
+        let r = row(&rows, sym, "k4_chain_d4");
+        assert_eq!(
+            r.3, BLR,
+            "c2's own COMDAT for `{sym}` is not a single `blr` — the premise the \
+             fixpoint rests on has changed (work/w-fix/grid3.out grades all four \
+             edges of k4_chain_d4 as E)"
+        );
+        assert!(
+            tu.reduces_to_nothing(sym),
+            "THE FIXPOINT DID NOT PROPAGATE: `{sym}` is a tail call to a name that \
+             reduces to nothing and c2 emits nothing for it, but the closure did \
+             not admit it"
+        );
+        assert_eq!(
+            r.1,
+            FnByte::Exact,
+            "cell k4_chain_d4, `{sym}`: the port's body is not c2's. Verdict {:?}",
+            r.1
+        );
+    }
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+/// `k6_stop_d2` — a link whose body calls an external stops the chain. At
+/// `/Ob0` every caller at or above it keeps its REL24 (`work/w-fix/grid3.out`),
+/// so nothing above the break may be elided.
+///
+/// The byte verdict is deliberately **not** what this asserts: c2 emits
+/// `b ?ext` for `?f` and the port emits `b ?g1`, which is the same word with a
+/// different relocation target — `fnbyte-exact-relocated`, board #882. The
+/// claim here is about the closure, which is the thing that could be wrong.
+#[test]
+fn a_non_empty_link_stops_the_chain() {
+    let Some(tc) = Toolchain::locate() else {
+        println!("SKIP: toolchain absent");
+        return;
+    };
+    let d = work("stop");
+    let (rows, tu) = grade_cell(
+        &tc,
+        &d,
+        "k6",
+        "void ext();\nvoid h() { ext(); }\nvoid g1() { h(); }\nvoid f() { g1(); }\n",
+    );
+    let r = row(&rows, "?f@@YAXXZ", "k6_stop_d2");
+    assert_ne!(
+        r.3, BLR,
+        "c2's `?f` in k6_stop_d2 IS a bare blr — the chain did not stop at the \
+         non-empty body and this whole test is measuring the wrong cell"
+    );
+    for sym in ["?h@@YAXXZ", "?g1@@YAXXZ", "?f@@YAXXZ"] {
+        assert!(
+            !tu.reduces_to_nothing(sym),
+            "THE FIXPOINT WAS APPLIED THROUGH A NON-EMPTY LINK: `{sym}` sits at or \
+             above a body that calls an external, and GRID-3 grades every edge \
+             there as mechanism I — the caller keeps its REL24 at /Ob0"
+        );
+    }
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+/// `k10_cycle2` — `void a(){b();} void b(){a();}`. Neither member is a bare
+/// `blr` in c2, and the closure must admit neither. **It must also
+/// terminate**: a test that hangs here is the failure, not a red one.
+#[test]
+fn a_cycle_is_not_elided() {
+    let Some(tc) = Toolchain::locate() else {
+        println!("SKIP: toolchain absent");
+        return;
+    };
+    let d = work("cycle");
+    let (rows, tu) = grade_cell(
+        &tc,
+        &d,
+        "k10",
+        "void b();\nvoid a() { b(); }\nvoid b() { a(); }\nvoid f() { a(); }\n",
+    );
+    for sym in ["?a@@YAXXZ", "?b@@YAXXZ", "?f@@YAXXZ"] {
+        let r = row(&rows, sym, "k10_cycle2");
+        assert_ne!(
+            r.3, BLR,
+            "c2's COMDAT for `{sym}` is a bare blr — c2 DOES reduce a cycle to \
+             nothing, and the closure's refusal of it is now an under-fire to be \
+             sized rather than a correctness matter"
+        );
+        assert!(
+            !tu.reduces_to_nothing(sym),
+            "A CYCLE WAS TREATED AS REDUCING TO NOTHING: `{sym}` is in a call \
+             cycle that no empty body seeds, and c2 emits a branch for it"
+        );
+    }
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+/// `k12_cross_i` — **the trap, one level up from `c19`.** `int m(int a){return
+/// a;}` is mechanism I; at `/O1` c2 emits **both** `?g1` and `?f` as a bare
+/// `blr`, so a fixpoint fitted to the emitted bytes would take the whole chain.
+/// Only `/Ob0` separates them, and the port must decline on the BODY.
+#[test]
+fn mechanism_i_mid_chain_is_not_elided() {
+    let Some(tc) = Toolchain::locate() else {
+        println!("SKIP: toolchain absent");
+        return;
+    };
+    let d = work("crossi");
+    let (rows, tu) = grade_cell(
+        &tc,
+        &d,
+        "k12",
+        "int m(int a) { return a; }\nint g1(int a) { return m(a); }\n\
+         int f(int a) { return g1(a); }\n",
+    );
+    let r = row(&rows, "?f@@YAHH@Z", "k12_cross_i");
+    assert_eq!(
+        r.3, BLR,
+        "c2's `?f` in k12_cross_i is no longer a bare blr — the cell's whole point \
+         is that mechanism I is OBSERVATIONALLY IDENTICAL to E at /O1"
+    );
+    for sym in ["?m@@YAHH@Z", "?g1@@YAHH@Z", "?f@@YAHH@Z"] {
+        assert!(
+            !tu.reduces_to_nothing(sym),
+            "THE FIXPOINT WAS APPLIED THROUGH A NON-EMPTY LINK: `{sym}`'s chain \
+             bottoms out at `int m(int a){{return a;}}`, which GRID-3 k12 grades \
+             mechanism I at both edges. Its bytes at /O1 are a bare blr and its \
+             cause is not E — 2.8 % of a guess is a wrong emit"
+        );
+    }
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+/// `k17_dtor_chain_d2` — **the cell where c2 does the fixpoint and the port
+/// cannot even see it.**
+///
+/// GRID-3 grades both edges of this destructor chain `E`, and c2 emits `??1B`
+/// and `??1C` as a bare `blr` each. The port converts **neither**: both bodies
+/// are parse-refused as `expr-call-in-expr-recv-field-off0-whole` (the
+/// inheritance spelling is refused as `…-recv-intrinsic-this-adjust-whole`),
+/// so no row reaches the closure at all.
+///
+/// That is board #922's population one level up, and it is pinned here rather
+/// than left as a paragraph: board #924's own 143 workload functions reach the
+/// rule through a **different** production (`empty-dtor-member`, which this
+/// hand-written chain does not produce), so a reader would otherwise assume
+/// this cell is the family and that the family's IL looks like this. **If this
+/// test goes red because the shapes now parse, the fixpoint gains a population
+/// nothing here has graded end to end** — re-run `work/w-fix/grade3.py` and
+/// check the byte verdicts before believing the gain.
+#[test]
+fn a_destructor_chain_is_elided_by_c2_and_refused_by_the_parser() {
+    let Some(tc) = Toolchain::locate() else {
+        println!("SKIP: toolchain absent");
+        return;
+    };
+    let d = work("dtor");
+    let (rows, tu) = grade_cell(
+        &tc,
+        &d,
+        "k17",
+        "struct A { ~A() {} };\nstruct B { A a; ~B(); };\nstruct C { B b; ~C(); };\n\
+         B::~B() {}\nC::~C() {}\n",
+    );
+    // The anchor control, through the same reader every other case uses.
+    let _ = row(&rows, "?anchor@@YAXXZ", "k17_dtor_chain_d2");
+    for pre in ["??1B@@", "??1C@@"] {
+        let hits: Vec<_> = rows.iter().filter(|r| r.2.starts_with(pre)).collect();
+        assert_eq!(
+            hits.len(),
+            1,
+            "cell k17_dtor_chain_d2: expected exactly one emitted COMDAT named \
+             `{pre}…`; got {:?}",
+            rows.iter().map(|r| &r.2).collect::<Vec<_>>()
+        );
+        let r = hits[0];
+        assert_eq!(
+            r.3, BLR,
+            "c2's `{}` is not a single blr — GRID-3 k17 grades both edges of this \
+             destructor chain as E, and that grading is the premise here",
+            r.2
+        );
+        assert_eq!(
+            (r.0, r.1),
+            ("parse-refused", FnByte::Refused),
+            "`{}` PARSES now. c2 elides both links of this chain; if the port can \
+             read them, the closure reaches a destructor-delegation population \
+             that GRID-3 graded in c2 and no test has graded end to end in the \
+             port. Got shape `{}` verdict {:?}",
+            r.2, r.0, r.1
+        );
+        assert!(
+            !tu.reduces_to_nothing(&r.2),
+            "`{}` is in the closure although its own row did not parse — a name \
+             admitted from a body nobody read",
+            r.2
         );
     }
     let _ = std::fs::remove_dir_all(&d);
