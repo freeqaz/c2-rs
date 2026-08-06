@@ -1238,6 +1238,22 @@ impl GapReport {
                     .to_string(),
             ));
             m.push(("fnbyte-tus", self.fn_byte_by_tu().len().to_string()));
+            // **MECHANISM E's own counters** (`c2_core::elide`, lane `w-empty`).
+            // `fnbyte-elided` is how many bodies the elision produced;
+            // `fnbyte-elided-exact` how many of those the judge agrees with. The
+            // pair is emitted unconditionally, zeros included, because a rule
+            // that quietly stopped firing would otherwise read as "no news".
+            //
+            // `fnbyte-name-disagree` is the control on the elision's one input:
+            // census rows whose positional `IlFunction::mangled_name` differs
+            // from their per-record `FnCensus::emit_name`. It read **74,955** on
+            // the dc3 workload, and keying the elision on the first of those two
+            // names produced 14 wrong bodies and zero right ones. It is
+            // published so no later lane keys another name-matched fact off the
+            // positional binding without seeing the number first.
+            for k in ["fnbyte-elided", "fnbyte-elided-exact", "fnbyte-name-disagree"] {
+                m.push((k, self.emit_total(k).to_string()));
+            }
             // **Board #322's own keys.** The four shapes FBM used to decline are
             // graded now, so the collector needs to be able to say *which* shape
             // moved and *which* stage still declines — a corpus total cannot.

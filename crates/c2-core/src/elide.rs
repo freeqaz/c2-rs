@@ -110,26 +110,49 @@ impl TuEmptyCallees {
         Self::default()
     }
 
-    /// Collect the bundle's empty-bodied definitions.
+    /// Collect the bundle's empty-bodied definitions, from
+    /// **`(name, is_empty)`** pairs the caller has already bound.
     ///
-    /// The iterator is every function **defined in this TU**, whatever the port
-    /// thinks of it: emptiness is a fact about the callee, and a callee the
-    /// emitter would refuse is still a callee whose body is empty.
-    pub fn of<'a>(funcs: impl IntoIterator<Item = &'a IlFunction>) -> Self {
+    /// # The name binding is the CALLER's, and that is not a detail
+    ///
+    /// An IL bundle carries more than one function-name binding and **they
+    /// disagree**. `crates/c2-il/src/func/bind.rs` says so in its own module
+    /// doc; this lane measured the size of it, because the elision is a
+    /// name-keyed fact and a name-keyed fact read through the wrong binding is
+    /// attached to the wrong function:
+    ///
+    /// > **74,955** census rows of the dc3 workload carry an
+    /// > `IlFunction::mangled_name` (paired *positionally* over `.ex` segments)
+    /// > that differs from their `FnCensus::emit_name` (the per-record
+    /// > emitted-symbol binding). `c2rs gap` prints that as
+    /// > `fnbyte-name-disagree` on every scan.
+    ///
+    /// Keyed on the positional name, this predicate fired **14** times on the
+    /// workload — every one of them a previously byte-exact body turned wrong,
+    /// and **zero** of family A's 1,886 reached. Keyed on the binding the caller
+    /// already trusts for this same population, it is right. So the name is an
+    /// argument here rather than a field read off `IlFunction`: each caller
+    /// passes the binding it uses for everything else about that row, and the
+    /// elision cannot disagree with the instrument that grades it.
+    ///
+    /// [`TuEmptyCallees::of`] is the convenience for a caller whose binding *is*
+    /// `mangled_name` — `IlBundle::functions()`, where the gate's own in-TU
+    /// callee refusal already compares resolved callee names against that same
+    /// list.
+    pub fn of_named<'a>(named: impl IntoIterator<Item = (&'a str, bool)>) -> Self {
         let mut empty: Vec<String> = Vec::new();
         let mut disagree: Vec<&str> = Vec::new();
         let mut seen: Vec<(&str, bool)> = Vec::new();
-        for f in funcs {
-            let n = f.mangled_name.as_str();
+        for (n, is_empty) in named {
             if n.is_empty() {
                 continue;
             }
             if let Some((_, prev)) = seen.iter().find(|(m, _)| *m == n) {
-                if *prev != f.empty_body {
+                if *prev != is_empty {
                     disagree.push(n);
                 }
             } else {
-                seen.push((n, f.empty_body));
+                seen.push((n, is_empty));
             }
         }
         for (n, e) in seen {
@@ -139,6 +162,22 @@ impl TuEmptyCallees {
         }
         empty.sort();
         Self { empty }
+    }
+
+    /// [`TuEmptyCallees::of_named`] over `IlFunction::mangled_name` — the
+    /// binding `IlBundle::functions()` hands the emitter, and the one its own
+    /// in-TU-callee refusal already compares resolved callee names against.
+    ///
+    /// **Do not reach for this from a census-row caller.** The census pairs
+    /// names positionally and disagrees with the emitted-symbol binding on
+    /// 74,955 workload rows; `of_named` exists so that caller can pass the name
+    /// it actually trusts.
+    pub fn of<'a>(funcs: impl IntoIterator<Item = &'a IlFunction>) -> Self {
+        Self::of_named(
+            funcs
+                .into_iter()
+                .map(|f| (f.mangled_name.as_str(), f.empty_body)),
+        )
     }
 
     /// Is `name` defined in this bundle with an empty body?
