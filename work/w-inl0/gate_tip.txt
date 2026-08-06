@@ -1,40 +1,36 @@
 lane gate: preflight on /tmp
-  keep    /tmp/c2rs-gate-3824175       LIVE — pid 3824175 is a running gate (a concurrent lane)
-  keep    /tmp/c2rs-gate-3866527       LIVE — pid 3866527 is a running gate (a concurrent lane)
-  keep    /tmp/c2rs-gate-928887        this run
-  keep    /tmp/c2rs-gate-77241         recent — 1 of 3 finished runs kept for their logs
-  keep    /tmp/c2rs-gate-3246374       recent — 2 of 3 finished runs kept for their logs
-  keep    /tmp/c2rs-gate-2852273       recent — 3 of 3 finished runs kept for their logs
-  reaped  /tmp/c2rs-gate-2831149       stale — no live gate owns it
-  reaped  /tmp/c2rs-gate-2520798       stale — no live gate owns it
-reap:   2 stale run tree(s) removed, 6 kept (2 live, 3 recent, 1 this run)
-        freed 221.8 MiB and 33,838 inodes (df delta over a SHARED filesystem)
-disk:   /tmp — free 31.6 GiB / 833,336 inodes (floors: 2.0 GiB / 150,000 inodes)
+  keep    /tmp/c2rs-gate-2319395       LIVE — pid 2319395 is a running gate (a concurrent lane)
+  keep    /tmp/c2rs-gate-2456425       this run
+  keep    /tmp/c2rs-gate-1957833       recent — 1 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-1980978       recent — 2 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-1432247       recent — 3 of 3 finished runs kept for their logs
+reap:   0 stale run tree(s) removed, 5 kept (1 live, 3 recent, 1 this run)
+disk:   /tmp — free 31.6 GiB / 847,461 inodes (floors: 2.0 GiB / 150,000 inodes)
 
 lane gate: 18 lanes from <worktree>/scripts/lanes.txt
-  run dir: /tmp/c2rs-gate-928887   (per-lane run dirs under /tmp/c2rs-gate-928887/lanes/)
+  run dir: /tmp/c2rs-gate-2456425   (per-lane run dirs under /tmp/c2rs-gate-2456425/lanes/)
 building the harness (no-op if current)
     Finished `release` profile [optimized] target(s) in 0.00s
-harness: /tmp/c2rs-gate-928887/c2rs
-  pinned from <worktree>/target/release/c2rs  built 2026-08-06 06:58:16
-  sha 559505452567  tree b40345c
+harness: /tmp/c2rs-gate-2456425/c2rs
+  pinned from <worktree>/target/release/c2rs  built 2026-08-06 07:25:45
+  sha 268e9f20e835  tree c23d51d-dirty
 
-wall clock: 15s for 18 lanes at --jobs 6 (C2RS_JOBS=8)
+wall clock: 1s for 18 lanes at --jobs 6 (C2RS_JOBS=8)
 
-generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-928887/sweep 0  (jobs 6)
+generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-2456425/sweep 0  (jobs 6)
     60 fragments, 16710 cases total (16710 .cpp on disk)
   sweeping 16710 of 16710 generated cases
     grading at 6 job(s)
   checked=16710 mismatches=0 graded=16614 ungraded=96 unknown=0
-  (170s)
+  (136s)
 
-mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-928887/cross 0  (jobs 6)
+mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-2456425/cross 0  (jobs 6)
   assigned 16710 cases over 18 lanes = 81905 cells (full cross would be 300780)
   sweeping 81905 of 81905 case-lane cells (cross of 0 cases x <worktree>/scripts/lanes.txt; the full 12x product is 300780)
   checked=81905 mismatches=0 graded=81517 ungraded=388 unknown=0
-  (629s)
+  (20s)
 
-disk:   /tmp low-water this run — 31.6 GiB and 816,549 inodes free (start: 31.6 GiB / 833,336)
+disk:   /tmp low-water this run — 31.5 GiB and 830,358 inodes free (start: 31.6 GiB / 847,461)
 
 LANE                 VERDICT     graded/total  match  mismatch  flags
 -------------------- ---------- ------------- ------ --------- --------------------
@@ -64,7 +60,7 @@ graded: 4770 fixture-verdicts across all lanes
 sweep:  PASS — 16710 of 16710 selected cases reached, 16614 GRADED by the
         oracle (96 ungraded: no reference obj), 0 mismatch (corpus 16710)
 cross:  PASS — 81517 of 81905 selected cells graded, 0 mismatch (product 81905)
-logs:   /tmp/c2rs-gate-928887/<lane>.log, /tmp/c2rs-gate-928887/sweep.log, /tmp/c2rs-gate-928887/cross.log
+logs:   /tmp/c2rs-gate-2456425/<lane>.log, /tmp/c2rs-gate-2456425/sweep.log, /tmp/c2rs-gate-2456425/cross.log
 
 GATE: PASS — 18/18 lanes ran and every one of them graded a corpus,
   the sweep graded 16614 of 16710 generated cases and the cross graded
