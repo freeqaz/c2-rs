@@ -554,6 +554,9 @@ pub(super) fn measure(
     // decode failure the emitted census already reports as `emit-obj-unreadable`;
     // FBM adds nothing and — critically — contributes no denominator, so a TU
     // whose obj cannot be read cannot dilute the ratio in either direction.
+    // Cloned once: the diff-signature rows name their TU, and `res` is mutably
+    // borrowed for the whole walk below.
+    let src_name = res.src.clone();
     let Some(entries) = ref_obj.text_comdat_functions_with_bytes() else {
         *res.emit.entry("fnbyte-obj-unreadable".into()).or_insert(0) += 1;
         return;
@@ -614,6 +617,20 @@ pub(super) fn measure(
             Default::default()
         }
     };
+    // **The relocation SITES**, for the diff signature (board #976). The counts
+    // above answer "does this body relocate at all"; a signature has to answer
+    // "is *this* mismatched word the one the linker owns", which needs the
+    // offsets. Same fail-closed contract, same printed-not-inferred residue.
+    let reloc_sites: std::collections::BTreeMap<String, Vec<(u32, u16)>> =
+        match ref_obj.text_comdat_reloc_sites() {
+            Some(v) => v.into_iter().collect(),
+            None => {
+                *res.emit
+                    .entry("fndiff-reloc-sites-unreadable".into())
+                    .or_insert(0) += 1;
+                Default::default()
+            }
+        };
     let mut accounted = 0usize;
     // **The byte-fraction ranker's accumulators** (lane w-tu3, board #500). Same
     // walk, same denominator source, one extra unit: `.text` COMDAT *bytes*
@@ -988,6 +1005,49 @@ pub(super) fn measure(
                         ))
                         .or_insert(0) += 1;
                 }
+            }
+            // **THE DIFF SIGNATURE** (board #976, [`super::fndiff`]). The
+            // witness key above names one word; this names the *structure* —
+            // word-granular alignment, per-substitution field class, the
+            // same-multiset bit, and whether the disagreement sits under a
+            // relocation. Additive: `fndiff-` keys only, and it runs on the
+            // `differs` path alone, so a scan with no differs pays nothing.
+            //
+            // The body is recomposed rather than threaded down from the grading
+            // call, for the same reason `differ_witness` recomposes it: the cost
+            // is paid exactly when something is already known to be wrong.
+            if let Some((census, Ok(func))) = row {
+                match complete_body(func, census.opt_word, &tu) {
+                    Ok((_, port)) => {
+                        let sites = reloc_sites
+                            .get(name.as_str())
+                            .map(Vec::as_slice)
+                            .unwrap_or(&[]);
+                        let sig = super::fndiff::signature(
+                            &src_name,
+                            name,
+                            graded.shape,
+                            &port,
+                            bytes,
+                            sites,
+                        );
+                        for (k, n) in sig.keys() {
+                            *res.emit.entry(k).or_insert(0) += n;
+                        }
+                        res.fndiff.push(sig.to_json());
+                    }
+                    // Unreachable from this arm — the grading above produced a
+                    // body. Counted rather than panicked, so a future refactor
+                    // that made it reachable would show up as a number instead
+                    // of a crash or a silently short census.
+                    Err(_) => {
+                        *res.emit
+                            .entry("fndiff-body-unavailable".into())
+                            .or_insert(0) += 1;
+                    }
+                }
+            } else {
+                *res.emit.entry("fndiff-body-unavailable".into()).or_insert(0) += 1;
             }
         }
     }

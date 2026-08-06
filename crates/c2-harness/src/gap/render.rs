@@ -773,6 +773,87 @@ pub(super) fn print_factorization(report: &GapReport) {
                     );
                 }
             }
+            // **THE DIFF-SIGNATURE CLUSTER CENSUS** (board #976,
+            // `super::fndiff`, `docs/DIFF_STRUCTURE.md`). The witness table
+            // above groups by *first wrong word*, which splits one mechanism
+            // across as many rows as it has call sites. This groups by the
+            // STRUCTURE of the disagreement — how the two bodies align, and
+            // which decoded field moved — which is the axis a fix lane can be
+            // written against.
+            //
+            // Printed whether or not `--fnbyte-diff-jsonl` was passed: a census
+            // that only some invocations produce is one that goes stale unseen.
+            let clusters = report.fndiff_clusters();
+            if !clusters.is_empty() {
+                let rows = report.emit_total("fndiff-rows");
+                let broken = report.emit_total("fndiff-accounting-broken");
+                let capped = report.emit_total("fndiff-align-capped");
+                println!(
+                    "\x20   DIFF STRUCTURE — {rows} signatures in {} clusters \
+                     (shape | length | edit shape | field classes).\n\
+                     \x20     accounting breaks (equal+sub+del == ref words, known answer 0): \
+                     {broken}   LCS-capped rows: {capped}   pure reorderings \
+                     (same instruction multiset): {}   first word already wrong: {}",
+                    clusters.len(),
+                    report.emit_total("fndiff-same-multiset"),
+                    report.emit_total("fndiff-first-word"),
+                );
+                // The alarm the whole census would otherwise be quietly wrong
+                // under: a row whose alignment does not add up is a row whose
+                // cluster is meaningless, and it must not be readable only as a
+                // missing line.
+                if broken > 0 {
+                    println!(
+                        "\x20     DIFF-SIGNATURE ACCOUNTING BROKEN on {broken} rows — the \
+                         alignment does not add up and the cluster table above must not be \
+                         believed"
+                    );
+                }
+                for (k, n) in clusters.iter().take(25) {
+                    println!(
+                        "\x20     {n:>6} ({:>5.1}%)  {k}",
+                        100.0 * *n as f64 / rows.max(1) as f64
+                    );
+                }
+                if clusters.len() > 25 {
+                    println!(
+                        "\x20     … and {} more clusters covering {} functions",
+                        clusters.len() - 25,
+                        clusters.iter().skip(25).map(|(_, n)| n).sum::<usize>()
+                    );
+                }
+                let classes = report.fndiff_classes();
+                if !classes.is_empty() {
+                    let total: usize = classes.iter().map(|(_, n)| *n).sum();
+                    let und = classes
+                        .iter()
+                        .find(|(k, _)| k == "undecoded")
+                        .map(|(_, n)| *n)
+                        .unwrap_or(0);
+                    println!(
+                        "\x20     substituted WORDS by decoded field class ({total} words, \
+                         {und} undecoded = {:.1}% — a word is decoded only if its form's \
+                         field partition re-encodes it bit-exactly):",
+                        100.0 * und as f64 / total.max(1) as f64
+                    );
+                    let rowstr: Vec<String> =
+                        classes.iter().map(|(k, n)| format!("{k} {n}")).collect();
+                    println!("\x20       {}", rowstr.join(" · "));
+                }
+                let firsts = report.fndiff_first_buckets();
+                if !firsts.is_empty() {
+                    let rowstr: Vec<String> =
+                        firsts.iter().map(|(k, n)| format!("w{k}:{n}")).collect();
+                    println!("\x20     first divergence, by word index: {}", rowstr.join(" · "));
+                }
+                println!(
+                    "\x20     relocation-aware: {} substitutions and {} deletions sit under a \
+                     relocation ({} records not word-aligned, known answer 0)",
+                    report.emit_total("fndiff-sub-at-reloc"),
+                    report.emit_total("fndiff-del-at-reloc"),
+                    report.emit_total("fndiff-reloc-unaligned"),
+                );
+            }
             // Per-TU FBM, nearest first — the answer to "we are 8/878 exact, how
             // close is the other 870?" stated in TUs rather than in one ratio.
             let by_tu = report.fn_byte_by_tu();
@@ -839,6 +920,7 @@ mod tests {
             emit: Default::default(),
             emit_blockers: Default::default(),
             emit_witness: Vec::new(),
+        fndiff: Vec::new(),
         };
         for (k, v) in keys {
             r.emit.insert((*k).into(), *v);

@@ -118,6 +118,9 @@ fn print_usage() {
          corpus gen options: --seed N --count N --out DIR --timeout SECS\n\
          gap options: --list FILE --flags-file FILE [--cwd DIR] [--limit N] [--jobs N]\n\
          \x20            [--replay-every N] [--jsonl PATH] (see scripts/gen_dc3_workload.sh)\n\
+         \x20            [--fnbyte-diff-jsonl PATH]  one JSON row per fnbyte-differs\n\
+         \x20            FUNCTION: alignment, per-field diff class, relocation sites\n\
+         \x20            (docs/DIFF_STRUCTURE.md; render with scripts/fndiff_report.py)\n\
          \x20            [--cache DIR | --no-cache] [--validate-cache N]\n\
          \x20            captures are cached content-addressed (source bytes + flags +\n\
          \x20            toolchain + workload git identity, never mtimes) under\n\

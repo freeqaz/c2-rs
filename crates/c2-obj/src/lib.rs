@@ -228,6 +228,47 @@ impl ObjImage {
         Some(out)
     }
 
+    /// [`ObjImage::text_comdat_reloc_counts`] with each relocation's **offset
+    /// inside the COMDAT** and its packed type word, in section order and then
+    /// in table order.
+    ///
+    /// Added for the diff-signature census (lane `w-bytes`, board #976). A
+    /// mismatched instruction word that sits **under a relocation** is a
+    /// different kind of finding from one that does not: the linker owns part of
+    /// that word, so its immediate or displacement field is a filler c2 chose
+    /// and the port chose differently, and the two can disagree in the obj while
+    /// naming the same symbol. Counting the relocations, which
+    /// [`ObjImage::text_comdat_reloc_counts`] already does, cannot say *which
+    /// word* — and "which word" is the whole question when the unit is a 4-byte
+    /// instruction.
+    ///
+    /// Under `/Gy` every function starts at offset 0 of its own section, so a
+    /// record's `VirtualAddress` **is** its offset within the body's bytes and
+    /// no section-base subtraction is needed. That is a property of the COMDAT
+    /// population this walk is defined over, not a general COFF fact.
+    ///
+    /// Same fail-closed contract as every other walk here: `None` the moment
+    /// anything does not decode, never a short list — a short relocation list
+    /// would read as "this body relocates less than it does", which is
+    /// absence-as-success in its most direct form.
+    pub fn text_comdat_reloc_sites(&self) -> Option<Vec<(String, Vec<(u32, u16)>)>> {
+        // Reuses the whole-image walk rather than re-reading the tables: the
+        // overflow sentinel, the malformed-header cases and the record layout
+        // are decided in exactly one place.
+        let all = self.relocations()?;
+        let mut out = Vec::new();
+        for (name, s) in self.text_comdat_entries()? {
+            let mut v: Vec<(u32, u16)> = all
+                .iter()
+                .filter(|r| r.section == s)
+                .map(|r| (r.va, r.ty))
+                .collect();
+            v.sort_unstable();
+            out.push((name, v));
+        }
+        Some(out)
+    }
+
     /// **Every compiler-label symbol (`$M<n>` / `$T<n>`) in the obj**, in
     /// symbol-table order — the *only* channel through which the value of c2's
     /// compiler-label counter reaches an object file.

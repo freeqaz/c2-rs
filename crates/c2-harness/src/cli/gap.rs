@@ -30,6 +30,7 @@ static GAP_SPEC: Spec = Spec {
         ("--jobs", Arity::Value),
         ("--replay-every", Arity::Value),
         ("--jsonl", Arity::Value),
+        ("--fnbyte-diff-jsonl", Arity::Value),
         ("--factors-tsv", Arity::Value),
         ("--work", Arity::Value),
         ("--cache", Arity::Value),
@@ -48,6 +49,10 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
     let (list_file, flags_file) = (args.path("--list"), args.path("--flags-file"));
     let cwd = args.path("--cwd");
     let jsonl = args.path("--jsonl");
+    // The per-DIFFERING-FUNCTION diff signature (board #976). Opt-in and a file
+    // for the same reason `--factors-tsv` is; the `fndiff-*` counts it is
+    // derived from print on every scan regardless.
+    let fndiff_jsonl = args.path("--fnbyte-diff-jsonl");
     // The per-TU factor membership. Opt-in and a file, not stdout: see
     // `GapReport::factor_membership`.
     let factors_tsv = args.path("--factors-tsv");
@@ -115,7 +120,8 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
     let (Some(list_file), Some(flags_file)) = (list_file, flags_file) else {
         eprintln!(
             "usage: c2rs gap --list FILE --flags-file FILE [--cwd DIR] [--limit N] \
-             [--jobs N] [--replay-every N] [--jsonl PATH] [--factors-tsv PATH] \
+             [--jobs N] [--replay-every N] [--jsonl PATH] [--fnbyte-diff-jsonl PATH] \
+             [--factors-tsv PATH] \
              [--work DIR]\n\
              (generate the dc3 workload inputs with scripts/gen_dc3_workload.sh)"
         );
@@ -173,6 +179,7 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
         jobs,
         replay_every,
         jsonl,
+        fndiff_jsonl,
         factors_tsv,
         work: work.unwrap_or_else(|| scratch("gap")),
         cache,
