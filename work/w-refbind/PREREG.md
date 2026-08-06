@@ -212,3 +212,28 @@ measures**, and R7 is registered as an inertness check only.
 ## 9. Addenda
 
 *(Each new grid gets a dated entry here, committed before its generator runs.)*
+
+### 9.1 — 2026-08-06, before `bindgrid.py` exists: three more binding modes
+
+§3 listed seven modes. Writing the grid made it clear that four of the seven —
+`ref-unused`, `ptr-unused`, `ref-other`, `local-int` — are all the *same*
+control: a declaration the stores do not use, which `/O1` may delete outright
+before c2 ever sees it. If they all behave like `none` that is a **trivial**
+confirmation of R3, not the informative one.
+
+So three modes are **added**, each of which forces a *named temporary that the
+stores actually address through*, which is the thing the reference spelling
+plausibly does to the IL:
+
+* **`iptr`** — `int* p = (int*)&s->inner;` and stores `p[N]`. Same addresses, a
+  different pointee type, still a named address temp.
+* **`outer-ref`** — `S& z = *s;` and stores `z.inner.aN` / `z.fN`. The temp names
+  **r3 itself** rather than an interior address.
+* **`val-temp`** — `int w = <expr>;` and stores `s->inner.aN = w;`. Names the
+  **value** instead of the address, with the addresses spelled directly.
+
+The original seven are all still graded. **R3 is not reworded** — it is scored as
+written, and `iptr` / `outer-ref` / `val-temp` are reported as additional rows
+that R3 did not register. If `val-temp` flips the allocation, R3's framing (*"it
+is the addressing"*) is wrong in a way R3 as written cannot record, and that will
+be stated as a MISS-adjacent finding rather than folded into a hit.
