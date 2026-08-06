@@ -306,7 +306,9 @@ the never-fitted count alone, so a miss in that corner cannot carry the claim.
 
 ### 9.5 — 2026-08-06, before `bindcount.py` exists: is it a flag or a count?
 
-`ilcmp.out` (committed at `f3dc74a`) reduced #839 to a `0x26` bind statement whose
+`ilcmp.out` (committed at `8280d9f`; the addendum first wrote `f3dc74a`, the
+pre-amend SHA of the same commit, and this is corrected rather than silently
+re-pointed) reduced #839 to a `0x26` bind statement whose
 **displacement** decides the outcome. The obvious next question, and the one a
 next lane would need answered before modelling it, is whether c2 is reacting to
 *the presence of such a value* or to *how many of them the body carries*.
