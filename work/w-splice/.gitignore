@@ -1,0 +1,10 @@
+# Lane w-splice — what must never be committed.
+#
+# CLAUDE.md: no build artifacts, no captured IL, no large binaries. The scan
+# JSONLs are ~60 MB each and every table in the rung regenerates from a scan;
+# the objs are `cl.exe` output. `caps/*.excerpt.txt` IS committed — it is the
+# hand verification and the per-symbol relocation evidence quoted in the rung,
+# and it is a few dozen lines.
+*.jsonl
+*.obj
+caps/*.text.txt
