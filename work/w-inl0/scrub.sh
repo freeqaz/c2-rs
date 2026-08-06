@@ -6,9 +6,11 @@
 # and never the box.
 set -eu
 for f in "$@"; do
-    sed -i \
-        -e 's|/home/free/code/milohax/c2-rs/\.claude/worktrees/[A-Za-z0-9-]*|<worktree>|g' \
-        -e 's|/home/free/code/milohax|<milohax>|g' \
-        -e 's|/home/free|<home>|g' \
+    # The patterns are USER-AGNOSTIC on purpose: a scrubber that spells one
+    # box's home directory is itself the thing it exists to remove.
+    sed -i -E \
+        -e 's|/home/[a-z][a-z0-9_-]*/[A-Za-z0-9_./-]*/\.claude/worktrees/[A-Za-z0-9-]+|<worktree>|g' \
+        -e 's|/home/[a-z][a-z0-9_-]*/code/milohax|<milohax>|g' \
+        -e 's|/home/[a-z][a-z0-9_-]*|<home>|g' \
         "$f"
 done
