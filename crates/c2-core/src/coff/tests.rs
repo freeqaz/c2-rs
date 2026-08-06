@@ -248,6 +248,135 @@ mod tests {
         );
     }
 
+    /// **The OTHER half of the [`PORT_WRITER_SECTIONS`] guard — board #301,
+    /// closed here by lane `w-rtti`.**
+    ///
+    /// The test above reconciles the constant against the `Section { name: … }`
+    /// literals. It cannot see one level up: **a literal inside an emitter that
+    /// nothing calls satisfies it and still inflates factor C.** That is not a
+    /// hypothetical — `container::bss_deferred_layout` was a `.bss` layout the
+    /// differential had never graded one byte of, it disagreed with reality on
+    /// the walk *and* on the free list the moment a real caller was written, and
+    /// board **#278** deleted it. `w-rdata` §10 filed the residual hole and
+    /// priced the closure; this is that closure.
+    ///
+    /// The rule: **every `pub fn emit_*_obj` that exists in a non-test build
+    /// must be named by `lib.rs`.** `lib.rs` is where `PortC2::build` dispatches,
+    /// so being named there is the cheapest checkable proxy for *"the
+    /// differential can reach this"* — a proxy, not a proof: it cannot tell a
+    /// live call from a doc link, and a caller behind an unsatisfiable condition
+    /// still counts. It catches the shape that has actually cost this project
+    /// something twice, which is an emitter added with no caller at all.
+    ///
+    /// `emit_mvp_obj` is `#[cfg(test)]` for exactly this reason and is therefore
+    /// **absent from the population below** rather than exempted from it — an
+    /// allow-list is the thing that goes stale.
+    ///
+    /// Portable: source text only, no toolchain.
+    #[test]
+    fn every_production_emitter_has_a_lib_rs_caller() {
+        const EMITTER_SOURCES: [(&str, &str); 5] = [
+            ("data.rs", include_str!("data.rs")),
+            ("shell.rs", include_str!("shell.rs")),
+            ("writer.rs", include_str!("writer.rs")),
+            ("dyninit.rs", include_str!("dyninit.rs")),
+            ("function.rs", include_str!("function.rs")),
+        ];
+        // Same discipline as SECTION_SOURCES above: the list is a transcription,
+        // so it is asserted against the directory rather than trusted.
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/coff");
+        let mut on_disk: Vec<String> = std::fs::read_dir(&dir)
+            .expect("the coff module directory is readable from the test cwd")
+            .filter_map(|e| {
+                let p = e.ok()?.path();
+                if p.extension()? != "rs" {
+                    return None;
+                }
+                let name = p.file_name()?.to_str()?.to_string();
+                if name == "tests.rs" || name == "mod.rs" {
+                    return None;
+                }
+                std::fs::read_to_string(&p)
+                    .ok()?
+                    .contains("pub fn emit_")
+                    .then_some(name)
+            })
+            .collect();
+        on_disk.sort();
+        let mut listed: Vec<String> = EMITTER_SOURCES.iter().map(|(n, _)| n.to_string()).collect();
+        listed.sort();
+        assert_eq!(
+            listed, on_disk,
+            "EMITTER_SOURCES must name every coff/*.rs that declares a `pub fn emit_`"
+        );
+
+        // The population: `pub fn emit_*_obj` NOT immediately preceded by a
+        // `#[cfg(test)]` attribute. Reading the attribute off the line above the
+        // signature is crude and it is also exactly what `#[cfg(test)]` looks
+        // like in this file set — checked against `emit_mvp_obj`, which is the
+        // only member today and must NOT appear in `production`.
+        let mut production: Vec<String> = Vec::new();
+        let mut test_only: Vec<String> = Vec::new();
+        for (file, src) in EMITTER_SOURCES {
+            let lines: Vec<&str> = src.lines().collect();
+            for (i, line) in lines.iter().enumerate() {
+                let t = line.trim_start();
+                let Some(rest) = t.strip_prefix("pub fn emit_") else {
+                    continue;
+                };
+                let Some(end) = rest.find(['(', '<']) else { continue };
+                let name = format!("emit_{}", &rest[..end]);
+                if !name.ends_with("_obj") {
+                    continue;
+                }
+                let gated = i > 0 && lines[i - 1].trim() == "#[cfg(test)]";
+                if gated {
+                    test_only.push(name);
+                } else {
+                    production.push(format!("{name} ({file})"));
+                }
+            }
+        }
+        production.sort();
+        test_only.sort();
+
+        assert_eq!(
+            test_only,
+            vec!["emit_mvp_obj".to_string()],
+            "the test-only emitter set changed; if an emitter was gated to stop \
+             it inflating factor C, say so in its doc and update this expectation"
+        );
+        assert!(
+            !production.is_empty(),
+            "no production emitter was found at all — the scan below would pass \
+             vacuously, which is `docs/STATUS.md` trap 5"
+        );
+
+        let lib_rs = include_str!("../lib.rs");
+        let orphans: Vec<&String> = production
+            .iter()
+            .filter(|p| {
+                let name = p.split(' ').next().unwrap();
+                !lib_rs.contains(name)
+            })
+            .collect();
+        assert!(
+            orphans.is_empty(),
+            "every `pub fn emit_*_obj` must be named by lib.rs — an emitter with \
+             no caller satisfies the vocabulary test above and still inflates \
+             factor C (board #278, board #301). Orphans: {orphans:?}. Checked \
+             {} production emitters.",
+            production.len()
+        );
+        // A count, never a status (trap 5): a run that checked nothing must not
+        // read the same as a run that checked everything.
+        assert_eq!(
+            production.len(),
+            5,
+            "production emitters: {production:?} — update this count deliberately"
+        );
+    }
+
     /// Five representative objs from the three pre-existing emitters, reduced to
     /// `(length, CRC)` — a byte-level pin taken **before** the shared-primitive
     /// refactor that `emit_dyninit_obj` needed, so that refactor could be proved

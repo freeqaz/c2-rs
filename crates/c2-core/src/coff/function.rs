@@ -140,6 +140,23 @@ pub const PORT_WRITER_SECTIONS: [&str; 10] = [
 /// * `mangled_name` — the function's mangled symbol (from `.gl`), e.g.
 ///   `?add3@@YAHHHH@Z`.
 /// * `text` — the `.text` bytes from codegen (12 for `add3`).
+///
+/// # `#[cfg(test)]` — board **#301**, closed by lane `w-rtti`
+///
+/// **Its only caller is [`super::tests`], and an emitter with no production
+/// caller is the second half of the [`PORT_WRITER_SECTIONS`] hole.** A
+/// `Section { name: … }` literal reached only from a test satisfies
+/// `the_writer_vocabulary_is_every_section_name_this_file_emits` and still
+/// inflates factor **C**, which is what `container::bss_deferred_layout` was
+/// before board #278 deleted it. This one inflated nothing — every name it
+/// emits is also emitted by a called emitter — and `w-rdata` §10 recorded that
+/// as *"luck, not a guarantee"*.
+///
+/// Making it test-only turns the luck into a guarantee without deleting a
+/// fixture eight tests use: `every_production_emitter_has_a_lib_rs_caller` can
+/// now assert the property over the emitters that exist in a **release** build,
+/// where this function does not.
+#[cfg(test)]
 pub fn emit_mvp_obj(obj_name: &str, mangled_name: &str, text: &[u8]) -> Vec<u8> {
     // Label counter unused: a `Function::plain` has no frame, so no `$M`/`$T`.
     emit_obj(obj_name, &[Function::plain(mangled_name, 0)], text, 0)
