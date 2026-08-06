@@ -726,6 +726,46 @@ pub(super) fn print_factorization(report: &GapReport) {
                 let rows: Vec<String> =
                     parts.iter().map(|(k, n)| format!("{k} {n}")).collect();
                 println!("\x20   partial by shape: {}", rows.join(" · "));
+            } else {
+                // **Printed as a positive statement, never as silence.** The
+                // absent line used to mean "no under-report"; absence reading as
+                // success is this project's most-repeated defect, so the empty
+                // case says so with the denominator beside it.
+                println!(
+                    "\x20   partial by shape: NONE — every selected shape was reconstructed \
+                     and graded ({} emitted functions)",
+                    f.denominator
+                );
+            }
+            // **The per-shape census** (board #322) — what the port selected,
+            // crossed with what the judge said. `partial by shape` answered
+            // "where is the alarm blind"; this answers "where is it now looking,
+            // and what did it see", which is the line that has to be read before
+            // `differs 0` means anything.
+            let shapes = report.fn_byte_shape_census();
+            if !shapes.is_empty() {
+                let rows: Vec<String> = shapes
+                    .iter()
+                    .map(|(s, v, n)| format!("{s}/{v} {n}"))
+                    .collect();
+                println!("\x20   graded by shape × verdict: {}", rows.join(" · "));
+            }
+            // **The witnesses.** Known answer: none. Every differing function is
+            // named with its first disagreeing word, because a count is not
+            // something a lane can reproduce from.
+            let wit = report.fn_byte_differ_witnesses();
+            if !wit.is_empty() {
+                println!(
+                    "\x20   DIFFERS WITNESSES ({} distinct functions) — shape | words | first \
+                     disagreeing word | symbol:",
+                    wit.len()
+                );
+                for w in wit.iter().take(60) {
+                    println!("\x20     {w}");
+                }
+                if wit.len() > 60 {
+                    println!("\x20     … and {} more", wit.len() - 60);
+                }
             }
             // Per-TU FBM, nearest first — the answer to "we are 8/878 exact, how
             // close is the other 870?" stated in TUs rather than in one ratio.

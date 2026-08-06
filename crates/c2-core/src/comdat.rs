@@ -53,6 +53,61 @@ use crate::coff;
 use crate::{data_refs_of, BackendError};
 use c2_il::IlFunction;
 
+/// **Why one function has no `/Gy` body**, split by *which* stage declined.
+///
+/// The three are not interchangeable and an instrument that merged them would
+/// mis-file its own population: the selector's refusal is the port's accept
+/// boundary (`fnbyte-refused`), the shape decline is a `/Gy`-only composition
+/// limit that the packed path does not have, and the data-reference decline is
+/// a body the selector *did* lower whose relocation site cannot be derived from
+/// it — so the obj is refused even though the `.text` bytes exist.
+#[derive(Debug)]
+pub enum ComdatDecline {
+    /// [`crate::codegen::select_function`] refused the function outright.
+    Selector(BackendError),
+    /// The selector produced a body, but the `/Gy` composition has no model for
+    /// this shape's obj (today: a pooled floating-point constant).
+    Shape(BackendError),
+    /// The body exists, but [`crate::data_refs_of`] cannot locate the
+    /// data-symbol relocation halves inside it.
+    DataRef(BackendError),
+}
+
+impl ComdatDecline {
+    /// The underlying refusal, for a caller that only needs to propagate it.
+    pub fn into_error(self) -> BackendError {
+        match self {
+            ComdatDecline::Selector(e) | ComdatDecline::Shape(e) | ComdatDecline::DataRef(e) => e,
+        }
+    }
+}
+
+impl From<ComdatDecline> for BackendError {
+    fn from(d: ComdatDecline) -> BackendError {
+        d.into_error()
+    }
+}
+
+/// The [`crate::codegen::Selected`] variant's stable tag, for a diagnostic that
+/// wants to say *which shape* it is looking at.
+///
+/// Deliberately a free function here rather than a method on `Selected`:
+/// `crates/c2-core/src/codegen/select.rs` holds the accept/refuse boundary and
+/// this lane leaves that file untouched. The strings are an interface —
+/// `fnbyte-partial|tail` and friends are printed by `c2rs gap` and quoted in
+/// `docs/FUNCTION_BYTE_MATCH.md` — so they must not be renamed casually.
+pub fn selected_tag(s: &codegen::Selected) -> &'static str {
+    match s {
+        codegen::Selected::Plain(_) => "plain",
+        codegen::Selected::Tail(_) => "tail",
+        codegen::Selected::Float { consts, .. } if consts.is_empty() => "float",
+        codegen::Selected::Float { .. } => "float-const",
+        codegen::Selected::Framed { .. } => "framed",
+        codegen::Selected::Seq { .. } => "seq",
+        codegen::Selected::CondPair(_) => "cond-pair",
+    }
+}
+
 /// One function's complete `/Gy` COMDAT body and its obj-side attachments.
 ///
 /// `text` is the whole `.text` COMDAT payload — every word, including the
@@ -60,6 +115,8 @@ use c2_il::IlFunction;
 /// module exists. Byte-for-byte what [`crate::PortC2::build`] puts in the obj
 /// under function-level linking, because `build` gets it from here.
 pub struct ComdatBody<'a> {
+    /// Which [`crate::codegen::Selected`] shape produced this body.
+    pub shape: &'static str,
     /// The complete `.text` COMDAT bytes for this function.
     pub text: Vec<u8>,
     /// Every REL24 site, at an offset **within this function's own section**.
@@ -73,16 +130,33 @@ pub struct ComdatBody<'a> {
 /// **Build one function's complete `.text` COMDAT body**, exactly as
 /// [`crate::PortC2::build`] does under `/Gy` — because `build` calls this.
 ///
-/// `Err` is the port's honest refusal for this function, in the same two
-/// flavours `build` has always produced: the selector declined the shape, or
-/// the `/Gy` composition declined it (a pooled FP constant), or the data-symbol
-/// relocation site could not be derived from the body.
+/// `Err` is the port's honest refusal for this function, tagged with the stage
+/// that produced it — see [`ComdatDecline`]. `build` propagates all three
+/// identically; the FBM instrument files them in three different buckets, which
+/// is the whole reason the distinction is in the type.
 pub fn comdat_function_body<'a>(
     f: &'a IlFunction,
     mode: OptMode,
-) -> Result<ComdatBody<'a>, BackendError> {
+) -> Result<ComdatBody<'a>, ComdatDecline> {
+    let selected = codegen::select_function(f, mode).map_err(ComdatDecline::Selector)?;
+    comdat_body_from_selected(f, selected, mode)
+}
+
+/// [`comdat_function_body`] with the selection already made — the entry point a
+/// diagnostic uses when it needs the shape tag *and* the body, without running
+/// the ordered dispatch twice.
+///
+/// `mode` is still required: `call_seq_text` reads it for the W10/W11 block
+/// structure, which is the one place the two optimization modes differ by more
+/// than a register field (`codegen::OptMode`'s own doc).
+pub fn comdat_body_from_selected<'a>(
+    f: &'a IlFunction,
+    selected: codegen::Selected,
+    mode: OptMode,
+) -> Result<ComdatBody<'a>, ComdatDecline> {
+    let shape = selected_tag(&selected);
     let mut frame: Option<coff::Frame> = None;
-    let (text, calls) = match codegen::select_function(f, mode)? {
+    let (text, calls) = match selected {
         // A framed non-leaf call gets its own `.text` COMDAT like any other
         // function, plus a `.pdata` COMDAT associated to it (W-UNW-1).
         // `Selected::Framed` carries no bytes for the same reason
@@ -92,12 +166,9 @@ pub fn comdat_function_body<'a>(
         // each function starts its own section.
         codegen::Selected::Framed { setup } => {
             let fc = f.framed_call.as_ref().expect("Framed implies framed_call");
-            let body = codegen::framed_call_text(
-                &setup,
-                fc.add_k,
-                0,
-                codegen::FrameLayout::default(),
-            )?;
+            let body =
+                codegen::framed_call_text(&setup, fc.add_k, 0, codegen::FrameLayout::default())
+                    .map_err(ComdatDecline::Shape)?;
             frame = Some(coff::Frame {
                 prolog_len: body.prolog_len,
                 func_len: body.text.len() as u32,
@@ -121,7 +192,8 @@ pub fn comdat_function_body<'a>(
                 .guard
                 .as_ref()
                 .map(codegen::seq_guard_emit)
-                .transpose()?;
+                .transpose()
+                .map_err(ComdatDecline::Shape)?;
             // **W11** — the guarded early returns, resolved through the same
             // `seq_early_emit` on both emission paths for the same reason: the
             // packed and COMDAT writers must not disagree about a branch sense
@@ -130,7 +202,8 @@ pub fn comdat_function_body<'a>(
                 .early
                 .iter()
                 .map(codegen::seq_early_emit)
-                .collect::<Result<Vec<_>, _>>()?;
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(ComdatDecline::Shape)?;
             let body = codegen::call_seq_text(
                 &setups,
                 &tail,
@@ -142,7 +215,8 @@ pub fn comdat_function_body<'a>(
                 guard.as_ref(),
                 &early,
                 mode,
-            )?;
+            )
+            .map_err(ComdatDecline::Shape)?;
             frame = Some(coff::Frame {
                 prolog_len: body.prolog_len,
                 func_len: body.text.len() as u32,
@@ -168,14 +242,14 @@ pub fn comdat_function_body<'a>(
         // wrong-bytes shape rather than a crash, and it is not worth opening on
         // one ordering probe.
         codegen::Selected::Float { consts, .. } if !consts.is_empty() => {
-            return Err(BackendError::NotImplemented(
+            return Err(ComdatDecline::Shape(BackendError::NotImplemented(
                 "pooled floating-point constant under function-level \
                  linking (/Gy): sections interleave per first-referencing \
                  function, but several constants from one function are \
                  appended in reverse reference order and that is not yet \
                  modeled"
                     .to_string(),
-            ))
+            )))
         }
         // **W8 — a two-arm conditional tail call.** Two REL24 sites, one per
         // arm, in block order; the conditional branch between them carries its
@@ -218,8 +292,9 @@ pub fn comdat_function_body<'a>(
         codegen::Selected::Plain(t) => (t, Vec::new()),
     };
     // Under `/Gy` each function starts at offset 0 of its own COMDAT.
-    let data_refs = data_refs_of(f, &text, 0)?;
+    let data_refs = data_refs_of(f, &text, 0).map_err(ComdatDecline::DataRef)?;
     Ok(ComdatBody {
+        shape,
         text,
         calls,
         frame,

@@ -619,6 +619,52 @@ impl GapReport {
         v
     }
 
+    /// **The per-shape census** (board #322): `(shape, verdict, count)` for
+    /// every `Selected` variant the port produced, crossed with what the judge
+    /// then said about its bytes.
+    ///
+    /// `fn_byte_partial_histogram` above answers *"which shapes is the alarm
+    /// blind to"*. This answers the question that replaces it once the blind
+    /// spot closes — ***which shapes is it now grading, and with what
+    /// verdict*** — and it is the only place a per-shape `differs` shows up as
+    /// a row rather than as a share of one corpus total. A shape that quietly
+    /// stopped being graded would lose its `exact` row here while
+    /// `fnbyte-differs` went on reading 0.
+    pub fn fn_byte_shape_census(&self) -> Vec<(String, String, usize)> {
+        let mut v: Vec<(String, String, usize)> = self
+            .emit_histogram()
+            .into_iter()
+            .filter_map(|(k, n)| {
+                let rest = k.strip_prefix("fnbyte-shape|")?;
+                let (shape, verdict) = rest.split_once('|')?;
+                Some((
+                    shape.to_string(),
+                    verdict.strip_prefix("fnbyte-").unwrap_or(verdict).to_string(),
+                    n,
+                ))
+            })
+            .collect();
+        v.sort_by(|a, b| b.2.cmp(&a.2).then_with(|| (&a.0, &a.1).cmp(&(&b.0, &b.1))));
+        v
+    }
+
+    /// **Every differing function, by name and by word** — the witness list
+    /// behind `fnbyte-differs`.
+    ///
+    /// Known answer: empty. A count cannot be acted on; each row here names the
+    /// shape, the word counts, the first disagreeing word (port and reference
+    /// hex) and the mangled symbol, which is what a lane needs to reproduce it.
+    /// Board #232/#259/#263/#276 were each closed from a named reproducer.
+    pub fn fn_byte_differ_witnesses(&self) -> Vec<String> {
+        let mut v: Vec<String> = self
+            .emit_histogram()
+            .into_iter()
+            .filter_map(|(k, _)| Some(k.strip_prefix("fnbyte-differs-fn|")?.to_string()))
+            .collect();
+        v.sort();
+        v
+    }
+
     /// **Per-TU FBM**, nearest-to-done first: `(src, exact, denominator)` over
     /// every graded TU that carries at least one emitted function.
     ///

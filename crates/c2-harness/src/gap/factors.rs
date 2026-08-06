@@ -1238,6 +1238,28 @@ impl GapReport {
                     .to_string(),
             ));
             m.push(("fnbyte-tus", self.fn_byte_by_tu().len().to_string()));
+            // **Board #322's own keys.** The four shapes FBM used to decline are
+            // graded now, so the collector needs to be able to say *which* shape
+            // moved and *which* stage still declines — a corpus total cannot.
+            // Emitted unconditionally (including the zeros) for the reason every
+            // control on this page is: a key that appears only when nonzero
+            // makes absence read as success.
+            for (shape, verdict, n) in self.fn_byte_shape_census() {
+                m.push((
+                    Box::leak(format!("fnbyte-shape-{shape}-{verdict}").into_boxed_str()),
+                    n.to_string(),
+                ));
+            }
+            for d in ["opt-mode", "selector", "gy-shape", "data-ref"] {
+                m.push((
+                    Box::leak(format!("fnbyte-decline-{d}").into_boxed_str()),
+                    self.emit_total(&format!("fnbyte-decline|{d}")).to_string(),
+                ));
+            }
+            m.push((
+                "fnbyte-differs-witnesses",
+                self.fn_byte_differ_witnesses().len().to_string(),
+            ));
         }
         // **THE BYTE-FRACTION RANKER** (board #500) and its control (#501).
         //
