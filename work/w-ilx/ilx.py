@@ -166,20 +166,26 @@ def observe(words, ru, cu):
 CELL = os.path.join(HERE, "cell")
 
 
-def capture(cell, src):
+def capture(cell, src, il_only=False):
     """Compile the obj AND capture the IL from ONE file at ONE shared path, so
-    neither the directory name nor the file name is in the IL (PREREG §1.1)."""
+    neither the directory name nor the file name is in the IL (PREREG §1.1).
+
+    `il_only=True` skips the obj entirely and returns `words = None`.  That is
+    what `holdout.py --freeze` calls: a freeze that disassembled the obj it is
+    about to be graded against would not be a freeze."""
     os.makedirs(CELL, exist_ok=True)
     cpp = os.path.join(CELL, "c.cpp")
     open(cpp, "w").write(src)
     rel = os.path.relpath(cpp, DC3)
 
+    words = None
     obj = os.path.join(CELL, "c.obj")
     if os.path.exists(obj):
         os.remove(obj)
-    r = subprocess.run([REFOBJ, rel, obj], capture_output=True, text=True,
-                       env=dict(os.environ, C2RS_DC3=DC3))
-    words = dis(obj) if (r.returncode == 0 and os.path.exists(obj)) else None
+    if not il_only:
+        r = subprocess.run([REFOBJ, rel, obj], capture_output=True, text=True,
+                           env=dict(os.environ, C2RS_DC3=DC3))
+        words = dis(obj) if (r.returncode == 0 and os.path.exists(obj)) else None
 
     ildir = os.path.join(CELL, "il")
     os.makedirs(ildir, exist_ok=True)
