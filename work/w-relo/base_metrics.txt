@@ -24,6 +24,15 @@ gap-metric factor-b 338
 gap-metric factor-c 169
 gap-metric factor-d 10
 gap-metric factor-e 2
+gap-metric fnbyte-calltarget-agree 35121
+gap-metric fnbyte-calltarget-disagree 4056
+gap-metric fnbyte-calltarget-disagree-count 2867
+gap-metric fnbyte-calltarget-disagree-differs 3195
+gap-metric fnbyte-calltarget-disagree-exact 861
+gap-metric fnbyte-calltarget-disagree-name 1189
+gap-metric fnbyte-calltarget-graded 39177
+gap-metric fnbyte-call-targets-unreadable 0
+gap-metric fnbyte-calltarget-ungraded 0
 gap-metric fnbyte-census-disagree 0
 gap-metric fnbyte-decline-data-ref 0
 gap-metric fnbyte-decline-gy-shape 0

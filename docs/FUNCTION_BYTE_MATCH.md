@@ -277,10 +277,11 @@ is a control anchored on the oracle's own verdicts.
 
 ### 6.3 CURRENT — after RELOC-EQ (lane `w-relo`, 2026-08-08)
 
-Workload scan, 878 TUs, `capture-fail 7 / graded 871`, off master `cda124c`.
+Workload scan, 878 TUs, `capture-fail 7 / graded 871`, off master `22816a5`.
 Both ends of the same lane; **the port's codegen is untouched** — the only thing
-that changed is what the instrument grades. Every one of the **80** `gap-metric`
-lines is byte-identical at both ends except the 17 `fnbyte-` rows below.
+that changed is what the instrument grades. **84 of the 89** `gap-metric` lines
+are byte-identical at both ends, 20 keys are new, and nothing outside the
+`fnbyte-` namespace moved.
 
 | | before | after |
 |---|---:|---:|
@@ -297,6 +298,21 @@ lines is byte-identical at both ends except the 17 `fnbyte-` rows below.
 | differs · whole-TU · partial · refused · unbound · denominator | 3,195 · 2 · 0 · 130,573 · 9,225 · 178,975 | **unchanged** |
 | controls: partition-broken · reloc-reach-broken · match-TU differs · **match-TU RELOC-differs** · census disagree | 0 · — · 0 · — · 0 | **0 · 0 · 0 · 0 · 0** |
 | residue: `-reloc-table-unreadable` · `-reloc-index-desync` | — | **0 · 0** |
+| **NEW** `fnbyte-reloc-vs-calltarget-{both, reloc-only, calltarget-only}` | — | **861 · 0 · 0** |
+| `fnbyte-calltarget-*` (lane `w-drop3`'s eight keys) | graded 39,177 · **-disagree-exact 861** | **unchanged to the digit** |
+
+**THE NUMBER IS INDEPENDENTLY REPLICATED.** Lane `w-drop3` reached **861** on the
+same corpus from a *different* reader — `REL24` targets by name
+(`ObjImage::text_comdat_call_targets`, board #986) against this one's every-record
+compare (`ObjImage::text_comdat_relocs`) — with different port-side sources. Two
+equal totals are not evidence that two readers agree, so the agreement is
+published **per function**: `-both` 861, `-calltarget-only` 0 (known answer 0 — a
+`REL24` target disagreement *is* a record disagreement), `-reloc-only` 0
+(measured, not predicted — a data-symbol target or a type or an offset would
+land there legitimately). See `rungs/2026-08-08-w-relo.md` §4.3, which also
+records the erasure that merge nearly caused: `w-drop3`'s walk guards on
+`FnByte::Exact`, whose meaning **this section narrowed**, and left alone it would
+have printed `disagree-exact 0` with no test red and no conflict marker.
 
 **`exact` shrank by 861 and `FBM` fell by 0.00481. That is the
 instrument-widening motion and not a regression** — the same shape w-fnbyte
