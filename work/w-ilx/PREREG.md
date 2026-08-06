@@ -162,3 +162,68 @@ printed at both ends, not a summary of it.
 `scripts/gate.sh --jobs 6` and `cargo test --workspace --release` aggregated to
 a printed `targets=/passed=/failed=` line, measured **at this lane's base**
 rather than quoted from another rung.
+
+---
+
+# ADDENDUM 1 — 2026-08-06, GRID V, committed before `holdout.py` exists
+
+GRID I is measured (`work/w-ilx/ilx.out`) and KEY ILX is stated and scored on
+the prior lanes' own configurations (`work/w-ilx/fit.out`, **32 of 32, and
+w-spell's published tables agree on 32 of 32**). That is a **fit** population:
+RULE W was 388 of 388 and RULE W2 was 388 of 388 before each died on fresh
+cells. This addendum declares the holdout **before the grid file exists**.
+
+## A1.1 KEY ILX, frozen wording
+
+Evaluated on the captured `.ex` **alone** — no obj, no disassembly, no
+register. Per producer statement `<lvalue addr> <value addr> 2C <int> 00 32
+<TYPE> 4B`, with `eat_addr` = `B9 <tok> <TYPE> ( 33 <int-TYPE> <varint> 27
+<PTR> )*` keeping the literal **list**:
+
+* `V = (vtok, vadds)` — the value expression's base token and offset-add
+  literals;
+* `L = (ltok, ladds)` — the producer store's; if `ltok` is the target of a
+  `26 <tok>` temp bind, `L` is resolved through it to `(btok, badds ++ ladds)`;
+* `ctok` — the constant run's store base token;
+* `ru` = producer stores, `cu` = constant stores.
+
+Ordered clauses:
+
+1. **LOAD** — `vadds` is empty (the value is a bare `B9` pointer load, no
+   `33 … 27`). Producer wins iff `cu ≤ 1`.
+2. **SELF-2B** — `V` is a *proper prefix* of `L` and `ltok ≠ ctok`. Producer
+   always wins.
+3. **SELF-1B** — `V` is a proper prefix of `L` and `ltok == ctok`. Producer
+   wins iff `cu ≤ ru + 1`.
+4. **CROSS** — otherwise. Producer wins iff `ru ≥ 2`.
+
+## A1.2 The grid
+
+Nine producer shapes over a **fresh struct** (`p0..p9` then a nested `M{L in1;
+L in2;}` then a trailing `L`) and a **fresh signature** (`void h(S* s, S* t,
+int u, int v, int w)` — every operand register moves, w-spell H3's axis), at
+five use-count points **four of which no prior grid reached**:
+`(1,1) (3,4) (3,5) (2,5) (4,2)`. **45 cells.**
+
+The nine shapes are chosen to make the clauses separable and to attack the
+*prefix* formulation specifically: `&s->mid.in2` against stores at
+`s->mid.in1.aN` has offset literals `[40, 32]` where the store has `[40, 0,
+4N]` — the two chains **share their first element and are not a prefix pair**,
+so a reading on `eat_offset_adds`'s SUM, or on "the first literal agrees", gets
+it wrong where KEY ILX gets it right, or vice versa. It is the cell this grid
+exists for.
+
+## A1.3 Registered
+
+| # | claim | how it loses |
+|---|---|---|
+| **V1** | ≥ 20 frozen cells graded, 0 sha256 moved | fewer, or any source moved |
+| **V2** | **KEY ILX misses at least one cell.** The EXPECTED outcome | 0 misses |
+| **V3** | ≥ 3 `(1,1)` controls, and the control **can go red**: KEY ILX predicts `const` for the `CROSS` shapes at `(1,1)` and `prod` for the other seven, so a grid that came back all-`prod` would refute it | the controls all predicting one way |
+| **V4** | the `(3,5)`/`(2,5)` `CROSS` cells are the most likely misses — board #892 says the add group's advantage is bounded in `cu` and clause 4 ignores `cu` entirely. Registered **as the predicted failure mode**, before grading | the misses landing somewhere else |
+| **V5** | the sha256 covers the `.ex` streams as well as the sources, so a re-capture that produced different IL is a hard error rather than a silent re-freeze | — |
+
+**The decline floor and the incumbent stand unchanged**: the shipped refusal is
+wrong on 0 and refuses all 45; today's emitter cannot reach `alloc::allocate`
+with a register-derived producer at all (#840). A key that misses **anything**
+loses to them, and nothing is proposed for shipping either way.
