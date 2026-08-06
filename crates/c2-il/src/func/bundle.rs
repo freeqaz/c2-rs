@@ -110,6 +110,36 @@ pub struct DataObject {
     /// **forward** by `read_token_var` at a position the record framing already
     /// validated — the same discipline `gl_symbol_index` applies.
     pub decl_index: u32,
+    /// **The symbol addresses this object's initializer carries** — `.in`
+    /// element tag `02`, board **#931**.
+    ///
+    /// Each one is a slot inside [`DataObject::bytes`] that already holds its
+    /// addend, and which the obj covers with an `IMAGE_REL_PPC_ADDR32` naming
+    /// the target's COFF symbol. `target` is resolved from the `.in` token to a
+    /// name **here**, using the same per-record `.gl` binding the object's own
+    /// name comes from (#918 — the positional binding disagrees with the census
+    /// on 74,955 rows and is not usable for anything keyed by symbol).
+    ///
+    /// **A consumer that reads `bytes` and ignores this emits a wrong obj.**
+    /// Board #232's shape exactly: the bytes look complete because the addend is
+    /// usually four zeroes, and the relocation is the part that is missing.
+    pub relocs: Vec<DataReloc>,
+}
+
+/// One `.data` relocation a static initializer implies (board #931).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DataReloc {
+    /// Byte offset of the pointer slot inside the owning [`DataObject`].
+    pub at: u32,
+    /// The target's COFF symbol name, resolved through the `.gl` binding.
+    pub target: String,
+    /// The addend, already present in [`DataObject::bytes`] as four big-endian
+    /// bytes at `at`. Carried so a consumer can check the two agree rather than
+    /// trusting that they do.
+    pub addend: i32,
+    /// `true` when the target is one of this TU's own defined objects; `false`
+    /// when `.gl` names it as an undefined external.
+    pub target_defined_here: bool,
 }
 
 /// **W-SECT — a whole TU that defines NO functions and one or more
@@ -1610,6 +1640,23 @@ impl IlBundle {
     /// objects per non-COMDAT section — is **not** applied here. It is a
     /// property of the layout, so it lives with the layout, in
     /// `c2_core::coff::emit_data_obj`.
+    /// **The `.in` initializer reader's self-report for this bundle**, whatever
+    /// `data_tu` decides about it.
+    ///
+    /// `DataTu::in_census` is produced only for a TU `data_tu` accepts *whole*,
+    /// which is a few hundred of the workload's 878 — so it cannot answer *"how
+    /// many records does this reader refuse, and for which named reason"* over
+    /// the corpus. This can, and it is the instrument a reader widening is
+    /// measured by, on the same code path before and after. `None` only when the
+    /// bundle carries no `.in` at all.
+    ///
+    /// `docs/STATUS.md` trap 4: the report carries `elements` (**arity**)
+    /// beside `records` (totality), because a reader that lost an element inside
+    /// a record it still accepted moves neither `records` nor the residue.
+    pub fn in_init_report(&self) -> Option<super::ininit::InInitReport> {
+        Some(super::ininit::in_scalar_initializers(self.get("in")?).report())
+    }
+
     pub fn data_tu(&self) -> Option<DataTu> {
         let gl = self.get("gl")?;
         let ex = self.ex()?;
@@ -1646,7 +1693,8 @@ impl IlBundle {
         let defined: std::collections::BTreeSet<&str> =
             records.iter().map(|(_, o)| o.coff_name.as_str()).collect();
         let undefined = super::gl::gl_extern_data_names(gl);
-        for name in super::gl::gl_symbol_index(gl).values() {
+        let sym_index = super::gl::gl_symbol_index(gl);
+        for name in sym_index.values() {
             // Section names (`.XBLD$W`, `.CRT$XC?`, …) and the two toolchain
             // watermarks are shell furniture every obj carries.
             if name.starts_with('.') || name == "__C1_11886" || name == "__C2_11886" {
@@ -1662,11 +1710,21 @@ impl IlBundle {
         let inb = self.get("in").unwrap_or(&[]);
         let init = super::ininit::in_scalar_initializers(inb);
         // **The `.in` reader's totality invariant, as a GATE and not a report.**
-        // Every record that framed is a value, a named residue entry, or a
-        // dropped conflict. If that accounting does not close, the reader lost a
-        // record silently — and a silently lost record is a `.data` object with
-        // no bytes, which is the failure this whole path exists to prevent.
-        if init.values.len() + init.residue.len() + init.conflicts != init.records {
+        // Every record that framed either decoded or is a named residue entry.
+        // If that accounting does not close, the reader lost a record silently —
+        // and a silently lost record is a `.data` object with no bytes, which is
+        // the failure this whole path exists to prevent.
+        //
+        // **This used to read `values + residue + conflicts == records` and that
+        // was wrong in a way nothing could see until tag `02` landed** (board
+        // #936): `values` counts TOKENS and `records` counts RECORDS, so two
+        // records carrying one token and the same bytes broke it. It held while
+        // the accepted population was scalars only; the widening made the scan's
+        // `in-init-accounting-broken` control fire at **826 of 878** TUs, which
+        // is the control doing its job. The identity is over `accepted` now, and
+        // `duplicate_records` is published beside it rather than absorbed into
+        // it.
+        if init.accepted + init.residue.len() != init.records {
             return None;
         }
         let mut objects = Vec::with_capacity(records.len());
@@ -1686,6 +1744,19 @@ impl IlBundle {
             {
                 continue;
             }
+            // **THE #232 CLAUSE, and it is placed before the byte check on
+            // purpose.** Since the `.in` reader learned element tag `02` (board
+            // #931) a pointer-valued initializer decodes to exactly `size`
+            // bytes — the relocation's addend, usually four zeroes — so clause 7
+            // below would accept it and the writer would emit a `.data` whose
+            // bytes are right and whose **relocation is missing**. That is a
+            // wrong obj produced out of what used to be an honest refusal, which
+            // is the one direction `CLAUDE.md`'s correctness rule forbids and
+            // exactly what board #232 was.
+            //
+            // So the bytes and the symbol addresses travel together from here
+            // on: an object carrying references is admitted only with them.
+            let refs = init.refs.get(tok).cloned().unwrap_or_default();
             let value = init.values.get(tok);
             let bytes = match (o.initialized, value) {
                 // A `.bss` object with no initializer: the ordinary case.
@@ -1701,6 +1772,37 @@ impl IlBundle {
                 // than zero-fill.
                 (true, _) => return None,
             };
+            // Resolve each reference's target token to a COFF name **through the
+            // per-record `.gl` binding**, and refuse the whole TU if any token
+            // does not resolve. A relocation naming the wrong symbol is a wrong
+            // obj that links, which is worse than one that does not.
+            let mut relocs = Vec::with_capacity(refs.len());
+            for r in &refs {
+                let (name, here) = match records.iter().find(|(t, _)| *t == r.target) {
+                    Some((_, t)) => (t.coff_name.clone(), true),
+                    None => match sym_index.get(&r.target) {
+                        // Not one of this TU's data objects: it may still be a
+                        // name `.gl` indexes — an undefined external, a
+                        // function, a string-literal COMDAT. The *writer*
+                        // decides which of those it can place; the reader's job
+                        // is only to name it correctly or refuse.
+                        Some(n) => (n.clone(), false),
+                        None => return None,
+                    },
+                };
+                relocs.push(DataReloc {
+                    at: r.at,
+                    target: name,
+                    addend: r.addend,
+                    target_defined_here: here,
+                });
+            }
+            // A reference into an object with no bytes is incoherent: `.bss`
+            // holds no file bytes for a relocation to patch. Refuse rather than
+            // drop the reference, which would be the silent half of #232.
+            if bytes.is_none() && !relocs.is_empty() {
+                return None;
+            }
             objects.push(DataObject {
                 coff_name: o.coff_name.clone(),
                 size: o.size,
@@ -1708,6 +1810,7 @@ impl IlBundle {
                 external: o.external,
                 bytes,
                 decl_index: *tok,
+                relocs,
             });
         }
 

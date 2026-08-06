@@ -443,6 +443,23 @@ Each of these is a mistake the project has already made and paid for. They are
 recorded here because the numbers above are individually true and jointly
 misleading without them.
 
+0. **A GREEN CONTROL IS A STATEMENT ABOUT THE POPULATION IT RAN OVER.** Numbered
+   0 because it is trap 1 one level down, and 2026-08-07 supplied the cleanest
+   instance the project has. The `.in` initializer reader's totality identity —
+   `values + residue + conflicts == records` — counted `values` in **TOKENS** (a
+   map key) and `records` in **RECORDS**, so two records carrying one token and
+   the same bytes read `1 == 2`. It was **0 on every scan for the entire life of
+   the file**, not because it was right but because the accepted population was
+   43,113 scalar tokens and did not contain enough of the shape. Lane `w-tag02`
+   read element tag `02`, the accepted population went to 496,135, and
+   `in-init-accounting-broken` fired at **826 of 878 TUs** on the next scan. The
+   identity was **repaired** (`records == accepted + residue`, both counts of
+   records) rather than the control adjusted, and the duplicate population —
+   **9,914** — is published beside it. Board **#937**;
+   [`rungs/2026-08-07-w-tag02.md`](rungs/2026-08-07-w-tag02.md) §4. **The
+   generalization: every green instrument on this page is green over the
+   population it can reach, and widening the reach is how you find out which.**
+
 1. **`mismatch 0` is not evidence of correctness.** 863 of 878 TUs refuse before
    the emitter is consulted, so the scan *cannot see* a codegen or binding defect
    in them. Zero mismatches means "nothing the scan could grade came out wrong",

@@ -392,16 +392,35 @@ impl PortC2 {
             // at most two objects per non-COMDAT section, §8.1 — lives in
             // `coff::emit_data_obj`, so neither crate assumes the other ran.
             if let Some(tu) = il.data_tu() {
+                // **The relocations travel with the bytes from here to the
+                // writer** (board #931). `DataObject::bytes` already holds each
+                // one's addend, so passing the bytes and dropping this vector
+                // emits a `.data` that is right about its contents and wrong
+                // about its addresses — board #232's direction, out of what was
+                // an honest refusal until this lane. Built beside the objects,
+                // in the same iteration order, so the two cannot come apart.
+                let relocs: Vec<Vec<coff::DataObjReloc>> = tu
+                    .objects
+                    .iter()
+                    .map(|o| {
+                        o.relocs
+                            .iter()
+                            .map(|r| coff::DataObjReloc { at: r.at, target: &r.target })
+                            .collect()
+                    })
+                    .collect();
                 let objs: Vec<coff::DataObj> = tu
                     .objects
                     .iter()
-                    .map(|o| coff::DataObj {
+                    .zip(&relocs)
+                    .map(|(o, r)| coff::DataObj {
                         symbol: &o.coff_name,
                         size: o.size,
                         natural_align: o.natural_align,
                         external: o.external,
                         bytes: o.bytes.as_deref(),
                         decl_index: o.decl_index,
+                        relocs: r,
                     })
                     .collect();
                 // **Every object dropped means the bare shell IS the right

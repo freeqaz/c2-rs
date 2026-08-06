@@ -1,0 +1,48 @@
+t01_ptr_to_global	records=38 elements=45 values=38 conflicts=0 residue=0 symrefs=1 records_with_symrefs=1 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t01_ptr_to_global	data_tu=ACCEPT objects=2 in_census=(38, 45, 0, 0)
+t02_null_ptr	records=38 elements=44 values=37 conflicts=0 residue=1 symrefs=0 records_with_symrefs=0 [symbol-address=0 floating-point=0 unknown-type=1 unknown-width=0 value-did-not-frame=0 truncated=0]
+t02_null_ptr	data_tu=REFUSE
+t03_ptr_to_extern	records=38 elements=45 values=38 conflicts=0 residue=0 symrefs=1 records_with_symrefs=1 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t03_ptr_to_extern	data_tu=ACCEPT objects=1 in_census=(38, 45, 0, 0)
+t04_ptr_to_static	records=39 elements=46 values=39 conflicts=0 residue=0 symrefs=1 records_with_symrefs=1 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t04_ptr_to_static	data_tu=ACCEPT objects=2 in_census=(39, 46, 0, 0)
+t05_ptr_to_func	records=38 elements=45 values=38 conflicts=0 residue=0 symrefs=1 records_with_symrefs=1 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t05_ptr_to_func	data_tu=REFUSE
+t06_ptr_to_literal	records=38 elements=45 values=38 conflicts=0 residue=0 symrefs=1 records_with_symrefs=1 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t06_ptr_to_literal	data_tu=REFUSE
+t07_char_array	records=37 elements=44 values=37 conflicts=0 residue=0 symrefs=0 records_with_symrefs=0 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t07_char_array	data_tu=REFUSE
+t08_ptr_array	records=38 elements=46 values=38 conflicts=0 residue=0 symrefs=2 records_with_symrefs=1 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t08_ptr_array	data_tu=ACCEPT objects=3 in_census=(38, 46, 0, 0)
+t09_struct_offset	records=38 elements=45 values=38 conflicts=0 residue=0 symrefs=1 records_with_symrefs=1 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t09_struct_offset	data_tu=ACCEPT objects=2 in_census=(38, 45, 0, 0)
+t10_array_offset	records=38 elements=45 values=38 conflicts=0 residue=0 symrefs=1 records_with_symrefs=1 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t10_array_offset	data_tu=ACCEPT objects=2 in_census=(38, 45, 0, 0)
+t11_vfptr	records=42 elements=63 values=42 conflicts=0 residue=0 symrefs=8 records_with_symrefs=5 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t11_vfptr	data_tu=REFUSE
+t12_ptr_to_member	records=38 elements=45 values=38 conflicts=0 residue=0 symrefs=0 records_with_symrefs=0 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t12_ptr_to_member	data_tu=ACCEPT objects=1 in_census=(38, 45, 0, 0)
+t13_mixed_struct	records=38 elements=46 values=38 conflicts=0 residue=0 symrefs=1 records_with_symrefs=1 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t13_mixed_struct	data_tu=ACCEPT objects=2 in_census=(38, 46, 0, 0)
+t14_const_ptr	records=38 elements=45 values=38 conflicts=0 residue=0 symrefs=1 records_with_symrefs=1 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t14_const_ptr	data_tu=ACCEPT objects=1 in_census=(38, 45, 0, 0)
+t15_two_ptrs	records=39 elements=46 values=39 conflicts=0 residue=0 symrefs=2 records_with_symrefs=2 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t15_two_ptrs	data_tu=ACCEPT objects=4 in_census=(39, 46, 0, 0)
+t16_ptr_to_self	records=38 elements=45 values=38 conflicts=0 residue=0 symrefs=1 records_with_symrefs=1 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t16_ptr_to_self	data_tu=ACCEPT objects=1 in_census=(38, 45, 0, 0)
+t17_wide_ptr_deep	records=38 elements=45 values=38 conflicts=0 residue=0 symrefs=1 records_with_symrefs=1 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t17_wide_ptr_deep	data_tu=ACCEPT objects=302 in_census=(38, 45, 0, 0)
+t18_offset_128	records=38 elements=45 values=38 conflicts=0 residue=0 symrefs=1 records_with_symrefs=1 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t18_offset_128	data_tu=ACCEPT objects=2 in_census=(38, 45, 0, 0)
+t19_offset_160	records=38 elements=45 values=38 conflicts=0 residue=0 symrefs=1 records_with_symrefs=1 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t19_offset_160	data_tu=ACCEPT objects=2 in_census=(38, 45, 0, 0)
+t20_offset_1200	records=38 elements=45 values=38 conflicts=0 residue=0 symrefs=1 records_with_symrefs=1 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t20_offset_1200	data_tu=ACCEPT objects=2 in_census=(38, 45, 0, 0)
+t21_offset_negative	records=38 elements=45 values=38 conflicts=0 residue=0 symrefs=1 records_with_symrefs=1 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t21_offset_negative	data_tu=ACCEPT objects=2 in_census=(38, 45, 0, 0)
+t22_offset_65540	records=38 elements=45 values=38 conflicts=0 residue=0 symrefs=1 records_with_symrefs=1 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t22_offset_65540	data_tu=ACCEPT objects=2 in_census=(38, 45, 0, 0)
+t23_wide_token	records=38 elements=45 values=38 conflicts=0 residue=0 symrefs=1 records_with_symrefs=1 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t23_wide_token	data_tu=ACCEPT objects=31002 in_census=(38, 45, 0, 0)
+t24_wide_target_token	records=38 elements=45 values=38 conflicts=0 residue=0 symrefs=1 records_with_symrefs=1 [symbol-address=0 floating-point=0 unknown-type=0 unknown-width=0 value-did-not-frame=0 truncated=0]
+t24_wide_target_token	data_tu=ACCEPT objects=31002 in_census=(38, 45, 0, 0)
