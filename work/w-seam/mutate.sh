@@ -53,9 +53,20 @@ python3 - "$STORE" <<'PY'
 import sys
 p = sys.argv[1]
 s = open(p).read()
-old = "    text.extend_from_slice(&encode_blr());\n    Some(Ok(text))"
+# The `blr` appears at the end of BOTH `scheduled_gpr_run_text` and
+# `store_leaf_text`.  This mutation targets the SCHEDULED one — board #844's own
+# line — so the anchor carries the comment that precedes only that copy.
+old = """    text.extend_from_slice(&encode_blr());
+    Some(Ok(text))
+}
+
+pub fn store_leaf_text("""
 assert s.count(old) == 1, s.count(old)
-open(p, "w").write(s.replace(old, "    Some(Ok(text))"))
+new = """    Some(Ok(text))
+}
+
+pub fn store_leaf_text("""
+open(p, "w").write(s.replace(old, new))
 PY
 run_mutation M1-drop-the-blr
 

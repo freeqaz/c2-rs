@@ -1,0 +1,23 @@
+
+== M1-drop-the-blr
+   RED — 4 failed failing test(s)
+    codegen::leaf::store::tests::store_leaf_text_is_one_store_and_a_blr
+    codegen::leaf::store::tests::store_run_text_is_one_store_per_statement_in_source_order
+    codegen::leaf::store::tests::the_scheduled_run_text_is_a_whole_body_and_ends_in_blr
+    codegen::leaf::store::tests::the_widening_refuses_one_step_outside_every_models_domain
+
+== M2-lift-the-strict-gap
+   RED — 2 failed failing test(s)
+    codegen::alloc::tests::the_mixed_refusal_covers_the_measured_refutations
+    codegen::alloc::tests::the_strict_use_count_subcase_is_refused_too
+
+== M3-clause-4-forward
+   RED — 3 failed failing test(s)
+    codegen::alloc::tests::the_four_refuted_rules_killer_cells
+    codegen::alloc::tests::the_tiebreak_sign_flips_on_the_count_and_on_the_kind
+    codegen::leaf::store::tests::the_scheduled_run_text_is_a_whole_body_and_ends_in_blr
+
+== mutations: 3 RED, 0 GREEN
+== restoring and re-running clean
+test result: ok. 222 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+== the tree is restored and GREEN
