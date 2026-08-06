@@ -140,6 +140,27 @@ in this document.
 > > wrong and converted nothing** — `fnbyte-name-disagree` is **74,955** and is
 > > printed on every scan now (board #918).
 > > [`rungs/2026-08-07-w-empty.md`](rungs/2026-08-07-w-empty.md).
+> >
+> > > **2026-08-07 — 143 MORE ARE CLOSED, by taking the same mechanism to its
+> > > FIXPOINT.** `w-empty` shipped the **one-step** rule and measured, on one
+> > > cell, that c2 closes E under itself. Lane `w-fix` gridded that boundary —
+> > > **34 cells, 94 call edges, 94 graded**, each compiled at the workload's
+> > > flags and again at `/Ob0` and scored per *edge* — and shipped the closure:
+> > > `fnbyte-differs` **3,338 → 3,195**, `fnbyte-exact` **35,839 → 35,982**,
+> > > `fnbyte-elided` **1,373 → 1,516** with `-elided-exact` equal, **0**
+> > > functions moved the other way, **72 of 80 `gap-metric` lines
+> > > byte-identical**. `mismatch` 0 and `functions()` still untouched.
+> > >
+> > > **All 143 are `??1?$_Rb_tree_base@…`** — one template again, the STL tier
+> > > directly above `w-empty`'s `_STLP_alloc_proxy` (board **#952**; #925's
+> > > caution repeating rather than being retired). **The three things the grid
+> > > found that one cell could not**: mechanism I mid-chain emits a bare `blr`
+> > > at *every* level and is separated from E only by `/Ob0` (#954); a mid-node
+> > > that keeps bytes drops its own call and does not let its caller drop one;
+> > > a cycle is not E, and `void r(){r();}`'s self-branch takes no relocation
+> > > at all, so the relocation observable reads `E` on a body that is plainly
+> > > not nothing (#950). Boards **#946**–**#955**;
+> > > [`rungs/2026-08-07-w-fix.md`](rungs/2026-08-07-w-fix.md).
 
 The **payoff metric has moved for the first time**:
 TU match is **10/878** (this paragraph read **8** until 2026-08-05 and the
