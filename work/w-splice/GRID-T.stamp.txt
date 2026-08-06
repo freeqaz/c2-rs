@@ -1,0 +1,16 @@
+cells: 14
+GRID-T sha256: 2e9ec78c1d75fde8e8b1e4cc980d4c2c5f735ebaa2da7008f2cbd50e450515b6
+  work/w-splice/cells/t01_empty_setup_tail.cpp
+  work/w-splice/cells/t02_empty_setup_bigger_callee.cpp
+  work/w-splice/cells/t03_seq_identity_tail.cpp
+  work/w-splice/cells/t04_reg_move_setup.cpp
+  work/w-splice/cells/t05_arith_setup.cpp
+  work/w-splice/cells/t06_ptr_offset_setup.cpp
+  work/w-splice/cells/t07_framed_caller.cpp
+  work/w-splice/cells/t08_two_calls.cpp
+  work/w-splice/cells/t09_unlowerable_callee.cpp
+  work/w-splice/cells/t10_callee_calls_extern.cpp
+  work/w-splice/cells/t11_fixpoint_two_steps.cpp
+  work/w-splice/cells/t12_self_recursion.cpp
+  work/w-splice/cells/t13_size_boundary.cpp
+  work/w-splice/cells/t14_extern_callee_control.cpp
