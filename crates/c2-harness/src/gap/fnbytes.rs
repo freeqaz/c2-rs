@@ -874,23 +874,40 @@ pub(super) fn measure(
                 .and_then(|m| select_function(f, m).map(|s| (m, s)))
             {
                 let (m, s) = sel;
-                if c2_core::splice::splice_body(f, &s, m, &tu)
-                    .ok()
-                    .flatten()
-                    .is_some()
-                {
-                    *res.emit.entry("fnbyte-spliced".into()).or_insert(0) += 1;
-                    *res.emit
-                        .entry(format!("fnbyte-spliced|{}", graded.shape))
-                        .or_insert(0) += 1;
-                    if v == FnByte::Exact {
-                        *res.emit.entry("fnbyte-spliced-exact".into()).or_insert(0) += 1;
-                    } else {
-                        // Named, never a remainder: a splice the judge rejects
-                        // is the one row a net count would hide.
+                match c2_core::splice::splice_body_why(f, &s, m, &tu) {
+                    Ok(_) => {
+                        *res.emit.entry("fnbyte-spliced".into()).or_insert(0) += 1;
                         *res.emit
-                            .entry(format!("fnbyte-spliced-differs-fn|{}|{name}", graded.shape))
+                            .entry(format!("fnbyte-spliced|{}", graded.shape))
                             .or_insert(0) += 1;
+                        if v == FnByte::Exact {
+                            *res.emit.entry("fnbyte-spliced-exact".into()).or_insert(0) += 1;
+                        } else {
+                            // Named, never a remainder: a splice the judge
+                            // rejects is the one row a net count would hide.
+                            *res.emit
+                                .entry(format!(
+                                    "fnbyte-spliced-differs-fn|{}|{name}",
+                                    graded.shape
+                                ))
+                                .or_insert(0) += 1;
+                        }
+                    }
+                    // **WHICH CLAUSE REFUSED**, on the `differs` path only —
+                    // where a refusal is a function the port still gets wrong,
+                    // and therefore the price of the next widening. On the
+                    // `exact` path a refusal is the rule correctly standing
+                    // aside and counting it would drown the signal.
+                    Err(d) => {
+                        if matches!(v, FnByte::Differs { .. }) {
+                            let why = match &d {
+                                c2_core::splice::SpliceDecline::Refused(w) => *w,
+                                c2_core::splice::SpliceDecline::Callee(_) => "callee-decline",
+                            };
+                            *res.emit
+                                .entry(format!("fnbyte-splice-refused|{}|{why}", graded.shape))
+                                .or_insert(0) += 1;
+                        }
                     }
                 }
             }

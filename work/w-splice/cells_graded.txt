@@ -1,0 +1,59 @@
+
+== t01_empty_setup_tail
+   NO ROW
+
+== t02_empty_setup_bigger_callee
+   differs   tail    splice0=exact     -                      ?f@@YAHH@Z
+       w1/3/eq0  first@0:port=48000000,ref=546b103a
+   refused-clause  S5-callee-not-defined-here       1
+
+== t03_seq_identity_tail
+   NO ROW
+
+== t04_reg_move_setup
+   differs   tail    splice0=differs   -                      ?f@@YAHHH@Z
+       w2/2/eq0  first@0:port=7c832378,ref=38640001
+   refused-clause  S3-tail-setup                    1
+
+== t05_arith_setup
+   differs   tail    splice0=differs   -                      ?f@@YAHH@Z
+       w2/2/eq0  first@0:port=38630001,ref=38630002
+   refused-clause  S3-tail-setup                    1
+
+== t06_ptr_offset_setup
+   NO ROW
+
+== t07_framed_caller
+   differs   framed  splice0=differs   -                      ?f@@YAHH@Z
+       w9/2/eq0  first@0:port=7d8802a6,ref=38630003
+   refused-clause  S1-framed                        1
+
+== t08_two_calls
+   differs   seq     splice0=-         -                      ?f@@YAXXZ
+       w9/7/eq0  first@0:port=7d8802a6,ref=3d200000
+   refused-clause  S2-multi-call                    1
+
+== t09_unlowerable_callee
+   differs   tail    splice0=exact     -                      ?f@@YAHH@Z
+       w1/12/eq0  first@0:port=48000000,ref=7c6b1b78
+   refused-clause  S5-callee-not-defined-here       1
+
+== t10_callee_calls_extern
+   NO ROW
+
+== t11_fixpoint_two_steps
+   differs   tail    splice0=exact     FIRED->differs         ?f@@YAHH@Z
+       w1/2/eq0  first@0:port=48000000,ref=38630001
+
+== t12_self_recursion
+   differs   tail    splice0=exact     -                      ?f@@YAHH@Z
+       w1/6/eq0  first@0:port=48000000,ref=2f030000
+   refused-clause  S5-callee-not-defined-here       1
+
+== t13_size_boundary
+   differs   tail    splice0=exact     -                      ?f@@YAHHHHH@Z
+       w1/25/eq0  first@0:port=48000000,ref=fbe1fff8
+   refused-clause  S5-callee-not-defined-here       1
+
+== t14_extern_callee_control
+   NO ROW

@@ -305,16 +305,33 @@ pub fn splice_callee<'a>(
     selected: &Selected,
     tu: &TuContext<'a>,
 ) -> Option<&'a str> {
+    splice_callee_why(f, selected, tu).ok()
+}
+
+/// [`splice_callee`] with **the clause that refused**, for a diagnostic that has
+/// to price the shortfall rather than report it.
+///
+/// One implementation, two readers — the emitter takes `Ok`/`Err` and the
+/// instrument prints the `Err`. A separate "why did it refuse" routine would be
+/// the one-fact-two-implementations drift `docs/GAPS.md` §6 keeps recording, and
+/// here it would be worse than usual: the refusal reason is exactly what the
+/// next widening rung is priced in, so a stale copy would price the wrong
+/// clause.
+pub fn splice_callee_why<'a>(
+    f: &IlFunction,
+    selected: &Selected,
+    tu: &TuContext<'a>,
+) -> Result<&'a str, &'static str> {
     // **S9.** Mechanism E answers first and keeps its `blr`. Asked before
     // anything else so that a reader meets the precedence at the top, and so
     // that the two rules can never both claim one function.
     if drops_tail_call(f, tu.empty_callees()) {
-        return None;
+        return Err("S9-mechanism-e");
     }
     // **S8.** The caller's whole body is discarded; a data symbol of its own
     // would be discarded with it and no cell grades that.
     if f.data_sym.is_some() {
-        return None;
+        return Err("S8-caller-data-sym");
     }
     // **S1 and S3.** `Framed` is 0 of 123 and `CondPair` is a conditional site
     // that was never graded; `Plain` and `Float` name no callee at all. What
@@ -323,17 +340,26 @@ pub fn splice_callee<'a>(
     let callee: &str = match selected {
         // A tail call with a non-empty setup is SPLICE-P's `port_words > 1`
         // stratum: **0 of 953**, with 1,890 of them diverging at word 0.
-        Selected::Tail(setup) if setup.is_empty() => f.tail_call.as_deref()?,
+        Selected::Tail(setup) if setup.is_empty() => match f.tail_call.as_deref() {
+            Some(c) => c,
+            None => return Err("S1-tail-without-callee"),
+        },
+        Selected::Tail(_) => return Err("S3-tail-setup"),
         Selected::Seq { setups, .. } => {
-            let seq = f.call_seq.as_ref()?;
+            let Some(seq) = f.call_seq.as_ref() else {
+                return Err("S1-seq-without-call-seq");
+            };
             // **S2.** One call site. SPLICE-N is 0 of 548.
             if seq.calls.len() != 1 || setups.len() != 1 {
-                return None;
+                return Err("S2-multi-call");
             }
             // **S3.** Nothing around the call: no argument setup, no guarded
             // block (which is also §2's *conditional site*), no early return.
-            if !setups[0].is_empty() || seq.guard.is_some() || !seq.early.is_empty() {
-                return None;
+            if !setups[0].is_empty() {
+                return Err("S3-seq-setup");
+            }
+            if seq.guard.is_some() || !seq.early.is_empty() {
+                return Err("S3-seq-guard-or-early");
             }
             // **S3, the tail half.** The body may do nothing to r3 after the
             // call, because c2's inlined body is the callee's and carries no
@@ -355,22 +381,32 @@ pub fn splice_callee<'a>(
             match seq.tail {
                 SeqTail::CallValue { add_k: 0 } if seq.saved.is_empty() => {}
                 SeqTail::SavedFormal { param: 0 } if seq.saved.as_slice() == [0] => {}
-                _ => return None,
+                SeqTail::CallValue { .. } => return Err("S3-seq-tail-callvalue-k"),
+                SeqTail::SavedFormal { .. } => return Err("S3-seq-tail-savedformal-other"),
+                SeqTail::Void => return Err("S3-seq-tail-void"),
+                SeqTail::Lit(_) => return Err("S3-seq-tail-lit"),
+                SeqTail::CallLoad { .. } => return Err("S3-seq-tail-callload"),
+                SeqTail::CallLoadFp { .. } => return Err("S3-seq-tail-callloadfp"),
+                SeqTail::Cmp { .. } => return Err("S3-seq-tail-cmp"),
             }
             seq.calls[0].callee.as_str()
         }
-        _ => return None,
+        Selected::Framed { .. } => return Err("S1-framed"),
+        Selected::CondPair(_) => return Err("S1-cond-pair"),
+        Selected::Plain(_) | Selected::Float { .. } => return Err("S1-no-call"),
     };
     // **S4.** Self-recursion. c2 declines it too — `INLINE_PREDICATE.md` §4
     // grades the `recurse` family 336/336 — and a rule that took it would
     // splice a body into itself.
     if callee == f.mangled_name {
-        return None;
+        return Err("S4-self-recursion");
     }
     // **S5.** Defined here, once. Returned as the context's own `&'a str` so the
     // spliced body's relocations outlive the caller's borrow.
-    let (_, _) = tu.definition(callee)?;
-    self_named(tu, callee)
+    if tu.definition(callee).is_none() {
+        return Err("S5-callee-not-defined-here");
+    }
+    self_named(tu, callee).ok_or("S5-callee-not-defined-here")
 }
 
 /// The context's own copy of `name`, with the context's lifetime.
@@ -401,18 +437,45 @@ pub fn splice_body<'a>(
     mode: OptMode,
     tu: &TuContext<'a>,
 ) -> Result<Option<ComdatBody<'a>>, ComdatDecline> {
-    let Some(callee) = splice_callee(f, selected, tu) else {
-        return Ok(None);
-    };
+    match splice_body_why(f, selected, mode, tu) {
+        Ok(b) => Ok(Some(b)),
+        Err(SpliceDecline::Refused(_)) => Ok(None),
+        Err(SpliceDecline::Callee(d)) => Err(d),
+    }
+}
+
+/// Why the mechanism did not fire, or the callee's own decline propagated.
+///
+/// [`SpliceDecline::Callee`] cannot happen through S6, which treats an
+/// uncomposable callee as a refusal; the variant exists so that a future edit
+/// which stops doing that goes red rather than silent.
+#[derive(Debug)]
+pub enum SpliceDecline {
+    /// A clause of the predicate declined, named by its clause number.
+    Refused(&'static str),
+    /// The callee's own composition failed.
+    Callee(ComdatDecline),
+}
+
+/// [`splice_body`] with **the clause that refused**, for the same reason
+/// [`splice_callee_why`] exists: the refusal reason is what prices the next
+/// widening, so there is one implementation of it and not two.
+pub fn splice_body_why<'a>(
+    f: &IlFunction,
+    selected: &Selected,
+    mode: OptMode,
+    tu: &TuContext<'a>,
+) -> Result<ComdatBody<'a>, SpliceDecline> {
+    let callee = splice_callee_why(f, selected, tu).map_err(SpliceDecline::Refused)?;
     // **S7, the varargs half.** `N_max = 0` categorically (§6.18.5). MSVC
     // terminates a varargs argument list with `Z` where an ordinary one ends
     // `@`, so the mangled name ends `ZZ` — read off the name because that is
     // where §2's table says it is readable, IL side and obj side alike.
     if callee.ends_with("ZZ") {
-        return Ok(None);
+        return Err(SpliceDecline::Refused("S7-varargs"));
     }
     let Some((g, opt_word)) = tu.definition(callee) else {
-        return Ok(None);
+        return Err(SpliceDecline::Refused("S5-callee-not-defined-here"));
     };
     // The callee's own mode. A callee under a different `#pragma optimize` than
     // its caller allocates a chain intermediate to a different register
@@ -422,34 +485,37 @@ pub fn splice_body<'a>(
     let g_mode = match opt_word {
         Some(_) => match opt_mode_of_word(opt_word) {
             Ok(m) => m,
-            Err(_) => return Ok(None),
+            Err(_) => return Err(SpliceDecline::Refused("S6-callee-opt-mode")),
         },
         None => mode,
     };
     if g_mode != mode {
-        return Ok(None);
+        return Err(SpliceDecline::Refused("S6-mode-mismatch"));
     }
     // **S6.** The port must have a body for the callee — `t09` is the cell where
     // it does not — and that body is built with the splice DISABLED, which is
     // the one-level restriction.
     let Ok(g_sel) = crate::codegen::select_function(g, g_mode) else {
-        return Ok(None);
+        return Err(SpliceDecline::Refused("S6-callee-refused"));
     };
     let Ok(body) = crate::comdat::body_of(g, g_sel, g_mode, tu, false) else {
-        return Ok(None);
+        return Err(SpliceDecline::Refused("S6-callee-no-compose"));
     };
     // **S6, the frame half.** A framed callee carries a prologue, an epilogue
     // and a `.pdata` record whose association is a property of the function it
     // belongs to. Splicing one into a caller is a cell nobody graded.
     if body.frame.is_some() {
-        return Ok(None);
+        return Err(SpliceDecline::Refused("S6-callee-framed"));
     }
     // **S7.** The inline decision, on the side of its own boundary where it is
     // categorical in both linkage classes.
-    if body.text.is_empty() || body.text.len() > INLINE_UNBOUNDED_BYTES {
-        return Ok(None);
+    if body.text.is_empty() {
+        return Err(SpliceDecline::Refused("S7-callee-empty-text"));
     }
-    Ok(Some(body))
+    if body.text.len() > INLINE_UNBOUNDED_BYTES {
+        return Err(SpliceDecline::Refused("S7-callee-over-64B"));
+    }
+    Ok(body)
 }
 
 #[cfg(test)]
