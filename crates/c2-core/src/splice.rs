@@ -158,7 +158,7 @@ pub const INLINE_UNBOUNDED_BYTES: usize = 64;
 /// splices.
 ///
 /// It carries [`TuEmptyCallees`] rather than replacing it, and [`Deref`]s to it,
-/// so every existing caller of `drops_tail_call(f, tu)` and `tu.len()` reads the
+/// so every existing caller of `drops_tail_call(f, tu)` and `tu.reduces_to_nothing(..)` reads the
 /// same E context it always did. **E is still `elide.rs`'s and only its**; this
 /// type is the carrier, not a second implementation.
 ///
@@ -354,12 +354,33 @@ impl<'a> TuContext<'a> {
     /// How many definitions the context can splice from — printed by
     /// diagnostics rather than inferred, the same reason [`TuEmptyCallees::len`]
     /// exists.
-    pub fn len(&self) -> usize {
+    ///
+    /// # It is NOT called `len`, and that is a defect this lane shipped and caught
+    ///
+    /// This type `Deref`s to [`TuEmptyCallees`] so that every existing caller of
+    /// `drops_tail_call(f, &tu)` and `tu.reduces_to_nothing(..)` keeps working
+    /// untouched. **An inherent method shadows the `Deref` target's**, so while
+    /// this was spelled `len` the scan's `fnbyte-tu-empty-callees` key — which
+    /// has always meant *"how many names mechanism E admits"* — silently began
+    /// reporting the bundle's whole definition count instead: **88,894 →
+    /// 1,474,755** on the dc3 workload, a sixteen-fold move in a key nobody was
+    /// diffing, with no compile error and no test failure.
+    ///
+    /// It was found by a merge-time control that counts every *peer lane's* key
+    /// family at both ends (`work/w-splice/peerkeys.py`), not by anything in
+    /// this lane's own acceptance. The name is now unambiguous, so no future
+    /// caller can reach the wrong `len` by writing the obvious thing —
+    /// `docs/GAPS.md` §6's "one fact, one locator" applied to a *name* rather
+    /// than to an implementation.
+    pub fn definitions(&self) -> usize {
         self.rows.len()
     }
 
     /// True when the bundle contributed no definition at all.
-    pub fn is_empty(&self) -> bool {
+    ///
+    /// Named apart from [`TuEmptyCallees::is_empty`] for [`Self::definitions`]'s
+    /// reason.
+    pub fn has_no_definitions(&self) -> bool {
         self.rows.is_empty()
     }
 }
@@ -648,7 +669,7 @@ pub fn splice_body_why<'a>(
     // **THE CHAIN.** `S6-chain` below walks it; `seen` is what makes a cycle
     // terminate, and the ceiling is what makes a broken edit terminate too.
     let mut seen: Vec<&str> = vec![callee];
-    let ceiling = tu.len() + 1;
+    let ceiling = tu.definitions() + 1;
     loop {
         // **S7, the varargs half.** `N_max = 0` categorically (§6.18.5). MSVC
         // terminates a varargs argument list with `Z` where an ordinary one ends
@@ -1293,7 +1314,7 @@ mod tests {
         g.mangled_name = String::new();
         let funcs = [g];
         let tu = TuContext::of(&funcs);
-        assert_eq!(tu.len(), 0);
+        assert_eq!(tu.definitions(), 0);
         assert!(tu.definition("").is_none());
     }
 }

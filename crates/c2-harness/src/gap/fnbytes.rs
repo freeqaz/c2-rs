@@ -722,7 +722,14 @@ pub(super) fn measure(
     // census row that parsed — never per function, and never from the emitted
     // subset alone. See [`tu_empty_callees`] and `c2_core::elide`.
     let tu = tu_empty_callees(census);
-    *res.emit.entry("fnbyte-tu-empty-callees".into()).or_insert(0) += tu.len();
+    // **The E half, named explicitly.** `tu` is a `TuContext` (lane `w-splice`)
+    // which `Deref`s to the `TuEmptyCallees` this key has always counted — and
+    // an INHERENT method shadows a `Deref` target's, so while that type spelled
+    // its definition count `len` this line silently reported it instead:
+    // 88,894 -> 1,474,755 on the workload, no compile error, no test failure.
+    // The method is `definitions()` now and this call names the half it means.
+    *res.emit.entry("fnbyte-tu-empty-callees".into()).or_insert(0) +=
+        tu.empty_callees().len();
     // **The control on the input the elision reads.** A census row carries TWO
     // names from TWO different bindings: `IlFunction::mangled_name`, paired
     // POSITIONALLY over `.ex` segments (`bind.rs`'s own module doc pins that
