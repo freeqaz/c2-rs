@@ -1,0 +1,46 @@
+differs BEFORE 3338  AFTER 3195   left 143   entered 0
+
+--- ENTERED `differs` (the regression direction) ---
+
+--- LEFT `differs` (the conversion direction) ---
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@VDataNode@@@stlpmtx_ src/lazer/game/PartyModeMgr.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@PAV?$list@VSymbol@@V src/lazer/meta_ham/AccomplishmentManager.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@PAV?$set@VSymbol@@U? src/lazer/meta_ham/AccomplishmentManager.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@PAVAccomplishment@@@ src/lazer/meta_ham/AccomplishmentManager.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@PAVAccomplishmentCat src/lazer/meta_ham/AccomplishmentManager.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@PAVAccomplishmentGro src/lazer/meta_ham/AccomplishmentManager.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@PAVAward@@@stlpmtx_s src/lazer/meta_ham/AccomplishmentManager.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@V1@@stlpmtx_std@@V?$ src/lazer/meta_ham/AccomplishmentManager.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@VSymbol@@V?$StlNodeAlloc@VSymbol@@@stlpmt src/lazer/meta_ham/AccomplishmentManager.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@H@stlpmtx_std@@V?$St src/lazer/meta_ham/AccomplishmentProgress.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@VSymbol@@V?$StlNodeAlloc@VSymbol@@@stlpmt src/lazer/meta_ham/AccomplishmentProgress.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@H@stlpmtx_std@@V?$St src/lazer/meta_ham/Campaign.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@_N@stlpmtx_std@@V?$S src/lazer/meta_ham/Campaign.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@H@stlpmtx_std@@V?$St src/lazer/meta_ham/CampaignEra.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@PAVCampaignEraProgre src/lazer/meta_ham/CampaignProgress.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@PAVCampaignEraSongPr src/lazer/meta_ham/CampaignProgress.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@VSymbol@@V?$StlNodeAlloc@VSymbol@@@stlpmt src/lazer/meta_ham/CampaignProgress.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBHH@stlpmtx_std@@V?$StlNodeAll src/lazer/meta_ham/Challenges.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVString@@V?$vector@VChallenge src/lazer/meta_ham/Challenges.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVString@@VChallengeBadgeInfo@ src/lazer/meta_ham/Challenges.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@VSymbol@@V?$StlNodeAlloc@VSymbol@@@stlpmt src/lazer/meta_ham/CharacterProvider.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@VSymbol@@V?$StlNodeAlloc@VSymbol@@@stlpmt src/lazer/meta_ham/ContextChecker.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@VDataNode@@@stlpmtx_ src/lazer/meta_ham/FitnessGoalMgr.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVKey@MoveRatingHistory@@VRati src/lazer/meta_ham/HamProfile.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBHVSymbol@@@stlpmtx_std@@V?$St src/lazer/meta_ham/HamSongMetadata.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_ src/lazer/meta_ham/HamSongMgr.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBHPAVSongMetadata@@@stlpmtx_st src/lazer/meta_ham/HamSongMgr.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBHVSymbol@@@stlpmtx_std@@V?$St src/lazer/meta_ham/HamSongMgr.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@H@stlpmtx_std@@V?$St src/lazer/meta_ham/HamSongMgr.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@PAVPlaylist@@@stlpmt src/lazer/meta_ham/HamSongMgr.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@V?$vector@HV?$StlNod src/lazer/meta_ham/HamSongMgr.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@VString@@@stlpmtx_st src/lazer/meta_ham/HamSongMgr.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@PAV?$vector@PAVStore src/lazer/meta_ham/HamStoreProvider.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBIV?$vector@VLeaderboardRow@@V src/lazer/meta_ham/Leaderboards.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@V?$vector@VSymbol@@V src/lazer/meta_ham/MQSongSortMgr.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@V?$list@VString@@V?$ src/lazer/meta_ham/MainMenuPanel.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_ src/lazer/meta_ham/MetaPerformer.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@VDataNode@@@stlpmtx_ src/lazer/meta_ham/MetaPerformer.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@VSymbol@@V?$StlNodeAlloc@VSymbol@@@stlpmt src/lazer/meta_ham/MetaPerformer.cpp  tail w1/1/eq0
+  ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@H@stlpmtx_std@@V?$St src/lazer/meta_ham/MetagameRank.cpp  tail w1/1/eq0
+  … 103 more

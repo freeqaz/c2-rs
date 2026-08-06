@@ -1,0 +1,10 @@
+differs BEFORE 3338   AFTER 3195   left 143   entered 0
+
+=== ENTERED differs (the regression direction): 0 ===
+  (none)
+
+=== LEFT differs (the conversion direction): 143 ===
+  by shape:  tail 143
+  by family (top 10 of 1):
+    ??1?$_Rb_tree_base@…                                     143
+  distinct TUs: 97
