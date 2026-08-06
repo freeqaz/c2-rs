@@ -234,7 +234,7 @@ block's.
 | **emitted-function census** | in-class ∩ *code c2 actually emits* | gradeable by the differential on its own |
 | per-function census | **a driver** — it ranks rungs, and does that superbly | the target. "census → 100 %" is **retired** (§8.1) |
 | **PROGRESS MASS** (`P = mean(a,b,c,f)`) | **a driver** — the *ranking* metric, and the only one that can say which of two lanes moved more on a day TU match read 8 before and after ([`PROGRESS_METRIC.md`](PROGRESS_METRIC.md)) | a completion percentage. `P = 0.21` does **not** mean 21 % done — the four terms are necessary, not sufficient. Its `f` term inherits trap 2 whole |
-| **FUNCTION BYTE MATCH** (`FBM`) | **a driver** — the byte-exact differential asked *per emitted function* instead of per TU, so partial progress inside a TU is visible ([`FUNCTION_BYTE_MATCH.md`](FUNCTION_BYTE_MATCH.md)). The **only** continuous number on this page graded by the oracle's own bytes. **Quote it with `fnbyte-differs`, which was 0 until 2026-08-06, then 4,711, and is 3,338 since 2026-08-07 — quote it from a scan** | sufficient, and not a floor-free reading. A `.text` body is a *subset* of the obj, so `FBM = 1.0` would still not mean a matching TU. **The under-report it used to carry is CLOSED** — `fnbyte-partial` was 9,375 and is **0** (board #322, lane `w-fnbyte`); of that population **4,664 turned out byte-exact and 4,711 turned out WRONG**, so the widening bought +0.026 of ratio and one standing alarm that is no longer green by construction. `fnbyte-partial` is still printed, and prints `NONE` rather than vanishing |
+| **FUNCTION BYTE MATCH** (`FBM`) | **a driver** — the byte-exact differential asked *per emitted function* instead of per TU, so partial progress inside a TU is visible ([`FUNCTION_BYTE_MATCH.md`](FUNCTION_BYTE_MATCH.md)). The **only** continuous number on this page graded by the oracle's own bytes. **Quote it with `fnbyte-differs`, which was 0 until 2026-08-06, then 4,711, then 3,338, and is 3,195 since 2026-08-07 — quote it from a scan** | sufficient, and not a floor-free reading. A `.text` body is a *subset* of the obj, so `FBM = 1.0` would still not mean a matching TU. **The under-report it used to carry is CLOSED** — `fnbyte-partial` was 9,375 and is **0** (board #322, lane `w-fnbyte`); of that population **4,664 turned out byte-exact and 4,711 turned out WRONG**, so the widening bought +0.026 of ratio and one standing alarm that is no longer green by construction. `fnbyte-partial` is still printed, and prints `NONE` rather than vanishing |
 | emit-set ceiling (28/871 gate-anchored) | TUs where `.ex` segments == obj COMDATs — the most TU match can reach **before** Phase 7 exists | reachable by widening |
 | emit-set MODEL ceiling (338/871) | TUs where a segment-driven model binds every emitted symbol | the same thing as the line above (see below) |
 | mismatch count | an **alarm** — and on **2026-08-04 it FIRED, four times over**: board **#232**, **#259** (a family of six), **#263** and **#276**. **All four are closed on `33cbdbe`.** Before that day it had never fired, and that record was doing more reassuring than it had earned | ~~"it has never fired"~~; and never evidence of correctness, before or after (see the coverage bound). **Nor is "four found and closed" a completeness claim** — three of the four were found by lanes building probe grids for unrelated rungs, so the rate says more about how many grids were built that day than about how many defects remain |
@@ -467,12 +467,15 @@ misleading without them.
    > **per-function** gate. Boards **#876**–**#879**;
    > `rungs/2026-08-06-w-fnbyte.md`.
    >
-   > **⚠ 2026-08-07 — the split is now `35,839 exact · 3,338 differs · 0
+   > **⚠ 2026-08-07 — the split is now `35,982 exact · 3,195 differs · 0
    > unexamined`.** Lane `w-empty` closed 1,373 of the 4,711 by shipping
    > **mechanism E** (`crates/c2-core/src/elide.rs`), with `functions()`
-   > untouched and `mismatch` still 0. Boards **#916**–**#925**;
-   > `rungs/2026-08-07-w-empty.md`. **Quote `fnbyte-differs` from a scan and not
-   > from this page — it has moved twice in two days.**
+   > untouched and `mismatch` still 0 — boards **#916**–**#925**,
+   > `rungs/2026-08-07-w-empty.md`. Lane `w-fix` then closed **143** more by
+   > taking the same mechanism to its **fixpoint**, on 94 graded call edges —
+   > boards **#946**–**#955**, `rungs/2026-08-07-w-fix.md`. **Quote
+   > `fnbyte-differs` from a scan and not from this page — it has moved THREE
+   > times in two days.**
 
 3. **A residue shrinking is not the thing the residue is a proxy for.** §9.20.3
    raised the `.gl` name-distance bound and watched `records_nameless` fall
@@ -635,4 +638,4 @@ largest single file in the project is the member-call decode
 | **what the label counter charges, and the two channels it is NOT in** — `#286`/`#287` close "derive it from the blocks" | [`LABEL_COUNTER.md`](LABEL_COUNTER.md) §4.1 |
 | **why `/Ox` and `/O1` differ in more than a register field** — the refutation, and the three reasons the `else` arm is out of reach | [`OPT_MODE.md`](OPT_MODE.md) §3.0 |
 | the `.data`/`.bss` layout spec — allocator settled, walk order open | [`OBJ_DATA_BSS_SHAPE.md`](OBJ_DATA_BSS_SHAPE.md) |
-| **why c2 does not emit a call the IL contains — and why that is TWO mechanisms, only one of them a cost model.** **Mechanism E is SHIPPED** (`crates/c2-core/src/elide.rs`, 2026-08-07): 1,373 of the 4,711 closed, `fnbyte-differs 4,711 → 3,338`, zero regressions. Mechanism I is not, and holds at **0.9716** on a 100-TU frozen workload hold-out. Read §1.2–§1.5 before reusing E's rule — the page's own §1 is refuted there (E is a **fixpoint**, and it is a property of the call **site** too) | [`INLINE_PREDICATE.md`](INLINE_PREDICATE.md) |
+| **why c2 does not emit a call the IL contains — and why that is TWO mechanisms, only one of them a cost model.** **Mechanism E is SHIPPED, and so is its FIXPOINT** (`crates/c2-core/src/elide.rs`, 2026-08-07): 1,373 + **143** of the 4,711 closed, `fnbyte-differs 4,711 → 3,338 → 3,195`, zero regressions at either step. Mechanism I is not, and holds at **0.9716** on a 100-TU frozen workload hold-out. Read §1.2 before reusing E's rule — the page's own §1 is refuted there, and §1.2 now carries the **six places the chain stops**, three of which one cell could not have shown | [`INLINE_PREDICATE.md`](INLINE_PREDICATE.md) |

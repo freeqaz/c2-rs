@@ -285,13 +285,18 @@ pub fn comdat_body_from_selected<'a>(
             (t, calls)
         }
         // **MECHANISM E — the call c2 does not emit** (`crate::elide`,
-        // `docs/INLINE_PREDICATE.md` §1). A tail call whose callee is defined in
-        // this same bundle with an EMPTY body leaves no branch, no REL24 and no
-        // external symbol: c2's whole body for the caller is one `blr`, and the
-        // argument setup goes with the call. Measured on 30 graded cells against
-        // real c2 at the workload's own flags AND with `/Ob0` appended — the
-        // second compilation is what separates this from inline expansion, which
-        // is NOT modeled here and must not be.
+        // `docs/INLINE_PREDICATE.md` §1, §1.2). A tail call whose callee is
+        // defined in this same bundle by a body that **reduces to nothing**
+        // leaves no branch, no REL24 and no external symbol: c2's whole body for
+        // the caller is one `blr`, and the argument setup goes with the call.
+        //
+        // "Reduces to nothing" is a FIXPOINT, not "empty" — `void h(){}
+        // void g(){h();} void f(){g();}` drops BOTH calls. Measured on 30 graded
+        // cells for the one-step rule and 94 graded call edges for the closure,
+        // against real c2 at the workload's own flags AND with `/Ob0` appended;
+        // the second compilation is what separates this from inline expansion,
+        // which is NOT modeled here and must not be — `k12_cross_i` is a chain
+        // whose every caller is a bare `blr` at `/O1` and mechanism I at `/Ob0`.
         //
         // Asked before the ordinary `Tail` arm rather than inside it, because
         // the two produce different bodies from the same selection and the
