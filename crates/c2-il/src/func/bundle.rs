@@ -1710,11 +1710,21 @@ impl IlBundle {
         let inb = self.get("in").unwrap_or(&[]);
         let init = super::ininit::in_scalar_initializers(inb);
         // **The `.in` reader's totality invariant, as a GATE and not a report.**
-        // Every record that framed is a value, a named residue entry, or a
-        // dropped conflict. If that accounting does not close, the reader lost a
-        // record silently — and a silently lost record is a `.data` object with
-        // no bytes, which is the failure this whole path exists to prevent.
-        if init.values.len() + init.residue.len() + init.conflicts != init.records {
+        // Every record that framed either decoded or is a named residue entry.
+        // If that accounting does not close, the reader lost a record silently —
+        // and a silently lost record is a `.data` object with no bytes, which is
+        // the failure this whole path exists to prevent.
+        //
+        // **This used to read `values + residue + conflicts == records` and that
+        // was wrong in a way nothing could see until tag `02` landed** (board
+        // #936): `values` counts TOKENS and `records` counts RECORDS, so two
+        // records carrying one token and the same bytes broke it. It held while
+        // the accepted population was scalars only; the widening made the scan's
+        // `in-init-accounting-broken` control fire at **826 of 878** TUs, which
+        // is the control doing its job. The identity is over `accepted` now, and
+        // `duplicate_records` is published beside it rather than absorbed into
+        // it.
+        if init.accepted + init.residue.len() != init.records {
             return None;
         }
         let mut objects = Vec::with_capacity(records.len());

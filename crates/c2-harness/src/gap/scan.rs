@@ -498,6 +498,8 @@ fn scan_one(
     if let Some(r) = captured.bundle.in_init_report() {
         for (key, n) in [
             ("in-init-records", r.records),
+            ("in-init-accepted", r.accepted),
+            ("in-init-duplicate-records", r.duplicate_records),
             // ARITY, not totality (trap 4): a reader that lost an element inside
             // a record it still accepted moves neither `records` nor `residue`.
             ("in-init-elements", r.elements),
@@ -512,9 +514,15 @@ fn scan_one(
         for (reason, n) in &r.residue_by_reason {
             *res.emit.entry(format!("in-init-residue-{reason}")).or_insert(0) += n;
         }
-        // Totality, as a printed control and not as an assertion: a record that
-        // framed is a value, a named residue entry or a dropped conflict.
-        if r.values + r.residue + r.conflicts != r.records {
+        // **Totality, as a printed control and not as an assertion.** Every
+        // record that framed either decoded or is a named residue entry.
+        //
+        // This control FIRED at 826 of 878 TUs when tag `02` landed, and it was
+        // right to: the identity it was written with counted `values` (TOKENS)
+        // against `records` (RECORDS), which coincide only while no two accepted
+        // records share a token. That was true of the scalar-only population and
+        // false the moment the accepted set grew. Board **#937**.
+        if r.accepted + r.residue != r.records {
             *res.emit.entry("in-init-accounting-broken".into()).or_insert(0) += 1;
         }
     }

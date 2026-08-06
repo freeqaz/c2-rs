@@ -166,6 +166,15 @@ impl InInitResidue {
 pub struct InInitReport {
     /// Records that framed — the arity denominator.
     pub records: usize,
+    /// Records that framed **and decoded** — the totality numerator.
+    ///
+    /// **A count of RECORDS, where [`InInitReport::values`] is a count of
+    /// TOKENS**, and reading one for the other is what turned this report's own
+    /// accounting control red. See [`InInitCensus::accepted`].
+    pub accepted: usize,
+    /// Accepted records whose token another accepted record had already bound to
+    /// **the same bytes**. Not an error, and not zero.
+    pub duplicate_records: usize,
     /// Elements decoded across every accepted record (**arity**, trap 4).
     pub elements: usize,
     /// Tokens bound to bytes.
@@ -192,6 +201,8 @@ impl InInitCensus {
             .collect();
         InInitReport {
             records: self.records,
+            accepted: self.accepted,
+            duplicate_records: self.duplicate_records,
             elements: self.elements,
             values: self.values.len(),
             conflicts: self.conflicts,
@@ -238,6 +249,24 @@ pub(crate) struct InInitCensus {
     pub(crate) refs: std::collections::BTreeMap<u32, Vec<InSymbolRef>>,
     /// Records that framed at all — the arity denominator.
     pub(crate) records: usize,
+    /// Records that framed **and decoded** — the totality numerator.
+    ///
+    /// **This counts RECORDS where [`InInitCensus::values`] counts TOKENS, and
+    /// the two are not the same number.** Two records can carry the same token
+    /// and the same bytes: one entry in `values`, no conflict, two records. So
+    /// `values + residue + conflicts == records` holds only while every accepted
+    /// token is named by exactly one record — true of the scalar-only
+    /// population, and **false at 826 of 878 workload TUs** the moment tag `02`
+    /// was read, because the accepted population grew by an order of magnitude.
+    ///
+    /// The identity is stated over this field instead, and the duplicate
+    /// population is published rather than absorbed. That is the repair the
+    /// scan's own `in-init-accounting-broken` control forced; the control going
+    /// red is what it is for.
+    pub(crate) accepted: usize,
+    /// Accepted records whose token an earlier accepted record had already bound
+    /// to **the same bytes**. Not an error, and measurably not zero.
+    pub(crate) duplicate_records: usize,
     /// Elements decoded across every accepted record. **Arity, not totality**:
     /// `records` counts entities and `elements` counts their contents, and a
     /// reader that lost an element inside a record it still accepted would leave
@@ -421,6 +450,8 @@ pub(crate) fn in_scalar_initializers(inb: &[u8]) -> InInitCensus {
         std::collections::BTreeMap::new();
     let mut residue: Vec<(u32, InInitResidue)> = Vec::new();
     let mut records = 0usize;
+    let mut accepted = 0usize;
+    let mut duplicate_records = 0usize;
     let mut elements = 0usize;
     let mut i = 0usize;
     while i + 1 < inb.len() {
@@ -473,6 +504,7 @@ pub(crate) fn in_scalar_initializers(inb: &[u8]) -> InInitCensus {
             match parsed {
                 Ok((bytes, n, r)) if !bytes.is_empty() => {
                     elements += n;
+                    accepted += 1;
                     match values.get(&tok) {
                         None => {
                             values.insert(tok, Some(bytes));
@@ -483,7 +515,11 @@ pub(crate) fn in_scalar_initializers(inb: &[u8]) -> InInitCensus {
                         Some(Some(prev)) if *prev != bytes => {
                             values.insert(tok, None);
                         }
-                        _ => {}
+                        // Two records, one token, the same bytes. Not a conflict
+                        // — but it IS a second record, and counting it as one
+                        // entry in `values` is what broke the totality identity
+                        // at 826 TUs once tag `02` widened the accepted set.
+                        _ => duplicate_records += 1,
                     }
                     i = p;
                 }
@@ -512,6 +548,8 @@ pub(crate) fn in_scalar_initializers(inb: &[u8]) -> InInitCensus {
         values: values.into_iter().filter_map(|(t, b)| b.map(|b| (t, b))).collect(),
         refs,
         records,
+        accepted,
+        duplicate_records,
         elements,
         residue,
         conflicts,
@@ -859,13 +897,38 @@ mod tests {
         v.extend_from_slice(&record([0xe4, 0x09], &[0x01, 0x05, 0x08, 0, 0, 0, 0, 0, 0, 0xf0, 0x3f])); // float
         v.extend_from_slice(&record([0xe5, 0x09], &[0x01, 0x01, 0x02, 0x7f])); // ok
         let got = in_scalar_initializers(&v);
-        assert_eq!(
-            got.values.len() + got.residue.len() + got.conflicts,
-            got.records,
-            "records = values + residue + conflicts"
-        );
+        assert_eq!(got.accepted + got.residue.len(), got.records, "records = accepted + residue");
         assert_eq!(got.records, 3);
         assert_eq!(got.elements, 2, "ARITY: the refused record contributes none");
+    }
+
+    /// **`values` counts TOKENS and `records` counts RECORDS, and the identity
+    /// that confused them was live for the whole life of this reader** (board
+    /// **#937**).
+    ///
+    /// Two records, one token, the same bytes: not a conflict, and *two*
+    /// records. `values + residue + conflicts == records` is therefore `1 == 2`
+    /// — and it held on the workload only because the scalar-only accepted
+    /// population never contained enough of the shape to notice. The moment tag
+    /// `02` widened that population the scan's `in-init-accounting-broken`
+    /// control fired at **826 of 878** TUs, which is exactly what it is for; the
+    /// identity was repaired rather than the control adjusted.
+    #[test]
+    fn two_records_agreeing_on_one_token_are_two_records_and_one_value() {
+        let mut v = record([0xe3, 0x09], &[0x01, 0x01, 0x04, 0x03]);
+        v.extend_from_slice(&record([0xe3, 0x09], &[0x01, 0x01, 0x04, 0x03]));
+        let got = in_scalar_initializers(&v);
+        assert_eq!(got.records, 2);
+        assert_eq!(got.accepted, 2, "both records decoded");
+        assert_eq!(got.values.len(), 1, "one token");
+        assert_eq!(got.duplicate_records, 1);
+        assert_eq!(got.conflicts, 0, "agreement is not a conflict");
+        assert_eq!(got.accepted + got.residue.len(), got.records, "the repaired identity closes");
+        assert_ne!(
+            got.values.len() + got.residue.len() + got.conflicts,
+            got.records,
+            "and the OLD one does not — this is the case it could never see"
+        );
     }
 
     /// A truncated or empty stream yields nothing and does not panic — the CLI

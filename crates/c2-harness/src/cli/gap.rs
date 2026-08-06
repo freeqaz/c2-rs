@@ -378,13 +378,16 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
             // arity (`elements`, the records' contents) and injectivity
             // (`conflicts`).
             println!(
-                "    .in initializers: {} records, {} elements (ARITY), {} values, {} conflicts, \
-                 {} residue, {} accounting breaks (known answer 0)",
+                "    .in initializers: {} records = {} accepted + {} residue, {} elements \
+                 (ARITY), {} values (TOKENS, not records), {} duplicate records, {} conflicts, \
+                 {} accounting breaks (known answer 0)",
                 report.emit_total("in-init-records"),
+                report.emit_total("in-init-accepted"),
+                report.emit_total("in-init-residue"),
                 report.emit_total("in-init-elements"),
                 report.emit_total("in-init-values"),
+                report.emit_total("in-init-duplicate-records"),
                 report.emit_total("in-init-conflicts"),
-                report.emit_total("in-init-residue"),
                 report.emit_total("in-init-accounting-broken"),
             );
             println!(

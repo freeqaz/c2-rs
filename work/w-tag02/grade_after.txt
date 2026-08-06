@@ -1,8 +1,8 @@
 gap scan: 24 TUs, 8 flags, jobs=6, replay-every=0
   capture cache: DISABLED (--no-cache)
 provenance:
-  c2-rs      627a18e231dd (DIRTY)  <WORKTREE>
-  binary     934e03fcd6694298  <WORKTREE>/target/release/c2rs
+  c2-rs      beae250dd562 (DIRTY)  <WORKTREE>
+  binary     01234a5ec75c9b0b  <WORKTREE>/target/release/c2rs
   workload   (none — fixtures)
   wibo       wibo 1.2.0-c2rs.1 (Linux x86_64)  <HOME>/code/milohax/wibo/build/release/wibo
   cl.exe     <REPO>/compilers/X360/16.00.11886.00/cl.exe
@@ -10,10 +10,10 @@ provenance:
   c1xx.dll   <REPO>/compilers/X360/16.00.11886.00/c1xx.dll
   strace     /usr/bin/strace
   mingw      /usr/bin/i686-w64-mingw32-gcc
-  [1/24] codegen-gap  z:<WORKTREE>\work\w-tag02\grid\t05_ptr_to_func.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
-  [2/24] codegen-gap  z:<WORKTREE>\work\w-tag02\grid\t03_ptr_to_extern.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
-  [3/24] match        z:<WORKTREE>\work\w-tag02\grid\t04_ptr_to_static.cpp
-  [4/24] codegen-gap  z:<WORKTREE>\work\w-tag02\grid\t02_null_ptr.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
+  [1/24] codegen-gap  z:<WORKTREE>\work\w-tag02\grid\t02_null_ptr.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
+  [2/24] match        z:<WORKTREE>\work\w-tag02\grid\t04_ptr_to_static.cpp
+  [3/24] codegen-gap  z:<WORKTREE>\work\w-tag02\grid\t03_ptr_to_extern.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
+  [4/24] codegen-gap  z:<WORKTREE>\work\w-tag02\grid\t05_ptr_to_func.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
   [5/24] match        z:<WORKTREE>\work\w-tag02\grid\t01_ptr_to_global.cpp
   [6/24] codegen-gap  z:<WORKTREE>\work\w-tag02\grid\t06_ptr_to_literal.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
   [7/24] match        z:<WORKTREE>\work\w-tag02\grid\t10_array_offset.cpp
@@ -22,16 +22,16 @@ provenance:
   [10/24] match        z:<WORKTREE>\work\w-tag02\grid\t09_struct_offset.cpp
   [11/24] vocab-gap    z:<WORKTREE>\work\w-tag02\grid\t11_vfptr.cpp  (il function decode failed)
   [12/24] match        z:<WORKTREE>\work\w-tag02\grid\t12_ptr_to_member.cpp
-  [13/24] match        z:<WORKTREE>\work\w-tag02\grid\t16_ptr_to_self.cpp
+  [13/24] match        z:<WORKTREE>\work\w-tag02\grid\t14_const_ptr.cpp
   [14/24] match        z:<WORKTREE>\work\w-tag02\grid\t13_mixed_struct.cpp
   [15/24] match        z:<WORKTREE>\work\w-tag02\grid\t15_two_ptrs.cpp
-  [16/24] match        z:<WORKTREE>\work\w-tag02\grid\t14_const_ptr.cpp
-  [17/24] codegen-gap  z:<WORKTREE>\work\w-tag02\grid\t17_wide_ptr_deep.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
-  [18/24] match        z:<WORKTREE>\work\w-tag02\grid\t18_offset_128.cpp
-  [19/24] match        z:<WORKTREE>\work\w-tag02\grid\t20_offset_1200.cpp
-  [20/24] match        z:<WORKTREE>\work\w-tag02\grid\t21_offset_negative.cpp
+  [16/24] match        z:<WORKTREE>\work\w-tag02\grid\t16_ptr_to_self.cpp
+  [17/24] match        z:<WORKTREE>\work\w-tag02\grid\t18_offset_128.cpp
+  [18/24] codegen-gap  z:<WORKTREE>\work\w-tag02\grid\t17_wide_ptr_deep.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
+  [19/24] match        z:<WORKTREE>\work\w-tag02\grid\t19_offset_160.cpp
+  [20/24] match        z:<WORKTREE>\work\w-tag02\grid\t20_offset_1200.cpp
   [21/24] match        z:<WORKTREE>\work\w-tag02\grid\t22_offset_65540.cpp
-  [22/24] match        z:<WORKTREE>\work\w-tag02\grid\t19_offset_160.cpp
+  [22/24] match        z:<WORKTREE>\work\w-tag02\grid\t21_offset_negative.cpp
   [23/24] codegen-gap  z:<WORKTREE>\work\w-tag02\grid\t24_wide_target_token.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
   [24/24] codegen-gap  z:<WORKTREE>\work\w-tag02\grid\t23_wide_token.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
 
@@ -194,7 +194,7 @@ PHASE 7 FACTORS (ROADMAP §10.19/§10.21, boards #160/#179) — the model is A a
     gap-metric bytefrac-control-unexplained 0
   GAP-FACTOR-TUS: NOT REQUESTED — pass `--factors-tsv PATH` for the per-TU A/B/C/D/E membership. The joints above are counts; `|{some per-TU set} and B and C|` cannot be got from one, and multiplying a rate by a joint count is how `B and C` stayed published at 107 after C moved.
 
-GAP REPORT (24 TUs in 1.0s)
+GAP REPORT (24 TUs in 0.9s)
   match            15   62.5%
   mismatch          0    0.0%
   codegen-gap       8   33.3%
@@ -211,7 +211,7 @@ GAP REPORT (24 TUs in 1.0s)
     ground truth: 15 byte-exact TUs, every emitted symbol bound to an in-class row (residue 0)
     binding: 2 records, 0 nameless, 0 before the first row, 0 row-conflicts, 0 name-conflicts, 0 accounting breaks, 0 unreadable objs
     binding arity (#144 — residue 0 is not a control): 2 record offsets against 2 records, 0 arity breaks (known answer 0)
-    .in initializers: 917 records, 1100 elements (ARITY), 916 values, 0 conflicts, 1 residue, 0 accounting breaks (known answer 0)
+    .in initializers: 917 records = 916 accepted + 1 residue, 1100 elements (ARITY), 916 values (TOKENS, not records), 0 duplicate records, 0 conflicts, 0 accounting breaks (known answer 0)
     .in symbol addresses (element tag 02, board #931): 30 elements over 26 records
       .in residue symbol-address              0
       .in residue floating-point              0
