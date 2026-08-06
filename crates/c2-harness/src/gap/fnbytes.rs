@@ -57,7 +57,7 @@
 //! |---|---|---|
 //! | `fnbyte-exact` | the port's complete body is byte-identical to c2's | **yes** |
 //! | `fnbyte-differs` | the port's complete body differs | no |
-//! | `fnbyte-partial` | the port selected, but this shape's body is finished by the COFF emitter (a branch word that encodes its own `.text` offset, a frame, a pooled constant) — the harness must not reconstruct it | no |
+//! | `fnbyte-partial` | the port selected, and the **port's own `/Gy` composition** declined this body (a pooled FP constant; a frame or call sequence the port cannot lay out). Not a harness limit — see below | no |
 //! | `fnbyte-refused` | the port refuses this function | no |
 //! | `fnbyte-unbound` | no census row binds this emitted symbol, or two do | no |
 //! | `fnbyte-nobytes` | the COMDAT's raw data did not decode | no |
@@ -80,20 +80,36 @@
 //! have written. The one remaining lever is the instrument itself — see the
 //! `fnbyte-partial` note below — and it is deliberately left unpulled.
 //!
-//! # Its known limit, printed rather than papered over
+//! # Its known limit — CLOSED for four of the five shapes (board #322)
 //!
 //! `Selected::{Tail, Framed, Seq, CondPair}` and a `Float` with pooled constants
 //! hand back a body the *COFF emitter* finishes, because the missing words
-//! encode their own `.text` offset. The harness could append those words itself
-//! — and that would move functions from `fnbyte-partial` into `fnbyte-exact`
-//! with **zero** change to the port. That is the one way to inflate FBM, so the
-//! reconstruction is not done here: completing the class needs a per-function
-//! entry point in `c2-core` (board #322), which is the crate that owns the fact.
-//! Until then FBM is a **floor**: it under-reports the port and never over-
-//! reports it, and `fnbyte-partial` is printed beside it so the size of the
-//! under-report is never a rumour.
+//! encode their own `.text` offset. FBM declined to grade all five, and lane
+//! `w-seam` measured the size of that blind spot: **9,375 functions**
+//! (`tail 7098 · seq 2150 · framed 123 · cond-pair 4`) in which a wrong emit
+//! read as `differs 0`.
+//!
+//! **The decline reason was a statement about the PACKED emitter, and this
+//! instrument's denominator is the `/Gy` COMDAT population.** Under
+//! function-level linking every function starts at offset **0** of its own
+//! section, so the `.text` offset the harness "cannot know" is a constant, and
+//! `PortC2::build`'s `/Gy` branch has always composed these bodies completely.
+//! Lane `w-fnbyte` lifted that composition into
+//! [`c2_core::comdat::comdat_function_body`] and calls **it** — never a copy.
+//! That is the load-bearing part: a reconstruction written here could drift from
+//! the emitter, and an alarm that is green about bytes the port does not emit is
+//! worse than the blind one it replaced.
+//!
+//! What is still declined is `Float` with pooled constants, and it is declined
+//! because **the port itself refuses it under `/Gy`** (`docs/OBJ_GY_SHAPES.md`
+//! §2, the reverse-order `.rdata` append) — not because the harness will not
+//! reconstruct it. Zero functions in the dc3 workload are in that bucket.
+//!
+//! FBM is still a **floor**, for the reason §7.1 of the doc gives and not this
+//! one: a `.text` COMDAT's bytes are a subset of the obj.
 
-use c2_core::codegen::{opt_mode_of_word, select_function, Selected};
+use c2_core::codegen::{opt_mode_of_word, select_function};
+use c2_core::comdat::{comdat_body_from_selected, selected_tag, ComdatDecline};
 use c2_il::{FnCensus, IlFunction};
 use c2_obj::ObjImage;
 
@@ -148,29 +164,64 @@ impl FnByte {
     }
 }
 
-/// The port's **complete** body for one function, or the reason there is none.
-///
-/// "Complete" is a property of the [`Selected`] variant, not of its length: the
-/// four call shapes and a pooled-constant float leaf hand back a fragment whose
-/// remaining words encode their own `.text` offset, and only `coff::function`
-/// knows where the function lands. Reconstructing them here would be a second
-/// implementation of the emitter, and the FBM ratio would move without the port
-/// moving — see the module docs.
-fn complete_body(func: &IlFunction, opt_word: Option<u32>, ) -> Result<Vec<u8>, FnByte> {
-    let mode = opt_mode_of_word(opt_word).map_err(|_| FnByte::Refused)?;
-    match select_function(func, mode) {
-        Err(_) => Err(FnByte::Refused),
-        Ok(Selected::Plain(t)) => Ok(t),
-        // A float leaf with no pooled constant is a whole body; with one, the
-        // emitter owns the constant's placement and the reference site.
-        Ok(Selected::Float { text, consts }) if consts.is_empty() => Ok(text),
-        Ok(Selected::Float { .. }) => Err(FnByte::Partial("float-const")),
-        Ok(Selected::Tail(_)) => Err(FnByte::Partial("tail")),
-        Ok(Selected::Framed { .. }) => Err(FnByte::Partial("framed")),
-        Ok(Selected::Seq { .. }) => Err(FnByte::Partial("seq")),
-        Ok(Selected::CondPair(_)) => Err(FnByte::Partial("cond-pair")),
+/// Why a graded function has no port body — the *stage* that declined, kept
+/// apart from the bucket it lands in so the per-shape census can print a
+/// reason and not just a count.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Decline {
+    /// The `.ex` optimization word is not one this port emits for.
+    OptMode,
+    /// `codegen::select_function` refused the function outright.
+    Selector,
+    /// The selector lowered it, but the `/Gy` composition has no obj model for
+    /// this shape (today only a pooled floating-point constant, which the port
+    /// refuses under `/Gy` — so this is the *port's* limit, not the harness's).
+    GyShape,
+    /// The body exists and the data-symbol relocation halves cannot be located
+    /// inside it, so `PortC2::build` refuses the whole obj. The `.text` bytes
+    /// are real; the function is still one the port cannot emit.
+    DataRef,
+}
+
+impl Decline {
+    fn key(self) -> &'static str {
+        match self {
+            Decline::OptMode => "opt-mode",
+            Decline::Selector => "selector",
+            Decline::GyShape => "gy-shape",
+            Decline::DataRef => "data-ref",
+        }
     }
 }
+
+/// The port's **complete** `/Gy` COMDAT body for one function, its shape tag, or
+/// the reason there is none.
+///
+/// **It runs the port's own emitter** — [`comdat_body_from_selected`] is the
+/// same composition `PortC2::build` uses under function-level linking, called
+/// from `c2-core` rather than reimplemented here. Before board #322 this
+/// function mapped four of the six `Selected` variants straight to
+/// `FnByte::Partial` and compared no bytes at all; the module docs give the
+/// reason that argument was wrong for this denominator.
+fn complete_body(
+    func: &IlFunction,
+    opt_word: Option<u32>,
+) -> Result<(&'static str, Vec<u8>), (&'static str, Decline)> {
+    let mode = opt_mode_of_word(opt_word).map_err(|_| ("opt-mode", Decline::OptMode))?;
+    let selected = select_function(func, mode).map_err(|_| ("refused", Decline::Selector))?;
+    let shape = selected_tag(&selected);
+    match comdat_body_from_selected(func, selected, mode) {
+        Ok(b) => {
+            debug_assert_eq!(b.shape, shape);
+            Ok((shape, b.text))
+        }
+        Err(ComdatDecline::Shape(_)) => Err((shape, Decline::GyShape)),
+        Err(ComdatDecline::DataRef(_)) => Err((shape, Decline::DataRef)),
+        // Unreachable: the selection already succeeded above and is handed in.
+        Err(ComdatDecline::Selector(_)) => Err((shape, Decline::Selector)),
+    }
+}
+
 
 /// **The comparison itself**, isolated from every lookup so it is testable
 /// without an IL bundle or an obj.
@@ -199,6 +250,39 @@ pub fn compare_body(port: &[u8], reference: &[u8]) -> FnByte {
     }
 }
 
+/// The `fnbyte-partial|…` tag for a shape whose `/Gy` composition declined.
+///
+/// `float-const` keeps its historical name — it is the one shape whose decline
+/// is documented in `docs/FUNCTION_BYTE_MATCH.md` §3.1 and quoted elsewhere.
+/// Everything else gets `-compose`, because `seq` alone would read as "the
+/// instrument does not grade `seq`", which is the opposite of true.
+fn compose_tag(shape: &'static str) -> &'static str {
+    match shape {
+        "float-const" => "float-const",
+        "seq" => "seq-compose",
+        "framed" => "framed-compose",
+        "tail" => "tail-compose",
+        "cond-pair" => "cond-pair-compose",
+        other => other,
+    }
+}
+
+/// One emitted symbol's verdict, with the **shape** that produced it and the
+/// stage that declined when there is no body.
+///
+/// The shape is not decoration: board #322 is a lane about a blind spot that was
+/// invisible because the instrument printed a bucket without the shape behind
+/// it, and `partial by shape` was the one line that made its size legible.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Graded {
+    pub verdict: FnByte,
+    /// The `Selected` variant tag (`plain`/`tail`/`framed`/`seq`/`cond-pair`/
+    /// `float`/`float-const`), or a pseudo-tag when the port never got that far
+    /// (`refused`, `opt-mode`, `unbound`, `no-bytes`).
+    pub shape: &'static str,
+    pub decline: Option<Decline>,
+}
+
 /// Grade one emitted symbol.
 ///
 /// `row` is the unique census row that binds it (`None` when zero or two rows
@@ -206,21 +290,75 @@ pub fn compare_body(port: &[u8], reference: &[u8]) -> FnByte {
 pub fn grade_one(
     row: Option<&(FnCensus, Result<IlFunction, &'static str>)>,
     bytes: Option<&[u8]>,
-) -> FnByte {
+) -> Graded {
+    let g = |verdict, shape, decline| Graded {
+        verdict,
+        shape,
+        decline,
+    };
     let Some(bytes) = bytes else {
-        return FnByte::NoBytes;
+        return g(FnByte::NoBytes, "no-bytes", None);
     };
     let Some((census, gate)) = row else {
-        return FnByte::Unbound;
+        return g(FnByte::Unbound, "unbound", None);
     };
     let Ok(func) = gate else {
-        return FnByte::Refused;
+        return g(FnByte::Refused, "parse-refused", Some(Decline::Selector));
     };
-    let port = match complete_body(func, census.opt_word) {
-        Ok(t) => t,
-        Err(b) => return b,
+    match complete_body(func, census.opt_word) {
+        Ok((shape, port)) => g(compare_body(&port, bytes), shape, None),
+        // The `/Gy` composition has no obj model for the shape. It keeps the
+        // `partial` bucket because the body's bytes were never compared — and
+        // the tag says `-compose` for every shape but the pooled FP constant, so
+        // `partial by shape: seq 2` cannot be misread as "the instrument is
+        // still blind to `seq`". It is blind to two `seq` bodies whose own
+        // composition the port declined; the other 222 are graded.
+        Err((shape, Decline::GyShape)) => {
+            g(FnByte::Partial(compose_tag(shape)), shape, Some(Decline::GyShape))
+        }
+        // Everything else is a refusal: the port does not emit this function.
+        Err((shape, d)) => g(FnByte::Refused, shape, Some(d)),
+    }
+}
+
+/// **The byte-level witness for one differing function**: the index of the first
+/// disagreeing word and the two words themselves, as `first@<i>:port=<hex>,ref=
+/// <hex>`.
+///
+/// Recomputes the port body — this runs only on the `differs` path, whose known
+/// answer is 0, so the cost is paid exactly when something is wrong and the
+/// evidence is worth more than the cycles. `-` when there is no body at all
+/// (unreachable from the `Differs` arm; representable rather than a panic).
+fn differ_witness(
+    row: Option<&(FnCensus, Result<IlFunction, &'static str>)>,
+    reference: &[u8],
+) -> String {
+    let Some((census, Ok(func))) = row else {
+        return "first@-".to_string();
     };
-    compare_body(&port, bytes)
+    let Ok((_, port)) = complete_body(func, census.opt_word) else {
+        return "first@-".to_string();
+    };
+    let hex = |b: &[u8]| -> String {
+        b.iter()
+            .map(|x| format!("{x:02x}"))
+            .collect::<Vec<_>>()
+            .join("")
+    };
+    let n = port.len().min(reference.len()) / 4;
+    for i in 0..n {
+        let (a, b) = (&port[i * 4..i * 4 + 4], &reference[i * 4..i * 4 + 4]);
+        if a != b {
+            return format!("first@{i}:port={},ref={}", hex(a), hex(b));
+        }
+    }
+    // Every common word agrees: the bodies differ only in LENGTH, which is a
+    // distinct failure and must not be reported as a word mismatch.
+    format!(
+        "len:port={}B,ref={}B",
+        port.len(),
+        reference.len()
+    )
 }
 
 /// Run FBM over one TU and record it into `res.emit` under the `fnbyte-` keys.
@@ -284,10 +422,27 @@ pub(super) fn measure(
             Some([i]) => Some(&census[*i]),
             _ => None,
         };
-        let v = grade_one(row, Some(bytes.as_slice()));
+        let graded = grade_one(row, Some(bytes.as_slice()));
+        let v = graded.verdict;
         *res.emit.entry(v.key()).or_insert(0) += 1;
         if v.bare() != v.key() {
             *res.emit.entry(v.bare().into()).or_insert(0) += 1;
+        }
+        // **The per-shape census** (board #322). Two rows per function: what the
+        // port selected, and what the judge said about it. Before this lane the
+        // first row existed only for the `partial` bucket, so "which shapes is
+        // the alarm blind to" could be answered and "which shapes is it now
+        // GRADING, and with what verdict" could not.
+        *res.emit
+            .entry(format!("fnbyte-shape|{}", graded.shape))
+            .or_insert(0) += 1;
+        *res.emit
+            .entry(format!("fnbyte-shape|{}|{}", graded.shape, v.bare()))
+            .or_insert(0) += 1;
+        if let Some(d) = graded.decline {
+            *res.emit
+                .entry(format!("fnbyte-decline|{}", d.key()))
+                .or_insert(0) += 1;
         }
         accounted += 1;
         byte_den += bytes.len();
@@ -322,6 +477,18 @@ pub(super) fn measure(
             equal_words,
         } = v
         {
+            // **THE WITNESS.** A count cannot be acted on; a differ has to be
+            // reproducible from the scan's own output, by name and by word.
+            // Board #232/#259/#263/#276 were each closed from a named
+            // reproducer, and the first thing a lane needs is which function and
+            // which word. One key per differing function, value 1.
+            *res.emit
+                .entry(format!(
+                    "fnbyte-differs-fn|{}|w{port_words}/{ref_words}/eq{equal_words}|{}|{name}",
+                    graded.shape,
+                    differ_witness(row, bytes),
+                ))
+                .or_insert(0) += 1;
             *res.emit
                 .entry("fnbyte-differs-port-words".into())
                 .or_insert(0) += port_words;

@@ -619,6 +619,85 @@ impl GapReport {
         v
     }
 
+    /// **The per-shape census** (board #322): `(shape, verdict, count)` for
+    /// every `Selected` variant the port produced, crossed with what the judge
+    /// then said about its bytes.
+    ///
+    /// `fn_byte_partial_histogram` above answers *"which shapes is the alarm
+    /// blind to"*. This answers the question that replaces it once the blind
+    /// spot closes — ***which shapes is it now grading, and with what
+    /// verdict*** — and it is the only place a per-shape `differs` shows up as
+    /// a row rather than as a share of one corpus total. A shape that quietly
+    /// stopped being graded would lose its `exact` row here while
+    /// `fnbyte-differs` went on reading 0.
+    pub fn fn_byte_shape_census(&self) -> Vec<(String, String, usize)> {
+        let mut v: Vec<(String, String, usize)> = self
+            .emit_histogram()
+            .into_iter()
+            .filter_map(|(k, n)| {
+                let rest = k.strip_prefix("fnbyte-shape|")?;
+                let (shape, verdict) = rest.split_once('|')?;
+                Some((
+                    shape.to_string(),
+                    verdict.strip_prefix("fnbyte-").unwrap_or(verdict).to_string(),
+                    n,
+                ))
+            })
+            .collect();
+        v.sort_by(|a, b| b.2.cmp(&a.2).then_with(|| (&a.0, &a.1).cmp(&(&b.0, &b.1))));
+        v
+    }
+
+    /// **Every differing function, by name and by word** — the witness list
+    /// behind `fnbyte-differs`.
+    ///
+    /// Known answer: empty. A count cannot be acted on; each row here names the
+    /// shape, the word counts, the first disagreeing word (port and reference
+    /// hex) and the mangled symbol, which is what a lane needs to reproduce it.
+    /// Board #232/#259/#263/#276 were each closed from a named reproducer.
+    pub fn fn_byte_differ_witnesses(&self) -> Vec<String> {
+        let mut v: Vec<String> = self
+            .emit_histogram()
+            .into_iter()
+            .filter_map(|(k, _)| Some(k.strip_prefix("fnbyte-differs-fn|")?.to_string()))
+            .collect();
+        v.sort();
+        v
+    }
+
+    /// [`Self::fn_byte_differ_witnesses`] **collapsed to signatures**:
+    /// `(shape|words|first-disagreeing-word, distinct functions, one example
+    /// symbol)`, most frequent first.
+    ///
+    /// The witness list is the evidence; this is the part a reader can act on.
+    /// 1,950 mangled STL names all failing at word 0 with the same two words is
+    /// **one** finding, and a list that prints them one per line hides that
+    /// behind its own length — trap 5's shape, where the reader's own summary
+    /// step is what loses the information.
+    pub fn fn_byte_differ_signatures(&self) -> Vec<(String, usize, String)> {
+        let mut by_sig: std::collections::BTreeMap<String, (usize, String)> = Default::default();
+        for w in self.fn_byte_differ_witnesses() {
+            // `shape|words|first-word|symbol` — the symbol is the last field and
+            // mangled names contain `|` nowhere, but they DO contain `@` and
+            // `$`, so the split is from the right and by count, not by search.
+            let mut it = w.splitn(4, '|');
+            let (a, b, c, name) = (it.next(), it.next(), it.next(), it.next());
+            let (Some(a), Some(b), Some(c), Some(name)) = (a, b, c, name) else {
+                continue;
+            };
+            let e = by_sig
+                .entry(format!("{a}|{b}|{c}"))
+                .or_insert((0, name.to_string()));
+            e.0 += 1;
+        }
+        let mut v: Vec<(String, usize, String)> = by_sig
+            .into_iter()
+            .map(|(k, (n, ex))| (k, n, ex))
+            .collect();
+        v.sort_by(|x, y| y.1.cmp(&x.1).then_with(|| x.0.cmp(&y.0)));
+        v
+    }
+
     /// **Per-TU FBM**, nearest-to-done first: `(src, exact, denominator)` over
     /// every graded TU that carries at least one emitted function.
     ///

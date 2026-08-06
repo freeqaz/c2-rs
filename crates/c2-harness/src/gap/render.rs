@@ -664,8 +664,8 @@ pub(super) fn print_factorization(report: &GapReport) {
                  \x20     whole-TU    {:>8}  ({:>5.2}%)   CREDITED — on a TU the differential \
                  graded `match`; the judge certified the whole obj\n\
                  \x20     differs     {:>8}  ({:>5.2}%)   complete port body, bytes differ\n\
-                 \x20     partial     {:>8}  ({:>5.2}%)   selected; body finished by the COFF \
-                 emitter — FBM's own under-report (board #322)\n\
+                 \x20     partial     {:>8}  ({:>5.2}%)   selected; the PORT's own /Gy \
+                 composition declined the body (board #322 closed the harness's half)\n\
                  \x20     refused     {:>8}  ({:>5.2}%)   the port declines the function\n\
                  \x20     unbound     {:>8}  ({:>5.2}%)   no census row claims the symbol\n\
                  \x20     no-bytes    {:>8}  ({:>5.2}%)   COMDAT raw data did not decode\n\
@@ -726,6 +726,52 @@ pub(super) fn print_factorization(report: &GapReport) {
                 let rows: Vec<String> =
                     parts.iter().map(|(k, n)| format!("{k} {n}")).collect();
                 println!("\x20   partial by shape: {}", rows.join(" · "));
+            } else {
+                // **Printed as a positive statement, never as silence.** The
+                // absent line used to mean "no under-report"; absence reading as
+                // success is this project's most-repeated defect, so the empty
+                // case says so with the denominator beside it.
+                println!(
+                    "\x20   partial by shape: NONE — every selected shape was reconstructed \
+                     and graded ({} emitted functions)",
+                    f.denominator
+                );
+            }
+            // **The per-shape census** (board #322) — what the port selected,
+            // crossed with what the judge said. `partial by shape` answered
+            // "where is the alarm blind"; this answers "where is it now looking,
+            // and what did it see", which is the line that has to be read before
+            // `differs 0` means anything.
+            let shapes = report.fn_byte_shape_census();
+            if !shapes.is_empty() {
+                let rows: Vec<String> = shapes
+                    .iter()
+                    .map(|(s, v, n)| format!("{s}/{v} {n}"))
+                    .collect();
+                println!("\x20   graded by shape × verdict: {}", rows.join(" · "));
+            }
+            // **The witnesses.** Known answer: none. Every differing function is
+            // named with its first disagreeing word, because a count is not
+            // something a lane can reproduce from.
+            let wit = report.fn_byte_differ_witnesses();
+            if !wit.is_empty() {
+                let sigs = report.fn_byte_differ_signatures();
+                println!(
+                    "\x20   DIFFERS WITNESSES — {} distinct functions in {} SIGNATURES \
+                     (shape | port/ref/equal words | first disagreeing word):",
+                    wit.len(),
+                    sigs.len()
+                );
+                for (sig, n, ex) in sigs.iter().take(40) {
+                    println!("\x20     {n:>6}  {sig}   e.g. {ex}");
+                }
+                if sigs.len() > 40 {
+                    println!(
+                        "\x20     … and {} more signatures covering {} functions",
+                        sigs.len() - 40,
+                        sigs.iter().skip(40).map(|(_, n, _)| n).sum::<usize>()
+                    );
+                }
             }
             // Per-TU FBM, nearest first — the answer to "we are 8/878 exact, how
             // close is the other 870?" stated in TUs rather than in one ratio.

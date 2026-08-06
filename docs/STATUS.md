@@ -62,14 +62,14 @@ cost this project real work more than once.
 > 63,335 graded**.
 
 <!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->
-Collected 2026-08-05 · tree `50013bd` · binary `76e790ef15a6` · workload `20a48363`
+Collected 2026-08-06 · tree `f61db31` · binary `ae13470e648f` · workload `798ae68c`
 
 | metric | value |
 |---|---|
-| Workspace tests (cargo test --workspace --release) | 871 passed, 0 failed, 27 targets |
-| Oracle self-test (c2rs selftest) | 260 PASS, 0 FAIL |
-| Fixture port gate (c2rs perf) | 123 port Match, 0 mismatch, 137 not-implemented (of 260) |
-| Port speedup, geomean over matched fixtures | 608x geomean over matched fixtures |
+| Workspace tests (cargo test --workspace --release) | 916 passed, 0 failed, 28 targets |
+| Oracle self-test (c2rs selftest) | 265 PASS, 0 FAIL |
+| Fixture port gate (c2rs perf) | 124 port Match, 0 mismatch, 141 not-implemented (of 265) |
+| Port speedup, geomean over matched fixtures | 633x geomean over matched fixtures |
 | 878-TU dc3 workload scan (c2rs gap) | match 10, mismatch 0, codegen-gap 0, vocab-gap 861, capture-fail 7 |
 | Per-function census (driver, not target) | 711427/2463393 functions in class (28.88%) |
 | Emitted-function census | 39177/178975 emitted functions in class (21.89%) |
@@ -86,8 +86,8 @@ Collected 2026-08-05 · tree `50013bd` · binary `76e790ef15a6` · workload `20a
 | Emit-predicate worth, B∧C − A∧B∧C (board #213) | +124 TUs (B∧C − A∧B∧C) |
 | Factor-C section ladder (writer names / workload names / next step) | 10 writer names of 13 workload names; 3 steps left, next +.rdata$r → C = 590 |
 | PROGRESS MASS (driver, not target — docs/PROGRESS_METRIC.md) | P = 0.20828 · emitted in class 39177/178975 · mismatch-zeroed TUs 0 |
-| FUNCTION BYTE MATCH (driver, not target — docs/FUNCTION_BYTE_MATCH.md) | FBM = 0.16654 · 29802 exact + 5 whole-TU of 178975 emitted functions, over 865 TUs (6 at 100%) |
-| FBM partition (the under-report, and the controls) | partial 9375 (FBM under-reports by this) · differs 0 · refused 130573 · unbound 9225 · 0 credited fns carry a reloc FBM does not check · controls: partition-broken 0, match-TU differs 0, census disagree 0 |
+| FUNCTION BYTE MATCH (driver, not target — docs/FUNCTION_BYTE_MATCH.md) | FBM = 0.19259 · 34466 exact + 2 whole-TU of 178975 emitted functions, over 865 TUs (6 at 100%) |
+| FBM partition (the under-report, and the controls) | partial 0 (FBM under-reports by this) · differs 4711 · refused 130573 · unbound 9225 · 4664 credited fns carry a reloc FBM does not check · controls: partition-broken 0, match-TU differs 0, census disagree 0 |
 | Per-TU FBM (how close is the other 870) | 6 of 865 TUs with emitted functions are 100% byte-exact per function |
 
 <!-- END GENERATED -->
@@ -97,9 +97,32 @@ Collected 2026-08-05 · tree `50013bd` · binary `76e790ef15a6` · workload `20a
 ## The one-paragraph answer
 
 The **foundation is proven and fast**: standalone replay of the real `c2.dll` is
-byte-exact on all 871 capturable TUs of a real Xbox 360 game, and the port is
-byte-exact on every shape a standing instrument grades. The **payoff metric has
-moved for the first time**:
+byte-exact on all 871 capturable TUs of a real Xbox 360 game, and every obj the
+port has ever emitted matches — `mismatch` is 0 and has been through every gate
+in this document.
+
+> **⚠ 2026-08-06 — the clause that used to close that sentence, *"and the port is
+> byte-exact on every shape a standing instrument grades"*, is RETRACTED.** Lane
+> `w-fnbyte` widened FUNCTION BYTE MATCH to the four `/Gy` call shapes it had
+> been declining (board #322) and **`fnbyte-differs` went 0 → 4,711**: of the
+> 9,375 emitted functions the instrument could not previously see, **4,664 are
+> byte-exact and 4,711 are not**, and **`framed` is 0 of 123**. A standing
+> instrument grades those shapes now and the port is **not** byte-exact on them.
+>
+> **`mismatch` is still 0 and this is not a live wrong emit.**
+> `IlBundle::functions()` refuses every TU carrying one of the 4,711, so none has
+> ever reached an obj. What is wrong is the **emitted census's claim** — the
+> PROGRESS MASS's `f` numerator — and the hazard is the *next* `functions()`
+> widening, because every one of the 4,711 is already accepted by the
+> per-function gate. Boards **#876**–**#879**;
+> [`rungs/2026-08-06-w-fnbyte.md`](rungs/2026-08-06-w-fnbyte.md).
+>
+> This is the *third* time a sentence in this paragraph has been retracted by an
+> instrument widening (see the two below), and the pattern is now the point:
+> **every such retraction has come from widening an instrument, never from a
+> gate going red.** A green gate is a statement about the instruments.
+
+The **payoff metric has moved for the first time**:
 TU match is **10/878** (this paragraph read **8** until 2026-08-05 and the
 generated block above is the source), up from a 6 that had held across a per-function census run
 from 4.45 % to 28.69 %. The two new TUs are
@@ -192,7 +215,7 @@ block's.
 | **emitted-function census** | in-class ∩ *code c2 actually emits* | gradeable by the differential on its own |
 | per-function census | **a driver** — it ranks rungs, and does that superbly | the target. "census → 100 %" is **retired** (§8.1) |
 | **PROGRESS MASS** (`P = mean(a,b,c,f)`) | **a driver** — the *ranking* metric, and the only one that can say which of two lanes moved more on a day TU match read 8 before and after ([`PROGRESS_METRIC.md`](PROGRESS_METRIC.md)) | a completion percentage. `P = 0.21` does **not** mean 21 % done — the four terms are necessary, not sufficient. Its `f` term inherits trap 2 whole |
-| **FUNCTION BYTE MATCH** (`FBM`) | **a driver** — the byte-exact differential asked *per emitted function* instead of per TU, so partial progress inside a TU is visible ([`FUNCTION_BYTE_MATCH.md`](FUNCTION_BYTE_MATCH.md)). The **only** continuous number on this page graded by the oracle's own bytes | sufficient, and not a floor-free reading. A `.text` body is a *subset* of the obj, so `FBM = 1.0` would still not mean a matching TU; and it **under-reports by construction** — `fnbyte-partial` (9,374) is the size of that under-report and must always be quoted with it |
+| **FUNCTION BYTE MATCH** (`FBM`) | **a driver** — the byte-exact differential asked *per emitted function* instead of per TU, so partial progress inside a TU is visible ([`FUNCTION_BYTE_MATCH.md`](FUNCTION_BYTE_MATCH.md)). The **only** continuous number on this page graded by the oracle's own bytes. **Quote it with `fnbyte-differs`, which is 4,711 and was 0 until 2026-08-06** | sufficient, and not a floor-free reading. A `.text` body is a *subset* of the obj, so `FBM = 1.0` would still not mean a matching TU. **The under-report it used to carry is CLOSED** — `fnbyte-partial` was 9,375 and is **0** (board #322, lane `w-fnbyte`); of that population **4,664 turned out byte-exact and 4,711 turned out WRONG**, so the widening bought +0.026 of ratio and one standing alarm that is no longer green by construction. `fnbyte-partial` is still printed, and prints `NONE` rather than vanishing |
 | emit-set ceiling (28/871 gate-anchored) | TUs where `.ex` segments == obj COMDATs — the most TU match can reach **before** Phase 7 exists | reachable by widening |
 | emit-set MODEL ceiling (338/871) | TUs where a segment-driven model binds every emitted symbol | the same thing as the line above (see below) |
 | mismatch count | an **alarm** — and on **2026-08-04 it FIRED, four times over**: board **#232**, **#259** (a family of six), **#263** and **#276**. **All four are closed on `33cbdbe`.** Before that day it had never fired, and that record was doing more reassuring than it had earned | ~~"it has never fired"~~; and never evidence of correctness, before or after (see the coverage bound). **Nor is "four found and closed" a completeness claim** — three of the four were found by lanes building probe grids for unrelated rungs, so the rate says more about how many grids were built that day than about how many defects remain |
@@ -396,6 +419,19 @@ misleading without them.
    never-emitted bodies** — those are not in any obj and nothing can grade them —
    which is why the per-function census stays a driver and the emitted census
    stays the one the goal is written in.
+
+   > **⚠ 2026-08-06 — THE UNGRADED REMAINDER WAS GRADED AND HALF OF IT IS
+   > WRONG.** Lane `w-fnbyte` closed board #322: **100 % of the emitted in-class
+   > population is now graded by the oracle**, and the split is **34,466 exact ·
+   > 4,711 `fnbyte-differs` · 0 unexamined**. `framed` is **0 of 123**. The
+   > paragraph above is kept as written because the sentence it licensed —
+   > *"`fnbyte-differs` is 0"* — was quoted as evidence for a day and the
+   > correction is the record. **`mismatch` is still 0 and has never moved**:
+   > `IlBundle::functions()` refuses every TU carrying one of the 4,711, so what
+   > is wrong is the *census's claim*, not an obj. The hazard is the next
+   > `functions()` widening — every one of the 4,711 is already accepted by the
+   > **per-function** gate. Boards **#876**–**#879**;
+   > `rungs/2026-08-06-w-fnbyte.md`.
 
 3. **A residue shrinking is not the thing the residue is a proxy for.** §9.20.3
    raised the `.gl` name-distance bound and watched `records_nameless` fall

@@ -115,21 +115,52 @@ Three consequences, each unit-tested:
    (`objdiff-core/src/bindings/report.rs:249-250`); that is the bug, not the
    baseline. Test: `fnbyte_is_unrepresentable_over_zero_emitted_functions`.
 
-### 3.1 The one lever, and why it is left unpulled
+### 3.1 The one lever — CLOSED 2026-08-06, and it was pulled the safe way
 
-The honest gaming vector is not in the port — it is in the **instrument**.
-`Selected::{Tail, Framed, Seq, CondPair}` and a `Float` with pooled constants
-hand back a body whose remaining words the COFF emitter finishes, because those
-words encode their own `.text` offset. The harness *could* append them itself,
-and **9,374 functions would move from `fnbyte-partial` into `fnbyte-exact` with
-zero change to the port.**
+> **⚠ This section stood as written below until lane `w-fnbyte` (board #322,
+> #876–#885). Read the correction first: the reconstruction IS done now, it is
+> done in `c2-core` rather than in the harness, and it moved `fnbyte-differs`
+> from 0 to 4,711.**
 
-So the reconstruction is not done here. Closing that class needs a per-function
-entry point in `c2-core`, which is the crate that owns the fact (board #322).
-Until then **FBM is a floor**: it under-reports the port and never over-reports
-it, and `fnbyte-partial` is printed beside the ratio — and is a *required* part
-of the `STATUS.md` row, enforced by a must-fail mutation in
-`scripts/status.sh --check` — so the size of the under-report is never a rumour.
+**What it said.** The honest gaming vector is not in the port — it is in the
+**instrument**. `Selected::{Tail, Framed, Seq, CondPair}` and a `Float` with
+pooled constants hand back a body whose remaining words the COFF emitter
+finishes, because those words encode their own `.text` offset. The harness
+*could* append them itself, and 9,374 functions would move from `fnbyte-partial`
+into `fnbyte-exact` with zero change to the port. So the reconstruction is not
+done here; closing the class needs a per-function entry point in `c2-core`, the
+crate that owns the fact.
+
+**What was wrong with it, and what is true.** The decline reason is a statement
+about the **packed** emitter. FBM's denominator is the **`/Gy` COMDAT**
+population — `/O1` and `/O2` imply `/Gy`, and the whole workload is `/O1` — and
+under function-level linking **every function starts at offset 0 of its own
+section**. The `.text` offset the harness "could not know" is a constant there,
+and `PortC2::build`'s `/Gy` branch had composed all four bodies completely since
+W-UNW-1. It composed them **inline**, so nothing but the whole-TU emitter could
+reach the code. Reachability was the obstacle; reconstruction never was.
+
+`crates/c2-core/src/comdat.rs` is that composition, lifted verbatim, and
+**`fnbytes::complete_body` calls it — never a copy.** That is the load-bearing
+part of the closure: a second implementation in the harness could drift from the
+emitter, and an alarm that is green about bytes the port does not emit is worse
+than the blind one it replaced.
+
+**And the projection this section implied was wrong by half.** Board #322
+estimated `FBM 0.16251 → 0.21488` on the assumption that the 9,374 were exact.
+Measured: **4,664 exact, 4,711 differ**, `FBM 0.16654 → 0.19259`. See §6.1.
+
+**What is still `partial`, and why it is not this class.** A `Float` with pooled
+constants, tagged `float-const`, plus any body whose `/Gy` composition the port
+itself declines (tagged `<shape>-compose`). Those are the **port's** refusals,
+not the harness's. On the dc3 workload the count is **0**.
+
+FBM is still a **floor**, for §7.1's reason and not for this one: a `.text`
+COMDAT's bytes are a subset of the obj. `fnbyte-partial` is still printed beside
+the ratio and is still a *required* part of the `STATUS.md` row, enforced by a
+must-fail mutation in `scripts/status.sh --check`; it now prints
+`partial by shape: NONE` with the denominator beside it rather than vanishing,
+because an absent line is how absence reads as success.
 
 ## 4. What `PROGRESS_METRIC.md` got right, and the one thing it got wrong
 
@@ -199,6 +230,50 @@ is a control anchored on the oracle's own verdicts.
 
 ## 6. Measured value
 
+> ### ⚠ 2026-08-06 — the table in §6 below is the reading of a BLIND instrument. §6.1 is current.
+>
+> Every figure in §6 was taken while FBM declined to grade 9,375 emitted
+> functions. It is kept because the *shape* of the reading is still instructive
+> and because the sentence it licensed — quoted and corrected in §6.1 — was on
+> this page for a day.
+
+### 6.1 CURRENT — after board #322 (lane `w-fnbyte`, 2026-08-06)
+
+Workload scan, 878 TUs, `capture-fail 7 / graded 871`, tree `840ab02`, off master
+`33a1867`. Both ends of the same lane, so the only thing that changed is the
+instrument.
+
+| | before | after |
+|---|---:|---:|
+| **FBM** | 0.16654 | **0.19259** |
+| exact (per-function route) | 29,802 | **34,466** |
+| whole-TU (oracle-certified) | 5 | **2** — three of the five are now credited by the route itself |
+| **differs** | **0** | **4,711** |
+| partial (FBM's under-report) | 9,375 | **0** |
+| refused · unbound · denominator | 130,573 · 9,225 · 178,975 | **unchanged** |
+| `fnbyte-exact-relocated` (trap 6) | 0 | **4,664** |
+| controls: partition-broken · match-TU differs · census disagree | 0 · 0 · 0 | **0 · 0 · 0** |
+
+**Per shape:** `tail` 4,051 exact / 3,047 differ · `seq` 609 / 1,541 ·
+**`framed` 0 / 123** · `cond-pair` 4 / 0 · `plain` 29,352 / 0 · `float` 450 / 0.
+
+**THE CORRECTION THIS PAGE OWES.** §6's last paragraph read *"the `differs`
+column being 0 is the finding: **not one of the census's emitted in-class claims
+is wrong where it can be checked**."* That sentence was true of the 75.6 % of
+the population the instrument could see and **false of the rest**. Restated
+against the whole emitted in-class population: of **39,177** claims, **34,466
+are confirmed byte-exact, 4,711 are confirmed wrong, and 0 are unexamined.**
+
+`mismatch` is **0 at both ends and stays 0** — `IlBundle::functions()` refuses
+every TU carrying one of the 4,711, so no obj was ever emitted wrong. What is
+wrong is the **census's claim**, which is the PROGRESS MASS's `f` numerator; and
+because every one of the 4,711 is already accepted by the *per-function* gate, a
+TU-level widening that admits any TU containing one ships a wrong obj. Board
+**#876**–**#879**; taxonomy, hand-verified cause and the 61 signatures in
+`rungs/2026-08-06-w-fnbyte.md` §5.
+
+### 6.0 SUPERSEDED — the blind reading
+
 Workload scan, 878 TUs, `capture-fail 7 / graded 871`, tree `64f4754`
 (rebased onto `463796d`), workload `fe1b5b3`:
 
@@ -241,6 +316,13 @@ Two identities worth keeping:
    lowers little"; read `fnbyte-partial` beside it. And when board #322 lands, a
    jump of up to 9,374 will be an *instrument* change, not port progress — it
    must be reported as one.
+
+   **2026-08-06: #322 landed and the jump was +4,664, not +9,374.** It is an
+   instrument change and is reported as one (§6.1) — but the trap as written
+   anticipated only the *good* half. The other 4,711 became `fnbyte-differs`,
+   which is not a smaller gain, it is an **alarm**. The general form is worth
+   keeping: *when an instrument widens, the new population splits, and a lane
+   that budgeted only for the credit will read the split as a shortfall.*
 3. **`unbound` is an instrument limit wearing a port's clothes.** 9,225 emitted
    symbols bind to no census row; those are the emitted-census residue
    (`GAPS.md` §8) under a second name. A binding repair moves FBM without the
@@ -268,6 +350,17 @@ Two identities worth keeping:
    accepted shape that relocates (an address leaf over an external, a pooled
    float under `/Gy`) makes this bucket nonzero, and the number is printed on
    every scan so the change is loud rather than silent.
+
+   > **⚠ 2026-08-06 — IT CHANGED. `fnbyte-exact-relocated` is 4,664**, and that
+   > is **every single one** of the functions board #322's closure newly
+   > credited (`tail` 4,051 + `seq` 609 + `cond-pair` 4). A tail call's `b` is a
+   > REL24 by construction, so the whole newly-graded class relocates. `exact` is
+   > therefore **no longer a full function-identity claim for 4,664 of its
+   > 34,466**: two bodies calling two *different* functions are byte-identical
+   > here. The counter was built for this moment and it printed the number the
+   > day it happened, which is the whole point of measuring a caveat instead of
+   > writing one. Board **#884**. Closing it means comparing relocation records
+   > against the census's callee names — a `c2-obj` rung.
 7. **A `mismatch` TU's functions are still counted by the per-function route.**
    Unlike the progress mass, FBM does not zero a mismatching TU: its emitted
    functions are graded individually, and a function whose bytes are right is

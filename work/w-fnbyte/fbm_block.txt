@@ -1,0 +1,64 @@
+  FUNCTION BYTE MATCH (FBM) — a PROGRESS instrument, NEVER a gate (docs/FUNCTION_BYTE_MATCH.md).
+    The judge's own predicate — byte-identical to real c2 — asked per EMITTED FUNCTION instead of
+    per TU. No partial credit: a wrong body scores exactly what a refusal scores, which is 0.
+    The denominator is counted off c2's obj, so refusing more never shrinks it.
+    FBM = (34466 + 2)/178975 emitted functions byte-exact = 0.19259
+      exact          34466  (19.26%)   CREDITED — per-function route, bytes identical to c2's
+      whole-TU           2  ( 0.00%)   CREDITED — on a TU the differential graded `match`; the judge certified the whole obj
+      differs         4711  ( 2.63%)   complete port body, bytes differ
+      partial            0  ( 0.00%)   selected; body finished by the COFF emitter — FBM's own under-report (board #322)
+      refused       130573  (72.96%)   the port declines the function
+      unbound         9225  ( 5.15%)   no census row claims the symbol
+      no-bytes           0  ( 0.00%)   COMDAT raw data did not decode
+    objs unreadable (contribute NO denominator): 0   partition breaks (known answer 0): 0
+    KNOWN-ANSWER CONTROL — per-function bodies that DIFFER on a TU the oracle graded `match` (must be 0): 0
+    census/gate disagreement on EMITTED fns (the error term on the emitted census, target 0): 0
+    NOTE: the six buckets partition the denominator by the PER-FUNCTION route alone; on a `match` TU the whole-obj verdict supersedes them.
+    BYTES ARE NOT THE WHOLE FUNCTION: 4664 of the credited functions carry a relocation, whose
+    target FBM does NOT check — a `.text` COMDAT's raw bytes do not contain its relocations.
+    forensic (differs class ONLY, credited nowhere): 1435 of 19305 reference words positionally equal, port wrote 27736 words
+    partial by shape: NONE — every selected shape was reconstructed and graded (178975 emitted functions)
+    graded by shape × verdict: parse-refused/refused 130573 · plain/exact 29352 · unbound/unbound 9225 · tail/exact 4051 · tail/differs 3047 · seq/differs 1541 · seq/exact 609 · float/exact 450 · framed/differs 123 · cond-pair/exact 4
+    DIFFERS WITNESSES — 1950 distinct functions in 61 SIGNATURES (shape | port/ref/equal words | first disagreeing word):
+         617  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020   e.g. ??1?$_Rb_tree_base@GV?$StlNodeAlloc@G@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+         303  seq|w12/2/eq0|first@0:port=7d8802a6,ref=90830000   e.g. ??0?$_List_iterator@HU?$_Const_traits@H@stlpmtx_std@@@stlpmtx_std@@QAA@PAU_List_node_base@1@@Z
+         232  seq|w19/6/eq0|first@0:port=7d8802a6,ref=81630000   e.g. ??$?8PAPAVStoreOffer@@@stlpmtx_std@@YA_NABV?$reverse_iterator@PAPAVStoreOffer@@@0@0@Z
+         174  tail|w2/1/eq0|first@0:port=38a00000,ref=4e800020   e.g. ??$_Destroy_Range@PAE@stlpmtx_std@@YAXPAE0@Z
+         132  tail|w1/3/eq0|first@0:port=48000000,ref=81630000   e.g. ??C?$_List_iterator@U?$pair@PAVObject@Hmx@@PAVObjectDir@@@stlpmtx_std@@U?$_Nonconst_traits@U?$pair@PAVObject@Hmx@@PAVObjectDir@@@stlpmtx_std@@@2@@stlpmtx_std@@QBAPAU?$pair@PAVObject@Hmx@@PAVObjectDir@@@1@XZ
+          83  framed|w9/3/eq0|first@0:port=7d8802a6,ref=81630004   e.g. ?back@?$vector@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@QAAAAHXZ
+          56  seq|w13/20/eq8|first@8:port=38210060,ref=3d600000   e.g. ??$Obj@VBeatClock@@@DataArray@@QBAPAVBeatClock@@H@Z
+          52  tail|w2/20/eq0|first@0:port=38a00000,ref=7d8802a6   e.g. ??$_Destroy_Moved_Range@PAV?$map@HMU?$less@H@stlpmtx_std@@V?$StlNodeAlloc@U?$pair@$$CBHM@stlpmtx_std@@@2@@stlpmtx_std@@@stlpmtx_std@@YAXPAV?$map@HMU?$less@H@stlpmtx_std@@V?$StlNodeAlloc@U?$pair@$$CBHM@stlpmtx_std@@@2@@0@0@Z
+          41  tail|w1/2/eq0|first@0:port=48000000,ref=80630000   e.g. ?front@?$vector@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@QAAAAHXZ
+          38  tail|w1/4/eq0|first@0:port=48000000,ref=3d600000   e.g. ??1?$StackString@$0BAA@@@UAA@XZ
+          36  tail|w1/8/eq0|first@0:port=48000000,ref=2b040000   e.g. ??$__uninitialized_fill_n@PAFIF@stlpmtx_std@@YAPAFPAFIABFABU__true_type@0@@Z
+          34  tail|w2/12/eq0|first@0:port=38a00000,ref=7d8802a6   e.g. ??$_Destroy_Moved_Range@PAUNode@?$ObjPtrVec@VCharClip@@VObjectDir@@@@@stlpmtx_std@@YAXPAUNode@?$ObjPtrVec@VCharClip@@VObjectDir@@@@0@Z
+          24  tail|w1/16/eq0|first@0:port=48000000,ref=3d600000   e.g. ??1?$Key@VObjectStage@@@@QAA@XZ
+          14  tail|w1/7/eq0|first@0:port=48000000,ref=81630008   e.g. ?_S_minimum@?$_Rb_tree@GU?$less@G@stlpmtx_std@@GU?$_Identity@G@2@U?$_SetTraitsT@G@priv@2@V?$StlNodeAlloc@G@2@@stlpmtx_std@@KAPAU_Rb_tree_node_base@2@PAU32@@Z
+          14  tail|w1/7/eq0|first@0:port=48000000,ref=8163000c   e.g. ?_S_maximum@?$_Rb_tree@GU?$less@G@stlpmtx_std@@GU?$_Identity@G@2@U?$_SetTraitsT@G@priv@2@V?$StlNodeAlloc@G@2@@stlpmtx_std@@KAPAU_Rb_tree_node_base@2@PAU32@@Z
+          14  tail|w1/9/eq0|first@0:port=48000000,ref=80830000   e.g. ??1?$Key@V?$vector@VVector2@@V?$StlNodeAlloc@VVector2@@@stlpmtx_std@@@stlpmtx_std@@@@QAA@XZ
+           8  tail|w2/16/eq0|first@0:port=3863000c,ref=3d600000   e.g. ??1?$FlowPtr@VFlow@@@@QAA@XZ
+           7  seq|w9/9/eq8|first@4:port=4bfffff1,ref=80630000   e.g. ?UncheckedArray@DataArray@@QAAPAV1@H@Z
+           6  tail|w1/10/eq0|first@0:port=48000000,ref=80830000   e.g. ??1?$Keys@UDircutEntry@HamDirector@@U12@@@QAA@XZ
+           6  tail|w2/10/eq0|first@0:port=38630004,ref=80830004   e.g. ??1?$pair@$$CBVSymbol@@V?$vector@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+           5  seq|w12/3/eq0|first@0:port=7d8802a6,ref=39600000   e.g. ??0?$_Rb_tree_iterator@U?$pair@$$CBVSymbol@@PAV?$vector@PAVStoreOffer@@V?$StlNodeAlloc@PAVStoreOffer@@@stlpmtx_std@@@stlpmtx_std@@@stlpmtx_std@@U?$_MapTraitsT@U?$pair@$$CBVSymbol@@PAV?$vector@PAVStoreOffer@@V?$StlNodeAlloc@PAVStoreOffer@@@stlpmtx_std@@@stlpmtx_std@@@stlpmtx_std@@@priv@2@@stlpmtx_std@@QAA@XZ
+           5  tail|w2/6/eq0|first@0:port=38630004,ref=81630008   e.g. ??1?$pair@$$CBVSymbol@@VDataNode@@@stlpmtx_std@@QAA@XZ
+           3  tail|w2/4/eq0|first@0:port=38630004,ref=3d600000   e.g. ??1?$pair@$$CBVSymbol@@VSongRecord@@@stlpmtx_std@@QAA@XZ
+           2  seq|w9/9/eq8|first@4:port=4bfffff1,ref=80630004   e.g. ?Type@DataArray@@QAA?AW4DataType@@H@Z
+           2  tail|w1/18/eq0|first@0:port=48000000,ref=7d8802a6   e.g. ??$__uninitialized_fill_n@PADID@stlpmtx_std@@YAPADPADIABDABU__true_type@0@@Z
+           2  tail|w1/6/eq0|first@0:port=48000000,ref=7c6b1b78   e.g. ??1DxRndTexMgr@@UAA@XZ
+           2  tail|w1/7/eq0|first@0:port=48000000,ref=3d600000   e.g. ??1EnvelopeGenerator@@UAA@XZ
+           2  tail|w2/11/eq0|first@0:port=38630008,ref=80830008   e.g. ??1ActionRec@@QAA@XZ
+           2  tail|w2/16/eq0|first@0:port=38630004,ref=3d600000   e.g. ??1?$pair@$$CBW4Difficulty@@VAnimPtr@@@stlpmtx_std@@QAA@XZ
+           2  tail|w2/16/eq0|first@0:port=38630024,ref=3d600000   e.g. ??1CharClipDriver@@QAA@XZ
+           2  tail|w3/4/eq1|first@1:port=386b0000,ref=396b0000   e.g. ?MoveBeat@MoveDir@@QBAHXZ
+           1  seq|w12/7/eq0|first@0:port=7d8802a6,ref=39600000   e.g. ??0?$vector@_NV?$StlNodeAlloc@_N@stlpmtx_std@@@stlpmtx_std@@QAA@ABV?$StlNodeAlloc@_N@1@@Z
+           1  seq|w13/1/eq0|first@0:port=7d8802a6,ref=48000000   e.g. ??APaddedJointPos@@QAAAAMH@Z
+           1  seq|w13/43/eq5|first@3:port=4bfffff5,ref=38610050   e.g. ?Init@Sequence@@SAXXZ
+           1  seq|w20/6/eq0|first@0:port=7d8802a6,ref=81640000   e.g. ??RMoveDetectorCmp@@QBA_NPAVMoveDetector@@0@Z
+           1  seq|w21/26/eq2|first@2:port=fbe1fff0,ref=9421ffa0   e.g. ?supershuffle@@YAXPAD@Z
+           1  seq|w22/8/eq0|first@0:port=7d8802a6,ref=81640020   e.g. ??RPriority@@QBA_NPAVFileCacheEntry@@0@Z
+           1  tail|w1/10/eq0|first@0:port=48000000,ref=7c8b2378   e.g. ??Y?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@stlpmtx_std@@QAAAAV01@PBD@Z
+           1  tail|w1/13/eq0|first@0:port=48000000,ref=3d400000   e.g. ??1CharBonesObject@@UAA@XZ
+           1  tail|w1/2/eq0|first@0:port=48000000,ref=38630004   e.g. ??1StreamChecksumValidator@@QAA@XZ
+      … and 21 more signatures covering 21 functions
+    per-TU FBM over 865 TUs with emitted functions — ≥100%: 6, ≥90%: 6, ≥50%: 14, ≥10%: 772
