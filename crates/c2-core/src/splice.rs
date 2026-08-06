@@ -475,9 +475,16 @@ pub fn splice_callee_why<'a>(
             // * `SavedFormal { param: 0 }` — the WEC shape, an empty
             //   constructor delegating to one base: `mr r31,r3 ; bl ?B ;
             //   mr r3,r31`. The formal handed back is the one that was already
-            //   in r3 at entry, so with an empty setup the whole body is the
-            //   call. This is the 634-function `seq` family and `t03` is its
-            //   cell.
+            //   in r3 at entry, so with an identity argument mapping the whole
+            //   body IS the call. **This is the 634-function `seq` family**, and
+            //   its witness is a workload obj rather than a hand cell —
+            //   `??0?$_List_iterator@VString@@…` in `CharDriver.cpp` emits
+            //   `stw r4,0(r3) ; blr`, word for word its base constructor's
+            //   body, where the port's own lowering is three words inside a
+            //   96-byte frame (`work/w-splice/caps/chardriver.excerpt.txt`).
+            //   GRID-T's `t03` was meant to be the hand cell and is a **dud**:
+            //   its base constructor is declared and never defined, so it has no
+            //   `Seq` body to grade. Said rather than smoothed.
             //
             // Every other tail — a literal, a read-through, a comparison —
             // emits words of its own after the `bl`, and c2's inlined body would
