@@ -1,0 +1,19 @@
+cells: 6   compiled(/O1): 6   compiled(/Ob0): 6   edges: 12
+
+cell                   edge           verdict  blr?   rel24     caller .text at /O1
+-----------------------------------------------------------------------------------
+n1_fp_arg_mid          g1->h          E        blr    0->0      4e800020
+n1_fp_arg_mid          f->g1          E        blr    0->0      4e800020
+n2_member_mid          S::g1->S::h    E        blr    0->0      4e800020
+n2_member_mid          f->S::g1       E        blr    0->0      4e800020
+n3_virtual_mid         S::g1->S::h    E        blr    0->0      4e800020
+n3_virtual_mid         f->S::g1       E        blr    0->0      4e800020
+n4_inline_mid          g1->h          E        blr    0->0      4e800020
+n4_inline_mid          f->g1          E        blr    0->0      4e800020
+n5_three_args_mid      g1->h          E        blr    0->0      4e800020
+n5_three_args_mid      f->g1          E        blr    0->0      4e800020
+n6_ctor_chain          C::C->B::B     E        blr    0->0      4e800020
+n6_ctor_chain          B::B->A::A     E        blr    0->0      4e800020
+
+edge verdicts: E 12
+graded: 12 of 12 edges
