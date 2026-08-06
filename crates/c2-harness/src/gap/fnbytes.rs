@@ -408,6 +408,138 @@ fn differ_witness(
     )
 }
 
+// ---------------------------------------------------------------------------
+// THE RESIDUAL-DIFFER FORENSICS (lane `w-seq`, boards #966–#970)
+//
+// `fnbyte-differs` is 3,195 and the witness key says *what* the bytes are. It
+// does not say *why*, and "why" here has exactly two candidate mechanisms
+// (`docs/INLINE_PREDICATE.md` §0), which need different rungs:
+//
+//   I  c2 expanded a same-TU callee into this caller, so the reference body
+//      CONTAINS the callee's code and the port emits a branch to it;
+//   E  the callee reduces to nothing in c2 and the port cannot say so, because
+//      the callee's IL body is refused by a named production (§1.4's 370).
+//
+// Both are statements about **the callee**, so the forensics below resolve the
+// port's own callee set against this TU's census rows and publish the
+// disposition of each. Everything here is additive: it writes only new keys and
+// reads no existing one.
+// ---------------------------------------------------------------------------
+
+/// Every callee the port's own selection names, in selection order.
+///
+/// #644: read off the decoded fields, never off a byte offset. A shape that
+/// carries no callee returns empty, which is a *printed* class (`no-callee`)
+/// rather than an absence — `docs/STATUS.md` trap 5.
+fn port_callees(f: &IlFunction) -> Vec<&str> {
+    let mut v: Vec<&str> = Vec::new();
+    if let Some(c) = f.tail_call.as_deref() {
+        v.push(c);
+    }
+    if let Some(fc) = f.framed_call.as_ref() {
+        v.push(fc.callee.as_str());
+    }
+    if let Some(cs) = f.call_seq.as_ref() {
+        for c in &cs.calls {
+            v.push(c.callee.as_str());
+        }
+    }
+    if let Some(cp) = f.cond_pair.as_ref() {
+        v.push(cp.then_arm.callee.as_str());
+        v.push(cp.else_arm.callee.as_str());
+    }
+    v
+}
+
+/// One callee's **disposition** in the TU that names it.
+///
+/// `extern` is the honest answer for a callee no census row of this TU binds —
+/// neither mechanism can be about it, because c2 has no body to expand or to
+/// find empty. `refused:<production>` is family (b)'s whole content: the
+/// production is the price, and naming it is what makes the family a work list.
+fn callee_disposition(
+    callee: &str,
+    claim: &std::collections::BTreeMap<&str, Vec<usize>>,
+    census: &[(FnCensus, Result<IlFunction, &'static str>)],
+    tu: &TuEmptyCallees,
+    refbytes: &std::collections::BTreeMap<&str, &[u8]>,
+) -> String {
+    let Some([i]) = claim.get(callee).map(Vec::as_slice) else {
+        // Zero rows bind it (external), or two do — the second is `unbound`'s
+        // own ambiguity and is kept apart from it rather than folded in.
+        return match claim.get(callee).map(Vec::len) {
+            None => "extern".to_string(),
+            Some(_) => "ambiguous".to_string(),
+        };
+    };
+    match &census[*i].1 {
+        // The gate's own `&'static str` is the coarse `blocked`; the PRODUCTION
+        // is `FnVerdict::key()`, the blocking-feature key the census histogram
+        // is ranked by — which is what a widening rung is priced in. Reading the
+        // coarse one printed `refused:blocked` 1,774 times and named nothing.
+        Err(_) => format!("refused:{}", census[*i].0.verdict.key()),
+        Ok(g) => {
+            if tu.reduces_to_nothing(callee) {
+                "reduces".to_string()
+            } else if g.empty_body {
+                "empty".to_string()
+            } else {
+                // **Can the port lower the callee?** This is the question that
+                // prices family (a): a splice is only available if the port has
+                // bytes to splice. Graded by the judge — the port's own `/Gy`
+                // body for the callee against c2's COMDAT for it in this obj.
+                match (
+                    complete_body(g, census[*i].0.opt_word, tu),
+                    refbytes.get(callee).copied(),
+                ) {
+                    (Ok((_, p)), Some(r)) if p == r => "body:exact".to_string(),
+                    (Ok(_), Some(_)) => "body:differs".to_string(),
+                    (Ok(_), None) => "body:no-comdat".to_string(),
+                    (Err(_), _) => "body:nocompose".to_string(),
+                }
+            }
+        }
+    }
+}
+
+/// **SPLICE-P**, evaluated against real c2's own obj.
+///
+/// > For a caller the port lowers to a body ending in one branch word, the
+/// > emission c2 produces is the port's setup with that branch word replaced by
+/// > **c2's own emitted body for the callee**:
+/// > `splice = port[..len-4] ++ ref_body(callee)`.
+///
+/// The hypothesis is graded by the sole judge on the whole workload rather than
+/// on hand cells, because the reference obj carries *both* COMDATs. What it
+/// cannot say is whether the **port** could produce those bytes — that is the
+/// callee's own FBM verdict, published beside this one.
+///
+/// Returns `None` when no splice can be formed (no single callee, or the
+/// reference obj has no COMDAT for it), which is a counted class and never a
+/// silent skip.
+fn splice_of(port: &[u8], callee_ref: &[u8]) -> Option<Vec<u8>> {
+    if port.len() < 4 {
+        return None;
+    }
+    let mut v = port[..port.len() - 4].to_vec();
+    v.extend_from_slice(callee_ref);
+    Some(v)
+}
+
+/// Does `hay` contain `needle` as a **contiguous word run**?
+///
+/// The weaker question SPLICE-P's concatenation cannot answer for a multi-call
+/// body: *is the callee's code in there at all*. Word-aligned by construction —
+/// PPC is fixed width and a byte-aligned match would be an artefact.
+fn contains_words(hay: &[u8], needle: &[u8]) -> bool {
+    if needle.is_empty() || needle.len() > hay.len() {
+        return false;
+    }
+    (0..=(hay.len() - needle.len()))
+        .step_by(4)
+        .any(|i| &hay[i..i + needle.len()] == needle)
+}
+
 /// Run FBM over one TU and record it into `res.emit` under the `fnbyte-` keys.
 ///
 /// Additive only: no existing count is read or written. Called from
@@ -453,6 +585,15 @@ pub(super) fn measure(
             claim.entry(n).or_default().push(i);
         }
     }
+    // **The reference obj's own body for every emitted symbol**, by name (#644:
+    // resolved through the COMDAT table, never by position). This is what makes
+    // SPLICE-P gradeable by the sole judge on the whole workload instead of on
+    // hand cells: when c2 expanded a callee into a caller, both COMDATs are
+    // sitting in the same obj and the hypothesis is a byte compare.
+    let refbytes: std::collections::BTreeMap<&str, &[u8]> = entries
+        .iter()
+        .map(|(n, b)| (n.as_str(), b.as_slice()))
+        .collect();
     // **The gap between "the bytes match" and "the function matches".** A
     // `.text` COMDAT's raw data does not contain its relocations, so two bodies
     // that load the address of two DIFFERENT globals are byte-identical here and
@@ -589,6 +730,174 @@ pub(super) fn measure(
                 *res.emit
                     .entry("fnbyte-differs|same-length".into())
                     .or_insert(0) += 1;
+            }
+            // ---- THE RESIDUAL-DIFFER FORENSICS (lane w-seq) ----------------
+            //
+            // Why does this body differ? The answer is a statement about the
+            // CALLEE, so the port's own callee set is resolved against this
+            // TU's census rows and every disposition is published with a count.
+            // Runs only on the `differs` path, like the witness above.
+            if let Some((c, Ok(f))) = row {
+                let callees = port_callees(f);
+                let dispos: Vec<String> = callees
+                    .iter()
+                    .map(|cal| callee_disposition(cal, &claim, census, &tu, &refbytes))
+                    .collect();
+                let mut uniq: Vec<&str> = dispos.iter().map(String::as_str).collect();
+                uniq.sort_unstable();
+                uniq.dedup();
+                let summary = if uniq.is_empty() {
+                    "no-callee".to_string()
+                } else {
+                    uniq.join(",")
+                };
+                // Is c2's whole body the single word `blr`? That is mechanism
+                // E's signature from the caller's side, and it is the fact that
+                // separates family (b) from family (a) without an inference.
+                let refblr = if bytes.as_slice() == [0x4e, 0x80, 0x00, 0x20] {
+                    "refblr"
+                } else {
+                    "refbody"
+                };
+                *res.emit
+                    .entry(format!(
+                        "fnbyte-differs-why|{}|{}|{summary}|{refblr}|{name}",
+                        graded.shape,
+                        callees.len(),
+                    ))
+                    .or_insert(0) += 1;
+                *res.emit
+                    .entry(format!("fnbyte-why|{}|{summary}|{refblr}", graded.shape))
+                    .or_insert(0) += 1;
+
+                // **The #918 control, as a positive count.** The same callee
+                // set is resolved a second time through the POSITIONAL name
+                // binding. `emit` must resolve at least as many as `mangled`;
+                // a tie means this population cannot see the disagreement and
+                // that has to be said rather than assumed.
+                for cal in &callees {
+                    *res.emit.entry("fnbyte-callee-total".into()).or_insert(0) += 1;
+                    if claim.contains_key(*cal) {
+                        *res.emit
+                            .entry("fnbyte-callee-resolved-emit".into())
+                            .or_insert(0) += 1;
+                    }
+                    if census
+                        .iter()
+                        .any(|(_, g)| g.as_ref().is_ok_and(|x| x.mangled_name == **cal))
+                    {
+                        *res.emit
+                            .entry("fnbyte-callee-resolved-mangled".into())
+                            .or_insert(0) += 1;
+                    }
+                }
+
+                // ---- SPLICE-P, graded by the reference obj's own bytes -----
+                if let Ok((_, port_body)) = complete_body(f, c.opt_word, &tu) {
+                    // The callee's own emitted body, from THIS obj. Resolved by
+                    // name through the COMDAT table (#644), never by position.
+                    let one = if callees.len() == 1 {
+                        refbytes.get(callees[0]).copied()
+                    } else {
+                        None
+                    };
+                    match one {
+                        None if callees.len() == 1 => {
+                            *res.emit
+                                .entry(format!("fnbyte-splice|{}|no-callee-comdat", graded.shape))
+                                .or_insert(0) += 1;
+                        }
+                        None => {
+                            *res.emit
+                                .entry(format!("fnbyte-splice|{}|not-single-call", graded.shape))
+                                .or_insert(0) += 1;
+                        }
+                        Some(cb) => {
+                            let spl = splice_of(&port_body, cb);
+                            let verdict = match &spl {
+                                Some(s) if s.as_slice() == bytes.as_slice() => "exact",
+                                Some(_) => "differs",
+                                None => "no-body",
+                            };
+                            // **What the splice PERTURBS.** A count of failures
+                            // cannot be acted on; the first disagreeing word and
+                            // the two lengths can. Printed only on failure, the
+                            // same discipline `differ_witness` follows.
+                            if verdict == "differs" {
+                                if let Some(s) = &spl {
+                                    let m = s.len().min(bytes.len()) / 4;
+                                    let at = (0..m).find(|i| {
+                                        s[i * 4..i * 4 + 4] != bytes[i * 4..i * 4 + 4]
+                                    });
+                                    let hx = |b: &[u8]| {
+                                        b.iter().map(|x| format!("{x:02x}")).collect::<String>()
+                                    };
+                                    let w = match at {
+                                        Some(i) => format!(
+                                            "first@{i}:spl={},ref={}",
+                                            hx(&s[i * 4..i * 4 + 4]),
+                                            hx(&bytes[i * 4..i * 4 + 4])
+                                        ),
+                                        None => format!(
+                                            "len:spl={}w,ref={}w",
+                                            s.len() / 4,
+                                            bytes.len() / 4
+                                        ),
+                                    };
+                                    *res.emit
+                                        .entry(format!(
+                                            "fnbyte-splice-why|{}|{w}",
+                                            graded.shape
+                                        ))
+                                        .or_insert(0) += 1;
+                                }
+                            }
+                            *res.emit
+                                .entry(format!("fnbyte-splice|{}|{verdict}", graded.shape))
+                                .or_insert(0) += 1;
+                            *res.emit
+                                .entry(format!(
+                                    "fnbyte-splice|{}|{verdict}|pw{port_words}",
+                                    graded.shape
+                                ))
+                                .or_insert(0) += 1;
+                            *res.emit
+                                .entry(format!(
+                                    "fnbyte-splice-fn|{}|{verdict}|pw{port_words}/rw{ref_words}/cw{}|{name}",
+                                    graded.shape,
+                                    cb.len() / 4
+                                ))
+                                .or_insert(0) += 1;
+                        }
+                    }
+                }
+                // The weaker containment question, asked of EVERY callee and of
+                // every shape: is the callee's code in the reference body at
+                // all, minus its own trailing `blr`? A `seq` body's
+                // concatenation is not a splice, and this is what can still be
+                // measured about it.
+                for cal in &callees {
+                    let Some(cb) = refbytes.get(*cal).copied() else {
+                        *res.emit
+                            .entry(format!("fnbyte-contains|{}|no-comdat", graded.shape))
+                            .or_insert(0) += 1;
+                        continue;
+                    };
+                    let trimmed = if cb.len() >= 8 && cb[cb.len() - 4..] == [0x4e, 0x80, 0x00, 0x20]
+                    {
+                        &cb[..cb.len() - 4]
+                    } else {
+                        cb
+                    };
+                    let hit = contains_words(bytes.as_slice(), trimmed);
+                    *res.emit
+                        .entry(format!(
+                            "fnbyte-contains|{}|{}",
+                            graded.shape,
+                            if hit { "yes" } else { "no" }
+                        ))
+                        .or_insert(0) += 1;
+                }
             }
         }
     }

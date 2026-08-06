@@ -1,0 +1,140 @@
+differ pairs carrying a why-key: 3195
+fnbyte-differs (scan total):     3195
+
+=== BY SHAPE === (denominator 3195)
+    1541   48.2%  seq
+    1531   47.9%  tail
+     123    3.8%  framed
+    3195  ------  ACCOUNTED
+
+=== BY MECHANISM === (denominator 3195)
+    1403   43.9%  I/E?-refused-nonblr
+    1359   42.5%  I-local
+     369   11.5%  E-refused
+      37    1.2%  mixed-local-extern
+      24    0.8%  extern
+       2    0.1%  mixed-refused-local
+       1    0.0%  extern-blr
+    3195  ------  ACCOUNTED
+
+=== BY MECHANISM x SHAPE === (denominator 3195)
+    1136   35.6%  I-local                seq
+    1061   33.2%  I/E?-refused-nonblr    tail
+     369   11.5%  E-refused              tail
+     342   10.7%  I/E?-refused-nonblr    seq
+     123    3.8%  I-local                framed
+     100    3.1%  I-local                tail
+      37    1.2%  mixed-local-extern     seq
+      24    0.8%  extern                 seq
+       2    0.1%  mixed-refused-local    seq
+       1    0.0%  extern-blr             tail
+    3195  ------  ACCOUNTED
+
+=== BY DISPOSITION SET === (denominator 3195)
+    1353   42.3%  body:exact
+     573   17.9%  refused:expr-op-0x27
+     572   17.9%  refused:expr-intrinsic-memset
+     235    7.4%  refused:expr-intrinsic-base-downcast
+     140    4.4%  extern,refused:expr-intrinsic-dynamic-cast
+      76    2.4%  refused:return-scope-close-cflow-label
+      65    2.0%  refused:expr-call-in-expr-recv-intrinsic-this-adjust-then-call-op-0x9B
+      58    1.8%  refused:expr-intrinsic-base-member-addr
+      37    1.2%  body:exact,extern
+      32    1.0%  refused:body-cflow-label
+      25    0.8%  extern
+       7    0.2%  refused:expr-call-in-expr-recv-field-then-chain-bind-whole
+       6    0.2%  body:differs
+       5    0.2%  refused:expr-intrinsic-fabs
+       4    0.1%  refused:expr-ptr-arith:mid
+       2    0.1%  body:exact,refused:body-cflow-label
+       1    0.0%  refused:expr-jump
+       1    0.0%  refused:expr-call-in-expr-recv-intrinsic-this-adjust-then-plumbing-0x3A
+       1    0.0%  refused:expr-call-in-expr-op-0x9B
+       1    0.0%  refused:expr-call-in-expr-recv-load-then-call-other
+       1    0.0%  refused:expr-call-in-expr-recv-object-then-off-add-more
+    3195  ------  ACCOUNTED
+
+=== c2's whole body is one `blr` === (denominator 3195)
+    2825   88.4%  refbody
+     370   11.6%  refblr
+    3195  ------  ACCOUNTED
+
+=== FAMILY (b): PARSE-REFUSED PRODUCTIONS === (1774 differs name one)
+     573  (   0 with c2 body == blr)  expr-op-0x27
+     572  ( 369 with c2 body == blr)  expr-intrinsic-memset
+     235  (   0 with c2 body == blr)  expr-intrinsic-base-downcast
+     140  (   0 with c2 body == blr)  expr-intrinsic-dynamic-cast
+      76  (   0 with c2 body == blr)  return-scope-close-cflow-label
+      65  (   0 with c2 body == blr)  expr-call-in-expr-recv-intrinsic-this-adjust-then-call-op-0x9B
+      58  (   0 with c2 body == blr)  expr-intrinsic-base-member-addr
+      34  (   0 with c2 body == blr)  body-cflow-label
+       7  (   0 with c2 body == blr)  expr-call-in-expr-recv-field-then-chain-bind-whole
+       5  (   0 with c2 body == blr)  expr-intrinsic-fabs
+       4  (   0 with c2 body == blr)  expr-ptr-arith:mid
+       1  (   0 with c2 body == blr)  expr-jump
+       1  (   0 with c2 body == blr)  expr-call-in-expr-recv-intrinsic-this-adjust-then-plumbing-0x3A
+       1  (   0 with c2 body == blr)  expr-call-in-expr-op-0x9B
+       1  (   0 with c2 body == blr)  expr-call-in-expr-recv-load-then-call-other
+       1  (   0 with c2 body == blr)  expr-call-in-expr-recv-object-then-off-add-more
+
+=== SPLICE-P (graded by real c2's own COMDATs) ===
+     123  framed|differs
+     123  framed|differs|pw9
+     816  seq|differs
+     816  seq|differs|pw12
+     725  seq|not-single-call
+     953  tail|differs
+     665  tail|differs|pw2
+     288  tail|differs|pw3
+     578  tail|exact
+     578  tail|exact|pw1
+
+=== CONTAINMENT: is the callee's code inside c2's body? ===
+     123  framed|no
+    1242  seq|no
+     177  seq|no-comdat
+     855  seq|yes
+     380  tail|no
+    1151  tail|yes
+
+=== #918 CONTROL: callee resolution under the two name bindings ===
+  callees named by a differing body : 3928
+  resolved under emit_name          : 3702
+  resolved under mangled_name       : 546
+
+=== TOP SYMBOLS PER MECHANISM (pairs) ===
+  -- I/E?-refused-nonblr (1403 pairs, 550 distinct symbols)
+        286  ?Release@Object@Hmx@@QAAXPAVObjRef@@@Z
+         72  ??$_Destroy_Range@PAUNode@?$ObjPtrVec@VRndTransformable@@VObjectDir@@@
+         56  ??C?$_List_iterator@VString@@U?$_Nonconst_traits@VString@@@stlpmtx_std
+         27  ??1?$pair@$$CBVSymbol@@VDataNode@@@stlpmtx_std@@QAA@XZ
+         21  ??$_Destroy_Range@PAVString@@@stlpmtx_std@@YAXPAVString@@0@Z
+  -- I-local (1359 pairs, 551 distinct symbols)
+         72  ??$?8PAUNode@?$ObjPtrVec@VRndTransformable@@VObjectDir@@@@@stlpmtx_std
+         62  ??0?$_List_iterator@PAVObjectDir@@U?$_Nonconst_traits@PAVObjectDir@@@s
+         62  ??0?$_List_iterator@VString@@U?$_Nonconst_traits@VString@@@stlpmtx_std
+         61  ??0?$_List_iterator@PAVObjectDir@@U?$_Const_traits@PAVObjectDir@@@stlp
+         55  ??$?8PAVSymbol@@@stlpmtx_std@@YA_NABV?$reverse_iterator@PAVSymbol@@@0@
+  -- E-refused (369 pairs, 174 distinct symbols)
+         53  ??$_Destroy_Range@PAVSymbol@@@stlpmtx_std@@YAXPAVSymbol@@0@Z
+         27  ??$_Destroy_Range@PAH@stlpmtx_std@@YAXPAH0@Z
+         15  ??$_Destroy_Range@PAM@stlpmtx_std@@YAXPAM0@Z
+         10  ??$_Destroy_Range@PAVFace@RndMesh@@@stlpmtx_std@@YAXPAVFace@RndMesh@@0
+          8  ??$_Destroy_Range@PAV?$Key@M@@@stlpmtx_std@@YAXPAV?$Key@M@@0@Z
+  -- mixed-local-extern (37 pairs, 8 distinct symbols)
+         26  ?Type@DataArray@@QAA?AW4DataType@@H@Z
+          3  ?UncheckedArray@DataArray@@QAAPAV1@H@Z
+          2  ?Type@DataArray@@QBA?AW4DataType@@H@Z
+          2  ?UncheckedInt@DataArray@@QAAHH@Z
+          1  ?UncheckedStr@DataArray@@QAAPBDH@Z
+  -- extern (24 pairs, 12 distinct symbols)
+          7  ??$?8PAV?$ObjPtr@VUIColor@@@@@stlpmtx_std@@YA_NABV?$reverse_iterator@P
+          6  ??$?8PAVFace@RndMesh@@@stlpmtx_std@@YA_NABV?$reverse_iterator@PAVFace@
+          2  ??$?8PAVFlowMathOp@@@stlpmtx_std@@YA_NABV?$reverse_iterator@PAVFlowMat
+          1  ??$?8PAUNavItem@HamNavProvider@@@stlpmtx_std@@YA_NABV?$reverse_iterato
+          1  ??$?8PAVBeatEvent@CharClip@@@stlpmtx_std@@YA_NABV?$reverse_iterator@PA
+  -- mixed-refused-local (2 pairs, 2 distinct symbols)
+          1  ??APaddedJointPos@@QAAAAMH@Z
+          1  ?UncheckedInt@DataArray@@QBAHH@Z
+  -- extern-blr (1 pairs, 1 distinct symbols)
+          1  ??$_Destroy_Range@PAPAVRndMesh@@@stlpmtx_std@@YAXPAPAVRndMesh@@0@Z
