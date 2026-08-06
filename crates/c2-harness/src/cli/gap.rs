@@ -403,16 +403,35 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
                 report.emit_total("in-init-symrefs"),
                 report.emit_total("in-init-records-with-symrefs"),
             );
+            // **THE DENOMINATOR THE LINE ABOVE IS SILENT ABOUT — board #961.**
+            // `records` counts what the `00 01`/`00 02` anchor scan reaches;
+            // these count what it does not, so `records == accepted + residue`
+            // can no longer read as a statement about the whole stream. The
+            // three are printed beside the identity and never folded into it —
+            // that is the difference between publishing a denominator and
+            // widening a control until it goes green (`docs/STATUS.md` trap 0).
+            println!(
+                "    .in UNANCHORED (the denominator, board #961): {} records whose first \
+                 element is a tag-03 blob or a tag-08 fill, {} `00 02` candidates dropped by \
+                 the fail-closed arm, {} anchors with no token — none of these is in \
+                 `records` OR in the residue",
+                report.emit_total("in-init-unanchored"),
+                report.emit_total("in-init-fail-closed"),
+                report.emit_total("in-init-no-token"),
+            );
             // EVERY reason, including the zeroes — a residue reason that stops
             // occurring must read `0` and not vanish (trap 5).
-            for reason in [
-                "symbol-address",
-                "floating-point",
-                "unknown-type",
-                "unknown-width",
-                "value-did-not-frame",
-                "truncated",
-            ] {
+            //
+            // **Driven from `InInitResidue::ALL`, because a hand-kept copy of
+            // this list is the same trap one level down and it fired.** The six
+            // names used to be spelled out here; `w-inread` added three
+            // (`pointer-width`, `zero-fill`, `inline-bytes`), the reader
+            // reported them, `scan.rs` aggregated them under their own keys —
+            // and this loop printed the other six and no one of the three, so
+            // the first 878-TU run of the widened reader showed a residue
+            // histogram that silently did not sum to `in-init-residue`. A
+            // reason that CANNOT be printed is worse than one that reads `0`.
+            for reason in c2_il::InInitResidue::ALL.iter().map(|r| r.key()) {
                 println!(
                     "      .in residue {reason:<20} {:>8}",
                     report.emit_total(&format!("in-init-residue-{reason}")),

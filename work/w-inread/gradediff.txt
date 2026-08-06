@@ -1,0 +1,30 @@
+CELL                       BEFORE         AFTER          
+z:<WORKTREE>\work\w-inread\grid\z01_partial_struct codegen-gap    match           <== CONVERTED
+z:<WORKTREE>\work\w-inread\grid\z02_partial_array codegen-gap    match           <== CONVERTED
+z:<WORKTREE>\work\w-inread\grid\z03_fill_252 codegen-gap    match           <== CONVERTED
+z:<WORKTREE>\work\w-inread\grid\z04_fill_128 codegen-gap    match           <== CONVERTED
+z:<WORKTREE>\work\w-inread\grid\z05_fill_124 codegen-gap    match           <== CONVERTED
+z:<WORKTREE>\work\w-inread\grid\z06_fill_then_ptr codegen-gap    match           <== CONVERTED
+z:<WORKTREE>\work\w-inread\grid\z07_bases vocab-gap      vocab-gap     
+z:<WORKTREE>\work\w-inread\grid\z08_throw vocab-gap      vocab-gap     
+z:<WORKTREE>\work\w-inread\grid\z09_null_data_ptr codegen-gap    match           <== CONVERTED
+z:<WORKTREE>\work\w-inread\grid\z10_null_fn_ptr codegen-gap    match           <== CONVERTED
+z:<WORKTREE>\work\w-inread\grid\z11_data_ptr_4 codegen-gap    match           <== CONVERTED
+z:<WORKTREE>\work\w-inread\grid\z12_data_ptr_big codegen-gap    match           <== CONVERTED
+z:<WORKTREE>\work\w-inread\grid\z13_fn_ptr_4 codegen-gap    match           <== CONVERTED
+z:<WORKTREE>\work\w-inread\grid\z14_typedesc vocab-gap      vocab-gap     
+z:<WORKTREE>\work\w-inread\grid\z15_fill_1196 codegen-gap    match           <== CONVERTED
+z:<WORKTREE>\work\w-inread\grid\z16_ptr_then_fill codegen-gap    match           <== CONVERTED
+z:<WORKTREE>\work\w-inread\grid\z17_two_fills codegen-gap    match           <== CONVERTED
+z:<WORKTREE>\work\w-inread\grid\z18_fill_7_bytes codegen-gap    match           <== CONVERTED
+z:<WORKTREE>\work\w-inread\grid\z19_fill_3_bytes codegen-gap    match           <== CONVERTED
+z:<WORKTREE>\work\w-inread\grid\z20_null_fn_ptr_only codegen-gap    codegen-gap   
+z:<WORKTREE>\work\w-inread\grid\z21_null_data_ptr_only codegen-gap    match           <== CONVERTED
+z:<WORKTREE>\work\w-inread\grid\z22_fn_ptr_big codegen-gap    match           <== CONVERTED
+z:<WORKTREE>\work\w-inread\grid\z23_short_fill codegen-gap    match           <== CONVERTED
+z:<WORKTREE>\work\w-inread\grid\z24_bool_fill codegen-gap    match           <== CONVERTED
+z:<WORKTREE>\work\w-inread\grid\z25_pmd_shape codegen-gap    codegen-gap   
+z:<WORKTREE>\work\w-inread\grid\z26_fill_only match          match         
+---
+converted: 20
+regressed to mismatch: 0

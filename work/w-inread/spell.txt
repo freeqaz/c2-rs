@@ -1,0 +1,164 @@
+## z01_partial_struct
+  ?s@@3US@@A   [438..449]
+     header 07 00 ed 09 00
+     tag 01   01 01 04 01
+     tag 08   08 08
+## z02_partial_array
+  ?arr@@3PAHA   [438..449]
+     header 07 00 e3 09 00
+     tag 01   01 01 04 01
+     tag 08   08 0c
+## z05_fill_124
+  ?arr@@3PAHA   [438..449]
+     header 07 00 e3 09 00
+     tag 01   01 01 04 01
+     tag 08   08 7c
+## z04_fill_128
+  ?arr@@3PAHA   [438..453]
+     header 07 00 e3 09 00
+     tag 01   01 01 04 01
+     tag 08   08 80 80 00 00 00
+## z03_fill_252
+  ?arr@@3PAHA   [438..453]
+     header 07 00 e3 09 00
+     tag 01   01 01 04 01
+     tag 08   08 80 fc 00 00 00
+## z15_fill_1196
+  ?arr@@3PAHA   [438..453]
+     header 07 00 e3 09 00
+     tag 01   01 01 04 01
+     tag 08   08 80 ac 04 00 00
+## z18_fill_7_bytes
+  ?cs@@3PADA   [438..449]
+     header 07 00 e3 09 00
+     tag 01   01 01 01 61
+     tag 08   08 07
+## z19_fill_3_bytes
+  ?cs@@3PADA   [438..449]
+     header 07 00 e3 09 00
+     tag 01   01 01 01 61
+     tag 08   08 03
+## z23_short_fill
+  ?ss@@3PAFA   [438..449]
+     header 07 00 e3 09 00
+     tag 01   01 01 02 07
+     tag 08   08 0a
+## z24_bool_fill
+  ?s@@3US@@A   [438..451]
+     header 07 00 ec 09 00
+     tag 01   01 01 01 01
+     tag 08   08 03
+     tag 08   08 08
+## z17_two_fills
+  ?s@@3US@@A   [438..455]
+     header 07 00 ed 09 00
+     tag 01   01 01 04 01
+     tag 08   08 08
+     tag 01   01 01 04 02
+     tag 08   08 0c
+## z06_fill_then_ptr
+  ?s@@3US@@A   [438..454]
+     header 07 00 ed 09 00
+     tag 01   01 01 04 01
+     tag 08   08 08
+     tag 02   02 e3 09 00 04
+## z16_ptr_then_fill
+  ?s@@3US@@A   [438..450]
+     header 07 00 ed 09 00
+     tag 02   02 e3 09 00 04
+     tag 08   08 10
+## z26_fill_only
+  ?s@@3US@@A   [438..460]
+     header 07 00 ed 09 00
+     tag 02   02 e3 09 00 04
+     tag 01   01 01 04 00
+     tag 01   01 01 04 00
+     tag 01   01 01 04 00
+## z09_null_data_ptr
+  ?s@@3US@@A   [438..451]
+     header 07 00 ec 09 00
+     tag 01   01 03 04 00
+     tag 01   01 01 04 05
+## z10_null_fn_ptr
+  ?s@@3US@@A   [438..451]
+     header 07 00 ec 09 00
+     tag 01   01 04 04 00
+     tag 01   01 01 04 05
+## z11_data_ptr_4
+  ?s@@3US@@A   [438..451]
+     header 07 00 ec 09 00
+     tag 01   01 03 04 04
+     tag 01   01 01 04 05
+## z12_data_ptr_big
+  ?s@@3US@@A   [438..455]
+     header 07 00 ec 09 00
+     tag 01   01 03 04 80 44 33 22 11
+     tag 01   01 01 04 05
+## z13_fn_ptr_4
+  ?s@@3US@@A   [438..451]
+     header 07 00 ec 09 00
+     tag 01   01 04 04 04
+     tag 01   01 01 04 05
+## z22_fn_ptr_big
+  ?s@@3US@@A   [438..455]
+     header 07 00 ec 09 00
+     tag 01   01 04 04 80 44 33 22 11
+     tag 01   01 01 04 05
+## z20_null_fn_ptr_only
+  ?s@@3US@@A   [438..452]
+     header 07 00 ed 09 00
+     tag 01   01 04 04 00
+     tag 02   02 e3 09 00 04
+## z21_null_data_ptr_only
+  ?s@@3US@@A   [438..452]
+     header 07 00 ed 09 00
+     tag 01   01 03 04 00
+     tag 02   02 e3 09 00 04
+## z25_pmd_shape
+  ?c@@3UC@@A   [438..478]
+     header 07 00 fa 09 00
+     tag 01   01 02 04 00
+     tag 01   01 03 04 00
+     tag 01   01 01 04 00
+     tag 01   01 01 04 80 ff ff ff ff
+     tag 08   08 04
+     tag 01   01 01 04 80 0c 01 00 00
+     tag 02   02 e3 09 00 04
+## z14_typedesc
+  ??_R0?AUA@@@8   [463..487]
+     header 07 00 0f 0a 00
+     tag 02   02 13 0a 00 04
+     tag 01   01 03 04 00
+     tag 03   03 08 2e 3f 41 55 41 40 40 00
+## z14_typedesc
+  ??_R2A@@8   [526..538]
+     header 07 00 11 0a 00
+     tag 02   02 12 0a 00 04
+     tag 08   08 03
+## z07_bases
+  ??_R2A@@8   [604..616]
+     header 07 00 1e 0a 00
+     tag 02   02 1f 0a 00 04
+     tag 08   08 03
+  ??_R2B@@8   [616..633]
+     header 07 00 23 0a 00
+     tag 02   02 24 0a 00 04
+     tag 02   02 1f 0a 00 04
+     tag 08   08 03
+## z08_throw
+  _TI1?AUE@@   [512..534]
+     header 07 00 ee 09 00
+     tag 01   01 02 04 00
+     tag 01   01 04 04 00
+     tag 01   01 04 04 00
+     tag 02   02 f0 09 00 04
+## z08_throw
+  _CT??_R0?AUE@@@84   [462..498]
+     header 07 00 f2 09 00
+     tag 01   01 02 04 00
+     tag 02   02 f1 09 00 04
+     tag 01   01 01 04 00
+     tag 01   01 01 04 80 ff ff ff ff
+     tag 08   08 04
+     tag 01   01 01 04 04
+     tag 01   01 04 04 00
