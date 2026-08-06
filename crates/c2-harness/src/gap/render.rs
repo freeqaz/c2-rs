@@ -750,6 +750,41 @@ pub(super) fn print_factorization(report: &GapReport) {
                     .collect();
                 println!("\x20   graded by shape × verdict: {}", rows.join(" · "));
             }
+            // **WHOM THE BODY CALLS** (lane `w-drop3`, boards #984–#986). Every
+            // line above this one compares `.text` bytes, and a `/Gy` branch
+            // word cannot carry its callee: the placeholder displacement is
+            // `-(offset of the word)` for every target alike, so a body that
+            // calls the wrong function is byte-identical to one that calls the
+            // right one. This row is the port's own call list against real c2's
+            // `REL24` targets, by name.
+            //
+            // `disagree-exact` is the one to read: those are bodies FBM
+            // **credits** whose relocations point somewhere else. Printed with
+            // its denominator and printed at zero, because a control that
+            // appears only when it fires is one whose silence means nothing.
+            let ct_graded = report.emit_total("fnbyte-calltarget-graded");
+            if ct_graded > 0 {
+                println!(
+                    "\x20   CALL TARGETS (name, not bytes): {} graded · {} agree · {} disagree \
+                     ({} of them EXACT-and-wrong, {} differs) · {} by count, {} by name \
+                     · {} ungraded",
+                    ct_graded,
+                    report.emit_total("fnbyte-calltarget-agree"),
+                    report.emit_total("fnbyte-calltarget-disagree"),
+                    report.emit_total("fnbyte-calltarget-disagree-exact"),
+                    report.emit_total("fnbyte-calltarget-disagree-differs"),
+                    report.emit_total("fnbyte-calltarget-disagree-count"),
+                    report.emit_total("fnbyte-calltarget-disagree-name"),
+                    report.emit_total("fnbyte-calltarget-ungraded"),
+                );
+                let ctw = report.fn_byte_call_target_witnesses();
+                for w in ctw.iter().take(8) {
+                    println!("\x20     {w}");
+                }
+                if ctw.len() > 8 {
+                    println!("\x20     … and {} more witnesses", ctw.len() - 8);
+                }
+            }
             // **The witnesses.** Known answer: none. Every differing function is
             // named with its first disagreeing word, because a count is not
             // something a lane can reproduce from.
