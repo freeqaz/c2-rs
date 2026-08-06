@@ -1610,6 +1610,23 @@ impl IlBundle {
     /// objects per non-COMDAT section — is **not** applied here. It is a
     /// property of the layout, so it lives with the layout, in
     /// `c2_core::coff::emit_data_obj`.
+    /// **The `.in` initializer reader's self-report for this bundle**, whatever
+    /// `data_tu` decides about it.
+    ///
+    /// `DataTu::in_census` is produced only for a TU `data_tu` accepts *whole*,
+    /// which is a few hundred of the workload's 878 — so it cannot answer *"how
+    /// many records does this reader refuse, and for which named reason"* over
+    /// the corpus. This can, and it is the instrument a reader widening is
+    /// measured by, on the same code path before and after. `None` only when the
+    /// bundle carries no `.in` at all.
+    ///
+    /// `docs/STATUS.md` trap 4: the report carries `elements` (**arity**)
+    /// beside `records` (totality), because a reader that lost an element inside
+    /// a record it still accepted moves neither `records` nor the residue.
+    pub fn in_init_report(&self) -> Option<super::ininit::InInitReport> {
+        Some(super::ininit::in_scalar_initializers(self.get("in")?).report())
+    }
+
     pub fn data_tu(&self) -> Option<DataTu> {
         let gl = self.get("gl")?;
         let ex = self.ex()?;

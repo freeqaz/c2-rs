@@ -42,6 +42,7 @@ pub use func::{
     mangled_name, mangled_names, opt_word_mode, source_path, Block, FnCensus, OptWordMode,
     OPT_WORD_O1, OPT_WORD_OX, OPT_WORD_SPECIAL_MEMBER,
     FnVerdict,
+    InInitReport, InInitResidue, InSymbolRef,
     CallSeq, CmpShiftOr, CompareLeaf, DataObject, DataTu, DynInitTu, FpTail, FramedCall, IlFunction, IlOp,
     DivModLeaf,
     PtrWalkModLoop,

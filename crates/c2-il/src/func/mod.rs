@@ -53,6 +53,7 @@ pub use self::bundle::{
 pub(crate) use self::bundle::{body_start, body_start_is_bare, ops_start};
 pub use self::census::{FnCensus, FnVerdict, CENSUS_HEX_BACK, CENSUS_HEX_FWD};
 pub use self::diag::{cause, DecodeCauses};
+pub use self::ininit::{InInitReport, InInitResidue, InSymbolRef};
 pub use self::gl::{
     gl_symbol_conflicts, gl_symbol_index, label_counter, mangled_name, mangled_names, source_path,
 };

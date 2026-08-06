@@ -98,7 +98,7 @@ const WIDTHS: [u8; 3] = [1, 2, 4];
 /// that record"* from *"this reader has a bug"*. Every variant below is the
 /// former, by construction.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum InInitResidue {
+pub enum InInitResidue {
     /// Element tag `02` — the initializer is the address of another symbol and
     /// needs a `.data` relocation.
     SymbolAddress,
@@ -115,11 +115,118 @@ pub(crate) enum InInitResidue {
     Truncated,
 }
 
+impl InInitResidue {
+    /// A stable key for a scan to aggregate on. **Stable across the reader's
+    /// widenings on purpose** — a residue reason that stops occurring must show
+    /// as a `0`, not as a key that vanished, because `docs/STATUS.md` trap 5 is
+    /// that absence reads as success.
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::SymbolAddress => "symbol-address",
+            Self::FloatingPoint => "floating-point",
+            Self::UnknownType => "unknown-type",
+            Self::UnknownWidth => "unknown-width",
+            Self::ValueDidNotFrame => "value-did-not-frame",
+            Self::Truncated => "truncated",
+        }
+    }
+
+    /// Every variant, so a report can print a `0` for the ones that did not
+    /// occur. The array's length is asserted in the tests, so adding a variant
+    /// without adding it here is a compile-adjacent failure rather than a silent
+    /// hole in the report.
+    pub const ALL: [InInitResidue; 6] = [
+        Self::SymbolAddress,
+        Self::FloatingPoint,
+        Self::UnknownType,
+        Self::UnknownWidth,
+        Self::ValueDidNotFrame,
+        Self::Truncated,
+    ];
+}
+
+/// The `.in` initializer reader's own self-report, for a scan to print.
+///
+/// **This exists so the widening of a reader can be measured on the workload by
+/// the same instrument before and after.** `DataTu::in_census` is only produced
+/// for a TU that `data_tu` accepts whole — a few hundred of 878 — so it cannot
+/// answer *"how many records does this reader refuse across the workload"*.
+/// [`crate::IlBundle::in_init_report`] answers it for every TU that has an `.in`
+/// at all.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct InInitReport {
+    /// Records that framed — the arity denominator.
+    pub records: usize,
+    /// Elements decoded across every accepted record (**arity**, trap 4).
+    pub elements: usize,
+    /// Tokens bound to bytes.
+    pub values: usize,
+    /// Tokens two records disagreed about and which were dropped.
+    pub conflicts: usize,
+    /// Records that framed and did not decode.
+    pub residue: usize,
+    /// `(reason, count)` for **every** reason in [`InInitResidue::ALL`], in that
+    /// order, including the zeroes.
+    pub residue_by_reason: Vec<(&'static str, usize)>,
+    /// Tag-`02` symbol-address elements **read** (0 until the reader models
+    /// them), and the records carrying at least one.
+    pub sym_refs: usize,
+    pub records_with_sym_refs: usize,
+}
+
+impl InInitCensus {
+    /// Fold this census into the shape a scan prints.
+    pub(crate) fn report(&self) -> InInitReport {
+        let residue_by_reason = InInitResidue::ALL
+            .iter()
+            .map(|r| (r.key(), self.residue.iter().filter(|(_, w)| w == r).count()))
+            .collect();
+        InInitReport {
+            records: self.records,
+            elements: self.elements,
+            values: self.values.len(),
+            conflicts: self.conflicts,
+            residue: self.residue.len(),
+            residue_by_reason,
+            sym_refs: self.refs.values().map(|v| v.len()).sum(),
+            records_with_sym_refs: self.refs.values().filter(|v| !v.is_empty()).count(),
+        }
+    }
+}
+
+/// One **element tag `02`** — the address of another symbol — as read.
+///
+/// See `work/w-tag02/GRAMMAR.md` for the 24 frozen cells this is measured on.
+/// The element contributes `addend` as a big-endian i32 to the object's raw
+/// bytes at `at`, and the obj carries one `IMAGE_REL_PPC_ADDR32` there naming
+/// `target`'s COFF symbol. **The bytes alone are not the object**: emitting them
+/// without the relocation is a wrong obj, which is why this rides in its own
+/// channel and not inside [`InInitCensus::values`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct InSymbolRef {
+    /// Byte offset of the pointer slot **within the initialized object**.
+    pub at: u32,
+    /// The target's `.gl` operand token — a token, never a name (#918: the
+    /// per-record binding is the only one that can be trusted).
+    pub target: u32,
+    /// The addend, as the signed value the `.in` varint spells. Already present
+    /// in [`InInitCensus::values`] as four big-endian bytes at `at`.
+    pub addend: i32,
+}
+
 /// The `.in` scalar initializers, plus the census a caller needs to believe them.
 pub(crate) struct InInitCensus {
     /// Token → the initializer's bytes **in the obj's (big-endian) order**,
     /// exactly `sum(width)` long.
     pub(crate) values: std::collections::BTreeMap<u32, Vec<u8>>,
+    /// Token → the symbol addresses its initializer carries, in element order.
+    ///
+    /// **A separate channel from `values` on purpose.** A caller that consumes
+    /// `values` and ignores this map emits a `.data` with the right bytes and no
+    /// relocation — a wrong obj produced out of what used to be an honest
+    /// refusal, which is board **#232**'s exact shape. Every consumer must
+    /// either place these or refuse the object.
+    pub(crate) refs: std::collections::BTreeMap<u32, Vec<InSymbolRef>>,
     /// Records that framed at all — the arity denominator.
     pub(crate) records: usize,
     /// Elements decoded across every accepted record. **Arity, not totality**:
@@ -230,6 +337,8 @@ fn read_elements(inb: &[u8], p: &mut usize) -> Result<(Vec<u8>, usize), InInitRe
 pub(crate) fn in_scalar_initializers(inb: &[u8]) -> InInitCensus {
     let mut values: std::collections::BTreeMap<u32, Option<Vec<u8>>> =
         std::collections::BTreeMap::new();
+    let mut refs: std::collections::BTreeMap<u32, Vec<InSymbolRef>> =
+        std::collections::BTreeMap::new();
     let mut residue: Vec<(u32, InInitResidue)> = Vec::new();
     let mut records = 0usize;
     let mut elements = 0usize;
@@ -286,8 +395,13 @@ pub(crate) fn in_scalar_initializers(inb: &[u8]) -> InInitCensus {
         }
     }
     let conflicts = values.values().filter(|v| v.is_none()).count();
+    // A poisoned token names no byte string, so it names no relocation either —
+    // dropping its refs with its bytes keeps the two channels describing the
+    // same set of objects, which is what lets a consumer trust their pairing.
+    refs.retain(|t, _| values.get(t).map(Option::is_some).unwrap_or(false));
     InInitCensus {
         values: values.into_iter().filter_map(|(t, b)| b.map(|b| (t, b))).collect(),
+        refs,
         records,
         elements,
         residue,

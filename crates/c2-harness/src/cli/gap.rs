@@ -371,6 +371,43 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
                 report.emit_total("emit-records"),
                 report.emit_total("emit-arity-broken"),
             );
+            // **The `.in` initializer reader's own report** (board #936). Same
+            // shape as the binding rows above and for the same reason: a decode
+            // cannot be graded by the oracle, so it is graded on its own
+            // invariants — totality (`records == values + residue + conflicts`),
+            // arity (`elements`, the records' contents) and injectivity
+            // (`conflicts`).
+            println!(
+                "    .in initializers: {} records, {} elements (ARITY), {} values, {} conflicts, \
+                 {} residue, {} accounting breaks (known answer 0)",
+                report.emit_total("in-init-records"),
+                report.emit_total("in-init-elements"),
+                report.emit_total("in-init-values"),
+                report.emit_total("in-init-conflicts"),
+                report.emit_total("in-init-residue"),
+                report.emit_total("in-init-accounting-broken"),
+            );
+            println!(
+                "    .in symbol addresses (element tag 02, board #931): {} elements over {} \
+                 records",
+                report.emit_total("in-init-symrefs"),
+                report.emit_total("in-init-records-with-symrefs"),
+            );
+            // EVERY reason, including the zeroes — a residue reason that stops
+            // occurring must read `0` and not vanish (trap 5).
+            for reason in [
+                "symbol-address",
+                "floating-point",
+                "unknown-type",
+                "unknown-width",
+                "value-did-not-frame",
+                "truncated",
+            ] {
+                println!(
+                    "      .in residue {reason:<20} {:>8}",
+                    report.emit_total(&format!("in-init-residue-{reason}")),
+                );
+            }
             // What the unexplained residue IS. A residue reported only as a
             // number cannot be attacked and cannot be checked; these rows say
             // whether it is a population c2 synthesizes (concentrated in the

@@ -484,6 +484,41 @@ fn scan_one(
         }
     }
 
+    // 1f'. **The `.in` initializer reader's own self-report** (board #936,
+    //      w-tag02). Printed on every scan for every TU that has an `.in`, not
+    //      only for the few hundred `data_tu` accepts whole — a reader widening
+    //      has to be measurable on the workload by the *same* instrument before
+    //      and after it, and `DataTu::in_census` cannot be, because a widening
+    //      changes which TUs produce one.
+    //
+    //      **Every residue reason is emitted, including the zeroes.** A reason
+    //      that stops occurring must read `0` rather than vanish from the
+    //      report; `docs/STATUS.md` trap 5 is that absence reads as success, and
+    //      a residue key that disappeared is exactly that shape.
+    if let Some(r) = captured.bundle.in_init_report() {
+        for (key, n) in [
+            ("in-init-records", r.records),
+            // ARITY, not totality (trap 4): a reader that lost an element inside
+            // a record it still accepted moves neither `records` nor `residue`.
+            ("in-init-elements", r.elements),
+            ("in-init-values", r.values),
+            ("in-init-conflicts", r.conflicts),
+            ("in-init-residue", r.residue),
+            ("in-init-symrefs", r.sym_refs),
+            ("in-init-records-with-symrefs", r.records_with_sym_refs),
+        ] {
+            *res.emit.entry(key.into()).or_insert(0) += n;
+        }
+        for (reason, n) in &r.residue_by_reason {
+            *res.emit.entry(format!("in-init-residue-{reason}")).or_insert(0) += n;
+        }
+        // Totality, as a printed control and not as an assertion: a record that
+        // framed is a value, a named residue entry or a dropped conflict.
+        if r.values + r.residue + r.conflicts != r.records {
+            *res.emit.entry("in-init-accounting-broken".into()).or_insert(0) += 1;
+        }
+    }
+
     if let Some(gl) = captured.bundle.get("gl") {
         let (dropped, mangled) = c2_il::gl_symbol_conflicts(gl);
         if dropped > 0 {
