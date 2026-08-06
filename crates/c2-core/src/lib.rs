@@ -510,9 +510,6 @@ impl PortC2 {
             .collect::<Result<Vec<u32>, BackendError>>()?;
 
         // Under function-level linking every function gets its own COMDAT
-        // `.text` section, so the texts are kept separate rather than packed.
-        // The order rule is the same one — measured at `/O1` too, where it
-        // decides the section table itself and not just offsets within `.text`.
         // **MECHANISM E's one input** (`crate::elide`): which of this bundle's
         // own functions have empty bodies. Resolved once per TU, here, because
         // it is the only place that sees every function — the per-function
@@ -526,6 +523,9 @@ impl PortC2 {
         // composition with two contexts is how those two stay in agreement.
         let tu_empty = elide::TuEmptyCallees::of(&funcs);
 
+        // `.text` section, so the texts are kept separate rather than packed.
+        // The order rule is the same one — measured at `/O1` too, where it
+        // decides the section table itself and not just offsets within `.text`.
         if self.fn_level_linking {
             let mut texts: Vec<Vec<u8>> = Vec::with_capacity(funcs.len());
             let mut placed: Vec<coff::Function> = Vec::with_capacity(funcs.len());
@@ -692,7 +692,7 @@ impl PortC2 {
                 // refusal is ever narrowed.
                 codegen::Selected::Tail(_) if elide::drops_tail_call(f, &tu_empty) => {
                     return Err(BackendError::NotImplemented(
-                        "a call the front end drops (its callee is defined in \
+                        "a call c2 does not emit (its callee is defined in \
                          this TU with an empty body) inside a PACKED `.text`: \
                          the elision shortens the caller, and no capture \
                          measures what that does to the following functions' \

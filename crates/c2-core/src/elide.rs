@@ -17,6 +17,19 @@
 //! own *emitted* size (`INLINE_PREDICATE.md` §6.2), which is a different — and
 //! much more expensive — ordering constraint.
 //!
+//! # E is performed by **c2**, not by the front end — and that is why the port can see it
+//!
+//! `INLINE_PREDICATE.md` calls E *"the front end dropping a call"*, on the
+//! strength of its being unaffected by `/Ob0`. **The IL says otherwise, and the
+//! IL is what this module reads.** For `void g(){} void f(){ g(); }` at the
+//! workload's flags, `c2rs census` reports three functions and calls `?f`
+//! **`void-tail-call`** — the call is *in* the `.ex` stream c2 consumes, which
+//! is exactly why the port emits a branch for it and why family A exists at all.
+//! Whatever `/Ob` does or does not govern, the elision happens **behind** the IL
+//! seam, in the same place `docs/GAPS.md` already puts c2's constant folding and
+//! its inlining. Had c1xx dropped the call, there would be nothing here to
+//! model.
+//!
 //! # The predicate, exactly as it was measured
 //!
 //! [`drops_tail_call`] is the whole rule. It fires for a function the selector
