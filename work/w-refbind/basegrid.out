@@ -1,0 +1,28 @@
+  cell               spell  bases | prod  const | ORDER  ALLOC  | emitted
+  --------------------------------------------------------------------------------------------------------
+  B0-one-base-s      shift  1     | r11   r10   | prod   prod   | slwi li stw stw stw blr
+  B0-one-base-s      add    1     | r11   r10   | prod   prod   | add li stw stw stw blr
+  B1-one-base-t      shift  1     | r11   r10   | prod   prod   | slwi li stw stw stw blr
+  B1-one-base-t      add    1     | r11   r10   | prod   prod   | add li stw stw stw blr
+  B2-split-cs-pt     shift  2     | r10   r11   | const  const  | li slwi stw stw stw blr
+  B2-split-cs-pt     add    2     | r11   r10   | const  prod   | li add stw stw stw blr
+  B3-split-ct-ps     shift  2     | r10   r11   | const  const  | li slwi stw stw stw blr
+  B3-split-ct-ps     add    2     | r11   r10   | const  prod   | li add stw stw stw blr
+  B4-bind-one-base   shift  2     | r10   r11   | const  const  | li slwi stw stw stw blr
+  B4-bind-one-base   add    2     | r11   r10   | const  prod   | li add stw stw stw blr
+
+  GRADED 10 | out-of-regime 0 | of 10
+
+  R13 — poles B0-one-base-s (none) and B4-bind-one-base (ref):
+    shift  B0-one-base-s      bases 1 | prod,prod    none-like  HIT       the none pole
+    shift  B1-one-base-t      bases 1 | prod,prod    none-like  HIT       **R13's discriminator** — two formals, ONE base, no bind
+    shift  B2-split-cs-pt     bases 2 | const,const  ref-like   HIT       **R13** — split bases, no bind
+    shift  B3-split-ct-ps     bases 2 | const,const  ref-like   HIT       **R13** — split bases the other way
+    shift  B4-bind-one-base   bases 2 | const,const  ref-like   HIT       the ref pole
+    add    B0-one-base-s      bases 1 | prod,prod    none-like  HIT       the none pole
+    add    B1-one-base-t      bases 1 | prod,prod    none-like  HIT       **R13's discriminator** — two formals, ONE base, no bind
+    add    B2-split-cs-pt     bases 2 | const,prod   ref-like   HIT       **R13** — split bases, no bind
+    add    B3-split-ct-ps     bases 2 | const,prod   ref-like   HIT       **R13** — split bases the other way
+    add    B4-bind-one-base   bases 2 | const,prod   ref-like   HIT       the ref pole
+
+    R13 rows (poles excluded): HIT 6 | MISS 0 | spellings that discriminate nothing: 0
