@@ -1,0 +1,54 @@
+cells: 20   compiled(/O1): 20   compiled(/Ob0): 20   edges: 47
+
+cell                   edge           verdict  blr?   rel24     caller .text at /O1
+-----------------------------------------------------------------------------------
+k1_chain_d1            f->h           E        blr    0->0      4e800020
+k2_chain_d2            g1->h          E        blr    0->0      4e800020
+k2_chain_d2            f->g1          E        blr    0->0      4e800020
+k3_chain_d3            g2->h          E        blr    0->0      4e800020
+k3_chain_d3            g1->g2         E        blr    0->0      4e800020
+k3_chain_d3            f->g1          E        blr    0->0      4e800020
+k4_chain_d4            g3->h          E        blr    0->0      4e800020
+k4_chain_d4            g2->g3         E        blr    0->0      4e800020
+k4_chain_d4            g1->g2         E        blr    0->0      4e800020
+k4_chain_d4            f->g1          E        blr    0->0      4e800020
+k5_stop_d1             f->h           I        1w     0->1      48000000
+k6_stop_d2             g1->h          I        1w     0->1      48000000
+k6_stop_d2             f->g1          I        1w     0->1      48000000
+k7_stop_d3             g2->h          I        1w     0->1      48000000
+k7_stop_d3             g1->g2         I        1w     0->1      48000000
+k7_stop_d3             f->g1          I        1w     0->1      48000000
+k8_two_empty           g1->h1         E        blr    0->0      4e800020
+k8_two_empty           g1->h2         E        blr    0->0      4e800020
+k8_two_empty           f->g1          E        blr    0->0      4e800020
+k9_diamond             ga->h          E        blr    0->0      4e800020
+k9_diamond             gb->h          E        blr    0->0      4e800020
+k9_diamond             f->ga          E        blr    0->0      4e800020
+k9_diamond             f->gb          E        blr    0->0      4e800020
+k10_cycle2             a->b           CALL     1w     1->1      48000000
+k10_cycle2             b->a           I        1w     0->1      48000000
+k10_cycle2             f->a           I        1w     0->1      48000000
+k11_self               r->r           E        1w     0->0      48000000
+k11_self               f->r           CALL     1w     1->1      48000000
+k12_cross_i            g1->m          I        blr    0->1      4e800020
+k12_cross_i            f->g1          I        blr    0->1      4e800020
+k13_i_result_dropped   g1->m          E        blr    0->0      4e800020
+k13_i_result_dropped   f->g1          E        blr    0->0      4e800020
+k14_arg_chain          g1->h          E        blr    0->0      4e800020
+k14_arg_chain          f->g1          E        blr    0->0      4e800020
+k15_side_effect_mid    g1->h          E        5w     0->0      3d400000 816a0000 396b0001 916a0000 4e800020
+k15_side_effect_mid    f->g1          I        5w     0->1      3d400000 816a0000 396b0001 916a0000 4e800020
+k16_mid_stores_global  g1->h          E        3w     0->0      3d600000 906b0000 4e800020
+k16_mid_stores_global  f->g1          I        3w     0->1      3d600000 906b0000 4e800020
+k17_dtor_chain_d2      C::~C->B::~B   E        blr    0->0      4e800020
+k17_dtor_chain_d2      B::~B->A::~A   E        blr    0->0      4e800020
+k18_dtor_chain_d3      D::~D->C::~C   E        blr    0->0      4e800020
+k18_dtor_chain_d3      C::~C->B::~B   E        blr    0->0      4e800020
+k18_dtor_chain_d3      B::~B->A::~A   E        blr    0->0      4e800020
+k19_fnptr_mid          g1->h          CALL     1w     1->1      48000000
+k19_fnptr_mid          f->g1          I        1w     0->1      48000000
+k20_perm_chain         g1->h          E        blr    0->0      4e800020
+k20_perm_chain         f->g1          E        blr    0->0      4e800020
+
+edge verdicts: CALL 3  E 31  I 13
+graded: 47 of 47 edges
