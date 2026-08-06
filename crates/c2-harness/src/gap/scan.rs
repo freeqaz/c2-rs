@@ -56,6 +56,7 @@ fn scan_one(
         emit: BTreeMap::new(),
         emit_blockers: BTreeMap::new(),
         emit_witness: Vec::new(),
+        fndiff: Vec::new(),
     };
 
     // 1. Capture: real flags, real cwd, strace keeps bundle + obj. Served from
@@ -1087,6 +1088,25 @@ pub fn gap_scan(
                 emit,
                 emit_blockers,
             )?;
+        }
+    }
+
+    // **The diff-signature sink** (board #976, `super::fndiff`). One row per
+    // `fnbyte-differs` FUNCTION, not per TU, so it is a separate file from the
+    // scan's own JSONL rather than a field inside it: joining the two is a
+    // `tu` key away, and nesting thousands of function rows inside a TU row
+    // would make the per-TU record unreadable by every existing consumer.
+    //
+    // The rows exist on `TuResult` whether or not this path is taken, so the
+    // `fndiff-*` counters printed by every scan are never conditional on a flag
+    // — a census that only some invocations produce is a census that goes stale
+    // without anybody noticing.
+    if let Some(path) = &cfg.fndiff_jsonl {
+        let mut f = std::fs::File::create(path)?;
+        for r in &results {
+            for row in &r.fndiff {
+                writeln!(f, "{row}")?;
+            }
         }
     }
 

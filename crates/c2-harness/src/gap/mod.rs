@@ -37,6 +37,7 @@ use crate::provenance::Provenance;
 mod classify;
 mod factors;
 pub mod fnbytes;
+pub mod fndiff;
 mod render;
 mod report;
 mod scan;
@@ -68,6 +69,16 @@ pub struct GapConfig {
     pub replay_every: usize,
     /// Write one JSON record per TU here.
     pub jsonl: Option<PathBuf>,
+    /// **The diff-signature sink** (lane `w-bytes`, board #976): one JSON record
+    /// per `fnbyte-differs` **function**, not per TU — see [`fndiff`].
+    ///
+    /// Off by default and a file rather than stdout, for the same reason
+    /// [`GapConfig::factors_tsv`] is: the population is thousands of rows on the
+    /// dc3 workload and would swamp a report meant to be read. The **counts**
+    /// derived from the same signatures are printed on every scan regardless
+    /// (`fndiff-*` keys), so the cluster census is never conditional on somebody
+    /// having passed a flag.
+    pub fndiff_jsonl: Option<PathBuf>,
     /// Write the **per-TU Phase 7 factor membership** here, one row per graded
     /// TU (`src`, class, A/B/C/D/E). See [`GapReport::factor_membership`] for
     /// why the joints alone are not enough: a count cannot be intersected with
@@ -321,6 +332,14 @@ pub struct TuResult {
     ///   is 0. This is the one place the binding can be graded against ground
     ///   truth rather than against its own invariants.
     pub emit: BTreeMap<String, usize>,
+    /// **One rendered JSON row per `fnbyte-differs` function** ([`fndiff`]), in
+    /// the reference obj's COMDAT order.
+    ///
+    /// Rendered here rather than at the sink so the scan's worker threads do the
+    /// work and the writer only concatenates — and so the rows exist whether or
+    /// not `--fnbyte-diff-jsonl` was passed, which is what lets the `fndiff-*`
+    /// counters be unconditional.
+    pub fndiff: Vec<String>,
     /// **The emitted-only blocking histogram**: the census key of every
     /// out-of-class row that binds to a symbol c2 actually emitted.
     ///

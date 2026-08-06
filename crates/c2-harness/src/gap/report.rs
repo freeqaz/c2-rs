@@ -698,6 +698,39 @@ impl GapReport {
         v
     }
 
+    /// **THE DIFF-SIGNATURE CLUSTER CENSUS** (board #976, [`super::fndiff`]) —
+    /// the `fnbyte-differs` population grouped by the *structure* of its
+    /// disagreement rather than by its first wrong word.
+    ///
+    /// Rows whose key carries `prefix`, largest first. The prefix is stripped so
+    /// the caller renders a cluster key, not a counter name.
+    fn fndiff_rows(&self, prefix: &str) -> Vec<(String, usize)> {
+        let mut v: Vec<(String, usize)> = self
+            .emit_histogram()
+            .into_iter()
+            .filter_map(|(k, n)| Some((k.strip_prefix(prefix)?.to_string(), n)))
+            .collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        v
+    }
+
+    /// The coarse clusters: `shape|length-relation|edit-shape|field-classes`.
+    pub fn fndiff_clusters(&self) -> Vec<(String, usize)> {
+        self.fndiff_rows("fndiff-csig|")
+    }
+
+    /// Per-substituted-word field classes — `reg`, `imm`, `disp`, `opcode`,
+    /// `branch-target`, `undecoded`, … Counted in WORDS, not in functions, so it
+    /// does not sum to the cluster table.
+    pub fn fndiff_classes(&self) -> Vec<(String, usize)> {
+        self.fndiff_rows("fndiff-class|")
+    }
+
+    /// Where the first disagreement is, bucketed.
+    pub fn fndiff_first_buckets(&self) -> Vec<(String, usize)> {
+        self.fndiff_rows("fndiff-first|")
+    }
+
     /// **Per-TU FBM**, nearest-to-done first: `(src, exact, denominator)` over
     /// every graded TU that carries at least one emitted function.
     ///

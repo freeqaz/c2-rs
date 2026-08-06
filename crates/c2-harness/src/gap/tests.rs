@@ -46,6 +46,7 @@ fn mk(reason: &str) -> TuResult {
         emit: BTreeMap::new(),
         emit_blockers: BTreeMap::new(),
         emit_witness: Vec::new(),
+        fndiff: Vec::new(),
     }
 }
 
