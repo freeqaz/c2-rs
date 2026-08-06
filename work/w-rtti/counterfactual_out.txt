@@ -1,0 +1,13 @@
+### BASE
+  BASE  the_writer_vocabulary_is_every_section_name_this_file_emits  ok
+  BASE  every_production_emitter_has_a_lib_rs_caller  ok
+### BREAK 1 — the constant only, no Section literal
+  BREAK1  the_writer_vocabulary_is_every_section_name_this_file_emits  FAILED
+  BREAK1  every_production_emitter_has_a_lib_rs_caller  ok
+### BREAK 2 — the constant PLUS an uncalled emitter that builds the Section
+  BREAK2  the_writer_vocabulary_is_every_section_name_this_file_emits  ok
+  BREAK2  every_production_emitter_has_a_lib_rs_caller  FAILED
+### RESTORE
+  git status --porcelain crates/ = 0 path(s)
+  RESTORE  the_writer_vocabulary_is_every_section_name_this_file_emits  ok
+  RESTORE  every_production_emitter_has_a_lib_rs_caller  ok
