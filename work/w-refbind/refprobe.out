@@ -1,0 +1,65 @@
+  cell                 spell  | prod  const | ORDER  ALLOC  | emitted
+  --------------------------------------------------------------------------------------------------------
+  Q0-none-inner        shift  | r11   r10   | prod   prod   | slwi li stw stw stw blr
+  Q0-none-inner        add    | r11   r10   | prod   prod   | add li stw stw stw blr
+  Q0-ref-inner         shift  | r10   r11   | const  const  | li slwi stw stw stw blr
+  Q0-ref-inner         add    | r11   r10   | const  prod   | li add stw stw stw blr
+  Q1-none-head         shift  | r11   r10   | prod   prod   | slwi li stw stw stw blr
+  Q1-none-head         add    | r11   r10   | prod   prod   | add li stw stw stw blr
+  Q1-ref-head          shift  | r11   r10   | prod   prod   | slwi li stw stw stw blr
+  Q1-ref-head          add    | r11   r10   | prod   prod   | add li stw stw stw blr
+  Q1-ref-inner2        shift  | r10   r11   | const  const  | li slwi stw stw stw blr
+  Q1-ref-inner2        add    | r11   r10   | const  prod   | li add stw stw stw blr
+  Q2-scalar-refs       shift  | r10   r11   | const  const  | li slwi stw stw stw blr
+  Q2-scalar-refs       add    | r11   r10   | const  prod   | li add stw stw stw blr
+  Q2-scalar-ref-one    shift  | r10   r11   | const  const  | li slwi stw stw stw blr
+  Q2-scalar-ref-one    add    | r11   r10   | const  prod   | li add stw stw stw blr
+  Q3-ref-const-side    shift  | r10   r11   | const  const  | li slwi stw stw stw blr
+  Q3-ref-const-side    add    | r11   r10   | const  prod   | li add stw stw stw blr
+  Q3-none-const-side   shift  | r11   r10   | prod   prod   | slwi li stw stw stw blr
+  Q3-none-const-side   add    | r11   r10   | prod   prod   | add li stw stw stw blr
+  Q4-unnamed           shift  | r11   r10   | prod   prod   | slwi li stw stw stw blr
+  Q4-unnamed           add    | r11   r10   | prod   prod   | add li stw stw stw blr
+  Q5-const-ptr         shift  | r10   r11   | const  const  | li slwi stw stw stw blr
+  Q5-const-ptr         add    | r11   r10   | const  prod   | li add stw stw stw blr
+  Q6-one-through       shift  | r10   r11   | const  const  | li slwi stw stw stw blr
+  Q6-one-through       add    | r11   r10   | const  prod   | li add stw stw stw blr
+  Q7-ref-formal        shift  | OUT OF REGIME (prod=None const=11)
+  Q7-ref-formal        add    | OUT OF REGIME (prod=None const=10)
+  Q8-ref-deep          shift  | r10   r11   | const  const  | li slwi stw stw stw blr
+  Q8-ref-deep          add    | r11   r10   | const  prod   | li add stw stw stw blr
+
+  reached 28 | GRADED 26 | out-of-regime 2 | compile-failed 0 | of 28
+
+  CLASSIFICATION — poles are Q0-none-inner and Q0-ref-inner, per spelling.
+  cell                 spell  | signature     | verdict    | registered | note
+  --------------------------------------------------------------------------------------------------------------
+  Q0-none-inner        shift  | prod,prod     | none-like  | HIT       | baseline, interior at 96
+  Q0-none-inner        add    | prod,prod     | none-like  | HIT       | baseline, interior at 96
+  Q0-ref-inner         shift  | const,const   | ref-like   | HIT       | baseline, interior at 96
+  Q0-ref-inner         add    | const,prod    | ref-like   | HIT       | baseline, interior at 96
+  Q1-none-head         shift  | prod,prod     | none-like  | HIT       | baseline, sub-object at OFFSET 0
+  Q1-none-head         add    | prod,prod     | none-like  | HIT       | baseline, sub-object at OFFSET 0
+  Q1-ref-head          shift  | prod,prod     | none-like  | HIT       | **R8** — offset-0 binding, registered NONE-like
+  Q1-ref-head          add    | prod,prod     | none-like  | HIT       | **R8** — offset-0 binding, registered NONE-like
+  Q1-ref-inner2        shift  | const,const   | ref-like   | HIT       | control for R8 — a LARGER offset must stay ref-like
+  Q1-ref-inner2        add    | const,prod    | ref-like   | HIT       | control for R8 — a LARGER offset must stay ref-like
+  Q2-scalar-refs       shift  | const,const   | ref-like   | **MISS**  | **R9** — two scalar refs, no shared base, registered NONE-like
+  Q2-scalar-refs       add    | const,prod    | ref-like   | **MISS**  | **R9** — two scalar refs, no shared base, registered NONE-like
+  Q2-scalar-ref-one    shift  | const,const   | ref-like   |           | extra — ONE scalar ref, one direct
+  Q2-scalar-ref-one    add    | const,prod    | ref-like   |           | extra — ONE scalar ref, one direct
+  Q3-ref-const-side    shift  | const,const   | ref-like   | **MISS**  | **R10** — the binding serves the CONSTANT, registered NONE-like
+  Q3-ref-const-side    add    | const,prod    | ref-like   | **MISS**  | **R10** — the binding serves the CONSTANT, registered NONE-like
+  Q3-none-const-side   shift  | prod,prod     | none-like  | HIT       | control for R10 — same stores, no binding
+  Q3-none-const-side   add    | prod,prod     | none-like  | HIT       | control for R10 — same stores, no binding
+  Q4-unnamed           shift  | prod,prod     | none-like  |           | extra — an interior address with NO name
+  Q4-unnamed           add    | prod,prod     | none-like  |           | extra — an interior address with NO name
+  Q5-const-ptr         shift  | const,const   | ref-like   |           | extra — const-qualified pointer binding
+  Q5-const-ptr         add    | const,prod    | ref-like   |           | extra — const-qualified pointer binding
+  Q6-one-through       shift  | const,const   | ref-like   |           | extra — only ONE of the two producer stores goes through it
+  Q6-one-through       add    | const,prod    | ref-like   |           | extra — only ONE of the two producer stores goes through it
+  Q8-ref-deep          shift  | const,const   | ref-like   | HIT       | control — same binding, stores deeper inside it
+  Q8-ref-deep          add    | const,prod    | ref-like   | HIT       | control — same binding, stores deeper inside it
+
+  registered rows: HIT 14 | MISS 4 ; unregistered rows 8
+  * = the two poles coincide for that spelling, so the row discriminates NOTHING and is not evidence either way.
