@@ -1,0 +1,71 @@
+  work/w-ilx/gridI/S-11-self/c.ex  (2831 bytes)
+    @0x0aa1  store [0x0c0a + [32]]  <=  other
+    @0x0abf  store [0x0c0a + [96, 0]]  <=  addr(0x0c0a + [96])
+    KEY ILX -> ('SELF-1B', 'prod', 'value address is a proper prefix of the store address, one store-base token')
+  work/w-ilx/gridI/S-11-cross/c.ex  (2835 bytes)
+    @0x0aa1  store [0x0c0a + [32]]  <=  other
+    @0x0abf  store [0x0c0a + [96, 0]]  <=  addr(0x0c0a + [128])
+    KEY ILX -> ('CROSS', 'const', 'value address is not a prefix of the store address')
+  work/w-ilx/gridI/S-21-self/c.ex  (2888 bytes)
+    @0x0aa1  store [0x0c0a + [32]]  <=  other
+    @0x0abf  store [0x0c0a + [96, 0]]  <=  addr(0x0c0a + [96])
+    @0x0af8  store [0x0c0a + [96, 4]]  <=  addr(0x0c0a + [96])
+    KEY ILX -> ('SELF-1B', 'prod', 'value address is a proper prefix of the store address, one store-base token')
+  work/w-ilx/gridI/S-21-cross/c.ex  (2896 bytes)
+    @0x0aa1  store [0x0c0a + [32]]  <=  other
+    @0x0abf  store [0x0c0a + [96, 0]]  <=  addr(0x0c0a + [128])
+    @0x0afc  store [0x0c0a + [96, 4]]  <=  addr(0x0c0a + [128])
+    KEY ILX -> ('CROSS', 'prod', 'value address is not a prefix of the store address')
+  work/w-ilx/gridI/X-11-A/c.ex  (2850 bytes)
+    bind  0x110a := load 0x0c0a + [96]
+    @0x0abe  store [0x0c0a + [32]]  <=  other
+    @0x0adc  store [0x110a + [0]]  <=  addr(0x0c0a + [96])
+    KEY ILX -> ('SELF-2B', 'prod', 'value address is a proper prefix of the store address, and the two runs have different store-base tokens')
+  work/w-ilx/gridI/X-11-B/c.ex  (2840 bytes)
+    bind  0x110a := load 0x0c0a + [96]
+    @0x0abe  store [0x0c0a + [32]]  <=  other
+    @0x0adc  store [0x110a + [0]]  <=  addr(0x110a + [])
+    KEY ILX -> ('LOAD', 'prod', 'value is a bare B9 load, no 33..27 offset-add')
+  work/w-ilx/gridI/X-35-A/c.ex  (3064 bytes)
+    bind  0x110a := load 0x0c0a + [96]
+    @0x0abe  store [0x0c0a + [32]]  <=  other
+    @0x0adc  store [0x0c0a + [36]]  <=  other
+    @0x0afa  store [0x0c0a + [40]]  <=  other
+    @0x0b18  store [0x0c0a + [44]]  <=  other
+    @0x0b36  store [0x0c0a + [48]]  <=  other
+    @0x0b54  store [0x110a + [0]]  <=  addr(0x0c0a + [96])
+    @0x0b83  store [0x110a + [4]]  <=  addr(0x0c0a + [96])
+    @0x0bb2  store [0x110a + [8]]  <=  addr(0x0c0a + [96])
+    KEY ILX -> ('SELF-2B', 'prod', 'value address is a proper prefix of the store address, and the two runs have different store-base tokens')
+  work/w-ilx/gridI/X-35-B/c.ex  (3034 bytes)
+    bind  0x110a := load 0x0c0a + [96]
+    @0x0abe  store [0x0c0a + [32]]  <=  other
+    @0x0adc  store [0x0c0a + [36]]  <=  other
+    @0x0afa  store [0x0c0a + [40]]  <=  other
+    @0x0b18  store [0x0c0a + [44]]  <=  other
+    @0x0b36  store [0x0c0a + [48]]  <=  other
+    @0x0b54  store [0x110a + [0]]  <=  addr(0x110a + [])
+    @0x0b79  store [0x110a + [4]]  <=  addr(0x110a + [])
+    @0x0b9e  store [0x110a + [8]]  <=  addr(0x110a + [])
+    KEY ILX -> ('LOAD', 'const', 'value is a bare B9 load, no 33..27 offset-add')
+  work/w-ilx/gridI/X-AE-A/c.ex  (3064 bytes)
+    bind  0x110a := load 0x0c0a + [96]
+    @0x0abe  store [0x0c0a + [32]]  <=  other
+    @0x0adc  store [0x0c0a + [36]]  <=  other
+    @0x0afa  store [0x0c0a + [40]]  <=  other
+    @0x0b18  store [0x0c0a + [44]]  <=  other
+    @0x0b36  store [0x0c0a + [48]]  <=  other
+    @0x0b54  store [0x110a + [0]]  <=  addr(0x0c0a + [96])
+    @0x0b83  store [0x110a + [4]]  <=  addr(0x0c0a + [96])
+    @0x0bb2  store [0x110a + [8]]  <=  addr(0x0c0a + [96])
+    KEY ILX -> ('SELF-2B', 'prod', 'value address is a proper prefix of the store address, and the two runs have different store-base tokens')
+  work/w-ilx/gridI/X-AE-E/c.ex  (3065 bytes)
+    @0x0aa1  store [0x0c0a + [32]]  <=  other
+    @0x0abf  store [0x0c0a + [36]]  <=  other
+    @0x0add  store [0x0c0a + [40]]  <=  other
+    @0x0afb  store [0x0c0a + [44]]  <=  other
+    @0x0b19  store [0x0c0a + [48]]  <=  other
+    @0x0b37  store [0x0c0a + [96, 0]]  <=  addr(0x0c0a + [96])
+    @0x0b70  store [0x0c0a + [96, 4]]  <=  addr(0x0c0a + [96])
+    @0x0ba9  store [0x0c0a + [96, 8]]  <=  addr(0x0c0a + [96])
+    KEY ILX -> ('SELF-1B', 'const', 'value address is a proper prefix of the store address, one store-base token')
