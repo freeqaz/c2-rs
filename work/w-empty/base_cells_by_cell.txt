@@ -1,0 +1,54 @@
+c00_empty              vocab-gap    plain|fnbyte-exact=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020|?f@@YAXXZ
+c01_semicolon          vocab-gap    plain|fnbyte-exact=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020|?f@@YAXXZ
+c02_ignored_formal     vocab-gap    plain|fnbyte-exact=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020|?f@@YAXH@Z
+c03_dead_local_init    vocab-gap    parse-refused|fnbyte-refused=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020|?f@@YAXH@Z
+c04_dead_store         vocab-gap    parse-refused|fnbyte-refused=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020|?f@@YAXH@Z
+c05_empty_loop         vocab-gap    parse-refused|fnbyte-refused=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020|?f@@YAXH@Z
+c06_static             vocab-gap    plain|fnbyte-exact=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020|?f@@YAXXZ
+c07_inline             vocab-gap    plain|fnbyte-exact=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020|?f@@YAXXZ
+c08_member_inclass     vocab-gap    plain|fnbyte-exact=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020|?f@@YAXAAUS@@@Z
+c09_member_outclass    vocab-gap    plain|fnbyte-exact=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020|?f@@YAXAAUS@@@Z
+c10_virtual_qualified  vocab-gap    plain|fnbyte-exact=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020|?f@@YAXAAUS@@@Z
+c11_ctor_base          vocab-gap    parse-refused|fnbyte-refused=1  plain|fnbyte-exact=1  tail|fnbyte-exact=1
+c12_ctor_meminit       vocab-gap    plain|fnbyte-exact=1  seq|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  seq|w12/3/eq0|first@0:port=7d8802a6,ref=39600000|??0D@@QAA@XZ
+c13_dtor_base          vocab-gap    parse-refused|fnbyte-refused=1  plain|fnbyte-exact=1  tail|fnbyte-exact=1
+c14_return_stmt        vocab-gap    parse-refused|fnbyte-refused=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020|?f@@YAXXZ
+c15_if_empty           vocab-gap    parse-refused|fnbyte-refused=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020|?f@@YAXH@Z
+c16_volatile_local     vocab-gap    parse-refused|fnbyte-refused=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/3/eq0|first@0:port=48000000,ref=39600000|?f@@YAXXZ
+c17_store_global       vocab-gap    parse-refused|fnbyte-refused=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/3/eq0|first@0:port=48000000,ref=3d600000|?f@@YAXH@Z
+c18_calls_extern       vocab-gap    tail|fnbyte-exact=3
+c19_ret_param          vocab-gap    plain|fnbyte-exact=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020|?f@@YAHH@Z
+c20_ret_const          vocab-gap    parse-refused|fnbyte-refused=1  plain|fnbyte-exact=1  tail|fnbyte-exact=1
+c21_ret_plus1          vocab-gap    plain|fnbyte-exact=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/2/eq0|first@0:port=48000000,ref=38630001|?f@@YAHH@Z
+c22_extern_callee      match        tail|fnbyte-exact=2
+f02_perm               vocab-gap    plain|fnbyte-exact=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w4/1/eq0|first@0:port=7c8b2378,ref=4e800020|?f@@YAXHH@Z
+f03_expr_arg           vocab-gap    plain|fnbyte-exact=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w2/1/eq0|first@0:port=38630001,ref=4e800020|?f@@YAXH@Z
+f04_deref_arg          vocab-gap    parse-refused|fnbyte-refused=1  plain|fnbyte-exact=1  tail|fnbyte-exact=1
+f05_side_effect_arg    vocab-gap    parse-refused|fnbyte-refused=1  plain|fnbyte-exact=1  tail|fnbyte-exact=1
+f06_two_calls          vocab-gap    plain|fnbyte-exact=1  seq|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  seq|w13/1/eq0|first@0:port=7d8802a6,ref=4e800020|?f@@YAXH@Z
+f07_nonvoid_caller     vocab-gap    parse-refused|fnbyte-refused=1  plain|fnbyte-exact=1  tail|fnbyte-exact=1
+f08_mixed              vocab-gap    plain|fnbyte-exact=1  seq|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  seq|w9/1/eq0|first@0:port=7d8802a6,ref=48000000|?f@@YAXH@Z
+f09_fnptr              vocab-gap    parse-refused|fnbyte-refused=1  plain|fnbyte-exact=1  tail|fnbyte-exact=1
+f10_virtual_ptr        vocab-gap    parse-refused|fnbyte-refused=1  tail|fnbyte-exact=1

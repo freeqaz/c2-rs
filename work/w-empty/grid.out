@@ -1,0 +1,55 @@
+===== GRID-1  stamp fea9877e9218d4bd9a09a24abae25b5007823eb2bd8de43f3bdb7331b844815b
+cells: 32   compiled(/O1): 32   compiled(/Ob0): 32
+
+cell                   verdict   ?f .text at /O1                rel24 /O1 -> /Ob0
+---------------------------------------------------------------------------------
+c00_empty              E         4e800020                       0 -> 0  (-)
+c01_semicolon          E         4e800020                       0 -> 0  (-)
+c02_ignored_formal     E         4e800020                       0 -> 0  (-)
+c03_dead_local_init    E         4e800020                       0 -> 0  (-)
+c04_dead_store         E         4e800020                       0 -> 0  (-)
+c05_empty_loop         E         4e800020                       0 -> 0  (-)
+c06_static             E         4e800020                       0 -> 0  (-)
+c07_inline             E         4e800020                       0 -> 0  (-)
+c08_member_inclass     E         4e800020                       0 -> 0  (-)
+c09_member_outclass    E         4e800020                       0 -> 0  (-)
+c10_virtual_qualified  E         4e800020                       0 -> 0  (-)
+c11_ctor_base          E         4e800020                       0 -> 0  (-)
+c12_ctor_meminit       I         39600000 91630000 4e800020     0 -> 1  (-)
+c13_dtor_base          E         4e800020                       0 -> 0  (-)
+c14_return_stmt        E         4e800020                       0 -> 0  (-)
+c15_if_empty           E         4e800020                       0 -> 0  (-)
+c16_volatile_local     I         39600000 9161fff0 4e800020     0 -> 1  (-)
+c17_store_global       I         3d600000 906b0000 4e800020     0 -> 1  (-)
+c18_calls_extern       I         48000000                       0 -> 1  (?ext@@YAXXZ)
+c19_ret_param          I         4e800020                       0 -> 1  (-)
+c20_ret_const          I         38600000 4e800020              0 -> 1  (-)
+c21_ret_plus1          I         38630001 4e800020              0 -> 1  (-)
+c22_extern_callee      NOCELL    48000000                       0 -> 0  (?g@@YAXXZ)
+f02_perm               E         4e800020                       0 -> 0  (-)
+f03_expr_arg           E         4e800020                       0 -> 0  (-)
+f04_deref_arg          E         4e800020                       0 -> 0  (-)
+f05_side_effect_arg    E         3d400000 816a0000 396b0001 916a0000 4e800020 0 -> 0  (-)
+f06_two_calls          E         4e800020                       0 -> 0  (-)
+f07_nonvoid_caller     E         4e800020                       0 -> 0  (-)
+f08_mixed              E         48000000                       0 -> 0  (?ext@@YAXXZ)
+f09_fnptr              CALL      48000000                       1 -> 1  (?g@@YAXXZ)
+f10_virtual_ptr        NODIRECT  81630000 816b0000 7d6903a6 4e800420 0 -> 0  (-)
+
+verdicts: CALL 1  E 22  I 7  NOCELL 1  NODIRECT 1
+
+===== GRID-2  stamp 187e899a6f8c4bf7d4623048a248bbc5951a1938cde84dd6a7d6dcb192e4bd8b
+cells: 8   compiled(/O1): 8   compiled(/Ob0): 8
+
+cell                   verdict   ?f .text at /O1                rel24 /O1 -> /Ob0
+---------------------------------------------------------------------------------
+g01_data_addr_arg      E         4e800020                       0 -> 0  (-)
+g02_float_arg          E         4e800020                       0 -> 0  (-)
+g03_define_after_use   E         4e800020                       0 -> 0  (-)
+g04_addr_also_taken    E         4e800020                       0 -> 0  (-)
+g05_const_arg          E         4e800020                       0 -> 0  (-)
+g06_three_args         E         4e800020                       0 -> 0  (-)
+g07_empty_calls_empty  E         4e800020                       0 -> 0  (-)
+g08_empty_ext_decl     E         4e800020                       0 -> 0  (-)
+
+verdicts: E 8

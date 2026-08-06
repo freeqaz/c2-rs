@@ -1,7 +1,30 @@
 # INLINE_PREDICATE — when c2 does not emit the call the IL contains
 
-**Status: SPEC, nothing shipped.** No emitter and no acceptance boundary changed
-for this document. `crates/` is untouched by the lane that wrote it (`w-inline`,
+> ## Status, 2026-08-07 — **MECHANISM E IS SHIPPED. MECHANISM I IS NOT, and must not be taken from this page without a grid of its own.**
+>
+> Lane `w-empty` ([`rungs/2026-08-07-w-empty.md`](rungs/2026-08-07-w-empty.md))
+> built §1 into the port as `crates/c2-core/src/elide.rs`. On the 878-TU
+> workload `fnbyte-differs` went **4,711 → 3,338**: **1,373 emitted functions
+> moved `differs → exact` and zero moved the other way**, and every body the
+> elision produced is byte-identical to real c2's (`fnbyte-elided 1373 /
+> fnbyte-elided-exact 1373`). `IlBundle::functions()` is untouched, so `mismatch`
+> is still 0.
+>
+> **Three things on this page were corrected by shipping it, and each is marked
+> in place below:**
+>
+> 1. **§1's *"whose source body is empty"* is REFUTED as written — E is a
+>    FIXPOINT** (§1.2, board #920).
+> 2. **E is a property of the call SITE too**, and the port is safe today only
+>    because the IL parser refuses the indirect productions (§1.3, board #921).
+> 3. **The shipped predicate is a strict SUBSET of E**, because c2 applies E
+>    after its own dead-code elimination and the IL parser refuses four of the
+>    bodies that survive it (§1.4, board #922).
+>
+> Everything about **mechanism I** below is unchanged and still unshipped.
+
+**Status of the rest: SPEC.** No acceptance boundary changed for this document.
+`crates/` was untouched by the lane that wrote it (`w-inline`,
 [`rungs/2026-08-07-w-inline.md`](rungs/2026-08-07-w-inline.md)).
 
 `IlBundle::functions()` refuses any TU where a callee is also defined
@@ -115,6 +138,75 @@ Three things follow, and all three are measurements:
 survives (the call vanishes; `sink++` is not checked here), whether an empty
 body with a *volatile* access counts, and what happens at a virtual call
 through a *pointer*, where §6.18.4's site rule applies before E can be asked. **NOT MODELLED.**
+
+> **All three are answered below by `w-empty`'s GRID-1/GRID-2** (§1.2–§1.5), on
+> the same instrument: 40 cells, `sha256`-frozen and committed before the first
+> `cl.exe`, each compiled at the workload's flags **and** with `/Ob0`.
+> `f05_side_effect_arg`: the call vanishes and `sink++` **survives**, as four
+> words. `c16_volatile_local`: a `volatile` local store is **not** E — it is
+> mechanism I. `f10_virtual_ptr`: a `bcctrl`, ungradeable on this observable and
+> excluded, exactly as `virt-ptr` is in §4.
+
+## 1.2 §1 is REFUTED as written — E is a FIXPOINT (board #920)
+
+```cpp
+void h() {}
+void g() { h(); }        // source body NOT empty
+void f() { g(); }
+```
+
+c2 emits **both** `?f` and `?g` as a bare `blr`. The rule is therefore not *"the
+callee's source body is empty"* but
+
+> **the callee's body REDUCES TO NOTHING** — closed under E itself.
+
+`work/w-empty/cells2/g07_empty_calls_empty.cpp`. **The port ships the one-step
+version**: after `w-empty`, `?g` converts and `?f` does not, and the residual it
+leaves is **143** workload functions (`??1?$_Rb_tree_base@…`, whose callee is a
+`_STLP_alloc_proxy` destructor that is itself a tail call that elides). The
+fixpoint is board **#924** and has one cell behind it, which is why it was not
+taken.
+
+## 1.3 E is a property of the CALL SITE too, and that is the hazard (board #921)
+
+```cpp
+void g() {}
+void f() { void (*p)() = g; p(); }   // c2 emits `b ?g` WITH a REL24
+```
+
+The callee is empty and **E does not fire**. c2 folds the pointer to a direct
+branch and keeps the relocation. This is §2's *"an indirect site names no callee,
+so there is nothing to decline"* seen from E's side, and it means a port
+recognizer that reads only the callee is wrong at this site.
+
+`crates/c2-core/src/elide.rs` **does not model the site.** It is safe only
+because the IL parser refuses both indirect callers
+(`expr-call-in-expr-data-addr-then-plain-call-whole` and `body-0x67`), and
+`crates/c2-harness/tests/empty_elision.rs` pins those two refusals against the
+real toolchain so that widening either production turns a test red in the same
+commit. **Do not widen them without giving E a site condition first.**
+
+## 1.4 The shipped predicate is a strict SUBSET of E (board #922)
+
+c2 applies E *after its own dead-code elimination*; the port's rule asks whether
+the IL body decodes as `empty-body`. Four GRID-1 cells separate them —
+`void g(int a){ int x = a; }`, `if(a){}`, `{ return; }` and an empty `for` are
+**E in c2** and **parse-refused** by `c2-il`. The port keeps its branch there,
+which is the direction the correctness rule wants, and it costs **370** workload
+functions (every `??$_Destroy_Range@…` whose callee is refused as
+`expr-intrinsic-memset`).
+
+## 1.5 The caller's whole body collapses — the setup goes with the call
+
+In **29 of the 30** cells graded E, the caller's entire `.text` COMDAT is one
+`4e800020`, whatever its argument setup would have been: a four-word register
+permutation, a two-word literal, an FP argument, three formals, a global's
+address. **The thirtieth is an argument with a side effect** — `g(sink++)` drops
+the call and keeps the increment, four words — so the rule is *"E discards the
+call and a **pure** setup with it"*, not *"E makes the caller a `blr`"*. The port
+refuses that caller outright, and every `Selected::Tail` setup is pure by
+construction, so nothing shipped depends on it — but a widening that admits a
+side-effecting setup has to re-grade this.
 
 ---
 
@@ -260,13 +352,25 @@ directly. Nothing in this lane could.
 Nothing here is implemented. This is the shape, so the next lane does not have
 to re-derive it.
 
-1. **Mechanism E first, and alone if that is all that is taken.** For a call
+1. **Mechanism E first, and alone if that is all that is taken.** ~~For a call
    edge `F → G` with `G` defined in this bundle, `G`'s IL body empty **after
    dead-code elimination**, and `G`'s return value **unused at the site**: emit
-   no branch, no REL24 and no external symbol for `G` on `F`'s account. Linkage,
-   `inline`, member-ness and `virtual` do not enter it (§1.1). This is a `c2-il`
-   acceptance/lowering fact, needs no size and no cost model, and covers
-   **1,886 of the 4,711** (40 %) with the emitter untouched.
+   no branch, no REL24 and no external symbol for `G` on `F`'s account.~~
+   **DONE 2026-08-07** — `crates/c2-core/src/elide.rs`, and the shipped rule is
+   narrower than this paragraph in one way and wider in another. Narrower: the
+   port asks `IlFunction::empty_body`, not "empty after DCE", because it has no
+   DCE (§1.4). Wider: it also needs a **call-site** condition it does not have
+   (§1.3). Linkage, `inline`, member-ness and `virtual` do not enter it (§1.1) —
+   that part held on 40 cells. It covered **1,373 of the 1,886** with the
+   emitter untouched, and the residual is accounted in
+   [`rungs/2026-08-07-w-empty.md`](rungs/2026-08-07-w-empty.md) §5.
+
+   **The one thing this paragraph got most wrong is not in the rule.** It is
+   name-keyed, and *which name* is the whole problem: `IlFunction::mangled_name`
+   is paired positionally over `.ex` segments and disagrees with the per-record
+   `FnCensus::emit_name` on **74,955** rows of this workload. Keyed on the first,
+   the rule turned 14 byte-exact bodies wrong and converted nothing. Board #918;
+   the scan prints `fnbyte-name-disagree` on every run now.
 2. **Mechanism I only with `s`.** `INLINE-P` is indexed on the callee's own
    *emitted* size, so a recognizer can only apply it to a `G` the port can
    already lower — otherwise it does not know `s`. That is a real ordering
@@ -286,7 +390,13 @@ to re-derive it.
 
 ## 7. What this leaves `NOT MODELLED`
 
-* **E's exact source predicate.** Three probes, one boundary (§1).
+* ~~**E's exact source predicate.** Three probes, one boundary (§1).~~
+  **CLOSED to the extent 40 graded cells close it** (§1.1–§1.5): the boundary is
+  walked, the rule is shipped, and the three things it is still not is now a
+  list rather than a gap — the **fixpoint** (#920), the **call site** (#921), and
+  **c2's own DCE** (#922). What remains genuinely unmodelled about E: whether a
+  `volatile` access in an otherwise empty body is E (`c16` says no, n = 1), and
+  what happens at an indirect site once the parser can reach one.
 * **`leaf`'s true input** (§5) — the largest single source of `INLINE-P`'s
   workload residual.
 * **The 2.84 % SAMPLE-B residual itself**: 205 false inlines and 79 false

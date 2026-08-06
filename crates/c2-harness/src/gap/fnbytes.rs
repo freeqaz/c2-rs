@@ -110,6 +110,7 @@
 
 use c2_core::codegen::{opt_mode_of_word, select_function};
 use c2_core::comdat::{comdat_body_from_selected, selected_tag, ComdatDecline};
+use c2_core::elide::TuEmptyCallees;
 use c2_il::{FnCensus, IlFunction};
 use c2_obj::ObjImage;
 
@@ -206,11 +207,12 @@ impl Decline {
 fn complete_body(
     func: &IlFunction,
     opt_word: Option<u32>,
+    tu: &TuEmptyCallees,
 ) -> Result<(&'static str, Vec<u8>), (&'static str, Decline)> {
     let mode = opt_mode_of_word(opt_word).map_err(|_| ("opt-mode", Decline::OptMode))?;
     let selected = select_function(func, mode).map_err(|_| ("refused", Decline::Selector))?;
     let shape = selected_tag(&selected);
-    match comdat_body_from_selected(func, selected, mode) {
+    match comdat_body_from_selected(func, selected, mode, tu) {
         Ok(b) => {
             debug_assert_eq!(b.shape, shape);
             Ok((shape, b.text))
@@ -283,13 +285,51 @@ pub struct Graded {
     pub decline: Option<Decline>,
 }
 
+/// **The bundle-level context the composition needs**, built from the same
+/// census rows FBM grades — see [`c2_core::elide`].
+///
+/// Mechanism E is the one fact in a `/Gy` body that is not a property of the
+/// function alone, so it is derived from **every** census row that parsed, not
+/// from the emitted subset: an empty-bodied callee is a callee whether or not it
+/// is itself in FBM's denominator. A row that did not parse contributes nothing,
+/// which is the conservative direction — the port keeps its branch and the
+/// function keeps whatever verdict it had.
+///
+/// # It keys on `emit_name`, and keying on `mangled_name` was MEASURED WRONG
+///
+/// A census row carries two names from two bindings. `IlFunction::mangled_name`
+/// is paired **positionally** over `.ex` segments; `FnCensus::emit_name` is the
+/// per-record emitted-symbol binding — the one the walk below uses to decide
+/// which row *is* which `.text` COMDAT. They disagree on **74,955** rows of the
+/// dc3 workload, which this module now counts as `fnbyte-name-disagree` on every
+/// scan rather than leaving as a paragraph in `bind.rs`.
+///
+/// Built from `mangled_name`, the elision fired **14** times on the workload:
+/// fourteen previously byte-exact `tail` bodies turned wrong, and **not one** of
+/// family A's 1,886 was reached. The names it matched were other functions'.
+/// Built from `emit_name` — the binding this walk already trusts for exactly
+/// this population — the elision and the instrument that grades it cannot be
+/// looking at two different functions.
+///
+/// A row with no `emit_name` contributes nothing: it binds no emitted symbol, so
+/// nothing can reach it under that name either.
+pub fn tu_empty_callees(census: &[(FnCensus, Result<IlFunction, &'static str>)]) -> TuEmptyCallees {
+    TuEmptyCallees::of_named(
+        census
+            .iter()
+            .filter_map(|(c, g)| Some((c.emit_name.as_deref()?, g.as_ref().ok()?.empty_body))),
+    )
+}
+
 /// Grade one emitted symbol.
 ///
 /// `row` is the unique census row that binds it (`None` when zero or two rows
-/// do), `bytes` its COMDAT's raw data.
+/// do), `bytes` its COMDAT's raw data, `tu` the bundle's empty-bodied callees
+/// (see [`tu_empty_callees`]).
 pub fn grade_one(
     row: Option<&(FnCensus, Result<IlFunction, &'static str>)>,
     bytes: Option<&[u8]>,
+    tu: &TuEmptyCallees,
 ) -> Graded {
     let g = |verdict, shape, decline| Graded {
         verdict,
@@ -305,7 +345,7 @@ pub fn grade_one(
     let Ok(func) = gate else {
         return g(FnByte::Refused, "parse-refused", Some(Decline::Selector));
     };
-    match complete_body(func, census.opt_word) {
+    match complete_body(func, census.opt_word, tu) {
         Ok((shape, port)) => g(compare_body(&port, bytes), shape, None),
         // The `/Gy` composition has no obj model for the shape. It keeps the
         // `partial` bucket because the body's bytes were never compared — and
@@ -332,11 +372,12 @@ pub fn grade_one(
 fn differ_witness(
     row: Option<&(FnCensus, Result<IlFunction, &'static str>)>,
     reference: &[u8],
+    tu: &TuEmptyCallees,
 ) -> String {
     let Some((census, Ok(func))) = row else {
         return "first@-".to_string();
     };
-    let Ok((_, port)) = complete_body(func, census.opt_word) else {
+    let Ok((_, port)) = complete_body(func, census.opt_word, tu) else {
         return "first@-".to_string();
     };
     let hex = |b: &[u8]| -> String {
@@ -379,6 +420,26 @@ pub(super) fn measure(
         *res.emit.entry("fnbyte-obj-unreadable".into()).or_insert(0) += 1;
         return;
     };
+    // **Mechanism E's one bundle-level input**, resolved once per TU over every
+    // census row that parsed — never per function, and never from the emitted
+    // subset alone. See [`tu_empty_callees`] and `c2_core::elide`.
+    let tu = tu_empty_callees(census);
+    *res.emit.entry("fnbyte-tu-empty-callees".into()).or_insert(0) += tu.len();
+    // **The control on the input the elision reads.** A census row carries TWO
+    // names from TWO different bindings: `IlFunction::mangled_name`, paired
+    // POSITIONALLY over `.ex` segments (`bind.rs`'s own module doc pins that
+    // disagreement), and `FnCensus::emit_name`, the per-record emitted-symbol
+    // binding this walk uses to decide which row IS which COMDAT. Where they
+    // differ, a name-keyed fact read off the first one is attached to the wrong
+    // function — so the size of the disagreement is counted on every scan rather
+    // than assumed to be zero.
+    for (c, g) in census {
+        if let (Some(en), Ok(f)) = (c.emit_name.as_deref(), g.as_ref()) {
+            if !f.mangled_name.is_empty() && f.mangled_name != en {
+                *res.emit.entry("fnbyte-name-disagree".into()).or_insert(0) += 1;
+            }
+        }
+    }
     let mut claim: std::collections::BTreeMap<&str, Vec<usize>> =
         std::collections::BTreeMap::new();
     for (i, (f, _)) in census.iter().enumerate() {
@@ -422,7 +483,7 @@ pub(super) fn measure(
             Some([i]) => Some(&census[*i]),
             _ => None,
         };
-        let graded = grade_one(row, Some(bytes.as_slice()));
+        let graded = grade_one(row, Some(bytes.as_slice()), &tu);
         let v = graded.verdict;
         *res.emit.entry(v.key()).or_insert(0) += 1;
         if v.bare() != v.key() {
@@ -443,6 +504,26 @@ pub(super) fn measure(
             *res.emit
                 .entry(format!("fnbyte-decline|{}", d.key()))
                 .or_insert(0) += 1;
+        }
+        // **MECHANISM E, counted where it fires and split by the judge's own
+        // verdict** (`c2_core::elide`). A delta between two scans is not a
+        // measurement of how often a rule fired — it is a measurement of the net
+        // — so the count is positive, printed, and carries the verdict beside
+        // it: `fnbyte-elided` is how many bodies the elision produced and
+        // `fnbyte-elided-exact` how many of those c2 agrees with. The two being
+        // equal is the claim; the pair being printed is what makes a future
+        // divergence visible instead of arithmetic.
+        //
+        // Calls the port's OWN predicate, never a copy of it — the same rule
+        // `comdat_body_from_selected` just applied, for the same reason that
+        // composition is called rather than reimplemented here.
+        if let Some((_, Ok(f))) = row {
+            if c2_core::elide::drops_tail_call(f, &tu) && graded.shape == "tail" {
+                *res.emit.entry("fnbyte-elided".into()).or_insert(0) += 1;
+                if v == FnByte::Exact {
+                    *res.emit.entry("fnbyte-elided-exact".into()).or_insert(0) += 1;
+                }
+            }
         }
         accounted += 1;
         byte_den += bytes.len();
@@ -486,7 +567,7 @@ pub(super) fn measure(
                 .entry(format!(
                     "fnbyte-differs-fn|{}|w{port_words}/{ref_words}/eq{equal_words}|{}|{name}",
                     graded.shape,
-                    differ_witness(row, bytes),
+                    differ_witness(row, bytes, &tu),
                 ))
                 .or_insert(0) += 1;
             *res.emit

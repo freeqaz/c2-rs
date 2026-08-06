@@ -1,0 +1,8 @@
+work/w-empty/cells2/g01_data_addr_arg.cpp
+work/w-empty/cells2/g02_float_arg.cpp
+work/w-empty/cells2/g03_define_after_use.cpp
+work/w-empty/cells2/g04_addr_also_taken.cpp
+work/w-empty/cells2/g05_const_arg.cpp
+work/w-empty/cells2/g06_three_args.cpp
+work/w-empty/cells2/g07_empty_calls_empty.cpp
+work/w-empty/cells2/g08_empty_ext_decl.cpp

@@ -1,0 +1,16 @@
+g01_data_addr_arg      vocab-gap    parse-refused|fnbyte-refused=1  plain|fnbyte-exact=1  tail|fnbyte-exact=1
+g02_float_arg          vocab-gap    plain|fnbyte-exact=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020|?f@@YAXM@Z
+g03_define_after_use   vocab-gap    plain|fnbyte-exact=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020|?f@@YAXXZ
+g04_addr_also_taken    vocab-gap    plain|fnbyte-exact=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020|?f@@YAXXZ
+g05_const_arg          vocab-gap    plain|fnbyte-exact=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w2/1/eq0|first@0:port=38600005,ref=4e800020|?f@@YAXXZ
+g06_three_args         vocab-gap    plain|fnbyte-exact=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020|?f@@YAXHHH@Z
+g07_empty_calls_empty  vocab-gap    plain|fnbyte-exact=1  tail|fnbyte-differs=2  tail|fnbyte-exact=1
+                         witness  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020|?f@@YAXXZ
+                         witness  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020|?g@@YAXXZ
+g08_empty_ext_decl     vocab-gap    plain|fnbyte-exact=1  tail|fnbyte-differs=1  tail|fnbyte-exact=1
+                         witness  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020|?f@@YAXXZ

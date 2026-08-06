@@ -42,7 +42,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use c2_harness::gap::fnbytes::{grade_one, FnByte};
+use c2_harness::gap::fnbytes::{grade_one, tu_empty_callees, FnByte};
 use c2_reference::Toolchain;
 
 /// One fixture per shape, chosen off a `/Gy` fixture scan (lane `w-fnbyte`,
@@ -102,7 +102,7 @@ fn grade_fixture(tc: &Toolchain, cpp: &Path, dir: &Path) -> Vec<(&'static str, F
             Some([i]) => Some(&census[*i]),
             _ => None,
         };
-        let g = grade_one(row, Some(bytes.as_slice()));
+        let g = grade_one(row, Some(bytes.as_slice()), &tu_empty_callees(&census));
         out.push((g.shape, g.verdict, name.clone(), bytes.clone()));
     }
     out
@@ -246,5 +246,5 @@ fn regrade_against(
         Some([i]) => Some(&census[*i]),
         _ => None,
     };
-    Some(grade_one(row, Some(bytes)).verdict)
+    Some(grade_one(row, Some(bytes), &tu_empty_callees(&census)).verdict)
 }

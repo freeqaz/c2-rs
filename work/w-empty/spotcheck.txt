@@ -1,0 +1,75 @@
+converted (TU, symbol) pairs: 1373 over 469 TUs; sampling 24
+  [PASS] src/system/char/ClipCollide.cpp
+        ??1?$_STLP_alloc_proxy@PAUReport@ClipCollide@@U12@V?$StlNodeAlloc@UReport@ClipCollide@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/lazer/net_ham/LeaderboardJobs.cpp
+        ??1?$_STLP_alloc_proxy@U_Rb_tree_node_base@stlpmtx_std@@U?$_Rb_tree_node@U?$pair@$$CBVSymbol@@VDataNode@@@stlpmtx_std@@@2@V?$StlNodeAlloc@U?$_Rb_tree_node@U?$pair@$$CBVSymbol@@VDataNode@@@stlpmtx_std@@@stlpmtx_std@@@2@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/lazer/meta_ham/VoiceInputPanel.cpp
+        ??1?$_STLP_alloc_proxy@PAPAUVoiceContext@VoiceInputPanel@@PAU12@V?$StlNodeAlloc@PAUVoiceContext@VoiceInputPanel@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/system/os/HolmesClient_NetSocket.cpp
+        ??1?$_STLP_alloc_proxy@PAVString@@V1@V?$StlNodeAlloc@VString@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/system/char/CharInterest.cpp
+        ??1?$_STLP_alloc_proxy@U_List_node_base@stlpmtx_std@@V?$_List_node@VString@@@2@V?$StlNodeAlloc@V?$_List_node@VString@@@stlpmtx_std@@@2@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/system/hamobj/CharFeedback.cpp
+        ??1?$_STLP_alloc_proxy@PAUNode@?$ObjPtrVec@VRndTransformable@@VObjectDir@@@@U12@V?$StlNodeAlloc@UNode@?$ObjPtrVec@VRndTransformable@@VObjectDir@@@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/system/net/JsonUtils.cpp
+        ??1?$_STLP_alloc_proxy@PAPAVJsonObject@@PAV1@V?$StlNodeAlloc@PAVJsonObject@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/system/synth/Sequence.cpp
+        ??1?$_STLP_alloc_proxy@PAMMV?$StlNodeAlloc@M@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/system/hamobj/SongCollision.cpp
+        ??1?$_STLP_alloc_proxy@PAPAVRndTransformable@@PAV1@V?$StlNodeAlloc@PAVRndTransformable@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/system/rnddx9/Rnd_Xbox.cpp
+        ??1?$_STLP_alloc_proxy@PAPAUD3DBaseTexture@@PAU1@V?$StlNodeAlloc@PAUD3DBaseTexture@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/lazer/meta_ham/Accomplishment.cpp
+        ??1?$_STLP_alloc_proxy@PAVSymbol@@V1@V?$StlNodeAlloc@VSymbol@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/lazer/meta_ham/VenueProvider.cpp
+        ??1?$_STLP_alloc_proxy@PAVSymbol@@V1@V?$StlNodeAlloc@VSymbol@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/system/os/PlatformMgr_Xbox.cpp
+        ??1?$_STLP_alloc_proxy@PAIIV?$StlNodeAlloc@I@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/system/os/File.cpp
+        ??1?$_STLP_alloc_proxy@PAPAVFile@@PAV1@V?$StlNodeAlloc@PAVFile@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/system/ui/Screenshot.cpp
+        ??1?$_STLP_alloc_proxy@PAUNode@?$ObjPtrVec@VRndTransformable@@VObjectDir@@@@U12@V?$StlNodeAlloc@UNode@?$ObjPtrVec@VRndTransformable@@VObjectDir@@@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/system/flow/FlowTrigger.cpp
+        ??1?$_STLP_alloc_proxy@U_List_node_base@stlpmtx_std@@V?$_List_node@UPropTriggerDefn@FlowTrigger@@@2@V?$StlNodeAlloc@V?$_List_node@UPropTriggerDefn@FlowTrigger@@@stlpmtx_std@@@2@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/system/hamobj/HamPhotoDisplay.cpp
+        ??1?$_STLP_alloc_proxy@PAPAVRndAnimatable@@PAV1@V?$StlNodeAlloc@PAVRndAnimatable@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/system/hamobj/HamPhraseMeter.cpp
+        ??1?$_STLP_alloc_proxy@PAPAVRndAnimatable@@PAV1@V?$StlNodeAlloc@PAVRndAnimatable@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/system/gesture/SkeletonRecoverer.cpp
+        ??1?$_STLP_alloc_proxy@U_List_node_base@stlpmtx_std@@V?$_List_node@UTrackingIDHistory@SkeletonRecoverer@@@2@V?$StlNodeAlloc@V?$_List_node@UTrackingIDHistory@SkeletonRecoverer@@@stlpmtx_std@@@2@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/lazer/meta_ham/CalibrationPanel.cpp
+        ??1?$_STLP_alloc_proxy@PAHHV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/lazer/meta_ham/SingleUserCrewSelectPanel.cpp
+        ??1?$_STLP_alloc_proxy@PAVSymbol@@V1@V?$StlNodeAlloc@VSymbol@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/system/rndobj/MeshDeform.cpp
+        ??1?$_STLP_alloc_proxy@PAUBoneDesc@RndMeshDeform@@U12@V?$StlNodeAlloc@UBoneDesc@RndMeshDeform@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/system/char/CharIKHand.cpp
+        ??1?$_STLP_alloc_proxy@PAUIKTarget@CharIKHand@@U12@V?$StlNodeAlloc@UIKTarget@CharIKHand@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+  [PASS] src/system/hamobj/HamIKSkeleton.cpp
+        ??1?$_STLP_alloc_proxy@U_List_node_base@stlpmtx_std@@V?$_List_node@VString@@@2@V?$StlNodeAlloc@V?$_List_node@VString@@@stlpmtx_std@@@2@@stlpmtx_std@@QAA@XZ
+        ref .text = 4e800020   rel24 = none
+
+hand-checked 24: PASS 24, FAIL 0

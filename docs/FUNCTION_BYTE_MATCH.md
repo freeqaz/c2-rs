@@ -237,7 +237,41 @@ is a control anchored on the oracle's own verdicts.
 > and because the sentence it licensed — quoted and corrected in §6.1 — was on
 > this page for a day.
 
-### 6.1 CURRENT — after board #322 (lane `w-fnbyte`, 2026-08-06)
+### 6.2 CURRENT — after mechanism E (lane `w-empty`, 2026-08-07)
+
+Workload scan, 878 TUs, `capture-fail 7 / graded 871`, off master `9827bcf`.
+Both ends of the same lane; `IlBundle::functions()` is untouched, so the only
+thing that changed is what the port composes for one `Selected` shape.
+
+| | before | after |
+|---|---:|---:|
+| **FBM** | 0.19259 | **0.20026** |
+| exact | 34,466 | **35,839** |
+| **differs** | **4,711** | **3,338** |
+| `tail` exact / differs | 4,051 / 3,047 | **5,424 / 1,674** |
+| differs witnesses (distinct symbols) | 1,950 | **1,405** |
+| whole-TU · partial · refused · unbound · denominator | 2 · 0 · 130,573 · 9,225 · 178,975 | **unchanged** |
+| `fnbyte-exact-relocated` | 4,664 | **4,664** — the new bodies carry no relocation |
+| **NEW** `fnbyte-elided` / `fnbyte-elided-exact` | — | **1,373 / 1,373** |
+| **NEW** `fnbyte-name-disagree` | — | **74,955** |
+| controls: partition-broken · match-TU differs · census disagree | 0 · 0 · 0 | **0 · 0 · 0** |
+
+**1,373 functions moved `differs → exact` and ZERO moved the other way**, checked
+per symbol off the scan's own witness keys rather than by subtracting two totals
+(`work/w-empty/wdiff.py`) — the aggregate cannot distinguish `+1,400 / −27` from
+`+1,373 / −0`, and on this lane's first attempt it was `+0 / −14`.
+
+**Two of the new keys are controls and not progress.** `fnbyte-elided-exact`
+equalling `fnbyte-elided` is the claim that every body the elision produced is
+c2's; printing the pair means a future divergence is visible instead of being
+arithmetic. **`fnbyte-name-disagree` is a warning to the next lane**: a census
+row carries `IlFunction::mangled_name` (paired *positionally* over `.ex`
+segments) and `FnCensus::emit_name` (the per-record binding this walk uses), and
+they differ on **74,955** rows. A name-matched fact read through the first is
+attached to the wrong function — board #918, and the reason `differs` briefly
+went the wrong way. `rungs/2026-08-07-w-empty.md` §4.
+
+### 6.1 SUPERSEDED FIGURES — after board #322 (lane `w-fnbyte`, 2026-08-06)
 
 Workload scan, 878 TUs, `capture-fail 7 / graded 871`, tree `840ab02`, off master
 `33a1867`. Both ends of the same lane, so the only thing that changed is the
@@ -394,7 +428,8 @@ day is legible either way.
 * Machine-readable keys: `fnbyte-match`, `fnbyte-exact`, `fnbyte-whole-tu`,
   `fnbyte-denominator`, `fnbyte-differs`, `fnbyte-partial`, `fnbyte-refused`,
   `fnbyte-unbound`, `fnbyte-partition-broken`, `fnbyte-census-disagree`,
-  `fnbyte-match-tu-differs`, `fnbyte-tus`, `fnbyte-tus-full`. Keys are an
+  `fnbyte-match-tu-differs`, `fnbyte-tus`, `fnbyte-tus-full`,
+  `fnbyte-elided`, `fnbyte-elided-exact`, `fnbyte-name-disagree`. Keys are an
   interface; **absence means NO-RESULT**, never 0 and never 1.
 * Collected into `docs/STATUS.md` by `scripts/status.sh` as four rows, with two
   must-fail mutations in `--check`: the ratio must never render without its
