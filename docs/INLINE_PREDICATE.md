@@ -255,8 +255,10 @@ to re-derive it.
 * **`leaf`'s true input** (§5) — the largest single source of `INLINE-P`'s
   workload residual.
 * **The 2.84 % SAMPLE-B residual itself**: 205 false inlines and 79 false
-  declines, clustered within ±8 bytes of the step, 155 of SAMPLE-A's 294 being
-  `operator`s. **No term was fitted to them**, per `work/w-inline/PREREG.md` §5.
+  declines, clustered within ±8 bytes of the step. On SAMPLE-A, where the
+  population was examined, **238 of 294 misses are template instantiations** —
+  and §6.15–§6.20 has no template row anywhere. **No term was fitted to them**,
+  per `work/w-inline/PREREG.md` §5.
 * **Everything §6.19.10 leaves open**, unchanged — the rule generating SCHEDULE
   D, what the 48 bytes *are*, the `/Ox` loop threshold, and why the two linkage
   classes use different size measures.
