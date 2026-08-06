@@ -110,6 +110,23 @@
 //! it dies independently of the reference-binding axis it was suspected of
 //! mismodelling. No allocation key on record survives off its own cells.
 //!
+//! **The NARROW lift is refused too, and it was measured rather than
+//! assumed.** Board **#868**, lane `w-seam`. The remaining way to open
+//! `xboxheap.cpp` was to lift the refusal only where **clause 1 decides with no
+//! tie** — the register-derived producer at *strictly* more uses than the
+//! constant, so no tie-break, no kind bonus and neither refuted key is
+//! consulted. 36 cells at the workload's own flags, **36 graded, 0 out of
+//! regime, 12 MISS**, every miss a `slwi` cell and the row losing at a
+//! use-count advantage of **three** as flatly as at one:
+//!
+//! ```text
+//!   addi-interior  12 / 0 / 0      add  12 / 0 / 0      slwi  0 / 12 / 0
+//! ```
+//!
+//! So there is no threshold to narrow around, and the separating axis is the
+//! **spelling** — which [`ProducerKind`] cannot represent.
+//! `the_strict_use_count_subcase_is_refused_too` pins the six gaps.
+//!
 //! **And clauses 2, 3 and 4-for-register-derived are unreachable from the
 //! emitter today**, which is why none of this moves a byte:
 //! `super::super::leaf::store` builds every [`Producer`] with
@@ -423,6 +440,69 @@ mod tests {
                  it to the register-derived producer"
             );
             // …and the guard the emitters actually call must decline too.
+            assert!(!all_in(&mixed, 4, 11));
+        }
+    }
+
+    /// **The NARROW lift is refused too, and this pins the grid that killed
+    /// it** — lane `w-seam`, board **#868**, `work/w-seam/grida.out`.
+    ///
+    /// The obvious way to open `xboxheap.cpp`'s configuration is to lift the
+    /// mixed refusal only for the sub-case *clause 1 decides with no tie*:
+    /// two producers, one register-derived and one single-word constant, with
+    /// the register-derived one at **strictly more uses**. No tie-break clause
+    /// runs, no kind bonus, neither refuted key is consulted — it looks like
+    /// pure clause 1 and therefore like conservatism.
+    ///
+    /// **It is not.** 36 cells compiled at the workload's own flags and graded
+    /// against real `c2.dll` — three spellings × six use-count gaps × two body
+    /// kinds (leaf, and a run before a trailing call) — **36 graded, 0 out of
+    /// regime, 12 MISS**:
+    ///
+    /// ```text
+    ///   spelling         hit / miss / out-of-regime
+    ///   addi-interior    12 /  0 / 0     (int)&q   — xboxheap's own spelling
+    ///   add              12 /  0 / 0     (u + v)
+    ///   slwi              0 / 12 / 0     (u << 3)  — the CONSTANT takes r11
+    /// ```
+    ///
+    /// The `slwi` row loses at a use-count advantage of **three** (reg 4 uses
+    /// against const 1) exactly as flatly as at one, so there is no threshold
+    /// the lift could be narrowed around, and both body kinds agree cell for
+    /// cell, so a frame does not rescue it either. The separating axis is the
+    /// **spelling**, which is [`ProducerKind::RegisterDerived`]'s own blind
+    /// spot — the enum cannot represent the distinction the answer turns on.
+    ///
+    /// A lane that ships the strict-gap sub-case has to come here and say what
+    /// it measured that these 36 cells did not.
+    #[test]
+    fn the_strict_use_count_subcase_is_refused_too() {
+        // Every (reg uses, const uses) gap of `work/w-seam/grida.py`, each one
+        // a cell where clause 1 alone decides and 12 of 36 graded objs
+        // disagree with it.
+        for &(ru, cu) in &[(2, 1), (3, 1), (3, 2), (4, 1), (4, 2), (4, 3)] {
+            assert!(ru > cu, "the sub-case is a STRICT use-count advantage");
+            let mixed = vec![
+                Producer {
+                    id: 0,
+                    kind: ProducerKind::Constant,
+                    uses: cu,
+                    first: 0,
+                },
+                Producer {
+                    id: 1,
+                    kind: ProducerKind::RegisterDerived,
+                    uses: ru,
+                    first: 1,
+                },
+            ];
+            assert_eq!(
+                allocate(&mixed, 4),
+                None,
+                "the strict-gap mixed run at (reg {ru}, const {cu}) must \
+                 REFUSE: real c2 gives r11 to the CONSTANT for a `slwi` \
+                 producer at every one of these gaps (w-seam GRID A, 12 of 36)"
+            );
             assert!(!all_in(&mixed, 4, 11));
         }
     }
