@@ -16,6 +16,7 @@ pub use c2_obj::ObjImage;
 
 pub mod codegen;
 pub mod coff;
+pub mod comdat;
 pub mod passes;
 
 use std::fmt;
@@ -514,142 +515,28 @@ impl PortC2 {
         if self.fn_level_linking {
             let mut texts: Vec<Vec<u8>> = Vec::with_capacity(funcs.len());
             let mut placed: Vec<coff::Function> = Vec::with_capacity(funcs.len());
+            // **The per-function COMDAT body comes from `comdat::comdat_function_body`,
+            // which is the ONE composition** (board #322). It used to be this
+            // loop's inline `match`, reachable only from here — so the standing
+            // per-function alarm (FUNCTION BYTE MATCH) could not ask the port
+            // for a `Tail`/`Framed`/`Seq`/`CondPair` body at all and declined to
+            // grade 9,375 emitted functions. Lifting it changes no byte: the
+            // arms below moved verbatim, and `crates/c2-core/src/comdat.rs`
+            // carries the reason the harness must call this and never a copy.
             for &fi in &order {
                 let f = &funcs[fi];
-                let mut frame: Option<coff::Frame> = None;
-                let (text, calls) = match codegen::select_function(f, mode)? {
-                    // A framed non-leaf call gets its own `.text` COMDAT like
-                    // any other function, plus a `.pdata` COMDAT associated to
-                    // it (W-UNW-1). `Selected::Framed` carries no bytes for the
-                    // same reason `Selected::Tail` carries an incomplete text:
-                    // the branch word encodes its own `.text` offset, so only
-                    // the caller — which knows where the function lands — can
-                    // finish it. Under `/Gy` that offset is 0, because each
-                    // function starts its own section.
-                    codegen::Selected::Framed { setup } => {
-                        let fc = f.framed_call.as_ref().expect("Framed implies framed_call");
-                        let body = codegen::framed_call_text(
-                            &setup,
-                            fc.add_k,
-                            0,
-                            codegen::FrameLayout::default(),
-                        )?;
-                        frame = Some(coff::Frame {
-                            prolog_len: body.prolog_len,
-                            func_len: body.text.len() as u32,
-                        });
-                        (
-                            body.text,
-                            vec![coff::Call {
-                                reloc_offset: body.bl_offset,
-                                callee: fc.callee.as_str(),
-                            }],
-                        )
-                    }
-                    // A Class A many-call body: the same frame and `.pdata`, with
-                    // one REL24 site per call instead of one per function.
-                    codegen::Selected::Seq { setups, tail } => {
-                        let seq = f.call_seq.as_ref().expect("Seq implies call_seq");
-                        // **W10** — the guard, when there is one. Resolved
-                        // through `seq_guard_emit` on both emission paths, so
-                        // the packed and COMDAT writers cannot disagree about a
-                        // branch sense.
-                        let guard = seq
-                            .guard
-                            .as_ref()
-                            .map(codegen::seq_guard_emit)
-                            .transpose()?;
-                        // **W11** — the guarded early returns, resolved through
-                        // the same `seq_early_emit` on both emission paths for
-                        // the same reason: the packed and COMDAT writers must
-                        // not disagree about a branch sense or a block layout.
-                        let early = seq
-                            .early
-                            .iter()
-                            .map(codegen::seq_early_emit)
-                            .collect::<Result<Vec<_>, _>>()?;
-                        let body = codegen::call_seq_text(
-                            &setups,
-                            &tail,
-                            0,
-                            codegen::FrameLayout {
-                                saved_gprs: seq.saved_gprs() as u8,
-                                ..Default::default()
-                            },
-                            guard.as_ref(),
-                            &early,
-                            mode,
-                        )?;
-                        frame = Some(coff::Frame {
-                            prolog_len: body.prolog_len,
-                            func_len: body.text.len() as u32,
-                        });
-                        let calls = body
-                            .bl_offsets
-                            .iter()
-                            .zip(&seq.calls)
-                            .map(|(off, c)| coff::Call {
-                                reloc_offset: *off,
-                                callee: c.callee.as_str(),
-                            })
-                            .collect();
-                        (body.text, calls)
-                    }
-                    // A pooled FP constant still refuses under `/Gy`. Its section
-                    // placement *is* now characterized — each `.rdata` COMDAT sits
-                    // immediately after the `.text` of the function that first
-                    // references it — but `docs/OBJ_GY_SHAPES.md` §2 also found that
-                    // several constants introduced by ONE function are appended in
-                    // **reverse** first-reference order, and a per-reference-site
-                    // appender would emit them forwards. Every relocation still
-                    // resolves either way, so that is a silent wrong-bytes shape
-                    // rather than a crash, and it is not worth opening on one
-                    // ordering probe.
-                    codegen::Selected::Float { consts, .. } if !consts.is_empty() => {
-                        return Err(BackendError::NotImplemented(
-                            "pooled floating-point constant under function-level \
-                             linking (/Gy): sections interleave per first-referencing \
-                             function, but several constants from one function are \
-                             appended in reverse reference order and that is not yet \
-                             modeled"
-                                .to_string(),
-                        ))
-                    }
-                    // **W8 — a two-arm conditional tail call.** Two REL24 sites,
-                    // one per arm, in block order; the conditional branch
-                    // between them carries its own displacement and NO
-                    // relocation (`docs/CFG_SHAPE.md` §3.3). Under `/Gy` the
-                    // function starts at offset 0 of its own COMDAT, so each
-                    // tail branch's word is `-(its offset within this text)`.
-                    codegen::Selected::CondPair(parts) => {
-                        let cp = f.cond_pair.as_ref().expect("CondPair implies cond_pair");
-                        let mut t = parts.text;
-                        let mut calls = Vec::with_capacity(2);
-                        for (off, callee) in parts.branch_offsets.iter().zip([
-                            cp.then_arm.callee.as_str(),
-                            cp.else_arm.callee.as_str(),
-                        ]) {
-                            let w = codegen::encode_tail_branch(*off);
-                            t[*off as usize..*off as usize + 4].copy_from_slice(&w);
-                            calls.push(coff::Call { reloc_offset: *off, callee });
-                        }
-                        (t, calls)
-                    }
-                    // Each function's text starts at offset 0 of its own COMDAT
-                    // section, so the branch offset is just the setup's length.
-                    codegen::Selected::Tail(mut t) => {
-                        let branch_off = t.len() as u32;
-                        t.extend_from_slice(&codegen::encode_tail_branch(branch_off));
-                        let callee = f.tail_call.as_deref().expect("Tail implies tail_call");
-                        (t, vec![coff::Call { reloc_offset: branch_off, callee }])
-                    }
-                    codegen::Selected::Float { text, .. } => (text, Vec::new()),
-                    codegen::Selected::Plain(t) => (t, Vec::new()),
-                };
-                // Under `/Gy` each function starts at offset 0 of its own COMDAT.
-                let data_refs = data_refs_of(f, &text, 0)?;
-                placed.push(coff::Function { name: &f.mangled_name, text_offset: 0, calls, is_float: f.touches_floating_point(), fp_refs: Vec::new(), data_refs, frame, label_lead: leads[fi] });
-                texts.push(text);
+                let body = comdat::comdat_function_body(f, mode)?;
+                placed.push(coff::Function {
+                    name: &f.mangled_name,
+                    text_offset: 0,
+                    calls: body.calls,
+                    is_float: f.touches_floating_point(),
+                    fp_refs: Vec::new(),
+                    data_refs: body.data_refs,
+                    frame: body.frame,
+                    label_lead: leads[fi],
+                });
+                texts.push(body.text);
             }
             return Ok(ObjImage::new(coff::emit_comdat_obj(
                 obj_name,
@@ -906,7 +793,7 @@ impl PortC2 {
 ///
 /// `None` when the body carries no data symbol. `Err` when it carries one and the
 /// first word is not the expected `lis`.
-fn data_refs_of<'a>(
+pub(crate) fn data_refs_of<'a>(
     f: &'a c2_il::IlFunction,
     text: &[u8],
     base: u32,
