@@ -665,6 +665,39 @@ impl GapReport {
         v
     }
 
+    /// [`Self::fn_byte_differ_witnesses`] **collapsed to signatures**:
+    /// `(shape|words|first-disagreeing-word, distinct functions, one example
+    /// symbol)`, most frequent first.
+    ///
+    /// The witness list is the evidence; this is the part a reader can act on.
+    /// 1,950 mangled STL names all failing at word 0 with the same two words is
+    /// **one** finding, and a list that prints them one per line hides that
+    /// behind its own length — trap 5's shape, where the reader's own summary
+    /// step is what loses the information.
+    pub fn fn_byte_differ_signatures(&self) -> Vec<(String, usize, String)> {
+        let mut by_sig: std::collections::BTreeMap<String, (usize, String)> = Default::default();
+        for w in self.fn_byte_differ_witnesses() {
+            // `shape|words|first-word|symbol` — the symbol is the last field and
+            // mangled names contain `|` nowhere, but they DO contain `@` and
+            // `$`, so the split is from the right and by count, not by search.
+            let mut it = w.splitn(4, '|');
+            let (a, b, c, name) = (it.next(), it.next(), it.next(), it.next());
+            let (Some(a), Some(b), Some(c), Some(name)) = (a, b, c, name) else {
+                continue;
+            };
+            let e = by_sig
+                .entry(format!("{a}|{b}|{c}"))
+                .or_insert((0, name.to_string()));
+            e.0 += 1;
+        }
+        let mut v: Vec<(String, usize, String)> = by_sig
+            .into_iter()
+            .map(|(k, (n, ex))| (k, n, ex))
+            .collect();
+        v.sort_by(|x, y| y.1.cmp(&x.1).then_with(|| x.0.cmp(&y.0)));
+        v
+    }
+
     /// **Per-TU FBM**, nearest-to-done first: `(src, exact, denominator)` over
     /// every graded TU that carries at least one emitted function.
     ///

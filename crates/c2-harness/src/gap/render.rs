@@ -755,16 +755,22 @@ pub(super) fn print_factorization(report: &GapReport) {
             // something a lane can reproduce from.
             let wit = report.fn_byte_differ_witnesses();
             if !wit.is_empty() {
+                let sigs = report.fn_byte_differ_signatures();
                 println!(
-                    "\x20   DIFFERS WITNESSES ({} distinct functions) — shape | words | first \
-                     disagreeing word | symbol:",
-                    wit.len()
+                    "\x20   DIFFERS WITNESSES — {} distinct functions in {} SIGNATURES \
+                     (shape | port/ref/equal words | first disagreeing word):",
+                    wit.len(),
+                    sigs.len()
                 );
-                for w in wit.iter().take(60) {
-                    println!("\x20     {w}");
+                for (sig, n, ex) in sigs.iter().take(40) {
+                    println!("\x20     {n:>6}  {sig}   e.g. {ex}");
                 }
-                if wit.len() > 60 {
-                    println!("\x20     … and {} more", wit.len() - 60);
+                if sigs.len() > 40 {
+                    println!(
+                        "\x20     … and {} more signatures covering {} functions",
+                        sigs.len() - 40,
+                        sigs.iter().skip(40).map(|(_, n, _)| n).sum::<usize>()
+                    );
                 }
             }
             // Per-TU FBM, nearest first — the answer to "we are 8/878 exact, how
