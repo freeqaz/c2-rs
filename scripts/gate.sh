@@ -149,11 +149,55 @@
 #     bytes were compared and they differed, and a mismatch outranks every other
 #     piece of work whatever else went wrong on the box.
 #
+# ---- AND A KEPT TREE IS KEPT FOR ITS LOGS, WHICH ARE 1.6 % OF IT ---------------
+#
+# The reaper above bounds the count. It does not bound the COST, and the cost is
+# where the remaining inodes were. Measured on this box 2026-08-06, on four real
+# finished trees left by a night of gating:
+#
+#     16,983 inodes per tree, of which 16,750 (98.6 %) are `sweep/`
+#     16,710 of those are generated `*.cpp` cases
+#     everything the gate's own output points at — 39 `*.log`, 18 `*.status`,
+#     `results.tsv`, `cross/*.report`, `lanes/*/report.txt` — is 273 inodes
+#
+# So `C2RS_GATE_KEEP=3` was reserving ~51k inodes, 4.9 % of a 1,048,576-inode
+# `/tmp`, to preserve 819 inodes' worth of logs, and holding it for as long as the
+# box stays up — 2 weeks 2 days when this was measured, with nothing aging `/tmp`.
+# That is not the accumulation defect (the reaper fixed that, and the count was
+# correctly bounded at KEEP+1 the whole time) and it is not a leak. It is a
+# **standing reservation nobody chose**, and on a `/tmp` shared with every other
+# lane on the box it was the single largest occupant.
+#
+# The cases are not evidence. `scripts/expr_sweep.sh` regenerates them from
+# `scripts/sweep.d` via `sweep_gen.py` on every run — it `rm -f`s the whole case
+# set and rebuilds it before grading, precisely so a stale case cannot be graded.
+# What IS evidence is the grading result, and that lives in `sweep/parts/` and
+# `sweep/cases.txt`, which are 30-odd inodes and are kept.
+#
+#   * **Kept trees beyond `C2RS_GATE_KEEP_CASES` (default 1) lose their case
+#     corpus and nothing else.** Every log, status, report, flags file, scan.jsonl
+#     and graded part survives. 16,983 -> 273 inodes, a 98.4 % cut, and the steady
+#     state goes ~68k -> ~17.8k.
+#   * **Only a GREEN tree is stripped.** A tree whose `results.tsv` carries any
+#     non-PASS row keeps its cases, because a mismatch is exactly when somebody
+#     opens the `.cpp` the report names. A tree with no `results.tsv`, or an
+#     unreadable one, is **not green** and is not stripped: unknown must not mean
+#     delete, the same rule the pid check already follows.
+#   * **A stripped tree says so, in the directory where the cases were.**
+#     `sweep/CASES_STRIPPED` records the count removed, the run's verdict, and the
+#     one command that rebuilds them. Cases that had merely vanished would be this
+#     project's oldest defect wearing yet another face — absence read as a fact
+#     about the corpus rather than as a fact about the reaper.
+#   * **And it is counted out loud**, in the same `reap:` summary as everything
+#     else. A strip nobody can see is a strip nobody can audit.
+#
 # `--selftest` drives all of it: the pid-liveness rule against a real live gate, a
 # real live non-gate and a real dead pid; the reaper against a fabricated tree
 # directory containing a stale tree, a reused-pid tree, a live-gate tree, a
-# within-window tree and the current run dir; the disk floor from both sides; and
-# the ENOSPC discrimination with and without a mismatch beside it.
+# within-window tree and the current run dir; the stripper against a green tree, a
+# mismatched tree and a verdict-less tree, asserting in each case both what went
+# and what stayed; the disk floor from both sides; and the ENOSPC discrimination
+# with and without a mismatch beside it.
 #
 # ---- usage ---------------------------------------------------------------------
 #
@@ -168,6 +212,11 @@
 #                                         shape coverage; no toolchain, no compiler
 #   scripts/gate.sh --selftest            prove the gate fails when it should
 #   scripts/gate.sh --work DIR            run directory (default /tmp/c2rs-gate-$$)
+#   scripts/gate.sh --reap-only           run the reaper and the disk preflight and
+#                                         STOP. Grades nothing, so it is never a
+#                                         verdict; exit 0 = clear, 3 = below a
+#                                         floor. This is how you reclaim /tmp, and
+#                                         how `--reap-dry-run` becomes affordable.
 #   scripts/gate.sh --no-reap             keep every old run tree (see the block
 #                                         above); the disk check still runs
 #   scripts/gate.sh --reap-dry-run        classify every run tree and print what
@@ -180,6 +229,9 @@
 #              2 = usage   **3 = out of disk, and nothing was graded**
 #
 # env:  C2RS_GATE_KEEP        finished run trees to keep (default 3)
+#       C2RS_GATE_KEEP_CASES  of those kept trees, how many keep their REGENERABLE
+#                             sweep corpus (default 1 = the newest only; see the
+#                             98.4 % block below). 0 strips every kept tree.
 #       C2RS_GATE_MIN_MB      free-space floor, MiB (default 2048)
 #       C2RS_GATE_MIN_INODES  free-inode floor (default 150000 = 3x one run's
 #                             MEASURED PEAK draw of 50,250; see below)
@@ -216,6 +268,11 @@ sweep_cases=0
 cross_cells=0
 reap=1
 : "${C2RS_GATE_KEEP:=3}"
+# 1, not KEEP. A kept tree is kept for its LOGS, and 98.4 % of it is not logs —
+# see the block above. The newest finished run keeps its cases because that is the
+# one somebody actually opens; the rest keep every log, report, flags file and
+# graded part and lose only what `sweep_gen.py` will rebuild on demand.
+: "${C2RS_GATE_KEEP_CASES:=1}"
 : "${C2RS_GATE_MIN_MB:=2048}"
 # 150k, not 50k. A FINISHED run tree is 16.6k inodes, but a run IN FLIGHT peaks
 # much higher — the lanes' scratch, the sweep and the cross all exist at once.
@@ -231,6 +288,7 @@ while [ $# -gt 0 ]; do
         --list)     mode=list ;;
         --check)    mode=check ;;
         --selftest) mode=selftest ;;
+        --reap-only) mode=reap ;;
         --lane)     shift; want="$want $1" ;;
         --jobs)     shift; jobs="$1" ;;
         --sweep-cases) shift; sweep_cases="$1" ;;
@@ -604,6 +662,74 @@ gate_pid_live() {  # <pid>
 }
 
 # --------------------------------------------------------------------------------
+# Was this run GREEN? Reads the verdict the run itself wrote, never the exit code
+# of anything running now. `results.tsv` is `slug<TAB>flags<TAB>VERDICT|...`.
+#
+# Green iff the file exists, is non-empty, and EVERY row's verdict is one of the
+# three that mean "nothing differed": PASS, SKIPPED, SAMPLED. Anything else —
+# missing file, empty file, unreadable file, one FAIL among eighteen PASSes —
+# answers NO. This gates a deletion, so it is written to fail closed: the caller
+# strips only on an affirmative, and "cannot tell" is not affirmative.
+# --------------------------------------------------------------------------------
+tree_is_green() {  # <tree>
+    _tg_r="$1/results.tsv"
+    [ -s "$_tg_r" ] || return 1
+    # A row that is not PASS/SKIPPED/SAMPLED is disqualifying. Counting the bad
+    # rows rather than short-circuiting keeps this a positive check: a parse that
+    # matched nothing at all would otherwise report green.
+    _tg_bad=$(awk -F'\t' '
+        NF == 0 { next }
+        { split($3, v, "|")
+          if (v[1] != "PASS" && v[1] != "SKIPPED" && v[1] != "SAMPLED") bad++ }
+        END { print bad + 0 }' "$_tg_r" 2>/dev/null || echo 1)
+    _tg_rows=$(awk 'NF { n++ } END { print n + 0 }' "$_tg_r" 2>/dev/null || echo 0)
+    [ "${_tg_rows:-0}" -gt 0 ] 2>/dev/null || return 1
+    [ "${_tg_bad:-1}" -eq 0 ] 2>/dev/null || return 1
+    return 0
+}
+
+# --------------------------------------------------------------------------------
+# Strip the REGENERABLE case corpus from a finished, green run tree. Removes
+# `sweep/*.cpp` and nothing else: every log, status, report, flags file and graded
+# part stays where the gate's output said it would be.
+#
+# Echoes the number of cases removed (0 if it declined). Returns 0 always — this
+# is housekeeping and must never be able to fail a gate.
+# --------------------------------------------------------------------------------
+strip_case_corpus() {  # <tree> [dry-run]
+    _sc_t="$1"; _sc_dry="${2:-}"
+    _sc_sw="$_sc_t/sweep"
+    [ -d "$_sc_sw" ] || { echo 0; return 0; }
+    [ -e "$_sc_sw/CASES_STRIPPED" ] && { echo 0; return 0; }
+    _sc_n=$(find "$_sc_sw" -maxdepth 1 -name '*.cpp' -type f 2>/dev/null | wc -l)
+    [ "${_sc_n:-0}" -gt 0 ] 2>/dev/null || { echo 0; return 0; }
+    if [ -n "$_sc_dry" ]; then echo "$_sc_n"; return 0; fi
+    # Scoped by -maxdepth and -name to the generated cases. `sweep/parts/`,
+    # `cases.txt` and `cases.run` are deliberately out of range.
+    find "$_sc_sw" -maxdepth 1 -name '*.cpp' -type f -delete 2>/dev/null || true
+    # The note goes where the cases were, so anyone who follows a path out of
+    # `cases.txt` and finds it missing lands on the reason instead of a mystery.
+    {
+        echo "The $_sc_n generated *.cpp cases that were here have been removed."
+        echo
+        echo "They are DERIVED INPUTS, not evidence: scripts/sweep_gen.py rebuilds"
+        echo "them from scripts/sweep.d, and expr_sweep.sh regenerates the whole set"
+        echo "before every grade. This run was GREEN (every results.tsv row PASS,"
+        echo "SKIPPED or SAMPLED), so no case here was named by a mismatch."
+        echo
+        echo "Kept: cases.txt, cases.run, parts/ (the graded result), and every log,"
+        echo "status, report and flags file in the tree above."
+        echo
+        echo "Removed by gate.sh's reaper because a kept tree is kept for its logs,"
+        echo "which are 1.6% of it; C2RS_GATE_KEEP_CASES trees keep their corpus."
+        echo
+        echo "To rebuild:  scripts/expr_sweep.sh $_sc_sw"
+    } > "$_sc_sw/CASES_STRIPPED" 2>/dev/null || true
+    echo "$_sc_n"
+    return 0
+}
+
+# --------------------------------------------------------------------------------
 # THE REAPER. Removes run trees that no live gate owns, keeping the most recent
 # few so the logs this gate just pointed at are still there.
 #
@@ -627,7 +753,11 @@ reap_run_trees() {  # <parent> <current-run-dir> <keep-recent> <scratch> [dry-ru
         echo "        That is itself a symptom; the disk check below is the verdict."
         return 0
     fi
-    _rr_live=0; _rr_cur_n=0; _rr_kept=0; _rr_gone=0
+    _rr_live=0; _rr_cur_n=0; _rr_kept=0; _rr_gone=0; _rr_strip=0; _rr_cases=0
+    # Not a positional: the signature's 5th slot is the dry-run flag and threading
+    # a 6th through every caller would be a worse trade than reading the knob the
+    # rest of the file already sets. The selftest overrides it per call.
+    _rr_keepc="${C2RS_GATE_KEEP_CASES:-1}"
 
     _rr_kb0=$(fs_free_kb "$_rr_parent"); _rr_in0=$(fs_free_inodes "$_rr_parent")
 
@@ -665,6 +795,25 @@ reap_run_trees() {  # <parent> <current-run-dir> <keep-recent> <scratch> [dry-ru
             _rr_kept=$((_rr_kept + 1))
             printf '  keep    %-28s recent — %s of %s finished runs kept for their logs\n' \
                 "$_rr_d" "$_rr_kept" "$_rr_keep"
+            # Kept for its LOGS. Beyond the newest KEEP_CASES, the regenerable
+            # case corpus goes and everything the logs point at stays. Green only:
+            # a mismatched run keeps the cases its report names.
+            if [ "$_rr_kept" -gt "$_rr_keepc" ]; then
+                if tree_is_green "$_rr_d"; then
+                    _rr_n=$(strip_case_corpus "$_rr_d" "$_rr_dry")
+                    if [ "${_rr_n:-0}" -gt 0 ] 2>/dev/null; then
+                        _rr_strip=$((_rr_strip + 1))
+                        _rr_cases=$((_rr_cases + _rr_n))
+                        if [ -n "$_rr_dry" ]; then
+                            printf '          STRIP*  %s regenerable cases (green run; dry run)\n' "$_rr_n"
+                        else
+                            printf '          stripped %s regenerable cases; logs, reports and parts/ kept\n' "$_rr_n"
+                        fi
+                    fi
+                else
+                    printf '          cases KEPT — results.tsv is absent or carries a non-PASS row\n'
+                fi
+            fi
             continue
         fi
         # The path shape is asserted again HERE, immediately before the rm, rather
@@ -696,7 +845,15 @@ reap_run_trees() {  # <parent> <current-run-dir> <keep-recent> <scratch> [dry-ru
 
     printf 'reap:   %s stale run tree(s) removed, %s kept (%s live, %s recent, %s this run)\n' \
         "$_rr_gone" "$((_rr_live + _rr_kept + _rr_cur_n))" "$_rr_live" "$_rr_kept" "$_rr_cur_n"
-    if [ "$_rr_gone" -gt 0 ]; then
+    # Printed unconditionally, including the 0 case. "no strip line" and "nothing
+    # to strip" must not look alike — that ambiguity is the defect this file keeps
+    # closing, and a counter that only appears when it is interesting is the same
+    # silence as a reaper that only speaks when it reaps.
+    printf 'strip:  %s kept tree(s) lost %s regenerable cases; %s newest kept theirs (C2RS_GATE_KEEP_CASES=%s)\n' \
+        "$_rr_strip" "$_rr_cases" \
+        "$( [ "$_rr_kept" -lt "$_rr_keepc" ] && echo "$_rr_kept" || echo "$_rr_keepc" )" \
+        "$_rr_keepc"
+    if [ "$_rr_gone" -gt 0 ] || [ "$_rr_strip" -gt 0 ]; then
         # The delta is measured over a SHARED filesystem, so a concurrent gate
         # writing during the reap can swamp it — measured live on 2026-08-05, two
         # other lanes gating, a real reap of two trees came back at a NET NEGATIVE
@@ -1046,7 +1203,7 @@ fi
 # had the preflight *after* these two writes and never reached it.
 # --------------------------------------------------------------------------------
 work_parent=$(dirname "$work")
-if [ "$mode" = run ]; then
+if [ "$mode" = run ] || [ "$mode" = reap ]; then
     echo "lane gate: preflight on $work_parent"
     if [ "$reap" -eq 1 ]; then
         reap_run_trees "$work_parent" "$work" "$C2RS_GATE_KEEP" "$work"
@@ -1059,6 +1216,34 @@ if [ "$mode" = run ]; then
     fi
     res_init "$work_parent"
     preflight_disk "$work_parent" "$C2RS_GATE_MIN_MB" "$C2RS_GATE_MIN_INODES" || exit 3
+fi
+
+# --------------------------------------------------------------------------------
+# `--reap-only` stops here. The reaper and the preflight are the two things on this
+# box that answer "can the next gate run at all", and until now the only way to
+# reach either was to grade 16,710 cases across 18 lanes first. That made
+# `--reap-dry-run` — whose whole documented purpose is checking the concurrency
+# rule against a LIVE SHARED /tmp — cost twenty minutes of compiler to exercise a
+# classification that takes a second, so in practice nobody ran it, and the reaper
+# was only ever observed through the runs it was a preamble to.
+#
+# It grades nothing, so it cannot PASS or FAIL a port and does not print a verdict
+# that could be mistaken for one. Exit 0 = the reaper ran and the floors are clear;
+# exit 3 = the floors are not clear, same code and same meaning as everywhere else.
+# --------------------------------------------------------------------------------
+if [ "$mode" = reap ]; then
+    # Leave no litter. The reaper wrote its two scratch files into this run's own
+    # dir, and a housekeeping command that adds a tree to the pile it just pruned
+    # would be its own joke. `rmdir` (not `rm -rf`) so that anything unexpected in
+    # there survives and the directory stays, visibly, rather than being swept.
+    rm -f "$work/reap.stale" "$work/reap.sorted" 2>/dev/null || true
+    if rmdir "$work" 2>/dev/null; then
+        echo "reap-only: nothing was graded, and this run left no tree of its own."
+    else
+        echo "reap-only: nothing was graded. $work is not empty and was left alone."
+    fi
+    echo "           This is housekeeping, not a verdict — no port was checked."
+    exit 0
 fi
 
 # Stamp the owner INTO the tree. The directory name has always carried the pid, but
@@ -1684,6 +1869,100 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     [ -d "$_rd/c2rs-gate-live" ] && [ -d "$_cur" ] && [ ! -d "$_rd/c2rs-gate-999000003" ] \
         && _r=0 || _r=1
     t_case reaper-keep-0-still-spares-live "$_r" "keep=0 reaps the last finished run and no live one"
+
+    # ---- the GREEN predicate, on its own, before anything deletes on it --------
+    # It gates a deletion, so each answer is asserted separately rather than
+    # inferred from the stripper's behaviour downstream.
+    _gd="$st/greendir"; rm -rf "$_gd"; mkdir -p "$_gd/all-pass" "$_gd/one-fail" \
+        "$_gd/no-tsv" "$_gd/empty-tsv" "$_gd/sampled"
+    printf 'O1\t/O1\tPASS|265|265|129|0|\nOx\t/Ox\tPASS|265|265|125|0|\n' > "$_gd/all-pass/results.tsv"
+    printf 'O1\t/O1\tPASS|265|265|129|0|\nOx\t/Ox\tFAIL|265|264|125|1|\n'  > "$_gd/one-fail/results.tsv"
+    : > "$_gd/empty-tsv/results.tsv"
+    printf 'O1\t/O1\tSAMPLED|400|400|129|0|\n' > "$_gd/sampled/results.tsv"
+    tree_is_green "$_gd/all-pass"  && _r=0 || _r=1
+    t_case green-all-pass-is-green "$_r" "every row PASS reads as green"
+    tree_is_green "$_gd/sampled"   && _r=0 || _r=1
+    t_case green-sampled-is-green "$_r" "SAMPLED is a no-difference verdict too"
+    tree_is_green "$_gd/one-fail"  && _r=1 || _r=0
+    t_case green-one-fail-is-not "$_r" "ONE FAIL among PASSes disqualifies the tree"
+    tree_is_green "$_gd/no-tsv"    && _r=1 || _r=0
+    t_case green-absent-tsv-is-not "$_r" "no results.tsv is NOT green — unknown never means delete"
+    tree_is_green "$_gd/empty-tsv" && _r=1 || _r=0
+    t_case green-empty-tsv-is-not "$_r" "an empty results.tsv is not a run that passed"
+
+    # ---- the stripper, against green / mismatched / newest ---------------------
+    # keep=3 so NOTHING is removed here: this fixture isolates the strip tier from
+    # the reap tier, so a failure names one of them rather than both.
+    C2RS_GATE_KEEP_CASES=1
+    _sd="$st/stripdir"; rm -rf "$_sd"; mkdir -p "$_sd"
+    _scur="$_sd/c2rs-gate-$$"; mkdir -p "$_scur"; echo "$$" > "$_scur/gate.pid"
+    for _t in 998000001 998000002 998000003; do
+        mkdir -p "$_sd/c2rs-gate-$_t/sweep/parts"
+        for _c in 1 2 3; do echo 'int f(void){return 0;}' > "$_sd/c2rs-gate-$_t/sweep/case-$_c.cpp"; done
+        echo 'case-1.cpp' > "$_sd/c2rs-gate-$_t/sweep/cases.txt"
+        echo 0 > "$_sd/c2rs-gate-$_t/sweep/parts/mism.0"
+        echo 'lane output somebody may still be reading' > "$_sd/c2rs-gate-$_t/O1.log"
+    done
+    printf 'O1\t/O1\tPASS|265|265|129|0|\n' > "$_sd/c2rs-gate-998000003/results.tsv"   # newest, green
+    printf 'O1\t/O1\tPASS|265|265|129|0|\n' > "$_sd/c2rs-gate-998000002/results.tsv"   # green
+    printf 'O1\t/O1\tFAIL|265|264|129|1|\n' > "$_sd/c2rs-gate-998000001/results.tsv"   # MISMATCH
+    touch -d '2020-01-01 00:00' "$_sd/c2rs-gate-998000001"
+    touch -d '2020-01-02 00:00' "$_sd/c2rs-gate-998000002"
+    touch -d '2020-01-03 00:00' "$_sd/c2rs-gate-998000003"
+
+    # A dry run must classify and remove nothing — this is the rehearsal the
+    # `--reap-dry-run` flag promises, and it is worthless if it is not asserted.
+    reap_run_trees "$_sd" "$_scur" 3 "$st" dry > "$st/strip-dry.out" 2>&1
+    [ -f "$_sd/c2rs-gate-998000002/sweep/case-1.cpp" ] && _r=0 || _r=1
+    t_case strip-dry-run-removes-nothing "$_r" "a dry run leaves every case on disk"
+    grep -q 'STRIP\*  3 regenerable cases' "$st/strip-dry.out" && _r=0 || _r=1
+    t_case strip-dry-run-still-counts "$_r" "and still prints the count it would have taken"
+
+    reap_run_trees "$_sd" "$_scur" 3 "$st" > "$st/strip.out" 2>&1
+
+    [ ! -f "$_sd/c2rs-gate-998000002/sweep/case-1.cpp" ] && _r=0 || _r=1
+    t_case strip-removes-green-cases "$_r" "a green tree past KEEP_CASES loses its .cpp corpus"
+
+    # The whole point is WHAT SURVIVES. Four kinds of evidence, asserted as one
+    # case because any one of them going missing is the same defect.
+    [ -f "$_sd/c2rs-gate-998000002/O1.log" ] \
+        && [ -s "$_sd/c2rs-gate-998000002/results.tsv" ] \
+        && [ -f "$_sd/c2rs-gate-998000002/sweep/parts/mism.0" ] \
+        && [ -f "$_sd/c2rs-gate-998000002/sweep/cases.txt" ] && _r=0 || _r=1
+    t_case strip-keeps-every-log "$_r" "logs, results.tsv, parts/ and cases.txt all survive the strip"
+
+    [ -f "$_sd/c2rs-gate-998000003/sweep/case-1.cpp" ] && _r=0 || _r=1
+    t_case strip-spares-newest "$_r" "the newest finished run keeps its cases (KEEP_CASES=1)"
+
+    [ -f "$_sd/c2rs-gate-998000001/sweep/case-1.cpp" ] && _r=0 || _r=1
+    t_case strip-spares-mismatch "$_r" "a tree carrying a FAIL keeps the cases its report names"
+
+    grep -q 'cases KEPT' "$st/strip.out" && _r=0 || _r=1
+    t_case strip-says-why-it-declined "$_r" "and says so, rather than silently doing nothing"
+
+    [ -s "$_sd/c2rs-gate-998000002/sweep/CASES_STRIPPED" ] \
+        && grep -q '^The 3 generated' "$_sd/c2rs-gate-998000002/sweep/CASES_STRIPPED" && _r=0 || _r=1
+    t_case strip-leaves-a-note "$_r" "the note lands where the cases were and carries the count"
+
+    grep -q '^strip:  1 kept tree(s) lost 3 regenerable cases' "$st/strip.out" && _r=0 || _r=1
+    t_case strip-reports-a-count "$_r" "$(grep -m1 '^strip:' "$st/strip.out" || echo '(no strip: line)')"
+
+    # Idempotence. A second pass must find nothing left to do and SAY zero — the
+    # CASES_STRIPPED marker is what stops it re-reporting work it did yesterday.
+    reap_run_trees "$_sd" "$_scur" 3 "$st" > "$st/strip2.out" 2>&1
+    grep -q '^strip:  0 kept tree(s) lost 0 regenerable cases' "$st/strip2.out" && _r=0 || _r=1
+    t_case strip-is-idempotent "$_r" "$(grep -m1 '^strip:' "$st/strip2.out" || echo '(no strip: line)')"
+
+    # KEEP_CASES=0 strips every kept tree that is green — including the newest —
+    # and STILL spares the mismatched one. Asserted separately because "green" and
+    # "recent" are two different reasons to be spared and the knob only moves one.
+    C2RS_GATE_KEEP_CASES=0
+    reap_run_trees "$_sd" "$_scur" 3 "$st" > "$st/strip0.out" 2>&1
+    [ ! -f "$_sd/c2rs-gate-998000003/sweep/case-1.cpp" ] \
+        && [ -f "$_sd/c2rs-gate-998000001/sweep/case-1.cpp" ] && _r=0 || _r=1
+    t_case strip-keep-cases-0-still-spares-mismatch "$_r" \
+        "KEEP_CASES=0 takes the newest green tree and never the failed one"
+    C2RS_GATE_KEEP_CASES=1
 
     kill "$_sleeper" 2>/dev/null || true
     wait "$_sleeper" 2>/dev/null || true
