@@ -81,10 +81,15 @@ HDR = ("tu\tcallee\tsize\tlinkage\tselection\tnparams\tvarargs\tleaf\tindex\t"
        "nmax\tsites\tsurvived\tpredicted\tobserved\tverdict")
 
 
-def grade_tu(tu, pa, pb, drop_leaf_term=False):
+def grade_tu(tu, pa, pb, drop_leaf_term=False, leaf_from="emitted"):
     a = read_obj(pa)
     b = read_obj(pb)
     annotate_params(a)
+    # `leaf_source`: the incumbent's OWN definition of the leaf predicate
+    # (§6.19.6 — "keyed on a call the SOURCE contains"), measured on the `/Ob0`
+    # body, where nothing is inlined, so a callee whose own calls were expanded
+    # away still reads NON-leaf. This is the input `INLINE-P` always wanted and
+    # the `/O1` obj cannot supply.
     ca, cb = rel24_counts(a), rel24_counts(b)
     rows, dropped = [], 0
     for name, f in a.items():
@@ -97,8 +102,12 @@ def grade_tu(tu, pa, pb, drop_leaf_term=False):
         if sites == 0:
             continue
         survived = ca[name] > 0
-        leaf = is_leaf(f, a)
-        nm = n_max(f, leaf, drop_leaf_term)
+        if leaf_from == "source":
+            leaf = is_leaf(b[name], b)
+            nm = n_max(f, leaf, False)
+        else:
+            leaf = is_leaf(f, a)
+            nm = n_max(f, leaf, drop_leaf_term)
         predicted = "INLINED-ALL" if nm >= sites else "DECLINED"
         observed = "DECLINED" if survived else "INLINED-ALL"
         rows.append((
@@ -107,7 +116,7 @@ def grade_tu(tu, pa, pb, drop_leaf_term=False):
             SELECT.get(f.selection, str(f.selection)),
             f.nparams if f.parse_ok else -1,
             int(bool(f.varargs)), int(leaf),
-            sched_index(f, False if drop_leaf_term else leaf),
+            sched_index(f, leaf if (leaf_from == "source" or not drop_leaf_term) else False),
             "inf" if nm >= UNBOUNDED else nm,
             sites, int(survived), predicted, observed,
             "HIT" if predicted == observed else "MISS",
@@ -120,9 +129,12 @@ def main(argv):
     db = argv[argv.index("--b") + 1]
     idx = argv[argv.index("--index") + 1]
     tsv = argv[argv.index("--tsv") + 1] if "--tsv" in argv else None
-    variants = ([(False, "leaf-term"), (True, "NO leaf-term")]
+    variants = ([(False, "emitted", "leaf-term, leaf from the /O1 obj"),
+                 (True, "emitted", "NO leaf-term (FROZEN by addendum 2)"),
+                 (False, "source", "leaf-term, leaf from the /Ob0 obj (source-leaf)")]
                 if "--both" in argv else
-                [("--drop-leaf-term" in argv, "chosen")])
+                [("--drop-leaf-term" in argv,
+                  "source" if "--source-leaf" in argv else "emitted", "chosen")])
     pairs = []
     for line in open(idx):
         n, src = line.rstrip("\n").split("\t")
@@ -131,10 +143,10 @@ def main(argv):
             pairs.append((src, pa, pb))
     print(f"TU pairs: {len(pairs)}", file=sys.stderr)
 
-    for dl, label in variants:
+    for dl, lf, label in variants:
         allrows, dropped = [], 0
         for src, pa, pb in pairs:
-            r, d = grade_tu(src, pa, pb, dl)
+            r, d = grade_tu(src, pa, pb, dl, lf)
             allrows.extend(r)
             dropped += d
         hit = sum(1 for r in allrows if r[-1] == "HIT")
@@ -158,10 +170,7 @@ def main(argv):
         base = max(obs_inl, n - obs_inl)
         print(f"      MAJORITY-CLASS BASELINE {base}/{n} = {base / n:.4f}" if n else "",
               file=sys.stderr)
-        if tsv and label != "NO leaf-term":
-            open(tsv, "w").write(
-                "\n".join([HDR] + ["\t".join(str(c) for c in r) for r in allrows]) + "\n")
-        elif tsv and len(variants) == 1:
+        if tsv and len(variants) == 1:
             open(tsv, "w").write(
                 "\n".join([HDR] + ["\t".join(str(c) for c in r) for r in allrows]) + "\n")
     return 0
