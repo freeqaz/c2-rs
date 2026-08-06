@@ -1,0 +1,263 @@
+# INLINE_PREDICATE — when c2 does not emit the call the IL contains
+
+**Status: SPEC, nothing shipped.** No emitter and no acceptance boundary changed
+for this document. `crates/` is untouched by the lane that wrote it (`w-inline`,
+[`rungs/2026-08-07-w-inline.md`](rungs/2026-08-07-w-inline.md)).
+
+`IlBundle::functions()` refuses any TU where a callee is also defined
+(`crates/c2-il/src/func/bundle.rs:1337`), with the comment *"Refused wholesale
+rather than by callee size, because what makes c2 inline … is uncharacterized."*
+It is characterized. This document says what by, how well it is graded, and —
+more useful — that **the biggest single family the refusal protects against is
+not inlining at all**.
+
+---
+
+## 0. TWO mechanisms, not one, and only one of them is a cost model
+
+| | mechanism | governed by `/Ob`? | is it a cost model? | share of w-fnbyte's 4,711 |
+|---|---|---|---|---|
+| **E** | **EMPTY-CALLEE ELISION** — a call whose callee's *source* body is empty is never emitted | **NO** | **no — syntactic** | family A, **1,886** (40 %) |
+| **I** | **INLINE EXPANSION** — `INLINE-P` below | yes | yes | the rest of the call-bearing differs |
+
+Keeping them apart is the whole content of this page. `w-fnbyte` §5.2 named
+mechanism **I** and demonstrated it with a probe that is actually mechanism
+**E**:
+
+```cpp
+void g() {}
+void f() { g(); }      // c2 emits `?f` as a bare `blr`, 0 relocations
+```
+
+That probe's bytes are exactly as reported. Its *cause* is not: recompile it
+with `/Ob0` appended to the workload's own flags — inline expansion off — and
+`?f` is **still** a bare `blr` with no relocation. There is no expansion to
+disable. The control that separates them is one line apart:
+
+```cpp
+int g(int a) { return a; }        // EMITS a bare `blr` — r3 already holds it
+int f(int a) { return g(a) + 0; } // /O1: no call.  /Ob0: `bl ?g` SURVIVES
+```
+
+Two callees whose emitted `.text` is the identical single `blr` word, and
+opposite verdicts under `/Ob0`. **The elision reads the source body, not the
+emitted one.** (`work/w-inline/ctl_ob0.py`, probes p2/p6/p8; p4 is its positive
+control and it passes — `/Ob0` does restore a genuine expansion.)
+
+> **This is the correction that matters for the port.** `w-fnbyte` §8.1 declined
+> family A on the grounds that *"the predicate ('c2 will inline this') is a
+> **cost model**, not a syntactic fact"*. For family A it **is** a syntactic
+> fact — "does the callee's body do anything" — and the callee's body is in the
+> same IL bundle. Measured on 120 workload TUs against the standing instrument's
+> own `fnbyte-differs-fn` witnesses: **532 of 532 family-A callers have no
+> same-TU callee even at `/Ob0`.** Not one of them is an inline decision.
+
+---
+
+## 1. Mechanism E — the empty-callee elision
+
+> **E.** c2 emits no call, no relocation and no external symbol for a call whose
+> callee is defined in this TU and whose **source body is empty**.
+
+Measured at `/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc`, with and without
+`/Ob0`, on `work/w-inline/ctl_ob0.py`'s probes:
+
+| probe | callee | callee emits | `/O1` call | `/Ob0` call |
+|---|---|---|---|---|
+| p2 | `void g() {}` | `blr` | — | **—** |
+| p8 | `void g(int a) {}` | `blr` | — | **—** |
+| p3 | `~B()` over a trivial `~A()` | `blr` | — | **—** |
+| p5 | the same with data members | `blr` | — | **—** |
+| **p6** | `int g(int a) { return a; }` | **`blr`** | — | **`bl ?g` ✔** |
+| p4 | `int g(int a) { return a + 1; }` | 2 words | — | `bl ?g` ✔ |
+
+p6 is the discriminating cell and p4 is the positive control. **`work/WEC`'s
+`eh_unwind_callees` accounting is one special case of this rule** — the
+`bundle.rs` comment already records *"the base destructor an empty constructor
+names as its unwind action: on the cheap side there is no funclet, so c2 emits
+no `bl`, no relocation and no symbol for it"*. That is E, restricted to the
+unwind edge; E is the general statement, and it covers ordinary call edges too.
+
+**What E is NOT bounded on.** "Empty" is measured here as *"the callee's whole
+`.text` is one `blr`, and it is one `blr` because the source body has no
+statement"*. The exact source-side predicate — whether a body containing only a
+`return` of a parameter counts (p6 says **no**), whether a body containing only
+a dead store counts, whether an empty *virtual* member counts — is
+**NOT MODELLED**. Three probes, one boundary.
+
+---
+
+## 2. Mechanism I — `INLINE-P`, and it is prior art
+
+Every constant below is transcribed from `docs/LABEL_COUNTER.md` §6.15–§6.20 and
+carries its section number. **This document derives none of them.** It grades
+them, on a corpus and at flags those rounds never used.
+
+Inputs, per callee `G`:
+
+| input | §6 source | obj-readable? | IL-readable? |
+|---|---|---|---|
+| `s` — `G`'s own emitted `.text` size at `/O1` | §6.5 | **yes** — c2 emits the callee whether or not it inlined it | only by lowering `G` |
+| `linkage(G)` ∈ {STATIC, EXTERNAL} | §6.17.3 | yes — COFF storage class | yes — `.gl` |
+| `inline(G)` | §6.17.5 | **yes — the COMDAT selection**: `SELECT_ANY` ⇔ `inline` (verified, §4) | yes |
+| `nparams(G)`, `this` included | §6.17.6 | yes — mangled name | yes |
+| `varargs(G)` | §6.18.5 | yes — mangled name | yes |
+| **`leaf(G)`** — *the source has no call* | §6.18.6, §6.19.6 | **NO — see §5** | **yes** |
+
+```
+index(G) =  s                                        linkage == STATIC
+            s - 4*(nparams - 1) - 8*[inline]         linkage == EXTERNAL
+         -  48*[leaf]                                both classes     (§6.18.6)
+
+N_max(G) =  0                                        if varargs(G)    (§6.18.5)
+            EXTERNAL:  UNBOUNDED if index <= 64 else 0                (§6.17.4)
+            STATIC:    i = index/4
+                       0                             i >= 65
+                       UNBOUNDED                     i <= 16
+                       min(9, 1 + floor(19/(i-16)))  otherwise         (§6.18.9)
+
+c2 inlines EVERY site of G iff n_sites(G) <= N_max(G); the decision is
+ALL-OR-NOTHING per (caller, callee) pair (§6.15.1) and is a property of the
+CALLEE alone (§6.15.3a, §6.19.5).
+```
+
+**Site-side exceptions**, which are properties of the call and not of the callee:
+
+* an **indirect** site names no callee, so there is nothing to decline
+  (§6.18.4). A virtual call through a pointer is one; the same member on an
+  object whose dynamic type is known devirtualises and then obeys the rule.
+* a **conditional** site moves the `1 → 0` ceiling from `(256, 260]` to
+  `(160, 164]` and moves no other boundary (§6.19.9).
+* **NEW, and the incumbent could not have seen it**: a site inside a `/EHsc`
+  **unwind funclet** (`__unwind$N` / `__catch$N`) is never inlined. Every
+  capture in §6.15–§6.20 is at `/O1 /GS- /c`, where no funclet exists. On
+  `Utl.cpp` alone, **40 of 73** apparent falsifications of the rule are calls
+  whose only caller is a funclet. This matters for the port only indirectly —
+  the port emits no funclets — but it is why a naive obj-side grader reads the
+  rule as far worse than it is.
+
+---
+
+## 3. How well it is graded, and against what
+
+Graded by **real `c2` under wibo**, from **obj bytes** (#843), by §6.15's own
+observable: *an inlined call leaves no trace in the caller's relocation table; a
+declined one leaves exactly one REL24 against the callee's symbol.*
+
+The site set is not modelled either. Each TU is compiled **twice** — once at the
+workload's flags and once with `/Ob0` appended — and `n_sites(G)` is the REL24
+count in the second. `work/w-inline/grade_pair.py`.
+
+| corpus | n | accuracy | majority baseline | precision / recall on `INLINED-ALL` |
+|---|---:|---:|---:|---|
+| SAMPLE-A, 20 workload TUs (diagnostic) | 12,242 callees | **0.9760** | 0.7232 | 0.977 / 0.990 |
+| **SAMPLE-B, 100 workload TUs — HOLD-OUT** | **9,993 callees** | **0.9716** | 0.6434 | 0.969 / 0.988 |
+| **GRID-2b, hand probes, 11 families** | **5,040 cells** | **0.9980** | — | — |
+| the 4,711's own non-family-A callers | 687 pairs / 681 callers | **1.0000** | — | — |
+
+Both samples are `sha256`-frozen (`work/w-inline/sample_a.txt`,
+`sample_b.txt`); GRID-2b is stamped `0c5f520c…` and was committed before one
+cell was compiled.
+
+**The step is where §6.17.4 + §6.17.5 say it is.** 11,866 `EXTERNAL` +
+`SELECT_ANY` workload callees, observed inline rate by index:
+
+```
+   index  <=24   36   44   52   60   64 | 68   72   80   92  >=112
+    rate  .997 .890 .911 .928 .872 .701 |.157 .000 .000 .036 .001
+                                        ^ the 64/68 step
+```
+
+Fitted on `static int f(int)` ladders at `/O1 /GS- /c`; reproduced on real C++
+templates, constructors, destructors and operators at `/GR /O1 /Oi /EHsc`, with
+`this`, `sret`, references and up to five parameters.
+
+---
+
+## 4. What GRID-2b adds that §6.15–§6.20 does not have
+
+5,376 cells, 12 families × k/p/q rungs × site counts, at the workload's flags.
+Every family the incumbent has **no row for anywhere**:
+
+| family | cells | result |
+|---|---:|---|
+| `tmpl` — a function template instantiation | 336 | 326/336; the 10 misses are all at index 60–64, the boundary cell |
+| **`recurse`** — direct recursion, §6.19.10's *"the one call-graph shape that has never appeared on either side of the pair"* | 336 | **336/336** — a self-recursive callee is refused at every size, and `INLINE-P` calls it refused because its own `bl` makes it non-leaf |
+| `site-eh` — a destructible object live across the site | 336 | 336/336, identical to the straight-line control |
+| `two-level` — the callee itself calls a same-TU function | 336 | 336/336 |
+| `member-inclass` vs `member-outclass` | 672 | 672/672 — the `inline` step differs by exactly 8 bytes, §6.17.5 |
+| `static-plain`, N swept 1…10 | 1,680 | **1,680/1,680** — SCHEDULE D's whole graduated middle |
+| `varargs` | 336 | 336/336, categorical at every size |
+| **`virt-ptr`** | 336 | **UNGRADEABLE and excluded**: the site is a `bcctrl`, there is never a REL24, so this observable cannot distinguish "inlined" from "no direct call ever existed". §6.18.4 says the same thing from the other side. |
+
+---
+
+## 5. THE OPEN INPUT — `leaf` is not obj-readable, and that is why the port needs the IL
+
+§6.19.6 already said it: the index is *"a post-allocation byte count, minus 48
+for a predicate that is false in the emitted code and true only upstream of
+it."* On the ladders that never bit, because no callee's own calls were
+inlinable. On real C++ they are, and it bites hard:
+
+| leaf bit derived from | SAMPLE-B accuracy |
+|---|---:|
+| the `/O1` obj (a callee whose calls were inlined away reads LEAF) | 0.9631 |
+| **dropped entirely** | **0.9716** |
+| the `/Ob0` obj (source-leaf) | 0.9688 |
+
+and on GRID-2b, whose callees are genuinely leaf in source, the same three
+readings give **0.9980 / 0.8401 / 0.9980**. So:
+
+> **The 48-byte term is real** — GRID-2b's ladders step at `s = 112/116`, which
+> is 64/68 + 48 exactly, on hand probes at the workload's own flags. **And no
+> compilation supplies its input.** `/O1` over-reports leaf; `/Ob0`
+> under-reports it, because c2 decides bottom-up and a callee's own inlinable
+> calls are gone by the time it is priced. The truth is between the two and
+> **NOT MODELLED**.
+
+**This is the one place the port is better off than any obj-side instrument.**
+The IL bundle contains the callee's *un-lowered* body, and it contains it before
+any expansion. A recognizer can ask "does this body contain a call" of the IL
+directly. Nothing in this lane could.
+
+---
+
+## 6. What a port recognizer would consume, and in what order
+
+Nothing here is implemented. This is the shape, so the next lane does not have
+to re-derive it.
+
+1. **Mechanism E first, and alone if that is all that is taken.** For a call
+   edge `F → G` with `G` defined in this bundle and `G`'s IL body empty: emit no
+   branch, no REL24 and no external symbol for `G` on `F`'s account. This is a
+   `c2-il` acceptance/lowering fact, needs no size and no cost model, and covers
+   **1,886 of the 4,711** (40 %) with the emitter untouched.
+2. **Mechanism I only with `s`.** `INLINE-P` is indexed on the callee's own
+   *emitted* size, so a recognizer can only apply it to a `G` the port can
+   already lower — otherwise it does not know `s`. That is a real ordering
+   constraint and it is why I is not cheap: the port must lower `G` to decide
+   whether to inline `G` into `F`.
+3. **`inline(G)` comes from the COMDAT selection** if read from an obj, and from
+   the `.gl` record if read from IL. Verified obj-side on GRID-2b: every
+   `inline`, in-class member and template instantiation is `SELECT_ANY`; every
+   plain out-of-class definition is `SELECT_NODUPLICATES`; and the two classes'
+   ladders differ by exactly the 8 bytes §6.17.5 measured.
+4. **Do not narrow `functions()` on I.** The 2.4–2.8 % residual is a wrong-bytes
+   emit if it lands on the accept side, and board #269/#844's standing hazard
+   applies. E has no residual on the 532 callers measured and is the one that
+   can be taken safely.
+
+---
+
+## 7. What this leaves `NOT MODELLED`
+
+* **E's exact source predicate.** Three probes, one boundary (§1).
+* **`leaf`'s true input** (§5) — the largest single source of `INLINE-P`'s
+  workload residual.
+* **The 2.84 % SAMPLE-B residual itself**: 205 false inlines and 79 false
+  declines, clustered within ±8 bytes of the step, 155 of SAMPLE-A's 294 being
+  `operator`s. **No term was fitted to them**, per `work/w-inline/PREREG.md` §5.
+* **Everything §6.19.10 leaves open**, unchanged — the rule generating SCHEDULE
+  D, what the 48 bytes *are*, the `/Ox` loop threshold, and why the two linkage
+  classes use different size measures.
+* **Whether E and I interact.** Every probe here has one mechanism or the other.
