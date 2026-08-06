@@ -1,0 +1,184 @@
+  frozen rows 132 | source sha256 re-checked: 132 OK, 0 MOVED
+
+  cell                           part | expect  printed | OBS    FROZEN | verdict  first
+  ----------------------------------------------------------------------------------------------------
+  H1-subfic-1base-r1k1           H1   | subfic  subfic  | const  const  | HIT      const
+  H1-subfic-2base-r1k1           H1   | subfic  subfic  | const  const  | HIT      const
+  H1-subfic-1base-r2k1           H1   | subfic  subfic  | prod   prod   | HIT      prod
+  H1-subfic-2base-r2k1           H1   | subfic  subfic  | prod   const  | **MISS** const
+  H1-subfic-1base-r2k2           H1   | subfic  subfic  | prod   const  | **MISS** prod
+  H1-subfic-2base-r2k2           H1   | subfic  subfic  | prod   const  | **MISS** const
+  H1-andi-1base-r1k1             H1   | andi.   clrlwi  | const  const  | HIT      const
+  H1-andi-2base-r1k1             H1   | andi.   clrlwi  | const  const  | HIT      const
+  H1-andi-1base-r2k1             H1   | andi.   clrlwi  | prod   prod   | HIT      prod
+  H1-andi-2base-r2k1             H1   | andi.   clrlwi  | const  const  | HIT      const
+  H1-andi-1base-r2k2             H1   | andi.   clrlwi  | const  const  | HIT      prod
+  H1-andi-2base-r2k2             H1   | andi.   clrlwi  | const  const  | HIT      const
+  H1-ori-1base-r1k1              H1   | ori     ori     | const  const  | HIT      const
+  H1-ori-2base-r1k1              H1   | ori     ori     | const  const  | HIT      const
+  H1-ori-1base-r2k1              H1   | ori     ori     | prod   prod   | HIT      prod
+  H1-ori-2base-r2k1              H1   | ori     ori     | const  const  | HIT      const
+  H1-ori-1base-r2k2              H1   | ori     ori     | const  const  | HIT      prod
+  H1-ori-2base-r2k2              H1   | ori     ori     | const  const  | HIT      const
+  H1-xori-1base-r1k1             H1   | xori    xori    | const  const  | HIT      const
+  H1-xori-2base-r1k1             H1   | xori    xori    | const  const  | HIT      const
+  H1-xori-1base-r2k1             H1   | xori    xori    | prod   prod   | HIT      prod
+  H1-xori-2base-r2k1             H1   | xori    xori    | const  const  | HIT      const
+  H1-xori-1base-r2k2             H1   | xori    xori    | const  const  | HIT      prod
+  H1-xori-2base-r2k2             H1   | xori    xori    | const  const  | HIT      const
+  H1-andc-1base-r1k1             H1   | andc    andc    | const  const  | HIT      const
+  H1-andc-2base-r1k1             H1   | andc    andc    | const  const  | HIT      const
+  H1-andc-1base-r2k1             H1   | andc    andc    | prod   prod   | HIT      prod
+  H1-andc-2base-r2k1             H1   | andc    andc    | const  const  | HIT      const
+  H1-andc-1base-r2k2             H1   | andc    andc    | const  const  | HIT      prod
+  H1-andc-2base-r2k2             H1   | andc    andc    | const  const  | HIT      const
+  H1-extsb-1base-r1k1            H1   | extsb   extsb   | prod   prod   | HIT      const
+  H1-extsb-2base-r1k1            H1   | extsb   extsb   | prod   prod   | HIT      const
+  H1-extsb-1base-r2k1            H1   | extsb   extsb   | prod   prod   | HIT      prod
+  H1-extsb-2base-r2k1            H1   | extsb   extsb   | prod   prod   | HIT      const
+  H1-extsb-1base-r2k2            H1   | extsb   extsb   | const  const  | HIT      const
+  H1-extsb-2base-r2k2            H1   | extsb   extsb   | const  const  | HIT      const
+  H1-slw-1base-r1k1              H1   | OUT OF REGIME: r11 is defined 2 times (#644)
+  H1-slw-2base-r1k1              H1   | OUT OF REGIME: r11 is defined 2 times (#644)
+  H1-slw-1base-r2k1              H1   | OUT OF REGIME: r11 is defined 2 times (#644)
+  H1-slw-2base-r2k1              H1   | OUT OF REGIME: r11 is defined 2 times (#644)
+  H1-slw-1base-r2k2              H1   | OUT OF REGIME: r10 is defined 2 times (#644)
+  H1-slw-2base-r2k2              H1   | OUT OF REGIME: r10 is defined 2 times (#644)
+  H1-srw-1base-r1k1              H1   | OUT OF REGIME: r11 is defined 2 times (#644)
+  H1-srw-2base-r1k1              H1   | OUT OF REGIME: r11 is defined 2 times (#644)
+  H1-srw-1base-r2k1              H1   | OUT OF REGIME: r11 is defined 2 times (#644)
+  H1-srw-2base-r2k1              H1   | OUT OF REGIME: r11 is defined 2 times (#644)
+  H1-srw-1base-r2k2              H1   | OUT OF REGIME: r10 is defined 2 times (#644)
+  H1-srw-2base-r2k2              H1   | OUT OF REGIME: r10 is defined 2 times (#644)
+  H1-sraw-1base-r1k1             H1   | OUT OF REGIME: r11 is defined 2 times (#644)
+  H1-sraw-2base-r1k1             H1   | OUT OF REGIME: r11 is defined 2 times (#644)
+  H1-sraw-1base-r2k1             H1   | OUT OF REGIME: r11 is defined 2 times (#644)
+  H1-sraw-2base-r2k1             H1   | OUT OF REGIME: r11 is defined 2 times (#644)
+  H1-sraw-1base-r2k2             H1   | OUT OF REGIME: r11 is defined 2 times (#644)
+  H1-sraw-2base-r2k2             H1   | OUT OF REGIME: r11 is defined 2 times (#644)
+  H1-mullw-1base-r1k1            H1   | mullw   mullw   | const  const  | HIT      const
+  H1-mullw-2base-r1k1            H1   | mullw   mullw   | const  const  | HIT      const
+  H1-mullw-1base-r2k1            H1   | mullw   mullw   | prod   prod   | HIT      prod
+  H1-mullw-2base-r2k1            H1   | mullw   mullw   | const  const  | HIT      const
+  H1-mullw-1base-r2k2            H1   | mullw   mullw   | const  const  | HIT      prod
+  H1-mullw-2base-r2k2            H1   | mullw   mullw   | const  const  | HIT      const
+  H1-lhz-1base-r1k1              H1   | lha     lha     | prod   prod   | HIT      prod
+  H1-lhz-2base-r1k1              H1   | lha     lha     | prod   prod   | HIT      prod
+  H1-lhz-1base-r2k1              H1   | lha     lha     | prod   prod   | HIT      prod
+  H1-lhz-2base-r2k1              H1   | OUT OF REGIME: r11 is defined 2 times (#644)
+  H1-lhz-1base-r2k2              H1   | lha     lha     | const  const  | HIT      prod
+  H1-lhz-2base-r2k2              H1   | OUT OF REGIME: the producer's stores name 2 distinct registers
+  H1-lbz-1base-r1k1              H1   | OUT OF REGIME: r11 is defined 2 times (#644)
+  H1-lbz-2base-r1k1              H1   | OUT OF REGIME: r11 is defined 2 times (#644)
+  H1-lbz-1base-r2k1              H1   | OUT OF REGIME: r11 is defined 2 times (#644)
+  H1-lbz-2base-r2k1              H1   | OUT OF REGIME: r11 is defined 4 times (#644)
+  H1-lbz-1base-r2k2              H1   | OUT OF REGIME: r10 is defined 2 times (#644)
+  H1-lbz-2base-r2k2              H1   | OUT OF REGIME: the producer's stores name 2 distinct registers
+  H2-add-2base-r4k1              H2   | add     add     | prod   prod   | HIT      const
+  H2-add-2base-r1k2              H2   | add     add     | const  const  | HIT      const
+  H2-add-2base-r2k4              H2   | add     add     | const  prod   | **MISS** const
+  H2-add-2base-r2k5              H2   | add     add     | const  prod   | **MISS** const
+  H2-add-2base-r3k5              H2   | add     add     | const  prod   | **MISS** const
+  H2-add-2base-r4k5              H2   | add     add     | prod   prod   | HIT      const
+  H2-add-2base-r3k3              H2   | add     add     | prod   prod   | HIT      const
+  H2-addi-2base-r4k1             H2   | addi    addi    | prod   prod   | HIT      const
+  H2-addi-2base-r1k2             H2   | addi    addi    | const  const  | HIT      const
+  H2-addi-2base-r2k4             H2   | addi    addi    | const  prod   | **MISS** const
+  H2-addi-2base-r2k5             H2   | addi    addi    | const  prod   | **MISS** const
+  H2-addi-2base-r3k5             H2   | addi    addi    | const  prod   | **MISS** const
+  H2-addi-2base-r4k5             H2   | addi    addi    | prod   prod   | HIT      const
+  H2-addi-2base-r3k3             H2   | addi    addi    | prod   prod   | HIT      const
+  H2-srawi-2base-r4k1            H2   | srawi   srawi   | prod   prod   | HIT      const
+  H2-srawi-2base-r1k2            H2   | srawi   srawi   | const  const  | HIT      const
+  H2-srawi-2base-r2k4            H2   | srawi   srawi   | const  prod   | **MISS** const
+  H2-srawi-2base-r2k5            H2   | srawi   srawi   | const  prod   | **MISS** const
+  H2-srawi-2base-r3k5            H2   | srawi   srawi   | const  prod   | **MISS** const
+  H2-srawi-2base-r4k5            H2   | srawi   srawi   | prod   prod   | HIT      const
+  H2-srawi-2base-r3k3            H2   | srawi   srawi   | prod   prod   | HIT      const
+  H2-extsh-2base-r4k1            H2   | extsh   extsh   | prod   prod   | HIT      const
+  H2-extsh-2base-r1k2            H2   | extsh   extsh   | const  const  | HIT      const
+  H2-extsh-2base-r2k4            H2   | extsh   extsh   | const  const  | HIT      const
+  H2-extsh-2base-r2k5            H2   | extsh   extsh   | const  const  | HIT      const
+  H2-extsh-2base-r3k5            H2   | extsh   extsh   | const  const  | HIT      const
+  H2-extsh-2base-r4k5            H2   | extsh   extsh   | const  const  | HIT      const
+  H2-extsh-2base-r3k3            H2   | extsh   extsh   | const  const  | HIT      const
+  H2-self-2base-r4k1             H2   | addi    addi    | prod   prod   | HIT      const
+  H2-self-2base-r1k2             H2   | addi    addi    | prod   prod   | HIT      const
+  H2-self-2base-r2k4             H2   | addi    addi    | prod   const  | **MISS** const
+  H2-self-2base-r2k5             H2   | addi    addi    | const  const  | HIT      const
+  H2-self-2base-r3k5             H2   | addi    addi    | prod   const  | **MISS** const
+  H2-self-2base-r4k5             H2   | addi    addi    | prod   prod   | HIT      const
+  H2-self-2base-r3k3             H2   | addi    addi    | prod   prod   | HIT      const
+  H2-slwi-2base-r4k1             H2   | slwi    slwi    | const  const  | HIT      const
+  H2-slwi-2base-r1k2             H2   | slwi    slwi    | const  const  | HIT      const
+  H2-slwi-2base-r2k4             H2   | slwi    slwi    | const  const  | HIT      const
+  H2-slwi-2base-r2k5             H2   | slwi    slwi    | const  const  | HIT      const
+  H2-slwi-2base-r3k5             H2   | slwi    slwi    | const  const  | HIT      const
+  H2-slwi-2base-r4k5             H2   | slwi    slwi    | const  const  | HIT      const
+  H2-slwi-2base-r3k3             H2   | slwi    slwi    | const  const  | HIT      const
+  H3-add-1base-r1k1-x            H3   | add     add     | const  const  | HIT      const
+  H3-add-1base-r2k1-x            H3   | add     add     | prod   prod   | HIT      prod
+  H3-add-1base-r2k2-x            H3   | add     add     | prod   prod   | HIT      const
+  H3-addi-1base-r1k1-x           H3   | addi    addi    | const  const  | HIT      const
+  H3-addi-1base-r2k1-x           H3   | addi    addi    | prod   prod   | HIT      prod
+  H3-addi-1base-r2k2-x           H3   | addi    addi    | prod   prod   | HIT      const
+  H3-srawi-1base-r1k1-x          H3   | srawi   srawi   | const  const  | HIT      const
+  H3-srawi-1base-r2k1-x          H3   | srawi   srawi   | prod   prod   | HIT      prod
+  H3-srawi-1base-r2k2-x          H3   | srawi   srawi   | prod   prod   | HIT      prod
+  H3-extsh-1base-r1k1-x          H3   | extsh   extsh   | prod   prod   | HIT      const
+  H3-extsh-1base-r2k1-x          H3   | extsh   extsh   | prod   prod   | HIT      prod
+  H3-extsh-1base-r2k2-x          H3   | extsh   extsh   | const  const  | HIT      const
+  H3-self-1base-r1k1-x           H3   | addi    addi    | prod   prod   | HIT      const
+  H3-self-1base-r2k1-x           H3   | addi    addi    | prod   prod   | HIT      prod
+  H3-self-1base-r2k2-x           H3   | addi    addi    | prod   prod   | HIT      const
+  H3-slwi-1base-r1k1-x           H3   | slwi    slwi    | const  const  | HIT      const
+  H3-slwi-1base-r2k1-x           H3   | slwi    slwi    | prod   prod   | HIT      prod
+  H3-slwi-1base-r2k2-x           H3   | slwi    slwi    | const  const  | HIT      prod
+
+  frozen 132 | reached 132 | GRADED 106 | out-of-regime 26 | rule-refused 0 | compile-failed 0
+  per partition (hit / MISS / out-of-regime / rule-refused):
+    H1   43 / 3 / 26 / 0
+    H2   31 / 11 / 0 / 0
+    H3   18 / 0 / 0 / 0
+
+  H1 (registered: >= 40 graded) -> 106 -> HIT
+  H2 (registered: RULE W2 MISSES at least one cell) -> 14 misses -> HIT — RULE W2 is REFUTED
+
+  H4 — the CLASS PRINCIPLE, on the mnemonics GRID S never contained.  `expect` was frozen before any cell was compiled:
+    subfic  expected subfic   printed subfic               frozen class neither
+    andi    expected andi.    printed clrlwi               frozen class neither
+    ori     expected ori      printed ori                  frozen class neither
+    xori    expected xori     printed xori                 frozen class neither
+    andc    expected andc     printed andc                 frozen class neither
+    extsb   expected extsb    printed extsb                frozen class A
+    slw     expected slw      printed (none graded)        frozen class neither
+    srw     expected srw      printed (none graded)        frozen class neither
+    sraw    expected sraw     printed (none graded)        frozen class B
+    mullw   expected mullw    printed mullw                frozen class neither
+    lhz     expected lha      printed lha                  frozen class A
+    lbz     expected lbz      printed (none graded)        frozen class A
+    mnemonics that did NOT match the frozen expectation: 6
+      H1-andi-1base-r1k1             expected andi.    printed clrlwi
+      H1-andi-2base-r1k1             expected andi.    printed clrlwi
+      H1-andi-1base-r2k1             expected andi.    printed clrlwi
+      H1-andi-2base-r2k1             expected andi.    printed clrlwi
+      H1-andi-1base-r2k2             expected andi.    printed clrlwi
+      H1-andi-2base-r2k2             expected andi.    printed clrlwi
+
+  THE MISSES — the deliverable:
+    H1-subfic-2base-r2k1           part=H1  tag=subfic mnem=subfic  ru=2 cu=1 2base  observed=prod  frozen=const
+    H1-subfic-1base-r2k2           part=H1  tag=subfic mnem=subfic  ru=2 cu=2 1base  observed=prod  frozen=const
+    H1-subfic-2base-r2k2           part=H1  tag=subfic mnem=subfic  ru=2 cu=2 2base  observed=prod  frozen=const
+    H2-add-2base-r2k4              part=H2  tag=add    mnem=add     ru=2 cu=4 2base  observed=const frozen=prod
+    H2-add-2base-r2k5              part=H2  tag=add    mnem=add     ru=2 cu=5 2base  observed=const frozen=prod
+    H2-add-2base-r3k5              part=H2  tag=add    mnem=add     ru=3 cu=5 2base  observed=const frozen=prod
+    H2-addi-2base-r2k4             part=H2  tag=addi   mnem=addi    ru=2 cu=4 2base  observed=const frozen=prod
+    H2-addi-2base-r2k5             part=H2  tag=addi   mnem=addi    ru=2 cu=5 2base  observed=const frozen=prod
+    H2-addi-2base-r3k5             part=H2  tag=addi   mnem=addi    ru=3 cu=5 2base  observed=const frozen=prod
+    H2-srawi-2base-r2k4            part=H2  tag=srawi  mnem=srawi   ru=2 cu=4 2base  observed=const frozen=prod
+    H2-srawi-2base-r2k5            part=H2  tag=srawi  mnem=srawi   ru=2 cu=5 2base  observed=const frozen=prod
+    H2-srawi-2base-r3k5            part=H2  tag=srawi  mnem=srawi   ru=3 cu=5 2base  observed=const frozen=prod
+    H2-self-2base-r2k4             part=H2  tag=self   mnem=addi    ru=2 cu=4 2base  observed=prod  frozen=const
+    H2-self-2base-r3k5             part=H2  tag=self   mnem=addi    ru=3 cu=5 2base  observed=prod  frozen=const
+
+  ==> RULE W2 is WRONG on 14 cell(s) and therefore LOSES to the shipped refusal, which is wrong on 0.
