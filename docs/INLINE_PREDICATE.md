@@ -78,12 +78,43 @@ names as its unwind action: on the cheap side there is no funclet, so c2 emits
 no `bl`, no relocation and no symbol for it"*. That is E, restricted to the
 unwind edge; E is the general statement, and it covers ordinary call edges too.
 
-**What E is NOT bounded on.** "Empty" is measured here as *"the callee's whole
-`.text` is one `blr`, and it is one `blr` because the source body has no
-statement"*. The exact source-side predicate — whether a body containing only a
-`return` of a parameter counts (p6 says **no**), whether a body containing only
-a dead store counts, whether an empty *virtual* member counts — is
-**NOT MODELLED**. Three probes, one boundary.
+### 1.1 The boundary, walked — twelve more probes
+
+`work/w-inline/eboundary.py`, run **after** the lane's rule was frozen and
+GRID-2b graded, so nothing here feeds `INLINE-P`. Same question of every row:
+*does the caller keep a REL24 at `/Ob0`?*
+
+| probe | callee | `s` | `/O1` | `/Ob0` | |
+|---|---|---:|:--:|:--:|---|
+| `e0-empty` | `void g() {}` | 4 | no | **no** | **E** |
+| `e1-unused-local` | `void g(int a){ int x; }` | 4 | no | **no** | **E** |
+| `e2-dead-store` | `void g(int a){ int x = a; }` | 4 | no | **no** | **E** |
+| `e5-static-empty` | `static void g() {}` | 4 | no | **no** | **E** |
+| `e6-inline-empty` | `inline void g() {}` | 4 | no | **no** | **E** |
+| `e7-member-empty` | an empty in-class member | 4 | no | **no** | **E** |
+| `e8-virtual-empty` | an empty **virtual** member, called `s.S::g()` | 4 | no | **no** | **E** |
+| `e9-empty-loop` | `void g(int a){ for(int i=0;i<a;++i){} }` | 4 | no | **no** | **E** |
+| `e10-arg-effect` | `void g(int a){}` called as `g(sink++)` | 4 | no | **no** | **E** |
+| **`e3-return-param`** | `int g(int a){ return a; }` | **4** | no | **yes** | **I** |
+| **`e4-return-const`** | `int g(){ return 0; }` | 8 | no | **yes** | **I** |
+| `e0-ctl-nonempty` | `int g(int a){ return a+1; }` | 8 | no | **yes** | **I** (control) |
+
+Three things follow, and all three are measurements:
+
+1. **E is keyed on the body being empty *after the front end's own dead-code
+   elimination*** — `e1` and `e2` write a local and are still E, and `e9`'s
+   whole loop is.
+2. **E is independent of linkage, of `inline`, of member-ness and of
+   `virtual`.** Five spellings, one verdict. That is the opposite of mechanism
+   I, where linkage is the axis (§6.17.3) and `inline` is worth 8 bytes.
+3. **A body that produces a *used return value* is not E**, even at `s = 4`.
+   `e3` is the discriminator against `e0` at the same emitted size, and it is
+   `p6` again with the caller varied.
+
+**What E is still NOT bounded on.** Whether the argument's side effect in `e10`
+survives (the call vanishes; `sink++` is not checked here), whether an empty
+body with a *volatile* access counts, and what happens at a virtual call
+through a *pointer*, where §6.18.4's site rule applies before E can be asked. **NOT MODELLED.**
 
 ---
 
@@ -230,9 +261,11 @@ Nothing here is implemented. This is the shape, so the next lane does not have
 to re-derive it.
 
 1. **Mechanism E first, and alone if that is all that is taken.** For a call
-   edge `F → G` with `G` defined in this bundle and `G`'s IL body empty: emit no
-   branch, no REL24 and no external symbol for `G` on `F`'s account. This is a
-   `c2-il` acceptance/lowering fact, needs no size and no cost model, and covers
+   edge `F → G` with `G` defined in this bundle, `G`'s IL body empty **after
+   dead-code elimination**, and `G`'s return value **unused at the site**: emit
+   no branch, no REL24 and no external symbol for `G` on `F`'s account. Linkage,
+   `inline`, member-ness and `virtual` do not enter it (§1.1). This is a `c2-il`
+   acceptance/lowering fact, needs no size and no cost model, and covers
    **1,886 of the 4,711** (40 %) with the emitter untouched.
 2. **Mechanism I only with `s`.** `INLINE-P` is indexed on the callee's own
    *emitted* size, so a recognizer can only apply it to a `G` the port can
