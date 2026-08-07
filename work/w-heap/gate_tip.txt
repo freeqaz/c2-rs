@@ -10,12 +10,12 @@ strip:  1 kept tree(s) lost 16710 regenerable cases; 1 newest kept theirs (C2RS_
         freed 140.9 MiB and 16,983 inodes (df delta over a SHARED filesystem)
 disk:   /tmp — free 30.5 GiB / 794,700 inodes (floors: 2.0 GiB / 150,000 inodes)
 
-lane gate: 18 lanes from /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a2d54837ff590b797/scripts/lanes.txt
+lane gate: 18 lanes from <worktree>/scripts/lanes.txt
   run dir: /tmp/c2rs-gate-2365341   (per-lane run dirs under /tmp/c2rs-gate-2365341/lanes/)
 building the harness (no-op if current)
     Finished `release` profile [optimized] target(s) in 0.00s
 harness: /tmp/c2rs-gate-2365341/c2rs
-  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a2d54837ff590b797/target/release/c2rs  built 2026-08-07 12:36:14
+  pinned from <worktree>/target/release/c2rs  built 2026-08-07 12:36:14
   sha 94917e8a600d  tree d5d10349
 
 wall clock: 14s for 18 lanes at --jobs 8 (C2RS_JOBS=8)

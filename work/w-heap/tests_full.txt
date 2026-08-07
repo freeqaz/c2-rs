@@ -44,13 +44,13 @@ warning: `c2-il` (lib test) generated 4 warnings (run `cargo fix --lib -p c2-il 
      Running unittests src/lib.rs (target/release/deps/c2_core-d11d0e0158155eff)
 
 running 280 tests
-test codegen::alloc::tests::all_in_r11_holds_for_one_producer_and_no_more ... ok
 test codegen::alloc::tests::a_pure_constant_run_is_the_only_kind_the_emitter_can_build ... ok
-test codegen::alloc::tests::refusals_are_measured_regimes_not_caution ... ok
-test codegen::alloc::tests::one_producer_takes_pool_top_at_every_floor ... ok
 test codegen::alloc::tests::clause_one_is_the_use_count ... ok
+test codegen::alloc::tests::all_in_r11_holds_for_one_producer_and_no_more ... ok
+test codegen::alloc::tests::refusals_are_measured_regimes_not_caution ... ok
 test codegen::alloc::tests::the_four_refuted_rules_killer_cells ... ok
 test codegen::alloc::tests::the_mixed_refusal_covers_the_measured_refutations ... ok
+test codegen::alloc::tests::one_producer_takes_pool_top_at_every_floor ... ok
 test codegen::alloc::tests::the_pool_starts_below_the_live_in_formals ... ok
 test codegen::alloc::tests::the_strict_use_count_subcase_is_refused_too ... ok
 test codegen::alloc::tests::the_tiebreak_sign_flips_on_the_count_and_on_the_kind ... ok
@@ -155,8 +155,8 @@ test codegen::order::tests::the_layout_answers_two_masks_and_refuses_the_third .
 test codegen::order::tests::the_layout_guard_is_inert_on_what_the_parser_admits ... ok
 test codegen::order::tests::the_layout_u_is_the_leading_run_not_the_count ... ok
 test codegen::order::tests::three_fillers_do_not_displace_the_rank_one_store ... ok
-test codegen::order::tests::three_producers_through_two_symbols_are_refused ... ok
 test codegen::order::tests::three_symbols_need_no_new_constant ... ok
+test codegen::order::tests::three_producers_through_two_symbols_are_refused ... ok
 test codegen::order::tests::u_is_lowered_rather_than_a_floor_relaxed ... ok
 test codegen::order::tests::xboxheap_allocation_is_still_refused_and_the_answer_it_owes_is_recorded ... ok
 test codegen::order::tests::xboxheap_two_symbols_is_answered_not_refused ... ok
@@ -180,6 +180,7 @@ test codegen::schedule::tests::measured_cells_from_real_c2 ... ok
 test codegen::schedule::tests::rule_2_runs_out_of_slots_and_the_rest_go_contiguous ... ok
 test codegen::schedule::tests::source_order_predicate_agrees_with_the_schedule ... ok
 test codegen::schedule::tests::two_base_symbols_pin_the_order_and_that_is_what_killed_h4_h5 ... ok
+test codegen::order::tests::the_two_readings_of_u_agree_on_every_single_symbol_run ... ok
 test codegen::schedule::tests::xboxheap_constructor_is_derived_not_fitted ... ok
 test codegen::select::tests::a_chain_with_an_addition_is_mode_independent ... ok
 test codegen::select::tests::a_comparison_leaf_reallocates_temps_under_o1 ... ok
@@ -194,8 +195,8 @@ test codegen::straightline::tests::select_text_bare_constant_return_is_li ... ok
 test codegen::straightline::tests::select_text_bare_non_first_parameter_is_one_mr ... ok
 test codegen::straightline::tests::select_text_folds_consecutive_add_immediates ... ok
 test codegen::straightline::tests::select_text_folds_mixed_add_sub_immediates ... ok
-test codegen::order::tests::the_two_readings_of_u_agree_on_every_single_symbol_run ... ok
 test codegen::straightline::tests::select_text_for_add3 ... ok
+test codegen::order::tests::the_fallback_never_fires_on_any_enumerable_run ... ok
 test codegen::straightline::tests::select_text_mul_is_commutative_order ... ok
 test codegen::straightline::tests::select_text_rejects_immediate_multiply ... ok
 test codegen::straightline::tests::select_text_sub_immediate_folds_to_addi_neg ... ok
@@ -218,10 +219,9 @@ test coff::data::tests::out_of_class_inputs_refuse ... ok
 test coff::data::tests::the_allocator_is_a_plain_bump_and_the_nibble_is_the_max ... ok
 test coff::data::tests::the_bss_symbol_order_is_externals_reversed_then_statics_in_declaration_order ... ok
 test coff::data::tests::the_c1_watermarks_section_number_moves_with_the_bss ... ok
+test codegen::leaf::store::tests::the_schedule_never_refuses_a_run_the_parser_admits_today ... ok
 test coff::data::tests::the_promotion_thresholds_are_at_2_and_64 ... ok
 test coff::data::tests::the_relocation_refusals_are_refusals_and_not_dropped_records ... ok
-test coff::data::tests::the_relocations_symbol_index_follows_the_symbol_table_and_not_the_input ... ok
-test codegen::order::tests::the_fallback_never_fires_on_any_enumerable_run ... ok
 test coff::data::tests::the_uninitialized_section_sits_between_the_watermarks_and_data_follows_them ... ok
 test coff::order::tests::a_chain_needs_one_pass_per_link ... ok
 test coff::order::tests::a_cycle_refuses ... ok
@@ -229,6 +229,7 @@ test coff::order::tests::a_deferred_caller_lands_after_everything_ready ... ok
 test coff::order::tests::a_repeated_callee_is_one_edge ... ok
 test coff::order::tests::a_satisfied_caller_does_not_move ... ok
 test coff::order::tests::an_unwind_only_reference_is_an_edge ... ok
+test coff::data::tests::the_relocations_symbol_index_follows_the_symbol_table_and_not_the_input ... ok
 test coff::order::tests::callee_defined_later_moves_ahead ... ok
 test coff::order::tests::degenerate_inputs ... ok
 test coff::order::tests::no_edges_is_the_identity ... ok
@@ -252,21 +253,23 @@ test coff::tests::tests::pdata_checksum_matches_reference_aux ... ok
 test coff::tests::tests::pdata_unwind_word_encodes_function_and_prologue_lengths ... ok
 test coff::tests::tests::s_compile2_is_57_bytes ... ok
 test coff::tests::tests::the_alignment_nibble_rule_matches_both_measured_columns ... ok
-test coff::tests::tests::the_bss_section_declares_its_size_but_occupies_no_file_bytes ... ok
+test coff::tests::tests::every_production_emitter_has_a_lib_rs_caller ... ok
 test coff::tests::tests::the_comdat_emitter_places_reflo_at_its_own_offset_too ... ok
+test coff::tests::tests::the_bss_section_declares_its_size_but_occupies_no_file_bytes ... ok
 test coff::tests::tests::the_data_address_quad_puts_reflo_at_its_own_offset_not_beside_refhi ... ok
 test coff::tests::tests::the_dyninit_relocations_pair_both_halves_and_leave_rel24_bare ... ok
 test coff::tests::tests::the_dyninit_symbol_table_is_the_reference_cells_twenty_four_records ... ok
 test coff::tests::tests::the_escaped_text_is_cut_at_thirty_two_source_bytes_not_output_characters ... ok
 test coff::tests::tests::the_inter_function_label_stride_is_a_constant_and_the_source_lead_cancels ... ok
-test coff::tests::tests::every_production_emitter_has_a_lib_rs_caller ... ok
 test coff::tests::tests::the_label_triple_binds_prolog_to_n_and_function_length_to_n_plus_one ... ok
 test coff::tests::tests::the_pooled_fp_constant_quad_is_adjacent_which_is_why_the_data_one_looked_it ... ok
 test coff::tests::tests::the_string_comdat_name_matches_every_measured_literal ... ok
-test coff::tests::tests::the_three_pre_existing_emitters_are_byte_stable ... ok
 test coff::tests::tests::the_two_crc_initial_values_are_not_interchangeable ... ok
+test coff::tests::tests::the_three_pre_existing_emitters_are_byte_stable ... ok
 test coff::tests::tests::the_two_workload_tus_differ_only_in_the_objects_linkage ... ok
 test coff::tests::tests::the_undefined_constructor_sits_inside_the_text_yc_group_at_index_fourteen ... ok
+test codegen::order::tests::the_emitted_symbol_pattern_is_always_the_source_pattern ... ok
+test coff::tests::tests::the_writer_vocabulary_is_every_section_name_this_file_emits ... ok
 test elide::tests::a_callee_this_tu_does_not_define_is_not_elided ... ok
 test elide::tests::a_caller_with_a_data_symbol_is_not_elided ... ok
 test elide::tests::a_caller_with_a_data_symbol_is_not_elided_over_a_seed ... ok
@@ -274,7 +277,6 @@ test elide::tests::a_chain_of_refused_links_closes_on_a_refused_seed ... ok
 test elide::tests::a_chain_stays_elided_at_every_graded_depth ... ok
 test elide::tests::a_chain_two_deep_elides_at_both_links ... ok
 test elide::tests::a_cycle_beside_a_live_chain_admits_only_the_chain ... ok
-test coff::tests::tests::the_writer_vocabulary_is_every_section_name_this_file_emits ... ok
 test elide::tests::a_cycle_is_not_elided_and_terminates ... ok
 test elide::tests::a_cycle_of_refused_links_beside_a_seed_admits_only_the_chain ... ok
 test elide::tests::a_function_with_no_tail_call_is_never_elided ... ok
@@ -287,7 +289,6 @@ test elide::tests::a_same_tu_non_empty_callee_is_not_elided ... ok
 test elide::tests::a_seed_does_not_admit_a_call_to_an_external ... ok
 test elide::tests::a_seed_that_disagrees_with_a_parsed_definition_is_refused ... ok
 test elide::tests::a_seeding_refused_body_carries_no_link ... ok
-test codegen::leaf::store::tests::the_schedule_never_refuses_a_run_the_parser_admits_today ... ok
 test elide::tests::a_seq_mid_node_is_refused ... ok
 test elide::tests::an_unnamed_definition_admits_nothing ... ok
 test elide::tests::direct_self_recursion_is_not_elided ... ok
@@ -318,12 +319,11 @@ test splice::tests::the_row_count_and_the_e_context_are_not_the_same_number ... 
 test splice::tests::the_splice_closes_the_chain ... ok
 test tests::a_function_that_is_not_eh_bare_is_untouched ... ok
 test tests::a_local_but_non_empty_unwind_target_still_pays ... ok
-test tests::a_mixed_unwind_list_refuses ... ok
 test tests::eh_bare_lead_is_charged_when_the_unwind_target_is_external ... ok
+test tests::a_mixed_unwind_list_refuses ... ok
 test tests::eh_bare_lead_is_suppressed_by_a_local_empty_unwind_target ... ok
 test tests::the_low_half_offset_is_found_in_the_body_not_assumed_four_past_the_lis ... ok
 test tests::the_low_half_search_refuses_a_body_it_cannot_read ... ok
-test codegen::order::tests::the_emitted_symbol_pattern_is_always_the_source_pattern ... ok
 
 test result: ok. 280 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
 
@@ -335,38 +335,38 @@ test capture_cache::tests::digest_is_deterministic_and_input_sensitive ... ok
 test capture_cache::tests::compare_captures_names_the_field_that_differs ... ok
 test capture_cache::tests::digest_separates_the_empty_and_zero_inputs ... ok
 test capture_cache::tests::wibo_source_paths_convert_back_to_host_paths ... ok
-test corpus::tests::sha256_known_vectors ... ok
-test corpus::tests::json_roundtrips_a_manifest_row ... ok
+test capture_cache::tests::a_hash_collision_would_read_as_a_miss ... ok
 test capture_cache::tests::an_incomplete_entry_reads_as_a_miss ... ok
+test corpus::tests::json_roundtrips_a_manifest_row ... ok
+test capture_cache::tests::the_lock_directory_is_not_a_readable_entry ... ok
+test corpus::tests::gen_source_is_deterministic ... ok
+test corpus::tests::gen_source_varies_across_seeds_and_indices ... ok
+test corpus::tests::sha256_known_vectors ... ok
+test capture_cache::tests::canonicalizing_the_cwd_folds_spellings_but_not_directories ... ok
 test corpus::tests::synthetic_bundle_roundtrips_and_is_path_free ... ok
+test capture_cache::tests::the_key_lock_excludes_a_second_holder_and_releases_on_drop ... ok
 test gap::fndiff::tests::a_branch_target_only_difference_is_classified_as_one ... ok
 test gap::fndiff::tests::a_displacement_only_difference_is_classified_as_one ... ok
+test capture_cache::tests::key_material_separates_every_documented_component ... ok
 test gap::fndiff::tests::a_pure_reordering_reads_as_same_multiset ... ok
 test gap::fndiff::tests::a_register_only_difference_is_classified_as_one ... ok
-test capture_cache::tests::a_hash_collision_would_read_as_a_miss ... ok
-test gap::fndiff::tests::a_relocated_word_is_marked_as_one ... ok
-test corpus::tests::gen_source_is_deterministic ... ok
 test gap::fndiff::tests::adjacent_insert_and_delete_runs_pair_into_substitutions ... ok
 test gap::fndiff::tests::alignment_finds_an_insertion_rather_than_a_shift ... ok
-test corpus::tests::gen_source_varies_across_seeds_and_indices ... ok
+test gap::fndiff::tests::a_relocated_word_is_marked_as_one ... ok
 test gap::fndiff::tests::an_immediate_only_difference_is_classified_as_one ... ok
 test gap::fndiff::tests::an_unmodelled_form_is_undecoded_and_never_guessed ... ok
 test gap::fndiff::tests::captured_frame_words_decode_and_name_their_fields ... ok
 test gap::fndiff::tests::every_port_encoder_word_round_trips ... ok
 test gap::fndiff::tests::one_primary_with_two_layouts_is_an_opcode_difference ... ok
 test gap::fndiff::tests::the_accounting_identity_holds_on_every_edit_shape ... ok
-test capture_cache::tests::the_lock_directory_is_not_a_readable_entry ... ok
 test gap::fndiff::tests::the_cap_degrades_positionally_and_says_so ... ok
 test gap::fndiff::tests::the_json_row_is_parseable_and_carries_the_keys ... ok
 test gap::fndiff::tests::two_d_form_instructions_with_different_field_names_are_an_opcode_difference ... ok
-test capture_cache::tests::key_material_separates_every_documented_component ... ok
 test gap::fndiff::tests::two_different_instructions_are_an_opcode_difference ... ok
 test gap::render::tests::the_label_channel_distinguishes_label_free_from_unreadable_from_not_evaluated ... ok
 test gap::render::tests::unreadable_wins_over_any_count_that_was_also_recorded ... ok
-test capture_cache::tests::the_key_lock_excludes_a_second_holder_and_releases_on_drop ... ok
 test gap::splitter_predicate_guard::the_class_predicate_is_not_the_segment_counter ... ok
 test gap::tests::a_count_disagreement_is_decided_first_and_in_both_directions ... ok
-test capture_cache::tests::canonicalizing_the_cwd_folds_spellings_but_not_directories ... ok
 test gap::tests::a_flag_bit_makes_two_otherwise_identical_records_differ ... ok
 test gap::tests::a_key_extending_a_listed_key_is_not_admitted ... ok
 test gap::tests::a_match_tu_credits_every_emitted_function_and_a_differing_body_is_a_control_break ... ok
@@ -395,15 +395,16 @@ test gap::tests::cl_error_normalization_survives_codeless_blobs ... ok
 test gap::tests::dispatch_axes_aggregate_across_tus ... ok
 test gap::tests::equal_reloc_sequences_agree_and_two_empty_ones_agree ... ok
 test gap::tests::fn_census_aggregates_across_tus ... ok
+test corpus::tests::write_synthetic_sample_is_loadable_and_consistent ... ok
 test gap::tests::fnbyte_compare_is_byte_equality_and_the_triple_is_forensic ... ok
 test gap::tests::fnbyte_is_unrepresentable_over_zero_emitted_functions ... ok
-test gap::tests::fnbyte_metrics_publish_every_bucket_beside_the_ratio ... ok
 test gap::tests::per_tu_fnbyte_ranks_nearest_first_and_excludes_the_unmeasured ... ok
 test gap::tests::progress_mass_is_unrepresentable_over_an_empty_scan ... ok
-test gap::tests::progress_mass_matches_the_hand_computation ... ok
+test gap::tests::fnbyte_metrics_publish_every_bucket_beside_the_ratio ... ok
 test gap::tests::report_ranks_reasons_by_count ... ok
-test gap::tests::the_cfg_control_passes_on_xboxmem_and_is_absent_rather_than_true_when_missing ... ok
+test gap::tests::progress_mass_matches_the_hand_computation ... ok
 test gap::tests::the_byte_ranking_inverts_the_function_ranking_that_was_refuted ... ok
+test gap::tests::the_cfg_control_passes_on_xboxmem_and_is_absent_rather_than_true_when_missing ... ok
 test gap::tests::the_cfg_screen_separates_a_loop_from_a_straight_line_body_at_equal_cost ... ok
 test gap::tests::the_control_goes_red_for_an_unregistered_whole_tu_path ... ok
 test gap::tests::the_differ_witnesses_collapse_to_signatures_with_an_example ... ok
@@ -416,8 +417,8 @@ test gap::tests::the_frontier_is_the_tus_whose_only_remaining_factor_is_codegen 
 test gap::tests::the_greedy_ladder_runs_through_a_zero_gain_step ... ok
 test gap::tests::the_ledger_counts_a_listed_key_no_scan_witnessed ... ok
 test gap::tests::the_ledger_cross_check_catches_a_matcher_that_admits_beyond_its_declaration ... ok
-test gap::tests::the_metrics_publish_the_cfg_bracket_and_a_zero_violation_count ... ok
 test gap::tests::the_metric_block_derives_the_projection_instead_of_leaving_it_to_a_reader ... ok
+test gap::tests::the_metrics_publish_the_cfg_bracket_and_a_zero_violation_count ... ok
 test gap::tests::the_near_match_table_excludes_the_tus_that_were_never_measured ... ok
 test gap::tests::the_partition_identity_survives_the_shapes_becoming_gradeable ... ok
 test gap::tests::the_per_tu_factor_membership_re_derives_the_joints_it_is_counted_into ... ok
@@ -430,7 +431,6 @@ test gap::tests::the_whole_tu_registry_is_non_empty_and_its_names_are_distinct .
 test gap::tests::the_witness_list_ranks_across_tus_and_reconciles_with_its_counter ... ok
 test listing::tests::mangled_operands_are_never_read_as_stall_codes ... ok
 test listing::tests::mangling_class_separates_generated_from_ordinary ... ok
-test corpus::tests::write_synthetic_sample_is_loadable_and_consistent ... ok
 test listing::tests::stall_flags_reads_the_three_shapes_and_nothing_else ... ok
 test perf::tests::fmt_dur_scales ... ok
 test perf::tests::geomean_of_ratios ... ok
@@ -454,40 +454,40 @@ test retrieval::tests::random_recall_monotone_in_k ... ok
 test retrieval::tests::rank_puts_identical_text_first ... ok
 test retrieval::tests::recall_credits_text_twin_not_random ... ok
 test search::tests::already_solved_seed_is_zero_step_success ... ok
-test search::tests::insn_seq_edit_distance_handles_different_lengths ... ok
-test search::tests::budget_bounds_compiles_and_reports_failure ... ok
-test search::tests::generative_operands_regenerates_vanished_scope ... ok
-test search::tests::climber_recovers_a_widen_perturbation ... ok
 test retrieval::tests::split_is_deterministic_and_partitions ... ok
-test search::tests::insn_similarity_opcode_fix_beats_nothing_fixed ... ok
-test search::tests::climber_skips_rejects_cleanly ... ok
-test search::tests::climber_recovers_an_added_term_by_delete ... ok
-test search::tests::per_fn_gradient_falls_back_when_splits_disagree ... ok
-test search::tests::mul_reorder_generated_for_mul_swaps_the_two_leaves ... ok
-test search::tests::max_gradient_on_non_byte_exact_obj_does_not_terminate ... ok
-test search::tests::per_fn_gradient_lifts_a_masked_function_edit ... ok
-test search::tests::per_fn_gradient_max_does_not_terminate ... ok
-test search::tests::mul_reorder_is_opt_in_off_by_default ... ok
-test search::tests::register_bijection_is_injective_not_any_matches_any ... ok
-test search::tests::register_tolerant_credit_beats_wrong_and_raw ... ok
-test search::tests::select_seed_flags_a_twin_as_retrieval_trivial ... ok
-test search::tests::select_seed_picks_nearest_non_self_non_twin ... ok
-test search::tests::neighbors_are_in_scope_and_deduped ... ok
-test search::tests::perturb_drop_then_recover_by_insert ... ok
+test search::tests::budget_bounds_compiles_and_reports_failure ... ok
+test search::tests::climber_recovers_a_widen_perturbation ... ok
+test search::tests::generative_operands_regenerates_vanished_scope ... ok
+test search::tests::insn_seq_edit_distance_handles_different_lengths ... ok
 test search::tests::insn_seq_gradient_is_monotone_toward_target ... ok
-test search::tests::word_match_ratio_basics ... ok
+test search::tests::per_fn_gradient_falls_back_when_splits_disagree ... ok
+test search::tests::per_fn_gradient_max_does_not_terminate ... ok
+test search::tests::per_fn_gradient_lifts_a_masked_function_edit ... ok
+test search::tests::climber_skips_rejects_cleanly ... ok
+test search::tests::perturb_drop_then_recover_by_insert ... ok
+test search::tests::register_bijection_is_injective_not_any_matches_any ... ok
+test search::tests::neighbors_are_in_scope_and_deduped ... ok
 test search::tests::split_by_blr_partitions_at_returns ... ok
 test provenance::tests::git_probe_on_a_non_repo_degrades_to_unknown ... ok
+test search::tests::climber_recovers_an_added_term_by_delete ... ok
+test search::tests::max_gradient_on_non_byte_exact_obj_does_not_terminate ... ok
+test search::tests::insn_similarity_opcode_fix_beats_nothing_fixed ... ok
+test search::tests::mul_reorder_is_opt_in_off_by_default ... ok
+test search::tests::mul_reorder_generated_for_mul_swaps_the_two_leaves ... ok
+test search::tests::word_match_ratio_basics ... ok
+test search::tests::select_seed_flags_a_twin_as_retrieval_trivial ... ok
 test search::tests::mul_reorder_never_generated_for_sub_or_add ... ok
+test search::tests::register_tolerant_credit_beats_wrong_and_raw ... ok
+test search::tests::select_seed_picks_nearest_non_self_non_twin ... ok
 test tests::all_fixtures_finds_the_bundled_cpp ... ok
 test search::tests::greedy_stalls_but_beam_crosses_the_plateau ... ok
-test search::tests::beam_is_deterministic_and_budget_bounded ... ok
 test capture_cache::tests::the_cache_root_is_part_of_the_key ... ok
+test search::tests::beam_is_deterministic_and_budget_bounded ... ok
 test capture_cache::tests::two_spellings_of_one_cwd_capture_identical_bytes ... ok
 test search::tests::stuck_dc3_step2_codec_move_blocker ... ok
 test search::tests::stuck_dc3_step1_decode_stress ... ok
 
-test result: ok. 156 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+test result: ok. 156 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
 
      Running unittests src/main.rs (target/release/deps/c2rs-401c9b732c599a8c)
 
@@ -499,8 +499,8 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 
 running 3 tests
 test the_ports_call_list_comes_from_the_emitter_and_not_from_a_copy ... ok
-test two_byte_identical_comdats_call_two_different_symbols ... ok
 test the_port_and_the_reference_agree_on_a_call_the_port_gets_right ... ok
+test two_byte_identical_comdats_call_two_different_symbols ... ok
 
 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
 
@@ -510,14 +510,14 @@ running 2 tests
 test editing_the_source_at_the_same_path_misses ... ok
 test a_hit_is_byte_identical_and_a_poisoned_entry_is_caught ... ok
 
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
 
      Running tests/census_gate.rs (target/release/deps/census_gate-24f17dcc28e8d1e1)
 
 running 1 test
 test the_census_and_the_port_agree_about_what_is_in_class ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.92s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.06s
 
      Running tests/cli_flags.rs (target/release/deps/cli_flags-3325071abf144b04)
 
@@ -525,202 +525,13 @@ running 14 tests
 test a_cwd_without_a_profile_is_refused ... ok
 test the_position_scan_helper_is_not_reintroduced ... ok
 test locate_is_reachable_only_through_the_arg_seam ... ok
-test an_enumerated_option_refuses_a_value_outside_its_set ... ok
 test an_empty_flags_file_is_refused ... ok
+test an_enumerated_option_refuses_a_value_outside_its_set ... ok
 test an_unknown_option_is_refused_not_ignored ... ok
 test an_accepted_but_unconsumed_argument_is_refused ... ok
 test the_parser_refuses_what_a_scan_could_not_see ... ok
 test a_numeric_option_refuses_a_non_number ... ok
 test every_subcommand_refuses_an_unknown_option ... ok
-test the_default_profile_is_unchanged_by_the_widening ... ok
 test two_profiles_must_not_produce_one_bundle ... ok
+test the_default_profile_is_unchanged_by_the_widening ... ok
 test two_profiles_must_not_produce_one_obj ... ok
-test every_invocation_the_scripts_make_is_still_accepted has been running for over 60 seconds
-test every_invocation_the_scripts_make_is_still_accepted ... ok
-
-test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 116.18s
-
-     Running tests/corpus.rs (target/release/deps/corpus-689520cc59170ad5)
-
-running 3 tests
-test sample_corpus_committed_is_valid ... ok
-test generate_small_corpus_roundtrips_and_indexes ... ok
-test corpus_obj_is_reproducible_per_root ... ok
-
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
-
-     Running tests/dead_temp_elision.rs (target/release/deps/dead_temp_elision-6fa4fece7fbbdd51)
-
-running 8 tests
-test a_real_memset_is_not_a_dead_temporary ... ok
-test the_chain_closes_one_link_deeper ... ok
-test a_callee_that_keeps_bytes_stops_the_chain ... ok
-test a_second_statement_stops_the_reader ... ok
-test a_cycle_of_dead_temporary_bodies_is_never_admitted ... ok
-test an_external_callee_keeps_its_relocation ... ok
-test the_loop_overload_converts_once_its_leaf_can_seed ... ok
-test the_dead_temporary_chain_collapses_to_one_blr ... ok
-
-test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
-
-     Running tests/destroy_loop_elision.rs (target/release/deps/destroy_loop_elision-979881370bdb8f19)
-
-running 11 tests
-test a_loop_that_stores_is_refused ... ok
-test a_loop_over_an_external_callee_keeps_its_relocation ... ok
-test the_induction_and_the_comparison_are_not_pinned_to_one_value ... ok
-test a_condition_over_a_global_is_refused ... ok
-test an_impure_induction_step_is_refused ... ok
-test a_loop_whose_callee_keeps_bytes_stops_the_chain ... ok
-test a_cycle_through_a_loop_is_never_admitted ... ok
-test a_dead_temporary_call_inside_the_loop_composes ... ok
-test a_second_statement_in_the_loop_body_is_refused ... ok
-test a_loop_over_an_empty_callee_collapses_to_one_blr ... ok
-test the_pseudo_destructor_leaf_seeds_and_the_whole_chain_closes ... ok
-
-test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
-
-     Running tests/differential.rs (target/release/deps/differential-25105e4ac011580d)
-
-running 18 tests
-test differential_mvp_plus0_identity_fold_byte_exact ... ok
-test differential_mvp_argtail_arg_setup_byte_exact ... ok
-test differential_mvp_tailret_int_passthrough_byte_exact ... ok
-test differential_mvp_lit_immediates_byte_exact ... ok
-test differential_mvp_call_tailcall_byte_exact ... ok
-test differential_wunw_float_beside_framed_refuses ... ok
-test differential_mvp_two_multifunction_byte_exact ... ok
-test differential_reference_byte_exact_port_not_implemented ... ok
-test differential_mvp_wide_immediates_byte_exact ... ok
-test differential_mvp_add3_port_byte_exact ... ok
-test differential_mvp_sub_noncommutative_byte_exact ... ok
-test differential_mvp_framed_call_byte_exact ... ok
-test differential_wadjust_object_receiver_byte_exact ... ok
-test differential_class_a_many_calls_byte_exact ... ok
-test differential_wunw_multi_function_framed_byte_exact ... ok
-test differential_fp_argument_registers_byte_exact ... ok
-test oracle_selftest_passes_on_fixtures ... ok
-test differential_out_of_class_call_shapes_not_implemented ... ok
-
-test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.03s
-
-     Running tests/edit_differential.rs (target/release/deps/edit_differential-03385a0befbb1e88)
-
-running 4 tests
-test edit_a_widen_single_fn_byte_exact ... ok
-test edit_d_widen_nonlast_reemit_gl_and_c_stale_negative ... ok
-test edit_f_shrink_delete_term_byte_exact ... ok
-test edit_e_grow_insert_term_byte_exact ... ok
-
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
-
-     Running tests/empty_elision.rs (target/release/deps/empty_elision-796edcddcc29bfa8)
-
-running 10 tests
-test an_empty_same_tu_callee_leaves_the_caller_a_bare_blr ... ok
-test a_destructor_chain_is_elided_by_c2_and_refused_by_the_parser ... ok
-test mechanism_i_mid_chain_is_not_elided ... ok
-test a_callee_this_tu_does_not_define_is_not_elided ... ok
-test a_returning_callee_is_mechanism_i_and_never_e ... ok
-test the_argument_setup_goes_with_the_dropped_call ... ok
-test a_cycle_is_not_elided ... ok
-test a_chain_of_empty_callees_collapses_at_every_link ... ok
-test a_non_empty_link_stops_the_chain ... ok
-test an_indirect_call_site_is_still_refused_by_the_il_parser ... ok
-
-test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
-
-     Running tests/float_leaf_neighbors.rs (target/release/deps/float_leaf_neighbors-127d9fcefc34794a)
-
-running 3 tests
-test floatload_is_a_delete_anchor_on_volf ... ok
-test float_leaf_body_yields_nonzero_k3a_neighbors ... ok
-test float_mul_reorder_is_opt_in_and_generated_on_volf ... ok
-
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
-
-     Running tests/fnbyte_gy.rs (target/release/deps/fnbyte_gy-6bad78d914a07acb)
-
-running 1 test
-test the_four_gy_shapes_are_graded_and_every_reconstructed_word_is_compared ... ok
-
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
-
-     Running tests/il_roundtrip.rs (target/release/deps/il_roundtrip-80759236b1bad35c)
-
-running 1 test
-test roundtrip_all_fixtures_byte_identical ... ok
-
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.53s
-
-     Running tests/lane_registry.rs (target/release/deps/lane_registry-b2baf85f4c9415af)
-
-running 6 tests
-test registry_parser_counts_rows_it_cannot_turn_into_lanes ... ok
-test shaping_flags_drops_only_what_does_not_shape_the_obj ... ok
-test cross_product_lane_takes_its_modes_from_the_registry ... ok
-test shipped_registry_varies_every_flag_the_workload_depends_on ... ok
-test shipped_registry_crosses_the_exception_handling_axis ... ok
-test the_workloads_own_profile_is_a_lane ... ok
-
-test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-
-     Running tests/noinline_boundary.rs (target/release/deps/noinline_boundary-65b48e76c1cb014e)
-
-running 4 tests
-test c2_does_not_close_a_chain_through_a_noinline_intermediate ... ok
-test the_same_cell_without_the_attribute_splices_byte_exactly ... ok
-test the_shipped_splice_emits_the_wrong_body_through_a_noinline_callee ... ok
-test the_attribute_is_invisible_outside_the_gl_record ... ok
-
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
-
-     Running tests/nothing_seed.rs (target/release/deps/nothing_seed-e15fb0cd6f65bb23)
-
-running 11 tests
-test a_body_refused_for_another_reason_never_seeds ... ok
-test a_cycle_of_nothing_bodies_is_never_admitted ... ok
-test a_body_that_keeps_bytes_never_seeds ... ok
-test mechanism_i_above_a_seed_does_not_propagate ... ok
-test a_caller_that_materializes_data_is_not_elided ... ok
-test a_seed_propagates_up_a_chain ... ok
-test the_workload_five_level_chain_closes ... ok
-test two_nothing_statements_are_refused ... ok
-test an_external_nothing_body_keeps_its_relocation ... ok
-test self_recursion_through_a_nothing_statement_is_refused ... ok
-test a_nothing_body_seeds_and_its_caller_collapses ... ok
-
-test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
-
-     Running tests/reloc_identity.rs (target/release/deps/reloc_identity-02be4ab8a171d4bb)
-
-running 3 tests
-test a_function_whose_bytes_and_relocations_are_both_c2s_stays_exact ... ok
-test the_cells_population_is_three_functions_one_of_which_disagrees ... ok
-test the_s12_reproducer_moves_from_exact_to_a_relocation_disagreement ... ok
-
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
-
-     Running tests/rung_registry.rs (target/release/deps/rung_registry-972b0442be65e94c)
-
-running 2 tests
-test rung_docs_claim_their_tag_slug_and_fixtures_exactly_once ... ok
-test rung_index_is_generated_and_current ... FAILED
-
-failures:
-
----- rung_index_is_generated_and_current stdout ----
-
-thread 'rung_index_is_generated_and_current' (2696376) panicked at crates/c2-harness/tests/rung_registry.rs:291:5:
-assertion `left == right` failed: docs/rungs/INDEX.md is stale — it is GENERATED. Run `scripts/gen_rung_index.sh`.
-  left: "# Rung index\n\nGenerated by `scripts/gen_rung_index.sh` — do not hand-edit. One line per rung\ndoc in this directory; see `README.md` for the convention and `_TEMPLATE.md` for\nthe header block this table is read from.\n\n| date | tag | slug | fixtures | census |\n|---|---|---|---|---|\n| 2026-07-30 | W26 | [bool-value](2026-07-30-bool-value.md) | 2 | 442,273 → 464,584 (17.96 % → 18.87 %), +22,311 |\n| 2026-07-30 | W30 | [callseq-tail-literal](2026-07-30-callseq-tail-literal.md) | 2 | 474,103 → 481,876 (19.25 % → 19.57 %) for W30 + Class B together |\n| 2026-07-30 | W27 | [fp-argreg](2026-07-30-fp-argreg.md) | 2 | 473,611 → 482,542 (19.23 % → 19.60 %), +8,931 (with W28) |\n| 2026-07-30 | W29 | [fp-contract](2026-07-30-fp-contract.md) | 1 | 482,542 → 482,748, +206 exact |\n| 2026-07-30 | W28 | [fp-store](2026-07-30-fp-store.md) | 5 | 473,611 → 482,542 (19.23 % → 19.60 %), +8,931 (with W27) |\n| 2026-07-30 | W22 | [int-like-spelling](2026-07-30-int-like-spelling.md) | 2 | 402,704 → 418,628 (16.35 % → 17.00 %), +15,924 |\n| 2026-07-30 | W25 | [store-leaf](2026-07-30-store-leaf.md) | 2 | 418,628 → 442,273 (17.00 % → 17.96 %), +23,645 |\n| 2026-07-30 | W-UNW-1 | [unwind-pdata](2026-07-30-unwind-pdata.md) | 5 | unchanged (a codegen rung, not a decode one) |\n| 2026-07-31 | WAE | [assign-eof](2026-07-31-assign-eof.md) | 2 | 691,744 unchanged (28.09 %) — the widening is DECLINED; its measured worth is 0 |\n| 2026-07-31 | W37 | [bit-and-declined](2026-07-31-bit-and-declined.md) | 1 | 602,703 unchanged — the rung is DECLINED; its measured worth is 0 |\n| 2026-07-31 | WCF | [cflow-decode](2026-07-31-cflow-decode.md) | 2 | 491013 → 491013 (19.94% → 19.94%), +0 |\n| 2026-07-31 | WCH | [chained-call](2026-07-31-chained-call.md) | 2 | 661245 → 673006 (26.85 % → 27.33 %), +11,761 |\n| 2026-07-31 | WCL | [chain-link-arg](2026-07-31-chain-link-arg.md) | 2 | 673006 → 685098 (27.33 % → 27.82 %), +12,092 |\n| 2026-07-31 | WFL | [chain-tail-fp-load](2026-07-31-chain-tail-fp-load.md) | 2 | 685165 → 685882 (27.82 % → 27.85 %), +717 |\n| 2026-07-31 | WCO | [chain-tail-load](2026-07-31-chain-tail-load.md) | 3 | 685165 → 685165 (27.82 % → 27.82 %), +0 |\n| 2026-07-31 | WCR | [cmp-order](2026-07-31-cmp-order.md) | 2 | 673006 → 673073 (27.33 % → 27.33 %), +67 |\n| 2026-07-31 | WCB | [cmp-two-calls](2026-07-31-cmp-two-calls.md) | 2 | 655245 → 661245 (26.61 % → 26.85 %), +6,000 |\n| 2026-07-31 | WEC | [ctor-base-delegation](2026-07-31-ctor-base-delegation.md) | 2 | 685,882 → 691,744 (27.85 % → 28.09 %), +5,862 |\n| 2026-07-31 | WDA | [dataaddr-2sym](2026-07-31-dataaddr-2sym.md) | 2 | 691,744 unchanged (28.09 %) — the rung is DECLINED; it lowers nothing |\n| 2026-07-31 | W34 | [fp-multiarg](2026-07-31-fp-multiarg.md) | 2 | 549,148 → 575,284 (22.30 % → 23.36 %), +26,136 |\n| 2026-07-31 | W31 | [fp-tail](2026-07-31-fp-tail.md) | 2 | 491,013 → 549,148 (19.94 % → 22.30 %), +58,135 |\n| 2026-07-31 | W33 | [frame-class-c-declined](2026-07-31-frame-class-c-declined.md) | 1 | 549,148 unchanged — the rung is DECLINED; its measured worth is 0 |\n| 2026-07-31 | W41 | [framed-member-call](2026-07-31-framed-member-call.md) | 2 | 651,247 → 655,245 (26.45 % → 26.61 %), +3,998  [on the merged tree; branch measured 639,387 → 643,385 against its own pre-WSL baseline, same +3,998] |\n| 2026-07-31 | WLA | [lit-call-arg](2026-07-31-lit-call-arg.md) | 2 | 691,744 → 696,551 (28.09 % → 28.29 %), +4,807 |\n| 2026-07-31 | W36 | [member-call](2026-07-31-member-call.md) | 2 | 581,791 → 602,703 (23.63 % → 24.47 %), +20,912 |\n| 2026-07-31 | WLB | [moved-lit-call-arg](2026-07-31-moved-lit-call-arg.md) | 2 | 696,551 → 697,251 (28.29 % → 28.31 %), +700 |\n| 2026-07-31 | W35 | [offset-run](2026-07-31-offset-run.md) | 2 | 575,284 → 581,791 (23.36 % → 23.63 %), +6,507  [on the merged tree] |\n| 2026-07-31 | WSL | [store-load](2026-07-31-store-load.md) | 2 | 639,387 → 651,247 (25.96 % → 26.45 %), +11,860 |\n| 2026-07-31 | W38 | [store-run](2026-07-31-store-run.md) | 2 | 602,703 → 639,387 (24.47 % → 25.96 %), +36,684 |\n| 2026-07-31 | W32 | [volatile-formal](2026-07-31-volatile-formal.md) | 2 | 549,148 unchanged — the refusal costs exactly 0 (measured) |\n| 2026-08-01 | WLR | [lit-run](2026-08-01-lit-run.md) | 2 | 697,251 → 703,047 (28.31 % → 28.55 %), +5,796 |\n| 2026-08-01 | W-ADJUST | [w-adjust](2026-08-01-w-adjust.md) | 2 | 703,875 → 706,402 (28.58 % → 28.69 %), +2,527 bodies; EMITTED 34,674 → 36,059 (19.37 % → 20.15 %), +1,385 |\n| 2026-08-02 | W-ADOPT | [w-adopt](2026-08-02-w-adopt.md) | 1 | 706,402 unchanged (28.69 %), +0 — a binding repair, not a widening |\n| 2026-08-02 | W-FACTORS | [w-factors](2026-08-02-w-factors.md) | 11 | 706,403 / 2,463,318 unchanged (28.68 %), +0 — TU match 6 at both ends |\n| 2026-08-02 | W-LO | [w-lo](2026-08-02-w-lo.md) | 2 | 706402/2462572 (28.69 %) → 706403/2463318 (28.68 %), +1 numerator / +746 denominator |\n| 2026-08-02 | W-WITNESS | [w-witness](2026-08-02-w-witness.md) | 11 | 706402/2462572 → 706402/2462572 (28.69% → 28.69%), +0 |\n| 2026-08-04 | W-bc | [w-bc](2026-08-04-w-bc.md) | 11 | 706,555 / 2,463,393 unchanged (28.68 %), +0 |\n| 2026-08-04 | w-bk | [w-bk](2026-08-04-w-bk.md) | 15 | unchanged, +0 — a reference-seam rung; the port's accept/refuse boundary is untouched |\n| 2026-08-04 | W-BSS2 | [w-bss2](2026-08-04-w-bss2.md) | 11 | unchanged, +0 — a specification rung, not a decode or codegen one |\n| 2026-08-04 | W8 | [w-cfgimpl](2026-08-04-w-cfgimpl.md) | 3 | 706,552 → 706,555 / 2,463,393 (28.68 % → 28.68 %), **+3** |\n| 2026-08-04 | W11 | [w-conv](2026-08-04-w-conv.md) | 2 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |\n| 2026-08-04 | W10 | [w-cross](2026-08-04-w-cross.md) | 2 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |\n| 2026-08-04 | #232 | [w-cross-sep26](2026-08-04-w-cross-sep26.md) | 1 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |\n| 2026-08-04 | W-FIFTH | [w-fifth](2026-08-04-w-fifth.md) | 11 | 706,402 / 2,463,318 unchanged (28.68 %), +0 — TU match 8 at both ends |\n| 2026-08-04 | W-FORK | [w-fork](2026-08-04-w-fork.md) | 13 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — no `crates/` change |\n| 2026-08-04 | W9 | [w-frame](2026-08-04-w-frame.md) | 3 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |\n| 2026-08-04 | W-FRONT | [w-front](2026-08-04-w-front.md) | 12 | 706,402 / 2,463,318 unchanged (28.68 %), +0 — TU match 8 at both ends; DECLINED ON SEAM |\n| 2026-08-04 | AB | [w-gr](2026-08-04-w-gr.md) | 11 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — this lane emits nothing |\n| 2026-08-04 | W12 | [w-label](2026-08-04-w-label.md) | 12 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |\n| 2026-08-04 | Y-g | [w-modes](2026-08-04-w-modes.md) | 10 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — no `crates/` edit |\n| 2026-08-04 | W-MOD | [w-mod](2026-08-04-w-mod.md) | 13 | 706,555 / 2,463,393 unchanged (28.68 %), **+0** — and +0 on every |\n| 2026-08-04 | X-d | [w-order](2026-08-04-w-order.md) | 3 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |\n| 2026-08-04 | W-R1c | [w-r1c](2026-08-04-w-r1c.md) | 2 | 706,403 / 2,463,317 → 706,403 / 2,463,317, +0 |\n| 2026-08-04 | W-R1 | [w-r1](2026-08-04-w-r1.md) | 13 | 706,403 / 2,463,317 → 706,403 / 2,463,317, +0 |\n| 2026-08-04 | AC | [w-rdata](2026-08-04-w-rdata.md) | 11 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — this lane emits nothing |\n| 2026-08-04 | W-RELOC | [w-reloc](2026-08-04-w-reloc.md) | 10 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — no function is emitted by this rung |\n| 2026-08-04 | W-a | [w-sect](2026-08-04-w-sect.md) | 15 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — this rung emits no functions |\n| 2026-08-04 | AA | [w-shapes](2026-08-04-w-shapes.md) | 11 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — this lane emits nothing |\n| 2026-08-04 | W-SMALL | [w-small](2026-08-04-w-small.md) | 11 | 706,555 / 2,463,393 unchanged (28.68 %), **+0** — and for a rung |\n| 2026-08-04 | W-VOCAB | [w-vocab](2026-08-04-w-vocab.md) | 12 | 706,555 / 2,463,393 unchanged (28.68 %), **+0**. Emitted census |\n| 2026-08-05 | W70 | [w-build](2026-08-05-w-build.md) | 2 | TU match 9 at both ends. FBM 0.16654 -> 0.16654, fnbyte-exact |\n| 2026-08-05 | w-convert | [w-convert](2026-08-05-w-convert.md) | 2 | 711,426 / 2,463,393 → 711,426 / 2,463,393 (28.88% → 28.88%), +0 |\n| 2026-08-05 | w-divmod | [w-divmod](2026-08-05-w-divmod.md) | 1 | 711,427 → **711,427** (28.88%, **+0**). Emitted 39,177 → |\n| 2026-08-05 | w-divsplit | [w-divsplit](2026-08-05-w-divsplit.md) | 8 | 711,427 → **711,427** (28.88%, **+0**). Emitted 39,177 → |\n| 2026-08-05 | w-hash | [w-hash](2026-08-05-w-hash.md) | 2 | 711,426 → **711,427** (28.88%, +1). Emitted 39,176 → **39,177** |\n| 2026-08-05 | w-next | [w-next](2026-08-05-w-next.md) | 8 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-05 | w-rotate | [w-rotate](2026-08-05-w-rotate.md) | 12 | 711,427 / 2,463,393 unchanged (28.88 %), **+0** — this lane |\n| 2026-08-05 | w-sched2 | [w-sched2](2026-08-05-w-sched2.md) | 12 | 711,427 / 2,463,393 unchanged (28.88 %), **+0**. Emitted 39,177 |\n| 2026-08-05 | w-subclass | [w-subclass](2026-08-05-w-subclass.md) | 11 | 711,427 / 2,463,393 unchanged (28.88 %), +0 — this lane ships no codegen |\n| 2026-08-05 | W42 | [w-tu1](2026-08-05-w-tu1.md) | 2 | 706,555 / 2,463,393 → 706,557 (28.68 % → 28.68 %), +2 — a driver; |\n| 2026-08-05 | W43 | [w-tu1-w43](2026-08-05-w-tu1-w43.md) | 2 | 706,555 / 2,463,393 → 706,557 (28.68 % → 28.68 %), +2 for W42 and |\n| 2026-08-05 | w-tu3 | [w-tu3](2026-08-05-w-tu3.md) | 1 | 706557/2463393 (28.68%) — unchanged, +0. Emitted 38460/178975 |\n| 2026-08-05 | w-varloop | [w-varloop](2026-08-05-w-varloop.md) | 3 | per-function 711,427 → **711,427** unchanged (28.88 %), **+0**. |\n| 2026-08-05 | W45 | [w-wire](2026-08-05-w-wire.md) | 2 | 706,557 → 711,426 / 2,463,393 (28.68 % → 28.88 %), +4,869; |\n| 2026-08-06 | w-alloc2 | [w-alloc2](2026-08-06-w-alloc2.md) | 12 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-06 | w-bytes | [w-bytes](2026-08-06-w-bytes.md) | 10 | 39177/178975 → 39177/178975 (21.89% → 21.89%), +0 |\n| 2026-08-06 | w-drop3 | [w-drop3](2026-08-06-w-drop3.md) | 9 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-06 | w-fnbyte | [w-fnbyte](2026-08-06-w-fnbyte.md) | 12 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-06 | w-magic | [w-magic](2026-08-06-w-magic.md) | 8 | 711,427 → **711,427** (28.88%, **+0**). Emitted 39,177 → |\n| 2026-08-06 | w-refbind | [w-refbind](2026-08-06-w-refbind.md) | 12 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-06 | w-seam | [w-seam](2026-08-06-w-seam.md) | 12 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-06 | w-spell | [w-spell](2026-08-06-w-spell.md) | 12 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-07 | w-empty | [w-empty](2026-08-07-w-empty.md) | 14 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-07 | w-fix | [w-fix](2026-08-07-w-fix.md) | 14 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-07 | w-ilx | [w-ilx](2026-08-07-w-ilx.md) | 12 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-07 | w-inline | [w-inline](2026-08-07-w-inline.md) | 13 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-07 | w-rtti | [w-rtti](2026-08-07-w-rtti.md) | 10 | 711,427 / 2,463,393 unchanged (28.88 %), +0 — this lane emits nothing |\n| 2026-08-07 | w-tag02 | [w-tag02](2026-08-07-w-tag02.md) | 10 | 711,427 / 2,463,393 unchanged (28.88 %), +0 — this lane touches no |\n| 2026-08-08 | w-alloc3 | [w-alloc3](2026-08-08-w-alloc3.md) | 8 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. **TU match 10 → 10, |\n| 2026-08-08 | w-emitp2 | [w-emitp2](2026-08-08-w-emitp2.md) | 8 | 711,427 / 2,463,393 unchanged (28.88 %), +0 |\n| 2026-08-08 | w-front2 | [w-front2](2026-08-08-w-front2.md) | 11 | 711,477 / 2,463,443 unchanged (28.88 %), **+0** — this lane |\n| 2026-08-08 | w-gate | [w-gate](2026-08-08-w-gate.md) | 11 | 711,477 / 2,463,443 unchanged (28.88 %), +0 |\n| 2026-08-08 | w-heap | [w-heap](2026-08-08-w-heap.md) | 12 | 711,477 / 2,463,443 unchanged (28.88 %), **+0**. TU match |\n| 2026-08-08 | w-inl0 | [w-inl0](2026-08-08-w-inl0.md) | 10 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-08 | w-inread | [w-inread](2026-08-08-w-inread.md) | 10 | 711,427 / 2,463,393 unchanged (28.88 %), +0 — this lane touches no |\n| 2026-08-08 | w-memset | [w-memset](2026-08-08-w-memset.md) | 9 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted |\n| 2026-08-08 | w-quar | [w-quar](2026-08-08-w-quar.md) | 8 | 711,477 / 2,463,443 unchanged (28.88 %), +0 |\n| 2026-08-08 | w-rdata3 | [w-rdata3](2026-08-08-w-rdata3.md) | 13 | 711,477 / 2,463,443 unchanged (28.88 %), +0 — this lane emits nothing |\n| 2026-08-08 | w-relo | [w-relo](2026-08-08-w-relo.md) | 8 | 711,477 / 2,463,443 (28.88 %) unchanged, +0. Emitted 39,181 / |\n| 2026-08-08 | w-root | [w-root](2026-08-08-w-root.md) | 8 | 711,477 / 2,463,443 unchanged (28.88 %), +0 |\n| 2026-08-08 | w-seed | [w-seed](2026-08-08-w-seed.md) | 9 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted |\n| 2026-08-08 | w-seq | [w-seq](2026-08-08-w-seq.md) | 8 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-08 | w-splice | [w-splice](2026-08-08-w-splice.md) | 8 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-08 | w-target | [w-target](2026-08-08-w-target.md) | 9 | unchanged, +0. Emitted 39,181 / 178,977 unchanged. |\n"
- right: "# Rung index\n\nGenerated by `scripts/gen_rung_index.sh` — do not hand-edit. One line per rung\ndoc in this directory; see `README.md` for the convention and `_TEMPLATE.md` for\nthe header block this table is read from.\n\n| date | tag | slug | fixtures | census |\n|---|---|---|---|---|\n| 2026-07-30 | W26 | [bool-value](2026-07-30-bool-value.md) | 2 | 442,273 → 464,584 (17.96 % → 18.87 %), +22,311 |\n| 2026-07-30 | W30 | [callseq-tail-literal](2026-07-30-callseq-tail-literal.md) | 2 | 474,103 → 481,876 (19.25 % → 19.57 %) for W30 + Class B together |\n| 2026-07-30 | W27 | [fp-argreg](2026-07-30-fp-argreg.md) | 2 | 473,611 → 482,542 (19.23 % → 19.60 %), +8,931 (with W28) |\n| 2026-07-30 | W29 | [fp-contract](2026-07-30-fp-contract.md) | 1 | 482,542 → 482,748, +206 exact |\n| 2026-07-30 | W28 | [fp-store](2026-07-30-fp-store.md) | 5 | 473,611 → 482,542 (19.23 % → 19.60 %), +8,931 (with W27) |\n| 2026-07-30 | W22 | [int-like-spelling](2026-07-30-int-like-spelling.md) | 2 | 402,704 → 418,628 (16.35 % → 17.00 %), +15,924 |\n| 2026-07-30 | W25 | [store-leaf](2026-07-30-store-leaf.md) | 2 | 418,628 → 442,273 (17.00 % → 17.96 %), +23,645 |\n| 2026-07-30 | W-UNW-1 | [unwind-pdata](2026-07-30-unwind-pdata.md) | 5 | unchanged (a codegen rung, not a decode one) |\n| 2026-07-31 | WAE | [assign-eof](2026-07-31-assign-eof.md) | 2 | 691,744 unchanged (28.09 %) — the widening is DECLINED; its measured worth is 0 |\n| 2026-07-31 | W37 | [bit-and-declined](2026-07-31-bit-and-declined.md) | 1 | 602,703 unchanged — the rung is DECLINED; its measured worth is 0 |\n| 2026-07-31 | WCF | [cflow-decode](2026-07-31-cflow-decode.md) | 2 | 491013 → 491013 (19.94% → 19.94%), +0 |\n| 2026-07-31 | WCH | [chained-call](2026-07-31-chained-call.md) | 2 | 661245 → 673006 (26.85 % → 27.33 %), +11,761 |\n| 2026-07-31 | WCL | [chain-link-arg](2026-07-31-chain-link-arg.md) | 2 | 673006 → 685098 (27.33 % → 27.82 %), +12,092 |\n| 2026-07-31 | WFL | [chain-tail-fp-load](2026-07-31-chain-tail-fp-load.md) | 2 | 685165 → 685882 (27.82 % → 27.85 %), +717 |\n| 2026-07-31 | WCO | [chain-tail-load](2026-07-31-chain-tail-load.md) | 3 | 685165 → 685165 (27.82 % → 27.82 %), +0 |\n| 2026-07-31 | WCR | [cmp-order](2026-07-31-cmp-order.md) | 2 | 673006 → 673073 (27.33 % → 27.33 %), +67 |\n| 2026-07-31 | WCB | [cmp-two-calls](2026-07-31-cmp-two-calls.md) | 2 | 655245 → 661245 (26.61 % → 26.85 %), +6,000 |\n| 2026-07-31 | WEC | [ctor-base-delegation](2026-07-31-ctor-base-delegation.md) | 2 | 685,882 → 691,744 (27.85 % → 28.09 %), +5,862 |\n| 2026-07-31 | WDA | [dataaddr-2sym](2026-07-31-dataaddr-2sym.md) | 2 | 691,744 unchanged (28.09 %) — the rung is DECLINED; it lowers nothing |\n| 2026-07-31 | W34 | [fp-multiarg](2026-07-31-fp-multiarg.md) | 2 | 549,148 → 575,284 (22.30 % → 23.36 %), +26,136 |\n| 2026-07-31 | W31 | [fp-tail](2026-07-31-fp-tail.md) | 2 | 491,013 → 549,148 (19.94 % → 22.30 %), +58,135 |\n| 2026-07-31 | W33 | [frame-class-c-declined](2026-07-31-frame-class-c-declined.md) | 1 | 549,148 unchanged — the rung is DECLINED; its measured worth is 0 |\n| 2026-07-31 | W41 | [framed-member-call](2026-07-31-framed-member-call.md) | 2 | 651,247 → 655,245 (26.45 % → 26.61 %), +3,998  [on the merged tree; branch measured 639,387 → 643,385 against its own pre-WSL baseline, same +3,998] |\n| 2026-07-31 | WLA | [lit-call-arg](2026-07-31-lit-call-arg.md) | 2 | 691,744 → 696,551 (28.09 % → 28.29 %), +4,807 |\n| 2026-07-31 | W36 | [member-call](2026-07-31-member-call.md) | 2 | 581,791 → 602,703 (23.63 % → 24.47 %), +20,912 |\n| 2026-07-31 | WLB | [moved-lit-call-arg](2026-07-31-moved-lit-call-arg.md) | 2 | 696,551 → 697,251 (28.29 % → 28.31 %), +700 |\n| 2026-07-31 | W35 | [offset-run](2026-07-31-offset-run.md) | 2 | 575,284 → 581,791 (23.36 % → 23.63 %), +6,507  [on the merged tree] |\n| 2026-07-31 | WSL | [store-load](2026-07-31-store-load.md) | 2 | 639,387 → 651,247 (25.96 % → 26.45 %), +11,860 |\n| 2026-07-31 | W38 | [store-run](2026-07-31-store-run.md) | 2 | 602,703 → 639,387 (24.47 % → 25.96 %), +36,684 |\n| 2026-07-31 | W32 | [volatile-formal](2026-07-31-volatile-formal.md) | 2 | 549,148 unchanged — the refusal costs exactly 0 (measured) |\n| 2026-08-01 | WLR | [lit-run](2026-08-01-lit-run.md) | 2 | 697,251 → 703,047 (28.31 % → 28.55 %), +5,796 |\n| 2026-08-01 | W-ADJUST | [w-adjust](2026-08-01-w-adjust.md) | 2 | 703,875 → 706,402 (28.58 % → 28.69 %), +2,527 bodies; EMITTED 34,674 → 36,059 (19.37 % → 20.15 %), +1,385 |\n| 2026-08-02 | W-ADOPT | [w-adopt](2026-08-02-w-adopt.md) | 1 | 706,402 unchanged (28.69 %), +0 — a binding repair, not a widening |\n| 2026-08-02 | W-FACTORS | [w-factors](2026-08-02-w-factors.md) | 11 | 706,403 / 2,463,318 unchanged (28.68 %), +0 — TU match 6 at both ends |\n| 2026-08-02 | W-LO | [w-lo](2026-08-02-w-lo.md) | 2 | 706402/2462572 (28.69 %) → 706403/2463318 (28.68 %), +1 numerator / +746 denominator |\n| 2026-08-02 | W-WITNESS | [w-witness](2026-08-02-w-witness.md) | 11 | 706402/2462572 → 706402/2462572 (28.69% → 28.69%), +0 |\n| 2026-08-04 | W-bc | [w-bc](2026-08-04-w-bc.md) | 11 | 706,555 / 2,463,393 unchanged (28.68 %), +0 |\n| 2026-08-04 | w-bk | [w-bk](2026-08-04-w-bk.md) | 15 | unchanged, +0 — a reference-seam rung; the port's accept/refuse boundary is untouched |\n| 2026-08-04 | W-BSS2 | [w-bss2](2026-08-04-w-bss2.md) | 11 | unchanged, +0 — a specification rung, not a decode or codegen one |\n| 2026-08-04 | W8 | [w-cfgimpl](2026-08-04-w-cfgimpl.md) | 3 | 706,552 → 706,555 / 2,463,393 (28.68 % → 28.68 %), **+3** |\n| 2026-08-04 | W11 | [w-conv](2026-08-04-w-conv.md) | 2 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |\n| 2026-08-04 | W10 | [w-cross](2026-08-04-w-cross.md) | 2 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |\n| 2026-08-04 | #232 | [w-cross-sep26](2026-08-04-w-cross-sep26.md) | 1 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |\n| 2026-08-04 | W-FIFTH | [w-fifth](2026-08-04-w-fifth.md) | 11 | 706,402 / 2,463,318 unchanged (28.68 %), +0 — TU match 8 at both ends |\n| 2026-08-04 | W-FORK | [w-fork](2026-08-04-w-fork.md) | 13 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — no `crates/` change |\n| 2026-08-04 | W9 | [w-frame](2026-08-04-w-frame.md) | 3 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |\n| 2026-08-04 | W-FRONT | [w-front](2026-08-04-w-front.md) | 12 | 706,402 / 2,463,318 unchanged (28.68 %), +0 — TU match 8 at both ends; DECLINED ON SEAM |\n| 2026-08-04 | AB | [w-gr](2026-08-04-w-gr.md) | 11 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — this lane emits nothing |\n| 2026-08-04 | W12 | [w-label](2026-08-04-w-label.md) | 12 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |\n| 2026-08-04 | Y-g | [w-modes](2026-08-04-w-modes.md) | 10 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — no `crates/` edit |\n| 2026-08-04 | W-MOD | [w-mod](2026-08-04-w-mod.md) | 13 | 706,555 / 2,463,393 unchanged (28.68 %), **+0** — and +0 on every |\n| 2026-08-04 | X-d | [w-order](2026-08-04-w-order.md) | 3 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |\n| 2026-08-04 | W-R1c | [w-r1c](2026-08-04-w-r1c.md) | 2 | 706,403 / 2,463,317 → 706,403 / 2,463,317, +0 |\n| 2026-08-04 | W-R1 | [w-r1](2026-08-04-w-r1.md) | 13 | 706,403 / 2,463,317 → 706,403 / 2,463,317, +0 |\n| 2026-08-04 | AC | [w-rdata](2026-08-04-w-rdata.md) | 11 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — this lane emits nothing |\n| 2026-08-04 | W-RELOC | [w-reloc](2026-08-04-w-reloc.md) | 10 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — no function is emitted by this rung |\n| 2026-08-04 | W-a | [w-sect](2026-08-04-w-sect.md) | 15 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — this rung emits no functions |\n| 2026-08-04 | AA | [w-shapes](2026-08-04-w-shapes.md) | 11 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — this lane emits nothing |\n| 2026-08-04 | W-SMALL | [w-small](2026-08-04-w-small.md) | 11 | 706,555 / 2,463,393 unchanged (28.68 %), **+0** — and for a rung |\n| 2026-08-04 | W-VOCAB | [w-vocab](2026-08-04-w-vocab.md) | 12 | 706,555 / 2,463,393 unchanged (28.68 %), **+0**. Emitted census |\n| 2026-08-05 | W70 | [w-build](2026-08-05-w-build.md) | 2 | TU match 9 at both ends. FBM 0.16654 -> 0.16654, fnbyte-exact |\n| 2026-08-05 | w-convert | [w-convert](2026-08-05-w-convert.md) | 2 | 711,426 / 2,463,393 → 711,426 / 2,463,393 (28.88% → 28.88%), +0 |\n| 2026-08-05 | w-divmod | [w-divmod](2026-08-05-w-divmod.md) | 1 | 711,427 → **711,427** (28.88%, **+0**). Emitted 39,177 → |\n| 2026-08-05 | w-divsplit | [w-divsplit](2026-08-05-w-divsplit.md) | 8 | 711,427 → **711,427** (28.88%, **+0**). Emitted 39,177 → |\n| 2026-08-05 | w-hash | [w-hash](2026-08-05-w-hash.md) | 2 | 711,426 → **711,427** (28.88%, +1). Emitted 39,176 → **39,177** |\n| 2026-08-05 | w-next | [w-next](2026-08-05-w-next.md) | 8 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-05 | w-rotate | [w-rotate](2026-08-05-w-rotate.md) | 12 | 711,427 / 2,463,393 unchanged (28.88 %), **+0** — this lane |\n| 2026-08-05 | w-sched2 | [w-sched2](2026-08-05-w-sched2.md) | 12 | 711,427 / 2,463,393 unchanged (28.88 %), **+0**. Emitted 39,177 |\n| 2026-08-05 | w-subclass | [w-subclass](2026-08-05-w-subclass.md) | 11 | 711,427 / 2,463,393 unchanged (28.88 %), +0 — this lane ships no codegen |\n| 2026-08-05 | W42 | [w-tu1](2026-08-05-w-tu1.md) | 2 | 706,555 / 2,463,393 → 706,557 (28.68 % → 28.68 %), +2 — a driver; |\n| 2026-08-05 | W43 | [w-tu1-w43](2026-08-05-w-tu1-w43.md) | 2 | 706,555 / 2,463,393 → 706,557 (28.68 % → 28.68 %), +2 for W42 and |\n| 2026-08-05 | w-tu3 | [w-tu3](2026-08-05-w-tu3.md) | 1 | 706557/2463393 (28.68%) — unchanged, +0. Emitted 38460/178975 |\n| 2026-08-05 | w-varloop | [w-varloop](2026-08-05-w-varloop.md) | 3 | per-function 711,427 → **711,427** unchanged (28.88 %), **+0**. |\n| 2026-08-05 | W45 | [w-wire](2026-08-05-w-wire.md) | 2 | 706,557 → 711,426 / 2,463,393 (28.68 % → 28.88 %), +4,869; |\n| 2026-08-06 | w-alloc2 | [w-alloc2](2026-08-06-w-alloc2.md) | 12 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-06 | w-bytes | [w-bytes](2026-08-06-w-bytes.md) | 10 | 39177/178975 → 39177/178975 (21.89% → 21.89%), +0 |\n| 2026-08-06 | w-drop3 | [w-drop3](2026-08-06-w-drop3.md) | 9 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-06 | w-fnbyte | [w-fnbyte](2026-08-06-w-fnbyte.md) | 12 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-06 | w-magic | [w-magic](2026-08-06-w-magic.md) | 8 | 711,427 → **711,427** (28.88%, **+0**). Emitted 39,177 → |\n| 2026-08-06 | w-refbind | [w-refbind](2026-08-06-w-refbind.md) | 12 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-06 | w-seam | [w-seam](2026-08-06-w-seam.md) | 12 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-06 | w-spell | [w-spell](2026-08-06-w-spell.md) | 12 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-07 | w-empty | [w-empty](2026-08-07-w-empty.md) | 14 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-07 | w-fix | [w-fix](2026-08-07-w-fix.md) | 14 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-07 | w-ilx | [w-ilx](2026-08-07-w-ilx.md) | 12 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-07 | w-inline | [w-inline](2026-08-07-w-inline.md) | 13 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-07 | w-rtti | [w-rtti](2026-08-07-w-rtti.md) | 10 | 711,427 / 2,463,393 unchanged (28.88 %), +0 — this lane emits nothing |\n| 2026-08-07 | w-tag02 | [w-tag02](2026-08-07-w-tag02.md) | 10 | 711,427 / 2,463,393 unchanged (28.88 %), +0 — this lane touches no |\n| 2026-08-08 | w-alloc3 | [w-alloc3](2026-08-08-w-alloc3.md) | 8 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. **TU match 10 → 10, |\n| 2026-08-08 | w-emitp2 | [w-emitp2](2026-08-08-w-emitp2.md) | 8 | 711,427 / 2,463,393 unchanged (28.88 %), +0 |\n| 2026-08-08 | w-front2 | [w-front2](2026-08-08-w-front2.md) | 11 | 711,477 / 2,463,443 unchanged (28.88 %), **+0** — this lane |\n| 2026-08-08 | w-gate | [w-gate](2026-08-08-w-gate.md) | 11 | 711,477 / 2,463,443 unchanged (28.88 %), +0 |\n| 2026-08-08 | w-inl0 | [w-inl0](2026-08-08-w-inl0.md) | 10 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-08 | w-inread | [w-inread](2026-08-08-w-inread.md) | 10 | 711,427 / 2,463,393 unchanged (28.88 %), +0 — this lane touches no |\n| 2026-08-08 | w-memset | [w-memset](2026-08-08-w-memset.md) | 9 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted |\n| 2026-08-08 | w-quar | [w-quar](2026-08-08-w-quar.md) | 8 | 711,477 / 2,463,443 unchanged (28.88 %), +0 |\n| 2026-08-08 | w-rdata3 | [w-rdata3](2026-08-08-w-rdata3.md) | 13 | 711,477 / 2,463,443 unchanged (28.88 %), +0 — this lane emits nothing |\n| 2026-08-08 | w-relo | [w-relo](2026-08-08-w-relo.md) | 8 | 711,477 / 2,463,443 (28.88 %) unchanged, +0. Emitted 39,181 / |\n| 2026-08-08 | w-root | [w-root](2026-08-08-w-root.md) | 8 | 711,477 / 2,463,443 unchanged (28.88 %), +0 |\n| 2026-08-08 | w-seed | [w-seed](2026-08-08-w-seed.md) | 9 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted |\n| 2026-08-08 | w-seq | [w-seq](2026-08-08-w-seq.md) | 8 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-08 | w-splice | [w-splice](2026-08-08-w-splice.md) | 8 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |\n| 2026-08-08 | w-target | [w-target](2026-08-08-w-target.md) | 9 | unchanged, +0. Emitted 39,181 / 178,977 unchanged. |\n"
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-
-
-failures:
-    rung_index_is_generated_and_current
-
-test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.92s
-
-error: test failed, to rerun pass `-p c2-harness --test rung_registry`

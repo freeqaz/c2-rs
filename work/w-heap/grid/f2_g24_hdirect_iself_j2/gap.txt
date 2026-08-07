@@ -1,13 +1,13 @@
 gap scan: 1 TUs, 24 flags, jobs=1, replay-every=0
-  capture cache: /home/free/code/milohax/c2-rs/work/capture-cache
+  capture cache: <milohax>/c2-rs/work/capture-cache
 provenance:
-  c2-rs      ba5207669dd7 (clean)  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a2d54837ff590b797
-  binary     ab62186562180ba0  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a2d54837ff590b797/target/release/c2rs
-  workload   ba5207669dd7 (clean)  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a2d54837ff590b797
-  wibo       wibo 1.2.0-c2rs.1 (Linux x86_64)  /home/free/code/milohax/wibo/build/release/wibo
-  cl.exe     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/cl.exe
-  c2.dll     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c2.dll
-  c1xx.dll   /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c1xx.dll
+  c2-rs      ba5207669dd7 (clean)  <worktree>
+  binary     ab62186562180ba0  <worktree>/target/release/c2rs
+  workload   ba5207669dd7 (clean)  <worktree>
+  wibo       wibo 1.2.0-c2rs.1 (Linux x86_64)  <home>/code/milohax/wibo/build/release/wibo
+  cl.exe     <milohax>/c2-rs/compilers/X360/16.00.11886.00/cl.exe
+  c2.dll     <milohax>/c2-rs/compilers/X360/16.00.11886.00/c2.dll
+  c1xx.dll   <milohax>/c2-rs/compilers/X360/16.00.11886.00/c1xx.dll
   strace     /usr/bin/strace
   mingw      /usr/bin/i686-w64-mingw32-gcc
   [1/1] vocab-gap    work/w-heap/grid/f2_g24_hdirect_iself_j2/f2_g24_hdirect_iself_j2.cpp  (il function decode failed)

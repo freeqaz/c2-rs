@@ -1,4 +1,4 @@
-== /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a2d54837ff590b797/work/w-heap/grid/f2_g8_href_iself_j2/ref.obj  machine=0x01f2 nsec=5 nsym=14 size=901
+== <worktree>/work/w-heap/grid/f2_g8_href_iself_j2/ref.obj  machine=0x01f2 nsec=5 nsym=14 size=901
 -- sections
    1 .drectve   raw=132    rawptr=0x00dc rel=0  relptr=0x0000 chars=0x00100a00
    2 .debug$S   raw=196    rawptr=0x0160 rel=0  relptr=0x0000 chars=0x42100040
