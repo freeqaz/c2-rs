@@ -1577,6 +1577,79 @@ pub(crate) fn try_parse_store_run_call(
             _ => return None,
         }
     }
+    // **THE TRANSFER GATE — board #866 is refuted in its general form, and this
+    // is where that costs the composition its widest cells.**
+    //
+    // A store whose value is a formal the CALL keeps alive is scheduled
+    // differently in the framed body than in the leaf. Measured
+    // (`work/w-seam2/grid3/`, `grid4/`):
+    //
+    // ```text
+    //   void P::lf(unsigned a, unsigned b) { m0=0; m1=b; m2=a; }        LEAF
+    //       li 11,0 ; stw 5,4(3) ; stw 4,8(3) ; stw 11,0(3) ; blr
+    //   P::P(unsigned a, unsigned b) { m0=0; m1=b; m2=a; Alloc(a); }    FRAMED
+    //       li 11,0 ; stw 4,8(3) ; stw 5,4(3) ; mr 31,3 ; stw 11,0(3) ; bl
+    //   P::P(unsigned a, unsigned b) { m0=0; m1=b; m2=a; Reset(); }     NULLARY
+    //       li 11,0 ; stw 5,4(3) ; stw 4,8(3) ; mr 31,3 ; stw 11,0(3) ; bl
+    // ```
+    //
+    // The two unproduced stores **swap**, and only when the call passes `a`. So
+    // *"the leaf schedule transfers unchanged into a framed body"* — #866 over 96
+    // cells, and 34 more in `w-seam2`'s GRID S — holds only while no store reads
+    // a value the call keeps alive.
+    //
+    // **The receiver is exempt**: `this` is the store base and is copied to r31
+    // regardless, and storing it transfers on every measured cell. It is the
+    // slots `>= 1` that break the run, and GRID S4's `a2_break2` is what fixes
+    // the reading: a two-argument callee whose run stores the SECOND argument
+    // swaps too, so a gate keyed on slot 1 alone would emit wrong bytes.
+    //
+    // **In the READER and not only in the emitter**, so the census cannot count
+    // a body `PortC2` refuses — `crates/c2-harness/tests/census_gate.rs` is that
+    // invariant and it caught this exact over-claim. `codegen::store_run_call`
+    // keeps the same predicate as a backstop.
+    for slot in slots.iter().skip(1) {
+        // Every slot is `[Load(params[i])]` by the gate just above; the `else`
+        // refuses rather than assuming, because a later widening of that gate
+        // would otherwise silently stop checking this one.
+        let [IlOp::Load(live)] = slot else { return None };
+        // A store's group is `[Load(base), <value>, StoreInd]`, so the VALUE is
+        // at index 1. Index 1 and not "anywhere in the group", because index 0
+        // is the store's own BASE — which is `params[0]`, the receiver, and the
+        // receiver is exactly the slot this loop skips.
+        //
+        // **Not `value_is_load`**: that flag means the value is an indirect LOAD
+        // (`s->m = t->n`), and a formal-valued store has it FALSE with
+        // `IlOp::Load(tok)` in the value position. Keying on it made this gate
+        // silently never fire, which `census_gate.rs` caught as two functions the
+        // census counted and `PortC2` refused.
+        if stmts.iter().any(|st| st.ops.get(1) == Some(&IlOp::Load(*live))) {
+            return None;
+        }
+    }
+    // **A MULTI-WORD LITERAL, even ALONE in the run.** One level stricter than
+    // [`collect_store_run`]'s clause 4, which refuses a wide literal only
+    // *beside another producer*: a run whose only producer is wide is one live
+    // range with nothing to interleave with, and as a LEAF it is in class. In a
+    // framed body the `mr r31,r3` is the second thing that can land between the
+    // halves, and it does:
+    //
+    // ```text
+    //   WD::WD(unsigned a, unsigned b) { m1=70000; m2=b; p0=this; Alloc(a); }
+    //     lis 11,1 ; stw 5,8(3) ; stw 3,0(3) ; mr 31,3 ; ori 11,11,4464 ; stw 11,4(3)
+    // ```
+    //
+    // The emitter splices the copy BETWEEN slots and a producer is one slot, so
+    // it cannot place the copy inside one. Same bound as every other literal
+    // gate in this file, restated where the composition needs it rather than
+    // widened somewhere shared.
+    if stmts.iter().any(|st| {
+        st.ops
+            .iter()
+            .any(|o| matches!(o, IlOp::Lit(k) if !(-0x8000..=0x7FFF).contains(k)))
+    }) {
+        return None;
+    }
     // The result is DISCARDED. A returned or consumed result is a different body
     // and one of `w-gen`'s over-accept guards.
     if !eat_byte(seg, &mut p, 0x4B) {
@@ -1823,11 +1896,17 @@ mod tests {
         // the call's argument setup is EMPTY (board #1129).
         let shape = parse_segment(F3_XBOXHEAP_DIRECT, NO_LOCALS)
             .expect("the composition parses to the end of the segment");
-        let BodyShape::StoreRunCall { params, ops, callee_tok } = shape else {
+        let BodyShape::StoreRunCall { params, ops, callee_tok, live_args } = shape else {
             panic!("expected StoreRunCall");
         };
         assert_eq!(params, vec![0xFF09, 0xFC09, 0xFD09]);
         assert_eq!(callee_tok, 0xF609);
+        // **The receiver plus one explicit argument.** Carried because the
+        // emitter cannot recover it — this production requires an EMPTY argument
+        // setup, so `SeqCall::arg_ops` is empty by construction — and it decides
+        // the RUN's order, not just the call's: a store whose value is one of
+        // these formals makes the run stop transferring (`crate::func::StoreRunPrefix`).
+        assert_eq!(live_args, 2, "`this` and `initSize`");
         // The two F2 values are the interior address `this + 8`, twice, and the
         // one literal is `mCount = 0`. That mix — an `addi`-interior producer
         // beside an `li` one — is the MIXED-KIND run `alloc::allocate` refuses
@@ -1866,6 +1945,7 @@ mod tests {
                     IlOp::StoreInd { off: 0, width: 4 },
                 ],
                 callee_tok: 0xF609,
+                live_args: 1,
             },
             "?ctor@@QAA@XZ",
             &None,
@@ -1880,7 +1960,9 @@ mod tests {
         );
         assert!(!f.store_run_carried_twice(), "board #844's invariant");
         let seq = f.call_seq.as_ref().expect("the composition is a call sequence");
-        assert_eq!(seq.store_run.len(), 3, "the one store group, in the carrier");
+        let prefix = seq.store_run.as_ref().expect("the run is in the carrier");
+        assert_eq!(prefix.ops.len(), 3, "the one store group, in the carrier");
+        assert_eq!(prefix.live_args, 1, "the receiver alone");
         assert_eq!(seq.calls.len(), 1);
         assert!(seq.calls[0].arg_ops.is_empty(), "the empty argument setup (#1129)");
         // `this` is the one value live across the one call (#869), so it is
