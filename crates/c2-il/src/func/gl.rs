@@ -1065,6 +1065,13 @@ const NAME_SEPARATOR_UNDECORATED: u8 = 0x24;
 /// is **not** here: an object this TU does not define has no `.bss` to emit.
 /// Anything unseen fails closed with it.
 const LINKAGE_DEFINED_EXTERN: u8 = 0x01;
+
+/// Tag bit that inserts one extra byte (the *mark*) before the kind.
+///
+/// `docs/IL_TYPE_WIDE_TAG.md` derived this for `.ex`/`.sy` on 2026-07-31; lane
+/// `w-align` measured what the field UNDER it means in a `.gl` DATA record and
+/// found it unchanged — see [`align_of_type_tag`].
+const TAG_WIDE: u8 = 0x40;
 const LINKAGE_STATIC: u8 = 0x04;
 
 /// The attribute byte immediately after the size varint: `00` uninitialized
@@ -1299,8 +1306,6 @@ fn is_object_name(b: &[u8]) -> bool {
 /// latter on purpose, since a literal is not a `.bss` object and is read from
 /// `.in` instead.
 fn data_object_at(gl: &[u8], name_nul: usize, name: &[u8]) -> Option<GlDataObject> {
-    /// Tag bit that inserts one extra byte before the kind.
-    const TAG_WIDE: u8 = 0x40;
     /// …and that byte must carry this.
     const WIDE_MARK: u8 = 0x80;
     let tag = *gl.get(name_nul + 1)?;
@@ -1308,10 +1313,17 @@ fn data_object_at(gl: &[u8], name_nul: usize, name: &[u8]) -> Option<GlDataObjec
         return None;
     }
     let mut i = name_nul + 2;
+    // The mark byte's VALUE is carried to [`align_of_type_tag`], not merely
+    // stepped over: the width field's meaning under a mark this port has never
+    // seen is unproven, and `docs/IL_TYPE_WIDE_TAG.md` §8 item 2 records that the
+    // value set is larger than one (`84` occurs 106 times in `.ex`).
+    let mut wide_mark = None;
     if tag & TAG_WIDE != 0 {
-        if *gl.get(i)? & WIDE_MARK == 0 {
+        let m = *gl.get(i)?;
+        if m & WIDE_MARK == 0 {
             return None;
         }
+        wide_mark = Some(m);
         i += 1;
     }
     i += 1; // the kind byte
@@ -1347,7 +1359,7 @@ fn data_object_at(gl: &[u8], name_nul: usize, name: &[u8]) -> Option<GlDataObjec
         _ => return None,
     };
     let flags = *gl.get(p + 1)?;
-    let natural_align = align_of_type_tag(tag)?;
+    let natural_align = align_of_type_tag(tag, wide_mark)?;
     // A name introduced by `24` is spelled undecorated; one introduced by `00`
     // carries its own decoration. The separator has already selected the run, so
     // the name is used exactly as found.
@@ -1367,12 +1379,67 @@ fn data_object_at(gl: &[u8], name_nul: usize, name: &[u8]) -> Option<GlDataObjec
 /// [`data_object_at`] for the aggregate grid that separates that reading from
 /// the size reading its heading implies. Fails closed on an unmodeled tag: a
 /// wrong alignment nibble is a wrong `.bss` Characteristics word.
-fn align_of_type_tag(tag: u8) -> Option<u32> {
-    match tag {
+///
+/// # The WIDE form (board #1110, lane `w-align`)
+///
+/// [`TAG_WIDE`] marks only the presence of the mark byte. **It is orthogonal to
+/// the width field**, so the alignment is read off `tag & !TAG_WIDE` — `C6` is
+/// `86` is 4 bytes. Board #1110 recorded this function refusing `0xC6` and
+/// blocking a plain `.data` object with no RTTI involved; that is the arm below.
+///
+/// MEASURED on 23 frozen cells at the workload's own `/GR /O1 /Oi /EHsc`, each
+/// one's tag read off `.gl` and its alignment read off **c2's own obj** (the
+/// section `Characteristics` nibble c2 gave that symbol) — 23 of 23 agree:
+///
+/// ```text
+///   tag  masked  align  c2   cells
+///   82   82      1      1    char                                     (T12)
+///   86   86      4      4    {int,int} · derived · nested · int[8]     (T10 T13 T17 T18)
+///   88   88      8      8    double · poly+double · poly+long long     (T02 T05 T11 G03 G05)
+///   C6   86      4      4    poly+int · poly+char · poly+char[64] ·
+///                            poly+empty · poly[4] · vbase · vdtor      (T01 T03 T04 T06 T07 T14 T15 G01)
+///   C8   88      8      8    __declspec(align(8)), poly AND plain      (T08 T16)
+///   CA   8A      —      16   __declspec(align(16))  -> REFUSED here    (T09 G04)
+/// ```
+///
+/// Three adjacent readings die on this grid, and each had a cell built to kill
+/// it: the tag is **not the size** (`T03` is size 8 at `C6`, `T04` is size 68 at
+/// `C6`), `0xC6` is **not an atomic "wide aggregate" tag pinned at 4** (`T02`
+/// and `T05` are polymorphic and spell `88`), and it is **not the largest
+/// member's width** (`T04`'s largest member is `char[64]`).
+///
+/// **`__declspec(align(N))` moves the tag** — `T08` and `T16` are naturally
+/// 4-aligned and spell `C8`, and c2 gives them ALIGN_8. That was the prereg's
+/// least-confident prediction (P5, 0.50) and it is the reason the grid exists: a
+/// widening that read the *natural* layout instead would emit a wrong
+/// `Characteristics` word for exactly those two cells.
+///
+/// `CA` (= wide, width 16) keeps refusing. c2 really does give `T09`/`G04`
+/// ALIGN_16, and `super::super::…::placement_align` models only 1/2/4/8, so
+/// reading it would produce a nibble the writer cannot honour. **Refusing an
+/// alignment the writer cannot express is the whole point of this function.**
+///
+/// # Why the mark's VALUE is required
+///
+/// Only `0x81` was observed on all ten wide cells here. `IL_TYPE_WIDE_TAG.md`
+/// §8 item 2 records `0x84` as a second value in `.ex` and registers "the value
+/// set is unknown" as that work's residual risk. Accepting `C6 84 …` on the
+/// strength of `C6 81 …` would be reading a field this port has never seen, so
+/// the mark is matched and not merely stepped over.
+fn align_of_type_tag(tag: u8, wide_mark: Option<u8>) -> Option<u32> {
+    /// The only mark value any `.gl` DATA record in the frozen grid carries.
+    const WIDE_MARK_MEASURED: u8 = 0x81;
+    match wide_mark {
+        None | Some(WIDE_MARK_MEASURED) => {}
+        Some(_) => return None,
+    }
+    match tag & !TAG_WIDE {
         0x82 => Some(1),
         0x84 => Some(2),
         0x86 => Some(4),
         0x88 => Some(8),
+        // `8A` is 16 and c2 emits ALIGN_16 for it. The writer cannot express
+        // that, so it stays refused rather than rounded down (T09/G04).
         _ => None,
     }
 }
@@ -2357,5 +2424,37 @@ mod tests {
         let idx = gl_symbol_index(&gl);
         assert_eq!(idx.get(&0xE309).map(String::as_str), Some("?ok@@YAXXZ"));
         assert_eq!(idx.len(), 1, "only the identifier-shaped run is indexed");
+    }
+
+    /// **Board #1110 — the WIDE tag's alignment table, pinned.**
+    ///
+    /// Every row is a frozen cell of lane `w-align`'s grid whose alignment was
+    /// read off **c2's own obj** at the workload's `/GR /O1 /Oi /EHsc`; the
+    /// cell name is the witness and `docs/rungs/2026-08-08-w-align.md` §2 is
+    /// the table. This test exists because the arm is one line and the cells
+    /// are the whole job: an alignment nibble guessed wrong is a wrong
+    /// `Characteristics` word, and nothing in the portable lane would see it.
+    #[test]
+    fn the_wide_type_tag_reads_the_same_width_as_the_narrow_one() {
+        // Narrow, unchanged — the incumbent's four.
+        assert_eq!(align_of_type_tag(0x82, None), Some(1), "T12 char");
+        assert_eq!(align_of_type_tag(0x84, None), Some(2));
+        assert_eq!(align_of_type_tag(0x86, None), Some(4), "T10 two ints");
+        assert_eq!(align_of_type_tag(0x88, None), Some(8), "T11 double");
+        // Wide: TAG_WIDE is orthogonal to the width field.
+        assert_eq!(align_of_type_tag(0xC2, Some(0x81)), Some(1));
+        assert_eq!(align_of_type_tag(0xC4, Some(0x81)), Some(2));
+        assert_eq!(align_of_type_tag(0xC6, Some(0x81)), Some(4), "G01 poly+int");
+        assert_eq!(align_of_type_tag(0xC8, Some(0x81)), Some(8), "T16 declspec(8)");
+        // `8A`/`CA` is 16 and c2 DOES emit ALIGN_16 for it (T09, G04).
+        // `placement_align` cannot express 16, so it stays refused rather than
+        // rounded down — see the doc comment.
+        assert_eq!(align_of_type_tag(0x8A, None), None);
+        assert_eq!(align_of_type_tag(0xCA, Some(0x81)), None, "T09 declspec(16)");
+        // The mark's VALUE is matched: `IL_TYPE_WIDE_TAG.md` §8 item 2 records
+        // `84` as a second value in `.ex`, and no cell says what the width
+        // means under it.
+        assert_eq!(align_of_type_tag(0xC6, Some(0x84)), None, "unmeasured mark");
+        assert_eq!(align_of_type_tag(0xC6, Some(0xFF)), None);
     }
 }

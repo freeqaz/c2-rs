@@ -1,0 +1,65 @@
+== G01_dyninit_poly_int3   sections[8]: .drectve .debug$S .XBLD$W .XBLD$W .text$yc .rdata .bss .CRT$XCU
+   ?gL@@3UL@@A
+      gl: tag=c6 mark=81 kind=06 frame=00 02 link=01 size=16 attr=00 flags=61 refused=None
+      raw: c6 81 06 00 02 01 10 00 61 00 80
+      c2: section=.bss align=4 secsize=16 nibble=3
+   gL$initializer$
+      gl: tag=86 mark=-- kind=04 frame=00 02 link=04 size=4 attr=80 flags=83 refused=None
+      raw: 86 04 00 02 04 04 80 83 80 00 0c
+      c2: section=.CRT$XCU align=4 secsize=4 nibble=3
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+== G02_dyninit_poly_static   sections[8]: .drectve .debug$S .XBLD$W .XBLD$W .text$yc .rdata .bss .CRT$XCU
+   sL
+      gl: tag=c6 mark=81 kind=06 frame=00 02 link=04 size=16 attr=00 flags=61 refused=None
+      raw: c6 81 06 00 02 04 10 00 61 00 80
+      c2: section=.bss align=4 secsize=16 nibble=3
+   sL$initializer$
+      gl: tag=86 mark=-- kind=04 frame=00 02 link=04 size=4 attr=80 flags=83 refused=None
+      raw: 86 04 00 02 04 04 80 83 80 00 0c
+      c2: section=.CRT$XCU align=4 secsize=4 nibble=3
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+== G03_dyninit_poly_double   sections[8]: .drectve .debug$S .XBLD$W .XBLD$W .text$yc .rdata .bss .CRT$XCU
+   ?gL@@3UL@@A
+      gl: tag=88 mark=-- kind=06 frame=00 02 link=01 size=16 attr=00 flags=61 refused=None
+      raw: 88 06 00 02 01 10 00 61 00 80 13
+      c2: section=.bss align=8 secsize=16 nibble=4
+   gL$initializer$
+      gl: tag=86 mark=-- kind=04 frame=00 02 link=04 size=4 attr=80 flags=83 refused=None
+      raw: 86 04 00 02 04 04 80 83 80 00 0a
+      c2: section=.CRT$XCU align=4 secsize=4 nibble=3
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+== G04_dyninit_poly_align16   sections[8]: .drectve .debug$S .XBLD$W .XBLD$W .text$yc .rdata .bss .CRT$XCU
+   ?gL@@3UL@@A
+      gl: tag=ca mark=81 kind=06 frame=00 02 link=01 size=16 attr=00 flags=61 refused=align-tag
+      raw: ca 81 06 00 02 01 10 00 61 00 80
+      c2: section=.bss align=16 secsize=16 nibble=5
+   gL$initializer$
+      gl: tag=86 mark=-- kind=04 frame=00 02 link=04 size=4 attr=80 flags=83 refused=None
+      raw: 86 04 00 02 04 04 80 83 80 00 0a
+      c2: section=.CRT$XCU align=4 secsize=4 nibble=3
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+== G05_dyninit_plain_double   sections[8]: .drectve .debug$S .XBLD$W .XBLD$W .text$yc .rdata .bss .CRT$XCU
+   ?gL@@3UL@@A
+      gl: tag=88 mark=-- kind=06 frame=00 02 link=01 size=8 attr=00 flags=61 refused=None
+      raw: 88 06 00 02 01 08 00 61 00 80 07
+      c2: section=.bss align=8 secsize=8 nibble=4
+   gL$initializer$
+      gl: tag=86 mark=-- kind=04 frame=00 02 link=04 size=4 attr=80 flags=83 refused=None
+      raw: 86 04 00 02 04 04 80 83 80 00 06
+      c2: section=.CRT$XCU align=4 secsize=4 nibble=3
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3

@@ -17,6 +17,17 @@
 //!
 //! Without the variable it prints `SKIP` and passes, so the portable lane and
 //! `gate.sh` are unaffected — the same degrade-cleanly rule the CLI follows.
+//!
+//! # The `.gl` half (lane `w-align`, board #1110)
+//!
+//! `w-rdata3` had to write a **throwaway spike** over `gl_data_objects_ordered`
+//! to state the row *"`?g@@3UA@@A` reads 1 of 12"*, and reverted it — so the
+//! next lane could not re-run it, which is the failure mode this file exists to
+//! prevent on the `.in` side. The `gl-data` line below makes that row a
+//! standing reading on the same cells and the same cursor. Its crate-free
+//! counterpart is `work/w-align/glread.py`, which re-implements
+//! `data_object_at`'s frame from the grammar and reads the ORACLE alignment out
+//! of c2's own obj; the reconciliation is `work/w-align/reconcile.py`.
 
 use std::path::Path;
 
@@ -57,6 +68,34 @@ fn in_init_probe() {
             println!("{name}\tNO-BUNDLE");
             continue;
         };
+        // The `.gl` DATA records the PRODUCTION cursor returns, in record
+        // order, each with the alignment its TYPE tag was read as. Printed
+        // BEFORE the `.in` line so a bundle with no `.in` still yields it.
+        let gl = b.gl_data_report();
+        let rows: Vec<String> = gl
+            .iter()
+            .map(|r| {
+                format!(
+                    "{}:size={}:align={}:{}:{}",
+                    r.name,
+                    r.size,
+                    r.natural_align,
+                    if r.external { "extern" } else { "static" },
+                    if r.initialized { "init" } else { "uninit" },
+                )
+            })
+            .collect();
+        println!("{name}\tgl-data records={} [{}]", gl.len(), rows.join(" "));
+        println!(
+            "{name}\tdyninit_tu={}",
+            match b.dyninit_tu() {
+                Some(t) => format!(
+                    "ACCEPT object={} size={} align={}",
+                    t.object_symbol, t.object_size, t.object_align
+                ),
+                None => "REFUSE".to_string(),
+            }
+        );
         let Some(r) = b.in_init_report() else {
             println!("{name}\tNO-IN");
             continue;

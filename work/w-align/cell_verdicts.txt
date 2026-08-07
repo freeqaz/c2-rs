@@ -1,0 +1,36 @@
+# per-cell differential verdict, base against tip, four profiles
+# real c2.dll under wibo + byte-exact obj compare — the SOLE judge
+
+#   base_gr  /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc
+#   tip_gr   /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc
+#   base_ox  /Ox /GS- /c
+#   tip_ox   /Ox /GS- /c
+#   base_o2  /O2 /GS- /c
+#   tip_o2   /O2 /GS- /c
+#   base_od  /Od /GS- /c
+#   tip_od   /Od /GS- /c
+
+cell                               base_gr      tip_gr       base_ox      tip_ox       base_o2      tip_o2       base_od      tip_od      
+G01_dyninit_poly_int3.cpp          vocab-gap    match        vocab-gap    codegen-gap  vocab-gap    match        vocab-gap    codegen-gap 
+G02_dyninit_poly_static.cpp        vocab-gap    match        vocab-gap    codegen-gap  vocab-gap    match        vocab-gap    codegen-gap 
+G03_dyninit_poly_double.cpp        match        match        codegen-gap  codegen-gap  match        match        codegen-gap  codegen-gap 
+G04_dyninit_poly_align16.cpp       vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap   
+G05_dyninit_plain_double.cpp       match        match        codegen-gap  codegen-gap  match        match        codegen-gap  codegen-gap 
+T01_poly_int.cpp                   vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap   
+T02_poly_double.cpp                vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap   
+T03_poly_char.cpp                  vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap   
+T04_poly_chararr.cpp               vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap   
+T05_poly_longlong.cpp              vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap   
+T06_poly_empty.cpp                 vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap   
+T07_poly_array.cpp                 vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap   
+T08_poly_declalign8.cpp            vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap   
+T09_poly_declalign16.cpp           vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap   
+T10_plain_int2.cpp                 match        match        match        match        match        match        match        match       
+T11_plain_double.cpp               match        match        match        match        match        match        match        match       
+T12_plain_char.cpp                 match        match        match        match        match        match        match        match       
+T13_derived_plain.cpp              match        match        match        match        match        match        match        match       
+T14_poly_vbase.cpp                 vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap   
+T15_poly_vdtor.cpp                 vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap    vocab-gap   
+T16_plain_declalign8.cpp           codegen-gap  match        codegen-gap  match        codegen-gap  match        codegen-gap  match       
+T17_nested_plain.cpp               match        match        match        match        match        match        match        match       
+T18_plain_array.cpp                match        match        match        match        match        match        match        match       
