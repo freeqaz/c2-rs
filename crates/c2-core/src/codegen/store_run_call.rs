@@ -569,6 +569,95 @@ mod tests {
         assert!(store_run_prefix_text(&[this, init, size], &plain, 31).is_ok());
     }
 
+    /// **BOARD #844's COMPOSITION WITH AN INTERIOR-ADDRESS PRODUCER — the whole
+    /// prefix, word for word, in both spellings.** The rung this test belongs to
+    /// widened `parse_simple_gpr_run`; this is the half of it that only the
+    /// composition can show, because the `mr r31,r3` splice lands BETWEEN slots
+    /// and a producer is one slot to it.
+    ///
+    /// Every word is read off real `c2.dll`'s own obj at the WORKLOAD's
+    /// `/GR /O1 /Oi /EHsc` — `work/w-midrun/grid/m_bc_u1_f1_af/dis.txt` and
+    /// `m_dc_u1_f1_af/dis.txt`, one directory per cell. The bodies are
+    /// `H::H(unsigned p, unsigned q) { … Grab(p); }` with `mBlk` at 20 and `mA`
+    /// at 16, so `this`/`p`/`q` are r3/r4/r5.
+    ///
+    /// **The two spellings put the copy in DIFFERENT slots**, and neither is a
+    /// special case: the bind is a second base symbol, so the final store order
+    /// differs, so `order::leading_unproduced` differs, so `save_slot` differs.
+    /// One rule, two answers, both c2's.
+    #[test]
+    fn the_composition_emits_the_interior_address_in_both_spellings() {
+        let (this, p, q) = (0x0101u32, 0x0201u32, 0x0301u32);
+        let l = 0xFB09u32;
+        let params = [this, p, q];
+
+        // `m_bc_u1_f1_af` — BIND. `addi 11,3,20 ; mr 31,3 ; stw 11,20(3) ;
+        // stw 5,16(3)`: two symbols, the produced store leads, leading run 0.
+        let bind = c2_il::IlOp::BoundAddr { tok: l, base: this, off: 20 };
+        let bound = c2_il::StoreRunPrefix {
+            ops: vec![
+                bind,
+                bind,
+                c2_il::IlOp::StoreInd { off: 0, width: 4 },
+                c2_il::IlOp::Load(this),
+                c2_il::IlOp::Load(q),
+                c2_il::IlOp::StoreInd { off: 16, width: 4 },
+            ],
+            live_args: 2,
+        };
+        assert_eq!(
+            store_run_prefix_text(&params, &bound, 31).expect("in class"),
+            vec![
+                0x39, 0x63, 0x00, 0x14, // addi r11,r3,20
+                0x7C, 0x7F, 0x1B, 0x78, // mr   r31,r3
+                0x91, 0x63, 0x00, 0x14, // stw  r11,20(r3)
+                0x90, 0xA3, 0x00, 0x10, // stw  r5,16(r3)
+            ],
+            "m_bc_u1_f1_af"
+        );
+
+        // `m_dc_u1_f1_af` — DIRECT, the four-op group. `addi 11,3,20 ;
+        // stw 5,16(3) ; mr 31,3 ; stw 11,20(3)`: ONE symbol, the unproduced
+        // store leads, leading run 1, and the copy moves a slot.
+        let direct = c2_il::StoreRunPrefix {
+            ops: vec![
+                c2_il::IlOp::Load(this),
+                c2_il::IlOp::Load(this),
+                c2_il::IlOp::AddrOf { off: 20 },
+                c2_il::IlOp::StoreInd { off: 20, width: 4 },
+                c2_il::IlOp::Load(this),
+                c2_il::IlOp::Load(q),
+                c2_il::IlOp::StoreInd { off: 16, width: 4 },
+            ],
+            live_args: 2,
+        };
+        assert_eq!(
+            store_run_prefix_text(&params, &direct, 31).expect("in class"),
+            vec![
+                0x39, 0x63, 0x00, 0x14, // addi r11,r3,20
+                0x90, 0xA3, 0x00, 0x10, // stw  r5,16(r3)
+                0x7C, 0x7F, 0x1B, 0x78, // mr   r31,r3
+                0x91, 0x63, 0x00, 0x14, // stw  r11,20(r3)
+            ],
+            "m_dc_u1_f1_af"
+        );
+
+        // The mixed run — `xboxheap.cpp`'s own — is still REFUSED here, and it
+        // is peer lane `w-mixkind`'s rung rather than an oversight of this one.
+        let mixed = c2_il::StoreRunPrefix {
+            ops: vec![
+                bind,
+                bind,
+                c2_il::IlOp::StoreInd { off: 0, width: 4 },
+                c2_il::IlOp::Load(this),
+                c2_il::IlOp::Lit(0),
+                c2_il::IlOp::StoreInd { off: 16, width: 4 },
+            ],
+            live_args: 2,
+        };
+        assert!(store_run_prefix_text(&params, &mixed, 31).is_err());
+    }
+
     /// **THE CORRECTION DOES NOT MOVE THE DOMAIN REFUSAL, and it is enumerated
     /// rather than argued.** At `nprod == 0` every store is unproduced, so no
     /// produced store can precede one, so the leading run equals

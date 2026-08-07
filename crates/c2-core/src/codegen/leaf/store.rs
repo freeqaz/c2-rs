@@ -1990,7 +1990,7 @@ mod tests {
         )
         .unwrap();
         assert!(lit[0].value_root.is_none());
-        assert!(producer_roots(&lit, 7).is_none());
+        assert!(producer_roots(&lit, Prod::Lit(7)).is_none());
     }
 
     #[test]
@@ -2094,51 +2094,178 @@ mod tests {
         );
     }
 
-    /// **The backstop for the frontier's last refusal**, and the counterexample
-    /// beside it.
+    /// **THE RUNG — an interior address in the stored-VALUE position emits one
+    /// `addi`, and the two spellings emit the two bodies `c2` emits.**
     ///
-    /// A bound reference in the stored-VALUE position is an interior address —
-    /// one `addi`, a **register-derived** producer. `c2_il`'s `bind_run_ops`
-    /// refuses it in the reader under two keys (so the mixed half stays
-    /// separately sizeable), and this is the second lock: a parser that widened
-    /// past its witness comes out as a gap, not as bytes.
+    /// Every word below is read off real `c2.dll`'s own obj at the WORKLOAD's
+    /// `/GR /O1 /Oi /EHsc`, one directory per cell
+    /// (`work/w-midrun/grid/<cell>/dis.txt`), never derived from the models this
+    /// test grades.
     ///
-    /// `src/xdk/nuispeech/xboxheap.cpp` is that shape — an interior address at 2
-    /// uses beside a literal at 1 — and it is refused **here** by
-    /// [`alloc::allocate`]'s mixed-kind rule if it ever reached it, which
-    /// `order::tests::xboxheap_allocation_is_still_refused_and_the_answer_it_owes_is_recorded`
-    /// already pins. Boards #836 (wrong on 0 of 81), #868 (12 of 36 on the narrow
-    /// lift) and #1134 (clause 1 refuted on this very mix).
+    /// **`m_bl_u1_f1_af` against `m_dl_u1_f1_af` is board #1128 at the width
+    /// that shows it.** Same two statements, same address, same displacement,
+    /// one IL bind apart — and c2 emits the stores in the OTHER order:
+    ///
+    /// ```text
+    ///   BIND    addi 11,3,20 ; stw 11,20(3) ; stw 5,16(3)     source order
+    ///   DIRECT  addi 11,3,20 ; stw 5,16(3) ; stw 11,20(3)     [1, 0]
+    /// ```
+    ///
+    /// `w-carrier` §4.2 measured the same pair **byte-identical** — at ZERO
+    /// formal stores, the one arrangement where one base symbol and two agree.
+    /// The divergence is `order::store_order` reading the base SYMBOL, which is
+    /// why [`Prod::Addr`] may collapse the spellings and `base_tok` may not.
     #[test]
-    fn a_bound_reference_in_the_value_position_is_refused_by_name() {
-        let (h, p) = (0x0101u32, 0x0201u32);
+    fn an_interior_address_in_the_value_position_emits_addi_in_both_spellings() {
+        // `void H::lf(unsigned p, unsigned q)` — r3 `this`, r4 `p`, r5 `q`.
+        // `mBlk` at 20, `mA` at 16 (GRID M's shared declaration).
+        let (h, p, q) = (0x0101u32, 0x0201u32, 0x0301u32);
         let l = 0xFB09u32;
-        let bound = IlOp::BoundAddr { tok: l, base: h, off: 8 };
-        let f = func_with(
-            vec![h, p],
-            vec![
-                bound,
-                bound,
+        let bind = IlOp::BoundAddr { tok: l, base: h, off: 20 };
+        let mk = |ops: Vec<IlOp>| func_with(vec![h, p, q], ops);
+        let text = |ops: Vec<IlOp>| store_leaf_text(&mk(ops), OptMode::O1).unwrap().unwrap();
+
+        // `m_bl_u1_f1_af` — the BIND spelling. `r.n0 = &r; mA = q;`
+        assert_eq!(
+            text(vec![
+                bind,
+                bind,
                 IlOp::StoreInd { off: 0, width: 4 },
                 IlOp::Load(h),
-                IlOp::Lit(0),
-                IlOp::StoreInd { off: 20, width: 4 },
+                IlOp::Load(q),
+                IlOp::StoreInd { off: 16, width: 4 },
+            ]),
+            vec![
+                0x39, 0x63, 0x00, 0x14, // addi r11,r3,20
+                0x91, 0x63, 0x00, 0x14, // stw  r11,20(r3)
+                0x90, 0xA3, 0x00, 0x10, // stw  r5,16(r3)
+                0x4E, 0x80, 0x00, 0x20,
             ],
+            "m_bl_u1_f1_af"
         );
-        let e = store_leaf_text(&f, OptMode::O1)
-            .expect("it is a store stream")
-            .expect_err("and it must be a REFUSAL, never bytes");
+
+        // `m_dl_u1_f1_af` — the DIRECT spelling, a FOUR-op group.
+        // `mBlk.n0 = &mBlk; mA = q;`
+        assert_eq!(
+            text(vec![
+                IlOp::Load(h),
+                IlOp::Load(h),
+                IlOp::AddrOf { off: 20 },
+                IlOp::StoreInd { off: 20, width: 4 },
+                IlOp::Load(h),
+                IlOp::Load(q),
+                IlOp::StoreInd { off: 16, width: 4 },
+            ]),
+            vec![
+                0x39, 0x63, 0x00, 0x14, // addi r11,r3,20
+                0x90, 0xA3, 0x00, 0x10, // stw  r5,16(r3)   <- and here they part
+                0x91, 0x63, 0x00, 0x14, // stw  r11,20(r3)
+                0x4E, 0x80, 0x00, 0x20,
+            ],
+            "m_dl_u1_f1_af"
+        );
+
+        // `m_bl_u3_f0` — THREE uses of one address and nothing beside it. The
+        // arity axis: one `addi`, three stores, no second producer.
+        assert_eq!(
+            text(vec![
+                bind,
+                bind,
+                IlOp::StoreInd { off: 0, width: 4 },
+                bind,
+                bind,
+                IlOp::StoreInd { off: 4, width: 4 },
+                bind,
+                bind,
+                IlOp::StoreInd { off: 8, width: 4 },
+            ]),
+            vec![
+                0x39, 0x63, 0x00, 0x14, // addi r11,r3,20
+                0x91, 0x63, 0x00, 0x14, // stw  r11,20(r3)
+                0x91, 0x63, 0x00, 0x18, // stw  r11,24(r3)
+                0x91, 0x63, 0x00, 0x1C, // stw  r11,28(r3)
+                0x4E, 0x80, 0x00, 0x20,
+            ],
+            "m_bl_u3_f0"
+        );
+    }
+
+    /// **THE DOMAIN'S THREE EDGES, each refused by name and each with a GRID M
+    /// class behind it.** A rule right on 95 % of a domain loses to a refusal
+    /// right on 100 % of it, so every edge the grid did not grade green is a
+    /// refusal and not a guess (`work/w-midrun/PREREG.md` §5).
+    #[test]
+    fn the_interior_address_domain_is_refused_at_its_three_edges() {
+        let (h, p, q) = (0x0101u32, 0x0201u32, 0x0301u32);
+        let l = 0xFB09u32;
+        let bind = IlOp::BoundAddr { tok: l, base: h, off: 20 };
+        let mk = |ops: Vec<IlOp>| func_with(vec![h, p, q], ops);
+        let err = |ops: Vec<IlOp>| {
+            format!(
+                "{:?}",
+                store_leaf_text(&mk(ops), OptMode::O1)
+                    .expect("it is a store stream")
+                    .expect_err("and it must be a REFUSAL, never bytes")
+            )
+        };
+
+        // EDGE 1 — beside a LITERAL. `x_bl`/`x_dl`, and this is
+        // `src/xdk/nuispeech/xboxheap.cpp`'s own shape: an interior address at 2
+        // uses beside a literal at 1. `codegen::alloc`'s mixed-kind rule refuses
+        // it (#836 wrong on 0 of 81, #868's narrow lift 12/36, #1134's clause 1
+        // refuted on this very mix) and this states it one level earlier, so the
+        // refusal names the construct rather than the allocator's domain.
+        let mixed = err(vec![
+            bind,
+            bind,
+            IlOp::StoreInd { off: 0, width: 4 },
+            IlOp::Load(h),
+            IlOp::Lit(0),
+            IlOp::StoreInd { off: 16, width: 4 },
+        ]);
         assert!(
-            format!("{e:?}").contains("bound reference"),
-            "the refusal must name the construct: {e:?}"
+            mixed.contains("BESIDE another producer"),
+            "the refusal must name the construct: {mixed}"
         );
-        // …and the run that has the address producer ALONE is refused too — its
-        // direct twin's obj is byte-identical and the direct twin is refused, so
-        // emitting one and not the other is a divergence with no grid behind it.
-        let f = func_with(
-            vec![h, p],
-            vec![bound, bound, IlOp::StoreInd { off: 0, width: 4 }],
+
+        // EDGE 2 — TWO distinct addresses. `t_bl`/`t_dl`. Single-kind, so
+        // `alloc::allocate` ANSWERS them — and the grid records that c2 agrees
+        // with the answer. Widening to them after the grade is what
+        // `work/w-midrun/PREREG.md` §4 L3 forbids; the answer is on record in
+        // `work/w-midrun/grid/t_dl/dis.txt` for the lane that grids it first.
+        let two = err(vec![
+            IlOp::Load(h),
+            IlOp::Load(h),
+            IlOp::AddrOf { off: 20 },
+            IlOp::StoreInd { off: 60, width: 4 },
+            IlOp::Load(h),
+            IlOp::Load(h),
+            IlOp::AddrOf { off: 44 },
+            IlOp::StoreInd { off: 64, width: 4 },
+        ]);
+        assert!(
+            two.contains("BESIDE another producer"),
+            "the refusal must name the construct: {two}"
         );
-        assert!(store_leaf_text(&f, OptMode::O1).unwrap().is_err());
+
+        // EDGE 3 — displacement 0. `z_bl`/`z_dl`. c2 materialises NOTHING and
+        // the value is the base register itself, so there is no producer to
+        // schedule or to allocate. On this workload's own front end the shape
+        // does not even decode (`expr-op-0x27` on all four cells), so this is a
+        // backstop under a reader that already declines — which is exactly what
+        // a backstop is for.
+        let zero = IlOp::BoundAddr { tok: l, base: h, off: 0 };
+        let z = err(vec![
+            zero,
+            zero,
+            IlOp::StoreInd { off: 0, width: 4 },
+            IlOp::Load(h),
+            IlOp::Load(q),
+            IlOp::StoreInd { off: 16, width: 4 },
+        ]);
+        assert!(
+            z.contains("interior address at displacement"),
+            "the refusal must name the construct: {z}"
+        );
     }
 }

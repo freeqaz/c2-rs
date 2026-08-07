@@ -2946,9 +2946,37 @@ mod tests {
         ops.extend(store(IlOp::Load(this), IlOp::Lit(0), 20));
         check(STORE_RUN_BIND_MIXED_KIND, &[this], &[bind(this)], ops, 0);
 
-        // 2. ADDRESS PRODUCER — the same without the literal.
-        let ops = store(IlOp::Load(l), IlOp::Load(l), 0);
-        check(STORE_RUN_BIND_ADDR_PRODUCER, &[this], &[bind(this)], ops, 0);
+        // 2. ADDRESS PRODUCER — **NARROWED by the w-midrun rung, and asserted
+        //    on both sides of its new edge.** A single interior address at a
+        //    non-zero displacement is a register-derived PRODUCER now and
+        //    `codegen::leaf::store` emits one `addi` for it; what still fires is
+        //    the part no grid has graded.
+        //
+        //    2a. TWO distinct addresses. Single-kind, so `alloc::allocate`
+        //        answers them — answering is not being measured, and GRID M's
+        //        `t_bl`/`t_dl` record c2's answer beside this refusal.
+        let l2 = 0xFC09u32;
+        let mut ops = store(IlOp::Load(l), IlOp::Load(l), 0);
+        ops.extend(store(IlOp::Load(l), IlOp::Load(l2), 4));
+        check(
+            STORE_RUN_BIND_ADDR_PRODUCER,
+            &[this],
+            &[bind(this), RefBind { tok: l2, base_tok: this, off: 24 }],
+            ops,
+            0,
+        );
+        //    2b. DISPLACEMENT 0 — c2 materialises nothing at all and the value
+        //        IS the base register. GRID M's `z_*` class grades it; on this
+        //        workload's front end it does not even decode.
+        let z = 0xFD09u32;
+        let ops = store(IlOp::Load(z), IlOp::Load(z), 0);
+        check(
+            STORE_RUN_BIND_ADDR_PRODUCER,
+            &[this],
+            &[RefBind { tok: z, base_tok: this, off: 0 }],
+            ops,
+            0,
+        );
 
         // 3. MULTI PRODUCER — two distinct literals beside a bound base.
         let mut ops = store(IlOp::Load(this), IlOp::Lit(2), 16);
@@ -2987,7 +3015,30 @@ mod tests {
         ];
         check(STORE_RUN_BIND_GROUP_SHAPE, &[this], &[bind(this)], ops, 0);
 
-        assert_eq!(fired.len(), 6, "gates fired: {fired:?}");
+        assert_eq!(fired.len(), 7, "gates fired: {fired:?}");
+
+        // **THE ADDRESS PRODUCER IS NO LONGER A BLANKET GATE — the w-midrun
+        // rung, and it is a correction rather than a deletion**, so the accept
+        // is asserted in the same place the refusal used to be. One interior
+        // address, non-zero displacement, no literal: `codegen::leaf::store`
+        // emits `addi r11,r3,8 ; stw r11,8(r3)` and GRID M grades 76 such cells
+        // byte-exact against real `c2.dll`.
+        //
+        // **And the discharge reaches the VALUE now**, which is the half that
+        // makes the emitter able to see the address at all — `w-mrslot` §5.1
+        // measured that it did not, and this is that measurement's expiry date.
+        let ops = store(IlOp::Load(l), IlOp::Load(l), 0);
+        let out = bind_run_ops(&[this], &[bind(this)], &ops, 0)
+            .expect("one interior address is in class since the w-midrun rung");
+        assert_eq!(
+            out,
+            vec![
+                IlOp::BoundAddr { tok: l, base: this, off: 8 },
+                IlOp::BoundAddr { tok: l, base: this, off: 8 },
+                IlOp::StoreInd { off: 0, width: 4 },
+            ],
+            "the binding must be discharged in BOTH positions"
+        );
 
         // **THE CALL TAIL IS NO LONGER A GATE — board #1212 is corrected.**
         // `work/w-carrier/bisect/s1427.cpp`'s shape: c2 puts the `mr r31,r3`

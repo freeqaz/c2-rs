@@ -47,15 +47,26 @@ void nf_mixed(H* h) {
     h->mCount = 0;
 }
 
-// `store-run-bind-address-producer` — the same with no literal, so #836's mix
-// does not apply. Refused for a reason of its own: this body's DIRECT twin is
-// byte-IDENTICAL and the direct twin is refused (an F2 address-valued group is
-// four ops where the emitter models three), and emitting one half of a pair
-// whose objs are identical is a divergence with no grid behind it.
+// `store-run-bind-address-producer` — **NARROWED by board #1274, and the
+// witness here is the narrowed clause rather than the old blanket one.**
+//
+// A SINGLE interior address at a non-zero displacement is a producer now and the
+// port emits one `addi` for it; that function is a POSITIVE and lives in
+// `w1274_addr_producer.cpp`. The reason this file used to give — *"this body's
+// DIRECT twin is byte-IDENTICAL and the direct twin is refused"* — was measured
+// at ZERO formal stores, the one arrangement where one base symbol and two
+// agree; crossing the spelling with the formal-store count separates them, and
+// `w-midrun`'s GRID M emits BOTH halves byte-exact.
+//
+// What is left is what no grid has graded: **TWO distinct addresses**. They are
+// single-kind, so `alloc::allocate` *answers* them — and answering is not being
+// measured. `work/w-midrun/grid/t_bl/dis.txt` records c2's answer beside the
+// refusal for the lane that grids it first.
 void nf_addrprod(H* h) {
     BE& l = h->mListHead;
-    l.mNext = &l;
-    l.mPrev = &l;
+    BE& m = h->mSecond;
+    h->mFreeHead = (H*)&l;
+    h->mUsedHead = (H*)&m;
 }
 
 // `store-run-bind-multi-producer` — two distinct literals beside a bound base.
