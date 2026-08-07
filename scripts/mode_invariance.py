@@ -136,6 +136,56 @@ def fragment_digest(srcs):
     return hh.hexdigest()[:16]
 
 
+def sample_cases(frag, cs, per_fragment):
+    """The <=`per_fragment` cases this fragment's class row is measured on.
+
+    ### Not a prefix — and not a bare stride either (lane w-classes, 2026-08-08)
+
+    A prefix is the trap `expr_sweep.sh` records: `head -n` over a name-sorted
+    corpus reached 1 of 47 fragments, and one level in, a prefix of ONE
+    fragment's cases is its first axis value and nothing else. So this was a
+    stride, `cs[::ceil(n/p)][:p]`.
+
+    **A stride has its own version of the same failure, and it had fired.** A
+    `sweep.d/` fragment is a NESTED LOOP, so its case list is PERIODIC, and a
+    stride whose step is a multiple of an inner period lands on the SAME inner
+    coordinate every time — maximally spread in index, degenerate in structure.
+    Measured on this tree at the incumbent `--per-fragment 24`:
+
+        88-store-run-call   1576 cases   k = 66   =  the exact period of its
+                            run/bind block (3 widths x 22 setup/form cells)
+
+    so `cs[::66]` returned the `w0 / cnone / fctor` cell of each run/bind pair:
+    **3 of the 24 sampled cases contained a call at all, against 1,438 of 1,576
+    (91 %) in the corpus.** The fragment exists to grade a store run FOLLOWED BY
+    A CALL, and the sample its class row would have been measured on was 87 %
+    call-free. The direction of that error is the unsafe one: a degenerate sample
+    separates fewer lanes, which writes a COARSER row, which silently removes
+    grading — `mode_classes.txt`'s one failure mode that matters.
+
+    ### What this does instead
+
+    STRATIFIED: cut the case list into `p` contiguous blocks and take one case
+    from each, at an offset derived from `sha256(fragment, block)`. Every block
+    of the index range is still represented, so the anti-prefix property is
+    unchanged; the offset varies per block, so no fixed period can be tracked.
+    Deterministic in `(fragment, n, p)` — two runs sample the same cases, which
+    is what `--verify` and the staleness check both assume.
+    """
+    n = len(cs)
+    if n <= per_fragment:
+        return list(cs)
+    out = []
+    for i in range(per_fragment):
+        lo = (i * n) // per_fragment
+        hi = ((i + 1) * n) // per_fragment
+        if hi <= lo:                     # unreachable while n > per_fragment
+            hi = lo + 1
+        d = int(hashlib.sha256(("%s\x00%d" % (frag, i)).encode()).hexdigest()[:8], 16)
+        out.append(cs[lo + d % (hi - lo)])
+    return out
+
+
 MEASURED_OVER = "# measured-over-lanes:"
 
 
@@ -249,10 +299,20 @@ CLASSES_HEADER = """\
 # than it needs to and never less, and nothing is silently excluded by being
 # forgotten. Run this script to buy the reduction back.
 #
+# THE SAMPLE IS STRATIFIED, NOT STRIDED, and that is a repair rather than a
+# detail. A `sweep.d/` fragment is a nested loop, so its case list is PERIODIC; a
+# stride whose step is a multiple of an inner period lands on the same inner
+# coordinate every time. At `--per-fragment 24` the step for `88-store-run-call`
+# was 66 — exactly its run/bind period — and 3 of its 24 sampled cases contained
+# a call, against 91%% of the corpus, on a fragment whose whole subject is a call
+# after a run. A degenerate sample separates fewer lanes and writes a COARSER
+# row, which is the direction that silently removes grading. See
+# `sample_cases()`. (Lane w-classes, 2026-08-08.)
+#
 # THE THIRD FIELD IS A DIGEST of that fragment's generated case set, and it is
 # what makes the exclusion safe rather than merely current. A row applies only
 # while the digest matches; edit the generator and the row stops applying and the
-# fragment falls back to all 12 lanes, loudly. A stale exclusion is the one
+# fragment falls back to every lane, loudly. A stale exclusion is the one
 # failure mode that matters here — a fragment excluded as invariant is a fragment
 # nothing will ever grade again at the excluded lanes — and this closes it by
 # construction rather than by re-sampling and hoping the sample hits it.
@@ -269,7 +329,7 @@ CLASSES_HEADER = """\
 # adding the six `/GR` lanes.) It is not derivable from the rows: a lane can
 # legitimately be named by none of them because it merged everywhere.
 #
-# Measured: %d cases per fragment (strided), %d cases, %d cells, registry %s.
+# Measured: %d cases per fragment (stratified), %d cases, %d cells, registry %s.
 #   full cross          %7d gradings
 #   class-reduced cross %7d gradings  (%.2fx smaller)
 #
@@ -479,11 +539,6 @@ def main():
     if not os.path.exists(c2rs):
         raise SystemExit("no harness binary at %s (cargo build --release)" % c2rs)
 
-    # Group the generated cases by fragment, then take a STRIDE — never a
-    # prefix. `head -n` over a name-sorted list is what made a 400-case budget
-    # cover 1 of 47 fragments (see `expr_sweep.sh`), and the same trap applies
-    # one level in: a prefix of one fragment's cases is its first axis value and
-    # nothing else.
     byfrag = {}
     for n in sorted(os.listdir(cases_dir)):
         if not n.endswith(".cpp"):
@@ -491,10 +546,8 @@ def main():
         byfrag.setdefault(n.rsplit("-", 1)[0], []).append(n)
     picked = []
     for frag in sorted(byfrag):
-        cs = byfrag[frag]
-        k = max(1, (len(cs) + args.per_fragment - 1) // args.per_fragment)
-        sel = cs[::k][: args.per_fragment]
-        picked.extend((frag, c) for c in sel)
+        picked.extend((frag, c) for c in sample_cases(frag, byfrag[frag],
+                                                      args.per_fragment))
 
     print("registry: %d lanes from %s" % (len(lanes), args.registry))
     print("corpus:   %d fragments, %d generated cases" % (len(byfrag), total_cases))

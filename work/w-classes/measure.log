@@ -1,0 +1,125 @@
+registry: 18 lanes from <repo>/scripts/lanes.txt
+corpus:   62 fragments, 19556 generated cases
+sampled:  3837 cases (stride, <=64 per fragment) x 18 lanes = 69066 cells
+
+cells attempted 69066, recorded 69066, capture failures 522
+UNCOMPILABLE at every one of the 18 profiles — 29 case(s), excluded:
+    34-volatile-formal-0336.cpp   )
+    45-offset-run-0206.cpp   )
+    72-member-call-0086.cpp           Conversion loses qualifiers
+    73-framed-member-call-0133.cpp           Conversion loses qualifiers
+    93-virtual-byval-0001.cpp   )
+    93-virtual-byval-0008.cpp   )
+    93-virtual-byval-0015.cpp   )
+    93-virtual-byval-0022.cpp   )
+    93-virtual-byval-0036.cpp   )
+    93-virtual-byval-0053.cpp   )
+    93-virtual-byval-0055.cpp   )
+    93-virtual-byval-0057.cpp   )
+    93-virtual-byval-0059.cpp   )
+    93-virtual-byval-0060.cpp   )
+    96-cmp-two-calls-0247.cpp           Conversion loses qualifiers
+    97-chained-call-0149.cpp   )
+    97-chained-call-0154.cpp   )
+    98-chain-link-arg-0141.cpp   )
+    98-cmp-order-0197.cpp   )
+    98-cmp-order-0203.cpp   )
+    98-cmp-order-0204.cpp   )
+    99-chain-tail-fp-load-0126.cpp           Conversion loses qualifiers
+    99-chain-tail-fp-load-0207.cpp   )
+    99-chain-tail-fp-load-0209.cpp   )
+    99-chain-tail-fp-load-0229.cpp   )
+    99-chain-tail-fp-load-0264.cpp   )
+    99-chain-tail-load-0086.cpp           Conversion loses qualifiers
+    99-chain-tail-load-0138.cpp   )
+    99-chain-tail-load-0165.cpp   )
+verify: 9867 cells re-captured, 0 disagreed
+
+FRAGMENT                     cases  classes(min..max)  cases agree?  representative partition
+---------------------------  -----  -----------------  ------------  ------------------------
+10-int-chains                   64       4..4           yes           O1,O2,Od,Ox
+12-alloc-depth                  64       4..4           yes           O1,O2,Od,Ox
+20-compare                      64       4..4           yes           O1,O2,Od,Ox
+30-fp-leaves                    64       4..4           yes           O1,O2,Od,Ox
+31-fp-params                    64       4..4           yes           O1,O2,Od,Ox
+32-fp-argreg                    64       4..4           yes           O1,O2,Od,Ox
+33-fp-tail                      64       4..4           yes           O1,O2,Od,Ox
+34-volatile-formal              63       4..4           yes           O1,O2,Od,Ox
+35-fp-multiarg                  64       4..4           yes           O1,O2,Od,Ox
+40-indirect-load                64       4..4           yes           O1,O2,Od,Ox
+41-ptr-value-leaves             57       4..4           yes           O1,O2,Od,Ox
+42-register-move                64       4..4           yes           O1,O2,Od,Ox
+43-locals-scopes                64       4..4           yes           O1,O2,Od,Ox
+44-member-source-lines           8       4..4           yes           O1,O2,Od,Ox
+45-offset-run                   63       4..4           yes           O1,O2,Od,Ox
+46-source-line-collisions       64       4..4           yes           O1,O2,Od,Ox
+47-flat-locals                  64       4..4           yes           O1,O2,Od,Ox
+50-dtor-base                    53       8..8           yes           O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc
+51-dtor-member                  64       4..14          NO            O1,O1-EHsc,O1-Oi-EHsc-GR,O1-Oi-GR,O2,O2-EHsc,Od,Od-EHsc,Od-EHsc-GR,Od-GR,Ox,Ox-EHsc,Ox-EHsc-GR,Ox-GR
+52-callee-name                  24       4..8           NO            O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc
+53-data-symbol-addr             64       4..5           NO            O1,O2,Od,Ox,Ox-Gy
+54-addr-leaves                  64       4..4           yes           O1,O2,Od,Ox
+55-ptr-operands                 64       4..4           yes           O1,O2,Od,Ox
+60-ctor-epilogue                64       4..7           NO            O1,O1-Oi-EHsc-GR,O2,Od,Od-EHsc-GR,Ox,Ox-EHsc-GR
+61-conversion-2c                64       4..4           yes           O1,O2,Od,Ox
+62-ctor-base-delegation         64       4..14          NO            O1,O1-EHsc,O1-Oi-EHsc-GR,O1-Oi-GR,O2,O2-EHsc,Od,Od-EHsc,Od-EHsc-GR,Od-GR,Ox,Ox-EHsc,Ox-EHsc-GR,Ox-GR
+63-emit-order                   64       4..8           NO            O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc
+64-data-only-tu                 64       3..4           NO            O1,O2,Od,Ox,Ox-Gy
+65-linkage-comdat               64       4..8           NO            O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc
+66-static-local                 64       4..8           NO            O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc
+67-eh-try-throw                 64       4..14          NO            O1,O1-EHsc,O1-Oi-EHsc-GR,O1-Oi-GR,O2,O2-EHsc,Od,Od-EHsc,Od-EHsc-GR,Od-GR,Ox,Ox-EHsc,Ox-EHsc-GR,Ox-GR
+68-shift-ops                    64       4..4           yes           O1,O2,Od,Ox
+69-new-delete                   64       4..8           NO            O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc
+70-framed                       64       4..4           yes           O1,O2,Od,Ox
+71-call-sequence                64       4..4           yes           O1,O2,Od,Ox
+72-member-call                  63       4..4           yes           O1,O2,Od,Ox
+73-framed-member-call           63       4..4           yes           O1,O2,Od,Ox
+74-lit-call-arg                 64       4..4           yes           O1,O2,Od,Ox
+75-moved-lit-call-arg           64       4..4           yes           O1,O2,Od,Ox
+76-object-receiver              57       4..4           yes           O1,O2,Od,Ox
+77-reinterpret-2c               64       4..4           yes           O1,O2,Od,Ox
+80-store-leaf                   64       4..4           yes           O1,O2,Od,Ox
+81-fp-beside-framed             54       4..4           yes           O1,O2,Od,Ox
+82-store-run                    64       4..4           yes           O1,O2,Od,Ox
+83-store-load                   64       4..4           yes           O1,O2,Od,Ox
+84-lit-run                      64       4..4           yes           O1,O2,Od,Ox
+85-source-file                  64       4..8           NO            O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc
+86-union                        64       3..4           NO            O1,O2,Od,Ox
+87-dyninit                      64       3..8           NO            O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc,Ox-Gy,Ox-Gy-EHsc
+88-store-run-call               64       4..4           yes           O1,O2,Od,Ox
+89-store-run-live-arg           64       4..4           yes           O1,O2,Od,Ox
+90-bool-byte                    64       4..4           yes           O1,O2,Od,Ox
+91-rtti-vftable                 64       4..14          NO            O1,O1-EHsc,O1-Oi-EHsc-GR,O1-Oi-GR,O2,O2-EHsc,Od,Od-EHsc,Od-EHsc-GR,Od-GR,Ox,Ox-EHsc,Ox-EHsc-GR,Ox-GR
+93-virtual-byval                54       4..8           NO            O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc
+95-control-flow                 64       4..4           yes           O1,O2,Od,Ox
+96-cmp-two-calls                63       4..4           yes           O1,O2,Od,Ox
+97-chained-call                 62       4..4           yes           O1,O2,Od,Ox
+98-chain-link-arg               63       4..4           yes           O1,O2,Od,Ox
+98-cmp-order                    61       4..4           yes           O1,O2,Od,Ox
+99-chain-tail-fp-load           59       4..4           yes           O1,O2,Od,Ox
+99-chain-tail-load              61       4..4           yes           O1,O2,Od,Ox
+99-explicit-return              64       4..4           yes           O1,O2,Od,Ox
+
+classes over 18 lanes: min 4, median 4, max 14; 62 of 62 fragments collapse at all
+fragments whose sampled cases DISAGREE about their partition: 16
+sampled cases the reference REJECTS at every profile: 29
+
+cost consequence, extrapolated over the whole corpus:
+  full cross           352008 gradings (19556 cases x 18 lanes)
+  class-reduced cross   90812 gradings (3.88x smaller)
+  single profile        19556 gradings (what expr_sweep.sh does today)
+
+wrote work/w-classes/mode_classes.new (62 fragments)
+
+PAIRWISE: fragments (of 62) on which the two lanes differ, by axis
+  O1             vs O2              IL differs 62   obj differs 37   either 62
+  O1             vs Ox              IL differs 62   obj differs 62   either 62
+  O1             vs Od              IL differs 62   obj differs 62   either 62
+  O1             vs O1-Oi           IL differs  0   obj differs  0   either  0
+  Ox             vs Ox-Gy           IL differs  0   obj differs 62   either 62
+  O1             vs O1-EHsc         IL differs 13   obj differs  9   either 13
+  Ox             vs Ox-EHsc         IL differs 13   obj differs  9   either 13
+  O2             vs O2-EHsc         IL differs 13   obj differs  9   either 13
+  Od             vs Od-EHsc         IL differs 13   obj differs 12   either 13
+  Ox-Gy          vs Ox-Gy-EHsc      IL differs 13   obj differs  9   either 13
+  O1-Oi          vs O1-Oi-EHsc      IL differs 13   obj differs  9   either 13

@@ -1,0 +1,69 @@
+held-out cases: 647 over 62 fragments (overlap with the measured sample: 0)
+
+FRAGMENT                    cases groups  dropped  held-out verdict check
+10-int-chains                  12      4       14  all 168 dropped-lane verdicts identical
+12-alloc-depth                  8      4       14  all 112 dropped-lane verdicts identical
+20-compare                     12      4       14  all 168 dropped-lane verdicts identical
+30-fp-leaves                   12      4       14  all 168 dropped-lane verdicts identical
+31-fp-params                   12      4       14  all 168 dropped-lane verdicts identical
+32-fp-argreg                   12      4       14  all 168 dropped-lane verdicts identical
+33-fp-tail                     12      4       14  all 168 dropped-lane verdicts identical
+34-volatile-formal             12      4       14  all 168 dropped-lane verdicts identical
+35-fp-multiarg                 12      4       14  all 168 dropped-lane verdicts identical
+40-indirect-load               12      4       14  all 168 dropped-lane verdicts identical
+41-ptr-value-leaves             0      4       14  all 0 dropped-lane verdicts identical
+42-register-move               12      4       14  all 168 dropped-lane verdicts identical
+43-locals-scopes               12      4       14  all 168 dropped-lane verdicts identical
+44-member-source-lines          0      4       14  all 0 dropped-lane verdicts identical
+45-offset-run                  12      4       14  all 168 dropped-lane verdicts identical
+46-source-line-collisions      12      4       14  all 168 dropped-lane verdicts identical
+47-flat-locals                 12      4       14  all 168 dropped-lane verdicts identical
+50-dtor-base                    0      8       10  all 0 dropped-lane verdicts identical
+51-dtor-member                 12     14        4  all 48 dropped-lane verdicts identical
+52-callee-name                  0      8       10  all 0 dropped-lane verdicts identical
+53-data-symbol-addr            12      5       13  all 156 dropped-lane verdicts identical
+54-addr-leaves                 12      4       14  all 168 dropped-lane verdicts identical
+55-ptr-operands                12      4       14  all 168 dropped-lane verdicts identical
+60-ctor-epilogue               12      7       11  all 132 dropped-lane verdicts identical
+61-conversion-2c               12      4       14  all 168 dropped-lane verdicts identical
+62-ctor-base-delegation        12     14        4  all 48 dropped-lane verdicts identical
+63-emit-order                  12      8       10  all 120 dropped-lane verdicts identical
+64-data-only-tu                12      5       13  all 156 dropped-lane verdicts identical
+65-linkage-comdat              12      8       10  all 120 dropped-lane verdicts identical
+66-static-local                12      8       10  all 120 dropped-lane verdicts identical
+67-eh-try-throw                12     14        4  all 48 dropped-lane verdicts identical
+68-shift-ops                   12      4       14  all 168 dropped-lane verdicts identical
+69-new-delete                  12      8       10  all 120 dropped-lane verdicts identical
+70-framed                      12      4       14  all 168 dropped-lane verdicts identical
+71-call-sequence               12      4       14  all 168 dropped-lane verdicts identical
+72-member-call                 12      4       14  all 168 dropped-lane verdicts identical
+73-framed-member-call          12      4       14  all 168 dropped-lane verdicts identical
+74-lit-call-arg                12      4       14  all 168 dropped-lane verdicts identical
+75-moved-lit-call-arg           8      4       14  all 112 dropped-lane verdicts identical
+76-object-receiver              0      4       14  all 0 dropped-lane verdicts identical
+77-reinterpret-2c              12      4       14  all 168 dropped-lane verdicts identical
+80-store-leaf                  12      4       14  all 168 dropped-lane verdicts identical
+81-fp-beside-framed             0      4       14  all 0 dropped-lane verdicts identical
+82-store-run                   12      4       14  all 168 dropped-lane verdicts identical
+83-store-load                  12      4       14  all 168 dropped-lane verdicts identical
+84-lit-run                     12      4       14  all 168 dropped-lane verdicts identical
+85-source-file                  1      8       10  all 10 dropped-lane verdicts identical
+86-union                       12      4       14  all 168 dropped-lane verdicts identical
+87-dyninit                     12     10        8  all 96 dropped-lane verdicts identical
+88-store-run-call              12      4       14  all 168 dropped-lane verdicts identical
+89-store-run-live-arg          12      4       14  all 168 dropped-lane verdicts identical
+90-bool-byte                    6      4       14  all 84 dropped-lane verdicts identical
+91-rtti-vftable                12     14        4  all 48 dropped-lane verdicts identical
+93-virtual-byval               12      8       10  all 120 dropped-lane verdicts identical
+95-control-flow                12      4       14  all 168 dropped-lane verdicts identical
+96-cmp-two-calls               12      4       14  all 168 dropped-lane verdicts identical
+97-chained-call                12      4       14  all 168 dropped-lane verdicts identical
+98-chain-link-arg              12      4       14  all 168 dropped-lane verdicts identical
+98-cmp-order                   12      4       14  all 168 dropped-lane verdicts identical
+99-chain-tail-fp-load          12      4       14  all 168 dropped-lane verdicts identical
+99-chain-tail-load             12      4       14  all 168 dropped-lane verdicts identical
+99-explicit-return             12      4       14  all 168 dropped-lane verdicts identical
+
+held-out case-lane pairs compared: 8202
+fragments with NO ROW (nothing dropped): 0
+DISAGREEMENTS: 0

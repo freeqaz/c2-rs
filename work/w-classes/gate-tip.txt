@@ -1,0 +1,69 @@
+lane gate: preflight on /tmp
+  keep    <tmp>       LIVE — pid 2359982 is a running gate (a concurrent lane)
+  keep    <tmp>       this run
+  keep    <tmp>       recent — 1 of 3 finished runs kept for their logs
+  keep    <tmp>       recent — 2 of 3 finished runs kept for their logs
+  keep    <tmp>       recent — 3 of 3 finished runs kept for their logs
+reap:   0 stale run tree(s) removed, 5 kept (1 live, 3 recent, 1 this run)
+strip:  0 kept tree(s) lost 0 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
+disk:   /tmp — free 30.0 GiB / 734,486 inodes (floors: 2.0 GiB / 150,000 inodes)
+
+lane gate: 18 lanes from <repo>/scripts/lanes.txt
+  run dir: <tmp>   (per-lane run dirs under <tmp>/lanes/)
+building the harness (no-op if current)
+    Finished `release` profile [optimized] target(s) in 0.00s
+harness: <tmp>/c2rs
+  pinned from <repo>/target/release/c2rs  built 2026-08-07 19:29:27
+  sha 55a648792451  tree d74576c1
+
+wall clock: 18s for 18 lanes at --jobs 8 (C2RS_JOBS=8)
+
+generated sweep: scripts/expr_sweep.sh <tmp>/sweep 0  (jobs 8)
+    62 fragments, 19556 cases total (19556 .cpp on disk)
+  sweeping 19556 of 19556 generated cases
+    grading at 8 job(s)
+  checked=19556 mismatches=0 graded=19460 ungraded=96 unknown=0
+  (167s)
+
+mode cross:      scripts/mode_cross.sh <tmp>/cross 0  (jobs 8)
+  assigned 19556 cases over 18 lanes = 90812 cells (full cross would be 352008)
+  sweeping 90812 of 90812 case-lane cells (cross of 0 cases x <repo>/scripts/lanes.txt; the full 12x product is 352008)
+  checked=90812 mismatches=0 graded=90424 ungraded=388 unknown=0
+  (29s)
+
+disk:   /tmp low-water this run — 29.8 GiB and 714,643 inodes free (start: 30.0 GiB / 734,486)
+
+LANE                 VERDICT     graded/total  match  mismatch  flags
+-------------------- ---------- ------------- ------ --------- --------------------
+O1                   PASS          284/284       142         0  /O1
+O1-EHsc              PASS          284/284       142         0  /O1 /EHsc
+O1-Oi                PASS          284/284       142         0  /O1 /Oi
+O1-Oi-EHsc           PASS          284/284       142         0  /O1 /Oi /EHsc
+Ox                   PASS          284/284       134         0  /Ox
+Ox-EHsc              PASS          284/284       134         0  /Ox /EHsc
+Ox-Gy                PASS          284/284       132         0  /Ox /Gy
+Ox-Gy-EHsc           PASS          284/284       132         0  /Ox /Gy /EHsc
+O2                   PASS          284/284       138         0  /O2
+O2-EHsc              PASS          284/284       138         0  /O2 /EHsc
+Od                   PASS          284/284        18         0  /Od
+Od-EHsc              PASS          284/284        18         0  /Od /EHsc
+O1-Oi-GR             PASS          284/284       142         0  /O1 /Oi /GR
+O1-Oi-EHsc-GR        PASS          284/284       142         0  /O1 /Oi /EHsc /GR
+Ox-GR                PASS          284/284       134         0  /Ox /GR
+Ox-EHsc-GR           PASS          284/284       134         0  /Ox /EHsc /GR
+Od-GR                PASS          284/284        18         0  /Od /GR
+Od-EHsc-GR           PASS          284/284        18         0  /Od /EHsc /GR
+expr-sweep           PASS        19556/19556   19460         0  generated cases (of 19556)
+mode-cross           PASS        90812/90812   90424         0  case-lane cells (of 90812)
+
+lanes:  18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT
+graded: 5112 fixture-verdicts across all lanes
+sweep:  PASS — 19556 of 19556 selected cases reached, 19460 GRADED by the
+        oracle (96 ungraded: no reference obj), 0 mismatch (corpus 19556)
+cross:  PASS — 90424 of 90812 selected cells graded, 0 mismatch (product 90812)
+logs:   <tmp>/<lane>.log, <tmp>/sweep.log, <tmp>/cross.log
+
+GATE: PASS — 18/18 lanes ran and every one of them graded a corpus,
+  the sweep graded 19460 of 19556 generated cases and the cross graded
+  90424 of 90812 case-lane cells, with 0 mismatches anywhere
+  (96 sweep cases carried ungraded — the reference rejects the source).
