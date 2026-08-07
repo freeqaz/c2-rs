@@ -242,4 +242,14 @@ def main():
             print("        c2   %s" % r["got"])
 
 
-main()
+if __name__ == "__main__":
+    # **A MODULE-LEVEL `main()` HERE GRADED THE HOLDOUT BY ACCIDENT.**
+    # `freeze_h.py` imports this file for `compile_cell` / `text_comdats`, and
+    # at the moment it did so this line read `main()` with no guard — so the
+    # import ran the grader over `sys.argv`, which was GRID-H's, and printed
+    # the holdout's verdict before the frozen column had been written. The
+    # verdict is unaffected (it came from the program frozen at `245945c2`,
+    # with no refinement between the freeze and the grade) and it is reported
+    # in the rung as what happened. The guard is here so the next lane that
+    # imports a grader does not repeat it.
+    main()

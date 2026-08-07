@@ -1,0 +1,70 @@
+=== work/w-alloc3/gridH.tsv — 5 of 46 cells MISS ===
+
+  H-perm-120   axis H-perm   callee SUM3   caller formals 3   mode ret
+      callee g    7d641850  7c6b2a14  4e800020
+          7d641850  sub	11, 3, 4
+          7c6b2a14  add 3, 11, 5
+          4e800020  blr
+      RULE BIND   7d652050  7c6b1a14  4e800020
+          7d652050  sub	11, 4, 5
+          7c6b1a14  add 3, 11, 3
+          4e800020  blr
+      c2          7d651850  7c6b2214  4e800020
+          7d651850  sub	11, 3, 5
+          7c6b2214  add 3, 11, 4
+          4e800020  blr
+
+  H-perm-201   axis H-perm   callee SUM3   caller formals 3   mode ret
+      callee g    7d641850  7c6b2a14  4e800020
+          7d641850  sub	11, 3, 4
+          7c6b2a14  add 3, 11, 5
+          4e800020  blr
+      RULE BIND   7d632850  7c6b2214  4e800020
+          7d632850  sub	11, 5, 3
+          7c6b2214  add 3, 11, 4
+          4e800020  blr
+      c2          7d632050  7c6b2a14  4e800020
+          7d632050  sub	11, 4, 3
+          7c6b2a14  add 3, 11, 5
+          4e800020  blr
+
+  H-perm-210   axis H-perm   callee SUM3   caller formals 3   mode ret
+      callee g    7d641850  7c6b2a14  4e800020
+          7d641850  sub	11, 3, 4
+          7c6b2a14  add 3, 11, 5
+          4e800020  blr
+      RULE BIND   7d642850  7c6b1a14  4e800020
+          7d642850  sub	11, 5, 4
+          7c6b1a14  add 3, 11, 3
+          4e800020  blr
+      c2          7d641850  7c6b2a14  4e800020
+          7d641850  sub	11, 3, 4
+          7c6b2a14  add 3, 11, 5
+          4e800020  blr
+
+  H-perm4-310   axis H-perm4   callee SUM3   caller formals 4   mode ret
+      callee g    7d641850  7c6b2a14  4e800020
+          7d641850  sub	11, 3, 4
+          7c6b2a14  add 3, 11, 5
+          4e800020  blr
+      RULE BIND   7d643050  7c6b1a14  4e800020
+          7d643050  sub	11, 6, 4
+          7c6b1a14  add 3, 11, 3
+          4e800020  blr
+      c2          7d641850  7c6b3214  4e800020
+          7d641850  sub	11, 3, 4
+          7c6b3214  add 3, 11, 6
+          4e800020  blr
+
+  H-spell-neg   axis H-spell   callee NEG   caller formals 2   mode arith
+      callee g    7c6300d0  4e800020
+          7c6300d0  neg 3, 3
+          4e800020  blr
+      RULE BIND   7d6400d0  386b0004  4e800020
+          7d6400d0  neg 11, 4
+          386b0004  addi 3, 11, 4
+          4e800020  blr
+      c2          20640004  4e800020
+          20640004  subfic 3, 4, 4
+          4e800020  blr
+
