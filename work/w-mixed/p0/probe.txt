@@ -1,0 +1,11 @@
+A. nothing lifted
+work/w-carrier/grid/k_target/k_target.cpp -> 0/1 functions in class
+  [  0] GAP store-run-bind-mixed-kind-alloc:eof cflow-straight             eh-none     (eh-none     )    404 B  ?AllocatePageBlock@CXboxHeap@@QAAPAUBE@@I@Z
+
+B. mixed-kind lifted
+work/w-carrier/grid/k_target/k_target.cpp -> 0/1 functions in class
+  [  0] GAP store-run-bind-call-tail-mr-slot:eof cflow-straight             eh-none     (eh-none     )    404 B  ?AllocatePageBlock@CXboxHeap@@QAAPAUBE@@I@Z
+
+C. mixed-kind + call-tail lifted
+work/w-carrier/grid/k_target/k_target.cpp -> 0/1 functions in class
+  [  0] GAP store-run-bind-no-emitter-carrier:eof cflow-straight             eh-none     (eh-none     )    404 B  ?AllocatePageBlock@CXboxHeap@@QAAPAUBE@@I@Z
