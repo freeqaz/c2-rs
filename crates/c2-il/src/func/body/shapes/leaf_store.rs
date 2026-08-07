@@ -2168,7 +2168,12 @@ pub(crate) fn bind_run_ops(
     // BASE SYMBOL and its VALUE. Anything else is refused by shape, positively.
     let mut symbols: Vec<u32> = Vec::new();
     let mut lits: Vec<i32> = Vec::new();
-    let mut addr_producer = false;
+    // The distinct interior ADDRESSES the run's values materialise, keyed as
+    // `(base token, displacement)` — the same identity `codegen::leaf::store`'s
+    // `Prod::Addr` uses, because `&r` and `&h->mBlk` are the same address and c2
+    // emits one `addi` for both. Keying on the bound local's own token instead
+    // would count one address twice and refuse a run c2 emits.
+    let mut addrs: Vec<(u32, i32)> = Vec::new();
     let mut walk = ops;
     while !walk.is_empty() {
         let [b, v, IlOp::StoreInd { .. }, tail @ ..] = walk else {
@@ -2186,19 +2191,46 @@ pub(crate) fn bind_run_ops(
             }
             // A bound name in the VALUE position is an interior ADDRESS and
             // materialises one `addi` — clause 1.
-            IlOp::Load(t) if bound(*t).is_some() => addr_producer = true,
+            IlOp::Load(t) if bound(*t).is_some() => {
+                let b = bound(*t).expect("just matched");
+                let key = (b.base_tok, b.off);
+                if !addrs.contains(&key) {
+                    addrs.push(key);
+                }
+            }
             IlOp::Load(t) if params.contains(t) => {}
             _ => return Err(STORE_RUN_BIND_GROUP_SHAPE),
         }
         walk = tail;
     }
 
-    if addr_producer {
-        return Err(if lits.is_empty() {
-            STORE_RUN_BIND_ADDR_PRODUCER
-        } else {
-            STORE_RUN_BIND_MIXED_KIND
-        });
+    // **CLAUSE 1, AND IT IS A NARROWED REFUSAL RATHER THAN A REFUSAL — the
+    // w-midrun rung.** An interior address in the VALUE position is a
+    // register-derived PRODUCER, and `codegen::leaf::store` emits one
+    // `addi rD,rBase,off` for it now. The reader admits exactly the region that
+    // emitter is exact on and nothing wider:
+    //
+    // * **beside a literal** it is the mixed-kind run `codegen::alloc` refuses
+    //   wholesale (#836 wrong-on-0 over 81 cells, #868's narrow lift refuted
+    //   12/36, #1134's clause 1 refuted on this very mix).
+    //   `src/xdk/nuispeech/xboxheap.cpp` is that shape and this key is what it
+    //   still reports;
+    // * **two distinct addresses** are single-kind, so `alloc::allocate`
+    //   *answers* them — and answering is not being measured. GRID M's `twop`
+    //   class grades four such cells and records c2's answer beside the
+    //   refusal;
+    // * **displacement 0** materialises nothing at all: the value IS the base
+    //   register, which is a different shape with no grid behind it.
+    //
+    // The two surviving keys are unchanged in name and meaning, so the key
+    // families a peer lane counts do not move.
+    if !addrs.is_empty() {
+        if !lits.is_empty() {
+            return Err(STORE_RUN_BIND_MIXED_KIND);
+        }
+        if addrs.len() != 1 || addrs[0].1 == 0 {
+            return Err(STORE_RUN_BIND_ADDR_PRODUCER);
+        }
     }
     // **THE CALL-TAIL REFUSAL IS LIFTED — board #1212 is corrected, not
     // refused.** `w-carrier` returned `STORE_RUN_BIND_CALL_TAIL` here for every
@@ -2215,7 +2247,13 @@ pub(crate) fn bind_run_ops(
     if lits.len() > 1 {
         return Err(STORE_RUN_BIND_MULTI_PRODUCER);
     }
-    if !lits.is_empty() && 3 + params.len() > POOL_TOP {
+    // **The POOL bound, and it is asked of every producer kind.** It used to ask
+    // only about literals, because a literal was the only thing that could
+    // materialise. An interior address needs a pool register in exactly the same
+    // way — `alloc`'s `pool_floor <= POOL_TOP` — and a reader that skipped it
+    // here would count a body in class that `PortC2` refuses, which is the
+    // census/gate disagreement `census_gate.rs` exists to hold at 0.
+    if (!lits.is_empty() || !addrs.is_empty()) && 3 + params.len() > POOL_TOP {
         return Err(STORE_RUN_BIND_MULTI_PRODUCER);
     }
     if symbols.windows(2).filter(|w| w[0] != w[1]).count() > MAX_SYMBOL_CROSSINGS {
@@ -2240,24 +2278,42 @@ pub(crate) fn bind_run_ops(
     // does not. `live_args` survives so that gate can be told what is live.
     let _ = live_args;
 
-    // The discharge. Only the BASE position can hold a bound name at this point
-    // — clause 1 refused every value one — and the local's token travels into
-    // `BoundAddr::tok` rather than being replaced by the formal's.
-    let mut out = Vec::with_capacity(ops.len());
-    let mut walk = ops;
-    while let [b, v, st, tail @ ..] = walk {
-        match b {
+    // The discharge, in **both** positions — and the second one is the w-midrun
+    // rung's half.
+    //
+    // A bound name resolves to `IlOp::BoundAddr` wherever it stands, and the
+    // local's token travels into `BoundAddr::tok` rather than being replaced by
+    // the formal's: in the BASE position that token is the store's base SYMBOL
+    // and is the whole of board #1128; in the VALUE position it is the root of
+    // the address expression and is board #1231's carrier. The offset is *not*
+    // added into the store's own displacement either time — the sum is formed at
+    // exactly one site, in the emitter, so a binding cannot be discharged twice.
+    //
+    // This loop rewrote the base ALONE until the w-midrun rung, which is why
+    // `codegen::leaf::store`'s `value_bound` refusal was a backstop with no
+    // reachable input (`w-mrslot` §5.1 — board #1218 is corrected there, and
+    // this is the change that makes the corrected statement stop being true).
+    let discharge = |o: &IlOp| -> IlOp {
+        match o {
             IlOp::Load(t) => match bound(*t) {
-                Some(bind) => out.push(IlOp::BoundAddr {
+                Some(bind) => IlOp::BoundAddr {
                     tok: bind.tok,
                     base: bind.base_tok,
                     off: bind.off,
-                }),
-                None => out.push(*b),
+                },
+                None => *o,
             },
-            _ => return Err(STORE_RUN_BIND_GROUP_SHAPE),
+            _ => *o,
         }
-        out.push(*v);
+    };
+    let mut out = Vec::with_capacity(ops.len());
+    let mut walk = ops;
+    while let [b, v, st, tail @ ..] = walk {
+        if !matches!(b, IlOp::Load(_)) {
+            return Err(STORE_RUN_BIND_GROUP_SHAPE);
+        }
+        out.push(discharge(b));
+        out.push(discharge(v));
         out.push(*st);
         walk = tail;
     }
@@ -2890,9 +2946,37 @@ mod tests {
         ops.extend(store(IlOp::Load(this), IlOp::Lit(0), 20));
         check(STORE_RUN_BIND_MIXED_KIND, &[this], &[bind(this)], ops, 0);
 
-        // 2. ADDRESS PRODUCER — the same without the literal.
-        let ops = store(IlOp::Load(l), IlOp::Load(l), 0);
-        check(STORE_RUN_BIND_ADDR_PRODUCER, &[this], &[bind(this)], ops, 0);
+        // 2. ADDRESS PRODUCER — **NARROWED by the w-midrun rung, and asserted
+        //    on both sides of its new edge.** A single interior address at a
+        //    non-zero displacement is a register-derived PRODUCER now and
+        //    `codegen::leaf::store` emits one `addi` for it; what still fires is
+        //    the part no grid has graded.
+        //
+        //    2a. TWO distinct addresses. Single-kind, so `alloc::allocate`
+        //        answers them — answering is not being measured, and GRID M's
+        //        `t_bl`/`t_dl` record c2's answer beside this refusal.
+        let l2 = 0xFC09u32;
+        let mut ops = store(IlOp::Load(l), IlOp::Load(l), 0);
+        ops.extend(store(IlOp::Load(l), IlOp::Load(l2), 4));
+        check(
+            STORE_RUN_BIND_ADDR_PRODUCER,
+            &[this],
+            &[bind(this), RefBind { tok: l2, base_tok: this, off: 24 }],
+            ops,
+            0,
+        );
+        //    2b. DISPLACEMENT 0 — c2 materialises nothing at all and the value
+        //        IS the base register. GRID M's `z_*` class grades it; on this
+        //        workload's front end it does not even decode.
+        let z = 0xFD09u32;
+        let ops = store(IlOp::Load(z), IlOp::Load(z), 0);
+        check(
+            STORE_RUN_BIND_ADDR_PRODUCER,
+            &[this],
+            &[RefBind { tok: z, base_tok: this, off: 0 }],
+            ops,
+            0,
+        );
 
         // 3. MULTI PRODUCER — two distinct literals beside a bound base.
         let mut ops = store(IlOp::Load(this), IlOp::Lit(2), 16);
@@ -2931,7 +3015,30 @@ mod tests {
         ];
         check(STORE_RUN_BIND_GROUP_SHAPE, &[this], &[bind(this)], ops, 0);
 
-        assert_eq!(fired.len(), 6, "gates fired: {fired:?}");
+        assert_eq!(fired.len(), 7, "gates fired: {fired:?}");
+
+        // **THE ADDRESS PRODUCER IS NO LONGER A BLANKET GATE — the w-midrun
+        // rung, and it is a correction rather than a deletion**, so the accept
+        // is asserted in the same place the refusal used to be. One interior
+        // address, non-zero displacement, no literal: `codegen::leaf::store`
+        // emits `addi r11,r3,8 ; stw r11,8(r3)` and GRID M grades 76 such cells
+        // byte-exact against real `c2.dll`.
+        //
+        // **And the discharge reaches the VALUE now**, which is the half that
+        // makes the emitter able to see the address at all — `w-mrslot` §5.1
+        // measured that it did not, and this is that measurement's expiry date.
+        let ops = store(IlOp::Load(l), IlOp::Load(l), 0);
+        let out = bind_run_ops(&[this], &[bind(this)], &ops, 0)
+            .expect("one interior address is in class since the w-midrun rung");
+        assert_eq!(
+            out,
+            vec![
+                IlOp::BoundAddr { tok: l, base: this, off: 8 },
+                IlOp::BoundAddr { tok: l, base: this, off: 8 },
+                IlOp::StoreInd { off: 0, width: 4 },
+            ],
+            "the binding must be discharged in BOTH positions"
+        );
 
         // **THE CALL TAIL IS NO LONGER A GATE — board #1212 is corrected.**
         // `work/w-carrier/bisect/s1427.cpp`'s shape: c2 puts the `mr r31,r3`

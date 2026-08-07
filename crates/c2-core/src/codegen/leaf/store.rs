@@ -5,6 +5,7 @@
 use c2_il::{IlFunction, IlOp, FP_SCRATCH};
 use crate::BackendError;
 use crate::codegen::encode::{
+    encode_addi,
     encode_blr,
     encode_lbz,
     encode_ld,
@@ -86,20 +87,23 @@ struct SimpleStore {
     /// cannot be added twice.
     off: i32,
     width: u8,
-    /// `Some(k)` — a literal, produced by an `li`/`lis`+`ori` this run emits;
-    /// `None` — a formal, already live in `src`.
-    lit: Option<i32>,
-    /// The register the value comes out of. For a literal this is filled in
+    /// **What this store's value MATERIALISES**, or `None` for a formal already
+    /// live in a register (`src` holds it).
+    ///
+    /// This field was `lit: Option<i32>` until the w-midrun rung, and the
+    /// widening is the rung: [`Prod::Addr`] is the **interior address** —
+    /// `xboxheap.cpp`'s `&listHead` — which materialises one `addi rD,rBase,off`
+    /// and is therefore a producer exactly as a literal is, differing only in
+    /// [`alloc::ProducerKind`]. Keeping the two in ONE field is what makes them
+    /// one concept to [`order::schedule`] and [`alloc::allocate`]; a second
+    /// `addr:` field beside `lit:` would have been `GAPS.md` §6's "one fact, two
+    /// locators", and the fact that the producer list *was* built from `s.lit`
+    /// alone is precisely why an interior-address producer was invisible to both
+    /// models (board **#1218**).
+    prod: Option<Prod>,
+    /// The register the value comes out of. For a producer this is filled in
     /// from [`alloc::allocate`] after the whole run is parsed.
     src: u8,
-    /// **Board #1199's backstop.** The stored VALUE is a bound reference — an
-    /// interior address, which materialises one `addi` and is therefore a
-    /// *register-derived producer*. `c2_il`'s `bind_run_ops` refuses this in the
-    /// reader, under two keys so the mixed-kind half (boards #836/#868, and
-    /// `xboxheap.cpp`'s own blocker) stays separately sizeable. Restated here
-    /// because a parser that widened past its witness must come out as a gap and
-    /// not as bytes.
-    value_bound: bool,
     /// **THE CARRIER'S LVALUE HALF** — [`alloc::ProducerRoots`], board #1231.
     /// The root of the designator this store is written through: `base_tok`
     /// again, plus the one bit saying whether that root is a bind head.
@@ -117,6 +121,53 @@ struct SimpleStore {
     /// value's was dropped by a `..` pattern, because [`alloc::Producer`] had no
     /// field that could receive it.
     value_root: Option<alloc::Root>,
+}
+
+/// **What one store's value materialises** — the run's producer vocabulary.
+///
+/// Two variants and no third, because these are the two things the four models
+/// behind [`scheduled_gpr_run`] were fitted on. Equality **is** the CSE
+/// identity: two stores share a producer exactly when their `Prod`s compare
+/// equal, which is why the literal carries its value and the address carries
+/// `(base register, displacement)` rather than a token — `&r` written through a
+/// bound reference and `&h->mBlk` written directly are the SAME address and c2
+/// emits one `addi` for both.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Prod {
+    /// A literal: `li`, or `lis`+`ori`. Reads no register —
+    /// [`alloc::ProducerKind::Constant`].
+    Lit(i32),
+    /// **An INTERIOR ADDRESS**: one `addi rD, rBase, off`. Reads a register, so
+    /// [`alloc::ProducerKind::RegisterDerived`].
+    ///
+    /// Two spellings reach here and they are deliberately indistinguishable
+    /// once parsed — `c2_il`'s `IlOp::BoundAddr` (a bound reference, board
+    /// **#1199**) and the four-op `[Load(vb), AddrOf{off}]` group (the direct
+    /// spelling). What the two spellings do NOT share is the store's base
+    /// SYMBOL, which is board **#1128** and is carried in `base_tok`, not here:
+    /// the bind is a second base symbol and `order::schedule` reads it there.
+    /// That is why the same address in the two spellings can and does schedule
+    /// differently, and why collapsing the spellings in `base_tok` would be
+    /// board #232's direction while collapsing them HERE is correct.
+    ///
+    /// `off == 0` never reaches this: c2 emits **nothing at all** for a
+    /// zero-displacement interior address (`IlOp::AddrOf`'s own measured doc),
+    /// so the value would be the base register and there would be no producer.
+    /// [`scheduled_gpr_run`] refuses it by name rather than emitting `addi rD,rB,0`.
+    Addr { base_reg: u8, off: i32 },
+}
+
+impl SimpleStore {
+    /// The literal this store materialises, if that is what it materialises.
+    ///
+    /// One accessor rather than a second field, so the two multi-word-literal
+    /// gates (`fits_i16`) keep asking the same question of the same fact.
+    fn lit(&self) -> Option<i32> {
+        match self.prod {
+            Some(Prod::Lit(k)) => Some(k),
+            _ => None,
+        }
+    }
 }
 
 /// The offsets a root carries here are **`None`, and that is board #908**.
@@ -157,8 +208,8 @@ fn root(tok: u32, is_bind: bool, base: Option<u32>) -> alloc::Root {
 ///
 /// A refusal here costs nothing: [`alloc::allocate`] does not read this field.
 /// A guess would cost the next lane its grid.
-fn producer_roots(run: &[SimpleStore], id: u32) -> Option<alloc::ProducerRoots> {
-    let mut mine = run.iter().filter(|s| s.lit.map(|k| k as u32) == Some(id));
+fn producer_roots(run: &[SimpleStore], p: Prod) -> Option<alloc::ProducerRoots> {
+    let mut mine = run.iter().filter(|s| s.prod == Some(p));
     let first = mine.next()?;
     let value = first.value_root.clone()?;
     let lvalue = first.lvalue_root.clone();
@@ -183,7 +234,7 @@ fn parse_simple_gpr_run(
 ) -> Option<Vec<SimpleStore>> {
     let mut out: Vec<SimpleStore> = Vec::new();
     let mut walk = ops;
-    while let [b, v, IlOp::StoreInd { off, width }, tail @ ..] = walk {
+    loop {
         // **Board #1199 — the base position, and the ONE place the binding is
         // discharged.** A bound reference contributes its own token as the base
         // SYMBOL and the formal's register plus the bound object's offset as the
@@ -191,40 +242,71 @@ fn parse_simple_gpr_run(
         // collapsing the two source spellings unspellable rather than merely
         // unreached. An unbound `Load` is `(its token, its register, 0)`, which
         // is exactly what this loop always computed.
-        let (base_tok, base_reg, base_off, base_bind_of) = match b {
-            IlOp::Load(t) => (*t, reg_of(*t)?, 0i32, None),
-            IlOp::BoundAddr { tok, base, off } => (*tok, reg_of(*base)?, *off, Some(*base)),
+        let (base_tok, base_reg, base_off, base_bind_of) = match walk.first() {
+            Some(IlOp::Load(t)) => (*t, reg_of(*t)?, 0i32, None),
+            Some(IlOp::BoundAddr { tok, base, off }) => {
+                (*tok, reg_of(*base)?, *off, Some(*base))
+            }
             // Not a store group at all — leave `walk` non-empty so the caller's
             // whole-stream check declines, exactly as the narrower pattern this
             // loop used to open with did.
             _ => break,
         };
-        // **The value's ROOT is kept here** — board #1231. The third arm used to
-        // read `IlOp::BoundAddr { .. }` and throw the token away; both roots
-        // have been live at this one site since #1199, and the relation between
-        // them is the fact nine allocation keys could not state.
-        let (lit, src, value_bound, value_root) = match v {
-            IlOp::Load(t) => (None, reg_of(*t)?, false, Some(root(*t, false, None))),
+        // **The VALUE, which is ONE op or TWO.** The group was a fixed three-op
+        // window until the w-midrun rung; the direct spelling of an interior
+        // address is a FOUR-op group and is the reason the window has to be
+        // variable. The arms are ordered so the two-op value is tried first —
+        // its head is an `IlOp::Load` too, and a prefix match on the one-op arm
+        // would read `&h->mBlk` as the formal `h` and emit `stw r3` where c2
+        // emits `addi r11,r3,20 ; stw r11`. That is not a hypothetical: it is
+        // two right words for the wrong value, which is board #232's shape.
+        //
+        // **The value's ROOT is kept here** — board #1231. Both roots have been
+        // live at this one site since #1199, and the relation between them is
+        // the fact nine allocation keys could not state.
+        let (prod, src, value_root, vlen) = match &walk[1..] {
+            // FOUR-op group — the DIRECT spelling: `h->mBlk.n0 = &h->mBlk`.
+            [IlOp::Load(vb), IlOp::AddrOf { off }, ..] => (
+                Some(Prod::Addr { base_reg: reg_of(*vb)?, off: *off }),
+                SCRATCH_REG,
+                Some(root(*vb, false, None)),
+                2usize,
+            ),
+            // THREE-op group, value a formal already live in a register.
+            [IlOp::Load(t), ..] => (None, reg_of(*t)?, Some(root(*t, false, None)), 1),
             // A literal has no designator, so it has no root. `None`, never a
             // fabricated one.
-            IlOp::Lit(k) => (Some(*k), SCRATCH_REG, false, None),
-            IlOp::BoundAddr { tok, base, .. } => {
-                (None, SCRATCH_REG, true, Some(root(*tok, true, Some(*base))))
-            }
+            [IlOp::Lit(k), ..] => (Some(Prod::Lit(*k)), SCRATCH_REG, None, 1),
+            // THREE-op group, value a BOUND reference — the same interior
+            // address as the four-op arm above, spelled through `auto& l = m;`.
+            // `c2_il`'s `bind_run_ops` discharges the binding into this op in
+            // the VALUE position as well as the base; before the w-midrun rung
+            // it rewrote the base alone and this arm had no producer at all
+            // (`w-mrslot` §5.1 — the refusal that stood here was a backstop with
+            // no reachable input).
+            [IlOp::BoundAddr { tok, base, off }, ..] => (
+                Some(Prod::Addr { base_reg: reg_of(*base)?, off: *off }),
+                SCRATCH_REG,
+                Some(root(*tok, true, Some(*base))),
+                1,
+            ),
+            _ => break,
+        };
+        let (off, width) = match walk.get(1 + vlen) {
+            Some(IlOp::StoreInd { off, width }) => (*off, *width),
             _ => break,
         };
         out.push(SimpleStore {
             base_tok,
             base_reg,
-            off: base_off.checked_add(*off)?,
-            width: *width,
-            lit,
+            off: base_off.checked_add(off)?,
+            width,
+            prod,
             src,
-            value_bound,
             lvalue_root: root(base_tok, base_bind_of.is_some(), base_bind_of),
             value_root,
         });
-        walk = tail;
+        walk = &walk[2 + vlen..];
     }
     if walk.is_empty() && !out.is_empty() {
         Some(out)
@@ -350,25 +432,82 @@ pub(crate) fn scheduled_gpr_run(
     };
     let mut run = parse_simple_gpr_run(ops, &reg_of)?;
 
-    // **Board #1199's backstop, and it is the frontier's last refusal.** A bound
-    // reference in the stored-VALUE position is an interior address: one
-    // `addi rD,rBase,off`, a **register-derived** producer. Beside a literal that
-    // is the mixed-kind run `alloc::allocate` refuses wholesale (board #836:
-    // clause 1 alone wrong on 29 of 81, this refusal wrong on 0), whose narrow
-    // lift is refuted (#868: `addi`-interior 12/12, `slwi` 0/12) and whose
-    // clause 1 is refuted on this very mix (#1134's `j1_lit2`).
-    // `src/xdk/nuispeech/xboxheap.cpp` is exactly this shape.
+    // **THE PRODUCER VOCABULARY, interned.** `Prod`'s own equality is the CSE
+    // identity, and the index into this list is the id [`order::schedule`] and
+    // [`alloc::allocate`] see. The id used to be the literal's own value cast to
+    // `u32`, which is a bijection on `i32` and therefore fine — and which has no
+    // room for a producer that is not a literal. That is exactly why an
+    // interior-address producer was invisible to BOTH models (board **#1218**);
+    // the id space is the reason, not an oversight in either model.
+    let mut kinds: Vec<Prod> = Vec::new();
+    for s in &run {
+        if let Some(p) = s.prod {
+            if !kinds.contains(&p) {
+                kinds.push(p);
+            }
+        }
+    }
+    let pid = |p: Prod| kinds.iter().position(|&q| q == p).map(|i| i as u32);
+
+    // **THE INTERIOR ADDRESS'S DOMAIN — three clauses, each drawn strictly
+    // inside a model's and each with a class in GRID M that grades it.**
     //
-    // `c2_il`'s `bind_run_ops` refuses it in the READER, under two keys so the
-    // mixed half stays separately sizeable — that is where acceptance lives, and
-    // `census_gate.rs` is the invariant. This is the second lock: a parser that
-    // widened past its witness comes out as a gap, not as bytes.
-    if run.iter().any(|s| s.value_bound) {
-        return Some(Err(out_of_class(
-            "a store run whose value is a bound reference: an interior address is \
-             a register-derived producer, and beside a literal that is the \
-             mixed-kind run codegen::alloc refuses (boards #836/#868/#1134)",
-        )));
+    // A bound reference or a `&h->m` in the stored-VALUE position is an interior
+    // address: one `addi rD,rBase,off`, a **register-derived** producer. Board
+    // #1199 refused it here and `c2_il`'s `bind_run_ops` refused it in the
+    // reader; the w-midrun rung emits it, inside this domain and nowhere else.
+    let addrs = kinds
+        .iter()
+        .filter(|p| matches!(p, Prod::Addr { .. }))
+        .count();
+    if addrs > 0 {
+        // 1. **ONE producer, and it is the address.** An address BESIDE a
+        //    literal is the mixed-kind run `alloc::allocate` refuses wholesale
+        //    (board #836: clause 1 alone wrong on 29 of 81, this refusal wrong
+        //    on 0), whose narrow lift is refuted (#868: `addi`-interior 12/12,
+        //    `slwi` 0/12) and whose clause 1 is refuted on this very mix
+        //    (#1134's `j1_lit2`). `src/xdk/nuispeech/xboxheap.cpp` is that
+        //    shape, and it stays refused here.
+        //
+        //    TWO distinct addresses are single-kind, so `allocate` *answers*
+        //    them — and answering is not the same as being measured. GRID M's
+        //    `twop` class grades four such cells and records c2's answer beside
+        //    this refusal (`work/w-midrun/grid/t_*/dis.txt`); widening to them
+        //    after the grade is what `work/w-midrun/PREREG.md` §4 L3 forbids.
+        if kinds.len() != 1 {
+            return Some(Err(out_of_class(
+                "a store run with an interior address BESIDE another producer: \
+                 beside a literal that is the mixed-kind run codegen::alloc \
+                 refuses (boards #836/#868/#1134); beside a second address the \
+                 allocator answers but nothing has measured it",
+            )));
+        }
+        // 2. **A displacement that materialises something.** At `off == 0` c2
+        //    emits nothing at all and the value IS the base register, so there
+        //    is no producer to schedule or allocate. GRID M's `zero` class
+        //    grades it; on this workload's own front end it does not even
+        //    decode (`expr-op-0x27`), so this clause is a backstop under a
+        //    reader that already declines.
+        if kinds
+            .iter()
+            .any(|p| matches!(p, Prod::Addr { off: 0, .. }))
+        {
+            return Some(Err(out_of_class(
+                "a store run whose value is an interior address at displacement \
+                 0: c2 materialises nothing and the value is the base register \
+                 itself, which is a different shape with no grid behind it",
+            )));
+        }
+        // 3. **`addi`'s own field.** Refused rather than truncated.
+        if kinds.iter().any(|p| {
+            matches!(p, Prod::Addr { off, .. } if i16::try_from(*off).is_err())
+        }) {
+            return Some(Err(out_of_class(
+                "an interior address beyond a 16-bit displacement: c2 emits \
+                 `addis`+`addi`, two words, and a producer is one slot to the \
+                 schedule",
+            )));
+        }
     }
 
     // Displacement and width are checked BEFORE any model is consulted, so an
@@ -417,10 +556,12 @@ pub(crate) fn scheduled_gpr_run(
     let stmts: Vec<schedule::Stmt> = run
         .iter()
         .map(|s| schedule::Stmt {
-            // Equal constants are CSE'd to one `li`, so equal `k` is one id.
-            // `as u32` is a bijection on `i32`, so distinct literals stay
-            // distinct.
-            producer: s.lit.map(|k| k as u32),
+            // Equal constants are CSE'd to one `li` and equal addresses to one
+            // `addi`, so `Prod`'s own equality is the id. The **base symbol** is
+            // carried separately and is where the two spellings of one address
+            // part company — board #1128, and the reason `Prod::Addr` may
+            // collapse them while `base` may not.
+            producer: s.prod.and_then(&pid),
             base: s.base_tok,
         })
         .collect();
@@ -447,36 +588,37 @@ pub(crate) fn scheduled_gpr_run(
     // `alloc::allocate` refuses an empty list by contract, and asking it would
     // turn an all-formal run into a refusal.
     let mut producers: Vec<alloc::Producer> = Vec::new();
-    for (i, s) in stmts.iter().enumerate() {
-        if let Some(id) = s.producer {
-            match producers.iter_mut().find(|p| p.id == id) {
-                Some(p) => p.uses += 1,
-                None => producers.push(alloc::Producer {
-                    id,
-                    // Every producer that reaches here is a literal, so
-                    // `li`/`lis`+`ori` — it reads no register.
-                    kind: alloc::ProducerKind::Constant,
-                    uses: 1,
-                    first: i,
-                    // **THE CARRIER**, board #1231 — and today it is `None` at
-                    // every producer this emitter builds, which is a fact about
-                    // the emitter and not about the carrier.
-                    //
-                    // `producer_roots` pairs the value's root with the root of
-                    // the designator THIS producer's own stores go through. A
-                    // literal has no value root, and every producer that reaches
-                    // here is a literal (`s.producer` is `s.lit`), so the pair
-                    // is refused. Board **#840** / `w-mixed` §5 is the reason
-                    // that is not a defect: no register-derived producer reaches
-                    // `alloc::allocate` from today's emitter at all, because a
-                    // bind-valued store is refused upstream as `value_bound`.
-                    //
-                    // The decode itself is exercised on that refused shape by
-                    // `the_carrier_decodes_both_roots_of_a_bind_valued_store`,
-                    // so the seam is measured rather than assumed inert.
-                    roots: producer_roots(&run, id),
-                }),
-            }
+    for (i, s) in run.iter().enumerate() {
+        let Some(p) = s.prod else { continue };
+        let Some(id) = pid(p) else { continue };
+        match producers.iter_mut().find(|q| q.id == id) {
+            Some(q) => q.uses += 1,
+            None => producers.push(alloc::Producer {
+                id,
+                // **The one place the two producer kinds are told apart**, and
+                // the field #836/#868/#1134 are all statements about.
+                kind: match p {
+                    Prod::Lit(_) => alloc::ProducerKind::Constant,
+                    Prod::Addr { .. } => alloc::ProducerKind::RegisterDerived,
+                },
+                uses: 1,
+                first: i,
+                // **THE CARRIER**, board #1231. It was `None` at every producer
+                // this emitter built until the w-midrun rung, and the reason was
+                // *structural*: a literal has no value root, and a literal was
+                // the only producer that could reach here (board **#840** /
+                // `w-mixed` §5 — "no register-derived producer reaches
+                // `alloc::allocate` from today's emitter at all").
+                //
+                // **That sentence is retired by this rung**, and the carrier is
+                // now populated on exactly the interior-address producers. It
+                // still carries no rule: [`alloc::allocate`] does not read this
+                // field, and `alloc::allocate_ignores_the_roots_carrier` pins
+                // that. What changes is that the pair is now *reachable*, so a
+                // successor stating `w-self2b`'s relation has live input instead
+                // of a refused shape.
+                roots: producer_roots(&run, p),
+            }),
         }
     }
     // **A MULTI-WORD literal may not sit beside another producer.** This is a
@@ -504,7 +646,7 @@ pub(crate) fn scheduled_gpr_run(
     // restated: the gate has to mean "more than one word", and that is the one
     // place which decides it.
     if producers.len() > 1
-        && run.iter().any(|s| matches!(s.lit, Some(k) if !fits_i16(k)))
+        && run.iter().any(|s| matches!(s.lit(), Some(k) if !fits_i16(k)))
     {
         return Some(Err(out_of_class(
             "multi-word literal beside another producer (its halves interleave)",
@@ -520,10 +662,9 @@ pub(crate) fn scheduled_gpr_run(
             )));
         };
         for s in run.iter_mut() {
-            if let Some(k) = s.lit {
-                s.src = assign
-                    .iter()
-                    .find(|&&(id, _)| id == k as u32)
+            if let Some(p) = s.prod {
+                s.src = pid(p)
+                    .and_then(|id| assign.iter().find(|&&(q, _)| q == id))
                     .map(|&(_, r)| r)
                     // `allocate` returns one pair per distinct producer and the
                     // producers were built from these same statements, so this
@@ -545,13 +686,37 @@ pub(crate) fn scheduled_gpr_run(
             schedule::Slot::Producer(id) => {
                 // The statement this producer materialises for — any of them,
                 // they share the value and (by `allocate`) the register.
-                let Some(s) = run.iter().find(|s| s.lit.map(|k| k as u32) == Some(id)) else {
+                let Some(s) = run.iter().find(|s| s.prod.and_then(&pid) == Some(id)) else {
                     return Some(Err(out_of_class(
                         "schedule named a producer no statement consumes",
                     )));
                 };
-                if let Err(e) = emit_load_imm(&mut text, s.src, s.lit.unwrap_or(0)) {
-                    return Some(Err(e));
+                match s.prod {
+                    Some(Prod::Lit(k)) => {
+                        if let Err(e) = emit_load_imm(&mut text, s.src, k) {
+                            return Some(Err(e));
+                        }
+                    }
+                    // **THE RUNG'S ONE WORD.** `addi rD, rBase, off` — the
+                    // interior address, read straight off real `c2.dll`'s own
+                    // bytes for `xboxheap.cpp` (`addi 11, 3, 8`) and for all 76
+                    // `dom` cells of GRID M. The displacement was checked to fit
+                    // before any model was consulted, so `try_from` cannot fail
+                    // here; it refuses rather than truncating if a later
+                    // widening changes that.
+                    Some(Prod::Addr { base_reg, off }) => {
+                        let Ok(d) = i16::try_from(off) else {
+                            return Some(Err(out_of_class(
+                                "interior address beyond a 16-bit displacement",
+                            )));
+                        };
+                        text.extend_from_slice(&encode_addi(s.src, base_reg, d));
+                    }
+                    None => {
+                        return Some(Err(out_of_class(
+                            "schedule named a producer for a store that materialises nothing",
+                        )))
+                    }
                 }
                 out.push((false, text));
             }
@@ -1825,7 +1990,7 @@ mod tests {
         )
         .unwrap();
         assert!(lit[0].value_root.is_none());
-        assert!(producer_roots(&lit, 7).is_none());
+        assert!(producer_roots(&lit, Prod::Lit(7)).is_none());
     }
 
     #[test]
@@ -1929,51 +2094,178 @@ mod tests {
         );
     }
 
-    /// **The backstop for the frontier's last refusal**, and the counterexample
-    /// beside it.
+    /// **THE RUNG — an interior address in the stored-VALUE position emits one
+    /// `addi`, and the two spellings emit the two bodies `c2` emits.**
     ///
-    /// A bound reference in the stored-VALUE position is an interior address —
-    /// one `addi`, a **register-derived** producer. `c2_il`'s `bind_run_ops`
-    /// refuses it in the reader under two keys (so the mixed half stays
-    /// separately sizeable), and this is the second lock: a parser that widened
-    /// past its witness comes out as a gap, not as bytes.
+    /// Every word below is read off real `c2.dll`'s own obj at the WORKLOAD's
+    /// `/GR /O1 /Oi /EHsc`, one directory per cell
+    /// (`work/w-midrun/grid/<cell>/dis.txt`), never derived from the models this
+    /// test grades.
     ///
-    /// `src/xdk/nuispeech/xboxheap.cpp` is that shape — an interior address at 2
-    /// uses beside a literal at 1 — and it is refused **here** by
-    /// [`alloc::allocate`]'s mixed-kind rule if it ever reached it, which
-    /// `order::tests::xboxheap_allocation_is_still_refused_and_the_answer_it_owes_is_recorded`
-    /// already pins. Boards #836 (wrong on 0 of 81), #868 (12 of 36 on the narrow
-    /// lift) and #1134 (clause 1 refuted on this very mix).
+    /// **`m_bl_u1_f1_af` against `m_dl_u1_f1_af` is board #1128 at the width
+    /// that shows it.** Same two statements, same address, same displacement,
+    /// one IL bind apart — and c2 emits the stores in the OTHER order:
+    ///
+    /// ```text
+    ///   BIND    addi 11,3,20 ; stw 11,20(3) ; stw 5,16(3)     source order
+    ///   DIRECT  addi 11,3,20 ; stw 5,16(3) ; stw 11,20(3)     [1, 0]
+    /// ```
+    ///
+    /// `w-carrier` §4.2 measured the same pair **byte-identical** — at ZERO
+    /// formal stores, the one arrangement where one base symbol and two agree.
+    /// The divergence is `order::store_order` reading the base SYMBOL, which is
+    /// why [`Prod::Addr`] may collapse the spellings and `base_tok` may not.
     #[test]
-    fn a_bound_reference_in_the_value_position_is_refused_by_name() {
-        let (h, p) = (0x0101u32, 0x0201u32);
+    fn an_interior_address_in_the_value_position_emits_addi_in_both_spellings() {
+        // `void H::lf(unsigned p, unsigned q)` — r3 `this`, r4 `p`, r5 `q`.
+        // `mBlk` at 20, `mA` at 16 (GRID M's shared declaration).
+        let (h, p, q) = (0x0101u32, 0x0201u32, 0x0301u32);
         let l = 0xFB09u32;
-        let bound = IlOp::BoundAddr { tok: l, base: h, off: 8 };
-        let f = func_with(
-            vec![h, p],
-            vec![
-                bound,
-                bound,
+        let bind = IlOp::BoundAddr { tok: l, base: h, off: 20 };
+        let mk = |ops: Vec<IlOp>| func_with(vec![h, p, q], ops);
+        let text = |ops: Vec<IlOp>| store_leaf_text(&mk(ops), OptMode::O1).unwrap().unwrap();
+
+        // `m_bl_u1_f1_af` — the BIND spelling. `r.n0 = &r; mA = q;`
+        assert_eq!(
+            text(vec![
+                bind,
+                bind,
                 IlOp::StoreInd { off: 0, width: 4 },
                 IlOp::Load(h),
-                IlOp::Lit(0),
-                IlOp::StoreInd { off: 20, width: 4 },
+                IlOp::Load(q),
+                IlOp::StoreInd { off: 16, width: 4 },
+            ]),
+            vec![
+                0x39, 0x63, 0x00, 0x14, // addi r11,r3,20
+                0x91, 0x63, 0x00, 0x14, // stw  r11,20(r3)
+                0x90, 0xA3, 0x00, 0x10, // stw  r5,16(r3)
+                0x4E, 0x80, 0x00, 0x20,
             ],
+            "m_bl_u1_f1_af"
         );
-        let e = store_leaf_text(&f, OptMode::O1)
-            .expect("it is a store stream")
-            .expect_err("and it must be a REFUSAL, never bytes");
+
+        // `m_dl_u1_f1_af` — the DIRECT spelling, a FOUR-op group.
+        // `mBlk.n0 = &mBlk; mA = q;`
+        assert_eq!(
+            text(vec![
+                IlOp::Load(h),
+                IlOp::Load(h),
+                IlOp::AddrOf { off: 20 },
+                IlOp::StoreInd { off: 20, width: 4 },
+                IlOp::Load(h),
+                IlOp::Load(q),
+                IlOp::StoreInd { off: 16, width: 4 },
+            ]),
+            vec![
+                0x39, 0x63, 0x00, 0x14, // addi r11,r3,20
+                0x90, 0xA3, 0x00, 0x10, // stw  r5,16(r3)   <- and here they part
+                0x91, 0x63, 0x00, 0x14, // stw  r11,20(r3)
+                0x4E, 0x80, 0x00, 0x20,
+            ],
+            "m_dl_u1_f1_af"
+        );
+
+        // `m_bl_u3_f0` — THREE uses of one address and nothing beside it. The
+        // arity axis: one `addi`, three stores, no second producer.
+        assert_eq!(
+            text(vec![
+                bind,
+                bind,
+                IlOp::StoreInd { off: 0, width: 4 },
+                bind,
+                bind,
+                IlOp::StoreInd { off: 4, width: 4 },
+                bind,
+                bind,
+                IlOp::StoreInd { off: 8, width: 4 },
+            ]),
+            vec![
+                0x39, 0x63, 0x00, 0x14, // addi r11,r3,20
+                0x91, 0x63, 0x00, 0x14, // stw  r11,20(r3)
+                0x91, 0x63, 0x00, 0x18, // stw  r11,24(r3)
+                0x91, 0x63, 0x00, 0x1C, // stw  r11,28(r3)
+                0x4E, 0x80, 0x00, 0x20,
+            ],
+            "m_bl_u3_f0"
+        );
+    }
+
+    /// **THE DOMAIN'S THREE EDGES, each refused by name and each with a GRID M
+    /// class behind it.** A rule right on 95 % of a domain loses to a refusal
+    /// right on 100 % of it, so every edge the grid did not grade green is a
+    /// refusal and not a guess (`work/w-midrun/PREREG.md` §5).
+    #[test]
+    fn the_interior_address_domain_is_refused_at_its_three_edges() {
+        let (h, p, q) = (0x0101u32, 0x0201u32, 0x0301u32);
+        let l = 0xFB09u32;
+        let bind = IlOp::BoundAddr { tok: l, base: h, off: 20 };
+        let mk = |ops: Vec<IlOp>| func_with(vec![h, p, q], ops);
+        let err = |ops: Vec<IlOp>| {
+            format!(
+                "{:?}",
+                store_leaf_text(&mk(ops), OptMode::O1)
+                    .expect("it is a store stream")
+                    .expect_err("and it must be a REFUSAL, never bytes")
+            )
+        };
+
+        // EDGE 1 — beside a LITERAL. `x_bl`/`x_dl`, and this is
+        // `src/xdk/nuispeech/xboxheap.cpp`'s own shape: an interior address at 2
+        // uses beside a literal at 1. `codegen::alloc`'s mixed-kind rule refuses
+        // it (#836 wrong on 0 of 81, #868's narrow lift 12/36, #1134's clause 1
+        // refuted on this very mix) and this states it one level earlier, so the
+        // refusal names the construct rather than the allocator's domain.
+        let mixed = err(vec![
+            bind,
+            bind,
+            IlOp::StoreInd { off: 0, width: 4 },
+            IlOp::Load(h),
+            IlOp::Lit(0),
+            IlOp::StoreInd { off: 16, width: 4 },
+        ]);
         assert!(
-            format!("{e:?}").contains("bound reference"),
-            "the refusal must name the construct: {e:?}"
+            mixed.contains("BESIDE another producer"),
+            "the refusal must name the construct: {mixed}"
         );
-        // …and the run that has the address producer ALONE is refused too — its
-        // direct twin's obj is byte-identical and the direct twin is refused, so
-        // emitting one and not the other is a divergence with no grid behind it.
-        let f = func_with(
-            vec![h, p],
-            vec![bound, bound, IlOp::StoreInd { off: 0, width: 4 }],
+
+        // EDGE 2 — TWO distinct addresses. `t_bl`/`t_dl`. Single-kind, so
+        // `alloc::allocate` ANSWERS them — and the grid records that c2 agrees
+        // with the answer. Widening to them after the grade is what
+        // `work/w-midrun/PREREG.md` §4 L3 forbids; the answer is on record in
+        // `work/w-midrun/grid/t_dl/dis.txt` for the lane that grids it first.
+        let two = err(vec![
+            IlOp::Load(h),
+            IlOp::Load(h),
+            IlOp::AddrOf { off: 20 },
+            IlOp::StoreInd { off: 60, width: 4 },
+            IlOp::Load(h),
+            IlOp::Load(h),
+            IlOp::AddrOf { off: 44 },
+            IlOp::StoreInd { off: 64, width: 4 },
+        ]);
+        assert!(
+            two.contains("BESIDE another producer"),
+            "the refusal must name the construct: {two}"
         );
-        assert!(store_leaf_text(&f, OptMode::O1).unwrap().is_err());
+
+        // EDGE 3 — displacement 0. `z_bl`/`z_dl`. c2 materialises NOTHING and
+        // the value is the base register itself, so there is no producer to
+        // schedule or to allocate. On this workload's own front end the shape
+        // does not even decode (`expr-op-0x27` on all four cells), so this is a
+        // backstop under a reader that already declines — which is exactly what
+        // a backstop is for.
+        let zero = IlOp::BoundAddr { tok: l, base: h, off: 0 };
+        let z = err(vec![
+            zero,
+            zero,
+            IlOp::StoreInd { off: 0, width: 4 },
+            IlOp::Load(h),
+            IlOp::Load(q),
+            IlOp::StoreInd { off: 16, width: 4 },
+        ]);
+        assert!(
+            z.contains("interior address at displacement"),
+            "the refusal must name the construct: {z}"
+        );
     }
 }

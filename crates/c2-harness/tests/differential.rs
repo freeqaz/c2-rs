@@ -582,6 +582,47 @@ fn differential_out_of_class_call_shapes_not_implemented() {
     }
 }
 
+/// **Board #1274 — an interior address in a store's VALUE position is a
+/// PRODUCER**, and this is the fixture in the TEST LANE rather than only in the
+/// fixture directory.
+///
+/// `fixtures/cpp/*.cpp` is walked by `c2rs bench` and `c2rs perf`; it is NOT
+/// walked by this file, which names a fixed list. A fixture added without a test
+/// naming it is graded by the fixture gate and by nothing `cargo test` runs, and
+/// this lane's own brief calls that out. So the fixture is named here.
+///
+/// Five functions, each one point of `work/w-midrun/grid`: the bind spelling and
+/// the direct spelling of one address at one formal store (board **#1128** — the
+/// same two statements one IL bind apart, and c2 emits the stores in different
+/// orders), three uses of one address with nothing beside it (the arity axis),
+/// the address of one object stored into another, and board **#844**'s
+/// composition with the `mr r31,r3` spliced into the same run.
+#[test]
+fn differential_w1274_interior_address_producer_byte_exact() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        eprintln!("SKIP: strace/mingw absent");
+        return;
+    }
+    let w = work("addrprod");
+    let port = PortC2::default();
+    let report = differential(&fixture("w1274_addr_producer.cpp"), &tc, &port, &w);
+    match report {
+        DiffReport::ReferenceReplayByteExact { port, .. } => {
+            assert_eq!(
+                port,
+                PortStatus::Match,
+                "expected the port to be byte-exact on w1274_addr_producer, got {port:?}"
+            );
+        }
+        other => panic!("expected ReferenceReplayByteExact, got {other:?}"),
+    }
+    std::fs::remove_dir_all(&w).ok();
+}
+
 /// W3: literals / immediates. `mvp_lit.cpp` is a 3-function TU: `a+5` (addi),
 /// `a-5` (addi with negated imm), and `return 42` (li = addi rD,r0,k). Proves
 /// the operand-stack Reg/Imm model and the constant-folding into `addi`.
