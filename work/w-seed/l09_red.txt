@@ -1,0 +1,31 @@
+    Finished `release` profile [optimized] target(s) in 0.00s
+     Running tests/destroy_loop_elision.rs (target/release/deps/destroy_loop_elision-979881370bdb8f19)
+
+running 11 tests
+test a_loop_over_an_external_callee_keeps_its_relocation ... ok
+test the_pseudo_destructor_leaf_is_the_residue_and_needs_a_seed ... FAILED
+test a_condition_over_a_global_is_refused ... ok
+test a_loop_that_stores_is_refused ... ok
+test a_loop_whose_callee_keeps_bytes_stops_the_chain ... ok
+test the_induction_and_the_comparison_are_not_pinned_to_one_value ... ok
+test an_impure_induction_step_is_refused ... ok
+test a_cycle_through_a_loop_is_never_admitted ... ok
+test a_second_statement_in_the_loop_body_is_refused ... ok
+test a_dead_temporary_call_inside_the_loop_composes ... ok
+test a_loop_over_an_empty_callee_collapses_to_one_blr ... ok
+
+failures:
+
+---- the_pseudo_destructor_leaf_is_the_residue_and_needs_a_seed stdout ----
+
+thread 'the_pseudo_destructor_leaf_is_the_residue_and_needs_a_seed' (2679700) panicked at crates/c2-harness/tests/destroy_loop_elision.rs:527:13:
+l01 at /O1: the wrapper came back Exact. THE SEED EXISTS NOW — a refused body with no call in it is being read as reducing to nothing, which is a change to E's rule and needs the grid that earns it (`work/w-memset/PREREG.md` §0.3)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    the_pseudo_destructor_leaf_is_the_residue_and_needs_a_seed
+
+test result: FAILED. 10 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+error: test failed, to rerun pass `-p c2-harness --test destroy_loop_elision`
