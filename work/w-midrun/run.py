@@ -52,10 +52,18 @@ def run_one(c, tag, binpath, want_ref):
                        cwd=ROOT, stdout=f, stderr=subprocess.STDOUT)
 
     if want_ref:
+        # `refobj_local.sh`'s second argument is the OBJ PATH, not a directory.
+        obj = os.path.join(d, "ref.obj")
         subprocess.run(["sh", os.path.join(ROOT, "work/w-heap/refobj_local.sh"),
-                        rel, d], cwd=ROOT,
+                        rel, obj], cwd=ROOT,
                        stdout=open(os.path.join(d, "refobj.txt"), "w"),
                        stderr=subprocess.STDOUT)
+        if os.path.exists(obj):
+            with open(os.path.join(d, "dis.txt"), "w") as f:
+                subprocess.run([sys.executable,
+                                os.path.join(ROOT, "scripts/gt_dump.py"),
+                                obj, "--text-only"],
+                               cwd=ROOT, stdout=f, stderr=subprocess.STDOUT)
 
     verdict, key, dis = "NO-VERDICT", "NO-KEY", ""
     for line in open(os.path.join(d, "gap.%s.txt" % tag)):
@@ -85,7 +93,12 @@ def main():
     ap.add_argument("cells", nargs="*")
     a = ap.parse_args()
 
-    cells = a.cells or sorted(os.listdir(GRID))
+    # Directories only. `cl.exe` will drop a stray `.obj` beside them if a
+    # `/Fo` path is ever mis-spelled, and a stray file read as a cell prints
+    # `NO SOURCE` — which inflates the row count and reads like a grid twice
+    # its size (it did, once, on this lane's first `--ref` run).
+    cells = a.cells or sorted(c for c in os.listdir(GRID)
+                              if os.path.isdir(os.path.join(GRID, c)))
     rows = []
     with cf.ThreadPoolExecutor(max_workers=a.jobs) as ex:
         futs = [ex.submit(run_one, c, a.tag, a.bin, a.ref) for c in cells]
