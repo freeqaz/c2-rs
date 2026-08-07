@@ -799,9 +799,15 @@ impl IlBundle {
                     // before `verdict` moves into it.
                     let no_effect_callee = match &verdict {
                         FnVerdict::InClass(_) => None,
-                        FnVerdict::Blocked(_) => {
-                            body::shapes::no_effect::no_effect_call(seg).and_then(&resolve)
-                        }
+                        // Two shapes, one fact and one field: the dead-temporary
+                        // call (`w-inl0`) and the destroy LOOP (`w-memset`).
+                        // They are mutually exclusive by construction — the loop
+                        // opens a scope the straight-line walk requires not to be
+                        // there — and both answer the same conditional question,
+                        // so they share the field rather than each acquiring one.
+                        FnVerdict::Blocked(_) => body::shapes::no_effect::no_effect_call(seg)
+                            .or_else(|| body::shapes::no_effect::no_effect_loop(seg))
+                            .and_then(&resolve),
                     };
                     (
                         FnCensus {
