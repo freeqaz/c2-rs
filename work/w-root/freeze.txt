@@ -1,0 +1,17 @@
+7785a4f7b84703869328840e2735065f87eae323fff9155d564de1bf1a254902  work/w-root/freeze.py                         (module __main__)
+d2428c41ec99631fbea8e1ac4347672702c7fc88599a87e0c737c8ba81e3c3f2  work/w-root/rootmodel.py                      (module rootmodel)
+d1cd898227da7d207dc4b68ea1bc621a02b95309ffdd663654d646654b1aa94a  work/w-root/rules.py                          (module rules)
+f20fe2b13b8bb424ada611fc809009437f5eccbfd366a0973f3144fc60219721  work/emitpred/pipeline/il.py                  (module il)
+4441643067456ef6b5b90cda398c3789b279c4530b92184a3c0e1e64fb4536fe  work/emitpred/pipeline/model.py               (module model)
+005b5e7b5c74e3f7d583afc5e5710a7614fa21af1a21a3e6e37b8fb8d389aa5b  work/w-db/glowner.py                          (module glowner)
+f03935555d5b1cc81b25a4a361d8c447d6e13cb9a077085f4a333bb284eb12d6  work/w-db/marks.py                            (module marks)
+38cbbbc8b19b03544897e2d8fec3e5bed956e45b8958a2f42c4752dfef896011  work/w-emitp/alias.py                         (module alias)
+144211f6b4646ed50b0711f2885d888d701c3f9c71a7d3d2bc4367098f47a121  work/w-mark/instream.py                       (module instream)
+4bd91418e87ec89aef4fec211d9760382fa9eb079396670809e256577ddb326b  work/w-refs/refs.py                           (module refs)
+6436baf4ac14a7f42a409d14d7fbc693584b012bca0f0b914d6fca6f47e961e9  work/w-roots/boundary2.py                     (module boundary2)
+be7843f478651e82db42e4f931b1c14f6f5fedd62a6968992a99348c1585a58f  work/w-roots/chain.py                         (module chain)
+1e829738c4f6a384705f94ad0aae994455290b03401f818cab7d713b0dd9e1df  work/w-roots/glflags.py                       (module glflags)
+27f19f607504137a25a0b4eabfa8c5383c1df445a537fe6053baceb4661976b9  work/w-roots/record.py                        (module record)
+7e3fa35468e8e779d0ebea2fb638cd0bf739bb1688f50861f354d56ae64c9896  work/w-roots/scan.py                          (module scan)
+
+MODEL-CLOSURE-SHA256  10532d33a26805c4154c134b328541f49967066bfece24f01982cd59998535ed   over 15 files
