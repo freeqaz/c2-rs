@@ -1,0 +1,69 @@
+G01_dyninit_poly_int3	gl-data records=2 [?gL@@3UL@@A:size=16:align=4:extern:uninit gL$initializer$:size=4:align=4:static:init]
+G01_dyninit_poly_int3	dyninit_tu=ACCEPT object=?gL@@3UL@@A size=16 align=4
+G01_dyninit_poly_int3	data_tu=REFUSE
+G02_dyninit_poly_static	gl-data records=2 [sL:size=16:align=4:static:uninit sL$initializer$:size=4:align=4:static:init]
+G02_dyninit_poly_static	dyninit_tu=ACCEPT object=sL size=16 align=4
+G02_dyninit_poly_static	data_tu=REFUSE
+G03_dyninit_poly_double	gl-data records=2 [?gL@@3UL@@A:size=16:align=8:extern:uninit gL$initializer$:size=4:align=4:static:init]
+G03_dyninit_poly_double	dyninit_tu=ACCEPT object=?gL@@3UL@@A size=16 align=8
+G03_dyninit_poly_double	data_tu=REFUSE
+G04_dyninit_poly_align16	gl-data records=1 [gL$initializer$:size=4:align=4:static:init]
+G04_dyninit_poly_align16	dyninit_tu=REFUSE
+G04_dyninit_poly_align16	data_tu=REFUSE
+G05_dyninit_plain_double	gl-data records=2 [?gL@@3UL@@A:size=8:align=8:extern:uninit gL$initializer$:size=4:align=4:static:init]
+G05_dyninit_plain_double	dyninit_tu=ACCEPT object=?gL@@3UL@@A size=8 align=8
+G05_dyninit_plain_double	data_tu=REFUSE
+T01_poly_int	gl-data records=2 [?g@@3UA@@A:size=8:align=4:extern:uninit g$initializer$:size=4:align=4:static:init]
+T01_poly_int	dyninit_tu=REFUSE
+T01_poly_int	data_tu=REFUSE
+T02_poly_double	gl-data records=2 [?g@@3UA@@A:size=16:align=8:extern:uninit g$initializer$:size=4:align=4:static:init]
+T02_poly_double	dyninit_tu=REFUSE
+T02_poly_double	data_tu=REFUSE
+T03_poly_char	gl-data records=2 [?g@@3UA@@A:size=8:align=4:extern:uninit g$initializer$:size=4:align=4:static:init]
+T03_poly_char	dyninit_tu=REFUSE
+T03_poly_char	data_tu=REFUSE
+T04_poly_chararr	gl-data records=2 [?g@@3UA@@A:size=68:align=4:extern:uninit g$initializer$:size=4:align=4:static:init]
+T04_poly_chararr	dyninit_tu=REFUSE
+T04_poly_chararr	data_tu=REFUSE
+T05_poly_longlong	gl-data records=2 [?g@@3UA@@A:size=16:align=8:extern:uninit g$initializer$:size=4:align=4:static:init]
+T05_poly_longlong	dyninit_tu=REFUSE
+T05_poly_longlong	data_tu=REFUSE
+T06_poly_empty	gl-data records=2 [?g@@3UA@@A:size=4:align=4:extern:uninit g$initializer$:size=4:align=4:static:init]
+T06_poly_empty	dyninit_tu=REFUSE
+T06_poly_empty	data_tu=REFUSE
+T07_poly_array	gl-data records=2 [?g@@3PAUA@@A:size=32:align=4:extern:uninit g$initializer$:size=4:align=4:static:init]
+T07_poly_array	dyninit_tu=REFUSE
+T07_poly_array	data_tu=REFUSE
+T08_poly_declalign8	gl-data records=2 [?g@@3UA@@A:size=8:align=8:extern:uninit g$initializer$:size=4:align=4:static:init]
+T08_poly_declalign8	dyninit_tu=REFUSE
+T08_poly_declalign8	data_tu=REFUSE
+T09_poly_declalign16	gl-data records=1 [g$initializer$:size=4:align=4:static:init]
+T09_poly_declalign16	dyninit_tu=REFUSE
+T09_poly_declalign16	data_tu=REFUSE
+T10_plain_int2	gl-data records=1 [?g@@3UA@@A:size=8:align=4:extern:uninit]
+T10_plain_int2	dyninit_tu=REFUSE
+T10_plain_int2	data_tu=ACCEPT objects=1 in_census=(37, 44, 0, 0)
+T11_plain_double	gl-data records=1 [?g@@3UA@@A:size=8:align=8:extern:uninit]
+T11_plain_double	dyninit_tu=REFUSE
+T11_plain_double	data_tu=ACCEPT objects=1 in_census=(37, 44, 0, 0)
+T12_plain_char	gl-data records=1 [?g@@3UA@@A:size=1:align=1:extern:uninit]
+T12_plain_char	dyninit_tu=REFUSE
+T12_plain_char	data_tu=ACCEPT objects=1 in_census=(37, 44, 0, 0)
+T13_derived_plain	gl-data records=1 [?g@@3UA@@A:size=8:align=4:extern:uninit]
+T13_derived_plain	dyninit_tu=REFUSE
+T13_derived_plain	data_tu=ACCEPT objects=1 in_census=(37, 44, 0, 0)
+T14_poly_vbase	gl-data records=2 [?g@@3UA@@A:size=12:align=4:extern:uninit g$initializer$:size=4:align=4:static:init]
+T14_poly_vbase	dyninit_tu=REFUSE
+T14_poly_vbase	data_tu=REFUSE
+T15_poly_vdtor	gl-data records=2 [?g@@3UA@@A:size=8:align=4:extern:uninit g$initializer$:size=4:align=4:static:init]
+T15_poly_vdtor	dyninit_tu=REFUSE
+T15_poly_vdtor	data_tu=REFUSE
+T16_plain_declalign8	gl-data records=1 [?g@@3UA@@A:size=8:align=8:extern:uninit]
+T16_plain_declalign8	dyninit_tu=REFUSE
+T16_plain_declalign8	data_tu=ACCEPT objects=1 in_census=(37, 44, 0, 0)
+T17_nested_plain	gl-data records=1 [?g@@3UA@@A:size=8:align=4:extern:uninit]
+T17_nested_plain	dyninit_tu=REFUSE
+T17_nested_plain	data_tu=ACCEPT objects=1 in_census=(37, 44, 0, 0)
+T18_plain_array	gl-data records=1 [?g@@3PAUA@@A:size=32:align=4:extern:uninit]
+T18_plain_array	dyninit_tu=REFUSE
+T18_plain_array	data_tu=ACCEPT objects=1 in_census=(37, 44, 0, 0)

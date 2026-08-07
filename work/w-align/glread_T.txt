@@ -1,0 +1,206 @@
+== T01_poly_int   sections[12]: .drectve .debug$S .XBLD$W .XBLD$W .text .rdata .rdata$r .data .rdata$r .rdata$r .rdata$r .data
+   ?g@@3UA@@A
+      gl: tag=c6 mark=81 kind=06 frame=00 02 link=01 size=8 attr=00 flags=61 refused=None
+      raw: c6 81 06 00 02 01 08 00 61 00 80
+      c2: section=.data align=4 secsize=8 nibble=3
+   g$initializer$
+      gl: tag=86 mark=-- kind=04 frame=00 02 link=04 size=4 attr=80 flags=83 refused=None
+      raw: 86 04 00 02 04 04 80 83 80 00 07
+      c2: (symbol not defined in a section of ref.obj)
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+== T02_poly_double   sections[12]: .drectve .debug$S .XBLD$W .XBLD$W .text .rdata .rdata$r .data .rdata$r .rdata$r .rdata$r .data
+   ?g@@3UA@@A
+      gl: tag=88 mark=-- kind=06 frame=00 02 link=01 size=16 attr=00 flags=61 refused=None
+      raw: 88 06 00 02 01 10 00 61 00 80 10
+      c2: section=.data align=8 secsize=16 nibble=4
+   g$initializer$
+      gl: tag=86 mark=-- kind=04 frame=00 02 link=04 size=4 attr=80 flags=83 refused=None
+      raw: 86 04 00 02 04 04 80 83 80 00 07
+      c2: (symbol not defined in a section of ref.obj)
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+== T03_poly_char   sections[12]: .drectve .debug$S .XBLD$W .XBLD$W .text .rdata .rdata$r .data .rdata$r .rdata$r .rdata$r .data
+   ?g@@3UA@@A
+      gl: tag=c6 mark=81 kind=06 frame=00 02 link=01 size=8 attr=00 flags=61 refused=None
+      raw: c6 81 06 00 02 01 08 00 61 00 80
+      c2: section=.data align=4 secsize=8 nibble=3
+   g$initializer$
+      gl: tag=86 mark=-- kind=04 frame=00 02 link=04 size=4 attr=80 flags=83 refused=None
+      raw: 86 04 00 02 04 04 80 83 80 00 07
+      c2: (symbol not defined in a section of ref.obj)
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+== T04_poly_chararr   sections[12]: .drectve .debug$S .XBLD$W .XBLD$W .text .rdata .rdata$r .data .rdata$r .rdata$r .rdata$r .data
+   ?g@@3UA@@A
+      gl: tag=c6 mark=81 kind=06 frame=00 02 link=01 size=68 attr=00 flags=61 refused=None
+      raw: c6 81 06 00 02 01 44 00 61 00 80
+      c2: section=.data align=4 secsize=68 nibble=3
+   g$initializer$
+      gl: tag=86 mark=-- kind=04 frame=00 02 link=04 size=4 attr=80 flags=83 refused=None
+      raw: 86 04 00 02 04 04 80 83 80 00 07
+      c2: (symbol not defined in a section of ref.obj)
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+== T05_poly_longlong   sections[12]: .drectve .debug$S .XBLD$W .XBLD$W .text .rdata .rdata$r .data .rdata$r .rdata$r .rdata$r .data
+   ?g@@3UA@@A
+      gl: tag=88 mark=-- kind=06 frame=00 02 link=01 size=16 attr=00 flags=61 refused=None
+      raw: 88 06 00 02 01 10 00 61 00 80 10
+      c2: section=.data align=8 secsize=16 nibble=4
+   g$initializer$
+      gl: tag=86 mark=-- kind=04 frame=00 02 link=04 size=4 attr=80 flags=83 refused=None
+      raw: 86 04 00 02 04 04 80 83 80 00 07
+      c2: (symbol not defined in a section of ref.obj)
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+== T06_poly_empty   sections[12]: .drectve .debug$S .XBLD$W .XBLD$W .text .rdata .rdata$r .data .rdata$r .rdata$r .rdata$r .data
+   ?g@@3UA@@A
+      gl: tag=c6 mark=81 kind=06 frame=00 02 link=01 size=4 attr=00 flags=61 refused=None
+      raw: c6 81 06 00 02 01 04 00 61 00 80
+      c2: section=.data align=4 secsize=4 nibble=3
+   g$initializer$
+      gl: tag=86 mark=-- kind=04 frame=00 02 link=04 size=4 attr=80 flags=83 refused=None
+      raw: 86 04 00 02 04 04 80 83 80 00 06
+      c2: (symbol not defined in a section of ref.obj)
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+== T07_poly_array   sections[16]: .drectve .debug$S .XBLD$W .XBLD$W .text .rdata .rdata$r .data .rdata$r .rdata$r .rdata$r .text .pdata .text$yc .bss .CRT$XCU
+   ?g@@3PAUA@@A
+      gl: tag=c6 mark=81 kind=06 frame=00 02 link=01 size=32 attr=00 flags=61 refused=None
+      raw: c6 81 06 00 02 01 20 00 61 00 80
+      c2: section=.bss align=4 secsize=32 nibble=3
+   g$initializer$
+      gl: tag=86 mark=-- kind=04 frame=00 02 link=04 size=4 attr=80 flags=83 refused=None
+      raw: 86 04 00 02 04 04 80 83 80 00 08
+      c2: section=.CRT$XCU align=4 secsize=4 nibble=3
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+== T08_poly_declalign8   sections[12]: .drectve .debug$S .XBLD$W .XBLD$W .text .rdata .rdata$r .data .rdata$r .rdata$r .rdata$r .data
+   ?g@@3UA@@A
+      gl: tag=c8 mark=81 kind=06 frame=00 02 link=01 size=8 attr=00 flags=61 refused=None
+      raw: c8 81 06 00 02 01 08 00 61 00 80
+      c2: section=.data align=8 secsize=8 nibble=4
+   g$initializer$
+      gl: tag=86 mark=-- kind=04 frame=00 02 link=04 size=4 attr=80 flags=83 refused=None
+      raw: 86 04 00 02 04 04 80 83 80 00 07
+      c2: (symbol not defined in a section of ref.obj)
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+== T09_poly_declalign16   sections[12]: .drectve .debug$S .XBLD$W .XBLD$W .text .rdata .rdata$r .data .rdata$r .rdata$r .rdata$r .data
+   ?g@@3UA@@A
+      gl: tag=ca mark=81 kind=06 frame=00 02 link=01 size=16 attr=00 flags=61 refused=align-tag
+      raw: ca 81 06 00 02 01 10 00 61 00 80
+      c2: section=.data align=16 secsize=16 nibble=5
+   g$initializer$
+      gl: tag=86 mark=-- kind=04 frame=00 02 link=04 size=4 attr=80 flags=83 refused=None
+      raw: 86 04 00 02 04 04 80 83 80 00 07
+      c2: (symbol not defined in a section of ref.obj)
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+== T10_plain_int2   sections[5]: .drectve .debug$S .XBLD$W .bss .XBLD$W
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+   ?g@@3UA@@A
+      gl: tag=86 mark=-- kind=06 frame=00 02 link=01 size=8 attr=00 flags=80 refused=None
+      raw: 86 06 00 02 01 08 00 80 00 80 00
+      c2: section=.bss align=4 secsize=8 nibble=3
+== T11_plain_double   sections[5]: .drectve .debug$S .XBLD$W .bss .XBLD$W
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+   ?g@@3UA@@A
+      gl: tag=88 mark=-- kind=06 frame=00 02 link=01 size=8 attr=00 flags=80 refused=None
+      raw: 88 06 00 02 01 08 00 80 00 80 00
+      c2: section=.bss align=8 secsize=8 nibble=4
+== T12_plain_char   sections[5]: .drectve .debug$S .XBLD$W .bss .XBLD$W
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+   ?g@@3UA@@A
+      gl: tag=82 mark=-- kind=06 frame=00 02 link=01 size=1 attr=00 flags=80 refused=None
+      raw: 82 06 00 02 01 01 00 80 00 80 00
+      c2: section=.bss align=1 secsize=1 nibble=1
+== T13_derived_plain   sections[5]: .drectve .debug$S .XBLD$W .bss .XBLD$W
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+   ?g@@3UA@@A
+      gl: tag=86 mark=-- kind=06 frame=00 02 link=01 size=8 attr=00 flags=00 refused=None
+      raw: 86 06 00 02 01 08 00 00 00 80 06
+      c2: section=.bss align=4 secsize=8 nibble=3
+== T14_poly_vbase   sections[21]: .drectve .debug$S .XBLD$W .XBLD$W .text .rdata .rdata$r .data .rdata$r .rdata$r .rdata$r .text .rdata .rdata .rdata$r .data .rdata$r .rdata$r .rdata$r .rdata$r .data
+   ?g@@3UA@@A
+      gl: tag=c6 mark=81 kind=06 frame=00 02 link=01 size=12 attr=00 flags=61 refused=None
+      raw: c6 81 06 00 02 01 0c 00 61 00 80
+      c2: section=.data align=4 secsize=12 nibble=3
+   g$initializer$
+      gl: tag=86 mark=-- kind=04 frame=00 02 link=04 size=4 attr=80 flags=83 refused=None
+      raw: 86 04 00 02 04 04 80 83 80 00 13
+      c2: (symbol not defined in a section of ref.obj)
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+== T15_poly_vdtor   sections[17]: .drectve .debug$S .XBLD$W .XBLD$W .text .rdata .rdata$r .data .rdata$r .rdata$r .rdata$r .text .pdata .text$yc .data .text$yd .CRT$XCU
+   ?g@@3UA@@A
+      gl: tag=c6 mark=81 kind=06 frame=00 02 link=01 size=8 attr=00 flags=61 refused=None
+      raw: c6 81 06 00 02 01 08 00 61 00 80
+      c2: section=.data align=4 secsize=8 nibble=3
+   g$initializer$
+      gl: tag=86 mark=-- kind=04 frame=00 02 link=04 size=4 attr=80 flags=83 refused=None
+      raw: 86 04 00 02 04 04 80 83 80 00 0d
+      c2: section=.CRT$XCU align=4 secsize=4 nibble=3
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+== T16_plain_declalign8   sections[5]: .drectve .debug$S .XBLD$W .bss .XBLD$W
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+   ?g@@3UA@@A
+      gl: tag=c8 mark=81 kind=06 frame=00 02 link=01 size=8 attr=00 flags=80 refused=None
+      raw: c8 81 06 00 02 01 08 00 80 00 80
+      c2: section=.bss align=8 secsize=8 nibble=4
+== T17_nested_plain   sections[5]: .drectve .debug$S .XBLD$W .bss .XBLD$W
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+   ?g@@3UA@@A
+      gl: tag=86 mark=-- kind=06 frame=00 02 link=01 size=8 attr=00 flags=80 refused=None
+      raw: 86 06 00 02 01 08 00 80 00 80 00
+      c2: section=.bss align=4 secsize=8 nibble=3
+== T18_plain_array   sections[5]: .drectve .debug$S .XBLD$W .bss .XBLD$W
+   __C1_11886
+      gl: tag=84 mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+   ?g@@3PAUA@@A
+      gl: tag=86 mark=-- kind=06 frame=00 02 link=01 size=32 attr=00 flags=00 refused=None
+      raw: 86 06 00 02 01 20 00 00 00 80 02
+      c2: section=.bss align=4 secsize=32 nibble=3
