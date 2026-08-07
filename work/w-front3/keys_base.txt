@@ -1,0 +1,17 @@
+src/Main.cpp                                   0/1 functions in class   1xparam-width-undetermined:mid 
+src/system/math/Primes.cpp                     0/1 functions in class   1xexpr-jump 
+src/xdk/LIBCMT/osfinfo.cpp                     0/1 functions in class   1xexpr-cmp-ge 
+src/xdk/LIBCMT/undname.cpp                     0/1 functions in class   1xexpr-cmp-ne 
+src/xdk/LIBCMT/vswprnc.cpp                     0/1 functions in class   1xexpr-cmp-eq 
+src/xdk/nuispeech/xboxheap.cpp                 0/1 functions in class   1xstore-run-bind-mixed-kind-alloc:eof 
+src/xdk/xjson/jsonwriter.cpp                   0/1 functions in class   1xexpr-brfalse 
+src/xdk/xlrc/xlrcimpl.cpp                      0/1 functions in class   1xassign-rhs-call-0x26 
+src/system/negate_test.cpp                     0/2 functions in class   2xassign-store-type-8643 
+src/system/synth_xbox/Biquad.cpp               0/2 functions in class   1xexpr-cmp-eq 1xexpr-call-in-expr-recv-load-then-plumbing-0x3A 
+src/xdk/LIBCMT/vsnprnc.cpp                     0/2 functions in class   1xexpr-cmp-eq 1xcall-arg-lit-permuted:mid 
+src/system/rndobj/wordwrap.cpp                 0/3 functions in class   1xexpr-jump 1xexpr-cmp-eq 1xexpr-brfalse 
+src/system/utl/Pool.cpp                        0/3 functions in class   2xexpr-op-0x27 1xexpr-brtrue 
+src/xdk/nuispeech/mmio.cpp                     8/11 functions in class  3xexpr-cmp-eq 
+src/system/synth_xbox/IPP_basicmath_xbox.cpp   0/4 functions in class   4xexpr-cmp-eq 
+src/system/utl/EncryptXTEA.cpp                 1/5 functions in class   2xexpr-op-0x27 1xexpr-load-type-8882 1xexpr-intrinsic-memcpy 
+src/keygen_xbox.cpp                            2/20 functions in class  8xexpr-jump 2xassign-store-type-8643 1xexpr-op-0x30 1xexpr-op-0x0F 1xexpr-load-type-8211 1xexpr-lit-type-9641 1xexpr-call-in-expr-op-0x1F 1xexpr-call-in-expr-data-addr-then-plain-call-and-op-more 1xexpr-brfalse 1xcall-arg-outer-formal:eof 
