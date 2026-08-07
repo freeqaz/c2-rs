@@ -1,45 +1,53 @@
-// **W-ALIGN16 / board #1148 — a LIVE WRONG EMIT that was on master, found by a
-// grid built for something else, and now a graded refusal.**
+// **Board #1148 -> #174/#1152 — the live wrong emit that lane `w-align16`
+// found, closed as a REFUSAL, and lane `w-order3` closed as a MATCH.**
 //
-// This TU was `mismatch` against real c2 on an **unmodified tree**, at alignment
-// 4. Not a gap, not a refusal — wrong bytes. Board **#232**'s shape, and #232's
-// reason for being invisible: no fixture in the corpus could generate it, so
-// every scan read `mismatch 0` over it.
+// History, because both halves of it are worth keeping:
 //
-// **What c2 does that `emit_data_obj` did not.** Rule S1 puts `.bss` *between*
-// the two `.XBLD$W` watermarks, and that is right when the `.bss` object has
-// EXTERNAL linkage. When it holds an internal-linkage object, c2 puts `.bss`
-// **before both of them**:
+//   * This TU graded `mismatch` against real c2 on an **unmodified tree**, at
+//     alignment 4. Not a gap, not a refusal — wrong bytes, board **#232**'s
+//     shape, invisible to every scan because no fixture in the corpus could
+//     generate it. `w-align16` found it with a grid built for something else.
+//   * It was then fixed by REFUSING every `.bss` holding an internal-linkage
+//     object, on purpose, because the right order was a three-cell observation
+//     and not a rule.
+//   * `w-order3` derived the rule, and this file is now **byte-exact**, at
+//     `/GR /O1 /Oi /EHsc` and at `/Ox`, `/O2` and `/Od`.
 //
-//     extern:  .drectve .debug$S .XBLD$W  .bss     .XBLD$W .data     <- S1
-//     static:  .drectve .debug$S .bss     .XBLD$W  .XBLD$W .data     <- c2
+// **The rule (S1′).** Rule S1 states three insertion points as if the *kind* of
+// section chose one. It does not — the slot is chosen by which contributor
+// materialised the section first, and a `.bss` has three answers:
+//
+//     A  a STATIC first reached from a `.data` initializer  <- this file
+//            .drectve .debug$S .bss     .XBLD$W .XBLD$W .data
+//     B  an EAGER EXTERNAL  (Rule S1's middle clause)
+//            .drectve .debug$S .XBLD$W  .bss    .XBLD$W .data
+//     C  a STATIC first reached from a FUNCTION body, and every DEFERRED
+//        (dynamic-initializer) object, whatever its linkage
+//            .drectve .debug$S .XBLD$W  .XBLD$W .text   .bss
+//
+// S1's middle clause is exactly `B` and is not refuted: across 247 real
+// non-COMDAT `.bss` sections every one of the 138 in that slot contains an
+// external, and **0 of 25** purely-static sections are there.
 //
 // **Why nobody had seen it.** `wsect_drop_static.cpp` records that an
 // uninitialized *unreferenced* static is dropped by c2 entirely, and
-// `wsect_data_linkage.cpp`'s header concludes from that: *"mixed linkage is
+// `wsect_data_linkage.cpp`'s header concluded from that: *"mixed linkage is
 // unreachable in a `.bss` of a functionless TU"*. True of the cells that
 // existed. The route around the drop is to **reference** the static — a `.data`
 // initializer holding its address keeps it alive — and that is this file's third
-// line. It is one line of C++ and it had never been written.
+// line. It is one line of C++ and it had never been written. The same one-line
+// gap hid slot `C`: see `worder3_bss_slot_after_text.cpp`.
 //
-// **The same scope error hits Rule Y1.** `OBJ_DATA_BSS_SHAPE.md` §6.2's static
-// and mixed-linkage `.bss` rows are real objs — from TUs **with functions**,
-// which is what keeps *their* statics alive. `emit_data_obj` only ever runs on
-// functionless TUs, so it was reading both S1 and Y1 outside every cell that
-// fitted them. With a real functionless mixed-linkage `.bss`
-// (`work/w-align16/diag/cells/D07_mixed_bss_reloc.cpp`) c2 emits the EXTERNAL
-// `.bss` symbol *after the following section's group* and puts the static at
-// offset 0 — neither Y1's order nor its walk. Y1's extern-only half is untouched
-// and keeps its 89 real sections; whether its mixed row still holds for a TU
-// with functions is open and this lane did not test it.
+// **Rule Y1's STATIC clause is wrong here and is no longer applied.** Every cell
+// behind it is a TU *with functions*, which is what keeps *their* statics alive;
+// this writer only ever serves functionless TUs. `worder3_bss_slot_y3.cpp` is
+// the witness for the replacement, Rule Y3. Y1's EXTERNAL clause is in scope and
+// untouched.
 //
-// `emit_data_obj` now refuses any `.bss` holding an internal-linkage object.
-// **The fix is a refusal and not a reorder on purpose**: the correct order is a
-// three-cell observation, and Rule S1 belongs to board #174 with its own grid.
-//
-// This cell is at alignment 4, so it grades the refusal **without** depending on
-// one byte of #1120. `work/w-align16/cells/A11_static_align16.cpp` is the same
-// shape at 16 and is how it was found.
+// This cell is at alignment 4, so it grades slot `A` **without** depending on one
+// byte of #1120. `work/w-align16/cells/A11_static_align16.cpp` is the same shape
+// at 16 and is how it was found; `work/w-order3/cells/O10` and `O11` are 8 and
+// 16 and both convert too.
 
 struct A{int a;};
 static A g;
