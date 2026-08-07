@@ -1,0 +1,149 @@
+quarantine: 21 TUs
+    src/keygen_xbox.cpp
+    src/lazer/game/PartyModeMgr.cpp
+    src/lazer/meta_ham/CalibrationPanel.cpp
+    src/lazer/meta_ham/Challenges.cpp
+    src/lazer/meta_ham/DifficultyProvider.cpp
+    src/lazer/meta_ham/HamStoreOffer.cpp
+    src/system/os/Archive.cpp
+    src/system/os/FileCache.cpp
+    src/system/os/HolmesClient_NetSocket.cpp
+    src/system/os/Joypad.cpp
+    src/system/os/Keyboard_Xbox.cpp
+    src/system/rndobj/TexProc.cpp
+    src/system/synth/FxSendEQ.cpp
+    src/system/synth_xbox/FxSendEQ.cpp
+    src/system/synth_xbox/soundtouch/source/SoundTouch/FIRFilter.cpp
+    src/system/ui/LocalePanel.cpp
+    src/system/ui/PanelDir.cpp
+    src/system/ui/UIListMesh.cpp
+    src/system/ui/UIListWidget.cpp
+    src/system/utl/Compress.cpp
+    src/system/utl/Option.cpp
+
+== FITTING / SCORING POPULATIONS — must be DISJOINT ==
+  work/w-db/cacheidx.tsv (the 850 model corpus)    |pop|    850   inter  0   OK
+  magnitude/truthlist.txt (every truth read, 857)  |pop|    857   inter  0   OK
+  w-emitpred DEV (truth-open, 8)                   |pop|      8   inter  0   OK
+
+== CONTROLS — the 21 MUST appear, or the test cannot fail ==
+  magnitude/tus.txt (878 workload)                 |pop|    878   inter 21   OK
+        src/keygen_xbox.cpp
+        src/lazer/game/PartyModeMgr.cpp
+        src/lazer/meta_ham/CalibrationPanel.cpp
+        src/lazer/meta_ham/Challenges.cpp
+        src/lazer/meta_ham/DifficultyProvider.cpp
+        src/lazer/meta_ham/HamStoreOffer.cpp
+        src/system/os/Archive.cpp
+        src/system/os/FileCache.cpp
+        src/system/os/HolmesClient_NetSocket.cpp
+        src/system/os/Joypad.cpp
+        src/system/os/Keyboard_Xbox.cpp
+        src/system/rndobj/TexProc.cpp
+        src/system/synth/FxSendEQ.cpp
+        src/system/synth_xbox/FxSendEQ.cpp
+        src/system/synth_xbox/soundtouch/source/SoundTouch/FIRFilter.cpp
+        src/system/ui/LocalePanel.cpp
+        src/system/ui/PanelDir.cpp
+        src/system/ui/UIListMesh.cpp
+        src/system/ui/UIListWidget.cpp
+        src/system/utl/Compress.cpp
+        src/system/utl/Option.cpp
+  dc3-workload/files.txt (878 workload)            |pop|    878   inter 21   OK
+        src/keygen_xbox.cpp
+        src/lazer/game/PartyModeMgr.cpp
+        src/lazer/meta_ham/CalibrationPanel.cpp
+        src/lazer/meta_ham/Challenges.cpp
+        src/lazer/meta_ham/DifficultyProvider.cpp
+        src/lazer/meta_ham/HamStoreOffer.cpp
+        src/system/os/Archive.cpp
+        src/system/os/FileCache.cpp
+        src/system/os/HolmesClient_NetSocket.cpp
+        src/system/os/Joypad.cpp
+        src/system/os/Keyboard_Xbox.cpp
+        src/system/rndobj/TexProc.cpp
+        src/system/synth/FxSendEQ.cpp
+        src/system/synth_xbox/FxSendEQ.cpp
+        src/system/synth_xbox/soundtouch/source/SoundTouch/FIRFilter.cpp
+        src/system/ui/LocalePanel.cpp
+        src/system/ui/PanelDir.cpp
+        src/system/ui/UIListMesh.cpp
+        src/system/ui/UIListWidget.cpp
+        src/system/utl/Compress.cpp
+        src/system/utl/Option.cpp
+
+== TRUTH ARTIFACTS ON DISK — must not exist for a quarantined TU ==
+  work/w-emit/truth/*.txt                          files   1700   inter  0   OK
+  work/emitpred-truth/*.txt                        files   1700   inter  0   OK
+  work/emitpred-truth/*.meta                       files   1700   inter  0   OK
+
+== EVERY scan*.jsonl ON DISK, classified ==
+  gap-scan   work/dc3-workload/scan-10pct.jsonl   rows    878  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-1137.jsonl    rows    878  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-1302.jsonl    rows    878  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-1359.jsonl    rows    878  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-1534.jsonl    rows    878  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-1650.jsonl    rows    878  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-20260729-w13b.jsonl rows    878  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-20260729.jsonl rows    878  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-20260730.jsonl rows    878  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-all.jsonl     rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-b36a046.jsonl rows    878  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-cacheroot.jsonl rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-designer-20260730.jsonl rows    878  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-dllexp.jsonl  rows    878  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-emitrank.jsonl rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-final.jsonl   rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-final2.jsonl  rows    878  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-leb.jsonl     rows    878  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-master-final.jsonl rows    878  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-merged-20260731.jsonl rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-paramreg-20260730.jsonl rows    878  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-paramreg2-20260730.jsonl rows    878  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-post-wvb.jsonl rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-t1.jsonl      rows    878  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-varargs.jsonl rows    878  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-wda.jsonl     rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-wehms.jsonl   rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan-wland2.jsonl  rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/dc3-workload/scan.jsonl         rows    878  inter 21  emit-set keys: NONE
+  gap-scan   work/w-afail/scan-afail.jsonl        rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-base.jsonl         rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-convert.jsonl      rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-final.jsonl        rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-op_09.jsonl        rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-op_0A.jsonl        rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-op_0B.jsonl        rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-op_0C.jsonl        rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-op_0D.jsonl        rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-op_1F.jsonl        rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-op_20.jsonl        rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-op_22.jsonl        rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-op_23.jsonl        rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-op_26.jsonl        rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-op_27.jsonl        rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-op_28.jsonl        rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-op_30.jsonl        rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-op_32.jsonl        rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-op_35.jsonl        rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-op_38.jsonl        rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-op_39.jsonl        rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-type.jsonl         rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-build/scan-w70.jsonl          rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-convert/scan-final.jsonl      rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-dclass/scan-base.jsonl        rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-dclass/scan-final.jsonl       rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/w-emit/scan-wemit.jsonl         rows    879  inter 21  emit-set keys: NONE
+  gap-scan   work/wdisp-scan/scan.jsonl           rows    879  inter 21  emit-set keys: NONE
+
+  classified: 0 EMIT-MODEL scans, 57 harness gap scans
+  NOTE — an EMIT-MODEL scan jsonl is a REGENERATED artifact and
+  none is committed, so `0` here is an ABSENCE and is NOT the
+  disjointness evidence.  The evidence is one line above: every
+  emit-model scan takes `work/w-db/cacheidx.tsv` as its ONLY TU
+  list (w-emitp/scan.py `main()`, w-emitp2/scan2.py,
+  w-inread/scan2w.py all read argv[1] = that file and nothing
+  else), and that file's intersection with the quarantine is 0.
+  A model scan cannot reach a TU its input list does not name.
+
+VIOLATIONS: 0 
