@@ -1,0 +1,103 @@
+FIT-SIDE PROBE  TUs ok 650  err 0   JFP_ALIAS exact 238/650
+owner states   LIVE 29540   WANTED 470   IDLE 507206
+
+== the false-negative residual by name class ==
+  free / file-scope function                                   11275  0.8364
+  `$` in qualified name (template instantiation OR adjustor thunk)    1295  0.0961
+  undecorated (extern "C" / CRT)                                 649  0.0481
+  non-virtual member                                             102  0.0076
+  VIRTUAL member  (reached only via a vtable slot)               100  0.0074
+  ??_G/??_E deleting dtor  (vtable slot, SYNTHESIZED, #152)       38  0.0028
+  other (0)                                                       11  0.0008
+  static member                                                    6  0.0004
+  other (2)                                                        4  0.0003
+  other (1)                                                        1  0.0001
+  TOTAL                                                        13481
+
+== owner features: WANTED vs IDLE (LIVE shown for scale) ==
+  a predicate is only useful where WANTED is high and IDLE is low
+  -- cls
+     `$` in qualified name (template instantiation OR adjustor thunk) WANTED       0  IDLE      617  LIVE        1   W/(W+I) 0.0000
+     other ()                   WANTED       0  IDLE     7182  LIVE      210   W/(W+I) 0.0000
+     other (0)                  WANTED       0  IDLE        6  LIVE       21   W/(W+I) 0.0000
+     other (1)                  WANTED       0  IDLE        1  LIVE       10   W/(W+I) 0.0000
+     other (2)                  WANTED       0  IDLE        3  LIVE       12   W/(W+I) 0.0000
+     other (3)                  WANTED     330  IDLE       13  LIVE       80   W/(W+I) 0.9621
+     other (7)                  WANTED       0  IDLE     5871  LIVE      597   W/(W+I) 0.0000
+     other (@)                  WANTED       0  IDLE     5905  LIVE      255   W/(W+I) 0.0000
+     undecorated (extern "C" / CRT) WANTED       0  IDLE      652  LIVE        4   W/(W+I) 0.0000
+     vftable / RTTI             WANTED     140  IDLE   486956  LIVE    28350   W/(W+I) 0.0003
+  -- cv
+     -                          WANTED     140  IDLE   507193  LIVE    29460   W/(W+I) 0.0003
+     A                          WANTED     330  IDLE       12  LIVE       67   W/(W+I) 0.9649
+     B                          WANTED       0  IDLE        1  LIVE       13   W/(W+I) 0.0000
+  -- f20b00(0x1)
+     1                          WANTED     470  IDLE   507206  LIVE    29540   W/(W+I) 0.0009
+  -- f20b01(0x2)
+     0                          WANTED     470  IDLE   507206  LIVE    29540   W/(W+I) 0.0009
+  -- f20b02(0x4)
+     0                          WANTED     470  IDLE   507206  LIVE    29540   W/(W+I) 0.0009
+  -- f20b03(0x8)
+     0                          WANTED     470  IDLE   507206  LIVE    29540   W/(W+I) 0.0009
+  -- f20b04(0x10)
+     0                          WANTED     470  IDLE   507206  LIVE    29540   W/(W+I) 0.0009
+  -- f20b05(0x20)
+     0                          WANTED     470  IDLE   507206  LIVE    29540   W/(W+I) 0.0009
+  -- f20b06(0x40)
+     0                          WANTED     470  IDLE   507206  LIVE    29540   W/(W+I) 0.0009
+  -- f20b07(0x80)
+     0                          WANTED     470  IDLE   507206  LIVE    29540   W/(W+I) 0.0009
+  -- f20b08(0x100)
+     0                          WANTED     470  IDLE   456445  LIVE    26157   W/(W+I) 0.0010
+     1                          WANTED       0  IDLE    50761  LIVE     3383   W/(W+I) 0.0000
+  -- f20b09(0x200)
+     0                          WANTED     470  IDLE   454581  LIVE    26222   W/(W+I) 0.0010
+     1                          WANTED       0  IDLE    52625  LIVE     3318   W/(W+I) 0.0000
+  -- f20b10(0x400)
+     0                          WANTED     351  IDLE   194448  LIVE    11888   W/(W+I) 0.0018
+     1                          WANTED     119  IDLE   312758  LIVE    17652   W/(W+I) 0.0004
+  -- f20b11(0x800)
+     0                          WANTED     358  IDLE   257470  LIVE    13633   W/(W+I) 0.0014
+     1                          WANTED     112  IDLE   249736  LIVE    15907   W/(W+I) 0.0004
+  -- f20b12(0x1000)
+     0                          WANTED     346  IDLE   107950  LIVE     6027   W/(W+I) 0.0032
+     1                          WANTED     124  IDLE   399256  LIVE    23513   W/(W+I) 0.0003
+  -- f20b13(0x2000)
+     0                          WANTED     451  IDLE   445539  LIVE    26815   W/(W+I) 0.0010
+     1                          WANTED      19  IDLE    61667  LIVE     2725   W/(W+I) 0.0003
+  -- f20b14(0x4000)
+     0                          WANTED     417  IDLE   494599  LIVE    28439   W/(W+I) 0.0008
+     1                          WANTED      53  IDLE    12607  LIVE     1101   W/(W+I) 0.0042
+  -- f20b15(0x8000)
+     0                          WANTED     470  IDLE   507206  LIVE    29538   W/(W+I) 0.0009
+     1                          WANTED       0  IDLE        0  LIVE        2   W/(W+I) 0.0000
+  -- f20b16(0x10000)
+     0                          WANTED     470  IDLE   507108  LIVE    29534   W/(W+I) 0.0009
+     1                          WANTED       0  IDLE       98  LIVE        6   W/(W+I) 0.0000
+  -- f20b17(0x20000)
+     0                          WANTED     135  IDLE   506547  LIVE    29454   W/(W+I) 0.0003
+     1                          WANTED     335  IDLE      659  LIVE       86   W/(W+I) 0.3370
+  -- f20b18(0x40000)
+     0                          WANTED     137  IDLE   506818  LIVE    29512   W/(W+I) 0.0003
+     1                          WANTED     333  IDLE      388  LIVE       28   W/(W+I) 0.4619
+  -- f20b19(0x80000)
+     0                          WANTED     469  IDLE   506907  LIVE    29470   W/(W+I) 0.0009
+     1                          WANTED       1  IDLE      299  LIVE       70   W/(W+I) 0.0033
+  -- f4d
+     0x00                       WANTED     470  IDLE   507206  LIVE    29540   W/(W+I) 0.0009
+  -- inU
+     no                         WANTED     470  IDLE   507206  LIVE    29540   W/(W+I) 0.0009
+  -- kind
+     1                          WANTED     470  IDLE   507206  LIVE    29540   W/(W+I) 0.0009
+  -- nptr
+     0                          WANTED       0  IDLE     7156  LIVE      711   W/(W+I) 0.0000
+     1                          WANTED       1  IDLE   182556  LIVE    11945   W/(W+I) 0.0000
+     17-64                      WANTED     391  IDLE     7992  LIVE      945   W/(W+I) 0.0466
+     2-4                        WANTED       6  IDLE   268526  LIVE    13894   W/(W+I) 0.0000
+     5-16                       WANTED      72  IDLE    40939  LIVE     2038   W/(W+I) 0.0018
+     65+                        WANTED       0  IDLE       37  LIVE        7   W/(W+I) 0.0000
+  -- sc
+     0x00                       WANTED     470  IDLE   507206  LIVE    29540   W/(W+I) 0.0009
+  -- tag
+     0x01                       WANTED       1  IDLE   424127  LIVE    24994   W/(W+I) 0.0000
+     0x02                       WANTED     469  IDLE    83079  LIVE     4546   W/(W+I) 0.0056

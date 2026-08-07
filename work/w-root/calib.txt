@@ -1,0 +1,6 @@
+INCREMENT CALIBRATION   rule M3A   over 200 TUs
+  roots added                     138   (0.690 per TU)
+  predictions ADDED              3881
+  ...of which EMITTED            3881   = 1.00000
+  predictions REMOVED               0   (MUST be 0 -- a seed addition to a least fixpoint is monotone)
+  base rate |E|/|P0| for scale         1.11517

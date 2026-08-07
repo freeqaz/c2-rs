@@ -1,0 +1,212 @@
+population              200
+graded TUs in factors   871   (B^C over all graded = 151)
+population not graded   0
+DENOMINATOR |B^C n pop| 31
+
+NOROOT           exact   70   reach   26
+ALLW             exact    8   reach    8   REACH gained 0  LOST 18
+     REACH LOST  src/system/dsp/BitCrushEffect.cpp
+     REACH LOST  src/system/dsp/DelayEffect.cpp
+     REACH LOST  src/system/dsp/WahEffect.cpp
+     REACH LOST  src/system/math/Key.cpp
+     REACH LOST  src/system/midi/DisplayEvents.cpp
+     REACH LOST  src/system/obj/PropSync.cpp
+     REACH LOST  src/system/os/DateTime.cpp
+     REACH LOST  src/system/os/System_Xbox.cpp
+     REACH LOST  src/system/rndobj/ColorXfm.cpp
+     REACH LOST  src/system/rndobj/ShaderProgram.cpp
+     REACH LOST  src/system/synth_xbox/PitchDetector.cpp
+     REACH LOST  src/system/utl/DeJitter.cpp
+     REACH LOST  src/system/utl/DebugGraph.cpp
+     REACH LOST  src/system/utl/JsonEncode.cpp
+     REACH LOST  src/system/utl/Licenses.cpp
+     REACH LOST  src/system/utl/MBT.cpp
+     REACH LOST  src/system/utl/Profiler.cpp
+     REACH LOST  src/system/utl/VarTimer.cpp
+F20_1000         exact    9   reach    8   REACH gained 0  LOST 18
+     REACH LOST  src/system/dsp/BitCrushEffect.cpp
+     REACH LOST  src/system/dsp/DelayEffect.cpp
+     REACH LOST  src/system/dsp/WahEffect.cpp
+     REACH LOST  src/system/math/Key.cpp
+     REACH LOST  src/system/midi/DisplayEvents.cpp
+     REACH LOST  src/system/obj/PropSync.cpp
+     REACH LOST  src/system/os/DateTime.cpp
+     REACH LOST  src/system/os/System_Xbox.cpp
+     REACH LOST  src/system/rndobj/ColorXfm.cpp
+     REACH LOST  src/system/rndobj/ShaderProgram.cpp
+     REACH LOST  src/system/synth_xbox/PitchDetector.cpp
+     REACH LOST  src/system/utl/DeJitter.cpp
+     REACH LOST  src/system/utl/DebugGraph.cpp
+     REACH LOST  src/system/utl/JsonEncode.cpp
+     REACH LOST  src/system/utl/Licenses.cpp
+     REACH LOST  src/system/utl/MBT.cpp
+     REACH LOST  src/system/utl/Profiler.cpp
+     REACH LOST  src/system/utl/VarTimer.cpp
+F20_2000         exact   52   reach   24   REACH gained 0  LOST 2
+     REACH LOST  src/system/os/System_Xbox.cpp
+     REACH LOST  src/system/rndobj/ShaderProgram.cpp
+F20_20000        exact   90   reach   28   REACH gained 2  LOST 0
+     reach gain  src/system/gesture/Gesture.cpp
+     reach gain  src/system/ui/UIListState.cpp
+F20_400          exact    8   reach    8   REACH gained 0  LOST 18
+     REACH LOST  src/system/dsp/BitCrushEffect.cpp
+     REACH LOST  src/system/dsp/DelayEffect.cpp
+     REACH LOST  src/system/dsp/WahEffect.cpp
+     REACH LOST  src/system/math/Key.cpp
+     REACH LOST  src/system/midi/DisplayEvents.cpp
+     REACH LOST  src/system/obj/PropSync.cpp
+     REACH LOST  src/system/os/DateTime.cpp
+     REACH LOST  src/system/os/System_Xbox.cpp
+     REACH LOST  src/system/rndobj/ColorXfm.cpp
+     REACH LOST  src/system/rndobj/ShaderProgram.cpp
+     REACH LOST  src/system/synth_xbox/PitchDetector.cpp
+     REACH LOST  src/system/utl/DeJitter.cpp
+     REACH LOST  src/system/utl/DebugGraph.cpp
+     REACH LOST  src/system/utl/JsonEncode.cpp
+     REACH LOST  src/system/utl/Licenses.cpp
+     REACH LOST  src/system/utl/MBT.cpp
+     REACH LOST  src/system/utl/Profiler.cpp
+     REACH LOST  src/system/utl/VarTimer.cpp
+F20_4000         exact   14   reach   10   REACH gained 0  LOST 16
+     REACH LOST  src/system/dsp/BitCrushEffect.cpp
+     REACH LOST  src/system/dsp/DelayEffect.cpp
+     REACH LOST  src/system/dsp/WahEffect.cpp
+     REACH LOST  src/system/math/Key.cpp
+     REACH LOST  src/system/midi/DisplayEvents.cpp
+     REACH LOST  src/system/obj/PropSync.cpp
+     REACH LOST  src/system/os/DateTime.cpp
+     REACH LOST  src/system/os/System_Xbox.cpp
+     REACH LOST  src/system/rndobj/ColorXfm.cpp
+     REACH LOST  src/system/rndobj/ShaderProgram.cpp
+     REACH LOST  src/system/utl/DeJitter.cpp
+     REACH LOST  src/system/utl/DebugGraph.cpp
+     REACH LOST  src/system/utl/Licenses.cpp
+     REACH LOST  src/system/utl/MBT.cpp
+     REACH LOST  src/system/utl/Profiler.cpp
+     REACH LOST  src/system/utl/VarTimer.cpp
+F20_40000        exact   92   reach   28   REACH gained 2  LOST 0
+     reach gain  src/system/gesture/Gesture.cpp
+     reach gain  src/system/ui/UIListState.cpp
+M3               exact  132   reach   31   REACH gained 5  LOST 0
+     reach gain  src/lazer/meta_ham/SkillsAwardList.cpp
+     reach gain  src/system/gesture/Gesture.cpp
+     reach gain  src/system/moviebink/BinkMovieSys_Xbox.cpp
+     reach gain  src/system/ui/UIListState.cpp
+     reach gain  src/system/world/World.cpp
+M3A              exact  132   reach   31   REACH gained 5  LOST 0
+     reach gain  src/lazer/meta_ham/SkillsAwardList.cpp
+     reach gain  src/system/gesture/Gesture.cpp
+     reach gain  src/system/moviebink/BinkMovieSys_Xbox.cpp
+     reach gain  src/system/ui/UIListState.cpp
+     reach gain  src/system/world/World.cpp
+M3A_F4000        exact   70   reach   26   REACH gained 0  LOST 0
+M3A_F40000       exact  132   reach   31   REACH gained 5  LOST 0
+     reach gain  src/lazer/meta_ham/SkillsAwardList.cpp
+     reach gain  src/system/gesture/Gesture.cpp
+     reach gain  src/system/moviebink/BinkMovieSys_Xbox.cpp
+     reach gain  src/system/ui/UIListState.cpp
+     reach gain  src/system/world/World.cpp
+M3A_OR_F40000    exact   92   reach   28   REACH gained 2  LOST 0
+     reach gain  src/system/gesture/Gesture.cpp
+     reach gain  src/system/ui/UIListState.cpp
+M3A_UNDEC        exact  132   reach   31   REACH gained 5  LOST 0
+     reach gain  src/lazer/meta_ham/SkillsAwardList.cpp
+     reach gain  src/system/gesture/Gesture.cpp
+     reach gain  src/system/moviebink/BinkMovieSys_Xbox.cpp
+     reach gain  src/system/ui/UIListState.cpp
+     reach gain  src/system/world/World.cpp
+M3B              exact   70   reach   26   REACH gained 0  LOST 0
+NOTRTTI          exact    9   reach    8   REACH gained 0  LOST 18
+     REACH LOST  src/system/dsp/BitCrushEffect.cpp
+     REACH LOST  src/system/dsp/DelayEffect.cpp
+     REACH LOST  src/system/dsp/WahEffect.cpp
+     REACH LOST  src/system/math/Key.cpp
+     REACH LOST  src/system/midi/DisplayEvents.cpp
+     REACH LOST  src/system/obj/PropSync.cpp
+     REACH LOST  src/system/os/DateTime.cpp
+     REACH LOST  src/system/os/System_Xbox.cpp
+     REACH LOST  src/system/rndobj/ColorXfm.cpp
+     REACH LOST  src/system/rndobj/ShaderProgram.cpp
+     REACH LOST  src/system/synth_xbox/PitchDetector.cpp
+     REACH LOST  src/system/utl/DeJitter.cpp
+     REACH LOST  src/system/utl/DebugGraph.cpp
+     REACH LOST  src/system/utl/JsonEncode.cpp
+     REACH LOST  src/system/utl/Licenses.cpp
+     REACH LOST  src/system/utl/MBT.cpp
+     REACH LOST  src/system/utl/Profiler.cpp
+     REACH LOST  src/system/utl/VarTimer.cpp
+NPTR_GE17        exact   14   reach   10   REACH gained 0  LOST 16
+     REACH LOST  src/system/dsp/BitCrushEffect.cpp
+     REACH LOST  src/system/dsp/DelayEffect.cpp
+     REACH LOST  src/system/dsp/WahEffect.cpp
+     REACH LOST  src/system/math/Key.cpp
+     REACH LOST  src/system/midi/DisplayEvents.cpp
+     REACH LOST  src/system/obj/PropSync.cpp
+     REACH LOST  src/system/os/DateTime.cpp
+     REACH LOST  src/system/os/System_Xbox.cpp
+     REACH LOST  src/system/rndobj/ColorXfm.cpp
+     REACH LOST  src/system/rndobj/ShaderProgram.cpp
+     REACH LOST  src/system/utl/DeJitter.cpp
+     REACH LOST  src/system/utl/DebugGraph.cpp
+     REACH LOST  src/system/utl/Licenses.cpp
+     REACH LOST  src/system/utl/MBT.cpp
+     REACH LOST  src/system/utl/Profiler.cpp
+     REACH LOST  src/system/utl/VarTimer.cpp
+NPTR_GE5         exact   14   reach   10   REACH gained 0  LOST 16
+     REACH LOST  src/system/dsp/BitCrushEffect.cpp
+     REACH LOST  src/system/dsp/DelayEffect.cpp
+     REACH LOST  src/system/dsp/WahEffect.cpp
+     REACH LOST  src/system/math/Key.cpp
+     REACH LOST  src/system/midi/DisplayEvents.cpp
+     REACH LOST  src/system/obj/PropSync.cpp
+     REACH LOST  src/system/os/DateTime.cpp
+     REACH LOST  src/system/os/System_Xbox.cpp
+     REACH LOST  src/system/rndobj/ColorXfm.cpp
+     REACH LOST  src/system/rndobj/ShaderProgram.cpp
+     REACH LOST  src/system/utl/DeJitter.cpp
+     REACH LOST  src/system/utl/DebugGraph.cpp
+     REACH LOST  src/system/utl/Licenses.cpp
+     REACH LOST  src/system/utl/MBT.cpp
+     REACH LOST  src/system/utl/Profiler.cpp
+     REACH LOST  src/system/utl/VarTimer.cpp
+TAG01            exact    9   reach    8   REACH gained 0  LOST 18
+     REACH LOST  src/system/dsp/BitCrushEffect.cpp
+     REACH LOST  src/system/dsp/DelayEffect.cpp
+     REACH LOST  src/system/dsp/WahEffect.cpp
+     REACH LOST  src/system/math/Key.cpp
+     REACH LOST  src/system/midi/DisplayEvents.cpp
+     REACH LOST  src/system/obj/PropSync.cpp
+     REACH LOST  src/system/os/DateTime.cpp
+     REACH LOST  src/system/os/System_Xbox.cpp
+     REACH LOST  src/system/rndobj/ColorXfm.cpp
+     REACH LOST  src/system/rndobj/ShaderProgram.cpp
+     REACH LOST  src/system/synth_xbox/PitchDetector.cpp
+     REACH LOST  src/system/utl/DeJitter.cpp
+     REACH LOST  src/system/utl/DebugGraph.cpp
+     REACH LOST  src/system/utl/JsonEncode.cpp
+     REACH LOST  src/system/utl/Licenses.cpp
+     REACH LOST  src/system/utl/MBT.cpp
+     REACH LOST  src/system/utl/Profiler.cpp
+     REACH LOST  src/system/utl/VarTimer.cpp
+TAG02            exact    8   reach    8   REACH gained 0  LOST 18
+     REACH LOST  src/system/dsp/BitCrushEffect.cpp
+     REACH LOST  src/system/dsp/DelayEffect.cpp
+     REACH LOST  src/system/dsp/WahEffect.cpp
+     REACH LOST  src/system/math/Key.cpp
+     REACH LOST  src/system/midi/DisplayEvents.cpp
+     REACH LOST  src/system/obj/PropSync.cpp
+     REACH LOST  src/system/os/DateTime.cpp
+     REACH LOST  src/system/os/System_Xbox.cpp
+     REACH LOST  src/system/rndobj/ColorXfm.cpp
+     REACH LOST  src/system/rndobj/ShaderProgram.cpp
+     REACH LOST  src/system/synth_xbox/PitchDetector.cpp
+     REACH LOST  src/system/utl/DeJitter.cpp
+     REACH LOST  src/system/utl/DebugGraph.cpp
+     REACH LOST  src/system/utl/JsonEncode.cpp
+     REACH LOST  src/system/utl/Licenses.cpp
+     REACH LOST  src/system/utl/MBT.cpp
+     REACH LOST  src/system/utl/Profiler.cpp
+     REACH LOST  src/system/utl/VarTimer.cpp
+TAG04            exact   70   reach   26   REACH gained 0  LOST 0
+TAG0E            exact   70   reach   26   REACH gained 0  LOST 0
+UNDEC            exact   70   reach   26   REACH gained 0  LOST 0

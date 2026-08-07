@@ -1,0 +1,9 @@
+corpus            850 TUs   sha256 43b9d76d992944fd142819b9c4484eb29d62763a923bd37ec95b1c3be51c3681
+HELD-OUT          200 TUs   sha256 44b2b5c302eafd5e868e97c6b66835fd30267f171ad47f38ea47153783a7f8a2   heldout200.txt
+FIT (remainder)   650 TUs   sha256 ec9efe1a40fc9509b8b9854cd6a73738ac8abc107e8c195494a741105e210911   fit650.txt
+disjoint          True
+covering          True
+
+selection rule    sort by sha256(src), take the first 200
+first 3 by key    ['src/system/synth_xbox/FxSendDistortion.cpp', 'src/system/meta/MemcardMgr.cpp', 'src/lazer/game/SongSequence.cpp']
+last 3 by key     ['src/system/obj/TypeProps.cpp', 'src/lazer/net_ham/KinectShare.cpp', 'src/system/hamobj/DancerSequence.cpp']
