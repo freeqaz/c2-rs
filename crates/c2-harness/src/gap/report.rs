@@ -778,6 +778,13 @@ impl GapReport {
     /// The prefix is the argument: `prefix` is `"fnbyte-blr-stop|"` or
     /// `"fnbyte-blr-stop2|"`, and one function serves both rather than two that
     /// can drift.
+    ///
+    /// **It is the GENERIC pipe-keyed histogram** and is reached under other
+    /// prefixes too — board #1053's `"fnbyte-nothing-key|"` is one. Named for its
+    /// first caller and kept that way so the rungs and board rows that cite it
+    /// still resolve; reach for it rather than writing a second `strip_prefix`
+    /// walk, which is exactly the duplication `w-relo`'s merge produced with no
+    /// conflict marker to warn anyone.
     pub fn fn_byte_blr_stops(&self, prefix: &str) -> Vec<(String, usize)> {
         let mut v: Vec<(String, usize)> = self
             .emit_histogram()

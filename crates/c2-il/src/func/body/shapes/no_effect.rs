@@ -1,6 +1,25 @@
 //! **The dead-temporary call body** — a body whose whole content is one call
 //! plus the materialization of a temporary nothing else ever reads.
 //!
+//! > # Three readers now, and the third is DIFFERENT IN KIND (board **#1053**)
+//! >
+//! > [`no_effect_call`] and [`no_effect_loop`] return a **callee token**: they
+//! > say *"this body emits nothing **provided** that callee reduces to
+//! > nothing"*, which is a **link** into E's least fixpoint and never a seed.
+//! >
+//! > [`no_effect_nothing`] returns a **bool**, because the body it reads has no
+//! > callee at all. It says *"this body emits nothing, **unconditionally**"* —
+//! > and that is a strictly stronger claim, which **SEEDS** the fixpoint.
+//! > `c2_core::elide::Reduction::NoEffectNothing` is the variant, and the
+//! > termination and cycle arguments were re-derived rather than inherited when
+//! > it was added; see that type's doc.
+//! >
+//! > The three vocabularies are **disjoint by construction**: the first two
+//! > require a call token that the third's closed vocabulary excludes, and the
+//! > third requires a statement the first two's argument walk never reaches.
+//! > `the_three_no_effect_shapes_are_disjoint` asserts it in all directions
+//! > rather than leaving it to the reading.
+//!
 //! # What this is for, and what it is NOT
 //!
 //! This is **not** a body shape the port emits. Nothing here reaches
@@ -350,6 +369,162 @@ pub(crate) fn no_effect_loop(seg: &[u8]) -> Option<u32> {
     }
     eat_return_plumbing(seg, &mut p, false, depth).ok()?;
     Some(callee_tok)
+}
+
+/// The **`void`** operand TYPE's tag/kind pair, `82 07`. It is the second literal
+/// of the pseudo-destructor statement, and the pair the census names when it
+/// refuses that body: `expr-lit-type-8207`.
+///
+/// Two bytes and not three, unlike [`INT_TYPE`]: the trailing field is a per-TU
+/// type id and pinning it would make this reader a property of one bundle's type
+/// table. The tag and the kind are what say *this literal is `void`*, and `void`
+/// is what makes it free of [`CallRet::discarded`]'s hazard.
+const VOID_TYPE: [u8; 2] = [0x82, 0x07];
+
+/// **The body that emits nothing AT ALL.** `true` when this segment's whole
+/// content is
+///
+/// ```text
+///   53                          the body scope, and NOTHING deeper
+///   <line marker>
+///   33 <INT_TYPE> <varint>      an int literal      — value unconstrained
+///   33 82 07 <id> <varint>      a VOID literal      — value and id unconstrained
+///   44                          the bind
+///   4B                          the discard
+///   <line marker>
+///   <return plumbing, to the segment end>
+/// ```
+///
+/// This is `p->~T()` on a class with a **trivial** destructor: STLport's
+/// `__destroy_aux(_pointer, __false_type)`, level 5 of board #980's chain and the
+/// production `fnbyte-blr-stop3` prices at **227**. Read out of the workload with
+/// `c2rs census --fn __destroy_aux` on `src/lazer/meta_ham/CharacterProvider.cpp`;
+/// GRID-N's `n01` is the same shape compiled standalone.
+///
+/// # This one SEEDS, and that is a different claim from the other two
+///
+/// [`no_effect_call`] and [`no_effect_loop`] hand E's fixpoint a **link**: a
+/// callee token, and a promise that is conditional on what that callee does. This
+/// hands it a **seed** — an unconditional assertion that c2 emits nothing for this
+/// function. Three things make that checkable rather than assumed:
+///
+/// 1. **The walk is TOTAL.** It begins at the body marker and ends by requiring
+///    [`eat_return_plumbing`]'s fail-closed terminal, so *every byte* of the
+///    segment is consumed by a production above. "There is nothing else in this
+///    body" is structural and not a search. Mutation **M1** removes the terminal
+///    and `trailing_bytes_after_the_nothing_statement_are_refused` goes red.
+/// 2. **The vocabulary is CLOSED, and contains no call token.** `26` (which is
+///    also the data-symbol push), `B9`, `BD`, `40`, `4C`, `67`, `9B` and every
+///    label opcode are outside it, so a body this returns `true` for **names no
+///    callee and materializes no data symbol**. That is what licenses
+///    `link = None` in `elide.rs`, which is in turn what keeps a cycle out of the
+///    seed set — see `Reduction`'s doc for the re-derivation. Mutation **M2**
+///    opens the vocabulary and 4 GRID-N cells go red.
+/// 3. **The literal TYPES are pinned and the literal VALUES are not.** A literal
+///    is pure whatever its value and the statement is discarded, so the value
+///    cannot change what is emitted — constraining it would be #644's mistake, the
+///    same one [`no_effect_call`]'s align/count/fill deliberately avoid. The type
+///    is a soundness constraint and not a fitting: a `float`/`double` literal
+///    drags `_fltused` into the TU and the obj **grows a symbol**, which is
+///    [`super::calls::CallRet::discarded`]'s reason one operand over. `int` and
+///    `void` are the two the capture carries and the only two admitted.
+///
+/// # What it deliberately does NOT accept
+///
+/// * **Two of these statements** (`n10`). Two discarded pseudo-destructors emit
+///   nothing just as one does; this is a match declined on purpose, because the
+///   shape that was graded is the one with a single statement in it.
+/// * **The same statement with a call beside it** (`n06`, `n11`). That is what
+///   keeps a cycle member out of the seed set, so it is not a conservatism that
+///   may later be relaxed for free — relaxing it costs the termination argument.
+/// * **A body refused for a different reason**, `body-0x67` above all (`n04`).
+///   That refusal is what keeps E safe from an INDIRECT call site
+///   (`docs/INLINE_PREDICATE.md` §1.3, board #921), and admitting one is board
+///   #232's shape.
+///
+/// The `44` is consumed as a **byte**, not as an operator whose arity this module
+/// claims to know. `eat_dead_temp_arg` reads the same opcode after exactly one
+/// operand and this statement carries two before it; nothing here depends on
+/// resolving that, because the whole statement is pinned as a sequence and any
+/// deviation refuses.
+pub(crate) fn no_effect_nothing(seg: &[u8]) -> bool {
+    nothing_body(seg).is_some()
+}
+
+fn nothing_body(seg: &[u8]) -> Option<()> {
+    let lo = crate::func::body_start(seg)?;
+    // Parsed and discarded: this shape names no formal. A segment whose formals
+    // region does not decode is one whose body offsets are not trustworthy either,
+    // so it refuses here rather than being walked with an empty list — the same
+    // fail-closed reason `no_effect_call` gives.
+    parse_formals(seg, lo).ok()?;
+
+    let mut p = crate::func::ops_start(seg, lo);
+    if !eat_byte(seg, &mut p, 0x53) {
+        return None;
+    }
+    let mut depth = BODY_SCOPE_DEPTH;
+    eat_scopes(seg, &mut p, &mut depth).ok()?;
+    // NOTHING deeper than the body's own scope. A body that opens one has a block
+    // this reader has not walked, and the statement walk below would read its
+    // first statement as the whole body.
+    if depth != BODY_SCOPE_DEPTH {
+        return None;
+    }
+
+    eat_opt_stmt_marker(seg, &mut p);
+    eat_nothing_stmt(seg, &mut p)?;
+    // The `}` of the statement, as a line marker — `no_effect_call`'s measured
+    // reason: the statement and the return sit on two source lines in every
+    // workload body and on one in a pinned cell.
+    eat_opt_stmt_marker(seg, &mut p);
+    // THE FAIL-CLOSED TERMINAL. This must reach the end of the segment, and it is
+    // what makes the walk total and the seed honest.
+    eat_return_plumbing(seg, &mut p, false, depth).ok()?;
+    Some(())
+}
+
+/// The one statement: two literal operands, the bind, the discard.
+fn eat_nothing_stmt(seg: &[u8], p: &mut usize) -> Option<()> {
+    let mut q = *p;
+    eat_lit_operand(seg, &mut q, &INT_TYPE)?;
+    eat_lit_operand(seg, &mut q, &VOID_TYPE)?;
+    if !eat_byte(seg, &mut q, 0x44) {
+        return None;
+    }
+    // DISCARDED. Without this the statement's value would still be wanted by
+    // whatever follows, and the walk would be reading a fragment of a larger
+    // expression as a whole body.
+    if !eat_byte(seg, &mut q, 0x4B) {
+        return None;
+    }
+    *p = q;
+    Some(())
+}
+
+/// `33 <TYPE> <varint>` where the TYPE's leading bytes are exactly `want` — a
+/// bare literal operand, with no `55` argument push after it.
+///
+/// `want` is the whole [`INT_TYPE`] triple for the first operand and `VOID_TYPE`'s
+/// tag/kind **pair** for the second; the asymmetry is deliberate and its reason is
+/// on `VOID_TYPE`.
+fn eat_lit_operand(seg: &[u8], p: &mut usize, want: &[u8]) -> Option<()> {
+    let mut q = *p;
+    if !eat_byte(seg, &mut q, 0x33) {
+        return None;
+    }
+    if seg.get(q..q + want.len())? != want {
+        return None;
+    }
+    // Walked with `read_type` and not skipped by `want.len()`: the id is a varint
+    // and the aggregate ladder moves the width, so the end of the TYPE is read off
+    // the stream rather than assumed. A wrong width here is a parse desync inside
+    // a reader that feeds an ELISION, which is the worst failure this project has.
+    let (_, _, _, w) = read_type(seg, q)?;
+    q += w;
+    read_varint(seg, &mut q)?;
+    *p = q;
+    Some(())
 }
 
 /// `<op> <token-var>` — a branch or a label, returning the token it names.
