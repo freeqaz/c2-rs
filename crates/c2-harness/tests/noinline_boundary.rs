@@ -1,0 +1,319 @@
+//! **`__declspec(noinline)` — the chain c2 does NOT close** (lane `w-target`,
+//! board **#1037**–**#1039**).
+//!
+//! `w-splice` established that c2 closes a splice chain and shipped
+//! SPLICE-0-PORT on it; `w-relo` left **861** byte-exact bodies whose relocation
+//! names the wrong function, and the standing hypothesis for #1013 is that c2's
+//! target is the port's target closed under the inline relation. On the 878-TU
+//! workload that closure converts **158** of the 861 and fires on **zero** of
+//! the 3,803 relocating bodies the judge credits today.
+//!
+//! **This file is the counterexample that stops it.** `__declspec(noinline)` is
+//! a chain c2 declines to close, and the port cannot read the attribute:
+//!
+//! | cell | port | c2 | verdict |
+//! |---|---|---|---|
+//! | `w04a` — `noinline` intermediate, caller `?f` | `b ?g` | `b ?g` | **`Exact`** — c2 did NOT close, so a closure rule would break a body that is right today |
+//! | `w04a` — the intermediate `?g` itself | `b ?ext` | `b ?ext` | `Exact` |
+//! | `w10` — `noinline` LEAF, spliced | `addi r3,r3,1 ; blr` | `b ?g` | **`Differs`** — the SHIPPED splice already gets this wrong |
+//! | `w12` — `w10` without the attribute | the callee's body | the callee's body | `Exact` — the control |
+//!
+//! # The attribute is present in the workload and the exposure is LATENT, not live
+//!
+//! `src/lazer/game/BustAMovePanel.cpp` is TU #4 of the 878 and carries three
+//! `__declspec(noinline)` functions. None of them is a body the splice reaches,
+//! so the workload reads `fnbyte-spliced 723 / -spliced-exact 723 / 0 differ`.
+//! **`w10` is therefore a demonstrated defect that this corpus does not
+//! exercise** — which is exactly the shape `CLAUDE.md`'s coverage-bounded rule
+//! warns about, and the reason it is pinned here rather than left to a scan.
+//!
+//! No obj ships wrong either way: `IlBundle::functions()` refuses any TU where a
+//! callee is also defined, which is every TU either mechanism can fire in, so
+//! `mismatch` is 0 at both ends.
+//!
+//! `SKIP: toolchain absent` when there is no toolchain, like every other
+//! integration test here.
+
+use std::collections::BTreeMap;
+use std::path::PathBuf;
+
+use c2_harness::gap::fnbytes::{grade_one, tu_empty_callees, FnByte};
+use c2_reference::Toolchain;
+
+/// The workload's own profile, minus the `/I` paths a standalone cell cannot
+/// use. `/O1` implies `/Gy`, which is the regime FBM's denominator lives in.
+const FLAGS: [&str; 8] = [
+    "/nologo", "/wd4355", "/wd4164", "/c", "/GR", "/O1", "/Oi", "/EHsc",
+];
+
+/// **GRID-W cell `w04a`** — `work/w-target/cells/w04a_noinline.cpp`. Kept as a
+/// literal rather than read from `work/`, which is gitignored: a test that
+/// silently skips because its input is not checked in is a test that reports
+/// absence as success.
+const W04A: &str = "\
+void ext();
+__declspec(noinline) void g() { ext(); }
+void f() { g(); }
+
+void ext_anchor();
+void anchor() { ext_anchor(); }
+";
+
+/// **GRID-W2 cell `w10`** — the same attribute on a leaf the splice DOES reach.
+const W10: &str = "\
+int gsink;
+__declspec(noinline) int g(int a) { return a + 1; }
+int f(int a) { return g(a); }
+
+void ext_anchor();
+void anchor() { ext_anchor(); }
+";
+
+/// **GRID-W2 cell `w12`** — `w10` without the attribute. The negative control,
+/// in its own TU: a grid with only the suspicious cell cannot tell "the rule is
+/// wrong here" from "the rule is off in this build".
+const W12: &str = "\
+int gsink;
+int g(int a) { return a + 1; }
+int f(int a) { return g(a); }
+
+void ext_anchor();
+void anchor() { ext_anchor(); }
+";
+
+/// **One directory per cell, and that is not tidiness.** The first version of
+/// this file gave every test one shared directory keyed on the process id;
+/// `cargo test` runs the four in parallel threads of the *same* process, so the
+/// captures raced and `?f@@YAXXZ` was graded against another cell's obj. The
+/// failure presented as *"the attribute is visible in `.ex`"* — a false finding
+/// that would have reversed this lane's conclusion. `work/w-target/nicmp2.sh`
+/// re-measured it serially: `.ex`, `.sy`, `.in` and `.db` are byte-identical on
+/// **both** shapes and only `.gl` moves, by 2 bytes.
+///
+/// Recorded as a defect of this file's first version, not as a design.
+fn work(cell: &str) -> PathBuf {
+    let d = std::env::temp_dir().join(format!("c2rs-w-target-{}-{cell}", std::process::id()));
+    std::fs::create_dir_all(&d).unwrap();
+    d
+}
+
+/// Grade every emitted `.text` COMDAT of one cell on the FULL identity — bytes
+/// **and** relocations — through the scan's own `grade_one`, never a copy.
+fn grade(tc: &Toolchain, tag: &str, src_text: &str) -> Vec<(&'static str, FnByte, String)> {
+    let dir = work(tag);
+    let cpp = dir.join(format!("{tag}.cpp"));
+    std::fs::write(&cpp, src_text).unwrap();
+    let flags: Vec<String> = FLAGS.iter().map(|s| s.to_string()).collect();
+    let src = c2_reference::to_wibo_path(&cpp);
+    let Ok(cap) = tc.capture_reference_with(&src, &dir, &flags, None) else {
+        return Vec::new();
+    };
+    let (Some(census), Some(entries)) = (
+        cap.bundle.census_functions(),
+        cap.ref_obj.text_comdat_functions_with_bytes(),
+    ) else {
+        return Vec::new();
+    };
+    let mut claim: BTreeMap<&str, Vec<usize>> = BTreeMap::new();
+    for (i, (f, _)) in census.iter().enumerate() {
+        // #918: the binding is `emit_name`, never `mangled_name`.
+        if let Some(n) = f.emit_name.as_deref() {
+            claim.entry(n).or_default().push(i);
+        }
+    }
+    let tu = tu_empty_callees(&census);
+    let rel = cap.ref_obj.text_comdat_relocs();
+    assert!(
+        rel.is_some(),
+        "the reference obj's .text relocation table did not decode — no verdict \
+         in this cell means anything, and reading that as a pass is exactly the \
+         defect `w-relo` closed"
+    );
+    let mut out = Vec::new();
+    for (idx, (sym, bytes)) in entries.iter().enumerate() {
+        let row = match claim.get(sym.as_str()).map(Vec::as_slice) {
+            Some([i]) => Some(&census[*i]),
+            _ => None,
+        };
+        let rr = rel.as_ref().and_then(|v| v.get(idx)).map(|(_, r)| r.as_slice());
+        let g = grade_one(row, Some(bytes.as_slice()), &tu, rr);
+        out.push((g.shape, g.verdict, sym.clone()));
+    }
+    out
+}
+
+fn find<'a>(
+    rows: &'a [(&'static str, FnByte, String)],
+    sym: &str,
+) -> &'a (&'static str, FnByte, String) {
+    rows.iter().find(|r| r.2 == sym).unwrap_or_else(|| {
+        panic!(
+            "no `{sym}` COMDAT in the reference obj — the capture produced {} \
+             functions and none of them is the one this test grades: {:?}",
+            rows.len(),
+            rows.iter().map(|r| &r.2).collect::<Vec<_>>()
+        )
+    })
+}
+
+/// **THE COUNTEREXAMPLE.** `?f` calls a `noinline` `?g`; c2 obeys the attribute
+/// and emits `b ?g`, exactly as the port does. The body is `48000000` on both
+/// sides and the relocation names the same symbol — so this function is
+/// **`Exact` today**, and a rule that closed the chain would rename its target
+/// to `?ext` and take it out of the credited count.
+///
+/// This is `w-target`'s registered unconditional stop, on one compiled obj.
+#[test]
+fn c2_does_not_close_a_chain_through_a_noinline_intermediate() {
+    let Some(tc) = Toolchain::locate() else {
+        println!("SKIP: toolchain absent");
+        return;
+    };
+    let rows = grade(&tc, "w04a", W04A);
+    if rows.is_empty() {
+        println!("SKIP: capture produced no graded function");
+        return;
+    }
+    let f = find(&rows, "?f@@YAXXZ");
+    assert_eq!(
+        f.1,
+        FnByte::Exact,
+        "`?f@@YAXXZ` must be Exact: c2 declined to inline the `noinline` `?g`, \
+         so both sides branch to `?g`. If this ever reads RelocDiffers, c2 has \
+         started closing this chain and #1013's closure rule is unblocked"
+    );
+    assert_eq!(f.0, "tail", "the shape behind the verdict");
+    // The inverse, on the same obj: without the attribute in the way, `?g`'s own
+    // branch to the external is right on both sides. A cell where everything is
+    // Exact cannot distinguish "c2 declined" from "the grader is asleep", so the
+    // anchor is asserted too.
+    for sym in ["?g@@YAXXZ", "?anchor@@YAXXZ"] {
+        let r = find(&rows, sym);
+        assert_eq!(r.1, FnByte::Exact, "`{sym}` is byte- and relocation-exact");
+    }
+}
+
+/// **AN OPEN GAP, PINNED.** The shipped `SPLICE-0-PORT` fires through a
+/// `noinline` leaf and emits the callee's body where c2 emits a branch — two
+/// words against one, zero words equal, and the port emits no relocation where
+/// c2 emits a `REL24` against `?g`.
+///
+/// # This test asserts the WRONG behaviour on purpose
+///
+/// It is a characterization test for board **#1038**. When the port learns to
+/// read the attribute the assertion below goes red, and the commit that fixes
+/// it updates this test in the same change — which is the point: the alternative
+/// is a defect that is demonstrated in a rung and then quietly forgotten,
+/// because the 878-TU workload does not exercise it (`fnbyte-spliced-exact` is
+/// 723 of 723).
+#[test]
+fn the_shipped_splice_emits_the_wrong_body_through_a_noinline_callee() {
+    let Some(tc) = Toolchain::locate() else {
+        println!("SKIP: toolchain absent");
+        return;
+    };
+    let rows = grade(&tc, "w10", W10);
+    if rows.is_empty() {
+        println!("SKIP: capture produced no graded function");
+        return;
+    }
+    let f = find(&rows, "?f@@YAHH@Z");
+    match f.1 {
+        FnByte::Differs {
+            port_words,
+            ref_words,
+            equal_words,
+        } => {
+            assert_eq!(
+                (port_words, ref_words, equal_words),
+                (2, 1, 0),
+                "the port splices `?g`'s two-word body in where c2 emits one \
+                 branch word; if these counts move, the gap has changed shape \
+                 and #1038 needs re-reading rather than re-asserting"
+            );
+        }
+        other => panic!(
+            "`?f@@YAHH@Z` read {other:?}. If it is now Exact, board #1038 is \
+             CLOSED — the port has learned `__declspec(noinline)`. Update this \
+             test and the rung in the same commit; do not delete it"
+        ),
+    }
+}
+
+/// **THE CONTROL for the test above**, in its own TU. The identical source
+/// without the attribute splices to a byte-exact body — so the red verdict above
+/// is the attribute's doing and not the splice's.
+#[test]
+fn the_same_cell_without_the_attribute_splices_byte_exactly() {
+    let Some(tc) = Toolchain::locate() else {
+        println!("SKIP: toolchain absent");
+        return;
+    };
+    let rows = grade(&tc, "w12", W12);
+    if rows.is_empty() {
+        println!("SKIP: capture produced no graded function");
+        return;
+    }
+    let f = find(&rows, "?f@@YAHH@Z");
+    assert_eq!(
+        f.1,
+        FnByte::Exact,
+        "without `noinline`, c2 inlines `?g` into `?f` and the shipped splice \
+         emits exactly that. A red verdict here would mean the splice is broken \
+         generally and the `noinline` cell above is measuring the wrong thing"
+    );
+}
+
+/// **WHY THE PORT CANNOT SIMPLY REFUSE THE ATTRIBUTE.** The two sources differ
+/// only by `__declspec(noinline)` and are given **the same filename length**,
+/// because the `.gl` embeds the source path and an unmatched pair would show a
+/// difference that is the path and not the attribute.
+///
+/// `.ex` (the bodies), `.sy` and `.in` come back **byte-identical**; only `.gl`
+/// moves, and by 2 bytes. `docs/OPT_MODE.md` §2 already records that the opt
+/// word does not move either. So no clause over the body IL can separate the two
+/// cases, and the discriminator is an undecoded `.gl` field — board **#1039**.
+#[test]
+fn the_attribute_is_invisible_outside_the_gl_record() {
+    let Some(tc) = Toolchain::locate() else {
+        println!("SKIP: toolchain absent");
+        return;
+    };
+    let dir = work("ilpair");
+    let flags: Vec<String> = FLAGS.iter().map(|s| s.to_string()).collect();
+    let mut caps = Vec::new();
+    // Same length, so the embedded path contributes the same byte count.
+    for (name, text) in [("aaaaaaaaaaaaa", W12), ("bbbbbbbbbbbbb", W10)] {
+        let cpp = dir.join(format!("{name}.cpp"));
+        std::fs::write(&cpp, text).unwrap();
+        let src = c2_reference::to_wibo_path(&cpp);
+        let Ok(cap) = tc.capture_reference_with(&src, &dir, &flags, None) else {
+            println!("SKIP: capture failed");
+            return;
+        };
+        caps.push(cap);
+    }
+    for part in ["ex", "sy", "in"] {
+        let a = caps[0].bundle.get(part);
+        let b = caps[1].bundle.get(part);
+        assert!(
+            a.is_some() && b.is_some(),
+            "`.{part}` missing from a capture — an absent file compares equal to \
+             another absent file, which would make this test pass by silence"
+        );
+        assert_eq!(
+            a, b,
+            "`.{part}` differs between the two cells. If this fires, the \
+             attribute IS readable outside `.gl` and #1039's decline is \
+             overturned — which is a finding, not a failure"
+        );
+    }
+    let (ga, gb) = (caps[0].bundle.get("gl"), caps[1].bundle.get("gl"));
+    assert!(ga.is_some() && gb.is_some(), "`.gl` missing from a capture");
+    assert_ne!(
+        ga, gb,
+        "`.gl` must differ — it is the ONLY file that carries the attribute, and \
+         if it stopped differing the attribute would be unreadable anywhere and \
+         #1013 would be permanently closed rather than blocked"
+    );
+}

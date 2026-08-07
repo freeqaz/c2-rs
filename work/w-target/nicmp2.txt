@@ -1,0 +1,12 @@
+== pair V  (vaaaaaaaaaaaa vs vbbbbbbbbbbbb)
+   .ex  BYTE-IDENTICAL  (2842 B)
+   .gl  DIFFERS         sizes 381 / 383
+   .sy  BYTE-IDENTICAL  (26 B)
+   .in  BYTE-IDENTICAL  (439 B)
+   .db  BYTE-IDENTICAL  (59 B)
+== pair I  (iaaaaaaaaaaaa vs ibbbbbbbbbbbb)
+   .ex  BYTE-IDENTICAL  (2862 B)
+   .gl  DIFFERS         sizes 377 / 379
+   .sy  BYTE-IDENTICAL  (60 B)
+   .in  BYTE-IDENTICAL  (439 B)
+   .db  BYTE-IDENTICAL  (63 B)

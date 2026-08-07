@@ -1,0 +1,14 @@
+cells: 12
+GRID-W sha256: ac1fdc5fbbdca23c8473f6760e581b96bca664b1104be2eb99e8c43d35cd55ab
+  3733ffd98b7c0bb5dc9e1d85e94e7f882fe841f20b51dbb984bcac9c806e4c06  work/w-target/cells/w01_chain1.cpp
+  24ac47858287ce11baf78670df157cbd15307f32e4a2859584846b1d0350648a  work/w-target/cells/w02_chain2.cpp
+  363ecd3c8b38206d0777eab2af9c4f05e3606b4781ddcd4443216a143f64f2e6  work/w-target/cells/w03_chain3.cpp
+  c6828b2ac97bea0370c9a8bfe65e314f562e1dd4a039fe60364a31763be32399  work/w-target/cells/w04a_noinline.cpp
+  ebb332b5f5e63f83923cce78234410bbabc957f3e088ed3ec1b903ba296bc2b7  work/w-target/cells/w04b_addr_taken.cpp
+  e29d4e21751175470b4f66bef3d9c6dd7b6b1e7f7ff9ad8ad63303f737f285ae  work/w-target/cells/w04c_virtual.cpp
+  401eca012ebd4401d86b39b3366576e515cce740b887abfc5e63495655c23878  work/w-target/cells/w04d_optimize_off.cpp
+  4adec89fb2a253be564d0f8a4bee9978c208164a6d5aa1a7aab9a4431fe95276  work/w-target/cells/w05_control_not_inlined.cpp
+  169933be794f90e0929370bd909df18e77890229dbb924c16d6d6b8595d65ac5  work/w-target/cells/w06_cycle.cpp
+  6c265ba758899cbe187fee4dd112bf2bc3d2cd87a323e792e3857266dfbc3ca1  work/w-target/cells/w07_next_link_extern.cpp
+  eac58314c7cc2005d598c2b539fb8cffa780f69349197ff0eb9932785b12130c  work/w-target/cells/w08_chain_open.cpp
+  1d90f79c2dfee3fed38d1ff66accbd62220c7c68db7df3a77114cbb1ec292875  work/w-target/cells/w09_leaf_no_call.cpp
