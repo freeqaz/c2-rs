@@ -1,0 +1,7 @@
+exit=0
+  match            10    1.1%
+  mismatch          0    0.0%
+  codegen-gap       0    0.0%
+  vocab-gap       861   98.1%
+  port-error        0    0.0%
+  capture-fail      7    0.8%
