@@ -16,7 +16,18 @@ set -u
 R="$(cd "$(dirname "$0")/../.." && pwd)"
 C="$R/target/release/c2rs"
 F="$R/work/dc3-workload/flags.txt"
-D="${C2RS_DC3:-/home/free/code/milohax/dc3-decomp}"
+# The dc3 tree is DERIVED, never hard-coded (CLAUDE.md) — walk up from the repo
+# root looking for a sibling, exactly as `work/w-mrslot/ladder.sh` does.
+sib() {
+  d="$R"
+  while [ "$d" != "/" ]; do
+    [ -d "$d/../$1" ] && { (cd "$d/../$1" && pwd); return 0; }
+    d="$(dirname "$d")"
+  done
+  return 1
+}
+D="${C2RS_DC3:-$(sib dc3-decomp)}"
+[ -d "$D" ] || { echo "SKIP: no dc3 tree (set C2RS_DC3)"; exit 3; }
 key() { "$C" census "$1" --flags-file "$F" --cwd "$D" 2>&1 \
         | sed -nE 's/^ *\[ *[0-9]+\] GAP ([^ ]+).*/\1/p' | sort | tr '\n' ',' ; }
 for t in $(cat "$R/work/w-front3/tus.txt"); do
