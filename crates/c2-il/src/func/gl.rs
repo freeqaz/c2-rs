@@ -1438,8 +1438,23 @@ fn align_of_type_tag(tag: u8, wide_mark: Option<u8>) -> Option<u32> {
         0x84 => Some(2),
         0x86 => Some(4),
         0x88 => Some(8),
-        // `8A` is 16 and c2 emits ALIGN_16 for it. The writer cannot express
-        // that, so it stays refused rather than rounded down (T09/G04).
+        // Board #1120, lane `w-align16`. `8A` is 16 and the writer can now
+        // express it — `placement_align`, `align_nibble` and `section_nibble`
+        // all carry the 16 arm, and `bump_layout` rounds a `.bss` cursor to it.
+        // Confirmed on 12 cells against c2's own obj, including the two-object
+        // `.bss` whose second object lands at offset 16.
+        //
+        // **The wide form `CA` is what every 16-aligned cell actually spells;
+        // bare `8A` has never been observed by this project.** It is accepted
+        // here by the ORTHOGONALITY rule (`w-align`, 21 of 21) rather than by a
+        // witness — see the note above this function.
+        0x8A => Some(16),
+        // `8C` (32) and `8E` (64) EXIST and c2 honours them — nibbles 6 and 7,
+        // measured on `A09`/`A10`/`A18`. They stay refused: the grid varies
+        // structure at 16 (scalar, aggregate, empty, array, polymorphic,
+        // natural-via-member, static, `.data`, two-object) and varies nothing at
+        // 32/64, so accepting them would be extending a table by `log2` past the
+        // cells that constrain it. Price: one more grid of the same shape.
         _ => None,
     }
 }
@@ -1760,9 +1775,21 @@ mod data_object_tests {
         assert!(gl_data_objects(&gl).is_empty(), "a function is not an object");
 
         // An UNMODELED alignment tag fails closed: a wrong alignment nibble is a
-        // wrong `.bss` Characteristics word.
+        // wrong `.bss` Characteristics word. **Board #1120 moved this witness
+        // from `8a` to `8c`** — `8a` is 16 and is now modeled end to end, while
+        // `8c` (32) is measured on cell `A09` (c2 emits nibble 6) and refused.
+        // The row is kept rather than deleted because the *property* under test
+        // is "an alignment the writer cannot express refuses the whole record",
+        // and that property needs a live witness at all times.
+        let gl = record([0xec, 0x09], 0x24, "sL", &[0x8c, 0x06, 0x00, 0x02, 0x04, 0x04, 0x00]);
+        assert!(gl_data_objects(&gl).is_empty(), "tag 0x8c (align 32) is not modeled");
+        // And the one below it now READS, which is what #1120 bought.
         let gl = record([0xec, 0x09], 0x24, "sL", &[0x8a, 0x06, 0x00, 0x02, 0x04, 0x04, 0x00]);
-        assert!(gl_data_objects(&gl).is_empty(), "tag 0x8a is not a modeled alignment");
+        assert_eq!(
+            gl_data_objects(&gl).values().next().map(|o| o.natural_align),
+            Some(16),
+            "tag 0x8a is ALIGN_16 since #1120"
+        );
     }
 
     /// **The `.bss` / `.data` discriminator, which lane w-bss made load-bearing.**
@@ -2446,11 +2473,20 @@ mod tests {
         assert_eq!(align_of_type_tag(0xC4, Some(0x81)), Some(2));
         assert_eq!(align_of_type_tag(0xC6, Some(0x81)), Some(4), "G01 poly+int");
         assert_eq!(align_of_type_tag(0xC8, Some(0x81)), Some(8), "T16 declspec(8)");
-        // `8A`/`CA` is 16 and c2 DOES emit ALIGN_16 for it (T09, G04).
-        // `placement_align` cannot express 16, so it stays refused rather than
-        // rounded down — see the doc comment.
-        assert_eq!(align_of_type_tag(0x8A, None), None);
-        assert_eq!(align_of_type_tag(0xCA, Some(0x81)), None, "T09 declspec(16)");
+        // **Board #1120, lane `w-align16`.** `8A`/`CA` is 16 and the writer can
+        // now express it. `CA` is the form every 16-aligned cell actually
+        // spells; bare `8A` is accepted by the ORTHOGONALITY rule and has zero
+        // witnesses — see the doc comment and `work/w-align16/tagcensus.txt`,
+        // which finds **0** `8A` records in 85,895 across all 878 workload TUs.
+        assert_eq!(align_of_type_tag(0x8A, None), Some(16), "orthogonality, no witness");
+        assert_eq!(align_of_type_tag(0xCA, Some(0x81)), Some(16), "A02 declspec(16)");
+        // **32 and 64 EXIST and stay refused.** `A09`/`A10` are
+        // `__declspec(align(32))` / `align(64)` and c2 gives them nibbles 6 and
+        // 7 — so this is a deliberate stop, not an unexplored edge. The grid
+        // varies structure nine ways at 16 and not at all at 32/64.
+        assert_eq!(align_of_type_tag(0x8C, None), None, "A09 align(32) — measured, refused");
+        assert_eq!(align_of_type_tag(0xCC, Some(0x81)), None, "A09 align(32)");
+        assert_eq!(align_of_type_tag(0xCE, Some(0x81)), None, "A10 align(64)");
         // The mark's VALUE is matched: `IL_TYPE_WIDE_TAG.md` §8 item 2 records
         // `84` as a second value in `.ex`, and no cell says what the width
         // means under it.

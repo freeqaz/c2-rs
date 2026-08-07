@@ -166,15 +166,25 @@ pub(crate) fn write_section_headers(
 /// `t` moves independently: a `double` member gives ALIGN_8 at `n = 8` where a
 /// `char[8]` gives ALIGN_4.
 ///
-/// The nibble is `log2(align) + 1` — 1→1, 2→2, 4→3, 8→4. Returns `None` for an
-/// alignment that is not a power of two in 1..=8, rather than emitting a nibble
-/// for a case nothing measured.
+/// The nibble is `log2(align) + 1` — 1→1, 2→2, 4→3, 8→4, **16→5** (board
+/// #1120). Returns `None` for an alignment that is not a power of two in
+/// 1..=16, rather than emitting a nibble for a case nothing measured.
+///
+/// **32 and 64 are real and are still refused.** `__declspec(align(32))` and
+/// `align(64)` make c2 emit nibbles **6** and **7** — measured on cells
+/// `A09`/`A10`/`A18` of `work/w-align16/` — so the `log2 + 1` law itself is
+/// confirmed to 64. What is *not* confirmed above 16 is the rest of the model
+/// that consumes this number: [`super::data::bump_layout`]'s cursor and
+/// [`super::data::section_nibble`]'s max were graded on a structural grid at 16
+/// and on nothing at 32/64. Extending by `log2` past the cells that constrain
+/// it is exactly the "mostly right" table a refusal beats.
 pub(crate) fn align_nibble(n: u32, natural: u32) -> Option<u32> {
     match placement_align(n, natural)? {
         1 => Some(1),
         2 => Some(2),
         4 => Some(3),
         8 => Some(4),
+        16 => Some(5),
         _ => None,
     }
 }
@@ -196,9 +206,23 @@ pub(crate) fn align_nibble(n: u32, natural: u32) -> Option<u32> {
 /// are the *promotion*'s provenance and survive §5.7's revision of the allocator
 /// they were first measured through.
 ///
-/// `None` outside `{1,2,4,8}`: the section nibble has no encoding above ALIGN_8
-/// here, so a `__declspec(align(16))` object is refused rather than rounded to
-/// something plausible.
+/// # The `implied` ceiling is 8, re-measured at n = 4096 (board #1120)
+///
+/// `implied` was fitted over `n = 1 … 256` and it would have been easy to read
+/// its top clause as "8 and rising". It is not: `char g[4096]` — natural
+/// alignment 1, size 4096 — gets `Characteristics` nibble **4**, i.e. ALIGN_8,
+/// from real c2 (cell `A07`, and `A08` at 256). **Nothing is promoted past 8 by
+/// SIZE.** Everything above 8 in this table therefore arrives through `natural`,
+/// which is read off the `.gl` type tag and never inferred from the type
+/// (`c2_il::func::gl::align_of_type_tag`, and see `w-align`'s `T16` — a natural
+/// reading there was a live wrong emit, not a refusal).
+///
+/// `None` outside `{1,2,4,8,16}`. **16 is in and 32/64 are out, and both halves
+/// of that are measurements** (`work/w-align16/`): `__declspec(align(16))` is
+/// nibble 5 and is graded byte-exact through both consumers on a grid that
+/// varies structure nine ways; `align(32)`/`align(64)` are nibbles 6 and 7 and
+/// are refused, because the grid varies *nothing* at those values. See
+/// [`align_nibble`].
 pub(crate) fn placement_align(n: u32, natural: u32) -> Option<u32> {
     let implied: u32 = if n < 2 {
         1
@@ -208,7 +232,7 @@ pub(crate) fn placement_align(n: u32, natural: u32) -> Option<u32> {
         8
     };
     match natural.max(implied) {
-        a @ (1 | 2 | 4 | 8) => Some(a),
+        a @ (1 | 2 | 4 | 8 | 16) => Some(a),
         _ => None,
     }
 }
@@ -229,5 +253,20 @@ mod alloc_tests {
         assert_eq!(placement_align(1, 1), Some(1));
         assert_eq!(align_nibble(64, 1), Some(4), "ALIGN_8 nibble");
         assert_eq!(align_nibble(2, 1), Some(3), "ALIGN_4 nibble");
+        // **Board #1120.** The 16 arm has to be pinned in the SHARED test, not
+        // only in `align_nibble`'s own, because the thing that can drift is the
+        // allocator: `super::data::bump_layout` rounds its `.bss` cursor with
+        // this function and cell `A13` puts a 16-aligned object at offset 16
+        // behind a one-byte `char`.
+        assert_eq!(placement_align(16, 16), Some(16), "A02 declspec(align(16))");
+        assert_eq!(placement_align(4, 16), Some(16), "A01 scalar: n < natural");
+        assert_eq!(align_nibble(16, 16), Some(5), "ALIGN_16 nibble");
+        // The `implied` ceiling does not climb past 8 — `A07` is `char[4096]`
+        // and c2 gives it ALIGN_8.
+        assert_eq!(placement_align(4096, 1), Some(8), "A07: size never implies 16");
+        assert_eq!(placement_align(65536, 1), Some(8), "and it does not climb later");
+        // 32 and 64 are measured (nibbles 6 and 7) and deliberately refused.
+        assert_eq!(placement_align(32, 32), None, "A09 align(32) — measured, refused");
+        assert_eq!(placement_align(64, 64), None, "A10 align(64) — measured, refused");
     }
 }

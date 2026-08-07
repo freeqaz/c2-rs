@@ -1,0 +1,200 @@
+== A01_scalar_align16   sections[5]: .drectve .debug$S .XBLD$W .bss .XBLD$W
+   __C1_11886
+      gl: tag=84 masked=-- tagalign=-- mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+   ?g@@3HA
+      gl: tag=ca masked=8a tagalign=16 mark=81 kind=01 frame=00 02 link=01 size=4 attr=00 flags=00 refused=None
+      raw: ca 81 01 00 02 01 04 00 00 00 74
+      c2: section=.bss align=16 secsize=4 nibble=5
+== A02_plain_align16   sections[5]: .drectve .debug$S .XBLD$W .bss .XBLD$W
+   __C1_11886
+      gl: tag=84 masked=-- tagalign=-- mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+   ?g@@3UA@@A
+      gl: tag=ca masked=8a tagalign=16 mark=81 kind=06 frame=00 02 link=01 size=16 attr=00 flags=80 refused=None
+      raw: ca 81 06 00 02 01 10 00 80 00 80
+      c2: section=.bss align=16 secsize=16 nibble=5
+== A03_empty_align16   sections[5]: .drectve .debug$S .XBLD$W .bss .XBLD$W
+   __C1_11886
+      gl: tag=84 masked=-- tagalign=-- mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+   ?g@@3UA@@A
+      gl: tag=ca masked=8a tagalign=16 mark=81 kind=06 frame=00 02 link=01 size=16 attr=00 flags=80 refused=None
+      raw: ca 81 06 00 02 01 10 00 80 00 80
+      c2: section=.bss align=16 secsize=16 nibble=5
+== A04_array_align16   sections[5]: .drectve .debug$S .XBLD$W .bss .XBLD$W
+   __C1_11886
+      gl: tag=84 masked=-- tagalign=-- mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+   ?g@@3PAUA@@A
+      gl: tag=ca masked=8a tagalign=16 mark=81 kind=06 frame=00 02 link=01 size=64 attr=00 flags=00 refused=None
+      raw: ca 81 06 00 02 01 40 00 00 00 80
+      c2: section=.bss align=16 secsize=64 nibble=5
+== A05_nat16_member   sections[5]: .drectve .debug$S .XBLD$W .bss .XBLD$W
+   __C1_11886
+      gl: tag=84 masked=-- tagalign=-- mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+   ?g@@3UO@@A
+      gl: tag=ca masked=8a tagalign=16 mark=81 kind=06 frame=00 02 link=01 size=32 attr=00 flags=80 refused=None
+      raw: ca 81 06 00 02 01 20 00 80 00 80
+      c2: section=.bss align=16 secsize=32 nibble=5
+== A06_ctl_size16_align4   sections[5]: .drectve .debug$S .XBLD$W .bss .XBLD$W
+   __C1_11886
+      gl: tag=84 masked=-- tagalign=-- mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+   ?g@@3UA@@A
+      gl: tag=86 masked=86 tagalign=4 mark=-- kind=06 frame=00 02 link=01 size=16 attr=00 flags=80 refused=None
+      raw: 86 06 00 02 01 10 00 80 00 80 00
+      c2: section=.bss align=4 secsize=16 nibble=3
+== A07_ctl_char4096   sections[5]: .drectve .debug$S .XBLD$W .bss .XBLD$W
+   __C1_11886
+      gl: tag=84 masked=-- tagalign=-- mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+   ?g@@3PADA
+      gl: tag=82 masked=82 tagalign=1 mark=-- kind=06 frame=00 02 link=01 size=4096 attr=00 flags=00 refused=None
+      raw: 82 06 00 02 01 80 00 10 00 00 00
+      c2: section=.bss align=8 secsize=4096 nibble=4
+== A08_ctl_char256   sections[5]: .drectve .debug$S .XBLD$W .bss .XBLD$W
+   __C1_11886
+      gl: tag=84 masked=-- tagalign=-- mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+   ?g@@3PADA
+      gl: tag=82 masked=82 tagalign=1 mark=-- kind=06 frame=00 02 link=01 size=256 attr=00 flags=00 refused=None
+      raw: 82 06 00 02 01 80 00 01 00 00 00
+      c2: section=.bss align=8 secsize=256 nibble=4
+== A09_align32   sections[5]: .drectve .debug$S .XBLD$W .bss .XBLD$W
+   __C1_11886
+      gl: tag=84 masked=-- tagalign=-- mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+   ?g@@3UA@@A
+      gl: tag=cc masked=8c tagalign=32 mark=81 kind=06 frame=00 02 link=01 size=32 attr=00 flags=80 refused=None
+      raw: cc 81 06 00 02 01 20 00 80 00 80
+      c2: section=.bss align=32 secsize=32 nibble=6
+== A10_align64   sections[5]: .drectve .debug$S .XBLD$W .bss .XBLD$W
+   __C1_11886
+      gl: tag=84 masked=-- tagalign=-- mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+   ?g@@3UA@@A
+      gl: tag=ce masked=8e tagalign=64 mark=81 kind=06 frame=00 02 link=01 size=64 attr=00 flags=80 refused=None
+      raw: ce 81 06 00 02 01 40 00 80 00 80
+      c2: section=.bss align=64 secsize=64 nibble=7
+== A11_static_align16   sections[6]: .drectve .debug$S .bss .XBLD$W .XBLD$W .data
+   __C1_11886
+      gl: tag=84 masked=-- tagalign=-- mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+   ?p@@3PAUA@@A
+      gl: tag=86 masked=86 tagalign=4 mark=-- kind=03 frame=00 02 link=01 size=4 attr=80 flags=00 refused=None
+      raw: 86 03 00 02 01 04 80 00 00 80 02
+      c2: section=.data align=4 secsize=4 nibble=3
+   g
+      gl: tag=ca masked=8a tagalign=16 mark=81 kind=06 frame=00 02 link=04 size=16 attr=00 flags=a1 refused=None
+      raw: ca 81 06 00 02 04 10 00 a1 00 80
+      c2: section=.bss align=16 secsize=16 nibble=5
+== A12_data_align16   sections[5]: .drectve .debug$S .XBLD$W .XBLD$W .data
+   __C1_11886
+      gl: tag=84 masked=-- tagalign=-- mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+   ?g@@3UA@@A
+      gl: tag=ca masked=8a tagalign=16 mark=81 kind=06 frame=00 02 link=01 size=16 attr=80 flags=80 refused=None
+      raw: ca 81 06 00 02 01 10 80 80 00 80
+      c2: section=.data align=16 secsize=16 nibble=5
+== A13_two_align16   sections[5]: .drectve .debug$S .XBLD$W .bss .XBLD$W
+   __C1_11886
+      gl: tag=84 masked=-- tagalign=-- mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+   ?c@@3DA
+      gl: tag=82 masked=82 tagalign=1 mark=-- kind=01 frame=00 02 link=01 size=1 attr=00 flags=00 refused=None
+      raw: 82 01 00 02 01 01 00 00 00 70 01
+      c2: section=.bss align=16 secsize=32 nibble=5
+   ?g@@3UA@@A
+      gl: tag=ca masked=8a tagalign=16 mark=81 kind=06 frame=00 02 link=01 size=16 attr=00 flags=80 refused=None
+      raw: ca 81 06 00 02 01 10 00 80 00 80
+      c2: section=.bss align=16 secsize=32 nibble=5
+== A14_poly_align16   sections[12]: .drectve .debug$S .XBLD$W .XBLD$W .text .rdata .rdata$r .data .rdata$r .rdata$r .rdata$r .data
+   ?g@@3UA@@A
+      gl: tag=ca masked=8a tagalign=16 mark=81 kind=06 frame=00 02 link=01 size=16 attr=00 flags=61 refused=None
+      raw: ca 81 06 00 02 01 10 00 61 00 80
+      c2: section=.data align=16 secsize=16 nibble=5
+   g$initializer$
+      gl: tag=86 masked=86 tagalign=4 mark=-- kind=04 frame=00 02 link=04 size=4 attr=80 flags=83 refused=None
+      raw: 86 04 00 02 04 04 80 83 80 00 07
+      c2: (symbol not defined in a section of ref.obj)
+   __C1_11886
+      gl: tag=84 masked=-- tagalign=-- mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+A15_vector4	NO-GL
+== A16_dyninit_poly_align16   sections[8]: .drectve .debug$S .XBLD$W .XBLD$W .text$yc .rdata .bss .CRT$XCU
+   ?gL@@3UL@@A
+      gl: tag=ca masked=8a tagalign=16 mark=81 kind=06 frame=00 02 link=01 size=16 attr=00 flags=61 refused=None
+      raw: ca 81 06 00 02 01 10 00 61 00 80
+      c2: section=.bss align=16 secsize=16 nibble=5
+   gL$initializer$
+      gl: tag=86 masked=86 tagalign=4 mark=-- kind=04 frame=00 02 link=04 size=4 attr=80 flags=83 refused=None
+      raw: 86 04 00 02 04 04 80 83 80 00 0a
+      c2: section=.CRT$XCU align=4 secsize=4 nibble=3
+   __C1_11886
+      gl: tag=84 masked=-- tagalign=-- mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+== A17_dyninit_plain_align16   sections[8]: .drectve .debug$S .XBLD$W .XBLD$W .text$yc .rdata .bss .CRT$XCU
+   ?gL@@3UL@@A
+      gl: tag=ca masked=8a tagalign=16 mark=81 kind=06 frame=00 02 link=01 size=16 attr=00 flags=61 refused=None
+      raw: ca 81 06 00 02 01 10 00 61 00 80
+      c2: section=.bss align=16 secsize=16 nibble=5
+   gL$initializer$
+      gl: tag=86 masked=86 tagalign=4 mark=-- kind=04 frame=00 02 link=04 size=4 attr=80 flags=83 refused=None
+      raw: 86 04 00 02 04 04 80 83 80 00 06
+      c2: section=.CRT$XCU align=4 secsize=4 nibble=3
+   __C1_11886
+      gl: tag=84 masked=-- tagalign=-- mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+== A18_dyninit_align32   sections[8]: .drectve .debug$S .XBLD$W .XBLD$W .text$yc .rdata .bss .CRT$XCU
+   ?gL@@3UL@@A
+      gl: tag=cc masked=8c tagalign=32 mark=81 kind=06 frame=00 02 link=01 size=32 attr=00 flags=61 refused=None
+      raw: cc 81 06 00 02 01 20 00 61 00 80
+      c2: section=.bss align=32 secsize=32 nibble=6
+   gL$initializer$
+      gl: tag=86 masked=86 tagalign=4 mark=-- kind=04 frame=00 02 link=04 size=4 attr=80 flags=83 refused=None
+      raw: 86 04 00 02 04 04 80 83 80 00 0a
+      c2: section=.CRT$XCU align=4 secsize=4 nibble=3
+   __C1_11886
+      gl: tag=84 masked=-- tagalign=-- mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+== A19_dyninit_poly_align8   sections[8]: .drectve .debug$S .XBLD$W .XBLD$W .text$yc .rdata .bss .CRT$XCU
+   ?gL@@3UL@@A
+      gl: tag=c8 masked=88 tagalign=8 mark=81 kind=06 frame=00 02 link=01 size=8 attr=00 flags=61 refused=None
+      raw: c8 81 06 00 02 01 08 00 61 00 80
+      c2: section=.bss align=8 secsize=8 nibble=4
+   gL$initializer$
+      gl: tag=86 masked=86 tagalign=4 mark=-- kind=04 frame=00 02 link=04 size=4 attr=80 flags=83 refused=None
+      raw: 86 04 00 02 04 04 80 83 80 00 0a
+      c2: section=.CRT$XCU align=4 secsize=4 nibble=3
+   __C1_11886
+      gl: tag=84 masked=-- tagalign=-- mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+== A20_ctl_double2   sections[5]: .drectve .debug$S .XBLD$W .bss .XBLD$W
+   __C1_11886
+      gl: tag=84 masked=-- tagalign=-- mark=-- kind=06 frame=00 02 link=01 size=16 attr=e0 flags=02 refused=attr
+      raw: 84 06 00 02 01 10 e0 02 14 01 00
+      c2: section=.XBLD$W align=4 secsize=16 nibble=3
+   ?g@@3UA@@A
+      gl: tag=88 masked=88 tagalign=8 mark=-- kind=06 frame=00 02 link=01 size=16 attr=00 flags=80 refused=None
+      raw: 88 06 00 02 01 10 00 80 00 80 00
+      c2: section=.bss align=8 secsize=16 nibble=4

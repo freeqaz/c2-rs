@@ -281,11 +281,38 @@ and board #1110's phrase *"the wide **aggregate** form"* is where that inference
 was spelled, believed, and (by that lane's own prereg, P7 at 0.75) lost.
 
 The `.gl` width field itself is now read: `align_of_type_tag(tag & !0x40)`,
-confirmed 21 of 21 against **c2's own obj** alignment nibbles, with `CA` (= 16)
-still refused because `placement_align` cannot express it (#1120). §8 item 2's
+confirmed 21 of 21 against **c2's own obj** alignment nibbles. §8 item 2's
 residual risk — *"the mark byte's meaning is UNKNOWN, and so is its value SET"* —
 is honoured there rather than assumed away: the `.gl` alignment reading requires
 the mark to be `0x81`, the only value all ten wide cells carry.
+
+## 7.2 ADDENDUM 2026-08-08 — `CA` is taken, `CC`/`CE` exist, and the ORTHOGONALITY rule now carries an unwitnessed arm (board #1120)
+
+`CA` (= 16) is **no longer refused**: lane `w-align16` taught the promotion table
+16 and it grades byte-exact through both `data_tu` and `dyninit_tu`. Two things
+that grid found which bear directly on this page's subject:
+
+**The width field goes higher than 16.** `__declspec(align(32))` spells **`CC`**
+and `align(64)` spells **`CE`**, and c2 gives them `Characteristics` nibbles 6
+and 7. The `0x80 + 2*(log2(size)+1)` encoding is therefore confirmed to 64 in
+`.gl`, not merely to 16. Both are **refused** — for the grid's coverage, not for
+any doubt about the encoding.
+
+**Every 16/32/64 cell is WIDE, and that sharpens §3's co-occurrence without
+turning it into a rule.** All twelve go `CA`/`CC`/`CE`; **bare `8A`, `8C` and
+`8E` were never produced**, at any of the four profiles, including by a scalar
+(`__declspec(align(16)) int g;`) and by a type made 16-aligned through a *member*
+rather than through the attribute. A census of all 878 workload TUs finds **0**
+records at any of the six tags, out of 85,895 — the workload's `.gl` vocabulary
+is `82` (216), `84` (877), `86` (84,334), `88` (33), `C6` (435), and nothing
+else. Note that even `C8` — `w-align`'s own `T08`/`T16` — has **zero** workload
+witnesses, so the wide form appears there at exactly one width.
+
+So the port's non-wide 16 arm is **the orthogonality rule applied to a shape
+nothing has ever emitted**. It is shipped because splitting the table (both forms
+at 1/2/4/8, only the wide form at 16) would be a worse hazard than the arm, and
+it is labelled as an extrapolation in `align_of_type_tag`'s own doc comment
+rather than counted among the confirmations.
 
 ## 8. Found and not taken
 

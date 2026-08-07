@@ -152,6 +152,14 @@ fn bump_layout(objs: &[&DataObj<'_>], walk: &[usize]) -> Option<(Vec<u32>, u32)>
 /// The section's alignment nibble — **Rule B1**: the maximum over the objects it
 /// holds of each object's own [`placement_align`], and not of their natural
 /// alignments (§3.2).
+///
+/// **This is a SECOND COPY of [`super::container::align_nibble`]'s `log2 + 1`
+/// table**, not a call to it, because it takes the max first. Board #1120 had to
+/// edit both; a lane that edits one and not the other emits a section whose
+/// nibble disagrees with the offsets inside it. Rule B1 is confirmed with a 16
+/// in it by cell `A13` — a one-byte `char` and a 16-aligned object in **one**
+/// `.bss`, where c2 gives the section nibble 5 and puts the second object at
+/// offset 16.
 fn section_nibble(objs: &[&DataObj<'_>]) -> Option<u32> {
     let mut best = 1u32;
     for o in objs {
@@ -162,6 +170,7 @@ fn section_nibble(objs: &[&DataObj<'_>]) -> Option<u32> {
         2 => Some(2),
         4 => Some(3),
         8 => Some(4),
+        16 => Some(5),
         _ => None,
     }
 }
@@ -188,6 +197,22 @@ fn section_nibble(objs: &[&DataObj<'_>]) -> Option<u32> {
 /// with **zero** exceptions — and `.data` comes **after** the second watermark,
 /// in 754 of the 754 objs that have one.
 ///
+/// ## S1 holds only for an EXTERNAL-linkage `.bss` (board #1148)
+///
+/// **If the `.bss` holds any `static` object, c2 puts `.bss` BEFORE both
+/// watermarks** and S1 is wrong:
+///
+/// ```text
+///   extern:  .drectve .debug$S .XBLD$W  .bss     .XBLD$W .data     <- S1
+///   static:  .drectve .debug$S .bss     .XBLD$W  .XBLD$W .data     <- c2
+/// ```
+///
+/// The "871 workload objs, zero exceptions" figure above is not contradicted:
+/// the shape needs a `static` `.bss` object that survives, and an unreferenced
+/// uninitialized static is *dropped*, so the workload never generates it. The
+/// class check refuses it — see there for the measurement and for why this is a
+/// **pre-existing live wrong emit** rather than a gap.
+///
 /// # Symbol-table order
 ///
 /// The table follows section order, and within a section's group the section
@@ -197,10 +222,26 @@ fn section_nibble(objs: &[&DataObj<'_>]) -> Option<u32> {
 /// > **Rule Y1 (eager `.bss`).** Every EXTERNAL symbol first, in **reverse
 /// > `.gl`** record order; then every STATIC symbol, in **declaration** order.
 ///
-/// Y1 was fitted on extern-only and static-only cells and confirmed
-/// out-of-sample by a mixed-linkage cell it predicts exactly and which no
-/// simpler rule matches. `.data`'s group is declaration order, which for that
-/// section is also ascending address (§5.3).
+/// **This writer was applying Y1 OUTSIDE the shape Y1 was measured in (board
+/// #1148).** Y1's mixed-linkage row (§6.2) is a real obj, and this lane does not
+/// touch it — but every cell behind it is a TU **with functions**, which is what
+/// keeps its `static` objects alive (an unreferenced uninitialized static is
+/// dropped; `wsect_drop_static.cpp`). [`emit_data_obj`] serves TUs with **no**
+/// functions, where the only way a static `.bss` object survives is a `.data`
+/// initializer holding its address. In *that* shape — `w-align16`'s `D07`,
+/// `A g; static A h; A* p = &h;` — real c2 emits the external `.bss` symbol
+/// **after the following section's group**, with the static at offset 0:
+/// neither Y1's order nor Y1's walk, and `.bss` moved as well (see above).
+///
+/// So Y1 is not contradicted; it was being read past its cells. A `.bss`
+/// holding any internal-linkage object is now refused, which leaves **this
+/// writer's live use of Y1 at exactly the extern-only case**, where its 89 real
+/// sections stand. Whether Y1 still describes the with-functions mixed case is
+/// open and untested by this lane.
+///
+/// `.data`'s group is declaration order, which for that section is also
+/// ascending address (§5.3), and mixed linkage in `.data` is untouched —
+/// `wsect_data_linkage.cpp` grades it.
 ///
 /// `OBJ_DYNINIT_SHAPE.md` §7.1's *"the `.bss` symbols are listed in strictly
 /// descending address order in every same-kind cell"* is true only where the
@@ -215,6 +256,41 @@ pub fn emit_data_obj(obj_name: &str, objects: &[DataObj<'_>]) -> Option<Vec<u8>>
     // **The measured bound.** Above two objects per non-COMDAT section the walk
     // order is open (board #184) and a guess is a wrong `Value` on every symbol.
     if bss.len() > MAX_OBJECTS_PER_SECTION || data.len() > MAX_OBJECTS_PER_SECTION {
+        return None;
+    }
+    // **An INTERNAL-LINKAGE `.bss` object moves the whole section, and Rule S1
+    // below does not model it — board #1148, found by lane `w-align16`'s grid.**
+    //
+    // For an EXTERNAL `.bss` object c2 puts `.bss` **between** the two `.XBLD$W`
+    // watermarks, which is Rule S1 and what this writer emits. For a `static`
+    // one it puts `.bss` **before both of them**, at section index 3:
+    //
+    // ```text
+    //   extern:  .drectve .debug$S .XBLD$W  .bss    .XBLD$W .data     <- S1, right
+    //   static:  .drectve .debug$S .bss     .XBLD$W .XBLD$W .data     <- c2, not S1
+    // ```
+    //
+    // **This was a LIVE WRONG EMIT on master, not a gap this lane opened.**
+    // `work/w-align16/diag/` cells `D01` (align 4) and `D02` (align 8) are both
+    // inside the incumbent's own modeled range and both graded `mismatch`
+    // against real c2 on an unmodified tree. Board **#232**'s shape: wrong
+    // bytes, invisible to every scan, because the corpus could not generate it.
+    //
+    // It was believed **unreachable**: `fixtures/cpp/wsect_drop_static.cpp` and
+    // `wsect_data_linkage.cpp` both record that *"an uninitialized unreferenced
+    // static is DROPPED by c2 entirely, so mixed linkage is unreachable in a
+    // `.bss` of a functionless TU"*. True as far as it goes — and the route
+    // around the drop is to **reference** it, `static A g; A* p = &g;`, which
+    // makes the `.data` initializer keep it alive. Nobody had written that cell.
+    //
+    // `OBJ_DATA_BSS_SHAPE.md`'s own static and mixed `.bss` cells are all TUs
+    // **with functions** — that is what keeps *their* statics alive — so this
+    // writer, which only ever runs on functionless TUs, was applying rules S1
+    // and Y1 outside every cell that fitted them.
+    //
+    // Failing closed rather than reordering: the correct order is a three-cell
+    // observation and Rule S1 is board #174's, not this lane's.
+    if bss.iter().any(|o| !o.external) {
         return None;
     }
     for o in objects {
@@ -918,37 +994,90 @@ mod tests {
         }
     }
 
-    /// **Rule Y1** — the eager `.bss` symbol table is every EXTERNAL first in
-    /// **reverse `.gl`** order, then every STATIC in **declaration** order. It
-    /// is neither ascending nor descending address, and a mixed-linkage section
-    /// is the only cell that can show it. This is the case
-    /// `OBJ_DYNINIT_SHAPE.md` §7.1's *"strictly descending address order"* is
-    /// false for.
+    /// **A `.bss` holding an internal-linkage object is refused, and this test
+    /// is the refusal's witness** — board #1148, lane `w-align16`.
+    ///
+    /// The test this replaces asserted that `emit_data_obj` emits
+    /// `[?p1@@3HA extern, s1 static]` into one `.bss` under Rule Y1. **That
+    /// input was never graded against real c2 in this writer's own shape**:
+    /// `emit_data_obj` serves TUs with no functions, `wsect_data_linkage.cpp`
+    /// is a mixed-linkage **`.data`**, and its header records why the `.bss`
+    /// case had no fixture — *"an uninitialized unreferenced static is DROPPED
+    /// by c2 entirely, so mixed linkage is unreachable in a `.bss` of a
+    /// functionless TU"*. Y1's own mixed row (§6.2) is a real obj, but from a TU
+    /// **with** functions, which is what keeps its statics alive.
+    ///
+    /// The route around the drop in a functionless TU is to **reference** the
+    /// static from a `.data` initializer.
+    /// `work/w-align16/diag/cells/D07_mixed_bss_reloc.cpp` does exactly that —
+    /// `A g; static A h; A* p = &h;` — and real c2 emits something this writer
+    /// does not, **in two independent ways**:
+    ///
+    /// ```text
+    ///   sec[3] .bss        <- BEFORE both watermarks, not between them (Rule S1)
+    ///   sec[4] .XBLD$W
+    ///   sec[5] .XBLD$W
+    ///   sec[6] .data
+    ///
+    ///   sym[ 5] .bss           sym[ 7] h  val=0 STATIC     <- the static, in the group
+    ///   sym[ 8] .XBLD$W        sym[10] __C2_11886
+    ///   sym[11] ?g@@3UA@@A  val=4 sec=3 EXTERNAL           <- the EXTERNAL, AFTER
+    ///                                                         the next section's group
+    /// ```
+    ///
+    /// The external `.bss` symbol is not in the `.bss` group at all, and the
+    /// static is placed at offset 0 with the external at 4 — the opposite of the
+    /// walk this writer applies. **Y1's extern-only half is untouched** and
+    /// still carries its 89 real sections. Whether Y1's mixed row still holds
+    /// for a TU *with* functions is open; what is settled is that this writer
+    /// was reading it past its cells.
+    ///
+    /// So the writer refuses, and this test is the refusal's witness. Fixing the
+    /// order is board #174's work with its own grid, not a two-line reorder.
     #[test]
-    fn the_bss_symbol_order_is_externals_reversed_then_statics_in_declaration_order() {
-        // `.gl` order p1, s1 (index order); declaration order s1, p1.
+    fn a_bss_with_any_internal_linkage_object_refuses() {
+        // The exact input the old Y1 test asserted an obj for.
+        assert!(
+            emit_data_obj(
+                "Z:\\t\\x.obj",
+                &[obj("?p1@@3HA", 4, 4, true, None, 20), obj("s1", 4, 4, false, None, 10)],
+            )
+            .is_none(),
+            "mixed-linkage .bss — c2 moves the section AND the symbol; D07"
+        );
+        // And the static-only `.bss`, which is `D01`/`D02`/`A11`'s shape and was
+        // a LIVE MISMATCH on master at alignments 4, 8 and 16 alike.
+        assert!(
+            emit_data_obj("Z:\\t\\x.obj", &[obj("s1", 4, 4, false, None, 10)]).is_none(),
+            "static-only .bss — D01/D02 graded `mismatch` against real c2 on an unmodified tree"
+        );
+        // **The extern-only `.bss` is UNAFFECTED** — Rule Y1's surviving half,
+        // and the row that says this refusal is narrow.
         let img = emit_data_obj(
             "Z:\\t\\x.obj",
-            &[obj("?p1@@3HA", 4, 4, true, None, 20), obj("s1", 4, 4, false, None, 10)],
+            &[obj("?p1@@3HA", 4, 4, true, None, 20), obj("?p2@@3HA", 4, 4, true, None, 10)],
         )
-        .unwrap();
-        let syms: Vec<String> = symbols_of(&img)
-            .into_iter()
-            .filter(|s| s.0 == "?p1@@3HA" || s.0 == "s1")
-            .map(|s| s.0)
-            .collect();
-        assert_eq!(syms, vec!["?p1@@3HA", "s1"], "externals first, then statics");
-
-        // …and the addresses are the `.gl` WALK, which puts p1 at 0 and s1 at 4
-        // — so the symbol order above is not the address order, which is the
-        // whole point of Rule Y1.
+        .expect("extern-only .bss still emits");
         let vals: Vec<(String, u32, u8)> = symbols_of(&img)
             .into_iter()
-            .filter(|s| s.0 == "?p1@@3HA" || s.0 == "s1")
+            .filter(|s| s.0.starts_with("?p"))
             .map(|s| (s.0, s.1, s.3))
             .collect();
-        assert_eq!(vals[0], ("?p1@@3HA".to_string(), 0, 2), "EXTERNAL, at the walk's first slot");
-        assert_eq!(vals[1], ("s1".to_string(), 4, 3), "STATIC storage class 3");
+        assert_eq!(vals[0], ("?p2@@3HA".to_string(), 4, 2), "externals in REVERSE .gl order");
+        assert_eq!(vals[1], ("?p1@@3HA".to_string(), 0, 2), "…and the walk is forwards");
+        // A mixed-linkage **`.data`** is untouched: this refusal is about `.bss`
+        // only, and `wsect_data_linkage.cpp` is the graded fixture for it.
+        assert!(
+            emit_data_obj(
+                "Z:\\t\\x.obj",
+                &[
+                    obj("?p1@@3HA", 4, 4, true, Some(&[0, 0, 0, 1]), 20),
+                    obj("s1", 4, 4, false, Some(&[0, 0, 0, 2]), 10),
+                ],
+            )
+            .is_some(),
+            "mixed-linkage .data still emits — wsect_data_linkage.cpp grades it"
+        );
     }
 
     /// **Rule A2 — `.data` walks DECLARATION order, not `.gl` order**, and the
@@ -1062,9 +1191,10 @@ mod tests {
     }
 
     /// Out-of-class inputs refuse rather than being approximated: a zero-length
-    /// object, an over-aligned one (no nibble encoding above ALIGN_8), an
-    /// initializer whose length disagrees with the object's size, a duplicate
-    /// symbol, and the empty list.
+    /// object, an over-aligned one (**no nibble encoding above ALIGN_16** since
+    /// board #1120 — it was ALIGN_8, and `__declspec(align(16))` moved from this
+    /// list to the class-check test above), an initializer whose length
+    /// disagrees with the object's size, a duplicate symbol, and the empty list.
     #[test]
     fn out_of_class_inputs_refuse() {
         const RAW: [u8; 4] = [0, 0, 0, 1];
@@ -1073,9 +1203,20 @@ mod tests {
             emit_data_obj("Z:\\t\\x.obj", &[obj("?a@@3HA", 0, 1, true, None, 0)]).is_none(),
             "zero-length"
         );
+        // **Board #1120 moved this boundary by one power of two, and the row it
+        // moved to is the one that matters.** ALIGN_16 is now IN class — cell
+        // `A01` is exactly `(4, 16)`, a 4-byte `__declspec(align(16)) int`, and
+        // it grades byte-exact against real c2. ALIGN_32 is where the refusal
+        // now lives, and it is a *measured* refusal: c2 emits nibble 6 for
+        // `__declspec(align(32))` (cell `A09`) and this writer declines it
+        // because no cell varies structure at that value.
         assert!(
-            emit_data_obj("Z:\\t\\x.obj", &[obj("?a@@3HA", 4, 16, true, None, 0)]).is_none(),
-            "ALIGN_16 has no nibble here"
+            emit_data_obj("Z:\\t\\x.obj", &[obj("?a@@3HA", 4, 16, true, None, 0)]).is_some(),
+            "ALIGN_16 is in class since #1120 — cell A01"
+        );
+        assert!(
+            emit_data_obj("Z:\\t\\x.obj", &[obj("?a@@3HA", 4, 32, true, None, 0)]).is_none(),
+            "ALIGN_32 has no nibble here — c2 emits 6, this writer refuses"
         );
         assert!(
             emit_data_obj("Z:\\t\\x.obj", &[obj("?a@@3HA", 8, 4, true, Some(&RAW), 0)]).is_none(),
