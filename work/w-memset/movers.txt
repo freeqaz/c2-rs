@@ -1,0 +1,5 @@
+base differs : 2334
+tip  differs : 2334
+LEFT  differs (converted) : 0
+ENTERED differs (regressed, known answer 0) : 0
+still differing but with DIFFERENT port bytes : 0

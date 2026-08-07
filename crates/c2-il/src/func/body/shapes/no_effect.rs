@@ -128,53 +128,11 @@ pub(crate) fn no_effect_call(seg: &[u8]) -> Option<u32> {
     eat_scopes(seg, &mut p, &mut depth).ok()?;
     eat_opt_stmt_marker(seg, &mut p);
 
-    let (callee_tok, ret) = eat_call_head(seg, &mut p).ok()?;
-    // A discarded `float`/`double` result drags `_fltused` into the TU. The same
-    // gate every other discarded-call site applies, through the same predicate.
-    ret.discarded(seg, p).ok()?;
-
-    // ---- the argument region: a closed vocabulary of three forms ------------
-    let mut temps = 0usize;
-    loop {
-        // Source-line markers are decode-only — c2 emits nothing at one — and a
-        // real workload body carries them between statements and inside argument
-        // lists alike. Eating them here is what the accepted shapes do at every
-        // statement boundary; **it widens nothing**, because the vocabulary below
-        // is still closed and a marker is not a member of it.
-        eat_opt_stmt_marker(seg, &mut p);
-        match *seg.get(p)? {
-            0x4C => {
-                p += 1;
-                break;
-            }
-            0x9B => return None, // a temp bind that is not preceded by its memset
-            0x33 => {
-                // Either the intrinsic selector (the temporary) or a plain
-                // literal push. `intrinsic_selector` requires the `40` to follow,
-                // so the two cannot be confused.
-                match intrinsic_selector(seg, p) {
-                    Some(INTRINSIC_MEMSET) => {
-                        eat_dead_temp_arg(seg, &mut p)?;
-                        temps += 1;
-                    }
-                    Some(_) => return None,
-                    None => eat_lit_push(seg, &mut p)?,
-                }
-            }
-            0xB9 => eat_formal_push(seg, &mut p, &formals)?,
-            _ => return None,
-        }
-    }
-    // The whole point of the shape is the temporary; a body with none of them is
-    // an ordinary void call and belongs to the shapes that already parse it.
-    if temps == 0 {
-        return None;
-    }
-    // The result is DISCARDED. Without this a value-consuming call would be read
-    // as emitting nothing while its result is still wanted.
-    if !eat_byte(seg, &mut p, 0x4B) {
-        return None;
-    }
+    // The whole point of THIS shape is the temporary; a body with none of them
+    // is an ordinary void call and belongs to the shapes that already parse it.
+    // Inside a loop (`no_effect_loop`) there is no such shape, which is the one
+    // place the two callers of `eat_no_effect_call_stmt` differ.
+    let callee_tok = eat_no_effect_call_stmt(seg, &mut p, &formals, true)?;
     // The `}` of the statement, as a line marker. `eat_return_head` opens on the
     // `3A` directly, so a body whose call and whose return are on two source
     // lines — which is every one in the workload — needs this and the pinned
@@ -185,6 +143,285 @@ pub(crate) fn no_effect_call(seg: &[u8]) -> Option<u32> {
     // what makes the walk total and the "read nowhere else" claim structural.
     eat_return_plumbing(seg, &mut p, false, depth).ok()?;
     Some(callee_tok)
+}
+
+/// **One whole discarded call statement**, from the callee push through the
+/// `4C 4B` that applies it and throws the result away. `Some(callee_token)`.
+///
+/// Factored out of [`no_effect_call`] **byte for byte** so that
+/// [`no_effect_loop`] reads the loop's single statement with the *same* closed
+/// argument vocabulary rather than a second copy of it. `w-relo`'s merge is the
+/// reason this is a factoring and not a new walk: two lanes wrote the same
+/// reader in different files, auto-merged without a conflict marker, and the
+/// duplicate walks were caught only by a compile error.
+///
+/// `require_temp` is the one difference between the two callers, and it is a
+/// *narrowing* in the body case, never a widening in the loop case: a plain
+/// discarded call at the top of a body has an accepted shape already, and inside
+/// a loop it has none.
+fn eat_no_effect_call_stmt(
+    seg: &[u8],
+    p: &mut usize,
+    formals: &[u32],
+    require_temp: bool,
+) -> Option<u32> {
+    let mut q = *p;
+    let (callee_tok, ret) = eat_call_head(seg, &mut q).ok()?;
+    // A discarded `float`/`double` result drags `_fltused` into the TU. The same
+    // gate every other discarded-call site applies, through the same predicate.
+    ret.discarded(seg, q).ok()?;
+
+    // ---- the argument region: a closed vocabulary of three forms ------------
+    let mut temps = 0usize;
+    loop {
+        // Source-line markers are decode-only — c2 emits nothing at one — and a
+        // real workload body carries them between statements and inside argument
+        // lists alike. Eating them here is what the accepted shapes do at every
+        // statement boundary; **it widens nothing**, because the vocabulary below
+        // is still closed and a marker is not a member of it.
+        eat_opt_stmt_marker(seg, &mut q);
+        match *seg.get(q)? {
+            0x4C => {
+                q += 1;
+                break;
+            }
+            0x9B => return None, // a temp bind that is not preceded by its memset
+            0x33 => {
+                // Either the intrinsic selector (the temporary) or a plain
+                // literal push. `intrinsic_selector` requires the `40` to follow,
+                // so the two cannot be confused.
+                match intrinsic_selector(seg, q) {
+                    Some(INTRINSIC_MEMSET) => {
+                        eat_dead_temp_arg(seg, &mut q)?;
+                        temps += 1;
+                    }
+                    Some(_) => return None,
+                    None => eat_lit_push(seg, &mut q)?,
+                }
+            }
+            0xB9 => eat_formal_push(seg, &mut q, formals)?,
+            _ => return None,
+        }
+    }
+    if require_temp && temps == 0 {
+        return None;
+    }
+    // The result is DISCARDED. Without this a value-consuming call would be read
+    // as emitting nothing while its result is still wanted.
+    if !eat_byte(seg, &mut q, 0x4B) {
+        return None;
+    }
+    *p = q;
+    Some(callee_tok)
+}
+
+/// The compound-assign operator the induction step uses: `+=`.
+///
+/// Pinned rather than accepted as "some operator", because what makes the step
+/// harmless is that it computes a value into a local nothing else reads — and
+/// *which* value it computes is irrelevant only for as long as the operator
+/// cannot be one with a side effect of its own. `l02`, `l12` and the workload's
+/// `??$__destroy_range_aux@…` all carry `0F`; nothing else is graded.
+const OP_ADD_ASSIGN: u8 = 0x0F;
+
+/// The comparison opcodes the loop's exit test may use, **each with the cell
+/// that graded it**: `20` is `!=` (`l02`, and every workload site) and `22` is
+/// `<` (`l12`).
+///
+/// The trip count is irrelevant to "this body emits nothing" — the body is the
+/// only thing that could emit — so this list is a *completeness* choice and not
+/// a soundness one, and it is a list rather than "any byte" because a byte this
+/// grid has not seen may not be a comparison at all. `38 <label>` is required
+/// immediately after it, which pins the operator's width to one.
+const LOOP_CMP_OPS: [u8; 2] = [0x20, 0x22];
+
+/// **The destroy-loop body.** `Some(callee_token)` when this segment's whole
+/// content is
+///
+/// ```text
+///   53                            the loop's own scope
+///   3A <Lcond>                    goto COND
+///   29 <Lincr>            INCR:
+///      26 <formal> 33 <TYPE> <k> 0F <TYPE> 4B     one pure induction step
+///   29 <Lcond>            COND:
+///      B9 <formal> <TYPE>  B9 <formal> <TYPE>  <cmp>  38 <Lexit>
+///      <one discarded call statement>
+///      3A <Lincr>                 continue
+///   29 <Lexit>            EXIT:
+///   54 <n>  <return plumbing to the segment end>
+/// ```
+///
+/// — **provided** the callee that token names reduces to nothing. Like
+/// [`no_effect_call`] this is a **condition and never a verdict**: it returns the
+/// token, `c2_core::elide`'s least fixpoint decides, and a refused body still
+/// contributes a link and never a seed.
+///
+/// This is STLport's `__destroy_range_aux(_first, _last, __false_type)` — the
+/// overload a **class** element type takes, against the `__true_type` one whose
+/// empty body `w-inl0` already closes. It is level 3 of board **#980**'s
+/// five-level chain and the production `fnbyte-blr-stop2` prices at **228**.
+///
+/// # Why a LOOP can be read this way at all
+///
+/// The soundness is [`no_effect_call`]'s four properties plus one the loop earns:
+///
+/// 1. **The walk is TOTAL** — it ends on [`eat_return_plumbing`]'s fail-closed
+///    terminal, so the induction variable is provably read nowhere after the
+///    loop.
+/// 2. **The answer is CONDITIONAL on the callee.**
+/// 3. **The induction step is PURE**: one lvalue that must name one of *this
+///    function's own formals* (so it cannot be a data symbol — `elide.rs`'s
+///    condition 3, one level down), one literal, one operator, discarded.
+/// 4. **The exit test reads only formals**, for the same reason.
+/// 5. **EVERY LABEL IS MATCHED.** The three labels are read and required to be
+///    the three this shape mints and no others: the head's `3A` names the same
+///    label as the `29` that opens the test, the tail's `3A` names the same label
+///    as the `29` that opens the step, the `38` names the `29` that closes the
+///    loop, and the three are pairwise distinct. A body with a fourth branch
+///    target is refused rather than read as this loop with something extra in it.
+///
+/// **The trip count is not modelled and does not need to be.** If the body emits
+/// nothing then no number of iterations of it emits anything, and the induction
+/// and the test are pure by (3) and (4). What this does *not* license is any
+/// claim about **termination** — nothing here says the loop halts, only that c2
+/// emits no code for it, which is what the grid measured (`l01`, `l09`) at `/O1`
+/// **and** at `/Ob0`.
+pub(crate) fn no_effect_loop(seg: &[u8]) -> Option<u32> {
+    let lo = crate::func::body_start(seg)?;
+    let formals = parse_formals(seg, lo).ok()?;
+
+    let mut p = crate::func::ops_start(seg, lo);
+    if !eat_byte(seg, &mut p, 0x53) {
+        return None;
+    }
+    let mut depth = BODY_SCOPE_DEPTH;
+    eat_scopes(seg, &mut p, &mut depth).ok()?;
+    // Exactly one scope deeper than the body: the `for`'s own. A body that opens
+    // two is a body with a block this reader has not walked.
+    if depth != BODY_SCOPE_DEPTH + 1 {
+        return None;
+    }
+
+    // ---- the loop head: `goto COND`, then the INCR label -------------------
+    eat_opt_stmt_marker(seg, &mut p);
+    let l_cond = eat_label(seg, &mut p, 0x3A)?;
+    let l_incr = eat_label(seg, &mut p, 0x29)?;
+
+    // ---- the induction step ------------------------------------------------
+    eat_opt_stmt_marker(seg, &mut p);
+    eat_induction_step(seg, &mut p, &formals)?;
+
+    // ---- COND: the exit test ----------------------------------------------
+    eat_opt_stmt_marker(seg, &mut p);
+    if eat_label(seg, &mut p, 0x29)? != l_cond {
+        return None;
+    }
+    eat_formal_load(seg, &mut p, &formals)?;
+    eat_formal_load(seg, &mut p, &formals)?;
+    if !LOOP_CMP_OPS.contains(seg.get(p)?) {
+        return None;
+    }
+    p += 1;
+    let l_exit = eat_label(seg, &mut p, 0x38)?;
+
+    // ---- the body: ONE discarded call statement ---------------------------
+    eat_opt_stmt_marker(seg, &mut p);
+    let callee_tok = eat_no_effect_call_stmt(seg, &mut p, &formals, false)?;
+
+    // ---- `continue`, then EXIT --------------------------------------------
+    eat_opt_stmt_marker(seg, &mut p);
+    if eat_label(seg, &mut p, 0x3A)? != l_incr {
+        return None;
+    }
+    eat_opt_stmt_marker(seg, &mut p);
+    if eat_label(seg, &mut p, 0x29)? != l_exit {
+        return None;
+    }
+    // Three distinct targets, and no fourth: the walk is total, so any other
+    // branch in this body would have had to be consumed above.
+    if l_cond == l_incr || l_cond == l_exit || l_incr == l_exit {
+        return None;
+    }
+
+    // ---- close the loop's scope and reach the segment end ------------------
+    eat_scopes(seg, &mut p, &mut depth).ok()?;
+    if depth != BODY_SCOPE_DEPTH {
+        return None;
+    }
+    eat_return_plumbing(seg, &mut p, false, depth).ok()?;
+    Some(callee_tok)
+}
+
+/// `<op> <token-var>` — a branch or a label, returning the token it names.
+fn eat_label(seg: &[u8], p: &mut usize, op: u8) -> Option<u32> {
+    let mut q = *p;
+    if !eat_byte(seg, &mut q, op) {
+        return None;
+    }
+    let (tok, w) = read_token_var(seg, q)?;
+    *p = q + w;
+    Some(tok)
+}
+
+/// `B9 <token-var> <TYPE>` — a load of one of this function's own formals, with
+/// no `55` push after it. The exit test's two operands.
+fn eat_formal_load(seg: &[u8], p: &mut usize, formals: &[u32]) -> Option<()> {
+    let mut q = *p;
+    if !eat_byte(seg, &mut q, 0xB9) {
+        return None;
+    }
+    let (tok, w) = read_token_var(seg, q)?;
+    q += w;
+    if !formals.contains(&tok) {
+        return None;
+    }
+    let (_, _, _, w) = read_type(seg, q)?;
+    *p = q + w;
+    Some(())
+}
+
+/// `26 <formal> 33 <TYPE> <k> 0F <TYPE> 4B` — the loop's induction step.
+///
+/// The `26` lvalue **must name one of this function's own formals**. That is the
+/// whole of the purity argument and it is not a formality: `26` is also the
+/// data-symbol push — `an_argument_outside_the_vocabulary_refuses_the_body`
+/// mutates a formal load into exactly this opcode — so without the membership
+/// test a step that incremented a **global** would read as pure and the body
+/// would materialize a data symbol, which is `elide.rs`'s condition 3 one level
+/// down and `w-fix`'s `k16` cell.
+///
+/// The literal's TYPE and VALUE are read and **not constrained**: `l02` carries
+/// the stride `4` and `l12` carries `8`, and a rule that pinned either would be
+/// #644's "one producer, one contiguous field" mistake with a different field.
+fn eat_induction_step(seg: &[u8], p: &mut usize, formals: &[u32]) -> Option<()> {
+    let mut q = *p;
+    if !eat_byte(seg, &mut q, 0x26) {
+        return None;
+    }
+    let (tok, w) = read_token_var(seg, q)?;
+    q += w;
+    if !formals.contains(&tok) {
+        return None;
+    }
+    // The stride, as a literal. `eat_lit_push` requires the trailing `55` push
+    // that closes an *argument*; an operand of an in-place operator has none, so
+    // the three fields are walked here.
+    if !eat_byte(seg, &mut q, 0x33) {
+        return None;
+    }
+    let (_, _, _, w) = read_type(seg, q)?;
+    q += w;
+    read_varint(seg, &mut q)?;
+    if !eat_byte(seg, &mut q, OP_ADD_ASSIGN) {
+        return None;
+    }
+    let (_, _, _, w) = read_type(seg, q)?;
+    q += w;
+    if !eat_byte(seg, &mut q, 0x4B) {
+        return None;
+    }
+    *p = q;
+    Some(())
 }
 
 /// `33 <TYPE> <varint> 55 <TYPE>` — a literal standing as a whole argument.
@@ -475,5 +712,180 @@ mod tests {
         let mut seg = DEAD_TEMP_CALL.to_vec();
         seg[at(&[0xB9, 0x06, 0x0A]) + 1] = 0x60; // a token the formals region does not list
         assert_eq!(no_effect_call(&seg), None);
+    }
+
+    // =====================================================================
+    // THE DESTROY LOOP — `no_effect_loop`. The segment below is a live capture
+    // of GRID-L's `l02`, whose source was frozen at `work/w-memset/CELLS.sha256`
+    // before its first `cl.exe`; `crates/c2-harness/tests/destroy_loop_elision.rs`
+    // grades the same source against real c2. These mutate the BYTES, which is
+    // how the guards no hand cell can reach — a mismatched label, an ungraded
+    // comparison opcode — are graded at all.
+    // =====================================================================
+
+    /// `?aux@@YAXPAH0ABUfalse_tag@@@Z` from GRID-L `l02`: the whole `.ex`
+    /// segment, transcribed from a live capture at the workload's own flag axes
+    /// and not hand-assembled. It is STLport's
+    /// `__destroy_range_aux(_first, _last, __false_type)` with the names
+    /// shortened, and real c2 emits one `4e800020` for its whole caller chain.
+    const DESTROY_LOOP: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0x20, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x08, 0x53, 0x53, 0x26, 0xF0, 0x09,
+        0x46, 0x2D, 0xEF, 0x09, 0x2D, 0xEE, 0x09, 0x2D, 0xED, 0x09, 0x4C, 0x4F, 0x11, 0x53, 0x53,
+        0x3A, 0xF2, 0x09, 0x29, 0xF3, 0x09, 0x26, 0xED, 0x09, 0x33, 0x86, 0x41, 0x12, 0x04, 0x0F,
+        0x86, 0x43, 0xF4, 0x08, 0x4B, 0x29, 0xF2, 0x09, 0xB9, 0xED, 0x09, 0x86, 0x43, 0xF4, 0x08,
+        0xB9, 0xEE, 0x09, 0x86, 0x43, 0xF4, 0x08, 0x20, 0x38, 0xF4, 0x09, 0x26, 0xEB, 0x09, 0xBD,
+        0x82, 0x07, 0x03, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, 0xB9, 0xED, 0x09, 0x86, 0x43, 0xF4,
+        0x08, 0x55, 0x86, 0x43, 0xF4, 0x08, 0x4C, 0x4B, 0x3A, 0xF3, 0x09, 0x29, 0xF4, 0x09, 0x54,
+        0x03, 0x3A, 0xF1, 0x09, 0x54, 0x02, 0x29, 0xF1, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54,
+        0x00,
+    ];
+
+    /// The token the loop's `26 <tok> BD` push carries — the callee `?leaf`.
+    const DESTROY_LOOP_CALLEE: u32 = 0xEB09;
+
+    /// Locate a byte run inside the pinned loop segment; see [`at`] for why a
+    /// found offset and never a counted one.
+    fn at_loop(pat: &[u8]) -> usize {
+        crate::func::readers::find_subslice(DESTROY_LOOP, pat)
+            .unwrap_or_else(|| panic!("pattern {pat:02x?} is not in the pinned loop segment"))
+    }
+
+    #[test]
+    fn the_destroy_loop_body_is_recognized_and_names_its_callee() {
+        assert_eq!(no_effect_loop(DESTROY_LOOP), Some(DESTROY_LOOP_CALLEE));
+    }
+
+    /// **The two shapes are disjoint.** A loop is not a dead-temporary call and
+    /// a dead-temporary call is not a loop. The census asks one and then the
+    /// other, so a body that answered both would make the field's meaning depend
+    /// on the order of two readers.
+    #[test]
+    fn the_two_no_effect_shapes_are_disjoint() {
+        assert_eq!(no_effect_call(DESTROY_LOOP), None);
+        assert_eq!(no_effect_loop(DEAD_TEMP_CALL), None);
+    }
+
+    /// **Recognizing the loop does not accept it** — the same containment
+    /// `recognizing_the_body_does_not_accept_it` states for the call shape, and
+    /// the whole of board #971 condition 4.
+    #[test]
+    fn recognizing_the_loop_does_not_accept_it() {
+        use crate::func::test_fixtures::NO_LOCALS;
+        assert!(crate::func::body::parse_segment(DESTROY_LOOP, NO_LOCALS).is_none());
+        let b = crate::func::body::parse_segment_detail(DESTROY_LOOP, NO_LOCALS).unwrap_err();
+        assert_eq!(b.feature(), "return-scope-close-cflow-label");
+    }
+
+    /// **EVERY LABEL IS MATCHED.** Repoint the `continue` branch at the exit
+    /// label and the body is refused: the reader requires the three targets this
+    /// shape mints, not merely three branches in the right order.
+    ///
+    /// **No hand cell can reach this guard** — every source-level perturbation
+    /// GRID-L can express changes the statement sequence first, and the walk
+    /// refuses there — so it is graded on the bytes or not at all.
+    #[test]
+    fn a_continue_that_does_not_name_the_step_label_is_refused() {
+        let mut seg = DESTROY_LOOP.to_vec();
+        // The `3A <Lincr>` that closes the loop body, told from the head's
+        // `3A <Lcond>` by the label it names.
+        let k = at_loop(&[0x4C, 0x4B, 0x3A, 0xF3, 0x09]);
+        seg[k + 3] = 0xF4; // Lexit, not Lincr
+        assert_eq!(no_effect_loop(&seg), None);
+    }
+
+    /// The head's `goto` must name the label that opens the exit test.
+    #[test]
+    fn a_head_branch_that_does_not_name_the_test_label_is_refused() {
+        let mut seg = DESTROY_LOOP.to_vec();
+        let k = at_loop(&[0x53, 0x53, 0x3A, 0xF2, 0x09]);
+        seg[k + 3] = 0xF3; // Lincr, not Lcond
+        assert_eq!(no_effect_loop(&seg), None);
+    }
+
+    /// The `38` branch-false must name the label that closes the loop.
+    #[test]
+    fn an_exit_branch_that_does_not_name_the_exit_label_is_refused() {
+        let mut seg = DESTROY_LOOP.to_vec();
+        let k = at_loop(&[0x20, 0x38, 0xF4, 0x09]);
+        seg[k + 2] = 0xF3;
+        assert_eq!(no_effect_loop(&seg), None);
+    }
+
+    /// **THE INDUCTION STEP MUST NAME A FORMAL.** `26` is also the data-symbol
+    /// push, so a step that incremented a **global** would otherwise read as
+    /// pure while the body materializes a data reference — `elide.rs`'s
+    /// condition 3 one level down, and `w-fix`'s `k16`.
+    #[test]
+    fn an_induction_step_over_a_non_formal_is_refused() {
+        let mut seg = DESTROY_LOOP.to_vec();
+        seg[at_loop(&[0x26, 0xED, 0x09, 0x33, 0x86, 0x41, 0x12]) + 1] = 0x60;
+        assert_eq!(no_effect_loop(&seg), None);
+    }
+
+    /// The step's operator is `+=` and nothing else is graded.
+    #[test]
+    fn an_ungraded_induction_operator_is_refused() {
+        let mut seg = DESTROY_LOOP.to_vec();
+        seg[at_loop(&[0x04, 0x0F, 0x86, 0x43, 0xF4, 0x08, 0x4B]) + 1] = 0x10;
+        assert_eq!(no_effect_loop(&seg), None);
+    }
+
+    /// **The STRIDE is read and not matched** — `l12` carries 8 where this cell
+    /// carries 4, and a reader that pinned either would be #644's mistake with a
+    /// different field.
+    #[test]
+    fn the_induction_stride_is_read_and_not_matched() {
+        let mut seg = DESTROY_LOOP.to_vec();
+        seg[at_loop(&[0x12, 0x04, 0x0F, 0x86, 0x43, 0xF4, 0x08]) + 1] = 0x08;
+        assert_eq!(no_effect_loop(&seg), Some(DESTROY_LOOP_CALLEE));
+    }
+
+    /// **The exit test reads only this function's own formals.**
+    #[test]
+    fn a_test_operand_that_is_not_a_formal_is_refused() {
+        let mut seg = DESTROY_LOOP.to_vec();
+        seg[at_loop(&[0xB9, 0xEE, 0x09, 0x86, 0x43, 0xF4, 0x08, 0x20]) + 1] = 0x60;
+        assert_eq!(no_effect_loop(&seg), None);
+    }
+
+    /// **An ungraded comparison opcode is refused**, and the one the grid *did*
+    /// compile is taken. `20` is `!=` (this cell, and every workload site) and
+    /// `22` is `<` (`l12`); a third byte here may not be a comparison at all.
+    #[test]
+    fn an_ungraded_comparison_opcode_is_refused() {
+        let mut seg = DESTROY_LOOP.to_vec();
+        seg[at_loop(&[0x08, 0x20, 0x38, 0xF4, 0x09]) + 1] = 0x21;
+        assert_eq!(no_effect_loop(&seg), None);
+        let mut seg = DESTROY_LOOP.to_vec();
+        seg[at_loop(&[0x08, 0x20, 0x38, 0xF4, 0x09]) + 1] = 0x22;
+        assert_eq!(no_effect_loop(&seg), Some(DESTROY_LOOP_CALLEE));
+    }
+
+    /// **The walk is TOTAL** — trailing bytes after the function tail refuse,
+    /// which is what makes "the induction variable is read nowhere after the
+    /// loop" structural rather than a search.
+    #[test]
+    fn trailing_bytes_after_the_loop_are_refused() {
+        let mut seg = DESTROY_LOOP.to_vec();
+        seg.push(0x26);
+        seg.push(0x11);
+        assert_eq!(no_effect_loop(&seg), None);
+    }
+
+    /// **The loop's call must be DISCARDED**, and its arguments must stay inside
+    /// the closed vocabulary the dead-temporary reader already owns — the two
+    /// share one walk (`eat_no_effect_call_stmt`), so this is that sharing under
+    /// test from the loop's side.
+    #[test]
+    fn a_loop_call_outside_the_argument_vocabulary_is_refused() {
+        let mut seg = DESTROY_LOOP.to_vec();
+        seg[at_loop(&[0x00, 0xB9, 0xED, 0x09, 0x86, 0x43, 0xF4, 0x08, 0x55]) + 1] = 0x26;
+        assert_eq!(no_effect_loop(&seg), None);
+        let mut seg = DESTROY_LOOP.to_vec();
+        seg[at_loop(&[0x4C, 0x4B, 0x3A, 0xF3, 0x09]) + 1] = 0x41; // consumed, not discarded
+        assert_eq!(no_effect_loop(&seg), None);
     }
 }
