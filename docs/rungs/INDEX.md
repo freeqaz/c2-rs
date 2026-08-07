@@ -101,6 +101,7 @@ the header block this table is read from.
 | 2026-08-08 | w-f23 | [w-f23](2026-08-08-w-f23.md) | 12 | 711,477 / 2,463,443 unchanged (28.88 %), **+0** — and the `+0` is |
 | 2026-08-08 | w-front2 | [w-front2](2026-08-08-w-front2.md) | 11 | 711,477 / 2,463,443 unchanged (28.88 %), **+0** — this lane |
 | 2026-08-08 | w-gate | [w-gate](2026-08-08-w-gate.md) | 11 | 711,477 / 2,463,443 unchanged (28.88 %), +0 |
+| 2026-08-08 | w-gen2 | [w-gen2](2026-08-08-w-gen2.md) | 12 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** — NOT re-measured |
 | 2026-08-08 | w-gen | [w-gen](2026-08-08-w-gen.md) | 12 | 711,477 / 2,463,443 unchanged (28.88 %), **+0** — NOT re-measured |
 | 2026-08-08 | w-heap | [w-heap](2026-08-08-w-heap.md) | 12 | 711,477 / 2,463,443 unchanged (28.88 %), **+0**. TU match |
 | 2026-08-08 | w-inl0 | [w-inl0](2026-08-08-w-inl0.md) | 10 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |
