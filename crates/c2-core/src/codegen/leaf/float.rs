@@ -277,6 +277,12 @@ pub fn float_leaf_text(
                     | IlOp::LoadIndSized { .. }
                     | IlOp::LoadIndFp { .. }
                     | IlOp::AddrOf { .. }
+                    // **Board #1199's carrier.** A bound reference is a store
+                    // run's operand; it has no floating-point form and
+                    // `parse_expr`'s FP path never produces one. Named rather
+                    // than swept into a wildcard, for the same reason every
+                    // neighbour above is.
+                    | IlOp::BoundAddr { .. }
                     | IlOp::StoreInd { .. }
                     | IlOp::StoreIndFp { .. } => {
                         unreachable!("not a binary op")

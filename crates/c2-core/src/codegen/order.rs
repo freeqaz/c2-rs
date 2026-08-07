@@ -922,14 +922,91 @@ mod tests {
     /// and an 18/18 fresh holdout) reproduced on a body neither of its grids
     /// contained.
     ///
-    /// **This is a test, not a widening.** `leaf::store` still builds every
-    /// [`super::alloc::Producer`] as [`super::alloc::ProducerKind::Constant`]
-    /// and `c2_il`'s `try_parse_store_run` still refuses an interior address in
-    /// the value position, so `xboxheap` still censuses `0/1` and still reports
-    /// `vocab-gap`.
+    /// **This is a test, not a widening**, and `xboxheap` still censuses `0/1`
+    /// and still reports `vocab-gap` — but the REASON has changed twice and the
+    /// stale version of this sentence is board **#1206**, named by `w-bind` and
+    /// corrected here.
+    ///
+    /// It used to say *"`c2_il`'s `try_parse_store_run` still refuses an interior
+    /// address in the value position"*. That has been **false since `w-f23`**
+    /// landed F2. Since `w-carrier` (board #1199) the bind carrier exists too, so
+    /// the body is not blocked on a representation either. What blocks it now is
+    /// exactly the thing this test and the two below are about: the run mixes an
+    /// interior address at 2 uses with a literal at 1, and that is refused **by
+    /// name**, in the reader, under `store-run-bind-mixed-kind-alloc` — a key
+    /// whose count over the 878-TU workload is **1**, and it is this function.
+    /// `leaf::store` still builds every [`super::alloc::Producer`] as
+    /// [`super::alloc::ProducerKind::Constant`], because that is all a
+    /// bind-carrying run is admitted to contain.
     #[test]
     fn xboxheap_without_the_reference_bind_is_a_different_body_and_is_predicted() {
         check("..0.11", "P1 S0 P0 S1 S3 S2 S4 S5");
+    }
+
+    /// **THE BIND-CARRYING RUN AT ONE, TWO AND THREE PRODUCERS — where the model
+    /// answers, where it stops, and the ONE cell it answers that `c2_il` declines
+    /// to emit anyway.** Board **#1215**, lane `w-carrier`. Every expected
+    /// sequence below is real `c2.dll`'s at the workload's own flags, read off
+    /// `work/w-carrier/grid/`.
+    ///
+    /// ```text
+    ///   k_base1   { h->mSize=2; BE& l=h->mListHead; l.mNext=p; }
+    ///             li 11,2 ; stw 11,16(3) ; stw 4,8(3)              = P0 S0 S1
+    ///   k_base1_c the same DIRECT — one symbol, a DIFFERENT body
+    ///             li 11,2 ; stw 4,8(3) ; stw 11,16(3)              = P0 S1 S0
+    ///   k_2const  { h->mA=2; h->mB=3; BE& l=…; l.mNext=p; }
+    ///             li 11,2 ; li 10,3 ; stw 11,36 ; stw 10,40 ; stw 4,8
+    ///                                                             = P0 P1 S0 S1 S2
+    ///   k_3const  …with a third literal
+    ///             li 11,2 ; li 10,3 ; li 9,4 ; stw 11,36 ; stw 10,40 ;
+    ///             stw 9,16 ; stw 4,8               = P0 P1 P2 S0 S1 S2 S3
+    /// ```
+    ///
+    /// **The model answers `k_2const` and answers it RIGHT**, and `c2_il`'s
+    /// `bind_run_ops` refuses it anyway: its gate is drawn at **one** producer,
+    /// not at [`MAX_MULTISYM_PRODUCERS`]. That is a deliberate under-accept and
+    /// it is worth stating as a cell rather than as a paragraph — at one producer
+    /// the walk provably cannot fail (lower `u` to 0 and every floor is 0, and
+    /// the pin always admits the leftmost remaining store), so the reader's class
+    /// is inside the emitter's **by construction**; at two it would rest on this
+    /// module's own domain gates, which the reader cannot see, and the census may
+    /// not count a body the emitter refuses.
+    ///
+    /// **`k_3const` is where the model genuinely stops** — three producers
+    /// through two symbols is past `MAX_MULTISYM_PRODUCERS` — and real `c2`'s
+    /// answer there is *source order*, the simplest answer there is. A lane that
+    /// widens the multi-symbol producer bound inherits both cells.
+    #[test]
+    fn the_bind_runs_the_model_answers_and_the_one_it_answers_that_is_declined() {
+        // One producer, two symbols — the shipped accept class.
+        let one = msym("00 .1");
+        assert_eq!(
+            schedule(&one),
+            Some(vec![Slot::Producer(0), Slot::Store(0), Slot::Store(1)]),
+            "k_base1 = P0 S0 S1"
+        );
+        // Its DIRECT twin is one symbol and is a different body (#1128).
+        assert_eq!(
+            schedule(&stmts("0.")),
+            Some(vec![Slot::Producer(0), Slot::Store(1), Slot::Store(0)]),
+            "k_base1_c = P0 S1 S0"
+        );
+        // TWO producers, two symbols: the model answers, and it is right —
+        // `c2_il` declines it all the same.
+        assert_eq!(
+            schedule(&msym("00 10 .1")),
+            Some(vec![
+                Slot::Producer(0),
+                Slot::Producer(1),
+                Slot::Store(0),
+                Slot::Store(1),
+                Slot::Store(2),
+            ]),
+            "k_2const = P0 P1 S0 S1 S2 — answered, and DECLINED by the reader"
+        );
+        // THREE: past `MAX_MULTISYM_PRODUCERS`, and this is a real refusal.
+        assert_eq!(store_order(&msym("00 10 20 .1")), None, "k_3const");
+        assert_eq!(schedule(&msym("00 10 20 .1")), None);
     }
 
     /// The **allocation** half of the same body, and the one place a lane that

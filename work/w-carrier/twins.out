@@ -1,0 +1,119 @@
+== k_2binds         vs k_2binds_c         TEXT IDENTICAL
+== k_2binds_same    vs k_2binds_same_c    TEXT IDENTICAL
+== k_2const         vs k_2const_c         TEXT DIFFERS — 8 lines
+     2,5c2,5
+     <    0004  39400003  li 10, 3
+     <    0008  91630024  stw 11, 36(3)
+     <    000c  91430028  stw 10, 40(3)
+     <    0010  90830008  stw 4, 8(3)
+     ---
+     >    0004  90830008  stw 4, 8(3)
+     >    0008  39400003  li 10, 3
+     >    000c  91630024  stw 11, 36(3)
+     >    0010  91430028  stw 10, 40(3)
+== k_3const         vs k_3const_c         TEXT DIFFERS — 12 lines
+     2,7c2,7
+     <    0004  39400003  li 10, 3
+     <    0008  39200004  li 9, 4
+     <    000c  91630024  stw 11, 36(3)
+     <    0010  91430028  stw 10, 40(3)
+     <    0014  91230010  stw 9, 16(3)
+     <    0018  90830008  stw 4, 8(3)
+     ---
+     >    0004  90830008  stw 4, 8(3)
+     >    0008  39400003  li 10, 3
+     >    000c  39200004  li 9, 4
+     >    0010  91630024  stw 11, 36(3)
+     >    0014  91430028  stw 10, 40(3)
+     >    0018  91230010  stw 9, 16(3)
+== k_base0p         vs k_base0p_c         TEXT IDENTICAL
+== k_base1          vs k_base1_c          TEXT DIFFERS — 4 lines
+     2,3c2,3
+     <    0004  91630010  stw 11, 16(3)
+     <    0008  90830008  stw 4, 8(3)
+     ---
+     >    0004  90830008  stw 4, 8(3)
+     >    0008  91630010  stw 11, 16(3)
+== k_base2          vs k_base2_c          TEXT DIFFERS — 6 lines
+     2,4c2,4
+     <    0004  91630010  stw 11, 16(3)
+     <    0008  90830008  stw 4, 8(3)
+     <    000c  9083000c  stw 4, 12(3)
+     ---
+     >    0004  90830008  stw 4, 8(3)
+     >    0008  9083000c  stw 4, 12(3)
+     >    000c  91630010  stw 11, 16(3)
+== k_both1          vs k_both1_c          TEXT IDENTICAL
+== k_both2          vs k_both2_c          TEXT IDENTICAL
+== k_call           vs k_call_c           TEXT IDENTICAL
+== k_callmix        vs k_callmix_c        TEXT DIFFERS — 8 lines
+     5c5
+     <    0010  39400000  li 10, 0
+     ---
+     >    0010  39630008  addi 11, 3, 8
+     7,8c7,8
+     <    0018  39630008  addi 11, 3, 8
+     <    001c  91430014  stw 10, 20(3)
+     ---
+     >    0018  39400000  li 10, 0
+     >    001c  91630008  stw 11, 8(3)
+     10c10
+     <    0024  91630008  stw 11, 8(3)
+     ---
+     >    0024  91430014  stw 10, 20(3)
+== k_dead           vs k_dead_c           TEXT IDENTICAL
+== k_gap0           vs k_gap0_c           TEXT IDENTICAL
+== k_gap1           vs k_gap1_c           TEXT DIFFERS — 4 lines
+     2,3c2,3
+     <    0004  91630010  stw 11, 16(3)
+     <    0008  90830008  stw 4, 8(3)
+     ---
+     >    0004  90830008  stw 4, 8(3)
+     >    0008  91630010  stw 11, 16(3)
+== k_gap2           vs k_gap2_c           TEXT DIFFERS — 4 lines
+     3,4c3,4
+     <    0008  91630010  stw 11, 16(3)
+     <    000c  90830008  stw 4, 8(3)
+     ---
+     >    0008  90830008  stw 4, 8(3)
+     >    000c  91630010  stw 11, 16(3)
+== k_gap3           vs k_gap3_c           TEXT IDENTICAL
+== k_mix_c1         vs k_mix_c1_c         TEXT IDENTICAL
+== k_mix_c2         vs k_mix_c2_c         TEXT IDENTICAL
+== k_nonthis        vs k_nonthis_c        TEXT IDENTICAL
+== k_off0           vs k_off0_c           TEXT IDENTICAL
+== k_off24          vs k_off24_c          TEXT DIFFERS — 6 lines
+     2,4c2,4
+     <    0004  91630010  stw 11, 16(3)
+     <    0008  90830018  stw 4, 24(3)
+     <    000c  9083001c  stw 4, 28(3)
+     ---
+     >    0004  90830018  stw 4, 24(3)
+     >    0008  9083001c  stw 4, 28(3)
+     >    000c  91630010  stw 11, 16(3)
+== k_pos_first      vs k_pos_first_c      TEXT IDENTICAL
+== k_pos_last       vs k_pos_last_c       TEXT DIFFERS — 4 lines
+     3,4c3,4
+     <    0008  91630010  stw 11, 16(3)
+     <    000c  90830008  stw 4, 8(3)
+     ---
+     >    0008  90830008  stw 4, 8(3)
+     >    000c  91630010  stw 11, 16(3)
+== k_val1           vs k_val1_c           TEXT IDENTICAL
+== k_target         vs k_target_direct    TEXT DIFFERS — 8 lines
+     5c5
+     <    0010  39400000  li 10, 0
+     ---
+     >    0010  39630008  addi 11, 3, 8
+     7c7
+     <    0018  39630008  addi 11, 3, 8
+     ---
+     >    0018  39400000  li 10, 0
+     9c9
+     <    0020  91430014  stw 10, 20(3)
+     ---
+     >    0020  90630004  stw 3, 4(3)
+     11c11
+     <    0028  90630004  stw 3, 4(3)
+     ---
+     >    0028  91430014  stw 10, 20(3)

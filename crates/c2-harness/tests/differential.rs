@@ -546,6 +546,19 @@ fn differential_out_of_class_call_shapes_not_implemented() {
         // fixture's POSITIVE half grade `Port=Mismatch` twice; and a multi-word
         // literal has the `mr r31,r3` land between its `lis` and its `ori`.
         "w844_store_run_call_neg.cpp",
+        // **Board #1199's bind carrier, its five boundaries — one function per
+        // clause, so each refusal has a witness the census can count (#1175).**
+        // The bound name in a store's VALUE position is an interior address:
+        // beside a literal that is the mixed-kind run `codegen::alloc` refuses
+        // (#836/#868/#1134) and it is `xboxheap.cpp`'s own shape; alone it is a
+        // pair whose two spellings emit IDENTICAL objs while the direct half is
+        // refused. Two distinct producers leave the region `order::store_order`
+        // provably cannot refuse; three symbol-group crossings leave
+        // `layout_slots`' exact half; and the trailing call is the refusal three
+        // live `Port=Mismatch` objs bought — board #867's copy slot is fed the
+        // COUNT of unproduced stores where a multi-symbol run needs #584's
+        // leading run.
+        "w1199_bind_run_neg.cpp",
     ] {
         let w = work("oocreject");
         let port = PortC2::default();

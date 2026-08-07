@@ -808,31 +808,34 @@ pub(crate) fn shape_to_function(
                     ..IlFunction::base(name, src)
                 })
             }
-            // **#839 — the reference bind. NO CARRIER, and two of them.**
+            // **#839 / board #1199 — THE BIND CARRIER, and it is this arm.**
             //
-            // Every field is named rather than dropped with `..`, so a future
-            // carrier has to come back to this arm and decide what each one
-            // means instead of inheriting a wildcard.
+            // `w-bind` left this arm returning `None` with every field named,
+            // *"so a future carrier has to come back to the arm"*. This is that
+            // return.
             //
-            // What is missing is not one thing:
+            // The carrier is [`crate::func::IlOp::BoundAddr`] — an op, not a
+            // field. `bind_run_ops` discharges the reader's `RefBind` list into
+            // the op stream, keeping the bound local's own token as the store's
+            // base symbol and leaving the offset undischarged for the emitter to
+            // sum exactly once; and then this arm builds **the carriers that
+            // already exist**, unchanged: `IlFunction::ops` for the plain tail
+            // and #844's `CallSeq::store_run` for #1129's call tail. `RefBind`
+            // never crosses into `crates/c2-core`.
             //
-            //  1. `IlFunction` cannot spell *"this token is `params[i]` plus
-            //     8"*. Every consumer of `ops` resolves a `Load(tok)` through
-            //     `params.iter().position(...)`, so a bound local resolves to
-            //     nothing at all. Inventing the field is a `crates/c2-core`
-            //     change with an EMITTED-ORDER claim behind it: the two source
-            //     spellings' bodies are four words apart
-            //     (`work/w-bind/grid/b_target_{bind,direct}`), so a carrier that
-            //     discharged the binding into the store's displacement would
-            //     emit the other one. That is board #232's direction and it is
-            //     why this arm refuses rather than approximates.
-            //  2. `codegen::alloc`'s **mixed-kind** refusal (boards #836/#868)
-            //     is live on the target body regardless — an interior address at
-            //     two uses beside a one-use literal — and two lanes have
-            //     measured it and declined to lift it.
+            // **Why an op and not a field.** A `binds:` list beside the ops is a
+            // second container, and `IlFunction::ops` and `CallSeq::store_run`
+            // are already two homes for a run — so a consumer can hold the run
+            // and drop the bindings, which is board #232's mechanism and #844's
+            // own. Inside the op stream there is nothing beside the ops to drop.
+            // `w-seam2`'s sentence for #844 — *"carrying the run inside the
+            // sequence makes the race unspellable"* — applied to the binding.
             //
-            // So the residue is counted under
-            // [`super::body::STORE_RUN_BIND_NO_CARRIER`] and nothing is emitted.
+            // **The four refusals are `bind_run_ops`' and each has its own census
+            // key**, because a shared one would make each residue unsizeable —
+            // and one of them, [`super::body::STORE_RUN_BIND_MIXED_KIND`], is the
+            // frontier's last refusal (#836/#868) becoming a countable row for
+            // the first time.
             BodyShape::StoreRunBind {
                 params,
                 binds,
@@ -840,8 +843,35 @@ pub(crate) fn shape_to_function(
                 callee_tok,
                 live_args,
             } => {
-                let _ = (params, binds, ops, callee_tok, live_args);
-                None
+                if params.is_empty() {
+                    return None;
+                }
+                let ops = crate::func::body::shapes::bind_run_ops(
+                    &params,
+                    &binds,
+                    &ops,
+                    live_args,
+                    callee_tok.is_some(),
+                )
+                .ok()?;
+                // **Only the plain run tail.** `bind_run_ops` refuses #1129's
+                // call tail for a bind-carrying run under
+                // [`super::body::STORE_RUN_BIND_CALL_TAIL`] — three graded
+                // `Port=Mismatch` objs earned that refusal, and the reason is
+                // that board #867's `u` is fed the COUNT of unproduced stores
+                // while the composition needs #584's LEADING RUN, an identity
+                // that holds on a single-symbol run and that a bind breaks. The
+                // arm is written as a `match` rather than an `if` so a lane that
+                // lifts the refusal has to come back and build the sequence
+                // rather than inherit a wildcard.
+                match callee_tok {
+                    Some(_) => None,
+                    None => Some(IlFunction {
+                        params,
+                        ops,
+                        ..IlFunction::base(name, src)
+                    }),
+                }
             }
             BodyShape::AddrLeaf { params, ops } => {
                 Some(IlFunction {

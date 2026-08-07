@@ -322,6 +322,18 @@ pub fn select_text(func: &IlFunction, mode: OptMode) -> Result<Vec<u8>, BackendE
                     "sub-object address feeding arithmetic; out of class",
                 ))
             }
+            // **Board #1199's carrier.** A bound reference (`auto& l = m;`) is
+            // a store run's operand and nothing else: it names a store's base
+            // symbol and carries the address that base is computed from. In an
+            // arithmetic expression it would have to be materialised as an
+            // `addi` feeding the chain, and no capture establishes that — the
+            // one place it materialises at all is a store's VALUE position,
+            // which is `leaf::store`'s and is refused there by name.
+            IlOp::BoundAddr { .. } => {
+                return Err(out_of_class(
+                    "a bound reference feeding arithmetic; out of class",
+                ))
+            }
             // An indirect store only ever appears as the last op of a store
             // leaf, which `store_leaf_text` owns. A store is not a value at
             // all — reaching the affine selector would mean pushing one onto
@@ -534,6 +546,11 @@ pub fn select_text(func: &IlFunction, mode: OptMode) -> Result<Vec<u8>, BackendE
                     | IlOp::LoadIndSized { .. }
                     | IlOp::LoadIndFp { .. }
                     | IlOp::AddrOf { .. }
+                    // Board #1199's carrier, refused one layer up in the op
+                    // walk and named here for the same reason its neighbours
+                    // are: the list stays exhaustive so the next variant cannot
+                    // reach the encoder through a wildcard.
+                    | IlOp::BoundAddr { .. }
                     | IlOp::StoreInd { .. }
                     | IlOp::StoreIndFp { .. } => {
                         unreachable!("not a modeled integer binary op")
@@ -662,6 +679,9 @@ fn combine(
             | IlOp::LoadIndSized { .. }
                     | IlOp::LoadIndFp { .. }
             | IlOp::AddrOf { .. }
+            // Board #1199's carrier — not a binary op, and refused before the
+            // operand stack is ever built.
+            | IlOp::BoundAddr { .. }
             | IlOp::StoreInd { .. }
             | IlOp::StoreIndFp { .. },
             _,

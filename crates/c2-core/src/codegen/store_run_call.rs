@@ -129,6 +129,16 @@ pub const LIVE_ARG_STORED: &str =
      run's order is NOT the leaf's there (board #866 is refuted in general), and \
      the framed schedule for it is unmodeled";
 
+/// **Board #1199's refusal in this file** — a store run before a call that
+/// carries a reference bind. See [`store_run_prefix_text`]'s comment: the copy's
+/// slot rule is fed the COUNT of unproduced stores where a multi-symbol run needs
+/// the LEADING RUN, and a bind is a second symbol. Three graded objs.
+pub const BIND_IN_A_COMPOSITION: &str =
+    "a store run before a call that carries a reference bind: the copy's slot \
+     rule (board #867) is fed the COUNT of unproduced stores, which equals \
+     board #584's leading run only on a SINGLE-symbol run, and a bind is a \
+     second base symbol (board #1128)";
+
 /// The refusal this lane's own grid earned. Named so the census key and the test
 /// cannot drift apart.
 pub const REFUSED_EMPTY_POOL: &str =
@@ -185,9 +195,48 @@ pub fn store_run_prefix_text(
     if prefix
         .ops
         .iter()
-        .any(|o| matches!(o, c2_il::IlOp::Load(t) if live.contains(&t)))
+        .any(|o| matches!(o, c2_il::IlOp::Load(t) if live.contains(t)))
     {
         return Err(out_of_class(LIVE_ARG_STORED));
+    }
+    // **THE REFUSAL THREE GRADED `Port=Mismatch` OBJS EARNED**, and it is a
+    // correction to this file's own documented shortcut rather than a new gate.
+    //
+    // [`save_slot`] is fed [`ScheduledRun::nsw`], the **COUNT** of stores that
+    // materialise nothing, and the module doc argues that equals #584's `u`, the
+    // **leading run** of unproduced stores in the *final* order: *"they cannot be
+    // [separated] … the leading run is always at least `min(2, total)`"*. That
+    // argument is `store_order`'s floor, and it holds on a **single-symbol** run —
+    // which is every cell #867 was fitted and held out on.
+    //
+    // Board #1199's carrier puts a SECOND base symbol in the run (that is the
+    // whole of #1128), and the cross-symbol pin can strand an unproduced store
+    // *behind* a produced one — `order::tests::the_layout_u_is_the_leading_run_not_the_count`
+    // is that cell. Measured on real `c2.dll`, `work/w-carrier/bisect/s1427.cpp`:
+    //
+    // ```text
+    //   H::H(unsigned a, unsigned b) { BE& lh = mListHead; mCount = 0;
+    //                                  lh.mNext = (BE*)this; Reset(); }
+    //   c2:   li 11,0 ; mr 31,3 ; stw 11,20(3) ; stw 3,8(3) ; bl
+    //   port: li 11,0 ; stw 11,20(3) ; mr 31,3 ; stw 3,8(3) ; bl
+    // ```
+    //
+    // The copy lands after **zero** stores and `nprod - 1 + min(nsw,2)` says one.
+    // Two right words in the wrong order — an obj that links, board #232's class.
+    //
+    // **REFUSED, not corrected.** Feeding `save_slot` the leading run instead of
+    // the count would emit all three, and it is named and not taken: it changes a
+    // rule that governs every #844 body and it would rest on the three cells that
+    // refuted this lane, which is how all six refuted allocation keys got written
+    // (`w-seam2` F-1). `c2_il`'s `bind_run_ops` refuses the same family in the
+    // READER, under `store-run-bind-call-tail-mr-slot`, because that is where
+    // acceptance lives; this is the second lock.
+    if prefix
+        .ops
+        .iter()
+        .any(|o| matches!(o, c2_il::IlOp::BoundAddr { .. }))
+    {
+        return Err(out_of_class(BIND_IN_A_COMPOSITION));
     }
     let run_ops = &prefix.ops;
     // **The same scheduler the leaf asks, not a second one.** `None` here means
@@ -409,6 +458,71 @@ mod tests {
     /// that would fix it is **named and not taken**: it would rest on one
     /// structural cell (`u = 1`), and `u = 0` is a run of length 0 the reader
     /// files under a different production entirely.
+    /// **BOARD #1199's REFUSAL IN THIS FILE, WITH ITS COUNTEREXAMPLE PINNED
+    /// BESIDE IT** — the shape of `the_mr_slot_domain_boundary_is_refused_with_
+    /// its_counterexample` below, for the same reason.
+    ///
+    /// `w-carrier`'s first emitter composed a bind-carrying run through this
+    /// seam. Three cases of `scripts/sweep.d/88-store-run-call.py` graded
+    /// `Port=Mismatch`, all of them the same word in the wrong place. Real
+    /// `c2.dll` at the workload's own flags, `work/w-carrier/bisect/s1427.cpp`:
+    ///
+    /// ```text
+    ///   H::H(unsigned a, unsigned b) { BE& lh = mListHead; mCount = 0;
+    ///                                  lh.mNext = (BE*)this; Reset(); }
+    ///   c2:   li 11,0 ; mr 31,3 ; stw 11,20(3) ; stw 3,8(3) ; bl
+    ///   port: li 11,0 ; stw 11,20(3) ; mr 31,3 ; stw 3,8(3) ; bl
+    /// ```
+    ///
+    /// The copy belongs after **zero** stores; [`save_slot`] answers **one**
+    /// because it is fed `nsw`, the COUNT of unproduced stores, where the run
+    /// needs #584's LEADING RUN — and the two are equal only on a single-symbol
+    /// run. A bind is a second symbol.
+    ///
+    /// The clause that would emit all three is one argument away and is **not
+    /// taken**: it changes a rule governing every #844 body and would rest on the
+    /// three cells that refuted this lane.
+    #[test]
+    fn a_bind_carrying_run_is_refused_in_the_composition_with_its_counterexample() {
+        let (this, init, size) = (0x0101u32, 0x0201u32, 0x0301u32);
+        let l = 0xFB09u32;
+        let prefix = c2_il::StoreRunPrefix {
+            ops: vec![
+                c2_il::IlOp::Load(this),
+                c2_il::IlOp::Lit(0),
+                c2_il::IlOp::StoreInd { off: 20, width: 4 },
+                c2_il::IlOp::BoundAddr { tok: l, base: this, off: 8 },
+                c2_il::IlOp::Load(this),
+                c2_il::IlOp::StoreInd { off: 0, width: 4 },
+            ],
+            live_args: 1,
+        };
+        let e = store_run_prefix_text(&[this, init, size], &prefix, 31)
+            .expect_err("s1427 must be a REFUSAL, never bytes");
+        assert!(
+            format!("{e:?}").contains("reference bind"),
+            "the refusal must name the construct: {e:?}"
+        );
+        // **What the rule gets wrong, kept beside the refusal** so a lifting lane
+        // meets the number rather than just permission: `nsw` is 1 here and the
+        // leading run of the FINAL order is 0, and c2 puts the copy at 0.
+        assert_eq!(save_slot(1, 1), Some(1), "the count reading says 1");
+        assert_eq!(save_slot(1, 0), Some(0), "the leading-run reading says 0 — c2's answer");
+        // The same run WITHOUT the bind is untouched and still emits.
+        let plain = c2_il::StoreRunPrefix {
+            ops: vec![
+                c2_il::IlOp::Load(this),
+                c2_il::IlOp::Lit(0),
+                c2_il::IlOp::StoreInd { off: 20, width: 4 },
+                c2_il::IlOp::Load(this),
+                c2_il::IlOp::Load(this),
+                c2_il::IlOp::StoreInd { off: 8, width: 4 },
+            ],
+            live_args: 1,
+        };
+        assert!(store_run_prefix_text(&[this, init, size], &plain, 31).is_ok());
+    }
+
     #[test]
     fn the_mr_slot_domain_boundary_is_refused_with_its_counterexample() {
         assert_eq!(save_slot(0, 0), None);

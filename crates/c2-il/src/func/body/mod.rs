@@ -999,7 +999,148 @@ pub(crate) const STORE_RUN_CALL_NO_CARRIER: &str = "store-run-call-no-emitter-ca
 /// whole-segment parser accepted, and acceptance requires the cursor to reach
 /// `seg.len()`. The `:eof` is the true statement, so the row is directly
 /// sizeable rather than hiding a second blocker.
+///
+/// **Board #1199 landed and this key's DOMAIN SHRANK to one case** (`w-carrier`).
+/// The carrier exists — [`crate::func::IlOp::BoundAddr`] — so a bind body is no
+/// longer blocked on *having nowhere to put the fact*. What remains under this
+/// name is the residual: a bind body whose callee token does not resolve, and
+/// anything a future widening leaves unclassified. The four things that DO block
+/// a bind body today each carry their own key below, because a shared one would
+/// make each of their residues unsizeable — and one of them is the frontier's
+/// last refusal.
 pub(crate) const STORE_RUN_BIND_NO_CARRIER: &str = "store-run-bind-no-emitter-carrier";
+
+/// **#836/#868's residue key, and the reason board #1199 is worth paying** —
+/// the bind body's run puts the bound name in a store's **VALUE** position
+/// *beside a literal*, so the run has two producers of different kinds: an
+/// interior address (`addi rD,rBase,off`) and a constant (`li`).
+///
+/// `codegen::alloc::allocate` refuses a mixed-kind run **wholesale**. That is not
+/// caution: over 81 mixed cells graded against real `c2.dll`, clause 1 alone is
+/// wrong on 29, clause 2 alone on 35, `w-next`'s key on 20, and the refusal on
+/// **0** (board **#836**). The narrow lift — clause 1 where it decides with no
+/// tie — was measured over 36 cells and is **12 MISS** (board **#868**): the
+/// `addi`-interior spelling is 12/12 and `slwi` is 0/12, and `ProducerKind`
+/// cannot tell the two apart. `w-heap`'s own `j1_lit2` refutes clause 1 on this
+/// exact mix (board **#1134**).
+///
+/// **`src/xdk/nuispeech/xboxheap.cpp` lands here**, and that is the point of the
+/// key: before board #1199 the target was blocked on a missing representation
+/// and #868/#836 could not be *measured* at all, because nothing reached the
+/// allocation question. Now it is one named, countable row.
+pub(crate) const STORE_RUN_BIND_MIXED_KIND: &str = "store-run-bind-mixed-kind-alloc";
+
+/// The bind body's run puts the bound name in a store's **value** position with
+/// **no** literal beside it — one register-derived producer and nothing to mix
+/// with, so board #836's refusal does not apply.
+///
+/// Refused anyway, and the reason is a MEASUREMENT rather than caution:
+/// `work/w-carrier/grid/k_both1`, `k_both2` and `k_val1` are **byte-identical**
+/// to their direct twins (`k_both1_c`, …), and the direct twin is the F2
+/// address-valued run, which `codegen::leaf::store` refuses — its group is four
+/// ops where every group the emitter models is three. Emitting one spelling of a
+/// pair whose objs are identical while refusing the other is a divergence with no
+/// grid behind it, so this lane declines the family and names it. See
+/// `docs/rungs/2026-08-08-w-carrier.md`.
+pub(crate) const STORE_RUN_BIND_ADDR_PRODUCER: &str = "store-run-bind-address-producer";
+
+/// The bind body's run carries **more than one distinct producer**.
+///
+/// With one symbol `codegen::order::store_order` is exact to three producers; a
+/// bind *is* a second base symbol (board #1128), and on more than one symbol the
+/// walk can fail outright — `work/w-carrier/grid/k_2const` is such a cell, and
+/// real `c2` emits source order there where the model has no answer at all. The
+/// gate is drawn at **one** producer, which is the region `w-carrier` proved
+/// `store_order` cannot refuse, rather than at `MAX_MULTISYM_PRODUCERS`.
+pub(crate) const STORE_RUN_BIND_MULTI_PRODUCER: &str = "store-run-bind-multi-producer";
+
+/// The bind body's run crosses more than
+/// `codegen::order::MAX_SYMBOL_CROSSINGS` base-symbol group boundaries.
+///
+/// `layout_slots` is exact only while a producer's value crosses at most two
+/// symbol-group boundaries before it is first consumed; past that the clause is
+/// 98.6 % and board **#621** measured a rival that answers the whole population
+/// at 99.44 % / 97.30 % and refused to ship it. The count is taken over the whole
+/// run in SOURCE order, which is an upper bound on the emitter's own `nsw`
+/// because the emitted symbol pattern is always the source pattern (board #601,
+/// 7,589 of 7,589 cells) — so this gate is provably at least as strict as the
+/// one it stands in for.
+pub(crate) const STORE_RUN_BIND_SYMBOL_CROSSINGS: &str = "store-run-bind-symbol-crossings";
+
+/// **THE REFUSAL THE SWEEP EARNED** — a bind-carrying run followed by board
+/// #1129's call. Three cases of `scripts/sweep.d/88-store-run-call.py` graded
+/// `Port=Mismatch` on `w-carrier`'s first emitter, and this is what closes them.
+///
+/// ```text
+///   H::H(unsigned a, unsigned b) { BE& lh = mListHead; mCount = 0;
+///                                  lh.mNext = (BE*)this; Reset(); }
+///   real c2:  li 11,0 ; mr 31,3 ; stw 11,20(3) ; stw 3,8(3) ; bl
+///   the port: li 11,0 ; stw 11,20(3) ; mr 31,3 ; stw 3,8(3) ; bl
+/// ```
+///
+/// **The copy lands after ZERO stores and board #867's rule says one.** The
+/// mechanism is `codegen::store_run_call`'s own documented shortcut:
+/// `save_slot(nprod, u)` is fed the **COUNT** of unproduced stores, and the file
+/// argues that equals #584's `u`, the **leading run** of unproduced stores in the
+/// *final* order — *"they cannot be [separated]: `store_order` forbids a store
+/// whose producer has rank `j` from occupying a position below `u + j`, so the
+/// leading run is always at least `min(2, total)`"*.
+///
+/// **That argument holds only on a SINGLE-symbol run**, which is every cell the
+/// shortcut was ever measured on. `codegen::order`'s own
+/// `the_two_readings_of_u_agree_on_every_single_symbol_run` enumerates 5,000+ to
+/// say so, and `the_layout_u_is_the_leading_run_not_the_count` exhibits the
+/// multi-symbol cell where they differ: the cross-symbol pin can strand an
+/// unproduced store *behind* a produced one. **A bind IS a second base symbol** —
+/// that is the whole of board #1128 — so this carrier is exactly what opened the
+/// region the identity fails in, and the pre-existing class could not reach it
+/// (its multi-symbol admission is the all-one-literal run, where the count is 0
+/// and the two readings agree trivially).
+///
+/// So the composition tail is **refused for a bind-carrying run**, and the
+/// correction that would emit these — feed `save_slot` the leading run instead of
+/// the count — is **named and not taken**: it is a change to a rule that governs
+/// every #844 body, it would rest on the three cells that refuted this lane, and
+/// `w-seam2` F-1's floor is that the answer to a mismatch is a refusal on a
+/// measured mechanism and never a narrowing around the failing cell. See
+/// `docs/rungs/2026-08-08-w-carrier.md` §Found-and-not-taken for what a lane
+/// taking it owes.
+///
+/// Placed AFTER the mixed-kind clause on purpose, so
+/// `src/xdk/nuispeech/xboxheap.cpp` — which has both a call tail and the mixed
+/// run — keeps the key that sizes boards #836/#868.
+pub(crate) const STORE_RUN_BIND_CALL_TAIL: &str = "store-run-bind-call-tail-mr-slot";
+
+/// The bind body's run is not a stream of three-op GPR store groups.
+///
+/// A floating-point group is two ops, an F2 address-valued group is four, and a
+/// load-valued one is four; `codegen::leaf::store::parse_simple_gpr_run` matches
+/// exactly three. Refused positively so a bind body cannot reach an emitter
+/// through a group shape nothing graded.
+pub(crate) const STORE_RUN_BIND_GROUP_SHAPE: &str = "store-run-bind-group-shape";
+
+/// **Board #1199** — why a [`BodyShape::StoreRunBind`] body is refused, or `None`
+/// when the bind itself is fine and the refusal is somewhere else (an
+/// unresolvable callee).
+///
+/// This is `shapes::bind_run_ops` asked a second time for its *reason*, and it is
+/// the **same** function `crate::func::bundle::shape_to_function` decides
+/// acceptance with — one decision procedure, two callers, which is `GAPS.md` §6's
+/// rule in the form that matters here: the key the census prints and the answer
+/// the model gives cannot drift.
+pub(crate) fn bind_refusal_key(shape: &BodyShape) -> Option<&'static str> {
+    match shape {
+        BodyShape::StoreRunBind {
+            params,
+            binds,
+            ops,
+            live_args,
+            callee_tok,
+        } => shapes::bind_run_ops(params, binds, ops, *live_args, callee_tok.is_some()).err(),
+        _ => None,
+    }
+}
+
 pub(crate) const CALLEE_UNRESOLVED_DTOR: &str = "callee-unresolved-dtor-delegation";
 pub(crate) const CALLEE_UNRESOLVED_FRAMED: &str = "callee-unresolved-framed-call";
 pub(crate) const CALLEE_UNRESOLVED_SEQ: &str = "callee-unresolved-call-sequence";

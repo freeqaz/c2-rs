@@ -1,5 +1,5 @@
 use super::body::{
-    self, call_tokens, parse_segment_detail, BodyShape, Complete, DtorSubObject,
+    self, bind_refusal_key, call_tokens, parse_segment_detail, BodyShape, Complete, DtorSubObject,
     CALLEE_UNRESOLVED_DTOR,
     CALLEE_UNRESOLVED_FRAMED, CALLEE_UNRESOLVED_SEQ, CALLEE_UNRESOLVED_TAIL,
     STORE_RUN_BIND_NO_CARRIER, STORE_RUN_CALL_NO_CARRIER,
@@ -762,6 +762,10 @@ impl IlBundle {
                                     }),
                                 _ => None,
                             };
+                            // **Board #1199.** Asked BEFORE the shape is
+                            // consumed, for the reason the `sym_fail` probe
+                            // above is: `shape_to_function` takes `sh` by value.
+                            let bind_key = bind_refusal_key(&sh);
                             match shape_to_function(sh, &name, &src, &resolve, &resolve_data) {
                                 None if sym_fail.is_some() => FnVerdict::Blocked(Block::at_end(
                                     seg,
@@ -776,13 +780,25 @@ impl IlBundle {
                                         // key so the residue #844 is sized from
                                         // is a number rather than a rumour.
                                         "store-run-call" => STORE_RUN_CALL_NO_CARRIER,
-                                        // **#839.** Also not a callee problem —
-                                        // and also not #844's, which LANDED.
-                                        // Its own key because the two are
-                                        // blocked on different things and a
-                                        // shared one would make the bind's
-                                        // residue unsizeable.
-                                        "store-run-bind" => STORE_RUN_BIND_NO_CARRIER,
+                                        // **#839 / board #1199 — the carrier
+                                        // LANDED, so this label no longer has
+                                        // one answer.** `bind_run_ops` is the
+                                        // same decision procedure
+                                        // `shape_to_function` just ran, asked
+                                        // again for its REASON: four named
+                                        // refusals, each with its own key so
+                                        // each residue is separately sizeable —
+                                        // and one of them, the mixed-kind run,
+                                        // is boards #836/#868 becoming a
+                                        // countable row on the frontier's
+                                        // cheapest TU for the first time. A
+                                        // bind body that `bind_run_ops` accepts
+                                        // and `shape_to_function` still refuses
+                                        // is a callee that did not resolve, and
+                                        // it keeps the old key.
+                                        "store-run-bind" => {
+                                            bind_key.unwrap_or(STORE_RUN_BIND_NO_CARRIER)
+                                        }
                                         "framed-call" => CALLEE_UNRESOLVED_FRAMED,
                                         l if l.starts_with("call-sequence") => {
                                             CALLEE_UNRESOLVED_SEQ

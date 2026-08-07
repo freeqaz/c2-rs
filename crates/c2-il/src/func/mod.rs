@@ -232,6 +232,67 @@ pub enum IlOp {
     LoadIndFp { off: i32, double: bool },
     /// Push an integer literal constant (IL opcode `0x33`, `<type> <varint>`).
     Lit(i32),
+    /// **Board #1199 — THE BIND CARRIER.** The token `tok`, which denotes
+    /// `base + off`: a C++ reference (or pointer) local bound to a formal's
+    /// interior, `auto& listHead = mListHead;`, standing where an ordinary
+    /// [`IlOp::Load`] of a formal stands.
+    ///
+    /// # Why this is an OP and not a field
+    ///
+    /// `w-bind` named this row and was precise about what it is *not*. #844's
+    /// carrier ([`CallSeq::store_run`]) holds *a run and a call* and has no field
+    /// binding a token to `formal + offset`; the obvious repair — a
+    /// `binds: Vec<RefBind>` beside the ops — puts the fact in a **second
+    /// container**, and a second container is a thing a consumer can hold the run
+    /// without. That is board #232's mechanism and #844's own, one layer out:
+    /// `IlFunction::ops` and `CallSeq::store_run` are two homes for a run, so a
+    /// bindings list beside them is a fact that can be dropped by whichever home
+    /// the selector picks.
+    ///
+    /// Inside the op stream there is nothing beside the ops to drop. `w-seam2`
+    /// found the same shape of answer for #844 — *"an ordering fix would leave
+    /// two settable fields and one winner; carrying the run inside the sequence
+    /// makes the race unspellable"* — and this is that sentence applied to the
+    /// binding.
+    ///
+    /// # The state that must be unspellable, and why it is
+    ///
+    /// Board **#1128**: `src/xdk/nuispeech/xboxheap.cpp`'s constructor written
+    /// *with* the bind and *without* it emit **different bodies**, four words
+    /// apart. The wrong state is the reader handing the emitter the *other*
+    /// spelling's op stream — resolving the bound local to the formal it hangs
+    /// off, so the run's may-alias analysis sees one base symbol where c2 sees
+    /// two.
+    ///
+    /// A store's **base symbol** (what [`crate::func::body::shapes`]' consumers
+    /// and `c2_core::codegen::schedule::Stmt::base` key aliasing on) and its
+    /// **base register plus displacement** are two derivations of **one**
+    /// `BoundAddr` value: the symbol is `tok`, the address is `base` and
+    /// `off + <the store's own offset>`. They cannot disagree, because they come
+    /// from the same value. To emit the direct spelling's words the op stream
+    /// would have to hold `Load(base)` where this stands — and the reader never
+    /// substitutes, so it cannot.
+    ///
+    /// # `off` is NEVER pre-added into the store's displacement
+    ///
+    /// The offset *inside* the bound object stays on the [`IlOp::StoreInd`]; the
+    /// offset *of* the bound object stays here. The sum is formed at exactly one
+    /// site, in the emitter, so the binding cannot be discharged twice. Summing
+    /// in the reader is what would make the two source spellings' op streams
+    /// identical, and #1128 measured that their bodies are not.
+    ///
+    /// # A consumer that does not know this variant REFUSES
+    ///
+    /// Every op-stream walk under `crates/c2-core` is an exact slice pattern over
+    /// [`IlOp::Load`] / [`IlOp::Lit`] / [`IlOp::StoreInd`] and friends. `BoundAddr`
+    /// matches none of them, so an unwidened consumer falls to its own
+    /// `out_of_class` — a gap, never a shorter body.
+    ///
+    /// Produced ONLY by [`crate::func::bundle::shape_to_function`]'s
+    /// [`crate::func::body::BodyShape::StoreRunBind`] arm, which discharges the
+    /// reader's `RefBind` list into the op stream and then builds the carriers
+    /// that already exist. `RefBind` itself never crosses into `c2-core`.
+    BoundAddr { tok: u32, base: u32, off: i32 },
     /// Push a **floating-point literal** (W13b). The payload is always an
     /// IEEE-754 **binary64** bit pattern regardless of width — a `float` literal
     /// is stored as a double whose value is already rounded to float — with the
