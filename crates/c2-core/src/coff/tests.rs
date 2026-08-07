@@ -1841,7 +1841,24 @@ mod tests {
             assert_eq!(align_nibble(n, t), Some(want), "n={n}, t={t}");
         }
         assert_eq!(align_nibble(1, 3), None, "a non-power-of-two alignment is refused");
-        assert_eq!(align_nibble(1, 16), None, "ALIGN_16 was never measured here");
+        // **Board #1120, lane `w-align16`.** ALIGN_16 is now measured — on a
+        // nine-way structural grid whose alignments were read off c2's own obj
+        // (`work/w-align16/`), and it converts byte-exact through both
+        // consumers. `n = 1, t = 16` is cell `A01`'s exact shape scaled down:
+        // a 4-byte `__declspec(align(16)) int`, where the object is SMALLER
+        // than its own alignment.
+        assert_eq!(align_nibble(1, 16), Some(5), "ALIGN_16 — A01/A02, nibble 5");
+        assert_eq!(align_nibble(4, 16), Some(5), "A01 scalar: size 4, align 16");
+        assert_eq!(align_nibble(64, 16), Some(5), "A04 array: size 64, align 16");
+        // **The `implied` ceiling is 8 and it does NOT keep climbing.** Cell
+        // `A07` is `char g[4096]` and real c2 gives it nibble 4, not 5. This is
+        // the row that says everything above 8 arrives through `natural`.
+        assert_eq!(align_nibble(4096, 1), Some(4), "A07 char[4096] is ALIGN_8, not 16");
+        // **32 and 64 exist, are measured, and stay refused** (`A09`/`A10` get
+        // nibbles 6 and 7 from c2). The grid varies structure at 16 and varies
+        // nothing at 32/64, so the table stops where the cells stop.
+        assert_eq!(align_nibble(1, 32), None, "A09 align(32) — measured, refused");
+        assert_eq!(align_nibble(1, 64), None, "A10 align(64) — measured, refused");
     }
 
     /// The **negative half of the same rule**: a pooled FP constant's halves
