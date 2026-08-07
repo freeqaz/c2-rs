@@ -1,0 +1,620 @@
+FIT-SIDE SWEEP   TUs ok 200  err 0   (IN SAMPLE -- this is the fit)
+
+== PER-TU EXACT BY NAME is the verdict; micro-F1 is SECONDARY (trap 8) ==
+rule            roots      |P|    EXACT |      prec    recall   F1(2nd) |   gain   lost
+NOROOT              0    37216       70 |   0.99817   0.89509   0.94382 |      0      0
+ALLW           165047   217893        8 |   0.18862   0.99027   0.31688 |      0     62
+M3                139    41097      132 |   0.99835   0.98860   0.99345 |     62      0
+M3A               138    41097      132 |   0.99835   0.98860   0.99345 |     62      0
+M3B                 1    37216       70 |   0.99817   0.89509   0.94382 |      0      0
+UNDEC             201    37216       70 |   0.99817   0.89509   0.94382 |      0      0
+M3A_UNDEC         339    41097      132 |   0.99835   0.98860   0.99345 |     62      0
+NOTRTTI          6682    47261        9 |   0.86814   0.98860   0.92446 |      0     61
+TAG01          138077    43380        9 |   0.85634   0.89509   0.87529 |      0     61
+TAG02           26969   215722        8 |   0.19051   0.99027   0.31955 |      0     62
+TAG04               0    37216       70 |   0.99817   0.89509   0.94382 |      0      0
+TAG0E               0    37216       70 |   0.99817   0.89509   0.94382 |      0      0
+F20_400        101608   144550        8 |   0.25736   0.89637   0.39990 |      0     62
+F20_1000       130407   166123        9 |   0.22394   0.89637   0.35835 |      0     61
+F20_2000        19900    50501       52 |   0.73642   0.89610   0.80845 |      0     18
+F20_4000         4158    85682       14 |   0.43387   0.89574   0.58459 |      0     56
+F20_20000         342    47053       90 |   0.87197   0.98860   0.92663 |     24      4
+F20_40000         236    42751       92 |   0.95972   0.98860   0.97395 |     25      3
+M3A_F4000           1    37216       70 |   0.99817   0.89509   0.94382 |      0      0
+M3A_F40000        104    41097      132 |   0.99835   0.98860   0.99345 |     62      0
+M3A_OR_F40000      270    42751       92 |   0.95972   0.98860   0.97395 |     25      3
+NPTR_GE17        2939   122530       14 |   0.33501   0.98908   0.50050 |      0     56
+NPTR_GE5        16305   180574       14 |   0.22753   0.98998   0.37002 |      0     56
+
+== the incumbent is %s (plain JFP_ALIAS): exact %d of %d ==
+   NOROOT exact = 70 / 200
+
+-- ALLW : gained 0, LOST 62
+     LOST  src/lazer/meta_ham/AccomplishmentCategory.cpp
+     LOST  src/lazer/net_ham/TokenJobs.cpp
+     LOST  src/system/char/CharBone.cpp
+     LOST  src/system/char/CharNeckTwist.cpp
+     LOST  src/system/dsp/BitCrushEffect.cpp
+     LOST  src/system/dsp/DelayEffect.cpp
+     LOST  src/system/dsp/WahEffect.cpp
+     LOST  src/system/flow/FlowIf.cpp
+     LOST  src/system/flow/FlowLabel.cpp
+     LOST  src/system/flow/FlowSetProperty.cpp
+     LOST  src/system/flow/FlowSwitch.cpp
+     LOST  src/system/flow/FlowValueCase.cpp
+     LOST  src/system/flow/PropertyEventListener.cpp
+     LOST  src/system/gesture/ArchiveSkeleton.cpp
+     LOST  src/system/gesture/HighFiveGestureFilter.cpp
+     LOST  src/system/hamobj/BustAMoveData.cpp
+     LOST  src/system/hamobj/HamRibbon.cpp
+     LOST  src/system/math/Key.cpp
+     LOST  src/system/meta/DeJitterPanel.cpp
+     LOST  src/system/meta/FixedSizeSaveable.cpp
+-- M3 : gained 62, LOST 0
+     gain  src/lazer/game/LiveInput.cpp
+     gain  src/lazer/meta_ham/AccomplishmentDiscSongConditional.cpp
+     gain  src/lazer/meta_ham/AppNavProvider.cpp
+     gain  src/lazer/meta_ham/ChallengeResultPanel.cpp
+     gain  src/lazer/meta_ham/FitnessCalorieSortByCalorie.cpp
+     gain  src/lazer/meta_ham/FitnessCalorieSortMgr.cpp
+     gain  src/lazer/meta_ham/HamSongMetadata.cpp
+     gain  src/lazer/meta_ham/HamStoreFilterProvider.cpp
+     ... and 54 more
+-- M3A : gained 62, LOST 0
+     gain  src/lazer/game/LiveInput.cpp
+     gain  src/lazer/meta_ham/AccomplishmentDiscSongConditional.cpp
+     gain  src/lazer/meta_ham/AppNavProvider.cpp
+     gain  src/lazer/meta_ham/ChallengeResultPanel.cpp
+     gain  src/lazer/meta_ham/FitnessCalorieSortByCalorie.cpp
+     gain  src/lazer/meta_ham/FitnessCalorieSortMgr.cpp
+     gain  src/lazer/meta_ham/HamSongMetadata.cpp
+     gain  src/lazer/meta_ham/HamStoreFilterProvider.cpp
+     ... and 54 more
+-- M3A_UNDEC : gained 62, LOST 0
+     gain  src/lazer/game/LiveInput.cpp
+     gain  src/lazer/meta_ham/AccomplishmentDiscSongConditional.cpp
+     gain  src/lazer/meta_ham/AppNavProvider.cpp
+     gain  src/lazer/meta_ham/ChallengeResultPanel.cpp
+     gain  src/lazer/meta_ham/FitnessCalorieSortByCalorie.cpp
+     gain  src/lazer/meta_ham/FitnessCalorieSortMgr.cpp
+     gain  src/lazer/meta_ham/HamSongMetadata.cpp
+     gain  src/lazer/meta_ham/HamStoreFilterProvider.cpp
+     ... and 54 more
+-- NOTRTTI : gained 0, LOST 61
+     LOST  src/lazer/meta_ham/AccomplishmentCategory.cpp
+     LOST  src/lazer/net_ham/TokenJobs.cpp
+     LOST  src/system/char/CharBone.cpp
+     LOST  src/system/char/CharNeckTwist.cpp
+     LOST  src/system/dsp/BitCrushEffect.cpp
+     LOST  src/system/dsp/DelayEffect.cpp
+     LOST  src/system/dsp/WahEffect.cpp
+     LOST  src/system/flow/FlowIf.cpp
+     LOST  src/system/flow/FlowLabel.cpp
+     LOST  src/system/flow/FlowSetProperty.cpp
+     LOST  src/system/flow/FlowSwitch.cpp
+     LOST  src/system/flow/FlowValueCase.cpp
+     LOST  src/system/flow/PropertyEventListener.cpp
+     LOST  src/system/gesture/ArchiveSkeleton.cpp
+     LOST  src/system/gesture/HighFiveGestureFilter.cpp
+     LOST  src/system/hamobj/BustAMoveData.cpp
+     LOST  src/system/hamobj/HamRibbon.cpp
+     LOST  src/system/math/Key.cpp
+     LOST  src/system/meta/DeJitterPanel.cpp
+     LOST  src/system/meta/FixedSizeSaveable.cpp
+-- TAG01 : gained 0, LOST 61
+     LOST  src/lazer/meta_ham/AccomplishmentCategory.cpp
+     LOST  src/lazer/net_ham/TokenJobs.cpp
+     LOST  src/system/char/CharBone.cpp
+     LOST  src/system/char/CharNeckTwist.cpp
+     LOST  src/system/dsp/BitCrushEffect.cpp
+     LOST  src/system/dsp/DelayEffect.cpp
+     LOST  src/system/dsp/WahEffect.cpp
+     LOST  src/system/flow/FlowIf.cpp
+     LOST  src/system/flow/FlowLabel.cpp
+     LOST  src/system/flow/FlowSetProperty.cpp
+     LOST  src/system/flow/FlowSwitch.cpp
+     LOST  src/system/flow/FlowValueCase.cpp
+     LOST  src/system/flow/PropertyEventListener.cpp
+     LOST  src/system/gesture/ArchiveSkeleton.cpp
+     LOST  src/system/gesture/HighFiveGestureFilter.cpp
+     LOST  src/system/hamobj/BustAMoveData.cpp
+     LOST  src/system/hamobj/HamRibbon.cpp
+     LOST  src/system/math/Key.cpp
+     LOST  src/system/meta/DeJitterPanel.cpp
+     LOST  src/system/meta/FixedSizeSaveable.cpp
+-- TAG02 : gained 0, LOST 62
+     LOST  src/lazer/meta_ham/AccomplishmentCategory.cpp
+     LOST  src/lazer/net_ham/TokenJobs.cpp
+     LOST  src/system/char/CharBone.cpp
+     LOST  src/system/char/CharNeckTwist.cpp
+     LOST  src/system/dsp/BitCrushEffect.cpp
+     LOST  src/system/dsp/DelayEffect.cpp
+     LOST  src/system/dsp/WahEffect.cpp
+     LOST  src/system/flow/FlowIf.cpp
+     LOST  src/system/flow/FlowLabel.cpp
+     LOST  src/system/flow/FlowSetProperty.cpp
+     LOST  src/system/flow/FlowSwitch.cpp
+     LOST  src/system/flow/FlowValueCase.cpp
+     LOST  src/system/flow/PropertyEventListener.cpp
+     LOST  src/system/gesture/ArchiveSkeleton.cpp
+     LOST  src/system/gesture/HighFiveGestureFilter.cpp
+     LOST  src/system/hamobj/BustAMoveData.cpp
+     LOST  src/system/hamobj/HamRibbon.cpp
+     LOST  src/system/math/Key.cpp
+     LOST  src/system/meta/DeJitterPanel.cpp
+     LOST  src/system/meta/FixedSizeSaveable.cpp
+-- F20_400 : gained 0, LOST 62
+     LOST  src/lazer/meta_ham/AccomplishmentCategory.cpp
+     LOST  src/lazer/net_ham/TokenJobs.cpp
+     LOST  src/system/char/CharBone.cpp
+     LOST  src/system/char/CharNeckTwist.cpp
+     LOST  src/system/dsp/BitCrushEffect.cpp
+     LOST  src/system/dsp/DelayEffect.cpp
+     LOST  src/system/dsp/WahEffect.cpp
+     LOST  src/system/flow/FlowIf.cpp
+     LOST  src/system/flow/FlowLabel.cpp
+     LOST  src/system/flow/FlowSetProperty.cpp
+     LOST  src/system/flow/FlowSwitch.cpp
+     LOST  src/system/flow/FlowValueCase.cpp
+     LOST  src/system/flow/PropertyEventListener.cpp
+     LOST  src/system/gesture/ArchiveSkeleton.cpp
+     LOST  src/system/gesture/HighFiveGestureFilter.cpp
+     LOST  src/system/hamobj/BustAMoveData.cpp
+     LOST  src/system/hamobj/HamRibbon.cpp
+     LOST  src/system/math/Key.cpp
+     LOST  src/system/meta/DeJitterPanel.cpp
+     LOST  src/system/meta/FixedSizeSaveable.cpp
+-- F20_1000 : gained 0, LOST 61
+     LOST  src/lazer/meta_ham/AccomplishmentCategory.cpp
+     LOST  src/lazer/net_ham/TokenJobs.cpp
+     LOST  src/system/char/CharBone.cpp
+     LOST  src/system/char/CharNeckTwist.cpp
+     LOST  src/system/dsp/BitCrushEffect.cpp
+     LOST  src/system/dsp/DelayEffect.cpp
+     LOST  src/system/dsp/WahEffect.cpp
+     LOST  src/system/flow/FlowIf.cpp
+     LOST  src/system/flow/FlowLabel.cpp
+     LOST  src/system/flow/FlowSetProperty.cpp
+     LOST  src/system/flow/FlowSwitch.cpp
+     LOST  src/system/flow/FlowValueCase.cpp
+     LOST  src/system/flow/PropertyEventListener.cpp
+     LOST  src/system/gesture/ArchiveSkeleton.cpp
+     LOST  src/system/gesture/HighFiveGestureFilter.cpp
+     LOST  src/system/hamobj/BustAMoveData.cpp
+     LOST  src/system/hamobj/HamRibbon.cpp
+     LOST  src/system/math/Key.cpp
+     LOST  src/system/meta/DeJitterPanel.cpp
+     LOST  src/system/meta/FixedSizeSaveable.cpp
+-- F20_2000 : gained 0, LOST 18
+     LOST  src/system/flow/FlowSetProperty.cpp
+     LOST  src/system/gesture/HighFiveGestureFilter.cpp
+     LOST  src/system/hamobj/HamRibbon.cpp
+     LOST  src/system/meta/DeJitterPanel.cpp
+     LOST  src/system/meta/FixedSizeSaveable.cpp
+     LOST  src/system/meta/MemcardAction.cpp
+     LOST  src/system/meta/PreloadPanel.cpp
+     LOST  src/system/meta/Profile.cpp
+     LOST  src/system/meta/SongMetadata.cpp
+     LOST  src/system/os/JoypadMsgs.cpp
+     LOST  src/system/os/System_Xbox.cpp
+     LOST  src/system/os/User.cpp
+     LOST  src/system/rndobj/PostProcMgr.cpp
+     LOST  src/system/rndobj/Ribbon.cpp
+     LOST  src/system/rndobj/ShaderProgram.cpp
+     LOST  src/system/synth_xbox/soundtouch/source/SoundTouch/BPMDetect.cpp
+     LOST  src/system/utl/NetCacheMgr.cpp
+     LOST  src/system/utl/NetCacheMgr_Xbox.cpp
+-- F20_4000 : gained 0, LOST 56
+     LOST  src/lazer/meta_ham/AccomplishmentCategory.cpp
+     LOST  src/lazer/net_ham/TokenJobs.cpp
+     LOST  src/system/char/CharBone.cpp
+     LOST  src/system/char/CharNeckTwist.cpp
+     LOST  src/system/dsp/BitCrushEffect.cpp
+     LOST  src/system/dsp/DelayEffect.cpp
+     LOST  src/system/dsp/WahEffect.cpp
+     LOST  src/system/flow/FlowIf.cpp
+     LOST  src/system/flow/FlowLabel.cpp
+     LOST  src/system/flow/FlowSetProperty.cpp
+     LOST  src/system/flow/FlowSwitch.cpp
+     LOST  src/system/flow/FlowValueCase.cpp
+     LOST  src/system/flow/PropertyEventListener.cpp
+     LOST  src/system/gesture/ArchiveSkeleton.cpp
+     LOST  src/system/gesture/HighFiveGestureFilter.cpp
+     LOST  src/system/hamobj/BustAMoveData.cpp
+     LOST  src/system/hamobj/HamRibbon.cpp
+     LOST  src/system/math/Key.cpp
+     LOST  src/system/meta/DeJitterPanel.cpp
+     LOST  src/system/meta/FixedSizeSaveable.cpp
+-- F20_20000 : gained 24, LOST 4
+     LOST  src/system/meta/FixedSizeSaveable.cpp
+     LOST  src/system/meta/MemcardAction.cpp
+     LOST  src/system/meta/PreloadPanel.cpp
+     LOST  src/system/meta/Profile.cpp
+     gain  src/lazer/meta_ham/SigninScreen.cpp
+     gain  src/system/char/CharBonesMeshes.cpp
+     gain  src/system/char/CharClipGroup.cpp
+     gain  src/system/char/CharServoBone.cpp
+     gain  src/system/char/CharSleeve.cpp
+     gain  src/system/char/CharUtl.cpp
+     gain  src/system/flow/FlowMultiSetProperty.cpp
+     gain  src/system/flow/FlowTimer.cpp
+     ... and 16 more
+-- F20_40000 : gained 25, LOST 3
+     LOST  src/system/meta/FixedSizeSaveable.cpp
+     LOST  src/system/meta/MemcardAction.cpp
+     LOST  src/system/meta/Profile.cpp
+     gain  src/lazer/meta_ham/SigninScreen.cpp
+     gain  src/system/char/CharBonesMeshes.cpp
+     gain  src/system/char/CharClipGroup.cpp
+     gain  src/system/char/CharServoBone.cpp
+     gain  src/system/char/CharSleeve.cpp
+     gain  src/system/char/CharUtl.cpp
+     gain  src/system/flow/FlowMultiSetProperty.cpp
+     gain  src/system/flow/FlowTimer.cpp
+     ... and 17 more
+-- M3A_F40000 : gained 62, LOST 0
+     gain  src/lazer/game/LiveInput.cpp
+     gain  src/lazer/meta_ham/AccomplishmentDiscSongConditional.cpp
+     gain  src/lazer/meta_ham/AppNavProvider.cpp
+     gain  src/lazer/meta_ham/ChallengeResultPanel.cpp
+     gain  src/lazer/meta_ham/FitnessCalorieSortByCalorie.cpp
+     gain  src/lazer/meta_ham/FitnessCalorieSortMgr.cpp
+     gain  src/lazer/meta_ham/HamSongMetadata.cpp
+     gain  src/lazer/meta_ham/HamStoreFilterProvider.cpp
+     ... and 54 more
+-- M3A_OR_F40000 : gained 25, LOST 3
+     LOST  src/system/meta/FixedSizeSaveable.cpp
+     LOST  src/system/meta/MemcardAction.cpp
+     LOST  src/system/meta/Profile.cpp
+     gain  src/lazer/meta_ham/SigninScreen.cpp
+     gain  src/system/char/CharBonesMeshes.cpp
+     gain  src/system/char/CharClipGroup.cpp
+     gain  src/system/char/CharServoBone.cpp
+     gain  src/system/char/CharSleeve.cpp
+     gain  src/system/char/CharUtl.cpp
+     gain  src/system/flow/FlowMultiSetProperty.cpp
+     gain  src/system/flow/FlowTimer.cpp
+     ... and 17 more
+-- NPTR_GE17 : gained 0, LOST 56
+     LOST  src/lazer/meta_ham/AccomplishmentCategory.cpp
+     LOST  src/lazer/net_ham/TokenJobs.cpp
+     LOST  src/system/char/CharBone.cpp
+     LOST  src/system/char/CharNeckTwist.cpp
+     LOST  src/system/dsp/BitCrushEffect.cpp
+     LOST  src/system/dsp/DelayEffect.cpp
+     LOST  src/system/dsp/WahEffect.cpp
+     LOST  src/system/flow/FlowIf.cpp
+     LOST  src/system/flow/FlowLabel.cpp
+     LOST  src/system/flow/FlowSetProperty.cpp
+     LOST  src/system/flow/FlowSwitch.cpp
+     LOST  src/system/flow/FlowValueCase.cpp
+     LOST  src/system/flow/PropertyEventListener.cpp
+     LOST  src/system/gesture/ArchiveSkeleton.cpp
+     LOST  src/system/gesture/HighFiveGestureFilter.cpp
+     LOST  src/system/hamobj/BustAMoveData.cpp
+     LOST  src/system/hamobj/HamRibbon.cpp
+     LOST  src/system/math/Key.cpp
+     LOST  src/system/meta/DeJitterPanel.cpp
+     LOST  src/system/meta/FixedSizeSaveable.cpp
+-- NPTR_GE5 : gained 0, LOST 56
+     LOST  src/lazer/meta_ham/AccomplishmentCategory.cpp
+     LOST  src/lazer/net_ham/TokenJobs.cpp
+     LOST  src/system/char/CharBone.cpp
+     LOST  src/system/char/CharNeckTwist.cpp
+     LOST  src/system/dsp/BitCrushEffect.cpp
+     LOST  src/system/dsp/DelayEffect.cpp
+     LOST  src/system/dsp/WahEffect.cpp
+     LOST  src/system/flow/FlowIf.cpp
+     LOST  src/system/flow/FlowLabel.cpp
+     LOST  src/system/flow/FlowSetProperty.cpp
+     LOST  src/system/flow/FlowSwitch.cpp
+     LOST  src/system/flow/FlowValueCase.cpp
+     LOST  src/system/flow/PropertyEventListener.cpp
+     LOST  src/system/gesture/ArchiveSkeleton.cpp
+     LOST  src/system/gesture/HighFiveGestureFilter.cpp
+     LOST  src/system/hamobj/BustAMoveData.cpp
+     LOST  src/system/hamobj/HamRibbon.cpp
+     LOST  src/system/math/Key.cpp
+     LOST  src/system/meta/DeJitterPanel.cpp
+     LOST  src/system/meta/FixedSizeSaveable.cpp
+
+== false-negative FAMILY structure, top 12 names by TU-count ==
+-- NOROOT     total FN 4221 over 371 distinct names
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BB@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BP@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ?EaseBackIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseBackInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBackOut@@YAMMMM@Z                                   in  102 TUs
+     ?EaseBackOutIn@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBounceIn@@YAMMMM@Z                                  in  102 TUs
+     ?EaseBounceInOut@@YAMMMM@Z                               in  102 TUs
+     ?EaseBounceOutIn@@YAMMMM@Z                               in  102 TUs
+     ?EaseCircIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseCircInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseCircOut@@YAMMMM@Z                                   in  102 TUs
+-- ALLW       total FN 271 over 263 distinct names
+     ??1DebugNotifyOncer@@QAA@XZ                              in    9 TUs
+     ??1DebugGraph@@QAA@XZ                                    in    1 TUs
+     ??0FacingBones@FacingSet@CharClip@@QAA@XZ                in    1 TUs
+     ??__F?sFacingPos@FacingSet@CharClip@@2UFacingBones@12@A@ in    1 TUs
+     ??__F?sFacingRotAndPos@FacingSet@CharClip@@2UFacingBones in    1 TUs
+     ??$?0UTargetCache@HamCamShot@@@?$StlNodeAlloc@V?$_List_n in    1 TUs
+     ??0?$StlNodeAlloc@UTargetCache@HamCamShot@@@stlpmtx_std@ in    1 TUs
+     ??0?$StlNodeAlloc@V?$_List_node@UTargetCache@HamCamShot@ in    1 TUs
+     ??0?$_List_base@UTargetCache@HamCamShot@@V?$StlNodeAlloc in    1 TUs
+     ??0?$_STLP_alloc_proxy@U_List_node_base@stlpmtx_std@@V?$ in    1 TUs
+     ??0?$list@UTargetCache@HamCamShot@@V?$StlNodeAlloc@UTarg in    1 TUs
+     ??1?$StlNodeAlloc@UTargetCache@HamCamShot@@@stlpmtx_std@ in    1 TUs
+-- M3         total FN 340 over 332 distinct names
+     ??1DebugNotifyOncer@@QAA@XZ                              in    9 TUs
+     ??1DebugGraph@@QAA@XZ                                    in    1 TUs
+     ??0FacingBones@FacingSet@CharClip@@QAA@XZ                in    1 TUs
+     ??1CharBones@@UAA@XZ                                     in    1 TUs
+     ??1FacingBones@FacingSet@CharClip@@UAA@XZ                in    1 TUs
+     ??_GCharBones@@UAAPAXI@Z                                 in    1 TUs
+     ??_GFacingBones@FacingSet@CharClip@@UAAPAXI@Z            in    1 TUs
+     ??__F?sFacingPos@FacingSet@CharClip@@2UFacingBones@12@A@ in    1 TUs
+     ??__F?sFacingRotAndPos@FacingSet@CharClip@@2UFacingBones in    1 TUs
+     ?ReallocateInternal@CharBones@@MAAXXZ                    in    1 TUs
+     ??$?0UTargetCache@HamCamShot@@@?$StlNodeAlloc@V?$_List_n in    1 TUs
+     ??0?$StlNodeAlloc@UTargetCache@HamCamShot@@@stlpmtx_std@ in    1 TUs
+-- M3A        total FN 340 over 332 distinct names
+     ??1DebugNotifyOncer@@QAA@XZ                              in    9 TUs
+     ??1DebugGraph@@QAA@XZ                                    in    1 TUs
+     ??0FacingBones@FacingSet@CharClip@@QAA@XZ                in    1 TUs
+     ??1CharBones@@UAA@XZ                                     in    1 TUs
+     ??1FacingBones@FacingSet@CharClip@@UAA@XZ                in    1 TUs
+     ??_GCharBones@@UAAPAXI@Z                                 in    1 TUs
+     ??_GFacingBones@FacingSet@CharClip@@UAAPAXI@Z            in    1 TUs
+     ??__F?sFacingPos@FacingSet@CharClip@@2UFacingBones@12@A@ in    1 TUs
+     ??__F?sFacingRotAndPos@FacingSet@CharClip@@2UFacingBones in    1 TUs
+     ?ReallocateInternal@CharBones@@MAAXXZ                    in    1 TUs
+     ??$?0UTargetCache@HamCamShot@@@?$StlNodeAlloc@V?$_List_n in    1 TUs
+     ??0?$StlNodeAlloc@UTargetCache@HamCamShot@@@stlpmtx_std@ in    1 TUs
+-- M3B        total FN 4221 over 371 distinct names
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BB@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BP@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ?EaseBackIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseBackInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBackOut@@YAMMMM@Z                                   in  102 TUs
+     ?EaseBackOutIn@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBounceIn@@YAMMMM@Z                                  in  102 TUs
+     ?EaseBounceInOut@@YAMMMM@Z                               in  102 TUs
+     ?EaseBounceOutIn@@YAMMMM@Z                               in  102 TUs
+     ?EaseCircIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseCircInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseCircOut@@YAMMMM@Z                                   in  102 TUs
+-- UNDEC      total FN 4221 over 371 distinct names
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BB@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BP@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ?EaseBackIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseBackInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBackOut@@YAMMMM@Z                                   in  102 TUs
+     ?EaseBackOutIn@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBounceIn@@YAMMMM@Z                                  in  102 TUs
+     ?EaseBounceInOut@@YAMMMM@Z                               in  102 TUs
+     ?EaseBounceOutIn@@YAMMMM@Z                               in  102 TUs
+     ?EaseCircIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseCircInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseCircOut@@YAMMMM@Z                                   in  102 TUs
+-- M3A_UNDEC  total FN 340 over 332 distinct names
+     ??1DebugNotifyOncer@@QAA@XZ                              in    9 TUs
+     ??1DebugGraph@@QAA@XZ                                    in    1 TUs
+     ??0FacingBones@FacingSet@CharClip@@QAA@XZ                in    1 TUs
+     ??1CharBones@@UAA@XZ                                     in    1 TUs
+     ??1FacingBones@FacingSet@CharClip@@UAA@XZ                in    1 TUs
+     ??_GCharBones@@UAAPAXI@Z                                 in    1 TUs
+     ??_GFacingBones@FacingSet@CharClip@@UAAPAXI@Z            in    1 TUs
+     ??__F?sFacingPos@FacingSet@CharClip@@2UFacingBones@12@A@ in    1 TUs
+     ??__F?sFacingRotAndPos@FacingSet@CharClip@@2UFacingBones in    1 TUs
+     ?ReallocateInternal@CharBones@@MAAXXZ                    in    1 TUs
+     ??$?0UTargetCache@HamCamShot@@@?$StlNodeAlloc@V?$_List_n in    1 TUs
+     ??0?$StlNodeAlloc@UTargetCache@HamCamShot@@@stlpmtx_std@ in    1 TUs
+-- NOTRTTI    total FN 340 over 332 distinct names
+     ??1DebugNotifyOncer@@QAA@XZ                              in    9 TUs
+     ??1DebugGraph@@QAA@XZ                                    in    1 TUs
+     ??0FacingBones@FacingSet@CharClip@@QAA@XZ                in    1 TUs
+     ??1CharBones@@UAA@XZ                                     in    1 TUs
+     ??1FacingBones@FacingSet@CharClip@@UAA@XZ                in    1 TUs
+     ??_GCharBones@@UAAPAXI@Z                                 in    1 TUs
+     ??_GFacingBones@FacingSet@CharClip@@UAAPAXI@Z            in    1 TUs
+     ??__F?sFacingPos@FacingSet@CharClip@@2UFacingBones@12@A@ in    1 TUs
+     ??__F?sFacingRotAndPos@FacingSet@CharClip@@2UFacingBones in    1 TUs
+     ?ReallocateInternal@CharBones@@MAAXXZ                    in    1 TUs
+     ??$?0UTargetCache@HamCamShot@@@?$StlNodeAlloc@V?$_List_n in    1 TUs
+     ??0?$StlNodeAlloc@UTargetCache@HamCamShot@@@stlpmtx_std@ in    1 TUs
+-- TAG01      total FN 4221 over 371 distinct names
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BB@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BP@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ?EaseBackIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseBackInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBackOut@@YAMMMM@Z                                   in  102 TUs
+     ?EaseBackOutIn@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBounceIn@@YAMMMM@Z                                  in  102 TUs
+     ?EaseBounceInOut@@YAMMMM@Z                               in  102 TUs
+     ?EaseBounceOutIn@@YAMMMM@Z                               in  102 TUs
+     ?EaseCircIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseCircInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseCircOut@@YAMMMM@Z                                   in  102 TUs
+-- TAG02      total FN 271 over 263 distinct names
+     ??1DebugNotifyOncer@@QAA@XZ                              in    9 TUs
+     ??1DebugGraph@@QAA@XZ                                    in    1 TUs
+     ??0FacingBones@FacingSet@CharClip@@QAA@XZ                in    1 TUs
+     ??__F?sFacingPos@FacingSet@CharClip@@2UFacingBones@12@A@ in    1 TUs
+     ??__F?sFacingRotAndPos@FacingSet@CharClip@@2UFacingBones in    1 TUs
+     ??$?0UTargetCache@HamCamShot@@@?$StlNodeAlloc@V?$_List_n in    1 TUs
+     ??0?$StlNodeAlloc@UTargetCache@HamCamShot@@@stlpmtx_std@ in    1 TUs
+     ??0?$StlNodeAlloc@V?$_List_node@UTargetCache@HamCamShot@ in    1 TUs
+     ??0?$_List_base@UTargetCache@HamCamShot@@V?$StlNodeAlloc in    1 TUs
+     ??0?$_STLP_alloc_proxy@U_List_node_base@stlpmtx_std@@V?$ in    1 TUs
+     ??0?$list@UTargetCache@HamCamShot@@V?$StlNodeAlloc@UTarg in    1 TUs
+     ??1?$StlNodeAlloc@UTargetCache@HamCamShot@@@stlpmtx_std@ in    1 TUs
+-- TAG04      total FN 4221 over 371 distinct names
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BB@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BP@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ?EaseBackIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseBackInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBackOut@@YAMMMM@Z                                   in  102 TUs
+     ?EaseBackOutIn@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBounceIn@@YAMMMM@Z                                  in  102 TUs
+     ?EaseBounceInOut@@YAMMMM@Z                               in  102 TUs
+     ?EaseBounceOutIn@@YAMMMM@Z                               in  102 TUs
+     ?EaseCircIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseCircInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseCircOut@@YAMMMM@Z                                   in  102 TUs
+-- TAG0E      total FN 4221 over 371 distinct names
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BB@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BP@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ?EaseBackIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseBackInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBackOut@@YAMMMM@Z                                   in  102 TUs
+     ?EaseBackOutIn@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBounceIn@@YAMMMM@Z                                  in  102 TUs
+     ?EaseBounceInOut@@YAMMMM@Z                               in  102 TUs
+     ?EaseBounceOutIn@@YAMMMM@Z                               in  102 TUs
+     ?EaseCircIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseCircInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseCircOut@@YAMMMM@Z                                   in  102 TUs
+-- F20_400    total FN 4168 over 324 distinct names
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BB@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BP@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ?EaseBackIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseBackInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBackOut@@YAMMMM@Z                                   in  102 TUs
+     ?EaseBackOutIn@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBounceIn@@YAMMMM@Z                                  in  102 TUs
+     ?EaseBounceInOut@@YAMMMM@Z                               in  102 TUs
+     ?EaseBounceOutIn@@YAMMMM@Z                               in  102 TUs
+     ?EaseCircIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseCircInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseCircOut@@YAMMMM@Z                                   in  102 TUs
+-- F20_1000   total FN 4168 over 324 distinct names
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BB@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BP@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ?EaseBackIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseBackInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBackOut@@YAMMMM@Z                                   in  102 TUs
+     ?EaseBackOutIn@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBounceIn@@YAMMMM@Z                                  in  102 TUs
+     ?EaseBounceInOut@@YAMMMM@Z                               in  102 TUs
+     ?EaseBounceOutIn@@YAMMMM@Z                               in  102 TUs
+     ?EaseCircIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseCircInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseCircOut@@YAMMMM@Z                                   in  102 TUs
+-- F20_2000   total FN 4179 over 335 distinct names
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BB@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BP@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ?EaseBackIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseBackInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBackOut@@YAMMMM@Z                                   in  102 TUs
+     ?EaseBackOutIn@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBounceIn@@YAMMMM@Z                                  in  102 TUs
+     ?EaseBounceInOut@@YAMMMM@Z                               in  102 TUs
+     ?EaseBounceOutIn@@YAMMMM@Z                               in  102 TUs
+     ?EaseCircIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseCircInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseCircOut@@YAMMMM@Z                                   in  102 TUs
+-- F20_4000   total FN 4194 over 350 distinct names
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BB@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BP@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ?EaseBackIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseBackInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBackOut@@YAMMMM@Z                                   in  102 TUs
+     ?EaseBackOutIn@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBounceIn@@YAMMMM@Z                                  in  102 TUs
+     ?EaseBounceInOut@@YAMMMM@Z                               in  102 TUs
+     ?EaseBounceOutIn@@YAMMMM@Z                               in  102 TUs
+     ?EaseCircIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseCircInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseCircOut@@YAMMMM@Z                                   in  102 TUs
+-- F20_20000  total FN 340 over 332 distinct names
+     ??1DebugNotifyOncer@@QAA@XZ                              in    9 TUs
+     ??1DebugGraph@@QAA@XZ                                    in    1 TUs
+     ??0FacingBones@FacingSet@CharClip@@QAA@XZ                in    1 TUs
+     ??1CharBones@@UAA@XZ                                     in    1 TUs
+     ??1FacingBones@FacingSet@CharClip@@UAA@XZ                in    1 TUs
+     ??_GCharBones@@UAAPAXI@Z                                 in    1 TUs
+     ??_GFacingBones@FacingSet@CharClip@@UAAPAXI@Z            in    1 TUs
+     ??__F?sFacingPos@FacingSet@CharClip@@2UFacingBones@12@A@ in    1 TUs
+     ??__F?sFacingRotAndPos@FacingSet@CharClip@@2UFacingBones in    1 TUs
+     ?ReallocateInternal@CharBones@@MAAXXZ                    in    1 TUs
+     ??$?0UTargetCache@HamCamShot@@@?$StlNodeAlloc@V?$_List_n in    1 TUs
+     ??0?$StlNodeAlloc@UTargetCache@HamCamShot@@@stlpmtx_std@ in    1 TUs
+-- F20_40000  total FN 340 over 332 distinct names
+     ??1DebugNotifyOncer@@QAA@XZ                              in    9 TUs
+     ??1DebugGraph@@QAA@XZ                                    in    1 TUs
+     ??0FacingBones@FacingSet@CharClip@@QAA@XZ                in    1 TUs
+     ??1CharBones@@UAA@XZ                                     in    1 TUs
+     ??1FacingBones@FacingSet@CharClip@@UAA@XZ                in    1 TUs
+     ??_GCharBones@@UAAPAXI@Z                                 in    1 TUs
+     ??_GFacingBones@FacingSet@CharClip@@UAAPAXI@Z            in    1 TUs
+     ??__F?sFacingPos@FacingSet@CharClip@@2UFacingBones@12@A@ in    1 TUs
+     ??__F?sFacingRotAndPos@FacingSet@CharClip@@2UFacingBones in    1 TUs
+     ?ReallocateInternal@CharBones@@MAAXXZ                    in    1 TUs
+     ??$?0UTargetCache@HamCamShot@@@?$StlNodeAlloc@V?$_List_n in    1 TUs
+     ??0?$StlNodeAlloc@UTargetCache@HamCamShot@@@stlpmtx_std@ in    1 TUs
+-- M3A_F4000  total FN 4221 over 371 distinct names
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BB@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ??$MakeString@$$BY0BJ@$$CBDH$$BY0BP@$$CBD@@YAPBDPBDAAY0B in  102 TUs
+     ?EaseBackIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseBackInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBackOut@@YAMMMM@Z                                   in  102 TUs
+     ?EaseBackOutIn@@YAMMMM@Z                                 in  102 TUs
+     ?EaseBounceIn@@YAMMMM@Z                                  in  102 TUs
+     ?EaseBounceInOut@@YAMMMM@Z                               in  102 TUs
+     ?EaseBounceOutIn@@YAMMMM@Z                               in  102 TUs
+     ?EaseCircIn@@YAMMMM@Z                                    in  102 TUs
+     ?EaseCircInOut@@YAMMMM@Z                                 in  102 TUs
+     ?EaseCircOut@@YAMMMM@Z                                   in  102 TUs
+-- M3A_F40000 total FN 340 over 332 distinct names
+     ??1DebugNotifyOncer@@QAA@XZ                              in    9 TUs
+     ??1DebugGraph@@QAA@XZ                                    in    1 TUs
+     ??0FacingBones@FacingSet@CharClip@@QAA@XZ                in    1 TUs
+     ??1CharBones@@UAA@XZ                                     in    1 TUs
+     ??1FacingBones@FacingSet@CharClip@@UAA@XZ                in    1 TUs
+     ??_GCharBones@@UAAPAXI@Z                                 in    1 TUs
+     ??_GFacingBones@FacingSet@CharClip@@UAAPAXI@Z            in    1 TUs
+     ??__F?sFacingPos@FacingSet@CharClip@@2UFacingBones@12@A@ in    1 TUs
+     ??__F?sFacingRotAndPos@FacingSet@CharClip@@2UFacingBones in    1 TUs
+     ?ReallocateInternal@CharBones@@MAAXXZ                    in    1 TUs
+     ??$?0UTargetCache@HamCamShot@@@?$StlNodeAlloc@V?$_List_n in    1 TUs
+     ??0?$StlNodeAlloc@UTargetCache@HamCamShot@@@stlpmtx_std@ in    1 TUs
+-- M3A_OR_F40000 total FN 340 over 332 distinct names
+     ??1DebugNotifyOncer@@QAA@XZ                              in    9 TUs
+     ??1DebugGraph@@QAA@XZ                                    in    1 TUs
+     ??0FacingBones@FacingSet@CharClip@@QAA@XZ                in    1 TUs
+     ??1CharBones@@UAA@XZ                                     in    1 TUs
+     ??1FacingBones@FacingSet@CharClip@@UAA@XZ                in    1 TUs
+     ??_GCharBones@@UAAPAXI@Z                                 in    1 TUs
+     ??_GFacingBones@FacingSet@CharClip@@UAAPAXI@Z            in    1 TUs
+     ??__F?sFacingPos@FacingSet@CharClip@@2UFacingBones@12@A@ in    1 TUs
+     ??__F?sFacingRotAndPos@FacingSet@CharClip@@2UFacingBones in    1 TUs
+     ?ReallocateInternal@CharBones@@MAAXXZ                    in    1 TUs
+     ??$?0UTargetCache@HamCamShot@@@?$StlNodeAlloc@V?$_List_n in    1 TUs
+     ??0?$StlNodeAlloc@UTargetCache@HamCamShot@@@stlpmtx_std@ in    1 TUs
+-- NPTR_GE17  total FN 320 over 312 distinct names
+     ??1DebugNotifyOncer@@QAA@XZ                              in    9 TUs
+     ??1DebugGraph@@QAA@XZ                                    in    1 TUs
+     ??0FacingBones@FacingSet@CharClip@@QAA@XZ                in    1 TUs
+     ??1FacingBones@FacingSet@CharClip@@UAA@XZ                in    1 TUs
+     ??_GFacingBones@FacingSet@CharClip@@UAAPAXI@Z            in    1 TUs
+     ??__F?sFacingPos@FacingSet@CharClip@@2UFacingBones@12@A@ in    1 TUs
+     ??__F?sFacingRotAndPos@FacingSet@CharClip@@2UFacingBones in    1 TUs
+     ??$?0UTargetCache@HamCamShot@@@?$StlNodeAlloc@V?$_List_n in    1 TUs
+     ??0?$StlNodeAlloc@UTargetCache@HamCamShot@@@stlpmtx_std@ in    1 TUs
+     ??0?$StlNodeAlloc@V?$_List_node@UTargetCache@HamCamShot@ in    1 TUs
+     ??0?$_List_base@UTargetCache@HamCamShot@@V?$StlNodeAlloc in    1 TUs
+     ??0?$_STLP_alloc_proxy@U_List_node_base@stlpmtx_std@@V?$ in    1 TUs
+-- NPTR_GE5   total FN 283 over 275 distinct names
+     ??1DebugNotifyOncer@@QAA@XZ                              in    9 TUs
+     ??1DebugGraph@@QAA@XZ                                    in    1 TUs
+     ??0FacingBones@FacingSet@CharClip@@QAA@XZ                in    1 TUs
+     ??__F?sFacingPos@FacingSet@CharClip@@2UFacingBones@12@A@ in    1 TUs
+     ??__F?sFacingRotAndPos@FacingSet@CharClip@@2UFacingBones in    1 TUs
+     ??$?0UTargetCache@HamCamShot@@@?$StlNodeAlloc@V?$_List_n in    1 TUs
+     ??0?$StlNodeAlloc@UTargetCache@HamCamShot@@@stlpmtx_std@ in    1 TUs
+     ??0?$StlNodeAlloc@V?$_List_node@UTargetCache@HamCamShot@ in    1 TUs
+     ??0?$_List_base@UTargetCache@HamCamShot@@V?$StlNodeAlloc in    1 TUs
+     ??0?$_STLP_alloc_proxy@U_List_node_base@stlpmtx_std@@V?$ in    1 TUs
+     ??0?$list@UTargetCache@HamCamShot@@V?$StlNodeAlloc@UTarg in    1 TUs
+     ??1?$StlNodeAlloc@UTargetCache@HamCamShot@@@stlpmtx_std@ in    1 TUs

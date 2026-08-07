@@ -1,0 +1,102 @@
+HELD-OUT VERDICT   200 TUs   family file fam38.txt (38 names)
+OUT OF SAMPLE -- the fit was on the disjoint 650, frozen at a27ef349
+
+rule           roots      |P| |    EXACT |      prec    recall   F1(2nd) |   gain   LOST | FN in fam
+NOROOT             0    37216 |   70/200 |   0.99817   0.89509   0.94382 |      0      0 |    3874
+M3A              138    41097 |  132/200 |   0.99835   0.98860   0.99345 |     62      0 |       0
+M3               139    41097 |  132/200 |   0.99835   0.98860   0.99345 |     62      0 |       0
+M3B                1    37216 |   70/200 |   0.99817   0.89509   0.94382 |      0      0 |    3874
+UNDEC            201    37216 |   70/200 |   0.99817   0.89509   0.94382 |      0      0 |    3874
+ALLW          165047   217893 |    8/200 |   0.18862   0.99027   0.31688 |      0     62 |       0
+F20_40000        236    42751 |   92/200 |   0.95972   0.98860   0.97395 |     25      3 |       0
+F20_20000        342    47053 |   90/200 |   0.87197   0.98860   0.92663 |     24      4 |       0
+
+w-quar's 38-name family, in the held-out TRUTH: 3914 occurrences
+  NOROOT leaves 3874 of them unpredicted (0.9178 of its 4221 FN)
+  M3A    leaves 0 of them unpredicted (0.0000 of its 340 FN)
+
+== GAINED / LOST BY NAME, M3A against the registered incumbent ==
+  gained 62, LOST 0
+     gain  src/lazer/game/LiveInput.cpp
+     gain  src/lazer/meta_ham/AccomplishmentDiscSongConditional.cpp
+     gain  src/lazer/meta_ham/AppNavProvider.cpp
+     gain  src/lazer/meta_ham/ChallengeResultPanel.cpp
+     gain  src/lazer/meta_ham/FitnessCalorieSortByCalorie.cpp
+     gain  src/lazer/meta_ham/FitnessCalorieSortMgr.cpp
+     gain  src/lazer/meta_ham/HamSongMetadata.cpp
+     gain  src/lazer/meta_ham/HamStoreFilterProvider.cpp
+     gain  src/lazer/meta_ham/LockedContentPanel.cpp
+     gain  src/lazer/meta_ham/MQSongSortMgr.cpp
+     gain  src/lazer/meta_ham/MainMenuProvider.cpp
+     gain  src/lazer/meta_ham/NavListNode.cpp
+     gain  src/lazer/meta_ham/SigninScreen.cpp
+     gain  src/lazer/meta_ham/SkillsAwardList.cpp
+     gain  src/lazer/meta_ham/SongRecord.cpp
+     gain  src/lazer/meta_ham/SongSortByLocation.cpp
+     gain  src/lazer/net_ham/DataMinerJobs.cpp
+     gain  src/lazer/net_ham/FitnessGoalJobs.cpp
+     gain  src/lazer/net_ham/FriendsListJobs.cpp
+     gain  src/lazer/net_ham/LeaderboardJobs.cpp
+     gain  src/lazer/net_ham/ScoreJobs.cpp
+     gain  src/system/char/CharBonesMeshes.cpp
+     gain  src/system/char/CharClipGroup.cpp
+     gain  src/system/char/CharServoBone.cpp
+     gain  src/system/char/CharSleeve.cpp
+     gain  src/system/char/CharUtl.cpp
+     gain  src/system/flow/FlowMultiSetProperty.cpp
+     gain  src/system/flow/FlowTimer.cpp
+     gain  src/system/gesture/FitnessFilter.cpp
+     gain  src/system/gesture/Gesture.cpp
+     gain  src/system/hamobj/FilterVersion.cpp
+     gain  src/system/hamobj/HamAudio.cpp
+     gain  src/system/hamobj/HamBattleData.cpp
+     gain  src/system/hamobj/HamGameData.cpp
+     gain  src/system/hamobj/HamNavProvider.cpp
+     gain  src/system/hamobj/HamScrollBehavior.cpp
+     gain  src/system/hamobj/HamWardrobe.cpp
+     gain  src/system/hamobj/SuperEasyRemixer.cpp
+     gain  src/system/meta/SongPreview.cpp
+     gain  src/system/meta/StorePurchaser.cpp
+     gain  src/system/moviebink/BinkMovieSys_Xbox.cpp
+     gain  src/system/rnddx9/CubeTex.cpp
+     gain  src/system/rnddx9/Mesh.cpp
+     gain  src/system/rndobj/AnimFilter.cpp
+     gain  src/system/rndobj/MatAnim.cpp
+     gain  src/system/rndobj/PartAnim.cpp
+     gain  src/system/rndobj/Tex.cpp
+     gain  src/system/rndobj/TexBlender.cpp
+     gain  src/system/synth/AudioDucker.cpp
+     gain  src/system/synth/MoggClipMap.cpp
+     gain  src/system/synth/SampleZone.cpp
+     gain  src/system/synth/SfxMap.cpp
+     gain  src/system/synth/StandardStream.cpp
+     gain  src/system/synth_xbox/FxSendDistortion.cpp
+     gain  src/system/synth_xbox/StreamReceiver360.cpp
+     gain  src/system/synth_xbox/SynthSample.cpp
+     gain  src/system/ui/UI.cpp
+     gain  src/system/ui/UIListState.cpp
+     gain  src/system/world/FreeCamera.cpp
+     gain  src/system/world/Spotlight.cpp
+     gain  src/system/world/ThreeDSoundManager.cpp
+     gain  src/system/world/World.cpp
+
+== FN family structure after M3A, top 15 ==
+  total FN 340 over 332 distinct names
+     ??1DebugNotifyOncer@@QAA@XZ                                  in   9 TUs
+     ??1DebugGraph@@QAA@XZ                                        in   1 TUs
+     ??0FacingBones@FacingSet@CharClip@@QAA@XZ                    in   1 TUs
+     ??1CharBones@@UAA@XZ                                         in   1 TUs
+     ??1FacingBones@FacingSet@CharClip@@UAA@XZ                    in   1 TUs
+     ??_GCharBones@@UAAPAXI@Z                                     in   1 TUs
+     ??_GFacingBones@FacingSet@CharClip@@UAAPAXI@Z                in   1 TUs
+     ??__F?sFacingPos@FacingSet@CharClip@@2UFacingBones@12@A@@YAX in   1 TUs
+     ??__F?sFacingRotAndPos@FacingSet@CharClip@@2UFacingBones@12@ in   1 TUs
+     ?ReallocateInternal@CharBones@@MAAXXZ                        in   1 TUs
+     ??$?0UTargetCache@HamCamShot@@@?$StlNodeAlloc@V?$_List_node@ in   1 TUs
+     ??0?$StlNodeAlloc@UTargetCache@HamCamShot@@@stlpmtx_std@@QAA in   1 TUs
+     ??0?$StlNodeAlloc@V?$_List_node@UTargetCache@HamCamShot@@@st in   1 TUs
+     ??0?$_List_base@UTargetCache@HamCamShot@@V?$StlNodeAlloc@UTa in   1 TUs
+     ??0?$_STLP_alloc_proxy@U_List_node_base@stlpmtx_std@@V?$_Lis in   1 TUs
+
+== M3 vs M3A: identical predicted set on how many TUs ==
+  200 of 200
