@@ -32,8 +32,28 @@ size *is* its alignment; `gl.rs::data_object_at` reads the tag as alignment and
 the size from its own field. `TAG_WIDE` (`0x40`) marks one extra byte before the
 kind and nothing else, so `C6` is `86` is **4** — confirmed on 21 of 21 object
 records against **c2's own obj** alignment nibbles, across cells whose size and
-alignment disagree in both directions. `8A`/`CA` is 16 and is refused, because
-the writer's promotion table models 1/2/4/8 (#1120).
+alignment disagree in both directions.
+
+**`8A`/`CA` is 16 and is now READ** — board #1120, lane `w-align16`, on a
+20-cell structural grid whose section nibbles and symbol `Value`s agree with c2's
+own obj **24 of 24** and **25 of 25**. The writer's promotion table
+(`placement_align`, `align_nibble`, `data::section_nibble` — three bodies, one
+table) models 1/2/4/8/**16**. Three things that grid settled and that a reader of
+this table needs:
+
+* **The size-implied promotion caps at 8.** `char g[4096]` is tag `82` and c2
+  gives its section nibble **4**, not 5. Everything above 8 arrives through the
+  *tag*, never through the size.
+* **`8C` = 32 and `8E` = 64 EXIST**, and c2 honours them with nibbles 6 and 7 —
+  so the `0x80 + 2*(log2(size)+1)` encoding is confirmed to 64. **They are
+  refused**, because the grid varies structure nine ways at 16 and one way at
+  32/64.
+* **Bare `8A` has never been observed.** Every 16-aligned cell spells the *wide*
+  `CA`, and a census of all 878 workload TUs finds **0** records at `8A`, `CA`,
+  `8C`, `CC`, `8E` or `CE` out of **85,895** — the workload's whole `.gl`
+  vocabulary here is `82`, `84`, `86`, `88`, `C6`. The non-wide 16 arm the port
+  ships is the orthogonality rule applied, not a witness, and
+  `gl.rs::align_of_type_tag` says so.
 
 **The width is the token's, not the type's — the tag is positional.** The same
 type carries different tags in different slots: `double*` is `86 43 c1 08` as a

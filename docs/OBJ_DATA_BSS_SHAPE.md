@@ -178,8 +178,36 @@ it. Measured on 17 TU shapes:
 >   initialized thread-locals; then every code group and every section a code group
 >   drags with it, then `.CRT$XCU` last.
 
-Fitted on the 17 rows of §2.1; **not refuted by any cell in this lane**. Two
-consequences worth stating because they are counter-intuitive:
+Fitted on the 17 rows of §2.1; **not refuted by any cell in this lane**.
+
+> ### ⚠ SCOPE CORRECTION 2026-08-08 (board #1148, lane `w-align16`)
+>
+> **S1's middle clause holds for an EXTERNAL-linkage `.bss`. When the `.bss`
+> holds an internal-linkage object, c2 puts it BEFORE `.XBLD$W(C2)`:**
+>
+> ```text
+>   extern:  .drectve .debug$S .XBLD$W(C2) .bss        .XBLD$W(C1) .data
+>   static:  .drectve .debug$S .bss        .XBLD$W(C2) .XBLD$W(C1) .data
+> ```
+>
+> Measured on `A g; static A h; A* p = &h;` and on `static A g; A* p = &g;` at
+> the workload's `/GR /O1 /Oi /EHsc`
+> (`work/w-align16/diag/`), against real c2.
+>
+> **Why the 17 rows did not see it.** Every static-`.bss` cell in this document
+> is a TU **with functions** — that is what keeps its statics alive, since an
+> unreferenced uninitialized static is dropped entirely (§4.4,
+> `fixtures/cpp/wsect_drop_static.cpp`). In a **functionless** TU the only way a
+> static `.bss` object survives is a `.data` initializer holding its address, and
+> that cell had never been written. `coff::data::emit_data_obj` serves exactly
+> the functionless TU, so it was applying S1 — and Y1, see §6.2 — outside every
+> cell that fitted them, and **emitting wrong bytes**: cells at alignment 4 and 8
+> both graded `mismatch` against real c2 on an unmodified tree. It now refuses
+> any `.bss` holding an internal-linkage object; `fixtures/cpp/wa16_bss_static_reloc.cpp`
+> grades the refusal. **The correct order for that shape is a three-cell
+> observation and is NOT yet a rule** — do not encode it from the block above.
+
+Two consequences worth stating because they are counter-intuitive:
 
 * **`.bss` precedes `.data`** in file order — the *uninitialized* section comes
   first, which is the opposite of the usual link-order intuition and the opposite of
@@ -633,6 +661,16 @@ with `.gl` order `da dd db dc`:
 
 Measured: `da@0 dc@1 dd@0x10 db@0x20`, `SizeOfRawData = 0x21`, nibble ALIGN_16. ✓
 
+> **This cell is the earliest ALIGN_16 measurement in the repo, and lane
+> `w-align16` (board #1120) reproduced it from a source that did not know about
+> it.** Its `nibble ALIGN_16` and its rounding of the cursor to 16 are exactly
+> what `align_nibble(n, 16) = 5` and Rule A3′-at-16 now emit, arrived at
+> independently from the `.gl` **type tag** (`CA`) rather than from the obj. The
+> two agree, which is a free cross-check of both. Note it has **four** objects in
+> one `.bss` and so sits above `MAX_OBJECTS_PER_SECTION`; the writer has never
+> emitted it and still will not. Its hole-reuse column is the superseded Rule A3
+> (see §5.7) — the *alignment* rows are what survives.
+
 ### 5.5 What the allocator model does **not** cover
 
 Scored on random cells drawn from 11 object types (sizes 1…100, natural alignments
@@ -924,7 +962,34 @@ that is not reduced to a single rule:
 
 Y1 was fitted on the extern-only and static-only cells and **confirmed
 out-of-sample by the mixed cell**, which it predicts exactly and which no simpler
-rule (ascending, descending, or declaration) matches. ~~Y2 is fitted on two cells
+rule (ascending, descending, or declaration) matches.
+
+> ### ⚠ SCOPE CORRECTION 2026-08-08 (board #1148, lane `w-align16`)
+>
+> **Every row above with a `static` in it comes from a TU that has functions**,
+> because that is what keeps a static `.bss` object alive (§4.4). Y1 is not
+> contradicted there and this correction does not re-measure it.
+>
+> **In a FUNCTIONLESS TU the mixed case behaves differently.** With
+> `A g; static A h; A* p = &h;` — the only shape in which a static `.bss` object
+> survives without a function — real c2 emits:
+>
+> ```text
+>   sym[ 5] .bss        sym[ 7] h  val=0 STATIC        <- the static, in the group
+>   sym[ 8] .XBLD$W     sym[10] __C2_11886
+>   sym[11] ?g@@3UA@@A  val=4 sec=3 EXTERNAL           <- the EXTERNAL, AFTER
+>                                                         the NEXT section's group
+> ```
+>
+> The external `.bss` symbol is not in the `.bss` group at all, and the static
+> takes offset 0 with the external at 4 — neither Y1's order nor Y1's walk. The
+> `.bss` section has also moved (see §2.2's correction).
+>
+> `coff::data::emit_data_obj` serves only functionless TUs and was applying Y1
+> here; it now **refuses** any `.bss` holding an internal-linkage object, so its
+> live use of Y1 is the extern-only case. **Whether Y1's mixed row still holds
+> for a TU with functions is open** — this lane did not test it, and a writer for
+> that shape must re-measure rather than inherit. ~~Y2 is fitted on two cells
 (static and extern dyninit) and is **not** independently confirmed.~~
 
 **Y2 is now confirmed out of sample (lane `w-bss2`, registered as R5).** §8.3's

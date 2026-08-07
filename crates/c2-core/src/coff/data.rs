@@ -222,15 +222,22 @@ fn section_nibble(objs: &[&DataObj<'_>]) -> Option<u32> {
 /// > **Rule Y1 (eager `.bss`).** Every EXTERNAL symbol first, in **reverse
 /// > `.gl`** record order; then every STATIC symbol, in **declaration** order.
 ///
-/// **Y1's MIXED-LINKAGE `.bss` clause is REFUTED (board #1148).** Its
-/// "confirmed out-of-sample by a mixed-linkage cell" was a **unit test with a
-/// synthetic `DataObj` vector**, not a graded obj: the shape is unreachable from
-/// real IL unless a `.data` initializer references the static, and nobody had
-/// written that cell. Lane `w-align16` did (`D07`), and real c2 emits the
-/// external `.bss` symbol **after the following section's group** with the
-/// static at offset 0 — neither the order nor the walk Y1 gives. A `.bss`
-/// holding any internal-linkage object is now refused, so **Y1's live scope is
-/// exactly the extern-only case**, where its 89 real sections stand.
+/// **This writer was applying Y1 OUTSIDE the shape Y1 was measured in (board
+/// #1148).** Y1's mixed-linkage row (§6.2) is a real obj, and this lane does not
+/// touch it — but every cell behind it is a TU **with functions**, which is what
+/// keeps its `static` objects alive (an unreferenced uninitialized static is
+/// dropped; `wsect_drop_static.cpp`). [`emit_data_obj`] serves TUs with **no**
+/// functions, where the only way a static `.bss` object survives is a `.data`
+/// initializer holding its address. In *that* shape — `w-align16`'s `D07`,
+/// `A g; static A h; A* p = &h;` — real c2 emits the external `.bss` symbol
+/// **after the following section's group**, with the static at offset 0:
+/// neither Y1's order nor Y1's walk, and `.bss` moved as well (see above).
+///
+/// So Y1 is not contradicted; it was being read past its cells. A `.bss`
+/// holding any internal-linkage object is now refused, which leaves **this
+/// writer's live use of Y1 at exactly the extern-only case**, where its 89 real
+/// sections stand. Whether Y1 still describes the with-functions mixed case is
+/// open and untested by this lane.
 ///
 /// `.data`'s group is declaration order, which for that section is also
 /// ascending address (§5.3), and mixed linkage in `.data` is untouched —
@@ -275,6 +282,11 @@ pub fn emit_data_obj(obj_name: &str, objects: &[DataObj<'_>]) -> Option<Vec<u8>>
     // `.bss` of a functionless TU"*. True as far as it goes — and the route
     // around the drop is to **reference** it, `static A g; A* p = &g;`, which
     // makes the `.data` initializer keep it alive. Nobody had written that cell.
+    //
+    // `OBJ_DATA_BSS_SHAPE.md`'s own static and mixed `.bss` cells are all TUs
+    // **with functions** — that is what keeps *their* statics alive — so this
+    // writer, which only ever runs on functionless TUs, was applying rules S1
+    // and Y1 outside every cell that fitted them.
     //
     // Failing closed rather than reordering: the correct order is a three-cell
     // observation and Rule S1 is board #174's, not this lane's.
@@ -982,23 +994,24 @@ mod tests {
         }
     }
 
-    /// **Rule Y1's MIXED-LINKAGE `.bss` clause is REFUTED, and this test now
-    /// pins the refusal** — board #1148, lane `w-align16`.
+    /// **A `.bss` holding an internal-linkage object is refused, and this test
+    /// is the refusal's witness** — board #1148, lane `w-align16`.
     ///
     /// The test this replaces asserted that `emit_data_obj` emits
-    /// `[?p1@@3HA extern, s1 static]` into one `.bss` with the externals first
-    /// in reverse `.gl` order and the statics after them. **That input is
-    /// synthetic and no real IL produces it**, which is the whole reason it
-    /// survived: `wsect_data_linkage.cpp` is a mixed-linkage **`.data`**, and
-    /// its own header says mixed linkage is *"unreachable in a `.bss` of a
-    /// functionless TU"* because an unreferenced uninitialized static is
-    /// dropped. So Rule Y1's `.bss` mixed clause was never once graded against
-    /// real c2 — the differential had no cell for it.
+    /// `[?p1@@3HA extern, s1 static]` into one `.bss` under Rule Y1. **That
+    /// input was never graded against real c2 in this writer's own shape**:
+    /// `emit_data_obj` serves TUs with no functions, `wsect_data_linkage.cpp`
+    /// is a mixed-linkage **`.data`**, and its header records why the `.bss`
+    /// case had no fixture — *"an uninitialized unreferenced static is DROPPED
+    /// by c2 entirely, so mixed linkage is unreachable in a `.bss` of a
+    /// functionless TU"*. Y1's own mixed row (§6.2) is a real obj, but from a TU
+    /// **with** functions, which is what keeps its statics alive.
     ///
-    /// The route around the drop is to **reference** the static from a `.data`
-    /// initializer. `work/w-align16/diag/cells/D07_mixed_bss_reloc.cpp` does
-    /// exactly that — `A g; static A h; A* p = &h;` — and real c2 emits
-    /// something Y1 does not describe **in two independent ways**:
+    /// The route around the drop in a functionless TU is to **reference** the
+    /// static from a `.data` initializer.
+    /// `work/w-align16/diag/cells/D07_mixed_bss_reloc.cpp` does exactly that —
+    /// `A g; static A h; A* p = &h;` — and real c2 emits something this writer
+    /// does not, **in two independent ways**:
     ///
     /// ```text
     ///   sec[3] .bss        <- BEFORE both watermarks, not between them (Rule S1)
@@ -1014,9 +1027,10 @@ mod tests {
     ///
     /// The external `.bss` symbol is not in the `.bss` group at all, and the
     /// static is placed at offset 0 with the external at 4 — the opposite of the
-    /// walk Y1 asserts. **Y1's extern-only half is untouched** and still carries
-    /// its 89 real sections; only the mixed clause dies, and it dies on the
-    /// first cell that ever reached it.
+    /// walk this writer applies. **Y1's extern-only half is untouched** and
+    /// still carries its 89 real sections. Whether Y1's mixed row still holds
+    /// for a TU *with* functions is open; what is settled is that this writer
+    /// was reading it past its cells.
     ///
     /// So the writer refuses, and this test is the refusal's witness. Fixing the
     /// order is board #174's work with its own grid, not a two-line reorder.
