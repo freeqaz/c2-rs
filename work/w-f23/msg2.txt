@@ -1,0 +1,51 @@
+F3: read the store-run-then-call composition, and refuse it in the BUNDLE — the model has no carrier
+
+A new production, `try_parse_store_run_call`, recognises a store run followed by
+one statement-position member call on `this` whose argument setup is EMPTY, then
+the constructor's `return this`. The run half is `collect_store_run`, split out
+of `try_parse_store_run` as a pure code move so two tails cannot drift apart
+about what a run is (the overlap gate, the mixed-file gate, the pool floor and
+the widened-literal clauses all live there, once).
+
+The regime gate is board #1129's and it is SYNTACTIC: every argument slot must
+already hold the formal that occupies it, so the call emits no move and the run's
+base register is never written. #870 states the boundary as "a call that takes an
+argument", which `w-heap`'s frozen GRID F3 measured as one level too coarse —
+`Alloc(size)` sets up `mr 4,5` and the run still transfers; a FREE callee sets up
+`mr 3,4`, destroys `this`, and the base switches r3 -> r31 mid-run. This reader
+is stricter than that sentence, because it sees an IL argument spelling rather
+than a register: anything but `Load(params[i])` in slot `i` refuses.
+
+WHAT THIS LANE FOUND, AND IT RE-PRICES w-heap's TABLE
+-----------------------------------------------------
+F3 cannot be paid in the reader alone, and #844 is not a separate row from it.
+`IlFunction` has NO carrier for a composition: `ops` and the call fields are
+alternatives that `codegen::select` tries in a fixed order, with
+`store_leaf_text` first. A function built from this shape's ops plus any call
+field would emit the store run and SILENTLY DROP THE `bl` — a complete,
+plausible, wrong body, which is board #232's exact mechanism.
+
+So `shape_to_function` returns None for the variant, by name rather than with
+`..`, and the census files these bodies under their own `:eof` key
+`store-run-call-no-emitter-carrier` instead of leaving them inside a fall-through
+expression key. The body is grammar-complete; the only thing left wrong with it
+is the model. That residue is now a NUMBER: 8 IL bodies across the 878-TU
+workload, 3 of them EMITTED, moved out of `expr-op-0x27` — the key `w-heap`
+records as a fall-through here and not a construct.
+
+Also measured, and it is the registered prediction P1/P2 landing: the real
+`xboxheap.cpp` is NOT among the 8. Its shipped spelling binds a reference first
+(`auto& listHead = mListHead;`), which c1xx spells as a store into a LOCAL whose
+token then stands in two later stores' BASE position — and `parse_store_stmt`
+requires the base to be a formal. That is refusal #5 (#839), separate from F2 and
+from F3, and this lane leaves it priced and unpaid. The direct spelling
+(`work/w-f23/grid/f2_xboxheap_direct/`) does reach the new key, so the two
+spellings are separated by the reader exactly where #839 says the emitted bodies
+separate.
+
+Alarms, all re-measured at the tip: 878-TU scan match 10, mismatch 0,
+codegen-gap 0, vocab-gap 861, capture-fail 7 — every value byte-identical to
+master. fnbyte-exact 36,209, differs 2,111, partial 0, reloc-differs 861,
+match-tu-differs 0. peerkeys.py over both scans: 0 families vanished, every count
+identical. The 1,576 generated cases of 88-store-run-call.py: checked=1576
+mismatches=0 graded=1576 ungraded=0, port split unmoved at 44 / 1,532.

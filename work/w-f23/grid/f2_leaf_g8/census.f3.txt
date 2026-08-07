@@ -1,0 +1,9 @@
+  profile: /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I src/system/stlport /I src/xdk/LIBCMT /I src/system /I src/lazer /I src/system/oggvorbis /I src/system/synth/tomcrypt /I src/system/net/curl/include /I src (from work/dc3-workload/flags.txt)
+work/w-f23/grid/f2_leaf_g8/f2_leaf_g8.cpp -> 1/1 functions in class
+  [  0] ok  store-leaf               cflow-straight             eh-none     (eh-none     )    131 B  ?f2_leaf_g8@@YAXPAUS@@@Z
+  control-flow class (decode-only): 1/1 bodies decoded end to end
+         1 x cflow-straight
+  EH class (maxState, decode-only): 0/1 bodies have maxState >= 1 and need the whole EH record
+         1 x eh-none
+  census/gate DISAGREEMENT: 1 of the 1 in class are refused by PortC2:
+         1 x not implemented: sub-object address feeding arithmetic; out of class
