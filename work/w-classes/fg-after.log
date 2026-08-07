@@ -1,0 +1,82 @@
+assigned 19556 cases over 18 lanes = 90812 cells (full cross would be 352008)
+  lane O1                19556 cells
+  lane O1-EHsc            1779 cells
+  lane Ox                19556 cells
+  lane Ox-EHsc            1779 cells
+  lane Ox-Gy               473 cells
+  lane Ox-Gy-EHsc          148 cells
+  lane O2                19556 cells
+  lane O2-EHsc            1779 cells
+  lane Od                19556 cells
+  lane Od-EHsc            1779 cells
+  lane O1-Oi-GR            748 cells
+  lane O1-Oi-EHsc-GR       869 cells
+  lane Ox-GR               748 cells
+  lane Ox-EHsc-GR          869 cells
+  lane Od-GR               748 cells
+  lane Od-EHsc-GR          869 cells
+
+FRAGMENT                       cells   graded  ungraded  cases-g  mismatch
+10-int-chains                   9408     9408         0     2352         0
+12-alloc-depth                   288      288         0       72         0
+20-compare                       312      312         0       78         0
+30-fp-leaves                     576      576         0      144         0
+31-fp-params                     400      400         0      100         0
+32-fp-argreg                    2956     2956         0      739         0
+33-fp-tail                      3600     3600         0      900         0
+34-volatile-formal              1632     1584        48      396         0
+35-fp-multiarg                  9252     9252         0     2313         0
+40-indirect-load                 736      736         0      184         0
+41-ptr-value-leaves              228      228         0       57         0
+42-register-move                 672      672         0      168         0
+43-locals-scopes                 416      416         0      104         0
+44-member-source-lines            32       32         0        8         0
+45-offset-run                    832      820        12      205         0
+46-source-line-collisions       1084     1084         0      271         0
+47-flat-locals                   968      968         0      242         0
+50-dtor-base                     424      424         0       53         0
+51-dtor-member                  3696     3696         0      264         0
+52-callee-name                   192      192         0       24         0
+53-data-symbol-addr              715      715         0      143         0
+54-addr-leaves                   748      748         0      187         0
+55-ptr-operands                  908      908         0      227         0
+60-ctor-epilogue                 847      847         0      121         0
+61-conversion-2c                 844      844         0      211         0
+62-ctor-base-delegation         1484     1484         0      106         0
+63-emit-order                   1208     1208         0      151         0
+64-data-only-tu                  910      910         0      182         0
+65-linkage-comdat               1680     1680         0      210         0
+66-static-local                  920      920         0      115         0
+67-eh-try-throw                 2072     2072         0      148         0
+68-shift-ops                    1084     1084         0      271         0
+69-new-delete                   1192     1192         0      149         0
+70-framed                       1848     1848         0      462         0
+71-call-sequence                1212     1212         0      303         0
+72-member-call                   660      644        16      161         0
+73-framed-member-call            984      972        12      243         0
+74-lit-call-arg                  404      404         0      101         0
+75-moved-lit-call-arg            288      288         0       72         0
+76-object-receiver               228      228         0       57         0
+77-reinterpret-2c                976      976         0      244         0
+80-store-leaf                    980      980         0      245         0
+81-fp-beside-framed              216      216         0       54         0
+82-store-run                    1464     1464         0      366         0
+83-store-load                   1576     1576         0      394         0
+84-lit-run                       928      928         0      232         0
+85-source-file                   520      520         0       65         0
+86-union                         964      964         0      241         0
+87-dyninit                      1480     1480         0      148         0
+88-store-run-call               6304     6304         0     1576         0
+89-store-run-live-arg           5080     5080         0     1270         0
+90-bool-byte                     280      280         0       70         0
+91-rtti-vftable                 3220     3220         0      230         0
+93-virtual-byval                 928      864        64      108         0
+95-control-flow                  560      560         0      140         0
+96-cmp-two-calls                2248     2216        32      554         0
+97-chained-call                  924      908        16      227         0
+98-chain-link-arg                732      716        16      179         0
+98-cmp-order                    1448     1384        64      346         0
+99-chain-tail-fp-load           1060      992        68      248         0
+99-chain-tail-load               660      620        40      155         0
+99-explicit-return               324      324         0       81         0
+TOTAL                          90812    90424       388    19467         0

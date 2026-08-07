@@ -1,0 +1,24 @@
+assigned 19556 cases over 18 lanes = 133133 cells (full cross would be 352008)
+  4 fragment(s) have NO ROW in scripts/mode_classes.txt and are graded at ALL 18 lanes:
+      12-alloc-depth
+      77-reinterpret-2c
+      88-store-run-call
+      89-store-run-live-arg
+  O1              19556 cases
+  O1-EHsc          4941 cases
+  O1-Oi            3162 cases
+  O1-Oi-EHsc       3162 cases
+  Ox              19556 cases
+  Ox-EHsc          4941 cases
+  Ox-Gy            3635 cases
+  Ox-Gy-EHsc       3310 cases
+  O2              19556 cases
+  O2-EHsc          4941 cases
+  Od              19556 cases
+  Od-EHsc          4941 cases
+  O1-Oi-GR         3646 cases
+  O1-Oi-EHsc-GR    3646 cases
+  Ox-GR            3646 cases
+  Ox-EHsc-GR       3646 cases
+  Od-GR            3646 cases
+  Od-EHsc-GR       3646 cases
