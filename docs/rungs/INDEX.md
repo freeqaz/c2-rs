@@ -103,6 +103,7 @@ the header block this table is read from.
 | 2026-08-08 | w-quar | [w-quar](2026-08-08-w-quar.md) | 8 | 711,477 / 2,463,443 unchanged (28.88 %), +0 |
 | 2026-08-08 | w-relo | [w-relo](2026-08-08-w-relo.md) | 8 | 711,477 / 2,463,443 (28.88 %) unchanged, +0. Emitted 39,181 / |
 | 2026-08-08 | w-root | [w-root](2026-08-08-w-root.md) | 8 | 711,477 / 2,463,443 unchanged (28.88 %), +0 |
+| 2026-08-08 | w-seed | [w-seed](2026-08-08-w-seed.md) | 9 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted |
 | 2026-08-08 | w-seq | [w-seq](2026-08-08-w-seq.md) | 8 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |
 | 2026-08-08 | w-splice | [w-splice](2026-08-08-w-splice.md) | 8 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |
 | 2026-08-08 | w-target | [w-target](2026-08-08-w-target.md) | 9 | unchanged, +0. Emitted 39,181 / 178,977 unchanged. |
