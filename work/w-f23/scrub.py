@@ -8,14 +8,14 @@ here has exited (each was a foreground or notified background task), and the
 script asserts each file is NUL-free BEFORE and AFTER, so a raced rewrite is
 caught rather than committed.
 """
-import pathlib, sys
+import pathlib, re, sys
 
 REPL = [
-    ('/home/free/code/milohax/c2-rs/.claude/worktrees/agent-a68a36f09e4b45463', '<worktree>'),
-    ('/home/free/code/milohax/dc3-decomp', '<dc3>'),
-    ('/home/free/code/milohax/c2-rs', '<c2-rs>'),
-    ('/home/free/code/milohax', '<milohax>'),
-    ('/home/free', '<home>'),
+    (re.compile(r'/home/[a-z][a-z0-9_-]*/[A-Za-z0-9_./-]*/\.claude/worktrees/[A-Za-z0-9-]+'), '<worktree>'),
+    (re.compile(r'/home/[a-z][a-z0-9_-]*/code/milohax/dc3-decomp'), '<dc3>'),
+    (re.compile(r'/home/[a-z][a-z0-9_-]*/code/milohax/c2-rs'), '<c2-rs>'),
+    (re.compile(r'/home/[a-z][a-z0-9_-]*/code/milohax'), '<milohax>'),
+    (re.compile(r'/home/[a-z][a-z0-9_-]*'), '<home>'),
 ]
 
 files = [f for f in pathlib.Path('work/w-f23/staged.txt').read_text().split()]
