@@ -851,21 +851,48 @@ pub(crate) fn shape_to_function(
                     &binds,
                     &ops,
                     live_args,
-                    callee_tok.is_some(),
                 )
                 .ok()?;
-                // **Only the plain run tail.** `bind_run_ops` refuses #1129's
-                // call tail for a bind-carrying run under
-                // [`super::body::STORE_RUN_BIND_CALL_TAIL`] — three graded
-                // `Port=Mismatch` objs earned that refusal, and the reason is
-                // that board #867's `u` is fed the COUNT of unproduced stores
-                // while the composition needs #584's LEADING RUN, an identity
-                // that holds on a single-symbol run and that a bind breaks. The
-                // arm is written as a `match` rather than an `if` so a lane that
+                // **BOTH TAILS NOW — the `match` did its job.** `w-bind` left
+                // this arm returning `None` for the call tail *"so a lane that
                 // lifts the refusal has to come back and build the sequence
-                // rather than inherit a wildcard.
+                // rather than inherit a wildcard"*, and this is that return.
+                // Board #1212: `codegen::store_run_call::save_slot` is fed
+                // #584's LEADING RUN now instead of the COUNT of unproduced
+                // stores, which is the one thing a second base symbol changes.
+                //
+                // The call tail is **#1129's**, and it is built out of exactly
+                // the parts `BodyShape::StoreRunCall` builds it out of, a few
+                // arms above — one `SeqCall` with **no** `arg_ops` (the
+                // production's own gate: every slot already holds the formal
+                // that occupies it, so the call emits no move and the run's base
+                // register is never written), `saved = [this]` because `this` is
+                // the one value live across the one call (board #869), and
+                // `SeqTail::SavedFormal` for the constructor's implicit
+                // `return this`. `ops` stays EMPTY and the run rides inside
+                // `CallSeq::store_run`, so there is no second container for a
+                // dispatch order to get wrong (board #232, board #844).
                 match callee_tok {
-                    Some(_) => None,
+                    Some(tok) => Some(IlFunction {
+                        params,
+                        call_seq: Some(CallSeq {
+                            calls: vec![SeqCall {
+                                callee: resolve(tok)?,
+                                arg_ops: Vec::new(),
+                                arg_sources: None,
+                                link_args: None,
+                            }],
+                            tail: SeqTail::SavedFormal { param: 0 },
+                            saved: vec![0],
+                            guard: None,
+                            early: Vec::new(),
+                            store_run: Some(crate::func::StoreRunPrefix {
+                                ops,
+                                live_args,
+                            }),
+                        }),
+                        ..IlFunction::base(name, src)
+                    }),
                     None => Some(IlFunction {
                         params,
                         ops,

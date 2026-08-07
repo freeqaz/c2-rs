@@ -1991,10 +1991,19 @@ fn run_tail(
 /// are the existing recognizers — [`run_tail`] and [`run_call_tail`] — and
 /// neither is copied.
 ///
-/// # This shape EMITS NOTHING, and that is the design rather than the outcome
+/// # This shape emitted NOTHING when it was written, and BOTH TAILS EMIT NOW
 ///
-/// `shape_to_function` returns `None` for [`BodyShape::StoreRunBind`], and the
-/// residue is counted under [`super::super::STORE_RUN_BIND_NO_CARRIER`]. The
+/// The paragraph below is kept because its *argument* is still the reason the
+/// production is shaped this way, and only its verdict has moved: board **#1199**
+/// (`w-carrier`) gave the plain tail a carrier — [`crate::func::IlOp::BoundAddr`]
+/// — and board **#1212** (`w-mrslot`) gave the call tail one, by correcting the
+/// `u` fed to `codegen::store_run_call::save_slot` from the COUNT of unproduced
+/// stores to #584's LEADING RUN. `STORE_RUN_BIND_NO_CARRIER` is a residue key
+/// now, not this shape's verdict.
+///
+/// As written: `shape_to_function` returns `None` for
+/// [`BodyShape::StoreRunBind`], and the residue is counted under
+/// [`super::super::STORE_RUN_BIND_NO_CARRIER`]. The
 /// alternative — widening `parse_store_stmt` so a bound base simply flows into
 /// [`BodyShape::StoreRun`] — was rejected **in this lane's prereg, before the
 /// production existed**, because those two shapes DO reach `codegen`, and a
@@ -2140,16 +2149,10 @@ pub(crate) fn bind_run_ops(
     // `BodyShape::StoreRunBind::live_args`, and **0 for the plain run tail**,
     // where there is no call and nothing is kept alive.
     live_args: usize,
-    // Whether there IS a trailing call — `callee_tok.is_some()`. Passed rather
-    // than inferred from `live_args != 0`, because a NULLARY call has
-    // `live_args == 1` (the receiver) and inferring it would make the two
-    // spellings of "no call" indistinguishable from one of them.
-    has_call: bool,
 ) -> Result<Vec<IlOp>, &'static str> {
     use crate::func::body::{
-        STORE_RUN_BIND_ADDR_PRODUCER, STORE_RUN_BIND_CALL_TAIL, STORE_RUN_BIND_GROUP_SHAPE,
-        STORE_RUN_BIND_MIXED_KIND, STORE_RUN_BIND_MULTI_PRODUCER,
-        STORE_RUN_BIND_SYMBOL_CROSSINGS,
+        STORE_RUN_BIND_ADDR_PRODUCER, STORE_RUN_BIND_GROUP_SHAPE, STORE_RUN_BIND_MIXED_KIND,
+        STORE_RUN_BIND_MULTI_PRODUCER, STORE_RUN_BIND_SYMBOL_CROSSINGS,
     };
 
     // `alloc::POOL_TOP` is r11 and the pool starts one above the live-in
@@ -2197,15 +2200,18 @@ pub(crate) fn bind_run_ops(
             STORE_RUN_BIND_MIXED_KIND
         });
     }
-    // **The refusal three graded `Port=Mismatch` objs earned.** After the
-    // mixed-kind clause, so `xboxheap.cpp` keeps the key that sizes #836/#868.
-    // See [`STORE_RUN_BIND_CALL_TAIL`]: board #867's `u` is fed the COUNT of
-    // unproduced stores and the composition's own doc argues that equals the
-    // leading run — an identity that is true on a single-symbol run and false
-    // once a bind puts a second symbol in it.
-    if has_call {
-        return Err(STORE_RUN_BIND_CALL_TAIL);
-    }
+    // **THE CALL-TAIL REFUSAL IS LIFTED — board #1212 is corrected, not
+    // refused.** `w-carrier` returned `STORE_RUN_BIND_CALL_TAIL` here for every
+    // bind body with a call, because `codegen::store_run_call::save_slot` was fed
+    // the COUNT of unproduced stores where a multi-symbol run needs board #584's
+    // LEADING RUN — an identity that holds on a single-symbol run and that a bind
+    // breaks, since a bind is a second base symbol (board #1128).
+    //
+    // `save_slot` is fed `order::leading_unproduced` now. `w-mrslot`'s GRID R
+    // graded the swap over 93 cells carrying an observed `mr r31,r3`, 30 of them
+    // separating the two readings: **leading run 93 HIT / 0 MISS, count 63 / 30**.
+    // The emitter still restates every clause below as a backstop, so a reader
+    // that widened past its witness comes out as a gap and not as bytes.
     if lits.len() > 1 {
         return Err(STORE_RUN_BIND_MULTI_PRODUCER);
     }
@@ -2215,16 +2221,23 @@ pub(crate) fn bind_run_ops(
     if symbols.windows(2).filter(|w| w[0] != w[1]).count() > MAX_SYMBOL_CROSSINGS {
         return Err(STORE_RUN_BIND_SYMBOL_CROSSINGS);
     }
-    // **There is deliberately NO live-argument clause here, and its absence is a
-    // measurement rather than an omission.** A bind hanging off a formal the
-    // trailing call keeps alive would read that formal's register, which is
-    // `w-seam2`'s `LIVE_ARG_STORED` under a second spelling — but the clause
-    // above refuses **every** bind body with a call tail, so nothing is left for
-    // it to catch. Board #1175: a gate that refuses nothing is indistinguishable
-    // from a gate that is not there, and an earlier revision of this function
-    // carried exactly that clause. It is deleted rather than left dead, and
-    // `live_args` survives only so the refusal above can be told apart from a
-    // nullary call.
+    // **There is STILL no live-argument clause here, and it is still a
+    // measurement rather than an omission — but the measurement is a different
+    // one now.** Board #1215 deleted this clause because the call-tail refusal
+    // above took every body it could have caught; that refusal is lifted, so the
+    // question is live again and it was asked rather than assumed.
+    //
+    // A bind hanging off a formal the trailing call keeps alive is GRID R's
+    // `bb_tr_lf` / `bb_rt_lf` — `H::H(H* w, unsigned q) { BE& r = w->mBlk; …
+    // Take(w); }` — and both are graded BYTE-EXACT against real `c2.dll` at the
+    // workload's own flags. A clause refusing them would refuse two objs the
+    // port gets right, which is the opposite failure from the one #1215 was
+    // about and just as invisible.
+    //
+    // `codegen::store_run_call`'s `LIVE_ARG_STORED` still refuses a stored live
+    // formal, which is board #1169's family and a different fact: a value the
+    // call keeps alive changes the store ORDER, a base register it keeps alive
+    // does not. `live_args` survives so that gate can be told what is live.
     let _ = live_args;
 
     // The discharge. Only the BASE position can hold a bound name at this point
@@ -2793,7 +2806,7 @@ mod tests {
             IlOp::Load(p),
             IlOp::StoreInd { off: 4, width: 4 },
         ];
-        let out = bind_run_ops(&[this, p], &binds, &ops, 0, false).expect("in class");
+        let out = bind_run_ops(&[this, p], &binds, &ops, 0).expect("in class");
         assert_eq!(
             out,
             vec![
@@ -2822,7 +2835,7 @@ mod tests {
         assert_ne!(out, direct, "the two spellings must not collapse");
         // A run with no bind at all passes through unchanged — every
         // pre-existing shape is untouched by construction, and here by test.
-        assert_eq!(bind_run_ops(&[this, p], &[], &direct, 0, false).unwrap(), direct);
+        assert_eq!(bind_run_ops(&[this, p], &[], &direct, 0).unwrap(), direct);
     }
 
     /// **EVERY GATE FIRES, and the count is printed.** Board **#1175**: a gate
@@ -2831,23 +2844,29 @@ mod tests {
     /// nothing, and was found only by a cross-check comparing two independent
     /// answers.
     ///
-    /// Five of the six are also graded against real `c2.dll` on frozen cells —
+    /// Four of the five are also graded against real `c2.dll` on frozen cells —
     /// `k_target`/`k_callmix`/`k_mix_c*`/`k_val1` (mixed kind), `k_both1`/
     /// `k_both2` (address producer), `k_2const`/`k_3const` (multi producer),
-    /// `g_cross3` (symbol crossings), and the call-tail refusal is the one three
-    /// live `Port=Mismatch` objs bought. **The POOL clause is not**: it fires on
+    /// `g_cross3` (symbol crossings). **The POOL clause is not**: it fires on
     /// **zero** graded cells, because a nine-formal body refuses one layer
     /// earlier (`work/w-carrier/grid2/g_pool`, `expr-op-0x27`). It is exercised
     /// here and nowhere else, and `docs/rungs/2026-08-08-w-carrier.md` says so
     /// rather than counting it as measured.
     ///
-    /// An earlier revision also carried a **live-argument-base** clause. It is
-    /// deleted, not left dead: the call-tail refusal above it takes every body it
-    /// could have caught, and a clause that refuses nothing is #1175 exactly.
+    /// **The call-tail clause is GONE — board #1212, and it is a correction
+    /// rather than a deletion**, so it is asserted below as an ACCEPT in the
+    /// place it used to be asserted as a refusal.
+    ///
+    /// An earlier revision also carried a **live-argument-base** clause. It
+    /// stays deleted, and for a measured reason rather than the old one: with
+    /// the call-tail refusal lifted the family is reachable, and GRID R's
+    /// `bb_tr_lf`/`bb_rt_lf` — a bind off a formal the call keeps alive — are
+    /// byte-exact. A clause refusing them would refuse two objs the port gets
+    /// right, which is #1175's failure in the other direction.
     #[test]
     fn every_bind_gate_fires_on_a_named_input() {
         use crate::func::body::{
-            STORE_RUN_BIND_ADDR_PRODUCER, STORE_RUN_BIND_CALL_TAIL,
+            STORE_RUN_BIND_ADDR_PRODUCER,
             STORE_RUN_BIND_GROUP_SHAPE, STORE_RUN_BIND_MIXED_KIND,
             STORE_RUN_BIND_MULTI_PRODUCER, STORE_RUN_BIND_SYMBOL_CROSSINGS,
         };
@@ -2858,7 +2877,7 @@ mod tests {
         let mut check = |want: &'static str, params: &[u32], binds: &[RefBind],
                          ops: Vec<IlOp>, live: usize| {
             assert_eq!(
-                bind_run_ops(params, binds, &ops, live, live > 0),
+                bind_run_ops(params, binds, &ops, live),
                 Err(want),
                 "gate {want} did not fire on its own witness"
             );
@@ -2902,16 +2921,7 @@ mod tests {
         ops.extend(store(IlOp::Load(l), IlOp::Load(p), 4));
         check(STORE_RUN_BIND_SYMBOL_CROSSINGS, &[this, p], &[bind(this)], ops, 0);
 
-        // 5. CALL TAIL — the refusal three graded `Port=Mismatch` objs earned.
-        //    `work/w-carrier/bisect/s1427.cpp`: c2 puts the `mr r31,r3` after
-        //    ZERO stores and board #867's rule, fed the COUNT of unproduced
-        //    stores, says one. The identity between that count and #584's
-        //    leading run holds on a single-symbol run; a bind is a second symbol.
-        let mut ops = store(IlOp::Load(this), IlOp::Lit(0), 20);
-        ops.extend(store(IlOp::Load(l), IlOp::Load(this), 0));
-        check(STORE_RUN_BIND_CALL_TAIL, &[this], &[bind(this)], ops, 1);
-
-        // 6. GROUP SHAPE — an F2 address-valued group is FOUR ops where
+        // 5. GROUP SHAPE — an F2 address-valued group is FOUR ops where
         //    `parse_simple_gpr_run` matches exactly three.
         let ops = vec![
             IlOp::Load(l),
@@ -2921,25 +2931,83 @@ mod tests {
         ];
         check(STORE_RUN_BIND_GROUP_SHAPE, &[this], &[bind(this)], ops, 0);
 
-        assert_eq!(fired.len(), 7, "gates fired: {fired:?}");
+        assert_eq!(fired.len(), 6, "gates fired: {fired:?}");
+
+        // **THE CALL TAIL IS NO LONGER A GATE — board #1212 is corrected.**
+        // `work/w-carrier/bisect/s1427.cpp`'s shape: c2 puts the `mr r31,r3`
+        // after ZERO stores and board #867's rule, fed the COUNT of unproduced
+        // stores, said one. It is fed #584's LEADING RUN now. Asserted as an
+        // ACCEPT in the same place the refusal used to be asserted, so the two
+        // states of this clause are one edit apart in the record.
+        let mut ops = store(IlOp::Load(this), IlOp::Lit(0), 20);
+        ops.extend(store(IlOp::Load(l), IlOp::Load(this), 0));
+        assert!(
+            bind_run_ops(&[this], &[bind(this)], &ops, 1).is_ok(),
+            "the call tail of a bind-carrying run is in class since #1212"
+        );
 
         // **The boundary is a boundary and not a blanket** — the clause with a
         // numeric bound accepts one step inside it, and the plain tail of the
-        // very body the call-tail clause refuses is accepted.
+        // very body the call-tail clause used to refuse is accepted.
         let mut ops = store(IlOp::Load(this), IlOp::Load(p), 16);
         ops.extend(store(IlOp::Load(l), IlOp::Load(p), 0));
         ops.extend(store(IlOp::Load(l), IlOp::Load(p), 4));
         ops.extend(store(IlOp::Load(this), IlOp::Load(p), 0));
         assert!(
-            bind_run_ops(&[this, p], &[bind(this)], &ops, 0, false).is_ok(),
+            bind_run_ops(&[this, p], &[bind(this)], &ops, 0).is_ok(),
             "two crossings is INSIDE the bound (`grid2/g_cross2` is `match`)"
         );
         let mut ops = store(IlOp::Load(this), IlOp::Lit(0), 20);
         ops.extend(store(IlOp::Load(l), IlOp::Load(this), 0));
         assert!(
-            bind_run_ops(&[this], &[bind(this)], &ops, 0, false).is_ok(),
-            "the same run WITHOUT the call is in class — the refusal is the \
+            bind_run_ops(&[this], &[bind(this)], &ops, 0).is_ok(),
+            "the same run WITHOUT the call is in class — the refusal was the \
              composition's, not the run's"
         );
+    }
+
+    /// **A RETIRED KEY MUST HAVE NO PRODUCER, and that is checked rather than
+    /// assumed** — board #1212.
+    ///
+    /// `store-run-bind-call-tail-mr-slot` is in every scan log, rung and board
+    /// row written before 2026-08-09, so
+    /// [`crate::func::body::STORE_RUN_BIND_CALL_TAIL_RETIRED`] keeps its text.
+    /// A key that still exists as a string and no longer exists as a verdict is
+    /// exactly the state in which somebody re-wires it by accident, so this walks
+    /// the whole gate cross-product and asserts nothing under it produces the
+    /// string any more.
+    ///
+    /// The cross-product is the same shape as
+    /// `every_bind_gate_fires_on_a_named_input`'s inputs, plus the call-tail
+    /// family itself at every `live_args` the production can present (0 for the
+    /// plain tail, 1 for a nullary call, 2 for a one-argument call).
+    #[test]
+    fn the_call_tail_key_has_no_producer_since_1212() {
+        use crate::func::body::STORE_RUN_BIND_CALL_TAIL_RETIRED;
+        let (this, p, l) = (0x0101u32, 0x0301u32, 0xFB09u32);
+        let bind = |base| RefBind { tok: l, base_tok: base, off: 8 };
+        let store = |b: IlOp, v: IlOp, off| vec![b, v, IlOp::StoreInd { off, width: 4 }];
+        let bases = [IlOp::Load(this), IlOp::Load(l)];
+        let values = [IlOp::Lit(0), IlOp::Load(p), IlOp::Load(this), IlOp::Load(l)];
+        let mut seen = 0usize;
+        for b0 in &bases {
+            for v0 in &values {
+                for b1 in &bases {
+                    for v1 in &values {
+                        let mut ops = store(*b0, *v0, 16);
+                        ops.extend(store(*b1, *v1, 0));
+                        for live in 0..=2usize {
+                            seen += 1;
+                            assert_ne!(
+                                bind_run_ops(&[this, p], &[bind(this)], &ops, live),
+                                Err(STORE_RUN_BIND_CALL_TAIL_RETIRED),
+                                "the retired call-tail key was produced again"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(seen, 192, "the cross-product shrank: {seen}");
     }
 }

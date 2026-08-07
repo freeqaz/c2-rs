@@ -9,6 +9,16 @@
 // own shape, the frontier's cheapest TU, and the first time boards **#836/#868**
 // are a countable row rather than an argument: over the 878-TU workload
 // `store-run-bind-mixed-kind-alloc` is **1**, and it is that function.
+//
+// **This fixture had FIVE clauses and has FOUR** — board **#1212**, `w-mrslot`.
+// The fifth was the trailing call (`store-run-bind-call-tail-mr-slot`), and it
+// was a refusal only because `codegen::store_run_call::save_slot` was fed the
+// COUNT of unproduced stores where a multi-symbol run needs board #584's LEADING
+// RUN. It is fed the leading run now, the clause is gone, and its function moved
+// to `w1212_bind_run_call.cpp` where it is graded as a POSITIVE. A retired
+// clause leaves this file rather than staying in it with a flipped verdict,
+// because the header's claim — *every one of them must be 0 of N in class* — is
+// what makes the file readable at a glance.
 
 struct BE { BE* mNext; BE* mPrev; };
 struct H {
@@ -70,16 +80,9 @@ void nf_cross3(H* h, BE* p) {
     l.mPrev = p;
 }
 
-// `store-run-bind-call-tail-mr-slot` — **the refusal three live `Port=Mismatch`
-// objs bought.** Board #867's copy slot is fed the COUNT of unproduced stores,
-// and the composition's own doc argues that equals board #584's LEADING RUN.
-// That identity holds on a single-symbol run and a bind is a second symbol
-// (#1128), so the cross-symbol pin can strand an unproduced store behind a
-// produced one. Real `c2` puts the `mr r31,r3` after ZERO stores here and the
-// rule says one — two right words in the wrong order.
-H::H(unsigned initSize, unsigned size) {
-    BE& lh = mListHead;
-    mCount = 0;
-    lh.mNext = (BE*)this;
-    AllocatePageBlock(initSize);
-}
+// The fifth clause was here — `store-run-bind-call-tail-mr-slot`, the trailing
+// call. Board **#1212** corrected it rather than kept it, so the function is a
+// POSITIVE now and lives in `w1212_bind_run_call.cpp`. The declaration of
+// `H::H` above stays so this TU still names the constructor the moved function
+// defines; it is deliberately left UNDEFINED here, which is what keeps this
+// file's every-function-refuses property true.

@@ -1,0 +1,6 @@
+A. nothing lifted
+work/w-carrier/grid/k_target/k_target.cpp -> 0/1 functions in class
+  [  0] GAP store-run-bind-mixed-kind-alloc:eof cflow-straight             eh-none     (eh-none     )    404 B  ?AllocatePageBlock@CXboxHeap@@QAAPAUBE@@I@Z
+
+B. mixed-kind lifted (w-prod's clause, env hatch, uncommitted)
+work/w-carrier/grid/k_target/k_target.cpp -> 1/1 functions in class

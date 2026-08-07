@@ -310,9 +310,23 @@ pub(crate) struct ScheduledRun {
     /// Distinct producers — equal literals CSE to one `li`, so equal `k` is one
     /// producer, which is the identity [`alloc::allocate`] is handed.
     pub(crate) nprod: usize,
-    /// Stores that materialise **nothing** — a formal already live in a
-    /// register. `w-seam`/#867's `u`.
-    pub(crate) nsw: usize,
+    /// **Board #584's `u`** — the LEADING RUN of stores that materialise
+    /// nothing (a formal already live in a register) **in the FINAL store
+    /// order**, capped at [`order::HEAD_SLOTS_MAX`].
+    ///
+    /// This field used to be `nsw`, the plain COUNT of such stores wherever
+    /// they landed, and `store_run_call`'s doc argued the two are the same
+    /// number. They are, on a **single-symbol** run — and board #1199's bind
+    /// carrier put a second symbol in the run, which is where they part and
+    /// where four sweep cases graded `Port=Mismatch`. Board **#1212**, corrected
+    /// by `w-mrslot` over GRID R: **93 HIT / 0 MISS** against the count's
+    /// 63/30, read off real `c2.dll`'s emitted words.
+    ///
+    /// Named `u_lead` rather than `u` so that a future reader of
+    /// [`super::super::store_run_call::save_slot`]'s call site cannot mistake
+    /// it for the count again — the two readings are the whole of #584 and the
+    /// old name said nothing about which one it held.
+    pub(crate) u_lead: usize,
 }
 
 /// The scheduled store run, or `None` for a stream that is not one.
@@ -414,6 +428,18 @@ pub(crate) fn scheduled_gpr_run(
     let Some(slots) = order::schedule(&stmts) else {
         return Some(Err(out_of_class(
             "store run outside the schedule's domain (codegen::order)",
+        )));
+    };
+    // **Board #584's `u`, from the module that defines it.** `order::lead_slots`
+    // is the one locator for "the leading run of unproduced stores in the final
+    // order"; restating it here from `slots` would be a second one, and
+    // `GAPS.md` §6 is the record of what that costs. `schedule` answered above,
+    // so `store_order` answers too and this cannot be `None`; it is written as a
+    // refusal rather than an `expect` because a future widening that made
+    // `schedule` answer where `store_order` does not must come out as a gap.
+    let Some(u_lead) = order::leading_unproduced(&stmts) else {
+        return Some(Err(out_of_class(
+            "store run whose final order has no leading run (codegen::order)",
         )));
     };
 
@@ -556,8 +582,10 @@ pub(crate) fn scheduled_gpr_run(
         nprod: producers.len(),
         // A store materialises nothing exactly when its value is a formal —
         // `SimpleStore::lit` is `None` — which is `schedule::Stmt`'s own
-        // `producer: None`, so the two counts cannot drift apart.
-        nsw: run.iter().filter(|s| s.lit.is_none()).count(),
+        // `producer: None`, so `order` and this file cannot disagree about
+        // WHICH stores are counted. What they used to disagree about is
+        // whether the answer is the count or the leading run; board #1212.
+        u_lead,
     }))
 }
 

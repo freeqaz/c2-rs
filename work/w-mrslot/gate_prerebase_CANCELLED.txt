@@ -1,0 +1,36 @@
+CANCELLED — DO NOT QUOTE AS THIS LANE'S GATE.
+This run was started on the PRE-REBASE tree (a2dd3917, base 6dce97a1) and
+killed part-way through `mode_cross` when master moved to 06f3a75a (the
+w-prod merge). The lane's gate is `gate_rtip.txt`, on the rebased tree.
+The one complete number here is the sweep, and it is repeated there:
+  checked=19556 mismatches=0 graded=19460 ungraded=96 unknown=0
+No lane summary, no cross total, no GATE: line — the run never reached them.
+----------------------------------------------------------------------
+lane gate: preflight on /tmp
+  keep    /tmp/c2rs-gate-1609500       LIVE — pid 1609500 is a running gate (a concurrent lane)
+  keep    /tmp/c2rs-gate-2101520       this run
+  keep    /tmp/c2rs-gate-958912        recent — 1 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-840875        recent — 2 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-321652        recent — 3 of 3 finished runs kept for their logs
+reap:   0 stale run tree(s) removed, 5 kept (1 live, 3 recent, 1 this run)
+strip:  0 kept tree(s) lost 0 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
+disk:   /tmp — free 30.0 GiB / 733,619 inodes (floors: 2.0 GiB / 150,000 inodes)
+
+lane gate: 18 lanes from <abs>
+  run dir: /tmp/c2rs-gate-2101520   (per-lane run dirs under /tmp/c2rs-gate-2101520/lanes/)
+building the harness (no-op if current)
+    Finished `release` profile [optimized] target(s) in 0.01s
+harness: /tmp/c2rs-gate-2101520/c2rs
+  pinned from <abs>  built 2026-08-07 21:12:00
+  sha c6a4618b0b82  tree a2dd3917
+
+wall clock: 19s for 18 lanes at --jobs 6 (C2RS_JOBS=8)
+
+generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-2101520/sweep 0  (jobs 6)
+    62 fragments, 19556 cases total (19556 .cpp on disk)
+  sweeping 19556 of 19556 generated cases
+    grading at 6 job(s)
+  checked=19556 mismatches=0 graded=19460 ungraded=96 unknown=0
+  (219s)
+
+mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-2101520/cross 0  (jobs 6)
