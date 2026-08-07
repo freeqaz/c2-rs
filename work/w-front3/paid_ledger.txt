@@ -1,0 +1,86 @@
+== x1
+work/w-front2/probe/x1/x1.cpp -> 1/1 functions in class
+  [  0] ok  store-run                cflow-straight             eh-none     (eh-none     )    231 B  (unnamed)
+         1 x cflow-straight
+  EH class (maxState, decode-only): 0/1 bodies have maxState >= 1 and need the whole EH record
+         1 x eh-none
+  [1/1] match        work/w-front2/probe/x1/x1.cpp
+    gap-metric match 1
+    gap-metric mismatch 0
+== x2
+work/w-front2/probe/x2/x2.cpp -> 1/1 functions in class
+  [  0] ok  store-run                cflow-straight             eh-none     (eh-none     )    261 B  (unnamed)
+         1 x cflow-straight
+  EH class (maxState, decode-only): 0/1 bodies have maxState >= 1 and need the whole EH record
+         1 x eh-none
+  [1/1] match        work/w-front2/probe/x2/x2.cpp
+    gap-metric match 1
+    gap-metric mismatch 0
+== x7
+work/w-front2/probe/x7/x7.cpp -> 1/1 functions in class
+  [  0] ok  store-run                cflow-straight             eh-none     (eh-none     )    350 B  (unnamed)
+         1 x cflow-straight
+  EH class (maxState, decode-only): 0/1 bodies have maxState >= 1 and need the whole EH record
+         1 x eh-none
+  [1/1] match        work/w-front2/probe/x7/x7.cpp
+    gap-metric match 1
+    gap-metric mismatch 0
+== x3
+work/w-front2/probe/x3/x3.cpp -> 0/1 functions in class
+  [  0] GAP store-run-bind-address-producer:eof cflow-straight             eh-none     (eh-none     )    326 B  (unnamed)
+         1 x store-run-bind-address-producer:eof
+             20 4f 12 47 54 01 54 00 4f 02 20 00 4f 01 10 4d
+--
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-front2/probe/x3/x3.cpp  (il function decode failed)
+    gap-metric match 0
+    gap-metric mismatch 0
+== x5
+work/w-front2/probe/x5/x5.cpp -> 1/1 functions in class
+  [  0] ok  store-run                cflow-straight             eh-none     (eh-none     )    337 B  (unnamed)
+         1 x cflow-straight
+  EH class (maxState, decode-only): 0/1 bodies have maxState >= 1 and need the whole EH record
+         1 x eh-none
+  census/gate DISAGREEMENT: 1 of the 1 in class are refused by PortC2:
+  [1/1] codegen-gap  work/w-front2/probe/x5/x5.cpp  (store run with an unmodeled residue)
+    gap-metric match 0
+    gap-metric mismatch 0
+== x8
+work/w-front2/probe/x8/x8.cpp -> 1/1 functions in class
+  [  0] ok  store-run                cflow-straight             eh-none     (eh-none     )    175 B  (unnamed)
+         1 x cflow-straight
+  EH class (maxState, decode-only): 0/1 bodies have maxState >= 1 and need the whole EH record
+         1 x eh-none
+  census/gate DISAGREEMENT: 1 of the 1 in class are refused by PortC2:
+  [1/1] codegen-gap  work/w-front2/probe/x8/x8.cpp  (sub-object address feeding arithmetic; out of class)
+    gap-metric match 0
+    gap-metric mismatch 0
+== x4
+work/w-front2/probe/x4/x4.cpp -> 1/1 functions in class
+  [  0] ok  store-run-call           cflow-straight             eh-none     (eh-none     )    279 B  ?Alloc@H@@QAAPAUBE@@I@Z
+         1 x cflow-straight
+  EH class (maxState, decode-only): 0/1 bodies have maxState >= 1 and need the whole EH record
+         1 x eh-none
+  [1/1] match        work/w-front2/probe/x4/x4.cpp
+    gap-metric match 1
+    gap-metric mismatch 0
+== x6
+work/w-front2/probe/x6/x6.cpp -> 0/1 functions in class
+  [  0] GAP expr-op-0x27             cflow-straight             eh-none     (eh-none     )    259 B  ?g@@YAXI@Z
+         1 x expr-op-0x27
+             53 4f 01 0e b9 ff 09 a6 43 81 20 33 86 41 74 10 >27< a6 43 f5 08 b9 fd 09 86 42 75 32 86 42 75 4b 4f 01 0f b9 ff 09 a6 43
+--
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-front2/probe/x6/x6.cpp  (il function decode failed)
+    gap-metric match 0
+    gap-metric mismatch 0
+== x0
+work/w-front2/probe/x0/x0.cpp -> 0/1 functions in class
+  [  0] GAP store-run-bind-mixed-kind-alloc:eof cflow-straight             eh-none     (eh-none     )    404 B  ?Alloc@H@@QAAPAUBE@@I@Z
+         1 x store-run-bind-mixed-kind-alloc:eof
+             20 4f 12 47 54 01 54 00 4f 02 20 00 4f 01 17 4d
+--
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-front2/probe/x0/x0.cpp  (il function decode failed)
+    gap-metric match 0
+    gap-metric mismatch 0

@@ -1,0 +1,36 @@
+variant          producers(c2-il)  consumers(c2-core/codegen)  verdict
+Load             33                25                          reachable at variant level
+LoadInd          2                 7                           reachable at variant level
+LoadIndSized     2                 7                           reachable at variant level
+AddrOf           3                 5                           reachable at variant level
+SymAddr          2                 4                           reachable at variant level
+StoreInd         4                 8                           reachable at variant level
+StoreIndFp       2                 7                           reachable at variant level
+LoadIndFp        1                 6                           reachable at variant level
+Lit              19                12                          reachable at variant level
+BoundAddr        1                 6                           reachable at variant level
+FpLit            1                 7                           reachable at variant level
+Add              52                14                          reachable at variant level
+Sub              13                11                          reachable at variant level
+Mul              25                8                           reachable at variant level
+Div              4                 5                           reachable at variant level
+And              5                 5                           reachable at variant level
+Or               5                 5                           reachable at variant level
+Xor              5                 5                           reachable at variant level
+Shl              5                 5                           reachable at variant level
+ShrS             6                 5                           reachable at variant level
+ShrU             4                 5                           reachable at variant level
+
+VARIANT-LEVEL UNREACHABLE: 0  []
+
+POSITIONAL candidates — variants whose producers are all in ONE
+position; a consumer reading them in ANY OTHER position is
+unreachable and must be checked by hand:
+  LoadInd        2 producer(s): crates/c2-il/src/func/body/shapes/leaf_load.rs:87, crates/c2-il/src/func/body/shapes/leaf_store.rs:127
+  LoadIndSized   2 producer(s): crates/c2-il/src/func/body/shapes/leaf_load.rs:134, crates/c2-il/src/func/body/shapes/leaf_store.rs:129
+  AddrOf         3 producer(s): crates/c2-il/src/func/body/shapes/leaf_addr.rs:66, crates/c2-il/src/func/body/shapes/leaf_store.rs:386, crates/c2-il/src/func/body/shapes/leaf_store.rs:455
+  SymAddr        2 producer(s): crates/c2-il/src/func/body/shapes/calls.rs:412, crates/c2-il/src/func/body/shapes/mcall_tail.rs:249
+  StoreIndFp     2 producer(s): crates/c2-il/src/func/body/shapes/leaf_store.rs:175, crates/c2-il/src/func/body/shapes/leaf_store.rs:529
+  LoadIndFp      1 producer(s): crates/c2-il/src/func/body/shapes/leaf_store.rs:125
+  BoundAddr      1 producer(s): crates/c2-il/src/func/body/shapes/leaf_store.rs:951
+  FpLit          1 producer(s): crates/c2-il/src/func/body/shapes/leaf_float.rs:87
