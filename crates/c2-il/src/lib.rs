@@ -48,7 +48,7 @@ pub use func::{
     DivModLeaf,
     PtrWalkModLoop,
     ChainOp, ChainOpKind, ChainRhs, PtrWalkChainLoop,
-    Rel, SeqCall, SeqCmp, SeqEarlyReturn, SeqGuard, SeqTail,
+    Rel, SeqCall, SeqCmp, SeqEarlyReturn, SeqGuard, SeqTail, StoreRunPrefix,
     SlotArg, LINK_FIRST_SLOT,
     // W8 — the two-arm conditional tail call and its register schedule. The
     // schedule is exported because the emitter must run the *same* planner the

@@ -1297,6 +1297,7 @@ mod tests {
                 calls: Vec::new(),
                 tail: crate::func::SeqTail::CallLoadFp { off: 4, double: false },
                 saved: Vec::new(),
+                store_run: None,
             }),
             ..crate::func::IlFunction::base("?f@@YAMPAUO@@@Z", &None)
         };
@@ -1309,6 +1310,7 @@ mod tests {
                 calls: Vec::new(),
                 tail: crate::func::SeqTail::CallLoad { off: 4 },
                 saved: Vec::new(),
+                store_run: None,
             }),
             ..crate::func::IlFunction::base("?g@@YAHPAUO@@@Z", &None)
         };

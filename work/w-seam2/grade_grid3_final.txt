@@ -1,0 +1,12 @@
+p1     vocab-gap
+p10    match
+p11    match
+p12    match
+p2     match
+p3     vocab-gap
+p4     vocab-gap
+p5     vocab-gap
+p6     match
+p7     match
+p8     vocab-gap
+p9     match

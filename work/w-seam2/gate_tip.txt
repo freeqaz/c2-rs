@@ -1,0 +1,69 @@
+lane gate: preflight on /tmp
+  keep    /tmp/c2rs-gate-1046034       LIVE — pid 1046034 is a running gate (a concurrent lane)
+  keep    /tmp/c2rs-gate-1217287       this run
+  keep    /tmp/c2rs-gate-620743        recent — 1 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-3897041       recent — 2 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-3402261       recent — 3 of 3 finished runs kept for their logs
+reap:   0 stale run tree(s) removed, 5 kept (1 live, 3 recent, 1 this run)
+strip:  0 kept tree(s) lost 0 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
+disk:   /tmp — free 30.3 GiB / 772,811 inodes (floors: 2.0 GiB / 150,000 inodes)
+
+lane gate: 18 lanes from <worktree>/scripts/lanes.txt
+  run dir: /tmp/c2rs-gate-1217287   (per-lane run dirs under /tmp/c2rs-gate-1217287/lanes/)
+building the harness (no-op if current)
+    Finished `release` profile [optimized] target(s) in 0.00s
+harness: /tmp/c2rs-gate-1217287/c2rs
+  pinned from <worktree>/target/release/c2rs  built 2026-08-07 15:31:31
+  sha d2e3ffc30554  tree f5bd6428
+
+wall clock: 16s for 18 lanes at --jobs 8 (C2RS_JOBS=8)
+
+generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-1217287/sweep 0  (jobs 8)
+    61 fragments, 18286 cases total (18286 .cpp on disk)
+  sweeping 18286 of 18286 generated cases
+    grading at 8 job(s)
+  checked=18286 mismatches=0 graded=18190 ungraded=96 unknown=0
+  (136s)
+
+mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-1217287/cross 0  (jobs 8)
+  assigned 18286 cases over 18 lanes = 110273 cells (full cross would be 329148)
+  sweeping 110273 of 110273 case-lane cells (cross of 0 cases x <worktree>/scripts/lanes.txt; the full 12x product is 329148)
+  checked=110273 mismatches=0 graded=109885 ungraded=388 unknown=0
+  (670s)
+
+disk:   /tmp low-water this run — 30.1 GiB and 754,122 inodes free (start: 30.3 GiB / 772,811)
+
+LANE                 VERDICT     graded/total  match  mismatch  flags
+-------------------- ---------- ------------- ------ --------- --------------------
+O1                   PASS          278/278       138         0  /O1
+O1-EHsc              PASS          278/278       138         0  /O1 /EHsc
+O1-Oi                PASS          278/278       138         0  /O1 /Oi
+O1-Oi-EHsc           PASS          278/278       138         0  /O1 /Oi /EHsc
+Ox                   PASS          278/278       130         0  /Ox
+Ox-EHsc              PASS          278/278       130         0  /Ox /EHsc
+Ox-Gy                PASS          278/278       128         0  /Ox /Gy
+Ox-Gy-EHsc           PASS          278/278       128         0  /Ox /Gy /EHsc
+O2                   PASS          278/278       134         0  /O2
+O2-EHsc              PASS          278/278       134         0  /O2 /EHsc
+Od                   PASS          278/278        15         0  /Od
+Od-EHsc              PASS          278/278        15         0  /Od /EHsc
+O1-Oi-GR             PASS          278/278       138         0  /O1 /Oi /GR
+O1-Oi-EHsc-GR        PASS          278/278       138         0  /O1 /Oi /EHsc /GR
+Ox-GR                PASS          278/278       130         0  /Ox /GR
+Ox-EHsc-GR           PASS          278/278       130         0  /Ox /EHsc /GR
+Od-GR                PASS          278/278        15         0  /Od /GR
+Od-EHsc-GR           PASS          278/278        15         0  /Od /EHsc /GR
+expr-sweep           PASS        18286/18286   18190         0  generated cases (of 18286)
+mode-cross           PASS       110273/110273 109885         0  case-lane cells (of 110273)
+
+lanes:  18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT
+graded: 5004 fixture-verdicts across all lanes
+sweep:  PASS — 18286 of 18286 selected cases reached, 18190 GRADED by the
+        oracle (96 ungraded: no reference obj), 0 mismatch (corpus 18286)
+cross:  PASS — 109885 of 110273 selected cells graded, 0 mismatch (product 110273)
+logs:   /tmp/c2rs-gate-1217287/<lane>.log, /tmp/c2rs-gate-1217287/sweep.log, /tmp/c2rs-gate-1217287/cross.log
+
+GATE: PASS — 18/18 lanes ran and every one of them graded a corpus,
+  the sweep graded 18190 of 18286 generated cases and the cross graded
+  109885 of 110273 case-lane cells, with 0 mismatches anywhere
+  (96 sweep cases carried ungraded — the reference rejects the source).

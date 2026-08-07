@@ -768,14 +768,43 @@ pub(crate) enum BodyShape {
     /// all, the `void`, `return <call>` and discarded-`int` forms are frame words
     /// 0 and tail-call behind the run (board #1131).
     ///
-    /// **This variant has no emitter and `shape_to_function` returns `None` for
-    /// it.** `IlFunction` carries an op stream *or* a call, and
-    /// `c2_core::codegen::select` tries them in a fixed order, so a function
-    /// carrying both would emit one and silently drop the other — a store run
-    /// emitted without its `bl` is board #232's exact shape. The composition
-    /// carrier is board **#844** and it is `c2-core`'s, not this crate's. See
+    /// **The composition carrier is board #844 and it LANDED** (`w-seam2`).
+    /// `shape_to_function` maps this variant onto a [`crate::func::CallSeq`]
+    /// whose [`crate::func::CallSeq::store_run`] holds the run, whose `saved` is
+    /// the receiver and whose tail is
+    /// [`crate::func::SeqTail::SavedFormal`] — the same sequence the generated
+    /// base-delegating constructor already used, with a run in front of it.
+    ///
+    /// **`IlFunction::ops` stays EMPTY for this shape, and that is the whole
+    /// repair.** Before the carrier, `ops` and the call fields were
+    /// *alternatives* `c2_core::codegen::select` tried in a fixed order, so a
+    /// function carrying both emitted one and silently dropped the other — a
+    /// store run without its `bl` is board #232's exact shape, and #232 was live
+    /// for 255 commits. An ordering fix would leave two fields that can both be
+    /// set; carrying the run *inside* the sequence leaves nothing for a dispatch
+    /// order to get wrong. [`crate::func::IlFunction::store_run_carried_twice`]
+    /// is the backstop and `select_function` refuses a violation by name.
+    ///
+    /// The EMITTER's own domain is narrower than this production's: it serves
+    /// runs of formal- and literal-valued stores only, and refuses an `AddrOf`
+    /// value (the mixed-kind run of boards #836/#868) and the `nprod == 0,
+    /// u <= 1` corner where the copy's slot rule is not measured. See
+    /// `c2_core::codegen::store_run_call`. See
     /// [`shapes::try_parse_store_run_call`] for the whole accept/refuse boundary.
-    StoreRunCall { params: Vec<u32>, ops: Vec<IlOp>, callee_tok: u32 },
+    StoreRunCall {
+        params: Vec<u32>,
+        ops: Vec<IlOp>,
+        callee_tok: u32,
+        /// **How many argument slots the call occupies, receiver included.**
+        ///
+        /// Every slot `i` holds `params[i]` by this production's own gate, so
+        /// this is exactly *which formals are still live at the `bl`* — and that
+        /// turned out to decide the RUN's emitted order, not just the call's.
+        /// See [`crate::func::StoreRunPrefix`] for the three bodies that
+        /// separate it. Carried rather than recomputed because the emitter sees
+        /// an EMPTY argument setup by construction and cannot count the slots.
+        live_args: usize,
+    },
 }
 
 /// **Why** a function segment fell outside the modeled class (P2b census).

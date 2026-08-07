@@ -1183,6 +1183,7 @@ mod tests {
             saved: Vec::new(),
             guard: None,
             early: Vec::new(),
+            store_run: None,
         });
         let mut g = leaf("?g@@YAXXZ");
         g.params = Vec::new();
@@ -1220,6 +1221,7 @@ mod tests {
             saved: Vec::new(),
             guard: None,
             early: Vec::new(),
+            store_run: None,
         });
         let funcs = vec![leaf("?g@@YAHH@Z"), caller];
         let tu = ctx(&funcs);

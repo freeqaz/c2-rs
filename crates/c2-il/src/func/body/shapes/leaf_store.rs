@@ -1500,19 +1500,30 @@ fn collect_store_run(
 ///   that *look* like this shape are branches, so the tail is required
 ///   positively and not inferred from the run.
 ///
-/// # THIS SHAPE HAS NO EMITTER, AND THE REFUSAL IS IN [`crate::func::bundle`]
+/// # THE CARRIER LANDED — board #844, `w-seam2`
 ///
-/// `IlFunction` has no carrier for *a store run followed by a call*: `ops` and
-/// `call_seq` are alternatives that `c2_core::codegen::select` tries in a fixed
-/// order, so a function carrying both emits **one** of them and silently drops
-/// the other — a store run emitted with its `bl` missing is `#232`'s exact
-/// shape. So `shape_to_function` returns `None` for this variant and the census
-/// files it under its own `:eof` key
-/// ([`crate::func::census::STORE_RUN_CALL_NO_CARRIER`]): the body is
-/// grammar-complete and the only thing left wrong with it is that the **model**
-/// cannot spell the composition. That is board **#844**, and this production
-/// is the measurement that it and F3 are **one refusal seen from two ends**
-/// rather than the two independent rows `w-heap` §5's table shows.
+/// This production originally shipped with `shape_to_function` returning `None`,
+/// because `IlFunction` had no carrier for *a store run followed by a call*:
+/// `ops` and `call_seq` were alternatives that `c2_core::codegen::select` tries
+/// in a fixed order, so a function carrying both emitted **one** and silently
+/// dropped the other — a store run with its `bl` missing is `#232`'s exact
+/// shape. That refusal was the measurement that F3 and #844 are **one refusal
+/// seen from two ends** rather than the two independent rows `w-heap` §5's table
+/// shows.
+///
+/// The carrier is [`crate::func::CallSeq::store_run`], and the repair is that
+/// the run lives *inside* the sequence with `ops` left **empty** — so the race
+/// is unspellable rather than merely re-ordered.
+///
+/// **The emitter's domain is narrower than this production's**, and the
+/// difference is a `codegen-gap` rather than a widening of what parses here:
+/// `c2_core::codegen::store_run_call` serves runs of formal- and literal-valued
+/// stores and refuses an `AddrOf` value — the mixed-kind run `alloc::allocate`
+/// refuses (#836) and `w-seam` declined to lift (#868) — plus the
+/// `nprod == 0, u <= 1` corner where board #867's copy-slot rule is off by one.
+/// Keeping the reader wider than the emitter is deliberate: the refusal is then
+/// **named in codegen** and shows up as a codegen-gap, instead of hiding inside
+/// a parse failure that names the wrong construct.
 ///
 /// Returns `None` — cursor untouched — for anything that is not exactly this
 /// shape.
@@ -1566,6 +1577,79 @@ pub(crate) fn try_parse_store_run_call(
             _ => return None,
         }
     }
+    // **THE TRANSFER GATE — board #866 is refuted in its general form, and this
+    // is where that costs the composition its widest cells.**
+    //
+    // A store whose value is a formal the CALL keeps alive is scheduled
+    // differently in the framed body than in the leaf. Measured
+    // (`work/w-seam2/grid3/`, `grid4/`):
+    //
+    // ```text
+    //   void P::lf(unsigned a, unsigned b) { m0=0; m1=b; m2=a; }        LEAF
+    //       li 11,0 ; stw 5,4(3) ; stw 4,8(3) ; stw 11,0(3) ; blr
+    //   P::P(unsigned a, unsigned b) { m0=0; m1=b; m2=a; Alloc(a); }    FRAMED
+    //       li 11,0 ; stw 4,8(3) ; stw 5,4(3) ; mr 31,3 ; stw 11,0(3) ; bl
+    //   P::P(unsigned a, unsigned b) { m0=0; m1=b; m2=a; Reset(); }     NULLARY
+    //       li 11,0 ; stw 5,4(3) ; stw 4,8(3) ; mr 31,3 ; stw 11,0(3) ; bl
+    // ```
+    //
+    // The two unproduced stores **swap**, and only when the call passes `a`. So
+    // *"the leaf schedule transfers unchanged into a framed body"* — #866 over 96
+    // cells, and 34 more in `w-seam2`'s GRID S — holds only while no store reads
+    // a value the call keeps alive.
+    //
+    // **The receiver is exempt**: `this` is the store base and is copied to r31
+    // regardless, and storing it transfers on every measured cell. It is the
+    // slots `>= 1` that break the run, and GRID S4's `a2_break2` is what fixes
+    // the reading: a two-argument callee whose run stores the SECOND argument
+    // swaps too, so a gate keyed on slot 1 alone would emit wrong bytes.
+    //
+    // **In the READER and not only in the emitter**, so the census cannot count
+    // a body `PortC2` refuses — `crates/c2-harness/tests/census_gate.rs` is that
+    // invariant and it caught this exact over-claim. `codegen::store_run_call`
+    // keeps the same predicate as a backstop.
+    for slot in slots.iter().skip(1) {
+        // Every slot is `[Load(params[i])]` by the gate just above; the `else`
+        // refuses rather than assuming, because a later widening of that gate
+        // would otherwise silently stop checking this one.
+        let [IlOp::Load(live)] = slot else { return None };
+        // A store's group is `[Load(base), <value>, StoreInd]`, so the VALUE is
+        // at index 1. Index 1 and not "anywhere in the group", because index 0
+        // is the store's own BASE — which is `params[0]`, the receiver, and the
+        // receiver is exactly the slot this loop skips.
+        //
+        // **Not `value_is_load`**: that flag means the value is an indirect LOAD
+        // (`s->m = t->n`), and a formal-valued store has it FALSE with
+        // `IlOp::Load(tok)` in the value position. Keying on it made this gate
+        // silently never fire, which `census_gate.rs` caught as two functions the
+        // census counted and `PortC2` refused.
+        if stmts.iter().any(|st| st.ops.get(1) == Some(&IlOp::Load(*live))) {
+            return None;
+        }
+    }
+    // **A MULTI-WORD LITERAL, even ALONE in the run.** One level stricter than
+    // [`collect_store_run`]'s clause 4, which refuses a wide literal only
+    // *beside another producer*: a run whose only producer is wide is one live
+    // range with nothing to interleave with, and as a LEAF it is in class. In a
+    // framed body the `mr r31,r3` is the second thing that can land between the
+    // halves, and it does:
+    //
+    // ```text
+    //   WD::WD(unsigned a, unsigned b) { m1=70000; m2=b; p0=this; Alloc(a); }
+    //     lis 11,1 ; stw 5,8(3) ; stw 3,0(3) ; mr 31,3 ; ori 11,11,4464 ; stw 11,4(3)
+    // ```
+    //
+    // The emitter splices the copy BETWEEN slots and a producer is one slot, so
+    // it cannot place the copy inside one. Same bound as every other literal
+    // gate in this file, restated where the composition needs it rather than
+    // widened somewhere shared.
+    if stmts.iter().any(|st| {
+        st.ops
+            .iter()
+            .any(|o| matches!(o, IlOp::Lit(k) if !(-0x8000..=0x7FFF).contains(k)))
+    }) {
+        return None;
+    }
     // The result is DISCARDED. A returned or consumed result is a different body
     // and one of `w-gen`'s over-accept guards.
     if !eat_byte(seg, &mut p, 0x4B) {
@@ -1587,6 +1671,11 @@ pub(crate) fn try_parse_store_run_call(
         params,
         ops: stmts.into_iter().flat_map(|s| s.ops).collect(),
         callee_tok,
+        // The gate above proved slot `i` holds `params[i]` for every one of
+        // them, so the COUNT is the whole of "which formals are live at the
+        // `bl`". The emitter cannot recover it — an empty argument setup is
+        // exactly what this production requires — so it is carried.
+        live_args: slots.len(),
     })
 }
 
@@ -1807,11 +1896,17 @@ mod tests {
         // the call's argument setup is EMPTY (board #1129).
         let shape = parse_segment(F3_XBOXHEAP_DIRECT, NO_LOCALS)
             .expect("the composition parses to the end of the segment");
-        let BodyShape::StoreRunCall { params, ops, callee_tok } = shape else {
+        let BodyShape::StoreRunCall { params, ops, callee_tok, live_args } = shape else {
             panic!("expected StoreRunCall");
         };
         assert_eq!(params, vec![0xFF09, 0xFC09, 0xFD09]);
         assert_eq!(callee_tok, 0xF609);
+        // **The receiver plus one explicit argument.** Carried because the
+        // emitter cannot recover it — this production requires an EMPTY argument
+        // setup, so `SeqCall::arg_ops` is empty by construction — and it decides
+        // the RUN's order, not just the call's: a store whose value is one of
+        // these formals makes the run stop transferring (`crate::func::StoreRunPrefix`).
+        assert_eq!(live_args, 2, "`this` and `initSize`");
         // The two F2 values are the interior address `this + 8`, twice, and the
         // one literal is `mCount = 0`. That mix — an `addi`-interior producer
         // beside an `li` one — is the MIXED-KIND run `alloc::allocate` refuses
@@ -1828,31 +1923,53 @@ mod tests {
             6,
             "six stores"
         );
-        // …and the BUNDLE refuses it, which is the whole point. `IlFunction` has
-        // no carrier for a composition — `ops` and the call fields are
-        // alternatives `codegen::select` tries in a fixed order, with
-        // `store_leaf_text` first — so a function built from these ops plus any
-        // call field would emit the run and DROP THE `bl`. That is board #232's
-        // exact shape, and #844's seam is what closes it.
+        // …and the BUNDLE now CARRIES it — board #844, `w-seam2`.
+        //
+        // This assertion is the one w-f23 wrote as `.is_none()`, and the reason
+        // it inverted is the reason #844 existed: `IlFunction` had no way to
+        // spell a composition, so `ops` and the call fields were alternatives
+        // `codegen::select` tried in a fixed order, and a function carrying both
+        // emitted one and silently dropped the other — board #232's exact shape.
+        //
+        // **What replaces the refusal is not "the composition is now allowed",
+        // it is the INVARIANT that makes the race unspellable**: the run lives in
+        // `CallSeq::store_run` and `ops` stays EMPTY. Both halves are asserted,
+        // because a carrier that also filled `ops` would be the original defect
+        // with a new field name on it.
+        let f = crate::func::bundle::shape_to_function(
+            BodyShape::StoreRunCall {
+                params: vec![0xFF09],
+                ops: vec![
+                    IlOp::Load(0xFF09),
+                    IlOp::Lit(0),
+                    IlOp::StoreInd { off: 0, width: 4 },
+                ],
+                callee_tok: 0xF609,
+                live_args: 1,
+            },
+            "?ctor@@QAA@XZ",
+            &None,
+            &|_| Some("?callee@@AAAXXZ".to_string()),
+            &|_| None,
+        )
+        .expect("the composition has a carrier (board #844)");
         assert!(
-            crate::func::bundle::shape_to_function(
-                BodyShape::StoreRunCall {
-                    params: vec![0xFF09],
-                    ops: vec![
-                        IlOp::Load(0xFF09),
-                        IlOp::Lit(0),
-                        IlOp::StoreInd { off: 0, width: 4 },
-                    ],
-                    callee_tok: 0xF609,
-                },
-                "?ctor@@QAA@XZ",
-                &None,
-                &|_| Some("?callee@@AAAXXZ".to_string()),
-                &|_| None,
-            )
-            .is_none(),
-            "the composition must not reach codegen while the model cannot spell it"
+            f.ops.is_empty(),
+            "the run is carried ONCE — `ops` empty is what stops the selector's \
+             dispatch order from being able to drop the `bl`"
         );
+        assert!(!f.store_run_carried_twice(), "board #844's invariant");
+        let seq = f.call_seq.as_ref().expect("the composition is a call sequence");
+        let prefix = seq.store_run.as_ref().expect("the run is in the carrier");
+        assert_eq!(prefix.ops.len(), 3, "the one store group, in the carrier");
+        assert_eq!(prefix.live_args, 1, "the receiver alone");
+        assert_eq!(seq.calls.len(), 1);
+        assert!(seq.calls[0].arg_ops.is_empty(), "the empty argument setup (#1129)");
+        // `this` is the one value live across the one call (#869), so it is
+        // saved and it is what the constructor returns — the same `SeqTail` the
+        // generated base delegation already uses.
+        assert_eq!(seq.saved, vec![0]);
+        assert_eq!(seq.tail, crate::func::SeqTail::SavedFormal { param: 0 });
     }
 
     /// W25: the store leaf, from whole captured segments — both designators, the

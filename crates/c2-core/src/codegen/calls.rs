@@ -835,6 +835,29 @@ pub fn call_seq_parts(
     let saved_reg = |pi: usize| -> Option<u8> {
         seq.saved.iter().position(|&s| s == pi).map(|k| SAVED_GPRS[k])
     };
+
+    // **Board #844 — the composition seam.** A sequence carrying a store run is
+    // the one shape whose first call's setup is not an argument marshalling at
+    // all: it is the whole scheduled run with the callee-saved copy spliced
+    // through it. Asked HERE, ahead of the marshalling arms below, and it
+    // RETURNS — the arms below cannot see the run and cannot half-emit it.
+    //
+    // The gate is the parser's own, restated (`store_run_call::gate_composition`)
+    // so the census and the emitter cannot disagree silently, and it is asked
+    // BEFORE the splice so a body outside the class comes out as a refusal
+    // rather than as bytes.
+    if let Some(prefix) = &seq.store_run {
+        super::store_run_call::gate_composition(seq)?;
+        let src = saved_reg(0).ok_or_else(|| {
+            out_of_class("a store-run composition whose receiver is not callee-saved")
+        })?;
+        let setup = super::store_run_call::store_run_prefix_text(params, prefix, src)?;
+        // The tail is `SeqTail::SavedFormal { param: 0 }` by the gate above, and
+        // it goes through the same `match seq.tail` every other sequence uses —
+        // no second lowering of `mr r3,r31`.
+        let tail = moves_descending(&[(RET_REG, src)]);
+        return Ok((vec![setup], tail));
+    }
     // **The first call's RESULT**, when the tail consumes it across a later `bl`.
     // `docs/CODEGEN_FRAMED_CALLS.md` §3.1: "call results take the next descending
     // register after the parameters" — so it is `SAVED_GPRS[seq.saved.len()]`,
@@ -1648,6 +1671,7 @@ mod tests {
             tail,
             saved: Vec::new(),
             guard: None,
+            store_run: None,
         };
         let tail_of = |t| {
             call_seq_parts(&[9], &seq(t), OptMode::O1).expect("in class").1
@@ -1682,6 +1706,7 @@ mod tests {
             tail,
             saved: Vec::new(),
             guard: None,
+            store_run: None,
         };
         let tail_of = |t| call_seq_parts(&[9], &seq(t), OptMode::O1).expect("in class").1;
         // `lfs f1,4(r3)` = c0230004 and `lfd f1,16(r3)` = c8230010 — the two

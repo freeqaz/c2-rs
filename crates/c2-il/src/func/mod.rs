@@ -1099,6 +1099,89 @@ pub struct CallSeq {
     /// blocks and the IL parser refuses the combination rather than
     /// interleaving two block plans.
     pub early: Vec<SeqEarlyReturn>,
+    /// **Board #844 — THE COMPOSITION CARRIER.** The store run this sequence
+    /// emits *before* its call, and the one fact about the call the run's
+    /// schedule depends on. `None` for every sequence every earlier rung
+    /// shipped, so no existing body changes shape by this field existing.
+    ///
+    /// # Why the run lives HERE and not in [`IlFunction::ops`]
+    ///
+    /// This is the whole of #844, and it is a *model* defect rather than a
+    /// missing emitter. `IlFunction` carried an op stream **or** a call, and
+    /// `c2_core::codegen::select_function` tries them in a **fixed order**:
+    /// `call_seq` at position 2, `store_leaf_text` at position 10. A function
+    /// carrying both therefore emitted the call sequence and **silently dropped
+    /// the store run** — a complete, plausible, wrong body, which is board
+    /// **#232**'s exact mechanism, and #232 was live for **255 commits** while
+    /// the workload scan read `mismatch 0`.
+    ///
+    /// `w-f23` measured that and refused the composition in
+    /// [`crate::func::bundle::shape_to_function`] rather than build the racing
+    /// version. The repair is not "try the composition earlier" — an ordering
+    /// fix leaves two fields that can both be set and one that wins. It is that
+    /// **the composition is one carrier**: `ops` stays empty for this shape, the
+    /// run is a field of the sequence it belongs to, and there is nothing for a
+    /// dispatch order to get wrong. `IlFunction::store_run_is_carried_alone`
+    /// asserts the invariant and `select_function` refuses a violation by name.
+    ///
+    /// # The class this is admitted on
+    ///
+    /// Exactly [`crate::func::body::shapes::try_parse_store_run_call`]'s: one
+    /// call, an **empty** argument setup (board #1129 — every slot already holds
+    /// the formal that occupies it, so the run's base register is never
+    /// written), the **constructor** tail (board #869/#1131 — the `void`,
+    /// `return <call>` and discarded-`int` forms are frame words 0 and
+    /// tail-call *behind* the run), and `saved = [0]` because `this` is the one
+    /// value live across the one call. The emitter restates each of those as a
+    /// backstop rather than trusting the parser (`codegen::store_run_call`).
+    pub store_run: Option<StoreRunPrefix>,
+}
+
+/// **Board #844** — the store run a [`CallSeq`] emits *before* its call, and the
+/// one fact about the call that the run's schedule turns out to depend on.
+///
+/// # Why `live_args` is here, and why it is not derivable
+///
+/// The composition is admitted only when the call's argument setup is **empty**
+/// (board #1129: every slot `i` already holds `params[i]`), so [`SeqCall`] has
+/// nothing in `arg_ops` and the emitter cannot see how many arguments the call
+/// takes. That looked like a fact nobody needed — and then it turned out to
+/// decide the run's **order**:
+///
+/// ```text
+///   void P::lf(unsigned a, unsigned b) { m0=0; m1=b; m2=a; }         the LEAF
+///       li 11,0 ; stw 5,4(3) ; stw 4,8(3) ; stw 11,0(3) ; blr
+///
+///   P::P(unsigned a, unsigned b) { m0=0; m1=b; m2=a; Alloc(a); }     FRAMED
+///       li 11,0 ; stw 4,8(3) ; stw 5,4(3) ; mr 31,3 ; stw 11,0(3) ; bl
+///
+///   P::P(unsigned a, unsigned b) { m0=0; m1=b; m2=a; Reset(); }      FRAMED,
+///       li 11,0 ; stw 5,4(3) ; stw 4,8(3) ; mr 31,3 ; stw 11,0(3) ; bl  nullary
+/// ```
+///
+/// **The two unproduced stores swap — and only when the call passes `a`.** `a`
+/// is live until the `bl`; `b` dies at its own store. With a nullary callee
+/// nothing is kept alive and the run is the leaf's, word for word. So *"the leaf
+/// schedule transfers unchanged into a framed body"* — board **#866** over 96
+/// cells, and 34 more in `w-seam2`'s GRID S — is **true only while no store
+/// reads a value the call keeps alive**, and this field is what lets the emitter
+/// tell. `work/w-seam2/grid3/` is the twelve-cell probe that separated it and
+/// `work/w-seam2/grid2/` is where it fired first, on seven cells at once.
+///
+/// `live_args` counts the argument slots **including the receiver at 0**, and
+/// the receiver is exempt: `this` is the store base and is copied to `r31`
+/// regardless, and storing it transfers on every measured cell (`p6`, `p11`, and
+/// every `w3` cell of GRID S). It is the slots `>= 1` that break the run.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StoreRunPrefix {
+    /// The run's op stream, exactly as [`crate::func::body::BodyShape::StoreRun`]
+    /// carries it: one `[Load(base), Load(formal) | Lit(k), StoreInd { off,
+    /// width }]` group per statement, in source order.
+    pub ops: Vec<IlOp>,
+    /// How many argument slots the call occupies, **receiver included**. Slot
+    /// `i` holds `params[i]` by the production's own gate, so this is exactly
+    /// "which formals are still live at the `bl`".
+    pub live_args: usize,
 }
 
 impl CallSeq {
@@ -1880,6 +1963,29 @@ impl IlFunction {
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
         }
+    }
+
+    /// **Board #844's invariant: a carried store run is carried ALONE.**
+    ///
+    /// True when [`CallSeq::store_run`] is non-empty and [`Self::ops`] is also
+    /// non-empty — i.e. the function is spelling the composition **twice**, once
+    /// in the carrier and once in the field `c2_core::codegen::select_function`
+    /// reaches through a different arm. That is the state board #232 was: two
+    /// fields, one dispatch order, and whichever the order reaches first wins
+    /// while the other is silently dropped.
+    ///
+    /// No production sets both — `shape_to_function`'s `StoreRunCall` arm puts
+    /// the run in the carrier and leaves `ops` at `base()`'s empty default — so
+    /// this is a **backstop**, and it is here rather than in the emitter because
+    /// the invariant is a property of the model. `select_function` consults it
+    /// and refuses by name; refusing is the whole point, because the alternative
+    /// to refusing is picking a winner, and picking a winner is the defect.
+    pub fn store_run_carried_twice(&self) -> bool {
+        !self.ops.is_empty()
+            && self
+                .call_seq
+                .as_ref()
+                .is_some_and(|s| s.store_run.is_some())
     }
 
     /// How many **compiler-label counter slots** this function consumes, for the
