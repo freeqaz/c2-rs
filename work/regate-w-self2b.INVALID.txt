@@ -1,0 +1,24 @@
+INVALID — DO NOT QUOTE. This artifact's header line names tree 0a7cfe69
+but its cross count (90,812) is w-classes' number, merged at 7a4be628
+while this run was still in flight. Header and measurements are from
+DIFFERENT TREES: the coordinator merged during a re-gate.
+
+Same provenance class as a STATUS block collected on a dirty tree.
+Superseded by work/regate-combined.txt, which covers both merges.
+
+--- original content follows ---
+0a7cfe69 merge w-self2b: the NINTH key dies at 12 wrong of 72 — but it ANSWERED the question, and the .ex fact that beats every rule is now decoded and named
+targets=36 passed=1138 failed=0
+sweep:  PASS — 19556 of 19556 selected cases reached, 19460 GRADED by the
+        oracle (96 ungraded: no reference obj), 0 mismatch (corpus 19556)
+cross:  PASS — 90424 of 90812 selected cells graded, 0 mismatch (product 90812)
+logs:   /tmp/c2rs-gate-840875/<lane>.log, /tmp/c2rs-gate-840875/sweep.log, /tmp/c2rs-gate-840875/cross.log
+
+GATE: PASS — 18/18 lanes ran and every one of them graded a corpus,
+  the sweep graded 19460 of 19556 generated cases and the cross graded
+  90424 of 90812 case-lane cells, with 0 mismatches anywhere
+  (96 sweep cases carried ungraded — the reference rejects the source).
+STATUS CHECK: PASS — 23 metrics registered, parsers pinned, absence renders NO-RESULT
+
+DUPLICATE ROW NUMBERS (two rows claim one identity): 0
+  (none — every row number names exactly one row)
