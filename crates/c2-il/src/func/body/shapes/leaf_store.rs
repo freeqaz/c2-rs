@@ -4,7 +4,7 @@
 use crate::func::body::expr::{
     eat_fn_tail, eat_return_head, eat_return_plumbing, eat_scopes, parse_formals, BODY_SCOPE_DEPTH,
 };
-use crate::func::body::BodyShape;
+use crate::func::body::{BodyShape, RefBind};
 use crate::func::readers::{
     eat_byte, eat_opt_stmt_marker, eat_value_type, is_ptr4_kind, is_volatile_tag, read_token_var,
     read_type,
@@ -98,7 +98,9 @@ pub(crate) fn try_parse_store_leaf(
 ) -> Option<BodyShape> {
     let params = parse_params(seg, lo).ok()?;
     let mut p = start;
-    let st = parse_store_stmt(seg, &mut p, lo, sy, &params)?;
+    // No bind is in scope: a single-statement body cannot have introduced one,
+    // so the empty slice is the fact and not a default.
+    let st = parse_store_stmt(seg, &mut p, lo, sy, &params, &[])?;
     eat_opt_stmt_marker(seg, &mut p);
     eat_return_plumbing(seg, &mut p, false, BODY_SCOPE_DEPTH).ok()?;
     Some(BodyShape::StoreLeaf { params, ops: st.ops })
@@ -402,12 +404,38 @@ fn finish_load_store_stmt(
 /// `f1`. MEASURED: `lfs f0,16(r4) ; stfs f0,16(r3)`.
 pub const FP_SCRATCH: u8 = 0;
 
+/// Whether `tok` may stand in a store's **base** or **value** position.
+///
+/// Two admissible answers and they are different facts, which is why this
+/// returns a bool rather than an index: a **formal** below the eighth is a value
+/// already live in an argument register, and a **bound local** (board #839) is a
+/// value the body *computes* — one `addi rD,rBase,off` — before any store can
+/// use it. The reader keeps them apart by leaving the bound local's own token in
+/// the op stream; discharging it into the formal here is what would make the two
+/// source spellings of `xboxheap`'s constructor identical, and board #1128
+/// measured that their emitted bodies are four words apart.
+///
+/// `bound` is **empty** on every pre-existing caller, so this is the same
+/// predicate those paths always had.
+fn admissible_operand(params: &[u32], bound: &[RefBind], tok: u32) -> bool {
+    match params.iter().position(|&t| t == tok) {
+        // Past the eighth argument the value is stack-homed, which needs a frame.
+        Some(i) => i < 8,
+        None => bound.iter().any(|b| b.tok == tok),
+    }
+}
+
 fn parse_store_stmt(
     seg: &[u8],
     cursor: &mut usize,
     lo: usize,
     sy: SyView,
     params: &[u32],
+    // **Board #839's reference binds already collected in this run**, or an
+    // EMPTY slice — which is what `try_parse_store_leaf` and every non-bind run
+    // passes, so their behaviour is unchanged by construction rather than by a
+    // second reading of the same bytes.
+    bound: &[RefBind],
 ) -> Option<StoreStmt> {
     let mut p = *cursor;
     // The designator. The intrinsic form is anchored on a `33` literal and the
@@ -596,16 +624,31 @@ fn parse_store_stmt(
     if width == 8 && off % 4 != 0 {
         return None;
     }
-    let bix = params.iter().position(|&t| t == base_tok)?;
-    // Past the eighth argument the value is stack-homed, which needs a frame.
-    if bix >= 8 {
+    // The BASE: a formal below the eighth, or — board **#839** — a local this
+    // run has already bound to `formal + off`. `bound` is empty everywhere but
+    // the bind production, so this is the pre-existing gate at every other site.
+    if !admissible_operand(params, bound, base_tok) {
         return None;
+    }
+    // **A bound base's displacement is the SUM, and the sum is what has to be
+    // encodable.** `off` above is the offset *inside* the bound sub-object and
+    // is deliberately what the op stream carries (see [`RefBind`]); the
+    // instruction c2 emits is `stw rV, (bind.off + off)(rBase)`, so the bound is
+    // drawn on the value that reaches the `stw` and not on the half this reader
+    // happens to hold.
+    if let Some(b) = bound.iter().find(|b| b.tok == base_tok) {
+        let eff = b.off.checked_add(off)?;
+        if !(-0x8000..=0x7FFF).contains(&eff) {
+            return None;
+        }
     }
     match value_op {
         IlOp::Load(vtok) => {
-            let vix = params.iter().position(|&t| t == vtok)?;
-            // Past the eighth argument the value is stack-homed, which needs a frame.
-            if vix >= 8 {
+            // The VALUE, through the same predicate: a formal already live in
+            // its argument register, or a bound local whose `addi` this body
+            // computes. `l.mNext = &l;` is the second of those, and it is the
+            // half of #839 that is about the value rather than the base.
+            if !admissible_operand(params, bound, vtok) {
                 return None;
             }
         }
@@ -798,6 +841,118 @@ fn finish_addr_store_stmt(
     st.width = 4;
     *cursor = p;
     Some(st)
+}
+
+/// **#839 — THE REFERENCE BIND STATEMENT**: `auto& listHead = mListHead;`, which
+/// `c1xx` writes as a store of a sub-object's ADDRESS into a **local**.
+///
+/// ```text
+///   26 <tok>                        the destination — a LOCAL, positively from `.sy`
+///   <designator>                    the bound object's base: a formal, `<8`
+///   ( 33 <int-like> k 27 <PTR>      the offset run — F2's own, summed, and NON-ZERO
+///   | 33 <int-like> k 28 00 00 )*
+///   32 <TYPE>                       the store; TYPE is the LOCAL's own
+///   4B                              …and the value is discarded
+/// ```
+///
+/// MEASURED on this lane's own captures at the workload's `/GR /O1 /Oi /EHsc`
+/// (`work/w-bind/il/`), one bind per line, the offset byte marked:
+///
+/// ```text
+///   b_leaf_bind   26 fb 09  b9 f8 09 86 43 81 20  33 86 41 74 08 27 86 43 86 20  32 86 43 89 20 4b
+///   b_off0        26 fa 09  b9 f6 09 86 43 81 20  33 86 41 74 00 27 86 43 86 20  32 86 43 89 20 4b
+///   b_ptr_local   26 fc 09  b9 f8 09 86 43 81 20  33 86 41 74 08 27 86 43 86 20  32 86 43 85 20 4b
+///   b_target_bind 26 01 0a  b9 ff 09 a6 43 81 20  33 86 41 74 08 27 a6 43 8d 20  32 86 43 90 20 4b
+/// ```
+///
+/// — and the first two differ **in exactly one byte**, the displacement, which
+/// is board **#856**'s finding reproduced here rather than quoted.
+///
+/// # The value is read through [`parse_addr_value`], not through a second decoder
+///
+/// F2 already reads "a sub-object's address" and already draws every bound that
+/// belongs to it — the value base must be a formal below the eighth, there must
+/// be **no `30`** (a dereference is a memory read and two instructions), and the
+/// offset must fit a signed 16-bit displacement. A private copy here is the
+/// drift `GAPS.md` §6 records, so this production owns exactly the three things
+/// F2 does not: the `26` destination, the local's positive identity, and the
+/// zero-offset exclusion.
+///
+/// # What is REFUSED, and why each one is a measurement rather than caution
+///
+/// * **A displacement of ZERO.** A `0x26` bind at offset 0 does **not** make a
+///   second store-base value (boards #856/#865), and this lane measured it:
+///   `work/w-bind/grid/b_off0` and `b_off0_ctrl` — the same body with and
+///   without the bind — have **byte-identical `.text`**, where the target pair
+///   `b_target_bind`/`b_target_direct` differs by four words. So admitting a
+///   zero-offset bind *with its own base symbol* would be a wrong reading of the
+///   schedule. It is excluded here for the reason F2 excludes the zero-offset
+///   address (`w-f23` §3.2), and the exclusion was registered in
+///   `work/w-bind/PREREG.md` P2 before the cell that tests it was compiled.
+/// * **A destination that is not positively a `.sy` automatic.** Absence from
+///   `.gl` proves nothing — `assign.rs`'s own header records a file-scope
+///   `static int sv` appearing as `$sv` and being taken for a local, with the
+///   store silently dropped. The membership test is
+///   [`SyView::ptr_locals`], the width-4 data-pointer automatics, which is where
+///   a bound reference lands.
+/// * **A destination that is also a FORMAL, or already bound.** Either is a
+///   token standing for two things, and every downstream use resolves it by
+///   token.
+/// * **A stored type that is not a 4-byte pointer class, or is `volatile`.** The
+///   `32`'s type here is the LOCAL's own and does *not* restate the value's — it
+///   is `86 43 89 20` for a `BE&` and `86 43 85 20` for a `BE*` over the same
+///   address — so the type-restatement rule the ordinary store makes cannot be
+///   applied, and a positive pointer-class gate is drawn instead.
+///
+/// Returns `None` — cursor untouched — for anything else, so a body that is not
+/// this shape still reports its own blocking feature.
+fn parse_ref_bind_stmt(
+    seg: &[u8],
+    cursor: &mut usize,
+    sy: SyView,
+    params: &[u32],
+    seen: &[RefBind],
+) -> Option<RefBind> {
+    let mut p = *cursor;
+    if !eat_byte(seg, &mut p, 0x26) {
+        return None;
+    }
+    let (tok, w) = read_token_var(seg, p)?;
+    p += w;
+    // **Positively a register-resident automatic**, from `.sy`. See the doc
+    // comment: absence from a symbol table is not evidence of anything.
+    if !sy.ptr_locals.contains(&tok) {
+        return None;
+    }
+    // …and not something else as well.
+    if params.contains(&tok) || seen.iter().any(|b| b.tok == tok) {
+        return None;
+    }
+    // The VALUE — F2's address production, at F2's locator, with F2's bounds.
+    let mut probe = p;
+    let st = parse_addr_value(seg, &mut probe, params)?;
+    let (IlOp::Load(base_tok), IlOp::AddrOf { off }) = (*st.ops.first()?, *st.ops.get(1)?) else {
+        return None;
+    };
+    if off == 0 {
+        return None;
+    }
+    // The store, and the `4B` that discards its value. The type is the local's
+    // own; a pointer class is required positively and a `volatile` local is a
+    // memory object c2 homes in the frame, so the body is not a leaf at all.
+    if !eat_byte(seg, &mut probe, 0x32) {
+        return None;
+    }
+    let (tag, kind, _, tw) = read_type(seg, probe)?;
+    if !is_ptr4_kind(tag, kind) || is_volatile_tag(tag) {
+        return None;
+    }
+    probe += tw;
+    if !eat_byte(seg, &mut probe, 0x4B) {
+        return None;
+    }
+    *cursor = probe;
+    Some(RefBind { tok, base_tok, off })
 }
 
 /// The tail of [`parse_store_stmt`] for a **floating-point** stored value.
@@ -1055,7 +1210,8 @@ pub(crate) fn try_parse_store_run(
     sy: SyView,
     depth0: usize,
 ) -> Option<BodyShape> {
-    let (stmts, params, p, depth) = collect_store_run(seg, start, lo, sy, depth0)?;
+    let (stmts, binds, params, p, depth) = collect_store_run(seg, start, lo, sy, depth0, false)?;
+    debug_assert!(binds.is_empty(), "the plain run admits no #839 bind");
     run_tail(seg, p, lo, depth, stmts, params)
 }
 
@@ -1080,11 +1236,18 @@ fn collect_store_run(
     lo: usize,
     sy: SyView,
     depth0: usize,
-) -> Option<(Vec<StoreStmt>, Vec<u32>, usize, usize)> {
+    // **Board #839.** `false` on every pre-existing caller, and then a bind
+    // statement simply is not a store, the loop breaks on it and the run ends
+    // exactly where it always did. `true` only from
+    // [`try_parse_store_run_bind`], whose shape `shape_to_function` refuses by
+    // name — so nothing this flag admits can reach an emitter.
+    admit_binds: bool,
+) -> Option<(Vec<StoreStmt>, Vec<RefBind>, Vec<u32>, usize, usize)> {
     let params = parse_params(seg, lo).ok()?;
     let mut p = start;
     let mut depth = depth0;
     let mut stmts: Vec<StoreStmt> = Vec::new();
+    let mut binds: Vec<RefBind> = Vec::new();
     loop {
         let (sp, sd) = (p, depth);
         // Brace scopes and line markers open and close *between* statements, so
@@ -1097,7 +1260,22 @@ fn collect_store_run(
             break;
         }
         let mut q = p;
-        match parse_store_stmt(seg, &mut q, lo, sy, &params) {
+        // **The bind, tried FIRST and only when this caller asked for it.** It
+        // opens on `26`, which no store statement can — a store opens on the
+        // designator's `B9` or on the intrinsic-2117 `33` — so the two grammars
+        // are disjoint at their first byte and the order is free rather than
+        // load-bearing. Saying so is the point: `w-f23` §3.3 records a gate that
+        // was defensible and made the production unreachable on its own target,
+        // and an order nobody states is the same defect one layer out.
+        if admit_binds {
+            let mut b = p;
+            if let Some(bind) = parse_ref_bind_stmt(seg, &mut b, sy, &params, &binds) {
+                binds.push(bind);
+                p = b;
+                continue;
+            }
+        }
+        match parse_store_stmt(seg, &mut q, lo, sy, &params, &binds) {
             Some(st) => {
                 stmts.push(st);
                 p = q;
@@ -1109,6 +1287,20 @@ fn collect_store_run(
         }
     }
     if stmts.is_empty() {
+        return None;
+    }
+    // **A bind nobody uses is not this shape.** `work/w-bind/grid/b_dead` — a
+    // bind bound and never read — has `.text` **byte-identical** to the same body
+    // with the line deleted (`b_dead_ctrl`), so c2 removes it entirely and the
+    // right reading is that the body is an ordinary store run. This reader does
+    // NOT make that reading: dropping a statement because one cell pair says it
+    // is free is a widening fitted to one measurement, and six allocation keys
+    // are already on record as refuted for exactly that. It refuses instead, and
+    // `docs/rungs/2026-08-08-w-bind.md` §8 names the frozen population a
+    // successor owes before it converts them.
+    if binds.iter().any(|b| !stmts.iter().any(|s| s.base_tok == b.tok
+        || matches!(s.ops.get(1), Some(IlOp::Load(v)) if *v == b.tok)))
+    {
         return None;
     }
     if stmts.len() > 1 && stmts.iter().any(|s| s.value_is_lit) {
@@ -1274,7 +1466,21 @@ fn collect_store_run(
             //    model's. Every ORDER/ALLOC grid used single-word `li` values.
             //    A run whose *only* producer is wide is untouched by this
             //    clause, and that cell is in the pre-existing class above.
-            if stmts.windows(2).any(|w| w[0].base_tok != w[1].base_tok) {
+            //
+            // **Clause 1 does not apply to a run that carries a #839 bind, and
+            // the reason is `w-f23` §3.3's exactly.** A bind *is* a second base
+            // symbol — that is the whole content of board #1128 — so requiring
+            // one symbol makes this production unreachable on its own target,
+            // which is the shape of mistake that rung recorded so it would not
+            // be re-derived. The clause exists to keep `order::schedule` and
+            // `alloc::allocate` inside the region they are exact on; neither is
+            // reached from here, because `shape_to_function` refuses
+            // `BodyShape::StoreRunBind` **by name** and no `IlFunction` is ever
+            // built. The clause still applies to every run without a bind, so it
+            // only ever refuses more.
+            if binds.is_empty()
+                && stmts.windows(2).any(|w| w[0].base_tok != w[1].base_tok)
+            {
                 return None;
             }
             const MAX_MODELLED_PRODUCERS: usize = 3;
@@ -1427,17 +1633,37 @@ fn collect_store_run(
             return None;
         }
     }
+    // The overlap gate, over **absolute** byte ranges.
+    //
+    // **This is the ONE place a #839 binding is discharged, and the reason it is
+    // right here and wrong everywhere else is that this gate is about BYTES and
+    // the schedule is about SYMBOLS.** `listHead.mNext` and `this->mListHead.mNext`
+    // are the same four bytes under two tokens, and c2 deletes the dead one of
+    // two stores that overlap — so a gate keyed on the token alone would let a
+    // provably-aliasing pair through. Resolving the binding for the *reading* of
+    // an address changes nothing about what the op stream carries: the ops keep
+    // `IlOp::Load(<local>)`, which is what keeps the two source spellings apart
+    // (board #1128). `binds` is empty on every pre-existing caller, so `root`
+    // is the identity there and this is the gate those paths always had.
+    let root = |tok: u32, off: i32| -> (u32, i32) {
+        match binds.iter().find(|b| b.tok == tok) {
+            Some(b) => (b.base_tok, b.off.saturating_add(off)),
+            None => (tok, off),
+        }
+    };
     for (i, a) in stmts.iter().enumerate() {
+        let (at, ao) = root(a.base_tok, a.off);
         for b in &stmts[i + 1..] {
-            if a.base_tok == b.base_tok
-                && a.off < b.off + i64::from(b.width) as i32
-                && b.off < a.off + i64::from(a.width) as i32
+            let (bt, bo) = root(b.base_tok, b.off);
+            if at == bt
+                && ao < bo + i64::from(b.width) as i32
+                && bo < ao + i64::from(a.width) as i32
             {
                 return None;
             }
         }
     }
-    Some((stmts, params, p, depth))
+    Some((stmts, binds, params, p, depth))
 }
 
 /// **F3 — a store run followed by a CALL**: the composition
@@ -1534,7 +1760,39 @@ pub(crate) fn try_parse_store_run_call(
     sy: SyView,
     depth0: usize,
 ) -> Option<BodyShape> {
-    let (stmts, params, mut p, mut depth) = collect_store_run(seg, start, lo, sy, depth0)?;
+    let (stmts, binds, params, p, depth) =
+        collect_store_run(seg, start, lo, sy, depth0, false)?;
+    debug_assert!(binds.is_empty(), "F3 admits no #839 bind — that is #839's shape");
+    let (callee_tok, live_args) = run_call_tail(seg, p, lo, depth, &stmts, &params)?;
+    Some(BodyShape::StoreRunCall {
+        params,
+        ops: stmts.into_iter().flat_map(|s| s.ops).collect(),
+        callee_tok,
+        live_args,
+    })
+}
+
+/// **The call tail of [`try_parse_store_run_call`], and every gate on it** —
+/// split out at exactly the point [`collect_store_run`] hands over, so that the
+/// F3 composition and board **#839**'s bind-carrying twin ask **one** recognizer.
+///
+/// Split for the reason `collect_store_run` was split out of
+/// `try_parse_store_run`: two productions end a run on a call, and a second copy
+/// of the four locators, the regime gate, the #866 transfer gate and the
+/// multi-word-literal bound is where those four drift apart from each other.
+/// `GAPS.md` §6's "one fact, one locator" — and this file's own header already
+/// records that happening once, to the store *statement*.
+///
+/// Returns `(callee token, live argument slots)`, or `None` for a tail that is
+/// not this one.
+fn run_call_tail(
+    seg: &[u8],
+    mut p: usize,
+    lo: usize,
+    mut depth: usize,
+    stmts: &[StoreStmt],
+    params: &[u32],
+) -> Option<(u32, usize)> {
     // The call. Reached through the SAME four locators `try_parse_member_tail_call`
     // uses — `eat_callee_push`, `eat_receiver_this`, `eat_call_token`,
     // `eat_call_args` — rather than a second decoder for the same bytes. A
@@ -1667,16 +1925,11 @@ pub(crate) fn try_parse_store_run_call(
     if !(eat_ctor_this_epilogue(seg, &mut q, lo) && eat_fn_tail(seg, &mut q).is_ok()) {
         return None;
     }
-    Some(BodyShape::StoreRunCall {
-        params,
-        ops: stmts.into_iter().flat_map(|s| s.ops).collect(),
-        callee_tok,
-        // The gate above proved slot `i` holds `params[i]` for every one of
-        // them, so the COUNT is the whole of "which formals are live at the
-        // `bl`". The emitter cannot recover it — an empty argument setup is
-        // exactly what this production requires — so it is carried.
-        live_args: slots.len(),
-    })
+    // The gate above proved slot `i` holds `params[i]` for every one of them, so
+    // the COUNT is the whole of "which formals are live at the `bl`". The
+    // emitter cannot recover it — an empty argument setup is exactly what this
+    // production requires — so it is carried.
+    Some((callee_tok, slots.len()))
 }
 
 /// The run's own **tail** — the three spellings [`try_parse_store_run`] admits,
@@ -1719,6 +1972,107 @@ fn run_tail(
     Some(BodyShape::StoreRun {
         params,
         ops: stmts.into_iter().flat_map(|s| s.ops).collect(),
+    })
+}
+
+/// **#839 — a store run whose base is a C++ REFERENCE BIND.** The spelling
+/// `src/xdk/nuispeech/xboxheap.cpp` actually ships, and the last refusal on it
+/// that lives in `crates/c2-il`.
+///
+/// ```text
+///   ( <scopes / line markers>
+///     ( <reference bind>            26 <local> <addr of formal+off> 32 <T> 4B
+///     | <store statement> ) )+      the run — ONE locator, [`collect_store_run`]
+///   <the plain run tail>   |   <the F3 call tail>     ONE locator each
+/// ```
+///
+/// Both tails, because the bind is orthogonal to what ends the run and a
+/// production that admitted only one of them would be fitted to `xboxheap`. Both
+/// are the existing recognizers — [`run_tail`] and [`run_call_tail`] — and
+/// neither is copied.
+///
+/// # This shape EMITS NOTHING, and that is the design rather than the outcome
+///
+/// `shape_to_function` returns `None` for [`BodyShape::StoreRunBind`], and the
+/// residue is counted under [`super::super::STORE_RUN_BIND_NO_CARRIER`]. The
+/// alternative — widening `parse_store_stmt` so a bound base simply flows into
+/// [`BodyShape::StoreRun`] — was rejected **in this lane's prereg, before the
+/// production existed**, because those two shapes DO reach `codegen`, and a
+/// refusal that becomes an emit is board **#232**: 255 commits on master with
+/// the workload scan reading `mismatch 0` throughout.
+///
+/// The emitter's own `reg_of(<local>) == None` would decline as well. That is a
+/// second line and is deliberately not the first: "by construction" is the
+/// reasoning that let #232 run.
+///
+/// # The two spellings stay apart, measured in EMITTED BYTES
+///
+/// `work/w-bind/grid/b_target_bind` and `b_target_direct` are the same
+/// constructor with and without the bind. Real `c2.dll`'s `.text` for them
+/// differs in **four words** — both producers swap and one store moves:
+///
+/// ```text
+///   BIND    li 10,0 ; stw 5,16(3) ; addi 11,3,8 ; stw 3,0(3) ; stw 10,20(3) ;
+///           mr 31,3 ; stw 3,4(3) ; stw 11,8(3) ; stw 11,12(3)
+///   DIRECT  addi 11,3,8 ; stw 5,16(3) ; li 10,0 ; stw 3,0(3) ; stw 3,4(3) ;
+///           mr 31,3 ; stw 10,20(3) ; stw 11,8(3) ; stw 11,12(3)
+/// ```
+///
+/// This production is what keeps them apart in the READER: the bind spelling
+/// arrives here and the direct one arrives at [`try_parse_store_run_call`], and
+/// their op streams differ because the bound local's token is left standing in
+/// the base position instead of being resolved to `this`.
+///
+/// The **zero-offset** bind is excluded one layer down, in
+/// [`parse_ref_bind_stmt`], and the reason is the mirror measurement:
+/// `b_off0`/`b_off0_ctrl` are byte-IDENTICAL, so at displacement 0 the two
+/// spellings are the same body and a second base symbol would be a wrong
+/// reading. Boards #856/#865.
+///
+/// Returns `None` — cursor untouched — for anything that is not exactly this
+/// shape, including a run that carries **no** bind, which belongs to the two
+/// productions above and keeps their census keys.
+pub(crate) fn try_parse_store_run_bind(
+    seg: &[u8],
+    start: usize,
+    lo: usize,
+    sy: SyView,
+    depth0: usize,
+) -> Option<BodyShape> {
+    let (stmts, binds, params, p, depth) = collect_store_run(seg, start, lo, sy, depth0, true)?;
+    // **A run with no bind is not this shape.** Without this the production
+    // would take every `BodyShape::StoreRun` and `StoreRunCall` body in the
+    // workload and file it under a key that emits nothing — a widening that
+    // *loses* coverage, and the kind that reads as motion in a census.
+    if binds.is_empty() {
+        return None;
+    }
+    // The tail: board #1129's call, or the plain run's three spellings.
+    //
+    // **The order is free rather than load-bearing, and saying which is the
+    // point.** The two are disjoint at the first byte after the last store —
+    // the call tail requires a `26` there, the plain tail requires the return
+    // plumbing — so neither can take a body from the other whichever is asked
+    // first. The call is asked first only because it borrows the statements and
+    // the plain tail consumes them.
+    if let Some((callee_tok, live_args)) = run_call_tail(seg, p, lo, depth, &stmts, &params) {
+        return Some(BodyShape::StoreRunBind {
+            params,
+            binds,
+            ops: stmts.into_iter().flat_map(|s| s.ops).collect(),
+            callee_tok: Some(callee_tok),
+            live_args,
+        });
+    }
+    let BodyShape::StoreRun { params, ops } = run_tail(seg, p, lo, depth, stmts, params)? else {
+        return None;
+    };
+    Some(BodyShape::StoreRunBind {
+        params,
+        binds,
+        ops,
+        callee_tok: None,
+        live_args: 0,
     })
 }
 
@@ -2031,6 +2385,203 @@ mod tests {
                 .unwrap_err()
                 .feature(),
             "expr-op-0x27"
+        );
+    }
+
+
+    /// **#839 — `xboxheap.cpp`'s constructor in its SHIPPED spelling**, the
+    /// WHOLE captured segment from `work/w-bind/grid/b_target_bind/` at the
+    /// workload's own `/GR /O1 /Oi /EHsc` (board #1112).
+    ///
+    /// The one difference from [`F3_XBOXHEAP_DIRECT`] beside it is source line
+    /// 8, `auto& listHead = mListHead;`, which `c1xx` writes as
+    ///
+    /// ```text
+    ///   26 01 0a  b9 ff 09 a6 43 81 20  33 86 41 74 08 27 a6 43 8d 20  32 86 43 90 20 4b
+    /// ```
+    ///
+    /// after which the two remaining stores carry `b9 01 0a` — the LOCAL's token
+    /// — in their base position instead of `this`.
+    ///
+    /// **The two cells' reference objs differ in four `.text` words** and both
+    /// were captured by this lane (`b_target_bind/dis.txt`,
+    /// `b_target_direct/dis.txt`, crossed by `work/w-bind/twins.sh`):
+    ///
+    /// ```text
+    ///   BIND    li 10,0 ; stw 5,16(3) ; addi 11,3,8 ; stw 3,0(3) ; stw 10,20(3) ;
+    ///           mr 31,3 ; stw 3,4(3) ; stw 11,8(3) ; stw 11,12(3)
+    ///   DIRECT  addi 11,3,8 ; stw 5,16(3) ; li 10,0 ; stw 3,0(3) ; stw 3,4(3) ;
+    ///           mr 31,3 ; stw 10,20(3) ; stw 11,8(3) ; stw 11,12(3)
+    /// ```
+    ///
+    /// so a reader that gave both the same op stream would hand the emitter the
+    /// other body's words. Board #1128, and board #232's direction.
+    const BIND_XBOXHEAP_SHIPPED: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x01, 0x20, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x13, 0x53, 0x53, 0x26, 0xF4, 0x09,
+        0xB9, 0xFF, 0x09, 0xA6, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x8B, 0x20, 0x00, 0x46, 0x2D,
+        0xFD, 0x09, 0x2D, 0xFC, 0x09, 0x4C, 0x4F, 0x11, 0x53, 0x4F, 0x01, 0x14, 0xB9, 0xFF, 0x09,
+        0xA6, 0x43, 0x81, 0x20, 0x33, 0x86, 0x41, 0x74, 0x10, 0x27, 0xA6, 0x43, 0xF5, 0x08, 0xB9,
+        0xFD, 0x09, 0x86, 0x42, 0x75, 0x32, 0x86, 0x42, 0x75, 0x4B, 0x4F, 0x01, 0x15, 0xB9, 0xFF,
+        0x09, 0xA6, 0x43, 0x81, 0x20, 0x33, 0x86, 0x41, 0x74, 0x00, 0x27, 0xA6, 0x43, 0x8C, 0x20,
+        0xB9, 0xFF, 0x09, 0xA6, 0x43, 0x81, 0x20, 0x2C, 0x86, 0x43, 0x82, 0x20, 0x00, 0x32, 0x86,
+        0x43, 0x82, 0x20, 0x4B, 0x4F, 0x01, 0x16, 0xB9, 0xFF, 0x09, 0xA6, 0x43, 0x81, 0x20, 0x33,
+        0x86, 0x41, 0x74, 0x14, 0x27, 0xA6, 0x43, 0xF5, 0x08, 0x33, 0x86, 0x42, 0x75, 0x00, 0x32,
+        0x86, 0x42, 0x75, 0x4B, 0x4F, 0x01, 0x17, 0xB9, 0xFF, 0x09, 0xA6, 0x43, 0x81, 0x20, 0x33,
+        0x86, 0x41, 0x74, 0x04, 0x27, 0xA6, 0x43, 0x8C, 0x20, 0xB9, 0xFF, 0x09, 0xA6, 0x43, 0x81,
+        0x20, 0x2C, 0x86, 0x43, 0x82, 0x20, 0x00, 0x32, 0x86, 0x43, 0x82, 0x20, 0x4B, 0x4F, 0x01,
+        0x18, 0x26, 0x01, 0x0A, 0xB9, 0xFF, 0x09, 0xA6, 0x43, 0x81, 0x20, 0x33, 0x86, 0x41, 0x74,
+        0x08, 0x27, 0xA6, 0x43, 0x8D, 0x20, 0x32, 0x86, 0x43, 0x90, 0x20, 0x4B, 0x4F, 0x01, 0x19,
+        0xB9, 0x01, 0x0A, 0x86, 0x43, 0x86, 0x20, 0x33, 0x86, 0x41, 0x74, 0x00, 0x27, 0x86, 0x43,
+        0x8D, 0x20, 0xB9, 0x01, 0x0A, 0x86, 0x43, 0x86, 0x20, 0x32, 0x86, 0x43, 0x86, 0x20, 0x4B,
+        0x4F, 0x01, 0x1A, 0xB9, 0x01, 0x0A, 0x86, 0x43, 0x86, 0x20, 0x33, 0x86, 0x41, 0x74, 0x04,
+        0x27, 0x86, 0x43, 0x8D, 0x20, 0xB9, 0x01, 0x0A, 0x86, 0x43, 0x86, 0x20, 0x32, 0x86, 0x43,
+        0x86, 0x20, 0x4B, 0x4F, 0x01, 0x1B, 0x26, 0xF6, 0x09, 0xB9, 0xFF, 0x09, 0xA6, 0x43, 0x81,
+        0x20, 0x2C, 0xA6, 0x43, 0x81, 0x20, 0x00, 0x99, 0x86, 0x43, 0x88, 0x20, 0x00, 0xBD, 0x86,
+        0x43, 0x86, 0x20, 0x00, 0x80, 0x08, 0x10, 0x00, 0x00, 0xB9, 0xFC, 0x09, 0x86, 0x42, 0x75,
+        0x55, 0x86, 0x42, 0x75, 0x4C, 0x4B, 0x4F, 0x01, 0x1C, 0x3A, 0x00, 0x0A, 0x54, 0x02, 0x29,
+        0x00, 0x0A, 0xB9, 0xFF, 0x09, 0xA6, 0x43, 0x81, 0x20, 0x41, 0xA6, 0x43, 0x81, 0x20, 0x4F,
+        0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x1D, 0x4D,
+    ];
+
+    /// **The bound reference at its SMALLEST** — `void fn(H* h){ BE& l =
+    /// h->mListHead; l.mNext = &l; }`, the whole captured segment from
+    /// `work/w-bind/grid/b_leaf_bind/`. One bind, one store, the plain run tail
+    /// and no call, so it separates the base-position obligation from everything
+    /// the composition adds.
+    const BIND_LEAF: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0x20, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x0E, 0x53, 0x53, 0x26, 0xF9, 0x09,
+        0x46, 0x2D, 0xF8, 0x09, 0x4C, 0x4F, 0x11, 0x53, 0x4F, 0x01, 0x0F, 0x26, 0xFB, 0x09, 0xB9,
+        0xF8, 0x09, 0x86, 0x43, 0x81, 0x20, 0x33, 0x86, 0x41, 0x74, 0x08, 0x27, 0x86, 0x43, 0x86,
+        0x20, 0x32, 0x86, 0x43, 0x89, 0x20, 0x4B, 0x4F, 0x01, 0x10, 0xB9, 0xFB, 0x09, 0x86, 0x43,
+        0x85, 0x20, 0x33, 0x86, 0x41, 0x74, 0x00, 0x27, 0x86, 0x43, 0x86, 0x20, 0xB9, 0xFB, 0x09,
+        0x86, 0x43, 0x85, 0x20, 0x32, 0x86, 0x43, 0x85, 0x20, 0x4B, 0x4F, 0x01, 0x11, 0x3A, 0xFA,
+        0x09, 0x54, 0x02, 0x29, 0xFA, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02,
+        0x20, 0x00, 0x4F, 0x01, 0x12, 0x4D,
+    ];
+
+    /// A `.sy` view that declares `tok` the way a captured one does: a width-4
+    /// data-pointer automatic. The membership test is **positive** on purpose
+    /// (`assign.rs`'s header records what absence-based reasoning cost), so a
+    /// test that passed `NO_LOCALS` would be testing the refusal and not the
+    /// production.
+    fn ptr_local(tok: &[u32]) -> SyView<'_> {
+        SyView {
+            locals: &[],
+            ptr_locals: tok,
+            formals: Formals::AllOneRegisterByConstruction,
+        }
+    }
+
+    #[test]
+    fn bind_reads_the_shipped_xboxheap_spelling_and_keeps_it_apart_from_the_direct_one() {
+        // The BIND spelling. The binding is carried, NOT discharged: the two
+        // stores that follow it keep the local's own token in their base
+        // position and their offsets are the ones INSIDE the bound object (0 and
+        // 4), never the sums (8 and 12). That is the whole of board #839's
+        // second obligation, and collapsing it is what would emit the DIRECT
+        // body's words.
+        let sy = ptr_local(&[0x010A]);
+        let shape = parse_segment(BIND_XBOXHEAP_SHIPPED, sy)
+            .expect("the shipped spelling parses to the end of the segment");
+        let BodyShape::StoreRunBind { params, binds, ops, callee_tok, live_args } = shape else {
+            panic!("expected StoreRunBind, got {shape:?}");
+        };
+        assert_eq!(params, vec![0xFF09, 0xFC09, 0xFD09]);
+        assert_eq!(binds, vec![RefBind { tok: 0x010A, base_tok: 0xFF09, off: 8 }]);
+        assert_eq!(callee_tok, Some(0xF609));
+        assert_eq!(live_args, 2);
+        // The last two groups — `listHead.mNext = &listHead;` and
+        // `listHead.mPrev = &listHead;`. Both the BASE and the VALUE are the
+        // bound local, and neither is `this`.
+        assert_eq!(
+            &ops[ops.len() - 6..],
+            &[
+                IlOp::Load(0x010A),
+                IlOp::Load(0x010A),
+                IlOp::StoreInd { off: 0, width: 4 },
+                IlOp::Load(0x010A),
+                IlOp::Load(0x010A),
+                IlOp::StoreInd { off: 4, width: 4 },
+            ]
+        );
+        // …and the DIRECT spelling of the same constructor still reads as the
+        // composition it is, with `this` in those base positions and the address
+        // materialised as an `AddrOf` VALUE. **The two readings are different
+        // shapes**, which is the acceptance criterion of the lane that wrote
+        // this test, stated as an assertion rather than as prose.
+        let direct = parse_segment(F3_XBOXHEAP_DIRECT, NO_LOCALS)
+            .expect("the direct spelling still parses");
+        assert!(
+            matches!(direct, BodyShape::StoreRunCall { .. }),
+            "the direct spelling must NOT become a StoreRunBind: it has no bind, \
+             and its emitted body is four words away from the bound one"
+        );
+    }
+
+    #[test]
+    fn bind_at_displacement_zero_stays_refused_because_the_two_spellings_are_one_body() {
+        // MEASURED, and the measurement is why this is a rule and not caution:
+        // `work/w-bind/grid/b_off0` and `b_off0_ctrl` — the same body with and
+        // without the bind, at displacement 0 — have **byte-identical `.text`**,
+        // where the target pair differs by four words. So at offset 0 the bind
+        // makes no second store-base value (boards #856/#865) and admitting it
+        // with its own base symbol would be a wrong reading of the schedule.
+        //
+        // The mutation is one byte, exactly as the two captured cells differ by
+        // one byte — `w-refbind`'s #856 reproduced in the reader.
+        let mut seg = BIND_LEAF.to_vec();
+        let at = seg
+            .windows(6)
+            .position(|w| w[..5] == [0x26, 0xFB, 0x09, 0xB9, 0xF8] || false)
+            .expect("the bind statement");
+        let disp = seg[at..]
+            .windows(5)
+            .position(|w| w[..4] == [0x33, 0x86, 0x41, 0x74])
+            .expect("the bind's offset add")
+            + at
+            + 4;
+        assert_eq!(seg[disp], 0x08, "the captured bind binds at +8");
+        seg[disp] = 0x00;
+        assert_eq!(parse_segment(&seg, ptr_local(&[0xFB09])), None);
+    }
+
+    #[test]
+    fn bind_refuses_a_destination_the_sy_layer_does_not_call_a_local() {
+        // The bound token must be POSITIVELY a `.sy` automatic. Absence from
+        // `.gl` proves nothing — `assign.rs`'s header records a file-scope
+        // `static int sv` appearing there as `$sv`, being taken for a local, and
+        // its store being silently dropped — so the same segment with an empty
+        // `ptr_locals` must refuse.
+        assert!(parse_segment(BIND_LEAF, ptr_local(&[0xFB09])).is_some());
+        assert_eq!(parse_segment(BIND_LEAF, NO_LOCALS), None);
+    }
+
+    #[test]
+    fn bind_reads_the_plain_run_tail_as_well_as_the_call_one() {
+        // `b_leaf_bind` has no call: one bind, one store, the void tail. Both
+        // tails are admitted because the bind is orthogonal to what ends the
+        // run, and a production that took only the call tail would be fitted to
+        // `xboxheap`.
+        let shape = parse_segment(BIND_LEAF, ptr_local(&[0xFB09])).expect("parses");
+        let BodyShape::StoreRunBind { binds, ops, callee_tok, live_args, .. } = shape else {
+            panic!("expected StoreRunBind, got {shape:?}");
+        };
+        assert_eq!(binds, vec![RefBind { tok: 0xFB09, base_tok: 0xF809, off: 8 }]);
+        assert_eq!(callee_tok, None);
+        assert_eq!(live_args, 0);
+        assert_eq!(
+            ops,
+            vec![
+                IlOp::Load(0xFB09),
+                IlOp::Load(0xFB09),
+                IlOp::StoreInd { off: 0, width: 4 },
+            ]
         );
     }
 

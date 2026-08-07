@@ -25,7 +25,8 @@ use self::shapes::{
     try_parse_indirect_load_leaf, try_parse_member_tail_call, try_parse_ptr_identity_leaf,
     try_parse_ptr_walk_chain_loop,
     try_parse_ptr_walk_loop,
-    try_parse_store_leaf, try_parse_store_run, try_parse_store_run_call,
+    try_parse_store_leaf, try_parse_store_run, try_parse_store_run_bind,
+    try_parse_store_run_call,
 };
 use super::readers::{
     eat_byte, eat_value_type, read_token_var, read_type, read_varint, ValueClass,
@@ -805,6 +806,64 @@ pub(crate) enum BodyShape {
         /// an EMPTY argument setup by construction and cannot count the slots.
         live_args: usize,
     },
+    /// **#839 — a store run whose base is a C++ REFERENCE BIND.**
+    ///
+    /// `auto& listHead = mListHead;` — the spelling
+    /// `src/xdk/nuispeech/xboxheap.cpp` actually ships — which `c1xx` writes as a
+    /// store into a **local**, whose token then stands in later stores' BASE
+    /// position. Two reader obligations, not one (board **#1160**,
+    /// `w-f23` §5.1): a `26 <tok>` local admitted as a store *destination*, and
+    /// that local admitted as a store *base* **carrying its own base symbol**.
+    ///
+    /// **The bind is NOT folded into the formal, and that is the whole point.**
+    /// `w-heap` §4.2 (board **#1128**) measured that the same constructor with
+    /// and without the bind emits **different bodies** — both producers swap and
+    /// one store moves — and this lane reproduced it from its own captures
+    /// (`work/w-bind/grid/b_target_{bind,direct}/dis.txt`, four words apart). A
+    /// reader that rewrote `l.mNext` to `this->mListHead.mNext` would hand the
+    /// emitter the *other* body's op stream, which is board #232's direction.
+    /// So the run's ops keep `IlOp::Load(<local>)` in the base position and the
+    /// binding travels beside them in [`Self::binds`], undischarged.
+    ///
+    /// **`shape_to_function` returns `None` for this variant** — there is no
+    /// carrier, and the residue is filed under [`STORE_RUN_BIND_NO_CARRIER`].
+    /// Two independent things are missing and both are `crates/c2-core`'s:
+    /// `IlFunction` cannot spell "a local bound to formal + offset", and
+    /// `codegen::alloc`'s mixed-kind refusal (boards #836/#868) is live on the
+    /// target body anyway. See [`shapes::try_parse_store_run_bind`].
+    StoreRunBind {
+        params: Vec<u32>,
+        /// The bindings, in source order, each `local := formal + off`.
+        binds: Vec<RefBind>,
+        /// The run's op groups. A store through a bound local carries
+        /// `IlOp::Load(<local token>)` as its base and the offset **inside** the
+        /// bound object — never the sum.
+        ops: Vec<IlOp>,
+        /// `Some(callee)` when the run is followed by board #1129's call, i.e.
+        /// the [`BodyShape::StoreRunCall`] tail. `None` for the plain run tail.
+        callee_tok: Option<u32>,
+        /// [`BodyShape::StoreRunCall::live_args`], or 0 without a call.
+        live_args: usize,
+    },
+}
+
+/// One `local := <formal> + off` reference binding, as board **#839** spells it.
+///
+/// Deliberately **not** a substitution: `off` is carried so a future emitter can
+/// discharge it, and is never added into a store's own displacement by the
+/// reader, because the sum is what makes the two source spellings' op streams
+/// identical and their emitted bodies are not (board #1128).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct RefBind {
+    /// The bound local's `.ex` token — the one that stands in a store's base
+    /// position, and the one whose membership in
+    /// [`crate::func::sy::SyView::ptr_locals`] is checked **positively**.
+    pub(crate) tok: u32,
+    /// The formal the bound object hangs off.
+    pub(crate) base_tok: u32,
+    /// The byte offset of the bound sub-object within it. Never 0 — see
+    /// [`shapes::try_parse_store_run_bind`] for the measurement that excludes it.
+    pub(crate) off: i32,
 }
 
 /// **Why** a function segment fell outside the modeled class (P2b census).
@@ -922,6 +981,25 @@ pub(crate) const CALLEE_UNRESOLVED_TAIL: &str = "callee-unresolved-tail-call";
 /// requires the cursor to reach `seg.len()`. So the `:eof` it renders is the
 /// true statement — the body is grammar-complete and directly sizeable.
 pub(crate) const STORE_RUN_CALL_NO_CARRIER: &str = "store-run-call-no-emitter-carrier";
+
+/// **#839's residue key** — the body is a store run whose base is a C++
+/// reference bind, it parses **to the end of the segment**, and what is left
+/// wrong with it is that nothing downstream can spell the binding.
+///
+/// Its own key, and not [`STORE_RUN_CALL_NO_CARRIER`]'s, because the two are
+/// blocked on different things: F3's composition seam landed (board #844,
+/// `w-seam2`) and these bodies still cannot be emitted. `IlFunction` has no
+/// field that says *"this token is `params[i]` plus 8"*, and inventing one is a
+/// `crates/c2-core` change with an emitted-order claim behind it — the two
+/// spellings' bodies differ by four words, so a carrier that discharged the
+/// binding into the displacement would emit the wrong one.
+///
+/// Raised with [`Block::at_end`], and this shape is entitled to it for
+/// [`STORE_RUN_CALL_NO_CARRIER`]'s reason: the arm runs only for a body the
+/// whole-segment parser accepted, and acceptance requires the cursor to reach
+/// `seg.len()`. The `:eof` is the true statement, so the row is directly
+/// sizeable rather than hiding a second blocker.
+pub(crate) const STORE_RUN_BIND_NO_CARRIER: &str = "store-run-bind-no-emitter-carrier";
 pub(crate) const CALLEE_UNRESOLVED_DTOR: &str = "callee-unresolved-dtor-delegation";
 pub(crate) const CALLEE_UNRESOLVED_FRAMED: &str = "callee-unresolved-framed-call";
 pub(crate) const CALLEE_UNRESOLVED_SEQ: &str = "callee-unresolved-call-sequence";
@@ -1628,6 +1706,24 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                     disp("disp-ptr-walk-chain-loop");
                     return Ok(shape);
                 }
+                // **#839 — a store run whose FIRST statement is the reference
+                // bind**, so it opens on this `26` and never reaches the store
+                // block below. The recognizer is the same one that block calls;
+                // only the entry differs, exactly as `try_parse_store_run` and
+                // `try_parse_store_run_call` share `collect_store_run`.
+                //
+                // Tried immediately ahead of the assignment parser, and after
+                // both pointer-walk loops, for the reason the whole ladder gives:
+                // it works on its own cursor and returns `None` with no side
+                // effects, so a body that declines still reports
+                // `try_parse_assign_body_detail`'s blocker and no census key
+                // moves. The only population it can accept is one whose
+                // statement list is a bind plus a store run, which `assign`
+                // refuses today at the `32` of its first store.
+                if let Some(shape) = try_parse_store_run_bind(seg, p, lo, sy, depth) {
+                    disp("disp-store-run-bind");
+                    return Ok(shape);
+                }
                 disp("disp-assign");
                 try_parse_assign_body_detail(seg, p, lo, locals, depth)
             }
@@ -1812,6 +1908,23 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // still reports its own blocker.
             if let Some(shape) = try_parse_store_run_call(seg, p, lo, sy, depth) {
                 disp("disp-store-run-call");
+                return Ok(shape);
+            }
+            // …and **#839**, either of those runs with a C++ REFERENCE BIND in
+            // it. Tried last of the four because a run with no bind is refused
+            // by it outright, so the two productions above keep every body they
+            // already had and their census keys with them.
+            //
+            // **THIS IS THE SECOND OF TWO DISPATCH SITES FOR ONE RECOGNIZER**,
+            // and the other is in the `0x26` arm above. The arm a body reaches
+            // is decided by the first byte of its FIRST STATEMENT, and a bind
+            // may come first (`b_bind_first`, `b_leaf_bind`) or in the middle
+            // (`b_target_bind`, which is `xboxheap.cpp`'s own spelling) — so one
+            // site would silently cover half the shape. This lane's prereg
+            // registered dispatch order as the loss it expected to take, and
+            // this is where it took it.
+            if let Some(shape) = try_parse_store_run_bind(seg, p, lo, sy, depth) {
+                disp("disp-store-run-bind");
                 return Ok(shape);
             }
             let (ops, cls) = parse_expr_classed(seg, &mut p, 0x41)?;

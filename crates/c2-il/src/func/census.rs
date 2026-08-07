@@ -2,7 +2,7 @@ use super::body::{
     self, call_tokens, parse_segment_detail, BodyShape, Complete, DtorSubObject,
     CALLEE_UNRESOLVED_DTOR,
     CALLEE_UNRESOLVED_FRAMED, CALLEE_UNRESOLVED_SEQ, CALLEE_UNRESOLVED_TAIL,
-    STORE_RUN_CALL_NO_CARRIER,
+    STORE_RUN_BIND_NO_CARRIER, STORE_RUN_CALL_NO_CARRIER,
     DATA_SYM_LINKAGE, DATA_SYM_UNRESOLVED, OPT_MODE, PTR_WALK_CHAIN_LOOP_NOT_O1,
     PTR_WALK_LOOP_NOT_O1,
 };
@@ -680,6 +680,17 @@ impl IlBundle {
                             Ok(BodyShape::StoreRunCall { .. }) => {
                                 FnVerdict::InClass("store-run-call")
                             }
+                            // **#839.** Its own family for every reason F3's has
+                            // one, and one more: `cross_sweep.sh` discovers
+                            // families by this label, and a bind-carrying run
+                            // filed as `store-run` would claim a lowering this
+                            // reader deliberately does not have. Like F3's it is
+                            // never an `InClass` the numerator keeps — the arm
+                            // below turns every one into a `Blocked` under
+                            // [`STORE_RUN_BIND_NO_CARRIER`].
+                            Ok(BodyShape::StoreRunBind { .. }) => {
+                                FnVerdict::InClass("store-run-bind")
+                            }
                             Ok(BodyShape::FloatLeaf { double, .. }) => {
                                 FnVerdict::InClass(if *double { "double-leaf" } else { "float-leaf" })
                             }
@@ -765,6 +776,13 @@ impl IlBundle {
                                         // key so the residue #844 is sized from
                                         // is a number rather than a rumour.
                                         "store-run-call" => STORE_RUN_CALL_NO_CARRIER,
+                                        // **#839.** Also not a callee problem —
+                                        // and also not #844's, which LANDED.
+                                        // Its own key because the two are
+                                        // blocked on different things and a
+                                        // shared one would make the bind's
+                                        // residue unsizeable.
+                                        "store-run-bind" => STORE_RUN_BIND_NO_CARRIER,
                                         "framed-call" => CALLEE_UNRESOLVED_FRAMED,
                                         l if l.starts_with("call-sequence") => {
                                             CALLEE_UNRESOLVED_SEQ
