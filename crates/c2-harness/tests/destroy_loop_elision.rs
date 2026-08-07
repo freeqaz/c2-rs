@@ -56,47 +56,21 @@
 //! | `a_cycle_through_a_loop_is_never_admitted` | l11 — never seeded, so never admitted, and the closure terminates |
 //! | `the_pseudo_destructor_leaf_seeds_and_the_whole_chain_closes` | l01/l09 — c2 emits one `blr` for the whole chain and **so does the port now**, level by level: the loop admitted as a LINK, the leaf as a SEED, and the leaf still `parse-refused`. Was `…_is_the_residue_and_needs_a_SEED` until board #1053 |
 
-use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+mod cellgrade;
 
-use c2_core::elide::TuEmptyCallees;
-use c2_harness::gap::fnbytes::{grade_one, tu_empty_callees, FnByte};
+use c2_harness::gap::fnbytes::FnByte;
 use c2_reference::Toolchain;
 
-/// The workload's own profile, minus the `/I` paths a standalone cell cannot
-/// use. `/O1` implies `/Gy`; `/Ox` does not.
-const FLAGS: [&str; 8] = [
-    "/nologo", "/wd4355", "/wd4164", "/c", "/GR", "/O1", "/Oi", "/EHsc",
-];
+// **The cell-grading half lives in `cellgrade`** — the ANCHOR, the TAIL PAD, the
+// flag profile, `grade_cell`, `row` and `work`, verbatim and byte for byte what
+// this file used to carry. Lane `w-seed` (board #1053) needed the identical
+// helper for GRID-N, and `w-relo`'s merge is what a fourth private copy costs:
+// two lanes wrote the same reader in different files, auto-merged with no
+// conflict marker, and the duplicate walks were caught only by a compile error.
+// `empty_elision.rs` and `dead_temp_elision.rs` still carry their own; see
+// `cellgrade`'s module doc for why they were deliberately not migrated here.
+use cellgrade::{grade_cell, row, work, BLR};
 
-/// `w-empty`'s ANCHOR, **prepended** — a callee this TU does not define, whose
-/// relocation must survive. Without it "the port emitted no branch" and "nothing
-/// in this cell emitted anything" are the same observation. Prepended and not
-/// appended for `w-inl0` §4's measured reason: these cells define templates, and
-/// a template instantiation's segment is emitted after every source-order
-/// function, so an appended anchor lands on the module trailer that `eat_fn_tail`
-/// refuses.
-const ANCHOR: &str = "\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n";
-
-/// **The TAIL PAD**, appended after every cell — scaffolding for the controls,
-/// not part of any cell. `.ex`'s last function segment always refuses as
-/// `module-end-0x4D`, and in a five-function cell that would be the empty leaf
-/// the whole chain has to be seeded from. Five levels deep, measured by `w-inl0`
-/// §4 rather than guessed.
-const TAIL: &str = "
-template <class T> inline T pad5(T v) { return v; }
-template <class T> inline T pad4(T v) { return pad5(v); }
-template <class T> inline T pad3(T v) { return pad4(v); }
-template <class T> inline T pad2(T v) { return pad3(v); }
-template <class T> inline T pad1(T v) { return pad2(v); }
-int pad_use(int v) { return pad1(v); }
-";
-
-const BLR: [u8; 4] = [0x4e, 0x80, 0x00, 0x20];
-
-// The FROZEN grid — `include_str!` and not a copy, so this test grades the bytes
-// whose `sha256` was committed before the first `cl.exe`
-// (`work/w-memset/CELLS.sha256`, `work/w-memset/ADDENDUM-1.md`).
 const L01: &str = include_str!("../../../work/w-memset/cells/l01.cpp");
 const L02: &str = include_str!("../../../work/w-memset/cells/l02.cpp");
 const L03: &str = include_str!("../../../work/w-memset/cells/l03.cpp");
@@ -110,98 +84,6 @@ const L10: &str = include_str!("../../../work/w-memset/cells/l10.cpp");
 const L11: &str = include_str!("../../../work/w-memset/cells/l11.cpp");
 const L12: &str = include_str!("../../../work/w-memset/cells/l12.cpp");
 
-fn work(tag: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("c2rs-w-memset-{tag}-{}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
-}
-
-/// `(shape, verdict, symbol, reference bytes, reference relocation count)` per
-/// emitted `.text` COMDAT.
-type Rows = Vec<(&'static str, FnByte, String, Vec<u8>, usize)>;
-
-/// Grade one frozen cell. `extra` is appended to the profile — `["/Ob0"]` is the
-/// E-versus-I separator (`w-fix` #954), and `[]` is the workload's own setting.
-fn grade_cell(
-    tc: &Toolchain,
-    dir: &Path,
-    name: &str,
-    body: &str,
-    extra: &[&str],
-) -> (Rows, TuEmptyCallees) {
-    let cpp = dir.join(format!("{name}.cpp"));
-    std::fs::write(&cpp, format!("{ANCHOR}{body}{TAIL}")).unwrap();
-    let mut flags: Vec<String> = FLAGS.iter().map(|s| s.to_string()).collect();
-    flags.extend(extra.iter().map(|s| s.to_string()));
-    let src = c2_reference::to_wibo_path(&cpp);
-    let Ok(cap) = tc.capture_reference_with(&src, dir, &flags, None) else {
-        return (Vec::new(), TuEmptyCallees::none());
-    };
-    let (Some(census), Some(entries)) = (
-        cap.bundle.census_functions(),
-        cap.ref_obj.text_comdat_functions_with_bytes(),
-    ) else {
-        return (Vec::new(), TuEmptyCallees::none());
-    };
-    let relocs = cap.ref_obj.text_comdat_reloc_sites().unwrap_or_default();
-    let mut claim: BTreeMap<&str, Vec<usize>> = BTreeMap::new();
-    for (i, (f, _)) in census.iter().enumerate() {
-        if let Some(n) = f.emit_name.as_deref() {
-            claim.entry(n).or_default().push(i);
-        }
-    }
-    let tu = tu_empty_callees(&census);
-    let rel = cap.ref_obj.text_comdat_relocs();
-    let mut out = Vec::new();
-    for (idx, (sym, bytes)) in entries.iter().enumerate() {
-        let row = match claim.get(sym.as_str()).map(Vec::as_slice) {
-            Some([i]) => Some(&census[*i]),
-            _ => None,
-        };
-        let rr = rel.as_ref().and_then(|v| v.get(idx)).map(|(_, r)| r.as_slice());
-        let g = grade_one(row, Some(bytes.as_slice()), &tu, rr);
-        let n = relocs
-            .iter()
-            .find(|(n, _)| n == sym)
-            .map(|(_, v)| v.len())
-            .unwrap_or(0);
-        out.push((g.shape, g.verdict, sym.clone(), bytes.clone(), n));
-    }
-    let empty = tu.empty_callees().clone();
-    (out, empty)
-}
-
-/// The one row whose mangled name contains `needle`, with the ANCHOR control
-/// checked first. A cell whose anchor is not `Exact` graded nothing trustworthy.
-fn row<'a>(
-    rows: &'a Rows,
-    needle: &str,
-    cell: &str,
-) -> &'a (&'static str, FnByte, String, Vec<u8>, usize) {
-    match rows.iter().find(|r| r.2 == "?anchor@@YAXXZ") {
-        Some(a) => assert_eq!(
-            a.1,
-            FnByte::Exact,
-            "cell `{cell}`: the ANCHOR control is not Exact — this capture graded \
-             nothing trustworthy, so no verdict below it means anything"
-        ),
-        None => panic!(
-            "cell `{cell}`: no `?anchor@@YAXXZ` COMDAT in the reference obj — the \
-             capture produced {} functions and none of them is the control",
-            rows.len()
-        ),
-    }
-    let hits: Vec<&(&'static str, FnByte, String, Vec<u8>, usize)> =
-        rows.iter().filter(|r| r.2.contains(needle)).collect();
-    match hits.as_slice() {
-        [one] => one,
-        _ => panic!(
-            "cell `{cell}`: `{needle}` matches {} of the emitted symbols {:?}",
-            hits.len(),
-            rows.iter().map(|r| &r.2).collect::<Vec<_>>()
-        ),
-    }
-}
 
 /// **l02 — THE POSITIVE.** The loop's callee is `empty_body`, so the existing
 /// seed is reachable and the whole chain closes through the loop LINK alone.
