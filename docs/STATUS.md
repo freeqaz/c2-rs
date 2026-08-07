@@ -435,6 +435,33 @@ re-derive it (it needs a disassembly pass per TU). (The dump that row cites,
 `work/w-conv/PREREG.md` §1.1–§1.2 prose and reproduces via `work/w-frame/refobj.sh`
 plus `scripts/gt_dump.py` per TU.)
 
+> ### ✔ 2026-08-08 — RE-PRICED, and *"there is no cheap TU left in it"* is REFUTED on one row. **The minimum over the seventeen is THREE.**
+>
+> Lane `w-front2` compiled all seventeen at the workload's own flags, applied
+> board **#401**'s construct-ladder method rather than a hand-partition, and
+> graded every cell against real `c2.dll` under wibo.
+> **`src/xdk/nuispeech/xboxheap.cpp` prices at 3** — down from #401's 5 and from
+> the `unpriceable` #270 gave it — because **two of #401's five are PAID and are
+> shown paid by a byte-exact obj**: F1 (a literal store mixed into a run) and
+> F4a/F4b (**the schedule**, reproduced at that TU's own six-store width). What
+> is left is F2, F3 and board **#844**'s composition seam, and **#871's stated
+> prerequisite for building that seam — #322 — has been closed** since it was
+> written. The second-cheapest row is ≥ 7, so the clause holds everywhere else.
+>
+> **And the paragraph's frame is wrong, not just its number.** `codegen-gap` is
+> **0 over all 878 TUs** and **all seventeen frontier TUs are `vocab-gap`** —
+> not one has ever reached the emitter, though the FRONTIER is defined as
+> *"reachable by codegen breadth alone"*. What paid the difference is six lanes
+> from 2026-08-04/05 (`w-label`'s label map, #191's `encode_b_intra`,
+> `w-hash`/`w-varloop`/`w-sched2`/`w-rotate`, `w-dclass`/`w-alloc`/`w-order2`,
+> `div_mod_leaf`) and **zero** of the seven that landed since.
+>
+> `Primes.cpp` and `keygen_xbox.cpp` are priced for the first time, at **≥ 15**
+> and **≥ 21**. The dump `#269` cites is still missing and
+> **`work/w-front2/ref/*/dis.txt` replaces it, committed**. Boards
+> **#1097**–**#1106**;
+> [`rungs/2026-08-08-w-front2.md`](rungs/2026-08-08-w-front2.md).
+
 ---
 
 ## The traps
