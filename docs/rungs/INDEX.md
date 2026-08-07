@@ -122,5 +122,6 @@ the header block this table is read from.
 | 2026-08-08 | w-seq | [w-seq](2026-08-08-w-seq.md) | 8 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |
 | 2026-08-08 | w-splice | [w-splice](2026-08-08-w-splice.md) | 8 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |
 | 2026-08-08 | w-target | [w-target](2026-08-08-w-target.md) | 9 | unchanged, +0. Emitted 39,181 / 178,977 unchanged. |
+| 2026-08-09 | w-midrun | [w-midrun](2026-08-09-w-midrun.md) | 1 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** — measured at both |
 | 2026-08-09 | w-mrslot | [w-mrslot](2026-08-09-w-mrslot.md) | 1 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** — measured at both |
 | 2026-08-09 | w-prod | [w-prod](2026-08-09-w-prod.md) | 12 | 711,485 / 2,463,443 unchanged (28.88 %), +0. TU match 10 → 10, |
