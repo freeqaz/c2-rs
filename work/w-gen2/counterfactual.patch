@@ -1,0 +1,28 @@
+diff --git a/crates/c2-core/src/codegen/store_run_call.rs b/crates/c2-core/src/codegen/store_run_call.rs
+index 42916d21..3976c593 100644
+--- a/crates/c2-core/src/codegen/store_run_call.rs
++++ b/crates/c2-core/src/codegen/store_run_call.rs
+@@ -182,6 +182,9 @@ pub fn store_run_prefix_text(
+         .skip(1)
+         .copied()
+         .collect();
++    let _ = &live;
++    // COUNTERFACTUAL(w-gen2): the live-argument backstop is REVERTED here.
++    #[cfg(any())]
+     if prefix
+         .ops
+         .iter()
+diff --git a/crates/c2-il/src/func/body/shapes/leaf_store.rs b/crates/c2-il/src/func/body/shapes/leaf_store.rs
+index f377e300..9ee6f506 100644
+--- a/crates/c2-il/src/func/body/shapes/leaf_store.rs
++++ b/crates/c2-il/src/func/body/shapes/leaf_store.rs
+@@ -1613,6 +1613,9 @@ pub(crate) fn try_parse_store_run_call(
+         // refuses rather than assuming, because a later widening of that gate
+         // would otherwise silently stop checking this one.
+         let [IlOp::Load(live)] = slot else { return None };
++        let _ = live;
++        // COUNTERFACTUAL(w-gen2): the live-argument transfer gate is REVERTED here.
++        #[cfg(any())]
+         // A store's group is `[Load(base), <value>, StoreInd]`, so the VALUE is
+         // at index 1. Index 1 and not "anywhere in the group", because index 0
+         // is the store's own BASE — which is `params[0]`, the receiver, and the

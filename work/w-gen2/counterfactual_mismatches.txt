@@ -1,0 +1,76 @@
+MISMATCH cases: 186
+
+by callee:
+  A1(a)              67
+  A2(a, b)           58
+  A3(a, b, c)        49
+  Alloc(a)            8
+  Alloc2(a, b)        4
+
+by family:
+  K     174
+  P      12
+
+first 25 rows:
+  89-store-run-live-arg-0149.cpp   K  A1(a)          b a
+  89-store-run-live-arg-0150.cpp   K  A1(a)          0 b a
+  89-store-run-live-arg-0151.cpp   K  A1(a)          0 7 b a
+  89-store-run-live-arg-0157.cpp   K  A1(a)          c a
+  89-store-run-live-arg-0158.cpp   K  A1(a)          0 c a
+  89-store-run-live-arg-0159.cpp   K  A1(a)          0 7 c a
+  89-store-run-live-arg-0173.cpp   K  A1(a)          c b a
+  89-store-run-live-arg-0174.cpp   K  A1(a)          0 c b a
+  89-store-run-live-arg-0175.cpp   K  A1(a)          0 7 c b a
+  89-store-run-live-arg-0185.cpp   K  A1(a)          this a
+  89-store-run-live-arg-0186.cpp   K  A1(a)          0 this a
+  89-store-run-live-arg-0187.cpp   K  A1(a)          0 7 this a
+  89-store-run-live-arg-0221.cpp   K  A2(a, b)       c a
+  89-store-run-live-arg-0222.cpp   K  A2(a, b)       0 c a
+  89-store-run-live-arg-0223.cpp   K  A2(a, b)       0 7 c a
+  89-store-run-live-arg-0229.cpp   K  A2(a, b)       c b
+  89-store-run-live-arg-0230.cpp   K  A2(a, b)       0 c b
+  89-store-run-live-arg-0231.cpp   K  A2(a, b)       0 7 c b
+  89-store-run-live-arg-0237.cpp   K  A2(a, b)       c b a
+  89-store-run-live-arg-0238.cpp   K  A2(a, b)       0 c b a
+  89-store-run-live-arg-0239.cpp   K  A2(a, b)       0 7 c b a
+  89-store-run-live-arg-0249.cpp   K  A2(a, b)       this a
+  89-store-run-live-arg-0250.cpp   K  A2(a, b)       0 this a
+  89-store-run-live-arg-0251.cpp   K  A2(a, b)       0 7 this a
+  89-store-run-live-arg-0298.cpp   K  A3(a, b, c)    0 a b c
+mismatch cases: 186
+
+by callee ARITY:
+  arity 1     75
+  arity 2     62
+  arity 3     49
+
+by the SET OF ARGUMENT SLOTS the run stores:
+  slots {1}         100
+  slots {1,2}        53
+  slots {1,2,3}      14
+  slots {1,3}        16
+  slots {2}           3
+89-store-run-live-arg-0229.cpp
+K::K(unsigned int a, unsigned int b, unsigned int c) {
+  mC = c;
+  mB = b;
+  A2(a, b);
+}
+
+89-store-run-live-arg-0230.cpp
+K::K(unsigned int a, unsigned int b, unsigned int c) {
+  mD = 0;
+  mC = c;
+  mB = b;
+  A2(a, b);
+}
+
+89-store-run-live-arg-0231.cpp
+K::K(unsigned int a, unsigned int b, unsigned int c) {
+  mD = 0;
+  mE = 7;
+  mC = c;
+  mB = b;
+  A2(a, b);
+}
+
