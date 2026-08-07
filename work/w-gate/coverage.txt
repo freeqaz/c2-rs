@@ -1,0 +1,34 @@
+   7  require-graded-all-skip-fails
+   3  demand-off-all-skip-still-exits-0
+   4  require-graded-green-run-passes
+   1  demand-off-green-run-passes
+   3  require-graded-sampled-satisfies
+   2  hint-names-every-override
+   1  hint-names-the-one-command-that-fixes-it
+   1  hint-does-not-name-c2rs-dc3
+   2  hint-overrides-still-read-by-the-resolver
+   1  hint-reads-the-version-dir-from-source
+   1  hint-marks-absent-paths-missing
+   1  hint-does-not-claim-they-exist
+   1  hint-declines-to-blame-a-present-path
+   1  require-graded-refuses-reap-only
+   1  require-graded-refuses-before-reaping
+   1  require-graded-env-leaves-list-alone
+   1  require-graded-says-when-it-does-not-apply
+   2  the demand turns an all-skip run RED
+   3  fails on a COUNT of graded units
+   2  the lanes-that-graded count is printed beside the sum
+   2  never also says SKIPPED
+   1  nor PASS
+   1  the resolution hint rides along
+   1  without the demand an all-skip run is UNCHANGED
+   3  a run that graded 4 corpora passes WITH the demand set
+   3  the demand is silent when the count it wants is positive
+   3  a SAMPLED run graded something
+   3  does not moonlight as a completeness check
+   3  a partial skip still fails as a PARTIAL SKIP
+   3  the demand did not duplicate a check that already existed
+   1  a mismatch under the demand still raises the mismatch alarm
+   1  and is never relabelled as a nothing-graded run
+
+32 assertions checked; 0 never seen red.

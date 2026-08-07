@@ -1088,10 +1088,26 @@ toolchain_hint() {
     _th_ref="$repo_root/crates/c2-reference/src/lib.rs"
     _th_ver=$(sed -n 's/^const X360_TOOLCHAIN_REL: &str = "\([^"]*\)";.*/\1/p' \
         "$_th_ref" 2>/dev/null | head -1)
+    # The COMPILERS ROOT the resolver would use, by the precedence `compilers_root`
+    # documents (env verbatim > <repo>/compilers > the ../dc3-decomp compat path >
+    # <repo>/compilers as the fallthrough). Transcribed here ONLY so the cl.exe and
+    # c2.dll lines below name the file the resolver would actually open: an earlier
+    # draft printed the default while `C2RS_COMPILERS` pointed elsewhere, and
+    # reported `found` for two paths nothing had consulted — a signpost aimed at
+    # the wrong road is worse than no signpost.
+    if [ -n "${C2RS_COMPILERS-}" ]; then
+        _th_croot="$C2RS_COMPILERS"
+    elif [ -d "$repo_root/compilers/$_th_ver" ]; then
+        _th_croot="$repo_root/compilers"
+    elif [ -d "$repo_root/../dc3-decomp/build/compilers/$_th_ver" ]; then
+        _th_croot="$repo_root/../dc3-decomp/build/compilers"
+    else
+        _th_croot="$repo_root/compilers"
+    fi
     if [ -z "$_th_ver" ]; then
         _th_dir="<could not read X360_TOOLCHAIN_REL from $_th_ref>"
     else
-        _th_dir="$repo_root/compilers/$_th_ver"
+        _th_dir="$_th_croot/$_th_ver"
     fi
 
     echo
@@ -1103,17 +1119,30 @@ toolchain_hint() {
         echo "       and lane w-root, 2026-08-08."
     fi
     _th_gone=0
-    _th_say() {  # <label> <path> <env-var>
-        if [ -e "$2" ]; then
+    # Report the EFFECTIVE path, not the default. `Toolchain::locate` takes an
+    # override VERBATIM and does not fall back, so a run whose `C2RS_COMPILERS`
+    # points at a typo skips while the default sitting beside it is perfectly
+    # fine — and a signpost that printed the default there would send the reader
+    # to look at a path the resolver never consulted.
+    _th_say() {  # <label> <default-path> <env-var>
+        eval "_th_ov=\${$3-}"
+        if [ -n "${_th_ov:-}" ]; then
+            _th_p="$_th_ov"
+            _th_src="override: $3 — SET in this environment, taken verbatim (no fallback)"
+        else
+            _th_p="$2"
+            _th_src="override: $3 (unset — this is the default)"
+        fi
+        if [ -e "$_th_p" ]; then
             _th_mark="found  "
         else
             _th_mark="MISSING"
             _th_gone=$((_th_gone + 1))
         fi
-        printf '       %-10s %s  %s\n' "$1" "$_th_mark" "$2"
-        printf '       %-10s %s\n' "" "override: $3"
+        printf '       %-10s %s  %s\n' "$1" "$_th_mark" "$_th_p"
+        printf '       %-10s %s\n' "" "$_th_src"
     }
-    _th_say "compilers" "$repo_root/compilers" "C2RS_COMPILERS"
+    _th_say "compilers" "$_th_croot" "C2RS_COMPILERS"
     _th_say "cl.exe"    "$_th_dir/cl.exe"      "C2RS_CL_EXE"
     _th_say "c2.dll"    "$_th_dir/c2.dll"      "C2RS_C2_DLL"
     _th_say "wibo"      "$repo_root/../wibo/build/release/wibo" "C2RS_WIBO"
@@ -2435,13 +2464,21 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     # the right things and that those names still exist where the resolver reads
     # them.
     toolchain_hint > "$st/hint.out" 2>&1
+    # `override: <NAME>`, not merely `<NAME>` anywhere in the block. The first
+    # draft grepped the whole output and stayed GREEN under a mutation that
+    # deleted the override from the path it belongs to, because the name was
+    # still mentioned in a sentence further down. A name in prose is not a name
+    # attached to the path that failed.
     _th_missing=""
     for _v in C2RS_COMPILERS C2RS_WIBO C2RS_CL_EXE C2RS_C2_DLL; do
-        grep -q "$_v" "$st/hint.out" || _th_missing="$_th_missing $_v"
+        grep -q "override: $_v" "$st/hint.out" || _th_missing="$_th_missing $_v"
     done
-    [ -z "$_th_missing" ] && _r=0 || _r=1
-    t_case hint-names-every-override "$_r" \
-        "${_th_missing:+NOT NAMED:$_th_missing}${_th_missing:-C2RS_COMPILERS / C2RS_WIBO / C2RS_CL_EXE / C2RS_C2_DLL}"
+    if [ -z "$_th_missing" ]; then
+        _r=0; _th_detail="C2RS_COMPILERS / C2RS_WIBO / C2RS_CL_EXE / C2RS_C2_DLL"
+    else
+        _r=1; _th_detail="NOT NAMED BY THE HINT:$_th_missing"
+    fi
+    t_case hint-names-every-override "$_r" "$_th_detail"
 
     grep -q 'configure_existing_worktree.sh' "$st/hint.out" && _r=0 || _r=1
     t_case hint-names-the-one-command-that-fixes-it "$_r" \
@@ -2453,15 +2490,21 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
 
     # THE ANTI-DRIFT ARM. The hint is a second place where these names are
     # written, and a signpost pointing at a variable nobody reads is worse than no
-    # signpost. Every name it prints must still be read by the resolver itself.
+    # signpost. The names are read OUT OF THE HINT'S OWN OUTPUT rather than from a
+    # list repeated here — a fixed list would go on agreeing with itself while the
+    # hint printed something else, which is the drift, one level up.
     _th_ref="$repo_root/crates/c2-reference/src/lib.rs"
     _th_stale=""
-    for _v in C2RS_COMPILERS C2RS_WIBO C2RS_CL_EXE C2RS_C2_DLL; do
+    for _v in $(grep -o 'C2RS_[A-Z0-9_]*' "$st/hint.out" | sort -u); do
         grep -q "\"$_v\"" "$_th_ref" 2>/dev/null || _th_stale="$_th_stale $_v"
     done
-    [ -z "$_th_stale" ] && _r=0 || _r=1
-    t_case hint-overrides-still-read-by-the-resolver "$_r" \
-        "${_th_stale:+NO LONGER IN crates/c2-reference/src/lib.rs:$_th_stale}${_th_stale:-all four are still read by Toolchain::locate}"
+    if [ -z "$_th_stale" ]; then
+        _r=0; _th_detail="every C2RS_* the hint prints is still read by Toolchain::locate"
+    else
+        _r=1
+        _th_detail="NAMED BY THE HINT, NOT READ BY crates/c2-reference/src/lib.rs:$_th_stale"
+    fi
+    t_case hint-overrides-still-read-by-the-resolver "$_r" "$_th_detail"
 
     # And the version directory must come OUT OF the Rust source, not out of a
     # literal here — the same drift, one level down.
