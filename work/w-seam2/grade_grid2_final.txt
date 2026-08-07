@@ -1,0 +1,16 @@
+h_np0_u2 match
+h_np0_u4 vocab-gap
+h_np0_u5 vocab-gap
+h_np0_u6 vocab-gap
+h_np1_u2 match
+h_np1_u4 vocab-gap
+h_np1_u6 vocab-gap
+h_np2_u2 match
+h_np2_u4 vocab-gap
+h_np3_u0 match
+h_np3_u1 match
+h_np3_u2 match
+h_np3_u3 match
+h_np3_u4 vocab-gap
+h_ordmix match
+h_ordmix2 match
