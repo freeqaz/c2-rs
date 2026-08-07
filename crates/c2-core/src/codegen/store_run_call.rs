@@ -182,11 +182,17 @@ pub fn store_run_prefix_text(
         .skip(1)
         .copied()
         .collect();
-    if prefix
-        .ops
-        .iter()
-        .any(|o| matches!(o, c2_il::IlOp::Load(t) if live.contains(&t)))
-    {
+    //
+    // **Board #1199**: a bound reference reads its formal's register too — the
+    // store's address is `bind.base + bind.off`, so a bind hanging off a live
+    // argument is the same fact under a second spelling and is checked in the
+    // same predicate. Over-refusing here is the safe direction and it is the
+    // direction this gate already takes for a base (`w-seam2`'s `p3`).
+    if prefix.ops.iter().any(|o| match o {
+        c2_il::IlOp::Load(t) => live.contains(t),
+        c2_il::IlOp::BoundAddr { base, .. } => live.contains(base),
+        _ => false,
+    }) {
         return Err(out_of_class(LIVE_ARG_STORED));
     }
     let run_ops = &prefix.ops;

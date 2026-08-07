@@ -72,8 +72,18 @@ use crate::codegen::straightline::emit_load_imm;
 /// materialise. The two cases are exactly [`schedule::Stmt`]'s `producer:
 /// None` / `Some(id)`, which is why this is the unit the models speak about.
 struct SimpleStore {
+    /// The base **SYMBOL** — what [`schedule::Stmt::base`] keys may-alias on,
+    /// and what the overlap gate keys dead-store elimination on. For a bound
+    /// reference (board **#1199**) this is the BOUND LOCAL's own token, never
+    /// the formal it hangs off: that is the whole of board #1128, and it and
+    /// `base_reg` are two derivations of one [`IlOp::BoundAddr`], so they
+    /// cannot disagree.
     base_tok: u32,
     base_reg: u8,
+    /// The store's effective displacement. **The one site the binding is
+    /// discharged**: for a bound base this is `bind.off + <the store's own
+    /// offset>`, summed here and nowhere else, so the offset the IL carries
+    /// cannot be added twice.
     off: i32,
     width: u8,
     /// `Some(k)` — a literal, produced by an `li`/`lis`+`ori` this run emits;
@@ -82,6 +92,14 @@ struct SimpleStore {
     /// The register the value comes out of. For a literal this is filled in
     /// from [`alloc::allocate`] after the whole run is parsed.
     src: u8,
+    /// **Board #1199's backstop.** The stored VALUE is a bound reference — an
+    /// interior address, which materialises one `addi` and is therefore a
+    /// *register-derived producer*. `c2_il`'s `bind_run_ops` refuses this in the
+    /// reader, under two keys so the mixed-kind half (boards #836/#868, and
+    /// `xboxheap.cpp`'s own blocker) stays separately sizeable. Restated here
+    /// because a parser that widened past its witness must come out as a gap and
+    /// not as bytes.
+    value_bound: bool,
 }
 
 /// Parse the whole `ops` stream as value-simple GPR groups, or `None`.
@@ -97,19 +115,36 @@ fn parse_simple_gpr_run(
 ) -> Option<Vec<SimpleStore>> {
     let mut out: Vec<SimpleStore> = Vec::new();
     let mut walk = ops;
-    while let [IlOp::Load(b), v, IlOp::StoreInd { off, width }, tail @ ..] = walk {
-        let (lit, src) = match v {
-            IlOp::Load(t) => (None, reg_of(*t)?),
-            IlOp::Lit(k) => (Some(*k), SCRATCH_REG),
-            _ => return None,
+    while let [b, v, IlOp::StoreInd { off, width }, tail @ ..] = walk {
+        // **Board #1199 — the base position, and the ONE place the binding is
+        // discharged.** A bound reference contributes its own token as the base
+        // SYMBOL and the formal's register plus the bound object's offset as the
+        // ADDRESS; both come out of the same `BoundAddr`, which is what makes
+        // collapsing the two source spellings unspellable rather than merely
+        // unreached. An unbound `Load` is `(its token, its register, 0)`, which
+        // is exactly what this loop always computed.
+        let (base_tok, base_reg, base_off) = match b {
+            IlOp::Load(t) => (*t, reg_of(*t)?, 0i32),
+            IlOp::BoundAddr { tok, base, off } => (*tok, reg_of(*base)?, *off),
+            // Not a store group at all — leave `walk` non-empty so the caller's
+            // whole-stream check declines, exactly as the narrower pattern this
+            // loop used to open with did.
+            _ => break,
+        };
+        let (lit, src, value_bound) = match v {
+            IlOp::Load(t) => (None, reg_of(*t)?, false),
+            IlOp::Lit(k) => (Some(*k), SCRATCH_REG, false),
+            IlOp::BoundAddr { .. } => (None, SCRATCH_REG, true),
+            _ => break,
         };
         out.push(SimpleStore {
-            base_tok: *b,
-            base_reg: reg_of(*b)?,
-            off: *off,
+            base_tok,
+            base_reg,
+            off: base_off.checked_add(*off)?,
             width: *width,
             lit,
             src,
+            value_bound,
         });
         walk = tail;
     }
@@ -222,6 +257,27 @@ pub(crate) fn scheduled_gpr_run(
             .map(|i| ARG_REGS[i])
     };
     let mut run = parse_simple_gpr_run(ops, &reg_of)?;
+
+    // **Board #1199's backstop, and it is the frontier's last refusal.** A bound
+    // reference in the stored-VALUE position is an interior address: one
+    // `addi rD,rBase,off`, a **register-derived** producer. Beside a literal that
+    // is the mixed-kind run `alloc::allocate` refuses wholesale (board #836:
+    // clause 1 alone wrong on 29 of 81, this refusal wrong on 0), whose narrow
+    // lift is refuted (#868: `addi`-interior 12/12, `slwi` 0/12) and whose
+    // clause 1 is refuted on this very mix (#1134's `j1_lit2`).
+    // `src/xdk/nuispeech/xboxheap.cpp` is exactly this shape.
+    //
+    // `c2_il`'s `bind_run_ops` refuses it in the READER, under two keys so the
+    // mixed half stays separately sizeable — that is where acceptance lives, and
+    // `census_gate.rs` is the invariant. This is the second lock: a parser that
+    // widened past its witness comes out as a gap, not as bytes.
+    if run.iter().any(|s| s.value_bound) {
+        return Some(Err(out_of_class(
+            "a store run whose value is a bound reference: an interior address is \
+             a register-derived producer, and beside a literal that is the \
+             mixed-kind run codegen::alloc refuses (boards #836/#868/#1134)",
+        )));
+    }
 
     // Displacement and width are checked BEFORE any model is consulted, so an
     // unencodable store refuses on its own terms rather than through a `None`
