@@ -1,13 +1,13 @@
 gap scan: 878 TUs, 24 flags, jobs=16, replay-every=0
-  capture cache: /home/free/code/milohax/c2-rs/work/capture-cache
+  capture cache: <abs>
 provenance:
-  c2-rs      4320511d2391 (clean)  /home/free/code/milohax/c2-rs/.claude/worktrees/w-midrun
-  binary     7744cedd0587fec2  /home/free/code/milohax/c2-rs/.claude/worktrees/w-midrun/target/release/c2rs
-  workload   a44b1cf9406e (clean)  /home/free/code/milohax/dc3-decomp
-  wibo       wibo 1.2.0-c2rs.1 (Linux x86_64)  /home/free/code/milohax/wibo/build/release/wibo
-  cl.exe     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/cl.exe
-  c2.dll     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c2.dll
-  c1xx.dll   /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c1xx.dll
+  c2-rs      4320511d2391 (clean)  <abs>
+  binary     7744cedd0587fec2  <abs>
+  workload   a44b1cf9406e (clean)  <abs>
+  wibo       wibo 1.2.0-c2rs.1 (Linux x86_64)  <abs>
+  cl.exe     <abs>
+  c2.dll     <abs>
+  c1xx.dll   <abs>
   strace     /usr/bin/strace
   mingw      /usr/bin/i686-w64-mingw32-gcc
   [1/878] vocab-gap    src/keygen_xbox.cpp  (il function decode failed)
