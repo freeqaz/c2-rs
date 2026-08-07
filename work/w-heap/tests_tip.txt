@@ -1,0 +1,40 @@
+test capture_il_is_stable ... ok
+test compile_obj_yields_coff ... ok
+test compile_obj_is_deterministic ... ok
+test bk_capture_matches_strace_capture_and_replay ... ok
+test p0_1_replay_byte_exact ... ok
+test concurrent_host_stub_builds_never_publish_a_partial_exe ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+   Doc-tests c2_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests c2_harness
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests c2_il
+
+running 1 test
+test crates/c2-il/src/func/body/mod.rs - func::body::prod_tag (line 111) ... ignored
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests c2_obj
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests c2_reference
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

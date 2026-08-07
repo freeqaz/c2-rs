@@ -1,0 +1,30 @@
+lane gate: preflight on /tmp
+  keep    /tmp/c2rs-gate-2365341       this run
+  keep    /tmp/c2rs-gate-2144031       recent — 1 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-1935400       recent — 2 of 3 finished runs kept for their logs
+          stripped 16710 regenerable cases; logs, reports and parts/ kept
+  keep    /tmp/c2rs-gate-994340        recent — 3 of 3 finished runs kept for their logs
+  reaped  /tmp/c2rs-gate-780306        stale — no live gate owns it
+reap:   1 stale run tree(s) removed, 4 kept (0 live, 3 recent, 1 this run)
+strip:  1 kept tree(s) lost 16710 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
+        freed 140.9 MiB and 16,983 inodes (df delta over a SHARED filesystem)
+disk:   /tmp — free 30.5 GiB / 794,700 inodes (floors: 2.0 GiB / 150,000 inodes)
+
+lane gate: 18 lanes from /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a2d54837ff590b797/scripts/lanes.txt
+  run dir: /tmp/c2rs-gate-2365341   (per-lane run dirs under /tmp/c2rs-gate-2365341/lanes/)
+building the harness (no-op if current)
+    Finished `release` profile [optimized] target(s) in 0.00s
+harness: /tmp/c2rs-gate-2365341/c2rs
+  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a2d54837ff590b797/target/release/c2rs  built 2026-08-07 12:36:14
+  sha 94917e8a600d  tree d5d10349
+
+wall clock: 14s for 18 lanes at --jobs 8 (C2RS_JOBS=8)
+
+generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-2365341/sweep 0  (jobs 8)
+    60 fragments, 16710 cases total (16710 .cpp on disk)
+  sweeping 16710 of 16710 generated cases
+    grading at 8 job(s)
+  checked=16710 mismatches=0 graded=16614 ungraded=96 unknown=0
+  (120s)
+
+mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-2365341/cross 0  (jobs 8)
