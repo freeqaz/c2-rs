@@ -6,8 +6,8 @@
 // own terms and which is refusal #5, not #1.
 struct BE { BE* mNext; BE* mPrev; };
 struct CXboxHeap {
-    BE* mFreeHead;
-    BE* mUsedHead;
+    CXboxHeap* mFreeHead;
+    CXboxHeap* mUsedHead;
     BE  mListHead;
     unsigned mSize;
     unsigned mCount;
