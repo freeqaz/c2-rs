@@ -41,7 +41,8 @@ for cell in $cells; do
     "$c2rs" gap --list "$d/list.txt" --flags-file "$repo_root/work/dc3-workload/flags.txt" \
         --cwd "$repo_root" --jobs 1 > "$d/gap.$tag.txt" 2>&1 || true
 
-    verdict="$(grep -oE '(Port=[A-Za-z]+|NO-DIFF)' "$d/gap.$tag.txt" | head -1 || true)"
+    verdict="$(grep -E '^  \[1/1\] ' "$d/gap.$tag.txt" | head -1 \
+               | sed -E 's/^  \[1\/1\] +([a-z-]+) .*/\1/' || true)"
     key="$(grep -E '^ +[0-9]+ x [a-z]' "$d/census.$tag.txt" | head -1 \
            | sed -E 's/^ +[0-9]+ x //' || true)"
     inclass="$(grep -oE '[0-9]+/[0-9]+ functions in class' "$d/census.$tag.txt" | head -1 || true)"

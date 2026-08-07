@@ -1,0 +1,48 @@
+sa_p0_w0_c0     framed     mr@0    NO LEAF 
+sa_p0_w0_c0n    framed     mr@0    NO LEAF 
+sa_p0_w1_c0     framed     mr@1    IDENT   stw 5, 16(3)
+sa_p0_w1_c0n    framed     mr@1    IDENT   stw 5, 16(3)
+sa_p0_w3_c0     framed     mr@1    IDENT   stw 5, 16(3) ; stw 3, 0(3) ; stw 3, 4(3)
+sa_p0_w3_c0n    framed     mr@1    IDENT   stw 5, 16(3) ; stw 3, 0(3) ; stw 3, 4(3)
+sa_pL1_w0_c0    framed     mr@0    IDENT   li 11, 0 ; stw 11, 20(3)
+sa_pL1_w0_c0n   framed     mr@0    IDENT   li 11, 0 ; stw 11, 20(3)
+sa_pL1_w1_c0    framed     mr@1    IDENT   li 11, 0 ; stw 5, 16(3) ; stw 11, 20(3)
+sa_pL1_w1_c0n   framed     mr@1    IDENT   li 11, 0 ; stw 5, 16(3) ; stw 11, 20(3)
+sa_pL1_w3_c0    framed     mr@2    IDENT   li 11, 0 ; stw 5, 16(3) ; stw 3, 0(3) ; stw 3, 4(3) ; stw 11, 20(3)
+sa_pL1_w3_c0n   framed     mr@2    IDENT   li 11, 0 ; stw 5, 16(3) ; stw 3, 0(3) ; stw 3, 4(3) ; stw 11, 20(3)
+sa_pL2_w0_c0    framed     mr@1    IDENT   li 11, 0 ; li 10, 7 ; stw 11, 20(3) ; stw 10, 32(3)
+sa_pL2_w0_c0n   framed     mr@1    IDENT   li 11, 0 ; li 10, 7 ; stw 11, 20(3) ; stw 10, 32(3)
+sa_pL2_w1_c0    framed     mr@2    IDENT   li 11, 0 ; stw 5, 16(3) ; li 10, 7 ; stw 11, 20(3) ; stw 10, 32(3)
+sa_pL2_w1_c0n   framed     mr@2    IDENT   li 11, 0 ; stw 5, 16(3) ; li 10, 7 ; stw 11, 20(3) ; stw 10, 32(3)
+sa_pL2_w3_c0    framed     mr@3    IDENT   li 11, 0 ; stw 5, 16(3) ; li 10, 7 ; stw 3, 0(3) ; stw 3, 4(3) ; stw 11, 20(3) ; stw 10, 32(3)
+sa_pL2_w3_c0n   framed     mr@3    IDENT   li 11, 0 ; stw 5, 16(3) ; li 10, 7 ; stw 3, 0(3) ; stw 3, 4(3) ; stw 11, 20(3) ; stw 10, 32(3)
+sa_pLu2_w0_c0   framed     mr@0    IDENT   li 11, 0 ; stw 11, 20(3) ; stw 11, 32(3)
+sa_pLu2_w0_c0n  framed     mr@0    IDENT   li 11, 0 ; stw 11, 20(3) ; stw 11, 32(3)
+sa_pLu2_w1_c0   framed     mr@1    IDENT   li 11, 0 ; stw 5, 16(3) ; stw 11, 20(3) ; stw 11, 32(3)
+sa_pLu2_w1_c0n  framed     mr@1    IDENT   li 11, 0 ; stw 5, 16(3) ; stw 11, 20(3) ; stw 11, 32(3)
+sa_pLu2_w3_c0   framed     mr@2    IDENT   li 11, 0 ; stw 5, 16(3) ; stw 3, 0(3) ; stw 3, 4(3) ; stw 11, 20(3) ; stw 11, 32(3)
+sa_pLu2_w3_c0n  framed     mr@2    IDENT   li 11, 0 ; stw 5, 16(3) ; stw 3, 0(3) ; stw 3, 4(3) ; stw 11, 20(3) ; stw 11, 32(3)
+sa_pZ1_w0_c0    framed     mr@0    IDENT   li 11, 0 ; stw 11, 8(3)
+sa_pZ1_w0_c0n   framed     mr@0    IDENT   li 11, 0 ; stw 11, 8(3)
+sa_pZ1_w1_c0    framed     mr@1    IDENT   li 11, 0 ; stw 5, 16(3) ; stw 11, 8(3)
+sa_pZ1_w1_c0n   framed     mr@1    IDENT   li 11, 0 ; stw 5, 16(3) ; stw 11, 8(3)
+sa_pZ1_w3_c0    framed     mr@2    IDENT   li 11, 0 ; stw 5, 16(3) ; stw 3, 0(3) ; stw 3, 4(3) ; stw 11, 8(3)
+sa_pZ1_w3_c0n   framed     mr@2    IDENT   li 11, 0 ; stw 5, 16(3) ; stw 3, 0(3) ; stw 3, 4(3) ; stw 11, 8(3)
+sa_pZ2_w0_c0    framed     mr@0    IDENT   li 11, 0 ; stw 11, 8(3) ; stw 11, 12(3)
+sa_pZ2_w0_c0n   framed     mr@0    IDENT   li 11, 0 ; stw 11, 8(3) ; stw 11, 12(3)
+sa_pZ2_w1_c0    framed     mr@1    IDENT   li 11, 0 ; stw 5, 16(3) ; stw 11, 8(3) ; stw 11, 12(3)
+sa_pZ2_w1_c0n   framed     mr@1    IDENT   li 11, 0 ; stw 5, 16(3) ; stw 11, 8(3) ; stw 11, 12(3)
+sa_pZ2_w3_c0    framed     mr@2    IDENT   li 11, 0 ; stw 5, 16(3) ; stw 3, 0(3) ; stw 3, 4(3) ; stw 11, 8(3) ; stw 11, 12(3)
+sa_pZ2_w3_c0n   framed     mr@2    IDENT   li 11, 0 ; stw 5, 16(3) ; stw 3, 0(3) ; stw 3, 4(3) ; stw 11, 8(3) ; stw 11, 12(3)
+
+-- refusal controls: frame word count and shape --
+sr_bind          framed     li 10, 0 ; stw 5, 16(3) ; addi 11, 3, 8 ; stw 3, 0(3) ; stw 3, 4(3) ; mr 31, 3 ; stw 10, 20(3) ; stw 11, 8(3) ; stw 11, 12(3) ; bl .-52 ; REL24 -> [15] ?Alloc@H@@QAAPAUBE@@I@Z ; mr 3, 31
+sr_c1b           framed     li 11, 0 ; stw 5, 16(3) ; stw 3, 0(3) ; mr 4, 5 ; stw 3, 4(3) ; mr 31, 3 ; stw 11, 20(3) ; bl .-44 ; REL24 -> [15] ?Alloc@H@@QAAPAUBE@@I@Z ; mr 3, 31
+sr_c1r3          framed     mr 31, 3 ; stw 5, 16(3) ; li 11, 0 ; stw 3, 0(3) ; stw 31, 4(31) ; mr 3, 4 ; stw 11, 20(31) ; bl .-44 ; REL24 -> [15] ?g1@@YAPAUBE@@I@Z ; mr 3, 31
+sr_fdiscard      TAIL/leaf  li 11, 0 ; stw 5, 16(3) ; stw 3, 0(3) ; stw 3, 4(3) ; stw 11, 20(3) ; b .-20 ; REL24 -> [14] ?Alloc@H@@QAAPAUBE@@I@Z
+sr_fretcall      TAIL/leaf  li 11, 0 ; stw 5, 16(3) ; stw 3, 0(3) ; stw 3, 4(3) ; stw 11, 20(3) ; b .-20 ; REL24 -> [14] ?Alloc@H@@QAAPAUBE@@I@Z
+sr_fvoid         TAIL/leaf  li 11, 0 ; stw 5, 16(3) ; stw 3, 0(3) ; stw 3, 4(3) ; stw 11, 20(3) ; b .-20 ; REL24 -> [14] ?Alloc@H@@QAAPAUBE@@I@Z
+sr_pA1           framed     addi 11, 3, 8 ; stw 5, 16(3) ; stw 3, 0(3) ; mr 31, 3 ; stw 3, 4(3) ; stw 11, 8(3) ; bl .-40 ; REL24 -> [15] ?Alloc@H@@QAAPAUBE@@I@Z ; mr 3, 31
+sr_pAL           framed     addi 11, 3, 8 ; stw 5, 16(3) ; li 10, 0 ; stw 3, 0(3) ; stw 3, 4(3) ; mr 31, 3 ; stw 10, 20(3) ; stw 11, 8(3) ; stw 11, 12(3) ; bl .-52 ; REL24 -> [15] ?Alloc@H@@QAAPAUBE@@I@Z ; mr 3, 31
+sr_resultused    framed     stw 5, 16(3) ; mr 31, 3 ; stw 3, 0(3) ; stw 3, 4(3) ; bl .-32 ; REL24 -> [15] ?Alloc@H@@QAAPAUBE@@I@Z ; stw 3, 0(31) ; mr 3, 31
+sr_twocalls      framed     li 11, 0 ; stw 5, 16(3) ; stw 3, 0(3) ; mr 31, 3 ; stw 3, 4(3) ; stw 11, 20(3) ; bl .-40 ; REL24 -> [16] ?Alloc@H@@QAAPAUBE@@I@Z ; mr 3, 31 ; bl .-48 ; REL24 -> [15] ?Reset@H@@QAAPAUBE@@XZ ; mr 3, 31

@@ -1,0 +1,39 @@
+cell                     np  u   slots                  obs  #867 
+sa_p0_w0_c0              0   0   M                      0    -1   MISS
+sa_p0_w0_c0n             0   0   M                      0    -1   MISS
+sa_p0_w1_c0              0   1   SM                     1    0    MISS
+sa_p0_w1_c0n             0   1   SM                     1    0    MISS
+sa_p0_w3_c0              0   3   SMSS                   1    1    HIT
+sa_p0_w3_c0n             0   3   SMSS                   1    1    HIT
+sa_pL1_w0_c0             1   0   PMS                    0    0    HIT
+sa_pL1_w0_c0n            1   0   PMS                    0    0    HIT
+sa_pL1_w1_c0             1   1   PSMS                   1    1    HIT
+sa_pL1_w1_c0n            1   1   PSMS                   1    1    HIT
+sa_pL1_w3_c0             1   3   PSSMSS                 2    2    HIT
+sa_pL1_w3_c0n            1   3   PSSMSS                 2    2    HIT
+sa_pL2_w0_c0             2   0   PPSMS                  1    1    HIT
+sa_pL2_w0_c0n            2   0   PPSMS                  1    1    HIT
+sa_pL2_w1_c0             2   1   PSPSMS                 2    2    HIT
+sa_pL2_w1_c0n            2   1   PSPSMS                 2    2    HIT
+sa_pL2_w3_c0             2   3   PSPSSMSS               3    3    HIT
+sa_pL2_w3_c0n            2   3   PSPSSMSS               3    3    HIT
+sa_pLu2_w0_c0            1   0   PMSS                   0    0    HIT
+sa_pLu2_w0_c0n           1   0   PMSS                   0    0    HIT
+sa_pLu2_w1_c0            1   1   PSMSS                  1    1    HIT
+sa_pLu2_w1_c0n           1   1   PSMSS                  1    1    HIT
+sa_pLu2_w3_c0            1   3   PSSMSSS                2    2    HIT
+sa_pLu2_w3_c0n           1   3   PSSMSSS                2    2    HIT
+sa_pZ1_w0_c0             1   0   PMS                    0    0    HIT
+sa_pZ1_w0_c0n            1   0   PMS                    0    0    HIT
+sa_pZ1_w1_c0             1   1   PSMS                   1    1    HIT
+sa_pZ1_w1_c0n            1   1   PSMS                   1    1    HIT
+sa_pZ1_w3_c0             1   3   PSSMSS                 2    2    HIT
+sa_pZ1_w3_c0n            1   3   PSSMSS                 2    2    HIT
+sa_pZ2_w0_c0             1   0   PMSS                   0    0    HIT
+sa_pZ2_w0_c0n            1   0   PMSS                   0    0    HIT
+sa_pZ2_w1_c0             1   1   PSMSS                  1    1    HIT
+sa_pZ2_w1_c0n            1   1   PSMSS                  1    1    HIT
+sa_pZ2_w3_c0             1   3   PSSMSSS                2    2    HIT
+sa_pZ2_w3_c0n            1   3   PSSMSSS                2    2    HIT
+
+#867 `nprod - 1 + min(u,2)`:  32 HIT  4 MISS
