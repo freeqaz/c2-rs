@@ -1,0 +1,59 @@
+== <worktree>/work/w-front2/ref/src_system_utl_Pool.cpp/out.obj  machine=0x01f2 nsec=7 nsym=20 size=1251
+-- sections
+   1 .drectve   raw=132    rawptr=0x012c rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=204    rawptr=0x01b0 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x027c rel=0  relptr=0x0000 chars=0xc0401040
+   4 .XBLD$W    raw=16     rawptr=0x028c rel=0  relptr=0x0000 chars=0xc2301040
+   5 .text      raw=80     rawptr=0x029c rel=0  relptr=0x0000 chars=0x60401020
+   6 .text      raw=28     rawptr=0x02ec rel=0  relptr=0x0000 chars=0x60401020
+   7 .text      raw=24     rawptr=0x0308 rel=0  relptr=0x0000 chars=0x60401020
+-- .text #5 (80 B) ??0Pool@@QAA@HPAXH@Z
+   0000  54ca083e  rotlwi	10, 6, 1                 
+   0004  90a30000  stw 5, 0(3)                     
+   0008  39640003  addi 11, 4, 3                   
+   000c  392affff  addi 9, 10, -1                  
+   0010  556b003a  rlwinm 11, 11, 0, 0, 29         
+   0014  7d465bd6  divw 10, 6, 11                  
+   0018  7d694878  andc 9, 11, 9                   
+   001c  0ccb0000  twi 6, 11, 0                    
+   0020  0ca9ffff  twi 5, 9, -1                    
+   0024  2f0a0001  cmpwi 6, 10, 1                  
+   0028  4099001c  bf	25, .+28                     
+   002c  394affff  addi 10, 10, -1                 
+   0030  7d4903a6  mtctr 10                        
+   0034  7d4b2a14  add 10, 11, 5                   
+   0038  91450000  stw 10, 0(5)                    
+   003c  7d455378  mr	5, 10                        
+   0040  4200fff4  bdnz .-12                       
+   0044  39600000  li 11, 0                        
+   0048  91650000  stw 11, 0(5)                    
+   004c  4e800020  blr                             
+-- .text #6 (28 B) ?Alloc@Pool@@QAAPAXXZ
+   0000  7c6b1b78  mr	11, 3                        
+   0004  80630000  lwz 3, 0(3)                     
+   0008  2b030000  cmplwi 6, 3, 0                  
+   000c  4d9a0020  bclr	12, 26                     
+   0010  81430000  lwz 10, 0(3)                    
+   0014  914b0000  stw 10, 0(11)                   
+   0018  4e800020  blr                             
+-- .text #7 (24 B) ?Free@Pool@@QAAXPAX@Z
+   0000  2b040000  cmplwi 6, 4, 0                  
+   0004  4d9a0020  bclr	12, 26                     
+   0008  81630000  lwz 11, 0(3)                    
+   000c  91640000  stw 11, 0(4)                    
+   0010  90830000  stw 4, 0(3)                     
+   0014  4e800020  blr                             
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=204 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .XBLD$W                                  sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [10] __C1_11886                               sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [11] .text                                    sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=80 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [13] ??0Pool@@QAA@HPAXH@Z                     sec=5   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [14] .text                                    sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=28 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [16] ?Alloc@Pool@@QAAPAXXZ                    sec=6   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [17] .text                                    sec=7   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=24 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [19] ?Free@Pool@@QAAXPAX@Z                    sec=7   val=0x0      sc=EXTERNAL  type=0x0020 naux=0

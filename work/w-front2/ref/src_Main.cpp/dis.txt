@@ -1,0 +1,87 @@
+== <worktree>/work/w-front2/ref/src_Main.cpp/out.obj  machine=0x01f2 nsec=8 nsym=36 size=1826
+-- sections
+   1 .drectve   raw=132    rawptr=0x0154 rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=192    rawptr=0x01d8 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x0298 rel=0  relptr=0x0000 chars=0xc0401040
+   4 .XBLD$W    raw=16     rawptr=0x02a8 rel=0  relptr=0x0000 chars=0xc2301040
+   5 .text      raw=124    rawptr=0x02b8 rel=6  relptr=0x0334 chars=0x60401020
+   6 .pdata     raw=8      rawptr=0x0370 rel=1  relptr=0x0378 chars=0x40401040
+   7 .pdata     raw=8      rawptr=0x0382 rel=1  relptr=0x038a chars=0x40401040
+   8 .rdata     raw=64     rawptr=0x0394 rel=5  relptr=0x03d4 chars=0x40401040
+-- .text #5 (124 B) main
+   0000  00000000  <undecodable 00000000>            ; ADDR32 -> [30] __CxxFrameHandler
+   0004  00000000  <undecodable 00000000>            ; ADDR32 -> [33] __ehfuncinfo$main
+   0008  7d8802a6  mflr 12                         
+   000c  9181fff8  stw 12, -8(1)                   
+   0010  fbe1fff0  std 31, -16(1)                  
+   0014  3be1ff90  addi 31, 1, -112                
+   0018  9421ff90  stwu 1, -112(1)                 
+   001c  7c852378  mr	5, 4                         
+   0020  7c641b78  mr	4, 3                         
+   0024  387f0050  addi 3, 31, 80                  
+   0028  4bffffd9  bl .-40                           ; REL24 -> [22] ??0App@@QAA@HPAPAD@Z
+   002c  387f0050  addi 3, 31, 80                  
+   0030  4bffffd1  bl .-48                           ; REL24 -> [20] ?Run@App@@QAAXXZ
+   0034  387f0050  addi 3, 31, 80                  
+   0038  4bffffc9  bl .-56                           ; REL24 -> [18] ??1App@@QAA@XZ
+   003c  38600000  li 3, 0                         
+   0040  383f0070  addi 1, 31, 112                 
+   0044  8181fff8  lwz 12, -8(1)                   
+   0048  7d8803a6  mtlr 12                         
+   004c  ebe1fff0  ld 31, -16(1)                   
+   0050  4e800020  blr                             
+   0054  3becff90  addi 31, 12, -112               
+   0058  7d8802a6  mflr 12                         
+   005c  9181fff8  stw 12, -8(1)                   
+   0060  9421ffa0  stwu 1, -96(1)                  
+   0064  387f0050  addi 3, 31, 80                  
+   0068  4bffff99  bl .-104                          ; REL24 -> [18] ??1App@@QAA@XZ
+   006c  38210060  addi 1, 1, 96                   
+   0070  8181fff8  lwz 12, -8(1)                   
+   0074  7d8803a6  mtlr 12                         
+   0078  4e800020  blr                             
+-- .pdata #6 raw
+   0000  00 00 00 4c 40 00 0a 04
+   reloc va=0x0 ADDR32   -> [13] main
+-- .pdata #7 raw
+   0000  00 00 00 00 c0 00 13 05
+   reloc va=0x0 ADDR32   -> [13] main
+-- .rdata #8 raw
+   0000  ff ff ff ff 00 00 00 00 19 93 05 22 00 00 00 01
+   0010  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02
+   0020  00 00 00 00 00 00 00 00 00 00 00 01 00 00 00 00
+   0030  00 00 00 00 00 00 00 00 00 00 00 00 ff ff ff ff
+   reloc va=0x4 ADDR32   -> [16] __unwind$2585
+   reloc va=0x10 ADDR32   -> [34] __unwindtable$main
+   reloc va=0x20 ADDR32   -> [35] $T2592
+   reloc va=0x30 ADDR32   -> [21] $M2590
+   reloc va=0x38 ADDR32   -> [19] $M2591
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=192 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .XBLD$W                                  sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [10] __C1_11886                               sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [11] .text                                    sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=124 nrel=6 nln=0 cksum=0x00000000 num=0 sel=1)
+  [13] main                                     sec=5   val=0x8      sc=EXTERNAL  type=0x0020 naux=0
+  [14] $M2598                                   sec=5   val=0x7c     sc=LABEL     type=0x0000 naux=0
+  [15] $M2597                                   sec=5   val=0x64     sc=LABEL     type=0x0000 naux=0
+  [16] __unwind$2585                            sec=5   val=0x54     sc=STATIC    type=0x0020 naux=0
+  [17] $M2595                                   sec=5   val=0x54     sc=LABEL     type=0x0000 naux=0
+  [18] ??1App@@QAA@XZ                           sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [19] $M2591                                   sec=5   val=0x38     sc=LABEL     type=0x0000 naux=0
+  [20] ?Run@App@@QAAXXZ                         sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [21] $M2590                                   sec=5   val=0x30     sc=LABEL     type=0x0000 naux=0
+  [22] ??0App@@QAA@HPAPAD@Z                     sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [23] $M2594                                   sec=5   val=0x1c     sc=LABEL     type=0x0000 naux=0
+  [24] .pdata                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0xfb95c1e6 num=5 sel=5)
+  [26] $T2599                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=0
+  [27] .pdata                                   sec=7   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0x67c85b1b num=5 sel=5)
+  [29] $T2596                                   sec=7   val=0x0      sc=STATIC    type=0x0000 naux=0
+  [30] __CxxFrameHandler                        sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [31] .rdata                                   sec=8   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=64 nrel=5 nln=0 cksum=0xd0a0eeb2 num=5 sel=5)
+  [33] __ehfuncinfo$main                        sec=8   val=0x8      sc=STATIC    type=0x0000 naux=0
+  [34] __unwindtable$main                       sec=8   val=0x0      sc=STATIC    type=0x0000 naux=0
+  [35] $T2592                                   sec=8   val=0x30     sc=STATIC    type=0x0000 naux=0
