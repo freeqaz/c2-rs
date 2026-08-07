@@ -269,10 +269,25 @@ impl<'a> TuContext<'a> {
         let rows = rows
             .into_iter()
             .map(|(n, r, w)| {
+                // **Matched EXHAUSTIVELY, with no wildcard arm.** A refused body
+                // has no bytes, so the splice can never take one — but the arm
+                // that says so used to be `_ => None`, and a wildcard is how a
+                // variant added by a peer lane gets a silent answer instead of a
+                // considered one. Four lanes this week erased each other's work
+                // through shared semantics with no textual conflict; a wildcard
+                // here is that failure mode with the compiler's help switched off.
                 let def = match r {
                     Some(Reduction::Parsed(f)) => Some(f),
-                    // Refused: E may still have an edge, the splice may not.
-                    _ => None,
+                    // E gets a LINK out of this row (board #980); the splice gets
+                    // nothing, because there is no parsed body to compose from.
+                    Some(Reduction::NoEffectCall(_)) => None,
+                    // E gets a SEED out of this row (board #1053); the splice
+                    // still gets nothing, for the same reason and no other.
+                    Some(Reduction::NoEffectNothing) => None,
+                    // A name this TU defines that NEITHER mechanism can use, and
+                    // which must still be visible to `mentions` — see this
+                    // function's doc.
+                    None => None,
                 };
                 (n, def, w)
             })

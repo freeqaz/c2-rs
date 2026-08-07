@@ -224,6 +224,13 @@ pub(crate) fn cmd_census(rest: &[String]) -> ExitCode {
             if let Some(c) = &f.no_effect_callee {
                 println!("          no_effect_callee={c}");
             }
+            // Board #1053 — the SEED. Printed beside `no_effect_callee` and never
+            // instead of it: they are two different claims about one body (a
+            // conditional link and an unconditional verdict) and a diagnostic that
+            // shows one of them cannot say which the fixpoint used.
+            if f.no_effect_nothing {
+                println!("          no_effect_nothing=true (SEEDS)");
+            }
             if let Ok(func) = gate {
                 if let Some(t) = &func.tail_call {
                     println!("          tail_call={t}");

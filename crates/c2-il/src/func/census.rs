@@ -246,6 +246,30 @@ pub struct FnCensus {
     /// `expr-intrinsic-memset`. Board **#971** condition 4 is that this widening
     /// may not widen the gate, and this field is how it does not.
     pub no_effect_callee: Option<String>,
+    /// **Board #1053 — this REFUSED body emits nothing AT ALL, with no callee.**
+    ///
+    /// `true` when the body is
+    /// [`super::body::shapes::no_effect::no_effect_nothing`]'s shape: two
+    /// discarded literals and the return plumbing, walked totally, over a closed
+    /// vocabulary that contains no call token — `p->~T()` on a class with a
+    /// trivial destructor.
+    ///
+    /// **It is a VERDICT, not a condition, and that is the whole difference from
+    /// [`Self::no_effect_callee`].** That field says *provided its callee reduces
+    /// to nothing*; this one says *unconditionally*. The first is a link into
+    /// `c2_core::elide`'s least fixpoint and the second is a **seed**, which is a
+    /// strictly stronger claim — see `c2_core::elide::Reduction` for the
+    /// termination and cycle arguments that had to be re-derived to admit it.
+    ///
+    /// The two are **mutually exclusive by construction** and a test says so in
+    /// both directions rather than leaving it to the reading.
+    ///
+    /// `false` for every in-class row, for `no_effect_callee`'s reason: a body
+    /// that parses has an [`super::IlFunction`] and its emptiness is read from
+    /// that. **The row stays `FnVerdict::Blocked`**, still `fnbyte-refused`, and
+    /// [`super::IlBundle::functions`] still refuses its whole TU — #971
+    /// condition 4, satisfied by construction and not by care.
+    pub no_effect_nothing: bool,
 }
 
 impl FnCensus {
@@ -809,6 +833,14 @@ impl IlBundle {
                             .or_else(|| body::shapes::no_effect::no_effect_loop(seg))
                             .and_then(&resolve),
                     };
+                    // Board #1053. The third reader, and the one that answers
+                    // UNCONDITIONALLY — hence its own field rather than a share of
+                    // `no_effect_callee`, which is an `Option<String>` and has no
+                    // spelling for "nothing, and there is no callee to name".
+                    let no_effect_nothing = match &verdict {
+                        FnVerdict::InClass(_) => false,
+                        FnVerdict::Blocked(_) => body::shapes::no_effect::no_effect_nothing(seg),
+                    };
                     (
                         FnCensus {
                             index: i,
@@ -830,6 +862,7 @@ impl IlBundle {
                             // rule comes to have two answers (`elide.rs`'s own
                             // §"what it refuses").
                             no_effect_callee,
+                            no_effect_nothing,
                         },
                         func,
                     )

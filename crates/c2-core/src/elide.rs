@@ -84,7 +84,9 @@
 //! closed under E itself. [`TuEmptyCallees`] is that closure — the **least**
 //! fixpoint of
 //!
-//! * `empty_body(g)` ⟹ `g` reduces to nothing (the seed), and
+//! * `empty_body(g)` ⟹ `g` reduces to nothing (the seed — and since board
+//!   **#1053** a *refused* body whose grammar proves it emits nothing at all
+//!   seeds too, [`Reduction::NoEffectNothing`]), and
 //! * `g` is an **elidable step** — a tail call to `h`, with no data symbol and
 //!   none of the other body kinds — and `h` reduces to nothing ⟹ so does `g`.
 //!
@@ -118,6 +120,15 @@
 //! there can be at most that many productive rounds. **A cycle is never
 //! *seeded*, so it is never admitted** — which is also what c2 does (`k10`,
 //! `k11`), reached here by construction rather than by a special case.
+//!
+//! > **2026-08-08 — the seed set is no longer just `empty_body`, so that last
+//! > sentence is RE-DERIVED rather than inherited.** Board **#1053** admits a
+//! > *refused* body as a seed ([`Reduction::NoEffectNothing`]). Termination is
+//! > unaffected — the argument above reads the step and not the seeds — and the
+//! > cycle refusal survives for a reason that has to be stated: **a seed carries
+//! > no link**, because the reader that mints one accepts only bodies with no
+//! > call token in them, and cycle membership requires an outgoing link. The four
+//! > steps are on [`Reduction`], with the edit that would collapse them named.
 //!
 //! A round **ceiling** backs that argument up: if the loop ever runs past
 //! `names + 1` rounds the context reports [`TuEmptyCallees::overflowed`] and
@@ -196,24 +207,107 @@ use c2_il::IlFunction;
 /// plus a temporary the body's own grammar proves nothing else reads
 /// (`c2-il`'s `body::shapes::no_effect`, `FnCensus::no_effect_callee`).
 ///
-/// So the input is a *reduction fact* rather than a parsed function, and the two
-/// variants are the two ways a caller can have one. Both feed the **same**
-/// fixpoint, the same cycle refusal and the same round ceiling — a refused body
-/// contributes a **link and never a seed**, so nothing about termination changes:
-/// a chain of nothing but `NoEffectCall`s is still never admitted, because
-/// nothing in it seeds.
+/// So the input is a *reduction fact* rather than a parsed function, and the
+/// variants are the ways a caller can have one. All of them feed the **same**
+/// fixpoint, the same cycle refusal and the same round ceiling.
+///
+/// # 2026-08-08 — **A REFUSED BODY MAY NOW SEED, and the rule this doc used to
+/// state is superseded** (board **#1053**)
+///
+/// Until today this paragraph read *"a refused body contributes a **link and
+/// never a seed**"*, and lane `w-memset` stopped at that sentence with the price
+/// of crossing it measured: **227** `fnbyte-differs` and **4,256** chain
+/// extensions, all of them bottoming out at `??$__destroy_aux@…` — `p->~T()` on a
+/// class with a trivial destructor, whose whole body is two discarded literals
+/// with **no call in it at all**. `NoEffectCall(&str)` cannot express that, so no
+/// chain through it could close however many productions above it were read.
+///
+/// [`Reduction::NoEffectNothing`] is that capability, and it is a **strictly
+/// stronger claim** than a link: it asserts that a refused body emits nothing
+/// *unconditionally*. It is admitted only for a body
+/// `c2_il::…::no_effect::no_effect_nothing` reads with a **total** walk over a
+/// **closed vocabulary containing no call token**, so the assertion is something
+/// read out of the IL and never the absence of a successful parse. Seeding on
+/// *"we failed to parse it"* would make every parser gap a silent elision, which
+/// is board #232's direction — the one live wrong emit this project has shipped.
+///
+/// ## Termination and the cycle refusal, RE-DERIVED and not inherited
+///
+/// `w-fix` (#950) argued *"a cycle is never **seeded**, so it is never
+/// admitted"*. That sentence was true because [`IlFunction::empty_body`] was the
+/// only seed, so it does not survive a widening of the seed set on its own
+/// authority. It is re-derived here, in four steps:
+///
+/// 1. **Termination is untouched.** The iteration admits a name only on a
+///    `false → true` transition, so a productive round admits at least one of
+///    finitely many names and there are at most that many productive rounds. That
+///    argument reads the **step**, not the seed set, so no widening of the seeds
+///    can affect it. [`TuEmptyCallees::overflowed`]'s ceiling stays exactly as
+///    written and still cannot fire.
+/// 2. **A seeded name has NO outgoing link — and the guard is in the READER, not
+///    in this file.** `NoEffectNothing` contributes `link = None`, and it may do
+///    so honestly because `no_effect_nothing`'s vocabulary excludes every call
+///    token: a body it accepts *names no callee*. `Parsed` + `empty_body`
+///    likewise has no `tail_call` to step to.
+///
+///    > **Measured, and it corrects the obvious reading of that sentence.**
+///    > Mutation **M3a** (`work/w-seed/mutate.sh`) gives `NoEffectNothing` a link
+///    > as well as a seed and was registered as a must-fail. **It came back
+///    > GREEN.** The reason is one line of the iteration below —
+///    > `if in_r[i] { continue; }` — so a name that is already admitted is never
+///    > asked for its link and the `None` here is **inert as the loop is
+///    > written**. It is documentation of what the reader guarantees, not the
+///    > enforcement of it.
+///    >
+///    > The enforcement is **M2**, which opens the reader's vocabulary so a body
+///    > with a call in it can seed: that goes RED on 7 tests. And **M3b**, which
+///    > makes `NoEffectCall` seed as well as link and so erases the distinction
+///    > outright, goes RED on 2 — including
+///    > `a_cycle_of_refused_links_beside_a_seed_admits_only_the_chain`.
+///    >
+///    > So: do not weaken `no_effect_nothing`'s vocabulary on the grounds that
+///    > "`elide.rs` sets the link to `None` anyway". That arm cannot save you.
+///    > M3a is reported green rather than rewritten until it went red, because a
+///    > mutation edited to fail proves nothing.
+/// 3. **Admission propagates only BACKWARDS along links, from a seed.** A name is
+///    admitted iff it seeds or its link names an admitted name; following links
+///    out of a cycle stays inside the cycle forever. So a cycle is admitted only
+///    if one of its own members seeds.
+/// 4. **A cycle member cannot seed.** Membership requires an outgoing link, and
+///    by (2) a seed has none.
+///
+/// ∴ no cycle member is admitted. **If (2) is ever weakened — a seeding reader
+/// that also returns a callee — this argument collapses and the round ceiling
+/// becomes the only thing between the fixpoint and a hang.** GRID-N's `n06` is
+/// the compiled cell, `a_cycle_is_not_elided_and_terminates` and
+/// `the_round_ceiling_cannot_fire` are unchanged and still pass, and
+/// `a_seeding_refused_body_has_no_link` asserts (2) directly.
 #[derive(Debug, Clone, Copy)]
 pub enum Reduction<'a> {
     /// A body the parser accepted. Seeds when [`IlFunction::empty_body`]; steps
     /// when it is an elidable tail call ([`elidable_step`]).
     Parsed(&'a IlFunction),
     /// A body the parser **REFUSED**, whose grammar nonetheless proves that it
-    /// emits nothing but a call to this callee. Never seeds.
+    /// emits nothing but a call to this callee. **A link: it never seeds.**
     ///
     /// The refusal is unchanged by this: the row is still `FnVerdict::Blocked`,
     /// still `fnbyte-refused`, and `IlBundle::functions` still refuses its whole
     /// TU. What it contributes is one edge of the graph.
     NoEffectCall(&'a str),
+    /// A body the parser **REFUSED**, whose grammar proves that it emits nothing
+    /// **at all** — no call, no data symbol, no bytes. **A seed, and it carries no
+    /// link.**
+    ///
+    /// Board **#1053**. `c2_il::…::no_effect::no_effect_nothing` is the reader and
+    /// its walk is total over a closed vocabulary with no call token in it, which
+    /// is what makes "carries no link" a property of the body rather than a
+    /// convention of this enum — and (2) of the re-derivation above is exactly
+    /// that property.
+    ///
+    /// The refusal is unchanged, as for [`Self::NoEffectCall`]: still
+    /// `FnVerdict::Blocked`, still `fnbyte-refused`, and `IlBundle::functions`
+    /// still refuses the TU.
+    NoEffectNothing,
 }
 
 /// The **same-TU callees that reduce to nothing** in one IL bundle: conditions 1
@@ -317,12 +411,27 @@ impl TuEmptyCallees {
             let mut all_empty = true;
             let mut step: Option<Option<&str>> = None;
             while j < rows.len() && rows[j].0 == name {
-                // A REFUSED no-effect body never seeds — it is a link and only a
-                // link, so a chain built entirely of them is never admitted and
-                // the termination argument below is unchanged.
+                // **(seeds, link)** — and the two REFUSED variants sit on opposite
+                // sides of it. `NoEffectCall` is a link and only a link: its claim
+                // is conditional on a callee, so a chain built entirely of them is
+                // never admitted. `NoEffectNothing` is a seed and carries **no**
+                // link, which is not a convention here but a property of the body
+                // its reader accepts — step (2) of the cycle re-derivation on
+                // [`Reduction`].
+                //
+                // **That `None` is INERT, and it is measured rather than assumed.**
+                // The iteration below skips a name already in `in_r`, so a SEEDED
+                // name is never asked for its link at all: mutation M3a puts one
+                // here and nothing goes red. What actually keeps a cycle out of
+                // the seed set is that `no_effect_nothing` refuses every body with
+                // a call in it (M2 - 7 tests red) and that `NoEffectCall` does not
+                // seed (M3b - 2 tests red, including the cycle one). Editing this
+                // line is neither how the property is maintained nor how it would
+                // be lost.
                 let (seeds, here) = match rows[j].1 {
                     Reduction::Parsed(f) => (f.empty_body, elidable_step(f)),
                     Reduction::NoEffectCall(callee) => (false, Some(callee)),
+                    Reduction::NoEffectNothing => (true, None),
                 };
                 all_empty &= seeds;
                 step = Some(match step {
@@ -881,6 +990,174 @@ mod tests {
                 f.mangled_name
             );
         }
+    }
+
+    // =====================================================================
+    // BOARD #1053 — A REFUSED BODY MAY SEED. Every test below is about the
+    // property that makes the cycle re-derivation on `Reduction` hold, and
+    // the two that were already here (`a_cycle_is_not_elided_and_terminates`,
+    // `the_round_ceiling_cannot_fire`) are deliberately untouched.
+    // =====================================================================
+
+    /// The positive: a **refused** body that emits nothing at all seeds the
+    /// closure, and one link above it closes. That is the whole rung, and the
+    /// workload's 223 conversions are this picture with two more links in it.
+    #[test]
+    fn a_refused_body_with_no_call_seeds_the_fixpoint() {
+        let caller = tail_caller("?f@@YAXXZ", "?leaf@@YAXXZ");
+        let rows = vec![
+            ("?leaf@@YAXXZ", Reduction::NoEffectNothing),
+            ("?f@@YAXXZ", Reduction::Parsed(&caller)),
+        ];
+        let tu = TuEmptyCallees::of_rows(rows);
+        assert_eq!(tu.len(), 2, "the leaf seeds and ?f closes over it");
+        assert!(drops_tail_call(&caller, &tu));
+    }
+
+    /// **STEP (2) OF THE RE-DERIVATION, asserted directly.** A seeded refused body
+    /// carries **no link**, and that is what keeps a cycle out of the seed set now
+    /// that a refused body can seed at all.
+    ///
+    /// Stated as a behaviour rather than as a field read: a `NoEffectNothing` row
+    /// whose *name* is also the name of a `NoEffectCall` row cannot be both, so the
+    /// closure must refuse it — if it silently preferred one, the enum would have
+    /// a link and a seed on the same name and the argument would be gone.
+    #[test]
+    fn a_seeding_refused_body_carries_no_link() {
+        // One name, two disagreeing refused definitions: one seeds, one steps.
+        let rows = vec![
+            ("?g@@YAXXZ", Reduction::NoEffectNothing),
+            ("?g@@YAXXZ", Reduction::NoEffectCall("?h@@YAXXZ")),
+        ];
+        let tu = TuEmptyCallees::of_rows(rows);
+        assert_eq!(
+            tu.len(),
+            0,
+            "A NAME THAT BOTH SEEDS AND STEPS WAS ADMITTED. The two facts are \
+             mutually exclusive by construction in `c2-il` (one reader requires a \
+             call token the other's vocabulary excludes); if they ever reach this \
+             closure together, refusing is the only answer that keeps \
+             `Reduction`'s step (2) true"
+        );
+    }
+
+    /// **THE WORKLOAD'S SHAPE, in the abstract.** A chain of *refused* links —
+    /// board #980's dead temporary and #1053's destroy loop — bottoming out on a
+    /// *refused* seed, with a parsed tail call on top. Before this lane the whole
+    /// chain admitted nothing, because nothing in it seeded.
+    #[test]
+    fn a_chain_of_refused_links_closes_on_a_refused_seed() {
+        let top = tail_caller("?wrapper@@YAXXZ", "?dr@@YAXXZ");
+        let rows = vec![
+            ("?leaf@@YAXXZ", Reduction::NoEffectNothing),
+            ("?aux@@YAXXZ", Reduction::NoEffectCall("?leaf@@YAXXZ")),
+            ("?dr@@YAXXZ", Reduction::NoEffectCall("?aux@@YAXXZ")),
+            ("?wrapper@@YAXXZ", Reduction::Parsed(&top)),
+        ];
+        let tu = TuEmptyCallees::of_rows(rows);
+        assert_eq!(tu.len(), 4, "every level reduces to nothing");
+        assert!(
+            drops_tail_call(&top, &tu),
+            "the chain did not close: the seed is not propagating through the \
+             refused links, which is the only thing this lane added"
+        );
+        // **Not "three rounds, one per link".** A round is one pass over the sorted
+        // name vector, so a chain whose names happen to sort deepest-first closes
+        // in a single pass and one that sorts the other way takes one round per
+        // link. This assertion was written as `>= 3`, failed, and is corrected
+        // rather than deleted: the ROUND COUNT is bundle-order dependent and only
+        // the RESULT is not — which is exactly what
+        // `the_closure_does_not_depend_on_bundle_order` exists to say, and why
+        // `rounds` is printed as an observation rather than read as a depth.
+        assert!(tu.rounds() >= 1, "the closure ran and was productive");
+        assert!(tu.rounds() <= 5, "and terminated well inside the ceiling");
+        assert!(!tu.overflowed());
+        // The same bundle backwards must give the same answer, since the count
+        // above is the one thing that moves.
+        let back = TuEmptyCallees::of_rows(vec![
+            ("?wrapper@@YAXXZ", Reduction::Parsed(&top)),
+            ("?dr@@YAXXZ", Reduction::NoEffectCall("?aux@@YAXXZ")),
+            ("?aux@@YAXXZ", Reduction::NoEffectCall("?leaf@@YAXXZ")),
+            ("?leaf@@YAXXZ", Reduction::NoEffectNothing),
+        ]);
+        assert_eq!(back.len(), 4);
+    }
+
+    /// **THE CYCLE, with the new seed in the same bundle.** `?a` and `?b` are
+    /// refused links pointing at each other; a genuine seed sits beside them.
+    ///
+    /// The chain closes and the cycle does not, which is `Reduction`'s steps (3)
+    /// and (4): admission propagates only backwards along links from a seed, and
+    /// following links out of a cycle stays in the cycle forever.
+    #[test]
+    fn a_cycle_of_refused_links_beside_a_seed_admits_only_the_chain() {
+        let rows = vec![
+            ("?leaf@@YAXXZ", Reduction::NoEffectNothing),
+            ("?up@@YAXXZ", Reduction::NoEffectCall("?leaf@@YAXXZ")),
+            ("?a@@YAXXZ", Reduction::NoEffectCall("?b@@YAXXZ")),
+            ("?b@@YAXXZ", Reduction::NoEffectCall("?a@@YAXXZ")),
+        ];
+        let tu = TuEmptyCallees::of_rows(rows);
+        assert!(tu.reduces_to_nothing("?leaf@@YAXXZ"));
+        assert!(tu.reduces_to_nothing("?up@@YAXXZ"));
+        assert!(
+            !tu.reduces_to_nothing("?a@@YAXXZ") && !tu.reduces_to_nothing("?b@@YAXXZ"),
+            "A CYCLE WAS ADMITTED. Nothing in it seeds — a seed carries no link and \
+             a cycle member always has one — so the least fixpoint must never reach \
+             it. GRID-N's n06 is the compiled cell"
+        );
+        assert_eq!(tu.len(), 2);
+        assert!(!tu.overflowed(), "the closure must still terminate structurally");
+    }
+
+    /// A seed and a **live** definition of the same name admit neither: the two
+    /// spellings would have to be told apart by something this type does not have.
+    /// The pre-existing `a_name_defined_twice_with_different_bodies_is_refused`
+    /// says this for `Parsed`; a seed is a stronger claim, so it is re-asked.
+    #[test]
+    fn a_seed_that_disagrees_with_a_parsed_definition_is_refused() {
+        let mut live = named("?g@@YAXXZ");
+        live.tail_call = Some("?ext@@YAXXZ".into());
+        let caller = tail_caller("?f@@YAXXZ", "?g@@YAXXZ");
+        let rows = vec![
+            ("?g@@YAXXZ", Reduction::NoEffectNothing),
+            ("?g@@YAXXZ", Reduction::Parsed(&live)),
+            ("?f@@YAXXZ", Reduction::Parsed(&caller)),
+        ];
+        let tu = TuEmptyCallees::of_rows(rows);
+        assert_eq!(tu.len(), 0);
+        assert!(!drops_tail_call(&caller, &tu));
+    }
+
+    /// **Condition 3 still bites over a seed.** A caller that materializes a named
+    /// data symbol is declined even when its callee genuinely reduces to nothing —
+    /// `g01_data_addr_arg`, and GRID-N's `n08` is the compiled cell.
+    #[test]
+    fn a_caller_with_a_data_symbol_is_not_elided_over_a_seed() {
+        let mut caller = tail_caller("?f@@YAXXZ", "?leaf@@YAXXZ");
+        caller.data_sym = Some("?gv@@3HA".into());
+        let rows = vec![
+            ("?leaf@@YAXXZ", Reduction::NoEffectNothing),
+            ("?f@@YAXXZ", Reduction::Parsed(&caller)),
+        ];
+        let tu = TuEmptyCallees::of_rows(rows);
+        assert!(tu.reduces_to_nothing("?leaf@@YAXXZ"));
+        assert!(!drops_tail_call(&caller, &tu));
+    }
+
+    /// **Condition 1 still bites over a seed.** A seed in this bundle does not make
+    /// a call to some *other*, undefined name elidable — `c22_extern_callee`, and
+    /// GRID-N's `n07`.
+    #[test]
+    fn a_seed_does_not_admit_a_call_to_an_external() {
+        let caller = tail_caller("?f@@YAXXZ", "?nowhere@@YAXXZ");
+        let rows = vec![
+            ("?leaf@@YAXXZ", Reduction::NoEffectNothing),
+            ("?f@@YAXXZ", Reduction::Parsed(&caller)),
+        ];
+        let tu = TuEmptyCallees::of_rows(rows);
+        assert!(tu.reduces_to_nothing("?leaf@@YAXXZ"));
+        assert!(!drops_tail_call(&caller, &tu));
     }
 
     /// An unnamed definition cannot be a callee: it contributes nothing rather

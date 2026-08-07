@@ -1,0 +1,146 @@
+   Compiling c2-il v0.1.0 (<worktree>/crates/c2-il)
+warning: unused imports: `ChainForm` and `chain_form`
+   --> crates/c2-il/src/func/body/chain.rs:751:17
+    |
+751 |     use super::{chain_form, ChainForm};
+    |                 ^^^^^^^^^^  ^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `VOID_TYPE` is never used
+   --> crates/c2-il/src/func/body/shapes/no_effect.rs:382:7
+    |
+382 | const VOID_TYPE: [u8; 2] = [0x82, 0x07];
+    |       ^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `eat_nothing_stmt` is never used
+   --> crates/c2-il/src/func/body/shapes/no_effect.rs:492:4
+    |
+492 | fn eat_nothing_stmt(seg: &[u8], p: &mut usize) -> Option<()> {
+    |    ^^^^^^^^^^^^^^^^
+
+warning: function `eat_lit_operand` is never used
+   --> crates/c2-il/src/func/body/shapes/no_effect.rs:515:4
+    |
+515 | fn eat_lit_operand(seg: &[u8], p: &mut usize, want: &[u8]) -> Option<()> {
+    |    ^^^^^^^^^^^^^^^
+
+warning: unused variable: `link`
+    --> crates/c2-il/src/func/body/shapes/calls.rs:2014:13
+     |
+2014 |         let link = |slots: &[SlotArg]| SeqCall {
+     |             ^^^^ help: if this is intentional, prefix it with an underscore: `_link`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `WILD_CHAIN_AS_RECV_LOAD` is never used
+    --> crates/c2-il/src/func/body/mcall.rs:3638:11
+     |
+3638 |     const WILD_CHAIN_AS_RECV_LOAD: &[u8] = &[
+     |           ^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `VOID_TYPE` is never used
+   --> crates/c2-il/src/func/body/shapes/no_effect.rs:382:7
+    |
+382 | const VOID_TYPE: [u8; 2] = [0x82, 0x07];
+    |       ^^^^^^^^^
+
+warning: function `a_26_introduced_record_is_SEEN_by_the_scanner_and_REFUSED_by_the_gate` should have a snake case name
+    --> crates/c2-il/src/func/gl.rs:1991:8
+     |
+1991 |     fn a_26_introduced_record_is_SEEN_by_the_scanner_and_REFUSED_by_the_gate() {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `a_26_introduced_record_is_seen_by_the_scanner_and_refused_by_the_gate`
+     |
+     = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: `c2-il` (lib) generated 3 warnings
+warning: `c2-il` (lib test) generated 7 warnings (2 duplicates) (run `cargo fix --lib -p c2-il --tests` to apply 2 suggestions)
+    Finished `release` profile [optimized] target(s) in 3.71s
+     Running unittests src/lib.rs (target/release/deps/c2_il-767bc6b9b20b36af)
+
+running 35 tests
+test func::body::shapes::no_effect::tests::a_body_with_no_temporary_is_not_recognized ... ok
+test func::body::shapes::no_effect::tests::a_continue_that_does_not_name_the_step_label_is_refused ... ok
+test func::body::shapes::no_effect::tests::a_different_intrinsic_selector_is_refused ... ok
+test func::body::shapes::no_effect::tests::a_call_whose_result_is_not_discarded_is_refused ... ok
+test func::body::shapes::no_effect::tests::a_different_temporary_in_the_argument_is_refused ... ok
+test func::body::shapes::no_effect::tests::a_head_branch_that_does_not_name_the_test_label_is_refused ... ok
+test func::body::shapes::no_effect::tests::a_formal_load_in_place_of_the_int_literal_is_declined ... FAILED
+test func::body::shapes::no_effect::tests::a_line_marker_before_the_return_plumbing_is_eaten ... ok
+test func::body::shapes::no_effect::tests::a_load_of_a_non_formal_is_refused ... ok
+test func::body::shapes::no_effect::tests::a_loop_call_outside_the_argument_vocabulary_is_refused ... ok
+test func::body::shapes::no_effect::tests::a_nothing_body_that_opens_a_deeper_scope_is_refused ... ok
+test func::body::shapes::no_effect::tests::a_nothing_literal_of_another_type_is_refused ... FAILED
+test func::body::shapes::no_effect::tests::a_nothing_statement_whose_value_is_consumed_is_refused ... FAILED
+test func::body::shapes::no_effect::tests::a_nothing_statement_without_the_bind_is_refused ... FAILED
+test func::body::shapes::no_effect::tests::a_pointer_result_memset_is_not_a_dead_temporary ... ok
+test func::body::shapes::no_effect::tests::a_second_nothing_statement_is_refused ... FAILED
+test func::body::shapes::no_effect::tests::a_test_operand_that_is_not_a_formal_is_refused ... ok
+test func::body::shapes::no_effect::tests::an_argument_outside_the_vocabulary_refuses_the_body ... ok
+test func::body::shapes::no_effect::tests::an_exit_branch_that_does_not_name_the_exit_label_is_refused ... ok
+test func::body::shapes::no_effect::tests::an_induction_step_over_a_non_formal_is_refused ... ok
+test func::body::shapes::no_effect::tests::an_ungraded_comparison_opcode_is_refused ... ok
+test func::body::shapes::no_effect::tests::an_ungraded_induction_operator_is_refused ... ok
+test func::body::shapes::no_effect::tests::recognizing_the_loop_does_not_accept_it ... ok
+test func::body::shapes::no_effect::tests::recognizing_the_body_does_not_accept_it ... ok
+test func::body::shapes::no_effect::tests::recognizing_the_nothing_body_does_not_accept_it ... ok
+test func::body::shapes::no_effect::tests::the_dead_temporary_call_body_is_recognized_and_names_its_callee ... ok
+test func::body::shapes::no_effect::tests::the_destroy_loop_body_is_recognized_and_names_its_callee ... ok
+test func::body::shapes::no_effect::tests::the_induction_stride_is_read_and_not_matched ... ok
+test func::body::shapes::no_effect::tests::the_nothing_values_and_the_void_type_id_are_not_constrained ... ok
+test func::body::shapes::no_effect::tests::the_pseudo_destructor_body_emits_nothing ... ok
+test func::body::shapes::no_effect::tests::the_three_no_effect_shapes_are_disjoint ... FAILED
+test func::body::shapes::no_effect::tests::the_two_no_effect_shapes_are_disjoint ... ok
+test func::body::shapes::no_effect::tests::trailing_bytes_after_the_function_tail_are_refused ... ok
+test func::body::shapes::no_effect::tests::trailing_bytes_after_the_loop_are_refused ... ok
+test func::body::shapes::no_effect::tests::trailing_bytes_after_the_nothing_statement_are_refused ... ok
+
+failures:
+
+---- func::body::shapes::no_effect::tests::a_formal_load_in_place_of_the_int_literal_is_declined stdout ----
+
+thread 'func::body::shapes::no_effect::tests::a_formal_load_in_place_of_the_int_literal_is_declined' (3380453) panicked at crates/c2-il/src/func/body/shapes/no_effect.rs:1281:9:
+the formal-load variant was admitted — it is a SECOND production and GRID-N graded no cell for it (board #1090)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- func::body::shapes::no_effect::tests::a_nothing_literal_of_another_type_is_refused stdout ----
+
+thread 'func::body::shapes::no_effect::tests::a_nothing_literal_of_another_type_is_refused' (3380459) panicked at crates/c2-il/src/func/body/shapes/no_effect.rs:1224:13:
+a literal typed [86, 41, 12] was read as the int operand
+
+---- func::body::shapes::no_effect::tests::a_nothing_statement_whose_value_is_consumed_is_refused stdout ----
+
+thread 'func::body::shapes::no_effect::tests::a_nothing_statement_whose_value_is_consumed_is_refused' (3380460) panicked at crates/c2-il/src/func/body/shapes/no_effect.rs:1191:9:
+assertion failed: !no_effect_nothing(&seg)
+
+---- func::body::shapes::no_effect::tests::a_nothing_statement_without_the_bind_is_refused stdout ----
+
+thread 'func::body::shapes::no_effect::tests::a_nothing_statement_without_the_bind_is_refused' (3380461) panicked at crates/c2-il/src/func/body/shapes/no_effect.rs:1202:9:
+assertion failed: !no_effect_nothing(&seg)
+
+---- func::body::shapes::no_effect::tests::a_second_nothing_statement_is_refused stdout ----
+
+thread 'func::body::shapes::no_effect::tests::a_second_nothing_statement_is_refused' (3380463) panicked at crates/c2-il/src/func/body/shapes/no_effect.rs:1181:9:
+assertion failed: !no_effect_nothing(&seg)
+
+---- func::body::shapes::no_effect::tests::the_three_no_effect_shapes_are_disjoint stdout ----
+
+thread 'func::body::shapes::no_effect::tests::the_three_no_effect_shapes_are_disjoint' (3380478) panicked at crates/c2-il/src/func/body/shapes/no_effect.rs:961:9:
+assertion failed: !no_effect_nothing(DEAD_TEMP_CALL)
+
+
+failures:
+    func::body::shapes::no_effect::tests::a_formal_load_in_place_of_the_int_literal_is_declined
+    func::body::shapes::no_effect::tests::a_nothing_literal_of_another_type_is_refused
+    func::body::shapes::no_effect::tests::a_nothing_statement_whose_value_is_consumed_is_refused
+    func::body::shapes::no_effect::tests::a_nothing_statement_without_the_bind_is_refused
+    func::body::shapes::no_effect::tests::a_second_nothing_statement_is_refused
+    func::body::shapes::no_effect::tests::the_three_no_effect_shapes_are_disjoint
+
+test result: FAILED. 29 passed; 6 failed; 0 ignored; 0 measured; 467 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p c2-il --lib`

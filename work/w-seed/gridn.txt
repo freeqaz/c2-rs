@@ -1,0 +1,254 @@
+    Finished `release` profile [optimized] target(s) in 0.00s
+     Running tests/nothing_seed.rs (target/release/deps/nothing_seed-e15fb0cd6f65bb23)
+
+running 11 tests
+test a_body_refused_for_another_reason_never_seeds ... --- n04 at /O1
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    parse-refused  Refused rel=0 [81630000 816b0000 7d6903a6 4e800420]  ?vcall@@YAXPAUB@@@Z
+    tail           Differs { port_words: 1, ref_words: 4, equal_words: 0 } rel=0 [81630000 816b0000 7d6903a6 4e800420]  ?use@@YAXPAUB@@@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad4@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad3@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad2@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad1@H@@YAHH@Z
+    parse-refused  Refused rel=0 [4e800020]  ?pad_use@@YAHH@Z
+--- n04 at /O1 /Ob0
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    parse-refused  Refused rel=0 [81630000 816b0000 7d6903a6 4e800420]  ?vcall@@YAXPAUB@@@Z
+    tail           Exact rel=1 [48000000]  ?use@@YAXPAUB@@@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad4@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad3@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad2@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad1@H@@YAHH@Z
+    parse-refused  Refused rel=1 [48000000]  ?pad_use@@YAHH@Z
+ok
+test a_body_that_keeps_bytes_never_seeds ... --- n09 at /O1
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    parse-refused  Refused rel=2 [7d8802a6 9181fff8 fbc1ffe8 fbe1fff0 9421ff90 7c7f1b78 7c9e2378 4bffffe5 57cb07ff 4182000c 7fe3fb78 4bffffd5 7fe3fb78 38210070 8181fff8 7d8803a6 ebc1ffe8 ebe1fff0 4e800020]  ??_GT2@@QAAPAXI@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    parse-refused  Refused rel=1 [48000000]  ??$da@UT2@@@@YAXPAUT2@@@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad4@H@@YAHH@Z
+    tail           RelocDiffers(Target) rel=1 [48000000]  ?use@@YAXPAUT2@@@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad3@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad2@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad1@H@@YAHH@Z
+    parse-refused  Refused rel=0 [4e800020]  ?pad_use@@YAHH@Z
+--- n09 at /O1 /Ob0
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    parse-refused  Refused rel=2 [7d8802a6 9181fff8 fbc1ffe8 fbe1fff0 9421ff90 7c7f1b78 7c9e2378 4bffffe5 57cb07ff 4182000c 7fe3fb78 4bffffd5 7fe3fb78 38210070 8181fff8 7d8803a6 ebc1ffe8 ebe1fff0 4e800020]  ??_GT2@@QAAPAXI@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    parse-refused  Refused rel=1 [38800000 4bfffffc]  ??$da@UT2@@@@YAXPAUT2@@@Z
+    tail           Exact rel=1 [48000000]  ??$pad4@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ?use@@YAXPAUT2@@@Z
+    tail           Exact rel=1 [48000000]  ??$pad3@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad2@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad1@H@@YAHH@Z
+    parse-refused  Refused rel=1 [48000000]  ?pad_use@@YAHH@Z
+ok
+test a_caller_that_materializes_data_is_not_elided ... --- n08 at /O1
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    parse-refused  Refused rel=0 [4e800020]  ??$da@US@@@@YAXPAUS@@PAH@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    parse-refused  Refused rel=0 [4e800020]  ?use@@YAXPAUS@@@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad4@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad3@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad2@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad1@H@@YAHH@Z
+    parse-refused  Refused rel=0 [4e800020]  ?pad_use@@YAHH@Z
+--- n08 at /O1 /Ob0
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    parse-refused  Refused rel=0 [4e800020]  ??$da@US@@@@YAXPAUS@@PAH@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    parse-refused  Refused rel=0 [4e800020]  ?use@@YAXPAUS@@@Z
+    tail           Exact rel=1 [48000000]  ??$pad4@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad3@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad2@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad1@H@@YAHH@Z
+    parse-refused  Refused rel=1 [48000000]  ?pad_use@@YAHH@Z
+ok
+test a_cycle_of_nothing_bodies_is_never_admitted ... --- n06 at /O1
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    parse-refused  Refused rel=0 [48000000]  ??$a1@US@@@@YAXPAUS@@@Z
+    parse-refused  Refused rel=1 [48000000]  ??$b1@US@@@@YAXPAUS@@@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ?use@@YAXPAUS@@@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad4@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad3@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad2@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad1@H@@YAHH@Z
+    parse-refused  Refused rel=0 [4e800020]  ?pad_use@@YAHH@Z
+--- n06 at /O1 /Ob0
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    parse-refused  Refused rel=1 [48000000]  ??$a1@US@@@@YAXPAUS@@@Z
+    parse-refused  Refused rel=1 [48000000]  ??$b1@US@@@@YAXPAUS@@@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ?use@@YAXPAUS@@@Z
+    tail           Exact rel=1 [48000000]  ??$pad4@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad3@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad2@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad1@H@@YAHH@Z
+    parse-refused  Refused rel=1 [48000000]  ?pad_use@@YAHH@Z
+ok
+test a_nothing_body_seeds_and_its_caller_collapses ... --- n01 at /O1
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    parse-refused  Refused rel=0 [4e800020]  ??$da@US@@@@YAXPAUS@@@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    tail           Exact rel=0 [4e800020]  ?use@@YAXPAUS@@@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad4@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad3@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad2@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad1@H@@YAHH@Z
+    parse-refused  Refused rel=0 [4e800020]  ?pad_use@@YAHH@Z
+--- n01 at /O1 /Ob0
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    parse-refused  Refused rel=0 [4e800020]  ??$da@US@@@@YAXPAUS@@@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    tail           Exact rel=0 [4e800020]  ?use@@YAXPAUS@@@Z
+    tail           Exact rel=1 [48000000]  ??$pad4@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad3@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad2@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad1@H@@YAHH@Z
+    parse-refused  Refused rel=1 [48000000]  ?pad_use@@YAHH@Z
+ok
+test a_seed_propagates_up_a_chain ... --- n02 at /O1
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    parse-refused  Refused rel=0 [4e800020]  ??$da@US@@@@YAXPAUS@@@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    tail           Exact rel=0 [4e800020]  ??$d1@US@@@@YAXPAUS@@@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad4@H@@YAHH@Z
+    tail           Exact rel=0 [4e800020]  ??$d2@US@@@@YAXPAUS@@@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad3@H@@YAHH@Z
+    tail           Exact rel=0 [4e800020]  ?use@@YAXPAUS@@@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad2@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad1@H@@YAHH@Z
+    parse-refused  Refused rel=0 [4e800020]  ?pad_use@@YAHH@Z
+--- n02 at /O1 /Ob0
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    parse-refused  Refused rel=0 [4e800020]  ??$da@US@@@@YAXPAUS@@@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    tail           Exact rel=0 [4e800020]  ??$d1@US@@@@YAXPAUS@@@Z
+    tail           Exact rel=1 [48000000]  ??$pad4@H@@YAHH@Z
+    tail           Exact rel=0 [4e800020]  ??$d2@US@@@@YAXPAUS@@@Z
+    tail           Exact rel=1 [48000000]  ??$pad3@H@@YAHH@Z
+    tail           Exact rel=0 [4e800020]  ?use@@YAXPAUS@@@Z
+    tail           Exact rel=1 [48000000]  ??$pad2@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad1@H@@YAHH@Z
+    parse-refused  Refused rel=1 [48000000]  ?pad_use@@YAHH@Z
+ok
+test an_external_nothing_body_keeps_its_relocation ... --- n07 at /O1
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    tail           Exact rel=1 [48000000]  ?use@@YAXPAUS@@@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad4@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad3@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad2@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad1@H@@YAHH@Z
+    parse-refused  Refused rel=0 [4e800020]  ?pad_use@@YAHH@Z
+--- n07 at /O1 /Ob0
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    tail           Exact rel=1 [48000000]  ?use@@YAXPAUS@@@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad4@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad3@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad2@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad1@H@@YAHH@Z
+    parse-refused  Refused rel=1 [48000000]  ?pad_use@@YAHH@Z
+ok
+test mechanism_i_above_a_seed_does_not_propagate ... --- n05 at /O1
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    parse-refused  Refused rel=0 [4e800020]  ??$da@US@@@@YAXPAUS@@@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    parse-refused  Refused rel=0 [7c832378 4e800020]  ?mid@@YAHPAUS@@H@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ?use@@YAXPAUS@@H@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad4@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad3@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad2@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad1@H@@YAHH@Z
+    parse-refused  Refused rel=0 [4e800020]  ?pad_use@@YAHH@Z
+--- n05 at /O1 /Ob0
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    parse-refused  Refused rel=0 [4e800020]  ??$da@US@@@@YAXPAUS@@@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    parse-refused  Refused rel=0 [7c832378 4e800020]  ?mid@@YAHPAUS@@H@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ?use@@YAXPAUS@@H@Z
+    tail           Exact rel=1 [48000000]  ??$pad4@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad3@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad2@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad1@H@@YAHH@Z
+    parse-refused  Refused rel=1 [48000000]  ?pad_use@@YAHH@Z
+ok
+test self_recursion_through_a_nothing_statement_is_refused ... --- n11 at /O1
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    parse-refused  Refused rel=0 [48000000]  ??$r@US@@@@YAXPAUS@@@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ?use@@YAXPAUS@@@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad4@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad3@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad2@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad1@H@@YAHH@Z
+    parse-refused  Refused rel=0 [4e800020]  ?pad_use@@YAHH@Z
+--- n11 at /O1 /Ob0
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    parse-refused  Refused rel=0 [48000000]  ??$r@US@@@@YAXPAUS@@@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ?use@@YAXPAUS@@@Z
+    tail           Exact rel=1 [48000000]  ??$pad4@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad3@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad2@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad1@H@@YAHH@Z
+    parse-refused  Refused rel=1 [48000000]  ?pad_use@@YAHH@Z
+ok
+test the_workload_five_level_chain_closes ... --- n03 at /O1
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    parse-refused  Refused rel=0 [4e800020]  ??$destroy_aux@US@@@@YAXPAUS@@ABUfalse_tag@@@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$destroy_one@US@@@@YAXPAUS@@@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad4@H@@YAHH@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$aux@PAUS@@@@YAXPAUS@@0ABUfalse_tag@@@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad3@H@@YAHH@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$dr@PAUS@@U1@@@YAXPAUS@@00@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad2@H@@YAHH@Z
+    tail           Exact rel=0 [4e800020]  ??$destroy_range@PAUS@@@@YAXPAUS@@0@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad1@H@@YAHH@Z
+    tail           Exact rel=0 [4e800020]  ?use@@YAXPAUS@@0@Z
+    parse-refused  Refused rel=0 [4e800020]  ?pad_use@@YAHH@Z
+--- n03 at /O1 /Ob0
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    parse-refused  Refused rel=0 [4e800020]  ??$destroy_aux@US@@@@YAXPAUS@@ABUfalse_tag@@@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$destroy_one@US@@@@YAXPAUS@@@Z
+    tail           Exact rel=1 [48000000]  ??$pad4@H@@YAHH@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$aux@PAUS@@@@YAXPAUS@@0ABUfalse_tag@@@Z
+    tail           Exact rel=1 [48000000]  ??$pad3@H@@YAHH@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$dr@PAUS@@U1@@@YAXPAUS@@00@Z
+    tail           Exact rel=1 [48000000]  ??$pad2@H@@YAHH@Z
+    tail           Exact rel=0 [4e800020]  ??$destroy_range@PAUS@@@@YAXPAUS@@0@Z
+    tail           Exact rel=1 [48000000]  ??$pad1@H@@YAHH@Z
+    tail           Exact rel=0 [4e800020]  ?use@@YAXPAUS@@0@Z
+    parse-refused  Refused rel=1 [48000000]  ?pad_use@@YAHH@Z
+ok
+test two_nothing_statements_are_refused ... --- n10 at /O1
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    parse-refused  Refused rel=0 [4e800020]  ??$da2@US@@@@YAXPAUS@@@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ?use@@YAXPAUS@@@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad4@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad3@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad2@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ??$pad1@H@@YAHH@Z
+    parse-refused  Refused rel=0 [4e800020]  ?pad_use@@YAHH@Z
+--- n10 at /O1 /Ob0
+    tail           Exact rel=1 [48000000]  ?anchor@@YAXXZ
+    parse-refused  Refused rel=0 [4e800020]  ??$da2@US@@@@YAXPAUS@@@Z
+    parse-refused  Refused rel=0 [4e800020]  ??$pad5@H@@YAHH@Z
+    tail           Differs { port_words: 1, ref_words: 1, equal_words: 0 } rel=0 [4e800020]  ?use@@YAXPAUS@@@Z
+    tail           Exact rel=1 [48000000]  ??$pad4@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad3@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad2@H@@YAHH@Z
+    tail           Exact rel=1 [48000000]  ??$pad1@H@@YAHH@Z
+    parse-refused  Refused rel=1 [48000000]  ?pad_use@@YAHH@Z
+ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s
+

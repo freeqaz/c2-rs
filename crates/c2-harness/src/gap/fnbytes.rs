@@ -585,6 +585,10 @@ pub fn tu_empty_callees<'a>(
     //                                it emits nothing but a call. E gets the
     //                                edge; the splice gets nothing, because
     //                                there are no bytes to splice.
+    // `Some(Reduction::NoEffectNothing)` **board #1053**, lane `w-seed` — a
+    //                                refused row whose grammar proves it emits
+    //                                nothing AT ALL, with no callee. E gets a
+    //                                **seed**; the splice still gets nothing.
     // `None`                         a refused row neither mechanism can use —
     //                                and it is still passed, because
     //                                `TuContext::mentions` is what tells a
@@ -599,8 +603,15 @@ pub fn tu_empty_callees<'a>(
     // `IlBundle::functions` still refuses its TU.
     TuContext::of_rows(census.iter().filter_map(|(c, g)| {
         let name = c.emit_name.as_deref()?;
+        // The two refused facts are **mutually exclusive by construction** — one
+        // reader requires a call token the other's vocabulary excludes — so the
+        // order of these two arms cannot decide anything. It is written seed-first
+        // anyway, so that if the disjointness were ever broken the *stronger*
+        // claim would have to be justified rather than silently shadowed, and
+        // `the_three_no_effect_shapes_are_disjoint` is what keeps it true.
         let reduction = match g.as_ref().ok() {
             Some(f) => Some(Reduction::Parsed(f)),
+            None if c.no_effect_nothing => Some(Reduction::NoEffectNothing),
             None => c.no_effect_callee.as_deref().map(Reduction::NoEffectCall),
         };
         Some((name, reduction, c.opt_word))
@@ -1156,6 +1167,50 @@ pub(super) fn measure(
             None => "fnbyte-noeffect-ref-absent",
         };
         *res.emit.entry(key.into()).or_insert(0) += 1;
+    }
+    // **Board #1053 — the SEED, counted where it fires and graded against the
+    // judge's own bytes.** The link's counters above split "the reader read it"
+    // from "the fixpoint took it", because those are two events with a callee
+    // between them. A seed has no callee, so the two collapse — and what does not
+    // collapse is the KNOWN ANSWER, which is stronger here than it can ever be for
+    // a link: a seed asserts unconditionally that c2 emits nothing for this body,
+    // so c2's own COMDAT for it must be the single word `4e800020` or absent.
+    // `-ref-other` is the alarm, printed and never inferred from a subtraction,
+    // and PREREG §3 clause 8 stops the lane on it.
+    //
+    // `-not-admitted` is the honest residue: a name whose bundle carries a second
+    // definition that disagrees is refused by the closure, and "the reader fired"
+    // and "the fixpoint admitted" would otherwise be reported as one number.
+    for (c, _) in census {
+        if !c.no_effect_nothing {
+            continue;
+        }
+        *res.emit.entry("fnbyte-nothing-rows".into()).or_insert(0) += 1;
+        // The blocking key this body carries, so the population is attributable
+        // rather than a single number — and so that a row refused for some OTHER
+        // production turning up here is visible. `expr-lit-type-8207` is the whole
+        // graded population; anything else is a finding.
+        *res.emit
+            .entry(format!("fnbyte-nothing-key|{}", c.verdict.key()))
+            .or_insert(0) += 1;
+        match c.emit_name.as_deref() {
+            None => *res.emit.entry("fnbyte-nothing-unnamed".into()).or_insert(0) += 1,
+            Some(n) if !tu.reduces_to_nothing(n) => {
+                *res.emit
+                    .entry("fnbyte-nothing-not-admitted".into())
+                    .or_insert(0) += 1;
+            }
+            Some(n) => {
+                let key = match entries.iter().find(|(e, _)| e == n) {
+                    Some((_, b)) if b.as_slice() == [0x4E, 0x80, 0x00, 0x20] => {
+                        "fnbyte-nothing-ref-blr"
+                    }
+                    Some(_) => "fnbyte-nothing-ref-other",
+                    None => "fnbyte-nothing-ref-absent",
+                };
+                *res.emit.entry(key.into()).or_insert(0) += 1;
+            }
+        }
     }
     let mut claim: std::collections::BTreeMap<&str, Vec<usize>> =
         std::collections::BTreeMap::new();

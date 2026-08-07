@@ -1,5 +1,28 @@
 # INLINE_PREDICATE — when c2 does not emit the call the IL contains
 
+> ## Status, 2026-08-08 — **MECHANISM E's SEED SET IS NO LONGER `empty_body` ALONE, and §1.2's cycle stop had to be re-derived rather than inherited.**
+>
+> Lane `w-seed` ([`rungs/2026-08-08-w-seed.md`](rungs/2026-08-08-w-seed.md),
+> board **#1053**) lets a body the IL parser **REFUSED** *seed* E's least
+> fixpoint, when its grammar proves it emits nothing **unconditionally** — as
+> against `w-inl0`'s refused-body *link*, whose claim is conditional on a callee.
+> `fnbyte-differs` **2,334 → 2,111**: **223 closed, 0 opened** per
+> `(TU, emit_name)`. `IlBundle::functions()` untouched, `mismatch` still 0.
+>
+> **Two things to carry off it, both in §1.2's update block:**
+>
+> 1. **§1.2's *"a cycle is not `E` … the least fixpoint never seeds a cycle"* was
+>    true only because `empty_body` was the only seed.** It is re-derived in four
+>    steps, and the load-bearing one is a property of the **reader** — a body with
+>    a call token in it is not in `no_effect_nothing`'s language, so a seed names
+>    no callee and cannot be a cycle member.
+> 2. **The mutation registered to prove that came back GREEN**, because the
+>    fixpoint never asks an already-admitted name for its link. The guard is the
+>    reader's vocabulary, not `elide.rs`'s enum arm. Do not weaken the first on
+>    the strength of the second.
+>
+> §1.4's population is **370 → 9**, and the nine are named by production.
+>
 > ## Status, 2026-08-08 — **MECHANISM I's BYTES ARE SHIPPED TOO. What is still NOT shipped from this page is the *decision rule* — §2's cost model — and it must not be.**
 >
 > Lane `w-splice` ([`rungs/2026-08-08-w-splice.md`](rungs/2026-08-08-w-splice.md))
@@ -230,6 +253,29 @@ callee's source body is empty"* but
 > What is still **NOT MODELLED** here: c2's own dead-code elimination crossing
 > the chain (#949 — `void g1(int a){ m(a); }` over `int m(int a){return a;}` is
 > `E` at *both* edges and the port keeps both branches), and the `Seq` tier.
+>
+> ### ✔ 2026-08-08 — **THE SEED SET IS NO LONGER `empty_body` ALONE, and the cycle stop above had to be RE-DERIVED**
+>
+> Lane `w-seed` (board **#1053**, [`rungs/2026-08-08-w-seed.md`](rungs/2026-08-08-w-seed.md))
+> lets a body the parser **REFUSED** seed the fixpoint, when its grammar proves it
+> emits nothing *unconditionally*:
+> `c2_core::elide::Reduction::NoEffectNothing`. `fnbyte-differs` **2,334 →
+> 2,111** — **223 closed, 0 opened** per `(TU, emit_name)`, all
+> `??$_Destroy_Range@…` across 150 TUs. `IlBundle::functions()` untouched,
+> `mismatch` still 0.
+>
+> **The bullet above — *"a cycle is not `E` … the least fixpoint never seeds a
+> cycle, so termination needed no special case"* — was true BECAUSE `empty_body`
+> was the only seed**, so it does not carry over on its own authority. It is
+> re-derived on `Reduction`'s doc in four steps, and the load-bearing one is that
+> **a seed carries no outgoing link**, which is a property of the *reader's*
+> vocabulary: `no_effect_nothing` refuses every body with a call token in it, so a
+> body it accepts names no callee and cannot be a cycle member.
+>
+> **And the mutation registered to prove that came back GREEN.** Putting a link on
+> the seed in `elide.rs` changes nothing, because the iteration never asks an
+> already-admitted name for its link. The guard is the reader, not the enum arm —
+> do not weaken the first on the strength of the second.
 
 ## 1.3 E is a property of the CALL SITE too, and that is the hazard (board #921)
 
@@ -283,6 +329,30 @@ functions (every `??$_Destroy_Range@…` whose callee is refused as
 > **one production at a time**, and the next one is
 > `return-scope-close-cflow-label` at 228 bodies. Boards **#990**–**#995**;
 > [`rungs/2026-08-08-w-inl0.md`](rungs/2026-08-08-w-inl0.md).
+
+> ### ✔ 2026-08-08 — **THE 370 ARE DOWN TO NINE, and the last step was a CAPABILITY rather than a production**
+>
+> Two more lanes finished the family. `w-memset`
+> ([`rungs/2026-08-08-w-memset.md`](rungs/2026-08-08-w-memset.md)) read the
+> `__false_type` **loop** above and converted **zero** — a registered point
+> prediction it hit deliberately, because the chain runs one level deeper.
+> `w-seed` ([`rungs/2026-08-08-w-seed.md`](rungs/2026-08-08-w-seed.md), board
+> **#1053**) closed it: the leaf is `??$__destroy_aux@…`, `p->~T()` on a class
+> with a trivial destructor, whose whole body is
+> `33 <int> v · 33 <void> v · 44 · 4B` — **no call in it at all** — so it had to
+> **SEED** E's fixpoint and not merely link into it. **223 more closed, 0 opened.**
+>
+> **370 → 9**, and every one of the nine is named by production in that rung's
+> §10: **4** are the same census key under a *different* production (an **enum**
+> element type loads the pointer where a class folds it to a literal — declined,
+> board #1090), **2** are `module-end-0x4D` (the last segment of a bundle carries
+> no module trailer), **2** are an unbound callee, **1** is
+> `expr-call-in-expr-recv-load-then-type-void-and-op-more`.
+>
+> **The sentence in §1.4 above still stands and is now sharper still**: what the
+> port could not establish was never *"c2 eliminated dead code"* — it was **one
+> production at a time**, and this family took four rungs and four readers to
+> exhaust.
 
 ## 1.5 The caller's whole body collapses — the setup goes with the call
 

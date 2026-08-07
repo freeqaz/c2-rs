@@ -1366,6 +1366,31 @@ impl GapReport {
             ] {
                 m.push((k, self.emit_total(k).to_string()));
             }
+            // **Board #1053's counters** — the SEED. Same discipline as #980's
+            // above and for the same reason, with one difference that is the whole
+            // rung: `-nothing-ref-other` is a stronger alarm than
+            // `-noeffect-ref-other`, because a seed asserts UNCONDITIONALLY that
+            // c2 emits nothing for the body, so every row here has a known answer
+            // and not just the ones whose callee happened to close.
+            for k in [
+                "fnbyte-nothing-rows",
+                "fnbyte-nothing-ref-blr",
+                "fnbyte-nothing-ref-other",
+                "fnbyte-nothing-ref-absent",
+                "fnbyte-nothing-not-admitted",
+                "fnbyte-nothing-unnamed",
+            ] {
+                m.push((k, self.emit_total(k).to_string()));
+            }
+            // Which PRODUCTION the seeded rows are refused under. `expr-lit-type-8207`
+            // is the whole graded population; a second key appearing here is a
+            // body the grid never saw and is a finding, not a bonus.
+            for (key, n) in self.fn_byte_blr_stops("fnbyte-nothing-key|").into_iter().take(6) {
+                m.push((
+                    Box::leak(format!("fnbyte-nothing-key-{key}").into_boxed_str()),
+                    n.to_string(),
+                ));
+            }
             // The stop histogram's top rows — the widening order for board
             // #980's rule. `Box::leak` for the same reason the shape census
             // leaks: this function's signature is `&'static str` and the key

@@ -29,10 +29,16 @@
 //!
 //! Level 5 is `p->~T()` on a class with a trivial destructor: an `int` literal, a
 //! `void` literal, a bind and a discard, with **no call in it at all**. For that
-//! chain to close, level 5 must **SEED** E's fixpoint — and
-//! `c2_core::elide::Reduction` documents that a refused body contributes *"a link
-//! and never a seed"*. `l09` is that stop compiled, and it asserts the residue
-//! rather than reaching over it.
+//! chain to close, level 5 must **SEED** E's fixpoint.
+//!
+//! > **2026-08-08 — it does, and `l09`'s assertion was INVERTED in the commit
+//! > that made it so** (board **#1053**, lane `w-seed`).
+//! > `c2_core::elide::Reduction::NoEffectNothing` lets a refused body seed, and
+//! > `l01`/`l09` are now the positive for the whole five-level chain rather than
+//! > the record of where it stopped. w-memset planted the old assertion for
+//! > exactly this: it went red, alone, with the message it was given
+//! > (`work/w-seed/l09_red.txt`), and the other ten tests here did not move.
+//! > GRID-N (`work/w-seed/cells/`) is the grid that earns the widening.
 //!
 //! # What each test is FOR
 //!
@@ -48,49 +54,23 @@
 //! | `a_condition_over_a_global_is_refused` | l07 — the test must read only formals, or the body materializes data |
 //! | `a_loop_that_stores_is_refused` | l10 — the reader is not "any loop with a matched label set" |
 //! | `a_cycle_through_a_loop_is_never_admitted` | l11 — never seeded, so never admitted, and the closure terminates |
-//! | `the_pseudo_destructor_leaf_is_the_residue_and_needs_a_SEED` | l01/l09 — c2 emits one `blr` for the whole chain and the port converts **nothing**. The stop is a missing capability, not a missing production |
+//! | `the_pseudo_destructor_leaf_seeds_and_the_whole_chain_closes` | l01/l09 — c2 emits one `blr` for the whole chain and **so does the port now**, level by level: the loop admitted as a LINK, the leaf as a SEED, and the leaf still `parse-refused`. Was `…_is_the_residue_and_needs_a_SEED` until board #1053 |
 
-use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+mod cellgrade;
 
-use c2_core::elide::TuEmptyCallees;
-use c2_harness::gap::fnbytes::{grade_one, tu_empty_callees, FnByte};
+use c2_harness::gap::fnbytes::FnByte;
 use c2_reference::Toolchain;
 
-/// The workload's own profile, minus the `/I` paths a standalone cell cannot
-/// use. `/O1` implies `/Gy`; `/Ox` does not.
-const FLAGS: [&str; 8] = [
-    "/nologo", "/wd4355", "/wd4164", "/c", "/GR", "/O1", "/Oi", "/EHsc",
-];
+// **The cell-grading half lives in `cellgrade`** — the ANCHOR, the TAIL PAD, the
+// flag profile, `grade_cell`, `row` and `work`, verbatim and byte for byte what
+// this file used to carry. Lane `w-seed` (board #1053) needed the identical
+// helper for GRID-N, and `w-relo`'s merge is what a fourth private copy costs:
+// two lanes wrote the same reader in different files, auto-merged with no
+// conflict marker, and the duplicate walks were caught only by a compile error.
+// `empty_elision.rs` and `dead_temp_elision.rs` still carry their own; see
+// `cellgrade`'s module doc for why they were deliberately not migrated here.
+use cellgrade::{grade_cell, row, work, BLR};
 
-/// `w-empty`'s ANCHOR, **prepended** — a callee this TU does not define, whose
-/// relocation must survive. Without it "the port emitted no branch" and "nothing
-/// in this cell emitted anything" are the same observation. Prepended and not
-/// appended for `w-inl0` §4's measured reason: these cells define templates, and
-/// a template instantiation's segment is emitted after every source-order
-/// function, so an appended anchor lands on the module trailer that `eat_fn_tail`
-/// refuses.
-const ANCHOR: &str = "\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n";
-
-/// **The TAIL PAD**, appended after every cell — scaffolding for the controls,
-/// not part of any cell. `.ex`'s last function segment always refuses as
-/// `module-end-0x4D`, and in a five-function cell that would be the empty leaf
-/// the whole chain has to be seeded from. Five levels deep, measured by `w-inl0`
-/// §4 rather than guessed.
-const TAIL: &str = "
-template <class T> inline T pad5(T v) { return v; }
-template <class T> inline T pad4(T v) { return pad5(v); }
-template <class T> inline T pad3(T v) { return pad4(v); }
-template <class T> inline T pad2(T v) { return pad3(v); }
-template <class T> inline T pad1(T v) { return pad2(v); }
-int pad_use(int v) { return pad1(v); }
-";
-
-const BLR: [u8; 4] = [0x4e, 0x80, 0x00, 0x20];
-
-// The FROZEN grid — `include_str!` and not a copy, so this test grades the bytes
-// whose `sha256` was committed before the first `cl.exe`
-// (`work/w-memset/CELLS.sha256`, `work/w-memset/ADDENDUM-1.md`).
 const L01: &str = include_str!("../../../work/w-memset/cells/l01.cpp");
 const L02: &str = include_str!("../../../work/w-memset/cells/l02.cpp");
 const L03: &str = include_str!("../../../work/w-memset/cells/l03.cpp");
@@ -104,98 +84,6 @@ const L10: &str = include_str!("../../../work/w-memset/cells/l10.cpp");
 const L11: &str = include_str!("../../../work/w-memset/cells/l11.cpp");
 const L12: &str = include_str!("../../../work/w-memset/cells/l12.cpp");
 
-fn work(tag: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("c2rs-w-memset-{tag}-{}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
-}
-
-/// `(shape, verdict, symbol, reference bytes, reference relocation count)` per
-/// emitted `.text` COMDAT.
-type Rows = Vec<(&'static str, FnByte, String, Vec<u8>, usize)>;
-
-/// Grade one frozen cell. `extra` is appended to the profile — `["/Ob0"]` is the
-/// E-versus-I separator (`w-fix` #954), and `[]` is the workload's own setting.
-fn grade_cell(
-    tc: &Toolchain,
-    dir: &Path,
-    name: &str,
-    body: &str,
-    extra: &[&str],
-) -> (Rows, TuEmptyCallees) {
-    let cpp = dir.join(format!("{name}.cpp"));
-    std::fs::write(&cpp, format!("{ANCHOR}{body}{TAIL}")).unwrap();
-    let mut flags: Vec<String> = FLAGS.iter().map(|s| s.to_string()).collect();
-    flags.extend(extra.iter().map(|s| s.to_string()));
-    let src = c2_reference::to_wibo_path(&cpp);
-    let Ok(cap) = tc.capture_reference_with(&src, dir, &flags, None) else {
-        return (Vec::new(), TuEmptyCallees::none());
-    };
-    let (Some(census), Some(entries)) = (
-        cap.bundle.census_functions(),
-        cap.ref_obj.text_comdat_functions_with_bytes(),
-    ) else {
-        return (Vec::new(), TuEmptyCallees::none());
-    };
-    let relocs = cap.ref_obj.text_comdat_reloc_sites().unwrap_or_default();
-    let mut claim: BTreeMap<&str, Vec<usize>> = BTreeMap::new();
-    for (i, (f, _)) in census.iter().enumerate() {
-        if let Some(n) = f.emit_name.as_deref() {
-            claim.entry(n).or_default().push(i);
-        }
-    }
-    let tu = tu_empty_callees(&census);
-    let rel = cap.ref_obj.text_comdat_relocs();
-    let mut out = Vec::new();
-    for (idx, (sym, bytes)) in entries.iter().enumerate() {
-        let row = match claim.get(sym.as_str()).map(Vec::as_slice) {
-            Some([i]) => Some(&census[*i]),
-            _ => None,
-        };
-        let rr = rel.as_ref().and_then(|v| v.get(idx)).map(|(_, r)| r.as_slice());
-        let g = grade_one(row, Some(bytes.as_slice()), &tu, rr);
-        let n = relocs
-            .iter()
-            .find(|(n, _)| n == sym)
-            .map(|(_, v)| v.len())
-            .unwrap_or(0);
-        out.push((g.shape, g.verdict, sym.clone(), bytes.clone(), n));
-    }
-    let empty = tu.empty_callees().clone();
-    (out, empty)
-}
-
-/// The one row whose mangled name contains `needle`, with the ANCHOR control
-/// checked first. A cell whose anchor is not `Exact` graded nothing trustworthy.
-fn row<'a>(
-    rows: &'a Rows,
-    needle: &str,
-    cell: &str,
-) -> &'a (&'static str, FnByte, String, Vec<u8>, usize) {
-    match rows.iter().find(|r| r.2 == "?anchor@@YAXXZ") {
-        Some(a) => assert_eq!(
-            a.1,
-            FnByte::Exact,
-            "cell `{cell}`: the ANCHOR control is not Exact — this capture graded \
-             nothing trustworthy, so no verdict below it means anything"
-        ),
-        None => panic!(
-            "cell `{cell}`: no `?anchor@@YAXXZ` COMDAT in the reference obj — the \
-             capture produced {} functions and none of them is the control",
-            rows.len()
-        ),
-    }
-    let hits: Vec<&(&'static str, FnByte, String, Vec<u8>, usize)> =
-        rows.iter().filter(|r| r.2.contains(needle)).collect();
-    match hits.as_slice() {
-        [one] => one,
-        _ => panic!(
-            "cell `{cell}`: `{needle}` matches {} of the emitted symbols {:?}",
-            hits.len(),
-            rows.iter().map(|r| &r.2).collect::<Vec<_>>()
-        ),
-    }
-}
 
 /// **l02 — THE POSITIVE.** The loop's callee is `empty_body`, so the existing
 /// seed is reachable and the whole chain closes through the loop LINK alone.
@@ -491,22 +379,29 @@ fn a_cycle_through_a_loop_is_never_admitted() {
     let _ = std::fs::remove_dir_all(&d);
 }
 
-/// **l01 and l09 — THE RESIDUE, and it needs a SEED rather than a production.**
+/// **l01 and l09 — THE RESIDUE, CLOSED.** Board **#1053**, lane `w-seed`.
 ///
-/// Both cells are the workload's own chain for a **class** element type. c2
-/// emits one `4e800020` and no relocation for the wrapper at `/O1` **and** at
-/// `/Ob0` — so it is mechanism E and not I, exactly as `w-inl0`'s `m06` found —
-/// and the port converts **nothing**, because the chain bottoms out at
-/// `p->~T()`: an `int` literal, a `void` literal, a bind and a discard, with no
-/// call in it. `c2_core::elide::Reduction` documents that a refused body
-/// contributes a link and never a seed, so no chain through this leaf can close.
+/// > This assertion was **inverted on 2026-08-08, and its going red was the
+/// > intended signal.** `w-memset` wrote it to assert the residue *"precisely so
+/// > that widening the seed set turns it red in the same commit"* (its §5), and
+/// > it did: `l01 at /O1: the wrapper came back Exact. THE SEED EXISTS NOW`.
+/// > The run is kept at `work/w-seed/l09_red.txt` — 10 passed, 1 failed, and the
+/// > one that failed is this one. Nothing else in GRID-L moved.
 ///
-/// **This test asserts the residue.** If it ever goes red because the wrapper
-/// became `Exact`, E's seed set has been widened and that widening needs its own
-/// grid before this assertion is deleted — it is not a stale expectation, it is
-/// the boundary.
+/// Both cells are the workload's own chain for a **class** element type, five
+/// levels deep, and c2 emits one `4e800020` with no relocation for the wrapper at
+/// `/O1` **and** at `/Ob0` — mechanism E and not I, exactly as `w-inl0`'s `m06`
+/// found. What has changed is the port: the chain bottoms out at `p->~T()` — an
+/// `int` literal, a `void` literal, a bind and a discard, with **no call in it** —
+/// and `c2_core::elide::Reduction::NoEffectNothing` lets that body **SEED** the
+/// fixpoint instead of contributing nothing at all.
+///
+/// **What this test asserts now is the whole chain, level by level**, because
+/// "the wrapper is `Exact`" alone would also be true if the port had elided it
+/// for some entirely different reason. The loop is admitted as a LINK, the leaf
+/// as a SEED, and the wrapper's own body against the judge's.
 #[test]
-fn the_pseudo_destructor_leaf_is_the_residue_and_needs_a_seed() {
+fn the_pseudo_destructor_leaf_seeds_and_the_whole_chain_closes() {
     let Some(tc) = Toolchain::locate() else {
         println!("SKIP: toolchain absent");
         return;
@@ -524,22 +419,38 @@ fn the_pseudo_destructor_leaf_is_the_residue_and_needs_a_seed() {
                  no relocation. If this changed the residue is mechanism I after \
                  all and the whole rung is priced wrong"
             );
-            assert!(
-                matches!(w.1, FnByte::Differs { .. }),
-                "{name} at {at}: the wrapper came back {:?}. THE SEED EXISTS NOW \
-                 — a refused body with no call in it is being read as reducing to \
-                 nothing, which is a change to E's rule and needs the grid that \
-                 earns it (`work/w-memset/PREREG.md` §0.3)",
+            assert_eq!(
+                (w.0, w.1),
+                ("tail", FnByte::Exact),
+                "{name} at {at}: the wrapper is {:?}. THE SEED STOPPED REACHING \
+                 THE TOP — `no_effect_nothing` no longer feeds `elide.rs`, or the \
+                 loop link above it stopped composing with it. Board #1053",
                 w.1
             );
-            // …and the reason is precisely one level: the LOOP is read and
-            // admitted-as-a-link, and the leaf below it is not a link at all.
+            // The chain, level by level, so that a wrapper which is `Exact` for
+            // some other reason cannot pass as this rule working.
             let a = row(&rows, "??$aux@", name);
             assert!(
-                !tu.reduces_to_nothing(&a.2),
-                "{name} at {at}: the loop `{}` is admitted, so the chain below it \
-                 closed and the wrapper's `Differs` above has some other cause",
+                tu.reduces_to_nothing(&a.2),
+                "{name} at {at}: the LOOP `{}` is not admitted, so the wrapper's \
+                 `Exact` above did not come through this chain at all",
                 a.2
+            );
+            let leaf = row(&rows, "??$destroy_aux@", name);
+            assert_eq!(
+                (leaf.0, leaf.1),
+                ("parse-refused", FnByte::Refused),
+                "{name} at {at}: THE LEAF PARSES NOW. `no_effect_nothing` is \
+                 decode-only by construction and `IlBundle::functions` must keep \
+                 refusing this TU (#971 condition 4); accepting the body is a \
+                 different rung"
+            );
+            assert!(
+                tu.reduces_to_nothing(&leaf.2),
+                "{name} at {at}: the leaf `{}` did not SEED. It is refused and it \
+                 has no callee, so a link cannot reach it — if this is false the \
+                 chain has no bottom",
+                leaf.2
             );
         }
     }
