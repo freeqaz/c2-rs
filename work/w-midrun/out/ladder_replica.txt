@@ -1,0 +1,13 @@
+A. nothing lifted
+work/w-carrier/grid/k_target/k_target.cpp -> 0/1 functions in class
+  [  0] GAP store-run-bind-mixed-kind-alloc:eof cflow-straight             eh-none     (eh-none     )    404 B  ?AllocatePageBlock@CXboxHeap@@QAAPAUBE@@I@Z
+
+B1. reader's mixed-kind lifted (w-mixkind's clause, env hatch, uncommitted)
+work/w-carrier/grid/k_target/k_target.cpp -> 1/1 functions in class
+  census/gate DISAGREEMENT: 1 of the 1 in class are refused by PortC2:
+         1 x not implemented: a store run with an interior address BESIDE another producer: beside a literal that is the mixed-kind run codegen::alloc refuses (boards #836/#868/#1134); beside a second address the allocator answers but nothing has measured it
+
+B2. reader's AND emitter's mixed clause lifted
+work/w-carrier/grid/k_target/k_target.cpp -> 1/1 functions in class
+  census/gate DISAGREEMENT: 1 of the 1 in class are refused by PortC2:
+         1 x not implemented: store run outside the allocator's domain (codegen::alloc)
