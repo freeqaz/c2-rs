@@ -302,6 +302,133 @@ impl ObjImage {
         }
         Some(out)
     }
+
+    /// **Every `.text` COMDAT's relocation records, with the TARGET RESOLVED TO
+    /// A NAME** — the reader lane `w-relo` added to close board #884.
+    ///
+    /// [`ObjImage::text_comdat_reloc_counts`] answers *how many*, which is the
+    /// size of a blind spot and not a verdict. This answers *which*: for each
+    /// `.text` COMDAT leader, its records **in disk order**, each carrying the
+    /// `VirtualAddress`, the **whole packed** `Type` word and a
+    /// [`RelocTarget`].
+    ///
+    /// # Why the target is a name and never an index
+    ///
+    /// `SymbolTableIndex` is an index into *this obj's* symbol table. Two objs
+    /// that relocate against the same function legitimately carry two different
+    /// indices, and the consumer this was written for — FUNCTION BYTE MATCH —
+    /// has no second obj at all: the port hands it a *name*. So the index is
+    /// resolved here, once, against the symbol table it belongs to, and the
+    /// comparison downstream is between two names.
+    ///
+    /// # Fail-closed, exactly like every other walk in this crate
+    ///
+    /// `None` the moment anything does not decode: the `NRELOC_OVFL` sentinel,
+    /// a table running past EOF, a `SymbolTableIndex` outside the symbol table,
+    /// **or an index landing on an auxiliary record** (which is a slot, not a
+    /// symbol). A short or partly-resolved answer is the dangerous one — a
+    /// missing record reads as "this function relocates less than it does",
+    /// which is a *credit* in the instrument downstream.
+    pub fn text_comdat_relocs(&self) -> Option<Vec<(String, Vec<CodeReloc>)>> {
+        let entries = self.text_comdat_entries()?;
+        let targets = self.symbol_targets()?;
+        let all = self.relocations()?;
+        let mut out: Vec<(String, Vec<CodeReloc>)> =
+            entries.iter().map(|(n, _)| (n.clone(), Vec::new())).collect();
+        // Section index -> position in `out`. A `.text` COMDAT has exactly one
+        // leader (`text_comdat_entries` refuses the obj otherwise), so this map
+        // is injective by construction.
+        let (nsec, _) = self.coff_layout()?;
+        let mut slot = vec![usize::MAX; nsec];
+        for (k, (_, s)) in entries.iter().enumerate() {
+            if *s >= nsec {
+                return None;
+            }
+            slot[*s] = k;
+        }
+        for r in all {
+            if r.section >= slot.len() || slot[r.section] == usize::MAX {
+                continue; // not a `.text` COMDAT — `.pdata`, `.debug$S`, …
+            }
+            // `PAIR` carries a DISPLACEMENT in the index field (rev 6.0), so it
+            // must not be resolved as a symbol. This is the one exemption and
+            // [`Reloc::sym_is_an_index`] is the single place that decides it.
+            let target = if r.sym_is_an_index() {
+                targets.get(r.sym as usize)?.clone()?
+            } else {
+                RelocTarget::PairDisplacement(r.sym)
+            };
+            out[slot[r.section]].1.push(CodeReloc {
+                va: r.va,
+                ty: r.ty,
+                target,
+            });
+        }
+        Some(out)
+    }
+}
+
+/// **What one relocation record points AT**, resolved out of the symbol table.
+///
+/// Three variants and not one string, because a rendered string can collide: a
+/// section-definition symbol's "name" *is* a section name, and a mangled symbol
+/// could in principle spell the same characters. As separate variants,
+/// `Section(".rdata")` can never compare equal to `Symbol(".rdata")` — and the
+/// whole point of this type is to be compared.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum RelocTarget {
+    /// An ordinary symbol, by name.
+    Symbol(String),
+    /// A **section-definition symbol** (`IMAGE_SYM_CLASS_STATIC` with one aux
+    /// record). Its name is the *section's* name, which is not unique in a
+    /// `/Gy` obj — several `.text` COMDATs all spell `.text`. Never equal to a
+    /// [`RelocTarget::Symbol`].
+    Section(String),
+    /// A `PAIR` record's index field, which is **a displacement and not an
+    /// index** (PE/COFF rev 6.0). Compared as a number.
+    PairDisplacement(u32),
+}
+
+impl RelocTarget {
+    /// A one-line rendering, with the two non-symbol classes bracketed so a
+    /// reader can never mistake either for a mangled name.
+    pub fn describe(&self) -> String {
+        match self {
+            RelocTarget::Symbol(n) => n.clone(),
+            RelocTarget::Section(n) => format!("<section {n}>"),
+            RelocTarget::PairDisplacement(d) => format!("<pair +{d}>"),
+        }
+    }
+}
+
+/// One `.text` COMDAT relocation with its target resolved — see
+/// [`ObjImage::text_comdat_relocs`].
+///
+/// `va` is an offset **within that COMDAT's own raw data**, which under `/Gy`
+/// is the function's own body: every function starts at offset 0 of its own
+/// section, so these offsets are directly comparable with what the port plans.
+///
+/// `ty` is the **whole packed** `Type` word, flags included. Masking it here
+/// would throw away exactly the `BRTAKEN`/`NEG`/`TOCDEFN` bits that make two
+/// otherwise-identical records different relocations.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CodeReloc {
+    pub va: u32,
+    pub ty: u16,
+    pub target: RelocTarget,
+}
+
+impl CodeReloc {
+    /// `REL24@0 -> ?g@@YAXXZ` — the form the instrument prints in a witness.
+    pub fn describe(&self) -> String {
+        let r = Reloc {
+            section: 0,
+            va: self.va,
+            sym: 0,
+            ty: self.ty,
+        };
+        format!("{}@{} -> {}", r.describe(), self.va, self.target.describe())
+    }
 }
 
 #[cfg(test)]
@@ -419,5 +546,327 @@ mod tests {
             ty: IMAGE_REL_PPC_PAIR | IMAGE_REL_PPC_TOCDEFN,
         };
         assert!(!flagged.sym_is_an_index());
+    }
+
+    // -----------------------------------------------------------------------
+    // `text_comdat_relocs` — the name-resolving reader (lane `w-relo`, #884)
+    // -----------------------------------------------------------------------
+
+    /// A minimal but REAL obj: section headers with raw data and relocation
+    /// tables laid out the way c2 lays them out (each section's records
+    /// immediately after its own raw data), a symbol table with aux records,
+    /// and a string table.
+    ///
+    /// `secs` is `(name, comdat, raw bytes, [(va, sym index, ty)])`;
+    /// `syms` is `(name, 1-based section, storage class, naux)`.
+    fn obj_with_relocs(
+        secs: &[(&str, bool, Vec<u8>, Vec<(u32, u32, u16)>)],
+        syms: &[(&str, i16, u8, u8)],
+    ) -> Vec<u8> {
+        const IMAGE_SCN_LNK_COMDAT: u32 = 0x0000_1000;
+        let nsec = secs.len();
+        let nsym: usize = syms.iter().map(|s| 1 + s.3 as usize).sum();
+        let mut head = vec![0u8; COFF_HEADER_LEN + nsec * SECTION_HEADER_LEN];
+        head[0..2].copy_from_slice(&0x01F2u16.to_le_bytes()); // POWERPCBE
+        head[2..4].copy_from_slice(&(nsec as u16).to_le_bytes());
+        // Raw data + relocations follow the headers, interleaved per section.
+        let mut body: Vec<u8> = Vec::new();
+        let base = head.len();
+        for (i, (name, comdat, raw, rels)) in secs.iter().enumerate() {
+            let o = COFF_HEADER_LEN + i * SECTION_HEADER_LEN;
+            head[o..o + name.len()].copy_from_slice(name.as_bytes());
+            head[o + 16..o + 20].copy_from_slice(&(raw.len() as u32).to_le_bytes());
+            head[o + 20..o + 24].copy_from_slice(&((base + body.len()) as u32).to_le_bytes());
+            body.extend_from_slice(raw);
+            if rels.is_empty() {
+                head[o + 24..o + 28].copy_from_slice(&0u32.to_le_bytes());
+            } else {
+                head[o + 24..o + 28].copy_from_slice(&((base + body.len()) as u32).to_le_bytes());
+                for (va, sym, ty) in rels {
+                    body.extend_from_slice(&va.to_le_bytes());
+                    body.extend_from_slice(&sym.to_le_bytes());
+                    body.extend_from_slice(&ty.to_le_bytes());
+                }
+            }
+            head[o + 32..o + 34].copy_from_slice(&(rels.len() as u16).to_le_bytes());
+            let chars = if *comdat { IMAGE_SCN_LNK_COMDAT } else { 0 };
+            head[o + 36..o + 40].copy_from_slice(&chars.to_le_bytes());
+        }
+        let psym = base + body.len();
+        head[8..12].copy_from_slice(&(psym as u32).to_le_bytes());
+        head[12..16].copy_from_slice(&(nsym as u32).to_le_bytes());
+        let mut strtab: Vec<u8> = vec![0, 0, 0, 0];
+        let mut symtab: Vec<u8> = Vec::new();
+        for (name, secnum, sclass, naux) in syms {
+            let mut rec = [0u8; 18];
+            if name.len() <= 8 {
+                rec[..name.len()].copy_from_slice(name.as_bytes());
+            } else {
+                let at = strtab.len() as u32;
+                strtab.extend_from_slice(name.as_bytes());
+                strtab.push(0);
+                rec[4..8].copy_from_slice(&at.to_le_bytes());
+            }
+            rec[12..14].copy_from_slice(&secnum.to_le_bytes());
+            rec[16] = *sclass;
+            rec[17] = *naux;
+            symtab.extend_from_slice(&rec);
+            symtab.extend(std::iter::repeat(0u8).take(*naux as usize * 18));
+        }
+        let n = strtab.len() as u32;
+        strtab[0..4].copy_from_slice(&n.to_le_bytes());
+        let mut out = head;
+        out.extend_from_slice(&body);
+        out.extend_from_slice(&symtab);
+        out.extend_from_slice(&strtab);
+        out
+    }
+
+    /// The `/Gy` shape this reader exists for: two `.text` COMDATs, each one
+    /// function, each with one `REL24` naming a **different** callee. The
+    /// records must come back per COMDAT, in disk order, with the target
+    /// resolved to that callee's NAME.
+    #[test]
+    fn each_text_comdat_gets_its_own_records_with_the_target_resolved_to_a_name() {
+        // Symbol slots: 0 `.text`+aux(1) → 2 `?f` → 3 `.text`+aux(4) → 5 `?g`
+        //               6 `?ext1` → 7 `?ext2`
+        let obj = ObjImage::new(obj_with_relocs(
+            &[
+                (
+                    ".text",
+                    true,
+                    vec![0x48, 0, 0, 0],
+                    vec![(0, 6, IMAGE_REL_PPC_REL24)],
+                ),
+                (
+                    ".text",
+                    true,
+                    vec![0x48, 0, 0, 0],
+                    vec![(0, 7, IMAGE_REL_PPC_REL24)],
+                ),
+            ],
+            &[
+                (".text", 1, 3, 1),
+                ("?f@@YAXXZ", 1, 2, 0),
+                (".text", 2, 3, 1),
+                ("?g@@YAXXZ", 2, 2, 0),
+                ("?ext1@@YAXXZ", 0, 2, 0),
+                ("?ext2@@YAXXZ", 0, 2, 0),
+            ],
+        ));
+        let got = obj.text_comdat_relocs().expect("the obj decodes");
+        assert_eq!(got.len(), 2, "one entry per .text COMDAT");
+        assert_eq!(got[0].0, "?f@@YAXXZ");
+        assert_eq!(
+            got[0].1,
+            vec![CodeReloc {
+                va: 0,
+                ty: IMAGE_REL_PPC_REL24,
+                target: RelocTarget::Symbol("?ext1@@YAXXZ".into()),
+            }]
+        );
+        assert_eq!(got[1].0, "?g@@YAXXZ");
+        assert_eq!(
+            got[1].1[0].target,
+            RelocTarget::Symbol("?ext2@@YAXXZ".into()),
+            "the SECOND COMDAT's record must resolve to the second callee — \
+             the two instruction words are identical and the target is the \
+             only thing that distinguishes them"
+        );
+        assert_eq!(got[0].1[0].describe(), "REL24@0 -> ?ext1@@YAXXZ");
+    }
+
+    /// **A COMDAT with no relocations returns an EMPTY list, not an absence.**
+    /// "c2 relocated nothing here" is a fact a compare must be able to
+    /// contradict; folding it into the unreadable case would let a residue
+    /// absorb a measurable answer.
+    #[test]
+    fn a_comdat_with_no_records_returns_an_empty_list() {
+        let obj = ObjImage::new(obj_with_relocs(
+            &[(".text", true, vec![0x4e, 0x80, 0x00, 0x20], vec![])],
+            &[(".text", 1, 3, 1), ("?leaf@@YAXXZ", 1, 2, 0)],
+        ));
+        let got = obj.text_comdat_relocs().expect("the obj decodes");
+        assert_eq!(got.len(), 1);
+        assert!(got[0].1.is_empty(), "empty, and present");
+    }
+
+    /// **`PAIR` is not resolved as a symbol.** Its index field is a
+    /// displacement (rev 6.0), and a reader that looked it up would report a
+    /// plausible, wrong name — here it would name `.text`, symbol 0.
+    #[test]
+    fn a_pair_records_index_field_is_read_as_a_displacement() {
+        let obj = ObjImage::new(obj_with_relocs(
+            &[(
+                ".text",
+                true,
+                vec![0x3d, 0x60, 0, 0, 0x38, 0x6b, 0, 0],
+                vec![
+                    (0, 3, IMAGE_REL_PPC_REFHI),
+                    (0, 0, IMAGE_REL_PPC_PAIR),
+                    (4, 3, IMAGE_REL_PPC_REFLO),
+                    (4, 0, IMAGE_REL_PPC_PAIR),
+                ],
+            )],
+            &[(".text", 1, 3, 1), ("?f@@YAXXZ", 1, 2, 0), ("?gv@@3HA", 0, 2, 0)],
+        ));
+        let got = obj.text_comdat_relocs().expect("the obj decodes");
+        let r = &got[0].1;
+        assert_eq!(r.len(), 4, "the REFHI/PAIR/REFLO/PAIR quad, in disk order");
+        assert_eq!(r[0].target, RelocTarget::Symbol("?gv@@3HA".into()));
+        assert_eq!(
+            r[1].target,
+            RelocTarget::PairDisplacement(0),
+            "symbol index 0 is `.text` here — reading a PAIR as a symbol would \
+             name it, which is the defect `sym_is_an_index` exists to prevent"
+        );
+        assert_eq!(r[3].target, RelocTarget::PairDisplacement(0));
+        assert_eq!(r[1].describe(), "PAIR@0 -> <pair +0>");
+    }
+
+    /// **A section-definition symbol is a `Section`, never a `Symbol`.** Its
+    /// name repeats a section name, which is not unique under `/Gy`, so the
+    /// variant is what keeps it from comparing equal to a mangled name that
+    /// happens to spell the same characters.
+    #[test]
+    fn a_section_definition_target_comes_back_as_a_section() {
+        let obj = ObjImage::new(obj_with_relocs(
+            &[
+                (
+                    ".text",
+                    true,
+                    vec![0x3d, 0x60, 0, 0],
+                    vec![(0, 2, IMAGE_REL_PPC_REFHI)],
+                ),
+                (".rdata", false, vec![0, 0, 0, 0], vec![]),
+            ],
+            &[
+                (".text", 1, 3, 1),
+                (".rdata", 2, 3, 1),
+                ("?f@@YAXXZ", 1, 2, 0),
+            ],
+        ));
+        let got = obj.text_comdat_relocs().expect("the obj decodes");
+        assert_eq!(
+            got[0].1[0].target,
+            RelocTarget::Section(".rdata".into()),
+            "IMAGE_SYM_CLASS_STATIC with one aux record is a section definition"
+        );
+        assert_ne!(
+            got[0].1[0].target,
+            RelocTarget::Symbol(".rdata".into()),
+            "and it must NOT equal a symbol of the same spelling"
+        );
+        assert_eq!(got[0].1[0].describe(), "REFHI@0 -> <section .rdata>");
+    }
+
+    /// **Fail closed: an index landing on an AUXILIARY record is not a
+    /// symbol.** Resolving it to the preceding symbol's name would be
+    /// plausible and wrong; a short or mis-resolved answer is the dangerous one
+    /// here, because a missing record reads as "this function relocates less
+    /// than it does", which is a CREDIT in the instrument downstream.
+    #[test]
+    fn an_index_landing_on_an_aux_record_refuses_the_whole_obj() {
+        let obj = ObjImage::new(obj_with_relocs(
+            // Slot 1 is `.text`'s aux record, not a symbol.
+            &[(
+                ".text",
+                true,
+                vec![0x48, 0, 0, 0],
+                vec![(0, 1, IMAGE_REL_PPC_REL24)],
+            )],
+            &[(".text", 1, 3, 1), ("?f@@YAXXZ", 1, 2, 0)],
+        ));
+        assert_eq!(
+            obj.text_comdat_relocs(),
+            None,
+            "an aux slot is not a symbol; there is no partial answer"
+        );
+    }
+
+    /// The same fail-closed contract for an index past the end of the table.
+    #[test]
+    fn an_out_of_range_symbol_index_refuses_the_whole_obj() {
+        let obj = ObjImage::new(obj_with_relocs(
+            &[(
+                ".text",
+                true,
+                vec![0x48, 0, 0, 0],
+                vec![(0, 99, IMAGE_REL_PPC_REL24)],
+            )],
+            &[(".text", 1, 3, 1), ("?f@@YAXXZ", 1, 2, 0)],
+        ));
+        assert_eq!(obj.text_comdat_relocs(), None);
+    }
+
+    /// **Records from non-`.text` sections are not attributed to a function.**
+    /// `.debug$S` relocates against code constantly; folding those into a
+    /// function's set would make every graded function disagree.
+    #[test]
+    fn a_non_text_sections_records_are_not_attributed_to_a_function() {
+        let obj = ObjImage::new(obj_with_relocs(
+            &[
+                (
+                    ".text",
+                    true,
+                    vec![0x48, 0, 0, 0],
+                    vec![(0, 3, IMAGE_REL_PPC_REL24)],
+                ),
+                (
+                    ".pdata",
+                    true,
+                    vec![0, 0, 0, 0, 0, 0, 0, 0],
+                    vec![(0, 2, IMAGE_REL_PPC_ADDR32)],
+                ),
+            ],
+            &[
+                (".text", 1, 3, 1),
+                ("?f@@YAXXZ", 1, 2, 0),
+                ("?ext@@YAXXZ", 0, 2, 0),
+            ],
+        ));
+        let got = obj.text_comdat_relocs().expect("the obj decodes");
+        assert_eq!(got.len(), 1, "`.pdata` is a COMDAT but it is not `.text`");
+        assert_eq!(got[0].1.len(), 1, "only the function's own REL24");
+        assert_eq!(
+            got[0].1[0].target,
+            RelocTarget::Symbol("?ext@@YAXXZ".into())
+        );
+    }
+
+    /// The reader and the counter must agree about how many records each COMDAT
+    /// has — two walks over one obj, and a disagreement between them is exactly
+    /// how a blind spot survives a green count.
+    #[test]
+    fn the_record_reader_agrees_with_the_record_counter() {
+        let obj = ObjImage::new(obj_with_relocs(
+            &[
+                // Slot 6 is `?ext`: 0 `.text` · 1 aux · 2 `?f` · 3 `.text` ·
+                // 4 aux · 5 `?leaf` · 6 `?ext`. Written out because getting it
+                // wrong is what the aux-slot refusal above exists to catch, and
+                // this test caught it.
+                (
+                    ".text",
+                    true,
+                    vec![0x48, 0, 0, 0],
+                    vec![(0, 6, IMAGE_REL_PPC_REL24)],
+                ),
+                (".text", true, vec![0x4e, 0x80, 0x00, 0x20], vec![]),
+            ],
+            &[
+                (".text", 1, 3, 1),
+                ("?f@@YAXXZ", 1, 2, 0),
+                (".text", 2, 3, 1),
+                ("?leaf@@YAXXZ", 2, 2, 0),
+                ("?ext@@YAXXZ", 0, 2, 0),
+            ],
+        ));
+        let counts = obj.text_comdat_reloc_counts().expect("counts decode");
+        let recs = obj.text_comdat_relocs().expect("records decode");
+        assert_eq!(counts.len(), recs.len());
+        for ((cn, c), (rn, r)) in counts.iter().zip(&recs) {
+            assert_eq!(cn, rn, "same leader, same position");
+            assert_eq!(*c, r.len(), "{cn}: counter says {c}, reader says {}", r.len());
+        }
     }
 }

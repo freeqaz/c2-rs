@@ -664,6 +664,10 @@ pub(super) fn print_factorization(report: &GapReport) {
                  \x20     whole-TU    {:>8}  ({:>5.2}%)   CREDITED — on a TU the differential \
                  graded `match`; the judge certified the whole obj\n\
                  \x20     differs     {:>8}  ({:>5.2}%)   complete port body, bytes differ\n\
+                 \x20     reloc-diff  {:>8}  ({:>5.2}%)   bytes IDENTICAL, RELOCATIONS DIFFER — \
+                 two bodies branching to two different functions (board #884)\n\
+                 \x20     reloc-unk   {:>8}  ({:>5.2}%)   bytes identical, reference relocation \
+                 table did not decode — UNGRADED, never credited\n\
                  \x20     partial     {:>8}  ({:>5.2}%)   selected; the PORT's own /Gy \
                  composition declined the body (board #322 closed the harness's half)\n\
                  \x20     refused     {:>8}  ({:>5.2}%)   the port declines the function\n\
@@ -673,14 +677,20 @@ pub(super) fn print_factorization(report: &GapReport) {
                  (known answer 0): {}\n\
                  \x20   KNOWN-ANSWER CONTROL — per-function bodies that DIFFER on a TU the \
                  oracle graded `match` (must be 0): {}\n\
+                 \x20   FIVE-ALARM CONTROL — byte-exact bodies whose RELOCATIONS differ on a \
+                 `match` TU (must be 0): {}\n\
                  \x20   census/gate disagreement on EMITTED fns (the error term on the \
                  emitted census, target 0): {}\n\
-                 \x20   NOTE: the six buckets partition the denominator by the PER-FUNCTION \
+                 \x20   NOTE: the buckets partition the denominator by the PER-FUNCTION \
                  route alone; on a `match` TU the whole-obj verdict supersedes them.\n\
-                 \x20   BYTES ARE NOT THE WHOLE FUNCTION: {} of the credited functions carry a \
-                 relocation, whose\n\
-                 \x20   target FBM does NOT check — a `.text` COMDAT's raw bytes do not contain \
-                 its relocations.",
+                 \x20   RELOC-EQ (lane w-relo, board #884 — `exact` now means bytes AND \
+                 relocations):\n\
+                 \x20     bytes-exact {:>8}   the OLD `exact`, i.e. what this instrument \
+                 credited before relocations were graded\n\
+                 \x20     graded      {:>8}   of those, how many got a relocation verdict; \
+                 residue (ungraded) {}   reach breaks (known answer 0): {}\n\
+                 \x20     of the CREDITED, {} carry at least one relocation — every one \
+                 compared by offset, packed type and TARGET SYMBOL NAME.",
                 f.exact,
                 f.whole_tu,
                 f.denominator,
@@ -691,6 +701,10 @@ pub(super) fn print_factorization(report: &GapReport) {
                 pct(f.whole_tu),
                 f.differs,
                 pct(f.differs),
+                f.reloc_differs,
+                pct(f.reloc_differs),
+                f.reloc_unknown,
+                pct(f.reloc_unknown),
                 f.partial,
                 pct(f.partial),
                 f.refused,
@@ -702,9 +716,56 @@ pub(super) fn print_factorization(report: &GapReport) {
                 f.obj_unreadable,
                 f.partition_broken,
                 f.match_tu_differs,
+                f.match_tu_reloc_differs,
                 f.census_disagree,
+                f.exact_bytes,
+                f.reloc_graded,
+                f.reloc_unknown,
+                f.reloc_partition_broken,
                 f.exact_relocated,
             );
+            // **The relocation families and their witnesses.** Printed as a
+            // positive statement in BOTH directions: an empty families list says
+            // so with its denominator, because an absent line is how absence
+            // reads as success (this project's most-repeated defect).
+            let fams = report.fn_byte_reloc_families();
+            if fams.is_empty() {
+                println!(
+                    "\x20   reloc-differ families: NONE — {} byte-exact functions graded, \
+                     {} of them relocating",
+                    f.reloc_graded, f.exact_relocated
+                );
+            } else {
+                println!(
+                    "\x20   reloc-differ families (shape|kind|where->where|relation), \
+                     most frequent first:"
+                );
+                for (k, n) in fams.iter().take(20) {
+                    println!("\x20     {n:>6}  {k}");
+                }
+                // `blocked` means the port's own target is a body the parser
+                // refused, so the chain question is not answerable — that is a
+                // PRICE and it is named by production, never left as a residue.
+                let blocked = report.fn_byte_reloc_blocked();
+                if !blocked.is_empty() {
+                    let rows: Vec<String> =
+                        blocked.iter().take(12).map(|(k, n)| format!("{k} {n}")).collect();
+                    println!(
+                        "\x20   `blocked` families by the production that blocks the walk: {}",
+                        rows.join(" · ")
+                    );
+                }
+                let sigs = report.fn_byte_reloc_signatures();
+                println!(
+                    "\x20   reloc-differ signatures: {} distinct over {} functions; \
+                     top rows with one example symbol each:",
+                    sigs.len(),
+                    f.reloc_differs
+                );
+                for (sig, n, ex) in sigs.iter().take(20) {
+                    println!("\x20     {n:>6}  {sig}   e.g. {ex}");
+                }
+            }
             let (pw, rw, ew) = f.differ_words;
             if f.differs > 0 {
                 // The objdiff-shaped number, confined to the class

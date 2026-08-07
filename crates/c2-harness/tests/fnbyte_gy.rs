@@ -96,13 +96,19 @@ fn grade_fixture(tc: &Toolchain, cpp: &Path, dir: &Path) -> Vec<(&'static str, F
             claim.entry(n).or_default().push(i);
         }
     }
+    // The reference obj's own relocation records, positionally paired with the
+    // COMDAT walk above (both are walks over `text_comdat_entries`). Passed in
+    // so these cells are graded on the FULL identity — bytes and relocations —
+    // exactly as the 878-TU scan grades them.
+    let rel = cap.ref_obj.text_comdat_relocs();
     let mut out = Vec::new();
-    for (name, bytes) in &entries {
+    for (idx, (name, bytes)) in entries.iter().enumerate() {
         let row = match claim.get(name.as_str()).map(Vec::as_slice) {
             Some([i]) => Some(&census[*i]),
             _ => None,
         };
-        let g = grade_one(row, Some(bytes.as_slice()), &tu_empty_callees(&census));
+        let rr = rel.as_ref().and_then(|v| v.get(idx)).map(|(_, r)| r.as_slice());
+        let g = grade_one(row, Some(bytes.as_slice()), &tu_empty_callees(&census), rr);
         out.push((g.shape, g.verdict, name.clone(), bytes.clone()));
     }
     out
@@ -246,5 +252,13 @@ fn regrade_against(
         Some([i]) => Some(&census[*i]),
         _ => None,
     };
-    Some(grade_one(row, Some(bytes), &tu_empty_callees(&census)).verdict)
+    // Only the BYTES are substituted; the relocation records stay the reference
+    // obj's own, so a mutation that fails to turn the verdict red cannot be
+    // rescued by handing the compare an empty relocation set.
+    let rel = cap.ref_obj.text_comdat_relocs();
+    let rr = rel
+        .as_ref()
+        .and_then(|v| v.iter().find(|(n, _)| n == name))
+        .map(|(_, r)| r.as_slice());
+    Some(grade_one(row, Some(bytes), &tu_empty_callees(&census), rr).verdict)
 }

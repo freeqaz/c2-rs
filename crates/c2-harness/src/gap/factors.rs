@@ -1224,6 +1224,45 @@ impl GapReport {
             m.push(("fnbyte-partition-broken", f.partition_broken.to_string()));
             m.push(("fnbyte-census-disagree", f.census_disagree.to_string()));
             m.push(("fnbyte-exact-relocated", f.exact_relocated.to_string()));
+            // **RELOC-EQ** (lane `w-relo`, board #884). `fnbyte-reloc-differs`
+            // is published as its OWN key and never folded into `differs`: the
+            // two are different repairs, and merging them would put one defect
+            // in two work queues while making the widening unauditable.
+            //
+            // `fnbyte-exact-bytes` is the OLD `fnbyte-exact` predicate, kept so
+            // the number this widening replaced stays derivable to the digit,
+            // and `fnbyte-reloc-graded` / `-reloc-unknown` are the population
+            // the compare could reach and its counted residue (trap 0).
+            m.push(("fnbyte-reloc-differs", f.reloc_differs.to_string()));
+            m.push(("fnbyte-reloc-unknown", f.reloc_unknown.to_string()));
+            m.push(("fnbyte-reloc-graded", f.reloc_graded.to_string()));
+            m.push(("fnbyte-exact-bytes", f.exact_bytes.to_string()));
+            m.push((
+                "fnbyte-reloc-partition-broken",
+                f.reloc_partition_broken.to_string(),
+            ));
+            m.push((
+                "fnbyte-match-tu-reloc-differs",
+                f.match_tu_reloc_differs.to_string(),
+            ));
+            for k in [
+                "fnbyte-reloc-table-unreadable",
+                "fnbyte-reloc-index-desync",
+                "fnbyte-reloc-graded-relocated",
+            ] {
+                m.push((k, self.emit_total(k).to_string()));
+            }
+            for kind in ["count", "offset", "type", "target", "section-target"] {
+                m.push((
+                    Box::leak(format!("fnbyte-reloc-differs-{kind}").into_boxed_str()),
+                    self.emit_total(&format!("fnbyte-reloc-differs|{kind}"))
+                        .to_string(),
+                ));
+            }
+            m.push((
+                "fnbyte-reloc-witnesses",
+                self.fn_byte_reloc_witnesses().len().to_string(),
+            ));
             m.push((
                 "fnbyte-match-tu-differs",
                 f.match_tu_differs.to_string(),
@@ -1284,6 +1323,22 @@ impl GapReport {
                 "fnbyte-calltarget-disagree-count",
                 "fnbyte-calltarget-ungraded",
                 "fnbyte-call-targets-unreadable",
+                // **THE CROSS-CHECK between the two readers** (lane `w-relo`).
+                // `w-drop3`'s walk asks `REL24` targets by name; `compare_relocs`
+                // asks every record's offset, packed type and target. Written by
+                // two lanes from two sources, so their agreement is evidence and
+                // their disagreement is a finding — in a DIRECTION, which is why
+                // there are three keys and not one.
+                //
+                // `-calltarget-only` is the one with a known answer of **0**: a
+                // `REL24` target disagreement is a record disagreement and the
+                // full compare cannot miss it. `-reloc-only` may legitimately be
+                // positive (a data-symbol target, a type, an offset — none of
+                // which the call-target walk looks at) and is measured, not
+                // predicted.
+                "fnbyte-reloc-vs-calltarget-both",
+                "fnbyte-reloc-vs-calltarget-reloc-only",
+                "fnbyte-reloc-vs-calltarget-calltarget-only",
             ] {
                 m.push((k, self.emit_total(k).to_string()));
             }

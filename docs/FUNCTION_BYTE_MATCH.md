@@ -79,8 +79,10 @@ bucket, and every bucket is printed:
 
 | bucket | meaning | credited |
 |---|---|---|
-| `fnbyte-exact` | complete port body, bytes identical | **yes** |
+| `fnbyte-exact` | complete port body, bytes identical **and relocations identical** (§2.2) | **yes** |
 | `fnbyte-differs` | complete port body, bytes differ | no |
+| **`fnbyte-reloc-differs`** | **bytes identical, RELOCATIONS differ** — lane `w-relo`, §2.2 | no |
+| **`fnbyte-reloc-unknown`** | bytes identical, the reference relocation table did not decode — **ungraded**, the counted residue | no |
 | `fnbyte-partial` | the port selected, but the body is finished by the COFF emitter | no |
 | `fnbyte-refused` | the port refuses this function | no |
 | `fnbyte-unbound` | no census row binds this symbol, or two do | no |
@@ -90,6 +92,42 @@ bucket, and every bucket is printed:
 (`fnbyte-partition-broken`, known answer 0) rather than assumed. A TU whose obj
 does not decode at all contributes to **neither** numerator nor denominator, and
 is counted separately (`fnbyte-obj-unreadable`).
+
+## 2.2 RELOC-EQ — what `exact` means since 2026-08-08 (lane `w-relo`, board #884)
+
+> **A `.text` COMDAT's raw bytes do not contain its relocations.** Two bodies
+> that branch to two *different* functions are byte-identical here and are not
+> the same function. `exact` therefore means bytes **and** relocations, and the
+> gap trap 6 measured at **4,664** is now graded rather than counted.
+
+For a function whose **bytes are already exact**, let `R_ref` be the reference
+COMDAT's relocation records **in disk order** and `R_port` the port's own plan
+in the order the `/Gy` writer emits it. They **MATCH** iff the two are equal as
+**sequences**: same length, same offset, same **whole packed** type word, same
+target.
+
+| decision | and why it could have gone the other way |
+|---|---|
+| a **sequence**, nothing sorted here | c2's disk order against the emitter's own order; two sets equal as multisets and swapped in order produce different obj bytes |
+| the `ty` word compared **whole** | the high byte carries `NEG`/`BRTAKEN`/`BRNTAKEN`/`TOCDEFN`; `REL24\|BRTAKEN` = `0x0206` is a different relocation from `REL24` |
+| the target by **NAME**, never by index | symbol indices differ across objs legitimately, and the port has no obj here at all — it has names. #918's rule, one level along: the binding is `FnCensus::emit_name` |
+| three target kinds as a typed enum | `Section(".rdata")` can never equal `Symbol(".rdata")`; a `PAIR`'s index field is a **displacement**, not an index (rev 6.0) |
+| **fail closed** | an undecodable table, an index out of range or landing on an aux slot refuses the whole obj, and every byte-exact function in it lands in `fnbyte-reloc-unknown` — **not** a credit. Crediting an ungraded body is the blind-instrument defect this closes |
+
+**ONE LOCATOR.** `crates/c2-core/src/coff/writer.rs`'s `/Gy` branch used to build
+its relocation list inline. It now calls `comdat::text_reloc_plan`, and so does
+FBM — verbatim board #880's argument for the body composition, one field along:
+*a second copy in the harness could drift from the emitter, and an alarm that is
+green about relocations the port does not emit is worse than the blind one it
+replaced.*
+
+**The old count stays derivable.** `fnbyte-exact-bytes` republishes the previous
+`fnbyte-exact` predicate and read **36,847** at both ends of the widening —
+`exact + reloc-differs + reloc-unknown`, to the digit. `fnbyte-reloc-graded +
+fnbyte-reloc-unknown = fnbyte-exact-bytes` is a second positive identity with its
+own broken-counter (`fnbyte-reloc-partition-broken`, known answer 0), because a
+green control is a statement about the population it ran over (`STATUS.md`
+trap 0) and that population has to be printed.
 
 ## 3. THE ANTI-GAMING PROPERTY, stated precisely
 
@@ -183,7 +221,7 @@ any one of its functions is out of class, so *whole-obj* similarity is indeed
 undefined on 99.1 % of TUs. But `codegen::select_function` answers **per
 function**, and the reference obj's per-COMDAT bytes are already extractable
 (`ObjImage::text_comdat_functions_with_bytes`, added for the listing seam). The
-port's output is therefore defined on **38,458 of 178,975 emitted functions
+port's output is therefore defined on **38,458 of 178,977 emitted functions
 (21.5 %)**, and 29,084 of those can be graded against c2's own bytes today.
 
 The refutation matters for a reason beyond bookkeeping. §2.1's argument was that
@@ -237,7 +275,80 @@ is a control anchored on the oracle's own verdicts.
 > and because the sentence it licensed — quoted and corrected in §6.1 — was on
 > this page for a day.
 
-### 6.2 CURRENT — after mechanism E (lane `w-empty`, 2026-08-07)
+### 6.3 CURRENT — after RELOC-EQ (lane `w-relo`, 2026-08-08)
+
+Workload scan, 878 TUs, `capture-fail 7 / graded 871`, off master `22816a5`.
+Both ends of the same lane; **the port's codegen is untouched** — the only thing
+that changed is what the instrument grades. **84 of the 89** `gap-metric` lines
+are byte-identical at both ends, 20 keys are new, and nothing outside the
+`fnbyte-` namespace moved.
+
+| | before | after |
+|---|---:|---:|
+| **FBM** | 0.20589 | **0.20108** |
+| **exact** | 35,986 | **35,125** — *shrank, and that is the finding* |
+| **NEW `fnbyte-reloc-differs`** | — | **861** |
+| `-differs-target` · `-count` · `-offset` · `-type` · `-section-target` | — | **861 · 0 · 0 · 0 · 0** |
+| **NEW `fnbyte-exact-bytes`** (the OLD `exact`) | — | **35,986** — recovered to the digit |
+| **NEW `fnbyte-reloc-graded` / `-reloc-unknown`** | — | **35,986 / 0** |
+| `fnbyte-exact-relocated` | 4,664 (ungraded) | **3,803 (graded and credited)**; `-reloc-graded-relocated` **4,664** |
+| `tail` exact / reloc-differs | 5,567 / — | **4,722 / 845** |
+| `seq` exact / reloc-differs | 609 / — | **593 / 16** |
+| `cond-pair` · `plain` · `float` exact | 4 · 29,352 · 450 | **unchanged — none of these relocate wrongly** |
+| differs · whole-TU · partial · refused · unbound · denominator | 3,195 · 2 · 0 · 130,579 · 9,217 · 178,977 | **unchanged** |
+| controls: partition-broken · reloc-reach-broken · match-TU differs · **match-TU RELOC-differs** · census disagree | 0 · — · 0 · — · 0 | **0 · 0 · 0 · 0 · 0** |
+| residue: `-reloc-table-unreadable` · `-reloc-index-desync` | — | **0 · 0** |
+| **NEW** `fnbyte-reloc-vs-calltarget-{both, reloc-only, calltarget-only}` | — | **861 · 0 · 0** |
+| `fnbyte-calltarget-*` (lane `w-drop3`'s eight keys) | graded 39,177 · **-disagree-exact 861** | **unchanged to the digit** |
+
+**THE NUMBER IS INDEPENDENTLY REPLICATED.** Lane `w-drop3` reached **861** on the
+same corpus from a *different* reader — `REL24` targets by name
+(`ObjImage::text_comdat_call_targets`, board #986) against this one's every-record
+compare (`ObjImage::text_comdat_relocs`) — with different port-side sources. Two
+equal totals are not evidence that two readers agree, so the agreement is
+published **per function**: `-both` 861, `-calltarget-only` 0 (known answer 0 — a
+`REL24` target disagreement *is* a record disagreement), `-reloc-only` 0
+(measured, not predicted — a data-symbol target or a type or an offset would
+land there legitimately). See `rungs/2026-08-08-w-relo.md` §4.3, which also
+records the erasure that merge nearly caused: `w-drop3`'s walk guards on
+`FnByte::Exact`, whose meaning **this section narrowed**, and left alone it would
+have printed `disagree-exact 0` with no test red and no conflict marker.
+
+**`exact` shrank by 861 and `FBM` fell by 0.00481. That is the
+instrument-widening motion and not a regression** — the same shape w-fnbyte
+declared when `fnbyte-differs` went 0 → 4,711 (§7.2). `mismatch` is **0 at both
+ends**: `IlBundle::functions()` refuses every TU carrying one of the 861, so no
+obj was ever emitted with a wrong target. What is wrong is the **census's
+claim**, and it was wrong before this scan could say so.
+
+**Every one of the 861 is a TARGET disagreement.** Not one is a count, an
+offset, a type word or a section-symbol target — so the port emits the right
+*number* of relocations, at the right *offsets*, of the right *types*, naming
+the wrong *function*. The families (`fnbyte-reloc-fam|…`):
+
+| n | family | reading |
+|---:|---|---|
+| **529** | `tail\|target\|local->local\|blocked` | the port's own target is a body the parser refused, so whether it calls what c2 named is **not answerable here** — priced by production: `expr-call-in-expr-recv-field-off0-then-chain-bind-whole` 348 · `…-intrinsic-this-adjust-then-chain-bind-whole` 103 · `expr-ternary` 50 · two more |
+| **169** | `tail\|target\|local->local\|unrelated` | edges existed and none reached c2's target |
+| **73 + 69** | `tail\|target\|local->local\|chain2` / `chain1` | **`s12`'s mechanism, proven on the workload**: c2 named what the port's own callee calls, one or two steps along |
+| **16** | `seq\|target\|local->extern\|chain1` | the same, with the reference naming an external |
+| 6 | `comdat-only` on one side or both | the name has a COMDAT in c2's obj and no census row |
+
+**`blocked` and `unrelated` are different answers, and the first read of this
+walk merged them.** Written as "no path found", the largest family printed
+`unrelated 697` and named nothing — w-seq §2's `refused:blocked` defect exactly.
+A walk that could not expand a single edge now answers `blocked` and names the
+production that blocked it, which is the work list.
+
+**Largest single signature: 51 functions**, port `b ??1?$list@…@QAA@XZ` against
+c2's `b ?clear@?$_List_base@…@QAAXXZ` — an STL list destructor whose body c2
+expanded, leaving the branch pointing at what the destructor itself tail-calls.
+`fnbyte-reloc-witnesses` is **277** distinct witness keys over the 861 pairs
+(one key per `(shape, kind, counts, index, target pair, symbol)`; two TUs
+emitting the same template instantiation share a key, the same aggregation
+`fnbyte-differs-witnesses 1333` over 3,195 uses).
+
+### 6.2 SUPERSEDED — after mechanism E (lane `w-empty`, 2026-08-07)
 
 Workload scan, 878 TUs, `capture-fail 7 / graded 871`, off master `9827bcf`.
 Both ends of the same lane; `IlBundle::functions()` is untouched, so the only
@@ -250,7 +361,7 @@ thing that changed is what the port composes for one `Selected` shape.
 | **differs** | **4,711** | **3,338** |
 | `tail` exact / differs | 4,051 / 3,047 | **5,424 / 1,674** |
 | differs witnesses (distinct symbols) | 1,950 | **1,405** |
-| whole-TU · partial · refused · unbound · denominator | 2 · 0 · 130,573 · 9,225 · 178,975 | **unchanged** |
+| whole-TU · partial · refused · unbound · denominator | 2 · 0 · 130,579 · 9,217 · 178,977 | **unchanged** |
 | `fnbyte-exact-relocated` | 4,664 | **4,664** — the new bodies carry no relocation |
 | **NEW** `fnbyte-elided` / `fnbyte-elided-exact` | — | **1,373 / 1,373** |
 | **NEW** `fnbyte-name-disagree` | — | **74,955** |
@@ -284,7 +395,7 @@ instrument.
 | whole-TU (oracle-certified) | 5 | **2** — three of the five are now credited by the route itself |
 | **differs** | **0** | **4,711** |
 | partial (FBM's under-report) | 9,375 | **0** |
-| refused · unbound · denominator | 130,573 · 9,225 · 178,975 | **unchanged** |
+| refused · unbound · denominator | 130,579 · 9,217 · 178,977 | **unchanged** |
 | `fnbyte-exact-relocated` (trap 6) | 0 | **4,664** |
 | controls: partition-broken · match-TU differs · census disagree | 0 · 0 · 0 | **0 · 0 · 0** |
 
@@ -313,13 +424,13 @@ Workload scan, 878 TUs, `capture-fail 7 / graded 871`, tree `64f4754`
 
 | | |
 |---|---|
-| **FBM** | **(29,084 + 2) / 178,975 = 0.16251** |
+| **FBM** | **(29,084 + 2) / 178,977 = 0.16251** |
 | exact (per-function route) | 29,084 (16.25 %) |
 | whole-TU (oracle-certified) | 2 |
 | **differs** | **0** |
 | partial (FBM's under-report) | 9,374 (5.24 %) — `tail` 7,098 · `seq` 2,150 · `framed` 123 · `cond-pair` 3 |
 | refused | 131,292 (73.36 %) |
-| unbound | 9,225 (5.15 %) |
+| unbound | 9,217 (5.15 %) |
 | no-bytes / obj-unreadable / partition breaks | 0 / 0 / 0 |
 | controls: match-TU differs · census/gate disagree on emitted | 0 · 0 |
 | **credited functions carrying a relocation** (§7.7) | **0** |
@@ -357,7 +468,7 @@ Two identities worth keeping:
    which is not a smaller gain, it is an **alarm**. The general form is worth
    keeping: *when an instrument widens, the new population splits, and a lane
    that budgeted only for the credit will read the split as a shortfall.*
-3. **`unbound` is an instrument limit wearing a port's clothes.** 9,225 emitted
+3. **`unbound` is an instrument limit wearing a port's clothes.** 9,217 emitted
    symbols bind to no census row; those are the emitted-census residue
    (`GAPS.md` §8) under a second name. A binding repair moves FBM without the
    codegen moving. Read it beside `emit-residue-*`, which already splits that
@@ -413,7 +524,25 @@ Two identities worth keeping:
    > shipped green without it. And **the reader is built**: closing #884 for the
    > whole 4,664 is now a matter of running that comparison over every credited
    > function rather than only over the ones one mechanism moves, which is what
-   > a concurrent lane is doing in `gap/fnbytes.rs`.
+   > a concurrent lane is doing in `gap/fnbytes.rs`. **That lane is `w-relo`
+   > and it landed — the block below is its result.**
+
+   > ### ✅ 2026-08-08 — CLOSED (lane `w-relo`, §2.2, §6.3). **861 of the 4,664
+   > were WRONG**, all of them a target-symbol disagreement, and `exact` is a
+   > full function-identity claim again over the population §6.3 states.
+   >
+   > `fnbyte-exact-relocated` is **retired into a graded number**: it still
+   > prints, and it is now the *denominator of a verdict* (3,803 credited
+   > functions whose every relocation record was compared) rather than the size
+   > of a blind spot. The constructed counterexample had instance count 0 for one
+   > day, 4,664 for two, and **861 confirmed wrong** on the third — which is what
+   > it looks like when a caveat is measured instead of written.
+   >
+   > **The two readings compose rather than compete.** `w-splice`'s check ran
+   > over the 723 functions its own rule moves and found them clean; this one
+   > runs over **every** credited function and finds 861 wrong elsewhere. The
+   > 723 are re-graded independently by this instrument in
+   > `rungs/2026-08-08-w-relo.md` §4.4.
 7. **A `mismatch` TU's functions are still counted by the per-function route.**
    Unlike the progress mass, FBM does not zero a mismatching TU: its emitted
    functions are graded individually, and a function whose bytes are right is
@@ -448,11 +577,22 @@ day is legible either way.
   `fnbyte-denominator`, `fnbyte-differs`, `fnbyte-partial`, `fnbyte-refused`,
   `fnbyte-unbound`, `fnbyte-partition-broken`, `fnbyte-census-disagree`,
   `fnbyte-match-tu-differs`, `fnbyte-tus`, `fnbyte-tus-full`,
-  `fnbyte-elided`, `fnbyte-elided-exact`, `fnbyte-name-disagree`. Keys are an
-  interface; **absence means NO-RESULT**, never 0 and never 1.
-* Collected into `docs/STATUS.md` by `scripts/status.sh` as four rows, with two
-  must-fail mutations in `--check`: the ratio must never render without its
-  denominator, and the partition must never render without `fnbyte-partial`.
+  `fnbyte-elided`, `fnbyte-elided-exact`, `fnbyte-name-disagree`, and — since
+  lane `w-relo` — `fnbyte-reloc-differs`, `fnbyte-reloc-differs-{count,offset,
+  type,target,section-target}`, `fnbyte-reloc-unknown`, `fnbyte-reloc-graded`,
+  `fnbyte-reloc-graded-relocated`, `fnbyte-exact-bytes`,
+  `fnbyte-reloc-partition-broken`, `fnbyte-match-tu-reloc-differs`,
+  `fnbyte-reloc-table-unreadable`, `fnbyte-reloc-index-desync`,
+  `fnbyte-reloc-witnesses`. Keys are an interface; **absence means NO-RESULT**,
+  never 0 and never 1.
+* Collected into `docs/STATUS.md` by `scripts/status.sh` as four rows, with
+  **three** must-fail mutations in `--check`: the ratio must never render
+  without its denominator, the partition must never render without
+  `fnbyte-partial`, and — since `w-relo` — the relocation verdict must never
+  render without `fnbyte-reloc-unknown`, its **ungraded residue**.
+  `reloc-differs 0` beside a silent residue reads as "every relocation checks
+  out" when what may have happened is that none was graded: objdiff's
+  `total_code == 0 → 100.0`, one field along.
 * Sources borrowed from `../objdiff` are cited in the module header of
   `fnbytes.rs`, following the pattern `crates/c2-obj/src/reloc.rs` set for the
   hand-ported `IMAGE_REL_PPC_*` table. No code was copied; the Patience

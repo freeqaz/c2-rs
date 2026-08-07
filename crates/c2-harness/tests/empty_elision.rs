@@ -77,13 +77,19 @@ fn grade_cell(tc: &Toolchain, dir: &Path, name: &str, body: &str) -> (Rows, TuEm
         }
     }
     let tu = tu_empty_callees(&census);
+    // The reference obj's own relocation records, positionally paired with the
+    // COMDAT walk (both walk `text_comdat_entries`). Handed to `grade_one` so
+    // these cells are graded on the FULL identity — bytes AND relocations —
+    // which is what the 878-TU scan does since lane `w-relo`.
+    let rel = cap.ref_obj.text_comdat_relocs();
     let mut out = Vec::new();
-    for (sym, bytes) in &entries {
+    for (idx, (sym, bytes)) in entries.iter().enumerate() {
         let row = match claim.get(sym.as_str()).map(Vec::as_slice) {
             Some([i]) => Some(&census[*i]),
             _ => None,
         };
-        let g = grade_one(row, Some(bytes.as_slice()), &tu);
+        let rr = rel.as_ref().and_then(|v| v.get(idx)).map(|(_, r)| r.as_slice());
+        let g = grade_one(row, Some(bytes.as_slice()), &tu, rr);
         out.push((g.shape, g.verdict, sym.clone(), bytes.clone()));
     }
     // The E half, CLONED out of the composite context. `tu` borrows `census`,

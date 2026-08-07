@@ -374,3 +374,89 @@ pub(crate) fn body_of<'a>(
         data_refs,
     })
 }
+
+/// **What one planned relocation points at**, on the port's side of the compare.
+///
+/// The port has no obj here and therefore no symbol table: it knows the target
+/// by NAME. `PairDisplacement` is the one field that is not a name, because a
+/// `PAIR` record's index slot carries a displacement (PE/COFF rev 6.0) — every
+/// one the port emits is 0, since each pooled constant gets its own COMDAT.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PlanTarget<'a> {
+    Symbol(&'a str),
+    PairDisplacement(u32),
+}
+
+/// One relocation record the `/Gy` writer will emit for a `.text` COMDAT, with
+/// the target as a name rather than as this obj's symbol index.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TextReloc<'a> {
+    /// Offset within the function's own COMDAT section.
+    pub va: u32,
+    /// The packed 16-bit `Type` word, exactly as it goes on disk.
+    pub ty: u16,
+    pub target: PlanTarget<'a>,
+}
+
+/// **THE PORT'S `.text` RELOCATION PLAN for one function**, in the order the
+/// writer puts it on disk.
+///
+/// # One locator (board #880's rule, one field along)
+///
+/// [`crate::PortC2::build`]'s `/Gy` branch used to build this list inline; it
+/// now calls **this**, and so does FUNCTION BYTE MATCH. The argument is the one
+/// board #880 settled for the body composition: a second copy in the harness
+/// could drift from the emitter, and *an alarm that is green about relocations
+/// the port does not emit is worse than the blind one it replaced*. The writer
+/// maps each [`PlanTarget::Symbol`] to that obj's symbol index; the ORDER, the
+/// offsets and the type words come from here for both callers.
+///
+/// # The shape
+///
+/// * one `REL24` per call site — a tail call's `b`, a framed call's `bl`, or one
+///   per call of a many-call body. Several sites may share one callee.
+/// * WR1: one `REFHI` / `PAIR` / `REFLO` / `PAIR` quad per named-data-symbol
+///   address, with the two halves at **`hi_off` and `lo_off`**, which are not
+///   adjacent (`coff::DataRef`'s own doc records the wrong-bytes emit that
+///   assuming `hi_off + 4` produced).
+///
+/// Sorted **ascending by `VirtualAddress`**, which is the order records in a
+/// section carry. The sort is **stable**, so each quad keeps its
+/// `REFHI`-before-`PAIR` order at equal `va`.
+pub fn text_reloc_plan<'a>(
+    calls: &[coff::Call<'a>],
+    data_refs: &[coff::DataRef<'a>],
+) -> Vec<TextReloc<'a>> {
+    let mut recs: Vec<TextReloc<'a>> = Vec::with_capacity(calls.len() + 4 * data_refs.len());
+    for c in calls {
+        recs.push(TextReloc {
+            va: c.reloc_offset,
+            ty: coff::REL_PPC_REL24,
+            target: PlanTarget::Symbol(c.callee),
+        });
+    }
+    for r in data_refs {
+        recs.push(TextReloc {
+            va: r.hi_off,
+            ty: coff::REL_PPC_REFHI,
+            target: PlanTarget::Symbol(r.name),
+        });
+        recs.push(TextReloc {
+            va: r.hi_off,
+            ty: coff::REL_PPC_PAIR,
+            target: PlanTarget::PairDisplacement(0),
+        });
+        recs.push(TextReloc {
+            va: r.lo_off,
+            ty: coff::REL_PPC_REFLO,
+            target: PlanTarget::Symbol(r.name),
+        });
+        recs.push(TextReloc {
+            va: r.lo_off,
+            ty: coff::REL_PPC_PAIR,
+            target: PlanTarget::PairDisplacement(0),
+        });
+    }
+    recs.sort_by_key(|r| r.va);
+    recs
+}
