@@ -101,6 +101,54 @@ That is the whole rule and it has **no free parameters**.
 > byte-identical, `mismatch 0` and `fnbyte-differs 0` included — because no
 > register-derived producer can reach `allocate` from the emitter at all.
 
+> ### ⚠ 2026-08-08 — **the mixed run is now EIGHT dead rules deep, and the eighth says the answer is not in `Producer`'s fields at all.** Boards **#1217**–**#1223**, lane `w-mixed`.
+>
+> The graveyard in full — each killed on a frozen, never-fitted holdout, and
+> each losing to the refusal, which is wrong on 0 of every cell any of them was
+> ever scored against:
+>
+> | rule | died | axis it could not see |
+> |---|---|---|
+> | `w-next`'s key | 7 / 56 | the producer's spelling |
+> | `H-self` | 11 / 72 | its own negative side (`extsh`, `lwz`) |
+> | `clause-1-strict` (#868) | 12 / 36 | `slwi` at every use-count gap |
+> | `RULE W` (#886) | 7 / 388 | — |
+> | `RULE W2` (#887) | 14 / 106 | `self` at `(2,4)` / `(3,5)` |
+> | `KEY ILX` (#909) | 14 / 45 | `LOAD` and `CROSS` are not classes |
+> | `RULE BIND` (#1067) | 5 / 38 | c2 recompiles, it does not rename |
+> | **`H-MIX` (#1217)** | **12 / 62** | **two spellings of ONE address** |
+>
+> **The eighth is the one that constrains the successors.** `H-MIX` is board
+> #892's `cu <= ru+1` — the best-scoring rule on record, and the one #912 has
+> been asking a frozen grid for — plus one term for `w-spell`'s `2base`. It is
+> 41 of 41 on three lanes' committed tables and 12 wrong of 62 on GRID M. It
+> dies on a **pair**:
+>
+> ```text
+>   P& q = t->mid.lo;  q.b0 = (int)&q;        li 11,7 ; addi 10,3,40 ; …
+>   P& q = t->mid.lo;  q.b0 = (int)&t->mid;   li 10,7 ; addi 11,3,40 ; …
+> ```
+>
+> `&q == &t->mid.lo == &t->mid == t+40`. Same address, same `addi`, same use
+> counts, same schedule — objs **8 bytes apart and every byte a register
+> field**, `TimeDateStamp` zeroed. `uses`, `kind` and `first` are **equal**
+> across the pair, so **no rule expressible in `alloc::Producer` is right on
+> both.** The difference is in the `.ex` (`B9 <tok> <TYPE>` against
+> `B9 <tok> <TYPE> 33 <int> <varint 40> 27 <PTR>`), so a successor is possible —
+> stated over the IL, not over this module's fields.
+>
+> What GRID M settles positively: **`LOAD` and `SELF-1B` are one class**, 60
+> cells with an identical frontier and `cu <= ru+1` exact on all 60 (board
+> #910, measured at last); **`cu <= ru+1` is 60 of 62 and still loses**; and the
+> whole residual is `SELF-2B`, **22 cells at 14 points in the world**, which is
+> the grid nobody has built (board #1221, `work/w-mixed/self2b.out`).
+>
+> And the composition is not waiting on this: lifting the reader's mixed-kind
+> clause on `xboxheap.cpp` moves it to `store-run-bind-call-tail-mr-slot`, then
+> to `store-run-bind-no-emitter-carrier`, and `leaf/store.rs`'s `value_bound`
+> refusal sits below all three (board #1218). See
+> `docs/rungs/2026-08-08-w-mixed.md`.
+
 ### 1.1 Worked: the four cells that refuted four rules
 
 `leaf_store.rs` records these as *"four allocation rules were fitted to those
