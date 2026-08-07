@@ -1,0 +1,1 @@
+cargo test --workspace --release: 1062 passed, 0 failed, 34 targets

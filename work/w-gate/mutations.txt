@@ -204,4 +204,4 @@ baseline: gate.sh --selftest: PASS — 102 cases, the gate fails on every one th
     still green: require-graded-all-skip-fails
     gate.sh --selftest: FAIL — 17 of 102 checks did not behave as required.
 
-done — per-mutation logs under /home/free/code/milohax/c2-rs/.claude/worktrees/agent-abdc839ed4775cb8c/work/w-gate/mutations/<name>/selftest.txt
+done — per-mutation logs under <worktree>/work/w-gate/mutations/<name>/selftest.txt

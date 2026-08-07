@@ -1,0 +1,90 @@
+lane gate: preflight on /tmp
+  keep    /tmp/c2rs-gate-2725433       recent — 1 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-1697173       recent — 2 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-1213661       recent — 3 of 3 finished runs kept for their logs
+reap:   0 stale run tree(s) removed, 3 kept (0 live, 3 recent, 0 this run)
+strip:  0 kept tree(s) lost 0 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
+disk:   /tmp — free 30.8 GiB / 846,229 inodes (floors: 2.0 GiB / 150,000 inodes)
+
+lane gate: 18 lanes from <worktree>/scripts/lanes.txt
+  run dir: /tmp/wgate-acc-C3   (per-lane run dirs under /tmp/wgate-acc-C3/lanes/)
+building the harness (no-op if current)
+    Finished `release` profile [optimized] target(s) in 0.00s
+harness: /tmp/wgate-acc-C3/c2rs
+  pinned from <worktree>/target/release/c2rs  built 2026-08-07 10:03:14
+  sha 4f643a680477  tree c614a7b0-dirty
+
+wall clock: 1s for 18 lanes at --jobs 6 (C2RS_JOBS=8)
+
+generated sweep: scripts/expr_sweep.sh /tmp/wgate-acc-C3/sweep 0  (jobs 6)
+    fragment 99-chain-tail-load           165 cases
+    fragment 99-explicit-return            81 cases
+    60 fragments, 16710 cases total (16710 .cpp on disk)
+  SKIP: toolchain absent — the sweep would be vacuous
+  (1s)
+
+mode cross:      scripts/mode_cross.sh /tmp/wgate-acc-C3/cross 0  (jobs 6)
+  assigned 16710 cases over 18 lanes = 81905 cells (full cross would be 300780)
+  SKIP: toolchain absent — the cross would be vacuous
+  (1s)
+
+disk:   /tmp low-water this run — 30.7 GiB and 829,377 inodes free (start: 30.8 GiB / 846,229)
+
+LANE                 VERDICT     graded/total  match  mismatch  flags
+-------------------- ---------- ------------- ------ --------- --------------------
+O1                   SKIP            0/265         0         0  /O1   <- toolchain absent
+O1-EHsc              SKIP            0/265         0         0  /O1 /EHsc   <- toolchain absent
+O1-Oi                SKIP            0/265         0         0  /O1 /Oi   <- toolchain absent
+O1-Oi-EHsc           SKIP            0/265         0         0  /O1 /Oi /EHsc   <- toolchain absent
+Ox                   SKIP            0/265         0         0  /Ox   <- toolchain absent
+Ox-EHsc              SKIP            0/265         0         0  /Ox /EHsc   <- toolchain absent
+Ox-Gy                SKIP            0/265         0         0  /Ox /Gy   <- toolchain absent
+Ox-Gy-EHsc           SKIP            0/265         0         0  /Ox /Gy /EHsc   <- toolchain absent
+O2                   SKIP            0/265         0         0  /O2   <- toolchain absent
+O2-EHsc              SKIP            0/265         0         0  /O2 /EHsc   <- toolchain absent
+Od                   SKIP            0/265         0         0  /Od   <- toolchain absent
+Od-EHsc              SKIP            0/265         0         0  /Od /EHsc   <- toolchain absent
+O1-Oi-GR             SKIP            0/265         0         0  /O1 /Oi /GR   <- toolchain absent
+O1-Oi-EHsc-GR        SKIP            0/265         0         0  /O1 /Oi /EHsc /GR   <- toolchain absent
+Ox-GR                SKIP            0/265         0         0  /Ox /GR   <- toolchain absent
+Ox-EHsc-GR           SKIP            0/265         0         0  /Ox /EHsc /GR   <- toolchain absent
+Od-GR                SKIP            0/265         0         0  /Od /GR   <- toolchain absent
+Od-EHsc-GR           SKIP            0/265         0         0  /Od /EHsc /GR   <- toolchain absent
+expr-sweep           SKIP            0/0                     0  generated cases (of 0)   <- toolchain absent
+mode-cross           SKIP            0/0                     0  case-lane cells (of 0)   <- toolchain absent
+
+lanes:  18 in the registry — 0 PASS, 0 FAIL, 18 SKIP, 0 NO-RESULT
+graded: 0 fixture-verdicts across all lanes
+sweep:  SKIP — 0 of 0 selected cases reached, ? GRADED by the
+        oracle (? ungraded: no reference obj), 0 mismatch (corpus 0)
+cross:  SKIP — ? of 0 selected cells graded, 0 mismatch (product 0)
+logs:   /tmp/wgate-acc-C3/<lane>.log, /tmp/wgate-acc-C3/sweep.log, /tmp/wgate-acc-C3/cross.log
+
+GATE: SKIPPED — all 18 lanes, the sweep and the cross skipped, NOTHING WAS GRADED.
+  The toolchain is absent (see CLAUDE.md); this exits 0 by design and is
+  NOT a green gate. This run establishes nothing about the port.
+  Run with --require-graded (or C2RS_GATE_REQUIRE_GRADED=1) to make this
+  exit 1 instead — that is the flag for a caller that meant to gate a tree.
+
+  WHY: the toolchain did not resolve from <worktree>
+       This tree is a git WORKTREE (.git is a file, not a directory), and
+       every default below is relative to IT, not to the main repo. That is
+       the cause both recorded times: rungs/2026-08-05-w-subclass.md §10.1
+       and lane w-root, 2026-08-08.
+       compilers  MISSING  /nonexistent/w-gate/compilers
+                  override: C2RS_COMPILERS — SET in this environment, taken verbatim (no fallback)
+       cl.exe     MISSING  /nonexistent/w-gate/compilers/X360/16.00.11886.00/cl.exe
+                  override: C2RS_CL_EXE (unset — this is the default)
+       c2.dll     MISSING  /nonexistent/w-gate/compilers/X360/16.00.11886.00/c2.dll
+                  override: C2RS_C2_DLL (unset — this is the default)
+       wibo       MISSING  /nonexistent/w-gate/wibo
+                  override: C2RS_WIBO — SET in this environment, taken verbatim (no fallback)
+                  ...or `wibo` anywhere on PATH
+
+  FIX, from the main repo:  scripts/configure_existing_worktree.sh <worktree>
+      (symlinks compilers/, reflinks target/, and links ../wibo beside the
+       worktrees — then REBUILDS and refuses to finish if it still SKIPs)
+  If compilers/ is missing in the main repo too:  scripts/fetch_compilers.sh
+  `Toolchain::locate()` in crates/c2-reference/src/lib.rs is the authority;
+  the lines above report what was FOUND and resolve nothing themselves.
+EXIT=0
