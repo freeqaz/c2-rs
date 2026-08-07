@@ -120,12 +120,22 @@
 # defect has grown a number and closed nothing:
 #
 # ```text
-#   landed tree        checked=<N> mismatches=0
-#   refusal reverted   checked=<N> mismatches>0   <- the swap, generated
+#   landed tree        this fragment   checked=1270 mismatches=0
+#   refusal reverted   this fragment   checked=1270 mismatches=186
+#   refusal reverted   88 alone        checked=1576 mismatches=0    <- the CONTROL
 # ```
 #
-# The reverted tree is never committed. The numbers are in
-# `docs/rungs/2026-08-08-w-gen2.md` §3.
+# The third line is what makes the first two a measurement rather than a claim:
+# on the SAME reverted tree `88` reports zero, which is exactly the reading board
+# #1174 records from the evening two wrong emits went past it. The hole was in
+# the generator and not in the tree.
+#
+# The 186 split **75 / 62 / 49** by callee arity 1 / 2 / 3, and by the set of
+# argument slots the run stores: `{1}` 100, `{1,2}` 53, `{1,3}` 16, `{1,2,3}` 14,
+# and **`{2}` 3** — the `a2_break2` cells, which an axis keyed on the call's
+# FIRST argument does not reach. Zero at arity 0, zero on the leaf controls, zero
+# on the regime breaks. The reverted tree is never committed;
+# `docs/rungs/2026-08-08-w-gen2.md` §3 carries the patch and both runs.
 #
 # On the LANDED tree almost everything here refuses: the transfer gate is
 # syntactic and refuses every live-argument store, including the ones where the
