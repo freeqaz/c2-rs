@@ -40,6 +40,7 @@ static CENSUS_SPEC: Spec = Spec::new(
         ("--keep-il", Arity::Value),
         ("--flags-file", Arity::Value),
         ("--cwd", Arity::Value),
+        ("--fn", Arity::Value),
     ],
 )
 .requires(CPP_PROFILE_REQUIRES);
@@ -187,6 +188,56 @@ pub(crate) fn cmd_census(rest: &[String]) -> ExitCode {
         .get("gl")
         .map(|g| c2_il::gl_symbol_conflicts(g))
         .unwrap_or((0, 0));
+    // `--fn <substr>` — the per-function view for a REAL TU. The unconditional
+    // listing below is capped at 64 functions because a workload TU has
+    // thousands; that cap is also why a widening step could only ever be
+    // developed against hand cells, and `w-fix` §5.1 records what that costs
+    // (a hand grid and the workload reach the same source idiom through
+    // *different* productions, so neither substitutes for the other).
+    //
+    // Prints the CHAIN fields a mechanism-E widening needs and nothing else can
+    // show: the blocking key, the control-flow class, `no_effect_callee` (board
+    // #980's conditional fact) and, for an in-class row, its `tail_call`. The
+    // match is a plain substring over BOTH bindings, and **both are printed**,
+    // because they disagree on 74,955 rows of this workload (#918) and a
+    // diagnostic that shows one of them is a diagnostic that can name the wrong
+    // function.
+    if let Some(pat) = args.get("--fn") {
+        let mut n = 0usize;
+        for (f, gate) in &rows {
+            let named = f.name.as_deref().unwrap_or("");
+            let emitted = f.emit_name.as_deref().unwrap_or("");
+            if !named.contains(pat) && !emitted.contains(pat) {
+                continue;
+            }
+            n += 1;
+            let mark = if f.verdict.in_class() { "ok " } else { "GAP" };
+            println!(
+                "  [{:>5}] {mark} {:<34} {:<26} {:>6} B",
+                f.index,
+                f.verdict.key(),
+                f.cflow,
+                f.seg_len
+            );
+            println!("          name={named}");
+            println!("          emit={emitted}");
+            if let Some(c) = &f.no_effect_callee {
+                println!("          no_effect_callee={c}");
+            }
+            if let Ok(func) = gate {
+                if let Some(t) = &func.tail_call {
+                    println!("          tail_call={t}");
+                }
+                if func.empty_body {
+                    println!("          empty_body=true");
+                }
+            }
+            if !f.verdict.in_class() {
+                println!("          {}", hexdump_marked(&f.hex, f.hex_mark));
+            }
+        }
+        println!("  --fn {pat:?} matched {n} of {} rows", rows.len());
+    }
     let census: Vec<c2_il::FnCensus> = rows.into_iter().map(|(c, _)| c).collect();
     let in_class = census.iter().filter(|f| f.verdict.in_class()).count();
     println!(
