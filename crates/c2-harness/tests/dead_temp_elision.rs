@@ -28,7 +28,7 @@
 //! | `a_real_memset_is_not_a_dead_temporary` | m03 — c2 lowers a real `memset` to a REL24 tail call, so the reader must decline it |
 //! | `a_second_statement_stops_the_reader` | m04 — "emits nothing" is a property of the whole body, not of the call |
 //! | `the_chain_closes_one_link_deeper` | m05 — the fact is a **link into the fixpoint**, not a one-step rule |
-//! | `the_loop_overload_is_the_residue_and_is_not_converted` | m06 — the 228 members of #980 this lane does **not** close, the production they are behind, and the `/Ob0` row that says they are **E behind an unreadable body** and not mechanism I |
+//! | `the_loop_overload_converts_once_its_leaf_can_seed` | m06 — the 228 members of #980 this lane did **not** close. It asserted the decline until board **#1053** closed them, and its going red was the signal `w-inl0` planted it for; the `/Ob0` row is unchanged and is what said they were **E behind an unreadable body** rather than mechanism I |
 //! | `an_external_callee_keeps_its_relocation` | m07 — the same-TU condition |
 //! | `a_cycle_of_dead_temporary_bodies_is_never_admitted` | m08 — a cycle is never seeded, so it is never admitted, and the closure terminates. **c2 collapses this cycle and the port declines it**: a registered prediction that lost, kept in the test as what it turned out to be |
 
@@ -367,16 +367,27 @@ fn the_chain_closes_one_link_deeper() {
     let _ = std::fs::remove_dir_all(&d);
 }
 
-/// **m06 — THE RESIDUE, pinned rather than closed.** A class element type takes
-/// STLport's other overload, whose body is a LOOP. c2 still emits nothing for
-/// the whole chain and the port does not convert it, because the loop is a body
-/// the IL parser refuses.
+/// **m06 — THE RESIDUE, CLOSED.** A class element type takes STLport's other
+/// overload, whose body is a LOOP over a pseudo-destructor call.
 ///
-/// This test asserts the **decline**, which is unusual and deliberate: 228 of
-/// board #980's 370 are this shape, and a lane that later converts them will
-/// turn this test red and should — with the rung that explains why.
+/// > **This assertion was INVERTED on 2026-08-08, and its going red was the
+/// > intended signal.** `w-inl0` wrote it as a **decline**, saying in as many
+/// > words that *"a lane that later converts them will turn this test red and
+/// > should — with the rung that explains why"*. Two lanes did it between them:
+/// > `w-memset` read the LOOP and handed E a link, which converted nothing on its
+/// > own, and `w-seed` (board **#1053**) let the chain's leaf — `p->~T()` on a
+/// > trivially destructible class, a body with no call in it at all — **SEED**
+/// > the fixpoint. The rung is `docs/rungs/2026-08-08-w-seed.md` and the grid
+/// > that earns it is GRID-N (`work/w-seed/cells/`).
+///
+/// The `/Ob0` row is unchanged and is still the finding it was: `ADDENDUM-1` §2
+/// predicted c2 would keep a call somewhere in this chain at `/Ob0` — that the
+/// loop vanishes by *inlining*. It does not, so what erases it is c2's own
+/// dead-code elimination and the residue was **mechanism E behind a body the
+/// parser cannot read**. That reading is what made the follow-on a parser rung,
+/// and this test now records it as having been the right one.
 #[test]
-fn the_loop_overload_is_the_residue_and_is_not_converted() {
+fn the_loop_overload_converts_once_its_leaf_can_seed() {
     let Some(tc) = Toolchain::locate() else {
         println!("SKIP: toolchain absent");
         return;
@@ -405,10 +416,18 @@ fn the_loop_overload_is_the_residue_and_is_not_converted() {
          reproduces the residue it is named for"
     );
     assert!(
-        !tu.reduces_to_nothing(&w.2),
-        "m06 CONVERTED. That is not a failure of correctness — c2's body here IS \
-         one `blr` — but it means the residue this lane priced at 228 has moved, \
-         and the rung's numbers need re-deriving before the claim is repeated"
+        tu.reduces_to_nothing(&w.2),
+        "m06 STOPPED CONVERTING. c2's body for the wrapper is one `blr` and the \
+         port no longer agrees — either the LOOP link (`no_effect_loop`, lane \
+         w-memset) or the SEED at its leaf (`no_effect_nothing`, board #1053) has \
+         stopped reaching `elide.rs`'s fixpoint"
+    );
+    assert_eq!(
+        (w.0, w.1),
+        ("tail", FnByte::Exact),
+        "m06: the wrapper is {:?} — it is in the closure but the emitter did not \
+         act on it, which is the two halves of one rule disagreeing",
+        w.1
     );
     let _ = std::fs::remove_dir_all(&d);
 }
