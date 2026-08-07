@@ -131,8 +131,15 @@ struct SimpleStore {
 ///
 /// A one-element list holding the sum would be a lie in exactly the shape #908
 /// warns about, so it is not written.
-fn root(tok: u32, is_bind: bool) -> alloc::Root {
-    alloc::Root { tok, is_bind, offsets: None }
+/// `is_bind` and `base` are passed separately and NOT inferred from each other.
+/// They coincide at this seam — every bind here comes from an `IlOp::BoundAddr`
+/// and every non-bind from an `IlOp::Load` — and that coincidence is a property
+/// of this emitter, not of the IL: GRID P's `P9` (`PTRBIND`) is a root that
+/// takes the bonus while `work/w-prod/bindbit.out` cannot show it is a `26`
+/// bind head. Encoding `is_bind == base.is_some()` would make that cell
+/// unrepresentable before anyone has decided what it is.
+fn root(tok: u32, is_bind: bool, base: Option<u32>) -> alloc::Root {
+    alloc::Root { tok, is_bind, base, offsets: None }
 }
 
 /// [`alloc::ProducerRoots`] for the producer whose statements are those of `run`
@@ -184,9 +191,9 @@ fn parse_simple_gpr_run(
         // collapsing the two source spellings unspellable rather than merely
         // unreached. An unbound `Load` is `(its token, its register, 0)`, which
         // is exactly what this loop always computed.
-        let (base_tok, base_reg, base_off, base_is_bind) = match b {
-            IlOp::Load(t) => (*t, reg_of(*t)?, 0i32, false),
-            IlOp::BoundAddr { tok, base, off } => (*tok, reg_of(*base)?, *off, true),
+        let (base_tok, base_reg, base_off, base_bind_of) = match b {
+            IlOp::Load(t) => (*t, reg_of(*t)?, 0i32, None),
+            IlOp::BoundAddr { tok, base, off } => (*tok, reg_of(*base)?, *off, Some(*base)),
             // Not a store group at all — leave `walk` non-empty so the caller's
             // whole-stream check declines, exactly as the narrower pattern this
             // loop used to open with did.
@@ -197,11 +204,13 @@ fn parse_simple_gpr_run(
         // have been live at this one site since #1199, and the relation between
         // them is the fact nine allocation keys could not state.
         let (lit, src, value_bound, value_root) = match v {
-            IlOp::Load(t) => (None, reg_of(*t)?, false, Some(root(*t, false))),
+            IlOp::Load(t) => (None, reg_of(*t)?, false, Some(root(*t, false, None))),
             // A literal has no designator, so it has no root. `None`, never a
             // fabricated one.
             IlOp::Lit(k) => (Some(*k), SCRATCH_REG, false, None),
-            IlOp::BoundAddr { tok, .. } => (None, SCRATCH_REG, true, Some(root(*tok, true))),
+            IlOp::BoundAddr { tok, base, .. } => {
+                (None, SCRATCH_REG, true, Some(root(*tok, true, Some(*base))))
+            }
             _ => break,
         };
         out.push(SimpleStore {
@@ -212,7 +221,7 @@ fn parse_simple_gpr_run(
             lit,
             src,
             value_bound,
-            lvalue_root: root(base_tok, base_is_bind),
+            lvalue_root: root(base_tok, base_bind_of.is_some(), base_bind_of),
             value_root,
         });
         walk = tail;

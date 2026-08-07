@@ -1,0 +1,53 @@
+  THE WITNESS PAIR — same (ru,cu) = (2,4), same class of spelling,
+  and c2 takes DIFFERENT registers.
+
+  P6-r2k4  (TWOBIND)   obj: prod
+      F& k = h->blk.s0;
+      F& m = h->blk.s0;
+      m.n0 = (int)&k;
+      m.n1 = (int)&k;
+      CARRIER  lvalue tok 0x150a BIND   [0]
+               value  tok 0x140a BIND   []
+      BIND TABLE (tok -> base tok, offset literals)
+               0x140a -> base 0x0f0a  [76, 0]
+               0x150a -> base 0x0f0a  [76, 0]
+
+  P7-r2k4  (CHAINBIND)   obj: const
+      F& k = h->blk.s0;
+      F& m = k;
+      m.n0 = (int)&k;
+      m.n1 = (int)&k;
+      CARRIER  lvalue tok 0x150a BIND   [0]
+               value  tok 0x140a BIND   []
+      BIND TABLE (tok -> base tok, offset literals)
+               0x140a -> base 0x0f0a  [76, 0]
+               0x150a -> base 0x140a  []
+
+  THE CARRIER'S OWN FIELDS, compared:
+      lvalue root equal: True
+      value  root equal: True
+      => the carrier this lane built is IDENTICAL on this pair
+      bind TABLE equal:  False
+
+  THE RESULT, and it is the useful half of this lane:
+
+    **The carrier is NOT ENOUGH, and here is the two-cell proof.** `P6` and
+    `P7` decode to the SAME `(root token, is-a-bind, literal list)` on BOTH
+    sides — which is exactly the carrier `w-self2b` named (#1231) and this lane
+    built — and real c2 gives them DIFFERENT registers. No rule stated over
+    those six fields can separate them, so board #1231's predicate is refuted
+    on a decode and not merely on a source spelling.
+
+    **And the difference is in the IL, one level down**: the bind's OWN BASE.
+      tok 0x150a   P6: base 0x0f0a [76, 0]   P7: base 0x140a []
+
+    `P6` binds `m` to the FORMAL's path; `P7` binds `m` to `k` — another bind.
+    The two stores' root tokens are equal, distinct and both bind heads in both
+    cells; what differs is what the store's root is itself rooted at.
+
+    So the carrier needs a THIRD element per root — the root's own base — and
+    `alloc::Root` carries `(tok, is_bind, offsets)` and not that. This is the
+    same shape as the finding it repairs: #1231 replaced a per-producer FACT
+    with a relation between two roots, and this replaces a relation between two
+    roots with a relation over the roots' own definitions. Board #908's lesson
+    a second time: not one contiguous field, and not one number either.

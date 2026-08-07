@@ -1,0 +1,42 @@
+  THE IL FACT — one representative per family, all at (ru,cu)=(2,4)
+  `BIND` marks a token the decoder found as a temp bind head
+
+  cell       class                  STORE designator root      VALUE expr root            #binds
+  ------------------------------------------------------------------------------------------------
+  P1-r2k4    SELF-1B                tok 0x0f0a formal [76, 0, 0] tok 0x0f0a formal [76, 0]  0
+  P2-r2k4    LOAD                   tok 0x140a BIND   [0]      tok 0x140a BIND   []       1
+  P3-r2k4    SELF-2B-tail-agrees    tok 0x140a BIND   [0]      tok 0x0f0a formal [76, 0]  1
+  P4-r2k4    SELF-2B-tail-differs   tok 0x140a BIND   [0]      tok 0x0f0a formal [76]     1
+  P5-r2k4    MIRROR                 tok 0x0f0a formal [76, 0, 0] tok 0x140a BIND   []       1
+  P6-r2k4    TWOBIND                tok 0x150a BIND   [0]      tok 0x140a BIND   []       2
+  P7-r2k4    CHAINBIND              tok 0x150a BIND   [0]      tok 0x140a BIND   []       2
+  P8-r2k4    TWOBIND-swapped        tok 0x140a BIND   [0]      tok 0x150a BIND   []       2
+  P9-r2k4    PTRBIND                tok 0x140a formal [0]      tok 0x0f0a formal [76, 0]  0
+
+  cell       class                  roots     store is  #1231    obj (GRID P)
+  ------------------------------------------------------------------------------------
+  P1-r2k4    SELF-1B                same      a formal  const    const
+  P2-r2k4    LOAD                   same      a BIND    const    const
+  P3-r2k4    SELF-2B-tail-agrees    DIFFER    a BIND    prod     prod
+  P4-r2k4    SELF-2B-tail-differs   DIFFER    a BIND    prod     prod
+  P5-r2k4    MIRROR                 DIFFER    a formal  const    const
+  P6-r2k4    TWOBIND                DIFFER    a BIND    prod     prod
+  P7-r2k4    CHAINBIND              DIFFER    a BIND    prod     const  **#1231 WRONG**
+  P8-r2k4    TWOBIND-swapped        DIFFER    a BIND    prod     prod
+  P9-r2k4    PTRBIND                DIFFER    a formal  const    prod  **#1231 WRONG**
+
+  THE READING, decided by the decode and not by a story about it:
+    (B) THE ROOTS ARE DISTINCT TOKENS and c2 answers as though they were not.
+        `w-self2b`'s #1231 predicate is WRONG on `CHAINBIND`, on a cell it has
+        never seen, and the decoded fact needs a term nobody has named.
+
+    P7 store root  tok 0x150a BIND [0]
+    P7 value root  tok 0x140a BIND []
+
+  #1231's predicate, scored on the decode: 2 WRONG of 9   P7-r2k4 P9-r2k4
+
+  THE OFFSET-ADD LISTS ABOVE ARE THE #908 HALF.  They are printed because the
+  decoder can carry them; `crates/c2-il`'s `eat_offset_adds_list` now returns
+  them too, and `alloc::Root::offsets` has the slot.  The seam between the two
+  — `IlOp::BoundAddr`, whose `off` is a SUM — is the one named gap this lane
+  leaves open, and it is a field and not an unknown.

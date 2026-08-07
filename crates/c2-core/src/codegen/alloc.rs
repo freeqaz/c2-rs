@@ -406,6 +406,71 @@
 //! address as a store value makes the mixed run reachable and inherits every
 //! paragraph above.
 //!
+//! # H-2Z is REFUTED — the TENTH, and the first to take the DECODED FACT with it
+//!
+//! **Board #1243**, lane `w-prod`. `w-self2b` published a rule that is **0
+//! wrong on GRID Z's 72**, under a header saying it has no standing, and did
+//! not propose it:
+//!
+//! ```text
+//!   H-2Z   the address producer takes POOL_TOP  iff  cu <= ru + 1 + d
+//!            d = 1 when  the STORE designator's root token is a BIND
+//!                  AND   it differs from the VALUE expression's root token
+//!                  AND   ru >= 2
+//! ```
+//!
+//! On **GRID P** — 90 cells, `sha256` and every rival's predictions committed
+//! at `b5a20490` **before one cell was compiled**, 90 reached, 90 graded, **0
+//! OOR, 0 compile-failed** — it is **3 WRONG of 81 in domain**, and its two
+//! declared twins (`cu <= min(ru+2, 2·ru)`, and *"the address must be live
+//! across two of its own stores"*) are wrong on the **same three cells**. **The
+//! shipped refusal is wrong on 0 of the same 81.**
+//!
+//! All three misses are `CHAINBIND` — `F& m = k;`, a bind whose base is another
+//! bind — which is one of three classes no lane had compiled. `w-prod`'s prereg
+//! **P2** registered that direction before the grid was frozen and it landed:
+//! `CHAINBIND` agrees with `LOAD` at **9 of 9** points.
+//!
+//! ## And it takes board #1231's predicate with it
+//!
+//! This is the part worth more than the count. `w-prod` decoded the `.ex` of
+//! one representative per family (`work/w-prod/roots.out`, through `w-ilx`'s
+//! `exdec.py`) and **`P6` (`TWOBIND`) and `P7` (`CHAINBIND`) decode
+//! identically**:
+//!
+//! ```text
+//!   P6  F& k = h->blk.s0;  F& m = h->blk.s0;  m.n0 = (int)&k;   prod
+//!   P7  F& k = h->blk.s0;  F& m = k;          m.n0 = (int)&k;   const
+//!
+//!   both:  lvalue tok 0x150a BIND [0]     value tok 0x140a BIND []
+//! ```
+//!
+//! **Every field of the carrier `w-self2b` named is equal on both sides, and
+//! real `c2` gives them different registers.** So #1231's predicate is refuted
+//! on a *decode* and not merely on a source spelling, and **no rule statable
+//! over `(root token, is-a-bind, literal list)` of the two sides can separate
+//! the pair.** The difference is one level down, in the bind table
+//! (`work/w-prod/witness.out`):
+//!
+//! ```text
+//!   P6:  0x150a -> base 0x0f0a [76, 0]     bound to the FORMAL's path
+//!   P7:  0x150a -> base 0x140a []          bound to the OTHER BIND
+//! ```
+//!
+//! That is why [`Root::base`] exists. A successor may **not** read
+//! `lvalue.base == value.tok` off that pair and call it a rule — it is one
+//! witness, read after the grade, which is exactly how the ten keys above were
+//! written.
+//!
+//! **Two further results, and one non-result.** `TWOBIND-swapped` agrees with
+//! `TWOBIND` at 9 of 9, so **declaration order does not enter the answer**;
+//! `PTRBIND` (a `const` pointer, not a reference) agrees with `SELF-2B` at 9 of
+//! 9 while `work/w-prod/bindbit.out` **cannot show its root is a `26` bind
+//! head** — reported as a decoder limit and not as a second refutation. And the
+//! `ru = 4` / `ru = 5` bands, reached for the first time by any lane, **simply
+//! extend** the two fitted frontiers, which is a registered prediction this
+//! lane got **wrong**.
+//!
 //! # The CARRIER exists — and it still ships no rule
 //!
 //! **Board #1231**, lane `w-prod`. Every one of the nine deaths above is a rule
@@ -484,6 +549,32 @@ pub struct Root {
     /// `c2_il::IlOp::BoundAddr`'s `tok` are two derivations of that same rule
     /// and cannot disagree.
     pub is_bind: bool,
+    /// **What this root is ITSELF rooted at** — the base token of the bind, or
+    /// `None` for a root that is not a bind (a formal is rooted at nothing) or
+    /// where the reader did not carry it.
+    ///
+    /// **Board #1245, measured by this lane's own GRID P and not assumed.**
+    /// `w-self2b` named the carrier as `(root token, is-a-bind, literal list)`
+    /// of both sides, and GRID P contains a pair — `P6-r2k4` / `P7-r2k4`,
+    /// `work/w-prod/witness.out` — that is **identical in all six of those
+    /// fields on both sides** and that real `c2` gives **different registers**:
+    ///
+    /// ```text
+    ///   P6  F& k = h->blk.s0;  F& m = h->blk.s0;  m.n0 = (int)&k;   prod
+    ///   P7  F& k = h->blk.s0;  F& m = k;          m.n0 = (int)&k;   const
+    ///
+    ///   both:  lvalue tok 0x150a BIND [0]   value tok 0x140a BIND []
+    ///   bind table   P6:  0x150a -> base 0x0f0a [76, 0]   (the FORMAL's path)
+    ///                P7:  0x150a -> base 0x140a []        (the OTHER BIND)
+    /// ```
+    ///
+    /// So the difference is one level down, in what the store's root is bound
+    /// **to**, and no rule stated over the other three fields can separate the
+    /// pair. That is board #908's lesson a second time — not one contiguous
+    /// field, and not one number either — and it is why this field exists.
+    ///
+    /// It carries no rule. [`allocate`] does not read it.
+    pub base: Option<u32>,
     /// The offset-add literal **LIST**, or `None` where the reader that built
     /// this carried only the list's SUM.
     ///
@@ -1302,10 +1393,10 @@ mod tests {
     // statement; the shipped answer is still the refusal.
 
     fn formal(tok: u32) -> Root {
-        Root { tok, is_bind: false, offsets: None }
+        Root { tok, is_bind: false, base: None, offsets: None }
     }
     fn bind(tok: u32) -> Root {
-        Root { tok, is_bind: true, offsets: None }
+        Root { tok, is_bind: true, base: Some(0xf0a), offsets: None }
     }
 
     /// **The six rows of `work/w-self2b/roots.out`, in the port's own types.**
@@ -1384,8 +1475,8 @@ mod tests {
     #[test]
     fn the_offset_lists_state_a_prefix_and_a_sum_only_carrier_refuses() {
         let with = |v: Vec<i32>, l: Vec<i32>| ProducerRoots {
-            value: Root { tok: 1, is_bind: false, offsets: Some(v) },
-            lvalue: Root { tok: 1, is_bind: true, offsets: Some(l) },
+            value: Root { tok: 1, is_bind: false, base: None, offsets: Some(v) },
+            lvalue: Root { tok: 1, is_bind: true, base: Some(0xf0a), offsets: Some(l) },
         };
         assert_eq!(with(vec![96], vec![96, 4]).value_offsets_prefix_lvalue(), Some(true));
         assert_eq!(with(vec![96, 8], vec![96, 4]).value_offsets_prefix_lvalue(), Some(false));
@@ -1394,7 +1485,7 @@ mod tests {
 
         // sum-only on either side: REFUSED, never guessed.
         let half = ProducerRoots {
-            value: Root { tok: 1, is_bind: false, offsets: Some(vec![96]) },
+            value: Root { tok: 1, is_bind: false, base: None, offsets: Some(vec![96]) },
             lvalue: bind(1),
         };
         assert_eq!(half.value_offsets_prefix_lvalue(), None);
@@ -1426,8 +1517,8 @@ mod tests {
             Some(ProducerRoots { value: bind(0x130a), lvalue: formal(0x0e0a) }),
             Some(ProducerRoots { value: bind(0x130a), lvalue: bind(0x140a) }),
             Some(ProducerRoots {
-                value: Root { tok: 7, is_bind: true, offsets: Some(vec![96]) },
-                lvalue: Root { tok: 9, is_bind: true, offsets: Some(vec![96, 4]) },
+                value: Root { tok: 7, is_bind: true, base: Some(0xf0a), offsets: Some(vec![96]) },
+                lvalue: Root { tok: 9, is_bind: true, base: Some(0xf0a), offsets: Some(vec![96, 4]) },
             }),
         ];
         let mut checked = 0;
@@ -1450,5 +1541,57 @@ mod tests {
             }
         }
         assert_eq!(checked, 7 * 2 * 7 * 2, "every cross was actually visited");
+    }
+
+    /// **Board #1245 — the pair the carrier's first three fields CANNOT
+    /// separate, and the field that does.**
+    ///
+    /// GRID P's `P6-r2k4` and `P7-r2k4` (`work/w-prod/witness.out`), decoded
+    /// from the `.ex` alone through `w-ilx`'s `exdec.py` and graded against
+    /// real `c2.dll` under wibo at the workload's own `/GR /O1 /Oi /EHsc`:
+    ///
+    /// ```text
+    ///   P6  F& k = h->blk.s0;  F& m = h->blk.s0;  m.n0 = (int)&k;   prod
+    ///   P7  F& k = h->blk.s0;  F& m = k;          m.n0 = (int)&k;   const
+    /// ```
+    ///
+    /// Both decode to lvalue `tok 0x150a` BIND `[0]` and value `tok 0x140a`
+    /// BIND `[]`. **Every field `w-self2b` named is equal on both sides and c2
+    /// takes different registers**, so board #1231's predicate — and every rule
+    /// statable over that carrier — is refuted on a *decode*, not merely on a
+    /// source spelling. What differs is [`Root::base`]: `m` is bound to the
+    /// formal's path in `P6` and to the other bind in `P7`.
+    #[test]
+    fn the_witness_pair_needs_the_root_s_own_base() {
+        // the carrier as `w-self2b` named it — (tok, is_bind, offsets)
+        let named = |tok, is_bind| Root { tok, is_bind, base: None, offsets: None };
+        let p6_named = ProducerRoots { value: named(0x140a, true), lvalue: named(0x150a, true) };
+        let p7_named = p6_named.clone();
+        assert_eq!(p6_named, p7_named, "the named carrier cannot tell them apart");
+        // …and it answers the same on both, while c2 does not.
+        assert!(p6_named.store_root_is_distinct_bind());
+        assert!(p7_named.store_root_is_distinct_bind());
+
+        // the carrier WITH the root's own base — `P6` roots `m` at the formal
+        // `0x0f0a`, `P7` roots it at the other bind `0x140a`.
+        let with = |tok, base| Root { tok, is_bind: true, base: Some(base), offsets: None };
+        let p6 = ProducerRoots { value: with(0x140a, 0x0f0a), lvalue: with(0x150a, 0x0f0a) };
+        let p7 = ProducerRoots { value: with(0x140a, 0x0f0a), lvalue: with(0x150a, 0x140a) };
+        assert_ne!(p6, p7, "the base separates the pair");
+        // and the one term that names the difference
+        assert_eq!(p6.lvalue.base, Some(p6.lvalue.base.unwrap()));
+        assert_ne!(p6.lvalue.base, p7.lvalue.base);
+        assert_eq!(p7.lvalue.base, Some(p7.value.tok), "P7's store root is bound to the VALUE's root");
+        assert_ne!(p6.lvalue.base, Some(p6.value.tok), "P6's is not");
+
+        // **STILL NOT A RULE.** `lvalue.base == value.tok` is what separates
+        // this pair and it is read off this pair, which is precisely how ten
+        // keys were written. It is not proposed, and `allocate` does not read
+        // `base` any more than it reads the rest.
+        let mut a = run("0011", ProducerKind::Constant);
+        let mut b = a.clone();
+        a[0].roots = Some(p6);
+        b[0].roots = Some(p7);
+        assert_eq!(allocate(&a, 4), allocate(&b, 4));
     }
 }
