@@ -199,6 +199,101 @@
 //! five misses is one — and that is a fresh frozen grid, not another pass over
 //! these cells (#912's standing lesson).
 //!
+//! # H-MIX is REFUTED — the eighth, and the first killed by a pair of objs that agree on everything except a SPELLING
+//!
+//! **Board #1217**, lane `w-mixed`. Every entry above was refuted by a *count*
+//! of misses. This one has a two-cell witness that is worth more than its
+//! count, because it constrains what any successor may be stated in.
+//!
+//! The seven above all ask *which of `uses`, `kind` and `first` decides*.
+//! H-MIX asked whether the answer is a **threshold in the two use counts**,
+//! taking board #892's `cu <= ru + 1` — the best-scoring rule on record, 67 of
+//! 77, and the one board **#912** has been asking for a frozen grid for since
+//! 2026-08-07 — and adding one term for the spelling `w-spell` calls `2base`:
+//!
+//! ```text
+//!   H-MIX   the producer takes POOL_TOP  iff  cu <= ru + 1 + b
+//!             b = 1 when the address-valued stores go through a bound
+//!                 reference distinct from the literal stores' base
+//!           DOMAIN: two producers, one an interior address that is a PREFIX of
+//!           every address it is stored into, one `li`.
+//! ```
+//!
+//! It is **41 of 41** over every in-domain cell of three lanes' committed
+//! tables, 15 of them on frozen holdouts, and it repairs every miss those
+//! tables record inside its domain — `RULE W2`'s two `self` misses (#891) and
+//! `KEY ILX`'s `SELF-2B` miss. On **GRID M**, 70 cells frozen with their
+//! `sha256` at `efdcf6e6` before one was compiled, it is **12 WRONG of 62 in
+//! domain**. The shipped refusal is wrong on **0 of the same 62.**
+//!
+//! **It dies because the allocation is decided by the SOURCE SPELLING OF THE
+//! VALUE, and not by the value.** These two cells bind the same reference,
+//! compute the same address, emit the same instruction, and take different
+//! registers — `&q == &t->mid.lo == &t->mid == t+40`, because `lo` is `Q`'s
+//! first member:
+//!
+//! ```text
+//!   P& q = t->mid.lo;  q.b0 = (int)&q;        li 11,7 ; addi 10,3,40 ; …
+//!   P& q = t->mid.lo;  q.b0 = (int)&t->mid;   li 10,7 ; addi 11,3,40 ; …
+//! ```
+//!
+//! Their **objs differ in eight bytes and every one is a register field**
+//! (`work/w-mixed/objdiff.out`, `TimeDateStamp` zeroed — the project's own
+//! compare). So no rule stated in [`Producer`]'s fields can separate them:
+//! `uses`, `kind` and `first` are equal across the pair, and so is the emitted
+//! `addi`. This is board #868's lesson (*"the separating axis is the spelling"*)
+//! reproduced **inside** the address class, between two spellings of one
+//! address — which #868 could not see, because it varied `addi`/`add`/`slwi`.
+//!
+//! **The difference IS in the IL**, which is the one piece of good news for a
+//! successor (`work/w-mixed/ildiff.out`): the `&q` spelling is a bare
+//! `B9 <tok> <TYPE>` with no offset-adds, the `&t->mid` spelling carries
+//! `33 <int> <varint 40> 27 <PTR>`. So the fact is readable; it is
+//! [`ProducerKind`] that cannot hold it.
+//!
+//! ## What GRID M measured that is worth keeping
+//!
+//! | class (w-ilx #909's names) | cells | `cu <= ru+1` |
+//! |---|---:|---|
+//! | `SELF-1B` — path-spelled value, one base | 31 | **31/31** |
+//! | `LOAD` — bind-name-spelled value, no offset-adds | 29 | **29/29** |
+//! | `SELF-2B` — path-spelled value, bind base | 2 | **0/2** |
+//! | `CROSS` — control, declared out of domain at freeze | 8 | 8/8 |
+//!
+//! * **`LOAD` and `SELF-1B` are ONE class.** 60 cells, an identical prod/const
+//!   frontier at every one of the 21 `(ru, cu)` points, and `cu <= ru + 1`
+//!   exact on all 60. `KEY ILX`'s clause 1 (`LOAD` wins iff `cu <= 1`) is
+//!   **22 of 29** here, and board **#910**'s *"the `LOAD` class is not a class
+//!   either"* is now measured rather than inferred.
+//! * **Board #892 is REFUTED and #912 is discharged.** `cu <= ru + 1` is
+//!   **60 of 62** on a frozen never-fitted grid — its best score anywhere, and
+//!   still a loss to the refusal. It is wrong on exactly the `SELF-2B` pair.
+//!   #912 asked for the population `cu` 6–8 at `ru` 2–3; GRID M carries all
+//!   five of those points and **every rule on record agrees with the obj
+//!   there**, so the population #912 named is not where it dies.
+//! * **`always-prod` — `w-heap` §4.1.1's *"the interior address takes the top
+//!   of the pool, whatever the use counts are"*, which is what a lane reading
+//!   only `xboxheap` would ship — is **44 wrong of 62**.
+//! * **The discrimination is not body length.** Every class's `prod` and
+//!   `const` cells overlap in store count (5–12 against 7–14); the
+//!   `/QXSTALLS` failure cannot be what this is.
+//!
+//! **A successor may not narrow around `SELF-2B`.** That is a gate drawn around
+//! the failing cells, it is how seven of the eight above were written, and
+//! `w-mixed`'s own prereg forbade it before the grade. What the residual owes
+//! first is a grid of `SELF-2B` **at scale** — the whole world's supply is 15
+//! cells across four lanes — varying the bind's displacement, the depth of the
+//! value's path, and whether the path's tail agrees with the store's.
+//!
+//! **And lifting this refusal converts nothing.** `w-mixed`'s P0 ladder
+//! (`work/w-mixed/p0/probe.txt`) lifts the reader's mixed-kind clause on
+//! `w-carrier`'s own copy of `xboxheap`'s ctor and the body moves to
+//! `store-run-bind-call-tail-mr-slot`, then with that lifted too to
+//! `store-run-bind-no-emitter-carrier` — and below both sits
+//! `super::super::leaf::store`'s `value_bound` refusal, which no reader lift
+//! reaches. Board **#1218**: `xboxheap.cpp` prices at **three named reader keys
+//! plus one emitter refusal**, not at one.
+//!
 //! **And clauses 2, 3 and 4-for-register-derived are unreachable from the
 //! emitter today**, which is why none of this moves a byte:
 //! `super::super::leaf::store` builds every [`Producer`] with
@@ -645,6 +740,163 @@ mod tests {
         // …and above the top there is no pool, so it refuses rather than
         // reaching for r12 (#543).
         assert_eq!(allocate(&run("0", ProducerKind::Constant), POOL_TOP + 1), None);
+    }
+
+    /// **THE PAIR THAT KILLED H-MIX, and the reason no successor may be stated
+    /// in [`Producer`]'s fields** — lane `w-mixed`, board **#1217**,
+    /// `work/w-mixed/gridM/`, frozen at `efdcf6e6` before a cell was compiled.
+    ///
+    /// Two sources that bind the same reference, compute the **same address**
+    /// (`&q == &t->mid.lo == &t->mid == t+40`, because `lo` is `Q`'s first
+    /// member), store it into the same two slots, and emit the same `addi`:
+    ///
+    /// ```text
+    ///   B-2base-r2k4          q.b0 = (int)&q;
+    ///       li 11,7 ; addi 10,3,40 ; stw 11,0(3) … stw 10,40(3) ; stw 10,44(3)
+    ///   C-2base-r2k4-selfup   q.b0 = (int)&t->mid;
+    ///       li 10,7 ; addi 11,3,40 ; stw 10,0(3) … stw 11,40(3) ; stw 11,44(3)
+    /// ```
+    ///
+    /// The objs differ in **8 bytes, every one a register field**, with the
+    /// `TimeDateStamp` zeroed (`work/w-mixed/objdiff.out`). Across the pair
+    /// [`Producer::uses`], [`Producer::kind`] and [`Producer::first`] are
+    /// **equal** — so any rule this module could express gives both cells one
+    /// answer, and one of them is wrong bytes.
+    ///
+    /// The two constructions are therefore built here as the **identical**
+    /// producer list, and the assertion is that [`allocate`] refuses it. That
+    /// is the refusal doing the only thing that is right on both.
+    ///
+    /// The distinction is visible in the IL and nowhere in this module: the
+    /// `&q` spelling is a bare `B9 <tok> <TYPE>`, the `&t->mid` spelling adds
+    /// `33 <int> <varint 40> 27 <PTR>` (`work/w-mixed/ildiff.out`). A successor
+    /// has to be stated over *that*, and it owes a `SELF-2B` grid at scale
+    /// before it is worth stating at all.
+    #[test]
+    fn the_same_address_spelled_two_ways_takes_two_registers_so_the_run_refuses() {
+        // GRID M's headline pair. `ru = 2` address stores, `cu = 4` literal
+        // stores, in both cells — this list is what BOTH compile to here.
+        let pair = vec![
+            Producer {
+                id: 0,
+                kind: ProducerKind::Constant,
+                uses: 4,
+                first: 0,
+            },
+            Producer {
+                id: 1,
+                kind: ProducerKind::RegisterDerived,
+                uses: 2,
+                first: 4,
+            },
+        ];
+        assert_eq!(
+            allocate(&pair, 4),
+            None,
+            "real c2 gives r11 to the CONSTANT for `(int)&q` and to the ADDRESS \
+             for `(int)&t->mid` — the same address, the same `addi r,3,40`, the \
+             same use counts, objs 8 bytes apart and every byte a register \
+             field. Any answer here is wrong on one of them (board #1217)"
+        );
+        assert!(!all_in(&pair, 4, 11));
+
+        // The gate FIRES rather than being satisfied by something else (#1175):
+        // drop the kind mix and the very same counts are answered.
+        let same_counts_one_kind = vec![
+            Producer {
+                id: 0,
+                kind: ProducerKind::Constant,
+                uses: 4,
+                first: 0,
+            },
+            Producer {
+                id: 1,
+                kind: ProducerKind::Constant,
+                uses: 2,
+                first: 4,
+            },
+        ];
+        assert!(
+            allocate(&same_counts_one_kind, 4).is_some(),
+            "the refusal above must be the MIXED-KIND clause and not the pool, \
+             the producer count or the use counts — all three are unchanged here"
+        );
+    }
+
+    /// **H-MIX's frontier, pinned so it cannot be re-derived without meeting
+    /// GRID M** — board **#1217**, `work/w-mixed/grade.out`.
+    ///
+    /// `cu <= ru + 1` (board **#892**, and `RULE W2`'s surviving magnitude
+    /// clause, since `2ru+3 > 2cu` is the same predicate over the integers) is
+    /// **60 of 62** on GRID M — its best score on any population and still a
+    /// loss to the refusal, which is 0 wrong of the same 62. Board **#912**
+    /// asked for exactly this grid and named `cu` 6–8 at `ru` 2–3 as the
+    /// population that would kill it; GRID M carries all five of those points
+    /// and every rule on record agrees with the obj there. **It dies somewhere
+    /// else**: at `SELF-2B`, `(2,4)` and `(3,5)`, where it says `const` and real
+    /// `c2` says `prod`.
+    ///
+    /// The cells below are the frontier `c2` actually draws for the 60 cells of
+    /// `SELF-1B` + `LOAD`, which GRID M found are **one class** and not two
+    /// (board #910, now measured). They are pinned as data a successor must
+    /// reproduce, and every one of them is REFUSED today.
+    #[test]
+    fn grid_m_frontier_is_pinned_and_every_cell_of_it_is_refused() {
+        // (ru, cu, what real c2 does) — `work/w-mixed/grade.out`, the SELF-1B
+        // and LOAD classes, which agree cell for cell at all 21 points.
+        const FRONTIER: &[(usize, usize, bool)] = &[
+            (1, 1, true),
+            (1, 2, true),
+            (1, 3, false),
+            (1, 4, false),
+            (2, 2, true),
+            (2, 3, true),
+            (2, 4, false),
+            (2, 5, false),
+            (3, 3, true),
+            (3, 4, true),
+            (3, 5, false),
+            (3, 6, false),
+            (4, 4, true),
+            (4, 5, true),
+            (4, 6, false),
+            (4, 7, false),
+            // board #912's named population — every rule on record agrees here
+            (2, 6, false),
+            (2, 7, false),
+            (2, 8, false),
+            (3, 7, false),
+            (3, 8, false),
+        ];
+        for &(ru, cu, prod_wins) in FRONTIER {
+            assert_eq!(
+                prod_wins,
+                cu <= ru + 1,
+                "GRID M's SELF-1B and LOAD classes are exactly `cu <= ru+1`, \
+                 60 of 60 — if this line ever fails the table above was edited"
+            );
+            let mixed = vec![
+                Producer {
+                    id: 0,
+                    kind: ProducerKind::Constant,
+                    uses: cu,
+                    first: 0,
+                },
+                Producer {
+                    id: 1,
+                    kind: ProducerKind::RegisterDerived,
+                    uses: ru,
+                    first: cu,
+                },
+            ];
+            assert_eq!(
+                allocate(&mixed, 4),
+                None,
+                "GRID M cell (reg {ru}, const {cu}) must REFUSE — the rule that \
+                 fits these 60 is wrong on the SELF-2B pair, and this module \
+                 cannot tell the two apart (board #1217)"
+            );
+        }
     }
 
     /// The guard the store emitters call. One producer is r11 — which is what

@@ -1,0 +1,26 @@
+  SELF-2B, every cell on record
+  22 cells across 3 lanes | 14 DISTINCT (ru,cu) points: 1/1, 1/2, 2/1, 2/2, 2/3, 2/4, 2/5, 3/1, 3/3, 3/4, 3/5, 4/1, 4/2, 4/5
+  points where two lanes DISAGREE on the obj: none — the class is self-consistent
+
+  rule                right  WRONG   wrong cells
+  ----------------------------------------------------------------------------
+  always-prod           20      2   H2-self-2base-r2k5, V7-bindself-r2k5
+  cu<=ru+1  (#892)      15      7   H2-self-2base-r2k4, H2-self-2base-r3k5, X-A-r3k5, X-A-r2k4, V7-bindself-r3k5, C-2base-r2k4-selfup, C-2base-r3k5-selfup
+  cu<=ru+2              22      0   -
+  clause-1-alone         6     16   S-self-2base-r1k1, S-self-2base-r2k2, S-self-2base-r2k3, H2-self-2base-r1k2, H2-self-2base-r2k4, H2-self-2base-r3k5, H2-self-2base-r4k5, H2-self-2base-r3k3, X-A-r3k5, X-A-r2k4, X-A-r1k1, V7-bindself-r1k1, V7-bindself-r3k4, V7-bindself-r3k5, C-2base-r2k4-selfup, C-2base-r3k5-selfup
+  always-const           2     20   S-self-2base-r1k1, S-self-2base-r2k1, S-self-2base-r3k1, S-self-2base-r2k2, S-self-2base-r2k3, H2-self-2base-r4k1, H2-self-2base-r1k2, H2-self-2base-r2k4, H2-self-2base-r3k5, H2-self-2base-r4k5, H2-self-2base-r3k3, X-A-r3k5, X-A-r2k4, X-A-r1k1, V7-bindself-r1k1, V7-bindself-r3k4, V7-bindself-r3k5, V7-bindself-r4k2, C-2base-r2k4-selfup, C-2base-r3k5-selfup
+
+  the shipped refusal    0      0   (refuses all 22)
+
+  `cu<=ru+2` fits this class and is 17/31 and 17/29 on GRID M's
+  SELF-1B and LOAD, so it is a CLAUSE and not a rule — and it is
+  scored here, never proposed.  No successor is fitted on the cells
+  that refuted its predecessor (w-ilx's standing instruction).
+
+  The axes NONE of the four lanes varied, which is what a SELF-2B
+  grid owes first:
+    * the bind's own DISPLACEMENT (all five families bind at one)
+    * the DEPTH of the value's path (`&s->mid` vs `&s->mid.in1`)
+    * whether the path's TAIL agrees with the store's
+    * cu = ru+2 AND cu = ru+3 in the same family (only w-spell H
+      and GRID M reach either, and neither reaches both)

@@ -1,0 +1,70 @@
+== B-2base-r2k4  vs  C-2base-r2k4-selfup
+   sizes 892 / 892
+   differing bytes with TimeDateStamp (4..8) zeroed: 8
+      off 0x0231   60 -> 40
+      off 0x0235   43 -> 63
+      off 0x0239   63 -> 43
+      off 0x023d   63 -> 43
+      off 0x0241   63 -> 43
+      off 0x0245   63 -> 43
+      off 0x0249   43 -> 63
+      off 0x024d   43 -> 63
+   -- B-2base-r2k4
+      li 11, 7
+      addi 10, 3, 40
+      stw 11, 0(3)
+      stw 11, 4(3)
+      stw 11, 8(3)
+      stw 11, 12(3)
+      stw 10, 40(3)
+      stw 10, 44(3)
+      blr
+   -- C-2base-r2k4-selfup
+      li 10, 7
+      addi 11, 3, 40
+      stw 10, 0(3)
+      stw 10, 4(3)
+      stw 10, 8(3)
+      stw 10, 12(3)
+      stw 11, 40(3)
+      stw 11, 44(3)
+      blr
+
+== B-2base-r3k5  vs  C-2base-r3k5-selfup
+   sizes 900 / 900
+   differing bytes with TimeDateStamp (4..8) zeroed: 10
+      off 0x0231   60 -> 40
+      off 0x0235   43 -> 63
+      off 0x0239   63 -> 43
+      off 0x023d   63 -> 43
+      off 0x0241   63 -> 43
+      off 0x0245   63 -> 43
+      off 0x0249   63 -> 43
+      off 0x024d   43 -> 63
+      off 0x0251   43 -> 63
+      off 0x0255   43 -> 63
+   -- B-2base-r3k5
+      li 11, 7
+      addi 10, 3, 40
+      stw 11, 0(3)
+      stw 11, 4(3)
+      stw 11, 8(3)
+      stw 11, 12(3)
+      stw 11, 16(3)
+      stw 10, 40(3)
+      stw 10, 44(3)
+      stw 10, 48(3)
+      blr
+   -- C-2base-r3k5-selfup
+      li 10, 7
+      addi 11, 3, 40
+      stw 10, 0(3)
+      stw 10, 4(3)
+      stw 10, 8(3)
+      stw 10, 12(3)
+      stw 10, 16(3)
+      stw 11, 40(3)
+      stw 11, 44(3)
+      stw 11, 48(3)
+      blr
+

@@ -1,0 +1,88 @@
+  cell                           base   target    st    H-MIX    obj      
+  --------------------------------------------------------------------------------------------
+  B-1base-r1k1                   1base  self      5     prod     prod     
+  B-2base-r1k1                   2base  self      5     prod     prod     
+  B-1base-r1k2                   1base  self      6     prod     prod     
+  B-2base-r1k2                   2base  self      6     prod     prod     
+  B-1base-r1k3                   1base  self      7     const    const    
+  B-2base-r1k3                   2base  self      7     prod     const    **MISS**
+  B-1base-r1k4                   1base  self      8     const    const    
+  B-2base-r1k4                   2base  self      8     const    const    
+  B-1base-r2k2                   1base  self      7     prod     prod     
+  B-2base-r2k2                   2base  self      7     prod     prod     
+  B-1base-r2k3                   1base  self      8     prod     prod     
+  B-2base-r2k3                   2base  self      8     prod     prod     
+  B-1base-r2k4                   1base  self      9     const    const    
+  B-2base-r2k4                   2base  self      9     prod     const    **MISS**
+  B-1base-r2k5                   1base  self      10    const    const    
+  B-2base-r2k5                   2base  self      10    const    const    
+  B-1base-r3k3                   1base  self      9     prod     prod     
+  B-2base-r3k3                   2base  self      9     prod     prod     
+  B-1base-r3k4                   1base  self      10    prod     prod     
+  B-2base-r3k4                   2base  self      10    prod     prod     
+  B-1base-r3k5                   1base  self      11    const    const    
+  B-2base-r3k5                   2base  self      11    prod     const    **MISS**
+  B-1base-r3k6                   1base  self      12    const    const    
+  B-2base-r3k6                   2base  self      12    const    const    
+  B-1base-r4k4                   1base  self      11    prod     prod     
+  B-2base-r4k4                   2base  self      11    prod     prod     
+  B-1base-r4k5                   1base  self      12    prod     prod     
+  B-2base-r4k5                   2base  self      12    prod     prod     
+  B-1base-r4k6                   1base  self      13    const    const    
+  B-2base-r4k6                   2base  self      13    prod     const    **MISS**
+  B-1base-r4k7                   1base  self      14    const    const    
+  B-2base-r4k7                   2base  self      14    const    const    
+  B-1base-r2k6                   1base  self      11    const    const    
+  B-2base-r2k6                   2base  self      11    const    const    
+  B-1base-r2k7                   1base  self      12    const    const    
+  B-2base-r2k7                   2base  self      12    const    const    
+  B-1base-r2k8                   1base  self      13    const    const    
+  B-2base-r2k8                   2base  self      13    const    const    
+  B-1base-r3k7                   1base  self      13    const    const    
+  B-2base-r3k7                   2base  self      13    const    const    
+  B-1base-r3k8                   1base  self      14    const    const    
+  B-2base-r3k8                   2base  self      14    const    const    
+  C-1base-r2k4-selfup            1base  selfup    9     const    const    
+  C-1base-r2k4-cross             1base  cross     9     -        const    control  H-MIX-would-say=const
+  C-1base-r2k4-otherobj          1base  otherobj  9     -        const    control  H-MIX-would-say=const
+  C-1base-r2k4-regfirst          1base  self      9     const    const    
+  C-1base-r2k4-lit0              1base  self      9     const    const    
+  C-1base-r2k4-far               1base  self      9     const    const    
+  C-1base-r2k4-sig5              1base  self      9     const    const    
+  C-2base-r2k4-selfup            2base  selfup    9     prod     prod     
+  C-2base-r2k4-cross             2base  cross     9     -        const    control  H-MIX-would-say=prod
+  C-2base-r2k4-otherobj          2base  otherobj  9     -        const    control  H-MIX-would-say=prod
+  C-2base-r2k4-regfirst          2base  self      9     prod     const    **MISS**
+  C-2base-r2k4-lit0              2base  self      9     prod     const    **MISS**
+  C-2base-r2k4-far               2base  self      9     prod     const    **MISS**
+  C-2base-r2k4-sig5              2base  self      9     prod     const    **MISS**
+  C-1base-r3k5-selfup            1base  selfup    11    const    const    
+  C-1base-r3k5-cross             1base  cross     11    -        const    control  H-MIX-would-say=const
+  C-1base-r3k5-otherobj          1base  otherobj  11    -        const    control  H-MIX-would-say=const
+  C-1base-r3k5-regfirst          1base  self      11    const    const    
+  C-1base-r3k5-lit0              1base  self      11    const    const    
+  C-1base-r3k5-far               1base  self      11    const    const    
+  C-1base-r3k5-sig5              1base  self      11    const    const    
+  C-2base-r3k5-selfup            2base  selfup    11    prod     prod     
+  C-2base-r3k5-cross             2base  cross     11    -        const    control  H-MIX-would-say=prod
+  C-2base-r3k5-otherobj          2base  otherobj  11    -        const    control  H-MIX-would-say=prod
+  C-2base-r3k5-regfirst          2base  self      11    prod     const    **MISS**
+  C-2base-r3k5-lit0              2base  self      11    prod     const    **MISS**
+  C-2base-r3k5-far               2base  self      11    prod     const    **MISS**
+  C-2base-r3k5-sig5              2base  self      11    prod     const    **MISS**
+
+  frozen 70 | sha256 70 OK, 0 MOVED | reached 70 | GRADED 70 | OOR 0 | compile-failed 0
+
+  rule            right  WRONG refused
+  --------------------------------------------
+  refusal            0      0      62   <- the decline floor
+  H-MIX             50     12       0
+  cu<=ru+1          60      2       0
+  always-prod       18     44       0
+  clause-1          44     18       0
+
+  H-MIX by partition
+      1base  part B   hit 21 | MISS  0
+      1base  part C   hit 10 | MISS  0
+      2base  part B   hit 17 | MISS  4
+      2base  part C   hit  2 | MISS  8
