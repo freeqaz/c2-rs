@@ -294,6 +294,32 @@
 //! reaches. Board **#1218**: `xboxheap.cpp` prices at **three named reader keys
 //! plus one emitter refusal**, not at one.
 //!
+//! > **⚠ #1218's ladder is SUPERSEDED in both halves, and the paragraph above
+//! > is kept as written because it was quoted for two days.** Lane `w-mrslot`
+//! > (board **#1260**) re-measured it by lifting each clause in a scratch tree
+//! > and running the result on `w-carrier`'s replica cell **and** on the real
+//! > `src/xdk/nuispeech/xboxheap.cpp` at the workload's own flags and cwd. Cell
+//! > for cell the same on both:
+//! >
+//! > * **The ladder is TWO rungs, not four.**
+//! >   `store-run-bind-call-tail-mr-slot` is **retired** (#1212 was a
+//! >   *correction*, not a refusal), and `store-run-bind-no-emitter-carrier` is
+//! >   off the ladder entirely — it was reachable only because
+//! >   `shape_to_function` returned `None` for a bind call tail, which it no
+//! >   longer does. What is left is this refusal's reader key
+//! >   (`store-run-bind-mixed-kind-alloc`) and **one** emitter rung.
+//! > * **`value_bound` is NOT the bottom rung and cannot be.** It is set only
+//! >   when an `IlOp::BoundAddr` stands in a store's **VALUE** position, and the
+//! >   only producer of `BoundAddr` anywhere in `crates/c2-il` rewrites the
+//! >   **BASE** position. It is a backstop with no reachable input. What
+//! >   actually stops `xboxheap` one step earlier is `parse_simple_gpr_run`
+//! >   declining `Load(<bound local>)` in the value position, because the local
+//! >   is not a formal and `reg_of` answers `None` (`w-mrslot` §5.1).
+//! >
+//! > `w-mrslot` left this text alone on purpose — it was a peer lane's file
+//! > that week — and named the correction as owed. Lane `w-mixkind` owns the
+//! > file and pays it here.
+//!
 //! # H-2X is REFUTED — the ninth, and the first to die on the direction its own prereg registered
 //!
 //! **Board #1227**, lane `w-self2b`. The eight above are each a function of one
@@ -513,6 +539,160 @@
 //! That is **one named field**, not an unmeasurable absence, and a one-element
 //! list holding the sum is exactly the lie #908 warns about, so it is not
 //! written.
+//!
+//! # H-CHAIN is REFUTED — the ELEVENTH, and the first stated over the carrier
+//!
+//! **Board #1264**, lane `w-mixkind`. The ten above were each stated in a
+//! representation that could not hold the fact — nine in [`Producer`]'s own
+//! fields, and `H-2Z` in the six fields `w-self2b` named before [`Root::base`]
+//! existed. `H-CHAIN` is the **first key stated over the widened carrier**, so
+//! it is the first whose death is evidence about the *question* rather than
+//! about the structure it was written in.
+//!
+//! ```text
+//!   H-CHAIN   the address producer takes POOL_TOP  iff  cu <= ru + 1 + d
+//!               d = 1 when  the STORE designator's root is a BIND HEAD
+//!                     AND   ru >= 2
+//!                     AND   the VALUE expression's root token does not appear
+//!                           on the store root's BIND CHAIN — the store root's
+//!                           own token, and each successive `Root::base` that
+//!                           is ITSELF a bind head, walked to the first
+//!                           non-bind base.
+//! ```
+//!
+//! It is a **generalisation** of `H-2Z` rather than a narrowing of it: at chain
+//! depth ≤ 1 the two coincide except on `CHAINBIND`, where `H-2Z` is 3 wrong of
+//! GRID P's 81. And it is explicitly **not** #1244's forbidden one-step reading
+//! — that reading was scored beside it as the rival `H-STEP`.
+//!
+//! On **GRID X** — 66 cells, `sha256` and every rival's predictions committed at
+//! `dd2ad36c` **before one cell was compiled**, 66 reached, **66 graded, 0 OOR,
+//! 0 compile-failed** — it is **2 WRONG of 60 in domain**. **The shipped refusal
+//! is wrong on 0 of the same 60.**
+//!
+//! ```text
+//!   rule          wrong   the misses
+//!   H-CHAIN         2     M9  (REVERSE)                      <== under test
+//!   H-STEP          4     M6  (DEEP-GP)   M9 (REVERSE)
+//!   H-DERIV         0     —
+//!   H-DEPTH         4     M8  (CHAIN-PATH)  M9 (REVERSE)
+//!   H-2Z            8     M5 M6 M7 M9
+//!   H-2X           19     cu<=ru+1  8     cu<=ru+2  28
+//!   always-prod    40     clause-1 20     refusal    0
+//! ```
+//!
+//! **It dies on the DIRECTION of the relation, and `work/w-mixkind/PREREG.md`
+//! §5 named that cell before the grid existed.** `M9` is `REVERSE`: two binds,
+//! `T& a = y->blk.q0; T& c = a;`, storing through the **shallower** one with the
+//! value spelled `(int)&c`. `H-CHAIN` walks only the *store root's* chain, and
+//! `a`'s chain is `{a}` with a non-bind base, so `c` is not on it and the rule
+//! grants the bonus. c2 does not.
+//!
+//! ```text
+//!   M5  CHAINBIND   T& a = y->blk.q0; T& c = a;   c.w0 = (int)&a;   const
+//!   M9  REVERSE     T& a = y->blk.q0; T& c = a;   a.w0 = (int)&c;   const
+//! ```
+//!
+//! Same two declarations, the two roles exchanged, and **both are `const`**. So
+//! the relation is **symmetric in the bind lineage** even though it is *not*
+//! symmetric in the two tokens — `MIRROR` and `DEEP-MIRROR` are `const` because
+//! the store root is not a bind at all, which is a different clause. That is the
+//! third time this seam has killed a key on an asymmetry (`H-2X` on `MIRROR`,
+//! `H-2Z` on `CHAINBIND`, `H-CHAIN` on `REVERSE`) and the first time the answer
+//! came back *more* symmetric than the rule.
+//!
+//! ## What GRID X measured that is worth keeping
+//!
+//! * **Every on-record class reproduces on fresh names.** `SELF-1B` and `LOAD`
+//!   are `const` at the deciding point, `SELF-2B` and `TWOBIND` are `prod`,
+//!   `CHAINBIND` is `const` — the GRID Z / GRID P answers, on a layout sharing
+//!   no struct, member, offset, formal, local or literal with them.
+//! * **Every control fired.** `cu = ru+1` is `prod` on all twelve families,
+//!   `cu = ru+3` is `const` on all twelve, and #1229's `ru = 1` collapse is
+//!   `const` on all twelve — including six classes that did not exist when
+//!   #1229 was written. The three out-of-domain controls are `const`.
+//! * **A chained reference SURVIVES to the `.ex` as a chain**, decoded rather
+//!   than assumed (`work/w-mixkind/lineage.out`, through `w-ilx`'s `exdec.py`).
+//!   `T& a = y->blk.q0; T& c = a; T& f = c;` decodes
+//!   `0x160a -> 0x150a -> 0x140a -> 0x0f0a [80, 0]`. The generator declared that
+//!   in advance and could not check it; four families depended on it.
+//! * **`H-DERIV` — the symmetric closure, registered as a rival — is 0 wrong of
+//!   60.** It is written up below under a header saying it has no standing.
+//!
+//! ## And the carrier is ONE LINK SHORT — measured, on the class that shows it
+//!
+//! This is the part worth more than the count, and it is a **correction to
+//! #1244's own scope** rather than to its content.
+//!
+//! [`Root::base`] carries what a root is itself rooted at, and it stops there.
+//! Every relation statable over `(tok, is_bind, base, offsets)` of the two sides
+//! is therefore a **one-link** relation. `M6` (`DEEP-GP`) is the cell that
+//! prices that: a depth-3 chain, storing through `f`, value spelled `(int)&a` —
+//! the store root's **grandparent**.
+//!
+//! ```text
+//!   store root 0x160a   base 0x150a   ...which is a bind, based on 0x140a
+//!   value root 0x140a   — TWO links away, and `base` cannot reach it
+//!
+//!   one-link reading   "unrelated"  =>  prod        c2 says  const
+//!   transitive walk    "ancestor"   =>  const       c2 says  const
+//! ```
+//!
+//! `work/w-mixkind/lineage.out` scores both columns against c2's own answer per
+//! family and the one-link reading is wrong on **`M6` and only `M6`**. So
+//! **#1244 named the missing element correctly and under-scoped how much of it
+//! is missing**: the fact the bytes obey is the **transitive bind lineage**, and
+//! the carrier holds one link of it. That is a named field's worth of work, not
+//! an unmeasurable absence — the `.ex` plainly contains the whole chain, and
+//! `exdec.py` walks it in nine lines.
+//!
+//! **It is deliberately NOT added here.** [`Root`] is constructed in
+//! `super::leaf::store`, which was a concurrent lane's file, and PREREG F-2
+//! forbids this lane shipping a decision. What ships is
+//! [`ProducerRoots::bind_linked`], which states the **one link the carrier
+//! actually holds** and whose doc says where it is wrong.
+//!
+//! # H-DERIV — 0 wrong of 60, and it has NO STANDING
+//!
+//! **Board #1265.** Published the way `w-self2b` published `H-2Z`: under a
+//! header saying so, and **not proposed**.
+//!
+//! ```text
+//!   H-DERIV   the address producer takes POOL_TOP  iff  cu <= ru + 1 + d
+//!               d = 1 when  the STORE designator's root is a BIND HEAD
+//!                     AND   ru >= 2
+//!                     AND   the VALUE root is NEITHER AN ANCESTOR NOR A
+//!                           DESCENDANT of the store root, through BIND LINKS
+//!                           ONLY (a link into a formal is not a bind link).
+//! ```
+//!
+//! It is 0 wrong on GRID X's 60, and it agrees with every recorded answer of
+//! `SELF-1B`, `LOAD`, `SELF-2B`, `MIRROR`, `TWOBIND` and `CHAINBIND` across four
+//! lanes' tables. **None of that is evidence.** `RULE W2` was 388 of 388;
+//! `RULE BIND` 33 of 33; `H-2X` fit 97 distinct cells across three grids;
+//! `H-2Z` was 0 wrong on the 72 that first tested it and 3 wrong on the next 81.
+//! `H-DERIV` has been graded on **one** grid, and its magnitude (`+1`), its
+//! `ru >= 2` guard and its `store root is a bind` clause are all read off the
+//! record it was written against — only the *lineage* clause is new.
+//!
+//! What it owes before anyone states it as a rule, in the order a successor
+//! should buy it:
+//!
+//! 1. **A class it has never seen.** That is the one lesson all eleven deaths
+//!    agree on, and GRID X's own `M9` is the eleventh instance. Candidates no
+//!    lane has compiled: a bind chain crossing **two different objects**; a
+//!    lineage joined at a **formal path** rather than at a bind (`T& a = p->x;
+//!    T& c = q->x;` where `p == q` is not visible to the front end); a chain
+//!    whose intermediate is **never stored through**; and the whole relation at
+//!    `ru` 4–5, where `w-prod` found the fitted frontiers merely extend.
+//! 2. **The carrier it needs does not exist** (above). `H-DERIV` is *not
+//!    statable* over today's [`ProducerRoots`] — [`ProducerRoots::bind_linked`]
+//!    is its one-link approximation and is wrong on `M6`.
+//! 3. **`super::leaf::store` cannot produce a mixed run at all.** Every
+//!    [`Producer`] it builds is [`ProducerKind::Constant`], hard-coded, so this
+//!    module's mixed arm is unreachable and a rule shipped into [`allocate`]
+//!    today would move **zero bytes** while creating exactly the pattern that
+//!    killed eleven keys.
 
 /// How a producer's value is materialised. The distinction is read off the IL,
 /// never off the answer.
@@ -683,6 +863,53 @@ impl ProducerRoots {
             (Some(v), Some(l)) => Some(l.starts_with(v)),
             _ => None,
         }
+    }
+
+    /// **The ONE BIND LINK this carrier holds** — either root is bound
+    /// *directly* to the other, in either direction.
+    ///
+    /// A link **into a formal is not a bind link**: `Root::base` is `Some` for
+    /// a bind hanging off a formal's path too, and treating that as a link
+    /// reads `SELF-2B` — which is `prod` on every grid on record — as related.
+    /// Hence the [`Root::is_bind`] test on the *other* side.
+    ///
+    /// # This is the carrier's REACH, not a rule, and its limit is measured
+    ///
+    /// Board **#1264**, lane `w-mixkind`. The relation real `c2` obeys is the
+    /// **transitive** bind lineage, and this method is its **one-link
+    /// approximation**. GRID X's `M6` (`DEEP-GP`) is the cell that separates
+    /// them and this method is wrong there:
+    ///
+    /// ```text
+    ///   T& a = y->blk.q0;  T& c = a;  T& f = c;   f.w0 = (int)&a;
+    ///
+    ///   store root f, base c        value root a, base y->blk.q0
+    ///   bind_linked()  ->  false    ("unrelated", so a rule grants the bonus)
+    ///   the lineage    ->  a is f's GRANDPARENT
+    ///   real c2        ->  const    (no bonus)
+    /// ```
+    ///
+    /// It is exposed **because** that shortfall is the finding: a successor can
+    /// read the limit off a method instead of off a paragraph, and
+    /// `the_carrier_is_one_bind_link_short` pins the failing cell mechanically.
+    /// Closing it means carrying the lineage from `IlOp::BoundAddr`, which the
+    /// `.ex` plainly contains — see the module docs.
+    ///
+    /// # Compose it with [`Self::store_root_is_distinct_bind`]
+    ///
+    /// **A root is not linked to itself.** `LOAD` and `DEEP-SELF` have one root
+    /// on both sides, so this answers `false` on them and a predicate reading
+    /// it alone grants the bonus where c2 does not. That is a missing clause,
+    /// not a missing link, and the two are kept apart so a successor cannot
+    /// blame the reach for it. `the_grid_x_table_is_stated_in_the_ports_own_types`
+    /// pins both counts.
+    ///
+    /// [`allocate`] does not read this, and
+    /// `allocate_ignores_the_roots_carrier` says so mechanically.
+    pub fn bind_linked(&self) -> bool {
+        let down = self.lvalue.base == Some(self.value.tok) && self.value.is_bind;
+        let up = self.value.base == Some(self.lvalue.tok) && self.lvalue.is_bind;
+        down || up
     }
 }
 
@@ -1593,5 +1820,160 @@ mod tests {
         a[0].roots = Some(p6);
         b[0].roots = Some(p7);
         assert_eq!(allocate(&a, 4), allocate(&b, 4));
+    }
+
+    // -------------------------------------------------- GRID X, board #1264
+    //
+    // Lane `w-mixkind`. `H-CHAIN` is the eleventh key and the first stated over
+    // the widened carrier. These tests hold its graded table and the measured
+    // shortfall it found; they add no allocation statement.
+
+    /// **GRID X's twelve families at the deciding point, in the port's own
+    /// types.**
+    ///
+    /// One representative per family at `(ru, cu) = (2, 4)`, roots decoded from
+    /// the `.ex` alone (`work/w-mixkind/lineage.out`, through `w-ilx`'s
+    /// `exdec.py` — no obj, no disassembly, no register) and the `prod` column
+    /// graded against real `c2.dll` under wibo at the workload's own
+    /// `/GR /O1 /Oi /EHsc` (`work/w-mixkind/grade.out`).
+    ///
+    /// Five of the twelve reproduce GRID Z / GRID P's classes on a layout that
+    /// shares no struct, member, offset, formal, local or literal with them.
+    /// **Seven are classes no lane had compiled.**
+    ///
+    /// What is asserted is that the **transitive bind lineage** reproduces c2 on
+    /// all twelve, and that the two readings that came before it do not:
+    /// board #1231's predicate (`H-2Z`'s clause) misses four, and the one-link
+    /// reading this carrier can actually state misses one.
+    #[test]
+    fn the_grid_x_table_is_stated_in_the_ports_own_types() {
+        // (cell, class, lvalue root, value root, lineage relation, c2's answer)
+        //   `rel` is the DECODED relation of the value root to the store root's
+        //   bind lineage: "self" / "anc" / "desc" / "none".
+        let f = |tok| Root { tok, is_bind: false, base: None, offsets: None };
+        let b = |tok, base| Root { tok, is_bind: true, base: Some(base), offsets: None };
+        let rows: [(&str, &str, Root, Root, &str, bool); 12] = [
+            ("M1", "SELF-1B", f(0x0f0a), f(0x0f0a), "self", false),
+            ("M2", "LOAD", b(0x140a, 0x0f0a), b(0x140a, 0x0f0a), "self", false),
+            ("M3", "SELF-2B", b(0x140a, 0x0f0a), f(0x0f0a), "none", true),
+            ("M4", "TWOBIND", b(0x150a, 0x0f0a), b(0x140a, 0x0f0a), "none", true),
+            ("M5", "CHAINBIND", b(0x150a, 0x140a), b(0x140a, 0x0f0a), "anc", false),
+            ("M6", "DEEP-GP", b(0x160a, 0x150a), b(0x140a, 0x0f0a), "anc", false),
+            ("M7", "DEEP-PARENT", b(0x160a, 0x150a), b(0x150a, 0x140a), "anc", false),
+            ("M8", "CHAIN-PATH", b(0x150a, 0x140a), f(0x0f0a), "none", true),
+            ("M9", "REVERSE", b(0x140a, 0x0f0a), b(0x150a, 0x140a), "desc", false),
+            ("M10", "DEEP-SELF", b(0x160a, 0x150a), b(0x160a, 0x150a), "self", false),
+            ("M11", "CHAIN-SIB", b(0x160a, 0x0f0a), b(0x150a, 0x140a), "none", true),
+            ("M12", "DEEP-MIRROR", f(0x0f0a), b(0x160a, 0x150a), "none", false),
+        ];
+
+        let (mut n1231_wrong, mut link_wrong, mut sym_wrong) = (0, 0, 0);
+        for (cell, klass, lvalue, value, rel, is_prod) in rows {
+            let r = ProducerRoots { value, lvalue };
+            // `H-DERIV`'s clause: a bind store root, and the value root NOT on
+            // the store root's lineage in either direction. Published with NO
+            // STANDING (module docs) — asserted here as a TABLE, not proposed.
+            let lineage_says = r.store_root_is_bind() && rel == "none";
+            assert_eq!(
+                lineage_says, is_prod,
+                "{cell} ({klass}): the decoded lineage must reproduce c2"
+            );
+            // board #1231's predicate — `H-2Z`'s clause, key ten.
+            if r.store_root_is_distinct_bind() != is_prod {
+                n1231_wrong += 1;
+            }
+            // the ONE LINK this carrier holds. **Composed with
+            // `store_root_is_distinct_bind`, because a root is not linked to
+            // ITSELF** — written without that, this column is wrong on `LOAD`
+            // and `DEEP-SELF` as well, which would overstate the shortfall by
+            // two families and blame the reach for a missing clause.
+            if (r.store_root_is_distinct_bind() && !r.bind_linked()) != is_prod {
+                link_wrong += 1;
+            }
+            // `H-2X`'s — symmetric in the two tokens, key nine.
+            if r.roots_differ() != is_prod {
+                sym_wrong += 1;
+            }
+        }
+
+        // **#1231's predicate is wrong on four of the twelve** — `CHAINBIND`,
+        // `DEEP-GP`, `DEEP-PARENT` and `REVERSE`. That is `H-2Z`, 8 wrong of
+        // GRID X's 60 in domain against the refusal's 0.
+        assert_eq!(n1231_wrong, 4, "the #1231 predicate must miss M5 M6 M7 M9");
+        // **The one-link reading is wrong on exactly ONE** — `DEEP-GP`, where
+        // the value root is the store root's GRANDPARENT. See
+        // `the_carrier_is_one_bind_link_short`.
+        assert_eq!(link_wrong, 1, "the one-link reading must miss M6 and only M6");
+        // and the symmetric reading is wrong on five.
+        assert_eq!(sym_wrong, 5, "H-2X's reading on this table");
+    }
+
+    /// **THE CARRIER IS ONE BIND LINK SHORT, and `M6` (`DEEP-GP`) prices it.**
+    ///
+    /// Board **#1264**. [`Root::base`] carries what a root is itself rooted at
+    /// and stops, so every relation statable over
+    /// `(tok, is_bind, base, offsets)` of the two sides is a **one-link**
+    /// relation. The fact real `c2` obeys is the **transitive** bind lineage.
+    ///
+    /// ```text
+    ///   T& a = y->blk.q0;  T& c = a;  T& f = c;   f.w0 = (int)&a;   const
+    ///
+    ///   store root 0x160a  base 0x150a  ->  0x140a   (a bind, TWO links up)
+    ///   value  root 0x140a
+    /// ```
+    ///
+    /// `M5` (`CHAINBIND`) is the same shape at **one** link and the carrier
+    /// answers it correctly, which is what makes this a reach limit and not a
+    /// wrong predicate: the two cells differ only in the depth of the chain and
+    /// c2 answers `const` on both.
+    ///
+    /// This is a **correction to #1244's scope, not to its content** — the
+    /// element it named was right and there is more of it than one field.
+    #[test]
+    fn the_carrier_is_one_bind_link_short() {
+        let b = |tok, base| Root { tok, is_bind: true, base: Some(base), offsets: None };
+        // M5 CHAINBIND — the value root is the store root's IMMEDIATE base.
+        let m5 = ProducerRoots { value: b(0x140a, 0x0f0a), lvalue: b(0x150a, 0x140a) };
+        // M6 DEEP-GP — the value root is TWO links up. Same answer from c2.
+        let m6 = ProducerRoots { value: b(0x140a, 0x0f0a), lvalue: b(0x160a, 0x150a) };
+
+        assert!(m5.bind_linked(), "one link away — the carrier reaches it");
+        assert!(!m6.bind_linked(), "two links away — the carrier does NOT");
+        // real c2 says `const` (no bonus) on BOTH, `work/w-mixkind/grade.out`.
+        // So a rule reading `bind_linked` grants the bonus on M6 and is wrong.
+
+        // **`M9` is the cell that killed `H-CHAIN` itself**, and it is the
+        // DESCENDANT direction: the same two declarations as `M5` with the
+        // roles exchanged, and c2 answers `const` there too. A walk of the
+        // store root's own chain alone cannot see it — which is why
+        // [`ProducerRoots::bind_linked`] tests both directions.
+        let m9 = ProducerRoots { value: b(0x150a, 0x140a), lvalue: b(0x140a, 0x0f0a) };
+        assert!(m9.bind_linked(), "the descendant direction must be reachable");
+
+        // **AND IT IS STILL NOT A RULE.** `allocate` reads none of it.
+        let mut a = run("0011", ProducerKind::Constant);
+        let mut c = a.clone();
+        a[0].roots = Some(m6);
+        c[0].roots = Some(m9);
+        assert_eq!(allocate(&a, 4), allocate(&c, 4));
+    }
+
+    /// **A link into a FORMAL is not a bind link.**
+    ///
+    /// [`Root::base`] is `Some` for a bind hanging off a formal's path too, so
+    /// a `bind_linked` written without the [`Root::is_bind`] test on the other
+    /// side reads `SELF-2B` — `prod` on every grid on record — as related, and
+    /// answers `const`. That defect was written and caught in this lane's own
+    /// diagnostic (`work/w-mixkind/lineage.py`) before it was published, and it
+    /// is pinned here rather than left to a comment.
+    #[test]
+    fn a_link_into_a_formal_is_not_a_bind_link() {
+        let f = |tok| Root { tok, is_bind: false, base: None, offsets: None };
+        let b = |tok, base| Root { tok, is_bind: true, base: Some(base), offsets: None };
+        // M3 SELF-2B — `a` is bound to `y->blk.q0`, the value IS that path.
+        let m3 = ProducerRoots { value: f(0x0f0a), lvalue: b(0x140a, 0x0f0a) };
+        assert!(!m3.bind_linked(), "the base is the formal, which is not a bind");
+        assert!(m3.store_root_is_bind() && !m3.bind_linked(), "so the bonus stands");
+        // and c2 says `prod` on M3, `work/w-mixkind/grade.out`.
     }
 }

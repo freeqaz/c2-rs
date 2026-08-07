@@ -1,0 +1,103 @@
+  sha256 manifest: 66 OK, 0 MOVED
+    M1-r1k3        const
+    M1-r2k3        prod
+    M1-r2k4        const
+    M1-r2k5        const
+    M1-r3k5        const
+    M2-r1k3        const
+    M2-r2k3        prod
+    M2-r2k4        const
+    M2-r2k5        const
+    M2-r3k5        const
+    M3-r1k3        const
+    M3-r2k3        prod
+    M3-r2k4        prod
+    M3-r2k5        const
+    M3-r3k5        prod
+    M4-r1k3        const
+    M4-r2k3        prod
+    M4-r2k4        prod
+    M4-r2k5        const
+    M4-r3k5        prod
+    M5-r1k3        const
+    M5-r2k3        prod
+    M5-r2k4        const
+    M5-r2k5        const
+    M5-r3k5        const
+    M6-r1k3        const
+    M6-r2k3        prod
+    M6-r2k4        const
+    M6-r2k5        const
+    M6-r3k5        const
+    M7-r1k3        const
+    M7-r2k3        prod
+    M7-r2k4        const
+    M7-r2k5        const
+    M7-r3k5        const
+    M8-r1k3        const
+    M8-r2k3        prod
+    M8-r2k4        prod
+    M8-r2k5        const
+    M8-r3k5        prod
+    M9-r1k3        const
+    M9-r2k3        prod
+    M9-r2k4        const
+    M9-r2k5        const
+    M9-r3k5        const
+    M10-r1k3       const
+    M10-r2k3       prod
+    M10-r2k4       const
+    M10-r2k5       const
+    M10-r3k5       const
+    M11-r1k3       const
+    M11-r2k3       prod
+    M11-r2k4       prod
+    M11-r2k5       const
+    M11-r3k5       prod
+    M12-r1k3       const
+    M12-r2k3       prod
+    M12-r2k4       const
+    M12-r2k5       const
+    M12-r3k5       const
+    X1-r1k3        const
+    X1-r2k4        const
+    X2-r1k3        const
+    X2-r2k4        const
+    X3-r1k3        const
+    X3-r2k4        const
+
+  cells 66 | reached 66 | GRADED 66 | OOR 0 | compile-failed 0
+
+  RULE                in-dom  right  WRONG
+  H-CHAIN               60     58      2   <== THE RULE UNDER TEST
+  H-STEP                60     56      4
+  H-DERIV               60     60      0
+  H-DEPTH               60     56      4
+  H-2Z                  60     52      8
+  H-2X                  60     41     19
+  cu<=ru+1              60     52      8
+  cu<=ru+2              60     32     28
+  always-prod           60     20     40
+  clause-1              60     40     20
+  refusal               60      -      0   THE INCUMBENT — it emits nothing, so it is never wrong
+
+  PER CLASS — observed answers, and H-CHAIN's misses
+    M1   SELF-1B        1/3:const 2/3:prod 2/4:const 2/5:const 3/5:const
+    M2   LOAD           1/3:const 2/3:prod 2/4:const 2/5:const 3/5:const
+    M3   SELF-2B        1/3:const 2/3:prod 2/4:prod 2/5:const 3/5:prod
+    M4   TWOBIND        1/3:const 2/3:prod 2/4:prod 2/5:const 3/5:prod
+    M5   CHAINBIND      1/3:const 2/3:prod 2/4:const 2/5:const 3/5:const
+    M6   DEEP-GP        1/3:const 2/3:prod 2/4:const 2/5:const 3/5:const
+    M7   DEEP-PARENT    1/3:const 2/3:prod 2/4:const 2/5:const 3/5:const
+    M8   CHAIN-PATH     1/3:const 2/3:prod 2/4:prod 2/5:const 3/5:prod
+    M9   REVERSE        1/3:const 2/3:prod 2/4:const 2/5:const 3/5:const   MISS: M9-r2k4 M9-r3k5
+    X1   CROSS-path     1/3:const 2/4:const
+    X2   CROSS-chain    1/3:const 2/4:const
+    X3   OTHEROBJ       1/3:const 2/4:const
+    M10  DEEP-SELF      1/3:const 2/3:prod 2/4:const 2/5:const 3/5:const
+    M11  CHAIN-SIB      1/3:const 2/3:prod 2/4:prod 2/5:const 3/5:prod
+    M12  DEEP-MIRROR    1/3:const 2/3:prod 2/4:const 2/5:const 3/5:const
+
+  VERDICT: H-CHAIN is 2 WRONG of 60 in domain. The shipped refusal is wrong on 0 of the same 60.
+  PREREG F-1: >= 1 wrong in domain is the ELEVENTH DEATH and `allocate` is not touched.
+  PREREG F-2: 0 wrong is NOT a ship either.

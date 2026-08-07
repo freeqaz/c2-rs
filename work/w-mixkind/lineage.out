@@ -1,0 +1,95 @@
+  THE BIND TABLES — is a chained reference a CHAIN in the `.ex`?
+
+  M1-r2k4    SELF-1B         0 bind(s) decoded
+      store root 0x0f0a  lineage   (depth 0)
+      value root 0x0f0a formal [80, 0]
+  M2-r2k4    LOAD            1 bind(s) decoded
+      0x140a -> base 0x0f0a          [80, 0]
+      store root 0x140a  lineage 0x140a  (depth 1)
+      value root 0x140a BIND []
+  M3-r2k4    SELF-2B         1 bind(s) decoded
+      0x140a -> base 0x0f0a          [80, 0]
+      store root 0x140a  lineage 0x140a  (depth 1)
+      value root 0x0f0a formal [80, 0]
+  M4-r2k4    TWOBIND         2 bind(s) decoded
+      0x140a -> base 0x0f0a          [80, 0]
+      0x150a -> base 0x0f0a          [80, 0]
+      store root 0x150a  lineage 0x150a  (depth 1)
+      value root 0x140a BIND []
+  M5-r2k4    CHAINBIND       2 bind(s) decoded
+      0x140a -> base 0x0f0a          [80, 0]
+      0x150a -> base 0x140a (a BIND) []
+      store root 0x150a  lineage 0x150a -> 0x140a  (depth 2)
+      value root 0x140a BIND []
+  M6-r2k4    DEEP-GP         3 bind(s) decoded
+      0x140a -> base 0x0f0a          [80, 0]
+      0x150a -> base 0x140a (a BIND) []
+      0x160a -> base 0x150a (a BIND) []
+      store root 0x160a  lineage 0x160a -> 0x150a -> 0x140a  (depth 3)
+      value root 0x140a BIND []
+  M7-r2k4    DEEP-PARENT     3 bind(s) decoded
+      0x140a -> base 0x0f0a          [80, 0]
+      0x150a -> base 0x140a (a BIND) []
+      0x160a -> base 0x150a (a BIND) []
+      store root 0x160a  lineage 0x160a -> 0x150a -> 0x140a  (depth 3)
+      value root 0x150a BIND []
+  M8-r2k4    CHAIN-PATH      2 bind(s) decoded
+      0x140a -> base 0x0f0a          [80, 0]
+      0x150a -> base 0x140a (a BIND) []
+      store root 0x150a  lineage 0x150a -> 0x140a  (depth 2)
+      value root 0x0f0a formal [80, 0]
+  M9-r2k4    REVERSE         2 bind(s) decoded
+      0x140a -> base 0x0f0a          [80, 0]
+      0x150a -> base 0x140a (a BIND) []
+      store root 0x140a  lineage 0x140a  (depth 1)
+      value root 0x150a BIND []
+  M10-r2k4   DEEP-SELF       3 bind(s) decoded
+      0x140a -> base 0x0f0a          [80, 0]
+      0x150a -> base 0x140a (a BIND) []
+      0x160a -> base 0x150a (a BIND) []
+      store root 0x160a  lineage 0x160a -> 0x150a -> 0x140a  (depth 3)
+      value root 0x160a BIND []
+  M11-r2k4   CHAIN-SIB       3 bind(s) decoded
+      0x140a -> base 0x0f0a          [80, 0]
+      0x150a -> base 0x140a (a BIND) []
+      0x160a -> base 0x0f0a          [80, 0]
+      store root 0x160a  lineage 0x160a  (depth 1)
+      value root 0x150a BIND []
+  M12-r2k4   DEEP-MIRROR     3 bind(s) decoded
+      0x140a -> base 0x0f0a          [80, 0]
+      0x150a -> base 0x140a (a BIND) []
+      0x160a -> base 0x150a (a BIND) []
+      store root 0x0f0a  lineage   (depth 0)
+      value root 0x160a BIND []
+
+  PREREG P4: the depth-3 families decode at store-root depth {'M6-r2k4': 3, 'M7-r2k4': 3, 'M10-r2k4': 3}
+  ** the chain SURVIVES to the `.ex` — the depth axis is real. **
+  (M12 stores through the PATH, so its store-root depth is 0 by construction: 0)
+
+  HOW MANY LEVELS THE ANSWER NEEDS
+  cell       class          rel       1-LEVEL     TRANSITIVE  obj       
+  ------------------------------------------------------------------------------------
+  M1-r2k4    SELF-1B        self      const       const       const    
+  M2-r2k4    LOAD           self      const       const       const    
+  M3-r2k4    SELF-2B        unrelated prod        prod        prod     
+  M4-r2k4    TWOBIND        unrelated prod        prod        prod     
+  M5-r2k4    CHAINBIND      ancestor  const       const       const    
+  M6-r2k4    DEEP-GP        ancestor  prod        const       const      ** 1-LEVEL WRONG **
+  M7-r2k4    DEEP-PARENT    ancestor  const       const       const    
+  M8-r2k4    CHAIN-PATH     unrelated prod        prod        prod     
+  M9-r2k4    REVERSE        descendant const       const       const    
+  M10-r2k4   DEEP-SELF      self      const       const       const    
+  M11-r2k4   CHAIN-SIB      unrelated prod        prod        prod     
+  M12-r2k4   DEEP-MIRROR    unrelated const       const       const    
+
+  THE READING, decided by the decode and not by a story about it:
+
+    **ONE LEVEL IS NOT ENOUGH, and `M6-r2k4` is the proof.** `alloc::Root::base`
+    carries the store root's OWN base and stops. On these cells the value root
+    is the store root's GRANDPARENT — two links away — so every predicate over
+    `(tok, is_bind, base, offsets)` of the two sides reads them as UNRELATED and
+    predicts the bonus, and real `c2` does not give it.
+
+    So board #1244 closed the gap it named and named it correctly, and the fact
+    is one level further down still: the relation the bytes obey is the
+    TRANSITIVE bind lineage, and the carrier holds one link of it.

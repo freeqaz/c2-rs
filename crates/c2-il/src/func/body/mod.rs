@@ -1028,6 +1028,38 @@ pub(crate) const STORE_RUN_BIND_NO_CARRIER: &str = "store-run-bind-no-emitter-ca
 /// key: before board #1199 the target was blocked on a missing representation
 /// and #868/#836 could not be *measured* at all, because nothing reached the
 /// allocation question. Now it is one named, countable row.
+///
+/// # The allocation question was asked, and it is still open — board #1264
+///
+/// Lane `w-mixkind` took `w-prod`'s widened carrier (`alloc::Root::base`) and
+/// stated the first allocation key that could hold the fact nine of the ten
+/// dead keys were missing. **GRID X** — 66 cells, `sha256` and every rival's
+/// predictions committed before one compiled, 66 reached, **66 graded, 0 OOR,
+/// 0 compile-failed**, all against real `c2.dll` at the workload's own flags:
+///
+/// ```text
+///   H-CHAIN   2 wrong of 60 in domain        <== the eleventh death
+///   H-2Z      8 wrong        H-STEP  4       H-DEPTH  4      H-2X  19
+///   the shipped REFUSAL      0 wrong of the same 60
+/// ```
+///
+/// So **this key does not move**, and the reason is not caution: eleven rules
+/// have now been fitted at this seam and the refusal has out-scored every one
+/// of them on every holdout ever built.
+///
+/// **Two things the lane established that a successor needs.**
+///
+/// * The relation the bytes obey is the **transitive bind lineage** — the value
+///   root is neither an ancestor nor a descendant of the store root through bind
+///   links — and `alloc::Root::base` holds **one link** of it. GRID X's
+///   `DEEP-GP` prices the gap. Board #1244 named the missing element correctly
+///   and under-scoped how much of it is missing.
+/// * **This key is not the whole rung.** Lifting it needs
+///   `codegen::leaf::store::parse_simple_gpr_run` to admit a bound **VALUE**;
+///   without that the reader accepts, `PortC2` refuses, and the scan prints
+///   `census/gate disagreement: 1` (`w-mrslot` §5, re-derived rather than
+///   carried at `w-mixkind` §5). A lane that lifts this clause alone breaks the
+///   invariant `codegen::select::function_gate` exists to hold.
 pub(crate) const STORE_RUN_BIND_MIXED_KIND: &str = "store-run-bind-mixed-kind-alloc";
 
 /// The bind body's run puts the bound name in a store's **value** position with
