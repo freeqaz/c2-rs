@@ -808,6 +808,41 @@ pub(crate) fn shape_to_function(
                     ..IlFunction::base(name, src)
                 })
             }
+            // **#839 — the reference bind. NO CARRIER, and two of them.**
+            //
+            // Every field is named rather than dropped with `..`, so a future
+            // carrier has to come back to this arm and decide what each one
+            // means instead of inheriting a wildcard.
+            //
+            // What is missing is not one thing:
+            //
+            //  1. `IlFunction` cannot spell *"this token is `params[i]` plus
+            //     8"*. Every consumer of `ops` resolves a `Load(tok)` through
+            //     `params.iter().position(...)`, so a bound local resolves to
+            //     nothing at all. Inventing the field is a `crates/c2-core`
+            //     change with an EMITTED-ORDER claim behind it: the two source
+            //     spellings' bodies are four words apart
+            //     (`work/w-bind/grid/b_target_{bind,direct}`), so a carrier that
+            //     discharged the binding into the store's displacement would
+            //     emit the other one. That is board #232's direction and it is
+            //     why this arm refuses rather than approximates.
+            //  2. `codegen::alloc`'s **mixed-kind** refusal (boards #836/#868)
+            //     is live on the target body regardless — an interior address at
+            //     two uses beside a one-use literal — and two lanes have
+            //     measured it and declined to lift it.
+            //
+            // So the residue is counted under
+            // [`super::body::STORE_RUN_BIND_NO_CARRIER`] and nothing is emitted.
+            BodyShape::StoreRunBind {
+                params,
+                binds,
+                ops,
+                callee_tok,
+                live_args,
+            } => {
+                let _ = (params, binds, ops, callee_tok, live_args);
+                None
+            }
             BodyShape::AddrLeaf { params, ops } => {
                 Some(IlFunction {
                     params,
