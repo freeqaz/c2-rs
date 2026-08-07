@@ -81,14 +81,21 @@
 #
 # ---- what a MISMATCH here would mean ----------------------------------------
 #
-# Everything in this fragment is expected to refuse today: the reader has neither
-# F2 nor F3 and #844's seam does not exist. `Port=NotImplemented` is the right
-# answer and the sweep grades it as good. What these cases buy is the **next**
-# lane's widening: the moment a reader admits an `AddrOf` in a store value or a
-# `BodyShape` for a run-then-call, ~1.4k cases across all six axes start emitting,
-# and a widening that is right on `xboxheap` and wrong on its neighbours — which
-# is how all six refuted allocation keys got written — turns this row red instead
-# of turning the workload scan silent.
+# Almost everything here refuses today: the reader has neither F2 nor F3 and
+# #844's seam does not exist. Measured at master `03560fde` — **44** of the 1,576
+# already read `Port=Match` (the leaf controls, and the offset-0 cells where the
+# address IS `this` so there is no `addi` at all, both of which today's leaf-store
+# emitter handles byte-exactly) and **1,532** read `Port=NotImplemented`, which is
+# the honest refusal and which the sweep grades as good. All 1,576 GRADE: real
+# `c2.dll` produced an obj for every one, so board #281's ungraded baseline of 96
+# is unmoved and none of this reads as coverage it did not buy.
+#
+# What the refusals buy is the **next** lane's widening: the moment a reader
+# admits an `AddrOf` in a store value or a `BodyShape` for a run-then-call, those
+# 1,532 start emitting, and a widening that is right on `xboxheap` and wrong on
+# its neighbours — which is how all six refuted allocation keys got written —
+# turns this row red instead of turning the workload scan silent. The 44 work in
+# the other direction from day one: a widening cannot regress them quietly.
 #
 # ---- the profile, stated rather than conflated (board #1112) ----------------
 #
