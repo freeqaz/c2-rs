@@ -1,6 +1,36 @@
 # INLINE_PREDICATE — when c2 does not emit the call the IL contains
 
-> ## Status, 2026-08-07 — **MECHANISM E IS SHIPPED. MECHANISM I IS NOT, and must not be taken from this page without a grid of its own.**
+> ## Status, 2026-08-08 — **MECHANISM I's BYTES ARE SHIPPED TOO. What is still NOT shipped from this page is the *decision rule* — §2's cost model — and it must not be.**
+>
+> Lane `w-splice` ([`rungs/2026-08-08-w-splice.md`](rungs/2026-08-08-w-splice.md))
+> built §2's *bytes* into the port as `crates/c2-core/src/splice.rs`:
+> **SPLICE-0-PORT**, the rule that a caller whose whole emitted body is one call
+> to a same-TU callee the port lowers emits **the callee's body**. On the 878-TU
+> workload `fnbyte-differs` went **3,195 → 2,472**: **723 emitted functions moved
+> `differs → exact` and zero moved the other way**, per `(TU, emit_name)`. Board
+> rows **#1017**–**#1026**.
+>
+> **Three things it did NOT take, and each is load-bearing:**
+>
+> 1. **It did not take §2's decision rule.** `INLINE-P` is 0.9716 on a 9,993-callee
+>    hold-out with a 2.84 % residual §7 leaves NOT MODELLED, and 3 % of a guess is
+>    a wrong emit. What the shipped clause consults is the **region where that rule
+>    is categorical** — `s ≤ 64`, where `N_max` is UNBOUNDED in *both* linkage
+>    classes and therefore independent of linkage, of `inline`, of `nparams`, of
+>    the site count and of §5's unreadable `leaf` bit. That bound is a different
+>    object from the rule, and it **never binds on today's port** (#1019).
+> 2. **It did not take the whole of what SPLICE-0 predicts.** `w-seq` priced 1,967
+>    and the shippable subset at 726; the shipped number is **723**, and the
+>    missing 3 are named (`S6-chain-open`, #1022) rather than widened away.
+> 3. **It did not narrow `IlBundle::functions()`.** §6 item 4's standing hazard is
+>    intact; `mismatch` is still 0 and none of the 723 has reached an obj.
+>
+> **And it found that mechanism I is a FIXPOINT, like E** (#1020): c2's body for a
+> caller two links above a lowerable callee is the *end's* body, measured on a
+> compiled cell and again on **150 workload relocation witnesses**. See §2's
+> update block.
+>
+> ## Status, 2026-08-07 — **MECHANISM E IS SHIPPED. MECHANISM I's decision rule is NOT, and must not be taken from this page without a grid of its own.**
 >
 > Lane `w-empty` ([`rungs/2026-08-07-w-empty.md`](rungs/2026-08-07-w-empty.md))
 > built §1 into the port as `crates/c2-core/src/elide.rs`. On the 878-TU
@@ -297,6 +327,40 @@ side-effecting setup has to re-grade this.
 > widening first, and #970 prices those productions. **Nothing shipped** — the
 > spec is `w-seq` §6 and its first clause is that this is not a substitute for
 > §3's decision rule, whose 2.84 % residual is still **NOT MODELLED** below.
+>
+> ### 2026-08-08 — **SHIPPED, at 723, and SPLICE-0 turns out to be a FIXPOINT.**
+>
+> Lane `w-splice` ([`rungs/2026-08-08-w-splice.md`](rungs/2026-08-08-w-splice.md))
+> built the table above into `crates/c2-core/src/splice.rs` as a **predicate**,
+> not as the list of 726: nine clauses, none of which reads the reference obj.
+> **723 emitted functions converted, 0 regressed**, per `(TU, emit_name)`.
+>
+> **Three corrections this page needs, and the second is the one to carry off:**
+>
+> 1. **SPLICE-0 is exact on `seq` bodies WITH an argument setup, and the setup is
+>    the port's frame bookkeeping** (#1018). All **816 of 816** single-call `seq`
+>    differs carry a non-empty `setups[0]` whose IL-level argument mapping is the
+>    identity — the `mr r31,r3` that saves `this` across the `bl`. c2's inlined
+>    body has no frame at all, so the save is the port's lowering and not a
+>    transform of the callee's arguments. A rule fitted to the emitted setup
+>    converts **zero** of them; a rule that reads the IL converts **634**.
+> 2. **c2 CLOSES THE CHAIN** (#1020). `int h(int a){return a+1;} int g(int a){return
+>    h(a);} int f(int a){return g(a);}` — c2 emits **`?h`'s two words for all
+>    three**. Measured again on the workload from the other side: a rule that took
+>    one level relocated against the chain's *intermediate* in **150 of 945**
+>    functions where c2 relocates against its *end*
+>    (`??1length_error@stlpmtx_std@@` → `??1__Named_exception@…` against c2's
+>    `??1exception@std@@`, 145 times). **Mechanism E is a fixpoint (#946) and so
+>    is mechanism I.**
+> 3. **A chain the port cannot FOLLOW is not a chain that ENDED** (#1022). Where
+>    the next link is parse-refused, or carries a setup, or has no census row at
+>    all, c2 keeps going and the port cannot. Both cases refuse, which costs 9
+>    functions and removed the last relocation disagreement.
+>
+> **Every function the rule moves had its relocation set verified against the
+> reference obj, per symbol** — 723 of 723 agree, and `fnbyte-exact-relocated`
+> (#882) reads 4,664 at both ends. That check is what caught corrections 2 and 3;
+> FUNCTION BYTE MATCH scored all three broken versions `exact`.
 
 
 Every constant below is transcribed from `docs/LABEL_COUNTER.md` §6.15–§6.20 and
@@ -458,11 +522,18 @@ to re-derive it.
    `FnCensus::emit_name` on **74,955** rows of this workload. Keyed on the first,
    the rule turned 14 byte-exact bodies wrong and converted nothing. Board #918;
    the scan prints `fnbyte-name-disagree` on every run now.
-2. **Mechanism I only with `s`.** `INLINE-P` is indexed on the callee's own
+2. ~~**Mechanism I only with `s`.** `INLINE-P` is indexed on the callee's own
    *emitted* size, so a recognizer can only apply it to a `G` the port can
    already lower — otherwise it does not know `s`. That is a real ordering
    constraint and it is why I is not cheap: the port must lower `G` to decide
-   whether to inline `G` into `F`.
+   whether to inline `G` into `F`.~~
+   **DONE 2026-08-08** — `crates/c2-core/src/splice.rs`, and the ordering
+   constraint is exactly as this paragraph states: S6 lowers `G` before S7 can
+   ask its size. What the paragraph does not say, and what makes the rule cheap
+   after all, is that **`s ≤ 64` makes the decision categorical in both linkage
+   classes**, so the port never has to evaluate `index` or `N_max` at all — and
+   on today's lowered class that bound never binds (#1019). The rule reached
+   **723** functions with `IlBundle::functions()` untouched.
 3. **`inline(G)` comes from the COMDAT selection** if read from an obj, and from
    the `.gl` record if read from IL. Verified obj-side on GRID-2b: every
    `inline`, in-class member and template instantiation is `SELECT_ANY`; every

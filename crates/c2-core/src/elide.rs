@@ -13,9 +13,16 @@
 //!
 //! This module is **E and nothing else**. It reads no size, no linkage, no
 //! `inline` keyword and no call count; `INLINE-P`'s `index`/`N_max` do not
-//! appear here and must not. A rung that wants mechanism I needs the callee's
-//! own *emitted* size (`INLINE_PREDICATE.md` §6.2), which is a different — and
-//! much more expensive — ordering constraint.
+//! appear here and must not.
+//!
+//! > **Mechanism I is shipped too, since 2026-08-08, and it lives in
+//! > [`crate::splice`]** — where the callee's *emitted* size does appear, as the
+//! > one clause that pays `INLINE_PREDICATE.md` §6.2's ordering constraint. The
+//! > two modules are asked in a fixed order and cannot both claim a function:
+//! > [`drops_tail_call`] is consulted **first**, and `splice.rs`'s S9 declines
+//! > whatever it takes. Nothing below changed when I shipped —
+//! > `fnbyte-elided` / `-elided-exact` read 1,516 / 1,516 at both ends — and
+//! > that is the control, not the assumption.
 //!
 //! # E is performed by **c2**, not by the front end — and that is why the port can see it
 //!

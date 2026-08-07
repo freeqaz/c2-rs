@@ -228,6 +228,53 @@ impl ObjImage {
         Some(out)
     }
 
+    /// **Symbol names by symbol-table SLOT**, aux slots left `None`.
+    ///
+    /// The one walk two readers need — [`ObjImage::text_comdat_call_targets`]
+    /// (lane `w-bytes`) and [`ObjImage::text_comdat_relocs`] (lane `w-splice`)
+    /// both resolve a relocation's `SymbolTableIndex` through it, and they
+    /// landed in the same release. Factored here rather than written twice:
+    /// `docs/GAPS.md` §6's one-fact-one-locator rule, and a COFF walk is the
+    /// exact shape that rule exists for — `gt_dump.py`'s own header records four
+    /// relocation-type rows that were wrong for the file's whole existence
+    /// because a second copy of a table drifted from the first.
+    ///
+    /// **Aux records occupy indices too**, and they stay `None`: an aux slot is
+    /// not a symbol, so a relocation that names one is a decode failure. What
+    /// the two readers *do* with that `None` is deliberately different and is
+    /// each one's own business — `call_targets` refuses the whole obj,
+    /// `relocs` reports the record as unnameable.
+    ///
+    /// Same fail-closed contract as every other walk: `None` the moment the
+    /// table does not decode, never a short list.
+    fn symbol_names_by_slot(&self) -> Option<Vec<Option<String>>> {
+        let b = &self.0;
+        let (_, sym_end) = self.coff_layout()?;
+        let psym = u32::from_le_bytes([b[8], b[9], b[10], b[11]]) as usize;
+        let nsym = u32::from_le_bytes([b[12], b[13], b[14], b[15]]) as usize;
+        let strtab = &b[sym_end..];
+        let mut names: Vec<Option<String>> = vec![None; nsym];
+        let mut i = 0usize;
+        while i < nsym {
+            let o = psym + i * SYMBOL_LEN;
+            let naux = b[o + 17] as usize;
+            let name = if b[o..o + 4] == [0, 0, 0, 0] {
+                let at = u32::from_le_bytes([b[o + 4], b[o + 5], b[o + 6], b[o + 7]]) as usize;
+                str_at(strtab, at)?
+            } else {
+                String::from_utf8_lossy(&b[o..o + 8])
+                    .trim_end_matches('\0')
+                    .to_owned()
+            };
+            names[i] = Some(name);
+            i = i.checked_add(1)?.checked_add(naux)?;
+            if i > nsym {
+                return None;
+            }
+        }
+        Some(names)
+    }
+
     /// [`ObjImage::text_comdat_reloc_counts`] with each relocation's **offset
     /// inside the COMDAT** and its packed type word, in section order and then
     /// in table order.
@@ -303,33 +350,9 @@ impl ObjImage {
     /// list is the dangerous answer, because it reads as "this body calls
     /// fewer things than it does", which is absence-as-success.
     pub fn text_comdat_call_targets(&self) -> Option<Vec<(String, Vec<(u32, String)>)>> {
-        let b = &self.0;
-        let (_, sym_end) = self.coff_layout()?;
-        let psym = u32::from_le_bytes([b[8], b[9], b[10], b[11]]) as usize;
-        let nsym = u32::from_le_bytes([b[12], b[13], b[14], b[15]]) as usize;
-        let strtab = &b[sym_end..];
-        // Name per symbol-table *slot*. Aux slots stay `None`: a relocation that
-        // named one would be a decode failure, and this is how it is detected
-        // rather than papered over.
-        let mut names: Vec<Option<String>> = vec![None; nsym];
-        let mut i = 0usize;
-        while i < nsym {
-            let o = psym + i * SYMBOL_LEN;
-            let naux = b[o + 17] as usize;
-            let name = if b[o..o + 4] == [0, 0, 0, 0] {
-                let at = u32::from_le_bytes([b[o + 4], b[o + 5], b[o + 6], b[o + 7]]) as usize;
-                str_at(strtab, at)?
-            } else {
-                String::from_utf8_lossy(&b[o..o + 8])
-                    .trim_end_matches('\0')
-                    .to_owned()
-            };
-            names[i] = Some(name);
-            i = i.checked_add(1)?.checked_add(naux)?;
-            if i > nsym {
-                return None;
-            }
-        }
+        // The shared symbol-table walk (`symbol_names_by_slot`). `w-splice`'s
+        // `text_comdat_relocs` reads it too, and one copy is the point.
+        let names = self.symbol_names_by_slot()?;
         let all = self.relocations()?;
         let mut out = Vec::new();
         for (name, s) in self.text_comdat_entries()? {
@@ -344,6 +367,75 @@ impl ObjImage {
             }
             v.sort_unstable();
             out.push((name, v));
+        }
+        Some(out)
+    }
+
+    /// [`ObjImage::text_comdat_reloc_counts`] with each relocation **resolved to
+    /// its target symbol's name**: `(comdat leader, [(offset, type, target)])`,
+    /// in section order and then in table order.
+    ///
+    /// # Why a count was not enough
+    ///
+    /// `text_comdat_reloc_counts` exists because FBM compares raw bytes and a
+    /// `.text` section's raw bytes do not contain its relocations; the count is
+    /// the *size* of that gap (`fnbyte-exact-relocated` = 4,664) and says
+    /// nothing about which symbol a credited body actually names. Board **#882**
+    /// is exactly the case where that matters — two bodies that are both the
+    /// word `48000000` and differ only in the REL24's target — and lane
+    /// `w-splice` ships a mechanism that **replaces a caller's relocations with
+    /// its callee's**, so "the bytes are right" and "the relocation is right"
+    /// stop being the same question for 945 functions at once.
+    ///
+    /// The `Type` word is handed back **raw**, exactly as it sits on disk, for
+    /// [`crate::Reloc`]'s reason: masking it here would hide a modifier bit, and
+    /// a modifier this reader does not know about must be visible rather than
+    /// rounded off.
+    ///
+    /// A `PAIR` record's `SymbolTableIndex` is **a displacement and not an
+    /// index** (rev 6.0), so its target is reported as `None` rather than as
+    /// whatever symbol that number happens to name. Same fail-closed contract as
+    /// every other walk: `None` the moment anything does not decode, because a
+    /// *short* relocation list reads as agreement.
+    #[allow(clippy::type_complexity)]
+    pub fn text_comdat_relocs(&self) -> Option<Vec<(String, Vec<(u32, u16, Option<String>)>)>> {
+        let b = &self.0;
+        // The shared symbol-table walk (`symbol_names_by_slot`). `w-bytes`'s
+        // `text_comdat_call_targets` reads it too, and one copy is the point.
+        let names = self.symbol_names_by_slot()?;
+        let mut out = Vec::new();
+        for (name, s) in self.text_comdat_entries()? {
+            let o = COFF_HEADER_LEN + s * SECTION_HEADER_LEN;
+            let n = u16::from_le_bytes([b[o + 32], b[o + 33]]) as usize;
+            let ptr = u32::from_le_bytes([b[o + 24], b[o + 25], b[o + 26], b[o + 27]]) as usize;
+            if n == 0xFFFF {
+                return None; // the overflow sentinel, not a count
+            }
+            let mut rows = Vec::with_capacity(n);
+            if n != 0 {
+                if ptr == 0 {
+                    return None; // a count with no table is malformed, not empty
+                }
+                let end = ptr.checked_add(n.checked_mul(RELOC_LEN)?)?;
+                if end > b.len() {
+                    return None;
+                }
+                for k in 0..n {
+                    let r = ptr + k * RELOC_LEN;
+                    let va = u32::from_le_bytes([b[r], b[r + 1], b[r + 2], b[r + 3]]);
+                    let sym = u32::from_le_bytes([b[r + 4], b[r + 5], b[r + 6], b[r + 7]]);
+                    let ty = u16::from_le_bytes([b[r + 8], b[r + 9]]);
+                    let target = if ty & crate::reloc::IMAGE_REL_PPC_TYPEMASK
+                        == crate::reloc::IMAGE_REL_PPC_PAIR
+                    {
+                        None
+                    } else {
+                        names.get(sym as usize).cloned().flatten()
+                    };
+                    rows.push((va, ty, target));
+                }
+            }
+            out.push((name, rows));
         }
         Some(out)
     }

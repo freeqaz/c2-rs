@@ -62,32 +62,32 @@ cost this project real work more than once.
 > 63,335 graded**.
 
 <!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->
-Collected 2026-08-06 · tree `dcb7b91` · binary `9c74c2ad4f56` · workload `798ae68c`
+Collected 2026-08-06 · tree `1590fb25` · binary `33eb78768ee2` · workload `f5c55c3b`
 
 | metric | value |
 |---|---|
-| Workspace tests (cargo test --workspace --release) | 928 passed, 0 failed, 29 targets |
+| Workspace tests (cargo test --workspace --release) | 1016 passed, 0 failed, 31 targets |
 | Oracle self-test (c2rs selftest) | 265 PASS, 0 FAIL |
-| Fixture port gate (c2rs perf) | 124 port Match, 0 mismatch, 141 not-implemented (of 265) |
-| Port speedup, geomean over matched fixtures | 637x geomean over matched fixtures |
+| Fixture port gate (c2rs perf) | 125 port Match, 0 mismatch, 140 not-implemented (of 265) |
+| Port speedup, geomean over matched fixtures | 591x geomean over matched fixtures |
 | 878-TU dc3 workload scan (c2rs gap) | match 10, mismatch 0, codegen-gap 0, vocab-gap 861, capture-fail 7 |
-| Per-function census (driver, not target) | 711427/2463393 functions in class (28.88%) |
-| Emitted-function census | 39177/178975 emitted functions in class (21.89%) |
-| Emitted-census residue | residue 9225: 1962 compiler-generated (no IL body), 7263 unexplained  (5.15% of the denominator) |
+| Per-function census (driver, not target) | 711477/2463443 functions in class (28.88%) |
+| Emitted-function census | 39181/178977 emitted functions in class (21.89%) |
+| Emitted-census residue | residue 9217: 1961 compiler-generated (no IL body), 7256 unexplained  (5.15% of the denominator) |
 | TU distance to match, blocked functions | ≤0: 3, ≤1: 13, ≤10: 27, ≤100: 34, ≤1000: 216 |
 | TU distance to match, blocked emitted functions | ≤0: 4, ≤1: 20, ≤10: 82, ≤100: 407, ≤1000: 858 |
 | Emit-set ceiling, LO-anchored (segments == COMDATs) | 27 of 871 graded TUs |
 | Emit-set ceiling, GATE-anchored (4F 1F — what the port consumes) | 28 of 871 graded TUs |
-| Emit-set MODEL ceiling (today / repaired / wall) | 338 today / 420 repaired / 451 wall |
-| .gl binding invariants (records / arity / conflicts) | 1515167 records, 420 nameless, 0 before the first row, 39296 row-conflicts, 731 name-conflicts, 0 accounting breaks, 0 unreadable objs |
+| Emit-set MODEL ceiling (today / repaired / wall) | 338 today / 421 repaired / 450 wall |
+| .gl binding invariants (records / arity / conflicts) | 1515172 records, 420 nameless, 0 before the first row, 39300 row-conflicts, 697 name-conflicts, 0 accounting breaks, 0 unreadable objs |
 | Phase-7 factors over the graded TUs (A / B / C / D / E) | A 28 (LO 27) · B 338 · C 169 · D 10 · E 2, of 871 graded |
 | Joint ceilings (B∧C, A∧B∧C) | B∧C 151 · A∧B∧C 27 · A∧B∧C∧D 8 |
 | Pre-Phase-7 FRONTIER (codegen breadth alone / if A were free) | 17 reachable by codegen breadth alone; 139 if factor A were free |
 | Emit-predicate worth, B∧C − A∧B∧C (board #213) | +124 TUs (B∧C − A∧B∧C) |
 | Factor-C section ladder (writer names / workload names / next step) | 10 writer names of 13 workload names; 3 steps left, next +.rdata$r → C = 590 |
-| PROGRESS MASS (driver, not target — docs/PROGRESS_METRIC.md) | P = 0.20828 · emitted in class 39177/178975 · mismatch-zeroed TUs 0 |
-| FUNCTION BYTE MATCH (driver, not target — docs/FUNCTION_BYTE_MATCH.md) | FBM = 0.20026 · 35839 exact + 2 whole-TU of 178975 emitted functions, over 865 TUs (6 at 100%) |
-| FBM partition (the under-report, and the controls) | partial 0 (FBM under-reports by this) · differs 3338 · refused 130573 · unbound 9225 · 4664 credited fns carry a reloc FBM does not check · controls: partition-broken 0, match-TU differs 0, census disagree 0 |
+| PROGRESS MASS (driver, not target — docs/PROGRESS_METRIC.md) | P = 0.20829 · emitted in class 39181/178977 · mismatch-zeroed TUs 0 |
+| FUNCTION BYTE MATCH (driver, not target — docs/FUNCTION_BYTE_MATCH.md) | FBM = 0.20512 · 36709 exact + 2 whole-TU of 178977 emitted functions, over 865 TUs (6 at 100%) |
+| FBM partition (the under-report, and the controls) | partial 0 (FBM under-reports by this) · differs 2472 · refused 130579 · unbound 9217 · 4664 credited fns carry a reloc FBM does not check · controls: partition-broken 0, match-TU differs 0, census disagree 0 |
 | Per-TU FBM (how close is the other 870) | 6 of 865 TUs with emitted functions are 100% byte-exact per function |
 
 <!-- END GENERATED -->
@@ -189,6 +189,34 @@ in this document.
 > > > > of eight frozen cells go red — **trap 0 in its most literal form**, and
 > > > > #971 condition 1 with a number under it. Boards **#990**–**#995**;
 > > > > [`rungs/2026-08-08-w-inl0.md`](rungs/2026-08-08-w-inl0.md).
+> > > >
+> > > > **2026-08-08 — 723 MORE ARE CLOSED, and this time it is the OTHER
+> > > > mechanism.** Everything above is mechanism **E**, the call c2 drops
+> > > > because its callee does nothing. Lane `w-splice` shipped mechanism
+> > > > **I** — c2 *expanded* the callee — as `crates/c2-core/src/splice.rs`:
+> > > > when the port's whole emitted body for a function is one call to a
+> > > > same-TU callee the port lowers, the function's `/Gy` COMDAT **is that
+> > > > callee's body**, relocations included, with no branch and no REL24
+> > > > against the callee. `fnbyte-differs` **3,195 → 2,472**, `fnbyte-exact`
+> > > > **35,982 → 36,705**, **0 functions moved the other way** per
+> > > > `(TU, emit_name)`, and the rule fired **723** times with **723 of 723**
+> > > > byte-exact. `mismatch` 0, `functions()` untouched, 72 of 80
+> > > > `gap-metric` lines byte-identical.
+> > > >
+> > > > **Three things to carry off it.** (1) **The FBM partition was not the
+> > > > alarm that mattered.** This mechanism replaces a caller's relocations
+> > > > with its callee's, and FBM compares a `.text` COMDAT's raw bytes, which
+> > > > do not contain relocations (**#882**, 4,664 credited functions). A
+> > > > per-symbol relocation check against the reference obj found **150**
+> > > > wrong targets in the first shipped version, **77** in the second and
+> > > > **1** in the third — every one of them scored `exact` by FBM — and each
+> > > > round changed the rule. The tip is **723 of 723 verified, 0
+> > > > disagreements**, and `fnbyte-exact-relocated` reads 4,664 at both ends.
+> > > > (2) **Mechanism I is a FIXPOINT too** (#1020): c2's body for a caller two
+> > > > links above a lowerable callee is the *end's* body. (3) **#925's caution
+> > > > again** — 245 distinct symbols across 284 TUs, but **three** template
+> > > > roots and **87 %** of them `??0?$_List_iterator`. Boards **#1017**–**#1026**;
+> > > > [`rungs/2026-08-08-w-splice.md`](rungs/2026-08-08-w-splice.md).
 
 The **payoff metric has moved for the first time**:
 TU match is **10/878** (this paragraph read **8** until 2026-08-05 and the
@@ -283,7 +311,7 @@ block's.
 | **emitted-function census** | in-class ∩ *code c2 actually emits* | gradeable by the differential on its own |
 | per-function census | **a driver** — it ranks rungs, and does that superbly | the target. "census → 100 %" is **retired** (§8.1) |
 | **PROGRESS MASS** (`P = mean(a,b,c,f)`) | **a driver** — the *ranking* metric, and the only one that can say which of two lanes moved more on a day TU match read 8 before and after ([`PROGRESS_METRIC.md`](PROGRESS_METRIC.md)) | a completion percentage. `P = 0.21` does **not** mean 21 % done — the four terms are necessary, not sufficient. Its `f` term inherits trap 2 whole |
-| **FUNCTION BYTE MATCH** (`FBM`) | **a driver** — the byte-exact differential asked *per emitted function* instead of per TU, so partial progress inside a TU is visible ([`FUNCTION_BYTE_MATCH.md`](FUNCTION_BYTE_MATCH.md)). The **only** continuous number on this page graded by the oracle's own bytes. **Quote it with `fnbyte-differs`, which was 0 until 2026-08-06, then 4,711, then 3,338, then 3,195, and is 3,057 since 2026-08-08 — quote it from a scan** | sufficient, and not a floor-free reading. A `.text` body is a *subset* of the obj, so `FBM = 1.0` would still not mean a matching TU. **The under-report it used to carry is CLOSED** — `fnbyte-partial` was 9,375 and is **0** (board #322, lane `w-fnbyte`); of that population **4,664 turned out byte-exact and 4,711 turned out WRONG**, so the widening bought +0.026 of ratio and one standing alarm that is no longer green by construction. `fnbyte-partial` is still printed, and prints `NONE` rather than vanishing. **And `exact` is not a clean credit: 861 of the 35,982 relocate against a symbol c2 does not name** (board #986 — a `/Gy` branch word cannot carry its callee, so FBM's byte test scores the word equal). `gap-metric fnbyte-calltarget-disagree-exact`, on every scan |
+| **FUNCTION BYTE MATCH** (`FBM`) | **a driver** — the byte-exact differential asked *per emitted function* instead of per TU, so partial progress inside a TU is visible ([`FUNCTION_BYTE_MATCH.md`](FUNCTION_BYTE_MATCH.md)). The **only** continuous number on this page graded by the oracle's own bytes. **Quote it with `fnbyte-differs`, which was 0 until 2026-08-06, then 4,711, then 3,338, then 3,195, then 3,057, and is 2,334 since 2026-08-08 — quote it from a scan** | sufficient, and not a floor-free reading. A `.text` body is a *subset* of the obj, so `FBM = 1.0` would still not mean a matching TU. **The under-report it used to carry is CLOSED** — `fnbyte-partial` was 9,375 and is **0** (board #322, lane `w-fnbyte`); of that population **4,664 turned out byte-exact and 4,711 turned out WRONG**, so the widening bought +0.026 of ratio and one standing alarm that is no longer green by construction. `fnbyte-partial` is still printed, and prints `NONE` rather than vanishing. **And `exact` is not a clean credit: 861 of the 36,847 relocate against a symbol c2 does not name** (board #986 — a `/Gy` branch word cannot carry its callee, so FBM's byte test scores the word equal). `gap-metric fnbyte-calltarget-disagree-exact`, on every scan |
 | emit-set ceiling (28/871 gate-anchored) | TUs where `.ex` segments == obj COMDATs — the most TU match can reach **before** Phase 7 exists | reachable by widening |
 | emit-set MODEL ceiling (338/871) | TUs where a segment-driven model binds every emitted symbol | the same thing as the line above (see below) |
 | mismatch count | an **alarm** — and on **2026-08-04 it FIRED, four times over**: board **#232**, **#259** (a family of six), **#263** and **#276**. **All four are closed on `33cbdbe`.** Before that day it had never fired, and that record was doing more reassuring than it had earned | ~~"it has never fired"~~; and never evidence of correctness, before or after (see the coverage bound). **Nor is "four found and closed" a completeness claim** — three of the four were found by lanes building probe grids for unrelated rungs, so the rate says more about how many grids were built that day than about how many defects remain |

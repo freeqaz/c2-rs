@@ -19,6 +19,7 @@ pub mod coff;
 pub mod comdat;
 pub mod elide;
 pub mod passes;
+pub mod splice;
 
 use std::fmt;
 
@@ -540,7 +541,46 @@ impl PortC2 {
         // Built unconditionally anyway — the FBM instrument runs the same
         // composition over the *census*, where it does fire, and one
         // composition with two contexts is how those two stay in agreement.
-        let tu_empty = elide::TuEmptyCallees::of(&funcs);
+        // **MECHANISM I's input comes with it** (`crate::splice`): the same pass
+        // also indexes every definition this bundle can splice FROM. One context,
+        // two mechanisms, one name binding — `TuContext` derefs to the E half so
+        // nothing about the elision changed.
+        let tu_empty = splice::TuContext::of(&funcs);
+
+        // **MECHANISM I IS REFUSED AT THE WHOLE-OBJ LEVEL, on BOTH paths.**
+        //
+        // A spliced body is the callee's, and the callee's is unframed — so a
+        // `Selected::Seq` caller that splices loses its frame, its `.pdata`
+        // record and its `$M`/`$M`/`$T` label slots. `Self::frame_label_counter`
+        // is computed from the IL *above*, before any body exists, and
+        // `plan_emit_order` orders on a call edge that no longer exists in the
+        // emitted obj. None of that is measured, so an obj carrying one is
+        // refused rather than emitted.
+        //
+        // Unreachable today: `IlBundle::functions()` refuses any TU that defines
+        // one of its own callees, which is a strict superset of the splice's S5.
+        // Written out anyway, and asked through the same `splice_callee` the
+        // composition consults, so that a future narrowing of that refusal turns
+        // this into a loud refusal instead of a silent wrong obj — the lockstep
+        // `elide.rs`'s packed-path arm gets by construction. This one refuses
+        // the `/Gy` path too, because the label counter is a TU-level fact and
+        // mechanism E's single `blr` never reached it.
+        for f in &funcs {
+            if let Ok(sel) = codegen::select_function(f, mode) {
+                if let Some(g) = splice::splice_callee(f, &sel, &tu_empty) {
+                    return Err(BackendError::NotImplemented(format!(
+                        "a call c2 replaces with its callee's body (mechanism I: \
+                         `{}` is `{}`'s whole emitted body) inside a whole obj: \
+                         the spliced caller loses its frame, and with it its \
+                         `.pdata` record and its compiler-label slots, while the \
+                         label counter is computed from the IL before any body \
+                         exists. Modeled per COMDAT only — \
+                         docs/INLINE_PREDICATE.md §2, crates/c2-core/src/splice.rs",
+                        g, f.mangled_name,
+                    )));
+                }
+            }
+        }
 
         // `.text` section, so the texts are kept separate rather than packed.
         // The order rule is the same one — measured at `/O1` too, where it

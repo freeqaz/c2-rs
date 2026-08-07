@@ -50,7 +50,8 @@
 
 use crate::codegen::{self, OptMode};
 use crate::coff;
-use crate::elide::{drops_tail_call, TuEmptyCallees};
+use crate::elide::drops_tail_call;
+use crate::splice::{splice_body, TuContext};
 use crate::{data_refs_of, BackendError};
 use c2_il::IlFunction;
 
@@ -138,7 +139,7 @@ pub struct ComdatBody<'a> {
 pub fn comdat_function_body<'a>(
     f: &'a IlFunction,
     mode: OptMode,
-    tu: &TuEmptyCallees,
+    tu: &TuContext<'a>,
 ) -> Result<ComdatBody<'a>, ComdatDecline> {
     let selected = codegen::select_function(f, mode).map_err(ComdatDecline::Selector)?;
     comdat_body_from_selected(f, selected, mode, tu)
@@ -152,19 +153,60 @@ pub fn comdat_function_body<'a>(
 /// structure, which is the one place the two optimization modes differ by more
 /// than a register field (`codegen::OptMode`'s own doc).
 ///
-/// `tu` is the bundle's **same-TU empty-bodied callees**
-/// ([`crate::elide::TuEmptyCallees`]). It is a required parameter rather than an
-/// `Option` for the reason that module's docs give: mechanism E is the one fact
-/// in this composition that is *not* a property of one function, and a caller
-/// that forgot to supply it would silently emit a call c2 does not emit. Pass
-/// [`TuEmptyCallees::none`] to state "no bundle, therefore no elision" out loud.
+/// `tu` is the bundle's own facts — mechanism E's callees
+/// ([`crate::elide::TuEmptyCallees`], reached through [`TuContext`]'s `Deref`)
+/// and mechanism I's splice sources ([`crate::splice`]). It is a required
+/// parameter rather than an `Option` for the reason those modules' docs give:
+/// the two mechanisms are the facts in this composition that are *not*
+/// properties of one function, and a caller that forgot to supply them would
+/// silently emit a call c2 does not emit. Pass [`TuContext::none`] to state "no
+/// bundle, therefore neither mechanism" out loud.
 pub fn comdat_body_from_selected<'a>(
     f: &'a IlFunction,
     selected: codegen::Selected,
     mode: OptMode,
-    tu: &TuEmptyCallees,
+    tu: &TuContext<'a>,
+) -> Result<ComdatBody<'a>, ComdatDecline> {
+    body_of(f, selected, mode, tu, true)
+}
+
+/// [`comdat_body_from_selected`] with the splice's **re-entry** switch exposed.
+///
+/// `allow_splice` is `true` for every caller but one: [`crate::splice`]'s walk
+/// composes the chain's END with `false`, because it has already established —
+/// by asking the predicate itself, link by link — that this body does not
+/// splice. Asking again here would be the same question with a second
+/// implementation, and it is the recursion that would then have no base case.
+///
+/// It is a boolean and not a depth counter on purpose: the depth is bounded by
+/// the walk's own `seen` set and its ceiling, in `splice.rs`, where the
+/// termination argument lives beside the cycle refusal it depends on.
+pub(crate) fn body_of<'a>(
+    f: &'a IlFunction,
+    selected: codegen::Selected,
+    mode: OptMode,
+    tu: &TuContext<'a>,
+    allow_splice: bool,
 ) -> Result<ComdatBody<'a>, ComdatDecline> {
     let shape = selected_tag(&selected);
+    // **MECHANISM I — the call c2 replaced the caller's whole body with**
+    // (`crate::splice`, `docs/INLINE_PREDICATE.md` §2, `w-seq` §4.1). A caller
+    // whose emitted body is nothing but one call to a same-TU callee the port
+    // lowers emits **the callee's body**: no branch, no REL24 against the
+    // callee, no frame — and the callee's own relocations, at the callee's own
+    // offsets.
+    //
+    // Asked ahead of the match, and after mechanism E inside the predicate
+    // (S9), because it replaces the body of two different `Selected` variants
+    // and a guard on each arm would be the same rule written twice. The `shape`
+    // tag is kept as the CALLER's own selection, so `fnbyte-shape|tail|exact`
+    // still counts what the selector chose and not what the composition did
+    // with it.
+    if allow_splice {
+        if let Some(body) = splice_body(f, &selected, mode, tu)? {
+            return Ok(ComdatBody { shape, ..body });
+        }
+    }
     let mut frame: Option<coff::Frame> = None;
     let (text, calls) = match selected {
         // A framed non-leaf call gets its own `.text` COMDAT like any other
@@ -302,7 +344,7 @@ pub fn comdat_body_from_selected<'a>(
         // the two produce different bodies from the same selection and the
         // adjacency is the whole rule: `Selected::Tail`'s bytes are the setup,
         // and E discards them.
-        codegen::Selected::Tail(_) if drops_tail_call(f, tu) => {
+        codegen::Selected::Tail(_) if drops_tail_call(f, tu.empty_callees()) => {
             (codegen::encode_blr().to_vec(), Vec::new())
         }
         // Each function's text starts at offset 0 of its own COMDAT section, so

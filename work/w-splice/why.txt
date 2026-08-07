@@ -1,0 +1,16 @@
+=== THE RULE FIRED === (723 functions)
+     634  seq
+      89  tail
+     723  the judge agrees (byte-exact)
+       0  the judge does NOT
+
+=== IT DECLINED, AND THE BODY IS STILL A DIFFER === (2472)
+  each row is what a widening would have to buy
+     951   38.5%  tail     S3-tail-setup
+     725   29.3%  seq      S2-multi-call
+     480   19.4%  tail     S6-callee-parse-refused
+     182    7.4%  seq      S6-callee-parse-refused
+     123    5.0%  framed   S1-framed
+       6    0.2%  tail     S6-chain-truncated
+       3    0.1%  tail     S6-chain-open
+       2    0.1%  tail     S8-caller-data-sym

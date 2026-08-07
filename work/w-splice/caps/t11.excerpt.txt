@@ -1,0 +1,11 @@
+-- .text #5 (8 B) ?h@@YAHH@Z
+   0000  38630001  addi 3, 3, 1                    
+   0004  4e800020  blr                             
+-- .text #6 (8 B) ?g@@YAHH@Z
+   0000  38630001  addi 3, 3, 1                    
+   0004  4e800020  blr                             
+-- .text #7 (8 B) ?f@@YAHH@Z
+   0000  38630001  addi 3, 3, 1                    
+   0004  4e800020  blr                             
+-- .text #8 (4 B) ?anchor@@YAXXZ
+   0000  48000000  b .+0                             ; REL24 -> [23] ?ext_anchor@@YAXXZ

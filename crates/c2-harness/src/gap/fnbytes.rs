@@ -110,7 +110,8 @@
 
 use c2_core::codegen::{opt_mode_of_word, select_function};
 use c2_core::comdat::{comdat_body_from_selected, selected_tag, ComdatDecline};
-use c2_core::elide::{Reduction, TuEmptyCallees};
+use c2_core::elide::Reduction;
+use c2_core::splice::TuContext;
 use c2_il::{FnCensus, IlFunction};
 use c2_obj::ObjImage;
 
@@ -207,7 +208,7 @@ impl Decline {
 fn complete_body(
     func: &IlFunction,
     opt_word: Option<u32>,
-    tu: &TuEmptyCallees,
+    tu: &TuContext,
 ) -> Result<(&'static str, Vec<u8>), (&'static str, Decline)> {
     let mode = opt_mode_of_word(opt_word).map_err(|_| ("opt-mode", Decline::OptMode))?;
     let selected = select_function(func, mode).map_err(|_| ("refused", Decline::Selector))?;
@@ -250,6 +251,106 @@ pub fn compare_body(port: &[u8], reference: &[u8]) -> FnByte {
         ref_words: rw,
         equal_words: equal,
     }
+}
+
+/// **Does a spliced body's relocation set agree with the reference obj's?**
+///
+/// The check FBM does not do and cannot: a `.text` COMDAT's raw data does not
+/// contain its relocations, so two bodies that are both the word `48000000`
+/// against two different targets compare `exact` (board **#882**,
+/// `fnbyte-exact-relocated` = 4,664). Lane `w-splice` ships a rule that replaces
+/// a caller's relocations with its callee's, so for the functions it moves that
+/// gap is the whole question.
+///
+/// Compared as **(target name, in-section offset)** sets, per symbol:
+///
+/// * the port side is the spliced [`c2_core::comdat::ComdatBody`]'s `calls` and
+///   `data_refs` — the relocation sites `PortC2::build` would register;
+/// * the reference side is the reference obj's own relocation records for the
+///   **same COMDAT**, `PAIR` records excluded because a `PAIR`'s
+///   `SymbolTableIndex` is a displacement rather than an index and it always
+///   accompanies the `REFHI`/`REFLO` already counted.
+///
+/// The verdict is a short stable string so a scan can histogram it. `no-relocs`
+/// is printed rather than folded into `ok`: "both sides are empty" and "both
+/// sides carry the same three targets" are different observations and one of
+/// them is a much weaker statement.
+fn reloc_verdict(
+    body: &c2_core::comdat::ComdatBody<'_>,
+    reference: Option<&Vec<(u32, u16, Option<String>)>>,
+) -> (String, String) {
+    let Some(reference) = reference else {
+        // The reference obj's relocation table did not decode. Never `ok`.
+        return ("ref-unreadable".to_string(), String::new());
+    };
+    let mut port: Vec<(String, u32)> = body
+        .calls
+        .iter()
+        .map(|c| (c.callee.to_string(), c.reloc_offset))
+        .chain(
+            body.data_refs
+                .iter()
+                .flat_map(|d| data_ref_sites(d)),
+        )
+        .collect();
+    let mut refs: Vec<(String, u32)> = reference
+        .iter()
+        .filter(|(_, ty, target)| {
+            *ty & c2_obj::IMAGE_REL_PPC_TYPEMASK != c2_obj::IMAGE_REL_PPC_PAIR
+                && target.is_some()
+        })
+        .map(|(va, _, target)| (target.clone().unwrap_or_default(), *va))
+        .collect();
+    port.sort();
+    refs.sort();
+    let render = |v: &[(String, u32)]| -> String {
+        v.iter()
+            .map(|(n, o)| format!("{n}@{o}"))
+            .collect::<Vec<_>>()
+            .join(",")
+    };
+    if port == refs {
+        // The witness is emitted on AGREEMENT too — `fnbyte-spliced-relocset`
+        // is the form a later lane re-grades against, and "they agreed" with no
+        // targets beside it is not re-gradeable.
+        let w = format!("port={}|ref={}", render(&port), render(&refs));
+        return if port.is_empty() {
+            ("no-relocs".to_string(), w)
+        } else {
+            (format!("ok|n{}", port.len()), w)
+        };
+    }
+    // A disagreement is named by WHAT disagrees, because the two failures need
+    // different work: a target-name mismatch is the #882 hazard landing, and an
+    // offset mismatch is a body whose relocation sites moved.
+    let pn: Vec<&str> = port.iter().map(|(n, _)| n.as_str()).collect();
+    let rn: Vec<&str> = refs.iter().map(|(n, _)| n.as_str()).collect();
+    let witness = format!("port={}|ref={}", render(&port), render(&refs));
+    if pn == rn {
+        (format!("offset-differs|n{}", port.len()), witness)
+    } else {
+        (format!("target-differs|port{}|ref{}", pn.len(), rn.len()), witness)
+    }
+}
+
+/// The relocation **sites** one data reference registers, as `(symbol, offset)`.
+///
+/// A named data symbol's address is materialized by a `lis`/`addi` pair and
+/// takes a REFHI/PAIR/REFLO/PAIR quad, of which two records name the symbol.
+/// Only those two are compared, for the reason [`reloc_verdict`] gives about
+/// `PAIR`.
+fn data_ref_sites(d: &c2_core::coff::DataRef<'_>) -> Vec<(String, u32)> {
+    vec![(d.name.to_string(), d.hi_off), (d.name.to_string(), d.lo_off)]
+}
+
+/// The census row's `.ex` optimization word, or `None` when no row binds this
+/// emitted symbol — the same three-valued answer `grade_one` reads, kept in one
+/// place so the splice counter and the composition cannot disagree about which
+/// mode they asked under.
+fn census_opt_word(
+    row: Option<&(FnCensus, Result<IlFunction, &'static str>)>,
+) -> Option<u32> {
+    row.and_then(|(c, _)| c.opt_word)
 }
 
 /// The `fnbyte-partial|…` tag for a shape whose `/Gy` composition declined.
@@ -319,20 +420,39 @@ pub struct Graded {
 ///
 /// A row with no `emit_name` contributes nothing: it binds no emitted symbol, so
 /// nothing can reach it under that name either.
-pub fn tu_empty_callees(census: &[(FnCensus, Result<IlFunction, &'static str>)]) -> TuEmptyCallees {
-    TuEmptyCallees::of_rows(census.iter().filter_map(|(c, g)| {
+pub fn tu_empty_callees<'a>(
+    census: &'a [(FnCensus, Result<IlFunction, &'static str>)],
+) -> TuContext<'a> {
+    // **One row per emitted symbol this TU binds, and the row says what each
+    // mechanism can make of it** (`c2_core::splice::TuContext::of_rows`).
+    //
+    // `Some(Reduction::Parsed)`      both mechanisms: E may close through it,
+    //                                the splice may compose a chain end out of
+    //                                it.
+    // `Some(Reduction::NoEffectCall)` **board #980**, lane `w-inl0` — a row the
+    //                                parser REFUSED whose grammar still proves
+    //                                it emits nothing but a call. E gets the
+    //                                edge; the splice gets nothing, because
+    //                                there are no bytes to splice.
+    // `None`                         a refused row neither mechanism can use —
+    //                                and it is still passed, because
+    //                                `TuContext::mentions` is what tells a
+    //                                chain that ENDED from one the port could
+    //                                not FOLLOW. A refused row missing from the
+    //                                context reads as an external, and
+    //                                `S6-chain-truncated` would stop firing.
+    //
+    // #980's conservative direction is preserved exactly: only a refused row
+    // with a readable `no_effect_callee` contributes an E edge, its verdict
+    // does not move — still `Blocked`, still `fnbyte-refused` — and
+    // `IlBundle::functions` still refuses its TU.
+    TuContext::of_rows(census.iter().filter_map(|(c, g)| {
         let name = c.emit_name.as_deref()?;
-        match g.as_ref().ok() {
-            Some(f) => Some((name, Reduction::Parsed(f))),
-            // **Board #980.** A row that did not parse contributes an edge when —
-            // and only when — `c2-il`'s dead-temporary reader could read one out
-            // of it. Every other refused row still contributes nothing, which is
-            // the conservative direction the paragraph above describes.
-            //
-            // The row's verdict does not move: it is still `Blocked`, still
-            // `fnbyte-refused`, and `IlBundle::functions` still refuses its TU.
-            None => Some((name, Reduction::NoEffectCall(c.no_effect_callee.as_deref()?))),
-        }
+        let reduction = match g.as_ref().ok() {
+            Some(f) => Some(Reduction::Parsed(f)),
+            None => c.no_effect_callee.as_deref().map(Reduction::NoEffectCall),
+        };
+        Some((name, reduction, c.opt_word))
     }))
 }
 
@@ -344,7 +464,7 @@ pub fn tu_empty_callees(census: &[(FnCensus, Result<IlFunction, &'static str>)])
 pub fn grade_one(
     row: Option<&(FnCensus, Result<IlFunction, &'static str>)>,
     bytes: Option<&[u8]>,
-    tu: &TuEmptyCallees,
+    tu: &TuContext,
 ) -> Graded {
     let g = |verdict, shape, decline| Graded {
         verdict,
@@ -410,7 +530,7 @@ const MAX_CALLTARGET_WITNESSES: usize = 4;
 fn port_call_targets(
     f: &IlFunction,
     opt_word: Option<u32>,
-    tu: &TuEmptyCallees,
+    tu: &TuContext,
 ) -> Option<Vec<(u32, String)>> {
     let mode = opt_mode_of_word(opt_word).ok()?;
     let body = c2_core::comdat::comdat_function_body(f, mode, tu).ok()?;
@@ -425,7 +545,7 @@ fn port_call_targets(
 fn differ_witness(
     row: Option<&(FnCensus, Result<IlFunction, &'static str>)>,
     reference: &[u8],
-    tu: &TuEmptyCallees,
+    tu: &TuContext,
 ) -> String {
     let Some((census, Ok(func))) = row else {
         return "first@-".to_string();
@@ -508,7 +628,7 @@ fn callee_disposition(
     callee: &str,
     claim: &std::collections::BTreeMap<&str, Vec<usize>>,
     census: &[(FnCensus, Result<IlFunction, &'static str>)],
-    tu: &TuEmptyCallees,
+    tu: &TuContext,
     refbytes: &std::collections::BTreeMap<&str, &[u8]>,
 ) -> String {
     let Some([i]) = claim.get(callee).map(Vec::as_slice) else {
@@ -612,7 +732,14 @@ pub(super) fn measure(
     // census row that parsed — never per function, and never from the emitted
     // subset alone. See [`tu_empty_callees`] and `c2_core::elide`.
     let tu = tu_empty_callees(census);
-    *res.emit.entry("fnbyte-tu-empty-callees".into()).or_insert(0) += tu.len();
+    // **The E half, named explicitly.** `tu` is a `TuContext` (lane `w-splice`)
+    // which `Deref`s to the `TuEmptyCallees` this key has always counted — and
+    // an INHERENT method shadows a `Deref` target's, so while that type spelled
+    // its definition count `len` this line silently reported it instead:
+    // 88,894 -> 1,474,755 on the workload, no compile error, no test failure.
+    // The method is `definitions()` now and this call names the half it means.
+    *res.emit.entry("fnbyte-tu-empty-callees".into()).or_insert(0) +=
+        tu.empty_callees().len();
     // **The control on the input the elision reads.** A census row carries TWO
     // names from TWO different bindings: `IlFunction::mangled_name`, paired
     // POSITIONALLY over `.ex` segments (`bind.rs`'s own module doc pins that
@@ -736,6 +863,30 @@ pub(super) fn measure(
                 Default::default()
             }
         };
+    // **The reference obj's relocation RECORDS, by COMDAT** — the same walk one
+    // field wider: target name and in-section offset, not just a count. Read for
+    // the splice's own check (`reloc_verdict`), which is the one question FBM's
+    // byte compare structurally cannot answer about the bodies this port now
+    // moves. `None` is a decode failure and is its own printed row, never an
+    // empty map read as agreement.
+    //
+    // **Three relocation readers, three questions, and they are not
+    // interchangeable**: `relocs` (counts) says *whether* a body relocates,
+    // `reloc_sites` says *which word* the linker owns, `call_targets` says
+    // *what a REL24 points at*, and this one carries the whole record —
+    // offset, raw type and target — because the splice compares a body's
+    // entire relocation SET against the reference's, data references included.
+    #[allow(clippy::type_complexity)]
+    let refrelocs: std::collections::BTreeMap<String, Vec<(u32, u16, Option<String>)>> =
+        match ref_obj.text_comdat_relocs() {
+            Some(v) => v.into_iter().collect(),
+            None => {
+                *res.emit
+                    .entry("fnbyte-reloc-records-unreadable".into())
+                    .or_insert(0) += 1;
+                Default::default()
+            }
+        };
     // **The relocation TARGETS** (lane `w-drop3`, board #984) — `REL24` only, by
     // name. `reloc_sites` above says *which word* the linker owns; this says
     // *what it points at*, and nothing else in this file can tell two
@@ -826,6 +977,109 @@ pub(super) fn measure(
                         *res.emit
                             .entry("fnbyte-elided-ref-reloc".into())
                             .or_insert(0) += 1;
+                    }
+                }
+            }
+            // **MECHANISM I, counted the same way and for the same reason**
+            // (`c2_core::splice`, lane w-splice). A delta between two scans
+            // measures the NET; what a rule did is a positive count, printed
+            // with the judge's verdict beside it. `fnbyte-spliced` is how many
+            // bodies the splice produced and `fnbyte-spliced-exact` how many of
+            // those c2 agrees with — the two being equal is the claim, and the
+            // pair being printed is what makes a future divergence visible
+            // instead of arithmetic.
+            //
+            // Calls the port's OWN predicate against the same context the
+            // composition just used, never a copy of it.
+            if let Ok(sel) = opt_mode_of_word(census_opt_word(row))
+                .and_then(|m| select_function(f, m).map(|s| (m, s)))
+            {
+                let (m, s) = sel;
+                match c2_core::splice::splice_body_why(f, &s, m, &tu) {
+                    Ok(b) => {
+                        *res.emit.entry("fnbyte-spliced".into()).or_insert(0) += 1;
+                        *res.emit
+                            .entry(format!("fnbyte-spliced|{}", graded.shape))
+                            .or_insert(0) += 1;
+                        // **THE RELOCATION CHECK, and it is not FBM's.**
+                        //
+                        // A spliced body inherits the CALLEE's relocations,
+                        // resolved in the callee's context. FBM compares a
+                        // `.text` COMDAT's raw bytes, which do not contain
+                        // relocations, so it calls two bodies that are both
+                        // `48000000` against different targets `exact` — board
+                        // **#882**, 4,664 credited functions. This mechanism
+                        // moves 945 functions' relocation sets at once, so the
+                        // one thing FBM cannot see is exactly the thing it
+                        // changes, and it is checked here per symbol rather
+                        // than argued in a rung.
+                        //
+                        // Verdict per spliced function: the port's REL24 sites
+                        // and data-symbol references against the reference
+                        // obj's own relocation records for the SAME COMDAT, by
+                        // target name and by in-section offset.
+                        let rv = reloc_verdict(&b, refrelocs.get(name.as_str()));
+                        *res.emit
+                            .entry(format!("fnbyte-spliced-reloc|{}", rv.0))
+                            .or_insert(0) += 1;
+                        // **THE PER-SYMBOL RECORD, emitted for EVERY spliced
+                        // function and not only for a disagreement.** Lane
+                        // `w-relo` is widening FBM to grade relocation targets
+                        // and has already found 861 bodies FBM calls `Exact`
+                        // that name the wrong symbol; the 723 bodies this
+                        // mechanism moves are exactly the population that
+                        // widening re-examines, because they inherit their
+                        // CALLEE's relocations. A pass count cannot be
+                        // re-graded — the target names can, so both sides' are
+                        // printed per symbol.
+                        *res.emit
+                            .entry(format!(
+                                "fnbyte-spliced-relocset|{}|{}|{name}",
+                                rv.0,
+                                if rv.1.is_empty() { "port=|ref=" } else { &rv.1 }
+                            ))
+                            .or_insert(0) += 1;
+                        if !rv.0.starts_with("ok|") && rv.0 != "no-relocs" {
+                            // A disagreement is a NAMED function with both
+                            // target lists beside it, never a count: #882 was
+                            // credited for 4,664 functions on a count, and the
+                            // first thing a lane needs is which symbol and
+                            // which target.
+                            *res.emit
+                                .entry(format!(
+                                    "fnbyte-spliced-reloc-fn|{}|{}|{name}",
+                                    rv.0, rv.1
+                                ))
+                                .or_insert(0) += 1;
+                        }
+                        if v == FnByte::Exact {
+                            *res.emit.entry("fnbyte-spliced-exact".into()).or_insert(0) += 1;
+                        } else {
+                            // Named, never a remainder: a splice the judge
+                            // rejects is the one row a net count would hide.
+                            *res.emit
+                                .entry(format!(
+                                    "fnbyte-spliced-differs-fn|{}|{name}",
+                                    graded.shape
+                                ))
+                                .or_insert(0) += 1;
+                        }
+                    }
+                    // **WHICH CLAUSE REFUSED**, on the `differs` path only —
+                    // where a refusal is a function the port still gets wrong,
+                    // and therefore the price of the next widening. On the
+                    // `exact` path a refusal is the rule correctly standing
+                    // aside and counting it would drown the signal.
+                    Err(d) => {
+                        if matches!(v, FnByte::Differs { .. }) {
+                            let why = match &d {
+                                c2_core::splice::SpliceDecline::Refused(w) => *w,
+                                c2_core::splice::SpliceDecline::Callee(_) => "callee-decline",
+                            };
+                            *res.emit
+                                .entry(format!("fnbyte-splice-refused|{}|{why}", graded.shape))
+                                .or_insert(0) += 1;
+                        }
                     }
                 }
             }
