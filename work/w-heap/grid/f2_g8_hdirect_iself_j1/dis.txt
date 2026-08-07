@@ -1,0 +1,23 @@
+== <worktree>/work/w-heap/grid/f2_g8_hdirect_iself_j1/ref.obj  machine=0x01f2 nsec=5 nsym=14 size=897
+-- sections
+   1 .drectve   raw=132    rawptr=0x00dc rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=200    rawptr=0x0160 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x0228 rel=0  relptr=0x0000 chars=0xc0401040
+   4 .XBLD$W    raw=16     rawptr=0x0238 rel=0  relptr=0x0000 chars=0xc2301040
+   5 .text      raw=20     rawptr=0x0248 rel=0  relptr=0x0000 chars=0x60401020
+-- .text #5 (20 B) ??0H@@QAA@II@Z
+   0000  39630008  addi 11, 3, 8                   
+   0004  39400000  li 10, 0                        
+   0008  91630008  stw 11, 8(3)                    
+   000c  91430014  stw 10, 20(3)                   
+   0010  4e800020  blr                             
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=200 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .XBLD$W                                  sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [10] __C1_11886                               sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [11] .text                                    sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=20 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [13] ??0H@@QAA@II@Z                           sec=5   val=0x0      sc=EXTERNAL  type=0x0020 naux=0

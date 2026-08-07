@@ -1,0 +1,423 @@
+== f2_g0_hdirect_iself_j2
+work/w-heap/grid/f2_g0_hdirect_iself_j2/f2_g0_hdirect_iself_j2.cpp -> 1/1 functions in class
+         1 x cflow-straight
+         1 x eh-none
+  [1/1] match        work/w-heap/grid/f2_g0_hdirect_iself_j2/f2_g0_hdirect_iself_j2.cpp
+       0000  90a30010  stw 5, 16(3)                    
+       0004  90630000  stw 3, 0(3)                     
+       0008  90630008  stw 3, 8(3)                     
+       000c  9063000c  stw 3, 12(3)                    
+       0010  4e800020  blr                             
+    -- symbols
+== f2_g24_hdirect_iself_j2
+work/w-heap/grid/f2_g24_hdirect_iself_j2/f2_g24_hdirect_iself_j2.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f2_g24_hdirect_iself_j2/f2_g24_hdirect_iself_j2.cpp  (il function decode failed)
+       0000  39630018  addi 11, 3, 24                  
+       0004  90a30010  stw 5, 16(3)                    
+       0008  90630000  stw 3, 0(3)                     
+       000c  90630004  stw 3, 4(3)                     
+       0010  91630018  stw 11, 24(3)                   
+       0014  9163001c  stw 11, 28(3)                   
+       0018  4e800020  blr                             
+    -- symbols
+== f2_g8_hdirect_iothermember_j2
+work/w-heap/grid/f2_g8_hdirect_iothermember_j2/f2_g8_hdirect_iothermember_j2.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f2_g8_hdirect_iothermember_j2/f2_g8_hdirect_iothermember_j2.cpp  (il function decode failed)
+       0000  39630008  addi 11, 3, 8                   
+       0004  90a30010  stw 5, 16(3)                    
+       0008  91630000  stw 11, 0(3)                    
+       000c  91630004  stw 11, 4(3)                    
+       0010  4e800020  blr                             
+    -- symbols
+== f2_g8_hdirect_iotherobj_j2
+work/w-heap/grid/f2_g8_hdirect_iotherobj_j2/f2_g8_hdirect_iotherobj_j2.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f2_g8_hdirect_iotherobj_j2/f2_g8_hdirect_iotherobj_j2.cpp  (il function decode failed)
+       0000  39630008  addi 11, 3, 8                   
+       0004  90a30010  stw 5, 16(3)                    
+       0008  91660000  stw 11, 0(6)                    
+       000c  91660004  stw 11, 4(6)                    
+       0010  4e800020  blr                             
+    -- symbols
+== f2_g8_hdirect_iself_j1
+work/w-heap/grid/f2_g8_hdirect_iself_j1/f2_g8_hdirect_iself_j1.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f2_g8_hdirect_iself_j1/f2_g8_hdirect_iself_j1.cpp  (il function decode failed)
+       0000  39630008  addi 11, 3, 8                   
+       0004  39400000  li 10, 0                        
+       0008  91630008  stw 11, 8(3)                    
+       000c  91430014  stw 10, 20(3)                   
+       0010  4e800020  blr                             
+    -- symbols
+== f2_g8_hdirect_iself_j1_lit2
+work/w-heap/grid/f2_g8_hdirect_iself_j1_lit2/f2_g8_hdirect_iself_j1_lit2.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f2_g8_hdirect_iself_j1_lit2/f2_g8_hdirect_iself_j1_lit2.cpp  (il function decode failed)
+       0000  39400000  li 10, 0                        
+       0004  39630008  addi 11, 3, 8                   
+       0008  91430014  stw 10, 20(3)                   
+       000c  91630008  stw 11, 8(3)                    
+       0010  91430010  stw 10, 16(3)                   
+       0014  4e800020  blr                             
+    -- symbols
+== f2_g8_hdirect_iself_j2
+work/w-heap/grid/f2_g8_hdirect_iself_j2/f2_g8_hdirect_iself_j2.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f2_g8_hdirect_iself_j2/f2_g8_hdirect_iself_j2.cpp  (il function decode failed)
+       0000  39630008  addi 11, 3, 8                   
+       0004  90a30010  stw 5, 16(3)                    
+       0008  90630000  stw 3, 0(3)                     
+       000c  90630004  stw 3, 4(3)                     
+       0010  91630008  stw 11, 8(3)                    
+       0014  9163000c  stw 11, 12(3)                   
+       0018  4e800020  blr                             
+    -- symbols
+== f2_g8_hdirect_iself_j2c
+work/w-heap/grid/f2_g8_hdirect_iself_j2c/f2_g8_hdirect_iself_j2c.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f2_g8_hdirect_iself_j2c/f2_g8_hdirect_iself_j2c.cpp  (il function decode failed)
+       0000  39630008  addi 11, 3, 8                   
+       0004  39400000  li 10, 0                        
+       0008  91630008  stw 11, 8(3)                    
+       000c  9163000c  stw 11, 12(3)                   
+       0010  91430014  stw 10, 20(3)                   
+       0014  4e800020  blr                             
+    -- symbols
+== f2_g8_hdirect_iself_j3
+work/w-heap/grid/f2_g8_hdirect_iself_j3/f2_g8_hdirect_iself_j3.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f2_g8_hdirect_iself_j3/f2_g8_hdirect_iself_j3.cpp  (il function decode failed)
+       0000  39630008  addi 11, 3, 8                   
+       0004  39400000  li 10, 0                        
+       0008  91630008  stw 11, 8(3)                    
+       000c  9163000c  stw 11, 12(3)                   
+       0010  91430014  stw 10, 20(3)                   
+       0014  91630018  stw 11, 24(3)                   
+       0018  4e800020  blr                             
+    -- symbols
+== f2_g8_href_iself_j2
+work/w-heap/grid/f2_g8_href_iself_j2/f2_g8_href_iself_j2.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f2_g8_href_iself_j2/f2_g8_href_iself_j2.cpp  (il function decode failed)
+       0000  39630008  addi 11, 3, 8                   
+       0004  90a30010  stw 5, 16(3)                    
+       0008  90630000  stw 3, 0(3)                     
+       000c  90630004  stw 3, 4(3)                     
+       0010  91630008  stw 11, 8(3)                    
+       0014  9163000c  stw 11, 12(3)                   
+       0018  4e800020  blr                             
+    -- symbols
+== f2_xboxheap_exact
+work/w-heap/grid/f2_xboxheap_exact/f2_xboxheap_exact.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f2_xboxheap_exact/f2_xboxheap_exact.cpp  (il function decode failed)
+       0000  7d8802a6  mflr 12                         
+       0004  9181fff8  stw 12, -8(1)                   
+       0008  fbe1fff0  std 31, -16(1)                  
+       000c  9421ffa0  stwu 1, -96(1)                  
+       0010  39400000  li 10, 0                        
+       0014  90a30010  stw 5, 16(3)                    
+       0018  39630008  addi 11, 3, 8                   
+       001c  90630000  stw 3, 0(3)                     
+       0020  91430014  stw 10, 20(3)                   
+       0024  7c7f1b78  mr	31, 3                        
+       0028  90630004  stw 3, 4(3)                     
+       002c  91630008  stw 11, 8(3)                    
+       0030  9163000c  stw 11, 12(3)                   
+       0034  4bffffcd  bl .-52                           ; REL24 -> [15] ?Alloc@H@@QAAPAUBE@@I@Z
+       0038  7fe3fb78  mr	3, 31                        
+       003c  38210060  addi 1, 1, 96                   
+       0040  8181fff8  lwz 12, -8(1)                   
+       0044  7d8803a6  mtlr 12                         
+       0048  ebe1fff0  ld 31, -16(1)                   
+       004c  4e800020  blr                             
+    -- .pdata #6 raw
+== f3_a0_c0_dthis_fctor
+work/w-heap/grid/f3_a0_c0_dthis_fctor/f3_a0_c0_dthis_fctor.cpp -> 0/1 functions in class
+         1 x expr-call-in-expr-recv-load-then-plumbing-0x3A
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f3_a0_c0_dthis_fctor/f3_a0_c0_dthis_fctor.cpp  (il function decode failed)
+       0000  7d8802a6  mflr 12                         
+       0004  9181fff8  stw 12, -8(1)                   
+       0008  fbe1fff0  std 31, -16(1)                  
+       000c  9421ffa0  stwu 1, -96(1)                  
+       0010  7c7f1b78  mr	31, 3                        
+       0014  4bffffed  bl .-20                           ; REL24 -> [15] ?Alloc@H@@QAAPAUBE@@I@Z
+       0018  7fe3fb78  mr	3, 31                        
+       001c  38210060  addi 1, 1, 96                   
+       0020  8181fff8  lwz 12, -8(1)                   
+       0024  7d8803a6  mtlr 12                         
+       0028  ebe1fff0  ld 31, -16(1)                   
+       002c  4e800020  blr                             
+    -- .pdata #6 raw
+== f3_a1_c0_dthis_fctor
+work/w-heap/grid/f3_a1_c0_dthis_fctor/f3_a1_c0_dthis_fctor.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f3_a1_c0_dthis_fctor/f3_a1_c0_dthis_fctor.cpp  (il function decode failed)
+       0000  7d8802a6  mflr 12                         
+       0004  9181fff8  stw 12, -8(1)                   
+       0008  fbe1fff0  std 31, -16(1)                  
+       000c  9421ffa0  stwu 1, -96(1)                  
+       0010  90a30010  stw 5, 16(3)                    
+       0014  7c7f1b78  mr	31, 3                        
+       0018  4bffffe9  bl .-24                           ; REL24 -> [15] ?Alloc@H@@QAAPAUBE@@I@Z
+       001c  7fe3fb78  mr	3, 31                        
+       0020  38210060  addi 1, 1, 96                   
+       0024  8181fff8  lwz 12, -8(1)                   
+       0028  7d8803a6  mtlr 12                         
+       002c  ebe1fff0  ld 31, -16(1)                   
+       0030  4e800020  blr                             
+    -- .pdata #6 raw
+== f3_a3_c0_dfree_fvoid
+work/w-heap/grid/f3_a3_c0_dfree_fvoid/f3_a3_c0_dfree_fvoid.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f3_a3_c0_dfree_fvoid/f3_a3_c0_dfree_fvoid.cpp  (il function decode failed)
+       0000  90a30010  stw 5, 16(3)                    
+       0004  90630000  stw 3, 0(3)                     
+       0008  90630004  stw 3, 4(3)                     
+       000c  4bfffff4  b .-12                            ; REL24 -> [14] ?g0@@YAXXZ
+    -- symbols
+== f3_a3_c0_dthis_fctor
+work/w-heap/grid/f3_a3_c0_dthis_fctor/f3_a3_c0_dthis_fctor.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f3_a3_c0_dthis_fctor/f3_a3_c0_dthis_fctor.cpp  (il function decode failed)
+       0000  7d8802a6  mflr 12                         
+       0004  9181fff8  stw 12, -8(1)                   
+       0008  fbe1fff0  std 31, -16(1)                  
+       000c  9421ffa0  stwu 1, -96(1)                  
+       0010  90a30010  stw 5, 16(3)                    
+       0014  7c7f1b78  mr	31, 3                        
+       0018  90630000  stw 3, 0(3)                     
+       001c  90630004  stw 3, 4(3)                     
+       0020  4bffffe1  bl .-32                           ; REL24 -> [15] ?Alloc@H@@QAAPAUBE@@I@Z
+       0024  7fe3fb78  mr	3, 31                        
+       0028  38210060  addi 1, 1, 96                   
+       002c  8181fff8  lwz 12, -8(1)                   
+       0030  7d8803a6  mtlr 12                         
+       0034  ebe1fff0  ld 31, -16(1)                   
+       0038  4e800020  blr                             
+    -- .pdata #6 raw
+== f3_a3_c0_dthis_fctor__dup
+work/w-heap/grid/f3_a3_c0_dthis_fctor__dup/f3_a3_c0_dthis_fctor__dup.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f3_a3_c0_dthis_fctor__dup/f3_a3_c0_dthis_fctor__dup.cpp  (il function decode failed)
+       0000  7d8802a6  mflr 12                         
+       0004  9181fff8  stw 12, -8(1)                   
+       0008  fbe1fff0  std 31, -16(1)                  
+       000c  9421ffa0  stwu 1, -96(1)                  
+       0010  90a30010  stw 5, 16(3)                    
+       0014  7c7f1b78  mr	31, 3                        
+       0018  90630000  stw 3, 0(3)                     
+       001c  90630004  stw 3, 4(3)                     
+       0020  4bffffe1  bl .-32                           ; REL24 -> [15] ?Alloc@H@@QAAPAUBE@@I@Z
+       0024  7fe3fb78  mr	3, 31                        
+       0028  38210060  addi 1, 1, 96                   
+       002c  8181fff8  lwz 12, -8(1)                   
+       0030  7d8803a6  mtlr 12                         
+       0034  ebe1fff0  ld 31, -16(1)                   
+       0038  4e800020  blr                             
+    -- .pdata #6 raw
+== f3_a3_c0_dthis_fdiscardint
+work/w-heap/grid/f3_a3_c0_dthis_fdiscardint/f3_a3_c0_dthis_fdiscardint.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f3_a3_c0_dthis_fdiscardint/f3_a3_c0_dthis_fdiscardint.cpp  (il function decode failed)
+       0000  90a30010  stw 5, 16(3)                    
+       0004  90630000  stw 3, 0(3)                     
+       0008  90630004  stw 3, 4(3)                     
+       000c  4bfffff4  b .-12                            ; REL24 -> [14] ?Alloc@H@@QAAPAUBE@@I@Z
+    -- symbols
+== f3_a3_c0_dthis_fretcall
+work/w-heap/grid/f3_a3_c0_dthis_fretcall/f3_a3_c0_dthis_fretcall.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f3_a3_c0_dthis_fretcall/f3_a3_c0_dthis_fretcall.cpp  (il function decode failed)
+       0000  90a30010  stw 5, 16(3)                    
+       0004  90630000  stw 3, 0(3)                     
+       0008  90630004  stw 3, 4(3)                     
+       000c  4bfffff4  b .-12                            ; REL24 -> [14] ?Alloc@H@@QAAPAUBE@@I@Z
+    -- symbols
+== f3_a3_c0_dthis_fvoid
+work/w-heap/grid/f3_a3_c0_dthis_fvoid/f3_a3_c0_dthis_fvoid.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f3_a3_c0_dthis_fvoid/f3_a3_c0_dthis_fvoid.cpp  (il function decode failed)
+       0000  90a30010  stw 5, 16(3)                    
+       0004  90630000  stw 3, 0(3)                     
+       0008  90630004  stw 3, 4(3)                     
+       000c  4bfffff4  b .-12                            ; REL24 -> [14] ?Alloc@H@@QAAPAUBE@@I@Z
+    -- symbols
+== f3_a3_c1b_dthis_fctor
+work/w-heap/grid/f3_a3_c1b_dthis_fctor/f3_a3_c1b_dthis_fctor.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f3_a3_c1b_dthis_fctor/f3_a3_c1b_dthis_fctor.cpp  (il function decode failed)
+       0000  7d8802a6  mflr 12                         
+       0004  9181fff8  stw 12, -8(1)                   
+       0008  fbe1fff0  std 31, -16(1)                  
+       000c  9421ffa0  stwu 1, -96(1)                  
+       0010  90a30010  stw 5, 16(3)                    
+       0014  7ca42b78  mr	4, 5                         
+       0018  90630000  stw 3, 0(3)                     
+       001c  7c7f1b78  mr	31, 3                        
+       0020  90630004  stw 3, 4(3)                     
+       0024  4bffffdd  bl .-36                           ; REL24 -> [15] ?Alloc@H@@QAAPAUBE@@I@Z
+       0028  7fe3fb78  mr	3, 31                        
+       002c  38210060  addi 1, 1, 96                   
+       0030  8181fff8  lwz 12, -8(1)                   
+       0034  7d8803a6  mtlr 12                         
+       0038  ebe1fff0  ld 31, -16(1)                   
+       003c  4e800020  blr                             
+    -- .pdata #6 raw
+== f3_a3_c1_dfree_fctor
+work/w-heap/grid/f3_a3_c1_dfree_fctor/f3_a3_c1_dfree_fctor.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f3_a3_c1_dfree_fctor/f3_a3_c1_dfree_fctor.cpp  (il function decode failed)
+       0000  7d8802a6  mflr 12                         
+       0004  9181fff8  stw 12, -8(1)                   
+       0008  fbe1fff0  std 31, -16(1)                  
+       000c  9421ffa0  stwu 1, -96(1)                  
+       0010  7c7f1b78  mr	31, 3                        
+       0014  90a30010  stw 5, 16(3)                    
+       0018  7c832378  mr	3, 4                         
+       001c  93ff0000  stw 31, 0(31)                   
+       0020  93ff0004  stw 31, 4(31)                   
+       0024  4bffffdd  bl .-36                           ; REL24 -> [15] ?g1@@YAXI@Z
+       0028  7fe3fb78  mr	3, 31                        
+       002c  38210060  addi 1, 1, 96                   
+       0030  8181fff8  lwz 12, -8(1)                   
+       0034  7d8803a6  mtlr 12                         
+       0038  ebe1fff0  ld 31, -16(1)                   
+       003c  4e800020  blr                             
+    -- .pdata #6 raw
+== f3_a3_c1_dother_fctor
+work/w-heap/grid/f3_a3_c1_dother_fctor/f3_a3_c1_dother_fctor.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f3_a3_c1_dother_fctor/f3_a3_c1_dother_fctor.cpp  (il function decode failed)
+       0000  7d8802a6  mflr 12                         
+       0004  9181fff8  stw 12, -8(1)                   
+       0008  fbe1fff0  std 31, -16(1)                  
+       000c  9421ffa0  stwu 1, -96(1)                  
+       0010  7c7f1b78  mr	31, 3                        
+       0014  90a30010  stw 5, 16(3)                    
+       0018  90630000  stw 3, 0(3)                     
+       001c  7cc33378  mr	3, 6                         
+       0020  93ff0004  stw 31, 4(31)                   
+       0024  4bffffdd  bl .-36                           ; REL24 -> [15] ?Alloc@H@@QAAPAUBE@@I@Z
+       0028  7fe3fb78  mr	3, 31                        
+       002c  38210060  addi 1, 1, 96                   
+       0030  8181fff8  lwz 12, -8(1)                   
+       0034  7d8803a6  mtlr 12                         
+       0038  ebe1fff0  ld 31, -16(1)                   
+       003c  4e800020  blr                             
+    -- .pdata #6 raw
+== f3_a3_c2_dfree_fctor
+work/w-heap/grid/f3_a3_c2_dfree_fctor/f3_a3_c2_dfree_fctor.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f3_a3_c2_dfree_fctor/f3_a3_c2_dfree_fctor.cpp  (il function decode failed)
+       0000  7d8802a6  mflr 12                         
+       0004  9181fff8  stw 12, -8(1)                   
+       0008  fbe1fff0  std 31, -16(1)                  
+       000c  9421ffa0  stwu 1, -96(1)                  
+       0010  7c7f1b78  mr	31, 3                        
+       0014  90a30010  stw 5, 16(3)                    
+       0018  90630000  stw 3, 0(3)                     
+       001c  7ca32b78  mr	3, 5                         
+       0020  93ff0004  stw 31, 4(31)                   
+       0024  4bffffdd  bl .-36                           ; REL24 -> [15] ?g2@@YAXII@Z
+       0028  7fe3fb78  mr	3, 31                        
+       002c  38210060  addi 1, 1, 96                   
+       0030  8181fff8  lwz 12, -8(1)                   
+       0034  7d8803a6  mtlr 12                         
+       0038  ebe1fff0  ld 31, -16(1)                   
+       003c  4e800020  blr                             
+    -- .pdata #6 raw
+== f3_a6_c0_dthis_fctor
+work/w-heap/grid/f3_a6_c0_dthis_fctor/f3_a6_c0_dthis_fctor.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f3_a6_c0_dthis_fctor/f3_a6_c0_dthis_fctor.cpp  (il function decode failed)
+       0000  7d8802a6  mflr 12                         
+       0004  9181fff8  stw 12, -8(1)                   
+       0008  fbe1fff0  std 31, -16(1)                  
+       000c  9421ffa0  stwu 1, -96(1)                  
+       0010  39600000  li 11, 0                        
+       0014  90a30010  stw 5, 16(3)                    
+       0018  90630000  stw 3, 0(3)                     
+       001c  7c7f1b78  mr	31, 3                        
+       0020  91630014  stw 11, 20(3)                   
+       0024  90630004  stw 3, 4(3)                     
+       0028  91630008  stw 11, 8(3)                    
+       002c  9163000c  stw 11, 12(3)                   
+       0030  4bffffd1  bl .-48                           ; REL24 -> [15] ?Alloc@H@@QAAPAUBE@@I@Z
+       0034  7fe3fb78  mr	3, 31                        
+       0038  38210060  addi 1, 1, 96                   
+       003c  8181fff8  lwz 12, -8(1)                   
+       0040  7d8803a6  mtlr 12                         
+       0044  ebe1fff0  ld 31, -16(1)                   
+       0048  4e800020  blr                             
+    -- .pdata #6 raw
+== f3_b2_c0_dthis_fctor
+work/w-heap/grid/f3_b2_c0_dthis_fctor/f3_b2_c0_dthis_fctor.cpp -> 0/1 functions in class
+         1 x expr-op-0x27
+         1 x cflow-straight
+  [1/1] vocab-gap    work/w-heap/grid/f3_b2_c0_dthis_fctor/f3_b2_c0_dthis_fctor.cpp  (il function decode failed)
+       0000  7d8802a6  mflr 12                         
+       0004  9181fff8  stw 12, -8(1)                   
+       0008  fbe1fff0  std 31, -16(1)                  
+       000c  9421ffa0  stwu 1, -96(1)                  
+       0010  90a30010  stw 5, 16(3)                    
+       0014  7c7f1b78  mr	31, 3                        
+       0018  90660000  stw 3, 0(6)                     
+       001c  90630004  stw 3, 4(3)                     
+       0020  4bffffe1  bl .-32                           ; REL24 -> [15] ?Alloc@H@@QAAPAUBE@@I@Z
+       0024  7fe3fb78  mr	3, 31                        
+       0028  38210060  addi 1, 1, 96                   
+       002c  8181fff8  lwz 12, -8(1)                   
+       0030  7d8803a6  mtlr 12                         
+       0034  ebe1fff0  ld 31, -16(1)                   
+       0038  4e800020  blr                             
+    -- .pdata #6 raw
+== f3_leaf_a3
+work/w-heap/grid/f3_leaf_a3/f3_leaf_a3.cpp -> 1/1 functions in class
+         1 x cflow-straight
+         1 x eh-none
+  [1/1] match        work/w-heap/grid/f3_leaf_a3/f3_leaf_a3.cpp
+       0000  90a30010  stw 5, 16(3)                    
+       0004  90630000  stw 3, 0(3)                     
+       0008  90630004  stw 3, 4(3)                     
+       000c  4e800020  blr                             
+    -- symbols
+== f3_leaf_a6
+work/w-heap/grid/f3_leaf_a6/f3_leaf_a6.cpp -> 1/1 functions in class
+         1 x cflow-straight
+         1 x eh-none
+  [1/1] match        work/w-heap/grid/f3_leaf_a6/f3_leaf_a6.cpp
+       0000  39600000  li 11, 0                        
+       0004  90a30010  stw 5, 16(3)                    
+       0008  90630000  stw 3, 0(3)                     
+       000c  91630014  stw 11, 20(3)                   
+       0010  90630004  stw 3, 4(3)                     
+       0014  91630008  stw 11, 8(3)                    
+       0018  9163000c  stw 11, 12(3)                   
+       001c  4e800020  blr                             
+    -- symbols

@@ -1,0 +1,1 @@
+work/w-heap/grid/f2_g8_hdirect_iself_j1_lit2/f2_g8_hdirect_iself_j1_lit2.cpp

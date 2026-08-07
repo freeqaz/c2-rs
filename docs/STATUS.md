@@ -462,6 +462,39 @@ plus `scripts/gt_dump.py` per TU.)
 > **#1097**–**#1106**;
 > [`rungs/2026-08-08-w-front2.md`](rungs/2026-08-08-w-front2.md).
 
+> ### ✔ 2026-08-08 — RE-PRICED AGAIN, upward. **The minimum is FIVE, not three**, and the sub-target the re-price handed on is in the WRONG REGIME.
+>
+> Lane `w-heap` was sent to convert `xboxheap.cpp` on the strength of the block
+> above and **declined at 5**, over a 27-cell grid frozen before a cell compiled
+> and graded by real `c2.dll` under wibo at the workload's own flags.
+> #1097's three stand; two more are **facts the re-price did not look at**:
+>
+> * **`codegen::alloc`'s mixed-kind refusal is LIVE on this exact body** — an
+>   interior address at 2 uses beside a literal at 1. Board **#836** measured
+>   that refusal wrong-on-0 over 81 cells and **#868** measured the narrow lift
+>   that would open it and refused that too (`addi-interior` 12/12,
+>   **`slwi` 0/12**, and `ProducerKind` cannot tell them apart). `alloc.rs`'s
+>   own module doc ends *"a lane that widens the parser to admit an interior
+>   address as a store value … inherits every paragraph above"*, and the block
+>   above prices the codegen side at **1** without citing it.
+> * **The reference bind is load-bearing at this width.** `xboxheap`'s ctor
+>   written **without** `BE& listHead = mListHead;` is a **different body** —
+>   both producers swap emission order and one store moves. `order::schedule`
+>   predicts *both*, from the base symbol alone, so ORDER is genuinely paid; the
+>   cost lands on the **reader**, which must carry the bound reference's own
+>   token as the store's base symbol. Board **#1128**.
+>
+> **Two handover claims above do not hold.** `work/w-front2/ref/*/dis.txt` is
+> **not** committed — that directory holds five `.cpp` copies and no
+> disassembly — and neither is `work/w-front2/probe/x6/ref.obj`, which #1106
+> cites. `work/w-heap/ref/xboxheap/dis.txt` is the target's own obj, committed.
+> And **`x6` is not "a strictly smaller sub-target"**: its callee is a free
+> function, so the argument setup writes `r3`, so the store base switches
+> mid-run and the setup interleaves — board **#870**'s regime, which
+> `xboxheap`'s own member call on `this` **avoids entirely** (empty setup, one
+> base throughout). **Do not start at `x6`.** Boards **#1127**–**#1133**;
+> [`rungs/2026-08-08-w-heap.md`](rungs/2026-08-08-w-heap.md).
+
 ---
 
 ## The traps
