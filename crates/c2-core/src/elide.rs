@@ -909,6 +909,7 @@ mod tests {
             saved: Vec::new(),
             guard: None,
             early: Vec::new(),
+            store_run: None,
         });
         let funcs = vec![
             empty("?h@@YAXXZ"),

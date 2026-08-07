@@ -22,6 +22,7 @@
 //! | [`leaf`] | one file per leaf shape, each self-contained | the leaf lane, one file per rung |
 //! | [`frame`] | `FrameLayout`, the captured thresholds | **the serial spine** |
 //! | [`calls`] | framed bodies, call sequences, tail calls, permutation | **the serial spine** |
+//! | [`store_run_call`] | board #844's composition seam: a scheduled run as the MIDDLE of a framed body | **the serial spine** |
 //!
 //! A new leaf rung touches: its own new `leaf/<shape>.rs`, one arm in
 //! [`select`], one `pub mod` line — and nothing else in `c2-core`.
@@ -39,6 +40,7 @@ pub mod ptr_walk_chain_loop;
 pub mod ptr_walk_loop;
 pub mod schedule;
 pub mod select;
+pub mod store_run_call;
 pub mod straightline;
 #[cfg(test)]
 pub(crate) mod testutil;

@@ -742,31 +742,71 @@ pub(crate) fn shape_to_function(
                     ..IlFunction::base(name, src)
                 })
             }
-            // **F3 — the store run followed by a call, REFUSED HERE, and this is
-            // the one place the refusal can be made.**
+            // **F3 — the store run followed by a call. THE CARRIER, board #844.**
             //
-            // `IlFunction` has no carrier for a composition: `ops` and the call
-            // fields (`tail_call`, `framed_call`, `call_seq`) are *alternatives*
-            // that `c2_core::codegen::select` tries in a fixed order, and
-            // `store_leaf_text` is tried before any of them. A function built
-            // with this shape's `ops` and any call field would therefore emit
-            // the store run and **silently drop the `bl`** — a complete,
-            // plausible, wrong body, which is board #232's exact mechanism
-            // (a reader widening that turned a clean refusal into a wrong emit
-            // and ran 255 commits while the scan read `mismatch 0`).
+            // `w-f23` landed this production and returned `None` here, because
+            // `IlFunction` had no way to spell a composition: `ops` and the call
+            // fields were *alternatives* that `c2_core::codegen::select` tries in
+            // a fixed order, so a function carrying both emitted one and silently
+            // dropped the other — board #232's exact mechanism, and #232 was live
+            // for 255 commits while the workload scan read `mismatch 0`.
             //
-            // Building the carrier is board **#844**'s composition seam and it
-            // lives in `c2-core`. Until it exists the honest answer is `None`,
-            // and the census files these bodies under
-            // [`crate::func::census::STORE_RUN_CALL_NO_CARRIER`] rather than
-            // leaving them inside a fall-through expression key — so the residue
-            // this rung leaves is a **number** and not a rumour.
+            // **The repair is not an ordering fix.** Trying the composition
+            // earlier still leaves two fields that can both be set and one that
+            // wins, and the next widening reintroduces the race somewhere else.
+            // The composition is ONE carrier: [`CallSeq::store_run`] holds the
+            // run, `ops` stays **empty**, and there is nothing for a dispatch
+            // order to get wrong. `IlFunction::store_run_is_carried_alone` is the
+            // invariant and `c2_core::codegen::select_function` refuses a
+            // violation by name rather than picking a winner.
             //
-            // The fields are named rather than dropped with `..`, so that a
-            // future carrier has to come back to this arm.
-            BodyShape::StoreRunCall { params, ops, callee_tok } => {
-                let _ = (params, ops, callee_tok, resolve);
-                None
+            // Everything else about the shape is already modeled and is reused
+            // rather than restated — this is `EmptyCtorBaseDelegation`'s own
+            // sequence with a run in front of it:
+            //
+            //   * `saved = [this]` — `this` is the one value live across the one
+            //     call (board #869), so it goes to r31 and the prologue `std`s it;
+            //   * `SeqTail::SavedFormal { param: this }` — the constructor's
+            //     implicit `return this` is `mr r3,r31`, the tail that already
+            //     exists for the generated base delegation;
+            //   * one call, no guard, no early returns.
+            //
+            // The emitter restates each of those as a backstop
+            // (`codegen::store_run_call`), so the parser and the emitter cannot
+            // disagree about the class silently.
+            BodyShape::StoreRunCall { params, ops, callee_tok, live_args } => {
+                // The receiver is argument slot 0 and the production requires
+                // slot 0 to be `params[0]`; taken from `params` rather than
+                // assumed to be index 0, so a later widening that admits a
+                // different receiver has to come back here.
+                let this_index = 0usize;
+                if params.is_empty() {
+                    return None;
+                }
+                Some(IlFunction {
+                    params,
+                    call_seq: Some(CallSeq {
+                        calls: vec![SeqCall {
+                            callee: resolve(callee_tok)?,
+                            // **Empty by the production's own gate** (#1129):
+                            // every argument slot already holds the formal that
+                            // occupies it, so the call emits no move and the
+                            // run's base register is never written.
+                            arg_ops: Vec::new(),
+                            arg_sources: None,
+                            link_args: None,
+                        }],
+                        tail: SeqTail::SavedFormal { param: this_index },
+                        saved: vec![this_index],
+                        guard: None,
+                        early: Vec::new(),
+                        store_run: Some(crate::func::StoreRunPrefix {
+                            ops,
+                            live_args,
+                        }),
+                    }),
+                    ..IlFunction::base(name, src)
+                })
             }
             BodyShape::AddrLeaf { params, ops } => {
                 Some(IlFunction {
@@ -877,6 +917,12 @@ pub(crate) fn shape_to_function(
                         guard: None,
                         early: Vec::new(),
                         saved: vec![this_index],
+                        // **The generated ctor's body is the delegation and
+                        // nothing else** — that is what makes it *generated*.
+                        // A written one with a store run ahead of the
+                        // delegation is board #844's shape and reaches this
+                        // crate through `StoreRunCall`, not through here.
+                        store_run: None,
                     }),
                     eh_bare: eh,
                     // The unwind action's destructor: named by the IL, absent
@@ -1037,6 +1083,17 @@ pub(crate) fn shape_to_function(
                     call_seq: Some(CallSeq {
                         calls: resolved,
                         saved,
+                        // **The `CallSeq` production has no store run**, and
+                        // will not grow one here: `try_parse_call_seq` walks
+                        // statement-position CALLS and a store statement ends
+                        // its walk. A run in front of a sequence reaches the
+                        // model through `BodyShape::StoreRunCall` (board #844),
+                        // which is a different production with a different
+                        // gate — one call, an empty argument setup and the
+                        // constructor tail — and merging the two would put a
+                        // measured regime boundary (#1129) behind a shape that
+                        // has never been graded for it.
+                        store_run: None,
                         // W10 — the guard is a pure copy: every field is
                         // already resolved (a parameter index, a relation, a
                         // signedness and a literal), so unlike the callees

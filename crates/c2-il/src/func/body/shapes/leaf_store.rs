@@ -1500,19 +1500,30 @@ fn collect_store_run(
 ///   that *look* like this shape are branches, so the tail is required
 ///   positively and not inferred from the run.
 ///
-/// # THIS SHAPE HAS NO EMITTER, AND THE REFUSAL IS IN [`crate::func::bundle`]
+/// # THE CARRIER LANDED — board #844, `w-seam2`
 ///
-/// `IlFunction` has no carrier for *a store run followed by a call*: `ops` and
-/// `call_seq` are alternatives that `c2_core::codegen::select` tries in a fixed
-/// order, so a function carrying both emits **one** of them and silently drops
-/// the other — a store run emitted with its `bl` missing is `#232`'s exact
-/// shape. So `shape_to_function` returns `None` for this variant and the census
-/// files it under its own `:eof` key
-/// ([`crate::func::census::STORE_RUN_CALL_NO_CARRIER`]): the body is
-/// grammar-complete and the only thing left wrong with it is that the **model**
-/// cannot spell the composition. That is board **#844**, and this production
-/// is the measurement that it and F3 are **one refusal seen from two ends**
-/// rather than the two independent rows `w-heap` §5's table shows.
+/// This production originally shipped with `shape_to_function` returning `None`,
+/// because `IlFunction` had no carrier for *a store run followed by a call*:
+/// `ops` and `call_seq` were alternatives that `c2_core::codegen::select` tries
+/// in a fixed order, so a function carrying both emitted **one** and silently
+/// dropped the other — a store run with its `bl` missing is `#232`'s exact
+/// shape. That refusal was the measurement that F3 and #844 are **one refusal
+/// seen from two ends** rather than the two independent rows `w-heap` §5's table
+/// shows.
+///
+/// The carrier is [`crate::func::CallSeq::store_run`], and the repair is that
+/// the run lives *inside* the sequence with `ops` left **empty** — so the race
+/// is unspellable rather than merely re-ordered.
+///
+/// **The emitter's domain is narrower than this production's**, and the
+/// difference is a `codegen-gap` rather than a widening of what parses here:
+/// `c2_core::codegen::store_run_call` serves runs of formal- and literal-valued
+/// stores and refuses an `AddrOf` value — the mixed-kind run `alloc::allocate`
+/// refuses (#836) and `w-seam` declined to lift (#868) — plus the
+/// `nprod == 0, u <= 1` corner where board #867's copy-slot rule is off by one.
+/// Keeping the reader wider than the emitter is deliberate: the refusal is then
+/// **named in codegen** and shows up as a codegen-gap, instead of hiding inside
+/// a parse failure that names the wrong construct.
 ///
 /// Returns `None` — cursor untouched — for anything that is not exactly this
 /// shape.
@@ -1587,6 +1598,11 @@ pub(crate) fn try_parse_store_run_call(
         params,
         ops: stmts.into_iter().flat_map(|s| s.ops).collect(),
         callee_tok,
+        // The gate above proved slot `i` holds `params[i]` for every one of
+        // them, so the COUNT is the whole of "which formals are live at the
+        // `bl`". The emitter cannot recover it — an empty argument setup is
+        // exactly what this production requires — so it is carried.
+        live_args: slots.len(),
     })
 }
 
@@ -1828,31 +1844,50 @@ mod tests {
             6,
             "six stores"
         );
-        // …and the BUNDLE refuses it, which is the whole point. `IlFunction` has
-        // no carrier for a composition — `ops` and the call fields are
-        // alternatives `codegen::select` tries in a fixed order, with
-        // `store_leaf_text` first — so a function built from these ops plus any
-        // call field would emit the run and DROP THE `bl`. That is board #232's
-        // exact shape, and #844's seam is what closes it.
+        // …and the BUNDLE now CARRIES it — board #844, `w-seam2`.
+        //
+        // This assertion is the one w-f23 wrote as `.is_none()`, and the reason
+        // it inverted is the reason #844 existed: `IlFunction` had no way to
+        // spell a composition, so `ops` and the call fields were alternatives
+        // `codegen::select` tried in a fixed order, and a function carrying both
+        // emitted one and silently dropped the other — board #232's exact shape.
+        //
+        // **What replaces the refusal is not "the composition is now allowed",
+        // it is the INVARIANT that makes the race unspellable**: the run lives in
+        // `CallSeq::store_run` and `ops` stays EMPTY. Both halves are asserted,
+        // because a carrier that also filled `ops` would be the original defect
+        // with a new field name on it.
+        let f = crate::func::bundle::shape_to_function(
+            BodyShape::StoreRunCall {
+                params: vec![0xFF09],
+                ops: vec![
+                    IlOp::Load(0xFF09),
+                    IlOp::Lit(0),
+                    IlOp::StoreInd { off: 0, width: 4 },
+                ],
+                callee_tok: 0xF609,
+            },
+            "?ctor@@QAA@XZ",
+            &None,
+            &|_| Some("?callee@@AAAXXZ".to_string()),
+            &|_| None,
+        )
+        .expect("the composition has a carrier (board #844)");
         assert!(
-            crate::func::bundle::shape_to_function(
-                BodyShape::StoreRunCall {
-                    params: vec![0xFF09],
-                    ops: vec![
-                        IlOp::Load(0xFF09),
-                        IlOp::Lit(0),
-                        IlOp::StoreInd { off: 0, width: 4 },
-                    ],
-                    callee_tok: 0xF609,
-                },
-                "?ctor@@QAA@XZ",
-                &None,
-                &|_| Some("?callee@@AAAXXZ".to_string()),
-                &|_| None,
-            )
-            .is_none(),
-            "the composition must not reach codegen while the model cannot spell it"
+            f.ops.is_empty(),
+            "the run is carried ONCE — `ops` empty is what stops the selector's \
+             dispatch order from being able to drop the `bl`"
         );
+        assert!(!f.store_run_carried_twice(), "board #844's invariant");
+        let seq = f.call_seq.as_ref().expect("the composition is a call sequence");
+        assert_eq!(seq.store_run.len(), 3, "the one store group, in the carrier");
+        assert_eq!(seq.calls.len(), 1);
+        assert!(seq.calls[0].arg_ops.is_empty(), "the empty argument setup (#1129)");
+        // `this` is the one value live across the one call (#869), so it is
+        // saved and it is what the constructor returns — the same `SeqTail` the
+        // generated base delegation already uses.
+        assert_eq!(seq.saved, vec![0]);
+        assert_eq!(seq.tail, crate::func::SeqTail::SavedFormal { param: 0 });
     }
 
     /// W25: the store leaf, from whole captured segments — both designators, the

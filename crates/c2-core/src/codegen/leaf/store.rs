@@ -92,11 +92,11 @@ struct SimpleStore {
 /// empty prefix matches everything, and the empty case is never the one the
 /// rung is about, so the emptiness check is the caller's and precedes this.
 fn parse_simple_gpr_run(
-    func: &IlFunction,
+    ops: &[IlOp],
     reg_of: &dyn Fn(u32) -> Option<u8>,
 ) -> Option<Vec<SimpleStore>> {
     let mut out: Vec<SimpleStore> = Vec::new();
-    let mut walk = func.ops.as_slice();
+    let mut walk = ops;
     while let [IlOp::Load(b), v, IlOp::StoreInd { off, width }, tail @ ..] = walk {
         let (lit, src) = match v {
             IlOp::Load(t) => (None, reg_of(*t)?),
@@ -170,14 +170,58 @@ fn parse_simple_gpr_run(
 /// families, the interleaved layouts and the pool boundary: **18 of 18 the
 /// same**. Board **#641**.
 fn scheduled_gpr_run_text(func: &IlFunction) -> Option<Result<Vec<u8>, BackendError>> {
+    match scheduled_gpr_run(&func.params, &func.ops)? {
+        Err(e) => Some(Err(e)),
+        Ok(run) => {
+            let mut text: Vec<u8> = run.slots.into_iter().flat_map(|(_, w)| w).collect();
+            text.extend_from_slice(&encode_blr());
+            Some(Ok(text))
+        }
+    }
+}
+
+/// A scheduled store run, **slot by slot** rather than as one flat byte string.
+///
+/// [`scheduled_gpr_run_text`] concatenates this and appends the leaf's `blr`.
+/// Board **#844**'s composition seam needs the same run as the *middle* of a
+/// framed body with one word spliced into it, and a splice needs to know where
+/// the seams are — so the emission is produced once, in slot form, and the two
+/// consumers differ only in what they do with it. A second scheduler for the
+/// same run is `GAPS.md` §6's "one fact, two locators", and this file's own
+/// history (`store_leaf_text` walking source order beside `order::schedule`) is
+/// what that costs.
+pub(crate) struct ScheduledRun {
+    /// One entry per emitted slot in emission order: `(this slot is a STORE,
+    /// its words)`. Producers are `false`.
+    pub(crate) slots: Vec<(bool, Vec<u8>)>,
+    /// Distinct producers — equal literals CSE to one `li`, so equal `k` is one
+    /// producer, which is the identity [`alloc::allocate`] is handed.
+    pub(crate) nprod: usize,
+    /// Stores that materialise **nothing** — a formal already live in a
+    /// register. `w-seam`/#867's `u`.
+    pub(crate) nsw: usize,
+}
+
+/// The scheduled store run, or `None` for a stream that is not one.
+///
+/// Split out of [`scheduled_gpr_run_text`] as a pure code move so that the leaf
+/// and the #844 composition ask **one** scheduler. Every model consulted here —
+/// [`order::schedule`], [`alloc::allocate`] and the three refusals above them —
+/// is the leaf's, unchanged and unrelaxed: this function cannot accept anything
+/// `store_leaf_text` did not already accept, and a composition that wanted more
+/// would have to widen the models rather than route around them.
+pub(crate) fn scheduled_gpr_run(
+    params: &[u32],
+    ops: &[IlOp],
+) -> Option<Result<ScheduledRun, BackendError>> {
     let reg_of = |tok: u32| -> Option<u8> {
-        func.params
+        params
             .iter()
             .position(|&t| t == tok)
             .filter(|&i| i < ARG_REGS.len())
             .map(|i| ARG_REGS[i])
     };
-    let mut run = parse_simple_gpr_run(func, &reg_of)?;
+    let mut run = parse_simple_gpr_run(ops, &reg_of)?;
 
     // Displacement and width are checked BEFORE any model is consulted, so an
     // unencodable store refuses on its own terms rather than through a `None`
@@ -292,7 +336,7 @@ fn scheduled_gpr_run_text(func: &IlFunction) -> Option<Result<Vec<u8>, BackendEr
     if !producers.is_empty() {
         // The pool starts above the live-in formals: `params[0]` is r3, so the
         // first free register is r(3 + len).
-        let pool_floor = 3u8.saturating_add(func.params.len().min(9) as u8);
+        let pool_floor = 3u8.saturating_add(params.len().min(9) as u8);
         let Some(assign) = alloc::allocate(&producers, pool_floor) else {
             return Some(Err(out_of_class(
                 "store run outside the allocator's domain (codegen::alloc)",
@@ -317,8 +361,9 @@ fn scheduled_gpr_run_text(func: &IlFunction) -> Option<Result<Vec<u8>, BackendEr
         }
     }
 
-    let mut text = Vec::with_capacity(4 * (slots.len() + 1));
+    let mut out: Vec<(bool, Vec<u8>)> = Vec::with_capacity(slots.len());
     for slot in &slots {
+        let mut text = Vec::with_capacity(8);
         match *slot {
             schedule::Slot::Producer(id) => {
                 // The statement this producer materialises for — any of them,
@@ -331,6 +376,7 @@ fn scheduled_gpr_run_text(func: &IlFunction) -> Option<Result<Vec<u8>, BackendEr
                 if let Err(e) = emit_load_imm(&mut text, s.src, s.lit.unwrap_or(0)) {
                     return Some(Err(e));
                 }
+                out.push((false, text));
             }
             schedule::Slot::Store(k) => {
                 let Some(s) = run.get(k) else {
@@ -350,11 +396,18 @@ fn scheduled_gpr_run_text(func: &IlFunction) -> Option<Result<Vec<u8>, BackendEr
                     8 => text.extend_from_slice(&encode_std(s.src, s.base_reg, d)),
                     _ => return Some(Err(out_of_class("store of an unmodeled width"))),
                 }
+                out.push((true, text));
             }
         }
     }
-    text.extend_from_slice(&encode_blr());
-    Some(Ok(text))
+    Some(Ok(ScheduledRun {
+        slots: out,
+        nprod: producers.len(),
+        // A store materialises nothing exactly when its value is a formal —
+        // `SimpleStore::lit` is `None` — which is `schedule::Stmt`'s own
+        // `producer: None`, so the two counts cannot drift apart.
+        nsw: run.iter().filter(|s| s.lit.is_none()).count(),
+    }))
 }
 
 pub fn store_leaf_text(

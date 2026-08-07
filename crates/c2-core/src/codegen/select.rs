@@ -158,6 +158,21 @@ pub enum Selected {
 /// already refused a TU that mixes modes or carries one this port was not
 /// verified against.
 pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, BackendError> {
+    // **Board #844's invariant, asked before the dispatch and not inside it.**
+    //
+    // The whole defect #844 names is that `ops` and the call fields are
+    // *alternatives* this function tries in a fixed order, so a body carrying
+    // both is half-emitted — a store run without its `bl`, or a `bl` without its
+    // run. Both are complete, plausible, wrong bodies, and board #232 is what
+    // that costs: 255 commits live on master while the workload scan read
+    // `mismatch 0`.
+    //
+    // The carrier (`c2_il::CallSeq::store_run`) makes the composition
+    // unspellable twice by construction — `shape_to_function` leaves `ops` empty
+    // for it — so this is a backstop. It is a REFUSAL rather than a priority
+    // rule on purpose: the alternative to refusing is picking a winner between
+    // the two fields, and picking a winner is the defect itself.
+    super::store_run_call::gate_carrier(func)?;
     if func.framed_call.is_some() {
         // The argument setup, through the same selector the integer tail call
         // uses: `[Load(first formal)]` selects to a bare `blr` (an empty setup,

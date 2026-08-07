@@ -822,6 +822,7 @@ mod tests {
             calls: Vec::new(),
             tail: PubTail::Cmp { cmp: SeqCmp::Eq, lhs_first: true },
             saved: vec![1],
+            store_run: None,
         };
         assert_eq!(seq.saved_gprs(), 2);
         // Class A/B statement sequences are unchanged: their tails save nothing.

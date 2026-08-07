@@ -537,6 +537,15 @@ fn differential_out_of_class_call_shapes_not_implemented() {
         // off the object, a second symbol in the same call, a chain through it,
         // a literal post-op on its result, and a second statement after the call.
         "wadjust_obj_recv_neg.cpp",
+        // **Board #844's composition seam, its five boundaries.** The three
+        // non-constructor forms tail-call BEHIND the run (frame words 0,
+        // #869/#1131); a free callee's setup writes r3 and switches the store
+        // base mid-run (#870/#1129); a run that stores a value the CALL keeps
+        // alive is NOT the leaf's run — two unproduced stores swap, which
+        // refutes board #866 in its general form and is what made this
+        // fixture's POSITIVE half grade `Port=Mismatch` twice; and a multi-word
+        // literal has the `mr r31,r3` land between its `lis` and its `ori`.
+        "w844_store_run_call_neg.cpp",
     ] {
         let w = work("oocreject");
         let port = PortC2::default();
