@@ -1,0 +1,156 @@
+in-domain graded cells: 60
+
+  H-CHAIN       2 WRONG
+      M9-r2k4      REVERSE        ru=2 cu=4   said prod   c2 says const
+      M9-r3k5      REVERSE        ru=3 cu=5   said prod   c2 says const
+
+  H-STEP        4 WRONG
+      M6-r2k4      DEEP-GP        ru=2 cu=4   said prod   c2 says const
+      M6-r3k5      DEEP-GP        ru=3 cu=5   said prod   c2 says const
+      M9-r2k4      REVERSE        ru=2 cu=4   said prod   c2 says const
+      M9-r3k5      REVERSE        ru=3 cu=5   said prod   c2 says const
+
+  H-DERIV       0 WRONG
+
+  H-DEPTH       4 WRONG
+      M8-r2k4      CHAIN-PATH     ru=2 cu=4   said const  c2 says prod
+      M8-r3k5      CHAIN-PATH     ru=3 cu=5   said const  c2 says prod
+      M9-r2k4      REVERSE        ru=2 cu=4   said prod   c2 says const
+      M9-r3k5      REVERSE        ru=3 cu=5   said prod   c2 says const
+
+  H-2Z          8 WRONG
+      M5-r2k4      CHAINBIND      ru=2 cu=4   said prod   c2 says const
+      M5-r3k5      CHAINBIND      ru=3 cu=5   said prod   c2 says const
+      M6-r2k4      DEEP-GP        ru=2 cu=4   said prod   c2 says const
+      M6-r3k5      DEEP-GP        ru=3 cu=5   said prod   c2 says const
+      M7-r2k4      DEEP-PARENT    ru=2 cu=4   said prod   c2 says const
+      M7-r3k5      DEEP-PARENT    ru=3 cu=5   said prod   c2 says const
+      M9-r2k4      REVERSE        ru=2 cu=4   said prod   c2 says const
+      M9-r3k5      REVERSE        ru=3 cu=5   said prod   c2 says const
+
+  H-2X         19 WRONG
+      M11-r1k3     CHAIN-SIB      ru=1 cu=3   said prod   c2 says const
+      M12-r1k3     DEEP-MIRROR    ru=1 cu=3   said prod   c2 says const
+      M12-r2k4     DEEP-MIRROR    ru=2 cu=4   said prod   c2 says const
+      M12-r3k5     DEEP-MIRROR    ru=3 cu=5   said prod   c2 says const
+      M3-r1k3      SELF-2B        ru=1 cu=3   said prod   c2 says const
+      M4-r1k3      TWOBIND        ru=1 cu=3   said prod   c2 says const
+      M5-r1k3      CHAINBIND      ru=1 cu=3   said prod   c2 says const
+      M5-r2k4      CHAINBIND      ru=2 cu=4   said prod   c2 says const
+      M5-r3k5      CHAINBIND      ru=3 cu=5   said prod   c2 says const
+      M6-r1k3      DEEP-GP        ru=1 cu=3   said prod   c2 says const
+      M6-r2k4      DEEP-GP        ru=2 cu=4   said prod   c2 says const
+      M6-r3k5      DEEP-GP        ru=3 cu=5   said prod   c2 says const
+      M7-r1k3      DEEP-PARENT    ru=1 cu=3   said prod   c2 says const
+      M7-r2k4      DEEP-PARENT    ru=2 cu=4   said prod   c2 says const
+      M7-r3k5      DEEP-PARENT    ru=3 cu=5   said prod   c2 says const
+      M8-r1k3      CHAIN-PATH     ru=1 cu=3   said prod   c2 says const
+      M9-r1k3      REVERSE        ru=1 cu=3   said prod   c2 says const
+      M9-r2k4      REVERSE        ru=2 cu=4   said prod   c2 says const
+      M9-r3k5      REVERSE        ru=3 cu=5   said prod   c2 says const
+
+  cu<=ru+1      8 WRONG
+      M11-r2k4     CHAIN-SIB      ru=2 cu=4   said const  c2 says prod
+      M11-r3k5     CHAIN-SIB      ru=3 cu=5   said const  c2 says prod
+      M3-r2k4      SELF-2B        ru=2 cu=4   said const  c2 says prod
+      M3-r3k5      SELF-2B        ru=3 cu=5   said const  c2 says prod
+      M4-r2k4      TWOBIND        ru=2 cu=4   said const  c2 says prod
+      M4-r3k5      TWOBIND        ru=3 cu=5   said const  c2 says prod
+      M8-r2k4      CHAIN-PATH     ru=2 cu=4   said const  c2 says prod
+      M8-r3k5      CHAIN-PATH     ru=3 cu=5   said const  c2 says prod
+
+  cu<=ru+2     28 WRONG
+      M1-r1k3      SELF-1B        ru=1 cu=3   said prod   c2 says const
+      M1-r2k4      SELF-1B        ru=2 cu=4   said prod   c2 says const
+      M1-r3k5      SELF-1B        ru=3 cu=5   said prod   c2 says const
+      M10-r1k3     DEEP-SELF      ru=1 cu=3   said prod   c2 says const
+      M10-r2k4     DEEP-SELF      ru=2 cu=4   said prod   c2 says const
+      M10-r3k5     DEEP-SELF      ru=3 cu=5   said prod   c2 says const
+      M11-r1k3     CHAIN-SIB      ru=1 cu=3   said prod   c2 says const
+      M12-r1k3     DEEP-MIRROR    ru=1 cu=3   said prod   c2 says const
+      M12-r2k4     DEEP-MIRROR    ru=2 cu=4   said prod   c2 says const
+      M12-r3k5     DEEP-MIRROR    ru=3 cu=5   said prod   c2 says const
+      M2-r1k3      LOAD           ru=1 cu=3   said prod   c2 says const
+      M2-r2k4      LOAD           ru=2 cu=4   said prod   c2 says const
+      M2-r3k5      LOAD           ru=3 cu=5   said prod   c2 says const
+      M3-r1k3      SELF-2B        ru=1 cu=3   said prod   c2 says const
+      M4-r1k3      TWOBIND        ru=1 cu=3   said prod   c2 says const
+      M5-r1k3      CHAINBIND      ru=1 cu=3   said prod   c2 says const
+      M5-r2k4      CHAINBIND      ru=2 cu=4   said prod   c2 says const
+      M5-r3k5      CHAINBIND      ru=3 cu=5   said prod   c2 says const
+      M6-r1k3      DEEP-GP        ru=1 cu=3   said prod   c2 says const
+      M6-r2k4      DEEP-GP        ru=2 cu=4   said prod   c2 says const
+      M6-r3k5      DEEP-GP        ru=3 cu=5   said prod   c2 says const
+      M7-r1k3      DEEP-PARENT    ru=1 cu=3   said prod   c2 says const
+      M7-r2k4      DEEP-PARENT    ru=2 cu=4   said prod   c2 says const
+      M7-r3k5      DEEP-PARENT    ru=3 cu=5   said prod   c2 says const
+      M8-r1k3      CHAIN-PATH     ru=1 cu=3   said prod   c2 says const
+      M9-r1k3      REVERSE        ru=1 cu=3   said prod   c2 says const
+      M9-r2k4      REVERSE        ru=2 cu=4   said prod   c2 says const
+      M9-r3k5      REVERSE        ru=3 cu=5   said prod   c2 says const
+
+  always-prod  40 WRONG
+      M1-r1k3      SELF-1B        ru=1 cu=3   said prod   c2 says const
+      M1-r2k4      SELF-1B        ru=2 cu=4   said prod   c2 says const
+      M1-r2k5      SELF-1B        ru=2 cu=5   said prod   c2 says const
+      M1-r3k5      SELF-1B        ru=3 cu=5   said prod   c2 says const
+      M10-r1k3     DEEP-SELF      ru=1 cu=3   said prod   c2 says const
+      M10-r2k4     DEEP-SELF      ru=2 cu=4   said prod   c2 says const
+      M10-r2k5     DEEP-SELF      ru=2 cu=5   said prod   c2 says const
+      M10-r3k5     DEEP-SELF      ru=3 cu=5   said prod   c2 says const
+      M11-r1k3     CHAIN-SIB      ru=1 cu=3   said prod   c2 says const
+      M11-r2k5     CHAIN-SIB      ru=2 cu=5   said prod   c2 says const
+      M12-r1k3     DEEP-MIRROR    ru=1 cu=3   said prod   c2 says const
+      M12-r2k4     DEEP-MIRROR    ru=2 cu=4   said prod   c2 says const
+      M12-r2k5     DEEP-MIRROR    ru=2 cu=5   said prod   c2 says const
+      M12-r3k5     DEEP-MIRROR    ru=3 cu=5   said prod   c2 says const
+      M2-r1k3      LOAD           ru=1 cu=3   said prod   c2 says const
+      M2-r2k4      LOAD           ru=2 cu=4   said prod   c2 says const
+      M2-r2k5      LOAD           ru=2 cu=5   said prod   c2 says const
+      M2-r3k5      LOAD           ru=3 cu=5   said prod   c2 says const
+      M3-r1k3      SELF-2B        ru=1 cu=3   said prod   c2 says const
+      M3-r2k5      SELF-2B        ru=2 cu=5   said prod   c2 says const
+      M4-r1k3      TWOBIND        ru=1 cu=3   said prod   c2 says const
+      M4-r2k5      TWOBIND        ru=2 cu=5   said prod   c2 says const
+      M5-r1k3      CHAINBIND      ru=1 cu=3   said prod   c2 says const
+      M5-r2k4      CHAINBIND      ru=2 cu=4   said prod   c2 says const
+      M5-r2k5      CHAINBIND      ru=2 cu=5   said prod   c2 says const
+      M5-r3k5      CHAINBIND      ru=3 cu=5   said prod   c2 says const
+      M6-r1k3      DEEP-GP        ru=1 cu=3   said prod   c2 says const
+      M6-r2k4      DEEP-GP        ru=2 cu=4   said prod   c2 says const
+      M6-r2k5      DEEP-GP        ru=2 cu=5   said prod   c2 says const
+      M6-r3k5      DEEP-GP        ru=3 cu=5   said prod   c2 says const
+      M7-r1k3      DEEP-PARENT    ru=1 cu=3   said prod   c2 says const
+      M7-r2k4      DEEP-PARENT    ru=2 cu=4   said prod   c2 says const
+      M7-r2k5      DEEP-PARENT    ru=2 cu=5   said prod   c2 says const
+      M7-r3k5      DEEP-PARENT    ru=3 cu=5   said prod   c2 says const
+      M8-r1k3      CHAIN-PATH     ru=1 cu=3   said prod   c2 says const
+      M8-r2k5      CHAIN-PATH     ru=2 cu=5   said prod   c2 says const
+      M9-r1k3      REVERSE        ru=1 cu=3   said prod   c2 says const
+      M9-r2k4      REVERSE        ru=2 cu=4   said prod   c2 says const
+      M9-r2k5      REVERSE        ru=2 cu=5   said prod   c2 says const
+      M9-r3k5      REVERSE        ru=3 cu=5   said prod   c2 says const
+
+  clause-1     20 WRONG
+      M1-r2k3      SELF-1B        ru=2 cu=3   said const  c2 says prod
+      M10-r2k3     DEEP-SELF      ru=2 cu=3   said const  c2 says prod
+      M11-r2k3     CHAIN-SIB      ru=2 cu=3   said const  c2 says prod
+      M11-r2k4     CHAIN-SIB      ru=2 cu=4   said const  c2 says prod
+      M11-r3k5     CHAIN-SIB      ru=3 cu=5   said const  c2 says prod
+      M12-r2k3     DEEP-MIRROR    ru=2 cu=3   said const  c2 says prod
+      M2-r2k3      LOAD           ru=2 cu=3   said const  c2 says prod
+      M3-r2k3      SELF-2B        ru=2 cu=3   said const  c2 says prod
+      M3-r2k4      SELF-2B        ru=2 cu=4   said const  c2 says prod
+      M3-r3k5      SELF-2B        ru=3 cu=5   said const  c2 says prod
+      M4-r2k3      TWOBIND        ru=2 cu=3   said const  c2 says prod
+      M4-r2k4      TWOBIND        ru=2 cu=4   said const  c2 says prod
+      M4-r3k5      TWOBIND        ru=3 cu=5   said const  c2 says prod
+      M5-r2k3      CHAINBIND      ru=2 cu=3   said const  c2 says prod
+      M6-r2k3      DEEP-GP        ru=2 cu=3   said const  c2 says prod
+      M7-r2k3      DEEP-PARENT    ru=2 cu=3   said const  c2 says prod
+      M8-r2k3      CHAIN-PATH     ru=2 cu=3   said const  c2 says prod
+      M8-r2k4      CHAIN-PATH     ru=2 cu=4   said const  c2 says prod
+      M8-r3k5      CHAIN-PATH     ru=3 cu=5   said const  c2 says prod
+      M9-r2k3      REVERSE        ru=2 cu=3   said const  c2 says prod
+
+  refusal       0 WRONG   (it emits nothing)
