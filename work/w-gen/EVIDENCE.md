@@ -75,6 +75,13 @@ the fragment, through `sweep_shapes.py`'s own `markers_of`. **0 rows opened,
 `virtual`; on master it read **166** and the same test leaves 14. `bitwise`
 reads **1,988**, of which **1,166** look like a real operator.
 
+## 4b. Workspace tests
+
+**36 targets, 1,119 passed, 0 failed, 1 ignored** — the baseline exactly.
+The first full run was **21 / 541 / 1 failed** (`rung_registry`: a bare
+`Fixtures: none` in this lane's own rung header). `cargo test` fail-fasts across
+targets, so the 36 is as load-bearing as the 1,119.
+
 ## 5. Reproducing
 
 ```sh
