@@ -2,8 +2,12 @@
 
 **Status: SPECIFICATION ONLY, and RE-VERIFIED (§0.1). Nothing in `crates/` emits
 `.rdata$r`; lane `w-rdata` deliberately did not add it to
-`PORT_WRITER_SECTIONS` and lane `w-rtti` — briefed to add it — re-derived the
-price and declined again** (§8.1, `rungs/2026-08-07-w-rtti.md`). See §9 for why,
+`PORT_WRITER_SECTIONS`, lane `w-rtti` — briefed to add it — re-derived the price
+and declined again, and lane `w-rdata3` re-derived it a THIRD time and declined
+again** (§8.1 and **§8.2**, `rungs/2026-08-07-w-rtti.md`,
+`rungs/2026-08-08-w-rdata3.md`). **§8.2 corrects §8.1**: `.in` is paid and reads
+43 of 43 records of the §2 TU, `.gl` reads 0, and §8.1's stated cause for the
+third row is refuted. See §9 for why,
 and §9.1 for the guard that now makes the decision enforceable rather than a
 matter of lane discipline. This file stands to
 `.rdata$r` as [`OBJ_DATA_BSS_SHAPE.md`](OBJ_DATA_BSS_SHAPE.md) stood to
@@ -525,6 +529,76 @@ are ordinary reader work with a graded consumer already in the tree
 (`emit_data_obj`). **The count of seven does not change** — a cheaper fact is
 still a fact — but the *shape* of the two binding ones does, and this page said
 the wrong thing about the harder of them.
+
+### §8.2 RE-DERIVED 2026-08-08 — still seven, and ITEM 2 HAS INVERTED: `.in` reads 43 of 43 records while `.gl` reads 0
+
+Lane `w-rdata3` was briefed to ship the writer, re-priced it first at master
+`e60f8902` — after mechanism E and its fixpoint, the E-from-a-nothing-body seed,
+the destroy-loop production, the no-effect reader and the `.in` tag-02 /
+zero-fill / scalar readers had all landed — and **declined a third time**.
+`rungs/2026-08-08-w-rdata3.md`; boards **#1107**–**#1112**.
+
+**The count is still seven, and zero are fully paid.** What changed is which
+half of item 2 binds, and §8.1 above has it backwards.
+
+**(a) `.in` is PAID, at 100 % of the record contents (board #1108).** §8.1 named
+element tag `02` as *"the one missing tag"* and *"the whole RTTI reader gap"*.
+`w-tag02` (board #936) and `w-inread` then paid it — the symbol-address residue
+went **913,136 → 0** over 878 TUs. Measured on this page's own §2 minimal TU with
+the **standing** instrument `crates/c2-il/tests/in_init_probe.rs`:
+
+```text
+  wsect_data_two.cpp  records=39 elements=46 values=39 residue=0 symrefs=0    (control)
+  the minimal RTTI TU records=43 elements=67 values=43 residue=0 symrefs=9
+  a namespace-scope A g records=44 elements=68 values=44 residue=0 symrefs=10
+```
+
+**43 of 43 records, residue 0, all nine symbol references decoded**, every
+`[symbol-address …]` bucket zero. The record graph's *contents* are fully
+readable today — including the three integers §4 called irreducible.
+
+**(b) `.gl` is UNPAID, and the block is ONE ATTRIBUTE BYTE (board #1109).** The
+`.gl` data reader still returns **2 of 2 / 0 / 1 of 12** on those same three
+cells — §8.1's table to the digit. Walking `data_object_at`'s gate sequence over
+the raw `.gl`, `??_R4A@@6B@` passes every gate:
+
+```text
+   00   86   06   00 02   01   14   a0 …
+   ^NUL ^tag ^kind ^frame ^link ^size ^ATTR
+```
+
+tag `86` → align 4 · frame `00 02` (ORDINARY-DATA, not the `00 04` read-only
+form) · linkage `01` = defined extern · size varint `14` = **20** — and `??_R3`
+reads 16, `??_R2` 8, `??_R1` 28, `??_R0` 16. **All five agree with §3 byte for
+byte**, which is a cross-check of this page from a source it was not derived
+from. Then `DATA_ATTR` reads **`a0`**, a fourth value beside the `00`/`80` the
+reader models and the `60`/`E0` §3.3 documents as `selectany`, and it **fails
+closed**. That one byte refuses all five records. The vftable `??_7A@@6B@`
+refuses one gate earlier, at frame `00 04` — correct, since a vftable is
+`.rdata` and not `.data`.
+
+**(c) §8.1's third row is REFUTED as to its cause (board #1108/#1110).** *"Not
+even the plain `?g@@3UA@@A`, because its initializer carries a **relocation** —
+the same element tag `02`."* Tag `02` reads that very cell at `symrefs=10
+residue=0` and the row is **unchanged at 1 of 12**. The actual gate is
+**`align_of_type_tag(0xC6)`** — the reader models exactly `82`/`84`/`86`/`88` =
+1/2/4/8 bytes and `C6` is the wide **aggregate** form, which has no entry. A
+different function, in a different part of `gl.rs`, with nothing to do with
+`.in`. **A lane briefed off §8.1 would pay tag `02` again — already paid — and
+still read 1 of 12.**
+
+**(d) Item 7's mechanism predates its own pricing by three days (board #1111).**
+`emit_obj` has emitted undefined external DATA symbols (`Type 0x0000`, section
+0) since `7e09ccd9`, **2026-08-01**; §8 counted item 7 as unpaid on 2026-08-04.
+Item 7 is about **placement** — `coff/data.rs`'s *"spliced in at index 5, between
+`.debug$S`'s aux and the `.XBLD$W` C2 watermark … a symbol-table shape this
+writer does not model"* — and not about the record kind.
+
+**Nothing in `crates/` was widened.** All three `.gl` gates mean *COMDAT or
+read-only*, which `emit_data_obj` refuses anyway; accepting `a0` without a writer
+would place a COMDAT record in a non-COMDAT `.data`, board **#232**'s direction.
+`git diff e60f8902..HEAD -- crates/` for that lane is **0 files, 0 lines**, and
+`factor-c` reads **169** before and after, from a scan.
 
 ---
 
