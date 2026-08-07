@@ -282,6 +282,47 @@ pub(crate) fn eat_addr_offset_adds(seg: &[u8], p: &mut usize) -> Option<i32> {
 /// 24,004-byte struct `86 43`). So an intermediate `27`'s tag says nothing about
 /// what is finally loaded, and only the last one is in a position to.
 pub(crate) fn eat_offset_adds(seg: &[u8], p: &mut usize) -> Option<(i32, Option<(u8, u8)>)> {
+    walk_offset_adds(seg, p, None)
+}
+
+/// [`eat_offset_adds`] with the offset-add literals themselves — **the LIST, not
+/// its sum** — appended to `out` in the order the walk consumes them.
+///
+/// **Board #908.** The shipping reader returns only `total`, and the fact five
+/// lanes have now measured is not a function of the sum: it is *one offset-add
+/// chain being a byte-exact PREFIX of another*. `&t->mid` walks `[96]` and
+/// `&t->mid.lo[N]` walks `[96, 4N]`; the first list is a prefix of the second,
+/// and the sums — `96` and `96 + 4N` — say nothing at all about that. This is
+/// board #644 applied to the IL: **not one contiguous field, and not one number
+/// either.**
+///
+/// `total` and `last_retype` are returned unchanged beside the list, so a caller
+/// that wants both pays for one walk. The walk is [`walk_offset_adds`], shared
+/// with [`eat_offset_adds`] — the module header's "one fact, one locator", and
+/// the reason this is a sibling rather than a second summing loop with its own
+/// copy of the overflow check, the `28` payload rule and the stop condition.
+///
+/// On `Some`, `out` holds exactly the literals the cursor advanced past. On
+/// `None` — the overflow case — the cursor is where the last successful add left
+/// it and `out`'s contents are **unspecified**; the caller discards both, which
+/// is what every caller of [`eat_offset_adds`] already does with its cursor.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn eat_offset_adds_list(
+    seg: &[u8],
+    p: &mut usize,
+    out: &mut Vec<i32>,
+) -> Option<(i32, Option<(u8, u8)>)> {
+    walk_offset_adds(seg, p, Some(out))
+}
+
+/// The one walk. See [`eat_offset_adds`] for the grammar and every rule it
+/// enforces; `sink`, when present, collects the literals [`eat_offset_adds`]
+/// throws away.
+fn walk_offset_adds(
+    seg: &[u8],
+    p: &mut usize,
+    mut sink: Option<&mut Vec<i32>>,
+) -> Option<(i32, Option<(u8, u8)>)> {
     let mut total: i32 = 0;
     let mut last_retype: Option<(u8, u8)> = None;
     macro_rules! done {
@@ -320,6 +361,9 @@ pub(crate) fn eat_offset_adds(seg: &[u8], p: &mut usize) -> Option<(i32, Option<
             _ => done!(),
         }
         total = total.checked_add(k)?;
+        if let Some(v) = sink.as_deref_mut() {
+            v.push(k);
+        }
         *p = probe;
     }
 }
@@ -408,6 +452,63 @@ mod tests {
         // One walk: both readings stop at the same byte, on the `30`.
         assert_eq!(p_addr, p_load);
         assert_eq!(seg[p_load], 0x30);
+    }
+
+    /// **Board #908.** The list is not recoverable from the sum, and this is the
+    /// board row's own example rather than a new one: `[96]` against `[96, 4]`.
+    ///
+    /// The two chains are `&t->mid` and `&t->mid.lo[1]`. The first list is a
+    /// byte-exact PREFIX of the second — which is the fact `w-ilx`'s GRID I
+    /// found — and the two sums, **96 and 100**, are simply two different
+    /// numbers with no prefix relation between them to read. A rule stated over
+    /// `eat_offset_adds`'s return value cannot express it; one stated over
+    /// `eat_offset_adds_list`'s can.
+    ///
+    /// The walk is shared, so the sum and the retype are asserted to be
+    /// **identical** to what `eat_offset_adds` reports on the same bytes. That
+    /// is the property that makes this a sibling and not a second reader.
+    #[test]
+    fn the_offset_add_literals_are_a_list_and_the_sum_cannot_state_a_prefix() {
+        // `33 <int> 96 27 <PTR>`                          -> [96]
+        let short: &[u8] = &[
+            0x33, 0x86, 0x41, 0x74, 0x60, 0x27, 0x86, 0x43, 0xF4, 0x08, //
+            0x30, 0x86, 0x41, 0x74,
+        ];
+        // the same bytes, then `33 <int> 4 28 00 00`      -> [96, 4]
+        let long: &[u8] = &[
+            0x33, 0x86, 0x41, 0x74, 0x60, 0x27, 0x86, 0x43, 0xF4, 0x08, //
+            0x33, 0x86, 0x41, 0x12, 0x04, 0x28, 0x00, 0x00, //
+            0x30, 0x86, 0x41, 0x74,
+        ];
+
+        let mut a = Vec::new();
+        let mut pa = 0usize;
+        let ra = eat_offset_adds_list(short, &mut pa, &mut a).unwrap();
+        let mut b = Vec::new();
+        let mut pb = 0usize;
+        let rb = eat_offset_adds_list(long, &mut pb, &mut b).unwrap();
+
+        assert_eq!(a, vec![96]);
+        assert_eq!(b, vec![96, 4]);
+
+        // THE FACT, now sayable.
+        assert!(b.starts_with(&a), "[96] is a byte-exact prefix of [96, 4]");
+
+        // THE FACT'S ABSENCE from the sums, said as an assertion rather than as
+        // a comment: 96 and 100 are unequal and neither divides or bounds the
+        // other in any way that recovers `starts_with`.
+        assert_eq!(ra.0, 96);
+        assert_eq!(rb.0, 100);
+        assert_ne!(ra.0, rb.0);
+
+        // One walk: the sibling agrees with the shipping reader on both of its
+        // return values and on the cursor, on the same bytes.
+        let (mut qa, mut qb) = (0usize, 0usize);
+        assert_eq!(eat_offset_adds(short, &mut qa), Some(ra));
+        assert_eq!(eat_offset_adds(long, &mut qb), Some(rb));
+        assert_eq!((qa, qb), (pa, pb));
+        assert_eq!(ra.1, Some((0x86, 0x43)));
+        assert_eq!(rb.1, Some((0x86, 0x43)));
     }
 
     #[test]

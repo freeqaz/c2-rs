@@ -405,6 +405,49 @@
 //! clause 4 ever execute. A lane that widens the parser to admit an interior
 //! address as a store value makes the mixed run reachable and inherits every
 //! paragraph above.
+//!
+//! # The CARRIER exists — and it still ships no rule
+//!
+//! **Board #1231**, lane `w-prod`. Every one of the nine deaths above is a rule
+//! stated in [`Producer`]'s own fields, and `w-self2b` decoded why they all
+//! died: the fact is a **relation between two `B9` roots plus one bit about one
+//! of them**, and `uses` / `kind` / `first` are facts about *one producer*.
+//! **Nine rules were trying to state a relation in a structure that only holds
+//! per-producer facts.**
+//!
+//! [`ProducerRoots`] is that relation — per producer, the
+//! `(root token, is-a-bind, offset-add literal list)` of **both** the value and
+//! the lvalue — and [`Producer::roots`] carries it. Four statements that could
+//! not be written before now can be:
+//!
+//! ```text
+//!   r.roots_differ()                   H-2X's predicate. SYMMETRIC, and wrong
+//!                                      on MIRROR — that is why it died.
+//!   r.store_root_is_bind()             the SCHEDULE bit of #1235.
+//!   r.store_root_is_distinct_bind()    the ALLOCATION bit. A DIFFERENT bit;
+//!                                      `Z2` separates them, in both directions.
+//!   r.value_offsets_prefix_lvalue()    #908 — `[96]` inside `[96, 4]`, which
+//!                                      the sums 96 and 100 cannot state.
+//!                                      `None` where only a sum was carried.
+//! ```
+//!
+//! **[`allocate`] does not read any of it, and
+//! `allocate_ignores_the_roots_carrier` checks that mechanically.** A carrier is
+//! a representation, not a decision: the shipped answer is still the refusal,
+//! which is wrong on 0 of every holdout on record while ten fitted keys are
+//! wrong on 5 to 42 each. `the_carrier_states_the_decoded_grid_z_table` holds
+//! `work/w-self2b/roots.out`'s six graded rows, and
+//! `super::leaf::store`'s `the_carrier_decodes_both_roots_of_a_bind_valued_store`
+//! reads the same relation off an `IlOp` stream at the emitter's own seam —
+//! where **both roots have been live since #1199** and the value's was thrown
+//! away by a `..` pattern for want of a field.
+//!
+//! **One half is honestly missing.** [`Root::offsets`] arrives `None` from
+//! today's emitter: `c2_il`'s `eat_offset_adds_list` returns the list, but the
+//! seam that would carry it this far is `IlOp::BoundAddr`, whose `off` is a sum.
+//! That is **one named field**, not an unmeasurable absence, and a one-element
+//! list holding the sum is exactly the lie #908 warns about, so it is not
+//! written.
 
 /// How a producer's value is materialised. The distinction is read off the IL,
 /// never off the answer.
@@ -418,8 +461,145 @@ pub enum ProducerKind {
     Multiply,
 }
 
+/// The root of one `B9 <tok> <TYPE>` designator, decoded from the IL.
+///
+/// **Board #1231.** Every designator base in the `.ex` is `B9 <tok> <TYPE>`
+/// (board #909), optionally followed by a run of offset adds. This is that base
+/// and that run, kept apart — which is the whole point, because the fact five
+/// lanes have measured is a relation between two of these and not a property of
+/// either.
+///
+/// It carries no verdict and no rule. See [`ProducerRoots`] for what it makes
+/// sayable and for the standing prohibition on saying it in [`allocate`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Root {
+    /// The root symbol token.
+    pub tok: u32,
+    /// Whether that root is a temp **bind head** (`26 <tok>`) rather than a
+    /// formal or a local.
+    ///
+    /// **Board #1128** — *a bind IS a second base symbol* — so a bound
+    /// reference's root token is the BOUND LOCAL's own token and never the
+    /// formal it hangs off. `crate::codegen::leaf::store` and
+    /// `c2_il::IlOp::BoundAddr`'s `tok` are two derivations of that same rule
+    /// and cannot disagree.
+    pub is_bind: bool,
+    /// The offset-add literal **LIST**, or `None` where the reader that built
+    /// this carried only the list's SUM.
+    ///
+    /// **`None` is an honest refusal and never a one-element list holding the
+    /// sum.** Board **#908**: `c2_il`'s `eat_offset_adds` returns the sum, and
+    /// the fact `w-ilx`'s GRID I found — one chain being a byte-exact PREFIX of
+    /// another, `[96]` inside `[96, 4]` — is not a function of it.
+    /// `c2_il`'s `eat_offset_adds_list` returns the list; the seam that would
+    /// carry it this far is `IlOp::BoundAddr`, whose `off` is still a sum, so
+    /// today's emitter fills this `None`. That is **one named gap**, not an
+    /// unmeasurable one.
+    pub offsets: Option<Vec<i32>>,
+}
+
+/// **THE CARRIER.** Both sides of the relation, per producer: the root of the
+/// value expression, and the root of the designator *this producer's own stores*
+/// are written through.
+///
+/// # Why this type exists
+///
+/// [`Producer`]'s other fields — `uses`, `kind`, `first` — are facts about **one
+/// producer**, and the module docs above record **nine** allocation keys that
+/// died trying to state a *relation* in that structure. `w-self2b` decoded the
+/// IL rather than diffing objs and found (board **#1231**,
+/// `work/w-self2b/roots.out`):
+///
+/// ```text
+///   cell   class          STORE designator root         VALUE expr root      obj
+///   Z1     SELF-1B        tok 0x0e0a formal [48, 0, 0]  tok 0x0e0a formal    const
+///   Z2     LOAD           tok 0x130a BIND   [0]         tok 0x130a BIND      const
+///   Z3     SELF-2B agree  tok 0x130a BIND   [0]         tok 0x0e0a formal    prod
+///   Z4     SELF-2B differ tok 0x130a BIND   [0]         tok 0x0e0a formal    prod
+///   Z5     MIRROR         tok 0x0e0a formal [48, 0, 0]  tok 0x130a BIND      const
+///   Z6     TWOBIND        tok 0x140a BIND   [0]         tok 0x130a BIND      prod
+/// ```
+///
+/// `prod` appears exactly where [`Self::store_root_is_distinct_bind`] holds.
+/// `Z5` has differing roots and is `const`, so **the relation is not symmetric
+/// in the two tokens** — that is what killed `H-2X`. `Z2` has a bind store root
+/// and is `const`, so *"the stores go through a bind"* is not enough either —
+/// that is what killed `H-MIX`.
+///
+/// # What this type is NOT
+///
+/// **It is not a rule, and [`allocate`] does not read it.** The shipped
+/// allocation statement is a refusal and it is wrong on 0 of every holdout on
+/// record; ten keys have now been fitted over this fact and every one of them
+/// died on fresh cells. `allocate_ignores_the_roots_carrier` pins the
+/// separation mechanically rather than by assertion, because "by construction"
+/// is the reasoning that let board #232 run 255 commits.
+///
+/// The carrier's job is to make the fact **expressible and measurable**. A
+/// successor that wants to state a rule over it owes a frozen, never-fitted grid
+/// containing a class its hypothesis has never seen — which is the one lesson
+/// all ten deaths agree on.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProducerRoots {
+    /// The root of the expression that produces the value.
+    pub value: Root,
+    /// The root of the designator this producer's own stores are written
+    /// through. **Not the run's base** — a run may store through several.
+    pub lvalue: Root,
+}
+
+impl ProducerRoots {
+    /// The two root tokens differ. **Symmetric, and therefore NOT the fact** —
+    /// `Z5` (`MIRROR`) satisfies this and is `const`. Exposed because `H-2X` was
+    /// exactly this predicate and the tenth reader should be able to say so.
+    pub fn roots_differ(&self) -> bool {
+        self.value.tok != self.lvalue.tok
+    }
+
+    /// **The decoded fact of board #1231**: the store designator's root is a
+    /// temp bind head **and** differs from the value expression's root.
+    ///
+    /// Asymmetric on purpose. Swapping `value` and `lvalue` changes the answer
+    /// at `Z5`, and that asymmetry is the measured content of the whole rung.
+    pub fn store_root_is_distinct_bind(&self) -> bool {
+        self.lvalue.is_bind && self.roots_differ()
+    }
+
+    /// The **schedule** bit of board **#1235**, which is a *different bit* from
+    /// [`Self::store_root_is_distinct_bind`].
+    ///
+    /// `docs/SYMBOL.md`'s pin (two stores through different base symbols are
+    /// never reordered past each other) plus #1128 (a bind is a second base
+    /// symbol) decide the ORDER; the allocation needs that **and** the two roots
+    /// differing. **`Z2` is the cell that separates them**: it has the bind
+    /// schedule and takes the same registers as the interleaving families. A
+    /// lane that reads one and infers the other is wrong on `Z2`, in whichever
+    /// direction it inferred.
+    pub fn store_root_is_bind(&self) -> bool {
+        self.lvalue.is_bind
+    }
+
+    /// Whether the value's offset-add chain is a byte-exact **PREFIX** of the
+    /// lvalue's — `Some(true)` / `Some(false)` — or `None` when either side
+    /// carries only a sum.
+    ///
+    /// **Board #908**, and `None` is the whole reason this returns an `Option`:
+    /// `[96]` is a prefix of `[96, 4]` and the sums `96` and `100` cannot say
+    /// so, so a carrier that had silently substituted the sum would answer
+    /// confidently and wrongly. It refuses instead.
+    pub fn value_offsets_prefix_lvalue(&self) -> Option<bool> {
+        match (&self.value.offsets, &self.lvalue.offsets) {
+            (Some(v), Some(l)) => Some(l.starts_with(v)),
+            _ => None,
+        }
+    }
+}
+
 /// One distinct value-producer of a store run.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+///
+/// **Not `Copy`.** [`Root::offsets`] is a list and #908 is the reason it is a
+/// list; `Copy` was worth less than the fact.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Producer {
     /// Identity. Two statements sharing an `id` share one producer, because c2
     /// CSEs equal constants and equal address binds.
@@ -430,6 +610,12 @@ pub struct Producer {
     pub uses: usize,
     /// Source index of the first statement naming this value — clauses 3 and 4.
     pub first: usize,
+    /// **THE CARRIER** — see [`ProducerRoots`]. `None` where the producer
+    /// reached here from a path that decodes no designator, which is every path
+    /// in today's emitter that does not go through a store run.
+    ///
+    /// [`allocate`] does not read this field and a test pins that it does not.
+    pub roots: Option<ProducerRoots>,
 }
 
 /// The top of the pool. `r12` is never allocated (board #543).
@@ -529,6 +715,7 @@ mod tests {
                     kind: k,
                     uses: 1,
                     first: i,
+                    roots: None,
                 }),
             }
         }
@@ -647,12 +834,14 @@ mod tests {
                 kind: ProducerKind::Constant,
                 uses: 2,
                 first: 0,
+                roots: None,
             },
             Producer {
                 id: 1,
                 kind: ProducerKind::RegisterDerived,
                 uses: 2,
                 first: 1,
+                roots: None,
             },
         ];
         assert_eq!(allocate(&mixed, 4), None);
@@ -694,12 +883,14 @@ mod tests {
                     kind: ProducerKind::Constant,
                     uses: cu,
                     first: 0,
+                    roots: None,
                 },
                 Producer {
                     id: 1,
                     kind: ProducerKind::RegisterDerived,
                     uses: ru,
                     first: 1,
+                    roots: None,
                 },
             ];
             assert_eq!(
@@ -758,12 +949,14 @@ mod tests {
                     kind: ProducerKind::Constant,
                     uses: cu,
                     first: 0,
+                    roots: None,
                 },
                 Producer {
                     id: 1,
                     kind: ProducerKind::RegisterDerived,
                     uses: ru,
                     first: 1,
+                    roots: None,
                 },
             ];
             assert_eq!(
@@ -792,12 +985,14 @@ mod tests {
                 kind: ProducerKind::Constant,
                 uses: 2,
                 first: 0,
+                roots: None,
             },
             Producer {
                 id: 1,
                 kind: ProducerKind::RegisterDerived,
                 uses: 2,
                 first: 1,
+                roots: None,
             },
         ];
         assert_eq!(allocate(&mixed, 4), None);
@@ -885,12 +1080,14 @@ mod tests {
                 kind: ProducerKind::Constant,
                 uses: 4,
                 first: 0,
+                roots: None,
             },
             Producer {
                 id: 1,
                 kind: ProducerKind::RegisterDerived,
                 uses: 2,
                 first: 4,
+                roots: None,
             },
         ];
         assert_eq!(
@@ -911,12 +1108,14 @@ mod tests {
                 kind: ProducerKind::Constant,
                 uses: 4,
                 first: 0,
+                roots: None,
             },
             Producer {
                 id: 1,
                 kind: ProducerKind::Constant,
                 uses: 2,
                 first: 4,
+                roots: None,
             },
         ];
         assert!(
@@ -984,12 +1183,14 @@ mod tests {
                     kind: ProducerKind::Constant,
                     uses: cu,
                     first: 0,
+                    roots: None,
                 },
                 Producer {
                     id: 1,
                     kind: ProducerKind::RegisterDerived,
                     uses: ru,
                     first: cu,
+                    roots: None,
                 },
             ];
             assert_eq!(
@@ -1052,12 +1253,14 @@ mod tests {
                     kind: ProducerKind::Constant,
                     uses: cu,
                     first: 0,
+                    roots: None,
                 },
                 Producer {
                     id: 1,
                     kind: ProducerKind::RegisterDerived,
                     uses: ru,
                     first: cu,
+                    roots: None,
                 },
             ];
             assert_eq!(
@@ -1090,5 +1293,162 @@ mod tests {
         // out of the modelled regime => not provable => refuse
         assert!(!all_in(&run("0123", ProducerKind::Constant), 4, 11));
         assert!(!all_in(&run("00", ProducerKind::Multiply), 4, 11));
+    }
+
+    // ---------------------------------------------------------- THE CARRIER
+    //
+    // Board #1231. These tests state the decoded fact in the port's own types
+    // and pin that `allocate` does not read it. They add no allocation
+    // statement; the shipped answer is still the refusal.
+
+    fn formal(tok: u32) -> Root {
+        Root { tok, is_bind: false, offsets: None }
+    }
+    fn bind(tok: u32) -> Root {
+        Root { tok, is_bind: true, offsets: None }
+    }
+
+    /// **The six rows of `work/w-self2b/roots.out`, in the port's own types.**
+    ///
+    /// GRID Z, one representative per family at `(ru, cu) = (2, 4)`, decoded
+    /// from the `.ex` alone — no obj, no disassembly, no register — and graded
+    /// against real `c2.dll` under wibo at the workload's own `/GR /O1 /Oi
+    /// /EHsc`. Until this carrier existed the table lived only in a committed
+    /// `.out` file, because nothing in `crates/` could hold a row of it.
+    ///
+    /// The `prod`/`const` column is **c2's answer**, not a prediction. What is
+    /// asserted is that [`ProducerRoots::store_root_is_distinct_bind`]
+    /// reproduces it on all six — which is the measured content of #1231 — and
+    /// that the two symmetric readings that came before it do NOT.
+    #[test]
+    fn the_carrier_states_the_decoded_grid_z_table() {
+        // (cell, class, lvalue root, value root, c2's answer)
+        let rows: [(&str, &str, Root, Root, bool); 6] = [
+            ("Z1", "SELF-1B", formal(0x0e0a), formal(0x0e0a), false),
+            ("Z2", "LOAD", bind(0x130a), bind(0x130a), false),
+            ("Z3", "SELF-2B-tail-agrees", bind(0x130a), formal(0x0e0a), true),
+            ("Z4", "SELF-2B-tail-differs", bind(0x130a), formal(0x0e0a), true),
+            ("Z5", "MIRROR", formal(0x0e0a), bind(0x130a), false),
+            ("Z6", "TWOBIND", bind(0x140a), bind(0x130a), true),
+        ];
+
+        let (mut sym_wrong, mut bind_only_wrong) = (0, 0);
+        for (cell, klass, lvalue, value, is_prod) in rows {
+            let r = ProducerRoots { value, lvalue };
+            assert_eq!(
+                r.store_root_is_distinct_bind(),
+                is_prod,
+                "{cell} ({klass}): the #1231 predicate must reproduce c2"
+            );
+            // `H-2X`'s predicate — symmetric in the two tokens.
+            if r.roots_differ() != is_prod {
+                sym_wrong += 1;
+            }
+            // `H-MIX`'s — "the stores go through a bind", one token only.
+            if r.store_root_is_bind() != is_prod {
+                bind_only_wrong += 1;
+            }
+        }
+
+        // **The asymmetry, as a count.** `Z5` has differing roots and c2 says
+        // `const`, so the symmetric reading is wrong on exactly it — that is
+        // what refuted `H-2X` on 12 of 72, and it is why `store_root_is_distinct
+        // _bind` may not be written as `roots_differ()`.
+        assert_eq!(sym_wrong, 1, "the symmetric reading must miss Z5 (MIRROR)");
+        // **And one bit about one root is not enough.** `Z2` is a bind store
+        // root and c2 says `const` — `H-MIX`, 12 wrong of 62 on GRID M.
+        assert_eq!(bind_only_wrong, 1, "the bind-only reading must miss Z2 (LOAD)");
+    }
+
+    /// **The relation is NOT symmetric**, stated directly rather than inferred
+    /// from a grid row. `Z3` and `Z5` are each other with the two roots
+    /// exchanged, and c2 answers differently.
+    #[test]
+    fn the_carrier_is_not_symmetric_in_the_two_roots() {
+        let z3 = ProducerRoots { value: formal(0x0e0a), lvalue: bind(0x130a) };
+        let z5 = ProducerRoots { value: bind(0x130a), lvalue: formal(0x0e0a) };
+        assert!(z3.store_root_is_distinct_bind());
+        assert!(!z5.store_root_is_distinct_bind());
+        // both are "the roots differ", which is why that reading cannot work
+        assert!(z3.roots_differ() && z5.roots_differ());
+    }
+
+    /// **Board #908 — the list, and the refusal when there is only a sum.**
+    ///
+    /// `[96]` is a byte-exact prefix of `[96, 4]`; the sums 96 and 100 are not
+    /// in a prefix relation and nothing recovers one from them. A carrier that
+    /// had quietly stored the sum as a one-element list would answer this
+    /// question **confidently and wrongly**, so `offsets: None` refuses instead
+    /// — and today's emitter fills `None`, which is the one named gap this rung
+    /// leaves open.
+    #[test]
+    fn the_offset_lists_state_a_prefix_and_a_sum_only_carrier_refuses() {
+        let with = |v: Vec<i32>, l: Vec<i32>| ProducerRoots {
+            value: Root { tok: 1, is_bind: false, offsets: Some(v) },
+            lvalue: Root { tok: 1, is_bind: true, offsets: Some(l) },
+        };
+        assert_eq!(with(vec![96], vec![96, 4]).value_offsets_prefix_lvalue(), Some(true));
+        assert_eq!(with(vec![96, 8], vec![96, 4]).value_offsets_prefix_lvalue(), Some(false));
+        // equal chains are a prefix of each other — `SELF-1B`'s own shape
+        assert_eq!(with(vec![96], vec![96]).value_offsets_prefix_lvalue(), Some(true));
+
+        // sum-only on either side: REFUSED, never guessed.
+        let half = ProducerRoots {
+            value: Root { tok: 1, is_bind: false, offsets: Some(vec![96]) },
+            lvalue: bind(1),
+        };
+        assert_eq!(half.value_offsets_prefix_lvalue(), None);
+        assert_eq!(
+            ProducerRoots { value: formal(1), lvalue: bind(1) }.value_offsets_prefix_lvalue(),
+            None
+        );
+    }
+
+    /// **`allocate` DOES NOT READ THE CARRIER**, checked mechanically.
+    ///
+    /// The shipped allocation statement is a refusal and it is wrong on 0 of
+    /// every holdout on record; **ten** keys have now been fitted over this fact
+    /// and every one died on fresh cells. This test exists because "by
+    /// construction" is the reasoning that let board #232 run 255 commits: a
+    /// successor that wires the carrier into the sort will fail here, loudly,
+    /// rather than ship a tenth wrong emit.
+    ///
+    /// Every row of the GRID Z table is crossed with every producer shape the
+    /// module models, and the assignment must be **identical** to the
+    /// `roots: None` one in all of them.
+    #[test]
+    fn allocate_ignores_the_roots_carrier() {
+        let carriers = [
+            None,
+            Some(ProducerRoots { value: formal(0x0e0a), lvalue: formal(0x0e0a) }),
+            Some(ProducerRoots { value: bind(0x130a), lvalue: bind(0x130a) }),
+            Some(ProducerRoots { value: formal(0x0e0a), lvalue: bind(0x130a) }),
+            Some(ProducerRoots { value: bind(0x130a), lvalue: formal(0x0e0a) }),
+            Some(ProducerRoots { value: bind(0x130a), lvalue: bind(0x140a) }),
+            Some(ProducerRoots {
+                value: Root { tok: 7, is_bind: true, offsets: Some(vec![96]) },
+                lvalue: Root { tok: 9, is_bind: true, offsets: Some(vec![96, 4]) },
+            }),
+        ];
+        let mut checked = 0;
+        for spec in ["0", "01", "0011", "012", "0101", "11222", "1231"] {
+            for k in [ProducerKind::Constant, ProducerKind::RegisterDerived] {
+                let base = run(spec, k);
+                let want = allocate(&base, 4);
+                for c in &carriers {
+                    let mut ps = base.clone();
+                    // the carrier on EVERY producer, and on ONE of them
+                    for p in ps.iter_mut() {
+                        p.roots = c.clone();
+                    }
+                    assert_eq!(allocate(&ps, 4), want, "{spec} {k:?} — all");
+                    let mut one = base.clone();
+                    one[0].roots = c.clone();
+                    assert_eq!(allocate(&one, 4), want, "{spec} {k:?} — first only");
+                    checked += 2;
+                }
+            }
+        }
+        assert_eq!(checked, 7 * 2 * 7 * 2, "every cross was actually visited");
     }
 }
