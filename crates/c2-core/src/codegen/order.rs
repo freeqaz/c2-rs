@@ -879,4 +879,103 @@ mod tests {
         }
         assert!(checked >= 5000, "only {checked} runs enumerated");
     }
+
+    /// **`xboxheap`'s ctor written WITHOUT the reference bind — a different
+    /// body, and the shipped model predicts it too.** Lane `w-heap`, board
+    /// **#1128**.
+    ///
+    /// `schedule`'s own `xboxheap_constructor_is_derived_not_fitted` reproduces
+    /// the real TU by giving the two `&mListHead` stores a **second base
+    /// symbol**, justified in its comment as *"through the bound reference's own
+    /// symbol"* (board #839). Nothing on the page said whether that was
+    /// load-bearing or decorative, because no cell had ever removed the bind at
+    /// this width — `w-front2`'s ladder varies the bind at `x3`/`x5`, but only
+    /// on a run with **one** producer, where one symbol and two give the same
+    /// answer.
+    ///
+    /// Measured (`work/w-heap/grid_addendum/h1_xboxheap_direct/dis.txt`, a
+    /// declared post-hoc holdout, real `c2.dll` under wibo at the workload's own
+    /// flags). **It is load-bearing, and the two spellings emit different
+    /// bodies:**
+    ///
+    /// ```text
+    ///   BIND    (the real TU)     li 10,0 ; stw 5,16(3) ; addi 11,3,8 ;
+    ///                             stw 3,0(3) ; stw 10,20(3) ; [mr 31,3] ;
+    ///                             stw 3,4(3) ; stw 11,8(3) ; stw 11,12(3)
+    ///                             = P0 S0 P1 S1 S2 | S3 S4 S5
+    ///
+    ///   DIRECT  (this cell)       addi 11,3,8 ; stw 5,16(3) ; li 10,0 ;
+    ///                             stw 3,0(3) ; stw 3,4(3) ; [mr 31,3] ;
+    ///                             stw 10,20(3) ; stw 11,8(3) ; stw 11,12(3)
+    ///                             = P1 S0 P0 S1 S3 | S2 S4 S5
+    /// ```
+    ///
+    /// **Both producers swap emission order and one store moves**, and
+    /// [`schedule`] answers each correctly from the base symbol alone — the
+    /// two-symbol spelling in `schedule.rs`'s test, the one-symbol spelling
+    /// here. So a parser that widens to admit an interior address MUST carry the
+    /// bound reference's own token as the store's base symbol; collapsing the
+    /// two spellings to one emits the other body's words.
+    ///
+    /// The `mr r31,r3` sits after **three** stores in both, which is
+    /// `w-seam`'s `nprod - 1 + min(u, 2)` = `2 - 1 + 2` (board #867, 24-cell fit
+    /// and an 18/18 fresh holdout) reproduced on a body neither of its grids
+    /// contained.
+    ///
+    /// **This is a test, not a widening.** `leaf::store` still builds every
+    /// [`super::alloc::Producer`] as [`super::alloc::ProducerKind::Constant`]
+    /// and `c2_il`'s `try_parse_store_run` still refuses an interior address in
+    /// the value position, so `xboxheap` still censuses `0/1` and still reports
+    /// `vocab-gap`.
+    #[test]
+    fn xboxheap_without_the_reference_bind_is_a_different_body_and_is_predicted() {
+        check("..0.11", "P1 S0 P0 S1 S3 S2 S4 S5");
+    }
+
+    /// The **allocation** half of the same body, and the one place a lane that
+    /// widens the parser inherits a live refusal rather than a model.
+    ///
+    /// `xboxheap`'s run has two producers of **different kinds** — an interior
+    /// address at 2 uses and a literal at 1 — and the obj gives `r11` to the
+    /// address and `r10` to the literal, which is clause 1 (use count
+    /// descending) with no tie and no tie-break consulted.
+    ///
+    /// [`super::alloc::allocate`] **refuses** it, because a mixed-kind run is
+    /// refused wholesale (board #836: over 81 mixed cells clause 1 alone is
+    /// wrong on 29 and the refusal is wrong on 0). Board **#868** measured the
+    /// narrow lift that would open exactly this cell and refused it too — at
+    /// the `addi-interior` spelling it is 12/12 but at `slwi` it is 0/12, and
+    /// [`super::alloc::ProducerKind`] cannot tell the two apart.
+    ///
+    /// Both facts are asserted here so the boundary is a test rather than a
+    /// paragraph: the refusal is live, and the answer it would have to give is
+    /// written down beside it.
+    #[test]
+    fn xboxheap_allocation_is_still_refused_and_the_answer_it_owes_is_recorded() {
+        use super::super::alloc::{allocate, Producer, ProducerKind};
+        // `this` plus two `unsigned int` formals -> r3, r4, r5 live in, so the
+        // pool floor is r6.
+        let pool_floor = 6;
+        let mixed = [
+            Producer { id: 0, kind: ProducerKind::Constant, uses: 1, first: 2 },
+            Producer { id: 1, kind: ProducerKind::RegisterDerived, uses: 2, first: 4 },
+        ];
+        assert_eq!(
+            allocate(&mixed, pool_floor),
+            None,
+            "the mixed-kind refusal is LIVE — board #836/#868"
+        );
+        // What the obj says the answer is, kept beside the refusal so a lifting
+        // lane has the target and not just permission. Read off
+        // `work/w-heap/ref/xboxheap/dis.txt`: `addi 11,3,8` and `li 10,0`.
+        let uniform = [
+            Producer { id: 0, kind: ProducerKind::Constant, uses: 1, first: 2 },
+            Producer { id: 1, kind: ProducerKind::Constant, uses: 2, first: 4 },
+        ];
+        assert_eq!(
+            allocate(&uniform, pool_floor),
+            Some(vec![(1, 11), (0, 10)]),
+            "clause 1 alone already gives the obj's registers once the kinds agree"
+        );
+    }
 }
