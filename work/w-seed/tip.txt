@@ -1,13 +1,13 @@
 gap scan: 878 TUs, 24 flags, jobs=12, replay-every=0
-  capture cache: /home/free/code/milohax/c2-rs/work/capture-cache
+  capture cache: <repo>/work/capture-cache
 provenance:
-  c2-rs      ebe3a60f5115 (clean)  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a9ff7ec708e823663
-  binary     517dcde676b2d138  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a9ff7ec708e823663/target/release/c2rs
-  workload   a44b1cf9406e (clean)  /home/free/code/milohax/dc3-decomp
-  wibo       wibo 1.0.1-23-g4a9dd6f (Linux x86_64)  /home/free/code/milohax/wibo/build/wibo
-  cl.exe     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/cl.exe
-  c2.dll     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c2.dll
-  c1xx.dll   /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c1xx.dll
+  c2-rs      ebe3a60f5115 (clean)  <worktree>
+  binary     517dcde676b2d138  <worktree>/target/release/c2rs
+  workload   a44b1cf9406e (clean)  <milohax>/dc3-decomp
+  wibo       wibo 1.0.1-23-g4a9dd6f (Linux x86_64)  <milohax>/wibo/build/wibo
+  cl.exe     <repo>/compilers/X360/16.00.11886.00/cl.exe
+  c2.dll     <repo>/compilers/X360/16.00.11886.00/c2.dll
+  c1xx.dll   <repo>/compilers/X360/16.00.11886.00/c1xx.dll
   strace     /usr/bin/strace
   mingw      /usr/bin/i686-w64-mingw32-gcc
   [1/878] vocab-gap    src/keygen_xbox.cpp  (il function decode failed)

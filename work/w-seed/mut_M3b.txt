@@ -1,0 +1,64 @@
+   Compiling c2-core v0.1.0 (<worktree>/crates/c2-core)
+warning: unused import: `Mul`
+   --> crates/c2-core/src/codegen/ptr_walk_chain_loop.rs:397:28
+    |
+397 |     use ChainOpKind::{Add, Mul, Or, Xor};
+    |                            ^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `c2-core` (lib test) generated 1 warning (run `cargo fix --lib -p c2-core --tests` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 2.18s
+     Running unittests src/lib.rs (target/release/deps/c2_core-d11d0e0158155eff)
+
+running 26 tests
+test elide::tests::a_caller_with_a_data_symbol_is_not_elided ... ok
+test elide::tests::a_callee_this_tu_does_not_define_is_not_elided ... ok
+test elide::tests::a_caller_with_a_data_symbol_is_not_elided_over_a_seed ... ok
+test elide::tests::a_chain_of_refused_links_closes_on_a_refused_seed ... ok
+test elide::tests::a_chain_two_deep_elides_at_both_links ... ok
+test elide::tests::a_chain_stays_elided_at_every_graded_depth ... ok
+test elide::tests::a_cycle_is_not_elided_and_terminates ... ok
+test elide::tests::a_cycle_beside_a_live_chain_admits_only_the_chain ... ok
+test elide::tests::a_cycle_of_refused_links_beside_a_seed_admits_only_the_chain ... FAILED
+test elide::tests::a_function_with_no_tail_call_is_never_elided ... ok
+test elide::tests::a_mid_node_that_materializes_data_does_not_propagate ... ok
+test elide::tests::a_name_defined_twice_with_different_bodies_is_refused ... ok
+test elide::tests::a_non_empty_link_stops_the_chain_at_every_depth ... ok
+test elide::tests::a_refused_body_with_no_call_seeds_the_fixpoint ... ok
+test elide::tests::a_same_tu_empty_callee_is_elided ... ok
+test elide::tests::a_same_tu_non_empty_callee_is_not_elided ... ok
+test elide::tests::a_seed_does_not_admit_a_call_to_an_external ... ok
+test elide::tests::a_seed_that_disagrees_with_a_parsed_definition_is_refused ... ok
+test elide::tests::a_seeding_refused_body_carries_no_link ... FAILED
+test elide::tests::a_seq_mid_node_is_refused ... ok
+test elide::tests::an_unnamed_definition_admits_nothing ... ok
+test elide::tests::direct_self_recursion_is_not_elided ... ok
+test elide::tests::eliding_a_call_and_reducing_to_nothing_are_the_same_fact ... ok
+test elide::tests::mechanism_i_mid_chain_does_not_propagate ... ok
+test elide::tests::the_closure_does_not_depend_on_bundle_order ... ok
+test elide::tests::the_round_ceiling_cannot_fire ... ok
+
+failures:
+
+---- elide::tests::a_cycle_of_refused_links_beside_a_seed_admits_only_the_chain stdout ----
+
+thread 'elide::tests::a_cycle_of_refused_links_beside_a_seed_admits_only_the_chain' (3386361) panicked at crates/c2-core/src/elide.rs:1073:9:
+A CYCLE WAS ADMITTED. Nothing in it seeds — a seed carries no link and a cycle member always has one — so the least fixpoint must never reach it. GRID-N's n06 is the compiled cell
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- elide::tests::a_seeding_refused_body_carries_no_link stdout ----
+
+thread 'elide::tests::a_seeding_refused_body_carries_no_link' (3386371) panicked at crates/c2-core/src/elide.rs:1003:9:
+assertion `left == right` failed: A NAME THAT BOTH SEEDS AND STEPS WAS ADMITTED. The two facts are mutually exclusive by construction in `c2-il` (one reader requires a call token the other's vocabulary excludes); if they ever reach this closure together, refusing is the only answer that keeps `Reduction`'s step (2) true
+  left: 1
+ right: 0
+
+
+failures:
+    elide::tests::a_cycle_of_refused_links_beside_a_seed_admits_only_the_chain
+    elide::tests::a_seeding_refused_body_carries_no_link
+
+test result: FAILED. 24 passed; 2 failed; 0 ignored; 0 measured; 251 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p c2-core --lib`

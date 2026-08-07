@@ -15,8 +15,17 @@
 #       the return plumbing. This is the edit that makes a body with a CALL in it
 #       seed, which is precisely what `Reduction`'s step (2) forbids and what the
 #       cycle re-derivation rests on.
-#   M3  give `NoEffectNothing` a LINK as well as a seed. Step (2) again, from
-#       `elide.rs`'s side.
+#   M3a give `NoEffectNothing` a LINK as well as a seed.
+#       **REGISTERED AS MUST-FAIL AND IT CAME BACK GREEN**, and that is a finding
+#       rather than a hole: the fixpoint skips a name that is already in `in_r`
+#       (`if in_r[i] { continue; }`), so a SEEDED name is never asked for its link
+#       at all and the arm is INERT as the loop is written. Kept, and reported
+#       green, because a mutation quietly rewritten until it goes red proves
+#       nothing. What it establishes is where the cycle argument's step (2)
+#       actually lives: in the READER's vocabulary (M2), not in this arm.
+#   M3b make `NoEffectCall` seed as well as link -- the edit that erases the
+#       link/seed distinction outright. This is the one the cycle argument needs
+#       and the one w-inl0's own M2 measured from the other side.
 #
 # Usage: work/w-seed/mutate.sh          (run from the worktree root)
 set -eu
@@ -92,15 +101,26 @@ open(p, "w").write(s.replace(old, new))
 PY
 run M2 -p c2-il no_effect
 
-echo "=== M3 — give the seed a link"
+echo "=== M3a — give the seed a link (registered must-fail; reported as measured)"
 python3 - <<'PY'
 p = "crates/c2-core/src/elide.rs"
 s = open(p).read()
 old = "Reduction::NoEffectNothing => (true, None),"
 new = 'Reduction::NoEffectNothing => (true, Some("?any@@YAXXZ")),'
-assert old in s, "M3 anchor not found"
+assert old in s, "M3a anchor not found"
 open(p, "w").write(s.replace(old, new))
 PY
-run M3 -p c2-core elide
+run M3a -p c2-core elide
+
+echo "=== M3b — erase the link/seed distinction: make NoEffectCall seed too"
+python3 - <<'PY'
+p = "crates/c2-core/src/elide.rs"
+s = open(p).read()
+old = "Reduction::NoEffectCall(callee) => (false, Some(callee)),"
+new = "Reduction::NoEffectCall(callee) => (true, Some(callee)),"
+assert old in s, "M3b anchor not found"
+open(p, "w").write(s.replace(old, new))
+PY
+run M3b -p c2-core elide
 
 echo "=== done"

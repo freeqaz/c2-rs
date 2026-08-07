@@ -244,10 +244,31 @@ use c2_il::IlFunction;
 ///    argument reads the **step**, not the seed set, so no widening of the seeds
 ///    can affect it. [`TuEmptyCallees::overflowed`]'s ceiling stays exactly as
 ///    written and still cannot fire.
-/// 2. **A seeded name has NO outgoing link.** `NoEffectNothing` contributes
-///    `link = None`, and it may do so honestly because the reader's vocabulary
-///    excludes every call token — a body it accepts names no callee. `Parsed` +
-///    `empty_body` likewise has no `tail_call` to step to.
+/// 2. **A seeded name has NO outgoing link — and the guard is in the READER, not
+///    in this file.** `NoEffectNothing` contributes `link = None`, and it may do
+///    so honestly because `no_effect_nothing`'s vocabulary excludes every call
+///    token: a body it accepts *names no callee*. `Parsed` + `empty_body`
+///    likewise has no `tail_call` to step to.
+///
+///    > **Measured, and it corrects the obvious reading of that sentence.**
+///    > Mutation **M3a** (`work/w-seed/mutate.sh`) gives `NoEffectNothing` a link
+///    > as well as a seed and was registered as a must-fail. **It came back
+///    > GREEN.** The reason is one line of the iteration below —
+///    > `if in_r[i] { continue; }` — so a name that is already admitted is never
+///    > asked for its link and the `None` here is **inert as the loop is
+///    > written**. It is documentation of what the reader guarantees, not the
+///    > enforcement of it.
+///    >
+///    > The enforcement is **M2**, which opens the reader's vocabulary so a body
+///    > with a call in it can seed: that goes RED on 7 tests. And **M3b**, which
+///    > makes `NoEffectCall` seed as well as link and so erases the distinction
+///    > outright, goes RED on 2 — including
+///    > `a_cycle_of_refused_links_beside_a_seed_admits_only_the_chain`.
+///    >
+///    > So: do not weaken `no_effect_nothing`'s vocabulary on the grounds that
+///    > "`elide.rs` sets the link to `None` anyway". That arm cannot save you.
+///    > M3a is reported green rather than rewritten until it went red, because a
+///    > mutation edited to fail proves nothing.
 /// 3. **Admission propagates only BACKWARDS along links, from a seed.** A name is
 ///    admitted iff it seeds or its link names an admitted name; following links
 ///    out of a cycle stays inside the cycle forever. So a cycle is admitted only
@@ -396,8 +417,17 @@ impl TuEmptyCallees {
                 // never admitted. `NoEffectNothing` is a seed and carries **no**
                 // link, which is not a convention here but a property of the body
                 // its reader accepts — step (2) of the cycle re-derivation on
-                // [`Reduction`], and the thing that keeps a cycle out of the seed
-                // set now that a refused body can seed at all.
+                // [`Reduction`].
+                //
+                // **That `None` is INERT, and it is measured rather than assumed.**
+                // The iteration below skips a name already in `in_r`, so a SEEDED
+                // name is never asked for its link at all: mutation M3a puts one
+                // here and nothing goes red. What actually keeps a cycle out of
+                // the seed set is that `no_effect_nothing` refuses every body with
+                // a call in it (M2 - 7 tests red) and that `NoEffectCall` does not
+                // seed (M3b - 2 tests red, including the cycle one). Editing this
+                // line is neither how the property is maintained nor how it would
+                // be lost.
                 let (seeds, here) = match rows[j].1 {
                     Reduction::Parsed(f) => (f.empty_body, elidable_step(f)),
                     Reduction::NoEffectCall(callee) => (false, Some(callee)),
