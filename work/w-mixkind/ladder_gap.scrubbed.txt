@@ -1,14 +1,14 @@
 === lift=0 ===
 gap scan: 1 TUs, 24 flags, jobs=1, replay-every=0
-  capture cache: /home/free/code/milohax/c2-rs/work/capture-cache
+  capture cache: <abs>/capture-cache
 provenance:
-  c2-rs      60261585a201 (DIRTY)  /home/free/code/milohax/c2-rs/.claude/worktrees/w-mixkind
-  binary     0ae6950f15667aa2  /home/free/code/milohax/c2-rs/.claude/worktrees/w-mixkind/target/release/c2rs
-  workload   a44b1cf9406e (clean)  /home/free/code/milohax/dc3-decomp
-  wibo       wibo 1.2.0-c2rs.1 (Linux x86_64)  /home/free/code/milohax/wibo/build/release/wibo
-  cl.exe     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/cl.exe
-  c2.dll     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c2.dll
-  c1xx.dll   /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c1xx.dll
+  c2-rs      60261585a201 (DIRTY)  <repo>
+  binary     0ae6950f15667aa2  <repo>/target/release/c2rs
+  workload   a44b1cf9406e (clean)  <abs>/dc3-decomp
+  wibo       wibo 1.2.0-c2rs.1 (Linux x86_64)  <abs>/wibo
+  cl.exe     <abs>/cl.exe
+  c2.dll     <abs>/c2.dll
+  c1xx.dll   <abs>/c1xx.dll
   strace     /usr/bin/strace
   mingw      /usr/bin/i686-w64-mingw32-gcc
   [1/1] vocab-gap    src/xdk/nuispeech/xboxheap.cpp  (il function decode failed)
@@ -26,15 +26,15 @@ PHASE 7 FACTORS (ROADMAP §10.19/§10.21, boards #160/#179) — the model is A a
   E  whole-TU acceptance  a REGISTERED whole-TU recognizer takes it   0  (2 in the registry)
 === lift=1 ===
 gap scan: 1 TUs, 24 flags, jobs=1, replay-every=0
-  capture cache: /home/free/code/milohax/c2-rs/work/capture-cache
+  capture cache: <abs>/capture-cache
 provenance:
-  c2-rs      60261585a201 (DIRTY)  /home/free/code/milohax/c2-rs/.claude/worktrees/w-mixkind
-  binary     0ae6950f15667aa2  /home/free/code/milohax/c2-rs/.claude/worktrees/w-mixkind/target/release/c2rs
-  workload   a44b1cf9406e (clean)  /home/free/code/milohax/dc3-decomp
-  wibo       wibo 1.2.0-c2rs.1 (Linux x86_64)  /home/free/code/milohax/wibo/build/release/wibo
-  cl.exe     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/cl.exe
-  c2.dll     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c2.dll
-  c1xx.dll   /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c1xx.dll
+  c2-rs      60261585a201 (DIRTY)  <repo>
+  binary     0ae6950f15667aa2  <repo>/target/release/c2rs
+  workload   a44b1cf9406e (clean)  <abs>/dc3-decomp
+  wibo       wibo 1.2.0-c2rs.1 (Linux x86_64)  <abs>/wibo
+  cl.exe     <abs>/cl.exe
+  c2.dll     <abs>/c2.dll
+  c1xx.dll   <abs>/c1xx.dll
   strace     /usr/bin/strace
   mingw      /usr/bin/i686-w64-mingw32-gcc
   [1/1] codegen-gap  src/xdk/nuispeech/xboxheap.cpp  (a store run before a call whose values are not all a formal or a literal: the sc…)
