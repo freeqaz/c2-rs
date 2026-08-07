@@ -142,6 +142,20 @@ pub struct DataReloc {
     pub target_defined_here: bool,
 }
 
+/// One row of [`IlBundle::gl_data_report`] — an INSTRUMENT record, not an emit
+/// input. `natural_align` is what the record's TYPE tag was read as; board
+/// #1110 is the row that says which tags are read at all.
+#[derive(Clone, Debug)]
+pub struct GlDataRow {
+    pub token: u32,
+    pub name: String,
+    pub size: u32,
+    pub natural_align: u32,
+    pub external: bool,
+    pub initialized: bool,
+    pub flags: u8,
+}
+
 /// **W-SECT — a whole TU that defines NO functions and one or more
 /// namespace-scope objects** (board #174).
 ///
@@ -1655,6 +1669,35 @@ impl IlBundle {
     /// a record it still accepted moves neither `records` nor the residue.
     pub fn in_init_report(&self) -> Option<super::ininit::InInitReport> {
         Some(super::ininit::in_scalar_initializers(self.get("in")?).report())
+    }
+
+    /// **INSTRUMENT — what the PRODUCTION `.gl` DATA cursor returns**, in
+    /// `.gl` record order, with the alignment each record's TYPE tag was read
+    /// as.
+    ///
+    /// The `.gl` counterpart of [`Self::in_init_report`], and it exists for the
+    /// same reason: lane `w-rdata3` had to write a throwaway spike over
+    /// `gl_data_objects_ordered` to say the row was **1 of 12**, and a
+    /// throwaway spike cannot be re-run by the next lane. This makes that row a
+    /// standing reading.
+    ///
+    /// It reports and asserts nothing — the comparison against the crate-free
+    /// parser (`work/w-align/glread.py`) is done outside, so neither instrument
+    /// is the other's witness.
+    pub fn gl_data_report(&self) -> Vec<GlDataRow> {
+        let Some(gl) = self.get("gl") else { return Vec::new() };
+        super::gl::gl_data_objects_ordered(gl)
+            .into_iter()
+            .map(|(tok, o)| GlDataRow {
+                token: tok,
+                name: o.coff_name,
+                size: o.size,
+                natural_align: o.natural_align,
+                external: o.external,
+                initialized: o.initialized,
+                flags: o.flags,
+            })
+            .collect()
     }
 
     pub fn data_tu(&self) -> Option<DataTu> {
