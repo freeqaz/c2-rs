@@ -1,0 +1,3 @@
+blocks 42 ; digests verified 42 ; mismatched 0
+  JFP        exact 6  (re-graded from the COMMITTED text alone)
+  JFP_ALIAS  exact 9  (re-graded from the COMMITTED text alone)
