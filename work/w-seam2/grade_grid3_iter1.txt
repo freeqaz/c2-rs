@@ -1,0 +1,12 @@
+p1     mismatch
+p10    match
+p11    match
+p12    match
+p2     match
+p3     match
+p4     vocab-gap
+p5     mismatch
+p6     match
+p7     match
+p8     mismatch
+p9     match

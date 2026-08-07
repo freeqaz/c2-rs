@@ -1,0 +1,19 @@
+cell                     np  u   slots                  obs  #867 
+h_np0_u2                 0   2   SMS                    1    1    HIT
+h_np0_u4                 0   4   SMSSS                  1    1    HIT
+h_np0_u5                 0   5   SMSSSS                 1    1    HIT
+h_np0_u6                 0   6   SMSSSSS                1    1    HIT
+h_np1_u2                 1   2   PSSMS                  2    2    HIT
+h_np1_u4                 1   4   PSSMSSS                2    2    HIT
+h_np1_u6                 1   6   PSSMSSSSS              2    2    HIT
+h_np2_u2                 2   2   PSPSSMS                3    3    HIT
+h_np2_u4                 2   4   PSPSSMSSS              3    3    HIT
+h_np3_u0                 3   0   PPPSSMS                2    2    HIT
+h_np3_u1                 3   1   PSPPSSMS               3    3    HIT
+h_np3_u2                 3   2   PSPSPSSMS              4    4    HIT
+h_np3_u3                 3   3   PSPSPSSMSS             4    4    HIT
+h_np3_u4                 3   4   PSPSPSSMSSS            4    4    HIT
+h_ordmix                 1   3   PSSMSS                 2    2    HIT
+h_ordmix2                2   3   PSPSSMSS               3    3    HIT
+
+#867 `nprod - 1 + min(u,2)`:  16 HIT  0 MISS

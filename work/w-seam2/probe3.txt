@@ -1,0 +1,12 @@
+p1   mflr 12|stw 12, -8(1)|std 31, -16(1)|stwu 1, -96(1)|li 11, 0|stw 4, 8(3)|stw 5, 4(3)|mr	31, 3|stw 11, 0(3)|bl .-36 ; REL24 -> [15] ?Alloc@P@@QAAPAUBE@@I@Z|mr	3, 31|addi 1, 1, 96|lwz 12, -8(1)|mtlr 12|ld 31, -16(1)|blr
+p10  li 11, 0|stw 4, 4(3)|stw 5, 8(3)|stw 11, 0(3)|blr
+p11  mflr 12|stw 12, -8(1)|std 31, -16(1)|stwu 1, -96(1)|li 11, 0|stw 3, 16(3)|stw 3, 20(3)|mr	31, 3|stw 11, 0(3)|stw 5, 4(3)|bl .-40 ; REL24 -> [15] ?Alloc@P@@QAAPAUBE@@I@Z|mr	3, 31|addi 1, 1, 96|lwz 12, -8(1)|mtlr 12|ld 31, -16(1)|blr
+p12  li 11, 0|stw 3, 16(3)|stw 3, 20(3)|stw 11, 0(3)|stw 5, 4(3)|blr
+p2   mflr 12|stw 12, -8(1)|std 31, -16(1)|stwu 1, -96(1)|li 11, 0|stw 5, 4(3)|stw 4, 8(3)|mr	31, 3|stw 11, 0(3)|bl .-36 ; REL24 -> [15] ?Reset@P@@QAAPAUBE@@XZ|mr	3, 31|addi 1, 1, 96|lwz 12, -8(1)|mtlr 12|ld 31, -16(1)|blr
+p3   mflr 12|stw 12, -8(1)|std 31, -16(1)|stwu 1, -96(1)|li 11, 0|stw 4, 4(3)|stw 5, 8(3)|mr	31, 3|stw 11, 0(3)|bl .-36 ; REL24 -> [15] ?Alloc@P@@QAAPAUBE@@I@Z|mr	3, 31|addi 1, 1, 96|lwz 12, -8(1)|mtlr 12|ld 31, -16(1)|blr
+p4   mflr 12|stw 12, -8(1)|std 31, -16(1)|stwu 1, -96(1)|li 11, 0|stw 4, 8(3)|stw 5, 4(3)|mr	4, 5|stw 11, 0(3)|mr	31, 3|bl .-40 ; REL24 -> [15] ?Alloc@P@@QAAPAUBE@@I@Z|mr	3, 31|addi 1, 1, 96|lwz 12, -8(1)|mtlr 12|ld 31, -16(1)|blr
+p5   mflr 12|stw 12, -8(1)|std 31, -16(1)|stwu 1, -96(1)|stw 4, 8(3)|mr	31, 3|stw 5, 4(3)|bl .-28 ; REL24 -> [15] ?Alloc@P@@QAAPAUBE@@I@Z|mr	3, 31|addi 1, 1, 96|lwz 12, -8(1)|mtlr 12|ld 31, -16(1)|blr
+p6   mflr 12|stw 12, -8(1)|std 31, -16(1)|stwu 1, -96(1)|li 11, 0|stw 3, 16(3)|stw 3, 20(3)|mr	31, 3|stw 11, 0(3)|bl .-36 ; REL24 -> [15] ?Alloc@P@@QAAPAUBE@@I@Z|mr	3, 31|addi 1, 1, 96|lwz 12, -8(1)|mtlr 12|ld 31, -16(1)|blr
+p7   mflr 12|stw 12, -8(1)|std 31, -16(1)|stwu 1, -96(1)|li 11, 0|stw 5, 4(3)|mr	31, 3|stw 11, 0(3)|bl .-32 ; REL24 -> [15] ?Alloc@P@@QAAPAUBE@@I@Z|mr	3, 31|addi 1, 1, 96|lwz 12, -8(1)|mtlr 12|ld 31, -16(1)|blr
+p8   mflr 12|stw 12, -8(1)|std 31, -16(1)|stwu 1, -96(1)|li 11, 0|stw 4, 8(3)|stw 5, 4(3)|mr	31, 3|stw 11, 0(3)|stw 5, 12(3)|bl .-40 ; REL24 -> [15] ?Alloc@P@@QAAPAUBE@@I@Z|mr	3, 31|addi 1, 1, 96|lwz 12, -8(1)|mtlr 12|ld 31, -16(1)|blr
+p9   li 11, 0|stw 5, 4(3)|stw 4, 8(3)|stw 11, 0(3)|blr
