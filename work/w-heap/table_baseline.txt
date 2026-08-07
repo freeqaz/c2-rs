@@ -1,0 +1,31 @@
+cell                           census  differential  first-refusal-key                               frame  mr31@  bases  argset  stores  prod
+-----------------------------  ------  ------------  ----------------------------------------------  -----  -----  -----  ------  ------  ----
+f2_g0_hdirect_iself_j2         1/1     match                                                         1      -      3      0       4       0
+f2_g24_hdirect_iself_j2        0/1     vocab-gap     expr-op-0x27                                    1      -      3      0       5       1
+f2_g8_hdirect_iothermember_j2  0/1     vocab-gap     expr-op-0x27                                    1      -      3      0       3       1
+f2_g8_hdirect_iotherobj_j2     0/1     vocab-gap     expr-op-0x27                                    1      -      36     0       3       1
+f2_g8_hdirect_iself_j1         0/1     vocab-gap     expr-op-0x27                                    1      -      3      0       2       2
+f2_g8_hdirect_iself_j1_lit2    0/1     vocab-gap     expr-op-0x27                                    1      -      3      0       3       2
+f2_g8_hdirect_iself_j2         0/1     vocab-gap     expr-op-0x27                                    1      -      3      0       5       1
+f2_g8_hdirect_iself_j2c        0/1     vocab-gap     expr-op-0x27                                    1      -      3      0       3       2
+f2_g8_hdirect_iself_j3         0/1     vocab-gap     expr-op-0x27                                    1      -      3      0       4       2
+f2_g8_href_iself_j2            0/1     vocab-gap     expr-op-0x27                                    1      -      3      0       5       1
+f2_xboxheap_exact              0/1     vocab-gap     expr-op-0x27                                    9      3      3      0       6       2
+f3_a0_c0_dthis_fctor           0/1     vocab-gap     expr-call-in-expr-recv-load-then-plumbing-0x3A  9      0      -      0       0       0
+f3_a1_c0_dthis_fctor           0/1     vocab-gap     expr-op-0x27                                    9      1      3      0       1       0
+f3_a3_c0_dfree_fvoid           0/1     vocab-gap     expr-op-0x27                                    0      -      3      0       3       1
+f3_a3_c0_dthis_fctor           0/1     vocab-gap     expr-op-0x27                                    9      1      3      0       3       0
+f3_a3_c0_dthis_fctor__dup      0/1     vocab-gap     expr-op-0x27                                    9      1      3      0       3       0
+f3_a3_c0_dthis_fdiscardint     0/1     vocab-gap     expr-op-0x27                                    0      -      3      0       3       1
+f3_a3_c0_dthis_fretcall        0/1     vocab-gap     expr-op-0x27                                    0      -      3      0       3       1
+f3_a3_c0_dthis_fvoid           0/1     vocab-gap     expr-op-0x27                                    0      -      3      0       3       1
+f3_a3_c1_dfree_fctor           0/1     vocab-gap     expr-op-0x27                                    9      0      331    1       3       0
+f3_a3_c1_dother_fctor          0/1     vocab-gap     expr-op-0x27                                    9      0      331    1       3       0
+f3_a3_c1b_dthis_fctor          0/1     vocab-gap     expr-op-0x27                                    9      2      3      1       3       0
+f3_a3_c2_dfree_fctor           0/1     vocab-gap     expr-op-0x27                                    9      0      331    1       3       0
+f3_a6_c0_dthis_fctor           0/1     vocab-gap     expr-op-0x27                                    9      2      3      0       6       1
+f3_b2_c0_dthis_fctor           0/1     vocab-gap     expr-op-0x27                                    9      1      36     0       3       0
+f3_leaf_a3                     1/1     match                                                         1      -      3      0       3       0
+f3_leaf_a6                     1/1     match                                                         1      -      3      0       6       1
+
+cells: 27 | match: 3 | vocab-gap: 24 | other: 0

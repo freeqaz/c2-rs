@@ -1,0 +1,43 @@
+== /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a2d54837ff590b797/work/w-heap/grid/f3_a3_c2_dfree_fctor/ref.obj  machine=0x01f2 nsec=6 nsym=20 size=1130
+-- sections
+   1 .drectve   raw=132    rawptr=0x0104 rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=200    rawptr=0x0188 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x0250 rel=0  relptr=0x0000 chars=0xc0401040
+   4 .XBLD$W    raw=16     rawptr=0x0260 rel=0  relptr=0x0000 chars=0xc2301040
+   5 .text      raw=64     rawptr=0x0270 rel=1  relptr=0x02b0 chars=0x60401020
+   6 .pdata     raw=8      rawptr=0x02ba rel=1  relptr=0x02c2 chars=0x40401040
+-- .text #5 (64 B) ??0H@@QAA@II@Z
+   0000  7d8802a6  mflr 12                         
+   0004  9181fff8  stw 12, -8(1)                   
+   0008  fbe1fff0  std 31, -16(1)                  
+   000c  9421ffa0  stwu 1, -96(1)                  
+   0010  7c7f1b78  mr	31, 3                        
+   0014  90a30010  stw 5, 16(3)                    
+   0018  90630000  stw 3, 0(3)                     
+   001c  7ca32b78  mr	3, 5                         
+   0020  93ff0004  stw 31, 4(31)                   
+   0024  4bffffdd  bl .-36                           ; REL24 -> [15] ?g2@@YAXII@Z
+   0028  7fe3fb78  mr	3, 31                        
+   002c  38210060  addi 1, 1, 96                   
+   0030  8181fff8  lwz 12, -8(1)                   
+   0034  7d8803a6  mtlr 12                         
+   0038  ebe1fff0  ld 31, -16(1)                   
+   003c  4e800020  blr                             
+-- .pdata #6 raw
+   0000  00 00 00 00 40 00 10 04
+   reloc va=0x0 ADDR32   -> [13] ??0H@@QAA@II@Z
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=200 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .XBLD$W                                  sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [10] __C1_11886                               sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [11] .text                                    sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=64 nrel=1 nln=0 cksum=0x00000000 num=0 sel=1)
+  [13] ??0H@@QAA@II@Z                           sec=5   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [14] $M2575                                   sec=5   val=0x40     sc=LABEL     type=0x0000 naux=0
+  [15] ?g2@@YAXII@Z                             sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [16] $M2574                                   sec=5   val=0x10     sc=LABEL     type=0x0000 naux=0
+  [17] .pdata                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0xd6bb8e75 num=5 sel=5)
+  [19] $T2576                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=0
