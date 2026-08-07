@@ -1,0 +1,12 @@
+  allocate                     BYTE-IDENTICAL  (1763 bytes)
+  all_in                       BYTE-IDENTICAL  (200 bytes)
+  eat_offset_adds signature    UNCHANGED
+  the_offset_add_run_is_one_wa UNEDITED
+  an_empty_offset_add_run_repo UNEDITED
+
+  ADDED LINES IN `crates/`, BY KIND (listed, not asserted)
+    blank               33
+    code               306
+    doc / comment      473
+
+  PASS — no deciding code changed
