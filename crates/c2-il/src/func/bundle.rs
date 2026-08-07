@@ -742,6 +742,32 @@ pub(crate) fn shape_to_function(
                     ..IlFunction::base(name, src)
                 })
             }
+            // **F3 — the store run followed by a call, REFUSED HERE, and this is
+            // the one place the refusal can be made.**
+            //
+            // `IlFunction` has no carrier for a composition: `ops` and the call
+            // fields (`tail_call`, `framed_call`, `call_seq`) are *alternatives*
+            // that `c2_core::codegen::select` tries in a fixed order, and
+            // `store_leaf_text` is tried before any of them. A function built
+            // with this shape's `ops` and any call field would therefore emit
+            // the store run and **silently drop the `bl`** — a complete,
+            // plausible, wrong body, which is board #232's exact mechanism
+            // (a reader widening that turned a clean refusal into a wrong emit
+            // and ran 255 commits while the scan read `mismatch 0`).
+            //
+            // Building the carrier is board **#844**'s composition seam and it
+            // lives in `c2-core`. Until it exists the honest answer is `None`,
+            // and the census files these bodies under
+            // [`crate::func::census::STORE_RUN_CALL_NO_CARRIER`] rather than
+            // leaving them inside a fall-through expression key — so the residue
+            // this rung leaves is a **number** and not a rumour.
+            //
+            // The fields are named rather than dropped with `..`, so that a
+            // future carrier has to come back to this arm.
+            BodyShape::StoreRunCall { params, ops, callee_tok } => {
+                let _ = (params, ops, callee_tok, resolve);
+                None
+            }
             BodyShape::AddrLeaf { params, ops } => {
                 Some(IlFunction {
                     params,

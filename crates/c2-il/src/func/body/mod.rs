@@ -25,7 +25,7 @@ use self::shapes::{
     try_parse_indirect_load_leaf, try_parse_member_tail_call, try_parse_ptr_identity_leaf,
     try_parse_ptr_walk_chain_loop,
     try_parse_ptr_walk_loop,
-    try_parse_store_leaf, try_parse_store_run,
+    try_parse_store_leaf, try_parse_store_run, try_parse_store_run_call,
 };
 use super::readers::{
     eat_byte, eat_value_type, read_token_var, read_type, read_varint, ValueClass,
@@ -755,6 +755,27 @@ pub(crate) enum BodyShape {
     /// and a tail the single store does not admit. See
     /// [`shapes::try_parse_store_run`].
     StoreRun { params: Vec<u32>, ops: Vec<IlOp> },
+    /// **F3 — a store run followed by a CALL**, the composition
+    /// `src/xdk/nuispeech/xboxheap.cpp`'s constructor is: a
+    /// [`BodyShape::StoreRun`]'s statements, then one statement-position member
+    /// call on `this` whose argument setup is **empty**, then the constructor's
+    /// `return this`.
+    ///
+    /// Kept apart from [`BodyShape::StoreRun`] because it is a different
+    /// production with a gate the run does not have — board #1129's *"the call's
+    /// argument setup writes `r3`"* regime boundary — and because it is
+    /// **framed** where the run is a leaf: only the constructor form frames at
+    /// all, the `void`, `return <call>` and discarded-`int` forms are frame words
+    /// 0 and tail-call behind the run (board #1131).
+    ///
+    /// **This variant has no emitter and `shape_to_function` returns `None` for
+    /// it.** `IlFunction` carries an op stream *or* a call, and
+    /// `c2_core::codegen::select` tries them in a fixed order, so a function
+    /// carrying both would emit one and silently drop the other — a store run
+    /// emitted without its `bl` is board #232's exact shape. The composition
+    /// carrier is board **#844** and it is `c2-core`'s, not this crate's. See
+    /// [`shapes::try_parse_store_run_call`] for the whole accept/refuse boundary.
+    StoreRunCall { params: Vec<u32>, ops: Vec<IlOp>, callee_tok: u32 },
 }
 
 /// **Why** a function segment fell outside the modeled class (P2b census).
@@ -854,6 +875,24 @@ pub(crate) const PTR_WALK_CHAIN_LOOP_NOT_O1: &str = "ptr-walk-chain-loop-not-o1"
 /// Census `ctx` for a body that parses as a call shape whose callee token has no
 /// `.gl` symbol. See the census for why this is a refusal and not a fallback.
 pub(crate) const CALLEE_UNRESOLVED_TAIL: &str = "callee-unresolved-tail-call";
+
+/// **F3's residue key** — the body is a store run followed by a call, it parses
+/// **to the end of the segment**, and the only thing left wrong with it is that
+/// `IlFunction` has no carrier for the composition.
+///
+/// Its own key rather than one of the `callee-unresolved-*` family, because the
+/// callee resolves perfectly in every one of these bodies: nothing about the
+/// *symbol* is missing. What is missing is the seam board **#844** owns — `ops`
+/// and the call fields are alternatives in `c2_core::codegen::select`, so a
+/// function carrying both emits one and drops the other, which is board #232's
+/// direction. Filing it under `callee-unresolved-tail-call` would name the wrong
+/// construct and hide the population #844 is sized from.
+///
+/// Raised with [`Block::at_end`], and this shape is entitled to it: the arm runs
+/// only for a body the whole-segment parser already accepted, and acceptance
+/// requires the cursor to reach `seg.len()`. So the `:eof` it renders is the
+/// true statement — the body is grammar-complete and directly sizeable.
+pub(crate) const STORE_RUN_CALL_NO_CARRIER: &str = "store-run-call-no-emitter-carrier";
 pub(crate) const CALLEE_UNRESOLVED_DTOR: &str = "callee-unresolved-dtor-delegation";
 pub(crate) const CALLEE_UNRESOLVED_FRAMED: &str = "callee-unresolved-framed-call";
 pub(crate) const CALLEE_UNRESOLVED_SEQ: &str = "callee-unresolved-call-sequence";
@@ -1730,6 +1769,20 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // declining body still reports its own blocker.
             if let Some(shape) = try_parse_store_run(seg, p, lo, sy, depth) {
                 disp("disp-store-run");
+                return Ok(shape);
+            }
+            // …and **F3**, the same run with a trailing CALL, which the run above
+            // cannot admit because its own tail requires the body to end at the
+            // last store. Tried after it so a body that *does* end there keeps
+            // the store run's census key and its byte-graded lowering untouched;
+            // this one takes only what "and the body ends here" refused. It is
+            // the composition `src/xdk/nuispeech/xboxheap.cpp` is, and its
+            // regime gate is board #1129's — the call's argument setup must be
+            // empty. Non-committal like the others: it works on a copy of the
+            // cursor and returns None with no side effects, so a declining body
+            // still reports its own blocker.
+            if let Some(shape) = try_parse_store_run_call(seg, p, lo, sy, depth) {
+                disp("disp-store-run-call");
                 return Ok(shape);
             }
             let (ops, cls) = parse_expr_classed(seg, &mut p, 0x41)?;

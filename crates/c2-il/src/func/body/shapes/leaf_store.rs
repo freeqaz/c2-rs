@@ -1055,6 +1055,32 @@ pub(crate) fn try_parse_store_run(
     sy: SyView,
     depth0: usize,
 ) -> Option<BodyShape> {
+    let (stmts, params, p, depth) = collect_store_run(seg, start, lo, sy, depth0)?;
+    run_tail(seg, p, lo, depth, stmts, params)
+}
+
+/// **The run and every gate on it, without the tail** — the statement loop and
+/// the whole gate battery [`try_parse_store_run`]'s doc comment describes, split
+/// out at exactly the point the *tail* begins.
+///
+/// Two productions end a run and there must be **one** statement of what a run
+/// is: [`try_parse_store_run`] ends it on the void plumbing or on
+/// `return *this`, and [`try_parse_store_run_call`] ends it on a call. A second
+/// copy of the loop is where the overlap gate, the mixed-file gate, the pool
+/// floor and the widened-literal clauses drift apart from each other — `GAPS.md`
+/// §6's "one fact, one locator" in the form that costs coverage, which this
+/// file's own header already records happening once to the *statement*.
+///
+/// Returns the statements, the formals, the cursor **after the last store** and
+/// the lexical depth the walk reached — the four things a tail needs and nothing
+/// else.
+fn collect_store_run(
+    seg: &[u8],
+    start: usize,
+    lo: usize,
+    sy: SyView,
+    depth0: usize,
+) -> Option<(Vec<StoreStmt>, Vec<u32>, usize, usize)> {
     let params = parse_params(seg, lo).ok()?;
     let mut p = start;
     let mut depth = depth0;
@@ -1165,22 +1191,37 @@ pub(crate) fn try_parse_store_run(
         // A run whose values are neither literals nor formals stays refused:
         // the FP file and the indirect-load family are separate regimes with
         // their own gates further down.
-        // **F2's value is excluded from the WIDENED literal class, deliberately.**
-        // A sub-object address is a *producer* — one `addi` into the scratch
-        // pool — so a run that mixes it with a literal is exactly the
-        // **mixed-kind** run `c2_core::codegen::alloc::allocate` refuses (board
-        // #836: over 81 mixed cells clause 1 alone is wrong on 29, clause 2 alone
-        // on 35, the refusal wrong on 0) and `w-seam` measured the narrow lift for
-        // and declined (board #868: 12/12 at the `addi`-interior spelling, **0/12**
-        // at `slwi`). The four clauses below were fitted on runs whose only
-        // producers are `li`s; admitting an address beside one would claim they
-        // cover a population they were never measured on. `w-heap` §4.1.1 refuted
-        // clause 1 on exactly this mix. So the reader refuses here and the address
-        // reaches codegen only in a run that has no literal in it at all — where
-        // the emitter refuses it on its own terms.
-        if stmts.iter().any(|s| s.value_is_fp || s.value_is_load || s.value_is_addr) {
+        if stmts.iter().any(|s| s.value_is_fp || s.value_is_load) {
             return None;
         }
+        // **F2's address value IS admitted here, and the four clauses below do
+        // NOT come to cover it — they are never consulted.** A sub-object address
+        // is a *producer* (one `addi` into the scratch pool), so a run mixing it
+        // with a literal is the **mixed-kind** run `alloc::allocate` refuses
+        // (board #836) and `w-seam` declined to lift (board #868: 12/12 at the
+        // `addi`-interior spelling, **0/12** at `slwi`, and `ProducerKind` cannot
+        // tell them apart). `w-heap` §4.1.1 refuted clause 1 on exactly this mix.
+        //
+        // Admitting it is nonetheless the fail-closed direction, and that is
+        // MEASURED rather than argued: an `AddrOf` group is **four** ops where
+        // every group `c2_core`'s emitter models is three, so
+        //
+        //   * `parse_simple_gpr_run`'s `[Load, v, StoreInd, ..]` pattern cannot
+        //     match it at all — position 2 is the `AddrOf` — so
+        //     `scheduled_gpr_run_text` returns `None` before `order::schedule`
+        //     or `alloc::allocate` is asked anything. **The models the clauses
+        //     below protect are never reached on such a run.**
+        //   * `store_leaf_text`'s own walk has no arm for it either, and its
+        //     terminal is `Some(Err(out_of_class("store run with an unmodeled
+        //     residue")))` — an honest refusal, not a short emit.
+        //
+        // Graded on frozen cells at the workload's own flags: `f2_run_addr2`
+        // (two addresses, no literal) and `f2_run_addr_lit` (an address beside a
+        // literal — the mixed-kind cell) both go `vocab-gap → codegen-gap`, and
+        // the 1,576 generated cases of `88-store-run-call.py` stay at 0
+        // mismatch. The clauses below still apply to the LITERALS, so they only
+        // ever refuse more.
+
         let lit = |s: &StoreStmt| match s.ops.get(1) {
             Some(IlOp::Lit(k)) => Some(*k),
             _ => None,
@@ -1253,6 +1294,19 @@ pub(crate) fn try_parse_store_run(
                 return None;
             }
         }
+    }
+    // **Every F2 statement must actually carry an `AddrOf` where the emitter
+    // reads one.** The mirror of the `value_is_lit` / `lit(s).is_none()` check
+    // above and for the same reason: a flag that disagrees with the op stream is
+    // a MISPARSE, not a widening, and the whole safety argument for admitting an
+    // address into a run is that `c2_core` sees a four-op group and declines. A
+    // statement that claims to be an address and hands over three ops would be
+    // emitted as an ordinary store — the wrong-bytes direction.
+    if stmts
+        .iter()
+        .any(|s| s.value_is_addr != matches!(s.ops.get(2), Some(IlOp::AddrOf { .. })))
+    {
+        return None;
     }
     // **A run may not MIX loaded values with formal/literal ones.** A run whose
     // values are *all* indirect loads is emitted in source order at every length
@@ -1383,6 +1437,169 @@ pub(crate) fn try_parse_store_run(
             }
         }
     }
+    Some((stmts, params, p, depth))
+}
+
+/// **F3 — a store run followed by a CALL**: the composition
+/// `src/xdk/nuispeech/xboxheap.cpp`'s constructor is, and the cheapest shape on
+/// the frontier that can move TU match.
+///
+/// ```text
+///   ( <scopes / line markers> <store statement> )+      the run — one locator,
+///                                                       [`collect_store_run`]
+///   26 <method>                                         a statement-position
+///   B9 <recv> <PTR> [ 2C <PTR> 00 ] 99 <PTR> 00         member call on `this`
+///   BD <call token> <args> 4C
+///   4B                                                  the result is discarded
+///   <ctor `return this` epilogue> <fn tail>
+/// ```
+///
+/// # The gate is `w-heap` §3.2's, and it is SYNTACTIC
+///
+/// Board **#870** states the boundary as *"a trailing call that takes an
+/// ARGUMENT breaks the run"*. Measured over `w-heap`'s frozen GRID F3 that is
+/// **one level too coarse**, and the refinement is what puts `xboxheap` on the
+/// safe side (board **#1129**):
+///
+/// ```text
+///   Alloc(initSize)   member on `this`, both actuals already in their slots
+///       stw 5,16(3) ; mr 31,3 ; stw 3,0(3) ; stw 3,4(3) ; bl ; mr 3,31
+///       ONE base (r3) throughout, no setup at all, `mr 31,3` additive    <- #866
+///
+///   Alloc(size)       the setup is `mr 4,5` — it writes r4
+///       stw 5,16(3) ; mr 4,5 ; stw 3,0(3) ; mr 31,3 ; stw 3,4(3) ; bl ; mr 3,31
+///       ONE base (r3) throughout. The run STILL TRANSFERS.
+///
+///   g1(initSize)      a FREE callee, so the setup is `mr 3,4` — it writes r3
+///       mr 31,3 ; stw 5,16(3) ; mr 3,4 ; stw 31,0(31) ; … ; bl ; mr 3,31
+///       the base SWITCHES r3 -> r31 mid-run and the setup INTERLEAVES  <- #870
+/// ```
+///
+/// So the predicate a framed seam owes is **"the call's argument setup is empty,
+/// or writes no register the run reads"**, and it is computable from the actual
+/// list alone: every slot `i` must already hold the formal that occupies it, so
+/// the call emits no move. That is `w-heap` §3.2's own wording — and this
+/// production makes it **stricter** than that sentence, because the reader sees
+/// an IL argument *spelling* rather than a register: a slot that is anything but
+/// `Load(params[i])` refuses, including a member load and a literal, which
+/// cannot be shown to leave `r3` alone without a capture each.
+///
+/// # What is REFUSED, and why each is a *captured* neighbour
+///
+/// * **Anything but a member call on a receiver that is already slot 0.** A
+///   free function, or a member call on another object, both put a non-`this`
+///   value in slot 0 and therefore force the setup to write `r3` — axes D and E
+///   of `w-gen`'s fragment are *determined by* axis C for exactly this reason
+///   (board #1142), so they are refused here rather than crossed.
+/// * **A call whose result is used.** `4B` — discarded — only. A result that is
+///   returned or that feeds a store is a different body and one of `w-gen`'s
+///   48 over-accept guards (board #1141).
+/// * **Anything but the constructor tail.** Only the ctor is framed: the `void`,
+///   `return <call>` and discarded-`int` forms are frame words **0** and
+///   tail-call *behind* the run (board #1131, #869). Three of the four cells
+///   that *look* like this shape are branches, so the tail is required
+///   positively and not inferred from the run.
+///
+/// # THIS SHAPE HAS NO EMITTER, AND THE REFUSAL IS IN [`crate::func::bundle`]
+///
+/// `IlFunction` has no carrier for *a store run followed by a call*: `ops` and
+/// `call_seq` are alternatives that `c2_core::codegen::select` tries in a fixed
+/// order, so a function carrying both emits **one** of them and silently drops
+/// the other — a store run emitted with its `bl` missing is `#232`'s exact
+/// shape. So `shape_to_function` returns `None` for this variant and the census
+/// files it under its own `:eof` key
+/// ([`crate::func::census::STORE_RUN_CALL_NO_CARRIER`]): the body is
+/// grammar-complete and the only thing left wrong with it is that the **model**
+/// cannot spell the composition. That is board **#844**, and this production
+/// is the measurement that it and F3 are **one refusal seen from two ends**
+/// rather than the two independent rows `w-heap` §5's table shows.
+///
+/// Returns `None` — cursor untouched — for anything that is not exactly this
+/// shape.
+pub(crate) fn try_parse_store_run_call(
+    seg: &[u8],
+    start: usize,
+    lo: usize,
+    sy: SyView,
+    depth0: usize,
+) -> Option<BodyShape> {
+    let (stmts, params, mut p, mut depth) = collect_store_run(seg, start, lo, sy, depth0)?;
+    // The call. Reached through the SAME four locators `try_parse_member_tail_call`
+    // uses — `eat_callee_push`, `eat_receiver_this`, `eat_call_token`,
+    // `eat_call_args` — rather than a second decoder for the same bytes. A
+    // private copy of the receiver walk is the drift `GAPS.md` §6 instance #9
+    // records, and the `volatile` gate `eat_receiver_this` inherits through
+    // `eat_operand_type` is the thirteenth live wrong-bytes emit on this project.
+    if seg.get(p) != Some(&0x26) {
+        return None;
+    }
+    let callee_tok = super::calls::eat_callee_push(seg, &mut p).ok()?;
+    // A second `26` here is a stacked method (`p->a()->b()`) or a named data
+    // object standing where the receiver goes — both are other productions and
+    // both put a non-`this` value in slot 0, so both are refused rather than
+    // dispatched.
+    if seg.get(p) == Some(&0x26) {
+        return None;
+    }
+    let recv_tok = super::mcall_tail::eat_receiver_this(seg, &mut p).ok()?;
+    let _ret = super::calls::eat_call_token(seg, &mut p).ok()?;
+    let args = super::calls::eat_call_args(seg, &mut p).ok()?;
+    // `this` is argument slot 0 and the list is in STREAM order — rightmost
+    // source argument first — so slot `i` is `args[len - 1 - i]` and the receiver
+    // goes on the END. Getting this backwards is invisible on a nullary call and
+    // on any symmetric permutation, which is the shape of defect `GAPS.md` §6
+    // keeps recording; `member_tail_call_puts_this_in_slot_zero` pins the same
+    // fact for the tail form.
+    let mut slots: Vec<&[IlOp]> = args.iter().map(|a| a.as_slice()).rev().collect();
+    let recv = [IlOp::Load(recv_tok)];
+    slots.insert(0, &recv);
+    // **THE REGIME GATE.** Every slot must already hold the formal that occupies
+    // it, so the call's argument setup is EMPTY and the run's base register is
+    // never written. Slot 0 is the receiver and must be `params[0]` — which for a
+    // member function is `this`, the base every store in the run is through.
+    if slots.len() > params.len() {
+        return None;
+    }
+    for (i, slot) in slots.iter().enumerate() {
+        match slot {
+            [IlOp::Load(t)] if params.get(i) == Some(t) => {}
+            _ => return None,
+        }
+    }
+    // The result is DISCARDED. A returned or consumed result is a different body
+    // and one of `w-gen`'s over-accept guards.
+    if !eat_byte(seg, &mut p, 0x4B) {
+        return None;
+    }
+    // A brace scope closes between the statement end and the return branch, the
+    // same rule `try_parse_member_tail_call` applies at the same position.
+    eat_scopes(seg, &mut p, &mut depth).ok()?;
+    // **Only the CONSTRUCTOR tail.** The other three forms are frame words 0 and
+    // tail-call behind the run (#1131), so they must not reach a framed
+    // composition. Required positively: `eat_return_head`, then the ctor's
+    // `return this`, then the segment end.
+    let mut q = p;
+    eat_return_head(seg, &mut q, false, depth).ok()?;
+    if !(eat_ctor_this_epilogue(seg, &mut q, lo) && eat_fn_tail(seg, &mut q).is_ok()) {
+        return None;
+    }
+    Some(BodyShape::StoreRunCall {
+        params,
+        ops: stmts.into_iter().flat_map(|s| s.ops).collect(),
+        callee_tok,
+    })
+}
+
+/// The run's own **tail** — the three spellings [`try_parse_store_run`] admits,
+/// applied to a run [`collect_store_run`] has already gated.
+fn run_tail(
+    seg: &[u8],
+    p: usize,
+    lo: usize,
+    depth: usize,
+    stmts: Vec<StoreStmt>,
+    params: Vec<u32>,
+) -> Option<BodyShape> {
     // The tail. Three spellings, and the two non-void ones are **the same fact
     // twice** — the value the function returns is already in r3, so the return
     // costs nothing. Which spelling appears is decided by the SOURCE construct
