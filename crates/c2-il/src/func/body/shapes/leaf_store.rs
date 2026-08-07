@@ -1991,10 +1991,19 @@ fn run_tail(
 /// are the existing recognizers — [`run_tail`] and [`run_call_tail`] — and
 /// neither is copied.
 ///
-/// # This shape EMITS NOTHING, and that is the design rather than the outcome
+/// # This shape emitted NOTHING when it was written, and BOTH TAILS EMIT NOW
 ///
-/// `shape_to_function` returns `None` for [`BodyShape::StoreRunBind`], and the
-/// residue is counted under [`super::super::STORE_RUN_BIND_NO_CARRIER`]. The
+/// The paragraph below is kept because its *argument* is still the reason the
+/// production is shaped this way, and only its verdict has moved: board **#1199**
+/// (`w-carrier`) gave the plain tail a carrier — [`crate::func::IlOp::BoundAddr`]
+/// — and board **#1212** (`w-mrslot`) gave the call tail one, by correcting the
+/// `u` fed to `codegen::store_run_call::save_slot` from the COUNT of unproduced
+/// stores to #584's LEADING RUN. `STORE_RUN_BIND_NO_CARRIER` is a residue key
+/// now, not this shape's verdict.
+///
+/// As written: `shape_to_function` returns `None` for
+/// [`BodyShape::StoreRunBind`], and the residue is counted under
+/// [`super::super::STORE_RUN_BIND_NO_CARRIER`]. The
 /// alternative — widening `parse_store_stmt` so a bound base simply flows into
 /// [`BodyShape::StoreRun`] — was rejected **in this lane's prereg, before the
 /// production existed**, because those two shapes DO reach `codegen`, and a
@@ -2835,19 +2844,25 @@ mod tests {
     /// nothing, and was found only by a cross-check comparing two independent
     /// answers.
     ///
-    /// Five of the six are also graded against real `c2.dll` on frozen cells —
+    /// Four of the five are also graded against real `c2.dll` on frozen cells —
     /// `k_target`/`k_callmix`/`k_mix_c*`/`k_val1` (mixed kind), `k_both1`/
     /// `k_both2` (address producer), `k_2const`/`k_3const` (multi producer),
-    /// `g_cross3` (symbol crossings), and the call-tail refusal is the one three
-    /// live `Port=Mismatch` objs bought. **The POOL clause is not**: it fires on
+    /// `g_cross3` (symbol crossings). **The POOL clause is not**: it fires on
     /// **zero** graded cells, because a nine-formal body refuses one layer
     /// earlier (`work/w-carrier/grid2/g_pool`, `expr-op-0x27`). It is exercised
     /// here and nowhere else, and `docs/rungs/2026-08-08-w-carrier.md` says so
     /// rather than counting it as measured.
     ///
-    /// An earlier revision also carried a **live-argument-base** clause. It is
-    /// deleted, not left dead: the call-tail refusal above it takes every body it
-    /// could have caught, and a clause that refuses nothing is #1175 exactly.
+    /// **The call-tail clause is GONE — board #1212, and it is a correction
+    /// rather than a deletion**, so it is asserted below as an ACCEPT in the
+    /// place it used to be asserted as a refusal.
+    ///
+    /// An earlier revision also carried a **live-argument-base** clause. It
+    /// stays deleted, and for a measured reason rather than the old one: with
+    /// the call-tail refusal lifted the family is reachable, and GRID R's
+    /// `bb_tr_lf`/`bb_rt_lf` — a bind off a formal the call keeps alive — are
+    /// byte-exact. A clause refusing them would refuse two objs the port gets
+    /// right, which is #1175's failure in the other direction.
     #[test]
     fn every_bind_gate_fires_on_a_named_input() {
         use crate::func::body::{

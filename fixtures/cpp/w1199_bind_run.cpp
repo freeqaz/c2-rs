@@ -23,11 +23,14 @@
 //     mixed-kind run `codegen::alloc` refuses (boards #836/#868/#1134);
 //   * at most ONE distinct producer — at one producer `order::store_order`
 //     provably cannot refuse; at two it can (`work/w-carrier/grid/k_2const`);
-//   * at most two base-symbol group crossings — `order::MAX_SYMBOL_CROSSINGS`;
-//   * no trailing call — the composition's copy-slot rule is fed the COUNT of
-//     unproduced stores where a multi-symbol run needs the leading run, and
-//     three graded objs bought that refusal.
-// `w1199_bind_run_neg.cpp` is the negative for every one of them.
+//   * at most two base-symbol group crossings — `order::MAX_SYMBOL_CROSSINGS`.
+//
+// A fourth clause used to read *"no trailing call"*, and board **#1212** removed
+// it: the composition's copy-slot rule was fed the COUNT of unproduced stores
+// where a multi-symbol run needs #584's LEADING RUN, and it is fed the leading
+// run now. The call tail is a positive class with its own fixture,
+// `w1212_bind_run_call.cpp`. `w1199_bind_run_neg.cpp` is the negative for the
+// three clauses that remain, plus the address-producer one.
 
 struct BE { BE* mNext; BE* mPrev; };
 struct W { char c0; char c1; short h0; short h1; long long q0; long long q1; };
