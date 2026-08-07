@@ -1,0 +1,15 @@
+SHAPE MARKER                       before    after    delta
+function definition                 16419    17995    +1576
+pure virtual                          166     1240    +1074
+constructor/destructor               1029     1565     +536
+loop (for/while/do)                    42       46       +4
+if / branch                           149      153       +4
+bitwise & | ^ ~                       859     1988    +1129
+reference type &                      103      702     +599
+unsigned                             2712     4288    +1576
+float / double                       8104     8112       +8
+cast                                 1618     1918     +300
+pointer                              9109    10685    +1576
+default argument                      152      156       +4
+
+markers with ZERO cases: before 0 of 60, after 0 of 60
