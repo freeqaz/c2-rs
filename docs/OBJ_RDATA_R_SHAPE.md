@@ -600,6 +600,33 @@ would place a COMDAT record in a non-COMDAT `.data`, board **#232**'s direction.
 `git diff e60f8902..HEAD -- crates/` for that lane is **0 files, 0 lines**, and
 `factor-c` reads **169** before and after, from a scan.
 
+### §8.3 UPDATE 2026-08-08 — `align_of_type_tag(0xC6)` IS PAID (board #1117), and the row is 2 of 12
+
+Lane `w-align` took §8.2(c)'s gate, which was the one item on this list takeable
+alone. **`TAG_WIDE` (`0x40`) marks the mark byte and nothing else; the width
+field under it is the same field**, so the alignment is `tag & !TAG_WIDE` —
+`C6` is `86` is **4 bytes**. Measured on 23 cells frozen by `sha256` before the
+first `cl.exe`, at the workload's own `/GR /O1 /Oi /EHsc`, each cell's alignment
+read off **c2's own obj**: **21 of 21 named object records confirmed, 0
+contradicted**, by two instruments agreeing 23/23.
+
+* **The row moves: `?g@@3UA@@A` reads `2 of 12` records, not 1** — and it is a
+  standing reading now (`crates/c2-il/tests/in_init_probe.rs`'s `gl-data` line)
+  rather than a spike, so §8.4 will not have to rebuild it.
+* **Item 2 is still not paid.** The remaining `.gl` gates on this TU are
+  `DATA_ATTR = 0xA0` (#1109) and the `00 04` read-only frame, both untouched and
+  both still meaning *COMDAT or read-only*.
+* **The price is still SEVEN and `factor-c` is still 169.** `w-align`'s 878-TU
+  scan is byte-identical to its base on all 139 `gap-metric` lines. Three
+  *fixture* cells convert byte-exact; **zero workload TUs do**, which that lane's
+  prereg registered before the first capture.
+* **Two corrections to #1110's own price**, both in `rungs/2026-08-08-w-align.md`:
+  the consumer it named (`emit_data_obj`, via `data_tu`) refuses every cell it
+  described — a polymorphic object is dynamically initialised, so `data_tu`'s
+  gate 1 rejects the TU — and the converting consumer is `dyninit_tu` (#1119);
+  and **the wide bit is not "the class has a vtable" in `.gl`** (#1118), which is
+  an `.ex` rule that does not carry over.
+
 ---
 
 ## §9 Why `PORT_WRITER_SECTIONS` was NOT extended

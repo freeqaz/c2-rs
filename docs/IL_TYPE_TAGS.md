@@ -25,6 +25,16 @@ The `tag` encodes a width as `0x80 + 2*(log2(size)+1)`:
 | 4 | `86` |
 | 8 | `88` |
 
+**In a `.gl` DATA record the same field is the object's ALIGNMENT, and the wide
+bit is orthogonal to it** (board #1117, `docs/rungs/2026-08-08-w-align.md` §2).
+The heading above says `size`, which is true only for scalars, where a type's
+size *is* its alignment; `gl.rs::data_object_at` reads the tag as alignment and
+the size from its own field. `TAG_WIDE` (`0x40`) marks one extra byte before the
+kind and nothing else, so `C6` is `86` is **4** — confirmed on 21 of 21 object
+records against **c2's own obj** alignment nibbles, across cells whose size and
+alignment disagree in both directions. `8A`/`CA` is 16 and is refused, because
+the writer's promotion table models 1/2/4/8 (#1120).
+
 **The width is the token's, not the type's — the tag is positional.** The same
 type carries different tags in different slots: `double*` is `86 43 c1 08` as a
 `B9` operand (a 4-byte pointer is being loaded) and `88 43 c1 08` as a `27`

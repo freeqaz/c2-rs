@@ -252,6 +252,41 @@ has survived a decode widening untouched.
 | **debug-build** 878-TU scan | **0 panics**, identical to release |
 | census key drift | `fn_blockers` **719 → 719, every delta 0**; `fn_frames` **936 → 936, likewise**. **No rename.** |
 
+## 7.1 ADDENDUM 2026-08-08 — §2.1's rule is an `.ex` rule and does NOT carry over to `.gl` (board #1118)
+
+§2.1 above is measured and stands: in `.ex`, `virtual` is the one source change
+that sets tag bit 6. **In a `.gl` DATA record it is not that bit's meaning.**
+Lane `w-align` (`docs/rungs/2026-08-08-w-align.md` §3) froze 23 cells by
+`sha256` before compiling any of them and populated **both** off-diagonal boxes:
+
+```text
+                       WIDE                        NOT WIDE
+  polymorphic     poly + int/char/char[64]/    poly + double     (88)
+                  empty/array/vbase/vdtor      poly + long long  (88)
+  NOT poly        __declspec(align(8))         {int,int} · derived · nested ·
+                  struct A{int a;}   (C8)      array · double (88) · char (82)
+```
+
+So `__declspec(align(8)) struct A { int a; }` is wide with no virtual anything,
+and `struct A { virtual void f(); double d; }` is **not** wide. The
+co-occurrence that survives all 23 cells is with the type's **required
+alignment**, not with polymorphism — and that is a description of 23 cells and
+**not a rule**, because no probe there moves a type across the boundary while
+holding alignment fixed.
+
+**What §2.1 licensed and still licenses is the WIDTH: one extra byte before the
+kind.** That is what `read_type` needs and it is unaffected. What it does not
+license is any inference from "wide" to "has a vtable" in another container —
+and board #1110's phrase *"the wide **aggregate** form"* is where that inference
+was spelled, believed, and (by that lane's own prereg, P7 at 0.75) lost.
+
+The `.gl` width field itself is now read: `align_of_type_tag(tag & !0x40)`,
+confirmed 21 of 21 against **c2's own obj** alignment nibbles, with `CA` (= 16)
+still refused because `placement_align` cannot express it (#1120). §8 item 2's
+residual risk — *"the mark byte's meaning is UNKNOWN, and so is its value SET"* —
+is honoured there rather than assumed away: the `.gl` alignment reading requires
+the mark to be `0x81`, the only value all ten wide cells carry.
+
 ## 8. Found and not taken
 
 1. **`cf-expr-0x05` — 32,872 bodies, and it is now 48 % of the whole residue.**
