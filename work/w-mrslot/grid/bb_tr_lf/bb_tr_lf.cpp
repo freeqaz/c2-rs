@@ -11,16 +11,17 @@ struct H {
     unsigned mC;       // 28
     unsigned mD;       // 32
     H(unsigned p, unsigned q);
-    H(BE* w, unsigned q);
+    H(H* w, unsigned q);
     void lf(unsigned p, unsigned q);
     BE* Grab(unsigned n);
-    BE* Take(BE* n);
+    BE* Take(H* n);
     BE* Reset();
 };
 
-H::H(BE* w, unsigned q) {
-    BE& r = *w;
+H::H(H* w, unsigned q) {
+    BE& r = w->mBlk;
     mA = 0u;
     r.f0 = q;
+
     Take(w);
 }

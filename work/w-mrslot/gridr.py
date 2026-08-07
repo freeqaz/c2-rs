@@ -51,10 +51,10 @@ struct H {
     unsigned mC;       // 28
     unsigned mD;       // 32
     H(unsigned p, unsigned q);
-    H(BE* w, unsigned q);
+    H(H* w, unsigned q);
     void lf(unsigned p, unsigned q);
     BE* Grab(unsigned n);
-    BE* Take(BE* n);
+    BE* Take(H* n);
     BE* Reset();
 };
 """
@@ -141,8 +141,8 @@ class Cell:
             # The bind hangs off a formal the call keeps ALIVE — board #1215's
             # deleted clause, which the call-tail refusal made dead and which
             # lifting that refusal brings back to life.
-            sig = "H::H(BE* w, unsigned q) {"
-            bind = "    BE& r = *w;"
+            sig = "H::H(H* w, unsigned q) {"
+            bind = "    BE& r = w->mBlk;"
             tail = "    Take(w);\n"
         else:
             sig = "H::H(unsigned p, unsigned q) {"
@@ -151,8 +151,15 @@ class Cell:
         # No `(void)p;` filler: a discarded expression is an extra statement
         # the reader would have to walk, and an unused formal is a warning the
         # workload's own flag set does not promote.
-        return "%s%s\n%s\n%s\n%s%s}\n" % (
-            head, DECL, sig, bind, body + "\n", tail
+        # **The bind line is emitted only when a store goes through it.** A
+        # bind nothing reads is a DEAD bind, and c1xx renders it as an op the
+        # reader refuses at `expr-op-0x27` — one layer ABOVE this rung — so a
+        # T-only cell carrying it would grade a different construct and the
+        # single-symbol control class would be empty without saying so.
+        if "R" not in self.syms:
+            bind = ""
+        return "%s%s\n%s\n%s%s\n%s%s}\n" % (
+            head, DECL, sig, (bind + "\n") if bind else "", body, "\n", tail
         )
 
 

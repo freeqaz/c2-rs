@@ -11,10 +11,10 @@ struct H {
     unsigned mC;       // 28
     unsigned mD;       // 32
     H(unsigned p, unsigned q);
-    H(BE* w, unsigned q);
+    H(H* w, unsigned q);
     void lf(unsigned p, unsigned q);
     BE* Grab(unsigned n);
-    BE* Take(BE* n);
+    BE* Take(H* n);
     BE* Reset();
 };
 
@@ -23,5 +23,6 @@ H::H(unsigned p, unsigned q) {
     r.f0 = q;
     r.f1 = 0u;
     r.f2 = 0u;
+
     Reset();
 }
