@@ -1,0 +1,43 @@
+=== SPLICE-0 witnesses, by pairs ===
+    924  tail|exact
+    286  tail|differs|first@0:callee=81630008,ref=81640008
+    182  seq|exact
+    123  framed|differs|first@0:callee=80630004,ref=81630004
+     33  tail|differs|first@0:callee=81630004,ref=81630008
+     16  tail|differs|first@1:callee=8143000c,ref=81430018
+      9  tail|differs|first@0:callee=80830000,ref=80830004
+      5  tail|differs|first@0:callee=80830000,ref=80830008
+      4  tail|differs|first@2:callee=91630000,ref=91630004
+      4  tail|differs|first@1:callee=8143000c,ref=81430010
+      3  tail|differs|first@0:callee=80830000,ref=8083000c
+      3  tail|differs|first@0:callee=80830000,ref=80830024
+
+=== SPLICE-0 `differs` symbols, by pairs ===
+  total differing pairs 503 over 127 distinct (shape,symbol)
+    286  tail      286 TUs  ?Release@Object@Hmx@@QAAXPAVObjRef@@@Z
+     27  tail       27 TUs  ??1?$pair@$$CBVSymbol@@VDataNode@@@stlpmtx_std@@QAA@XZ
+     14  framed     14 TUs  ?back@?$vector@V?$Key@M@@V?$StlNodeAlloc@V?$Key@M@@@stlpmtx_std@@@stlpmtx_std@@QBAABV?$Key@M@@XZ
+      9  tail        9 TUs  ??1?$FlowPtr@VObject@Hmx@@@@QAA@XZ
+      7  framed      7 TUs  ?back@?$vector@V?$Key@VVector3@@@@V?$StlNodeAlloc@V?$Key@VVector3@@@@@stlpmtx_std@@@stlpmtx_std@@QBAABV?$Key@V
+      5  framed      5 TUs  ?back@?$vector@V?$Key@VColor@Hmx@@@@V?$StlNodeAlloc@V?$Key@VColor@Hmx@@@@@stlpmtx_std@@@stlpmtx_std@@QBAABV?$K
+      4  framed      4 TUs  ?back@?$vector@V?$Key@VSymbol@@@@V?$StlNodeAlloc@V?$Key@VSymbol@@@@@stlpmtx_std@@@stlpmtx_std@@QBAABV?$Key@VSy
+      4  framed      4 TUs  ?back@?$vector@V?$Key@VQuat@Hmx@@@@V?$StlNodeAlloc@V?$Key@VQuat@Hmx@@@@@stlpmtx_std@@@stlpmtx_std@@QBAABV?$Key
+      3  tail        3 TUs  ??1UIListWidgetDrawState@@QAA@XZ
+      3  tail        3 TUs  ??1UIListState@@QAA@XZ
+      3  tail        3 TUs  ??1AutoPropEntry@PropertyEventListener@@QAA@XZ
+      3  tail        3 TUs  ??1?$pair@PAVDataArray@@VDataNode@@@stlpmtx_std@@QAA@XZ
+      3  framed      3 TUs  ?back@?$vector@UNode@?$ObjPtrVec@VRndTransformable@@VObjectDir@@@@V?$StlNodeAlloc@UNode@?$ObjPtrVec@VRndTransf
+      3  framed      3 TUs  ?back@?$vector@UNode@?$ObjPtrVec@VFlowNode@@VObjectDir@@@@V?$StlNodeAlloc@UNode@?$ObjPtrVec@VFlowNode@@VObject
+      2  tail        2 TUs  ??1TrackChannels@@QAA@XZ
+
+=== the two target populations, as IDIOMS ===
+  framed   pairs   123   distinct symbols   83   distinct TUs   76   template roots    1
+        root  ?back@?$vector@
+  tail     pairs   380   distinct symbols   44   distinct TUs  332   template roots   30
+        root  ??1?$FlowPtr@
+        root  ??1?$pair@
+        root  ??1ActionRec@@QAA@XZ
+        root  ??1AutoPropEntry@PropertyEventListener@@QAA@XZ
+        root  ??1Char3D@CharData@WorldCrowd@@QAA@XZ
+        root  ??1CharClipDriver@@QAA@XZ
+  seq      pairs     0   distinct symbols    0   distinct TUs    0   template roots    0
