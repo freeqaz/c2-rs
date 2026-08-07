@@ -1,0 +1,15 @@
+building the harness (no-op if current)
+   Compiling c2-il v0.1.0 (<repo>/crates/c2-il)
+   Compiling c2-core v0.1.0 (<repo>/crates/c2-core)
+   Compiling c2-reference v0.1.0 (<repo>/crates/c2-reference)
+   Compiling c2-harness v0.1.0 (<repo>/crates/c2-harness)
+    Finished `release` profile [optimized] target(s) in 5.02s
+harness: <abs>/c2rs-expr-sweep/c2rs
+  pinned from <repo>/target/release/c2rs  built 2026-08-07 18:50:10
+  sha 07ae8ff9d471  tree efdcf6e6
+C2RS_SWEEP_ONLY='88-store-run-call': 1 of 62 fragments — THE TOTAL BELOW IS PARTIAL
+  fragment 88-store-run-call           1576 cases
+  1 fragments, 1576 cases total (1576 .cpp on disk)
+sweeping 1576 of 1576 generated cases
+  grading at 4 job(s)
+checked=1576 mismatches=0 graded=1576 ungraded=0 unknown=0
