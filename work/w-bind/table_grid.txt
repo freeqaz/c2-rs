@@ -1,0 +1,23 @@
+CELL               GAP.BEFORE  GAP.AFTER   KEY.BEFORE                                     KEY.AFTER
+b_bind_first       vocab-gap   vocab-gap   expr-op-0x27                                   store-run-bind-no-emitter-carrier:eof
+b_bind_global      vocab-gap   vocab-gap   expr-op-0x27                                   expr-op-0x27
+b_bind_last        vocab-gap   vocab-gap   expr-op-0x27                                   store-run-bind-no-emitter-carrier:eof
+b_bind_nonthis     vocab-gap   vocab-gap   expr-op-0x27                                   store-run-bind-no-emitter-carrier:eof
+b_bind_stacklocal  vocab-gap   vocab-gap   expr-call-in-expr-data-addr-then-off-add-whole expr-call-in-expr-data-addr-then-off-add-whole
+b_const_ref        vocab-gap   vocab-gap   expr-op-0x27                                   store-run-bind-no-emitter-carrier:eof
+b_ctrl_run         match       match       IN-CLASS                                       IN-CLASS
+b_ctrl_runcall     vocab-gap   vocab-gap   expr-op-0x27                                   expr-op-0x27
+b_dead             vocab-gap   vocab-gap   expr-op-0x27                                   expr-op-0x27
+b_dead_ctrl        match       match       IN-CLASS                                       IN-CLASS
+b_leaf_bind        vocab-gap   vocab-gap   expr-op-0x27                                   store-run-bind-no-emitter-carrier:eof
+b_off0             vocab-gap   vocab-gap   expr-op-0x27                                   expr-op-0x27
+b_off0_ctrl        vocab-gap   vocab-gap   expr-op-0x27                                   expr-op-0x27
+b_ptr_local        vocab-gap   vocab-gap   expr-op-0x27                                   store-run-bind-no-emitter-carrier:eof
+b_run_call         vocab-gap   vocab-gap   expr-op-0x27                                   expr-op-0x27
+b_subobject        vocab-gap   vocab-gap   expr-op-0x27                                   expr-op-0x27
+b_target_bind      vocab-gap   vocab-gap   expr-op-0x27                                   store-run-bind-no-emitter-carrier:eof
+b_target_direct    codegen-gap codegen-gap not implemented: a store run before a call who not implemented: a store run before a call who
+b_two_binds        vocab-gap   vocab-gap   expr-op-0x27                                   store-run-bind-no-emitter-carrier:eof
+b_use1             vocab-gap   vocab-gap   expr-op-0x27                                   store-run-bind-no-emitter-carrier:eof
+b_use2             vocab-gap   vocab-gap   expr-op-0x27                                   store-run-bind-no-emitter-carrier:eof
+b_use_value_only   vocab-gap   vocab-gap   expr-op-0x27                                   store-run-bind-no-emitter-carrier:eof

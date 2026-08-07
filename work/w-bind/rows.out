@@ -1,0 +1,18 @@
+fn_in_class  711485 -> 711485   (+0)
+fn_total     2463443 -> 2463443   (+0)
+
+== fn_blockers   total 1751958 -> 1751958   (+0)
+   expr-op-0x27                                           402140 ->   402139  (-1)
+   store-run-bind-no-emitter-carrier:eof                       0 ->        1  (+1)
+
+== emit_blockers   total 130576 -> 130576   (+0)
+   expr-op-0x27                                            22374 ->    22373  (-1)
+   store-run-bind-no-emitter-carrier:eof                       0 ->        1  (+1)
+
+== per-TU class changes
+   0 TU(s) changed class
+
+== TUs whose fn_blockers moved  (TU, key)
+   src/xdk/nuispeech/xboxheap.cpp                       expr-op-0x27                                 1 -> 0
+   src/xdk/nuispeech/xboxheap.cpp                       store-run-bind-no-emitter-carrier:eof        0 -> 1
+   1 TU(s) moved a fn_blockers row
