@@ -2425,4 +2425,36 @@ mod tests {
         assert_eq!(idx.get(&0xE309).map(String::as_str), Some("?ok@@YAXXZ"));
         assert_eq!(idx.len(), 1, "only the identifier-shaped run is indexed");
     }
+
+    /// **Board #1110 — the WIDE tag's alignment table, pinned.**
+    ///
+    /// Every row is a frozen cell of lane `w-align`'s grid whose alignment was
+    /// read off **c2's own obj** at the workload's `/GR /O1 /Oi /EHsc`; the
+    /// cell name is the witness and `docs/rungs/2026-08-08-w-align.md` §2 is
+    /// the table. This test exists because the arm is one line and the cells
+    /// are the whole job: an alignment nibble guessed wrong is a wrong
+    /// `Characteristics` word, and nothing in the portable lane would see it.
+    #[test]
+    fn the_wide_type_tag_reads_the_same_width_as_the_narrow_one() {
+        // Narrow, unchanged — the incumbent's four.
+        assert_eq!(align_of_type_tag(0x82, None), Some(1), "T12 char");
+        assert_eq!(align_of_type_tag(0x84, None), Some(2));
+        assert_eq!(align_of_type_tag(0x86, None), Some(4), "T10 two ints");
+        assert_eq!(align_of_type_tag(0x88, None), Some(8), "T11 double");
+        // Wide: TAG_WIDE is orthogonal to the width field.
+        assert_eq!(align_of_type_tag(0xC2, Some(0x81)), Some(1));
+        assert_eq!(align_of_type_tag(0xC4, Some(0x81)), Some(2));
+        assert_eq!(align_of_type_tag(0xC6, Some(0x81)), Some(4), "G01 poly+int");
+        assert_eq!(align_of_type_tag(0xC8, Some(0x81)), Some(8), "T16 declspec(8)");
+        // `8A`/`CA` is 16 and c2 DOES emit ALIGN_16 for it (T09, G04).
+        // `placement_align` cannot express 16, so it stays refused rather than
+        // rounded down — see the doc comment.
+        assert_eq!(align_of_type_tag(0x8A, None), None);
+        assert_eq!(align_of_type_tag(0xCA, Some(0x81)), None, "T09 declspec(16)");
+        // The mark's VALUE is matched: `IL_TYPE_WIDE_TAG.md` §8 item 2 records
+        // `84` as a second value in `.ex`, and no cell says what the width
+        // means under it.
+        assert_eq!(align_of_type_tag(0xC6, Some(0x84)), None, "unmeasured mark");
+        assert_eq!(align_of_type_tag(0xC6, Some(0xFF)), None);
+    }
 }
