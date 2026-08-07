@@ -127,6 +127,78 @@
 //! **spelling** — which [`ProducerKind`] cannot represent.
 //! `the_strict_use_count_subcase_is_refused_too` pins the six gaps.
 //!
+//! # RULE BIND is REFUTED — the seventh, and the first one that was not a key
+//!
+//! **Board #1067**, lane `w-alloc3`. Every entry above answers *which of two
+//! live producers gets `r11`*. This one asked a different question and died
+//! anyway, which is why it is worth its own paragraph rather than a row.
+//!
+//! `w-seq` (#969) dissected 503 splice failures and found every one is a
+//! **field** perturbation with no reordering anywhere: 286 source renames
+//! `r3 → r4`, 123 destination renames `r3 → r11`, ~92 displacement folds.
+//! **RULE BIND** was the obvious reading of that:
+//!
+//! ```text
+//!   BIND  every SOURCE register field still holding a callee formal is
+//!         rewritten to the register the caller's actual already lives in.
+//!   TEMP  the destination of the instruction producing the callee's return
+//!         value stays r3 iff that value is the caller's returned value, and
+//!         otherwise becomes POOL_TOP = r11.
+//! ```
+//!
+//! It reproduces, from published bytes and with no toolchain, **all five**
+//! recorded witnesses — `w-seq`'s 123 (`?back@?$vector` against `?end@`), its
+//! 286 (`?Release@Object@Hmx@@` against `?Release@ObjRef@@`), and its hand
+//! cells `s01`, `s03` and `s11` — and it is **33 of 33** on a fit grid.
+//!
+//! On a **frozen, never-fitted** holdout of 46 cells it is **5 WRONG of 38**
+//! in domain (`work/w-alloc3/gridH.tsv`; sources and their `sha256` committed
+//! at `5832dd14` before a cell was compiled, the rule frozen at `245945c2`).
+//! **The shipped refusal is wrong on 0 of the same 71 cells.**
+//!
+//! **It dies because c2 does not rename a body — it RECOMPILES an
+//! expression.** Four of the five misses are one three-formal callee at the
+//! permutations that put its commutative pair the other way round:
+//!
+//! ```text
+//!   int g(int a, int b, int c) { return a - b + c; }   ; sub r11,r3,r4
+//!                                                     ; add r3,r11,r5
+//!   int f(int x0,int x1,int x2){ return g(x2,x1,x0); } ; H-perm-210
+//!      RULE BIND   sub r11,r5,r4 ; add r3,r11,r3      (a renaming)
+//!      c2          sub r11,r3,r4 ; add r3,r11,r5      (the callee's own bytes)
+//! ```
+//!
+//! and the fifth is sharper still — `int g(int a){return -a;}` at a site
+//! `g(x1) + 4` becomes **`subfic r3,r4,4`**, one word, an opcode that appears
+//! nowhere in the callee:
+//!
+//! ```text
+//!      RULE BIND   neg r11,r4 ; addi r3,r11,4         7d6400d0 386b0004
+//!      c2          subfic r3,r4,4                     20640004
+//! ```
+//!
+//! So `w-seq` §10.2's caution is now measured rather than argued: **the field
+//! diff says WHAT changed and not WHAT DECIDES IT**, and a rule stated as a
+//! field edit is a description of the output. The two clauses are not equally
+//! dead, and the split is the useful part:
+//!
+//! * **TEMP survived everything this lane could throw at it.** The result of
+//!   an inlined callee lands in `POOL_TOP` = `r11` and nowhere else, at caller
+//!   formal counts **1 through 8** (16 of 16 on the holdout's `H-wide`), at
+//!   every bound position, with the caller's `r3` provably dead, and even when
+//!   the callee already holds a temp in `r11` (4 of 4 on `H-temp`). The rival
+//!   *"the temp is the lowest free volatile"* is refuted: at five caller
+//!   formals the lowest free volatile is `r8` and c2 emits `lwz r11,4(r7)`.
+//!   That is a **direct measurement of `POOL_TOP` in a regime this module has
+//!   never been exercised in**, and it agrees with #543/#605.
+//! * **BIND is what died**, and only where the caller's expression admits a
+//!   different-but-equal encoding.
+//!
+//! A successor may not restate BIND as a field edit. What it owes first is a
+//! decision procedure for c2's **operand canonicalisation** — every one of the
+//! five misses is one — and that is a fresh frozen grid, not another pass over
+//! these cells (#912's standing lesson).
+//!
 //! **And clauses 2, 3 and 4-for-register-derived are unreachable from the
 //! emitter today**, which is why none of this moves a byte:
 //! `super::super::leaf::store` builds every [`Producer`] with
@@ -531,6 +603,48 @@ mod tests {
             },
         ];
         assert_eq!(allocate(&mixed, 4), None);
+    }
+
+    /// **`POOL_TOP` MEASURED IN A REGIME THIS MODULE HAS NEVER BEEN EXERCISED
+    /// IN** — lane `w-alloc3`, board **#1068**, the surviving half of the
+    /// refuted RULE BIND.
+    ///
+    /// Every grid behind this module so far has been a *store run* in a leaf.
+    /// `w-alloc3`'s `H-wide` family is a different shape entirely — the single
+    /// value an **inlined callee** returns, consumed by one more instruction —
+    /// and it lands in `r11` at **every** caller formal count from 1 to 8, at
+    /// the first and last bound position, with the caller's `r3` provably
+    /// dead. 16 of 16 on a frozen holdout, graded against real `c2.dll`:
+    ///
+    /// ```text
+    ///   int* g(V* v) { return v->b; }                      lwz  r3, 4(r3)
+    ///   int* f(int,int,int,int,V* x4){ return g(x4)-1; }   lwz  r11,4(r7)
+    ///                                                      addi r3, r11,-4
+    /// ```
+    ///
+    /// With five formals live the **lowest** free volatile is `r8`, so this
+    /// separates *"the pool is walked highest-first"* from *"the pool is
+    /// walked lowest-first"* on a population that is not a store run at all.
+    /// [`allocate`] already answers that way for one producer at every legal
+    /// floor, and this pins it so a future edit cannot quietly invert the walk
+    /// and stay green — the walk direction has no other test that varies the
+    /// floor.
+    #[test]
+    fn one_producer_takes_pool_top_at_every_floor() {
+        for floor in 4..=POOL_TOP {
+            let a = allocate(&run("0", ProducerKind::Constant), floor)
+                .expect("one producer fits at every floor up to POOL_TOP");
+            assert_eq!(
+                a,
+                vec![(48, POOL_TOP)],
+                "a single value takes r11 at pool floor r{floor}, not the \
+                 lowest free volatile — w-alloc3 H-wide, 16 of 16"
+            );
+            assert!(all_in(&run("0", ProducerKind::Constant), floor, POOL_TOP));
+        }
+        // …and above the top there is no pool, so it refuses rather than
+        // reaching for r12 (#543).
+        assert_eq!(allocate(&run("0", ProducerKind::Constant), POOL_TOP + 1), None);
     }
 
     /// The guard the store emitters call. One producer is r11 — which is what

@@ -1,0 +1,30 @@
+== w-bytes  (diff signature, #976-#983)
+   fndiff-                      master    46247   tip    46247
+== w-bytes/w-drop3 (reloc sites + call targets, #982/#984)
+   fnbyte-reloc-sites           absent at BOTH ends (no such key in this build)
+   fnbyte-call-targets          absent at BOTH ends (no such key in this build)
+   fnbyte-callsite              absent at BOTH ends (no such key in this build)
+   fnbyte-calltarget            master    85446   tip    85446
+== w-seq    (splice forensics, #966-#975)
+   fnbyte-splice0               master     3218   tip     3218
+   fnbyte-spliceN               master      725   tip      725
+   fnbyte-splice|               master     3943   tip     3943
+   fnbyte-contains              master     3067   tip     3067
+   fnbyte-differs-why           master     2334   tip     2334
+   fnbyte-why|                  master     2334   tip     2334
+   fnbyte-callee-               master     6423   tip     6423
+== w-empty/w-fix/w-inl0 (mechanism E)
+   fnbyte-elided                master     3308   tip     3308
+   fnbyte-tu-empty-callees      master    90496   tip    90496
+   fnbyte-noeffect              master    38036   tip    50628   (moved — expected where this lane converts a differ)
+   fnbyte-no-effect             absent at BOTH ends (no such key in this build)
+== w-inread (.in reader, #996-#1005)
+   in-                          master  8766355   tip  8766355
+   gl-                          absent at BOTH ends (no such key in this build)
+   emitpred-                    absent at BOTH ends (no such key in this build)
+   inread-                      absent at BOTH ends (no such key in this build)
+== w-relo (relocation-target grading, lands after this lane)
+   fnbyte-calltarget            master    85446   tip    85446
+   fnbyte-reloc                 master    47206   tip    47206
+
+FAMILIES THAT VANISHED: 0

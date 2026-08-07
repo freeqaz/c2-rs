@@ -1,0 +1,53 @@
+== H-wide-n5p4-ar   callee LD1   caller formals 5   mode arith   HIT
+   callee g   80630004  4e800020
+        80630004  lwz 3, 4(3)
+        4e800020  blr
+   RULE BIND  81670004  386bfffc  4e800020
+        81670004  lwz 11, 4(7)
+        386bfffc  addi 3, 11, -4
+        4e800020  blr
+   c2         81670004  386bfffc  4e800020
+        81670004  lwz 11, 4(7)
+        386bfffc  addi 3, 11, -4
+        4e800020  blr
+
+== H-temp-n3   callee LD2   caller formals 3   mode arith   HIT
+   callee g   81630000  806b0004  4e800020
+        81630000  lwz 11, 0(3)
+        806b0004  lwz 3, 4(11)
+        4e800020  blr
+   RULE BIND  81650000  816b0004  386bfffc  4e800020
+        81650000  lwz 11, 0(5)
+        816b0004  lwz 11, 4(11)
+        386bfffc  addi 3, 11, -4
+        4e800020  blr
+   c2         81650000  816b0004  386bfffc  4e800020
+        81650000  lwz 11, 0(5)
+        816b0004  lwz 11, 4(11)
+        386bfffc  addi 3, 11, -4
+        4e800020  blr
+
+== H-store-20   callee STORE2   caller formals 3   mode void   HIT
+   callee g   90830008  4e800020
+        90830008  stw 4, 8(3)
+        4e800020  blr
+   RULE BIND  90650008  4e800020
+        90650008  stw 3, 8(5)
+        4e800020  blr
+   c2         90650008  4e800020
+        90650008  stw 3, 8(5)
+        4e800020  blr
+
+== H-spell-shl   callee SHL   caller formals 2   mode arith   HIT
+   callee g   54631838  4e800020
+        54631838  slwi 3, 3, 3
+        4e800020  blr
+   RULE BIND  548b1838  386b0004  4e800020
+        548b1838  slwi 11, 4, 3
+        386b0004  addi 3, 11, 4
+        4e800020  blr
+   c2         548b1838  386b0004  4e800020
+        548b1838  slwi 11, 4, 3
+        386b0004  addi 3, 11, 4
+        4e800020  blr
+

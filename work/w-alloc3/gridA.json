@@ -1,0 +1,618 @@
+[
+ {
+  "axis": "A-ret",
+  "beta": [
+   0
+  ],
+  "callee": "LD1",
+  "domain": "in",
+  "gret": "int*",
+  "k_scaled": 0,
+  "mode": "ret",
+  "n_caller_formals": 1,
+  "name": "A-ret-n1p0",
+  "path": "work/w-alloc3/gridA/A-ret-n1p0/A-ret-n1p0.cpp",
+  "sha256": "d989b9dc281a44711b4ad9d619d07d2a1875b542f8260ca2d2ee0d5d7cffde0c",
+  "src": "// w-alloc3 cell A-ret-n1p0 \u2014 axis A-ret\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint* g(V* v) { return v->b; }\nint* f(V* x0) { return g(x0); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-arith",
+  "beta": [
+   0
+  ],
+  "callee": "LD1",
+  "domain": "in",
+  "gret": "int*",
+  "k_scaled": -4,
+  "mode": "arith",
+  "n_caller_formals": 1,
+  "name": "A-arith-n1p0",
+  "path": "work/w-alloc3/gridA/A-arith-n1p0/A-arith-n1p0.cpp",
+  "sha256": "e168d44c2d3051478ae0d67fc2f6ec34feefc86b64c7c9ecd0450d6ccadc5379",
+  "src": "// w-alloc3 cell A-arith-n1p0 \u2014 axis A-arith\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint* g(V* v) { return v->b; }\nint* f(V* x0) { return g(x0) - 1; }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-ret",
+  "beta": [
+   0
+  ],
+  "callee": "LD1",
+  "domain": "in",
+  "gret": "int*",
+  "k_scaled": 0,
+  "mode": "ret",
+  "n_caller_formals": 2,
+  "name": "A-ret-n2p0",
+  "path": "work/w-alloc3/gridA/A-ret-n2p0/A-ret-n2p0.cpp",
+  "sha256": "a6019764e5883eab8bd9263f494bdae15f2e542fca51a7965fc833b9bdeb3e36",
+  "src": "// w-alloc3 cell A-ret-n2p0 \u2014 axis A-ret\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint* g(V* v) { return v->b; }\nint* f(V* x0, int x1) { return g(x0); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-arith",
+  "beta": [
+   0
+  ],
+  "callee": "LD1",
+  "domain": "in",
+  "gret": "int*",
+  "k_scaled": -4,
+  "mode": "arith",
+  "n_caller_formals": 2,
+  "name": "A-arith-n2p0",
+  "path": "work/w-alloc3/gridA/A-arith-n2p0/A-arith-n2p0.cpp",
+  "sha256": "209629fa60ebd996b9f65265375ec98e6a646fd80b09fcf83e64d31243577f14",
+  "src": "// w-alloc3 cell A-arith-n2p0 \u2014 axis A-arith\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint* g(V* v) { return v->b; }\nint* f(V* x0, int x1) { return g(x0) - 1; }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-ret",
+  "beta": [
+   1
+  ],
+  "callee": "LD1",
+  "domain": "in",
+  "gret": "int*",
+  "k_scaled": 0,
+  "mode": "ret",
+  "n_caller_formals": 2,
+  "name": "A-ret-n2p1",
+  "path": "work/w-alloc3/gridA/A-ret-n2p1/A-ret-n2p1.cpp",
+  "sha256": "d334018b046d42f326370d2a7cd36e4a444b35f90dd99034f0f64b23676ded28",
+  "src": "// w-alloc3 cell A-ret-n2p1 \u2014 axis A-ret\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint* g(V* v) { return v->b; }\nint* f(int x0, V* x1) { return g(x1); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-arith",
+  "beta": [
+   1
+  ],
+  "callee": "LD1",
+  "domain": "in",
+  "gret": "int*",
+  "k_scaled": -4,
+  "mode": "arith",
+  "n_caller_formals": 2,
+  "name": "A-arith-n2p1",
+  "path": "work/w-alloc3/gridA/A-arith-n2p1/A-arith-n2p1.cpp",
+  "sha256": "712ffd682c5de9396599e77201f69f840ec2779378a8bea13184eb24586f762d",
+  "src": "// w-alloc3 cell A-arith-n2p1 \u2014 axis A-arith\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint* g(V* v) { return v->b; }\nint* f(int x0, V* x1) { return g(x1) - 1; }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-ret",
+  "beta": [
+   0
+  ],
+  "callee": "LD1",
+  "domain": "in",
+  "gret": "int*",
+  "k_scaled": 0,
+  "mode": "ret",
+  "n_caller_formals": 3,
+  "name": "A-ret-n3p0",
+  "path": "work/w-alloc3/gridA/A-ret-n3p0/A-ret-n3p0.cpp",
+  "sha256": "77f6ec3b34db5c794f43e58cf2a77ff0d8cb969364321264d64a800300376f76",
+  "src": "// w-alloc3 cell A-ret-n3p0 \u2014 axis A-ret\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint* g(V* v) { return v->b; }\nint* f(V* x0, int x1, int x2) { return g(x0); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-arith",
+  "beta": [
+   0
+  ],
+  "callee": "LD1",
+  "domain": "in",
+  "gret": "int*",
+  "k_scaled": -4,
+  "mode": "arith",
+  "n_caller_formals": 3,
+  "name": "A-arith-n3p0",
+  "path": "work/w-alloc3/gridA/A-arith-n3p0/A-arith-n3p0.cpp",
+  "sha256": "a1a88f3837a1a785cd203b8d9040dcb10439200c5a1c96273e7cb56031d0c2d0",
+  "src": "// w-alloc3 cell A-arith-n3p0 \u2014 axis A-arith\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint* g(V* v) { return v->b; }\nint* f(V* x0, int x1, int x2) { return g(x0) - 1; }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-ret",
+  "beta": [
+   1
+  ],
+  "callee": "LD1",
+  "domain": "in",
+  "gret": "int*",
+  "k_scaled": 0,
+  "mode": "ret",
+  "n_caller_formals": 3,
+  "name": "A-ret-n3p1",
+  "path": "work/w-alloc3/gridA/A-ret-n3p1/A-ret-n3p1.cpp",
+  "sha256": "416f9af00c147fa2450e86e2bdef9018a540ceff29118acff9da37b026bdb424",
+  "src": "// w-alloc3 cell A-ret-n3p1 \u2014 axis A-ret\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint* g(V* v) { return v->b; }\nint* f(int x0, V* x1, int x2) { return g(x1); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-arith",
+  "beta": [
+   1
+  ],
+  "callee": "LD1",
+  "domain": "in",
+  "gret": "int*",
+  "k_scaled": -4,
+  "mode": "arith",
+  "n_caller_formals": 3,
+  "name": "A-arith-n3p1",
+  "path": "work/w-alloc3/gridA/A-arith-n3p1/A-arith-n3p1.cpp",
+  "sha256": "34567eb6f8d447ce1e1b3ff045255d0fb52ef5dba0d030fa896370d0fe43b026",
+  "src": "// w-alloc3 cell A-arith-n3p1 \u2014 axis A-arith\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint* g(V* v) { return v->b; }\nint* f(int x0, V* x1, int x2) { return g(x1) - 1; }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-ret",
+  "beta": [
+   2
+  ],
+  "callee": "LD1",
+  "domain": "in",
+  "gret": "int*",
+  "k_scaled": 0,
+  "mode": "ret",
+  "n_caller_formals": 3,
+  "name": "A-ret-n3p2",
+  "path": "work/w-alloc3/gridA/A-ret-n3p2/A-ret-n3p2.cpp",
+  "sha256": "473841f88c7ac6d1220608d18634a361b8b28bb4a2c2b729c8d7513a1a1708fc",
+  "src": "// w-alloc3 cell A-ret-n3p2 \u2014 axis A-ret\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint* g(V* v) { return v->b; }\nint* f(int x0, int x1, V* x2) { return g(x2); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-arith",
+  "beta": [
+   2
+  ],
+  "callee": "LD1",
+  "domain": "in",
+  "gret": "int*",
+  "k_scaled": -4,
+  "mode": "arith",
+  "n_caller_formals": 3,
+  "name": "A-arith-n3p2",
+  "path": "work/w-alloc3/gridA/A-arith-n3p2/A-arith-n3p2.cpp",
+  "sha256": "1481e114bd17402f64330b2658c3a520ee9d6f2cbe004772f03faf089d55055a",
+  "src": "// w-alloc3 cell A-arith-n3p2 \u2014 axis A-arith\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint* g(V* v) { return v->b; }\nint* f(int x0, int x1, V* x2) { return g(x2) - 1; }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-ret",
+  "beta": [
+   0
+  ],
+  "callee": "LD1",
+  "domain": "in",
+  "gret": "int*",
+  "k_scaled": 0,
+  "mode": "ret",
+  "n_caller_formals": 4,
+  "name": "A-ret-n4p0",
+  "path": "work/w-alloc3/gridA/A-ret-n4p0/A-ret-n4p0.cpp",
+  "sha256": "7219981104fe2dfbd11d6d2f58b001f05e9814d7900c6f8b10e859e5fefc599b",
+  "src": "// w-alloc3 cell A-ret-n4p0 \u2014 axis A-ret\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint* g(V* v) { return v->b; }\nint* f(V* x0, int x1, int x2, int x3) { return g(x0); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-arith",
+  "beta": [
+   0
+  ],
+  "callee": "LD1",
+  "domain": "in",
+  "gret": "int*",
+  "k_scaled": -4,
+  "mode": "arith",
+  "n_caller_formals": 4,
+  "name": "A-arith-n4p0",
+  "path": "work/w-alloc3/gridA/A-arith-n4p0/A-arith-n4p0.cpp",
+  "sha256": "4d1bfc53ad5be40afc48a3432f4fd10c3f9e84165b56aa456230135337ce25d6",
+  "src": "// w-alloc3 cell A-arith-n4p0 \u2014 axis A-arith\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint* g(V* v) { return v->b; }\nint* f(V* x0, int x1, int x2, int x3) { return g(x0) - 1; }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-ret",
+  "beta": [
+   1
+  ],
+  "callee": "LD1",
+  "domain": "in",
+  "gret": "int*",
+  "k_scaled": 0,
+  "mode": "ret",
+  "n_caller_formals": 4,
+  "name": "A-ret-n4p1",
+  "path": "work/w-alloc3/gridA/A-ret-n4p1/A-ret-n4p1.cpp",
+  "sha256": "ed69ba50305da2b752757459952bf1966ec7a1e8762aa239dc2b35581dc5cab9",
+  "src": "// w-alloc3 cell A-ret-n4p1 \u2014 axis A-ret\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint* g(V* v) { return v->b; }\nint* f(int x0, V* x1, int x2, int x3) { return g(x1); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-arith",
+  "beta": [
+   1
+  ],
+  "callee": "LD1",
+  "domain": "in",
+  "gret": "int*",
+  "k_scaled": -4,
+  "mode": "arith",
+  "n_caller_formals": 4,
+  "name": "A-arith-n4p1",
+  "path": "work/w-alloc3/gridA/A-arith-n4p1/A-arith-n4p1.cpp",
+  "sha256": "fa546bf5ee93b025f6b25c90c13207bb373c5dfe4f5bf3d98578229330074bb9",
+  "src": "// w-alloc3 cell A-arith-n4p1 \u2014 axis A-arith\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint* g(V* v) { return v->b; }\nint* f(int x0, V* x1, int x2, int x3) { return g(x1) - 1; }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-ret",
+  "beta": [
+   2
+  ],
+  "callee": "LD1",
+  "domain": "in",
+  "gret": "int*",
+  "k_scaled": 0,
+  "mode": "ret",
+  "n_caller_formals": 4,
+  "name": "A-ret-n4p2",
+  "path": "work/w-alloc3/gridA/A-ret-n4p2/A-ret-n4p2.cpp",
+  "sha256": "5d9b5510cb1c7370b7a7d4d53c2ebb0c68543d2830d7864ad136933b1509b52e",
+  "src": "// w-alloc3 cell A-ret-n4p2 \u2014 axis A-ret\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint* g(V* v) { return v->b; }\nint* f(int x0, int x1, V* x2, int x3) { return g(x2); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-arith",
+  "beta": [
+   2
+  ],
+  "callee": "LD1",
+  "domain": "in",
+  "gret": "int*",
+  "k_scaled": -4,
+  "mode": "arith",
+  "n_caller_formals": 4,
+  "name": "A-arith-n4p2",
+  "path": "work/w-alloc3/gridA/A-arith-n4p2/A-arith-n4p2.cpp",
+  "sha256": "42babd062485d7b6d9ea122f655ee06c80a16a9f449ae48d242151b8930284e5",
+  "src": "// w-alloc3 cell A-arith-n4p2 \u2014 axis A-arith\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint* g(V* v) { return v->b; }\nint* f(int x0, int x1, V* x2, int x3) { return g(x2) - 1; }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-ret",
+  "beta": [
+   3
+  ],
+  "callee": "LD1",
+  "domain": "in",
+  "gret": "int*",
+  "k_scaled": 0,
+  "mode": "ret",
+  "n_caller_formals": 4,
+  "name": "A-ret-n4p3",
+  "path": "work/w-alloc3/gridA/A-ret-n4p3/A-ret-n4p3.cpp",
+  "sha256": "a685d3466c5365754da9d465baf72e71072cd41fcf657e50773549037f07484e",
+  "src": "// w-alloc3 cell A-ret-n4p3 \u2014 axis A-ret\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint* g(V* v) { return v->b; }\nint* f(int x0, int x1, int x2, V* x3) { return g(x3); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-arith",
+  "beta": [
+   3
+  ],
+  "callee": "LD1",
+  "domain": "in",
+  "gret": "int*",
+  "k_scaled": -4,
+  "mode": "arith",
+  "n_caller_formals": 4,
+  "name": "A-arith-n4p3",
+  "path": "work/w-alloc3/gridA/A-arith-n4p3/A-arith-n4p3.cpp",
+  "sha256": "bd237ad70aa5068a4e54639cd38722a6fbb3fe0a2fd7b909d20df25f12acf419",
+  "src": "// w-alloc3 cell A-arith-n4p3 \u2014 axis A-arith\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint* g(V* v) { return v->b; }\nint* f(int x0, int x1, int x2, V* x3) { return g(x3) - 1; }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-void",
+  "beta": [
+   0
+  ],
+  "callee": "VOID1",
+  "domain": "in",
+  "gret": "void",
+  "k_scaled": 0,
+  "mode": "void",
+  "n_caller_formals": 1,
+  "name": "A-void-n1p0",
+  "path": "work/w-alloc3/gridA/A-void-n1p0/A-void-n1p0.cpp",
+  "sha256": "31f7fb165331a616ac8137829cff9ab3c73303b025b74c6dfb27dfa46da3311d",
+  "src": "// w-alloc3 cell A-void-n1p0 \u2014 axis A-void\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nvoid g(V* v) { v->c = 0; }\nvoid f(V* x0) { g(x0); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-void",
+  "beta": [
+   0
+  ],
+  "callee": "VOID1",
+  "domain": "in",
+  "gret": "void",
+  "k_scaled": 0,
+  "mode": "void",
+  "n_caller_formals": 2,
+  "name": "A-void-n2p0",
+  "path": "work/w-alloc3/gridA/A-void-n2p0/A-void-n2p0.cpp",
+  "sha256": "905a631585deae64baf5f3e4a61861da6df939818077790ee695a9508e1f2610",
+  "src": "// w-alloc3 cell A-void-n2p0 \u2014 axis A-void\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nvoid g(V* v) { v->c = 0; }\nvoid f(V* x0, int x1) { g(x0); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-void",
+  "beta": [
+   1
+  ],
+  "callee": "VOID1",
+  "domain": "in",
+  "gret": "void",
+  "k_scaled": 0,
+  "mode": "void",
+  "n_caller_formals": 2,
+  "name": "A-void-n2p1",
+  "path": "work/w-alloc3/gridA/A-void-n2p1/A-void-n2p1.cpp",
+  "sha256": "ef21724f65190f8fed0888c9ebb9a95e32d23e086d1ef5d4fd8d5636c5771b9b",
+  "src": "// w-alloc3 cell A-void-n2p1 \u2014 axis A-void\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nvoid g(V* v) { v->c = 0; }\nvoid f(int x0, V* x1) { g(x1); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-void",
+  "beta": [
+   0
+  ],
+  "callee": "VOID1",
+  "domain": "in",
+  "gret": "void",
+  "k_scaled": 0,
+  "mode": "void",
+  "n_caller_formals": 3,
+  "name": "A-void-n3p0",
+  "path": "work/w-alloc3/gridA/A-void-n3p0/A-void-n3p0.cpp",
+  "sha256": "03a8f64e453ec75342b40552793ce4ee333686286be1a6ae9493ca19254d5b15",
+  "src": "// w-alloc3 cell A-void-n3p0 \u2014 axis A-void\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nvoid g(V* v) { v->c = 0; }\nvoid f(V* x0, int x1, int x2) { g(x0); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-void",
+  "beta": [
+   1
+  ],
+  "callee": "VOID1",
+  "domain": "in",
+  "gret": "void",
+  "k_scaled": 0,
+  "mode": "void",
+  "n_caller_formals": 3,
+  "name": "A-void-n3p1",
+  "path": "work/w-alloc3/gridA/A-void-n3p1/A-void-n3p1.cpp",
+  "sha256": "5a208a39716316b056084475f78079fb8eddb8b7953e7aac82c3ffdc3e2205ba",
+  "src": "// w-alloc3 cell A-void-n3p1 \u2014 axis A-void\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nvoid g(V* v) { v->c = 0; }\nvoid f(int x0, V* x1, int x2) { g(x1); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-void",
+  "beta": [
+   2
+  ],
+  "callee": "VOID1",
+  "domain": "in",
+  "gret": "void",
+  "k_scaled": 0,
+  "mode": "void",
+  "n_caller_formals": 3,
+  "name": "A-void-n3p2",
+  "path": "work/w-alloc3/gridA/A-void-n3p2/A-void-n3p2.cpp",
+  "sha256": "f15f8e203f8fb7db0f77bd3510d7332ce5efda152a046688625cc03307093fdd",
+  "src": "// w-alloc3 cell A-void-n3p2 \u2014 axis A-void\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nvoid g(V* v) { v->c = 0; }\nvoid f(int x0, int x1, V* x2) { g(x2); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-two",
+  "beta": [
+   0,
+   1
+  ],
+  "callee": "SUM",
+  "domain": "in",
+  "gret": "int",
+  "k_scaled": 0,
+  "mode": "ret",
+  "n_caller_formals": 2,
+  "name": "A-two-SUM-01",
+  "path": "work/w-alloc3/gridA/A-two-SUM-01/A-two-SUM-01.cpp",
+  "sha256": "4b68be2f88e976a25bef0357b72c468f68b47e06b7482453b0d59d48a6d19937",
+  "src": "// w-alloc3 cell A-two-SUM-01 \u2014 axis A-two\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint g(int a, int b) { return a + b; }\nint f(int x0, int x1) { return g(x0, x1); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-two",
+  "beta": [
+   0,
+   1
+  ],
+  "callee": "SUM",
+  "domain": "in",
+  "gret": "int",
+  "k_scaled": 7,
+  "mode": "arith",
+  "n_caller_formals": 2,
+  "name": "A-twoa-SUM-01",
+  "path": "work/w-alloc3/gridA/A-twoa-SUM-01/A-twoa-SUM-01.cpp",
+  "sha256": "6ca856326d3d3ef5842f0955175bdb330cfb7410b3423ed5bce992ce76657f05",
+  "src": "// w-alloc3 cell A-twoa-SUM-01 \u2014 axis A-two\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint g(int a, int b) { return a + b; }\nint f(int x0, int x1) { return g(x0, x1) + 7; }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-two",
+  "beta": [
+   1,
+   0
+  ],
+  "callee": "SUM",
+  "domain": "in",
+  "gret": "int",
+  "k_scaled": 0,
+  "mode": "ret",
+  "n_caller_formals": 2,
+  "name": "A-two-SUM-10",
+  "path": "work/w-alloc3/gridA/A-two-SUM-10/A-two-SUM-10.cpp",
+  "sha256": "8a9dc62c6bab06b4242605c23efb5401e9bfb054a91f750ce3a6f1db03cb83bf",
+  "src": "// w-alloc3 cell A-two-SUM-10 \u2014 axis A-two\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint g(int a, int b) { return a + b; }\nint f(int x0, int x1) { return g(x1, x0); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-two",
+  "beta": [
+   1,
+   0
+  ],
+  "callee": "SUM",
+  "domain": "in",
+  "gret": "int",
+  "k_scaled": 7,
+  "mode": "arith",
+  "n_caller_formals": 2,
+  "name": "A-twoa-SUM-10",
+  "path": "work/w-alloc3/gridA/A-twoa-SUM-10/A-twoa-SUM-10.cpp",
+  "sha256": "be817e9c35d16e050df74a48002a97da7fc1c481b2c7632978d008ac6e86b00d",
+  "src": "// w-alloc3 cell A-twoa-SUM-10 \u2014 axis A-two\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint g(int a, int b) { return a + b; }\nint f(int x0, int x1) { return g(x1, x0) + 7; }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-two",
+  "beta": [
+   0,
+   1
+  ],
+  "callee": "SUB",
+  "domain": "in",
+  "gret": "int",
+  "k_scaled": 0,
+  "mode": "ret",
+  "n_caller_formals": 2,
+  "name": "A-two-SUB-01",
+  "path": "work/w-alloc3/gridA/A-two-SUB-01/A-two-SUB-01.cpp",
+  "sha256": "27a6aae6eb894a965696ef20c80ae605e85216444f6090330346f4a15b2f9d51",
+  "src": "// w-alloc3 cell A-two-SUB-01 \u2014 axis A-two\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint g(int a, int b) { return a - b; }\nint f(int x0, int x1) { return g(x0, x1); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-two",
+  "beta": [
+   0,
+   1
+  ],
+  "callee": "SUB",
+  "domain": "in",
+  "gret": "int",
+  "k_scaled": 7,
+  "mode": "arith",
+  "n_caller_formals": 2,
+  "name": "A-twoa-SUB-01",
+  "path": "work/w-alloc3/gridA/A-twoa-SUB-01/A-twoa-SUB-01.cpp",
+  "sha256": "a9b8eb082e64964d34dc83801ff9f5e0261ae166b7ff14781abca16a018e51aa",
+  "src": "// w-alloc3 cell A-twoa-SUB-01 \u2014 axis A-two\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint g(int a, int b) { return a - b; }\nint f(int x0, int x1) { return g(x0, x1) + 7; }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-two",
+  "beta": [
+   1,
+   0
+  ],
+  "callee": "SUB",
+  "domain": "in",
+  "gret": "int",
+  "k_scaled": 0,
+  "mode": "ret",
+  "n_caller_formals": 2,
+  "name": "A-two-SUB-10",
+  "path": "work/w-alloc3/gridA/A-two-SUB-10/A-two-SUB-10.cpp",
+  "sha256": "40097227a9962e11a42880178b86360b8abf2978ad02e9ec6ed5fb603232ff18",
+  "src": "// w-alloc3 cell A-two-SUB-10 \u2014 axis A-two\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint g(int a, int b) { return a - b; }\nint f(int x0, int x1) { return g(x1, x0); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-two",
+  "beta": [
+   1,
+   0
+  ],
+  "callee": "SUB",
+  "domain": "in",
+  "gret": "int",
+  "k_scaled": 7,
+  "mode": "arith",
+  "n_caller_formals": 2,
+  "name": "A-twoa-SUB-10",
+  "path": "work/w-alloc3/gridA/A-twoa-SUB-10/A-twoa-SUB-10.cpp",
+  "sha256": "d6f1cec80fba61a3406813b630f4337e8b0aa36dc4f54b1137aa9b3d98885869",
+  "src": "// w-alloc3 cell A-twoa-SUB-10 \u2014 axis A-two\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint g(int a, int b) { return a - b; }\nint f(int x0, int x1) { return g(x1, x0) + 7; }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-len",
+  "beta": [
+   0
+  ],
+  "callee": "ADD1",
+  "domain": "in",
+  "gret": "int",
+  "k_scaled": 0,
+  "mode": "ret",
+  "n_caller_formals": 1,
+  "name": "A-ret0-add1",
+  "path": "work/w-alloc3/gridA/A-ret0-add1/A-ret0-add1.cpp",
+  "sha256": "c50933203fa0a456f2aee667a566ef0a08fc181d162ed81d3515d9a5c1d4d460",
+  "src": "// w-alloc3 cell A-ret0-add1 \u2014 axis A-len\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint g(int a) { return a + 1; }\nint f(int x0) { return g(x0); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-len",
+  "beta": [
+   0
+  ],
+  "callee": "ADD1",
+  "domain": "in",
+  "gret": "int",
+  "k_scaled": 5,
+  "mode": "arith",
+  "n_caller_formals": 1,
+  "name": "A-arith-add1",
+  "path": "work/w-alloc3/gridA/A-arith-add1/A-arith-add1.cpp",
+  "sha256": "c3fa29ec33a5c7042d3d76f0c3ceb4569a6fc427129ce4ef48b15b5dd831f20a",
+  "src": "// w-alloc3 cell A-arith-add1 \u2014 axis A-len\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint g(int a) { return a + 1; }\nint f(int x0) { return g(x0) + 5; }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-len",
+  "beta": [
+   1
+  ],
+  "callee": "LDc",
+  "domain": "in",
+  "gret": "int",
+  "k_scaled": 0,
+  "mode": "ret",
+  "n_caller_formals": 2,
+  "name": "A-ret-ldc",
+  "path": "work/w-alloc3/gridA/A-ret-ldc/A-ret-ldc.cpp",
+  "sha256": "b2109974438fac0860e7ba41bb4d7f1470398faf6e25de159c1b36babe100f25",
+  "src": "// w-alloc3 cell A-ret-ldc \u2014 axis A-len\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint g(V* v) { return v->c; }\nint f(int x0, V* x1) { return g(x1); }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ },
+ {
+  "axis": "A-len",
+  "beta": [
+   1
+  ],
+  "callee": "LDc",
+  "domain": "in",
+  "gret": "int",
+  "k_scaled": 3,
+  "mode": "arith",
+  "n_caller_formals": 2,
+  "name": "A-arith-ldc",
+  "path": "work/w-alloc3/gridA/A-arith-ldc/A-arith-ldc.cpp",
+  "sha256": "67b64cc7474c3844bc6a0eef2f86c7bf25c4f8194671267afdbb526be3764c37",
+  "src": "// w-alloc3 cell A-arith-ldc \u2014 axis A-len\nstruct V { int* a; int* b; int c; };\nstruct W { V* p; int q; };\nint g(V* v) { return v->c; }\nint f(int x0, V* x1) { return g(x1) + 3; }\n\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n"
+ }
+]

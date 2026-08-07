@@ -1,0 +1,104 @@
+=== GRID-A (fit) ===
+  cells 38 · in-domain graded 33 · HIT 33 · **WRONG 0** · out of domain 5
+
+  P5 — BODY-LENGTH STRATIFICATION (the /QXSTALLS control)
+  bucket                    HIT   MISS  o-o-d     rate
+  callee body 1 w            27      0      5    1.000
+  callee body 2 w             6      0      0    1.000
+
+  by axis
+  axis                      HIT   MISS  o-o-d     rate
+  A-arith                    10      0      0    1.000
+  A-len                       3      0      1    1.000
+  A-ret                      10      0      0    1.000
+  A-two                       4      0      4    1.000
+  A-void                      6      0      0    1.000
+
+  by mode
+  mode                      HIT   MISS  o-o-d     rate
+  arith                      13      0      3    1.000
+  ret                        14      0      2    1.000
+  void                        6      0      0    1.000
+
+  refusal clauses
+    D10-commutative                        4
+    D11-const-fold                         1
+
+=== GRID-H (HOLDOUT) ===
+  cells 46 · in-domain graded 38 · HIT 33 · **WRONG 5** · out of domain 8
+
+  P5 — BODY-LENGTH STRATIFICATION (the /QXSTALLS control)
+  bucket                    HIT   MISS  o-o-d     rate
+  callee body 1 w            21      1      8    0.955
+  callee body 2 w            12      4      0    0.750
+
+  by axis
+  axis                      HIT   MISS  o-o-d     rate
+  H-idx                       2      0      0    1.000
+  H-noarg                     0      0      2        —
+  H-out                       0      0      4        —
+  H-perm                      3      3      0    0.500
+  H-perm4                     1      1      0    0.500
+  H-spell                     3      1      2    0.750
+  H-store                     2      0      0    1.000
+  H-temp                      4      0      0    1.000
+  H-wide                     16      0      0    1.000
+  H-zero-off                  2      0      0    1.000
+
+  by mode
+  mode                      HIT   MISS  o-o-d     rate
+  arith                      16      1      3    0.941
+  ret                        15      4      5    0.789
+  void                        2      0      0    1.000
+
+  refusal clauses
+    D10-commutative (frozen)               2
+    D4-temp-collides-r3 (frozen)           2
+    D7-two-call-sites (registered)         2
+    D2-computed-actual (registered)        2
+
+=== UNION ===
+  cells 84 · in-domain graded 71 · HIT 66 · **WRONG 5** · out of domain 13
+
+  P5 — BODY-LENGTH STRATIFICATION (the /QXSTALLS control)
+  bucket                    HIT   MISS  o-o-d     rate
+  callee body 1 w            48      1     13    0.980
+  callee body 2 w            18      4      0    0.818
+
+  by axis
+  axis                      HIT   MISS  o-o-d     rate
+  A-arith                    10      0      0    1.000
+  A-len                       3      0      1    1.000
+  A-ret                      10      0      0    1.000
+  A-two                       4      0      4    1.000
+  A-void                      6      0      0    1.000
+  H-idx                       2      0      0    1.000
+  H-noarg                     0      0      2        —
+  H-out                       0      0      4        —
+  H-perm                      3      3      0    0.500
+  H-perm4                     1      1      0    0.500
+  H-spell                     3      1      2    0.750
+  H-store                     2      0      0    1.000
+  H-temp                      4      0      0    1.000
+  H-wide                     16      0      0    1.000
+  H-zero-off                  2      0      0    1.000
+
+  by mode
+  mode                      HIT   MISS  o-o-d     rate
+  arith                      29      1      6    0.967
+  ret                        29      4      7    0.879
+  void                        8      0      0    1.000
+
+  refusal clauses
+    D10-commutative                        4
+    D10-commutative (frozen)               2
+    D4-temp-collides-r3 (frozen)           2
+    D7-two-call-sites (registered)         2
+    D2-computed-actual (registered)        2
+    D11-const-fold                         1
+
+=== THE INCUMBENT, on the same cells ===
+  today's shipped answer is a REFUSAL: right 0 · **wrong 0** · refused 71 of 71
+  RULE BIND:                          right 66 · **wrong 5** · refused 0 of 71
+
+  a refusal is never wrong, so the incumbent WINS on this population by 5.
