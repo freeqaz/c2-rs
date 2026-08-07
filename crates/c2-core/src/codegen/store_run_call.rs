@@ -109,6 +109,21 @@ use crate::BackendError;
 /// correctly is visible in `work/w-seam2/grid3/` and is deliberately not fitted:
 /// it would rest on the four cells that refuted the lane, which is how all six
 /// refuted allocation keys got written.
+///
+/// # This is the BACKSTOP; the gate itself is the reader's
+///
+/// `c2_il`'s `try_parse_store_run_call` applies the same predicate, so the
+/// census cannot count a body `PortC2` refuses — `census_gate.rs` is that
+/// invariant and it caught this exact over-claim when the refusal lived here
+/// alone. Kept here as well because a parser that widened past its witness must
+/// come out as a gap and not as bytes, and because the two locators state the
+/// same fact from the two sides that have to agree.
+///
+/// **It deliberately over-refuses one measured shape**: `work/w-seam2/grid3/p3`
+/// stores the live argument FIRST in source order, where the hoist is a no-op
+/// and the framed run is the leaf's. It is refused anyway — the gate is
+/// syntactic, and a gate that reasoned about whether the hoist would be visible
+/// is the model this refusal exists to avoid.
 pub const LIVE_ARG_STORED: &str =
     "a store run before a call that stores a formal the call keeps alive: the \
      run's order is NOT the leaf's there (board #866 is refuted in general), and \
