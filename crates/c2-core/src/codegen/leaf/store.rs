@@ -1583,4 +1583,177 @@ mod tests {
             "the run text is leaf-only by construction"
         );
     }
+
+    /// **BOARD #1199 — the bind carrier, in EMITTED BYTES, and the pair that
+    /// proves it did not collapse.**
+    ///
+    /// Every expected word below is transcribed from real `c2.dll`'s own obj at
+    /// the WORKLOAD's `/GR /O1 /Oi /EHsc` (board #1112) — `work/w-carrier/grid/`,
+    /// one directory per cell, manifest frozen before the first `cl.exe` — and
+    /// every one of those cells is `Port=Match` on the whole-obj differential,
+    /// which is the sole judge. This test is the second lock, so a future edit
+    /// cannot move a word and stay green without a toolchain.
+    ///
+    /// The load-bearing pair is `k_base1` against `k_base1_c`: the same body with
+    /// and without `BE& l = h->mListHead;`. Real `c2` emits **different** bodies
+    /// —
+    ///
+    /// ```text
+    ///   k_base1    li 11,2 ; stw 11,16(3) ; stw 4,8(3)   BIND: two symbols, the
+    ///                                                    pin holds source order
+    ///   k_base1_c  li 11,2 ; stw 4,8(3) ; stw 11,16(3)   DIRECT: one symbol, the
+    ///                                                    produced store leaves 0
+    /// ```
+    ///
+    /// — and the port emits both, byte for byte. A carrier that discharged the
+    /// binding into the store's displacement would emit the second where the
+    /// first belongs, which is board **#1128**/#232.
+    #[test]
+    fn the_bind_carrier_emits_both_spellings_and_they_stay_apart() {
+        let (h, p) = (0x0101u32, 0x0201u32);
+        let l = 0xFB09u32;
+        let bound = IlOp::BoundAddr { tok: l, base: h, off: 8 };
+        let mk = |ops: Vec<IlOp>| func_with(vec![h, p], ops);
+        let text = |ops: Vec<IlOp>| store_leaf_text(&mk(ops), OptMode::O1).unwrap().unwrap();
+
+        // `k_base1`: h->mSize = 2; BE& l = h->mListHead; l.mNext = p;
+        assert_eq!(
+            text(vec![
+                IlOp::Load(h),
+                IlOp::Lit(2),
+                IlOp::StoreInd { off: 16, width: 4 },
+                bound,
+                IlOp::Load(p),
+                IlOp::StoreInd { off: 0, width: 4 },
+            ]),
+            vec![
+                0x39, 0x60, 0x00, 0x02, // li  r11,2
+                0x91, 0x63, 0x00, 0x10, // stw r11,16(r3)
+                0x90, 0x83, 0x00, 0x08, // stw r4,8(r3)   <- base r3, displacement 8+0
+                0x4E, 0x80, 0x00, 0x20,
+            ],
+            "k_base1"
+        );
+        // `k_base1_c`, the DIRECT twin. One symbol, so the produced store may not
+        // hold store position 0 and it moves — a different body.
+        assert_eq!(
+            text(vec![
+                IlOp::Load(h),
+                IlOp::Lit(2),
+                IlOp::StoreInd { off: 16, width: 4 },
+                IlOp::Load(h),
+                IlOp::Load(p),
+                IlOp::StoreInd { off: 8, width: 4 },
+            ]),
+            vec![
+                0x39, 0x60, 0x00, 0x02, // li  r11,2
+                0x90, 0x83, 0x00, 0x08, // stw r4,8(r3)
+                0x91, 0x63, 0x00, 0x10, // stw r11,16(r3)
+                0x4E, 0x80, 0x00, 0x20,
+            ],
+            "k_base1_c — the two spellings MUST NOT collapse"
+        );
+
+        // `k_off24`: the same shape bound at +24. **The one site the sum is
+        // formed** — `24 + 0` and `24 + 4` — and the only thing that moves.
+        let far = IlOp::BoundAddr { tok: l, base: h, off: 24 };
+        assert_eq!(
+            text(vec![
+                IlOp::Load(h),
+                IlOp::Lit(2),
+                IlOp::StoreInd { off: 16, width: 4 },
+                far,
+                IlOp::Load(p),
+                IlOp::StoreInd { off: 0, width: 4 },
+                far,
+                IlOp::Load(p),
+                IlOp::StoreInd { off: 4, width: 4 },
+            ]),
+            vec![
+                0x39, 0x60, 0x00, 0x02, // li  r11,2
+                0x91, 0x63, 0x00, 0x10, // stw r11,16(r3)
+                0x90, 0x83, 0x00, 0x18, // stw r4,24(r3)
+                0x90, 0x83, 0x00, 0x1C, // stw r4,28(r3)
+                0x4E, 0x80, 0x00, 0x20,
+            ],
+            "k_off24"
+        );
+
+        // `k_gap3`: three stores on the OTHER symbol between the bind and its
+        // first use — the axis four earlier grids held fixed. The producer's
+        // store is hoisted past two unproduced ones and the bound store trails.
+        assert_eq!(
+            text(vec![
+                IlOp::Load(h),
+                IlOp::Lit(2),
+                IlOp::StoreInd { off: 16, width: 4 },
+                IlOp::Load(h),
+                IlOp::Load(h),
+                IlOp::StoreInd { off: 0, width: 4 },
+                IlOp::Load(h),
+                IlOp::Load(h),
+                IlOp::StoreInd { off: 4, width: 4 },
+                bound,
+                IlOp::Load(p),
+                IlOp::StoreInd { off: 0, width: 4 },
+            ]),
+            vec![
+                0x39, 0x60, 0x00, 0x02, // li  r11,2
+                0x90, 0x63, 0x00, 0x00, // stw r3,0(r3)
+                0x90, 0x63, 0x00, 0x04, // stw r3,4(r3)
+                0x91, 0x63, 0x00, 0x10, // stw r11,16(r3)
+                0x90, 0x83, 0x00, 0x08, // stw r4,8(r3)
+                0x4E, 0x80, 0x00, 0x20,
+            ],
+            "k_gap3"
+        );
+    }
+
+    /// **The backstop for the frontier's last refusal**, and the counterexample
+    /// beside it.
+    ///
+    /// A bound reference in the stored-VALUE position is an interior address —
+    /// one `addi`, a **register-derived** producer. `c2_il`'s `bind_run_ops`
+    /// refuses it in the reader under two keys (so the mixed half stays
+    /// separately sizeable), and this is the second lock: a parser that widened
+    /// past its witness comes out as a gap, not as bytes.
+    ///
+    /// `src/xdk/nuispeech/xboxheap.cpp` is that shape — an interior address at 2
+    /// uses beside a literal at 1 — and it is refused **here** by
+    /// [`alloc::allocate`]'s mixed-kind rule if it ever reached it, which
+    /// `order::tests::xboxheap_allocation_is_still_refused_and_the_answer_it_owes_is_recorded`
+    /// already pins. Boards #836 (wrong on 0 of 81), #868 (12 of 36 on the narrow
+    /// lift) and #1134 (clause 1 refuted on this very mix).
+    #[test]
+    fn a_bound_reference_in_the_value_position_is_refused_by_name() {
+        let (h, p) = (0x0101u32, 0x0201u32);
+        let l = 0xFB09u32;
+        let bound = IlOp::BoundAddr { tok: l, base: h, off: 8 };
+        let f = func_with(
+            vec![h, p],
+            vec![
+                bound,
+                bound,
+                IlOp::StoreInd { off: 0, width: 4 },
+                IlOp::Load(h),
+                IlOp::Lit(0),
+                IlOp::StoreInd { off: 20, width: 4 },
+            ],
+        );
+        let e = store_leaf_text(&f, OptMode::O1)
+            .expect("it is a store stream")
+            .expect_err("and it must be a REFUSAL, never bytes");
+        assert!(
+            format!("{e:?}").contains("bound reference"),
+            "the refusal must name the construct: {e:?}"
+        );
+        // …and the run that has the address producer ALONE is refused too — its
+        // direct twin's obj is byte-identical and the direct twin is refused, so
+        // emitting one and not the other is a divergence with no grid behind it.
+        let f = func_with(
+            vec![h, p],
+            vec![bound, bound, IlOp::StoreInd { off: 0, width: 4 }],
+        );
+        assert!(store_leaf_text(&f, OptMode::O1).unwrap().is_err());
+    }
 }

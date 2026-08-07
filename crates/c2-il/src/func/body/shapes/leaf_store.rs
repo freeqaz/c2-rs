@@ -2747,4 +2747,179 @@ mod tests {
         );
     }
 
+    // ---- BOARD #1199 — THE BIND CARRIER ---------------------------------
+
+    /// **The discharge keeps the SYMBOL and does not fold the OFFSET**, which is
+    /// the entire content of the carrier.
+    ///
+    /// `bind_run_ops` turns `Load(<bound local>)` in a store's base position into
+    /// [`IlOp::BoundAddr`] carrying **three** things: the local's own token (the
+    /// base symbol, board #1128 — what keeps `xboxheap`'s two spellings apart),
+    /// the formal (the base register) and the bound object's offset. The store's
+    /// own displacement is **untouched**: the sum is formed once, in
+    /// `c2_core::codegen::leaf::store::parse_simple_gpr_run`, so the binding
+    /// cannot be discharged twice.
+    ///
+    /// The rejected alternative is one line away and is asserted against here:
+    /// rewriting to `Load(<the formal>)` with `off + <store off>` folded in makes
+    /// this op stream **identical** to the direct spelling's, and the two objs
+    /// are four words apart (`work/w-carrier/grid/k_target` against
+    /// `k_target_direct`). That is board #232's direction.
+    #[test]
+    fn the_carrier_keeps_the_bound_token_and_leaves_the_offset_undischarged() {
+        let l = 0xFB09u32;
+        let this = 0xF809u32;
+        let binds = [RefBind { tok: l, base_tok: this, off: 8 }];
+        // `void fn(H* h, BE* p) { BE& l = h->mListHead; l.mNext = p; l.mPrev = p; }`
+        let p = 0x0202u32;
+        let ops = vec![
+            IlOp::Load(l),
+            IlOp::Load(p),
+            IlOp::StoreInd { off: 0, width: 4 },
+            IlOp::Load(l),
+            IlOp::Load(p),
+            IlOp::StoreInd { off: 4, width: 4 },
+        ];
+        let out = bind_run_ops(&[this, p], &binds, &ops, 0).expect("in class");
+        assert_eq!(
+            out,
+            vec![
+                IlOp::BoundAddr { tok: l, base: this, off: 8 },
+                IlOp::Load(p),
+                // NOT 8 — the offset inside the bound object, unchanged.
+                IlOp::StoreInd { off: 0, width: 4 },
+                IlOp::BoundAddr { tok: l, base: this, off: 8 },
+                IlOp::Load(p),
+                IlOp::StoreInd { off: 4, width: 4 },
+            ]
+        );
+        // …and the DIRECT spelling of the same body is a different op stream,
+        // which is what the carrier exists to preserve. Real `c2` emits
+        // `li 11,2 ; stw 11,16(3) ; stw 4,8(3)` for one and
+        // `li 11,2 ; stw 4,8(3) ; stw 11,16(3)` for the other
+        // (`work/w-carrier/twins.out`, `k_base1` against `k_base1_c`).
+        let direct = vec![
+            IlOp::Load(this),
+            IlOp::Load(p),
+            IlOp::StoreInd { off: 8, width: 4 },
+            IlOp::Load(this),
+            IlOp::Load(p),
+            IlOp::StoreInd { off: 12, width: 4 },
+        ];
+        assert_ne!(out, direct, "the two spellings must not collapse");
+        // A run with no bind at all passes through unchanged — every
+        // pre-existing shape is untouched by construction, and here by test.
+        assert_eq!(bind_run_ops(&[this, p], &[], &direct, 0).unwrap(), direct);
+    }
+
+    /// **EVERY GATE FIRES, and the count is printed.** Board **#1175**: a gate
+    /// that refuses nothing is indistinguishable from a gate that is not there,
+    /// and `w-seam2`'s live-argument gate keyed on the wrong predicate, matched
+    /// nothing, and was found only by a cross-check comparing two independent
+    /// answers.
+    ///
+    /// Four of the six are also graded against real `c2.dll` on frozen cells —
+    /// `k_target`/`k_callmix`/`k_mix_c*`/`k_val1` (mixed kind), `k_both1`/
+    /// `k_both2` (address producer), `k_2const`/`k_3const` (multi producer),
+    /// `g_cross3` (symbol crossings). **Two are not**: the pool clause and the
+    /// live-argument-base clause fire on **zero** graded cells, because every
+    /// source spelling this lane found for them refuses one layer earlier
+    /// (`work/w-carrier/grid2/g_pool`, `grid3/h_livearg`, both `expr-op-0x27`,
+    /// and `h_livearg`'s own CONTROL refuses too, so the cell isolates nothing).
+    /// They are exercised here and nowhere else, and
+    /// `docs/rungs/2026-08-08-w-carrier.md` says so rather than counting them as
+    /// measured.
+    #[test]
+    fn every_bind_gate_fires_on_a_named_input() {
+        use crate::func::body::{
+            STORE_RUN_BIND_ADDR_PRODUCER, STORE_RUN_BIND_GROUP_SHAPE,
+            STORE_RUN_BIND_LIVE_ARG_BASE, STORE_RUN_BIND_MIXED_KIND,
+            STORE_RUN_BIND_MULTI_PRODUCER, STORE_RUN_BIND_SYMBOL_CROSSINGS,
+        };
+        let (this, s, p, l) = (0x0101u32, 0x0201u32, 0x0301u32, 0xFB09u32);
+        let bind = |base| RefBind { tok: l, base_tok: base, off: 8 };
+        let store = |b: IlOp, v: IlOp, off| vec![b, v, IlOp::StoreInd { off, width: 4 }];
+        let mut fired: Vec<&'static str> = Vec::new();
+        let mut check = |want: &'static str, params: &[u32], binds: &[RefBind],
+                         ops: Vec<IlOp>, live: usize| {
+            assert_eq!(
+                bind_run_ops(params, binds, &ops, live),
+                Err(want),
+                "gate {want} did not fire on its own witness"
+            );
+            fired.push(want);
+        };
+
+        // 1. MIXED KIND — the bound name as a VALUE beside a literal. This is
+        //    `src/xdk/nuispeech/xboxheap.cpp` and boards #836/#868/#1134.
+        let mut ops = store(IlOp::Load(l), IlOp::Load(l), 0);
+        ops.extend(store(IlOp::Load(this), IlOp::Lit(0), 20));
+        check(STORE_RUN_BIND_MIXED_KIND, &[this], &[bind(this)], ops, 0);
+
+        // 2. ADDRESS PRODUCER — the same without the literal.
+        let ops = store(IlOp::Load(l), IlOp::Load(l), 0);
+        check(STORE_RUN_BIND_ADDR_PRODUCER, &[this], &[bind(this)], ops, 0);
+
+        // 3. MULTI PRODUCER — two distinct literals beside a bound base.
+        let mut ops = store(IlOp::Load(this), IlOp::Lit(2), 16);
+        ops.extend(store(IlOp::Load(this), IlOp::Lit(3), 20));
+        ops.extend(store(IlOp::Load(l), IlOp::Load(p), 0));
+        check(STORE_RUN_BIND_MULTI_PRODUCER, &[this, p], &[bind(this)], ops, 0);
+
+        // 3b. …and its POOL clause: one producer, but nine formals leave the
+        //     pool floor above r11, which is `alloc::allocate`'s own bound.
+        let nine: Vec<u32> = (0..9).map(|i| 0x1000 + i).collect();
+        let mut ops = store(IlOp::Load(nine[0]), IlOp::Lit(2), 16);
+        ops.extend(store(IlOp::Load(l), IlOp::Load(nine[1]), 0));
+        check(
+            STORE_RUN_BIND_MULTI_PRODUCER,
+            &nine,
+            &[bind(nine[0])],
+            ops,
+            0,
+        );
+
+        // 4. SYMBOL CROSSINGS — h, l, h, l is three group boundaries, one past
+        //    `order::MAX_SYMBOL_CROSSINGS`.
+        let mut ops = store(IlOp::Load(this), IlOp::Load(p), 16);
+        ops.extend(store(IlOp::Load(l), IlOp::Load(p), 0));
+        ops.extend(store(IlOp::Load(this), IlOp::Load(p), 0));
+        ops.extend(store(IlOp::Load(l), IlOp::Load(p), 4));
+        check(STORE_RUN_BIND_SYMBOL_CROSSINGS, &[this, p], &[bind(this)], ops, 0);
+
+        // 5. LIVE ARGUMENT BASE — the bind hangs off a formal the trailing call
+        //    keeps alive. The receiver at slot 0 is EXEMPT, which the accept
+        //    below is the control for.
+        let ops = store(IlOp::Load(l), IlOp::Load(p), 0);
+        check(STORE_RUN_BIND_LIVE_ARG_BASE, &[this, s, p], &[bind(s)], ops.clone(), 3);
+
+        // 6. GROUP SHAPE — an F2 address-valued group is FOUR ops where
+        //    `parse_simple_gpr_run` matches exactly three.
+        let ops = vec![
+            IlOp::Load(l),
+            IlOp::Load(this),
+            IlOp::AddrOf { off: 24 },
+            IlOp::StoreInd { off: 0, width: 4 },
+        ];
+        check(STORE_RUN_BIND_GROUP_SHAPE, &[this], &[bind(this)], ops, 0);
+
+        assert_eq!(fired.len(), 7, "gates fired: {fired:?}");
+
+        // **The boundary is a boundary and not a blanket** — each of the two
+        // clauses with a numeric bound accepts one step inside it, and the
+        // receiver exemption accepts.
+        let mut ops = store(IlOp::Load(this), IlOp::Load(p), 16);
+        ops.extend(store(IlOp::Load(l), IlOp::Load(p), 0));
+        ops.extend(store(IlOp::Load(l), IlOp::Load(p), 4));
+        ops.extend(store(IlOp::Load(this), IlOp::Load(p), 0));
+        assert!(
+            bind_run_ops(&[this, p], &[bind(this)], &ops, 0).is_ok(),
+            "two crossings is INSIDE the bound (`grid2/g_cross2` is `match`)"
+        );
+        let ops = store(IlOp::Load(l), IlOp::Load(p), 0);
+        assert!(
+            bind_run_ops(&[this, p], &[bind(this)], &ops, 2).is_ok(),
+            "a bind off the RECEIVER is exempt at slot 0"
+        );
+    }
 }

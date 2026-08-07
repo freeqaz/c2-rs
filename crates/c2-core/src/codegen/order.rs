@@ -922,11 +922,22 @@ mod tests {
     /// and an 18/18 fresh holdout) reproduced on a body neither of its grids
     /// contained.
     ///
-    /// **This is a test, not a widening.** `leaf::store` still builds every
-    /// [`super::alloc::Producer`] as [`super::alloc::ProducerKind::Constant`]
-    /// and `c2_il`'s `try_parse_store_run` still refuses an interior address in
-    /// the value position, so `xboxheap` still censuses `0/1` and still reports
-    /// `vocab-gap`.
+    /// **This is a test, not a widening**, and `xboxheap` still censuses `0/1`
+    /// and still reports `vocab-gap` — but the REASON has changed twice and the
+    /// stale version of this sentence is board **#1206**, named by `w-bind` and
+    /// corrected here.
+    ///
+    /// It used to say *"`c2_il`'s `try_parse_store_run` still refuses an interior
+    /// address in the value position"*. That has been **false since `w-f23`**
+    /// landed F2. Since `w-carrier` (board #1199) the bind carrier exists too, so
+    /// the body is not blocked on a representation either. What blocks it now is
+    /// exactly the thing this test and the two below are about: the run mixes an
+    /// interior address at 2 uses with a literal at 1, and that is refused **by
+    /// name**, in the reader, under `store-run-bind-mixed-kind-alloc` — a key
+    /// whose count over the 878-TU workload is **1**, and it is this function.
+    /// `leaf::store` still builds every [`super::alloc::Producer`] as
+    /// [`super::alloc::ProducerKind::Constant`], because that is all a
+    /// bind-carrying run is admitted to contain.
     #[test]
     fn xboxheap_without_the_reference_bind_is_a_different_body_and_is_predicted() {
         check("..0.11", "P1 S0 P0 S1 S3 S2 S4 S5");

@@ -415,6 +415,67 @@ mod tests {
     /// that would fix it is **named and not taken**: it would rest on one
     /// structural cell (`u = 1`), and `u = 0` is a run of length 0 the reader
     /// files under a different production entirely.
+    /// **BOARD #1199 — the bind carrier composes through #844's seam**, and the
+    /// words are real `c2.dll`'s at the workload's own `/GR /O1 /Oi /EHsc`.
+    ///
+    /// `work/w-carrier/grid/k_call` —
+    /// `H::H(unsigned initSize, unsigned size) { mSize = size; BE& l =
+    /// mListHead; l.mNext = 0; Alloc(initSize); }` — graded `Port=Match` on the
+    /// whole obj, which is the sole judge; this pins the run half so an edit
+    /// cannot move a word and stay green without a toolchain:
+    ///
+    /// ```text
+    ///   li 11,0 ; stw 5,16(3) ; mr 31,3 ; stw 11,8(3) ; bl ?Alloc…
+    /// ```
+    ///
+    /// **Nothing in this file changed to make it work**, which is the carrier's
+    /// whole claim: the run lives in `CallSeq::store_run` exactly as #844 left
+    /// it, the copy's slot is board #867's `nprod - 1 + min(u,2)` = `1 - 1 + 1`
+    /// unchanged, and the only new thing in the op stream is one
+    /// [`c2_il::IlOp::BoundAddr`] that `scheduled_gpr_run` resolves.
+    #[test]
+    fn the_bind_carrier_composes_through_the_844_seam() {
+        let (this, init, size) = (0x0101u32, 0x0201u32, 0x0301u32);
+        let l = 0xFB09u32;
+        let prefix = c2_il::StoreRunPrefix {
+            ops: vec![
+                c2_il::IlOp::Load(this),
+                c2_il::IlOp::Load(size),
+                c2_il::IlOp::StoreInd { off: 16, width: 4 },
+                c2_il::IlOp::BoundAddr { tok: l, base: this, off: 8 },
+                c2_il::IlOp::Lit(0),
+                c2_il::IlOp::StoreInd { off: 0, width: 4 },
+            ],
+            live_args: 2,
+        };
+        assert_eq!(
+            store_run_prefix_text(&[this, init, size], &prefix, 31).unwrap(),
+            vec![
+                0x39, 0x60, 0x00, 0x00, // li  r11,0
+                0x90, 0xA3, 0x00, 0x10, // stw r5,16(r3)
+                0x7C, 0x7F, 0x1B, 0x78, // mr  r31,r3
+                0x91, 0x63, 0x00, 0x08, // stw r11,8(r3)   <- base r3, disp 8+0
+            ],
+            "work/w-carrier/grid/k_call"
+        );
+
+        // **The live-argument gate reads the BIND's base too**, and this is the
+        // only place that clause is exercised at all: no source spelling this
+        // lane found reaches it (`work/w-carrier/grid3/h_livearg` refuses at
+        // `expr-op-0x27`, and so does its own control). Board #866 is refuted in
+        // general — a run that reads a value the call keeps alive is not the
+        // leaf's run — and a bound base reads its formal's register.
+        let live = c2_il::StoreRunPrefix {
+            ops: vec![
+                c2_il::IlOp::BoundAddr { tok: l, base: init, off: 8 },
+                c2_il::IlOp::Lit(0),
+                c2_il::IlOp::StoreInd { off: 0, width: 4 },
+            ],
+            live_args: 2,
+        };
+        assert!(store_run_prefix_text(&[this, init, size], &live, 31).is_err());
+    }
+
     #[test]
     fn the_mr_slot_domain_boundary_is_refused_with_its_counterexample() {
         assert_eq!(save_slot(0, 0), None);
