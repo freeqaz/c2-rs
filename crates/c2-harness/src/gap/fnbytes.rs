@@ -685,6 +685,16 @@ pub fn grade_one(
 /// unbounded and are what a lane sizes work off.
 const MAX_CALLTARGET_WITNESSES: usize = 4;
 
+/// How many `no_effect_callee` hops `fnbyte-blr-stopN` will follow.
+///
+/// The workload's deepest readable chain is **4 hops** (`_Destroy_Range` through
+/// `__destroy_aux`), so this is a ceiling and not a limit that binds. It exists
+/// because `no_effect_callee` is a graph edge and a *cycle* in it would spin the
+/// walk — the same reason `c2_core::elide`'s fixpoint carries a round ceiling it
+/// can never reach. Raise it when a scan reports a non-zero count at the last
+/// level, which is the observation that says the chain outran the instrument.
+pub(crate) const MAX_BLR_STOP_LEVELS: usize = 8;
+
 /// **Whom the PORT's body would call**, in emitted order, as mangled names —
 /// `(offset, callee)` per `REL24` site.
 ///
@@ -1493,13 +1503,36 @@ pub(super) fn measure(
             *res.emit
                 .entry(format!("fnbyte-blr-stop|{}", key(callee)))
                 .or_insert(0) += 1;
-            let grand = callee
-                .and_then(|n| census.iter().find(|(c, _)| c.emit_name.as_deref() == Some(n)))
-                .and_then(|(c, _)| c.no_effect_callee.as_deref());
-            if grand.is_some() {
+            // One level per `no_effect_callee` hop, for as long as the chain is
+            // readable. **Two was not enough.** Lane `w-memset` read the LOOP
+            // that level 3 stops at (`return-scope-close-cflow-label`), and the
+            // workload's chain then turned out to be FIVE deep:
+            //
+            //   `_Destroy_Range` → `__destroy_range` (memset) →
+            //   `__destroy_range_aux` (the LOOP) → `_Destroy` (memset) →
+            //   `__destroy_aux` (a pseudo-destructor, and the stop)
+            //
+            // With only two levels the scan reported `blr-stop2` unchanged and
+            // could not show that the chain had got deeper at all — a reader
+            // that widens the graph and an instrument that cannot see it are how
+            // a rung comes to be scored on the wrong number.
+            //
+            // The walk is bounded by `MAX_BLR_STOP_LEVELS` rather than by the
+            // chain: `no_effect_callee` is a graph edge and a cycle in it would
+            // spin here even though `elide.rs`'s own fixpoint refuses cycles by
+            // construction. The bound is the same shape as that module's round
+            // ceiling — it cannot fire on this corpus and it exists so a future
+            // reader that admits a cycle terminates instead of hanging a scan.
+            let mut hop = callee;
+            for level in 2..=MAX_BLR_STOP_LEVELS {
+                let next = hop
+                    .and_then(|n| census.iter().find(|(c, _)| c.emit_name.as_deref() == Some(n)))
+                    .and_then(|(c, _)| c.no_effect_callee.as_deref());
+                let Some(n) = next else { break };
                 *res.emit
-                    .entry(format!("fnbyte-blr-stop2|{}", key(grand)))
+                    .entry(format!("fnbyte-blr-stop{level}|{}", key(Some(n))))
                     .or_insert(0) += 1;
+                hop = Some(n);
             }
         }
         accounted += 1;

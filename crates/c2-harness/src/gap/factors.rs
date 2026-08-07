@@ -6,6 +6,7 @@
 
 use std::collections::BTreeSet;
 
+use super::fnbytes::MAX_BLR_STOP_LEVELS;
 use super::{GapReport, TuClass, TuResult, PORT_WRITER_SECTIONS, WHOLE_TU_RECOGNIZERS};
 
 /// **The control-flow shapes `c2_core::codegen::Selected` can encode**, and
@@ -1375,13 +1376,26 @@ impl GapReport {
                     n.to_string(),
                 ));
             }
-            // The residue of board #980's own cluster, at both levels of the
-            // chain. Top 6 each; a row here is a production and a count of
-            // functions it holds, which is what a follow-on rung is sized off.
-            for (prefix, tag) in
-                [("fnbyte-blr-stop|", "blr-stop"), ("fnbyte-blr-stop2|", "blr-stop2")]
-            {
-                for (key, n) in self.fn_byte_blr_stops(prefix).into_iter().take(6) {
+            // The residue of board #980's own cluster, at EVERY level of the
+            // chain the collector walks. Top 6 each; a row here is a production
+            // and a count of functions it holds, which is what a follow-on rung
+            // is sized off.
+            //
+            // **Levels, not two hard-coded prefixes.** This read
+            // `[("fnbyte-blr-stop|", …), ("fnbyte-blr-stop2|", …)]` until lane
+            // `w-memset` read the loop at level 3 and the chain got a fourth
+            // link. The collector emitted `fnbyte-blr-stop3|…` and this renderer
+            // dropped it on the floor, so the scan reported `blr-stop2`
+            // unchanged and looked exactly like a reader that had done nothing.
+            // A key that is collected and not rendered is a key that does not
+            // exist, and it cost this lane a debugging pass to notice.
+            for level in 1..=MAX_BLR_STOP_LEVELS {
+                let (prefix, tag) = if level == 1 {
+                    ("fnbyte-blr-stop|".to_string(), "blr-stop".to_string())
+                } else {
+                    (format!("fnbyte-blr-stop{level}|"), format!("blr-stop{level}"))
+                };
+                for (key, n) in self.fn_byte_blr_stops(&prefix).into_iter().take(6) {
                     m.push((
                         Box::leak(format!("fnbyte-{tag}-{key}").into_boxed_str()),
                         n.to_string(),
