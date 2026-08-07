@@ -1,0 +1,15 @@
+quantity                                    k/n      rate   exact 95 % interval (width)
+JFP_ALIAS  (incumbent)  IN SAMPLE      238/650    0.36615   [0.3290, 0.4045]  (0.0755)
+JFP_ALIAS  (incumbent)  HELD OUT        70/200    0.35000   [0.2841, 0.4205]  (0.1364)
+M3A        (the rule)   IN SAMPLE      460/650    0.70769   [0.6711, 0.7424]  (0.0713)
+M3A        (the rule)   HELD OUT       132/200    0.66000   [0.5898, 0.7253]  (0.1355)
+increment  M3A - incumb IN SAMPLE      222/650    0.34154   [0.3051, 0.3794]  (0.0743)
+increment  M3A - incumb HELD OUT        62/200    0.31000   [0.2467, 0.3791]  (0.1324)
+TU reach   incumbent    IN SAMPLE       96/114    0.84211   [0.7620, 0.9037]  (0.1417)
+TU reach   incumbent    HELD OUT        26/31     0.83871   [0.6627, 0.9455]  (0.2827)
+TU reach   M3A          IN SAMPLE      103/114    0.90351   [0.8339, 0.9508]  (0.1169)
+TU reach   M3A          HELD OUT        31/31     1.00000   [0.8878, 1.0000]  (0.1122)
+
+M3A width ratio held-out / in-sample = 1.90x   (w-quar's was 17x)
+in-sample point 0.70769 is INSIDE the held-out interval
+held-out point  0.66000 is OUTSIDE the in-sample interval
