@@ -1,0 +1,17 @@
+  `26` BIND HEADS IN THE `.ex`, COUNTED DIRECTLY
+  cell       class                  raw 0x26  decoded   decoded bind toks
+  ------------------------------------------------------------------------------------
+  P2-r2k4    LOAD                          2        1   0x140a
+  P6-r2k4    TWOBIND                       3        2   0x140a 0x150a
+  P7-r2k4    CHAINBIND                     3        2   0x140a 0x150a
+  P9-r2k4    PTRBIND                       2        0   
+  P1-r2k4    SELF-1B                       1        0   
+
+  P1 (SELF-1B, NO bind in the source) raw 0x26 = 1, decoded 0
+  P2 (LOAD,     ONE reference bind)   raw 0x26 = 2, decoded 1
+  P9 (PTRBIND,  a `F* const`)         raw 0x26 = 2, decoded 0
+
+  NOT SETTLED.  `P9` decodes zero bind heads but its raw `0x26` count is
+  HIGHER than the no-bind family's, so a head the decoder cannot see is not
+  excluded.  The row stands as a decoder limit and NOT as a refutation, and a
+  successor owes a hand decode of this stream.

@@ -100,6 +100,74 @@ struct SimpleStore {
     /// because a parser that widened past its witness must come out as a gap and
     /// not as bytes.
     value_bound: bool,
+    /// **THE CARRIER'S LVALUE HALF** — [`alloc::ProducerRoots`], board #1231.
+    /// The root of the designator this store is written through: `base_tok`
+    /// again, plus the one bit saying whether that root is a bind head.
+    ///
+    /// `base_tok` alone has been in this struct since #1199 and it is *not* the
+    /// fact. The fact is a RELATION between this root and the value's, and until
+    /// there was somewhere to put the value's root the relation could not be
+    /// written down at all. Nine allocation keys died of that.
+    lvalue_root: alloc::Root,
+    /// **THE CARRIER'S VALUE HALF.** `None` for a literal, which has no
+    /// designator and therefore no root — never a fabricated one.
+    ///
+    /// **This is the token the `IlOp::BoundAddr { .. }` arm below used to
+    /// discard.** Both roots have been live at this one site since #1199; the
+    /// value's was dropped by a `..` pattern, because [`alloc::Producer`] had no
+    /// field that could receive it.
+    value_root: Option<alloc::Root>,
+}
+
+/// The offsets a root carries here are **`None`, and that is board #908**.
+///
+/// `IlOp::BoundAddr`'s `off` is the SUM of the offset-add literals
+/// (`c2_il`'s `eat_offset_adds`), and `IlOp::Load` carries no chain at all.
+/// `c2_il::…::designator::eat_offset_adds_list` returns the list, but the seam
+/// that would carry it this far is `IlOp::BoundAddr` itself — matched and
+/// constructed in this file and in `super::super::store_run_call`, the call-tail
+/// emitter path. So the list stops at the reader, and the gap is **one named
+/// field** rather than an unmeasurable absence.
+///
+/// A one-element list holding the sum would be a lie in exactly the shape #908
+/// warns about, so it is not written.
+/// `is_bind` and `base` are passed separately and NOT inferred from each other.
+/// They coincide at this seam — every bind here comes from an `IlOp::BoundAddr`
+/// and every non-bind from an `IlOp::Load` — and that coincidence is a property
+/// of this emitter, not of the IL: GRID P's `P9` (`PTRBIND`) is a root that
+/// takes the bonus while `work/w-prod/bindbit.out` cannot show it is a `26`
+/// bind head. Encoding `is_bind == base.is_some()` would make that cell
+/// unrepresentable before anyone has decided what it is.
+fn root(tok: u32, is_bind: bool, base: Option<u32>) -> alloc::Root {
+    alloc::Root { tok, is_bind, base, offsets: None }
+}
+
+/// [`alloc::ProducerRoots`] for the producer whose statements are those of `run`
+/// carrying literal `id`, or `None` when the pair cannot be stated.
+///
+/// **Board #1231.** The lvalue half is the root of the designator *this
+/// producer's own stores* are written through — not the run's base, because a
+/// run may store through several. So the pair is refused, rather than guessed,
+/// when this producer's stores do **not** agree on one root:
+///
+/// * the value has no designator (a literal) — there is no value root;
+/// * this producer's stores go through more than one root token, or disagree on
+///   the bind bit — then *"the designator its own stores are written through"*
+///   names no single thing, and `w-self2b`'s predicate is not defined.
+///
+/// A refusal here costs nothing: [`alloc::allocate`] does not read this field.
+/// A guess would cost the next lane its grid.
+fn producer_roots(run: &[SimpleStore], id: u32) -> Option<alloc::ProducerRoots> {
+    let mut mine = run.iter().filter(|s| s.lit.map(|k| k as u32) == Some(id));
+    let first = mine.next()?;
+    let value = first.value_root.clone()?;
+    let lvalue = first.lvalue_root.clone();
+    for s in mine {
+        if s.value_root.as_ref() != Some(&value) || s.lvalue_root != lvalue {
+            return None;
+        }
+    }
+    Some(alloc::ProducerRoots { value, lvalue })
 }
 
 /// Parse the whole `ops` stream as value-simple GPR groups, or `None`.
@@ -123,18 +191,26 @@ fn parse_simple_gpr_run(
         // collapsing the two source spellings unspellable rather than merely
         // unreached. An unbound `Load` is `(its token, its register, 0)`, which
         // is exactly what this loop always computed.
-        let (base_tok, base_reg, base_off) = match b {
-            IlOp::Load(t) => (*t, reg_of(*t)?, 0i32),
-            IlOp::BoundAddr { tok, base, off } => (*tok, reg_of(*base)?, *off),
+        let (base_tok, base_reg, base_off, base_bind_of) = match b {
+            IlOp::Load(t) => (*t, reg_of(*t)?, 0i32, None),
+            IlOp::BoundAddr { tok, base, off } => (*tok, reg_of(*base)?, *off, Some(*base)),
             // Not a store group at all — leave `walk` non-empty so the caller's
             // whole-stream check declines, exactly as the narrower pattern this
             // loop used to open with did.
             _ => break,
         };
-        let (lit, src, value_bound) = match v {
-            IlOp::Load(t) => (None, reg_of(*t)?, false),
-            IlOp::Lit(k) => (Some(*k), SCRATCH_REG, false),
-            IlOp::BoundAddr { .. } => (None, SCRATCH_REG, true),
+        // **The value's ROOT is kept here** — board #1231. The third arm used to
+        // read `IlOp::BoundAddr { .. }` and throw the token away; both roots
+        // have been live at this one site since #1199, and the relation between
+        // them is the fact nine allocation keys could not state.
+        let (lit, src, value_bound, value_root) = match v {
+            IlOp::Load(t) => (None, reg_of(*t)?, false, Some(root(*t, false, None))),
+            // A literal has no designator, so it has no root. `None`, never a
+            // fabricated one.
+            IlOp::Lit(k) => (Some(*k), SCRATCH_REG, false, None),
+            IlOp::BoundAddr { tok, base, .. } => {
+                (None, SCRATCH_REG, true, Some(root(*tok, true, Some(*base))))
+            }
             _ => break,
         };
         out.push(SimpleStore {
@@ -145,6 +221,8 @@ fn parse_simple_gpr_run(
             lit,
             src,
             value_bound,
+            lvalue_root: root(base_tok, base_bind_of.is_some(), base_bind_of),
+            value_root,
         });
         walk = tail;
     }
@@ -354,6 +432,23 @@ pub(crate) fn scheduled_gpr_run(
                     kind: alloc::ProducerKind::Constant,
                     uses: 1,
                     first: i,
+                    // **THE CARRIER**, board #1231 — and today it is `None` at
+                    // every producer this emitter builds, which is a fact about
+                    // the emitter and not about the carrier.
+                    //
+                    // `producer_roots` pairs the value's root with the root of
+                    // the designator THIS producer's own stores go through. A
+                    // literal has no value root, and every producer that reaches
+                    // here is a literal (`s.producer` is `s.lit`), so the pair
+                    // is refused. Board **#840** / `w-mixed` §5 is the reason
+                    // that is not a defect: no register-derived producer reaches
+                    // `alloc::allocate` from today's emitter at all, because a
+                    // bind-valued store is refused upstream as `value_bound`.
+                    //
+                    // The decode itself is exercised on that refused shape by
+                    // `the_carrier_decodes_both_roots_of_a_bind_valued_store`,
+                    // so the seam is measured rather than assumed inert.
+                    roots: producer_roots(&run, id),
                 }),
             }
         }
@@ -1319,6 +1414,7 @@ mod tests {
                                 kind: alloc::ProducerKind::Constant,
                                 uses: len,
                                 first: 0,
+                                roots: None,
                             }];
                             assert_eq!(
                                 alloc::allocate(&ps, 3 + nparams),
@@ -1608,6 +1704,102 @@ mod tests {
     /// — and the port emits both, byte for byte. A carrier that discharged the
     /// binding into the store's displacement would emit the second where the
     /// first belongs, which is board **#1128**/#232.
+    /// **BOARD #1231 — THE CARRIER, decoded at the emitter's own seam.**
+    ///
+    /// The two roots of `alloc::ProducerRoots` have both been live in
+    /// [`parse_simple_gpr_run`] since board #1199, and the value's was thrown
+    /// away by an `IlOp::BoundAddr { .. }` pattern because [`alloc::Producer`]
+    /// had no field to receive it. Nine allocation keys died stating a
+    /// **relation** in a structure that holds only per-producer facts; this test
+    /// is that relation, read off the op stream.
+    ///
+    /// The shapes are GRID Z's six families (`work/w-self2b/roots.out`), each
+    /// reduced to its deciding store. c2's own answer is in the `prod` column of
+    /// that table and it is asserted here through
+    /// `store_root_is_distinct_bind`, which is the predicate the table
+    /// supports.
+    ///
+    /// **Every one of these runs is REFUSED by the emitter** — a bind-valued
+    /// store is `value_bound`, and board #840 means no register-derived
+    /// producer reaches `alloc::allocate` at all. So this decodes a shape the
+    /// port declines to emit, on purpose: the carrier's job is to make the fact
+    /// measurable, not to move a byte. `alloc::allocate_ignores_the_roots_
+    /// carrier` pins the other half of that.
+    #[test]
+    fn the_carrier_decodes_both_roots_of_a_bind_valued_store() {
+        // formals r3, r4; `k` and `m` are bound locals, `j` a second bind.
+        let (h, p) = (0x0101u32, 0x0201u32);
+        let (k, m) = (0x130Au32, 0x140Au32);
+        let reg_of = |t: u32| match t {
+            x if x == h => Some(3u8),
+            x if x == p => Some(4u8),
+            _ => None,
+        };
+        let kb = IlOp::BoundAddr { tok: k, base: h, off: 48 };
+        let mb = IlOp::BoundAddr { tok: m, base: h, off: 48 };
+
+        // (cell, class, the store group, c2's answer from GRID Z)
+        let cases: [(&str, &str, Vec<IlOp>, bool); 5] = [
+            // Z1 SELF-1B  — value and stores both path-spelled off the formal.
+            ("Z1", "SELF-1B", vec![IlOp::Load(h), IlOp::Load(h), IlOp::StoreInd { off: 48, width: 4 }], false),
+            // Z2 LOAD     — the bind's own name, stored through the same bind.
+            ("Z2", "LOAD", vec![kb.clone(), kb.clone(), IlOp::StoreInd { off: 0, width: 4 }], false),
+            // Z3 SELF-2B  — path-spelled value, stores through the bind.
+            ("Z3", "SELF-2B", vec![kb.clone(), IlOp::Load(h), IlOp::StoreInd { off: 0, width: 4 }], true),
+            // Z5 MIRROR   — the mirror image of Z3. c2 answers DIFFERENTLY.
+            ("Z5", "MIRROR", vec![IlOp::Load(h), kb.clone(), IlOp::StoreInd { off: 48, width: 4 }], false),
+            // Z6 TWOBIND  — one bind's name, stored through a SECOND bind to
+            //               the same object.
+            ("Z6", "TWOBIND", vec![mb.clone(), kb.clone(), IlOp::StoreInd { off: 0, width: 4 }], true),
+        ];
+
+        for (cell, klass, ops, is_prod) in cases {
+            let run = parse_simple_gpr_run(&ops, &reg_of)
+                .unwrap_or_else(|| panic!("{cell} ({klass}) must parse as a store group"));
+            assert_eq!(run.len(), 1);
+            let s = &run[0];
+            let value = s
+                .value_root
+                .clone()
+                .unwrap_or_else(|| panic!("{cell}: the VALUE's root must not be discarded"));
+            let r = alloc::ProducerRoots { value, lvalue: s.lvalue_root.clone() };
+            assert_eq!(
+                r.store_root_is_distinct_bind(),
+                is_prod,
+                "{cell} ({klass}) — the #1231 predicate, decoded from the op stream"
+            );
+            // #908: the seam still carries `off` as a SUM, so the list half is
+            // honestly absent rather than faked from it.
+            assert_eq!(r.value_offsets_prefix_lvalue(), None, "{cell}: #908 gap");
+        }
+
+        // **Z3 against Z5 is the asymmetry, at this seam.** Same two roots, the
+        // two positions exchanged, and c2 answers differently — which is what
+        // no per-producer field could ever have represented.
+        let z3 = parse_simple_gpr_run(
+            &[kb.clone(), IlOp::Load(h), IlOp::StoreInd { off: 0, width: 4 }],
+            &reg_of,
+        )
+        .unwrap();
+        let z5 = parse_simple_gpr_run(
+            &[IlOp::Load(h), kb.clone(), IlOp::StoreInd { off: 48, width: 4 }],
+            &reg_of,
+        )
+        .unwrap();
+        assert_eq!(z3[0].lvalue_root.tok, z5[0].value_root.clone().unwrap().tok);
+        assert_eq!(z5[0].lvalue_root.tok, z3[0].value_root.clone().unwrap().tok);
+
+        // A LITERAL value has no designator, so it has no root — `None`, never
+        // a fabricated one, and `producer_roots` refuses the pair.
+        let lit = parse_simple_gpr_run(
+            &[IlOp::Load(h), IlOp::Lit(7), IlOp::StoreInd { off: 0, width: 4 }],
+            &reg_of,
+        )
+        .unwrap();
+        assert!(lit[0].value_root.is_none());
+        assert!(producer_roots(&lit, 7).is_none());
+    }
+
     #[test]
     fn the_bind_carrier_emits_both_spellings_and_they_stay_apart() {
         let (h, p) = (0x0101u32, 0x0201u32);

@@ -1,0 +1,138 @@
+  cell           class                  dom   H-2Z     obj     
+  ------------------------------------------------------------------------
+  P1-r1k2        SELF-1B                in    prod     prod    
+  P1-r1k3        SELF-1B                in    const    const   
+  P1-r2k4        SELF-1B                in    const    const   
+  P1-r4k5        SELF-1B                in    prod     prod    
+  P1-r4k6        SELF-1B                in    const    const   
+  P1-r4k7        SELF-1B                in    const    const   
+  P1-r5k6        SELF-1B                in    prod     prod    
+  P1-r5k7        SELF-1B                in    const    const   
+  P1-r5k8        SELF-1B                in    const    const   
+  P2-r1k2        LOAD                   in    prod     prod    
+  P2-r1k3        LOAD                   in    const    const   
+  P2-r2k4        LOAD                   in    const    const   
+  P2-r4k5        LOAD                   in    prod     prod    
+  P2-r4k6        LOAD                   in    const    const   
+  P2-r4k7        LOAD                   in    const    const   
+  P2-r5k6        LOAD                   in    prod     prod    
+  P2-r5k7        LOAD                   in    const    const   
+  P2-r5k8        LOAD                   in    const    const   
+  P3-r1k2        SELF-2B-tail-agrees    in    prod     prod    
+  P3-r1k3        SELF-2B-tail-agrees    in    const    const   
+  P3-r2k4        SELF-2B-tail-agrees    in    prod     prod    
+  P3-r4k5        SELF-2B-tail-agrees    in    prod     prod    
+  P3-r4k6        SELF-2B-tail-agrees    in    prod     prod    
+  P3-r4k7        SELF-2B-tail-agrees    in    const    const   
+  P3-r5k6        SELF-2B-tail-agrees    in    prod     prod    
+  P3-r5k7        SELF-2B-tail-agrees    in    prod     prod    
+  P3-r5k8        SELF-2B-tail-agrees    in    const    const   
+  P4-r1k2        SELF-2B-tail-differs   in    prod     prod    
+  P4-r1k3        SELF-2B-tail-differs   in    const    const   
+  P4-r2k4        SELF-2B-tail-differs   in    prod     prod    
+  P4-r4k5        SELF-2B-tail-differs   in    prod     prod    
+  P4-r4k6        SELF-2B-tail-differs   in    prod     prod    
+  P4-r4k7        SELF-2B-tail-differs   in    const    const   
+  P4-r5k6        SELF-2B-tail-differs   in    prod     prod    
+  P4-r5k7        SELF-2B-tail-differs   in    prod     prod    
+  P4-r5k8        SELF-2B-tail-differs   in    const    const   
+  P5-r1k2        MIRROR                 in    prod     prod    
+  P5-r1k3        MIRROR                 in    const    const   
+  P5-r2k4        MIRROR                 in    const    const   
+  P5-r4k5        MIRROR                 in    prod     prod    
+  P5-r4k6        MIRROR                 in    const    const   
+  P5-r4k7        MIRROR                 in    const    const   
+  P5-r5k6        MIRROR                 in    prod     prod    
+  P5-r5k7        MIRROR                 in    const    const   
+  P5-r5k8        MIRROR                 in    const    const   
+  P6-r1k2        TWOBIND                in    prod     prod    
+  P6-r1k3        TWOBIND                in    const    const   
+  P6-r2k4        TWOBIND                in    prod     prod    
+  P6-r4k5        TWOBIND                in    prod     prod    
+  P6-r4k6        TWOBIND                in    prod     prod    
+  P6-r4k7        TWOBIND                in    const    const   
+  P6-r5k6        TWOBIND                in    prod     prod    
+  P6-r5k7        TWOBIND                in    prod     prod    
+  P6-r5k8        TWOBIND                in    const    const   
+  P7-r1k2        CHAINBIND              in    prod     prod    
+  P7-r1k3        CHAINBIND              in    const    const   
+  P7-r2k4        CHAINBIND              in    prod     const     **MISS**
+  P7-r4k5        CHAINBIND              in    prod     prod    
+  P7-r4k6        CHAINBIND              in    prod     const     **MISS**
+  P7-r4k7        CHAINBIND              in    const    const   
+  P7-r5k6        CHAINBIND              in    prod     prod    
+  P7-r5k7        CHAINBIND              in    prod     const     **MISS**
+  P7-r5k8        CHAINBIND              in    const    const   
+  P8-r1k2        TWOBIND-swapped        in    prod     prod    
+  P8-r1k3        TWOBIND-swapped        in    const    const   
+  P8-r2k4        TWOBIND-swapped        in    prod     prod    
+  P8-r4k5        TWOBIND-swapped        in    prod     prod    
+  P8-r4k6        TWOBIND-swapped        in    prod     prod    
+  P8-r4k7        TWOBIND-swapped        in    const    const   
+  P8-r5k6        TWOBIND-swapped        in    prod     prod    
+  P8-r5k7        TWOBIND-swapped        in    prod     prod    
+  P8-r5k8        TWOBIND-swapped        in    const    const   
+  P9-r1k2        PTRBIND                in    prod     prod    
+  P9-r1k3        PTRBIND                in    const    const   
+  P9-r2k4        PTRBIND                in    prod     prod    
+  P9-r4k5        PTRBIND                in    prod     prod    
+  P9-r4k6        PTRBIND                in    prod     prod    
+  P9-r4k7        PTRBIND                in    const    const   
+  P9-r5k6        PTRBIND                in    prod     prod    
+  P9-r5k7        PTRBIND                in    prod     prod    
+  P9-r5k8        PTRBIND                in    const    const   
+  X1-r1k1        CROSS-path             CONTROL -        const     control
+  X1-r1k2        CROSS-path             CONTROL -        const     control
+  X1-r4k6        CROSS-path             CONTROL -        const     control
+  X2-r1k1        CROSS-bind             CONTROL -        const     control
+  X2-r1k2        CROSS-bind             CONTROL -        const     control
+  X2-r4k6        CROSS-bind             CONTROL -        const     control
+  X3-r1k1        OTHEROBJ               CONTROL -        const     control
+  X3-r1k2        OTHEROBJ               CONTROL -        const     control
+  X3-r4k6        OTHEROBJ               CONTROL -        const     control
+
+  frozen 90 | sha256 90 OK, 0 MOVED | reached 90 | GRADED 90 | OOR 0 | compile-failed 0
+
+  rule            right  WRONG refused
+  --------------------------------------------
+  refusal            0      0      81   <- the decline floor
+  H-2Z              78      3       0   P7-r2k4 P7-r4k6 P7-r5k7
+  H-2Y              72      9       0   P3-r1k3 P4-r1k3 P6-r1k3 P7-r1k3 P7-r2k4 P7-r4k6 P7-r5k7 P8-r1k3
+  H-2X              68     13       0   P3-r1k3 P4-r1k3 P5-r1k3 P5-r2k4 P5-r4k6 P5-r5k7 P6-r1k3 P7-r1k3
+  H-VADD            72      9       0   P3-r1k3 P4-r1k3 P6-r2k4 P6-r4k6 P6-r5k7 P8-r2k4 P8-r4k6 P8-r5k7
+  H-MIX             68     13       0   P2-r1k3 P2-r2k4 P2-r4k6 P2-r5k7 P3-r1k3 P4-r1k3 P6-r1k3 P7-r1k3
+  cu<=ru+1          66     15       0   P3-r2k4 P3-r4k6 P3-r5k7 P4-r2k4 P4-r4k6 P4-r5k7 P6-r2k4 P6-r4k6
+  cu<=ru+2          60     21       0   P1-r1k3 P1-r2k4 P1-r4k6 P1-r5k7 P2-r1k3 P2-r2k4 P2-r4k6 P2-r5k7
+  always-prod       42     39       0   P1-r1k3 P1-r2k4 P1-r4k6 P1-r4k7 P1-r5k7 P1-r5k8 P2-r1k3 P2-r2k4
+  clause-1          39     42       0   P1-r1k2 P1-r4k5 P1-r5k6 P2-r1k2 P2-r4k5 P2-r5k6 P3-r1k2 P3-r2k4
+  H-CAP             78      3       0   P7-r2k4 P7-r4k6 P7-r5k7
+  H-LIVE2           78      3       0   P7-r2k4 P7-r4k6 P7-r5k7
+
+  the FRONTIER, per family — `prod` at each (ru,cu)
+             1/2 1/3 2/4 4/5 4/6 4/7 5/6 5/7 5/8
+      P1      P   c   c   P   c   c   P   c   c 
+      P2      P   c   c   P   c   c   P   c   c 
+      P3      P   c   P   P   P   c   P   P   c 
+      P4      P   c   P   P   P   c   P   P   c 
+      P5      P   c   c   P   c   c   P   c   c 
+      P6      P   c   P   P   P   c   P   P   c 
+      P7      P   c   c   P   c   c   P   c   c 
+      P8      P   c   P   P   P   c   P   P   c 
+      P9      P   c   P   P   P   c   P   P   c 
+             1/1 1/2 4/6
+      X1      c   c   c 
+      X2      c   c   c 
+      X3      c   c   c 
+
+  P2 — CHAINBIND (P7) against LOAD (P2) and TWOBIND (P6)
+      agrees with LOAD at 9 of 9 points; with TWOBIND at 6
+  P3 — TWOBIND-swapped (P8) against TWOBIND (P6)
+      agree 9 of 9
+  P4 — PTRBIND (P9) against SELF-2B (P3)
+      agree 9 of 9
+  P7 — the (1,2) column: do all nine in-domain families agree?
+      P1=prod  P2=prod  P3=prod  P4=prod  P5=prod  P6=prod  P7=prod  P8=prod  P9=prod
+  P6 — the controls at (1,2): do they DISCRIMINATE?
+      X1   const   (in-domain families: prod)
+      X2   const   (in-domain families: prod)
+      X3   const   (in-domain families: prod)

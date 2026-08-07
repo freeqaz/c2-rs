@@ -1034,8 +1034,8 @@ mod tests {
         // pool floor is r6.
         let pool_floor = 6;
         let mixed = [
-            Producer { id: 0, kind: ProducerKind::Constant, uses: 1, first: 2 },
-            Producer { id: 1, kind: ProducerKind::RegisterDerived, uses: 2, first: 4 },
+            Producer { id: 0, kind: ProducerKind::Constant, uses: 1, first: 2, roots: None },
+            Producer { id: 1, kind: ProducerKind::RegisterDerived, uses: 2, first: 4, roots: None },
         ];
         assert_eq!(
             allocate(&mixed, pool_floor),
@@ -1046,8 +1046,8 @@ mod tests {
         // lane has the target and not just permission. Read off
         // `work/w-heap/ref/xboxheap/dis.txt`: `addi 11,3,8` and `li 10,0`.
         let uniform = [
-            Producer { id: 0, kind: ProducerKind::Constant, uses: 1, first: 2 },
-            Producer { id: 1, kind: ProducerKind::Constant, uses: 2, first: 4 },
+            Producer { id: 0, kind: ProducerKind::Constant, uses: 1, first: 2, roots: None },
+            Producer { id: 1, kind: ProducerKind::Constant, uses: 2, first: 4, roots: None },
         ];
         assert_eq!(
             allocate(&uniform, pool_floor),
@@ -1094,8 +1094,8 @@ mod tests {
         // `j1_lit2`: `mCount = 0; mSize = 0; mListHead.mNext = &mListHead;`
         // literal id 0 at TWO uses, interior address id 1 at ONE.
         let cell = [
-            Producer { id: 0, kind: ProducerKind::Constant, uses: 2, first: 0 },
-            Producer { id: 1, kind: ProducerKind::RegisterDerived, uses: 1, first: 2 },
+            Producer { id: 0, kind: ProducerKind::Constant, uses: 2, first: 0, roots: None },
+            Producer { id: 1, kind: ProducerKind::RegisterDerived, uses: 1, first: 2, roots: None },
         ];
         assert_eq!(
             allocate(&cell, pool_floor),
@@ -1105,8 +1105,8 @@ mod tests {
         // And what clause 1 alone would say, if a lift kept it: `r11` to the
         // 2-use literal. The obj says `addi 11,3,8 ; li 10,0` — the opposite.
         let as_if_clause_1_decided = [
-            Producer { id: 0, kind: ProducerKind::Constant, uses: 2, first: 0 },
-            Producer { id: 1, kind: ProducerKind::Constant, uses: 1, first: 2 },
+            Producer { id: 0, kind: ProducerKind::Constant, uses: 2, first: 0, roots: None },
+            Producer { id: 1, kind: ProducerKind::Constant, uses: 1, first: 2, roots: None },
         ];
         assert_eq!(
             allocate(&as_if_clause_1_decided, pool_floor),
