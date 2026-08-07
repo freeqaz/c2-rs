@@ -2,6 +2,7 @@ use super::body::{
     self, call_tokens, parse_segment_detail, BodyShape, Complete, DtorSubObject,
     CALLEE_UNRESOLVED_DTOR,
     CALLEE_UNRESOLVED_FRAMED, CALLEE_UNRESOLVED_SEQ, CALLEE_UNRESOLVED_TAIL,
+    STORE_RUN_CALL_NO_CARRIER,
     DATA_SYM_LINKAGE, DATA_SYM_UNRESOLVED, OPT_MODE, PTR_WALK_CHAIN_LOOP_NOT_O1,
     PTR_WALK_LOOP_NOT_O1,
 };
@@ -667,6 +668,18 @@ impl IlBundle {
                             // with two gates the single store does not have, and
                             // `cross_sweep.sh` discovers families by this label.
                             Ok(BodyShape::StoreRun { .. }) => FnVerdict::InClass("store-run"),
+                            // **F3.** Its own family for the reason every
+                            // neighbour above has one, plus a sharper one: this
+                            // label is what routes `shape_to_function`'s `None`
+                            // to [`STORE_RUN_CALL_NO_CARRIER`] instead of to a
+                            // `callee-unresolved-*` key that would name the
+                            // wrong construct. It is never an `InClass` the
+                            // numerator keeps — the arm below turns every one of
+                            // them into a `Blocked` — which is exactly the
+                            // point: the residue is counted under its own name.
+                            Ok(BodyShape::StoreRunCall { .. }) => {
+                                FnVerdict::InClass("store-run-call")
+                            }
                             Ok(BodyShape::FloatLeaf { double, .. }) => {
                                 FnVerdict::InClass(if *double { "double-leaf" } else { "float-leaf" })
                             }
@@ -746,6 +759,12 @@ impl IlBundle {
                                 None => FnVerdict::Blocked(Block::at_end(
                                     seg,
                                     match label {
+                                        // **F3.** Not a callee problem at all —
+                                        // the symbol resolves; the MODEL has no
+                                        // carrier for the composition. Its own
+                                        // key so the residue #844 is sized from
+                                        // is a number rather than a rumour.
+                                        "store-run-call" => STORE_RUN_CALL_NO_CARRIER,
                                         "framed-call" => CALLEE_UNRESOLVED_FRAMED,
                                         l if l.starts_with("call-sequence") => {
                                             CALLEE_UNRESOLVED_SEQ

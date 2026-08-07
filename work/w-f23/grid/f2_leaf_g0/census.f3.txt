@@ -1,0 +1,10 @@
+  profile: /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I src/system/stlport /I src/xdk/LIBCMT /I src/system /I src/lazer /I src/system/oggvorbis /I src/system/synth/tomcrypt /I src/system/net/curl/include /I src (from work/dc3-workload/flags.txt)
+work/w-f23/grid/f2_leaf_g0/f2_leaf_g0.cpp -> 0/1 functions in class
+  [  0] GAP expr-op-0x27             cflow-straight             eh-none     (eh-none     )    131 B  ?f2_leaf_g0@@YAXPAUS@@@Z
+  blocking features (">" marks the byte that blocked the parse):
+         1 x expr-op-0x27
+             4c 4f 11 53 b9 f5 09 86 43 81 20 33 86 41 74 08 >27< 86 43 86 20 b9 f5 09 86 43 81 20 33 86 41 74 00 27 86 43 86 20 32 86
+  control-flow class (decode-only): 1/1 bodies decoded end to end
+         1 x cflow-straight
+  EH class (maxState, decode-only): 0/1 bodies have maxState >= 1 and need the whole EH record
+         1 x eh-none

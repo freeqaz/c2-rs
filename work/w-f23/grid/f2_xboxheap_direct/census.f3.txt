@@ -1,0 +1,10 @@
+  profile: /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I src/system/stlport /I src/xdk/LIBCMT /I src/system /I src/lazer /I src/system/oggvorbis /I src/system/synth/tomcrypt /I src/system/net/curl/include /I src (from work/dc3-workload/flags.txt)
+work/w-f23/grid/f2_xboxheap_direct/f2_xboxheap_direct.cpp -> 0/1 functions in class
+  [  0] GAP store-run-call-no-emitter-carrier:eof cflow-straight             eh-none     (eh-none     )    415 B  ?AllocatePageBlock@CXboxHeap@@QAAPAUBE@@I@Z
+  blocking features (">" marks the byte that blocked the parse):
+         1 x store-run-call-no-emitter-carrier:eof
+             20 4f 12 47 54 01 54 00 4f 02 20 00 4f 01 1a 4d
+  control-flow class (decode-only): 1/1 bodies decoded end to end
+         1 x cflow-straight
+  EH class (maxState, decode-only): 0/1 bodies have maxState >= 1 and need the whole EH record
+         1 x eh-none

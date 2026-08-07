@@ -1,0 +1,33 @@
+F2: admit a sub-object ADDRESS as a stored value, and keep the 30 as the discriminator
+
+A store statement's value may now be a designator plus an offset-add run with NO
+`30` load, which c1xx spells for `&s->m` and for the reference bind
+`auto& lh = mListHead;`. It produces `IlOp::AddrOf`, the op the address leaf
+already carries, so the group is four ops where a formal-valued store is three.
+
+Fail-closed on both sides, and both halves are measured rather than argued:
+
+  * the EMITTER declines it. `parse_simple_gpr_run` matches the value with
+    `_ => return None`, no arm of `store_leaf_text`'s walk matches
+    `[Load, AddrOf, StoreInd]`, and `straightline` refuses `AddrOf` outright.
+    Graded: work/w-f23/grid/f2_leaf_g8 goes vocab-gap -> codegen-gap with the
+    reason "sub-object address feeding arithmetic; out of class".
+  * the RUN's widened-literal class excludes it. An interior address is a
+    PRODUCER (one `addi` into the scratch pool), so a run mixing it with a
+    literal is the mixed-kind run `alloc::allocate` refuses (#836) and `w-seam`
+    declined to lift (#868: 12/12 at addi-interior, 0/12 at slwi). The four
+    ALLOC/ORDER clauses were fitted on `li`-only producers and w-heap §4.1.1
+    refuted clause 1 on exactly this mix, so admitting an address beside a
+    literal would claim a population they were never measured on. Guard cell
+    f2_run_addr_lit stays vocab-gap.
+
+The zero-offset address is also excluded: `AddrOf { off: 0 }` emits nothing, so
+that shape is the bare `stw` the formal path was already byte-graded on, and a
+second production over one fact is GAPS.md §6's "one fact, two locators".
+
+Evidence: seven frozen cells, manifest committed before the first was compiled,
+both instruments at the workload's own /GR /O1 /Oi /EHsc (#1112). The two
+controls (formal value, load value) stay "match". The 1,576 generated cases of
+scripts/sweep.d/88-store-run-call.py: checked=1576 mismatches=0 graded=1576
+ungraded=0, and the port's own split is unmoved at 44 Match / 1,532
+NotImplemented.
