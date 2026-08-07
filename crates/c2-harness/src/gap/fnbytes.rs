@@ -819,6 +819,72 @@ fn port_callees(f: &IlFunction) -> Vec<&str> {
 ///
 /// Returns `chain1` … `chain8` · `unrelated` · `blocked` · `blocked-unbound` —
 /// every one a *printed* class and none a silence (`docs/STATUS.md` trap 5).
+/// **R-CLOSE's target for one name**, and the clause that refused — lane
+/// `w-target`, board #1013.
+///
+/// *"What does the port emit for `n`, and whom does that body call?"* There is
+/// exactly one reader of the first half in this crate — [`complete_comdat`],
+/// which is `PortC2::build`'s own composition and therefore already carries
+/// `w-splice`'s chain closure — so this asks it rather than walking a second
+/// chain of its own. A second walk would drift from the emitter the rule would
+/// have to change, which is `docs/GAPS.md` §6's most-recorded failure.
+///
+/// `rounds` is the fixpoint depth: **1** is R-CLOSE (one step), and anything
+/// larger is R-CLOSE\* (iterate until the answer stops moving). Termination is
+/// structural — a step either repeats a name, which is the cycle refusal, or
+/// admits a new one, and the TU has finitely many — with a ceiling behind it so
+/// an edit breaking that argument refuses instead of walking forever, exactly
+/// `elide.rs`'s and `splice.rs`'s round-ceiling discipline.
+///
+/// Every `Err` is a **printed** clause and none is a silence (`STATUS` trap 5).
+fn close_target<'a>(
+    n: &'a str,
+    rounds: usize,
+    claim: &std::collections::BTreeMap<&'a str, Vec<usize>>,
+    census: &'a [(FnCensus, Result<IlFunction, &'static str>)],
+    tu: &TuContext<'a>,
+) -> Result<&'a str, &'static str> {
+    let mut cur = n;
+    let mut seen: Vec<&str> = vec![n];
+    let mut moved = false;
+    for _ in 0..rounds {
+        // #918: the binding is `FnCensus::emit_name`, which is what `claim` is
+        // keyed on. A name with two rows is ambiguous, not a hit.
+        let Some([i]) = claim.get(cur).map(Vec::as_slice) else {
+            return if moved { Ok(cur) } else { Err("callee-unbound") };
+        };
+        let Ok(g) = &census[*i].1 else {
+            return if moved { Ok(cur) } else { Err("callee-parse-refused") };
+        };
+        let Ok(gb) = complete_comdat(g, census[*i].0.opt_word, tu) else {
+            return if moved { Ok(cur) } else { Err("callee-no-compose") };
+        };
+        // The callee's own emitted body must be exactly ONE call for its target
+        // to be unambiguous. Zero calls and several are different refusals and
+        // are named apart, because they price differently: zero is a leaf c2
+        // inlines to code with no branch left, several is a body whose expansion
+        // this rule cannot represent as a single relocation at all.
+        let [c] = gb.calls.as_slice() else {
+            let why = if gb.calls.is_empty() {
+                "callee-no-call"
+            } else {
+                "callee-multi-call"
+            };
+            return if moved { Ok(cur) } else { Err(why) };
+        };
+        if c.callee == cur {
+            return if moved { Ok(cur) } else { Err("callee-self") };
+        }
+        if seen.contains(&c.callee) {
+            return Err("chain-cycle");
+        }
+        seen.push(c.callee);
+        cur = c.callee;
+        moved = true;
+    }
+    if moved { Ok(cur) } else { Err("chain-ceiling") }
+}
+
 fn callee_chain(
     from: &str,
     want: &str,
@@ -1730,6 +1796,149 @@ pub(super) fn measure(
                             .entry(format!("fnbyte-reloc-blocked|{p}"))
                             .or_insert(0) += 1;
                     }
+                }
+            }
+        }
+        // ---- THE COUNTERFACTUAL REACH OF `R-CLOSE` (lane `w-target`, #1013) -
+        //
+        // `w-relo` left **861** byte-exact functions whose relocation names the
+        // wrong symbol, and the standing hypothesis — `w-splice`'s, from 150
+        // workload witnesses — is that c2's target is the port's target closed
+        // under the inline relation, i.e. *c2 named what the port's callee
+        // itself calls*. `w-drop3` §6 declined to act on that hypothesis and
+        // registered why: any rule that names a different target must fire on
+        // **none** of the ~6,176 `tail`/`seq` bodies that are exact **because**
+        // c2 did not inline their callee, and it never built that number.
+        //
+        // **This is that number, and it is a COUNTERFACTUAL: not one emitted
+        // byte, not one relocation and not one bucket moves here.** The rule is
+        // applied to a *copy* of the plan and the copy is graded by the same
+        // `compare_relocs` the partition uses. What it publishes is the reach —
+        // where the rule would fire, and on which side of the judge it lands.
+        //
+        // # There is no new reader
+        //
+        // "What does the port emit for `g`" already has exactly one reader in
+        // this file — `complete_comdat`, which is `PortC2::build`'s own
+        // composition and therefore already carries `w-splice`'s chain closure
+        // (`comdat_body_from_selected` splices). So R-CLOSE is spelled as *"take
+        // the first call of the port's own COMDAT body for the callee"* rather
+        // than as a second splice walk. A second walk would be the
+        // one-fact-two-implementations drift `docs/GAPS.md` §6 keeps recording,
+        // and here it would drift from the emitter the rule would have to change.
+        //
+        // # The four outcomes, and why `wrong` is printed apart from `null`
+        //
+        // A rule that fires and is *still* wrong has not left the function
+        // alone; folding it into "no change" would let a rule that churns 800
+        // targets to no effect read as conservative.
+        if v.bytes_exact() {
+            let (plan, refrs) = match (row, refrel) {
+                (Some((c, Ok(f))), Some(rs)) => match complete_comdat(f, c.opt_word, &tu) {
+                    Ok(b) => (text_reloc_plan(&b.calls, &b.data_refs), rs),
+                    Err(_) => (Vec::new(), rs),
+                },
+                _ => (Vec::new(), &[][..]),
+            };
+            if !plan.is_empty() {
+                let was_differ = matches!(v, FnByte::RelocDiffers(_));
+                // **The chain relation, for the CROSS-TAB.** `w-relo` publishes
+                // it for the 861 alone; crossing it with the counterfactual's
+                // outcome is what turns "the rule converts 85" into "the rule
+                // converts exactly the depth-1 family and nothing else".
+                let rel = match (
+                    plan.iter().find_map(|r| match r.target {
+                        PlanTarget::Symbol(n) => Some(n),
+                        _ => None,
+                    }),
+                    refrs.iter().find_map(|r| match &r.target {
+                        RelocTarget::Symbol(n) => Some(n.as_str()),
+                        _ => None,
+                    }),
+                ) {
+                    (Some(p), Some(r)) if p == r => "same",
+                    (Some(p), Some(r)) => callee_chain(p, r, &claim, census),
+                    _ => "unresolvable",
+                };
+                // **`rounds` = 1 is R-CLOSE; `rounds` = 8 is R-CLOSE\*.** Both
+                // are evaluated over the same population in one pass so the two
+                // rules are priced against one denominator and not two.
+                for (tag, rounds) in [("close", 1usize), ("fix", 8usize)] {
+                    let mut cf = plan.clone();
+                    let mut fired = false;
+                    let mut refused: Option<&str> = None;
+                    for r in cf.iter_mut() {
+                        let PlanTarget::Symbol(n) = r.target else {
+                            continue;
+                        };
+                        match close_target(n, rounds, &claim, census, &tu) {
+                            Ok(t) if t != n => {
+                                r.target = PlanTarget::Symbol(t);
+                                fired = true;
+                            }
+                            Ok(_) => {}
+                            Err(why) => refused = refused.or(Some(why)),
+                        }
+                    }
+                    let now_eq = compare_relocs(&cf, refrs).is_none();
+                    let outcome = match (was_differ, fired, now_eq) {
+                        // The rule fires on a function the judge CREDITS today.
+                        // Every one of these is `PREREG.md` §1.1's stop, and the
+                        // classification does NOT consult `now_eq` — a rule that
+                        // moves a credited body is stopped whether or not the new
+                        // answer happens to be right.
+                        (false, true, _) => "regress",
+                        (false, false, _) => "null-exact",
+                        (true, true, true) => "convert",
+                        (true, true, false) => "wrong",
+                        (true, false, _) => "null-differ",
+                    };
+                    *res.emit
+                        .entry(format!("wtarget-{tag}-{outcome}"))
+                        .or_insert(0) += 1;
+                    if let Some(why) = refused {
+                        *res.emit
+                            .entry(format!("wtarget-{tag}-refused|{outcome}|{why}"))
+                            .or_insert(0) += 1;
+                    }
+                    // The shape axis, because the ~6,176 control class is stated
+                    // per shape and a regression concentrated in one shape prices
+                    // differently from one spread across both.
+                    *res.emit
+                        .entry(format!("wtarget-{tag}-shape|{}|{outcome}", graded.shape))
+                        .or_insert(0) += 1;
+                    *res.emit
+                        .entry(format!("wtarget-{tag}-rel|{rel}|{outcome}"))
+                        .or_insert(0) += 1;
+                    // The WITNESS. A conversion nobody can reproduce by name is
+                    // a number; #232/#259/#263/#276 were each closed from a named
+                    // reproducer.
+                    if tag == "close" && matches!(outcome, "convert" | "regress") {
+                        *res.emit
+                            .entry(format!("wtarget-fn|{outcome}|{rel}|{tu_label}|{name}"))
+                            .or_insert(0) += 1;
+                    }
+                }
+                // **R-REFUSE** — `w-drop3` §6.1's rung, and the one number it
+                // asked for: *how many `fnbyte-exact` bodies name a same-bundle
+                // callee the port refuses.* If it is 0 the refusal is free; if it
+                // is positive the rule is forbidden as written. Counted over the
+                // same population and in the same pass, so the two rules are
+                // priced against one denominator rather than two.
+                let names_refused_local = plan.iter().any(|r| match r.target {
+                    PlanTarget::Symbol(n) => match claim.get(n).map(Vec::as_slice) {
+                        Some([i]) => census[*i].1.is_err(),
+                        _ => false,
+                    },
+                    PlanTarget::PairDisplacement(_) => false,
+                });
+                if names_refused_local {
+                    let b = if was_differ {
+                        "refuse-convert"
+                    } else {
+                        "refuse-regress"
+                    };
+                    *res.emit.entry(format!("wtarget-{b}")).or_insert(0) += 1;
                 }
             }
         }
