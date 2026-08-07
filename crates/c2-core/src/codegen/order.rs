@@ -318,6 +318,47 @@ fn lead_slots(stmts: &[Stmt], order: &[usize]) -> usize {
     u
 }
 
+/// [`lead_slots`] for a caller that has only the statements — **the ONE reading
+/// of `u` that a consumer outside this module may ask for**, board **#584**.
+///
+/// `None` exactly when [`store_order`] refuses, because the leading run is a
+/// property of the FINAL order and there is no final order to lead.
+///
+/// # Why this exists, and what it cost before it did
+///
+/// Board **#1212**. [`super::store_run_call::save_slot`] — where `mr rSaved,r3`
+/// goes inside a store run before a call — was fed the **COUNT** of unproduced
+/// stores, and its own doc argued the two readings are the same thing: *"the
+/// leading run is always at least `min(2, total)`, and therefore
+/// `min(leading, 2) == min(total, 2)` identically"*. That argument is
+/// [`store_order`]'s floor and it holds on a **single-symbol** run — which is
+/// every cell board #867 was fitted and held out on, and which
+/// `the_two_readings_of_u_agree_on_every_single_symbol_run` enumerates 5,460 of.
+///
+/// A reference bind is a **second base symbol** (board #1128), the cross-symbol
+/// pin can strand an unproduced store *behind* a produced one, and there the
+/// count keeps counting while the leading run has already stopped. Four
+/// `88-store-run-call` sweep cases and 56 cross cells graded `Port=Mismatch` on
+/// the count, and `w-carrier`'s 53-cell frozen grid was green through every one
+/// (board #1211).
+///
+/// `w-mrslot` graded the swap over GRID R — 145 cells frozen before the first
+/// `cl.exe`, 93 of them carrying an observed `mr r31,r3`, every quantity read
+/// out of **real `c2.dll`'s own emitted words** rather than out of this module:
+///
+/// | reading | HIT | MISS |
+/// |---|---:|---:|
+/// | **leading run (#584)** | **93** | **0** |
+/// | count (what shipped) | 63 | **30** |
+///
+/// The 30 misses span `u_lead` 0/1/2, `nprod` 0/1, callee arity 0/1, two and
+/// three stores and both symbol orders, so the correction is not the four cells
+/// it was named from.
+pub fn leading_unproduced(stmts: &[Stmt]) -> Option<usize> {
+    let order = store_order(stmts)?;
+    Some(lead_slots(stmts, &order))
+}
+
 /// The **LAYOUT** — the store slot immediately before which each producer is
 /// emitted, indexed by [`producer_order`]. `None` outside the domain.
 ///

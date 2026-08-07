@@ -1067,9 +1067,8 @@ pub(crate) const STORE_RUN_BIND_MULTI_PRODUCER: &str = "store-run-bind-multi-pro
 /// one it stands in for.
 pub(crate) const STORE_RUN_BIND_SYMBOL_CROSSINGS: &str = "store-run-bind-symbol-crossings";
 
-/// **THE REFUSAL THE SWEEP EARNED** — a bind-carrying run followed by board
-/// #1129's call. Three cases of `scripts/sweep.d/88-store-run-call.py` graded
-/// `Port=Mismatch` on `w-carrier`'s first emitter, and this is what closes them.
+/// **THE REFUSAL THE SWEEP EARNED, AND THE CORRECTION THAT RETIRED IT** — board
+/// #1212, closed by `w-mrslot`.
 ///
 /// ```text
 ///   H::H(unsigned a, unsigned b) { BE& lh = mListHead; mCount = 0;
@@ -1078,38 +1077,46 @@ pub(crate) const STORE_RUN_BIND_SYMBOL_CROSSINGS: &str = "store-run-bind-symbol-
 ///   the port: li 11,0 ; stw 11,20(3) ; mr 31,3 ; stw 3,8(3) ; bl
 /// ```
 ///
-/// **The copy lands after ZERO stores and board #867's rule says one.** The
-/// mechanism is `codegen::store_run_call`'s own documented shortcut:
-/// `save_slot(nprod, u)` is fed the **COUNT** of unproduced stores, and the file
-/// argues that equals #584's `u`, the **leading run** of unproduced stores in the
-/// *final* order — *"they cannot be [separated]: `store_order` forbids a store
-/// whose producer has rank `j` from occupying a position below `u + j`, so the
-/// leading run is always at least `min(2, total)`"*.
+/// **The copy landed after ZERO stores and board #867's rule said one.** Three
+/// `88-store-run-call` cases and 56 cross cells graded `Port=Mismatch` on
+/// `w-carrier`'s first emitter, whose own 53-cell frozen grid was green through
+/// every one (board #1211). The mechanism is `codegen::store_run_call`'s own
+/// documented shortcut: `save_slot(nprod, u)` was fed the **COUNT** of unproduced
+/// stores, and the file argued that equals #584's `u`, the **leading run** of
+/// unproduced stores in the *final* order — *"they cannot be [separated]:
+/// `store_order` forbids a store whose producer has rank `j` from occupying a
+/// position below `u + j`, so the leading run is always at least
+/// `min(2, total)`"*.
 ///
 /// **That argument holds only on a SINGLE-symbol run**, which is every cell the
 /// shortcut was ever measured on. `codegen::order`'s own
-/// `the_two_readings_of_u_agree_on_every_single_symbol_run` enumerates 5,000+ to
+/// `the_two_readings_of_u_agree_on_every_single_symbol_run` enumerates 5,460 to
 /// say so, and `the_layout_u_is_the_leading_run_not_the_count` exhibits the
-/// multi-symbol cell where they differ: the cross-symbol pin can strand an
-/// unproduced store *behind* a produced one. **A bind IS a second base symbol** —
-/// that is the whole of board #1128 — so this carrier is exactly what opened the
-/// region the identity fails in, and the pre-existing class could not reach it
-/// (its multi-symbol admission is the all-one-literal run, where the count is 0
-/// and the two readings agree trivially).
+/// multi-symbol cell where they differ. **A bind IS a second base symbol** — the
+/// whole of board #1128 — so the carrier is exactly what opened the region.
 ///
-/// So the composition tail is **refused for a bind-carrying run**, and the
-/// correction that would emit these — feed `save_slot` the leading run instead of
-/// the count — is **named and not taken**: it is a change to a rule that governs
-/// every #844 body, it would rest on the three cells that refuted this lane, and
-/// `w-seam2` F-1's floor is that the answer to a mismatch is a refusal on a
-/// measured mechanism and never a narrowing around the failing cell. See
-/// `docs/rungs/2026-08-08-w-carrier.md` §Found-and-not-taken for what a lane
-/// taking it owes.
+/// `w-carrier` refused rather than corrected, and said why: the correction
+/// governs every #844 body and would have rested on the four cells that refuted
+/// that lane. `w-mrslot` took it on a frozen grid instead — GRID R, 145 cells
+/// sha256'd before the first `cl.exe`, 93 with an observed `mr r31,r3`, 30 of
+/// them separating the two readings, every quantity read out of real `c2.dll`'s
+/// own emitted words:
 ///
-/// Placed AFTER the mixed-kind clause on purpose, so
-/// `src/xdk/nuispeech/xboxheap.cpp` — which has both a call tail and the mixed
-/// run — keeps the key that sizes boards #836/#868.
-pub(crate) const STORE_RUN_BIND_CALL_TAIL: &str = "store-run-bind-call-tail-mr-slot";
+/// | reading of #584's `u` | HIT | MISS |
+/// |---|---:|---:|
+/// | **leading run** | **93** | **0** |
+/// | count | 63 | **30** |
+///
+/// **The key is retained with no producer.** It is `store-run-bind-call-tail-mr-slot`
+/// in every scan, rung and board row written before 2026-08-09, and a key whose
+/// text is deleted cannot be matched against those records — `docs/GAPS.md` §7's
+/// "a lane nobody enumerates is a lane that does not run", applied to a census
+/// key. `the_call_tail_key_has_no_producer_since_1212` is the invariant that it
+/// stays that way.
+// Retired keys have no producer by definition, so the only consumer is the
+// invariant that says so — `the_call_tail_key_has_no_producer_since_1212`.
+#[allow(dead_code)]
+pub(crate) const STORE_RUN_BIND_CALL_TAIL_RETIRED: &str = "store-run-bind-call-tail-mr-slot";
 
 /// The bind body's run is not a stream of three-op GPR store groups.
 ///
@@ -1135,8 +1142,12 @@ pub(crate) fn bind_refusal_key(shape: &BodyShape) -> Option<&'static str> {
             binds,
             ops,
             live_args,
-            callee_tok,
-        } => shapes::bind_run_ops(params, binds, ops, *live_args, callee_tok.is_some()).err(),
+            // Board #1212 lifted the call-tail refusal, so `bind_run_ops` no
+            // longer needs to know whether there IS a call — the one thing a
+            // call changed was which reading of #584's `u` the emitter needed,
+            // and that is answered in `codegen::order` now.
+            callee_tok: _,
+        } => shapes::bind_run_ops(params, binds, ops, *live_args).err(),
         _ => None,
     }
 }

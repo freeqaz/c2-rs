@@ -75,13 +75,49 @@
 //! counterexample beside it, so the clause cannot be re-derived without meeting
 //! the body it gets wrong.
 //!
-//! `u` has a second reading — [`order::layout_slots`]'s `u`, the **leading run**
-//! of unproduced stores in the *final* order (board #584) — and the two are not
-//! separated by any cell in either grid. They cannot be: `store_order` forbids a
-//! store whose producer has rank `j` from occupying a position below `u + j`, so
-//! the leading run is always at least `min(2, total)`, and therefore
-//! `min(leading, 2) == min(total, 2)` identically. The count is used here
-//! because it is the one the emitter can compute without re-deriving the order.
+//! # `u` IS THE LEADING RUN, AND THIS FILE USED TO SAY THE OPPOSITE
+//!
+//! Board **#1212**. Until `w-mrslot` the paragraph here read:
+//!
+//! > *`u` has a second reading — [`order::layout_slots`]'s `u`, the leading run
+//! > of unproduced stores in the final order (board #584) — and the two are not
+//! > separated by any cell in either grid. **They cannot be**: `store_order`
+//! > forbids a store whose producer has rank `j` from occupying a position below
+//! > `u + j`, so the leading run is always at least `min(2, total)`, and
+//! > therefore `min(leading, 2) == min(total, 2)` identically. The count is used
+//! > here because it is the one the emitter can compute without re-deriving the
+//! > order.*
+//!
+//! Every sentence of that is true **on a single-symbol run** — which is every
+//! cell #867 was fitted on, every cell of its 18/18 holdout, and every cell of
+//! the two grids it is talking about. It is false the moment the run has a
+//! second base symbol, because the cross-symbol pin can strand an unproduced
+//! store *behind* a produced one and the leading run stops there while the count
+//! keeps counting. A reference bind **is** a second base symbol (board #1128),
+//! so board #1199's carrier is exactly what opened the region — and four
+//! `88-store-run-call` sweep cases plus 56 cross cells graded `Port=Mismatch`
+//! against `w-carrier`'s first emitter, with its own 53-cell frozen grid green
+//! through every one (board #1211).
+//!
+//! ```text
+//!   H::H(unsigned a, unsigned b) { BE& lh = mListHead; mCount = 0;
+//!                                  lh.mNext = (BE*)this; Reset(); }
+//!   c2:   li 11,0 ; mr 31,3 ; stw 11,20(3) ; stw 3,8(3) ; bl
+//!   count: the copy lands after ONE store.   leading run: after ZERO.  c2: ZERO.
+//! ```
+//!
+//! [`save_slot`] is fed [`order::leading_unproduced`]'s answer now, carried as
+//! `ScheduledRun::u_lead`. The old excuse — *"the one the emitter can compute
+//! without re-deriving the order"* — was never true either:
+//! [`scheduled_gpr_run`] has already asked [`order::schedule`] by the time it
+//! fills the field, so the final order is in hand.
+//!
+//! **What the swap is worth, and what it cannot be**: `w-mrslot`'s GRID R, 145
+//! cells frozen before the first `cl.exe`, 93 with an observed `mr r31,r3`,
+//! every quantity read out of real `c2.dll`'s own words — the leading run is
+//! **93 HIT / 0 MISS**, the count **63 / 30**. The swap is provably **inert on
+//! every single-symbol run** (`order`'s own 5,460-cell enumeration), so it moves
+//! no byte the port already emitted.
 
 use c2_il::IlFunction;
 
@@ -129,11 +165,20 @@ pub const LIVE_ARG_STORED: &str =
      run's order is NOT the leaf's there (board #866 is refuted in general), and \
      the framed schedule for it is unmodeled";
 
-/// **Board #1199's refusal in this file** — a store run before a call that
-/// carries a reference bind. See [`store_run_prefix_text`]'s comment: the copy's
-/// slot rule is fed the COUNT of unproduced stores where a multi-symbol run needs
-/// the LEADING RUN, and a bind is a second symbol. Three graded objs.
-pub const BIND_IN_A_COMPOSITION: &str =
+/// **Board #1212's refusal, LIFTED — kept as a name so the correction has a
+/// place to be recorded and so a reviewer meets the mechanism before the code.**
+///
+/// `w-carrier` shipped this string rather than the fix, and it was right to:
+/// the correction changes a rule that governs **every** #844 body, and at the
+/// time it would have rested on the four cells that refuted that lane. It rests
+/// on GRID R now — 93 cells with an observed copy, 30 of which separate the two
+/// readings, `0` MISS for the leading run and `30` for the count.
+///
+/// The string is retained (rather than deleted with the clause) because
+/// `a_bind_carrying_run_emits_the_leading_run_slot_not_the_count` quotes it as
+/// the thing that was refused, and a refusal whose text is gone cannot be shown
+/// to have been the same refusal.
+pub const BIND_IN_A_COMPOSITION_WAS: &str =
     "a store run before a call that carries a reference bind: the copy's slot \
      rule (board #867) is fed the COUNT of unproduced stores, which equals \
      board #584's leading run only on a SINGLE-symbol run, and a bind is a \
@@ -148,18 +193,34 @@ pub const REFUSED_EMPTY_POOL: &str =
 
 /// **Where `mr rSaved,r3` goes**, as a count of STORES emitted before it.
 ///
-/// Board #867's rule, unchanged, with its domain stated rather than clamped.
-/// `None` is a refusal, not a zero — see the module doc: the two cells outside
-/// the domain are the ones the formula gets *wrong*, and clamping a wrong
-/// answer to a plausible one is how a wrong-bytes emit looks from the inside.
-pub fn save_slot(nprod: usize, nsw: usize) -> Option<usize> {
-    if nprod == 0 && nsw < 2 {
+/// Board #867's rule, unchanged in FORM, with its domain stated rather than
+/// clamped. `None` is a refusal, not a zero — see the module doc: the two cells
+/// outside the domain are the ones the formula gets *wrong*, and clamping a
+/// wrong answer to a plausible one is how a wrong-bytes emit looks from the
+/// inside.
+///
+/// # `u_lead` is board #584's LEADING RUN and NOT the count — board #1212
+///
+/// The parameter's name is load-bearing. It is
+/// [`order::leading_unproduced`]'s answer: the leading run of unproduced stores
+/// **in the final order**, capped at [`order::HEAD_SLOTS_MAX`]. It used to be
+/// the plain count, the module doc argued the two are one number, and that
+/// argument is false on a multi-symbol run.
+///
+/// **The domain refusal is unaffected by the correction, and that is a fact
+/// rather than a hope**: at `nprod == 0` every store is unproduced, so no
+/// produced store can precede one, so the leading run equals `min(count, 2)`
+/// and [`REFUSED_EMPTY_POOL`] refuses exactly the same bodies under both
+/// readings. `the_empty_pool_refusal_is_the_same_under_both_readings`
+/// enumerates it.
+pub fn save_slot(nprod: usize, u_lead: usize) -> Option<usize> {
+    if nprod == 0 && u_lead < 2 {
         return None;
     }
-    // `nprod >= 1`, or `nprod == 0` with `nsw >= 2` where `min(nsw,2) == 2 >= 1`.
+    // `nprod >= 1`, or `nprod == 0` with `u_lead >= 2` where `min(u,2) == 2 >= 1`.
     // Both make the expression non-negative, which is why it is computed in
     // `usize` only after the guard above rather than in `isize` with a clamp.
-    Some(nprod + nsw.min(2) - 1)
+    Some(nprod + u_lead.min(2) - 1)
 }
 
 /// The first call's setup for a #844 composition: **the whole store run, with
@@ -199,45 +260,21 @@ pub fn store_run_prefix_text(
     {
         return Err(out_of_class(LIVE_ARG_STORED));
     }
-    // **THE REFUSAL THREE GRADED `Port=Mismatch` OBJS EARNED**, and it is a
-    // correction to this file's own documented shortcut rather than a new gate.
+    // **THE REFUSAL THAT USED TO STAND HERE IS LIFTED, AND WHAT REPLACED IT IS
+    // ONE ARGUMENT — see [`BIND_IN_A_COMPOSITION_WAS`] and the module doc.**
+    // `w-carrier` refused every `BoundAddr`-carrying composition rather than
+    // change the `u` fed to [`save_slot`], because the change governs every #844
+    // body and at the time it would have rested on the four cells that refuted
+    // that lane. It rests on GRID R now: 93 cells with an observed copy, 30 of
+    // them separating the two readings, and the leading run is 93/93 where the
+    // count is 63/93.
     //
-    // [`save_slot`] is fed [`ScheduledRun::nsw`], the **COUNT** of stores that
-    // materialise nothing, and the module doc argues that equals #584's `u`, the
-    // **leading run** of unproduced stores in the *final* order: *"they cannot be
-    // [separated] … the leading run is always at least `min(2, total)`"*. That
-    // argument is `store_order`'s floor, and it holds on a **single-symbol** run —
-    // which is every cell #867 was fitted and held out on.
-    //
-    // Board #1199's carrier puts a SECOND base symbol in the run (that is the
-    // whole of #1128), and the cross-symbol pin can strand an unproduced store
-    // *behind* a produced one — `order::tests::the_layout_u_is_the_leading_run_not_the_count`
-    // is that cell. Measured on real `c2.dll`, `work/w-carrier/bisect/s1427.cpp`:
-    //
-    // ```text
-    //   H::H(unsigned a, unsigned b) { BE& lh = mListHead; mCount = 0;
-    //                                  lh.mNext = (BE*)this; Reset(); }
-    //   c2:   li 11,0 ; mr 31,3 ; stw 11,20(3) ; stw 3,8(3) ; bl
-    //   port: li 11,0 ; stw 11,20(3) ; mr 31,3 ; stw 3,8(3) ; bl
-    // ```
-    //
-    // The copy lands after **zero** stores and `nprod - 1 + min(nsw,2)` says one.
-    // Two right words in the wrong order — an obj that links, board #232's class.
-    //
-    // **REFUSED, not corrected.** Feeding `save_slot` the leading run instead of
-    // the count would emit all three, and it is named and not taken: it changes a
-    // rule that governs every #844 body and it would rest on the three cells that
-    // refuted this lane, which is how all six refuted allocation keys got written
-    // (`w-seam2` F-1). `c2_il`'s `bind_run_ops` refuses the same family in the
-    // READER, under `store-run-bind-call-tail-mr-slot`, because that is where
-    // acceptance lives; this is the second lock.
-    if prefix
-        .ops
-        .iter()
-        .any(|o| matches!(o, c2_il::IlOp::BoundAddr { .. }))
-    {
-        return Err(out_of_class(BIND_IN_A_COMPOSITION));
-    }
+    // There is deliberately **no `BoundAddr` clause left in this function**. A
+    // second gate keyed on the carrier would be a gate that refuses nothing once
+    // the reader admits the family (board #1175), and the one thing a bind
+    // actually changes — that the run has a second base symbol, so #584's two
+    // readings of `u` part company — is answered where `u` is computed and not
+    // by asking whether an op is a bind.
     let run_ops = &prefix.ops;
     // **The same scheduler the leaf asks, not a second one.** `None` here means
     // the stream is not a value-simple GPR run at all — an `AddrOf` value (board
@@ -282,7 +319,7 @@ pub fn store_run_prefix_text(
         ));
     }
 
-    let Some(slot) = save_slot(run.nprod, run.nsw) else {
+    let Some(slot) = save_slot(run.nprod, run.u_lead) else {
         return Err(out_of_class(REFUSED_EMPTY_POOL));
     };
     // A slot past the end of the run is not reachable from `save_slot`'s own
@@ -458,32 +495,37 @@ mod tests {
     /// that would fix it is **named and not taken**: it would rest on one
     /// structural cell (`u = 1`), and `u = 0` is a run of length 0 the reader
     /// files under a different production entirely.
-    /// **BOARD #1199's REFUSAL IN THIS FILE, WITH ITS COUNTEREXAMPLE PINNED
-    /// BESIDE IT** — the shape of `the_mr_slot_domain_boundary_is_refused_with_
-    /// its_counterexample` below, for the same reason.
+    /// **BOARD #1212 CLOSED IN THIS FILE — the refusal's own counterexample,
+    /// asserted from the other side.** The test kept its shape and flipped its
+    /// verdict, so the two states of this seam are one diff apart in the record.
     ///
     /// `w-carrier`'s first emitter composed a bind-carrying run through this
-    /// seam. Three cases of `scripts/sweep.d/88-store-run-call.py` graded
-    /// `Port=Mismatch`, all of them the same word in the wrong place. Real
-    /// `c2.dll` at the workload's own flags, `work/w-carrier/bisect/s1427.cpp`:
+    /// seam. Four cases of `scripts/sweep.d/88-store-run-call.py` and 56 cross
+    /// cells graded `Port=Mismatch`, all of them the same word in the wrong
+    /// place, and that lane's own 53-cell frozen grid was green through every one
+    /// (board #1211). Real `c2.dll` at the workload's own flags,
+    /// `work/w-carrier/bisect/s1427.cpp`:
     ///
     /// ```text
     ///   H::H(unsigned a, unsigned b) { BE& lh = mListHead; mCount = 0;
     ///                                  lh.mNext = (BE*)this; Reset(); }
-    ///   c2:   li 11,0 ; mr 31,3 ; stw 11,20(3) ; stw 3,8(3) ; bl
-    ///   port: li 11,0 ; stw 11,20(3) ; mr 31,3 ; stw 3,8(3) ; bl
+    ///   c2:        li 11,0 ; mr 31,3 ; stw 11,20(3) ; stw 3,8(3) ; bl
+    ///   the port:  li 11,0 ; stw 11,20(3) ; mr 31,3 ; stw 3,8(3) ; bl   WRONG
     /// ```
     ///
-    /// The copy belongs after **zero** stores; [`save_slot`] answers **one**
-    /// because it is fed `nsw`, the COUNT of unproduced stores, where the run
-    /// needs #584's LEADING RUN — and the two are equal only on a single-symbol
-    /// run. A bind is a second symbol.
+    /// The copy belongs after **zero** stores. [`save_slot`] answered **one**
+    /// because it was fed the COUNT of unproduced stores where the run needs
+    /// #584's LEADING RUN — equal only on a single-symbol run, and a bind is a
+    /// second symbol (board #1128).
     ///
-    /// The clause that would emit all three is one argument away and is **not
-    /// taken**: it changes a rule governing every #844 body and would rest on the
-    /// three cells that refuted this lane.
+    /// Both numbers stay asserted here: the emitter produces the leading-run
+    /// answer now, and the count's answer is written down beside it so a future
+    /// reader meets the thing that was wrong and not only the thing that is
+    /// right. `w-mrslot` graded the swap over GRID R — 93 cells with an observed
+    /// copy, 30 of them separating the two readings, **93 HIT / 0 MISS** against
+    /// the count's 63 / 30.
     #[test]
-    fn a_bind_carrying_run_is_refused_in_the_composition_with_its_counterexample() {
+    fn a_bind_carrying_run_emits_the_leading_run_slot_not_the_count() {
         let (this, init, size) = (0x0101u32, 0x0201u32, 0x0301u32);
         let l = 0xFB09u32;
         let prefix = c2_il::StoreRunPrefix {
@@ -497,18 +539,22 @@ mod tests {
             ],
             live_args: 1,
         };
-        let e = store_run_prefix_text(&[this, init, size], &prefix, 31)
-            .expect_err("s1427 must be a REFUSAL, never bytes");
-        assert!(
-            format!("{e:?}").contains("reference bind"),
-            "the refusal must name the construct: {e:?}"
+        let text = store_run_prefix_text(&[this, init, size], &prefix, 31)
+            .expect("s1427's shape is in class since board #1212");
+        // c2's own words, in order: `li 11,0`, `mr 31,3`, `stw 11,20(3)`,
+        // `stw 3,8(3)`. The copy is the SECOND word — after ZERO stores — and
+        // `save_slot` fed the count would have put it third.
+        assert_eq!(
+            &text[4..8],
+            &encode_mr(31, 3)[..],
+            "the copy lands after ZERO stores"
         );
-        // **What the rule gets wrong, kept beside the refusal** so a lifting lane
-        // meets the number rather than just permission: `nsw` is 1 here and the
-        // leading run of the FINAL order is 0, and c2 puts the copy at 0.
-        assert_eq!(save_slot(1, 1), Some(1), "the count reading says 1");
-        assert_eq!(save_slot(1, 0), Some(0), "the leading-run reading says 0 — c2's answer");
-        // The same run WITHOUT the bind is untouched and still emits.
+        // What the two readings say about this exact run, kept beside the
+        // emitter so the correction cannot be silently reverted.
+        assert_eq!(save_slot(1, 1), Some(1), "the COUNT reading says 1 — refuted");
+        assert_eq!(save_slot(1, 0), Some(0), "the LEADING-RUN reading says 0 — c2");
+        // The same run WITHOUT the bind is single-symbol, both readings agree
+        // there, and it is untouched by the correction.
         let plain = c2_il::StoreRunPrefix {
             ops: vec![
                 c2_il::IlOp::Load(this),
@@ -521,6 +567,28 @@ mod tests {
             live_args: 1,
         };
         assert!(store_run_prefix_text(&[this, init, size], &plain, 31).is_ok());
+    }
+
+    /// **THE CORRECTION DOES NOT MOVE THE DOMAIN REFUSAL, and it is enumerated
+    /// rather than argued.** At `nprod == 0` every store is unproduced, so no
+    /// produced store can precede one, so the leading run equals
+    /// `min(count, HEAD_SLOTS_MAX)` and [`REFUSED_EMPTY_POOL`] refuses exactly
+    /// the bodies it refused before.
+    ///
+    /// Registered in `work/w-mrslot/PREREG.md` §0.1 as a checkable consequence
+    /// **before the lane's first probe**, with the failure condition written
+    /// down: if the swap moved this boundary the widening would be larger than
+    /// the lane claimed.
+    #[test]
+    fn the_empty_pool_refusal_is_the_same_under_both_readings() {
+        for total in 0..8usize {
+            let lead = total.min(crate::codegen::order::HEAD_SLOTS_MAX);
+            assert_eq!(
+                save_slot(0, total).is_none(),
+                save_slot(0, lead).is_none(),
+                "the empty-pool refusal moved at total = {total}"
+            );
+        }
     }
 
     #[test]
