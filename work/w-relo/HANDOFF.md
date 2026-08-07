@@ -30,9 +30,11 @@ one of the 861, so no obj shipped wrong. What is wrong is the census's claim.
 
 | | |
 |---|---|
-| gate | **18/18 PASS, 0 mismatch**, run twice (pre- and post-rebase). `work/w-relo/gate_tip.txt` |
-| tests | **1,018 passed / 32 targets / 0 failed** (master `22816a5` was 998/31; +9 unit, +8 c2-obj, +3 integration) |
-| scan | 878 TUs, `match 10, mismatch 0, capture-fail 7`. Both ends re-taken on one workload snapshot `f5c55c3b` |
+| gate | **18/18 PASS, 0 mismatch** at every base this lane had. `work/w-relo/gate_tip.txt` |
+| tests | **1,058 passed / 33 targets / 0 failed** (master `5bef565f` was 1,038/32; +9 unit, +8 c2-obj, +3 integration) |
+| scan | 878 TUs, `match 10, mismatch 0, capture-fail 7`. Both ends taken on one pinned workload snapshot `a44b1cf9406e (clean)` |
+| the 723 | `w-splice`'s spliced bodies re-graded by THIS instrument: **723/723 clean, 0 RelocDiffers, 0 unreached** (`regrade723.py`) |
+| peer keys | `peerkeys.py`: **0 families vanished**, every peer total identical at both ends |
 | `status.sh --check` | PASS, 23 metrics |
 | `board_audit.sh` | 0 duplicate rows, 0 unresolved anchors |
 
@@ -79,15 +81,15 @@ along, and the gate is what proves the lift moved no byte.
 
 ---
 
-## 5. The numbers (workload `f5c55c3b`, denominator 178,977)
+## 5. The numbers (workload `a44b1cf9`, master `5bef565f`, denominator 178,977)
 
 ```
-exact          35,125     reloc-differs      861      reloc-unknown    0
-differs         3,195     partial              0      refused    130,579
+exact          35,986     reloc-differs      861      reloc-unknown    0
+differs         2,334     partial              0      refused    130,579
 unbound         9,217                                 = 178,977
 
-FBM 0.20108 -> 0.19627     exact-bytes 35,986 (the OLD exact, recovered exactly)
-reloc-graded 35,986        reloc-graded-relocated 4,664 (= #884's exposure)
+FBM 0.20589 -> 0.20108     exact-bytes 36,847 (the OLD exact, recovered exactly)
+reloc-graded 36,847        reloc-graded-relocated 4,664 (= #884's exposure)
 exact-relocated 4,664 -> 3,803 (retired from a blind spot into a graded number)
 ```
 

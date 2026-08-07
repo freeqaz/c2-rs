@@ -1,42 +1,40 @@
 lane gate: preflight on /tmp
-  keep    /tmp/c2rs-gate-2319395       this run
-  keep    /tmp/c2rs-gate-1957833       recent — 1 of 3 finished runs kept for their logs
-  keep    /tmp/c2rs-gate-1980978       recent — 2 of 3 finished runs kept for their logs
-  keep    /tmp/c2rs-gate-1432247       recent — 3 of 3 finished runs kept for their logs
-  reaped  /tmp/c2rs-gate-1099458       stale — no live gate owns it
-  reaped  /tmp/c2rs-gate-928887        stale — no live gate owns it
-reap:   2 stale run tree(s) removed, 4 kept (0 live, 3 recent, 1 this run)
-        freed 278.9 MiB and 33,966 inodes (df delta over a SHARED filesystem)
-disk:   /tmp — free 31.7 GiB / 864,326 inodes (floors: 2.0 GiB / 150,000 inodes)
+  keep    /tmp/c2rs-gate-1451417       this run
+  keep    /tmp/c2rs-gate-1189949       recent — 1 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-976074        recent — 2 of 3 finished runs kept for their logs
+          stripped 16710 regenerable cases; logs, reports and parts/ kept
+  keep    /tmp/c2rs-gate-2017816       recent — 3 of 3 finished runs kept for their logs
+          cases KEPT — results.tsv is absent or carries a non-PASS row
+  reaped  /tmp/c2rs-gate-2001992       stale — no live gate owns it
+reap:   1 stale run tree(s) removed, 4 kept (0 live, 3 recent, 1 this run)
+strip:  1 kept tree(s) lost 16710 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
+        freed 73.4 MiB and 17,126 inodes (df delta over a SHARED filesystem)
+disk:   /tmp — free 31.0 GiB / 884,635 inodes (floors: 2.0 GiB / 150,000 inodes)
 
-lane gate: 18 lanes from <worktree>/scripts/lanes.txt
-  run dir: /tmp/c2rs-gate-2319395   (per-lane run dirs under /tmp/c2rs-gate-2319395/lanes/)
+lane gate: 18 lanes from /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a22fc764eb4b6022e/scripts/lanes.txt
+  run dir: /tmp/c2rs-gate-1451417   (per-lane run dirs under /tmp/c2rs-gate-1451417/lanes/)
 building the harness (no-op if current)
-   Compiling c2-obj v0.1.0 (<worktree>/crates/c2-obj)
-   Compiling c2-core v0.1.0 (<worktree>/crates/c2-core)
-   Compiling c2-reference v0.1.0 (<worktree>/crates/c2-reference)
-   Compiling c2-harness v0.1.0 (<worktree>/crates/c2-harness)
-    Finished `release` profile [optimized] target(s) in 3.91s
-harness: /tmp/c2rs-gate-2319395/c2rs
-  pinned from <worktree>/target/release/c2rs  built 2026-08-06 07:26:23
-  sha 8d48d2e741eb  tree c8ddede-dirty
+    Finished `release` profile [optimized] target(s) in 0.00s
+harness: /tmp/c2rs-gate-1451417/c2rs
+  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a22fc764eb4b6022e/target/release/c2rs  built 2026-08-07 08:30:37
+  sha a24fe90235cd  tree 512d8513-dirty
 
 wall clock: 2s for 18 lanes at --jobs 6 (C2RS_JOBS=8)
 
-generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-2319395/sweep 0  (jobs 6)
+generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-1451417/sweep 0  (jobs 6)
     60 fragments, 16710 cases total (16710 .cpp on disk)
   sweeping 16710 of 16710 generated cases
     grading at 6 job(s)
   checked=16710 mismatches=0 graded=16614 ungraded=96 unknown=0
-  (168s)
+  (156s)
 
-mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-2319395/cross 0  (jobs 6)
+mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-1451417/cross 0  (jobs 6)
   assigned 16710 cases over 18 lanes = 81905 cells (full cross would be 300780)
-  sweeping 81905 of 81905 case-lane cells (cross of 0 cases x <worktree>/scripts/lanes.txt; the full 12x product is 300780)
+  sweeping 81905 of 81905 case-lane cells (cross of 0 cases x /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a22fc764eb4b6022e/scripts/lanes.txt; the full 12x product is 300780)
   checked=81905 mismatches=0 graded=81517 ungraded=388 unknown=0
-  (28s)
+  (22s)
 
-disk:   /tmp low-water this run — 31.5 GiB and 830,481 inodes free (start: 31.7 GiB / 864,326)
+disk:   /tmp low-water this run — 30.9 GiB and 867,655 inodes free (start: 31.0 GiB / 884,635)
 
 LANE                 VERDICT     graded/total  match  mismatch  flags
 -------------------- ---------- ------------- ------ --------- --------------------
@@ -66,7 +64,7 @@ graded: 4770 fixture-verdicts across all lanes
 sweep:  PASS — 16710 of 16710 selected cases reached, 16614 GRADED by the
         oracle (96 ungraded: no reference obj), 0 mismatch (corpus 16710)
 cross:  PASS — 81517 of 81905 selected cells graded, 0 mismatch (product 81905)
-logs:   /tmp/c2rs-gate-2319395/<lane>.log, /tmp/c2rs-gate-2319395/sweep.log, /tmp/c2rs-gate-2319395/cross.log
+logs:   /tmp/c2rs-gate-1451417/<lane>.log, /tmp/c2rs-gate-1451417/sweep.log, /tmp/c2rs-gate-1451417/cross.log
 
 GATE: PASS — 18/18 lanes ran and every one of them graded a corpus,
   the sweep graded 16614 of 16710 generated cases and the cross graded

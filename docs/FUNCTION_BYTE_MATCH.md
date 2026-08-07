@@ -122,7 +122,7 @@ green about relocations the port does not emit is worse than the blind one it
 replaced.*
 
 **The old count stays derivable.** `fnbyte-exact-bytes` republishes the previous
-`fnbyte-exact` predicate and read **35,986** at both ends of the widening —
+`fnbyte-exact` predicate and read **36,847** at both ends of the widening —
 `exact + reloc-differs + reloc-unknown`, to the digit. `fnbyte-reloc-graded +
 fnbyte-reloc-unknown = fnbyte-exact-bytes` is a second positive identity with its
 own broken-counter (`fnbyte-reloc-partition-broken`, known answer 0), because a
@@ -285,7 +285,7 @@ are byte-identical at both ends, 20 keys are new, and nothing outside the
 
 | | before | after |
 |---|---:|---:|
-| **FBM** | 0.20108 | **0.19627** |
+| **FBM** | 0.20589 | **0.20108** |
 | **exact** | 35,986 | **35,125** — *shrank, and that is the finding* |
 | **NEW `fnbyte-reloc-differs`** | — | **861** |
 | `-differs-target` · `-count` · `-offset` · `-type` · `-section-target` | — | **861 · 0 · 0 · 0 · 0** |
