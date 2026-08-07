@@ -1,0 +1,207 @@
+w-gate mutation demonstration — one property per mutation
+baseline: gate.sh --selftest: PASS — 102 cases, the gate fails on every one that should.
+
+### M1-demand-never-fires — the demand block is unreachable (require_graded can never equal 9)
+    selftest exit 1
+    RED: require-graded-all-skip-fails    wanted FAIL, got PASS — GATE: SKIPPED — all 2 lanes, the sweep and the cross skipped, NOTHING WAS GRADED.
+    RED: also: the demand turns an all-skip run RED
+    RED: also: and it fails on a COUNT of graded units, never on a status string
+    RED: also: the lanes-that-graded count is printed beside the sum
+    RED: also: a demanded run that graded nothing never also says SKIPPED
+    still green: demand-off-all-skip-still-exits-0
+    ALSO RED:    require-graded-all-skip-fails
+    gate.sh --selftest: FAIL — 5 of 102 checks did not behave as required.
+
+### M2-demand-inverted — the count test is inverted: fires when something WAS graded
+    selftest exit 1
+    RED: require-graded-all-skip-fails    wanted FAIL, got PASS — GATE: SKIPPED — all 2 lanes, the sweep and the cross skipped, NOTHING WAS GRADED.
+    RED: also: the demand turns an all-skip run RED
+    RED: also: and it fails on a COUNT of graded units, never on a status string
+    RED: also: the lanes-that-graded count is printed beside the sum
+    RED: also: a demanded run that graded nothing never also says SKIPPED
+    RED: require-graded-green-run-passes  wanted PASS, got FAIL — GATE: FAIL (NOTHING GRADED) — you asked for a graded run and got 0.
+    RED: also: a run that graded 4 corpora passes WITH the demand set
+    RED: also: the demand is silent when the count it wants is positive
+    RED: require-graded-sampled-satisfies wanted PASS, got FAIL — GATE: FAIL (NOTHING GRADED) — you asked for a graded run and got 0.
+    RED: also: a SAMPLED run graded something, so the demand is met
+    RED: also: the demand does not moonlight as a completeness check
+    RED: also: a partial skip still fails as a PARTIAL SKIP
+    RED: also: the demand did not duplicate a check that already existed
+    still green: demand-off-all-skip-still-exits-0
+    ALSO RED:    require-graded-all-skip-fails
+    gate.sh --selftest: FAIL — 13 of 102 checks did not behave as required.
+
+### M3-skipped-returns-1 — the DEFAULT all-skip path is made to exit 1 (breaks the control, not the demand)
+    selftest exit 1
+    RED: all-skip                         wanted PASS, got FAIL — GATE: SKIPPED — all 2 lanes, the sweep and the cross skipped, NOTHING WAS GRADED.
+    RED: demand-off-all-skip-still-exits-0 wanted PASS, got FAIL — GATE: SKIPPED — all 2 lanes, the sweep and the cross skipped, NOTHING WAS GRADED.
+    ALSO RED:    demand-off-all-skip-still-exits-0
+    still green: require-graded-all-skip-fails
+    gate.sh --selftest: FAIL — 2 of 102 checks did not behave as required.
+
+### M4-banner-drops-the-count — the banner reports a status instead of the count it compared
+    selftest exit 1
+    RED: also: and it fails on a COUNT of graded units, never on a status string
+    still green: demand-off-all-skip-still-exits-0
+    still green: require-graded-all-skip-fails
+    gate.sh --selftest: FAIL — 1 of 102 checks did not behave as required.
+
+### M5-no-resolution-hint — the demand banner no longer prints WHY the toolchain did not resolve
+    selftest exit 1
+    RED: also: the resolution hint rides along, so the lane is told the fix
+    still green: demand-off-all-skip-still-exits-0
+    still green: require-graded-all-skip-fails
+    gate.sh --selftest: FAIL — 1 of 102 checks did not behave as required.
+
+### M6-hint-names-c2rs-dc3 — the hint sends the lane to set C2RS_DC3, which cannot fix this
+    selftest exit 1
+    RED: hint-does-not-name-c2rs-dc3      C2RS_DC3 is status.sh's dc3 SOURCE tree; no lane in this gate reads it
+    RED: hint-overrides-still-read-by-the-resolver NAMED BY THE HINT, NOT READ BY crates/c2-reference/src/lib.rs: C2RS_DC3
+    still green: demand-off-all-skip-still-exits-0
+    still green: require-graded-all-skip-fails
+    gate.sh --selftest: FAIL — 2 of 102 checks did not behave as required.
+
+### M7-hint-hardcodes-the-version-dir — the hint stops reading X360_TOOLCHAIN_REL from the Rust source
+    selftest exit 1
+    RED: hint-reads-the-version-dir-from-source the toolchain dir printed is the one crates/c2-reference declares (X360/16.00.11886.00)
+    still green: demand-off-all-skip-still-exits-0
+    still green: require-graded-all-skip-fails
+    gate.sh --selftest: FAIL — 1 of 102 checks did not behave as required.
+
+### M8-reap-only-not-refused — --require-graded --reap-only is allowed through instead of refused
+    selftest exit 1
+    RED: require-graded-refuses-reap-only --require-graded --reap-only exits 0 (want 2 = usage, a contradiction)
+    still green: demand-off-all-skip-still-exits-0
+    still green: require-graded-all-skip-fails
+    gate.sh --selftest: FAIL — 1 of 102 checks did not behave as required.
+
+### M9-num-guard-removed — num() returns the raw field: an absent count kills the run instead of failing it
+    selftest exit 1
+    ALSO RED:    demand-off-all-skip-still-exits-0
+    ALSO RED:    require-graded-all-skip-fails
+
+### M10-demand-fires-on-every-run — the demand fires regardless of the count (a check that is always on)
+    selftest exit 1
+    RED: require-graded-green-run-passes  wanted PASS, got FAIL — GATE: FAIL (NOTHING GRADED) — you asked for a graded run and got 0.
+    RED: also: a run that graded 4 corpora passes WITH the demand set
+    RED: also: the demand is silent when the count it wants is positive
+    RED: require-graded-sampled-satisfies wanted PASS, got FAIL — GATE: FAIL (NOTHING GRADED) — you asked for a graded run and got 0.
+    RED: also: a SAMPLED run graded something, so the demand is met
+    RED: also: the demand does not moonlight as a completeness check
+    RED: also: a partial skip still fails as a PARTIAL SKIP
+    RED: also: the demand did not duplicate a check that already existed
+    still green: demand-off-all-skip-still-exits-0
+    still green: require-graded-all-skip-fails
+    gate.sh --selftest: FAIL — 8 of 102 checks did not behave as required.
+
+### M11-hint-drops-the-override-names — the hint stops attaching an override to each path it checked
+    selftest exit 1
+    RED: hint-names-every-override        NOT NAMED BY THE HINT: C2RS_COMPILERS C2RS_WIBO C2RS_CL_EXE C2RS_C2_DLL
+    still green: demand-off-all-skip-still-exits-0
+    still green: require-graded-all-skip-fails
+    gate.sh --selftest: FAIL — 1 of 102 checks did not behave as required.
+
+### M12-hint-drops-the-fix-command — the hint names the symptom and not the one command that fixes it
+    selftest exit 1
+    RED: hint-names-the-one-command-that-fixes-it a lane in a worktree is told the command, not just the symptom
+    still green: demand-off-all-skip-still-exits-0
+    still green: require-graded-all-skip-fails
+    gate.sh --selftest: FAIL — 1 of 102 checks did not behave as required.
+
+### M13-hint-invents-an-override — the hint names a variable the resolver does not read (the drift itself)
+    selftest exit 1
+    RED: hint-names-every-override        NOT NAMED BY THE HINT: C2RS_CL_EXE
+    RED: hint-overrides-still-read-by-the-resolver NAMED BY THE HINT, NOT READ BY crates/c2-reference/src/lib.rs: C2RS_CLEXE
+    still green: demand-off-all-skip-still-exits-0
+    still green: require-graded-all-skip-fails
+    gate.sh --selftest: FAIL — 2 of 102 checks did not behave as required.
+
+### M14-hint-never-says-missing — the found-or-MISSING column only ever prints one value
+    selftest exit 1
+    RED: hint-marks-absent-paths-missing  against a tree with no toolchain, all four defaults read MISSING (0 of 4)
+    still green: demand-off-all-skip-still-exits-0
+    still green: require-graded-all-skip-fails
+    gate.sh --selftest: FAIL — 1 of 102 checks did not behave as required.
+
+### M15-hint-always-claims-they-exist — the everything-is-present note is printed even when nothing is present
+    selftest exit 1
+    RED: hint-does-not-claim-they-exist   and it does not then print the everything-is-present note
+    still green: demand-off-all-skip-still-exits-0
+    still green: require-graded-all-skip-fails
+    gate.sh --selftest: FAIL — 1 of 102 checks did not behave as required.
+
+### M16-hint-never-declines-to-blame — the note is dropped, so four found lines print under 'did not resolve'
+    selftest exit 1
+    RED: hint-declines-to-blame-a-present-path every default present -> the hint says the cause is elsewhere, not 'found, found, found'
+    still green: demand-off-all-skip-still-exits-0
+    still green: require-graded-all-skip-fails
+    gate.sh --selftest: FAIL — 1 of 102 checks did not behave as required.
+
+### M17-reap-refusal-writes-first — the --reap-only refusal creates the run tree before refusing
+    selftest exit 1
+    RED: require-graded-refuses-before-reaping and refuses BEFORE creating a run tree or reaping anything
+    still green: demand-off-all-skip-still-exits-0
+    still green: require-graded-all-skip-fails
+    gate.sh --selftest: FAIL — 1 of 102 checks did not behave as required.
+
+### M18-no-note-on-inspection-modes — the demand is silently ignored by --list instead of saying so
+    selftest exit 1
+    RED: require-graded-says-when-it-does-not-apply and SAYS so on stderr — a demand quietly ignored is this file's own bug class
+    still green: demand-off-all-skip-still-exits-0
+    still green: require-graded-all-skip-fails
+    gate.sh --selftest: FAIL — 1 of 102 checks did not behave as required.
+
+### M19-demand-breaks-list — an exported demand makes --list exit 2
+    selftest exit 1
+    RED: require-graded-env-leaves-list-alone an exported demand does not break --list (exit 2)
+    still green: demand-off-all-skip-still-exits-0
+    still green: require-graded-all-skip-fails
+    gate.sh --selftest: FAIL — 1 of 102 checks did not behave as required.
+
+### M20-plain-pass-returns-1 — the unqualified PASS path is broken (both green-run cases, demand or not)
+    selftest exit 1
+    RED: both-pass                        wanted PASS, got FAIL — GATE: PASS — broken
+    RED: sweep-clean                      wanted PASS, got FAIL — GATE: PASS — broken
+    RED: also: the PASS line carries the sweep GRADED count over the corpus
+    RED: cross-clean                      wanted PASS, got FAIL — GATE: PASS — broken
+    RED: require-graded-green-run-passes  wanted PASS, got FAIL — GATE: PASS — broken
+    RED: demand-off-green-run-passes      wanted PASS, got FAIL — GATE: PASS — broken
+    still green: demand-off-all-skip-still-exits-0
+    still green: require-graded-all-skip-fails
+    gate.sh --selftest: FAIL — 6 of 102 checks did not behave as required.
+
+### M21-check-moved-below-the-outcome — the demand no longer returns, and the outcome below it calls itself a PASS
+    selftest exit 1
+    RED: also: all-skip says SKIPPED and that nothing was graded
+    RED: also: all-skip never says PASS
+    RED: require-graded-all-skip-fails    wanted FAIL, got PASS — GATE: FAIL (NOTHING GRADED) — you asked for a graded run and got 0.
+    RED: also: nor PASS — nothing in that output can be read as green
+    RED: also: without the demand an all-skip run is UNCHANGED: SKIPPED, exit 0
+    still green: demand-off-all-skip-still-exits-0
+    ALSO RED:    require-graded-all-skip-fails
+    gate.sh --selftest: FAIL — 5 of 102 checks did not behave as required.
+
+### M22-demand-hoisted-past-the-mismatch — the demand fires first and unconditionally, so a mismatch is relabelled
+    selftest exit 1
+    RED: lane-B-mismatch                  wanted FAIL, got PASS — GATE: PASS — 1/2 lanes ran and every one of them graded a corpus,
+    RED: also: the failing lane is NAMED
+    RED: also: a mismatch raises the alarm banner
+    RED: lane-B-vacuous                   wanted FAIL, got PASS — GATE: PASS — 1/2 lanes ran and every one of them graded a corpus,
+    RED: lane-B-lies-graded-0             wanted FAIL, got PASS — GATE: PASS — 1/2 lanes ran and every one of them graded a corpus,
+    RED: lane-B-lies-with-mismatch        wanted FAIL, got PASS — GATE: PASS — 1/2 lanes ran and every one of them graded a corpus,
+    RED: also: a mismatch keeps its alarm even with ENOSPC in the same log
+    RED: require-graded-green-run-passes  wanted PASS, got FAIL — GATE: FAIL (NOTHING GRADED) — you asked for a graded run and got 0.
+    RED: also: a run that graded 4 corpora passes WITH the demand set
+    RED: also: the demand is silent when the count it wants is positive
+    RED: require-graded-sampled-satisfies wanted PASS, got FAIL — GATE: FAIL (NOTHING GRADED) — you asked for a graded run and got 0.
+    RED: also: a SAMPLED run graded something, so the demand is met
+    RED: also: the demand does not moonlight as a completeness check
+    RED: also: a partial skip still fails as a PARTIAL SKIP
+    RED: also: the demand did not duplicate a check that already existed
+    RED: also: a mismatch under the demand still raises the mismatch alarm
+    RED: also: and is never relabelled as a nothing-graded run
+    still green: demand-off-all-skip-still-exits-0
+    still green: require-graded-all-skip-fails
+    gate.sh --selftest: FAIL — 17 of 102 checks did not behave as required.
+
+done — per-mutation logs under <worktree>/work/w-gate/mutations/<name>/selftest.txt

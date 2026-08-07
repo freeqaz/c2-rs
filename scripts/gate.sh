@@ -49,6 +49,69 @@
 # `--selftest` proves all of the above against fabricated lane logs, needs no
 # toolchain, and is the answer to "has anyone ever seen this gate fail?".
 #
+# ---- AND THE ONE THING ALL OF THAT STILL COULD NOT SAY (2026-08-07) ------------
+#
+# Everything above makes an empty run *legible*. It does not make it *fail*, and
+# on 2026-08-05 and again on 2026-08-08 a lane read the exit code instead of the
+# headline:
+#
+#   * `rungs/2026-08-05-w-subclass.md` §10.1 — "A bare `scripts/gate.sh --jobs 6`
+#     from a worktree reported 18 SKIP, exit 0. … a lane that read the exit code
+#     would have banked a green gate over nothing graded."
+#   * lane `w-root`, merge `f57fe61e` — the identical run, three days later.
+#     `compilers/` is gitignored so it does not follow a `git worktree add`, and
+#     the `../wibo` fallback resolves relative to the WORKTREE, not the main repo.
+#
+# That is the **thirteenth** recorded instance of *absence read as success* here,
+# and the first two payments both produced a fix that made the absence more
+# legible. Legibility was not the binding constraint. **Nobody read the headline.**
+#
+# `SKIPPED` still exits 0 — CLAUDE.md requires the toolchain-absent path to
+# degrade cleanly, the portable lane has no toolchain BY DESIGN, and turning that
+# into a hard red would trade one silent failure for a noisy one in the only lane
+# entitled to be empty. So the caller states its expectation instead:
+#
+#     scripts/gate.sh --require-graded          (or C2RS_GATE_REQUIRE_GRADED=1)
+#
+# **The demand is the CALLER's, not the gate's.** A lane in a worktree that
+# intends to land work sets it and gets exit 1 over an unresolvable toolchain; the
+# portable lane does not set it and gets the documented exit 0. Nothing about the
+# default moves, and the exit-code contract below is unchanged when it is unset.
+#
+# Three properties, and each is the reason for the shape it has:
+#
+#   * **It is a POSITIVE check on a COUNT, never an enumeration of the ways a run
+#     can be empty** — the standing mitigation, from the incident where a lane
+#     `sed`-ed a number out of a report and read the missing number as `0`. The
+#     quantity is `graded`, summed over the whole gate: fixture-verdicts from the
+#     lanes' `LANE-RESULT graded=` fields, plus the sweep's `graded=`, plus the
+#     cross's. A field that is absent or unparseable counts **0**, which is the
+#     safe direction here — it can only make the demand FAIL, never pass.
+#   * **It is checked at the LAST POINT WHERE EVERY REMAINING OUTCOME EXITS 0.**
+#     One site, not four. Every branch before it already returns 1; every branch
+#     after it — `SKIPPED`, `PASS (LANES FILTERED)`, `PASS (SAMPLED)`, `PASS`, and
+#     any zero-exit outcome a future lane adds — is behind it by construction. An
+#     enumeration of today's empty outcomes would be blind to tomorrow's.
+#   * **It DUPLICATES NOTHING.** The gate already fails on a partial skip, on a
+#     lane with `graded=0`, on a vacuous sweep, and on `NO-RESULT`; every one of
+#     those returns 1 before the demand is consulted. The demand only reaches
+#     outcomes that were going to exit 0.
+#
+# **SAMPLED and `--lane`-filtered runs SATISFY the demand, deliberately.** They
+# graded something — a strided sample of 400 cases is 400 gradings — and the
+# demand is `graded > 0`, not `graded == the whole corpus`. Both already refuse to
+# print an unqualified PASS and say in the headline what they did not establish,
+# which is the right instrument for "less than everything"; conflating it with
+# "nothing at all" would make one flag mean two things and would give a lane no
+# way to iterate under the demand. **A partial skip is likewise not covered**, for
+# the stronger reason that it is already a FAIL: covering it again would be a
+# second implementation of a rule that has one, which is the "one rule, two
+# implementations" shape `docs/GAPS.md` §6 keeps recording.
+#
+# And the smaller half of the same finding: **when the gate skips, it now says
+# WHICH path did not resolve** — see `toolchain_hint`. w-root read a clean skip
+# and had to work out for itself that a worktree cannot see `compilers/`.
+#
 # ---- the GENERATED SWEEP is part of this gate (2026-08-04) ----------------------
 #
 # `scripts/expr_sweep.sh` enumerates ~14.5k small TUs and grades every one against
@@ -68,8 +131,9 @@
 # walk-and-count discipline as a lane and subject to the same rules:
 #
 #   * It runs UNCONDITIONALLY. There is no `--no-sweep`; an omittable check is an
-#     omitted check, and this project has twelve recorded instances of an absence
-#     reading as a success.
+#     omitted check, and this project has thirteen recorded instances of an
+#     absence reading as a success — the thirteenth being the one `--require-graded`
+#     above was written for.
 #   * Its POSITIVE check is re-derived here, not believed. The sweep prints
 #     `sweeping R of T generated cases` (and `sweep_gen.py` has already reconciled
 #     T against the `.cpp` on disk) and then `checked=C mismatches=M`. **This gate
@@ -224,11 +288,31 @@
 #                                         is how the concurrency rule is checked
 #                                         against a live shared /tmp without
 #                                         betting other lanes' logs on it.
+#   scripts/gate.sh --require-graded      THE CALLER DEMANDS A GRADED RUN. Any
+#                                         outcome that would exit 0 having graded
+#                                         **0** units becomes exit 1 and says so.
+#                                         Opt-in; unset, nothing below moves. Run
+#                                         mode only — see the block above for why
+#                                         SAMPLED and `--lane` runs satisfy it.
 #
 # exit codes:  0 = PASS / SKIPPED / SAMPLED   1 = a real gate failure
 #              2 = usage   **3 = out of disk, and nothing was graded**
 #
-# env:  C2RS_GATE_KEEP        finished run trees to keep (default 3)
+#              These are the codes WITHOUT `--require-graded`, and they do not
+#              move when it is unset. **With it set**, exactly one thing changes:
+#              an outcome that would have exited 0 while `graded == 0` — today
+#              that is `GATE: SKIPPED`, tomorrow whatever else grades nothing —
+#              exits **1** under `GATE: FAIL (NOTHING GRADED)` instead. PASS,
+#              SAMPLED, `LANES FILTERED`, the usage code and the disk code are
+#              untouched; a partial skip and a vacuous lane were already 1.
+#              Combining it with `--reap-only`, which grades nothing by
+#              construction, is a contradiction and is refused as usage (2).
+#
+# env:  C2RS_GATE_REQUIRE_GRADED  1 = the same demand as `--require-graded`, for
+#                             callers that set an environment rather than a
+#                             command line (a lane's `env.sh`, CI). Any other
+#                             value, including unset, leaves the default.
+#       C2RS_GATE_KEEP        finished run trees to keep (default 3)
 #       C2RS_GATE_KEEP_CASES  of those kept trees, how many keep their REGENERABLE
 #                             sweep corpus (default 1 = the newest only; see the
 #                             98.4 % block below). 0 strips every kept tree.
@@ -283,6 +367,14 @@ reap=1
 # certified. The floor is 3x the measured peak, and the measurement is the reason.
 : "${C2RS_GATE_MIN_INODES:=150000}"
 
+# THE CALLER'S DEMAND. Default 0 — the documented exit-code contract is what you
+# get unless somebody asks for more. Only the exact string `1` enables it: a
+# half-set variable (`C2RS_GATE_REQUIRE_GRADED=`, `=no`, `=0`) must not silently
+# arm a check that turns exit 0 into exit 1, and must not silently DISARM one
+# either, so the value is compared rather than tested for emptiness.
+require_graded=0
+if [ "${C2RS_GATE_REQUIRE_GRADED:-0}" = 1 ]; then require_graded=1; fi
+
 while [ $# -gt 0 ]; do
     case "$1" in
         --list)     mode=list ;;
@@ -296,6 +388,7 @@ while [ $# -gt 0 ]; do
         --work)     shift; work="$1" ;;
         --no-reap)  reap=0 ;;
         --reap-dry-run) reap=2 ;;
+        --require-graded) require_graded=1 ;;
         --registry) shift; registry="$1" ;;
         -h|--help)  sed -n '2,/^set -eu$/p' "$0" | sed '$d'; exit 0 ;;
         *) echo "gate.sh: unknown argument '$1' (try --help)" >&2; exit 2 ;;
@@ -303,6 +396,42 @@ while [ $# -gt 0 ]; do
     shift
 done
 [ -n "$work" ] || work="/tmp/c2rs-gate-$$"
+
+# --------------------------------------------------------------------------------
+# THE DEMAND MEETS THE MODES THAT GRADE NOTHING BY CONSTRUCTION.
+#
+# `--require-graded` is a statement about a VERDICT-PRODUCING run, and `run` is the
+# only mode that produces one. The other four grade nothing on purpose and each
+# says so in its own output, so the demand cannot be silently satisfied by them —
+# but it can be silently IGNORED by them, and a demand that is quietly ignored is
+# the same shape as everything else in this file.
+#
+# `--reap-only` is refused outright. It is the one non-run mode a caller could
+# plausibly run INSTEAD OF a gate and then read the exit code of — its documented
+# codes are 0 = clear and 3 = below a floor, and 0 there means "the disk is fine",
+# never "the port is fine". Asking for a graded run and for the mode that grades
+# nothing is a contradiction in the command line, and a contradiction is usage (2).
+#
+# `--list`, `--check` and `--selftest` are inspection modes; nobody substitutes
+# them for a gate. The demand does not apply, and they SAY it does not apply,
+# because the alternative is a lane exporting `C2RS_GATE_REQUIRE_GRADED=1` in its
+# env.sh and believing every command it then runs is under the demand.
+# --------------------------------------------------------------------------------
+if [ "$require_graded" -eq 1 ]; then
+    case "$mode" in
+    reap)
+        echo "gate.sh: --require-graded and --reap-only contradict each other." >&2
+        echo "  --reap-only grades NOTHING by construction; it is housekeeping and" >&2
+        echo "  never a verdict (exit 0 there means the disk is clear, not that the" >&2
+        echo "  port is right). Asking for a graded run and for the mode that cannot" >&2
+        echo "  grade is a contradiction, not a run. Drop one of the two." >&2
+        exit 2 ;;
+    list|check|selftest)
+        echo "gate.sh: note — --require-graded has no effect in --$mode; it binds the" >&2
+        echo "  graded run only. This mode grades nothing and does not claim to." >&2
+        require_graded=0 ;;
+    esac
+fi
 
 # --------------------------------------------------------------------------------
 # The registry, parsed once. `slug<TAB>flags`, one per line, comments stripped.
@@ -911,6 +1040,140 @@ resource_banner() {  # <run-dir>
 }
 
 # --------------------------------------------------------------------------------
+# A COUNT, OR ZERO. Never a status, and never an empty string arithmetic would
+# then have to guess at.
+#
+# `sweep_verdict` leaves the `graded` field empty on a SKIP tuple, and a
+# hand-fabricated or future tuple could carry anything at all. `$(( "" + 1 ))` is a
+# syntax error under `set -eu` and would take the gate down inside the very check
+# that exists to keep it honest. So an absent or unparseable count reads **0**.
+#
+# That is the safe direction HERE and only because of which side of the comparison
+# it lands on: the demand requires the sum to be > 0, so a field that cannot be
+# read can only make the demand FAIL. It is the exact inverse of the defect this
+# project keeps recording — there, a missing number read as 0 made a check PASS.
+# --------------------------------------------------------------------------------
+num() {
+    case "${1:-}" in
+        ''|*[!0-9]*) echo 0 ;;
+        *) echo "$1" ;;
+    esac
+}
+
+# --------------------------------------------------------------------------------
+# WHY DID THE TOOLCHAIN NOT RESOLVE? Printed under every SKIP.
+#
+# The gate used to skip cleanly and say nothing about WHERE it looked, and twice —
+# `rungs/2026-08-05-w-subclass.md` §10.1 and lane w-root on 2026-08-08 — a lane in
+# a worktree had to work out for itself that `compilers/` is gitignored (so it does
+# not follow a `git worktree add`) and that the `../wibo` fallback resolves
+# relative to the WORKTREE, three directories below the main repo.
+#
+# **This block DECIDES NOTHING.** `Toolchain::locate()` in
+# `crates/c2-reference/src/lib.rs` is the resolver and the sole authority; this is
+# a signpost printed after the fact. It is written so it cannot silently go stale:
+#
+#   * the version directory is read OUT OF THE RUST SOURCE at run time rather than
+#     copied here, and if it cannot be read the line says so instead of printing a
+#     literal that used to be right;
+#   * `--selftest` asserts every environment variable named below is still read by
+#     `crates/c2-reference/src/lib.rs`, so renaming one there fails the gate's own
+#     selftest rather than leaving a signpost pointing at nothing.
+#
+# `C2RS_DC3` is deliberately NOT here. It points at the dc3-decomp SOURCE tree for
+# `scripts/status.sh`; no lane in this gate reads it, and naming it would send a
+# lane to set a variable that cannot fix this.
+# --------------------------------------------------------------------------------
+toolchain_hint() {
+    _th_ref="$repo_root/crates/c2-reference/src/lib.rs"
+    _th_ver=$(sed -n 's/^const X360_TOOLCHAIN_REL: &str = "\([^"]*\)";.*/\1/p' \
+        "$_th_ref" 2>/dev/null | head -1)
+    # The COMPILERS ROOT the resolver would use, by the precedence `compilers_root`
+    # documents (env verbatim > <repo>/compilers > the ../dc3-decomp compat path >
+    # <repo>/compilers as the fallthrough). Transcribed here ONLY so the cl.exe and
+    # c2.dll lines below name the file the resolver would actually open: an earlier
+    # draft printed the default while `C2RS_COMPILERS` pointed elsewhere, and
+    # reported `found` for two paths nothing had consulted — a signpost aimed at
+    # the wrong road is worse than no signpost.
+    if [ -n "${C2RS_COMPILERS-}" ]; then
+        _th_croot="$C2RS_COMPILERS"
+    elif [ -d "$repo_root/compilers/$_th_ver" ]; then
+        _th_croot="$repo_root/compilers"
+    elif [ -d "$repo_root/../dc3-decomp/build/compilers/$_th_ver" ]; then
+        _th_croot="$repo_root/../dc3-decomp/build/compilers"
+    else
+        _th_croot="$repo_root/compilers"
+    fi
+    if [ -z "$_th_ver" ]; then
+        _th_dir="<could not read X360_TOOLCHAIN_REL from $_th_ref>"
+    else
+        _th_dir="$_th_croot/$_th_ver"
+    fi
+
+    echo
+    echo "  WHY: the toolchain did not resolve from $repo_root"
+    if [ -f "$repo_root/.git" ]; then
+        echo "       This tree is a git WORKTREE (.git is a file, not a directory), and"
+        echo "       every default below is relative to IT, not to the main repo. That is"
+        echo "       the cause both recorded times: rungs/2026-08-05-w-subclass.md §10.1"
+        echo "       and lane w-root, 2026-08-08."
+    fi
+    _th_gone=0
+    # Report the EFFECTIVE path, not the default. `Toolchain::locate` takes an
+    # override VERBATIM and does not fall back, so a run whose `C2RS_COMPILERS`
+    # points at a typo skips while the default sitting beside it is perfectly
+    # fine — and a signpost that printed the default there would send the reader
+    # to look at a path the resolver never consulted.
+    _th_say() {  # <label> <default-path> <env-var>
+        eval "_th_ov=\${$3-}"
+        if [ -n "${_th_ov:-}" ]; then
+            _th_p="$_th_ov"
+            _th_src="override: $3 — SET in this environment, taken verbatim (no fallback)"
+        else
+            _th_p="$2"
+            _th_src="override: $3 (unset — this is the default)"
+        fi
+        if [ -e "$_th_p" ]; then
+            _th_mark="found  "
+        else
+            _th_mark="MISSING"
+            _th_gone=$((_th_gone + 1))
+        fi
+        printf '       %-10s %s  %s\n' "$1" "$_th_mark" "$_th_p"
+        printf '       %-10s %s\n' "" "$_th_src"
+    }
+    _th_say "compilers" "$_th_croot" "C2RS_COMPILERS"
+    _th_say "cl.exe"    "$_th_dir/cl.exe"      "C2RS_CL_EXE"
+    _th_say "c2.dll"    "$_th_dir/c2.dll"      "C2RS_C2_DLL"
+    _th_say "wibo"      "$repo_root/../wibo/build/release/wibo" "C2RS_WIBO"
+    echo "                  ...or \`wibo\` anywhere on PATH"
+    # THE ARM THAT KEEPS THIS BLOCK FROM LYING. Every default can exist and the
+    # run still skip — an override pointing somewhere else, a wibo too old, a
+    # lane-local refusal. Printing four `found` lines under a heading that says
+    # "did not resolve" would be a signpost contradicting the run it explains, so
+    # it says so and hands over to the resolver's own voice instead of guessing.
+    if [ "$_th_gone" -eq 0 ]; then
+        echo
+        echo "       NOTE: all four defaults above EXIST, so the skip has a cause this"
+        echo "       block cannot see — an override pointing elsewhere, an unrunnable"
+        echo "       loader, a stale wibo. Ask the resolver directly:"
+        echo "           cargo run --release -p c2-harness --bin c2rs -- \\"
+        echo "               census fixtures/cpp/w5_chain.cpp     # 4/4, or it SKIPs"
+        echo "       and check C2RS_COMPILERS / C2RS_WIBO / C2RS_CL_EXE / C2RS_C2_DLL"
+        echo "       in this environment — an override is taken VERBATIM and does not"
+        echo "       fall back."
+    fi
+    echo
+    echo "  FIX, from the main repo:  scripts/configure_existing_worktree.sh $repo_root"
+    echo "      (symlinks compilers/, reflinks target/, and links ../wibo beside the"
+    echo "       worktrees — then REBUILDS and refuses to finish if it still SKIPs)"
+    echo "  If compilers/ is missing in the main repo too:  scripts/fetch_compilers.sh"
+    echo "  \`Toolchain::locate()\` in crates/c2-reference/src/lib.rs is the authority;"
+    echo "  the lines above report what was FOUND and resolve nothing themselves."
+    return 0
+}
+
+# --------------------------------------------------------------------------------
 # Walk the REGISTRY (never the directory listing) and produce one row per lane.
 # --------------------------------------------------------------------------------
 collect() {
@@ -1031,6 +1294,9 @@ decide() {
     _d_skip=$(awk -F"$TAB" '{split($3,f,"|"); if (f[1]=="SKIP") c++} END{print c+0}' "$_d_res")
     _d_none=$(awk -F"$TAB" '{split($3,f,"|"); if (f[1]=="NO-RESULT") c++} END{print c+0}' "$_d_res")
     _d_graded=$(awk -F"$TAB" '{split($3,f,"|"); g+=f[2]} END{print g+0}' "$_d_res")
+    # Lanes that graded a corpus, as its own count. `graded` above is a sum over
+    # lanes and one busy lane can carry it; this says how many lanes contributed.
+    _d_gradedlanes=$(awk -F"$TAB" '{split($3,f,"|"); if (f[2]+0 > 0) c++} END{print c+0}' "$_d_res")
 
     echo "lanes:  $_d_n in the registry — $_d_pass PASS, $_d_fail FAIL, $_d_skip SKIP, $_d_none NO-RESULT"
     echo "graded: $_d_graded fixture-verdicts across all lanes"
@@ -1099,6 +1365,56 @@ decide() {
         return 1
     fi
 
+    # --------------------------------------------------------------------------
+    # THE CALLER'S DEMAND: `--require-graded` / `C2RS_GATE_REQUIRE_GRADED=1`.
+    #
+    # **THIS LINE IS THE LAST POINT AT WHICH EVERY REMAINING OUTCOME EXITS 0.**
+    # Everything above returns 1 — completeness, the generated instruments' FAIL
+    # and NO-RESULT, the lanes' NO-RESULT, the lanes' FAIL. Everything below
+    # returns 0 in some form: SKIPPED, PASS (LANES FILTERED), PASS (SAMPLED),
+    # PASS. So one check placed here covers every zero-exit outcome the gate has
+    # AND every one a future lane adds, which an enumeration of today's empty
+    # outcomes would not. If a `return 1` is ever added below this line, this
+    # comment is the thing that has become wrong; move the block, do not copy it.
+    #
+    # It duplicates nothing. A partial skip, a vacuous lane, a short sweep and a
+    # NO-RESULT are all already failures and are all already behind us; the demand
+    # only ever converts a would-be zero exit.
+    #
+    # The quantity is a COUNT — the standing mitigation is *compare a count, never
+    # a status* — and it is summed across the whole gate rather than read off any
+    # one instrument, because "this run graded something" is a fact about the run.
+    # --------------------------------------------------------------------------
+    if [ "${require_graded:-0}" -eq 1 ]; then
+        _d_units=$(( _d_graded + $(num "$_d_swg") + $(num "$_d_cxg") ))
+        if [ "$_d_units" -eq 0 ]; then
+            echo
+            echo "GATE: FAIL (NOTHING GRADED) — you asked for a graded run and got 0."
+            echo "  units graded, summed over this whole gate:  $_d_units"
+            echo "    lanes that graded a corpus   $_d_gradedlanes of $_d_n"
+            echo "    fixture-verdicts             $_d_graded"
+            echo "    sweep cases graded           $(num "$_d_swg")   ($_d_swv)"
+            echo "    cross cells graded           $(num "$_d_cxg")   ($_d_cxv)"
+            if [ "$_d_skip" -eq "$_d_n" ]; then
+                echo "  Every one of the $_d_n lanes SKIPPED: the toolchain did not resolve."
+            else
+                echo "  This run reached a zero-exit outcome having graded nothing, and it is"
+                echo "  NOT the all-skip one — the counts above are the whole story about it."
+            fi
+            echo
+            echo "  Without --require-graded this run exits 0 BY DESIGN, and that is not a"
+            echo "  bug: CLAUDE.md requires the toolchain-absent path to degrade cleanly and"
+            echo "  the portable lane has no toolchain. The demand is the CALLER's — you"
+            echo "  said this run had to establish something, and it established nothing."
+            echo "  Do not report this tree as gated. Nothing here is evidence about the"
+            echo "  port: not that it is right, not that it is wrong."
+            if [ "$_d_skip" -eq "$_d_n" ]; then
+                toolchain_hint
+            fi
+            return 1
+        fi
+    fi
+
     if [ "$_d_skip" -eq "$_d_n" ]; then
         # Toolchain absence must skip the generated instruments too. If it did
         # not, one of them resolved a toolchain the others could not, which is a
@@ -1118,6 +1434,9 @@ decide() {
         echo "GATE: SKIPPED — all $_d_n lanes, the sweep and the cross skipped, NOTHING WAS GRADED."
         echo "  The toolchain is absent (see CLAUDE.md); this exits 0 by design and is"
         echo "  NOT a green gate. This run establishes nothing about the port."
+        echo "  Run with --require-graded (or C2RS_GATE_REQUIRE_GRADED=1) to make this"
+        echo "  exit 1 instead — that is the flag for a caller that meant to gate a tree."
+        toolchain_hint
         return 0
     fi
     if [ "$_d_skip" -gt 0 ]; then
@@ -2053,15 +2372,217 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     saw 'ALARM' 'a mismatch keeps its alarm even with ENOSPC in the same log'
     saw_no 'RESOURCE FAULT, NOT A MISMATCH' 'and never gets the resource banner'
 
+    # ---- THE CALLER'S DEMAND (lane w-gate) ------------------------------------
+    #
+    # `--require-graded` is checked in BOTH directions and the pair is the point:
+    # a test that goes red everywhere identifies nothing. Every `require-graded-*`
+    # case below is shadowed by a `demand-off-*` control built from the IDENTICAL
+    # fabricated logs, differing only in the flag — so a mutation that reddens the
+    # demand and the control together has broken something else, and the two names
+    # say which.
+    #
+    # `require_graded` is set INLINE before each case rather than around the group.
+    # A group-scoped setting is a mode, and a case that silently inherited the
+    # wrong mode is how a green from an absence gets into the instrument that
+    # exists to catch greens from absences.
+    #
+    # Every assertion carries a DISTINCT message. A shared one cannot tell you
+    # which arm fired, and this project has a recorded instance of a count floor
+    # tripping first so that the assertions behind it never executed at all.
+
+    # 1. The rung's own case: all-skip + the demand is RED, and says the count.
+    SWEEP_FOR_CASE='SKIP|0|0|0|0|toolchain absent'
+    CROSS_FOR_CASE='SKIP|0|0|0|0|toolchain absent'
+    require_graded=1
+    run_case require-graded-all-skip-fails FAIL "A=$S" "B=$S"
+    require_graded=0
+    saw    'GATE: FAIL (NOTHING GRADED)' 'the demand turns an all-skip run RED'
+    saw    'units graded, summed over this whole gate:  0' \
+           'and it fails on a COUNT of graded units, never on a status string'
+    saw    'lanes that graded a corpus   0 of 2' \
+           'the lanes-that-graded count is printed beside the sum'
+    saw_no 'GATE: SKIPPED' 'a demanded run that graded nothing never also says SKIPPED'
+    saw_no 'GATE: PASS'    'nor PASS — nothing in that output can be read as green'
+    saw    'C2RS_COMPILERS' 'the resolution hint rides along, so the lane is told the fix'
+
+    # 2. THE CONTROL. Byte-identical inputs, demand OFF: the documented behaviour
+    #    is unchanged, exit 0, `GATE: SKIPPED`. This case must stay GREEN under
+    #    every mutation aimed at case 1 — if it goes red too, the mutation broke
+    #    the default path and the demand is not what was tested.
+    SWEEP_FOR_CASE='SKIP|0|0|0|0|toolchain absent'
+    CROSS_FOR_CASE='SKIP|0|0|0|0|toolchain absent'
+    require_graded=0
+    run_case demand-off-all-skip-still-exits-0 PASS "A=$S" "B=$S"
+    saw    'GATE: SKIPPED' 'without the demand an all-skip run is UNCHANGED: SKIPPED, exit 0'
+    saw_no 'NOTHING GRADED' 'and the demand banner is not printed when nobody asked for it'
+
+    # 3. A genuinely graded run is unaffected BY the demand...
+    require_graded=1
+    run_case require-graded-green-run-passes PASS "A=$P" "B=$P"
+    require_graded=0
+    saw    '^GATE: PASS —' 'a run that graded 4 corpora passes WITH the demand set'
+    saw_no 'NOTHING GRADED' 'the demand is silent when the count it wants is positive'
+
+    # 4. ...and unaffected WITHOUT it. The second half of "either way".
+    require_graded=0
+    run_case demand-off-green-run-passes PASS "A=$P" "B=$P"
+    saw '^GATE: PASS —' 'and the same run passes without the demand — either way, unaffected'
+
+    # 5. SAMPLED SATISFIES THE DEMAND, deliberately. A strided 400-case sample
+    #    graded 400 things; the demand is `graded > 0`, not `graded == corpus`.
+    #    The instrument for "less than everything" is the qualified headline,
+    #    which is still printed. Asserted because it is a DECISION, not a default.
+    SWEEP_FOR_CASE='SAMPLED|400|400|14635|0|a STRIDED sample, not the corpus|397|3'
+    require_graded=1
+    run_case require-graded-sampled-satisfies PASS "A=$P" "B=$P"
+    require_graded=0
+    saw    'GATE: PASS (SAMPLED)' 'a SAMPLED run graded something, so the demand is met'
+    saw_no 'NOTHING GRADED' 'the demand does not moonlight as a completeness check'
+
+    # 6. NO DUPLICATION, part one. A partial skip is ALREADY a failure; under the
+    #    demand it must still fail with the PARTIAL-SKIP message, not a second
+    #    implementation of the same rule wearing the demand's banner.
+    require_graded=1
+    run_case require-graded-partial-skip-keeps-its-own-message FAIL "A=$P" "B=$S"
+    require_graded=0
+    saw    'lanes skipped while' 'a partial skip still fails as a PARTIAL SKIP'
+    saw_no 'NOTHING GRADED' 'the demand did not duplicate a check that already existed'
+
+    # 7. NO DUPLICATION, part two, and the one that matters most: a mismatch keeps
+    #    its alarm and never gets relabelled. A wrong emit outranks every other
+    #    piece of work, including the caller's demand.
+    require_graded=1
+    run_case require-graded-never-shadows-a-mismatch FAIL "A=$P" "B=$M"
+    require_graded=0
+    saw    'ALARM' 'a mismatch under the demand still raises the mismatch alarm'
+    saw_no 'NOTHING GRADED' 'and is never relabelled as a nothing-graded run'
+
+    # ---- the RESOLUTION HINT, and its anti-drift assertion --------------------
+    #
+    # w-root read a clean SKIP out of a worktree and had to derive the cause. The
+    # hint is diagnostic text, so what can be asserted about it is that it NAMES
+    # the right things and that those names still exist where the resolver reads
+    # them.
+    toolchain_hint > "$st/hint.out" 2>&1
+    # `override: <NAME>`, not merely `<NAME>` anywhere in the block. The first
+    # draft grepped the whole output and stayed GREEN under a mutation that
+    # deleted the override from the path it belongs to, because the name was
+    # still mentioned in a sentence further down. A name in prose is not a name
+    # attached to the path that failed.
+    _th_missing=""
+    for _v in C2RS_COMPILERS C2RS_WIBO C2RS_CL_EXE C2RS_C2_DLL; do
+        grep -q "override: $_v" "$st/hint.out" || _th_missing="$_th_missing $_v"
+    done
+    if [ -z "$_th_missing" ]; then
+        _r=0; _th_detail="C2RS_COMPILERS / C2RS_WIBO / C2RS_CL_EXE / C2RS_C2_DLL"
+    else
+        _r=1; _th_detail="NOT NAMED BY THE HINT:$_th_missing"
+    fi
+    t_case hint-names-every-override "$_r" "$_th_detail"
+
+    grep -q 'configure_existing_worktree.sh' "$st/hint.out" && _r=0 || _r=1
+    t_case hint-names-the-one-command-that-fixes-it "$_r" \
+        "a lane in a worktree is told the command, not just the symptom"
+
+    grep -q 'C2RS_DC3' "$st/hint.out" && _r=1 || _r=0
+    t_case hint-does-not-name-c2rs-dc3 "$_r" \
+        "C2RS_DC3 is status.sh's dc3 SOURCE tree; no lane in this gate reads it"
+
+    # THE ANTI-DRIFT ARM. The hint is a second place where these names are
+    # written, and a signpost pointing at a variable nobody reads is worse than no
+    # signpost. The names are read OUT OF THE HINT'S OWN OUTPUT rather than from a
+    # list repeated here — a fixed list would go on agreeing with itself while the
+    # hint printed something else, which is the drift, one level up.
+    _th_ref="$repo_root/crates/c2-reference/src/lib.rs"
+    _th_stale=""
+    for _v in $(grep -o 'C2RS_[A-Z0-9_]*' "$st/hint.out" | sort -u); do
+        grep -q "\"$_v\"" "$_th_ref" 2>/dev/null || _th_stale="$_th_stale $_v"
+    done
+    if [ -z "$_th_stale" ]; then
+        _r=0; _th_detail="every C2RS_* the hint prints is still read by Toolchain::locate"
+    else
+        _r=1
+        _th_detail="NAMED BY THE HINT, NOT READ BY crates/c2-reference/src/lib.rs:$_th_stale"
+    fi
+    t_case hint-overrides-still-read-by-the-resolver "$_r" "$_th_detail"
+
+    # And the version directory must come OUT OF the Rust source, not out of a
+    # literal here — the same drift, one level down.
+    _th_ver=$(sed -n 's/^const X360_TOOLCHAIN_REL: &str = "\([^"]*\)";.*/\1/p' \
+        "$_th_ref" 2>/dev/null | head -1)
+    if [ -n "$_th_ver" ] && grep -q "$_th_ver" "$st/hint.out"; then _r=0; else _r=1; fi
+    t_case hint-reads-the-version-dir-from-source "$_r" \
+        "the toolchain dir printed is the one crates/c2-reference declares (${_th_ver:-UNREADABLE})"
+
+    # BOTH SIDES OF THE `found` / `MISSING` COLUMN, driven for real. A column that
+    # only ever prints one value is not a measurement, and this one has to be
+    # right in the direction that matters: a path that is NOT there must say so.
+    _th_saveroot="$repo_root"
+    repo_root="$st/no-such-tree"
+    toolchain_hint > "$st/hint-absent.out" 2>&1
+    repo_root="$_th_saveroot"
+    [ "$(grep -c 'MISSING' "$st/hint-absent.out")" -eq 4 ] && _r=0 || _r=1
+    t_case hint-marks-absent-paths-missing "$_r" \
+        "against a tree with no toolchain, all four defaults read MISSING ($(grep -c 'MISSING' "$st/hint-absent.out") of 4)"
+    grep -q 'all four defaults above EXIST' "$st/hint-absent.out" && _r=1 || _r=0
+    t_case hint-does-not-claim-they-exist "$_r" \
+        "and it does not then print the everything-is-present note"
+
+    # ...and the mirror: on THIS tree (whose toolchain the gate just used) every
+    # default is present, so the hint must decline to blame a path and say the
+    # cause is elsewhere. Without this arm the block would print four `found`
+    # lines under a heading saying the toolchain did not resolve.
+    if grep -q 'MISSING' "$st/hint.out"; then
+        t_case hint-declines-to-blame-a-present-path 0 \
+            "(this tree has a MISSING default of its own, so the mirror arm is moot here)"
+    else
+        grep -q 'all four defaults above EXIST' "$st/hint.out" && _r=0 || _r=1
+        t_case hint-declines-to-blame-a-present-path "$_r" \
+            "every default present -> the hint says the cause is elsewhere, not 'found, found, found'"
+    fi
+
+    # ---- the demand meets the modes that grade nothing -------------------------
+    # Driven as REAL subprocesses: these are argument-parse decisions and the only
+    # honest way to check an exit code is to produce one.
+    _rgs=0
+    sh "$0" --require-graded --reap-only --work "$st/never-created" \
+        > "$st/rg-reap.out" 2>&1 || _rgs=$?
+    [ "$_rgs" -eq 2 ] && _r=0 || _r=1
+    t_case require-graded-refuses-reap-only "$_r" \
+        "--require-graded --reap-only exits $_rgs (want 2 = usage, a contradiction)"
+    [ ! -d "$st/never-created" ] && _r=0 || _r=1
+    t_case require-graded-refuses-before-reaping "$_r" \
+        "and refuses BEFORE creating a run tree or reaping anything"
+
+    _rgs=0
+    C2RS_GATE_REQUIRE_GRADED=1 sh "$0" --list --work "$st/rg-list-work" \
+        > "$st/rg-list.out" 2>"$st/rg-list.err" || _rgs=$?
+    [ "$_rgs" -eq 0 ] && _r=0 || _r=1
+    t_case require-graded-env-leaves-list-alone "$_r" \
+        "an exported demand does not break --list (exit $_rgs)"
+    grep -q 'has no effect in --list' "$st/rg-list.err" && _r=0 || _r=1
+    t_case require-graded-says-when-it-does-not-apply "$_r" \
+        "and SAYS so on stderr — a demand quietly ignored is this file's own bug class"
+
     echo
     # The floor was 15 when the gate covered lanes only; the sweep row took it to
     # 27, w-modes added 3 sweep-classifier cases plus 10 mode-cross cases, and
     # w-shapes adds 4 corpus-shape cases, and w-gr adds the gt_dump reader case,
     # and w-ledger adds 18 for the reaper, the two-resource preflight and the
-    # ENOSPC/mismatch discrimination.
+    # ENOSPC/mismatch discrimination, and w-gate adds 19 for `--require-graded`
+    # (7 demand cases, each paired with a control, plus 8 for the resolution hint
+    # and 4 for the modes that grade nothing) — 65 -> 84.
     # It is a floor on the COUNT, per the standing mitigation — compare a count,
     # never a status — and it must be raised whenever cases are added.
-    if [ "$cases" -lt 65 ]; then
+    #
+    # **THE FLOOR IS CHECKED AFTER EVERY CASE HAS RUN, AND THAT IS DELIBERATE.**
+    # `crates/c2-harness/tests/lane_registry.rs` has a count floor that trips
+    # FIRST, and `docs/GAPS.md` records the consequence: every mutation failed on
+    # the count and the specific assertions behind it never executed, so they
+    # proved nothing. Here `fails` is accumulated by every case before the count
+    # is looked at, so a mutation reddens the assertion it actually broke and the
+    # per-assertion message says which one.
+    if [ "$cases" -lt 84 ]; then
         echo "gate.sh --selftest: FAIL — only $cases cases ran; the selftest itself was"
         echo "  truncated, and a truncated selftest is the failure it exists to catch."
         exit 1
