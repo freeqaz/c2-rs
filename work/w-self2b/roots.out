@@ -1,0 +1,36 @@
+  THE IL FACT — one representative per family, all at (ru,cu)=(2,4)
+  binds decoded per cell are printed as `bind` on the token that is one
+
+  cell       class                  STORE designator root  VALUE expr root       
+  ----------------------------------------------------------------------------------
+  Z1-r2k4    SELF-1B                tok 0xe0a formal [48, 0, 0] tok 0xe0a formal [48, 0]
+  Z2-r2k4    LOAD                   tok 0x130a BIND   [0]  tok 0x130a BIND   []  
+  Z3-r2k4    SELF-2B-tail-agrees    tok 0x130a BIND   [0]  tok 0xe0a formal [48, 0]
+  Z4-r2k4    SELF-2B-tail-differs   tok 0x130a BIND   [0]  tok 0xe0a formal [48] 
+  Z5-r2k4    MIRROR                 tok 0xe0a formal [48, 0, 0] tok 0x130a BIND   []  
+  Z6-r2k4    TWOBIND                tok 0x140a BIND   [0]  tok 0x130a BIND   []  
+
+  cell       class                  roots     store is  obj (GRID Z)
+  ------------------------------------------------------------------------
+  Z1-r2k4    SELF-1B                same      a formal  const
+  Z2-r2k4    LOAD                   same      a BIND    const
+  Z3-r2k4    SELF-2B-tail-agrees    DIFFER    a BIND    prod
+  Z4-r2k4    SELF-2B-tail-differs   DIFFER    a BIND    prod
+  Z5-r2k4    MIRROR                 DIFFER    a formal  const
+  Z6-r2k4    TWOBIND                DIFFER    a BIND    prod
+
+  READ IT OFF THE TABLE, not off a story about it:
+
+    * the two spellings differ in the `.ex` in exactly the ROOT TOKEN of one
+      `B9 <tok> <TYPE>` and in the offset-add literal LIST that follows it;
+    * `prod` appears exactly where the STORE designator's root token is a BIND
+      **and** the value expression's root token is a different token;
+    * `Z5` has DIFFERING roots and is `const`, so the relation is NOT symmetric
+      in the two tokens — which is what refutes H-2X;
+    * `Z2` has a BIND store root and is `const`, so "the stores go through a
+      bind" is not enough either — which is what refuted H-MIX.
+
+  Both facts are relations between TWO `B9` roots plus one bit about one of
+  them.  `alloc::Producer` carries `uses`, `kind` and `first`, and c2-il's
+  `eat_offset_adds` returns the SUM of the literal list rather than the list
+  (#908).  Neither can hold this.
