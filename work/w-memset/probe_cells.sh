@@ -3,10 +3,7 @@
 # `no_effect_callee`, so "the reader fires" is visible per cell before the
 # integration test grades any of them against real c2.
 #
-# Run from the worktree ROOT. The cell path must stay RELATIVE: `cl.exe` runs
-# under wibo and an absolute host path does not survive the translation
-# (`capture_reference produced no obj`), which is a silent-looking failure the
-# first version of this script walked straight into.
+# Run from the worktree ROOT. The cell path stays RELATIVE — see cellcensus.sh.
 set -eu
 for c in work/w-memset/cells/l*.cpp; do
     n=$(basename "$c" .cpp)

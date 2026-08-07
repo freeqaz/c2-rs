@@ -1,9 +1,13 @@
 #!/bin/sh
-# cellcensus.sh — census one hand cell at the CELL flag profile.
+# cellcensus.sh — `c2rs census` on one hand cell, at the CELL flag profile.
+#
 # Usage: work/w-memset/cellcensus.sh <cell.cpp> <keep-il-dir> [extra args...]
+# The cell path must stay RELATIVE to the worktree root: `cl.exe` runs under
+# wibo and an absolute host path does not survive the translation, which fails
+# as `capture_reference produced no obj` rather than as anything readable.
 set -eu
-WT=/home/free/code/milohax/c2-rs/.claude/worktrees/agent-ad6b3bf681da16cd4
-C2RS_WIBO=${C2RS_WIBO:-/home/free/code/milohax/wibo/build/release/wibo}
+WT=$(cd "$(dirname "$0")/../.." && pwd)
+C2RS_WIBO=${C2RS_WIBO:-$WT/../wibo/build/release/wibo}
 C2RS_COMPILERS=${C2RS_COMPILERS:-$WT/compilers}
 export C2RS_WIBO C2RS_COMPILERS
 cpp="$1"

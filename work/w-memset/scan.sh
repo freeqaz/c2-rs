@@ -2,12 +2,15 @@
 # scan.sh — one 878-TU workload scan with this lane's environment.
 #
 # Usage: work/w-memset/scan.sh <out-prefix> [extra c2rs gap args...]
-# Run from the worktree root. Writes <out-prefix>.txt.
+# Run from the worktree root. Nothing absolute lives here: the worktree comes
+# from this script's own location and the toolchain from `C2RS_*` with the same
+# sibling defaults `Toolchain::locate` uses (CLAUDE.md — toolchain location is
+# env-driven by design and machine paths are never committed).
 set -eu
-WT=/home/free/code/milohax/c2-rs/.claude/worktrees/agent-ad6b3bf681da16cd4
-C2RS_WIBO=${C2RS_WIBO:-/home/free/code/milohax/wibo/build/release/wibo}
+WT=$(cd "$(dirname "$0")/../.." && pwd)
+C2RS_WIBO=${C2RS_WIBO:-$WT/../wibo/build/release/wibo}
 C2RS_COMPILERS=${C2RS_COMPILERS:-$WT/compilers}
-C2RS_DC3=${C2RS_DC3:-/home/free/code/milohax/dc3-decomp}
+: "${C2RS_DC3:?set C2RS_DC3 to the dc3-decomp tree}"
 export C2RS_WIBO C2RS_COMPILERS C2RS_DC3
 out="$1"
 shift

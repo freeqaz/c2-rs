@@ -1,11 +1,11 @@
 #!/bin/sh
-# census.sh — run `c2rs census` on one dc3 TU with this lane's environment.
+# census.sh — `c2rs census` on one dc3 workload TU, at the workload's own flags.
 # Usage: work/w-memset/census.sh <src-relative-path> [extra args...]
 set -eu
-WT=/home/free/code/milohax/c2-rs/.claude/worktrees/agent-ad6b3bf681da16cd4
-C2RS_WIBO=${C2RS_WIBO:-/home/free/code/milohax/wibo/build/release/wibo}
+WT=$(cd "$(dirname "$0")/../.." && pwd)
+C2RS_WIBO=${C2RS_WIBO:-$WT/../wibo/build/release/wibo}
 C2RS_COMPILERS=${C2RS_COMPILERS:-$WT/compilers}
-C2RS_DC3=${C2RS_DC3:-/home/free/code/milohax/dc3-decomp}
+: "${C2RS_DC3:?set C2RS_DC3 to the dc3-decomp tree}"
 export C2RS_WIBO C2RS_COMPILERS C2RS_DC3
 f="$1"
 shift
