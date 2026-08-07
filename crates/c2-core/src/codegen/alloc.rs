@@ -553,7 +553,7 @@ pub struct Root {
     /// `None` for a root that is not a bind (a formal is rooted at nothing) or
     /// where the reader did not carry it.
     ///
-    /// **Board #1245, measured by this lane's own GRID P and not assumed.**
+    /// **Board #1244, measured by this lane's own GRID P and not assumed.**
     /// `w-self2b` named the carrier as `(root token, is-a-bind, literal list)`
     /// of both sides, and GRID P contains a pair — `P6-r2k4` / `P7-r2k4`,
     /// `work/w-prod/witness.out` — that is **identical in all six of those
@@ -1543,7 +1543,7 @@ mod tests {
         assert_eq!(checked, 7 * 2 * 7 * 2, "every cross was actually visited");
     }
 
-    /// **Board #1245 — the pair the carrier's first three fields CANNOT
+    /// **Board #1244 — the pair the carrier's first three fields CANNOT
     /// separate, and the field that does.**
     ///
     /// GRID P's `P6-r2k4` and `P7-r2k4` (`work/w-prod/witness.out`), decoded
