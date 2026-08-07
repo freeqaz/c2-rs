@@ -846,41 +846,31 @@ pub(crate) fn shape_to_function(
                 if params.is_empty() {
                     return None;
                 }
-                let ops =
-                    crate::func::body::shapes::bind_run_ops(&params, &binds, &ops, live_args)
-                        .ok()?;
+                let ops = crate::func::body::shapes::bind_run_ops(
+                    &params,
+                    &binds,
+                    &ops,
+                    live_args,
+                    callee_tok.is_some(),
+                )
+                .ok()?;
+                // **Only the plain run tail.** `bind_run_ops` refuses #1129's
+                // call tail for a bind-carrying run under
+                // [`super::body::STORE_RUN_BIND_CALL_TAIL`] — three graded
+                // `Port=Mismatch` objs earned that refusal, and the reason is
+                // that board #867's `u` is fed the COUNT of unproduced stores
+                // while the composition needs #584's LEADING RUN, an identity
+                // that holds on a single-symbol run and that a bind breaks. The
+                // arm is written as a `match` rather than an `if` so a lane that
+                // lifts the refusal has to come back and build the sequence
+                // rather than inherit a wildcard.
                 match callee_tok {
-                    // #1129's call tail: the composition carrier #844 landed,
-                    // reused rather than restated. `ops` stays EMPTY on the
-                    // function — the run lives inside the sequence it belongs
-                    // to, and `IlFunction::store_run_carried_twice` is the
-                    // backstop.
-                    Some(tok) => Some(IlFunction {
+                    Some(_) => None,
+                    None => Some(IlFunction {
                         params,
-                        call_seq: Some(CallSeq {
-                            calls: vec![SeqCall {
-                                callee: resolve(tok)?,
-                                arg_ops: Vec::new(),
-                                arg_sources: None,
-                                link_args: None,
-                            }],
-                            tail: SeqTail::SavedFormal { param: 0 },
-                            saved: vec![0],
-                            guard: None,
-                            early: Vec::new(),
-                            store_run: Some(crate::func::StoreRunPrefix { ops, live_args }),
-                        }),
+                        ops,
                         ..IlFunction::base(name, src)
                     }),
-                    // The plain run tail — the leaf's own carrier, unchanged.
-                    None => {
-                        let _ = live_args;
-                        Some(IlFunction {
-                            params,
-                            ops,
-                            ..IlFunction::base(name, src)
-                        })
-                    }
                 }
             }
             BodyShape::AddrLeaf { params, ops } => {

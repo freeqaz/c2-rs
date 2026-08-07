@@ -1067,19 +1067,49 @@ pub(crate) const STORE_RUN_BIND_MULTI_PRODUCER: &str = "store-run-bind-multi-pro
 /// one it stands in for.
 pub(crate) const STORE_RUN_BIND_SYMBOL_CROSSINGS: &str = "store-run-bind-symbol-crossings";
 
-/// The bind body's run binds a reference off a formal the trailing **call keeps
-/// alive** — `w-seam2`'s `LIVE_ARG_STORED` under a second spelling.
+/// **THE REFUSAL THE SWEEP EARNED** — a bind-carrying run followed by board
+/// #1129's call. Three cases of `scripts/sweep.d/88-store-run-call.py` graded
+/// `Port=Mismatch` on `w-carrier`'s first emitter, and this is what closes them.
 ///
-/// The bound store's address is `bind.base + bind.off`, so the run reads that
-/// formal's register, and board **#866 is refuted in general**: when a store
-/// reads a value the call keeps alive the framed run is **not** the leaf's — two
-/// unproduced stores swap (`w-seam2` §4). The reader's own slot-`>=1` gate looks
-/// at the stored VALUE (op index 1) and would not see this, so the fact is stated
-/// here where `bind_run_ops` can see the bindings, and
-/// `codegen::store_run_call`'s backstop asks the same question of
-/// [`crate::func::IlOp::BoundAddr`]'s `base`. Over-refusing is the safe
-/// direction and the direction that gate already takes.
-pub(crate) const STORE_RUN_BIND_LIVE_ARG_BASE: &str = "store-run-bind-live-arg-base";
+/// ```text
+///   H::H(unsigned a, unsigned b) { BE& lh = mListHead; mCount = 0;
+///                                  lh.mNext = (BE*)this; Reset(); }
+///   real c2:  li 11,0 ; mr 31,3 ; stw 11,20(3) ; stw 3,8(3) ; bl
+///   the port: li 11,0 ; stw 11,20(3) ; mr 31,3 ; stw 3,8(3) ; bl
+/// ```
+///
+/// **The copy lands after ZERO stores and board #867's rule says one.** The
+/// mechanism is `codegen::store_run_call`'s own documented shortcut:
+/// `save_slot(nprod, u)` is fed the **COUNT** of unproduced stores, and the file
+/// argues that equals #584's `u`, the **leading run** of unproduced stores in the
+/// *final* order — *"they cannot be [separated]: `store_order` forbids a store
+/// whose producer has rank `j` from occupying a position below `u + j`, so the
+/// leading run is always at least `min(2, total)`"*.
+///
+/// **That argument holds only on a SINGLE-symbol run**, which is every cell the
+/// shortcut was ever measured on. `codegen::order`'s own
+/// `the_two_readings_of_u_agree_on_every_single_symbol_run` enumerates 5,000+ to
+/// say so, and `the_layout_u_is_the_leading_run_not_the_count` exhibits the
+/// multi-symbol cell where they differ: the cross-symbol pin can strand an
+/// unproduced store *behind* a produced one. **A bind IS a second base symbol** —
+/// that is the whole of board #1128 — so this carrier is exactly what opened the
+/// region the identity fails in, and the pre-existing class could not reach it
+/// (its multi-symbol admission is the all-one-literal run, where the count is 0
+/// and the two readings agree trivially).
+///
+/// So the composition tail is **refused for a bind-carrying run**, and the
+/// correction that would emit these — feed `save_slot` the leading run instead of
+/// the count — is **named and not taken**: it is a change to a rule that governs
+/// every #844 body, it would rest on the three cells that refuted this lane, and
+/// `w-seam2` F-1's floor is that the answer to a mismatch is a refusal on a
+/// measured mechanism and never a narrowing around the failing cell. See
+/// `docs/rungs/2026-08-08-w-carrier.md` §Found-and-not-taken for what a lane
+/// taking it owes.
+///
+/// Placed AFTER the mixed-kind clause on purpose, so
+/// `src/xdk/nuispeech/xboxheap.cpp` — which has both a call tail and the mixed
+/// run — keeps the key that sizes boards #836/#868.
+pub(crate) const STORE_RUN_BIND_CALL_TAIL: &str = "store-run-bind-call-tail-mr-slot";
 
 /// The bind body's run is not a stream of three-op GPR store groups.
 ///
@@ -1105,8 +1135,8 @@ pub(crate) fn bind_refusal_key(shape: &BodyShape) -> Option<&'static str> {
             binds,
             ops,
             live_args,
-            ..
-        } => shapes::bind_run_ops(params, binds, ops, *live_args).err(),
+            callee_tok,
+        } => shapes::bind_run_ops(params, binds, ops, *live_args, callee_tok.is_some()).err(),
         _ => None,
     }
 }
