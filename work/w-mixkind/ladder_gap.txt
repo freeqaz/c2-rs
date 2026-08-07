@@ -1,0 +1,60 @@
+=== lift=0 ===
+gap scan: 1 TUs, 24 flags, jobs=1, replay-every=0
+  capture cache: /home/free/code/milohax/c2-rs/work/capture-cache
+provenance:
+  c2-rs      60261585a201 (DIRTY)  /home/free/code/milohax/c2-rs/.claude/worktrees/w-mixkind
+  binary     0ae6950f15667aa2  /home/free/code/milohax/c2-rs/.claude/worktrees/w-mixkind/target/release/c2rs
+  workload   a44b1cf9406e (clean)  /home/free/code/milohax/dc3-decomp
+  wibo       wibo 1.2.0-c2rs.1 (Linux x86_64)  /home/free/code/milohax/wibo/build/release/wibo
+  cl.exe     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/cl.exe
+  c2.dll     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c2.dll
+  c1xx.dll   /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c1xx.dll
+  strace     /usr/bin/strace
+  mingw      /usr/bin/i686-w64-mingw32-gcc
+  [1/1] vocab-gap    src/xdk/nuispeech/xboxheap.cpp  (il function decode failed)
+SPLITTER ANCHORS (ROADMAP §10.11/§10.12) — the census splits `.ex` on `4C 4F 11`, the port on `4F 1F`
+  gate-side segment count KNOWN for 1 of 1 captured TUs; UNKNOWN for 0 (no `.ex` at all). Read through `IlBundle::ex_segment_count`, a PURE reader of the `4F 1F` split — not `functions()`, which is an acceptance decision and returns None for every vocab-gap TU, leaving this knowable for only the 6 that already match.
+  of the 1 known: 1 agree with `fn_total`, 0 disagree (0 where the gate sees MORE segments, 0 where the census does)
+  emit-set ceiling, LO-anchored, over ALL graded TUs: 1
+  emit-set ceiling, GATE-anchored (`4F 1F`, what the port consumes), over the 1 known: 1 (+0 entering, -0 leaving vs the LO-anchored set)
+  gate-anchored control on matching TUs: 0 violations over 0 matching TUs whose gate count is known
+PHASE 7 FACTORS (ROADMAP §10.19/§10.21, boards #160/#179) — the model is A and B and C and (D or E), over 1 graded TUs
+  A  emit set reachable   `.ex` segments == obj `.text` COMDATs       1  (gate-anchored `4F 1F`; 1 on the census's `4C 4F 11` anchor)
+  B  binding complete     every emitted symbol binds                  1
+  C  section shape        obj sections subset of the writer's 10       1
+  D  per-fn acceptance    every emitted COMDAT in class               0  (0 of them emit nothing at all)
+  E  whole-TU acceptance  a REGISTERED whole-TU recognizer takes it   0  (2 in the registry)
+=== lift=1 ===
+gap scan: 1 TUs, 24 flags, jobs=1, replay-every=0
+  capture cache: /home/free/code/milohax/c2-rs/work/capture-cache
+provenance:
+  c2-rs      60261585a201 (DIRTY)  /home/free/code/milohax/c2-rs/.claude/worktrees/w-mixkind
+  binary     0ae6950f15667aa2  /home/free/code/milohax/c2-rs/.claude/worktrees/w-mixkind/target/release/c2rs
+  workload   a44b1cf9406e (clean)  /home/free/code/milohax/dc3-decomp
+  wibo       wibo 1.2.0-c2rs.1 (Linux x86_64)  /home/free/code/milohax/wibo/build/release/wibo
+  cl.exe     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/cl.exe
+  c2.dll     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c2.dll
+  c1xx.dll   /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c1xx.dll
+  strace     /usr/bin/strace
+  mingw      /usr/bin/i686-w64-mingw32-gcc
+  [1/1] codegen-gap  src/xdk/nuispeech/xboxheap.cpp  (a store run before a call whose values are not all a formal or a literal: the sc…)
+SPLITTER ANCHORS (ROADMAP §10.11/§10.12) — the census splits `.ex` on `4C 4F 11`, the port on `4F 1F`
+  gate-side segment count KNOWN for 1 of 1 captured TUs; UNKNOWN for 0 (no `.ex` at all). Read through `IlBundle::ex_segment_count`, a PURE reader of the `4F 1F` split — not `functions()`, which is an acceptance decision and returns None for every vocab-gap TU, leaving this knowable for only the 6 that already match.
+  of the 1 known: 1 agree with `fn_total`, 0 disagree (0 where the gate sees MORE segments, 0 where the census does)
+  emit-set ceiling, LO-anchored, over ALL graded TUs: 1
+  emit-set ceiling, GATE-anchored (`4F 1F`, what the port consumes), over the 1 known: 1 (+0 entering, -0 leaving vs the LO-anchored set)
+  gate-anchored control on matching TUs: 0 violations over 0 matching TUs whose gate count is known
+PHASE 7 FACTORS (ROADMAP §10.19/§10.21, boards #160/#179) — the model is A and B and C and (D or E), over 1 graded TUs
+  A  emit set reachable   `.ex` segments == obj `.text` COMDATs       1  (gate-anchored `4F 1F`; 1 on the census's `4C 4F 11` anchor)
+  B  binding complete     every emitted symbol binds                  1
+  C  section shape        obj sections subset of the writer's 10       1
+  D  per-fn acceptance    every emitted COMDAT in class               1  (0 of them emit nothing at all)
+  E  whole-TU acceptance  a REGISTERED whole-TU recognizer takes it   0  (2 in the registry)
+  [1/1] codegen-gap  src/xdk/nuispeech/xboxheap.cpp  (a store run before a call whose values are not all a formal or a literal: the sc…)
+SPLITTER ANCHORS (ROADMAP §10.11/§10.12) — the census splits `.ex` on `4C 4F 11`, the port on `4F 1F`
+  of the 1 known: 1 agree with `fn_total`, 0 disagree (0 where the gate sees MORE segments, 0 where the census does)
+  A  emit set reachable   `.ex` segments == obj `.text` COMDATs       1  (gate-anchored `4F 1F`; 1 on the census's `4C 4F 11` anchor)
+     accepted/total bytes    frac   exact  remain | src   (REMAIN = total - accepted = the PowerPC still to write. A FOURTH unit, printed and NOT chosen between: it agrees with `frac` on both outcome cells and DISAGREES with it at this frontier's head.)
+      LEDGER — 4 entries, 0 of them RESTRICTED. A restricted entry is a claim about named census keys, and two ways it goes quietly wrong are counted here: a listed key no scan witnesses (a claim doing nothing — trap 5 with the claim still on the page) and a key `admits` accepts that the entry does not list (the matcher and the declaration disagreeing, which is what an exact→prefix slip looks like). unwitnessed 0, intruders 0.
+    census/gate disagreement on EMITTED fns (the error term on the emitted census, target 0): 1
+  census/gate DISAGREEMENT: 1 (100.00% of the numerator) — the census OVER-CLAIMS by this much

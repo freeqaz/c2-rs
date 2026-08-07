@@ -1,0 +1,6 @@
+A. nothing lifted
+src/xdk/nuispeech/xboxheap.cpp -> 0/1 functions in class
+  [  0] GAP store-run-bind-mixed-kind-alloc:eof cflow-straight             eh-none     (eh-none     )    404 B  ?AllocatePageBlock@CXboxHeap@NUISPEECH@@AAAPAU_BLOCK_ENTRY@12@I@Z
+
+B. mixed-kind lifted (w-prod's clause, env hatch, uncommitted)
+src/xdk/nuispeech/xboxheap.cpp -> 1/1 functions in class
