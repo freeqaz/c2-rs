@@ -1,0 +1,10 @@
+CELL                 GAP.base    GAP.tip2    KEY.base                                       KEY.tip2
+h_livearg            vocab-gap   vocab-gap   expr-op-0x27                                   expr-op-0x27
+h_livearg_ctrl       vocab-gap   vocab-gap   expr-op-0x27                                   expr-op-0x27
+h_width1             vocab-gap   match       store-run-bind-no-emitter-carrier:eof          IN-CLASS
+h_width1_c           match       match       IN-CLASS                                       IN-CLASS
+h_width2             vocab-gap   match       store-run-bind-no-emitter-carrier:eof          IN-CLASS
+h_width2_c           match       match       IN-CLASS                                       IN-CLASS
+h_width8             vocab-gap   match       store-run-bind-no-emitter-carrier:eof          IN-CLASS
+h_width8_c           match       match       IN-CLASS                                       IN-CLASS
+h_widthmix           vocab-gap   match       store-run-bind-no-emitter-carrier:eof          IN-CLASS

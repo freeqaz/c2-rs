@@ -14,7 +14,7 @@
 set -eu
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 grid="$repo_root/work/w-carrier/${GRID:-grid}"
-c2rs="$repo_root/target/release/c2rs"
+c2rs="${C2RS_BIN:-$repo_root/target/release/c2rs}"
 
 tag="${1:?usage: run.sh <tag> [cell ...]}"
 shift || true
