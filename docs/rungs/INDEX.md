@@ -98,6 +98,7 @@ the header block this table is read from.
 | 2026-08-08 | w-align | [w-align](2026-08-08-w-align.md) | 2 | 711,477 / 2,463,443 (28.88 %), **+0** — this lane emits no function |
 | 2026-08-08 | w-alloc3 | [w-alloc3](2026-08-08-w-alloc3.md) | 8 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. **TU match 10 → 10, |
 | 2026-08-08 | w-emitp2 | [w-emitp2](2026-08-08-w-emitp2.md) | 8 | 711,427 / 2,463,393 unchanged (28.88 %), +0 |
+| 2026-08-08 | w-f23 | [w-f23](2026-08-08-w-f23.md) | 12 | 711,477 / 2,463,443 unchanged (28.88 %), **+0** — and the `+0` is |
 | 2026-08-08 | w-front2 | [w-front2](2026-08-08-w-front2.md) | 11 | 711,477 / 2,463,443 unchanged (28.88 %), **+0** — this lane |
 | 2026-08-08 | w-gate | [w-gate](2026-08-08-w-gate.md) | 11 | 711,477 / 2,463,443 unchanged (28.88 %), +0 |
 | 2026-08-08 | w-gen | [w-gen](2026-08-08-w-gen.md) | 12 | 711,477 / 2,463,443 unchanged (28.88 %), **+0** — NOT re-measured |
