@@ -1,0 +1,104 @@
+== <worktree>/work/w-front2/ref/src_xdk_xjson_jsonwriter.cpp/out.obj  machine=0x01f2 nsec=6 nsym=21 size=1444
+-- sections
+   1 .drectve   raw=132    rawptr=0x0104 rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=208    rawptr=0x0188 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x0258 rel=0  relptr=0x0000 chars=0xc0401040
+   4 .XBLD$W    raw=16     rawptr=0x0268 rel=0  relptr=0x0000 chars=0xc2301040
+   5 .text      raw=304    rawptr=0x0278 rel=2  relptr=0x03a8 chars=0x60401020
+   6 .pdata     raw=8      rawptr=0x03bc rel=1  relptr=0x03c4 chars=0x40401040
+-- .text #5 (304 B) ?GetBuffer@JsonWriter@@QAAJPAGPAK@Z
+   0000  7d8802a6  mflr 12                         
+   0004  4bfffffd  bl .-4                            ; REL24 -> [20] __savegprlr_28
+   0008  38e00000  li 7, 0                         
+   000c  2b050000  cmplwi 6, 5, 0                  
+   0010  419a0110  bt	26, .+272                    
+   0014  2b040000  cmplwi 6, 4, 0                  
+   0018  409a0010  bf	26, .+16                     
+   001c  81650000  lwz 11, 0(5)                    
+   0020  2b0b0000  cmplwi 6, 11, 0                 
+   0024  409a00fc  bf	26, .+252                    
+   0028  81630004  lwz 11, 4(3)                    
+   002c  7ce83b78  mr	8, 7                         
+   0030  7cff3b78  mr	31, 7                        
+   0034  2b0b0000  cmplwi 6, 11, 0                 
+   0038  409900c8  bf	25, .+200                    
+   003c  7ce63b78  mr	6, 7                         
+   0040  3bc00001  li 30, 1                        
+   0044  81630000  lwz 11, 0(3)                    
+   0048  3bff0001  addi 31, 31, 1                  
+   004c  7d6b322e  lhzx 11, 11, 6                  
+   0050  38c60002  addi 6, 6, 2                    
+   0054  7d6a5b78  mr	10, 11                       
+   0058  2b0b007f  cmplwi 6, 11, 127               
+   005c  41990020  bt	25, .+32                     
+   0060  81450000  lwz 10, 0(5)                    
+   0064  39080001  addi 8, 8, 1                    
+   0068  7f085040  cmplw 6, 8, 10                  
+   006c  40980088  bf	24, .+136                    
+   0070  556b067e  clrlwi	11, 11, 25               
+   0074  b1640000  sth 11, 0(4)                    
+   0078  48000034  b .+52                          
+   007c  81250000  lwz 9, 0(5)                     
+   0080  2b0a07ff  cmplwi 6, 10, 2047              
+   0084  41990030  bt	25, .+48                     
+   0088  39080002  addi 8, 8, 2                    
+   008c  7f084840  cmplw 6, 8, 9                   
+   0090  40980064  bf	24, .+100                    
+   0094  394000c0  li 10, 192                      
+   0098  7d695b78  mr	9, 11                        
+   009c  516ad6fe  rlwimi 10, 11, 26, 27, 31       
+   00a0  53c93832  rlwimi 9, 30, 7, 0, 25          
+   00a4  b1440000  sth 10, 0(4)                    
+   00a8  b5240002  sthu 9, 2(4)                    
+   00ac  b4e40002  sthu 7, 2(4)                    
+   00b0  48000044  b .+68                          
+   00b4  39080003  addi 8, 8, 3                    
+   00b8  7f084840  cmplw 6, 8, 9                   
+   00bc  40980038  bf	24, .+56                     
+   00c0  392000e0  li 9, 224                       
+   00c4  3ba00080  li 29, 128                      
+   00c8  39440002  addi 10, 4, 2                   
+   00cc  5169a73e  rlwimi 9, 11, 20, 28, 31        
+   00d0  7d7c5b78  mr	28, 11                       
+   00d4  517dd6be  rlwimi 29, 11, 26, 26, 31       
+   00d8  b1240000  sth 9, 0(4)                     
+   00dc  396a0002  addi 11, 10, 2                  
+   00e0  53dc3832  rlwimi 28, 30, 7, 0, 25         
+   00e4  b3a40004  sth 29, 4(4)                    
+   00e8  b78b0002  sthu 28, 2(11)                  
+   00ec  7d645b78  mr	4, 11                        
+   00f0  b0eb0000  sth 7, 0(11)                    
+   00f4  81630004  lwz 11, 4(3)                    
+   00f8  7f1f5840  cmplw 6, 31, 11                 
+   00fc  4198ff48  bt	24, .-184                    
+   0100  81650000  lwz 11, 0(5)                    
+   0104  7f085840  cmplw 6, 8, 11                  
+   0108  4198000c  bt	24, .+12                     
+   010c  3ce0803f  lis 7, -32705                   
+   0110  60e70005  ori 7, 7, 5                     
+   0114  39680001  addi 11, 8, 1                   
+   0118  91650000  stw 11, 0(5)                    
+   011c  4800000c  b .+12                          
+   0120  3ce08007  lis 7, -32761                   
+   0124  60e70057  ori 7, 7, 87                    
+   0128  7ce33b78  mr	3, 7                         
+   012c  4bfffed4  b .-300                           ; REL24 -> [19] __restgprlr_28
+-- .pdata #6 raw
+   0000  00 00 00 00 40 00 4c 02
+   reloc va=0x0 ADDR32   -> [13] ?GetBuffer@JsonWriter@@QAAJPAGPAK@Z
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=208 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .XBLD$W                                  sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [10] __C1_11886                               sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [11] .text                                    sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=304 nrel=2 nln=0 cksum=0x00000000 num=0 sel=1)
+  [13] ?GetBuffer@JsonWriter@@QAAJPAGPAK@Z      sec=5   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [14] $M2595                                   sec=5   val=0x130    sc=LABEL     type=0x0000 naux=0
+  [15] $M2594                                   sec=5   val=0x8      sc=LABEL     type=0x0000 naux=0
+  [16] .pdata                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0x29d63918 num=5 sel=5)
+  [18] $T2596                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=0
+  [19] __restgprlr_28                           sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [20] __savegprlr_28                           sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0

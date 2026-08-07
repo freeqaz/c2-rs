@@ -1,0 +1,179 @@
+== <worktree>/work/w-front2/ref/src_xdk_nuispeech_mmio.cpp/out.obj  machine=0x01f2 nsec=18 nsym=61 size=2838
+-- sections
+   1 .drectve   raw=132    rawptr=0x02e4 rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=204    rawptr=0x0368 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x0434 rel=0  relptr=0x0000 chars=0xc0401040
+   4 .XBLD$W    raw=16     rawptr=0x0444 rel=0  relptr=0x0000 chars=0xc2301040
+   5 .text      raw=84     rawptr=0x0454 rel=1  relptr=0x04a8 chars=0x60401020
+   6 .pdata     raw=8      rawptr=0x04b2 rel=1  relptr=0x04ba chars=0x40401040
+   7 .text      raw=108    rawptr=0x04c4 rel=1  relptr=0x0530 chars=0x60401020
+   8 .pdata     raw=8      rawptr=0x053a rel=1  relptr=0x0542 chars=0x40401040
+   9 .text      raw=8      rawptr=0x054c rel=0  relptr=0x0000 chars=0x60401020
+  10 .text      raw=8      rawptr=0x0554 rel=0  relptr=0x0000 chars=0x60401020
+  11 .text      raw=8      rawptr=0x055c rel=0  relptr=0x0000 chars=0x60401020
+  12 .text      raw=8      rawptr=0x0564 rel=0  relptr=0x0000 chars=0x60401020
+  13 .text      raw=8      rawptr=0x056c rel=0  relptr=0x0000 chars=0x60401020
+  14 .text      raw=124    rawptr=0x0574 rel=2  relptr=0x05f0 chars=0x60401020
+  15 .pdata     raw=8      rawptr=0x0604 rel=1  relptr=0x060c chars=0x40401040
+  16 .text      raw=8      rawptr=0x0616 rel=0  relptr=0x0000 chars=0x60401020
+  17 .text      raw=8      rawptr=0x061e rel=0  relptr=0x0000 chars=0x60401020
+  18 .text      raw=8      rawptr=0x0626 rel=0  relptr=0x0000 chars=0x60401020
+-- .text #5 (84 B) mmioGetInfo
+   0000  7d8802a6  mflr 12                         
+   0004  9181fff8  stw 12, -8(1)                   
+   0008  9421ffa0  stwu 1, -96(1)                  
+   000c  7c6b1b78  mr	11, 3                        
+   0010  7c832378  mr	3, 4                         
+   0014  2b0b0000  cmplwi 6, 11, 0                 
+   0018  409a000c  bf	26, .+12                     
+   001c  38600005  li 3, 5                         
+   0020  48000024  b .+36                          
+   0024  2b030000  cmplwi 6, 3, 0                  
+   0028  409a000c  bf	26, .+12                     
+   002c  3860000b  li 3, 11                        
+   0030  48000014  b .+20                          
+   0034  38a00048  li 5, 72                        
+   0038  7d645b78  mr	4, 11                        
+   003c  4bffffc5  bl .-60                           ; REL24 -> [19] memcpy
+   0040  38600000  li 3, 0                         
+   0044  38210060  addi 1, 1, 96                   
+   0048  8181fff8  lwz 12, -8(1)                   
+   004c  7d8803a6  mtlr 12                         
+   0050  4e800020  blr                             
+-- .pdata #6 raw
+   0000  00 00 00 00 40 00 15 03
+   reloc va=0x0 ADDR32   -> [13] mmioGetInfo
+-- .text #7 (108 B) mmioSetInfo
+   0000  7d8802a6  mflr 12                         
+   0004  9181fff8  stw 12, -8(1)                   
+   0008  fbe1fff0  std 31, -16(1)                  
+   000c  9421ffa0  stwu 1, -96(1)                  
+   0010  7c7f1b78  mr	31, 3                        
+   0014  2b030000  cmplwi 6, 3, 0                  
+   0018  409a000c  bf	26, .+12                     
+   001c  38600005  li 3, 5                         
+   0020  48000038  b .+56                          
+   0024  2b040000  cmplwi 6, 4, 0                  
+   0028  409a000c  bf	26, .+12                     
+   002c  3860000b  li 3, 11                        
+   0030  48000028  b .+40                          
+   0034  38a00048  li 5, 72                        
+   0038  7fe3fb78  mr	3, 31                        
+   003c  4bffffc5  bl .-60                           ; REL24 -> [19] memcpy
+   0040  817f001c  lwz 11, 28(31)                  
+   0044  815f0020  lwz 10, 32(31)                  
+   0048  7f0a5840  cmplw 6, 10, 11                 
+   004c  40980008  bf	24, .+8                      
+   0050  917f0020  stw 11, 32(31)                  
+   0054  38600000  li 3, 0                         
+   0058  38210060  addi 1, 1, 96                   
+   005c  8181fff8  lwz 12, -8(1)                   
+   0060  7d8803a6  mtlr 12                         
+   0064  ebe1fff0  ld 31, -16(1)                   
+   0068  4e800020  blr                             
+-- .pdata #8 raw
+   0000  00 00 00 00 40 00 1b 04
+   reloc va=0x0 ADDR32   -> [22] mmioSetInfo
+-- .text #9 (8 B) mmioStringToFOURCCW
+   0000  38600000  li 3, 0                         
+   0004  4e800020  blr                             
+-- .text #10 (8 B) mmioFlush
+   0000  38600000  li 3, 0                         
+   0004  4e800020  blr                             
+-- .text #11 (8 B) mmioSeek
+   0000  38600000  li 3, 0                         
+   0004  4e800020  blr                             
+-- .text #12 (8 B) mmioSetBuffer
+   0000  38600000  li 3, 0                         
+   0004  4e800020  blr                             
+-- .text #13 (8 B) mmioOpenW
+   0000  38600000  li 3, 0                         
+   0004  4e800020  blr                             
+-- .text #14 (124 B) mmioClose
+   0000  7d8802a6  mflr 12                         
+   0004  9181fff8  stw 12, -8(1)                   
+   0008  fbe1fff0  std 31, -16(1)                  
+   000c  9421ffa0  stwu 1, -96(1)                  
+   0010  7c7f1b78  mr	31, 3                        
+   0014  7c852378  mr	5, 4                         
+   0018  2b030000  cmplwi 6, 3, 0                  
+   001c  409a000c  bf	26, .+12                     
+   0020  38600005  li 3, 5                         
+   0024  48000044  b .+68                          
+   0028  38800000  li 4, 0                         
+   002c  7fe3fb78  mr	3, 31                        
+   0030  4bffffd1  bl .-48                           ; REL24 -> [33] mmioFlush
+   0034  28030000  cmplwi	3, 0                     
+   0038  40820030  bf	2, .+48                      
+   003c  817f0008  lwz 11, 8(31)                   
+   0040  38c00000  li 6, 0                         
+   0044  38800004  li 4, 4                         
+   0048  7fe3fb78  mr	3, 31                        
+   004c  7d6903a6  mtctr 11                        
+   0050  4e800421  bctrl                           
+   0054  28030000  cmplwi	3, 0                     
+   0058  40820010  bf	2, .+16                      
+   005c  7fe3fb78  mr	3, 31                        
+   0060  4bffffa1  bl .-96                           ; REL24 -> [47] ?FreeHandle@@YAXPAX@Z
+   0064  38600000  li 3, 0                         
+   0068  38210060  addi 1, 1, 96                   
+   006c  8181fff8  lwz 12, -8(1)                   
+   0070  7d8803a6  mtlr 12                         
+   0074  ebe1fff0  ld 31, -16(1)                   
+   0078  4e800020  blr                             
+-- .pdata #15 raw
+   0000  00 00 00 00 40 00 1f 04
+   reloc va=0x0 ADDR32   -> [45] mmioClose
+-- .text #16 (8 B) mmioAdvance
+   0000  38600000  li 3, 0                         
+   0004  4e800020  blr                             
+-- .text #17 (8 B) mmioRead
+   0000  38600000  li 3, 0                         
+   0004  4e800020  blr                             
+-- .text #18 (8 B) mmioWrite
+   0000  38600000  li 3, 0                         
+   0004  4e800020  blr                             
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=204 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .XBLD$W                                  sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [10] __C1_11886                               sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [11] .text                                    sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=84 nrel=1 nln=0 cksum=0x00000000 num=0 sel=1)
+  [13] mmioGetInfo                              sec=5   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [14] $M3382                                   sec=5   val=0x54     sc=LABEL     type=0x0000 naux=0
+  [15] $M3381                                   sec=5   val=0xc      sc=LABEL     type=0x0000 naux=0
+  [16] .pdata                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0x35a8ef93 num=5 sel=5)
+  [18] $T3383                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=0
+  [19] memcpy                                   sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [20] .text                                    sec=7   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=108 nrel=1 nln=0 cksum=0x00000000 num=0 sel=1)
+  [22] mmioSetInfo                              sec=7   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [23] $M3387                                   sec=7   val=0x6c     sc=LABEL     type=0x0000 naux=0
+  [24] $M3386                                   sec=7   val=0x10     sc=LABEL     type=0x0000 naux=0
+  [25] .pdata                                   sec=8   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0x354f57be num=7 sel=5)
+  [27] $T3388                                   sec=8   val=0x0      sc=STATIC    type=0x0000 naux=0
+  [28] .text                                    sec=9   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [30] mmioStringToFOURCCW                      sec=9   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [31] .text                                    sec=10  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [33] mmioFlush                                sec=10  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [34] .text                                    sec=11  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [36] mmioSeek                                 sec=11  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [37] .text                                    sec=12  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [39] mmioSetBuffer                            sec=12  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [40] .text                                    sec=13  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [42] mmioOpenW                                sec=13  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [43] .text                                    sec=14  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=124 nrel=2 nln=0 cksum=0x00000000 num=0 sel=1)
+  [45] mmioClose                                sec=14  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [46] $M3397                                   sec=14  val=0x7c     sc=LABEL     type=0x0000 naux=0
+  [47] ?FreeHandle@@YAXPAX@Z                    sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [48] $M3396                                   sec=14  val=0x10     sc=LABEL     type=0x0000 naux=0
+  [49] .pdata                                   sec=15  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0x512392ba num=14 sel=5)
+  [51] $T3398                                   sec=15  val=0x0      sc=STATIC    type=0x0000 naux=0
+  [52] .text                                    sec=16  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [54] mmioAdvance                              sec=16  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [55] .text                                    sec=17  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [57] mmioRead                                 sec=17  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [58] .text                                    sec=18  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [60] mmioWrite                                sec=18  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
