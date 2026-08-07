@@ -150,7 +150,13 @@ fn grade_cell(tc: &Toolchain, dir: &Path, name: &str, body: &str, extra: &[&str]
             .unwrap_or(0);
         out.push((g.shape, g.verdict, sym.clone(), bytes.clone(), n));
     }
-    (out, tu)
+    // The E half, CLONED out of the composite context. Since lane `w-splice`,
+    // `tu_empty_callees` returns a `TuContext` — mechanism E's callee set plus
+    // mechanism I's splice sources — and it borrows `census`, which is local.
+    // These assertions are about mechanism E, whose set is unchanged, so the
+    // owned half is lifted out and outlives the capture.
+    let empty = tu.empty_callees().clone();
+    (out, empty)
 }
 
 /// The one row whose mangled name contains `needle`, with the ANCHOR control

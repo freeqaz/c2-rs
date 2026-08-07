@@ -402,10 +402,10 @@ Two identities worth keeping:
    > moves, "the bytes are right" and "the function is right" stopped being the
    > same question. A per-symbol check against the reference obj's own
    > relocation records — `ObjImage::text_comdat_relocs`, the `c2-obj` reader
-   > this paragraph asks for, board **#994** — found **150** wrong targets in
+   > this paragraph asks for, board **#1025** — found **150** wrong targets in
    > the first shipped version of that rule, **77** in the second and **1** in
    > the third. **FBM scored every one of them `exact`.** Each round changed the
-   > rule (#1009, #991) and the shipped tip is 723 of 723 verified with 0
+   > rule (#1020, #1022) and the shipped tip is 723 of 723 verified with 0
    > disagreements, `fnbyte-exact-relocated` unmoved at 4,664.
    >
    > Two things follow for this document. **The trap is not theoretical any

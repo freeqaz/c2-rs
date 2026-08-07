@@ -212,11 +212,10 @@ in this document.
 > > > > **1** in the third — every one of them scored `exact` by FBM — and each
 > > > > round changed the rule. The tip is **723 of 723 verified, 0
 > > > > disagreements**, and `fnbyte-exact-relocated` reads 4,664 at both ends.
-> > > > (2) **Mechanism I is a FIXPOINT too** (#1009): c2's body for a caller two
+> > > > (2) **Mechanism I is a FIXPOINT too** (#1020): c2's body for a caller two
 > > > > links above a lowerable callee is the *end's* body. (3) **#925's caution
 > > > > again** — 245 distinct symbols across 284 TUs, but **three** template
-> > > > roots and **87 %** of them `??0?$_List_iterator`. Boards **#990**–**#995**
-> > > > and **#1006**–**#1009**;
+> > > > roots and **87 %** of them `??0?$_List_iterator`. Boards **#1017**–**#1026**;
 > > > > [`rungs/2026-08-08-w-splice.md`](rungs/2026-08-08-w-splice.md).
 
 The **payoff metric has moved for the first time**:

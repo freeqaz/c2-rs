@@ -250,7 +250,7 @@ impl<'a> TuContext<'a> {
     /// carries; a refused row dropped from this vector would read as an
     /// *external*, the clause would stop firing, and the splice would run off
     /// the end of a chain it cannot see. That is not a missing count — it is
-    /// the wrong-relocation defect (#1009's 72 witnesses) coming back.
+    /// the wrong-relocation defect (#1020's 72 witnesses) coming back.
     ///
     /// So `Option<Reduction>` is three-valued on purpose: `Some(Parsed)` is a
     /// body both mechanisms can use, `Some(NoEffectCall)` is one only E can use,
@@ -1058,12 +1058,16 @@ mod tests {
         // reads this row, and it arrives with `S6-chain-truncated`; what this
         // commit can assert is that the row is in the table at all, which is
         // the property that clause will depend on.
+        assert!(
+            tu.mentions("?g@@YAXXZ"),
+            "A REFUSED ROW VANISHED FROM THE CONTEXT: it reads as an external, \
+             S6-chain-truncated stops firing, and the splice runs off the end \
+             of a chain it cannot see"
+        );
         assert_eq!(
-            tu.len(),
+            tu.definitions(),
             3,
-            "A REFUSED ROW VANISHED FROM THE CONTEXT: it would later read as an \
-             external, S6-chain-truncated would stop firing, and the splice \
-             would run off the end of a chain it cannot see"
+            "every row this TU binds stays in the table, parsed or not"
         );
 
         // And the two mechanisms still do not both claim `?f`: E takes it.
@@ -1092,12 +1096,50 @@ mod tests {
             ("?h@@YAXXZ", Some(Reduction::Parsed(&h)), None),
             ("?g@@YAXXZ", None, None),
         ]);
-        assert_eq!(tu.len(), 2, "still a name this TU defines");
+        assert!(tu.mentions("?g@@YAXXZ"), "still a name this TU defines");
+        assert_eq!(tu.definitions(), 2, "and still a row in the table");
         assert!(tu.definition("?g@@YAXXZ").is_none());
         assert!(
             !tu.reduces_to_nothing("?g@@YAXXZ"),
             "#980 IS CONSERVATIVE: a refused row with nothing readable \
              contributes NO edge to the closure"
+        );
+    }
+
+    /// **THE `Deref` SHADOWING TRAP, pinned.**
+    ///
+    /// `TuContext` derefs to [`TuEmptyCallees`] so existing callers keep
+    /// working, and an inherent method on the wrapper therefore **silently
+    /// overrides** the target's. While this type spelled its row count `len`,
+    /// the scan's `fnbyte-tu-empty-callees` reported the wrong quantity —
+    /// 88,894 against 1,474,755 on the dc3 workload — with no compile error and
+    /// no test failure. It also made one of the two tests above pass by
+    /// coincidence, because that cell's E context happens to have as many
+    /// members as the table has rows.
+    ///
+    /// So the two counts are asserted to be **different** on a bundle where
+    /// they must be, which is a thing no rename can quietly undo.
+    #[test]
+    fn the_row_count_and_the_e_context_are_not_the_same_number() {
+        let mut h = leaf("?h@@YAXXZ");
+        h.ops = Vec::new();
+        h.params = Vec::new();
+        h.empty_body = true;
+        let g = leaf("?g@@YAHH@Z"); // parses, non-empty: a row, never in E
+        let tu = TuContext::of_rows(vec![
+            ("?h@@YAXXZ", Some(Reduction::Parsed(&h)), None),
+            ("?g@@YAHH@Z", Some(Reduction::Parsed(&g)), None),
+            ("?x@@YAXXZ", None, None), // defined here, parser refused it
+        ]);
+        assert_eq!(tu.definitions(), 3, "three rows this TU binds");
+        assert_eq!(tu.empty_callees().len(), 1, "only ?h reduces to nothing");
+        assert_ne!(
+            tu.definitions(),
+            tu.empty_callees().len(),
+            "A ROW COUNT WAS READ AS THE E-CONTEXT SIZE (or the reverse): these \
+             are different facts, `TuContext` Derefs to `TuEmptyCallees`, and an \
+             inherent `len` here would shadow the target's and move an existing \
+             scan key by 16x without failing anything"
         );
     }
 
