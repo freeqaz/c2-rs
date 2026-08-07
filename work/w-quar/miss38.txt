@@ -1,0 +1,17 @@
+TUs with >=1 false negative: 11
+INTERSECTION of their FN sets: 0 names
+
+
+  src/lazer/game/PartyModeMgr.cpp                            FN  38 ; of which OUTSIDE U   0 ; core-38   0
+  src/lazer/meta_ham/CalibrationPanel.cpp                    FN  38 ; of which OUTSIDE U   0 ; core-38   0
+  src/lazer/meta_ham/Challenges.cpp                          FN  38 ; of which OUTSIDE U   0 ; core-38   0
+  src/lazer/meta_ham/DifficultyProvider.cpp                  FN  38 ; of which OUTSIDE U   0 ; core-38   0
+  src/system/os/FileCache.cpp                                FN  53 ; of which OUTSIDE U   2 ; core-38   0
+  src/system/os/Joypad.cpp                                   FN   1 ; of which OUTSIDE U   1 ; core-38   0
+  src/system/synth_xbox/FxSendEQ.cpp                         FN  39 ; of which OUTSIDE U   0 ; core-38   0
+  src/system/ui/LocalePanel.cpp                              FN  38 ; of which OUTSIDE U   0 ; core-38   0
+  src/system/ui/PanelDir.cpp                                 FN  42 ; of which OUTSIDE U   4 ; core-38   0
+  src/system/ui/UIListMesh.cpp                               FN  38 ; of which OUTSIDE U   0 ; core-38   0
+  src/system/ui/UIListWidget.cpp                             FN  38 ; of which OUTSIDE U   0 ; core-38   0
+
+  false negatives lying OUTSIDE the node universe U (no closure over U can ever predict them): 7 of 401

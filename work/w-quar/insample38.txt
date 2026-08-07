@@ -1,0 +1,5 @@
+in sample, 850 TUs graded 850
+  JFP_ALIAS false negatives, total            : 18212
+  ... in the easing-table family (38 names)   : 16358  (0.8982)
+  TUs with at least one of the family missing : 431 of 850 (0.5071)
+  histogram of how many of the family a TU misses: [(37, 20), (38, 411)]

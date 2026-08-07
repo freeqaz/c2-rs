@@ -1,0 +1,35 @@
+Q9   bound / tag-0x10 : 2443 / 2456 = 0.99471
+Q11  dom(alias) INTERSECT E : 0  (over 4558 emitted names)
+Q12  ??_E<X> -> ??_G<X> share of bound : 2442 / 2443 = 0.99959
+
+Q14  JFP        exact  6   exact INTERSECT B^C 6 of 6
+Q14  JFP_ALIAS  exact  9   exact INTERSECT B^C 6 of 6
+     alias channel: gained 3, lost 0 ; REACH increment +0
+     gained, by name : ['src/lazer/meta_ham/HamStoreOffer.cpp', 'src/system/rndobj/TexProc.cpp', 'src/system/synth_xbox/soundtouch/source/SoundTouch/FIRFilter.cpp']
+     ... of which in B^C : []
+
+-- JFP_ALIAS, per TU: how far from exact, both directions --
+src                                                          |E|    |P|    FN    FP    B^C verdict
+src/keygen_xbox.cpp                                           20     20     0     0    yes EXACT
+src/lazer/game/PartyModeMgr.cpp                              692    654    38     0      - miss
+src/lazer/meta_ham/CalibrationPanel.cpp                      202    164    38     0      - miss
+src/lazer/meta_ham/Challenges.cpp                            657    619    38     0      - miss
+src/lazer/meta_ham/DifficultyProvider.cpp                    141    103    38     0      - miss
+src/lazer/meta_ham/HamStoreOffer.cpp                          44     44     0     0      - EXACT
+src/system/os/Archive.cpp                                    325    325     0     0    yes EXACT
+src/system/os/FileCache.cpp                                  313    260    53     0      - miss
+src/system/os/HolmesClient_NetSocket.cpp                      58     58     0     0    yes EXACT
+src/system/os/Joypad.cpp                                     134    135     1     2      - miss
+src/system/os/Keyboard_Xbox.cpp                                4      4     0     0    yes EXACT
+src/system/rndobj/TexProc.cpp                                246    246     0     0      - EXACT
+src/system/synth/FxSendEQ.cpp                                 87     90     0     3      - miss
+src/system/synth_xbox/FxSendEQ.cpp                            80     41    39     0      - miss
+src/system/synth_xbox/soundtouch/source/SoundTouch/FIRFilt    20     20     0     0      - EXACT
+src/system/ui/LocalePanel.cpp                                281    243    38     0      - miss
+src/system/ui/PanelDir.cpp                                   669    629    42     2      - miss
+src/system/ui/UIListMesh.cpp                                 250    214    38     2      - miss
+src/system/ui/UIListWidget.cpp                               295    257    38     0      - miss
+src/system/utl/Compress.cpp                                   11     11     0     0    yes EXACT
+src/system/utl/Option.cpp                                     29     29     0     0    yes EXACT
+
+  of the misses: 0 are ONE symbol from exact, 2 within three ; 8 under-predict only, 1 over-predict only, 3 both

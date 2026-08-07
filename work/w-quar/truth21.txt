@@ -1,0 +1,25 @@
+src                                                                 |E| |D_all|  objlen  Q15
+src/keygen_xbox.cpp                                                  20      39    6389  *** DIFFERS ***
+src/lazer/game/PartyModeMgr.cpp                                     692    3975  531476  *** DIFFERS ***
+src/lazer/meta_ham/CalibrationPanel.cpp                             202     809  118084  *** DIFFERS ***
+src/lazer/meta_ham/Challenges.cpp                                   657    3086  439802  *** DIFFERS ***
+src/lazer/meta_ham/DifficultyProvider.cpp                           141     443   76883  *** DIFFERS ***
+src/lazer/meta_ham/HamStoreOffer.cpp                                 44     352   45877  *** DIFFERS ***
+src/system/os/Archive.cpp                                           325     971  135113  *** DIFFERS ***
+src/system/os/FileCache.cpp                                         313    1006  150911  *** DIFFERS ***
+src/system/os/HolmesClient_NetSocket.cpp                             58     256   32496  *** DIFFERS ***
+src/system/os/Joypad.cpp                                            134     655   93205  *** DIFFERS ***
+src/system/os/Keyboard_Xbox.cpp                                       4      13    2761  *** DIFFERS ***
+src/system/rndobj/TexProc.cpp                                       246    1020  138164  *** DIFFERS ***
+src/system/synth/FxSendEQ.cpp                                        87     468   62769  *** DIFFERS ***
+src/system/synth_xbox/FxSendEQ.cpp                                   80     401   67103  *** DIFFERS ***
+src/system/synth_xbox/soundtouch/source/SoundTouch/FIRFilter.cpp     20      93   15974  *** DIFFERS ***
+src/system/ui/LocalePanel.cpp                                       281     896  131585  *** DIFFERS ***
+src/system/ui/PanelDir.cpp                                          669    2544  357554  *** DIFFERS ***
+src/system/ui/UIListMesh.cpp                                        250     860  138456  *** DIFFERS ***
+src/system/ui/UIListWidget.cpp                                      295    1289  195431  *** DIFFERS ***
+src/system/utl/Compress.cpp                                          11      49    9292  *** DIFFERS ***
+src/system/utl/Option.cpp                                            29     108   14618  *** DIFFERS ***
+
+Q15  fresh vs cached obj, TimeDateStamp zeroed: 0/21 byte-identical
+     .text-prefix rule agrees with the characteristic rule: 21/21

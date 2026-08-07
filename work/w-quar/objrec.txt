@@ -1,0 +1,28 @@
+src                                                          E== D_all== diffruns  sections carrying a difference
+src/keygen_xbox.cpp                                          YES    YES      685  [('.XBLD$W', 8), ('.data', 3), ('.debug$S', 131), ('.pdata', 19), ('.rdata', 404), ('.text', 1351), ('<header/table>', 1656)]
+src/lazer/game/PartyModeMgr.cpp                              YES    YES    56875  [('.XBLD$W', 8), ('.data', 600), ('.debug$S', 128), ('.pdata', 3786), ('.rdata', 9192), ('.rdata$r', 195), ('.text', 70443), ('.text$yd', 24), ('<header/table>', 235121)]
+src/lazer/meta_ham/CalibrationPanel.cpp                      YES    YES    14014  [('.XBLD$W', 8), ('.data', 234), ('.debug$S', 130), ('.pdata', 719), ('.rdata', 1300), ('.rdata$r', 218), ('.text', 14169), ('<header/table>', 48663)]
+src/lazer/meta_ham/Challenges.cpp                            YES    YES    43836  [('.XBLD$W', 8), ('.data', 739), ('.debug$S', 131), ('.pdata', 2793), ('.rdata', 5098), ('.rdata$r', 130), ('.text', 53108), ('.text$yd', 276), ('<header/table>', 221393)]
+src/lazer/meta_ham/DifficultyProvider.cpp                    YES    YES     9391  [('.XBLD$W', 8), ('.data', 136), ('.debug$S', 129), ('.pdata', 354), ('.rdata', 690), ('.rdata$r', 103), ('.text', 9253), ('<header/table>', 31291)]
+src/lazer/meta_ham/HamStoreOffer.cpp                         YES    YES     5857  [('.XBLD$W', 8), ('.data', 120), ('.debug$S', 131), ('.pdata', 315), ('.rdata', 694), ('.rdata$r', 92), ('.text', 4588), ('<header/table>', 19012)]
+src/system/os/Archive.cpp                                    YES    YES    13662  [('.XBLD$W', 8), ('.data', 40), ('.debug$S', 129), ('.pdata', 819), ('.rdata', 1325), ('.text', 21205), ('<header/table>', 63533)]
+src/system/os/FileCache.cpp                                  YES    YES    16639  [('.CRT$XCU', 1), ('.XBLD$W', 8), ('.data', 419), ('.debug$S', 130), ('.pdata', 827), ('.rdata', 1363), ('.rdata$r', 242), ('.text', 20496), ('.text$yc', 78), ('.text$yd', 9), ('.xdata$x', 85), ('<header/table>', 65151)]
+src/system/os/HolmesClient_NetSocket.cpp                     YES    YES     3744  [('.XBLD$W', 8), ('.debug$S', 130), ('.pdata', 150), ('.rdata', 682), ('.text', 3695), ('<header/table>', 15662)]
+src/system/os/Joypad.cpp                                     YES    YES    11063  [('.CRT$XCU', 1), ('.XBLD$W', 8), ('.data', 22), ('.debug$S', 131), ('.pdata', 504), ('.rdata', 1860), ('.rdata$r', 19), ('.text', 10953), ('.text$yc', 55), ('<header/table>', 38936)]
+src/system/os/Keyboard_Xbox.cpp                              YES    YES      310  [('.XBLD$W', 8), ('.debug$S', 129), ('.pdata', 5), ('.rdata', 46), ('.text', 514), ('<header/table>', 930)]
+src/system/rndobj/TexProc.cpp                                YES    YES    15088  [('.XBLD$W', 8), ('.data', 407), ('.debug$S', 131), ('.pdata', 680), ('.rdata', 2240), ('.rdata$r', 282), ('.text', 16227), ('.text$yd', 9), ('<header/table>', 62932)]
+src/system/synth/FxSendEQ.cpp                                YES    YES     7927  [('.XBLD$W', 8), ('.data', 130), ('.debug$S', 131), ('.pdata', 314), ('.rdata', 1233), ('.rdata$r', 132), ('.text', 7194), ('<header/table>', 25416)]
+src/system/synth_xbox/FxSendEQ.cpp                           YES    YES     8935  [('.XBLD$W', 8), ('.data', 370), ('.debug$S', 130), ('.pdata', 369), ('.rdata', 471), ('.rdata$r', 301), ('.text', 7579), ('<header/table>', 25419)]
+src/system/synth_xbox/soundtouch/source/SoundTouch/FIRFilt   YES    YES     1890  [('.XBLD$W', 8), ('.data', 48), ('.debug$S', 131), ('.pdata', 86), ('.rdata', 422), ('.rdata$r', 15), ('.text', 2381), ('<header/table>', 5997)]
+src/system/ui/LocalePanel.cpp                                YES    YES    14254  [('.XBLD$W', 8), ('.data', 159), ('.debug$S', 131), ('.pdata', 776), ('.rdata', 856), ('.text', 18675), ('<header/table>', 59752)]
+src/system/ui/PanelDir.cpp                                   YES    YES    37032  [('.XBLD$W', 8), ('.data', 1204), ('.debug$S', 131), ('.pdata', 1916), ('.rdata', 3837), ('.rdata$r', 696), ('.text', 42804), ('.text$yd', 85), ('<header/table>', 168377)]
+src/system/ui/UIListMesh.cpp                                 YES    YES    16019  [('.XBLD$W', 8), ('.data', 738), ('.debug$S', 130), ('.pdata', 642), ('.rdata', 1565), ('.rdata$r', 295), ('.text', 16618), ('<header/table>', 59591)]
+src/system/ui/UIListWidget.cpp                               YES    YES    20849  [('.XBLD$W', 8), ('.data', 351), ('.debug$S', 131), ('.pdata', 1112), ('.rdata', 2889), ('.rdata$r', 134), ('.text', 23729), ('<header/table>', 94907)]
+src/system/utl/Compress.cpp                                  YES    YES     1065  [('.XBLD$W', 8), ('.debug$S', 130), ('.pdata', 30), ('.rdata', 366), ('.text', 1189), ('<header/table>', 3536)]
+src/system/utl/Option.cpp                                    YES    YES     1783  [('.XBLD$W', 8), ('.debug$S', 131), ('.pdata', 63), ('.rdata', 263), ('.text', 1864), ('<header/table>', 6059)]
+
+Q15-prime  E(fresh) == E(cached): 21/21 ;  D_all: 21/21
+           every differing byte at a FILE OFFSET, by section: [('<header/table>', 1253334), ('.text', 348035), ('.rdata', 36796), ('.pdata', 16279), ('.data', 5720), ('.rdata$r', 2854), ('.debug$S', 2736), ('.text$yd', 403), ('.XBLD$W', 168), ('.text$yc', 133), ('.xdata$x', 85), ('.CRT$XCU', 2)]
+
+Q15-prime-prime  per-SECTION content identical on ALL sections: 0/21
+                 sections that ever differ (TU count): [('.debug$S', 21)]

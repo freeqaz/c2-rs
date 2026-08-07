@@ -1,0 +1,98 @@
+FN-count histogram over the missed TUs: [(1, 1), (38, 7), (39, 1), (42, 1), (53, 1)]
+
+the 7 TUs with FN == 38 : intersection 38, union 38
+    src/lazer/game/PartyModeMgr.cpp
+    src/lazer/meta_ham/CalibrationPanel.cpp
+    src/lazer/meta_ham/Challenges.cpp
+    src/lazer/meta_ham/DifficultyProvider.cpp
+    src/system/ui/LocalePanel.cpp
+    src/system/ui/UIListMesh.cpp
+    src/system/ui/UIListWidget.cpp
+
+  pairwise |A ∩ B| against the first:
+    src/lazer/meta_ham/CalibrationPanel.cpp                    38
+    src/lazer/meta_ham/Challenges.cpp                          38
+    src/lazer/meta_ham/DifficultyProvider.cpp                  38
+    src/system/ui/LocalePanel.cpp                              38
+    src/system/ui/UIListMesh.cpp                               38
+    src/system/ui/UIListWidget.cpp                             38
+
+  the 38 names of src/lazer/game/PartyModeMgr.cpp:
+    ??$MakeString@$$BY0BJ@$$CBDH$$BY0BB@$$CBD@@YAPBDPBDAAY0BJ@$$CBDABHAAY0BB@$$CBD@Z
+    ??$MakeString@$$BY0BJ@$$CBDH$$BY0BP@$$CBD@@YAPBDPBDAAY0BJ@$$CBDABHAAY0BP@$$CBD@Z
+    ?EaseBackIn@@YAMMMM@Z
+    ?EaseBackInOut@@YAMMMM@Z
+    ?EaseBackOut@@YAMMMM@Z
+    ?EaseBackOutIn@@YAMMMM@Z
+    ?EaseBounceIn@@YAMMMM@Z
+    ?EaseBounceInOut@@YAMMMM@Z
+    ?EaseBounceOutIn@@YAMMMM@Z
+    ?EaseCircIn@@YAMMMM@Z
+    ?EaseCircInOut@@YAMMMM@Z
+    ?EaseCircOut@@YAMMMM@Z
+    ?EaseCircOutIn@@YAMMMM@Z
+    ?EaseElasticIn@@YAMMMM@Z
+    ?EaseElasticInOut@@YAMMMM@Z
+    ?EaseElasticOut@@YAMMMM@Z
+    ?EaseElasticOutIn@@YAMMMM@Z
+    ?EaseExpoIn@@YAMMMM@Z
+    ?EaseExpoInOut@@YAMMMM@Z
+    ?EaseExpoOut@@YAMMMM@Z
+    ?EaseExpoOutIn@@YAMMMM@Z
+    ?EaseHalfQuarterStairstep@@YAMMMM@Z
+    ?EaseLinear@@YAMMMM@Z
+    ?EasePolyIn@@YAMMMM@Z
+    ?EasePolyInOut@@YAMMMM@Z
+    ?EasePolyOut@@YAMMMM@Z
+    ?EasePolyOutIn@@YAMMMM@Z
+    ?EaseQuarterHalfStairstep@@YAMMMM@Z
+    ?EaseQuarterStairstep@@YAMMMM@Z
+    ?EaseSineIn@@YAMMMM@Z
+    ?EaseSineInOut@@YAMMMM@Z
+    ?EaseSineOut@@YAMMMM@Z
+    ?EaseSineOutIn@@YAMMMM@Z
+    ?EaseStairstep@@YAMMMM@Z
+    ?EaseThirdStairstep@@YAMMMM@Z
+    ?FastCos@@YAMM@Z
+    asinf
+    sqrtf
+
+  names present in ALL 7: 38
+    ??$MakeString@$$BY0BJ@$$CBDH$$BY0BB@$$CBD@@YAPBDPBDAAY0BJ@$$CBDABHAAY0BB@$$CBD@Z
+    ??$MakeString@$$BY0BJ@$$CBDH$$BY0BP@$$CBD@@YAPBDPBDAAY0BJ@$$CBDABHAAY0BP@$$CBD@Z
+    ?EaseBackIn@@YAMMMM@Z
+    ?EaseBackInOut@@YAMMMM@Z
+    ?EaseBackOut@@YAMMMM@Z
+    ?EaseBackOutIn@@YAMMMM@Z
+    ?EaseBounceIn@@YAMMMM@Z
+    ?EaseBounceInOut@@YAMMMM@Z
+    ?EaseBounceOutIn@@YAMMMM@Z
+    ?EaseCircIn@@YAMMMM@Z
+    ?EaseCircInOut@@YAMMMM@Z
+    ?EaseCircOut@@YAMMMM@Z
+    ?EaseCircOutIn@@YAMMMM@Z
+    ?EaseElasticIn@@YAMMMM@Z
+    ?EaseElasticInOut@@YAMMMM@Z
+    ?EaseElasticOut@@YAMMMM@Z
+    ?EaseElasticOutIn@@YAMMMM@Z
+    ?EaseExpoIn@@YAMMMM@Z
+    ?EaseExpoInOut@@YAMMMM@Z
+    ?EaseExpoOut@@YAMMMM@Z
+    ?EaseExpoOutIn@@YAMMMM@Z
+    ?EaseHalfQuarterStairstep@@YAMMMM@Z
+    ?EaseLinear@@YAMMMM@Z
+    ?EasePolyIn@@YAMMMM@Z
+    ?EasePolyInOut@@YAMMMM@Z
+    ?EasePolyOut@@YAMMMM@Z
+    ?EasePolyOutIn@@YAMMMM@Z
+    ?EaseQuarterHalfStairstep@@YAMMMM@Z
+    ?EaseQuarterStairstep@@YAMMMM@Z
+    ?EaseSineIn@@YAMMMM@Z
+    ?EaseSineInOut@@YAMMMM@Z
+    ?EaseSineOut@@YAMMMM@Z
+    ?EaseSineOutIn@@YAMMMM@Z
+    ?EaseStairstep@@YAMMMM@Z
+    ?EaseThirdStairstep@@YAMMMM@Z
+    ?FastCos@@YAMM@Z
+    asinf
+    sqrtf

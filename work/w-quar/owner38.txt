@@ -1,0 +1,20 @@
+== src/lazer/meta_ham/DifficultyProvider.cpp   |E| 141  |P| 103  FN 38
+   owner ?gEaseFuncs@@3PAP6AMMMM@ZA                           covers  33 of the 38 FN ; |tokens| 34
+       in U False in W True  in Seed False in D True  REACHED-BY-MODEL False
+
+== src/system/ui/LocalePanel.cpp   |E| 281  |P| 243  FN 38
+   owner ?gEaseFuncs@@3PAP6AMMMM@ZA                           covers  33 of the 38 FN ; |tokens| 34
+       in U False in W True  in Seed False in D True  REACHED-BY-MODEL False
+
+== src/system/os/FileCache.cpp   |E| 313  |P| 260  FN 53
+   owner ?gEaseFuncs@@3PAP6AMMMM@ZA                           covers  33 of the 53 FN ; |tokens| 34
+       in U False in W True  in Seed False in D True  REACHED-BY-MODEL False
+
+== src/system/synth_xbox/FxSendEQ.cpp   |E| 80  |P| 41  FN 39
+   owner ?gEaseFuncs@@3PAP6AMMMM@ZA                           covers  33 of the 39 FN ; |tokens| 34
+       in U False in W True  in Seed False in D True  REACHED-BY-MODEL False
+
+== src/system/ui/PanelDir.cpp   |E| 669  |P| 629  FN 42
+   owner ?gEaseFuncs@@3PAP6AMMMM@ZA                           covers  33 of the 42 FN ; |tokens| 34
+       in U False in W True  in Seed False in D True  REACHED-BY-MODEL False
+

@@ -1,0 +1,30 @@
+src                                                                 |U|   |JFP| |JFP_A|  sha256(JFP_ALIAS set, sorted, LF-terminated)
+src/keygen_xbox.cpp                                                  20      20      20  43a9ffedaa9d178f0ffbf30c0f45bc79f68d1e8428837439b94689c0cc44ba09
+src/lazer/game/PartyModeMgr.cpp                                    4845     648     654  522d267dce4fd0f6d1add7a5644d12f26e5477b670d44de4c8d2759a3bcfe02d
+src/lazer/meta_ham/CalibrationPanel.cpp                            5277     158     164  bc0401d9a4d67fbb3cb19e99a147022dc12f92c91356fd7a6f43d577aa9edb20
+src/lazer/meta_ham/Challenges.cpp                                  5705     615     619  c1c19b8d840f64146a5ec08adff8a0e64ae5b0efad4a986d41532d6d74d2d043
+src/lazer/meta_ham/DifficultyProvider.cpp                          5106     100     103  9de2727b9beeef99a8ffc4a07e9531dc8e217b0138fc74961a87eb8156fa3ffa
+src/lazer/meta_ham/HamStoreOffer.cpp                               1014      43      44  a22a62cdb9cde2ed0e5e9cb5f9adcb3a308b46e8af1fd2138f2d67b5af449a70
+src/system/os/Archive.cpp                                          1127     325     325  5b1c0873a636396ca9a21d88aea721f1425d36e3ca2621f5de3338ff4f1e47f5
+src/system/os/FileCache.cpp                                        1376     252     260  fb292aff5b9616079be7aef36e35092d9c560decc62bbf41e051aa366c3b89bc
+src/system/os/HolmesClient_NetSocket.cpp                            697      58      58  b00af3b3f22811d224a3cdb067495855e9d679ef5e6152df5aaadbbbe3ce1e10
+src/system/os/Joypad.cpp                                            805     132     135  8cfd4c127b6248914e35b577d1ec458f12126cff88fa63a684f00183b0bdebf5
+src/system/os/Keyboard_Xbox.cpp                                     658       4       4  0e8c0a9db9ce7c518f58ee1e8ca3a54536110c7b7ddbd0de93d91672de428225
+src/system/rndobj/TexProc.cpp                                      1271     236     246  fbcb59d3e93bfcc7a2e9a9810670937273d14e60b0df9b24f3f8eda9efde217c
+src/system/synth/FxSendEQ.cpp                                       664      82      90  e5495434340ce84df783fa14aa358e6f2fd47415ea7617590fbdf79757e1184e
+src/system/synth_xbox/FxSendEQ.cpp                                 1195      34      41  24d7245f435351b7abdc43d72813edeab284071b772dd431d2883b6398d594ad
+src/system/synth_xbox/soundtouch/source/SoundTouch/FIRFilter.cpp    215      19      20  9fa6678a50f35f4998973fb51c291bbd25dfdf8d9f3c65abaaa9ce0e1d392cac
+src/system/ui/LocalePanel.cpp                                      2291     243     243  c53d56023c9419abb6caf7a61f61aebb7822d37c351c3bf43ffcf054492f2431
+src/system/ui/PanelDir.cpp                                         2227     610     629  e62992cfd91d68a0805a300d8d897a3b2c7776e4f91563168016461ae7d74178
+src/system/ui/UIListMesh.cpp                                       2079     198     214  304287ae769d972ff7502f71d0b951f53c0ce1538e37274614a55b80a4445eda
+src/system/ui/UIListWidget.cpp                                     1628     250     257  fa1121e5bb65baf7a5ef1b0a67181e9204c2f5c2ff05297f74d47be405551048
+src/system/utl/Compress.cpp                                         206      11      11  779fa3797fbbf8de610de691548e2562e268def8175c83b674748253c7e5a6ce
+src/system/utl/Option.cpp                                           644      29      29  12b701ef3070681217eaf7a839669bdf121de642b3b05d1c1ce06a1d1bf51e60
+
+NEVER      corpus-sha256 bc1ae2dc10b9695f5c149ce76209e84e2aafc99db58e8e72658d5c2dca72321d   sum|P| 0
+ALL        corpus-sha256 c2f8725f557e31e906f9063ae7336a379c654c3405e9ec5f6ddfe9eda1e7d901   sum|P| 39050
+RGL        corpus-sha256 cdf01fe2a85fa50b2a53b15d8a32a1c5888e1e5cdd10b47d65ebfda1642813da   sum|P| 3657
+INIT       corpus-sha256 0966f02d38a2bff290a4ba19d0e96266444e89c03629b6204095dad2edf3377d   sum|P| 15890
+SKIP       corpus-sha256 f0d7b1f9a2a14f6fcb9e8a52e1988e09cf882095021b1a2fcb6cbc49a7d40327   sum|P| 10384
+JFP        corpus-sha256 79cadde0ac071d258e670a6418e19f2e6ee0dbe58cd505d95da8fc0b50763dc2   sum|P| 4067
+JFP_ALIAS  corpus-sha256 d58a733b070375e84b11690f82dd6a3500deb185207cc3908af35119e2a27387   sum|P| 4166
