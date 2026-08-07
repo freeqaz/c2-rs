@@ -1,0 +1,17 @@
+TUs 878  status {'ok': 876, 'capture-fail': 2}
+
+tag    masked      records      TUs   width the encoding gives
+82     82              216      102   1
+84     84              877      871   2
+86     86            84334      836   4
+88     88               33       16   8
+c6     86              435      153   4
+
+total records 85895
+records whose masked tag is 8A/8C/8E (align >= 16): 0
+  tag 8a: 0 records in 0 TUs
+  tag 8c: 0 records in 0 TUs
+  tag 8e: 0 records in 0 TUs
+  tag ca: 0 records in 0 TUs
+  tag cc: 0 records in 0 TUs
+  tag ce: 0 records in 0 TUs
