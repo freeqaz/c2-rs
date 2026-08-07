@@ -197,21 +197,42 @@ fn section_nibble(objs: &[&DataObj<'_>]) -> Option<u32> {
 /// with **zero** exceptions — and `.data` comes **after** the second watermark,
 /// in 754 of the 754 objs that have one.
 ///
-/// ## S1 holds only for an EXTERNAL-linkage `.bss` (board #1148)
+/// ## S1's middle slot is the EXTERN-EAGER slot — Rule S1′ (boards #1148, #1152)
 ///
-/// **If the `.bss` holds any `static` object, c2 puts `.bss` BEFORE both
-/// watermarks** and S1 is wrong:
+/// S1 states three insertion points as if the *kind* of section decided which
+/// one it takes. It does not: the slot is decided by **which contributor
+/// materialised the section first**, and for a `.bss` there are three answers,
+/// not one.
 ///
 /// ```text
-///   extern:  .drectve .debug$S .XBLD$W  .bss     .XBLD$W .data     <- S1
-///   static:  .drectve .debug$S .bss     .XBLD$W  .XBLD$W .data     <- c2
+///   .drectve .debug$S [/GF .rdata] [.bss:A] .XBLD$W(C2) [.bss:B]
+///                     .XBLD$W(C1) [.data] <code groups> [.bss:C] [.CRT$XCU]
+///
+///   A  a STATIC object first reached from a `.data` initializer
+///   B  an EAGER EXTERNAL object          <- this is S1's middle clause
+///   C  a STATIC first reached from a function body, and every DEFERRED
+///      (dynamic-initializer) object, whatever its linkage
 /// ```
 ///
-/// The "871 workload objs, zero exceptions" figure above is not contradicted:
-/// the shape needs a `static` `.bss` object that survives, and an unreferenced
-/// uninitialized static is *dropped*, so the workload never generates it. The
-/// class check refuses it — see there for the measurement and for why this is a
-/// **pre-existing live wrong emit** rather than a gap.
+/// > **Rule S1′.** The non-COMDAT `.bss` sits immediately **before**
+/// > `.XBLD$W(C2)` when its first contributor is an internal-linkage object
+/// > reached from a `.data` initializer, and **between** the watermarks when it
+/// > is an eager external. Slot `A` sits *after* any `/GF` string `.rdata`,
+/// > which keeps its own place at the head. `.data`'s slot never moves.
+///
+/// The "871 workload objs, zero exceptions" figure above is about slot **B**
+/// and stands: **0 of 871** workload objs put a `.bss` in slot `A`, because the
+/// shape needs a functionless TU whose static survives, and an unreferenced
+/// uninitialized static is *dropped* (`wsect_drop_static.cpp`). What the same
+/// census does show, out of sample on 247 real non-COMDAT `.bss` sections, is
+/// that S1's middle slot is **exactly** the extern slot: all 138 sections in it
+/// contain an external, and **0 of 25** purely-static sections are there.
+///
+/// [`emit_data_obj`] serves the functionless TU, so of the three slots it can
+/// reach `A` (every object internal) and `B` (every object external). A
+/// **mixed** `.bss` is refused — see the class check. Slot `C` needs a function
+/// or a dynamic initializer and is therefore outside this emitter entirely;
+/// `emit_dyninit_obj` owns the deferred half of it.
 ///
 /// # Symbol-table order
 ///
@@ -222,22 +243,38 @@ fn section_nibble(objs: &[&DataObj<'_>]) -> Option<u32> {
 /// > **Rule Y1 (eager `.bss`).** Every EXTERNAL symbol first, in **reverse
 /// > `.gl`** record order; then every STATIC symbol, in **declaration** order.
 ///
-/// **This writer was applying Y1 OUTSIDE the shape Y1 was measured in (board
-/// #1148).** Y1's mixed-linkage row (§6.2) is a real obj, and this lane does not
-/// touch it — but every cell behind it is a TU **with functions**, which is what
-/// keeps its `static` objects alive (an unreferenced uninitialized static is
-/// dropped; `wsect_drop_static.cpp`). [`emit_data_obj`] serves TUs with **no**
-/// functions, where the only way a static `.bss` object survives is a `.data`
-/// initializer holding its address. In *that* shape — `w-align16`'s `D07`,
-/// `A g; static A h; A* p = &h;` — real c2 emits the external `.bss` symbol
-/// **after the following section's group**, with the static at offset 0:
-/// neither Y1's order nor Y1's walk, and `.bss` moved as well (see above).
+/// **Y1's STATIC clause is WRONG on a functionless TU, and this writer only
+/// ever serves functionless TUs** (boards #1148, #1152). Every cell behind Y1's
+/// static row is a TU **with functions** — that is what keeps its `static`
+/// objects alive, since an unreferenced uninitialized static is dropped
+/// (`wsect_drop_static.cpp`). In the functionless shape the only surviving
+/// route is a `.data` initializer holding the static's address, and there the
+/// group is in **`.gl` record order**, not declaration order:
 ///
-/// So Y1 is not contradicted; it was being read past its cells. A `.bss`
-/// holding any internal-linkage object is now refused, which leaves **this
-/// writer's live use of Y1 at exactly the extern-only case**, where its 89 real
-/// sections stand. Whether Y1 still describes the with-functions mixed case is
-/// open and untested by this lane.
+/// > **Rule Y3 (slot-`A` `.bss`, functionless).** The group's defined symbols
+/// > are emitted in **`.gl` record order** — the same permutation as Rule A1's
+/// > walk, so also **ascending** address.
+///
+/// Measured on `work/w-order3/cells/` `O09` (two statics: `.gl` `h g`,
+/// declaration `g h`, addresses `h=0 g=4`, symbols `h g`) and `O16` (three:
+/// `.gl` and symbols both `i h g`, declaration `g h i`). Y1's static clause
+/// predicts `g h` and `g h i` and is refuted on both. Y1 is **not** refuted
+/// where it was fitted; it was being read past its cells, and this writer no
+/// longer applies it there.
+///
+/// Y1's **extern** clause is untouched and is what the extern-only slot-`B`
+/// `.bss` still uses — its 89 real sections stand, and §7.1's families B and C
+/// include functionless cells, so that clause is in scope here.
+///
+/// The **mixed** functionless `.bss` is refused. Cell `O08`
+/// (`A g; static A h; A* p = &h;`) shows why it is not a symbol-*order*
+/// question at all: both objects are in `.gl` order and ascending address
+/// (`h=0`, `g=4`), but the external's symbol record is written **outside the
+/// group**, immediately after `__C2_11886` — i.e. at the slot-`B` position the
+/// section would have taken had the external created it. That is one cell, it
+/// does not separate "the extern's record goes to slot `B`" from orderings that
+/// coincide with it at n = 2, and a refusal costs nothing (zero workload
+/// instances). See board #1178.
 ///
 /// `.data`'s group is declaration order, which for that section is also
 /// ascending address (§5.3), and mixed linkage in `.data` is untouched —
@@ -258,41 +295,36 @@ pub fn emit_data_obj(obj_name: &str, objects: &[DataObj<'_>]) -> Option<Vec<u8>>
     if bss.len() > MAX_OBJECTS_PER_SECTION || data.len() > MAX_OBJECTS_PER_SECTION {
         return None;
     }
-    // **An INTERNAL-LINKAGE `.bss` object moves the whole section, and Rule S1
-    // below does not model it — board #1148, found by lane `w-align16`'s grid.**
+    // **The `.bss` slot is decided by LINKAGE, and a MIXED `.bss` is refused**
+    // (Rule S1′ above; boards #1148, #1152).
     //
-    // For an EXTERNAL `.bss` object c2 puts `.bss` **between** the two `.XBLD$W`
-    // watermarks, which is Rule S1 and what this writer emits. For a `static`
-    // one it puts `.bss` **before both of them**, at section index 3:
+    // A `.bss` every one of whose objects is external takes slot `B`, between
+    // the watermarks — Rule S1's middle clause, and what this writer has always
+    // emitted. A `.bss` every one of whose objects is internal takes slot `A`,
+    // before both of them, and that is what board #1148 found emitted wrong and
+    // closed by refusing; this lane derives the slot and emits it.
     //
-    // ```text
-    //   extern:  .drectve .debug$S .XBLD$W  .bss    .XBLD$W .data     <- S1, right
-    //   static:  .drectve .debug$S .bss     .XBLD$W .XBLD$W .data     <- c2, not S1
-    // ```
-    //
-    // **This was a LIVE WRONG EMIT on master, not a gap this lane opened.**
-    // `work/w-align16/diag/` cells `D01` (align 4) and `D02` (align 8) are both
-    // inside the incumbent's own modeled range and both graded `mismatch`
-    // against real c2 on an unmodified tree. Board **#232**'s shape: wrong
-    // bytes, invisible to every scan, because the corpus could not generate it.
-    //
-    // It was believed **unreachable**: `fixtures/cpp/wsect_drop_static.cpp` and
-    // `wsect_data_linkage.cpp` both record that *"an uninitialized unreferenced
-    // static is DROPPED by c2 entirely, so mixed linkage is unreachable in a
-    // `.bss` of a functionless TU"*. True as far as it goes — and the route
-    // around the drop is to **reference** it, `static A g; A* p = &g;`, which
-    // makes the `.data` initializer keep it alive. Nobody had written that cell.
-    //
-    // `OBJ_DATA_BSS_SHAPE.md`'s own static and mixed `.bss` cells are all TUs
-    // **with functions** — that is what keeps *their* statics alive — so this
-    // writer, which only ever runs on functionless TUs, was applying rules S1
-    // and Y1 outside every cell that fitted them.
-    //
-    // Failing closed rather than reordering: the correct order is a three-cell
-    // observation and Rule S1 is board #174's, not this lane's.
-    if bss.iter().any(|o| !o.external) {
+    // **Mixed stays refused, and not for want of a cell.** `O08`
+    // (`A g; static A h; A* p = &h;`) is graded and its shape is understood:
+    // the section is in slot `A` because the static created it, and the
+    // external's SYMBOL RECORD is written outside the group, right after
+    // `__C2_11886`, at the slot-`B` position. That is a description of one obj.
+    // At n = 2 it is indistinguishable from several orderings that would differ
+    // at n = 3, `MAX_OBJECTS_PER_SECTION` is 2 so no cell here can separate
+    // them, and the shape has **zero** instances on the 878-TU workload
+    // (`work/w-order3/census_order.py`). A refusal costs nothing and a guess
+    // costs wrong bytes. Board #1178.
+    let bss_internal = bss.iter().any(|o| !o.external);
+    let bss_external = bss.iter().any(|o| o.external);
+    if bss_internal && bss_external {
         return None;
     }
+    // **Slot `A`.** Non-empty and every object internal — see Rule S1′. Written
+    // as its own binding because four things downstream depend on it: the
+    // section index `.bss` is inserted at, the symbol indices, the order the
+    // symbol groups are written in, and the walk the group is written in
+    // (Rule Y3, not Y1's static clause).
+    let bss_moved = bss_internal;
     for o in objects {
         if o.size == 0 || o.symbol.is_empty() {
             return None;
@@ -360,15 +392,18 @@ pub fn emit_data_obj(obj_name: &str, objects: &[DataObj<'_>]) -> Option<Vec<u8>>
         data_raw[at..at + o.size as usize].copy_from_slice(o.bytes?);
     }
 
-    // ---- sections, in Rule S1's order ----
+    // ---- sections, in Rule S1′'s order ----
     let mut sections = shell_sections(obj_name);
-    // The C1 watermark is `sections[3]`; `.bss` takes the slot before it.
+    // `shell_sections` is `[.drectve, .debug$S, C2, C1]`. Slot `A` is index 2
+    // (before the C2 watermark), slot `B` is index 3 (between the two). Either
+    // way the C1 watermark ends up at index 4, which `sec_c1` below relies on.
+    let bss_slot = if bss_moved { 2 } else { 3 };
     let sec_bss = if bss.is_empty() {
         None
     } else {
         let nibble = section_nibble(&bss)?;
         sections.insert(
-            3,
+            bss_slot,
             Section {
                 name: ".bss",
                 characteristics: CH_BSS_BASE | (nibble << 20),
@@ -382,7 +417,7 @@ pub fn emit_data_obj(obj_name: &str, objects: &[DataObj<'_>]) -> Option<Vec<u8>>
                 uninit_size: Some(bss_size),
             },
         );
-        Some(3)
+        Some(bss_slot)
     };
     let sec_data = if data.is_empty() {
         None
@@ -418,19 +453,43 @@ pub fn emit_data_obj(obj_name: &str, objects: &[DataObj<'_>]) -> Option<Vec<u8>>
     // there is what stops the two from drifting; a stale index is the bug that
     // block's own comment already records once, at file offset 716.
     //
-    // **Rule Y1** for `.bss`: every EXTERNAL first in reverse `.gl` order, then
-    // every STATIC in declaration order. Two sorts, two keys.
-    let bss_symbol_order: Vec<usize> = {
-        let mut ext: Vec<usize> = (0..bss.len()).filter(|&i| bss[i].external).collect();
+    // The `.bss` group's order, and the two slots have DIFFERENT rules:
+    //
+    // * slot `B` (extern-only) — **Rule Y1**'s external clause: reverse `.gl`
+    //   record order. The static clause cannot fire here; a mixed `.bss` was
+    //   refused above.
+    // * slot `A` (static-only) — **Rule Y3**: `.gl` record order, which is the
+    //   walk, which is ascending address. Y1's static clause says *declaration*
+    //   order and is refuted on `O09` and `O16`; it was fitted only on TUs with
+    //   functions, which this emitter never serves. See the doc comment.
+    let bss_symbol_order: Vec<usize> = if bss_moved {
+        bss_walk.clone()
+    } else {
+        let mut ext: Vec<usize> = (0..bss.len()).collect();
         ext.reverse();
-        let mut statics: Vec<usize> = (0..bss.len()).filter(|&i| !bss[i].external).collect();
-        statics.sort_by_key(|&i| bss[i].decl_index);
-        ext.extend(statics);
         ext
     };
-    // 0 @comp.id · 1,2 .drectve · 3,4 .debug$S · 5,6 .XBLD$W(C2) · 7 __C2_11886
-    let first_bss_symbol = 10u32;
-    let sym_c1 = if bss.is_empty() { 8 } else { first_bss_symbol + bss.len() as u32 };
+    // The symbol table follows SECTION order, so moving `.bss` from slot `B` to
+    // slot `A` moves its whole group ahead of the C2 watermark's:
+    //
+    // ```text
+    //   B: 0 @comp.id  1,2 .drectve  3,4 .debug$S  5,6 XBLD$W(C2)  7 __C2
+    //      8,9 .bss   10.. objects   then C1
+    //   A: 0 @comp.id  1,2 .drectve  3,4 .debug$S  5,6 .bss  7.. objects
+    //      then XBLD$W(C2), __C2, then C1
+    // ```
+    //
+    // `sym_c2` is the C2 watermark's SECTION symbol; `__C2_11886` is two later
+    // (the aux record counts). Every index below is derived from these two and
+    // asserted again where the record is written — a hard-coded one is the bug
+    // the symbol-table block records once already, at file offset 716.
+    let sym_c2 = if bss_moved { 5 + 2 + bss.len() as u32 } else { 5 };
+    let first_bss_symbol = if bss_moved { 7 } else { 10 };
+    let sym_c1 = if bss_moved || bss.is_empty() {
+        sym_c2 + 3
+    } else {
+        first_bss_symbol + bss.len() as u32
+    };
     let first_data_symbol = sym_c1 + 5;
     let mut sym_of: std::collections::BTreeMap<&str, u32> = std::collections::BTreeMap::new();
     for (slot, &i) in bss_symbol_order.iter().enumerate() {
@@ -504,15 +563,17 @@ pub fn emit_data_obj(obj_name: &str, objects: &[DataObj<'_>]) -> Option<Vec<u8>>
     // **`emit_shell_symbols` cannot be used here, and the reason is the whole
     // shape of this obj.** That helper writes the eleven shell records
     // contiguously, because in every other emitter the four shell sections *are*
-    // contiguous. Here `.bss` is spliced **between** the two `.XBLD$W`
-    // watermarks, and the symbol table follows SECTION order — so the `.bss`
-    // group sits between `__C2_11886` and the C1 watermark's own records.
-    // MEASURED on `char b1;`:
+    // contiguous. Here a `.bss` is spliced **into** the shell — and by Rule S1′
+    // into one of two different places — and the symbol table follows SECTION
+    // order, so its group goes with it. MEASURED, on `char b1;` for slot `B`
+    // and on `work/w-order3/cells/O01_static_reloc_a4.cpp` for slot `A`:
     //
     // ```text
-    //   0 @comp.id   1/2 .drectve   3/4 .debug$S   5/6 .XBLD$W(C2)
-    //   7 __C2_11886   8/9 .bss   10 ?b1@@3DA   11/12 .XBLD$W(C1)
-    //   13 __C1_11886
+    //   B  0 @comp.id  1/2 .drectve  3/4 .debug$S  5/6 .XBLD$W(C2)
+    //      7 __C2_11886  8/9 .bss  10 ?b1@@3DA  11/12 .XBLD$W(C1)  13 __C1_11886
+    //
+    //   A  0 @comp.id  1/2 .drectve  3/4 .debug$S  5/6 .bss  7 g
+    //      8/9 .XBLD$W(C2)  10 __C2_11886  11/12 .XBLD$W(C1)  13 __C1_11886
     // ```
     //
     // Calling the helper wrote `.bss`'s aux record as the C1 watermark's, which
@@ -528,37 +589,55 @@ pub fn emit_data_obj(obj_name: &str, objects: &[DataObj<'_>]) -> Option<Vec<u8>>
     b.u8(0);
     emit_section_symbol(&mut b, &sections[0], 1, 0); // .drectve
     emit_section_symbol(&mut b, &sections[1], 2, 0); // .debug$S
-    emit_section_symbol(&mut b, &sections[2], 3, 0); // .XBLD$W C2
-    emit_external_symbol(&mut b, &mut strtab, NAME_C2, 3, 0x0000);
 
-    if let Some(si) = sec_bss {
-        emit_section_symbol(&mut b, &sections[si], (si + 1) as i16, 0);
-        // **Rule Y1** — externals in reverse `.gl` order, then statics in
-        // declaration order. Neither block is in address order, and the two use
-        // DIFFERENT keys, which is why this is two sorts and not one. Derived
-        // once, far above, because the relocation records need the resulting
-        // indices before this point in the file.
-        for &i in &bss_symbol_order {
-            debug_assert_eq!(
-                ((b.0.len() - ptr_symtab) / SYMBOL_LEN) as u32,
-                sym_of[bss[i].symbol],
-                "the index the relocation records were written with"
-            );
-            let o = bss[i];
-            emit_symbol(
-                &mut b,
-                &mut strtab,
-                o.symbol,
-                bss_offsets[i],
-                (si + 1) as i16,
-                0x0000,
-                if o.external { 2 } else { 3 },
-            );
-        }
+    // The `.bss` group, written at whichever of the two slots `bss_slot` chose.
+    // One text, expanded twice, so the two slots cannot drift apart: the pair of
+    // hand-copied groups is exactly the shape that produced the offset-716 bug.
+    macro_rules! bss_group {
+        () => {
+            if let Some(si) = sec_bss {
+                emit_section_symbol(&mut b, &sections[si], (si + 1) as i16, 0);
+                // Rule Y1's external clause at slot `B`, Rule Y3 at slot `A`.
+                // Derived once, far above, because the relocation records need
+                // the resulting indices before this point in the file.
+                for &i in &bss_symbol_order {
+                    debug_assert_eq!(
+                        ((b.0.len() - ptr_symtab) / SYMBOL_LEN) as u32,
+                        sym_of[bss[i].symbol],
+                        "the index the relocation records were written with"
+                    );
+                    let o = bss[i];
+                    emit_symbol(
+                        &mut b,
+                        &mut strtab,
+                        o.symbol,
+                        bss_offsets[i],
+                        (si + 1) as i16,
+                        0x0000,
+                        if o.external { 2 } else { 3 },
+                    );
+                }
+            }
+        };
+    }
+
+    if bss_moved {
+        bss_group!();
+    }
+    // The C2 watermark's own section index moves when a slot-`A` `.bss` is
+    // spliced in ahead of it: 3 with one, 2 without. Derived, never hard-coded.
+    let sec_c2 = if bss_moved { 3 } else { 2 };
+    debug_assert_eq!(((b.0.len() - ptr_symtab) / SYMBOL_LEN) as u32, sym_c2, "C2 watermark slot");
+    emit_section_symbol(&mut b, &sections[sec_c2], (sec_c2 + 1) as i16, 0);
+    emit_external_symbol(&mut b, &mut strtab, NAME_C2, (sec_c2 + 1) as i16, 0x0000);
+
+    if !bss_moved {
+        bss_group!();
     }
     // The C1 watermark, whose section index MOVED if a `.bss` was spliced in
-    // ahead of it: 4 with one, 3 without. Derived from `sec_bss`, never
-    // hard-coded — a stale index here is the bug the block above documents.
+    // ahead of it — at EITHER slot, which is why this reads `sec_bss` and not
+    // `bss_moved`: 4 with one, 3 without. Derived, never hard-coded — a stale
+    // index here is the bug the block above documents.
     let sec_c1 = if sec_bss.is_some() { 4 } else { 3 };
     debug_assert_eq!(((b.0.len() - ptr_symtab) / SYMBOL_LEN) as u32, sym_c1, "C1 watermark slot");
     emit_section_symbol(&mut b, &sections[sec_c1], (sec_c1 + 1) as i16, 0);
@@ -994,70 +1073,65 @@ mod tests {
         }
     }
 
-    /// **A `.bss` holding an internal-linkage object is refused, and this test
-    /// is the refusal's witness** — board #1148, lane `w-align16`.
+    /// **Rule S1′ and Rule Y3 — a static-only `.bss` takes slot `A`, and a
+    /// MIXED one is still refused** (boards #174, #1148, #1152, #1178).
     ///
-    /// The test this replaces asserted that `emit_data_obj` emits
-    /// `[?p1@@3HA extern, s1 static]` into one `.bss` under Rule Y1. **That
-    /// input was never graded against real c2 in this writer's own shape**:
-    /// `emit_data_obj` serves TUs with no functions, `wsect_data_linkage.cpp`
-    /// is a mixed-linkage **`.data`**, and its header records why the `.bss`
-    /// case had no fixture — *"an uninitialized unreferenced static is DROPPED
-    /// by c2 entirely, so mixed linkage is unreachable in a `.bss` of a
-    /// functionless TU"*. Y1's own mixed row (§6.2) is a real obj, but from a TU
-    /// **with** functions, which is what keeps its statics alive.
+    /// Board #1148 found `emit_data_obj` emitting Rule S1's middle slot for a
+    /// `.bss` holding a `static`, which was a **live wrong emit on master**, and
+    /// closed it by refusing every internal-linkage `.bss`. Lane `w-order3`'s
+    /// grid derived the slot instead. What this test pins, all of it graded
+    /// byte-exact against real c2 at four profiles by
+    /// `work/w-order3/cells/`:
     ///
-    /// The route around the drop in a functionless TU is to **reference** the
-    /// static from a `.data` initializer.
-    /// `work/w-align16/diag/cells/D07_mixed_bss_reloc.cpp` does exactly that —
-    /// `A g; static A h; A* p = &h;` — and real c2 emits something this writer
-    /// does not, **in two independent ways**:
-    ///
-    /// ```text
-    ///   sec[3] .bss        <- BEFORE both watermarks, not between them (Rule S1)
-    ///   sec[4] .XBLD$W
-    ///   sec[5] .XBLD$W
-    ///   sec[6] .data
-    ///
-    ///   sym[ 5] .bss           sym[ 7] h  val=0 STATIC     <- the static, in the group
-    ///   sym[ 8] .XBLD$W        sym[10] __C2_11886
-    ///   sym[11] ?g@@3UA@@A  val=4 sec=3 EXTERNAL           <- the EXTERNAL, AFTER
-    ///                                                         the next section's group
-    /// ```
-    ///
-    /// The external `.bss` symbol is not in the `.bss` group at all, and the
-    /// static is placed at offset 0 with the external at 4 — the opposite of the
-    /// walk this writer applies. **Y1's extern-only half is untouched** and
-    /// still carries its 89 real sections. Whether Y1's mixed row still holds
-    /// for a TU *with* functions is open; what is settled is that this writer
-    /// was reading it past its cells.
-    ///
-    /// So the writer refuses, and this test is the refusal's witness. Fixing the
-    /// order is board #174's work with its own grid, not a two-line reorder.
+    /// * a **static-only** `.bss` sits at index 3 (1-based), before both
+    ///   watermarks, and its symbol group goes with it — `O01`;
+    /// * within that group the order is **`.gl` record order**, Rule Y3, which
+    ///   is ascending address and is **not** Rule Y1's *declaration* order —
+    ///   `O09`, where `.gl` is `h g`, declaration is `g h`, and c2's answer is
+    ///   `h`@0 `g`@4 listed `h g`;
+    /// * an **extern-only** `.bss` is untouched — Rule S1's middle slot and Rule
+    ///   Y1's external clause, `O02`/`O03`;
+    /// * a **mixed** `.bss` is still refused. `O08` shows c2 puts the section in
+    ///   slot `A` and writes the EXTERNAL's symbol record *outside* the group,
+    ///   right after `__C2_11886`. That is one obj; `MAX_OBJECTS_PER_SECTION` is
+    ///   2, so nothing here can separate that reading from the orderings that
+    ///   coincide with it at n = 2, and the shape has **zero** workload
+    ///   instances. Board #1178.
     #[test]
-    fn a_bss_with_any_internal_linkage_object_refuses() {
-        // The exact input the old Y1 test asserted an obj for.
-        assert!(
-            emit_data_obj(
-                "Z:\\t\\x.obj",
-                &[obj("?p1@@3HA", 4, 4, true, None, 20), obj("s1", 4, 4, false, None, 10)],
-            )
-            .is_none(),
-            "mixed-linkage .bss — c2 moves the section AND the symbol; D07"
+    fn a_static_only_bss_takes_slot_a_and_a_mixed_one_is_refused() {
+        // ---- slot `A`: static-only, two objects, `.gl` order `h g` ----
+        let img = emit_data_obj(
+            "Z:\\t\\x.obj",
+            // `.gl` order is the input order; declaration order is `g`(10) then
+            // `h`(20), i.e. the OPPOSITE. Rule Y1's static clause would list
+            // `g h`; Rule Y3 lists `h g`, and c2 lists `h g`.
+            &[obj("h", 4, 4, false, None, 20), obj("g", 4, 4, false, None, 10)],
+        )
+        .expect("a static-only .bss emits at slot A");
+        assert_eq!(
+            sections_of(&img).into_iter().map(|s| s.0).collect::<Vec<_>>(),
+            vec![".drectve", ".debug$S", ".bss", ".XBLD$W", ".XBLD$W"],
+            "slot A — `.bss` BEFORE both watermarks, not between them"
         );
-        // And the static-only `.bss`, which is `D01`/`D02`/`A11`'s shape and was
-        // a LIVE MISMATCH on master at alignments 4, 8 and 16 alike.
-        assert!(
-            emit_data_obj("Z:\\t\\x.obj", &[obj("s1", 4, 4, false, None, 10)]).is_none(),
-            "static-only .bss — D01/D02 graded `mismatch` against real c2 on an unmodified tree"
-        );
-        // **The extern-only `.bss` is UNAFFECTED** — Rule Y1's surviving half,
-        // and the row that says this refusal is narrow.
+        let vals: Vec<(String, u32, u8)> = symbols_of(&img)
+            .into_iter()
+            .filter(|s| s.0 == "h" || s.0 == "g")
+            .map(|s| (s.0, s.1, s.3))
+            .collect();
+        assert_eq!(vals[0], ("h".to_string(), 0, 3), "Rule Y3 — `.gl` order, and STATIC");
+        assert_eq!(vals[1], ("g".to_string(), 4, 3), "…not declaration order, which is `g h`");
+
+        // ---- the extern-only `.bss` is UNAFFECTED — Rule S1's middle slot ----
         let img = emit_data_obj(
             "Z:\\t\\x.obj",
             &[obj("?p1@@3HA", 4, 4, true, None, 20), obj("?p2@@3HA", 4, 4, true, None, 10)],
         )
         .expect("extern-only .bss still emits");
+        assert_eq!(
+            sections_of(&img).into_iter().map(|s| s.0).collect::<Vec<_>>(),
+            vec![".drectve", ".debug$S", ".XBLD$W", ".bss", ".XBLD$W"],
+            "slot B — between the watermarks, exactly as before"
+        );
         let vals: Vec<(String, u32, u8)> = symbols_of(&img)
             .into_iter()
             .filter(|s| s.0.starts_with("?p"))
@@ -1065,7 +1139,17 @@ mod tests {
             .collect();
         assert_eq!(vals[0], ("?p2@@3HA".to_string(), 4, 2), "externals in REVERSE .gl order");
         assert_eq!(vals[1], ("?p1@@3HA".to_string(), 0, 2), "…and the walk is forwards");
-        // A mixed-linkage **`.data`** is untouched: this refusal is about `.bss`
+
+        // ---- MIXED is refused, and that is the one direction not to guess ----
+        assert!(
+            emit_data_obj(
+                "Z:\\t\\x.obj",
+                &[obj("?p1@@3HA", 4, 4, true, None, 20), obj("s1", 4, 4, false, None, 10)],
+            )
+            .is_none(),
+            "mixed-linkage .bss — c2 writes the EXTERNAL's record outside the group; O08, #1178"
+        );
+        // A mixed-linkage **`.data`** is untouched: the refusal is about `.bss`
         // only, and `wsect_data_linkage.cpp` is the graded fixture for it.
         assert!(
             emit_data_obj(
