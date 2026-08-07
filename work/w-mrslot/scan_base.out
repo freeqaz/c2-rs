@@ -1,0 +1,40 @@
+          6 (  0.0%)  chain-recv-not-a-plain-b9-load/no-b9-base-downcast  blocked       6
+          4 (  0.0%)  tail-recv-not-a-plain-b9-load/then-literal  blocked       4
+          3 (  0.0%)  chain-more-methods-than-the-link-bound  blocked       3
+          3 (  0.0%)  cmp-second-recv-not-a-plain-b9-load/no-b9-call-in-expr  blocked       3
+          2 (  0.0%)  chain-tail-designator-has-no-result-type  blocked       2
+          2 (  0.0%)  cmp-second-recv-not-a-plain-b9-load/then-off-add  blocked       2
+          1 (  0.0%)  chain-recv-not-a-plain-b9-load/no-b9-literal  blocked       1
+          1 (  0.0%)  chain-recv-not-a-plain-b9-load/no-b9-store  blocked       1
+          1 (  0.0%)  cmp-relation-result-not-annotated-bool  blocked       1
+          1 (  0.0%)  cmp-second-recv-not-a-plain-b9-load/no-b9-this-adjust  blocked       1
+          1 (  0.0%)  tail-recv-not-a-plain-b9-load/no-b9-vbase-member-addr  blocked       1
+          1 (  0.0%)  tail-recv-not-a-plain-b9-load/then-intrinsic-other  blocked       1
+     135848           tail-recv-not-a-plain-b9-load/no-b9-this-adjust|BLOCKED|expr-intrinsic-this-adjust
+     102372           tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+      97830           tail-recv-not-a-plain-b9-load/then-off-add|BLOCKED|expr-op-0x27
+      23632           tail-object-receiver-is-not-a-tail-call|BLOCKED|expr-call-in-expr-recv-object-then-branch-brtrue
+      22534           tail-argument-not-in-the-operand-vocabulary|BLOCKED|expr-call-in-expr-recv-load-then-off-add-more
+      19236           tail-argument-not-in-the-operand-vocabulary|BLOCKED|expr-call-in-expr-recv-load-then-call-recv-load-and-deref-load-more
+      18912           tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-recv-object-more
+      17342           tail-argument-not-in-the-operand-vocabulary|BLOCKED|expr-call-in-expr-recv-load-then-intrinsic-call
+      15682           tail-recv-not-a-plain-b9-load/then-dynamic-cast|BLOCKED|expr-intrinsic-dynamic-cast
+      14934           tail-recv-not-a-plain-b9-load/b9-not-a-ptr4|BLOCKED|expr-brfalse
+      14829           tail-recv-not-a-plain-b9-load/no-b9-base-downcast|BLOCKED|expr-intrinsic-base-downcast
+      13183           tail-recv-not-a-plain-b9-load/no-b9-base-member-addr|BLOCKED|expr-intrinsic-base-member-addr
+      11844           tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-whole
+      10562           chain-innermost-argument-not-in-the-operand-vocabulary|BLOCKED|expr-call-in-expr-chained-then-off-add-more
+       9708           tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-data-addr-1sym-whole
+       8603           tail-recv-not-a-plain-b9-load/no-b9-stmt-end|BLOCKED|expr-op-0x41
+       7551           framed-result-not-consumed-by-a-literal-post-op|BLOCKED|expr-call-in-expr-recv-load-then-deref-load-more
+       7232           tail-recv-not-a-plain-b9-load/then-deref-load|BLOCKED|expr-op-0x30
+       6778           tail-recv-not-a-plain-b9-load/then-store|BLOCKED|assign-store-type-8643
+       6463           framed-result-not-consumed-by-a-literal-post-op|BLOCKED|expr-call-in-expr-recv-load-whole
+
+  top capture-fail reasons:
+        3 x C1083
+        2 x C1189
+        2 x C2084
+
+  top vocab gaps:
+      861 x il function decode failed
