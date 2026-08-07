@@ -1,0 +1,34 @@
+  POST-HOC — written AFTER the grade.  NONE OF THIS HAS STANDING.
+  in-domain graded cells: 72   (of which SELF-2B-like: 36)
+
+  rule                       right  WRONG   wrong cells
+  ------------------------------------------------------------------------------
+  H-2Y  (asymmetric)            66      6   Z3-r1k3, Z4-r1k3, Z6-r1k3, Z3-r1k3-far, Z4-r1k3-far, Z6-r1k3-far
+  H-2Z  (+ ru>=2 guard)         72      0   -
+  cu<=ru+2  (#1221)             48     24   Z1-r1k3, Z1-r2k4, Z1-r3k5, Z2-r1k3, Z2-r2k4, Z2-r3k5, Z3-r1k3, Z4-r1k3, Z5-r1k3, Z5-r2k4, Z5-r3k5, Z6-r1k3, Z1-r1k3-far, Z1-r2k4-far, Z1-r3k5-far, Z2-r1k3-far, Z2-r2k4-far, Z2-r3k5-far, Z3-r1k3-far, Z4-r1k3-far, Z5-r1k3-far, Z5-r2k4-far, Z5-r3k5-far, Z6-r1k3-far
+
+  #1221's clause scored on the SELF-2B-like families ALONE
+  cu<=ru+2 on Z3/Z4/Z6:  right 30  WRONG 6   Z3-r1k3, Z4-r1k3, Z6-r1k3, Z3-r1k3-far, Z4-r1k3-far, Z6-r1k3-far
+
+  THE TWO FRONTIERS GRID Z MEASURED
+             1/1  1/3  1/4  2/3  2/4  2/5  3/4  3/5  3/6
+      Z1     P    c    c    P    c    c    P    c    c
+      Z2     P    c    c    P    c    c    P    c    c
+      Z3     P    c    c    P    P    c    P    P    c
+      Z4     P    c    c    P    P    c    P    P    c
+      Z5     P    c    c    P    c    c    P    c    c
+      Z6     P    c    c    P    P    c    P    P    c
+
+      A = Z1 Z2 Z5 :  prod iff cu <= ru+1
+      B = Z3 Z4 Z6 :  prod iff cu <= ru+2  at ru in {2,3}
+                                cu <= 2    at ru = 1
+
+  **`cu <= ru+2` is REFUTED on fresh `SELF-2B` cells.** It fits all 22 on
+  record because no lane's `SELF-2B` cells reach `(1,3)`; GRID Z does, and
+  it is `const` there in all three B families, near and far.
+
+  What GRID Z CANNOT say: whether the `ru = 1` collapse is a `ru >= 2` guard,
+  a `cu <= 2*ru` cap, or a requirement that the address be live across at
+  least two of its OWN stores. Those three agree everywhere this grid
+  reaches. `ru = 1` at `cu = 2`, and `ru` 4-5 at `cu = ru+2` and `cu = 2*ru`,
+  are what separates them, and no lane has any of those cells.

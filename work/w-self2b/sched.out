@@ -1,0 +1,34 @@
+  SCHEDULE vs ALLOCATION — the two bits are not the same bit
+
+  fam    class                  store     roots      schedule       alloc
+  ------------------------------------------------------------------------------------
+  Z1     SELF-1B                a formal  same       INTERLEAVED    const
+         INTERLEAVED  cpcccp
+         INTERLEAVED  cpccccpp
+  Z2     LOAD                   a BIND    same       BLOCKED        const
+         BLOCKED      ccccpp
+         BLOCKED      cccccppp
+  Z3     SELF-2B-tail-agrees    a BIND    DIFFER     BLOCKED        prod
+         BLOCKED      ccccpp
+         BLOCKED      cccccppp
+  Z4     SELF-2B-tail-differs   a BIND    DIFFER     BLOCKED        prod
+         BLOCKED      ccccpp
+         BLOCKED      cccccppp
+  Z5     MIRROR                 a formal  DIFFER     INTERLEAVED    const
+         INTERLEAVED  cpcccp
+         INTERLEAVED  cpccccpp
+  Z6     TWOBIND                a BIND    DIFFER     BLOCKED        prod
+         BLOCKED      ccccpp
+         BLOCKED      cccccppp
+
+  The schedule bit is *is the STORE designator's root a bind* -- Z1 and Z5,
+  whose producer stores are written through the formal's own path, INTERLEAVE;
+  Z2, Z3, Z4 and Z6, whose producer stores are written through a bind, do not.
+
+  The allocation bit is that AND *do the two roots differ*.  **Z2 is the cell
+  that separates them**: it has the bind schedule and the same registers as the
+  interleaving families.
+
+  So #1222 is right and incomplete.  A lane that reads the schedule and infers
+  the allocation from it is wrong on Z2, and a lane that reads the allocation
+  and infers the schedule is wrong on Z2 the other way.

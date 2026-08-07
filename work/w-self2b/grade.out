@@ -1,0 +1,116 @@
+  cell               class                  far    dom   H-2X     obj     
+  ------------------------------------------------------------------------------------
+  Z1-r1k1            SELF-1B                near   in    prod     prod    
+  Z1-r2k3            SELF-1B                near   in    prod     prod    
+  Z1-r3k4            SELF-1B                near   in    prod     prod    
+  Z1-r1k3            SELF-1B                near   in    const    const   
+  Z1-r2k4            SELF-1B                near   in    const    const   
+  Z1-r3k5            SELF-1B                near   in    const    const   
+  Z1-r1k4            SELF-1B                near   in    const    const   
+  Z1-r2k5            SELF-1B                near   in    const    const   
+  Z1-r3k6            SELF-1B                near   in    const    const   
+  Z2-r1k1            LOAD                   near   in    prod     prod    
+  Z2-r2k3            LOAD                   near   in    prod     prod    
+  Z2-r3k4            LOAD                   near   in    prod     prod    
+  Z2-r1k3            LOAD                   near   in    const    const   
+  Z2-r2k4            LOAD                   near   in    const    const   
+  Z2-r3k5            LOAD                   near   in    const    const   
+  Z2-r1k4            LOAD                   near   in    const    const   
+  Z2-r2k5            LOAD                   near   in    const    const   
+  Z2-r3k6            LOAD                   near   in    const    const   
+  Z3-r1k1            SELF-2B-tail-agrees    near   in    prod     prod    
+  Z3-r2k3            SELF-2B-tail-agrees    near   in    prod     prod    
+  Z3-r3k4            SELF-2B-tail-agrees    near   in    prod     prod    
+  Z3-r1k3            SELF-2B-tail-agrees    near   in    prod     const     **MISS**
+  Z3-r2k4            SELF-2B-tail-agrees    near   in    prod     prod    
+  Z3-r3k5            SELF-2B-tail-agrees    near   in    prod     prod    
+  Z3-r1k4            SELF-2B-tail-agrees    near   in    const    const   
+  Z3-r2k5            SELF-2B-tail-agrees    near   in    const    const   
+  Z3-r3k6            SELF-2B-tail-agrees    near   in    const    const   
+  Z4-r1k1            SELF-2B-tail-differs   near   in    prod     prod    
+  Z4-r2k3            SELF-2B-tail-differs   near   in    prod     prod    
+  Z4-r3k4            SELF-2B-tail-differs   near   in    prod     prod    
+  Z4-r1k3            SELF-2B-tail-differs   near   in    prod     const     **MISS**
+  Z4-r2k4            SELF-2B-tail-differs   near   in    prod     prod    
+  Z4-r3k5            SELF-2B-tail-differs   near   in    prod     prod    
+  Z4-r1k4            SELF-2B-tail-differs   near   in    const    const   
+  Z4-r2k5            SELF-2B-tail-differs   near   in    const    const   
+  Z4-r3k6            SELF-2B-tail-differs   near   in    const    const   
+  Z5-r1k1            MIRROR                 near   in    prod     prod    
+  Z5-r2k3            MIRROR                 near   in    prod     prod    
+  Z5-r3k4            MIRROR                 near   in    prod     prod    
+  Z5-r1k3            MIRROR                 near   in    prod     const     **MISS**
+  Z5-r2k4            MIRROR                 near   in    prod     const     **MISS**
+  Z5-r3k5            MIRROR                 near   in    prod     const     **MISS**
+  Z5-r1k4            MIRROR                 near   in    const    const   
+  Z5-r2k5            MIRROR                 near   in    const    const   
+  Z5-r3k6            MIRROR                 near   in    const    const   
+  Z6-r1k1            TWOBIND                near   in    prod     prod    
+  Z6-r2k3            TWOBIND                near   in    prod     prod    
+  Z6-r3k4            TWOBIND                near   in    prod     prod    
+  Z6-r1k3            TWOBIND                near   in    prod     const     **MISS**
+  Z6-r2k4            TWOBIND                near   in    prod     prod    
+  Z6-r3k5            TWOBIND                near   in    prod     prod    
+  Z6-r1k4            TWOBIND                near   in    const    const   
+  Z6-r2k5            TWOBIND                near   in    const    const   
+  Z6-r3k6            TWOBIND                near   in    const    const   
+  Z1-r1k3-far        SELF-1B                far    in    const    const   
+  Z1-r2k4-far        SELF-1B                far    in    const    const   
+  Z1-r3k5-far        SELF-1B                far    in    const    const   
+  Z2-r1k3-far        LOAD                   far    in    const    const   
+  Z2-r2k4-far        LOAD                   far    in    const    const   
+  Z2-r3k5-far        LOAD                   far    in    const    const   
+  Z3-r1k3-far        SELF-2B-tail-agrees    far    in    prod     const     **MISS**
+  Z3-r2k4-far        SELF-2B-tail-agrees    far    in    prod     prod    
+  Z3-r3k5-far        SELF-2B-tail-agrees    far    in    prod     prod    
+  Z4-r1k3-far        SELF-2B-tail-differs   far    in    prod     const     **MISS**
+  Z4-r2k4-far        SELF-2B-tail-differs   far    in    prod     prod    
+  Z4-r3k5-far        SELF-2B-tail-differs   far    in    prod     prod    
+  Z5-r1k3-far        MIRROR                 far    in    prod     const     **MISS**
+  Z5-r2k4-far        MIRROR                 far    in    prod     const     **MISS**
+  Z5-r3k5-far        MIRROR                 far    in    prod     const     **MISS**
+  Z6-r1k3-far        TWOBIND                far    in    prod     const     **MISS**
+  Z6-r2k4-far        TWOBIND                far    in    prod     prod    
+  Z6-r3k5-far        TWOBIND                far    in    prod     prod    
+  X1-r1k1            CROSS-path             near   CONTROL -        const     control
+  X1-r2k4            CROSS-path             near   CONTROL -        const     control
+  X1-r3k5            CROSS-path             near   CONTROL -        const     control
+  X2-r1k1            CROSS-bind             near   CONTROL -        const     control
+  X2-r2k4            CROSS-bind             near   CONTROL -        const     control
+  X2-r3k5            CROSS-bind             near   CONTROL -        const     control
+  X3-r1k1            OTHEROBJ               near   CONTROL -        const     control
+  X3-r2k4            OTHEROBJ               near   CONTROL -        const     control
+  X3-r3k5            OTHEROBJ               near   CONTROL -        const     control
+
+  frozen 81 | sha256 81 OK, 0 MOVED | reached 81 | GRADED 81 | OOR 0 | compile-failed 0
+
+  rule            right  WRONG refused
+  --------------------------------------------
+  refusal            0      0      72   <- the decline floor
+  H-2X              60     12       0
+  H-VADD            64      8       0
+  H-MIX             60     12       0
+  cu<=ru+1          60     12       0
+  cu<=ru+2          48     24       0
+  always-prod       30     42       0
+  clause-1          42     30       0
+
+  the FRONTIER, per family — `prod` at each (ru,cu)
+             1/1 2/3 3/4 1/3 2/4 3/5 1/4 2/5 3/6
+      Z1      P   P   P   c   c   c   c   c   c 
+      Z2      P   P   P   c   c   c   c   c   c 
+      Z3      P   P   P   c   P   P   c   c   c 
+      Z4      P   P   P   c   P   P   c   c   c 
+      Z5      P   P   P   c   c   c   c   c   c 
+      Z6      P   P   P   c   P   P   c   c   c 
+      X1      c   ?   ?   ?   c   c   ?   ?   ? 
+      X2      c   ?   ?   ?   c   c   ?   ?   ? 
+      X3      c   ?   ?   ?   c   c   ?   ?   ? 
+
+  -far vs near at the deciding band (P5)
+      Z1     agree 3  DISAGREE 0
+      Z2     agree 3  DISAGREE 0
+      Z3     agree 3  DISAGREE 0
+      Z4     agree 3  DISAGREE 0
+      Z5     agree 3  DISAGREE 0
+      Z6     agree 3  DISAGREE 0

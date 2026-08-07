@@ -294,6 +294,109 @@
 //! reaches. Board **#1218**: `xboxheap.cpp` prices at **three named reader keys
 //! plus one emitter refusal**, not at one.
 //!
+//! # H-2X is REFUTED — the ninth, and the first to die on the direction its own prereg registered
+//!
+//! **Board #1227**, lane `w-self2b`. The eight above are each a function of one
+//! producer's own fields, or of one expression's own shape. H-2X is the first
+//! stated as a **relation between two expressions**, which is what w-ilx §6.1
+//! said the carrier would have to be:
+//!
+//! ```text
+//!   H-2X   the address producer takes POOL_TOP  iff  cu <= ru + 1 + d
+//!            d = 1 when the ROOT SYMBOL TOKEN of the value expression differs
+//!                from the root token of the designator its own stores are
+//!                written through
+//!          DOMAIN: two producers, one an address that is a PREFIX of (or equal
+//!          to) every address it is stored into, the other one `li`.
+//! ```
+//!
+//! It fits **62 of 62** of GRID M in domain, **20 of 20** of GRID V and **all
+//! 22** `SELF-2B` cells on record — and `work/w-self2b/PREREG.md` §2.2 says in
+//! advance that none of that is evidence, because the *magnitude* +1 is read
+//! straight off those cells. What was new was the **predicate**, and it makes a
+//! prediction on two classes that did not exist anywhere.
+//!
+//! On **GRID Z** — 81 cells, `sha256` and every rule's prediction committed at
+//! `95839549` **before one cell was compiled**, 81 reached, 81 graded, 0 OOR, 0
+//! compile-failed — it is **12 WRONG of 72 in domain**. **The shipped refusal is
+//! wrong on 0 of the same 72.**
+//!
+//! **It dies asymmetrically, and prereg P3 named the cell.** GRID Z completes
+//! the 2×2 of (value root, store root) that four lanes had populated in three
+//! quadrants:
+//!
+//! ```text
+//!   Z1  path -> path            roots same    store root a formal   cu <= ru+1
+//!   Z2  bind -> bind            roots same    store root a BIND     cu <= ru+1
+//!   Z3  path -> bind            roots DIFFER  store root a BIND     cu <= ru+2*
+//!   Z4  shallower path -> bind  roots DIFFER  store root a BIND     cu <= ru+2*
+//!   Z5  bind -> path  (MIRROR)  roots DIFFER  store root a formal   cu <= ru+1
+//!   Z6  bind -> 2nd bind        roots DIFFER  store root a BIND     cu <= ru+2*
+//! ```
+//!
+//! `Z5` has differing roots and behaves exactly like `Z1`/`Z2`, so **the
+//! relation is not symmetric in the two tokens** and H-2X is wrong on all six of
+//! its cells. The other six misses are `*`: see the magnitude, below.
+//!
+//! **`Z6` costs the successor its fallback.** Two references bound to the *same*
+//! object, the value spelled as one bind's name, the stores written through the
+//! other — and c2 swaps two registers. The witness is **tighter than #1217's**:
+//! `Z2-r2k4` and `Z6-r2k4` emit the *same instruction sequence* and their objs
+//! differ in **eight bytes, every one a register field** (`TimeDateStamp`
+//! zeroed), while the whole source difference is a **second name** for an object
+//! that already had one and that is never used to compute anything:
+//!
+//! ```text
+//!   W& k = d->core.u0;                       k.m0 = (int)&k;   li 11,7  addi 10,3,48
+//!   W& k = d->core.u0;  W& j = d->core.u0;   j.m0 = (int)&k;   li 10,7  addi 11,3,48
+//! ```
+//!
+//! So the reading that would fit `SELF-2B` by name — *"the bonus attaches when
+//! the value is path-spelled and the stores go through a bind"* — is refuted at
+//! **8 wrong of 72**. There is nothing to narrow into.
+//!
+//! **And `cu <= ru + 2` is REFUTED on fresh `SELF-2B` cells.** Board #1221's
+//! clause fits all 22 on record only because no lane's `SELF-2B` cells reach
+//! `ru = 1, cu = 3`. GRID Z does, in all three `SELF-2B`-like families, near and
+//! far, and it is **`const`** there: **6 wrong of its own 36**, 24 of 72
+//! overall. The bonus **vanishes at `ru = 1`**, and that is the other half of
+//! H-2X's miss count.
+//!
+//! **The IL fact, decoded rather than diffed** (`work/w-self2b/roots.out`,
+//! through w-ilx's `exdec.py`, which is ported from this crate's own readers).
+//! Every designator base is `B9 <tok> <TYPE>`; a bind head is `26 <tok>`:
+//!
+//! ```text
+//!   cell   STORE designator root      VALUE expr root          obj
+//!   Z2     tok 0x130a BIND   [0]      tok 0x130a BIND   []     const
+//!   Z6     tok 0x140a BIND   [0]      tok 0x130a BIND   []     prod
+//!   Z5     tok 0x0e0a formal [48,0,0] tok 0x130a BIND   []     const
+//! ```
+//!
+//! `prod` appears exactly where the store designator's root is a **bind** *and*
+//! differs from the value's root. That is a relation between **two** `B9` roots
+//! plus one bit about one of them — and [`Producer`] carries `uses`, `kind` and
+//! `first`, while `c2-il`'s `eat_offset_adds` returns the **sum** of the
+//! offset-add literals rather than the list (#908). **Neither can hold it.** The
+//! minimal honest carrier is w-ilx §6.1's: per producer, the `(root token, is a
+//! bind, literal list)` of **both** the value and the lvalue.
+//!
+//! **What a successor may NOT do** is add the asymmetry and the `ru >= 2` guard
+//! and call it a rule. That combination is 0 wrong on GRID Z and it has **three
+//! conjuncts, two of them read off this grid** — `RULE W2` was 388 of 388 and
+//! `RULE BIND` 33 of 33. It is scored in `work/w-self2b/rivals.out`, labelled as
+//! having no standing, and what it owes first is the population GRID Z cannot
+//! reach: `ru = 1` at `cu = 2`, and `ru` 4–5 at `cu = ru+2` and `cu = 2·ru`,
+//! which separate a `ru >= 2` guard from a `cu <= 2·ru` cap from a requirement
+//! that the address be live across two of its own stores. No lane has one of
+//! those cells.
+//!
+//! **The bind's own displacement is FREE** — the first axis `w-mixed` §6 said
+//! the residual was owed. Moving the bound object from offset 48 to 304 changes
+//! no answer, 3 of 3 in every family. So is the value's path **depth** and
+//! whether its **tail agrees** with the store's: `Z3` and `Z4` agree at all 9
+//! points.
+//!
 //! **And clauses 2, 3 and 4-for-register-derived are unreachable from the
 //! emitter today**, which is why none of this moves a byte:
 //! `super::super::leaf::store` builds every [`Producer`] with
@@ -897,6 +1000,83 @@ mod tests {
                  cannot tell the two apart (board #1217)"
             );
         }
+    }
+
+    /// GRID Z's **two** frontiers, and the refusal firing on every cell of
+    /// both. Lane `w-self2b`, board #1227 — 81 cells frozen with their
+    /// `sha256` before one was compiled, 72 in domain, real `c2.dll` under
+    /// wibo at the workload's own `/GR /O1 /Oi /EHsc`.
+    ///
+    /// The table is the measurement, transcribed from
+    /// `work/w-self2b/grade.out`. `A` is the frontier of `Z1` (`SELF-1B`),
+    /// `Z2` (`LOAD`) and `Z5` (`MIRROR`); `B` is the frontier of `Z3`, `Z4`
+    /// and `Z6` (the two `SELF-2B` spellings and `TWOBIND`). **They differ**,
+    /// so no single `(ru, cu)` rule is right on both — and `B` is **not**
+    /// `cu <= ru + 2`, which is the part board #1221 had wrong.
+    ///
+    /// This test's job is #1175: prove the gate fires. Every one of the 18
+    /// cells below is `None` from [`allocate`], which is the only answer that
+    /// is wrong on none of them.
+    #[test]
+    fn grid_z_two_frontiers_and_the_refusal_fires_on_both() {
+        // (ru, cu, A wins with `prod`, B wins with `prod`)
+        const FRONTIER: &[(usize, usize, bool, bool)] = &[
+            (1, 1, true, true),
+            (1, 3, false, false), // <- B is `const`; `cu <= ru+2` says `prod`
+            (1, 4, false, false),
+            (2, 3, true, true),
+            (2, 4, false, true), // <- the deciding band
+            (2, 5, false, false),
+            (3, 4, true, true),
+            (3, 5, false, true), // <- the deciding band
+            (3, 6, false, false),
+        ];
+        let mut a_ne_b = 0;
+        let mut cu_le_ru2_wrong_on_b = 0;
+        for &(ru, cu, a, b) in FRONTIER {
+            assert_eq!(
+                a,
+                cu <= ru + 1,
+                "GRID Z's A frontier (SELF-1B, LOAD and MIRROR — 27 cells) is \
+                 exactly `cu <= ru + 1`; if this fails the table was edited"
+            );
+            if a != b {
+                a_ne_b += 1;
+            }
+            if (cu <= ru + 2) != b {
+                cu_le_ru2_wrong_on_b += 1;
+            }
+            let mixed = vec![
+                Producer {
+                    id: 0,
+                    kind: ProducerKind::Constant,
+                    uses: cu,
+                    first: 0,
+                },
+                Producer {
+                    id: 1,
+                    kind: ProducerKind::RegisterDerived,
+                    uses: ru,
+                    first: cu,
+                },
+            ];
+            assert_eq!(
+                allocate(&mixed, 4),
+                None,
+                "GRID Z cell (reg {ru}, const {cu}) must REFUSE — two spellings \
+                 of ONE address with equal `uses`, `kind` and `first` take \
+                 different registers here (board #1227)"
+            );
+        }
+        assert_eq!(
+            a_ne_b, 2,
+            "the two frontiers must differ, or GRID Z separated nothing"
+        );
+        assert_eq!(
+            cu_le_ru2_wrong_on_b, 1,
+            "board #1221's `cu <= ru+2` must be WRONG on B at (1,3) — that is \
+             the point no lane's SELF-2B cells reached"
+        );
     }
 
     /// The guard the store emitters call. One producer is r11 — which is what

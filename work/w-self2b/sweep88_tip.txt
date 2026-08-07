@@ -1,0 +1,11 @@
+building the harness (no-op if current)
+    Finished `release` profile [optimized] target(s) in 0.01s
+harness: /tmp/c2rs-self2b-88-tip/c2rs
+  pinned from <abs>  built 2026-08-07 19:46:34
+  sha 248a878d586b  tree 2d6783dc
+C2RS_SWEEP_ONLY='88-store-run-call': 1 of 62 fragments — THE TOTAL BELOW IS PARTIAL
+  fragment 88-store-run-call           1576 cases
+  1 fragments, 1576 cases total (1576 .cpp on disk)
+sweeping 1576 of 1576 generated cases
+  grading at 6 job(s)
+checked=1576 mismatches=0 graded=1576 ungraded=0 unknown=0

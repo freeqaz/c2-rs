@@ -1,0 +1,145 @@
+== Z2-r2k4  vs  Z6-r2k4   (the TIGHTER pair — a second name, used nowhere)
+   sizes 892 / 892
+   differing bytes with TimeDateStamp (4..8) zeroed: 8
+      off 0x0231   60 -> 40
+      off 0x0235   43 -> 63
+      off 0x0239   63 -> 43
+      off 0x023d   63 -> 43
+      off 0x0241   63 -> 43
+      off 0x0245   63 -> 43
+      off 0x0249   43 -> 63
+      off 0x024d   43 -> 63
+   -- Z2-r2k4
+      li 11, 7
+      addi 10, 3, 48
+      stw 11, 0(3)
+      stw 11, 4(3)
+      stw 11, 8(3)
+      stw 11, 12(3)
+      stw 10, 48(3)
+      stw 10, 52(3)
+      blr
+   -- Z6-r2k4
+      li 10, 7
+      addi 11, 3, 48
+      stw 10, 0(3)
+      stw 10, 4(3)
+      stw 10, 8(3)
+      stw 10, 12(3)
+      stw 11, 48(3)
+      stw 11, 52(3)
+      blr
+
+== Z2-r3k5  vs  Z6-r3k5   (its (3,5) twin)
+   sizes 900 / 900
+   differing bytes with TimeDateStamp (4..8) zeroed: 10
+      off 0x0231   60 -> 40
+      off 0x0235   43 -> 63
+      off 0x0239   63 -> 43
+      off 0x023d   63 -> 43
+      off 0x0241   63 -> 43
+      off 0x0245   63 -> 43
+      off 0x0249   63 -> 43
+      off 0x024d   43 -> 63
+      off 0x0251   43 -> 63
+      off 0x0255   43 -> 63
+   -- Z2-r3k5
+      li 11, 7
+      addi 10, 3, 48
+      stw 11, 0(3)
+      stw 11, 4(3)
+      stw 11, 8(3)
+      stw 11, 12(3)
+      stw 11, 16(3)
+      stw 10, 48(3)
+      stw 10, 52(3)
+      stw 10, 56(3)
+      blr
+   -- Z6-r3k5
+      li 10, 7
+      addi 11, 3, 48
+      stw 10, 0(3)
+      stw 10, 4(3)
+      stw 10, 8(3)
+      stw 10, 12(3)
+      stw 10, 16(3)
+      stw 11, 48(3)
+      stw 11, 52(3)
+      stw 11, 56(3)
+      blr
+
+== Z3-r2k4  vs  Z5-r2k4   (the ASYMMETRY pair — the two spellings swapped)
+   sizes 892 / 892
+   differing bytes with TimeDateStamp (4..8) zeroed: 10
+      off 0x0231   40 -> 60
+      off 0x0235   63 -> 43
+      off 0x0239   43 -> 63
+      off 0x023f   04 -> 30
+      off 0x0241   43 -> 63
+      off 0x0243   08 -> 04
+      off 0x0245   43 -> 63
+      off 0x0247   0c -> 08
+      off 0x024b   30 -> 0c
+      off 0x024d   63 -> 43
+   -- Z3-r2k4
+      li 10, 7
+      addi 11, 3, 48
+      stw 10, 0(3)
+      stw 10, 4(3)
+      stw 10, 8(3)
+      stw 10, 12(3)
+      stw 11, 48(3)
+      stw 11, 52(3)
+      blr
+   -- Z5-r2k4
+      li 11, 7
+      addi 10, 3, 48
+      stw 11, 0(3)
+      stw 10, 48(3)
+      stw 11, 4(3)
+      stw 11, 8(3)
+      stw 11, 12(3)
+      stw 10, 52(3)
+      blr
+
+== Z3-r3k5  vs  Z5-r3k5   (its (3,5) twin)
+   sizes 900 / 900
+   differing bytes with TimeDateStamp (4..8) zeroed: 13
+      off 0x0231   40 -> 60
+      off 0x0235   63 -> 43
+      off 0x0239   43 -> 63
+      off 0x023f   04 -> 30
+      off 0x0241   43 -> 63
+      off 0x0243   08 -> 04
+      off 0x0245   43 -> 63
+      off 0x0247   0c -> 08
+      off 0x0249   43 -> 63
+      off 0x024b   10 -> 0c
+      off 0x024f   30 -> 10
+      off 0x0251   63 -> 43
+      off 0x0255   63 -> 43
+   -- Z3-r3k5
+      li 10, 7
+      addi 11, 3, 48
+      stw 10, 0(3)
+      stw 10, 4(3)
+      stw 10, 8(3)
+      stw 10, 12(3)
+      stw 10, 16(3)
+      stw 11, 48(3)
+      stw 11, 52(3)
+      stw 11, 56(3)
+      blr
+   -- Z5-r3k5
+      li 11, 7
+      addi 10, 3, 48
+      stw 11, 0(3)
+      stw 10, 48(3)
+      stw 11, 4(3)
+      stw 11, 8(3)
+      stw 11, 12(3)
+      stw 11, 16(3)
+      stw 10, 52(3)
+      stw 10, 56(3)
+      blr
+

@@ -1,0 +1,4 @@
+  crates/c2-core/src/codegen/alloc.rs            +180 lines, #[cfg(test)] at 515
+
+  added `crates/` lines: 180
+  NEITHER a doc comment NOR inside `mod tests`: 0
