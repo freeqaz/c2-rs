@@ -178,34 +178,73 @@ it. Measured on 17 TU shapes:
 >   initialized thread-locals; then every code group and every section a code group
 >   drags with it, then `.CRT$XCU` last.
 
-Fitted on the 17 rows of §2.1; **not refuted by any cell in this lane**.
+Fitted on the 17 rows of §2.1. **Superseded 2026-08-08 by Rule S1′ below**: S1's
+clauses are right about *where* the slots are and wrong about *what chooses one*.
 
-> ### ⚠ SCOPE CORRECTION 2026-08-08 (board #1148, lane `w-align16`)
+> ### ⚠ SUPERSEDED 2026-08-08 — Rule S1′ (boards #174, #1148, #1152, lanes `w-align16` then `w-order3`)
 >
-> **S1's middle clause holds for an EXTERNAL-linkage `.bss`. When the `.bss`
-> holds an internal-linkage object, c2 puts it BEFORE `.XBLD$W(C2)`:**
+> **S1 reads as though the KIND of section picks its slot. It does not — the
+> slot is picked by which contributor materialised the section first**, and for
+> a `.bss` there are three answers, not one:
 >
 > ```text
->   extern:  .drectve .debug$S .XBLD$W(C2) .bss        .XBLD$W(C1) .data
->   static:  .drectve .debug$S .bss        .XBLD$W(C2) .XBLD$W(C1) .data
+>   .drectve .debug$S [/GF .rdata] [.bss:A] .XBLD$W(C2) [.bss:B]
+>                     .XBLD$W(C1) [.data] <code groups> [.bss:C] [.CRT$XCU]
+>
+>   A  a STATIC object first reached from a `.data` initializer
+>   B  an EAGER EXTERNAL object          <- this is S1's middle clause
+>   C  a STATIC first reached from a FUNCTION body, and every DEFERRED
+>      (dynamic-initializer) object, whatever its linkage
 > ```
 >
-> Measured on `A g; static A h; A* p = &h;` and on `static A g; A* p = &g;` at
-> the workload's `/GR /O1 /Oi /EHsc`
-> (`work/w-align16/diag/`), against real c2.
+> > **Rule S1′.** The non-COMDAT `.bss` sits immediately **before**
+> > `.XBLD$W(C2)` when its first contributor is an internal-linkage object
+> > reached from a `.data` initializer, **between** the watermarks when it is an
+> > eager external, and **after the code groups** when its first contributor is
+> > a static reached from a function body or any deferred object. The `/GF`
+> > string `.rdata` keeps the head of the file, ahead of slot `A`. `.data`'s
+> > slot never moves.
 >
-> **Why the 17 rows did not see it.** Every static-`.bss` cell in this document
-> is a TU **with functions** — that is what keeps its statics alive, since an
-> unreferenced uninitialized static is dropped entirely (§4.4,
-> `fixtures/cpp/wsect_drop_static.cpp`). In a **functionless** TU the only way a
-> static `.bss` object survives is a `.data` initializer holding its address, and
-> that cell had never been written. `coff::data::emit_data_obj` serves exactly
-> the functionless TU, so it was applying S1 — and Y1, see §6.2 — outside every
-> cell that fitted them, and **emitting wrong bytes**: cells at alignment 4 and 8
-> both graded `mismatch` against real c2 on an unmodified tree. It now refuses
-> any `.bss` holding an internal-linkage object; `fixtures/cpp/wa16_bss_static_reloc.cpp`
-> grades the refusal. **The correct order for that shape is a three-cell
-> observation and is NOT yet a rule** — do not encode it from the block above.
+> **S1's middle clause is exactly slot `B` and is not refuted.** Out of sample on
+> the 871-obj census (`work/w-order3/census_slot.py`, 247 real non-COMDAT `.bss`
+> sections): every one of the **138** sections in slot `B` contains an external
+> symbol, and **0 of 25** purely-static sections are there.
+>
+> | | extern-only | static-only | mixed |
+> |---|---:|---:|---:|
+> | before `C2` (slot `A`) | 0 | 0 | 0 |
+> | between (slot `B`) | 118 | **0** | 20 |
+> | after the code (slot `C`) | 76 | 25 | 8 |
+>
+> Slot `A` has **zero** workload instances, which is why nothing had seen it —
+> it needs a functionless TU whose static survives, and an unreferenced
+> uninitialized static is dropped entirely (§4.4,
+> `fixtures/cpp/wsect_drop_static.cpp`). The route around the drop is one line of
+> C++: **reference** the static from a `.data` initializer.
+>
+> **Slot `C` is not a dyninit property.** §2.1's rows 11–13 put a `.bss` after
+> the code and this document read that as a fact about *deferred* objects. It is
+> not: `fixtures/cpp/worder3_bss_slot_after_text.cpp` — `static A g; void
+> f(){g.a=1;}` — is an ordinary eager static with no dynamic initializer, and it
+> lands in slot `C` too, because a static is materialised lazily at its first
+> reference and that reference is in the function body. Give the same object
+> *both* referrers and slot `A` wins, the earlier of the two
+> (`work/w-order3/cells/O06`). §2.2's own "the position is decided by the
+> section's *earliest* contributor" was right and was stated only for dyninit.
+>
+> **History, kept because both halves matter.** `coff::data::emit_data_obj`
+> serves exactly the functionless TU and was applying S1 — and Y1, see §6.2 —
+> outside every cell that fitted them, **emitting wrong bytes**: cells at
+> alignment 4 and 8 both graded `mismatch` against real c2 on an unmodified tree
+> (board #1148, found by a grid built for something else). `w-align16` closed
+> that fail-closed by refusing every internal-linkage `.bss`; `w-order3` derived
+> S1′ from an 18-cell frozen grid and the refusals are now byte-exact at four
+> profiles. Graded by `fixtures/cpp/wa16_bss_static_reloc.cpp` (slot `A`),
+> `worder3_bss_slot_extern.cpp` (slot `B`, and the cell that kills the "a `.data`
+> relocation into `.bss` moves it" rival — it has the relocation and stays put),
+> `worder3_bss_slot_y3.cpp` (slot `A`, two objects) and
+> `worder3_bss_slot_after_text.cpp` (slot `C`, a boundary cell that still
+> refuses). A **mixed** functionless `.bss` remains refused: board **#1178**.
 
 Two consequences worth stating because they are counter-intuitive:
 
@@ -964,15 +1003,36 @@ Y1 was fitted on the extern-only and static-only cells and **confirmed
 out-of-sample by the mixed cell**, which it predicts exactly and which no simpler
 rule (ascending, descending, or declaration) matches.
 
-> ### ⚠ SCOPE CORRECTION 2026-08-08 (board #1148, lane `w-align16`)
+> ### ⚠ SCOPE CORRECTION 2026-08-08 (boards #1148, #1152; lanes `w-align16` then `w-order3`)
 >
 > **Every row above with a `static` in it comes from a TU that has functions**,
 > because that is what keeps a static `.bss` object alive (§4.4). Y1 is not
-> contradicted there and this correction does not re-measure it.
+> contradicted there. In a **functionless** TU — the only class
+> `coff::data::emit_data_obj` serves — both static-bearing rows are wrong, and
+> the two are wrong in different ways.
 >
-> **In a FUNCTIONLESS TU the mixed case behaves differently.** With
-> `A g; static A h; A* p = &h;` — the only shape in which a static `.bss` object
-> survives without a function — real c2 emits:
+> **Y1's STATIC row is REFUTED for a functionless TU: the order is `.gl`, not
+> declaration.** `w-order3`'s `O09` is the first functionless cell with two
+> statics in one `.bss` (`static A g; static A h; A* p=&g; A* q=&h;`), and the
+> two candidate orders disagree on it:
+>
+> ```text
+>   .gl record order    h g      <- what c2 emits, addresses h@0 g@4
+>   declaration order   g h      <- what Rule Y1's static clause predicts
+> ```
+>
+> > **Rule Y3 (slot-`A` `.bss`, functionless).** The group's defined symbols are
+> > emitted in **`.gl` record order** — the same permutation as Rule A1's walk,
+> > so also **ascending** address.
+>
+> Confirmed out of sample at n = 3 by `O16`: `.gl`, the addresses and the symbol
+> table are all `i h g` while declaration order is `g h i`. The same obj is a
+> control for `.data`, whose group *is* in declaration order — one obj holding
+> both permutations, which is why no single walk serves both sections.
+> `fixtures/cpp/worder3_bss_slot_y3.cpp` grades it.
+>
+> **Y1's MIXED row is a POSITION question, not an order question, in a
+> functionless TU.** With `A g; static A h; A* p = &h;` real c2 emits:
 >
 > ```text
 >   sym[ 5] .bss        sym[ 7] h  val=0 STATIC        <- the static, in the group
@@ -981,15 +1041,20 @@ rule (ascending, descending, or declaration) matches.
 >                                                         the NEXT section's group
 > ```
 >
-> The external `.bss` symbol is not in the `.bss` group at all, and the static
-> takes offset 0 with the external at 4 — neither Y1's order nor Y1's walk. The
-> `.bss` section has also moved (see §2.2's correction).
+> Both objects are in `.gl` order at ascending addresses (`h`@0, `g`@4); what
+> differs is that the external's record is written **outside** the group, at the
+> slot-`B` position the whole group would have taken had the external created the
+> section (§2.2's Rule S1′). That is one obj at n = 2,
+> `MAX_OBJECTS_PER_SECTION` is 2, so no available cell separates that reading
+> from the orderings that coincide with it there — the writer **refuses** mixed
+> linkage and `fixtures/cpp/worder3_bss_slot_mixed.cpp` grades the refusal. Board
+> **#1178**.
 >
-> `coff::data::emit_data_obj` serves only functionless TUs and was applying Y1
-> here; it now **refuses** any `.bss` holding an internal-linkage object, so its
-> live use of Y1 is the extern-only case. **Whether Y1's mixed row still holds
-> for a TU with functions is open** — this lane did not test it, and a writer for
-> that shape must re-measure rather than inherit. ~~Y2 is fitted on two cells
+> Y1's **EXTERNAL** clause is in scope (§7.1's families B and C are functionless
+> cells) and is untouched; it is what the extern-only slot-`B` `.bss` still uses.
+> **Whether Y1's mixed row still holds for a TU with functions is open** —
+> neither lane tested it, and a writer for that shape must re-measure rather than
+> inherit. ~~Y2 is fitted on two cells
 (static and extern dyninit) and is **not** independently confirmed.~~
 
 **Y2 is now confirmed out of sample (lane `w-bss2`, registered as R5).** §8.3's
