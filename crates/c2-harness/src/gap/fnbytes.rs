@@ -303,11 +303,21 @@ fn reloc_verdict(
         .collect();
     port.sort();
     refs.sort();
+    let render = |v: &[(String, u32)]| -> String {
+        v.iter()
+            .map(|(n, o)| format!("{n}@{o}"))
+            .collect::<Vec<_>>()
+            .join(",")
+    };
     if port == refs {
+        // The witness is emitted on AGREEMENT too — `fnbyte-spliced-relocset`
+        // is the form a later lane re-grades against, and "they agreed" with no
+        // targets beside it is not re-gradeable.
+        let w = format!("port={}|ref={}", render(&port), render(&refs));
         return if port.is_empty() {
-            ("no-relocs".to_string(), String::new())
+            ("no-relocs".to_string(), w)
         } else {
-            (format!("ok|n{}", port.len()), String::new())
+            (format!("ok|n{}", port.len()), w)
         };
     }
     // A disagreement is named by WHAT disagrees, because the two failures need
@@ -315,7 +325,7 @@ fn reloc_verdict(
     // offset mismatch is a body whose relocation sites moved.
     let pn: Vec<&str> = port.iter().map(|(n, _)| n.as_str()).collect();
     let rn: Vec<&str> = refs.iter().map(|(n, _)| n.as_str()).collect();
-    let witness = format!("port={}|ref={}", pn.join(","), rn.join(","));
+    let witness = format!("port={}|ref={}", render(&port), render(&refs));
     if pn == rn {
         (format!("offset-differs|n{}", port.len()), witness)
     } else {
@@ -1011,6 +1021,23 @@ pub(super) fn measure(
                         let rv = reloc_verdict(&b, refrelocs.get(name.as_str()));
                         *res.emit
                             .entry(format!("fnbyte-spliced-reloc|{}", rv.0))
+                            .or_insert(0) += 1;
+                        // **THE PER-SYMBOL RECORD, emitted for EVERY spliced
+                        // function and not only for a disagreement.** Lane
+                        // `w-relo` is widening FBM to grade relocation targets
+                        // and has already found 861 bodies FBM calls `Exact`
+                        // that name the wrong symbol; the 723 bodies this
+                        // mechanism moves are exactly the population that
+                        // widening re-examines, because they inherit their
+                        // CALLEE's relocations. A pass count cannot be
+                        // re-graded — the target names can, so both sides' are
+                        // printed per symbol.
+                        *res.emit
+                            .entry(format!(
+                                "fnbyte-spliced-relocset|{}|{}|{name}",
+                                rv.0,
+                                if rv.1.is_empty() { "port=|ref=" } else { &rv.1 }
+                            ))
                             .or_insert(0) += 1;
                         if !rv.0.starts_with("ok|") && rv.0 != "no-relocs" {
                             // A disagreement is a NAMED function with both

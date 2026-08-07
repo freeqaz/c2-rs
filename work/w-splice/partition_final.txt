@@ -1,0 +1,24 @@
+TUs graded at both ends: 878
+differs, base:   3057
+differs, tip :   2334
+
+=== CONVERTED (differs -> exact), per (TU, emit_name): 723
+  distinct symbols: 245
+       62  ??0?$_List_iterator@PAVObjectDir@@U?$_Nonconst_traits@PAVObjectDir@@@stlpmtx_std@@@stlpmtx_std@@QAA@
+       62  ??0?$_List_iterator@VString@@U?$_Nonconst_traits@VString@@@stlpmtx_std@@@stlpmtx_std@@QAA@PAU_List_n
+       61  ??0?$_List_iterator@PAVObjectDir@@U?$_Const_traits@PAVObjectDir@@@stlpmtx_std@@@stlpmtx_std@@QAA@PAU
+       40  ??0?$_List_iterator@PAVObject@Hmx@@U?$_Nonconst_traits@PAVObject@Hmx@@@stlpmtx_std@@@stlpmtx_std@@QA
+       22  ??0?$_List_iterator@VSymbol@@U?$_Nonconst_traits@VSymbol@@@stlpmtx_std@@@stlpmtx_std@@QAA@PAU_List_n
+       21  ?front@?$vector@V?$Key@M@@V?$StlNodeAlloc@V?$Key@M@@@stlpmtx_std@@@stlpmtx_std@@QBAABV?$Key@M@@XZ
+       20  ??0?$_List_iterator@P6AXXZU?$_Nonconst_traits@P6AXXZ@stlpmtx_std@@@stlpmtx_std@@QAA@PAU_List_node_ba
+       14  ??0?$_List_iterator@PAVRndDrawable@@U?$_Nonconst_traits@PAVRndDrawable@@@stlpmtx_std@@@stlpmtx_std@@
+       13  ??0?$_List_iterator@PAVNavListSortNode@@U?$_Nonconst_traits@PAVNavListSortNode@@@stlpmtx_std@@@stlpm
+       10  ??0?$_List_iterator@VSymbol@@U?$_Const_traits@VSymbol@@@stlpmtx_std@@@stlpmtx_std@@QAA@PAU_List_node
+        9  ??0?$_List_iterator@PAVRndAnimatable@@U?$_Nonconst_traits@PAVRndAnimatable@@@stlpmtx_std@@@stlpmtx_s
+        9  ??0?$_List_iterator@PAVRndMat@@U?$_Nonconst_traits@PAVRndMat@@@stlpmtx_std@@@stlpmtx_std@@QAA@PAU_Li
+
+=== REGRESSED (exact -> differs): 0
+  (none) — PREREG §3 item 1 holds
+
+=== TUs GRADED AT ONE END ONLY: 0
+  (none)

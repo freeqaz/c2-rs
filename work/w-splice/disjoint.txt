@@ -1,0 +1,17 @@
+differs: pre-inl0 3195  ->  post-inl0 3057  ->  w-splice tip 2334
+
+w-inl0   closed  138   opened 0
+w-splice closed  723   opened 0
+
+=== INTERSECTION (a function BOTH lanes closed): 0 ===
+  DISJOINT — measured per (TU, emit_name), not inferred from the sums
+
+union closed: 861   (sum of the two: 861)
+
+=== REGRESSIONS (exact -> differs) ===
+  by w-inl0  : 0
+  by w-splice: 0
+
+=== the moved population, by symbol family ===
+  w-inl0     138 functions,  66 distinct symbols, top: ??$_Destroy_Range x138
+  w-splice   723 functions, 245 distinct symbols, top: ??0?$_List_iterator x629, ?front x89, ??0?$_Rb_tree_iterator x5

@@ -14,3 +14,9 @@ caps/*.text.txt
 # this lane commits is the derived tables — `*_metrics.txt`, `partition.txt`,
 # `relocheck.txt`, `why.txt`, `spread.txt` — and the gate's own summary.
 *.log
+
+# Raw `cargo test` transcripts. Megabytes of build noise carrying absolute
+# paths; the committed artefact is `tests_tip.summary.txt`, the one line that
+# aggregates every target's `test result:`.
+tests_*.txt
+!tests_tip.summary.txt

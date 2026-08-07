@@ -1,20 +1,30 @@
 == w-bytes  (diff signature, #976-#983)
-   fndiff-                      master    60114   tip    47351   (moved — expected where this lane converts a differ)
+   fndiff-                      master    59010   tip    46247   (moved — expected where this lane converts a differ)
 == w-bytes/w-drop3 (reloc sites + call targets, #982/#984)
    fnbyte-reloc-sites           absent at BOTH ends (no such key in this build)
    fnbyte-call-targets          absent at BOTH ends (no such key in this build)
    fnbyte-callsite              absent at BOTH ends (no such key in this build)
-   fnbyte-calltarget            master    87168   tip    85722   (moved — expected where this lane converts a differ)
+   fnbyte-calltarget            master    86892   tip    85446   (moved — expected where this lane converts a differ)
 == w-seq    (splice forensics, #966-#975)
-   fnbyte-splice0               master     4940   tip     3494   (moved — expected where this lane converts a differ)
+   fnbyte-splice0               master     4664   tip     3218   (moved — expected where this lane converts a differ)
    fnbyte-spliceN               master      725   tip      725
-   fnbyte-splice|               master     5665   tip     4219   (moved — expected where this lane converts a differ)
-   fnbyte-contains              master     3928   tip     3205   (moved — expected where this lane converts a differ)
-   fnbyte-differs-why           master     3195   tip     2472   (moved — expected where this lane converts a differ)
-   fnbyte-why|                  master     3195   tip     2472   (moved — expected where this lane converts a differ)
-   fnbyte-callee-               master     8169   tip     6699   (moved — expected where this lane converts a differ)
-== w-empty/w-fix (mechanism E)
-   fnbyte-elided                master     3032   tip     3032
-   fnbyte-tu-empty-callees      master    88894   tip    88894
+   fnbyte-splice|               master     5389   tip     3943   (moved — expected where this lane converts a differ)
+   fnbyte-contains              master     3790   tip     3067   (moved — expected where this lane converts a differ)
+   fnbyte-differs-why           master     3057   tip     2334   (moved — expected where this lane converts a differ)
+   fnbyte-why|                  master     3057   tip     2334   (moved — expected where this lane converts a differ)
+   fnbyte-callee-               master     7893   tip     6423   (moved — expected where this lane converts a differ)
+== w-empty/w-fix/w-inl0 (mechanism E)
+   fnbyte-elided                master     3308   tip     3308
+   fnbyte-tu-empty-callees      master    90496   tip    90496
+   fnbyte-noeffect              master    38036   tip    38036
+   fnbyte-no-effect             absent at BOTH ends (no such key in this build)
+== w-inread (.in reader, #996-#1005)
+   in-                          master  8766355   tip  8766355
+   gl-                          absent at BOTH ends (no such key in this build)
+   emitpred-                    absent at BOTH ends (no such key in this build)
+   inread-                      absent at BOTH ends (no such key in this build)
+== w-relo (relocation-target grading, lands after this lane)
+   fnbyte-calltarget            master    86892   tip    85446   (moved — expected where this lane converts a differ)
+   fnbyte-reloc                 absent at BOTH ends (no such key in this build)
 
 FAMILIES THAT VANISHED: 0

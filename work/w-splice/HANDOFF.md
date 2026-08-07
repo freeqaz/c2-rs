@@ -4,7 +4,7 @@
 — 4 of 27 commits are already applied and two non-trivial conflict resolutions
 are in them.**
 
-Worktree: `/home/free/code/milohax/c2-rs/.claude/worktrees/agent-ac2fca0caf418fb56`
+Worktree: `<worktree>`
 Branch: `wt-w-splice` · onto `91a47df5` · stopped at commit **5/27**,
 `664e114a` *"read S3 off the IL for a Seq…"*.
 
@@ -164,7 +164,7 @@ Must print `<N> <N> []`.
    Master baseline is **1,017 / 32 targets**; this lane adds ~20 (18 + the 2
    new #980 boundary tests) → expect **~1,037 / 32**. Quote the real number.
 2. **One 878-TU scan.** Runner: `work/w-splice/run_scan.sh <tag> [jobs]`
-   (needs `C2RS_DC3=/home/free/code/milohax/dc3-decomp`).
+   (needs `C2RS_DC3=<dc3>`).
 3. **Disjointness — VERIFY, do not assume.** Expected `differs` =
    3,195 − 138 (w-inl0) − 723 (this lane) = **2,334**. If it is not 2,334 the
    two mechanisms overlap. Measure it per `(TU, emit_name)`:

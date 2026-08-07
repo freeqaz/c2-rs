@@ -37,8 +37,15 @@ PEERS = {
         "fnbyte-contains", "fnbyte-differs-why", "fnbyte-why|",
         "fnbyte-callee-",
     ],
-    "w-empty/w-fix (mechanism E)": [
+    "w-empty/w-fix/w-inl0 (mechanism E)": [
         "fnbyte-elided", "fnbyte-tu-empty-callees",
+        "fnbyte-noeffect", "fnbyte-no-effect",
+    ],
+    "w-inread (.in reader, #996-#1005)": [
+        "in-", "gl-", "emitpred-", "inread-",
+    ],
+    "w-relo (relocation-target grading, lands after this lane)": [
+        "fnbyte-calltarget", "fnbyte-reloc",
     ],
 }
 
