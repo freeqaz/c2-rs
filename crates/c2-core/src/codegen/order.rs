@@ -975,7 +975,67 @@ mod tests {
         assert_eq!(
             allocate(&uniform, pool_floor),
             Some(vec![(1, 11), (0, 10)]),
-            "clause 1 alone already gives the obj's registers once the kinds agree"
+            "clause 1 gives the obj's registers here — but see below for WHY that \
+             agreement is a coincidence of this body's use counts"
+        );
+    }
+
+    /// **CLAUSE 1 IS REFUTED ON THE INTERIOR-ADDRESS MIX, and the refuting cell
+    /// is in this lane's frozen grid.** Board **#1134**.
+    ///
+    /// The obvious lift of #836's mixed-kind refusal — the one board #868
+    /// evaluated — keeps clause 1 (use count descending) and gates it on the
+    /// register-derived producer having **strictly more uses**. Measured over
+    /// GRID F2's use-count axis, **use count is not the discriminator at all**:
+    ///
+    /// ```text
+    ///   cell            addr uses   lit uses   addr reg   lit reg   clause 1
+    ///   j1                  1           1        r11        r10     tie -> ok
+    ///   j1_lit2             1           2        r11        r10     WRONG (says lit r11)
+    ///   j2c                 2           1        r11        r10     ok
+    ///   j3                  3           1        r11        r10     ok
+    ///   xboxheap            2           1        r11        r10     ok
+    /// ```
+    ///
+    /// `j1_lit2` gives the **literal** strictly more uses and c2 still hands
+    /// `r11` to the address. What fits all five is *"the interior address takes
+    /// the top of the pool, whatever the use counts are"* — **the kind
+    /// dominates** — and #868's `slwi` row (0/12, the *constant* takes `r11`)
+    /// says the same thing from the other side: the axis is the spelling.
+    ///
+    /// **This is a FIT over five cells of one spelling and it is NOT shipped.**
+    /// Six allocation keys are already on record as refuted, every one of them
+    /// fitted on cells like these and dead on the next grid (module docs above).
+    /// What this test pins is the **counterexample**, so the next lane cannot
+    /// re-derive the strict-use-count lift without meeting it: `allocate`
+    /// refuses `j1_lit2` today, and any lift that answers it with clause 1
+    /// answers it **wrong**.
+    #[test]
+    fn the_strict_use_count_lift_is_refuted_by_this_lanes_own_grid() {
+        use super::super::alloc::{allocate, Producer, ProducerKind};
+        let pool_floor = 6;
+        // `j1_lit2`: `mCount = 0; mSize = 0; mListHead.mNext = &mListHead;`
+        // literal id 0 at TWO uses, interior address id 1 at ONE.
+        let cell = [
+            Producer { id: 0, kind: ProducerKind::Constant, uses: 2, first: 0 },
+            Producer { id: 1, kind: ProducerKind::RegisterDerived, uses: 1, first: 2 },
+        ];
+        assert_eq!(
+            allocate(&cell, pool_floor),
+            None,
+            "the mixed refusal covers the counterexample — that is why it is right"
+        );
+        // And what clause 1 alone would say, if a lift kept it: `r11` to the
+        // 2-use literal. The obj says `addi 11,3,8 ; li 10,0` — the opposite.
+        let as_if_clause_1_decided = [
+            Producer { id: 0, kind: ProducerKind::Constant, uses: 2, first: 0 },
+            Producer { id: 1, kind: ProducerKind::Constant, uses: 1, first: 2 },
+        ];
+        assert_eq!(
+            allocate(&as_if_clause_1_decided, pool_floor),
+            Some(vec![(0, 11), (1, 10)]),
+            "clause 1 hands r11 to the literal here; \
+             work/w-heap/grid/f2_g8_hdirect_iself_j1_lit2/dis.txt says r11 is the address's"
         );
     }
 }
