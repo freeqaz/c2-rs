@@ -1,0 +1,25 @@
+=== A. nothing lifted
+REPLICA:
+work/w-carrier/grid/k_target/k_target.cpp -> 0/1 functions in class
+  [  0] GAP store-run-bind-mixed-kind-alloc:eof cflow-straight             eh-none     (eh-none     )    404 B  ?AllocatePageBlock@CXboxHeap@@QAAPAUBE@@I@Z
+REAL TU:
+src/xdk/nuispeech/xboxheap.cpp -> 0/1 functions in class
+  [  0] GAP store-run-bind-mixed-kind-alloc:eof cflow-straight             eh-none     (eh-none     )    404 B  ?AllocatePageBlock@CXboxHeap@NUISPEECH@@AAAPAU_BLOCK_ENTRY@12@I@Z
+=== B. mixed-kind lifted (W_FRONT3_LIFT=store-run-bind-mixed-kind)
+REPLICA:
+work/w-carrier/grid/k_target/k_target.cpp -> 1/1 functions in class
+REAL TU:
+src/xdk/nuispeech/xboxheap.cpp -> 1/1 functions in class
+=== B'. the same lift under c2rs gap — the EMITTER's own answer
+REPLICA:
+  [1/1] codegen-gap  work/w-carrier/grid/k_target/k_target.cpp  (a store run before a call whose values are not all a formal or a literal: the sc…)
+  of the 1 known: 1 agree with `fn_total`, 0 disagree (0 where the gate sees MORE segments, 0 where the census does)
+     accepted/total bytes    frac   exact  remain | src   (REMAIN = total - accepted = the PowerPC still to write. A FOURTH unit, printed and NOT chosen between: it agrees with `frac` on both outcome cells and DISAGREES with it at this frontier's head.)
+      LEDGER — 4 entries, 0 of them RESTRICTED. A restricted entry is a claim about named census keys, and two ways it goes quietly wrong are counted here: a listed key no scan witnesses (a claim doing nothing — trap 5 with the claim still on the page) and a key `admits` accepts that the entry does not list (the matcher and the declaration disagreeing, which is what an exact→prefix slip looks like). unwitnessed 0, intruders 0.
+    census/gate disagreement on EMITTED fns (the error term on the emitted census, target 0): 1
+REAL TU:
+  [1/1] codegen-gap  src/xdk/nuispeech/xboxheap.cpp  (a store run before a call whose values are not all a formal or a literal: the sc…)
+  of the 1 known: 1 agree with `fn_total`, 0 disagree (0 where the gate sees MORE segments, 0 where the census does)
+     accepted/total bytes    frac   exact  remain | src   (REMAIN = total - accepted = the PowerPC still to write. A FOURTH unit, printed and NOT chosen between: it agrees with `frac` on both outcome cells and DISAGREES with it at this frontier's head.)
+      LEDGER — 4 entries, 0 of them RESTRICTED. A restricted entry is a claim about named census keys, and two ways it goes quietly wrong are counted here: a listed key no scan witnesses (a claim doing nothing — trap 5 with the claim still on the page) and a key `admits` accepts that the entry does not list (the matcher and the declaration disagreeing, which is what an exact→prefix slip looks like). unwitnessed 0, intruders 0.
+    census/gate disagreement on EMITTED fns (the error term on the emitted census, target 0): 1
