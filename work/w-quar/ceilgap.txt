@@ -1,0 +1,13 @@
+JFP_ALIAS exact 9 ; ALIAS_IN exact 16 ; ceiling-minus-model 8
+model exact but ceiling NOT: 1 ['src/system/rndobj/TexProc.cpp']
+
+TUs whose JFP_ALIAS false-negative count is exactly 38: 7
+ceiling-minus-model  ==  the FN==38 set ?  NO
+    src/lazer/game/PartyModeMgr.cpp                             FN==38: True
+    src/lazer/meta_ham/Challenges.cpp                           FN==38: True
+    src/lazer/meta_ham/DifficultyProvider.cpp                   FN==38: True
+    src/system/synth/FxSendEQ.cpp                               FN==38: False
+    src/system/synth_xbox/FxSendEQ.cpp                          FN==38: False
+    src/system/ui/LocalePanel.cpp                               FN==38: True
+    src/system/ui/UIListMesh.cpp                                FN==38: True
+    src/system/ui/UIListWidget.cpp                              FN==38: True
