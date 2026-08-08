@@ -1,0 +1,9 @@
+// w-mmio park grid cell gcnt_n5_p20134_g01_c1_ln
+// arity 5 perm [2, 0, 1, 3, 4] guards [0, 1] calls 1 lit None
+void g5(void *, void *, void *, void *, void *);
+int f(void *a0, void *a1, void *a2, void *a3, void *a4) {
+    if (a0 == 0) return 5;
+    if (a1 == 0) return 11;
+    g5(a2, a0, a1, a3, a4);
+    return 0;
+}
