@@ -1,0 +1,16 @@
+src/Main.cpp                                   net=0   sink=0   hatch=0  EXIT:param-width-undetermined:mid(hatch-withheld:param-width)
+src/system/math/Primes.cpp                     net=7   sink=7   hatch=0  READER-CLEAR
+src/xdk/LIBCMT/osfinfo.cpp                     net=4   sink=4   hatch=0  EXIT:expr-shr-mixed-sign:mid(hatch-withheld:expr-shr-mixed-sign)
+src/xdk/LIBCMT/undname.cpp                     net=12  sink=12  hatch=0  READER-CLEAR
+src/xdk/LIBCMT/vswprnc.cpp                     net=11  sink=11  hatch=0  READER-CLEAR
+src/xdk/xjson/jsonwriter.cpp                   net=14  sink=14  hatch=0  EXIT:expr-shr-mixed-sign:mid(hatch-withheld:expr-shr-mixed-sign)
+src/xdk/xlrc/xlrcimpl.cpp                      net=0   sink=0   hatch=0  EXIT:assign-rhs-call-0x26(no-lift)
+src/system/negate_test.cpp                     net=0   sink=0   hatch=0  EXIT:assign-store-type-8643(hatch-withheld:assign-store-type)
+src/system/synth_xbox/Biquad.cpp               net=7   sink=7   hatch=0  EXIT:expr-chain-noform-0x00(noform)
+src/xdk/LIBCMT/vsnprnc.cpp                     net=12  sink=12  hatch=0  READER-CLEAR
+src/system/rndobj/wordwrap.cpp                 net=19  sink=19  hatch=0  EXIT:expr-chain-noform-0x1C(noform)
+src/system/utl/Pool.cpp                        net=9   sink=9   hatch=0  EXIT:expr-chain-noform-0x10(noform)
+src/xdk/nuispeech/mmio.cpp                     net=12  sink=12  hatch=0  READER-CLEAR
+src/system/synth_xbox/IPP_basicmath_xbox.cpp   net=12  sink=12  hatch=0  EXIT:expr-chain-noform-0x11(noform)
+src/system/utl/EncryptXTEA.cpp                 net=17  sink=17  hatch=0  EXIT:expr-chain-noform-0x00(noform)
+src/keygen_xbox.cpp                            net=18  sink=18  hatch=0  EXIT:expr-chain-noform-0x13(noform)
