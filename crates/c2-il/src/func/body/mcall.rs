@@ -1817,25 +1817,139 @@ const TRAILER_FLAGS: [(u8, u8); 2] = [(0x11, 0x31), (0x01, 0x21)];
 /// which is most of the largest sub-buckets — and a vacuous zero is worse than a
 /// labelled approximation. The flag byte is still required to be one of the two
 /// measured values, so the field is gated, not skipped.
+///
+/// **That gate is what `expr-call-in-expr-*-op-0x5C` is** — see
+/// [`TrailerSink`], which is the counterfactual instrument for it.
 fn eat_dtor_stmt_trailer(seg: &[u8], p: &mut usize) -> bool {
+    eat_dtor_stmt_trailer_with(trailer_sink(), seg, p)
+}
+
+/// `C2RS_SINK_MCALL_TRAILER` — **lane `w-5c2`'s board #1453 counterfactual**, and
+/// the only thing that reads it.
+///
+/// # The row it is the instrument for
+///
+/// `expr-call-in-expr-*-op-0x5C` is **1,212 functions in 810 TUs** on the default
+/// 878-TU scan (board **#1428**), and it is raised **here**: when
+/// [`eat_dtor_stmt_trailer`] refuses, the cursor is left on the `5C`, the `4B`
+/// and `41` arms in [`body_matches`] both miss, and `Fail::note` files the
+/// position as [`FailKind::Value`] → [`Blocker::Op`]`(0x5C)`.
+///
+/// Two facts make a counterfactual worth running rather than a decline worth
+/// repeating:
+///
+/// 1. **The gate is narrower than the tree's own reader of the same byte.**
+///    `w-5c` (board #1423) anchored `5C <TYPE> <varint>` on **335,716 sites with
+///    0 desyncs on two independent anchors**, and `control_flow.rs::operand()`
+///    has read it at that width since 2026-07-31. This gate takes a *4-byte
+///    integer* TYPE and **two** flag values. The workload's measured states
+///    include `02 03 04 41 43` and a 9,645-site escape (`80 01 01 00 00`).
+/// 2. **The `0` published beside the row is a RENDERING.**
+///    `docs/IL_CALL_IN_EXPR.md` §16.2 files it as *"`op-0x5C` | 890 | 0 | a
+///    destructor statement trailer whose flag is neither measured value"* — but
+///    that `0` is the *whole-within-4* column, and [`blocker_is_measured`] is
+///    `BARE_BINARY_OPS.contains(&0x5C)`, which is **false**, so [`mark_whole`]'s
+///    greedy chain breaks on its first iteration and the column **cannot** hold
+///    any other number. A zero the instrument is structurally unable to move is
+///    not a measurement of the row.
+///
+/// | value | the trailer becomes | prices |
+/// |---|---|---|
+/// | unset (default) | `5C <int-like TYPE> <flag ∈ {0x11, 0x01}>` | the shipped gate |
+/// | `flag` | `5C <int-like TYPE> <any short-form byte>` | the flag whitelist alone |
+/// | `varint` | `5C <any TYPE> <varint>` — `w-5c`'s anchored width | the whole row |
+///
+/// The arms are **nested** (`Measured ⊆ Flag ⊆ Varint`), on `C2RS_SINK_BRANCH`'s
+/// pattern (board #440), and `the_trailer_sink_arms_are_nested` checks it: a
+/// wider arm that refused something a narrower one takes would understate the
+/// recovery in the one direction nobody looks.
+///
+/// # It is NOT a proposal, and it cannot be one
+///
+/// Board #661's hazard — a sink that quietly *accepts* differently as well as
+/// measuring — cannot arise here, and the reason is structural rather than
+/// argued: [`eat_dtor_stmt_trailer`] has **exactly one** call site
+/// ([`body_matches`]), which is reached only from [`mark_whole`], whose own
+/// header says *"Diagnostic only: the `Err` stays an `Err`"*. No arm of this sink
+/// can push an `IlOp`, move a census numerator, or change a graded byte. What it
+/// moves is a census **key**, which is the whole point.
+///
+/// Shipping it permanently rather than reverting it is deliberate: three rows
+/// were re-scheduled this session after a previous lane built a counterfactual
+/// for them and then removed it, so the next reader had to rebuild the
+/// experiment before it could re-rank the row. `C2RS_SINK_STORE_TYPE`,
+/// `C2RS_SINK_BRANCH` and `C2RS_CFRESIDUE_ADMIT` are the three that stayed.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum TrailerSink {
+    /// The shipped gate: an int-like TYPE and a flag in [`TRAILER_FLAGS`].
+    Measured,
+    /// The same TYPE gate, any single flag byte.
+    Flag,
+    /// `w-5c`'s anchored width: any well-formed TYPE, then a varint state.
+    Varint,
+}
+
+fn trailer_sink() -> TrailerSink {
+    static ON: std::sync::OnceLock<TrailerSink> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| match std::env::var("C2RS_SINK_MCALL_TRAILER").as_deref() {
+        Ok("flag") => TrailerSink::Flag,
+        Ok("varint") => TrailerSink::Varint,
+        // An unrecognized spelling is the shipped gate, never a silent widening —
+        // `docs/STATUS.md` trap 5.
+        _ => TrailerSink::Measured,
+    })
+}
+
+/// The trailer with the arm passed in rather than read from the environment, so
+/// the arms can be graded **against each other**: the sink resolves through a
+/// process-global `OnceLock`, and the property that matters most about a
+/// counterfactual instrument is a relation between its arms.
+fn eat_dtor_stmt_trailer_with(sink: TrailerSink, seg: &[u8], p: &mut usize) -> bool {
     let save = *p;
     if !eat_byte(seg, p, 0x5C) {
         return false;
     }
-    if !eat_int_like(seg, p) {
+    let ty_ok = match sink {
+        TrailerSink::Measured | TrailerSink::Flag => eat_int_like(seg, p),
+        TrailerSink::Varint => match read_type(seg, *p) {
+            Some((_, _, _, w)) => {
+                *p += w;
+                true
+            }
+            None => false,
+        },
+    };
+    if !ty_ok {
         *p = save;
         return false;
     }
-    match seg.get(*p) {
-        Some(&f) if TRAILER_FLAGS.iter().any(|&(s, _)| s == f) => {
-            *p += 1;
-            true
-        }
-        _ => {
-            *p = save;
-            false
-        }
+    let state_ok = match sink {
+        TrailerSink::Measured => match seg.get(*p) {
+            Some(&f) if TRAILER_FLAGS.iter().any(|&(s, _)| s == f) => {
+                *p += 1;
+                true
+            }
+            _ => false,
+        },
+        // A single **short-form** state byte. `< 0x80` deliberately: the escape is
+        // `80 <LE32>`, so admitting `0x80` here as one byte would leave the cursor
+        // four bytes inside a field instead of past it, and the arm would stop
+        // being a subset of `Varint` — which is the one relation
+        // `the_trailer_sink_arms_are_nested` is for.
+        TrailerSink::Flag => match seg.get(*p) {
+            Some(&f) if f < 0x80 => {
+                *p += 1;
+                true
+            }
+            _ => false,
+        },
+        TrailerSink::Varint => read_varint(seg, p).is_some(),
+    };
+    if !state_ok {
+        *p = save;
+        return false;
     }
+    true
 }
 
 /// The return plumbing, with the generated destructor's `5E <n> <g> 4B`
@@ -4735,6 +4849,193 @@ mod tests {
                 CallForm::from_code(b.aux & FORM_MASK, (b.aux >> FORM_BITS) & PAYLOAD_MASK).unwrap();
             assert!(!bare || !form_is_measured(form), "{f}");
         }
+    }
+
+    // ---------------------------------------------------------------------
+    // `C2RS_SINK_MCALL_TRAILER` — lane w-5c2's counterfactual for board #1428's
+    // second `0x5C` rung. See [`super::TrailerSink`].
+    // ---------------------------------------------------------------------
+
+    /// **The counterfactual sink must be OFF in every test process**, exactly as
+    /// `expr.rs`'s `C2RS_SINK_CHAIN` and `assign.rs`'s `C2RS_SINK_STORE_TYPE`
+    /// tripwires require of their own.
+    ///
+    /// A shell that exported it for a scan and then ran `cargo test` in the same
+    /// session would grade a **different classifier**, and the sink emits nothing,
+    /// so no gate in this repo would notice. `docs/STATUS.md` trap 5.
+    #[test]
+    fn the_trailer_sink_is_off_in_the_test_process() {
+        assert!(
+            std::env::var("C2RS_SINK_MCALL_TRAILER").is_err(),
+            "the test process must not set C2RS_SINK_MCALL_TRAILER"
+        );
+        assert_eq!(super::trailer_sink(), super::TrailerSink::Measured);
+    }
+
+    /// The `5C` trailer grid: every TYPE spelling × every state spelling the
+    /// workload and the probes are known to carry. Built once so all three arm
+    /// tests grade the **same** population.
+    ///
+    /// The TYPEs are the bare `int` triple `w-5c`'s `userfn()` row carries, a
+    /// `const int` with a per-TU id, and **the `const`-qualified POINTER
+    /// `A6 43 81 20`** — which is the TYPE `w-5c`'s `probe/eh5c.cpp`
+    /// `one_local()`, `two_locals()`, `across()` and `many_locals()` rows all
+    /// carry, and which `eat_int_like` refuses on its `kind & 0x0F == 3`
+    /// (pointer) nibble. The states are the two shipped flags, the four other
+    /// short forms `w-5c` §4 lists from the workload, and the escape.
+    const TRAILER_TYPES: [&[u8]; 4] = [
+        &[0x86, 0x41, 0x74],
+        &[0xA6, 0x41, 0x84, 0x20],
+        &[0xA6, 0x43, 0x81, 0x20],
+        &[0x86, 0x43, 0x83, 0x20],
+    ];
+    const TRAILER_STATES: [&[u8]; 7] = [
+        &[0x11],
+        &[0x01],
+        &[0x02],
+        &[0x03],
+        &[0x04],
+        &[0x41],
+        // `w-5c` §3.2's escape, the single byte sequence all 9,645 escaped
+        // workload sites carry: state 257.
+        &[0x80, 0x01, 0x01, 0x00, 0x00],
+    ];
+
+    /// `5C <ty> <state> 4B`, the statement-terminal position the trailer is read at.
+    fn trailer_case(ty: &[u8], state: &[u8]) -> Vec<u8> {
+        let mut v = vec![0x5C];
+        v.extend_from_slice(ty);
+        v.extend_from_slice(state);
+        v.push(0x4B);
+        v
+    }
+
+    /// **`Measured ⊆ Flag ⊆ Varint`, on acceptance AND on the final cursor.**
+    ///
+    /// The relation is the load-bearing property of a counterfactual instrument:
+    /// the only number the lane reports is a *recovery*, and a wider arm that
+    /// refused something a narrower one takes could only lower it — in the one
+    /// direction nobody would look. The cursor half matters too: an arm that
+    /// accepts the same bytes but stops four bytes inside the escape's `LE32`
+    /// would desync the next statement and scatter the row, which is exactly the
+    /// failure `docs/IL_CALL_IN_EXPR.md` §14.2's flat-hex-tail caution describes.
+    #[test]
+    fn the_trailer_sink_arms_are_nested() {
+        use super::TrailerSink::*;
+        for ty in TRAILER_TYPES {
+            for st in TRAILER_STATES {
+                let seg = trailer_case(ty, st);
+                let mut got = Vec::new();
+                for arm in [Measured, Flag, Varint] {
+                    let mut p = 0usize;
+                    got.push(if super::eat_dtor_stmt_trailer_with(arm, &seg, &mut p) {
+                        Some(p)
+                    } else {
+                        assert_eq!(p, 0, "a refusing arm must rewind: {arm:?} {seg:02X?}");
+                        None
+                    });
+                }
+                for w in got.windows(2) {
+                    if let Some(narrow) = w[0] {
+                        assert_eq!(
+                            w[1],
+                            Some(narrow),
+                            "arms are not nested on {seg:02X?}: {got:?}"
+                        );
+                    }
+                }
+                // Whatever an arm takes, it takes the WHOLE trailer: the cursor
+                // lands on the `4B` that closes the statement.
+                for g in got.into_iter().flatten() {
+                    assert_eq!(seg[g], 0x4B, "arm stopped inside the trailer: {seg:02X?}");
+                }
+            }
+        }
+    }
+
+    /// The default arm is the gate that shipped — the two measured flags, an
+    /// int-like TYPE, and nothing else — and the widest arm is `w-5c`'s anchored
+    /// width. Pinned over the same grid, as a table, so a regression re-prices
+    /// board #1428's row silently and this is what says so.
+    #[test]
+    fn the_trailer_arms_take_exactly_what_their_doc_claims() {
+        use super::TrailerSink::*;
+        let takes = |arm, ty: &[u8], st: &[u8]| {
+            let seg = trailer_case(ty, st);
+            let mut p = 0usize;
+            super::eat_dtor_stmt_trailer_with(arm, &seg, &mut p)
+        };
+        let int = TRAILER_TYPES[0];
+        let cst = TRAILER_TYPES[1];
+        let ptr = TRAILER_TYPES[2];
+        let esc = TRAILER_STATES[6];
+
+        // `Measured`: the two flags on an int-like TYPE, and refusal everywhere else.
+        assert!(takes(Measured, int, &[0x11]) && takes(Measured, int, &[0x01]));
+        assert!(takes(Measured, cst, &[0x01]), "a `const int` TYPE is int-like");
+        for st in [&[0x02u8][..], &[0x03][..], &[0x04][..], &[0x41][..], esc] {
+            assert!(!takes(Measured, int, st), "the shipped gate takes two flags only");
+        }
+        // **The finding the flag half of this row's published description misses.**
+        // `IL_CALL_IN_EXPR.md` §16.2 calls `op-0x5C` *"a destructor statement
+        // trailer whose flag is neither measured value"*. It is also, and more
+        // often, a trailer whose **TYPE** is a pointer: `eat_int_like` requires
+        // `kind & 0x0F ∈ {1, 2}` and every `A6 43 …` trailer in `w-5c`'s own
+        // probe carries `3`. The flag on those rows is a perfectly ordinary `01`.
+        assert!(!takes(Measured, ptr, &[0x01]), "the shipped gate's TYPE is int-like");
+
+        // `Flag`: the whitelist gone, the TYPE gate and the escape still in place.
+        assert!(takes(Flag, int, &[0x02]) && takes(Flag, int, &[0x41]));
+        assert!(!takes(Flag, int, esc), "`flag` is the SHORT form only");
+        assert!(!takes(Flag, ptr, &[0x01]), "`flag` keeps the int-like TYPE gate");
+
+        // `Varint`: `w-5c`'s width — any TYPE, any state, escape included.
+        assert!(takes(Varint, ptr, &[0x02]));
+        assert!(takes(Varint, int, esc), "the 9,645-site workload escape");
+        // Not a licence to eat anything: the token still has to be a `5C` with a
+        // readable TYPE after it, which is the 100.00 % `w-5c` §2.2 measured.
+        let mut p = 0;
+        assert!(!super::eat_dtor_stmt_trailer_with(Varint, &[0x5C, 0x01, 0x01, 0x4B], &mut p));
+        assert_eq!(p, 0);
+    }
+
+    /// **The mechanism claim, pinned on a body: `…-then-op-0x5C` IS this gate.**
+    ///
+    /// [`DTOR_MEMBER_OFF0`] is `expr-call-in-expr-recv-field-off0-whole` — a
+    /// complete body — and the only thing separating it from the census key board
+    /// #1428 measured at 1,212 functions is **one byte**, the trailer's flag.
+    /// Change `11` to `02` and the same body files as
+    /// `…-recv-field-off0-then-op-0x5C`.
+    ///
+    /// This is what makes the row a *diagnostic* finding rather than a rung: the
+    /// body did not become harder to compile, and nothing about the port moved.
+    /// A classifier narrower than the tree's own reader of the byte re-labelled
+    /// it.
+    #[test]
+    fn the_trailer_flag_alone_turns_a_whole_body_into_the_op_0x5c_key() {
+        let base = DTOR_MEMBER_OFF0.to_vec();
+        assert_eq!(
+            parse_segment_detail(&base, NO_LOCALS).unwrap_err().feature(),
+            "expr-call-in-expr-recv-field-off0-whole"
+        );
+        let at = crate::func::readers::find_subslice(&base, &[0x5C, 0x86, 0x41, 0x74, 0x11])
+            .expect("the probe carries the statement trailer");
+        let mut moved = base.clone();
+        moved[at + 4] = 0x02;
+        assert_eq!(
+            parse_segment_detail(&moved, NO_LOCALS).unwrap_err().feature(),
+            "expr-call-in-expr-recv-field-off0-then-op-0x5C",
+            "the flag whitelist is what raises the key"
+        );
+        // And the sink's widest arm is exactly what closes that gap — checked on
+        // the trailer itself, since the classifier reads the environment once per
+        // process and a test cannot exercise two arms in one.
+        let seg = &moved[at..];
+        let mut p = 0usize;
+        assert!(!super::eat_dtor_stmt_trailer_with(super::TrailerSink::Measured, seg, &mut p));
+        let mut p = 0usize;
+        assert!(super::eat_dtor_stmt_trailer_with(super::TrailerSink::Varint, seg, &mut p));
+        assert_eq!(seg[p], 0x4B);
     }
 
     /// Locate the `26` the census reports for the assignment-body probes: the
