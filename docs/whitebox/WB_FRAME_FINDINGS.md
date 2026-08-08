@@ -275,10 +275,155 @@ no DISCLOSURE row is proposed for either.
 
 ### 5.4 Results
 
-*(filled in from the run; see §5.5 for the survivor)*
+`/O1 /Oi /EHsc /GR` and `/O1 /GS- /c` give **identical** frame decisions on all
+eleven cells, so one column is shown. `F` and `nSaved` are read from the emitted
+prologue, saves via helper from the **relocation** (a `bl __savegprlr_N` is an
+ordinary REL24 against an ordinary external, so the name is exact where a byte
+pattern would be a guess — `scripts/gt_frame_class.py`'s rule).
+
+| cell | emitted | frame | F | saves | pdata `PrologLen` |
+|---|---|---|---|---|---|
+| C1 | `addi r3,r3,1` / `blr` | **NO** | — | 0 | none |
+| C2 | `addi r10,r1,-260` … | **NO** | — | 0 | none |
+| C3 | `lfd` / `fmadd` / `blr` | **NO** | — | 0 | none |
+| C4 | `mflr r12` / `bl __savegprlr_23` … `b __restgprlr_23` | **NO** | — | **9 GPRs + LR, via helper** | 2 |
+| C5 | `mflr` / `stw r12,-8(r1)` / **`stwu r1,-96(r1)`** / `bl` … | **YES** | 96 | 0 | 3 |
+| C6 | `b ?wbf_g` (1 word) | **NO** | — | 0 | none |
+| C6b | `slwi r3,r3,1` / `b ?wbf_g` | **NO** | — | 0 | none |
+| C6c | `b ?wbf_h` (1 word) | **NO** | — | 0 | none |
+| C7 | `divd r3,r3,r4` … `blr`, **0 relocations** | **NO** | — | 0 | none |
+| C9 | `addi r10,r1,-16` / `stw` | **NO** | — | 0 | none |
+| C9b | `stw r11,-16(r1)` / `addi r9,r1,-16` | **NO** | — | 0 | none |
+
+**C7 is `assumption unmet` and is excluded from scoring.** It was designed as
+"a helper call that is invisible in the source"; this is a 64-bit core and the
+`long long` divide lowers to a native `divd`, so the cell contains **no call at
+all** (0 relocations confirms it). Its frozen `Y` under R0/R1 was a prediction
+about a shape that did not occur. Excluded per the rule registered in §5.2, not
+scored either way — and stated here rather than quietly dropped. Re-asserting
+separation over the remaining ten cells: the minimum over all 15 rival pairs is
+still **2** (R2–R5 = {C9, C9b}, R3–R4 = {C3, C4}, R3–R5 = {C2, C4}, R4–R5 =
+{C2, C3}, R1–R3 = {C4, C5}, R1–R4 = {C3, C5}, R1–R5 = {C2, C5}), so the grid
+still separates everything it was built to separate.
+
+### 5.5 Scoring — the survivor, and this lane's own reading RETRACTED
+
+| rival | refuted by | verdict |
+|---|---|---|
+| **R0** — this lane's disassembly reading, *frame iff the body contains a call* | **C6, C6b, C6c** | **REFUTED — retracted** |
+| **R1** — *frame iff the body contains a **non-tail** call* | — | **SURVIVES, 10/10** |
+| R2 — frame iff any stack local | C2, C5, C9, C9b | REFUTED |
+| R3 — frame iff any callee-saved register is saved | C4, C5 | REFUTED |
+| R4 — frame iff FPR use | C3, C5 | REFUTED |
+| R5 — frame iff `localsBytes > 64` | C2, C5 | REFUTED |
+
+**R0 is retracted as written**, per method doc §7. Not narrowed, not rescoped:
+the predicate this lane read off `10bff565` / `10bff5f6` and wrote down before
+the run says a tail call opens a frame, and three objs say it does not.
+
+There is an obvious way to keep the reading — *"a tail-branch `b` is simply not
+carried as instruction kind `0x0f`, so the reading was right and my gloss of
+`0x0f` as `call` was wrong"*. That is exactly the move §7 forbids, and it is
+recorded here as a **hypothesis with no evidence**, carrying no confidence and
+no DISCLOSURE row. What it is good for is naming the next cheap experiment: find
+what else sets kind `0x0f`, and whether the tail-call transform runs before or
+after `FUN_10bff507`.
+
+**The survivor R1 is a black-box result.** It was established by the grid, not
+by the disassembly, and it can be re-derived from the grid sources alone by
+anyone with the toolchain. That matters for §6.
+
+### 5.6 Three things the grid measured that were not what it was for
+
+1. **The leaf red zone is real and is at least 260 bytes.** C2 addresses a
+   256-byte local array at `addi r10,r1,-260`; C9 and C9b put escaping locals at
+   `-16(r1)`. So **locals do not imply a frame** — a leaf simply uses the space
+   below `r1`. Any port rule of the form "locals ⇒ frame" is wrong.
+2. **A frameless function can still save nine callee-saved GPRs.** C4 emits
+   `mflr r12` / `bl __savegprlr_23` … `b __restgprlr_23` with **no `stwu`** and a
+   `.pdata` `PrologLen` of 2. `docs/CODEGEN_FRAMED_CALLS.md` §2 enumerates five
+   prologue classes decided by `nGPRsaved`/`nFPRsaved` **and every one of them
+   has a frame**; this is a sixth shape that document does not have.
+3. **`.pdata`'s `PrologLen` is a second, independent read of the frame
+   decision**, and it is free. The second `RUNTIME_FUNCTION` word decodes as
+   `PrologLen:8 | FunctionLen:22 | ThirtyTwoBit:1 | ExceptionFlag:1`; validated
+   on two cells (C5 → 3 / 9 words, C4 → 2 / 56 words) and on the anchor
+   (`0x40001A03` → 3 / 26 words).
 
 ---
 
 ## 6. Pre-drafted DISCLOSURE rows
 
-*(filled in after §5.4)*
+**No `adoption` row is proposed by this lane, and that is the result rather than
+an omission.** [`DISCLOSURE.md`](DISCLOSURE.md)'s step 5 says to prefer the
+black-box alternative and adopt *that*. Every part of the frame model a code
+lane would want is already on the black-box side of the line:
+
+* the **predicate** that survived is R1, established by `grids/wb-frame/frame_grid.cpp`
+  against real `c2.dll` — no address needed;
+* the **size arithmetic** is `docs/CODEGEN_FRAMED_CALLS.md` §1.2, derived from
+  44 witnesses and a 441/480 refutation sweep before any disassembly existed, and
+  it is already implemented in `crates/c2-core/src/codegen/frame.rs`;
+* the **page** and the **5-page `_RtlCheckStack12` threshold** are already
+  captured constants in that file.
+
+The one row worth carrying is a `route:` row, because the search was not blind:
+
+| # | Kind | What was adopted | Address in `c2.dll` | Adopted into | Commit | Notes |
+|---|---|---|---|---|---|---|
+| **W-FRAME-1** | **route** | **The frame decision is one bit of a per-function flag word, computed by a single linear scan of the instruction list, and the frame size is aligned exactly once — after the saved-register and LR terms are added, never before.** No value, table or bit layout is copied: the predicate that ships is the black-box R1 of `docs/whitebox/WB_FRAME_FINDINGS.md` §5.5 and the arithmetic that ships is `docs/CODEGEN_FRAMED_CALLS.md` §1.2, both established against real `c2.dll`. | `0x10bff507` (the flag word), **`0x10bff5f6`** (`or eax,0x6` — the only site in the image that sets the frame bit), **`0x10bfed12`** (`test …,0x4` — the gate), **`0x10bfed35`** (`lea edx,[eax+edi*8+0x8]` — `base + 8·nSaved + 8`), **`0x10c0b708`** (nothing emitted when that is ≤ 0), **`0x10c0b722`** (`and ecx,0xfffffff0` — the single align16), `0x10c0b74d` (`imul edx,edx,0x5`), `0x10c386f4` (`0x1000`) | *(nothing — this lane adopts no code)* | *(pending: the follow-on lane, if it ships a frame rule)* | Logged under the grey-zone rule. **The reading it came from was partly REFUTED**: the frame predicate as read (`§5.5` R0) says a tail call opens a frame and three objs say it does not, so the predicate half is retracted and only the *shape* claim above survives. A follow-on lane that ships a frame rule should carry this row; a lane that ships only R1 and §1.2 needs **no row at all**, which is the outcome this ledger prefers. |
+
+**Held, not proposed.** `FUN_10bfebf7` / `10bfecbf` narrow the callee-saved GPR
+window from `r14..r31` to `r17..r31` when `DAT_10c2e980 != 0`. That flag's
+meaning is unknown, no grid cell separates it, and the port has no witness of the
+narrow window. It is named here as navigation and **must not** be adopted on this
+lane's say-so.
+
+**Not claimed, stated so absence does not read as coverage.** The EH disjunct
+(`10bff573`, kind `0x12` / opcode `0x2e0`) and the POGO disjunct (`10bff95c`'s
+`or …,4`) were read and **never obj-checked** — §5.3 declared in advance that no
+cell separates them. They are navigation. So is the identity of instruction kind
+`0x0f`, which §5.5 retracted.
+
+---
+
+## 7. What the anchor actually needs — for the follow-on code lane
+
+`?supershuffle`'s 5-word gap is **inlining plus one interprocedural fact**, and
+neither is a frame rule.
+
+**The port's emit is already what c2 emits for the ABI case.** Auxiliary probe
+[`grids/wb-frame/anchor_probe.cpp`](grids/wb-frame/anchor_probe.cpp) arm B —
+three *extern* callees taking one `char*` — makes real `c2` emit
+
+```
+7d8802a6 mflr r12 / 9181fff8 stw r12,-8(r1) / fbe1fff0 std r31,-16(r1)
+9421ffa0 stwu r1,-96(r1) / 7c7f1b78 mr r31,r3 / 4bffffed bl … / 7fe3fb78 mr r3,r31 …
+```
+
+which is the port's `?supershuffle` prologue **word for word**. So the port is
+not wrong about the ABI; c2 has information the port does not.
+
+**The information is the callee's register footprint.** All six shuffles are
+emitted as frameless leaves and **none of them writes `r3`** (checked over the
+real `keygen_xbox.cod`), so c2 leaves the pointer in the *volatile* `r3` across
+four consecutive `bl`s and saves nothing. The plausible mechanism is already a
+labelled function in this directory: `10b2778e`, `emit-order`, *"topological
+sort (callee before caller)"* — a caller is compiled after its in-TU callees, so
+their footprints are known. **That is a hypothesis, not a measurement.**
+
+**Two probes failed to isolate it, and the failures are the useful part.**
+Probe 2 ([`anchor_probe2.cpp`](grids/wb-frame/anchor_probe2.cpp)) used `static`
+callees to test definition-order sensitivity: c2 inlined all six, both arms, and
+the two callers came out byte-identical — a single-caller `static` is always
+inlined, so the arm never existed. Probe 3
+([`anchor_probe3.cpp`](grids/wb-frame/anchor_probe3.cpp)) gave the callees
+external linkage and a runtime-bounded loop; c2 inlined those too. A reproducer
+needs callees **large enough that c2 declines to inline them** — the real
+shuffles are 21–26 words with nested loops. Do not re-run the small-callee
+version.
+
+**Priced honestly**: closing `?supershuffle` needs (a) the inliner's decision for
+`?shuffle2` — 14 of the 26 words — and (b) an interprocedural clobber set. Both
+are large; neither is `w-frame`. Board **#1477** should be re-pointed at the
+inliner, and the frame half of task `w-frame` retired.
