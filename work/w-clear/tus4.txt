@@ -1,0 +1,4 @@
+src/xdk/LIBCMT/undname.cpp
+src/xdk/LIBCMT/vswprnc.cpp
+src/xdk/LIBCMT/vsnprnc.cpp
+src/xdk/nuispeech/mmio.cpp

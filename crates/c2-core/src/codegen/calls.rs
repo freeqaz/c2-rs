@@ -286,9 +286,16 @@ pub struct SeqBody {
 /// is chosen — and it chooses the formal's **home** argument register, because
 /// this class admits no entry-block move and therefore has no post-hoist
 /// location to resolve. (`cond_tail`'s `plan_cond_pair` does have one, and the
-/// separating cell is `?mmioGetInfo`: `mr r11,r3 ; cmplwi cr6,r11,0`. A guarded
-/// sequence with a park is refused in the IL parser, so the two rules cannot be
-/// confused here.)
+/// separating cell is `?mmioGetInfo`: `mr r11,r3 ; cmplwi cr6,r11,0`.
+///
+/// **This paragraph used to end "a guarded sequence with a park is refused in
+/// the IL parser, so the two rules cannot be confused here", and that was
+/// FALSE.** Lane `w-clear` gridded it: the IL parser accepts a guarded EARLY
+/// RETURN in front of a permuted call and the emitter lowered it with the
+/// *unguarded* cycle, producing wrong bytes in **30 of 54** cells. The refusal
+/// the sentence asserted now exists — in [`call_seq_parts`], with the grid
+/// behind it — but it is a W11 `early` refusal, not a W10 `guard` one, and the
+/// two are different fields.)
 pub struct SeqGuardEmit {
     /// `cmpwi cr6,rA,k` or `cmplwi cr6,rA,k`, already encoded.
     cmp: [u8; 4],
@@ -925,6 +932,43 @@ pub fn call_seq_parts(
                     if !seq.saved.is_empty() && !t.is_empty() {
                         return Err(out_of_class(
                             "a permuted first call beside a callee-saved copy: c2                              breaks the cycle through the callee-saved register                              instead of r11, which is not characterized",
+                        ));
+                    }
+                    // **W-CLEAR / board #275 — a permuted call behind a GUARDED
+                    // EARLY RETURN is c2's ENTRY-BLOCK PARK, and this emitter
+                    // does not have it.** Refused rather than emitted, because
+                    // the bytes it would emit are WRONG, not merely absent.
+                    //
+                    // [`SeqGuardEmit`]'s doc says a guarded sequence with a park
+                    // "is refused in the IL parser, so the two rules cannot be
+                    // confused here". **That was untrue and untested.** Lane
+                    // `w-clear` gridded guard-count × permutation × call-count at
+                    // the dc3 workload's own flags —
+                    // `work/w-clear/probe/grid.txt`, 54 cells — and read **30
+                    // `Port=Mismatch`**: every cell with ≥ 1 early return and a
+                    // non-identity permutation. `mismatch 0` is this project's
+                    // sole correctness criterion and this shape broke it.
+                    //
+                    // What c2 does, measured on those cells:
+                    //
+                    // ```text
+                    //   f(p,q){ g(q,p); }            mr r11,r4 · mr r4,r3 · mr r3,r11   <- the port MATCHES this
+                    //   f(p,q){ if(!p) …; g(q,p); }  mr r11,r3 · mr r3,r4               <- ENTRY BLOCK, before the compare
+                    //                                cmplwi cr6,r11,0 · bf 26 · …
+                    //                                mr r4,r11                          <- and only the remainder here
+                    // ```
+                    //
+                    // The unguarded row is already byte-exact, so this is not a
+                    // missing encoder: it is a *different cycle break* plus a
+                    // *split across two blocks*, chosen by a rule the rung doc
+                    // states and no fixture had ever exercised.
+                    if !seq.early.is_empty() && !t.is_empty() {
+                        return Err(out_of_class(
+                            "a permuted first call behind a guarded early return: c2 \
+                             hoists the cycle into the ENTRY BLOCK as a park and leaves \
+                             only the remainder at the call, breaking the cycle at the \
+                             lowest slot rather than the highest — 30 of 30 measured \
+                             cells diverge from the unguarded lowering this emitter has",
                         ));
                     }
                     (t, w)
@@ -1650,6 +1694,90 @@ mod tests {
     use c2_il::{IlFunction, IlOp};
     #[allow(unused_imports)]
     use crate::codegen::testutil::*;
+
+    /// **W-CLEAR / board #275 — a permuted call BEHIND A GUARDED EARLY RETURN
+    /// refuses, and the same permutation WITHOUT the guard still emits.**
+    ///
+    /// The pair is the whole point. `w-clear` measured 54 cells of
+    /// guard-count × permutation × call-count against real `c2.dll` at the dc3
+    /// workload's own flags and found **30 `Port=Mismatch`** — every cell with
+    /// at least one early return and a non-identity permutation, and **zero**
+    /// with no early return. So a blanket refusal on permutations would give up
+    /// twelve cells that are byte-exact today, and a blanket acceptance is the
+    /// wrong-bytes emit this test exists to prevent. Both halves are asserted.
+    ///
+    /// The identity permutation is asserted too, in the guarded arm: it produces
+    /// no moves at all, so it must keep emitting — six of the 54 cells are that
+    /// row and all six matched.
+    #[test]
+    fn a_permuted_call_behind_a_guarded_early_return_refuses_but_the_unguarded_one_emits() {
+        let seq = |sources: Vec<usize>, guarded: bool| c2_il::CallSeq {
+            early: if guarded {
+                vec![c2_il::SeqEarlyReturn {
+                    and_conds: Vec::new(),
+                    cmp_param: 0,
+                    rel: c2_il::Rel::Eq,
+                    signed: false,
+                    k: 0,
+                    value: Some(5),
+                }]
+            } else {
+                Vec::new()
+            },
+            calls: vec![c2_il::SeqCall {
+                callee: "?g@@YAXPAX0@Z".into(),
+                arg_ops: Vec::new(),
+                arg_sources: Some(sources),
+                link_args: None,
+            }],
+            tail: c2_il::SeqTail::Lit(0),
+            saved: Vec::new(),
+            guard: None,
+            store_run: None,
+        };
+        let params = [9, 9, 9];
+
+        // ---- the swap, UNGUARDED: `mr r11,r4 · mr r4,r3 · mr r3,r11` --------
+        // The bytes real c2 emits for `f(p,q){ g(q,p); return 0; }`, which the
+        // port already reproduces (`work/w-clear/probe/n1.cpp`, `match`).
+        let (setups, _) = call_seq_parts(&params[..2], &seq(vec![1, 0], false), OptMode::O1)
+            .expect("the unguarded permutation is in class and must stay in class");
+        assert_eq!(
+            setups[0],
+            vec![
+                0x7c, 0x8b, 0x23, 0x78, // mr r11,r4
+                0x7c, 0x64, 0x1b, 0x78, // mr r4,r3
+                0x7d, 0x63, 0x5b, 0x78, // mr r3,r11
+            ],
+            "the unguarded cycle break is the shipped, byte-exact lowering"
+        );
+
+        // ---- the SAME permutation behind one early return: REFUSED ----------
+        let e = call_seq_parts(&params[..2], &seq(vec![1, 0], true), OptMode::O1)
+            .expect_err("a permuted call behind a guarded early return must refuse");
+        assert!(
+            format!("{e:?}").contains("guarded early return"),
+            "the refusal must name the shape, not just decline: {e:?}"
+        );
+
+        // ---- three-argument cycles, both rotations, likewise refused --------
+        for sources in [vec![1, 2, 0], vec![2, 0, 1], vec![2, 1, 0], vec![0, 2, 1]] {
+            assert!(
+                call_seq_parts(&params, &seq(sources.clone(), true), OptMode::O1).is_err(),
+                "{sources:?} behind a guard must refuse"
+            );
+            assert!(
+                call_seq_parts(&params, &seq(sources.clone(), false), OptMode::O1).is_ok(),
+                "{sources:?} with NO guard must still emit — it is byte-exact today"
+            );
+        }
+
+        // ---- and the IDENTITY keeps emitting behind the guard ---------------
+        // No moves, nothing to park, and all six measured cells matched.
+        let (setups, _) = call_seq_parts(&params, &seq(vec![0, 1, 2], true), OptMode::O1)
+            .expect("the identity permutation behind a guard is byte-exact today");
+        assert!(setups[0].is_empty(), "the identity permutation emits no moves");
+    }
 
     /// **WCO — the chain-result designator, and the one place its two forms
     /// disagree.**
