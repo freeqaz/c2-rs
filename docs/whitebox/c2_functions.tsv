@@ -2146,7 +2146,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b99d9f	36		unknown	unknown	5	2	-
 10b99dc3	8		unknown	unknown	21	1	-
 10b99dcb	51		unknown	unknown	1	3	-
-10b99dfe	682		unknown	unknown	3	6	str:e:\\bt\\278379\\vctools\\compiler\\be\\p | __unwind$ | __catch$
+10b99dfe	682		symbol-name-formatter	high	3	6	formats a symbol's text name into DAT_10c6a020 by sym[+0x30] (kind) x sym[+0x31] (sub-kind): 'T'->__unwind$ (10b99f3d), 'V'->__catch$ (10b99f36), 'W'->$M, 'Z'->__annotation$, kind1 -> $S/$SG/$T (10b9a04d-10b9a07d), kind4 -> $E, unnamed -> $L{C,L,N} [src:W-EH]
 10b9a0a8	56		unknown	unknown	2	0	-
 10b9a0e0	99		symtab-insert	high	8	3	insert into DAT_10c6c068: bucket = sym[10] & 0x3ff, chain at offset 0, HEAD insertion [src:W-HASH]
 10b9a143	733		section-select	high	12	10	assigns sym[0xc] to .bss/.data/.rdata globals; COMDAT selection for new COMDATs [src:W-SECT]
@@ -3695,7 +3695,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10be11eb	52		unknown	unknown	1	1	-
 10be121f	91		unknown	unknown	1	2	-
 10be127a	77		unknown	unknown	1	4	-
-10be12c7	3022		unknown	unknown	1	13	str:__estypeinfo$%s$%d | __catchsym$%s$%d | __estypeinfo$%s
+10be12c7	3022		ehfuncinfo-builder	high	1	13	builds the __ehfuncinfo$ record (9 dwords) and mints __unwindtable$%s, __tryblocktable$%s, __catchsym$%s$%d, __estypeinfo$%s; sizes maxState*8 / n*0x14 / n*0x10, all via FUN_10b9c655(6, size, 7, 0, 4, 0x80) [src:W-EH]
 10be1e95	17		unknown	unknown	1	0	-
 10be1ea6	77		unknown	unknown	1	2	-
 10be1ef3	76		unknown	unknown	1	2	-
@@ -4210,8 +4210,8 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10bff507	257		prolog-flags	high	2	0	the per-function prologue flag word, one linear scan; bit 2 (the FRAME bit) is set at 10bff5f6 (`or eax,0x6`) and NOWHERE else in the image; the predicate it encodes was RETRACTED by the wb-frame obj grid (WB_FRAME_FINDINGS.md 5.5) -- the instruction reading stands, the semantics do not [src:W-FRAME]
 10bff608	296		unknown	unknown	1	11	-
 10bff730	85		unknown	unknown	1	0	-
-10bff785	140		unknown	unknown	1	2	-
-10bff811	187		unknown	unknown	1	1	-
+10bff785	140		pdata-defer	high	1	2	pushes a 6-field 0x18-byte fixup {item, base, end, prologEnd, handler, !isMainBody} onto the array at DAT_10c385e4; entry[5] stored at 10bff7fd [src:W-EH]
+10bff811	187		pdata-patch-pass	high	1	1	the deferred unwind-word pass, run once from 10b34325: word = (handler!=0)<<31 | 1<<30 | (len_words & 0x3FFFFF)<<8 | (prolog_words & 0xFF). OBJ-CONFIRMED on 8 records / 4 objs (WB_EH_FINDINGS §5.2) [src:W-EH]
 10bff8cc	54		unknown	unknown	2	2	-
 10bff902	90		unknown	unknown	1	4	-
 10bff95c	327		prolog-driver	high	2	11	p2/ppc/code.c prologue driver; flags = FUN_10bff507() | savedmask, forces bit 2 on the POGO path (DAT_10c3de20==1) [src:W-FRAME]
@@ -4721,21 +4721,21 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c21793	37		unknown	unknown	1	1	-
 10c217b8	44		unknown	unknown	1	4	-
 10c217e4	25		unknown	unknown	4	0	-
-10c217fd	405		unknown	unknown	2	10	-
+10c217fd	405		pdata-writer	high	2	10	the .pdata RECORD writer: allocates an 8-byte COMDAT at align 4 (FUN_10b9c655(6,8,4,0,4,0x80)), emits {ADDR32 BeginAddress, u32 unwind word}, zeroes the word at 10c218ca and defers it; emits the two prefix relocations when param_4 != 0 (10c21907) [src:W-EH]
 10c21992	20		unknown	unknown	1	2	-
-10c219a6	30		unknown	unknown	1	0	-
-10c219c4	97		unknown	unknown	1	0	-
+10c219a6	30		eh-state-seed	high	1	0	sets node[+0x24] = -2 on every node with [+9]&1 — the "unset" sentinel the ip2state emitter skips [src:W-EH]
+10c219c4	97		eh-state-propagate	medium	1	0	forward monotone propagation of state numbers over the node list (node[+0x24]); read, but its fixpoint is not established. This pass — NOT the .ex stream — is where the EH state map comes from (WB_EH_FINDINGS §5.3) [src:W-EH]
 10c21a25	56		unknown	unknown	1	2	-
 10c21a5d	61		unknown	unknown	1	0	-
 10c21a9a	34		unknown	unknown	1	0	-
 10c21abc	21		unknown	unknown	1	0	-
 10c21ad1	50		unknown	unknown	1	2	-
-10c21b03	752		unknown	unknown	1	15	str:__C_specific_handler
+10c21b03	752		seh-pdata-driver	high	1	15	the SEH driver (__C_specific_handler, sub-kind 'S'); also the path a NON-EH function takes — FUN_10c217fd(…, 0, 0, …), handler null, bit 31 clear [src:W-EH]
 10c21df3	25		unknown	unknown	2	2	-
 10c21e0c	226		unknown	unknown	1	4	-
 10c21eee	228		unknown	unknown	1	4	-
-10c21fd2	247		unknown	unknown	2	4	str:__CxxFrameHandler
-10c220c9	418		unknown	unknown	1	4	-
+10c21fd2	247		eh-pdata-driver	high	2	4	the C++ EH .pdata driver: mints __CxxFrameHandler at 10c22007 and sets its sub-kind to 'V', then walks the node list cutting .text into regions [src:W-EH]
+10c220c9	418		ip2state-emitter	high	1	4	the $T ip-to-state array: one 8-byte {ADDR32 label, i32 state} entry per state CHANGE over nodes with [+9]&1, skipping state -2, array omitted entirely at n==0; writes nIPMapEntries and pIPtoStateMap into FuncInfo [src:W-EH]
 10c2226b	65		unknown	unknown	2	4	-
 10c222ac	24		unknown	unknown	2	2	-
 10c222c4	30		unknown	unknown	1	2	-

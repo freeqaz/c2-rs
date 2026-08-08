@@ -1,0 +1,85 @@
+== work/wb-eh/src/e3_both.obj
+   mode: (pre-existing obj)
+-- section order
+   1 .drectve  raw=132   rel=0  chars=0x00100a00  cksum=0x00000000 Number=0 Sel=0
+   2 .debug$S  raw=180   rel=0  chars=0x42100040  cksum=0x00000000 Number=0 Sel=0
+   3 .XBLD$W   raw=16    rel=0  chars=0xc0401040  cksum=0x00000000 Number=0 Sel=2
+   4 .XBLD$W   raw=16    rel=0  chars=0xc2301040  cksum=0x00000000 Number=0 Sel=2
+   5 .text     raw=212   rel=13 chars=0x60401020  cksum=0x0000000d Number=0 Sel=1
+   6 .pdata    raw=8     rel=1  chars=0x40401040  cksum=0x00000001 Number=5 Sel=5
+   7 .pdata    raw=8     rel=1  chars=0x40401040  cksum=0x00000001 Number=5 Sel=5
+   8 .pdata    raw=8     rel=1  chars=0x40401040  cksum=0x00000001 Number=5 Sel=5
+   9 .rdata    raw=144   rel=13 chars=0x40401040  cksum=0x0000000d Number=5 Sel=5
+  10 .data     raw=11    rel=1  chars=0xc0301040  cksum=0x00000001 Number=0 Sel=2
+  11 .text     raw=8     rel=0  chars=0x60401020  cksum=0x00000000 Number=0 Sel=1
+-- item 1: the handler prefix and the function symbol
+   ?f@@YAHH@Z                               sec=5 Value=0x8
+   ?leaf@@YAHH@Z                            sec=11 Value=0x0
+   prefix @ .text+0x00: [00000000 -> __CxxFrameHandler] [00000000 -> __ehfuncinfo$?f@@YAHH@Z]  <- ?f@@YAHH@Z
+   prefix @ .text+0x80: [00000000 -> __CxxFrameHandler] [00000000 -> __ehfuncinfo$?f@@YAHH@Z]  <- __catch$2575
+-- item 2: .pdata
+  section 6 (8 B)
+    +0x00  BeginAddress=?f@@YAHH@Z+164  word=0x40000a04  [bit31=0 bit30=1 len=10 prolog=4]  covers .text 0xac..0xd4 (10 words)  <- __unwind$2576, $M2598
+  section 7 (8 B)
+    +0x00  BeginAddress=?f@@YAHH@Z+128  word=0xc0000902  [bit31=1 bit30=1 len=9 prolog=2]  covers .text 0x88..0xac (9 words)  <- __catch$2575
+  section 8 (8 B)
+    +0x00  BeginAddress=?f@@YAHH@Z+0  word=0xc0001e08  [bit31=1 bit30=1 len=30 prolog=8]  covers .text 0x8..0x80 (30 words)  <- ?f@@YAHH@Z
+-- item 3: the EH .rdata
+  section 9 (144 B)
+    anchors: 0x00=__unwindtable$?f@@YAHH@Z, 0x18=__catchsym$?f@@YAHH@Z$3, 0x28=__tryblocktable$?f@@YAHH@Z, 0x3c=__ehfuncinfo$?f@@YAHH@Z, 0x60=$T2591
+    __unwindtable$ @0x00  (maxState=3)
+      [0] toState=0xffffffff (-1) action=__unwind$2576 (reloc 2)
+      [1] toState=0x00000000 (0) action=0x00000000 (0)
+      [2] toState=0x00000000 (0) action=0x00000000 (0)
+    __catchsym$?f@@YAHH@Z$3 @0x18  (1 HandlerType)
+      [0] adjectives=0x00000000 (0) pType=??_R0H@8 (reloc 2) dispCatchObj=0xffffffd8 (-40) addressOfHandler=__catch$2575 (reloc 2)
+    __tryblocktable$ @0x28  (nTryBlocks=1)
+      [0] tryLow=0x00000001 (1) tryHigh=0x00000001 (1) catchHigh=0x00000002 (2) nCatches=0x00000001 (1) pHandlerArray=__catchsym$?f@@YAHH@Z$3 (reloc 2)
+    __ehfuncinfo$ @0x3c
+      +0x00 magic          0x19930522 (429065506)
+      +0x04 maxState       0x00000003 (3)
+      +0x08 pUnwindMap     __unwindtable$?f@@YAHH@Z (reloc 2)
+      +0x0c nTryBlocks     0x00000001 (1)
+      +0x10 pTryBlockMap   __tryblocktable$?f@@YAHH@Z (reloc 2)
+      +0x14 nIPMapEntries  0x00000006 (6)
+      +0x18 pIPtoStateMap  $T2591 (reloc 2)
+      +0x1c pESTypeList    0x00000000 (0)
+      +0x20 EHFlags        0x00000001 (1)
+      FuncInfo size = 36 B (9 dwords); ipmap at 0x60 (pad 0)
+    ip2state @0x60  (nIPMapEntries=6)
+      [0] ip=$M2585 (reloc 2)         state=0x00000001 (1)            @ sec5+0x0038  4bffffc9 bl .-56  ->?g@@YAHH@Z
+      [1] ip=$M2586 (reloc 2)         state=0x00000000 (0)            @ sec5+0x003c  7d084378 mr	8, 8
+      [2] ip=$M2587 (reloc 2)         state=0x00000001 (1)            @ sec5+0x0040  817f0050 lwz 11, 80(31)
+      [3] ip=$M2588 (reloc 2)         state=0xffffffff (-1)           @ sec5+0x004c  4bffffb5 bl .-76  ->??1S@@QAA@XZ
+      [4] ip=$M2589 (reloc 2)         state=0x00000000 (0)            @ sec5+0x0050  7d084378 mr	8, 8
+      [5] ip=$M2590 (reloc 2)         state=0xffffffff (-1)           @ sec5+0x0054  7fc3f378 mr	3, 30
+-- item 4: type descriptors
+  section 10 (11 B) syms=['??_R0H@8']  name='.H'  relocs=[('0x0', '??_7type_info@@6B@')]
+-- ip2state against the call sites
+    sec5+0x0030  bl bl ??0S@@QAA@XZ                  state=-1  ((implicit))
+    sec5+0x0038  bl bl ?g@@YAHH@Z                    state=1   ($M2585)  <== $M2585
+    sec5+0x004c  bl bl ??1S@@QAA@XZ                  state=-1  ($M2588)  <== $M2588
+    sec5+0x0060  bl bl ??1S@@QAA@XZ                  state=-1  ($M2590)
+    sec5+0x00c0  bl bl ??1S@@QAA@XZ                  state=-1  ($M2590)
+    !! $M2586 at sec5+0x003c is NOT a call site: 7d084378 mr	8, 8
+    !! $M2587 at sec5+0x0040 is NOT a call site: 817f0050 lwz 11, 80(31)
+    !! $M2589 at sec5+0x0050 is NOT a call site: 7d084378 mr	8, 8
+    !! $M2590 at sec5+0x0054 is NOT a call site: 7fc3f378 mr	3, 30
+-- labels in .text
+   0x0008  ?f@@YAHH@Z
+   0x0028  $M2594
+   0x0038  $M2585
+   0x003c  $M2586
+   0x0040  $M2587
+   0x004c  $M2588
+   0x0050  $M2589
+   0x0054  $M2590
+   0x005c  $LN8
+   0x0080  $M2595
+   0x0088  __catch$2575
+   0x0090  $M2597
+   0x00ac  __unwind$2576
+   0x00ac  $M2598
+   0x00bc  $M2600
+   0x00d4  $M2601
+   0x0000  ?leaf@@YAHH@Z

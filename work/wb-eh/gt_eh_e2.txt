@@ -1,0 +1,53 @@
+== work/wb-eh/src/e2_unwind.obj
+   mode: (pre-existing obj)
+-- section order
+   1 .drectve  raw=132   rel=0  chars=0x00100a00  cksum=0x00000000 Number=0 Sel=0
+   2 .debug$S  raw=180   rel=0  chars=0x42100040  cksum=0x00000000 Number=0 Sel=0
+   3 .XBLD$W   raw=16    rel=0  chars=0xc0401040  cksum=0x00000000 Number=0 Sel=2
+   4 .XBLD$W   raw=16    rel=0  chars=0xc2301040  cksum=0x00000000 Number=0 Sel=2
+   5 .text     raw=136   rel=6  chars=0x60401020  cksum=0x00000006 Number=0 Sel=1
+   6 .pdata    raw=8     rel=1  chars=0x40401040  cksum=0x00000001 Number=5 Sel=5
+   7 .pdata    raw=8     rel=1  chars=0x40401040  cksum=0x00000001 Number=5 Sel=5
+   8 .rdata    raw=64    rel=5  chars=0x40401040  cksum=0x00000005 Number=5 Sel=5
+-- item 1: the handler prefix and the function symbol
+   ?f@@YAHH@Z                               sec=5 Value=0x8
+   prefix @ .text+0x00: [00000000 -> __CxxFrameHandler] [00000000 -> __ehfuncinfo$?f@@YAHH@Z]  <- ?f@@YAHH@Z
+-- item 2: .pdata
+  section 6 (8 B)
+    +0x00  BeginAddress=?f@@YAHH@Z+88  word=0x40000a04  [bit31=0 bit30=1 len=10 prolog=4]  covers .text 0x60..0x88 (10 words)  <- __unwind$2561, $M2571
+  section 7 (8 B)
+    +0x00  BeginAddress=?f@@YAHH@Z+0  word=0xc0001606  [bit31=1 bit30=1 len=22 prolog=6]  covers .text 0x8..0x60 (22 words)  <- ?f@@YAHH@Z
+-- item 3: the EH .rdata
+  section 8 (64 B)
+    anchors: 0x00=__unwindtable$?f@@YAHH@Z, 0x08=__ehfuncinfo$?f@@YAHH@Z, 0x30=$T2568
+    __unwindtable$ @0x00  (maxState=1)
+      [0] toState=0xffffffff (-1) action=__unwind$2561 (reloc 2)
+    __ehfuncinfo$ @0x08
+      +0x00 magic          0x19930522 (429065506)
+      +0x04 maxState       0x00000001 (1)
+      +0x08 pUnwindMap     __unwindtable$?f@@YAHH@Z (reloc 2)
+      +0x0c nTryBlocks     0x00000000 (0)
+      +0x10 pTryBlockMap   0x00000000 (0)
+      +0x14 nIPMapEntries  0x00000002 (2)
+      +0x18 pIPtoStateMap  $T2568 (reloc 2)
+      +0x1c pESTypeList    0x00000000 (0)
+      +0x20 EHFlags        0x00000001 (1)
+      FuncInfo size = 36 B (9 dwords); ipmap at 0x30 (pad 4)
+    ip2state @0x30  (nIPMapEntries=2)
+      [0] ip=$M2566 (reloc 2)         state=0x00000000 (0)            @ sec5+0x0030  4bffffd1 bl .-48  ->?g@@YAHH@Z
+      [1] ip=$M2567 (reloc 2)         state=0xffffffff (-1)           @ sec5+0x0040  4bffffc1 bl .-64  ->??1S@@QAA@XZ
+-- item 4: type descriptors
+-- ip2state against the call sites
+    sec5+0x0028  bl bl ??0S@@QAA@XZ                  state=-1  ((implicit))
+    sec5+0x0030  bl bl ?g@@YAHH@Z                    state=0   ($M2566)  <== $M2566
+    sec5+0x0040  bl bl ??1S@@QAA@XZ                  state=-1  ($M2567)  <== $M2567
+    sec5+0x0074  bl bl ??1S@@QAA@XZ                  state=-1  ($M2567)
+-- labels in .text
+   0x0008  ?f@@YAHH@Z
+   0x0020  $M2570
+   0x0030  $M2566
+   0x0040  $M2567
+   0x0060  __unwind$2561
+   0x0060  $M2571
+   0x0070  $M2573
+   0x0088  $M2574

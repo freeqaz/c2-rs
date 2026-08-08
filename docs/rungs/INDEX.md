@@ -104,6 +104,7 @@ the header block this table is read from.
 | 2026-08-08 | w-bcgap | [w-bcgap](2026-08-08-w-bcgap.md) | 12 | 711,486 / 2,463,443 unchanged (28.88 %), +0.  TU match 11 → 11, |
 | 2026-08-08 | WB-G | [wb-chooser](2026-08-08-wb-chooser.md) | 11 | +0 — WHITEBOX/navigation lane, adopts nothing into crates/ |
 | 2026-08-08 | w-bd | [w-bd](2026-08-08-w-bd.md) | 11 | 711,485 / 2,463,443 unchanged (28.88 %), **+0**. TU match |
+| 2026-08-08 | WB-F | [wb-eh](2026-08-08-wb-eh.md) | 13 | +0 — WHITEBOX/navigation lane, adopts nothing into crates/ |
 | 2026-08-08 | WB-B | [wb-frame](2026-08-08-wb-frame.md) | 11 | +0 — WHITEBOX/navigation lane, adopts nothing into crates/ |
 | 2026-08-08 | w-bind | [w-bind](2026-08-08-w-bind.md) | 11 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** — measured, not |
 | 2026-08-08 | wb-memcpy | [wb-memcpy](2026-08-08-wb-memcpy.md) | 12 | +0 — UNTOUCHED, by construction; no code changed. TU match **11**, |
