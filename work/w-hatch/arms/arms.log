@@ -1,0 +1,29 @@
+binary: 9884cd34a4458959ce7f18826bc98e8e  <abs>
+off    gap-metric match 11  gap-metric capture-fail 7  gap-metric frontier 16 
+rel    gap-metric match 11  gap-metric capture-fail 7  gap-metric frontier 16 
+b1     gap-metric match 11  gap-metric capture-fail 7  gap-metric frontier 16 
+b2     gap-metric match 11  gap-metric capture-fail 7  gap-metric frontier 16 
+b4     gap-metric match 11  gap-metric capture-fail 7  gap-metric frontier 16 
+
+arm    TUs   sites  brfalse  brtrue   jump  label   0x53  relPois  brPois
+off    878  130575     3105    1939    303     51      0        0       0
+rel    878  130575     5564    2472    303     51      0        6       0
+b1     878  130575        0       0    303     66   5468        6       0
+b2     878  130575        0       0      0      0   5528        6       0
+b4     878  130575        0       0      0      0      0      909      36
+
+  `sites` MUST be identical across every arm: the sinks rename keys, they
+  do not convert functions. A moving total means the sink stopped poisoning.
+
+==== REL -> b1 ====
+  closed mass 8036 · absorbed 8036 · net converted 0
+  MEASURED conversions after the sink: 3 TU (a TU converts only when its key set is EMPTY)
+  ladder-credited 6 TU · measured 3 TU
+==== REL -> b2 ====
+  closed mass 8390 · absorbed 8390 · net converted 0
+  MEASURED conversions after the sink: 3 TU (a TU converts only when its key set is EMPTY)
+  ladder-credited 7 TU · measured 3 TU
+==== REL -> b4 ====
+  closed mass 8390 · absorbed 8390 · net converted 0
+  MEASURED conversions after the sink: 3 TU (a TU converts only when its key set is EMPTY)
+  ladder-credited 7 TU · measured 3 TU

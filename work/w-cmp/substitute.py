@@ -135,9 +135,39 @@ def main():
         print(f"  closing {k:<32} rerank credited +{len(off_solo)} TU")
     # A TU converted only if its blocker set is EMPTY under the sink. Anything
     # weaker is the modelled credit again, one level in.
-    really = [s for s in FRONTIER if not set(on_rows.get(s, {}))]
+    #
+    # ⚠ AND IT MUST BE A DELTA. Board **#1404**, lane `w-hatch`: this line read
+    #
+    #     really = [s for s in FRONTIER if not set(on_rows.get(s, {}))]
+    #
+    # — an ABSOLUTE count with no baseline — so it credited the sink with every
+    # frontier TU whose key set was empty *before the sink existed*. At board
+    # #440's base the baseline happened to be 0 and the printed 0 was right by
+    # accident. Re-run unchanged at `2b1c89da` it prints **3** on a sink that
+    # converts nothing: `Sort.cpp`, `xboxheap.cpp` and `xboxmem.cpp` all match
+    # now (w-hash, w-lineage #1297) and are all still in `rerank.py`'s
+    # hard-coded FRONTIER, which is 19 where the scan says 16.
+    #
+    # `on_rows.get(s, {})` returning `{}` for a TU that is not in the scan at
+    # all is the same hole wearing a second hat. So: subtract the baseline,
+    # print BOTH numbers, and name the baseline population — a denominator is
+    # not published until it has been printed on both sides of a change
+    # (`w-inread`, STATUS.md trap 0).
+    base_clear = sorted(s for s in FRONTIER if not set(off_rows.get(s, {})))
+    on_clear = sorted(s for s in FRONTIER if not set(on_rows.get(s, {})))
+    really = [s for s in on_clear if s not in base_clear]
+    print(f"  frontier TUs ALREADY clear before the sink: {len(base_clear)}"
+          + ("" if not base_clear else "  — " + ", ".join(base_clear)))
+    print(f"  frontier TUs clear after the sink          : {len(on_clear)}")
     print(f"  MEASURED conversions after the sink: {len(really)} TU "
-          f"(a TU converts only when its key set is EMPTY)")
+          f"(a DELTA — clear-after minus already-clear)")
+    if len(on_clear) != len(really):
+        print(f"  (the absolute count is {len(on_clear)}; this script printed "
+              f"THAT as the answer until board #1404)")
+    stale = [s for s in FRONTIER if s not in off_rows]
+    if stale:
+        print(f"  ⚠ rerank.py's FRONTIER names {len(stale)} TU(s) the scan does "
+              f"not contain at all: {', '.join(stale)}")
     print(f"  ladder-credited {sum(len([s for s in FRONTIER if set(off_rows.get(s, {})) == {k}]) for k in sub)} TU "
           f"· measured {len(really)} TU")
     return 0
