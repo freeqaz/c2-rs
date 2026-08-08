@@ -1364,7 +1364,7 @@ reachable:
 | `call-recv-load` · `call-recv-field` | 3,974 · 3,659 | 1 · 1,279 | |
 | `type-real` | 2,553 | 2 | |
 | `cmp-*` (`lt`/`eq`/`gt`/`ge`/`ne`/`le`) | 3,772 | 0 | a comparison, i.e. control flow's operand |
-| `op-0x5C` | 890 | 0 | a destructor statement trailer whose flag is neither measured value |
+| `op-0x5C` | 890 | 0† | a destructor statement trailer whose **TYPE** the gate refuses — see §16.2.1 |
 | `op-0x80` (579) · `op-0x08` (234) | 813 | 0 | **uncharacterized, and labelled: possible desync** (§16.6) |
 
 **The residue is not a payload being read as vocabulary.** §14.2's third caution
@@ -1375,6 +1375,49 @@ the vocabulary is large — that is how the `66`-descriptor LEB bug surfaced, at
 9,041 of them are one byte** (`0x9B`, a known construct), with the next three at
 899 / 579 / 234 and the remaining twenty at ≤ 155. That is a concentrated
 distribution, not a flat one.
+
+### 16.2.1 `op-0x5C` — two corrections and a DECLINE (2026-08-08, lane w-5c2)
+
+The `op-0x5C` row above was wrong in its cause and its zero was not a
+measurement. Both are fixed here; the row's **worth is still zero**, now on an
+instrument that could have said otherwise.
+
+**† The `0` is a RENDERING, not a number.** [`blocker_is_measured`] is
+`BARE_BINARY_OPS.contains(&b)` and `0x5C` is not in that set, so `mark_whole`'s
+greedy chain breaks at `adm.n == 0` with `need = NEED_UNMEASURED` **before
+granting anything**. Every `op-0xNN` row in this table whose byte is outside
+`BARE_BINARY_OPS` carries a `whole` column that is structurally incapable of
+holding another value — read the ones above with that in mind.
+
+**The cause is the TYPE gate, not the flag whitelist, and the split is 100 % /
+0 %.** `eat_dtor_stmt_trailer` reads `5C <eat_int_like TYPE> <flag ∈ {0x11,
+0x01}>`. `C2RS_SINK_MCALL_TRAILER=flag` removes the whitelist and moves **0 of
+671 `fn_blockers` keys and 0 of 648 `emit_blockers` keys** over the whole 878-TU
+workload. The trailer of an ordinary destructible local carries a
+`const`-qualified **pointer** TYPE (`A6 43 81 20`), and `eat_int_like` requires
+`kind & 0x0F ∈ {1, 2}`.
+
+**Measured on the instrument that can move.** `C2RS_SINK_MCALL_TRAILER=varint`
+reads the trailer at the width `w-5c` anchored on 335,716 sites — any TYPE, a
+varint state, escape included:
+
+```text
+  …-recv-object-then-op-0x5C   1,122 fns / 810 TUs  ->  0 / 0
+  renamed 1,169 across 57 successor keys; negatives -1,169, positives +1,169,
+  net 0; fn_blockers sum 1,751,957 at BOTH ends; census numerator 711,486
+  unchanged; TU classes identical; all 187 gap-metric lines byte-identical
+
+  landing on a `-whole` / `-whole<k>` key:  0 of 1,169   (0 of 231 emitted)
+  landing on a `-more` key:             1,097
+  landing on a bare UNMEASURED pair:       72
+  largest successor: …-recv-object-then-chain-bind-and-call-more  +949, 807 TUs
+```
+
+So with the trailer read correctly, **not one** of these bodies completes within
+`MAX_ADMIT`. The column is demonstrably live — `…-then-call-nested-call-and-call-whole2`
+holds 4,912 and `-whole3` 3,743, unchanged across the arms. The row buys 0 TUs,
+0 rungs and 0 whole bodies. **Do not rank it.**
+`docs/rungs/2026-08-08-w-5c2.md`, board **#1453**–**#1459**.
 
 ### 16.3 The three named pairs a rung could be built on
 
