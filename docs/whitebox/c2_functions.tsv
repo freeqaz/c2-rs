@@ -4194,9 +4194,9 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10bfe704	143		unknown	unknown	1	4	-
 10bfe793	814		unknown	unknown	3	10	-
 10bfeac1	145		unknown	unknown	3	5	-
-10bfeb52	165		unknown	unknown	1	4	-
-10bfebf7	123		unknown	unknown	1	0	-
-10bfec72	211		unknown	unknown	1	3	-
+10bfeb52	165		prolog-lr-slot	medium	1	4	the LR-slot half of the bit-0 arm; reads the final frame size from [[fn]+0x5c] [src:W-FRAME]
+10bfebf7	123		saved-gpr-mask	high	1	0	callee-saved GPR bitmask: register numbers 0x0f..0x20 (r14..r31), narrowed to 0x12..0x20 when DAT_10c2e980 != 0 [src:W-FRAME]
+10bfec72	211		prolog-emit	high	1	3	emits the prologue: bit 0 -> LR spill (10bfec7d), bit 2 -> frame (10bfed12); size = [fn+0x68] + 8*nSaved + 8 at 10bfed35 [src:W-FRAME]
 10bfed45	14		unknown	unknown	2	0	-
 10bfed53	89		unknown	unknown	1	2	-
 10bfedac	21		unknown	unknown	1	0	-
@@ -4207,18 +4207,18 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10bfefbb	1191		unknown	unknown	1	23	-
 10bff4a8	8		unknown	unknown	1	0	-
 10bff4b0	87		unknown	unknown	1	3	-
-10bff507	257		unknown	unknown	2	0	-
+10bff507	257		prolog-flags	high	2	0	the per-function prologue flag word, one linear scan; bit 2 (the FRAME bit) is set at 10bff5f6 (`or eax,0x6`) and NOWHERE else in the image; the predicate it encodes was RETRACTED by the wb-frame obj grid (WB_FRAME_FINDINGS.md 5.5) -- the instruction reading stands, the semantics do not [src:W-FRAME]
 10bff608	296		unknown	unknown	1	11	-
 10bff730	85		unknown	unknown	1	0	-
 10bff785	140		unknown	unknown	1	2	-
 10bff811	187		unknown	unknown	1	1	-
 10bff8cc	54		unknown	unknown	2	2	-
 10bff902	90		unknown	unknown	1	4	-
-10bff95c	327		unknown	unknown	2	11	-
+10bff95c	327		prolog-driver	high	2	11	p2/ppc/code.c prologue driver; flags = FUN_10bff507() | savedmask, forces bit 2 on the POGO path (DAT_10c3de20==1) [src:W-FRAME]
 10bffaa3	207		unknown	unknown	2	2	-
 10bffb72	8		unknown	unknown	1	1	-
 10bffb7a	8		unknown	unknown	1	1	-
-10bffb82	396		unknown	unknown	2	9	-
+10bffb82	396		funclet-prolog	high	2	9	EH funclet prologue: frame = align16([fn+0x4c] + 0x2f), same flag word, allocation gated on size != 0 rather than on bit 2 [src:W-FRAME]
 10bffd0e	45		unknown	unknown	1	2	-
 10bffd3b	104		unknown	unknown	1	0	-
 10bffda3	6		unknown	unknown	2	0	-
@@ -4302,7 +4302,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c07867	50		unknown	unknown	2	2	-
 10c07899	79		unknown	unknown	6	3	-
 10c078e8	40		unknown	unknown	1	3	-
-10c07910	446		unknown	unknown	3	6	-
+10c07910	446		reg-slot-store	high	3	6	emits "store register R at offset D off r1"; register 0x53 takes the 0xe6 arm and emits no PPC instruction — the frame-establish/unwind pseudo [src:W-FRAME]
 10c07ace	414		unknown	unknown	3	6	-
 10c07c6c	1915		unknown	unknown	1	21	str:__pexit
 10c083e7	363		unknown	unknown	1	10	str:memcpy
@@ -4352,8 +4352,8 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c0b300	448		unknown	unknown	1	9	-
 10c0b4c0	464		unknown	unknown	1	12	-
 10c0b690	106		unknown	unknown	8	4	-
-10c0b6fa	464		unknown	unknown	2	9	str:_RtlCheckStack12
-10c0b8ca	2439		unknown	unknown	1	28	str:__penter
+10c0b6fa	464		frame-alloc	high	2	9	the frame allocator: nothing emitted when size <= 0 (10c0b708); F = align16(size) ONCE and AFTER the additions (10c0b722); stwu, or _RtlCheckStack12 + stwux at F >= 5 * the page datum DAT_10c386f4 = 0x1000 (10c0b74d) [src:W-FRAME]
+10c0b8ca	2439		frame-dealloc	medium	1	28	the epilogue counterpart; same 5-page and imm16 tests off the stored frame size [src:W-FRAME]
 10c0c251	2250		unknown	unknown	1	36	-
 10c0cb1b	1426		unknown	unknown	1	13	-
 10c0d0ad	522		unknown	unknown	8	9	-
