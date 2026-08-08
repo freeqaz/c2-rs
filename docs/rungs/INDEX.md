@@ -107,6 +107,7 @@ the header block this table is read from.
 | 2026-08-08 | w-bind | [w-bind](2026-08-08-w-bind.md) | 11 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** — measured, not |
 | 2026-08-08 | wb-memcpy | [wb-memcpy](2026-08-08-wb-memcpy.md) | 12 | +0 — UNTOUCHED, by construction; no code changed. TU match **11**, |
 | 2026-08-08 | wb-reader | [wb-reader](2026-08-08-wb-reader.md) | 8 | 711,486 / 2,463,393 unchanged, +0 |
+| 2026-08-08 | WB-D | [wb-regalloc](2026-08-08-wb-regalloc.md) | 11 | +0 — WHITEBOX/navigation lane, adopts nothing into crates/ |
 | 2026-08-08 | w-cache | [w-cache](2026-08-08-w-cache.md) | 11 | 711,486 / 2,463,443 unchanged (28.88 %), **+0**. TU match |
 | 2026-08-08 | w-carrier | [w-carrier](2026-08-08-w-carrier.md) | 2 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** — measured at both |
 | 2026-08-08 | w-ceiling | [w-ceiling](2026-08-08-w-ceiling.md) | 11 | 711,486 / 2,463,443 unchanged (28.88 %), +0; emitted 39,185 / |

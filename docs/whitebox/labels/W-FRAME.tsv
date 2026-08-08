@@ -1,9 +1,9 @@
 10bff95c	prolog-driver	high	p2/ppc/code.c prologue driver; flags = FUN_10bff507() | savedmask, forces bit 2 on the POGO path (DAT_10c3de20==1)
 10bff507	prolog-flags	high	the per-function prologue flag word, one linear scan; bit 2 (the FRAME bit) is set at 10bff5f6 (`or eax,0x6`) and NOWHERE else in the image; the predicate it encodes was RETRACTED by the wb-frame obj grid (WB_FRAME_FINDINGS.md 5.5) -- the instruction reading stands, the semantics do not
-10bfebf7	saved-gpr-mask	high	callee-saved GPR bitmask: register numbers 0x0f..0x20 (r14..r31), narrowed to 0x12..0x20 when DAT_10c2e980 != 0
+10bfebf7	saved-gpr-mask	high	callee-saved GPR bitmask: register numbers 0x0f..0x20 (r14..r31), narrowed to 0x12..0x20 when DAT_10c2e980 != 0 -- and DAT_10c2e980 is -QGPRReserve, which reserves exactly r14/r15/r16 (wb-regalloc, W-REGALLOC.tsv)
 10bfec72	prolog-emit	high	emits the prologue: bit 0 -> LR spill (10bfec7d), bit 2 -> frame (10bfed12); size = [fn+0x68] + 8*nSaved + 8 at 10bfed35
 10bfeb52	prolog-lr-slot	medium	the LR-slot half of the bit-0 arm; reads the final frame size from [[fn]+0x5c]
 10bffb82	funclet-prolog	high	EH funclet prologue: frame = align16([fn+0x4c] + 0x2f), same flag word, allocation gated on size != 0 rather than on bit 2
 10c0b6fa	frame-alloc	high	the frame allocator: nothing emitted when size <= 0 (10c0b708); F = align16(size) ONCE and AFTER the additions (10c0b722); stwu, or _RtlCheckStack12 + stwux at F >= 5 * the page datum DAT_10c386f4 = 0x1000 (10c0b74d)
 10c0b8ca	frame-dealloc	medium	the epilogue counterpart; same 5-page and imm16 tests off the stored frame size
-10c07910	reg-slot-store	high	emits "store register R at offset D off r1"; register 0x53 takes the 0xe6 arm and emits no PPC instruction — the frame-establish/unwind pseudo
+10c07910	reg-slot-store	high	emits "store register R at offset D off r1"; register 0x53 takes the 0xe6 arm and emits no PPC instruction. CORRECTED by wb-regalloc: 0x53 is `lr`, not a "frame-establish pseudo-register" (register-name table 10b181c0). The behaviour stands; the name was wrong
