@@ -401,7 +401,7 @@ pub fn gate_composition(seq: &c2_il::CallSeq) -> Result<(), BackendError> {
         ));
     }
     let c = &seq.calls[0];
-    if !c.arg_ops.is_empty() || c.arg_sources.is_some() || c.link_args.is_some() {
+    if !c.arg_ops.is_empty() || c.arg_slots.is_some() || c.link_args.is_some() {
         // Board #1129, the regime boundary, restated on the emitter's side. A
         // setup that writes `r3` destroys `this`, the store base switches
         // `r3 -> r31` mid-run and the setup interleaves into it — `w-seam2`'s

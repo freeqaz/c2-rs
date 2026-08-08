@@ -793,7 +793,7 @@ pub(crate) fn shape_to_function(
                             // occupies it, so the call emits no move and the
                             // run's base register is never written.
                             arg_ops: Vec::new(),
-                            arg_sources: None,
+                            arg_slots: None,
                             link_args: None,
                         }],
                         tail: SeqTail::SavedFormal { param: this_index },
@@ -879,7 +879,7 @@ pub(crate) fn shape_to_function(
                             calls: vec![SeqCall {
                                 callee: resolve(tok)?,
                                 arg_ops: Vec::new(),
-                                arg_sources: None,
+                                arg_slots: None,
                                 link_args: None,
                             }],
                             tail: SeqTail::SavedFormal { param: 0 },
@@ -1001,7 +1001,7 @@ pub(crate) fn shape_to_function(
                         calls: vec![SeqCall {
                             callee: resolve(callee_tok)?,
                             arg_ops: Vec::new(),
-                            arg_sources: None,
+                            arg_slots: None,
                             link_args: None,
                         }],
                         tail: SeqTail::SavedFormal { param: this_index },
@@ -1164,7 +1164,12 @@ pub(crate) fn shape_to_function(
                     resolved.push(SeqCall {
                         callee: resolve(c.callee_tok)?,
                         arg_ops: c.arg_ops,
-                        arg_sources: c.arg_sources,
+                        // The token-carrying `SymAddr(tok)` becomes the resolved
+                        // unit variant through the same `slot_arg` the link
+                        // arguments use — one conversion, not two.
+                        arg_slots: c
+                            .arg_slots
+                            .map(|v| v.into_iter().map(slot_arg).collect()),
                         link_args: c
                             .link_args
                             .map(|v| v.into_iter().map(slot_arg).collect()),

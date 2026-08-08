@@ -189,27 +189,68 @@ pub(crate) const LI_IMM_MAX: i32 = 0x7FFF;
 /// two callers that build a **framed** [`SeqCall`] out of it — the statement-call
 /// sequence and a chain's innermost call.
 ///
-/// A literal is refused there rather than carried, and the refusal is a
-/// **positive statement about what has been captured**: a framed call's
-/// marshalling interleaves with the callee-saved copies (`plan_saved_gprs`'s
-/// hoist/trail rule) and with the previous `bl`'s result save, and every witness
-/// of that interleaving is a `mr`. The tail-call form has no such neighbours,
-/// which is why WLA takes it and leaves this one.
+/// **W-MEMCPY — a literal is CARRIED now, and the sentence this doc used to
+/// close with is the thing that got measured.** It read:
+///
+/// > A literal is refused there rather than carried, and the refusal is a
+/// > **positive statement about what has been captured**: a framed call's
+/// > marshalling interleaves with the callee-saved copies (`plan_saved_gprs`'s
+/// > hoist/trail rule) and with the previous `bl`'s result save, and every
+/// > witness of that interleaving is a `mr`.
+///
+/// GRID-L (`work/w-memcpy/probeL`, **747 cells** through the real `c2.dll` at
+/// the dc3 workload's own flags, 0 compile errors) supplied the missing
+/// witnesses, and **the paragraph above turns out to be right about exactly the
+/// two neighbours it names and wrong about the rest**:
+///
+/// ```text
+///   R-DESC — the literal takes its place by DESCENDING destination, the same
+///            rule permute_args_parts already uses for the tail-call form
+///
+///     over every graded cell                      379 / 403
+///     guarded, <= 1 call-site move, <= 1 literal  416 / 416   <- SHIPPED
+///     the two-call driver (`c2`)                    8 /  15
+///     the callee-saved driver (`lv`)                6 /  15   <- the doc's
+///                                                                own sentence
+/// ```
+///
+/// The three rival orderings are refuted outright — `R-LITLAST` 219, `R-LITFIRST`
+/// 125, `R-ASC` 10 — and the order among two or more literals is descending at
+/// 81 of 81.
+///
+/// **The literal is never hoisted into the entry block: 0 of 579 guarded
+/// cells.** The park is a move phenomenon; a `li` has no source to save.
+///
+/// **What is deliberately NOT shipped.** A rule that fits all 24 of R-DESC's
+/// misses exists — *a move whose source a pending op overwrites goes ahead of
+/// every remaining literal* — and it was fitted to the cells that refuted its
+/// predecessor. That is board **#260**, and it is `w-mmio` §3's three-fits-two-
+/// refutations one production over. It has never met a second grid, so the
+/// population it would govern comes out as a gap.
+///
+/// The fence itself is applied by [`parse_call_seq`], which is the one place
+/// that knows the guard, the early returns and the saved set; this locator
+/// carries the slots and refuses only what no fence could rescue.
 ///
 /// It exists as a locator rather than as two `match` arms because both callers
 /// implement the same rule, and this file's header is about what happens when
 /// they each implement it privately.
-pub(crate) fn seq_call_arg_sources(
+pub(crate) fn seq_call_arg_slots(
     seg: &[u8],
     off: usize,
     slots: Vec<SlotArg>,
-) -> Result<Vec<usize>, Block> {
-    let mut sources = Vec::with_capacity(slots.len());
-    for a in slots {
+) -> Result<Vec<SlotArg>, Block> {
+    for a in &slots {
         match a {
-            SlotArg::Formal(ix) => sources.push(ix),
-            SlotArg::Lit(_) => {
-                return Err(Block::refuse(seg, off, "callseq-multiarg-lit"))
+            SlotArg::Formal(_) => {}
+            // **The `li` immediate**, and it is load-bearing rather than
+            // decorative: GRID-L's out-of-class control puts `0x8000` in the
+            // slot and c2 emits `lis`+`ori` at **114 of 114** cells. A gate
+            // that let it through would emit one word where c2 emits two.
+            SlotArg::Lit(k) => {
+                if !(LI_IMM_MIN..=LI_IMM_MAX).contains(k) {
+                    return Err(Block::refuse(seg, off, "callseq-multiarg-lit-wide"));
+                }
             }
             // WR1: a data symbol's address inside a **framed** sequence call.
             // The `lis`/`addi` pair would have to be scheduled against the
@@ -220,7 +261,74 @@ pub(crate) fn seq_call_arg_sources(
             }
         }
     }
-    Ok(sources)
+    Ok(slots)
+}
+
+/// The formal indices of `slots`, with a literal slot reading as a **fixed
+/// point** — the value is already where it belongs, because it is about to be
+/// materialized there by a `li`.
+///
+/// This is the view the park's own rule takes: `park_in_class` and
+/// `c2_core::codegen::calls::seq_entry_park` both walk a permutation, and a
+/// literal slot participates in no cycle. Shared by the parser's fence and the
+/// emitter's backstop so the two cannot disagree about which slots move.
+pub(crate) fn slot_sources(slots: &[SlotArg]) -> Vec<usize> {
+    // ONE implementation, in the crate both sides read
+    // (`crate::func::slot_sources`) — the internal `SlotArg` and the resolved
+    // one differ only in whether `SymAddr` carries its token, and neither is a
+    // formal, so the mapping is the same function on both.
+    slots
+        .iter()
+        .enumerate()
+        .map(|(slot, a)| match a {
+            SlotArg::Formal(ix) => *ix,
+            _ => slot,
+        })
+        .collect()
+}
+
+/// **How many moves the park leaves AT THE CALL**, for the fence in
+/// [`parse_call_seq`].
+///
+/// `park_in_class` has already established that the chain rooted at the
+/// scrutinee is unimodal; the split falls at its peak, everything strictly
+/// before the peak is hoisted, and the peak and everything after it stay. So
+/// the count is `len - peak`, computed here off the same chain the emitter
+/// walks rather than off a second model of it.
+pub(crate) fn park_call_moves(sources: &[usize], anchor: usize) -> Option<usize> {
+    let mut dests = Vec::new();
+    let mut cur = anchor;
+    // **BOUNDED, and the bound is not defensive.** `park_in_class`'s own chain
+    // walk had this shape unbounded, and it was safe only because `sources` was
+    // always a true permutation — a framed sequence call's slots were all
+    // formals. Lane `w-memcpy` gave a literal slot a fixed point in
+    // `slot_sources`, and a literal in slot `k` beside a formal whose index is
+    // also `k` makes `sources` map two slots to `k`. The chain then walks into
+    // a rho and never returns to the anchor.
+    //
+    // MEASURED, not reasoned about: the first `c2rs gap` run over GRID-L's 747
+    // cells died at cell 526 with `memory allocation of 34359738368 bytes
+    // failed` — a `Vec` growing until the allocator refused. The FENCE below
+    // refuses that shape by name; this bound is what makes the function total
+    // whether or not the fence is right, which is the difference between a
+    // refusal and a crash sitting behind one (`permutation_cycles`' own doc,
+    // this file, four hundred lines up).
+    loop {
+        dests.push(cur);
+        if dests.len() > sources.len() {
+            return None;
+        }
+        let nxt = sources[cur];
+        if nxt == anchor {
+            break;
+        }
+        cur = nxt;
+    }
+    let mut peak = 0;
+    while peak + 1 < dests.len() && dests[peak] < dests[peak + 1] {
+        peak += 1;
+    }
+    Some(dests.len() - peak)
 }
 
 /// **WR1 — the tail call one of whose argument slots is a named data symbol's
@@ -1591,12 +1699,12 @@ pub(crate) fn parse_call_sequence_from(
     // other call shape uses, so the marshalling has a single implementation.
     let mut calls: Vec<SeqCall> = Vec::with_capacity(raw.len());
     for (i, (callee_tok, args)) in raw.into_iter().enumerate() {
-        let (arg_ops, arg_sources) =
+        let (arg_ops, arg_slots) =
             match tail_call_shape(seg, args, params.clone(), callee_tok, *p)? {
                 BodyShape::VoidTailCall { .. } => (Vec::new(), None),
                 BodyShape::IntTailCall { arg_ops, .. } => (arg_ops, None),
                 BodyShape::MultiArgTailCall { arg_sources, .. } => {
-                    (Vec::new(), Some(seq_call_arg_sources(seg, *p, arg_sources)?))
+                    (Vec::new(), Some(seq_call_arg_slots(seg, *p, arg_sources)?))
                 }
                 // `tail_call_shape` returns exactly those three.
                 _ => return Err(Block::refuse(seg, *p, "callseq-arg-shape")),
@@ -1604,7 +1712,7 @@ pub(crate) fn parse_call_sequence_from(
         let _ = i;
         // Never a chain link: this production's calls are STATEMENTS, each
         // with its own complete argument list starting at slot 0.
-        calls.push(SeqCall { callee_tok, arg_ops, arg_sources, link_args: None });
+        calls.push(SeqCall { callee_tok, arg_ops, arg_slots, link_args: None });
     }
     // Class A saves nothing; Class B saves one or two GPRs. Which formals, and in
     // which register, is [`plan_saved_gprs`].
@@ -1664,20 +1772,138 @@ pub(crate) fn parse_call_sequence_from(
     // population it governs comes out as a gap rather than as bytes.
     if !early.is_empty() {
         let permuted = |c: &SeqCall| {
-            c.arg_sources
-                .as_ref()
-                .is_some_and(|s| s.iter().enumerate().any(|(slot, &pi)| pi != slot))
+            c.arg_slots.as_ref().is_some_and(|s| {
+                s.iter()
+                    .enumerate()
+                    .any(|(slot, a)| matches!(a, SlotArg::Formal(pi) if *pi != slot))
+            })
         };
         if calls.iter().skip(1).any(permuted)
             || (calls.first().is_some_and(permuted)
                 && !park_in_class(
-                    calls[0].arg_sources.as_ref().expect("permuted implies sources"),
+                    &slot_sources(calls[0].arg_slots.as_ref().expect("permuted implies slots")),
                     &early[0],
                     &saved,
                     guard.is_some(),
                 ))
         {
             return Err(Block::refuse(seg, *p, "callseq-early-return-permuted-args"));
+        }
+    }
+    // **W-MEMCPY — `callseq-multiarg-lit`, fenced to GRID-L's measured class.**
+    //
+    // The literal itself is admitted by [`seq_call_arg_slots`]; the FENCE lives
+    // here, because this is the one place that knows the guard, the early
+    // returns and the saved set — the three axes GRID-L crossed and on which
+    // the descending rule stops holding.
+    //
+    // The class, over 747 cells through the real `c2.dll` at the workload's own
+    // flags: **guarded early return · Class A · exactly one call · at most one
+    // literal slot · at most one move left at the call site after the park**.
+    // **416 of 416.** Each clause below names the cells that put it there, and
+    // none of them was fitted after the fact — every one is an axis of the grid
+    // as it was frozen and committed at `066e00d8`, before its first `cl.exe`.
+    if calls.iter().any(|c| {
+        c.arg_slots.as_ref().is_some_and(|s| s.iter().any(|a| matches!(a, SlotArg::Lit(_))))
+    }) {
+        let c0 = &calls[0];
+        let slots = c0.arg_slots.as_ref().expect("a literal implies slots");
+        let nlit = slots.iter().filter(|a| matches!(a, SlotArg::Lit(_))).count();
+        // (a) The literal must be in the FIRST call. GRID-L put one in the
+        //     first call of every cell it generated and none in a later one, so
+        //     a later call's literal has no witness at all — not a measured
+        //     refusal, an unmeasured shape, and it comes out as a gap.
+        if calls.len() != 1 {
+            return Err(Block::refuse(seg, *p, "callseq-multiarg-lit-later-call"));
+        }
+        // (b) A GUARDED body. The `c2` driver (two calls, no guard) scores 8 of
+        //     15 for R-DESC and the `lv` driver (a formal live across the call,
+        //     so Class B) scores 6 of 15 — which is the sentence this locator's
+        //     doc gave as the reason for the refusal, now with numbers.
+        if early.is_empty() || !saved.is_empty() || guard.is_some() {
+            return Err(Block::refuse(seg, *p, "callseq-multiarg-lit-unguarded"));
+        }
+        // (c) At most ONE literal. (g1, 1 move, 2 literals) is 29 of 32 and
+        //     (g1, 2 moves, 2 literals) is 2 of 3; both are inside the rule
+        //     that was fitted to R-DESC's misses and is not shipped.
+        if nlit > 1 {
+            return Err(Block::refuse(seg, *p, "callseq-multiarg-lit-two"));
+        }
+        // (d) At most ONE move left at the call site. (g1, 2 moves, 1 literal)
+        //     is 72 of 76 and (g1, 3 moves, 1 literal) is 4 of 4 — a
+        //     non-monotone pair that is exactly why the boundary is drawn at
+        //     the largest unanimous cell of the grid's own axes and not at the
+        //     largest cell that happens to pass.
+        // (c') **NO LITERAL IN SLOT 0**, and this clause was bought with two
+        //      `Port=Mismatch`.
+        //
+        //      The first tip of this lane emitted `g3(5, a1, a2)` behind
+        //      `if (a0 == 0) return 5;` as a prologue, a compare, a `bf`, the
+        //      early return's `li r3,5`, a `b`, the argument's `li r3,5` and
+        //      the `bl` — 56 bytes and perfectly plausible. c2 emits **48**:
+        //
+        //      ```text
+        //        cmplwi cr6,r3,0
+        //        li     r3,5        <- ONE materialization, above the branch,
+        //        bt     26,+12         shared by the early return and the call
+        //        bl     ?g3
+        //      ```
+        //
+        //      It hoists the constant into the entry block, **inverts the
+        //      branch** (`bt` where every other cell of the grid has `bf`) and
+        //      drops a word. That is a BLOCK PLAN chosen by the *value* of an
+        //      argument, which is `docs/IL_INTRINSIC_CALL.md` §5.1's hazard
+        //      one production over.
+        //
+        //      **The mechanism was already on record one exit over.**
+        //      `SeqEarlyReturnShape::value`'s own doc says *"every exit value
+        //      in the body must be distinct, including the sequence's own
+        //      `SeqTail::Lit`, and the parser enforces it. Where two exits
+        //      share a value c2 MERGES THE ARMS"* — and records that the merge
+        //      also costs a sixth compiler-label slot where the class costs
+        //      five. What this lane found is that an **argument** literal joins
+        //      that equivalence class: it is not an exit, no exit-distinctness
+        //      check could see it, and it merges anyway.
+        //
+        //      The refusal is on the **register**, not on the value, and that
+        //      is the conservative direction on purpose: an early return's
+        //      value and the tail's `Lit` both materialize into `r3`, and slot
+        //      0 is the only argument slot that shares a register with them.
+        //      Refusing the value collision alone would rest on having
+        //      enumerated every literal this body puts in `r3`; refusing the
+        //      slot rests on which register it is. `?mmioGetInfo`'s literal is
+        //      in slot 2.
+        //
+        //      Measured cost, over GRID-L: `mismatch` **2 -> 0**.
+        if matches!(slots.first(), Some(SlotArg::Lit(_))) && !early.is_empty() {
+            return Err(Block::refuse(seg, *p, "callseq-multiarg-lit-slot0"));
+        }
+        // (d') **The literal's slot index must not also be a formal index in
+        //      the list.** A literal in slot `k` writes `r(3+k)`, and a formal
+        //      of index `k` READS `r(3+k)` — a write-after-read between two
+        //      words of one marshalling. It is also the exact shape that makes
+        //      `slot_sources` stop being a permutation, so the park's rule is
+        //      not merely unmeasured there, it is undefined.
+        //
+        //      Both facts point the same way and only one of them is a
+        //      judgement call, so the refusal rests on the totality one.
+        let sources = slot_sources(slots);
+        let lit_slots: Vec<usize> = slots
+            .iter()
+            .enumerate()
+            .filter_map(|(k, a)| matches!(a, SlotArg::Lit(_)).then_some(k))
+            .collect();
+        if slots.iter().any(|a| matches!(a, SlotArg::Formal(pi) if lit_slots.contains(pi))) {
+            return Err(Block::refuse(seg, *p, "callseq-multiarg-lit-aliased"));
+        }
+        let moved = sources.iter().enumerate().filter(|(slot, &pi)| pi != *slot).count();
+        let at_call = if moved == 0 {
+            Some(0)
+        } else {
+            park_call_moves(&sources, early[0].cmp_param)
+        };
+        if at_call.is_none_or(|n| n > 1) {
+            return Err(Block::refuse(seg, *p, "callseq-multiarg-lit-permuted"));
         }
     }
     Ok(BodyShape::CallSeq { params, calls, tail, saved, guard, early })
@@ -1723,6 +1949,20 @@ fn park_in_class(
     }
     let n = sources.len();
     if n == 0 || sources.iter().any(|&s| s >= n) {
+        return false;
+    }
+    // **`sources` must be a PERMUTATION**, and this line is what makes the
+    // chain walk at the bottom of this function terminate.
+    //
+    // It was absent, and it was safe only because a framed sequence call's
+    // slots were all formals: `tail_call_shape` refuses a value passed twice,
+    // so no two slots could name the same source. Lane `w-memcpy` widened the
+    // slot list to carry a literal, `slot_sources` gives a literal slot a fixed
+    // point, and a literal in slot `k` beside a formal of index `k` then maps
+    // two slots to `k`. The cycle scan above reads that rho as a cycle, the
+    // anchor is inside it, and the walk below never returns to the anchor.
+    // `c2rs gap` over GRID-L died on it at 34 GB of `Vec`.
+    if (0..n).any(|i| sources.iter().filter(|&&s| s == i).count() > 1) {
         return false;
     }
     // The single non-trivial cycle.
@@ -1852,8 +2092,14 @@ pub(crate) fn plan_saved_gprs(
     let index_of = |t: u32| params.iter().position(|&q| q == t);
     let mut live = vec![false; params.len()];
     for c in calls.iter().skip(1) {
-        if let Some(src) = &c.arg_sources {
-            for &s in src {
+        if let Some(src) = &c.arg_slots {
+            // A **literal** slot reads no formal, so it keeps nothing alive —
+            // which is why a chain whose only link arguments are literals stays
+            // Class A, and the same reasoning one production over.
+            for &s in src.iter().filter_map(|a| match a {
+                SlotArg::Formal(i) => Some(i),
+                _ => None,
+            }) {
                 // `tail_call_shape` has already refused a source outside the
                 // formals list (`call-arg-outer-formal`, GAPS §6 #5).
                 if let Some(slot) = live.get_mut(s) {
@@ -1922,8 +2168,15 @@ pub(crate) fn plan_saved_gprs(
     // temp when several are saved is not determined by three captures, so this is
     // the measured edge and not a fit.
     let first = &calls[0];
-    let unmodelled_first = match (&first.arg_sources, first.arg_ops.as_slice()) {
-        (Some(src), _) => src.iter().enumerate().any(|(i, &s)| i != s),
+    let unmodelled_first = match (&first.arg_slots, first.arg_ops.as_slice()) {
+        // A literal slot IS a setup word, so it counts as marshalling here: this
+        // gate refuses a first call that needs any marshalling at all while
+        // anything is saved, and `li r5,72` is exactly that. GRID-L's `lv`
+        // driver is the population, and R-DESC scores 6 of 15 on it.
+        (Some(src), _) => src
+            .iter()
+            .enumerate()
+            .any(|(i, a)| !matches!(a, SlotArg::Formal(pi) if *pi == i)),
         (None, []) => false,
         (None, [IlOp::Load(_)]) | (None, [IlOp::Lit(_)]) => false,
         (None, _) => true,
@@ -1944,8 +2197,8 @@ pub(crate) fn plan_saved_gprs(
         // literal — the identical predicate, asked at the point the bytes are
         // read. Its `arg_ops` is empty, so it takes the `(None, [])` arm below;
         // spelled out because "it happens to be empty" is not a reason.
-        let ok = match (&c.arg_sources, c.arg_ops.as_slice()) {
-            _ if c.link_args.is_some() => c.arg_sources.is_none() && c.arg_ops.is_empty(),
+        let ok = match (&c.arg_slots, c.arg_ops.as_slice()) {
+            _ if c.link_args.is_some() => c.arg_slots.is_none() && c.arg_ops.is_empty(),
             (Some(_), _) => true,
             (None, []) | (None, [IlOp::Lit(_)]) => true,
             (None, [IlOp::Load(t)]) => index_of(*t).is_some(),
@@ -1980,6 +2233,62 @@ mod tests {
     use crate::func::bundle::LO_MARKER;
     #[allow(unused_imports)]
     use crate::func::readers::find_subslice;
+
+    /// **W-MEMCPY — `park_call_moves` is TOTAL**, and this test is the one that
+    /// would have caught the 34 GB allocation `c2rs gap` died on.
+    ///
+    /// `[1, 2, 2, 3]` is what `slot_sources` produces for a literal in slot 2
+    /// beside formals 1, 2 and 3: the literal's fixed point and formal 2's own
+    /// index collide, so it is not a permutation, and the chain from anchor 0
+    /// walks 0 -> 1 -> 2 -> 2 -> 2 … and never returns.
+    #[test]
+    fn park_call_moves_is_total_on_a_non_permutation() {
+        assert_eq!(park_call_moves(&[1, 0, 2], 0), Some(1));
+        assert_eq!(park_call_moves(&[1, 2, 2, 3], 0), None);
+    }
+
+    /// The same totality one level up: `park_in_class` walks its own chain and
+    /// had no permutation check, because a framed sequence call's slots were
+    /// all formals and `tail_call_shape` refuses a value passed twice.
+    #[test]
+    fn park_in_class_refuses_a_non_permutation() {
+        let early = crate::func::body::SeqEarlyReturnShape {
+            and_conds: Vec::new(),
+            cmp_param: 0,
+            rel: crate::func::Rel::Eq,
+            signed: false,
+            k: 0,
+            value: Some(5),
+        };
+        assert!(!park_in_class(&[1, 2, 2, 3], &early, &[], false));
+    }
+
+    /// **`slot_sources` gives a literal slot a FIXED POINT**, which is what
+    /// lets the park's rule — a permutation walk — see a slot list that is not
+    /// one. Asserted so the encoding cannot drift out from under the two
+    /// totality tests above.
+    #[test]
+    fn a_literal_slot_reads_as_a_fixed_point() {
+        let slots = vec![SlotArg::Formal(1), SlotArg::Formal(0), SlotArg::Lit(72)];
+        assert_eq!(slot_sources(&slots), vec![1, 0, 2]);
+        assert_eq!(slot_sources(&slots), crate::func::slot_sources(&[
+            crate::func::SlotArg::Formal(1),
+            crate::func::SlotArg::Formal(0),
+            crate::func::SlotArg::Lit(72),
+        ]));
+    }
+
+    /// **The `li` immediate is load-bearing.** GRID-L's out-of-class control
+    /// puts `0x8000` in a slot and c2 emits `lis`+`ori` at 114 of 114 cells; a
+    /// gate that let it through would emit one word where c2 emits two.
+    #[test]
+    fn a_wide_literal_slot_is_refused_by_name() {
+        let seg = [0u8; 4];
+        let ok = seq_call_arg_slots(&seg, 0, vec![SlotArg::Formal(0), SlotArg::Lit(0x7FFF)]);
+        assert!(ok.is_ok());
+        let bad = seq_call_arg_slots(&seg, 0, vec![SlotArg::Formal(0), SlotArg::Lit(0x8000)]);
+        assert_eq!(bad.expect_err("0x8000 does not fit `li`").ctx, "callseq-multiarg-lit-wide");
+    }
     #[allow(unused_imports)]
     use crate::func::sy::{Formals, SyView};
     #[allow(unused_imports)]
@@ -2236,13 +2545,13 @@ mod tests {
         let call = |args: &[u32]| SeqCall {
             callee_tok: 1,
             arg_ops: args.iter().map(|t| IlOp::Load(*t)).collect(),
-            arg_sources: None,
+            arg_slots: None,
             link_args: None,
         };
         let nullary = || SeqCall {
             callee_tok: 1,
             arg_ops: Vec::new(),
-            arg_sources: None,
+            arg_slots: None,
             link_args: None,
         };
         // **WCL** — a chain LINK reading `params[i]`, which is the third way a
@@ -2251,7 +2560,7 @@ mod tests {
         let link = |slots: &[SlotArg]| SeqCall {
             callee_tok: 1,
             arg_ops: Vec::new(),
-            arg_sources: None,
+            arg_slots: None,
             link_args: Some(slots.to_vec()),
         };
         // The planner reads the decoded call list, not the byte stream — the
@@ -2295,7 +2604,7 @@ mod tests {
             SeqCall {
                 callee_tok: 1,
                 arg_ops: Vec::new(),
-                arg_sources: Some(vec![0, 1]),
+                arg_slots: Some(vec![0, 1].into_iter().map(SlotArg::Formal).collect()),
                 link_args: None,
             },
             call(&[0xA2]),
@@ -2309,7 +2618,7 @@ mod tests {
             SeqCall {
                 callee_tok: 1,
                 arg_ops: Vec::new(),
-                arg_sources: Some(vec![1, 0]),
+                arg_slots: Some(vec![1, 0].into_iter().map(SlotArg::Formal).collect()),
                 link_args: None,
             },
             call(&[0xA2]),
@@ -2324,7 +2633,7 @@ mod tests {
             SeqCall {
                 callee_tok: 1,
                 arg_ops: vec![IlOp::Load(0xA0), IlOp::Lit(1), IlOp::Add],
-                arg_sources: None,
+                arg_slots: None,
                 link_args: None,
             },
             call(&[0xA2]),
@@ -2342,7 +2651,7 @@ mod tests {
             SeqCall {
                 callee_tok: 1,
                 arg_ops: vec![IlOp::Load(0xA1), IlOp::Lit(1), IlOp::Add],
-                arg_sources: None,
+                arg_slots: None,
                 link_args: None,
             },
         ];
@@ -2354,7 +2663,7 @@ mod tests {
             SeqCall {
                 callee_tok: 1,
                 arg_ops: vec![IlOp::Lit(5)],
-                arg_sources: None,
+                arg_slots: None,
                 link_args: None,
             },
             call(&[0xA1]),
