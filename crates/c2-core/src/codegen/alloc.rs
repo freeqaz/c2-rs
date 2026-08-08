@@ -1124,6 +1124,40 @@ pub const MAX_MODELLED_PRODUCERS: usize = 3;
 /// The registration that says so, and says plainly that it was written **after**
 /// GRID L was graded, is `work/w-lineage/PREREG.md`'s addendum.
 ///
+/// # `MIRROR` IS SERVED BY THE ALLOCATION AND REFUSED ANYWAY, AND THAT IS THE LANE'S SHARPEST NUMBER
+///
+/// **Board #1298.** `d_is_provably_zero` is `Some(true)` on GRID L's `MIRROR`
+/// too — the store root is the formal's path, so there is no `d` term at all —
+/// and reading the register out of real `c2`'s disassembly says the allocation
+/// is right on **all 30** of `SAME` + `MIRROR`. The **byte-exact** differential
+/// at the workload's own flags says **11 of those 30 are wrong**
+/// (`894ed357`, reverted in the commit after it):
+///
+/// ```text
+///   MIRROR  U& a = p->hub.x0; p->g0=3; p->g1=3;
+///           p->hub.x0.n0 = &a; p->hub.x0.n1 = &a;
+///
+///   c2    li 10,3 ; addi 11,3,64 ; stw 10,0 ; stw 11,64 ; stw 10,4 ; stw 11,68
+///   port                         ; stw 10,0 ; stw 10,4  ; stw 11,64 ; stw 11,68
+/// ```
+///
+/// **The registers are right and the ORDER is not.** In `SAME` the address's
+/// stores go through the bind, which is a **second base symbol** (board #1128),
+/// and `docs/SYMBOL.md`'s cross-symbol pin forbids reordering across it — so
+/// source order is forced. `MIRROR` writes through the formal's own path, both
+/// producers share one base symbol, [`super::order::store_order`] is free, and
+/// c2 **interleaves**.
+///
+/// So the extra conjunct is not a gate drawn around the failing cells: it is the
+/// condition under which an **independent, documented** rule pins the order.
+/// The served region is exactly *"the address's stores go through the bind that
+/// names the address itself"* — one sentence, and `xboxheap.cpp`'s own shape.
+///
+/// It also says something about [`super::order`]: its `0 wrong on 30,271 fit and
+/// 24,891 holdout` is a statement about the population it could reach, and a
+/// **mixed-kind single-symbol run has never been in it**, because the reader
+/// refused every one. Trap 0, on a model nobody suspected.
+///
 /// # The reader restates this and the two must not drift
 ///
 /// `c2_il`'s `bind_run_ops` cannot see this type, so it restates the clause
@@ -1146,11 +1180,11 @@ fn mixed_run_is_served(producers: &[Producer]) -> bool {
     if rd.len() != 1 || ct != 1 {
         return false;
     }
-    rd[0]
-        .roots
-        .as_ref()
-        .and_then(|r| r.d_is_provably_zero())
-        .unwrap_or(false)
+    let Some(r) = rd[0].roots.as_ref() else { return false };
+    // **AND THE STORE ROOT MUST BE THE VALUE'S OWN BIND** — narrowed after the
+    // byte-exact grade, and the reason is `docs/SYMBOL.md`'s pin rather than
+    // this module's question. See the paragraph below.
+    r.d_is_provably_zero() == Some(true) && r.store_root_is_bind()
 }
 
 /// The allocation, or `None` when the run is outside the modelled regime.
@@ -1508,15 +1542,23 @@ mod tests {
     /// from `ru` to `ru + 3`.
     ///
     /// The three classes GRID L put in dispute are asserted REFUSED in the same
-    /// loop, so this test cannot go green by widening.
+    /// loop, so this test cannot go green by widening — and so is `MIRROR`,
+    /// which the ALLOCATION serves and the ORDER does not (board #1298).
     #[test]
     fn the_carrier_decides_only_whether_a_mixed_run_is_served() {
         // (class, roots, served)
         let same = ProducerRoots { value: bind(0x130a), lvalue: bind(0x130a) };
         let mirror = ProducerRoots { value: bind(0x130a), lvalue: formal(0x0e0a) };
         let distinct = ProducerRoots { value: bind(0x130a), lvalue: bind(0x140a) };
+        // **`MIRROR` IS `Some(true)` FOR `d` AND STILL REFUSED** — board #1298.
+        // The allocation is right on it (30 of 30 by disassembly); the byte-exact
+        // differential says 11 of those 30 objs are wrong, because both producers
+        // share one base symbol and c2 interleaves the stores. The refusal is
+        // `docs/SYMBOL.md`'s pin, not this module's question, and it is asserted
+        // here so a successor cannot re-widen to it by reading `d` alone.
+        assert_eq!(mirror.d_is_provably_zero(), Some(true));
         let cases: [(&str, &ProducerRoots, bool); 3] =
-            [("SAME", &same, true), ("MIRROR", &mirror, true), ("DISTINCT", &distinct, false)];
+            [("SAME", &same, true), ("MIRROR", &mirror, false), ("DISTINCT", &distinct, false)];
 
         let mut n = 0;
         for (klass, roots, served) in cases {

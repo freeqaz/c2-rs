@@ -2382,18 +2382,75 @@ mod tests {
         // it (#836 wrong on 0 of 81, #868's narrow lift 12/36, #1134's clause 1
         // refuted on this very mix) and this states it one level earlier, so the
         // refusal names the construct rather than the allocator's domain.
-        let mixed = err(vec![
+        // > **⚠ EDGE 1 IS PAID — board #1297, lane `w-lineage`, and the text
+        // > above is kept because it was the standing statement for two days.**
+        // > `alloc::allocate` no longer refuses the mix wholesale: it serves the
+        // > pairs whose `d` term is provably zero *and* whose address stores go
+        // > through the bind that names the address, which is
+        // > `src/xdk/nuispeech/xboxheap.cpp`'s own shape and which is **byte-exact
+        // > against real `c2.dll`** — the TU matches. The three refusals below
+        // > are unchanged and two more are asserted after them.
+        let served = store_leaf_text(
+            &mk(vec![
+                bind,
+                bind,
+                IlOp::StoreInd { off: 0, width: 4 },
+                IlOp::Load(h),
+                IlOp::Lit(0),
+                IlOp::StoreInd { off: 16, width: 4 },
+            ]),
+            OptMode::O1,
+        )
+        .expect("it is a store stream")
+        .expect("xboxheap's own shape is SERVED now");
+        assert_eq!(
+            served,
+            vec![
+                0x39, 0x63, 0x00, 0x14, // addi r11,r3,20   the ADDRESS, 1 use
+                0x39, 0x40, 0x00, 0x00, // li   r10,0       the LITERAL, 1 use
+                0x91, 0x63, 0x00, 0x14, // stw  r11,20(r3)
+                0x91, 0x43, 0x00, 0x10, // stw  r10,16(r3)
+                0x4E, 0x80, 0x00, 0x20,
+            ],
+            "cu <= ru + 1 gives POOL_TOP to the address"
+        );
+
+        // EDGE 1a — the mix where the address's stores go through the FORMAL's
+        // path instead of the bind. **The ALLOCATION is right on this shape and
+        // the ORDER is not** (board #1298): both producers then share one base
+        // symbol, `docs/SYMBOL.md`'s pin no longer fixes the order, and real c2
+        // interleaves the stores where the port emits source order — 11 of GRID
+        // L's 30 came back `Port=Mismatch` when it was served. Refused.
+        let mirror = err(vec![
+            IlOp::Load(h),
             bind,
+            IlOp::StoreInd { off: 20, width: 4 },
+            IlOp::Load(h),
             bind,
-            IlOp::StoreInd { off: 0, width: 4 },
+            IlOp::StoreInd { off: 24, width: 4 },
             IlOp::Load(h),
             IlOp::Lit(0),
             IlOp::StoreInd { off: 16, width: 4 },
         ]);
-        assert!(
-            mixed.contains("BESIDE another producer"),
-            "the refusal must name the construct: {mixed}"
-        );
+        assert!(!mirror.is_empty(), "MIRROR must refuse: {mirror}");
+
+        // EDGE 1b — the mix where the store root is a bind DISTINCT from the
+        // value's. GRID L's `ALIAS` / `TWOBIND` / `XOBJ`, and the `d` term is
+        // live there: `H-LIN` and its four twins are 10 wrong of 75 on it.
+        let l2 = 0xFC09u32;
+        let other = IlOp::BoundAddr { tok: l2, base: h, off: 44 };
+        let distinct = err(vec![
+            other,
+            bind,
+            IlOp::StoreInd { off: 0, width: 4 },
+            other,
+            bind,
+            IlOp::StoreInd { off: 4, width: 4 },
+            IlOp::Load(h),
+            IlOp::Lit(0),
+            IlOp::StoreInd { off: 16, width: 4 },
+        ]);
+        assert!(!distinct.is_empty(), "a DISTINCT bind store root must refuse: {distinct}");
 
         // EDGE 2 — TWO distinct addresses. `t_bl`/`t_dl`. Single-kind, so
         // `alloc::allocate` ANSWERS them — and the grid records that c2 agrees
@@ -2411,7 +2468,7 @@ mod tests {
             IlOp::StoreInd { off: 64, width: 4 },
         ]);
         assert!(
-            two.contains("BESIDE another producer"),
+            two.contains("more than one interior address"),
             "the refusal must name the construct: {two}"
         );
 

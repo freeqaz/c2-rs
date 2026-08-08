@@ -2351,9 +2351,22 @@ pub(crate) fn bind_run_ops(
         // zero.
         if !lits.is_empty() {
             let vtok = addr_stores[0].1;
-            let served = addr_stores.iter().all(|&(base, t)| {
-                t == vtok && (base == vtok || bound(base).is_none())
-            });
+            // Every store consuming the address goes through the BIND THAT
+            // NAMES IT, and no literal store shares that base symbol.
+            //
+            // **The second half is `docs/SYMBOL.md`'s pin and not this
+            // module's question** (board #1298). Both conjuncts were measured
+            // by the byte-exact differential, not by reading a register: with
+            // only the first, GRID L's `MIRROR` — which the ALLOCATION serves,
+            // 30 of 30 by disassembly — comes back `Port=Mismatch` on **11 of
+            // 30**, because both producers then share one base symbol,
+            // `order::store_order` is free, and real c2 INTERLEAVES the stores
+            // where the port emits source order.
+            let served = addr_stores.iter().all(|&(base, t)| base == vtok && t == vtok)
+                && symbols
+                    .iter()
+                    .zip(ops.chunks_exact(3))
+                    .all(|(sym, g)| *sym != vtok || matches!(g[1], IlOp::Load(t) if t == vtok));
             if !served {
                 return Err(STORE_RUN_BIND_MIXED_KIND);
             }
@@ -3070,11 +3083,46 @@ mod tests {
             fired.push(want);
         };
 
-        // 1. MIXED KIND — the bound name as a VALUE beside a literal. This is
-        //    `src/xdk/nuispeech/xboxheap.cpp` and boards #836/#868/#1134.
-        let mut ops = store(IlOp::Load(l), IlOp::Load(l), 0);
-        ops.extend(store(IlOp::Load(this), IlOp::Lit(0), 20));
-        check(STORE_RUN_BIND_MIXED_KIND, &[this], &[bind(this)], ops, 0);
+        // 1. MIXED KIND — **NARROWED by board #1297, and asserted on BOTH
+        //    sides of its new edge**, the treatment #1212 got.
+        //
+        //    `src/xdk/nuispeech/xboxheap.cpp`'s own shape — the bound name as a
+        //    VALUE, stored THROUGH THAT SAME BIND, beside a literal stored
+        //    through the formal — is ACCEPTED now, and the TU is byte-exact
+        //    against real `c2.dll`.
+        let mut accept = store(IlOp::Load(l), IlOp::Load(l), 0);
+        accept.extend(store(IlOp::Load(this), IlOp::Lit(0), 20));
+        assert!(
+            bind_run_ops(&[this], &[bind(this)], &accept, 0).is_ok(),
+            "xboxheap's own mix is served since #1297"
+        );
+
+        //    The gate still fires on the two mixes that are NOT served, and
+        //    each has its own measured reason:
+        //
+        //    (a) the address's stores go through the FORMAL's path — GRID L's
+        //        `MIRROR`. The ALLOCATION is right on it and the ORDER is not
+        //        (board #1298): 11 of GRID L's 30 came back `Port=Mismatch`
+        //        when it was served, because both producers then share one base
+        //        symbol and real c2 interleaves the stores.
+        let mut mirror = store(IlOp::Load(this), IlOp::Load(l), 8);
+        mirror.extend(store(IlOp::Load(this), IlOp::Load(l), 12));
+        mirror.extend(store(IlOp::Load(this), IlOp::Lit(0), 20));
+        check(STORE_RUN_BIND_MIXED_KIND, &[this], &[bind(this)], mirror, 0);
+
+        //    (b) the store root is a bind DISTINCT from the value's — GRID L's
+        //        `ALIAS` / `TWOBIND` / `XOBJ`, where the `d` bonus is live and
+        //        `H-LIN` and its four twins are 10 wrong of 75.
+        let l2 = 0xFC09u32;
+        let mut distinct = store(IlOp::Load(l2), IlOp::Load(l), 0);
+        distinct.extend(store(IlOp::Load(this), IlOp::Lit(0), 20));
+        check(
+            STORE_RUN_BIND_MIXED_KIND,
+            &[this],
+            &[bind(this), RefBind { tok: l2, base_tok: this, off: 24 }],
+            distinct,
+            0,
+        );
 
         // 2. ADDRESS PRODUCER — **NARROWED by the w-midrun rung, and asserted
         //    on both sides of its new edge.** A single interior address at a
@@ -3145,7 +3193,10 @@ mod tests {
         ];
         check(STORE_RUN_BIND_GROUP_SHAPE, &[this], &[bind(this)], ops, 0);
 
-        assert_eq!(fired.len(), 7, "gates fired: {fired:?}");
+        // **8, not 7, since board #1297**: the mixed-kind gate is asserted on
+        // BOTH of the two shapes it still refuses, and its accept is asserted
+        // beside them.
+        assert_eq!(fired.len(), 8, "gates fired: {fired:?}");
 
         // **THE ADDRESS PRODUCER IS NO LONGER A BLANKET GATE — the w-midrun
         // rung, and it is a correction rather than a deletion**, so the accept
