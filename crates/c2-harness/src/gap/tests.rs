@@ -3004,3 +3004,328 @@ fn grade_one_files_a_parse_refusal_under_the_parser_and_not_the_selector() {
          that says a codegen question was never asked"
     );
 }
+
+// ---------------------------------------------------------------------------
+// The factor SETS and the join (lane `w-bcgap`, boards #1520–#1524)
+// ---------------------------------------------------------------------------
+
+use super::sets;
+
+/// A four-TU report that exercises every clause of every set at least once.
+/// The same shape the projection-divergence test uses, plus one TU that fails
+/// C, so `factor-b` and `b-and-c` cannot be equal by accident.
+fn mk_set_report() -> GapReport {
+    mk_report(vec![
+        mk_factors(TuClass::Match, "done.cpp", true, true, true, true, false),
+        mk_factors(TuClass::VocabGap, "codegen.cpp", true, true, true, false, false),
+        mk_factors(TuClass::VocabGap, "noa.cpp", false, true, true, false, false),
+        mk_factors(TuClass::CodegenGap, "noa_accepted.cpp", false, true, true, true, false),
+        mk_factors(TuClass::VocabGap, "noc.cpp", true, true, false, false, false),
+        mk_factors(TuClass::CaptureFail, "gone.cpp", false, false, false, false, false),
+    ])
+}
+
+/// **The offline TSV view and the live report produce the SAME rows.**
+///
+/// This is the property that makes `c2rs factors` a *view* of a scan rather
+/// than a second implementation of the factorization that can drift from it.
+/// Without it, `|somebody's set ∩ B∧C|` computed offline would be an
+/// intersection with a lookalike, and the whole point of the exercise is that
+/// it is an intersection with the published `B∧C`.
+#[test]
+fn the_tsv_view_and_the_live_report_are_the_same_rows() {
+    let rep = mk_set_report();
+    let live = rep.factor_rows();
+    let parsed = sets::parse_factors_tsv(&rep.factor_tsv()).expect("the writer's own output");
+    assert_eq!(live, parsed, "one definition, two producers — they must agree row for row");
+    assert_eq!(live.len(), 5, "5 graded TUs; `gone.cpp` captured nothing and is not a row");
+    assert!(
+        !live.iter().any(|r| r.src == "gone.cpp"),
+        "a capture-fail TU is ABSENT, never a `-----` row (docs/STATUS.md trap 5)"
+    );
+}
+
+/// **Every set re-derives the count the scan publishes** — the known-answer
+/// control, run against the report's own `GAP-METRICS` block rather than
+/// against numbers typed into this file.
+///
+/// A hand-typed expectation grades the test author's arithmetic. Reading the
+/// metric block grades the thing the project quotes.
+#[test]
+fn every_named_set_re_derives_the_gap_metric_it_is_counted_into() {
+    let rep = mk_set_report();
+    let rows = rep.factor_rows();
+    let published: BTreeMap<String, usize> = rep
+        .metrics()
+        .into_iter()
+        .filter_map(|(k, v)| v.parse::<usize>().ok().map(|n| (k.to_string(), n)))
+        .collect();
+    let checks = sets::check_metrics(&rows, &published);
+    let bad: Vec<&sets::MetricCheck> = checks.iter().filter(|c| c.verdict() != "OK").collect();
+    assert!(
+        bad.is_empty(),
+        "these sets disagree with the count the scan publishes for them: {:?}",
+        bad.iter().map(|c| (c.key, c.published, c.derived)).collect::<Vec<_>>()
+    );
+    assert!(
+        checks.len() >= 13,
+        "the control must actually check something — a control that checks 0 keys and one \
+         that passes look identical in a summary line ({} checked)",
+        checks.len()
+    );
+    assert!(
+        checks.iter().all(|c| c.published.is_some()),
+        "no key may be ABSENT here: the report is its own source, so an absent key means \
+         a set was given a `gap-metric` name that does not exist"
+    );
+}
+
+/// **The reach pool is `B∧C ∖ A∧B∧C` and it is what board #213 prices**, and
+/// the frontier pool is a *different* set. The two coincide only while no TU
+/// inside `B∧C` fails A while already being accepted, and this fixture has one.
+#[test]
+fn the_two_pools_board_213_prices_are_not_the_same_set() {
+    let rows = mk_set_report().factor_rows();
+    let reach = sets::members(&rows, "reach-pool").expect("named set");
+    let frontier = sets::members(&rows, "frontier-pool").expect("named set");
+    assert_eq!(reach, vec!["noa.cpp", "noa_accepted.cpp"]);
+    assert_eq!(
+        frontier,
+        vec!["noa.cpp"],
+        "`noa_accepted.cpp` is in the reach pool and NOT the frontier pool: the port \
+         already accepts its contents, so a perfect emit predicate does not add it to the \
+         codegen frontier"
+    );
+    assert_eq!(
+        sets::count(&rows, "reach-pool").unwrap()
+            - sets::count(&rows, "frontier-pool").unwrap(),
+        sets::count(&rows, "projection-divergence").unwrap(),
+        "and the difference between the two pools IS the projection divergence"
+    );
+}
+
+/// **A join that resolves nothing is reported as nothing, never as zeros.**
+///
+/// This is the lane's whole reason for existing. `src__App.cpp` is not a
+/// hypothetical spelling: it is how `work/w-emit/truth` names its files, so a
+/// lane carrying a per-TU set out of that pipeline joins on it by default and
+/// gets 0 — which reads as "this model buys no reach".
+#[test]
+fn a_join_on_the_wrong_key_is_loud_and_names_the_normalization_it_did_not_apply() {
+    let rows = mk_set_report().factor_rows();
+    let cand = sets::parse_candidate("mis", "done__cpp\nnoa__cpp\n").expect("2 names");
+    let jc = sets::join(&rows, &cand);
+    assert!(jc.is_empty(), "0 resolved, so the caller must refuse to tabulate");
+    assert_eq!(jc.unresolved.len(), 2);
+
+    let good = sets::parse_candidate("ok", "done.cpp\nnoa.cpp\nnot_a_tu.cpp\n").expect("3");
+    let jg = sets::join(&rows, &good);
+    assert_eq!(jg.resolved, vec!["done.cpp", "noa.cpp"]);
+    assert_eq!(jg.unresolved, vec!["not_a_tu.cpp"]);
+    assert_eq!(jg.absent, 3, "3 graded rows the candidate set never mentions");
+    // The hint is a diagnosis and must not be a rewrite: the rows are untouched.
+    assert_eq!(rows[0].src, "done.cpp");
+}
+
+/// The hint fires on the real `__` spelling and says how many names it would
+/// have recovered — and the intersection is still computed on the *unfixed*
+/// key, so the hint can never silently change an answer.
+#[test]
+fn the_hint_counts_what_it_would_have_recovered_without_recovering_it() {
+    // Paths with a separator, so the `__` → `/` probe — the real spelling
+    // `work/w-emit/truth` uses for its per-TU files — is the one under test.
+    let rows = mk_report(vec![
+        mk_factors(TuClass::Match, "src/App.cpp", true, true, true, true, false),
+        mk_factors(TuClass::VocabGap, "src/sys/Dir.cpp", true, true, true, false, false),
+    ])
+    .factor_rows();
+    let cand = sets::parse_candidate("mis", "src/App.cpp\nsrc__sys__Dir.cpp\n").expect("2");
+    let jc = sets::join(&rows, &cand);
+    let h = jc.hint.expect("one name is recoverable, so a hint is owed");
+    assert!(h.contains("1 of the 1 unresolved"), "it counts: {h}");
+    assert!(h.contains("NOT APPLIED"), "and it says it did not do it: {h}");
+    let ints = sets::intersections(&rows, &jc.resolved);
+    assert_eq!(
+        ints["match"], 1,
+        "the intersection is over the RESOLVED name only — the hinted one is not folded in"
+    );
+}
+
+/// **`|cand ∩ S|` can never exceed `|S|` or `|cand|`** — the two bounds that a
+/// join bug violates in opposite directions. A key collision (the failure mode
+/// a canonicalizer would introduce) shows up as the second one.
+#[test]
+fn an_intersection_is_bounded_by_both_of_its_operands() {
+    let rows = mk_set_report().factor_rows();
+    let cand = sets::parse_candidate("all", "done.cpp\ncodegen.cpp\nnoa.cpp\nnoa_accepted.cpp\nnoc.cpp\n")
+        .expect("5");
+    let jc = sets::join(&rows, &cand);
+    assert_eq!(jc.resolved.len(), 5);
+    assert_eq!(jc.absent, 0);
+    let ints = sets::intersections(&rows, &jc.resolved);
+    for s in sets::NAMED_SETS {
+        let n = ints[s.name];
+        let card = sets::count(&rows, s.name).unwrap();
+        assert!(n <= card, "|cand ∩ {}| = {n} > |S| = {card}", s.name);
+        assert!(n <= jc.resolved.len(), "|cand ∩ {}| = {n} > |cand|", s.name);
+        assert_eq!(
+            n, card,
+            "and with the WHOLE population as the candidate set every intersection is the \
+             set itself — the identity a join bug breaks first ({})",
+            s.name
+        );
+    }
+}
+
+/// **A duplicate line is counted, not silently folded.** A candidate set with
+/// duplicates was produced per-something-other-than-TU, and its author's "472
+/// exact" may not be 472 TUs.
+#[test]
+fn duplicate_candidate_names_are_counted_rather_than_absorbed() {
+    let c = sets::parse_candidate("d", "a.cpp\nb.cpp\na.cpp\n\n# note\na.cpp\n").expect("names");
+    assert_eq!(c.lines, 4);
+    assert_eq!(c.names.len(), 2);
+    assert_eq!(c.duplicates, 2);
+}
+
+/// An empty candidate set is refused. It intersects everything at 0, and 0 is a
+/// number a reader will publish.
+#[test]
+fn an_empty_candidate_set_is_refused_rather_than_intersected() {
+    let e = sets::parse_candidate("e", "# only a comment\n\n").unwrap_err();
+    assert!(e.contains("0 names"), "{e}");
+}
+
+/// **The TSV parser refuses a file whose columns moved, is truncated, or whose
+/// two redundant encodings of the same bits disagree.**
+///
+/// Each of the three yields a *smaller or differently-shaped* population, and
+/// every one of them would surface downstream as a smaller intersection —
+/// i.e. as a weaker model, which is a plausible wrong answer rather than a
+/// visible error.
+#[test]
+fn the_tsv_parser_refuses_a_file_it_cannot_read_positionally() {
+    let good = mk_set_report().factor_tsv();
+
+    let no_header: String =
+        good.lines().filter(|l| !l.starts_with("# columns:")).collect::<Vec<_>>().join("\n");
+    assert!(sets::parse_factors_tsv(&no_header).unwrap_err().contains("columns"));
+
+    let truncated: String = good
+        .lines()
+        .filter(|l| !l.starts_with("codegen.cpp") && !l.starts_with("noa"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(sets::parse_factors_tsv(&truncated).unwrap_err().contains("graded-rows"));
+
+    let flipped = good.replace("done.cpp\tmatch\t1\t1\t1\t1\t0\tABCD-", "done.cpp\tmatch\t0\t1\t1\t1\t0\tABCD-");
+    let e = sets::parse_factors_tsv(&flipped).unwrap_err();
+    assert!(e.contains("letters column"), "{e}");
+
+    let only_comments = format!("{}\n# graded-rows 0\n", sets::TSV_COLUMNS);
+    assert!(sets::parse_factors_tsv(&only_comments).unwrap_err().contains("0 rows"));
+}
+
+/// The column contract in `sets` and the one the writer emits are the SAME
+/// string. If they drift, the parser reads bits out of the wrong columns and
+/// every set below it is wrong in a way that still looks like a table.
+#[test]
+fn the_column_contract_is_one_string_and_not_two() {
+    assert!(
+        mk_set_report().factor_tsv().lines().any(|l| l == sets::TSV_COLUMNS),
+        "`sets::TSV_COLUMNS` must be a line the writer actually writes"
+    );
+}
+
+/// `scrape_metrics` reads only well-formed `gap-metric k v` lines, and a log
+/// with none of them yields an empty map — which the CLI reports as a control
+/// that checked nothing rather than as a pass.
+#[test]
+fn a_log_with_no_gap_metric_lines_scrapes_to_nothing_rather_than_to_agreement() {
+    assert!(sets::scrape_metrics("gap scan: 878 TUs\n  match 11\n").is_empty());
+    let m = sets::scrape_metrics("    gap-metric b-and-c 151\ngap-metric junk xx\n");
+    assert_eq!(m.len(), 1);
+    assert_eq!(m["b-and-c"], 151);
+    let rows = mk_set_report().factor_rows();
+    let checks = sets::check_metrics(&rows, &Default::default());
+    assert!(
+        checks.iter().all(|c| c.verdict() == "ABSENT"),
+        "every key is ABSENT, and ABSENT is its own verdict — not silently an OK"
+    );
+}
+
+/// **`frontier` and `frontier-if-a` exclude `match` TUs**, exactly as
+/// `factor_frontier` does. Dropping that clause is the single easiest way to
+/// make this module disagree with the scan, and it would disagree by exactly
+/// the match count — a number small enough to look like rounding.
+#[test]
+fn the_frontier_sets_exclude_matches_the_way_the_scan_does() {
+    let rep = mk_set_report();
+    let rows = rep.factor_rows();
+    assert_eq!(
+        sets::members(&rows, "frontier").unwrap(),
+        rep.factor_frontier().iter().map(|(r, _)| r.src.as_str()).collect::<Vec<_>>(),
+        "the set and the scan's own ranked frontier are the same TUs"
+    );
+    assert_eq!(
+        sets::count(&rows, "frontier-if-a").unwrap(),
+        rep.factor_frontier_if_a()
+    );
+    assert!(!sets::members(&rows, "frontier").unwrap().contains(&"done.cpp"));
+}
+
+/// The model's joint set, by name, is the same list `factor_all_tus` returns —
+/// so the claim "this set IS the match set" is checkable through either.
+#[test]
+fn the_joint_set_agrees_with_the_report_that_publishes_it_by_name() {
+    let rep = mk_set_report();
+    let rows = rep.factor_rows();
+    assert_eq!(
+        sets::members(&rows, "a-and-b-and-c-and-d-or-e").unwrap(),
+        rep.factor_all_tus()
+    );
+    assert_eq!(
+        sets::members(&rows, "a-and-b-and-c-and-d").unwrap(),
+        rep.factor_abcd_tus()
+    );
+    assert_eq!(
+        sets::members(&rows, "projection-divergence").unwrap(),
+        rep.factor_projection_divergence()
+    );
+}
+
+/// **A `match` that no acceptance path takes is still not on the frontier —
+/// and this test exists because a must-fail mutation SURVIVED without it.**
+///
+/// Dropping `!r.is_match()` from `frontier` / `frontier-if-a` is the single
+/// easiest way to make [`sets`] disagree with the scan. Mutation **M1** did
+/// exactly that and **every test still passed**, because on the fixture *and on
+/// the real 878-TU workload* the clause is currently **inert**: the model's
+/// joint `A∧B∧C∧(D∨E)` equals the match set (11 = 11), so every match TU is
+/// already excluded by `!r.accepted()` and the match clause never bites. That
+/// is the same shape as a column that is zero by construction and read as a
+/// measurement — found here in this lane's own code, by mutating it.
+///
+/// The clause is **not** redundant in general. It is guarded by a *different*
+/// control — `factor_control_on_match_tus` requires `D∨E` to have 0 violations
+/// over match TUs — and if that control ever went red, this clause is what
+/// keeps a byte-exact TU off the list of TUs that need codegen work. So the
+/// state below is constructed rather than waited for.
+#[test]
+fn a_match_no_acceptance_path_takes_is_still_not_on_the_frontier() {
+    let rows = mk_report(vec![
+        // The state `factor_control_on_match_tus` exists to forbid: byte-exact,
+        // inside A∧B∧C, and outside D and E.
+        mk_factors(TuClass::Match, "impossible.cpp", true, true, true, false, false),
+        mk_factors(TuClass::VocabGap, "real_frontier.cpp", true, true, true, false, false),
+    ])
+    .factor_rows();
+    assert_eq!(
+        sets::members(&rows, "frontier").unwrap(),
+        vec!["real_frontier.cpp"],
+        "a TU that is ALREADY byte-exact must never appear on the list of TUs whose only \
+         remaining blocker is codegen breadth"
+    );
+    assert_eq!(sets::count(&rows, "frontier-if-a").unwrap(), 1);
+    assert_eq!(sets::count(&rows, "frontier-pool").unwrap(), 0);
+}
