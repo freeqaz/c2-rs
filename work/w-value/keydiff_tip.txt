@@ -1,0 +1,68 @@
+
+=== bodies (fn_blockers): 678 keys, 120 moved (7 appeared, 45 vanished)
+    totals base 1751949 -> tip 1751949 (must be equal: True)
+       +10712       11470 ->     22182   expr-op-0x30
+       -10566       10567 ->         1   expr-call-in-expr-chained-then-off-add-more
+        +4224        5639 ->      9863   expr-cmp-ne
+        -3510        3538 ->        28   expr-call-in-expr-recv-load-then-cmp-ne-and-branch-more
+        +2940        4670 ->      7610   expr-op-0x05-8641
+        -2177        2181 ->         4   expr-call-in-expr-recv-field-then-call-recv-field-more
+        +1743      402139 ->    403882   expr-op-0x27
+        +1737        1862 ->      3599   expr-cmp-lt
+        -1661        1900 ->       239   expr-call-in-expr-recv-load-then-cmp-lt-and-branch-more
+        -1449        1829 ->       380   expr-call-in-expr-chained-then-call-recv-intrinsic-this-adjust-and-off-add-more
+        +1246          33 ->      1279   expr-cmp-ge
+        -1240        1244 ->         4   expr-call-in-expr-recv-intrinsic-this-adjust-then-cmp-ge-and-branch-more
+        +1065       18246 ->     19311   expr-cmp-eq
+        -1057        1110 ->        53   expr-call-in-expr-recv-load-then-cmp-eq-and-branch-more
+         +828         752 ->      1580   expr-cmp-gt
+         -817        1667 ->       850   expr-call-in-expr-recv-load-then-cmp-gt-and-branch-more
+         +817        4973 ->      5790   expr-convert-no-value-0x2C
+         -809         809 ->         0   expr-call-in-expr-recv-load-then-type-int1-and-deref-load-more
+         -765         767 ->         2   expr-call-in-expr-recv-load-then-op-0x05
+         -699         699 ->         0   expr-call-in-expr-recv-intrinsic-vbase-upcast-then-cmp-ne-and-type-int1-whole2
+         -279         279 ->         0   expr-call-in-expr-recv-intrinsic-this-adjust-then-call-other
+          -66          66 ->         0   expr-call-in-expr-recv-load-then-cmp-lt-and-type-int1-more
+          -55          55 ->         0   expr-call-in-expr-chained-then-call-data-addr-and-op-more
+          -36          36 ->         0   expr-call-in-expr-chained-then-call-recv-field-and-deref-load-whole4
+          -11          27 ->        16   expr-call-in-expr-chained-then-call-chained-more
+          +10           0 ->        10   expr-and-and
+          -10          10 ->         0   expr-call-in-expr-recv-deref-then-deref-load-more
+          -10         109 ->        99   expr-call-in-expr-recv-intrinsic-this-adjust-then-off-add-more
+           +9       10666 ->     10675   expr-lit-type-864A
+           -8           8 ->         0   expr-call-in-expr-recv-field-then-off-add-more
+    … and 90 more
+
+=== emitted (emit_blockers): 655 keys, 113 moved (7 appeared, 43 vanished)
+    totals base 130567 -> tip 130567 (must be equal: True)
+         +308         330 ->       638   expr-op-0x30
+         +254         123 ->       377   expr-cmp-lt
+         -247         341 ->        94   expr-call-in-expr-recv-load-then-cmp-lt-and-branch-more
+         -229         230 ->         1   expr-call-in-expr-chained-then-off-add-more
+         +177        2207 ->      2384   expr-cmp-eq
+         -169         218 ->        49   expr-call-in-expr-recv-load-then-cmp-eq-and-branch-more
+         +162         862 ->      1024   expr-cmp-ne
+         -134         158 ->        24   expr-call-in-expr-recv-load-then-cmp-ne-and-branch-more
+          +90         502 ->       592   expr-op-0x05-8641
+          +82          66 ->       148   expr-cmp-gt
+          -71         103 ->        32   expr-call-in-expr-recv-load-then-cmp-gt-and-branch-more
+          -65          67 ->         2   expr-call-in-expr-recv-load-then-op-0x05
+          +39       22373 ->     22412   expr-op-0x27
+          -27          30 ->         3   expr-call-in-expr-recv-field-then-call-recv-field-more
+          -24          31 ->         7   expr-call-in-expr-chained-then-call-recv-intrinsic-this-adjust-and-off-add-more
+          -20          20 ->         0   expr-call-in-expr-chained-then-call-data-addr-and-op-more
+          -14          14 ->         0   expr-call-in-expr-chained-then-call-recv-field-and-deref-load-whole4
+          +14          25 ->        39   expr-cmp-ge
+          -13          13 ->         0   expr-call-in-expr-recv-intrinsic-vbase-upcast-then-cmp-ne-and-type-int1-whole2
+          -10          20 ->        10   expr-call-in-expr-chained-then-call-chained-more
+           +9           0 ->         9   expr-and-and
+           -8           9 ->         1   expr-call-in-expr-recv-intrinsic-this-adjust-then-cmp-ge-and-branch-more
+           +8        1270 ->      1278   expr-lit-type-864A
+           -8          38 ->        30   expr-call-in-expr-recv-intrinsic-this-adjust-then-off-add-more
+           +7         371 ->       378   expr-convert-no-value-0x2C
+           -7           7 ->         0   expr-call-in-expr-recv-field-then-off-add-more
+           -6           6 ->         0   expr-call-in-expr-chained-then-call-data-addr-and-off-add-more
+           -6           8 ->         2   expr-call-in-expr-recv-load-then-cmp-gt-and-op-more
+           -4          18 ->        14   expr-call-in-expr-recv-object-then-type-real-lit-and-op-more
+           -4           4 ->         0   expr-call-in-expr-chained-then-call-recv-load-and-off-add-more
+    … and 83 more

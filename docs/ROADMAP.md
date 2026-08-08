@@ -10355,3 +10355,41 @@ which this lane leaves priced as ladders that cannot self-disagree.
 Item 2 (the member-call value model) is unchanged and is now the sole
 next code seam; the `loop_guard+bdnz` class (§10.26.1) is its companion
 construct rung.
+
+### 10.26.3 w-value addendum — item 2 is DONE, and it closes itself as a lever (2026-08-08)
+
+The value model shipped (`w-value`, board #1940–#1948): `parse_expr` walks
+through a `26 … BD … 4C`, models what it leaves, and refuses at the same
+block it used to refuse at. Verdict-neutral at three levels — 878 TUs by
+name, all 251 `gap-metric` keys byte-identical, both censuses +0, 305
+fixtures unchanged at `/O1` and `/Ox` — and **zero conversions**, as
+registered.
+
+**What it measured is the part that changes the plan.** #1534's family
+of 36,751 emitted functions splits **33,277 (90.5 %) with nothing else in
+their expression · 2,306 (6.3 %) the walker cannot tokenize · 1,168
+(3.2 %) with a real expression construct behind the call**. The family is
+**not** a queue in front of some other reader rung. So item 2 is spent as
+a *lever*: the only thing that moves those 33,277 is a member-call
+**lowering** — a call in an expression, which the emitter has no
+representation for at all — and no further reader work will touch them.
+
+Three things to carry forward:
+
+1. **`9B` is 69 % of the walker's remaining price** (1,590 of 2,306
+   emitted), `64` another 24 %. That is the whole of the reader-side
+   follow-on, and it is small.
+2. **The statement-layer fence is now a shared fact, not this lane's
+   choice** (#1942). Unfenced, 86 % of the redistribution landed on
+   `expr-op-0x4B` and `expr-op-0x5C` — punctuation. #441 and #1535's
+   finding, third instance.
+3. **`Main.cpp` is still declined and its head is still `param-width-undetermined`**
+   (#1947). This lane paid wb-eh §6's R2 of fifteen; R1 is a `.sy`
+   binding seam of 682 emitted functions and nobody has touched it.
+   `Biquad.cpp` is unchanged at #1923's fifteen.
+
+With item 2 spent, the next code seam is item 4's `loop_guard+bdnz`
+class (§10.26.1) — which #1829 already prices at ~0 first-scan reach —
+or item 3's inline decline side. **Neither is a TU rung**, and §10.26.2's
+correction stands: these are construct rungs shipped on manufactured
+cells.
