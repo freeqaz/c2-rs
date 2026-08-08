@@ -16,7 +16,7 @@
     Ships:     `c2_il::func::body::shapes::if_call_join` (the recognizer),
                `c2_core::codegen::if_call_join` (the twenty words),
                `Selected::IfCallJoin`, two fixtures, one differential test.
-               Board rows **#1630**–**#1637**; **#1638**–**#1659** left
+               Board rows **#1630**–**#1638**; **#1639**–**#1659** left
                explicitly unminted.
 
 ---
@@ -204,6 +204,36 @@ and this is its fourth instance. The predicate is answered from the class rather
 than from a body scan, because the recognizer requires the third formal to be a
 4-byte real — so it is a structural fact and cannot drift from the bytes.
 
+### 5.3 The mode fence belonged in the PARSER, and the census was over-claiming until it moved (#1638)
+
+The `/O1`-only clause started in the emitter, beside `ptr_walk_loop`'s. That is
+one locator for a fact the census also needs, and
+`crates/c2-harness/tests/census_gate.rs` failed on it in the exact words it was
+written to fail in — *"a new gate landing in codegen instead of the parser fails
+this test"*:
+
+```text
+  census/gate [fixtures, fn_level_linking=false]: 6 disagreements
+       5  not implemented: if/else-with-a-join at /Ox or /O2 …
+       1  not implemented: no free FP scratch register   <- the standing one
+```
+
+Five fixture functions the census counted **in class** and `PortC2` refused —
+five entries on the error term of the published coverage numerator, which is
+`docs/GAPS.md` §6's one-fact-two-locators defect in its purest form. The
+recognizer now asks the opt word **first**, before any body byte is read, so the
+refusal cannot depend on how far the walk got; the emitter keeps its own clause,
+because `select_function` is what `function_gate` runs and a shape arriving there
+under the wrong mode must refuse rather than emit.
+
+**And `codegen::ptr_walk_loop` carries the identical `/O1`-only clause with no
+parser half.** It does not trip the cross-check today only because no fixture
+puts its shape in front of the packed lane's profile — an absence of evidence,
+not a clean bill. The comment is in `if_call_join.rs` so the next lane to touch
+that class knows the fix is one call. **This lane did not make it**, because
+changing `ptr_walk_loop`'s accept boundary is a change to a class it did not
+grade.
+
 ---
 
 ## 6. The fence, and where it is narrower than c2's class
@@ -235,11 +265,29 @@ claim.
 ### 6.2 The negative cells are braced like the positives, and that is the confound
 
 `w-clear` was bitten twice by a grid whose cells failed for a reason other than
-the one under test. The recognizer pins every `54 <k>` scope depth — bracing is
-the one place the source's *shape* reaches this IL — so a negative cell with an
-unbraced arm would refuse **on the bracing** and read as separating a clause it
-never reached. Every cell in `wcfg1_if_call_join_neg.cpp` is braced exactly like
-the positive file, and **`n5` isolates the bracing itself**.
+the one under test. **This grid was bitten too, and by its own instrument, on the
+first draft** — see #1636.
+
+`c2rs census` reports only the **fall-through** blocker, so all six cells read
+`assign-store-type-8643` whatever they actually tripped, and the file looked
+exactly as complete before the fix as after. Printing the recognizer's *own*
+decline context per cell (`work/w-cfgclass/decline_probe.patch`, a scratch diff,
+applied and reverted) found two cells failing on a clause another cell already
+covered:
+
+| cell | first draft | after |
+|---|---|---|
+| **n0** | four formals → `ifjoin-formals-not-3`, the **arity** clause `n2` already holds | three formals, one arm's argument changed → **`ifjoin-arm-arg1`** |
+| n1 | `ifjoin-dead-store` | unchanged |
+| n2 | `ifjoin-formals-not-3` | unchanged |
+| n3 | `ifjoin-acc-not-a-ptr-local` | unchanged |
+| **n4** | `b < 5` against an outer `b >= 1` → `ifjoin-mid-lit-differs`, the **shared-literal** clause | `b < 1` → **`ifjoin-mid-rel`** |
+| n5 | `ifjoin-inner-body-scopes` | unchanged |
+
+**Six cells, six distinct clauses, none of them the fall-through.** Every cell is
+braced exactly like the positive file — the recognizer pins every `54 <k>` scope
+depth, so an unbraced arm refuses on the *bracing* — and **`n5` isolates the
+bracing itself** so the other five cannot be confounded by it.
 
 ### 6.3 The fence is NARROWER than the class c2 has, and `n5` says so (#1635)
 
@@ -376,7 +424,43 @@ building.
 
 ### 11.1 `scripts/gate.sh --require-graded`
 
-GATE_BLOCK_PLACEHOLDER
+Run at tree `9ccf853b` (the last code commit; the later commits are docs only).
+
+```text
+  18 lanes in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT
+  graded    5,238 fixture-verdicts across all lanes
+  sweep     PASS — 19,556 of 19,556 selected cases reached,
+                   19,460 GRADED by the oracle, 0 mismatch
+                   (96 ungraded: the reference rejects the source)
+  cross     PASS — 90,812 of 90,812 case-lane cells selected,
+                   90,424 GRADED, 0 mismatch
+  hatch-red PASS 14/14 · ladder-red PASS 5/5
+  GATE: PASS — 0 mismatches anywhere
+```
+
+`5,238` is the brief's baseline `5,202` **plus 36** — two new fixtures across
+eighteen lanes, which is the arithmetic a lane adding fixtures owes.
+
+**Per-lane `match`, and the one number that moved.** `/O1` and every `/O1`
+variant read **147**; `/Ox` 138, `/Ox /Gy` 136, `/O2` 142, `/Od` 18. Measured
+directly on the two new fixtures at each lane's own flags:
+
+```text
+  /O1 /GS- /c   wcfg1_if_call_join.cpp      match        <- the +1
+  /Ox /GS- /c   wcfg1_if_call_join.cpp      vocab-gap
+  /O2 /GS- /c   wcfg1_if_call_join.cpp      vocab-gap
+  /Od /GS- /c   wcfg1_if_call_join.cpp      vocab-gap
+  every lane    wcfg1_if_call_join_neg.cpp  vocab-gap
+```
+
+So the class contributes **+1 to the four `/O1` lanes and +0 to every other**,
+which is what an `/O1`-only class must look like from outside. The `/Ox` reading
+is `vocab-gap` and not `codegen-gap` **because §5.3 moved the gate into the
+parser** — before that move it read `codegen-gap`, and the two spellings are the
+census over-claiming and not.
+
+`cargo test --workspace --release`: **1,250 passed, 0 failed, 36 targets**
+(base 1,241 / 36).
 
 ### 11.2 The workload scan, both ends
 
