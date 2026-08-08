@@ -460,6 +460,40 @@ arg       := <operand stream producing the value> 55 <TYPE>
 * `4B` (statement end / discard) follows only when the call is a statement, i.e.
   its value is unused. It is **not** part of the call.
 
+**`4C`'s WIDTH is one byte, and it is measured on the ARGUMENT-BEARING
+population** (`lane w-4c`, board **#1383**). This is worth stating here because
+the obvious evidence is the *wrong* evidence: a zero-argument call's `4C` is
+trivial to anchor — it is the byte the `BD` token ends on — and board **#1318**
+measured 26,701 of them and **declined to pin the width**, because the `4C` that
+closes a call *with* arguments is 2.46 M of the 3.5 M `BD` tokens and was not in
+that population at all.
+
+Measured over **1,978,436** argument-bearing sites (`work/w-4c/argwalk.py`),
+anchored by walking the argument region and stopping AT the first `4C` — never
+stepping over one, so the site's position is fixed by the *other* tokens' widths:
+payload-free desyncs **0** once the residue is disposed of (§below); `4C <one
+byte>` fails at 1,460,194; `4C <TYPE>` at 214,003, and at **87.7 %** of sites the
+next byte's bit 7 is clear so there is nowhere for a TYPE to be; `4C <token>` at
+1,371,969. Confirmed a second way by a fresh capture whose calls take 0, 1, 2 and
+3 arguments, graded `ReferenceReplay=ByteExact` with the three argument-bearing
+functions `Port=Match` (`work/w-4c/probe/ce_args.cpp`).
+
+Two structural facts fell out and belong with the grammar above:
+
+* **The closing `4C` follows the last argument's `55 <TYPE>` at 1,956,648 of
+  1,978,436 sites, and every one of the 21,788 exceptions is a `0x64`** — the
+  by-value-return materialize, which sits between the last argument and the `4C`
+  (`… 55 <TYPE> · 9B <agg> <tok> · 2C <A*> 00 · 64 <A*> · 4C`).
+* **160,539 anchored calls have a non-empty argument region with NO `55` at
+  all** — the same by-value-return family without arguments. `<arg>*` above is
+  the argument grammar, not the whole of what can appear between `CALL` and
+  `4C`.
+
+**And `0x59`/`0x08` are OPCODES that appear immediately after a float-returning
+call's `4C`, not payload.** They are unpinned in every width table here; they
+occur at token-start positions **6,031** and **3,819** times and **never** after
+a `4C` (`work/w-4c/unwit.py`), which is what separates the two readings.
+
 **[CF] `e3.cpp`** `void f(int a,int b,int c){ h0(); h1(a); h2(a,b); h3(a,b,c); }`,
 formals `a`=0x09ED, `b`=0x09EE, `c`=0x09EF:
 

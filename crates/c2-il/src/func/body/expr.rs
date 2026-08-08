@@ -593,6 +593,7 @@ pub(crate) enum SkipForm {
 /// | `43` | Escape43 | `IL_EXPR_LAYER.md` §8 — `43 42 <2 bytes>`, `43 37` carries nothing |
 /// | `44` | Bare | `IL_EXPR_LAYER.md` §7 — payload-free at both captured sites |
 /// | `4B` | Bare | [`branch_sink`]'s `Cflow` arm |
+/// | `4C` | Bare | the CALL-END; **four** readers in this tree consume it as one byte, and it is confirmed on the ARGUMENT-BEARING population — see the `0x4C` row below |
 /// | `4F` | Line4F | [`branch_sink`]'s `Stmt` arm |
 /// | `53` | Bare, `54` | Byte1 | [`eat_scopes`] |
 /// | `55` | Type | the `icall` line of `parse_segment`'s grammar — `55 INT` |
@@ -662,6 +663,86 @@ pub(crate) fn chain_skip_form(b: u8) -> Option<SkipForm> {
         0x43 => Escape43,
         0x44 => Bare,
         0x4B => Bare,
+        // The CALL-END, `4C` — `BD`'s own closing bracket (`lane w-4c`, board
+        // **#1383**). `4B` was in this table and `4C` was not, for exactly
+        // `0xBD`'s reason one opcode further along: **four** readers in this
+        // tree consume it as one byte today — `control_flow.rs`'s `operand()`
+        // arm (`s.p += 1`, plus the EH bookkeeping that deliberately lives
+        // here), [`mcall::eat_call_args_region`](super::mcall) (the *accepting*
+        // parser's argument loop, i.e. the argument-bearing path itself),
+        // `codec.rs`'s `ExToken::Lo`, and `codec.rs`'s **`IntCallEnd` =
+        // `55 <INT TYPE> 4C`**, which *emits* an argument-bearing call end with
+        // nothing after the `4C`.
+        //
+        // **Board #1318 had this measurement and refused to ship it, and that
+        // refusal was right.** `w-bd` scored `4C` payload-free at 26,701 of
+        // 26,701 sites — and every one of those is a **zero-argument** call,
+        // the byte a `BD` token ends on. The `4C` that closes a call *with*
+        // arguments is 2.46 M of the 3.5 M `BD` tokens and was not in that grid
+        // at all. A green control is a statement about the population it ran
+        // over, and a width pinned on the unrepresentative half is the failure
+        // this table exists to prevent.
+        //
+        // So the evidence below is the OTHER population.
+        //
+        // Witnessed a first way by a capture taken at this master
+        // (`work/w-4c/probe/ce_args.cpp`): calls with 0, 1, 2 and 3 arguments
+        // whose callees differ only in arity, so the argument region's LENGTH
+        // is the only field that moves —
+        //
+        // ```text
+        //   0 args   BD 86 41 74 00 80 01 10 00 00                          >4C< 41
+        //   1 arg    BD … B9 <x> 86 41 74 · 55 86 41 74                     >4C< 41
+        //   2 args   BD … (B9 <x> 86 41 74 · 55 86 41 74) ×2                >4C< 41
+        //   3 args   BD … (B9 <x> 86 41 74 · 55 86 41 74) ×3                >4C< 41
+        // ```
+        //
+        // — graded `ReferenceReplay=ByteExact`, and the cdecl/`int` half
+        // (`ce_args_min.cpp`, three functions, **all** argument-bearing)
+        // **`Port=Match`**: the accepting parser walked those argument regions,
+        // read the `4C` as one byte, and the obj is byte-exact against real
+        // `c2.dll` under wibo. `c2rs census` on the same probe puts its own `>`
+        // marker on the byte after a one-argument call's `4C`
+        // (`… 55 86 41 74 4C >26<`), from a reader `lane w-4c` did not touch.
+        //
+        // Confirmed a second way on the workload (`work/w-4c/argwalk.py`), over
+        // **1,978,436** argument-bearing sites in 876 dc3 TUs — the population
+        // #1318 excluded, at **74×** the size of the grid it declined on. The
+        // site is anchored by walking the argument region from a pinned `BD`
+        // with `control_flow.rs`'s `operand()` widths and stopping AT the first
+        // `4C`, **never stepping over one**, so the closing `4C`'s position is
+        // fixed by the *other* tokens' widths and finding it does not
+        // presuppose its own answer. 99.56 % of the non-zero-argument
+        // population walks. The rivals:
+        //
+        // ```text
+        //   P   payload-free        457 desyncs   (and see below — really 0)
+        //   B1  4C <one raw byte>   1,460,194     73.8 %
+        //   T   4C <TYPE>             214,003     and no room at all at 87.7 %
+        //   K   4C <token>          1,371,969     69.3 %
+        // ```
+        //
+        // A second, walk-free anchor (`55 <TYPE> 4C` at the emitter's own
+        // `eat_int_like_or_ptr4` gate) sees 3,647,883 sites and lands strictly
+        // inside a walked call's bracket **zero** times, so the two anchors
+        // never disagree about a position.
+        //
+        // **The 457 are not desyncs of this reading, and that is measured
+        // rather than argued** (`work/w-4c/unwit.py`). Every one lands on
+        // `0x59` (446) or `0x08` (11) — bytes outside the judging vocabulary
+        // because `operand()` refuses them, `08` being one of the six it lists
+        // as deliberately unwitnessed. The control never mentions `4C`: the
+        // walk *breaks* at `4C`, so a `59` it reaches was preceded by some
+        // other token. `0x59` is reached at a token start **6,031** times and
+        // `0x08` **3,819** times, and **not one of either follows a `4C`**.
+        // They are opcodes in their own right, so the byte after these `4C`s is
+        // an opcode position and the reading is intact.
+        //
+        // **What this does NOT do**: `4C` is a closing bracket, not an operand,
+        // and this table is width-only — a chain walk that steps past a `4C` is
+        // not thereby matching brackets. The sink pushes no [`IlOp`] and
+        // poisons any walk that used it, so nothing here can move an obj byte.
+        0x4C => Bare,
         0x4F => Line4F,
         0x53 => Bare,
         0x54 => Byte1,
@@ -1910,9 +1991,22 @@ mod tests {
     /// real `c2.dll`) and re-confirmed on the workload at **4,674 of 4,674**
     /// sites, where the byte after the opcode opens a new token. The NAME was
     /// never in question — this is `div_mod_leaf`'s own `IL_DIV`/`IL_MOD`.
+    ///
+    /// **`0x59` and `0x08` have JOINED it**, and they arrived as *evidence*
+    /// rather than as an omission (`lane w-4c`, board **#1387**). They are the
+    /// only two bytes the argument-bearing `4C` walk ever lands on that no arm
+    /// accepts, and `work/w-4c/unwit.py` shows both occur at token-start
+    /// positions with a non-`4C` predecessor — `0x59` **6,031** times, `0x08`
+    /// **3,819**, and neither ever after a `4C`. So they are opcodes this tree
+    /// has not pinned, not payload; `08` is additionally one of the six bytes
+    /// `control_flow.rs` refuses on purpose, and adding either here on the
+    /// strength of a landing count would be the guess this table exists to
+    /// prevent. `0x07`, `0x14` and `0x25` are witnessed at token starts by the
+    /// same walk (2, 1 and 1 times) — a witness that they OCCUR, and no
+    /// evidence at all about their widths.
     #[test]
     fn the_unpinned_opcodes_refuse_rather_than_guess_a_width() {
-        for b in [0x00, 0x1B, 0x1C, 0x3B, 0x3C, 0x3D, 0x64, 0x66] {
+        for b in [0x00, 0x07, 0x08, 0x14, 0x1B, 0x1C, 0x3B, 0x3C, 0x3D, 0x59, 0x64, 0x66] {
             assert_eq!(chain_skip_form(b), None, "0x{b:02X} must have no pinned form");
         }
         // …and the two that moved are `Bare`, not merely "not None": a width
@@ -2017,9 +2111,10 @@ mod tests {
         assert_eq!(chain_skip_form(0x80), None, "0x80 opens nothing — the desync is visible");
     }
 
-    /// **C3, the null step.** `0xBD` is the only entry this lane added: every
-    /// other byte's form is asserted against the table as it stood, so a
-    /// widening that leaked into a neighbour has to delete a line here.
+    /// **C3, the null step.** `0xBD` was `lane w-bd`'s only entry and `0x4C` is
+    /// `lane w-4c`'s: every other byte's form is asserted against the table as
+    /// it stood, so a widening that leaked into a neighbour has to delete a line
+    /// here.
     #[test]
     fn pinning_the_call_moved_no_other_opcode() {
         for b in 0u8..=255 {
@@ -2028,7 +2123,7 @@ mod tests {
                 continue;
             }
             let expect = match b {
-                0x02..=0x06 | 0x09..=0x0D | 0x1A | 0x1F..=0x24 | 0x44 | 0x4B | 0x53 => {
+                0x02..=0x06 | 0x09..=0x0D | 0x1A | 0x1F..=0x24 | 0x44 | 0x4B | 0x4C | 0x53 => {
                     Some(SkipForm::Bare)
                 }
                 0x0F | 0x27 | 0x30 | 0x32 | 0x35 | 0x40 | 0x41 | 0x55 => Some(SkipForm::Type),
@@ -2045,6 +2140,96 @@ mod tests {
             };
             assert_eq!(chain_skip_form(b), expect, "0x{b:02X} moved");
         }
+    }
+
+    /// **The CALL-END, on the ARGUMENT-BEARING population** — the token streams
+    /// are transcribed from `work/w-4c/probe/ce_args.cpp`'s fresh capture at
+    /// this master, not from the table that reads them.
+    ///
+    /// Board **#1318** had `4C` payload-free at 26,701 of 26,701 sites and
+    /// declined to ship it, because every one of those is a **zero-argument**
+    /// call. The rows below are calls with one, two and three arguments — the
+    /// 2.46 M of 3.5 M `BD` tokens that grid contained none of — and the
+    /// argument region's LENGTH is the only thing that moves across them.
+    #[test]
+    fn the_call_end_closes_an_argument_region_and_carries_nothing() {
+        const INT: [u8; 3] = [0x86, 0x41, 0x74];
+        // The whole `26 <g> BD <TYPE> 00 <id>  (B9 <x> INT · 55 INT)*  4C  41`
+        // shape, one argument. Stepping the `4C` must land on the `41` result
+        // annotation with no byte in between.
+        let one = [
+            0xBD, INT[0], INT[1], INT[2], 0x00, 0x80, 0x03, 0x10, 0x00, 0x00, // the CALL token
+            0xB9, 0xEF, 0x09, INT[0], INT[1], INT[2], // the argument
+            0x55, INT[0], INT[1], INT[2], // its `55 <TYPE>` terminator
+            0x4C, 0x41, // the CALL-END, then the result annotation
+        ];
+        assert_eq!(skip_one(&one, 0xBD), Some(Ok(10)), "the CALL token is 10 bytes");
+        assert_eq!(one[20], 0x4C);
+        assert_eq!(skip_one(&one[20..], 0x4C), Some(Ok(1)), "the CALL-END is ONE byte");
+        assert_eq!(one[21], 0x41, "and the very next byte is the next opcode");
+        assert!(chain_skip_form(one[21]).is_some(), "which this table can step");
+
+        // TWO arguments, from the same capture: the token is byte-identical
+        // except for the fn-type id, and the region is twice as long. A width
+        // that depended on the argument count would have to differ here.
+        let two = [
+            0xBD, INT[0], INT[1], INT[2], 0x00, 0x80, 0x05, 0x10, 0x00, 0x00, //
+            0xB9, 0xF3, 0x09, INT[0], INT[1], INT[2], 0x55, INT[0], INT[1], INT[2], //
+            0xB9, 0xF2, 0x09, INT[0], INT[1], INT[2], 0x55, INT[0], INT[1], INT[2], //
+            0x4C, 0x41,
+        ];
+        assert_eq!(two[30], 0x4C);
+        assert_eq!(skip_one(&two[30..], 0x4C), Some(Ok(1)));
+        assert_eq!(two[31], 0x41);
+
+        // A NESTED call's `4C`, which the workload walk excludes by
+        // construction and this capture witnesses: the inner call's CALL-END is
+        // followed immediately by the OUTER call's own `55 <TYPE>` argument
+        // terminator (`int cnest(int x){ return g1(g1(x)); }`).
+        let nested = [0x4C, 0x55, INT[0], INT[1], INT[2], 0x4C];
+        assert_eq!(skip_one(&nested, 0x4C), Some(Ok(1)));
+        assert_eq!(skip_one(&nested[1..], 0x55), Some(Ok(4)), "then the outer `55 <TYPE>`");
+
+        // The zero-argument spelling still reads the same way — board #1318's
+        // population is not contradicted, it is subsumed.
+        let zero = [0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x09, 0x10, 0x00, 0x00, 0x4C, 0x41];
+        assert_eq!(skip_one(&zero, 0xBD), Some(Ok(10)));
+        assert_eq!(skip_one(&zero[10..], 0x4C), Some(Ok(1)));
+    }
+
+    /// **The rival readings, and the control that decides the residue.**
+    ///
+    /// `work/w-4c/argwalk.py` refutes `4C <byte>` at 1,460,194 of 1,978,436
+    /// argument-bearing sites, `4C <TYPE>` at 214,003 (with no room for a TYPE
+    /// at all at 87.7 %), and `4C <token>` at 1,371,969. This pins the
+    /// MECHANISM for the one that matters, and it pins the residue's own
+    /// explanation, which is the part a landing count cannot give.
+    #[test]
+    fn a_call_end_payload_would_eat_the_next_opcode_and_0x59_is_not_one() {
+        const INT: [u8; 3] = [0x86, 0x41, 0x74];
+        // `… 55 INT 4C 41 INT …` — one raw byte of payload swallows the `41`
+        // and stops on `0x86`, a TYPE tag, which opens no operand token.
+        let s = [0x4C, 0x41, INT[0], INT[1], INT[2]];
+        assert_eq!(chain_skip_form(s[1]), Some(SkipForm::Type), "the real successor");
+        assert_eq!(s[2], 0x86);
+        assert_eq!(chain_skip_form(0x86), None, "a B1 reading lands on a TYPE tag");
+
+        // THE RESIDUE. All 457 P desyncs on the workload land on `0x59` or
+        // `0x08`, and the question that decides them never mentions `4C`: do
+        // those bytes occur at token starts with some OTHER token in front?
+        // `work/w-4c/unwit.py` says yes, 6,031 and 3,819 times, and never after
+        // a `4C`. Transcribed here is one such site — a float subtract, then
+        // `59`, with a `03` and not a `4C` before it.
+        let float = [0x86, 0x45, 0x40];
+        let notafter4c = [
+            0xB9, 0xAF, 0x49, float[0], float[1], float[2], // load a float
+            0x03, // subtract
+            0x59, // …and the byte in question, with no `4C` anywhere
+        ];
+        assert_eq!(chain_skip_form(notafter4c[6]), Some(SkipForm::Bare));
+        assert_eq!(skip_one(&notafter4c, 0xB9), Some(Ok(6)), "the load is 6 bytes");
+        assert_ne!(notafter4c[6], 0x4C, "the predecessor is an operator, not a CALL-END");
+        assert_eq!(chain_skip_form(0x59), None, "and `59` stays unpinned — it is not evidence about `4C`");
     }
 
     /// Run one [`chain_sink_step`] with `op` sunk, without touching the process

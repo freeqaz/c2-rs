@@ -1,0 +1,55 @@
+==============================================================================
+w-4c — are 0x59 and 0x08 OPCODES, or is 0x4C carrying a payload?
+==============================================================================
+TUs                                        876
+
+The walk BREAKS at `4C`, so every position below was reached by
+stepping some OTHER token's width. A non-`4C` predecessor is an
+occurrence no reading of `4C` can account for.
+
+  op        reached   after a 4C   NOT after a 4C
+  0x59         6031            0             6031
+  0x08         3819            0             3819
+  0x07            2            0                2
+  0x14            1            0                1
+  0x25            1            0                1
+
+-- the token immediately BEFORE, per target --
+  0x59: 0x03x4359, 0x02x1629, 0x04x33, 0x05x9, 0x9Bx1
+  0x08: 0xB9x2343, 0x30x1470, 0x2Cx5, 0x9Bx1
+  0x07: 0x9Bx2
+  0x14: 0x9Bx1
+  0x25: 0x9Bx1
+
+-- how many of these sit inside a call whose return TYPE is `86 45 40` (float) --
+  0x59   2265 / 6031
+  0x08   15 / 3819
+  0x07   0 / 2
+  0x14   0 / 1
+  0x25   0 / 1
+
+-- context, ten per target --
+  0x59  src/App.cpp @ 117135: b1 49 86 45 40 b9 af 49 86 45 40 03 59 b9 b5 49 86 45 40 05
+  0x59  src/App.cpp @ 146365: 0c 27 86 43 c3 31 30 a6 45 c2 31 02 59 33 a6 4a c2 31 00 00
+  0x59  src/App.cpp @ 201037: 27 86 43 c3 31 30 a6 45 c2 31 04 03 59 03 59 08 03 59 08 2c
+  0x59  src/App.cpp @ 307772: 40 00 00 00 00 00 00 e0 3f 04 00 03 59 33 86 4a 40 00 00 00
+  0x59  src/App.cpp @ 308430: 40 00 00 00 00 00 00 e0 3f 04 00 03 59 33 86 4a 40 00 00 00
+  0x59  src/App.cpp @ 311143: 86 45 40 b9 9f cf 01 00 86 45 40 03 59 b9 94 cf 01 00 86 45
+  0x59  src/App.cpp @ 315702: 40 00 00 00 00 00 00 f0 3f 04 00 02 59 33 86 4a 40 00 00 00
+  0x59  src/App.cpp @ 316125: 40 00 00 00 00 00 00 f0 3f 04 00 02 59 33 86 4a 40 00 00 00
+  0x59  src/App.cpp @ 317696: 40 00 00 00 00 00 00 f0 3f 04 00 03 59 33 86 4a 40 00 00 00
+  0x59  src/App.cpp @ 318913: 40 00 00 00 00 00 00 f0 3f 04 00 03 59 33 86 4a 40 00 00 00
+  0x08  src/App.cpp @ 161198: 74 08 27 86 43 c3 31 30 a6 45 c2 31 08 2c 86 45 40 00 55 86
+  0x08  src/App.cpp @ 180935: 45 40 55 86 45 40 b9 c0 68 86 45 40 08 55 86 45 40 33 86 4a
+  0x08  src/App.cpp @ 181276: 04 00 55 86 45 40 b9 c4 68 86 45 40 08 55 86 45 40 33 86 4a
+  0x08  src/App.cpp @ 181525: 45 40 55 86 45 40 b9 c8 68 86 45 40 08 55 86 45 40 33 86 4a
+  0x08  src/App.cpp @ 208388: 74 08 27 86 43 c3 31 30 a6 45 c2 31 08 2c 86 45 40 00 55 86
+  0x08  src/App.cpp @ 778151: 86 43 a0 3a b9 ae dd 03 00 86 45 40 08 55 86 45 40 b9 aa dd
+  0x08  src/lazer/game/BustAMovePanel.cpp @ 110911: 74 08 27 86 43 94 31 30 a6 45 f3 30 08 2c 86 45 40 00 55 86
+  0x08  src/lazer/game/BustAMovePanel.cpp @ 117301: 45 40 55 86 45 40 b9 58 44 86 45 40 08 55 86 45 40 33 86 4a
+  0x08  src/lazer/game/BustAMovePanel.cpp @ 117642: 04 00 55 86 45 40 b9 5c 44 86 45 40 08 55 86 45 40 33 86 4a
+  0x08  src/lazer/game/BustAMovePanel.cpp @ 117891: 45 40 55 86 45 40 b9 60 44 86 45 40 08 55 86 45 40 33 86 4a
+  0x07  src/lazer/meta_ham/MetagameStats.cpp @ 1556243: 00 9b 86 06 80 b8 00 00 00 9b 8e 02 07 9a 05 00 2c a6 43 95
+  0x07  src/lazer/meta_ham/PlaylistSortMgr.cpp @ 1735363: 00 9b 86 06 80 bc 00 00 00 a1 86 02 07 c7 05 00 2c a6 43 87
+  0x14  src/lazer/meta_ham/KinectSharePanel.cpp @ 1587780: 00 9b 86 06 80 bc 00 00 00 92 80 02 14 a6 05 00 2c a6 43 aa
+  0x25  src/lazer/meta_ham/AccomplishmentDiscSongConditional.cpp @ 1402842: 00 9b 86 06 80 b8 00 00 00 ce f9 01 25 e4 04 00 2c a6 43 c2
