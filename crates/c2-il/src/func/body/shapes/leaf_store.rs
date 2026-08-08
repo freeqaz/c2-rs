@@ -1514,6 +1514,79 @@ fn collect_store_run(
     {
         return None;
     }
+    // **THE INTERIOR ADDRESS'S DOMAIN IN THE DIRECT SPELLING — board #1283.**
+    //
+    // The paragraph above this one used to close the whole safety argument for
+    // admitting an `AddrOf` value: *"`c2_core` sees a four-op group and
+    // declines"*. **That is no longer true.** `w-midrun` taught
+    // `codegen::leaf::store::parse_simple_gpr_run` to read exactly that group and
+    // `scheduled_gpr_run` to emit one `addi rD,rBase,off` for it — inside a
+    // domain narrower than this reader's, which is a census/gate DISAGREEMENT and
+    // was measured as one on **42 of 94** cells of GRID M (board **#1275**), the
+    // standing test green throughout because no fixture spells `h->m.f = &h->m`.
+    //
+    // So the two clauses below are drawn strictly inside
+    // [`scheduled_gpr_run`]'s own, restated syntactically because this crate
+    // cannot see `c2_core`'s models. They are the *direct-spelling* twins of two
+    // clauses `bind_run_ops` already applies to the bind spelling
+    // ([`super::super::STORE_RUN_BIND_ADDR_PRODUCER`]), and they are keyed on
+    // `(value base token, displacement)` — the identity `Prod::Addr` uses, so
+    // `&r` and `&h->mBlk` are one address and a run c2 emits is not refused for
+    // spelling it twice.
+    //
+    // **The MIXED-KIND clause is deliberately NOT here**, and that is the whole
+    // of board #1283's residue. An address beside a literal is
+    // `codegen::alloc`'s mixed-kind run (#836 wrong-on-0 over 81 cells, #868's
+    // narrow lift refuted 12/36, #1134's clause 1 refuted on that very mix), and
+    // a reader refusal in front of it would make the allocation rule that family
+    // needs **unreachable from any spelling** — board **#1291**'s shape, a
+    // published cause that can never fire. `x_dl` / `x_dc` stay in class and stay
+    // refused by the emitter; whoever lands the mixed-kind rule closes them by
+    // ACCEPTING them, and the count is published by `census_gate.rs` in the
+    // meantime rather than hidden.
+    if stmts.iter().any(|s| s.value_is_addr) {
+        let mut addrs: Vec<(u32, i32)> = Vec::new();
+        for s in &stmts {
+            if !s.value_is_addr {
+                continue;
+            }
+            let (Some(IlOp::Load(vbase)), Some(IlOp::AddrOf { off })) =
+                (s.ops.get(1), s.ops.get(2))
+            else {
+                // The consistency check above already proved position 2 is an
+                // `AddrOf` for exactly the `value_is_addr` statements; a stream
+                // that reaches here anyway is a misparse and is refused.
+                return None;
+            };
+            let key = (*vbase, *off);
+            if !addrs.contains(&key) {
+                addrs.push(key);
+            }
+        }
+        // 1. **TWO OR MORE DISTINCT ADDRESSES.** Single-kind, so
+        //    `alloc::allocate` *answers* them — and answering is not being
+        //    measured. GRID M's `twop` class (`t_dl`, `t_dc`) grades two such
+        //    cells and records c2's answer beside the emitter's refusal; the
+        //    emitter refuses them under `kinds.len() != 1` and this is the
+        //    reader saying the same thing.
+        if addrs.len() > 1 {
+            return None;
+        }
+        // 2. **DISPLACEMENT 0 materialises nothing.** The value IS the base
+        //    register, so there is no producer to schedule or allocate — a
+        //    different shape with no grid behind it. `scheduled_gpr_run`'s
+        //    clause 2, and `bind_run_ops`' `addrs[0].1 == 0`.
+        //
+        //    …and **3, `addi`'s own field**: past 16 bits c2 emits `addis`+`addi`,
+        //    two words where a producer is one slot to the schedule.
+        //    `scheduled_gpr_run`'s clause 3.
+        if addrs
+            .iter()
+            .any(|&(_, off)| off == 0 || i16::try_from(off).is_err())
+        {
+            return None;
+        }
+    }
     // **A run may not MIX loaded values with formal/literal ones.** A run whose
     // values are *all* indirect loads is emitted in source order at every length
     // and every width probed (below); a run whose values are all formals is the

@@ -1,0 +1,23 @@
+   Compiling c2-il v0.1.0 (<abs>
+   Compiling c2-core v0.1.0 (<abs>
+   Compiling c2-reference v0.1.0 (<abs>
+   Compiling c2-harness v0.1.0 (<abs>
+    Finished `release` profile [optimized] target(s) in 6.46s
+     Running tests/census_gate.rs (target/release/deps/census_gate-24f17dcc28e8d1e1)
+
+running 1 test
+test the_census_and_the_port_agree_about_what_is_in_class ... census/gate [fixtures, fn_level_linking=false]: 286 captured, 0 in class, 0 DISCRIMINATING cells over 0 shape keys, 0 disagreements
+
+thread 'the_census_and_the_port_agree_about_what_is_in_class' (828889) panicked at crates/c2-harness/tests/census_gate.rs:366:5:
+NO DISCRIMINATING CELLS [fixtures, fn_level_linking=false]: 286 sources captured and 0 functions censused in class, but codegen::function_gate reached its own verdict on ZERO of them — so no cell in this run could have produced a disagreement, and a disagreement count taken over it says only that the run was vacuous. This is the instrument, not the port.
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    the_census_and_the_port_agree_about_what_is_in_class
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 7.28s
+
+error: test failed, to rerun pass `-p c2-harness --test census_gate`

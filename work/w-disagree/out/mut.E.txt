@@ -1,0 +1,24 @@
+   Compiling c2-il v0.1.0 (<abs>
+   Compiling c2-core v0.1.0 (<abs>
+   Compiling c2-reference v0.1.0 (<abs>
+   Compiling c2-harness v0.1.0 (<abs>
+    Finished `release` profile [optimized] target(s) in 6.07s
+     Running tests/census_gate.rs (target/release/deps/census_gate-24f17dcc28e8d1e1)
+
+running 1 test
+test the_census_and_the_port_agree_about_what_is_in_class ... census/gate [fixtures, fn_level_linking=false]: 286 captured, 1692 in class, 1692 DISCRIMINATING cells over 1 shape keys, 1 disagreements
+         1  not implemented: no free FP scratch register (would spill f31/f30)
+
+thread 'the_census_and_the_port_agree_about_what_is_in_class' (847172) panicked at crates/c2-harness/tests/census_gate.rs:387:5:
+DISCRIMINATING BREADTH COLLAPSED [fixtures, fn_level_linking=false]: the 1692 discriminating cells span only 1 distinct census shape keys, below the floor of 25. A population concentrated on a few shapes cannot contain a disagreement in any other, which is exactly how this test stayed green over board #1275's 42 live cells. Keys: ["MUTATION-E-one-key"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    the_census_and_the_port_agree_about_what_is_in_class
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 7.08s
+
+error: test failed, to rerun pass `-p c2-harness --test census_gate`

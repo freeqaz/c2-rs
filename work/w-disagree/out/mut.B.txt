@@ -1,0 +1,48 @@
+   Compiling c2-reference v0.1.0 (<abs>
+warning: unused variable: `src_arg`
+   --> crates/c2-reference/src/lib.rs:539:9
+    |
+539 |         src_arg: &str,
+    |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_src_arg`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `work_dir`
+   --> crates/c2-reference/src/lib.rs:540:9
+    |
+540 |         work_dir: &Path,
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_work_dir`
+
+warning: unused variable: `flags`
+   --> crates/c2-reference/src/lib.rs:541:9
+    |
+541 |         flags: &[String],
+    |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_flags`
+
+warning: unused variable: `cwd`
+   --> crates/c2-reference/src/lib.rs:542:9
+    |
+542 |         cwd: Option<&Path>,
+    |         ^^^ help: if this is intentional, prefix it with an underscore: `_cwd`
+
+   Compiling c2-harness v0.1.0 (<abs>
+warning: `c2-reference` (lib) generated 4 warnings (run `cargo fix --lib -p c2-reference` to apply 4 suggestions)
+    Finished `release` profile [optimized] target(s) in 4.73s
+     Running tests/census_gate.rs (target/release/deps/census_gate-24f17dcc28e8d1e1)
+
+running 1 test
+test the_census_and_the_port_agree_about_what_is_in_class ... census/gate [fixtures, fn_level_linking=false]: 0 captured, 0 in class, 0 DISCRIMINATING cells over 0 shape keys, 0 disagreements
+
+thread 'the_census_and_the_port_agree_about_what_is_in_class' (821444) panicked at crates/c2-harness/tests/census_gate.rs:360:5:
+POPULATION EMPTY [fixtures, fn_level_linking=false]: not one source in this population produced IL, so the agreement check graded nothing and would have passed by absence. This is the instrument, not the port.
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    the_census_and_the_port_agree_about_what_is_in_class
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p c2-harness --test census_gate`

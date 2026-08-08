@@ -1,0 +1,23 @@
+   Compiling c2-il v0.1.0 (<abs>
+   Compiling c2-core v0.1.0 (<abs>
+   Compiling c2-reference v0.1.0 (<abs>
+   Compiling c2-harness v0.1.0 (<abs>
+    Finished `release` profile [optimized] target(s) in 6.42s
+     Running tests/census_gate.rs (target/release/deps/census_gate-24f17dcc28e8d1e1)
+
+running 1 test
+test the_census_and_the_port_agree_about_what_is_in_class ... census/gate [fixtures, fn_level_linking=false]: 286 captured, 903 in class, 903 DISCRIMINATING cells over 35 shape keys, 0 disagreements
+
+thread 'the_census_and_the_port_agree_about_what_is_in_class' (839385) panicked at crates/c2-harness/tests/census_gate.rs:376:5:
+DISCRIMINATING CELLS COLLAPSED [fixtures, fn_level_linking=false]: 903 of 903 in-class functions reached codegen::function_gate, below the floor of 1200. The population this check runs over has shrunk, so its disagreement count is not comparable with the recorded one. Raise the floor deliberately, or find what stopped being generated, captured or accepted.
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    the_census_and_the_port_agree_about_what_is_in_class
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 7.00s
+
+error: test failed, to rerun pass `-p c2-harness --test census_gate`

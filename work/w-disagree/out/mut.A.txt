@@ -1,0 +1,75 @@
+   Compiling c2-il v0.1.0 (<abs>
+   Compiling c2-core v0.1.0 (<abs>
+   Compiling c2-reference v0.1.0 (<abs>
+   Compiling c2-harness v0.1.0 (<abs>
+    Finished `release` profile [optimized] target(s) in 7.22s
+     Running tests/census_gate.rs (target/release/deps/census_gate-24f17dcc28e8d1e1)
+
+running 2 tests
+test the_census_and_the_port_agree_about_what_is_in_class ... census/gate [fixtures, fn_level_linking=false]: 286 captured, 1692 in class, 1692 DISCRIMINATING cells over 35 shape keys, 1559 disagreements
+      1559  not implemented: MUTATION A: a function with a formal
+
+thread 'the_census_and_the_port_agree_about_what_is_in_class' (869640) panicked at crates/c2-harness/tests/census_gate.rs:463:9:
+assertion `left == right` failed: census/gate disagreement changed with fn_level_linking=false (1692 functions in class across the fixture corpus, 1692 of them discriminating). Every entry is a function the census counts and PortC2 refuses, i.e. an error term on the published coverage numerator — move the gate into the IL parser (see docs/GAPS.md §6). Found:
+add3.cpp :: ?add3@@YAHHHH@Z :: not implemented: MUTATION A: a function with a formal
+add3.cpp :: ?mul_add@@YAHHHH@Z :: not implemented: MUTATION A: a function with a formal
+il_accum4.cpp :: ?add4@@YAHHHHH@Z :: not implemented: MUTATION A: a function with a formal
+il_accum4.cpp :: ?add_add_sub@@YAHHHHH@Z :: not implemented: MUTATION A: a function with a formal
+il_accum4.cpp :: ?add_sub3@@YAHHHH@Z :: not implemented: MUTATION A: a function with a formal
+il_accum4.cpp :: ?add_sub_sub@@YAHHHHH@Z :: not implemented: MUTATION A: a function with a formal
+il_accum4.cpp :: ?mul4@@YAHHHHH@Z :: not implemented: MUTATION A: a function with a formal
+il_accum4.cpp :: ?sub3@@YAHHHH@Z :: not implemented: MUTATION A: a function with a formal
+il_accum4.cpp :: ?sub4@@YAHHHHH@Z :: not implemented: MUTATION A: a function with a formal
+il_accum4.cpp :: ?sub_lit_tail@@YAHHHH@Z :: not implemented: MUTATION A: a function with a formal
+il_accum4.cpp :: ?sub_sub_add@@YAHHHHH@Z :: not implemented: MUTATION A: a function with a formal
+il_base_member.cpp :: ?base_only@@YAHPAUD@@@Z :: not implemented: MUTATION A: a function with a formal
+il_base_member.cpp :: ?both_nonzero@@YAHPAUD@@@Z :: not implemented: MUTATION A: a function with a formal
+il_base_member.cpp :: ?deep_base@@YAHPAUE@@@Z :: not implemented: MUTATION A: a function with a formal
+il_base_member.cpp :: ?deep_mid@@YAHPAUE@@@Z :: not implemented: MUTATION A: a function with a formal
+il_base_member.cpp :: ?deep_own@@YAHPAUE@@@Z :: not implemented: MUTATION A: a function with a formal
+il_base_member.cpp :: ?member_only@@YAHPAUD@@@Z :: not implemented: MUTATION A: a function with a formal
+il_base_member.cpp :: ?own_member@@YAHPAUD@@@Z :: not implemented: MUTATION A: a function with a formal
+il_bool_materialization.cpp :: ?equality_nonzero@@YAII@Z :: not implemented: MUTATION A: a function with a formal
+il_bool_materialization.cpp :: ?inequality_nonzero@@YAII@Z :: not implemented: MUTATION A: a function with a formal
+il_bool_materialization.cpp :: ?signed_ordered@@YAIH@Z :: not implemented: MUTATION A: a function with a formal
+il_bool_materialization.cpp :: ?signed_positive@@YAIH@Z :: not implemented: MUTATION A: a function with a formal
+il_bool_materialization.cpp :: ?unsigned_ordered@@YAII@Z :: not implemented: MUTATION A: a function with a formal
+il_bool_materialization.cpp :: ?zero_test@@YAII@Z :: not implemented: MUTATION A: a function with a formal
+il_call_args1.cpp :: #1 :: not implemented: MUTATION A: a function with a formal
+il_call_args1.cpp :: #2 :: not implemented: MUTATION A: a function with a formal
+il_call_args1.cpp :: #3 :: not implemented: MUTATION A: a function with a formal
+
+...  [1523 lines elided: the `Found:` listing of MUTATION A's own refusals] ...
+
+thread 'the_census_and_the_port_agree_about_what_is_in_class' (869640) panicked at crates/c2-harness/tests/census_gate.rs:463:9:
+assertion `left == right` failed: census/gate disagreement changed with fn_level_linking=false (1692 functions in class across the fixture corpus, 1692 of them discriminating). Every entry is a function the census counts and PortC2 refuses, i.e. an error term on the published coverage numerator — move the gate into the IL parser (see docs/GAPS.md §6). Found:
+add3.cpp :: ?add3@@YAHHHH@Z :: not implemented: MUTATION A: a function with a formal
+thread 'the_census_and_the_port_agree_over_the_generated_corpus' (875136) panicked at crates/c2-harness/tests/census_gate.rs:670:9:
+A NEW census/gate refusal family appeared over the generated corpus (fn_level_linking=false):
+  not implemented: MUTATION A: a function with a formal
+
+wunw_two_leaves_framed.cpp :: #0 :: not implemented: MUTATION A: a function with a formal
+wunw_two_leaves_framed.cpp :: #1 :: not implemented: MUTATION A: a function with a formal
+wunw_two_leaves_framed.cpp :: #2 :: not implemented: MUTATION A: a function with a formal
+  left: 1559
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test the_census_and_the_port_agree_over_the_generated_corpus ... census/gate [generated, fn_level_linking=false]: 19467 captured, 14275 in class, 14275 DISCRIMINATING cells over 31 shape keys, 13403 disagreements
+     13403  not implemented: MUTATION A: a function with a formal
+
+thread 'the_census_and_the_port_agree_over_the_generated_corpus' (875136) panicked at crates/c2-harness/tests/census_gate.rs:670:9:
+A NEW census/gate refusal family appeared over the generated corpus (fn_level_linking=false):
+  not implemented: MUTATION A: a function with a formal
+The census counts these functions in class and PortC2 refuses them, so the published coverage numerator over-claims by that many. It is NOT a mis-emit — no bytes were produced — but acceptance belongs in the IL parser (docs/GAPS.md §6). Family counts this run: {"not implemented: MUTATION A: a function with a formal": 13403}
+FAILED
+
+failures:
+
+failures:
+    the_census_and_the_port_agree_about_what_is_in_class
+    the_census_and_the_port_agree_over_the_generated_corpus
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 51.43s
+
+error: test failed, to rerun pass `-p c2-harness --test census_gate`
