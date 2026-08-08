@@ -925,36 +925,91 @@ fn the_parser_refuses_what_a_scan_could_not_see() {
     }
 }
 
-/// **The widening control.** Every invocation `scripts/` actually makes must
-/// still be accepted — a parser that refuses everything would pass every test
-/// above and break the gate.
-///
-/// These are toolchain-gated only in the sense that they may print
-/// `SKIP: toolchain absent`; what is asserted is that they do **not** exit 2,
-/// i.e. the parse accepted them. Needs no toolchain.
-#[test]
-fn every_invocation_the_scripts_make_is_still_accepted() {
+// ---- THE WIDENING CONTROL, AND WHY IT IS FOUR TESTS AND NOT ONE ---------------
+//
+// **Every invocation `scripts/` actually makes must still be accepted** — a
+// parser that refuses everything would pass every test above and break the gate.
+// These are toolchain-gated only in the sense that they may print
+// `SKIP: toolchain absent`; what is asserted is that they do **not** exit 2,
+// i.e. the parse accepted them. Needs no toolchain.
+//
+// This was ONE `#[test]` until 2026-08-08 (`every_invocation_the_scripts_make_
+// is_still_accepted`) and it cost **116 s of the target's 119 s**, because three
+// of its eleven invocations are whole-corpus commands run to completion —
+// `selftest` 44 s, `bench` 43 s, `perf` 29 s — executed **serially inside one
+// test** in order to assert that their argv parses. `cargo test` runs the 36
+// test binaries serially, so that one test was ~1/3 of the whole `cargo test
+// --workspace --release` leg of every merge.
+//
+// **Nothing about what is checked has changed.** The command lines are the same
+// eleven, the assertion is the same `assert_ne!(code, Some(2))` with the same
+// message, and the three expensive commands still run to completion. The only
+// change is that they are in four `#[test]`s instead of one, so the default
+// parallel test harness overlaps them: the target's wall goes to ~max(44 s)
+// instead of sum(116 s).
+//
+// **The split is a PARTITION OF ONE ROSTER, not four hand-copied lists.** Four
+// literal lists would be four places for an invocation to be dropped in, and a
+// dropped invocation is a check that silently stops running — the failure mode
+// `docs/GAPS.md` §7 records for lanes and STATUS.md's trap 5 records twelve
+// times over. So there is one `scripts_invocation_roster()`, each row tagged
+// with the group that runs it; `the_split_is_a_partition_of_the_roster` pins the
+// roster's size and its group counts, and every group asserts it ran a non-zero
+// number of invocations rather than passing vacuously on an empty filter.
+
+/// Which of the four `#[test]`s below runs a given invocation. The three
+/// whole-corpus commands get one each because each is ~30-45 s; everything else
+/// is together because the eight of them together are seconds.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Accepted {
+    Selftest,
+    Bench,
+    Perf,
+    Rest,
+}
+
+/// **The roster** — every invocation `scripts/` makes, in the order it stood in
+/// when this was one test, each tagged with the group that runs it.
+fn scripts_invocation_roster<'a>(
+    cpp: &'a str,
+    ff: &'a str,
+    l: &'a str,
+) -> Vec<(Accepted, Vec<&'a str>)> {
+    use Accepted::*;
+    vec![
+        (Selftest, vec!["selftest"]),
+        (Rest, vec!["selftest", cpp]),
+        (Bench, vec!["bench"]),
+        (Perf, vec!["perf"]),
+        (Rest, vec!["diff", cpp]),
+        (Rest, vec!["census", cpp]),
+        (Rest, vec!["census", cpp, "--flags-file", ff, "--cwd", "."]),
+        (Rest, vec!["capture", cpp]),
+        (Rest, vec!["compile", cpp]),
+        (
+            Rest,
+            vec!["gap", "--list", l, "--flags-file", ff, "--limit", "1", "--jobs", "1"],
+        ),
+        (Rest, vec!["prefilter", "--schema"]),
+    ]
+}
+
+/// Run one group of the roster. The assertion is transcribed verbatim from the
+/// single test this replaces, and it names its own command line, so a failure in
+/// any group says which invocation the parser refused.
+fn accepted_group(group: Accepted, tag: &str) {
     let cpp = s(&fixture());
-    let w = work("accepted");
+    let w = work(tag);
     let ff = write_flags(&w, "flags.txt", &["/Ox", "/GS-", "/c"]);
     let list = w.join("list.txt");
     std::fs::write(&list, "fixtures/cpp/add3.cpp\n").unwrap();
     let l = s(&list);
-    let cases: Vec<Vec<&str>> = vec![
-        vec!["selftest"],
-        vec!["selftest", cpp.as_str()],
-        vec!["bench"],
-        vec!["perf"],
-        vec!["diff", cpp.as_str()],
-        vec!["census", cpp.as_str()],
-        vec!["census", cpp.as_str(), "--flags-file", ff.as_str(), "--cwd", "."],
-        vec!["capture", cpp.as_str()],
-        vec!["compile", cpp.as_str()],
-        vec!["gap", "--list", l.as_str(), "--flags-file", ff.as_str(), "--limit", "1", "--jobs", "1"],
-        vec!["prefilter", "--schema"],
-    ];
-    for argv in &cases {
-        let out = run(argv);
+    let mut ran = 0usize;
+    for (g, argv) in scripts_invocation_roster(&cpp, &ff, &l) {
+        if g != group {
+            continue;
+        }
+        let out = run(&argv);
         assert_ne!(
             out.status.code(),
             Some(2),
@@ -964,6 +1019,70 @@ fn every_invocation_the_scripts_make_is_still_accepted() {
             argv.join(" "),
             String::from_utf8_lossy(&out.stderr),
         );
+        ran += 1;
     }
+    // A group whose filter matches nothing would pass having checked nothing —
+    // the split's own version of the absence-reads-as-success defect, and the
+    // one thing splitting a test can newly break.
+    assert!(
+        ran > 0,
+        "group {group:?} ran ZERO invocations. The roster no longer tags any row \
+         with it, so this test passed without executing a single command line."
+    );
     let _ = std::fs::remove_dir_all(&w);
+}
+
+/// `c2rs selftest` — the oracle self-test over every fixture, ~44 s.
+#[test]
+fn every_invocation_the_scripts_make_is_still_accepted_selftest() {
+    accepted_group(Accepted::Selftest, "accepted-selftest");
+}
+
+/// `c2rs bench` — the fixture gate, ~43 s.
+#[test]
+fn every_invocation_the_scripts_make_is_still_accepted_bench() {
+    accepted_group(Accepted::Bench, "accepted-bench");
+}
+
+/// `c2rs perf` — the fixture gate plus the per-obj timing, ~29 s.
+#[test]
+fn every_invocation_the_scripts_make_is_still_accepted_perf() {
+    accepted_group(Accepted::Perf, "accepted-perf");
+}
+
+/// The other eight invocations, which are seconds between them.
+#[test]
+fn every_invocation_the_scripts_make_is_still_accepted_rest() {
+    accepted_group(Accepted::Rest, "accepted-rest");
+}
+
+/// **The split's own control.** The four tests above partition
+/// [`scripts_invocation_roster`]; this pins the roster's size and each group's
+/// share, so an invocation cannot be deleted, and a row cannot be re-tagged into
+/// a group, without something going red. Needs no toolchain and spawns nothing.
+#[test]
+fn the_split_is_a_partition_of_the_roster() {
+    let roster = scripts_invocation_roster("CPP", "FF", "L");
+    assert_eq!(
+        roster.len(),
+        11,
+        "the roster held 11 invocations when it was one test; it holds {}. \
+         An invocation removed from here stops being checked at all, and nothing \
+         else in this file would notice.",
+        roster.len()
+    );
+    for (group, want) in [
+        (Accepted::Selftest, 1),
+        (Accepted::Bench, 1),
+        (Accepted::Perf, 1),
+        (Accepted::Rest, 8),
+    ] {
+        let got = roster.iter().filter(|(g, _)| *g == group).count();
+        assert_eq!(
+            got, want,
+            "group {group:?} covers {got} invocations, expected {want}. \
+             The four #[test]s are a partition of this roster; a re-tagged or \
+             dropped row changes what runs without changing any test's name."
+        );
+    }
 }
