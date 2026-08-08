@@ -1,20 +1,20 @@
 lane gate: preflight on /tmp
-  keep    /tmp/c2rs-gate-72908         this run
-  keep    /tmp/c2rs-gate-3181099       recent — 1 of 3 finished runs kept for their logs
-  keep    /tmp/c2rs-gate-1603135       recent — 2 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-965226        this run
+  keep    /tmp/c2rs-gate-725542        recent — 1 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-72908         recent — 2 of 3 finished runs kept for their logs
           stripped 19556 regenerable cases; logs, reports and parts/ kept
-  keep    /tmp/c2rs-gate-332910        recent — 3 of 3 finished runs kept for their logs
-  reaped  /tmp/c2rs-gate-3407419       stale — no live gate owns it
+  keep    /tmp/c2rs-gate-3181099       recent — 3 of 3 finished runs kept for their logs
+  reaped  /tmp/c2rs-gate-1603135       stale — no live gate owns it
 reap:   1 stale run tree(s) removed, 4 kept (0 live, 3 recent, 1 this run)
 strip:  1 kept tree(s) lost 19556 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
-        freed 162.8 MiB and 19,827 inodes (df delta over a SHARED filesystem)
-disk:   /tmp — free 21.2 GiB / 730,073 inodes (floors: 2.0 GiB / 150,000 inodes)
+        freed 162.0 MiB and 19,827 inodes (df delta over a SHARED filesystem)
+disk:   /tmp — free 21.1 GiB / 729,960 inodes (floors: 2.0 GiB / 150,000 inodes)
 
 lane gate: 18 lanes from <repo>/scripts/lanes.txt
-  run dir: /tmp/c2rs-gate-72908   (per-lane run dirs under /tmp/c2rs-gate-72908/lanes/)
+  run dir: /tmp/c2rs-gate-965226   (per-lane run dirs under /tmp/c2rs-gate-965226/lanes/)
 
 hatch-red:       work/w-hatch/hatch_red.py  (no toolchain; fires hatch.py's refusals)
-  REFUSED  HATCH-STALE `hatch.py apply` cannot hatch this tree, so the arms have no tree to run on (board #1389)
+  PASS  
 ladder-red:      work/w-ladders/ladder_red.py  (no toolchain; fires ladder.py's width-table refusal)
   PASS  
 building the harness (no-op if current)
@@ -22,27 +22,27 @@ building the harness (no-op if current)
    Compiling c2-core v0.1.0 (<repo>/crates/c2-core)
    Compiling c2-reference v0.1.0 (<repo>/crates/c2-reference)
    Compiling c2-harness v0.1.0 (<repo>/crates/c2-harness)
-    Finished `release` profile [optimized] target(s) in 6.26s
-harness: /tmp/c2rs-gate-72908/c2rs
-  pinned from <repo>/target/release/c2rs  built 2026-08-08 21:45:32
-  sha 1a57de6c2d02  tree 11158f8f
+    Finished `release` profile [optimized] target(s) in 5.85s
+harness: /tmp/c2rs-gate-965226/c2rs
+  pinned from <repo>/target/release/c2rs  built 2026-08-08 21:58:01
+  sha 1a57de6c2d02  tree d0d6061c-dirty
 
-wall clock: 17s for 18 lanes at --jobs 16 (C2RS_JOBS=8)
+wall clock: 2s for 18 lanes at --jobs 16 (C2RS_JOBS=8)
 
-generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-72908/sweep 0  (jobs 16)
+generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-965226/sweep 0  (jobs 16)
     62 fragments, 19556 cases total (19556 .cpp on disk)
   sweeping 19556 of 19556 generated cases
     grading at 16 job(s)
   checked=19556 mismatches=0 graded=19460 ungraded=96 unknown=0
-  (87s)
+  (86s)
 
-mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-72908/cross 0  (jobs 16)
+mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-965226/cross 0  (jobs 16)
   assigned 19556 cases over 18 lanes = 90812 cells (full cross would be 352008)
   sweeping 90812 of 90812 case-lane cells (cross of 0 cases x <repo>/scripts/lanes.txt; the full 12x product is 352008)
   checked=90812 mismatches=0 graded=90424 ungraded=388 unknown=0
-  (365s)
+  (30s)
 
-disk:   /tmp low-water this run — 21.0 GiB and 710,187 inodes free (start: 21.2 GiB / 730,073)
+disk:   /tmp low-water this run — 20.9 GiB and 710,076 inodes free (start: 21.1 GiB / 729,960)
 
 LANE                 VERDICT     graded/total  match  mismatch  flags
 -------------------- ---------- ------------- ------ --------- --------------------
@@ -66,7 +66,7 @@ Od-GR                PASS          305/305        18         0  /Od /GR
 Od-EHsc-GR           PASS          305/305        18         0  /Od /EHsc /GR
 expr-sweep           PASS        19556/19556   19460         0  generated cases (of 19556)
 mode-cross           PASS        90812/90812   90424         0  case-lane cells (of 90812)
-hatch-red            REFUSED         0/14          0       n/a  arms (0 green controls)   <- HATCH-STALE `hatch.py apply` cannot hatch this tree, so the arms have no tree to run on (board #1389)
+hatch-red            PASS           14/14         11       n/a  arms (3 green controls)
 ladder-red           PASS            5/5           3       n/a  arms (2 green controls)
 
 lanes:  18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT
@@ -74,16 +74,9 @@ graded: 5490 fixture-verdicts across all lanes
 sweep:  PASS — 19556 of 19556 selected cases reached, 19460 GRADED by the
         oracle (96 ungraded: no reference obj), 0 mismatch (corpus 19556)
 cross:  PASS — 90424 of 90812 selected cells graded, 0 mismatch (product 90812)
-logs:   /tmp/c2rs-gate-72908/<lane>.log, /tmp/c2rs-gate-72908/sweep.log, /tmp/c2rs-gate-72908/cross.log
+logs:   /tmp/c2rs-gate-965226/<lane>.log, /tmp/c2rs-gate-965226/sweep.log, /tmp/c2rs-gate-965226/cross.log
 
-GATE: PASS (HATCH-RED REFUSED) — 18/18 lanes ran and every one of them graded a corpus,
+GATE: PASS — 18/18 lanes ran and every one of them graded a corpus,
   the sweep graded 19460 of 19556 generated cases and the cross graded
   90424 of 90812 case-lane cells, with 0 mismatches anywhere
   (96 sweep cases carried ungraded — the reference rejects the source).
-
-  HATCH-RED REFUSED — HATCH-STALE `hatch.py apply` cannot hatch this tree, so the arms have no tree to run on (board #1389)
-  The arms write into crates/ and restore it, so they will not run over a tree
-  that is not HEAD, and they cannot run at all on a tree the hatch will not
-  apply to. Neither is a statement about `hatch.py`'s eight refusals, so this
-  run does NOT establish what a full run establishes (board #1406). This is why
-  the headline above is qualified: commit or stash crates/ and re-run.
