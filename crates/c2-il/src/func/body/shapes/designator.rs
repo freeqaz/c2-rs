@@ -454,6 +454,73 @@ mod tests {
         assert_eq!(seg[p_load], 0x30);
     }
 
+    /// **Board #1334 — the two predicates that guard the SAME byte `27`
+    /// disagree on 16 of the 20 type pairs either of them admits, in BOTH
+    /// directions, and nothing in the tree said so.**
+    ///
+    /// `27` is the typed byte-offset add. Five live productions read it and they
+    /// do not agree on what TYPE may follow:
+    ///
+    /// | site | predicate |
+    /// |---|---|
+    /// | [`is_ptr_any`] — this file, `eat_offset_adds` | 16 tags x kind `43` |
+    /// | `shapes::calls`'s data-address walk | [`is_ptr4_kind`] via `eat_operand_type` |
+    /// | `shapes::ctor_dtor`'s `this`-adjust | [`is_ptr4_kind`] via `eat_value_type` |
+    /// | `shapes::control_flow`'s `cf-offadd-type` | any well-formed TYPE |
+    /// | `body::expr`'s sink arm (off by default) | any well-formed TYPE |
+    ///
+    /// **This is not a tidiness complaint — the divergence is WITNESSED by this
+    /// file's own captured IL.** The sibling test above walks
+    /// `27 82 43` (a `char *` retype) and
+    /// `27 86 43` (an `int *` one) in a single run; [`is_ptr_any`] takes both
+    /// and [`is_ptr4_kind`] takes only the second. So a `char *` member offset
+    /// is admitted here and refused two productions over, on the same byte of
+    /// the same construct.
+    ///
+    /// **Why a test and not a paragraph** (board #1299's rule): a lane that
+    /// widens either predicate to close the gap will silently widen a *shared*
+    /// one, and the failure mode this project keeps paying for is a sibling
+    /// recognizer whose private limit is invisible to every gate — it emits
+    /// nothing, so no byte compare catches it, and it agrees with the census by
+    /// construction. This test cannot detect *which* answer is right; it fails
+    /// the moment either predicate moves, which is the point.
+    ///
+    /// **It is NOT a claim that closing the gap converts anything.** Board
+    /// **#1333** measured the whole `27` token end-to-end at **+8 emitted
+    /// functions of 178,977 and +0 TU** over the 878-TU workload, and the sink
+    /// that produced that number admits *any* well-formed TYPE — so every route
+    /// through this divergence that surfaces as `expr-op-0x27` is bounded by
+    /// that 8. What is NOT bounded by it is the route that falls through to some
+    /// *other* key, and that is the open half of the row.
+    #[test]
+    fn the_two_pointer_predicates_guarding_byte_27_disagree_in_both_directions() {
+        // Every (tag, kind) either predicate can see at this position. The tag
+        // set is `is_ptr_any`'s own; the kinds are the two `is_ptr4_kind` names.
+        const TAGS: [u8; 16] = [
+            0x82, 0x84, 0x86, 0x88, 0x92, 0x94, 0x96, 0x98, //
+            0xA2, 0xA4, 0xA6, 0xA8, 0xB2, 0xB4, 0xB6, 0xB8,
+        ];
+        let (mut both, mut any_only, mut ptr4_only) = (0usize, 0usize, 0usize);
+        for tag in TAGS {
+            for kind in [0x43u8, 0x44] {
+                match (is_ptr_any(tag, kind), is_ptr4_kind(tag, kind)) {
+                    (true, true) => both += 1,
+                    (true, false) => any_only += 1,
+                    (false, true) => ptr4_only += 1,
+                    (false, false) => {}
+                }
+            }
+        }
+        // 4 agreed, 12 admitted only here, 4 admitted only over there.
+        assert_eq!((both, any_only, ptr4_only), (4, 12, 4));
+        // The two named witnesses, spelled out so the failure message names a
+        // construct rather than a count. `82 43` is the `char *` of the sibling
+        // test above; `86 44` is the code-pointer kind this file's doc comment
+        // refuses by name and `is_ptr4_kind` takes.
+        assert!(is_ptr_any(0x82, 0x43) && !is_ptr4_kind(0x82, 0x43), "char *");
+        assert!(!is_ptr_any(0x86, 0x44) && is_ptr4_kind(0x86, 0x44), "code ptr");
+    }
+
     /// **Board #908.** The list is not recoverable from the sum, and this is the
     /// board row's own example rather than a new one: `[96]` against `[96, 4]`.
     ///
