@@ -835,11 +835,26 @@ pub struct SeqCall {
     pub callee: String,
     /// The argument operand stream, computed into r3 — empty for a nullary call,
     /// `[Load(t)]` for a passthrough, `[Load, Lit, Add]` for `g(a + 1)`, `[Lit]`
-    /// for `g(7)`. Mutually exclusive with [`Self::arg_sources`].
+    /// for `g(7)`. Mutually exclusive with [`Self::arg_slots`].
     pub arg_ops: Vec<IlOp>,
-    /// A 2+-argument call's register permutation over the formals, exactly as
-    /// [`IlFunction::arg_sources`] carries it for a multi-argument tail call.
-    pub arg_sources: Option<Vec<usize>>,
+    /// A 2+-argument call's argument slots, in slot order.
+    ///
+    /// **This was `Option<Vec<usize>>` — a bare permutation over the formals —
+    /// until lane `w-memcpy`**, and the field was renamed rather than widened
+    /// in place so that every one of its thirty-odd sites had to be visited by
+    /// the compiler. A `Vec<usize>` and a `Vec<SlotArg>` of formals carry the
+    /// same information, so a same-named widening would have compiled at the
+    /// sites that map a slot to a register and been silently wrong at the ones
+    /// that count moves.
+    ///
+    /// A [`SlotArg::Lit`] here is `callseq-multiarg-lit`, fenced to the class
+    /// GRID-L measured (`work/w-memcpy/probeL`, 747 cells): a guarded early
+    /// return, Class A, one call, at most one literal slot and at most one move
+    /// left at the call site after the park. Everything wider is refused by
+    /// name in `body::shapes::calls` — R-DESC, the rule that holds there at
+    /// 416 of 416, is only 379 of 403 over the whole grid and its misses are
+    /// the two-call and callee-saved drivers.
+    pub arg_slots: Option<Vec<SlotArg>>,
     /// **WCL** — set when this call is a **chain link**: `p->a()->b(k)`'s outer
     /// call, whose receiver is the previous call's result and is therefore
     /// already in r3. Its explicit arguments start at argument slot **1** and
@@ -863,6 +878,36 @@ pub struct SeqCall {
 /// receiver occupies slot 0" from "the first explicit argument goes to r4", so a
 /// per-call slot *number* would be a degree of freedom nothing has graded.
 pub const LINK_FIRST_SLOT: usize = 1;
+
+/// The formal index each slot of `slots` is filled from, with a **literal slot
+/// reading as a fixed point** — the value is already where it belongs, because
+/// it is about to be materialized there by a `li`.
+///
+/// This is the view the argument permutation's own rules take: a cycle walk, a
+/// `park_in_class` check and `c2_core::codegen::calls::seq_entry_park` all want
+/// a permutation, and a literal slot participates in no cycle.
+///
+/// **It lives in this crate although only the backend walks the registers**,
+/// for the reason [`LINK_FIRST_SLOT`] does: the IL parser uses it to decide
+/// what is in class and the emitter uses it to lay out the moves, and those two
+/// agreeing is the whole reason the census cannot claim a body the gate
+/// declines. A second copy on the codegen side is `docs/GAPS.md` §6 #9 exactly
+/// — one rule, two implementations, and the corpus only ever exercising the
+/// correct one.
+///
+/// A [`SlotArg::SymAddr`] or [`SlotArg::ShiftMask`] also reads as a fixed
+/// point; neither reaches a call shape that walks a permutation, and both are
+/// refused by name where they could.
+pub fn slot_sources(slots: &[SlotArg]) -> Vec<usize> {
+    slots
+        .iter()
+        .enumerate()
+        .map(|(slot, a)| match a {
+            SlotArg::Formal(ix) => *ix,
+            _ => slot,
+        })
+        .collect()
+}
 
 /// One explicit argument of a chain link ([`SeqCall::link_args`]) — the resolved
 /// twin of `c2_il::func::body::SlotArg`.

@@ -280,13 +280,13 @@ pub(crate) fn try_parse_member_cmp_calls(
         SeqCall {
             callee_tok: c0.0,
             arg_ops: vec![IlOp::Load(c0.1)],
-            arg_sources: None,
+            arg_slots: None,
             link_args: None,
         },
         SeqCall {
             callee_tok: c1.0,
             arg_ops: vec![IlOp::Load(c1.1)],
-            arg_sources: None,
+            arg_slots: None,
             link_args: None,
         },
     ];

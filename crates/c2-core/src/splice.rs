@@ -610,7 +610,7 @@ fn port_callees(f: &IlFunction) -> Vec<&str> {
 /// or one whose only argument is the implicit `this` already in r3) or a single
 /// passthrough `Load` of the **first** formal.
 fn identity_call_args(f: &IlFunction, call: &c2_il::SeqCall) -> bool {
-    if call.link_args.is_some() || call.arg_sources.is_some() {
+    if call.link_args.is_some() || call.arg_slots.is_some() {
         return false;
     }
     match call.arg_ops.as_slice() {
@@ -1169,13 +1169,13 @@ mod tests {
                 SeqCall {
                     callee: "?g@@YAXXZ".into(),
                     arg_ops: Vec::new(),
-                    arg_sources: None,
+                    arg_slots: None,
                     link_args: None,
                 },
                 SeqCall {
                     callee: "?g@@YAXXZ".into(),
                     arg_ops: Vec::new(),
-                    arg_sources: None,
+                    arg_slots: None,
                     link_args: None,
                 },
             ],
@@ -1213,7 +1213,7 @@ mod tests {
             calls: vec![SeqCall {
                 callee: "?g@@YAHH@Z".into(),
                 arg_ops: Vec::new(),
-                arg_sources: None,
+                arg_slots: None,
                 link_args: None,
             }],
             // `return g(a) + 5;` — one `addi` after the call.

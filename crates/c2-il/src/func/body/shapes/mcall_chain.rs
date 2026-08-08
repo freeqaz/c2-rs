@@ -117,7 +117,7 @@ use crate::func::IlOp;
 
 use super::calls::{
     eat_call_args, eat_call_token, eat_callee_push, link_arg_slots, plan_saved_gprs,
-    seq_call_arg_sources, tail_call_shape, MAX_REGISTER_FORMALS,
+    seq_call_arg_slots, tail_call_shape, MAX_REGISTER_FORMALS,
 };
 use super::designator::{eat_offset_adds, sized_ptee};
 use super::mcall_tail::{eat_receiver_this, eat_this_bind};
@@ -273,20 +273,30 @@ pub(crate) fn try_parse_member_chain_call(
     // uses, exactly as `parse_call_sequence` does it. `call-arg-nonformal`,
     // the permutation-cycle bound and the computed-argument rules all arrive with
     // it rather than being restated here.
-    let (arg_ops, arg_sources) =
+    let (arg_ops, arg_slots) =
         match tail_call_shape(seg, inner_args, params.clone(), methods[methods.len() - 1], p)
             .map_err(Some)?
         {
             BodyShape::VoidTailCall { .. } => (Vec::new(), None),
             BodyShape::IntTailCall { arg_ops, .. } => (arg_ops, None),
-            // WLA's literal slot goes through `seq_call_arg_sources`, which
-            // refuses it: a chain's innermost call is FRAMED, and the `li`'s
-            // interleaving with the callee-saved copies is uncaptured there.
-            // `callseq-multiarg-lit` is the shared key.
-            BodyShape::MultiArgTailCall { arg_sources, .. } => (
-                Vec::new(),
-                Some(seq_call_arg_sources(seg, p, arg_sources).map_err(Some)?),
-            ),
+            // WLA's literal slot goes through `seq_call_arg_slots`, which
+            // CARRIES it now (lane `w-memcpy`) — so the refusal that used to
+            // come for free has to be made here, explicitly.
+            //
+            // A chain's innermost call is FRAMED and the `li`'s interleaving
+            // with the callee-saved copies is uncaptured *for this production*:
+            // GRID-L (`work/w-memcpy/probeL`) crossed the literal with a
+            // guarded early return, a second statement call and a formal live
+            // across the call, and with **no chain at all**. So this is an
+            // unmeasured shape, not a measured refusal, and it comes out as a
+            // gap under the same key it always had.
+            BodyShape::MultiArgTailCall { arg_sources, .. } => {
+                let slots = seq_call_arg_slots(seg, p, arg_sources).map_err(Some)?;
+                if slots.iter().any(|a| matches!(a, super::super::SlotArg::Lit(_))) {
+                    return Err(Some(Block::refuse(seg, p, "callseq-multiarg-lit")));
+                }
+                (Vec::new(), Some(slots))
+            }
             // `tail_call_shape` returns exactly those three.
             _ => return Err(Some(Block::refuse(seg, p, "callseq-arg-shape"))),
         };
@@ -296,7 +306,7 @@ pub(crate) fn try_parse_member_chain_call(
     calls.push(SeqCall {
         callee_tok: methods[methods.len() - 1],
         arg_ops,
-        arg_sources,
+        arg_slots,
         link_args: None,
     });
     // **WCL** — every later call's `this` arrives in r3 as the previous call's
@@ -308,7 +318,7 @@ pub(crate) fn try_parse_member_chain_call(
         calls.push(SeqCall {
             callee_tok: *m,
             arg_ops: Vec::new(),
-            arg_sources: None,
+            arg_slots: None,
             link_args: Some(link_arg_slots(seg, args, &params, p).map_err(Some)?),
         });
     }
@@ -812,7 +822,7 @@ mod tests {
         // The link carries `k` at slot 1 — `mr r4,r31`, not `mr r3,r31`.
         assert_eq!(calls[1].callee_tok, 0xE609, "?gia");
         assert_eq!(calls[1].link_args, Some(vec![SlotArg::Formal(1)]));
-        assert!(calls[1].arg_ops.is_empty() && calls[1].arg_sources.is_none());
+        assert!(calls[1].arg_ops.is_empty() && calls[1].arg_slots.is_none());
         assert_eq!(tail, SeqTail::CallValue { add_k: 0 });
         // **Class B, and this is the whole difference from WCH.** `k` is live
         // across the first `bl`, so it takes r31 — `plan_saved_gprs` sees it only

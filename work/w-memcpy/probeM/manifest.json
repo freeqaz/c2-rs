@@ -1,0 +1,3714 @@
+[
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n0",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 0,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n1",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 1,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n2",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 2,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n3",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 3,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n4",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 4,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n5",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 5,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n7",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 7,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n8",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 8,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n10",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 10,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n12",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 12,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n15",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 15,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n16",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 16,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n20",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 20,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n24",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 24,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n28",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 28,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n31",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 31,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n32",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 32,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n36",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 36,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n40",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 40,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n44",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 44,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n48",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 48,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n56",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 56,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n64",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 64,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n72",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 72,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n96",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 96,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n128",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 128,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n256",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 256,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_n1024",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 1024,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memcpy",
+  "name": "memcpy_c_var",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "call"
+  },
+  "ptype": "c",
+  "size": null,
+  "varsize": true
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n0",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 0,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n1",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 1,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n2",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 2,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n3",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 3,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n4",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 4,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n5",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 5,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n7",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 7,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n8",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 8,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n10",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 10,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n12",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 12,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n15",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 15,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n16",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 16,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n20",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 20,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n24",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 24,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n28",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 28,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n31",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 31,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n32",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 32,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n36",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 36,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n40",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 40,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n44",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 44,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n48",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 48,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n56",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 56,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n64",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 64,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n72",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 72,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n96",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 96,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n128",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 128,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n256",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 256,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_n1024",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 1024,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memcpy",
+  "name": "memcpy_i_var",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "call"
+  },
+  "ptype": "i",
+  "size": null,
+  "varsize": true
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n0",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 0,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n1",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 1,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n2",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 2,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n3",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 3,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n4",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 4,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n5",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 5,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n7",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 7,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n8",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 8,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n10",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 10,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n12",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 12,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n15",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 15,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n16",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 16,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n20",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 20,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n24",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 24,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n28",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 28,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n31",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 31,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n32",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 32,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n36",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 36,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n40",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 40,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n44",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 44,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n48",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 48,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n56",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 56,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n64",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 64,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n72",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 72,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n96",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 96,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n128",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 128,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n256",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 256,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_n1024",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 1024,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memcpy",
+  "name": "memcpy_d_var",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "call"
+  },
+  "ptype": "d",
+  "size": null,
+  "varsize": true
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n0",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 0,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n1",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 1,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n2",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 2,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n3",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 3,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n4",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 4,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n5",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 5,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n7",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 7,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n8",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 8,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n10",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 10,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n12",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 12,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n15",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 15,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n16",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 16,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n20",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 20,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n24",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 24,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n28",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 28,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n31",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 31,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n32",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 32,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n36",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 36,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n40",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 40,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n44",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 44,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n48",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 48,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n56",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 56,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n64",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 64,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n72",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 72,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n96",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 96,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n128",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 128,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n256",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 256,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_n1024",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 1024,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memcpy",
+  "name": "memcpy_s_var",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "call"
+  },
+  "ptype": "s",
+  "size": null,
+  "varsize": true
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n0",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 0,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n1",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 1,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n2",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 2,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n3",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 3,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n4",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 4,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n5",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 5,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n7",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 7,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n8",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 8,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n10",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 10,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n12",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 12,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n15",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 15,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n16",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 16,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n20",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 20,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n24",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 24,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n28",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 28,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n31",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 31,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n32",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 32,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n36",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 36,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n40",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 40,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n44",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 44,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n48",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 48,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n56",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 56,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n64",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 64,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n72",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 72,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n96",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 96,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n128",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 128,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n256",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 256,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_n1024",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "c",
+  "size": 1024,
+  "varsize": false
+ },
+ {
+  "align": 1,
+  "fn": "memset",
+  "name": "memset_c_var",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "call"
+  },
+  "ptype": "c",
+  "size": null,
+  "varsize": true
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n0",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 0,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n1",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 1,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n2",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 2,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n3",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 3,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n4",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 4,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n5",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 5,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n7",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 7,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n8",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 8,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n10",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 10,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n12",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 12,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n15",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 15,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n16",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 16,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n20",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 20,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n24",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 24,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n28",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 28,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n31",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 31,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n32",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 32,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n36",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 36,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n40",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 40,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n44",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 44,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n48",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 48,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n56",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 56,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n64",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 64,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n72",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 72,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n96",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 96,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n128",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 128,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n256",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 256,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_n1024",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "i",
+  "size": 1024,
+  "varsize": false
+ },
+ {
+  "align": 4,
+  "fn": "memset",
+  "name": "memset_i_var",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "call"
+  },
+  "ptype": "i",
+  "size": null,
+  "varsize": true
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n0",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 0,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n1",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 1,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n2",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 2,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n3",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 3,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n4",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 4,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n5",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 5,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n7",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 7,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n8",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 8,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n10",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 10,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n12",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 12,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n15",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 15,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n16",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 16,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n20",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 20,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n24",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 24,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n28",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 28,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n31",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 31,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n32",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 32,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n36",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 36,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n40",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 40,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n44",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 44,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n48",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 48,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n56",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 56,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n64",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 64,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n72",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 72,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n96",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 96,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n128",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 128,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n256",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 256,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_n1024",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "d",
+  "size": 1024,
+  "varsize": false
+ },
+ {
+  "align": 8,
+  "fn": "memset",
+  "name": "memset_d_var",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "call"
+  },
+  "ptype": "d",
+  "size": null,
+  "varsize": true
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n0",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 0,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n1",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 1,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n2",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 2,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n3",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 3,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n4",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 4,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n5",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 5,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n7",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "inline",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 7,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n8",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 8,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n10",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 10,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n12",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 12,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n15",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "inline",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 15,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n16",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 16,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n20",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 20,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n24",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 24,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n28",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 28,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n31",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "inline",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 31,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n32",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 32,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n36",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 36,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n40",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 40,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n44",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 44,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n48",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 48,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n56",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "inline",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 56,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n64",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 64,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n72",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 72,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n96",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 96,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n128",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 128,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n256",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 256,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_n1024",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "inline"
+  },
+  "ptype": "s",
+  "size": 1024,
+  "varsize": false
+ },
+ {
+  "align": 16,
+  "fn": "memset",
+  "name": "memset_s_var",
+  "pred": {
+   "M-ALWAYSCALL": "call",
+   "M-THRESH-16": "call",
+   "M-THRESH-32": "call",
+   "M-THRESH-64": "call",
+   "M-THRESH-8": "call",
+   "M-VARCALL": "call"
+  },
+  "ptype": "s",
+  "size": null,
+  "varsize": true
+ }
+]

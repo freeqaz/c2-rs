@@ -1,0 +1,12 @@
+== GRID-M: 232 cells, 0 compile errors ==
+   M-THRESH-32    182/232
+   M-THRESH-16    174/232
+   M-THRESH-64    166/232
+   M-THRESH-8     158/232
+   M-VARCALL      118/232
+   M-ALWAYSCALL   114/232
+
+== GRID-M2: 176 cells, 0 compile errors ==
+   F-ALL          114/176
+   F-48           114/176
+

@@ -1,0 +1,6 @@
+cells          176
+sizes          [44, 46, 47, 48, 49, 52, 56, 60, 64, 72, 96]
+pointer types  ['v', 'q', 's4', 's32'] (none of them in GRID-M)
+operand kinds  ['ff', 'fl', 'fg', 'll']
+F-48 vs F-ALL  separated on 48 cells
+sha256         073ac5ab3933896bc845b744c6868bbb827273178d805f8a12f165d927c7c8b0

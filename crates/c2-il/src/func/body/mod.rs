@@ -257,7 +257,11 @@ pub(crate) enum DtorSubObject {
 pub(crate) struct SeqCall {
     pub(crate) callee_tok: u32,
     pub(crate) arg_ops: Vec<IlOp>,
-    pub(crate) arg_sources: Option<Vec<usize>>,
+    /// The argument slots in slot order — the token-carrying twin of
+    /// [`crate::func::SeqCall::arg_slots`], and see that field for why it is a
+    /// slot list rather than the `Option<Vec<usize>>` permutation it was until
+    /// lane `w-memcpy`.
+    pub(crate) arg_slots: Option<Vec<SlotArg>>,
     /// **WCL — this call is a CHAIN LINK**: its receiver is the previous call's
     /// result, already sitting in r3, so its own explicit arguments start at
     /// argument slot **1** and its marshalling is a different lowering from
