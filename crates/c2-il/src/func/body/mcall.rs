@@ -5309,4 +5309,140 @@ mod tests {
         let (_, w) = read_token_var(seg, first + 1).unwrap();
         first + 1 + w
     }
+
+    // ---- w-value: the member-call VALUE model ---------------------------------
+
+    /// The walk consumes the **whole** production and lands exactly on the byte
+    /// after the `4C`, and it reports the class the `BD`'s return TYPE names.
+    ///
+    /// The landing offset is the half that matters: a walker that reported the
+    /// right class from the wrong cursor would hand `parse_expr` a stream it
+    /// then mis-tokenizes, and every downstream key would be about a byte
+    /// nobody chose. Checked against the token that FOLLOWS the production in
+    /// each capture rather than against a hard-coded index.
+    #[test]
+    fn the_value_model_consumes_a_whole_member_call_and_lands_after_its_4c() {
+        for (seg, want, next) in [
+            // `x = p->Get();` — `BD 86 41 74` is `int`.
+            (RECV_LOAD, CallValue::Value(ValueClass::Int4), 0x32),
+            // a named-object receiver, `26 <sym> 2C <ptr> 00` then the bind.
+            (RECV_OBJECT, CallValue::Value(ValueClass::Int4), 0x32),
+            // `x = w->p->Get();` — the receiver is read from memory.
+            (RECV_DEREF, CallValue::Value(ValueClass::Int4), 0x32),
+        ] {
+            let mut p = find_first_26_in_rhs(seg);
+            assert_eq!(seg[p], 0x26);
+            let got = eat_call_value(seg, &mut p);
+            assert_eq!(got, Some(want), "{:?}", &seg[..8]);
+            assert_eq!(seg[p - 1], 0x4C, "the cursor lands past the closing 4C");
+            assert_eq!(seg[p], next, "and on the token the capture has there");
+        }
+    }
+
+    /// A **chain** is one production, not two: the walk must not stop at the
+    /// inner `4C`, because the value it closes is bound as the next receiver by
+    /// the `99` immediately after it.
+    ///
+    /// This test is the one that found the rule. The first build of the walker
+    /// returned at the first depth-0 `4C` and handed `parse_expr` a `99` it has
+    /// no arm for; `a_chain_is_a_chain_in_both_statement_positions` went red and
+    /// [`binds_the_result`] is the repair.
+    #[test]
+    fn the_value_model_walks_through_a_chain_rather_than_stopping_at_the_inner_4c() {
+        let mut p = find_first_26_in_rhs(CHAINED);
+        // There are TWO `4C`s closing `BD` regions in this body's production.
+        let got = eat_call_value(CHAINED, &mut p);
+        assert_eq!(got, Some(CallValue::Value(ValueClass::Int4)));
+        assert_eq!(CHAINED[p - 1], 0x4C);
+        assert_eq!(CHAINED[p], 0x32, "the store the assignment ends with");
+        // …and the inner `4C` really is passed over: the production it closed is
+        // followed by a bind, which is what [`binds_the_result`] keys on.
+        let inner = CHAINED
+            .iter()
+            .position(|&b| b == 0x4C)
+            .map(|i| i + 1 + CHAINED[i + 1..].iter().position(|&b| b == 0x4C).unwrap())
+            .unwrap();
+        assert!(inner < p - 1);
+        assert!(binds_the_result(CHAINED, inner + 1));
+    }
+
+    /// The walk **declines** what is not a `BD`-rooted call production, and
+    /// leaves the caller's cursor exactly where it found it — so the fallback is
+    /// byte-for-byte the refusal this arm has always raised.
+    ///
+    /// Two different declines, on purpose: a global object's member **read**
+    /// (`x = gO.m;`) opens on a `26` and never reaches a `BD` at all, and a `9B`
+    /// temporary receiver is a token this walker has no width for. The second is
+    /// **69 % of the model's whole price on the 878-TU workload** (1,590 of
+    /// 2,306 emitted), which is why it has a cell in
+    /// `fixtures/cpp/wvalue_call_value_neg.cpp` as well as a line here.
+    ///
+    /// [`DATA_ADDR_INDEX`] is deliberately **not** in this list, and finding out
+    /// why cost this test one red run: `x = u2(gA[0])` is a *plain* call
+    /// (`26 <u2> BD …`), so the walker consumes it correctly and the probe named
+    /// after the data-address family is not a witness for declining one.
+    #[test]
+    fn the_value_model_declines_what_is_not_a_call_and_moves_no_cursor() {
+        for seg in [DATA_READ, BYVAL_TEMP] {
+            let at = find_first_26_in_rhs(seg);
+            let mut p = at;
+            assert_eq!(eat_call_value(seg, &mut p), None, "{:?}", &seg[..8]);
+            assert_eq!(p, at, "a decline may not move the cursor");
+        }
+    }
+
+    /// `void` and "a class this parser does not model" are **two answers**, and
+    /// the caller does two different things with them: `Void` pushes nothing and
+    /// leaves `cstack_ok` true, `Opaque` pushes a placeholder and clears it.
+    ///
+    /// Merging them was measured and was wrong in BOTH directions. Treating
+    /// `Opaque` as "push nothing" moved `expr-convert-no-value-0x2C` — board
+    /// #1462's key — from 4,973 to 5,790 bodies on the 878-TU workload, by
+    /// under-reporting the model's own stack depth. Treating `Void` as `Opaque`
+    /// would clear `cstack_ok` on the one token this model follows exactly.
+    #[test]
+    fn a_void_return_and_an_unmodeled_one_are_two_answers() {
+        // `82 07 03` — class nibble 7, the `void` of `docs/IL_LOAD_TYPES.md` §1,
+        // and the TYPE `NESTED_CALL`'s sibling captures carry verbatim.
+        assert_eq!(call_value_of(0x82, 0x07), CallValue::Void);
+        // `86 41 74` int, `86 43 81` a data pointer — the two modeled classes.
+        assert_eq!(call_value_of(0x86, 0x41), CallValue::Value(ValueClass::Int4));
+        assert_eq!(call_value_of(0x86, 0x43), CallValue::Value(ValueClass::Ptr4));
+        // `86 45` is `float` and `88 48` an 8-byte real: consumed by width,
+        // class not modeled.
+        assert_eq!(call_value_of(0x86, 0x45), CallValue::Opaque);
+        assert_eq!(call_value_of(0x88, 0x48), CallValue::Opaque);
+    }
+
+    /// **THE ACCEPTANCE THEOREM, as a test rather than as a comment.**
+    ///
+    /// Every path that reaches byte `0x26` inside `parse_expr` returned `Err`
+    /// before the value model and must return `Err` after it: the arm pushes no
+    /// [`IlOp`] and the end-of-walk poison re-raises [`classify`]. So every one
+    /// of this module's captured probes must still be a refusal, and none of
+    /// them may have become `expr-empty-*` — the guard the poison had to be
+    /// placed ahead of.
+    #[test]
+    fn the_value_model_never_turns_a_refusal_into_an_acceptance() {
+        for seg in [
+            RECV_LOAD, RECV_DEREF, RECV_FIELD, RECV_OBJECT, RECV_CALL, RECV_INTRINSIC, CHAINED,
+            NESTED_CALL, DATA_ADDR_INDEX, DATA_READ, RECV_LOAD_IN_ARG, RECV_FIELD_OFF0,
+            DTOR_MEMBER_OFF0, DTOR_MEMBER_OFF4, BYVAL_TEMP, WILD_DTOR_WIDE_DESCRIPTOR,
+            PROBE_CHAIN_IN_ASSIGNMENT, PROBE_IF_ON_NAMED_OBJECT, WILD_DTOR_DELETES_A_MEMBER,
+        ] {
+            let s = free_fn(seg);
+            let r = parse_segment_detail(&s, NO_LOCALS);
+            assert!(r.is_err(), "the value model may not accept: {:?}", &seg[..8]);
+            let f = r.unwrap_err().feature();
+            assert!(
+                !f.starts_with("expr-empty"),
+                "the poison must precede the empty-ops guard, got {f}"
+            );
+        }
+        // …and the same statement about the port, not just the census: nothing
+        // in this set may reach `parse_segment`'s accepting path either.
+        for seg in [RECV_LOAD, CHAINED, NESTED_CALL, BYVAL_TEMP] {
+            assert!(parse_segment(&free_fn(seg), NO_LOCALS).is_none());
+        }
+    }
 }

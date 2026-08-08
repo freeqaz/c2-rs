@@ -3271,4 +3271,90 @@ mod tests {
             }
         }
     }
+
+    // ---- w-value: the STATEMENT-LAYER fence -----------------------------------
+
+    /// The fence's membership is the union of enumerations this crate already
+    /// carries, and the two halves are pinned in opposite directions so that
+    /// widening it by accident fails here rather than in a histogram.
+    ///
+    /// **The direction that matters is the second one.** A fence that swallowed
+    /// an expression construct would silently keep the member-call key on a body
+    /// whose real successor is a relational or a `27`, which is the entire
+    /// measurement `mcall::eat_call_value` exists to produce — and it would look
+    /// exactly like the model finding nothing behind the call.
+    #[test]
+    fn the_statement_layer_fence_holds_only_statement_and_control_flow_bytes() {
+        // Statement / control-flow layer, with where each comes from in
+        // [`is_statement_layer`]'s own table.
+        for b in [
+            0x29, 0x32, 0x38, 0x39, 0x3A, 0x41, 0x4B, 0x4D, 0x4F, 0x53, 0x54, 0x55, 0x5C,
+        ] {
+            assert!(is_statement_layer(b), "{b:#04X} is statement layer");
+        }
+        // Expression constructs, every one of which must be able to take the
+        // head from a member call. `1F`–`24` are the six relationals,
+        // `27`/`28` the designator layer, `30` the deref load, `9B` the
+        // temporary bind, `05`/`06` divide and modulo, `02`–`04` and the
+        // `BARE_BINARY_OPS` the arithmetic.
+        for b in [
+            0x02, 0x03, 0x04, 0x05, 0x06, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x1F, 0x20, 0x21, 0x22,
+            0x23, 0x24, 0x26, 0x27, 0x28, 0x2C, 0x30, 0x33, 0x40, 0x64, 0x66, 0x67, 0x99, 0x9B,
+            0xB9, 0xBD,
+        ] {
+            assert!(!is_statement_layer(b), "{b:#04X} is NOT statement layer");
+        }
+    }
+
+    /// The value model's poison is raised at the **first** `26` whose production
+    /// the walk consumed, and it carries `mcall`'s ctx — so a body whose only
+    /// unmodeled construct is the call keeps the key it has always had, down to
+    /// the `-whole` bit `parse_segment_detail` decorates it with.
+    ///
+    /// Anchored at the first and not the last for `super::mcall`'s own stated
+    /// reason: the histogram files a function by the construct, not by where the
+    /// parse stopped. A body with two calls in one expression must report one
+    /// key, not the second call's.
+    #[test]
+    fn the_value_model_poison_is_anchored_at_the_first_call_it_consumed() {
+        // `int f(Obj *p, Obj *r) { int x; x = p->Get() + r->Get(); return x; }`,
+        // assembled from the two captured spines of `mcall`'s `RECV_LOAD` so the
+        // field widths are a capture's and not this test's.
+        let spine: &[u8] = &[
+            0x26, 0xE4, 0x09, 0xB9, 0x01, 0x0A, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x85,
+            0x20, 0x00, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x05, 0x10, 0x00, 0x00, 0x4C,
+        ];
+        let mut seg = vec![0x4C, 0x4F, 0x11, 0x53, 0x26, 0x04, 0x0A];
+        let first = seg.len();
+        seg.extend_from_slice(spine);
+        let second = seg.len();
+        seg.extend_from_slice(spine);
+        seg.push(0x02); // the add
+        seg.extend_from_slice(&[0x32, 0x86, 0x41, 0x74, 0x4B]);
+        seg.extend_from_slice(&[
+            0xB9, 0x04, 0x0A, 0x86, 0x41, 0x74, 0x41, 0x86, 0x41, 0x74, 0x3A, 0x03, 0x0A, 0x54,
+            0x02, 0x29, 0x03, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+        ]);
+        assert_eq!(seg[first], 0x26);
+        assert_eq!(seg[second], 0x26);
+
+        let s = free_fn(&seg);
+        let shift = find_subslice(&s, &LO_MARKER).unwrap();
+        let blk = parse_segment_detail(&s, NO_LOCALS).unwrap_err();
+        assert!(blk.feature().starts_with("expr-call-in-expr"), "{}", blk.feature());
+        // Anchored on a `26` at or before the FIRST spine — never on the
+        // second's, and never on the `02` the walk stopped folding at.
+        //
+        // "At or before" rather than "exactly at": `mcall::reanchor_stmt_member_call`
+        // moves a statement-head member call's anchor to the statement's own
+        // first byte, which here is the assignment DESTINATION push three tokens
+        // earlier. That re-anchor predates this lane and is what keeps
+        // `x = p->M()` and `p->M()` in one bucket; pinning the exact offset here
+        // would be pinning its behaviour in a test about something else.
+        assert_eq!(s[blk.off], 0x26);
+        assert!(blk.off <= shift + first, "{} vs {}", blk.off, shift + first);
+        assert!(blk.off < shift + second);
+        // …and it is still a refusal, on both readers.
+        assert!(parse_segment(&s, NO_LOCALS).is_none());
+    }
 }
