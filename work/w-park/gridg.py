@@ -55,9 +55,20 @@ def emit(name, text):
     names.append(name)
 
 
-def callee_decl(nf, nlit):
-    args = ", ".join([TY] * (nf - nlit) + ["unsigned int"] * nlit)
-    return f"void cal{nf}_{nlit}({args});"
+def callee_decl(nf, nlit, slots=None):
+    """The callee's parameter types, IN SLOT ORDER.
+
+    Written in slot order rather than "pointers then ints" because the `s0`
+    control puts the literal FIRST, and a declaration that assumed the tail
+    position made that cell fail to compile — it read `capture-fail` on the
+    grid's first run, which is a cell that graded nothing wearing the label of
+    a cell that refused. Trap 5, inside a control.
+    """
+    if slots is None:
+        args = [TY] * (nf - nlit) + ["unsigned int"] * nlit
+    else:
+        args = [TY if kind == "f" else "unsigned int" for kind, _ in slots]
+    return f"void cal{nf}_{nlit}({', '.join(args)});"
 
 
 def body(nf, ng, slots, k_by_slot):
@@ -71,7 +82,7 @@ def body(nf, ng, slots, k_by_slot):
     )
     nlit = sum(1 for kind, _ in slots if kind == "l")
     return (
-        f"{callee_decl(nf, nlit)}\n"
+        f"{callee_decl(nf, nlit, slots)}\n"
         f"unsigned long f({formals}) {{\n{guards}\n"
         f"    cal{nf}_{nlit}({args});\n"
         f"    return 0;\n}}\n"

@@ -116,7 +116,7 @@ use crate::func::readers::{
 use crate::func::IlOp;
 
 use super::calls::{
-    eat_call_args, eat_call_token, eat_callee_push, link_arg_slots, plan_saved_gprs,
+    eat_call_args, ArgSite, eat_call_token, eat_callee_push, link_arg_slots, plan_saved_gprs,
     seq_call_arg_slots, tail_call_shape, MAX_REGISTER_FORMALS,
 };
 use super::designator::{eat_offset_adds, sized_ptee};
@@ -274,7 +274,7 @@ pub(crate) fn try_parse_member_chain_call(
     // the permutation-cycle bound and the computed-argument rules all arrive with
     // it rather than being restated here.
     let (arg_ops, arg_slots) =
-        match tail_call_shape(seg, inner_args, params.clone(), methods[methods.len() - 1], p)
+        match tail_call_shape(seg, inner_args, params.clone(), methods[methods.len() - 1], p, ArgSite::Tail)
             .map_err(Some)?
         {
             BodyShape::VoidTailCall { .. } => (Vec::new(), None),

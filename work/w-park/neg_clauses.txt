@@ -1,0 +1,14 @@
+W-PARK-PROBE callseq-multiarg-lit-slot0:eof
+W-PARK-PROBE callseq-multiarg-lit-two:eof
+W-PARK-PROBE callseq-multiarg-lit-later-call:eof
+W-PARK-PROBE call-arg-lit-wide:eof
+W-PARK-PROBE call-args-overflow:mid
+W-PARK-PROBE callseq-early-return-permuted-args:eof
+fixtures/cpp/wpark_lit_permuted_neg.cpp -> 0/7 functions in class
+  [  0] GAP callseq-multiarg-lit-unguarded:eof cflow-straight+expr-modeled eh-none     (eh-none     )    140 B  (unnamed)
+  [  1] GAP expr-cmp-eq              cflow-if-1                 eh-none     (eh-none     )    181 B  (unnamed)
+  [  2] GAP expr-cmp-eq              cflow-if-1                 eh-none     (eh-none     )    190 B  (unnamed)
+  [  3] GAP expr-cmp-eq              cflow-if-1                 eh-none     (eh-none     )    211 B  (unnamed)
+  [  4] GAP expr-cmp-eq              cflow-if-1                 eh-none     (eh-none     )    185 B  (unnamed)
+  [  5] GAP expr-cmp-eq              cflow-if-1                 eh-none     (eh-none     )    283 B  (unnamed)
+  [  6] GAP expr-cmp-eq              cflow-if-1                 eh-none     (eh-none     )    207 B  (unnamed)

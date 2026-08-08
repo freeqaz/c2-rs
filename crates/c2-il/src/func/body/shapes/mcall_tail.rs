@@ -79,7 +79,7 @@ use crate::func::readers::{
 use crate::func::IlOp;
 
 use super::calls::{
-    arg_loads_are_formals, eat_call_args, eat_call_postop, eat_call_token, eat_callee_push,
+    arg_loads_are_formals, ArgSite, eat_call_args, eat_call_postop, eat_call_token, eat_callee_push,
     eat_sym_addr_value, tail_call_shape, MAX_REGISTER_FORMALS,
 };
 use super::params::parse_params;
@@ -541,7 +541,7 @@ pub(crate) fn try_parse_member_tail_call(
         return Err(Some(Block::refuse(seg, p, "mcall-args-overflow")));
     }
     let params = parse_params(seg, lo).map_err(Some)?;
-    tail_call_shape(seg, args, params, callee_tok, p).map_err(Some)
+    tail_call_shape(seg, args, params, callee_tok, p, ArgSite::Tail).map_err(Some)
 }
 
 /// **W41 — `return p->m() ± k;`**: the member call whose result is consumed by a
@@ -617,7 +617,7 @@ fn framed_member_call(
     // a gap. Routed to the tail production, which is the same decision
     // [`super::calls::parse_call_shape`] makes for the free-function form.
     if k == 0 {
-        return tail_call_shape(seg, args, params, callee_tok, p).map_err(Some);
+        return tail_call_shape(seg, args, params, callee_tok, p, ArgSite::Tail).map_err(Some);
     }
     let arg_ops = vec![IlOp::Load(recv_tok)];
     // The receiver has to be one of this function's own formals: the framed path
