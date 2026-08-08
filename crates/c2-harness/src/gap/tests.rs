@@ -2738,3 +2738,269 @@ fn the_residue_errs_in_both_directions() {
         "published, or the pair reads as `the residue is conservative` — which it is not"
     );
 }
+
+// ---------------------------------------------------------------------------
+// THE CODEGEN COLUMN (lane `w-column`, boards #1473/#1474)
+// ---------------------------------------------------------------------------
+
+/// **A parse refusal is not a codegen refusal, and the enum is what says so.**
+///
+/// Board #1464 read `fnbyte-decline|selector` as a codegen column. It was not:
+/// [`super::fnbytes::Decline::Selector`] was the key for BOTH the selector's
+/// refusal and the IL parser's, so the published figure was 130,575 reader
+/// refusals under a codegen name. The split is the repair, and
+/// [`Decline::is_codegen`] is the one place the two are told apart — a consumer
+/// re-deriving it from the key spelling is the drift `TuResult::fn_complete`'s
+/// doc charges for.
+#[test]
+fn a_parse_refusal_is_not_a_codegen_refusal() {
+    use super::fnbytes::Decline;
+    assert!(
+        !Decline::Parse.is_codegen(),
+        "the parser refused: `select_function` was NEVER CALLED, so no codegen \
+         question was asked and none can be — there is no IlFunction to ask it of"
+    );
+    for d in [
+        Decline::OptMode,
+        Decline::Selector,
+        Decline::GyShape,
+        Decline::DataRef,
+    ] {
+        assert!(
+            d.is_codegen(),
+            "{d:?} is reached only through `Ok(func)` in `grade_one`, i.e. only \
+             for a body the IL parser ACCEPTED. That is the verdict #1464 says \
+             does not exist."
+        );
+    }
+}
+
+/// **The two halves of `fnbyte-refused` sum to it, and the control is a count.**
+///
+/// Written through the same keys `fnbytes::measure` writes, and the identity is
+/// PUBLISHED (`fnbyte-refused-split-broken`) rather than asserted only here — a
+/// bucket that silently stopped being written would otherwise shrink one side
+/// while the other kept printing.
+#[test]
+fn the_refusal_split_is_published_with_its_own_control() {
+    let mut r = mk("split.cpp");
+    // The whole FBM key block is gated on there being an FBM denominator at
+    // all, so the fixture carries one — a workload with no emitted functions
+    // publishes no FBM keys, and that absence is already a documented state
+    // rather than a zero.
+    r.emit.insert("fnbyte-denominator".into(), 7);
+    r.emit.insert("fnbyte-refused".into(), 7);
+    r.emit.insert("fnbyte-refused-parse".into(), 6);
+    r.emit.insert("fnbyte-refused-codegen".into(), 1);
+    let m: std::collections::BTreeMap<&str, String> =
+        mk_report(vec![r]).metrics().into_iter().collect();
+    assert_eq!(m.get("fnbyte-refused-parse").map(String::as_str), Some("6"));
+    assert_eq!(m.get("fnbyte-refused-codegen").map(String::as_str), Some("1"));
+    assert_eq!(
+        m.get("fnbyte-refused-split-broken").map(String::as_str),
+        Some("0"),
+        "6 + 1 == 7"
+    );
+
+    let mut bad = mk("split.cpp");
+    bad.emit.insert("fnbyte-denominator".into(), 7);
+    bad.emit.insert("fnbyte-refused".into(), 7);
+    bad.emit.insert("fnbyte-refused-parse".into(), 6);
+    // …and nothing in `-codegen`: one function has fallen out of the partition.
+    let m2: std::collections::BTreeMap<&str, String> =
+        mk_report(vec![bad]).metrics().into_iter().collect();
+    assert_eq!(
+        m2.get("fnbyte-refused-split-broken").map(String::as_str),
+        Some("1"),
+        "the control fires on a short sum — absence reading as success is the \
+         failure this key exists to close"
+    );
+}
+
+/// **THE HOLE IS THE POINT: `reader` is counted, printed, and never folded into
+/// the price** (board #1474).
+///
+/// The fixture is `src/xdk/nuispeech/mmio.cpp` as this lane measured it — 11
+/// emitted functions, 8 byte-exact, 3 behind a parse refusal — plus a planted
+/// wrong emit and a planted codegen decline that mmio does not have, so that
+/// every field of the partition is exercised by one row and the assertions
+/// below cannot pass on a struct that always returns zero.
+#[test]
+fn the_codegen_column_counts_the_unmeasurable_half_separately() {
+    let mut r = mk_factors(TuClass::VocabGap, "mmio.cpp", true, true, true, false, false);
+    r.emit.insert("fnbyte-denominator".into(), 14);
+    r.emit.insert("fnbyte-exact".into(), 8);
+    r.emit.insert("fnbyte-differs".into(), 1);
+    r.emit.insert("fnbyte-reloc-differs".into(), 1);
+    r.emit.insert("fnbyte-refused-codegen".into(), 1);
+    r.emit.insert("fnbyte-refused-parse".into(), 3);
+    let c = GapReport::codegen_column(&r);
+    assert_eq!(c.exact, 8);
+    assert_eq!(c.wrong, 2, "differs AND reloc-differs — lowered, and wrong");
+    assert_eq!(c.cg_refused, 1, "reader accepted, emitter declined");
+    assert_eq!(
+        c.reader, 3,
+        "the IL parser refused these three: no codegen question was asked and \
+         NONE CAN BE. This is the hole and it is a field, not a footnote."
+    );
+    assert_eq!(
+        c.measured(),
+        3,
+        "the measurable price is wrong + cg-refused and EXCLUDES the reader \
+         column — folding the 3 in would price a distance nothing has measured"
+    );
+    assert!(!c.partition_broken(), "8 + 2 + 1 + 3 == 14");
+}
+
+/// **The partition control fires**, and it fires on the direction that matters:
+/// a bucket that stopped being written makes the row SHORT, which reads as a
+/// smaller frontier rather than as a broken instrument.
+#[test]
+fn the_codegen_partition_control_fires_on_a_short_row() {
+    let mut r = mk("short.cpp");
+    r.emit.insert("fnbyte-denominator".into(), 10);
+    r.emit.insert("fnbyte-exact".into(), 4);
+    // 6 functions unaccounted for.
+    assert!(
+        GapReport::codegen_column(&r).partition_broken(),
+        "4 != 10 — and the row prints `**PARTITION BROKEN**` beside itself"
+    );
+}
+
+/// **The six keys are emitted on an EMPTY frontier too.**
+///
+/// A key that appears only when the frontier is non-empty makes absence read as
+/// success: a collector seeing no `frontier-codegen-*` line cannot tell "no
+/// frontier" from "the block was removed". Every other control on this page is
+/// emitted unconditionally for the same reason.
+#[test]
+fn the_codegen_column_metrics_survive_an_empty_frontier() {
+    let rep = mk_report(vec![mk_factors(
+        TuClass::Match,
+        "done.cpp",
+        true,
+        true,
+        true,
+        false,
+        false,
+    )]);
+    assert!(rep.frontier_codegen().is_empty(), "a `match` is not on the frontier");
+    let m: std::collections::BTreeMap<&str, String> = rep.metrics().into_iter().collect();
+    for k in [
+        "frontier-codegen-denominator",
+        "frontier-codegen-exact",
+        "frontier-codegen-wrong",
+        "frontier-codegen-refused",
+        "frontier-codegen-reader",
+        "frontier-codegen-ungraded",
+        "frontier-codegen-measured",
+        "frontier-codegen-partition-broken",
+    ] {
+        assert_eq!(
+            m.get(k).map(String::as_str),
+            Some("0"),
+            "{k} must print as a measured 0, never vanish"
+        );
+    }
+}
+
+/// **A wrong emit RAISES the codegen price; it can never lower it.**
+///
+/// The anti-gaming property of this column, as a test. `wrong` is credited to
+/// the price and `exact` is not, so a port that emitted a wrong body for a
+/// function it currently refuses moves `reader` down by one and `wrong` up by
+/// one — the measurable price goes UP, and the only way to lower it is to emit
+/// c2's bytes. There is no transformation that shrinks this number by refusing
+/// more.
+#[test]
+fn a_wrong_emit_raises_the_codegen_price_and_never_lowers_it() {
+    let base = |wrong: usize, reader: usize, exact: usize| {
+        let mut r = mk("x.cpp");
+        r.emit.insert("fnbyte-denominator".into(), 5);
+        r.emit.insert("fnbyte-exact".into(), exact);
+        r.emit.insert("fnbyte-differs".into(), wrong);
+        r.emit.insert("fnbyte-refused-parse".into(), reader);
+        GapReport::codegen_column(&r)
+    };
+    let refusing = base(0, 3, 2);
+    let wrongly_emitting = base(1, 2, 2);
+    let correct = base(0, 2, 3);
+    assert_eq!(refusing.measured(), 0);
+    assert_eq!(
+        wrongly_emitting.measured(),
+        1,
+        "widening the reader onto a body the port then gets WRONG moves the \
+         function out of the unmeasurable column and into the priced one — the \
+         price goes UP, which is the direction board #232's repair went"
+    );
+    assert_eq!(correct.measured(), 0, "and emitting c2's bytes is the only way back down");
+    assert!(
+        correct.exact > wrongly_emitting.exact,
+        "…distinguished from the refusing case by `exact`, so `measured == 0` \
+         is never on its own evidence of progress"
+    );
+}
+
+/// **`grade_one` files a parse refusal under `Decline::Parse` — the one line
+/// this whole lane rests on** (board #1473).
+///
+/// Written against [`super::fnbytes::grade_one`] itself and not against a
+/// hand-filled count map, because every other test in this block writes
+/// `fnbyte-refused-parse` directly and therefore cannot see the producer. A
+/// mutation that re-files the parse refusal back under `Decline::Selector`
+/// passes all of them and is caught only here: it puts 130,575 reader refusals
+/// back under a codegen name, which is exactly the misreading board #1464
+/// recorded.
+#[test]
+fn grade_one_files_a_parse_refusal_under_the_parser_and_not_the_selector() {
+    use super::fnbytes::{grade_one, Decline, FnByte};
+    use c2_il::{Block, FnCensus, FnVerdict, IlFunction};
+
+    let row: (FnCensus, Result<IlFunction, &'static str>) = (
+        FnCensus {
+            index: 0,
+            name: Some("?f@@YAXXZ".into()),
+            seg_len: 8,
+            verdict: FnVerdict::Blocked(Block {
+                ctx: "expr",
+                byte: Some(0x4F),
+                off: 3,
+                seg_len: 8,
+                aux: 0,
+            }),
+            hex: Vec::new(),
+            hex_mark: 0,
+            cflow: "cflow-straight".into(),
+            cflow_off: "",
+            eh: "eh-none".into(),
+            eh_stmt: String::new(),
+            calls: 0,
+            dispatch: "disp-expr",
+            prod: "prod-not-entered",
+            opt_word: Some(c2_il::OPT_WORD_O1),
+            emit_name: Some("?f@@YAXXZ".into()),
+            no_effect_callee: None,
+            no_effect_nothing: false,
+        },
+        // THE POINT: the IL parser refused, so there is no `IlFunction` and
+        // `select_function` is never reached.
+        Err("blocked"),
+    );
+    let tu = super::fnbytes::tu_empty_callees(std::slice::from_ref(&row));
+    let g = grade_one(Some(&row), Some(&[0x4E, 0x80, 0x00, 0x20]), &tu, Some(&[]));
+    assert_eq!(g.verdict, FnByte::Refused);
+    assert_eq!(g.shape, "parse-refused");
+    assert_eq!(
+        g.decline,
+        Some(Decline::Parse),
+        "unlowered: the parser refused this body, so the decline stage is \
+         `Parse`. Filing it under `Selector` published 130,575 READER refusals \
+         under a codegen name for two days (board #1464), and no count-map test \
+         in this file can see the difference"
+    );
+    assert!(
+        !g.decline.expect("just asserted").is_codegen(),
+        "…and it is therefore counted into `fnbyte-refused-parse`, the column \
+         that says a codegen question was never asked"
+    );
+}
