@@ -1,0 +1,72 @@
+     Running unittests src/lib.rs (target/release/deps/c2_core-d11d0e0158155eff)
+test result: ok. 302 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running unittests src/lib.rs (target/release/deps/c2_harness-c90fb563741b697b)
+test result: ok. 156 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+     Running unittests src/main.rs (target/release/deps/c2rs-401c9b732c599a8c)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/call_targets.rs (target/release/deps/call_targets-027486321f6cdee2)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+     Running tests/capture_cache.rs (target/release/deps/capture_cache-05568a7c1e95138c)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+     Running tests/census_gate.rs (target/release/deps/census_gate-24f17dcc28e8d1e1)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 88.41s
+     Running tests/cli_flags.rs (target/release/deps/cli_flags-3325071abf144b04)
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 131.85s
+     Running tests/corpus.rs (target/release/deps/corpus-689520cc59170ad5)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+     Running tests/dead_temp_elision.rs (target/release/deps/dead_temp_elision-6fa4fece7fbbdd51)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+     Running tests/destroy_loop_elision.rs (target/release/deps/destroy_loop_elision-979881370bdb8f19)
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+     Running tests/differential.rs (target/release/deps/differential-25105e4ac011580d)
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.13s
+     Running tests/edit_differential.rs (target/release/deps/edit_differential-03385a0befbb1e88)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+     Running tests/empty_elision.rs (target/release/deps/empty_elision-796edcddcc29bfa8)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+     Running tests/float_leaf_neighbors.rs (target/release/deps/float_leaf_neighbors-127d9fcefc34794a)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/fnbyte_gy.rs (target/release/deps/fnbyte_gy-6bad78d914a07acb)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.71s
+     Running tests/il_roundtrip.rs (target/release/deps/il_roundtrip-80759236b1bad35c)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.95s
+     Running tests/lane_registry.rs (target/release/deps/lane_registry-b2baf85f4c9415af)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/noinline_boundary.rs (target/release/deps/noinline_boundary-65b48e76c1cb014e)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+     Running tests/nothing_seed.rs (target/release/deps/nothing_seed-e15fb0cd6f65bb23)
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+     Running tests/reloc_identity.rs (target/release/deps/reloc_identity-02be4ab8a171d4bb)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+     Running tests/rung_registry.rs (target/release/deps/rung_registry-972b0442be65e94c)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.01s
+     Running tests/search_differential.rs (target/release/deps/search_differential-4edc8671d3288e7a)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.17s
+     Running tests/sweep_registry.rs (target/release/deps/sweep_registry-e75c5afdefe5dba1)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.00s
+     Running unittests src/lib.rs (target/release/deps/c2_il-767bc6b9b20b36af)
+test result: ok. 514 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests/gl_alias_corpus.rs (target/release/deps/gl_alias_corpus-5bd678705e6b8448)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/in_init_probe.rs (target/release/deps/in_init_probe-819a573b8cc09113)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running unittests src/lib.rs (target/release/deps/c2_obj-526fc0fb2d58308e)
+test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/reloc_corpus.rs (target/release/deps/reloc_corpus-522f56357fabe6d8)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running unittests src/lib.rs (target/release/deps/c2_reference-9115a35840b551c1)
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/listing.rs (target/release/deps/listing-7e785cd467830636)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+     Running tests/reference.rs (target/release/deps/reference-b360339e1d0dd16b)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.56s
+   Doc-tests c2_core
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests c2_harness
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests c2_il
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests c2_obj
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests c2_reference
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
