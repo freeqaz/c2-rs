@@ -1194,6 +1194,39 @@ fn chain_skip_type(seg: &[u8], p: &mut usize) -> Result<(), Block> {
     }
 }
 
+/// The bytes that belong to the **statement and control-flow** layers rather
+/// than to an expression, read by exactly one fence — the member-call value
+/// model's, in [`parse_expr_classed`]'s generic fall-through.
+///
+/// **Not a new vocabulary.** Every byte here is already enumerated somewhere in
+/// this crate as *not an expression token*, and the list is the union of those
+/// enumerations rather than a judgement:
+///
+/// ```text
+///   32                 store            super::mcall::Stop::Store
+///   41 4B              statement end    super::mcall::Stop::StmtEnd
+///   55                 argument end     super::mcall::Stop::ArgEnd
+///   38 39 29 3A        branch/label/jump   `BranchSink::Cflow`'s own doc calls
+///                                          these "the intra-body control-flow
+///                                          vocabulary"; `parse_expr` consumes
+///                                          them ONLY under a sink
+///   4F 53 54           line marker, scope brackets   the `BranchSink::Stmt`
+///                                          arms, and board #441 ("punctuation,
+///                                          not a construct")
+///   4D                 end of stream    `super::mcall`'s `Stop::Eof` neighbour
+///   5C                 EH live state    wb-eh §5.3 — c2 DERIVES a pass from it
+/// ```
+///
+/// One list rather than a predicate per byte: the set answers one question —
+/// *did the walk run off the end of the expression?* — and a second copy of it
+/// would be the one-fact-two-locators defect `docs/GAPS.md` §6 records.
+fn is_statement_layer(b: u8) -> bool {
+    matches!(
+        b,
+        0x29 | 0x32 | 0x38 | 0x39 | 0x3A | 0x41 | 0x4B | 0x4D | 0x4F | 0x53 | 0x54 | 0x55 | 0x5C
+    )
+}
+
 pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp>, Block> {
     parse_expr_classed(seg, p, stop).map(|(ops, _)| ops)
 }
@@ -1350,6 +1383,17 @@ pub(crate) fn parse_expr_classed(
     // replaced.
     let mut cstack: Vec<ValueClass> = Vec::with_capacity(8);
     let mut cstack_ok = true;
+    // **The member-call value model's poison** (`lane w-value`, board #1940):
+    // the offset of the FIRST `26` whose whole production the walk consumed, or
+    // `None` if it consumed none. Set by the `0x26` arm and read by exactly one
+    // guard, the first of the end-of-walk guards below.
+    //
+    // Anchored at the first `26` and not at the last, and not at the byte the
+    // walk ended on, for `super::mcall`'s own reason: the histogram files a
+    // function by the *construct*, not by where the parse stopped. The block it
+    // raises is the one this arm used to return on sight of that byte, so a body
+    // whose only unmodeled construct is the call keeps its published key.
+    let mut call_at: Option<usize> = None;
     // Set by the fold below when an operator's own operands included a pointer —
     // the exact form of `saw_ptr && <arith>` and `saw_ptr && <bitwise>`.
     let mut ptr_arith_exact = false;
@@ -1890,7 +1934,84 @@ pub(crate) fn parse_expr_classed(
                 note_operand_type(seg, *p + 1, &mut last_type);
                 *p = probe;
             }
-            0x26 => return Err(super::mcall::classify(seg, *p)),
+            // **THE MEMBER-CALL VALUE MODEL** (`lane w-value`, board **#1940**).
+            //
+            // This arm used to be exactly one line — `return
+            // Err(mcall::classify(seg, *p))` — so the expression walk stopped at
+            // the *first* `26` in a body and every construct behind it was
+            // invisible to the census. Board **#1534** measures that family at
+            // **449,274 bodies / 36,751 emitted** and records that it "has still
+            // never had a whole-production counterfactual"; its prescription is a
+            // bracket walk that consumes `26 … 4C` entire, which is
+            // [`super::mcall::eat_call_value`].
+            //
+            // **The refusal is unchanged and cannot become an acceptance.** The
+            // production pushes no [`IlOp`] — `IlOp` has no call variant and this
+            // lane did not add one — and `call_at` below poisons the end of the
+            // walk with the **same** [`super::mcall::classify`] block this line
+            // used to return, anchored at the same byte. So the arm replaces one
+            // `Err` with another `Err` and nothing else; see `eat_call_value`'s
+            // acceptance theorem.
+            //
+            // What moves is *which* refusal a body reports. A body whose only
+            // unmodeled construct is the call reports the identical key it
+            // reports today; a body with something deeper behind the call now
+            // reports **that**, which is the whole measurement.
+            0x26 => {
+                let at = *p;
+                match super::mcall::eat_call_value(seg, p) {
+                Some(v) => {
+                    match v {
+                        // The call's return TYPE is a class this parser models,
+                        // so the value it leaves is modeled too and a following
+                        // `2C` has something to convert.
+                        super::mcall::CallValue::Value(c) => {
+                            saw_ptr |= c == ValueClass::Ptr4;
+                            saw_int1u |= c == ValueClass::Int1u;
+                            saw_wide |= c != ValueClass::Int1u;
+                            cstack.push(c);
+                        }
+                        // `void` leaves nothing, and the stack really is
+                        // unchanged — so `cstack_ok` STAYS TRUE here. That is
+                        // the one place this model can claim to have followed a
+                        // token exactly, and it is why `CallValue` separates
+                        // `Void` from `Opaque` instead of folding both into "no
+                        // push".
+                        super::mcall::CallValue::Void => {}
+                        // A float, a narrow scalar, an aggregate, a `long long`.
+                        // A value **is** left — the call returns one — and only
+                        // its class is unknown, so the DEPTH is modeled and the
+                        // class is not: a placeholder is pushed and `cstack_ok`
+                        // is cleared, exactly as the `C2RS_SINK_CHAIN=type` arms
+                        // two hundred lines up do and for the same stated
+                        // reason ("an arbitrary choice with no consequence,
+                        // because the walk is poisoned").
+                        //
+                        // **Pushing nothing here was measured and was wrong.**
+                        // The first 878-TU scan of this model did that, and
+                        // `expr-convert-no-value-0x2C` — the key board #1462 is
+                        // written about — went **4,973 → 5,790 bodies**: a `2C`
+                        // converting an opaque call's result found an empty
+                        // stack and reported "a conversion with nothing to
+                        // convert" about a stream that has something to convert.
+                        // A model that under-reports its own stack depth
+                        // manufactures witnesses for a key that means something
+                        // else.
+                        super::mcall::CallValue::Opaque => {
+                            cstack.push(ValueClass::Int4);
+                            cstack_ok = false;
+                        }
+                    }
+                    if call_at.is_none() {
+                        call_at = Some(at);
+                    }
+                }
+                // Not a call production this walker can tokenize — a bare
+                // data-symbol address push, or a token whose width it has not
+                // pinned. Byte-for-byte the refusal this arm has always raised.
+                None => return Err(super::mcall::classify(seg, at)),
+                }
+            }
             // **The DIVIDE / MODULO refusal, carrying its operand type**
             // (`lane w-divsplit`, board **#816**). Identical to the
             // fall-through below in every way that matters — same offset, same
@@ -1916,8 +2037,71 @@ pub(crate) fn parse_expr_classed(
                     },
                 });
             }
+            // **THE STATEMENT-LAYER FENCE** (`lane w-value`, board **#1942**).
+            //
+            // A walk that consumed a member-call production and then ran into a
+            // byte of the *statement* layer has not found a second construct —
+            // it has walked off the end of the expression. `parse_expr` is an
+            // expression parser called with one `stop` byte; the statement list
+            // is `mod.rs`'s and `assign.rs`'s job, and neither `4B` nor `5C` nor
+            // a scope bracket is a thing an expression contains.
+            //
+            // **MEASURED before it was written, which is why it exists.** The
+            // first build of the value model let those bytes take the head, and
+            // the 878-TU scan moved **9,034 emitted functions onto a brand-new
+            // `expr-op-0x4B`** and **2,844 onto `expr-op-0x5C`** — 86 % of the
+            // whole redistribution, from keys that *name the construct*
+            // (`expr-call-in-expr-recv-object-then-call-recv-object-more`) onto
+            // two that name **punctuation**. That is board #441's finding
+            // (`expr-op-0x53` is the scope-open bracket, punctuation not a
+            // construct) and #1535's, arriving a third time; a re-key that makes
+            // the histogram less informative is not a measurement.
+            //
+            // **The control-flow bytes are in the fence for a second reason,
+            // and it is the sharper one.** `mcall` already names what follows a
+            // call in its own suffix — `…-then-branch-brfalse`,
+            // `…-then-plumbing-0x3A` — so letting a `38` take the head would
+            // trade a key that states TWO facts for one that states one. The
+            // module's `a_branch_target_is_a_label_defined_later_in_the_segment`
+            // test is what said so, by going red.
+            //
+            // So these thirteen bytes yield to the call, and every genuine
+            // expression construct behind it — a relational, a `30` deref, a
+            // `27` off-add, a `9B`, an unmodeled operand TYPE, a `2C` target —
+            // still takes the head. See [`is_statement_layer`] for where each
+            // byte's membership comes from; not one of them is a new reading.
+            _ if call_at.is_some() && is_statement_layer(b) => {
+                return Err(super::mcall::classify(seg, call_at.unwrap()))
+            }
             _ => return Err(blk(seg, *p, "expr")),
         }
+    }
+    // **THE MEMBER-CALL VALUE MODEL'S POISON, AND IT IS FIRST ON PURPOSE**
+    // (`lane w-value`, board **#1941**).
+    //
+    // A body whose expression walked to the end THROUGH a `26`-rooted call
+    // production is refused here, under the **same** [`super::mcall::classify`]
+    // block the `0x26` arm used to return on sight of the byte. Nothing below
+    // lowers a call — [`IlOp`] has no call variant — so this is a refusal and
+    // not a gap in the guards.
+    //
+    // **The position is a decision, registered before the code was written**
+    // (`work/w-value/PREREG.md` §1), and w-park's finding that FENCE ORDER is
+    // where the last unnamed refusal hides is what made it worth registering.
+    // Today the `26` refuses *before* any guard below can be reached, so first
+    // is the only position that leaves every one of those keys measuring the
+    // population it measures now.
+    //
+    // **It caught one immediately, and that is the value of pre-arming it.**
+    // The very next guard is `ops.is_empty()` → `expr-empty-0xNN`, and the
+    // value model pushes **no [`IlOp`]** — so a body that is one member-call
+    // statement and nothing else arrives here with `ops` empty and, one line
+    // lower, would have been re-filed from `expr-call-in-expr-*` to
+    // `expr-empty-0x4B`. That is a key boards #660, #1319, #1455, #1465 and
+    // #1538 have published counts against, moved by a construct that has
+    // nothing to do with a sink.
+    if let Some(at) = call_at {
+        return Err(super::mcall::classify(seg, at));
     }
     // **THIS ARM SHADOWS ALL THREE SINK POISONS BELOW, AND THE POISON COUNTS
     // HAVE ALWAYS BEEN READ AS IF IT DID NOT** (lane `w-mass`, board **#1538**).
