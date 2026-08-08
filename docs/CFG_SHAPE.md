@@ -958,6 +958,14 @@ Step 2's four TUs: `Sort.cpp`, `jsonwriter.cpp`, `IPP_basicmath_xbox.cpp` (4
 functions at once, all `cflow-loop`, no EH, no data sections — the purest loop
 specimen on the frontier), `EncryptXTEA.cpp`.
 
+> ⚠ **STALE as of 2026-08-08, lane `w-loop`, board #1394.** `Sort.cpp` is a
+> **match** — it converted through `codegen::ptr_walk_loop` (lane `w-hash`,
+> board #761) and is off the frontier, so Step 2's roster is now
+> `jsonwriter.cpp`, `IPP_basicmath_xbox.cpp`, `EncryptXTEA.cpp`, plus
+> `Primes.cpp`, `Pool.cpp`, `wordwrap.cpp` and `keygen_xbox.cpp` — **seven**
+> `cflow-loop`-blocked frontier TUs. The line stays as written; `Sort.cpp`
+> converting is the evidence *for* Step 2, not against it.
+
 Step 3 is zero because no frontier TU contains a `switch`-classed function at
 all. `switch` should be *recognized and refused precisely* (its IL is in
 `IL_STMT_GRAMMAR.md` §11), not built.
