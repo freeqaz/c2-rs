@@ -1,0 +1,758 @@
+gap scan: 181 TUs, 24 flags, jobs=4, replay-every=0
+  capture cache: DISABLED (--no-cache)
+provenance:
+  c2-rs      31c80b0d3a8e (DIRTY)  /home/free/code/milohax/c2-rs/.claude/worktrees/w-mmio
+  binary     cd0befd4b5ec8fe9  /home/free/code/milohax/c2-rs/.claude/worktrees/w-mmio/target/release/c2rs
+  workload   31c80b0d3a8e (DIRTY)  /home/free/code/milohax/c2-rs/.claude/worktrees/w-mmio/work/w-mmio/probe
+  wibo       wibo 1.2.0-c2rs.1 (Linux x86_64)  /home/free/code/milohax/wibo/build/release/wibo
+  cl.exe     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/cl.exe
+  c2.dll     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c2.dll
+  c1xx.dll   /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c1xx.dll
+  strace     /usr/bin/strace
+  mingw      /usr/bin/i686-w64-mingw32-gcc
+  [1/181] match        base_n3_p021_g1_c1_ln.cpp
+  [2/181] match        base_n3_p120_g0_c1_ln.cpp
+  [3/181] match        base_n3_p102_g0_c1_ln.cpp
+  [4/181] match        base_n2_p10_g0_c1_ln.cpp
+  [5/181] match        base_n3_p201_g0_c1_ln.cpp
+  [6/181] match        base_n4_p0213_g1_c1_ln.cpp
+  [7/181] match        base_n4_p0132_g2_c1_ln.cpp
+  [8/181] match        base_n3_p210_g0_c1_ln.cpp
+  [9/181] match        base_n4_p0231_g1_c1_ln.cpp
+  [10/181] match        base_n4_p0312_g1_c1_ln.cpp
+  [11/181] match        base_n4_p1023_g0_c1_ln.cpp
+  [12/181] match        base_n4_p0321_g1_c1_ln.cpp
+  [13/181] match        base_n4_p1320_g0_c1_ln.cpp
+  [14/181] match        base_n4_p2013_g0_c1_ln.cpp
+  [15/181] match        base_n4_p1203_g0_c1_ln.cpp
+  [16/181] match        base_n4_p2103_g0_c1_ln.cpp
+  [17/181] match        base_n4_p3120_g0_c1_ln.cpp
+  [18/181] match        base_n4_p3021_g0_c1_ln.cpp
+  [19/181] match        base_n4_p3102_g0_c1_ln.cpp
+  [20/181] match        base_n4_p2130_g0_c1_ln.cpp
+  [21/181] match        base_n5_p01243_g3_c1_ln.cpp
+  [22/181] match        base_n5_p01423_g2_c1_ln.cpp
+  [23/181] match        base_n5_p01342_g2_c1_ln.cpp
+  [24/181] match        base_n5_p01324_g2_c1_ln.cpp
+  [25/181] match        base_n5_p02314_g1_c1_ln.cpp
+  [26/181] match        base_n5_p01432_g2_c1_ln.cpp
+  [27/181] match        base_n5_p02134_g1_c1_ln.cpp
+  [28/181] match        base_n5_p02431_g1_c1_ln.cpp
+  [29/181] match        base_n5_p03124_g1_c1_ln.cpp
+  [30/181] match        base_n5_p03241_g1_c1_ln.cpp
+  [31/181] match        base_n5_p03214_g1_c1_ln.cpp
+  [32/181] match        base_n5_p04132_g1_c1_ln.cpp
+  [33/181] match        base_n5_p04213_g1_c1_ln.cpp
+  [34/181] match        base_n5_p10234_g0_c1_ln.cpp
+  [35/181] match        base_n5_p12034_g0_c1_ln.cpp
+  [36/181] match        base_n5_p04231_g1_c1_ln.cpp
+  [37/181] match        base_n5_p13204_g0_c1_ln.cpp
+  [38/181] match        base_n5_p20134_g0_c1_ln.cpp
+  [39/181] match        base_n5_p21034_g0_c1_ln.cpp
+  [40/181] match        base_n5_p14230_g0_c1_ln.cpp
+  [41/181] match        base_n5_p21430_g0_c1_ln.cpp
+  [42/181] match        base_n5_p21304_g0_c1_ln.cpp
+  [43/181] match        base_n5_p30214_g0_c1_ln.cpp
+  [44/181] match        base_n5_p31024_g0_c1_ln.cpp
+  [45/181] match        base_n5_p31204_g0_c1_ln.cpp
+  [46/181] match        base_n5_p40231_g0_c1_ln.cpp
+  [47/181] match        base_n5_p31240_g0_c1_ln.cpp
+  [48/181] match        base_n5_p41032_g0_c1_ln.cpp
+  [49/181] match        base_n5_p41230_g0_c1_ln.cpp
+  [50/181] vocab-gap    calls_n3_p120_g0_c2_ln.cpp  (il function decode failed)
+  [51/181] match        base_n5_p41203_g0_c1_ln.cpp
+  [52/181] vocab-gap    calls_n3_p201_g0_c2_ln.cpp  (il function decode failed)
+  [53/181] vocab-gap    calls_n4_p2013_g0_c2_ln.cpp  (il function decode failed)
+  [54/181] vocab-gap    calls_n4_p1203_g0_c2_ln.cpp  (il function decode failed)
+  [55/181] match        gcnt_n3_p120_g012_c1_ln.cpp
+  [56/181] match        gcnt_n3_p120_g01_c1_ln.cpp
+  [57/181] match        gcnt_n3_p201_g012_c1_ln.cpp
+  [58/181] match        gcnt_n3_p201_g01_c1_ln.cpp
+  [59/181] match        gcnt_n4_p1203_g01_c1_ln.cpp
+  [60/181] match        gcnt_n4_p1203_g012_c1_ln.cpp
+  [61/181] match        gcnt_n5_p12034_g01_c1_ln.cpp
+  [62/181] match        gcnt_n4_p2013_g012_c1_ln.cpp
+  [63/181] match        gcnt_n4_p2013_g01_c1_ln.cpp
+  [64/181] match        gcnt_n5_p12034_g012_c1_ln.cpp
+  [65/181] vocab-gap    gout_n4_p0231_g0_c1_ln.cpp  (il function decode failed)
+  [66/181] match        gcnt_n5_p20134_g012_c1_ln.cpp
+  [67/181] match        gcnt_n5_p20134_g01_c1_ln.cpp
+  [68/181] vocab-gap    gout_n4_p0312_g0_c1_ln.cpp  (il function decode failed)
+  [69/181] vocab-gap    gout_n4_p1320_g2_c1_ln.cpp  (il function decode failed)
+  [70/181] vocab-gap    gout_n4_p1203_g3_c1_ln.cpp  (il function decode failed)
+  [71/181] vocab-gap    gout_n4_p2013_g3_c1_ln.cpp  (il function decode failed)
+  [72/181] vocab-gap    gout_n4_p2130_g1_c1_ln.cpp  (il function decode failed)
+  [73/181] vocab-gap    gout_n4_p3021_g2_c1_ln.cpp  (il function decode failed)
+  [74/181] vocab-gap    gout_n4_p3102_g1_c1_ln.cpp  (il function decode failed)
+  [75/181] vocab-gap    gout_n5_p01342_g0_c1_ln.cpp  (il function decode failed)
+  [76/181] vocab-gap    gout_n5_p01423_g0_c1_ln.cpp  (il function decode failed)
+  [77/181] vocab-gap    gout_n5_p03124_g0_c1_ln.cpp  (il function decode failed)
+  [78/181] vocab-gap    gout_n5_p02431_g0_c1_ln.cpp  (il function decode failed)
+  [79/181] vocab-gap    gout_n5_p02314_g0_c1_ln.cpp  (il function decode failed)
+  [80/181] vocab-gap    gout_n5_p03241_g0_c1_ln.cpp  (il function decode failed)
+  [81/181] vocab-gap    gout_n5_p04132_g0_c1_ln.cpp  (il function decode failed)
+  [82/181] vocab-gap    gout_n5_p04213_g0_c1_ln.cpp  (il function decode failed)
+  [83/181] vocab-gap    gout_n5_p12034_g3_c1_ln.cpp  (il function decode failed)
+  [84/181] vocab-gap    gout_n5_p13204_g2_c1_ln.cpp  (il function decode failed)
+  [85/181] vocab-gap    gout_n5_p14230_g2_c1_ln.cpp  (il function decode failed)
+  [86/181] vocab-gap    gout_n5_p21304_g1_c1_ln.cpp  (il function decode failed)
+  [87/181] vocab-gap    gout_n5_p21430_g1_c1_ln.cpp  (il function decode failed)
+  [88/181] vocab-gap    gout_n5_p20134_g3_c1_ln.cpp  (il function decode failed)
+  [89/181] vocab-gap    gout_n5_p30214_g2_c1_ln.cpp  (il function decode failed)
+  [90/181] vocab-gap    gout_n5_p31024_g1_c1_ln.cpp  (il function decode failed)
+  [91/181] vocab-gap    gout_n5_p31240_g1_c1_ln.cpp  (il function decode failed)
+  [92/181] vocab-gap    gout_n5_p40231_g2_c1_ln.cpp  (il function decode failed)
+  [93/181] vocab-gap    gout_n5_p41032_g1_c1_ln.cpp  (il function decode failed)
+  [94/181] vocab-gap    gtgt_n4_p0231_g3_c1_ln.cpp  (il function decode failed)
+  [95/181] vocab-gap    gout_n5_p41203_g1_c1_ln.cpp  (il function decode failed)
+  [96/181] match        gtgt_n4_p0312_g3_c1_ln.cpp
+  [97/181] vocab-gap    gtgt_n4_p1203_g2_c1_ln.cpp  (il function decode failed)
+  [98/181] vocab-gap    gtgt_n4_p1320_g3_c1_ln.cpp  (il function decode failed)
+  [99/181] match        gtgt_n4_p2013_g2_c1_ln.cpp
+  [100/181] vocab-gap    gtgt_n4_p2130_g3_c1_ln.cpp  (il function decode failed)
+  [101/181] match        gtgt_n4_p3021_g3_c1_ln.cpp
+  [102/181] match        gtgt_n4_p3102_g3_c1_ln.cpp
+  [103/181] match        gtgt_n5_p01423_g4_c1_ln.cpp
+  [104/181] vocab-gap    gtgt_n5_p01342_g4_c1_ln.cpp  (il function decode failed)
+  [105/181] vocab-gap    gtgt_n5_p02314_g3_c1_ln.cpp  (il function decode failed)
+  [106/181] vocab-gap    gtgt_n5_p02431_g4_c1_ln.cpp  (il function decode failed)
+  [107/181] match        gtgt_n5_p03124_g3_c1_ln.cpp
+  [108/181] vocab-gap    gtgt_n5_p03241_g4_c1_ln.cpp  (il function decode failed)
+  [109/181] match        gtgt_n5_p04213_g4_c1_ln.cpp
+  [110/181] match        gtgt_n5_p04132_g4_c1_ln.cpp
+  [111/181] vocab-gap    gtgt_n5_p12034_g2_c1_ln.cpp  (il function decode failed)
+  [112/181] vocab-gap    gtgt_n5_p13204_g3_c1_ln.cpp  (il function decode failed)
+  [113/181] vocab-gap    gtgt_n5_p14230_g4_c1_ln.cpp  (il function decode failed)
+  [114/181] match        gtgt_n5_p20134_g2_c1_ln.cpp
+  [115/181] vocab-gap    gtgt_n5_p21304_g3_c1_ln.cpp  (il function decode failed)
+  [116/181] vocab-gap    gtgt_n5_p21430_g4_c1_ln.cpp  (il function decode failed)
+  [117/181] match        gtgt_n5_p30214_g3_c1_ln.cpp
+  [118/181] match        gtgt_n5_p31024_g3_c1_ln.cpp
+  [119/181] vocab-gap    gtgt_n5_p31240_g4_c1_ln.cpp  (il function decode failed)
+  [120/181] match        gtgt_n5_p40231_g4_c1_ln.cpp
+  [121/181] vocab-gap    lit_n3_p021_g1_c1_l0.cpp  (il function decode failed)
+  [122/181] match        gtgt_n5_p41032_g4_c1_ln.cpp
+  [123/181] match        gtgt_n5_p41203_g4_c1_ln.cpp
+  [124/181] vocab-gap    lit_n3_p102_g0_c1_l2.cpp  (il function decode failed)
+  [125/181] vocab-gap    lit_n4_p0213_g1_c1_l3.cpp  (il function decode failed)
+  [126/181] vocab-gap    lit_n3_p210_g0_c1_l1.cpp  (il function decode failed)
+  [127/181] vocab-gap    lit_n4_p0132_g2_c1_l1.cpp  (il function decode failed)
+  [128/181] vocab-gap    lit_n4_p0321_g1_c1_l2.cpp  (il function decode failed)
+  [129/181] vocab-gap    lit_n4_p1023_g0_c1_l3.cpp  (il function decode failed)
+  [130/181] vocab-gap    long_n4_p1230_g0_c1_ln.cpp  (il function decode failed)
+  [131/181] vocab-gap    lit_n4_p3120_g0_c1_l2.cpp  (il function decode failed)
+  [132/181] vocab-gap    lit_n4_p2103_g0_c1_l3.cpp  (il function decode failed)
+  [133/181] vocab-gap    long_n4_p1302_g0_c1_ln.cpp  (il function decode failed)
+  [134/181] vocab-gap    long_n4_p3012_g0_c1_ln.cpp  (il function decode failed)
+  [135/181] vocab-gap    long_n4_p2310_g0_c1_ln.cpp  (il function decode failed)
+  [136/181] vocab-gap    long_n4_p2031_g0_c1_ln.cpp  (il function decode failed)
+  [137/181] vocab-gap    long_n5_p12403_g0_c1_ln.cpp  (il function decode failed)
+  [138/181] vocab-gap    long_n5_p12340_g0_c1_ln.cpp  (il function decode failed)
+  [139/181] vocab-gap    long_n5_p13042_g0_c1_ln.cpp  (il function decode failed)
+  [140/181] vocab-gap    long_n4_p3201_g0_c1_ln.cpp  (il function decode failed)
+  [141/181] vocab-gap    long_n5_p20341_g0_c1_ln.cpp  (il function decode failed)
+  [142/181] vocab-gap    long_n5_p14023_g0_c1_ln.cpp  (il function decode failed)
+  [143/181] vocab-gap    long_n5_p13420_g0_c1_ln.cpp  (il function decode failed)
+  [144/181] vocab-gap    long_n5_p14302_g0_c1_ln.cpp  (il function decode failed)
+  [145/181] vocab-gap    long_n5_p20413_g0_c1_ln.cpp  (il function decode failed)
+  [146/181] vocab-gap    long_n5_p24103_g0_c1_ln.cpp  (il function decode failed)
+  [147/181] vocab-gap    long_n5_p23140_g0_c1_ln.cpp  (il function decode failed)
+  [148/181] vocab-gap    long_n5_p23401_g0_c1_ln.cpp  (il function decode failed)
+  [149/181] vocab-gap    long_n5_p30142_g0_c1_ln.cpp  (il function decode failed)
+  [150/181] vocab-gap    long_n5_p24310_g0_c1_ln.cpp  (il function decode failed)
+  [151/181] vocab-gap    long_n5_p32041_g0_c1_ln.cpp  (il function decode failed)
+  [152/181] vocab-gap    long_n5_p30421_g0_c1_ln.cpp  (il function decode failed)
+  [153/181] vocab-gap    long_n5_p34012_g0_c1_ln.cpp  (il function decode failed)
+  [154/181] vocab-gap    long_n5_p32410_g0_c1_ln.cpp  (il function decode failed)
+  [155/181] vocab-gap    long_n5_p40123_g0_c1_ln.cpp  (il function decode failed)
+  [156/181] vocab-gap    long_n5_p34120_g0_c1_ln.cpp  (il function decode failed)
+  [157/181] vocab-gap    long_n5_p42013_g0_c1_ln.cpp  (il function decode failed)
+  [158/181] vocab-gap    long_n5_p42301_g0_c1_ln.cpp  (il function decode failed)
+  [159/181] vocab-gap    long_n5_p43021_g0_c1_ln.cpp  (il function decode failed)
+  [160/181] vocab-gap    long_n5_p40312_g0_c1_ln.cpp  (il function decode failed)
+  [161/181] match        ung_n2_p10_g0_c1_ln.cpp
+  [162/181] vocab-gap    long_n5_p43102_g0_c1_ln.cpp  (il function decode failed)
+  [163/181] match        ung_n3_p021_g0_c1_ln.cpp
+  [164/181] match        ung_n3_p102_g0_c1_ln.cpp
+  [165/181] match        ung_n3_p201_g0_c1_ln.cpp
+  [166/181] match        ung_n3_p210_g0_c1_ln.cpp
+  [167/181] match        ung_n3_p120_g0_c1_ln.cpp
+  [168/181] match        ung_n4_p0132_g0_c1_ln.cpp
+  [169/181] match        ung_n4_p0231_g0_c1_ln.cpp
+  [170/181] match        ung_n4_p0321_g0_c1_ln.cpp
+  [171/181] match        ung_n4_p0213_g0_c1_ln.cpp
+  [172/181] match        ung_n4_p0312_g0_c1_ln.cpp
+  [173/181] match        ung_n4_p1023_g0_c1_ln.cpp
+  [174/181] match        ung_n4_p2013_g0_c1_ln.cpp
+  [175/181] match        ung_n4_p1320_g0_c1_ln.cpp
+  [176/181] match        ung_n4_p1203_g0_c1_ln.cpp
+  [177/181] match        ung_n4_p2103_g0_c1_ln.cpp
+  [178/181] match        ung_n4_p2130_g0_c1_ln.cpp
+  [179/181] match        ung_n4_p3102_g0_c1_ln.cpp
+  [180/181] match        ung_n4_p3021_g0_c1_ln.cpp
+  [181/181] match        ung_n4_p3120_g0_c1_ln.cpp
+
+SPLITTER ANCHORS (ROADMAP §10.11/§10.12) — the census splits `.ex` on `4C 4F 11`, the port on `4F 1F`
+  gate-side segment count KNOWN for 181 of 181 captured TUs; UNKNOWN for 0 (no `.ex` at all). Read through `IlBundle::ex_segment_count`, a PURE reader of the `4F 1F` split — not `functions()`, which is an acceptance decision and returns None for every vocab-gap TU, leaving this knowable for only the 6 that already match.
+  of the 181 known: 181 agree with `fn_total`, 0 disagree (0 where the gate sees MORE segments, 0 where the census does)
+  emit-set ceiling, LO-anchored, over ALL graded TUs: 181
+  emit-set ceiling, GATE-anchored (`4F 1F`, what the port consumes), over the 181 known: 181 (+0 entering, -0 leaving vs the LO-anchored set)
+  gate-anchored control on matching TUs: 0 violations over 96 matching TUs whose gate count is known
+
+PHASE 7 FACTORS (ROADMAP §10.19/§10.21, boards #160/#179) — the model is A and B and C and (D or E), over 181 graded TUs
+  A  emit set reachable   `.ex` segments == obj `.text` COMDATs     181  (gate-anchored `4F 1F`; 181 on the census's `4C 4F 11` anchor)
+  B  binding complete     every emitted symbol binds                181
+  C  section shape        obj sections subset of the writer's 10     181
+  D  per-fn acceptance    every emitted COMDAT in class              96  (0 of them emit nothing at all)
+  E  whole-TU acceptance  a REGISTERED whole-TU recognizer takes it   0  (2 in the registry)
+    D and E are the two readings of ONE question — does the port have an accepted route to this TU's contents. Neither is necessary alone (measured: D fails on the whole-TU matches, E on the per-function ones); the DISJUNCTION is the term.
+  B and C jointly (the near-term ceiling, measured per TU — NOT a product of marginals, §8.6): 181
+  A and B and C: 181   |   A and B and C and D (§10.19's original, refuted): 96   |   A and B and C and (D or E): 96   |   TUs the differential graded `match`: 96
+  section headers: 181 objs read, 0 did not decode (outside C, fail-closed)
+    whole-TU recognizer `dyninit-??__E` accepts 0 graded TU(s)
+    whole-TU recognizer `data-only-tu` accepts 0 graded TU(s)
+  the joint is EXACTLY the match set (96 TUs, by name): base_n2_p10_g0_c1_ln.cpp, base_n3_p021_g1_c1_ln.cpp, base_n3_p102_g0_c1_ln.cpp, base_n3_p120_g0_c1_ln.cpp, base_n3_p201_g0_c1_ln.cpp, base_n3_p210_g0_c1_ln.cpp, base_n4_p0132_g2_c1_ln.cpp, base_n4_p0213_g1_c1_ln.cpp, base_n4_p0231_g1_c1_ln.cpp, base_n4_p0312_g1_c1_ln.cpp, base_n4_p0321_g1_c1_ln.cpp, base_n4_p1023_g0_c1_ln.cpp, base_n4_p1203_g0_c1_ln.cpp, base_n4_p1320_g0_c1_ln.cpp, base_n4_p2013_g0_c1_ln.cpp, base_n4_p2103_g0_c1_ln.cpp, base_n4_p2130_g0_c1_ln.cpp, base_n4_p3021_g0_c1_ln.cpp, base_n4_p3102_g0_c1_ln.cpp, base_n4_p3120_g0_c1_ln.cpp, base_n5_p01243_g3_c1_ln.cpp, base_n5_p01324_g2_c1_ln.cpp, base_n5_p01342_g2_c1_ln.cpp, base_n5_p01423_g2_c1_ln.cpp, base_n5_p01432_g2_c1_ln.cpp, base_n5_p02134_g1_c1_ln.cpp, base_n5_p02314_g1_c1_ln.cpp, base_n5_p02431_g1_c1_ln.cpp, base_n5_p03124_g1_c1_ln.cpp, base_n5_p03214_g1_c1_ln.cpp, base_n5_p03241_g1_c1_ln.cpp, base_n5_p04132_g1_c1_ln.cpp, base_n5_p04213_g1_c1_ln.cpp, base_n5_p04231_g1_c1_ln.cpp, base_n5_p10234_g0_c1_ln.cpp, base_n5_p12034_g0_c1_ln.cpp, base_n5_p13204_g0_c1_ln.cpp, base_n5_p14230_g0_c1_ln.cpp, base_n5_p20134_g0_c1_ln.cpp, base_n5_p21034_g0_c1_ln.cpp, base_n5_p21304_g0_c1_ln.cpp, base_n5_p21430_g0_c1_ln.cpp, base_n5_p30214_g0_c1_ln.cpp, base_n5_p31024_g0_c1_ln.cpp, base_n5_p31204_g0_c1_ln.cpp, base_n5_p31240_g0_c1_ln.cpp, base_n5_p40231_g0_c1_ln.cpp, base_n5_p41032_g0_c1_ln.cpp, base_n5_p41203_g0_c1_ln.cpp, base_n5_p41230_g0_c1_ln.cpp, gcnt_n3_p120_g012_c1_ln.cpp, gcnt_n3_p120_g01_c1_ln.cpp, gcnt_n3_p201_g012_c1_ln.cpp, gcnt_n3_p201_g01_c1_ln.cpp, gcnt_n4_p1203_g012_c1_ln.cpp, gcnt_n4_p1203_g01_c1_ln.cpp, gcnt_n4_p2013_g012_c1_ln.cpp, gcnt_n4_p2013_g01_c1_ln.cpp, gcnt_n5_p12034_g012_c1_ln.cpp, gcnt_n5_p12034_g01_c1_ln.cpp, gcnt_n5_p20134_g012_c1_ln.cpp, gcnt_n5_p20134_g01_c1_ln.cpp, gtgt_n4_p0312_g3_c1_ln.cpp, gtgt_n4_p2013_g2_c1_ln.cpp, gtgt_n4_p3021_g3_c1_ln.cpp, gtgt_n4_p3102_g3_c1_ln.cpp, gtgt_n5_p01423_g4_c1_ln.cpp, gtgt_n5_p03124_g3_c1_ln.cpp, gtgt_n5_p04132_g4_c1_ln.cpp, gtgt_n5_p04213_g4_c1_ln.cpp, gtgt_n5_p20134_g2_c1_ln.cpp, gtgt_n5_p30214_g3_c1_ln.cpp, gtgt_n5_p31024_g3_c1_ln.cpp, gtgt_n5_p40231_g4_c1_ln.cpp, gtgt_n5_p41032_g4_c1_ln.cpp, gtgt_n5_p41203_g4_c1_ln.cpp, ung_n2_p10_g0_c1_ln.cpp, ung_n3_p021_g0_c1_ln.cpp, ung_n3_p102_g0_c1_ln.cpp, ung_n3_p120_g0_c1_ln.cpp, ung_n3_p201_g0_c1_ln.cpp, ung_n3_p210_g0_c1_ln.cpp, ung_n4_p0132_g0_c1_ln.cpp, ung_n4_p0213_g0_c1_ln.cpp, ung_n4_p0231_g0_c1_ln.cpp, ung_n4_p0312_g0_c1_ln.cpp, ung_n4_p0321_g0_c1_ln.cpp, ung_n4_p1023_g0_c1_ln.cpp, ung_n4_p1203_g0_c1_ln.cpp, ung_n4_p1320_g0_c1_ln.cpp, ung_n4_p2013_g0_c1_ln.cpp, ung_n4_p2103_g0_c1_ln.cpp, ung_n4_p2130_g0_c1_ln.cpp, ung_n4_p3021_g0_c1_ln.cpp, ung_n4_p3102_g0_c1_ln.cpp, ung_n4_p3120_g0_c1_ln.cpp
+  known-answer control — matching TUs failing each NECESSARY term (all must be 0, over 96 matching TUs): A 0 B 0 C 0 D-or-E 0
+    diagnostics, NOT required to be 0 (neither disjunct is necessary alone): D 0 E 96
+  SECTION VOCABULARY — 5 distinct names across the workload (objs carrying each):
+      181 objs  [writer]  .XBLD$W
+      181 objs  [writer]  .debug$S
+      181 objs  [writer]  .drectve
+      181 objs  [writer]  .pdata
+      181 objs  [writer]  .text
+  FRONTIER — 85 graded TUs satisfy A and B and C, are NOT a match, and are outside BOTH acceptance paths (not D, not E), so per-function codegen breadth is the whole remaining distance (blocked emitted | emitted | src):
+       1 |    1 | calls_n3_p120_g0_c2_ln.cpp
+       1 |    1 | calls_n3_p201_g0_c2_ln.cpp
+       1 |    1 | calls_n4_p1203_g0_c2_ln.cpp
+       1 |    1 | calls_n4_p2013_g0_c2_ln.cpp
+       1 |    1 | gout_n4_p0231_g0_c1_ln.cpp
+       1 |    1 | gout_n4_p0312_g0_c1_ln.cpp
+       1 |    1 | gout_n4_p1203_g3_c1_ln.cpp
+       1 |    1 | gout_n4_p1320_g2_c1_ln.cpp
+       1 |    1 | gout_n4_p2013_g3_c1_ln.cpp
+       1 |    1 | gout_n4_p2130_g1_c1_ln.cpp
+       1 |    1 | gout_n4_p3021_g2_c1_ln.cpp
+       1 |    1 | gout_n4_p3102_g1_c1_ln.cpp
+       1 |    1 | gout_n5_p01342_g0_c1_ln.cpp
+       1 |    1 | gout_n5_p01423_g0_c1_ln.cpp
+       1 |    1 | gout_n5_p02314_g0_c1_ln.cpp
+       1 |    1 | gout_n5_p02431_g0_c1_ln.cpp
+       1 |    1 | gout_n5_p03124_g0_c1_ln.cpp
+       1 |    1 | gout_n5_p03241_g0_c1_ln.cpp
+       1 |    1 | gout_n5_p04132_g0_c1_ln.cpp
+       1 |    1 | gout_n5_p04213_g0_c1_ln.cpp
+       1 |    1 | gout_n5_p12034_g3_c1_ln.cpp
+       1 |    1 | gout_n5_p13204_g2_c1_ln.cpp
+       1 |    1 | gout_n5_p14230_g2_c1_ln.cpp
+       1 |    1 | gout_n5_p20134_g3_c1_ln.cpp
+       1 |    1 | gout_n5_p21304_g1_c1_ln.cpp
+       1 |    1 | gout_n5_p21430_g1_c1_ln.cpp
+       1 |    1 | gout_n5_p30214_g2_c1_ln.cpp
+       1 |    1 | gout_n5_p31024_g1_c1_ln.cpp
+       1 |    1 | gout_n5_p31240_g1_c1_ln.cpp
+       1 |    1 | gout_n5_p40231_g2_c1_ln.cpp
+       1 |    1 | gout_n5_p41032_g1_c1_ln.cpp
+       1 |    1 | gout_n5_p41203_g1_c1_ln.cpp
+       1 |    1 | gtgt_n4_p0231_g3_c1_ln.cpp
+       1 |    1 | gtgt_n4_p1203_g2_c1_ln.cpp
+       1 |    1 | gtgt_n4_p1320_g3_c1_ln.cpp
+       1 |    1 | gtgt_n4_p2130_g3_c1_ln.cpp
+       1 |    1 | gtgt_n5_p01342_g4_c1_ln.cpp
+       1 |    1 | gtgt_n5_p02314_g3_c1_ln.cpp
+       1 |    1 | gtgt_n5_p02431_g4_c1_ln.cpp
+       1 |    1 | gtgt_n5_p03241_g4_c1_ln.cpp
+    … and 45 more
+  FRONTIER BY `.text` BYTE FRACTION (board #500) — how much of each TU's `.text` the port already produces a body for, BY BYTE. Board #465 counted FUNCTIONS and was refuted by the TU registered to confirm it (mmio: 72.7% by function, 16.8% by byte, DECLINED; xboxmem: 50.0% by function, 54.5% by byte, CONVERTED). n = 2 outcomes — this ranks, it does not license. `exact` is the oracle-graded floor under `accepted`; a TU with no `.text` bytes prints n/a, NEVER 100%. 0 of 85 frontier TUs have NO denominator, and 85 are at EXACTLY 0% — TUs where codegen breadth has not begun:
+     accepted/total bytes    frac   exact  remain | src   (REMAIN = total - accepted = the PowerPC still to write. A FOURTH unit, printed and NOT chosen between: it agrees with `frac` on both outcome cells and DISAGREES with it at this frontier's head.)
+           0/88       bytes    0.0%      0      88 | calls_n3_p120_g0_c2_ln.cpp
+           0/84       bytes    0.0%      0      84 | calls_n3_p201_g0_c2_ln.cpp
+           0/92       bytes    0.0%      0      92 | calls_n4_p1203_g0_c2_ln.cpp
+           0/92       bytes    0.0%      0      92 | calls_n4_p2013_g0_c2_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n4_p0231_g0_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n4_p0312_g0_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n4_p1203_g3_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n4_p1320_g2_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n4_p2013_g3_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n4_p2130_g1_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n4_p3021_g2_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n4_p3102_g1_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n5_p01342_g0_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n5_p01423_g0_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n5_p02314_g0_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n5_p02431_g0_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n5_p03124_g0_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n5_p03241_g0_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n5_p04132_g0_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n5_p04213_g0_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n5_p12034_g3_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n5_p13204_g2_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n5_p14230_g2_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n5_p20134_g3_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n5_p21304_g1_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n5_p21430_g1_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n5_p30214_g2_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n5_p31024_g1_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n5_p31240_g1_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n5_p40231_g2_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n5_p41032_g1_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gout_n5_p41203_g1_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gtgt_n4_p0231_g3_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gtgt_n4_p1203_g2_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gtgt_n4_p1320_g3_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gtgt_n4_p2130_g3_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gtgt_n5_p01342_g4_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gtgt_n5_p02314_g3_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gtgt_n5_p02431_g4_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gtgt_n5_p03241_g4_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gtgt_n5_p12034_g2_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gtgt_n5_p13204_g3_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gtgt_n5_p14230_g4_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gtgt_n5_p21304_g3_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gtgt_n5_p21430_g4_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | gtgt_n5_p31240_g4_c1_ln.cpp
+           0/68       bytes    0.0%      0      68 | lit_n3_p021_g1_c1_l0.cpp
+           0/68       bytes    0.0%      0      68 | lit_n3_p102_g0_c1_l2.cpp
+           0/68       bytes    0.0%      0      68 | lit_n3_p210_g0_c1_l1.cpp
+           0/68       bytes    0.0%      0      68 | lit_n4_p0132_g2_c1_l1.cpp
+           0/68       bytes    0.0%      0      68 | lit_n4_p0213_g1_c1_l3.cpp
+           0/68       bytes    0.0%      0      68 | lit_n4_p0321_g1_c1_l2.cpp
+           0/68       bytes    0.0%      0      68 | lit_n4_p1023_g0_c1_l3.cpp
+           0/68       bytes    0.0%      0      68 | lit_n4_p2103_g0_c1_l3.cpp
+           0/68       bytes    0.0%      0      68 | lit_n4_p3120_g0_c1_l2.cpp
+           0/72       bytes    0.0%      0      72 | long_n4_p1230_g0_c1_ln.cpp
+           0/72       bytes    0.0%      0      72 | long_n4_p1302_g0_c1_ln.cpp
+           0/72       bytes    0.0%      0      72 | long_n4_p2031_g0_c1_ln.cpp
+           0/76       bytes    0.0%      0      76 | long_n4_p2310_g0_c1_ln.cpp
+           0/72       bytes    0.0%      0      72 | long_n4_p3012_g0_c1_ln.cpp
+           0/76       bytes    0.0%      0      76 | long_n4_p3201_g0_c1_ln.cpp
+           0/76       bytes    0.0%      0      76 | long_n5_p12340_g0_c1_ln.cpp
+           0/76       bytes    0.0%      0      76 | long_n5_p12403_g0_c1_ln.cpp
+           0/76       bytes    0.0%      0      76 | long_n5_p13042_g0_c1_ln.cpp
+           0/80       bytes    0.0%      0      80 | long_n5_p13420_g0_c1_ln.cpp
+           0/76       bytes    0.0%      0      76 | long_n5_p14023_g0_c1_ln.cpp
+           0/80       bytes    0.0%      0      80 | long_n5_p14302_g0_c1_ln.cpp
+           0/76       bytes    0.0%      0      76 | long_n5_p20341_g0_c1_ln.cpp
+           0/76       bytes    0.0%      0      76 | long_n5_p20413_g0_c1_ln.cpp
+           0/80       bytes    0.0%      0      80 | long_n5_p23140_g0_c1_ln.cpp
+           0/80       bytes    0.0%      0      80 | long_n5_p23401_g0_c1_ln.cpp
+           0/80       bytes    0.0%      0      80 | long_n5_p24103_g0_c1_ln.cpp
+           0/80       bytes    0.0%      0      80 | long_n5_p24310_g0_c1_ln.cpp
+           0/76       bytes    0.0%      0      76 | long_n5_p30142_g0_c1_ln.cpp
+           0/80       bytes    0.0%      0      80 | long_n5_p30421_g0_c1_ln.cpp
+           0/80       bytes    0.0%      0      80 | long_n5_p32041_g0_c1_ln.cpp
+           0/80       bytes    0.0%      0      80 | long_n5_p32410_g0_c1_ln.cpp
+           0/80       bytes    0.0%      0      80 | long_n5_p34012_g0_c1_ln.cpp
+           0/80       bytes    0.0%      0      80 | long_n5_p34120_g0_c1_ln.cpp
+           0/76       bytes    0.0%      0      76 | long_n5_p40123_g0_c1_ln.cpp
+           0/80       bytes    0.0%      0      80 | long_n5_p40312_g0_c1_ln.cpp
+           0/80       bytes    0.0%      0      80 | long_n5_p42013_g0_c1_ln.cpp
+           0/80       bytes    0.0%      0      80 | long_n5_p42301_g0_c1_ln.cpp
+           0/80       bytes    0.0%      0      80 | long_n5_p43021_g0_c1_ln.cpp
+           0/80       bytes    0.0%      0      80 | long_n5_p43102_g0_c1_ln.cpp
+  BYTE-FRACTION CONTROL (board #501) — a `match` TU is byte-identical to c2's obj, so the port produced a body for every `.text` byte in it and its fraction MUST read 100%. 96 of 96 matched TUs do; 0 fall short; 0 have no `.text` denominator (a TU that defines data and no functions — board #276's shape — which is a 100%-free zero, not a failure).
+    no shortfall. (A count, not a status: the 96 is the evidence.)
+  FRONTIER BY CFG REACHABILITY (board #720) — CAN THE EMITTER EXPRESS THIS TU AT ALL? `Selected` covers THREE control-flow shapes: straight-line, ONE two-arm conditional, and — since lane `w-hash`, board #761 — ONE loop, the pointer-walk accumulate of `codegen::ptr_walk_loop`. **That third one is a transcription of a single function class, not a loop lowering**: twenty words, two immediate fields, `/O1` only, and every other loop shape still has no representation at all. This line read `no variant encodes a backward branch, so NO loop of any kind has a representation` until `Sort.cpp` converted; the correction is here rather than beside the old claim. This is not a quantity of progress like #269/#465/#500 — a TU can be one 8-byte function from matching and be unreachable because those 8 bytes are a loop. INSTRUMENT, never a gate. 85 of 85 frontier TUs are reachable:
+      1 blocked | calls_n3_p120_g0_c2_ln.cpp                         | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | calls_n3_p201_g0_c2_ln.cpp                         | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | calls_n4_p1203_g0_c2_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | calls_n4_p2013_g0_c2_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n4_p0231_g0_c1_ln.cpp                         | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n4_p0312_g0_c1_ln.cpp                         | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n4_p1203_g3_c1_ln.cpp                         | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n4_p1320_g2_c1_ln.cpp                         | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n4_p2013_g3_c1_ln.cpp                         | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n4_p2130_g1_c1_ln.cpp                         | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n4_p3021_g2_c1_ln.cpp                         | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n4_p3102_g1_c1_ln.cpp                         | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n5_p01342_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n5_p01423_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n5_p02314_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n5_p02431_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n5_p03124_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n5_p03241_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n5_p04132_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n5_p04213_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n5_p12034_g3_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n5_p13204_g2_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n5_p14230_g2_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n5_p20134_g3_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n5_p21304_g1_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n5_p21430_g1_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n5_p30214_g2_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n5_p31024_g1_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n5_p31240_g1_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n5_p40231_g2_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n5_p41032_g1_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gout_n5_p41203_g1_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gtgt_n4_p0231_g3_c1_ln.cpp                         | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gtgt_n4_p1203_g2_c1_ln.cpp                         | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gtgt_n4_p1320_g3_c1_ln.cpp                         | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gtgt_n4_p2130_g3_c1_ln.cpp                         | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gtgt_n5_p01342_g4_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gtgt_n5_p02314_g3_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gtgt_n5_p02431_g4_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gtgt_n5_p03241_g4_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gtgt_n5_p12034_g2_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gtgt_n5_p13204_g3_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gtgt_n5_p14230_g4_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gtgt_n5_p21304_g3_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gtgt_n5_p21430_g4_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | gtgt_n5_p31240_g4_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | lit_n3_p021_g1_c1_l0.cpp                           | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | lit_n3_p102_g0_c1_l2.cpp                           | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | lit_n3_p210_g0_c1_l1.cpp                           | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | lit_n4_p0132_g2_c1_l1.cpp                          | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | lit_n4_p0213_g1_c1_l3.cpp                          | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | lit_n4_p0321_g1_c1_l2.cpp                          | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | lit_n4_p1023_g0_c1_l3.cpp                          | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | lit_n4_p2103_g0_c1_l3.cpp                          | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | lit_n4_p3120_g0_c1_l2.cpp                          | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n4_p1230_g0_c1_ln.cpp                         | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n4_p1302_g0_c1_ln.cpp                         | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n4_p2031_g0_c1_ln.cpp                         | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n4_p2310_g0_c1_ln.cpp                         | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n4_p3012_g0_c1_ln.cpp                         | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n4_p3201_g0_c1_ln.cpp                         | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p12340_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p12403_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p13042_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p13420_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p14023_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p14302_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p20341_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p20413_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p23140_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p23401_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p24103_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p24310_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p30142_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p30421_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p32041_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p32410_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p34012_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p34120_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p40123_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p40312_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p42013_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p42301_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p43021_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | long_n5_p43102_g0_c1_ln.cpp                        | labels 3   | REACHABLE — every blocked fn is a port CFG class
+    LABEL CHANNEL (board #742) — `$M`/`$T` are the ONLY way the value of c2's compiler-label counter reaches an obj, and `coff::plan_labels` mints them for a FRAMED function and nothing else. A leaf loop charges that counter +1..+4 while `plan_labels` charges 0 (17 seed-free cells, docs/LABEL_COUNTER.md §4.2), which is the whole stated justification for `codegen::labels` invariant 4 refusing every BACKWARD branch. On a `label-free` obj that error has nowhere to land — and that is now SHIPPED rather than observed: `IlFunction::label_slots` returns `None` for the one loop shape the port emits, so a TU pairing it with a framed function refuses and a TU without one converts (boards #746/#747, `fixtures/cpp/whash_loop_then_framed.cpp` and its control). 0 of 85 frontier TUs are label-free; of the 0 blocked on `cflow-loop`, 0 are. NOT a licence — every one is still gated on codegen that does not exist, and the counter is only the FIRST of that TU's refusals.
+    CONTROL src/xdk/nuispeech/xboxmem.cpp: absent from this scan's list — NOT a pass, not evaluated.
+    SUB-CLASS NARROWING (board #778) — the screen can now hold a PARTIAL claim (`CfgClass{class, Whole | Keys(&[..])}`), and this is the bracket that keeps a restriction NARROWER OR EQUAL rather than wider. `admits` is `class == class && <sub>`, so `Keys` only ever CONJOINS: a restriction can remove an admitted (class,key) pair and never add one. That is algebra; these four numbers are the measurement, re-derived from this scan's own frontier. BOTTOM 0 ⊆ ENUMERATED 85 == SHIPPED 85 ⊆ TOP 85, of 85 frontier TUs (1 classes in TOP, 2 (class,key) pairs enumerated).
+      BOTTOM=every entry restricted to NO keys (must be 0 — it is the live exercise of the `Keys` path and the detector for a matcher that ignores its key); ENUMERATED=every entry rewritten as the exact key set this scan observed (must equal SHIPPED); TOP=every class the frontier mentions, wholesale — a HYPOTHETICAL the port has no claim to, printed so the refusal has a size: 0 of the 85 frontier TUs are held back by CFG class alone.
+      SHIPPED reachable: [calls_n3_p120_g0_c2_ln.cpp, calls_n3_p201_g0_c2_ln.cpp, calls_n4_p1203_g0_c2_ln.cpp, calls_n4_p2013_g0_c2_ln.cpp, gout_n4_p0231_g0_c1_ln.cpp, gout_n4_p0312_g0_c1_ln.cpp, gout_n4_p1203_g3_c1_ln.cpp, gout_n4_p1320_g2_c1_ln.cpp, gout_n4_p2013_g3_c1_ln.cpp, gout_n4_p2130_g1_c1_ln.cpp, gout_n4_p3021_g2_c1_ln.cpp, gout_n4_p3102_g1_c1_ln.cpp, gout_n5_p01342_g0_c1_ln.cpp, gout_n5_p01423_g0_c1_ln.cpp, gout_n5_p02314_g0_c1_ln.cpp, gout_n5_p02431_g0_c1_ln.cpp, gout_n5_p03124_g0_c1_ln.cpp, gout_n5_p03241_g0_c1_ln.cpp, gout_n5_p04132_g0_c1_ln.cpp, gout_n5_p04213_g0_c1_ln.cpp, gout_n5_p12034_g3_c1_ln.cpp, gout_n5_p13204_g2_c1_ln.cpp, gout_n5_p14230_g2_c1_ln.cpp, gout_n5_p20134_g3_c1_ln.cpp, gout_n5_p21304_g1_c1_ln.cpp, gout_n5_p21430_g1_c1_ln.cpp, gout_n5_p30214_g2_c1_ln.cpp, gout_n5_p31024_g1_c1_ln.cpp, gout_n5_p31240_g1_c1_ln.cpp, gout_n5_p40231_g2_c1_ln.cpp, gout_n5_p41032_g1_c1_ln.cpp, gout_n5_p41203_g1_c1_ln.cpp, gtgt_n4_p0231_g3_c1_ln.cpp, gtgt_n4_p1203_g2_c1_ln.cpp, gtgt_n4_p1320_g3_c1_ln.cpp, gtgt_n4_p2130_g3_c1_ln.cpp, gtgt_n5_p01342_g4_c1_ln.cpp, gtgt_n5_p02314_g3_c1_ln.cpp, gtgt_n5_p02431_g4_c1_ln.cpp, gtgt_n5_p03241_g4_c1_ln.cpp, gtgt_n5_p12034_g2_c1_ln.cpp, gtgt_n5_p13204_g3_c1_ln.cpp, gtgt_n5_p14230_g4_c1_ln.cpp, gtgt_n5_p21304_g3_c1_ln.cpp, gtgt_n5_p21430_g4_c1_ln.cpp, gtgt_n5_p31240_g4_c1_ln.cpp, lit_n3_p021_g1_c1_l0.cpp, lit_n3_p102_g0_c1_l2.cpp, lit_n3_p210_g0_c1_l1.cpp, lit_n4_p0132_g2_c1_l1.cpp, lit_n4_p0213_g1_c1_l3.cpp, lit_n4_p0321_g1_c1_l2.cpp, lit_n4_p1023_g0_c1_l3.cpp, lit_n4_p2103_g0_c1_l3.cpp, lit_n4_p3120_g0_c1_l2.cpp, long_n4_p1230_g0_c1_ln.cpp, long_n4_p1302_g0_c1_ln.cpp, long_n4_p2031_g0_c1_ln.cpp, long_n4_p2310_g0_c1_ln.cpp, long_n4_p3012_g0_c1_ln.cpp, long_n4_p3201_g0_c1_ln.cpp, long_n5_p12340_g0_c1_ln.cpp, long_n5_p12403_g0_c1_ln.cpp, long_n5_p13042_g0_c1_ln.cpp, long_n5_p13420_g0_c1_ln.cpp, long_n5_p14023_g0_c1_ln.cpp, long_n5_p14302_g0_c1_ln.cpp, long_n5_p20341_g0_c1_ln.cpp, long_n5_p20413_g0_c1_ln.cpp, long_n5_p23140_g0_c1_ln.cpp, long_n5_p23401_g0_c1_ln.cpp, long_n5_p24103_g0_c1_ln.cpp, long_n5_p24310_g0_c1_ln.cpp, long_n5_p30142_g0_c1_ln.cpp, long_n5_p30421_g0_c1_ln.cpp, long_n5_p32041_g0_c1_ln.cpp, long_n5_p32410_g0_c1_ln.cpp, long_n5_p34012_g0_c1_ln.cpp, long_n5_p34120_g0_c1_ln.cpp, long_n5_p40123_g0_c1_ln.cpp, long_n5_p40312_g0_c1_ln.cpp, long_n5_p42013_g0_c1_ln.cpp, long_n5_p42301_g0_c1_ln.cpp, long_n5_p43021_g0_c1_ln.cpp, long_n5_p43102_g0_c1_ln.cpp]
+      NESTING: PASS — 0 violations over the 3 checks (BOTTOM⊆SHIPPED⊆TOP, ENUMERATED==SHIPPED), taken as SETS by name.
+      LEDGER — 4 entries, 0 of them RESTRICTED. A restricted entry is a claim about named census keys, and two ways it goes quietly wrong are counted here: a listed key no scan witnesses (a claim doing nothing — trap 5 with the claim still on the page) and a key `admits` accepts that the entry does not list (the matcher and the declaration disagreeing, which is what an exact→prefix slip looks like). unwitnessed 0, intruders 0.
+        cflow-straight                   | WHOLE    |    0 keys observed,    0 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+        cflow-straight+expr-modeled      | WHOLE    |    2 keys observed,    2 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+        cflow-if-1                       | WHOLE    |    4 keys observed,    4 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+        cflow-if-1+expr-modeled          | WHOLE    |    0 keys observed,    0 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+      NOT A LICENCE, and #778 is closed as a MECHANISM only: `cflow-loop` did NOT enter the list in the lane that built this. The list is still a hand-maintained mirror of a `c2-core` enum; what changed is that a lane which has measured part of a class can now write down which part, and the reachability figure it produces is bracketed above.
+  A PERFECT EMIT PREDICATE (board #213) — reachability, NOT conversions: every TU below is still gated on codegen that does not exist.
+    as REACH:    B and C 181 less A and B and C 181 = +0
+    as FRONTIER: frontier-if-A 85 less FRONTIER 85 = +0
+    the two agree (0). They are still different questions — they coincide only while no TU inside B and C fails A with an acceptance path already covering it, which is a fact about this corpus.
+  GREEDY LADDER — next section name to teach the writer, and the resulting C (0 steps from 181 to 181):
+
+  PROGRESS MASS — a PROGRESS metric, NEVER a correctness signal (docs/PROGRESS_METRIC.md).
+    The byte-exact differential is the SOLE judge; `match` below is the only correctness count.
+    No term rewards emitted bytes: P counts proven preconditions (A, B, C against the reference obj)
+    and honest acceptance (the emitted census). A TU graded `mismatch` contributes 0 to every
+    numerator, so a wrong emit always scores below the refusal it replaced.
+    P = mean(a, b, c, f) over 181 graded TUs = 0.88260
+      a  emit-set reachable (A)         181/181  = 1.00000
+      b  binding complete (B)           181/181  = 1.00000
+      c  section shape (C)              181/181  = 1.00000
+      f  emitted fns in class       96/181  = 0.53039
+    mismatch-zeroed TUs: 0
+
+  FUNCTION BYTE MATCH (FBM) — a PROGRESS instrument, NEVER a gate (docs/FUNCTION_BYTE_MATCH.md).
+    The judge's own predicate — byte-identical to real c2 — asked per EMITTED FUNCTION instead of
+    per TU. No partial credit: a wrong body scores exactly what a refusal scores, which is 0.
+    The denominator is counted off c2's obj, so refusing more never shrinks it.
+    FBM = (96 + 0)/181 emitted functions byte-exact = 0.53039
+      exact             96  (53.04%)   CREDITED — per-function route, bytes identical to c2's
+      whole-TU           0  ( 0.00%)   CREDITED — on a TU the differential graded `match`; the judge certified the whole obj
+      differs            0  ( 0.00%)   complete port body, bytes differ
+      reloc-diff         0  ( 0.00%)   bytes IDENTICAL, RELOCATIONS DIFFER — two bodies branching to two different functions (board #884)
+      reloc-unk          0  ( 0.00%)   bytes identical, reference relocation table did not decode — UNGRADED, never credited
+      partial            0  ( 0.00%)   selected; the PORT's own /Gy composition declined the body (board #322 closed the harness's half)
+      refused           85  (46.96%)   the port declines the function
+      unbound            0  ( 0.00%)   no census row claims the symbol
+      no-bytes           0  ( 0.00%)   COMDAT raw data did not decode
+    objs unreadable (contribute NO denominator): 0   partition breaks (known answer 0): 0
+    KNOWN-ANSWER CONTROL — per-function bodies that DIFFER on a TU the oracle graded `match` (must be 0): 0
+    FIVE-ALARM CONTROL — byte-exact bodies whose RELOCATIONS differ on a `match` TU (must be 0): 0
+    census/gate disagreement on EMITTED fns (the error term on the emitted census, target 0): 0
+    NOTE: the buckets partition the denominator by the PER-FUNCTION route alone; on a `match` TU the whole-obj verdict supersedes them.
+    RELOC-EQ (lane w-relo, board #884 — `exact` now means bytes AND relocations):
+      bytes-exact       96   the OLD `exact`, i.e. what this instrument credited before relocations were graded
+      graded            96   of those, how many got a relocation verdict; residue (ungraded) 0   reach breaks (known answer 0): 0
+      of the CREDITED, 96 carry at least one relocation — every one compared by offset, packed type and TARGET SYMBOL NAME.
+    reloc-differ families: NONE — 96 byte-exact functions graded, 96 of them relocating
+    partial by shape: NONE — every selected shape was reconstructed and graded (181 emitted functions)
+    graded by shape × verdict: seq/exact 96 · parse-refused/refused 85
+    CALL TARGETS (name, not bytes): 96 graded · 96 agree · 0 disagree (0 of them EXACT-and-wrong, 0 differs) · 0 by count, 0 by name · 0 ungraded
+    per-TU FBM over 181 TUs with emitted functions — ≥100%: 96, ≥90%: 96, ≥50%: 96, ≥10%: 96
+
+  GAP-METRICS — stable `key value` pairs for scripts/status.sh; keys are an interface, do not rename. The projection `emit-predicate-worth` = `b-and-c` − `a-and-b-and-c` is derived HERE on purpose (board #213):
+    gap-metric tu-total 181
+    gap-metric graded 181
+    gap-metric match 96
+    gap-metric mismatch 0
+    gap-metric codegen-gap 0
+    gap-metric vocab-gap 85
+    gap-metric port-error 0
+    gap-metric capture-fail 0
+    gap-metric factor-a 181
+    gap-metric factor-a-lo 181
+    gap-metric factor-b 181
+    gap-metric factor-c 181
+    gap-metric factor-d 96
+    gap-metric factor-e 0
+    gap-metric b-and-c 181
+    gap-metric a-and-b-and-c 181
+    gap-metric a-and-b-and-c-and-d 96
+    gap-metric a-and-b-and-c-and-d-or-e 96
+    gap-metric frontier 85
+    gap-metric frontier-if-a 85
+    gap-metric emit-predicate-worth 0
+    gap-metric writer-sections 10
+    gap-metric cfg-reach-bottom 0
+    gap-metric cfg-reach-enumerated 85
+    gap-metric cfg-reach-shipped 85
+    gap-metric cfg-reach-top 85
+    gap-metric cfg-bounds-violations 0
+    gap-metric cfg-subclass-entries 4
+    gap-metric cfg-subclass-restricted 0
+    gap-metric cfg-subclass-unwitnessed 0
+    gap-metric cfg-subclass-intruders 0
+    gap-metric workload-sections 5
+    gap-metric ladder-steps 0
+    gap-metric cflow-emitted-branchy 85
+    gap-metric cflow-emitted-modeled 0
+    gap-metric cflow-residue-inclass-modeled 20
+    gap-metric cflow-residue-inclass-offclass 76
+    gap-metric cflow-residue-straight-modeled-blocked 0
+    gap-metric cflow-offclass-accounted 76
+    gap-metric cflow-offclass-compare-inclass 76
+    gap-metric cflow-offclass-compare-blocked 85
+    gap-metric progress-mass 0.88260
+    gap-metric progress-emitted-in-class 96
+    gap-metric progress-emitted-total 181
+    gap-metric progress-mismatch-zeroed 0
+    gap-metric fnbyte-match 0.53039
+    gap-metric fnbyte-exact 96
+    gap-metric fnbyte-denominator 181
+    gap-metric fnbyte-differs 0
+    gap-metric fnbyte-partial 0
+    gap-metric fnbyte-refused 85
+    gap-metric fnbyte-unbound 0
+    gap-metric fnbyte-partition-broken 0
+    gap-metric fnbyte-census-disagree 0
+    gap-metric fnbyte-exact-relocated 96
+    gap-metric fnbyte-reloc-differs 0
+    gap-metric fnbyte-reloc-unknown 0
+    gap-metric fnbyte-reloc-graded 96
+    gap-metric fnbyte-exact-bytes 96
+    gap-metric fnbyte-reloc-partition-broken 0
+    gap-metric fnbyte-match-tu-reloc-differs 0
+    gap-metric fnbyte-reloc-table-unreadable 0
+    gap-metric fnbyte-reloc-index-desync 0
+    gap-metric fnbyte-reloc-graded-relocated 96
+    gap-metric fnbyte-reloc-differs-count 0
+    gap-metric fnbyte-reloc-differs-offset 0
+    gap-metric fnbyte-reloc-differs-type 0
+    gap-metric fnbyte-reloc-differs-target 0
+    gap-metric fnbyte-reloc-differs-section-target 0
+    gap-metric fnbyte-reloc-witnesses 0
+    gap-metric fnbyte-match-tu-differs 0
+    gap-metric fnbyte-whole-tu 0
+    gap-metric fnbyte-tus-full 96
+    gap-metric fnbyte-tus 181
+    gap-metric fnbyte-elided 0
+    gap-metric fnbyte-elided-exact 0
+    gap-metric fnbyte-elided-ref-reloc 0
+    gap-metric fnbyte-name-disagree 0
+    gap-metric fnbyte-calltarget-graded 96
+    gap-metric fnbyte-calltarget-agree 96
+    gap-metric fnbyte-calltarget-disagree 0
+    gap-metric fnbyte-calltarget-disagree-exact 0
+    gap-metric fnbyte-calltarget-disagree-differs 0
+    gap-metric fnbyte-calltarget-disagree-name 0
+    gap-metric fnbyte-calltarget-disagree-count 0
+    gap-metric fnbyte-calltarget-ungraded 0
+    gap-metric fnbyte-call-targets-unreadable 0
+    gap-metric fnbyte-reloc-vs-calltarget-both 0
+    gap-metric fnbyte-reloc-vs-calltarget-reloc-only 0
+    gap-metric fnbyte-reloc-vs-calltarget-calltarget-only 0
+    gap-metric fnbyte-noeffect-rows 0
+    gap-metric fnbyte-noeffect-admitted 0
+    gap-metric fnbyte-noeffect-ref-blr 0
+    gap-metric fnbyte-noeffect-ref-other 0
+    gap-metric fnbyte-noeffect-ref-absent 0
+    gap-metric fnbyte-noeffect-callee-unbound 0
+    gap-metric fnbyte-noeffect-callee-parsed-live 0
+    gap-metric fnbyte-noeffect-callee-refused 0
+    gap-metric fnbyte-nothing-rows 0
+    gap-metric fnbyte-nothing-ref-blr 0
+    gap-metric fnbyte-nothing-ref-other 0
+    gap-metric fnbyte-nothing-ref-absent 0
+    gap-metric fnbyte-nothing-not-admitted 0
+    gap-metric fnbyte-nothing-unnamed 0
+    gap-metric fnbyte-shape-seq-exact 96
+    gap-metric fnbyte-shape-parse-refused-refused 85
+    gap-metric fnbyte-decline-opt-mode 0
+    gap-metric fnbyte-decline-selector 85
+    gap-metric fnbyte-decline-gy-shape 0
+    gap-metric fnbyte-decline-data-ref 0
+    gap-metric fnbyte-differs-witnesses 0
+    gap-metric frontier-bytefrac-top-tu calls_n3_p120_g0_c2_ln.cpp
+    gap-metric frontier-bytefrac-top-accepted 0
+    gap-metric frontier-bytefrac-top-denominator 88
+    gap-metric frontier-bytefrac-zero 85
+    gap-metric frontier-bytefrac-no-denominator 0
+    gap-metric bytefrac-control-full 96
+    gap-metric bytefrac-control-no-denominator 0
+    gap-metric bytefrac-control-shortfall-explained 0
+    gap-metric bytefrac-control-unexplained 0
+  GAP-FACTOR-TUS: NOT REQUESTED — pass `--factors-tsv PATH` for the per-TU A/B/C/D/E membership. The joints above are counts; `|{some per-TU set} and B and C|` cannot be got from one, and multiplying a rate by a joint count is how `B and C` stayed published at 107 after C moved.
+
+GAP REPORT (181 TUs in 2.1s)
+  match            96   53.0%
+  mismatch          0    0.0%
+  codegen-gap       0    0.0%
+  vocab-gap        85   47.0%
+  port-error        0    0.0%
+  capture-fail      0    0.0%
+
+  FUNCTION CENSUS (P2b): 96/181 functions in class (53.04%)
+  census/gate disagreement: 0  (the port accepts every function above)
+
+  EMITTED CENSUS (§8): 96/181 emitted functions in class (53.04%)
+    bound 181  |  residue 0: 0 compiler-generated (no IL body), 0 unexplained  (0.00% of the denominator)
+    ceiling if every residue symbol were in class: 96 (53.04%)
+    ground truth: 96 byte-exact TUs, every emitted symbol bound to an in-class row (residue 0)
+    binding: 181 records, 0 nameless, 0 before the first row, 0 row-conflicts, 0 name-conflicts, 0 accounting breaks, 0 unreadable objs
+    binding arity (#144 — residue 0 is not a control): 181 record offsets against 181 records, 0 arity breaks (known answer 0)
+    .in initializers: 6697 records = 6697 accepted + 0 residue, 7964 elements (ARITY), 6697 values (TOKENS, not records), 0 duplicate records, 0 conflicts, 0 accounting breaks (known answer 0)
+    .in symbol addresses (element tag 02, board #931): 0 elements over 0 records
+    .in UNANCHORED (the denominator, board #961): 0 records whose first element is a tag-03 blob or a tag-08 fill, 0 `00 02` candidates dropped by the fail-closed arm, 0 anchors with no token — none of these is in `records` OR in the residue
+      .in residue symbol-address              0
+      .in residue floating-point              0
+      .in residue unknown-type                0
+      .in residue unknown-width               0
+      .in residue value-did-not-frame         0
+      .in residue pointer-width               0
+      .in residue zero-fill                   0
+      .in residue inline-bytes                0
+      .in residue truncated                   0
+    TU distance to matching (blocked functions) — ≤0: 96, ≤1: 181, ≤10: 181, ≤100: 181, ≤1000: 181
+    TU distance to matching (blocked EMITTED functions) — ≤0: 96, ≤1: 181, ≤10: 181, ≤100: 181, ≤1000: 181
+    emit-set ceiling: 181 of 181 graded TUs have `.ex` segments == obj `.text` COMDATs — the most TU match can reach before ROADMAP §8.3 Phase 7 (violations among matching TUs, must be 0: 0)
+    emit-set MODEL ceiling: 181 of 181 TUs bind every emitted symbol today; 181 would if `bind.rs` lost none; 0 carry an emitted symbol with NO `.gl` body record and are a wall for any segment-driven model
+      unbound emitted symbols: 0 have a body record (instrument defect), 0 have none (wall) — nesting invariant, must hold: today <= repaired (true), repaired + wall == graded (true)
+    the widening order OVER EMITTED CODE (85 blocked):
+           85 (100.0%)  expr-cmp-eq
+    TUs within 100 blocked functions of matching: 181 (blocked | emitted in-class/emitted | src)
+          0 |    1/1    | base_n2_p10_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n3_p021_g1_c1_ln.cpp [match]
+          0 |    1/1    | base_n3_p102_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n3_p120_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n3_p201_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n3_p210_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n4_p0132_g2_c1_ln.cpp [match]
+          0 |    1/1    | base_n4_p0213_g1_c1_ln.cpp [match]
+          0 |    1/1    | base_n4_p0231_g1_c1_ln.cpp [match]
+          0 |    1/1    | base_n4_p0312_g1_c1_ln.cpp [match]
+          0 |    1/1    | base_n4_p0321_g1_c1_ln.cpp [match]
+          0 |    1/1    | base_n4_p1023_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n4_p1203_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n4_p1320_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n4_p2013_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n4_p2103_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n4_p2130_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n4_p3021_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n4_p3102_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n4_p3120_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p01243_g3_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p01324_g2_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p01342_g2_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p01423_g2_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p01432_g2_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p02134_g1_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p02314_g1_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p02431_g1_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p03124_g1_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p03214_g1_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p03241_g1_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p04132_g1_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p04213_g1_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p04231_g1_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p10234_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p12034_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p13204_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p14230_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p20134_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p21034_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p21304_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p21430_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p30214_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p31024_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p31204_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p31240_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p40231_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p41032_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p41203_g0_c1_ln.cpp [match]
+          0 |    1/1    | base_n5_p41230_g0_c1_ln.cpp [match]
+          0 |    1/1    | gcnt_n3_p120_g012_c1_ln.cpp [match]
+          0 |    1/1    | gcnt_n3_p120_g01_c1_ln.cpp [match]
+          0 |    1/1    | gcnt_n3_p201_g012_c1_ln.cpp [match]
+          0 |    1/1    | gcnt_n3_p201_g01_c1_ln.cpp [match]
+          0 |    1/1    | gcnt_n4_p1203_g012_c1_ln.cpp [match]
+          0 |    1/1    | gcnt_n4_p1203_g01_c1_ln.cpp [match]
+          0 |    1/1    | gcnt_n4_p2013_g012_c1_ln.cpp [match]
+          0 |    1/1    | gcnt_n4_p2013_g01_c1_ln.cpp [match]
+          0 |    1/1    | gcnt_n5_p12034_g012_c1_ln.cpp [match]
+          0 |    1/1    | gcnt_n5_p12034_g01_c1_ln.cpp [match]
+      … and 121 more
+  blocking features (the widening order):
+         85 (100.0%)  expr-cmp-eq
+  frame class (CALL tokens per body — decode-only, §18):
+          0 (  0.0%)  calls-0
+        177 ( 97.8%)  calls-1
+          4 (  2.2%)  calls-2plus
+          4           calls-2plus|expr-cmp-eq
+  control-flow class (statement layer, decode-only): 181 of 181 bodies decoded end to end (100.0%)
+        149 ( 82.3%)  cflow-if-1
+         20 ( 11.0%)  cflow-straight+expr-modeled
+          6 (  3.3%)  cflow-if-2
+          6 (  3.3%)  cflow-if-n
+         85           cflow-if-1|expr-cmp-eq
+         64           cflow-if-1|call-sequence-early-return
+          6           cflow-if-2|call-sequence-early-return
+          6           cflow-if-n|call-sequence-early-return
+    CONTROL-FLOW COUNTERFACTUAL (board #1343) — what a block IR would convert BY ITSELF: 0 bodies, 0 of the 85 blocked EMITTED functions a block IR must serve. Neither is a bound — both are a PROXY whose two-sided error the next two lines measure. Never quote one without them.
+    RESIDUE CONTROL (board #1344) — `CfResidue::Modeled` is a hand-written mirror of the port's class and NOTHING checked it against the port. It calls 76 of the 96 bodies the port ACCEPTS off-class (79.2%), recognising only 20. NOT a gate and NOT an error: a residue LOOSER than the emitter would over-claim, which is worse. What it IS is the counterfactual's error term, and it was assumed rather than measured for eight days.
+    …and it errs BOTH WAYS, so `lower bound` is the wrong word for the line above: 0 straight-line bodies are `+expr-modeled` and the port REFUSES them anyway. `Modeled` neither contains nor is contained in the class — it is a different predicate, and the counterfactual inherits both differences.
+  EH class (maxState, decode-only): 0 of 181 bodies have maxState >= 1 and need the whole EH record (0.0%)
+        181 (100.0%)  eh-none       blocked      85
+    blocked residue, by census key (accepted shapes excluded):
+    in-class control group (ACCEPTED functions, never a rung):
+    maxState x statement-count (the refuted predicate, for reconciliation):
+  grammar completeness (decode-only): 181 of 181 bodies read
+         96 ( 53.0%)  complete-in-class               blocked       0
+         85 ( 47.0%)  complete-none                   blocked      85
+    grammar-COMPLETE and blocked, both producers summed: 0
+  body dispatch (which recognizer claimed the body, decode-only): 181 of 181 bodies tagged on the dispatch axis, 181 on the production axis
+         85 ( 47.0%)  disp-expr-load                    blocked      85
+         76 ( 42.0%)  disp-early-return-seq             blocked       0
+         20 ( 11.0%)  disp-plain-call                   blocked       0
+    blocked residue of the arms that never enter a member-call production:
+         85           disp-expr-load|BLOCKED|expr-cmp-eq
+  member-call production first blocker (decode-only): 0 bodies entered a production, declined, and reached NO tagged bail — the tag-coverage residue (target 0)
+        181 (100.0%)  prod-not-entered                  blocked      85
+
+  top vocab gaps:
+       85 x il function decode failed
