@@ -508,7 +508,19 @@ reading of §4:
 2. M1's four arms *do* come out in source order. So the two cases differ, and
    nothing in this grid tells a port which one it is looking at.
 
-### 7.7 The three named functions of deliverable 4
+### 7.7 Both flag modes, and they are byte-identical
+
+The grid was compiled twice — at the workload mode `/nologo /c /GR /O1 /Oi
+/EHsc` and at `/nologo /O1 /GS- /c`, wb-frame §5.4's second mode. The two objs
+are **identical in every byte of every code section**, 23 sections, 81 symbols,
+4 261 bytes, same section sizes and same disassembly on all 15 cells.
+
+That is worth stating because it bounds a whole family of "but the flags"
+objections: on these shapes neither `/Oi`, `/EHsc`, `/GR` nor `/GS-` moves a
+single register or a single word. It does **not** extend to `/O2` or to POGO,
+neither of which this lane compiled.
+
+### 7.8 The three named functions of deliverable 4
 
 | function | frozen prediction (the graded part) | emitted | verdict |
 |---|---|---|---|
@@ -530,7 +542,7 @@ independently.
 
 | # | prediction | verdict | note |
 |---|---|---|---|
-| P0.1 | the floor is cleared | **H** | §7.7 |
+| P0.1 | the floor is cleared | **H** | §7.8 |
 | P0.2 | ordering survives, register does **not** | **M** *(optimistic in reverse)* | the opposite happened — the **register** policy is the one that survived a 6-cell frozen check; ordering has one consistency cell and two counter-facts (§7.6) |
 | P1.1 | a separately-named regalloc TU exists | **H** | `color.c`, `10b2c21d`…`10b30517` |
 | P1.2 | a real instruction scheduler exists | **M** *(registered optimistic)* | none: no `sched.c`, `-schdat#`'s var has 0 readers |
@@ -548,7 +560,7 @@ independently.
 | P3.3 | a list scheduler reorders within a block | **M** *(registered optimistic)* | there is no scheduler |
 | P3.4 | the scheduler is off at `/O1` | **U** | premise (P3.3) did not occur |
 | P3.5 | order does not depend on register identity | **H** | selection → order → registers; nothing in `color.c` moves an instruction |
-| P4.1 | ≥3 functions graded | **H** | §7.7 |
+| P4.1 | ≥3 functions graded | **H** | §7.8 |
 | P4.2 | order: ≥2 of 3 hit | **H** | all three preserve their emitted order under the "no within-block reordering" reading |
 | P4.3 | registers: ≤1 of 3 hit | **M** *(registered pessimistic)* | **3 of 3** hit on the graded register claim |
 | P4.4 | at least one miss forces a retraction | **H** | F3 / P2.5, §7.5 |
