@@ -189,8 +189,52 @@ impl SimpleStore {
 /// takes the bonus while `work/w-prod/bindbit.out` cannot show it is a `26`
 /// bind head. Encoding `is_bind == base.is_some()` would make that cell
 /// unrepresentable before anyone has decided what it is.
-fn root(tok: u32, is_bind: bool, base: Option<u32>) -> alloc::Root {
-    alloc::Root { tok, is_bind, base, offsets: None }
+fn root(tok: u32, is_bind: bool, base: Option<u32>, proof: BaseProof) -> alloc::Root {
+    alloc::Root {
+        tok,
+        is_bind,
+        base,
+        offsets: None,
+        lineage: match proof {
+            BaseProof::NotBind => Some(vec![tok]),
+            BaseProof::Bind(parent) => parent
+                .lineage
+                .as_ref()
+                .map(|up| std::iter::once(tok).chain(up.iter().copied()).collect()),
+            BaseProof::Unknown => None,
+        },
+    }
+}
+
+/// **What this emitter has PROVED about a root's base**, and therefore how far
+/// [`alloc::Root::lineage`] may be walked. Board **#1294**.
+///
+/// The lineage is `Some` only when the walk **terminates**, and a terminating
+/// walk needs a positive reason to stop. Passing the reason in — rather than
+/// letting [`root`] infer it from `base.is_none()` — is what stops a later call
+/// site from getting a complete-looking chain for free: an author who cannot
+/// name which arm applies has to write [`Self::Unknown`], and an `Unknown`
+/// refuses in [`alloc::allocate`] instead of emitting.
+enum BaseProof<'a> {
+    /// **The base is provably not a `26` bind head, so the chain ends here.**
+    ///
+    /// At this seam the proof is the `reg_of(..)?` this parser has already
+    /// made: only a live-in **formal** answers a register, a formal is not a
+    /// bind head, and the `?` means a base that is anything else has already
+    /// declined the whole run. That is why the proof is free here and why it
+    /// must not be assumed anywhere else.
+    NotBind,
+    /// The base is **itself a bind**, and this is its root — the chain
+    /// continues through it. **No call site reaches this arm today**
+    /// (`the_reachable_lineage_is_exactly_one_deep` measures why), and it exists
+    /// so that the reader widening which would create one has somewhere to put
+    /// the fact instead of silently invalidating every consumer.
+    #[allow(dead_code)]
+    Bind(&'a alloc::Root),
+    /// Nothing is known about the base. The lineage is `None`, and every rule
+    /// that reads it refuses.
+    #[allow(dead_code)]
+    Unknown,
 }
 
 /// [`alloc::ProducerRoots`] for the producer whose statements are those of `run`
@@ -269,11 +313,13 @@ fn parse_simple_gpr_run(
             [IlOp::Load(vb), IlOp::AddrOf { off }, ..] => (
                 Some(Prod::Addr { base_reg: reg_of(*vb)?, off: *off }),
                 SCRATCH_REG,
-                Some(root(*vb, false, None)),
+                Some(root(*vb, false, None, BaseProof::NotBind)),
                 2usize,
             ),
             // THREE-op group, value a formal already live in a register.
-            [IlOp::Load(t), ..] => (None, reg_of(*t)?, Some(root(*t, false, None)), 1),
+            [IlOp::Load(t), ..] => {
+                (None, reg_of(*t)?, Some(root(*t, false, None, BaseProof::NotBind)), 1)
+            }
             // A literal has no designator, so it has no root. `None`, never a
             // fabricated one.
             [IlOp::Lit(k), ..] => (Some(Prod::Lit(*k)), SCRATCH_REG, None, 1),
@@ -287,7 +333,7 @@ fn parse_simple_gpr_run(
             [IlOp::BoundAddr { tok, base, off }, ..] => (
                 Some(Prod::Addr { base_reg: reg_of(*base)?, off: *off }),
                 SCRATCH_REG,
-                Some(root(*tok, true, Some(*base))),
+                Some(root(*tok, true, Some(*base), BaseProof::NotBind)),
                 1,
             ),
             _ => break,
@@ -303,7 +349,7 @@ fn parse_simple_gpr_run(
             width,
             prod,
             src,
-            lvalue_root: root(base_tok, base_bind_of.is_some(), base_bind_of),
+            lvalue_root: root(base_tok, base_bind_of.is_some(), base_bind_of, BaseProof::NotBind),
             value_root,
         });
         walk = &walk[2 + vlen..];
@@ -1991,6 +2037,96 @@ mod tests {
         .unwrap();
         assert!(lit[0].value_root.is_none());
         assert!(producer_roots(&lit, Prod::Lit(7)).is_none());
+    }
+
+    /// **THE REACHABLE LINEAGE IS EXACTLY ONE DEEP, AND IT IS COMPLETE** —
+    /// board **#1294**, the measurement that turns #1266 from a live shortfall
+    /// into an unreachable one.
+    ///
+    /// `alloc::Root::lineage` is `Some(vec![tok])` for **every** root this
+    /// parser can build, on both sides, because every arm above reaches
+    /// [`BaseProof::NotBind`] and reaches it through a `reg_of(..)?` that has
+    /// already declined anything but a live-in formal.
+    ///
+    /// The fact underneath is `crates/c2-il`'s, not this file's, and it was
+    /// **measured rather than read off the source** (`work/w-lineage/reach/`):
+    /// `parse_ref_bind_stmt` builds a `RefBind` only through `parse_addr_value`,
+    /// which ends in a lookup of the value's base token in `params`, and it
+    /// separately refuses a zero displacement — so a chained bind `P& c = a;`
+    /// fails **both** clauses and comes back `expr-op-0x27`, where the
+    /// one-link `P& a = y->blk.q0;` comes back
+    /// `store-run-bind-mixed-kind-alloc`.
+    ///
+    /// **So `Root::base` is COMPLETE over everything a consumer can see**, and
+    /// `bind_linked` and `lineage_related` cannot disagree on any input this
+    /// emitter can produce. `M6` (`DEEP-GP`) separates them and `M6` is not
+    /// reachable. That is the whole content of this lane's part 1: the carrier
+    /// closes the gap, and the gap was already shut by the reader.
+    #[test]
+    fn the_reachable_lineage_is_exactly_one_deep() {
+        let (h, p) = (0x0101u32, 0x0201u32);
+        let l = 0xFB09u32;
+        let reg_of = |t: u32| match t {
+            x if x == h => Some(3),
+            x if x == p => Some(4),
+            _ => None,
+        };
+        let bound = IlOp::BoundAddr { tok: l, base: h, off: 8 };
+        let streams = vec![
+            // a bound value stored through the bind — `xboxheap`'s own class
+            vec![bound.clone(), bound.clone(), IlOp::StoreInd { off: 0, width: 4 }],
+            // a bound value stored through the FORMAL's path
+            vec![IlOp::Load(h), bound.clone(), IlOp::StoreInd { off: 48, width: 4 }],
+            // the direct four-op spelling of an interior address
+            vec![
+                IlOp::Load(h),
+                IlOp::Load(h),
+                IlOp::AddrOf { off: 8 },
+                IlOp::StoreInd { off: 0, width: 4 },
+            ],
+            // a formal value, and a literal (no value root at all)
+            vec![IlOp::Load(h), IlOp::Load(p), IlOp::StoreInd { off: 0, width: 4 }],
+            vec![IlOp::Load(h), IlOp::Lit(7), IlOp::StoreInd { off: 0, width: 4 }],
+        ];
+        let mut roots = 0usize;
+        for ops in &streams {
+            let run = parse_simple_gpr_run(ops, &reg_of).expect("a store group");
+            for st in &run {
+                for r in [Some(&st.lvalue_root), st.value_root.as_ref()].into_iter().flatten() {
+                    roots += 1;
+                    assert_eq!(
+                        r.lineage.as_deref(),
+                        Some(&[r.tok][..]),
+                        "every reachable root is a COMPLETE one-deep lineage"
+                    );
+                }
+            }
+        }
+        assert_eq!(roots, 9, "every root of every arm was examined");
+
+        // …and therefore the one-link and the transitive readings **cannot**
+        // disagree on anything this emitter can build. Checked as an identity
+        // over the pairs, not asserted.
+        let ops = vec![
+            bound.clone(),
+            bound.clone(),
+            IlOp::StoreInd { off: 0, width: 4 },
+            IlOp::Load(h),
+            bound.clone(),
+            IlOp::StoreInd { off: 48, width: 4 },
+        ];
+        let run = parse_simple_gpr_run(&ops, &reg_of).expect("a store run");
+        for s in &run {
+            let r = alloc::ProducerRoots {
+                value: s.value_root.clone().expect("a bound value has a root"),
+                lvalue: s.lvalue_root.clone(),
+            };
+            assert_eq!(
+                r.lineage_related(),
+                Some(r.bind_linked() || r.value.tok == r.lvalue.tok),
+                "at depth 1 the transitive walk IS the one link"
+            );
+        }
     }
 
     #[test]
