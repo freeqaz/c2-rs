@@ -1,0 +1,7 @@
+src/Main.cpp                                   net=3   sink=1   hatch=2  STUCK:expr-call-in-expr-recv-object-then-op-0x5C
+src/system/math/Primes.cpp                     net=7   sink=7   hatch=0  READER-CLEAR
+src/xdk/LIBCMT/osfinfo.cpp                     net=13  sink=12  hatch=1  EXIT:expr-chain-noform-0x4C(noform)
+src/xdk/LIBCMT/undname.cpp                     net=7   sink=7   hatch=0  EXIT:expr-chain-noform-0x4C(noform)
+src/xdk/LIBCMT/vswprnc.cpp                     net=6   sink=6   hatch=0  EXIT:expr-chain-noform-0x4C(noform)
+src/xdk/xjson/jsonwriter.cpp                   net=16  sink=15  hatch=1  READER-CLEAR
+src/xdk/xlrc/xlrcimpl.cpp                      net=0   sink=0   hatch=0  EXIT:assign-rhs-call-0x26(no-lift)

@@ -1,0 +1,7 @@
+src/Main.cpp
+src/system/math/Primes.cpp
+src/xdk/LIBCMT/osfinfo.cpp
+src/xdk/LIBCMT/undname.cpp
+src/xdk/LIBCMT/vswprnc.cpp
+src/xdk/xjson/jsonwriter.cpp
+src/xdk/xlrc/xlrcimpl.cpp

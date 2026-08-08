@@ -74,6 +74,10 @@ HATCHES = [
     ("call-arg-outer-formal", "call-arg-outer-formal"),
     ("expr-shr-mixed-sign", "expr-shr-mixed-sign"),
     ("store-run-bind-mixed-kind-alloc", "store-run-bind-mixed-kind"),
+    # ADDED BY LANE w-one. `w-front3` filed this key as "a real refusal with no
+    # lift" on `src/Main.cpp`; it is the model's own class stack running out, not
+    # the stream, and the unsunk workload witnesses it on 829 of 878 TUs.
+    ("expr-convert-no-value", "expr-convert-no-value"),
 ]
 
 
@@ -124,6 +128,33 @@ def lift_for(key):
         if r in NAMED:
             return ("sink", "op:%02X" % NAMED[r])
     return (None, "no-lift")
+
+
+def tail_opcode(key):
+    """The OPCODE a composite key names at its tail, or None. (lane w-one)
+
+    `expr-call-in-expr-recv-object-then-op-0x5C` is one refusal naming TWO
+    things: the production it was inside (`call-in-expr`) and the byte it
+    actually stopped on (`5C`). `lift_for`'s prefix table matches the FIRST and
+    returns `op:26`, which is already granted by the time this key can appear —
+    so the driver reports STUCK on a key whose blocker is right there in its own
+    name. `src/Main.cpp` is the live instance: it read `net=2 STUCK` before this
+    and `net=3` after, and the rung it was missing is a plain opcode.
+
+    This cannot manufacture a fictitious successor. The token goes to the
+    committed sink, and `chain_skip_form` refuses any opcode whose payload width
+    this tree has not pinned — so an unknown byte comes back as `noform-0xNN`,
+    the honest terminal, exactly as it does when the ladder reaches one directly.
+    """
+    for marker in ("-then-op-0x", "-op-0x", "-0x"):
+        i = key.rfind(marker)
+        if i < 0:
+            continue
+        rest = key[i + len(marker):]
+        hexpart = rest.split("-", 1)[0]
+        if len(hexpart) == 2 and all(c in "0123456789ABCDEFabcdef" for c in hexpart):
+            return "op:%s" % hexpart.upper()
+    return None
 
 
 def scan(c2rs, one, flags, cwd, cache, sinks, hatches, outdir, tag):
@@ -198,6 +229,42 @@ def climb(c2rs, tu, flags, cwd, cache, outdir, bound):
             elif kind == "hatch" and tok not in hatches:
                 hatches.append(tok)
                 added.append(("hatch", tok, k))
+        if not added:
+            # SECOND PASS — the opcode a composite key names at its own tail,
+            # and it is SPECULATIVE AND SELF-CONTROLLING (lane w-one).
+            #
+            # `expr-call-in-expr-recv-object-then-op-0x5C` names two things: the
+            # production it was inside and the byte it stopped on. The prefix
+            # table matches the first and returns a token already granted, so the
+            # driver reports STUCK on a byte its own key named.
+            #
+            # But granting that byte to the chain sink is NOT the same as lifting
+            # the refusal, because the refusal need not be in `parse_expr` at
+            # all. Measured, on this lane's own first attempt: granting `op:5C`
+            # left `src/Main.cpp` on the identical key and granting `op:26` left
+            # `xlrcimpl.cpp` on the identical key — **two rungs counted for
+            # nothing**, which is `Pool.cpp`'s defect (§4.1) in a new place.
+            #
+            # So each candidate is TRIED and kept only if the blocker set MOVES.
+            # A candidate that changes nothing is discarded, named in
+            # `tail_inert`, and does not enter the count.
+            inert = []
+            for k in sorted(live):
+                tok = tail_opcode(k)
+                if not tok or tok in sinks:
+                    continue
+                trial = scan(c2rs, one, flags, cwd, cache, sinks + [tok],
+                             hatches, outdir, "%s-try-%s" % (tag, tok.replace(":", "")))
+                trec = trial.get(tu) if "__error__" not in trial else None
+                tblk = dict(sorted(((trec or {}).get("fn_blockers") or {}).items()))
+                if trec is not None and tblk != dict(sorted(blk.items())):
+                    sinks.append(tok)
+                    added.append(("sink", tok, k))
+                    stuck = [x for x in stuck if not x.startswith(k + "(")]
+                else:
+                    inert.append("%s:%s" % (k, tok))
+            if inert:
+                rounds[-1]["tail_inert"] = inert
         if stuck and not added:
             status = "EXIT:" + ";".join(stuck)
             break

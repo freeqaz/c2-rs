@@ -1,0 +1,11 @@
+src/Main.cpp                             tokens=4   DROP 2/4 moved   ADD 0/7 moved   not-load-bearing: sink/op:41,sink/op:26
+src/system/math/Primes.cpp               tokens=14  DROP 14/14 moved   ADD 0/7 moved   not-load-bearing: NONE
+src/xdk/LIBCMT/osfinfo.cpp               tokens=20  DROP 20/20 moved   ADD 0/7 moved   not-load-bearing: NONE
+src/xdk/LIBCMT/undname.cpp               tokens=10  DROP 9/10 moved   ADD 0/7 moved   not-load-bearing: sink/op:41
+src/xdk/LIBCMT/vswprnc.cpp               tokens=10  DROP 9/10 moved   ADD 0/7 moved   not-load-bearing: sink/op:41
+src/xdk/xjson/jsonwriter.cpp             tokens=23  DROP 23/23 moved   ADD 0/7 moved   not-load-bearing: NONE
+src/xdk/xlrc/xlrcimpl.cpp                tokens=1   DROP 0/1 moved   ADD 0/7 moved   not-load-bearing: sink/op:41
+
+DISCRIMINATING CELLS
+  DROP arm: 77 of 82 moved  (must be > 0 or the grid tests nothing)
+  ADD  arm: 0 of 49 moved  (must be 0 — a move here means the tokens are not independent)
