@@ -1,0 +1,29 @@
+== work/w-cfg2/attr/a5/ref.obj  machine=0x01f2 nsec=6 nsym=17 size=1028
+-- sections
+   1 .drectve   raw=132    rawptr=0x0104 rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=152    rawptr=0x0188 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x0220 rel=0  relptr=0x0000 chars=0xc0401040
+   4 .XBLD$W    raw=16     rawptr=0x0230 rel=0  relptr=0x0000 chars=0xc2301040
+   5 .data      raw=16     rawptr=0x0240 rel=0  relptr=0x0000 chars=0xc0300040
+   6 .text      raw=24     rawptr=0x0250 rel=6  relptr=0x0268 chars=0x60401020
+-- .data #5 raw
+   0000  00 00 00 01 00 00 00 02 00 00 00 03 00 00 00 00
+-- .text #6 (24 B) ?f@@YAHXZ
+   0000  3d600000  3d600000                          ; REFHI -> [13] ?p@@3PAHA  ; PAIR -> [0] @comp.id
+   0004  392b0000  392b0000                          ; REFLO -> [13] ?p@@3PAHA  ; PAIR -> [0] @comp.id
+   0008  814b0000  814b0000                          ; REFLO -> [13] ?p@@3PAHA  ; PAIR -> [0] @comp.id
+   000c  8169000c  8169000c                        
+   0010  7c6b5214  7c6b5214                        
+   0014  4e800020  4e800020                        
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=152 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .XBLD$W                                  sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [10] __C1_11886                               sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [11] .data                                    sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0xb4c08bd3 num=0 sel=0)
+  [13] ?p@@3PAHA                                sec=5   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [14] .text                                    sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=24 nrel=6 nln=0 cksum=0x00000000 num=0 sel=1)
+  [16] ?f@@YAHXZ                                sec=6   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
