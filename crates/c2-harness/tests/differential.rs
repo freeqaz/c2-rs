@@ -1058,3 +1058,57 @@ fn differential_wosf_handle_guard_refuses_outside_its_mode() {
         std::fs::remove_dir_all(&w).ok();
     }
 }
+
+/// **W-XLR's mode fence, graded by the oracle.**
+///
+/// `wxlr_create_guard.cpp` is a `/O1`-only class for the same reason its four
+/// neighbours are, and the clause lives in the **parser**, asked before any body
+/// byte is read (board #1638, which has fired twice);
+/// `codegen::xlrc_create_guard` re-asserts it because `select_function` is what
+/// `function_gate` runs, and `census_gate.rs` is the cross-check that the two
+/// agree.
+///
+/// `differential()` drives the **default `/Ox` profile**, so this test grades
+/// exactly the arm the workload never exercises — and the assertion is
+/// `NotImplemented`, because a refusal becoming a wrong emit is strictly worse
+/// than a gap (board #232). There is a second reason for this class
+/// specifically: `/Ox` does not imply `/Gy`, and the PACKED writer **refuses**
+/// the `__savegprlr_N` frame outright, because every witness of where the helper
+/// pair's symbols go is a `/Gy` obj with a `$T` label to put them after. Both
+/// locks produce the same verdict here and either alone would be enough.
+///
+/// **The `/O1` arm is graded by `scripts/mode_lane.sh /O1`, not here**, and that
+/// is where the positive cell comes back `match`. This test cannot make that
+/// claim and does not: `differential()` has no `--flags-file`.
+///
+/// `wxlr_create_guard_neg.cpp` refuses in the READER at every mode, so its
+/// verdict is the same on both paths. Its **ten** cells decline on **ten
+/// distinct clauses** — checked per cell with a reverted probe patch
+/// (`work/w-xlr/decline_probe.md`), because a file-level `NotImplemented` is the
+/// conjunction and says nothing about which clause each cell reached. The first
+/// draft of that file collapsed four of the ten onto one clause and still read
+/// `0/10`, which is why the count is not the evidence.
+#[test]
+fn differential_wxlr_create_guard_refuses_outside_its_mode() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        eprintln!("SKIP: strace/mingw absent");
+        return;
+    }
+    for name in ["wxlr_create_guard.cpp", "wxlr_create_guard_neg.cpp"] {
+        let w = work("wxlr");
+        let port = PortC2::default();
+        let report = differential(&fixture(name), &tc, &port, &w);
+        match report {
+            DiffReport::ReferenceReplayByteExact { port, .. } => match port {
+                PortStatus::NotImplemented(_) => {}
+                other => panic!("expected NotImplemented for {name} at /Ox, got {other:?}"),
+            },
+            other => panic!("expected ReferenceReplayByteExact for {name}, got {other:?}"),
+        }
+        std::fs::remove_dir_all(&w).ok();
+    }
+}

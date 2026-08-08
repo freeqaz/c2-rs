@@ -102,7 +102,8 @@ use super::super::{blk, BodyShape, Block};
 use super::params::parse_params;
 use crate::func::bundle::{opt_word_at, opt_word_mode, OptWordMode};
 use crate::func::readers::{
-    eat_byte, eat_opt_stmt_marker, is_int4_type, read_token_var, read_type, read_varint,
+    eat_byte, eat_opt_stmt_marker, is_int4_type, is_ptr_to_4, read_token_var, read_type,
+    read_varint,
 };
 use crate::func::XlrcCreateGuard;
 
@@ -130,6 +131,24 @@ impl Ty<'_> {
     /// A 4-byte integer of either sign.
     fn is_word(&self) -> bool {
         is_int4_type(self.tag, self.kind)
+    }
+
+    /// A 4-byte **unsigned** integer, which is the only thing that makes the
+    /// middle guard a `cmplwi`.
+    ///
+    /// **This clause is a live wrong-emit fence, not decoration.** The
+    /// relational opcodes are sign-agnostic (`docs/CODEGEN_W6_COMPARE.md` §1.1),
+    /// so `int size` and `unsigned size` produce the **same `22` byte** and
+    /// differ only here — and c2 emits `cmpwi cr6,r11,4` for the signed one
+    /// where this class's emitter has an unconditional `cmplwi`. Without the
+    /// clause the accepted body is one wrong word, in an obj that links.
+    fn is_unsigned_word(&self) -> bool {
+        is_int4_type(self.tag, self.kind) && (self.kind & 0x0F) == 0x2
+    }
+
+    /// A 4-byte pointer — one GPR, and therefore one `mr` or one `stw`.
+    fn is_ptr4(&self) -> bool {
+        is_ptr_to_4(self.tag, self.kind)
     }
 }
 
@@ -313,8 +332,9 @@ pub(crate) fn try_parse_xlrc_create_guard(
 
     // ---- `size = K_INIT;` — the ADDRESS-TAKEN stack object ------------------
     let (t_size, k_init, u4_ty) = eat_lit_assign(seg, &mut p, "xlrc-init-size")?;
-    if !u4_ty.is_word() {
-        return Err(blk(seg, p, "xlrc-size-is-not-a-word"));
+    if !u4_ty.is_unsigned_word() {
+        // See [`Ty::is_unsigned_word`] — the signed sibling is one wrong word.
+        return Err(blk(seg, p, "xlrc-stack-object-is-not-an-unsigned-word"));
     }
     if !(0..=0xFFFF).contains(&k_init) {
         // The value lands in one `li` immediate and is compared by one
@@ -342,6 +362,11 @@ pub(crate) fn try_parse_xlrc_create_guard(
     let t_client = eat_designator(seg, &mut p, "xlrc-create-dst")?;
     let create_tok = eat_designator(seg, &mut p, "xlrc-create-callee")?;
     let ret_ty = eat_call_head(seg, &mut p, "xlrc-create-call")?;
+    if !ret_ty.is_ptr4() {
+        // The result is parked in r31 with one `mr.` and stored with one `stw`;
+        // a wider or an aggregate return is neither.
+        return Err(blk(seg, p, "xlrc-create-result-is-not-a-four-byte-pointer"));
+    }
     // The one argument is the stack object's ADDRESS — a `26` designator push,
     // not a `B9` value read. That is what makes the word `addi r3,r1,80`.
     if eat_designator(seg, &mut p, "xlrc-create-arg")? != t_size {
@@ -438,6 +463,9 @@ pub(crate) fn try_parse_xlrc_create_guard(
     let t_transport = eat_designator(seg, &mut p, "xlrc-attach-dst")?;
     let attach_tok = eat_designator(seg, &mut p, "xlrc-attach-callee")?;
     let att_ty = eat_call_head(seg, &mut p, "xlrc-attach-call")?;
+    if !att_ty.is_ptr4() {
+        return Err(blk(seg, p, "xlrc-attach-result-is-not-a-four-byte-pointer"));
+    }
     // **Three arguments, in REVERSE source order** — the stream pushes the last
     // one first, and the emitter's three `mr`/`lwz` words are keyed on that
     // order. `size` is read as a VALUE here (it is reloaded from the stack
@@ -447,9 +475,15 @@ pub(crate) fn try_parse_xlrc_create_guard(
         return Err(blk(seg, p, "xlrc-attach-arg3-is-not-the-stack-object"));
     }
     eat_arg_end(seg, &mut p, "xlrc-attach-arg3-end")?;
-    let (tok, _) = eat_load(seg, &mut p, "xlrc-attach-arg2")?;
+    let (tok, ty) = eat_load(seg, &mut p, "xlrc-attach-arg2")?;
     if tok != params[0] {
         return Err(blk(seg, p, "xlrc-attach-arg2-is-not-the-first-formal"));
+    }
+    // **One GPR, established by the TYPE and not assumed from the count.** The
+    // first formal reaches r4 through a single `mr r4,r30`; a formal wider than
+    // a register occupies two of them and every argument after it moves.
+    if !(ty.is_word() || ty.is_ptr4()) {
+        return Err(blk(seg, p, "xlrc-first-formal-is-not-one-register"));
     }
     eat_arg_end(seg, &mut p, "xlrc-attach-arg2-end")?;
     let (tok, ty) = eat_load(seg, &mut p, "xlrc-attach-arg1")?;
@@ -503,9 +537,15 @@ pub(crate) fn try_parse_xlrc_create_guard(
         [(t_size, u4_ty), (t_client, ret_ty), (t_transport, att_ty)].into_iter().enumerate()
     {
         eat_opt_stmt_marker(seg, &mut p);
-        let (dst, _) = eat_load(seg, &mut p, "xlrc-out-store-dst")?;
+        let (dst, dst_ty) = eat_load(seg, &mut p, "xlrc-out-store-dst")?;
         if dst != params[ix + 1] {
             return Err(blk(seg, p, "xlrc-out-store-is-not-the-matching-formal"));
+        }
+        // The destination is a POINTER VALUE held in a parked register, so the
+        // store is `stw rS,0(rD)` — one word, no relocation, no `addi`. The
+        // type is what says the formal is one register wide.
+        if !dst_ty.is_ptr4() {
+            return Err(blk(seg, p, "xlrc-out-store-formal-is-not-a-four-byte-pointer"));
         }
         let (tok, ty) = eat_load(seg, &mut p, "xlrc-out-store-value")?;
         if tok != src || ty != src_ty {
@@ -601,4 +641,65 @@ pub(crate) fn try_parse_xlrc_create_guard(
         k_hi,
         k_fail,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{IlFunction, XlrcCreateGuardFn};
+
+    fn xlrcimpl() -> IlFunction {
+        IlFunction {
+            xlrc_create_guard: Some(XlrcCreateGuardFn {
+                params: vec![0x09fc, 0x09fd, 0x09fe, 0x09ff],
+                create: "?CreateClient@CXLrcImpl@@YAPAVCXLrcClient@@PAI@Z".to_string(),
+                attach: "CXLrcClient_CreateTransport".to_string(),
+                k_init: 4,
+                k_bound: 4,
+                k_lo: 0x8007_000Eu32 as i32,
+                k_hi: 0x8007_10DDu32 as i32,
+                k_fail: 0x8000_4005u32 as i32,
+            }),
+            params: vec![0x09fc, 0x09fd, 0x09fe, 0x09ff],
+            ..IlFunction::base("CXLrcImpl_CreateClientWithTransport", &None)
+        }
+    }
+
+    /// **The label lead is 2, and that is a MEASUREMENT that refutes #1761.**
+    ///
+    /// `xlrcimpl.cpp`'s `.gl` counter is 2575, `plan_labels` seeds at
+    /// `2575 + 9 + 3·1 = 2587`, and the reference obj's labels are
+    /// `$M2589`/`$M2590`/`$T2591`. The body has **three** unconditional
+    /// intra-section `b` words (`+0x4c`, `+0x54`, `+0x78`), so #1761's
+    /// `b`-counting rule predicts 3 — and the lane ran both counterfactuals
+    /// against real `c2.dll`: forced to 0 the obj reads `mismatch`, forced to 3
+    /// it reads `mismatch`, and at 2 it reads `match`.
+    ///
+    /// The number that fits is `docs/LABEL_COUNTER.md` §1.1's +2 for a
+    /// first-introduced `__savegprlr_N`/`__restgprlr_N` pair.
+    #[test]
+    fn the_label_lead_is_two_and_the_gy_stride_is_seven() {
+        let f = xlrcimpl();
+        assert_eq!(f.label_lead(), 2);
+        assert!(f.is_framed());
+        assert_eq!(f.label_slots(true), Some(7), "/Gy: base 5 + a lead of 2");
+        assert_eq!(f.label_slots(false), Some(6), "packed: base 4 + the same lead");
+    }
+
+    /// The two callees travel on `callees()` in `.text` order, and the frame's
+    /// helper pair does NOT — it is minted by the emitter and placed after `$T`,
+    /// so listing it here would put two symbols in the wrong half of the table.
+    #[test]
+    fn callees_are_the_two_il_named_ones_and_not_the_frame_helpers() {
+        let f = xlrcimpl();
+        let names: Vec<&str> = f.callees().collect();
+        assert_eq!(
+            names,
+            vec![
+                "?CreateClient@CXLrcImpl@@YAPAVCXLrcClient@@PAI@Z",
+                "CXLrcClient_CreateTransport"
+            ]
+        );
+        assert!(names.iter().all(|n| !n.starts_with("__savegprlr")
+            && !n.starts_with("__restgprlr")));
+    }
 }

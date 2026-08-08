@@ -25,6 +25,7 @@ mod comdat_tests {
             text_offset: off,
             calls: vec![Call { reloc_offset: off, callee }],
             is_float: false,
+            helper_externals: Vec::new(),
             fp_refs: Vec::new(),
             data_refs: Vec::new(),
             data_defs: Vec::new(),
@@ -67,6 +68,7 @@ mod comdat_tests {
             text_offset: 0,
             calls: vec![Call { reloc_offset: 0, callee }],
             is_float: false,
+            helper_externals: Vec::new(),
             fp_refs: Vec::new(),
             data_refs: Vec::new(),
             data_defs: Vec::new(),
@@ -1904,6 +1906,136 @@ mod tests {
             vec![4],
             "(j) the FP quad's halves ARE adjacent — REFLO belongs at hi_off+4 = \
              4 here, and the data-symbol quad's does NOT: {reflo:?}"
+        );
+    }
+}
+
+/// **W-XLR — the frame helpers' symbol records go AFTER the `$T` label**, and
+/// their relocations resolve against those indices.
+///
+/// `docs/CODEGEN_FRAMED_CALLS.md` §2.3a's witnessed group, in order:
+///
+/// ```text
+///   .text+aux · fn · $M(end) · <callee> · $M(prologue) · .pdata+aux · $T
+///                                       · __restgprlr_N · __savegprlr_N
+/// ```
+///
+/// Emitting them in the callee region instead resolves every relocation and
+/// moves four symbol indices — `docs/GAPS.md` §6's silent shape — so the
+/// assertion is on the ORDER, not on presence.
+#[cfg(test)]
+mod xlrc_helper_symbols {
+    use super::super::*;
+
+    /// Every COFF symbol record's name, in table order. A local walk of the
+    /// container: the sibling helper of the same name lives inside another test
+    /// module and this one needs only the names.
+    fn symbols(obj: &[u8]) -> Vec<String> {
+        let u32at = |o: usize| u32::from_le_bytes([obj[o], obj[o + 1], obj[o + 2], obj[o + 3]]);
+        let ptr = u32at(8) as usize;
+        let n = u32at(12) as usize;
+        let strtab = ptr + n * 18;
+        let mut out = Vec::new();
+        let mut i = 0;
+        while i < n {
+            let r = ptr + i * 18;
+            let name = if u32at(r) == 0 {
+                let off = strtab + u32at(r + 4) as usize;
+                let end = obj[off..].iter().position(|&c| c == 0).unwrap_or(0) + off;
+                String::from_utf8_lossy(&obj[off..end]).into_owned()
+            } else {
+                let raw = &obj[r..r + 8];
+                let end = raw.iter().position(|&c| c == 0).unwrap_or(8);
+                String::from_utf8_lossy(&raw[..end]).into_owned()
+            };
+            // Aux records carry no name and must still take an index slot, so
+            // the vector stays index-addressable for the relocation walk below.
+            let aux = obj[r + 17] as usize;
+            out.push(name);
+            for _ in 0..aux {
+                out.push(String::new());
+            }
+            i += 1 + aux;
+        }
+        out
+    }
+
+    fn helper_fn() -> Function<'static> {
+        Function {
+            calls: vec![
+                Call { reloc_offset: 0x04, callee: "__savegprlr_26" },
+                Call { reloc_offset: 0x2c, callee: "?g@@YAHXZ" },
+                Call { reloc_offset: 0x94, callee: "__restgprlr_26" },
+            ],
+            frame: Some(Frame { prolog_len: 0x0C, func_len: 0x98 }),
+            label_lead: 2,
+            helper_externals: vec!["__restgprlr_26", "__savegprlr_26"],
+            ..Function::plain("?f@@YAHH@Z", 0)
+        }
+    }
+
+    #[test]
+    fn the_helper_pair_is_emitted_after_the_t_label() {
+        let f = helper_fn();
+        let text = vec![0u8; 0x98];
+        let obj = emit_comdat_obj(r"Z:\t\f.obj", &[f], &[text], 2575).expect("no defined data");
+        let syms = symbols(&obj);
+        let ix = |n: &str| syms.iter().position(|s| s == n).unwrap_or_else(|| panic!("no {n}"));
+        // The lead of 2 puts the triple at 2575 + 9 + 3 + 2 = 2589, which is
+        // `xlrcimpl.cpp`'s own — pinned here so the group assertion below names
+        // real symbols rather than comparing two `None`s.
+        let (m0, m1, t) = ("$M2589", "$M2590", "$T2591");
+        assert!(ix(m1) < ix("?g@@YAHXZ"), "the callee is between the two $M records");
+        assert!(ix("?g@@YAHXZ") < ix(m0), "…and before $M(prologue)");
+        assert!(ix(m0) < ix(t), "$T closes the group");
+        assert!(ix(t) < ix("__restgprlr_26"), "the helpers follow $T, not the callee");
+        assert!(
+            ix("__restgprlr_26") < ix("__savegprlr_26"),
+            "reverse first-reference: the RESTORE site is the later `.text` offset, \
+             so its symbol is the earlier record"
+        );
+        // The callee region holds exactly one name: `introduced_externals`
+        // subtracts the helpers rather than skipping them.
+        assert_eq!(
+            helper_fn().introduced_externals().into_iter().map(|(n, _)| n).collect::<Vec<_>>(),
+            vec!["?g@@YAHXZ"]
+        );
+    }
+
+    #[test]
+    fn all_three_relocations_resolve_against_the_indices_the_writer_assigned() {
+        let f = helper_fn();
+        let text = vec![0u8; 0x98];
+        let obj = emit_comdat_obj(r"Z:\t\f.obj", &[f], &[text], 2575).expect("no defined data");
+        let syms = symbols(&obj);
+        // Walk the `.text` COMDAT's relocation records: (VirtualAddress, index).
+        let u16at = |o: usize| u16::from_le_bytes([obj[o], obj[o + 1]]);
+        let u32at = |o: usize| u32::from_le_bytes([obj[o], obj[o + 1], obj[o + 2], obj[o + 3]]);
+        let nsec = u16at(2) as usize;
+        let mut found: Vec<(u32, String)> = Vec::new();
+        for s in 0..nsec {
+            let h = 20 + s * 40;
+            let n = u16at(h + 32) as usize;
+            let p = u32at(h + 24) as usize;
+            for r in 0..n {
+                let rec = p + r * 10;
+                let ty = u16at(rec + 8);
+                if ty == 6 {
+                    // REL24
+                    found.push((u32at(rec), syms[u32at(rec + 4) as usize].clone()));
+                }
+            }
+        }
+        found.sort_by_key(|(va, _)| *va);
+        assert_eq!(
+            found,
+            vec![
+                (0x04, "__savegprlr_26".to_string()),
+                (0x2c, "?g@@YAHXZ".to_string()),
+                (0x94, "__restgprlr_26".to_string()),
+            ],
+            "each REL24 must point at the symbol its site names, wherever that \
+             symbol's record was placed"
         );
     }
 }

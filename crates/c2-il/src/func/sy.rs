@@ -1857,6 +1857,46 @@ mod tests {
         .unwrap();
         assert_eq!(plain[0].int_locals, vec![0xe609]);
         assert!(taken[0].int_locals.is_empty());
+        // **W-XLR — the same record is now LOCATED POSITIVELY**, and the two
+        // populations are disjoint in both directions rather than merely
+        // "one of them is empty".
+        assert_eq!(taken[0].addr_locals, vec![0xe609]);
+        assert!(plain[0].addr_locals.is_empty());
+    }
+
+    /// **W-XLR — `addr_locals` admits exactly the four-byte integer scalars and
+    /// nothing else**, and the widening is verdict-neutral for the two lists
+    /// that existed before it.
+    ///
+    /// Each row is one `.sy` record, varied on ONE axis from the `int, &x taken`
+    /// row of [`read_record`]'s 21-cell grid. `signed` and `unsigned` are in;
+    /// an address-taken POINTER is deliberately out (it is four bytes today and
+    /// the class that consumes this list turns membership into
+    /// `FrameLayout::locals`, so admitting a kind whose width could differ is
+    /// how a `stwu` immediate goes silently wrong); so is a `char`.
+    #[test]
+    fn addr_locals_is_four_byte_integer_scalars_only_and_moves_nothing_else() {
+        let rows: &[(u8, u32, &[u8], bool)] = &[
+            (TYPE_KIND_INT, SIZEOF_INT, &[TID_INT as u8], true),
+            (TYPE_KIND_UNSIGNED, SIZEOF_INT, &[0x75], true),
+            // A four-byte data POINTER whose address is taken — located, and
+            // admitted to nothing.
+            (TYPE_KIND_DATA_PTR, SIZEOF_INT, &[0x80, 0x74, 0x04, 0x00, 0x00], false),
+            // A one-byte scalar: the frame would reserve a different number of
+            // bytes for it.
+            (TYPE_KIND_INT, 1, &[0x70], false),
+        ];
+        for (kind, size, tid, want) in rows {
+            let b = sy_blocks(&one_block(&[local_rec(*kind, *size, 0x0021, tid)])).unwrap();
+            assert_eq!(
+                b[0].addr_locals == vec![0xe609],
+                *want,
+                "kind {kind:#04x} size {size} tid {tid:02x?}"
+            );
+            // Neutral for the two older lists on every row, whichever way the
+            // new one goes: an address-taken record was never in either.
+            assert!(b[0].int_locals.is_empty() && b[0].ptr_locals.is_empty());
+        }
     }
 
     /// `<kind>` alone does not separate `int` from `volatile int` — both are
