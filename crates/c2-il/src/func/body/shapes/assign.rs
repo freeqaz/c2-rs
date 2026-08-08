@@ -308,7 +308,7 @@ pub(crate) fn try_parse_assign_body_detail(
 /// and every default scan: the `OnceLock` resolves to `Int` when the variable is
 /// absent, which is the shipped `eat_int_like` call this replaced.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(crate) enum StoreTypeSink {
+enum StoreTypeSink {
     /// `eat_int_like` — the shipped gate.
     Int,
     /// `eat_int_like_or_ptr4` — the sibling locator the *operand* gate one
