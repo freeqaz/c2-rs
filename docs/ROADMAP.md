@@ -10232,3 +10232,86 @@ lanes"* reconstructs as **159 merge commits** in `4233939b..c34c388c`, i.e. a
 
 Board rows **#1660**–**#1667** are minted for this lane; **#1668**–**#1679** are
 explicitly **UNMINTED** and free for the next.
+
+## 10.26 W-GENERATORS — four lanes read the ALGORITHMS, and every one of them re-points the frontier at the same seam (2026-08-08)
+
+Campaign 2 of the whitebox program
+(`docs/whitebox/CAMPAIGN_2026-08-08_GENERATORS.md`): after six transcription
+conversions in one day, the question was whether the *generators* — the
+algorithms that produce c2's outputs — are readable, so that one confirmed
+reading converts a class rather than a TU. Four navigation lanes, four floors
+met (one exceeded), **zero `crates/` changes, zero DISCLOSURE adoptions**, and
+five retractions written by the lanes about their own predictions.
+
+**What is now READ and obj-confirmed:**
+
+* **The register policy** (`wb-regalloc`, #1820–#1830): allocation order is a
+  fixed image-resident array (`r11,r10,…,r3, r31,…,r14`), minimum-cost
+  selection with ties to the list head; **no instruction scheduler exists**;
+  every compare is `cr6` (no CR class). Survived 6/6 frozen cells including
+  two whole functions predicted in advance. Block order is explicitly NOT
+  established (one obj: a switch in reverse case order beside a source-order
+  if-chain).
+* **The EH layout** (`wb-eh`, #1860–#1873): the unwind word's exact bit
+  layout; funclet handler-prefix and bit 31 are ONE predicate (two rivals
+  refuted on a frozen cell); `.pdata` COMDATs in reverse region order (5
+  records); the ip-to-state map is DERIVED by a pass, not carried in the IL
+  (P3.3 retracted on five objs).
+* **The inline decision's shape** (`wb-inline`, #1840–#1852): candidacy reads
+  the favor-speed bit and a pre-codegen instruction count; measured on 320
+  cells, NO rival survived whole — what survives are brackets: static ceiling
+  (300,308] favor-size / (212,252] favor-speed, and a **loop-bodied callee
+  declines at (56,80]** where a straight-line one inlines to (96,120].
+* **Three chooser rules with manufactured witnesses** (`wb-chooser`,
+  #1880–#1888): the park register (14/9 per side), pooled-constant `lis`
+  placement (3/6), CSE reload order (5/15) — #1767's bar met by manufacture,
+  which is the remedy the rule anticipates.
+
+**The three corrections that move the plan:**
+
+1. **`mmio.cpp` and `Biquad.cpp` were never evidence-blocked** — the
+   "one-witness-per-side" decline was a mis-copy of a blocked-function count
+   (#1880; third paraphrase failure this week). They are blocked by three
+   implementable lowering rules whose witnesses now exist.
+2. **`Main.cpp`'s blocker is not EH** — its 41-token body tokenises end to
+   end; the stop is the port not modelling the value a call-in-expression
+   (`26`) leaves, i.e. board **#1534's 36,751-function family**, and at
+   master the row dies even earlier, in the formals header (#1864). Factor
+   D's "740 objs" is a population, not a multiplier (#1866).
+3. **Board #1477 should CLOSE, not re-point** (`wb-inline`): the six
+   shuffles differ only in size and the firing clause is the loop-class
+   ceiling; a real inliner needs WB-D's unsolved selection question plus an
+   interprocedural clobber set, and a transcription licence buys a class of
+   exactly one. Both remedies convert zero.
+
+**The re-ordering this campaign licenses (supersedes §10.24's list where they
+differ):**
+
+1. **Code lane: ship the chooser rules** (M-RULE, B-RULE, B′-RULE — B-RULE-2
+   stays `medium` until widened) toward `mmio.cpp` and `Biquad.cpp` — two
+   frontier TUs whose blocker list is now named lowering rules with measured
+   cells behind each.
+2. **The member-call value model** (`26`/`2C`/`99`/`BD`): the one seam that
+   gates `Main.cpp` AND the largest reader family on the board. This is the
+   biggest single lever the campaign found, and it was found by an EH lane —
+   the third time a lane's commissioned question resolved into a different
+   seam than its title.
+3. **Inline decline-side narrowing** (`/Ob0`, varargs, direct recursion,
+   >308 B at `/O1`, loop-bodied >80 B at `/O1`): lets the port keep its own
+   call where c2 keeps the call, and be right. Do NOT adopt the accept side —
+   a mis-predicted accept is a wrong obj (#232's shape).
+4. **The counted-`for` loop class** (`lur.c` reading is the next whitebox
+   rung): the first generator-derived class conversion, priced honestly at
+   ~0 immediate reach (#1829) because the reader gates it — infrastructure,
+   sequenced behind item 2 for exactly that reason.
+5. **Close #1477.**
+
+Also at the funnel: `board_audit.sh` had been blind to every 4-digit row —
+both extractors capped at `[0-9]\{1,3\}`, symmetrically, so the audit stayed
+green while covering rows #1–#999 only. Widened (559 → 1,128 visible rows),
+the blindness masked no live defect (#1831).
+
+Board rows **#1820**–**#1830** (`wb-regalloc`), **#1831** (funnel),
+**#1840**–**#1852** (`wb-inline`), **#1860**–**#1873** (`wb-eh`),
+**#1880**–**#1888** (`wb-chooser`); the unminted remainders of each range are
+declared in `docs/BOARD.md`.
