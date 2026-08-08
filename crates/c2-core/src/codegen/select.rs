@@ -14,6 +14,7 @@
 
 use c2_il::IlFunction;
 use crate::BackendError;
+use crate::codegen::calls;
 use crate::codegen::calls::{call_seq_parts, int_tail_call_text, permute_args_text};
 use crate::codegen::cond_tail::{cond_pair_parts, CondPairParts};
 use crate::codegen::encode::encode_blr;
@@ -126,7 +127,16 @@ pub enum Selected {
     /// selector hands back the per-call argument setups and the post-call tail and
     /// the caller — which knows where the function lands — finishes the body
     /// through [`call_seq_text`].
-    Seq { setups: Vec<Vec<u8>>, tail: Vec<u8> },
+    Seq {
+        setups: Vec<Vec<u8>>,
+        tail: Vec<u8>,
+        /// **Board #275 — the entry-block park.** Empty for every body without
+        /// one; when it is not, it carries both the words that go between the
+        /// prologue and the first guard AND where each formal has landed, so
+        /// the two writers resolve the guards' compare registers out of the
+        /// same place the moves came from.
+        park: calls::SeqPark,
+    },
     /// **W8 — a two-arm conditional tail call.** The body with a zero word at
     /// each of its two tail branches, which the caller fills for the same reason
     /// [`Selected::Tail`] carries an incomplete text: a `b` to an external
@@ -186,8 +196,8 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
         return Ok(Selected::Framed { setup });
     }
     if let Some(seq) = &func.call_seq {
-        let (setups, tail) = call_seq_parts(&func.params, seq, mode)?;
-        return Ok(Selected::Seq { setups, tail });
+        let (setups, tail, park) = call_seq_parts(&func.params, seq, mode)?;
+        return Ok(Selected::Seq { setups, tail, park });
     }
     // **W8 — the two-arm conditional tail call.** Asked here, beside the other
     // shapes that own their whole branch layout and ahead of every leaf: its

@@ -1641,16 +1641,134 @@ pub(crate) fn parse_call_sequence_from(
     //
     // The permutation with **no** early return is untouched and stays in class:
     // it is byte-exact today, 12 of the 12 measured cells.
-    if !early.is_empty()
-        && calls.iter().any(|c| {
+    //
+    // **W-MMIO — and the refusal is now the COMPLEMENT of a measured class, not
+    // the whole shape.** Lane `w-mmio` gridded the park over **886 cells**
+    // against the real `c2.dll` at the workload's own flags (grids 1–3,
+    // `work/w-mmio/probe{,2,3}/`) and re-checked 30 of them at `/Ox` and `/O2`.
+    // Board **#1414**'s published rule — *"break the cycle by saving the LOWEST
+    // slot's home"* — is **refuted**: it scores 394 of 832. What holds is
+    //
+    //   the ENTRY block ascends and the CALL site descends, and the anchor is
+    //   the GUARD's own scrutinee whenever the chain rooted there is unimodal,
+    //
+    // and that sub-class is **496 of 496** across all three grids — fitted on
+    // grid 1, unchanged on grids 2 and 3, both of which were committed before
+    // they were compiled. `c2_core::codegen::calls::seq_entry_park` emits it.
+    //
+    // Everything else stays refused, and deliberately: when the first guard
+    // cannot anchor, c2 scans on to later guards and past that to the cycle
+    // minimum, and that clause was **re-fitted by every population that
+    // measured it** — grid 2 refuted grid 1's version, grid 3 refuted grid 2's.
+    // Board #260's warning applies to a clause with that history, so the
+    // population it governs comes out as a gap rather than as bytes.
+    if !early.is_empty() {
+        let permuted = |c: &SeqCall| {
             c.arg_sources
                 .as_ref()
                 .is_some_and(|s| s.iter().enumerate().any(|(slot, &pi)| pi != slot))
-        })
-    {
-        return Err(Block::refuse(seg, *p, "callseq-early-return-permuted-args"));
+        };
+        if calls.iter().skip(1).any(permuted)
+            || (calls.first().is_some_and(permuted)
+                && !park_in_class(
+                    calls[0].arg_sources.as_ref().expect("permuted implies sources"),
+                    &early[0],
+                    &saved,
+                    guard.is_some(),
+                ))
+        {
+            return Err(Block::refuse(seg, *p, "callseq-early-return-permuted-args"));
+        }
     }
     Ok(BodyShape::CallSeq { params, calls, tail, saved, guard, early })
+}
+
+/// **W-MMIO / board #275 — is this guarded permuted call inside the measured
+/// park class?**
+///
+/// The acceptance predicate lives HERE, in the parser, and
+/// `c2_core::codegen::calls::seq_entry_park` restates it as the backstop —
+/// board **#139**'s rule, and the same reason lane `w-clear` gave for putting
+/// the *refusal* in both places: with only the emitter deciding, the census
+/// over-claims and `TuResult::fn_gate_refusals` fills up.
+///
+/// The class, measured over 886 cells against the real `c2.dll` (grids 1–3 in
+/// `work/w-mmio/probe{,2,3}/`, at the dc3 workload's own flags and cwd, and
+/// re-checked at `/Ox` and `/O2` on 30 of them):
+///
+/// * **Class A only** — a park beside a callee-saved copy breaks the cycle
+///   through the callee-saved register instead of `r11`, which is a different
+///   algorithm (`calls_n3_p201_g0_c2` in grid 1: `mr r31,r5` and no `r11` at
+///   all).
+/// * **no W10 guard** — two block plans in one body, refused in the emitter too.
+/// * **no `&&` conjunct** — a conjunct's scrutinee is a second formal and no
+///   cell crossed one with a park.
+/// * **one non-trivial cycle, of length at most three** — past three c2 hoists
+///   a second save into `r10` (`long_n4_p2310` in grid 1), which is the
+///   `call-arg-long-cycle` boundary this file already draws for the *unguarded*
+///   permutation.
+/// * **the first early return's scrutinee is IN that cycle, and the chain
+///   rooted there is unimodal** — the entry block ascends by destination and
+///   the call site descends, so a chain that dips and rises again has no
+///   layout, and c2 then anchors elsewhere by a clause that has been re-fitted
+///   at every population that measured it.
+fn park_in_class(
+    sources: &[usize],
+    first: &super::super::SeqEarlyReturnShape,
+    saved: &[usize],
+    has_guard: bool,
+) -> bool {
+    if !saved.is_empty() || has_guard || !first.and_conds.is_empty() {
+        return false;
+    }
+    let n = sources.len();
+    if n == 0 || sources.iter().any(|&s| s >= n) {
+        return false;
+    }
+    // The single non-trivial cycle.
+    let mut seen = vec![false; n];
+    let mut cycles: Vec<Vec<usize>> = Vec::new();
+    for start in 0..n {
+        if seen[start] || sources[start] == start {
+            seen[start] = true;
+            continue;
+        }
+        let (mut cycle, mut at) = (Vec::new(), start);
+        while !seen[at] {
+            seen[at] = true;
+            cycle.push(at);
+            at = sources[at];
+        }
+        cycles.push(cycle);
+    }
+    if cycles.len() != 1 || cycles[0].len() > 3 {
+        return false;
+    }
+    let anchor = first.cmp_param;
+    if !cycles[0].contains(&anchor) {
+        return false;
+    }
+    // The chain rooted at the scrutinee, as destination slots in dependency
+    // order; its slot numbers are its register numbers up to a constant, so
+    // unimodality can be read straight off them.
+    let mut dests = Vec::with_capacity(cycles[0].len());
+    let mut cur = anchor;
+    loop {
+        dests.push(cur);
+        let nxt = sources[cur];
+        if nxt == anchor {
+            break;
+        }
+        cur = nxt;
+    }
+    let mut i = 0;
+    while i + 1 < dests.len() && dests[i] < dests[i + 1] {
+        i += 1;
+    }
+    while i + 1 < dests.len() && dests[i] > dests[i + 1] {
+        i += 1;
+    }
+    i == dests.len() - 1
 }
 
 /// The largest number of callee-saved GPRs c2 open-codes with `std`/`ld`. At

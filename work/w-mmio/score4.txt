@@ -1,0 +1,101 @@
+work/w-mmio/probe3 — scored against predictions frozen before the first cl.exe
+cells graded  428   (compile errors 0)
+  R-GUARD-SCAN                  400 /  428
+  grid-1 fit (first-in-cycle)   308 /  428
+  R-MIN (board #1414)           132 /  428
+  on the  148 cells that SEPARATE it from R-GUARD-SCAN: SCAN 120, grid-1 fit (first-in-cycle) 0
+  on the  324 cells that SEPARATE it from R-GUARD-SCAN: SCAN 296, R-MIN (board #1414) 0
+
+class    SCAN      n
+h1         56     56
+h2         28     28
+h3        140    168
+h4        100    100
+h5         20     20
+h6         56     56
+
+--- 28 cells R-GUARD-SCAN gets WRONG ---
+h3_n4_p0231_g321_ln  guards=[3, 2, 1] perm=[0, 2, 3, 1]
+   measured r11<-r4 r4<-r5 r5<-r6 | r6<-r11
+   predict  r11<-r5 r5<-r6 | r6<-r4 r4<-r11
+h3_n4_p0312_g231_ln  guards=[2, 3, 1] perm=[0, 3, 1, 2]
+   measured r11<-r4 r4<-r6 | r6<-r5 r5<-r11
+   predict  r11<-r6 | r6<-r5 r5<-r4 r4<-r11
+h3_n4_p1203_g210_ln  guards=[2, 1, 0] perm=[1, 2, 0, 3]
+   measured r11<-r3 r3<-r4 r4<-r5 | r5<-r11
+   predict  r11<-r4 r4<-r5 | r5<-r3 r3<-r11
+h3_n4_p1320_g310_ln  guards=[3, 1, 0] perm=[1, 3, 2, 0]
+   measured r11<-r3 r3<-r4 r4<-r6 | r6<-r11
+   predict  r11<-r4 r4<-r6 | r6<-r3 r3<-r11
+h3_n4_p2013_g120_ln  guards=[1, 2, 0] perm=[2, 0, 1, 3]
+   measured r11<-r3 r3<-r5 | r5<-r4 r4<-r11
+   predict  r11<-r5 | r5<-r4 r4<-r3 r3<-r11
+h3_n4_p2130_g320_ln  guards=[3, 2, 0] perm=[2, 1, 3, 0]
+   measured r11<-r3 r3<-r5 r5<-r6 | r6<-r11
+   predict  r11<-r5 r5<-r6 | r6<-r3 r3<-r11
+h3_n4_p3021_g130_ln  guards=[1, 3, 0] perm=[3, 0, 2, 1]
+   measured r11<-r3 r3<-r6 | r6<-r4 r4<-r11
+   predict  r11<-r6 | r6<-r4 r4<-r3 r3<-r11
+h3_n4_p3102_g230_ln  guards=[2, 3, 0] perm=[3, 1, 0, 2]
+   measured r11<-r3 r3<-r6 | r6<-r5 r5<-r11
+   predict  r11<-r6 | r6<-r5 r5<-r3 r3<-r11
+h3_n5_p01342_g432_ln  guards=[4, 3, 2] perm=[0, 1, 3, 4, 2]
+   measured r11<-r5 r5<-r6 r6<-r7 | r7<-r11
+   predict  r11<-r6 r6<-r7 | r7<-r5 r5<-r11
+h3_n5_p01423_g342_ln  guards=[3, 4, 2] perm=[0, 1, 4, 2, 3]
+   measured r11<-r5 r5<-r7 | r7<-r6 r6<-r11
+   predict  r11<-r7 | r7<-r6 r6<-r5 r5<-r11
+h3_n5_p02314_g321_ln  guards=[3, 2, 1] perm=[0, 2, 3, 1, 4]
+   measured r11<-r4 r4<-r5 r5<-r6 | r6<-r11
+   predict  r11<-r5 r5<-r6 | r6<-r4 r4<-r11
+h3_n5_p02431_g421_ln  guards=[4, 2, 1] perm=[0, 2, 4, 3, 1]
+   measured r11<-r4 r4<-r5 r5<-r7 | r7<-r11
+   predict  r11<-r5 r5<-r7 | r7<-r4 r4<-r11
+h3_n5_p03124_g231_ln  guards=[2, 3, 1] perm=[0, 3, 1, 2, 4]
+   measured r11<-r4 r4<-r6 | r6<-r5 r5<-r11
+   predict  r11<-r6 | r6<-r5 r5<-r4 r4<-r11
+h3_n5_p03241_g431_ln  guards=[4, 3, 1] perm=[0, 3, 2, 4, 1]
+   measured r11<-r4 r4<-r6 r6<-r7 | r7<-r11
+   predict  r11<-r6 r6<-r7 | r7<-r4 r4<-r11
+h3_n5_p04132_g241_ln  guards=[2, 4, 1] perm=[0, 4, 1, 3, 2]
+   measured r11<-r4 r4<-r7 | r7<-r5 r5<-r11
+   predict  r11<-r7 | r7<-r5 r5<-r4 r4<-r11
+h3_n5_p04213_g341_ln  guards=[3, 4, 1] perm=[0, 4, 2, 1, 3]
+   measured r11<-r4 r4<-r7 | r7<-r6 r6<-r11
+   predict  r11<-r7 | r7<-r6 r6<-r4 r4<-r11
+h3_n5_p12034_g210_ln  guards=[2, 1, 0] perm=[1, 2, 0, 3, 4]
+   measured r11<-r3 r3<-r4 r4<-r5 | r5<-r11
+   predict  r11<-r4 r4<-r5 | r5<-r3 r3<-r11
+h3_n5_p13204_g310_ln  guards=[3, 1, 0] perm=[1, 3, 2, 0, 4]
+   measured r11<-r3 r3<-r4 r4<-r6 | r6<-r11
+   predict  r11<-r4 r4<-r6 | r6<-r3 r3<-r11
+h3_n5_p14230_g410_ln  guards=[4, 1, 0] perm=[1, 4, 2, 3, 0]
+   measured r11<-r3 r3<-r4 r4<-r7 | r7<-r11
+   predict  r11<-r4 r4<-r7 | r7<-r3 r3<-r11
+h3_n5_p20134_g120_ln  guards=[1, 2, 0] perm=[2, 0, 1, 3, 4]
+   measured r11<-r3 r3<-r5 | r5<-r4 r4<-r11
+   predict  r11<-r5 | r5<-r4 r4<-r3 r3<-r11
+h3_n5_p21304_g320_ln  guards=[3, 2, 0] perm=[2, 1, 3, 0, 4]
+   measured r11<-r3 r3<-r5 r5<-r6 | r6<-r11
+   predict  r11<-r5 r5<-r6 | r6<-r3 r3<-r11
+h3_n5_p21430_g420_ln  guards=[4, 2, 0] perm=[2, 1, 4, 3, 0]
+   measured r11<-r3 r3<-r5 r5<-r7 | r7<-r11
+   predict  r11<-r5 r5<-r7 | r7<-r3 r3<-r11
+h3_n5_p30214_g130_ln  guards=[1, 3, 0] perm=[3, 0, 2, 1, 4]
+   measured r11<-r3 r3<-r6 | r6<-r4 r4<-r11
+   predict  r11<-r6 | r6<-r4 r4<-r3 r3<-r11
+h3_n5_p31024_g230_ln  guards=[2, 3, 0] perm=[3, 1, 0, 2, 4]
+   measured r11<-r3 r3<-r6 | r6<-r5 r5<-r11
+   predict  r11<-r6 | r6<-r5 r5<-r3 r3<-r11
+h3_n5_p31240_g430_ln  guards=[4, 3, 0] perm=[3, 1, 2, 4, 0]
+   measured r11<-r3 r3<-r6 r6<-r7 | r7<-r11
+   predict  r11<-r6 r6<-r7 | r7<-r3 r3<-r11
+h3_n5_p40231_g140_ln  guards=[1, 4, 0] perm=[4, 0, 2, 3, 1]
+   measured r11<-r3 r3<-r7 | r7<-r4 r4<-r11
+   predict  r11<-r7 | r7<-r4 r4<-r3 r3<-r11
+h3_n5_p41032_g240_ln  guards=[2, 4, 0] perm=[4, 1, 0, 3, 2]
+   measured r11<-r3 r3<-r7 | r7<-r5 r5<-r11
+   predict  r11<-r7 | r7<-r5 r5<-r3 r3<-r11
+h3_n5_p41203_g340_ln  guards=[3, 4, 0] perm=[4, 1, 2, 0, 3]
+   measured r11<-r3 r3<-r7 | r7<-r6 r6<-r11
+   predict  r11<-r7 | r7<-r6 r6<-r3 r3<-r11

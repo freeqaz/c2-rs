@@ -235,7 +235,7 @@ pub(crate) fn body_of<'a>(
         }
         // A Class A many-call body: the same frame and `.pdata`, with one REL24
         // site per call instead of one per function.
-        codegen::Selected::Seq { setups, tail } => {
+        codegen::Selected::Seq { setups, tail, park } => {
             let seq = f.call_seq.as_ref().expect("Seq implies call_seq");
             // **W10** — the guard, when there is one. Resolved through
             // `seq_guard_emit` on both emission paths, so the packed and COMDAT
@@ -253,7 +253,8 @@ pub(crate) fn body_of<'a>(
             let early = seq
                 .early
                 .iter()
-                .map(codegen::seq_early_emit)
+                .enumerate()
+                .map(|(ix, e)| codegen::seq_early_emit_remapped(e, &park, ix))
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(ComdatDecline::Shape)?;
             let body = codegen::call_seq_text(
@@ -264,6 +265,7 @@ pub(crate) fn body_of<'a>(
                     saved_gprs: seq.saved_gprs() as u8,
                     ..Default::default()
                 },
+                &park.entry,
                 guard.as_ref(),
                 &early,
                 mode,
