@@ -38,7 +38,7 @@
 | census/gate disagreement, **generated** (packed / `/Gy`) | **148 / 151** | **124 / 127** |
 | discriminating cells, fixtures / generated | 1,692 / 14,299 | 1,692 / **14,275** |
 | GRID M (94 cells) | 81 match / 0 mismatch, 4 disagree | **81 match / 0 mismatch, 2 disagree** |
-| workspace tests | 1,153 passed / 0 failed / 36 targets | **1,153 passed / 0 failed / 39 targets** |
+| workspace tests (`cargo test --workspace --release`) | 1,153 passed / 0 failed / 36 targets | **1,154 passed / 0 failed / 36 targets** — the +1 is this lane's wide agreement test |
 | `git grep -c '#[test]'` over `crates/` | 1,154 | **1,155** |
 | `peerkeys.py` families that vanished | — | **0** |
 
