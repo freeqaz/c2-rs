@@ -117,6 +117,49 @@ impl GapReport {
             .sum()
     }
 
+    /// **WHICH TOKEN takes the port's own in-class bodies out of the residue's
+    /// vocabulary** — board #1344's 518,991, decomposed. Board **#1345**.
+    ///
+    /// Returns `(rows, accounted)` where `rows` is
+    /// `(reason, in_class, blocked)` sorted by `in_class` descending, and
+    /// `accounted` is the sum of the in-class column.
+    ///
+    /// **`accounted` is published beside the total and never folded into it.**
+    /// It must equal [`GapReport::cflow_residue_control`]`.1`, and the point of
+    /// printing both is that a totality control counted in two different units
+    /// reads `0` forever — `w-inread`'s rule, and `w-tag02`'s `records`-vs-
+    /// `values` identity, which was green for the life of the file because the
+    /// population it ran over was too small to contain the shape.
+    ///
+    /// **What this is FOR.** #1345 says widening `CfResidue`'s vocabulary must
+    /// not ship as a bare widening, because that publishes a second single
+    /// number of unexamined status. The pair it owes is *the counterfactual and
+    /// its validated relationship to the port's class*. This method is how that
+    /// relationship becomes computable: each row is a candidate widening, its
+    /// `in_class` column is what closing it would recover, and its `BLOCKED`
+    /// column is what it would ADD to the over-claim on the other side. A row
+    /// whose blocked column dwarfs its in-class one is a widening that makes the
+    /// proxy worse while making its headline number bigger.
+    pub fn cflow_offclass_reasons(&self) -> (Vec<(String, usize, usize)>, usize) {
+        let mut by: std::collections::BTreeMap<String, (usize, usize)> = Default::default();
+        for r in &self.results {
+            for (k, n) in &r.fn_cflow_off {
+                let Some((why, pop)) = k.rsplit_once('|') else { continue };
+                let e = by.entry(why.to_string()).or_insert((0, 0));
+                if pop == "IN-CLASS" {
+                    e.0 += *n;
+                } else {
+                    e.1 += *n;
+                }
+            }
+        }
+        let mut rows: Vec<(String, usize, usize)> =
+            by.into_iter().map(|(k, (a, b))| (k, a, b)).collect();
+        rows.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        let accounted = rows.iter().map(|r| r.1).sum();
+        (rows, accounted)
+    }
+
     /// **The control-flow counterfactual on the EMITTED column** —
     /// `(branchy, branchy_modeled)` over blocked *emitted* functions.
     ///

@@ -321,6 +321,16 @@ pub(crate) struct CfScan {
     /// Whether the walk reached the function tail — the same fact as
     /// `body.is_ok()`, named because [`EhMarkers::key`] reads it.
     pub(crate) decoded: bool,
+    /// **Which operand token took this body out of the modeled class**, or
+    /// `None` if none did — see [`Scan::off_class`]. Board **#1345**.
+    ///
+    /// It rides on `CfScan` and NOT on [`CfBody`] on purpose: a `CfBody` is
+    /// `PartialEq` and a dozen pinned-segment tests assert whole struct
+    /// literals against it, so a field here would have made every one of them
+    /// carry a diagnostic they are not about. It is also collected **whether or
+    /// not the walk finished**, for the same reason [`CfScan::eh`] is — a body
+    /// that left the class and then stopped left the class.
+    pub(crate) off_reason: Option<&'static str>,
 }
 
 /// A branch or label site, in stream order.
@@ -344,6 +354,10 @@ struct Scan<'a> {
     switches: usize,
     /// Set the moment a stepped-over operand token is outside the modeled class.
     off_class: bool,
+    /// **Which token took it out of the class**, first one only — see
+    /// [`Scan::off_class`]. `None` iff `off_class` is false, which is the
+    /// invariant the accounting control checks.
+    off_reason: Option<&'static str>,
     /// The EH-state trailer counts — see [`EhMarkers`].
     eh: EhMarkers,
     /// **How many destructible objects are live right here**, in stream order:
@@ -409,10 +423,29 @@ impl<'a> Scan<'a> {
         }
     }
 
-    /// Note that the operand stream left the modeled class. Called with the token's
-    /// own reason so the call sites read as a list of what is *not* modeled.
-    fn off_class(&mut self) {
+    /// Note that the operand stream left the modeled class, **with the token's
+    /// own reason**, so the call sites read as a list of what is not modeled.
+    ///
+    /// That sentence was this method's doc comment for weeks and the method took
+    /// no argument. The reason was in the code — twenty-one arms, each with a
+    /// paragraph explaining precisely which construct it is — and none of it
+    /// reached a histogram, so `CfResidue::Expression` was one bucket holding
+    /// twenty-one facts and board **#1344**'s 518,991 was unattributable.
+    /// It takes the argument now.
+    ///
+    /// **First reason wins.** A body that leaves the class twice is off-class for
+    /// the first thing it hit, which is the same convention the blocker keys use
+    /// (`the port stops at the first refusal by design`) and the only one under
+    /// which the per-reason counts sum to the off-class total. The sum is a
+    /// published control (`cflow-offclass-accounted`), not an assumption.
+    fn off_class(&mut self, why: &'static str) {
+        if residue_admits(why) {
+            return;
+        }
         self.off_class = true;
+        if self.off_reason.is_none() {
+            self.off_reason = Some(why);
+        }
     }
 }
 
@@ -439,11 +472,12 @@ pub(crate) fn scan_full(seg: &[u8], lo: usize) -> CfScan {
         jumps: Vec::new(),
         switches: 0,
         off_class: false,
+        off_reason: None,
         eh: EhMarkers::default(),
         eh_live: 0,
     };
     let body = walk(&mut s);
-    CfScan { decoded: body.is_ok(), body, eh: s.eh }
+    CfScan { decoded: body.is_ok(), body, eh: s.eh, off_reason: s.off_reason }
 }
 
 fn walk(s: &mut Scan) -> Result<CfBody, Block> {
@@ -460,6 +494,53 @@ fn walk(s: &mut Scan) -> Result<CfBody, Block> {
         return Err(blk(s.seg, s.p, "cf-tail"));
     }
     Ok(CfBody { shape: shape_of(s), residue: residue_of(s) })
+}
+
+/// **`C2RS_CFRESIDUE_ADMIT` — the residue's own counterfactual, and the reason
+/// board #1345 does not need a widening to be answered.**
+///
+/// A comma-separated set of [`Scan::off_class`] reason names. Every arm named
+/// here stops taking a body out of [`CfResidue::Modeled`], so one scan reports
+/// *what the counterfactual would become* if the vocabulary were widened by
+/// exactly that set — **and, in the same run, what the over-claim on the other
+/// side becomes**, which is the half a bare widening never publishes.
+///
+/// #1345 states the rule this exists to satisfy: *whatever the residue is,
+/// report it with its validated relationship to the port's class, or report the
+/// bracket.* A shipped widening cannot do that, because after it ships there is
+/// nothing left to compare against; the pair has to be measurable at one tree.
+/// So the vocabulary is **not** widened — the default is empty and every digit
+/// of every published `cflow-*` key is unchanged without the variable — and the
+/// widening becomes a thing you *price* instead of a thing you *do*.
+///
+/// It is safe to commit for the reason #1345 gives itself: `control_flow.rs` is
+/// **decode-only**. Nothing reads [`CfResidue`] except the census report — not
+/// acceptance, not `shape_to_function`, not the emitter — so this variable
+/// cannot move an obj byte in either direction, and `mismatch` is structurally
+/// unable to see it. That is a stronger guarantee than `C2RS_SINK_CHAIN`'s
+/// poison, which exists precisely because the sink *can* reach the emitter.
+///
+/// The set is published as `gap-metric cflow-residue-admit` on any scan that
+/// sets it, and the key is **absent** rather than empty otherwise: a collector
+/// that read a missing key as "no admissions" would be right, and one that read
+/// an empty key as "the file has no arms" would not.
+fn residue_admits(why: &str) -> bool {
+    static ON: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+    ON.get_or_init(|| {
+        std::env::var("C2RS_CFRESIDUE_ADMIT")
+            .unwrap_or_default()
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect()
+    })
+    .iter()
+    .any(|s| s == why)
+}
+
+/// The admit set, for the scan report. Empty when the variable is unset.
+pub(crate) fn residue_admit_set() -> String {
+    std::env::var("C2RS_CFRESIDUE_ADMIT").unwrap_or_default()
 }
 
 fn residue_of(s: &Scan) -> CfResidue {
@@ -610,7 +691,7 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
             s.tok("cf-load-tok")?;
             let (tag, kind) = s.ty("cf-load-type")?;
             if !(is_int4_type(tag, kind) || is_ptr_to_4(tag, kind)) {
-                s.off_class();
+                s.off_class("load-type");
             }
         }
         // LITERAL `33 <TYPE> <payload>`. The payload width is a function of the
@@ -620,7 +701,7 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
             s.p += 1;
             let (tag, kind) = s.ty("cf-lit-type")?;
             if !(is_int4_type(tag, kind) || is_ptr_to_4(tag, kind)) {
-                s.off_class();
+                s.off_class("lit-type");
             }
             lit_payload(s, tag, kind)?;
         }
@@ -672,7 +753,13 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
         0x05 | 0x06 | 0x09 | 0x0A | 0x0B | 0x0C | 0x0D | 0x0E | 0x1A | 0x1B | 0x1C | 0x1F
         | 0x20 | 0x21 | 0x22 | 0x23 | 0x24 => {
             s.p += 1;
-            s.off_class();
+            s.off_class(match b {
+                0x05 | 0x06 => "div-mod",
+                0x09 | 0x0A => "shift",
+                0x0B | 0x0C | 0x0D | 0x0E => "bitwise",
+                0x1A | 0x1B | 0x1C => "logical",
+                _ => "compare",
+            });
         }
         // Compound assignment / inc-dec: `<op> <TYPE>`, the twelve witnessed
         // opcodes of §5. `0x14` is deliberately NOT here — it is unobserved, and it
@@ -681,7 +768,7 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
         0x0F | 0x10 | 0x11 | 0x12 | 0x13 | 0x15 | 0x16 | 0x17 | 0x18 | 0x19 | 0x35 | 0x36 => {
             s.p += 1;
             s.ty("cf-rmw-type")?;
-            s.off_class();
+            s.off_class("rmw");
         }
         // The three `<op> <TYPE>` tokens the modeled shapes DO consume, each with
         // the same class gate the accepting parser applies at that position: the
@@ -703,7 +790,7 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
                 is_int4_type(tag, kind) || is_ptr_to_4(tag, kind)
             };
             if !ok {
-                s.off_class();
+                s.off_class("store-type");
             }
         }
         // …and the `<op> <TYPE>` tokens that are their own missing production:
@@ -722,12 +809,12 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
         0x27 => {
             s.p += 1;
             s.ty("cf-offadd-type")?;
-            s.off_class();
+            s.off_class("off-add");
         }
         0x30 => {
             s.p += 1;
             s.ty("cf-deref-type")?;
-            s.off_class();
+            s.off_class("deref");
         }
         // ---- the EH-state trailer family (WEH, `docs/EH_RECORDS.md` §7) -----
         //
@@ -763,7 +850,7 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
             // constructor call returns").
             s.eh_live += 1;
             s.eh.any = true;
-            s.off_class();
+            s.off_class("eh-obj-live");
         }
         0x5D | 0x5E => {
             s.p += 1;
@@ -788,7 +875,7 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
                 s.eh.trailer_stmts += 1;
             }
             s.eh.any = true;
-            s.off_class();
+            s.off_class("eh-trailer");
         }
         // `31` is NOT here, and that is a result rather than an omission —
         // `IL_CALL_GRAMMAR.md` §7 lists it as unidentified. An opcode whose
@@ -808,7 +895,7 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
         // and nothing tests it); its width is not.
         0x44 => {
             s.p += 1;
-            s.off_class();
+            s.off_class("materialize-44");
         }
         // `28 00 00` — the subscript byte-offset add. The two trailing bytes are
         // `00 00` at every captured site and are NOT understood
@@ -819,7 +906,7 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
             if !eat(s.seg, &mut s.p, &[0x00, 0x00]) {
                 return Err(blk(s.seg, s.p, "cf-subscript-payload"));
             }
-            s.off_class();
+            s.off_class("subscript");
         }
         // CONVERT `2C <TYPE target> <varint>`. Modeled only when the target is
         // inside the int4/ptr4 class — the class-preserving case `parse_expr`
@@ -830,7 +917,7 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
             let (tag, kind) = s.ty("cf-convert-type")?;
             s.vint("cf-convert-payload")?;
             if !(is_int4_type(tag, kind) || is_ptr_to_4(tag, kind)) {
-                s.off_class();
+                s.off_class("convert-out-of-class");
             }
         }
         // INTRINSIC CALL `40 <TYPE result>` — no trailing field
@@ -838,7 +925,7 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
         0x40 => {
             s.p += 1;
             s.ty("cf-intrinsic-type")?;
-            s.off_class();
+            s.off_class("intrinsic");
         }
         // `43 <sub-opcode> [payload]` — an ESCAPE, and the payload width is a
         // function of the sub-opcode (`docs/IL_EXPR_LAYER.md` §8): `42` (the
@@ -863,7 +950,7 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
             if s.p > s.seg.len() {
                 return Err(blk(s.seg, s.seg.len(), "cf-escape-43"));
             }
-            s.off_class();
+            s.off_class("ternary");
         }
         // `66 <n> <n tokens>` — the class-pair descriptor of the 2113–2119
         // intrinsic family. Its second byte is an ARITY, not the constant `02`
@@ -873,7 +960,7 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
             if eat_class_descriptor(s.seg, &mut s.p).is_none() {
                 return Err(blk(s.seg, s.p, "cf-class-descriptor"));
             }
-            s.off_class();
+            s.off_class("class-descriptor");
         }
         // ---- virtual dispatch, and the by-value return (WDR) ----------------
         //
@@ -895,7 +982,7 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
             s.p += 1;
             s.vint("cf-virtual-slot")?;
             s.tok("cf-virtual-tok")?;
-            s.off_class();
+            s.off_class("virtual-slot");
         }
         // `9A <TYPE>` — the vtable-slot bind, the virtual sibling of `99`. Its
         // width is separated from `99`'s `<TYPE> <varint>` by the corpus and not
@@ -913,7 +1000,7 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
         0x9A => {
             s.p += 1;
             s.ty("cf-vbind-type")?;
-            s.off_class();
+            s.off_class("vbind");
         }
         // `64 <TYPE>` — the by-value return's temporary MATERIALIZE, in the same
         // syntactic slot a `BD` call occupies and closed by the same `4C`.
@@ -938,7 +1025,7 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
         0x64 => {
             s.p += 1;
             s.ty("cf-materialize-type")?;
-            s.off_class();
+            s.off_class("materialize-64");
         }
         // `99 <TYPE> <varint>` member bind and `9B <TYPE> <token>` temporary bind.
         // **Adjacent opcodes with different trailing-field encodings**, and neither
@@ -949,13 +1036,13 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
             s.p += 1;
             s.ty("cf-bind-type")?;
             s.vint("cf-bind-payload")?;
-            s.off_class();
+            s.off_class("bind");
         }
         0x9B => {
             s.p += 1;
             s.ty("cf-temp-type")?;
             s.tok("cf-temp-tok")?;
-            s.off_class();
+            s.off_class("temp");
         }
         // CALL `BD <ret TYPE> <cc> <varint fn-type-id>`, and the `4C` that ends an
         // argument list. 8–13 bytes, every field self-delimiting. In the modeled
@@ -970,7 +1057,7 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
             s.p += 1;
             s.vint("cf-call-fn-type-id")?;
             if cc != Some(0x00) {
-                s.off_class();
+                s.off_class("call-cc");
             }
         }
         // **The EH predicate lives HERE, on `4C`, not on the `BD` above.** `4C`

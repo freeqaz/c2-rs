@@ -1,0 +1,19 @@
+# w-instr — the CfResidue counterfactual grid (board #1376)
+# 878-TU dc3 workload, workload flags, --jobs 16, tree 42430541.
+# Regenerate: C2RS_CFRESIDUE_ADMIT=<set> c2rs gap --list work/dc3-workload/files.txt \
+#               --flags-file work/dc3-workload/flags.txt --cwd <dc3-decomp> --jobs 16
+
+ADMIT SET                                                             under       over emit-mod
+load-type,lit-type,div-mod,shift,bitwise,logical,compare,rmw,sto          0    1289783    38227
+bind                                                                 467247     126949       53
+deref                                                                518991      86064        9
+div-mod                                                              518991      83782        9
+intrinsic                                                            518991      90259        9
+lit-type                                                             518991      83776        9
+load-type                                                            518991      89560       28
+off-add,bind                                                         419471     163789      111
+off-add,lit-type                                                     471215      94226       10
+off-add,load-type,intrinsic,bind,lit-type,deref                      302877     275129      339
+off-add                                                              471215      94226       10
+
+(none — the shipped predicate, from scan.tip2.txt)                   518991      83776        9

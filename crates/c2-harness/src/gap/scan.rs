@@ -48,6 +48,7 @@ fn scan_one(
         fn_blockers: BTreeMap::new(),
         fn_frames: BTreeMap::new(),
         fn_cflow: BTreeMap::new(),
+        fn_cflow_off: BTreeMap::new(),
         fn_eh: BTreeMap::new(),
         fn_dispatch: BTreeMap::new(),
         fn_complete: BTreeMap::new(),
@@ -161,6 +162,27 @@ fn scan_one(
                         if f.verdict.in_class() { "IN-CLASS" } else { "BLOCKED" }
                     ))
                     .or_insert(0) += 1;
+                // …and the DECOMPOSITION of the off-class side, board #1345.
+                // The row above says a body is not `Modeled`; this one says
+                // which of `control_flow`'s twenty-one arms decided that. It is
+                // the half of the pair #1345 says a widening owes: a repair set
+                // measured rather than guessed, scoreable on BOTH sides of the
+                // two-sided error before anything is widened.
+                //
+                // Only for bodies that HAVE a reason — an empty string is
+                // `+expr-modeled` or a body with no scan, and folding those in
+                // would make the largest row of the table the one that says
+                // nothing (`eh-bare|empty-dtor-delegation`'s lesson, six
+                // paragraphs up).
+                if !f.cflow_off.is_empty() {
+                    *res.fn_cflow_off
+                        .entry(format!(
+                            "{}|{}",
+                            f.cflow_off,
+                            if f.verdict.in_class() { "IN-CLASS" } else { "BLOCKED" }
+                        ))
+                        .or_insert(0) += 1;
+                }
             }
             // The EH axis, likewise over every function — and here the in-class
             // shapes are more than a control group: the `empty-dtor-*` buckets

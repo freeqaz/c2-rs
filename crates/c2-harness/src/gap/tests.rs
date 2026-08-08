@@ -37,6 +37,7 @@ fn mk(reason: &str) -> TuResult {
         fn_blockers: BTreeMap::new(),
         fn_frames: BTreeMap::new(),
         fn_cflow: BTreeMap::new(),
+        fn_cflow_off: Default::default(),
         fn_eh: BTreeMap::new(),
         fn_dispatch: BTreeMap::new(),
         fn_complete: BTreeMap::new(),
@@ -2451,6 +2452,108 @@ fn mk_cflow(cflow: &[(&str, usize)], emit: &[(&str, usize)]) -> TuResult {
         t.emit.insert((*k).into(), *n);
     }
     t
+}
+
+fn mk_cfoff(cflow: &[(&str, usize)], off: &[(&str, usize)]) -> TuResult {
+    let mut t = mk_cflow(cflow, &[]);
+    for (k, n) in off {
+        t.fn_cflow_off.insert((*k).into(), *n);
+    }
+    t
+}
+
+/// **The off-class DECOMPOSITION sums to the off-class TOTAL, and the two are
+/// counted in the same unit** — board #1345, and trap 0 written as a test.
+///
+/// `w-tag02`'s `.in` identity read `1 == 2` for the life of the file because one
+/// side counted TOKENS and the other counted RECORDS, and it was green the whole
+/// time because the population it ran over was too small to contain the shape.
+/// This identity has exactly that hazard: `cflow-residue-inclass-offclass` is a
+/// sum over the `fn_cflow` cross and `cflow-offclass-accounted` is a sum over the
+/// `fn_cflow_off` cross — two maps, two crosses, one population, and nothing but
+/// `Scan::off_class`'s `first reason wins` rule makes them equal.
+///
+/// It is asserted here **and published on every scan** rather than only
+/// asserted, because the tree cannot construct the workload's shapes and a green
+/// unit test over four rows is a statement about four rows.
+#[test]
+fn the_offclass_decomposition_accounts_for_every_off_class_in_class_body() {
+    let rep = mk_report(vec![
+        mk_cfoff(
+            &[
+                ("cflow-straight|IN-CLASS", 500),
+                ("cflow-straight+expr-modeled|IN-CLASS", 190),
+            ],
+            &[
+                ("off-add|IN-CLASS", 300),
+                ("intrinsic|IN-CLASS", 200),
+                ("off-add|BLOCKED", 4000),
+            ],
+        ),
+        mk_cfoff(&[], &[("bind|IN-CLASS", 0)]),
+    ]);
+    let (rows, accounted) = rep.cflow_offclass_reasons();
+    let (_modeled, off) = rep.cflow_residue_control();
+    assert_eq!(off, 500, "the total the decomposition must account for");
+    assert_eq!(accounted, 500, "TOTALITY: the per-reason IN-CLASS column sums to it");
+    // Sorted by the in-class column descending — the ranking a repair set would
+    // be chosen from, so the order is part of the interface.
+    assert_eq!(
+        rows,
+        vec![
+            ("off-add".to_string(), 300, 4000),
+            ("intrinsic".to_string(), 200, 0),
+            ("bind".to_string(), 0, 0),
+        ]
+    );
+    // …and BOTH columns are published, per reason. The BLOCKED column is what a
+    // widening would ADD to the over-claim on the other side of the two-sided
+    // error, so a decomposition that printed only the in-class column would rank
+    // repairs by their benefit with no cost beside it — which is #1345's
+    // `a bare widening publishes a second single number` in table form.
+    let m: std::collections::BTreeMap<&str, String> = rep.metrics().into_iter().collect();
+    for (k, want) in [
+        ("cflow-offclass-accounted", "500"),
+        ("cflow-offclass-off-add-inclass", "300"),
+        ("cflow-offclass-off-add-blocked", "4000"),
+        ("cflow-offclass-intrinsic-inclass", "200"),
+        ("cflow-offclass-intrinsic-blocked", "0"),
+    ] {
+        assert_eq!(m.get(k).map(String::as_str), Some(want), "gap-metric {k}");
+    }
+    // A reason with no bodies emits no key at all rather than a 0 — absence must
+    // be absence, so a collector cannot read a vanished arm as an empty one
+    // (`ladder-head`'s rule, `factors.rs`).
+    assert_eq!(m.get("cflow-offclass-deref-inclass"), None);
+    // And the counterfactual variable is NOT set in a test process, so the run
+    // is the shipped predicate and says nothing — the key is absent, not empty.
+    assert_eq!(m.get("cflow-residue-admit"), None);
+}
+
+/// **The decomposition rides in its OWN map, and that is load-bearing.**
+///
+/// `cflow_residue_control` counts every `fn_cflow` row ending `|IN-CLASS` that
+/// does not end `+expr-modeled|IN-CLASS` as off-class. Had the per-reason rows
+/// gone into `fn_cflow` — the obvious place, beside the cross they decompose —
+/// `off-add|IN-CLASS` would have been folded straight into the 518,991 and the
+/// published number would have doubled with no merge conflict and nothing in the
+/// diff to point at. This asserts the separation rather than trusting it.
+#[test]
+fn the_offclass_decomposition_cannot_leak_into_the_residue_total() {
+    let rep = mk_cfoff(
+        &[("cflow-straight|IN-CLASS", 500)],
+        &[("off-add|IN-CLASS", 300), ("intrinsic|IN-CLASS", 200)],
+    );
+    let rep = mk_report(vec![rep]);
+    assert_eq!(
+        rep.cflow_residue_control(),
+        (0, 500),
+        "the off-class total is the `fn_cflow` cross ALONE — 500, never 1000"
+    );
+    assert!(
+        rep.fn_cflow_histogram().iter().all(|(k, _)| k.starts_with("cflow-")),
+        "no decomposition row may appear in the cflow histogram at all"
+    );
 }
 
 /// **The staleness measure counts the population the port ACCEPTS, split by what
