@@ -1,0 +1,64 @@
+== work/w-cfg2/ref/undname/ref.obj  machine=0x01f2 nsec=6 nsym=22 size=1375
+-- sections
+   1 .drectve   raw=132    rawptr=0x0104 rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=152    rawptr=0x0188 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x0220 rel=0  relptr=0x0000 chars=0xc0401040
+   4 .XBLD$W    raw=16     rawptr=0x0230 rel=0  relptr=0x0000 chars=0xc2301040
+   5 .text      raw=140    rawptr=0x0240 rel=9  relptr=0x02cc chars=0x60401020
+   6 .pdata     raw=8      rawptr=0x0326 rel=1  relptr=0x032e chars=0x40401040
+-- .text #5 (140 B) ?append@DName@@QAAXPAVDNameNode@@@Z
+   0000  7d8802a6  mflr 12                         
+   0004  9181fff8  stw 12, -8(1)                   
+   0008  fbc1ffe8  std 30, -24(1)                  
+   000c  fbe1fff0  std 31, -16(1)                  
+   0010  9421ff90  stwu 1, -112(1)                 
+   0014  7c7f1b78  mr	31, 3                        
+   0018  7c9e2378  mr	30, 4                        
+   001c  2b040000  cmplwi 6, 4, 0                  
+   0020  419a004c  bt	26, .+76                     
+   0024  3d600000  lis 11, 0                         ; REFHI -> [17] ?gHeapManager@@3V_HeapManager@@A  ; PAIR -> [0] @comp.id
+   0028  38a00000  li 5, 0                         
+   002c  386b0000  addi 3, 11, 0                     ; REFLO -> [17] ?gHeapManager@@3V_HeapManager@@A  ; PAIR -> [0] @comp.id
+   0030  38800010  li 4, 16                        
+   0034  4bffffcd  bl .-52                           ; REL24 -> [16] ?getMemory@_HeapManager@@QAAPAXHH@Z
+   0038  28030000  cmplwi	3, 0                     
+   003c  41820024  bt	2, .+36                      
+   0040  3d600000  lis 11, 0                         ; REFHI -> [15] ?pairNode_vtable@@3PAXA  ; PAIR -> [0] @comp.id
+   0044  93c30008  stw 30, 8(3)                    
+   0048  3940ffff  li 10, -1                       
+   004c  396b0000  addi 11, 11, 0                    ; REFLO -> [15] ?pairNode_vtable@@3PAXA  ; PAIR -> [0] @comp.id
+   0050  9143000c  stw 10, 12(3)                   
+   0054  91630000  stw 11, 0(3)                    
+   0058  817f0000  lwz 11, 0(31)                   
+   005c  91630004  stw 11, 4(3)                    
+   0060  907f0000  stw 3, 0(31)                    
+   0064  2b030000  cmplwi 6, 3, 0                  
+   0068  409a000c  bf	26, .+12                     
+   006c  39600003  li 11, 3                        
+   0070  997f0004  stb 11, 4(31)                   
+   0074  38210070  addi 1, 1, 112                  
+   0078  8181fff8  lwz 12, -8(1)                   
+   007c  7d8803a6  mtlr 12                         
+   0080  ebc1ffe8  ld 30, -24(1)                   
+   0084  ebe1fff0  ld 31, -16(1)                   
+   0088  4e800020  blr                             
+-- .pdata #6 raw
+   0000  00 00 00 00 40 00 23 05
+   reloc va=0x0 ADDR32   -> [13] ?append@DName@@QAAXPAVDNameNode@@@Z
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=152 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .XBLD$W                                  sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [10] __C1_11886                               sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [11] .text                                    sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=140 nrel=9 nln=0 cksum=0x00000000 num=0 sel=1)
+  [13] ?append@DName@@QAAXPAVDNameNode@@@Z      sec=5   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [14] $M2592                                   sec=5   val=0x8c     sc=LABEL     type=0x0000 naux=0
+  [15] ?pairNode_vtable@@3PAXA                  sec=0   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [16] ?getMemory@_HeapManager@@QAAPAXHH@Z      sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [17] ?gHeapManager@@3V_HeapManager@@A         sec=0   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [18] $M2591                                   sec=5   val=0x14     sc=LABEL     type=0x0000 naux=0
+  [19] .pdata                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0x55d7dbd3 num=5 sel=5)
+  [21] $T2593                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=0

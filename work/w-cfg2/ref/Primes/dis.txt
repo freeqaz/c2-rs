@@ -1,0 +1,54 @@
+== work/w-cfg2/ref/Primes/ref.obj  machine=0x01f2 nsec=6 nsym=17 size=1343
+-- sections
+   1 .drectve   raw=132    rawptr=0x0104 rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=152    rawptr=0x0188 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x0220 rel=0  relptr=0x0000 chars=0xc0401040
+   4 .XBLD$W    raw=16     rawptr=0x0230 rel=0  relptr=0x0000 chars=0xc2301040
+   5 .text      raw=64     rawptr=0x0240 rel=6  relptr=0x0280 chars=0x60401020
+   6 .data      raw=248    rawptr=0x02bc rel=0  relptr=0x0000 chars=0xc0401040
+-- .text #5 (64 B) ?NextHashPrime@@YAHH@Z
+   0000  3d400000  lis 10, 0                         ; REFHI -> [16] ?primes@?1??NextHashPrime@@YAHH@Z@4PAHA  ; PAIR -> [0] @comp.id
+   0004  39600000  li 11, 0                        
+   0008  392a0000  addi 9, 10, 0                     ; REFLO -> [16] ?primes@?1??NextHashPrime@@YAHH@Z@4PAHA  ; PAIR -> [0] @comp.id
+   000c  814a0000  lwz 10, 0(10)                     ; REFLO -> [16] ?primes@?1??NextHashPrime@@YAHH@Z@4PAHA  ; PAIR -> [0] @comp.id
+   0010  48000018  b .+24                          
+   0014  7f0a1800  cmpw 6, 10, 3                   
+   0018  4098001c  bf	24, .+28                     
+   001c  396b0001  addi 11, 11, 1                  
+   0020  556a103a  slwi 10, 11, 2                  
+   0024  7d4a482e  lwzx 10, 10, 9                  
+   0028  2f0a0000  cmpwi 6, 10, 0                  
+   002c  409affe8  bf	26, .-24                     
+   0030  4e800020  blr                             
+   0034  556b103a  slwi 11, 11, 2                  
+   0038  7c6b482e  lwzx 3, 11, 9                   
+   003c  4e800020  blr                             
+-- .data #6 raw
+   0000  00 00 00 1d 00 00 00 25 00 00 00 29 00 00 00 2f
+   0010  00 00 00 35 00 00 00 43 00 00 00 4f 00 00 00 61
+   0020  00 00 00 6b 00 00 00 83 00 00 00 9d 00 00 00 b5
+   0030  00 00 00 df 00 00 01 01 00 00 01 33 00 00 01 6f
+   0040  00 00 01 af 00 00 02 09 00 00 02 65 00 00 02 d7
+   0050  00 00 03 5f 00 00 04 07 00 00 04 c1 00 00 05 ab
+   0060  00 00 06 bb 00 00 08 05 00 00 09 85 00 00 0b 51
+   0070  00 00 0d 79 00 00 10 03 00 00 13 07 00 00 16 a9
+   0080  00 00 1a f3 00 00 20 11 00 00 26 0f 00 00 2d 43
+   0090  00 00 35 d5 00 00 40 1b 00 00 4c 1b 00 00 5a 85
+   00a0  00 00 6b bd 00 00 80 03 00 00 98 3b 00 00 b5 0d
+   00b0  00 00 d7 45 00 01 00 01 00 01 30 7f 00 01 6a 09
+   00c0  00 01 ae 8d 00 02 00 1d 00 02 60 ef 00 02 d4 13
+   00d0  00 03 5d 1f 00 04 00 03 00 04 c1 bf 00 05 a8 47
+   00e0  00 06 ba 3d 00 08 00 15 00 09 83 a1 00 0b 50 51
+   00f0  00 0d 74 4f 00 00 00 00
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=152 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .XBLD$W                                  sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [10] __C1_11886                               sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [11] .text                                    sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=64 nrel=6 nln=0 cksum=0x00000000 num=0 sel=1)
+  [13] ?NextHashPrime@@YAHH@Z                   sec=5   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [14] .data                                    sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=248 nrel=0 nln=0 cksum=0x25b5a181 num=0 sel=2)
+  [16] ?primes@?1??NextHashPrime@@YAHH@Z@4PAHA  sec=6   val=0x0      sc=STATIC    type=0x0000 naux=0
