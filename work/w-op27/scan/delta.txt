@@ -1,0 +1,77 @@
+=== PER-TU emitted-in-class deltas (sink OFF -> ON) ===
+  +1  1->2 of 11   src/system/dsp/DelayEffect.cpp   class vocab-gap->vocab-gap
+  +1  9->10 of 50   src/system/net/SessionJobs_Xbox.cpp   class vocab-gap->vocab-gap
+  +1  0->1 of 6   src/system/os/CritSec.cpp   class vocab-gap->vocab-gap
+  +2  34->36 of 154   src/system/os/Memcard_Xbox.cpp   class vocab-gap->vocab-gap
+  +1  248->249 of 1296   src/system/rndobj/PropAnim.cpp   class vocab-gap->vocab-gap
+  +1  91->92 of 380   src/system/synth_xbox/Mic.cpp   class vocab-gap->vocab-gap
+  +1  22->23 of 100   src/system/utl/MultiTempoTempoMap.cpp   class vocab-gap->vocab-gap
+TOTAL emitted-in-class 39185 -> 39193 (+8)
+
+=== emit_blockers: keys that MOVED, sink OFF -> ON (full, not top-20) ===
+    -22373     22373 ->        0   expr-op-0x27
+    +10859       330 ->    11189   expr-op-0x30
+     +2533        34 ->     2567   expr-op-0x32
+      +983         0 ->      983   expr-call-in-expr-recv-field-off0-then-deref-load-more
+      +621         0 ->      621   expr-call-in-expr-data-addr-then-off-add-whole
+      +605         1 ->      606   expr-lit-type-8421
+      +547         1 ->      548   expr-op-0x10
+      +522         0 ->      522   expr-call-in-expr-recv-field-off0-then-intrinsic-call
+      +507         0 ->      507   expr-call-in-expr-recv-field-off0-then-op-0x64
+      +472         0 ->      472   expr-call-in-expr-data-addr-then-off-add-and-plumbing-more
+      +379      2271 ->     2650   expr-load-type-8645
+      +324        36 ->      360   expr-call-in-expr-recv-field-whole
+      +298         0 ->      298   call-arg-computed:eof
+      -291      1040 ->      749   expr-call-in-expr-recv-load-then-off-add-more
+      +253         0 ->      253   expr-call-in-expr-nested-call-then-off-add-and-plumbing-more
+      +233         0 ->      233   expr-call-in-expr-data-addr-then-off-add-and-temp-bind-more
+      +205         0 ->      205   expr-call-in-expr-data-addr-then-off-add-and-type-int1-more
+      +190         0 ->      190   expr-call-in-expr-recv-field-off0-then-call-op-0x9B
+      +188         0 ->      188   expr-call-in-expr-recv-field-off0-then-off-add-more
+      +186      1270 ->     1456   expr-lit-type-864A
+      +174         0 ->      174   expr-call-in-expr-data-addr-then-off-add-and-deref-load-whole3
+      +121        26 ->      147   expr-op-0x28
+      +120         0 ->      120   expr-call-in-expr-recv-field-then-call-op-0x9B
+      +117         0 ->      117   expr-call-in-expr-recv-field-off0-whole
+      +110         0 ->      110   expr-call-in-expr-data-addr-then-off-add-and-chain-bind-more
+      +109         1 ->      110   expr-call-in-expr-recv-field-then-call-op-0x64
+       +93         6 ->       99   expr-op-0x35
+       +93         3 ->       96   expr-call-in-expr-recv-field-then-deref-load-more
+       +87         0 ->       87   expr-call-in-expr-nested-call-then-off-add-more
+       +87       634 ->      721   expr-intrinsic-base-upcast
+  ... 247 keys moved in total; sum of deltas -8
+  TOTAL emit_blockers: 130575 -> 130567
+
+=== fn_blockers: keys that MOVED, sink OFF -> ON (full, not top-20) ===
+   -402139    402139 ->        0   expr-op-0x27
+   +191682     11470 ->   203152   expr-op-0x30
+    +25815      1814 ->    27629   expr-op-0x32
+    +19360         0 ->    19360   expr-call-in-expr-recv-field-off0-then-deref-load-more
+    +14825       587 ->    15412   expr-call-in-expr-recv-field-whole
+    +10643         0 ->    10643   expr-call-in-expr-data-addr-then-off-add-whole
+     +9080        27 ->     9107   expr-op-0x28
+     +8899     55680 ->    64579   expr-load-type-8645
+     +8860     10666 ->    19526   expr-lit-type-864A
+     +7026         0 ->     7026   expr-call-in-expr-data-addr-then-off-add-and-plumbing-more
+     +6021         1 ->     6022   expr-op-0x10
+     +5579         0 ->     5579   expr-call-in-expr-data-addr-then-off-add-and-temp-bind-more
+     +4779         0 ->     4779   expr-call-in-expr-recv-field-off0-then-intrinsic-call
+     +4515         0 ->     4515   expr-call-in-expr-recv-field-off0-then-off-add-more
+     +4370     15584 ->    19954   expr-op-0x9B
+     +4019         0 ->     4019   expr-call-in-expr-nested-call-then-off-add-more
+     +3972      8816 ->    12788   expr-ptr-arith:mid
+     +3368         0 ->     3368   expr-call-in-expr-data-addr-then-off-add-and-type-int1-more
+     +3199         0 ->     3199   expr-call-in-expr-recv-field-off0-then-call-op-0x9B
+     +3133       708 ->     3841   expr-op-0x35
+     +3007      5788 ->     8795   module-end-0x4F
+     +2909         0 ->     2909   expr-call-in-expr-recv-field-then-call-data-addr-1sym-whole
+     +2894         0 ->     2894   call-arg-computed:eof
+     +2758         0 ->     2758   expr-call-in-expr-recv-field-then-type-int1-whole
+     +2528       574 ->     3102   expr-call-in-expr-recv-field-off0-then-call-recv-field-whole
+     +2307         0 ->     2307   call-bound-store-0x99
+     +2196         0 ->     2196   expr-call-in-expr-recv-field-off0-then-op-0x64
+     +1780       828 ->     2608   expr-call-in-expr-recv-field-then-plumbing-0x3A
+     +1736         3 ->     1739   expr-call-in-expr-recv-field-then-deref-load-more
+     +1720         2 ->     1722   call-arg-computed:mid
+  ... 255 keys moved in total; sum of deltas -12
+  TOTAL fn_blockers: 1751957 -> 1751945
