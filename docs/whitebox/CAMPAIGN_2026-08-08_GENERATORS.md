@@ -198,3 +198,38 @@ what survived — adoptions carry their DISCLOSURE rows in the same commit.
 
 The campaign's exit question, answerable lane by lane: **which factor gets a
 general rule, and what is the first class-conversion lane it licenses?**
+
+## Lane WB-H — `wb-loop`: `lur.c` and the counted-`for` normal form (added post-campaign, 2026-08-08)
+
+Added by the coordinator after WB-D reported: §10.26 item 4 names the
+counted-`for` loop as the first generator-derived class, and WB-D names
+`lur.c` (15,115 lines, unread) / `cgintrin.c` as the next whitebox rung.
+WB-E independently measured that loop-bodied callees get their own inline
+bracket, so the loop machinery is load-bearing twice.
+
+**Question.** How does c2 lower a counted loop — induction-variable
+elimination, the `cmpwi cr6` zero-trip guard / `addi ptr,-N` / `mtctr` /
+`lwzu`-form body / `bdnz` normal form WB-D saw identically across three
+bodies — and what selects the body's instruction forms?
+
+**Firm deliverables.**
+1. Locate the loop analysis/rewrite in `lur.c` (VAs); read WHEN the
+   `mtctr`/`bdnz` form is chosen vs a compare-and-branch loop, and where the
+   zero-trip guard comes from (including when it is omitted).
+2. Read the induction rewrite: the `-N` pre-decrement, the `lwzu`/`stwu`
+   update-form selection, and what happens with multiple arrays / non-unit
+   strides / non-constant trip counts.
+3. An obj-check grid frozen before the first `cl.exe`, spanning: constant
+   and variable trip counts, up/down loops, ≥2 arrays, stride 1/2/4/8,
+   byte/half/word/double elements, early-exit (`break`) bodies.
+4. The class boundary stated in port terms: the exact predicate for "this
+   loop lowers to the normal form", plus the block-order question WB-D left
+   open, measured on loop-containing multi-block functions where possible.
+5. Pre-drafted DISCLOSURE rows; a written judgment of what a `loop_counted`
+   lowering class needs beyond WB-D's register rule.
+
+**Success floor**: the `mtctr`-vs-compare-branch choice survives a frozen
+grid, or a specific finding of why it is not readable/decidable.
+
+**Seams**: `docs/whitebox/WB_LOOP_FINDINGS.md` + `work/wb-loop/` + rung +
+board rows **#1900–#1919**. No `crates/`.
