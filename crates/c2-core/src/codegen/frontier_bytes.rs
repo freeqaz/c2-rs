@@ -356,3 +356,186 @@ mod tests {
         assert_eq!(&t2[0x18..0x1c], &C2_TEXT[0x18..0x1c]);
     }
 }
+
+// ============================================================================
+// **`?mmioGetInfo` — the FRONTIER's head by byte fraction, and it is ZERO
+// encoders short.**
+// ============================================================================
+//
+// Board **#502** ranks `src/xdk/nuispeech/mmio.cpp` first on the frontier by
+// `.text` byte fraction (16.8 %) and **#505** prices its remainder at **316 B**.
+// Lane `w-clear` re-derived both from the obj: the TU emits **11** functions
+// totalling **380 B**, of which the port is byte-exact on **8** (`64 B`, the
+// `li r3,0 ; blr` stubs) and refuses **3** (`84 + 108 + 124 = 316 B`).
+// `?mmioGetInfo` is the smallest of the three.
+//
+// [`Primes.cpp`](self)'s answer to "is the frontier encoder-short?" was *two
+// words*. **This function's answer is ZERO.** All twenty-one words come from
+// encoders that already existed at `119af05f` — [`FrameLayout`]'s prologue and
+// epilogue, [`encode_addi`], [`encode_cmplwi`], [`encode_bc`],
+// [`encode_b_intra`], [`encode_mr`], [`encode_lwz`] and
+// [`super::calls::encode_call_branch`]. Nothing was added for this file.
+//
+// **So the remaining 84 bytes are entirely a SELECTION and BLOCK-PLAN
+// question**, and lane `w-clear` measured which:
+//
+//   * the **entry-block park** — `mr r11,r3 ; mr r3,r4` *before* the first
+//     compare, which is board #275 and which this lane refused rather than
+//     emitted after gridding 54 cells and finding 30 `Port=Mismatch`;
+//   * the **literal argument** in the marshalling (`li r5,72`), which the IL
+//     parser declines as `callseq-multiarg-lit`;
+//   * **`memcpy`**, which arrives as `expr-intrinsic-memcpy` in the IL even
+//     though board #410 is right that the obj carries an ordinary REL24 `bl`.
+//
+// Three refusals, none of them an instruction. The same standard the header
+// above sets applies unchanged: **reproducing the bytes is not converting the
+// TU.** Every constant below was read off `c2`'s own output.
+//
+// Source of the pins — `work/w-clear/obj/mmio.obj`, produced by the real
+// `c2.dll` under wibo at the workload's own flags and cwd:
+//
+// ```sh
+// c2rs compile src/xdk/nuispeech/mmio.cpp --keep-obj work/w-clear/obj/mmio.obj \
+//     --flags-file work/dc3-workload/flags.txt --cwd "$C2RS_DC3"
+// scripts/gt_dump.py work/w-clear/obj/mmio.obj
+// ```
+
+/// The **whole** `.text` of `mmioGetInfo`, 84 bytes, exactly as the real
+/// `c2.dll` emitted it.
+///
+/// ```text
+///   0000  7d8802a6  mflr  r12          ]
+///   0004  9181fff8  stw   r12,-8(r1)   ] FrameLayout{out_slots:3}.prologue()
+///   0008  9421ffa0  stwu  r1,-96(r1)   ]
+///   000c  7c6b1b78  mr    r11,r3       ] THE ENTRY-BLOCK PARK (board #275) —
+///   0010  7c832378  mr    r3,r4        ] hoisted AHEAD of the first compare
+///   0014  2b0b0000  cmplwi cr6,r11,0     …and the compare reads r11, not r3
+///   0018  409a000c  bf    26,.+12
+///   001c  38600005  li    r3,5
+///   0020  48000024  b     .+36           -> the epilogue
+///   0024  2b030000  cmplwi cr6,r3,0
+///   0028  409a000c  bf    26,.+12
+///   002c  3860000b  li    r3,11
+///   0030  48000014  b     .+20           -> the epilogue
+///   0034  38a00048  li    r5,72          the LITERAL argument
+///   0038  7d645b78  mr    r4,r11         the park's REMAINDER, at the call
+///   003c  4bffffc5  bl    .-60           REL24 -> memcpy
+///   0040  38600000  li    r3,0
+///   0044  38210060  addi  r1,r1,96     ]
+///   0048  8181fff8  lwz   r12,-8(r1)   ] FrameLayout.epilogue()
+///   004c  7d8803a6  mtlr  r12          ]
+///   0050  4e800020  blr                ]
+/// ```
+pub const C2_MMIOGETINFO_TEXT: [u8; 84] = [
+    0x7d, 0x88, 0x02, 0xa6, 0x91, 0x81, 0xff, 0xf8, 0x94, 0x21, 0xff, 0xa0, 0x7c, 0x6b, 0x1b, 0x78,
+    0x7c, 0x83, 0x23, 0x78, 0x2b, 0x0b, 0x00, 0x00, 0x40, 0x9a, 0x00, 0x0c, 0x38, 0x60, 0x00, 0x05,
+    0x48, 0x00, 0x00, 0x24, 0x2b, 0x03, 0x00, 0x00, 0x40, 0x9a, 0x00, 0x0c, 0x38, 0x60, 0x00, 0x0b,
+    0x48, 0x00, 0x00, 0x14, 0x38, 0xa0, 0x00, 0x48, 0x7d, 0x64, 0x5b, 0x78, 0x4b, 0xff, 0xff, 0xc5,
+    0x38, 0x60, 0x00, 0x00, 0x38, 0x21, 0x00, 0x60, 0x81, 0x81, 0xff, 0xf8, 0x7d, 0x88, 0x03, 0xa6,
+    0x4e, 0x80, 0x00, 0x20,
+];
+
+/// Rebuild `?mmioGetInfo`'s twenty-one words from the encoders this crate
+/// already had.
+///
+/// Returns `(text, needed_a_new_encoder)`, the same executable form of the
+/// claim [`primes_next_hash_prime_text`] uses — except that here **every flag
+/// is `false`**, and the test below asserts exactly that.
+fn mmio_get_info_text() -> (Vec<u8>, Vec<bool>) {
+    use super::calls::encode_call_branch;
+    use super::encode::{encode_cmplwi, encode_mr};
+    use super::frame::FrameLayout;
+
+    // `memcpy` takes three arguments, so the outgoing-parameter area is three
+    // slots and the frame is 96 bytes — the same `F = 96` every capture in
+    // `docs/CODEGEN_FRAMED_CALLS.md` shows for this class.
+    let frame = FrameLayout { locals: 0, out_slots: 3, saved_gprs: 0, saved_fprs: 0 };
+    let prologue = frame.prologue().expect("a 96-byte frame is in class");
+    let epilogue = frame.epilogue().expect("a 96-byte frame is in class");
+
+    let bit_eq = cr_bi(CR_COMPARE, CR_BIT_EQ); // 26
+    let li = |rd: u8, k: i16| encode_addi(rd, 0, k);
+
+    let words: Vec<[u8; 4]> = vec![
+        // -- the entry-block park, AHEAD of the first compare -----------------
+        encode_mr(11, 3),
+        encode_mr(3, 4),
+        // -- guard 1, on the PARKED register ---------------------------------
+        encode_cmplwi(CR_COMPARE, 11, 0),
+        encode_bc(BO_FALSE, bit_eq, 12).expect("in range"),
+        li(3, 5),
+        encode_b_intra(0x44 - 0x20).expect("in range"),
+        // -- guard 2 ----------------------------------------------------------
+        encode_cmplwi(CR_COMPARE, 3, 0),
+        encode_bc(BO_FALSE, bit_eq, 12).expect("in range"),
+        li(3, 11),
+        encode_b_intra(0x44 - 0x30).expect("in range"),
+        // -- the call: the literal, the park's remainder, the REL24 -----------
+        li(5, 72),
+        encode_mr(4, 11),
+        encode_call_branch(0x3c),
+        // -- the value the fall-through returns -------------------------------
+        li(3, 0),
+    ];
+
+    let mut text = prologue;
+    for w in &words {
+        text.extend_from_slice(w);
+    }
+    text.extend_from_slice(&epilogue);
+    (text, vec![false; 7 + words.len()])
+}
+
+#[cfg(test)]
+mod mmio_tests {
+    use super::*;
+
+    /// **The claim, asserted whole.** Every one of `?mmioGetInfo`'s 84 bytes
+    /// comes out of encoders that already existed.
+    #[test]
+    fn mmiogetinfo_eighty_four_bytes_reconstruct_from_the_encoders() {
+        let (text, _) = mmio_get_info_text();
+        assert_eq!(text.len(), 84, "the function is 84 bytes");
+        assert_eq!(
+            text,
+            C2_MMIOGETINFO_TEXT.to_vec(),
+            "reconstruction diverged from the bytes real c2 emitted"
+        );
+    }
+
+    /// **ZERO of twenty-one words needed a new encoder**, which is the whole
+    /// difference between this function and `Primes.cpp`'s. Asserted rather
+    /// than described so the header cannot rot.
+    #[test]
+    fn no_word_of_mmiogetinfo_needed_a_new_encoder() {
+        let (_, new) = mmio_get_info_text();
+        assert_eq!(new.len(), 21, "twenty-one words");
+        assert_eq!(new.iter().filter(|n| **n).count(), 0);
+    }
+
+    /// **The park is what the port does not have, and it is a POSITION, not an
+    /// instruction.** Both of its words are ordinary `mr`s the emitter writes
+    /// every day; what it cannot do is put them in the entry block and then
+    /// compare the *parked* register.
+    ///
+    /// Asserted as a shape so the rung doc's claim is checkable: the two words
+    /// at 0x0c/0x10 are `mr`s, the word at 0x14 compares **r11** and not r3,
+    /// and the remaining `mr` sits after the guards at 0x38.
+    #[test]
+    fn the_park_is_two_ordinary_mrs_in_an_extraordinary_place() {
+        use super::super::encode::{encode_cmplwi, encode_mr};
+        let t = C2_MMIOGETINFO_TEXT;
+        assert_eq!(&t[0x0c..0x10], &encode_mr(11, 3), "park word 1");
+        assert_eq!(&t[0x10..0x14], &encode_mr(3, 4), "park word 2");
+        assert_eq!(
+            &t[0x14..0x18],
+            &encode_cmplwi(CR_COMPARE, 11, 0),
+            "the guard compares the PARKED register, not the formal's home"
+        );
+        assert_eq!(&t[0x38..0x3c], &encode_mr(4, 11), "the park's remainder, at the call");
+        // The unguarded lowering the emitter *does* have would have written
+        // `mr r11,r4 · mr r4,r3 · mr r3,r11` at the call and nothing at 0x0c.
+        // It is a different cycle break: this one saves r3, that one saves r4.
+        assert_ne!(&t[0x0c..0x10], &encode_mr(11, 4), "not the unguarded break");
+    }
+}
