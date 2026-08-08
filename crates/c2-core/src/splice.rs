@@ -473,6 +473,10 @@ pub fn splice_callee_why<'a>(
         // for the same reason W-CFG1 is not — mechanism I replaces a body that
         // is NOTHING BUT one call, and this one is thirty words.
         Selected::GuardChainSharedTail => return Err("S3-guard-chain-shared-tail"),
+        // W-UNDNAME: same clause, same reason — twenty-four words, one call,
+        // and a body that is not "nothing but that call". Refused explicitly so
+        // a later shape cannot fall into a splice path nobody graded.
+        Selected::AllocInitOrFail => return Err("S3-alloc-init-or-fail"),
         Selected::Seq { setups, .. } => {
             let Some(seq) = f.call_seq.as_ref() else {
                 return Err("S1-seq-without-call-seq");

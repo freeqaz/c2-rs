@@ -135,6 +135,7 @@ mod tests {
             data_def: None,
             static_scan_loop: None,
             guard_chain_shared_tail: None,
+        alloc_init_or_fail: None,
         };
         assert_eq!(
             indirect_load_text(&f).unwrap().unwrap(),
@@ -185,6 +186,7 @@ mod tests {
             data_def: None,
             static_scan_loop: None,
             guard_chain_shared_tail: None,
+        alloc_init_or_fail: None,
         };
         let blr = [0x4E, 0x80, 0x00, 0x20];
         let body = |ops: Vec<IlOp>, params: Vec<u32>| {

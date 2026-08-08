@@ -1268,6 +1268,41 @@ pub(crate) fn shape_to_function(
                     ..IlFunction::base(name, src)
                 })
             }
+            // **W-UNDNAME — the guarded allocation with a shared error store.**
+            // Three tokens resolved through the SAME `resolve` every callee
+            // uses. A single unresolvable one refuses the whole function: a
+            // relocation against a guessed symbol is a mis-emit, not a gap.
+            //
+            // The two data names go onto `data_syms` in EMISSION order — the
+            // object first, because its `lis` is the lower `.text` offset — and
+            // `c2_core::data_refs_of` pairs them with the sites it derives from
+            // the emitted words by position, checking the counts. The order here
+            // is a fact about the emitter, so it is set here and asserted there.
+            BodyShape::AllocInitOrFail(a) => {
+                let object = resolve(a.object_tok)?;
+                let vtable = resolve(a.vtable_tok)?;
+                Some(IlFunction {
+                    params: a.params.clone(),
+                    data_syms: vec![object.clone(), vtable.clone()],
+                    alloc_init_or_fail: Some(crate::func::AllocInitOrFailFn {
+                        params: a.params,
+                        alloc: resolve(a.alloc_tok)?,
+                        object,
+                        vtable,
+                        k_size: a.k_size,
+                        k_flag: a.k_flag,
+                        k_neg: a.k_neg,
+                        k_status: a.k_status,
+                        off_a: a.off_a,
+                        off_b: a.off_b,
+                        off_c: a.off_c,
+                        off_d: a.off_d,
+                        off_e: a.off_e,
+                        off_f: a.off_f,
+                    }),
+                    ..IlFunction::base(name, src)
+                })
+            }
             BodyShape::PtrWalkChainLoop(l) => {
                 Some(IlFunction {
                     params: l.params.clone(),

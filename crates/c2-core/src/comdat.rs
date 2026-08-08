@@ -109,6 +109,7 @@ pub fn selected_tag(s: &codegen::Selected) -> &'static str {
         codegen::Selected::CondPair(_) => "cond-pair",
         codegen::Selected::IfCallJoin => "if-call-join",
         codegen::Selected::GuardChainSharedTail => "guard-chain-shared-tail",
+        codegen::Selected::AllocInitOrFail => "alloc-init-or-fail",
     }
 }
 
@@ -259,7 +260,7 @@ pub(crate) fn body_of<'a>(
                 func_len: body.text.len() as u32,
             });
             // Four sites, three names: `errno` is called from BOTH arms and the
-            // symbol is emitted once, which is `introduced_callees`' own dedup
+            // symbol is emitted once, which is `introduced_externals`' own dedup
             // and the reason these are zipped by SITE and not by name.
             let calls = body
                 .bl_offsets
@@ -272,6 +273,27 @@ pub(crate) fn body_of<'a>(
                 ])
                 .map(|(off, callee)| coff::Call { reloc_offset: *off, callee })
                 .collect();
+            (body.text, calls)
+        }
+        // **W-UNDNAME — the guarded allocation with a shared error store.** ONE
+        // REL24 site and TWO REFHI/REFLO quads, the latter derived from the
+        // emitted words by `crate::data_refs_of` below rather than declared
+        // here — which is what lets the two hoist distances differ.
+        codegen::Selected::AllocInitOrFail => {
+            let a = f
+                .alloc_init_or_fail
+                .as_ref()
+                .expect("AllocInitOrFail implies alloc_init_or_fail");
+            let body = codegen::alloc_init_or_fail::alloc_init_or_fail_text(a, 0, mode)
+                .map_err(ComdatDecline::Shape)?;
+            frame = Some(coff::Frame {
+                prolog_len: body.prolog_len,
+                func_len: body.text.len() as u32,
+            });
+            let calls = vec![coff::Call {
+                reloc_offset: body.bl_offset,
+                callee: a.alloc.as_str(),
+            }];
             (body.text, calls)
         }
         codegen::Selected::IfCallJoin => {

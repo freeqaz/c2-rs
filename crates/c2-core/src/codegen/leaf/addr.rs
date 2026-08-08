@@ -112,6 +112,7 @@ mod tests {
             data_def: None,
             static_scan_loop: None,
             guard_chain_shared_tail: None,
+        alloc_init_or_fail: None,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
         };

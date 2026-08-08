@@ -25,6 +25,7 @@ use self::shapes::{
     try_parse_indirect_load_leaf, try_parse_member_tail_call, try_parse_ptr_identity_leaf,
     try_parse_ptr_walk_chain_loop,
     try_parse_guard_chain_shared_tail,
+    try_parse_alloc_init_or_fail,
     try_parse_if_call_join,
     try_parse_ptr_walk_loop,
     try_parse_static_scan_loop,
@@ -648,6 +649,10 @@ pub(crate) enum BodyShape {
     /// [`shapes::guard_chain_shared_tail`] for the whole accept/refuse boundary
     /// and [`crate::func::GuardChainSharedTail`] for the fields.
     GuardChainSharedTail(crate::func::GuardChainSharedTail),
+    /// **W-UNDNAME — the guarded allocation with a shared error store.** See
+    /// [`shapes::alloc_init_or_fail`] for the class and
+    /// [`crate::func::AllocInitOrFail`] for the fields.
+    AllocInitOrFail(crate::func::AllocInitOrFail),
     /// **W-DATA — the static-array scan loop.** The first body class here whose
     /// function DEFINES the data it reads. See
     /// [`super::shapes::static_scan_loop`] for the whole accept/refuse boundary
@@ -2085,6 +2090,26 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // out of) and no census key moves.
             if let Ok(shape) = try_parse_guard_chain_shared_tail(seg, p, lo) {
                 disp("disp-guard-chain-shared-tail");
+                return Ok(shape);
+            }
+            // **W-UNDNAME — the guarded allocation with a shared error store.**
+            // Asked AFTER every production above and separated from all of them
+            // by its second statement rather than by one byte, which is worth
+            // saying plainly: its first test is `!= 0` with a `38` (brfalse),
+            // exactly like `cond_tail`, `guarded_seq` and `early_return_seq`, so
+            // the separation is not free the way `guard_chain_shared_tail`'s
+            // `39` is. What separates it is that all three of those consume a
+            // RETURN or a tail call where this consumes an assignment from a
+            // MEMBER CALL ON A NAMED GLOBAL (`26 · 26 · 26 · 2C · 99`), and each
+            // of them is non-committal — it works on its own cursor and returns
+            // `None`/`Err` on the first byte outside its grammar. Ordering it
+            // last preserves every earlier class's precedence exactly.
+            //
+            // Non-committal on the same terms: a body that declines still
+            // reports this arm's blocker (`expr-cmp-ne`, which is what
+            // `undname.cpp` read at this lane's base) and no census key moves.
+            if let Ok(shape) = try_parse_alloc_init_or_fail(seg, p, lo) {
+                disp("disp-alloc-init-or-fail");
                 return Ok(shape);
             }
             // **The integer divide/modulo leaf.** Tried here because it is the

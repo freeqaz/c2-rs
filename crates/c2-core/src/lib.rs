@@ -845,6 +845,29 @@ impl PortC2 {
                         Vec::new(),
                     )
                 }
+                // **W-UNDNAME — the guarded allocation with a shared error
+                // store**, built at `off` for the same reason every framed
+                // shape here is: the `bl` word encodes its own `.text` offset.
+                codegen::Selected::AllocInitOrFail => {
+                    let a = f
+                        .alloc_init_or_fail
+                        .as_ref()
+                        .expect("AllocInitOrFail implies alloc_init_or_fail");
+                    let body =
+                        codegen::alloc_init_or_fail::alloc_init_or_fail_text(a, off, mode)?;
+                    frame = Some(coff::Frame {
+                        prolog_len: body.prolog_len,
+                        func_len: body.text.len() as u32,
+                    });
+                    text.extend_from_slice(&body.text);
+                    (
+                        vec![coff::Call {
+                            reloc_offset: body.bl_offset,
+                            callee: &a.alloc,
+                        }],
+                        Vec::new(),
+                    )
+                }
                 codegen::Selected::IfCallJoin => {
                     let j = f.if_call_join.as_ref().expect("IfCallJoin implies if_call_join");
                     let body = codegen::if_call_join::if_call_join_text(j, off, mode)?;
@@ -1348,6 +1371,52 @@ mod tests {
             0,
             "(k) a body with no data symbol must yield no DataRef"
         );
+    }
+
+    /// **W-UNDNAME — TWO quads in one body, paired by POSITION.**
+    ///
+    /// The body is `?append@DName@@QAAXPAVDNameNode@@@Z`'s two hoists, reduced
+    /// to the words that matter: the first pair is 2 words apart and its low
+    /// half writes an `ARG_REG`; the second is 3 words apart and its low half
+    /// writes the **scratch register itself**. Neither a fixed distance nor an
+    /// `ARG_REG`-restricted search can derive both, which is what the previous
+    /// rule was and why it refused this body by name.
+    #[test]
+    fn two_quads_in_one_body_pair_by_position_and_take_their_names_in_order() {
+        let mut f = codegen::testutil::func_with(Vec::new(), Vec::new());
+        f.mangled_name = "?append@DName@@QAAXPAVDNameNode@@@Z".into();
+        f.data_syms = vec!["?gObj@@3HA".into(), "?gVt@@3PAXA".into()];
+        let mut t = Vec::new();
+        t.extend_from_slice(&codegen::encode_addis(codegen::SCRATCH_REG, 0, 0)); // 0x00
+        t.extend_from_slice(&codegen::encode_addi(codegen::ARG_REGS[2], 0, 0)); // 0x04 li
+        t.extend_from_slice(&codegen::encode_addi(codegen::ARG_REGS[0], codegen::SCRATCH_REG, 0)); // 0x08
+        t.extend_from_slice(&codegen::encode_addi(codegen::ARG_REGS[1], 0, 16)); // 0x0c li
+        t.extend_from_slice(&codegen::encode_addis(codegen::SCRATCH_REG, 0, 0)); // 0x10
+        t.extend_from_slice(&codegen::encode_stw(30, 3, 8)); // 0x14
+        t.extend_from_slice(&codegen::encode_addi(10, 0, -1)); // 0x18 li
+        t.extend_from_slice(&codegen::encode_addi(codegen::SCRATCH_REG, codegen::SCRATCH_REG, 0)); // 0x1c
+
+        let refs = data_refs_of(&f, &t, 0).expect("in class");
+        assert_eq!(refs.len(), 2, "two quads");
+        assert_eq!((refs[0].hi_off, refs[0].lo_off), (0x00, 0x08));
+        assert_eq!((refs[1].hi_off, refs[1].lo_off), (0x10, 0x1c));
+        // The names travel in EMISSION order and are paired by index.
+        assert_eq!(refs[0].name, "?gObj@@3HA");
+        assert_eq!(refs[1].name, "?gVt@@3PAXA");
+        // The two hoist distances differ, which is the whole reason the pairing
+        // cannot be a distance.
+        assert_ne!(refs[0].lo_off - refs[0].hi_off, refs[1].lo_off - refs[1].hi_off);
+        // …and the second low half is NOT an `ARG_REG`, which is what the old
+        // search required.
+        assert!(!codegen::ARG_REGS.iter().any(|&d| {
+            t[0x1c..0x20] == codegen::encode_addi(d, codegen::SCRATCH_REG, 0)
+        }));
+
+        // The counts are checked: one name against two derived pairs refuses
+        // rather than relocating a site against the wrong symbol.
+        let mut short = f.clone();
+        short.data_syms.pop();
+        assert!(data_refs_of(&short, &t, 0).is_err(), "count mismatch must refuse");
     }
 
     // -----------------------------------------------------------------------

@@ -998,6 +998,7 @@ fn ops_setup_text(
         return Ok(Vec::new());
     }
     let synth = IlFunction {
+        alloc_init_or_fail: None,
         mangled_name: String::new(),
         source_path: None,
         params: params.to_vec(),

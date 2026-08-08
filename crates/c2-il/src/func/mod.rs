@@ -2601,6 +2601,7 @@ impl IlFunction {
             || self.call_seq.is_some()
             || self.if_call_join.is_some()
             || self.guard_chain_shared_tail.is_some()
+            || self.alloc_init_or_fail.is_some()
     }
 
     /// **Label-counter slots this function takes BEFORE its own `$M` triple.**
@@ -2637,6 +2638,30 @@ impl IlFunction {
             // anchor control is the shipped 5 on a `Seq` body in the same TU
             // (`fixtures/cpp/wcfg1_join_then_seq.cpp`).
             + u32::from(self.if_call_join.is_some())
+            // **W-UNDNAME charges NOTHING before its own triple, and that is
+            // the measurement rather than the default.**
+            //
+            // The lane's PREREG registered **+1**, by analogy with the two
+            // `cflow` classes above — and the oracle says **0**. With a `+1`
+            // term the port emitted `$M2593` / `$M2592` / `$T2594` where the
+            // reference has `$M2592` / `$M2591` / `$T2593`: three symbol records
+            // wrong by one and nothing else in the obj different. Removing the
+            // term makes the obj byte-exact.
+            //
+            // So the two neighbouring surcharges are NOT a property of
+            // "a transcribed `cflow-if-n` class", which is what the analogy
+            // assumed. The measurement is the same one-witness kind W-EXTDATA's
+            // was — `?append@DName@@QAAXPAVDNameNode@@@Z` is `undname.cpp`'s only
+            // emitted function, so there is no in-TU difference to take and what
+            // was compared is the port's whole obj against real `c2.dll`'s at the
+            // workload's own flags. The fence around it is the recognizer's: this
+            // class admits one block plan, so there is no second shape for the
+            // charge to be wrong about.
+            //
+            // Written as an explicit `+ 0` rather than as a missing term,
+            // because a class silently absent from this sum is indistinguishable
+            // from one nobody thought about.
+            + 0 * u32::from(self.alloc_init_or_fail.is_some())
             // **W-EXTDATA charges ONE slot before its own triple too**, so this
             // class strides 6 under `/Gy` exactly as W-CFG1 does — and the
             // number is MEASURED, against the oracle, not carried over by
@@ -2710,6 +2735,17 @@ impl IlFunction {
                     .iter()
                     .flat_map(|c| [c.helper.as_str(), c.errno.as_str(), c.invalid.as_str()]),
             )
+            // **W-UNDNAME: ONE name.** The body's other two externals are the
+            // object's and the vtable's addresses, whose relocations are
+            // REFHI/REFLO quads and not branches — they travel on
+            // `IlFunction::data_syms` and are accounted in `IlBundle::functions`
+            // by that field's own clause, exactly as `fn_addr` is by its.
+            // Putting either here would make `coff::plan_text_order` see a call
+            // edge on a `lis`.
+            //
+            // Omitting this arm is not a silent gap: the accounting gate refuses
+            // the whole TU with `unclaimed-gl-symbol`, which is how it was found.
+            .chain(self.alloc_init_or_fail.iter().map(|a| a.alloc.as_str()))
     }
 
     pub fn label_slots(&self, fn_level_linking: bool) -> Option<u32> {
