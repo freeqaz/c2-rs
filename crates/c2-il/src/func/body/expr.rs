@@ -564,6 +564,19 @@ pub(crate) enum SkipForm {
     /// `4F 01 <varint>` — the line marker, and **only** that. `4F 12` is the
     /// function tail and must never be eaten here.
     Line4F,
+    /// `66 <arity> <arity LEB ids>` — the **class-pair descriptor** of the
+    /// 2113–2119 intrinsic family (lane `w-mass`, board **#1530**).
+    ///
+    /// The width is **not restated here**: the step calls
+    /// [`mcall::eat_class_descriptor`], the one decoder for this token, exactly
+    /// as `shapes/control_flow.rs`'s `0x66` arm does. That is the whole design.
+    /// `mcall`'s own doc records two earlier readings of this token — a fixed
+    /// two bytes, and a `read_token_var` token — which agree on `66 02 92 20
+    /// 93 20` and both desync on the wide witnesses (`fb 8a 01`, `d3 80 02`)
+    /// that `src/App.cpp` and `src/lazer/game/Game.cpp` carry. A second copy of
+    /// that width in this table is the one way this instrument could lie, and
+    /// the table's own header says a wrong *width* is worse than a wrong *name*.
+    ClassDescr,
 }
 
 /// The **pinned** skip form of an operand-stream opcode, or `None` when this tree
@@ -598,6 +611,7 @@ pub(crate) enum SkipForm {
 /// | `53` | Bare, `54` | Byte1 | [`eat_scopes`] |
 /// | `55` | Type | the `icall` line of `parse_segment`'s grammar — `55 INT` |
 /// | `5C` | TypeVarint | `EH_RECORDS.md` §7.1's measured `5C <TYPE> <varint>`, and `control_flow.rs`'s `operand()` arm that consumes it today — see the `0x5C` row below |
+/// | `66` | ClassDescr | `mcall::eat_class_descriptor`, the one decoder, called rather than restated — see the `0x66` row below |
 /// | `67` | VarintTok | `IL_DECODE_REACH.md` §2 — `67 <varint vtable-byte-offset> <token>` |
 /// | `9B` | TypeTok | `IL_EXPR_LAYER.md` §7 — the trailing field is a whole `read_token_var` |
 /// | `B9` | TokType | [`parse_expr_classed`]'s own LOAD arm |
@@ -861,6 +875,24 @@ pub(crate) fn chain_skip_form(b: u8) -> Option<SkipForm> {
         // an enum change is not this row. See
         // [`the_unpinned_opcodes_refuse_rather_than_guess_a_width`].
         0x5C => TypeVarint,
+        // The CLASS-PAIR DESCRIPTOR, `66 <arity> <arity LEB ids>` (lane
+        // `w-mass`, board **#1530**). It is the token that follows the 2113–2119
+        // class-layout intrinsic's `40 <TYPE result>`, and the reason the
+        // `intrinsic` sink stops one token short of that production: with `66`
+        // absent from this table, sinking the intrinsic renamed **17,693
+        // emitted** functions (291,002 bodies) to `expr-class-descriptor` and
+        // recovered nothing — board **#1465**'s rename, at the largest scale the
+        // project has measured it.
+        //
+        // **Not a new width.** `mcall::eat_class_descriptor` is the one decoder
+        // and this arm calls it; `shapes/control_flow.rs`'s `0x66` arm already
+        // calls the same function, and `mcall`'s doc comment for it records the
+        // two rival readings (fixed 2 bytes; a `read_token_var` token) that both
+        // desync on the wide witnesses `fb 8a 01` / `e0 91 01` / `d3 80 02` in
+        // `src/App.cpp` and `src/lazer/game/Game.cpp`, and the `55` argument
+        // terminator that pins LEB against both. This is `0x5C`'s situation
+        // exactly: a width the tree already knew and this table could not spell.
+        0x66 => ClassDescr,
         0x67 => VarintTok,
         // The BIND, `99 <TYPE> <varint>`. `IL_EXPR_LAYER.md` §7 pins the field
         // by CONTRAST — "its trailing field is a whole `read_token_var`, not the
@@ -1128,6 +1160,19 @@ fn chain_step_with(
             }
             q += 1;
             read_varint(seg, &mut q).is_some()
+        }
+        // `66 <arity> <arity LEB ids>` — delegated to the one decoder, which
+        // starts at the opcode itself, so this rewinds `q` to `p` rather than
+        // re-implementing the `66` check.
+        SkipForm::ClassDescr => {
+            let mut r = p;
+            match super::mcall::eat_class_descriptor(seg, &mut r) {
+                Some(_) => {
+                    q = r;
+                    true
+                }
+                None => false,
+            }
         }
     };
     Some(if ok { Ok(q) } else { Err("expr-chain-short") })
@@ -1874,6 +1919,30 @@ pub(crate) fn parse_expr_classed(
             _ => return Err(blk(seg, *p, "expr")),
         }
     }
+    // **THIS ARM SHADOWS ALL THREE SINK POISONS BELOW, AND THE POISON COUNTS
+    // HAVE ALWAYS BEEN READ AS IF IT DID NOT** (lane `w-mass`, board **#1538**).
+    //
+    // The sinks push no [`IlOp`] — that is the property that makes them
+    // measurement-only — so a walk that consumed an expression *entirely*
+    // through sunk tokens arrives here with `ops` empty and reports
+    // `expr-empty-0xNN` instead of the poison. Both are the same event, *the
+    // sink set was the last thing in the way*, and only one of them is in the
+    // key every published reading counts.
+    //
+    // MEASURED, not argued: `C2RS_SINK_CHAIN=intrinsic,op:66` over the 878-TU
+    // workload puts **341 emitted functions (2,569 bodies)** under
+    // `expr-empty-0x55` and **5,021 (40,210)** under the poison, and the 341 are
+    // exactly the class-layout half's whole recovery — so a poison-only reading
+    // of that arm reports **0** for a population whose real answer is 341.
+    //
+    // **Not reordered here.** Moving the check below the poisons is inert with
+    // every sink off (all three flags are false, so this arm is reached on the
+    // identical population) and would be the better instrument — but it
+    // *redefines* a key that boards #660, #1319, #1455 and #1465 have published
+    // counts against, and this tree's rule is that a denominator gets published
+    // before it gets folded in. The sum is published in
+    // `rungs/2026-08-08-w-mass.md` §3.3 and the reorder is filed there as its
+    // own rung. **Read the poison and this key together, or neither.**
     if ops.is_empty() {
         return Err(blk(seg, *p, "expr-empty"));
     }
@@ -2160,7 +2229,14 @@ mod tests {
     /// `None` is otherwise unable to express (board #1314's finding, restated).
     #[test]
     fn the_unpinned_opcodes_refuse_rather_than_guess_a_width() {
-        for b in [0x00, 0x07, 0x08, 0x14, 0x1B, 0x1C, 0x3B, 0x3C, 0x3D, 0x59, 0x64, 0x66] {
+        // `0x66` LEFT this list on 2026-08-08 (lane `w-mass`, board #1530) and
+        // it is the third kind again, resolved the other way: the width was
+        // never unmeasured — `mcall::eat_class_descriptor` has read it since the
+        // D2 rung and `control_flow.rs` calls that same function — it was
+        // unspellable, and `SkipForm::ClassDescr` delegates rather than restates
+        // it. `0x64` stays: it is `mcall`'s by-value-return materialize, which
+        // no reader in this tree consumes at a stated width.
+        for b in [0x00, 0x07, 0x08, 0x14, 0x1B, 0x1C, 0x3B, 0x3C, 0x3D, 0x59, 0x64] {
             assert_eq!(chain_skip_form(b), None, "0x{b:02X} must have no pinned form");
         }
         // The EH COUNT trailers. Kept in their own loop with their own message,
@@ -2297,6 +2373,7 @@ mod tests {
                 0x43 => Some(SkipForm::Escape43),
                 0x4F => Some(SkipForm::Line4F),
                 0x54 => Some(SkipForm::Byte1),
+                0x66 => Some(SkipForm::ClassDescr),
                 0x67 => Some(SkipForm::VarintTok),
                 0x9B => Some(SkipForm::TypeTok),
                 0xB9 => Some(SkipForm::TokType),
@@ -2443,6 +2520,52 @@ mod tests {
         // would report a fictitious successor.
         assert_eq!(skip_one(&[0x5C, 0x86, 0x41, 0x74], 0x5C), Some(Err("expr-chain-short")));
         assert_eq!(skip_one(&[0x5C], 0x5C), Some(Err("expr-chain-short")));
+    }
+
+    /// **The CLASS-PAIR DESCRIPTOR, `66 <arity> <arity LEB ids>`** (lane
+    /// `w-mass`, board **#1530**), and the two rival readings `mcall`'s own doc
+    /// records as having desynced on it.
+    ///
+    /// The narrow witnesses (`66 02 92 20 93 20`) are the ones a fixed-2-byte
+    /// reading and a `read_token_var` reading both survive; the *wide* ones from
+    /// `src/App.cpp` and `src/lazer/game/Game.cpp` are what separate them, and
+    /// this row exists to keep them separated in this table too.
+    #[test]
+    fn the_class_pair_descriptor_consumes_exactly_its_capture() {
+        // The narrow witness `mcall` transcribes, followed by the `55` argument
+        // terminator that pins the width from the other side.
+        let narrow = [0x66, 0x02, 0x92, 0x20, 0x93, 0x20, 0x55, 0x86, 0x41, 0x74];
+        assert_eq!(skip_one(&narrow, 0x66), Some(Ok(6)), "arity byte + two LEB ids");
+        assert_eq!(narrow[6], 0x55, "and the step lands on the argument terminator");
+
+        // **The WIDE ids.** `fb 8a 01` is three LEB bytes, so a fixed-2-byte
+        // reading stops inside the second id and a `read_token_var` reading
+        // takes `fb 8a 01 …` as four bytes and oversteps by one. Only LEB lands
+        // on the `55`.
+        let wide = [0x66, 0x02, 0xFB, 0x8A, 0x01, 0xD3, 0x80, 0x02, 0x55, 0x86, 0x41, 0x74];
+        assert_eq!(skip_one(&wide, 0x66), Some(Ok(8)));
+        assert_eq!(wide[8], 0x55);
+
+        // The ARITY is read, not assumed to be `02` — `IL_CALL_IN_EXPR.md` §4.3.
+        let three = [0x66, 0x03, 0x92, 0x20, 0x93, 0x20, 0x94, 0x20, 0x55];
+        assert_eq!(skip_one(&three, 0x66), Some(Ok(8)));
+        let zero = [0x66, 0x00, 0x55, 0x86, 0x41, 0x74];
+        assert_eq!(skip_one(&zero, 0x66), Some(Ok(2)));
+
+        // A payload that runs off the end refuses rather than clamping. A clamp
+        // would manufacture a fictitious successor key, which is the one way
+        // this instrument could lie.
+        assert_eq!(skip_one(&[0x66, 0x02, 0x92], 0x66), Some(Err("expr-chain-short")));
+        assert_eq!(skip_one(&[0x66], 0x66), Some(Err("expr-chain-short")));
+
+        // **The width is the DECODER's, not a copy of it.** If these two ever
+        // disagree, the sink is stepping a token nothing else in the tree reads
+        // the same way, and the successor keys it reports are fiction.
+        for w in [narrow.as_slice(), wide.as_slice(), three.as_slice(), zero.as_slice()] {
+            let mut p = 0usize;
+            assert!(super::super::mcall::eat_class_descriptor(w, &mut p).is_some());
+            assert_eq!(skip_one(w, 0x66), Some(Ok(p)), "the sink step IS the decoder");
+        }
     }
 
     /// **The rival readings, and the population that decides the one the
