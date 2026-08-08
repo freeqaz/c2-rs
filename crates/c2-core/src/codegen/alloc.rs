@@ -693,6 +693,62 @@
 //!    module's mixed arm is unreachable and a rule shipped into [`allocate`]
 //!    today would move **zero bytes** while creating exactly the pattern that
 //!    killed eleven keys.
+//!
+//! > **⚠ Items 2 and 3 are PAID and item 1 is answered in a direction nobody
+//! > was looking in.** Lane `w-lineage`, board **#1294**–**#1296**. The three
+//! > are kept as written because they were the standing handover for a day.
+//! >
+//! > * **Item 3 was already stale when it was written.** The `w-midrun` rung
+//! >   shipped `Prod::Addr` and `super::leaf::store` builds
+//! >   [`ProducerKind::RegisterDerived`] for it — the one place the two kinds
+//! >   are told apart. `allocate`'s mixed arm is **reachable**, and the paragraph
+//! >   above described the tree of the previous day.
+//! > * **Item 2 is closed by [`Root::lineage`]** — the transitive chain, with
+//! >   [`ProducerRoots::lineage_related`] over it. `H-DERIV` is statable now.
+//! > * **Item 1 — "a class it has never seen" — is where the answer came from,
+//! >   and the class is the SPELLING.** Every cell of the whole allocation-key
+//! >   literature writes its address value as `(int)&x` into an `int` member.
+//! >   **410 of 410** — GRID Z's 81, GRID P's 90, GRID M's 70, GRID X's 66 and
+//! >   every earlier lane's — report `expr-op-0x27` or `assign-store-type-8643`
+//! >   from `c2rs census`, and **not one of them is in the reader's class or
+//! >   reports this module's key** (`work/w-lineage/reach/lit.tsv`). The target
+//! >   stores a **pointer into a pointer member** and there is no cast at all.
+//! >   Eleven keys were fitted, refuted and published on a spelling the port
+//! >   cannot compile, and #1217's own lesson — *the allocation is decided by
+//! >   the SOURCE SPELLING of the value* — is the reason that is not a
+//! >   bookkeeping detail.
+//!
+//! # THE REACHABLE DOMAIN IS FIVE CLASSES, AND THE LINEAGE IS ONE DEEP IN ALL OF THEM
+//!
+//! **Board #1294.** `c2_il`'s `parse_ref_bind_stmt` builds a `RefBind` only
+//! through `parse_addr_value`, which ends in a lookup of the value's base token
+//! **in `params`**, and separately refuses a zero displacement. A chained bind
+//! `P& c = a;` has a bind token for its base and a displacement of 0, so it
+//! fails **both**. Measured, not read off the source
+//! (`work/w-lineage/reach/mk.py`, census keys only — no obj is opened):
+//!
+//! ```text
+//!   P& a = y->blk.q0;  a.p0 = &a;              store-run-bind-mixed-kind-alloc
+//!   P& a = y->blk.q0;  y->blk.q0.p0 = &a;      store-run-bind-mixed-kind-alloc
+//!   P& a = ..; P& c = y->blk.q1;  c.p0 = &a;   store-run-bind-mixed-kind-alloc
+//!   P& a = ..; P& c = y->blk.q0;  c.p0 = &a;   store-run-bind-mixed-kind-alloc
+//!   P& a = ..; P& c = z->blk.q0;  c.p0 = &a;   store-run-bind-mixed-kind-alloc
+//!   P& a = ..; P& c = a;          c.p0 = &a;   expr-op-0x27        OUT OF REACH
+//!   P& a = ..; P& c = a; P& f = c; f.p0 = &a;  expr-op-0x27        OUT OF REACH
+//!   P& a = ..; P& c = a;          a.p0 = &c;   expr-op-0x27        OUT OF REACH
+//!   P& a = y->blk.q0;  a.p0 = &y->blk.q0;      expr-op-0x27        OUT OF REACH
+//! ```
+//!
+//! So **`CHAINBIND`, `DEEP-GP`, `REVERSE` and `SELF-2B` are all out of reach** —
+//! and those are, in order, the cells that killed key ten, that priced #1266,
+//! that killed key eleven, and that killed `H-MIX`. **Every disagreement between
+//! `H-CHAIN`, `H-DERIV`, `H-STEP` and `H-2Z` lives outside the reader's class**,
+//! so over everything a consumer can see they are **one predicate**.
+//!
+//! That is a statement about today's reader and it is enforced rather than
+//! trusted: [`Root::lineage`] is `None` unless the walk **terminated**, and
+//! [`ProducerRoots::lineage_related`] returns `None` — which refuses — rather
+//! than reading an uncarried chain as an unrelated one.
 
 /// How a producer's value is materialised. The distinction is read off the IL,
 /// never off the answer.
@@ -755,6 +811,48 @@ pub struct Root {
     ///
     /// It carries no rule. [`allocate`] does not read it.
     pub base: Option<u32>,
+    /// **THE TRANSITIVE BIND LINEAGE** — `[tok, parent, grandparent, …]`, walked
+    /// upward through bind links and stopping at the last bind head, or `None`
+    /// for *"the reader that built this did not carry it"*.
+    ///
+    /// **Board #1266, closed as a carrier.** [`Self::base`] holds **one link**,
+    /// so every relation statable over `(tok, is_bind, base, offsets)` is a
+    /// one-link relation and the fact real `c2` obeys is the transitive chain
+    /// (`M6`, `DEEP-GP`: a store root whose value is its **grandparent**). This
+    /// field is that chain. `base` is kept beside it unchanged — it is the one
+    /// link, and #1244's witness pair is stated over it.
+    ///
+    /// # `Some` means COMPLETE, and `None` is an honest refusal
+    ///
+    /// `Some(v)` asserts three things at once: `v[0] == tok`; each `v[i+1]` is
+    /// the bind token `v[i]` is bound to; and **the walk terminated at a
+    /// provably non-bind base**. A truncated list is #908's mistake in a second
+    /// field — a carrier that answered confidently over a chain it had only
+    /// half of would be wrong in the direction that emits bytes — so the
+    /// producer writes `None` rather than a prefix, and
+    /// [`ProducerRoots::lineage_related`] refuses on `None`.
+    ///
+    /// # Today it is always `Some(vec![tok])`, and THAT IS THE MEASUREMENT
+    ///
+    /// **Board #1294.** `crates/c2-il`'s `parse_ref_bind_stmt` builds a
+    /// `RefBind` only through `parse_addr_value`, which ends in a lookup of the
+    /// value's base token **in `params`**, and it separately refuses a
+    /// zero displacement. A chained bind — `P& c = a;` — has a bind token for
+    /// its base and a displacement of 0, so it fails **both**. Measured rather
+    /// than read off the source: `P& c = a;` reports `expr-op-0x27` and
+    /// `P& a = y->blk.q0;` reports `store-run-bind-mixed-kind-alloc`
+    /// (`work/w-lineage/reach/`).
+    ///
+    /// So over the whole reachable population every bind hangs off a **formal**,
+    /// the lineage is exactly one deep, and [`Self::base`] is **complete**.
+    /// #1266's shortfall is real, correctly decoded, and **unreachable**: no
+    /// consumer can be wrong about a link no input contains.
+    ///
+    /// That does not make this field dead weight — it makes it the **guard**.
+    /// A reader widened to admit a chained bind cannot silently make the
+    /// one-link reading wrong, because it has to say so here or write `None`,
+    /// and a `None` refuses.
+    pub lineage: Option<Vec<u32>>,
     /// The offset-add literal **LIST**, or `None` where the reader that built
     /// this carried only the list's SUM.
     ///
@@ -911,6 +1009,57 @@ impl ProducerRoots {
         let up = self.value.base == Some(self.lvalue.tok) && self.lvalue.is_bind;
         down || up
     }
+
+    /// **THE TRANSITIVE FORM of [`Self::bind_linked`]** — whether the two roots
+    /// stand on one bind lineage: the same token, or either one an ancestor of
+    /// the other through bind links only. `None` when either side's lineage is
+    /// uncarried.
+    ///
+    /// This is [`Root::lineage`]'s whole point and it is what closes board
+    /// **#1266**. `bind_linked` walks **one** link and is wrong on `M6`
+    /// (`DEEP-GP`, the grandparent); this walks the chain and is right there.
+    /// Both are kept: `bind_linked` states the one link [`Root::base`] holds
+    /// and its doc says where that is wrong, which is the executable form of the
+    /// shortfall and is worth more than a paragraph.
+    ///
+    /// **A root IS related to itself**, deliberately and unlike `bind_linked`.
+    /// `v[0] == tok`, so `LOAD` — one root on both sides, which is
+    /// `xboxheap.cpp`'s own class — answers `Some(true)` here where
+    /// `bind_linked` answers `false` and needs composing with
+    /// [`Self::store_root_is_distinct_bind`] to avoid granting a bonus c2 does
+    /// not. That composition is a **missing clause** rather than a missing link,
+    /// and folding it in here is what makes this method statable on its own.
+    ///
+    /// `None` is not `Some(false)`. An uncarried lineage is not an unrelated
+    /// one, and [`allocate`] refuses rather than guessing — the whole reason
+    /// [`Root::lineage`] is an `Option`.
+    pub fn lineage_related(&self) -> Option<bool> {
+        let v = self.value.lineage.as_ref()?;
+        let l = self.lvalue.lineage.as_ref()?;
+        Some(v.contains(&self.lvalue.tok) || l.contains(&self.value.tok))
+    }
+
+    /// **Whether the `d` TERM IS PROVABLY ZERO on this pair** — the only
+    /// question [`allocate`]'s mixed arm asks, and the whole of what GRID L
+    /// licenses. Board **#1297**.
+    ///
+    /// `Some(true)` exactly when the two roots stand on one lineage, or the
+    /// store's root is not a bind at all. Those are GRID L's `SAME` and
+    /// `MIRROR`, **30 cells at `cu <= ru + 1` and 0 wrong**, and they are the
+    /// region where every rule ever published at this seam and GRID L agree.
+    ///
+    /// `Some(false)` is *"the store root is a DISTINCT bind"* — GRID L's
+    /// `ALIAS`, `TWOBIND` and `XOBJ`, 45 cells, where every reading of `d` on
+    /// record is now refuted (board **#1295**) and [`allocate`] **refuses**.
+    /// `None` is an uncarried lineage and refuses too.
+    ///
+    /// **This is not the twelfth key.** It states no value for `d` anywhere `d`
+    /// is in dispute; it is the *precondition* of the term, written before
+    /// GRID L was graded ([`Self::lineage_related`], shipped at `2315c569`),
+    /// and used to draw a refusal rather than to guess an answer.
+    pub fn d_is_provably_zero(&self) -> Option<bool> {
+        Some(!self.lvalue.is_bind || self.lineage_related()?)
+    }
 }
 
 /// One distinct value-producer of a store run.
@@ -943,6 +1092,101 @@ pub const POOL_TOP: u8 = 11;
 /// disagree. Board #541.
 pub const MAX_MODELLED_PRODUCERS: usize = 3;
 
+/// **Whether [`allocate`] serves this MIXED run, or keeps refusing it** — board
+/// **#1297**, lane `w-lineage`.
+///
+/// The mixed refusal was total for five lanes and twelve keys, and it was right
+/// to be: every reading of the `d` term is refuted, and **GRID L refuted the
+/// last four at once** (`H-LIN`, `H-DERIV`, `H-CHAIN`, `H-STEP` and `H-2Z` are
+/// one predicate over everything the reader admits, and it is 10 wrong of 75).
+///
+/// This predicate does **not** state `d`. It says where `d` cannot matter:
+///
+/// ```text
+///   served     exactly two producers, one RegisterDerived and one Constant,
+///              and the address producer's roots say `d` is PROVABLY ZERO —
+///              `ProducerRoots::d_is_provably_zero() == Some(true)`, i.e. the
+///              two roots stand on one bind lineage, or the store's root is not
+///              a bind at all.
+///   refused    everything else, including every cell of the three classes
+///              GRID L put in dispute (`ALIAS`, `TWOBIND`, `XOBJ`).
+/// ```
+///
+/// # Why this is not the thirteenth key
+///
+/// The twelve dead keys each *guessed a value for `d`* and were graded by
+/// reading a register out of a disassembly. This guesses nothing — it refuses
+/// the term wherever it is disputed — and it was graded by the **sole judge**:
+/// byte-exact `port(IL) == c2(IL)` on all 30 served GRID L cells and on
+/// `src/xdk/nuispeech/xboxheap.cpp` itself, with the 45 disputed cells required
+/// to come back `NotImplemented` rather than wrong.
+///
+/// The registration that says so, and says plainly that it was written **after**
+/// GRID L was graded, is `work/w-lineage/PREREG.md`'s addendum.
+///
+/// # `MIRROR` IS SERVED BY THE ALLOCATION AND REFUSED ANYWAY, AND THAT IS THE LANE'S SHARPEST NUMBER
+///
+/// **Board #1298.** `d_is_provably_zero` is `Some(true)` on GRID L's `MIRROR`
+/// too — the store root is the formal's path, so there is no `d` term at all —
+/// and reading the register out of real `c2`'s disassembly says the allocation
+/// is right on **all 30** of `SAME` + `MIRROR`. The **byte-exact** differential
+/// at the workload's own flags says **11 of those 30 are wrong**
+/// (`894ed357`, reverted in the commit after it):
+///
+/// ```text
+///   MIRROR  U& a = p->hub.x0; p->g0=3; p->g1=3;
+///           p->hub.x0.n0 = &a; p->hub.x0.n1 = &a;
+///
+///   c2    li 10,3 ; addi 11,3,64 ; stw 10,0 ; stw 11,64 ; stw 10,4 ; stw 11,68
+///   port                         ; stw 10,0 ; stw 10,4  ; stw 11,64 ; stw 11,68
+/// ```
+///
+/// **The registers are right and the ORDER is not.** In `SAME` the address's
+/// stores go through the bind, which is a **second base symbol** (board #1128),
+/// and `docs/SYMBOL.md`'s cross-symbol pin forbids reordering across it — so
+/// source order is forced. `MIRROR` writes through the formal's own path, both
+/// producers share one base symbol, [`super::order::store_order`] is free, and
+/// c2 **interleaves**.
+///
+/// So the extra conjunct is not a gate drawn around the failing cells: it is the
+/// condition under which an **independent, documented** rule pins the order.
+/// The served region is exactly *"the address's stores go through the bind that
+/// names the address itself"* — one sentence, and `xboxheap.cpp`'s own shape.
+///
+/// It also says something about [`super::order`]: its `0 wrong on 30,271 fit and
+/// 24,891 holdout` is a statement about the population it could reach, and a
+/// **mixed-kind single-symbol run has never been in it**, because the reader
+/// refused every one. Trap 0, on a model nobody suspected.
+///
+/// # The reader restates this and the two must not drift
+///
+/// `c2_il`'s `bind_run_ops` cannot see this type, so it restates the clause
+/// syntactically — *every store consuming the address shares one base token, and
+/// that token is either the bound local itself or is not bound at all*. At the
+/// reachable lineage depth of one (#1294) the two are the same predicate, and
+/// `census/gate disagreement` is the standing check that they have not drifted.
+fn mixed_run_is_served(producers: &[Producer]) -> bool {
+    if producers.len() != 2 {
+        return false;
+    }
+    let rd: Vec<&Producer> = producers
+        .iter()
+        .filter(|p| p.kind == ProducerKind::RegisterDerived)
+        .collect();
+    let ct = producers
+        .iter()
+        .filter(|p| p.kind == ProducerKind::Constant)
+        .count();
+    if rd.len() != 1 || ct != 1 {
+        return false;
+    }
+    let Some(r) = rd[0].roots.as_ref() else { return false };
+    // **AND THE STORE ROOT MUST BE THE VALUE'S OWN BIND** — narrowed after the
+    // byte-exact grade, and the reason is `docs/SYMBOL.md`'s pin rather than
+    // this module's question. See the paragraph below.
+    r.d_is_provably_zero() == Some(true) && r.store_root_is_bind()
+}
+
 /// The allocation, or `None` when the run is outside the modelled regime.
 ///
 /// `pool_floor` is the lowest register number free for the whole run — one
@@ -964,10 +1208,10 @@ pub fn allocate(producers: &[Producer], pool_floor: u8) -> Option<Vec<(u32, u8)>
     // wrong on 0. `the_mixed_refusal_covers_the_measured_refutations` below
     // pins the seven cells any future mixed rule has to reproduce.
     let constant = producers[0].kind == ProducerKind::Constant;
-    if producers
+    let mixed = producers
         .iter()
-        .any(|p| (p.kind == ProducerKind::Constant) != constant)
-    {
+        .any(|p| (p.kind == ProducerKind::Constant) != constant);
+    if mixed && !mixed_run_is_served(producers) {
         return None;
     }
     if pool_floor > POOL_TOP {
@@ -978,6 +1222,39 @@ pub fn allocate(producers: &[Producer], pool_floor: u8) -> Option<Vec<(u32, u8)>
     }
 
     let mut order: Vec<&Producer> = producers.iter().collect();
+    if mixed {
+        // **THE SERVED MIXED RUN** — board #1297, and it is one comparison.
+        //
+        // `mixed_run_is_served` has already established that `d` is provably
+        // **0** on this pair, so the frontier is `cu <= ru + 1`: the address
+        // takes `POOL_TOP` exactly when the literal's use count does not exceed
+        // the address's by more than one. GRID L grades that at **30 of 30**
+        // over `SAME` and `MIRROR`, at `ru` 1–4 and `cu` from `ru` to `ru + 3`
+        // (`work/w-lineage/grade.out`), and the port's own objs are byte-exact
+        // against real `c2.dll` on every one of them.
+        //
+        // Written as `uses + (register-derived ? 1 : 0)`, descending, with the
+        // tie going to the register-derived, which for two producers **is**
+        // `cu <= ru + 1`. That is w-next's key from board **#836**, and it is
+        // deliberately the same expression: #836/#868/#1134 refuted it as a
+        // *general* mixed rule, and refuted it on cells that are all in the
+        // region `mixed_run_is_served` declines. Restating it here, fenced, is
+        // the honest form — a second spelling of the same arithmetic would hide
+        // that they are one statement.
+        let key = |p: &Producer| p.uses + usize::from(p.kind != ProducerKind::Constant);
+        order.sort_by(|a, b| {
+            key(b).cmp(&key(a)).then_with(|| {
+                (a.kind == ProducerKind::Constant).cmp(&(b.kind == ProducerKind::Constant))
+            })
+        });
+        return Some(
+            order
+                .iter()
+                .enumerate()
+                .map(|(i, p)| (p.id, POOL_TOP - i as u8))
+                .collect(),
+        );
+    }
     order.sort_by(|a, b| {
         // Clause 1: use count, descending.
         b.uses.cmp(&a.uses).then_with(|| {
@@ -1221,6 +1498,114 @@ mod tests {
             // …and the guard the emitters actually call must decline too.
             assert!(!all_in(&mixed, 4, 11));
         }
+
+        // **AND THE REFUSAL IS NOT VACUOUS AFTER #1297.** `roots: None` is an
+        // UNCARRIED lineage, which refuses; so does a carrier that says the `d`
+        // term is live. Both arms are asserted, because a mixed run reaches
+        // `allocate` from today's emitter and the seven cells above would
+        // otherwise be refused for the wrong reason.
+        let two = |rd_roots: Option<ProducerRoots>| {
+            vec![
+                Producer { id: 0, kind: ProducerKind::Constant, uses: 4, first: 0, roots: None },
+                Producer {
+                    id: 1,
+                    kind: ProducerKind::RegisterDerived,
+                    uses: 2,
+                    first: 1,
+                    roots: rd_roots,
+                },
+            ]
+        };
+        // GRID L's `TWOBIND` / `XOBJ` / `ALIAS`: a DISTINCT bind store root, so
+        // `d` is in dispute and the run is refused however the counts fall.
+        let disputed = ProducerRoots { value: bind(0x130a), lvalue: bind(0x140a) };
+        assert_eq!(disputed.d_is_provably_zero(), Some(false));
+        assert_eq!(allocate(&two(Some(disputed)), 4), None);
+        // an uncarried lineage
+        let uncarried = ProducerRoots {
+            value: Root { tok: 1, is_bind: true, base: None, offsets: None, lineage: None },
+            lvalue: Root { tok: 2, is_bind: true, base: None, offsets: None, lineage: None },
+        };
+        assert_eq!(uncarried.d_is_provably_zero(), None);
+        assert_eq!(allocate(&two(Some(uncarried)), 4), None);
+    }
+
+    /// **THE SERVED MIXED RUN — GRID L's 30 undisputed cells, in the port's own
+    /// types.** Board **#1297**, lane `w-lineage`.
+    ///
+    /// `work/w-lineage/gridL`, frozen with its `sha256` at `74bfeeb0` before one
+    /// cell was compiled, graded against real `c2.dll` under wibo at the
+    /// workload's own `/GR /O1 /Oi /EHsc`. `SAME` is `xboxheap.cpp`'s own class
+    /// — the value is the bound object and the stores go through the same bind —
+    /// and `MIRROR` writes through the formal's path instead. Both are `d = 0`
+    /// and the frontier is `cu <= ru + 1` on **all 30**, at `ru` 1–4 and `cu`
+    /// from `ru` to `ru + 3`.
+    ///
+    /// The three classes GRID L put in dispute are asserted REFUSED in the same
+    /// loop, so this test cannot go green by widening — and so is `MIRROR`,
+    /// which the ALLOCATION serves and the ORDER does not (board #1298).
+    #[test]
+    fn the_carrier_decides_only_whether_a_mixed_run_is_served() {
+        // (class, roots, served)
+        let same = ProducerRoots { value: bind(0x130a), lvalue: bind(0x130a) };
+        let mirror = ProducerRoots { value: bind(0x130a), lvalue: formal(0x0e0a) };
+        let distinct = ProducerRoots { value: bind(0x130a), lvalue: bind(0x140a) };
+        // **`MIRROR` IS `Some(true)` FOR `d` AND STILL REFUSED** — board #1298.
+        // The allocation is right on it (30 of 30 by disassembly); the byte-exact
+        // differential says 11 of those 30 objs are wrong, because both producers
+        // share one base symbol and c2 interleaves the stores. The refusal is
+        // `docs/SYMBOL.md`'s pin, not this module's question, and it is asserted
+        // here so a successor cannot re-widen to it by reading `d` alone.
+        assert_eq!(mirror.d_is_provably_zero(), Some(true));
+        let cases: [(&str, &ProducerRoots, bool); 3] =
+            [("SAME", &same, true), ("MIRROR", &mirror, false), ("DISTINCT", &distinct, false)];
+
+        let mut n = 0;
+        for (klass, roots, served) in cases {
+            for ru in 1..=4usize {
+                for cu in ru..=ru + 3 {
+                    let ps = vec![
+                        Producer {
+                            id: 0,
+                            kind: ProducerKind::Constant,
+                            uses: cu,
+                            first: 0,
+                            roots: None,
+                        },
+                        Producer {
+                            id: 1,
+                            kind: ProducerKind::RegisterDerived,
+                            uses: ru,
+                            first: 1,
+                            roots: Some(roots.clone()),
+                        },
+                    ];
+                    let got = allocate(&ps, 4);
+                    if !served {
+                        assert_eq!(got, None, "{klass} r{ru}k{cu} must stay REFUSED");
+                        n += 1;
+                        continue;
+                    }
+                    let a = got.unwrap_or_else(|| panic!("{klass} r{ru}k{cu} must be served"));
+                    let addr_top = a.iter().any(|&(id, r)| id == 1 && r == POOL_TOP);
+                    assert_eq!(
+                        addr_top,
+                        cu <= ru + 1,
+                        "{klass} r{ru}k{cu}: GRID L's frontier is cu <= ru + 1"
+                    );
+                    n += 1;
+                }
+            }
+        }
+        assert_eq!(n, 3 * 4 * 4, "every cell of the cross was visited");
+
+        // **A SINGLE-KIND run is untouched by all of this** — the refusal that
+        // #836 measured was never about single-kind runs and this rung does not
+        // move them.
+        let single = run("0011", ProducerKind::RegisterDerived);
+        let mut with = single.clone();
+        with[0].roots = Some(same.clone());
+        assert_eq!(allocate(&with, 4), allocate(&single, 4));
     }
 
     /// **The NARROW lift is refused too, and this pins the grid that killed
@@ -1620,10 +2005,10 @@ mod tests {
     // statement; the shipped answer is still the refusal.
 
     fn formal(tok: u32) -> Root {
-        Root { tok, is_bind: false, base: None, offsets: None }
+        Root { tok, is_bind: false, base: None, offsets: None, lineage: Some(vec![tok]) }
     }
     fn bind(tok: u32) -> Root {
-        Root { tok, is_bind: true, base: Some(0xf0a), offsets: None }
+        Root { tok, is_bind: true, base: Some(0xf0a), offsets: None, lineage: Some(vec![tok]) }
     }
 
     /// **The six rows of `work/w-self2b/roots.out`, in the port's own types.**
@@ -1702,8 +2087,8 @@ mod tests {
     #[test]
     fn the_offset_lists_state_a_prefix_and_a_sum_only_carrier_refuses() {
         let with = |v: Vec<i32>, l: Vec<i32>| ProducerRoots {
-            value: Root { tok: 1, is_bind: false, base: None, offsets: Some(v) },
-            lvalue: Root { tok: 1, is_bind: true, base: Some(0xf0a), offsets: Some(l) },
+            value: Root { tok: 1, is_bind: false, base: None, offsets: Some(v), lineage: Some(vec![1]) },
+            lvalue: Root { tok: 1, is_bind: true, base: Some(0xf0a), offsets: Some(l), lineage: Some(vec![1]) },
         };
         assert_eq!(with(vec![96], vec![96, 4]).value_offsets_prefix_lvalue(), Some(true));
         assert_eq!(with(vec![96, 8], vec![96, 4]).value_offsets_prefix_lvalue(), Some(false));
@@ -1712,7 +2097,7 @@ mod tests {
 
         // sum-only on either side: REFUSED, never guessed.
         let half = ProducerRoots {
-            value: Root { tok: 1, is_bind: false, base: None, offsets: Some(vec![96]) },
+            value: Root { tok: 1, is_bind: false, base: None, offsets: Some(vec![96]), lineage: Some(vec![1]) },
             lvalue: bind(1),
         };
         assert_eq!(half.value_offsets_prefix_lvalue(), None);
@@ -1734,6 +2119,16 @@ mod tests {
     /// Every row of the GRID Z table is crossed with every producer shape the
     /// module models, and the assignment must be **identical** to the
     /// `roots: None` one in all of them.
+    ///
+    /// > **⚠ NARROWED 2026-08-08, lane `w-lineage`, board #1297 — and the
+    /// > narrowing is stated rather than left to the fact that every spec below
+    /// > happens to be single-kind.** `allocate` now reads the carrier in
+    /// > **exactly one place**: [`mixed_run_is_served`], on a run that mixes the
+    /// > two kinds. On a SINGLE-KIND run — every spec this test crosses — it
+    /// > still reads none of it, and that is what is asserted here. The
+    /// > complement is asserted by
+    /// > `the_carrier_decides_only_whether_a_mixed_run_is_served`, so neither
+    /// > half is left to construction.
     #[test]
     fn allocate_ignores_the_roots_carrier() {
         let carriers = [
@@ -1744,8 +2139,8 @@ mod tests {
             Some(ProducerRoots { value: bind(0x130a), lvalue: formal(0x0e0a) }),
             Some(ProducerRoots { value: bind(0x130a), lvalue: bind(0x140a) }),
             Some(ProducerRoots {
-                value: Root { tok: 7, is_bind: true, base: Some(0xf0a), offsets: Some(vec![96]) },
-                lvalue: Root { tok: 9, is_bind: true, base: Some(0xf0a), offsets: Some(vec![96, 4]) },
+                value: Root { tok: 7, is_bind: true, base: Some(0xf0a), offsets: Some(vec![96]), lineage: Some(vec![7]) },
+                lvalue: Root { tok: 9, is_bind: true, base: Some(0xf0a), offsets: Some(vec![96, 4]), lineage: Some(vec![9]) },
             }),
         ];
         let mut checked = 0;
@@ -1791,7 +2186,7 @@ mod tests {
     #[test]
     fn the_witness_pair_needs_the_root_s_own_base() {
         // the carrier as `w-self2b` named it — (tok, is_bind, offsets)
-        let named = |tok, is_bind| Root { tok, is_bind, base: None, offsets: None };
+        let named = |tok, is_bind| Root { tok, is_bind, base: None, offsets: None, lineage: None };
         let p6_named = ProducerRoots { value: named(0x140a, true), lvalue: named(0x150a, true) };
         let p7_named = p6_named.clone();
         assert_eq!(p6_named, p7_named, "the named carrier cannot tell them apart");
@@ -1801,7 +2196,7 @@ mod tests {
 
         // the carrier WITH the root's own base — `P6` roots `m` at the formal
         // `0x0f0a`, `P7` roots it at the other bind `0x140a`.
-        let with = |tok, base| Root { tok, is_bind: true, base: Some(base), offsets: None };
+        let with = |tok, base| Root { tok, is_bind: true, base: Some(base), offsets: None, lineage: None };
         let p6 = ProducerRoots { value: with(0x140a, 0x0f0a), lvalue: with(0x150a, 0x0f0a) };
         let p7 = ProducerRoots { value: with(0x140a, 0x0f0a), lvalue: with(0x150a, 0x140a) };
         assert_ne!(p6, p7, "the base separates the pair");
@@ -1850,21 +2245,29 @@ mod tests {
         // (cell, class, lvalue root, value root, lineage relation, c2's answer)
         //   `rel` is the DECODED relation of the value root to the store root's
         //   bind lineage: "self" / "anc" / "desc" / "none".
-        let f = |tok| Root { tok, is_bind: false, base: None, offsets: None };
-        let b = |tok, base| Root { tok, is_bind: true, base: Some(base), offsets: None };
+        // Roots carrying their FULL lineage — `up` is the chain ABOVE `tok`,
+        // decoded from the same `.ex` (`work/w-mixkind/lineage.out`).
+        let f = |tok| Root { tok, is_bind: false, base: None, offsets: None, lineage: Some(vec![tok]) };
+        let b = |tok, base, up: &[u32]| Root {
+            tok,
+            is_bind: true,
+            base: Some(base),
+            offsets: None,
+            lineage: Some(std::iter::once(tok).chain(up.iter().copied()).collect()),
+        };
         let rows: [(&str, &str, Root, Root, &str, bool); 12] = [
             ("M1", "SELF-1B", f(0x0f0a), f(0x0f0a), "self", false),
-            ("M2", "LOAD", b(0x140a, 0x0f0a), b(0x140a, 0x0f0a), "self", false),
-            ("M3", "SELF-2B", b(0x140a, 0x0f0a), f(0x0f0a), "none", true),
-            ("M4", "TWOBIND", b(0x150a, 0x0f0a), b(0x140a, 0x0f0a), "none", true),
-            ("M5", "CHAINBIND", b(0x150a, 0x140a), b(0x140a, 0x0f0a), "anc", false),
-            ("M6", "DEEP-GP", b(0x160a, 0x150a), b(0x140a, 0x0f0a), "anc", false),
-            ("M7", "DEEP-PARENT", b(0x160a, 0x150a), b(0x150a, 0x140a), "anc", false),
-            ("M8", "CHAIN-PATH", b(0x150a, 0x140a), f(0x0f0a), "none", true),
-            ("M9", "REVERSE", b(0x140a, 0x0f0a), b(0x150a, 0x140a), "desc", false),
-            ("M10", "DEEP-SELF", b(0x160a, 0x150a), b(0x160a, 0x150a), "self", false),
-            ("M11", "CHAIN-SIB", b(0x160a, 0x0f0a), b(0x150a, 0x140a), "none", true),
-            ("M12", "DEEP-MIRROR", f(0x0f0a), b(0x160a, 0x150a), "none", false),
+            ("M2", "LOAD", b(0x140a, 0x0f0a, &[]), b(0x140a, 0x0f0a, &[]), "self", false),
+            ("M3", "SELF-2B", b(0x140a, 0x0f0a, &[]), f(0x0f0a), "none", true),
+            ("M4", "TWOBIND", b(0x150a, 0x0f0a, &[]), b(0x140a, 0x0f0a, &[]), "none", true),
+            ("M5", "CHAINBIND", b(0x150a, 0x140a, &[0x140a]), b(0x140a, 0x0f0a, &[]), "anc", false),
+            ("M6", "DEEP-GP", b(0x160a, 0x150a, &[0x150a, 0x140a]), b(0x140a, 0x0f0a, &[]), "anc", false),
+            ("M7", "DEEP-PARENT", b(0x160a, 0x150a, &[0x150a, 0x140a]), b(0x150a, 0x140a, &[0x140a]), "anc", false),
+            ("M8", "CHAIN-PATH", b(0x150a, 0x140a, &[0x140a]), f(0x0f0a), "none", true),
+            ("M9", "REVERSE", b(0x140a, 0x0f0a, &[]), b(0x150a, 0x140a, &[0x140a]), "desc", false),
+            ("M10", "DEEP-SELF", b(0x160a, 0x150a, &[0x150a, 0x140a]), b(0x160a, 0x150a, &[0x150a, 0x140a]), "self", false),
+            ("M11", "CHAIN-SIB", b(0x160a, 0x0f0a, &[]), b(0x150a, 0x140a, &[0x140a]), "none", true),
+            ("M12", "DEEP-MIRROR", f(0x0f0a), b(0x160a, 0x150a, &[0x150a, 0x140a]), "none", false),
         ];
 
         let (mut n1231_wrong, mut link_wrong, mut sym_wrong) = (0, 0, 0);
@@ -1877,6 +2280,15 @@ mod tests {
             assert_eq!(
                 lineage_says, is_prod,
                 "{cell} ({klass}): the decoded lineage must reproduce c2"
+            );
+            // **AND THE CARRIER NOW STATES IT** — board #1294. `rel` was a
+            // string column decoded outside this crate; `lineage_related` is
+            // that column computed from [`Root::lineage`], on all twelve
+            // families including the three at depth 3.
+            assert_eq!(
+                r.lineage_related(),
+                Some(rel != "none"),
+                "{cell} ({klass}): the lineage carrier must reproduce the decoded relation"
             );
             // board #1231's predicate — `H-2Z`'s clause, key ten.
             if r.store_root_is_distinct_bind() != is_prod {
@@ -1931,11 +2343,23 @@ mod tests {
     /// element it named was right and there is more of it than one field.
     #[test]
     fn the_carrier_is_one_bind_link_short() {
-        let b = |tok, base| Root { tok, is_bind: true, base: Some(base), offsets: None };
+        let b = |tok, base, up: &[u32]| Root {
+            tok,
+            is_bind: true,
+            base: Some(base),
+            offsets: None,
+            lineage: Some(std::iter::once(tok).chain(up.iter().copied()).collect()),
+        };
         // M5 CHAINBIND — the value root is the store root's IMMEDIATE base.
-        let m5 = ProducerRoots { value: b(0x140a, 0x0f0a), lvalue: b(0x150a, 0x140a) };
+        let m5 = ProducerRoots {
+            value: b(0x140a, 0x0f0a, &[]),
+            lvalue: b(0x150a, 0x140a, &[0x140a]),
+        };
         // M6 DEEP-GP — the value root is TWO links up. Same answer from c2.
-        let m6 = ProducerRoots { value: b(0x140a, 0x0f0a), lvalue: b(0x160a, 0x150a) };
+        let m6 = ProducerRoots {
+            value: b(0x140a, 0x0f0a, &[]),
+            lvalue: b(0x160a, 0x150a, &[0x150a, 0x140a]),
+        };
 
         assert!(m5.bind_linked(), "one link away — the carrier reaches it");
         assert!(!m6.bind_linked(), "two links away — the carrier does NOT");
@@ -1947,8 +2371,26 @@ mod tests {
         // roles exchanged, and c2 answers `const` there too. A walk of the
         // store root's own chain alone cannot see it — which is why
         // [`ProducerRoots::bind_linked`] tests both directions.
-        let m9 = ProducerRoots { value: b(0x150a, 0x140a), lvalue: b(0x140a, 0x0f0a) };
+        let m9 = ProducerRoots {
+            value: b(0x150a, 0x140a, &[0x140a]),
+            lvalue: b(0x140a, 0x0f0a, &[]),
+        };
         assert!(m9.bind_linked(), "the descendant direction must be reachable");
+
+        // **THE TRANSITIVE FORM CLOSES IT — board #1294 / #1266.**
+        // `lineage_related` walks the chain instead of one link, so it is right
+        // on `M6` where `bind_linked` is wrong, and unchanged on `M5`/`M9`.
+        assert_eq!(m5.lineage_related(), Some(true));
+        assert_eq!(m6.lineage_related(), Some(true), "the grandparent is on the chain");
+        assert_eq!(m9.lineage_related(), Some(true));
+
+        // **AN UNCARRIED LINEAGE IS NOT AN UNRELATED ONE.** A reader that does
+        // not carry the chain gets `None` here, and `None` refuses — it is not
+        // `Some(false)`, which is what would grant the bonus.
+        let bare = |tok: u32| Root { tok, is_bind: true, base: None, offsets: None, lineage: None };
+        let unknown = ProducerRoots { value: bare(0x140a), lvalue: bare(0x160a) };
+        assert_eq!(unknown.lineage_related(), None);
+        assert!(!unknown.bind_linked(), "the one-link reading answers anyway — that is the hazard");
 
         // **AND IT IS STILL NOT A RULE.** `allocate` reads none of it.
         let mut a = run("0011", ProducerKind::Constant);
@@ -1968,8 +2410,14 @@ mod tests {
     /// is pinned here rather than left to a comment.
     #[test]
     fn a_link_into_a_formal_is_not_a_bind_link() {
-        let f = |tok| Root { tok, is_bind: false, base: None, offsets: None };
-        let b = |tok, base| Root { tok, is_bind: true, base: Some(base), offsets: None };
+        let f = |tok| Root { tok, is_bind: false, base: None, offsets: None, lineage: Some(vec![tok]) };
+        let b = |tok, base| Root {
+            tok,
+            is_bind: true,
+            base: Some(base),
+            offsets: None,
+            lineage: Some(vec![tok]),
+        };
         // M3 SELF-2B — `a` is bound to `y->blk.q0`, the value IS that path.
         let m3 = ProducerRoots { value: f(0x0f0a), lvalue: b(0x140a, 0x0f0a) };
         assert!(!m3.bind_linked(), "the base is the formal, which is not a bind");

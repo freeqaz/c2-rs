@@ -1,0 +1,41 @@
+  THE READER'S VERDICT (PREREG R1/R2/R3)
+    reachable    ALIAS        store-run-bind-mixed-kind-alloc:eof OK
+    reachable    MIRROR       store-run-bind-mixed-kind-alloc:eof OK
+    reachable    SAME         store-run-bind-mixed-kind-alloc:eof OK
+    reachable    TWOBIND      store-run-bind-mixed-kind-alloc:eof OK
+    reachable    XOBJ         store-run-bind-mixed-kind-alloc:eof OK
+    OUT-OF-REACH CHAINBIND    expr-op-0x27                       OK
+    OUT-OF-REACH DEEP-GP      expr-op-0x27                       OK
+    OUT-OF-REACH REVERSE      expr-op-0x27                       OK
+    OUT-OF-REACH SELF-2B      expr-op-0x27                       OK
+    R1/R2/R3: HELD on every class
+
+  GRADED  83 cells | reachable 75 | OOR 0
+
+  rule            wrong of 75 reachable-in-domain
+    H-LIN           10   L3-r1k1 L3-r1k2 L3-r2k4 L3-r3k5 L3-r4k6 L5-r1k1
+    H-DERIV         10   L3-r1k1 L3-r1k2 L3-r2k4 L3-r3k5 L3-r4k6 L5-r1k1
+    H-CHAIN         10   L3-r1k1 L3-r1k2 L3-r2k4 L3-r3k5 L3-r4k6 L5-r1k1
+    H-STEP          10   L3-r1k1 L3-r1k2 L3-r2k4 L3-r3k5 L3-r4k6 L5-r1k1
+    H-2Z            10   L3-r1k1 L3-r1k2 L3-r2k4 L3-r3k5 L3-r4k6 L5-r1k1
+    H-OBJ           13   L3-r1k1 L3-r1k2 L3-r2k4 L3-r3k5 L3-r4k6 L4-r2k4
+    H-SAME           7   L3-r1k1 L3-r1k2 L3-r2k4 L3-r3k5 L3-r4k6 L5-r1k1
+    H-2X            17   L2-r1k3 L2-r2k4 L2-r3k5 L2-r4k6 L3-r1k1 L3-r1k2
+    H-MIX           17   L1-r1k3 L1-r2k4 L1-r3k5 L1-r4k6 L3-r1k1 L3-r1k2
+    cu<=ru+1         7   L3-r1k1 L3-r1k2 L4-r2k4 L4-r3k5 L4-r4k6 L5-r1k1
+    cu<=ru+2        21   L1-r1k3 L1-r2k4 L1-r3k5 L1-r4k6 L2-r1k3 L2-r2k4
+    always-prod     41   L1-r1k3 L1-r1k4 L1-r2k4 L1-r2k5 L1-r3k5 L1-r3k6
+    clause-1        23   L1-r1k2 L1-r2k3 L1-r3k4 L1-r4k5 L2-r1k2 L2-r2k3
+    the REFUSAL      0   a refusal emits nothing, so it is never wrong
+
+  OUT-OF-REACH controls — c2's answer, recorded, NOT graded for the rule
+    C1-r2k3        CHAINBIND    c2=prod    H-LIN would say prod
+    C1-r2k4        CHAINBIND    c2=const   H-LIN would say const
+    C2-r2k3        DEEP-GP      c2=prod    H-LIN would say prod
+    C2-r2k4        DEEP-GP      c2=const   H-LIN would say const
+    C3-r2k3        REVERSE      c2=prod    H-LIN would say prod
+    C3-r2k4        REVERSE      c2=const   H-LIN would say const
+    C4-r2k3        SELF-2B      c2=prod    H-LIN would say prod
+    C4-r2k4        SELF-2B      c2=prod    H-LIN would say const
+
+  wrote work/w-lineage/grade.out

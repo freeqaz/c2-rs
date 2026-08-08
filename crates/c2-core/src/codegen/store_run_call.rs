@@ -642,8 +642,15 @@ mod tests {
             "m_dc_u1_f1_af"
         );
 
-        // The mixed run — `xboxheap.cpp`'s own — is still REFUSED here, and it
-        // is peer lane `w-mixkind`'s rung rather than an oversight of this one.
+        // The mixed run — `xboxheap.cpp`'s own — is SERVED here since board
+        // #1297 (lane `w-lineage`), and the TU is byte-exact against real
+        // `c2.dll` at the workload's own flags. The paragraph this replaces read
+        // *"still REFUSED here, and it is peer lane `w-mixkind`'s rung rather
+        // than an oversight of this one"*; `w-mixkind` measured the ladder and
+        // declined the rule, GRID L refuted five keys at once, and what shipped
+        // is a REFUSAL BOUNDARY — the mix is served only where the `d` bonus is
+        // provably zero **and** the address's stores go through the bind naming
+        // it, so `docs/SYMBOL.md`'s cross-symbol pin fixes the order.
         let mixed = c2_il::StoreRunPrefix {
             ops: vec![
                 bind,
@@ -655,7 +662,16 @@ mod tests {
             ],
             live_args: 2,
         };
-        assert!(store_run_prefix_text(&params, &mixed, 31).is_err());
+        assert_eq!(
+            store_run_prefix_text(&params, &mixed, 31).expect("served since #1297"),
+            vec![
+                0x39, 0x63, 0x00, 0x14, // addi r11,r3,20    the ADDRESS
+                0x39, 0x40, 0x00, 0x00, // li   r10,0        the LITERAL
+                0x91, 0x63, 0x00, 0x14, // stw  r11,20(r3)
+                0x7C, 0x7F, 0x1B, 0x78, // mr   r31,r3
+                0x91, 0x43, 0x00, 0x10, // stw  r10,16(r3)
+            ]
+        );
     }
 
     /// **THE CORRECTION DOES NOT MOVE THE DOMAIN REFUSAL, and it is enumerated

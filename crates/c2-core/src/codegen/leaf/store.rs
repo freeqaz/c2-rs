@@ -189,8 +189,52 @@ impl SimpleStore {
 /// takes the bonus while `work/w-prod/bindbit.out` cannot show it is a `26`
 /// bind head. Encoding `is_bind == base.is_some()` would make that cell
 /// unrepresentable before anyone has decided what it is.
-fn root(tok: u32, is_bind: bool, base: Option<u32>) -> alloc::Root {
-    alloc::Root { tok, is_bind, base, offsets: None }
+fn root(tok: u32, is_bind: bool, base: Option<u32>, proof: BaseProof) -> alloc::Root {
+    alloc::Root {
+        tok,
+        is_bind,
+        base,
+        offsets: None,
+        lineage: match proof {
+            BaseProof::NotBind => Some(vec![tok]),
+            BaseProof::Bind(parent) => parent
+                .lineage
+                .as_ref()
+                .map(|up| std::iter::once(tok).chain(up.iter().copied()).collect()),
+            BaseProof::Unknown => None,
+        },
+    }
+}
+
+/// **What this emitter has PROVED about a root's base**, and therefore how far
+/// [`alloc::Root::lineage`] may be walked. Board **#1294**.
+///
+/// The lineage is `Some` only when the walk **terminates**, and a terminating
+/// walk needs a positive reason to stop. Passing the reason in — rather than
+/// letting [`root`] infer it from `base.is_none()` — is what stops a later call
+/// site from getting a complete-looking chain for free: an author who cannot
+/// name which arm applies has to write [`Self::Unknown`], and an `Unknown`
+/// refuses in [`alloc::allocate`] instead of emitting.
+enum BaseProof<'a> {
+    /// **The base is provably not a `26` bind head, so the chain ends here.**
+    ///
+    /// At this seam the proof is the `reg_of(..)?` this parser has already
+    /// made: only a live-in **formal** answers a register, a formal is not a
+    /// bind head, and the `?` means a base that is anything else has already
+    /// declined the whole run. That is why the proof is free here and why it
+    /// must not be assumed anywhere else.
+    NotBind,
+    /// The base is **itself a bind**, and this is its root — the chain
+    /// continues through it. **No call site reaches this arm today**
+    /// (`the_reachable_lineage_is_exactly_one_deep` measures why), and it exists
+    /// so that the reader widening which would create one has somewhere to put
+    /// the fact instead of silently invalidating every consumer.
+    #[allow(dead_code)]
+    Bind(&'a alloc::Root),
+    /// Nothing is known about the base. The lineage is `None`, and every rule
+    /// that reads it refuses.
+    #[allow(dead_code)]
+    Unknown,
 }
 
 /// [`alloc::ProducerRoots`] for the producer whose statements are those of `run`
@@ -269,11 +313,13 @@ fn parse_simple_gpr_run(
             [IlOp::Load(vb), IlOp::AddrOf { off }, ..] => (
                 Some(Prod::Addr { base_reg: reg_of(*vb)?, off: *off }),
                 SCRATCH_REG,
-                Some(root(*vb, false, None)),
+                Some(root(*vb, false, None, BaseProof::NotBind)),
                 2usize,
             ),
             // THREE-op group, value a formal already live in a register.
-            [IlOp::Load(t), ..] => (None, reg_of(*t)?, Some(root(*t, false, None)), 1),
+            [IlOp::Load(t), ..] => {
+                (None, reg_of(*t)?, Some(root(*t, false, None, BaseProof::NotBind)), 1)
+            }
             // A literal has no designator, so it has no root. `None`, never a
             // fabricated one.
             [IlOp::Lit(k), ..] => (Some(Prod::Lit(*k)), SCRATCH_REG, None, 1),
@@ -287,7 +333,7 @@ fn parse_simple_gpr_run(
             [IlOp::BoundAddr { tok, base, off }, ..] => (
                 Some(Prod::Addr { base_reg: reg_of(*base)?, off: *off }),
                 SCRATCH_REG,
-                Some(root(*tok, true, Some(*base))),
+                Some(root(*tok, true, Some(*base), BaseProof::NotBind)),
                 1,
             ),
             _ => break,
@@ -303,7 +349,7 @@ fn parse_simple_gpr_run(
             width,
             prod,
             src,
-            lvalue_root: root(base_tok, base_bind_of.is_some(), base_bind_of),
+            lvalue_root: root(base_tok, base_bind_of.is_some(), base_bind_of, BaseProof::NotBind),
             value_root,
         });
         walk = &walk[2 + vlen..];
@@ -474,12 +520,43 @@ pub(crate) fn scheduled_gpr_run(
         //    `twop` class grades four such cells and records c2's answer beside
         //    this refusal (`work/w-midrun/grid/t_*/dis.txt`); widening to them
         //    after the grade is what `work/w-midrun/PREREG.md` §4 L3 forbids.
-        if kinds.len() != 1 {
+        //
+        //    > **⚠ NARROWED — board #1297, lane `w-lineage`, and the clause it
+        //    > replaces is kept above because it was the standing statement for
+        //    > two days.** *"An address beside a literal is the mixed-kind run
+        //    > `alloc::allocate` refuses wholesale"* is no longer true of
+        //    > `allocate`: it serves the pairs whose `d` term is **provably
+        //    > zero** (`ProducerRoots::d_is_provably_zero`, GRID L's `SAME` and
+        //    > `MIRROR`, 30 cells at `cu <= ru + 1` and 0 wrong) and refuses
+        //    > every other mix. So this clause stops deciding the mix and goes
+        //    > back to being what its name says — a shape backstop:
+        //    >
+        //    > * **at most ONE interior address.** Two distinct addresses are
+        //    >   single-kind, so `allocate` *answers* them and answering is not
+        //    >   being measured; `w-midrun`'s PREREG §4 L3 forbids widening to
+        //    >   them after its grade, and this is not that widening.
+        //    > * **anything beside it must be a LITERAL.** A third kind has no
+        //    >   grid at all.
+        //    >
+        //    > **The mix itself is decided in exactly one place** —
+        //    > `alloc::allocate` — which is why this arm stops restating it.
+        //    > `c2_il`'s `bind_run_ops` restates it syntactically for the
+        //    > *reader*, and `census/gate disagreement` is the standing check
+        //    > that the two have not drifted. The three refuted keys above
+        //    > (#836/#868/#1134) are all refutations of a rule for the DISPUTED
+        //    > region, which stays refused.
+        if addrs != 1 || kinds.len() > 2 {
             return Some(Err(out_of_class(
-                "a store run with an interior address BESIDE another producer: \
-                 beside a literal that is the mixed-kind run codegen::alloc \
-                 refuses (boards #836/#868/#1134); beside a second address the \
-                 allocator answers but nothing has measured it",
+                "a store run with more than one interior address, or an \
+                 interior address beside a producer that is not a literal: \
+                 the allocator answers a two-address run but nothing has \
+                 measured it, and a third kind has no grid at all",
+            )));
+        }
+        if kinds.len() == 2 && !kinds.iter().any(|p| matches!(p, Prod::Lit(_))) {
+            return Some(Err(out_of_class(
+                "a store run with an interior address beside a producer that \
+                 is not a literal",
             )));
         }
         // 2. **A displacement that materialises something.** At `off == 0` c2
@@ -657,9 +734,32 @@ pub(crate) fn scheduled_gpr_run(
         // first free register is r(3 + len).
         let pool_floor = 3u8.saturating_add(params.len().min(9) as u8);
         let Some(assign) = alloc::allocate(&producers, pool_floor) else {
-            return Some(Err(out_of_class(
-                "store run outside the allocator's domain (codegen::alloc)",
-            )));
+            // **THE MIXED RUN KEEPS ITS OWN NAME — board #1302.**
+            //
+            // The mixed decision moved into `alloc::allocate` at board #1297,
+            // and with it the refusal's *message*: 110 generated cases that had
+            // reported *"an interior address BESIDE another producer"* began
+            // reporting the generic domain sentence instead. Same 110 cells,
+            // checked key for key at both ends
+            // (`work/w-lineage/cg/`) — a **rename, not a closure** — but a
+            // family that loses its name is a family `census_gate.rs` can no
+            // longer track, and `WIDE_CAUSES_PACKED[0]` is written in terms of
+            // it (board #1306).
+            //
+            // So the construct is named here rather than the recorded substring
+            // being widened to the vaguer sentence. The message is strictly more
+            // informative than the one it restores: it also says *which* mixed
+            // runs are served.
+            let mixed = producers.iter().any(|p| p.kind == alloc::ProducerKind::Constant)
+                && producers.iter().any(|p| p.kind != alloc::ProducerKind::Constant);
+            return Some(Err(out_of_class(if mixed {
+                "a store run with an interior address BESIDE another producer: \
+                 served only where the address's stores go through the BIND that \
+                 names it, so the two roots are one token and the cross-symbol \
+                 pin fixes the order (board #1297); this run's do not"
+            } else {
+                "store run outside the allocator's domain (codegen::alloc)"
+            })));
         };
         for s in run.iter_mut() {
             if let Some(p) = s.prod {
@@ -1993,6 +2093,96 @@ mod tests {
         assert!(producer_roots(&lit, Prod::Lit(7)).is_none());
     }
 
+    /// **THE REACHABLE LINEAGE IS EXACTLY ONE DEEP, AND IT IS COMPLETE** —
+    /// board **#1294**, the measurement that turns #1266 from a live shortfall
+    /// into an unreachable one.
+    ///
+    /// `alloc::Root::lineage` is `Some(vec![tok])` for **every** root this
+    /// parser can build, on both sides, because every arm above reaches
+    /// [`BaseProof::NotBind`] and reaches it through a `reg_of(..)?` that has
+    /// already declined anything but a live-in formal.
+    ///
+    /// The fact underneath is `crates/c2-il`'s, not this file's, and it was
+    /// **measured rather than read off the source** (`work/w-lineage/reach/`):
+    /// `parse_ref_bind_stmt` builds a `RefBind` only through `parse_addr_value`,
+    /// which ends in a lookup of the value's base token in `params`, and it
+    /// separately refuses a zero displacement — so a chained bind `P& c = a;`
+    /// fails **both** clauses and comes back `expr-op-0x27`, where the
+    /// one-link `P& a = y->blk.q0;` comes back
+    /// `store-run-bind-mixed-kind-alloc`.
+    ///
+    /// **So `Root::base` is COMPLETE over everything a consumer can see**, and
+    /// `bind_linked` and `lineage_related` cannot disagree on any input this
+    /// emitter can produce. `M6` (`DEEP-GP`) separates them and `M6` is not
+    /// reachable. That is the whole content of this lane's part 1: the carrier
+    /// closes the gap, and the gap was already shut by the reader.
+    #[test]
+    fn the_reachable_lineage_is_exactly_one_deep() {
+        let (h, p) = (0x0101u32, 0x0201u32);
+        let l = 0xFB09u32;
+        let reg_of = |t: u32| match t {
+            x if x == h => Some(3),
+            x if x == p => Some(4),
+            _ => None,
+        };
+        let bound = IlOp::BoundAddr { tok: l, base: h, off: 8 };
+        let streams = vec![
+            // a bound value stored through the bind — `xboxheap`'s own class
+            vec![bound.clone(), bound.clone(), IlOp::StoreInd { off: 0, width: 4 }],
+            // a bound value stored through the FORMAL's path
+            vec![IlOp::Load(h), bound.clone(), IlOp::StoreInd { off: 48, width: 4 }],
+            // the direct four-op spelling of an interior address
+            vec![
+                IlOp::Load(h),
+                IlOp::Load(h),
+                IlOp::AddrOf { off: 8 },
+                IlOp::StoreInd { off: 0, width: 4 },
+            ],
+            // a formal value, and a literal (no value root at all)
+            vec![IlOp::Load(h), IlOp::Load(p), IlOp::StoreInd { off: 0, width: 4 }],
+            vec![IlOp::Load(h), IlOp::Lit(7), IlOp::StoreInd { off: 0, width: 4 }],
+        ];
+        let mut roots = 0usize;
+        for ops in &streams {
+            let run = parse_simple_gpr_run(ops, &reg_of).expect("a store group");
+            for st in &run {
+                for r in [Some(&st.lvalue_root), st.value_root.as_ref()].into_iter().flatten() {
+                    roots += 1;
+                    assert_eq!(
+                        r.lineage.as_deref(),
+                        Some(&[r.tok][..]),
+                        "every reachable root is a COMPLETE one-deep lineage"
+                    );
+                }
+            }
+        }
+        assert_eq!(roots, 9, "every root of every arm was examined");
+
+        // …and therefore the one-link and the transitive readings **cannot**
+        // disagree on anything this emitter can build. Checked as an identity
+        // over the pairs, not asserted.
+        let ops = vec![
+            bound.clone(),
+            bound.clone(),
+            IlOp::StoreInd { off: 0, width: 4 },
+            IlOp::Load(h),
+            bound.clone(),
+            IlOp::StoreInd { off: 48, width: 4 },
+        ];
+        let run = parse_simple_gpr_run(&ops, &reg_of).expect("a store run");
+        for s in &run {
+            let r = alloc::ProducerRoots {
+                value: s.value_root.clone().expect("a bound value has a root"),
+                lvalue: s.lvalue_root.clone(),
+            };
+            assert_eq!(
+                r.lineage_related(),
+                Some(r.bind_linked() || r.value.tok == r.lvalue.tok),
+                "at depth 1 the transitive walk IS the one link"
+            );
+        }
+    }
+
     #[test]
     fn the_bind_carrier_emits_both_spellings_and_they_stay_apart() {
         let (h, p) = (0x0101u32, 0x0201u32);
@@ -2215,18 +2405,75 @@ mod tests {
         // it (#836 wrong on 0 of 81, #868's narrow lift 12/36, #1134's clause 1
         // refuted on this very mix) and this states it one level earlier, so the
         // refusal names the construct rather than the allocator's domain.
-        let mixed = err(vec![
+        // > **⚠ EDGE 1 IS PAID — board #1297, lane `w-lineage`, and the text
+        // > above is kept because it was the standing statement for two days.**
+        // > `alloc::allocate` no longer refuses the mix wholesale: it serves the
+        // > pairs whose `d` term is provably zero *and* whose address stores go
+        // > through the bind that names the address, which is
+        // > `src/xdk/nuispeech/xboxheap.cpp`'s own shape and which is **byte-exact
+        // > against real `c2.dll`** — the TU matches. The three refusals below
+        // > are unchanged and two more are asserted after them.
+        let served = store_leaf_text(
+            &mk(vec![
+                bind,
+                bind,
+                IlOp::StoreInd { off: 0, width: 4 },
+                IlOp::Load(h),
+                IlOp::Lit(0),
+                IlOp::StoreInd { off: 16, width: 4 },
+            ]),
+            OptMode::O1,
+        )
+        .expect("it is a store stream")
+        .expect("xboxheap's own shape is SERVED now");
+        assert_eq!(
+            served,
+            vec![
+                0x39, 0x63, 0x00, 0x14, // addi r11,r3,20   the ADDRESS, 1 use
+                0x39, 0x40, 0x00, 0x00, // li   r10,0       the LITERAL, 1 use
+                0x91, 0x63, 0x00, 0x14, // stw  r11,20(r3)
+                0x91, 0x43, 0x00, 0x10, // stw  r10,16(r3)
+                0x4E, 0x80, 0x00, 0x20,
+            ],
+            "cu <= ru + 1 gives POOL_TOP to the address"
+        );
+
+        // EDGE 1a — the mix where the address's stores go through the FORMAL's
+        // path instead of the bind. **The ALLOCATION is right on this shape and
+        // the ORDER is not** (board #1298): both producers then share one base
+        // symbol, `docs/SYMBOL.md`'s pin no longer fixes the order, and real c2
+        // interleaves the stores where the port emits source order — 11 of GRID
+        // L's 30 came back `Port=Mismatch` when it was served. Refused.
+        let mirror = err(vec![
+            IlOp::Load(h),
             bind,
+            IlOp::StoreInd { off: 20, width: 4 },
+            IlOp::Load(h),
             bind,
-            IlOp::StoreInd { off: 0, width: 4 },
+            IlOp::StoreInd { off: 24, width: 4 },
             IlOp::Load(h),
             IlOp::Lit(0),
             IlOp::StoreInd { off: 16, width: 4 },
         ]);
-        assert!(
-            mixed.contains("BESIDE another producer"),
-            "the refusal must name the construct: {mixed}"
-        );
+        assert!(!mirror.is_empty(), "MIRROR must refuse: {mirror}");
+
+        // EDGE 1b — the mix where the store root is a bind DISTINCT from the
+        // value's. GRID L's `ALIAS` / `TWOBIND` / `XOBJ`, and the `d` term is
+        // live there: `H-LIN` and its four twins are 10 wrong of 75 on it.
+        let l2 = 0xFC09u32;
+        let other = IlOp::BoundAddr { tok: l2, base: h, off: 44 };
+        let distinct = err(vec![
+            other,
+            bind,
+            IlOp::StoreInd { off: 0, width: 4 },
+            other,
+            bind,
+            IlOp::StoreInd { off: 4, width: 4 },
+            IlOp::Load(h),
+            IlOp::Lit(0),
+            IlOp::StoreInd { off: 16, width: 4 },
+        ]);
+        assert!(!distinct.is_empty(), "a DISTINCT bind store root must refuse: {distinct}");
 
         // EDGE 2 — TWO distinct addresses. `t_bl`/`t_dl`. Single-kind, so
         // `alloc::allocate` ANSWERS them — and the grid records that c2 agrees
@@ -2244,7 +2491,7 @@ mod tests {
             IlOp::StoreInd { off: 64, width: 4 },
         ]);
         assert!(
-            two.contains("BESIDE another producer"),
+            two.contains("more than one interior address"),
             "the refusal must name the construct: {two}"
         );
 
