@@ -848,6 +848,59 @@ pub fn encode_cmplwi(crf: u8, ra: u8, uimm: u16) -> [u8; 4] {
     word.to_be_bytes()
 }
 
+/// Encode `cmpw crf,rA,rB` — the **signed register-register** word compare,
+/// X-form: primary opcode 31, extended 0, `L = 0`.
+///
+/// [`encode_cmpwi`] is its immediate sibling and existed first because every
+/// comparison the port had lowered until now put a literal on one side. The
+/// register-register form is what a loop test against a *loaded* value needs,
+/// and board **#1105** names its absence as the first of `Primes.cpp`'s
+/// refusals.
+///
+/// **Pinned to real `c2` output, not derived from a manual.** `cmpw cr6,r10,r3`
+/// at offset `0x14` of `?NextHashPrime@@YAHH@Z` is `7f0a1800`
+/// (`work/w-loop/Primes_b.obj`, `/O1 /Oi /EHsc`, the workload's own flags), and
+/// `codegen::frontier_bytes` (`cfg(test)`) asserts that word in place against the whole
+/// 64-byte function.
+///
+/// **This encoder has no accept-path caller and that is deliberate.** Nothing in
+/// [`super::select`] reaches it; the port still returns `NotImplemented` on
+/// every body that would need it. It is an ISA transcription in a file of ISA
+/// transcriptions, graded by a byte c2 really emitted — which is the distinction
+/// board **#278** drew when it *deleted* `bss_deferred_layout`: that item's tests
+/// asserted a **layout rule** that had been superseded, where these assert a
+/// **fixed instruction encoding** that cannot be.
+pub fn encode_cmpw(crf: u8, ra: u8, rb: u8) -> [u8; 4] {
+    let word: u32 = (31 << 26)
+        | ((crf as u32 & 7) << 23)
+        | ((ra as u32 & 0x1F) << 16)
+        | ((rb as u32 & 0x1F) << 11);
+    word.to_be_bytes()
+}
+
+/// Encode `lwzx rD,rA,rB` — load word, **indexed**: X-form, primary opcode 31,
+/// extended 23.
+///
+/// The scaled-index addressing mode `base[i]`: c2 emits `slwi rT,rI,2` (an
+/// [`encode_rlwinm`] the port already has) and then this. It is the second and
+/// last instruction in `Primes.cpp`'s 64 bytes with no encoder — see
+/// `codegen::frontier_bytes` (`cfg(test)`) for the count that statement comes from.
+///
+/// **Pinned to real `c2` output**: `lwzx r10,r10,r9` at `0x24` is `7d4a482e`
+/// and `lwzx r3,r11,r9` at `0x38` is `7c6b482e`, both from
+/// `work/w-loop/Primes_b.obj`. Two distinct cells, so the `rD` and `rA` fields
+/// are separated by the pins rather than only by the formula.
+///
+/// Same accept-path caveat as [`encode_cmpw`], for the same reason.
+pub fn encode_lwzx(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
+    let word: u32 = (31 << 26)
+        | ((rd as u32 & 0x1F) << 21)
+        | ((ra as u32 & 0x1F) << 16)
+        | ((rb as u32 & 0x1F) << 11)
+        | (23 << 1);
+    word.to_be_bytes()
+}
+
 #[cfg(test)]
 mod tests {
     // The single `mod tests` this was split out of opened with

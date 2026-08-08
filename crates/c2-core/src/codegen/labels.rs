@@ -108,6 +108,9 @@
 //! `cflow-loop`-blocked frontier TUs, six loop functions between them — carry no
 //! `$M` at all, which the scan now prints per TU as `label-free`
 //! (`c2_obj::ObjImage::compiler_label_symbols`, board #742).
+//! ⚠ **STALE as of 2026-08-08 — `Sort.cpp` converted and the count is now seven.
+//! See the correction at the end of this header; the sentence stays as the
+//! record of what was true when the refusal was justified.**
 //!
 //! **This is not a licence and nothing here was widened for it.** Three reasons,
 //! and each is load-bearing:
@@ -121,6 +124,8 @@
 //! 2. **`Selected` still has no variant with a back edge**, so there is no
 //!    caller that would pass a relaxation, and a `resolve` that accepted one
 //!    would be an ungraded code path by construction — w-frame row **F-c**.
+//!    ⚠ **REASON 2 HAS EXPIRED — see the 2026-08-08 correction below. Reasons 1
+//!    and 3 have not, and the refusal is unchanged.**
 //! 3. **The precondition is TU-level and this map is per-body.** A `LabelMap`
 //!    cannot see whether a later function in the TU is framed. The existing
 //!    mechanism that *can* is `IlBundle::functions`' gate, which already demands
@@ -129,6 +134,48 @@
 //!    body returning `None` there is refused in exactly the TUs where the charge
 //!    is observable, and admitted in exactly the TUs where Q2 says it is not.
 //!    **That is where a loop rung's relaxation belongs; it is not here.**
+//!
+//! # Correction, lane `w-loop`, 2026-08-08 (boards #1393, #1394)
+//!
+//! Everything above is left as written; three of its facts have moved and one of
+//! its three reasons is dead. Re-measured on the 878-TU scan at master
+//! `2b1c89da`.
+//!
+//! **1. `Sort.cpp` CONVERTED and is no longer on the frontier.** The paragraph
+//! above names it as one of "three of the six `cflow-loop`-blocked frontier TUs"
+//! and reason 1 prices it at ≥ 4 refusals. It is a **match** — lane `w-hash`,
+//! board **#761**, via [`super::ptr_walk_loop`]. The current figures are
+//! **seven** `cflow-loop`-blocked frontier TUs, of which **three** are
+//! label-free, and the three are `Primes.cpp`, `IPP_basicmath_xbox.cpp` and
+//! `Pool.cpp`. The decline that priced `Sort.cpp` at ≥ 8 was a correct reading
+//! of its bytes and a wrong prediction about the outcome; both stay on the page.
+//!
+//! **2. REASON 2 IS FALSE, and it is the one a relaxing lane would lean on.**
+//! *"`Selected` still has no variant with a back edge"* was true when written
+//! and is not now: [`super::ptr_walk_loop`] and
+//! [`super::ptr_walk_chain_loop`] both emit a **backward** `bc` and both reach
+//! [`super::select::Selected::Plain`]. There is no contradiction with invariant
+//! 4 — neither carrier routes through this map; each computes its displacement
+//! directly through `encode_bc`, so the map never sees the reference — but the
+//! *argument* "no caller could pass a relaxation" no longer holds, because two
+//! callers now emit exactly the thing the relaxation would admit.
+//!
+//! **The refusal is nevertheless unchanged, on reasons 1 and 3 alone**, and the
+//! honest statement of why is narrower than the old one: relaxing invariant 4
+//! would convert **nothing today**, because every remaining `cflow-loop` TU is
+//! blocked ahead of codegen. `Primes.cpp` — the cheapest of them at 64 bytes —
+//! does not reach a selector at all: the scan reads it `vocab-gap`, blocking
+//! feature `expr-jump`, `il function decode failed`. A relaxation whose only
+//! effect is on bodies no reader produces is w-frame row **F-c** by a different
+//! route.
+//!
+//! **3. The instruction vocabulary was two words short, not eight refusals
+//! deep.** `codegen::frontier_bytes` (`cfg(test)`) rebuilds all sixteen words of
+//! `Primes.cpp`'s `?NextHashPrime@@YAHH@Z` from this crate's encoders —
+//! **fourteen from encoders that already existed**, two from `encode_cmpw` and
+//! `encode_lwzx` added with that module. Board **#1105**'s "eight codegen
+//! refusals" is not thereby wrong; what it does not say, and what a lane sizing
+//! this work needs, is that **none of the eight is an encoder**.
 
 use super::select::out_of_class;
 use super::{encode_b_intra, encode_bc};

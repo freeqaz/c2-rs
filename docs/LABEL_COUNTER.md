@@ -433,6 +433,15 @@ rung: **every loop function on the codegen frontier is a leaf.** `Sort.cpp`,
 `Primes.cpp` and `IPP_basicmath_xbox.cpp` carry six loop functions between them,
 no `.pdata`, and not one `$M`.
 
+> ⚠ **STALE as of 2026-08-08, lane `w-loop`, board #1394 — the paragraph above
+> stays as the 2026-08-05 record and its NAMED SET has moved.** `Sort.cpp`
+> **converted** (lane `w-hash`, board #761, through `codegen::ptr_walk_loop`) and
+> is a `match`, so it is no longer on the frontier. Re-read off the 878-TU scan
+> at master `2b1c89da`: **seven** `cflow-loop`-blocked frontier TUs, of which
+> **three** are label-free — `Primes.cpp`, `IPP_basicmath_xbox.cpp` and
+> `Pool.cpp`. The *claim* the paragraph makes (every frontier loop function is a
+> leaf, so the charge has no `$M` to land on) is unaffected; only the roster is.
+
 ### 4.2.1 A leaf loop charges the counter, by the same integers
 
 `gt_label_stride.py`'s construction with a **leaf** probe (`a0 · P · a1 · a2`,
