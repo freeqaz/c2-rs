@@ -157,6 +157,76 @@ impl<'a> CfgClass<'a> {
     }
 }
 
+/// **ONE FRONTIER TU's CODEGEN COLUMN, read off the judge's own predicate**
+/// (lane `w-column`, board **#1474**) — see [`GapReport::frontier_codegen`].
+///
+/// Board **#1463** priced the sixteen frontier TUs on two reader ladders and
+/// published `NO COLUMN` in the codegen cell of every row, and **#1464** gave
+/// the reason: `ladder.py` reads `fn_blockers` (a reader column),
+/// `emit_blockers` (the *same* reader column at a second population) and
+/// `fn_gate_refusals` (an invariant defined to be zero). Every codegen price on
+/// the board is therefore a **hand-count** — #1105's `>= 15`, #1418's 776 bytes,
+/// `w-conv`'s tallies.
+///
+/// This is the instrument reading that replaces the hand-count, and it is
+/// deliberately **smaller** than one, because the honest column has a hole in it
+/// and the hole is named rather than filled:
+///
+/// | field | what it is | is it a codegen price? |
+/// |---|---|---|
+/// | [`exact`](Self::exact) | c2's bytes, produced | **done** — negative distance |
+/// | [`wrong`](Self::wrong) | the reader accepted, the emitter LOWERED, and the bytes or relocations DIFFER | **YES — the only positive codegen price this project can measure per function** |
+/// | [`cg_refused`](Self::cg_refused) | the reader accepted and the emitter DECLINED (`fnbyte-refused-codegen` + `fnbyte-partial`) | yes, but see [`super::fnbytes::Decline`] — three of four stages are zero by construction |
+/// | [`reader`](Self::reader) | the IL parser refused; **no codegen question was asked and none can be** | **NO. This is the hole.** |
+/// | [`ungraded`](Self::ungraded) | unbound / no bytes / relocations unreadable | no — instrument limits, printed so they cannot hide |
+///
+/// **The load-bearing row is `reader`.** A frontier TU's remaining codegen
+/// distance is not `wrong + cg_refused`; it is `wrong + cg_refused` **plus an
+/// unknown amount hiding behind `reader`**, and that unknown is unmeasurable
+/// today by construction — there is no `IlFunction` to hand `select_function`,
+/// so the question cannot be put. Any lane quoting this struct's positive
+/// numbers as *the* codegen price of a frontier TU is quoting a **lower bound of
+/// unknown tightness**, which is the shape `cflow-emitted-modeled`'s "718" had
+/// for eight days (boards #1343/#1344).
+///
+/// The five fields partition [`denominator`](Self::denominator), and that is a
+/// printed control ([`Self::partition_broken`]) rather than an assertion.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct FrontierCodegen {
+    /// Every `.text` COMDAT leader real c2 emitted for this TU — `fnbyte`'s own
+    /// denominator, a function of **c2's** output alone.
+    pub denominator: usize,
+    /// Byte-exact **and** relocation-exact against c2's COMDAT.
+    pub exact: usize,
+    /// `fnbyte-differs` + `fnbyte-reloc-differs`. Lowered, and wrong.
+    pub wrong: usize,
+    /// `fnbyte-refused-codegen` + `fnbyte-partial`: the reader accepted and the
+    /// emitter had nothing to emit.
+    pub cg_refused: usize,
+    /// `fnbyte-refused-parse`: the reader refused. **The unmeasurable half.**
+    pub reader: usize,
+    /// `fnbyte-unbound` + `fnbyte-nobytes` + `fnbyte-reloc-unknown` — the
+    /// instrument could not put the question, for a reason that is neither the
+    /// reader's nor the emitter's.
+    pub ungraded: usize,
+}
+
+impl FrontierCodegen {
+    /// **The measurable codegen price**: lowered-and-wrong, plus
+    /// lowered-and-declined. A **lower bound** — see the struct docs.
+    pub fn measured(self) -> usize {
+        self.wrong + self.cg_refused
+    }
+
+    /// **The partition control, target 0.** Printed on every scan beside the row
+    /// it grades. Non-zero means a bucket stopped being written and the row
+    /// above it is short by an unknown amount.
+    pub fn partition_broken(self) -> bool {
+        self.exact + self.wrong + self.cg_refused + self.reader + self.ungraded
+            != self.denominator
+    }
+}
+
 /// One frontier TU's answer to *"can the port's emitter express this TU's
 /// blocked functions at all?"* — see [`GapReport::frontier_cfg_reachability`].
 ///
@@ -728,6 +798,44 @@ impl GapReport {
             key(&y.1).cmp(&key(&x.1)).then_with(|| x.0.src.cmp(&y.0.src))
         });
         rows
+    }
+
+    /// **THE CODEGEN COLUMN ON THE FRONTIER** (lane `w-column`, board **#1474**)
+    /// — one [`FrontierCodegen`] per frontier TU, sorted by source path.
+    ///
+    /// Read [`FrontierCodegen`]'s own docs first: the useful half of this table
+    /// is the [`reader`](FrontierCodegen::reader) column, which says how much of
+    /// each TU **cannot be priced at all** today.
+    ///
+    /// Computed for ONE TU by [`Self::codegen_column`], which is public and
+    /// separate for the reason [`Self::cfg_reach`] is: a screen that can only be
+    /// evaluated on the live frontier cannot be tested.
+    pub fn frontier_codegen(&self) -> Vec<(&TuResult, FrontierCodegen)> {
+        let mut v: Vec<(&TuResult, FrontierCodegen)> = self
+            .factor_frontier()
+            .into_iter()
+            .map(|(r, _)| (r, Self::codegen_column(r)))
+            .collect();
+        v.sort_by(|a, b| a.0.src.cmp(&b.0.src));
+        v
+    }
+
+    /// [`Self::frontier_codegen`]'s reading for one TU.
+    ///
+    /// **Every field comes from a key `super::fnbytes` writes in the same loop
+    /// iteration that files the bucket** — nothing here subtracts two published
+    /// totals to recover a third, which is precisely how `emit_blockers` came to
+    /// be read as a codegen column it never was (board #1464).
+    pub fn codegen_column(r: &TuResult) -> FrontierCodegen {
+        let g = |k: &str| r.emit.get(k).copied().unwrap_or(0);
+        FrontierCodegen {
+            denominator: g("fnbyte-denominator"),
+            exact: g("fnbyte-exact"),
+            wrong: g("fnbyte-differs") + g("fnbyte-reloc-differs"),
+            cg_refused: g("fnbyte-refused-codegen") + g("fnbyte-partial"),
+            reader: g("fnbyte-refused-parse"),
+            ungraded: g("fnbyte-unbound") + g("fnbyte-nobytes") + g("fnbyte-reloc-unknown"),
+        }
     }
 
     /// **THE CFG-REACHABILITY SCREEN** (lane `w-tu4`, board **#720**) — the
@@ -1520,12 +1628,34 @@ impl GapReport {
                     n.to_string(),
                 ));
             }
-            for d in ["opt-mode", "selector", "gy-shape", "data-ref"] {
+            // `parse` FIRST, and it is new (lane `w-column`, board #1473). Until
+            // this lane there were four stages and the reader's refusal was
+            // filed under `selector`, so `fnbyte-decline-selector` published
+            // 130,575 — every digit of it a body the IL parser refused, under a
+            // codegen name. The split moves that count to `-parse` and leaves
+            // `-selector` reading **0**, which is what it has always been worth.
+            for d in ["parse", "opt-mode", "selector", "gy-shape", "data-ref"] {
                 m.push((
                     Box::leak(format!("fnbyte-decline-{d}").into_boxed_str()),
                     self.emit_total(&format!("fnbyte-decline|{d}")).to_string(),
                 ));
             }
+            // …and the same split at the bucket, so `fnbyte-refused` decomposes
+            // without anyone subtracting two published totals. The two rows sum
+            // to `fnbyte-refused` and that identity is a printed control
+            // (`fnbyte-refused-split-broken`), not an assertion — a bucket that
+            // silently stopped being written would otherwise shrink one side.
+            let rparse = self.emit_total("fnbyte-refused-parse");
+            let rcodegen = self.emit_total("fnbyte-refused-codegen");
+            m.push(("fnbyte-refused-parse", rparse.to_string()));
+            m.push(("fnbyte-refused-codegen", rcodegen.to_string()));
+            m.push((
+                "fnbyte-refused-split-broken",
+                (self.emit_total("fnbyte-refused") != rparse + rcodegen)
+                    .then_some(1usize)
+                    .unwrap_or(0)
+                    .to_string(),
+            ));
             m.push((
                 "fnbyte-differs-witnesses",
                 self.fn_byte_differ_witnesses().len().to_string(),
@@ -1569,6 +1699,39 @@ impl GapReport {
             m.push((
                 "frontier-bytefrac-no-denominator",
                 ranking.iter().filter(|(_, f)| f.is_none()).count().to_string(),
+            ));
+        }
+        // **THE CODEGEN COLUMN, in a form a collector can take** (lane
+        // `w-column`, board **#1474**). Six keys and not one, for the reason the
+        // `cflow-emitted-*` pair above carries: the measurable price is
+        // meaningless without the population it is a fraction of, and here the
+        // population that matters is `frontier-codegen-reader` — the part that
+        // CANNOT be priced. A collector taking `frontier-codegen-measured` alone
+        // would read `0` as *"the frontier needs no codegen work"*, which is the
+        // exact inversion this block exists to prevent.
+        //
+        // Emitted unconditionally, including on an empty frontier, so absence
+        // never reads as success — `frontier-codegen-denominator 0` is
+        // distinguishable from the keys being missing.
+        {
+            let cols = self.frontier_codegen();
+            let s = |f: fn(&FrontierCodegen) -> usize| -> usize {
+                cols.iter().map(|(_, c)| f(c)).sum()
+            };
+            m.push(("frontier-codegen-denominator", s(|c| c.denominator).to_string()));
+            m.push(("frontier-codegen-exact", s(|c| c.exact).to_string()));
+            m.push(("frontier-codegen-wrong", s(|c| c.wrong).to_string()));
+            m.push(("frontier-codegen-refused", s(|c| c.cg_refused).to_string()));
+            m.push(("frontier-codegen-reader", s(|c| c.reader).to_string()));
+            m.push(("frontier-codegen-ungraded", s(|c| c.ungraded).to_string()));
+            m.push((
+                "frontier-codegen-measured",
+                s(|c| c.wrong + c.cg_refused).to_string(),
+            ));
+            // The control, target 0 — a count and not a status (trap 5).
+            m.push((
+                "frontier-codegen-partition-broken",
+                cols.iter().filter(|(_, c)| c.partition_broken()).count().to_string(),
             ));
         }
         let (ctl_full, ctl_nodenom, ctl_short) = self.byte_fraction_control();

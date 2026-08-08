@@ -1,0 +1,36 @@
+leading words: 8 of 8 DISTINCT
+
+== GREEN CONTROLS (unmutated tree) ==
+  PASS  a_parse_refusal_is_not_a_codegen_refusal
+  PASS  the_codegen_column_counts_the_unmeasurable_half_separately
+  PASS  the_codegen_partition_control_fires_on_a_short_row
+  PASS  the_codegen_column_metrics_survive_an_empty_frontier
+  PASS  the_refusal_split_is_published_with_its_own_control
+  PASS  a_wrong_emit_raises_the_codegen_price_and_never_lowers_it
+  PASS  grade_one_files_a_parse_refusal_under_the_parser_and_not_the_selector
+
+== RED ARMS ==
+  RED   parse-is-codegen: a_parse_refusal_is_not_a_codegen_refusal
+        the parser refused: `select_function` was NEVER CALLED, so no codegen question was asked and none can be — there is no IlFunction to ask it of
+  RED   selector-not-codegen: a_parse_refusal_is_not_a_codegen_refusal
+        Selector is reached only through `Ok(func)` in `grade_one`, i.e. only for a body the IL parser ACCEPTED. That is the verdict #1464 says does not exist.
+  RED   parse-refiled-as-selector: grade_one_files_a_parse_refusal_under_the_parser_and_not_the_selector
+        assertion `left == right` failed: unlowered: the parser refused this body, so the decline stage is `Parse`. Filing it under `Selector` published 130,575 READER refusals under a codegen name for two days (board #1464), and no count-map test in this file can see the difference
+        assertion `left == right` failed: unlowered: the parser refused this body, so the decline stage is `Parse`. Filing it under `Selector` published 130,575 READER refusals under a codegen name for two days (board #1464), an
+  RED   reader-folded-into-price: the_codegen_column_counts_the_unmeasurable_half_separately
+        assertion `left == right` failed: the measurable price is wrong + cg-refused and EXCLUDES the reader column — folding the 3 in would price a distance nothing has measured
+        assertion `left == right` failed: the measurable price is wrong + cg-refused and EXCLUDES the reader column — folding the 3 in would price a distance nothing has measured left: 6 right: 3
+  RED   partition-always-holds: the_codegen_partition_control_fires_on_a_short_row
+        4 != 10 — and the row prints `**PARTITION BROKEN**` beside itself
+  RED   reloc-differs-dropped: the_codegen_column_counts_the_unmeasurable_half_separately
+        assertion `left == right` failed: differs AND reloc-differs — lowered, and wrong
+        assertion `left == right` failed: differs AND reloc-differs — lowered, and wrong left: 1 right: 2
+  RED   metrics-gated-on-a-frontier: the_codegen_column_metrics_survive_an_empty_frontier
+        assertion `left == right` failed: frontier-codegen-denominator must print as a measured 0, never vanish
+        assertion `left == right` failed: frontier-codegen-denominator must print as a measured 0, never vanish left: None right: Some("0")
+  RED   wrong-credited-like-exact: a_wrong_emit_raises_the_codegen_price_and_never_lowers_it
+        …distinguished from the refusing case by `exact`, so `measured == 0` is never on its own evidence of progress
+
+final crates/ diff: EMPTY
+
+ALL ARMS PASS — 8 red, 0 declared uncaught, 7 green

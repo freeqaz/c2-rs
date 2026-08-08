@@ -266,6 +266,97 @@ fn render_cfg_reachability(report: &GapReport) {
     render_cfg_subclass(report);
 }
 
+/// **THE CODEGEN COLUMN, PRINTED ON EVERY SCAN** (lane `w-column`, board
+/// **#1474**) — see [`GapReport::frontier_codegen`] and
+/// [`super::factors::FrontierCodegen`].
+///
+/// Board **#1463** published `NO COLUMN` in the codegen cell of all sixteen
+/// frontier rows; **#1464** proved the driver had never had one to lose. This
+/// block is the column, and its headline row is deliberately the one that says
+/// *how much cannot be measured* — because on this frontier that is almost all
+/// of it, and a table that printed only the measurable part would read as
+/// though the frontier were nearly done.
+fn render_frontier_codegen(report: &GapReport) {
+    let rows = report.frontier_codegen();
+    if rows.is_empty() {
+        println!(
+            "\x20 FRONTIER BY CODEGEN (board #1474): the frontier is EMPTY on this scan, so \
+             there is no column. Not a pass — not evaluated."
+        );
+        return;
+    }
+    let sum = |f: fn(&super::factors::FrontierCodegen) -> usize| -> usize {
+        rows.iter().map(|(_, c)| f(c)).sum()
+    };
+    let (den, exact, wrong, cgref, reader, ungraded) = (
+        sum(|c| c.denominator),
+        sum(|c| c.exact),
+        sum(|c| c.wrong),
+        sum(|c| c.cg_refused),
+        sum(|c| c.reader),
+        sum(|c| c.ungraded),
+    );
+    println!(
+        "\x20 FRONTIER BY CODEGEN (board #1474) — THE COLUMN #1463 PRINTED AS `NO COLUMN`, read \
+         off the judge's own per-function predicate (FBM) instead of off a reader ladder. \
+         `wrong` is the reader accepting a body, the emitter LOWERING it, and the bytes or \
+         relocations DIFFERING: the only positive codegen price this project can measure per \
+         function. `cg-ref` is the reader accepting and the emitter DECLINING — read \
+         `fnbytes::Decline`'s doc before sizing anything off it, because three of its four \
+         stages are ZERO BY CONSTRUCTION while acceptance lives in the IL parser. **`reader` is \
+         the hole**: the IL parser refused, so no codegen question was asked and none CAN be — \
+         there is no IlFunction to hand to `select_function`. A TU's true codegen distance is \
+         `wrong + cg-ref` PLUS an unknown amount hiding in `reader`, so every positive number \
+         below is a LOWER BOUND OF UNKNOWN TIGHTNESS and never a price. {} frontier TUs, {den} \
+         emitted functions: {reader} behind the reader ({}%), {} measurable, {exact} already \
+         byte-exact.",
+        rows.len(),
+        if den == 0 { 0 } else { reader * 100 / den },
+        wrong + cgref,
+    );
+    println!(
+        "\x20   {:>4} {:>5} {:>5} {:>6} {:>6} {:>7} | {}",
+        "den", "exact", "wrong", "cg-ref", "reader", "ungrade", "src"
+    );
+    for (r, c) in &rows {
+        println!(
+            "\x20   {:>4} {:>5} {:>5} {:>6} {:>6} {:>7} | {}{}",
+            c.denominator,
+            c.exact,
+            c.wrong,
+            c.cg_refused,
+            c.reader,
+            c.ungraded,
+            r.src,
+            if c.partition_broken() { "  **PARTITION BROKEN**" } else { "" }
+        );
+    }
+    let broken = rows.iter().filter(|(_, c)| c.partition_broken()).count();
+    println!(
+        "\x20   TOTAL {den} = exact {exact} + wrong {wrong} + cg-ref {cgref} + reader {reader} \
+         + ungraded {ungraded};  partition-broken {broken} (target 0)."
+    );
+    // The vacuity statement, printed from the numbers rather than asserted, and
+    // printed in BOTH directions so a future frontier with real codegen debt
+    // does not keep reading the caveat that fits today's.
+    if wrong + cgref == 0 {
+        println!(
+            "\x20   **THE MEASURABLE CODEGEN PRICE OF THIS FRONTIER IS ZERO, AND THAT IS NOT \
+             `THE CODEGEN WORK IS DONE`.** Every frontier function the reader accepts, the port \
+             already emits correctly; all of the remaining distance is behind a reader refusal, \
+             where this instrument cannot follow. Board #1464's finding, in the affirmative: \
+             the codegen column exists and on this population it is EMPTY."
+        );
+    } else {
+        println!(
+            "\x20   {} frontier function(s) are a MEASURED codegen defect — the reader accepts \
+             them and the port does not produce c2's bytes. These are the only frontier codegen \
+             numbers on this board that are not hand-counts.",
+            wrong + cgref
+        );
+    }
+}
+
 /// **THE SUB-CLASS MECHANISM'S OWN INSTRUMENT** (lane `w-subclass`, board
 /// **#778**) — the narrowing bracket and the ledger, printed under the screen.
 ///
@@ -542,6 +633,7 @@ pub(super) fn print_factorization(report: &GapReport) {
     render_byte_fraction_ranking(report);
     render_byte_fraction_control(report);
     render_cfg_reachability(report);
+    render_frontier_codegen(report);
     // **What a perfect emit predicate is worth, stated as both of the
     // quantities board #213 conflated.** #213 published `+82` for both because
     // they coincided on that corpus; they are different questions and the

@@ -237,30 +237,92 @@ impl RelocKind {
 /// Why a graded function has no port body — the *stage* that declined, kept
 /// apart from the bucket it lands in so the per-shape census can print a
 /// reason and not just a count.
+/// **The stage split is the CODEGEN COLUMN** (lane `w-column`, board #1473).
+/// Board **#1464** stated that no field anywhere says *"the reader accepted this
+/// function and the emitter could not lower it"*. That is true of `TuResult`'s
+/// named fields and **false of this enum**: every variant below [`Decline::Parse`]
+/// is reached only through `Ok(func)` in [`grade_one`], i.e. only for a body the
+/// IL parser accepted. What was wrong is that [`Decline::Parse`] did not exist —
+/// a parse refusal was filed under `Selector`, so the published
+/// `fnbyte-decline|selector` read **130,575** and was **100 % reader refusals**,
+/// which is exactly the number a lane would quote as a codegen price.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Decline {
+    /// **The IL PARSER refused this body** — there is no [`IlFunction`] to hand
+    /// to the emitter, so no codegen question was asked and none can be. This is
+    /// the *reader* column and it is the overwhelming majority of every refusal
+    /// count this module prints.
+    ///
+    /// Split out of `Selector` by lane `w-column`. The two had shared a key
+    /// since board #322 and the union was published as though it were a codegen
+    /// reading — `fn_blockers`/`emit_blockers`' defect (#1464) one file over.
+    Parse,
     /// The `.ex` optimization word is not one this port emits for.
+    ///
+    /// **Zero by construction on this population** and the code says so rather
+    /// than the reader inferring it: `census_functions`' post-parse gate (b)
+    /// raises `OPT_MODE` *before* a row can be `InClass`, and [`grade_one`]
+    /// reaches this stage only for an `InClass` row. It is kept, printed, and
+    /// must read 0; a nonzero reading means the census gate and
+    /// `opt_mode_of_word` have drifted apart.
     OptMode,
-    /// `codegen::select_function` refused the function outright.
+    /// `codegen::select_function` refused a function **the parser accepted**.
+    ///
+    /// **This is the verdict #1464 says does not exist, and it does — but it is
+    /// an ALARM and not a measurement.** It counts exactly the population
+    /// [`TuResult::fn_gate_refusals`](super::TuResult::fn_gate_refusals) counts,
+    /// by the same decision procedure (`function_gate` is `select_function` plus
+    /// one `/Gy` arm), so it must be **0** for the same reason: acceptance lives
+    /// in the IL parser, and anything here is the census over-claiming (board
+    /// #139). A number that can only read zero while the design holds is not a
+    /// price — it is a second, independent witness that the design holds.
+    ///
+    /// Do not size codegen work off it. The stages that *can* legitimately be
+    /// nonzero are the two below, and they can be because they are **not a
+    /// function of the IL body alone**, so no parser refusal could express them.
     Selector,
     /// The selector lowered it, but the `/Gy` composition has no obj model for
     /// this shape (today only a pooled floating-point constant, which the port
     /// refuses under `/Gy` — so this is the *port's* limit, not the harness's).
+    ///
+    /// **Legitimately nonzero**, and it is the first of the two stages that can
+    /// be. `/Gy` is an argv flag; it is not in the IL bundle at all, so the
+    /// parser cannot see it and cannot raise a counterpart refusal. #139's rule
+    /// — *every emitter refusal must have a parser refusal or the census
+    /// over-claims* — does not reach here, because the refusal is not a property
+    /// of the body. (The census's own cross-check handles this by taking `gy`
+    /// from `cfg.flags`; see `gap/scan.rs` step 1c.)
     GyShape,
     /// The body exists and the data-symbol relocation halves cannot be located
     /// inside it, so `PortC2::build` refuses the whole obj. The `.text` bytes
     /// are real; the function is still one the port cannot emit.
+    ///
+    /// **Legitimately nonzero**, and the second and last such stage. The
+    /// question is asked of the *composed body's bytes*, which do not exist
+    /// until after lowering, so there is nothing for a parser clause to test.
     DataRef,
 }
 
 impl Decline {
     fn key(self) -> &'static str {
         match self {
+            Decline::Parse => "parse",
             Decline::OptMode => "opt-mode",
             Decline::Selector => "selector",
             Decline::GyShape => "gy-shape",
             Decline::DataRef => "data-ref",
         }
+    }
+
+    /// **Did the IL parser accept this body?** The one predicate that separates
+    /// the reader column from the codegen column, defined once here so no
+    /// consumer re-derives it from a key spelling — `fn_complete`'s doc records
+    /// what re-deriving a fact from a name costs.
+    ///
+    /// `false` for exactly [`Decline::Parse`]. Every other stage ran on an
+    /// `IlFunction` the parser produced.
+    pub fn is_codegen(self) -> bool {
+        !matches!(self, Decline::Parse)
     }
 }
 
@@ -649,7 +711,11 @@ pub fn grade_one(
         return g(FnByte::Unbound, "unbound", None);
     };
     let Ok(func) = gate else {
-        return g(FnByte::Refused, "parse-refused", Some(Decline::Selector));
+        // `Decline::Parse`, NOT `Decline::Selector`. `select_function` was never
+        // called here — there is no `IlFunction` to call it with — so filing
+        // this under the selector published 130,575 reader refusals under a
+        // codegen name. Lane `w-column`, board #1473.
+        return g(FnByte::Refused, "parse-refused", Some(Decline::Parse));
     };
     match complete_comdat(func, census.opt_word, tu) {
         Ok(b) => {
@@ -1391,6 +1457,37 @@ pub(super) fn measure(
             *res.emit
                 .entry(format!("fnbyte-decline|{}", d.key()))
                 .or_insert(0) += 1;
+            // **THE CODEGEN COLUMN, split off the reader column in the same loop
+            // iteration that files the bucket** — never by subtracting two
+            // published totals, which is how `emit_blockers` came to be read as
+            // a codegen reading it never was (#1464).
+            //
+            // `fnbyte-refused-parse`   the reader refused; NO codegen question
+            //                          was asked and none can be. Unmeasurable
+            //                          distance, and saying so is the point.
+            // `fnbyte-refused-codegen` **the reader accepted and the emitter
+            //                          declined.** Board #1464 says this verdict
+            //                          does not exist; it does, and this is it.
+            //
+            // Both rows print on every scan, including as zeros — an absent row
+            // reading as "nothing to see" is this project's most-repeated defect
+            // and the reason `fnbyte-partial` prints `NONE` with a denominator.
+            //
+            // **Read `-codegen` with `Decline`'s own doc or not at all.** Three
+            // of its four stages are zero *by construction* while acceptance
+            // lives in the parser, so a zero here is an ALARM that did not fire,
+            // not a measurement that the codegen distance is zero. The
+            // measurable codegen distance on an accepted body is
+            // `fnbyte-differs` + `fnbyte-reloc-differs` — lowered, and WRONG.
+            if matches!(graded.verdict, FnByte::Refused) {
+                *res.emit
+                    .entry(if d.is_codegen() {
+                        "fnbyte-refused-codegen".into()
+                    } else {
+                        "fnbyte-refused-parse".to_string()
+                    })
+                    .or_insert(0) += 1;
+            }
         }
         // **MECHANISM E, counted where it fires and split by the judge's own
         // verdict** (`c2_core::elide`). A delta between two scans is not a
