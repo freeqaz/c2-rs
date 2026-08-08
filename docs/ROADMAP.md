@@ -10315,3 +10315,20 @@ Board rows **#1820**–**#1830** (`wb-regalloc`), **#1831** (funnel),
 **#1840**–**#1852** (`wb-inline`), **#1860**–**#1873** (`wb-eh`),
 **#1880**–**#1888** (`wb-chooser`); the unminted remainders of each range are
 declared in `docs/BOARD.md`.
+
+### 10.26.1 WB-H addendum — the loop class is CHEAPER than item 4 priced it (2026-08-08)
+
+`wb-loop` (board #1900–#1907) landed after this section was written. Item 4's
+pricing moves DOWN, not up: the counted-loop normal form is **three composable
+passes** (rotated pre-test guard · `mtctr`/`bdnz` conversion · update-form
+rewrite), and a port can ship guard + `bdnz` alone and be byte-correct on
+every loop where the update form does not apply. The `mtctr` choice survived
+34/36 frozen cells with all five rivals refuted; block order is now complete
+*for this class* (decision-tree switches reverse, jump-table switches source
+order, loop-only exit blocks sunk past the return). An honest first class
+requires step ∈ {+1, −1} (the non-unit trip-count arithmetic is unread) and a
+loop-invariant **symbol** bound. Two constraints carried: `/O1` never
+unrolls, and WB-D's "identical across three bodies" is **retracted** — a body
+with a call falls back to `addic./bf`, and the `-QXnobdnz` fallback is
+byte-identical to that with-a-call shape. First-scan reach stays ~0 (the
+reader still gates); the sequencing behind item 2 stands.
