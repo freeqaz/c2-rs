@@ -150,6 +150,23 @@ EDITS = [
      "                    (true, true) => {\n                        return Err(Block::refuse(seg, *p, \"expr-shr-mixed-sign\"))\n                    }",
      "                    (true, true) => {\n                        if crate::front3_lift(\"expr-shr-mixed-sign\") {\n                            IlOp::ShrS\n                        } else {\n                            return Err(Block::refuse(seg, *p, \"expr-shr-mixed-sign\"));\n                        }\n                    }"),
 
+    # --- H:expr-convert-no-value  (src/Main.cpp) — ADDED BY LANE w-one --------
+    # `w-front3` recorded `Main.cpp` as one of only TWO rows stopped by "a real
+    # refusal with no lift". It is not one. The guard's own comment says the
+    # state "cannot be reached by a well-formed stream" — and the UNSUNK 878-TU
+    # scan witnesses `expr-convert-no-value-0x2C` **4,973 times across 829 of
+    # 878 TUs**. What is empty is the model's CLASS STACK, not the stream: every
+    # token whose stack effect `parse_expr` does not model (a `26` symbol push, a
+    # relational, an intrinsic, and every sink skip, which clears `cstack_ok` by
+    # construction) advances the cursor without pushing a class.
+    #
+    # The lift assumes `Int4` for the missing source class. That is a GUESS and
+    # it is exactly the guess the shipped guard refuses to make — which is why it
+    # lives here, uncommitted, and why nothing but `fn_blockers` is read off it.
+    ("expr-convert-no-value",
+     "crates/c2-il/src/func/body/expr.rs",
+     "                let Some(cls) = cstack.last().copied() else {\n                    return Err(blk(seg, start, \"expr-convert-no-value\"));\n                };",
+     "                let cls = match cstack.last().copied() {\n                    Some(c) => c,\n                    None if crate::front3_lift(\"expr-convert-no-value\") => ValueClass::Int4,\n                    None => return Err(blk(seg, start, \"expr-convert-no-value\")),\n                };"),
 ]
 
 # --- RETIRED: clauses this hatch used to lift and that the PORT HAS PAID ------
@@ -191,12 +208,18 @@ def _plan():
         src = cache.get(full)
         if src is None:
             src = cache[full] = open(full).read()
-        # "Already present" is `repl` present AND `needle` gone. Testing only
-        # the first is how lane w-one's own fail-closed control came back GREEN
-        # on its first run: a short replacement string that happens to occur
-        # somewhere else in the file reads as an applied edit. Every real edit
-        # here rewrites its needle, so the conjunction is exact.
-        if repl in src and needle not in src:
+        # "Already present" is: the replacement occurs EXACTLY ONCE, and the
+        # needle occurs exactly as many times as the replacement itself contains
+        # it. Both halves are load-bearing and both were learned the hard way:
+        #
+        #  * testing `repl in src` alone made lane w-one's own fail-closed
+        #    control come back GREEN — a short replacement string occurring
+        #    anywhere in the file reads as an applied edit;
+        #  * testing `needle not in src` alone reports the HELPER edit as
+        #    pending forever, because its needle (`pub mod codec;`) is a
+        #    substring of its own replacement, and `check` then says PARTIAL on
+        #    a tree that is fully and correctly hatched.
+        if src.count(repl) == 1 and src.count(needle) == repl.count(needle):
             already.append((eid, path))
             continue
         n = src.count(needle)
