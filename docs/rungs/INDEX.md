@@ -131,6 +131,7 @@ the header block this table is read from.
 | 2026-08-08 | w-one | [w-one](2026-08-08-w-one.md) | 8 | 711,486 / 2,463,443 unchanged (28.88 %), +0 — this lane touches |
 | 2026-08-08 | w-op27 | [w-op27](2026-08-08-w-op27.md) | 11 | 711,486 / 2,463,443 (28.88 %) → **unchanged, +0**. Emitted census |
 | 2026-08-08 | w-order3 | [w-order3](2026-08-08-w-order3.md) | 2 | unchanged — this lane emits no function |
+| 2026-08-08 | w-phase7 | [w-phase7](2026-08-08-w-phase7.md) | 9 | 711,486 / 2,463,443 unchanged (28.88 %), **+0**. TU match |
 | 2026-08-08 | w-quar | [w-quar](2026-08-08-w-quar.md) | 8 | 711,477 / 2,463,443 unchanged (28.88 %), +0 |
 | 2026-08-08 | w-rdata3 | [w-rdata3](2026-08-08-w-rdata3.md) | 13 | 711,477 / 2,463,443 unchanged (28.88 %), +0 — this lane emits nothing |
 | 2026-08-08 | w-relo | [w-relo](2026-08-08-w-relo.md) | 8 | 711,477 / 2,463,443 (28.88 %) unchanged, +0. Emitted 39,181 / |

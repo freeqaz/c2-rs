@@ -696,6 +696,38 @@ misleading without them.
    nothing shipped, `PortC2` has no emit-set model to put this in, and the spec
    is `rungs/_2026-08-04-w-emitp-findings.md` §6.
 
+   > **⚠ 2026-08-08 — THAT SPEC'S §6 IS THREE-FIFTHS LANDED AND TWO-FIFTHS
+   > REFUTED, and the refuted part is the part a lane was about to build.**
+   > Steps 1, 2 and 5 shipped at `d2bdadc` (lane `w-alias`:
+   > `crates/c2-il/src/func/glalias.rs`, `DISCLOSURE.md` rows W-ALIAS-1 /
+   > W-ALIAS-2). Steps 3 and 4 say *resolve the alias at the `in` `02`-node
+   > site* and *never emit a name in `dom(alias)`* — and the only such site in
+   > `crates/` is `IlBundle::data_tu`'s **relocation naming**, where **both
+   > read false**. Real `c2.dll` leaves **4,248 relocations naming `??_E<X>`
+   > unresolved over 675 of 871 objs** and realises the alias as a COFF
+   > **`WEAK_EXTERNAL`** symbol record instead. So `dom(alias) ∩ E = 0` is a
+   > statement about COMDAT **leaders**, and c2 *does* write a symbol record
+   > carrying the alias's name.
+   >
+   > **The channel's real observable grades the DECODE PER RECORD, and it is
+   > exact**: `alias-weak-predicted` **4,013 / 4,013**, `-default-disagree`
+   > **0**, `-unpredicted` **0**. And the realisation rule — *c2 writes
+   > `??_E<X> → ??_G<X>` iff `??_G<X>` is a `.text` COMDAT leader of the same
+   > obj* — reads `alias-rule-miss 0` / `alias-rule-extra 0`, **exact on 871 of
+   > 871**. That is a statement about the decode; the per-TU-exact figures in
+   > this trap's paragraph are statements about a *model*, and the two are not
+   > substitutes.
+   >
+   > **What it is worth is measured, not extrapolated**: `alias-weak-needed-tus`
+   > **675 of 871**, `alias-weak-needed-in-b-and-c` **0**,
+   > `alias-weak-needed-in-frontier` **0** — the port's COFF writer has no
+   > weak-external record, so 675 TUs carry a symbol-table requirement it
+   > cannot meet, **no factor in §10.19 represents it**, and it costs the
+   > payoff metric nothing on this population. TU match **11 → 11**, mismatch
+   > **0**, and all 199 pre-existing `gap-metric` keys byte-identical.
+   > Boards **#1500**–**#1509**;
+   > [`rungs/2026-08-08-w-phase7.md`](rungs/2026-08-08-w-phase7.md).
+
    **And the sizing method the project used for classes is wrong in the
    optimistic direction's opposite.** Removing `#152` from both sides of the
    ORACLE — the subtraction w-joint's U-i publishes — gives per-TU exact
