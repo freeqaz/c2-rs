@@ -1,0 +1,18 @@
+src/Main.cpp                                   real=None     moved=False | null=op:23    inert=True  | nullhatch inert=True  | no
+src/system/math/Primes.cpp                     real=op:3A    moved=True  | null=op:20    inert=True  | nullhatch inert=True  | DISCRIMINATES
+src/xdk/LIBCMT/osfinfo.cpp                     real=op:23    moved=True  | null=op:1F    inert=True  | nullhatch inert=True  | DISCRIMINATES
+src/xdk/LIBCMT/undname.cpp                     real=op:20    moved=True  | null=op:38    inert=True  | nullhatch inert=True  | DISCRIMINATES
+src/xdk/LIBCMT/vswprnc.cpp                     real=op:1F    moved=True  | null=op:26    inert=True  | nullhatch inert=True  | DISCRIMINATES
+src/xdk/xjson/jsonwriter.cpp                   real=op:38    moved=True  | null=op:1F    inert=True  | nullhatch inert=True  | DISCRIMINATES
+src/xdk/xlrc/xlrcimpl.cpp                      real=None     moved=False | null=op:38    inert=True  | nullhatch inert=True  | no
+src/system/negate_test.cpp                     real=None     moved=False | null=op:39    inert=True  | nullhatch inert=True  | no
+src/system/synth_xbox/Biquad.cpp               real=op:26    moved=False | null=op:1F    inert=False | nullhatch inert=True  | no
+src/xdk/LIBCMT/vsnprnc.cpp                     real=op:1F    moved=True  | null=intrinsic inert=True  | nullhatch inert=True  | DISCRIMINATES
+src/system/rndobj/wordwrap.cpp                 real=op:38    moved=True  | null=intrinsic inert=True  | nullhatch inert=True  | DISCRIMINATES
+src/system/utl/Pool.cpp                        real=op:39    moved=True  | null=op:38    inert=True  | nullhatch inert=True  | DISCRIMINATES
+src/xdk/nuispeech/mmio.cpp                     real=op:1F    moved=True  | null=op:3A    inert=False | nullhatch inert=True  | no
+src/system/synth_xbox/IPP_basicmath_xbox.cpp   real=op:1F    moved=True  | null=op:23    inert=True  | nullhatch inert=True  | DISCRIMINATES
+src/system/utl/EncryptXTEA.cpp                 real=intrinsic moved=True  | null=op:20    inert=True  | nullhatch inert=True  | DISCRIMINATES
+src/keygen_xbox.cpp                            real=op:38    moved=True  | null=op:1F    inert=True  | nullhatch inert=True  | DISCRIMINATES
+
+DISCRIMINATING CELLS: 11 of 16

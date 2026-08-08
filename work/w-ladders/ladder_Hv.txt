@@ -1,0 +1,16 @@
+src/Main.cpp                                   net=3   sink=1   hatch=2  STUCK:expr-call-in-expr-recv-object-then-op-0x5C  verify=2/3 load-bearing  INERT:op:26
+src/system/math/Primes.cpp                     net=7   sink=7   hatch=0  READER-CLEAR  verify=7/7 load-bearing
+src/xdk/LIBCMT/osfinfo.cpp                     net=13  sink=12  hatch=1  READER-CLEAR  verify=13/13 load-bearing
+src/xdk/LIBCMT/undname.cpp                     net=12  sink=12  hatch=0  READER-CLEAR  verify=12/12 load-bearing
+src/xdk/LIBCMT/vswprnc.cpp                     net=11  sink=11  hatch=0  READER-CLEAR  verify=11/11 load-bearing
+src/xdk/xjson/jsonwriter.cpp                   net=16  sink=15  hatch=1  READER-CLEAR  verify=16/16 load-bearing
+src/xdk/xlrc/xlrcimpl.cpp                      net=0   sink=0   hatch=0  EXIT:assign-rhs-call-0x26(no-lift)  verify=0/0 load-bearing
+src/system/negate_test.cpp                     net=12  sink=11  hatch=1  READER-CLEAR  verify=11/12 load-bearing  INERT:assign-store-type
+src/system/synth_xbox/Biquad.cpp               net=7   sink=7   hatch=0  EXIT:expr-chain-noform-0x00(noform)  verify=6/7 load-bearing  INERT:op:26
+src/xdk/LIBCMT/vsnprnc.cpp                     net=13  sink=12  hatch=1  READER-CLEAR  verify=12/13 load-bearing  INERT:call-arg-lit-permuted
+src/system/rndobj/wordwrap.cpp                 net=19  sink=19  hatch=0  EXIT:expr-chain-noform-0x1C(noform)  verify=19/19 load-bearing
+src/system/utl/Pool.cpp                        net=9   sink=9   hatch=0  EXIT:expr-chain-noform-0x10(noform)  verify=9/9 load-bearing
+src/xdk/nuispeech/mmio.cpp                     net=12  sink=12  hatch=0  READER-CLEAR  verify=12/12 load-bearing
+src/system/synth_xbox/IPP_basicmath_xbox.cpp   net=12  sink=12  hatch=0  EXIT:expr-chain-noform-0x11(noform)  verify=12/12 load-bearing
+src/system/utl/EncryptXTEA.cpp                 net=17  sink=17  hatch=0  EXIT:expr-chain-noform-0x00(noform)  verify=17/17 load-bearing
+src/keygen_xbox.cpp                            net=20  sink=18  hatch=2  EXIT:expr-chain-noform-0x13(noform)  verify=18/20 load-bearing  INERT:assign-store-type,expr-convert-no-value
