@@ -387,7 +387,7 @@ pub fn parse_candidate(name: &str, text: &str) -> Result<CandidateSet, String> {
 ///
 /// The join key is a source path *string*. `w-emitp`'s corpus spells
 /// `src/App.cpp` as `src__App.cpp` because its truth files are named after it;
-/// a tree walk spells it `/home/…/dc3-decomp/src/App.cpp`; the scan spells it
+/// a tree walk spells it `<workload-root>/src/App.cpp`; the scan spells it
 /// the way `cl` was invoked. Any of those against any other yields **0
 /// matches**, and every intersection downstream is then 0 — a perfectly
 /// well-formed table of zeros that says *the model buys no reach*.
