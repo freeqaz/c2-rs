@@ -1340,4 +1340,133 @@ mod tests {
             ObjDiff::Identical => panic!("expected a length difference"),
         }
     }
+
+    // ---------------------------------------------------------- weak externals
+    //
+    // Lane `w-phase7`. A `.gl` tag-0x10 ALIAS is realised in the obj as an
+    // `IMAGE_SYM_CLASS_WEAK_EXTERNAL` record whose one aux slot names the
+    // default symbol, and the reader that finds it is what refuted `w-emitp`
+    // §6 step 3's "resolve the relocation" reading. The shape below is the one
+    // measured on `src/lazer/game/HamUser.cpp`'s real obj: an *undefined*
+    // default placeholder, the weak record, then the COMDAT definition of the
+    // same default name.
+
+    /// [`coff`] with one symbol's aux record filled in as a weak-external aux:
+    /// `TagIndex` then `Characteristics`. `at` is the **symbol slot** of the
+    /// weak record itself; its aux occupies `at + 1`.
+    fn coff_with_weak_aux(
+        sections: &[(&str, bool)],
+        symbols: &[(&str, i16, u8, u8)],
+        at: usize,
+        tag: u32,
+        characteristics: u32,
+    ) -> Vec<u8> {
+        let nsec = sections.len();
+        let psym = COFF_HEADER_LEN + nsec * SECTION_HEADER_LEN;
+        let mut out = coff(sections, symbols);
+        let a = psym + (at + 1) * SYMBOL_LEN;
+        out[a..a + 4].copy_from_slice(&tag.to_le_bytes());
+        out[a + 4..a + 8].copy_from_slice(&characteristics.to_le_bytes());
+        out
+    }
+
+    /// Slots: `.text` 0 (+aux 1) · `?f` 2 · default-placeholder 3 · weak 4
+    /// (+aux 5) · `?g` 6.
+    fn weak_obj(characteristics: u32) -> Vec<u8> {
+        coff_with_weak_aux(
+            &[(".text", true)],
+            &[
+                (".text", 1, IMAGE_SYM_CLASS_STATIC, 1),
+                ("?f@@YAXXZ", 1, 2, 0),
+                ("??_GX@@UAAPAXI@Z", 0, 2, 0),
+                ("??_EX@@UAAPAXI@Z", 0, IMAGE_SYM_CLASS_WEAK_EXTERNAL, 1),
+                ("?g@@YAXXZ", 1, 2, 0),
+            ],
+            4,
+            3,
+            characteristics,
+        )
+    }
+
+    #[test]
+    fn weak_external_pairs_the_alias_with_its_default() {
+        let obj = ObjImage::new(weak_obj(2));
+        assert_eq!(
+            obj.weak_externals(),
+            Some(vec![(
+                "??_EX@@UAAPAXI@Z".to_string(),
+                "??_GX@@UAAPAXI@Z".to_string(),
+                2
+            )])
+        );
+    }
+
+    /// The `Characteristics` word is **returned, never interpreted** here. c2
+    /// writes 2 (`SEARCH_LIBRARY`) on every one of the 4,013 records the
+    /// workload carries; a reader that filtered on that constant would report a
+    /// different value as *absence*, which is `docs/STATUS.md` trap 5.
+    #[test]
+    fn weak_external_characteristics_is_carried_not_filtered() {
+        let obj = ObjImage::new(weak_obj(3));
+        assert_eq!(obj.weak_externals().unwrap()[0].2, 3);
+    }
+
+    /// An obj with no weak record reports an **empty list**, not `None`. The
+    /// two are different answers: `None` is "this obj did not decode", and a
+    /// consumer that folded them together would count an unreadable obj as one
+    /// with no aliases.
+    #[test]
+    fn no_weak_externals_is_an_empty_list_and_not_a_refusal() {
+        let obj = ObjImage::new(workload_shaped_obj());
+        assert_eq!(obj.weak_externals(), Some(Vec::new()));
+    }
+
+    /// A weak record whose `TagIndex` points past the symbol table is a decode
+    /// failure for the **whole obj**, not one skipped record. A short list
+    /// would read as "c2 emitted fewer aliases than it did", which is the
+    /// credit direction for every consumer of this reader.
+    #[test]
+    fn weak_external_with_an_out_of_range_default_refuses_the_obj() {
+        let mut bytes = weak_obj(2);
+        let psym = COFF_HEADER_LEN + SECTION_HEADER_LEN;
+        let a = psym + 5 * SYMBOL_LEN;
+        bytes[a..a + 4].copy_from_slice(&9999u32.to_le_bytes());
+        assert_eq!(ObjImage::new(bytes).weak_externals(), None);
+    }
+
+    /// `relocs_named` sees **every** section, which is the whole reason it
+    /// exists: `text_comdat_relocs` skips `.rdata`, and a vftable — the only
+    /// thing that names an alias — lives there. A reader restricted to `.text`
+    /// would have answered "no alias is ever relocated against" for a reason
+    /// that has nothing to do with aliases.
+    #[test]
+    fn relocs_named_reaches_a_non_text_section() {
+        let obj = ObjImage::new(coff_with_relocs(
+            &[(".text", true), (".rdata", false)],
+            &[
+                (".text", 1, IMAGE_SYM_CLASS_STATIC, 1),
+                ("?f@@YAXXZ", 1, 2, 0),
+                (".rdata", 2, IMAGE_SYM_CLASS_STATIC, 1),
+                ("??_EX@@UAAPAXI@Z", 0, 2, 0),
+            ],
+            1,
+            // Slots: `.text` 0 (+aux 1) · `?f` 2 · `.rdata` 3 (+aux 4) ·
+            // `??_EX` 5.
+            &[(4, 5, 2)],
+        ));
+        let rows = obj.relocs_named().expect("obj decodes");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].0, 1, "section index");
+        assert_eq!(rows[0].1, 4, "VirtualAddress");
+        assert_eq!(
+            rows[0].3,
+            RelocTarget::Symbol("??_EX@@UAAPAXI@Z".to_string())
+        );
+        // …and the `.text`-only reader sees none of it.
+        assert!(obj
+            .text_comdat_relocs()
+            .expect("obj decodes")
+            .iter()
+            .all(|(_, rows)| rows.is_empty()));
+    }
 }

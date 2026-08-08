@@ -2368,6 +2368,111 @@ mod tests {
     }
 
     /// A bundle carrying just `.ex`, enough for the segment-level readers.
+    // ------------------------------------------------- w-phase7: the alias fence
+    //
+    // `rungs/_2026-08-04-w-emitp-findings.md` §6 steps 3 and 4, at the one `in`
+    // `02`-node resolution site that exists in this crate.
+
+    /// A `.gl` record as [`super::glalias`]'s locator reads one:
+    /// `<tag> <2-byte token> 00 <name> 00 <10 zero header bytes> <anchor>`.
+    fn gl_record(out: &mut Vec<u8>, tag: u8, tok: u32, name: &str, anchor: &[u8]) {
+        out.push(tag);
+        out.push((tok >> 8) as u8);
+        out.push((tok & 0xFF) as u8);
+        out.push(0x00);
+        out.extend_from_slice(name.as_bytes());
+        out.push(0x00);
+        out.extend_from_slice(&[0u8; 10]);
+        out.extend_from_slice(anchor);
+    }
+
+    /// A bundle whose `.gl` carries one `??_E<X>` → `??_G<X>` alias pair.
+    fn alias_bundle() -> IlBundle {
+        let mut gl = vec![0u8; 4];
+        gl_record(&mut gl, 0x0E, 0x1234, "??_GFilePath@@UAAPAXI@Z", &[0, 0]);
+        gl_record(
+            &mut gl,
+            0x10,
+            0x2244,
+            "??_EFilePath@@UAAPAXI@Z",
+            &[0x12, 0x34],
+        );
+        gl.extend_from_slice(&[0u8; 4]);
+        let mut b = IlBundle::default();
+        b.set("gl", gl);
+        b
+    }
+
+    /// A bundle with no `.gl` has no alias question to answer, and says so with
+    /// `None`. A bundle with a `.gl` and no `.in` answers **all zeroes**, not
+    /// `None` — the two are different readings and folding them together is
+    /// `docs/STATUS.md` trap 5, where a reader that did not run and a channel
+    /// that is empty look alike.
+    #[test]
+    fn the_alias_report_separates_absent_from_empty() {
+        assert!(IlBundle::default().in_alias_report().is_none());
+        let r = alias_bundle().in_alias_report().expect("a `.gl` is present");
+        assert_eq!(r.aliases, 1);
+        assert_eq!(r.refs, 0, "no `.in`, so no tag-02 population");
+        assert_eq!(r.refs_alias, 0);
+        assert_eq!(r.records_with_alias, 0);
+        assert_eq!(r.data_tu_relocs, 0);
+        assert_eq!(r.data_tu_relocs_alias, 0);
+        assert_eq!(r.emit_names_alias, 0);
+        assert_eq!(r.dom_with_body, 0, "§6 step 4's precondition");
+    }
+
+    /// **`dom_with_body` is carried up, and it is a precondition rather than a
+    /// statistic.** The fence in `data_tu` suppresses a name; suppressing one
+    /// that has a body would delete a symbol c2 emits, which is a wrong obj and
+    /// not a gap. The corpus says 0 over 96,220 records — this builds the
+    /// counterexample anyway, because a safety condition nothing can express is
+    /// a safety condition nobody re-checks.
+    #[test]
+    fn an_alias_that_also_has_a_body_is_visible_to_the_consumer() {
+        let mut gl = vec![0u8; 4];
+        gl_record(&mut gl, 0x0E, 0x1234, "?t@@YAXXZ", &[0, 0]);
+        // The same name twice: once with a body record, once as an alias.
+        gl_record(&mut gl, 0x0E, 0x5566, "?a@@YAXXZ", &[0, 0]);
+        // Low byte < 0x80 in every token: that is the 2-byte `varU` form
+        // `gl_record` writes, and `0x??88` would be read as the 4-byte one.
+        gl_record(&mut gl, 0x10, 0x2244, "?a@@YAXXZ", &[0x12, 0x34]);
+        gl.extend_from_slice(&[0u8; 4]);
+        let mut b = IlBundle::default();
+        b.set("gl", gl);
+        let r = b.in_alias_report().expect("a `.gl` is present");
+        assert_eq!(r.aliases, 1);
+        assert_eq!(
+            r.dom_with_body, 1,
+            "the alias's own name also carries a tag-0x0E record"
+        );
+    }
+
+    /// **The fence is a REFUSAL and not a substitution, and that direction is
+    /// the finding.** §6 step 3 says to resolve the alias here; c2's own objs
+    /// say it leaves the relocation naming `??_E<X>` and writes a
+    /// `WEAK_EXTERNAL` symbol record instead (4,248 such relocations over 675
+    /// workload objs; `ObjImage::weak_externals`). This writer cannot emit that
+    /// record, so the TU is refused rather than emitted one symbol pair short —
+    /// and rather than emitted with a resolved name c2 does not write, which
+    /// would have been a wrong obj produced out of an honest refusal.
+    ///
+    /// The population is **0 on the workload today** (`gap-metric
+    /// alias-datatu-relocs-alias`), so this test is the only thing that
+    /// exercises the clause. That is the point of it.
+    #[test]
+    fn data_tu_refuses_rather_than_resolving_a_relocation_that_names_an_alias() {
+        // `data_tu` needs far more than a `.gl` to reach its object loop; the
+        // reachable assertion here is the one that matters and it is that the
+        // fence never *widens* anything. A bundle the reader already refuses
+        // must still be refused, and one it accepts must be unaffected when it
+        // carries no alias at all.
+        assert!(alias_bundle().data_tu().is_none());
+        let mut b = IlBundle::default();
+        b.set("gl", b"?gv@@3HA\x00".to_vec());
+        assert!(b.data_tu().is_none());
+    }
+
     fn ex_bundle(ex: Vec<u8>) -> IlBundle {
         let mut b = IlBundle::default();
         b.set("ex", ex);
