@@ -1,0 +1,5874 @@
+[
+ {
+  "tu": "src/Main.cpp",
+  "status": "EXIT:param-width-undetermined:mid(hatch-withheld:param-width)",
+  "rungs_raw": 0,
+  "rungs_net": 0,
+  "sink_rungs": 0,
+  "hatch_rungs": 0,
+  "ladder": [],
+  "rounds": [
+   {
+    "round": 0,
+    "reader": {
+     "param-width-undetermined:mid": 1
+    },
+    "emit": {
+     "param-width-undetermined:mid": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41"
+    ],
+    "hatches": []
+   }
+  ],
+  "final_emit": {
+   "param-width-undetermined:mid": 1
+  },
+  "final_gate": {}
+ },
+ {
+  "tu": "src/system/math/Primes.cpp",
+  "status": "READER-CLEAR",
+  "rungs_raw": 13,
+  "rungs_net": 7,
+  "sink_rungs": 7,
+  "hatch_rungs": 0,
+  "ladder": [
+   {
+    "kind": "sink",
+    "token": "op:26",
+    "opened": "expr-call-in-expr-op-0x35"
+   },
+   {
+    "kind": "sink",
+    "token": "op:35",
+    "opened": "expr-op-0x35"
+   },
+   {
+    "kind": "sink",
+    "token": "op:28",
+    "opened": "expr-op-0x28"
+   },
+   {
+    "kind": "sink",
+    "token": "op:30",
+    "opened": "expr-op-0x30"
+   },
+   {
+    "kind": "sink",
+    "token": "op:20",
+    "opened": "expr-cmp-ne"
+   },
+   {
+    "kind": "sink",
+    "token": "op:38",
+    "opened": "expr-brfalse"
+   },
+   {
+    "kind": "sink",
+    "token": "op:23",
+    "opened": "expr-cmp-ge"
+   }
+  ],
+  "rounds": [
+   {
+    "round": 0,
+    "reader": {
+     "expr-jump": 1
+    },
+    "emit": {
+     "expr-jump": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 1,
+    "reader": {
+     "expr-label": 1
+    },
+    "emit": {
+     "expr-label": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:3A"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 2,
+    "reader": {
+     "expr-call-in-expr-op-0x35": 1
+    },
+    "emit": {
+     "expr-call-in-expr-op-0x35": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:3A",
+     "op:29"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 3,
+    "reader": {
+     "expr-op-0x35": 1
+    },
+    "emit": {
+     "expr-op-0x35": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:3A",
+     "op:29",
+     "op:26"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 4,
+    "reader": {
+     "expr-op-0x4B": 1
+    },
+    "emit": {
+     "expr-op-0x4B": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:3A",
+     "op:29",
+     "op:26",
+     "op:35"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 5,
+    "reader": {
+     "expr-op-0x28": 1
+    },
+    "emit": {
+     "expr-op-0x28": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:3A",
+     "op:29",
+     "op:26",
+     "op:35",
+     "op:4B"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 6,
+    "reader": {
+     "expr-op-0x30": 1
+    },
+    "emit": {
+     "expr-op-0x30": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:3A",
+     "op:29",
+     "op:26",
+     "op:35",
+     "op:4B",
+     "op:28"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 7,
+    "reader": {
+     "expr-cmp-ne": 1
+    },
+    "emit": {
+     "expr-cmp-ne": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:3A",
+     "op:29",
+     "op:26",
+     "op:35",
+     "op:4B",
+     "op:28",
+     "op:30"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 8,
+    "reader": {
+     "expr-brfalse": 1
+    },
+    "emit": {
+     "expr-brfalse": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:3A",
+     "op:29",
+     "op:26",
+     "op:35",
+     "op:4B",
+     "op:28",
+     "op:30",
+     "op:20"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 9,
+    "reader": {
+     "expr-op-0x53": 1
+    },
+    "emit": {
+     "expr-op-0x53": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:3A",
+     "op:29",
+     "op:26",
+     "op:35",
+     "op:4B",
+     "op:28",
+     "op:30",
+     "op:20",
+     "op:38"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 10,
+    "reader": {
+     "expr-op-0x4F": 1
+    },
+    "emit": {
+     "expr-op-0x4F": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:3A",
+     "op:29",
+     "op:26",
+     "op:35",
+     "op:4B",
+     "op:28",
+     "op:30",
+     "op:20",
+     "op:38",
+     "op:53"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 11,
+    "reader": {
+     "expr-cmp-ge": 1
+    },
+    "emit": {
+     "expr-cmp-ge": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:3A",
+     "op:29",
+     "op:26",
+     "op:35",
+     "op:4B",
+     "op:28",
+     "op:30",
+     "op:20",
+     "op:38",
+     "op:53",
+     "op:4F"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 12,
+    "reader": {
+     "expr-op-0x54": 1
+    },
+    "emit": {
+     "expr-op-0x54": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:3A",
+     "op:29",
+     "op:26",
+     "op:35",
+     "op:4B",
+     "op:28",
+     "op:30",
+     "op:20",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:23"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 13,
+    "reader": {
+     "expr-chain-noform-0x4F": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:3A",
+     "op:29",
+     "op:26",
+     "op:35",
+     "op:4B",
+     "op:28",
+     "op:30",
+     "op:20",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:23",
+     "op:54"
+    ],
+    "hatches": []
+   }
+  ],
+  "final_emit": {
+   "expr-chain-noform-0x4F": 1
+  },
+  "final_gate": {}
+ },
+ {
+  "tu": "src/xdk/LIBCMT/osfinfo.cpp",
+  "status": "EXIT:expr-shr-mixed-sign:mid(hatch-withheld:expr-shr-mixed-sign)",
+  "rungs_raw": 6,
+  "rungs_net": 4,
+  "sink_rungs": 4,
+  "hatch_rungs": 0,
+  "ladder": [
+   {
+    "kind": "sink",
+    "token": "op:23",
+    "opened": "expr-cmp-ge"
+   },
+   {
+    "kind": "sink",
+    "token": "op:38",
+    "opened": "expr-brfalse"
+   },
+   {
+    "kind": "sink",
+    "token": "op:22",
+    "opened": "expr-cmp-lt"
+   },
+   {
+    "kind": "sink",
+    "token": "op:26",
+    "opened": "expr-call-in-expr-op-0x0A"
+   }
+  ],
+  "rounds": [
+   {
+    "round": 0,
+    "reader": {
+     "expr-cmp-ge": 1
+    },
+    "emit": {
+     "expr-cmp-ge": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 1,
+    "reader": {
+     "expr-brfalse": 1
+    },
+    "emit": {
+     "expr-brfalse": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:23"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 2,
+    "reader": {
+     "expr-cmp-lt": 1
+    },
+    "emit": {
+     "expr-cmp-lt": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:23",
+     "op:38"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 3,
+    "reader": {
+     "expr-op-0x53": 1
+    },
+    "emit": {
+     "expr-op-0x53": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:23",
+     "op:38",
+     "op:22"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 4,
+    "reader": {
+     "expr-op-0x4F": 1
+    },
+    "emit": {
+     "expr-op-0x4F": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:23",
+     "op:38",
+     "op:22",
+     "op:53"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 5,
+    "reader": {
+     "expr-call-in-expr-op-0x0A": 1
+    },
+    "emit": {
+     "expr-call-in-expr-op-0x0A": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:23",
+     "op:38",
+     "op:22",
+     "op:53",
+     "op:4F"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 6,
+    "reader": {
+     "expr-shr-mixed-sign:mid": 1
+    },
+    "emit": {
+     "expr-shr-mixed-sign:mid": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:23",
+     "op:38",
+     "op:22",
+     "op:53",
+     "op:4F",
+     "op:26"
+    ],
+    "hatches": []
+   }
+  ],
+  "final_emit": {
+   "expr-shr-mixed-sign:mid": 1
+  },
+  "final_gate": {}
+ },
+ {
+  "tu": "src/xdk/LIBCMT/undname.cpp",
+  "status": "READER-CLEAR",
+  "rungs_raw": 18,
+  "rungs_net": 12,
+  "sink_rungs": 12,
+  "hatch_rungs": 0,
+  "ladder": [
+   {
+    "kind": "sink",
+    "token": "op:20",
+    "opened": "expr-cmp-ne"
+   },
+   {
+    "kind": "sink",
+    "token": "op:38",
+    "opened": "expr-brfalse"
+   },
+   {
+    "kind": "sink",
+    "token": "op:26",
+    "opened": "expr-call-in-expr-chained-then-cmp-ne-and-branch-more"
+   },
+   {
+    "kind": "sink",
+    "token": "op:99",
+    "opened": "expr-op-0x99"
+   },
+   {
+    "kind": "sink",
+    "token": "op:BD",
+    "opened": "expr-op-0xBD"
+   },
+   {
+    "kind": "sink",
+    "token": "op:55",
+    "opened": "expr-op-0x55"
+   },
+   {
+    "kind": "sink",
+    "token": "op:4C",
+    "opened": "expr-op-0x4C"
+   },
+   {
+    "kind": "sink",
+    "token": "op:32",
+    "opened": "expr-op-0x32"
+   },
+   {
+    "kind": "sink",
+    "token": "op:27",
+    "opened": "expr-op-0x27"
+   },
+   {
+    "kind": "sink",
+    "token": "op:30",
+    "opened": "expr-op-0x30"
+   },
+   {
+    "kind": "sink",
+    "token": "op:1F",
+    "opened": "expr-cmp-eq"
+   },
+   {
+    "kind": "sink",
+    "token": "type",
+    "opened": "expr-lit-type-8211"
+   }
+  ],
+  "rounds": [
+   {
+    "round": 0,
+    "reader": {
+     "expr-cmp-ne": 1
+    },
+    "emit": {
+     "expr-cmp-ne": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 1,
+    "reader": {
+     "expr-brfalse": 1
+    },
+    "emit": {
+     "expr-brfalse": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:20"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 2,
+    "reader": {
+     "expr-op-0x53": 1
+    },
+    "emit": {
+     "expr-op-0x53": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:20",
+     "op:38"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 3,
+    "reader": {
+     "expr-op-0x4F": 1
+    },
+    "emit": {
+     "expr-op-0x4F": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:20",
+     "op:38",
+     "op:53"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 4,
+    "reader": {
+     "expr-call-in-expr-chained-then-cmp-ne-and-branch-more": 1
+    },
+    "emit": {
+     "expr-call-in-expr-chained-then-cmp-ne-and-branch-more": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:20",
+     "op:38",
+     "op:53",
+     "op:4F"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 5,
+    "reader": {
+     "expr-op-0x99": 1
+    },
+    "emit": {
+     "expr-op-0x99": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:20",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:26"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 6,
+    "reader": {
+     "expr-op-0xBD": 1
+    },
+    "emit": {
+     "expr-op-0xBD": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:20",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:99"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 7,
+    "reader": {
+     "expr-op-0x55": 1
+    },
+    "emit": {
+     "expr-op-0x55": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:20",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:99",
+     "op:BD"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 8,
+    "reader": {
+     "expr-op-0x4C": 1
+    },
+    "emit": {
+     "expr-op-0x4C": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:20",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:99",
+     "op:BD",
+     "op:55"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 9,
+    "reader": {
+     "expr-op-0x32": 1
+    },
+    "emit": {
+     "expr-op-0x32": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:20",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:99",
+     "op:BD",
+     "op:55",
+     "op:4C"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 10,
+    "reader": {
+     "expr-op-0x4B": 1
+    },
+    "emit": {
+     "expr-op-0x4B": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:20",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:99",
+     "op:BD",
+     "op:55",
+     "op:4C",
+     "op:32"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 11,
+    "reader": {
+     "expr-op-0x27": 1
+    },
+    "emit": {
+     "expr-op-0x27": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:20",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:99",
+     "op:BD",
+     "op:55",
+     "op:4C",
+     "op:32",
+     "op:4B"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 12,
+    "reader": {
+     "expr-op-0x30": 1
+    },
+    "emit": {
+     "expr-op-0x30": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:20",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:99",
+     "op:BD",
+     "op:55",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:27"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 13,
+    "reader": {
+     "expr-op-0x54": 1
+    },
+    "emit": {
+     "expr-op-0x54": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:20",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:99",
+     "op:BD",
+     "op:55",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:27",
+     "op:30"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 14,
+    "reader": {
+     "expr-label": 1
+    },
+    "emit": {
+     "expr-label": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:20",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:99",
+     "op:BD",
+     "op:55",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:27",
+     "op:30",
+     "op:54"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 15,
+    "reader": {
+     "expr-cmp-eq": 1
+    },
+    "emit": {
+     "expr-cmp-eq": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:20",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:99",
+     "op:BD",
+     "op:55",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:27",
+     "op:30",
+     "op:54",
+     "op:29"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 16,
+    "reader": {
+     "expr-jump": 1
+    },
+    "emit": {
+     "expr-jump": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:20",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:99",
+     "op:BD",
+     "op:55",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:27",
+     "op:30",
+     "op:54",
+     "op:29",
+     "op:1F"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 17,
+    "reader": {
+     "expr-lit-type-8211": 1
+    },
+    "emit": {
+     "expr-lit-type-8211": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:20",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:99",
+     "op:BD",
+     "op:55",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:27",
+     "op:30",
+     "op:54",
+     "op:29",
+     "op:1F",
+     "op:3A"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 18,
+    "reader": {
+     "expr-chain-noform-0x4F": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:20",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:99",
+     "op:BD",
+     "op:55",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:27",
+     "op:30",
+     "op:54",
+     "op:29",
+     "op:1F",
+     "op:3A",
+     "type"
+    ],
+    "hatches": []
+   }
+  ],
+  "final_emit": {
+   "expr-chain-noform-0x4F": 1
+  },
+  "final_gate": {}
+ },
+ {
+  "tu": "src/xdk/LIBCMT/vswprnc.cpp",
+  "status": "READER-CLEAR",
+  "rungs_raw": 17,
+  "rungs_net": 11,
+  "sink_rungs": 11,
+  "hatch_rungs": 0,
+  "ladder": [
+   {
+    "kind": "sink",
+    "token": "op:1F",
+    "opened": "expr-cmp-eq"
+   },
+   {
+    "kind": "sink",
+    "token": "op:39",
+    "opened": "expr-brtrue"
+   },
+   {
+    "kind": "sink",
+    "token": "op:38",
+    "opened": "expr-brfalse"
+   },
+   {
+    "kind": "sink",
+    "token": "op:26",
+    "opened": "expr-call-in-expr-other"
+   },
+   {
+    "kind": "sink",
+    "token": "op:BD",
+    "opened": "expr-op-0xBD"
+   },
+   {
+    "kind": "sink",
+    "token": "op:4C",
+    "opened": "expr-op-0x4C"
+   },
+   {
+    "kind": "sink",
+    "token": "op:32",
+    "opened": "expr-op-0x32"
+   },
+   {
+    "kind": "sink",
+    "token": "op:55",
+    "opened": "expr-op-0x55"
+   },
+   {
+    "kind": "sink",
+    "token": "op:22",
+    "opened": "expr-cmp-lt"
+   },
+   {
+    "kind": "sink",
+    "token": "type",
+    "opened": "expr-lit-type-8422"
+   },
+   {
+    "kind": "sink",
+    "token": "op:20",
+    "opened": "expr-cmp-ne"
+   }
+  ],
+  "rounds": [
+   {
+    "round": 0,
+    "reader": {
+     "expr-cmp-eq": 1
+    },
+    "emit": {
+     "expr-cmp-eq": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 1,
+    "reader": {
+     "expr-brtrue": 1
+    },
+    "emit": {
+     "expr-brtrue": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 2,
+    "reader": {
+     "expr-brfalse": 1
+    },
+    "emit": {
+     "expr-brfalse": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 3,
+    "reader": {
+     "expr-label": 1
+    },
+    "emit": {
+     "expr-label": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 4,
+    "reader": {
+     "expr-op-0x53": 1
+    },
+    "emit": {
+     "expr-op-0x53": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 5,
+    "reader": {
+     "expr-op-0x4F": 1
+    },
+    "emit": {
+     "expr-op-0x4F": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 6,
+    "reader": {
+     "expr-call-in-expr-other": 1
+    },
+    "emit": {
+     "expr-call-in-expr-other": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 7,
+    "reader": {
+     "expr-op-0xBD": 1
+    },
+    "emit": {
+     "expr-op-0xBD": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 8,
+    "reader": {
+     "expr-op-0x4C": 1
+    },
+    "emit": {
+     "expr-op-0x4C": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:BD"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 9,
+    "reader": {
+     "expr-op-0x32": 1
+    },
+    "emit": {
+     "expr-op-0x32": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:BD",
+     "op:4C"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 10,
+    "reader": {
+     "expr-op-0x4B": 1
+    },
+    "emit": {
+     "expr-op-0x4B": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:BD",
+     "op:4C",
+     "op:32"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 11,
+    "reader": {
+     "expr-jump": 1
+    },
+    "emit": {
+     "expr-jump": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:BD",
+     "op:4C",
+     "op:32",
+     "op:4B"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 12,
+    "reader": {
+     "expr-op-0x54": 1
+    },
+    "emit": {
+     "expr-op-0x54": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:BD",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:3A"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 13,
+    "reader": {
+     "expr-op-0x55": 1
+    },
+    "emit": {
+     "expr-op-0x55": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:BD",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:3A",
+     "op:54"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 14,
+    "reader": {
+     "expr-cmp-lt": 1
+    },
+    "emit": {
+     "expr-cmp-lt": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:BD",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:3A",
+     "op:54",
+     "op:55"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 15,
+    "reader": {
+     "expr-lit-type-8422": 1
+    },
+    "emit": {
+     "expr-lit-type-8422": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:BD",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:3A",
+     "op:54",
+     "op:55",
+     "op:22"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 16,
+    "reader": {
+     "expr-cmp-ne": 1
+    },
+    "emit": {
+     "expr-cmp-ne": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:BD",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:3A",
+     "op:54",
+     "op:55",
+     "op:22",
+     "type"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 17,
+    "reader": {
+     "expr-chain-noform-0x4F": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:BD",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:3A",
+     "op:54",
+     "op:55",
+     "op:22",
+     "type",
+     "op:20"
+    ],
+    "hatches": []
+   }
+  ],
+  "final_emit": {
+   "expr-chain-noform-0x4F": 1
+  },
+  "final_gate": {}
+ },
+ {
+  "tu": "src/xdk/nuispeech/xboxheap.cpp",
+  "status": "READER-CLEAR",
+  "rungs_raw": 0,
+  "rungs_net": 0,
+  "sink_rungs": 0,
+  "hatch_rungs": 0,
+  "ladder": [],
+  "rounds": [
+   {
+    "round": 0,
+    "reader": {},
+    "emit": {},
+    "gate": {},
+    "sinks": [
+     "op:41"
+    ],
+    "hatches": []
+   }
+  ],
+  "final_emit": {},
+  "final_gate": {}
+ },
+ {
+  "tu": "src/xdk/xjson/jsonwriter.cpp",
+  "status": "EXIT:expr-shr-mixed-sign:mid(hatch-withheld:expr-shr-mixed-sign)",
+  "rungs_raw": 20,
+  "rungs_net": 14,
+  "sink_rungs": 14,
+  "hatch_rungs": 0,
+  "ladder": [
+   {
+    "kind": "sink",
+    "token": "op:38",
+    "opened": "expr-brfalse"
+   },
+   {
+    "kind": "sink",
+    "token": "op:39",
+    "opened": "expr-brtrue"
+   },
+   {
+    "kind": "sink",
+    "token": "op:30",
+    "opened": "expr-op-0x30"
+   },
+   {
+    "kind": "sink",
+    "token": "op:20",
+    "opened": "expr-cmp-ne"
+   },
+   {
+    "kind": "sink",
+    "token": "op:26",
+    "opened": "expr-call-in-expr-other"
+   },
+   {
+    "kind": "sink",
+    "token": "op:32",
+    "opened": "expr-op-0x32"
+   },
+   {
+    "kind": "sink",
+    "token": "op:27",
+    "opened": "expr-op-0x27"
+   },
+   {
+    "kind": "sink",
+    "token": "op:24",
+    "opened": "expr-cmp-gt"
+   },
+   {
+    "kind": "sink",
+    "token": "op:35",
+    "opened": "expr-op-0x35"
+   },
+   {
+    "kind": "sink",
+    "token": "op:0F",
+    "opened": "expr-op-0x0F"
+   },
+   {
+    "kind": "sink",
+    "token": "type",
+    "opened": "expr-load-type-8422"
+   },
+   {
+    "kind": "sink",
+    "token": "op:21",
+    "opened": "expr-cmp-le"
+   },
+   {
+    "kind": "sink",
+    "token": "op:22",
+    "opened": "expr-cmp-lt"
+   },
+   {
+    "kind": "sink",
+    "token": "convert",
+    "opened": "expr-convert-target-8212"
+   }
+  ],
+  "rounds": [
+   {
+    "round": 0,
+    "reader": {
+     "expr-brfalse": 1
+    },
+    "emit": {
+     "expr-brfalse": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 1,
+    "reader": {
+     "expr-brtrue": 1
+    },
+    "emit": {
+     "expr-brtrue": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 2,
+    "reader": {
+     "expr-op-0x30": 1
+    },
+    "emit": {
+     "expr-op-0x30": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:39"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 3,
+    "reader": {
+     "expr-cmp-ne": 1
+    },
+    "emit": {
+     "expr-cmp-ne": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:39",
+     "op:30"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 4,
+    "reader": {
+     "expr-label": 1
+    },
+    "emit": {
+     "expr-label": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:39",
+     "op:30",
+     "op:20"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 5,
+    "reader": {
+     "expr-op-0x53": 1
+    },
+    "emit": {
+     "expr-op-0x53": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:39",
+     "op:30",
+     "op:20",
+     "op:29"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 6,
+    "reader": {
+     "expr-op-0x4F": 1
+    },
+    "emit": {
+     "expr-op-0x4F": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:39",
+     "op:30",
+     "op:20",
+     "op:29",
+     "op:53"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 7,
+    "reader": {
+     "expr-call-in-expr-other": 1
+    },
+    "emit": {
+     "expr-call-in-expr-other": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:39",
+     "op:30",
+     "op:20",
+     "op:29",
+     "op:53",
+     "op:4F"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 8,
+    "reader": {
+     "expr-op-0x32": 1
+    },
+    "emit": {
+     "expr-op-0x32": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:39",
+     "op:30",
+     "op:20",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 9,
+    "reader": {
+     "expr-op-0x4B": 1
+    },
+    "emit": {
+     "expr-op-0x4B": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:39",
+     "op:30",
+     "op:20",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:32"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 10,
+    "reader": {
+     "expr-op-0x54": 1
+    },
+    "emit": {
+     "expr-op-0x54": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:39",
+     "op:30",
+     "op:20",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:32",
+     "op:4B"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 11,
+    "reader": {
+     "expr-jump": 1
+    },
+    "emit": {
+     "expr-jump": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:39",
+     "op:30",
+     "op:20",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:32",
+     "op:4B",
+     "op:54"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 12,
+    "reader": {
+     "expr-op-0x27": 1
+    },
+    "emit": {
+     "expr-op-0x27": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:39",
+     "op:30",
+     "op:20",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:32",
+     "op:4B",
+     "op:54",
+     "op:3A"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 13,
+    "reader": {
+     "expr-cmp-gt": 1
+    },
+    "emit": {
+     "expr-cmp-gt": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:39",
+     "op:30",
+     "op:20",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:32",
+     "op:4B",
+     "op:54",
+     "op:3A",
+     "op:27"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 14,
+    "reader": {
+     "expr-op-0x35": 1
+    },
+    "emit": {
+     "expr-op-0x35": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:39",
+     "op:30",
+     "op:20",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:32",
+     "op:4B",
+     "op:54",
+     "op:3A",
+     "op:27",
+     "op:24"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 15,
+    "reader": {
+     "expr-op-0x0F": 1
+    },
+    "emit": {
+     "expr-op-0x0F": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:39",
+     "op:30",
+     "op:20",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:32",
+     "op:4B",
+     "op:54",
+     "op:3A",
+     "op:27",
+     "op:24",
+     "op:35"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 16,
+    "reader": {
+     "expr-load-type-8422": 1
+    },
+    "emit": {
+     "expr-load-type-8422": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:39",
+     "op:30",
+     "op:20",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:32",
+     "op:4B",
+     "op:54",
+     "op:3A",
+     "op:27",
+     "op:24",
+     "op:35",
+     "op:0F"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 17,
+    "reader": {
+     "expr-cmp-le": 1
+    },
+    "emit": {
+     "expr-cmp-le": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:39",
+     "op:30",
+     "op:20",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:32",
+     "op:4B",
+     "op:54",
+     "op:3A",
+     "op:27",
+     "op:24",
+     "op:35",
+     "op:0F",
+     "type"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 18,
+    "reader": {
+     "expr-cmp-lt": 1
+    },
+    "emit": {
+     "expr-cmp-lt": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:39",
+     "op:30",
+     "op:20",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:32",
+     "op:4B",
+     "op:54",
+     "op:3A",
+     "op:27",
+     "op:24",
+     "op:35",
+     "op:0F",
+     "type",
+     "op:21"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 19,
+    "reader": {
+     "expr-convert-target-8212": 1
+    },
+    "emit": {
+     "expr-convert-target-8212": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:39",
+     "op:30",
+     "op:20",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:32",
+     "op:4B",
+     "op:54",
+     "op:3A",
+     "op:27",
+     "op:24",
+     "op:35",
+     "op:0F",
+     "type",
+     "op:21",
+     "op:22"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 20,
+    "reader": {
+     "expr-shr-mixed-sign:mid": 1
+    },
+    "emit": {
+     "expr-shr-mixed-sign:mid": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:39",
+     "op:30",
+     "op:20",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:32",
+     "op:4B",
+     "op:54",
+     "op:3A",
+     "op:27",
+     "op:24",
+     "op:35",
+     "op:0F",
+     "type",
+     "op:21",
+     "op:22",
+     "convert"
+    ],
+    "hatches": []
+   }
+  ],
+  "final_emit": {
+   "expr-shr-mixed-sign:mid": 1
+  },
+  "final_gate": {}
+ },
+ {
+  "tu": "src/xdk/xlrc/xlrcimpl.cpp",
+  "status": "EXIT:assign-rhs-call-0x26(no-lift)",
+  "rungs_raw": 0,
+  "rungs_net": 0,
+  "sink_rungs": 0,
+  "hatch_rungs": 0,
+  "ladder": [],
+  "rounds": [
+   {
+    "round": 0,
+    "reader": {
+     "assign-rhs-call-0x26": 1
+    },
+    "emit": {
+     "assign-rhs-call-0x26": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41"
+    ],
+    "hatches": [],
+    "tail_inert": [
+     "assign-rhs-call-0x26:op:26"
+    ]
+   }
+  ],
+  "final_emit": {
+   "assign-rhs-call-0x26": 1
+  },
+  "final_gate": {}
+ },
+ {
+  "tu": "src/system/negate_test.cpp",
+  "status": "EXIT:assign-store-type-8643(hatch-withheld:assign-store-type)",
+  "rungs_raw": 0,
+  "rungs_net": 0,
+  "sink_rungs": 0,
+  "hatch_rungs": 0,
+  "ladder": [],
+  "rounds": [
+   {
+    "round": 0,
+    "reader": {
+     "assign-store-type-8643": 2
+    },
+    "emit": {
+     "assign-store-type-8643": 2
+    },
+    "gate": {},
+    "sinks": [
+     "op:41"
+    ],
+    "hatches": []
+   }
+  ],
+  "final_emit": {
+   "assign-store-type-8643": 2
+  },
+  "final_gate": {}
+ },
+ {
+  "tu": "src/system/synth_xbox/Biquad.cpp",
+  "status": "EXIT:expr-chain-noform-0x00(noform)",
+  "rungs_raw": 9,
+  "rungs_net": 7,
+  "sink_rungs": 7,
+  "hatch_rungs": 0,
+  "ladder": [
+   {
+    "kind": "sink",
+    "token": "op:26",
+    "opened": "expr-call-in-expr-recv-load-then-plumbing-0x3A"
+   },
+   {
+    "kind": "sink",
+    "token": "op:1F",
+    "opened": "expr-cmp-eq"
+   },
+   {
+    "kind": "sink",
+    "token": "op:38",
+    "opened": "expr-brfalse"
+   },
+   {
+    "kind": "sink",
+    "token": "op:27",
+    "opened": "expr-op-0x27"
+   },
+   {
+    "kind": "sink",
+    "token": "op:28",
+    "opened": "expr-op-0x28"
+   },
+   {
+    "kind": "sink",
+    "token": "type",
+    "opened": "expr-lit-type-864A"
+   },
+   {
+    "kind": "sink",
+    "token": "op:00",
+    "opened": "expr-op-0x00"
+   }
+  ],
+  "rounds": [
+   {
+    "round": 0,
+    "reader": {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-cmp-eq": 1
+    },
+    "emit": {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-cmp-eq": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 1,
+    "reader": {
+     "expr-brfalse": 1,
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1
+    },
+    "emit": {
+     "expr-brfalse": 1,
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:26",
+     "op:1F"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 2,
+    "reader": {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-op-0x53": 1
+    },
+    "emit": {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-op-0x53": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:26",
+     "op:1F",
+     "op:38"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 3,
+    "reader": {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-op-0x4F": 1
+    },
+    "emit": {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-op-0x4F": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:26",
+     "op:1F",
+     "op:38",
+     "op:53"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 4,
+    "reader": {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-op-0x27": 1
+    },
+    "emit": {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-op-0x27": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:26",
+     "op:1F",
+     "op:38",
+     "op:53",
+     "op:4F"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 5,
+    "reader": {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-op-0x28": 1
+    },
+    "emit": {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-op-0x28": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:26",
+     "op:1F",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:27"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 6,
+    "reader": {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-lit-type-864A": 1
+    },
+    "emit": {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-lit-type-864A": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:26",
+     "op:1F",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:27",
+     "op:28"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 7,
+    "reader": {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-op-0x00": 1
+    },
+    "emit": {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-op-0x00": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:26",
+     "op:1F",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:27",
+     "op:28",
+     "type"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 8,
+    "reader": {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-chain-noform-0x00": 1
+    },
+    "emit": {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-chain-noform-0x00": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:26",
+     "op:1F",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:27",
+     "op:28",
+     "type",
+     "op:00"
+    ],
+    "hatches": [],
+    "tail_inert": [
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A:op:3A"
+    ]
+   }
+  ],
+  "final_emit": {
+   "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+   "expr-chain-noform-0x00": 1
+  },
+  "final_gate": {}
+ },
+ {
+  "tu": "src/xdk/LIBCMT/vsnprnc.cpp",
+  "status": "READER-CLEAR",
+  "rungs_raw": 18,
+  "rungs_net": 12,
+  "sink_rungs": 12,
+  "hatch_rungs": 0,
+  "ladder": [
+   {
+    "kind": "sink",
+    "token": "op:1F",
+    "opened": "expr-cmp-eq"
+   },
+   {
+    "kind": "sink",
+    "token": "op:39",
+    "opened": "expr-brtrue"
+   },
+   {
+    "kind": "sink",
+    "token": "op:38",
+    "opened": "expr-brfalse"
+   },
+   {
+    "kind": "sink",
+    "token": "op:26",
+    "opened": "expr-call-in-expr-other"
+   },
+   {
+    "kind": "sink",
+    "token": "op:BD",
+    "opened": "expr-op-0xBD"
+   },
+   {
+    "kind": "sink",
+    "token": "op:4C",
+    "opened": "expr-op-0x4C"
+   },
+   {
+    "kind": "sink",
+    "token": "op:32",
+    "opened": "expr-op-0x32"
+   },
+   {
+    "kind": "sink",
+    "token": "op:55",
+    "opened": "expr-op-0x55"
+   },
+   {
+    "kind": "sink",
+    "token": "op:22",
+    "opened": "expr-cmp-lt"
+   },
+   {
+    "kind": "sink",
+    "token": "op:28",
+    "opened": "expr-op-0x28"
+   },
+   {
+    "kind": "sink",
+    "token": "type",
+    "opened": "expr-lit-type-8211"
+   },
+   {
+    "kind": "sink",
+    "token": "op:20",
+    "opened": "expr-cmp-ne"
+   }
+  ],
+  "rounds": [
+   {
+    "round": 0,
+    "reader": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-cmp-eq": 1
+    },
+    "emit": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-cmp-eq": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41"
+    ],
+    "hatches": [],
+    "stuck": [
+     "call-arg-lit-permuted:mid(hatch-withheld:call-arg-lit-permuted)"
+    ]
+   },
+   {
+    "round": 1,
+    "reader": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-brtrue": 1
+    },
+    "emit": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-brtrue": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F"
+    ],
+    "hatches": [],
+    "stuck": [
+     "call-arg-lit-permuted:mid(hatch-withheld:call-arg-lit-permuted)"
+    ]
+   },
+   {
+    "round": 2,
+    "reader": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-brfalse": 1
+    },
+    "emit": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-brfalse": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39"
+    ],
+    "hatches": [],
+    "stuck": [
+     "call-arg-lit-permuted:mid(hatch-withheld:call-arg-lit-permuted)"
+    ]
+   },
+   {
+    "round": 3,
+    "reader": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-label": 1
+    },
+    "emit": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-label": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38"
+    ],
+    "hatches": [],
+    "stuck": [
+     "call-arg-lit-permuted:mid(hatch-withheld:call-arg-lit-permuted)"
+    ]
+   },
+   {
+    "round": 4,
+    "reader": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-op-0x53": 1
+    },
+    "emit": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-op-0x53": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29"
+    ],
+    "hatches": [],
+    "stuck": [
+     "call-arg-lit-permuted:mid(hatch-withheld:call-arg-lit-permuted)"
+    ]
+   },
+   {
+    "round": 5,
+    "reader": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-op-0x4F": 1
+    },
+    "emit": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-op-0x4F": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53"
+    ],
+    "hatches": [],
+    "stuck": [
+     "call-arg-lit-permuted:mid(hatch-withheld:call-arg-lit-permuted)"
+    ]
+   },
+   {
+    "round": 6,
+    "reader": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-call-in-expr-other": 1
+    },
+    "emit": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-call-in-expr-other": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F"
+    ],
+    "hatches": [],
+    "stuck": [
+     "call-arg-lit-permuted:mid(hatch-withheld:call-arg-lit-permuted)"
+    ]
+   },
+   {
+    "round": 7,
+    "reader": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-op-0xBD": 1
+    },
+    "emit": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-op-0xBD": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26"
+    ],
+    "hatches": [],
+    "stuck": [
+     "call-arg-lit-permuted:mid(hatch-withheld:call-arg-lit-permuted)"
+    ]
+   },
+   {
+    "round": 8,
+    "reader": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-op-0x4C": 1
+    },
+    "emit": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-op-0x4C": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:BD"
+    ],
+    "hatches": [],
+    "stuck": [
+     "call-arg-lit-permuted:mid(hatch-withheld:call-arg-lit-permuted)"
+    ]
+   },
+   {
+    "round": 9,
+    "reader": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-op-0x32": 1
+    },
+    "emit": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-op-0x32": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:BD",
+     "op:4C"
+    ],
+    "hatches": [],
+    "stuck": [
+     "call-arg-lit-permuted:mid(hatch-withheld:call-arg-lit-permuted)"
+    ]
+   },
+   {
+    "round": 10,
+    "reader": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-op-0x4B": 1
+    },
+    "emit": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-op-0x4B": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:BD",
+     "op:4C",
+     "op:32"
+    ],
+    "hatches": [],
+    "stuck": [
+     "call-arg-lit-permuted:mid(hatch-withheld:call-arg-lit-permuted)"
+    ]
+   },
+   {
+    "round": 11,
+    "reader": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-op-0x54": 1
+    },
+    "emit": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-op-0x54": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:BD",
+     "op:4C",
+     "op:32",
+     "op:4B"
+    ],
+    "hatches": [],
+    "stuck": [
+     "call-arg-lit-permuted:mid(hatch-withheld:call-arg-lit-permuted)"
+    ]
+   },
+   {
+    "round": 12,
+    "reader": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-jump": 1
+    },
+    "emit": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-jump": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:BD",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:54"
+    ],
+    "hatches": [],
+    "stuck": [
+     "call-arg-lit-permuted:mid(hatch-withheld:call-arg-lit-permuted)"
+    ]
+   },
+   {
+    "round": 13,
+    "reader": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-op-0x55": 1
+    },
+    "emit": {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-op-0x55": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:BD",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:54",
+     "op:3A"
+    ],
+    "hatches": [],
+    "stuck": [
+     "call-arg-lit-permuted:mid(hatch-withheld:call-arg-lit-permuted)"
+    ]
+   },
+   {
+    "round": 14,
+    "reader": {
+     "expr-chain-noform-0x4F": 1,
+     "expr-cmp-lt": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 1,
+     "expr-cmp-lt": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:BD",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:54",
+     "op:3A",
+     "op:55"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 15,
+    "reader": {
+     "expr-chain-noform-0x4F": 1,
+     "expr-op-0x28": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 1,
+     "expr-op-0x28": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:BD",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:54",
+     "op:3A",
+     "op:55",
+     "op:22"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 16,
+    "reader": {
+     "expr-chain-noform-0x4F": 1,
+     "expr-lit-type-8211": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 1,
+     "expr-lit-type-8211": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:BD",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:54",
+     "op:3A",
+     "op:55",
+     "op:22",
+     "op:28"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 17,
+    "reader": {
+     "expr-chain-noform-0x4F": 1,
+     "expr-cmp-ne": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 1,
+     "expr-cmp-ne": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:BD",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:54",
+     "op:3A",
+     "op:55",
+     "op:22",
+     "op:28",
+     "type"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 18,
+    "reader": {
+     "expr-chain-noform-0x4F": 2
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 2
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:39",
+     "op:38",
+     "op:29",
+     "op:53",
+     "op:4F",
+     "op:26",
+     "op:BD",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:54",
+     "op:3A",
+     "op:55",
+     "op:22",
+     "op:28",
+     "type",
+     "op:20"
+    ],
+    "hatches": []
+   }
+  ],
+  "final_emit": {
+   "expr-chain-noform-0x4F": 2
+  },
+  "final_gate": {}
+ },
+ {
+  "tu": "src/system/rndobj/wordwrap.cpp",
+  "status": "EXIT:expr-chain-noform-0x1C(noform)",
+  "rungs_raw": 25,
+  "rungs_net": 19,
+  "sink_rungs": 19,
+  "hatch_rungs": 0,
+  "ladder": [
+   {
+    "kind": "sink",
+    "token": "op:38",
+    "opened": "expr-brfalse"
+   },
+   {
+    "kind": "sink",
+    "token": "op:1F",
+    "opened": "expr-cmp-eq"
+   },
+   {
+    "kind": "sink",
+    "token": "op:26",
+    "opened": "expr-call-in-expr-data-read-then-cmp-eq-and-branch-more"
+   },
+   {
+    "kind": "sink",
+    "token": "type",
+    "opened": "expr-load-type-8422"
+   },
+   {
+    "kind": "sink",
+    "token": "op:23",
+    "opened": "expr-cmp-ge"
+   },
+   {
+    "kind": "sink",
+    "token": "op:30",
+    "opened": "expr-op-0x30"
+   },
+   {
+    "kind": "sink",
+    "token": "op:21",
+    "opened": "expr-cmp-le"
+   },
+   {
+    "kind": "sink",
+    "token": "convert",
+    "opened": "expr-convert-target-8422"
+   },
+   {
+    "kind": "sink",
+    "token": "op:39",
+    "opened": "expr-brtrue"
+   },
+   {
+    "kind": "sink",
+    "token": "op:32",
+    "opened": "expr-op-0x32"
+   },
+   {
+    "kind": "sink",
+    "token": "op:1C",
+    "opened": "expr-and-and"
+   },
+   {
+    "kind": "sink",
+    "token": "op:28",
+    "opened": "expr-op-0x28"
+   },
+   {
+    "kind": "sink",
+    "token": "op:05",
+    "opened": "expr-op-0x05-8641"
+   },
+   {
+    "kind": "sink",
+    "token": "op:27",
+    "opened": "expr-op-0x27"
+   },
+   {
+    "kind": "sink",
+    "token": "op:22",
+    "opened": "expr-cmp-lt"
+   },
+   {
+    "kind": "sink",
+    "token": "op:20",
+    "opened": "expr-cmp-ne"
+   },
+   {
+    "kind": "sink",
+    "token": "op:BD",
+    "opened": "expr-op-0xBD"
+   },
+   {
+    "kind": "sink",
+    "token": "op:55",
+    "opened": "expr-op-0x55"
+   },
+   {
+    "kind": "sink",
+    "token": "op:4C",
+    "opened": "expr-op-0x4C"
+   }
+  ],
+  "rounds": [
+   {
+    "round": 0,
+    "reader": {
+     "expr-brfalse": 1,
+     "expr-cmp-eq": 1,
+     "expr-jump": 1
+    },
+    "emit": {
+     "expr-brfalse": 1,
+     "expr-cmp-eq": 1,
+     "expr-jump": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 1,
+    "reader": {
+     "expr-op-0x53": 2,
+     "expr-op-0x54": 1
+    },
+    "emit": {
+     "expr-op-0x53": 2,
+     "expr-op-0x54": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:1F",
+     "op:3A"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 2,
+    "reader": {
+     "expr-label": 1,
+     "expr-op-0x4F": 2
+    },
+    "emit": {
+     "expr-label": 1,
+     "expr-op-0x4F": 2
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:1F",
+     "op:3A",
+     "op:53",
+     "op:54"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 3,
+    "reader": {
+     "expr-call-in-expr-data-read-then-cmp-eq-and-branch-more": 1,
+     "expr-chain-noform-0x4F": 1,
+     "expr-load-type-8422": 1
+    },
+    "emit": {
+     "expr-call-in-expr-data-read-then-cmp-eq-and-branch-more": 1,
+     "expr-chain-noform-0x4F": 1,
+     "expr-load-type-8422": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:1F",
+     "op:3A",
+     "op:53",
+     "op:54",
+     "op:29",
+     "op:4F"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 4,
+    "reader": {
+     "expr-chain-noform-0x4F": 1,
+     "expr-cmp-ge": 1,
+     "expr-op-0x30": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 1,
+     "expr-cmp-ge": 1,
+     "expr-op-0x30": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:1F",
+     "op:3A",
+     "op:53",
+     "op:54",
+     "op:29",
+     "op:4F",
+     "op:26",
+     "type"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 5,
+    "reader": {
+     "expr-chain-noform-0x4F": 1,
+     "expr-cmp-le": 1,
+     "expr-convert-target-8422": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 1,
+     "expr-cmp-le": 1,
+     "expr-convert-target-8422": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:1F",
+     "op:3A",
+     "op:53",
+     "op:54",
+     "op:29",
+     "op:4F",
+     "op:26",
+     "type",
+     "op:23",
+     "op:30"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 6,
+    "reader": {
+     "expr-brtrue": 1,
+     "expr-chain-noform-0x4F": 1,
+     "expr-op-0x32": 1
+    },
+    "emit": {
+     "expr-brtrue": 1,
+     "expr-chain-noform-0x4F": 1,
+     "expr-op-0x32": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:1F",
+     "op:3A",
+     "op:53",
+     "op:54",
+     "op:29",
+     "op:4F",
+     "op:26",
+     "type",
+     "op:23",
+     "op:30",
+     "op:21",
+     "convert"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 7,
+    "reader": {
+     "expr-and-and": 1,
+     "expr-op-0x4B": 2
+    },
+    "emit": {
+     "expr-and-and": 1,
+     "expr-op-0x4B": 2
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:1F",
+     "op:3A",
+     "op:53",
+     "op:54",
+     "op:29",
+     "op:4F",
+     "op:26",
+     "type",
+     "op:23",
+     "op:30",
+     "op:21",
+     "convert",
+     "op:39",
+     "op:32"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 8,
+    "reader": {
+     "expr-chain-noform-0x1C": 1,
+     "expr-chain-noform-0x4F": 1,
+     "expr-op-0x28": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x1C": 1,
+     "expr-chain-noform-0x4F": 1,
+     "expr-op-0x28": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:1F",
+     "op:3A",
+     "op:53",
+     "op:54",
+     "op:29",
+     "op:4F",
+     "op:26",
+     "type",
+     "op:23",
+     "op:30",
+     "op:21",
+     "convert",
+     "op:39",
+     "op:32",
+     "op:1C",
+     "op:4B"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x1C(noform)"
+    ]
+   },
+   {
+    "round": 9,
+    "reader": {
+     "expr-chain-noform-0x1C": 1,
+     "expr-chain-noform-0x4F": 1,
+     "expr-op-0x05-8641": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x1C": 1,
+     "expr-chain-noform-0x4F": 1,
+     "expr-op-0x05-8641": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:1F",
+     "op:3A",
+     "op:53",
+     "op:54",
+     "op:29",
+     "op:4F",
+     "op:26",
+     "type",
+     "op:23",
+     "op:30",
+     "op:21",
+     "convert",
+     "op:39",
+     "op:32",
+     "op:1C",
+     "op:4B",
+     "op:28"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x1C(noform)"
+    ]
+   },
+   {
+    "round": 10,
+    "reader": {
+     "expr-chain-noform-0x1C": 1,
+     "expr-chain-noform-0x4F": 1,
+     "expr-op-0x27": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x1C": 1,
+     "expr-chain-noform-0x4F": 1,
+     "expr-op-0x27": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:1F",
+     "op:3A",
+     "op:53",
+     "op:54",
+     "op:29",
+     "op:4F",
+     "op:26",
+     "type",
+     "op:23",
+     "op:30",
+     "op:21",
+     "convert",
+     "op:39",
+     "op:32",
+     "op:1C",
+     "op:4B",
+     "op:28",
+     "op:05"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x1C(noform)"
+    ]
+   },
+   {
+    "round": 11,
+    "reader": {
+     "expr-chain-noform-0x1C": 1,
+     "expr-chain-noform-0x4F": 1,
+     "expr-cmp-lt": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x1C": 1,
+     "expr-chain-noform-0x4F": 1,
+     "expr-cmp-lt": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:1F",
+     "op:3A",
+     "op:53",
+     "op:54",
+     "op:29",
+     "op:4F",
+     "op:26",
+     "type",
+     "op:23",
+     "op:30",
+     "op:21",
+     "convert",
+     "op:39",
+     "op:32",
+     "op:1C",
+     "op:4B",
+     "op:28",
+     "op:05",
+     "op:27"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x1C(noform)"
+    ]
+   },
+   {
+    "round": 12,
+    "reader": {
+     "expr-chain-noform-0x1C": 1,
+     "expr-chain-noform-0x4F": 1,
+     "expr-cmp-ne": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x1C": 1,
+     "expr-chain-noform-0x4F": 1,
+     "expr-cmp-ne": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:1F",
+     "op:3A",
+     "op:53",
+     "op:54",
+     "op:29",
+     "op:4F",
+     "op:26",
+     "type",
+     "op:23",
+     "op:30",
+     "op:21",
+     "convert",
+     "op:39",
+     "op:32",
+     "op:1C",
+     "op:4B",
+     "op:28",
+     "op:05",
+     "op:27",
+     "op:22"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x1C(noform)"
+    ]
+   },
+   {
+    "round": 13,
+    "reader": {
+     "expr-chain-noform-0x1C": 1,
+     "expr-chain-noform-0x4F": 1,
+     "expr-op-0xBD": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x1C": 1,
+     "expr-chain-noform-0x4F": 1,
+     "expr-op-0xBD": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:1F",
+     "op:3A",
+     "op:53",
+     "op:54",
+     "op:29",
+     "op:4F",
+     "op:26",
+     "type",
+     "op:23",
+     "op:30",
+     "op:21",
+     "convert",
+     "op:39",
+     "op:32",
+     "op:1C",
+     "op:4B",
+     "op:28",
+     "op:05",
+     "op:27",
+     "op:22",
+     "op:20"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x1C(noform)"
+    ]
+   },
+   {
+    "round": 14,
+    "reader": {
+     "expr-chain-noform-0x1C": 1,
+     "expr-chain-noform-0x4F": 1,
+     "expr-op-0x55": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x1C": 1,
+     "expr-chain-noform-0x4F": 1,
+     "expr-op-0x55": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:1F",
+     "op:3A",
+     "op:53",
+     "op:54",
+     "op:29",
+     "op:4F",
+     "op:26",
+     "type",
+     "op:23",
+     "op:30",
+     "op:21",
+     "convert",
+     "op:39",
+     "op:32",
+     "op:1C",
+     "op:4B",
+     "op:28",
+     "op:05",
+     "op:27",
+     "op:22",
+     "op:20",
+     "op:BD"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x1C(noform)"
+    ]
+   },
+   {
+    "round": 15,
+    "reader": {
+     "expr-chain-noform-0x1C": 1,
+     "expr-chain-noform-0x4F": 1,
+     "expr-op-0x4C": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x1C": 1,
+     "expr-chain-noform-0x4F": 1,
+     "expr-op-0x4C": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:1F",
+     "op:3A",
+     "op:53",
+     "op:54",
+     "op:29",
+     "op:4F",
+     "op:26",
+     "type",
+     "op:23",
+     "op:30",
+     "op:21",
+     "convert",
+     "op:39",
+     "op:32",
+     "op:1C",
+     "op:4B",
+     "op:28",
+     "op:05",
+     "op:27",
+     "op:22",
+     "op:20",
+     "op:BD",
+     "op:55"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x1C(noform)"
+    ]
+   },
+   {
+    "round": 16,
+    "reader": {
+     "expr-chain-noform-0x1C": 1,
+     "expr-chain-noform-0x4F": 2
+    },
+    "emit": {
+     "expr-chain-noform-0x1C": 1,
+     "expr-chain-noform-0x4F": 2
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:1F",
+     "op:3A",
+     "op:53",
+     "op:54",
+     "op:29",
+     "op:4F",
+     "op:26",
+     "type",
+     "op:23",
+     "op:30",
+     "op:21",
+     "convert",
+     "op:39",
+     "op:32",
+     "op:1C",
+     "op:4B",
+     "op:28",
+     "op:05",
+     "op:27",
+     "op:22",
+     "op:20",
+     "op:BD",
+     "op:55",
+     "op:4C"
+    ],
+    "hatches": []
+   }
+  ],
+  "final_emit": {
+   "expr-chain-noform-0x1C": 1,
+   "expr-chain-noform-0x4F": 2
+  },
+  "final_gate": {}
+ },
+ {
+  "tu": "src/system/utl/Pool.cpp",
+  "status": "EXIT:expr-chain-noform-0x10(noform)",
+  "rungs_raw": 15,
+  "rungs_net": 9,
+  "sink_rungs": 9,
+  "hatch_rungs": 0,
+  "ladder": [
+   {
+    "kind": "sink",
+    "token": "op:39",
+    "opened": "expr-brtrue"
+   },
+   {
+    "kind": "sink",
+    "token": "op:27",
+    "opened": "expr-op-0x27"
+   },
+   {
+    "kind": "sink",
+    "token": "op:30",
+    "opened": "expr-op-0x30"
+   },
+   {
+    "kind": "sink",
+    "token": "op:32",
+    "opened": "expr-op-0x32"
+   },
+   {
+    "kind": "sink",
+    "token": "op:26",
+    "opened": "expr-call-in-expr-other"
+   },
+   {
+    "kind": "sink",
+    "token": "op:05",
+    "opened": "expr-op-0x05-8641"
+   },
+   {
+    "kind": "sink",
+    "token": "op:24",
+    "opened": "expr-cmp-gt"
+   },
+   {
+    "kind": "sink",
+    "token": "op:38",
+    "opened": "expr-brfalse"
+   },
+   {
+    "kind": "sink",
+    "token": "op:10",
+    "opened": "expr-op-0x10"
+   }
+  ],
+  "rounds": [
+   {
+    "round": 0,
+    "reader": {
+     "expr-brtrue": 1,
+     "expr-op-0x27": 2
+    },
+    "emit": {
+     "expr-brtrue": 1,
+     "expr-op-0x27": 2
+    },
+    "gate": {},
+    "sinks": [
+     "op:41"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 1,
+    "reader": {
+     "expr-op-0x30": 1,
+     "expr-op-0x32": 1,
+     "expr-op-0x53": 1
+    },
+    "emit": {
+     "expr-op-0x30": 1,
+     "expr-op-0x32": 1,
+     "expr-op-0x53": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:39",
+     "op:27"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 2,
+    "reader": {
+     "expr-op-0x4B": 2,
+     "expr-op-0x4F": 1
+    },
+    "emit": {
+     "expr-op-0x4B": 2,
+     "expr-op-0x4F": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:39",
+     "op:27",
+     "op:30",
+     "op:32",
+     "op:53"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 3,
+    "reader": {
+     "expr-call-in-expr-other": 1,
+     "expr-jump": 2
+    },
+    "emit": {
+     "expr-call-in-expr-other": 1,
+     "expr-jump": 2
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:39",
+     "op:27",
+     "op:30",
+     "op:32",
+     "op:53",
+     "op:4B",
+     "op:4F"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 4,
+    "reader": {
+     "expr-op-0x05-8641": 1,
+     "expr-op-0x54": 2
+    },
+    "emit": {
+     "expr-op-0x05-8641": 1,
+     "expr-op-0x54": 2
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:39",
+     "op:27",
+     "op:30",
+     "op:32",
+     "op:53",
+     "op:4B",
+     "op:4F",
+     "op:26",
+     "op:3A"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 5,
+    "reader": {
+     "expr-cmp-gt": 1,
+     "expr-label": 2
+    },
+    "emit": {
+     "expr-cmp-gt": 1,
+     "expr-label": 2
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:39",
+     "op:27",
+     "op:30",
+     "op:32",
+     "op:53",
+     "op:4B",
+     "op:4F",
+     "op:26",
+     "op:3A",
+     "op:05",
+     "op:54"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 6,
+    "reader": {
+     "expr-brfalse": 1,
+     "expr-chain-noform-0x4F": 2
+    },
+    "emit": {
+     "expr-brfalse": 1,
+     "expr-chain-noform-0x4F": 2
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:39",
+     "op:27",
+     "op:30",
+     "op:32",
+     "op:53",
+     "op:4B",
+     "op:4F",
+     "op:26",
+     "op:3A",
+     "op:05",
+     "op:54",
+     "op:24",
+     "op:29"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 7,
+    "reader": {
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0x10": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0x10": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:39",
+     "op:27",
+     "op:30",
+     "op:32",
+     "op:53",
+     "op:4B",
+     "op:4F",
+     "op:26",
+     "op:3A",
+     "op:05",
+     "op:54",
+     "op:24",
+     "op:29",
+     "op:38"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 8,
+    "reader": {
+     "expr-chain-noform-0x10": 1,
+     "expr-chain-noform-0x4F": 2
+    },
+    "emit": {
+     "expr-chain-noform-0x10": 1,
+     "expr-chain-noform-0x4F": 2
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:39",
+     "op:27",
+     "op:30",
+     "op:32",
+     "op:53",
+     "op:4B",
+     "op:4F",
+     "op:26",
+     "op:3A",
+     "op:05",
+     "op:54",
+     "op:24",
+     "op:29",
+     "op:38",
+     "op:10"
+    ],
+    "hatches": []
+   }
+  ],
+  "final_emit": {
+   "expr-chain-noform-0x10": 1,
+   "expr-chain-noform-0x4F": 2
+  },
+  "final_gate": {}
+ },
+ {
+  "tu": "src/xdk/nuispeech/mmio.cpp",
+  "status": "READER-CLEAR",
+  "rungs_raw": 18,
+  "rungs_net": 12,
+  "sink_rungs": 12,
+  "hatch_rungs": 0,
+  "ladder": [
+   {
+    "kind": "sink",
+    "token": "op:1F",
+    "opened": "expr-cmp-eq"
+   },
+   {
+    "kind": "sink",
+    "token": "op:38",
+    "opened": "expr-brfalse"
+   },
+   {
+    "kind": "sink",
+    "token": "op:26",
+    "opened": "expr-call-in-expr-other"
+   },
+   {
+    "kind": "sink",
+    "token": "intrinsic",
+    "opened": "expr-intrinsic-memcpy"
+   },
+   {
+    "kind": "sink",
+    "token": "op:55",
+    "opened": "expr-op-0x55"
+   },
+   {
+    "kind": "sink",
+    "token": "op:BD",
+    "opened": "expr-op-0xBD"
+   },
+   {
+    "kind": "sink",
+    "token": "op:4C",
+    "opened": "expr-op-0x4C"
+   },
+   {
+    "kind": "sink",
+    "token": "op:32",
+    "opened": "expr-op-0x32"
+   },
+   {
+    "kind": "sink",
+    "token": "op:20",
+    "opened": "expr-cmp-ne"
+   },
+   {
+    "kind": "sink",
+    "token": "op:27",
+    "opened": "expr-op-0x27"
+   },
+   {
+    "kind": "sink",
+    "token": "op:30",
+    "opened": "expr-op-0x30"
+   },
+   {
+    "kind": "sink",
+    "token": "op:22",
+    "opened": "expr-cmp-lt"
+   }
+  ],
+  "rounds": [
+   {
+    "round": 0,
+    "reader": {
+     "expr-cmp-eq": 3,
+     "expr-jump": 8
+    },
+    "emit": {
+     "expr-cmp-eq": 3,
+     "expr-jump": 8
+    },
+    "gate": {},
+    "sinks": [
+     "op:41"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 1,
+    "reader": {
+     "expr-brfalse": 3,
+     "expr-op-0x4F": 2,
+     "expr-op-0x54": 6
+    },
+    "emit": {
+     "expr-brfalse": 3,
+     "expr-op-0x4F": 2,
+     "expr-op-0x54": 6
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:3A"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 2,
+    "reader": {
+     "expr-label": 8,
+     "expr-op-0x53": 3
+    },
+    "emit": {
+     "expr-label": 8,
+     "expr-op-0x53": 3
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:3A",
+     "op:38",
+     "op:4F",
+     "op:54"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 3,
+    "reader": {
+     "expr-call-in-expr-other": 1,
+     "expr-chain-noform-0x4F": 8,
+     "expr-intrinsic-memcpy": 2
+    },
+    "emit": {
+     "expr-call-in-expr-other": 1,
+     "expr-chain-noform-0x4F": 8,
+     "expr-intrinsic-memcpy": 2
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:3A",
+     "op:38",
+     "op:4F",
+     "op:54",
+     "op:29",
+     "op:53"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 4,
+    "reader": {
+     "expr-chain-noform-0x4F": 8,
+     "expr-op-0x55": 2,
+     "expr-op-0xBD": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 8,
+     "expr-op-0x55": 2,
+     "expr-op-0xBD": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:3A",
+     "op:38",
+     "op:4F",
+     "op:54",
+     "op:29",
+     "op:53",
+     "op:26",
+     "intrinsic"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 5,
+    "reader": {
+     "expr-chain-noform-0x4F": 8,
+     "expr-op-0x4C": 3
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 8,
+     "expr-op-0x4C": 3
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:3A",
+     "op:38",
+     "op:4F",
+     "op:54",
+     "op:29",
+     "op:53",
+     "op:26",
+     "intrinsic",
+     "op:55",
+     "op:BD"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 6,
+    "reader": {
+     "expr-chain-noform-0x4F": 8,
+     "expr-op-0x32": 1,
+     "expr-op-0x4B": 2
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 8,
+     "expr-op-0x32": 1,
+     "expr-op-0x4B": 2
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:3A",
+     "op:38",
+     "op:4F",
+     "op:54",
+     "op:29",
+     "op:53",
+     "op:26",
+     "intrinsic",
+     "op:55",
+     "op:BD",
+     "op:4C"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 7,
+    "reader": {
+     "expr-chain-noform-0x4F": 9,
+     "expr-cmp-ne": 1,
+     "expr-op-0x27": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 9,
+     "expr-cmp-ne": 1,
+     "expr-op-0x27": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:3A",
+     "op:38",
+     "op:4F",
+     "op:54",
+     "op:29",
+     "op:53",
+     "op:26",
+     "intrinsic",
+     "op:55",
+     "op:BD",
+     "op:4C",
+     "op:32",
+     "op:4B"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 8,
+    "reader": {
+     "expr-chain-noform-0x4F": 9,
+     "expr-op-0x30": 2
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 9,
+     "expr-op-0x30": 2
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:3A",
+     "op:38",
+     "op:4F",
+     "op:54",
+     "op:29",
+     "op:53",
+     "op:26",
+     "intrinsic",
+     "op:55",
+     "op:BD",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:20",
+     "op:27"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 9,
+    "reader": {
+     "expr-chain-noform-0x4F": 10,
+     "expr-cmp-lt": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 10,
+     "expr-cmp-lt": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:3A",
+     "op:38",
+     "op:4F",
+     "op:54",
+     "op:29",
+     "op:53",
+     "op:26",
+     "intrinsic",
+     "op:55",
+     "op:BD",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:20",
+     "op:27",
+     "op:30"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 10,
+    "reader": {
+     "expr-chain-noform-0x4F": 11
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 11
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:3A",
+     "op:38",
+     "op:4F",
+     "op:54",
+     "op:29",
+     "op:53",
+     "op:26",
+     "intrinsic",
+     "op:55",
+     "op:BD",
+     "op:4C",
+     "op:32",
+     "op:4B",
+     "op:20",
+     "op:27",
+     "op:30",
+     "op:22"
+    ],
+    "hatches": []
+   }
+  ],
+  "final_emit": {
+   "expr-chain-noform-0x4F": 11
+  },
+  "final_gate": {}
+ },
+ {
+  "tu": "src/system/synth_xbox/IPP_basicmath_xbox.cpp",
+  "status": "EXIT:expr-chain-noform-0x11(noform)",
+  "rungs_raw": 18,
+  "rungs_net": 12,
+  "sink_rungs": 12,
+  "hatch_rungs": 0,
+  "ladder": [
+   {
+    "kind": "sink",
+    "token": "op:1F",
+    "opened": "expr-cmp-eq"
+   },
+   {
+    "kind": "sink",
+    "token": "op:38",
+    "opened": "expr-brfalse"
+   },
+   {
+    "kind": "sink",
+    "token": "op:26",
+    "opened": "expr-call-in-expr-other"
+   },
+   {
+    "kind": "sink",
+    "token": "op:32",
+    "opened": "expr-op-0x32"
+   },
+   {
+    "kind": "sink",
+    "token": "op:35",
+    "opened": "expr-op-0x35"
+   },
+   {
+    "kind": "sink",
+    "token": "op:22",
+    "opened": "expr-cmp-lt"
+   },
+   {
+    "kind": "sink",
+    "token": "op:28",
+    "opened": "expr-op-0x28"
+   },
+   {
+    "kind": "sink",
+    "token": "type",
+    "opened": "expr-load-type-8645"
+   },
+   {
+    "kind": "sink",
+    "token": "op:30",
+    "opened": "expr-op-0x30"
+   },
+   {
+    "kind": "sink",
+    "token": "convert",
+    "opened": "expr-convert-target-8645"
+   },
+   {
+    "kind": "sink",
+    "token": "op:0F",
+    "opened": "expr-op-0x0F"
+   },
+   {
+    "kind": "sink",
+    "token": "op:11",
+    "opened": "expr-op-0x11"
+   }
+  ],
+  "rounds": [
+   {
+    "round": 0,
+    "reader": {
+     "expr-cmp-eq": 4
+    },
+    "emit": {
+     "expr-cmp-eq": 4
+    },
+    "gate": {},
+    "sinks": [
+     "op:41"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 1,
+    "reader": {
+     "expr-brfalse": 4
+    },
+    "emit": {
+     "expr-brfalse": 4
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 2,
+    "reader": {
+     "expr-op-0x53": 4
+    },
+    "emit": {
+     "expr-op-0x53": 4
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:38"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 3,
+    "reader": {
+     "expr-op-0x4F": 4
+    },
+    "emit": {
+     "expr-op-0x4F": 4
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:38",
+     "op:53"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 4,
+    "reader": {
+     "expr-jump": 4
+    },
+    "emit": {
+     "expr-jump": 4
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:38",
+     "op:53",
+     "op:4F"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 5,
+    "reader": {
+     "expr-op-0x54": 4
+    },
+    "emit": {
+     "expr-op-0x54": 4
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:3A"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 6,
+    "reader": {
+     "expr-label": 4
+    },
+    "emit": {
+     "expr-label": 4
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:3A",
+     "op:54"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 7,
+    "reader": {
+     "expr-call-in-expr-other": 4
+    },
+    "emit": {
+     "expr-call-in-expr-other": 4
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:3A",
+     "op:54",
+     "op:29"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 8,
+    "reader": {
+     "expr-op-0x32": 4
+    },
+    "emit": {
+     "expr-op-0x32": 4
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:3A",
+     "op:54",
+     "op:29",
+     "op:26"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 9,
+    "reader": {
+     "expr-op-0x4B": 4
+    },
+    "emit": {
+     "expr-op-0x4B": 4
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:3A",
+     "op:54",
+     "op:29",
+     "op:26",
+     "op:32"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 10,
+    "reader": {
+     "expr-op-0x35": 4
+    },
+    "emit": {
+     "expr-op-0x35": 4
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:3A",
+     "op:54",
+     "op:29",
+     "op:26",
+     "op:32",
+     "op:4B"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 11,
+    "reader": {
+     "expr-cmp-lt": 4
+    },
+    "emit": {
+     "expr-cmp-lt": 4
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:3A",
+     "op:54",
+     "op:29",
+     "op:26",
+     "op:32",
+     "op:4B",
+     "op:35"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 12,
+    "reader": {
+     "expr-op-0x28": 4
+    },
+    "emit": {
+     "expr-op-0x28": 4
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:3A",
+     "op:54",
+     "op:29",
+     "op:26",
+     "op:32",
+     "op:4B",
+     "op:35",
+     "op:22"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 13,
+    "reader": {
+     "expr-load-type-8645": 1,
+     "expr-op-0x30": 3
+    },
+    "emit": {
+     "expr-load-type-8645": 1,
+     "expr-op-0x30": 3
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:3A",
+     "op:54",
+     "op:29",
+     "op:26",
+     "op:32",
+     "op:4B",
+     "op:35",
+     "op:22",
+     "op:28"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 14,
+    "reader": {
+     "expr-convert-target-8645": 1,
+     "expr-op-0x0F": 1,
+     "expr-op-0x11": 2
+    },
+    "emit": {
+     "expr-convert-target-8645": 1,
+     "expr-op-0x0F": 1,
+     "expr-op-0x11": 2
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:3A",
+     "op:54",
+     "op:29",
+     "op:26",
+     "op:32",
+     "op:4B",
+     "op:35",
+     "op:22",
+     "op:28",
+     "type",
+     "op:30"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 15,
+    "reader": {
+     "expr-chain-noform-0x11": 2,
+     "expr-chain-noform-0x4F": 2
+    },
+    "emit": {
+     "expr-chain-noform-0x11": 2,
+     "expr-chain-noform-0x4F": 2
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:1F",
+     "op:38",
+     "op:53",
+     "op:4F",
+     "op:3A",
+     "op:54",
+     "op:29",
+     "op:26",
+     "op:32",
+     "op:4B",
+     "op:35",
+     "op:22",
+     "op:28",
+     "type",
+     "op:30",
+     "convert",
+     "op:0F",
+     "op:11"
+    ],
+    "hatches": []
+   }
+  ],
+  "final_emit": {
+   "expr-chain-noform-0x11": 2,
+   "expr-chain-noform-0x4F": 2
+  },
+  "final_gate": {}
+ },
+ {
+  "tu": "src/system/utl/EncryptXTEA.cpp",
+  "status": "EXIT:expr-chain-noform-0x00(noform)",
+  "rungs_raw": 23,
+  "rungs_net": 17,
+  "sink_rungs": 17,
+  "hatch_rungs": 0,
+  "ladder": [
+   {
+    "kind": "sink",
+    "token": "intrinsic",
+    "opened": "expr-intrinsic-memcpy"
+   },
+   {
+    "kind": "sink",
+    "token": "type",
+    "opened": "expr-load-type-8882"
+   },
+   {
+    "kind": "sink",
+    "token": "op:27",
+    "opened": "expr-op-0x27"
+   },
+   {
+    "kind": "sink",
+    "token": "op:00",
+    "opened": "expr-op-0x00"
+   },
+   {
+    "kind": "sink",
+    "token": "op:28",
+    "opened": "expr-op-0x28"
+   },
+   {
+    "kind": "sink",
+    "token": "op:55",
+    "opened": "expr-op-0x55"
+   },
+   {
+    "kind": "sink",
+    "token": "op:30",
+    "opened": "expr-op-0x30"
+   },
+   {
+    "kind": "sink",
+    "token": "op:4C",
+    "opened": "expr-op-0x4C"
+   },
+   {
+    "kind": "sink",
+    "token": "convert",
+    "opened": "expr-convert-target-A882"
+   },
+   {
+    "kind": "sink",
+    "token": "op:32",
+    "opened": "expr-op-0x32"
+   },
+   {
+    "kind": "sink",
+    "token": "op:26",
+    "opened": "expr-call-in-expr-other"
+   },
+   {
+    "kind": "sink",
+    "token": "op:35",
+    "opened": "expr-op-0x35"
+   },
+   {
+    "kind": "sink",
+    "token": "op:22",
+    "opened": "expr-cmp-lt"
+   },
+   {
+    "kind": "sink",
+    "token": "op:38",
+    "opened": "expr-brfalse"
+   },
+   {
+    "kind": "sink",
+    "token": "op:99",
+    "opened": "expr-op-0x99"
+   },
+   {
+    "kind": "sink",
+    "token": "op:BD",
+    "opened": "expr-op-0xBD"
+   },
+   {
+    "kind": "sink",
+    "token": "op:0F",
+    "opened": "expr-op-0x0F"
+   }
+  ],
+  "rounds": [
+   {
+    "round": 0,
+    "reader": {
+     "expr-intrinsic-memcpy": 1,
+     "expr-load-type-8882": 1,
+     "expr-op-0x27": 2
+    },
+    "emit": {
+     "expr-intrinsic-memcpy": 1,
+     "expr-load-type-8882": 1,
+     "expr-op-0x27": 2
+    },
+    "gate": {},
+    "sinks": [
+     "op:41"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 1,
+    "reader": {
+     "expr-chain-sink-poison:mid": 1,
+     "expr-op-0x00": 1,
+     "expr-op-0x28": 1,
+     "expr-op-0x55": 1
+    },
+    "emit": {
+     "expr-chain-sink-poison:mid": 1,
+     "expr-op-0x00": 1,
+     "expr-op-0x28": 1,
+     "expr-op-0x55": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 2,
+    "reader": {
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-sink-poison:mid": 1,
+     "expr-op-0x30": 1,
+     "expr-op-0x4C": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-sink-poison:mid": 1,
+     "expr-op-0x30": 1,
+     "expr-op-0x4C": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:00",
+     "op:28",
+     "op:55"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x00(noform)"
+    ]
+   },
+   {
+    "round": 3,
+    "reader": {
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-sink-poison:mid": 1,
+     "expr-convert-target-A882": 1,
+     "expr-op-0x4B": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-sink-poison:mid": 1,
+     "expr-convert-target-A882": 1,
+     "expr-op-0x4B": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:00",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x00(noform)"
+    ]
+   },
+   {
+    "round": 4,
+    "reader": {
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-sink-poison:mid": 1,
+     "expr-jump": 1,
+     "expr-op-0x32": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-sink-poison:mid": 1,
+     "expr-jump": 1,
+     "expr-op-0x32": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:00",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x00(noform)"
+    ]
+   },
+   {
+    "round": 5,
+    "reader": {
+     "expr-chain-noform-0x00": 1,
+     "expr-op-0x4F": 2,
+     "expr-op-0x54": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x00": 1,
+     "expr-op-0x4F": 2,
+     "expr-op-0x54": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:00",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B",
+     "op:3A",
+     "op:32"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x00(noform)"
+    ]
+   },
+   {
+    "round": 6,
+    "reader": {
+     "expr-call-in-expr-other": 1,
+     "expr-chain-noform-0x00": 1,
+     "expr-label": 2
+    },
+    "emit": {
+     "expr-call-in-expr-other": 1,
+     "expr-chain-noform-0x00": 1,
+     "expr-label": 2
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:00",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B",
+     "op:3A",
+     "op:32",
+     "op:4F",
+     "op:54"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x00(noform)"
+    ]
+   },
+   {
+    "round": 7,
+    "reader": {
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0x53": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0x53": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:00",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B",
+     "op:3A",
+     "op:32",
+     "op:4F",
+     "op:54",
+     "op:26",
+     "op:29"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x00(noform)"
+    ]
+   },
+   {
+    "round": 8,
+    "reader": {
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0x35": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0x35": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:00",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B",
+     "op:3A",
+     "op:32",
+     "op:4F",
+     "op:54",
+     "op:26",
+     "op:29",
+     "op:53"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x00(noform)"
+    ]
+   },
+   {
+    "round": 9,
+    "reader": {
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-noform-0x4F": 2,
+     "expr-cmp-lt": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-noform-0x4F": 2,
+     "expr-cmp-lt": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:00",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B",
+     "op:3A",
+     "op:32",
+     "op:4F",
+     "op:54",
+     "op:26",
+     "op:29",
+     "op:53",
+     "op:35"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x00(noform)"
+    ]
+   },
+   {
+    "round": 10,
+    "reader": {
+     "expr-brfalse": 1,
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-noform-0x4F": 2
+    },
+    "emit": {
+     "expr-brfalse": 1,
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-noform-0x4F": 2
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:00",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B",
+     "op:3A",
+     "op:32",
+     "op:4F",
+     "op:54",
+     "op:26",
+     "op:29",
+     "op:53",
+     "op:35",
+     "op:22"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x00(noform)"
+    ]
+   },
+   {
+    "round": 11,
+    "reader": {
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0x99": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0x99": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:00",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B",
+     "op:3A",
+     "op:32",
+     "op:4F",
+     "op:54",
+     "op:26",
+     "op:29",
+     "op:53",
+     "op:35",
+     "op:22",
+     "op:38"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x00(noform)"
+    ]
+   },
+   {
+    "round": 12,
+    "reader": {
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0xBD": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0xBD": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:00",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B",
+     "op:3A",
+     "op:32",
+     "op:4F",
+     "op:54",
+     "op:26",
+     "op:29",
+     "op:53",
+     "op:35",
+     "op:22",
+     "op:38",
+     "op:99"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x00(noform)"
+    ]
+   },
+   {
+    "round": 13,
+    "reader": {
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0x0F": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0x0F": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:00",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B",
+     "op:3A",
+     "op:32",
+     "op:4F",
+     "op:54",
+     "op:26",
+     "op:29",
+     "op:53",
+     "op:35",
+     "op:22",
+     "op:38",
+     "op:99",
+     "op:BD"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x00(noform)"
+    ]
+   },
+   {
+    "round": 14,
+    "reader": {
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-noform-0x4F": 3
+    },
+    "emit": {
+     "expr-chain-noform-0x00": 1,
+     "expr-chain-noform-0x4F": 3
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:00",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B",
+     "op:3A",
+     "op:32",
+     "op:4F",
+     "op:54",
+     "op:26",
+     "op:29",
+     "op:53",
+     "op:35",
+     "op:22",
+     "op:38",
+     "op:99",
+     "op:BD",
+     "op:0F"
+    ],
+    "hatches": []
+   }
+  ],
+  "final_emit": {
+   "expr-chain-noform-0x00": 1,
+   "expr-chain-noform-0x4F": 3
+  },
+  "final_gate": {}
+ },
+ {
+  "tu": "src/keygen_xbox.cpp",
+  "status": "EXIT:expr-chain-noform-0x13(noform)",
+  "rungs_raw": 24,
+  "rungs_net": 18,
+  "sink_rungs": 18,
+  "hatch_rungs": 0,
+  "ladder": [
+   {
+    "kind": "sink",
+    "token": "op:38",
+    "opened": "expr-brfalse"
+   },
+   {
+    "kind": "sink",
+    "token": "op:26",
+    "opened": "expr-call-in-expr-data-addr-then-plain-call-and-op-more"
+   },
+   {
+    "kind": "sink",
+    "token": "type",
+    "opened": "expr-lit-type-9641"
+   },
+   {
+    "kind": "sink",
+    "token": "op:0F",
+    "opened": "expr-op-0x0F"
+   },
+   {
+    "kind": "sink",
+    "token": "op:30",
+    "opened": "expr-op-0x30"
+   },
+   {
+    "kind": "sink",
+    "token": "op:21",
+    "opened": "expr-cmp-le"
+   },
+   {
+    "kind": "sink",
+    "token": "op:28",
+    "opened": "expr-op-0x28"
+   },
+   {
+    "kind": "sink",
+    "token": "op:35",
+    "opened": "expr-op-0x35"
+   },
+   {
+    "kind": "sink",
+    "token": "op:22",
+    "opened": "expr-cmp-lt"
+   },
+   {
+    "kind": "sink",
+    "token": "convert",
+    "opened": "expr-convert-target-8212"
+   },
+   {
+    "kind": "sink",
+    "token": "op:13",
+    "opened": "expr-op-0x13"
+   },
+   {
+    "kind": "sink",
+    "token": "op:32",
+    "opened": "expr-op-0x32"
+   },
+   {
+    "kind": "sink",
+    "token": "op:BD",
+    "opened": "expr-op-0xBD"
+   },
+   {
+    "kind": "sink",
+    "token": "op:1F",
+    "opened": "expr-cmp-eq"
+   },
+   {
+    "kind": "sink",
+    "token": "op:4C",
+    "opened": "expr-op-0x4C"
+   },
+   {
+    "kind": "sink",
+    "token": "op:55",
+    "opened": "expr-op-0x55"
+   },
+   {
+    "kind": "sink",
+    "token": "op:43",
+    "opened": "expr-ternary"
+   },
+   {
+    "kind": "sink",
+    "token": "op:39",
+    "opened": "expr-brtrue"
+   }
+  ],
+  "rounds": [
+   {
+    "round": 0,
+    "reader": {
+     "assign-store-type-8643": 2,
+     "call-arg-outer-formal:eof": 1,
+     "expr-brfalse": 1,
+     "expr-call-in-expr-data-addr-then-plain-call-and-op-more": 1,
+     "expr-call-in-expr-op-0x1F": 1,
+     "expr-jump": 9,
+     "expr-lit-type-9641": 1,
+     "expr-load-type-8211": 1,
+     "expr-op-0x0F": 1,
+     "expr-op-0x30": 1
+    },
+    "emit": {
+     "assign-store-type-8643": 2,
+     "call-arg-outer-formal:eof": 1,
+     "expr-brfalse": 1,
+     "expr-call-in-expr-data-addr-then-plain-call-and-op-more": 1,
+     "expr-call-in-expr-op-0x1F": 1,
+     "expr-jump": 9,
+     "expr-lit-type-9641": 1,
+     "expr-load-type-8211": 1,
+     "expr-op-0x0F": 1,
+     "expr-op-0x30": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41"
+    ],
+    "hatches": [],
+    "stuck": [
+     "assign-store-type-8643(hatch-withheld:assign-store-type)",
+     "call-arg-outer-formal:eof(hatch-withheld:call-arg-outer-formal)"
+    ]
+   },
+   {
+    "round": 1,
+    "reader": {
+     "assign-store-type-8643": 2,
+     "call-arg-outer-formal:eof": 1,
+     "expr-chain-sink-poison:mid": 1,
+     "expr-cmp-le": 1,
+     "expr-convert-no-value-0x2C": 1,
+     "expr-label": 8,
+     "expr-op-0x28": 1,
+     "expr-op-0x35": 1,
+     "expr-op-0x4B": 1,
+     "expr-op-0x53": 1,
+     "expr-op-0x54": 1
+    },
+    "emit": {
+     "assign-store-type-8643": 2,
+     "call-arg-outer-formal:eof": 1,
+     "expr-chain-sink-poison:mid": 1,
+     "expr-cmp-le": 1,
+     "expr-convert-no-value-0x2C": 1,
+     "expr-label": 8,
+     "expr-op-0x28": 1,
+     "expr-op-0x35": 1,
+     "expr-op-0x4B": 1,
+     "expr-op-0x53": 1,
+     "expr-op-0x54": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:26",
+     "op:3A",
+     "type",
+     "op:0F",
+     "op:30"
+    ],
+    "hatches": [],
+    "stuck": [
+     "assign-store-type-8643(hatch-withheld:assign-store-type)",
+     "call-arg-outer-formal:eof(hatch-withheld:call-arg-outer-formal)",
+     "expr-convert-no-value-0x2C(hatch-withheld:expr-convert-no-value)"
+    ]
+   },
+   {
+    "round": 2,
+    "reader": {
+     "assign-store-type-8643": 2,
+     "call-arg-outer-formal:eof": 1,
+     "expr-chain-sink-poison:mid": 2,
+     "expr-cmp-lt": 8,
+     "expr-convert-no-value-0x2C": 1,
+     "expr-op-0x4F": 5
+    },
+    "emit": {
+     "assign-store-type-8643": 2,
+     "call-arg-outer-formal:eof": 1,
+     "expr-chain-sink-poison:mid": 2,
+     "expr-cmp-lt": 8,
+     "expr-convert-no-value-0x2C": 1,
+     "expr-op-0x4F": 5
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:26",
+     "op:3A",
+     "type",
+     "op:0F",
+     "op:30",
+     "op:21",
+     "op:29",
+     "op:28",
+     "op:35",
+     "op:4B",
+     "op:53",
+     "op:54"
+    ],
+    "hatches": [],
+    "stuck": [
+     "assign-store-type-8643(hatch-withheld:assign-store-type)",
+     "call-arg-outer-formal:eof(hatch-withheld:call-arg-outer-formal)",
+     "expr-convert-no-value-0x2C(hatch-withheld:expr-convert-no-value)"
+    ]
+   },
+   {
+    "round": 3,
+    "reader": {
+     "assign-store-type-8643": 2,
+     "call-arg-outer-formal:eof": 1,
+     "expr-chain-noform-0x4F": 2,
+     "expr-chain-sink-poison:mid": 2,
+     "expr-convert-no-value-0x2C": 1,
+     "expr-convert-target-8212": 1,
+     "expr-op-0x13": 1,
+     "expr-op-0x32": 1,
+     "expr-op-0xBD": 8
+    },
+    "emit": {
+     "assign-store-type-8643": 2,
+     "call-arg-outer-formal:eof": 1,
+     "expr-chain-noform-0x4F": 2,
+     "expr-chain-sink-poison:mid": 2,
+     "expr-convert-no-value-0x2C": 1,
+     "expr-convert-target-8212": 1,
+     "expr-op-0x13": 1,
+     "expr-op-0x32": 1,
+     "expr-op-0xBD": 8
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:26",
+     "op:3A",
+     "type",
+     "op:0F",
+     "op:30",
+     "op:21",
+     "op:29",
+     "op:28",
+     "op:35",
+     "op:4B",
+     "op:53",
+     "op:54",
+     "op:22",
+     "op:4F"
+    ],
+    "hatches": [],
+    "stuck": [
+     "assign-store-type-8643(hatch-withheld:assign-store-type)",
+     "call-arg-outer-formal:eof(hatch-withheld:call-arg-outer-formal)",
+     "expr-convert-no-value-0x2C(hatch-withheld:expr-convert-no-value)"
+    ]
+   },
+   {
+    "round": 4,
+    "reader": {
+     "call-arg-outer-formal:eof": 1,
+     "expr-chain-noform-0x13": 1,
+     "expr-chain-noform-0x4F": 6,
+     "expr-chain-sink-poison:mid": 1,
+     "expr-cmp-eq": 1,
+     "expr-op-0x4C": 1,
+     "expr-op-0x55": 8
+    },
+    "emit": {
+     "call-arg-outer-formal:eof": 1,
+     "expr-chain-noform-0x13": 1,
+     "expr-chain-noform-0x4F": 6,
+     "expr-chain-sink-poison:mid": 1,
+     "expr-cmp-eq": 1,
+     "expr-op-0x4C": 1,
+     "expr-op-0x55": 8
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:26",
+     "op:3A",
+     "type",
+     "op:0F",
+     "op:30",
+     "op:21",
+     "op:29",
+     "op:28",
+     "op:35",
+     "op:4B",
+     "op:53",
+     "op:54",
+     "op:22",
+     "op:4F",
+     "convert",
+     "op:13",
+     "op:32",
+     "op:BD"
+    ],
+    "hatches": [],
+    "stuck": [
+     "call-arg-outer-formal:eof(hatch-withheld:call-arg-outer-formal)",
+     "expr-chain-noform-0x13(noform)"
+    ]
+   },
+   {
+    "round": 5,
+    "reader": {
+     "expr-chain-noform-0x13": 1,
+     "expr-chain-noform-0x4F": 18,
+     "expr-ternary": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x13": 1,
+     "expr-chain-noform-0x4F": 18,
+     "expr-ternary": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:26",
+     "op:3A",
+     "type",
+     "op:0F",
+     "op:30",
+     "op:21",
+     "op:29",
+     "op:28",
+     "op:35",
+     "op:4B",
+     "op:53",
+     "op:54",
+     "op:22",
+     "op:4F",
+     "convert",
+     "op:13",
+     "op:32",
+     "op:BD",
+     "op:1F",
+     "op:4C",
+     "op:55"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x13(noform)"
+    ]
+   },
+   {
+    "round": 6,
+    "reader": {
+     "expr-brtrue": 1,
+     "expr-chain-noform-0x13": 1,
+     "expr-chain-noform-0x4F": 18
+    },
+    "emit": {
+     "expr-brtrue": 1,
+     "expr-chain-noform-0x13": 1,
+     "expr-chain-noform-0x4F": 18
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:26",
+     "op:3A",
+     "type",
+     "op:0F",
+     "op:30",
+     "op:21",
+     "op:29",
+     "op:28",
+     "op:35",
+     "op:4B",
+     "op:53",
+     "op:54",
+     "op:22",
+     "op:4F",
+     "convert",
+     "op:13",
+     "op:32",
+     "op:BD",
+     "op:1F",
+     "op:4C",
+     "op:55",
+     "op:43"
+    ],
+    "hatches": [],
+    "stuck": [
+     "expr-chain-noform-0x13(noform)"
+    ]
+   },
+   {
+    "round": 7,
+    "reader": {
+     "expr-chain-noform-0x13": 1,
+     "expr-chain-noform-0x4F": 19
+    },
+    "emit": {
+     "expr-chain-noform-0x13": 1,
+     "expr-chain-noform-0x4F": 19
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:26",
+     "op:3A",
+     "type",
+     "op:0F",
+     "op:30",
+     "op:21",
+     "op:29",
+     "op:28",
+     "op:35",
+     "op:4B",
+     "op:53",
+     "op:54",
+     "op:22",
+     "op:4F",
+     "convert",
+     "op:13",
+     "op:32",
+     "op:BD",
+     "op:1F",
+     "op:4C",
+     "op:55",
+     "op:43",
+     "op:39"
+    ],
+    "hatches": []
+   }
+  ],
+  "final_emit": {
+   "expr-chain-noform-0x13": 1,
+   "expr-chain-noform-0x4F": 19
+  },
+  "final_gate": {}
+ }
+]
