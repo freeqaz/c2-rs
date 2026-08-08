@@ -1,0 +1,124 @@
+========================================================================
+EMITTED blockers  —  sink OFF vs ptr4
+  totals 130575 -> 130575   (delta 0)
+  keys   648 -> 651;  53 keys moved; 5 keys are NEW, 2 vanished
+      -1133     1133 ->       0   assign-store-type-8643
+       +886        0 ->     886   expr-op-0x60
+        +86      303 ->     389   expr-jump
+        +36        1 ->      37   expr-op-0x10
+        +25    22373 ->   22398   expr-op-0x27
+        +10      138 ->     148   expr-call-in-expr-recv-load-then-plumbing-0x3A
+         +9       51 ->      60   expr-label
+         +7     9267 ->    9274   expr-intrinsic-this-adjust
+         +7       31 ->      38   expr-op-0xBD
+         -5        5 ->       0   assign-store-type-8644
+         +5      136 ->     141   expr-op-0x67
+         +5     2208 ->    2213   expr-cmp-eq
+         +4       26 ->      30   expr-cmp-ge
+         +4     3105 ->    3109   expr-brfalse
+         +3      103 ->     106   expr-call-in-expr-recv-load-then-cmp-gt-and-branch-more
+         +3      863 ->     866   expr-cmp-ne
+         +3      330 ->     333   expr-op-0x30
+         +3     1939 ->    1942   expr-brtrue
+         +3       11 ->      14   assign-rhs-call-0x26
+         +2     6466 ->    6468   expr-intrinsic-base-member-addr
+         +2      692 ->     694   expr-ptr-arith:mid
+         +2     1587 ->    1589   expr-op-0x9B
+         +2      453 ->     455   expr-call-in-expr-recv-load-then-branch-brfalse
+         +2      484 ->     486   expr-call-in-expr-recv-load-then-deref-load-more
+         +1        3 ->       4   expr-call-in-expr-recv-intrinsic-this-adjust-then-call-recv-load-more
+   ... 28 further keys
+  sum of deltas: 0
+========================================================================
+EMITTED blockers  —  sink OFF vs any
+  totals 130575 -> 130575   (delta 0)
+  keys   648 -> 660;  77 keys moved; 15 keys are NEW, 3 vanished
+      -1133     1133 ->       0   assign-store-type-8643
+       +886        0 ->     886   expr-op-0x60
+       -294      294 ->       0   assign-store-type-8212
+       +131      635 ->     766   expr-call-in-expr-recv-load-then-call-other
+       +106      303 ->     409   expr-jump
+        +56        3 ->      59   expr-call-in-expr-recv-load-then-type-int1-and-call-more
+        +51    22373 ->   22424   expr-op-0x27
+        +36        1 ->      37   expr-op-0x10
+        +10       51 ->      61   expr-label
+        +10      138 ->     148   expr-call-in-expr-recv-load-then-plumbing-0x3A
+         +9     3105 ->    3114   expr-brfalse
+         +8       31 ->      39   expr-op-0xBD
+         +7     9267 ->    9274   expr-intrinsic-this-adjust
+         +7     6466 ->    6473   expr-intrinsic-base-member-addr
+         +7     1939 ->    1946   expr-brtrue
+         +6     2208 ->    2214   expr-cmp-eq
+         -5        5 ->       0   assign-store-type-8644
+         +5      136 ->     141   expr-op-0x67
+         +5        0 ->       5   expr-call-in-expr-recv-object-then-type-int1-and-call-more
+         +5        2 ->       7   expr-call-in-expr-recv-load-then-type-int1-and-branch-more
+         +4      863 ->     867   expr-cmp-ne
+         +4       26 ->      30   expr-cmp-ge
+         +3        0 ->       3   expr-call-in-expr-recv-field-then-type-int1-and-plumbing-more
+         +3       61 ->      64   expr-call-in-expr-recv-load-then-type-int1-and-op-more
+         +3        0 ->       3   expr-call-in-expr-recv-load-then-type-int1-and-deref-load-more
+   ... 52 further keys
+  sum of deltas: 0
+========================================================================
+ALL-FUNCTION blockers  —  sink OFF vs ptr4
+  totals 1751957 -> 1751957   (delta 0)
+  keys   671 -> 674;  54 keys moved; 5 keys are NEW, 2 vanished
+      -6821     6821 ->       0   assign-store-type-8643
+      +3855        0 ->    3855   expr-op-0x60
+      +3085     2287 ->    5372   expr-jump
+      -1402     1402 ->       0   assign-store-type-8644
+       +722        1 ->     723   expr-op-0x10
+       +451   402139 ->  402590   expr-op-0x27
+        +10     5191 ->    5201   expr-call-in-expr-recv-load-then-plumbing-0x3A
+         +9     1463 ->    1472   expr-label
+         +8   135866 ->  135874   expr-intrinsic-this-adjust
+         +7       34 ->      41   expr-op-0xBD
+         +6      547 ->     553   expr-op-0x67
+         +5    18247 ->   18252   expr-cmp-eq
+         +4       34 ->      38   expr-cmp-ge
+         +4    26515 ->   26519   expr-brfalse
+         +3     1667 ->    1670   expr-call-in-expr-recv-load-then-cmp-gt-and-branch-more
+         +3     5640 ->    5643   expr-cmp-ne
+         +3     1986 ->    1989   expr-call-in-expr-recv-load-then-branch-brfalse
+         +3    11470 ->   11473   expr-op-0x30
+         +3    35466 ->   35469   expr-brtrue
+         +3       11 ->      14   assign-rhs-call-0x26
+         +2   113982 ->  113984   expr-intrinsic-base-member-addr
+         +2     8816 ->    8818   expr-ptr-arith:mid
+         +2    15584 ->   15586   expr-op-0x9B
+         +2     4973 ->    4975   expr-convert-no-value-0x2C
+         +2     8269 ->    8271   expr-call-in-expr-recv-load-then-deref-load-more
+   ... 29 further keys
+  sum of deltas: 0
+========================================================================
+ALL-FUNCTION blockers  —  sink OFF vs any
+  totals 1751957 -> 1751957   (delta 0)
+  keys   671 -> 682;  78 keys moved; 14 keys are NEW, 3 vanished
+      -6821     6821 ->       0   assign-store-type-8643
+      +4034     2287 ->    6321   expr-jump
+      +3855        0 ->    3855   expr-op-0x60
+      -1906     1906 ->       0   assign-store-type-8212
+      -1402     1402 ->       0   assign-store-type-8644
+       +809     2435 ->    3244   expr-call-in-expr-recv-load-then-call-other
+       +722        1 ->     723   expr-op-0x10
+       +480   402139 ->  402619   expr-op-0x27
+        +56        3 ->      59   expr-call-in-expr-recv-load-then-type-int1-and-call-more
+        +10     1463 ->    1473   expr-label
+        +10     5191 ->    5201   expr-call-in-expr-recv-load-then-plumbing-0x3A
+         +9    26515 ->   26524   expr-brfalse
+         +8   135866 ->  135874   expr-intrinsic-this-adjust
+         +8       34 ->      42   expr-op-0xBD
+         +7   113982 ->  113989   expr-intrinsic-base-member-addr
+         +7    35466 ->   35473   expr-brtrue
+         +6      547 ->     553   expr-op-0x67
+         +6    18247 ->   18253   expr-cmp-eq
+         +5        0 ->       5   expr-call-in-expr-recv-field-then-type-int1-and-plumbing-more
+         +5        0 ->       5   expr-call-in-expr-recv-object-then-type-int1-and-call-more
+         +5        4 ->       9   expr-call-in-expr-recv-load-then-type-int1-and-branch-more
+         +4     5640 ->    5644   expr-cmp-ne
+         +4       34 ->      38   expr-cmp-ge
+         +3      885 ->     888   expr-call-in-expr-recv-load-then-type-int1-and-op-more
+         +3      809 ->     812   expr-call-in-expr-recv-load-then-type-int1-and-deref-load-more
+   ... 53 further keys
+  sum of deltas: 0

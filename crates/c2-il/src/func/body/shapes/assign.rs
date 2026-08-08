@@ -8,7 +8,9 @@ use crate::func::body::chain::{
 use crate::func::body::expr::{eat_return_plumbing, eat_scopes, parse_expr, parse_formals};
 use crate::func::body::mcall;
 use crate::func::body::{blk, blk_type, Block, BodyShape};
-use crate::func::readers::{eat_byte, eat_int_like, read_token_var};
+use crate::func::readers::{
+    eat_byte, eat_int_like, eat_int_like_or_ptr4, read_token_var, read_type,
+};
 use crate::func::IlOp;
 
 use super::calls::parse_call_shape;
@@ -190,7 +192,7 @@ pub(crate) fn try_parse_assign_body_detail(
         if !eat_byte(seg, &mut p, 0x32) {
             return Err(blk(seg, p, "assign-store-op"));
         }
-        if !eat_int_like(seg, &mut p) {
+        if !store_type_gate(seg, &mut p) {
             return Err(blk_type(seg, p, p, "assign-store-type"));
         }
         // `4B` ends an expression statement and discards the yielded value. A
@@ -267,6 +269,95 @@ pub(crate) fn try_parse_assign_body_detail(
         return Err(dst_not_formal(seg, off));
     }
     Ok(BodyShape::StraightLine { params, ops: ret })
+}
+
+/// `C2RS_SINK_STORE_TYPE` — **lane `w-667`'s board #667 counterfactual**, and
+/// the only thing that reads it.
+///
+/// # What it is for
+///
+/// Board **#667**'s key `assign-store-type-8643` is minted at exactly one site,
+/// the `32 <TYPE>` gate in [`try_parse_assign_body_detail`], and there was **no
+/// instrument for it** — `grep C2RS_ crates/c2-il` finds four sinks and all four
+/// are in the *expression* layer. So the "one env var and two scans"
+/// counterfactual every recent lane runs could not be run on this row at all
+/// until this existed. It is the row's instrument and nothing else.
+///
+/// | value | the gate becomes | prices |
+/// |---|---|---|
+/// | unset (default) | [`eat_int_like`] | the shipped parser |
+/// | `ptr4` | [`eat_int_like_or_ptr4`] | `-8643` + `-8644`, board #407's counterfactual 1 |
+/// | `any` | any well-formed TYPE | the whole `assign-store-type` family, #407's counterfactual 2 |
+///
+/// # It is NOT a proposal, and the reason is specific
+///
+/// Board **#661** is the standing lesson that a sink can quietly *accept*
+/// differently as well as measure: `C2RS_SINK_OFF_ADD_ARG`'s `0x27` arm ends
+/// `ops.push(IlOp::Add)` with no poison arm, and `cargo test --workspace` is red
+/// under it. This one has the same hazard in a different place. The value whose
+/// store is folded away here is a **pointer**, and the destination gate that
+/// decides whether folding is legal ([`dst_not_formal`]) admits an automatic
+/// local only on `.sy`'s positive evidence that it is a plain, unqualified,
+/// never-address-taken `int` — so a pointer destination that got past this gate
+/// would be refused by that one, *if the body reaches it*. Nothing here
+/// guarantees the body does. Every number this sink produces is quoted beside
+/// its own `mismatch` count for that reason, and nothing promotes it to a
+/// default.
+///
+/// OFF and free on every gate lane, every mode lane, the sweep, the mode cross
+/// and every default scan: the `OnceLock` resolves to `Int` when the variable is
+/// absent, which is the shipped `eat_int_like` call this replaced.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum StoreTypeSink {
+    /// `eat_int_like` — the shipped gate.
+    Int,
+    /// `eat_int_like_or_ptr4` — the sibling locator the *operand* gate one
+    /// production upstream (`readers::eat_operand_type`) already uses.
+    Ptr4,
+    /// Any well-formed TYPE.
+    Any,
+}
+
+fn store_type_sink() -> StoreTypeSink {
+    static ON: std::sync::OnceLock<StoreTypeSink> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| match std::env::var("C2RS_SINK_STORE_TYPE").as_deref() {
+        Ok("ptr4") => StoreTypeSink::Ptr4,
+        Ok("any") => StoreTypeSink::Any,
+        // An unrecognized spelling is the shipped gate, never a silent widening:
+        // a typo'd sink that quietly measured something else is the failure mode
+        // `docs/STATUS.md` trap 5 is about.
+        _ => StoreTypeSink::Int,
+    })
+}
+
+/// The store TYPE gate. Identical to the `eat_int_like` call it replaced unless
+/// `C2RS_SINK_STORE_TYPE` names one of the two counterfactual arms.
+fn store_type_gate(seg: &[u8], p: &mut usize) -> bool {
+    store_type_gate_with(store_type_sink(), seg, p)
+}
+
+/// The gate with the arm passed in rather than read from the environment.
+///
+/// Split out **so the arms can be graded against each other**. The sink resolves
+/// through a process-global `OnceLock`, so a test cannot exercise two arms in one
+/// process — and the property that matters most about a counterfactual instrument
+/// is a relation *between* arms, not a fact about any one of them:
+/// `Int ⊆ Ptr4 ⊆ Any`. An arm that refused something the default accepts would
+/// make the row's measured worth an underestimate in a direction nobody would
+/// look, since the only reported number is the recovery and a narrower arm can
+/// only lower it. `the_sink_arms_are_nested` is that check.
+fn store_type_gate_with(sink: StoreTypeSink, seg: &[u8], p: &mut usize) -> bool {
+    match sink {
+        StoreTypeSink::Int => eat_int_like(seg, p),
+        StoreTypeSink::Ptr4 => eat_int_like_or_ptr4(seg, p).is_some(),
+        StoreTypeSink::Any => match read_type(seg, *p) {
+            Some((_, _, _, w)) => {
+                *p += w;
+                true
+            }
+            None => false,
+        },
+    }
 }
 
 /// The destination refusal, raised at the `26` push it is about — **after** the
@@ -378,6 +469,109 @@ mod tests {
     /// A 4-byte integer operand, so the LOAD gate is satisfied and the STORE type
     /// is the only thing under test.
     const INT: &[u8] = &[0x86, 0x41, 0x74];
+
+    /// **The counterfactual sink must be OFF in every test process**, exactly as
+    /// `expr.rs`'s `C2RS_SINK_CHAIN` tripwire requires of its own.
+    ///
+    /// Without this, a shell that exported `C2RS_SINK_STORE_TYPE` for a scan and
+    /// then ran `cargo test` in the same session would grade a **different
+    /// parser** and every assertion in this module would be about a widening
+    /// nobody shipped. The keys below are the ones the sink deletes, so the
+    /// failure would be loud — but it would be loud in the wrong file, and
+    /// `docs/STATUS.md` trap 5 is that absence reads as success unless something
+    /// forbids it.
+    #[test]
+    fn the_store_type_sink_is_off_in_the_test_process() {
+        assert!(
+            std::env::var("C2RS_SINK_STORE_TYPE").is_err(),
+            "the test process must not set C2RS_SINK_STORE_TYPE"
+        );
+        assert_eq!(super::store_type_sink(), super::StoreTypeSink::Int);
+    }
+
+    /// **The sink's default arm is the byte the shipped gate was, not merely a
+    /// gate that agrees on the workload.**
+    ///
+    /// `store_type_gate` replaced a direct `eat_int_like` call, so the thing to
+    /// pin is that the *default* dispatch is that same call — over both the
+    /// accept side and the refuse side, at the exact type triples the census key
+    /// is built from. A regression here would silently re-price board #667's
+    /// entire row and no gate would see it: the sink emits nothing.
+    #[test]
+    fn the_default_arm_of_the_store_type_gate_is_the_shipped_eat_int_like() {
+        use crate::func::readers::eat_int_like;
+        for ty in [
+            &[0x86u8, 0x41, 0x74][..],     // int — accepted
+            &[0x86, 0x42, 0x75][..],       // unsigned — accepted
+            &[0xA6, 0x41, 0x84, 0x20][..], // const int, per-TU id — accepted
+            &[0x86, 0x43, 0xF4, 0x08][..], // int * — REFUSED, and this is #667's key
+            &[0x86, 0x44, 0x88, 0x20][..], // a code pointer — REFUSED
+            &[0x82, 0x12, 0x30][..],       // bool — REFUSED
+            &[0x88, 0x85, 0x41][..],       // double — REFUSED
+        ] {
+            let (mut a, mut b) = (0usize, 0usize);
+            let want = eat_int_like(ty, &mut a);
+            assert_eq!(super::store_type_gate(ty, &mut b), want, "{ty:02X?}");
+            assert_eq!(a, b, "cursor disagrees on {ty:02X?}");
+        }
+    }
+
+    /// **The three sink arms are NESTED: `Int ⊆ Ptr4 ⊆ Any`, on both the verdict
+    /// and the cursor.**
+    ///
+    /// This is the property that makes the counterfactual's headline number
+    /// readable, and it is not obvious from the code: `eat_int_like` opens with
+    /// an exact-triple whitelist (`INT_LIKE_TYPES`) *before* it consults
+    /// `read_type`, so a triple on that list which `read_type` could not frame
+    /// would be accepted by the **default** arm and refused by the **widest**
+    /// one. The recovery this lane reports is the only number the arms produce,
+    /// and a narrower wide-arm can only push it down — so the failure would read
+    /// as a cleaner decline, which is the direction nobody re-checks.
+    ///
+    /// Graded over both sides of the boundary, plus the two malformed inputs a
+    /// gate at a segment end really meets. **The first four cases are
+    /// `INT_LIKE_TYPES` entire** — `INT_TYPE`, `UINT_TYPE`, `LONG_TYPE`,
+    /// `ULONG_TYPE`, all four of them — so the whitelist hazard above is covered
+    /// exhaustively rather than by sampling.
+    #[test]
+    fn the_sink_arms_are_nested() {
+        use super::StoreTypeSink::{Any, Int, Ptr4};
+        let cases: &[&[u8]] = &[
+            &[0x86, 0x41, 0x74],           // int
+            &[0x86, 0x42, 0x75],           // unsigned
+            &[0x86, 0x41, 0x12],           // long
+            &[0x86, 0x42, 0x22],           // unsigned long
+            &[0xA6, 0x41, 0x84, 0x20],     // const int, per-TU id
+            &[0x86, 0x43, 0xF4, 0x08],     // int *   — #667's key
+            &[0x86, 0x44, 0x88, 0x20],     // code pointer
+            &[0x96, 0x43, 0xF4, 0x08],     // int * volatile
+            &[0x82, 0x12, 0x30],           // bool
+            &[0x84, 0x21, 0x11],           // short
+            &[0x88, 0x85, 0x41],           // double
+            &[0x88, 0x81, 0x13],           // long long
+            &[],                           // ran off the end
+            &[0x00],                       // not a TYPE at all
+        ];
+        for ty in cases {
+            let (mut a, mut b, mut c) = (0usize, 0usize, 0usize);
+            let (i, p4, an) = (
+                super::store_type_gate_with(Int, ty, &mut a),
+                super::store_type_gate_with(Ptr4, ty, &mut b),
+                super::store_type_gate_with(Any, ty, &mut c),
+            );
+            assert!(!i || p4, "Int accepts and Ptr4 refuses: {ty:02X?}");
+            assert!(!p4 || an, "Ptr4 accepts and Any refuses: {ty:02X?}");
+            // A wider arm must also agree on where the TYPE ends, or the two
+            // scans are parsing from different offsets and their histograms are
+            // not comparable.
+            if i {
+                assert_eq!(a, b, "Int/Ptr4 cursor disagree: {ty:02X?}");
+            }
+            if p4 {
+                assert_eq!(b, c, "Ptr4/Any cursor disagree: {ty:02X?}");
+            }
+        }
+    }
 
     /// **The store-type census key carries the type's KIND, not only its slot
     /// width.**
