@@ -10018,3 +10018,92 @@ redirect, so *"#166"* there is **#178's own former number** — one item cited
 under both spellings, not two items. Board #166 is w-map's x86-PE split retarget
 and has nothing to do with `.bss`. Acting on the report as written would have
 struck an unrelated, still-valid row.
+
+## 10.24 W-BINARY — six lanes, three independent proofs that CODEGEN is the lever, and a campaign that retracted three beliefs (2026-08-08)
+
+Six lanes landed in one funnel (`b027eaad → ce14fde2`): three code lanes
+(w-phase7, w-bcgap, w-mass) and the three whitebox lanes of
+`docs/whitebox/CAMPAIGN_2026-08-08.md` (wb-memcpy, wb-reader, wb-frame) —
+the campaign that took the stuck questions to the disassembly, with the
+obj as sole judge. **TU match is 11 at both ends of the wave**, and every
+lane predicted that of itself: this wave's output is direction, not
+conversions. What it bought is that three *independent* lanes converged on
+one sentence:
+
+> **The frontier converts in the emitter, not in the reader, not in the
+> emit predicate, and not in the grammar.**
+
+1. **wb-reader**: the frontier's 48 "reader-refused" functions all tokenise
+   — 48/48 walk to the tail; no unknown widths. They are held by
+   *acceptance*: 33/48 sit on CFG classes the emitter lacks (`cflow-loop`
+   21, `cflow-if-n` 11, `cflow-if-2` 1). Sinking the two top refusal keys
+   recovered **0** and renamed 21 — the rename trap (#1465), measured on
+   the frontier itself.
+2. **w-bcgap**: the join w-emitp refused to fake, computed on rows: all
+   four candidate emit models are exact on **15 of 16** frontier TUs (the
+   16th, `keygen_xbox.cpp`, is outside the emit corpus). The alias
+   channel's 3.1× per-TU-exact gain buys **zero** reach
+   (`(ALIAS_IN ∖ ORACLE) ∩ B∧C = ∅`, verified per name). **C is the
+   binding constraint, not B.** And the refused extrapolation
+   `151 × 0.555 = 84` was low by 50 — the true `|ALIAS_IN ∩ B∧C|` is 134,
+   reach 110/124 — so both camps of that argument were wrong in
+   instructive directions: never multiply, and never assume the
+   multiplication's error direction either.
+3. **wb-frame**: board **#1477 is RETRACTED**. The port emits the 96-byte
+   frame too, one word later; the original reading indexed `first@2` and
+   one inserted word (an f31 save c2 doesn't emit) shifted every later
+   index. Both 96s are colliding arithmetic (`align16(88)` two ways). The
+   real `?supershuffle` gap is **14 words of uninlined `?shuffle2`** — an
+   INLINER defect. The planned frame-rule code lane was worth zero bytes
+   and is cancelled.
+
+Supporting results, same wave:
+
+- **w-phase7**: spec §6's steps 3–4 applied at the only consumer site
+  would have been a **wrong obj** — the alias's obj-level realisation is a
+  COFF **weak external** (graded 4,013/4,013 against c2's own symbol
+  table; rule R exact on 871/871). 675 TUs need weak externals; the
+  intersection with `B∧C` and the frontier is **0**, so it costs the
+  payoff metric nothing today — a real channel, correctly not prioritised.
+- **w-mass**: the mass order and the yield order are different orders
+  (largest family terminals 2; third-largest 5,362), and the lane
+  **declined at its own frozen rule** because the recoverable mass
+  (`memset` 5,021) needs a `c2-core` lowering that #139 forbids splitting.
+  Also found and published: `expr-empty` shadows all three sink poisons
+  (#1538).
+- **wb-memcpy**: the inline/call decision is **units, not bytes**
+  (`size/align ≤ 5, or 10 under favor-speed` — the truncating division IS
+  the measured 44/48 boundary), refuting on 54 cells a threshold all 408
+  prior cells were compatible with, and "both operands local ⇒ eliminated"
+  is wrong in both directions (**dead destination** eliminates, 36/36).
+
+**The whitebox method's scorecard, three lanes in**: 3/3 stuck questions
+answered; three standing beliefs retracted (T=5 constant; both-local
+elimination; #1477); ~10 pre-drafted DISCLOSURE rows; **zero adoptions**
+into `crates/` (every lane held the navigation/adoption line); one
+disassembly-derived predicate (wb-frame's R0) refuted by its own frozen
+grid and retracted per `C2_MAP_METHOD.md` §7 — the discipline held exactly
+where it was designed to.
+
+### What this re-orders (supersedes §10.9's ordering)
+
+1. **Emitter CFG classes** — `cflow-loop`, `cflow-if-n`, `cflow-if-2`
+   cover 33 of the frontier's 48 blocked functions, with the per-key
+   acceptance (21 keys, listed in `WB_READER_FINDINGS.md`) behind them.
+   This is the only identified path that converts frontier TUs.
+2. **The inliner** — `keygen_xbox.cpp` is the one frontier TU whose gap is
+   neither reader nor emit-set (#1477's successor finding).
+3. **`memset`/selector lowering in `c2-core`** — w-mass's priced decline:
+   5,021 emitted functions terminal on it (emitted-function mass, not
+   frontier TUs; convert-rate unknown until priced per-TU).
+4. **Correctness debt, cheap first**: the three latent width desyncs
+   (`0x2C` — a corpus query, no cl.exe; `0x54`; `0x28`), the TYPE-word
+   short form (W-EXT-1, corpus-unfalsifiable), weak-external emission
+   (675 TUs, zero frontier), and the two instrument defects (#1538 sink
+   shadowing, #1600 sink non-composition).
+5. **Adoptions carry their DISCLOSURE rows in the same commit** — the
+   pre-drafted rows sit in `WB_MEMCPY_FINDINGS.md` §9,
+   `WB_READER_FINDINGS.md` §6, `WB_FRAME_FINDINGS.md` §6.
+
+The ceiling arithmetic doc (board task; the 450-wall decomposition against
+871) remains open and should now be written against *this* ordering.
