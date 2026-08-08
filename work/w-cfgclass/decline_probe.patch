@@ -1,0 +1,17 @@
+diff --git a/crates/c2-il/src/func/body/mod.rs b/crates/c2-il/src/func/body/mod.rs
+index 0e7e3988..bb2b2992 100644
+--- a/crates/c2-il/src/func/body/mod.rs
++++ b/crates/c2-il/src/func/body/mod.rs
+@@ -1897,9 +1897,9 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
+                 // `53` whose first token is the `B9 <formal>` of a relational
+                 // test. So the order between the three is free, and it is last
+                 // because the two loops name matched workload TUs.
+-                if let Ok(shape) = try_parse_if_call_join(seg, p, lo, locals, sy.ptr_locals) {
+-                    disp("disp-if-call-join");
+-                    return Ok(shape);
++                match try_parse_if_call_join(seg, p, lo, locals, sy.ptr_locals) {
++                    Ok(shape) => { disp("disp-if-call-join"); return Ok(shape); }
++                    Err(_b) => { if std::env::var_os("C2RS_DEBUG_IFJOIN").is_some() { eprintln!("IFJOIN-DECLINE {}", _b.ctx); } }
+                 }
+                 // **The body-parameterized loop**, beside its fixed-length
+                 // sibling and after it. The order is free rather than

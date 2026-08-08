@@ -20,22 +20,28 @@
 struct Node;
 extern const Node *hi(void *, float);
 extern const Node *lo(void *, float);
-extern const Node *hi2(void *, void *, float);
-extern const Node *lo2(void *, void *, float);
 extern const Node *nofp(void *);
 
-// n0 — the two arms call with DIFFERENT arguments. The hoist is then illegal:
-// c2 puts a setup back inside each arm and the entry block loses `mr r3,r4`.
-const Node *n0(int b, void *p, void *q, float t) {
+// n0 — THREE formals, so the arity clause cannot fire, and the two arms call
+// with DIFFERENT first arguments. The hoist is then illegal: c2 puts a setup
+// back inside each arm and the entry block loses its `mr r3,r4`.
+//
+// This cell was first written with a fourth formal, and the recognizer declined
+// it `ifjoin-formals-not-3` — the arity clause, not the clause under test. That
+// is w-clear's confound reproduced inside the file whose header warns about it,
+// and it was found by printing the recognizer's own decline context per cell
+// rather than by reading the census, which reports only the fall-through
+// blocker and would have shown this cell as refusing exactly like the others.
+const Node *n0(int b, void *clip, float t) {
     const Node *n = 0;
     if (b >= 1) {
         if (b == 1) {
             n = 0;
         } else {
             if (b >= 2) {
-                n = hi2(p, q, t);
+                n = hi(clip, t);
             } else {
-                n = lo2(q, p, t);
+                n = lo(0, t);
             }
         }
     }
@@ -98,12 +104,15 @@ const Node *n3(int b, void *clip, float t) {
     return g_n;
 }
 
-// n4 — the middle test is `<` rather than `==`/`!=`, so the compare the two
-// guards share names a different successor.
+// n4 — the middle test is `<` rather than `==`/`!=`, **against the SAME literal
+// the outer test uses**, so the only thing that differs is the relation. Written
+// first as `b < 5`, it declined `ifjoin-mid-lit-differs` — the shared-literal
+// clause, not the relation clause. Same confound as n0, same instrument found
+// it.
 const Node *n4(int b, void *clip, float t) {
     const Node *n = 0;
     if (b >= 1) {
-        if (b < 5) {
+        if (b < 1) {
             n = 0;
         } else {
             if (b >= 2) {
