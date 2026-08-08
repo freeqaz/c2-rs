@@ -184,7 +184,7 @@
 #
 # Everything above grades the PORT. `hatch-red` grades an INSTRUMENT: it runs
 # `work/w-hatch/hatch_red.py`, which fires every one of `work/w-front3/hatch.py`'s
-# eight refusals on purpose — 11 arms, 9 red, 2 green, 8 distinct leading words.
+# refusals on purpose — 14 arms, 11 red, 3 green, 10 distinct leading words.
 # `hatch.py` is the frontier ladder's lift, and its `revert` had already discarded
 # a peer lane's unstaged fix (board #1380) before the refusals existed. The arms
 # were run by hand and nothing executed them; this row is what executes them.
@@ -201,8 +201,26 @@
 #     and forfeits the unqualified headline — `GATE: PASS (HATCH-RED REFUSED)` —
 #     which is the same treatment `SAMPLED` and `SKIPPED` get.
 #
-# Its 11 arms are NOT counted toward `--require-graded`. That demand is about the
-# port, and 11 arms of a `work/` script say nothing about the port.
+# Its arms are NOT counted toward `--require-graded`. That demand is about the
+# port, and the arms of a `work/` script say nothing about the port.
+#
+# ---- AND THE SECOND INSTRUMENT ROW (2026-08-08, board #1406's second half) ----
+#
+# `ladder-red` is the same idea aimed at the OTHER half of the frontier ladder.
+# `work/w-front3/ladder.py` is what climbs a TU's refusal ladder and prices it;
+# `work/w-ladders/ladder_red.py` fires its `LADDER-NOWIDTHTABLE` guard three ways
+# and checks the width table it derives from the tree two ways — 5 arms, 3 red,
+# 2 green, and **5 of 5 fail against the pre-`w-ladders` `ladder.py`**, which is
+# what makes it non-vacuous. It was run by hand and nothing executed it. #1406's
+# first half was closed by the row above; this is the second.
+#
+# Same three deliberate differences, with ONE shape change that matters: the
+# ladder arms never write into `crates/` — `EXPR_RS` is repointed at a temp file
+# under `work/` — so this row's interlock is **narrow**. It refuses over the ONE
+# tree file the arms read (`crates/c2-il/src/func/body/expr.rs`), not over all of
+# `crates/`. Copying `hatch-red`'s wide interlock here would produce a row that
+# `REFUSED`s for reasons that have nothing to do with it, which is how a row
+# stops being read.
 #
 # ---- THE RUN TREE, REAPED, AND THE DISK RED TOLD APART FROM THE RED RED --------
 #
@@ -868,7 +886,14 @@ hatch_red_run() {   # <log-path> -> echoes the tuple
     fi
     # The DECLARED arm count, read out of the file rather than written here, so
     # adding an arm cannot leave this row silently grading the old number.
-    _hr_exp=$(python3 "$_hr_py" --list 2>/dev/null | grep -c . || echo 0)
+    #
+    # **`cd "$repo_root"` and not the bare invocation it used to be.**
+    # `hatch_red.py` resolves the tree it may write into from the INVOKING CWD
+    # (board #1460, lane w-hatchroot) and refuses when that is a different
+    # checkout from its own — so a gate launched from outside the repository
+    # would have got an arm count of 0 here, and 0 is `LADDER`/`TRUNCATED`'s own
+    # trigger. The real run below already cds; this line did not.
+    _hr_exp=$(cd "$repo_root" && python3 "$_hr_py" --list 2>/dev/null | grep -c . || echo 0)
     if ! git -C "$repo_root" rev-parse --git-dir >/dev/null 2>&1; then
         echo "REFUSED|0|$_hr_exp|0|0|NO-GIT this tree is not a checkout, so the arms cannot restore what they write"
         return 0
@@ -898,6 +923,139 @@ hatch_red_run() {   # <log-path> -> echoes the tuple
         return 0
     fi
     hatch_red_verdict "$_hr_log" "$_hr_st" "$_hr_exp"
+    return 0
+}
+
+# --------------------------------------------------------------------------------
+# THE LADDER-RED ROW (board #1406's second half, lane w-hatchroot, 2026-08-08).
+#
+# `work/w-ladders/ladder_red.py` — 5 arms, 3 red and 2 green — fires
+# `work/w-front3/ladder.py`'s `LADDER-NOWIDTHTABLE` on a missing width-table
+# file, an empty table and a table truncated to two arms, and checks the real
+# table both ways round (`0xBD`/`0x4C`/`0x41` IN, `0x00`/`0x1C` OUT) plus the
+# rename rule on seven grants. **5 of 5 fail against the pre-lane `ladder.py`**,
+# which is the non-vacuity demonstration; it was run by hand and nothing
+# executed it.
+#
+# WHY THE INTERLOCK IS NARROW HERE AND WIDE THERE
+# -----------------------------------------------
+# `hatch_red.py` WRITES into `crates/` and restores it, so anything in `crates/`
+# that is not `HEAD` is at risk from it and the whole directory is the interlock.
+# These arms write nothing there — `EXPR_RS` is repointed at a temp file under
+# `work/` — and read exactly ONE tree file. So the interlock is that one file.
+# A wide interlock here would refuse for reasons unrelated to the row, and a row
+# that refuses for unrelated reasons is a row nobody reads.
+#
+# It is still `REFUSED` and not `FAIL`, for the row above's reason: a dirty
+# `expr.rs` is a property of the TREE — a peer lane mid-wave editing the width
+# table would move `G1 REAL-TABLE`'s counts — and reddening a peer's gate for
+# their own work in progress is not something this row may do. `REFUSED` exits 0
+# and forfeits the unqualified headline (`GATE: PASS (LADDER-RED REFUSED)`).
+#
+# Emits: <verdict>|<armspass>|<armstotal>|<red>|<green>|<detail>
+# Eleven distinct leading words, none of them shared with `hatch-red`'s eight:
+# LADDER-NO-LOG, LADDER-TRUNCATED, LADDER-VACUOUS, LADDER-EXIT,
+# LADDER-ARMS-FAILED, LADDER-UNRECOGNIZED, LADDER-MISSING, LADDER-NOSUBJECT,
+# LADDER-NOGIT, LADDER-DIRTY, LADDER-RESIDUE.
+#
+# A pure function of the log text plus two numbers, so `--selftest` drives it
+# with fabricated logs and never runs the real thing.
+# --------------------------------------------------------------------------------
+ladder_red_verdict() {   # <log> <exit-status> <expected-arm-count>
+    _lv_log="$1"; _lv_st="${2:-0}"; _lv_exp="${3:-0}"
+    if [ ! -s "$_lv_log" ]; then
+        echo "NO-RESULT|0|$_lv_exp|0|0|LADDER-NO-LOG ladder_red.py produced no output at all"
+        return 0
+    fi
+    _lv_p=$(sed -n 's/^ALL \([0-9][0-9]*\) ARMS PASS.*[^0-9]\([0-9][0-9]*\) red, \([0-9][0-9]*\) green.*/\1 \2 \3/p' \
+        "$_lv_log" 2>/dev/null | head -1)
+    if [ -n "$_lv_p" ]; then
+        _lv_n=$(echo "$_lv_p" | cut -d' ' -f1)
+        _lv_r=$(echo "$_lv_p" | cut -d' ' -f2)
+        _lv_g=$(echo "$_lv_p" | cut -d' ' -f3)
+        # ANTI-VACUITY, the same three checks the row above carries and for the
+        # same reason: the count has to be the count the file declares, the red
+        # arms have to exist, and the controls have to exist. A run with no red
+        # arms proves nothing and a run with no controls proves less.
+        if [ "$_lv_exp" -le 0 ] || [ "$_lv_n" -ne "$_lv_exp" ]; then
+            echo "FAIL|$_lv_n|$_lv_exp|$_lv_r|$_lv_g|LADDER-TRUNCATED $_lv_n of $_lv_exp declared arms ran — a short run is not a pass"
+            return 0
+        fi
+        if [ "$_lv_r" -le 0 ] || [ "$_lv_g" -le 0 ] || [ $((_lv_r + _lv_g)) -ne "$_lv_n" ]; then
+            echo "FAIL|$_lv_n|$_lv_exp|$_lv_r|$_lv_g|LADDER-VACUOUS $_lv_r red and $_lv_g green do not account for $_lv_n arms"
+            return 0
+        fi
+        if [ "$_lv_st" != "0" ]; then
+            echo "FAIL|$_lv_n|$_lv_exp|$_lv_r|$_lv_g|LADDER-EXIT reported every arm passing and then exited $_lv_st"
+            return 0
+        fi
+        echo "PASS|$_lv_n|$_lv_exp|$_lv_r|$_lv_g|"
+        return 0
+    fi
+    if grep -q '^FAILED: ' "$_lv_log" 2>/dev/null; then
+        _lv_d=$(grep -m1 '^FAILED: ' "$_lv_log" | tr '|' ' ')
+        echo "FAIL|0|$_lv_exp|0|0|LADDER-ARMS-FAILED $_lv_d"
+        return 0
+    fi
+    echo "NO-RESULT|0|$_lv_exp|0|0|LADDER-UNRECOGNIZED no ALL-ARMS-PASS line and no FAILED line — an unenumerated outcome is the next silence"
+    return 0
+}
+
+# --------------------------------------------------------------------------------
+# Run the ladder-red arms, with the narrow interlock in front and the
+# postcondition behind. Not selftest-driven: it touches `git` and the real tree.
+# --------------------------------------------------------------------------------
+LADDER_SUBJECT="crates/c2-il/src/func/body/expr.rs"
+ladder_red_run() {   # <log-path> -> echoes the tuple
+    _lr_log="$1"
+    _lr_py="$repo_root/work/w-ladders/ladder_red.py"
+    if [ ! -f "$_lr_py" ]; then
+        echo "NO-RESULT|0|0|0|0|LADDER-MISSING work/w-ladders/ladder_red.py is not in this tree"
+        return 0
+    fi
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo "NO-RESULT|0|0|0|0|LADDER-MISSING no python3, and the arms are a python script"
+        return 0
+    fi
+    # THE SUBJECT, checked by name. Without this an absent `ladder.py` makes
+    # every arm fail on an import error and the row reads LADDER-ARMS-FAILED —
+    # "the guards stopped working" when the truth is "the instrument is gone".
+    # Two different facts, two different words.
+    if [ ! -f "$repo_root/work/w-front3/ladder.py" ]; then
+        echo "NO-RESULT|0|0|0|0|LADDER-NOSUBJECT work/w-front3/ladder.py is not in this tree, so there is nothing for the arms to fire"
+        return 0
+    fi
+    # The DECLARED arm count, read out of the file rather than written here.
+    _lr_exp=$(cd "$repo_root" && python3 "$_lr_py" --list 2>/dev/null | grep -c . || echo 0)
+    if ! git -C "$repo_root" rev-parse --git-dir >/dev/null 2>&1; then
+        echo "REFUSED|0|$_lr_exp|0|0|LADDER-NOGIT this tree is not a checkout, so the interlock cannot be read"
+        return 0
+    fi
+    # THE NARROW INTERLOCK. `HEAD`, and exactly the file the arms read: `G1`
+    # asserts the tree's own width table parses to a known shape, so a peer's
+    # in-flight edit to it is a statement about their work and not about
+    # `ladder.py`'s guards.
+    _lr_dirty=$(git -C "$repo_root" diff --name-only HEAD -- "$LADDER_SUBJECT" 2>/dev/null | tr '\n' ' ')
+    if [ -n "$_lr_dirty" ]; then
+        echo "REFUSED|0|$_lr_exp|0|0|LADDER-DIRTY the width table the arms read differs from HEAD: $_lr_dirty"
+        return 0
+    fi
+    _lr_st=0
+    if command -v timeout >/dev/null 2>&1; then
+        (cd "$repo_root" && timeout 600 python3 "$_lr_py") > "$_lr_log" 2>&1 || _lr_st=$?
+    else
+        (cd "$repo_root" && python3 "$_lr_py") > "$_lr_log" 2>&1 || _lr_st=$?
+    fi
+    # THE POSTCONDITION. These arms have NO code path that writes into `crates/`
+    # — that is the claim, and this is the check of it. It is a postcondition
+    # against a future edit and against a SIGKILL, not against a known path, and
+    # the rung says so rather than counting it as a fired guard.
+    _lr_res=$(git -C "$repo_root" diff --name-only HEAD -- crates/ 2>/dev/null | tr '\n' ' ')
+    if [ -n "$_lr_res" ]; then
+        echo "FAIL|0|$_lr_exp|0|0|LADDER-RESIDUE the arms modified crates/, which they have no path to do: $_lr_res"
+        return 0
+    fi
+    ladder_red_verdict "$_lr_log" "$_lr_st" "$_lr_exp"
     return 0
 }
 
@@ -1501,6 +1659,21 @@ hatch_refusal_note() {
     echo "  the headline above is qualified: commit or stash crates/ and re-run."
 }
 
+# The same, for the ladder-red row. A separate function and not a parameterised
+# one: the two rows refuse for DIFFERENT reasons over DIFFERENT files, and a
+# shared paragraph that said "the instrument row refused" would be the message
+# collapse this file's own trap B is about.
+ladder_refusal_note() {
+    [ "${_d_lrv:-}" = REFUSED ] || return 0
+    echo
+    echo "  LADDER-RED REFUSED — $_d_lrd"
+    echo "  The arms read the width table out of $LADDER_SUBJECT and assert its"
+    echo "  shape, so an in-flight edit to that file is a statement about YOUR work and"
+    echo "  not about \`ladder.py\`'s guards. This run does NOT establish what a full run"
+    echo "  establishes (board #1406). That is why the headline above is qualified:"
+    echo "  commit or stash that file and re-run."
+}
+
 decide() {
     _d_reg="$1"; _d_res="$2"; _d_run="${3:-}"; _d_sw="${4:-}"; _d_filt="${5:-}"
     _d_cx="${6:-}"
@@ -1509,6 +1682,8 @@ decide() {
     # path below requires every one of them to read SKIP — and this row needs no
     # toolchain and must keep working on the portable lane.
     _d_hr="${7:-}"
+    # The ladder-red tuple (#1406's second half). Same argument, same reason.
+    _d_lr="${8:-}"
     _d_n=$(wc -l < "$_d_reg")
     _d_rows=$(wc -l < "$_d_res")
 
@@ -1562,6 +1737,18 @@ decide() {
             "hatch-red" "$_d_hrv" "$_d_hrp" "$_d_hrt" "$_d_hrr" "n/a" \
             "arms ($_d_hrg green controls)" \
             "$([ -z "$_d_hrd" ] && echo "" || echo "   <- $_d_hrd")"
+    fi
+    _d_lrv=$(printf '%s\n' "$_d_lr" | cut -d'|' -f1)
+    _d_lrp=$(printf '%s\n' "$_d_lr" | cut -d'|' -f2)
+    _d_lrt=$(printf '%s\n' "$_d_lr" | cut -d'|' -f3)
+    _d_lrr=$(printf '%s\n' "$_d_lr" | cut -d'|' -f4)
+    _d_lrg=$(printf '%s\n' "$_d_lr" | cut -d'|' -f5)
+    _d_lrd=$(printf '%s\n' "$_d_lr" | cut -d'|' -f6)
+    if [ -n "$_d_lr" ]; then
+        printf "%-20s %-10s %6s/%-6s %6s %9s  %s%s\n" \
+            "ladder-red" "$_d_lrv" "$_d_lrp" "$_d_lrt" "$_d_lrr" "n/a" \
+            "arms ($_d_lrg green controls)" \
+            "$([ -z "$_d_lrd" ] && echo "" || echo "   <- $_d_lrd")"
     fi
     echo
 
@@ -1682,6 +1869,47 @@ decide() {
             return 1 ;;
     esac
 
+    # THE LADDER-RED ROW (#1406's second half). Ruled on AFTER hatch-red's, and
+    # with its own words throughout — an absent-tuple check that shares a headline
+    # with another case's is how a lane had one case steal another's message.
+    if [ -z "$_d_lr" ]; then
+        echo
+        echo "GATE: FAIL — no ladder-red verdict was produced at all."
+        echo "  \`work/w-ladders/ladder_red.py\` is part of this gate (board #1406's second"
+        echo "  half). It fires \`work/w-front3/ladder.py\`'s \`LADDER-NOWIDTHTABLE\` three"
+        echo "  ways and checks the derived width table both ways round; an empty table"
+        echo "  would make every ladder rung read as a rename and every price wrong."
+        return 1
+    fi
+    case "$_d_lrv" in
+        FAIL)
+            echo
+            echo "GATE: FAIL — ladder-red: $_d_lrd"
+            echo "  \`work/w-ladders/ladder_red.py\` fires \`work/w-front3/ladder.py\`'s width-table"
+            echo "  refusal on purpose — 3 red arms, 2 green controls — and it fails 5 of 5"
+            echo "  against the \`ladder.py\` this row's guards were added to. A guard that no"
+            echo "  longer fires is a guard that is no longer there."
+            if [ -n "$_d_run" ] && [ -f "$_d_run/ladderred.log" ]; then
+                echo "  log: $_d_run/ladderred.log"
+                grep -E '^\s*\*\*\* ARM FAILED|ARM FAILED|^FAILED: ' \
+                    "$_d_run/ladderred.log" | sed 's/^/    /' || true
+            fi
+            return 1 ;;
+        NO-RESULT)
+            echo
+            echo "GATE: FAIL — ladder-red produced NO RESULT: $_d_lrd"
+            echo "  An instrument that did not run is a failure, not a pass. Nothing in this"
+            echo "  run establishes anything about \`ladder.py\`'s width table."
+            return 1 ;;
+        PASS|REFUSED) : ;;
+        *)
+            echo
+            echo "GATE: FAIL — ladder-red reported an unrecognized verdict '$_d_lrv'."
+            echo "  An unenumerated verdict is the next silence; enumerate it or fix the"
+            echo "  classifier, but do not let it fall through to a PASS."
+            return 1 ;;
+    esac
+
     if [ "$_d_none" -gt 0 ]; then
         echo
         echo "GATE: FAIL — $_d_none lane(s) produced NO RESULT:"
@@ -1774,8 +2002,9 @@ decide() {
         done
         echo
         echo "GATE: SKIPPED — all $_d_n lanes, the sweep and the cross skipped, NOTHING WAS GRADED."
-        echo "  (hatch-red is toolchain-free and reported $_d_hrv — it grades INSTRUMENTS,"
-        echo "  not objs, and deliberately counts toward nothing on this line.)"
+        echo "  (hatch-red is toolchain-free and reported $_d_hrv, ladder-red likewise and"
+        echo "  reported $_d_lrv — they grade INSTRUMENTS, not objs, and deliberately count"
+        echo "  toward nothing on this line.)"
         echo "  The toolchain is absent (see CLAUDE.md); this exits 0 by design and is"
         echo "  NOT a green gate. This run establishes nothing about the port."
         echo "  Run with --require-graded (or C2RS_GATE_REQUIRE_GRADED=1) to make this"
@@ -1807,6 +2036,10 @@ decide() {
     # missing suffix rather than a missing check.
     _d_hrq=""
     if [ "$_d_hrv" = REFUSED ]; then _d_hrq=" (HATCH-RED REFUSED)"; fi
+    # And the second instrument row, APPENDED rather than merged. Both can refuse
+    # at once (a dirty `expr.rs` trips the wide interlock and the narrow one), and
+    # a merged suffix could not say which row it was.
+    if [ "$_d_lrv" = REFUSED ]; then _d_hrq="$_d_hrq (LADDER-RED REFUSED)"; fi
     # `--lane` filters the registry, and every check above then treats the filtered
     # list AS the registry — which is right, and which also means a one-lane run
     # can print `12/12 lanes ran` shaped exactly like a full gate. Same hole as an
@@ -1822,6 +2055,7 @@ decide() {
             echo "  The cross was also SAMPLED — $_d_cxsel of $_d_cxtot case-lane cells."
         fi
         hatch_refusal_note
+        ladder_refusal_note
         return 0
     fi
     if [ "$_d_swv" = "SAMPLED" ] || [ "$_d_cxv" = "SAMPLED" ]; then
@@ -1838,6 +2072,7 @@ decide() {
         echo "  run does NOT establish what a full run establishes. Re-run without"
         echo "  --sweep-cases / --cross-cells before reporting or landing."
         hatch_refusal_note
+        ladder_refusal_note
         return 0
     fi
     echo "GATE: PASS$_d_hrq — $_d_pass/$_d_n lanes ran and every one of them graded a corpus,"
@@ -1845,6 +2080,7 @@ decide() {
     echo "  ${_d_cxg:-?} of $_d_cxtot case-lane cells, with 0 mismatches anywhere"
     echo "  (${_d_swu:-?} sweep cases carried ungraded — the reference rejects the source)."
     hatch_refusal_note
+    ladder_refusal_note
     return 0
 }
 
@@ -2007,6 +2243,10 @@ if [ "$mode" = selftest ]; then
     # safe because every caller here supplies one.
     HR_OK='PASS|11|11|9|2|'
     HR_FOR_CASE="$HR_OK"
+    # The ladder-red tuple, same shape (#1406's second half). Fabricated, like
+    # HR_OK: these cases drive the CLASSIFIER and the RULING, never the arms.
+    LR_OK='PASS|5|5|3|2|'
+    LR_FOR_CASE="$LR_OK"
 
     check_that() {  # <label> <ok?0/1>
         if [ "$2" -eq 0 ]; then
@@ -2037,12 +2277,13 @@ if [ "$mode" = selftest ]; then
         collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
         _rc_got=PASS
         if ! decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "" "$SWEEP_FOR_CASE" "" \
-                "$CROSS_FOR_CASE" "$HR_FOR_CASE" > "$CASE_DIR/out.txt" 2>&1; then
+                "$CROSS_FOR_CASE" "$HR_FOR_CASE" "$LR_FOR_CASE" > "$CASE_DIR/out.txt" 2>&1; then
             _rc_got=FAIL
         fi
         SWEEP_FOR_CASE="$SWEEP_OK"
         CROSS_FOR_CASE="$CROSS_OK"
         HR_FOR_CASE="$HR_OK"
+        LR_FOR_CASE="$LR_OK"
         _rc_hdl=$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt" || echo 'GATE: <none printed>')
         cases=$((cases + 1))
         if [ "$_rc_got" = "$_rc_want" ]; then
@@ -2119,7 +2360,7 @@ if [ "$mode" = selftest ]; then
         collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
         _sc_got=PASS
         if ! decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "$_sc_sw" "" \
-                "$_sc_cx" "$HR_OK" > "$CASE_DIR/out.txt" 2>&1; then
+                "$_sc_cx" "$HR_OK" "$LR_OK" > "$CASE_DIR/out.txt" 2>&1; then
             _sc_got=FAIL
         fi
         _sc_hdl=$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt" || echo 'GATE: <none printed>')
@@ -2248,7 +2489,7 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
     cases=$((cases + 1))
     if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "$SWEEP_OK" "" "" \
-            "$HR_OK" > "$CASE_DIR/out.txt" 2>&1; then
+            "$HR_OK" "$LR_OK" > "$CASE_DIR/out.txt" 2>&1; then
         printf '  FAIL  %-32s a run with NO cross verdict PASSED\n' cross-absent
         fails=$((fails + 1))
     else
@@ -2263,7 +2504,7 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
     cases=$((cases + 1))
     if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" \
-            'SKIP|0|0|0|0|toolchain absent' "" "$CROSS_OK" "$HR_OK" \
+            'SKIP|0|0|0|0|toolchain absent' "" "$CROSS_OK" "$HR_OK" "$LR_OK" \
             > "$CASE_DIR/out.txt" 2>&1; then
         printf '  FAIL  %-32s all lanes skipped, cross ran, and it PASSED\n' allskip-cross-ran
         fails=$((fails + 1))
@@ -2279,7 +2520,7 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
     cases=$((cases + 1))
     if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "" "" "$CROSS_OK" \
-            "$HR_OK" > "$CASE_DIR/out.txt" 2>&1; then
+            "$HR_OK" "$LR_OK" > "$CASE_DIR/out.txt" 2>&1; then
         printf '  FAIL  %-32s a run with NO sweep verdict PASSED\n' sweep-absent
         fails=$((fails + 1))
     else
@@ -2294,7 +2535,7 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
     cases=$((cases + 1))
     if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "$SWEEP_OK" 12 \
-            "$CROSS_OK" "$HR_OK" > "$CASE_DIR/out.txt" 2>&1; then
+            "$CROSS_OK" "$HR_OK" "$LR_OK" > "$CASE_DIR/out.txt" 2>&1; then
         if grep -q 'LANES FILTERED' "$CASE_DIR/out.txt" \
            && ! grep -q '^GATE: PASS —' "$CASE_DIR/out.txt"; then
             printf '  ok    %-32s %s\n' lanes-filtered "$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt")"
@@ -2313,7 +2554,7 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     printf 'A\t/O1\tPASS|197|197|91|0|\n' > "$CASE_DIR/results.tsv"
     cases=$((cases + 1))
     if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "" "$SWEEP_OK" "" "$CROSS_OK" \
-            "$HR_OK" > "$CASE_DIR/out.txt" 2>&1; then
+            "$HR_OK" "$LR_OK" > "$CASE_DIR/out.txt" 2>&1; then
         printf '  FAIL  %-32s a 1-row table for a 2-lane registry PASSED\n' short-table
         fails=$((fails + 1))
     else
@@ -2715,7 +2956,7 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
         echo 1 > "$CASE_DIR/B.status"
         collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
         decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "$SWEEP_OK" "" \
-            "$CROSS_OK" "$HR_OK" > "$CASE_DIR/out.txt" 2>&1 || true
+            "$CROSS_OK" "$HR_OK" "$LR_OK" > "$CASE_DIR/out.txt" 2>&1 || true
         if grep -q 'RESOURCE FAULT, NOT A MISMATCH' "$CASE_DIR/out.txt"; then _r=0; else _r=1; fi
         [ "$3" -eq 1 ] && { [ "$_r" -eq 0 ] && _r=1 || _r=0; }
         t_case "$1" "$_r" "$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt" || echo '(no headline)')"
@@ -2978,14 +3219,22 @@ $(hatch_red_verdict "$_hr_l" 0 11 | cut -d'|' -f6 | cut -d' ' -f1)"
         "$_hr_u distinct leading words across $_hr_n refusal shapes"
 
     # ---- and the RULING half, through the real `decide` ------------------------
-    hr_decide() {  # <name> <PASS|FAIL> <tuple> <grep-or-->
+    # `<ladder-tuple>` defaults to the green one so a hatch-red case is a
+    # statement about the hatch-red row only. The mirror cases below pass it
+    # explicitly and hand HR_OK in as the hatch tuple, for the same reason: two
+    # absent-tuple checks in one function is exactly how a lane had one case
+    # steal another's headline, and the only defence is that each case holds the
+    # OTHER row fixed and green.
+    hr_decide() {  # <name> <PASS|FAIL> <hatch-tuple> <grep-or--> [<ladder-tuple>]
         CASE_DIR="$st/$1"; rm -rf "$CASE_DIR"; mkdir -p "$CASE_DIR"
         printf '%s\n' "$P" > "$CASE_DIR/A.log"; echo 0 > "$CASE_DIR/A.status"
         printf '%s\n' "$P" > "$CASE_DIR/B.log"; echo 0 > "$CASE_DIR/B.status"
         collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
+        _hd_lr="$LR_OK"
+        [ "$#" -ge 5 ] && _hd_lr="$5"
         _hd_got=PASS
         if ! decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "$SWEEP_OK" "" \
-                "$CROSS_OK" "$3" > "$CASE_DIR/out.txt" 2>&1; then
+                "$CROSS_OK" "$3" "$_hd_lr" > "$CASE_DIR/out.txt" 2>&1; then
             _hd_got=FAIL
         fi
         _hd_ok=1
@@ -3025,11 +3274,121 @@ $(hatch_red_verdict "$_hr_l" 0 11 | cut -d'|' -f6 | cut -d' ' -f1)"
     require_graded=1
     if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" \
             'SKIP|0|0|0|0|toolchain absent' "" 'SKIP|0|0|0|0|toolchain absent' \
-            "$HR_OK" > "$CASE_DIR/out.txt" 2>&1; then _r=1; else _r=0; fi
+            "$HR_OK" "$LR_OK" > "$CASE_DIR/out.txt" 2>&1; then _r=1; else _r=0; fi
     require_graded=0
     t_case hatchred-does-not-satisfy-require-graded "$_r" \
         "$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt" || echo '(no headline)')"
     saw 'NOTHING GRADED' 'an all-skip run with 11 green arms still graded nothing'
+
+    # ---- the LADDER-RED row (board #1406's second half) ------------------------
+    # Same two halves, driven the same way, with its own logs and its own words.
+    # Nothing here runs the real arms either.
+    LR_PASS_LOG="$st/lr-pass.log"
+    printf '%s\n' \
+        'ladder.py RED-TEST — lane w-ladders' \
+        '  W1 NO-TABLE-FILE       LADDER-NOWIDTHTABLE      OK' \
+        'ALL 5 ARMS PASS — 3 red, 2 green' > "$LR_PASS_LOG"
+    LR_ARMS_LOG="$st/lr-arms.log"
+    printf '%s\n' \
+        '  => *** ARM FAILED ***' \
+        'FAILED: W2 EMPTY-TABLE' > "$LR_ARMS_LOG"
+    LR_SHORT_LOG="$st/lr-short.log"
+    printf '%s\n' 'ALL 3 ARMS PASS — 1 red, 2 green' > "$LR_SHORT_LOG"
+    LR_VAC_LOG="$st/lr-vac.log"
+    printf '%s\n' 'ALL 5 ARMS PASS — 0 red, 5 green' > "$LR_VAC_LOG"
+    LR_JUNK_LOG="$st/lr-junk.log"
+    printf '%s\n' 'Traceback (most recent call last):' > "$LR_JUNK_LOG"
+    LR_EMPTY_LOG="$st/lr-empty.log"
+    : > "$LR_EMPTY_LOG"
+
+    lr_case() {  # <name> <log> <status> <expect-verdict> <expect-leading-word|-->
+        _lc_got=$(ladder_red_verdict "$2" "$3" 5)
+        _lc_v=$(printf '%s\n' "$_lc_got" | cut -d'|' -f1)
+        _lc_d=$(printf '%s\n' "$_lc_got" | cut -d'|' -f6)
+        _lc_w=$(printf '%s\n' "$_lc_d" | cut -d' ' -f1)
+        if [ "$_lc_v" = "$4" ] && { [ "$5" = "--" ] || [ "$_lc_w" = "$5" ]; }; then
+            t_case "$1" 0 "$_lc_v  ${_lc_d:-(no detail, as required for a clean PASS)}"
+        else
+            t_case "$1" 1 "wanted $4/$5, got $_lc_v/${_lc_w:-none} — $_lc_d"
+        fi
+    }
+    lr_case ladderred-clean-log-passes        "$LR_PASS_LOG"  0 PASS      --
+    lr_case ladderred-failed-arm-is-a-fail    "$LR_ARMS_LOG"  1 FAIL      LADDER-ARMS-FAILED
+    lr_case ladderred-short-run-is-not-a-pass "$LR_SHORT_LOG" 0 FAIL      LADDER-TRUNCATED
+    lr_case ladderred-no-red-arms-is-vacuous  "$LR_VAC_LOG"   0 FAIL      LADDER-VACUOUS
+    lr_case ladderred-green-then-nonzero-exit "$LR_PASS_LOG"  3 FAIL      LADDER-EXIT
+    lr_case ladderred-empty-log-is-no-result  "$LR_EMPTY_LOG" 0 NO-RESULT LADDER-NO-LOG
+    lr_case ladderred-junk-log-is-no-result   "$LR_JUNK_LOG"  0 NO-RESULT LADDER-UNRECOGNIZED
+
+    # TRAP B again, and ACROSS the two rows this time. Both instrument rows can
+    # print on the same table, so a word shared between them would let a
+    # ladder-red refusal satisfy a hatch-red expectation. Asserted, not hoped.
+    _lr_words=""
+    for _lr_l in "$LR_ARMS_LOG" "$LR_SHORT_LOG" "$LR_VAC_LOG" "$LR_EMPTY_LOG" \
+                 "$LR_JUNK_LOG"; do
+        _lr_words="$_lr_words
+$(ladder_red_verdict "$_lr_l" 0 5 | cut -d'|' -f6 | cut -d' ' -f1)"
+    done
+    for _hr_l in "$HR_DIRTY_LOG" "$HR_SETUP_LOG" "$HR_ARMS_LOG" "$HR_SHORT_LOG" \
+                 "$HR_VAC_LOG" "$HR_EMPTY_LOG" "$HR_JUNK_LOG"; do
+        _lr_words="$_lr_words
+$(hatch_red_verdict "$_hr_l" 0 11 | cut -d'|' -f6 | cut -d' ' -f1)"
+    done
+    _lr_n=$(printf '%s\n' "$_lr_words" | grep -c .)
+    _lr_u=$(printf '%s\n' "$_lr_words" | grep . | sort -u | grep -c .)
+    [ "$_lr_n" -eq "$_lr_u" ] && _r=0 || _r=1
+    t_case ladderred-shares-no-word-with-hatchred "$_r" \
+        "$_lr_u distinct leading words across $_lr_n refusal shapes on BOTH rows"
+
+    # ---- and the RULING half. Every case holds the hatch row GREEN, so the
+    # headline it produces can only have come from the ladder row.
+    hr_decide ladderred-pass-is-an-unqualified-pass PASS "$HR_OK" '^GATE: PASS —' "$LR_OK"
+    hr_decide ladderred-fail-fails-the-gate FAIL "$HR_OK" 'ladder-red: LADDER-ARMS-FAILED' \
+        'FAIL|0|5|0|0|LADDER-ARMS-FAILED FAILED: W2 EMPTY-TABLE'
+    hr_decide ladderred-no-result-fails-the-gate FAIL "$HR_OK" \
+        'ladder-red produced NO RESULT' \
+        'NO-RESULT|0|5|0|0|LADDER-MISSING no python3, and the arms are a python script'
+    hr_decide ladderred-nosubject-fails-the-gate FAIL "$HR_OK" \
+        'LADDER-NOSUBJECT' \
+        'NO-RESULT|0|0|0|0|LADDER-NOSUBJECT work/w-front3/ladder.py is not in this tree, so there is nothing for the arms to fire'
+    hr_decide ladderred-residue-fails-the-gate FAIL "$HR_OK" 'ladder-red: LADDER-RESIDUE' \
+        'FAIL|0|5|0|0|LADDER-RESIDUE the arms modified crates/, which they have no path to do: crates/c2-il/src/func/body/expr.rs'
+    # THE ABSENT-TUPLE MIRROR, and the trap it is written against: the hatch row
+    # is held GREEN here, so the headline cannot be the hatch row's absent check
+    # standing in for this one.
+    hr_decide ladderred-absent-tuple-fails-the-gate FAIL "$HR_OK" \
+        'no ladder-red verdict' ''
+    CASE_DIR="$st/ladderred-absent-tuple-fails-the-gate"
+    saw_no 'no hatch-red verdict' 'and it is NOT the hatch row absent check wearing this case name'
+    hr_decide ladderred-unknown-verdict-fails-the-gate FAIL "$HR_OK" \
+        "ladder-red reported an unrecognized verdict" 'WOBBLY|0|5|0|0|something new'
+    # THE ONE THAT MUST NOT REDDEN A PEER, on this row too.
+    hr_decide ladderred-refused-exits-zero PASS "$HR_OK" 'GATE: PASS (LADDER-RED REFUSED)' \
+        'REFUSED|0|5|0|0|LADDER-DIRTY the width table the arms read differs from HEAD: crates/c2-il/src/func/body/expr.rs'
+    CASE_DIR="$st/ladderred-refused-exits-zero"
+    saw_no '^GATE: PASS —' 'a REFUSED ladder row never prints an unqualified PASS'
+    saw 'crates/c2-il/src/func/body/expr.rs' 'and it NAMES the file it refused over'
+    # BOTH rows refusing must print BOTH suffixes. A merged one could not say
+    # which row refused, and a dirty expr.rs trips the wide interlock and the
+    # narrow one at the same time — so this is the ordinary case, not a corner.
+    hr_decide bothrows-refused-print-both-suffixes PASS \
+        'REFUSED|0|11|0|0|DIRTY-TREE crates/ differs from HEAD and the arms would overwrite it: crates/c2-il/src/func/body/expr.rs' \
+        'GATE: PASS (HATCH-RED REFUSED) (LADDER-RED REFUSED)' \
+        'REFUSED|0|5|0|0|LADDER-DIRTY the width table the arms read differs from HEAD: crates/c2-il/src/func/body/expr.rs'
+
+    # And the ladder arms must not satisfy `--require-graded` either.
+    CASE_DIR="$st/ladderred-does-not-satisfy-the-demand"; rm -rf "$CASE_DIR"; mkdir -p "$CASE_DIR"
+    printf '%s\n' "$S" > "$CASE_DIR/A.log"; echo 0 > "$CASE_DIR/A.status"
+    printf '%s\n' "$S" > "$CASE_DIR/B.log"; echo 0 > "$CASE_DIR/B.status"
+    collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
+    require_graded=1
+    if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" \
+            'SKIP|0|0|0|0|toolchain absent' "" 'SKIP|0|0|0|0|toolchain absent' \
+            "$HR_OK" "$LR_OK" > "$CASE_DIR/out.txt" 2>&1; then _r=1; else _r=0; fi
+    require_graded=0
+    t_case ladderred-does-not-satisfy-require-graded "$_r" \
+        "$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt" || echo '(no headline)')"
+    saw 'NOTHING GRADED' 'an all-skip run with 5 green ladder arms still graded nothing'
 
     # ---- the demand meets the modes that grade nothing -------------------------
     # Driven as REAL subprocesses: these are argument-parse decisions and the only
@@ -3072,10 +3431,13 @@ $(hatch_red_verdict "$_hr_l" 0 11 | cut -d'|' -f6 | cut -d' ' -f1)"
     # proved nothing. Here `fails` is accumulated by every case before the count
     # is looked at, so a mutation reddens the assertion it actually broke and the
     # per-assertion message says which one.
-    # The floor moves with the file: 102 before board #1406's hatch-red row and
-    # 120 after it. A truncated selftest is the failure it exists to catch, so
-    # this is a COUNT and not a "some cases ran".
-    if [ "$cases" -lt 120 ]; then
+    # The floor moves with the file: 102 before board #1406's hatch-red row, 120
+    # after it, and **138** after `w-hatchroot` added the ladder-red row (7
+    # classifier cases, 9 rulings, the cross-row word-distinctness assertion, the
+    # absent-tuple mirror with its own anti-theft check, both-suffixes, and the
+    # `--require-graded` pair). A truncated selftest is the failure it exists to
+    # catch, so this is a COUNT and not a "some cases ran".
+    if [ "$cases" -lt 138 ]; then
         echo "gate.sh --selftest: FAIL — only $cases cases ran; the selftest itself was"
         echo "  truncated, and a truncated selftest is the failure it exists to catch."
         exit 1
@@ -3108,6 +3470,10 @@ echo "hatch-red:       work/w-hatch/hatch_red.py  (no toolchain; fires hatch.py'
 hr_res=$(hatch_red_run "$work/hatchred.log")
 printf '  %s  %s\n' "$(printf '%s\n' "$hr_res" | cut -d'|' -f1)" \
     "$(printf '%s\n' "$hr_res" | cut -d'|' -f6)"
+echo "ladder-red:      work/w-ladders/ladder_red.py  (no toolchain; fires ladder.py's width-table refusal)"
+lr_res=$(ladder_red_run "$work/ladderred.log")
+printf '  %s  %s\n' "$(printf '%s\n' "$lr_res" | cut -d'|' -f1)" \
+    "$(printf '%s\n' "$lr_res" | cut -d'|' -f6)"
 
 # Pin ONE binary for the whole gate and hand it to every lane. Stronger than each
 # lane pinning its own copy: all $nlanes lanes are then provably grading the same
@@ -3228,4 +3594,4 @@ printf 'disk:   %s low-water this run — %s and %s inodes free (start: %s / %s)
     "$work_parent" "$(human_kb "$RES_KBMIN")" "$(human_n "$RES_INMIN")" \
     "$(human_kb "$RES_KB0")" "$(human_n "$RES_IN0")"
 
-decide "$reg" "$work/results.tsv" "$work" "$sweep_res" "$filtered" "$cross_res" "$hr_res"
+decide "$reg" "$work/results.tsv" "$work" "$sweep_res" "$filtered" "$cross_res" "$hr_res" "$lr_res"
