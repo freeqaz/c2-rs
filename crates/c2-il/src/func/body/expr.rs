@@ -1743,9 +1743,37 @@ pub(crate) fn parse_expr_classed(
             0x2C => {
                 let start = *p;
                 let mut probe = *p + 1;
-                // A conversion with nothing to convert is not a conversion. This
-                // cannot be reached by a well-formed stream and refuses rather than
-                // guessing a class.
+                // A conversion with nothing to convert is not a conversion, so
+                // this refuses rather than guessing a class.
+                //
+                // **CORRECTED — lane `w-5c2`, board #1462, closing #1469, on
+                // `w-one`'s and `w-ladders`' measurement.** This comment used to
+                // read *"This cannot be reached by a well-formed stream"*, and
+                // that claim is **refuted at 4,973 first-blocker witnesses across
+                // 829 of 878 workload TUs**, plus 371 `emit_blockers` entries on
+                // 197 of them — 5,344 across the three maps the gap screen sums
+                // (board **#1354**, `docs/rungs/2026-08-08-w-one.md` §3.1).
+                // `src/Main.cpp`'s hatched frontier ladder rests on this key, and
+                // `w-one` measured that lifting it takes the TU from
+                // `net=2 EXIT(no-lift)` to `net=3`.
+                //
+                // **Why the claim was wrong, and it is not a corpus accident:**
+                // `cstack` is a *partial* model by construction. Every arm whose
+                // stack effect `parse_expr` does not follow advances the cursor
+                // without pushing, and every sink skip sets `cstack_ok = false`
+                // for exactly that reason — so a `2C` after any of them sees an
+                // empty stack in a stream that is perfectly well formed. Either
+                // the old comment was wrong or 94.4 % of this workload's IL is
+                // malformed, and the differential says which.
+                //
+                // The **refusal itself is correct and stays**; only the claim
+                // about reachability was false. That distinction is the point:
+                // board **#1413** is the same week's instance of the pattern
+                // going the other way — `SeqGuardEmit`'s doc asserted a shape
+                // *"is refused in the IL parser"*, it was not, and `w-clear`
+                // found the emit wrong on **30 of 54 cells**. **A comment
+                // asserting unreachability or a refusal is not evidence of
+                // either**; a witness count or a test is.
                 let Some(cls) = cstack.last().copied() else {
                     return Err(blk(seg, start, "expr-convert-no-value"));
                 };
