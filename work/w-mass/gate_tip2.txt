@@ -12,7 +12,7 @@ strip:  1 kept tree(s) lost 19556 regenerable cases; 1 newest kept theirs (C2RS_
         freed 157.8 MiB and 19,839 inodes (df delta over a SHARED filesystem)
 disk:   /tmp — free 22.6 GiB / 713,517 inodes (floors: 2.0 GiB / 150,000 inodes)
 
-lane gate: 18 lanes from /home/free/code/milohax/c2-rs/.claude/worktrees/w-mass/scripts/lanes.txt
+lane gate: 18 lanes from <abs>
   run dir: /tmp/c2rs-gate-1175490   (per-lane run dirs under /tmp/c2rs-gate-1175490/lanes/)
 
 hatch-red:       work/w-hatch/hatch_red.py  (no toolchain; fires hatch.py's refusals)
@@ -20,13 +20,13 @@ hatch-red:       work/w-hatch/hatch_red.py  (no toolchain; fires hatch.py's refu
 ladder-red:      work/w-ladders/ladder_red.py  (no toolchain; fires ladder.py's width-table refusal)
   PASS  
 building the harness (no-op if current)
-   Compiling c2-il v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-mass/crates/c2-il)
-   Compiling c2-core v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-mass/crates/c2-core)
-   Compiling c2-reference v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-mass/crates/c2-reference)
-   Compiling c2-harness v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-mass/crates/c2-harness)
+   Compiling c2-il v0.1.0 (<abs>)
+   Compiling c2-core v0.1.0 (<abs>)
+   Compiling c2-reference v0.1.0 (<abs>)
+   Compiling c2-harness v0.1.0 (<abs>)
     Finished `release` profile [optimized] target(s) in 9.06s
 harness: /tmp/c2rs-gate-1175490/c2rs
-  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/w-mass/target/release/c2rs  built 2026-08-08 11:32:54
+  pinned from <abs>  built 2026-08-08 11:32:54
   sha 805e27326987  tree a3c15ba8
 
 wall clock: 3s for 18 lanes at --jobs 8 (C2RS_JOBS=8)
@@ -40,7 +40,7 @@ generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-1175490/sweep 0  (jobs 8)
 
 mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-1175490/cross 0  (jobs 8)
   assigned 19556 cases over 18 lanes = 90812 cells (full cross would be 352008)
-  sweeping 90812 of 90812 case-lane cells (cross of 0 cases x /home/free/code/milohax/c2-rs/.claude/worktrees/w-mass/scripts/lanes.txt; the full 12x product is 352008)
+  sweeping 90812 of 90812 case-lane cells (cross of 0 cases x <abs> the full 12x product is 352008)
   checked=90812 mismatches=0 graded=90424 ungraded=388 unknown=0
   (26s)
 
