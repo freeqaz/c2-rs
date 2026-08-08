@@ -42,7 +42,7 @@ column from **48 to 48**, and admitting the entire intra-body control-flow
 vocabulary moves it from **48 to 48**.
 
 What the reading **is** worth is separate and is not small: c2's `.ex` operand
-grammar turns out to live in **one 190-entry byte table** (`DAT_10b25e48`), which
+grammar turns out to live in **one byte table, 192 entries over `0x00`–`0xBF`,** (`DAT_10b25e48`), which
 gives the operand width of *every* opcode at once — including **nine positions
 where the port's published width table is silent, guessed, or wrong**, three of
 which are latent desyncs waiting in the corpus (§3.4). Three of those readings
@@ -496,6 +496,10 @@ otherwise. §5.4 is the design; none of it ran.
   one raw byte; the port reads a varint. Predict: the port's *scanner* desyncs
   where c2 does not, so the discriminator is a **port-side** decode-reach delta,
   no `cl.exe` needed. Cheapest of the lot; it is a query, not an experiment.
+  **The disagreement is latent on the two sites this lane happens to hold**: the
+  census hex windows of `??0Pool` and `?Encrypt@XTEABlockEncrypter` both read
+  `2C 86 43 <id> 00`, payload `0x00`, where a raw byte and a varint agree. That
+  is two witnesses, which is why it is an open item and not a finding.
 * **`0x54`'s `i32c`.** Rewrite a scope-close depth from `2A` to `80 2A 00 00 00`
   — not length-preserving, so it needs a companion deletion; or find a body whose
   natural depth exceeds `0x7F`. Predict `IDENT` under `i32c`, structure-broken
@@ -525,7 +529,7 @@ obj-confirmed — only the three cells §5.3 names are.
 | **W-EXT-3** | **route** | **A branch/jump/label operand is a `varU` resolved through the TU symbol table** — a symbol token, not an offset, not a table index — and `varU` is little-endian with a bit-15 continuation (2 or 4 bytes, never 1). | `0x10b3d64d` (class-`02` entry and its `0x42` guard), **`0x10b3d65f`** (`call 0x10c1f91b`), **`0x10b3d669`** (`call 0x10b99977` — the symbol lookup), `0x10b3d66e` (the store) | Logged `route:` per the grey-zone rule: the port already models these as tokens and already reads `varU` this way (`readers.rs`, re-derived from black-box IL before any disassembly). §5.3(2) **confirms the encoding against real `c2.dll`** and refutes both rivals. **No value or layout needs to be copied** — the row exists so a reader knows the search was not blind. |
 
 A fourth row is **deliberately not drafted**: the operand class table
-`DAT_10b25e48` itself. Copying 190 table entries into the port would be the
+`DAT_10b25e48` itself. Copying 192 table entries into the port would be the
 largest single adoption this project has contemplated, §4 shows it converts
 nothing, and §5 confirms three cells of it and not the table. If a future lane
 wants it, it should want the **nine rows of §3.4** individually, each with its own
