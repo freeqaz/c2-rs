@@ -1687,6 +1687,99 @@ pub struct AllocInitOrFailFn {
     pub off_f: i32,
 }
 
+/// **W-OSFINFO — a range-and-flag guarded two-level table lookup whose two
+/// failure statements are tail-merged with its success statement.**
+///
+/// `src/xdk/LIBCMT/osfinfo.cpp`'s `_free_osfhnd`, the third and last TU of the
+/// undefined-external seam. See
+/// [`crate::func::body::shapes::osf_handle_guard`] for the source shape and the
+/// fence, and `c2_core::codegen::osf_handle_guard` for the thirty-one words.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OsfHandleGuard {
+    /// `[fh]` — one formal, arriving in r3 and never parked: every value that
+    /// outlives a `bl` in this body is recomputed, which is what makes the frame
+    /// `saved_gprs: 0`.
+    pub params: Vec<u32>,
+    /// The global whose VALUE bounds the range check, as a `.gl` token. Its
+    /// low half rides a **`lwz` displacement**, not an `addi`: nothing takes its
+    /// address. The FIRST data symbol, referenced at the lower `.text` offset.
+    pub limit_tok: u32,
+    /// The global table the lookup indexes. The SECOND data symbol, and the one
+    /// whose REFHI/REFLO quad lands in a register that is **not** the scratch.
+    pub table_tok: u32,
+    /// The first callee — `*<errno>() = K_ERRNO`. The body's first REL24.
+    pub errno_tok: u32,
+    /// The second callee — `*<doserrno>() = K_DOSERRNO`. The second REL24.
+    pub doserrno_tok: u32,
+    /// `fh >> K_SHIFT` — the outer table index. A `srawi` field, 1..=31.
+    pub k_shift: i32,
+    /// `fh & K_MASK` — the inner index. Must be `2^n − 1`: the class has a
+    /// `clrlwi` and no other masking word.
+    pub k_mask: i32,
+    /// The inner element size — a `mulli` field. Refused when it is a power of
+    /// two, because c2 emits a `slwi` there and the chooser is not fitted.
+    pub k_elem: i32,
+    /// The flag member's byte offset — the `lbz` displacement.
+    pub off_file: i32,
+    /// The bit tested in that byte. Must be `2^n − 1`; it is the record-form
+    /// `clrlwi.`'s mask.
+    pub k_bit: i32,
+    /// The handle member's offset. **Pinned to 0** by the recognizer: the
+    /// success store and the error store are ONE word, which is only legal at
+    /// zero.
+    pub off_hnd: i32,
+    /// The sentinel the handle is compared against and then set to — ONE field
+    /// reaching both the `cmpwi` and the `li`, because the recognizer requires
+    /// the compared literal and the stored literal to be equal.
+    pub k_invalid: i32,
+    /// The success return value — `li r3,K_OK`.
+    pub k_ok: i32,
+    /// The value stored through the first callee's result — `li r11,K_ERRNO`.
+    pub k_errno: i32,
+    /// The value stored through the second callee's result — `li r10,K_DOSERRNO`.
+    pub k_doserrno: i32,
+    /// The failure return value — `li r3,K_FAIL`.
+    pub k_fail: i32,
+}
+
+/// [`OsfHandleGuard`] with its four tokens resolved to mangled names.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OsfHandleGuardFn {
+    /// Exactly as [`OsfHandleGuard::params`].
+    pub params: Vec<u32>,
+    /// The range bound. Travels to the writer on [`IlFunction::data_syms`] as
+    /// element **0** — emission order, its `lis` being the lower of the two.
+    pub limit: String,
+    /// The table. Element **1** of [`IlFunction::data_syms`].
+    pub table: String,
+    /// The first callee — the lower of the two REL24 sites.
+    pub errno: String,
+    /// The second callee.
+    pub doserrno: String,
+    /// Exactly as [`OsfHandleGuard::k_shift`].
+    pub k_shift: i32,
+    /// Exactly as [`OsfHandleGuard::k_mask`].
+    pub k_mask: i32,
+    /// Exactly as [`OsfHandleGuard::k_elem`].
+    pub k_elem: i32,
+    /// Exactly as [`OsfHandleGuard::off_file`].
+    pub off_file: i32,
+    /// Exactly as [`OsfHandleGuard::k_bit`].
+    pub k_bit: i32,
+    /// Exactly as [`OsfHandleGuard::off_hnd`].
+    pub off_hnd: i32,
+    /// Exactly as [`OsfHandleGuard::k_invalid`].
+    pub k_invalid: i32,
+    /// Exactly as [`OsfHandleGuard::k_ok`].
+    pub k_ok: i32,
+    /// Exactly as [`OsfHandleGuard::k_errno`].
+    pub k_errno: i32,
+    /// Exactly as [`OsfHandleGuard::k_doserrno`].
+    pub k_doserrno: i32,
+    /// Exactly as [`OsfHandleGuard::k_fail`].
+    pub k_fail: i32,
+}
+
 /// [`GuardChainSharedTail`] with its four tokens resolved to mangled names.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GuardChainSharedTailFn {
