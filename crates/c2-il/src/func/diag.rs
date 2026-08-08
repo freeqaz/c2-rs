@@ -357,7 +357,7 @@ impl IlBundle {
             for c in &f.eh_unwind_callees {
                 accounted.push(c.as_str());
             }
-            if let Some(d) = &f.data_sym {
+            for d in &f.data_syms {
                 accounted.push(d.as_str());
             }
         }

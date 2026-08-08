@@ -107,7 +107,7 @@ mod tests {
             fp_tail: None,
         fp_arg_sources: None,
             arg_sources: None,
-            data_sym: None,
+            data_syms: Vec::new(),
             fn_addr_sym: None,
             data_def: None,
             static_scan_loop: None,

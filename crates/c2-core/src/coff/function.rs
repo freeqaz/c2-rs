@@ -394,6 +394,80 @@ impl<'a> Function<'a> {
         first_ref.reverse();
         first_ref
     }
+
+    /// **W-UNDNAME / board #1720 — every undefined external this function
+    /// introduces, as ONE list in reverse first-reference order, kind ignored.**
+    ///
+    /// This is GRID A's rule, and it replaces the two loops
+    /// ([`Self::introduced_callees`] then `data_refs`) that both writers used to
+    /// run. `work/w-extdata/GRID_A_RESULT.md` — five one-function TUs, four
+    /// rivals, per-cell predictions frozen and separation asserted before the
+    /// first `cl.exe`:
+    ///
+    /// | cell | `.text` reference order | symbol table from index 15 |
+    /// |---|---|---|
+    /// | a1 | `gI g1 g0` | `g0 g1 gI` |
+    /// | **a2** | `g0 gI g1` | **`g1 gI g0`** |
+    /// | **a3** | `gI g1 g0 gJ g2` | **`g2 gJ g0 g1 gI`** |
+    /// | **a4** | `gI g1 gJ g2` | **`g2 gJ g1 gI`** |
+    /// | a5 | `g0 g3` | `g3 g0` |
+    ///
+    /// One list over callees ∪ data names in reverse first-reference order is
+    /// confirmed 5 of 5; the two-loop rule is refuted on three, declaration order
+    /// on four and `.gl` order on one. Read a second way as the grid required —
+    /// by the relocation targeting each index — a3's sequence down `.text` is
+    /// `REFHI(19) · REL24(18) · REL24(17) · REFHI(16) · REL24(15)`, strictly
+    /// descending index against ascending offset for both kinds alike. So the key
+    /// is the first-reference OFFSET and not the `Type` or the name.
+    ///
+    /// # Why this could not ship until now, and what it costs
+    ///
+    /// It converts nothing by itself, and until a body whose externals interleave
+    /// was in class there was **no cell** that could tell it from the two loops —
+    /// `docs/STATUS.md` trap 0 exactly. Measured at `w-undname`'s base: all four
+    /// GRID A cells carrying a data symbol read `0/1 functions in class`. The
+    /// cell that exercises this arm is `?append@DName@@QAAXPAVDNameNode@@@Z`,
+    /// whose externals are `data · callee · data`, plus the fixture that
+    /// reproduces it.
+    ///
+    /// **It is byte-neutral on every obj emitted before it**, and the argument is
+    /// a proof rather than a hope: `crate::check_external_order` (deleted in the
+    /// same commit) refused every body in which a data reference followed a call,
+    /// so on all of them every data reference precedes every call — and reverse
+    /// order over the union then places all callees first and all data names
+    /// last, which is where the two loops put them. Measured anyway, three ways:
+    /// the 878-TU scan at both ends, the gate's per-lane `match` counts, and the
+    /// fixture-verdict total.
+    ///
+    /// The `bool` is `true` for a name whose symbol record is a FUNCTION's
+    /// (`Type 0x0020`) — a callee, or a `DataRef` whose [`DataRef::is_function`]
+    /// is set. A name occurring as both is one symbol and takes the FUNCTION
+    /// record, which is the same record either way, so nothing is decided here
+    /// that a cell has not seen.
+    pub(crate) fn introduced_externals(&self) -> Vec<(&'a str, bool)> {
+        // (name, first-reference offset, is a FUNCTION record)
+        let mut first: Vec<(&'a str, u32, bool)> = Vec::new();
+        let mut note = |name: &'a str, off: u32, is_fn: bool| {
+            match first.iter_mut().find(|(n, _, _)| *n == name) {
+                Some(e) => {
+                    e.1 = e.1.min(off);
+                    e.2 |= is_fn;
+                }
+                None => first.push((name, off, is_fn)),
+            }
+        };
+        for c in &self.calls {
+            note(c.callee, c.reloc_offset, true);
+        }
+        for r in &self.data_refs {
+            note(r.name, r.hi_off, r.is_function);
+        }
+        // Descending first-reference offset. A stable sort, though the key is
+        // unique by construction: two references at one `.text` offset would be
+        // one instruction relocated twice.
+        first.sort_by(|a, b| b.1.cmp(&a.1));
+        first.into_iter().map(|(n, _, f)| (n, f)).collect()
+    }
 }
 
 /// `.rdata` COMDAT characteristics for a pooled FP constant:

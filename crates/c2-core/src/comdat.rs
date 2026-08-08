@@ -421,10 +421,6 @@ pub(crate) fn body_of<'a>(
     };
     // Under `/Gy` each function starts at offset 0 of its own COMDAT.
     let data_refs = data_refs_of(f, &text, 0).map_err(ComdatDecline::DataRef)?;
-    // **Board #1720** — the symbol table's undefined externals are ONE list in
-    // reverse first-reference order, and this writer emits callees then data
-    // symbols. Asked here, where both are in hand, on both emission paths.
-    crate::check_external_order(&calls, &data_refs).map_err(ComdatDecline::DataRef)?;
     let data_defs = crate::data_defs_of(f, 0).map_err(ComdatDecline::DataRef)?;
     Ok(ComdatBody {
         shape,

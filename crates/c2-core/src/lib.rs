@@ -873,8 +873,6 @@ impl PortC2 {
                 }
             };
             let data_refs = data_refs_of(f, &text[off as usize..], off)?;
-            // **Board #1720**, on the packed path too — see `check_external_order`.
-            check_external_order(&calls, &data_refs)?;
             // **W-DATA — the PACKED layout has no measured slot for a COMDAT
             // `.data`**, so a function that defines one refuses here rather than
             // reaching `emit_obj`. The packed section table interleaves
@@ -994,151 +992,133 @@ impl PortC2 {
 /// (`work/w-extdata/VSWPRNC_BODY.md` §3), so the position rule refuses a body
 /// c2 emits.
 ///
-/// **The replacement keeps the discipline the original was written for** — the
-/// site is DERIVED from the bytes and never declared by the class, so a schedule
-/// change cannot silently relocate the wrong instruction. What changes is only
-/// *how* it is derived: the high half is the **unique** `addis rT,0,0` anywhere
-/// in the body, and two of them refuse rather than pick one. That refusal is not
-/// hypothetical — `undname.cpp` has exactly two and is out of class until a lane
-/// pairs them by position (PREREG §1.5 row 9).
+/// # W-UNDNAME — the pairing is POSITIONAL, and there may be more than one
 ///
-/// # The ORDER CONSTRAINT, and why it lives with this function
+/// W-EXTDATA replaced the position rule with a *uniqueness* rule: the high half
+/// is the one `addis rT,0,0` in the body, two of them refuse. That refusal was
+/// not hypothetical and it is now paid.
+/// `?append@DName@@QAAXPAVDNameNode@@@Z` materializes **two** symbols
+/// (`work/w-undname/UNDNAME_BODY.md` §3):
 ///
-/// The writer emits undefined externals as **callees first, then data symbols**
-/// (`coff::writer`). The reference tables are one union list in **reverse
-/// first-reference order**, and the two rules agree only when every data
-/// reference precedes every call. That was guaranteed for free while the `lis`
-/// had to be word 0; relaxing the position rule removes the guarantee, so it is
-/// re-imposed explicitly by [`check_external_order`] — which is called from both
-/// emission paths, right where the calls and the data refs are both in hand.
-/// Board **#1720**.
+/// ```text
+///   +0x24  lis  r11,0      REFHI ?gHeapManager      ┐ low half is an ARG_REG,
+///   +0x2c  addi r3,r11,0   REFLO ?gHeapManager      ┘ 2 words below
+///   +0x40  lis  r11,0      REFHI ?pairNode_vtable   ┐ low half is the SCRATCH
+///   +0x4c  addi r11,r11,0  REFLO ?pairNode_vtable   ┘ ITSELF, 3 words below
+/// ```
+///
+/// Two different hoist distances in one body, and one low half writing the very
+/// register the high half lives in — so **neither** a fixed distance **nor** a
+/// search restricted to `addi <ARG_REG>,r11,0` can derive both. The rule that
+/// does: walk the words once; each `addis rT,0,0` **opens** a pair and the first
+/// `addi rD,rT,0` after it **closes** it, `rD` unconstrained. An `addis` that
+/// never closes, or a low half before any high half, refuses.
+///
+/// **The discipline the original clause was written for is kept**: the sites are
+/// DERIVED from the bytes and never declared by the class, so a schedule change
+/// cannot silently relocate the wrong instruction.
+///
+/// # The names come from the parser, and the two lists must AGREE
+///
+/// [`c2_il::IlFunction::data_syms`] is in emission order, so pair `i` takes name
+/// `i`. The counts are checked here rather than assumed: a body whose derived
+/// pair count differs from its name count refuses, because the alternative is a
+/// relocation against the wrong symbol — which links, and is `docs/GAPS.md` §6's
+/// silent wrong-bytes shape.
+///
+/// # The order constraint is GONE, and that is board #1720 shipping
+///
+/// This function's doc used to end with a paragraph explaining that
+/// `coff::writer` emits callees first and then data symbols, that the reference
+/// tables are one union list in reverse first-reference order, that the two
+/// agree only while every data reference precedes every call, and that
+/// `check_external_order` re-imposed the difference as a refusal. **The writer
+/// emits the union list now** ([`coff::Function::introduced_externals`]), so the
+/// fence has nothing left to protect and is deleted rather than left standing as
+/// a dead clause. GRID A is `work/w-extdata/GRID_A_RESULT.md`; the cell that
+/// exercises the new arm is this very body, whose externals are
+/// `data · callee · data`.
 pub(crate) fn data_refs_of<'a>(
     f: &'a c2_il::IlFunction,
     text: &[u8],
     base: u32,
 ) -> Result<Vec<coff::DataRef<'a>>, BackendError> {
-    // The two carriers are mutually exclusive by construction — one names a DATA
-    // symbol (`Type` 0x0000) and one a FUNCTION (`Type` 0x0020) — and a body
-    // spelling both would need two `lis`es, which the uniqueness check below
-    // refuses anyway. Asked as an explicit refusal so that a future parser
-    // setting both gets a loud answer rather than a silently dropped relocation.
-    if f.data_sym.is_some() && f.fn_addr_sym.is_some() {
+    // The two carriers name different symbol RECORDS — a data name is
+    // `Type 0x0000` and a function's address `Type 0x0020` — and nothing in the
+    // derived sites tells them apart, because both are the same `lis`/`addi`
+    // quad. A body setting both would need this function to decide which pair is
+    // which, and no cell says. Refused loudly rather than guessed.
+    if !f.data_syms.is_empty() && f.fn_addr_sym.is_some() {
         return Err(BackendError::NotImplemented(
             "a body naming BOTH a data symbol and a function's address: two \
-             REFHI/REFLO quads whose `lis`es cannot be told apart by search"
+             REFHI/REFLO quads whose `lis`es are the same word and whose symbol \
+             records are not"
                 .to_string(),
         ));
     }
-    let (name, is_function) = match (f.data_sym.as_deref(), f.fn_addr_sym.as_deref()) {
-        (Some(n), _) => (n, false),
-        (_, Some(n)) => (n, true),
-        _ => return Ok(Vec::new()),
+    let (names, is_function): (Vec<&'a str>, bool) = match f.fn_addr_sym.as_deref() {
+        Some(n) => (vec![n], true),
+        None if f.data_syms.is_empty() => return Ok(Vec::new()),
+        None => (f.data_syms.iter().map(String::as_str).collect(), false),
     };
+    // One forward walk. `open` holds the `.text` offset of the `addis` whose low
+    // half has not been seen yet; a second `addis` before that one closes is a
+    // body this derivation cannot read.
     let lis = codegen::encode_addis(codegen::SCRATCH_REG, 0, 0);
-    let mut hi: Option<u32> = None;
+    let mut pairs: Vec<(u32, u32)> = Vec::new();
+    let mut open: Option<u32> = None;
     for (i, w) in text.chunks_exact(4).enumerate() {
+        let off = base + 4 * i as u32;
         if w == lis {
-            if hi.is_some() {
+            if open.is_some() {
                 return Err(BackendError::NotImplemented(
-                    "two `lis rS,sym@ha` high halves in one body: the relocation \
-                     site is derived by search and two candidates cannot be told \
-                     apart"
+                    "a second `lis rS,sym@ha` before the first one's low half: \
+                     the relocation sites are derived by a forward walk and two \
+                     open high halves cannot be told apart"
                         .to_string(),
                 ));
             }
-            hi = Some(base + 4 * i as u32);
+            open = Some(off);
+            continue;
         }
-    }
-    let Some(hi_off) = hi else {
-        return Err(BackendError::NotImplemented(
-            "a symbol address with no `lis rS,sym@ha` high half: the relocation \
-             site is derived from the emitted words"
-                .to_string(),
-        ));
-    };
-    // The low half: the unique `addi rD,r11,0` among the setup words. Derived by
-    // search rather than by `hi_off + 4`, because the two halves are **not**
-    // adjacent when a higher argument slot carries a literal — `gsp(&gI, 7)` puts
-    // the `li r4,7` between them (`coff::DataRef`). It is unambiguous: the only
-    // other instructions this class emits are the `lis` (an `addis`), `li rD,k`
-    // (an `addi` whose RA is **0**, not 11) and the tail branch.
-    let mut lo: Option<u32> = None;
-    for (i, w) in text.chunks_exact(4).enumerate() {
-        if codegen::ARG_REGS
-            .iter()
-            .any(|&d| w == codegen::encode_addi(d, codegen::SCRATCH_REG, 0))
-        {
-            if lo.is_some() {
-                return Err(BackendError::NotImplemented(
-                    "two low-half `addi`s against the address scratch in one body"
-                        .to_string(),
-                ));
+        // The low half is any `addi rD,r11,0` — the destination is unconstrained
+        // because `?append`'s second pair writes the scratch register itself
+        // (`addi r11,r11,0`), which is not an `ARG_REG` and which the previous
+        // ARG_REG-restricted search could not see. `li rD,k` cannot be mistaken
+        // for one: its `RA` field is 0, not `SCRATCH_REG`.
+        if (0u8..32).any(|d| w == codegen::encode_addi(d, codegen::SCRATCH_REG, 0)) {
+            match open.take() {
+                Some(hi_off) => pairs.push((hi_off, off)),
+                None => {
+                    return Err(BackendError::NotImplemented(
+                        "an `addi rD,r11,0` low half with no open `lis` above it"
+                            .to_string(),
+                    ))
+                }
             }
-            lo = Some(base + 4 * i as u32);
         }
     }
-    let Some(lo_off) = lo else {
+    if open.is_some() {
         return Err(BackendError::NotImplemented(
-            "a data-symbol address with no `addi rD,r11,0` low half".to_string(),
-        ));
-    };
-    if lo_off <= hi_off {
-        // The low half is spent after the high half is materialized, always.
-        // A body reading otherwise is one this search has mis-paired.
-        return Err(BackendError::NotImplemented(
-            "a symbol address whose low half precedes its high half".to_string(),
-        ));
-    }
-    Ok(vec![coff::DataRef { hi_off, lo_off, name, is_function }])
-}
-
-/// **W-EXTDATA — the one fact that makes `coff::writer`'s two symbol loops equal
-/// to c2's one list**, checked rather than assumed. Board **#1720**.
-///
-/// The writer emits a function's undefined externals as **callees in reverse
-/// first-reference order, then data symbols**. Every reference obj this project
-/// has read spells them as ONE list in reverse first-reference order over all of
-/// them, kind ignored — measured on three workload objs at once:
-///
-/// ```text
-///   undname   gHeapManager(0x24) getMemory(0x34) pairNode_vtable(0x40)
-///             -> [15] pairNode_vtable  [16] getMemory  [17] gHeapManager
-///   osfinfo   _nhandle(0x14) __pioinfo(0x28) _errno(0x68) __doserrno(0x74)
-///             -> [15] __doserrno [16] _errno [17] __pioinfo [18] _nhandle
-///   vswprnc   _woutput_s_l(0x38) helper(0x4c) _errno(0x68) invalid(0x80)
-///             -> [15] invalid [16] _errno [17] helper [18] _woutput_s_l
-/// ```
-///
-/// The two rules coincide exactly when **every data reference precedes every
-/// call**, because then the data names are the earliest-referenced and reverse
-/// order puts them last — which is where the second loop puts them. That held
-/// for free while [`data_refs_of`] required the `lis` to be the body's first
-/// word; it does not hold now, and `undname` is the witness (`data · callee ·
-/// data`, interleaved, which no ordering of two loops can produce).
-///
-/// So this is the honest fence for the relaxation: a body whose REFHI comes
-/// after a `bl` is refused here, loudly, rather than emitted with a symbol table
-/// that is right only by coincidence.
-pub(crate) fn check_external_order(
-    calls: &[coff::Call<'_>],
-    data_refs: &[coff::DataRef<'_>],
-) -> Result<(), BackendError> {
-    let first_call = calls.iter().map(|c| c.reloc_offset).min();
-    let (Some(first_call), Some(last_ref)) =
-        (first_call, data_refs.iter().map(|r| r.hi_off).max())
-    else {
-        return Ok(());
-    };
-    if last_ref > first_call {
-        return Err(BackendError::NotImplemented(
-            "a symbol-address reference AFTER a call site: c2 emits the \
-             undefined externals as one list in reverse first-reference order \
-             and this writer emits callees then data symbols, which agree only \
-             while every reference precedes every call (board #1720)"
+            "a `lis rS,sym@ha` high half with no `addi rD,rS,0` low half below it"
                 .to_string(),
         ));
     }
-    Ok(())
+    if pairs.len() != names.len() {
+        return Err(BackendError::NotImplemented(format!(
+            "{} REFHI/REFLO pair(s) derived from the emitted words against {} \
+             symbol name(s) from the parser: the two lists are paired by \
+             position and a mismatch would relocate a site against the wrong \
+             symbol",
+            pairs.len(),
+            names.len()
+        )));
+    }
+    Ok(pairs
+        .into_iter()
+        .zip(names)
+        .map(|((hi_off, lo_off), name)| coff::DataRef { hi_off, lo_off, name, is_function })
+        .collect())
 }
 
 /// **W-DATA — the relocation sites for a data object this TU DEFINES**, derived
@@ -1275,7 +1255,7 @@ mod tests {
     fn sym_func(name: &str) -> c2_il::IlFunction {
         let mut f = codegen::testutil::func_with(Vec::new(), Vec::new());
         f.mangled_name = name.into();
-        f.data_sym = Some("?gI@@3HA".into());
+        f.data_syms = vec!["?gI@@3HA".into()];
         f
     }
 
@@ -1362,7 +1342,7 @@ mod tests {
         );
         // …and a function with no data symbol yields no DataRef at all.
         let mut plain = codegen::testutil::func_with(Vec::new(), Vec::new());
-        plain.data_sym = None;
+        plain.data_syms.clear();
         assert_eq!(
             data_refs_of(&plain, &p4_text(), 0).expect("no data symbol is fine").len(),
             0,
@@ -1381,7 +1361,7 @@ mod tests {
     fn eh_ctor(target: &str) -> c2_il::IlFunction {
         let mut f = codegen::testutil::func_with(Vec::new(), Vec::new());
         f.mangled_name = "??0D@@QAA@XZ".into();
-        f.data_sym = None;
+        f.data_syms.clear();
         f.eh_bare = true;
         f.eh_unwind_callees = vec![target.to_string()];
         f
@@ -1391,7 +1371,7 @@ mod tests {
     fn dtor(name: &str, empty: bool) -> c2_il::IlFunction {
         let mut f = codegen::testutil::func_with(Vec::new(), Vec::new());
         f.mangled_name = name.into();
-        f.data_sym = None;
+        f.data_syms.clear();
         f.empty_body = empty;
         if !empty {
             f.tail_call = Some("?gh@@YAXXZ".into());
@@ -1435,7 +1415,7 @@ mod tests {
     fn a_function_that_is_not_eh_bare_is_untouched() {
         let mut f = codegen::testutil::func_with(Vec::new(), Vec::new());
         f.mangled_name = "??0D@@QAA@XZ".into();
-        f.data_sym = None;
+        f.data_syms.clear();
         let funcs = vec![dtor("??1B@@QAA@XZ", true), f];
         assert_eq!(PortC2::label_lead_of(&funcs[1], &funcs).unwrap(), 0);
     }

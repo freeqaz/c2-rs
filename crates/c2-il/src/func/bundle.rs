@@ -722,7 +722,7 @@ fn slot_arg(a: body::SlotArg) -> SlotArg {
 /// **WR1 — resolve a tail call's slot list**, turning its one
 /// [`body::SlotArg::SymAddr`] token into a mangled `.gl` name.
 ///
-/// Returns `(slots, data_sym)`. `None` when the token resolves to nothing, which
+/// Returns `(slots, data_syms)`. `None` when the token resolves to nothing, which
 /// is the same refusal a callee's does and for the same reason: a relocation
 /// against a guessed symbol is a mis-emit, not a gap. **A string literal lands
 /// here** — its `.gl` record carries the `25` separator `gl_symbol_index`
@@ -735,25 +735,32 @@ fn slot_arg(a: body::SlotArg) -> SlotArg {
 fn slot_args_resolved(
     slots: Vec<body::SlotArg>,
     resolve_data: &dyn Fn(u32) -> Option<String>,
-) -> Option<(Vec<SlotArg>, Option<String>)> {
-    let mut data_sym: Option<String> = None;
+) -> Option<(Vec<SlotArg>, Vec<String>)> {
+    let mut data_syms: Vec<String> = Vec::new();
     let mut out = Vec::with_capacity(slots.len());
     for a in slots {
         match a {
             body::SlotArg::SymAddr(tok) => {
                 let n = resolve_data(tok)?;
-                // The parser admits exactly one; a second would silently take the
-                // first one's relocation, so it refuses here too.
-                if data_sym.is_some() {
+                // **This class still admits exactly one**, and the refusal stays
+                // even though the carrier is a list now. `IlFunction::data_syms`
+                // is ordered by the `.text` offset of each `lis`, and a slot walk
+                // is not that order: `docs/IL_CALL_IN_EXPR.md` §17.3 (a)/(b)
+                // records that c2 materializes only the FIRST of several through a
+                // relocation pair and derives the rest by pool-offset difference,
+                // which is a different body. Widening the carrier does not
+                // characterize that, so a second symbol refuses here exactly as it
+                // did when the field was an `Option`.
+                if !data_syms.is_empty() {
                     return None;
                 }
-                data_sym = Some(n);
+                data_syms.push(n);
                 out.push(SlotArg::SymAddr);
             }
             other => out.push(slot_arg(other)),
         }
     }
-    Some((out, data_sym))
+    Some((out, data_syms))
 }
 
 /// Convert one parsed body shape into the emitter's function record.
@@ -1153,12 +1160,12 @@ pub(crate) fn shape_to_function(
             // operand stream, so `ops` stays empty and `arg_sources` carries the
             // mapping.
             BodyShape::MultiArgTailCall { params, arg_sources, callee_tok } => {
-                let (arg_sources, data_sym) = slot_args_resolved(arg_sources, resolve_data)?;
+                let (arg_sources, data_syms) = slot_args_resolved(arg_sources, resolve_data)?;
                 Some(IlFunction {
                     params,
                     tail_call: Some(resolve(callee_tok)?),
                     arg_sources: Some(arg_sources),
-                    data_sym,
+                    data_syms,
                     ..IlFunction::base(name, src)
                 })
             }
@@ -1683,7 +1690,7 @@ impl IlBundle {
             // accounted by this line, and it is a whole extra section
             // (`docs/IL_CALL_IN_EXPR.md` §17.2 item 7) — which is why the gate is
             // there and not here.
-            if let Some(d) = &f.data_sym {
+            for d in &f.data_syms {
                 accounted.push(d.as_str());
             }
             // **W-EXTDATA — a FUNCTION whose address this body materializes.**
@@ -1693,7 +1700,7 @@ impl IlBundle {
             // (`work/w-extdata/ref/vswprnc/dis.txt` symbol 18 against
             // `work/w-extdata/ref/undname/dis.txt` symbols 15 and 17).
             //
-            // Safe for the same reason the `data_sym` clause is: the name is
+            // Safe for the same reason the `data_syms` clause is: the name is
             // resolved from a `.gl` record that says *undefined external*, so
             // accounting it does not hide a DEFINED symbol — which would be a
             // whole extra section and the file-offset-2 mismatch this gate cost

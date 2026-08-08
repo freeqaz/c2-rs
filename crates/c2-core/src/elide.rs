@@ -568,7 +568,7 @@ pub fn drops_tail_call(f: &IlFunction, tu: &TuEmptyCallees) -> bool {
     // Condition 3 — a caller that materializes a named data symbol is a cell no
     // grid graded, and `k16_mid_stores_global` grades what happens when one is
     // in the middle of a chain: its own call is `E` and its CALLER's is `I`.
-    if f.data_sym.is_some() {
+    if !f.data_syms.is_empty() {
         return false;
     }
     // Conditions 1 and 2, both resolved in `TuEmptyCallees::of`.
@@ -593,7 +593,7 @@ pub fn drops_tail_call(f: &IlFunction, tu: &TuEmptyCallees) -> bool {
 ///   *asserted* away here: an `IlFunction` is a parse result and this is a
 ///   predicate over it, not over the parser's invariants.
 fn elidable_step(f: &IlFunction) -> Option<&str> {
-    if f.data_sym.is_some() || f.framed_call.is_some() || f.call_seq.is_some()
+    if !f.data_syms.is_empty() || f.framed_call.is_some() || f.call_seq.is_some()
         || f.cond_pair.is_some()
     {
         return None;
@@ -609,7 +609,7 @@ mod tests {
     fn named(name: &str) -> IlFunction {
         let mut f = func_with(Vec::new(), Vec::new());
         f.mangled_name = name.into();
-        f.data_sym = None;
+        f.data_syms.clear();
         f
     }
 
@@ -677,7 +677,7 @@ mod tests {
     #[test]
     fn a_caller_with_a_data_symbol_is_not_elided() {
         let mut caller = tail_caller("?f@@YAXXZ", "?g@@YAXXZ");
-        caller.data_sym = Some("?gv@@3HA".into());
+        caller.data_syms = vec!["?gv@@3HA".into()];
         let funcs = vec![empty("?g@@YAXXZ"), caller];
         let tu = TuEmptyCallees::of(&funcs);
         assert!(tu.reduces_to_nothing("?g@@YAXXZ"));
@@ -881,7 +881,7 @@ mod tests {
     #[test]
     fn a_mid_node_that_materializes_data_does_not_propagate() {
         let mut g1 = tail_caller("?g1@@YAXH@Z", "?h@@YAXH@Z");
-        g1.data_sym = Some("?gv@@3HA".into());
+        g1.data_syms = vec!["?gv@@3HA".into()];
         let funcs = vec![
             empty("?h@@YAXH@Z"),
             g1,
@@ -1136,7 +1136,7 @@ mod tests {
     #[test]
     fn a_caller_with_a_data_symbol_is_not_elided_over_a_seed() {
         let mut caller = tail_caller("?f@@YAXXZ", "?leaf@@YAXXZ");
-        caller.data_sym = Some("?gv@@3HA".into());
+        caller.data_syms = vec!["?gv@@3HA".into()];
         let rows = vec![
             ("?leaf@@YAXXZ", Reduction::NoEffectNothing),
             ("?f@@YAXXZ", Reduction::Parsed(&caller)),
@@ -1168,7 +1168,7 @@ mod tests {
         let mut g = func_with(Vec::new(), Vec::new());
         g.mangled_name = String::new();
         g.empty_body = true;
-        g.data_sym = None;
+        g.data_syms.clear();
         let tu = TuEmptyCallees::of(&[g]);
         assert_eq!(tu.len(), 0);
         assert!(!tu.reduces_to_nothing(""));
