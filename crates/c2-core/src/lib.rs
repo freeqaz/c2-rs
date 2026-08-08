@@ -802,6 +802,31 @@ impl PortC2 {
                             .collect(),
                     )
                 }
+                // W-CFG1 — the `if`/`else`-with-a-join, built at `off` for the
+                // same reason every framed shape here is: both `bl` words encode
+                // their own `.text` offset.
+                codegen::Selected::IfCallJoin => {
+                    let j = f.if_call_join.as_ref().expect("IfCallJoin implies if_call_join");
+                    let body = codegen::if_call_join::if_call_join_text(j, off, mode)?;
+                    frame = Some(coff::Frame {
+                        prolog_len: body.prolog_len,
+                        func_len: body.text.len() as u32,
+                    });
+                    text.extend_from_slice(&body.text);
+                    (
+                        vec![
+                            coff::Call {
+                                reloc_offset: body.bl_offsets[0],
+                                callee: &j.callee_hi,
+                            },
+                            coff::Call {
+                                reloc_offset: body.bl_offsets[1],
+                                callee: &j.callee_lo,
+                            },
+                        ],
+                        Vec::new(),
+                    )
+                }
                 codegen::Selected::Plain(body) => {
                     text.extend_from_slice(&body);
                     (Vec::new(), Vec::new())

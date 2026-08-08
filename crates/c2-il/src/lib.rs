@@ -46,6 +46,8 @@ pub use func::{
     CallSeq, CmpShiftOr, CompareLeaf, DataObject, DataTu, DynInitTu, FpTail, FramedCall, GlDataRow, InAliasReport,
     IlFunction, IlOp,
     DivModLeaf,
+    IfCallJoin,
+    IfCallJoinFn,
     PtrWalkModLoop,
     ChainOp, ChainOpKind, ChainRhs, PtrWalkChainLoop,
     Rel, SeqCall, SeqCmp, SeqEarlyReturn, SeqGuard, SeqTail, StoreRunPrefix,

@@ -812,3 +812,44 @@ fn differential_wunw_float_beside_framed_refuses() {
     }
     std::fs::remove_dir_all(&w).ok();
 }
+
+/// **W-CFG1's mode fence, graded by the oracle.** `wcfg1_if_call_join.cpp` is a
+/// `/O1`-only class: at `/Ox` and `/O2` c2 tail-duplicates the join block rather
+/// than sharing it behind a `b`, on a threshold W10 bracketed with one cell
+/// either side and did not fit (board row X-b). `differential()` drives the
+/// **default `/Ox` profile**, so this test grades exactly the arm the workload
+/// never exercises — and the assertion is `NotImplemented`, because a refusal
+/// becoming a wrong emit is strictly worse than a gap (board #232).
+///
+/// **The `/O1` arm is graded by `scripts/mode_lane.sh /O1`, not here**, and that
+/// is where the five positive cells come back `match`. This test cannot make
+/// that claim and does not: `differential()` has no `--flags-file`.
+///
+/// `wcfg1_if_call_join_neg.cpp` refuses in the READER at every mode, so its
+/// verdict is the same on both paths. Its six cells' per-cell verdicts are a
+/// `c2rs census` matter (`0/6 in class`) — a file-level `NotImplemented` is the
+/// conjunction and is satisfied by any one cell refusing.
+#[test]
+fn differential_wcfg1_if_call_join_refuses_outside_its_mode() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        eprintln!("SKIP: strace/mingw absent");
+        return;
+    }
+    for name in ["wcfg1_if_call_join.cpp", "wcfg1_if_call_join_neg.cpp"] {
+        let w = work("wcfg1");
+        let port = PortC2::default();
+        let report = differential(&fixture(name), &tc, &port, &w);
+        match report {
+            DiffReport::ReferenceReplayByteExact { port, .. } => match port {
+                PortStatus::NotImplemented(_) => {}
+                other => panic!("expected NotImplemented for {name} at /Ox, got {other:?}"),
+            },
+            other => panic!("expected ReferenceReplayByteExact for {name}, got {other:?}"),
+        }
+        std::fs::remove_dir_all(&w).ok();
+    }
+}

@@ -576,6 +576,14 @@ impl IlBundle {
                             // count is exactly the population that used to
                             // render as `expr-op-0x05` / `expr-op-0x06`, and
                             // the two gap keys must fall by the same number.
+                            // W-CFG1 — the `if`/`else`-with-a-join. Its own
+                            // bucket, and the FIRST accepted key that may read
+                            // `cflow-if-n`: the control-flow axis's control
+                            // (`every_in_class_row_is_a_single_basic_block`)
+                            // names the accepted keys that may carry a non-
+                            // straight reading one at a time, so a widening
+                            // cannot slip a second one in unnoticed.
+                            Ok(BodyShape::IfCallJoin(_)) => FnVerdict::InClass("if-call-join"),
                             Ok(BodyShape::DivModLeaf(_)) => FnVerdict::InClass("div-mod-leaf"),
                             Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
                             // Split from the integer tail call by the register
@@ -1050,7 +1058,8 @@ mod tests {
             if f.verdict.in_class() {
                 assert!(
                     f.cflow.starts_with("cflow-straight")
-                        || f.verdict.key() == "ptr-walk-mod-loop",
+                        || f.verdict.key() == "ptr-walk-mod-loop"
+                        || f.verdict.key() == "if-call-join",
                     "in-class function #{} with key {} reads {} — the port accepts \
                      only single basic blocks apart from `ptr-walk-mod-loop`, so \
                      this is either a scanner inventing control flow or an emitter \
