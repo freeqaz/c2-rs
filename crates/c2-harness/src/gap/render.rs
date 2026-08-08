@@ -224,13 +224,21 @@ fn render_cfg_reachability(report: &GapReport) {
     let reach = rows.iter().filter(|(_, v)| v.is_reachable()).count();
     println!(
         "\x20 FRONTIER BY CFG REACHABILITY (board #720) — CAN THE EMITTER EXPRESS THIS TU AT ALL? \
-         `Selected` covers THREE control-flow shapes: straight-line, ONE two-arm conditional, and \
+         `Selected` covers FOUR control-flow shapes: straight-line, ONE two-arm conditional, \
          — since lane `w-hash`, board #761 — ONE loop, the pointer-walk accumulate of \
-         `codegen::ptr_walk_loop`. **That third one is a transcription of a single function class, \
-         not a loop lowering**: twenty words, two immediate fields, `/O1` only, and every other \
-         loop shape still has no representation at all. This line read `no variant encodes a \
-         backward branch, so NO loop of any kind has a representation` until `Sort.cpp` converted; \
-         the correction is here rather than beside the old claim. This is not a quantity of \
+         `codegen::ptr_walk_loop`, and — since lane `w-cfgclass`, board #1630 — ONE `if`/`else` \
+         with a join whose arms are calls, `codegen::if_call_join`. **The last two are each a \
+         transcription of a single function class, not a lowering of its CFG class**: twenty \
+         words, two immediate fields, `/O1` only. Every other loop shape and every other \
+         `cflow-if-n` shape still has no representation at all — the `if`/`else` class takes 2 of \
+         the frontier's 11 `cflow-if-n` functions and the loop 1 of its 21 `cflow-loop` ones. \
+         This line read `no variant encodes a backward branch, so NO loop of any kind has a \
+         representation` until `Sort.cpp` converted, and `THREE ... shapes` until \
+         `negate_test.cpp` did; each correction is here rather than beside the old claim. \
+         **A shape being in this list does NOT put its class in `PORT_CFG_CLASSES`** — the two \
+         converted TUs left the frontier by MATCHING, so neither appears in the count below, \
+         which is why that count can stand still while this sentence grows. This is not a \
+         quantity of \
          progress like #269/#465/#500 — a TU can be one 8-byte function from matching and be \
          unreachable because those 8 bytes are a loop. INSTRUMENT, never a gate. {reach} of {} \
          frontier TUs are reachable:",
