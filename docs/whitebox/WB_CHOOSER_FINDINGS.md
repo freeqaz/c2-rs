@@ -168,11 +168,28 @@ function interposed. Rival **R-M-C** (whole-TU knowledge, order-independent)
 wins that cell, and per PREREG decline clause 3 the prediction is retracted
 rather than hedged.
 
-The objs also show *why*: in M4 the source order is `leaf` declared, `f`
-defined, `leaf` defined — and the obj emits **`leaf` as section 5 and `f` as
-section 6**. c2 does not emit in definition order, so "already emitted" was
-never the right frame. The port must treat the callee footprint as a **whole-TU
-property**, which is *easier* to implement than what I predicted.
+The objs also show *why*, and the why is a **black-box confirmation of an
+existing `high`-confidence label that the lane which filed it could not test**.
+In M4 the source order is `leaf` declared, `f` defined, `leaf` defined — and the
+obj emits **`leaf` as section 5 and `f` as section 6**. M16 interposes a third
+function and gets `filler`(5), `leaf`(6), `f`(7). c2 does not emit in definition
+order: it emits **callees before callers**, which is exactly what
+`W-EMIT.tsv`'s `10b2778e` says — *"topological sort (callee before caller) of
+`DAT_10c4630c`"*, the list the emit-walk at `10b7f15f` iterates.
+
+So P1.3's *intuition* was right and its *prediction* was wrong for the best
+possible reason: the footprint really is only known once the callee is emitted,
+and c2 removes the hazard by **guaranteeing** the callee is emitted first. The
+port must treat the callee footprint as a **whole-TU property**, which is
+*easier* to implement than what I predicted.
+
+**This closes item 2 of `WB_FRAME_FINDINGS.md`'s "Found and not taken" list**,
+which names the interprocedural register footprint, proposes `10b2778e` as the
+mechanism, records it as **unmeasured**, and reports that its probes 2 and 3
+both failed *because c2 inlined the callees*. The trick that makes it
+reproducible is `__declspec(noinline)` on the callee — the same attribute
+`mmio.cpp` puts on `mmioFlush`, which is why `mmio` witnesses it in the corpus
+at all. That negative is now spent: **13 of this lane's cells reproduce it.**
 
 ### 2.5 P1.5 is RETRACTED — the callee-saved set is top-down, the assignment is not
 
@@ -355,7 +372,23 @@ datum clear (r31 and r30 are in use in `mmioSetInfo` and M7), so the narrowed
 range is a mode the corpus does not exercise. Confidence **high** on the
 instructions, **unknown** on what sets the datum.
 
-### 5.4 What this lane did NOT find, stated so it is not re-searched
+### 5.4 `10b2778e` — the emission order, now obj-confirmed
+
+`W-EMIT.tsv` carries `10b2778e` as `emit-order`, `high`, *"topological sort
+(callee before caller) of `DAT_10c4630c`"* — the list the emit driver at
+`10b7f15f` walks. `WB_FRAME_FINDINGS.md` names it as the plausible mechanism for
+the interprocedural register footprint and records it as **unmeasured**, its two
+probes having failed because c2 inlined the callees.
+
+**M4 and M16 measure it.** With `__declspec(noinline)` defeating the inliner, a
+callee defined *after* its caller in the source is emitted *before* it in the
+obj (M4: `leaf`=5, `f`=6; M16: `filler`=5, `leaf`=6, `f`=7). The disassembly
+reading and the obj now agree, which is what promotes a label from *"I read the
+instructions correctly"* to *"this is what c2 does"* (campaign rule 2). It is
+also the reason M-RULE's whole-TU clause is implementable: the sort makes every
+callee's footprint available at every caller by construction.
+
+### 5.5 What this lane did NOT find, stated so it is not re-searched
 
 * **The interprocedural clobber consult is UNLOCATED.** §2's M-RULE is
   established on 16 objs, but the code that records a callee's register
@@ -451,6 +484,11 @@ blocked-function count. The rungs themselves were accurate every time.
   code lane carries the DISCLOSURE drafts in the same commit if it uses §5.
 * **It did not grid the float-materialisation chooser** found by B7 (§4.2). One
   obj, named, not priced.
+* **It did not probe a call CYCLE.** A topological sort (`10b2778e`) has no
+  answer for mutual recursion, so `int a(int); int b(int){return a(0);}
+  int a(int x){return b(x);}` is the one shape where M-RULE's whole-TU clause
+  must degrade to "assume the full volatile set" — and it is one cell. Named,
+  not run.
 * **It did not locate the interprocedural clobber consult** (§5.4), and says so
   rather than guessing from `FUN_10b26eda`'s 206 call sites.
 * **It did not re-open `memcpy`.** P0.1's guess was wrong and `mmio`'s two
