@@ -108,6 +108,7 @@ pub fn selected_tag(s: &codegen::Selected) -> &'static str {
         codegen::Selected::Seq { .. } => "seq",
         codegen::Selected::CondPair(_) => "cond-pair",
         codegen::Selected::IfCallJoin => "if-call-join",
+        codegen::Selected::GuardChainSharedTail => "guard-chain-shared-tail",
     }
 }
 
@@ -242,6 +243,37 @@ pub(crate) fn body_of<'a>(
         // W-CFG1 — the `if`/`else`-with-a-join. Built at 0 because each
         // function is its own COMDAT here, which is what its two `bl`
         // displacements are relative to.
+        // **W-EXTDATA — the sunk-`||`-guard body.** Built at 0 for the reason
+        // every framed shape here is: each function is its own COMDAT under
+        // `/Gy`, which is what its four `bl` displacements are relative to.
+        codegen::Selected::GuardChainSharedTail => {
+            let g = f
+                .guard_chain_shared_tail
+                .as_ref()
+                .expect("GuardChainSharedTail implies guard_chain_shared_tail");
+            let body =
+                codegen::guard_chain_shared_tail::guard_chain_shared_tail_text(g, 0, mode)
+                    .map_err(ComdatDecline::Shape)?;
+            frame = Some(coff::Frame {
+                prolog_len: body.prolog_len,
+                func_len: body.text.len() as u32,
+            });
+            // Four sites, three names: `errno` is called from BOTH arms and the
+            // symbol is emitted once, which is `introduced_callees`' own dedup
+            // and the reason these are zipped by SITE and not by name.
+            let calls = body
+                .bl_offsets
+                .iter()
+                .zip([
+                    g.helper.as_str(),
+                    g.errno.as_str(),
+                    g.errno.as_str(),
+                    g.invalid.as_str(),
+                ])
+                .map(|(off, callee)| coff::Call { reloc_offset: *off, callee })
+                .collect();
+            (body.text, calls)
+        }
         codegen::Selected::IfCallJoin => {
             let j = f.if_call_join.as_ref().expect("IfCallJoin implies if_call_join");
             let body = codegen::if_call_join::if_call_join_text(j, 0, mode)
@@ -389,6 +421,10 @@ pub(crate) fn body_of<'a>(
     };
     // Under `/Gy` each function starts at offset 0 of its own COMDAT.
     let data_refs = data_refs_of(f, &text, 0).map_err(ComdatDecline::DataRef)?;
+    // **Board #1720** — the symbol table's undefined externals are ONE list in
+    // reverse first-reference order, and this writer emits callees then data
+    // symbols. Asked here, where both are in hand, on both emission paths.
+    crate::check_external_order(&calls, &data_refs).map_err(ComdatDecline::DataRef)?;
     let data_defs = crate::data_defs_of(f, 0).map_err(ComdatDecline::DataRef)?;
     Ok(ComdatBody {
         shape,

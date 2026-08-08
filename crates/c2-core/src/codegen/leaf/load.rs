@@ -131,8 +131,10 @@ mod tests {
         fp_arg_sources: None,
             arg_sources: None,
             data_sym: None,
+            fn_addr_sym: None,
             data_def: None,
             static_scan_loop: None,
+            guard_chain_shared_tail: None,
         };
         assert_eq!(
             indirect_load_text(&f).unwrap().unwrap(),
@@ -179,8 +181,10 @@ mod tests {
         fp_arg_sources: None,
             arg_sources: None,
             data_sym: None,
+            fn_addr_sym: None,
             data_def: None,
             static_scan_loop: None,
+            guard_chain_shared_tail: None,
         };
         let blr = [0x4E, 0x80, 0x00, 0x20];
         let body = |ops: Vec<IlOp>, params: Vec<u32>| {

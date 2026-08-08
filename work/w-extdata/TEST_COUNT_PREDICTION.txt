@@ -1,0 +1,19 @@
+Registered BEFORE the final `cargo test --workspace --release` run, per board #1710a
+(a test vanished in a `git checkout <base> -- crates/` round trip and nothing went red;
+the only thing that caught it was comparing a COUNT to a PREDICTED VALUE).
+
+  base (master 3168b4e9)                                    1255 passed, 36 targets
+  + codegen::guard_chain_shared_tail::tests                   +6
+      body_matches_the_reference_obj_word_for_word
+      duplicating_the_shared_tail_would_be_twelve_bytes_longer
+      the_two_result_tests_use_different_condition_registers
+      the_high_half_is_word_fourteen_and_not_word_zero
+      refuses_outside_o1
+      refuses_a_seventh_formal
+  + differential_wextdata_guard_chain_refuses_outside_its_mode +1
+  ---------------------------------------------------------------
+  PREDICTED                                                 1262 passed, 0 failed, 36 targets
+
+This lane DID take a `git checkout 3168b4e9 -- crates fixtures` round trip, to build
+the base binary for the peer-key scan — the exact operation that ate w-data's test.
+`git status -- crates fixtures` was checked clean BEFORE and AFTER.

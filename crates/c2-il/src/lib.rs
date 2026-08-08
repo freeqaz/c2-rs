@@ -47,6 +47,7 @@ pub use func::{
     IlFunction, IlOp,
     DivModLeaf,
     IfCallJoin,
+    GuardChainSharedTailFn,
     IfCallJoinFn,
     PtrWalkModLoop,
     ChainOp, ChainOpKind, ChainRhs, PtrWalkChainLoop,

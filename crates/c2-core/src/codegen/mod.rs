@@ -37,6 +37,7 @@ pub mod frame;
 /// it cannot be reached from a release build even by accident.
 #[cfg(test)]
 pub(crate) mod frontier_bytes;
+pub mod guard_chain_shared_tail;
 pub mod if_call_join;
 pub mod labels;
 pub mod leaf;

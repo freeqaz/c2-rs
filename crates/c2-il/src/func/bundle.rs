@@ -1232,6 +1232,35 @@ pub(crate) fn shape_to_function(
                     ..IlFunction::base(name, src)
                 })
             }
+            // **W-EXTDATA — the sunk-`||`-guard, shared-tail body.** Four tokens
+            // to resolve and they are resolved through the SAME `resolve` every
+            // callee uses, including `fn_addr` — whose `.gl` record is a
+            // function's, which is exactly why its symbol is `Type 0x0020`. A
+            // single unresolvable one refuses the whole function: a relocation
+            // against a guessed symbol is a mis-emit, not a gap.
+            BodyShape::GuardChainSharedTail(c) => {
+                let fn_addr = resolve(c.fn_addr_tok)?;
+                Some(IlFunction {
+                    params: c.params.clone(),
+                    // The REFHI/REFLO target travels on its own field rather
+                    // than in `callees`, because the writer must not emit a
+                    // REL24 for it — see `IlFunction::fn_addr_sym`.
+                    fn_addr_sym: Some(fn_addr.clone()),
+                    guard_chain_shared_tail: Some(crate::func::GuardChainSharedTailFn {
+                        params: c.params,
+                        guard_ix: c.guard_ix,
+                        helper: resolve(c.helper_tok)?,
+                        fn_addr,
+                        errno: resolve(c.errno_tok)?,
+                        invalid: resolve(c.invalid_tok)?,
+                        k_guard: c.k_guard,
+                        k_range: c.k_range,
+                        sentinel: c.sentinel,
+                        ret_fail: c.ret_fail,
+                    }),
+                    ..IlFunction::base(name, src)
+                })
+            }
             BodyShape::PtrWalkChainLoop(l) => {
                 Some(IlFunction {
                     params: l.params.clone(),
@@ -1655,6 +1684,21 @@ impl IlBundle {
             // (`docs/IL_CALL_IN_EXPR.md` §17.2 item 7) — which is why the gate is
             // there and not here.
             if let Some(d) = &f.data_sym {
+                accounted.push(d.as_str());
+            }
+            // **W-EXTDATA — a FUNCTION whose address this body materializes.**
+            // Its own clause and not a widening of the one above, because the
+            // two produce different symbol records: this one is `Type 0x0020`
+            // and that one `Type 0x0000`, measured side by side in one obj
+            // (`work/w-extdata/ref/vswprnc/dis.txt` symbol 18 against
+            // `work/w-extdata/ref/undname/dis.txt` symbols 15 and 17).
+            //
+            // Safe for the same reason the `data_sym` clause is: the name is
+            // resolved from a `.gl` record that says *undefined external*, so
+            // accounting it does not hide a DEFINED symbol — which would be a
+            // whole extra section and the file-offset-2 mismatch this gate cost
+            // two objs to learn.
+            if let Some(d) = &f.fn_addr_sym {
                 accounted.push(d.as_str());
             }
             // **W-DATA — a data object this TU DEFINES.** The clause above

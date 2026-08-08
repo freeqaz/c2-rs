@@ -1,0 +1,40 @@
+== work/w-extdata/grida/a1.obj  machine=0x01f2 nsec=6 nsym=22 size=1152
+-- sections
+   1 .drectve   raw=132    rawptr=0x0104 rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=148    rawptr=0x0188 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x021c rel=0  relptr=0x0000 chars=0xc0401040
+   4 .XBLD$W    raw=16     rawptr=0x022c rel=0  relptr=0x0000 chars=0xc2301040
+   5 .text      raw=44     rawptr=0x023c rel=6  relptr=0x0268 chars=0x60401020
+   6 .pdata     raw=8      rawptr=0x02a4 rel=1  relptr=0x02ac chars=0x40401040
+-- .text #5 (44 B) ?a1@@YAXXZ
+   0000  7d8802a6  mflr 12                         
+   0004  9181fff8  stw 12, -8(1)                   
+   0008  9421ffa0  stwu 1, -96(1)                  
+   000c  3d600000  lis 11, 0                         ; REFHI -> [17] ?gI@@3HA  ; PAIR -> [0] @comp.id
+   0010  386b0000  addi 3, 11, 0                     ; REFLO -> [17] ?gI@@3HA  ; PAIR -> [0] @comp.id
+   0014  4bffffed  bl .-20                           ; REL24 -> [16] ?g1@@YAXPAH@Z
+   0018  4bffffe9  bl .-24                           ; REL24 -> [15] ?g0@@YAXXZ
+   001c  38210060  addi 1, 1, 96                   
+   0020  8181fff8  lwz 12, -8(1)                   
+   0024  7d8803a6  mtlr 12                         
+   0028  4e800020  blr                             
+-- .pdata #6 raw
+   0000  00 00 00 00 40 00 0b 03
+   reloc va=0x0 ADDR32   -> [13] ?a1@@YAXXZ
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=148 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .XBLD$W                                  sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [10] __C1_11886                               sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [11] .text                                    sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=44 nrel=6 nln=0 cksum=0x00000000 num=0 sel=1)
+  [13] ?a1@@YAXXZ                               sec=5   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [14] $M2552                                   sec=5   val=0x2c     sc=LABEL     type=0x0000 naux=0
+  [15] ?g0@@YAXXZ                               sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [16] ?g1@@YAXPAH@Z                            sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [17] ?gI@@3HA                                 sec=0   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [18] $M2551                                   sec=5   val=0xc      sc=LABEL     type=0x0000 naux=0
+  [19] .pdata                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0xe1e9d04c num=5 sel=5)
+  [21] $T2553                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=0

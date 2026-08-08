@@ -1555,6 +1555,76 @@ pub struct StaticScanLoop {
     pub scale: i32,
 }
 
+/// **W-EXTDATA — the sunk-`||`-guard, shared-tail body's parse**, with its four
+/// external names still as `.gl` tokens.
+///
+/// The accept/refuse boundary is entirely on the recognizer
+/// ([`crate::func::body::shapes::guard_chain_shared_tail`]); this carries only
+/// what the emitter reads back. The facts that are *not* here because they are
+/// required literally — six formals, seven call arguments in reverse order with
+/// a function address last, both error arms calling the same two functions,
+/// every label distinct — each re-plan c2's register assignment or its block
+/// layout when varied.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GuardChainSharedTail {
+    /// The six formals in **argument-register order**: `params[i]` arrives in
+    /// `ARG_REGS[i]`, and the rotate is a permutation over exactly them.
+    pub params: Vec<u32>,
+    /// Indices into [`Self::params`] of the three formals the `||` chain tests,
+    /// **in test order** — which is the order the three `cmplwi`s are emitted
+    /// in. Required distinct: three tests of two formals is two compares in c2's
+    /// hands, not three.
+    pub guard_ix: [usize; 3],
+    /// The seven-argument callee, as a `.gl` token.
+    pub helper_tok: u32,
+    /// The FUNCTION whose ADDRESS is the call's first argument — the REFHI/REFLO
+    /// target, and the reason [`IlFunction::fn_addr_sym`] exists.
+    pub fn_addr_tok: u32,
+    /// The nullary pointer-returning callee both error arms store through.
+    pub errno_tok: u32,
+    /// The nullary void callee both error arms end with.
+    pub invalid_tok: u32,
+    /// The literal the GUARD arm stores. Distinct from [`Self::k_range`]: equal
+    /// literals would make the two arms byte-identical and c2 would merge them
+    /// completely, which is a shorter body than this class emits.
+    pub k_guard: i32,
+    /// The literal the RANGE arm stores.
+    pub k_range: i32,
+    /// The sentinel the second test compares the call's result against.
+    pub sentinel: i32,
+    /// The value both error arms return.
+    pub ret_fail: i32,
+}
+
+/// [`GuardChainSharedTail`] with its four tokens resolved to mangled names.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GuardChainSharedTailFn {
+    /// The six formals, exactly as [`GuardChainSharedTail::params`].
+    pub params: Vec<u32>,
+    /// Exactly as [`GuardChainSharedTail::guard_ix`].
+    pub guard_ix: [usize; 3],
+    /// The seven-argument callee — the FIRST `bl` in block order, and therefore
+    /// the first REL24 site.
+    pub helper: String,
+    /// The function whose address the body materializes. Its symbol is
+    /// `Type 0x0020` and its relocation is a REFHI/REFLO pair; it travels to the
+    /// writer on [`IlFunction::fn_addr_sym`] and not in `calls`.
+    pub fn_addr: String,
+    /// The nullary pointer-returning callee, called from **both** arms — one
+    /// symbol, two REL24 sites.
+    pub errno: String,
+    /// The nullary void callee in the merged tail.
+    pub invalid: String,
+    /// Exactly as [`GuardChainSharedTail::k_guard`].
+    pub k_guard: i32,
+    /// Exactly as [`GuardChainSharedTail::k_range`].
+    pub k_range: i32,
+    /// Exactly as [`GuardChainSharedTail::sentinel`].
+    pub sentinel: i32,
+    /// Exactly as [`GuardChainSharedTail::ret_fail`].
+    pub ret_fail: i32,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct IfCallJoin {
     /// The three formals in **argument-register order**: `params[0]` the
@@ -2058,6 +2128,31 @@ pub struct IlFunction {
     /// the TU as well. Two gates, because the failure is a wrong section count and
     /// not a wrong instruction.
     pub data_sym: Option<String>,
+    /// **W-EXTDATA — the name of a FUNCTION whose ADDRESS this body
+    /// materializes**, already resolved through `.gl` to its mangled name.
+    ///
+    /// The third kind of external name, and a different thing from both of its
+    /// neighbours rather than a wider one:
+    ///
+    /// | field | what the obj carries | symbol `Type` | relocation |
+    /// |---|---|---|---|
+    /// | [`Self::callees`] | an undefined external FUNCTION | `0x0020` | `REL24` |
+    /// | [`Self::data_sym`] | an undefined external DATA name | `0x0000` | REFHI/REFLO |
+    /// | **this** | an undefined external FUNCTION | **`0x0020`** | **REFHI/REFLO** |
+    ///
+    /// So it is a callee's *symbol* with a data symbol's *relocation*, and
+    /// neither existing field can spell it: `data_sym` would emit `Type 0x0000`
+    /// (`?pairNode_vtable@@3PAXA` is `0x0000`, `_woutput_s_l` is `0x0020` —
+    /// measured on `work/w-extdata/ref/*/dis.txt`), and `callees` would emit a
+    /// `REL24` against a word that is a `lis`.
+    ///
+    /// Accounted by [`IlBundle::functions`] in its own clause, exactly as
+    /// `data_sym` is, so the unclaimed-`.gl`-name gate does not refuse a TU for
+    /// a symbol the obj legitimately carries. **Not** folded into
+    /// [`Self::callees`], because that iterator's contract is *"every name the
+    /// body branches to"* and `c2_core::coff::plan_text_order` consumes it as a
+    /// call edge.
+    pub fn_addr_sym: Option<String>,
     /// **W-DATA — a data object this TU DEFINES and this body references.**
     ///
     /// [`Self::data_sym`] is *"a name to relocate against, documented as an
@@ -2080,6 +2175,9 @@ pub struct IlFunction {
     /// **W-DATA — the static-array scan loop** (`?NextHashPrime@@YAHH@Z`).
     /// Set by exactly one parser production; [`Self::ops`] is empty for it.
     pub static_scan_loop: Option<StaticScanLoop>,
+    /// **W-EXTDATA — the sunk-`||`-guard, shared-tail body** (`_vswprintf_s_l`).
+    /// Set by exactly one parser production; [`Self::ops`] is empty for it.
+    pub guard_chain_shared_tail: Option<GuardChainSharedTailFn>,
     /// True iff this function's body is **empty** (`void f() {}`): no expression at
     /// all, so codegen emits a bare `blr`. Mutually exclusive with the other body
     /// kinds.
@@ -2227,8 +2325,10 @@ impl IlFunction {
             fp_arg_sources: None,
             arg_sources: None,
             data_sym: None,
+            fn_addr_sym: None,
             data_def: None,
             static_scan_loop: None,
+            guard_chain_shared_tail: None,
             empty_body: false,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
@@ -2380,7 +2480,10 @@ impl IlFunction {
     /// shape cannot leave one of them behind. Both framed shapes are non-leaf
     /// calls whose result (or whose successor statement) outlives the `bl`.
     pub fn is_framed(&self) -> bool {
-        self.framed_call.is_some() || self.call_seq.is_some() || self.if_call_join.is_some()
+        self.framed_call.is_some()
+            || self.call_seq.is_some()
+            || self.if_call_join.is_some()
+            || self.guard_chain_shared_tail.is_some()
     }
 
     /// **Label-counter slots this function takes BEFORE its own `$M` triple.**
@@ -2417,6 +2520,28 @@ impl IlFunction {
             // anchor control is the shipped 5 on a `Seq` body in the same TU
             // (`fixtures/cpp/wcfg1_join_then_seq.cpp`).
             + u32::from(self.if_call_join.is_some())
+            // **W-EXTDATA charges ONE slot before its own triple too**, so this
+            // class strides 6 under `/Gy` exactly as W-CFG1 does — and the
+            // number is MEASURED, against the oracle, not carried over by
+            // analogy.
+            //
+            // The measurement is a different one from W-CFG1's, because the
+            // witness is a different shape and the honest thing is to say so.
+            // `negate_test.cpp` has two functions of one class, so its stride
+            // was readable **in-TU and seed-free** as the difference between two
+            // triples. `vswprnc.cpp` has exactly one emitted function, so there
+            // is no difference to take: what was compared is the port's whole
+            // obj against real `c2.dll`'s at the workload's own flags. With this
+            // term absent the port emitted `$M2903`/`$M2902`/`$T2904` where the
+            // reference has `$M2904`/`$M2903`/`$T2905` — three symbol records
+            // wrong by one, and nothing else in the obj different. Adding the
+            // term makes the obj byte-exact, which is the only grading this
+            // project accepts.
+            //
+            // A **one-witness** number, therefore, and the fence around it is the
+            // recognizer's: this class admits one block plan, so there is no
+            // second shape for the charge to be wrong about.
+            + u32::from(self.guard_chain_shared_tail.is_some())
     }
 
     /// Every external this function calls, in **first-reference order** — which is
@@ -2450,10 +2575,28 @@ impl IlFunction {
                     .iter()
                     .flat_map(|c| [c.callee_hi.as_str(), c.callee_lo.as_str()]),
             )
+            // **W-EXTDATA: three names, in BLOCK order, and `errno` appears
+            // ONCE here while the body calls it TWICE.** This iterator's own
+            // contract says duplicates are kept because each site needs its own
+            // REL24 — and the two `errno` sites are in two different blocks that
+            // no execution reaches both of, so listing it twice would make
+            // `plan_text_order` see a reference count this body does not have
+            // while changing nothing about the symbol table (which dedups by
+            // name). The REL24 *sites* come from `coff::Function::calls`, which
+            // does carry both.
+            //
+            // `fn_addr` is deliberately NOT here: its relocation is a
+            // REFHI/REFLO, not a branch, and this iterator is consumed as a call
+            // edge. It is accounted in `IlBundle::functions` by its own clause.
+            .chain(
+                self.guard_chain_shared_tail
+                    .iter()
+                    .flat_map(|c| [c.helper.as_str(), c.errno.as_str(), c.invalid.as_str()]),
+            )
     }
 
     pub fn label_slots(&self, fn_level_linking: bool) -> Option<u32> {
-        if self.framed_call.is_some() || self.call_seq.is_some() || self.if_call_join.is_some() {
+        if self.is_framed() {
             return Some(self.label_lead() + if fn_level_linking { 5 } else { 4 });
         }
         // **The pointer-walk loop refuses, and the refusal is the measurement,

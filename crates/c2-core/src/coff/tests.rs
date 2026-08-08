@@ -405,7 +405,7 @@ mod tests {
         };
         let mk_data = || Function {
             calls: vec![Call { reloc_offset: 12, callee: "?gsp@@YAXPAHH@Z" }],
-            data_refs: vec![DataRef { hi_off: 0, lo_off: 8, name: "?gI@@3HA" }],
+            data_refs: vec![DataRef { hi_off: 0, lo_off: 8, name: "?gI@@3HA", is_function: false }],
             ..Function::plain("?a7@@YAXXZ", 0)
         };
         let mk_fp = || Function {
@@ -812,7 +812,7 @@ mod tests {
         let text = vec![0u8; 16]; // lis · li · addi · b
         let f = Function {
             calls: vec![Call { reloc_offset: 12, callee: "?gsp@@YAXPAHH@Z" }],
-            data_refs: vec![DataRef { hi_off: 0, lo_off: 8, name: "?gI@@3HA" }],
+            data_refs: vec![DataRef { hi_off: 0, lo_off: 8, name: "?gI@@3HA", is_function: false }],
             ..Function::plain("?a7@@YAXXZ", 0)
         };
         let obj = emit_obj(r"Z:\t\a7.obj", &[f], &text, 2536);
@@ -883,7 +883,7 @@ mod tests {
         let text = vec![0u8; 16];
         let f = Function {
             calls: vec![Call { reloc_offset: 12, callee: "?gsp@@YAXPAHH@Z" }],
-            data_refs: vec![DataRef { hi_off: 0, lo_off: 8, name: "?gI@@3HA" }],
+            data_refs: vec![DataRef { hi_off: 0, lo_off: 8, name: "?gI@@3HA", is_function: false }],
             ..Function::plain("?a7@@YAXXZ", 0)
         };
         let obj = emit_comdat_obj(r"Z:\t\a7.obj", &[f], &[text], 2536).expect("no defined data");
@@ -1149,8 +1149,8 @@ mod tests {
             text: &DYNINIT_TEXT,
             calls: vec![Call { reloc_offset: 0x14, callee: "??0L@@QAA@PBDH@Z" }],
             data_refs: vec![
-                DataRef { hi_off: 0x00, lo_off: 0x08, name: &name },
-                DataRef { hi_off: 0x04, lo_off: 0x0c, name: "sL" },
+                DataRef { hi_off: 0x00, lo_off: 0x08, name: &name, is_function: false },
+                DataRef { hi_off: 0x04, lo_off: 0x0c, name: "sL", is_function: false },
             ],
         };
         let object = BssObject {
@@ -1261,8 +1261,8 @@ mod tests {
             text: &DYNINIT_TEXT,
             calls: vec![Call { reloc_offset: 0x14, callee: "??0L@@QAA@PBDH@Z" }],
             data_refs: vec![
-                DataRef { hi_off: 0x00, lo_off: 0x08, name: "unused" },
-                DataRef { hi_off: 0x04, lo_off: 0x0c, name: "sL" },
+                DataRef { hi_off: 0x00, lo_off: 0x08, name: "unused", is_function: false },
+                DataRef { hi_off: 0x04, lo_off: 0x0c, name: "sL", is_function: false },
             ],
         };
         let object = BssObject {
@@ -1505,8 +1505,8 @@ mod tests {
                 text: &DYNINIT_TEXT,
                 calls: vec![Call { reloc_offset: 0x14, callee: "??0L@@QAA@PBDH@Z" }],
                 data_refs: vec![
-                    DataRef { hi_off: 0x00, lo_off: 0x08, name: &name },
-                    DataRef { hi_off: 0x04, lo_off: 0x0c, name: "sL" },
+                    DataRef { hi_off: 0x00, lo_off: 0x08, name: &name, is_function: false },
+                    DataRef { hi_off: 0x04, lo_off: 0x0c, name: "sL", is_function: false },
                 ],
             };
             let object = BssObject {
@@ -1637,8 +1637,8 @@ mod tests {
                 text: &DYNINIT_TEXT,
                 calls: vec![Call { reloc_offset: 0x14, callee: ctor }],
                 data_refs: vec![
-                    DataRef { hi_off: 0x00, lo_off: 0x08, name: &name },
-                    DataRef { hi_off: 0x04, lo_off: 0x0c, name: sym },
+                    DataRef { hi_off: 0x00, lo_off: 0x08, name: &name, is_function: false },
+                    DataRef { hi_off: 0x04, lo_off: 0x0c, name: sym, is_function: false },
                 ],
             };
             let object = BssObject {
@@ -1716,8 +1716,8 @@ mod tests {
         let name = string_comdat_name(lit.bytes).unwrap();
         let ok_refs = || {
             vec![
-                DataRef { hi_off: 0x00, lo_off: 0x08, name: &name },
-                DataRef { hi_off: 0x04, lo_off: 0x0c, name: "sL" },
+                DataRef { hi_off: 0x00, lo_off: 0x08, name: &name, is_function: false },
+                DataRef { hi_off: 0x04, lo_off: 0x0c, name: "sL", is_function: false },
             ]
         };
         let object = |size: u32, align: u32| BssObject {
@@ -1764,8 +1764,8 @@ mod tests {
                 base(
                     one_call(),
                     vec![
-                        DataRef { hi_off: 0, lo_off: 8, name: &name },
-                        DataRef { hi_off: 4, lo_off: 12, name: "?other@@3HA" },
+                        DataRef { hi_off: 0, lo_off: 8, name: &name, is_function: false },
+                        DataRef { hi_off: 4, lo_off: 12, name: "?other@@3HA", is_function: false },
                     ]
                 ),
                 Some(&lit),
@@ -1776,7 +1776,7 @@ mod tests {
         // A literal present but never referenced, or referenced twice.
         assert!(
             !go(
-                base(one_call(), vec![DataRef { hi_off: 4, lo_off: 12, name: "sL" }]),
+                base(one_call(), vec![DataRef { hi_off: 4, lo_off: 12, name: "sL", is_function: false }]),
                 Some(&lit),
                 object(1, 1)
             ),
@@ -1806,7 +1806,7 @@ mod tests {
         // nothing here may assume 8 and 24.
         let no_lit = emit_dyninit_obj(
             r"Z:\t\x.obj",
-            &base(one_call(), vec![DataRef { hi_off: 0, lo_off: 4, name: "sL" }]),
+            &base(one_call(), vec![DataRef { hi_off: 0, lo_off: 4, name: "sL", is_function: false }]),
             None,
             &object(1, 1),
         )

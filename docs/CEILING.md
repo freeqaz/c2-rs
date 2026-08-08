@@ -55,6 +55,22 @@ it is.
 `match = A ∧ B ∧ C ∧ (D ∨ E)` over the 871 (ROADMAP §10.19, §10.21; board
 **#179** for the fifth term). Every TU falls in exactly one cell:
 
+> **⚠ 2026-08-08 — the cells and the margins below were collected at `match 11`
+> and the tree reads `match 14`.** Three conversions have landed since
+> (`negate_test.cpp` at `w-cfgclass`, `Primes.cpp` at `w-data`,
+> `vswprnc.cpp` at `w-extdata`), so the row that moves most is the one this page
+> is named for: **`frontier` is 13, not 16**, and `frontier-if-a` is **135**, not
+> 138. `factor-d` is **14** and `d-or-e` **16**; `factor-a` 28, `factor-b` 338,
+> `factor-c` 169, `b-and-c` 151, `a-and-b-and-c` 27 and `mismatch` 0 are
+> **unchanged** across all three. Read from `work/w-extdata/scan_tip2.out`
+> (`gap-metric` lines), tree `dc962b63`.
+>
+> The banner is here rather than a rewrite because this page's own provenance
+> rule is *"regenerated from the instruments"* — the cells need a fresh
+> `gap --factors-tsv` pass, which is a rung of its own. **Quote the frontier from
+> a scan, not from this table**, which is `docs/STATUS.md`'s standing instruction
+> for exactly these keys.
+
 | cell | TUs | what it is |
 |---|---:|---|
 | `-----` | **514** | fails every factor |

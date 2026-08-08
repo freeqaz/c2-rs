@@ -1011,6 +1011,7 @@ fn ops_setup_text(
         if_call_join: None,
         ptr_walk_loop: None,
         static_scan_loop: None,
+        guard_chain_shared_tail: None,
         data_def: None,
         ptr_walk_chain_loop: None,
         div_mod_leaf: None,
@@ -1019,6 +1020,7 @@ fn ops_setup_text(
         fp_arg_sources: None,
         arg_sources: None,
         data_sym: None,
+        fn_addr_sym: None,
         empty_body: false,
         // A synthetic operand-stream carrier, never a function: `select_text`
         // reads `params` and `ops` and nothing else, and the label counter never

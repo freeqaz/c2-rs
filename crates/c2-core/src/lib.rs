@@ -814,6 +814,37 @@ impl PortC2 {
                 // W-CFG1 — the `if`/`else`-with-a-join, built at `off` for the
                 // same reason every framed shape here is: both `bl` words encode
                 // their own `.text` offset.
+                // **W-EXTDATA — the sunk-`||`-guard body**, built at `off` for
+                // the same reason every framed shape here is: all four `bl`
+                // words encode their own `.text` offset.
+                codegen::Selected::GuardChainSharedTail => {
+                    let g = f
+                        .guard_chain_shared_tail
+                        .as_ref()
+                        .expect("GuardChainSharedTail implies guard_chain_shared_tail");
+                    let body =
+                        codegen::guard_chain_shared_tail::guard_chain_shared_tail_text(
+                            g, off, mode,
+                        )?;
+                    frame = Some(coff::Frame {
+                        prolog_len: body.prolog_len,
+                        func_len: body.text.len() as u32,
+                    });
+                    text.extend_from_slice(&body.text);
+                    (
+                        body.bl_offsets
+                            .iter()
+                            .zip([
+                                g.helper.as_str(),
+                                g.errno.as_str(),
+                                g.errno.as_str(),
+                                g.invalid.as_str(),
+                            ])
+                            .map(|(off, callee)| coff::Call { reloc_offset: *off, callee })
+                            .collect(),
+                        Vec::new(),
+                    )
+                }
                 codegen::Selected::IfCallJoin => {
                     let j = f.if_call_join.as_ref().expect("IfCallJoin implies if_call_join");
                     let body = codegen::if_call_join::if_call_join_text(j, off, mode)?;
@@ -842,6 +873,8 @@ impl PortC2 {
                 }
             };
             let data_refs = data_refs_of(f, &text[off as usize..], off)?;
+            // **Board #1720**, on the packed path too — see `check_external_order`.
+            check_external_order(&calls, &data_refs)?;
             // **W-DATA — the PACKED layout has no measured slot for a COMDAT
             // `.data`**, so a function that defines one refuses here rather than
             // reaching `emit_obj`. The packed section table interleaves
@@ -918,11 +951,13 @@ impl PortC2 {
                     hi_off: body.literal_hi,
                     lo_off: body.literal_lo,
                     name: &name,
+                    is_function: false,
                 },
                 coff::DataRef {
                     hi_off: body.object_hi,
                     lo_off: body.object_lo,
                     name: &tu.object_symbol,
+                    is_function: false,
                 },
             ],
         };
@@ -949,23 +984,78 @@ impl PortC2 {
 /// wrong-bytes shape `docs/GAPS.md` §6 keeps recording.
 ///
 /// `None` when the body carries no data symbol. `Err` when it carries one and the
-/// first word is not the expected `lis`.
+/// high half cannot be located unambiguously.
+///
+/// # W-EXTDATA — the `lis` is no longer required to be the body's FIRST word
+///
+/// It was, and the clause was right for every class that had reached here: the
+/// `Selected::Tail`/`Seq` setups hoist it to word 0. `_vswprintf_s_l` puts it at
+/// **word 14**, interleaved into a five-deep argument rotate
+/// (`work/w-extdata/VSWPRNC_BODY.md` §3), so the position rule refuses a body
+/// c2 emits.
+///
+/// **The replacement keeps the discipline the original was written for** — the
+/// site is DERIVED from the bytes and never declared by the class, so a schedule
+/// change cannot silently relocate the wrong instruction. What changes is only
+/// *how* it is derived: the high half is the **unique** `addis rT,0,0` anywhere
+/// in the body, and two of them refuse rather than pick one. That refusal is not
+/// hypothetical — `undname.cpp` has exactly two and is out of class until a lane
+/// pairs them by position (PREREG §1.5 row 9).
+///
+/// # The ORDER CONSTRAINT, and why it lives with this function
+///
+/// The writer emits undefined externals as **callees first, then data symbols**
+/// (`coff::writer`). The reference tables are one union list in **reverse
+/// first-reference order**, and the two rules agree only when every data
+/// reference precedes every call. That was guaranteed for free while the `lis`
+/// had to be word 0; relaxing the position rule removes the guarantee, so it is
+/// re-imposed explicitly by [`check_external_order`] — which is called from both
+/// emission paths, right where the calls and the data refs are both in hand.
+/// Board **#1720**.
 pub(crate) fn data_refs_of<'a>(
     f: &'a c2_il::IlFunction,
     text: &[u8],
     base: u32,
 ) -> Result<Vec<coff::DataRef<'a>>, BackendError> {
-    let Some(name) = f.data_sym.as_deref() else {
-        return Ok(Vec::new());
-    };
-    let lis = codegen::encode_addis(codegen::SCRATCH_REG, 0, 0);
-    if text.len() < 8 || text[..4] != lis {
+    // The two carriers are mutually exclusive by construction — one names a DATA
+    // symbol (`Type` 0x0000) and one a FUNCTION (`Type` 0x0020) — and a body
+    // spelling both would need two `lis`es, which the uniqueness check below
+    // refuses anyway. Asked as an explicit refusal so that a future parser
+    // setting both gets a loud answer rather than a silently dropped relocation.
+    if f.data_sym.is_some() && f.fn_addr_sym.is_some() {
         return Err(BackendError::NotImplemented(
-            "a data-symbol address whose `lis` is not this body's first word: the \
-             relocation site is derived from that position"
+            "a body naming BOTH a data symbol and a function's address: two \
+             REFHI/REFLO quads whose `lis`es cannot be told apart by search"
                 .to_string(),
         ));
     }
+    let (name, is_function) = match (f.data_sym.as_deref(), f.fn_addr_sym.as_deref()) {
+        (Some(n), _) => (n, false),
+        (_, Some(n)) => (n, true),
+        _ => return Ok(Vec::new()),
+    };
+    let lis = codegen::encode_addis(codegen::SCRATCH_REG, 0, 0);
+    let mut hi: Option<u32> = None;
+    for (i, w) in text.chunks_exact(4).enumerate() {
+        if w == lis {
+            if hi.is_some() {
+                return Err(BackendError::NotImplemented(
+                    "two `lis rS,sym@ha` high halves in one body: the relocation \
+                     site is derived by search and two candidates cannot be told \
+                     apart"
+                        .to_string(),
+                ));
+            }
+            hi = Some(base + 4 * i as u32);
+        }
+    }
+    let Some(hi_off) = hi else {
+        return Err(BackendError::NotImplemented(
+            "a symbol address with no `lis rS,sym@ha` high half: the relocation \
+             site is derived from the emitted words"
+                .to_string(),
+        ));
+    };
     // The low half: the unique `addi rD,r11,0` among the setup words. Derived by
     // search rather than by `hi_off + 4`, because the two halves are **not**
     // adjacent when a higher argument slot carries a literal — `gsp(&gI, 7)` puts
@@ -973,7 +1063,7 @@ pub(crate) fn data_refs_of<'a>(
     // other instructions this class emits are the `lis` (an `addis`), `li rD,k`
     // (an `addi` whose RA is **0**, not 11) and the tail branch.
     let mut lo: Option<u32> = None;
-    for (i, w) in text.chunks_exact(4).enumerate().skip(1) {
+    for (i, w) in text.chunks_exact(4).enumerate() {
         if codegen::ARG_REGS
             .iter()
             .any(|&d| w == codegen::encode_addi(d, codegen::SCRATCH_REG, 0))
@@ -992,7 +1082,63 @@ pub(crate) fn data_refs_of<'a>(
             "a data-symbol address with no `addi rD,r11,0` low half".to_string(),
         ));
     };
-    Ok(vec![coff::DataRef { hi_off: base, lo_off, name }])
+    if lo_off <= hi_off {
+        // The low half is spent after the high half is materialized, always.
+        // A body reading otherwise is one this search has mis-paired.
+        return Err(BackendError::NotImplemented(
+            "a symbol address whose low half precedes its high half".to_string(),
+        ));
+    }
+    Ok(vec![coff::DataRef { hi_off, lo_off, name, is_function }])
+}
+
+/// **W-EXTDATA — the one fact that makes `coff::writer`'s two symbol loops equal
+/// to c2's one list**, checked rather than assumed. Board **#1720**.
+///
+/// The writer emits a function's undefined externals as **callees in reverse
+/// first-reference order, then data symbols**. Every reference obj this project
+/// has read spells them as ONE list in reverse first-reference order over all of
+/// them, kind ignored — measured on three workload objs at once:
+///
+/// ```text
+///   undname   gHeapManager(0x24) getMemory(0x34) pairNode_vtable(0x40)
+///             -> [15] pairNode_vtable  [16] getMemory  [17] gHeapManager
+///   osfinfo   _nhandle(0x14) __pioinfo(0x28) _errno(0x68) __doserrno(0x74)
+///             -> [15] __doserrno [16] _errno [17] __pioinfo [18] _nhandle
+///   vswprnc   _woutput_s_l(0x38) helper(0x4c) _errno(0x68) invalid(0x80)
+///             -> [15] invalid [16] _errno [17] helper [18] _woutput_s_l
+/// ```
+///
+/// The two rules coincide exactly when **every data reference precedes every
+/// call**, because then the data names are the earliest-referenced and reverse
+/// order puts them last — which is where the second loop puts them. That held
+/// for free while [`data_refs_of`] required the `lis` to be the body's first
+/// word; it does not hold now, and `undname` is the witness (`data · callee ·
+/// data`, interleaved, which no ordering of two loops can produce).
+///
+/// So this is the honest fence for the relaxation: a body whose REFHI comes
+/// after a `bl` is refused here, loudly, rather than emitted with a symbol table
+/// that is right only by coincidence.
+pub(crate) fn check_external_order(
+    calls: &[coff::Call<'_>],
+    data_refs: &[coff::DataRef<'_>],
+) -> Result<(), BackendError> {
+    let first_call = calls.iter().map(|c| c.reloc_offset).min();
+    let (Some(first_call), Some(last_ref)) =
+        (first_call, data_refs.iter().map(|r| r.hi_off).max())
+    else {
+        return Ok(());
+    };
+    if last_ref > first_call {
+        return Err(BackendError::NotImplemented(
+            "a symbol-address reference AFTER a call site: c2 emits the \
+             undefined externals as one list in reverse first-reference order \
+             and this writer emits callees then data symbols, which agree only \
+             while every reference precedes every call (board #1720)"
+                .to_string(),
+        ));
+    }
+    Ok(())
 }
 
 /// **W-DATA — the relocation sites for a data object this TU DEFINES**, derived

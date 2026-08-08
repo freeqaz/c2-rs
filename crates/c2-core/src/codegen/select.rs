@@ -26,6 +26,7 @@ use crate::codegen::leaf::float::{
 use crate::codegen::leaf::load::indirect_load_text;
 use crate::codegen::div_mod_leaf::div_mod_leaf_text;
 use crate::codegen::ptr_walk_chain_loop::ptr_walk_chain_loop_text;
+use crate::codegen::guard_chain_shared_tail::guard_chain_shared_tail_text;
 use crate::codegen::if_call_join::if_call_join_text;
 use crate::codegen::ptr_walk_loop::ptr_walk_loop_text;
 use crate::codegen::leaf::store::store_leaf_text;
@@ -152,6 +153,13 @@ pub enum Selected {
     /// plan — the defect [`Selected::Seq`]'s `guard`/`early` resolvers were
     /// centralised to prevent.
     IfCallJoin,
+    /// **W-EXTDATA — the sunk-`||`-guard body with a shared error tail.** The
+    /// same contract [`Selected::IfCallJoin`] has, one block plan over: a unit
+    /// variant, because the body is a pure function of
+    /// `f.guard_chain_shared_tail` and `base_off` and its FOUR `bl` words each
+    /// encode their own `.text` offset. Built through
+    /// [`crate::codegen::guard_chain_shared_tail::guard_chain_shared_tail_text`].
+    GuardChainSharedTail,
     /// **W8 — a two-arm conditional tail call.** The body with a zero word at
     /// each of its two tail branches, which the caller fills for the same reason
     /// [`Selected::Tail`] carries an incomplete text: a `b` to an external
@@ -273,6 +281,22 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
     // three fields are mutually exclusive by construction — and it is first
     // because it is the only one of the three that is FRAMED, which is the
     // property the arms above this point share.
+    // **W-EXTDATA — the sunk-`||`-guard body.** Same placement argument as
+    // `if_call_join` immediately below and the same freedom: the field is set by
+    // exactly one parser production, `func.ops` is empty for it, and no leaf
+    // pattern-matcher can take its body. It is asked first among the framed
+    // whole-body shapes only because it is the newest; nothing depends on that.
+    if func.guard_chain_shared_tail.is_some() {
+        // The mode gate is asked in the emitter as well as in the parser (board
+        // #1638), and calling the emitter here is what makes `function_gate` and
+        // both writers ask it in exactly one place.
+        guard_chain_shared_tail_text(
+            func.guard_chain_shared_tail.as_ref().unwrap(),
+            0,
+            mode,
+        )?;
+        return Ok(Selected::GuardChainSharedTail);
+    }
     if func.if_call_join.is_some() {
         // The mode gate lives in the emitter, not here, so that `function_gate`
         // and both writers ask it in exactly one place.
