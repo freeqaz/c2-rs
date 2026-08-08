@@ -43,9 +43,19 @@ prereg before the numbers came in.
 | `fn_blockers` | 671 keys, 1,751,957 | 671 keys, 1,751,957 | **0 keys moved** |
 | `emit_blockers` | 648 keys, 130,575 | 648 keys, 130,575 | **0 keys moved** |
 | `peerkeys.py` | — | — | **0 families vanished** |
-| `git grep -c '#[test]'` | 1,257 | **1,262** | **+5** |
+| `git grep -c` of the test attribute | 1,257 | **1,263** | **+6** — and it read 1,264 for one draft; see below |
 | workspace tests | 1,159 pass / 0 fail / 36 targets | **1,165 pass / 0 fail / 36 targets** | +6, targets +0 |
 | `factor-a…e`, `frontier`, `b-and-c`, FBM, PROGRESS MASS | — | — | **every digit unchanged** |
+
+**Why the `1,264` is worth a paragraph.** `git grep -c` counts the attribute in
+**every tracked file**, and an earlier draft of *this document* quoted it
+literally — so the rung doc counted itself as a test and the delta read `+7`
+against a real `+6`. Per file: `crates/c2-harness/src/gap/tests.rs` **62 → 68**,
+and nothing else under `crates/` moved (`git diff f49fe5e1 -- crates/`: **6
+added, 0 removed**). Recorded rather than quietly fixed, because a metric a
+lane's own write-up can move is trap 5 at its smallest, and it took a per-file
+diff to see — the subtraction `1,264 − 1,257 = 7` looked like an ordinary count
+and was off by one lane-authored line.
 
 The five new keys:
 

@@ -122,9 +122,14 @@ impl GapReport {
     ///
     /// `branchy` is how many emitted functions a block IR would have to serve at
     /// all; `branchy_modeled` is how many it would convert **by itself**, which
-    /// is the number the `body-cflow-label` row has to be ranked from. The
-    /// second is a lower bound in exactly the ratio
-    /// [`GapReport::cflow_residue_control`] publishes.
+    /// is the number the `body-cflow-label` row has to be ranked from.
+    ///
+    /// **`branchy_modeled` is not a bound**, in either direction — it inherits
+    /// `CfResidue::Modeled` whole, and that predicate is measured wrong both
+    /// ways by [`GapReport::cflow_residue_control`] and
+    /// [`GapReport::cflow_residue_overclaim`]. Quote all three or none. The
+    /// nesting `branchy_modeled <= branchy` is the only relation here that is
+    /// true by construction.
     pub fn cflow_emitted_counterfactual(&self) -> (usize, usize) {
         (
             self.emit_total("emit-cflow-branchy"),
