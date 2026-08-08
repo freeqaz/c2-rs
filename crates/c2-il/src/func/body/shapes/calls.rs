@@ -1620,6 +1620,36 @@ pub(crate) fn parse_call_sequence_from(
     if !early.is_empty() && (!saved.is_empty() || guard.is_some()) {
         return Err(Block::refuse(seg, *p, "callseq-early-return-callee-saved"));
     }
+    // **W-CLEAR / board #275 — "this class admits no entry-block move at all"
+    // was ONLY enforced for the callee-saved copy, and an argument PERMUTATION
+    // is the other entry-block move.**
+    //
+    // c2 hoists the permutation's cycle into the entry block as a *park* the
+    // moment a guarded early return stands in front of it, and leaves only the
+    // remainder at the call — a different cycle break AND a split across two
+    // blocks. The emitter had no representation for either and lowered it with
+    // the unguarded cycle, i.e. **wrong bytes**: lane `w-clear` gridded
+    // guard-count × permutation × call-count at the dc3 workload's own flags and
+    // read **30 `Port=Mismatch`** of 54 cells, every one of them this shape.
+    //
+    // Refused HERE as well as in `c2_core::codegen::calls::call_seq_parts`, and
+    // that duplication is the point (board #139): acceptance lives in the IL
+    // parser so the census and the gate cannot disagree. With the emitter-side
+    // refusal alone the 30 cells became `codegen-gap` with
+    // `fn_gate_refusals = {"not implemented": 1}` — the census over-claiming,
+    // which `TuResult::fn_gate_refusals` says must be empty.
+    //
+    // The permutation with **no** early return is untouched and stays in class:
+    // it is byte-exact today, 12 of the 12 measured cells.
+    if !early.is_empty()
+        && calls.iter().any(|c| {
+            c.arg_sources
+                .as_ref()
+                .is_some_and(|s| s.iter().enumerate().any(|(slot, &pi)| pi != slot))
+        })
+    {
+        return Err(Block::refuse(seg, *p, "callseq-early-return-permuted-args"));
+    }
     Ok(BodyShape::CallSeq { params, calls, tail, saved, guard, early })
 }
 
