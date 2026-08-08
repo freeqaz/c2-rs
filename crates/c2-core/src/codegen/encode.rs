@@ -1185,6 +1185,40 @@ mod tests {
         assert_eq!(encode_cmplw(CR_COMPARE, 11, 3), [0x7F, 0x0B, 0x18, 0x40]);
     }
 
+    /// **W-JSON — `lhzx` against the byte real `c2` emitted**, and the
+    /// separation from the two loads it is one field away from.
+    ///
+    /// `encode_lwzx` beside it is extended **23** where this is **279**, and
+    /// `encode_lhz` is a different primary opcode entirely. The separation is
+    /// the point rather than the value: an indexed halfword load that read a
+    /// word would be a program that runs and reads two code units at once.
+    #[test]
+    fn w_json_lhzx_matches_the_reference_obj_and_is_none_of_its_neighbours() {
+        // `?GetBuffer@JsonWriter@@QAAJPAGPAK@Z` +0x4c, `work/w-json/probe/ref.obj`.
+        assert_eq!(encode_lhzx(11, 11, 6), [0x7D, 0x6B, 0x32, 0x2E]);
+        assert_ne!(encode_lhzx(11, 11, 6), encode_lwzx(11, 11, 6));
+        assert_ne!(encode_lhzx(11, 11, 6), encode_lhz(11, 11, 6));
+        // The three register fields are separated from each other by a second pin.
+        assert_eq!(encode_lhzx(9, 4, 3), [0x7D, 0x24, 0x1A, 0x2E]);
+    }
+
+    /// **W-JSON — `sthu` against the byte real `c2` emitted**, and the ONE-BIT
+    /// separation from `sth`.
+    ///
+    /// Primary 45 against 44. That bit is a pointer bump the caller must then
+    /// not emit itself, so confusing the two is either a lost increment or a
+    /// doubled one — in an obj that links.
+    #[test]
+    fn w_json_sthu_matches_the_reference_obj_and_is_one_bit_from_sth() {
+        // `?GetBuffer@JsonWriter@@QAAJPAGPAK@Z` +0xa8, `work/w-json/probe/ref.obj`.
+        assert_eq!(encode_sthu(9, 4, 2), [0xB5, 0x24, 0x00, 0x02]);
+        assert_eq!(encode_sth(9, 4, 2), [0xB1, 0x24, 0x00, 0x02]);
+        assert_ne!(encode_sthu(9, 4, 2), encode_sth(9, 4, 2));
+        // …and the body's other two `sthu` sites, which separate `rS` and `rA`.
+        assert_eq!(encode_sthu(7, 4, 2), [0xB4, 0xE4, 0x00, 0x02]);
+        assert_eq!(encode_sthu(28, 11, 2), [0xB7, 0x8B, 0x00, 0x02]);
+    }
+
     /// **W-OSFINFO — the record form of `rlwinm` against the byte real `c2`
     /// emitted**, and the one-bit separation from the non-record form.
     ///
