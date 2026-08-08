@@ -112,6 +112,7 @@ use crate::func::readers::{
     eat_byte, eat_opt_stmt_marker, is_fp_type, is_int4_type, is_ptr_to_4, read_token_var,
     read_type, read_varint,
 };
+use crate::func::bundle::{opt_word_at, opt_word_mode, OptWordMode};
 use crate::func::IfCallJoin;
 
 /// `26 <tok>` — the destination symbol push. Returns the token.
@@ -358,6 +359,26 @@ pub(crate) fn try_parse_if_call_join(
     locals: &[u32],
     ptr_locals: &[u32],
 ) -> Result<BodyShape, Block> {
+    // **THE MODE GATE LIVES HERE, IN THE PARSER — not in the emitter.**
+    //
+    // `/Ox` and `/O2` tail-duplicate a join block rather than sharing it behind
+    // a `b`, so this class's twenty words are a `/O1` body and nothing else. The
+    // emitter re-asserts that (`codegen::if_call_join`), but a gate that lived
+    // ONLY there would make the census count these bodies in class while
+    // `PortC2` refused them — an error term on the published coverage numerator,
+    // which is exactly what `crates/c2-harness/tests/census_gate.rs` fails on and
+    // what `docs/GAPS.md` §6 says to do about it: *move the gate into the IL
+    // parser*. Asked FIRST, before any body byte is read, so the refusal cannot
+    // depend on how far the walk got.
+    //
+    // `codegen::ptr_walk_loop` carries the same `/O1`-only clause and does NOT
+    // have this half; it does not trip the cross-check today only because no
+    // fixture puts its shape in front of the packed lane's profile. That is an
+    // absence of evidence, and this comment is here so the next lane to touch
+    // that class knows the fix is one call.
+    if opt_word_mode(opt_word_at(seg)) != Some(OptWordMode::O1) {
+        return Err(blk(seg, start, "ifjoin-not-o1"));
+    }
     let params = parse_params(seg, lo)?;
     // **Exactly three formals**, and `parse_params` rather than `parse_formals`
     // so a non-static member function's `this` is counted: the park and the
