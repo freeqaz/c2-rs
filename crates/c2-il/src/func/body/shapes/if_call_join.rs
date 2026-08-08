@@ -201,11 +201,23 @@ fn eat_scrutinee_and_literal(
         return Err(blk(seg, *p, "ifjoin-test-not-the-scrutinee"));
     }
     eat_int4(seg, p, "ifjoin-test-scrut-type")?;
-    if !eat_byte(seg, p, 0x2C) {
-        return Err(blk(seg, *p, "ifjoin-test-no-widening"));
+    // **The `2C` widening is OPTIONAL, and which way it goes is a source fact
+    // with no instruction behind it.** An `enum` scrutinee carries an explicit
+    // `2C <int4 TYPE> <varint>` — the enum→int conversion, which is a
+    // reinterpret between two width-4 signed integers and emits nothing — and a
+    // plain `int` scrutinee carries none. Requiring it refused every non-enum
+    // spelling of this body (`fixtures/cpp/wcfg1_if_call_join.cpp` p2/p3/p4);
+    // requiring its absence would refuse the workload's own. Both are admitted
+    // and BOTH ARE GRADED: p0/p1 are the enum form, p2/p3/p4 the int form, and
+    // the oracle compares all five.
+    //
+    // What is NOT optional is that all three tests spell it the same way — the
+    // three reads are one converted value, which is why one `cmpwi` serves them,
+    // and this function is called for each test with the same `scrut`.
+    if eat_byte(seg, p, 0x2C) {
+        eat_int4(seg, p, "ifjoin-test-widen-type")?;
+        read_varint(seg, p).ok_or(blk(seg, *p, "ifjoin-test-widen-varint"))?;
     }
-    eat_int4(seg, p, "ifjoin-test-widen-type")?;
-    read_varint(seg, p).ok_or(blk(seg, *p, "ifjoin-test-widen-varint"))?;
     if !eat_byte(seg, p, 0x33) {
         return Err(blk(seg, *p, "ifjoin-test-lit"));
     }
