@@ -449,7 +449,7 @@ pub fn splice_callee_why<'a>(
     }
     // **S8.** The caller's whole body is discarded; a data symbol of its own
     // would be discarded with it and no cell grades that.
-    if f.data_sym.is_some() {
+    if !f.data_syms.is_empty() {
         return Err("S8-caller-data-sym");
     }
     // **S1 and S3.** `Framed` is 0 of 123 and `CondPair` is a conditional site
@@ -473,6 +473,10 @@ pub fn splice_callee_why<'a>(
         // for the same reason W-CFG1 is not — mechanism I replaces a body that
         // is NOTHING BUT one call, and this one is thirty words.
         Selected::GuardChainSharedTail => return Err("S3-guard-chain-shared-tail"),
+        // W-UNDNAME: same clause, same reason — twenty-four words, one call,
+        // and a body that is not "nothing but that call". Refused explicitly so
+        // a later shape cannot fall into a splice path nobody graded.
+        Selected::AllocInitOrFail => return Err("S3-alloc-init-or-fail"),
         Selected::Seq { setups, .. } => {
             let Some(seq) = f.call_seq.as_ref() else {
                 return Err("S1-seq-without-call-seq");
@@ -866,7 +870,7 @@ mod tests {
     fn leaf(name: &str) -> IlFunction {
         let mut f = func_with(vec![0xE309], vec![IlOp::Load(0xE309), IlOp::Lit(1), IlOp::Add]);
         f.mangled_name = name.into();
-        f.data_sym = None;
+        f.data_syms.clear();
         f
     }
 
@@ -874,7 +878,7 @@ mod tests {
     fn tail(name: &str, callee: &str) -> IlFunction {
         let mut f = func_with(vec![0xE309], Vec::new());
         f.mangled_name = name.into();
-        f.data_sym = None;
+        f.data_syms.clear();
         f.tail_call = Some(callee.into());
         f
     }
@@ -993,7 +997,7 @@ mod tests {
     #[test]
     fn a_caller_with_a_data_symbol_is_refused() {
         let mut caller = tail("?f@@YAHH@Z", "?g@@YAHH@Z");
-        caller.data_sym = Some("?gv@@3HA".into());
+        caller.data_syms = vec!["?gv@@3HA".into()];
         let funcs = vec![leaf("?g@@YAHH@Z"), caller];
         assert!(!fires(&funcs, 1));
     }
@@ -1172,7 +1176,7 @@ mod tests {
     fn a_two_call_body_is_refused() {
         let mut caller = func_with(Vec::new(), Vec::new());
         caller.mangled_name = "?f@@YAXXZ".into();
-        caller.data_sym = None;
+        caller.data_syms.clear();
         caller.call_seq = Some(CallSeq {
             calls: vec![
                 SeqCall {
@@ -1217,7 +1221,7 @@ mod tests {
     fn a_seq_with_a_working_tail_is_refused() {
         let mut caller = func_with(vec![0xE309], Vec::new());
         caller.mangled_name = "?f@@YAHH@Z".into();
-        caller.data_sym = None;
+        caller.data_syms.clear();
         caller.call_seq = Some(CallSeq {
             calls: vec![SeqCall {
                 callee: "?g@@YAHH@Z".into(),

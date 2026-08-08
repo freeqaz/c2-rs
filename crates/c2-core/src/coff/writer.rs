@@ -280,11 +280,12 @@ pub fn emit_comdat_obj(
     let mut next_idx: u32 = N_SHELL_SYMBOLS;
     // The callee symbols this function emits, in emission order (reverse
     // first-reference), each with the index it lands at.
-    let mut introduced: Vec<Vec<(&str, u32)>> = Vec::with_capacity(funcs.len());
+    // Per function, the undefined externals it introduces, in EMISSION order —
+    // one merged list, `(name, index, is a FUNCTION record)`.
+    let mut introduced: Vec<Vec<(&str, u32, bool)>> = Vec::with_capacity(funcs.len());
     let mut fn_idx: Vec<u32> = Vec::with_capacity(funcs.len());
     let mut callee_syms: Vec<(&str, u32)> = Vec::new();
     let mut data_syms: Vec<(&str, u32)> = Vec::new();
-    let mut introduced_data: Vec<Vec<(&str, u32)>> = Vec::with_capacity(funcs.len());
     // **W-DATA** — the index of function `i`'s defined object's symbol, or
     // `None`. Derived here because the `.text` relocation records need it before
     // the symbol table is written, and asserted again where the record goes out.
@@ -296,30 +297,32 @@ pub fn emit_comdat_obj(
         if labels[i].is_some() {
             next_idx += 1; // $M(n+1), the function-end label
         }
-        // One undefined external per **distinct** callee this function is the
-        // first to name, in reverse first-reference order.
-        let mut here: Vec<(&str, u32)> = Vec::new();
-        for name in f.introduced_callees() {
-            if callee_syms.iter().any(|(n, _)| *n == name) {
+        // **W-UNDNAME / board #1720 — ONE list, reverse first-reference order
+        // over callees ∪ data names, kind ignored**
+        // ([`Function::introduced_externals`]). This was two loops, callees then
+        // data symbols, and GRID A refutes that on three of five cells.
+        //
+        // The two lookup tables stay two, and that is deliberate: a call site
+        // resolves in `callee_syms` and a data reference in `data_syms`, so one
+        // list searched for both could silently resolve a data symbol against a
+        // callee of the same spelling. What is shared now is the INDEX
+        // assignment, which is the thing GRID A measured.
+        let mut here: Vec<(&str, u32, bool)> = Vec::new();
+        for (name, is_fn) in f.introduced_externals() {
+            let known = callee_syms.iter().chain(data_syms.iter()).any(|(n, _)| *n == name);
+            if known {
                 continue;
             }
-            callee_syms.push((name, next_idx));
-            here.push((name, next_idx));
+            if f.calls.iter().any(|c| c.callee == name) {
+                callee_syms.push((name, next_idx));
+            }
+            if f.data_refs.iter().any(|r| r.name == name) {
+                data_syms.push((name, next_idx));
+            }
+            here.push((name, next_idx, is_fn));
             next_idx += 1;
         }
         introduced.push(here);
-        // WR1: this function's new data symbols, after its callees, exactly as
-        // the packed layout places them.
-        let mut here_data: Vec<(&str, u32)> = Vec::new();
-        for r in &f.data_refs {
-            if data_syms.iter().any(|(n, _)| *n == r.name) {
-                continue;
-            }
-            data_syms.push((r.name, next_idx));
-            here_data.push((r.name, next_idx));
-            next_idx += 1;
-        }
-        introduced_data.push(here_data);
         if labels[i].is_some() {
             next_idx += 1; // $M(n), the prologue-end label
             next_idx += 2; // .pdata section symbol + aux
@@ -458,22 +461,19 @@ pub fn emit_comdat_obj(
         if let (Some(m), Some(frame)) = (labels[i], f.frame.as_ref()) {
             emit_label_symbol(&mut b, &label_name('M', m[1]), frame.func_len, sec_num);
         }
-        // Only the function that *introduces* a callee emits its symbol, in
-        // reverse first-reference order.
-        for (name, _) in &introduced[i] {
-            emit_function_symbol(&mut b, &mut strtab, name, 0, 0);
-        }
-        // WR1: undefined external symbols for the addresses this body
-        // materializes, after the callees.
+        // **W-UNDNAME / board #1720 — ONE list, in the order the index
+        // assignment above fixed**: reverse first-reference order over callees
+        // and data names alike. Only the function that *introduces* a name emits
+        // its symbol.
         //
-        // **W-EXTDATA — the `Type` is not always 0x0000.** A REFHI/REFLO against
-        // a FUNCTION carries a callee's `Type 0x0020`; measured side by side in
-        // one workload obj (`coff::DataRef::is_function`). Emitting 0x0000 for
-        // `_woutput_s_l` is one wrong byte in one symbol record, and the
-        // relocation resolves either way — `docs/GAPS.md` §6's silent shape.
-        for (name, _) in &introduced_data[i] {
-            let is_fn = f.data_refs.iter().any(|r| r.name == *name && r.is_function);
-            emit_external_symbol(&mut b, &mut strtab, name, 0, if is_fn { 0x0020 } else { 0x0000 });
+        // **W-EXTDATA — the `Type` is not always 0x0020 and not always 0x0000.**
+        // A callee is `0x0020`; a REFHI/REFLO against a data name is `0x0000` and
+        // against a FUNCTION is `0x0020` (`coff::DataRef::is_function`, measured
+        // side by side in one workload obj). Emitting the wrong one is a single
+        // wrong byte in a symbol record that every relocation resolves through
+        // regardless — `docs/GAPS.md` §6's silent shape.
+        for (name, _, is_fn) in &introduced[i] {
+            emit_external_symbol(&mut b, &mut strtab, name, 0, if *is_fn { 0x0020 } else { 0x0000 });
         }
         if let (Some(m), Some(frame), Some(ps)) = (labels[i], f.frame.as_ref(), sec_pdata[i]) {
             emit_label_symbol(&mut b, &label_name('M', m[0]), frame.prolog_len, sec_num);
@@ -636,7 +636,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
     let mut next_idx: u32 = 13;
     // (function index, its defined symbol, the callee symbols it introduces —
     // reverse first-reference order, with their indices — constants introduced)
-    let mut plan: Vec<(usize, u32, Vec<(&str, u32)>, Vec<usize>, Vec<(&str, u32)>)> =
+    let mut plan: Vec<(usize, u32, Vec<(&str, u32, bool)>, Vec<usize>)> =
         Vec::with_capacity(funcs.len());
     let mut real_idx: Vec<Option<u32>> = vec![None; pool.len()];
     // An undefined external callee is emitted **once per distinct name**, after the
@@ -663,28 +663,27 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
         if labels[i].is_some() {
             next_idx += 1; // $M(n+1), the function-end label
         }
-        // One undefined external per **distinct** callee this function is the
-        // first to name, in reverse first-reference order ([`Function::introduced_callees`]).
-        let mut new_callees: Vec<(&str, u32)> = Vec::new();
-        for name in f.introduced_callees() {
-            if callee_syms.iter().any(|(n, _)| *n == name) {
+        // **W-UNDNAME / board #1720 — ONE list, reverse first-reference order
+        // over callees ∪ data names, kind ignored**
+        // ([`Function::introduced_externals`]). Two loops here too, and GRID A
+        // refutes them here too; the same rule and the same locator, so the two
+        // writers cannot disagree about the symbol order the way they could
+        // about the `Type`.
+        let mut new_ext: Vec<(&str, u32, bool)> = Vec::new();
+        for (name, is_fn) in f.introduced_externals() {
+            if callee_syms.iter().chain(data_syms.iter()).any(|(n, _)| *n == name) {
                 continue;
             }
-            callee_syms.push((name, next_idx));
-            new_callees.push((name, next_idx));
-            next_idx += 1;
-        }
-        // …then this function's new data symbols, immediately after its callees
-        // and before any label. The order inside the group is the reference's
-        // (`docs/IL_CALL_IN_EXPR.md` §17.2 item 6): the callee's `26` push
-        // precedes the argument's, and the emitted symbols follow the pushes.
-        let mut new_data: Vec<(&str, u32)> = Vec::new();
-        for r in &f.data_refs {
-            if data_syms.iter().any(|(n, _)| *n == r.name) {
-                continue;
+            // The two lookup tables stay two — a REL24 resolves in one and a
+            // REFHI/REFLO in the other, so a data symbol can never be resolved
+            // against a callee of the same spelling. Only the INDEX is shared.
+            if f.calls.iter().any(|c| c.callee == name) {
+                callee_syms.push((name, next_idx));
             }
-            data_syms.push((r.name, next_idx));
-            new_data.push((r.name, next_idx));
+            if f.data_refs.iter().any(|r| r.name == name) {
+                data_syms.push((name, next_idx));
+            }
+            new_ext.push((name, next_idx, is_fn));
             next_idx += 1;
         }
         if labels[i].is_some() {
@@ -705,7 +704,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
                 introduced.push(k);
             }
         }
-        plan.push((i, def_idx, new_callees, introduced, new_data));
+        plan.push((i, def_idx, new_ext, introduced));
         if fltused_after == Some(i) {
             next_idx += 1;
         }
@@ -716,7 +715,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
     // offset, against the framed function's defined symbol. In `.text` order,
     // which is also ascending VirtualAddress.
     let mut pdata_relocs: Vec<(u32, u32, u16)> = Vec::new();
-    for (i, def, _new, _intro, _data) in &plan {
+    for (i, def, _new, _intro) in &plan {
         if funcs[*i].frame.is_some() {
             pdata_relocs.push((pdata_relocs.len() as u32 * 8, *def, REL_PPC_ADDR32));
         }
@@ -729,7 +728,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
     // carry the partner half's displacement in the symbol-index field, which is
     // always 0 because every constant owns its whole COMDAT section.
     let mut text_relocs: Vec<(u32, u32, u16)> = Vec::new();
-    for (i, _def, _new, _intro, _data) in &plan {
+    for (i, _def, _new, _intro) in &plan {
         let f = &funcs[*i];
         // One REL24 per call site; several sites may share one symbol index.
         for call in &f.calls {
@@ -819,7 +818,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
     // Per function: the defined FUNCTION symbol, then (if a tail call) the
     // undefined external callee symbol, then the constant pools this function
     // introduces (`.rdata` section symbol + aux, then the `__real@…` external).
-    for (i, _def, new_callees, introduced, new_data) in &plan {
+    for (i, _def, new_ext, introduced) in &plan {
         let f = &funcs[*i];
         emit_function_symbol(&mut b, &mut strtab, f.name, 5, f.text_offset);
         // A framed function's `$M` labels are its prologue end and its function
@@ -829,23 +828,18 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
         if let (Some(m), Some(frame)) = (labels[*i], f.frame.as_ref()) {
             emit_label_symbol(&mut b, &label_name('M', m[1]), f.text_offset + frame.func_len, 5);
         }
-        // Undefined external callees: section 0 (UNDEF), FUNCTION type. Only the
-        // function that FIRST calls one emits its symbol, and the ones a single
-        // function introduces go out in reverse first-reference order.
-        for (name, _) in new_callees {
-            emit_function_symbol(&mut b, &mut strtab, name, 0, 0);
-        }
-        // WR1: undefined external DATA symbols — section 0, `Type` 0x0000. The
-        // type byte is the whole difference from the callee above, and it is the
-        // difference between "a data address" and "a function pointer" in the
-        // linker's eyes.
-        // **W-EXTDATA** — same rule as the `/Gy` writer's: a REFHI/REFLO
-        // against a FUNCTION carries `Type 0x0020`. One fact, two writers, and
-        // it is asked through `DataRef::is_function` in both so they cannot
-        // disagree.
-        for (name, _) in new_data {
-            let is_fn = f.data_refs.iter().any(|r| r.name == *name && r.is_function);
-            emit_external_symbol(&mut b, &mut strtab, name, 0, if is_fn { 0x0020 } else { 0x0000 });
+        // Undefined externals: section 0 (UNDEF), in the order the merged index
+        // assignment fixed. Only the function that FIRST names one emits its
+        // symbol.
+        //
+        // The `Type` is the whole difference between a callee and a data name —
+        // `0x0020` against `0x0000` — and it is the difference between "a
+        // function pointer" and "a data address" in the linker's eyes.
+        // **W-EXTDATA**: a REFHI/REFLO against a FUNCTION takes `0x0020` too, so
+        // the bit is `DataRef::is_function` and not "did this come from `calls`".
+        // One fact, two writers, asked through `introduced_externals` in both.
+        for (name, _, is_fn) in new_ext {
+            emit_external_symbol(&mut b, &mut strtab, name, 0, if *is_fn { 0x0020 } else { 0x0000 });
         }
         if let (Some(m), Some(frame), Some(pi)) = (labels[*i], f.frame.as_ref(), pdata_idx) {
             emit_label_symbol(&mut b, &label_name('M', m[0]), f.text_offset + frame.prolog_len, 5);

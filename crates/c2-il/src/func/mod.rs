@@ -921,8 +921,8 @@ pub enum SlotArg {
     /// **WR1 — the address of the body's one named data symbol**, materialized
     /// into this slot by `lis r11,sym@ha ; addi r<slot>,r11,sym@l`.
     ///
-    /// A unit variant with the name carried on [`IlFunction::data_sym`] rather
-    /// than here, because the class admits **exactly one** such symbol per body
+    /// A unit variant with the name carried on [`IlFunction::data_syms`] rather
+    /// than here, because THIS class admits **exactly one** such symbol per body
     /// and [`SlotArg`] is `Copy`. Two or more is `docs/IL_CALL_IN_EXPR.md` §17.3
     /// (a)/(b) — c2 materializes only the first through a relocation pair and
     /// derives the rest by `.rdata` pool-offset difference, which needs a
@@ -1596,6 +1596,97 @@ pub struct GuardChainSharedTail {
     pub ret_fail: i32,
 }
 
+/// **W-UNDNAME — the guarded allocation with a shared error store**
+/// (`?append@DName@@QAAXPAVDNameNode@@@Z`), as the recognizer read it.
+///
+/// The accept/refuse boundary is entirely on the recognizer
+/// ([`crate::func::body::shapes::alloc_init_or_fail`]); this carries only what
+/// the emitter reads back. The facts that are *not* here because they are
+/// required literally — one explicit formal on a member function, a member call
+/// on a named global object, exactly two literal arguments, three tests in the
+/// order `!=` `!=` `==`, a byte-wide status store, every label distinct — each
+/// re-plan c2's register assignment or its block layout when varied.
+///
+/// **Ten immediate fields and zero words chosen by a scheduler.** That is the
+/// whole of PREREG D1, and it is why every other fact is a refusal in the reader
+/// (board #1706).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AllocInitOrFail {
+    /// `[this, node]` in **argument-register order**: `params[0]` arrives in r3
+    /// and `params[1]` in r4, and both are parked (`mr r31,r3`, `mr r30,r4`)
+    /// because both are read after the call.
+    pub params: Vec<u32>,
+    /// The allocating member function, as a `.gl` token — the body's one REL24.
+    pub alloc_tok: u32,
+    /// The named global object the allocation is called ON. Its ADDRESS is the
+    /// call's `this`, so it is a REFHI/REFLO target and not a callee: the FIRST
+    /// of the two data symbols, referenced at the lower `.text` offset.
+    pub object_tok: u32,
+    /// The named global whose ADDRESS the third initializer store writes. The
+    /// SECOND data symbol, and the one whose REFLO writes the scratch register
+    /// itself (`addi r11,r11,0`).
+    pub vtable_tok: u32,
+    /// The allocation's first source argument — `li r4,K_SIZE`.
+    pub k_size: i32,
+    /// The allocation's second source argument — `li r5,K_FLAG`.
+    pub k_flag: i32,
+    /// The literal the second initializer store writes — `li r10,K_NEG`.
+    pub k_neg: i32,
+    /// The byte the error block stores — `li r11,K_STATUS`.
+    pub k_status: i32,
+    /// `p->OFF_A = node`.
+    pub off_a: i32,
+    /// `p->OFF_B = K_NEG`.
+    pub off_b: i32,
+    /// `p->OFF_C = &vtable`.
+    pub off_c: i32,
+    /// The member the `lwz` reads and the link `stw` writes — **one** field,
+    /// because the recognizer requires the two to name the same member. Two
+    /// displacements would be a field this class cannot vary independently.
+    pub off_d: i32,
+    /// `p->OFF_E = this->OFF_D`.
+    pub off_e: i32,
+    /// `this->OFF_F = K_STATUS`, the byte store.
+    pub off_f: i32,
+}
+
+/// [`AllocInitOrFail`] with its three tokens resolved to mangled names.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AllocInitOrFailFn {
+    /// Exactly as [`AllocInitOrFail::params`].
+    pub params: Vec<u32>,
+    /// The allocating member function — the body's ONE `bl`, and therefore its
+    /// one REL24 site.
+    pub alloc: String,
+    /// The global object whose address is the call's `this`. Travels to the
+    /// writer on [`IlFunction::data_syms`] as element **0**, which is emission
+    /// order: its `lis` is the lower of the two `.text` offsets.
+    pub object: String,
+    /// The global whose address the third store writes. Element **1** of
+    /// [`IlFunction::data_syms`].
+    pub vtable: String,
+    /// Exactly as [`AllocInitOrFail::k_size`].
+    pub k_size: i32,
+    /// Exactly as [`AllocInitOrFail::k_flag`].
+    pub k_flag: i32,
+    /// Exactly as [`AllocInitOrFail::k_neg`].
+    pub k_neg: i32,
+    /// Exactly as [`AllocInitOrFail::k_status`].
+    pub k_status: i32,
+    /// Exactly as [`AllocInitOrFail::off_a`].
+    pub off_a: i32,
+    /// Exactly as [`AllocInitOrFail::off_b`].
+    pub off_b: i32,
+    /// Exactly as [`AllocInitOrFail::off_c`].
+    pub off_c: i32,
+    /// Exactly as [`AllocInitOrFail::off_d`].
+    pub off_d: i32,
+    /// Exactly as [`AllocInitOrFail::off_e`].
+    pub off_e: i32,
+    /// Exactly as [`AllocInitOrFail::off_f`].
+    pub off_f: i32,
+}
+
 /// [`GuardChainSharedTail`] with its four tokens resolved to mangled names.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GuardChainSharedTailFn {
@@ -2111,10 +2202,31 @@ pub struct IlFunction {
     /// The one-argument case keeps using `ops` instead, because it can carry a
     /// computed argument (`g(a + 1)`) that this form cannot express.
     pub arg_sources: Option<Vec<SlotArg>>,
-    /// **WR1 — the one named data symbol whose address this body materializes**,
-    /// already resolved through `.gl` to its mangled name (`?gI@@3HA`).
+    /// **WR1 — the named data symbols whose addresses this body materializes**,
+    /// already resolved through `.gl` to their mangled names (`?gI@@3HA`), in
+    /// **emission order** — ascending `.text` offset of the `lis` that opens each
+    /// one.
     ///
-    /// `Some` exactly when [`Self::arg_sources`] contains a [`SlotArg::SymAddr`].
+    /// # W-UNDNAME — this is a LIST, and the order is load-bearing
+    ///
+    /// It was `Option<String>`, and it was right for every class that had reached
+    /// here: WR1's admits exactly one. `?append@DName@@QAAXPAVDNameNode@@@Z`
+    /// materializes **two** — `?gHeapManager@@3V_HeapManager@@A` at `.text+0x24`
+    /// and `?pairNode_vtable@@3PAXA` at `.text+0x40` — so a single-name carrier
+    /// cannot spell the body at all.
+    ///
+    /// **Emission order, not `.gl` order and not source order.**
+    /// [`c2_core::data_refs_of`] derives the relocation SITES from the emitted
+    /// words (each `addis rT,0,0` opens a pair; the first `addi rD,rT,0` after it
+    /// closes it) and pairs site `i` with name `i`. The two lists must therefore
+    /// agree in order and in length, and a producer that appends out of order
+    /// relocates the wrong site against the wrong symbol — every relocation still
+    /// resolving, which is `docs/GAPS.md` §6's silent shape. The count is checked
+    /// where the pairing happens, so a disagreement refuses rather than emits.
+    ///
+    /// Non-empty exactly when [`Self::arg_sources`] contains a
+    /// [`SlotArg::SymAddr`], or when a shape that carries its own symbol list is
+    /// set.
     /// The emitter turns it into an **undefined-external DATA** symbol
     /// (`Type` 0x0000, not the 0x0020 a callee carries) plus a REFHI/PAIR/REFLO/PAIR
     /// quad; the TU-level accounting in [`IlBundle::functions`] counts it as
@@ -2127,7 +2239,7 @@ pub struct IlFunction {
     /// `gl::gl_extern_data_names`) and the name stays unaccounted, which refuses
     /// the TU as well. Two gates, because the failure is a wrong section count and
     /// not a wrong instruction.
-    pub data_sym: Option<String>,
+    pub data_syms: Vec<String>,
     /// **W-EXTDATA — the name of a FUNCTION whose ADDRESS this body
     /// materializes**, already resolved through `.gl` to its mangled name.
     ///
@@ -2137,17 +2249,17 @@ pub struct IlFunction {
     /// | field | what the obj carries | symbol `Type` | relocation |
     /// |---|---|---|---|
     /// | [`Self::callees`] | an undefined external FUNCTION | `0x0020` | `REL24` |
-    /// | [`Self::data_sym`] | an undefined external DATA name | `0x0000` | REFHI/REFLO |
+    /// | [`Self::data_syms`] | undefined external DATA names | `0x0000` | REFHI/REFLO |
     /// | **this** | an undefined external FUNCTION | **`0x0020`** | **REFHI/REFLO** |
     ///
     /// So it is a callee's *symbol* with a data symbol's *relocation*, and
-    /// neither existing field can spell it: `data_sym` would emit `Type 0x0000`
+    /// neither existing field can spell it: `data_syms` would emit `Type 0x0000`
     /// (`?pairNode_vtable@@3PAXA` is `0x0000`, `_woutput_s_l` is `0x0020` —
     /// measured on `work/w-extdata/ref/*/dis.txt`), and `callees` would emit a
     /// `REL24` against a word that is a `lis`.
     ///
     /// Accounted by [`IlBundle::functions`] in its own clause, exactly as
-    /// `data_sym` is, so the unclaimed-`.gl`-name gate does not refuse a TU for
+    /// `data_syms` is, so the unclaimed-`.gl`-name gate does not refuse a TU for
     /// a symbol the obj legitimately carries. **Not** folded into
     /// [`Self::callees`], because that iterator's contract is *"every name the
     /// body branches to"* and `c2_core::coff::plan_text_order` consumes it as a
@@ -2155,16 +2267,16 @@ pub struct IlFunction {
     pub fn_addr_sym: Option<String>,
     /// **W-DATA — a data object this TU DEFINES and this body references.**
     ///
-    /// [`Self::data_sym`] is *"a name to relocate against, documented as an
+    /// [`Self::data_syms`] is *"a name to relocate against, documented as an
     /// undefined external"*; this is the other kind, and it is a different thing
     /// rather than a wider one. An undefined external costs the obj one symbol
     /// record. A **defined** object costs it a whole section, an alignment, a
     /// checksum, a defined symbol and a relocation — and the `.gl` linkage byte
-    /// that refuses one from `data_sym` (`gl::gl_extern_data_names`, which admits
+    /// that refuses one from `data_syms` (`gl::gl_extern_data_names`, which admits
     /// only linkage `02`) is exactly the gate that says so.
     ///
     /// So the two fields are never both set, and the accounting in
-    /// [`IlBundle::functions`] counts each in its own clause: a `data_sym` is
+    /// [`IlBundle::functions`] counts each in its own clause: a `data_syms` name is
     /// accounted as *a symbol the obj carries undefined*, a `data_def` as *a
     /// symbol the obj DEFINES*. Before this field existed the second case had no
     /// spelling at all, which is why `int gv; int f(int a){return a+1;}`
@@ -2178,6 +2290,10 @@ pub struct IlFunction {
     /// **W-EXTDATA — the sunk-`||`-guard, shared-tail body** (`_vswprintf_s_l`).
     /// Set by exactly one parser production; [`Self::ops`] is empty for it.
     pub guard_chain_shared_tail: Option<GuardChainSharedTailFn>,
+    /// **W-UNDNAME — the guarded allocation with a shared error store**
+    /// (`?append@DName@@QAAXPAVDNameNode@@@Z`). Set by exactly one parser
+    /// production; [`Self::ops`] is empty for it.
+    pub alloc_init_or_fail: Option<AllocInitOrFailFn>,
     /// True iff this function's body is **empty** (`void f() {}`): no expression at
     /// all, so codegen emits a bare `blr`. Mutually exclusive with the other body
     /// kinds.
@@ -2324,11 +2440,12 @@ impl IlFunction {
             fp_tail: None,
             fp_arg_sources: None,
             arg_sources: None,
-            data_sym: None,
+            data_syms: Vec::new(),
             fn_addr_sym: None,
             data_def: None,
             static_scan_loop: None,
             guard_chain_shared_tail: None,
+            alloc_init_or_fail: None,
             empty_body: false,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
@@ -2484,6 +2601,7 @@ impl IlFunction {
             || self.call_seq.is_some()
             || self.if_call_join.is_some()
             || self.guard_chain_shared_tail.is_some()
+            || self.alloc_init_or_fail.is_some()
     }
 
     /// **Label-counter slots this function takes BEFORE its own `$M` triple.**
@@ -2520,6 +2638,30 @@ impl IlFunction {
             // anchor control is the shipped 5 on a `Seq` body in the same TU
             // (`fixtures/cpp/wcfg1_join_then_seq.cpp`).
             + u32::from(self.if_call_join.is_some())
+            // **W-UNDNAME charges NOTHING before its own triple, and that is
+            // the measurement rather than the default.**
+            //
+            // The lane's PREREG registered **+1**, by analogy with the two
+            // `cflow` classes above — and the oracle says **0**. With a `+1`
+            // term the port emitted `$M2593` / `$M2592` / `$T2594` where the
+            // reference has `$M2592` / `$M2591` / `$T2593`: three symbol records
+            // wrong by one and nothing else in the obj different. Removing the
+            // term makes the obj byte-exact.
+            //
+            // So the two neighbouring surcharges are NOT a property of
+            // "a transcribed `cflow-if-n` class", which is what the analogy
+            // assumed. The measurement is the same one-witness kind W-EXTDATA's
+            // was — `?append@DName@@QAAXPAVDNameNode@@@Z` is `undname.cpp`'s only
+            // emitted function, so there is no in-TU difference to take and what
+            // was compared is the port's whole obj against real `c2.dll`'s at the
+            // workload's own flags. The fence around it is the recognizer's: this
+            // class admits one block plan, so there is no second shape for the
+            // charge to be wrong about.
+            //
+            // Written as an explicit `+ 0` rather than as a missing term,
+            // because a class silently absent from this sum is indistinguishable
+            // from one nobody thought about.
+            + 0 * u32::from(self.alloc_init_or_fail.is_some())
             // **W-EXTDATA charges ONE slot before its own triple too**, so this
             // class strides 6 under `/Gy` exactly as W-CFG1 does — and the
             // number is MEASURED, against the oracle, not carried over by
@@ -2593,6 +2735,17 @@ impl IlFunction {
                     .iter()
                     .flat_map(|c| [c.helper.as_str(), c.errno.as_str(), c.invalid.as_str()]),
             )
+            // **W-UNDNAME: ONE name.** The body's other two externals are the
+            // object's and the vtable's addresses, whose relocations are
+            // REFHI/REFLO quads and not branches — they travel on
+            // `IlFunction::data_syms` and are accounted in `IlBundle::functions`
+            // by that field's own clause, exactly as `fn_addr` is by its.
+            // Putting either here would make `coff::plan_text_order` see a call
+            // edge on a `lis`.
+            //
+            // Omitting this arm is not a silent gap: the accounting gate refuses
+            // the whole TU with `unclaimed-gl-symbol`, which is how it was found.
+            .chain(self.alloc_init_or_fail.iter().map(|a| a.alloc.as_str()))
     }
 
     pub fn label_slots(&self, fn_level_linking: bool) -> Option<u32> {

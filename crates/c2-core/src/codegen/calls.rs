@@ -998,6 +998,7 @@ fn ops_setup_text(
         return Ok(Vec::new());
     }
     let synth = IlFunction {
+        alloc_init_or_fail: None,
         mangled_name: String::new(),
         source_path: None,
         params: params.to_vec(),
@@ -1019,7 +1020,7 @@ fn ops_setup_text(
         fp_tail: None,
         fp_arg_sources: None,
         arg_sources: None,
-        data_sym: None,
+        data_syms: Vec::new(),
         fn_addr_sym: None,
         empty_body: false,
         // A synthetic operand-stream carrier, never a function: `select_text`

@@ -369,13 +369,16 @@ impl<'a> Function<'a> {
         }
     }
 
-    /// The callees this function introduces to the symbol table, in the order
-    /// their symbols are **emitted**: distinct names in **reverse first-reference
-    /// order**.
+    /// **The reverse first-reference LIFO, measured on callees alone.** Kept as
+    /// the record behind [`Self::introduced_externals`]'s key, because it is a
+    /// different measurement from GRID A's and predates it. The rule itself now
+    /// lives in `introduced_externals`, which generalizes it to the union; the
+    /// callees-then-data-names spelling it used to feed survives only as
+    /// `external_order_tests::two_loop_order`, the refuted rival.
     ///
-    /// Measured (`docs/OBJ_GY_SHAPES.md` §3.3 as extended, byte evidence in
-    /// `docs/CODEGEN_FRAMED_CALLS.md` §4.1). `f(){ g1(); g2(); g3(); }` puts `?g3`
-    /// at index 15, `?g2` at 16 and `?g1` at 17 — and the mirrored source
+    /// (`docs/OBJ_GY_SHAPES.md` §3.3 as extended, byte evidence in
+    /// `docs/CODEGEN_FRAMED_CALLS.md` §4.1.) `f(){ g1(); g2(); g3(); }` puts
+    /// `?g3` at index 15, `?g2` at 16 and `?g1` at 17 — and the mirrored source
     /// `g3(); g2(); g1();` puts `?g1` at 15, which is what refutes both
     /// "alphabetical" and "declaration order". `g1(); g2(); g1();` emits two
     /// symbols, not three, and its repeat relocates against the first.
@@ -384,15 +387,79 @@ impl<'a> Function<'a> {
     /// (§2.3) and it has the same failure mode: a naive append emits every index
     /// swapped and **every relocation still resolves**, so the obj is wrong in a
     /// way no linker complains about.
-    pub(crate) fn introduced_callees(&self) -> Vec<&'a str> {
-        let mut first_ref: Vec<&'a str> = Vec::with_capacity(self.calls.len());
-        for c in &self.calls {
-            if !first_ref.contains(&c.callee) {
-                first_ref.push(c.callee);
+    ///
+    /// **W-UNDNAME / board #1720 — every undefined external this function
+    /// introduces, as ONE list in reverse first-reference order, kind ignored.**
+    ///
+    /// This is GRID A's rule, and it replaces the two loops
+    /// (a callee loop then a `data_refs` loop) that both writers used to
+    /// run. `work/w-extdata/GRID_A_RESULT.md` — five one-function TUs, four
+    /// rivals, per-cell predictions frozen and separation asserted before the
+    /// first `cl.exe`:
+    ///
+    /// | cell | `.text` reference order | symbol table from index 15 |
+    /// |---|---|---|
+    /// | a1 | `gI g1 g0` | `g0 g1 gI` |
+    /// | **a2** | `g0 gI g1` | **`g1 gI g0`** |
+    /// | **a3** | `gI g1 g0 gJ g2` | **`g2 gJ g0 g1 gI`** |
+    /// | **a4** | `gI g1 gJ g2` | **`g2 gJ g1 gI`** |
+    /// | a5 | `g0 g3` | `g3 g0` |
+    ///
+    /// One list over callees ∪ data names in reverse first-reference order is
+    /// confirmed 5 of 5; the two-loop rule is refuted on three, declaration order
+    /// on four and `.gl` order on one. Read a second way as the grid required —
+    /// by the relocation targeting each index — a3's sequence down `.text` is
+    /// `REFHI(19) · REL24(18) · REL24(17) · REFHI(16) · REL24(15)`, strictly
+    /// descending index against ascending offset for both kinds alike. So the key
+    /// is the first-reference OFFSET and not the `Type` or the name.
+    ///
+    /// # Why this could not ship until now, and what it costs
+    ///
+    /// It converts nothing by itself, and until a body whose externals interleave
+    /// was in class there was **no cell** that could tell it from the two loops —
+    /// `docs/STATUS.md` trap 0 exactly. Measured at `w-undname`'s base: all four
+    /// GRID A cells carrying a data symbol read `0/1 functions in class`. The
+    /// cell that exercises this arm is `?append@DName@@QAAXPAVDNameNode@@@Z`,
+    /// whose externals are `data · callee · data`, plus the fixture that
+    /// reproduces it.
+    ///
+    /// **It is byte-neutral on every obj emitted before it**, and the argument is
+    /// a proof rather than a hope: `crate::check_external_order` (deleted in the
+    /// same commit) refused every body in which a data reference followed a call,
+    /// so on all of them every data reference precedes every call — and reverse
+    /// order over the union then places all callees first and all data names
+    /// last, which is where the two loops put them. Measured anyway, three ways:
+    /// the 878-TU scan at both ends, the gate's per-lane `match` counts, and the
+    /// fixture-verdict total.
+    ///
+    /// The `bool` is `true` for a name whose symbol record is a FUNCTION's
+    /// (`Type 0x0020`) — a callee, or a `DataRef` whose [`DataRef::is_function`]
+    /// is set. A name occurring as both is one symbol and takes the FUNCTION
+    /// record, which is the same record either way, so nothing is decided here
+    /// that a cell has not seen.
+    pub(crate) fn introduced_externals(&self) -> Vec<(&'a str, bool)> {
+        // (name, first-reference offset, is a FUNCTION record)
+        let mut first: Vec<(&'a str, u32, bool)> = Vec::new();
+        let mut note = |name: &'a str, off: u32, is_fn: bool| {
+            match first.iter_mut().find(|(n, _, _)| *n == name) {
+                Some(e) => {
+                    e.1 = e.1.min(off);
+                    e.2 |= is_fn;
+                }
+                None => first.push((name, off, is_fn)),
             }
+        };
+        for c in &self.calls {
+            note(c.callee, c.reloc_offset, true);
         }
-        first_ref.reverse();
-        first_ref
+        for r in &self.data_refs {
+            note(r.name, r.hi_off, r.is_function);
+        }
+        // Descending first-reference offset. A stable sort, though the key is
+        // unique by construction: two references at one `.text` offset would be
+        // one instruction relocated twice.
+        first.sort_by(|a, b| b.1.cmp(&a.1));
+        first.into_iter().map(|(n, _, f)| (n, f)).collect()
     }
 }
 
@@ -428,3 +495,125 @@ pub(crate) fn real_raw_bytes(bits: u64, double: bool) -> Vec<u8> {
 
 /// The CRT float-support marker symbol.
 pub(crate) const NAME_FLTUSED: &str = "_fltused";
+
+#[cfg(test)]
+mod external_order_tests {
+    use super::*;
+
+    /// **The REFUTED rival, kept as code so the separation is executable.**
+    ///
+    /// Callees in reverse first-reference order, then data names in reference
+    /// order — the two loops both writers ran until board #1720 shipped. It
+    /// lives here and not in the writer because nothing may emit it, and it is
+    /// not deleted because a rival that is only described in a rung doc cannot
+    /// be asserted against.
+    fn two_loop_order<'a>(f: &Function<'a>) -> Vec<&'a str> {
+        let mut first: Vec<&'a str> = Vec::new();
+        for c in &f.calls {
+            if !first.contains(&c.callee) {
+                first.push(c.callee);
+            }
+        }
+        first.reverse();
+        first.extend(f.data_refs.iter().map(|r| r.name));
+        first
+    }
+
+    /// **GRID A's rule, on GRID A's own `a3` shape** — `data · callee · data`
+    /// down `.text`, which is `?append@DName@@QAAXPAVDNameNode@@@Z`'s shape and
+    /// the one no ordering of a callee loop and a data loop can produce.
+    ///
+    /// `work/w-extdata/GRID_A_RESULT.md` a3: `.text` reference order
+    /// `gI g1 g0 gJ g2` gives a symbol table `g2 gJ g0 g1 gI` from index 15 —
+    /// strictly descending index against ascending first-reference offset, for
+    /// both kinds alike.
+    #[test]
+    fn the_undefined_externals_are_one_list_in_reverse_first_reference_order() {
+        let mut f = Function::plain("?a3@@YAXXZ", 0);
+        f.data_refs = vec![
+            DataRef { hi_off: 0x00, lo_off: 0x08, name: "?gI@@3HA", is_function: false },
+            DataRef { hi_off: 0x18, lo_off: 0x20, name: "?gJ@@3HA", is_function: false },
+        ];
+        f.calls = vec![
+            Call { reloc_offset: 0x0c, callee: "?g1@@YAXPAH@Z" },
+            Call { reloc_offset: 0x10, callee: "?g0@@YAXXZ" },
+            Call { reloc_offset: 0x24, callee: "?g2@@YAXPAH@Z" },
+        ];
+        assert_eq!(
+            f.introduced_externals(),
+            vec![
+                ("?g2@@YAXPAH@Z", true),
+                ("?gJ@@3HA", false),
+                ("?g0@@YAXXZ", true),
+                ("?g1@@YAXPAH@Z", true),
+                ("?gI@@3HA", false),
+            ]
+        );
+        // The refuted rival, spelled out so the separation is in the test and
+        // not only in the rung doc: callees first, then data names, gives a
+        // DIFFERENT list — and every relocation resolves either way.
+        let two_loops = two_loop_order(&f);
+        assert_eq!(two_loops, vec!["?g2@@YAXPAH@Z", "?g0@@YAXXZ", "?g1@@YAXPAH@Z", "?gI@@3HA", "?gJ@@3HA"]);
+        assert_ne!(
+            two_loops,
+            f.introduced_externals().into_iter().map(|(n, _)| n).collect::<Vec<_>>()
+        );
+    }
+
+    /// The two rules **coincide** whenever every data reference precedes every
+    /// call — which is the population the deleted `check_external_order` fence
+    /// admitted, and therefore the proof that shipping A1 changed no obj the
+    /// port had ever emitted.
+    #[test]
+    fn a_body_whose_data_refs_all_precede_its_calls_gets_the_same_list_either_way() {
+        let mut f = Function::plain("?wr1@@YAXXZ", 0);
+        f.data_refs = vec![DataRef {
+            hi_off: 0x00,
+            lo_off: 0x08,
+            name: "?gI@@3HA",
+            is_function: false,
+        }];
+        f.calls = vec![
+            Call { reloc_offset: 0x0c, callee: "?g1@@YAXPAH@Z" },
+            Call { reloc_offset: 0x10, callee: "?g0@@YAXXZ" },
+        ];
+        let merged: Vec<&str> = f.introduced_externals().into_iter().map(|(n, _)| n).collect();
+        assert_eq!(merged, two_loop_order(&f));
+    }
+
+    /// A repeated callee is ONE symbol at its FIRST reference's rank — the same
+    /// dedup `introduced_callees` had, kept across the merge.
+    #[test]
+    fn a_callee_named_twice_takes_its_first_references_rank_once() {
+        let mut f = Function::plain("?rep@@YAXXZ", 0);
+        f.calls = vec![
+            Call { reloc_offset: 0x00, callee: "?g1@@YAXXZ" },
+            Call { reloc_offset: 0x04, callee: "?g2@@YAXXZ" },
+            Call { reloc_offset: 0x08, callee: "?g1@@YAXXZ" },
+        ];
+        assert_eq!(
+            f.introduced_externals(),
+            vec![("?g2@@YAXXZ", true), ("?g1@@YAXXZ", true)]
+        );
+    }
+
+    /// A REFHI/REFLO whose target is a FUNCTION carries `Type 0x0020`, and the
+    /// merged list has to carry that bit — the symbol record is the only place
+    /// the two kinds differ, and every relocation resolves either way
+    /// (`DataRef::is_function`, W-EXTDATA).
+    #[test]
+    fn a_function_addresss_reference_keeps_its_function_symbol_type() {
+        let mut f = Function::plain("?fa@@YAXXZ", 0);
+        f.data_refs = vec![DataRef {
+            hi_off: 0x38,
+            lo_off: 0x48,
+            name: "_woutput_s_l",
+            is_function: true,
+        }];
+        f.calls = vec![Call { reloc_offset: 0x4c, callee: "_vswprintf_helper" }];
+        assert_eq!(
+            f.introduced_externals(),
+            vec![("_vswprintf_helper", true), ("_woutput_s_l", true)]
+        );
+    }
+}

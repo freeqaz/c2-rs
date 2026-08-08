@@ -722,7 +722,7 @@ fn slot_arg(a: body::SlotArg) -> SlotArg {
 /// **WR1 — resolve a tail call's slot list**, turning its one
 /// [`body::SlotArg::SymAddr`] token into a mangled `.gl` name.
 ///
-/// Returns `(slots, data_sym)`. `None` when the token resolves to nothing, which
+/// Returns `(slots, data_syms)`. `None` when the token resolves to nothing, which
 /// is the same refusal a callee's does and for the same reason: a relocation
 /// against a guessed symbol is a mis-emit, not a gap. **A string literal lands
 /// here** — its `.gl` record carries the `25` separator `gl_symbol_index`
@@ -735,25 +735,32 @@ fn slot_arg(a: body::SlotArg) -> SlotArg {
 fn slot_args_resolved(
     slots: Vec<body::SlotArg>,
     resolve_data: &dyn Fn(u32) -> Option<String>,
-) -> Option<(Vec<SlotArg>, Option<String>)> {
-    let mut data_sym: Option<String> = None;
+) -> Option<(Vec<SlotArg>, Vec<String>)> {
+    let mut data_syms: Vec<String> = Vec::new();
     let mut out = Vec::with_capacity(slots.len());
     for a in slots {
         match a {
             body::SlotArg::SymAddr(tok) => {
                 let n = resolve_data(tok)?;
-                // The parser admits exactly one; a second would silently take the
-                // first one's relocation, so it refuses here too.
-                if data_sym.is_some() {
+                // **This class still admits exactly one**, and the refusal stays
+                // even though the carrier is a list now. `IlFunction::data_syms`
+                // is ordered by the `.text` offset of each `lis`, and a slot walk
+                // is not that order: `docs/IL_CALL_IN_EXPR.md` §17.3 (a)/(b)
+                // records that c2 materializes only the FIRST of several through a
+                // relocation pair and derives the rest by pool-offset difference,
+                // which is a different body. Widening the carrier does not
+                // characterize that, so a second symbol refuses here exactly as it
+                // did when the field was an `Option`.
+                if !data_syms.is_empty() {
                     return None;
                 }
-                data_sym = Some(n);
+                data_syms.push(n);
                 out.push(SlotArg::SymAddr);
             }
             other => out.push(slot_arg(other)),
         }
     }
-    Some((out, data_sym))
+    Some((out, data_syms))
 }
 
 /// Convert one parsed body shape into the emitter's function record.
@@ -1153,12 +1160,12 @@ pub(crate) fn shape_to_function(
             // operand stream, so `ops` stays empty and `arg_sources` carries the
             // mapping.
             BodyShape::MultiArgTailCall { params, arg_sources, callee_tok } => {
-                let (arg_sources, data_sym) = slot_args_resolved(arg_sources, resolve_data)?;
+                let (arg_sources, data_syms) = slot_args_resolved(arg_sources, resolve_data)?;
                 Some(IlFunction {
                     params,
                     tail_call: Some(resolve(callee_tok)?),
                     arg_sources: Some(arg_sources),
-                    data_sym,
+                    data_syms,
                     ..IlFunction::base(name, src)
                 })
             }
@@ -1257,6 +1264,41 @@ pub(crate) fn shape_to_function(
                         k_range: c.k_range,
                         sentinel: c.sentinel,
                         ret_fail: c.ret_fail,
+                    }),
+                    ..IlFunction::base(name, src)
+                })
+            }
+            // **W-UNDNAME — the guarded allocation with a shared error store.**
+            // Three tokens resolved through the SAME `resolve` every callee
+            // uses. A single unresolvable one refuses the whole function: a
+            // relocation against a guessed symbol is a mis-emit, not a gap.
+            //
+            // The two data names go onto `data_syms` in EMISSION order — the
+            // object first, because its `lis` is the lower `.text` offset — and
+            // `c2_core::data_refs_of` pairs them with the sites it derives from
+            // the emitted words by position, checking the counts. The order here
+            // is a fact about the emitter, so it is set here and asserted there.
+            BodyShape::AllocInitOrFail(a) => {
+                let object = resolve(a.object_tok)?;
+                let vtable = resolve(a.vtable_tok)?;
+                Some(IlFunction {
+                    params: a.params.clone(),
+                    data_syms: vec![object.clone(), vtable.clone()],
+                    alloc_init_or_fail: Some(crate::func::AllocInitOrFailFn {
+                        params: a.params,
+                        alloc: resolve(a.alloc_tok)?,
+                        object,
+                        vtable,
+                        k_size: a.k_size,
+                        k_flag: a.k_flag,
+                        k_neg: a.k_neg,
+                        k_status: a.k_status,
+                        off_a: a.off_a,
+                        off_b: a.off_b,
+                        off_c: a.off_c,
+                        off_d: a.off_d,
+                        off_e: a.off_e,
+                        off_f: a.off_f,
                     }),
                     ..IlFunction::base(name, src)
                 })
@@ -1683,7 +1725,7 @@ impl IlBundle {
             // accounted by this line, and it is a whole extra section
             // (`docs/IL_CALL_IN_EXPR.md` §17.2 item 7) — which is why the gate is
             // there and not here.
-            if let Some(d) = &f.data_sym {
+            for d in &f.data_syms {
                 accounted.push(d.as_str());
             }
             // **W-EXTDATA — a FUNCTION whose address this body materializes.**
@@ -1693,7 +1735,7 @@ impl IlBundle {
             // (`work/w-extdata/ref/vswprnc/dis.txt` symbol 18 against
             // `work/w-extdata/ref/undname/dis.txt` symbols 15 and 17).
             //
-            // Safe for the same reason the `data_sym` clause is: the name is
+            // Safe for the same reason the `data_syms` clause is: the name is
             // resolved from a `.gl` record that says *undefined external*, so
             // accounting it does not hide a DEFINED symbol — which would be a
             // whole extra section and the file-offset-2 mismatch this gate cost

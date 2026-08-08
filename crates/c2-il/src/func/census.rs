@@ -598,6 +598,16 @@ impl IlBundle {
                             Ok(BodyShape::GuardChainSharedTail(_)) => {
                                 FnVerdict::InClass("guard-chain-shared-tail")
                             }
+                            // W-UNDNAME — its own bucket, for the reason every
+                            // transcription above gets one: it is the first
+                            // in-class shape whose `.text` carries TWO
+                            // REFHI/REFLO quads, and a census that folded it in
+                            // with `guard-chain-shared-tail` could not report
+                            // that movement against the `expr-cmp-ne` bucket it
+                            // comes out of.
+                            Ok(BodyShape::AllocInitOrFail(_)) => {
+                                FnVerdict::InClass("alloc-init-or-fail")
+                            }
                             // **W-DATA — the static-array scan loop.** Its own
                             // bucket, like every other whole-body shape, so the
                             // `cflow-loop` axis can report an in-class row

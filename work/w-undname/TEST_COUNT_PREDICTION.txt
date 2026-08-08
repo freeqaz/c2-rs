@@ -1,0 +1,63 @@
+w-undname — the predicted `cargo test --workspace --release` count, registered
+BEFORE the run that checks it (board #1710a, which has caught a vanished test
+once already).
+
+  base `5dd89969`                                            1,262 / 36 targets
+
+  + 7  unit tests in `c2_core::codegen::alloc_init_or_fail`
+         the_body_is_the_reference_obj_word_for_word
+         the_three_tests_do_not_share_one_condition_register
+         the_two_high_halves_have_different_hoist_distances
+         the_status_store_is_a_byte_store
+         the_middle_branch_lands_on_the_link_store_not_the_epilogue
+         the_ten_immediates_are_fields
+         a_mode_other_than_o1_refuses
+  + 1  unit test in `c2_core::tests`
+         two_quads_in_one_body_pair_by_position_and_take_their_names_in_order
+  + 4  unit tests in `c2_core::coff::function::external_order_tests`
+         the_undefined_externals_are_one_list_in_reverse_first_reference_order
+         a_body_whose_data_refs_all_precede_its_calls_gets_the_same_list_either_way
+         a_callee_named_twice_takes_its_first_references_rank_once
+         a_function_addresss_reference_keeps_its_function_symbol_type
+  + 1  differential test in `c2-harness/tests/differential.rs`
+         differential_wundname_alloc_init_or_fail_refuses_outside_its_mode
+
+  PREDICTED                                                  1,274 / 36 targets
+
+No target is added or removed, so 36 stands. A count BELOW this means a test
+silently did not run, which is `docs/STATUS.md` trap 5 and the reason this file
+is committed before the run rather than written after it.
+
+---------------------------------------------------------------------------
+SCORED, after the run. Written below the line, never over it.
+
+  MEASURED  1,275 passed, 0 failed, 36 targets
+  PREDICTED 1,274
+
+**The itemization above is RIGHT and its TOTAL is WRONG.** 7 + 1 + 4 + 1 = 13,
+and 1,262 + 13 = 1,275. All thirteen named tests are present in the run and
+none vanished — checked by name, not by subtracting totals:
+
+  codegen::alloc_init_or_fail::tests::{the_body_is_the_reference_obj_word_for_word,
+    the_three_tests_do_not_share_one_condition_register,
+    the_two_high_halves_have_different_hoist_distances,
+    the_status_store_is_a_byte_store,
+    the_middle_branch_lands_on_the_link_store_not_the_epilogue,
+    the_ten_immediates_are_fields, a_mode_other_than_o1_refuses}
+  tests::two_quads_in_one_body_pair_by_position_and_take_their_names_in_order
+  coff::function::external_order_tests::{the_undefined_externals_are_one_list_in_reverse_first_reference_order,
+    a_body_whose_data_refs_all_precede_its_calls_gets_the_same_list_either_way,
+    a_callee_named_twice_takes_its_first_references_rank_once,
+    a_function_addresss_reference_keeps_its_function_symbol_type}
+  differential_wundname_alloc_init_or_fail_refuses_outside_its_mode
+
+So board #1710a's instrument FIRED and the defect it found is in the
+PREDICTION, not in the tree. That is a real outcome and not a technicality: the
+instrument compares two numbers and cannot know which of them is wrong, so
+"measured != predicted" obliges a per-test check either way — and the check is
+what says which. Had the arithmetic been right and a test been missing, the
+number would have read 1,274 and looked like a hit.
+
+**The mitigation the next lane should take: predict the DELTA and let the
+arithmetic be done by the same tool that measures the total.** A hand-summed
+total is a third quantity that can be wrong on its own.
