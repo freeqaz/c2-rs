@@ -1,0 +1,190 @@
+==============================================================================
+w-4c CONFIRMATION 2 — the CALL-END 0x4C over the ARGUMENT-BEARING population
+==============================================================================
+TUs with a captured .ex                    876
+unanchored raw 0xBD bytes (not judged)     762733
+anchored BD whose token does not decode    88
+
+-- the ANCHORED BD population, split by what its argument region IS --
+   ZERO   `4C` immediately after the token            1081061
+   ARG    >= 1 argument, fully walked                 1978436
+   NOARG  non-empty region, no `55` at all            160539
+   NEST   contains a nested call (A excludes)         313553
+   ABAND  stopped at an opcode the stepper lacks      10856
+   ------------------------------------------------------------
+   total anchored BD sites                            3544445
+   NON-ZERO-ARGUMENT = 2463384; walked 2452528 (99.56 %), abandoned 10856 (0.44 %)
+
+-- why a site was ABANDONED (the walked fraction's own reason histogram) --
+   0x59                6031
+   0x08                3819
+   0xBC                 750
+   0x41                   8
+   0xA6                   6
+   0xD6                   5
+   0xF8                   4
+   0xF2                   4
+   0x5A                   4
+   0xD3                   4
+   0xEB                   4
+   0x84                   4
+   0xFE                   3
+   0xD5                   3
+   0x43                   3
+   0xBE                   3
+   0x74                   3
+   0xCC                   3
+   0x5B                   3
+   0x7F                   3
+   ... 144 distinct causes
+
+-- arguments per walked ARG call --
+    1 args   1136851
+    2 args   270379
+    3 args   253048
+    4 args   223801
+    5 args   63736
+    6 args   27837
+    7 args   1329
+    8 args   591
+    9 args   788
+   10 args   19
+   11 args   38
+   12 args   7
+   13 args   11
+   15 args   1
+
+-- STRUCTURAL VERIFICATION: did the walk produce the structure claimed? --
+   the token before the closing `4C` IS a `55 <TYPE>`   1956648 / 1978436
+   sites where it is not, by that token's opcode:
+      0x64  21788
+
+-- ANCHOR A / ARG — argument-bearing, fully walked, NON-CIRCULAR   (n = 1978436) --
+   by anchor: direct 888505  member 1089931
+   P   desync       457 / 1978436   ( 0.023 %)  undecodable        0   0x4Bx486510, 0x55x364812, 0x30x285689, 0x41x180067, 0x99x159801, 0x32x122873
+   B1  desync   1460194 / 1978436   (73.805 %)  undecodable        0   0x86x1100876, 0x4Fx242662, 0x82x125442, 0x29x102660, 0x88x81274, 0x3Ax71185
+   T   desync    214003 / 1978436   (10.817 %)  undecodable  1735704   0xA3x54720, 0x9Ax26584, 0xA7x18247, 0xB2x17081, 0xD7x12899, 0xB7x11763
+   K   desync   1371969 / 1978436   (69.346 %)  undecodable        0   0x01x286424, 0x20x155505, 0x00x154261, 0x3Ax135174, 0x2Ex103798, 0x25x63471
+   ROOM for a payload (next byte has bit 7 SET): 242732 / 1978436  (12.269 %)
+   P desyncs by anchor: direct 453  member 4
+   THE POPULATION board #1318 declined to answer on.
+
+-- ANCHOR B — `55 <TYPE:int-like-or-ptr4> 4C`, WALK-FREE   (n = 3647883) --
+   by anchor: walk-free 3647883
+   P   desync     36781 / 3647883   ( 1.008 %)  undecodable        0   0x4Bx830885, 0x55x626657, 0x30x599896, 0x99x454318, 0x2Cx255563, 0x26x156754
+   B1  desync   2698437 / 3647883   (73.973 %)  undecodable        0   0x86x1813526, 0xA6x411031, 0x4Fx384179, 0x54x170074, 0x82x151100, 0x3Ax113537
+   T   desync    531019 / 3647883   (14.557 %)  undecodable  3072345   0xA3x62257, 0xFCx40920, 0x00x33307, 0x9Ax28864, 0xA7x18565, 0xB2x18147
+   K   desync   2636737 / 3647883   (72.281 %)  undecodable        0   0x01x441809, 0x20x255766, 0x00x238998, 0x2Ex123940, 0x08x122667, 0x31x113967
+   ROOM for a payload (next byte has bit 7 SET): 575538 / 3647883  (15.777 %)
+   P desyncs by anchor: walk-free 36781
+   A different bias from A's, by construction.
+
+-- ANCHOR B \ A — the B sites anchor A CANNOT see (nested, abandoned, and B's own false positives)   (n = 1999176) --
+   by anchor: walk-free 1999176
+   P   desync     36776 / 1999176   ( 1.840 %)  undecodable        0   0x4Bx376556, 0x30x348768, 0x99x314736, 0x55x273473, 0x2Cx230570, 0x26x146936
+   B1  desync   1533930 / 1999176   (76.728 %)  undecodable        0   0x86x911289, 0xA6x395820, 0x4Fx171801, 0x54x166103, 0x3Ax43652, 0x42x33905
+   T   desync    338259 / 1999176   (16.920 %)  undecodable  1644647   0xFCx40753, 0x00x29911, 0xCFx8199, 0xA3x7560, 0x9Bx6892, 0xEDx5400
+   K   desync   1435216 / 1999176   (71.790 %)  undecodable        0   0x01x186112, 0x00x172202, 0x20x106564, 0x08x84475, 0x31x63690, 0x3Bx48176
+   ROOM for a payload (next byte has bit 7 SET): 354529 / 1999176  (17.734 %)
+   P desyncs by anchor: walk-free 36776
+   The coverage A's stepper bias costs, scored on its own.
+
+-- ANCHOR A' / NEST — argument regions containing a nested call (CIRCULAR under P)   (n = 313553) --
+   by anchor: direct 97298  member 216255
+   P   desync         0 / 313553    ( 0.000 %)  undecodable        0   0x4Bx124752, 0x30x96560, 0x41x26211, 0x2Cx25221, 0x55x14869, 0x38x7237
+   B1  desync    185260 / 313553    (59.084 %)  undecodable        0   0x86x107861, 0x54x54395, 0xA6x47604, 0x4Fx40725, 0x3Ax28516, 0xC7x6395
+   T   desync      3517 / 313553    ( 1.122 %)  undecodable   309983   0xCFx1425, 0xD5x166, 0xADx96, 0xFAx72, 0x86x56, 0xD1x55
+   K   desync    246852 / 313553    (78.727 %)  undecodable        0   0x07x43950, 0x01x40824, 0x08x24636, 0x2Ex20500, 0x3Cx17879, 0x00x6882
+   ROOM for a payload (next byte has bit 7 SET): 3570 / 313553  (1.139 %)
+   Reaching this `4C` needs stepping over an inner one, i.e. assuming P. Reported, not relied on.
+
+-- ANCHOR A / NOARG — a walked region with NO `55` (the by-value-return family)   (n = 160539) --
+   by anchor: direct 100022  member 60517
+   P   desync         2 / 160539    ( 0.001 %)  undecodable        0   0x30x76862, 0x99x44433, 0x55x30143, 0x4Bx7049, 0x26x2041, 0x43x7
+   B1  desync    153182 / 160539    (95.417 %)  undecodable        0   0x86x151126, 0x3Ax5470, 0x4Fx1558, 0xA3x345, 0x82x309, 0xA4x192
+   T   desync     44236 / 160539    (27.555 %)  undecodable   116105   0x8Bx36780, 0xCDx1459, 0x84x697, 0xC7x355, 0xEFx340, 0xAAx256
+   K   desync     50223 / 160539    (31.284 %)  undecodable        0   0x20x98637, 0x39x2016, 0x86x1627, 0x2Fx1601, 0x01x1569, 0x2Ex1540
+   ROOM for a payload (next byte has bit 7 SET): 44435 / 160539  (27.679 %)
+   P desyncs by anchor: member 2
+   A different construct wearing the same bracket; not this lane's claim.
+
+-- CONTROL / ZERO — the `4C` a BD token ends on (board #1318's own population)   (n = 1081061) --
+   by anchor: direct 26701  member 1054360
+   P   desync       719 / 1081061   ( 0.067 %)  undecodable        0   0x5Cx341976, 0x4Bx196335, 0x55x108408, 0x41x84677, 0x30x69655, 0x33x51350
+   B1  desync    812868 / 1081061   (75.192 %)  undecodable        0   0x86x578458, 0xB9x102943, 0xC6x73810, 0x4Fx55349, 0x82x38691, 0x3Ax29431
+   T   desync     36113 / 1081061   ( 3.341 %)  undecodable  1044102   0x00x21302, 0xA6x1811, 0x86x1109, 0x98x913, 0xB3x608, 0xBDx573
+   K   desync    751622 / 1081061   (69.526 %)  undecodable        0   0x01x241536, 0x20x109076, 0x00x67605, 0x2Ex37155, 0x86x32969, 0x80x31223
+   ROOM for a payload (next byte has bit 7 SET): 36959 / 1081061  (3.419 %)
+   P desyncs by anchor: member 719
+   Its `direct` row is `cewalk.py`'s 26,701 and must reproduce it.
+
+-- ANCHOR A (ARG) vs ANCHOR B --
+   sites BOTH anchors see                  1648707
+   anchor-B only                           1999176
+   anchor-A only                           329729
+   B sites strictly INSIDE an A bracket    0   <- the decline test
+
+-- FALSE-ANCHOR SCREEN over every P desync, and the residue in full --
+   ARG: 457 P desyncs (of 1978436) — UNEXPLAINED 453  inside-a-TYPE 4
+      the landing byte, in full: 0x59x446, 0x08x11
+      RESIDUE direct    src/App.cpp @ 310926: 01 00 86 45 40 05 55 86 45 40 4c 59 b9 94 cf 01 00 86
+      RESIDUE direct    src/lazer/game/BustAMovePanel.cpp @ 271752: 01 00 86 45 40 05 55 86 45 40 4c 59 b9 48 a6 01 00 86
+      RESIDUE direct    src/lazer/game/Game.cpp @ 282334: 01 00 86 45 40 05 55 86 45 40 4c 59 b9 32 b0 01 00 86
+      RESIDUE direct    src/lazer/game/GameMode.cpp @ 307502: 01 00 86 45 40 05 55 86 45 40 4c 59 b9 01 b7 01 00 86
+      RESIDUE direct    src/lazer/game/GamePanel.cpp @ 282338: 01 00 86 45 40 05 55 86 45 40 4c 59 b9 33 b0 01 00 86
+      RESIDUE direct    src/lazer/game/HamUser.cpp @ 344762: 01 00 86 45 40 05 55 86 45 40 4c 59 b9 c7 c2 01 00 86
+      RESIDUE direct    src/lazer/game/HamUserMgr.cpp @ 245324: 01 00 86 45 40 05 55 86 45 40 4c 59 b9 f2 85 01 00 86
+      RESIDUE direct    src/lazer/game/LiveInput.cpp @ 240120: 01 00 86 45 40 05 55 86 45 40 4c 59 b9 3a 82 01 00 86
+      RESIDUE direct    src/lazer/game/PartyModeMgr.cpp @ 245200: 01 00 86 45 40 05 55 86 45 40 4c 59 b9 1a 84 01 00 86
+      RESIDUE direct    src/lazer/game/PresenceMgr.cpp @ 314995: 01 00 86 45 40 05 55 86 45 40 4c 59 b9 f4 b7 01 00 86
+      RESIDUE direct    src/lazer/game/SongSequence.cpp @ 293512: 01 00 86 45 40 05 55 86 45 40 4c 59 b9 f2 b7 01 00 86
+      RESIDUE direct    src/lazer/meta_ham/AccomplishmentCampaignConditional.cpp @ 401330: 01 00 86 45 40 05 55 86 45 40 4c 59 b9 c7 d0 01 00 86
+      ... and 441 more, same screen result
+   B: 36781 P desyncs (of 3647883) — UNEXPLAINED 19119  inside-a-TYPE 881
+      the landing byte, in full: 0x47x20000
+      RESIDUE walk-free src/App.cpp @ 2542008: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542058: fe b2 04 00 55 86 43 a0 f5 01 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542130: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542198: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542266: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542334: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542402: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542520: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542588: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542656: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542724: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542792: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      ... and 19107 more, same screen result
+   BONLY: 36776 P desyncs (of 1999176) — UNEXPLAINED 19119  inside-a-TYPE 881
+      the landing byte, in full: 0x47x20000
+      RESIDUE walk-free src/App.cpp @ 2542008: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542058: fe b2 04 00 55 86 43 a0 f5 01 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542130: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542198: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542266: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542334: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542402: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542520: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542588: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542656: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542724: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      RESIDUE walk-free src/App.cpp @ 2542792: 74 33 86 41 74 fc 55 86 41 74 4c 47 54 00 4f 1f 80 05
+      ... and 19107 more, same screen result
+   NOARG: 2 P desyncs (of 160539) — inside-a-TYPE 1  UNEXPLAINED 1
+      the landing byte, in full: 0xD1x1, 0x8Fx1
+      RESIDUE member    src/lazer/meta_ham/PlaylistSongProvider.cpp @ 1559790: 86 06 80 bc 00 00 00 a2 fd 01 4c 8f 05 00 2c a6 43 8e
+   ZERO: 719 P desyncs (of 1081061) — UNEXPLAINED 719
+      the landing byte, in full: 0x08x719
+      RESIDUE member    src/App.cpp @ 209937: bd 86 45 40 00 80 75 1e 00 00 4c 08 22 41 82 12 30 3a
+      RESIDUE member    src/lazer/game/BustAMovePanel.cpp @ 146303: bd 86 45 40 00 80 05 19 00 00 4c 08 22 41 82 12 30 3a
+      RESIDUE member    src/lazer/game/Game.cpp @ 233000: bd 86 45 40 00 80 38 22 00 00 4c 08 22 41 82 12 30 3a
+      RESIDUE member    src/lazer/game/GameMode.cpp @ 209908: bd 86 45 40 00 80 75 1e 00 00 4c 08 22 41 82 12 30 3a
+      RESIDUE member    src/lazer/game/GamePanel.cpp @ 233004: bd 86 45 40 00 80 38 22 00 00 4c 08 22 41 82 12 30 3a
+      RESIDUE member    src/lazer/game/HamUser.cpp @ 209912: bd 86 45 40 00 80 75 1e 00 00 4c 08 22 41 82 12 30 3a
+      RESIDUE member    src/lazer/game/HamUserMgr.cpp @ 209916: bd 86 45 40 00 80 75 1e 00 00 4c 08 22 41 82 12 30 3a
+      RESIDUE member    src/lazer/game/LiveInput.cpp @ 210336: bd 86 45 40 00 80 75 1e 00 00 4c 08 22 41 82 12 30 3a
+      RESIDUE member    src/lazer/game/PartyModeMgr.cpp @ 211010: bd 86 45 40 00 80 97 1e 00 00 4c 08 22 41 82 12 30 3a
+      RESIDUE member    src/lazer/game/PresenceMgr.cpp @ 209912: bd 86 45 40 00 80 75 1e 00 00 4c 08 22 41 82 12 30 3a
+      RESIDUE member    src/lazer/game/Shuttle.cpp @ 210940: bd 86 45 40 00 80 88 1e 00 00 4c 08 22 41 82 12 30 3a
+      RESIDUE member    src/lazer/game/SongDB.cpp @ 231227: bd 86 45 40 00 80 25 22 00 00 4c 08 22 41 82 12 30 3a
+      ... and 707 more, same screen result

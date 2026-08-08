@@ -1,0 +1,12 @@
+  BD @  2712  direct  token[10] bd 86 41 74 00 80 01 10 00 00  args 0  argregion[0]                                               4C -> 0x41 LEGAL
+  BD @  2813  direct  token[10] bd 86 41 74 00 80 03 10 00 00  args 1  argregion[10] b9 ef 09 86 41 74 55 86 41 74                 4C -> 0x41 LEGAL
+  BD @  2927  direct  token[10] bd 86 41 74 00 80 05 10 00 00  args 2  argregion[20] b9 f3 09 86 41 74 55 86 41 74 b9 f2 09 86 41 74 55 86 41 74  4C -> 0x41 LEGAL
+  BD @  3054  direct  token[10] bd 86 41 74 00 80 07 10 00 00  args 3  argregion[30] b9 f8 09 86 41 74 55 86 41 74 b9 f7 09 86 41 74 55 86 41 74 b9 f6 09 86 41 74 55 86 41 74  4C -> 0x41 LEGAL
+  BD @  3182  direct  token[10] bd 86 41 74 00 80 03 10 00 00  args 1  argregion[9] 33 86 41 74 07 55 86 41 74                    4C -> 0x41 LEGAL
+  BD @  3295  direct  token[10] bd 86 41 74 00 80 03 10 00 00  args 1  argregion[17] b9 fd 09 86 41 74 b9 fe 09 86 41 74 02 55 86 41 74  4C -> 0x41 LEGAL
+  BD @  3413  direct  token[10] bd 86 41 74 00 80 03 10 00 00  args 1  argregion[10] b9 01 0a 86 41 74 55 86 41 74                 4C -> 0x26 LEGAL
+  BD @  3437  direct  token[10] bd 86 41 74 00 80 03 10 00 00  args 1  argregion[10] b9 01 0a 86 41 74 55 86 41 74                 4C -> 0x02 LEGAL
+  BD @  3549  direct  NESTED CALL in its argument region — anchor A excludes
+  BD @  3562  direct  token[10] bd 86 41 74 00 80 03 10 00 00  args 1  argregion[10] b9 04 0a 86 41 74 55 86 41 74                 4C -> 0x55 LEGAL
+
+  9 anchored CALL tokens whose argument region was walked to its 4C
