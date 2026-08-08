@@ -156,6 +156,71 @@ pub struct GlDataRow {
     pub flags: u8,
 }
 
+/// **INSTRUMENT — how far a tag-0x10 ALIAS reaches into the `in` `02`-node
+/// RESOLUTION SITE, and how much of that the port's writer can already see.**
+///
+/// `rungs/_2026-08-04-w-emitp-findings.md` §6 step 3 says the alias table is
+/// applied *"once, at the `in` `02`-node resolution site only"*. In `crates/`
+/// today there is exactly one such site — [`IlBundle::data_tu`], which turns an
+/// [`super::ininit::InSymbolRef::target`] token into a **`.data` relocation's
+/// symbol name**. Everything else the spec describes is a consumer that does
+/// not exist yet.
+///
+/// So the question this report answers is not *"how good is the model"* but
+/// **"can the port already name the wrong symbol?"**, and it answers it as
+/// three nested populations rather than one number, because only the innermost
+/// one is a defect and the outer two are what it would take for the innermost
+/// to become one:
+///
+/// * `refs` / `refs_alias` — the whole `.in` tag-02 population, and the part of
+///   it that names an alias. **Reachability**, on every TU, whatever the port
+///   does with it.
+/// * `data_tu_relocs` / `data_tu_relocs_alias` — the same two counts restricted
+///   to relocations [`IlBundle::data_tu`] would actually hand the writer.
+///   **`data_tu_relocs_alias` is the live-defect count and its known answer is
+///   0**; a nonzero is a relocation naming `??_E<X>` where c2 names
+///   `??_G<X>`, which is board #232's shape.
+/// * `emit_names_alias` — data objects this TU would emit whose own name is in
+///   `dom(alias)`. §6 step 4's population, known answer 0.
+///
+/// **Every field is a count and every one prints its zero** (`docs/STATUS.md`
+/// trap 5). `refs_unbound` is published beside `refs_alias` for the reason
+/// board #1002 exists: the alias share is only interpretable against how many
+/// targets bound at all, and a denominator that moves silently is how a green
+/// control stays green.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct InAliasReport {
+    /// Entries in this TU's [`crate::GlAliasTable`].
+    pub aliases: usize,
+    /// `.in` element tag-02 symbol references the anchored reader produced.
+    ///
+    /// **This is the ANCHORED reader's population, not the stream's.** A
+    /// sequential parse of the same 850 workload streams frames 879,377 records
+    /// where the anchor scan counts 518,098 (board #961), so this is a lower
+    /// bound on the channel and is deliberately not corrected upwards.
+    pub refs: usize,
+    /// …whose target token does **not** resolve in `gl_symbol_index`.
+    pub refs_unbound: usize,
+    /// …whose target token resolves to a name in `dom(alias)`. **The
+    /// reachable population** — what one `functions()` widening is worth here.
+    pub refs_alias: usize,
+    /// Distinct `.in` owner tokens carrying at least one aliased reference.
+    pub records_with_alias: usize,
+    /// Relocations [`IlBundle::data_tu`] would emit for this TU, or 0 when
+    /// `data_tu` refuses it.
+    pub data_tu_relocs: usize,
+    /// …naming a symbol in `dom(alias)`. **KNOWN ANSWER 0.** Nonzero is a live
+    /// wrong emit, not a gap.
+    pub data_tu_relocs_alias: usize,
+    /// Objects [`IlBundle::data_tu`] would emit whose own name is in
+    /// `dom(alias)` — §6 step 4's population. **KNOWN ANSWER 0.**
+    pub emit_names_alias: usize,
+    /// Aliases whose own name also carries a tag-0x0E body record, carried up
+    /// from [`crate::GlAliasStats::dom_with_body`]. **KNOWN ANSWER 0**, and it
+    /// is the precondition that makes step 4 safe rather than a symbol deletion.
+    pub dom_with_body: usize,
+}
+
 /// **W-SECT — a whole TU that defines NO functions and one or more
 /// namespace-scope objects** (board #174).
 ///
@@ -1851,6 +1916,68 @@ impl IlBundle {
         Some(super::ininit::in_scalar_initializers(self.get("in")?).report())
     }
 
+    /// **INSTRUMENT — [`InAliasReport`] for this bundle.** `None` only when the
+    /// bundle carries no `.gl` at all; a TU with no `.in` and a TU with no
+    /// aliases both report all-zero rather than absent, because a vanished key
+    /// and a zero key are not the same reading (`docs/STATUS.md` trap 5).
+    ///
+    /// It reads and asserts nothing. The two known-answer-0 fields are counted
+    /// here and *judged* by the scan that prints them, so that a `crates/` guard
+    /// and the instrument that watches it are not the same code.
+    pub fn in_alias_report(&self) -> Option<InAliasReport> {
+        let gl = self.get("gl")?;
+        let alias = super::glalias::gl_alias_table(gl);
+        let mut r = InAliasReport {
+            aliases: alias.len(),
+            dom_with_body: alias.stats().dom_with_body,
+            ..Default::default()
+        };
+        // The `.in` side. `sym_index` is the same map `data_tu` names a
+        // relocation target through, so "binds" here means exactly what it
+        // means there.
+        let sym_index = super::gl::gl_symbol_index(gl);
+        if let Some(inb) = self.get("in") {
+            let init = super::ininit::in_scalar_initializers(inb);
+            for refs in init.refs.values() {
+                let mut hit = false;
+                for rf in refs {
+                    r.refs += 1;
+                    match sym_index.get(&rf.target) {
+                        None => r.refs_unbound += 1,
+                        Some(n) => {
+                            if alias.is_alias(n) {
+                                r.refs_alias += 1;
+                                hit = true;
+                            }
+                        }
+                    }
+                }
+                if hit {
+                    r.records_with_alias += 1;
+                }
+            }
+        }
+        // The writer side. `data_tu` is the ONLY place in `crates/` that turns
+        // one of those tokens into an emitted symbol name, and it runs only for
+        // a TU with no functions — so this is 0 on most of the workload for a
+        // reason that has nothing to do with aliases, which is why the two
+        // populations are reported separately and never summed.
+        if let Some(tu) = self.data_tu() {
+            for o in &tu.objects {
+                if alias.is_alias(&o.coff_name) {
+                    r.emit_names_alias += 1;
+                }
+                for rel in &o.relocs {
+                    r.data_tu_relocs += 1;
+                    if alias.is_alias(&rel.target) {
+                        r.data_tu_relocs_alias += 1;
+                    }
+                }
+            }
+        }
+        Some(r)
+    }
+
     /// **INSTRUMENT — what the PRODUCTION `.gl` DATA cursor returns**, in
     /// `.gl` record order, with the alignment each record's TYPE tag was read
     /// as.
@@ -1950,6 +2077,21 @@ impl IlBundle {
         if init.accepted + init.residue.len() != init.records {
             return None;
         }
+        // The tag-0x10 ALIAS table for this TU — built once, consulted by the
+        // fence at the bottom of the loop. `data_tu` is reached only for a TU
+        // with no functions, so the extra `.gl` walk is off the throughput path
+        // that `PortC2::build` cares about.
+        //
+        // **`dom_with_body` is a PRECONDITION and not a statistic.** It counts
+        // aliases whose own name also carries a tag-0x0E body record; the fence
+        // below suppresses a name, and suppressing one that has a body is a
+        // symbol deletion. Measured 0 over 96,220 records on 878 TUs, and if it
+        // is ever nonzero this reader refuses the TU rather than applying a rule
+        // whose safety condition has failed.
+        let alias = super::glalias::gl_alias_table(gl);
+        if alias.stats().dom_with_body != 0 {
+            return None;
+        }
         let mut objects = Vec::with_capacity(records.len());
         for (tok, o) in &records {
             // **c2 DROPS an internal-linkage object that is uninitialized and
@@ -2024,6 +2166,39 @@ impl IlBundle {
             // holds no file bytes for a relocation to patch. Refuse rather than
             // drop the reference, which would be the silent half of #232.
             if bytes.is_none() && !relocs.is_empty() {
+                return None;
+            }
+            // **THE TAG-0x10 ALIAS FENCE** (lane `w-phase7`;
+            // `rungs/_2026-08-04-w-emitp-findings.md` §6 steps 3 and 4, at the
+            // one `in` `02`-node resolution site that exists in `crates/`).
+            //
+            // §6 step 3 says to resolve an alias here. **Measured against real
+            // `c2.dll`'s own objs, resolving here would be a WRONG OBJ**: c2
+            // leaves the relocation naming `??_E<X>` — 4,248 such records over
+            // 675 workload objs — and realises the alias as a **COFF weak
+            // external** `??_E<X> → ??_G<X>` instead
+            // (`ObjImage::weak_externals`). So the name is already right and
+            // the *symbol table* is what is missing.
+            //
+            // This writer cannot emit a weak-external record or its undefined
+            // default, so a TU whose relocation names an alias is refused
+            // rather than emitted one symbol pair short. Measured **0 of 871**
+            // on the workload today — `gap-metric alias-datatu-relocs-alias` —
+            // over a `data_tu` relocation population that is itself 0, so this
+            // is a fence placed before the class arrives and **not** a fix for
+            // a live defect. It is placed anyway because the fence that keeps
+            // the class out today (`funcs.is_empty()`) has nothing to do with
+            // aliases, and board #232 is what happens when a refusal becomes an
+            // emit for an unrelated reason.
+            //
+            // §6 step 4 — never emit a name in `dom(alias)` — is the second
+            // clause, and it is guarded on `dom_with_body` rather than applied
+            // blind: suppressing a name that HAS a body would be a symbol
+            // deletion, not a filter. Measured 0 over 96,220 records.
+            if !alias.is_empty()
+                && (alias.is_alias(&o.coff_name)
+                    || relocs.iter().any(|r| alias.is_alias(&r.target)))
+            {
                 return None;
             }
             objects.push(DataObject {

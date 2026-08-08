@@ -623,6 +623,255 @@ fn scan_one(
         }
     }
 
+    // 1f''. **W-PHASE7 — the tag-0x10 ALIAS channel, and the ONE resolution
+    //       site that exists in `crates/` today.**
+    //
+    //       `rungs/_2026-08-04-w-emitp-findings.md` §6 is five steps; steps 1,
+    //       2 and 5 shipped with `c2_il::gl_alias_table` (lane `w-alias`,
+    //       `d2bdadc`) and had **no consumer**. Steps 3 and 4 are consumer
+    //       rules, and the only place in this workspace that turns an `.in`
+    //       tag-02 target token into an emitted symbol name is
+    //       `IlBundle::data_tu`'s relocation naming.
+    //
+    //       Four things are printed and they are four different questions:
+    //
+    //       * `alias-*` — the decode's own invariants, measured **in Rust over
+    //         this workload** rather than inherited from the 850-TU Python.
+    //         Both nulls ride along: a field position quoted without its
+    //         shifted read is a field position that was searched for.
+    //       * `alias-dom-emitted` — `dom(alias) ∩ E` against the **real obj**.
+    //         The Python measured this over its own truth dump; here it is the
+    //         same join the differential makes. **KNOWN ANSWER 0.**
+    //       * `alias-inref-*` — the reachable population at the resolution
+    //         site, whatever any writer does with it.
+    //       * `alias-datatu-relocs-alias` / `alias-emit-names` — the *live*
+    //         population. **KNOWN ANSWER 0 for both**, and a nonzero is a
+    //         relocation naming `??_E<X>` where c2 names `??_G<X>`, which is
+    //         board #232's shape and an alarm rather than a gap.
+    //
+    //       Every key prints its zero, and the nulls are counts and not
+    //       statuses (`docs/STATUS.md` trap 5).
+    if let Some(gl) = captured.bundle.get("gl") {
+        let alias = c2_il::gl_alias_table(gl);
+        let st = alias.stats();
+        let m1 = c2_il::gl_alias_table_shifted(gl, -1);
+        let p1 = c2_il::gl_alias_table_shifted(gl, 1);
+        for (key, n) in [
+            ("alias-runs", st.runs),
+            ("alias-tag10", st.tag10),
+            ("alias-head-fail", st.head_fail),
+            ("alias-rt-fail", st.rt_fail),
+            ("alias-unbound-target", st.unbound_target),
+            ("alias-self", st.self_alias),
+            ("alias-dup", st.dup),
+            ("alias-bound", st.bound),
+            ("alias-shape-e-to-g", st.shape_e_to_g),
+            // The precondition for §6 step 4, carried on every scan rather
+            // than asserted once in a test: suppressing a name that HAS a body
+            // is a symbol deletion, not a filter.
+            ("alias-dom-with-body", st.dom_with_body),
+            // THE NULL, shipped rather than described.
+            ("alias-null-m1-bound", m1.stats().bound),
+            ("alias-null-m1-shape", m1.stats().shape_e_to_g),
+            ("alias-null-p1-bound", p1.stats().bound),
+            ("alias-null-p1-shape", p1.stats().shape_e_to_g),
+        ] {
+            *res.emit.entry(key.into()).or_insert(0) += n;
+        }
+        // `dom(alias) ∩ E` and the targets that ARE emitted, joined against the
+        // reference obj's own `.text` COMDAT leaders — the same list
+        // `emit-emitted` counts, so the two denominators are the same one.
+        if let Some(emitted) = captured.ref_obj.text_comdat_functions() {
+            let set: std::collections::BTreeSet<&str> =
+                emitted.iter().map(String::as_str).collect();
+            let mut dom_e = 0usize;
+            let mut tgt_e = 0usize;
+            for (a, t) in alias.iter_names() {
+                if set.contains(a) {
+                    dom_e += 1;
+                }
+                if set.contains(t) {
+                    tgt_e += 1;
+                }
+            }
+            *res.emit.entry("alias-dom-emitted".into()).or_insert(0) += dom_e;
+            *res.emit.entry("alias-target-emitted".into()).or_insert(0) += tgt_e;
+            if dom_e > 0 {
+                *res.emit.entry("alias-dom-emitted-tus".into()).or_insert(0) += 1;
+            }
+        }
+        // **THE ORACLE-SIDE QUESTION, and it is the one that decides what a
+        // consumer of §6 step 3 should DO.**
+        //
+        // `dom(alias) ∩ E = 0` says c2 never *defines* an alias. It does not say
+        // c2 never *names* one in a relocation — an undefined external is a
+        // perfectly legal relocation target, and the port's `data_tu` names its
+        // relocation targets out of exactly the token an alias would occupy.
+        // So: read the real obj's own relocation targets, over **every**
+        // section, and count how many name a `dom(alias)` symbol.
+        //
+        // `alias-obj-reloc-alias` is the number that says whether resolving is
+        // right: **0 means c2 resolves the alias before it writes the record**,
+        // which is what a consumer must then do too. `alias-obj-reloc-target`
+        // is the same count for the alias's *target*, and it is printed beside
+        // it so that `0` cannot be read as *"vftable relocations were not in
+        // this population"* — a zero denominator is not a passed test
+        // (`w-emitp` §4's `StreamNull.cpp` rule).
+        if let Some(rows) = captured.ref_obj.relocs_named() {
+            let tgts: std::collections::BTreeSet<&str> =
+                alias.iter_names().map(|(_, t)| t).collect();
+            let mut named_alias = 0usize;
+            let mut named_target = 0usize;
+            for (_, _, _, t) in &rows {
+                if let c2_obj::RelocTarget::Symbol(n) = t {
+                    if alias.is_alias(n) {
+                        named_alias += 1;
+                    }
+                    if tgts.contains(n.as_str()) {
+                        named_target += 1;
+                    }
+                }
+            }
+            *res.emit.entry("alias-obj-relocs".into()).or_insert(0) += rows.len();
+            *res.emit.entry("alias-obj-reloc-alias".into()).or_insert(0) += named_alias;
+            *res.emit.entry("alias-obj-reloc-target".into()).or_insert(0) += named_target;
+            if named_alias > 0 {
+                *res.emit.entry("alias-obj-reloc-alias-tus".into()).or_insert(0) += 1;
+            }
+        } else {
+            *res.emit.entry("alias-obj-reloc-unreadable".into()).or_insert(0) += 1;
+        }
+        // **THE ANSWER, and it is a THIRD thing neither §6 step 3 nor step 4
+        // describes: the alias is realised as a COFF WEAK EXTERNAL.**
+        //
+        // `alias-obj-reloc-alias` above is **4,248 over 675 TUs** — c2 leaves
+        // its relocations naming `??_E<X>` and does *not* substitute the
+        // target. What it writes instead is a symbol record
+        //
+        //     class WEAK_EXTERNAL  ??_E<X>  -> default ??_G<X>, SEARCH_ALIAS
+        //
+        // so `dom(alias) ∩ E = 0` is a statement about COMDAT **leaders**, and
+        // a consumer that "resolved" the alias at a relocation would emit a
+        // name c2 does not write. See `ObjImage::weak_externals`.
+        //
+        // That makes this the strongest grade the table has ever had: not a
+        // per-TU conjunction over a closure, but a **per-record pairing against
+        // c2's own symbol table**. Five keys, and the two disagreement
+        // directions are separate because they mean opposite things:
+        //
+        // * `alias-weak-predicted` — `(name, default)` is exactly a table entry;
+        // * `alias-weak-default-disagree` — the name is in `dom(alias)` and c2's
+        //   default is a **different** symbol. **KNOWN ANSWER 0**, and an alarm:
+        //   the decode read the wrong token;
+        // * `alias-weak-unpredicted` — c2 wrote a weak external the table has
+        //   no entry for. Recall's error term;
+        // * `alias-unrealized` — a table entry with no weak external in this
+        //   obj. Precision's error term, and NOT necessarily a defect: the
+        //   emit-set model's own claim is that an alias is realised only when
+        //   something reaches it.
+        if let Some(weaks) = captured.ref_obj.weak_externals() {
+            let mut predicted = 0usize;
+            let mut disagree = 0usize;
+            let mut unpredicted = 0usize;
+            let mut nonalias_class = 0usize;
+            let mut seen: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
+            for (name, default, ch) in &weaks {
+                // **Measured `Characteristics` = 2 =
+                // `IMAGE_WEAK_EXTERN_SEARCH_LIBRARY`**, on the HamUser.cpp
+                // probe and, per this key, on all of them. Counted rather than
+                // filtered on: a weak external with another characteristic is a
+                // shape nothing here measured, and it must be visible rather
+                // than silently pooled. **KNOWN ANSWER 0.**
+                if *ch != 2 {
+                    nonalias_class += 1;
+                }
+                if alias.is_alias(name) {
+                    seen.insert(name.as_str());
+                    if alias.resolve_name(name) == default {
+                        predicted += 1;
+                    } else {
+                        disagree += 1;
+                    }
+                } else {
+                    unpredicted += 1;
+                }
+            }
+            *res.emit.entry("alias-weak-records".into()).or_insert(0) += weaks.len();
+            *res.emit.entry("alias-weak-predicted".into()).or_insert(0) += predicted;
+            *res.emit.entry("alias-weak-default-disagree".into()).or_insert(0) += disagree;
+            *res.emit.entry("alias-weak-unpredicted".into()).or_insert(0) += unpredicted;
+            *res.emit.entry("alias-weak-not-search-library".into()).or_insert(0) += nonalias_class;
+            *res.emit.entry("alias-unrealized".into()).or_insert(0) +=
+                alias.len().saturating_sub(seen.len());
+            if weaks.len() == predicted && alias.len() == seen.len() && !weaks.is_empty() {
+                *res.emit.entry("alias-weak-exact-tus".into()).or_insert(0) += 1;
+            }
+            if !weaks.is_empty() {
+                *res.emit.entry("alias-weak-tus".into()).or_insert(0) += 1;
+            }
+            // **THE REALISATION RULE, stated and graded per record.**
+            //
+            // 94,250 of the 98,263 table entries produce no weak external, so
+            // *which* entries are realised is a real predicate and not a
+            // rounding error. The rule the totals suggest —
+            //
+            //     R:  c2 writes the weak external `a -> t`  IFF  `t` is a
+            //         `.text` COMDAT leader of this same obj
+            //
+            // — is graded here with **both** error terms separate, because they
+            // are different mistakes: `-miss` is the rule promising a record c2
+            // did not write, `-extra` is c2 writing one the rule did not
+            // promise. A rule reported as one "disagreement" count could trade
+            // them off against each other and read better than it is.
+            //
+            // This is the *first* rule in the project stated over the alias
+            // channel that a single obj can refute, which is why it is a
+            // standing key and not a paragraph.
+            if let Some(emitted) = captured.ref_obj.text_comdat_functions() {
+                let leaders: std::collections::BTreeSet<&str> =
+                    emitted.iter().map(String::as_str).collect();
+                let written: std::collections::BTreeSet<&str> =
+                    weaks.iter().map(|(n, _, _)| n.as_str()).collect();
+                let mut miss = 0usize;
+                let mut predicted_set: std::collections::BTreeSet<&str> =
+                    std::collections::BTreeSet::new();
+                for (a, t) in alias.iter_names() {
+                    if leaders.contains(t) {
+                        predicted_set.insert(a);
+                        if !written.contains(a) {
+                            miss += 1;
+                        }
+                    }
+                }
+                let extra = written.iter().filter(|w| !predicted_set.contains(*w)).count();
+                *res.emit.entry("alias-rule-predicted".into()).or_insert(0) += predicted_set.len();
+                *res.emit.entry("alias-rule-miss".into()).or_insert(0) += miss;
+                *res.emit.entry("alias-rule-extra".into()).or_insert(0) += extra;
+                if miss == 0 && extra == 0 {
+                    *res.emit.entry("alias-rule-exact-tus".into()).or_insert(0) += 1;
+                }
+            }
+        } else {
+            *res.emit.entry("alias-weak-unreadable".into()).or_insert(0) += 1;
+        }
+    }
+    if let Some(r) = captured.bundle.in_alias_report() {
+        for (key, n) in [
+            ("alias-inref-total", r.refs),
+            ("alias-inref-unbound", r.refs_unbound),
+            ("alias-inref-alias", r.refs_alias),
+            ("alias-inref-records", r.records_with_alias),
+            ("alias-datatu-relocs", r.data_tu_relocs),
+            ("alias-datatu-relocs-alias", r.data_tu_relocs_alias),
+            ("alias-emit-names", r.emit_names_alias),
+        ] {
+            *res.emit.entry(key.into()).or_insert(0) += n;
+        }
+        if r.refs_alias > 0 {
+            *res.emit.entry("alias-inref-tus".into()).or_insert(0) += 1;
+        }
+    }
+
     if let Some(gl) = captured.bundle.get("gl") {
         let (dropped, mangled) = c2_il::gl_symbol_conflicts(gl);
         if dropped > 0 {

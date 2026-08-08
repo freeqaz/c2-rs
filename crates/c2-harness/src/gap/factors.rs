@@ -1747,6 +1747,131 @@ impl GapReport {
             "bytefrac-control-unexplained",
             ctl_short.iter().filter(|(e, ..)| !*e).count().to_string(),
         ));
+        // **W-PHASE7 — the tag-0x10 ALIAS channel** (`rungs/
+        // _2026-08-04-w-emitp-findings.md` §6). Emitted unconditionally, zeroes
+        // included, in four groups that answer four different questions and must
+        // not be summed with each other:
+        //
+        // * the decode's invariants, with **both nulls** — a field position
+        //   quoted without its shifted read is a field position that was
+        //   searched for, and the null is shipped here rather than described;
+        // * `alias-dom-emitted`, `dom(alias) ∩ E`, joined against the same
+        //   `.text` COMDAT leader list `emit-emitted` counts. **KNOWN ANSWER
+        //   0**;
+        // * `alias-inref-*`, the reachable population at the `in` `02`-node
+        //   resolution site, on every TU whatever any writer does;
+        // * `alias-datatu-relocs-alias` and `alias-emit-names`, the **live**
+        //   population — what the port would name today. **KNOWN ANSWER 0 for
+        //   both**; a nonzero is board #232's shape and an alarm, not a gap.
+        //
+        // `alias-dom-with-body` is the precondition for §6 step 4 and rides on
+        // every scan for the reason `fnbyte-partial` does: a guard whose safety
+        // condition is checked once in a test is a guard nobody re-checks.
+        for k in [
+            "alias-runs",
+            "alias-tag10",
+            "alias-head-fail",
+            "alias-rt-fail",
+            "alias-unbound-target",
+            "alias-self",
+            "alias-dup",
+            "alias-bound",
+            "alias-shape-e-to-g",
+            "alias-dom-with-body",
+            "alias-null-m1-bound",
+            "alias-null-m1-shape",
+            "alias-null-p1-bound",
+            "alias-null-p1-shape",
+            "alias-dom-emitted",
+            "alias-dom-emitted-tus",
+            "alias-target-emitted",
+            "alias-inref-total",
+            "alias-inref-unbound",
+            "alias-inref-alias",
+            "alias-inref-records",
+            "alias-inref-tus",
+            "alias-datatu-relocs",
+            "alias-datatu-relocs-alias",
+            "alias-emit-names",
+            "alias-obj-relocs",
+            "alias-obj-reloc-alias",
+            "alias-obj-reloc-alias-tus",
+            "alias-obj-reloc-target",
+            "alias-obj-reloc-unreadable",
+            // **The alias's REAL obj-level observable** — a COFF weak
+            // external, `??_E<X>` -> `??_G<X>`, `SEARCH_ALIAS`. This is a
+            // per-RECORD grade of the decode against c2's own symbol table,
+            // which no emit-set metric could be. `-default-disagree` and
+            // `-not-search-library` are the two alarms and their known answer is
+            // 0; `-unpredicted` and `-unrealized` are recall's and precision's
+            // error terms and are NOT the same kind of thing as each other.
+            "alias-weak-records",
+            "alias-weak-predicted",
+            "alias-weak-default-disagree",
+            "alias-weak-unpredicted",
+            "alias-weak-not-search-library",
+            "alias-weak-unreadable",
+            "alias-weak-tus",
+            "alias-weak-exact-tus",
+            "alias-unrealized",
+            // **THE REALISATION RULE** — "c2 writes `a -> t` iff `t` is a
+            // `.text` COMDAT leader of the same obj" — with its two error
+            // terms kept apart, because a rule that promised a record c2 did
+            // not write and a rule that missed one c2 did are different
+            // mistakes and a single "disagreement" count lets them cancel.
+            "alias-rule-predicted",
+            "alias-rule-miss",
+            "alias-rule-extra",
+            "alias-rule-exact-tus",
+        ] {
+            m.push((k, self.emit_total(k).to_string()));
+        }
+        // **THE CONSEQUENCE, and it is the only number on this page that turns
+        // the alias channel into a bound on TU match.**
+        //
+        // Rule R says a TU whose obj emits `??_G<X>` must ALSO carry a
+        // `WEAK_EXTERNAL` symbol record `??_E<X>` and its undefined default.
+        // The port's COFF writer has no weak-external record at all, so **every
+        // TU with a realised alias is unreachable until it does** — and that is
+        // a blocker of a kind no factor in §10.19 represents. It is not
+        // codegen, not the section vocabulary and not the emit set: it is the
+        // SYMBOL TABLE.
+        //
+        // Three keys, and the third is the load-bearing one:
+        //
+        // * `alias-weak-needed-tus` — graded TUs needing ≥ 1 weak external;
+        // * `alias-weak-needed-in-b-and-c` — the same, intersected with `B∧C`.
+        //   **This intersection IS computable here** and is published rather
+        //   than estimated, which is the discipline `w-emitp` §5 asked for and
+        //   could not satisfy for its own quantity;
+        // * `alias-weak-needed-in-frontier` — the same over the FRONTIER.
+        {
+            let mut needed = 0usize;
+            let mut in_bc = 0usize;
+            for r in self.graded() {
+                if r.emit.get("alias-rule-predicted").copied().unwrap_or(0) == 0 {
+                    continue;
+                }
+                needed += 1;
+                let f = Self::factors(r);
+                if f[1] && f[2] {
+                    in_bc += 1;
+                }
+            }
+            let front: std::collections::BTreeSet<&str> = self
+                .factor_frontier()
+                .into_iter()
+                .map(|(r, _)| r.src.as_str())
+                .collect();
+            let in_front = self
+                .graded()
+                .filter(|r| front.contains(r.src.as_str()))
+                .filter(|r| r.emit.get("alias-rule-predicted").copied().unwrap_or(0) > 0)
+                .count();
+            m.push(("alias-weak-needed-tus", needed.to_string()));
+            m.push(("alias-weak-needed-in-b-and-c", in_bc.to_string()));
+            m.push(("alias-weak-needed-in-frontier", in_front.to_string()));
+        }
         m
     }
 

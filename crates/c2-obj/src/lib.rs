@@ -42,6 +42,10 @@ const SYMBOL_LEN: usize = 18;
 const IMAGE_SCN_LNK_COMDAT: u32 = 0x0000_1000;
 /// `IMAGE_SYM_CLASS_STATIC`.
 const IMAGE_SYM_CLASS_STATIC: u8 = 3;
+/// `IMAGE_SYM_CLASS_WEAK_EXTERNAL` — a symbol that is *defined as another
+/// symbol's alias*. Its one aux record carries the default symbol's table index
+/// and a `Characteristics` word.
+const IMAGE_SYM_CLASS_WEAK_EXTERNAL: u8 = 105;
 /// Emitted code lands in `.text` and its `$`-suffixed variants (`.text$yd`
 /// carries the dynamic-initializer thunks).
 const TEXT_SECTION_PREFIX: &str = ".text";
@@ -587,6 +591,77 @@ impl ObjImage {
             }
             // An aux count that walks past the table is a decode failure, not
             // something to clamp — clamping silently shortens the answer.
+            i = i.checked_add(1)?.checked_add(naux)?;
+            if i > nsym {
+                return None;
+            }
+        }
+        Some(out)
+    }
+
+    /// **Every `IMAGE_SYM_CLASS_WEAK_EXTERNAL` symbol record, with the DEFAULT
+    /// symbol it aliases** — `(weak name, default name, Characteristics)`, in
+    /// symbol-table order.
+    ///
+    /// # Why this reader exists, and what it refuted
+    ///
+    /// Lane `w-phase7` was implementing `rungs/_2026-08-04-w-emitp-findings.md`
+    /// §6, whose step 3 says to resolve a `.gl` **tag-0x10 ALIAS** at the `in`
+    /// `02`-node resolution site and whose step 4 says **never to emit a symbol
+    /// whose name is in `dom(alias)`**. Both are true of the *emit set* — the
+    /// `.text` COMDAT leaders — and reading them as rules about the **COFF
+    /// symbol table** would have been a wrong obj:
+    ///
+    /// ```text
+    ///   #535  sec=0    class=EXTERNAL       ??_GLocalUser@@UAAPAXI@Z
+    ///   #536  sec=0    class=WEAK_EXTERNAL  ??_ELocalUser@@UAAPAXI@Z
+    ///                    -> default sym#535, Characteristics = 2
+    ///   #633  sec=160  class=EXTERNAL       ??_GLocalUser@@UAAPAXI@Z
+    /// ```
+    ///
+    /// c2 **does** write a symbol record named `??_E<X>`, and it **does** leave
+    /// its relocations naming `??_E<X>` rather than the target. The alias is
+    /// realised as a *weak external*, not as a substitution. So `dom(alias) ∩ E
+    /// = 0` is a statement about COMDAT **leaders** only, and the alias table's
+    /// real obj-level observable is this list.
+    ///
+    /// # It grades the table per RECORD, which nothing else could
+    ///
+    /// The emit-set metric is a per-TU conjunction over a closure. This is a
+    /// direct pairing: for each entry of `c2_il::gl_alias_table`, does c2's own
+    /// symbol table carry the same `(name, default)` pair? That is a
+    /// per-record, byte-derived grade of the decode, and it needs no model.
+    ///
+    /// Fail-closed like every other walk here: `None` the moment the symbol
+    /// table does not decode, an aux count walks past the end, or a weak
+    /// record's `TagIndex` does not land on a symbol. A short list would read
+    /// as *"c2 emitted fewer aliases than it did"*, which is the credit
+    /// direction for the consumer.
+    pub fn weak_externals(&self) -> Option<Vec<(String, String, u32)>> {
+        let b = &self.0;
+        let (_, sym_end) = self.coff_layout()?;
+        let psym = u32::from_le_bytes([b[8], b[9], b[10], b[11]]) as usize;
+        let nsym = u32::from_le_bytes([b[12], b[13], b[14], b[15]]) as usize;
+        let names = self.symbol_names_by_slot()?;
+        let mut out = Vec::new();
+        let mut i = 0usize;
+        while i < nsym {
+            let o = psym + i * SYMBOL_LEN;
+            let naux = b[o + 17] as usize;
+            if b[o + 16] == IMAGE_SYM_CLASS_WEAK_EXTERNAL {
+                // The record is meaningless without its aux slot; a weak
+                // external with none is a decode failure, not a weak external
+                // with no default.
+                if naux == 0 || o + SYMBOL_LEN + 12 > sym_end {
+                    return None;
+                }
+                let a = o + SYMBOL_LEN;
+                let tag = u32::from_le_bytes([b[a], b[a + 1], b[a + 2], b[a + 3]]) as usize;
+                let ch = u32::from_le_bytes([b[a + 4], b[a + 5], b[a + 6], b[a + 7]]);
+                let weak = names.get(i)?.clone()?;
+                let default = names.get(tag)?.clone()?;
+                out.push((weak, default, ch));
+            }
             i = i.checked_add(1)?.checked_add(naux)?;
             if i > nsym {
                 return None;
