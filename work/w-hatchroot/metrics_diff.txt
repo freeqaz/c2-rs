@@ -1,0 +1,4 @@
+1c1
+< GAP REPORT (878 TUs in 2.6s)
+---
+> GAP REPORT (878 TUs in 2.7s)

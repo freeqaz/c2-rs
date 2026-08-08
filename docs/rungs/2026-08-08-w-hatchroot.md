@@ -48,13 +48,46 @@ as two independent readings. What it does establish is that neither instrument
 change perturbed the scan, which is the claim this lane needs and the only one it
 is entitled to.
 
+`diff work/w-hatchroot/metrics_{base,tip}.txt` is **two lines, and they are the
+same line**:
+
+```
+1c1
+< GAP REPORT (878 TUs in 2.6s)
+---
+> GAP REPORT (878 TUs in 2.7s)
+```
+
+A wall clock, in a header. Every count, every one of the **187 `gap-metric`
+lines**, the FRONTIER membership and the census are byte-identical.
+
 ### 1.1 The gate
 
 `scripts/gate.sh --require-graded`, in the foreground, own output file
 (`work/w-hatchroot/gate_tip.txt`), concurrency defaults untouched
 (`jobs=16`, `C2RS_JOBS=8`) — **`GATE: PASS`**:
 
-<!-- GATE-TIP -->
+| | |
+|---|---|
+| lanes | **18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT** |
+| fixture verdicts | **5,202** across all lanes |
+| generated sweep | **19,556 of 19,556 reached, 19,460 GRADED, 0 mismatch** (96 ungraded — the reference rejects the source) |
+| mode cross | **90,812 of 90,812 selected, 90,424 GRADED, 0 mismatch** |
+| **`hatch-red`** | **PASS 14/14 — 11 red, 3 green controls** |
+| **`ladder-red`** | **PASS 5/5 — 3 red, 2 green controls** |
+| **mismatch, anywhere** | **0** |
+
+Both instrument rows verbatim off the table, which is the first gate on this
+project to carry two of them:
+
+```
+hatch-red            PASS           14/14         11       n/a  arms (3 green controls)
+ladder-red           PASS            5/5           3       n/a  arms (2 green controls)
+```
+
+`n/a` in the mismatch column and not `0`, on both: these rows grade instruments,
+not objs, and a `0` there would read as a graded zero — the strongest claim on
+that table and one neither row can make.
 
 **No wall clock is quoted as a result.** Two other lanes were on the box; the
 gate's own preflight names one of their run trees as `LIVE` in the log.
@@ -67,7 +100,42 @@ same numbers"**. Master's `scripts/gate.sh` was checked out to
 `scripts/.master-gate.sh` (in `scripts/`, so `dirname($0)/..` still resolves to
 this worktree) and run against this tree with the same pinned binary:
 
-<!-- MASTER-DIFF -->
+```
+$ git show 85e180d4:scripts/gate.sh > scripts/.master-gate.sh
+$ scripts/.master-gate.sh --require-graded          # master's gate, THIS tree
+$ diff <master verdict block> <tip verdict block>
+23a24
+> ladder-red           PASS            5/5           3       n/a  arms (2 green controls)
+30c31
+< logs:   /tmp/c2rs-gate-3634853/<lane>.log, …
+---
+> logs:   /tmp/c2rs-gate-2890289/<lane>.log, …
+```
+
+**One added line — the new row — and one changed line, which is the run
+directory.** `/tmp/c2rs-gate-$$` differs between any two runs of the same gate,
+so that hunk is a property of there being two runs and not of there being two
+gates. `w-cache` reported exactly this shape and this matches it.
+
+Both runs pinned the **same binary**, `sha aef73ac63309`, and every other line is
+identical:
+
+| | master's `gate.sh` | this lane's |
+|---|---|---|
+| headline | `GATE: PASS — 18/18 lanes ran …` | **identical** |
+| lanes | `18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT` | **identical** |
+| graded | `5202 fixture-verdicts across all lanes` | **identical** |
+| sweep | `19556 of 19556 reached, 19460 GRADED, 0 mismatch` | **identical** |
+| cross | `90424 of 90812 graded, 0 mismatch` | **identical** |
+| the 18 per-lane rows | `289/289` each, match counts 146/138/136/142/18 | **identical, digit for digit** |
+| `hatch-red` | `PASS 14/14 11 n/a arms (3 green controls)` | **identical** |
+| `ladder-red` | *(absent — master has no such row)* | `PASS 5/5 3 n/a` |
+
+**The `hatch-red` row reading `14/14` under MASTER's gate is prediction 2.5
+landing.** Master's `hatch_red_run` reads the expected arm count from
+`hatch_red.py --list`, so adding three arms moved that row's numbers in *both*
+gates and the diff stayed at one line. Had the count been written into the gate,
+this lane would have shown up as a two-line change in every peer's verdict block.
 
 ---
 
@@ -438,8 +506,8 @@ wrong in**; the second half is the falsifiable one.
 | 2.2 | `decide()` grows an 8th argument; **eleven** selftest call sites must gain it | **MISS on the count — there are ten**, and the tenth is inside `hr_decide`, which is why it needed a defaulted parameter rather than a literal |
 | 2.3 | ten distinct words; **two will turn out unreachable rather than merely unfired** | **MISS, and in the registered direction.** Eleven words, not ten (`LADDER-NOSUBJECT` was not foreseen), and **one** is a postcondition rather than a path — `LADDER-RESIDUE`. `LADDER-NOGIT` turned out perfectly reachable |
 | 2.4 | both suffixes printed, ugly rather than wrong | **HIT**, pinned by a case |
-| 2.5 | the master-gate diff is **exactly one line** | see §1.2 |
-| 2.6 | the 18 lanes' counts unchanged, digit for digit | see §1.2 |
+| 2.5 | the master-gate diff is **exactly one line** | **HIT on the substance, and the registered failure mode did not occur.** One ADDED line, the new row; the second hunk is the `/tmp/c2rs-gate-$$` run-directory path, which differs between any two runs of the same gate. The `hatch-red` row read `14/14` under MASTER's gate too, which is what kept it to one line |
+| 2.6 | the 18 lanes' counts unchanged, digit for digit | **HIT** — 18 rows at `289/289`, match 146/138/136/142/18, 5,202 fixture-verdicts, sweep 19,460/19,556, cross 90,424/90,812, all identical under both gates |
 | S.1 | `crates/` empty; the two scan columns are one measurement | **HIT**, and labelled as one measurement |
 | S.2 | `#[test]` +0, targets +0, selftest count up | **HIT** — 1,207 / 36 / 120 → 138 |
 | S.3 | `peerkeys.py` 0 vanished, 0 moved | **HIT** |
