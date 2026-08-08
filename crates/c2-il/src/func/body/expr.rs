@@ -1919,6 +1919,30 @@ pub(crate) fn parse_expr_classed(
             _ => return Err(blk(seg, *p, "expr")),
         }
     }
+    // **THIS ARM SHADOWS ALL THREE SINK POISONS BELOW, AND THE POISON COUNTS
+    // HAVE ALWAYS BEEN READ AS IF IT DID NOT** (lane `w-mass`, board **#1538**).
+    //
+    // The sinks push no [`IlOp`] — that is the property that makes them
+    // measurement-only — so a walk that consumed an expression *entirely*
+    // through sunk tokens arrives here with `ops` empty and reports
+    // `expr-empty-0xNN` instead of the poison. Both are the same event, *the
+    // sink set was the last thing in the way*, and only one of them is in the
+    // key every published reading counts.
+    //
+    // MEASURED, not argued: `C2RS_SINK_CHAIN=intrinsic,op:66` over the 878-TU
+    // workload puts **341 emitted functions (2,569 bodies)** under
+    // `expr-empty-0x55` and **5,021 (40,210)** under the poison, and the 341 are
+    // exactly the class-layout half's whole recovery — so a poison-only reading
+    // of that arm reports **0** for a population whose real answer is 341.
+    //
+    // **Not reordered here.** Moving the check below the poisons is inert with
+    // every sink off (all three flags are false, so this arm is reached on the
+    // identical population) and would be the better instrument — but it
+    // *redefines* a key that boards #660, #1319, #1455 and #1465 have published
+    // counts against, and this tree's rule is that a denominator gets published
+    // before it gets folded in. The sum is published in
+    // `rungs/2026-08-08-w-mass.md` §3.3 and the reorder is filed there as its
+    // own rung. **Read the poison and this key together, or neither.**
     if ops.is_empty() {
         return Err(blk(seg, *p, "expr-empty"));
     }
