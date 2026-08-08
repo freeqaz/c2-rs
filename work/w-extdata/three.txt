@@ -1,0 +1,3 @@
+src/xdk/LIBCMT/undname.cpp
+src/xdk/LIBCMT/osfinfo.cpp
+src/xdk/LIBCMT/vswprnc.cpp
