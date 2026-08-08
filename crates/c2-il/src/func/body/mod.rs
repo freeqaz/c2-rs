@@ -998,6 +998,29 @@ pub(crate) const CALLEE_UNRESOLVED_TAIL: &str = "callee-unresolved-tail-call";
 /// true statement — the body is grammar-complete and directly sizeable.
 pub(crate) const STORE_RUN_CALL_NO_CARRIER: &str = "store-run-call-no-emitter-carrier";
 
+/// **W-DATA — the body is a static-array scan loop and the OBJECT it reads is
+/// outside the class.**
+///
+/// Its own key rather than one of the `callee-unresolved-*` family, for the
+/// reason [`STORE_RUN_CALL_NO_CARRIER`] has one: nothing about a *callee* is
+/// missing here, and nothing about the body is either — it is grammar-complete
+/// and this parser accepted it. What refused is
+/// `Bindings::resolve_data_def`, over the object the body subscripts: it is
+/// not a COMDAT (a namespace-scope `static`, placed *before* `.text` — board
+/// #1682), or not initialized (a `.bss` COMDAT), or thread-local, or its `.in`
+/// value did not decode to exactly its `.gl` size.
+///
+/// **Filing it under `callee-unresolved-tail-call` is what this key exists to
+/// stop, and that is not hypothetical**: GRID B's `n0` and `n1` cells read
+/// exactly that before this constant existed, so two cells that refuse in the
+/// OBJECT resolver were labelled with a refusal about a symbol they do not
+/// have. A residue nobody can name is a residue nobody can size.
+///
+/// `Block::at_end` is earned for the same reason the constant above earns it:
+/// the arm runs only for a body the whole-segment parser already accepted, so
+/// the `:eof` it renders is the true statement.
+pub(crate) const STATIC_SCAN_LOOP_OBJECT: &str = "static-scan-loop-object-out-of-class";
+
 /// **#839's residue key** — the body is a store run whose base is a C++
 /// reference bind, it parses **to the end of the segment**, and what is left
 /// wrong with it is that nothing downstream can spell the binding.

@@ -729,6 +729,8 @@ mod tests {
         fp_arg_sources: None,
             arg_sources: None,
             data_sym: None,
+            data_def: None,
+            static_scan_loop: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -1097,6 +1099,8 @@ mod tests {
         fp_arg_sources: None,
             arg_sources: None,
             data_sym: None,
+            data_def: None,
+            static_scan_loop: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -1139,6 +1143,8 @@ mod tests {
         fp_arg_sources: None,
             arg_sources: None,
             data_sym: None,
+            data_def: None,
+            static_scan_loop: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),

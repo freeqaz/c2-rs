@@ -61,27 +61,57 @@ pub fn emit_comdat_obj(
     label_counter: u32,
 ) -> Option<Vec<u8>> {
     assert_eq!(funcs.len(), texts.len(), "one text per function");
-    // **W-DATA — the defined-data class check, and it is deliberately ONE
-    // object over the whole obj.**
+    // **W-DATA — the defined-data class check.**
     //
-    // Everything below about a COMDAT `.data` — the slot it takes, its
+    // # The fence that was here, and the measurement that replaced it
+    //
+    // This shipped as *"at most ONE defined object over the whole obj"*, on the
+    // honest ground that every rule about a COMDAT `.data` — its slot, its
     // alignment nibble, its aux CheckSum, the position of its symbol group and
-    // the index its relocations resolve against — was read off **one** obj,
-    // `src/system/math/Primes.cpp`'s, plus the single-object cells of
-    // `work/w-data/attr/`. Not one cell in that set has two defined objects in
-    // one obj, so nothing here separates "the groups follow section order" from
-    // any other ordering that coincides at n = 1.
+    // the index its relocations resolve against — had been read off **one** obj,
+    // `src/system/math/Primes.cpp`'s. At n = 1 *"grouped after the code"* and
+    // *"interleaved with the code"* are the same obj, so nothing separated them.
     //
-    // The neighbours that would need n = 2 (`undname.cpp`, `osfinfo.cpp`) are
-    // named in the rung as the next lane's work precisely because they need
-    // their own cells. Refusing costs those TUs nothing they had; guessing
-    // costs a wrong symbol table in an obj that still links, which is
-    // board #263's shape.
-    let n_defs: usize = funcs.iter().map(|f| f.data_defs.len()).sum();
-    if n_defs > 1 {
-        return None;
-    }
+    // GRID C separated them, and **the writer was wrong**. Its two rivals were
+    // frozen in `work/w-data/GRID.md` before the cell compiled, and the
+    // three-function cell says **INTERLEAVED**:
+    //
+    // ```text
+    //   .drectve .debug$S .XBLD$W .XBLD$W
+    //   .text(p0) .data(p0)  .text(p1) .data(p1)  .text(p2) .data(p2)
+    //
+    //   … 11/12 .text 13 ?p0 14/15 .data 16 ?a
+    //     17/18 .text 19 ?p1 20/21 .data 22 ?b
+    //     23/24 .text 25 ?p2 26/27 .data 28 ?table
+    // ```
+    //
+    // The symbol table follows section order and therefore interleaves too, so
+    // the grouped reading is wrong about the section table, the section
+    // indices, the symbol indices and every relocation's `SymbolTableIndex` at
+    // once. The count (29 symbols) was right either way, which is why the cell
+    // had to be read by ORDER and not by size. The refusal is what kept the
+    // grouped reading from ever reaching an obj.
+    //
+    // # What still refuses, and why each one has no cell
+    //
+    // * **more than one object per FUNCTION.** `undname.cpp` and `osfinfo.cpp`
+    //   need two data symbols in one *body*, which is a different question from
+    //   two objects in one obj and has no cell here;
+    // * **a defined object on a FRAMED function.** Where its `.data` sits
+    //   relative to that function's `.pdata` COMDAT — which is associative and
+    //   tied back to the `.text` — is unmeasured, and so is where its symbol
+    //   group sits among the `$M`/`$M`/`$T` triple;
+    // * **a defined object on a FLOAT function**, for the same reason one door
+    //   along: `_fltused` goes after the first float function's *complete*
+    //   group, and whether the data group is inside that "complete" is a cell
+    //   nobody has cut.
     for f in funcs {
+        if f.data_defs.len() > 1 {
+            return None;
+        }
+        if !f.data_defs.is_empty() && (f.frame.is_some() || f.is_float) {
+            return None;
+        }
         for d in &f.data_defs {
             if d.bytes.len() as usize != d.size as usize || d.size == 0 || d.lo_offs.is_empty() {
                 return None;
@@ -102,6 +132,10 @@ pub fn emit_comdat_obj(
     // / `sec_pdata[i]` are 0-based indices into `sections`.
     let mut sec_text: Vec<usize> = Vec::with_capacity(funcs.len());
     let mut sec_pdata: Vec<Option<usize>> = Vec::with_capacity(funcs.len());
+    // **W-DATA** — function `i`'s own COMDAT `.data`, immediately after its
+    // `.text`. `None` for a function that defines no object, which is every
+    // function the port emitted before this field existed.
+    let mut sec_data: Vec<Option<usize>> = vec![None; funcs.len()];
     // The inverse map, so the layout and relocation passes below index rather
     // than search: section -> the function it belongs to, and which of its two
     // sections it is. `SectionOwner::None` for the fixed prefix.
@@ -137,59 +171,48 @@ pub fn emit_comdat_obj(
                 });
             }
         }
-    }
-    // **W-DATA — the COMDAT `.data` groups, AFTER every code group.**
-    //
-    // MEASURED twice over, and the two readings agree. (a) `Primes.cpp`'s own
-    // obj is `.drectve .debug$S .XBLD$W .XBLD$W .text .data`, six sections, the
-    // `.data` last. (b) Lane `w-cfg2`'s GRID A, six cells read both in `.gl` and
-    // in c2's obj: **a COMDAT data object is placed after the code groups; a
-    // non-COMDAT one is placed before them**, between the second `.XBLD$W`
-    // watermark and `.text` (board #1682). Cell `a4` is what makes that sharp —
-    // a namespace-scope `static int p[4]` whose first referrer is a function
-    // body still lands *before* `.text`, so over these cells the discriminator
-    // is the object's own COMDAT bit and **not** board #1179's first-referrer
-    // test.
-    //
-    // Both `.XBLD$W` watermarks are already in `shell_sections`' prefix here, so
-    // "after the code groups" is a plain push and no shell section moves.
-    // `emit_data_obj` — which serves the *functionless* TU and only ever places
-    // NON-COMDAT objects — splices its section into one of two slots ahead of
-    // `.text` instead, and the two writers are right about different classes.
-    let mut defs: Vec<(usize, &DataDef)> = Vec::new();
-    for (i, f) in funcs.iter().enumerate() {
-        for d in &f.data_defs {
-            defs.push((i, d));
+        // **W-DATA — this function's COMDAT `.data`, immediately after its own
+        // `.text`.** INTERLEAVED, not grouped at the end: GRID C's
+        // three-function cell reads `.text .data .text .data .text .data` in the
+        // section table and the same interleave in the symbol table. The
+        // grouped reading was this writer's first draft and the class check
+        // above is where it was caught.
+        //
+        // A framed function is refused upstream, so this never has to decide
+        // whether it goes before or after a `.pdata`.
+        for d in &funcs[i].data_defs {
+            let nibble = align_nibble(d.size, d.natural_align)?;
+            sec_data[i] = Some(sections.len());
+            owner.push(SectionOwner::Data(i));
+            sections.push(Section {
+                name: ".data",
+                // `CH_DATA_BASE | LNK_COMDAT | nibble<<20`. Read off c2's own
+                // objs at three sizes: `0xC0401040` for `Primes.cpp`'s 248-byte
+                // `int[62]` and for GRID C's `p1` (256 B) — both ALIGN_8,
+                // because `placement_align` promotes anything ≥ 64 bytes — and
+                // `0xC0301040` for `p0`/`p2`'s 32-byte arrays (ALIGN_4). One
+                // promotion table, already shared with the `.bss` allocator, and
+                // `p1` is the cell that crosses the boundary.
+                characteristics: CH_DATA_BASE | 0x1000 | (nibble << 20),
+                // **A COMDAT `.data` carries a REAL aux CheckSum**, unlike the
+                // `.text` and `.rdata` COMDATs beside it, which carry 0.
+                // Verified against c2's own objs on four distinct payloads
+                // (`0x25B5A181`, `0xFC84F8C5`, `0x52892C86`, `0x2AFF742F`).
+                // This was the lane's least-confident prediction (PREREG P8)
+                // precisely because "COMDAT ⇒ CheckSum 0" holds for every other
+                // COMDAT this port emits.
+                checksum: coff_checksum(d.bytes),
+                // SELECT_ANY, which is what a function-local `static`'s section
+                // carries in all six of lane w-cfg2's GRID A cells and all three
+                // of GRID C's. **Not** ASSOCIATIVE — nothing ties it to the
+                // `.text` the way a `.pdata` is tied, which is why its placement
+                // had to be measured rather than inherited.
+                selection: 2,
+                assoc: 0,
+                raw: std::borrow::Cow::Borrowed(d.bytes),
+                uninit_size: None,
+            });
         }
-    }
-    let mut sec_data: Vec<usize> = Vec::with_capacity(defs.len());
-    for (j, (_, d)) in defs.iter().enumerate() {
-        let nibble = align_nibble(d.size, d.natural_align)?;
-        sec_data.push(sections.len());
-        owner.push(SectionOwner::Data(j));
-        sections.push(Section {
-            name: ".data",
-            // `CH_DATA_BASE | LNK_COMDAT | nibble<<20`. Read off c2's obj:
-            // `0xC0401040` for the 248-byte `int[62]` (ALIGN_8, because
-            // `placement_align` promotes anything ≥ 64 bytes) and `0xC0301040`
-            // for GRID A's 16-byte `int[4]` (ALIGN_4). One promotion table,
-            // already shared with the `.bss` allocator.
-            characteristics: CH_DATA_BASE | 0x1000 | (nibble << 20),
-            // **A COMDAT `.data` carries a REAL aux CheckSum**, unlike the
-            // `.text` and `.rdata` COMDATs beside it, which carry 0. Verified
-            // against c2's own obj: `coff_checksum` of Primes' 248 bytes is
-            // `0x25B5A181`, which is the word in the aux record. This was the
-            // lane's least-confident prediction (PREREG P8) precisely because
-            // "COMDAT ⇒ CheckSum 0" holds for every other COMDAT this port
-            // emits.
-            checksum: coff_checksum(d.bytes),
-            // SELECT_ANY, which is what a function-local `static`'s section
-            // carries in all six of GRID A's cells.
-            selection: 2,
-            assoc: 0,
-            raw: std::borrow::Cow::Borrowed(d.bytes),
-            uninit_size: None,
-        });
     }
     let n_sections = sections.len();
 
@@ -262,6 +285,10 @@ pub fn emit_comdat_obj(
     let mut callee_syms: Vec<(&str, u32)> = Vec::new();
     let mut data_syms: Vec<(&str, u32)> = Vec::new();
     let mut introduced_data: Vec<Vec<(&str, u32)>> = Vec::with_capacity(funcs.len());
+    // **W-DATA** — the index of function `i`'s defined object's symbol, or
+    // `None`. Derived here because the `.text` relocation records need it before
+    // the symbol table is written, and asserted again where the record goes out.
+    let mut def_sym: Vec<Option<u32>> = Vec::with_capacity(funcs.len());
     for (i, f) in funcs.iter().enumerate() {
         next_idx += 2; // section symbol + aux
         fn_idx.push(next_idx);
@@ -298,32 +325,32 @@ pub fn emit_comdat_obj(
             next_idx += 2; // .pdata section symbol + aux
             next_idx += 1; // $T(n+2)
         }
+        // **W-DATA — this function's object group, immediately after its own.**
+        //
+        // The symbol table follows SECTION order and the `.data` COMDAT is
+        // interleaved, so the group is too. MEASURED on `Primes.cpp`'s obj and
+        // on GRID C's three-function cell:
+        //
+        // ```text
+        //   … 11/12 .text 13 ?p0 14/15 .data 16 ?a
+        //     17/18 .text 19 ?p1 20/21 .data 22 ?b
+        //     23/24 .text 25 ?p2 26/27 .data 28 ?table
+        // ```
+        //
+        // Its position relative to `_fltused` is not decided here and does not
+        // have to be: a float function carrying an object is refused by the
+        // class check above, because no cell says whether the marker goes inside
+        // this group or after it.
+        def_sym.push(if funcs[i].data_defs.is_empty() {
+            None
+        } else {
+            next_idx += 2; // the `.data` section symbol + its aux record
+            next_idx += 1; // the object's own defined STATIC symbol
+            Some(next_idx - 1)
+        });
         if fltused_after == Some(i) {
             next_idx += 1;
         }
-    }
-    // **W-DATA — each defined object's group, after every function's.**
-    //
-    // The symbol table follows SECTION order, and the COMDAT `.data` sections
-    // are after the code groups, so their groups are too. MEASURED on
-    // `Primes.cpp`'s obj, whose seventeen records read:
-    //
-    // ```text
-    //   0 @comp.id  1/2 .drectve  3/4 .debug$S  5/6 .XBLD$W(C2)  7 __C2_11886
-    //   8/9 .XBLD$W(C1)  10 __C1_11886  11/12 .text  13 ?NextHashPrime
-    //   14/15 .data  16 ?primes@?1??NextHashPrime@@YAHH@Z@4PAHA
-    // ```
-    //
-    // — i.e. exactly the eleven shell slots, the ordinary function group, then
-    // the section symbol + aux and the object's own record. `?primes` is a
-    // **defined STATIC** (StorageClass 3, `sec` = the `.data`'s number, `Value`
-    // 0, `Type` 0x0000), which is the whole difference from the WR1 undefined
-    // external four lines below it in this file — that one is section 0.
-    let mut def_sym: Vec<u32> = Vec::with_capacity(defs.len());
-    for _ in &defs {
-        next_idx += 2; // the `.data` section symbol + its aux record
-        def_sym.push(next_idx);
-        next_idx += 1; // the object's own defined STATIC symbol
     }
     let n_symbols = next_idx;
 
@@ -376,11 +403,16 @@ pub fn emit_comdat_obj(
                         // first because a name that is defined here is never
                         // also an undefined external, so a hit is unambiguous.
                         crate::comdat::PlanTarget::Symbol(n) => {
-                            if let Some(ix) = defs
+                            if let Some(ix) = funcs
                                 .iter()
                                 .zip(&def_sym)
-                                .find(|((_, d), _)| d.symbol == n)
-                                .map(|(_, ix)| *ix)
+                                .find_map(|(g, ix)| {
+                                    g.data_defs
+                                        .iter()
+                                        .any(|d| d.symbol == n)
+                                        .then_some(*ix)
+                                        .flatten()
+                                })
                             {
                                 ix
                             } else {
@@ -440,30 +472,30 @@ pub fn emit_comdat_obj(
             emit_section_symbol(&mut b, &sections[ps], (ps + 1) as i16, 1);
             emit_pdata_label_symbol(&mut b, &label_name('T', m[2]), 0, (ps + 1) as i16);
         }
+        // **W-DATA — this function's defined object's group**, interleaved
+        // exactly as its section is.
+        if let (Some(si), Some(d)) = (sec_data[i], f.data_defs.first()) {
+            let dsec = (si + 1) as i16;
+            // `nrel` 0: the section is pure data (see `n_reloc_of` above), and
+            // the aux record is the SECOND place that count lives — this
+            // writer's own history has it reading 0 while the header read 1.
+            emit_section_symbol(&mut b, &sections[si], dsec, 0);
+            debug_assert_eq!(
+                ((b.0.len() - ptr_symtab) / SYMBOL_LEN) as u32,
+                def_sym[i].expect("a function with a `.data` has a symbol slot"),
+                "the index the `.text` relocation records were written with"
+            );
+            // **Defined, STATIC, DATA type, `Value` = its offset in its own
+            // section — which is 0, because the object owns the whole COMDAT.**
+            // StorageClass 3 and a real section number are the whole difference
+            // from the WR1 undefined external emitted a few lines above, which
+            // is class 2 in section 0.
+            emit_symbol(&mut b, &mut strtab, d.symbol, 0, dsec, 0x0000, 3);
+        }
         // The CRT float-support marker, once, after the first FP function's group.
         if fltused_after == Some(i) {
             emit_function_symbol(&mut b, &mut strtab, NAME_FLTUSED, 0, 0);
         }
-    }
-
-    // **W-DATA — the defined objects' groups, in section order.**
-    for (j, (_, d)) in defs.iter().enumerate() {
-        let si = sec_data[j];
-        let sec_num = (si + 1) as i16;
-        // `nrel` 0: the section is pure data (see `n_reloc_of` above), and the
-        // aux record is the SECOND place that count lives.
-        emit_section_symbol(&mut b, &sections[si], sec_num, 0);
-        debug_assert_eq!(
-            ((b.0.len() - ptr_symtab) / SYMBOL_LEN) as u32,
-            def_sym[j],
-            "the index the `.text` relocation records were written with"
-        );
-        // **Defined, STATIC, DATA type, `Value` = its offset in its own
-        // section — which is 0, because the object owns the whole COMDAT.**
-        // StorageClass 3 and a real section number are what separate this from
-        // the WR1 undefined external emitted above, which is class 2 in
-        // section 0.
-        emit_symbol(&mut b, &mut strtab, d.symbol, 0, sec_num, 0x0000, 3);
     }
 
     b.bytes(&strtab.finish());

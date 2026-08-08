@@ -2,7 +2,7 @@ use super::body::{
     self, bind_refusal_key, call_tokens, parse_segment_detail, BodyShape, Complete, DtorSubObject,
     CALLEE_UNRESOLVED_DTOR,
     CALLEE_UNRESOLVED_FRAMED, CALLEE_UNRESOLVED_SEQ, CALLEE_UNRESOLVED_TAIL,
-    STORE_RUN_BIND_NO_CARRIER, STORE_RUN_CALL_NO_CARRIER,
+    STATIC_SCAN_LOOP_OBJECT, STORE_RUN_BIND_NO_CARRIER, STORE_RUN_CALL_NO_CARRIER,
     DATA_SYM_LINKAGE, DATA_SYM_UNRESOLVED, OPT_MODE, PTR_WALK_CHAIN_LOOP_NOT_O1,
     PTR_WALK_LOOP_NOT_O1,
 };
@@ -832,6 +832,9 @@ impl IlBundle {
                                         // key so the residue #844 is sized from
                                         // is a number rather than a rumour.
                                         "store-run-call" => STORE_RUN_CALL_NO_CARRIER,
+                                        // **W-DATA.** The body parsed whole and the
+                                        // OBJECT is out of class. See the constant.
+                                        "static-scan-loop" => STATIC_SCAN_LOOP_OBJECT,
                                         // **#839 / board #1199 — the carrier
                                         // LANDED, so this label no longer has
                                         // one answer.** `bind_run_ops` is the
