@@ -108,6 +108,7 @@ the header block this table is read from.
 | 2026-08-08 | w-cflowlabel | [w-cflowlabel](2026-08-08-w-cflowlabel.md) | 11 | 711,486 / 2,463,443 unchanged (28.88 %), **+0** — this lane adds |
 | 2026-08-08 | w-classes | [w-classes](2026-08-08-w-classes.md) | 11 | 711,485 / 2,463,443 functions in class (28.88 %), **+0** — read |
 | 2026-08-08 | w-clear | [w-clear](2026-08-08-w-clear.md) | 14 | 711,486 / 2,463,443 unchanged (28.88 %), **+0**. TU match |
+| 2026-08-08 | w-column | [w-column](2026-08-08-w-column.md) | 14 | 711,486 / 2,463,443 unchanged (28.88 %), **+0**. TU match |
 | 2026-08-08 | w-emitp2 | [w-emitp2](2026-08-08-w-emitp2.md) | 8 | 711,427 / 2,463,393 unchanged (28.88 %), +0 |
 | 2026-08-08 | w-f23 | [w-f23](2026-08-08-w-f23.md) | 12 | 711,477 / 2,463,443 unchanged (28.88 %), **+0** — and the `+0` is |
 | 2026-08-08 | w-front2 | [w-front2](2026-08-08-w-front2.md) | 11 | 711,477 / 2,463,443 unchanged (28.88 %), **+0** — this lane |

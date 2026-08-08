@@ -84,7 +84,7 @@ bucket, and every bucket is printed:
 | **`fnbyte-reloc-differs`** | **bytes identical, RELOCATIONS differ** — lane `w-relo`, §2.2 | no |
 | **`fnbyte-reloc-unknown`** | bytes identical, the reference relocation table did not decode — **ungraded**, the counted residue | no |
 | `fnbyte-partial` | the port selected, but the body is finished by the COFF emitter | no |
-| `fnbyte-refused` | the port refuses this function | no |
+| `fnbyte-refused` | the port refuses this function — **split since lane `w-column` into `fnbyte-refused-parse` (the IL PARSER refused) and `fnbyte-refused-codegen` (the parser ACCEPTED and the emitter declined), with `fnbyte-refused-split-broken` as the printed identity** | no |
 | `fnbyte-unbound` | no census row binds this symbol, or two do | no |
 | `fnbyte-nobytes` | the COMDAT's raw data did not decode | no |
 
@@ -92,6 +92,41 @@ bucket, and every bucket is printed:
 (`fnbyte-partition-broken`, known answer 0) rather than assumed. A TU whose obj
 does not decode at all contributes to **neither** numerator nor denominator, and
 is counted separately (`fnbyte-obj-unreadable`).
+
+## 2.1b THE CODEGEN COLUMN — which side of the port refused (lane `w-column`, boards #1473–#1475)
+
+> **Board #1464:** *no field in `TuResult` says "the reader accepted this
+> function and the emitter could not lower it" — that verdict does not exist to
+> be read.* It is true of `TuResult`'s **named fields** and false of this
+> module, and the correction matters because the number that looked like the
+> codegen column was 100 % reader.
+
+`grade_one` reaches the emitter **only** through `Ok(func)` — an `IlFunction`
+the IL parser produced. So the stage that declined already says which side of
+the port stopped:
+
+| `Decline` | reached when | can it legitimately be nonzero? |
+|---|---|---|
+| **`Parse`** | the IL parser refused. `select_function` is **never called** — there is no `IlFunction` to call it with | **it is the whole population**: 130,575 of 178,977 at `85e180d4` |
+| `OptMode` | the `.ex` optimization word is not one the port emits for | **no — 0 by construction.** `census_functions`' post-parse gate (b) raises `OPT_MODE` before a row can be `InClass`, and this stage is reached only for an `InClass` row |
+| `Selector` | `select_function` refused a body **the parser accepted** | **no — 0 by construction**, and this is the verdict #1464 says does not exist. It counts exactly the population `TuResult::fn_gate_refusals` counts, by the same decision procedure, so it must be 0 for the same reason: anything here is the census over-claiming (board #139) |
+| `GyShape` | the selector lowered it; the `/Gy` composition has no obj model | **YES.** `/Gy` is an argv flag and is not in the IL bundle at all, so no parser clause could express this refusal |
+| `DataRef` | the data-symbol relocation halves are not locatable in the composed body | **YES.** The question is asked of bytes that do not exist until after lowering |
+
+**The invariant, stated once.** Board #139 requires every emitter refusal to have
+a parser counterpart, or the census over-claims. That rule binds only on
+refusals **the parser is able to express** — i.e. on refusals that are a function
+of the IL body alone. `GyShape` and `DataRef` are not, so they are legitimate and
+permanent; `OptMode` and `Selector` are, so they must be zero and their zero is
+an **alarm that did not fire**, never a measurement that the codegen distance is
+zero.
+
+**Consequently the useful codegen reading is not the refusal column at all.** It
+is `fnbyte-differs` + `fnbyte-reloc-differs` — *the reader accepted, the emitter
+lowered, and the judge says the bytes are wrong* — which reads **2,972** on the
+dc3 workload while every refusal stage reads 0. `GapReport::frontier_codegen`
+publishes that reading per frontier TU beside the population it cannot see
+behind (board #1474).
 
 ## 2.2 RELOC-EQ — what `exact` means since 2026-08-08 (lane `w-relo`, board #884)
 
@@ -583,7 +618,7 @@ day is legible either way.
   `fnbyte-reloc-graded-relocated`, `fnbyte-exact-bytes`,
   `fnbyte-reloc-partition-broken`, `fnbyte-match-tu-reloc-differs`,
   `fnbyte-reloc-table-unreadable`, `fnbyte-reloc-index-desync`,
-  `fnbyte-reloc-witnesses`. Keys are an interface; **absence means NO-RESULT**,
+  `fnbyte-reloc-witnesses`; and — since lane `w-column` — `fnbyte-decline-{parse,opt-mode,selector,gy-shape,data-ref}`, `fnbyte-refused-{parse,codegen}`, `fnbyte-refused-split-broken`, `frontier-codegen-{denominator,exact,wrong,refused,reader,ungraded,measured,partition-broken}`. Keys are an interface; **absence means NO-RESULT**,
   never 0 and never 1.
 * Collected into `docs/STATUS.md` by `scripts/status.sh` as four rows, with
   **three** must-fail mutations in `--check`: the ratio must never render

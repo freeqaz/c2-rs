@@ -705,6 +705,32 @@ misleading without them.
    once `??_G` is live and its own reference list is followed. Do not price a
    class by subtracting it.
 
+
+**A CODEGEN PRICE ON THIS PAGE IS A HAND-COUNT UNLESS IT NAMES A KEY.** Lane
+`w-ladders` proved (board **#1464**) that the frontier ladder instrument has no
+codegen column and never had one: `fn_blockers` and `emit_blockers` are the same
+reader column at two populations, and `fn_gate_refusals` is an invariant defined
+to be **0**. Every codegen number this project has published — #1105's `>= 15`,
+#1418's 776 bytes, #770's eleven — was therefore produced by a person reading an
+obj beside an IL body, and none of them moves when the tree does.
+
+There **is** a codegen column now (boards **#1473**/**#1474**) and it is small on
+purpose. On the 16 frontier TUs it reads, over **59** emitted functions:
+
+| bucket | reads | what it means |
+|---|---:|---|
+| `frontier-codegen-exact` | **10** | c2's bytes, produced |
+| `frontier-codegen-wrong` | **1** | the reader accepted, the port lowered it, the judge says the bytes differ — **the only instrument-read codegen price on the frontier** |
+| `frontier-codegen-refused` | **0** | the reader accepted, the emitter declined. Structurally near-empty: three of its four stages are zero *by construction* while acceptance lives in the IL parser (#1475) |
+| `frontier-codegen-reader` | **48** | **the IL parser refused, so no codegen question was asked and none CAN be.** 81 % of the frontier |
+
+**Read the last row first.** `frontier-codegen-measured` is a **lower bound of
+unknown tightness**, not a price: the frontier's true codegen distance is
+`wrong + refused` plus an unknown amount hiding behind those 48. A reader who
+takes `1` as the frontier's codegen cost has made `cflow-emitted-modeled`'s "718"
+mistake (#1343/#1344) with a smaller number. Equally, **`0` refusals is not
+"codegen is done"** — it is an alarm that did not fire.
+
 ---
 
 ## Reproducing any of it
