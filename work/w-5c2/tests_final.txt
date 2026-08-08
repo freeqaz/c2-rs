@@ -44,18 +44,18 @@ warning: unused import: `Mul`
 
 warning: `c2-il` (lib test) generated 4 warnings (run `cargo fix --lib -p c2-il --tests` to apply 2 suggestions)
 warning: `c2-core` (lib test) generated 1 warning (run `cargo fix --lib -p c2-core --tests` to apply 1 suggestion)
-    Finished `release` profile [optimized] target(s) in 6.79s
+    Finished `release` profile [optimized] target(s) in 7.35s
      Running unittests src/lib.rs (target/release/deps/c2_core-d11d0e0158155eff)
 
 running 315 tests
 test codegen::alloc::tests::a_link_into_a_formal_is_not_a_bind_link ... ok
-test codegen::alloc::tests::a_pure_constant_run_is_the_only_kind_the_emitter_can_build ... ok
 test codegen::alloc::tests::all_in_r11_holds_for_one_producer_and_no_more ... ok
-test codegen::alloc::tests::clause_one_is_the_use_count ... ok
+test codegen::alloc::tests::a_pure_constant_run_is_the_only_kind_the_emitter_can_build ... ok
 test codegen::alloc::tests::allocate_ignores_the_roots_carrier ... ok
+test codegen::alloc::tests::clause_one_is_the_use_count ... ok
+test codegen::alloc::tests::grid_m_frontier_is_pinned_and_every_cell_of_it_is_refused ... ok
 test codegen::alloc::tests::grid_z_two_frontiers_and_the_refusal_fires_on_both ... ok
 test codegen::alloc::tests::one_producer_takes_pool_top_at_every_floor ... ok
-test codegen::alloc::tests::grid_m_frontier_is_pinned_and_every_cell_of_it_is_refused ... ok
 test codegen::alloc::tests::refusals_are_measured_regimes_not_caution ... ok
 test codegen::alloc::tests::the_carrier_decides_only_whether_a_mixed_run_is_served ... ok
 test codegen::alloc::tests::the_carrier_is_not_symmetric_in_the_two_roots ... ok
@@ -189,20 +189,20 @@ test codegen::order::tests::the_layout_guard_is_inert_on_what_the_parser_admits 
 test codegen::order::tests::the_layout_u_is_the_leading_run_not_the_count ... ok
 test codegen::order::tests::the_strict_use_count_lift_is_refuted_by_this_lanes_own_grid ... ok
 test codegen::order::tests::three_fillers_do_not_displace_the_rank_one_store ... ok
-test codegen::order::tests::three_symbols_need_no_new_constant ... ok
 test codegen::order::tests::three_producers_through_two_symbols_are_refused ... ok
+test codegen::order::tests::three_symbols_need_no_new_constant ... ok
 test codegen::order::tests::u_is_lowered_rather_than_a_floor_relaxed ... ok
 test codegen::order::tests::xboxheap_allocation_is_still_refused_and_the_answer_it_owes_is_recorded ... ok
 test codegen::order::tests::xboxheap_two_symbols_is_answered_not_refused ... ok
 test codegen::order::tests::xboxheap_without_the_reference_bind_is_a_different_body_and_is_predicted ... ok
-test codegen::ptr_walk_chain_loop::tests::a_chain_that_never_reads_the_character_refuses ... ok
 test codegen::ptr_walk_chain_loop::tests::a_different_arity_refuses_in_codegen_too ... ok
-test codegen::ptr_walk_chain_loop::tests::a_late_character_read_stays_in_the_two_regime_at_every_length ... ok
+test codegen::ptr_walk_chain_loop::tests::a_chain_that_never_reads_the_character_refuses ... ok
 test codegen::ptr_walk_chain_loop::tests::four_step_chain_flips_to_the_same_regime_and_jumps_in ... ok
 test codegen::ptr_walk_chain_loop::tests::one_step_chain_is_reproduced_word_for_word ... ok
 test codegen::ptr_walk_chain_loop::tests::ox_refuses_because_nothing_graded_it_there ... ok
 test codegen::ptr_walk_chain_loop::tests::s5_orders_a_commutative_operand_pair_by_recency ... ok
 test codegen::ptr_walk_chain_loop::tests::the_element_signedness_moves_only_the_record_and_entry_forms ... ok
+test codegen::ptr_walk_chain_loop::tests::a_late_character_read_stays_in_the_two_regime_at_every_length ... ok
 test codegen::ptr_walk_chain_loop::tests::the_emitted_length_follows_the_chain_and_the_regime ... ok
 test codegen::ptr_walk_chain_loop::tests::the_schedule_is_a_bijection_onto_the_body_slots ... ok
 test codegen::ptr_walk_chain_loop::tests::three_step_chain_puts_the_load_at_slot_one ... ok
@@ -225,8 +225,8 @@ test codegen::store_run_call::tests::the_empty_pool_refusal_is_the_same_under_bo
 test codegen::store_run_call::tests::the_mr_slot_domain_boundary_is_refused_with_its_counterexample ... ok
 test codegen::store_run_call::tests::the_save_slot_rule_reproduces_every_graded_cell_in_its_domain ... ok
 test codegen::straightline::tests::add_chain_reuses_one_accumulator_register ... ok
-test codegen::order::tests::the_two_readings_of_u_agree_on_every_single_symbol_run ... ok
 test codegen::straightline::tests::depth2_tree_matches_the_reference ... ok
+test codegen::order::tests::the_two_readings_of_u_agree_on_every_single_symbol_run ... ok
 test codegen::straightline::tests::depth2_tree_with_an_add_root_swaps_the_child_registers ... ok
 test codegen::straightline::tests::mul_chain_of_three_ops_uses_descending_scratch_registers ... ok
 test codegen::straightline::tests::select_text_add_immediate ... ok
@@ -249,7 +249,6 @@ test coff::data::tests::a_non_comdat_data_carries_a_real_crc ... ok
 test coff::data::tests::a_pointer_initializer_emits_one_addr32_into_this_tus_own_object ... ok
 test coff::data::tests::a_relocation_free_obj_carries_no_relocation_table_at_all ... ok
 test coff::data::tests::a_static_only_bss_takes_slot_a_and_a_mixed_one_is_refused ... ok
-test codegen::order::tests::the_fallback_never_fires_on_any_enumerable_run ... ok
 test coff::data::tests::an_array_of_pointers_emits_one_relocation_per_slot ... ok
 test coff::data::tests::an_object_may_name_itself ... ok
 test coff::data::tests::bss_has_a_size_a_null_pointer_and_no_file_bytes ... ok
@@ -257,6 +256,7 @@ test coff::data::tests::data_walks_declaration_order_where_bss_walks_gl_order ..
 test coff::data::tests::more_than_two_objects_in_one_section_refuses_but_two_of_each_does_not ... ok
 test coff::data::tests::out_of_class_inputs_refuse ... ok
 test coff::data::tests::the_allocator_is_a_plain_bump_and_the_nibble_is_the_max ... ok
+test codegen::order::tests::the_fallback_never_fires_on_any_enumerable_run ... ok
 test coff::data::tests::the_c1_watermarks_section_number_moves_with_the_bss ... ok
 test coff::data::tests::the_promotion_thresholds_are_at_2_and_64 ... ok
 test coff::data::tests::the_relocation_refusals_are_refusals_and_not_dropped_records ... ok
@@ -297,26 +297,27 @@ test coff::tests::tests::the_data_address_quad_puts_reflo_at_its_own_offset_not_
 test coff::tests::tests::the_dyninit_relocations_pair_both_halves_and_leave_rel24_bare ... ok
 test coff::tests::tests::the_dyninit_symbol_table_is_the_reference_cells_twenty_four_records ... ok
 test coff::tests::tests::the_escaped_text_is_cut_at_thirty_two_source_bytes_not_output_characters ... ok
-test coff::tests::tests::the_inter_function_label_stride_is_a_constant_and_the_source_lead_cancels ... ok
 test coff::tests::tests::every_production_emitter_has_a_lib_rs_caller ... ok
+test coff::tests::tests::the_inter_function_label_stride_is_a_constant_and_the_source_lead_cancels ... ok
 test coff::tests::tests::the_label_triple_binds_prolog_to_n_and_function_length_to_n_plus_one ... ok
 test coff::tests::tests::the_pooled_fp_constant_quad_is_adjacent_which_is_why_the_data_one_looked_it ... ok
 test coff::tests::tests::the_string_comdat_name_matches_every_measured_literal ... ok
 test coff::tests::tests::the_three_pre_existing_emitters_are_byte_stable ... ok
 test coff::tests::tests::the_two_crc_initial_values_are_not_interchangeable ... ok
+test codegen::leaf::store::tests::the_schedule_never_refuses_a_run_the_parser_admits_today ... ok
 test coff::tests::tests::the_two_workload_tus_differ_only_in_the_objects_linkage ... ok
 test coff::tests::tests::the_undefined_constructor_sits_inside_the_text_yc_group_at_index_fourteen ... ok
 test elide::tests::a_callee_this_tu_does_not_define_is_not_elided ... ok
 test elide::tests::a_caller_with_a_data_symbol_is_not_elided ... ok
 test elide::tests::a_caller_with_a_data_symbol_is_not_elided_over_a_seed ... ok
 test elide::tests::a_chain_of_refused_links_closes_on_a_refused_seed ... ok
-test elide::tests::a_chain_two_deep_elides_at_both_links ... ok
 test elide::tests::a_chain_stays_elided_at_every_graded_depth ... ok
+test elide::tests::a_chain_two_deep_elides_at_both_links ... ok
 test elide::tests::a_cycle_beside_a_live_chain_admits_only_the_chain ... ok
 test elide::tests::a_cycle_is_not_elided_and_terminates ... ok
 test elide::tests::a_cycle_of_refused_links_beside_a_seed_admits_only_the_chain ... ok
-test coff::tests::tests::the_writer_vocabulary_is_every_section_name_this_file_emits ... ok
 test elide::tests::a_function_with_no_tail_call_is_never_elided ... ok
+test coff::tests::tests::the_writer_vocabulary_is_every_section_name_this_file_emits ... ok
 test elide::tests::a_mid_node_that_materializes_data_does_not_propagate ... ok
 test elide::tests::a_name_defined_twice_with_different_bodies_is_refused ... ok
 test elide::tests::a_non_empty_link_stops_the_chain_at_every_depth ... ok
@@ -324,7 +325,6 @@ test elide::tests::a_refused_body_with_no_call_seeds_the_fixpoint ... ok
 test elide::tests::a_same_tu_empty_callee_is_elided ... ok
 test elide::tests::a_same_tu_non_empty_callee_is_not_elided ... ok
 test elide::tests::a_seed_does_not_admit_a_call_to_an_external ... ok
-test codegen::leaf::store::tests::the_schedule_never_refuses_a_run_the_parser_admits_today ... ok
 test elide::tests::a_seed_that_disagrees_with_a_parsed_definition_is_refused ... ok
 test elide::tests::a_seeding_refused_body_carries_no_link ... ok
 test elide::tests::a_seq_mid_node_is_refused ... ok
@@ -347,8 +347,8 @@ test splice::tests::a_tail_call_with_an_argument_setup_is_refused ... ok
 test splice::tests::a_two_call_body_is_refused ... ok
 test splice::tests::a_varargs_callee_is_refused ... ok
 test splice::tests::an_empty_setup_tail_call_takes_the_callees_body ... ok
-test splice::tests::an_unlowerable_callee_leaves_the_branch_alone ... ok
 test splice::tests::an_unnamed_definition_is_never_a_splice_source ... ok
+test splice::tests::an_unlowerable_callee_leaves_the_branch_alone ... ok
 test splice::tests::definition_lookup_handles_the_table_edges ... ok
 test splice::tests::mechanism_e_keeps_its_own_callers ... ok
 test splice::tests::self_recursion_is_refused ... ok
@@ -370,65 +370,65 @@ test result: ok. 315 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fi
 
 running 167 tests
 test capture_cache::tests::argv_normalization_drops_only_the_il_nonce ... ok
-test capture_cache::tests::digest_is_deterministic_and_input_sensitive ... ok
 test capture_cache::tests::digest_separates_the_empty_and_zero_inputs ... ok
 test capture_cache::tests::compare_captures_names_the_field_that_differs ... ok
-test capture_cache::tests::wibo_source_paths_convert_back_to_host_paths ... ok
 test capture_cache::tests::a_hash_collision_would_read_as_a_miss ... ok
-test corpus::tests::sha256_known_vectors ... ok
+test capture_cache::tests::digest_is_deterministic_and_input_sensitive ... ok
+test capture_cache::tests::wibo_source_paths_convert_back_to_host_paths ... ok
 test corpus::tests::json_roundtrips_a_manifest_row ... ok
+test corpus::tests::synthetic_bundle_roundtrips_and_is_path_free ... ok
+test corpus::tests::sha256_known_vectors ... ok
+test gap::fndiff::tests::a_branch_target_only_difference_is_classified_as_one ... ok
 test gap::fndiff::tests::a_displacement_only_difference_is_classified_as_one ... ok
 test corpus::tests::gen_source_is_deterministic ... ok
-test corpus::tests::synthetic_bundle_roundtrips_and_is_path_free ... ok
-test gap::fndiff::tests::a_branch_target_only_difference_is_classified_as_one ... ok
-test gap::fndiff::tests::a_pure_reordering_reads_as_same_multiset ... ok
 test gap::fndiff::tests::a_register_only_difference_is_classified_as_one ... ok
-test gap::fndiff::tests::a_relocated_word_is_marked_as_one ... ok
 test gap::fndiff::tests::adjacent_insert_and_delete_runs_pair_into_substitutions ... ok
-test capture_cache::tests::canonicalizing_the_cwd_folds_spellings_but_not_directories ... ok
-test gap::fndiff::tests::alignment_finds_an_insertion_rather_than_a_shift ... ok
+test gap::fndiff::tests::a_relocated_word_is_marked_as_one ... ok
+test corpus::tests::gen_source_varies_across_seeds_and_indices ... ok
+test gap::fndiff::tests::a_pure_reordering_reads_as_same_multiset ... ok
 test gap::fndiff::tests::an_immediate_only_difference_is_classified_as_one ... ok
 test gap::fndiff::tests::an_unmodelled_form_is_undecoded_and_never_guessed ... ok
-test capture_cache::tests::a_written_entry_records_its_own_capture_path ... ok
+test gap::fndiff::tests::alignment_finds_an_insertion_rather_than_a_shift ... ok
 test gap::fndiff::tests::captured_frame_words_decode_and_name_their_fields ... ok
 test gap::fndiff::tests::every_port_encoder_word_round_trips ... ok
-test capture_cache::tests::an_incomplete_entry_reads_as_a_miss ... ok
+test capture_cache::tests::a_written_entry_records_its_own_capture_path ... ok
 test gap::fndiff::tests::one_primary_with_two_layouts_is_an_opcode_difference ... ok
 test gap::fndiff::tests::the_accounting_identity_holds_on_every_edit_shape ... ok
-test corpus::tests::gen_source_varies_across_seeds_and_indices ... ok
-test capture_cache::tests::an_entry_recorded_at_another_path_is_refused_not_served ... ok
 test gap::fndiff::tests::the_cap_degrades_positionally_and_says_so ... ok
 test gap::fndiff::tests::the_json_row_is_parseable_and_carries_the_keys ... ok
 test gap::fndiff::tests::two_d_form_instructions_with_different_field_names_are_an_opcode_difference ... ok
 test gap::fndiff::tests::two_different_instructions_are_an_opcode_difference ... ok
 test gap::render::tests::the_label_channel_distinguishes_label_free_from_unreadable_from_not_evaluated ... ok
 test gap::render::tests::unreadable_wins_over_any_count_that_was_also_recorded ... ok
+test capture_cache::tests::an_incomplete_entry_reads_as_a_miss ... ok
 test gap::splitter_predicate_guard::the_class_predicate_is_not_the_segment_counter ... ok
-test capture_cache::tests::the_lock_directory_is_not_a_readable_entry ... ok
 test gap::tests::a_count_disagreement_is_decided_first_and_in_both_directions ... ok
 test gap::tests::a_flag_bit_makes_two_otherwise_identical_records_differ ... ok
 test gap::tests::a_key_extending_a_listed_key_is_not_admitted ... ok
-test capture_cache::tests::key_material_separates_every_documented_component ... ok
 test gap::tests::a_match_tu_credits_every_emitted_function_and_a_differing_body_is_a_control_break ... ok
-test capture_cache::tests::the_key_lock_excludes_a_second_holder_and_releases_on_drop ... ok
 test gap::tests::a_match_tu_whose_emitted_symbols_do_not_all_bind_is_a_binding_defect ... ok
 test gap::tests::a_matching_tu_outside_any_factor_is_a_red_control ... ok
 test gap::tests::a_moved_record_reports_its_offset_and_not_its_target ... ok
 test gap::tests::a_pair_displacement_is_compared_as_a_number ... ok
+test capture_cache::tests::the_lock_directory_is_not_a_readable_entry ... ok
 test gap::tests::a_partial_miss_names_the_key_and_a_total_miss_names_only_the_class ... ok
 test gap::tests::a_reloc_differ_is_its_own_bucket_and_the_old_count_is_recoverable ... ok
-test gap::tests::a_port_that_emits_nothing_scores_zero ... ok
 test gap::tests::a_reloc_naming_a_different_symbol_is_a_target_disagreement ... ok
 test gap::tests::a_restricted_entry_admits_a_subset_of_what_the_whole_class_admits ... ok
 test gap::tests::a_section_target_never_equals_a_symbol_of_the_same_spelling ... ok
+test capture_cache::tests::an_entry_recorded_at_another_path_is_refused_not_served ... ok
 test gap::tests::a_tu_with_no_text_bytes_has_no_byte_fraction_and_is_never_100_percent ... ok
+test gap::tests::a_port_that_emits_nothing_scores_zero ... ok
 test gap::tests::a_wrong_body_scores_exactly_what_a_refusal_scores ... ok
 test gap::tests::a_wrong_emit_scores_strictly_below_the_refusal_it_replaced ... ok
+test capture_cache::tests::canonicalizing_the_cwd_folds_spellings_but_not_directories ... ok
 test gap::tests::an_empty_partial_histogram_is_empty_and_not_absent ... ok
 test gap::tests::an_empty_restriction_admits_nothing_and_a_whole_entry_admits_everything ... ok
+test capture_cache::tests::the_key_lock_excludes_a_second_holder_and_releases_on_drop ... ok
 test gap::tests::an_entirely_untagged_scan_reports_its_residue_rather_than_nothing ... ok
 test gap::tests::an_order_swap_at_equal_offsets_is_a_disagreement ... ok
 test gap::tests::an_unclassified_blocked_body_is_not_credited_as_reachable ... ok
+test capture_cache::tests::key_material_separates_every_documented_component ... ok
 test gap::tests::an_unreadable_obj_is_outside_factor_c_rather_than_vacuously_inside_it ... ok
 test gap::tests::bytes_the_judge_called_wrong_are_credited_nowhere ... ok
 test gap::tests::cl_error_normalization_extracts_code ... ok
@@ -444,13 +444,13 @@ test gap::tests::per_tu_fnbyte_ranks_nearest_first_and_excludes_the_unmeasured .
 test gap::tests::fnbyte_metrics_publish_every_bucket_beside_the_ratio ... ok
 test gap::tests::population_cross_does_not_enter_the_class_histogram ... ok
 test gap::tests::progress_mass_is_unrepresentable_over_an_empty_scan ... ok
-test gap::tests::report_ranks_reasons_by_count ... ok
 test gap::tests::progress_mass_matches_the_hand_computation ... ok
+test gap::tests::report_ranks_reasons_by_count ... ok
 test gap::tests::residue_control_counts_only_the_in_class_population ... ok
-test gap::tests::the_cfg_control_passes_on_xboxmem_and_is_absent_rather_than_true_when_missing ... ok
 test gap::tests::the_byte_ranking_inverts_the_function_ranking_that_was_refuted ... ok
-test gap::tests::the_control_goes_red_for_an_unregistered_whole_tu_path ... ok
+test gap::tests::the_cfg_control_passes_on_xboxmem_and_is_absent_rather_than_true_when_missing ... ok
 test gap::tests::the_cfg_screen_separates_a_loop_from_a_straight_line_body_at_equal_cost ... ok
+test gap::tests::the_control_goes_red_for_an_unregistered_whole_tu_path ... ok
 test gap::tests::the_control_separates_the_legitimate_shortfall_from_a_broken_numerator ... ok
 test gap::tests::the_counterfactual_and_its_denominator_are_published_together ... ok
 test gap::tests::the_differ_witnesses_collapse_to_signatures_with_an_example ... ok
@@ -460,30 +460,30 @@ test gap::tests::the_factorization_is_a_joint_and_not_a_product_of_marginals ...
 test gap::tests::the_fifth_term_is_a_disjunct_on_d_and_the_old_conjunction_is_still_measured ... ok
 test gap::tests::the_frontier_is_the_tus_whose_only_remaining_factor_is_codegen ... ok
 test gap::tests::the_greedy_ladder_runs_through_a_zero_gain_step ... ok
-test corpus::tests::write_synthetic_sample_is_loadable_and_consistent ... ok
 test gap::tests::the_ledger_counts_a_listed_key_no_scan_witnessed ... ok
 test gap::tests::the_ledger_cross_check_catches_a_matcher_that_admits_beyond_its_declaration ... ok
 test gap::tests::the_metric_block_derives_the_projection_instead_of_leaving_it_to_a_reader ... ok
 test gap::tests::the_metrics_publish_the_cfg_bracket_and_a_zero_violation_count ... ok
 test gap::tests::the_near_match_table_excludes_the_tus_that_were_never_measured ... ok
-test gap::tests::the_partition_identity_survives_the_shapes_becoming_gradeable ... ok
 test gap::tests::the_offclass_decomposition_cannot_leak_into_the_residue_total ... ok
 test gap::tests::the_offclass_decomposition_accounts_for_every_off_class_in_class_body ... ok
+test gap::tests::the_partition_identity_survives_the_shapes_becoming_gradeable ... ok
 test gap::tests::the_per_tu_factor_membership_re_derives_the_joints_it_is_counted_into ... ok
+test corpus::tests::write_synthetic_sample_is_loadable_and_consistent ... ok
 test gap::tests::the_reach_bounds_nest_and_bottom_is_empty ... ok
-test gap::tests::the_residue_errs_in_both_directions ... ok
 test gap::tests::the_section_vocabulary_counts_objs_and_not_sections ... ok
 test gap::tests::the_shape_census_reports_each_shape_and_verdict_separately ... ok
+test gap::tests::the_residue_errs_in_both_directions ... ok
 test gap::tests::the_subclass_ledger_declines_to_pass_a_claim_it_cannot_check ... ok
 test gap::tests::the_two_distances_are_different_populations_and_may_disagree ... ok
 test gap::tests::the_whole_tu_registry_is_non_empty_and_its_names_are_distinct ... ok
-test gap::tests::the_witness_list_ranks_across_tus_and_reconciles_with_its_counter ... ok
 test listing::tests::mangled_operands_are_never_read_as_stall_codes ... ok
-test perf::tests::fmt_dur_scales ... ok
+test gap::tests::the_witness_list_ranks_across_tus_and_reconciles_with_its_counter ... ok
+test listing::tests::mangling_class_separates_generated_from_ordinary ... ok
 test listing::tests::stall_flags_reads_the_three_shapes_and_nothing_else ... ok
+test perf::tests::fmt_dur_scales ... ok
 test perf::tests::geomean_of_ratios ... ok
 test perf::tests::mean_averages ... ok
-test listing::tests::mangling_class_separates_generated_from_ordinary ... ok
 test perf::tests::median_picks_middle ... ok
 test perf::tests::scalepoint_speedup ... ok
 test perf::tests::speedup_only_when_matched ... ok
@@ -492,13 +492,13 @@ test prefilter::tests::cl_error_normalization_extracts_the_code ... ok
 test prefilter::tests::compare_without_obj_name_is_refused_not_rejected ... ok
 test prefilter::tests::declines_carry_no_obj ... ok
 test prefilter::tests::json_is_schema_tagged_and_parseable_shape ... ok
-test prefilter::tests::verdict_labels_are_the_wire_vocabulary ... ok
 test prefilter::tests::obj_name_guard_reason_is_stable_and_not_a_reject ... ok
+test prefilter::tests::verdict_labels_are_the_wire_vocabulary ... ok
 test provenance::tests::git_info_unknown_is_tri_state ... ok
 test provenance::tests::every_worktree_resolves_to_one_main_repo_root ... ok
 test provenance::tests::git_token_separates_clean_from_dirty_at_the_same_commit ... ok
-test retrieval::tests::leave_one_out_excludes_self ... ok
 test retrieval::tests::cosine_identical_is_one_orthogonal_is_zero ... ok
+test retrieval::tests::leave_one_out_excludes_self ... ok
 test retrieval::tests::random_recall_monotone_in_k ... ok
 test retrieval::tests::rank_puts_identical_text_first ... ok
 test retrieval::tests::recall_credits_text_twin_not_random ... ok
@@ -506,38 +506,38 @@ test search::tests::already_solved_seed_is_zero_step_success ... ok
 test search::tests::generative_operands_regenerates_vanished_scope ... ok
 test search::tests::insn_seq_edit_distance_handles_different_lengths ... ok
 test search::tests::budget_bounds_compiles_and_reports_failure ... ok
-test search::tests::climber_recovers_a_widen_perturbation ... ok
 test search::tests::insn_seq_gradient_is_monotone_toward_target ... ok
 test search::tests::insn_similarity_opcode_fix_beats_nothing_fixed ... ok
 test search::tests::climber_skips_rejects_cleanly ... ok
+test search::tests::climber_recovers_a_widen_perturbation ... ok
 test retrieval::tests::split_is_deterministic_and_partitions ... ok
-test search::tests::per_fn_gradient_max_does_not_terminate ... ok
-test search::tests::climber_recovers_an_added_term_by_delete ... ok
-test search::tests::per_fn_gradient_lifts_a_masked_function_edit ... ok
-test search::tests::mul_reorder_generated_for_mul_swaps_the_two_leaves ... ok
-test search::tests::mul_reorder_is_opt_in_off_by_default ... ok
-test search::tests::register_bijection_is_injective_not_any_matches_any ... ok
-test search::tests::max_gradient_on_non_byte_exact_obj_does_not_terminate ... ok
 test search::tests::per_fn_gradient_falls_back_when_splits_disagree ... ok
-test provenance::tests::git_probe_on_a_non_repo_degrades_to_unknown ... ok
-test search::tests::perturb_drop_then_recover_by_insert ... ok
-test search::tests::register_tolerant_credit_beats_wrong_and_raw ... ok
-test search::tests::neighbors_are_in_scope_and_deduped ... ok
+test search::tests::max_gradient_on_non_byte_exact_obj_does_not_terminate ... ok
+test search::tests::mul_reorder_generated_for_mul_swaps_the_two_leaves ... ok
+test search::tests::per_fn_gradient_lifts_a_masked_function_edit ... ok
+test search::tests::mul_reorder_is_opt_in_off_by_default ... ok
+test search::tests::per_fn_gradient_max_does_not_terminate ... ok
+test search::tests::register_bijection_is_injective_not_any_matches_any ... ok
 test search::tests::select_seed_flags_a_twin_as_retrieval_trivial ... ok
-test search::tests::select_seed_picks_nearest_non_self_non_twin ... ok
+test search::tests::neighbors_are_in_scope_and_deduped ... ok
+test search::tests::climber_recovers_an_added_term_by_delete ... ok
 test search::tests::mul_reorder_never_generated_for_sub_or_add ... ok
+test search::tests::select_seed_picks_nearest_non_self_non_twin ... ok
+test search::tests::register_tolerant_credit_beats_wrong_and_raw ... ok
+test search::tests::perturb_drop_then_recover_by_insert ... ok
 test search::tests::split_by_blr_partitions_at_returns ... ok
 test search::tests::word_match_ratio_basics ... ok
+test provenance::tests::git_probe_on_a_non_repo_degrades_to_unknown ... ok
 test tests::all_fixtures_finds_the_bundled_cpp ... ok
 test search::tests::greedy_stalls_but_beam_crosses_the_plateau ... ok
 test capture_cache::tests::a_relative_root_and_an_absolute_root_agree_on_key_and_on_served_path ... ok
-test search::tests::beam_is_deterministic_and_budget_bounded ... ok
 test capture_cache::tests::the_cache_root_is_part_of_the_key ... ok
+test search::tests::beam_is_deterministic_and_budget_bounded ... ok
 test capture_cache::tests::two_spellings_of_one_cwd_capture_identical_bytes ... ok
 test search::tests::stuck_dc3_step2_codec_move_blocker ... ok
 test search::tests::stuck_dc3_step1_decode_stress ... ok
 
-test result: ok. 167 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+test result: ok. 167 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
 
      Running unittests src/main.rs (target/release/deps/c2rs-401c9b732c599a8c)
 
@@ -548,9 +548,9 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/call_targets.rs (target/release/deps/call_targets-027486321f6cdee2)
 
 running 3 tests
-test the_ports_call_list_comes_from_the_emitter_and_not_from_a_copy ... ok
 test the_port_and_the_reference_agree_on_a_call_the_port_gets_right ... ok
 test two_byte_identical_comdats_call_two_different_symbols ... ok
+test the_ports_call_list_comes_from_the_emitter_and_not_from_a_copy ... ok
 
 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
 
@@ -560,7 +560,7 @@ running 2 tests
 test editing_the_source_at_the_same_path_misses ... ok
 test a_hit_is_byte_identical_and_a_poisoned_entry_is_caught ... ok
 
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
 
      Running tests/census_gate.rs (target/release/deps/census_gate-24f17dcc28e8d1e1)
 
@@ -569,31 +569,31 @@ test the_census_and_the_port_agree_about_what_is_in_class ... ok
 test the_census_and_the_port_agree_over_the_generated_corpus has been running for over 60 seconds
 test the_census_and_the_port_agree_over_the_generated_corpus ... ok
 
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 85.39s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 76.55s
 
      Running tests/cli_flags.rs (target/release/deps/cli_flags-3325071abf144b04)
 
 running 18 tests
 test the_split_is_a_partition_of_the_roster ... ok
-test the_position_scan_helper_is_not_reintroduced ... ok
-test locate_is_reachable_only_through_the_arg_seam ... ok
 test a_cwd_without_a_profile_is_refused ... ok
+test locate_is_reachable_only_through_the_arg_seam ... ok
+test the_position_scan_helper_is_not_reintroduced ... ok
 test an_enumerated_option_refuses_a_value_outside_its_set ... ok
 test an_empty_flags_file_is_refused ... ok
-test an_unknown_option_is_refused_not_ignored ... ok
-test the_parser_refuses_what_a_scan_could_not_see ... ok
-test a_numeric_option_refuses_a_non_number ... ok
 test an_accepted_but_unconsumed_argument_is_refused ... ok
+test the_parser_refuses_what_a_scan_could_not_see ... ok
+test an_unknown_option_is_refused_not_ignored ... ok
+test a_numeric_option_refuses_a_non_number ... ok
 test every_subcommand_refuses_an_unknown_option ... ok
 test the_default_profile_is_unchanged_by_the_widening ... ok
 test two_profiles_must_not_produce_one_bundle ... ok
 test two_profiles_must_not_produce_one_obj ... ok
 test every_invocation_the_scripts_make_is_still_accepted_rest ... ok
 test every_invocation_the_scripts_make_is_still_accepted_perf ... ok
-test every_invocation_the_scripts_make_is_still_accepted_selftest ... ok
 test every_invocation_the_scripts_make_is_still_accepted_bench ... ok
+test every_invocation_the_scripts_make_is_still_accepted_selftest ... ok
 
-test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 51.12s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 51.58s
 
      Running tests/corpus.rs (target/release/deps/corpus-689520cc59170ad5)
 
@@ -607,29 +607,29 @@ test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/dead_temp_elision.rs (target/release/deps/dead_temp_elision-6fa4fece7fbbdd51)
 
 running 8 tests
-test a_callee_that_keeps_bytes_stops_the_chain ... ok
-test the_chain_closes_one_link_deeper ... ok
-test a_real_memset_is_not_a_dead_temporary ... ok
-test an_external_callee_keeps_its_relocation ... ok
 test a_second_statement_stops_the_reader ... ok
+test the_chain_closes_one_link_deeper ... ok
+test a_callee_that_keeps_bytes_stops_the_chain ... ok
 test a_cycle_of_dead_temporary_bodies_is_never_admitted ... ok
+test an_external_callee_keeps_its_relocation ... ok
+test a_real_memset_is_not_a_dead_temporary ... ok
 test the_loop_overload_converts_once_its_leaf_can_seed ... ok
 test the_dead_temporary_chain_collapses_to_one_blr ... ok
 
-test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
 
      Running tests/destroy_loop_elision.rs (target/release/deps/destroy_loop_elision-979881370bdb8f19)
 
 running 11 tests
-test a_cycle_through_a_loop_is_never_admitted ... ok
-test an_impure_induction_step_is_refused ... ok
-test a_loop_over_an_external_callee_keeps_its_relocation ... ok
-test the_induction_and_the_comparison_are_not_pinned_to_one_value ... ok
-test a_second_statement_in_the_loop_body_is_refused ... ok
 test a_condition_over_a_global_is_refused ... ok
+test a_loop_over_an_external_callee_keeps_its_relocation ... ok
 test a_dead_temporary_call_inside_the_loop_composes ... ok
 test a_loop_whose_callee_keeps_bytes_stops_the_chain ... ok
+test an_impure_induction_step_is_refused ... ok
+test the_induction_and_the_comparison_are_not_pinned_to_one_value ... ok
+test a_cycle_through_a_loop_is_never_admitted ... ok
 test a_loop_that_stores_is_refused ... ok
+test a_second_statement_in_the_loop_body_is_refused ... ok
 test a_loop_over_an_empty_callee_collapses_to_one_blr ... ok
 test the_pseudo_destructor_leaf_seeds_and_the_whole_chain_closes ... ok
 
@@ -638,18 +638,18 @@ test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
      Running tests/differential.rs (target/release/deps/differential-25105e4ac011580d)
 
 running 19 tests
-test differential_mvp_argtail_arg_setup_byte_exact ... ok
-test differential_reference_byte_exact_port_not_implemented ... ok
-test differential_wunw_float_beside_framed_refuses ... ok
-test differential_mvp_lit_immediates_byte_exact ... ok
-test differential_mvp_wide_immediates_byte_exact ... ok
-test differential_mvp_sub_noncommutative_byte_exact ... ok
-test differential_mvp_add3_port_byte_exact ... ok
-test differential_mvp_two_multifunction_byte_exact ... ok
 test differential_mvp_tailret_int_passthrough_byte_exact ... ok
+test differential_w1274_interior_address_producer_byte_exact ... ok
+test differential_wunw_float_beside_framed_refuses ... ok
 test differential_mvp_call_tailcall_byte_exact ... ok
 test differential_mvp_plus0_identity_fold_byte_exact ... ok
-test differential_w1274_interior_address_producer_byte_exact ... ok
+test differential_mvp_argtail_arg_setup_byte_exact ... ok
+test differential_mvp_wide_immediates_byte_exact ... ok
+test differential_mvp_two_multifunction_byte_exact ... ok
+test differential_mvp_add3_port_byte_exact ... ok
+test differential_mvp_lit_immediates_byte_exact ... ok
+test differential_reference_byte_exact_port_not_implemented ... ok
+test differential_mvp_sub_noncommutative_byte_exact ... ok
 test differential_mvp_framed_call_byte_exact ... ok
 test differential_wadjust_object_receiver_byte_exact ... ok
 test differential_class_a_many_calls_byte_exact ... ok
@@ -673,15 +673,15 @@ test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/empty_elision.rs (target/release/deps/empty_elision-796edcddcc29bfa8)
 
 running 10 tests
-test a_non_empty_link_stops_the_chain ... ok
-test a_returning_callee_is_mechanism_i_and_never_e ... ok
-test the_argument_setup_goes_with_the_dropped_call ... ok
 test a_chain_of_empty_callees_collapses_at_every_link ... ok
-test a_callee_this_tu_does_not_define_is_not_elided ... ok
 test a_cycle_is_not_elided ... ok
-test a_destructor_chain_is_elided_by_c2_and_refused_by_the_parser ... ok
+test a_callee_this_tu_does_not_define_is_not_elided ... ok
 test an_empty_same_tu_callee_leaves_the_caller_a_bare_blr ... ok
+test the_argument_setup_goes_with_the_dropped_call ... ok
 test mechanism_i_mid_chain_is_not_elided ... ok
+test a_returning_callee_is_mechanism_i_and_never_e ... ok
+test a_destructor_chain_is_elided_by_c2_and_refused_by_the_parser ... ok
+test a_non_empty_link_stops_the_chain ... ok
 test an_indirect_call_site_is_still_refused_by_the_il_parser ... ok
 
 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
@@ -707,7 +707,7 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 1 test
 test roundtrip_all_fixtures_byte_identical ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.66s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.69s
 
      Running tests/lane_registry.rs (target/release/deps/lane_registry-b2baf85f4c9415af)
 
@@ -715,44 +715,44 @@ running 6 tests
 test registry_parser_counts_rows_it_cannot_turn_into_lanes ... ok
 test shaping_flags_drops_only_what_does_not_shape_the_obj ... ok
 test cross_product_lane_takes_its_modes_from_the_registry ... ok
-test shipped_registry_crosses_the_exception_handling_axis ... ok
 test shipped_registry_varies_every_flag_the_workload_depends_on ... ok
 test the_workloads_own_profile_is_a_lane ... ok
+test shipped_registry_crosses_the_exception_handling_axis ... ok
 
 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
      Running tests/noinline_boundary.rs (target/release/deps/noinline_boundary-65b48e76c1cb014e)
 
 running 4 tests
-test the_same_cell_without_the_attribute_splices_byte_exactly ... ok
 test the_shipped_splice_emits_the_wrong_body_through_a_noinline_callee ... ok
 test c2_does_not_close_a_chain_through_a_noinline_intermediate ... ok
+test the_same_cell_without_the_attribute_splices_byte_exactly ... ok
 test the_attribute_is_invisible_outside_the_gl_record ... ok
 
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
 
      Running tests/nothing_seed.rs (target/release/deps/nothing_seed-e15fb0cd6f65bb23)
 
 running 11 tests
+test mechanism_i_above_a_seed_does_not_propagate ... ok
+test self_recursion_through_a_nothing_statement_is_refused ... ok
+test a_nothing_body_seeds_and_its_caller_collapses ... ok
 test a_seed_propagates_up_a_chain ... ok
 test two_nothing_statements_are_refused ... ok
-test a_nothing_body_seeds_and_its_caller_collapses ... ok
-test mechanism_i_above_a_seed_does_not_propagate ... ok
-test a_caller_that_materializes_data_is_not_elided ... ok
-test an_external_nothing_body_keeps_its_relocation ... ok
-test self_recursion_through_a_nothing_statement_is_refused ... ok
-test a_body_that_keeps_bytes_never_seeds ... ok
-test the_workload_five_level_chain_closes ... ok
-test a_cycle_of_nothing_bodies_is_never_admitted ... ok
 test a_body_refused_for_another_reason_never_seeds ... ok
+test the_workload_five_level_chain_closes ... ok
+test a_caller_that_materializes_data_is_not_elided ... ok
+test a_cycle_of_nothing_bodies_is_never_admitted ... ok
+test an_external_nothing_body_keeps_its_relocation ... ok
+test a_body_that_keeps_bytes_never_seeds ... ok
 
 test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
 
      Running tests/reloc_identity.rs (target/release/deps/reloc_identity-02be4ab8a171d4bb)
 
 running 3 tests
-test the_cells_population_is_three_functions_one_of_which_disagrees ... ok
 test the_s12_reproducer_moves_from_exact_to_a_relocation_disagreement ... ok
+test the_cells_population_is_three_functions_one_of_which_disagrees ... ok
 test a_function_whose_bytes_and_relocations_are_both_c2s_stays_exact ... ok
 
 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
@@ -781,23 +781,23 @@ running 2 tests
 test every_sweep_fragment_emits_cases_and_the_counts_match_the_disk ... ok
 test sweep_generation_is_deterministic ... ok
 
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.70s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.61s
 
      Running unittests src/lib.rs (target/release/deps/c2_il-767bc6b9b20b36af)
 
 running 530 tests
 test codec::tests::block_start_token_round_trips ... ok
 test codec::tests::delete_arith_term_shrinks_and_shifts_gl ... ok
-test codec::tests::edit_errors_are_typed_and_nonmutating ... ok
 test codec::tests::edit_that_creates_a_function_is_refused ... ok
+test codec::tests::edit_errors_are_typed_and_nonmutating ... ok
 test codec::tests::ex_token_encodings_are_exact ... ok
 test codec::tests::fn_header_falls_back_to_opaque_without_block_start ... ok
 test codec::tests::full_model_round_trips_and_opaque_files_preserved ... ok
 test codec::tests::gl_offsets_are_one_to_one_with_ex_function_count ... ok
 test codec::tests::insert_arith_term_grows_and_shifts_gl ... ok
 test codec::tests::narrow_of_a_wide_literal_shrinks_by_four ... ok
-test codec::tests::out_of_class_bytes_stay_opaque_but_round_trip ... ok
 test codec::tests::nonlast_edit_without_typed_gl_is_refused_but_last_is_allowed ... ok
+test codec::tests::out_of_class_bytes_stay_opaque_but_round_trip ... ok
 test codec::tests::parse_ex_round_trips_and_types_the_body ... ok
 test codec::tests::parse_gl_all_opaque_when_no_ex_offsets ... ok
 test codec::tests::parse_gl_rejects_when_framed_offsets_disagree_with_ex ... ok
@@ -807,8 +807,8 @@ test codec::tests::realistic_ex_round_trips_and_shrinks_opaque ... ok
 test codec::tests::volf_float_leaf_body_is_token_addressable_with_editable_ops ... ok
 test codec::tests::volf_float_leaf_round_trips_and_is_fully_typed ... ok
 test codec::tests::widen_last_fn_leaves_gl_unchanged ... ok
-test codec::tests::widen_nonlast_fn_bumps_downstream_gl_by_delta ... ok
 test func::bind::tests::a_26_separated_name_binds_and_the_framing_arity_does_not_move ... ok
+test codec::tests::widen_nonlast_fn_bumps_downstream_gl_by_delta ... ok
 test func::bind::tests::a_26_that_introduces_no_plausible_name_yields_no_binding ... ok
 test func::bind::tests::a_body_record_is_reported_even_when_its_row_binding_collides ... ok
 test func::bind::tests::a_broken_framing_yields_no_record_at_all ... ok
@@ -885,32 +885,33 @@ test func::body::mcall::tests::the_class_pair_descriptor_refs_are_leb_ids_not_fi
 test func::body::mcall::tests::the_count_follows_the_designator_into_the_second_blocker ... ok
 test func::body::mcall::tests::the_decode_accepts_nothing ... ok
 test func::body::mcall::tests::the_greedy_chain_is_bounded_and_terminates ... ok
-test func::body::mcall::tests::the_load_and_the_address_of_a_sub_object_are_different_buckets ... ok
 test func::body::mcall::tests::the_key_shapes_partition_the_bucket ... ok
+test func::body::mcall::tests::the_load_and_the_address_of_a_sub_object_are_different_buckets ... ok
 test func::body::mcall::tests::the_second_blocker_is_not_the_byte_the_matcher_stopped_on ... ok
 test func::body::mcall::tests::the_symbol_count_is_the_addresses_the_call_materializes ... ok
+test func::body::mcall::tests::the_completeness_axis_agrees_with_the_rendered_key ... ok
 test func::body::mcall::tests::the_trailer_arms_take_exactly_what_their_doc_claims ... ok
 test func::body::mcall::tests::the_trailer_flag_alone_turns_a_whole_body_into_the_op_0x5c_key ... ok
-test func::body::mcall::tests::the_completeness_axis_agrees_with_the_rendered_key ... ok
 test func::body::mcall::tests::the_trailer_sink_arms_are_nested ... ok
 test func::body::mcall::tests::the_trailer_sink_is_off_in_the_test_process ... ok
 test func::body::mcall::tests::the_whole_suffix_counts_granted_constructs_not_occurrences ... ok
 test func::body::mcall::tests::widening_the_count_prints_none_where_there_is_no_designator ... ok
 test func::body::shapes::assign::tests::everything_outside_the_operand_vocabulary_refuses_at_the_load_instead ... ok
-test func::body::mcall::tests::the_aux_packing_round_trips_every_pair ... ok
 test func::body::shapes::assign::tests::int_like_store_types_pass_the_type_gate_and_stop_at_the_destination ... ok
 test func::body::shapes::assign::tests::store_type_key_names_the_kind_and_not_just_the_slot_width ... ok
 test func::body::shapes::assign::tests::the_default_arm_of_the_store_type_gate_is_the_shipped_eat_int_like ... ok
+test func::body::mcall::tests::the_aux_packing_round_trips_every_pair ... ok
 test func::body::shapes::assign::tests::the_sink_arms_are_nested ... ok
 test func::body::shapes::assign::tests::the_store_type_sink_is_off_in_the_test_process ... ok
 test func::body::shapes::calls::tests::a_call_argument_from_a_formal_beyond_the_argument_count_refuses_and_does_not_panic ... ok
 test func::body::shapes::calls::tests::a_call_argument_that_is_not_a_formal_refuses_in_the_parser ... ok
 test func::body::shapes::calls::tests::a_call_bound_to_a_local_gets_the_same_argument_gates_as_the_direct_form ... ok
+test func::body::shapes::calls::tests::a_call_tail_literal_takes_any_width_four_integer_spelling ... ok
 test func::body::shapes::calls::tests::a_two_argument_tail_call_over_the_leading_formals_is_still_in_class ... ok
 test func::body::shapes::calls::tests::class_a_many_calls_decode_and_the_lone_statement_call_stays_a_tail_call ... ok
-test func::body::shapes::calls::tests::a_call_tail_literal_takes_any_width_four_integer_spelling ... ok
 test func::body::shapes::calls::tests::class_b_saves_the_formals_that_survive_a_call_in_parameter_order ... ok
 test func::body::shapes::calls::tests::the_permutation_walk_refuses_an_out_of_range_source_instead_of_panicking ... ok
+test func::body::mcall::tests::a_measure_and_its_emitter_admit_the_same_types ... ok
 test func::body::shapes::cond_tail::tests::a_body_whose_arms_call_the_same_callee_is_refused ... ok
 test func::body::shapes::cond_tail::tests::memfree_parses_as_a_cond_tail_pair ... ok
 test func::body::shapes::cond_tail::tests::the_register_plan_matches_the_reference_obj ... ok
@@ -919,7 +920,6 @@ test func::body::shapes::control_flow::tests::a_marker_then_a_stop_is_not_bare .
 test func::body::shapes::control_flow::tests::a_proven_state_survives_an_undecoded_tail ... ok
 test func::body::shapes::control_flow::tests::a_wrong_scope_depth_refuses_rather_than_landing_on_the_tail ... ok
 test func::body::shapes::control_flow::tests::decoding_a_body_never_makes_it_in_class ... ok
-test func::body::mcall::tests::a_measure_and_its_emitter_admit_the_same_types ... ok
 test func::body::shapes::control_flow::tests::early_return_is_forward_with_two_jumps_to_one_label ... ok
 test func::body::shapes::control_flow::tests::empty_body_is_one_basic_block ... ok
 test func::body::shapes::control_flow::tests::if_else_is_a_forward_diamond_blocked_on_control_flow_alone ... ok
@@ -945,16 +945,17 @@ test func::body::shapes::ctor_dtor::tests::a_nonzero_base_adjust_refuses ... ok
 test func::body::shapes::ctor_dtor::tests::a_receiver_that_is_not_this_refuses ... ok
 test func::body::shapes::ctor_dtor::tests::a_second_statement_and_a_short_segment_both_refuse ... ok
 test func::body::shapes::ctor_dtor::tests::the_constructor_call_must_return_a_pointer_and_bind_directly ... ok
+test func::body::mcall::tests::a_measure_and_its_emitter_admit_the_same_operand_streams ... ok
 test func::body::shapes::ctor_dtor::tests::the_empty_base_constructor_parses_with_and_without_the_unwind_half ... ok
 test func::body::shapes::ctor_dtor::tests::the_generated_empty_destructor_parses_under_both_trailer_flags ... ok
 test func::body::shapes::ctor_dtor::tests::the_leading_literal_must_be_zero_and_int_typed ... ok
 test func::body::shapes::ctor_dtor::tests::the_member_destructor_parses_at_both_offsets ... ok
 test func::body::shapes::ctor_dtor::tests::the_member_form_keeps_the_base_forms_gates ... ok
-test func::body::shapes::ctor_dtor::tests::the_member_receiver_must_be_this_and_must_be_an_offset_add ... ok
 test func::body::shapes::ctor_dtor::tests::the_member_offset_must_fit_one_addi ... ok
+test func::body::shapes::ctor_dtor::tests::the_member_receiver_must_be_this_and_must_be_an_offset_add ... ok
 test func::body::shapes::ctor_dtor::tests::the_object_type_must_be_a_class_and_the_body_must_end ... ok
-test func::body::shapes::ctor_dtor::tests::the_unwind_half_must_agree_with_the_statement_it_belongs_to ... ok
 test func::body::shapes::ctor_dtor::tests::the_trailer_flags_must_agree_and_a_third_value_refuses ... ok
+test func::body::shapes::ctor_dtor::tests::the_unwind_half_must_agree_with_the_statement_it_belongs_to ... ok
 test func::body::shapes::ctor_dtor::tests::two_destroyed_members_in_one_body_refuse ... ok
 test func::body::shapes::ctor_dtor::tests::two_destroyed_subobjects_refuse ... ok
 test func::body::shapes::designator::tests::an_empty_offset_add_run_reports_no_retype ... ok
@@ -966,7 +967,6 @@ test func::body::shapes::designator::tests::the_two_pointer_predicates_guarding_
 test func::body::shapes::div_mod_leaf::tests::a_mixed_type_triple_refuses ... ok
 test func::body::shapes::div_mod_leaf::tests::long_spellings_are_refused_even_though_c2_emits_the_same_bytes ... ok
 test func::body::shapes::div_mod_leaf::tests::only_the_two_division_opcodes_are_taken ... ok
-test func::body::mcall::tests::a_measure_and_its_emitter_admit_the_same_operand_streams ... ok
 test func::body::shapes::early_return::tests::a_body_with_no_guard_is_not_this_shape ... ok
 test func::body::shapes::early_return::tests::a_distinct_exit_value_still_parses ... ok
 test func::body::shapes::early_return::tests::a_short_circuit_and_is_one_early_return_carrying_both_conditions ... ok
@@ -1007,8 +1007,8 @@ test func::body::shapes::leaf_load::tests::ptr_leaves_refuse_the_shapes_that_cos
 test func::body::shapes::leaf_load::tests::the_displacement_gate_is_on_the_sum_not_on_any_one_add ... ok
 test func::body::shapes::leaf_store::tests::bind_at_displacement_zero_stays_refused_because_the_two_spellings_are_one_body ... ok
 test func::body::shapes::leaf_store::tests::bind_reads_the_plain_run_tail_as_well_as_the_call_one ... ok
-test func::body::shapes::leaf_store::tests::bind_refuses_a_destination_the_sy_layer_does_not_call_a_local ... ok
 test func::body::shapes::leaf_store::tests::bind_reads_the_shipped_xboxheap_spelling_and_keeps_it_apart_from_the_direct_one ... ok
+test func::body::shapes::leaf_store::tests::bind_refuses_a_destination_the_sy_layer_does_not_call_a_local ... ok
 test func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input ... ok
 test func::body::shapes::leaf_store::tests::f2_admits_a_member_address_as_a_stored_value_and_the_30_still_separates_the_load ... ok
 test func::body::shapes::leaf_store::tests::f2_leaves_the_zero_offset_address_refused_because_c2_emits_no_addi_there ... ok
@@ -1033,41 +1033,41 @@ test func::body::shapes::mcall_chain::tests::the_emission_order_is_the_push_run_
 test func::body::shapes::mcall_chain::tests::the_fp_tail_is_what_puts_fltused_in_the_obj ... ok
 test func::body::shapes::mcall_chain::tests::the_narrowing_and_the_integer_conversion_refuse_by_name ... ok
 test func::body::shapes::mcall_chain::tests::the_offset_run_folds_because_the_locator_is_shared ... ok
+test func::body::shapes::mcall_chain::tests::the_promotion_is_free_and_the_width_follows_the_member ... ok
 test func::body::shapes::mcall_cmp::tests::a_mixed_signedness_comparison_has_no_operand_signedness ... ok
 test func::body::shapes::mcall_cmp::tests::equality_and_the_two_order_relations_are_admitted_and_the_rest_refuse_by_name ... ok
 test func::body::shapes::mcall_cmp::tests::only_the_signed_order_spine_takes_leading_label_slots ... ok
 test func::body::shapes::mcall_cmp::tests::the_operand_signedness_is_read_from_the_call_result_type ... ok
 test func::body::shapes::mcall_cmp::tests::the_source_operand_order_moves_only_the_spine_not_the_calls ... ok
 test func::body::shapes::mcall_cmp::tests::the_tail_s_saved_call_result_counts_toward_the_gpr_total ... ok
-test func::body::shapes::mcall_chain::tests::the_promotion_is_free_and_the_width_follows_the_member ... ok
+test func::body::shapes::mcall_cmp::tests::this_has_parameter_index_zero_and_the_highest_token_so_its_call_goes_last ... ok
 test func::body::shapes::mcall_cmp::tests::this_ranks_after_every_declared_formal_although_it_is_parameter_zero ... ok
 test func::body::shapes::mcall_cmp::tests::two_member_calls_compared_for_equality_are_a_class_b_sequence ... ok
-test func::body::shapes::mcall_cmp::tests::this_has_parameter_index_zero_and_the_highest_token_so_its_call_goes_last ... ok
 test func::body::shapes::mcall_tail::tests::a_literal_behind_an_offset_add_is_named_for_the_add_not_the_byte ... ok
 test func::body::shapes::mcall_tail::tests::a_member_call_with_a_literal_postop_is_a_framed_call ... ok
-test func::body::shapes::mcall_tail::tests::a_nullary_member_call_is_a_tail_call_whose_argument_is_the_receiver ... ok
+test func::body::shapes::mcall_tail::tests::a_named_object_receiver_enters_slot_zero_as_an_address ... ok
 test func::body::shapes::mcall_tail::tests::a_non_pointer_receiver_declines ... ok
+test func::body::shapes::mcall_tail::tests::a_nullary_member_call_is_a_tail_call_whose_argument_is_the_receiver ... ok
+test func::body::shapes::mcall_tail::tests::a_postop_of_zero_folds_to_the_tail_call_rather_than_a_frame ... ok
+test func::body::shapes::mcall_tail::tests::an_indirect_store_at_the_bind_position_is_named_a_store ... ok
+test func::body::shapes::mcall_tail::tests::every_receiver_refusal_has_a_name ... ok
 test func::body::shapes::mcall_tail::tests::member_tail_call_puts_this_in_slot_zero ... ok
-test func::body::shapes::no_effect::tests::a_different_temporary_in_the_argument_is_refused ... ok
-test func::body::shapes::no_effect::tests::a_formal_load_in_place_of_the_int_literal_is_declined ... ok
 test func::body::shapes::mcall_tail::tests::the_bind_s_trailing_field_is_required_to_be_zero ... ok
 test func::body::shapes::mcall_tail::tests::the_census_still_names_the_member_call_when_the_shape_declines ... ok
-test func::body::shapes::no_effect::tests::a_call_whose_result_is_not_discarded_is_refused ... ok
-test func::body::shapes::mcall_tail::tests::a_named_object_receiver_enters_slot_zero_as_an_address ... ok
-test func::body::shapes::no_effect::tests::a_different_intrinsic_selector_is_refused ... ok
-test func::body::shapes::mcall_tail::tests::a_postop_of_zero_folds_to_the_tail_call_rather_than_a_frame ... ok
-test func::body::shapes::no_effect::tests::a_body_with_no_temporary_is_not_recognized ... ok
-test func::body::shapes::mcall_tail::tests::the_receiver_vocabulary_is_injective ... ok
 test func::body::shapes::mcall_tail::tests::the_intrinsic_receiver_arm_separates_by_selector ... ok
+test func::body::shapes::mcall_tail::tests::the_object_receiver_declines_a_chain_without_consuming_it ... ok
+test func::body::shapes::mcall_tail::tests::the_receiver_may_carry_a_pointer_conversion_and_it_emits_nothing ... ok
+test func::body::shapes::no_effect::tests::a_body_with_no_temporary_is_not_recognized ... ok
+test func::body::shapes::no_effect::tests::a_call_whose_result_is_not_discarded_is_refused ... ok
+test func::body::shapes::no_effect::tests::a_continue_that_does_not_name_the_step_label_is_refused ... ok
+test func::body::shapes::no_effect::tests::a_different_intrinsic_selector_is_refused ... ok
+test func::body::shapes::mcall_tail::tests::the_receiver_vocabulary_is_injective ... ok
+test func::body::shapes::no_effect::tests::a_different_temporary_in_the_argument_is_refused ... ok
+test func::body::shapes::no_effect::tests::a_formal_load_in_place_of_the_int_literal_is_declined ... ok
 test func::body::shapes::no_effect::tests::a_head_branch_that_does_not_name_the_test_label_is_refused ... ok
 test func::body::shapes::no_effect::tests::a_line_marker_before_the_return_plumbing_is_eaten ... ok
-test func::body::shapes::mcall_tail::tests::an_indirect_store_at_the_bind_position_is_named_a_store ... ok
-test func::body::shapes::no_effect::tests::a_continue_that_does_not_name_the_step_label_is_refused ... ok
 test func::body::shapes::no_effect::tests::a_load_of_a_non_formal_is_refused ... ok
-test func::body::shapes::mcall_tail::tests::the_object_receiver_declines_a_chain_without_consuming_it ... ok
 test func::body::shapes::no_effect::tests::a_loop_call_outside_the_argument_vocabulary_is_refused ... ok
-test func::body::shapes::mcall_tail::tests::every_receiver_refusal_has_a_name ... ok
-test func::body::shapes::mcall_tail::tests::the_receiver_may_carry_a_pointer_conversion_and_it_emits_nothing ... ok
 test func::body::shapes::no_effect::tests::a_nothing_body_that_opens_a_deeper_scope_is_refused ... ok
 test func::body::shapes::no_effect::tests::a_nothing_literal_of_another_type_is_refused ... ok
 test func::body::shapes::no_effect::tests::a_nothing_statement_whose_value_is_consumed_is_refused ... ok
@@ -1095,13 +1095,13 @@ test func::body::shapes::no_effect::tests::trailing_bytes_after_the_loop_are_ref
 test func::body::shapes::no_effect::tests::trailing_bytes_after_the_nothing_statement_are_refused ... ok
 test func::body::shapes::ptr_walk_chain_loop::tests::element_type_classes_are_the_two_const_one_byte_spellings ... ok
 test func::body::shapes::ptr_walk_chain_loop::tests::literal_ranges_follow_the_immediate_field_and_not_a_single_guess ... ok
+test func::body::shapes::ptr_walk_chain_loop::tests::only_the_four_measured_operators_are_admitted ... ok
 test func::body::shapes::ptr_walk_loop::tests::mulli_literal_is_the_measured_set_and_nothing_else ... ok
 test func::body::shapes::tests::bool_value_class_is_free_inside_and_refuses_the_widening ... ok
-test func::body::shapes::ptr_walk_chain_loop::tests::only_the_four_measured_operators_are_admitted ... ok
 test func::body::tests::a_body_that_reaches_no_tagged_site_still_reads_a_named_default ... ok
 test func::body::tests::a_call_token_inside_a_consumed_payload_is_not_recounted ... ok
-test func::body::tests::a_four_byte_token_parses_as_one_operand_not_two ... ok
 test func::body::tests::a_four_byte_pointer_at_the_load_is_an_operand_not_a_blocker ... ok
+test func::body::tests::a_four_byte_token_parses_as_one_operand_not_two ... ok
 test func::body::tests::a_pointer_operand_is_barred_from_arithmetic ... ok
 test func::body::tests::census_agrees_with_the_gate_on_every_pinned_segment ... ok
 test func::body::tests::census_names_the_first_blocking_opcode ... ok
@@ -1110,8 +1110,8 @@ test func::body::tests::every_field_of_the_call_token_is_required_literally ... 
 test func::body::tests::parse_segment_accepts_bare_literal_return_and_wide ... ok
 test func::body::tests::parse_segment_accepts_bare_void_tail_call ... ok
 test func::body::tests::parse_segment_accepts_framed_call ... ok
-test func::body::tests::parse_segment_accepts_int_tail_call_family ... ok
 test func::body::tests::parse_segment_accepts_nonlast_function_reaching_segment_end ... ok
+test func::body::tests::parse_segment_accepts_int_tail_call_family ... ok
 test func::body::tests::parse_segment_accepts_straight_line_add3 ... ok
 test func::body::tests::parse_segment_rejects_all_out_of_class_call_shapes ... ok
 test func::body::tests::parse_segment_rejects_unmodeled_arithmetic_ops ... ok
@@ -1122,11 +1122,11 @@ test func::body::tests::the_dispatch_axes_are_reset_per_body ... ok
 test func::body::tests::the_dispatch_axis_names_the_arm_that_claimed_each_body ... ok
 test func::body::tests::the_eof_suffix_is_earned_by_reaching_the_segment_end ... ok
 test func::body::tests::the_operand_type_bucket_does_not_shard_on_the_per_tu_type_id ... ok
-test func::body::shapes::mcall_cmp::tests::no_decline_out_of_the_cmp_production_lands_in_the_residue ... ok
 test func::body::tests::the_operand_type_rekey_is_an_exact_coarsening ... ok
 test func::body::wr1_dyninit::the_dynamic_initializer_thunk_decodes_to_a_three_slot_tail_call ... ok
-test func::body::wr1_dyninit::the_transcript_carries_the_bare_lo_and_the_empty_module_scope ... ok
 test func::body::wr1_dyninit::the_empty_module_scope_is_optional_and_the_module_end_is_not ... ok
+test func::body::wr1_dyninit::the_transcript_carries_the_bare_lo_and_the_empty_module_scope ... ok
+test func::body::shapes::mcall_tail::tests::no_decline_out_of_the_tail_production_lands_in_the_residue ... ok
 test func::bundle::dyninit_tests::a_bundle_without_the_three_streams_refuses ... ok
 test func::bundle::dyninit_tests::decodes_is_the_union_of_both_acceptance_paths ... ok
 test func::bundle::dyninit_tests::only_the_dynamic_initializer_thunk_is_admitted ... ok
@@ -1136,7 +1136,6 @@ test func::bundle::tests::ex_segment_count_is_a_pure_reader_that_never_refuses .
 test func::bundle::tests::fp_contract_off_is_still_the_mode_it_was_compiled_at ... ok
 test func::bundle::tests::opt_words_is_empty_for_a_module_with_no_segments ... ok
 test func::bundle::tests::opt_words_reads_one_word_per_segment ... ok
-test func::body::shapes::mcall_tail::tests::no_decline_out_of_the_tail_production_lands_in_the_residue ... ok
 test func::bundle::tests::opt_words_reports_an_unreadable_prefix_rather_than_guessing ... ok
 test func::bundle::tests::the_atexit_thunk_has_no_block_start_and_is_still_found ... ok
 test func::bundle::tests::the_bare_walk_refuses_everything_that_is_not_this_grammar ... ok
@@ -1145,8 +1144,8 @@ test func::bundle::tests::the_composed_marker_still_wins_and_wins_first ... ok
 test func::bundle::tests::the_dynamic_initializer_thunk_opens_with_a_bare_lo ... ok
 test func::bundle::tests::the_optimization_word_is_a_varint_not_a_fixed_escape ... ok
 test func::census::tests::a_body_the_ladder_never_ran_for_reads_disp_not_run ... ok
-test func::census::tests::census_hex_window_is_clamped_to_the_segment ... ok
 test func::census::tests::census_classifies_each_function_independently ... ok
+test func::census::tests::census_hex_window_is_clamped_to_the_segment ... ok
 test func::census::tests::every_census_row_carries_a_named_dispatch_and_production_reading ... ok
 test func::census::tests::every_in_class_row_is_a_single_basic_block ... ok
 test func::census::tests::the_completeness_axis_reads_the_segment_end_producer_both_ways ... ok
@@ -1154,7 +1153,6 @@ test func::compare_leaf_gate_tests::the_difference_spine_gates_are_the_ones_the_
 test func::diag::tests::an_empty_bundle_names_both_missing_files_and_agrees_with_the_gate ... ok
 test func::diag::tests::both_framings_see_zero_records_in_a_gl_with_none ... ok
 test func::diag::tests::the_gate_framing_sees_only_the_low_256_type_indices ... ok
-test func::body::shapes::mcall_chain::tests::no_decline_out_of_the_chain_production_lands_in_the_residue ... ok
 test func::gl::data_object_tests::a_record_truncated_before_the_flags_byte_refuses ... ok
 test func::gl::data_object_tests::a_size_past_127_uses_the_varint_escape ... ok
 test func::gl::data_object_tests::an_ambiguous_token_is_dropped ... ok
@@ -1162,6 +1160,7 @@ test func::gl::data_object_tests::selectany_fails_closed_on_the_attribute_byte .
 test func::gl::data_object_tests::the_attr_byte_separates_bss_objects_from_data_objects ... ok
 test func::gl::data_object_tests::the_frame_check_refuses_everything_it_has_not_measured ... ok
 test func::gl::data_object_tests::the_measured_gl_data_records_decode ... ok
+test func::body::shapes::mcall_cmp::tests::no_decline_out_of_the_cmp_production_lands_in_the_residue ... ok
 test func::gl::data_object_tests::the_new_reader_and_the_extern_gate_admit_disjoint_linkages ... ok
 test func::gl::data_object_tests::the_thread_local_bit_is_published_not_swallowed ... ok
 test func::gl::data_object_tests::the_type_tag_encodes_alignment_and_not_size ... ok
@@ -1190,13 +1189,14 @@ test func::gl::tests::source_path_from_gl_slice ... ok
 test func::gl::tests::the_wide_type_tag_reads_the_same_width_as_the_narrow_one ... ok
 test func::glalias::tests::a_body_record_is_never_an_alias ... ok
 test func::glalias::tests::a_disagreeing_duplicate_is_dropped ... ok
-test func::glalias::tests::a_truncated_record_fails_the_header_walk ... ok
 test func::glalias::tests::a_self_alias_is_refused ... ok
+test func::glalias::tests::a_truncated_record_fails_the_header_walk ... ok
 test func::glalias::tests::a_wild_header_count_does_not_spin ... ok
 test func::glalias::tests::alias_pair_decodes ... ok
 test func::glalias::tests::an_alias_that_also_has_a_body_is_counted ... ok
 test func::glalias::tests::an_empty_stream_decodes_to_nothing ... ok
 test func::glalias::tests::an_unbound_target_is_refused ... ok
+test func::body::shapes::mcall_chain::tests::no_decline_out_of_the_chain_production_lands_in_the_residue ... ok
 test func::glalias::tests::i16c_reads_the_escape_and_the_sign ... ok
 test func::glalias::tests::dom_with_body_is_zero_when_the_alias_is_bodyless ... ok
 test func::glalias::tests::i32c_reads_the_escape_and_the_sign ... ok
@@ -1317,7 +1317,7 @@ test tests::missing_files_are_skipped_not_errors ... ok
 test tests::round_trip_load_write_load_byte_identical ... ok
 test func::body::expr::tests::the_div_mod_key_is_an_exact_refinement_of_the_published_one ... ok
 
-test result: ok. 530 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 530 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
 
      Running tests/gl_alias_corpus.rs (target/release/deps/gl_alias_corpus-5bd678705e6b8448)
 
@@ -1336,8 +1336,8 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running unittests src/lib.rs (target/release/deps/c2_obj-526fc0fb2d58308e)
 
 running 41 tests
-test reloc::tests::a_flag_bit_does_not_change_the_base_type ... ok
 test reloc::tests::a_comdat_with_no_records_returns_an_empty_list ... ok
+test reloc::tests::a_flag_bit_does_not_change_the_base_type ... ok
 test reloc::tests::a_non_text_sections_records_are_not_attributed_to_a_function ... ok
 test reloc::tests::a_pair_records_index_field_is_read_as_a_displacement ... ok
 test reloc::tests::a_section_definition_target_comes_back_as_a_section ... ok
@@ -1392,12 +1392,12 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 15 tests
 test cod::tests::both_proc_separators_are_read ... ok
 test cod::tests::extrn_declarations_are_not_definitions ... ok
-test cod::tests::only_branches_are_canonical_not_every_relocated_row ... ok
 test cod::tests::publics_include_the_build_stamps_and_the_caller_filters_them ... ok
+test cod::tests::only_branches_are_canonical_not_every_relocated_row ... ok
 test cod::tests::rows_decode_offset_word_and_mnemonic ... ok
 test tests::parse_c1_argv_isolates_the_c1xx_line ... ok
-test tests::parse_c1_argv_none_without_c1xx_line ... ok
 test tests::locate_is_none_when_paths_absent ... ok
+test tests::parse_c1_argv_none_without_c1xx_line ... ok
 test tests::scrape_bare_form_uses_fallback_dir ... ok
 test tests::scrape_current_wibo_form ... ok
 test tests::scrape_ignores_non_flag ... ok
@@ -1412,8 +1412,8 @@ test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
 
 running 3 tests
 test the_cod_is_byte_truth_except_at_relocated_branches ... ok
-test the_listing_does_not_perturb_the_obj ... ok
 test qxstalls_annotates_the_listing_and_only_with_the_flag ... ok
+test the_listing_does_not_perturb_the_obj ... ok
 
 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
 
@@ -1428,7 +1428,7 @@ test bk_capture_matches_strace_capture_and_replay ... ok
 test p0_1_replay_byte_exact ... ok
 test concurrent_host_stub_builds_never_publish_a_partial_exe ... ok
 
-test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
 
    Doc-tests c2_core
 
