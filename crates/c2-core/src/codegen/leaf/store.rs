@@ -1252,6 +1252,8 @@ mod tests {
         fp_arg_sources: None,
             arg_sources: None,
             data_sym: None,
+            data_def: None,
+            static_scan_loop: None,
         };
         assert_eq!(
             store_leaf_text(&f, OptMode::Ox).unwrap().unwrap(),
@@ -1363,6 +1365,8 @@ mod tests {
             fp_arg_sources: None,
             arg_sources: None,
             data_sym: None,
+            data_def: None,
+            static_scan_loop: None,
         };
         assert_eq!(
             store_leaf_text(&f, OptMode::Ox).unwrap().unwrap(),
@@ -1513,6 +1517,8 @@ mod tests {
             fp_arg_sources: None,
             arg_sources: None,
             data_sym: None,
+            data_def: None,
+            static_scan_loop: None,
         };
         assert_eq!(
             store_leaf_text(&f, OptMode::Ox).unwrap().unwrap(),
@@ -1755,6 +1761,8 @@ mod tests {
             fp_arg_sources: None,
             arg_sources: None,
             data_sym: None,
+            data_def: None,
+            static_scan_loop: None,
         };
         let lit_group = |b: u32, off: i32, k: i32| {
             vec![

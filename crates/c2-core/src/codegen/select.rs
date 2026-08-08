@@ -282,6 +282,23 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
     if let Some(l) = &func.ptr_walk_loop {
         return Ok(Selected::Plain(ptr_walk_loop_text(l, mode)?));
     }
+    // **W-DATA — the static-array scan loop.** Same placement argument as the
+    // two loops around it and the same freedom: `func.static_scan_loop` is set
+    // by exactly one parser production, `func.ops` is empty for it, and no leaf
+    // pattern-matcher below can take its body.
+    //
+    // It is the only arm in this function whose obj carries a section the
+    // *function* did not produce — a COMDAT `.data` for the object it
+    // references. That section is **not** decided here: `Selected` has no
+    // variant for it, deliberately, because the section belongs to the obj and
+    // not to the instruction selection, and `coff::emit_comdat_obj` reads it off
+    // `Function::data_defs`. Board #844's invariant is unaffected — this shape
+    // sets one field and no other.
+    if func.static_scan_loop.is_some() {
+        return Ok(Selected::Plain(crate::codegen::static_scan_loop::static_scan_loop_emit(
+            func, mode,
+        )?));
+    }
     // **The body-parameterized pointer-walk loop.** Same placement argument as
     // the shape above and the same freedom: `func.ptr_walk_chain_loop` is set by
     // exactly one parser production, `func.ops` is empty for it, and no leaf

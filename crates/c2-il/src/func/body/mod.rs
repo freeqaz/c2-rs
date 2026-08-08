@@ -26,6 +26,7 @@ use self::shapes::{
     try_parse_ptr_walk_chain_loop,
     try_parse_if_call_join,
     try_parse_ptr_walk_loop,
+    try_parse_static_scan_loop,
     try_parse_store_leaf, try_parse_store_run, try_parse_store_run_bind,
     try_parse_store_run_call,
 };
@@ -640,6 +641,11 @@ pub(crate) enum BodyShape {
     /// [`super::shapes::if_call_join`] for the whole accept/refuse boundary and
     /// [`crate::func::IfCallJoin`] for the fields.
     IfCallJoin(crate::func::IfCallJoin),
+    /// **W-DATA — the static-array scan loop.** The first body class here whose
+    /// function DEFINES the data it reads. See
+    /// [`super::shapes::static_scan_loop`] for the whole accept/refuse boundary
+    /// and [`crate::func::StaticScanLoop`] for the fields.
+    StaticScanLoop(crate::func::StaticScanLoop),
     /// **The body-parameterized pointer-walk loop** — the first shape here
     /// whose emitted body has no fixed length. See
     /// [`super::shapes::ptr_walk_chain_loop`] for the accept/refuse boundary
@@ -991,6 +997,29 @@ pub(crate) const CALLEE_UNRESOLVED_TAIL: &str = "callee-unresolved-tail-call";
 /// requires the cursor to reach `seg.len()`. So the `:eof` it renders is the
 /// true statement — the body is grammar-complete and directly sizeable.
 pub(crate) const STORE_RUN_CALL_NO_CARRIER: &str = "store-run-call-no-emitter-carrier";
+
+/// **W-DATA — the body is a static-array scan loop and the OBJECT it reads is
+/// outside the class.**
+///
+/// Its own key rather than one of the `callee-unresolved-*` family, for the
+/// reason [`STORE_RUN_CALL_NO_CARRIER`] has one: nothing about a *callee* is
+/// missing here, and nothing about the body is either — it is grammar-complete
+/// and this parser accepted it. What refused is
+/// `Bindings::resolve_data_def`, over the object the body subscripts: it is
+/// not a COMDAT (a namespace-scope `static`, placed *before* `.text` — board
+/// #1682), or not initialized (a `.bss` COMDAT), or thread-local, or its `.in`
+/// value did not decode to exactly its `.gl` size.
+///
+/// **Filing it under `callee-unresolved-tail-call` is what this key exists to
+/// stop, and that is not hypothetical**: GRID B's `n0` and `n1` cells read
+/// exactly that before this constant existed, so two cells that refuse in the
+/// OBJECT resolver were labelled with a refusal about a symbol they do not
+/// have. A residue nobody can name is a residue nobody can size.
+///
+/// `Block::at_end` is earned for the same reason the constant above earns it:
+/// the arm runs only for a body the whole-segment parser already accepted, so
+/// the `:eof` it renders is the true statement.
+pub(crate) const STATIC_SCAN_LOOP_OBJECT: &str = "static-scan-loop-object-out-of-class";
 
 /// **#839's residue key** — the body is a store run whose base is a C++
 /// reference bind, it parses **to the end of the segment**, and what is left
@@ -1899,6 +1928,25 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                 // because the two loops name matched workload TUs.
                 if let Ok(shape) = try_parse_if_call_join(seg, p, lo, locals, sy.ptr_locals) {
                     disp("disp-if-call-join");
+                    return Ok(shape);
+                }
+                // **W-DATA — the static-array scan loop.** It opens on the same
+                // `26 <local>` the two loops above and `if_call_join` do — its
+                // first statement is `j = 0` — so it is tried here on the same
+                // terms: its own cursor, `Err` on the first byte that is not its
+                // grammar, no census key moved by a decline.
+                //
+                // Its grammar separates from `ptr_walk_loop`'s at the SECOND
+                // statement, whichever is asked first: that one requires a `53`
+                // opening a `for` whose first statement assigns a **pointer**
+                // local, this one requires the rotation's `3A <Ltest>`
+                // immediately. It separates from `ptr_walk_chain_loop`'s at the
+                // same point (a top-test `while`'s `29 <label>`) and from
+                // `if_call_join`'s at the `53` opening a relational test. So the
+                // order among the four is free; this one is last because the
+                // other three name TUs that were matched before it.
+                if let Ok(shape) = try_parse_static_scan_loop(seg, p, lo, locals) {
+                    disp("disp-static-scan-loop");
                     return Ok(shape);
                 }
                 // **The body-parameterized loop**, beside its fixed-length

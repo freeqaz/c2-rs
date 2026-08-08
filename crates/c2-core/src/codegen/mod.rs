@@ -45,6 +45,7 @@ pub mod ptr_walk_chain_loop;
 pub mod ptr_walk_loop;
 pub mod schedule;
 pub mod select;
+pub mod static_scan_loop;
 pub mod store_run_call;
 pub mod straightline;
 #[cfg(test)]

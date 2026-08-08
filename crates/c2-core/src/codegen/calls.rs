@@ -1010,6 +1010,8 @@ fn ops_setup_text(
         cmp_shift_or: None,
         if_call_join: None,
         ptr_walk_loop: None,
+        static_scan_loop: None,
+        data_def: None,
         ptr_walk_chain_loop: None,
         div_mod_leaf: None,
         float_leaf: None,

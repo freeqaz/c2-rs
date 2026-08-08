@@ -128,6 +128,9 @@ pub struct ComdatBody<'a> {
     pub frame: Option<coff::Frame>,
     /// Named-data-symbol address references, offsets within this section.
     pub data_refs: Vec<coff::DataRef<'a>>,
+    /// **W-DATA** — data objects this function DEFINES, with their REFHI/REFLO
+    /// sites at offsets within this section. See [`coff::DataDef`].
+    pub data_defs: Vec<coff::DataDef<'a>>,
 }
 
 /// **Build one function's complete `.text` COMDAT body**, exactly as
@@ -386,12 +389,14 @@ pub(crate) fn body_of<'a>(
     };
     // Under `/Gy` each function starts at offset 0 of its own COMDAT.
     let data_refs = data_refs_of(f, &text, 0).map_err(ComdatDecline::DataRef)?;
+    let data_defs = crate::data_defs_of(f, 0).map_err(ComdatDecline::DataRef)?;
     Ok(ComdatBody {
         shape,
         text,
         calls,
         frame,
         data_refs,
+        data_defs,
     })
 }
 
@@ -446,6 +451,7 @@ pub struct TextReloc<'a> {
 pub fn text_reloc_plan<'a>(
     calls: &[coff::Call<'a>],
     data_refs: &[coff::DataRef<'a>],
+    data_defs: &[coff::DataDef<'a>],
 ) -> Vec<TextReloc<'a>> {
     let mut recs: Vec<TextReloc<'a>> = Vec::with_capacity(calls.len() + 4 * data_refs.len());
     for c in calls {
@@ -476,6 +482,40 @@ pub fn text_reloc_plan<'a>(
             ty: coff::REL_PPC_PAIR,
             target: PlanTarget::PairDisplacement(0),
         });
+    }
+    // **W-DATA — the same quad shape, fanned out 1:N.** One `REFHI`/`PAIR` at
+    // the high half and one `REFLO`/`PAIR` at **each** low half, all against the
+    // same symbol. MEASURED on `Primes.cpp`'s obj: `REFHI @0x00`,
+    // `REFLO @0x08`, `REFLO @0x0c`, six records for one symbol.
+    //
+    // Written as its own loop rather than by widening the one above, because the
+    // symbol this resolves against is DEFINED in this obj and `DataRef`'s is an
+    // undefined external — two different symbol tables in the writer, and one
+    // list searched for both is how a data symbol silently resolves against a
+    // callee of the same spelling (`writer.rs`'s own note).
+    for d in data_defs {
+        recs.push(TextReloc {
+            va: d.hi_off,
+            ty: coff::REL_PPC_REFHI,
+            target: PlanTarget::Symbol(d.symbol),
+        });
+        recs.push(TextReloc {
+            va: d.hi_off,
+            ty: coff::REL_PPC_PAIR,
+            target: PlanTarget::PairDisplacement(0),
+        });
+        for &lo in &d.lo_offs {
+            recs.push(TextReloc {
+                va: lo,
+                ty: coff::REL_PPC_REFLO,
+                target: PlanTarget::Symbol(d.symbol),
+            });
+            recs.push(TextReloc {
+                va: lo,
+                ty: coff::REL_PPC_PAIR,
+                target: PlanTarget::PairDisplacement(0),
+            });
+        }
     }
     recs.sort_by_key(|r| r.va);
     recs

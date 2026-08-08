@@ -853,3 +853,56 @@ fn differential_wcfg1_if_call_join_refuses_outside_its_mode() {
         std::fs::remove_dir_all(&w).ok();
     }
 }
+
+/// **W-DATA's mode fence, graded by the oracle.** `wdata_static_scan.cpp` is a
+/// `/O1`-only class for one reason and refuses at `/Ox` for a second, and both
+/// are worth having in one test because they are refusals in different crates.
+///
+/// * the recognizer refuses any mode but `/O1` — **in the parser**, before any
+///   body byte is read, and `codegen::static_scan_loop` re-asserts it because
+///   `select_function` is what `function_gate` runs. The clause shipped in the
+///   emitter alone and `census_gate.rs` failed on it in the words it was written
+///   to fail in (board #1638, w-cfgclass §5.3, second instance);
+/// * `PortC2::build`'s **packed** arm refuses a function that defines a data
+///   object at all, because the packed section table interleaves `.rdata` and
+///   `.pdata` in `.text` order (six distinct orders over 240 objs,
+///   `coff::emit_obj`'s own comment) and where a COMDAT `.data` goes in that
+///   sequence has never been captured.
+///
+/// `differential()` drives the **default `/Ox` profile**, so this test grades
+/// exactly the arm the workload never exercises — and the assertion is
+/// `NotImplemented`, because a refusal becoming a wrong emit is strictly worse
+/// than a gap (board #232).
+///
+/// **The `/O1` arm is graded by `scripts/mode_lane.sh /O1`, not here**, and that
+/// is where the three positive cells come back `match` as one obj. This test
+/// cannot make that claim and does not: `differential()` has no `--flags-file`.
+///
+/// `wdata_static_scan_neg.cpp` refuses in the READER at every mode, so its
+/// verdict is the same on both paths. Its six cells' per-cell verdicts are a
+/// `c2rs census` matter (`0/6 in class`) — a file-level `NotImplemented` is the
+/// conjunction and is satisfied by any one cell refusing.
+#[test]
+fn differential_wdata_static_scan_refuses_outside_its_mode() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        eprintln!("SKIP: strace/mingw absent");
+        return;
+    }
+    for name in ["wdata_static_scan.cpp", "wdata_static_scan_neg.cpp"] {
+        let w = work("wdata");
+        let port = PortC2::default();
+        let report = differential(&fixture(name), &tc, &port, &w);
+        match report {
+            DiffReport::ReferenceReplayByteExact { port, .. } => match port {
+                PortStatus::NotImplemented(_) => {}
+                other => panic!("expected NotImplemented for {name} at /Ox, got {other:?}"),
+            },
+            other => panic!("expected ReferenceReplayByteExact for {name}, got {other:?}"),
+        }
+        std::fs::remove_dir_all(&w).ok();
+    }
+}

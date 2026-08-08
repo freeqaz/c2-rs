@@ -31,6 +31,8 @@ pub(crate) fn func_with(params: Vec<u32>, ops: Vec<IlOp>) -> IlFunction {
         fp_arg_sources: None,
         arg_sources: None,
         data_sym: None,
+        data_def: None,
+        static_scan_loop: None,
         params,
         ops,
         eh_bare: false,

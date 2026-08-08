@@ -27,6 +27,7 @@ mod comdat_tests {
             is_float: false,
             fp_refs: Vec::new(),
             data_refs: Vec::new(),
+            data_defs: Vec::new(),
             frame: None,
             label_lead: 0,
         };
@@ -68,6 +69,7 @@ mod comdat_tests {
             is_float: false,
             fp_refs: Vec::new(),
             data_refs: Vec::new(),
+            data_defs: Vec::new(),
             frame: None,
             label_lead: 0,
         };
@@ -79,7 +81,7 @@ mod comdat_tests {
             mk("?c@@YAHXZ", "?g@@YAHXZ"),
         ];
         let texts = vec![blr.clone(), blr.clone(), blr];
-        let obj = emit_comdat_obj("Z:\\t.obj", &funcs, &texts, 0);
+        let obj = emit_comdat_obj("Z:\\t.obj", &funcs, &texts, 0).expect("no defined data");
 
         // 11 fixed + per function (section symbol + aux + defined symbol) = 9,
         // + 2 distinct callees, NOT 3.
@@ -120,7 +122,7 @@ mod comdat_tests {
             Function::plain("?SpewInit@@YAXXZ", 0),
             Function::plain("?SpewTerminate@@YAXXZ", 0),
         ];
-        let obj = emit_comdat_obj("Z:\\x.obj", &funcs, &[blr.clone(), blr], 0);
+        let obj = emit_comdat_obj("Z:\\x.obj", &funcs, &[blr.clone(), blr], 0).expect("no defined data");
 
         let u16at = |o: usize| u16::from_le_bytes([obj[o], obj[o + 1]]);
         let u32at = |o: usize| {
@@ -429,7 +431,8 @@ mod tests {
                     &[mk_call(), mk_data()],
                     &[vec![0u8; 0x24], vec![0u8; 16]],
                     2536,
-                ),
+                )
+                .expect("no defined data"),
             ),
             (
                 "comdat_plain",
@@ -441,7 +444,8 @@ mod tests {
                     ],
                     &[blr.clone(), blr],
                     0,
-                ),
+                )
+                .expect("no defined data"),
             ),
         ];
         objs.into_iter().map(|(k, o)| (k, o.len(), coff_checksum(&o))).collect()
@@ -882,7 +886,7 @@ mod tests {
             data_refs: vec![DataRef { hi_off: 0, lo_off: 8, name: "?gI@@3HA" }],
             ..Function::plain("?a7@@YAXXZ", 0)
         };
-        let obj = emit_comdat_obj(r"Z:\t\a7.obj", &[f], &[text], 2536);
+        let obj = emit_comdat_obj(r"Z:\t\a7.obj", &[f], &[text], 2536).expect("no defined data");
         let recs = text_relocations(&obj);
         assert_eq!(
             recs.len(),
@@ -978,7 +982,8 @@ mod tests {
             ("packed", emit_obj(r"Z:\t\f.obj", &[mk()], &text, 2536), planned(false)),
             (
                 "/Gy",
-                emit_comdat_obj(r"Z:\t\f.obj", &[mk()], &[text.clone()], 2536),
+                emit_comdat_obj(r"Z:\t\f.obj", &[mk()], &[text.clone()], 2536)
+                    .expect("no defined data"),
                 planned(true),
             ),
         ] {
