@@ -2516,6 +2516,66 @@ mod tests {
         assert_eq!(parse_segment(ARG2_OUTER_FORMAL, NO_LOCALS), None);
     }
 
+    /// **W-MCALL — [`eat_member_stmt_call`] is ATOMIC over its whole input
+    /// domain** (board **#1960**).
+    ///
+    /// The rung's clause D7 is that a member arm which declines re-raises the
+    /// block the body already reported, and that rests on one property: the
+    /// reader either consumes the whole `26 … B9 … BD … 4C 4B` production or
+    /// leaves the cursor exactly where it found it. A reader that advanced past
+    /// `26 <tok>` and then declined would hand `parse_call_sequence_from`'s
+    /// `eat_call_head` a cursor in the middle of a token, and the block it then
+    /// raised would name a byte that is not the byte anybody's census key is
+    /// written against.
+    ///
+    /// Enumerated over all 256 second bytes and every prefix of a real
+    /// production, rather than sampled: a decline reachable only from one byte
+    /// value is exactly the site a future edit re-opens (§9.14.6's finding).
+    #[test]
+    fn eat_member_stmt_call_restores_the_cursor_on_every_decline() {
+        // A well-formed member statement call, in isolation: `26 <m> B9 <r>
+        // <ptr4> 99 <ptr4> 00 BD <void> 00 <id> 4C 4B`.
+        const CELL: &[u8] = &[
+            0x26, 0xE5, 0x09, 0xB9, 0xF1, 0x09, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84,
+            0x20, 0x00, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x4B,
+        ];
+        let mut p = 0usize;
+        assert_eq!(
+            eat_member_stmt_call(CELL, &mut p),
+            Some((0xE509, vec![vec![IlOp::Load(0xF109)]])),
+            "the receiver is the ONLY argument and it is the LAST element of the \
+             stream-order list, which is what makes it slot 0"
+        );
+        assert_eq!(p, CELL.len(), "the whole production is consumed, `4B` included");
+
+        // Every prefix: a truncated production must decline with the cursor at 0.
+        for cut in 0..CELL.len() {
+            let mut p = 0usize;
+            assert_eq!(eat_member_stmt_call(&CELL[..cut], &mut p), None, "prefix {cut}");
+            assert_eq!(p, 0, "prefix {cut} moved the cursor on a decline");
+        }
+        // Every second byte: only the real one can open a receiver, and every
+        // other value must leave the cursor alone.
+        for b in 0u8..=0xFF {
+            let mut seg = CELL.to_vec();
+            seg[3] = b;
+            let mut p = 0usize;
+            let got = eat_member_stmt_call(&seg, &mut p);
+            if b == 0xB9 {
+                assert!(got.is_some(), "the receiver byte");
+            } else {
+                assert_eq!(got, None, "byte {b:#04X} is not a receiver designator");
+                assert_eq!(p, 0, "byte {b:#04X} moved the cursor on a decline");
+            }
+        }
+        // And a non-zero cursor is restored to ITS value, not to zero.
+        let mut seg = vec![0x00, 0x00];
+        seg.extend_from_slice(&CELL[..CELL.len() - 1]);
+        let mut p = 2usize;
+        assert_eq!(eat_member_stmt_call(&seg, &mut p), None);
+        assert_eq!(p, 2);
+    }
+
     /// **The walk itself is TOTAL — asserted on the function, not on the caller
     /// that happens to guard it today.**
     ///
