@@ -1,0 +1,19 @@
+GRID-W — FROZEN at generation, before the first cl.exe
+
+cells            216  (A 180, B 36)
+flag sets        ['O1', 'O1Ot', 'O2', 'O2Os', 'Ox']
+A: W-T5 vs W-OT      separated on 54 cells
+A: W-LEVEL vs W-OT   separated on 36 cells
+A: W-T5 vs W-LEVEL   separated on 54 cells
+B: E-LOCALS vs E-DEADDST separated on 12 cells
+sha256           7cea5fdcbe9d63358e9d9307c852e3b8b78c587e561eeffb50d16c03be8913e5
+
+cell sources are NOT committed (regenerate with `gridw.py gen`); the
+manifest below carries every rival's per-cell prediction and is.
+
+flag sets:
+  flags_O1Ot.txt               /nologo /c /Oi /EHsc /GR /O1 /Ot
+  flags_O1.txt                 /nologo /c /Oi /EHsc /GR /O1
+  flags_O2Os.txt               /nologo /c /Oi /EHsc /GR /O2 /Os
+  flags_O2.txt                 /nologo /c /Oi /EHsc /GR /O2
+  flags_Ox.txt                 /nologo /c /Oi /EHsc /GR /Ox

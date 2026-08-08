@@ -1,0 +1,81 @@
+cells measured   216   (errors 0)
+
+=== PART A — 180 graded cells ===
+   W-T5        126 / 180
+   W-LEVEL     144 / 180
+   W-OT        180 / 180
+
+   measured threshold per (flag set, align):
+     O1     align 1 memcpy  inline n=[4, 5]  call n=[6, 9, 10, 11]
+     O1     align 1 memset  inline n=[4, 5]  call n=[6, 9, 10, 11]
+     O1     align 4 memcpy  inline n=[4, 5]  call n=[6, 9, 10, 11]
+     O1     align 4 memset  inline n=[4, 5]  call n=[6, 9, 10, 11]
+     O1     align 8 memcpy  inline n=[4, 5]  call n=[6, 9, 10, 11]
+     O1     align 8 memset  inline n=[4, 5]  call n=[6, 9, 10, 11]
+     O1Ot   align 1 memcpy  inline n=[4, 5, 6, 9, 10]  call n=[11]
+     O1Ot   align 1 memset  inline n=[4, 5, 6, 9, 10]  call n=[11]
+     O1Ot   align 4 memcpy  inline n=[4, 5, 6, 9, 10]  call n=[11]
+     O1Ot   align 4 memset  inline n=[4, 5, 6, 9, 10]  call n=[11]
+     O1Ot   align 8 memcpy  inline n=[4, 5, 6, 9, 10]  call n=[11]
+     O1Ot   align 8 memset  inline n=[4, 5, 6, 9, 10]  call n=[11]
+     O2     align 1 memcpy  inline n=[4, 5, 6, 9, 10]  call n=[11]
+     O2     align 1 memset  inline n=[4, 5, 6, 9, 10]  call n=[11]
+     O2     align 4 memcpy  inline n=[4, 5, 6, 9, 10]  call n=[11]
+     O2     align 4 memset  inline n=[4, 5, 6, 9, 10]  call n=[11]
+     O2     align 8 memcpy  inline n=[4, 5, 6, 9, 10]  call n=[11]
+     O2     align 8 memset  inline n=[4, 5, 6, 9, 10]  call n=[11]
+     O2Os   align 1 memcpy  inline n=[4, 5]  call n=[6, 9, 10, 11]
+     O2Os   align 1 memset  inline n=[4, 5]  call n=[6, 9, 10, 11]
+     O2Os   align 4 memcpy  inline n=[4, 5]  call n=[6, 9, 10, 11]
+     O2Os   align 4 memset  inline n=[4, 5]  call n=[6, 9, 10, 11]
+     O2Os   align 8 memcpy  inline n=[4, 5]  call n=[6, 9, 10, 11]
+     O2Os   align 8 memset  inline n=[4, 5]  call n=[6, 9, 10, 11]
+     Ox     align 1 memcpy  inline n=[4, 5, 6, 9, 10]  call n=[11]
+     Ox     align 1 memset  inline n=[4, 5, 6, 9, 10]  call n=[11]
+     Ox     align 4 memcpy  inline n=[4, 5, 6, 9, 10]  call n=[11]
+     Ox     align 4 memset  inline n=[4, 5, 6, 9, 10]  call n=[11]
+     Ox     align 8 memcpy  inline n=[4, 5, 6, 9, 10]  call n=[11]
+     Ox     align 8 memset  inline n=[4, 5, 6, 9, 10]  call n=[11]
+
+=== PART B — 36 graded cells ===
+   E-LOCALS     24 / 36
+   E-DEADDST    36 / 36
+   R-N5         24 / 24   (n<=5 rule, on the LIVE cells only)
+
+   measured verdict per (shape, size, align):
+     ff  size 16  align 1  ->  call   (8 B, relocs ['memcpy'])
+     ff  size 16  align 4  ->  inline (36 B, relocs [])
+     ff  size 16  align 8  ->  inline (20 B, relocs [])
+     ff  size 96  align 1  ->  call   (8 B, relocs ['memcpy'])
+     ff  size 96  align 4  ->  call   (8 B, relocs ['memcpy'])
+     ff  size 96  align 8  ->  call   (8 B, relocs ['memcpy'])
+     fl  size 16  align 1  ->  call   (40 B, relocs ['memcpy'])
+     fl  size 16  align 4  ->  inline (40 B, relocs [])
+     fl  size 16  align 8  ->  inline (24 B, relocs [])
+     fl  size 96  align 1  ->  call   (40 B, relocs ['memcpy'])
+     fl  size 96  align 4  ->  call   (40 B, relocs ['memcpy'])
+     fl  size 96  align 8  ->  call   (40 B, relocs ['memcpy'])
+     gl  size 16  align 1  ->  call   (48 B, relocs ['@comp.id', 'garr', 'memcpy'])
+     gl  size 16  align 4  ->  inline (48 B, relocs ['@comp.id', 'garr'])
+     gl  size 16  align 8  ->  inline (32 B, relocs ['@comp.id', 'garr'])
+     gl  size 96  align 1  ->  call   (48 B, relocs ['@comp.id', 'garr', 'memcpy'])
+     gl  size 96  align 4  ->  call   (48 B, relocs ['@comp.id', 'garr', 'memcpy'])
+     gl  size 96  align 8  ->  call   (48 B, relocs ['@comp.id', 'garr', 'memcpy'])
+     ld  size 16  align 1  ->  none   (4 B, relocs [])
+     ld  size 16  align 4  ->  none   (4 B, relocs [])
+     ld  size 16  align 8  ->  none   (4 B, relocs [])
+     ld  size 96  align 1  ->  none   (4 B, relocs [])
+     ld  size 96  align 4  ->  none   (4 B, relocs [])
+     ld  size 96  align 8  ->  none   (4 B, relocs [])
+     ll  size 16  align 1  ->  none   (4 B, relocs [])
+     ll  size 16  align 4  ->  none   (4 B, relocs [])
+     ll  size 16  align 8  ->  none   (4 B, relocs [])
+     ll  size 96  align 1  ->  none   (4 B, relocs [])
+     ll  size 96  align 4  ->  none   (4 B, relocs [])
+     ll  size 96  align 8  ->  none   (4 B, relocs [])
+     lu  size 16  align 1  ->  call   (52 B, relocs ['memcpy', 'sink'])
+     lu  size 16  align 4  ->  inline (76 B, relocs ['sink'])
+     lu  size 16  align 8  ->  inline (60 B, relocs ['sink'])
+     lu  size 96  align 1  ->  call   (52 B, relocs ['memcpy', 'sink'])
+     lu  size 96  align 4  ->  call   (52 B, relocs ['memcpy', 'sink'])
+     lu  size 96  align 8  ->  call   (52 B, relocs ['memcpy', 'sink'])
