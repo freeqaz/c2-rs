@@ -162,6 +162,7 @@ the header block this table is read from.
 | 2026-08-08 | w-target | [w-target](2026-08-08-w-target.md) | 9 | unchanged, +0. Emitted 39,181 / 178,977 unchanged. |
 | 2026-08-08 | w-throughput | [w-throughput](2026-08-08-w-throughput.md) | 12 | 711,486 / 2,463,443 unchanged (28.88 %), **+0** — this lane ships |
 | 2026-08-08 | w-undname | [w-undname](2026-08-08-w-undname.md) | 2 | 711,490 / 2,463,443 → 711,491 / 2,463,443 (28.88 % → 28.88 %), |
+| 2026-08-08 | w-value | [w-value](2026-08-08-w-value.md) | 2 | 711,494 / 2,463,443 unchanged (28.88 %), **+0**; emitted |
 | 2026-08-08 | w-xlr | [w-xlr](2026-08-08-w-xlr.md) | 2 | 711,492 / 2,463,443 → 711,493 / 2,463,443 (28.88 % → 28.88 %), |
 | 2026-08-09 | w-disagree | [w-disagree](2026-08-09-w-disagree.md) | 12 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** on the 878-TU |
 | 2026-08-09 | w-front3 | [w-front3](2026-08-09-w-front3.md) | 11 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** — this lane |

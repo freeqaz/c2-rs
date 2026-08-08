@@ -1,0 +1,29 @@
+board rows            : 1179 distinct numbers
+ROADMAP citations     : 129 distinct numbers
+
+suppressed (not board items, with the reason):
+  #1    cited 17x  ranking — "the #1 census blocker"; 15 citations, none an item
+  #2    cited 5x   ranking — "#2 blocker at 141,800"
+  #3    cited 3x   ranking — "the #3 row is behind EH too"
+  #4    cited 1x   ranking — "the row that was #4 by bodies" (R:§8.6)
+  #9    cited 1x   GAPS.md §6 mis-emit instance series (cited as "§6 #9", R:§6l)
+  #10   cited 1x   GAPS.md §6 mis-emit instance series (cited as "§6 #10", R:§6l)
+  #12   cited 2x   GAPS.md §6 mis-emit instance series, not the board series
+  #1668 cited 1x   endpoint of an explicitly-unminted range declaration ("#1668–#1679 are free")
+  #1679 cited 1x   endpoint of an explicitly-unminted range declaration ("#1668–#1679 are free")
+
+CITED BUT NOT ON THE BOARD: 0
+  (none — every cited number has a row or a named reason)
+
+section anchors in BOARD.md: 58 distinct (R:/EH:/LC:/SEAMS: -> §)
+UNRESOLVED SECTION ANCHORS: 0
+  (none — every §-anchor opens a real heading in its file)
+
+RAW LINE-NUMBER ANCHORS (drift-prone; convert to §): 0
+  (none — rungs/<lane>:<line> refs into frozen rung files are exempt by design)
+
+ROWS BEHIND THE PROSE (a ROADMAP heading names #N in a section no row of #N cites): 0
+  (none — every heading-level re-measurement is cited by its row)
+
+DUPLICATE ROW NUMBERS (two rows claim one identity): 0
+  (none — every row number names exactly one row)
