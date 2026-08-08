@@ -34,9 +34,17 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # --------------------------------------------------------------------------
 
 
-def chain(k, var="a"):
-    """k statements, each one dependent on the last: k emitted words, + the blr."""
-    return "".join("  %s = %s * 3 + %d;\n" % (var, var, i + 1) for i in range(k))
+def chain(k, var="a", base=0):
+    """k statements that CANNOT be folded: each reads a distinct extern slot.
+
+    GRID-I v1 used `a = a*3 + i` and c2 folded the whole chain to two words
+    (`mullw` + `sub`) at every k -- the size axis did not occur.  That is
+    recorded as a refuted cell design, not smoothed over: an arithmetic chain
+    over one local is a constant-propagation identity, so the only ladder that
+    moves the emitted size is one whose every rung touches memory the compiler
+    cannot see through.
+    """
+    return "".join("  %s += tbl[%d];\n" % (var, base + i) for i in range(k))
 
 
 def callee(name, k, linkage="static", extra_params=0, forceinline=False,
@@ -70,10 +78,10 @@ def caller(name, callee_name, nsites, bulk=0, conditional=False, args=1):
         body = "".join("  if (x & %d) x += %s(%s);\n" % (1 << i, callee_name, a)
                        for i in range(nsites))
     return ("int %s(int x) {\n%s%s  return x;\n}\n"
-            % (name, chain(bulk, "x"), body))
+            % (name, chain(bulk, "x", 4000), body))
 
 
-PRELUDE = "extern int sink(int);\n"
+PRELUDE = "extern int sink(int);\nextern int tbl[];\n"
 
 
 # --------------------------------------------------------------------------
@@ -95,7 +103,8 @@ MODES = {
 #   16 words  = 64 B   INLINE-P's EXTERNAL ceiling / its `i <= 16` unbounded arm
 #   41 words  = 164 B  INLINE-P's conditional 1->0 ceiling
 #   65 words  = 260 B  INLINE-P's STATIC hard ceiling
-LADDER = [4, 10, 14, 16, 18, 24, 32, 38, 42, 50, 62, 66, 80, 120, 130]
+LADDER = [4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18, 19, 24,
+          29, 30, 31, 32, 34, 35, 36, 38, 42, 50, 62, 66, 80, 120, 130]
 
 
 def build_cells():
@@ -183,8 +192,19 @@ def build_cells():
 # THE RIVALS.  Each returns "inlined" / "called" for a cell.
 # --------------------------------------------------------------------------
 
+CAL = {}
+
+
 def s_bytes(k, extra=1):
-    """Predicted emitted size of the callee, in bytes: k body words + blr."""
+    """The callee's own emitted `.text` size in bytes, MEASURED at /O1.
+
+    `INLINE_PREDICATE.md` §2 defines `s` as "G's own emitted `.text` size at
+    /O1", obj-readable. Calibration measures that INPUT; it does not touch the
+    verdict under test, and it is run and committed BEFORE the per-cell
+    predictions are frozen, so no prediction is fitted to an outcome.
+    """
+    if CAL.get(k):
+        return CAL[k]
     return 4 * (k + extra)
 
 
@@ -244,9 +264,10 @@ def r_ceiling(c):
     if c["mode"] == "O1Ob0":
         return "called"
     favor_speed = c["mode"] in ("O2", "O1Ot")
+    words = s_bytes(c["k"]) // 4
     if favor_speed:
-        return "inlined" if c["k"] <= 40 else "called"
-    return "inlined" if c["k"] + 1 < 65 else "called"
+        return "inlined" if words <= 40 else "called"
+    return "inlined" if words < 65 else "called"
 
 
 def r_size64(c):
@@ -292,7 +313,52 @@ RIVALS = {
 # --------------------------------------------------------------------------
 
 
+def cal(d, repo):
+    """Measure the CALLEE's own emitted size `s` at /O1, per ladder rung."""
+    os.makedirs(os.path.join(d, "cal"), exist_ok=True)
+    env = dict(os.environ)
+    env.setdefault("C2RS_WIBO",
+                   "/home/free/code/milohax/wibo/build/release/wibo")
+    env.setdefault("C2RS_COMPILERS", os.path.join(repo, "compilers"))
+    sys.path.insert(0, os.path.join(repo, "scripts"))
+    from gt_dump import Obj
+    out = {}
+    for k in sorted(set(LADDER) | {6}):
+        src = PRELUDE + callee("cg", k, "extern")
+        cpp = os.path.join(d, "cal", "cal_k%d.cpp" % k)
+        open(cpp, "w").write(src)
+        p = subprocess.run(
+            [os.path.join(repo, "scripts", "gt_capture.sh"), cpp,
+             "/O1", "/GS-", "/c"],
+            capture_output=True, text=True, env=env)
+        path = p.stdout.strip().splitlines()[-1] if p.stdout.strip() else ""
+        if not path or not os.path.exists(path):
+            out[str(k)] = None
+            print("  k=%-4d CAPTURE FAILED" % k)
+            continue
+        o = Obj(open(path, "rb").read())
+        sz = None
+        for sy in o.symbols:
+            if sy["sec"] > 0 and (sy["name"].startswith("?cg@")
+                                  or sy["name"] in ("cg", "_cg")):
+                sz = o.sections[sy["sec"] - 1]["rawsize"]
+        out[str(k)] = sz
+        os.remove(path)
+        print("  k=%-4d s=%s B  (%s words)"
+              % (k, sz, sz // 4 if sz else "?"))
+    json.dump(out, open(os.path.join(d, "calib.json"), "w"), indent=1)
+
+
 def gen(d):
+    global CAL
+    cp = os.path.join(d, "calib.json")
+    if os.path.exists(cp):
+        CAL = {int(k): v for k, v in json.load(open(cp)).items() if v}
+        print("calibration loaded: %d rungs" % len(CAL))
+    else:
+        print("WARNING: no calib.json — predictions would use the REFUTED "
+              "linear guess. Run `cal` first.")
+        return 2
     os.makedirs(os.path.join(d, "src"), exist_ok=True)
     cells = build_cells()
     for c in cells:
@@ -359,25 +425,33 @@ def verdict(data, r):
     from gt_dump import Obj
     o = Obj(data)
     callees = ["sh%d" % i for i in range(6)] if r.get("multi") else ["cg"]
-    # find the caller's section
+
+    def is_(nm, base):
+        # c2 emits C++ mangled names: `?cg@@YAHH@Z`.
+        return nm == base or nm == "_" + base or nm.startswith("?" + base + "@")
+
     csec = None
-    for s in o.symbols:
-        if s["name"] in ("cf", "_cf") and s["sec"] > 0:
-            csec = o.sections[s["sec"] - 1]
+    csize = None
+    for sy in o.symbols:
+        if sy["sec"] > 0 and is_(sy["name"], "cf"):
+            csec = o.sections[sy["sec"] - 1]
+        if sy["sec"] > 0 and is_(sy["name"], "cg"):
+            csize = o.sections[sy["sec"] - 1]["rawsize"]
     if csec is None:
         return {"verdict": "absent", "why": "no caller symbol"}
     names = set()
     for (_, symidx, _t) in o.relocs(csec):
-        s = o.sym_by_index(symidx)
-        if s:
-            names.add(s["name"].lstrip("_"))
-    hit = sorted(n for n in callees if n in names)
+        sy = o.sym_by_index(symidx)
+        if sy:
+            names.add(sy["name"])
+    hit = sorted(cn for cn in callees if any(is_(nm, cn) for nm in names))
     body = len(o.raw(csec))
     if r.get("multi"):
-        return {"verdict": "called" if len(hit) == len(callees) else
-                ("inlined" if not hit else "partial"),
-                "called": hit, "bytes": body}
-    return {"verdict": "called" if hit else "inlined", "bytes": body}
+        v = ("called" if len(hit) == len(callees)
+             else ("inlined" if not hit else "partial"))
+        return {"verdict": v, "called": hit, "bytes": body}
+    return {"verdict": "called" if hit else "inlined", "bytes": body,
+            "s_callee": csize}
 
 
 def score(d):
@@ -413,7 +487,9 @@ def score(d):
 
 if __name__ == "__main__":
     cmd = sys.argv[1]
-    if cmd == "gen":
+    if cmd == "cal":
+        cal(sys.argv[2], sys.argv[3])
+    elif cmd == "gen":
         sys.exit(gen(sys.argv[2]))
     elif cmd == "run":
         os.environ["C2RS_REPO"] = sys.argv[3]
