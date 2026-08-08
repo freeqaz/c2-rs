@@ -1,0 +1,16 @@
+// wb-chooser Grid M — the park register (volatile vs callee-saved).
+//
+// NOT a fixture. These cells are compiled by the REAL c2.dll under wibo at the
+// dc3 workload's own flags and read with scripts/gt_dump.py; they are never
+// added to fixtures/cpp/ and the port never sees them.
+//
+// One file per cell is generated from this catalogue by
+// docs/whitebox/grids/wb-chooser/run.sh. Each cell has exactly one function
+// under test, named `f`, and every cell shares the same skeleton so the
+// register pick is the only thing that varies:
+//
+//     int f(int a, int b, ...) { int r = <the call>; return a + r; }
+//
+// `a` arrives in r3 and is LIVE ACROSS the call; the call itself wants r3, so
+// c2 must move `a` somewhere. Which register class it moves it to is the whole
+// question. Predictions are frozen in ../../WB_CHOOSER_PREREG.md §P3.

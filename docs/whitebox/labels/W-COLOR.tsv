@@ -1,0 +1,24 @@
+# W-COLOR — register assignment (color.c / regasg.c / globregs.c) and the
+# bitset library the whole back end allocates over. Opened by lane wb-chooser
+# (WB-G, 2026-08-08), whose question was which of two lowerings c2 picks.
+#
+# C2_MAP.md's <NOTKNOWN> block says "color.c is the register allocator and is
+# deliberately not mapped". That stands for the ALGORITHM. What is mapped here
+# is narrower and was forced by an obj grid: the register-number FIELD, the
+# volatile/callee-saved BOUNDARY, and the fact that the prologue's saved-GPR
+# mask is a consequence of allocation rather than a cause of it.
+#
+# addr <TAB> cluster <TAB> confidence <TAB> evidence
+10b01cf0	color-file	high	assertion filename `...\be\p2\color.c`; assertion sites 10b2c23e 10b2d5ff 10b2f024 10b30d3f in functions 10b2c21d 10b2ceb7 10b2efd6 10b30517 — these four bound the register allocator
+10b177b0	regasg-file	high	assertion filename `...\be\p2\regasg.c`; site 10bc5c02 in FUN_10bc58d5 (1891 B, 10 callees) — the register-ASSIGNMENT pass, distinct from color.c
+10b02300	globregs-file	high	assertion filename `...\be\p2\globregs.c`; site 10b5644b in FUN_10b55eae (1468 B) — builds the per-block live/interference bitsets read by color.c
+10b55eae	live-sets	medium	globregs.c body: walks the block chain off [param_1+8], clears and rebuilds the bitsets at block fields +0x0c/+0x0d/+0x11/+0x12/+0x13/+0x0f, and iterates a set with 10b27290 mapping each member through the vector at param_2 to a register object; sets [reg+0x28]/[reg+0x2c] to the first/last block that touches it (the live-range endpoints)
+10b2ceb7	copy-coalesce	high	color.c: the copy/`mr` coalescer. The copy opcode set it recognises is {0x270, 0x272, 0x293, 0x7b} (tested as one disjunction at the 10b2d5ff assertion's block); when DAT_10c2e980 != 0 it refuses to coalesce into register numbers 0x0f..0x11, matching the prologue's narrowing of the saved range
+10bfebf7	saved-gpr-scan	high	CORRECTS the W-FRAME `saved-gpr-mask` reading in one word: this is a SCAN, not a decision. It walks the block chain, and for every operand of kind 1 whose class nibble ((u16 at op+10) >> 12) is in {1,2,3,4} it reads the assigned register number at *(u32*)(op[7] + 0x1c) and sets bit (n-1) if 0x0f <= n < 0x21. The prologue therefore saves whatever the allocator already assigned; the volatile-vs-callee-saved CHOICE is made upstream in color.c and is not readable here
+10bfebf7	regnum-encoding	high	register numbers in this image are r+1: the bound 0x0f..0x20 is r14..r31, and the DAT_10c2e980 narrowing to 0x12..0x20 is r17..r31. Same encoding is read at operand +0x1c by 10b2ceb7 and by 10b55eae, so +0x1c is THE assigned-register field
+10b26ecd	bitset-new	high	bitset library, 177 callers — allocate. The five below are the set primitives every allocator pass in p2 is written over; identified by caller count and by their use in 10b55eae/10b2ceb7 with a register number as the element
+10b26eb2	bitset-free	high	144 callers; always paired with a store of 0 into the field it frees
+10b26eda	bitset-insert	high	206 callers; called as (set, *(u32*)(reg + 0x1c)) throughout globregs.c and color.c
+10b26efb	bitset-remove	high	70 callers; the inverse of 10b26eda at the same call shapes
+10b26f37	bitset-test	high	168 callers, returns a char; guards every insert in 10b2ceb7's coalescing test
+10b27290	bitset-pop	high	30 callers; returns 0xffffffff when empty — the iteration idiom in 10b55eae

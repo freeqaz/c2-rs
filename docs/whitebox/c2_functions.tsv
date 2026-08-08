@@ -37,11 +37,11 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b26dae	90		unknown	unknown	5	0	-
 10b26e08	99		unknown	unknown	1	0	-
 10b26e6b	71		unknown	unknown	2	0	-
-10b26eb2	27		unknown	unknown	144	1	-
-10b26ecd	13		unknown	unknown	177	1	-
-10b26eda	33		unknown	unknown	206	1	-
-10b26efb	60		unknown	unknown	70	2	-
-10b26f37	47		unknown	unknown	168	1	-
+10b26eb2	27		bitset-free	high	144	1	144 callers; always paired with a store of 0 into the field it frees [src:W-COLOR]
+10b26ecd	13		bitset-new	high	177	1	bitset library, 177 callers — allocate. The five below are the set primitives every allocator pass in p2 is written over; identified by caller count and by their use in 10b55eae/10b2ceb7 with a register number as the element [src:W-COLOR]
+10b26eda	33		bitset-insert	high	206	1	206 callers; called as (set, *(u32*)(reg + 0x1c)) throughout globregs.c and color.c [src:W-COLOR]
+10b26efb	60		bitset-remove	high	70	2	70 callers; the inverse of 10b26eda at the same call shapes [src:W-COLOR]
+10b26f37	47		bitset-test	high	168	1	168 callers, returns a char; guards every insert in 10b2ceb7's coalescing test [src:W-COLOR]
 10b26f66	68		unknown	unknown	6	1	-
 10b26faa	108		unknown	unknown	6	2	-
 10b27016	5	thunk_FUN_10b26e6b	thunk	high	51	0	ghidra-resolved thunk: thunk_FUN_10b26e6b
@@ -54,7 +54,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b271f7	23		unknown	unknown	4	2	-
 10b2720e	23		unknown	unknown	1	2	-
 10b27225	107		unknown	unknown	68	1	-
-10b27290	137		unknown	unknown	30	1	-
+10b27290	137		bitset-pop	high	30	1	30 callers; returns 0xffffffff when empty — the iteration idiom in 10b55eae [src:W-COLOR]
 10b27319	36		unknown	unknown	2	0	-
 10b2733d	63		unknown	unknown	11	1	-
 10b2737c	87		unknown	unknown	2	0	-
@@ -262,7 +262,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b2cd75	32		unknown	unknown	1	0	-
 10b2cd95	223		unknown	unknown	1	3	-
 10b2ce74	67		unknown	unknown	1	1	-
-10b2ceb7	1913		unknown	unknown	1	28	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
+10b2ceb7	1913		copy-coalesce	high	1	28	color.c: the copy/`mr` coalescer. The copy opcode set it recognises is {0x270, 0x272, 0x293, 0x7b} (tested as one disjunction at the 10b2d5ff assertion's block); when DAT_10c2e980 != 0 it refuses to coalesce into register numbers 0x0f..0x11, matching the prologue's narrowing of the saved range [src:W-COLOR]
 10b2d630	2034		unknown	unknown	1	28	-
 10b2de22	448		unknown	unknown	1	6	-
 10b2dfe2	562		unknown	unknown	1	5	-
@@ -938,7 +938,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b55429	777		unknown	unknown	2	21	-
 10b55732	1676		unknown	unknown	1	18	-
 10b55dbe	240		unknown	unknown	1	5	-
-10b55eae	1468		unknown	unknown	1	18	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
+10b55eae	1468		live-sets	medium	1	18	globregs.c body: walks the block chain off [param_1+8], clears and rebuilds the bitsets at block fields +0x0c/+0x0d/+0x11/+0x12/+0x13/+0x0f, and iterates a set with 10b27290 mapping each member through the vector at param_2 to a register object; sets [reg+0x28]/[reg+0x2c] to the first/last block that touches it (the live-range endpoints) [src:W-COLOR]
 10b5646a	294		unknown	unknown	3	10	-
 10b56590	345		unknown	unknown	1	7	-
 10b566e9	85		unknown	unknown	1	0	-
