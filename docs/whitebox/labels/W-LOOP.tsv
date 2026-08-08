@@ -1,0 +1,22 @@
+addr	label	confidence	note
+# DISASSEMBLY-DERIVED. Lane wb-loop (WB-H), campaign 2026-08-08.
+# Image c2.dll sha256 c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258.
+# `high` means "the instructions were read correctly", NOT "this is what c2 does" —
+# the obj grade is in docs/whitebox/WB_LOOP_FINDINGS.md §7.  `unknown` is respectable.
+10c0f81e	loop-ctr-driver	high	p2\ppc\lower.c: the bdnz pass driver. Gated on DAT_10c2e2fc (optimize) and DAT_10c2ecf8 (-QXnobdnz); walks the per-function LOOP LIST at func+0x0c calling 10c0f7f9. Called FIRST from the md-lowering driver 10c24021. Obj-confirmed by /d2QXnobdnz removing all 29 bdnz (FINDINGS 7.7)
+10c0f7f9	loop-ctr-convert	high	p2\ppc\lower.c: the per-loop mtctr/bdnz conversion. Recurses into child loops (loop+0x04) FIRST, then ~20 refusal clauses, then the rewrite: mint mtctr assign + bdnz (opcodes 0x2af/0xf8/0x288, CTR operand 0x54), DELETE the compare (0x2d4), the assign (0x2af) and the add (0x2c6). FINDINGS 2
+10c0d3fe	loop-ctr-available	high	p2\ppc\lower.c: is CTR free through this loop? Refuses on -QXnobdnz (DAT_10c2ecf8), DAT_10c3de20==1, (DAT_10c472e8+0xcdc)&10, or any tuple in any block satisfying 10c09c81
+10c09c81	tuple-uses-ctr	high	the per-tuple CTR test. Machine tuples: refuse if the tuple uses/defs the CTR pseudo-symbol DAT_10c31008 or has an operand of register 0x54. Tuple-IR: refuse on opcodes 0x290/0x2bd/0x2dc/0x2e8/0x2ed, on a kind-0x12 branch with 10bd5209==0, and conditionally on 0x2be/0x2eb. THIS is the clause a `bl` trips — obj-confirmed by grid cells a4/cal_call
+10c31008	sym-ctr	high	the CTR pseudo-symbol; the operand register number for CTR is 0x54 (minted at 10c0f7f9 via FUN_10bd42c2(0x54,0x2004))
+10b18990	type-size-table	medium	byte table indexed by (tuple type byte & 0x1f); 10c0f7f9 requires the loop compare's entry to be 4 or 2. Best available explanation for the a9 MISS (a 64-bit counter is not converted) — FINDINGS 7.4
+10c23151	find-def-in-block	high	p2\ppc\lowersmd.c: find the 0x2af assignment in a block whose destination matches an operand (used to locate the counter's preheader initialisation)
+10c2317d	range-references-sym	high	p2\ppc\lowersmd.c: does any tuple in [from->next, to) use (10bd4874) or def (10bd482d) this symbol? 10c0f7f9 calls it five times to prove the counter is dead outside the loop
+10b84869	loop-preinc-driver	high	p2\misc.c (machine-INDEPENDENT): the lwzu/stwu update-form pass driver. Gated on DAT_10c2ecfc (-QXnopreinc) and DAT_10c2e2fc; walks the same func+0x0c loop list calling 10b84844. Obj-confirmed by /d2QXnopreinc removing all 28 update forms and NO bdnz (FINDINGS 7.7)
+10b84844	loop-preinc-pass	medium	p2\misc.c: the per-loop pre-increment/update-form formation (2530 bytes, not read clause by clause). The SELECTION RULE is not claimed — FINDINGS 4.4 elects no rival
+10c16569	md-peephole-driver	medium	the machine-instruction peephole loop; gates 10c15d7f (opcode 1) and 10c15b87 (opcode 0xb) on DAT_10c2ecfc. A second consumer of the -QXnopreinc flag, at machine level
+10c2ecf8	flag-nobdnz	high	-QXnobdnz (string 0x10b13be4, option entry 0x10c2a0e6). Readers: 10c0d3fe, 10c0f853
+10c2ecfc	flag-nopreinc	high	-QXnopreinc (string 0x10b13bcc, option entry 0x10c2a10d). Readers: 10b84869, 10c16705, 10c16719, 10c16739
+10c2ec9c	flag-nolur	medium	-NoLUR (string 0x10b13d58, option entry 0x10c29ea2). Read at 10b84cea, written at 10b849c6 (both inside 10b848dc)
+10c2eaf0	flag-loopopt-DEAD	high	-loopopt (string 0x10b1410c, option entry 0x10c29860) writes this and NOTHING READS IT — a dead switch in this build, like WB-D's -schdat# at 0x10c2eb40
+10b1e7d0	str-ctr-inlineasm-diag	high	"Backend doesn't support encoding of CTR changes, use bdnz\n". Single xref 0x10c03112, which is in p2\ppc\inlnasm.c — it is the INLINE-ASM diagnostic, NOT the loop lowering. Recorded so the string is not mistaken for the conversion site
+10c24021	md-lower-driver	high	p2\ppc\lowersmd.c: the machine-dependent lowering driver. Phase order: 10c0f81e (bdnz) FIRST, then 10c2262b, the peepholes, 10c2306c, then 10c04faf (WB-D's volatile/reserved sets). The ctr conversion is therefore UPSTREAM of register allocation

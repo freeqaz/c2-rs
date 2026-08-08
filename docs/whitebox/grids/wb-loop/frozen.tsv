@@ -1,0 +1,116 @@
+# FROZEN BEFORE THE FIRST cl.exe OF loop_grid.cpp — lane wb-loop (WB-H), 2026-08-08.
+# Every rival's per-cell prediction is written down here in advance.  Scored in
+# docs/whitebox/WB_LOOP_FINDINGS.md §7.  A cell whose premise fails is scored a
+# MISS, not excluded (wb-regalloc §7.4's rule, inherited).
+#
+# ---------------------------------------------------------------------------
+# THE RIVALS FOR THE mtctr/bdnz CHOICE
+#
+# RC0' (mine, post-calibration): mtctr/bdnz iff ALL of
+#   (a) the loop has exactly ONE exit edge;
+#   (b) after rotation it is bottom-tested on an INTEGER counter that lur.c
+#       normalised to unit stride, with a preheader-computable trip count;
+#   (c) NO tuple in the body reads or writes CTR — a bl/bctrl call does (CTR is
+#       in a call's clobber set) and so does an already-converted inner bdnz;
+#   (d) the induction variable is an integer counter, not a pointer;
+#   (e) -QXnobdnz is off.
+# RC1: as RC0' but exits do not matter (drop (a)).
+# RC2: mtctr only when the trip count is a compile-time constant.
+# RC3: mtctr always, for every for-shaped loop; the guard does all the work.
+# RC4: a late peephole — mtctr whenever the emitted counter is dead after the
+#      loop, decided after selection.
+# RC5: mtctr iff there is no call in the body (the one-clause rule).
+#
+# THE RIVALS FOR THE UPDATE FORM
+# RU0' (mine, two parts):
+#   RU0'-a ADDRESS FORM: when >=2 arrays are indexed by the SAME affine
+#     expression with the SAME byte stride, c2 keeps ONE walking pointer and
+#     reaches the others with an X-form access at a preheader-computed base
+#     DIFFERENCE (sub base_i, base_walk).
+#   RU0'-b UPDATE FOLD: the walker's `addi p,p,S` is folded into its LAST
+#     access iff every OTHER use of p in the body is a D-form memory access on
+#     p (so it can absorb a +S displacement).  Preheader base is biased by -S.
+#     A 1-byte stride keeps an index register instead of a pointer walk
+#     (measured in calibration, cal_char).
+# RU1: update form for the FIRST array only; others X-form indexed.
+# RU2: update form iff the loop has exactly ONE memory reference.
+# RU3: never — `lwz 0(p)` + `addi p,4` is the general case.
+#
+# THE RIVALS FOR THE ZERO-TRIP GUARD
+# RG0' (mine): the guard IS the rotated pre-test.  It compares the loop's START
+#   expression against its BOUND with the loop's own signedness in cr6 and
+#   branches over the whole loop; it is realised as `bclr` when the loop is the
+#   function's tail.  Omitted iff the pre-test is a compile-time truth.
+# RG1: guard always emitted.
+# RG2: the guard is part of the ctr lowering — emitted iff mtctr is chosen.
+# RG3n: the guard is always a compare of the trip count against ZERO (`>0`).
+#
+# Columns: cell / RC0' / RC1 / RC2 / RC3 / RC4 / RC5 / my guard call /
+#          my update-form call / my block-order call
+# Y = bdnz emitted, N = compare-and-branch.  "in/out" = inner/outer of a nest.
+# ---------------------------------------------------------------------------
+cell	RC0'	RC1	RC2	RC3	RC4	RC5	guard	uform	blockorder
+wbl_a1_ret	N	Y	N	Y	Y	Y	present, signed vs 0, forward	N (control flow splits body)	early-return arm before the loop tail
+wbl_a2_goto	N	Y	N	Y	Y	Y	present	N	source order
+wbl_a3_inline	Y	Y	N	Y	Y	Y	present	Y (lwzu 4)	single body block
+wbl_a4_indcall	N	N	N	Y	Y	N	present	N	frame opened, bctrl in body
+wbl_a5_nest_inner_break	out=Y in=N	out=N in=Y	N	Y	Y	Y	both loops guarded	N	inner nest before outer latch
+wbl_a6_nest_both	out=N in=Y	out=N in=Y	N	Y	Y	Y	both guarded	N (lwzx, base varies)	inner inside outer
+wbl_a7_switch	N if the switch lowers to bctr, else Y; MY CALL: N	N	N	Y	Y	Y	present	N	switch arms reverse source order
+wbl_a8_div	Y	Y	N	Y	Y	Y	present	Y (lwzu 4)	single block
+wbl_a9_i64	Y	Y	N	Y	Y	Y	present, 64-bit compare	N (int cast index)	single block
+wbl_a10_expr	Y	Y	N	Y	Y	Y	present, on n/2+3 vs 0	Y (lwzu 4)	single block
+wbl_a11_vol	Y	Y	N	Y	Y	Y	present	Y (lwzu 4)	single block
+wbl_a12_while	Y	Y	N	Y	Y	Y	present	Y (lwzu 4)	single block
+wbl_a13_fp	Y	Y	N	Y	Y	Y	present	Y (lfsu 4)	single block
+wbl_a14_ptriv	N	Y	N	Y	Y	Y	present	Y (lwzu 4)	rotated, test at bottom
+wbl_b1_from3	Y	Y	N	Y	Y	Y	RG0': cmpwi cr6,n,3 (NOT vs 0); mtctr gets n-3	Y (lwzu 4, base +12-4)	single block
+wbl_b2_constrange	Y	Y	Y	Y	Y	Y	OMITTED (7 trips known); li r,7	Y (lwzu 4)	single block
+wbl_b3_dominated	Y	Y	N	Y	Y	Y	PRESENT — c2 does not use the dominating n>0	Y (lwzu 4)	the n<=0 return precedes the loop
+wbl_b4_step3	Y	Y	N	Y	Y	Y	present, cmpwi cr6,n,0; trip = (n-1)/3+1 by multiply-high	Y (lwzu 12)	single block
+wbl_b5_le	Y	Y	N	Y	Y	Y	RG0': signed compare of n against 0 branching on LT (not on "not GT")	Y (lwzu 4)	single block
+wbl_b6_uns1	Y	Y	N	Y	Y	Y	RG0': UNSIGNED compare of n against 1	Y (lwzu 4)	single block
+wbl_b7_notail	Y	Y	N	Y	Y	Y	FORWARD branch (bf 25,.+X), NOT bclr	Y (lwzu 4)	post-loop code after the body
+wbl_c1_ba	Y	Y	N	Y	Y	Y	present	RU0'-a: N — one walker + lwzx at a base difference	single block
+wbl_c2_copy	Y	Y	N	Y	Y	Y	present	RU0'-a: N — same stride, base difference; NOT turned into memcpy	single block
+wbl_c3_mixed	Y	Y	N	Y	Y	Y	present	RU0'-a inapplicable (strides 4 vs 1): TWO independent walks; MY CALL: lwzu 4 for the int, index form for the char	single block
+wbl_c4_uchar	Y	Y	N	Y	Y	Y	present	N — 1-byte stride keeps an index register (lbzx), as measured for signed char	single block
+wbl_c5_float	Y	Y	N	Y	Y	Y	present	Y — lfsu 4	single block
+wbl_c6_i64	Y	Y	N	Y	Y	Y	present	Y — ldu 8	single block
+wbl_c7_struct	Y	Y	N	Y	Y	Y	present	Y — lwzu 12, preheader base biased by -8	single block
+wbl_c8_downstore	Y	Y	N	Y	Y	Y	present	Y — stwu -4	single block
+wbl_c9_selfoff	Y	Y	N	Y	Y	Y	present	RU0'-b: Y — exactly ONE u-form access, the other D-form on the same register	single block
+wbl_c10_three	Y	Y	N	Y	Y	Y	present	RU0'-b: Y — exactly ONE u-form access, two D-form on the same register	single block
+wbl_d1_after	Y	Y	N	Y	Y	Y	present, forward	Y (lwzu 4)	loop, then the call, then the tail; no block after the blr
+wbl_d2_ifloop	Y	Y	N	Y	Y	Y	present	Y (lwzu 4)	the `return -1` arm is emitted BEFORE the loop
+wbl_d3_body_if3	Y	Y	N	Y	Y	Y	present	N (control flow splits body)	then, else-if, else in SOURCE order
+wbl_d4_twonest	out=N in=Y	out=N in=Y	N	Y	Y	out=N in=Y	both guarded	N	call, inner loop, xor, latch — source order
+wbl_d5_loopinswitch	Y	Y	N	Y	Y	Y	present	Y (lwzu 4)	switch arms in REVERSE source order (WB-D M2)
+# ---------------------------------------------------------------------------
+# COUNTERFACTUAL RUNS (same source, different backend flags).  These directly
+# obj-check the two option->pass links read out of the disassembly.
+#   X1  -QXnobdnz  (flag DAT_10c2ecf8, read at FUN_10c0d3fe / FUN_10c0f81e):
+#       PREDICTED: every bdnz in the grid disappears and is replaced by an
+#       explicit decrement-and-branch; NO other word changes; the zero-trip
+#       guards SURVIVE unchanged (they are lur.c's rotation, not this pass).
+#   X2  -QXnopreinc (flag DAT_10c2ecfc, read at FUN_10b84869 / FUN_10c16569):
+#       PREDICTED: every update-form access (lwzu/stwu/lhau/lfdu/lfsu/ldu/
+#       lwzux) disappears and becomes a non-update access plus an addi; the
+#       bdnz loops SURVIVE unchanged.
+# If the flags cannot be passed through cl.exe, that is recorded as
+# "not runnable", not as a pass.
+# ---------------------------------------------------------------------------
+# MINIMUM-SEPARATION ASSERTION, checked before the run:
+#   RC0' vs RC5 differ on: a1, a2, a14 (and a7 conditionally)          -> 3  (need >=3) OK
+#   RC0' vs RC1 differ on: a1, a2, a5(both levels), a7                 -> 4  (need >=3) OK
+#   RC0' vs RC2 differ on: a3, a8, a9, a10, a11, a12, a13, b1, b4...   -> 20 (need >=3) OK
+#   RC0' vs RC3 differ on: a1, a2, a4, a5-in, a6-out, a7, a14, d4-out  -> 8  (need >=3) OK
+#   RC0' vs RC4 differ on: a1, a2, a4, a5-in, a6-out, a7, a14, d4-out  -> 8  (need >=3) OK
+#   RU0' vs RU1 differ on: c1, c2, c3, c9, c10                         -> 5  (need >=2) OK
+#   RU0' vs RU2 differ on: c9, c10                                     -> 2  (need >=2) OK
+#   RU0' vs RU3 differ on: a3, b1, c5, c6, c7, c8, c9, c10             -> 8  (need >=2) OK
+#   RG0' vs RG3n differ on: b1, b5, b6                                 -> 3
+#   RG0' vs RG2  differ on: a1, a2, a4, a14 (no mtctr but guarded)     -> 4
+#   RG0' vs RG1  differ on: b2                                         -> 1
+#   Cells where RC0' predicts NO mtctr (so RC3 is falsifiable): a1, a2,
+#   a4, a5-in, a6-out, a7, a14, d4-out                                 -> 8  (need >=1) OK
