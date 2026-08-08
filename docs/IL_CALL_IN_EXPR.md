@@ -4926,3 +4926,70 @@ C2RS_JOBS=8 scripts/cross_sweep.sh                       # 42719 x 12 = 512628
 #   work/wr1/probes/p7.cpp  ?gBig@@3VBig@@A — the THREE-byte TYPE
 python3 work/wr1/tools/coff.py work/wr1/p2.obj   # sections, symbols, relocations
 ```
+
+---
+
+## 28. W-VALUE — the whole-production counterfactual, and what it says about this whole document
+
+Board **#1534** recorded that this bucket — **449,274 bodies / 36,751 emitted
+functions**, 28.1 % of everything blocked — *"has still never had a
+whole-production counterfactual"*, and named the remedy: *"a sink that consumes
+`26 … 4C` **entire** — a bracket walk in `mcall.rs`, not a width row"*.
+
+Lane `w-value` built it (`mcall::eat_call_value`), shipped it **permanently**
+rather than env-gated, and ran it. Rung
+[`rungs/2026-08-08-w-value.md`](rungs/2026-08-08-w-value.md); boards
+**#1940**–**#1948**.
+
+### 28.1 The answer
+
+With the production consumed and the statement layer fenced out (§28.2):
+
+| | bodies | emitted | share of emitted |
+|---|---:|---:|---:|
+| production consumed, **nothing else in the expression** | 365,356 | **33,277** | **90.5 %** |
+| production **not tokenizable** — the walker's price | 58,569 | **2,306** | 6.3 % |
+| head **moved** to a genuine expression construct | 25,349 | **1,168** | 3.2 % |
+| **the bucket** | **449,274** | **36,751** | 100 % |
+
+**This bucket is not a queue in front of some other reader rung.** Nine tenths
+of its emitted mass has nothing else in its own expression at all, so the only
+thing that moves it is a member-call **lowering** — a call in an expression,
+which `IlOp` has no variant for — and no further reader work will touch those
+33,277. Every section of this document that ranks a sub-shape by "yield if this
+production were admitted" is ranking the *lowering*, not the decode.
+
+Where the 1,168 went: `expr-op-0x30` +308, `expr-cmp-lt` +254, `expr-cmp-eq`
++177, `expr-cmp-ne` +162, `expr-cmp-gt` +82, `expr-op-0x05-8641` +90,
+`expr-op-0x27` +39, `expr-cmp-ge` +14, `expr-and-and` +9.
+
+### 28.2 Two corrections this document should carry
+
+* **§2's residue row understates `9B` by three orders of magnitude.** The table
+  files *"residue: `9B` temporary receiver (5), virtual `67` (1)"* at 0.03 % of
+  a 21,319-site sample. Over the whole workload, `9B` is **50,023 bodies /
+  1,590 emitted** — **69 % of everything the value model cannot tokenize**, and
+  larger than the entire head movement above. With `64` (546 emitted) it is
+  93 % of the remaining reader-side price. Board **#1943**.
+* **The key's meaning has changed and both sides are published.**
+  `expr-call-in-expr` counted *"a body containing a member call"* and now counts
+  *"a body whose member call is the last thing its expression contains, or whose
+  production the walker cannot tokenize"*: **449,274 / 36,751 → 423,925 /
+  35,583**. Any figure quoted against this key from a scan at or before
+  `285a94d7` — which is most of this document — is on the old definition. Board
+  **#1948**.
+
+### 28.3 The fence, because the first build got it wrong
+
+Letting *any* byte behind the call take the head moved **9,034 emitted functions
+onto a brand-new `expr-op-0x4B`** and **2,844 onto `expr-op-0x5C`** — 86 % of
+the redistribution, off keys that name the construct and onto two that name
+statement punctuation. `expr::is_statement_layer` yields thirteen bytes to the
+call (`29 32 38 39 3A 41 4B 4D 4F 53 54 55 5C`), every one of them already
+enumerated elsewhere in the crate as *not* an expression token — `mcall::Stop`,
+`BranchSink`'s vocabulary, board #441, `WB_EH_FINDINGS.md` §5.3.
+
+The control-flow half is the sharper case and this document is why: **`mcall`'s
+own suffix already names what follows a call** (`…-then-branch-brfalse`,
+`…-then-plumbing-0x3A`), so letting a `38` take the head would trade a key
+stating two facts for one stating one. Board **#1942**.
