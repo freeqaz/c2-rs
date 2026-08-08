@@ -12,6 +12,7 @@
 
 pub(crate) mod census;
 pub(crate) mod corpus;
+pub(crate) mod factors;
 pub(crate) mod gap;
 pub(crate) mod listing;
 pub(crate) mod perf;

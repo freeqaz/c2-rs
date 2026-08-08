@@ -28,6 +28,7 @@ mod cli;
 
 use cli::census::cmd_census;
 use cli::corpus::{cmd_corpus_gen, cmd_corpus_sample, cmd_corpus_stats};
+use cli::factors::cmd_factors;
 use cli::gap::cmd_gap;
 use cli::listing::{cmd_listing, cmd_listing_scan};
 use cli::perf::{cmd_perf, cmd_perf_scale};
@@ -58,6 +59,7 @@ fn main() -> ExitCode {
         "perf-scale" => cmd_perf_scale(rest),
         "corpus" => cmd_corpus(rest),
         "gap" => cmd_gap(rest),
+        "factors" => cmd_factors(rest),
         "listing" => cmd_listing(rest),
         "listing-scan" => cmd_listing_scan(rest),
         "prefilter" => cmd_prefilter(rest),
@@ -103,6 +105,9 @@ fn print_usage() {
          \x20 c2rs corpus sample [dir]  write the portable synthetic sample corpus\n\
          \x20 c2rs corpus stats <dir>   summarize a corpus manifest\n\
          \x20 c2rs gap [opts]           real-workload gap scan: classify every TU, rank the blockers\n\
+         \x20 c2rs factors [opts]       the Phase-7 A/B/C/D/E sets as SETS: re-derive every published\n\
+         \x20                           count from `gap --factors-tsv`, and intersect that listing\n\
+         \x20                           with another lane's per-TU set (offline, no toolchain)\n\
          \x20 c2rs listing <cpp> [opts] board #132: capture c2's own .cod assembly listing beside the obj\n\
          \x20 c2rs listing-scan [opts]  boards #134/#136: /QXSTALLS demand + the .cod census reconcile\n\
          \x20 c2rs prefilter [opts]     reject-only pre-filter seam: one JSON verdict for one candidate TU\n\

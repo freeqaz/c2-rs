@@ -498,6 +498,30 @@ impl GapReport {
             .collect()
     }
 
+    /// **The same membership as [`Self::factor_membership`], as the row type the
+    /// set algebra is defined over** (lane `w-bcgap`, board **#1520**).
+    ///
+    /// `factor_membership` returns a display tuple — it exists to be *printed*.
+    /// [`super::sets`] needs to take intersections, and an intersection needs a
+    /// type with the predicates on it. This is that type, produced from the live
+    /// report; [`super::sets::parse_factors_tsv`] produces it from the file.
+    ///
+    /// **Two producers, one definition** — and the pair is graded, not asserted:
+    /// `the_tsv_view_and_the_live_report_are_the_same_rows` round-trips
+    /// [`Self::factor_tsv`] back through the parser and compares row for row. A
+    /// count re-derived from the file is therefore a count re-derived from *this
+    /// scan*, which is the only thing that makes `|somebody's set ∩ B∧C|` an
+    /// intersection with `B∧C` rather than with a lookalike.
+    pub fn factor_rows(&self) -> Vec<super::sets::FactorRow> {
+        self.graded()
+            .map(|r| super::sets::FactorRow {
+                src: r.src.clone(),
+                class: r.class.label().to_string(),
+                f: Self::factors(r),
+            })
+            .collect()
+    }
+
     /// Render [`Self::factor_membership`] as the `--factors-tsv` file body.
     ///
     /// Pure (returns the text rather than writing it) so the unit test grades

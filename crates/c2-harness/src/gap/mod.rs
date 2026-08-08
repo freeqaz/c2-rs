@@ -41,6 +41,7 @@ pub mod fndiff;
 mod render;
 mod report;
 mod scan;
+pub mod sets;
 mod witness;
 
 #[cfg(test)]
