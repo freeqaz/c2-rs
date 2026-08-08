@@ -451,6 +451,7 @@ fn lit_arg_tail_call(
     params: Vec<u32>,
     slots: Vec<SlotArg>,
     callee_tok: u32,
+    site: ArgSite,
 ) -> Result<BodyShape, Block> {
     let refuse = |ctx: &'static str| Block::refuse(seg, off, ctx);
     if slots.len() > MAX_REGISTER_FORMALS {
@@ -484,7 +485,24 @@ fn lit_arg_tail_call(
     let one_moved_at_two = slots.len() == 2
         && matches!(slots[1], SlotArg::Lit(_))
         && matches!(slots[0], SlotArg::Formal(ix) if ix >= 1 && ix < MAX_REGISTER_FORMALS);
-    if !in_place && !one_moved_at_two {
+    // **W-PARK — the permutation is decided downstream at the SEQUENCE site, and
+    // only there.** Board **#1920**. See [`ArgSite`] for why the clause is a
+    // statement about the tail site: with a park in front of the call the
+    // permutation is realised by `seq_entry_park`, whose class `park_in_class`
+    // decides on the *same* [`slot_sources`] view in which a literal slot is a
+    // fixed point. Refusing here made that composition unreachable, and the
+    // shape it made unreachable is `mmio.cpp`'s `mmioGetInfo`
+    // (`memcpy(pmmioinfo, hmmio, 0x48)` = `[Formal(1), Formal(0), Lit(72)]`).
+    //
+    // **Nothing is admitted by relaxing it alone.** At the sequence site a
+    // literal still has to pass every clause of the `callseq-multiarg-lit-*`
+    // fence below — one call, a guarded early return, no saved GPR, no W10
+    // guard, at most one literal, none in slot 0 — and a permuted first call
+    // still has to pass `park_in_class`. The two fences already compose: the
+    // `permuted` closure reads `SlotArg::Formal` and skips `Lit` by
+    // construction.
+    let permutation_decided_downstream = site == ArgSite::Sequence;
+    if !in_place && !one_moved_at_two && !permutation_decided_downstream {
         return Err(refuse("call-arg-lit-permuted"));
     }
     Ok(BodyShape::MultiArgTailCall { params, arg_sources: slots, callee_tok })
@@ -520,12 +538,44 @@ fn lit_arg_tail_call(
 /// `args` is the argument list in **stream order** (reverse source order, so slot
 /// `i` is `args[len-1-i]`); `params` is the formals list with a member function's
 /// `this` at index 0; `off` is the segment offset a refusal reports.
+/// **Where an argument list is being read from**, and the ONE clause that
+/// depends on it.
+///
+/// A `SlotArg::Lit` beside a permuted formal is legal in exactly one place and
+/// illegal everywhere else, and the difference is whether an **entry-block
+/// park** exists downstream to move the formals before the call:
+///
+/// * a **tail call** has no park and no prologue — the argument setup *is* the
+///   body, so a permutation has to be realised by [`crate`]'s consumer
+///   `c2_core::codegen::permute_args_text` alone, and that walk has never been
+///   captured beside a `li`;
+/// * a call inside a **framed sequence** behind a guarded early return does
+///   have one. [`park_in_class`] decides whether the permutation is inside
+///   `w-mmio`'s measured park class, and [`slot_sources`] — the one view both
+///   the parser's fence and the emitter's backstop take — already reads a
+///   literal slot as a **fixed point**, because the value is about to be
+///   materialised there by a `li` and participates in no cycle.
+///
+/// So the literal path's in-place requirement is a statement about the *tail*
+/// site, and stating it at both sites refused a class the park machinery was
+/// written to serve. Board **#1920**.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum ArgSite {
+    /// `return g(…)`, `g(…)` as a whole void body, and the bound-to-a-local
+    /// form. No park, no prologue. The historical behaviour, unchanged.
+    Tail,
+    /// A statement call inside [`parse_call_sequence_from`]'s loop, where the
+    /// park fence and the `callseq-multiarg-lit-*` fence both run downstream.
+    Sequence,
+}
+
 pub(crate) fn tail_call_shape(
     seg: &[u8],
     args: Vec<Vec<IlOp>>,
     params: Vec<u32>,
     callee_tok: u32,
     off: usize,
+    site: ArgSite,
 ) -> Result<BodyShape, Block> {
     let refuse = |ctx: &'static str| Block::refuse(seg, off, ctx);
     // No arguments at all: the bare `b <callee>`.
@@ -581,7 +631,7 @@ pub(crate) fn tail_call_shape(
             return sym_addr_tail_call(seg, off, params, slots, callee_tok, syms);
         }
         if lits > 0 {
-            return lit_arg_tail_call(seg, off, params, slots, callee_tok);
+            return lit_arg_tail_call(seg, off, params, slots, callee_tok, site);
         }
         let mut arg_sources: Vec<usize> = Vec::with_capacity(slots.len());
         for a in &slots {
@@ -1276,7 +1326,7 @@ pub(crate) fn parse_call_shape(
         if eat_return_plumbing(seg, &mut q, false, BODY_SCOPE_DEPTH).is_ok() {
             *p = q;
             let params = parse_params(seg, lo)?;
-            return tail_call_shape(seg, args, params, callee_tok, *p);
+            return tail_call_shape(seg, args, params, callee_tok, *p, ArgSite::Tail);
         }
         return parse_call_sequence(seg, p, lo, callee_tok, args);
     }
@@ -1329,7 +1379,7 @@ pub(crate) fn parse_call_shape(
         // The SAME validator the direct `return g(…)` form uses. This branch used
         // to carry its own copy, which was missing two of its gates — one wrong
         // byte and one panic; see [`tail_call_shape`].
-        return tail_call_shape(seg, args, params, callee_tok, *p);
+        return tail_call_shape(seg, args, params, callee_tok, *p, ArgSite::Tail);
     }
     if args.len() > 1 {
         // Two or more arguments: only the pure-permutation shape is modeled, and
@@ -1337,7 +1387,7 @@ pub(crate) fn parse_call_shape(
         // ([`tail_call_shape`]) the bound-to-a-local form and the statement-call
         // form also use.
         let params = parse_params(seg, lo)?;
-        let shape = tail_call_shape(seg, args, params, callee_tok, *p)?;
+        let shape = tail_call_shape(seg, args, params, callee_tok, *p, ArgSite::Tail)?;
         // Only a terminal tail call: a post-op would consume the result and need
         // the framed path, which does not model multi-argument setup.
         if seg.get(*p) != Some(&0x41) {
@@ -1392,7 +1442,7 @@ pub(crate) fn parse_call_shape(
         // `g(a)` is a bare `b g`, `g(a+1)` prepends `addi r3,r3,1`.
         eat_return_plumbing(seg, p, true, BODY_SCOPE_DEPTH)?;
         let params = parse_params(seg, lo)?;
-        return tail_call_shape(seg, vec![arg_ops], params, callee_tok, *p);
+        return tail_call_shape(seg, vec![arg_ops], params, callee_tok, *p, ArgSite::Tail);
     }
     let k = eat_call_postop(seg, p)?;
     eat_return_plumbing(seg, p, true, BODY_SCOPE_DEPTH)?;
@@ -1404,7 +1454,7 @@ pub(crate) fn parse_call_shape(
     // 6-section framed obj (which would mis-emit a frame the reference elides).
     if k == 0 {
         let params = parse_params(seg, lo)?;
-        return tail_call_shape(seg, vec![arg_ops], params, callee_tok, *p);
+        return tail_call_shape(seg, vec![arg_ops], params, callee_tok, *p, ArgSite::Tail);
     }
     // A genuine `+ k` (k ≠ 0) is a framed non-leaf call — but the 6-section
     // framed path models only a **bare passthrough argument** (`g(a) + k`), not
@@ -1685,7 +1735,7 @@ pub(crate) fn parse_call_sequence_from(
             return Err(Block::refuse(seg, *p, "callseq-guard-no-trailing-call"));
         }
         let (callee_tok, args) = raw.pop().expect("length checked");
-        return tail_call_shape(seg, args, params, callee_tok, *p);
+        return tail_call_shape(seg, args, params, callee_tok, *p, ArgSite::Tail);
     }
     // **W10 — the guarded sequence is Class A only.** `probe3 P2`/`S0`/`S1` put
     // a formal in r31 beside a branch and the compare then reads r31 in one and
@@ -1700,7 +1750,7 @@ pub(crate) fn parse_call_sequence_from(
     let mut calls: Vec<SeqCall> = Vec::with_capacity(raw.len());
     for (i, (callee_tok, args)) in raw.into_iter().enumerate() {
         let (arg_ops, arg_slots) =
-            match tail_call_shape(seg, args, params.clone(), callee_tok, *p)? {
+            match tail_call_shape(seg, args, params.clone(), callee_tok, *p, ArgSite::Sequence)? {
                 BodyShape::VoidTailCall { .. } => (Vec::new(), None),
                 BodyShape::IntTailCall { arg_ops, .. } => (arg_ops, None),
                 BodyShape::MultiArgTailCall { arg_sources, .. } => {
@@ -2741,4 +2791,69 @@ mod tests {
         }
     }
 
+
+    /// **W-PARK — [`ArgSite`] is the ONE axis the literal path's in-place
+    /// requirement depends on, and both of its values are asserted here.**
+    ///
+    /// Board **#1920**. The clause is the whole of this lane's `crates/` change,
+    /// so it gets a test that names both sides rather than one that names the
+    /// side that ships. `[Formal(1), Formal(0), Lit(72)]` is `mmioGetInfo`'s own
+    /// slot list.
+    #[test]
+    fn arg_site_decides_the_literal_paths_permutation_clause() {
+        let slots = vec![SlotArg::Formal(1), SlotArg::Formal(0), SlotArg::Lit(72)];
+        let seg: &[u8] = &[0u8; 8];
+        assert!(
+            lit_arg_tail_call(seg, 0, vec![1, 2, 3], slots.clone(), 9, ArgSite::Tail)
+                .is_err(),
+            "at the TAIL site there is no park, so a permuted literal list must \
+             stay refused — the historical behaviour, unchanged"
+        );
+        assert!(
+            matches!(
+                lit_arg_tail_call(seg, 0, vec![1, 2, 3], slots, 9, ArgSite::Sequence),
+                Ok(BodyShape::MultiArgTailCall { .. })
+            ),
+            "at the SEQUENCE site the permutation is decided downstream by \
+             park_in_class, on the same slot_sources view"
+        );
+    }
+
+    /// The in-place list is accepted at **both** sites, so the widening is a
+    /// strictly larger accept set at one site and a no-op at the other. This is
+    /// the algebraic half of the verdict-neutrality claim; the measured half is
+    /// GRID-P's 45 cells and the 878-TU set comparison.
+    #[test]
+    fn arg_site_does_not_change_the_in_place_literal_list() {
+        let slots = vec![SlotArg::Formal(0), SlotArg::Formal(1), SlotArg::Lit(72)];
+        let seg: &[u8] = &[0u8; 8];
+        for site in [ArgSite::Tail, ArgSite::Sequence] {
+            assert!(
+                matches!(
+                    lit_arg_tail_call(seg, 0, vec![1, 2, 3], slots.clone(), 9, site),
+                    Ok(BodyShape::MultiArgTailCall { .. })
+                ),
+                "the in-place list is unchanged at {site:?}"
+            );
+        }
+    }
+
+    /// **The clauses [`ArgSite::Sequence`] does NOT relax.** A widening that
+    /// dropped the whole guard rather than its permutation half would take these
+    /// with it, and neither has a park to legalise it: the eight-slot bound is a
+    /// property of the argument registers, not of the call site.
+    #[test]
+    fn arg_site_sequence_still_refuses_the_slot_bound() {
+        let slots: Vec<SlotArg> = (0..MAX_REGISTER_FORMALS)
+            .map(SlotArg::Formal)
+            .chain(std::iter::once(SlotArg::Lit(72)))
+            .collect();
+        let seg: &[u8] = &[0u8; 8];
+        for site in [ArgSite::Tail, ArgSite::Sequence] {
+            assert!(
+                lit_arg_tail_call(seg, 0, vec![1], slots.clone(), 9, site).is_err(),
+                "nine slots is over the bound at {site:?}"
+            );
+        }
+    }
 }

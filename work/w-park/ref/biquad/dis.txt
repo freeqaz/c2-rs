@@ -1,0 +1,85 @@
+== work/w-park/ref/biquad/ref.obj  machine=0x01f2 nsec=9 nsym=29 size=1664
+-- sections
+   1 .drectve   raw=132    rawptr=0x017c rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=184    rawptr=0x0200 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x02b8 rel=0  relptr=0x0000 chars=0xc0401040
+   4 .XBLD$W    raw=16     rawptr=0x02c8 rel=0  relptr=0x0000 chars=0xc2301040
+   5 .text      raw=140    rawptr=0x02d8 rel=8  relptr=0x0364 chars=0x60401020
+   6 .rdata     raw=4      rawptr=0x03b4 rel=0  relptr=0x0000 chars=0x40301040
+   7 .rdata     raw=4      rawptr=0x03b8 rel=0  relptr=0x0000 chars=0x40301040
+   8 .text      raw=36     rawptr=0x03bc rel=1  relptr=0x03e0 chars=0x60401020
+   9 .pdata     raw=8      rawptr=0x03ea rel=1  relptr=0x03f2 chars=0x40401040
+-- .text #5 (140 B) ?SetCoefficients@Biquad@DSP@@QAAXPAM@Z
+   0000  3d600000  lis 11, 0                         ; REFHI -> [19] __real@00000000  ; PAIR -> [0] @comp.id
+   0004  2b040000  cmplwi 6, 4, 0                  
+   0008  c00b0000  lfs 0, 0(11)                      ; REFLO -> [19] __real@00000000  ; PAIR -> [0] @comp.id
+   000c  409a0024  bf	26, .+36                     
+   0010  3d600000  lis 11, 0                         ; REFHI -> [16] __real@3f800000  ; PAIR -> [0] @comp.id
+   0014  d0030010  stfs 0, 16(3)                   
+   0018  d003000c  stfs 0, 12(3)                   
+   001c  d0030008  stfs 0, 8(3)                    
+   0020  d0030004  stfs 0, 4(3)                    
+   0024  c1ab0000  lfs 13, 0(11)                     ; REFLO -> [16] __real@3f800000  ; PAIR -> [0] @comp.id
+   0028  d1a30000  stfs 13, 0(3)                   
+   002c  48000054  b .+84                          
+   0030  c184000c  lfs 12, 12(4)                   
+   0034  c1a40000  lfs 13, 0(4)                    
+   0038  edad6024  fdivs 13, 13, 12                
+   003c  d1a30000  stfs 13, 0(3)                   
+   0040  c184000c  lfs 12, 12(4)                   
+   0044  c1a40004  lfs 13, 4(4)                    
+   0048  edad6024  fdivs 13, 13, 12                
+   004c  d1a30004  stfs 13, 4(3)                   
+   0050  c184000c  lfs 12, 12(4)                   
+   0054  c1a40008  lfs 13, 8(4)                    
+   0058  edad6024  fdivs 13, 13, 12                
+   005c  d1a30008  stfs 13, 8(3)                   
+   0060  c184000c  lfs 12, 12(4)                   
+   0064  c1a40010  lfs 13, 16(4)                   
+   0068  edad6024  fdivs 13, 13, 12                
+   006c  d1a3000c  stfs 13, 12(3)                  
+   0070  c1a40014  lfs 13, 20(4)                   
+   0074  c184000c  lfs 12, 12(4)                   
+   0078  edad6024  fdivs 13, 13, 12                
+   007c  d1a30010  stfs 13, 16(3)                  
+   0080  d0030018  stfs 0, 24(3)                   
+   0084  d0030014  stfs 0, 20(3)                   
+   0088  4e800020  blr                             
+-- .rdata #6 raw
+   0000  3f 80 00 00
+-- .rdata #7 raw
+   0000  00 00 00 00
+-- .text #8 (36 B) ??0Biquad@DSP@@QAA@PAM@Z
+   0000  7d8802a6  mflr 12                         
+   0004  9181fff8  stw 12, -8(1)                   
+   0008  9421ffa0  stwu 1, -96(1)                  
+   000c  7c6a1b78  mr	10, 3                        
+   0010  4bfffff1  bl .-16                           ; REL24 -> [13] ?SetCoefficients@Biquad@DSP@@QAAXPAM@Z
+   0014  38210060  addi 1, 1, 96                   
+   0018  8181fff8  lwz 12, -8(1)                   
+   001c  7d8803a6  mtlr 12                         
+   0020  4e800020  blr                             
+-- .pdata #9 raw
+   0000  00 00 00 00 40 00 09 03
+   reloc va=0x0 ADDR32   -> [23] ??0Biquad@DSP@@QAA@PAM@Z
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=184 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .XBLD$W                                  sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [10] __C1_11886                               sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [11] .text                                    sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=140 nrel=8 nln=0 cksum=0x00000000 num=0 sel=1)
+  [13] ?SetCoefficients@Biquad@DSP@@QAAXPAM@Z   sec=5   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [14] .rdata                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=4 nrel=0 nln=0 cksum=0x00000000 num=0 sel=2)
+  [16] __real@3f800000                          sec=6   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [17] .rdata                                   sec=7   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=4 nrel=0 nln=0 cksum=0x00000000 num=0 sel=2)
+  [19] __real@00000000                          sec=7   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [20] _fltused                                 sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [21] .text                                    sec=8   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=36 nrel=1 nln=0 cksum=0x00000000 num=0 sel=1)
+  [23] ??0Biquad@DSP@@QAA@PAM@Z                 sec=8   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [24] $M2575                                   sec=8   val=0x24     sc=LABEL     type=0x0000 naux=0
+  [25] $M2574                                   sec=8   val=0xc      sc=LABEL     type=0x0000 naux=0
+  [26] .pdata                                   sec=9   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0xd3dfb2ce num=8 sel=5)
+  [28] $T2576                                   sec=9   val=0x0      sc=STATIC    type=0x0000 naux=0
