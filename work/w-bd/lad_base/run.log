@@ -1,0 +1,16 @@
+src/Main.cpp                                   net=2   sink=1   hatch=1  EXIT:expr-convert-no-value-0x2C(no-lift)
+src/system/math/Primes.cpp                     net=7   sink=7   hatch=0  READER-CLEAR
+src/xdk/LIBCMT/osfinfo.cpp                     net=12  sink=11  hatch=1  EXIT:expr-chain-noform-0xBD(noform)
+src/xdk/LIBCMT/undname.cpp                     net=5   sink=5   hatch=0  EXIT:expr-chain-noform-0xBD(noform)
+src/xdk/LIBCMT/vswprnc.cpp                     net=5   sink=5   hatch=0  EXIT:expr-chain-noform-0xBD(noform)
+src/xdk/nuispeech/xboxheap.cpp                 net=1   sink=0   hatch=1  STUCK:store-run-bind-mixed-kind-alloc:eof
+src/xdk/xjson/jsonwriter.cpp                   net=16  sink=15  hatch=1  READER-CLEAR
+src/xdk/xlrc/xlrcimpl.cpp                      net=0   sink=0   hatch=0  EXIT:assign-rhs-call-0x26(no-lift)
+src/system/negate_test.cpp                     net=9   sink=8   hatch=1  EXIT:expr-chain-noform-0xBD(noform)
+src/system/synth_xbox/Biquad.cpp               net=7   sink=7   hatch=0  EXIT:expr-chain-noform-0x00(noform)
+src/xdk/LIBCMT/vsnprnc.cpp                     net=6   sink=5   hatch=1  EXIT:expr-chain-noform-0xBD(noform)
+src/system/rndobj/wordwrap.cpp                 net=17  sink=17  hatch=0  EXIT:expr-chain-noform-0x1C(noform);expr-chain-noform-0xBD(noform)
+src/system/utl/Pool.cpp                        net=9   sink=9   hatch=0  EXIT:expr-chain-noform-0x10(noform)
+src/xdk/nuispeech/mmio.cpp                     net=7   sink=7   hatch=0  EXIT:expr-chain-noform-0x4C(noform);expr-chain-noform-0xBD(noform)
+src/system/synth_xbox/IPP_basicmath_xbox.cpp   net=12  sink=12  hatch=0  EXIT:expr-chain-noform-0x11(noform)
+src/system/utl/EncryptXTEA.cpp                 net=16  sink=16  hatch=0  EXIT:expr-chain-noform-0x00(noform);expr-chain-noform-0x4C(noform);expr-chain-noform-0xBD(noform)

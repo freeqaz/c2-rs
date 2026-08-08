@@ -1,0 +1,22 @@
+TU                                              base   tip    d  base exit -> tip exit
+src/Main.cpp                                       2     2   +0  EXIT:expr-convert-no-value-0x2C(no-lift)  ->  EXIT:expr-convert-no-value-0x2C(no-lift)
+src/system/math/Primes.cpp                         7     7   +0  READER-CLEAR  ->  READER-CLEAR
+src/xdk/LIBCMT/osfinfo.cpp                        12    13   +1  EXIT:expr-chain-noform-0xBD(noform)  ->  EXIT:expr-chain-noform-0x4C(noform)
+src/xdk/LIBCMT/undname.cpp                         5     7   +2  EXIT:expr-chain-noform-0xBD(noform)  ->  EXIT:expr-chain-noform-0x4C(noform)
+src/xdk/LIBCMT/vswprnc.cpp                         5     6   +1  EXIT:expr-chain-noform-0xBD(noform)  ->  EXIT:expr-chain-noform-0x4C(noform)
+src/xdk/nuispeech/xboxheap.cpp                     1     1   +0  STUCK:store-run-bind-mixed-kind-alloc:eof  ->  STUCK:store-run-bind-mixed-kind-alloc:eof
+src/xdk/xjson/jsonwriter.cpp                      16    16   +0  READER-CLEAR  ->  READER-CLEAR
+src/xdk/xlrc/xlrcimpl.cpp                          0     0   +0  EXIT:assign-rhs-call-0x26(no-lift)  ->  EXIT:assign-rhs-call-0x26(no-lift)
+src/system/negate_test.cpp                         9    12   +3  EXIT:expr-chain-noform-0xBD(noform)  ->  EXIT:expr-chain-noform-0x4C(noform)
+src/system/synth_xbox/Biquad.cpp                   7     7   +0  EXIT:expr-chain-noform-0x00(noform)  ->  EXIT:expr-chain-noform-0x00(noform)
+src/xdk/LIBCMT/vsnprnc.cpp                         6     7   +1  EXIT:expr-chain-noform-0xBD(noform)  ->  EXIT:expr-chain-noform-0x4C(noform)
+src/system/rndobj/wordwrap.cpp                    17    19   +2  EXIT:expr-chain-noform-0x1C(noform);expr-chain-noform-0xBD(noform)  ->  EXIT:expr-chain-noform-0x1C(noform);expr-chain-noform-0x4C(noform)
+src/system/utl/Pool.cpp                            9     9   +0  EXIT:expr-chain-noform-0x10(noform)  ->  EXIT:expr-chain-noform-0x10(noform)
+src/xdk/nuispeech/mmio.cpp                         7     7   +0  EXIT:expr-chain-noform-0x4C(noform);expr-chain-noform-0xBD(noform)  ->  EXIT:expr-chain-noform-0x4C(noform)
+src/system/synth_xbox/IPP_basicmath_xbox.cpp      12    12   +0  EXIT:expr-chain-noform-0x11(noform)  ->  EXIT:expr-chain-noform-0x11(noform)
+src/system/utl/EncryptXTEA.cpp                    16    16   +0  EXIT:expr-chain-noform-0x00(noform);expr-chain-noform-0x4C(noform);expr-chain-noform-0xBD(noform)  ->  EXIT:expr-chain-noform-0x00(noform);expr-chain-noform-0x4C(noform)
+src/keygen_xbox.cpp                               15    18   +3  EXIT:call-arg-outer-formal:eof(hatch-withheld:call-arg-outer-formal);expr-chain-noform-0x13(noform);expr-chain-noform-0xBD(noform)  ->  EXIT:expr-chain-noform-0x13(noform);expr-chain-noform-0x4C(noform)
+
+ladders whose exit named noform-0xBD: base 9  tip 0
+of the 9: 7 extended, 2 moved by 0; total rungs added 13
+sum of rungs_net over all 17: base 146 tip 159

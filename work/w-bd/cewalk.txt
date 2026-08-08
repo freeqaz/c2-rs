@@ -1,0 +1,44 @@
+========================================================================
+w-bd — is 0x4C (CALL-END) payload-free? The floor under the 0xBD floor
+========================================================================
+TUs                                     876
+EXACT `4C` sites (a zero-arg call's end) 26701
+  of which at the very end of the stream 0
+
+-- P (payload-free): desync 0 / 26701 --
+   top landings: 0x32x5499, 0x38x5076, 0x99x4486, 0x4Bx3369, 0x55x3132, 0x2Cx1200, 0x20x770, 0x1Fx749
+
+-- B1 (one raw byte): desync 18958 / 26701 --
+   top landings: 0x86x11170, 0x82x4492, 0x3Ax2656, 0x39x1048, 0x4Fx875, 0x1Bx729, 0x87x387, 0x09x286
+
+-- IS THERE ANYWHERE FOR A PAYLOAD TO BE? (w-divsplit's own question) --
+   next byte has bit 7 SET (could be a TYPE tag)   4754 / 26701
+   next byte decodes as a whole TYPE               4754 / 26701
+   a TOKEN read here lands on a legal opcode       12137 / 26701
+
+-- the byte after `4C`, in full (this is the successor distribution) --
+   0x32       5499
+   0x38       5076
+   0x99       4486
+   0x4B       3369
+   0x55       3132
+   0x2C       1200
+   0x20        770
+   0x1F        749
+   0x41        747
+   0x33        628
+   0x30        592
+   0xB9        267
+   0x26         78
+   0x39         73
+   0x22         12
+   0x43          5
+   0x04          4
+   0x03          3
+   0x0F          2
+   0x05          2
+   0x06          2
+   0x21          1
+   0x24          1
+   0x02          1
+   ... 26 distinct bytes in all

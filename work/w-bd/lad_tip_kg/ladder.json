@@ -1,0 +1,421 @@
+[
+ {
+  "tu": "src/keygen_xbox.cpp",
+  "status": "EXIT:expr-chain-noform-0x13(noform);expr-chain-noform-0x4C(noform)",
+  "rungs_raw": 24,
+  "rungs_net": 18,
+  "sink_rungs": 17,
+  "hatch_rungs": 1,
+  "ladder": [
+   {
+    "kind": "hatch",
+    "token": "assign-store-type",
+    "opened": "assign-store-type-8643"
+   },
+   {
+    "kind": "sink",
+    "token": "op:38",
+    "opened": "expr-brfalse"
+   },
+   {
+    "kind": "sink",
+    "token": "op:26",
+    "opened": "expr-call-in-expr-data-addr-then-plain-call-and-op-more"
+   },
+   {
+    "kind": "sink",
+    "token": "type",
+    "opened": "expr-lit-type-9641"
+   },
+   {
+    "kind": "sink",
+    "token": "op:0F",
+    "opened": "expr-op-0x0F"
+   },
+   {
+    "kind": "sink",
+    "token": "op:30",
+    "opened": "expr-op-0x30"
+   },
+   {
+    "kind": "sink",
+    "token": "op:21",
+    "opened": "expr-cmp-le"
+   },
+   {
+    "kind": "sink",
+    "token": "op:28",
+    "opened": "expr-op-0x28"
+   },
+   {
+    "kind": "sink",
+    "token": "op:35",
+    "opened": "expr-op-0x35"
+   },
+   {
+    "kind": "sink",
+    "token": "op:22",
+    "opened": "expr-cmp-lt"
+   },
+   {
+    "kind": "sink",
+    "token": "convert",
+    "opened": "expr-convert-target-8212"
+   },
+   {
+    "kind": "sink",
+    "token": "op:13",
+    "opened": "expr-op-0x13"
+   },
+   {
+    "kind": "sink",
+    "token": "op:32",
+    "opened": "expr-op-0x32"
+   },
+   {
+    "kind": "sink",
+    "token": "op:BD",
+    "opened": "expr-op-0xBD"
+   },
+   {
+    "kind": "sink",
+    "token": "op:1F",
+    "opened": "expr-cmp-eq"
+   },
+   {
+    "kind": "sink",
+    "token": "op:4C",
+    "opened": "expr-op-0x4C"
+   },
+   {
+    "kind": "sink",
+    "token": "op:55",
+    "opened": "expr-op-0x55"
+   },
+   {
+    "kind": "sink",
+    "token": "op:43",
+    "opened": "expr-ternary"
+   }
+  ],
+  "rounds": [
+   {
+    "round": 0,
+    "reader": {
+     "assign-store-type-8643": 2,
+     "call-arg-outer-formal:eof": 1,
+     "expr-brfalse": 1,
+     "expr-call-in-expr-data-addr-then-plain-call-and-op-more": 1,
+     "expr-call-in-expr-op-0x1F": 1,
+     "expr-jump": 9,
+     "expr-lit-type-9641": 1,
+     "expr-load-type-8211": 1,
+     "expr-op-0x0F": 1,
+     "expr-op-0x30": 1
+    },
+    "emit": {
+     "assign-store-type-8643": 2,
+     "call-arg-outer-formal:eof": 1,
+     "expr-brfalse": 1,
+     "expr-call-in-expr-data-addr-then-plain-call-and-op-more": 1,
+     "expr-call-in-expr-op-0x1F": 1,
+     "expr-jump": 9,
+     "expr-lit-type-9641": 1,
+     "expr-load-type-8211": 1,
+     "expr-op-0x0F": 1,
+     "expr-op-0x30": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41"
+    ],
+    "hatches": [],
+    "stuck": [
+     "call-arg-outer-formal:eof(hatch-withheld:call-arg-outer-formal)"
+    ]
+   },
+   {
+    "round": 1,
+    "reader": {
+     "call-arg-outer-formal:eof": 1,
+     "expr-chain-sink-poison:mid": 1,
+     "expr-cmp-le": 1,
+     "expr-convert-no-value-0x2C": 1,
+     "expr-label": 10,
+     "expr-op-0x28": 1,
+     "expr-op-0x35": 1,
+     "expr-op-0x4B": 1,
+     "expr-op-0x53": 1,
+     "expr-op-0x54": 1
+    },
+    "emit": {
+     "call-arg-outer-formal:eof": 1,
+     "expr-chain-sink-poison:mid": 1,
+     "expr-cmp-le": 1,
+     "expr-convert-no-value-0x2C": 1,
+     "expr-label": 10,
+     "expr-op-0x28": 1,
+     "expr-op-0x35": 1,
+     "expr-op-0x4B": 1,
+     "expr-op-0x53": 1,
+     "expr-op-0x54": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:26",
+     "op:3A",
+     "type",
+     "op:0F",
+     "op:30"
+    ],
+    "hatches": [
+     "assign-store-type"
+    ],
+    "stuck": [
+     "call-arg-outer-formal:eof(hatch-withheld:call-arg-outer-formal)",
+     "expr-convert-no-value-0x2C(no-lift)"
+    ]
+   },
+   {
+    "round": 2,
+    "reader": {
+     "call-arg-outer-formal:eof": 1,
+     "expr-chain-sink-poison:mid": 2,
+     "expr-cmp-lt": 10,
+     "expr-convert-no-value-0x2C": 1,
+     "expr-op-0x4F": 5
+    },
+    "emit": {
+     "call-arg-outer-formal:eof": 1,
+     "expr-chain-sink-poison:mid": 2,
+     "expr-cmp-lt": 10,
+     "expr-convert-no-value-0x2C": 1,
+     "expr-op-0x4F": 5
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:26",
+     "op:3A",
+     "type",
+     "op:0F",
+     "op:30",
+     "op:21",
+     "op:29",
+     "op:28",
+     "op:35",
+     "op:4B",
+     "op:53",
+     "op:54"
+    ],
+    "hatches": [
+     "assign-store-type"
+    ],
+    "stuck": [
+     "call-arg-outer-formal:eof(hatch-withheld:call-arg-outer-formal)",
+     "expr-convert-no-value-0x2C(no-lift)"
+    ]
+   },
+   {
+    "round": 3,
+    "reader": {
+     "call-arg-outer-formal:eof": 1,
+     "expr-chain-noform-0x4F": 2,
+     "expr-chain-sink-poison:mid": 2,
+     "expr-convert-no-value-0x2C": 1,
+     "expr-convert-target-8212": 1,
+     "expr-op-0x13": 1,
+     "expr-op-0x32": 2,
+     "expr-op-0xBD": 9
+    },
+    "emit": {
+     "call-arg-outer-formal:eof": 1,
+     "expr-chain-noform-0x4F": 2,
+     "expr-chain-sink-poison:mid": 2,
+     "expr-convert-no-value-0x2C": 1,
+     "expr-convert-target-8212": 1,
+     "expr-op-0x13": 1,
+     "expr-op-0x32": 2,
+     "expr-op-0xBD": 9
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:26",
+     "op:3A",
+     "type",
+     "op:0F",
+     "op:30",
+     "op:21",
+     "op:29",
+     "op:28",
+     "op:35",
+     "op:4B",
+     "op:53",
+     "op:54",
+     "op:22",
+     "op:4F"
+    ],
+    "hatches": [
+     "assign-store-type"
+    ],
+    "stuck": [
+     "call-arg-outer-formal:eof(hatch-withheld:call-arg-outer-formal)",
+     "expr-convert-no-value-0x2C(no-lift)"
+    ]
+   },
+   {
+    "round": 4,
+    "reader": {
+     "call-arg-outer-formal:eof": 1,
+     "expr-chain-noform-0x13": 1,
+     "expr-chain-noform-0x4F": 6,
+     "expr-chain-sink-poison:mid": 1,
+     "expr-cmp-eq": 1,
+     "expr-op-0x4C": 1,
+     "expr-op-0x55": 8
+    },
+    "emit": {
+     "call-arg-outer-formal:eof": 1,
+     "expr-chain-noform-0x13": 1,
+     "expr-chain-noform-0x4F": 6,
+     "expr-chain-sink-poison:mid": 1,
+     "expr-cmp-eq": 1,
+     "expr-op-0x4C": 1,
+     "expr-op-0x55": 8
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:26",
+     "op:3A",
+     "type",
+     "op:0F",
+     "op:30",
+     "op:21",
+     "op:29",
+     "op:28",
+     "op:35",
+     "op:4B",
+     "op:53",
+     "op:54",
+     "op:22",
+     "op:4F",
+     "convert",
+     "op:13",
+     "op:32",
+     "op:BD"
+    ],
+    "hatches": [
+     "assign-store-type"
+    ],
+    "stuck": [
+     "call-arg-outer-formal:eof(hatch-withheld:call-arg-outer-formal)",
+     "expr-chain-noform-0x13(noform)"
+    ]
+   },
+   {
+    "round": 5,
+    "reader": {
+     "expr-chain-noform-0x13": 1,
+     "expr-chain-noform-0x4C": 12,
+     "expr-chain-noform-0x4F": 6,
+     "expr-ternary": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x13": 1,
+     "expr-chain-noform-0x4C": 12,
+     "expr-chain-noform-0x4F": 6,
+     "expr-ternary": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:26",
+     "op:3A",
+     "type",
+     "op:0F",
+     "op:30",
+     "op:21",
+     "op:29",
+     "op:28",
+     "op:35",
+     "op:4B",
+     "op:53",
+     "op:54",
+     "op:22",
+     "op:4F",
+     "convert",
+     "op:13",
+     "op:32",
+     "op:BD",
+     "op:1F",
+     "op:4C",
+     "op:55"
+    ],
+    "hatches": [
+     "assign-store-type"
+    ],
+    "stuck": [
+     "expr-chain-noform-0x13(noform)",
+     "expr-chain-noform-0x4C(noform)"
+    ]
+   },
+   {
+    "round": 6,
+    "reader": {
+     "expr-chain-noform-0x13": 1,
+     "expr-chain-noform-0x4C": 13,
+     "expr-chain-noform-0x4F": 6
+    },
+    "emit": {
+     "expr-chain-noform-0x13": 1,
+     "expr-chain-noform-0x4C": 13,
+     "expr-chain-noform-0x4F": 6
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "op:38",
+     "op:26",
+     "op:3A",
+     "type",
+     "op:0F",
+     "op:30",
+     "op:21",
+     "op:29",
+     "op:28",
+     "op:35",
+     "op:4B",
+     "op:53",
+     "op:54",
+     "op:22",
+     "op:4F",
+     "convert",
+     "op:13",
+     "op:32",
+     "op:BD",
+     "op:1F",
+     "op:4C",
+     "op:55",
+     "op:43"
+    ],
+    "hatches": [
+     "assign-store-type"
+    ]
+   }
+  ],
+  "final_emit": {
+   "expr-chain-noform-0x13": 1,
+   "expr-chain-noform-0x4C": 13,
+   "expr-chain-noform-0x4F": 6
+  },
+  "final_gate": {}
+ }
+]

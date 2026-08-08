@@ -1,0 +1,9 @@
+  BD  TYPE[3] 86 41 74        flags 0x00  id[5] 80 01 10 00 00  width 10  -> 0xB9 LEGAL
+  BD  TYPE[3] 86 41 74        flags 0x00  id[5] 80 01 10 00 00  width 10  -> 0xB9 LEGAL
+  BD  TYPE[3] 86 41 74        flags 0x04  id[5] 80 02 10 00 00  width 10  -> 0xB9 LEGAL
+  BD  TYPE[3] 86 41 74        flags 0x40  id[5] 80 06 10 00 00  width 10  -> 0xB9 LEGAL
+  BD  TYPE[3] 82 07 03        flags 0x00  id[5] 80 09 10 00 00  width 10  -> 0x4C LEGAL
+  BD  TYPE[4] 86 43 83 08     flags 0x00  id[5] 80 0a 10 00 00  width 11  -> 0x4C LEGAL
+  BD  TYPE[4] 86 43 8c 20     flags 0x00  id[5] 80 0f 10 00 00  width 11  -> 0x4C LEGAL
+
+  7 anchored CALL tokens

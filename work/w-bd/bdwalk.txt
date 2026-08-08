@@ -1,0 +1,162 @@
+========================================================================
+w-bd CONFIRMATION 2 — opcode 0xBD over the dc3 workload
+========================================================================
+TUs with a captured .ex           876
+ANCHORED `26 <tok> BD` sites      3544589
+unanchored raw 0xBD bytes         762733   (not judged)
+
+-- the landing byte, per reading (the DENOMINATOR is `sites`) --
+  W   desync      23 / 3544589   undecodable     88   top landings: 0xB9x1150215, 0x4Cx1081061, 0x33x579870, 0x26x557349, 0x9Bx175432, 0x67x531
+  R1  desync 3544480 / 3544589   undecodable     88   top landings: 0x80x3544468, 0x43x21, 0x86x9, 0x9Cx1, 0xA6x1, 0x37x1
+  R2  desync 3544319 / 3544589   undecodable     88   top landings: 0x00x3544297, 0x40x171, 0xA6x20, 0x55x9, 0xBFx1, 0x86x1
+  R3  desync      23 / 3544589   undecodable     88   top landings: 0xB9x1150215, 0x4Cx1081061, 0x33x579870, 0x26x557349, 0x9Bx175432, 0x67x531
+
+-- the fields, under W --
+  return-TYPE width   {3: 1735526, 4: 1391017, 5: 417958}
+  flags byte value    {0: 3544297, 38: 1, 44: 1, 64: 171, 85: 9, 134: 1, 166: 20, 191: 1}
+  fn-type-id width    {1: 33, 5: 3544468}
+  total token width   {6: 24, 7: 2, 8: 7, 10: 1735502, 11: 1391015, 12: 417951}
+
+-- R3 (flags as a varint) agrees with W at 3544501 of 3544589 sites --
+   PREREG registered R3 as INDISTINGUISHABLE on this corpus.
+
+-- by ANCHOR: two structurally different populations --
+  direct  n= 1118048
+          desync:      W 0  R1 1118040  R2 1117869  R3 0
+          undecodable: W 8  R1 8  R2 8  R3 8
+  member  n= 2426541
+          desync:      W 23  R1 2426440  R2 2426450  R3 23
+          undecodable: W 80  R1 80  R2 80  R3 80
+
+-- FALSE-ANCHOR SCREEN --
+  anomalous sites (undecodable + desync)   111 of 3544589
+    by anchor: direct 8  member 103
+  the 0xBD lies INSIDE a neighbouring TYPE's LEB payload   94
+  the 0xBD lies INSIDE a neighbouring 4-byte TOKEN         11
+  the 0xBD lies INSIDE a `66 <n>` class descriptor's tokens 5
+  UNEXPLAINED residue                                     1
+  Neither is an opcode position, so neither is a CALL site. The
+  screen is non-circular: it asks only whether a token starting
+  BEFORE j spans past j, which is a property of the bytes and not
+  of any reading of BD. The residue is printed in full:
+    RESIDUE UNDEC  direct src/system/hamobj/HamCharacter.cpp @ 30935: 01 00 4f 02 be 26 4f 02 bd 26 4f 01 22 4f 02 20 1b 4f 01 00 4f 02
+
+-- every site W does not read cleanly, in full (88 undecodable + 23 desync) --
+  UNDEC  member src/lazer/game/BustAMovePanel.cpp @ 486730: 40 86 43 99 81 01 66 03 bd 7f da 78 bf 7f 55 86 41 74 33 86 41 74
+  UNDEC  member src/lazer/game/HamUserMgr.cpp @ 1284877: 43 99 bd 02 99 86 43 f3 bd 02 00 bd 82 07 03 00 80 f3 9e 00 00 4c
+  UNDEC  member src/lazer/game/HamUserMgr.cpp @ 1670655: 43 99 bd 02 99 86 43 ce bd 02 00 bd 86 43 cd bd 02 00 80 ce 9e 00
+  UNDEC  member src/lazer/game/HamUserMgr.cpp @ 1670786: 43 99 bd 02 99 86 43 d5 bd 02 00 bd 86 42 75 00 80 d5 9e 00 00 4c
+  UNDEC  member src/lazer/game/HamUserMgr.cpp @ 1670895: 43 99 bd 02 99 86 43 dd bd 02 00 bd 86 43 b3 bd 02 00 80 dd 9e 00
+  UNDEC  member src/lazer/game/HamUserMgr.cpp @ 1670975: 43 99 bd 02 99 86 43 f3 bd 02 00 bd 82 07 03 00 80 f3 9e 00 00 4c
+  UNDEC  member src/lazer/game/HamUserMgr.cpp @ 1671350: 43 99 bd 02 99 86 43 ce bd 02 00 bd 86 43 cd bd 02 00 80 ce 9e 00
+  UNDEC  member src/lazer/game/HamUserMgr.cpp @ 1718252: 43 99 bd 02 99 86 43 ce bd 02 00 bd 86 43 cd bd 02 00 80 ce 9e 00
+  UNDEC  member src/lazer/game/LiveInput.cpp @ 707939: 43 99 be 01 99 86 43 8e bd 01 00 bd a6 43 ec bc 01 00 80 8c 5e 00
+  UNDEC  member src/lazer/game/LiveInput.cpp @ 1098355: 43 99 bd 02 99 86 43 9a bd 02 00 bd a6 43 83 bd 02 00 80 8b 9e 00
+  UNDEC  member src/lazer/game/LiveInput.cpp @ 1098702: 43 99 bd 02 99 86 43 9a bd 02 00 bd a6 43 83 bd 02 00 80 8b 9e 00
+  UNDEC  member src/lazer/game/PartyModeMgr.cpp @ 1017154: 55 86 43 99 8d 02 26 d1 bd 04 00 55 86 43 9a 8d 02 b9 b9 3a 86 43
+  UNDEC  member src/lazer/game/PresenceMgr.cpp @ 1334513: 43 99 bd 02 99 86 43 cb bd 02 00 46 4c 4f 11 53 33 86 41 74 00 26
+  UNDEC  member src/lazer/game/PresenceMgr.cpp @ 1488133: 43 99 bd 02 99 86 43 aa bd 02 00 46 65 db b6 06 00 4c 4f 11 53 26
+  UNDEC  member src/lazer/game/PresenceMgr.cpp @ 1488206: 43 99 bd 02 99 86 43 a6 bd 02 00 bd 86 43 a6 e5 02 00 80 a6 9e 00
+  UNDEC  member src/lazer/game/PresenceMgr.cpp @ 1488353: 43 99 bd 02 99 86 43 aa bd 02 00 46 65 df b6 06 00 4c 4f 11 53 26
+  UNDEC  member src/lazer/game/PresenceMgr.cpp @ 1488426: 43 99 bd 02 99 86 43 a6 bd 02 00 bd 86 43 a6 e5 02 00 80 a6 9e 00
+  UNDEC  member src/lazer/game/PresenceMgr.cpp @ 1590193: 43 99 bd 02 99 86 43 a6 bd 02 00 46 4c 4f 11 53 33 86 41 74 80 45
+  UNDEC  member src/lazer/game/PresenceMgr.cpp @ 1590376: 43 99 bd 02 99 86 43 a6 bd 02 00 46 4c 4f 11 53 33 86 41 74 80 45
+  UNDEC  member src/lazer/meta_ham/AccomplishmentProgress.cpp @ 1496828: 43 99 bd 02 99 86 43 9d bd 02 00 46 4c 4f 11 53 33 86 41 74 80 45
+  UNDEC  member src/lazer/meta_ham/AccomplishmentProgress.cpp @ 1497105: 43 99 bd 02 99 86 43 a0 bd 02 00 46 2d 44 d0 04 00 4c 4f 11 53 4f
+  UNDEC  member src/lazer/meta_ham/AccomplishmentProgress.cpp @ 1497707: 43 99 bd 02 99 86 43 a5 bd 02 00 46 2d 4c d0 04 00 4c 4f 11 53 26
+  UNDEC  member src/lazer/meta_ham/AccomplishmentProgress.cpp @ 1511306: 43 99 bd 02 99 86 43 a6 bd 02 00 46 2d 8f ed 04 00 4c 4f 11 53 26
+  UNDEC  member src/lazer/meta_ham/AccomplishmentProgress.cpp @ 1804079: 43 99 bd 02 99 86 43 9d bd 02 00 46 4c 4f 11 53 26 74 5d 33 86 41
+  UNDEC  member src/lazer/meta_ham/CampaignDiffSelectPanel.cpp @ 882305: 04 00 26 99 94 04 00 26 bd 40 b9 92 94 04 00 86 43 d7 30 99 86 43
+  UNDEC  member src/lazer/meta_ham/CampaignPerformer.cpp @ 1915003: 43 99 bd 03 99 86 43 9b bd 03 00 bd 86 43 dc e5 02 00 80 c3 b2 00
+  UNDEC  member src/lazer/meta_ham/CampaignPerformer.cpp @ 1915144: 43 99 bd 03 99 86 43 9b bd 03 00 bd 86 43 dc e5 02 00 80 c3 b2 00
+  UNDEC  member src/lazer/meta_ham/ChallengeRecord.cpp @ 1304692: 46 99 9a 02 9b 86 43 c4 bd 02 4a cc 04 00 55 86 43 da bd 02 33 86
+  UNDEC  member src/lazer/meta_ham/ChallengeRecord.cpp @ 1524155: 46 99 9a 02 9b 86 43 c4 bd 02 d2 e3 04 00 55 86 43 da bd 02 33 86
+  UNDEC  member src/lazer/meta_ham/ChallengeSortByScore.cpp @ 1008640: 43 99 b3 01 99 86 43 85 bd 01 00 46 2d c6 e0 02 00 4c 4f 11 53 26
+  UNDEC  member src/lazer/meta_ham/ChallengeSortMgr.cpp @ 1120393: 11 53 26 99 bd 01 00 b9 bd cc 04 00 a6 43 ab 63 33 86 41 74 04 27
+  UNDEC  member src/lazer/meta_ham/ChallengeSortNode.cpp @ 2167837: 43 99 97 03 99 86 43 97 bd 02 00 bd 86 43 8e bd 02 00 80 97 9e 00
+  UNDEC  member src/lazer/meta_ham/ChallengeSortNode.cpp @ 2167872: 43 99 97 03 99 86 43 97 bd 02 00 bd 86 43 8e bd 02 00 80 97 9e 00
+  UNDEC  member src/lazer/meta_ham/ChooseProfilePanel.cpp @ 2010196: 41 86 43 99 86 03 3a b2 bd 05 00 4f 01 55 54 02 29 b2 bd 05 00 4f
+  UNDEC  member src/lazer/meta_ham/FitnessCalorieSort.cpp @ 1076723: 43 99 bd 01 99 86 43 b3 bd 01 00 46 4c 4f 11 53 33 86 41 74 80 45
+  UNDEC  member src/lazer/meta_ham/FitnessCalorieSort.cpp @ 1201291: 43 99 bd 01 99 86 43 ba bd 01 00 46 4c 4f 11 53 26 f6 e9 02 00 b9
+  UNDEC  member src/lazer/meta_ham/FitnessCalorieSort.cpp @ 1201318: 43 99 bd 01 99 86 43 aa bd 01 00 bd 86 43 93 bd 01 00 80 aa 5e 00
+  UNDEC  member src/lazer/meta_ham/FitnessCalorieSort.cpp @ 1201441: 43 99 bd 01 99 86 43 ba bd 01 00 46 4c 4f 11 53 26 f8 e9 02 00 b9
+  UNDEC  member src/lazer/meta_ham/FitnessCalorieSort.cpp @ 1201468: 43 99 bd 01 99 86 43 aa bd 01 00 bd 86 43 a9 bd 01 00 80 aa 5e 00
+  UNDEC  member src/lazer/meta_ham/FitnessCalorieSort.cpp @ 1287618: 43 99 bd 01 99 86 43 aa bd 01 00 46 4c 4f 11 53 33 86 41 74 80 45
+  UNDEC  member src/lazer/meta_ham/FitnessCalorieSort.cpp @ 1287991: 43 99 bd 01 99 86 43 aa bd 01 00 46 4c 4f 11 53 33 86 41 74 80 45
+  UNDEC  member src/lazer/meta_ham/FitnessCalorieSort.cpp @ 1288181: 43 99 bd 01 99 86 43 b4 bd 01 00 46 4c 4f 11 53 33 86 41 74 80 45
+  UNDEC  member src/lazer/meta_ham/FitnessCalorieSort.cpp @ 1288431: 43 99 bd 01 99 86 43 b6 bd 01 00 46 2d 03 ea 02 00 4c 4f 11 53 26
+  UNDEC  member src/lazer/meta_ham/FitnessCalorieSort.cpp @ 1288463: 43 99 bd 01 99 86 43 aa bd 01 00 bd 86 43 a9 bd 01 00 80 aa 5e 00
+  UNDEC  member src/lazer/meta_ham/FitnessCalorieSort.cpp @ 1951163: 43 99 bd 01 99 86 43 e6 bd 01 00 46 2d 5b ea 02 00 4c 4f 11 53 4f
+  UNDEC  member src/lazer/meta_ham/HamPanel.cpp @ 1585917: 30 86 46 99 a4 01 4b b9 bd c7 05 00 86 43 a2 de 02 41 86 43 a2 de
+  UNDEC  member src/lazer/meta_ham/HamScreen.cpp @ 1168457: 43 99 bd 01 99 86 43 9a bd 01 00 46 4c 4f 11 53 b9 a8 a0 05 00 a6
+  UNDEC  member src/lazer/meta_ham/HamStorePanel.cpp @ 1638880: 03 00 80 99 a8 00 00 b9 bd ee 05 00 86 43 88 d1 02 55 86 43 88 d1
+  UNDEC  member src/lazer/meta_ham/HamStoreProvider.cpp @ 1745665: 02 00 80 99 b5 00 00 26 bd d4 05 00 55 86 43 cf 83 03 4c 55 86 43
+  UNDEC  member src/lazer/meta_ham/MainMenuProvider.cpp @ 1120931: 40 86 43 99 b9 02 66 02 bd e3 01 f6 29 55 86 41 74 33 86 41 74 00
+  UNDEC  member src/lazer/meta_ham/MetagameRank.cpp @ 1886410: 46 99 81 01 9b 86 43 92 bd 03 a9 f0 06 00 55 86 43 93 bd 03 33 86
+  UNDEC  member src/lazer/meta_ham/MetagameRank.cpp @ 1886555: 46 99 81 01 9b 86 43 92 bd 03 aa f0 06 00 55 86 43 93 bd 03 33 86
+  UNDEC  member src/lazer/meta_ham/MetaPanel.cpp @ 1134789: 43 99 bd 02 99 86 43 a2 bd 02 00 46 2d cb af 05 00 4c 4f 11 53 b9
+  UNDEC  member src/lazer/meta_ham/MetaPerformer.cpp @ 1109905: 43 99 bd 02 99 86 43 a7 bd 02 00 46 4c 4f 11 53 b9 f3 ee 05 00 a6
+  UNDEC  member src/lazer/meta_ham/MetaPerformer.cpp @ 1110050: 43 99 bd 02 99 86 43 a8 bd 02 00 46 65 f5 ee 05 00 4c 4f 11 53 b9
+  UNDEC  member src/lazer/meta_ham/MetaPerformer.cpp @ 1110214: 43 99 bd 02 99 86 43 a9 bd 02 00 46 4c 4f 11 53 b9 f8 ee 05 00 a6
+  UNDEC  member src/lazer/meta_ham/MQSongSortMgr.cpp @ 1192948: 43 99 94 02 99 86 43 b8 bd 02 00 46 2d a9 3b 2d a8 3b 4c 4f 11 53
+  UNDEC  member src/lazer/meta_ham/MQSongSortNode.cpp @ 1862751: 53 53 26 99 9a 02 00 b9 bd f9 05 00 a6 43 e0 8b 03 99 86 43 a9 8c
+  UNDEC  member src/lazer/meta_ham/PlaylistSort.cpp @ 1879028: 00 86 43 99 8b 03 39 ce bd 05 00 b9 cc bd 05 00 a6 43 96 5b 33 86
+  UNDEC  member src/lazer/meta_ham/PlaylistSortMgr.cpp @ 1835891: 05 00 26 99 bd 01 00 b9 bd d1 05 00 a6 43 ad 63 33 86 41 74 04 27
+  UNDEC  member src/lazer/meta_ham/PracticeChoosePanel.cpp @ 1656583: 41 86 43 99 b0 03 3a 2e bd 06 00 54 02 29 2e bd 06 00 4f 12 47 54
+  UNDEC  member src/lazer/meta_ham/SingleUserCrewSelectPanel.cpp @ 568629: 41 86 41 99 95 01 3a 14 bd 02 00 54 02 29 14 bd 02 00 4f 12 47 54
+  UNDEC  direct src/lazer/meta_ham/SkeletonIdentifier.cpp @ 1065386: 43 53 53 26 ec 26 b9 2f bd 04 00 a6 43 e3 24 99 86 43 e9 24 00 46
+  UNDEC  direct src/lazer/meta_ham/SkeletonIdentifier.cpp @ 1065412: 4f 01 44 26 eb 26 b9 2f bd 04 00 a6 43 e3 24 99 86 43 e4 24 00 bd
+  UNDEC  direct src/lazer/meta_ham/SkeletonIdentifier.cpp @ 1065985: 00 00 53 26 eb 26 b9 35 bd 04 00 a6 43 e5 24 99 86 43 e4 24 00 bd
+  UNDEC  member src/lazer/meta_ham/SkeletonIdentifier.cpp @ 1074564: 41 86 43 99 8a 02 3a ba bd 04 00 54 02 29 ba bd 04 00 4f 12 47 54
+  UNDEC  member src/lazer/meta_ham/SkeletonIdentifier.cpp @ 1074777: 41 86 43 99 8a 02 3a be bd 04 00 54 02 29 be bd 04 00 4f 12 47 54
+  UNDEC  member src/lazer/meta_ham/SkeletonIdentifier.cpp @ 1440628: 43 99 bd 02 99 86 43 ab bd 02 00 46 2d dc d0 01 00 4c 4f 11 53 b9
+  UNDEC  member src/lazer/meta_ham/TexLoadPanel.cpp @ 1440515: 43 99 91 02 99 86 43 b1 bd 02 00 46 2d 6e 9d 04 00 4c 4f 11 53 b9
+  UNDEC  member src/system/gesture/DrawUtl.cpp @ 580183: 40 86 43 99 8d 01 66 02 bd 5f f9 5f 55 86 41 74 33 86 41 74 00 55
+  UNDEC  member src/system/gesture/GestureMgr.cpp @ 564111: 41 86 41 99 8c 01 3a 5a bd 02 00 54 02 29 5a bd 02 00 4f 12 47 54
+  UNDEC  member src/system/gesture/GestureMgr.cpp @ 717265: 53 53 26 99 b8 01 00 b9 bd d2 02 00 a6 43 f0 a7 01 99 86 43 fe a7
+  UNDEC  member src/system/gesture/WaveToTurnOnLight.cpp @ 1286727: 43 99 bd 02 9b a6 41 93 bd 02 ae 82 05 00 2c 86 43 9a bd 02 00 33
+  UNDEC  direct src/system/hamobj/HamCharacter.cpp @ 30935: 01 00 4f 02 be 26 4f 02 bd 26 4f 01 22 4f 02 20 1b 4f 01 00 4f 02
+  UNDEC  member src/system/hamobj/PracticeSection.cpp @ 1263503: 40 86 43 99 96 01 66 02 bd c5 01 95 96 01 55 86 41 74 33 86 41 74
+  UNDEC  member src/system/hamobj/RhythmBattle.cpp @ 1475042: 30 86 46 99 8f 02 4b b9 bd f2 05 00 86 43 cd d0 02 41 86 43 cd d0
+  UNDEC  member src/system/meta/CreditsPanel.cpp @ 755958: 43 99 bd 01 99 86 43 d5 bd 01 00 46 2d 09 96 01 00 4c 4f 11 53 26
+  UNDEC  member src/system/meta/CreditsPanel.cpp @ 898122: 43 99 bd 01 99 86 43 a8 bd 01 00 46 4c 4f 11 53 4f 01 80 b8 00 00
+  UNDEC  direct src/system/rnddx9/Rnd.cpp @ 176374: b6 38 26 26 5a bd 86 43 bd 2a 00 80 0c 1d 00 00 b9 6a 5a 86 43 85
+  UNDEC  direct src/system/rndobj/AnimFilter.cpp @ 368738: bc 2a 4b 4f 01 26 3a 3e bd 01 00 54 02 29 3e bd 01 00 4f 12 47 54
+  UNDEC  member src/system/rndobj/Fur_NG.cpp @ 411374: 53 53 26 99 9f 01 00 b9 bd c3 01 00 a6 43 d2 55 99 86 43 e0 55 00
+  UNDEC  direct src/system/synth/MicClientMapper.cpp @ 29878: 86 43 9b 26 00 bd 86 43 bd 20 00 80 1b 13 00 00 4c 41 86 43 bd 20
+  UNDEC  member src/system/ui/UILabel.cpp @ 659142: 2c 86 43 99 8c 01 00 b9 bd ec 01 00 86 43 99 8c 01 20 38 ce a5 02
+  UNDEC  member src/system/utl/BinStream.cpp @ 313379: 00 00 26 99 8a 01 00 26 bd 5d 33 86 41 74 80 42 08 00 00 40 86 43
+  UNDEC  member src/system/world/Dir.cpp @ 524848: 41 86 41 99 82 01 3a 2e bd 02 00 54 02 29 2e bd 02 00 4f 12 47 54
+  UNDEC  member src/system/world/LightPresetManager.cpp @ 246100: 00 00 26 99 8a 01 00 26 bd 63 bd 86 45 40 00 80 61 1d 00 00 b9 92
+  UNDEC  member src/system/world/LightPresetManager.cpp @ 525157: 41 86 41 99 82 01 3a 2e bd 02 00 54 02 29 2e bd 02 00 4f 12 47 54
+  UNDEC  direct src/system/world/SpotlightDrawer_NG.cpp @ 723204: 12 30 4b 4f 01 26 b9 6e bd 03 00 a6 43 bd 70 33 86 41 74 80 94 00
+  DESYNC member src/lazer/game/BustAMovePanel.cpp @ 555892: 53 53 26 99 9e 02 00 b9 bd a3 02 00 a6 43 9e 8f 01 99 86 43 b2 8f
+  DESYNC member src/lazer/game/LiveInput.cpp @ 852734: 53 53 26 99 89 04 00 b9 bd 89 04 00 a6 43 86 ea 01 99 86 43 97 ea
+  DESYNC member src/lazer/meta_ham/AccomplishmentOneShot.cpp @ 1281808: 00 00 26 99 ac 03 00 b9 bd bd 04 00 a6 43 83 cd 01 99 86 43 8e cd
+  DESYNC member src/lazer/meta_ham/ChallengeSortByScore.cpp @ 936628: 53 53 26 99 91 01 00 b9 bd b4 04 00 a6 43 85 4e 99 86 43 8c 4e 00
+  DESYNC member src/lazer/meta_ham/ChallengeSortNode.cpp @ 575982: 53 53 26 99 bd 02 00 b9 bd bd 02 00 a6 43 d5 a8 01 99 86 43 da a8
+  DESYNC member src/lazer/meta_ham/CrewProvider.cpp @ 595574: 40 86 43 99 9e 01 66 03 bd 9c 01 da 95 01 bf 9c 01 55 86 41 74 33
+  DESYNC member src/lazer/meta_ham/DifficultyProvider.cpp @ 685518: 53 53 26 99 85 03 00 b9 bd 87 03 00 a6 43 87 c5 01 99 86 43 af c5
+  DESYNC member src/lazer/meta_ham/HamPanel.cpp @ 680529: 53 53 26 99 84 03 00 b9 bd 86 03 00 a6 43 d6 b8 01 99 86 43 ff b8
+  DESYNC member src/lazer/meta_ham/HelpBarPanel.cpp @ 680529: 53 53 26 99 84 03 00 b9 bd 86 03 00 a6 43 d6 b8 01 99 86 43 ff b8
+  DESYNC member src/lazer/meta_ham/MultiUserGesturePanel.cpp @ 680529: 53 53 26 99 84 03 00 b9 bd 86 03 00 a6 43 d6 b8 01 99 86 43 ff b8
+  DESYNC member src/lazer/meta_ham/Overshell.cpp @ 860797: 53 53 26 99 89 04 00 b9 bd 89 04 00 a6 43 d6 e9 01 99 86 43 d7 e9
+  DESYNC member src/lazer/meta_ham/SkeletonChooser.cpp @ 575053: 53 53 26 99 bf 02 00 b9 bd bf 02 00 a6 43 bc 95 01 99 86 43 cd 95
+  DESYNC member src/lazer/meta_ham/SongSortByLocation.cpp @ 1164113: 53 53 26 99 aa 01 00 b9 bd bd 03 00 a6 43 c3 cd 01 99 86 43 d0 cd
+  DESYNC member src/lazer/meta_ham/VoiceInputPanel.cpp @ 1092423: 53 53 26 99 9b 05 00 b9 bd 9b 05 00 a6 43 b0 b3 02 99 86 43 b1 b3
+  DESYNC member src/system/char/CharClipDriver.cpp @ 424201: 00 53 29 99 b2 01 00 b9 bd ae 01 00 86 43 d9 61 b9 bc ae 01 00 86
+  DESYNC member src/system/char/ClipCollide.cpp @ 889405: 53 53 26 99 9f 02 00 b9 bd ad 02 00 a6 43 df 9e 01 99 86 43 e0 9e
+  DESYNC member src/system/flow/FlowTimer.cpp @ 409470: 53 53 26 99 9e 01 00 b9 bd b4 01 00 a6 43 cd 5b 99 86 43 da 5b 00
+  DESYNC member src/system/hamobj/HamIconMan.cpp @ 872478: 01 29 26 99 90 04 00 b9 bd 90 04 00 a6 43 9f f2 01 99 86 43 a3 f2
+  DESYNC member src/system/hamobj/SuperEasyRemixer.cpp @ 549599: 53 53 26 99 bb 02 00 b9 bd bb 02 00 a6 43 e7 99 01 99 86 43 f8 99
+  DESYNC member src/system/net/DingoSvr.cpp @ 339344: 53 53 26 99 ad 01 00 b9 bd ad 01 00 a6 43 a6 5b 99 86 43 a7 5b 00
+  DESYNC member src/system/ui/CheatProvider.cpp @ 739557: 53 53 26 99 98 02 00 b9 bd a2 02 00 a6 43 e9 a2 01 99 86 43 f0 a2
+  DESYNC member src/system/world/CameraShot.cpp @ 538712: 53 53 26 99 9f 02 00 b9 bd a4 02 00 a6 43 91 8f 01 99 86 43 a7 8f
+  DESYNC member src/system/world/ThreeDSoundManager.cpp @ 678418: 01 53 26 99 b4 01 00 26 bd 96 03 00 26 37 97 03 00 99 86 43 bd ac
+
+-- top TUs by site count --
+   15728  src/system/hamobj/HamDirector.cpp
+   14825  src/lazer/game/BustAMovePanel.cpp
+   14384  src/lazer/meta_ham/MetaPerformer.cpp
+   14318  src/lazer/meta_ham/HamUI.cpp
+   14317  src/lazer/game/Game.cpp
