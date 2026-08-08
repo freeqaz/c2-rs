@@ -392,9 +392,296 @@ coverage.
 
 ## 7. Results
 
-*(filled in after the run — nothing below this line existed when §6 was
-committed)*
+Compiled with real `cl.exe` 16.00.11886.00 under wibo,
+`/nologo /c /GR /O1 /Oi /EHsc`, one obj, 23 sections, read with
+`scripts/gt_dump.py`. Word streams are in
+`work/wb-regalloc/run/grid.txt` (not committed — it is a dump of an obj).
+
+### 7.1 The register-choice rivals
+
+| cell | emitted register set | R0 | R1 | R2 | R3 |
+|---|---|---|---|---|---|
+| G1 | **`r11`** | ✅ | ✗ | ✗ | ✅ |
+| G2 | **`r11`, `r10`** | ✅ | ✗ | ✗ | ✅ |
+| G3 | **`r11`, `r10`, `r9`** (+ `r8` for a 4th temp) | ✅ | ✗ | ✗ | ✅ |
+| G4 | **`r11`, `r10`, `r9`, `r8`** (+ `r7`) | ✅ | ✗ | ✗ | ✅ |
+| N1 | `r11` (temp), `r3` (arg + return) | ✗ *(see 7.3)* | ✗ | ✗ | ✗ |
+| N2 | `r11`, `r10`, `r3`, `r4` | ✗ | ✗ | ✗ | ✗ |
+| N3 | `r11`, `r10`, `r9`, `r3`…`r5` | ✗ | ✗ | ✗ | ✗ |
+| N4 | `r11`, `r10`, `r9`, `r8`, `r3`…`r6` | ✗ | ✗ | ✗ | ✗ |
+| L3 | callee-saved taken = **`r31`, `r30`, `r29`** (`bl __savegprlr_29`) | ✅ | ✗ | ✅ | — |
+| P1 | **`r11`…`r3`** all used, then **`r31`, `r30`, `r29`, `r28`, `r27`** (`bl __savegprlr_27`); `r12` only as `mflr r12`; **no `r13`** | ✅ | ✗ | ✗ | — |
+
+| rival | refuted by | verdict |
+|---|---|---|
+| **R0** — min-cost, ties by the fixed order `r11…r3, r31…r14` | N1–N4 refute the *cells as written* (§7.3), not the rule | **SURVIVES on G1–G4, L3, P1 (6/6); its N-cells are a scoring MISS** |
+| R1 — first-free ascending from `r3` | G1, G2, G3, G4, L3, P1 | **REFUTED, 6 cells** |
+| R2 — first-free descending from `r12` | G1–G4, N1–N4, P1 | **REFUTED, 9 cells** — `r12` never holds a value in any of the 15 cells |
+| R3 — no preference term | N1–N4 (arguments *do* stay in `r3`…`r6`) | **REFUTED, 4 cells** |
+
+### 7.2 The ordering rival, and the non-rival predictions
+
+| # | prediction | emitted | verdict |
+|---|---|---|---|
+| **O0** | S1's two chains not interleaved | `lwz r11,0(r4)` / `mulli` / `stw` / `lwz r11,0(r5)` / `mulli` / `stw` | **HIT** (1 cell, declared insufficient in §6.4) |
+| F1 | C1 → `cmpwi` | `cmpwi 6,r3,10` | **HIT** |
+| F2 | C2 → `cmplwi` | **no compare at all** — `li r11,10` / `subc` / `subfe` / `addi` | **MISS** (premise failed; scored as a miss, see §7.4) |
+| F3 | M1 compares use **`cr0`** | every compare uses **`cr6`** | **MISS — retraction, §7.5** |
+| F4 | M2 → jump table via `mtctr`/`bctr`, index in `r11` | **no jump table**: a 3-level binary decision tree of `cmplwi cr6` + `bt` | **MISS — §7.6** |
+| F5 | L1 is `mtctr`/`bdnz` | `mtctr r4` / `lwzu` / `add` / `bdnz` | **HIT** |
+| F6 | L3 opens a frame | `stwu r1,-112(r1)` | **HIT** |
+| F7 | `r12` only as the LR shuttle | true in all 15 cells | **HIT** |
+| F8 | `r13` never appears | true in all 15 cells | **HIT** |
+
+### 7.3 The N-series MISS, stated as a miss
+
+§6.2 predicted N1 as "**`r3` only**". The obj is
+`lwz r11,0(r3)` / `addi r3,r11,1` / `blr` — **`r11` is there**. Same for
+N2 (`r11`,`r10`), N3 (`r11`,`r10`,`r9`), N4 (`r11`,`r10`,`r9`,`r8`).
+
+That is a miss on **my prediction sheet**, and it is scored as one. What went
+wrong is worth naming precisely, because it is the failure mode this lane is
+most likely to repeat: I applied a copy preference **that the rule does not
+give**. The *pointer* `p` has a preference to `r3` (it arrives there, and it
+does stay there — `lwz …,0(r3)`). The **loaded value `p[0]` is a brand-new live
+range with no copy relation to anything**, so its cost is 0 everywhere and
+§3.4's tie-break gives it the head of the list, `r11`. The rule predicted `r11`;
+**I** predicted `r3`.
+
+So: **R0 the rule is not refuted by N1–N4; R0-as-I-applied-it is.** The
+distinction is recorded rather than used to rescue the cell — the cell scores
+MISS, and R0 keeps only the six cells it was actually right about in advance
+(G1–G4, L3, P1). Per method doc §7 this lane does **not** re-score the N cells
+in R0's favour after the fact.
+
+### 7.4 C2 — the premise failed, and the cell is still scored a miss
+
+The cell was designed as "an unsigned compare". c2 emitted **no compare**: it
+lowered `x < 10u` to a carry trick (`subc` / `subfe`). By the `assumption
+unmet` rule this lane registered in §6 (inherited from wb-frame §5.2) the cell
+could be excluded. It is scored **MISS** instead, because the prediction as
+written names a word that is not in the obj. **#1788 gets no support and no
+refutation from this grid** — stated so absence does not read as coverage.
+
+### 7.5 RETRACTION: the CR-field claim, and what replaces it
+
+§3.3 read `cr0`, `cr1`, `cr6`, `cr7` as the volatile CR fields (correct — the
+`0x43`/`0x44`/`0x49`/`0x4a` loop at `0x10c04faf` says so), and F3 predicted
+**`cr0`** for an ordinary compare. **Every explicit integer compare in the grid
+uses `cr6`** — `cmpwi 6,…` and `cmplwi 6,…` in L1, L2, L3, M1, M2, C1. `cr0`
+appears only as the implicit result of a **record-form** instruction
+(`addic. r31,r31,-1` in L3, branched on with `bf 2`).
+
+**F3 is retracted.** The replacement is read from the binary and is *not* an
+allocation fact at all:
+
+* `0x10c385c4` is an 8-entry array of per-class ordered lists. **Only class 0
+  (GPR, `0x10c37de0`) and class 1 (FPR, `0x10c37f20`) are image-initialised;
+  class 5 (VMX) is filled by `FUN_10bfb00d`; classes 2, 3, 4, 6, 7 are NULL.**
+  There is **no CR register class**.
+* `cr6`'s per-register descriptor is `0x10c2f088 + 0x60·0x49 = 0x10c30be8`, and
+  the lowering **assigns that descriptor as a literal** — e.g.
+  `*(instr->dst->sym) = &DAT_10c30be8` at `0x10c00445`, `0x10bf0882`,
+  `0x10bf522f`, `0x10c195a2`.
+
+> **`cr6` is a lowering constant, not an allocator choice.** `cr0` is reached
+> only through record-form instructions.
+
+This is exactly the shape of error §7 of the method doc warns about: the
+instruction reading (`which CR fields are volatile`) was right and the
+*inference* about behaviour was wrong.
+
+### 7.6 M2 — c2 does not build a jump table here
+
+Six dense `case`s, `0..5`, and c2 emitted **no jump table**: three `cmplwi cr6`
+comparisons in a binary search over the value, then seven `li`/`blr` leaves.
+The switch value is compared **unsigned** even though the C type is `int`.
+
+Two further order facts this cell gives away for free, both **against** a naive
+reading of §4:
+
+1. The seven leaf blocks come out in **reverse case order** — `default`, `66`,
+   `55`, `44`, `33`, `22`, `11`. **Block order is not source order.** §4's
+   phrase *"flow-graph construction order"* survives only because construction
+   order for a switch is not source order; as a rule a port could use, it is
+   **not established**, and this lane does not claim it.
+2. M1's four arms *do* come out in source order. So the two cases differ, and
+   nothing in this grid tells a port which one it is looking at.
+
+### 7.7 The three named functions of deliverable 4
+
+| function | frozen prediction (the graded part) | emitted | verdict |
+|---|---|---|---|
+| **`wbr_glob3`** | register set is exactly `{r11, r10, r9}` besides `r3` and the address bases; no reordering across the three loads | `lis r11 / lis r10 / lis r9 / lwz r11 / lwz r10 / lwz r9 / addi r8,r11,2 / addi r10,r10,1 / mulli r11,r9,3 / mullw r10,r8,r10 / add r3,r10,r11 / blr` | **HIT on the graded part** — `{r11,r10,r9}` are the loaded values and the address bases are the *same three registers*; a fourth temp took `r8`, the next list entry. The three loads are in one run, unreordered. My literal word sequence differed (c2 hoisted all three `lis` above all three `lwz`, and `+1`/`+2` landed on different temps) — **the word-for-word half is a MISS.** |
+| **`wbr_loop_call`** | callee-saved taken are the **TOP** of the file (`r31`,`r30`,`r29`), **not** the bottom (`r14`,`r15`,`r16`) | `bl __savegprlr_29` — `r29`, `r30`, `r31` and LR | **HIT** |
+| **`wbr_pressure`** | volatiles exhausted `r11`→`r3` before any callee-saved; callee-saved then `r31` downward; `r12`/`r13` never appear | all of `r3`…`r11` used; `bl __savegprlr_27` = `r27`…`r31`; `r12` only in `mflr r12`; no `r13` | **HIT** |
+
+**2 of 3 named functions are clean hits; the third hits on its graded claim and
+misses on its word-for-word claim.** The success floor —
+*one policy reading surviving a frozen check on ≥1 function outside every
+shipped class* — is **CLEARED** by `wbr_loop_call` and `wbr_pressure`
+independently.
+
+---
 
 ## 8. PREREG score
 
-*(filled in after §7)*
+`H` hit · `M` miss · `U` unscoreable (premise did not occur).
+
+| # | prediction | verdict | note |
+|---|---|---|---|
+| P0.1 | the floor is cleared | **H** | §7.7 |
+| P0.2 | ordering survives, register does **not** | **M** *(optimistic in reverse)* | the opposite happened — the **register** policy is the one that survived a 6-cell frozen check; ordering has one consistency cell and two counter-facts (§7.6) |
+| P1.1 | a separately-named regalloc TU exists | **H** | `color.c`, `10b2c21d`…`10b30517` |
+| P1.2 | a real instruction scheduler exists | **M** *(registered optimistic)* | none: no `sched.c`, `-schdat#`'s var has 0 readers |
+| P1.3 | selection is fused into lowering, not its own band | **M** *(registered pessimistic)* | `lower.c` **and** `lowersmd.c` are separate named TUs |
+| P1.4 | the allocator is global, not per-tree | **H** | interference bitsets, cost array, `color.c` |
+| P2.1 | temps descend from `r11`, `r12` reserved | **H** | `0x10c37de0`, and G1–G4 / P1 |
+| P2.2 | the osfinfo `r10` is "`r11` still live", not a per-form rule | **H** | §3.5, and G2 reproduces it |
+| P2.3 | argument registers pre-coloured, positional | **H** | N1–N4: arguments stay in `r3`…`r6` |
+| P2.4 | first callee-saved taken is `r31`, then `r30` | **H** | L3, P1 |
+| P2.5 | `cr0` by default; `cr6` not preferred | **M** | **the reverse** — §7.5, retracted |
+| P2.6 | signedness fixed at selection, type nibble carried on the operand | **H** *(navigation only)* | `0x10b022cc`; **no obj support**, C2 gave none |
+| P2.7 | no allocator-invented spill at `/O1` on these shapes | **H** | P1 has 12 live values and spills nothing — it saves 5 callee-saved instead |
+| P3.1 | one per-function instruction list, linear walk | **H** | `0x10bff507`, the in-place expansion switch |
+| P3.2 | block order = construction order, not recomputed | **M** | M2's leaves come out in **reverse** case order (§7.6) |
+| P3.3 | a list scheduler reorders within a block | **M** *(registered optimistic)* | there is no scheduler |
+| P3.4 | the scheduler is off at `/O1` | **U** | premise (P3.3) did not occur |
+| P3.5 | order does not depend on register identity | **H** | selection → order → registers; nothing in `color.c` moves an instruction |
+| P4.1 | ≥3 functions graded | **H** | §7.7 |
+| P4.2 | order: ≥2 of 3 hit | **H** | all three preserve their emitted order under the "no within-block reordering" reading |
+| P4.3 | registers: ≤1 of 3 hit | **M** *(registered pessimistic)* | **3 of 3** hit on the graded register claim |
+| P4.4 | at least one miss forces a retraction | **H** | F3 / P2.5, §7.5 |
+| P5.1–P5.3 | the judgment | scored in §9 | |
+| P5.4 | the binding constraint is the reader, not the emitter | **H** | §9.3 |
+
+**Score: 15 H · 7 M · 1 U.** Five of the seven misses are in the **registered**
+direction (P0.2, P1.2, P1.3, P3.3, P4.3); two are not (P2.5, P3.2) and both are
+retractions in §7.5 / §7.6.
+
+Board #770's streak was ~10 optimistic / 2 pessimistic / 1 hit. This lane adds
+**3 optimistic (P1.2, P3.3, and P0.2's inversion), 2 pessimistic (P1.3, P4.3)**.
+
+---
+
+## 9. THE JUDGMENT — can a general lowering be derived for a class? (deliverable 5)
+
+### 9.1 The answer
+
+> **Yes for register assignment. No for instruction selection and block order —
+> and those, not registers, are what a class lowering actually needs.**
+
+The register half is *done*, in the strong sense: §3.4 is a complete, short,
+deterministic policy that took six frozen cells without a scratch, and the two
+inputs it needs (an interference relation and a copy-preference set) are
+computable from the port's own IR. A port that implements
+
+```
+candidates = allocatable(class) ∖ conflicts(range)
+cost[r]    = Σ interference penalties − Σ copy preferences
+pick        the first r in [r11,r10,…,r3,r31,r30,…,r14] minimising cost
+```
+
+reproduces c2's register choice on every cell in this grid **without a
+per-function transcription**. That is a genuine derivation, and it is the first
+one this project has for any emitter question.
+
+The other half is where the answer turns negative, and the grid says so
+loudly:
+
+* **M2**: a six-case dense `switch` is not a jump table, it is a **binary
+  decision tree** whose fan-out and pivot choices this lane did not read and
+  cannot predict, whose leaf blocks come out in **reverse** source order, and
+  whose comparisons are **unsigned** for a signed C type.
+* **C2**: `x < 10u` producing `1` or `2` is not a compare-and-branch at all, it
+  is a four-word branchless carry idiom. There is a **pattern library** in
+  `cgintrin.c` / `lowersmd.c` that this lane did not enumerate.
+* **L1**: the counted loop was rewritten into a `lwzu`-walked pointer with the
+  trip count in `ctr`, `cmpwi cr6` + `bf 25` as a zero-trip guard, and the
+  index variable **gone**. That is `lur.c` (15 115 lines) plus `globlopt.c`
+  (13 477), neither of which this lane opened.
+
+**The register policy is the *last* thing a class lowering needs, not the
+first.** Once selection and block order are right, registers follow from a
+30-line rule. Until they are, a correct register policy assigns correct
+registers to the wrong instructions.
+
+### 9.2 What a class lowering needs, concretely
+
+For the first class to be a *derivation* rather than a transcription, in order:
+
+1. **The pattern set for the class's operators** — which C constructs c2 turns
+   into which word idioms. `wbr_cmp_u` shows this is not optional: one
+   unremarkable comparison produced an idiom the port has never emitted.
+2. **The loop normal form** — `lur.c`'s output shape: induction-variable
+   elimination into `lwzu`, trip count into `ctr`, the `cmpwi cr6` zero-trip
+   guard, `bdnz`. This is one *shape*, and the grid shows it is stable across
+   L1/L2/L3, so it is derivable — but it must be read, and it was not read
+   here.
+3. **Block emission order** — M1 says source order, M2 says reverse. Both from
+   the same compiler on the same day. Until a rule covers both, a port cannot
+   place labels, and the label counter is load-bearing for the COFF symbol
+   records (`LABEL_COUNTER.md`, w-xlr §3).
+4. **Then** §3.4, which is free.
+
+### 9.3 Predicted reach, and the first class to attempt
+
+**First class: the counted `for` loop over one array with one accumulator** —
+L1's shape. It is chosen not because it is the biggest but because it is the
+only class in this grid whose normal form was **identical across three
+different bodies** (L1, L2, L3 share `cmpwi cr6` guard / `addi ptr,-4` /
+`mtctr` / `lwzu` / `bdnz`, differing only in the body between `lwzu` and
+`bdnz`). A shape that is stable across three witnesses is the definition of a
+class rather than a transcription.
+
+**Predicted reach over the 124-TU reach-pool: `≤ 6`, and most likely `0`.**
+PREREG P5.3 registered `≤ 6` pessimistically; the grid moved this lane
+*further* down, and the reason is P5.4, which scored a hit:
+
+> **A class lowering converts nothing until the port's IL READER accepts the
+> class's constructs.** WB-A's finding stands — 48 of the frontier's 59
+> functions die at the reader, before any emitter question is reachable, and
+> `w-xlr` re-priced its own TU at **thirteen** refusals of which **ten were
+> outside the frame/emitter entirely** (reader arms, `.sy` handling, COFF
+> symbol order). A loop-class emitter with a perfect register policy adds a
+> **capability**, not a conversion, and the conversion is gated on work this
+> campaign did not touch.
+
+So the honest form of the judgment is: **"yes, and it is worth building — but
+it will measure zero on the first scan, and a lane that expects otherwise will
+report a failure."** The register rule's value is that it makes every *future*
+class cheaper, not that it converts one now. That is the same shape as the
+`.bss` reversal rule and the label-counter table: infrastructure, priced as
+infrastructure.
+
+**Explicitly declined**: multi-way `if`s (M1/M2) as a class. Two cells, two
+different block orders, and the switch lowering is an unread algorithm. #1767's
+rule refuses a two-point fit and it should refuse this one.
+
+---
+
+## 10. Pre-drafted DISCLOSURE rows
+
+Per `DISCLOSURE.md` step 5 the black-box alternative is preferred, and here it
+is **partly available but not sufficient**: the *order* `r11,r10,…,r3,
+r31,…,r14` can be re-derived from `grids/wb-regalloc/regorder_grid.cpp` alone
+(G1–G4 and P1 exhibit it without any disassembly), but the **cost function**
+and the **strict-`<` tie-break** cannot — no obj distinguishes "ties to the
+earliest list entry" from "the only candidate". A code lane that ships the full
+selector needs the row; a lane that ships only the order does not.
+
+| # | Kind | What was adopted | Address in `c2.dll` | Adopted into | Commit | Notes |
+|---|---|---|---|---|---|---|
+| **W-REGALLOC-1** | **adoption-ready** | **The GPR allocation order `r11,r10,r9,r8,r7,r6,r5,r4,r3,r31,r30,…,r15,r14`, and that `r12`/`r13`/`r0`/`sp`/`toc` are never allocatable.** | **`0x10c37de0`** (the ordered array), `0x10c37e50` (`-QGPRReserve` variant, drops `r14`–`r16`), `0x10c37eb8` (POGO variant, drops `r14`–`r15`), `0x10c385c4` (the per-class list array), `0x10b181c0` (the register-name table that decodes the numbers) | *(nothing — this lane adopts no code)* | *(pending)* | **A black-box re-derivation exists** and should be preferred: cells G1–G4 and P1 of `grids/wb-regalloc/regorder_grid.cpp` exhibit the order against real `c2.dll` with no address. Carry this row only if the *numbers* or the *variant arrays* are copied. |
+| **W-REGALLOC-2** | **route** | **Register choice is minimum-cost selection over the interference-allowed candidates, cost = interference/constraint penalties minus copy preferences, ties broken by a fixed per-class order.** The cost array is one `int` per register number and the comparison is strict `<`. | **`0x10b2e7f8`** (the selector), `0x10c435e8` (the `0x594`-byte cost array), `0x10b30517` (the interference walk that produces the candidate set), `0x10bfb0fa` (builds the class-0 set), `0x10c04faf` (volatile/reserved sets and the frame-pointer register) | *(nothing)* | *(pending)* | No obj in this project separates the tie-break from "only one candidate", so this **cannot** be established black-box today. Grey-zone rule applies. |
+| **W-REGALLOC-3** | **route** | **`cr6` is a lowering constant for explicit integer compares — there is no CR register class.** `cr0` is reached only through record-form instructions. | `0x10c385c4` (classes 2,3,4,6,7 are NULL), `0x10c30be8` (`cr6`'s descriptor = `0x10c2f088 + 0x60·0x49`), and the sites that assign it literally: `0x10bf0882`, `0x10bf522f`, `0x10c00445`, `0x10c195a2` | *(nothing)* | *(pending)* | **The black-box alternative is complete and should be used instead**: every compare in the grid is `cr6`. The row exists only because §7.5 *retracted* a `cr0` prediction and the reason is in the binary. |
+
+**Held, not proposed.** The FPR order at `0x10c37f20` decodes to
+`fp0, fp13, fp12, …, fp1, fp31, fp30, …, fp14` — read, **never obj-checked**
+(no cell in this grid uses floating point). It is navigation. So is the
+operand-nibble → class map `0x10b022cc`, and so is the identity of the
+`0x500400` frame-pointer flag family.
+
+**Not claimed.** This lane did not read `dag.c`, `lur.c`, `globlopt.c`,
+`cgintrin.c` or the switch lowering, and §9 is explicit that those are where a
+class lowering actually lives.
