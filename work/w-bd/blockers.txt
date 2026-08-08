@@ -1,0 +1,10 @@
+fn_blockers: 672 distinct keys, sum base 1751958 tip 1751958
+  keys present at only one end: 0
+  KEYS THAT MOVED: 0
+emit_blockers: 649 distinct keys, sum base 130576 tip 130576
+  keys present at only one end: 0
+  KEYS THAT MOVED: 0
+fn_gate_refusals: 0 distinct keys, sum base 0 tip 0
+  keys present at only one end: 0
+  KEYS THAT MOVED: 0
+TU rows: base 878  tip 878

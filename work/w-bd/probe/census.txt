@@ -1,0 +1,19 @@
+  profile: /Ox /GS- /c (default — NOT the workload's; /Ox does not imply /GF)
+work/w-bd/probe/bd_cc.cpp -> 5/7 functions in class
+  [  0] ok  int-tail-call            cflow-straight+expr-modeled eh-none     (eh-none     )    111 B  (unnamed)
+  [  1] ok  int-tail-call            cflow-straight+expr-modeled eh-none     (eh-none     )    111 B  (unnamed)
+  [  2] GAP call-conv-0x04           cflow-straight             eh-none     (eh-none     )    111 B  (unnamed)
+  [  3] GAP call-conv-0x40           cflow-straight             eh-none     (eh-none     )    125 B  (unnamed)
+  [  4] ok  void-tail-call           cflow-straight+expr-modeled eh-none     (eh-none     )     95 B  (unnamed)
+  [  5] ok  void-tail-call           cflow-straight+expr-modeled eh-none     (eh-none     )     96 B  (unnamed)
+  [  6] ok  void-tail-call           cflow-straight+expr-modeled eh-none     (eh-none     )    104 B  (unnamed)
+  blocking features (">" marks the byte that blocked the parse):
+         1 x call-conv-0x04
+             0a 46 2d 03 0a 4c 4f 11 53 26 e8 09 bd 86 41 74 >04< 80 02 10 00 00 b9 03 0a 86 41 74 55 86 41 74 4c 41 86 41 74 3a 05 0a
+         1 x call-conv-0x40
+             0a 46 2d 06 0a 4c 4f 11 53 26 ea 09 bd 86 41 74 >40< 80 06 10 00 00 b9 06 0a 86 41 74 55 86 00 74 26 09 0a 2c 86 43 84 20
+  control-flow class (decode-only): 7/7 bodies decoded end to end
+         5 x cflow-straight+expr-modeled
+         2 x cflow-straight
+  EH class (maxState, decode-only): 0/7 bodies have maxState >= 1 and need the whole EH record
+         7 x eh-none
