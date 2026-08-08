@@ -564,6 +564,19 @@ pub(crate) enum SkipForm {
     /// `4F 01 <varint>` — the line marker, and **only** that. `4F 12` is the
     /// function tail and must never be eaten here.
     Line4F,
+    /// `66 <arity> <arity LEB ids>` — the **class-pair descriptor** of the
+    /// 2113–2119 intrinsic family (lane `w-mass`, board **#1530**).
+    ///
+    /// The width is **not restated here**: the step calls
+    /// [`mcall::eat_class_descriptor`], the one decoder for this token, exactly
+    /// as `shapes/control_flow.rs`'s `0x66` arm does. That is the whole design.
+    /// `mcall`'s own doc records two earlier readings of this token — a fixed
+    /// two bytes, and a `read_token_var` token — which agree on `66 02 92 20
+    /// 93 20` and both desync on the wide witnesses (`fb 8a 01`, `d3 80 02`)
+    /// that `src/App.cpp` and `src/lazer/game/Game.cpp` carry. A second copy of
+    /// that width in this table is the one way this instrument could lie, and
+    /// the table's own header says a wrong *width* is worse than a wrong *name*.
+    ClassDescr,
 }
 
 /// The **pinned** skip form of an operand-stream opcode, or `None` when this tree
@@ -598,6 +611,7 @@ pub(crate) enum SkipForm {
 /// | `53` | Bare, `54` | Byte1 | [`eat_scopes`] |
 /// | `55` | Type | the `icall` line of `parse_segment`'s grammar — `55 INT` |
 /// | `5C` | TypeVarint | `EH_RECORDS.md` §7.1's measured `5C <TYPE> <varint>`, and `control_flow.rs`'s `operand()` arm that consumes it today — see the `0x5C` row below |
+/// | `66` | ClassDescr | `mcall::eat_class_descriptor`, the one decoder, called rather than restated — see the `0x66` row below |
 /// | `67` | VarintTok | `IL_DECODE_REACH.md` §2 — `67 <varint vtable-byte-offset> <token>` |
 /// | `9B` | TypeTok | `IL_EXPR_LAYER.md` §7 — the trailing field is a whole `read_token_var` |
 /// | `B9` | TokType | [`parse_expr_classed`]'s own LOAD arm |
@@ -861,6 +875,24 @@ pub(crate) fn chain_skip_form(b: u8) -> Option<SkipForm> {
         // an enum change is not this row. See
         // [`the_unpinned_opcodes_refuse_rather_than_guess_a_width`].
         0x5C => TypeVarint,
+        // The CLASS-PAIR DESCRIPTOR, `66 <arity> <arity LEB ids>` (lane
+        // `w-mass`, board **#1530**). It is the token that follows the 2113–2119
+        // class-layout intrinsic's `40 <TYPE result>`, and the reason the
+        // `intrinsic` sink stops one token short of that production: with `66`
+        // absent from this table, sinking the intrinsic renamed **17,693
+        // emitted** functions (291,002 bodies) to `expr-class-descriptor` and
+        // recovered nothing — board **#1465**'s rename, at the largest scale the
+        // project has measured it.
+        //
+        // **Not a new width.** `mcall::eat_class_descriptor` is the one decoder
+        // and this arm calls it; `shapes/control_flow.rs`'s `0x66` arm already
+        // calls the same function, and `mcall`'s doc comment for it records the
+        // two rival readings (fixed 2 bytes; a `read_token_var` token) that both
+        // desync on the wide witnesses `fb 8a 01` / `e0 91 01` / `d3 80 02` in
+        // `src/App.cpp` and `src/lazer/game/Game.cpp`, and the `55` argument
+        // terminator that pins LEB against both. This is `0x5C`'s situation
+        // exactly: a width the tree already knew and this table could not spell.
+        0x66 => ClassDescr,
         0x67 => VarintTok,
         // The BIND, `99 <TYPE> <varint>`. `IL_EXPR_LAYER.md` §7 pins the field
         // by CONTRAST — "its trailing field is a whole `read_token_var`, not the
@@ -1128,6 +1160,19 @@ fn chain_step_with(
             }
             q += 1;
             read_varint(seg, &mut q).is_some()
+        }
+        // `66 <arity> <arity LEB ids>` — delegated to the one decoder, which
+        // starts at the opcode itself, so this rewinds `q` to `p` rather than
+        // re-implementing the `66` check.
+        SkipForm::ClassDescr => {
+            let mut r = p;
+            match super::mcall::eat_class_descriptor(seg, &mut r) {
+                Some(_) => {
+                    q = r;
+                    true
+                }
+                None => false,
+            }
         }
     };
     Some(if ok { Ok(q) } else { Err("expr-chain-short") })
@@ -2297,6 +2342,7 @@ mod tests {
                 0x43 => Some(SkipForm::Escape43),
                 0x4F => Some(SkipForm::Line4F),
                 0x54 => Some(SkipForm::Byte1),
+                0x66 => Some(SkipForm::ClassDescr),
                 0x67 => Some(SkipForm::VarintTok),
                 0x9B => Some(SkipForm::TypeTok),
                 0xB9 => Some(SkipForm::TokType),
