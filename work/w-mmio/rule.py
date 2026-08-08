@@ -52,15 +52,33 @@ def unimodal(dests):
     return i == len(dests) - 1
 
 
-def predict(perm, cycle, guard_slots):
-    """The rule. Returns (anchor_slot, entry_moves, call_moves)."""
-    anchor = min(cycle)
-    for gs in guard_slots:                       # the FIRST guard that can anchor
+def anchor_first_in_cycle(perm, cycle, guard_slots):
+    """R-GUARD-UNIMODAL, as grid 1 fitted it: the first guard IN the cycle
+    anchors if its chain is unimodal, otherwise the minimum. Grid 2 refuted the
+    'otherwise' at 15 cells — kept here as the scored rival."""
+    for gs in guard_slots:
         if gs in cycle:
-            d = [x for x, _ in chain_from(perm, gs)]
-            if unimodal(d):
-                anchor = gs
-            break
+            if unimodal([x for x, _ in chain_from(perm, gs)]):
+                return gs
+            return min(cycle)
+    return min(cycle)
+
+
+def anchor_scan(perm, cycle, guard_slots):
+    """R-GUARD-SCAN — grid 2's amendment. Walk the guards in PROGRAM ORDER and
+    take the first one that can anchor: in the cycle, and unimodal there. A
+    guard outside the cycle, or one whose chain would dip and rise, is skipped
+    rather than terminating the scan. Only when no guard qualifies does the
+    cycle's minimum anchor."""
+    for gs in guard_slots:
+        if gs in cycle and unimodal([x for x, _ in chain_from(perm, gs)]):
+            return gs
+    return min(cycle)
+
+
+def predict(perm, cycle, guard_slots, anchor_fn=anchor_scan):
+    """The rule. Returns (anchor_slot, entry_moves, call_moves)."""
+    anchor = anchor_fn(perm, cycle, guard_slots)
     moves = chain_from(perm, anchor)
     dests = [d for d, _ in moves]
     j = 0
