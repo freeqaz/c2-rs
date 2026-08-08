@@ -418,7 +418,13 @@ pub(crate) fn try_parse_osf_handle_guard(
         return Err(blk(seg, p, "osf-flag-not-widened-to-int"));
     }
     let k_bit = eat_lit(seg, &mut p, "osf-flag-mask")?;
-    if !is_low_contiguous(k_bit) || k_bit > 0x7F {
+    // TWO keys, not one: the two facts decline for different reasons and a
+    // single key would report a non-contiguous mask as a sign-bit problem. Found
+    // by the `_neg` probe run, which is what that file is for.
+    if !is_low_contiguous(k_bit) {
+        return Err(blk(seg, p, "osf-flag-mask-is-not-2n-minus-1"));
+    }
+    if k_bit > 0x7F {
         // At or above the loaded byte's sign bit a `char` costs an `extsb` this
         // class does not emit; below it the widening is dead and the bare `lbz`
         // is right for either sign.
