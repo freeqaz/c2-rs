@@ -734,9 +734,32 @@ pub(crate) fn scheduled_gpr_run(
         // first free register is r(3 + len).
         let pool_floor = 3u8.saturating_add(params.len().min(9) as u8);
         let Some(assign) = alloc::allocate(&producers, pool_floor) else {
-            return Some(Err(out_of_class(
-                "store run outside the allocator's domain (codegen::alloc)",
-            )));
+            // **THE MIXED RUN KEEPS ITS OWN NAME — board #1309.**
+            //
+            // The mixed decision moved into `alloc::allocate` at board #1297,
+            // and with it the refusal's *message*: 110 generated cases that had
+            // reported *"an interior address BESIDE another producer"* began
+            // reporting the generic domain sentence instead. Same 110 cells,
+            // checked key for key at both ends
+            // (`work/w-lineage/cg/`) — a **rename, not a closure** — but a
+            // family that loses its name is a family `census_gate.rs` can no
+            // longer track, and `WIDE_CAUSES_PACKED[0]` is written in terms of
+            // it (board #1306).
+            //
+            // So the construct is named here rather than the recorded substring
+            // being widened to the vaguer sentence. The message is strictly more
+            // informative than the one it restores: it also says *which* mixed
+            // runs are served.
+            let mixed = producers.iter().any(|p| p.kind == alloc::ProducerKind::Constant)
+                && producers.iter().any(|p| p.kind != alloc::ProducerKind::Constant);
+            return Some(Err(out_of_class(if mixed {
+                "a store run with an interior address BESIDE another producer: \
+                 served only where the address's stores go through the BIND that \
+                 names it, so the two roots are one token and the cross-symbol \
+                 pin fixes the order (board #1297); this run's do not"
+            } else {
+                "store run outside the allocator's domain (codegen::alloc)"
+            })));
         };
         for s in run.iter_mut() {
             if let Some(p) = s.prod {
