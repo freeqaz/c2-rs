@@ -2205,7 +2205,14 @@ mod tests {
     /// `None` is otherwise unable to express (board #1314's finding, restated).
     #[test]
     fn the_unpinned_opcodes_refuse_rather_than_guess_a_width() {
-        for b in [0x00, 0x07, 0x08, 0x14, 0x1B, 0x1C, 0x3B, 0x3C, 0x3D, 0x59, 0x64, 0x66] {
+        // `0x66` LEFT this list on 2026-08-08 (lane `w-mass`, board #1530) and
+        // it is the third kind again, resolved the other way: the width was
+        // never unmeasured — `mcall::eat_class_descriptor` has read it since the
+        // D2 rung and `control_flow.rs` calls that same function — it was
+        // unspellable, and `SkipForm::ClassDescr` delegates rather than restates
+        // it. `0x64` stays: it is `mcall`'s by-value-return materialize, which
+        // no reader in this tree consumes at a stated width.
+        for b in [0x00, 0x07, 0x08, 0x14, 0x1B, 0x1C, 0x3B, 0x3C, 0x3D, 0x59, 0x64] {
             assert_eq!(chain_skip_form(b), None, "0x{b:02X} must have no pinned form");
         }
         // The EH COUNT trailers. Kept in their own loop with their own message,
@@ -2489,6 +2496,52 @@ mod tests {
         // would report a fictitious successor.
         assert_eq!(skip_one(&[0x5C, 0x86, 0x41, 0x74], 0x5C), Some(Err("expr-chain-short")));
         assert_eq!(skip_one(&[0x5C], 0x5C), Some(Err("expr-chain-short")));
+    }
+
+    /// **The CLASS-PAIR DESCRIPTOR, `66 <arity> <arity LEB ids>`** (lane
+    /// `w-mass`, board **#1530**), and the two rival readings `mcall`'s own doc
+    /// records as having desynced on it.
+    ///
+    /// The narrow witnesses (`66 02 92 20 93 20`) are the ones a fixed-2-byte
+    /// reading and a `read_token_var` reading both survive; the *wide* ones from
+    /// `src/App.cpp` and `src/lazer/game/Game.cpp` are what separate them, and
+    /// this row exists to keep them separated in this table too.
+    #[test]
+    fn the_class_pair_descriptor_consumes_exactly_its_capture() {
+        // The narrow witness `mcall` transcribes, followed by the `55` argument
+        // terminator that pins the width from the other side.
+        let narrow = [0x66, 0x02, 0x92, 0x20, 0x93, 0x20, 0x55, 0x86, 0x41, 0x74];
+        assert_eq!(skip_one(&narrow, 0x66), Some(Ok(6)), "arity byte + two LEB ids");
+        assert_eq!(narrow[6], 0x55, "and the step lands on the argument terminator");
+
+        // **The WIDE ids.** `fb 8a 01` is three LEB bytes, so a fixed-2-byte
+        // reading stops inside the second id and a `read_token_var` reading
+        // takes `fb 8a 01 …` as four bytes and oversteps by one. Only LEB lands
+        // on the `55`.
+        let wide = [0x66, 0x02, 0xFB, 0x8A, 0x01, 0xD3, 0x80, 0x02, 0x55, 0x86, 0x41, 0x74];
+        assert_eq!(skip_one(&wide, 0x66), Some(Ok(8)));
+        assert_eq!(wide[8], 0x55);
+
+        // The ARITY is read, not assumed to be `02` — `IL_CALL_IN_EXPR.md` §4.3.
+        let three = [0x66, 0x03, 0x92, 0x20, 0x93, 0x20, 0x94, 0x20, 0x55];
+        assert_eq!(skip_one(&three, 0x66), Some(Ok(8)));
+        let zero = [0x66, 0x00, 0x55, 0x86, 0x41, 0x74];
+        assert_eq!(skip_one(&zero, 0x66), Some(Ok(2)));
+
+        // A payload that runs off the end refuses rather than clamping. A clamp
+        // would manufacture a fictitious successor key, which is the one way
+        // this instrument could lie.
+        assert_eq!(skip_one(&[0x66, 0x02, 0x92], 0x66), Some(Err("expr-chain-short")));
+        assert_eq!(skip_one(&[0x66], 0x66), Some(Err("expr-chain-short")));
+
+        // **The width is the DECODER's, not a copy of it.** If these two ever
+        // disagree, the sink is stepping a token nothing else in the tree reads
+        // the same way, and the successor keys it reports are fiction.
+        for w in [narrow.as_slice(), wide.as_slice(), three.as_slice(), zero.as_slice()] {
+            let mut p = 0usize;
+            assert!(super::super::mcall::eat_class_descriptor(w, &mut p).is_some());
+            assert_eq!(skip_one(w, 0x66), Some(Ok(p)), "the sink step IS the decoder");
+        }
     }
 
     /// **The rival readings, and the population that decides the one the
