@@ -306,10 +306,29 @@ EDITS = [
      "        if !store_type_gate(seg, &mut p) {\n            match (crate::front3_lift(\"assign-store-type\"), crate::func::readers::read_type(seg, p)) {\n                (true, Some((_, _, _, w))) => p += w,\n                _ => return Err(blk_type(seg, p, p, \"assign-store-type\")),\n            }\n        }"),
 
     # --- H:call-arg-lit-permuted  (vsnprnc) -------------------------------
+    # RE-DERIVED at master `b6783688`, lane w-park (board **#1920**). The clause
+    # gained a third conjunct — `permutation_decided_downstream`, which is
+    # `site == ArgSite::Sequence` — so the needle stopped matching and `apply`
+    # REFUSED with `HATCH-DRIFT`, which is `w-one`'s fail-closed working and the
+    # reason this file is re-taken against the tree rather than left to rot.
+    #
+    # **Re-taken and NOT retired**, and the distinction is the whole of what
+    # w-park measured. The clause is **partially** paid: at
+    # `ArgSite::Sequence` the permutation is now decided downstream by
+    # `park_in_class`, and at `ArgSite::Tail` — where there is no park and the
+    # argument setup *is* the body — it is refused exactly as before. So there
+    # is no `paid_witness` to file: the population `w-memcpy` counted for this
+    # key (35 first blockers on the workload) is at the **tail** site and this
+    # lift still governs every one of them. A `RETIRED` row here would have
+    # claimed a payment that was not made.
+    #
+    # The lift is spelled against the new text so a ladder run still climbs the
+    # same rung, and it still lifts only the tail half — which is what the key
+    # now means.
     ("call-arg-lit-permuted",
      "crates/c2-il/src/func/body/shapes/calls.rs",
-     "    if !in_place && !one_moved_at_two {\n        return Err(refuse(\"call-arg-lit-permuted\"));\n    }",
-     "    if !in_place && !one_moved_at_two && !crate::front3_lift(\"call-arg-lit-permuted\") {\n        return Err(refuse(\"call-arg-lit-permuted\"));\n    }"),
+     "    if !in_place && !one_moved_at_two && !permutation_decided_downstream {\n        return Err(refuse(\"call-arg-lit-permuted\"));\n    }",
+     "    if !in_place && !one_moved_at_two && !permutation_decided_downstream && !crate::front3_lift(\"call-arg-lit-permuted\") {\n        return Err(refuse(\"call-arg-lit-permuted\"));\n    }"),
 
     # --- H:call-arg-outer-formal  (keygen_xbox) ---------------------------
     ("call-arg-outer-formal",
