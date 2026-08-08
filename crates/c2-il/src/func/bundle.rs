@@ -774,12 +774,29 @@ pub(crate) fn shape_to_function(
     src: &Option<String>,
     resolve: &dyn Fn(u32) -> Option<String>,
     resolve_data: &dyn Fn(u32) -> Option<String>,
+    resolve_data_def: &dyn Fn(u32) -> Option<crate::func::IlDataDef>,
 ) -> Option<IlFunction> {
     match shape {
             // An indirect-load leaf reaches the ordinary integer selector,
             // which pattern-matches its exact two-op stream; `params` carries
             // a member function's `this` at index 0 so the base register comes
             // out right.
+            // **W-DATA — the static-array scan loop.** The array's token is
+            // resolved to a whole DEFINED OBJECT here, the way
+            // `BodyShape::IfCallJoin` resolves its callee tokens, and a token
+            // that does not resolve refuses the function rather than yielding
+            // one with an unrelocatable body. `resolve_data_def` is where every
+            // clause about the object lives — COMDAT, initialized, not
+            // thread-local, bytes exactly `size`, no interior relocation.
+            BodyShape::StaticScanLoop(l) => {
+                let data_def = resolve_data_def(l.array_tok)?;
+                Some(IlFunction {
+                    params: l.params.clone(),
+                    static_scan_loop: Some(l),
+                    data_def: Some(data_def),
+                    ..IlFunction::base(name, src)
+                })
+            }
             BodyShape::IndirectLoad { params, ops } => {
                 Some(IlFunction {
                     params,
@@ -1513,11 +1530,15 @@ impl IlBundle {
         // they are resolved by token through the `.gl` symbol index, because the
         // CALL token carries only a function-type id and cannot distinguish two
         // callees with the same signature.
-        let bind = Bindings::per_record(gl, self.get("sy"), &segs, &starts)?;
+        let bind = Bindings::per_record(gl, self.get("in").unwrap_or(&[]), self.get("sy"), &segs, &starts)?;
         let names = bind.names();
         let src = bind.src.clone();
         let resolve = |tok: u32| -> Option<String> { bind.resolve(tok) };
         let resolve_data = |tok: u32| -> Option<String> { bind.resolve_data(tok) };
+        // **W-DATA** — the DEFINED-object resolver. Built beside `resolve_data`
+        // and from the same `Bindings`, so the two answer about one `.gl`.
+        let resolve_data_def =
+            |tok: u32| -> Option<crate::func::IlDataDef> { bind.resolve_data_def(tok) };
         let n_defined = segs.len();
 
         let mut funcs = Vec::with_capacity(n_defined);
@@ -1536,6 +1557,7 @@ impl IlBundle {
                 &src,
                 &resolve,
                 &resolve_data,
+                &resolve_data_def,
             )?;
             funcs.push(f);
         }
@@ -1634,6 +1656,24 @@ impl IlBundle {
             // there and not here.
             if let Some(d) = &f.data_sym {
                 accounted.push(d.as_str());
+            }
+            // **W-DATA — a data object this TU DEFINES.** The clause above
+            // accounts for a symbol the obj carries *undefined*; this one
+            // accounts for a symbol the obj **defines**, together with the
+            // whole COMDAT `.data` section that comes with it.
+            //
+            // The gate's own comment two blocks up records why it could not be
+            // loosened instead: `int gv; int f(int a){return a+1;}` mismatched
+            // at **file offset 2**, the section count, because `?gv@@3HA` was
+            // invisible to the emitter. It is not invisible now — the object
+            // travels on `IlFunction::data_def` all the way to
+            // `coff::emit_comdat_obj`, which emits its section, its alignment,
+            // its checksum and its defined STATIC symbol. Accounting a name
+            // whose section nothing emitted would be that mismatch again, so
+            // this line is safe only because `data_def` is the carrier and not
+            // a flag.
+            if let Some(d) = &f.data_def {
+                accounted.push(d.coff_name.as_str());
             }
         }
         if bind
@@ -1741,7 +1781,7 @@ impl IlBundle {
         if segs.len() != 1 {
             return None;
         }
-        let bind = Bindings::per_record(gl, self.get("sy"), &segs, &starts)?;
+        let bind = Bindings::per_record(gl, self.get("in").unwrap_or(&[]), self.get("sy"), &segs, &starts)?;
         let thunk_name = bind.names().first()?.clone();
         if !is_dynamic_initializer_name(&thunk_name) {
             return None;

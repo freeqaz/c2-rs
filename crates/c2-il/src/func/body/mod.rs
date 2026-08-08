@@ -26,6 +26,7 @@ use self::shapes::{
     try_parse_ptr_walk_chain_loop,
     try_parse_if_call_join,
     try_parse_ptr_walk_loop,
+    try_parse_static_scan_loop,
     try_parse_store_leaf, try_parse_store_run, try_parse_store_run_bind,
     try_parse_store_run_call,
 };
@@ -640,6 +641,11 @@ pub(crate) enum BodyShape {
     /// [`super::shapes::if_call_join`] for the whole accept/refuse boundary and
     /// [`crate::func::IfCallJoin`] for the fields.
     IfCallJoin(crate::func::IfCallJoin),
+    /// **W-DATA — the static-array scan loop.** The first body class here whose
+    /// function DEFINES the data it reads. See
+    /// [`super::shapes::static_scan_loop`] for the whole accept/refuse boundary
+    /// and [`crate::func::StaticScanLoop`] for the fields.
+    StaticScanLoop(crate::func::StaticScanLoop),
     /// **The body-parameterized pointer-walk loop** — the first shape here
     /// whose emitted body has no fixed length. See
     /// [`super::shapes::ptr_walk_chain_loop`] for the accept/refuse boundary
@@ -1899,6 +1905,25 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                 // because the two loops name matched workload TUs.
                 if let Ok(shape) = try_parse_if_call_join(seg, p, lo, locals, sy.ptr_locals) {
                     disp("disp-if-call-join");
+                    return Ok(shape);
+                }
+                // **W-DATA — the static-array scan loop.** It opens on the same
+                // `26 <local>` the two loops above and `if_call_join` do — its
+                // first statement is `j = 0` — so it is tried here on the same
+                // terms: its own cursor, `Err` on the first byte that is not its
+                // grammar, no census key moved by a decline.
+                //
+                // Its grammar separates from `ptr_walk_loop`'s at the SECOND
+                // statement, whichever is asked first: that one requires a `53`
+                // opening a `for` whose first statement assigns a **pointer**
+                // local, this one requires the rotation's `3A <Ltest>`
+                // immediately. It separates from `ptr_walk_chain_loop`'s at the
+                // same point (a top-test `while`'s `29 <label>`) and from
+                // `if_call_join`'s at the `53` opening a relational test. So the
+                // order among the four is free; this one is last because the
+                // other three name TUs that were matched before it.
+                if let Ok(shape) = try_parse_static_scan_loop(seg, p, lo, locals) {
+                    disp("disp-static-scan-loop");
                     return Ok(shape);
                 }
                 // **The body-parameterized loop**, beside its fixed-length

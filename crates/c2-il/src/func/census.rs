@@ -470,9 +470,14 @@ impl IlBundle {
         // `IlBundle::functions` would refuse for want of a local, or the reverse.
         // Over the census's own segment list, which is NOT the gate's: see
         // `bind.rs`'s table.
-        let bind = Bindings::positional(gl, self.get("sy"), &segs);
+        let bind = Bindings::positional(gl, self.get("in").unwrap_or(&[]), self.get("sy"), &segs);
         let resolve = |tok: u32| -> Option<String> { bind.resolve(tok) };
         let resolve_data = |tok: u32| -> Option<String> { bind.resolve_data(tok) };
+        // **W-DATA** — the same DEFINED-object resolver `IlBundle::functions`
+        // builds, from the same `Bindings`. The census and the gate must ask one
+        // question about an object or the census over-claims (`docs/GAPS.md` §6).
+        let resolve_data_def =
+            |tok: u32| -> Option<crate::func::IlDataDef> { bind.resolve_data_def(tok) };
         let src = bind.src.clone();
         Some(
             segs.iter()
@@ -584,6 +589,14 @@ impl IlBundle {
                             // straight reading one at a time, so a widening
                             // cannot slip a second one in unnoticed.
                             Ok(BodyShape::IfCallJoin(_)) => FnVerdict::InClass("if-call-join"),
+                            // **W-DATA — the static-array scan loop.** Its own
+                            // bucket, like every other whole-body shape, so the
+                            // `cflow-loop` axis can report an in-class row
+                            // against it and the rung's gain is attributable to
+                            // this production and not to a sibling loop's.
+                            Ok(BodyShape::StaticScanLoop(_)) => {
+                                FnVerdict::InClass("static-scan-loop")
+                            }
                             Ok(BodyShape::DivModLeaf(_)) => FnVerdict::InClass("div-mod-leaf"),
                             Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
                             // Split from the integer tail call by the register
@@ -805,7 +818,7 @@ impl IlBundle {
                             // consumed, for the reason the `sym_fail` probe
                             // above is: `shape_to_function` takes `sh` by value.
                             let bind_key = bind_refusal_key(&sh);
-                            match shape_to_function(sh, &name, &src, &resolve, &resolve_data) {
+                            match shape_to_function(sh, &name, &src, &resolve, &resolve_data, &resolve_data_def) {
                                 None if sym_fail.is_some() => FnVerdict::Blocked(Block::at_end(
                                     seg,
                                     sym_fail.expect("just checked"),

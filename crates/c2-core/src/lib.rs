@@ -606,17 +606,26 @@ impl PortC2 {
                     is_float: f.touches_floating_point(),
                     fp_refs: Vec::new(),
                     data_refs: body.data_refs,
+                    data_defs: body.data_defs,
                     frame: body.frame,
                     label_lead: leads[fi],
                 });
                 texts.push(body.text);
             }
-            return Ok(ObjImage::new(coff::emit_comdat_obj(
-                obj_name,
-                &placed,
-                &texts,
-                label_counter,
-            )));
+            // **W-DATA — `emit_comdat_obj` is three-valued now.** `None` is the
+            // honest refusal for an obj whose defined-data shape nothing graded
+            // (today: more than one object, or an alignment the container cannot
+            // spell). Emitting a guess would be a wrong section count at file
+            // offset 2, which is the mismatch `IlBundle::functions`' own
+            // unclaimed-name gate cost two objs to learn.
+            let obj = coff::emit_comdat_obj(obj_name, &placed, &texts, label_counter)
+                .ok_or_else(|| {
+                    BackendError::NotImplemented(
+                        "a `/Gy` obj whose defined COMDAT data is outside the                          measured class: every rule about its section slot, its                          alignment nibble, its aux CheckSum and its symbol                          group was read off ONE obj, and nothing separates a                          second object's placement from any ordering that                          coincides with it at n = 1"
+                            .to_string(),
+                    )
+                })?;
+            return Ok(ObjImage::new(obj));
         }
 
         // Select each function's .text, recording each function's byte offset.
@@ -833,6 +842,23 @@ impl PortC2 {
                 }
             };
             let data_refs = data_refs_of(f, &text[off as usize..], off)?;
+            // **W-DATA — the PACKED layout has no measured slot for a COMDAT
+            // `.data`**, so a function that defines one refuses here rather than
+            // reaching `emit_obj`. The packed section table interleaves
+            // `.rdata` and `.pdata` in `.text` order (six distinct orders over
+            // 240 objs, `emit_obj`'s own comment), and where a COMDAT `.data`
+            // goes in that sequence is a seventh thing nobody has captured.
+            //
+            // It costs the workload nothing: every TU this class reaches
+            // compiles at `/O1`, which implies `/Gy`, so the branch above is
+            // the one that runs. This arm exists so the `/Ox` gate lane gets a
+            // refusal instead of a guess.
+            if f.data_def.is_some() {
+                return Err(BackendError::NotImplemented(
+                    "a function-local `static` in the PACKED (`/Ox`) layout:                      the COMDAT `.data`'s position relative to `.rdata` and                      `.pdata` — which interleave in `.text` order — has never                      been captured"
+                        .to_string(),
+                ));
+            }
             placed.push(coff::Function {
                 name: &f.mangled_name,
                 text_offset: off,
@@ -840,6 +866,7 @@ impl PortC2 {
                 is_float: f.touches_floating_point(),
                 fp_refs,
                 data_refs,
+                data_defs: Vec::new(),
                 frame,
                 label_lead: leads[fi],
             });
@@ -966,6 +993,97 @@ pub(crate) fn data_refs_of<'a>(
         ));
     };
     Ok(vec![coff::DataRef { hi_off: base, lo_off, name }])
+}
+
+/// **W-DATA — the relocation sites for a data object this TU DEFINES**, derived
+/// from the emitted words rather than declared by the class.
+///
+/// [`data_refs_of`]'s discipline, one fan-out wider, and for the reason that
+/// function's own doc gives: a class that *declared* `hi_off = 0` and
+/// `lo_offs = [8, 12]` would keep saying so after a schedule change, and every
+/// relocation would still resolve — `docs/GAPS.md` §6's silent wrong-bytes
+/// shape. Derived here, the offsets cannot drift from the bytes.
+///
+/// The derivation, and each clause is a refusal rather than a guess:
+///
+/// * **the high half** is the unique `addis rT,0,0` in the body, and `rT` must
+///   not be `r0`. `lis` is the only way this port materializes a symbol's high
+///   half, and a second one would mean two objects sharing a scratch — a
+///   different allocation nobody has graded;
+/// * **the low halves** are every word whose `RA` is that same `rT` and whose
+///   16-bit displacement field is **0** — `addi rD,rT,0` (the base address) and
+///   `lwz rD,0(rT)` (a peeled element). Both spellings occur in `Primes.cpp`;
+///   the `lwzx` forms in the same body are X-form and cannot match.
+///
+/// **The count is not fixed at one.** `Primes.cpp` has TWO low halves against
+/// one high half, which is `w-loop`'s R3, and a 1:1 derivation would emit five
+/// relocation records where c2 emits six — a wrong `NumberOfRelocations` at the
+/// section header, the aux record and the plan at once.
+pub(crate) fn data_defs_of<'a>(
+    f: &'a c2_il::IlFunction,
+    base: u32,
+) -> Result<Vec<coff::DataDef<'a>>, BackendError> {
+    let Some(d) = f.data_def.as_ref() else {
+        return Ok(Vec::new());
+    };
+    let text = match codegen::static_scan_loop::static_scan_loop_text(f) {
+        Some(t) => t,
+        None => {
+            return Err(BackendError::NotImplemented(
+                "a defined data object on a function whose class does not \
+                 materialize its address: nothing derives the relocation sites"
+                    .to_string(),
+            ))
+        }
+    };
+    let words: Vec<[u8; 4]> = text.chunks_exact(4).map(|w| [w[0], w[1], w[2], w[3]]).collect();
+    let mut hi: Option<(u32, u8)> = None;
+    for (i, w) in words.iter().enumerate() {
+        for rt in 1u8..32 {
+            if *w == codegen::encode_addis(rt, 0, 0) {
+                if hi.is_some() {
+                    return Err(BackendError::NotImplemented(
+                        "two `lis rT,sym@ha` high halves in one body: two \
+                         objects sharing an address scratch is an allocation \
+                         nothing has graded"
+                            .to_string(),
+                    ));
+                }
+                hi = Some((base + 4 * i as u32, rt));
+            }
+        }
+    }
+    let Some((hi_off, rt)) = hi else {
+        return Err(BackendError::NotImplemented(
+            "a defined data object with no `lis rT,sym@ha` high half".to_string(),
+        ));
+    };
+    let mut lo_offs = Vec::new();
+    for (i, w) in words.iter().enumerate() {
+        let at = base + 4 * i as u32;
+        if at <= hi_off {
+            continue;
+        }
+        let is_lo = (0u8..32).any(|rd| {
+            *w == codegen::encode_addi(rd, rt, 0) || *w == codegen::encode_lwz(rd, rt, 0)
+        });
+        if is_lo {
+            lo_offs.push(at);
+        }
+    }
+    if lo_offs.is_empty() {
+        return Err(BackendError::NotImplemented(
+            "a defined data object whose high half has no low half".to_string(),
+        ));
+    }
+    Ok(vec![coff::DataDef {
+        symbol: &d.coff_name,
+        size: d.size,
+        natural_align: d.natural_align,
+        bytes: &d.bytes,
+        hi_off,
+        lo_offs,
+    }])
 }
 
 impl Backend for PortC2 {

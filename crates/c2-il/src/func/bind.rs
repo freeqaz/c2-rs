@@ -416,8 +416,19 @@ pub(crate) struct Bindings<'a> {
     /// leaves never constructs the index at all.
     symbols: GlIndex<'a>,
     /// The `.gl` bytes, for the record-level reads the token index does not
-    /// carry — today just [`Bindings::resolve_data`]'s linkage gate.
+    /// carry — [`Bindings::resolve_data`]'s linkage gate and
+    /// [`Bindings::resolve_data_def`]'s record frame.
     gl: &'a [u8],
+    /// **W-DATA** — the `.in` bytes, for [`Bindings::resolve_data_def`]'s
+    /// initializer half.
+    ///
+    /// It is a **constructor argument** rather than something a caller attaches
+    /// later, and that is the point: the census and the gate each build their
+    /// own `Bindings`, and a defaulted-empty `.in` on one of them is precisely
+    /// how the census comes to count a function in class that the gate refuses.
+    /// Empty is a legitimate value (a TU with no initializers); it is not a
+    /// value a caller can reach by forgetting.
+    inb: &'a [u8],
     /// **WR1** — the undefined-external DATA names, built on first use, so a TU
     /// that references no global never walks `.gl` for them.
     extern_data: std::cell::OnceCell<std::collections::BTreeSet<String>>,
@@ -438,6 +449,7 @@ impl<'a> Bindings<'a> {
     /// of them.
     pub(crate) fn per_record(
         gl: &'a [u8],
+        inb: &'a [u8],
         sy: Option<&[u8]>,
         segs: &[&[u8]],
         starts: &[usize],
@@ -459,6 +471,7 @@ impl<'a> Bindings<'a> {
             src: source_path(gl),
             symbols: GlIndex::new(gl),
             gl,
+            inb,
             extern_data: std::cell::OnceCell::new(),
             locals: SyLocals::new(sy, segs),
         })
@@ -474,7 +487,12 @@ impl<'a> Bindings<'a> {
     /// of class, and refusing the TU for want of names would replace every real
     /// blocking feature with this one and destroy the histogram that ranks the
     /// roadmap.
-    pub(crate) fn positional(gl: &'a [u8], sy: Option<&[u8]>, segs: &[&[u8]]) -> Bindings<'a> {
+    pub(crate) fn positional(
+        gl: &'a [u8],
+        inb: &'a [u8],
+        sy: Option<&[u8]>,
+        segs: &[&[u8]],
+    ) -> Bindings<'a> {
         let names = mangled_names(gl);
         let paired = names.len() == segs.len();
         Bindings {
@@ -484,6 +502,7 @@ impl<'a> Bindings<'a> {
             src: source_path(gl),
             symbols: GlIndex::new(gl),
             gl,
+            inb,
             extern_data: std::cell::OnceCell::new(),
             locals: SyLocals::new(sy, segs),
         }
@@ -555,6 +574,69 @@ impl<'a> Bindings<'a> {
             .get_or_init(|| gl_extern_data_names(self.gl))
             .contains(&name)
             .then_some(name)
+    }
+
+    /// **W-DATA — token → a data object this TU DEFINES**, with its bytes.
+    ///
+    /// The mirror of [`Bindings::resolve_data`] and deliberately a *different*
+    /// function rather than a widening of it: that one answers *"may the port
+    /// reference this address without emitting a section?"* and its whole
+    /// population is linkage `02`. This one answers *"does this TU define an
+    /// object here, and what is in it?"*, and its population is exactly the two
+    /// linkages that one refuses.
+    ///
+    /// Both readers are consulted, and the object is admitted only if they
+    /// agree about it — `.gl` for the name, size, alignment and section kind,
+    /// `.in` for the bytes. The clauses, each a refusal:
+    ///
+    /// * **COMDAT and INITIALIZED.** A non-COMDAT object is placed *before*
+    ///   `.text` (GRID A cell `a4`, board #1682) and an uninitialized one is a
+    ///   `.bss` COMDAT (cell `a3`); this lane graded a writer for neither.
+    /// * **not thread-local.** `__declspec(thread)` lands in `.tls$` and says so
+    ///   nowhere else in the record ([`gl::DATA_FLAG_THREAD_LOCAL`]).
+    /// * **the `.in` value decodes to exactly `size` bytes.** Short, long, or
+    ///   absent is a refusal and never a zero-fill — `IlBundle::data_tu`'s
+    ///   clause 7, in this class.
+    /// * **no relocations inside the initializer.** A tag-`02` element is a
+    ///   pointer slot needing an ADDR32 into this object's own section, which
+    ///   the COMDAT `.data` writer has no cell for. Board **#232**'s direction
+    ///   is a `.data` whose bytes are right and whose addresses are not, so the
+    ///   references gate the object rather than being dropped from it.
+    ///
+    /// Living on `Bindings` is what keeps the **census and the gate** asking one
+    /// question: both build one of these and both call this, so the census
+    /// cannot count a function in class that `IlBundle::functions` refuses for
+    /// want of an object (`docs/GAPS.md` §6, and w-cfgclass's #1638).
+    pub(crate) fn resolve_data_def(&self, tok: u32) -> Option<crate::func::IlDataDef> {
+        let (_, o) = super::gl::gl_data_objects_ordered(self.gl)
+            .into_iter()
+            .find(|(t, _)| *t == tok)?;
+        if !o.comdat || !o.initialized {
+            return None;
+        }
+        if o.flags & super::gl::DATA_FLAG_THREAD_LOCAL != 0 {
+            return None;
+        }
+        let init = super::ininit::in_scalar_initializers(self.inb);
+        // The `.in` reader's own totality identity, as a GATE. A silently lost
+        // record is an object with no bytes, which is the failure this whole
+        // path exists to prevent (`data_tu`'s clause 7/8 comment).
+        if init.accepted + init.residue.len() != init.records {
+            return None;
+        }
+        if !init.refs.get(&tok).map(|r| r.is_empty()).unwrap_or(true) {
+            return None;
+        }
+        let bytes = init.values.get(&tok)?.clone();
+        if bytes.len() != o.size as usize {
+            return None;
+        }
+        Some(crate::func::IlDataDef {
+            coff_name: o.coff_name,
+            size: o.size,
+            natural_align: o.natural_align,
+            bytes,
+        })
     }
 
     /// The automatic locals of segment `i`.
@@ -648,7 +730,7 @@ mod tests {
     fn per_record_binds_each_segment_to_the_record_carrying_its_offset() {
         let gl = two_records();
         let segs: Vec<&[u8]> = vec![&[0u8; 4], &[0u8; 4]];
-        let b = Bindings::per_record(&gl, None, &segs, &[0, 40])
+        let b = Bindings::per_record(&gl, &[], None, &segs, &[0, 40])
             .expect("offsets 0 and 40 ARE the split points");
         assert_eq!(b.names(), ["?a@@YAHXZ".to_string(), "?b@@YAHXZ".to_string()]);
         // A per-record binding is 1:1 by construction, so it is always paired.
@@ -665,12 +747,12 @@ mod tests {
     fn per_record_binds_nothing_when_the_offsets_are_not_the_split_points() {
         let gl = two_records();
         let segs: Vec<&[u8]> = vec![&[0u8; 4], &[0u8; 4]];
-        assert!(Bindings::per_record(&gl, None, &segs, &[0, 41]).is_none());
-        assert!(Bindings::per_record(&gl, None, &segs, &[4, 40]).is_none());
+        assert!(Bindings::per_record(&gl, &[], None, &segs, &[0, 41]).is_none());
+        assert!(Bindings::per_record(&gl, &[], None, &segs, &[4, 40]).is_none());
         // Order matters too: the same two offsets, swapped, is a divergence.
-        assert!(Bindings::per_record(&gl, None, &segs, &[40, 0]).is_none());
+        assert!(Bindings::per_record(&gl, &[], None, &segs, &[40, 0]).is_none());
         // …and a count mismatch is the same refusal.
-        assert!(Bindings::per_record(&gl, None, &segs[..1], &[0]).is_none());
+        assert!(Bindings::per_record(&gl, &[], None, &segs[..1], &[0]).is_none());
     }
 
     /// **FEWER records than segments is a refusal, and relaxing the `!=` above to
@@ -721,14 +803,14 @@ mod tests {
         let gl = two_records();
         let segs: Vec<&[u8]> = vec![&[0u8; 4], &[0u8; 4], &[0u8; 4]];
         assert!(
-            Bindings::per_record(&gl, None, &segs, &[0, 40, 80]).is_none(),
+            Bindings::per_record(&gl, &[], None, &segs, &[0, 40, 80]).is_none(),
             "an aligned PREFIX of records must not bind: the unbound tail may be \
              a record the framing cannot see, not a function c2 dropped"
         );
         // …and one record against two segments is the same refusal, which is the
         // exact shape `65-linkage-comdat`'s eight flipping cases present.
         let one = gl_record("?a@@YAHXZ", 0);
-        assert!(Bindings::per_record(&one, None, &segs[..2], &[0, 40]).is_none());
+        assert!(Bindings::per_record(&one, &[], None, &segs[..2], &[0, 40]).is_none());
     }
 
     /// Positional pairing is meaningful only when the counts agree, and when it
@@ -740,7 +822,7 @@ mod tests {
     fn positional_reports_no_name_when_unpaired_but_still_feeds_the_conversion() {
         let gl = two_records();
         let three: Vec<&[u8]> = vec![&[0u8; 4], &[0u8; 4], &[0u8; 4]];
-        let b = Bindings::positional(&gl, None, &three);
+        let b = Bindings::positional(&gl, &[], None, &three);
         assert!(!b.paired, "2 names against 3 segments is not a pairing");
         assert_eq!(b.reported_name(0), None);
         assert_eq!(b.reported_name(2), None);
@@ -753,7 +835,7 @@ mod tests {
 
         // Paired, the same list reports and gates normally.
         let two: Vec<&[u8]> = vec![&[0u8; 4], &[0u8; 4]];
-        let b = Bindings::positional(&gl, None, &two);
+        let b = Bindings::positional(&gl, &[], None, &two);
         assert!(b.paired);
         assert_eq!(b.reported_name(0).as_deref(), Some("?a@@YAHXZ"));
     }
@@ -780,9 +862,9 @@ mod tests {
         gl.push(0);
         let segs: Vec<&[u8]> = vec![&[0u8; 4], &[0u8; 4]];
 
-        let per_record = Bindings::per_record(&gl, None, &segs, &[0, 40])
+        let per_record = Bindings::per_record(&gl, &[], None, &segs, &[0, 40])
             .expect("the records' offsets are the split points");
-        let positional = Bindings::positional(&gl, None, &segs);
+        let positional = Bindings::positional(&gl, &[], None, &segs);
 
         assert_eq!(
             per_record.names(),
@@ -1243,8 +1325,8 @@ mod tests {
         gl.extend_from_slice(&gl_record("?va@@YAHHZZ", 0));
         gl.extend_from_slice(&gl_record("?ok@@YAHH@Z", 40));
         let segs: Vec<&[u8]> = vec![&[0u8; 4], &[0u8; 4]];
-        let gate = Bindings::per_record(&gl, None, &segs, &[0, 40]).expect("bound");
-        let census = Bindings::positional(&gl, None, &segs);
+        let gate = Bindings::per_record(&gl, &[], None, &segs, &[0, 40]).expect("bound");
+        let census = Bindings::positional(&gl, &[], None, &segs);
         assert!(gate.is_varargs(0) && !gate.is_varargs(1));
         assert_eq!(
             (census.is_varargs(0), census.is_varargs(1)),

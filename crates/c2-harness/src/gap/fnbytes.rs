@@ -724,7 +724,7 @@ pub fn grade_one(
                 FnByte::Exact => match relocs {
                     None => FnByte::RelocUnknown,
                     Some(rs) => {
-                        let plan = text_reloc_plan(&b.calls, &b.data_refs);
+                        let plan = text_reloc_plan(&b.calls, &b.data_refs, &b.data_defs);
                         match compare_relocs(&plan, rs) {
                             None => FnByte::Exact,
                             Some((kind, _)) => FnByte::RelocDiffers(kind),
@@ -1912,7 +1912,7 @@ pub(super) fn measure(
             let (plan, refrs) = match (row, refrel) {
                 (Some((c, Ok(f))), Some(rs)) => {
                     match complete_comdat(f, c.opt_word, &tu) {
-                        Ok(b) => (text_reloc_plan(&b.calls, &b.data_refs), rs),
+                        Ok(b) => (text_reloc_plan(&b.calls, &b.data_refs, &b.data_defs), rs),
                         // Unreachable from this arm — the body was composed to
                         // get here. Representable rather than a panic.
                         Err(_) => (Vec::new(), rs),
@@ -2020,7 +2020,7 @@ pub(super) fn measure(
         if v.bytes_exact() {
             let (plan, refrs) = match (row, refrel) {
                 (Some((c, Ok(f))), Some(rs)) => match complete_comdat(f, c.opt_word, &tu) {
-                    Ok(b) => (text_reloc_plan(&b.calls, &b.data_refs), rs),
+                    Ok(b) => (text_reloc_plan(&b.calls, &b.data_refs, &b.data_defs), rs),
                     Err(_) => (Vec::new(), rs),
                 },
                 _ => (Vec::new(), &[][..]),

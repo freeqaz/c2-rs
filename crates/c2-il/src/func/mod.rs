@@ -1501,6 +1501,60 @@ pub struct PtrWalkModLoop {
 /// a `$M`/`$M`/`$T` triple and two REL24 sites, so it reaches codegen as its own
 /// [`Selected`](../../c2_core/codegen/enum.Selected.html) variant and not as a
 /// `Plain`.
+/// **W-DATA — one data object a TU DEFINES**, as everything downstream of the
+/// reader needs it: the four `.gl` facts and the `.in` bytes, in one value.
+///
+/// # Why the bytes are here and not fetched later
+///
+/// They are two readers' answers about **one object** and the failure mode when
+/// they travel separately is board **#232**'s: a `.data` section whose contents
+/// are right and whose relocation, alignment or size came from somewhere else.
+/// `IlBundle::data_tu` already learned this once — its own `#232 CLAUSE` comment
+/// records putting the byte check *after* the reference check for exactly this
+/// reason — and this carrier is that lesson applied one class over.
+///
+/// Every field is **required**. There is no `Option<Vec<u8>>` for a `.bss`
+/// object: an uninitialized COMDAT `static` (GRID A cell `a3`, `int f(int i){
+/// static int p[4]; … }`) is a real shape, it lands in a `.bss` COMDAT rather
+/// than a `.data` one, and **no cell of this lane graded it**. The reader
+/// refuses it, which costs the workload nothing measured and keeps the writer
+/// from having a `.bss` arm the differential never saw.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct IlDataDef {
+    /// The COFF symbol name, already final — for a function-local `static`
+    /// that is the decorated `?primes@?1??NextHashPrime@@YAHH@Z@4PAHA`.
+    pub coff_name: String,
+    /// `sizeof` the object, from the `.gl` record's own size varint.
+    pub size: u32,
+    /// Natural alignment from the `.gl` TYPE tag — **not** derived from the
+    /// size. The section's nibble is the size-promoted alignment and the writer
+    /// computes it; carrying the promoted value here would put one fact in two
+    /// places.
+    pub natural_align: u32,
+    /// The static initializer from `.in`, exactly `size` bytes.
+    pub bytes: Vec<u8>,
+}
+
+/// **W-DATA — the static-array scan loop's parse.**
+///
+/// A unit-ish carrier: the emitted class has **zero** free immediate fields
+/// (`c2_core::codegen::static_scan_loop`), so there is nothing here for the
+/// emitter to read. What it carries is what the *fence* needed to prove, kept so
+/// a reader of the parse can see the shape was pinned rather than assumed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StaticScanLoop {
+    /// The single `int` formal, as [`IlFunction::params`] spells it.
+    pub params: Vec<u32>,
+    /// The `.gl` operand token of the array the loop scans. Resolved to
+    /// [`IlFunction::data_def`] before the function leaves the parser; kept for
+    /// the same reason [`IfCallJoin`] keeps its unresolved callee tokens.
+    pub array_tok: u32,
+    /// The element scale the subscript idiom multiplies by — **4**, and pinned
+    /// rather than assumed, because it is the one number in the body that could
+    /// vary without changing the token *shape* and it decides the `slwi` field.
+    pub scale: i32,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct IfCallJoin {
     /// The three formals in **argument-register order**: `params[0]` the
@@ -2004,6 +2058,28 @@ pub struct IlFunction {
     /// the TU as well. Two gates, because the failure is a wrong section count and
     /// not a wrong instruction.
     pub data_sym: Option<String>,
+    /// **W-DATA — a data object this TU DEFINES and this body references.**
+    ///
+    /// [`Self::data_sym`] is *"a name to relocate against, documented as an
+    /// undefined external"*; this is the other kind, and it is a different thing
+    /// rather than a wider one. An undefined external costs the obj one symbol
+    /// record. A **defined** object costs it a whole section, an alignment, a
+    /// checksum, a defined symbol and a relocation — and the `.gl` linkage byte
+    /// that refuses one from `data_sym` (`gl::gl_extern_data_names`, which admits
+    /// only linkage `02`) is exactly the gate that says so.
+    ///
+    /// So the two fields are never both set, and the accounting in
+    /// [`IlBundle::functions`] counts each in its own clause: a `data_sym` is
+    /// accounted as *a symbol the obj carries undefined*, a `data_def` as *a
+    /// symbol the obj DEFINES*. Before this field existed the second case had no
+    /// spelling at all, which is why `int gv; int f(int a){return a+1;}`
+    /// mismatched at **file offset 2** — the section count — and why the
+    /// unclaimed-`.gl`-name gate refuses a TU that defines the data its own code
+    /// reads.
+    pub data_def: Option<IlDataDef>,
+    /// **W-DATA — the static-array scan loop** (`?NextHashPrime@@YAHH@Z`).
+    /// Set by exactly one parser production; [`Self::ops`] is empty for it.
+    pub static_scan_loop: Option<StaticScanLoop>,
     /// True iff this function's body is **empty** (`void f() {}`): no expression at
     /// all, so codegen emits a bare `blr`. Mutually exclusive with the other body
     /// kinds.
@@ -2151,6 +2227,8 @@ impl IlFunction {
             fp_arg_sources: None,
             arg_sources: None,
             data_sym: None,
+            data_def: None,
+            static_scan_loop: None,
             empty_body: false,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),

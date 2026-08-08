@@ -27,6 +27,10 @@ pub(crate) enum SectionOwner {
     Text(usize),
     /// Function `i`'s `.pdata` COMDAT.
     Pdata(usize),
+    /// **W-DATA** — the COMDAT `.data` of the `j`-th defined data object, placed
+    /// **after** every code group. It carries no relocations of its own; the
+    /// relocations that name it live in the referring function's `.text`.
+    Data(usize),
 }
 
 /// A section, resolved to its raw data + header metadata.

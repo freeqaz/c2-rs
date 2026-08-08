@@ -274,7 +274,7 @@ impl IlBundle {
         // *before* each segment's `parse_segment`. (It fires on 0 of the 878
         // workload TUs, so the ordering is a correctness property of this
         // instrument rather than a number in any histogram.)
-        let real = Bindings::per_record(gl, self.get("sy"), &segs, &starts);
+        let real = Bindings::per_record(gl, self.get("in").unwrap_or(&[]), self.get("sy"), &segs, &starts);
         if let Some(b) = &real {
             if (0..segs.len()).any(|i| b.is_varargs(i)) {
                 out.push(cause::VARARGS);
@@ -286,7 +286,7 @@ impl IlBundle {
         // `Bindings::positional` is used ONLY for its locals view, which is
         // `SyLocals::new(sy, segs)` — a function of `.sy` and the segment list
         // and of nothing the naming decides. Its `names` are never read here.
-        let probe = Bindings::positional(gl, self.get("sy"), &segs);
+        let probe = Bindings::positional(gl, self.get("in").unwrap_or(&[]), self.get("sy"), &segs);
         let mut shapes = Vec::with_capacity(segs.len());
         for (i, seg) in segs.iter().enumerate() {
             match parse_segment(seg, probe.locals(i)) {
@@ -312,6 +312,8 @@ impl IlBundle {
         let src = bind.src.clone();
         let resolve = |tok: u32| -> Option<String> { bind.resolve(tok) };
         let resolve_data = |tok: u32| -> Option<String> { bind.resolve_data(tok) };
+        let resolve_data_def =
+            |tok: u32| -> Option<crate::func::IlDataDef> { bind.resolve_data_def(tok) };
         let mut funcs = Vec::with_capacity(segs.len());
         for (i, shape) in shapes.into_iter().enumerate() {
             let Some(shape) = shape else { continue };
@@ -321,6 +323,7 @@ impl IlBundle {
                 &src,
                 &resolve,
                 &resolve_data,
+                &resolve_data_def,
             ) {
                 Some(f) => funcs.push(f),
                 None => out.push(cause::SHAPE_RESOLVE),
