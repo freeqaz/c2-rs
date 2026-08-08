@@ -256,6 +256,7 @@ def verdict(nbytes, relocs):
 def run(outdir, root, only_flags=None):
     sys.path.insert(0, os.path.join(root, "scripts"))
     from gt_dump import Obj
+    outdir = os.path.abspath(outdir)          # #1388: absolute, always
     manifest = json.load(open(os.path.join(outdir, "manifest.json")))
     c2rs = os.path.join(root, "target/release/c2rs")
     objdir = os.path.join(outdir, "obj")
@@ -326,9 +327,26 @@ def score(outdir):
         if not rows:
             continue
         print("\n=== PART %s — %d graded cells ===" % (part, len(rows)))
+        # Part B's frozen labels are 2-valued (live | none); the verdict
+        # function is 3-valued because `none` has to be decided by the byte
+        # count and not by a missing relocation (w-memcpy §6.2).  `live` is
+        # therefore graded as "the copy is still there in SOME form".
+        def graded(m):
+            if part == "B":
+                return "none" if m["verdict"] == "none" else "live"
+            return m["verdict"]
         for riv in rivals:
-            ok = sum(1 for c, m in rows if c["pred"][riv] == m["verdict"])
+            ok = sum(1 for c, m in rows if c["pred"][riv] == graded(m))
             print("   %-10s %4d / %d" % (riv, ok, len(rows)))
+        if part == "B":
+            # and the SAME size/align rule part A tests, applied to the cells
+            # part B leaves alive — frozen as §2, fitted to nothing here
+            live = [(c, m) for c, m in rows if graded(m) == "live"]
+            ok = sum(1 for c, m in live
+                     if ("inline" if c["size"] // c["align"] <= 5 else "call")
+                     == m["verdict"])
+            print("   %-10s %4d / %d   (n<=5 rule, on the LIVE cells only)"
+                  % ("R-N5", ok, len(live)))
         if part == "A":
             print("\n   measured threshold per (flag set, align):")
             seen = {}

@@ -226,13 +226,131 @@ local destination, formal source).
 is w-memcpy §6.2's own control: its first verdict function had no `none` arm
 and reported a fence refuted by an inline expansion that did not exist.
 
-<!-- GRIDW-RESULTS-START -->
-*(filled in by §5 once measured)*
-<!-- GRIDW-RESULTS-END -->
+## 5. Results — 216 of 216 compiled, 0 errors
 
-## 5. Results
+### 5.1 Part A: the threshold moves, and it moves with FAVOR-SPEED, not with `/O<n>`
 
-*(see §5 below, written after the run)*
+| rival | score |
+|---|---:|
+| **W-OT** — 5 at `/O1` and `/O2 /Os`, 10 at `/O2`, `/Ox`, `/O1 /Ot` | **180 / 180** |
+| W-LEVEL — by the `/O<n>` level | 144 / 180 |
+| W-T5 — always 5 | 126 / 180 |
+
+Measured, identically at every alignment and for **both** `memcpy` and
+`memset`:
+
+```text
+   /O1              inline n <= 5     call n >= 6
+   /O2 /Os          inline n <= 5     call n >= 6
+   /O2              inline n <= 10    call n >= 11
+   /Ox              inline n <= 10    call n >= 11
+   /O1 /Ot          inline n <= 10    call n >= 11
+```
+
+The grid's `n` axis is `{4,5,6,9,10,11}`, so both thresholds are bracketed
+exactly: 5/6 and 10/11. The reading at `0x10bf65de` / `0x10bf65e3` is
+reproduced to the element.
+
+**`/O1 /Ot` and `/O2 /Os` are the two cells that matter**, and they are the two
+no optimization-*level* rule can get right: the threshold follows the
+favor-size/favor-speed setting alone, which is what one bit of an option word
+holds and what `/O<n>` merely implies by default.
+
+**This refutes, on 54 cells, the generalization every one of w-memcpy's 408
+memcpy/memset cells was compatible with.** GRID-M and GRID-M2 compiled at the
+dc3 workload's `/O1 /Oi` only — GRID-M2's docstring lists optimization as axis D
+and `build_cells` never crosses it — so "the threshold is 5" was a property of
+one flag set that nothing in 408 cells could distinguish from a constant. (Q8.)
+
+### 5.2 Part B: the elimination is a DEAD DESTINATION, not two local operands
+
+| rival | score |
+|---|---:|
+| **E-DEADDST** — dead, non-escaping local destination ⇒ eliminated | **36 / 36** |
+| E-LOCALS — both operands local ⇒ eliminated (w-memcpy's stated finding) | 24 / 36 |
+| R-N5 — §2's `n ≤ 5` rule, on the 24 cells that stay alive | **24 / 24** |
+
+```text
+   ff  two formals                     live at every size and alignment
+   fl  formal dst, local src           live
+   gl  file-scope dst, local src       live
+   ll  two locals, dst never read      NONE (4 B) at 16 and at 96
+   ld  local dst never read, FORMAL src NONE (4 B) at 16 and at 96
+   lu  two locals, dst passed to sink()  live — and it obeys §2 exactly
+```
+
+`ld` and `lu` are the two shapes w-memcpy never compiled, and they are the two
+that decide it. **`ld` has a formal source and is still eliminated; `lu` has two
+local operands and is not.** So "both operands are locals" is wrong in both
+directions, at 6 cells each. The correct statement is about the destination
+only.
+
+The scoring note, stated because it is a real weakness of the freeze: part B's
+frozen labels are two-valued (`live` / `none`) while the verdict function is
+three-valued, and `live` is graded as `verdict != none`. The three-valued
+verdict is not optional — `none` is decided by the **byte count**, not by a
+missing relocation, which is w-memcpy §6.2's own control (board #984).
+
+### 5.3 Where the elimination is NOT, established by capture rather than argued
+
+`work/wb-memcpy/probeC` captures the IL for three sources that differ only in
+the `memcpy` line, at the workload's `/O1`:
+
+```text
+   with     the copy, both operands dead locals      .ex 2840 B
+   without  the same function, memcpy line deleted   .ex 2754 B
+   live     the same, plus sink(a)                   .ex 2875 B
+```
+
+The `with` bundle's `.ex` diverges from `without` at offset 2731 and carries
+
+```text
+   80 ac 00 00 00        <- the tuple opcode 0xac, in the IL c1xx hands to c2
+   40 86 43 83 08
+   33 86 41 74 08 55 86 41 74      <- alignment hint #1  (byte)
+   33 86 41 74 08 55 86 41 74      <- alignment hint #2  (byte)
+   33 86 42 75 60 55 86 42 75      <- the size, 0x60 = 96
+   ... 2c 86 43 83 20 00 ... 2c 86 43 83 08 00     <- the two `2C` conversions
+```
+
+**So the front end does not remove it: c2 receives the block-move tuple and c2
+removes it.** And it is not removed by the lowering read in §2 — at size 96 /
+align 8 that reads `n = 12 > 5` and emits a call, which is exactly what the
+`lu` cell got.
+
+Three further captures at the same size with `char*` / `int*` / `double*`
+destinations differ in **exactly three bytes**, two of which are the two
+alignment-hint bytes, taking the values **`01` / `04` / `08`**. That is
+w-memcpy §2's "two alignment hints (`01` and `04`)" identified positionally,
+and it is the field `0x10bf657f` reads at `[node+0x38]`.
+
+### 5.4 The removal site — NAMED, NOT CONFIRMED
+
+`0x10b47d89` (inside `globlopt.c`'s attributed anchor range,
+`0x10b4565a`–`0x10b4a726`) contains the only arm found that deletes a
+`0xac`/`0xad` tuple:
+
+```text
+   0x10b48254   op0 -> 0x10b41bfd      (33 B predicate, 19 callers)
+   0x10b48277   op1 -> 0x10b41bfd
+   0x10b48290   op2 -> 0x10b41d46
+   0x10b482af   call 0x10b699a8 (the two operand symbols); != 0 -> keep
+   0x10b482ba   call 0x10b42571        <- 19 bytes, 3 callers: the removal
+```
+
+with a shorter `0xad` (memset) arm falling into the same `0x10b482b8`.
+
+**This is named as a candidate and is NOT claimed to be the site that fired for
+GRID-W part B.** The reason is recorded rather than smoothed over: the `0xac`
+arm applies the *same* predicate to **both** pointer operands, and the `ld`
+cell — whose source is a formal, not a local — was eliminated all the same. So
+either `0x10b41bfd` is not the "local, non-escaping" predicate it looks like,
+or another site did the work. Method doc §7 case 1 is the standing warning here
+and it has not been ruled out. Closing this needs an interventional check
+(w-emitp's method), which this lane did not run.
+
+**What IS established, by the obj, is the RULE**: destination-dead ⇒ removed,
+36 of 36, and the removal happens inside c2 with the tuple present in the IL.
 
 ## 6. Two things the disassembly says that are worth carrying separately
 
@@ -292,8 +410,49 @@ python3 work/wb-memcpy/gridw.py score work/wb-memcpy/probeW
 
 ## 8. Pre-registration, scored
 
-*(filled in after §5)*
+| # | registered | outcome |
+|---|---|---|
+| **Q1** | keyed on element count = size / alignment hint | **RIGHT** — 180/180 on GRID-W part A, 24/24 on part B's live cells, and it recomputes all 13 of w-memcpy's measured boundaries |
+| **Q2** | threshold 5, alternative 10, selected by one bit; W-OT beats W-T5 and W-LEVEL | **RIGHT, at 180 of 180** — and the two mixed flag sets (`/O1 /Ot`, `/O2 /Os`) are where the level rule dies |
+| **Q3** | non-constant size ⇒ call, decided before the division | **RIGHT as a reading, NOT MEASURED THIS LANE** — GRID-W has no variable-size cell; the only evidence is w-memcpy's `M-VARCALL` direction. Recorded as unmeasured rather than as confirmed |
+| **Q4** | size 0 emits nothing, from inside the lowering | **RIGHT on the outcome** (w-memcpy measured it); the *location* claim (inside the lowering, `0x10bf669d`) is a reading and is not separately obj-confirmed, because §5.2's elimination produces the same 4-byte body |
+| **Q5** | the elimination is not in the memcpy lowering; E-DEADDST beats E-LOCALS | **RIGHT, 36/36 vs 24/36**, and §5.3 adds what was not registered: the tuple is present in the IL, so the removal is in **c2**, not the front end |
+| **Q6** | `memcpy` is minted from a C string literal in c2 | **RIGHT** — `0x10b1971c` → `0x10b9ae7e` at `0x10bf6620`, and twice more (`0x10bf5e62`, `0x10c08483`) |
+| **Q7** | explains none of R-DESC's 24 misses and neither block-plan mismatch | **RIGHT, and registered as a decline** — §3.1. Nothing in this lane touches argument slots or block planning |
+| **Q8** | ≥ 1 flag set refutes a rule that scored 100 % on w-memcpy's 408 cells | **RIGHT, and it is 54 cells** — "the threshold is 5" was a property of `/O1` |
+
+### 8.1 Direction, and board #770
+
+Registered **OPTIMISTIC**. The direction was right and the sharpest single
+prediction (Q2) landed at 180 of 180, so **#770 goes to ~10 optimistic / 2
+pessimistic / 2 hits** by this lane's own accounting.
+
+**The two misses are in the registered direction and both are over-claims of
+LOCATION, not of rule.** Q3 was registered as if it would be measured and was
+not — the grid contains no variable-size cell, and writing "call" beside a
+reading is not a measurement. Q4's *outcome* was already known from w-memcpy;
+what this lane added was a claim about *which* code produces it, and §5.2 shows
+a second mechanism yields a byte-identical body, so the obj cannot separate
+them. Both are the same failure: a lane that had just been right about a
+threshold started narrating provenance at the same confidence as arithmetic.
+
+§5.4 is the third instance and it is the one that was caught before publication
+rather than after: a removal site that reads perfectly and whose own predicates
+contradict the measured rule on the `ld` cell. It is filed as `unknown`.
 
 ## 9. Pre-drafted DISCLOSURE rows
 
-*(filled in after §5 — only what the obj confirmed)*
+**Nothing below is adopted.** These are drafted so a later code lane can carry
+them *in the same commit* as the code change, per the ledger's checklist. Only
+the first is proposed as an **adoption** row; the rest are `route:` because the
+fact is obj-established and the disassembly only said where to look.
+
+| # | Kind | What would be adopted | Address in `c2.dll` | Adopted into | Commit | Notes |
+|---|---|---|---|---|---|---|
+| **W-MEMCPY-1** | **adoption** | **The block-move expansion predicate and its two constants.** `align = max(1, byte [node+0x38])`; `n = size / align` by 64-bit **truncating signed** division; `inline` iff `n <= T`; `T = 5` when the favor-speed option bit is clear and `T = 10` when set. A non-constant size is a call before the division; a zero size emits nothing. This is an **algorithm plus two magic numbers**, so it is adoption and not navigation. | `0x10bf65b8` (constant-size gate), `0x10bf65d1` (the division), **`0x10bf65e3`** (`cmp eax,5`), **`0x10bf65de`** (`cmp eax,0xa`), `0x10bf65e6` (`jle` → inline), `0x10bf657f` / `0x10bf6584` (the alignment source), `0x10bf658b` (the `max(…,1)` clamp), `0x10bf669d` (size 0); memset's identical copy at `0x10bf5e30`/`0x10bf5e35`/`0x10bf5e3e`/`0x10bf5e43`/`0x10bf5e46` | *(not adopted — a future `c2-core` intrinsic lowering)* | — | **The grey-zone alternative was tried and is INSUFFICIENT, with a number.** w-memcpy spent 408 black-box cells on this question and its best frozen rival scored 182/232; four separately-frozen size thresholds all missed, because the quantity is not a size. The disassembly named the quantity, and **GRID-W then graded it at 180/180 against real `c2.dll` across five flag sets** — so the constant is *identified* by the binary and *established* by the oracle. |
+| **W-MEMCPY-2** | **route** | **`0x10c2e310` is one bit of the option word and selects 5 vs 10.** The port needs the *behaviour* (threshold follows favor-speed, not `/O<n>`), which GRID-W measures directly; no bit position or option-word layout need be copied. | `0x10b8238d` (`shr ecx,0x17`), **`0x10b82392`** (the store). The dead second writer at `0x10b624dc` masks the same `0x800000` and corroborates the bit | *(not adopted — module docs only)* | — | Logged `route:` per the grey-zone rule: the disassembly said *look at a flag*, and the flag's meaning was then established by 180 obj cells at five flag sets. **The bit position itself is named and NOT decoded** — a port keyed on the flag word rather than on the observed behaviour would be adopting a layout, and this row does not authorise that. |
+| **W-MEMCPY-3** | **route** | **The callee name is minted inside c2 from a string literal**, which is why no `.gl` token exists for it and why `bundle::resolve` can never produce the symbol. | `0x10b1971c` (`"memcpy"`), `0x10b19714` (`"memset"`), `0x10b19724` (`"_blkmov"`), `0x10bf6620` / `0x10bf5e62` / `0x10c08483` (the mint, `0x10b9ae7e`) | *(not adopted — module docs only)* | — | The fact was already **observed black-box** by w-memcpy (§2: `memcpy` absent from the `.gl` name stream over the whole bundle) before any disassembly was read. This row exists only so a future reader knows the search was not blind. |
+| **W-MEMCPY-4** | *(no row — deliberately)* | The removal site for a dead-destination block move. | `0x10b482ba` → `0x10b42571` — **named in §5.4 and NOT decoded** | — | — | The reading contradicts the measured rule on the `ld` cell (§5.4). It stays `unknown`. **If a future lane adopts a removal rule, the rule it adopts is E-DEADDST — which is obj-established at 36/36 and needs no address at all.** |
+
+**If any of these is ever carried**, `README.md`'s clean-room wording must change
+in the same commit (ledger step 4), and the code comment must name this file.
