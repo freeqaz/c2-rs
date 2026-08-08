@@ -33,6 +33,10 @@ pub mod cond_tail;
 pub mod div_mod_leaf;
 pub mod encode;
 pub mod frame;
+/// A MEASUREMENT, not an emitter — see the module header. `cfg(test)` only, so
+/// it cannot be reached from a release build even by accident.
+#[cfg(test)]
+pub(crate) mod frontier_bytes;
 pub mod labels;
 pub mod leaf;
 pub mod order;
