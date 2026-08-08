@@ -1,0 +1,2 @@
+fixtures/cpp/wmcall_seq.cpp
+fixtures/cpp/wmcall_seq_neg.cpp
