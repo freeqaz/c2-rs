@@ -260,6 +260,22 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
         if cs.poison_detail.len() > 10 {
             println!("    … and {} more", cs.poison_detail.len() - 10);
         }
+        // Entries refused on provenance (board #1388). Printed as its own line,
+        // and printed even when it is 0, because 0 is the expected reading and a
+        // guard whose result is only ever shown when it fires is a guard nobody
+        // can tell apart from one that is not wired up.
+        println!(
+            "  cache entries REFUSED on provenance: {} (expected 0 — an entry whose \
+             recorded capture path is not where it is being served from is re-captured, \
+             never served)",
+            cs.foreign
+        );
+        for line in cs.foreign_detail.iter().take(10) {
+            println!("    REFUSED {line}");
+        }
+        if cs.foreign_detail.len() > 10 {
+            println!("    … and {} more", cs.foreign_detail.len() - 10);
+        }
     }
 
     // P2b function-level census. The TU ladder above is all-or-nothing, so it

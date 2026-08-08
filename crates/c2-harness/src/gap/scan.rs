@@ -1067,9 +1067,14 @@ pub fn gap_scan(
         // `if r.get("record"): continue`.
         let extra: Vec<(&str, String)> = vec![
             (
+                // The RESOLVED root, not the spelling on the command line: the
+                // cache absolutises it (board #1388) and it is the absolute form
+                // that is in the key and in every obj's `S_OBJNAME`. Recording
+                // `--cache work/x` here made two runs against one cache look
+                // like two caches.
                 "cache_root",
-                match &cfg.cache {
-                    Some(p) => crate::jstr(&p.display().to_string()),
+                match cache.as_ref() {
+                    Some(c) => crate::jstr(&c.root().display().to_string()),
                     None => "null".to_string(),
                 },
             ),
