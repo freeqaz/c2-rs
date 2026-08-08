@@ -1,0 +1,35 @@
+w-4c — `c2rs gap --cache <RELATIVE dir>` grades a MATCHING TU `mismatch` on a
+cache HIT. Pre-existing; the BASE binary reproduces it. Found because
+`work/w-front3/ladder.py` passes its cache argument through verbatim.
+
+Same binary, same entry, same flags, same cwd; only the spelling of --cache moves:
+
+  --cache work/w-4c/cache             ->  [1/1] mismatch  (bytes diverge)   x2
+  --cache $PWD/work/w-4c/cache        ->  [1/1] match
+
+MECHANISM, read off the bytes rather than inferred. A cache entry stores the
+captured IL and the REFERENCE OBJ (`out.obj`), and a COFF obj records its own
+`-Fo` output path:
+
+  fresh compile   1169 B   Z:\tmp\c2rs-cli-compile-1604264-...\out.obj
+  cached entry    1209 B   Z:\home\free\...\work\w-4c\cache\<hash>\out.obj
+  diff            the path string, and nothing else (strings diff is one line)
+
+So on a HIT the two sides bake different `-Fo` paths and the differential grades
+`mismatch — bytes diverge` on a TU that is byte-exact.
+
+WHY IT WAS INVISIBLE, and it is not that nobody looked:
+  * the cached IL is BYTE-IDENTICAL to a fresh capture — .ex .gl .sy .in .db all
+    five — so every `fn_blockers` number ever read through the cache is sound,
+    and the ladder rung counts are unaffected;
+  * only a `match` TU has its obj compared at all. Every ladder TU was a
+    `vocab-gap` until `w-lineage` converted `xboxheap.cpp` (board #1381), so
+    before that no ladder round ever exercised the comparison;
+  * a cache MISS is always green — the reference obj is compiled fresh at that
+    run's own path and compared against itself, then stored. The defect needs a
+    HIT, so it never fires on a first run, only on a re-run.
+
+CONSEQUENCE: a false `mismatch` on this project is an ALARM, and this one is
+loud, spurious and reproducible. It cost this lane a round trip through
+`git checkout 2b1c89da -- expr.rs`, a rebuild and a re-grade to prove the base
+binary does it too.

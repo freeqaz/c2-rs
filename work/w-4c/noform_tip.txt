@@ -1,0 +1,10 @@
+   838471   859 TUs  expr-chain-noform-0x4F
+    46241   774 TUs  expr-chain-noform-0x00
+    20414   829 TUs  expr-chain-noform-0x10
+     8269   826 TUs  expr-chain-noform-0x1C
+     2167   721 TUs  expr-chain-noform-0x11
+      701   699 TUs  expr-chain-short-0x27
+        1     1 TUs  expr-chain-noform-0x13
+        1     1 TUs  expr-chain-short-0x55
+        1     1 TUs  expr-chain-short-0x33
+total expr-chain-* fns 916266

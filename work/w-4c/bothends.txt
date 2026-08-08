@@ -1,0 +1,26 @@
+# w-instr BOTH-ENDS EVIDENCE
+# base work/w-4c/scan_base.jsonl
+# tip  work/w-4c/scan_tip.jsonl
+
+## TU set
+  base 878 TUs, tip 878 TUs, symmetric difference 0
+
+## per-TU class
+  base  {'capture-fail': 7, 'match': 11, 'vocab-gap': 860}
+  tip   {'capture-fail': 7, 'match': 11, 'vocab-gap': 860}
+
+## fn_blockers
+  base: 671 keys, sum 1751957
+  tip : 671 keys, sum 1751957
+  KEYS THAT MOVED: 0
+
+## emit_blockers
+  base: 648 keys, sum 130575
+  tip : 648 keys, sum 130575
+  KEYS THAT MOVED: 0
+
+## fn_gate_refusals
+  base: 0 keys, sum 0
+  tip : 0 keys, sum 0
+  KEYS THAT MOVED: 0
+
