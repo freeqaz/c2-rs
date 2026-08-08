@@ -1,0 +1,71 @@
+# w-cflowlabel — BOTH-ENDS EVIDENCE
+# base f49fe5e1 (clean) vs tip (this lane). 878-TU dc3 workload, workload flags, --jobs 16.
+# Regenerate: c2rs gap --list work/dc3-workload/files.txt --flags-file work/dc3-workload/flags.txt \
+#               --cwd <dc3-decomp> --jobs 16 --jsonl <out>.jsonl
+
+## fn_blockers
+  base: 671 keys, sum 1751957
+  tip : 671 keys, sum 1751957
+  KEYS THAT MOVED: 0 []
+
+## emit_blockers
+  base: 648 keys, sum 130575
+  tip : 648 keys, sum 130575
+  KEYS THAT MOVED: 0 []
+
+## per-function census
+  base in-class/total 711486/2463443
+  tip  in-class/total 711486/2463443
+
+## the control-flow axis, tip — CLASS rows
+    1724993  cflow-straight
+     276271  cflow-straight+expr-modeled
+     245236  cflow-if-1
+      98387  cflow-loop
+      43705  cflow-if-n
+      33093  cflow-if-2
+      20630  cf-expr-0x59
+       9644  cf-expr-0x60
+       8261  cf-expr-0x08
+        746  cf-no-body
+        738  cf-expr-0xBC
+        713  cflow-if-1+expr-modeled
+        700  cf-offadd-type-0x86
+        317  cflow-switch
+          5  cflow-switch+expr-modeled
+          2  cf-offadd-type-0xA6
+          2  cf-expr-0x00
+
+## the POPULATION cross (NEW this lane) — every cflow class x IN-CLASS/BLOCKED
+    1206007  cflow-straight|BLOCKED
+     518986  cflow-straight|IN-CLASS
+     245232  cflow-if-1|BLOCKED
+     192495  cflow-straight+expr-modeled|IN-CLASS
+      98386  cflow-loop|BLOCKED
+      83776  cflow-straight+expr-modeled|BLOCKED
+      43705  cflow-if-n|BLOCKED
+      33093  cflow-if-2|BLOCKED
+        713  cflow-if-1+expr-modeled|BLOCKED
+        317  cflow-switch|BLOCKED
+          5  cflow-switch+expr-modeled|BLOCKED
+          4  cflow-if-1|IN-CLASS
+          1  cflow-loop|IN-CLASS
+
+## THE BRACKET — 'blocked on control flow ALONE'
+  bodies, branching, blocked, total            421456
+  LOWER  residue `+expr-modeled`               718
+  UPPER  first blocker is a control-flow key   115364   (161x the lower)
+
+  emitted, blocked, total                      130575
+  LOWER  gap-metric cflow-emitted-modeled      9
+  UPPER  first blocker is a control-flow key   22342  (17.1%)
+        14990  body-cflow-label
+         3105  expr-brfalse
+         1939  expr-brtrue
+         1814  return-scope-close-cflow-label
+          303  expr-jump
+          103  call-ref-cflow-jump
+           51  expr-label
+           36  expr-switch-dispatch
+            1  call-postop-cflow-brfalse
+  emitted a block IR must SERVE                38227

@@ -53,6 +53,90 @@ impl GapReport {
         merge_counts(self.results.iter().map(|r| &r.fn_cflow))
     }
 
+    /// **The residue predicate's own denominator** — `(modeled, off_class)` over
+    /// the bodies the port ACCEPTS.
+    ///
+    /// `CfResidue::Modeled` is a hand-written mirror of the port's class, and a
+    /// `cflow-*+expr-modeled` count is only a counterfactual to the extent that
+    /// mirror is current. These two numbers say how current it is, on the one
+    /// population where the answer is known independently: an in-class body is
+    /// one the per-function gate accepts, so a residue that called *every* one
+    /// of them `Modeled` would be exactly as wide as the class. `off_class`
+    /// is how many it is narrower by.
+    ///
+    /// **Not a gate and not an error.** The mirror is deliberately no wider than
+    /// the accepting parser at the positions it checks (see `CfResidue`'s own
+    /// doc: a looser residue would *over*-claim, which is the failure a
+    /// counterfactual exists to avoid). A large `off_class` does not mean the
+    /// axis is wrong. It means the counterfactual built on it is a proxy whose
+    /// error is now measured instead of assumed, and it is published so that
+    /// nobody quotes the counterfactual without it again.
+    ///
+    /// **Read it beside [`GapReport::cflow_residue_overclaim`], because the two
+    /// errors point OPPOSITE ways.** `Modeled` neither contains nor is contained
+    /// in the port's class: this method counts the in-class bodies it misses,
+    /// that one counts the straight-line bodies it calls `Modeled` and the port
+    /// still refuses. So the counterfactual is not a bound in either direction —
+    /// it is an unvalidated proxy with a measured two-sided error, which is a
+    /// weaker and truer thing to say about it than "lower bound".
+    pub fn cflow_residue_control(&self) -> (usize, usize) {
+        let h = self.fn_cflow_histogram();
+        let mut modeled = 0;
+        let mut off = 0;
+        for (k, n) in &h {
+            let Some(cls) = k.strip_suffix("|IN-CLASS") else { continue };
+            if cls.ends_with("+expr-modeled") {
+                modeled += *n;
+            } else {
+                off += *n;
+            }
+        }
+        (modeled, off)
+    }
+
+    /// **The residue predicate's OTHER error** — straight-line bodies it calls
+    /// `Modeled` that the port nonetheless refuses.
+    ///
+    /// Restricted to `cflow-straight` deliberately, and the restriction is the
+    /// whole argument: for a straight-line body "blocked on control flow alone"
+    /// is vacuous, so a body here that is `Modeled` **and** blocked is refused
+    /// for a reason `Modeled` claimed was not there. It is the counterexample to
+    /// reading [`GapReport::cflow_residue_control`] as "the residue is
+    /// conservative" — it is not conservative, it is *different*.
+    ///
+    /// Why it matters for the rung this was written for: the standing price of
+    /// the block-IR restructure is a count of `cflow-<branching>+expr-modeled`
+    /// bodies, and that count was called a lower bound. A lower bound needs
+    /// `Modeled ⊆ class`. This number is how badly that fails on the one class
+    /// where it can be checked without lowering anything.
+    pub fn cflow_residue_overclaim(&self) -> usize {
+        self.fn_cflow_histogram()
+            .iter()
+            .filter(|(k, _)| k == "cflow-straight+expr-modeled|BLOCKED")
+            .map(|(_, n)| *n)
+            .sum()
+    }
+
+    /// **The control-flow counterfactual on the EMITTED column** —
+    /// `(branchy, branchy_modeled)` over blocked *emitted* functions.
+    ///
+    /// `branchy` is how many emitted functions a block IR would have to serve at
+    /// all; `branchy_modeled` is how many it would convert **by itself**, which
+    /// is the number the `body-cflow-label` row has to be ranked from.
+    ///
+    /// **`branchy_modeled` is not a bound**, in either direction — it inherits
+    /// `CfResidue::Modeled` whole, and that predicate is measured wrong both
+    /// ways by [`GapReport::cflow_residue_control`] and
+    /// [`GapReport::cflow_residue_overclaim`]. Quote all three or none. The
+    /// nesting `branchy_modeled <= branchy` is the only relation here that is
+    /// true by construction.
+    pub fn cflow_emitted_counterfactual(&self) -> (usize, usize) {
+        (
+            self.emit_total("emit-cflow-branchy"),
+            self.emit_total("emit-cflow-branchy-modeled"),
+        )
+    }
+
     /// **The EH axis**, aggregated, most frequent first. Rows are either a bare
     /// class (`eh-…`) or an `"<eh class>|<census key>"` cross-tab; see
     /// [`TuResult::fn_eh`].

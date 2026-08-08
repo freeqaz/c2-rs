@@ -115,3 +115,28 @@ pub(super) fn clip(s: &str, n: usize) -> String {
         format!("{}…", &s[..end])
     }
 }
+
+/// **Does a decoded control-flow class need a block IR at all?** — the one
+/// predicate behind the counterfactual, named so the scan and its test cannot
+/// hold two different opinions of it (board **#1343**).
+///
+/// Three answers, and the middle one is the whole reason this is a function:
+///
+/// * `cf-…` — the statement-layer walk stopped, so this body's CFG is **not
+///   known**. Not branchy; not straight either. An instrument that read
+///   "not branchy" as "straight" would fold 40,723 undecoded bodies into the
+///   control group.
+/// * `cflow-straight` / `cflow-straight+expr-modeled` — **false, and this is the
+///   control.** A straight-line body has no control flow to lower, so a block IR
+///   converts none of them. `cflow-straight+expr-modeled` is 276,271 on the
+///   workload against 718 for every branching class combined, so a predicate
+///   that tested `ends_with("+expr-modeled")` alone would size this rung at
+///   385× its worth. That is not hypothetical: it is the shape of the four
+///   ranking artifacts `docs/GAPS.md` §6n records.
+/// * every other `cflow-…` — true.
+///
+/// The test is on the class NAME because that is what crosses the scan/report
+/// seam; `CfShape` itself is private to `c2-il`.
+pub fn cflow_needs_block_ir(class: &str) -> bool {
+    class.starts_with("cflow-") && !class.starts_with("cflow-straight")
+}

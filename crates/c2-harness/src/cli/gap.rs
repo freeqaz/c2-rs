@@ -640,12 +640,59 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
             // census key is an `expr-*` feature is waiting on the expression layer
             // too; the `+expr-modeled` rows are the ones waiting on control flow
             // alone, and their total is the number this restructure is worth today.
+            //
+            // The `|IN-CLASS` / `|BLOCKED` population cross is excluded here and
+            // rendered on its own below: it is not a "what else is this waiting
+            // on" row, and letting it into this list would displace real ones
+            // (`cflow-loop|BLOCKED` alone outranks eight of them).
             for (key, count) in cflow
                 .iter()
-                .filter(|(k, _)| k.contains('|') && !k.starts_with("cflow-straight"))
+                .filter(|(k, _)| {
+                    k.contains('|')
+                        && !k.starts_with("cflow-straight")
+                        && !k.ends_with("|IN-CLASS")
+                        && !k.ends_with("|BLOCKED")
+                })
                 .take(12)
             {
                 println!("    {count:>7}           {key}");
+            }
+            // ---- the counterfactual, and the denominator it is a fraction of --
+            let (res_mod, res_off) = report.cflow_residue_control();
+            let (em_branchy, em_modeled) = report.cflow_emitted_counterfactual();
+            let cf_bodies: usize = cflow
+                .iter()
+                .filter(|(k, _)| !k.contains('|') && k.ends_with("+expr-modeled"))
+                .filter(|(k, _)| !k.starts_with("cflow-straight"))
+                .map(|(_, n)| *n)
+                .sum();
+            let ic = res_mod + res_off;
+            println!(
+                "    CONTROL-FLOW COUNTERFACTUAL (board #1343) — what a block IR would convert \
+                 BY ITSELF: {cf_bodies} bodies, {em_modeled} of the {em_branchy} blocked \
+                 EMITTED functions a block IR must serve. Neither is a bound — both are a \
+                 PROXY whose two-sided error the next two lines measure. Never quote one \
+                 without them."
+            );
+            if ic > 0 {
+                println!(
+                    "    RESIDUE CONTROL (board #1344) — `CfResidue::Modeled` is a hand-written \
+                     mirror of the port's class and NOTHING checked it against the port. It \
+                     calls {res_off} of the {ic} bodies the port ACCEPTS off-class ({:.1}%), \
+                     recognising only {res_mod}. NOT a gate and NOT an error: a residue LOOSER \
+                     than the emitter would over-claim, which is worse. What it IS is the \
+                     counterfactual's error term, and it was assumed rather than measured for \
+                     eight days.",
+                    100.0 * res_off as f64 / ic as f64
+                );
+                println!(
+                    "    …and it errs BOTH WAYS, so `lower bound` is the wrong word for the \
+                     line above: {} straight-line bodies are `+expr-modeled` and the port \
+                     REFUSES them anyway. `Modeled` neither contains nor is contained in the \
+                     class — it is a different predicate, and the counterfactual inherits both \
+                     differences.",
+                    report.cflow_residue_overclaim()
+                );
             }
         }
         // The EH axis (`docs/EH_RECORDS.md` §9.4, §10) — DECODE ONLY, and the

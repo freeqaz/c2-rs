@@ -2431,3 +2431,207 @@ fn the_partition_identity_survives_the_shapes_becoming_gradeable() {
     assert!(after.value > before.value, "3 of the 4 were right");
     assert_eq!(after.differs, 1, "and the fourth is now an ALARM, not a blank");
 }
+
+// ---------------------------------------------------------------------------
+// The control-flow counterfactual and the residue predicate's denominator.
+// Boards #1343 / #1344, lane `w-cflowlabel`.
+//
+// Portable — no toolchain, no workload. Each test pins one claim the rung's
+// numbers rest on, because the rung's whole output is a re-ranking and a
+// re-ranking that no test holds is a paragraph.
+// ---------------------------------------------------------------------------
+
+/// One TU carrying a hand-built control-flow axis and emitted-census counters.
+fn mk_cflow(cflow: &[(&str, usize)], emit: &[(&str, usize)]) -> TuResult {
+    let mut t = mk("cflow");
+    for (k, n) in cflow {
+        t.fn_cflow.insert((*k).into(), *n);
+    }
+    for (k, n) in emit {
+        t.emit.insert((*k).into(), *n);
+    }
+    t
+}
+
+/// **The staleness measure counts the population the port ACCEPTS, split by what
+/// the residue predicate says about it.**
+///
+/// The whole rung turns on this number being readable at all: `CfResidue::Modeled`
+/// is a hand-written mirror of the port's class, and an in-class body it calls
+/// off-class is one measured unit of the mirror falling behind. The `|BLOCKED`
+/// rows must not contribute — they are the population whose answer is unknown,
+/// which is the reason the control is taken over the in-class one instead.
+#[test]
+fn residue_control_counts_only_the_in_class_population() {
+    let rep = mk_report(vec![mk_cflow(
+        &[
+            ("cflow-straight|IN-CLASS", 500),
+            ("cflow-straight+expr-modeled|IN-CLASS", 190),
+            ("cflow-if-1|IN-CLASS", 4),
+            ("cflow-loop|IN-CLASS", 1),
+            // the blocked side of the same classes, which must be invisible here
+            ("cflow-straight|BLOCKED", 1200),
+            ("cflow-straight+expr-modeled|BLOCKED", 83),
+            ("cflow-if-1+expr-modeled|BLOCKED", 713),
+        ],
+        &[],
+    )]);
+    let (modeled, off) = rep.cflow_residue_control();
+    assert_eq!(modeled, 190, "only the in-class `+expr-modeled` rows");
+    assert_eq!(off, 505, "500 + 4 + 1 in-class bodies the residue calls off-class");
+    assert_eq!(
+        modeled + off,
+        695,
+        "the two partition the in-class population and nothing else joins it"
+    );
+}
+
+/// **The control that must stay green under the mutation the rung uses as
+/// evidence.** `cflow-straight+expr-modeled` is by far the largest
+/// `+expr-modeled` row (276,271 on the workload) and it is NOT part of the
+/// counterfactual: a straight-line body has no control flow to lower, so a block
+/// IR converts none of them. An implementation that tested `ends_with(
+/// "+expr-modeled")` without first excluding `cflow-straight` would report the
+/// rung as worth ~385× what it is, which is the exact shape of the mis-sizings
+/// this axis exists to prevent.
+#[test]
+fn emitted_counterfactual_excludes_straight_line_bodies() {
+    let rep = mk_report(vec![mk_cflow(
+        &[],
+        &[
+            ("emit-cflow-branchy", 40),
+            ("emit-cflow-branchy-modeled", 3),
+        ],
+    )]);
+    assert_eq!(rep.cflow_emitted_counterfactual(), (40, 3));
+    // …and the SCAN'S OWN predicate, called here rather than restated, so this
+    // test cannot pass while `scan.rs` counts a different set. A restated copy
+    // is the shape that let three lanes collide through shared semantics with
+    // no git conflict.
+    let branchy = super::cflow_needs_block_ir;
+    assert!(!branchy("cflow-straight"));
+    assert!(!branchy("cflow-straight+expr-modeled"), "THE control");
+    assert!(!branchy("cf-expr-0x59"), "an UNDECODED body has no known CFG");
+    for c in ["cflow-if-1", "cflow-if-2", "cflow-if-n", "cflow-loop", "cflow-switch"] {
+        assert!(branchy(c), "{c} needs a block IR");
+        assert!(branchy(&format!("{c}+expr-modeled")));
+    }
+}
+
+/// **`branchy-modeled` is nested inside `branchy`, and reading either alone is
+/// the misreading the pair exists to prevent.** A block IR must SERVE every
+/// `branchy` function and CONVERTS only the `modeled` ones; quoting the first as
+/// the rung's worth over-claims and quoting the second as the population
+/// under-claims. The nesting is the invariant that says they are two views of
+/// one set.
+#[test]
+fn emitted_counterfactual_is_nested() {
+    let rep = mk_report(vec![
+        mk_cflow(&[], &[("emit-cflow-branchy", 12), ("emit-cflow-branchy-modeled", 2)]),
+        mk_cflow(&[], &[("emit-cflow-branchy", 30), ("emit-cflow-branchy-modeled", 1)]),
+    ]);
+    let (branchy, modeled) = rep.cflow_emitted_counterfactual();
+    assert_eq!((branchy, modeled), (42, 3), "both sum across TUs");
+    assert!(modeled <= branchy, "NESTING: a converted function is a served one");
+}
+
+/// **The four keys ride together or the pairing they exist to enforce is gone.**
+/// `cflow-emitted-modeled` published without `cflow-residue-inclass-offclass` is
+/// the "718" failure exactly: a lower bound of unknown tightness, quotable as a
+/// price. `status.sh` reads a missing key as `NO-RESULT`, so absence is the one
+/// outcome that must not be silent.
+#[test]
+fn the_counterfactual_and_its_denominator_are_published_together() {
+    let rep = mk_report(vec![mk_cflow(
+        &[("cflow-straight|IN-CLASS", 7), ("cflow-straight+expr-modeled|IN-CLASS", 3)],
+        &[("emit-cflow-branchy", 5), ("emit-cflow-branchy-modeled", 1)],
+    )]);
+    let m: std::collections::BTreeMap<&str, String> = rep.metrics().into_iter().collect();
+    for (k, want) in [
+        ("cflow-emitted-branchy", "5"),
+        ("cflow-emitted-modeled", "1"),
+        ("cflow-residue-inclass-modeled", "3"),
+        ("cflow-residue-inclass-offclass", "7"),
+    ] {
+        assert_eq!(
+            m.get(k).map(String::as_str),
+            Some(want),
+            "gap-metric {k} must read {want}; a MISSING key reads NO-RESULT to the collector \
+             and an unpaired counterfactual is what board #1344 exists to stop"
+        );
+    }
+}
+
+/// **The new population cross does not disturb the axis it was added beside.**
+/// The class histogram is built by `!k.contains('|')` and four sessions of
+/// recorded tables name its rows, so a key that leaked into it would invalidate
+/// every one of them. This is the widen-never-narrow promise, asserted.
+#[test]
+fn population_cross_does_not_enter_the_class_histogram() {
+    let rep = mk_report(vec![mk_cflow(
+        &[
+            ("cflow-loop", 98387),
+            ("cflow-loop|IN-CLASS", 1),
+            ("cflow-loop|BLOCKED", 98386),
+            ("cflow-loop|body-cflow-label", 36871),
+        ],
+        &[],
+    )]);
+    let classes: Vec<(String, usize)> = rep
+        .fn_cflow_histogram()
+        .into_iter()
+        .filter(|(k, _)| !k.contains('|'))
+        .collect();
+    assert_eq!(
+        classes,
+        vec![("cflow-loop".to_string(), 98387)],
+        "exactly one class row, at the value it had before the cross was added"
+    );
+    // …and the population rows partition that class, which is the second thing
+    // the pair is for: it makes `cflow-loop`'s 98,387 readable as "1 the port
+    // accepts, 98,386 it does not" without a second scan.
+    let h: std::collections::BTreeMap<String, usize> =
+        rep.fn_cflow_histogram().into_iter().collect();
+    assert_eq!(
+        h["cflow-loop|IN-CLASS"] + h["cflow-loop|BLOCKED"],
+        h["cflow-loop"],
+        "ACCOUNTING: the population cross must be total over its class"
+    );
+}
+
+/// **The residue predicate is not conservative, and this is the test that says
+/// so.** `Modeled` neither contains nor is contained in the port's class, so the
+/// counterfactual is a proxy with a TWO-SIDED error and not a lower bound. A
+/// `cflow-straight` body that is `Modeled` and still blocked is refused for a
+/// reason `Modeled` said was absent — the one direction checkable without
+/// lowering anything. Board **#1344**.
+#[test]
+fn the_residue_errs_in_both_directions() {
+    let rep = mk_report(vec![mk_cflow(
+        &[
+            ("cflow-straight|IN-CLASS", 500),
+            ("cflow-straight+expr-modeled|IN-CLASS", 190),
+            // …and the counterexample: `Modeled`, straight-line, still refused.
+            ("cflow-straight+expr-modeled|BLOCKED", 83),
+            // a BRANCHING blocked+modeled row must NOT count here — for those
+            // "blocked" is exactly what the counterfactual is about, so they say
+            // nothing about the predicate's accuracy.
+            ("cflow-if-1+expr-modeled|BLOCKED", 713),
+        ],
+        &[],
+    )]);
+    let (modeled, off) = rep.cflow_residue_control();
+    assert_eq!((modeled, off), (190, 500), "direction 1: in-class, called off-class");
+    assert_eq!(
+        rep.cflow_residue_overclaim(),
+        83,
+        "direction 2: called Modeled, refused anyway — and the 713 branching \
+         bodies are NOT this, they are the counterfactual itself"
+    );
+    let m: std::collections::BTreeMap<&str, String> = rep.metrics().into_iter().collect();
+    assert_eq!(
+        m.get("cflow-residue-straight-modeled-blocked").map(String::as_str),
+        Some("83"),
+        "published, or the pair reads as `the residue is conservative` — which it is not"
+    );
+}

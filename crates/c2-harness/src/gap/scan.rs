@@ -16,7 +16,8 @@ use crate::capture_cache::CaptureCache;
 use crate::provenance::Provenance;
 
 use super::classify::{
-    clip, dtor_callee_class, gate_key, is_compiler_generated, mangling_class, normalize_cl_error,
+    cflow_needs_block_ir, clip, dtor_callee_class, gate_key, is_compiler_generated, mangling_class,
+    normalize_cl_error,
 };
 use super::render::print_factorization;
 use super::witness::{row_dump, wall_dump, witness_path, write_witness};
@@ -132,6 +133,33 @@ fn scan_one(
             if f.cflow.starts_with("cflow-") {
                 *res.fn_cflow
                     .entry(format!("{}|{}", f.cflow, f.verdict.key()))
+                    .or_insert(0) += 1;
+                // …and the same class crossed with the **population**, on the
+                // `|IN-CLASS` / `|BLOCKED` spelling the EH axis below already
+                // uses. This is a second cross rather than a reading of the
+                // first, because reading the first means asking whether a
+                // census key is a blocker key, and that is a guess about a
+                // namespace `FnVerdict::key` shares between the two.
+                //
+                // **What it is FOR — the residue predicate's own denominator.**
+                // A `cflow-*+expr-modeled` row claims "this body is blocked on
+                // control flow ALONE", and that claim is only as good as the
+                // vocabulary `CfResidue::Modeled` tests against — a hand-written
+                // mirror of the port's accepted class
+                // (`c2-il .../shapes/control_flow.rs`). Nothing checked that
+                // mirror against the port, so it could fall arbitrarily far
+                // behind while the counterfactual it produces stayed quotable.
+                // The in-class rows are the check: a body the port ACCEPTS that
+                // the residue calls off-class is a measured unit of staleness.
+                // Published, never folded in — trap 0, and `w-inread`'s rule
+                // that a denominator is not published until it has been printed
+                // on both sides of a change.
+                *res.fn_cflow
+                    .entry(format!(
+                        "{}|{}",
+                        f.cflow,
+                        if f.verdict.in_class() { "IN-CLASS" } else { "BLOCKED" }
+                    ))
                     .or_insert(0) += 1;
             }
             // The EH axis, likewise over every function — and here the in-class
@@ -349,6 +377,40 @@ fn scan_one(
                                 *res.emit.entry("emit-in-class".into()).or_insert(0) += 1;
                             } else {
                                 *res.emit_blockers.entry(f.verdict.key()).or_insert(0) += 1;
+                                // **The control-flow counterfactual, on the
+                                // column that ranks.** `emit_blockers` is the
+                                // widening order and its #2 row is
+                                // `body-cflow-label`; but a row's size is not
+                                // its yield, and for this row the yield is
+                                // "emitted functions a block IR alone would
+                                // convert". That is a cross of the emitted
+                                // population with the control-flow axis, and it
+                                // existed nowhere — `fn_cflow` is over every
+                                // body and `emit_blockers` carries no shape. So
+                                // the emitted counterfactual could only ever be
+                                // re-derived by hand, which is why it had not
+                                // been re-derived since 2026-07-31.
+                                //
+                                // Three counters, nested, so the bracket is
+                                // legible rather than a single number:
+                                //   -branchy         the block IR must serve it
+                                //   -branchy-modeled …and its operand vocabulary
+                                //                    is inside what
+                                //                    `CfResidue::Modeled` tests
+                                //                    — the counterfactual, and a
+                                //                    LOWER bound, because that
+                                //                    vocabulary is the stale
+                                //                    mirror the control above
+                                //                    measures.
+                                // Read the two together or not at all.
+                                if cflow_needs_block_ir(&f.cflow) {
+                                    *res.emit.entry("emit-cflow-branchy".into()).or_insert(0) += 1;
+                                    if f.cflow.ends_with("+expr-modeled") {
+                                        *res.emit
+                                            .entry("emit-cflow-branchy-modeled".into())
+                                            .or_insert(0) += 1;
+                                    }
+                                }
                             }
                         }
                         Some(_) => {

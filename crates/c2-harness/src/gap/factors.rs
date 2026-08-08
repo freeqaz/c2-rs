@@ -1187,6 +1187,38 @@ impl GapReport {
             ),
             ("workload-sections", self.section_vocabulary().len().to_string()),
             ("ladder-steps", ladder.len().to_string()),
+            // **The control-flow counterfactual and its denominator, together.**
+            // Four keys and not one, because the single number these replace —
+            // "718" — was quoted for eight days as the price of the block-IR
+            // restructure while being a LOWER bound of unknown tightness. The
+            // pairing is the interface: `-modeled` is the counterfactual,
+            // `-branchy` is the population it is a fraction of, and
+            // `residue-inclass-offclass` over
+            // (`-offclass` + `-modeled`) is how far the predicate that produced
+            // it has fallen behind the class it mirrors. Boards #1343/#1344.
+            (
+                "cflow-emitted-branchy",
+                self.cflow_emitted_counterfactual().0.to_string(),
+            ),
+            (
+                "cflow-emitted-modeled",
+                self.cflow_emitted_counterfactual().1.to_string(),
+            ),
+            (
+                "cflow-residue-inclass-modeled",
+                self.cflow_residue_control().0.to_string(),
+            ),
+            (
+                "cflow-residue-inclass-offclass",
+                self.cflow_residue_control().1.to_string(),
+            ),
+            // The error pointing the OTHER way, so the pair cannot be read as
+            // "the residue is conservative". It is not; it is a different
+            // predicate, and both differences are published.
+            (
+                "cflow-residue-straight-modeled-blocked",
+                self.cflow_residue_overclaim().to_string(),
+            ),
         ];
         // The ladder head, when there is one. Emitted as two keys rather than
         // one "name C=n" string so the numeric one stays `sed`-able, and
