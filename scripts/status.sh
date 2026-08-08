@@ -282,6 +282,14 @@ p_geomean()    { sed -n 's/.*geomean speedup over the [0-9]* matched fixture(s):
 #   4. the log ENDS on a `test result:` line, so an interrupted run cannot pass
 #      check 3 by having been cut between two targets.
 #
+# **Check 2 is conservative on purpose and you WILL hit it.** `docs/rungs/` is in
+# the closure because `rung_registry.rs` reads it, so writing a rung doc after
+# running the suite makes the log stale — correctly, because the suite's inputs
+# did change. The ritual that works is: write the rung doc, THEN
+# `cargo test --workspace --release 2>&1 | tee <log>`, then the gate, then
+# `status.sh --write --tests-log <log>`. The refusal names the offending file, so
+# it says which of these it was rather than leaving you to guess.
+#
 # What it deliberately does NOT do is *cache*. There is no state, no sentinel and
 # no "skip if unchanged": every invocation without `--tests-log` runs the suite,
 # exactly as before. `work/fable-perf/PROPOSAL.md` §6 declined "teach it to
