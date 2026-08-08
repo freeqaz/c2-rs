@@ -1,0 +1,162 @@
+== w-lineage EVIDENCE, both ends, measured in-tree ==
+
+-- 878-TU scan, base 04727f37 --
+  match            10    1.1%
+  mismatch          0    0.0%
+  codegen-gap       0    0.0%
+  vocab-gap       861   98.1%
+  capture-fail      7    0.8%
+    census/gate disagreement on EMITTED fns (the error term on the emitted census, target 0): 0
+  census/gate disagreement: 0  (the port accepts every function above)
+
+-- 878-TU scan, tip --
+  match            11    1.3%
+  mismatch          0    0.0%
+  codegen-gap       0    0.0%
+  vocab-gap       860   97.9%
+  capture-fail      7    0.8%
+    census/gate disagreement on EMITTED fns (the error term on the emitted census, target 0): 0
+  census/gate disagreement: 0  (the port accepts every function above)
+
+-- gap-metric block: 139 lines at both ends, 26 differ --
+  3c3
+  <     gap-metric match 10
+  ---
+  >     gap-metric match 11
+  6c6
+  <     gap-metric vocab-gap 861
+  ---
+  >     gap-metric vocab-gap 860
+  13c13
+  <     gap-metric factor-d 10
+  ---
+  >     gap-metric factor-d 11
+  17,20c17,20
+  <     gap-metric a-and-b-and-c-and-d 8
+  <     gap-metric a-and-b-and-c-and-d-or-e 10
+  <     gap-metric frontier 17
+  <     gap-metric frontier-if-a 139
+  ---
+  >     gap-metric a-and-b-and-c-and-d 9
+  >     gap-metric a-and-b-and-c-and-d-or-e 11
+  >     gap-metric frontier 16
+  >     gap-metric frontier-if-a 138
+  24,26c24,26
+  <     gap-metric cfg-reach-enumerated 3
+  <     gap-metric cfg-reach-shipped 3
+  <     gap-metric cfg-reach-top 17
+  ---
+  >     gap-metric cfg-reach-enumerated 2
+  >     gap-metric cfg-reach-shipped 2
+  >     gap-metric cfg-reach-top 16
+  37c37
+  <     gap-metric progress-emitted-in-class 39184
+  ---
+  >     gap-metric progress-emitted-in-class 39185
+  41c41
+  <     gap-metric fnbyte-exact 36212
+  ---
+  >     gap-metric fnbyte-exact 36213
+  45c45
+  <     gap-metric fnbyte-refused 130576
+  ---
+  >     gap-metric fnbyte-refused 130575
+  49c49
+  <     gap-metric fnbyte-exact-relocated 3806
+  ---
+  >     gap-metric fnbyte-exact-relocated 3807
+  52,53c52,53
+  <     gap-metric fnbyte-reloc-graded 37073
+  <     gap-metric fnbyte-exact-bytes 37073
+  ---
+  >     gap-metric fnbyte-reloc-graded 37074
+  >     gap-metric fnbyte-exact-bytes 37074
+  58c58
+  <     gap-metric fnbyte-reloc-graded-relocated 4667
+  ---
+  >     gap-metric fnbyte-reloc-graded-relocated 4668
+  67c67
+  <     gap-metric fnbyte-tus-full 6
+  ---
+  >     gap-metric fnbyte-tus-full 7
+  72,74c72,74
+  <     gap-metric fnbyte-name-disagree 74961
+  <     gap-metric fnbyte-calltarget-graded 39184
+  <     gap-metric fnbyte-calltarget-agree 36212
+  ---
+  >     gap-metric fnbyte-name-disagree 74962
+  >     gap-metric fnbyte-calltarget-graded 39185
+  >     gap-metric fnbyte-calltarget-agree 36213
+  114c114
+  <     gap-metric fnbyte-shape-parse-refused-refused 130576
+  ---
+  >     gap-metric fnbyte-shape-parse-refused-refused 130575
+  118c118
+  <     gap-metric fnbyte-shape-seq-exact 1230
+  ---
+  >     gap-metric fnbyte-shape-seq-exact 1231
+  127c127
+  <     gap-metric fnbyte-decline-selector 130576
+  ---
+  >     gap-metric fnbyte-decline-selector 130575
+  134c134
+  <     gap-metric frontier-bytefrac-zero 14
+  ---
+  >     gap-metric frontier-bytefrac-zero 13
+  136c136
+  <     gap-metric bytefrac-control-full 3
+  ---
+  >     gap-metric bytefrac-control-full 4
+
+-- fn_blockers / emit_blockers row diff --
+records: 879 -> 879
+== fn_blockers: total 1751958 -> 1751957
+          1 ->        0   store-run-bind-mixed-kind-alloc:eof
+== emit_blockers: total 130576 -> 130575
+          1 ->        0   store-run-bind-mixed-kind-alloc:eof
+
+-- sweeps 88 / 89, port split, both ends --
+checked=1270 mismatches=0 graded=1270 ungraded=0 unknown=0
+checked=1576 mismatches=0 graded=1576 ungraded=0 unknown=0
+checked=1270 mismatches=0 graded=1270 ungraded=0 unknown=0
+checked=1576 mismatches=0 graded=1576 ungraded=0 unknown=0
+TALLY dir=<lane> cases=1576 seen=1576 Match=161 NotImplemented=1415 Mismatch=0 OTHER=0
+TALLY dir=<lane> cases=1576 seen=1576 Match=207 NotImplemented=1369 Mismatch=0 OTHER=0
+TALLY dir=<lane> cases=1270 seen=1270 Match=348 NotImplemented=922 Mismatch=0 OTHER=0
+TALLY dir=<lane> cases=1270 seen=1270 Match=394 NotImplemented=876 Mismatch=0 OTHER=0
+
+-- peerkeys --
+   fnbyte-reloc                 master    47435   tip    47437   (moved — expected where this lane converts a differ)
+
+FAMILIES THAT VANISHED: 0
+
+-- GRID L, byte-exact at the workload's flags (tip) --
+  match            15   18.1%
+  mismatch          0    0.0%
+  codegen-gap       0    0.0%
+  vocab-gap        68   81.9%
+  capture-fail      0    0.0%
+
+-- gate.sh --jobs 6 at the tip --
+Od                   PASS          286/286        18         0  /Od
+Od-EHsc              PASS          286/286        18         0  /Od /EHsc
+O1-Oi-GR             PASS          286/286       144         0  /O1 /Oi /GR
+O1-Oi-EHsc-GR        PASS          286/286       144         0  /O1 /Oi /EHsc /GR
+Ox-GR                PASS          286/286       136         0  /Ox /GR
+Ox-EHsc-GR           PASS          286/286       136         0  /Ox /EHsc /GR
+Od-GR                PASS          286/286        18         0  /Od /GR
+Od-EHsc-GR           PASS          286/286        18         0  /Od /EHsc /GR
+expr-sweep           PASS        19556/19556   19460         0  generated cases (of 19556)
+mode-cross           PASS        90812/90812   90424         0  case-lane cells (of 90812)
+
+lanes:  18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT
+graded: 5148 fixture-verdicts across all lanes
+sweep:  PASS — 19556 of 19556 selected cases reached, 19460 GRADED by the
+        oracle (96 ungraded: no reference obj), 0 mismatch (corpus 19556)
+cross:  PASS — 90424 of 90812 selected cells graded, 0 mismatch (product 90812)
+logs:   <gatedir>/<lane>.log, <gatedir>/sweep.log, <gatedir>/cross.log
+
+GATE: PASS — 18/18 lanes ran and every one of them graded a corpus,
+  the sweep graded 19460 of 19556 generated cases and the cross graded
+  90424 of 90812 case-lane cells, with 0 mismatches anywhere
+  (96 sweep cases carried ungraded — the reference rejects the source).
