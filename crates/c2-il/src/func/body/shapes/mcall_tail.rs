@@ -70,7 +70,7 @@
 //!   further rung and is refused by name here rather than routed into a
 //!   production that has never been graded with a receiver argument.
 
-use crate::func::body::expr::{eat_return_plumbing, eat_scopes};
+use crate::func::body::expr::{eat_return_plumbing, eat_scopes, BODY_SCOPE_DEPTH};
 use crate::func::body::{blk, prod_tag, Block, BodyShape};
 use crate::func::readers::{
     eat_byte, eat_operand_type, eat_value_type, is_ptr4_kind, read_token_var, read_type,
@@ -483,17 +483,57 @@ pub(crate) fn try_parse_member_tail_call(
     // register the caller's own return would use — so the two arms differ only in
     // which plumbing they require.
     //
-    // A body that does NOT end here (a second statement after the call — the Class A
-    // sequence with a member call in it) falls through to the assignment parse and
-    // keeps its de-conflated `expr-call-in-expr-recv-load-then-…` key, which already
-    // names what else is in the way. Claiming it here would replace a measured
-    // second-blocker key with an uninformative one.
+    // A body that does NOT end here is a second statement after the call — the
+    // statement-call SEQUENCE with a member call in it. This paragraph used to
+    // read *"a further rung … refused by name here rather than routed into a
+    // production that has never been graded with a receiver argument"*, and
+    // **lane `w-mcall` is that rung** (board **#1962**): the sequence is
+    // attempted below, and only when it declines does the body fall through to
+    // the assignment parse and keep its de-conflated
+    // `expr-call-in-expr-recv-load-*` key.
     let mut depth = depth;
     if eat_byte(seg, &mut p, 0x4B) {
         // The result is discarded, so a `float`/`double` one still obliges the TU
         // to carry `_fltused` and the port has no model of that — see
         // [`super::calls::CallRet`] and `docs/GAPS.md` §6 instance #14.
         ret.discarded(seg, p).map_err(Some)?;
+        // **W-MCALL — the statement-call SEQUENCE whose first statement is this
+        // member call** (lane `w-mcall`, board **#1962**).
+        //
+        // `p->m(a…);` is `m(p, a…)` on this ABI, so this is a statement-position
+        // call with one more argument slot, and `args` already carries the
+        // receiver in slot 0 from the push above. [`BodyShape::CallSeq`] lowers
+        // a sequence of those byte-exactly at Class A and Class B alike, so the
+        // whole rung is this route plus the one in
+        // [`super::calls::parse_call_sequence_from`] — and **no byte of
+        // `crates/c2-core` moves**.
+        //
+        // Run on a SCRATCH cursor, and the production tag is re-armed on
+        // failure. `prod_tag` is last-write-wins
+        // (`mod.rs::prod_tag_is_the_seam_the_member_call_productions_write_against`),
+        // so a failed attempt would otherwise overwrite this production's own
+        // tag and move the `prod` axis for bodies whose verdict did not change.
+        // That hazard is `work/w-mcall/PREREG.md` §2.2, frozen before the code.
+        //
+        // The depth gate is not decoration: the sequence loop asks for the
+        // return plumbing at [`BODY_SCOPE_DEPTH`], so a braced body
+        // (`void f(A* p){ { p->m(); g(); } }`) would be read at the wrong depth.
+        // Refused by declining, which leaves today's key.
+        if depth == BODY_SCOPE_DEPTH {
+            let mut q = p;
+            if let Ok(shape) = super::calls::parse_call_sequence_from(
+                seg,
+                &mut q,
+                lo,
+                vec![(callee_tok, args.clone())],
+                None,
+                Vec::new(),
+            ) {
+                return Ok(shape);
+            }
+            // Re-arm: the failed attempt above may have written a tag of its own.
+            prod_tag("tail-void-body-does-not-end-at-the-call");
+        }
         // A brace scope closes **between** the statement end and the return
         // branch, not after it: `void f(A* p){ { p->m(); } }` captures
         // `… 4C 4B · 54 03 · 3A <lbl> · 54 02 · 29 <lbl> …`, so the inner close
