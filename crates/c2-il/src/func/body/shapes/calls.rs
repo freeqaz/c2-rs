@@ -49,15 +49,47 @@ pub(crate) fn arg_loads_are_formals(arg_ops: &[IlOp], params: &[u32]) -> bool {
 }
 
 /// The non-trivial cycles of the argument permutation `sources`, as
-/// `(count, longest)`. `sources[i]` is the formal index argument slot `i` wants,
+/// `Some((count, longest))` — or **`None` when `sources` is not a permutation of
+/// its own index set**. `sources[i]` is the formal index argument slot `i` wants,
 /// so a fixed point is a value already in place.
 ///
-/// `sources` must already have been proved to index inside itself
-/// ([`tail_call_shape`]'s `call-arg-outer-formal` gate); this walk indexes `seen`
-/// with an entry, so an out-of-range one **panics** rather than refusing. It did:
-/// see that gate's comment.
-fn permutation_cycles(sources: &[usize]) -> (usize, usize) {
+/// # This walk is TOTAL, and it was not
+///
+/// It used to state *"`sources` must already have been proved to index inside
+/// itself ([`tail_call_shape`]'s `call-arg-outer-formal` gate); this walk indexes
+/// `seen` with an entry, so an out-of-range one **panics** rather than refusing"*
+/// — and it did, verbatim, at this file's line 71:
+///
+/// ```text
+///   thread '<unnamed>' panicked at crates/c2-il/src/func/body/shapes/calls.rs:71:20:
+///   index out of bounds: the len is 2 but the index is 2
+/// ```
+///
+/// **A precondition discharged only by a caller's guard is not a precondition,
+/// it is a coupling** — and this one had a second cost nobody was paying
+/// attention to: it made `call-arg-outer-formal` *unliftable*, so
+/// `work/w-front3/hatch.py`'s measurement hatch could not open that clause and
+/// the ladder instrument could not price **anything below it** on
+/// `src/keygen_xbox.cpp`. A crash sitting behind a refusal is latent right up to
+/// the moment somebody needs to look past the refusal, which on this project is
+/// the routine way rungs get priced.
+///
+/// So the range check moves **into the walk**, where it is a property of the
+/// input rather than an obligation on the caller, and the caller turns the
+/// `None` into a named refusal. The `call-arg-outer-formal` gate stays exactly
+/// where it is: it is the *specific* diagnosis (an argument naming a formal the
+/// call does not otherwise pass), it fires first, and its key is the one eight
+/// days of scans are keyed on. This is the general one behind it.
+///
+/// `None` also covers the case the gate cannot see at all — an entry inside the
+/// slot count that is nonetheless not a permutation — which the duplicate check
+/// above the call happens to exclude today and which nothing forces to keep
+/// excluding.
+fn permutation_cycles(sources: &[usize]) -> Option<(usize, usize)> {
     let n = sources.len();
+    if sources.iter().any(|&ix| ix >= n) {
+        return None;
+    }
     let mut seen = vec![false; n];
     let mut cycles = 0usize;
     let mut longest = 0usize;
@@ -76,7 +108,7 @@ fn permutation_cycles(sources: &[usize]) -> (usize, usize) {
         cycles += 1;
         longest = longest.max(len);
     }
-    (cycles, longest)
+    Some((cycles, longest))
 }
 
 /// The longest argument-permutation cycle `c2_core::codegen::permute_args_text`
@@ -482,7 +514,17 @@ pub(crate) fn tail_call_shape(
                 return Err(refuse("call-arg-duplicated"));
             }
         }
-        let (cycles, longest) = permutation_cycles(&arg_sources);
+        // **`None` is `arg_sources` not being a permutation of its own slots**,
+        // which the gate two blocks up diagnoses more precisely and refuses
+        // first. This arm is what makes that gate LIFTABLE: with
+        // `work/w-front3/hatch.py`'s `call-arg-outer-formal` hatch open, the
+        // walk used to panic (`calls.rs:71`, `index out of bounds: the len is 2
+        // but the index is 2`) and the ladder instrument could not read a single
+        // rung below it. Its own word, not the gate's, so a lifted run and a
+        // shipped run are never confused for one another in a blocker histogram.
+        let Some((cycles, longest)) = permutation_cycles(&arg_sources) else {
+            return Err(refuse("call-arg-source-out-of-slots"));
+        };
         if cycles > 1 {
             return Err(refuse("call-arg-multicycle"));
         }
@@ -1844,6 +1886,53 @@ mod tests {
         assert!(b.off < b.seg_len, "the refusal is inside the segment, with bytes left after it");
         assert_eq!(b.feature(), "call-arg-outer-formal:mid");
         assert_eq!(parse_segment(ARG2_OUTER_FORMAL, NO_LOCALS), None);
+    }
+
+    /// **The walk itself is TOTAL — asserted on the function, not on the caller
+    /// that happens to guard it today.**
+    ///
+    /// The test above proves the *gate* refuses. It cannot prove the walk is safe,
+    /// because the gate returns before the walk is ever called — which is the
+    /// whole defect: `permutation_cycles` used to carry a precondition discharged
+    /// only by that gate, so lifting the gate (which
+    /// `work/w-front3/hatch.py`'s measurement instrument does, by design, to price
+    /// the ladder below it) took the process down at `calls.rs:71` with
+    /// `index out of bounds: the len is 2 but the index is 2`.
+    ///
+    /// So this calls the walk **directly** with the input the gate would have
+    /// stopped. If the range check is ever removed the assertion does not fail —
+    /// the test *panics*, which is a louder outcome and the correct one.
+    #[test]
+    fn the_permutation_walk_refuses_an_out_of_range_source_instead_of_panicking() {
+        // `int f(int a,int b,int c){ return g(a,c); }` — sources [0,2] over two
+        // slots, the exact vector that produced the mainline panic.
+        assert_eq!(permutation_cycles(&[0, 2]), None);
+        // …and it is not special-cased to that one vector: every entry past the
+        // end refuses, at every position, over a small exhaustive grid. A range
+        // check written as `sources[0] < n` would pass the line above.
+        for n in 1..=4usize {
+            for bad in n..n + 3 {
+                for pos in 0..n {
+                    let mut v: Vec<usize> = (0..n).collect();
+                    v[pos] = bad;
+                    assert_eq!(
+                        permutation_cycles(&v),
+                        None,
+                        "n={n} pos={pos} bad={bad} must refuse, not panic"
+                    );
+                }
+            }
+        }
+        // The CONTROL, and it is what stops the repair from being "return None
+        // always": every real permutation still reports the same cycle structure
+        // the emitter is graded on. `[0,1]` is two fixed points, `[1,0]` is one
+        // 2-cycle, `[1,2,0]` is one 3-cycle, and `[1,0,3,2]` is two 2-cycles —
+        // the `call-arg-multicycle` refusal's own population.
+        assert_eq!(permutation_cycles(&[]), Some((0, 0)));
+        assert_eq!(permutation_cycles(&[0, 1]), Some((0, 0)));
+        assert_eq!(permutation_cycles(&[1, 0]), Some((1, 2)));
+        assert_eq!(permutation_cycles(&[1, 2, 0]), Some((1, 3)));
+        assert_eq!(permutation_cycles(&[1, 0, 3, 2]), Some((2, 2)));
     }
 
     /// The control for the refusal above: the same shape passing formals 0 and 1 —
