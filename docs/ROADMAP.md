@@ -10332,3 +10332,26 @@ unrolls, and WB-D's "identical across three bodies" is **retracted** — a body
 with a call falls back to `addic./bf`, and the `-QXnobdnz` fallback is
 byte-identical to that with-a-call shape. First-scan reach stays ~0 (the
 reader still gates); the sequencing behind item 2 stands.
+
+### 10.26.2 w-park addendum — item 1's TU framing was WRONG, and the correction is a ladder (2026-08-08)
+
+The first code lane off this section (`w-park`, board #1920–#1926) declined
+both commissioned TUs and corrected the commission: the three chooser rules
+are real and obj-derived, but they were never `mmio.cpp`/`Biquad.cpp`'s
+blocker list — `mmio` needs exactly one of them (the park) and the port
+already emits it; `Biquad` cannot reach ANY of them, because it blocks in the
+designator layer (`expr-op-0x27`/`0x28` — and 0x27 is the #1 census key
+already measured worth zero TUs by w-dclass). The re-derived chains are
+mmio 12, Biquad 15, and Biquad is strictly DEEPER than mmio — the byte-
+fraction ranking inverted again (the ranking-instruments memory holds).
+
+What survives of item 1: **chooser-rule adoption is a CONSTRUCT rung, not a
+TU rung** — ship each rule against manufactured cells that reach it (as this
+lane did for the tail/sequence literal composition: GRID-P, 45 cells,
+16 vocab-gap→match, verdict-neutral at three levels, zero DISCLOSURE). The
+two TUs re-enter through item 2's value model plus the designator layer,
+which this lane leaves priced as ladders that cannot self-disagree.
+
+Item 2 (the member-call value model) is unchanged and is now the sole
+next code seam; the `loop_guard+bdnz` class (§10.26.1) is its companion
+construct rung.
