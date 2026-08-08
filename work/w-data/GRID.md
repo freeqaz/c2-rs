@@ -66,3 +66,68 @@ different writer) and n1 needs a `.bss` COMDAT the differential has never seen.
 ## Outcomes
 
 Filled in after the run; see `work/w-data/GRID_RESULT.md`.
+
+---
+
+# GRID C — the MULTI-OBJECT obj, frozen before the cell was compiled
+
+`emit_comdat_obj` shipped refusing more than one defined object, on the honest
+ground that every rule in it was read off **one** obj. Then the positive fixture
+turned out to be exactly that refusal: three cells in one file is three defined
+objects, and `c2rs gap` read
+`codegen-gap … a /Gy obj whose defined COMDAT data is outside the measured
+class`.
+
+So the fence is doing its job and the question is whether it can be **graded**
+away rather than kept. One `cl.exe` on the three-function file settles it, and
+the two readings are frozen here first.
+
+## The rivals
+
+| | prediction |
+|---|---|
+| **R1 — GROUPED** (what the writer already emits) | every `.text` COMDAT first, in emission order, then every `.data` COMDAT, in the same order. Sections: `.drectve .debug$S .XBLD$W .XBLD$W .text .text .text .data .data .data` |
+| **R2 — INTERLEAVED** | each function's `.data` immediately after its own `.text`: `… .text .data .text .data .text .data` |
+
+**R2 is the live rival and not a straw man.** `emit_comdat_obj` already
+interleaves for `.pdata` — a framed function's `.pdata` COMDAT is emitted
+*immediately after* its own `.text` COMDAT and tied to it by
+`SELECT_ASSOCIATIVE` — and `emit_obj`'s own comment records that the **packed**
+layout interleaves `.rdata` and `.pdata` in `.text` order, six distinct orders
+over 240 objs. An emitter that groups where c2 interleaves is wrong about the
+section table, the section indices, the symbol indices and every relocation's
+`SymbolTableIndex` at once.
+
+A COMDAT `.data` is **not** associative — `Primes.cpp`'s reads `Selection = 2`
+(ANY), not 5 — so nothing ties it to a `.text` the way `.pdata` is tied. That is
+the reason to expect R1, and it is an argument rather than a measurement, which
+is why the cell is being cut.
+
+## Predicted symbol table under R1
+
+```
+  0 @comp.id  1/2 .drectve  3/4 .debug$S  5/6 XBLD$W(C2)  7 __C2_11886
+  8/9 XBLD$W(C1)  10 __C1_11886
+  11/12 .text(p0)  13 ?p0    14/15 .text(p1)  16 ?p1    17/18 .text(p2)  19 ?p2
+  20/21 .data(p0)  22 <p0's array>
+  23/24 .data(p1)  25 <p1's array>
+  26/27 .data(p2)  28 <p2's array>
+```
+
+29 symbols. Under R2 the same 29 records appear in a different order and every
+relocation's index moves, so the two are separated by the obj and not only by
+the section table.
+
+## Predicted alignment nibbles
+
+`p0` 32 B → ALIGN_4 (`0xC0301040`); `p1` 256 B → ALIGN_8 (`0xC0401040`);
+`p2` 32 B → ALIGN_4. If `p1` reads ALIGN_4 the size promotion is not the rule
+and `Primes.cpp`'s `0xC0401040` came from somewhere else.
+
+## The decline, restated with its size
+
+If the cell says **R2**, the writer is wrong and the fence stays at one object:
+the fixture is then split into three one-function files and GRID C is reported
+as a refuted prediction, not as a widening. **Size of what that declines: two
+of the three positive cells as a single obj, and the `undname`/`osfinfo` row
+entirely** — those need two objects in one *body*, which is a further step again.
