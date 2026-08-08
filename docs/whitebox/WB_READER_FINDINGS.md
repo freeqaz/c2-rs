@@ -15,8 +15,9 @@
 Lane `wb-reader` / `wt-wb-reader`, branched at master `c34c388c`.
 PREREG: [`WB_READER_PREREG.md`](WB_READER_PREREG.md) (committed `7d671a8`, before
 the 48 were grouped) and [`WB_READER_PREREG_R2.md`](WB_READER_PREREG_R2.md)
-(committed before round 2 ran). Scored in §7. Board rows **#1590–#1601**;
-**#1602–#1609 left explicitly unminted**.
+(committed before round 2 ran). Scored in §7. Board rows **#1590–#1596**,
+**#1599**, **#1600** — **#1597, #1598 and #1601–#1609 are left explicitly
+unminted**.
 
 ---
 
@@ -116,9 +117,10 @@ The same instrument also carries each body's **control-flow decode**
 "consumed every byte of the body through a decoded field and landed exactly on
 the function tail with the depth invariant intact", so this is a statement about
 tokenisation and not about acceptance: **the port's width grammar already covers
-100 % of the 48.** 40 of the 48 additionally sit on a CFG class the emitter
-cannot express (`cflow-loop` 21, `cflow-if-n` 12, `cflow-if-2` 1, and the
-`cflow-straight`/`if-1` remainder are held by their `cflow_off` reason).
+100 % of the 48.** **33 of the 48** additionally sit on a CFG class the
+emitter cannot express (`cflow-loop` 21, `cflow-if-n` 11, `cflow-if-2` 1); the
+other 15 are `cflow-straight` 8, `cflow-straight+expr-modeled` 3, `cflow-if-1` 3
+and `cflow-if-1+expr-modeled` 1, held by their `cflow_off` reason alone.
 
 That is why §4's counterfactual is the deliverable that actually prices these 48,
 and why the grammar work below is filed as *correction of the port's width table*
