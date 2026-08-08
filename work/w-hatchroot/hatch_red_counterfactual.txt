@@ -1,0 +1,321 @@
+
+HATCH-DIRTY — 1 file(s) carry changes that are NOT this hatch's.
+NOTHING WAS REVERTED. `git checkout --` would discard them silently.
+
+  crates/c2-il/src/func/body/shapes/calls.rs
+
+
+  clauses currently live in the tree: NONE
+  files this revert would have touched: 6
+
+  Nothing here is lost yet. Commit or stash the work that is not the
+  hatch, then re-run; or `revert --force` to destroy it deliberately.
+
+HATCH-DIRTY — 1 file(s) carry changes that are NOT this hatch's.
+NOTHING WAS REVERTED. `git checkout --` would discard them silently.
+
+  crates/c2-il/src/func/body/shapes/calls.rs
+
+
+  clauses currently live in the tree: assign-store-type, call-arg-lit-permuted, call-arg-outer-formal, expr-convert-no-value, expr-shr-mixed-sign, param-width
+  files this revert would have touched: 6
+
+  Nothing here is lost yet. Commit or stash the work that is not the
+  hatch, then re-run; or `revert --force` to destroy it deliberately.
+NOTHING WAS REVERTED — 1 further problem(s) with the files this would overwrite:
+  HATCH-UNREADABLE   crates/c2-il/src/func/body/shapes/NOT_A_FILE_w_hatch.rs
+      cannot read the working copy: [Errno 2] No such file or directory: '<abs>'
+
+  clauses currently live in the tree: NONE
+  files this revert would have touched: 7
+
+  Nothing here is lost yet. Commit or stash the work that is not the
+  hatch, then re-run; or `revert --force` to destroy it deliberately.
+NOTHING WAS REVERTED — 1 further problem(s) with the files this would overwrite:
+  HATCH-UNTRACKED    work/w-hatch/.untracked_probe.tmp
+      no stage-0 index entry — `git checkout --` has nothing to restore and would fail or delete
+
+  clauses currently live in the tree: NONE
+  files this revert would have touched: 7
+
+  Nothing here is lost yet. Commit or stash the work that is not the
+  hatch, then re-run; or `revert --force` to destroy it deliberately.
+
+HATCH-CHECKOUT-FAILED — `git checkout --` exited 128.
+fatal: injected by work/w-hatch/hatch_red.py
+
+
+HATCH-RESIDUE — 5 of 6 file(s) still differ after the checkout:
+  crates/c2-il/src/func/body/expr.rs
+  crates/c2-il/src/func/body/shapes/assign.rs
+  crates/c2-il/src/func/body/shapes/calls.rs
+  crates/c2-il/src/func/sy.rs
+  crates/c2-il/src/lib.rs
+NOTHING WAS WRITTEN. 1 edit(s) could not be decided:
+  HATCH-DRIFT        id=param-width                crates/c2-il/src/func/sy.rs
+      needle matched 0 times, want 1
+      '        if formals.len() <= 1 {\n            return Ok(());\n        }\n        let declared = match self.formals {\n// NOT '
+
+This is board #1322's failure mode and it now FAILS CLOSED. An
+edit whose clause the port has PAID belongs in RETIRED with a
+paid_witness (HATCH-PAID-MISSING is that check failing); an edit
+that merely stopped matching is HATCH-DRIFT and the ladder built on
+it would be a measurement of a tree nobody intended.
+NOTHING WAS WRITTEN. 1 edit(s) could not be decided:
+  HATCH-PAID-MISSING id=store-run-bind-mixed-kind  crates/c2-il/src/func/body/shapes/leaf_store.rs
+      needle matched 0 times, want 1
+      'paid_witness absent: a witness string that is not in the file'
+
+This is board #1322's failure mode and it now FAILS CLOSED. An
+edit whose clause the port has PAID belongs in RETIRED with a
+paid_witness (HATCH-PAID-MISSING is that check failing); an edit
+that merely stopped matching is HATCH-DRIFT and the ladder built on
+it would be a measurement of a tree nobody intended.
+RAISED AttributeError: module 'hatch_probe' has no attribute 'resolve_root'
+RAISED AttributeError: module 'hatch_probe' has no attribute 'resolve_root'
+
+HATCH-FORCED — reverting over 1 dirty file(s) and 0 other problem(s).
+These bytes are being DESTROYED, deliberately:
+  HATCH-DIRTY        crates/c2-il/src/func/body/shapes/calls.rs
+
+RAISED AttributeError: module 'hatch_probe' has no attribute 'resolve_root'
+*** COUNTERFACTUAL: running against work/w-front3/hatch.py as of 85e180d4 (the UNREPAIRED file). Every arm below is EXPECTED to fail. ***
+
+hatch.py RED-TEST — board #1380, lane w-hatch
+tree state before any arm: crates/ diff: EMPTY
+
+==========================================================================
+ARM R1 DIRTY-NOHATCH — expect leading word HATCH-DIRTY
+     an unstaged foreign edit and NO hatch — #1380's incident exactly
+==========================================================================
+
+  [postcondition] working tree byte-identical across the refusal: YES — 345 bytes of diff, unchanged
+  [postcondition] the foreign edit SURVIVED: YES
+
+  rc                      : 3
+  leading HATCH-* words   : HATCH-DIRTY
+  expected word present   : YES
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM R2 DIRTY+HATCH — expect leading word HATCH-DIRTY
+     fully hatched AND dirty: the guard must separate the two
+==========================================================================
+hatch: APPLIED 8 edit(s) across 5 file(s); 0 already present
+hatch: RETIRED  id=store-run-bind-mixed-kind  (503f8937..04727f37)  PAID by w-mrslot/w-midrun; xboxheap.cpp is a `match` on this master
+hatch: LIFTS IN FORCE: assign-store-type,call-arg-lit-permuted,call-arg-outer-formal,expr-convert-no-value,expr-shr-mixed-sign,param-width
+
+  [postcondition] working tree byte-identical across the refusal: YES — 6303 bytes of diff, unchanged
+  [postcondition] the foreign edit SURVIVED: YES
+
+  rc                      : 3
+  leading HATCH-* words   : HATCH-DIRTY
+  expected word present   : YES
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM R3 UNREADABLE — expect leading word HATCH-UNREADABLE
+     a file in FILES that cannot be read — must NOT read as DIRTY
+==========================================================================
+
+  [postcondition] working tree byte-identical across the refusal: YES — 0 bytes of diff, unchanged
+
+  rc                      : 3
+  leading HATCH-* words   : HATCH-UNREADABLE
+  expected word present   : YES
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM R4 UNTRACKED — expect leading word HATCH-UNTRACKED
+     a file with no stage-0 index entry: `git checkout --` has nothing to restore
+==========================================================================
+
+  [postcondition] working tree byte-identical across the refusal: YES — 0 bytes of diff, unchanged
+
+  rc                      : 3
+  leading HATCH-* words   : HATCH-UNTRACKED
+  expected word present   : YES
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM R5 CHECKOUT-FAILED — expect leading word HATCH-CHECKOUT-FAILED   [INJECTED through the _checkout seam]
+     unreachable on a well-formed tree; fired through the _checkout seam
+==========================================================================
+
+  rc                      : 4
+  leading HATCH-* words   : HATCH-CHECKOUT-FAILED
+  expected word present   : YES
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM R6 RESIDUE — expect leading word HATCH-RESIDUE   [INJECTED through the _checkout seam]
+     the POSTCONDITION: a checkout that silently restored nothing
+==========================================================================
+hatch: APPLIED 8 edit(s) across 5 file(s); 0 already present
+hatch: RETIRED  id=store-run-bind-mixed-kind  (503f8937..04727f37)  PAID by w-mrslot/w-midrun; xboxheap.cpp is a `match` on this master
+hatch: LIFTS IN FORCE: assign-store-type,call-arg-lit-permuted,call-arg-outer-formal,expr-convert-no-value,expr-shr-mixed-sign,param-width
+
+  rc                      : 5
+  leading HATCH-* words   : HATCH-RESIDUE
+  expected word present   : YES
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM A1 DRIFT — expect leading word HATCH-DRIFT
+     apply's #1322 arm — its own word now, not a shared prefix
+==========================================================================
+
+  [postcondition] working tree byte-identical across the refusal: YES — 0 bytes of diff, unchanged
+
+  rc                      : 2
+  leading HATCH-* words   : HATCH-DRIFT
+  expected word present   : YES
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM A2 PAID-MISSING — expect leading word HATCH-PAID-MISSING
+     a RETIRED entry whose paid_witness is gone — a DIFFERENT defect from DRIFT and it must say so
+==========================================================================
+
+  [postcondition] working tree byte-identical across the refusal: YES — 0 bytes of diff, unchanged
+
+  rc                      : 2
+  leading HATCH-* words   : HATCH-PAID-MISSING
+  expected word present   : YES
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM A3 FOREIGN-ROOT — expect leading word HATCH-FOREIGN-ROOT
+     cwd in a REAL second git checkout, script in this one — #1460 exactly. A lexical containment test does not catch this repository's own layout, where worktrees live INSIDE the main repo's path
+==========================================================================
+
+  [postcondition] working tree byte-identical across the refusal: YES — 0 bytes of diff, unchanged
+
+  rc                      : -1  *** expected 6 ***
+  leading HATCH-* words   : NONE
+  expected word present   : NO — ARM FAILED
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM A4 NOREPO — expect leading word HATCH-NOREPO
+     cwd in no checkout at all — a DIFFERENT defect from FOREIGN-ROOT and it must say so, because it is checked FIRST and would otherwise satisfy that arm (trap A)
+==========================================================================
+
+  [postcondition] working tree byte-identical across the refusal: YES — 0 bytes of diff, unchanged
+
+  rc                      : -1  *** expected 7 ***
+  leading HATCH-* words   : NONE
+  expected word present   : NO — ARM FAILED
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM F1 FORCE — expect leading word HATCH-FORCED
+     the escape hatch: reverts anyway, names what it destroys first
+==========================================================================
+hatch: APPLIED 8 edit(s) across 5 file(s); 0 already present
+hatch: RETIRED  id=store-run-bind-mixed-kind  (503f8937..04727f37)  PAID by w-mrslot/w-midrun; xboxheap.cpp is a `match` on this master
+hatch: LIFTS IN FORCE: assign-store-type,call-arg-lit-permuted,call-arg-outer-formal,expr-convert-no-value,expr-shr-mixed-sign,param-width
+hatch: REVERTED 6 file(s); 6 clause(s) were live: assign-store-type, call-arg-lit-permuted, call-arg-outer-formal, expr-convert-no-value, expr-shr-mixed-sign, param-width
+
+  [postcondition] --force DESTROYED the foreign edit, deliberately: YES
+  [postcondition] crates/ diff after the forced revert: EMPTY
+
+  rc                      : 0
+  leading HATCH-* words   : HATCH-DIRTY, HATCH-FORCED
+  expected word present   : YES
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM C1 HATCH-ONLY — expect GREEN, no refusal word
+     THE CONTROL. A fully hatched tree is not dirty and must revert silently
+==========================================================================
+hatch: APPLIED 8 edit(s) across 5 file(s); 0 already present
+hatch: RETIRED  id=store-run-bind-mixed-kind  (503f8937..04727f37)  PAID by w-mrslot/w-midrun; xboxheap.cpp is a `match` on this master
+hatch: LIFTS IN FORCE: assign-store-type,call-arg-lit-permuted,call-arg-outer-formal,expr-convert-no-value,expr-shr-mixed-sign,param-width
+hatch: REVERTED 6 file(s); 6 clause(s) were live: assign-store-type, call-arg-lit-permuted, call-arg-outer-formal, expr-convert-no-value, expr-shr-mixed-sign, param-width
+
+  [postcondition] crates/ diff after the revert: EMPTY
+
+  rc                      : 0
+  leading HATCH-* words   : NONE
+  expected word present   : YES
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM C2 CLEAN — expect GREEN, no refusal word
+     a clean tree: revert is a no-op and still must not fire
+==========================================================================
+hatch: REVERTED 6 file(s); 0 clause(s) were live: NONE
+
+  [postcondition] crates/ diff after the revert: EMPTY
+
+  rc                      : 0
+  leading HATCH-* words   : NONE
+  expected word present   : YES
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM C3 ROOT-FROM-SUBDIR — expect GREEN, no refusal word
+     THE CONTROL FOR #1460's GUARD, and the one most likely to break: `cd crates && python3 ../work/w-front3/hatch.py` must still resolve to THIS checkout's root. A guard that refuses the ordinary invocation is a guard the next lane deletes
+==========================================================================
+
+  [postcondition] resolve_root(cwd=<abs>
+  [postcondition]   -> None
+  [postcondition] equals this checkout's root: NO — ARM FAILED, it resolved somewhere else
+
+  rc                      : -1  *** expected 0 ***
+  leading HATCH-* words   : NONE
+  expected word present   : YES
+  no OTHER arm's word     : YES
+  arm postcondition       : NO — ARM FAILED
+  crates/ clean afterwards: YES
+
+==========================================================================
+RED arms (11) — each fired its OWN word and no other arm's:
+  R1 DIRTY-NOHATCH       HATCH-DIRTY              RED as expected
+  R2 DIRTY+HATCH         HATCH-DIRTY              RED as expected
+  R3 UNREADABLE          HATCH-UNREADABLE         RED as expected
+  R4 UNTRACKED           HATCH-UNTRACKED          RED as expected
+  R5 CHECKOUT-FAILED     HATCH-CHECKOUT-FAILED    RED as expected   [INJECTED]
+  R6 RESIDUE             HATCH-RESIDUE            RED as expected   [INJECTED]
+  A1 DRIFT               HATCH-DRIFT              RED as expected
+  A2 PAID-MISSING        HATCH-PAID-MISSING       RED as expected
+  A3 FOREIGN-ROOT        HATCH-FOREIGN-ROOT       *** ARM FAILED ***
+  A4 NOREPO              HATCH-NOREPO             *** ARM FAILED ***
+  F1 FORCE               HATCH-FORCED             RED as expected
+
+GREEN controls (3) — these must NOT fire:
+  C1 HATCH-ONLY                                   GREEN as required
+  C2 CLEAN                                        GREEN as required
+  C3 ROOT-FROM-SUBDIR                             *** CONTROL FIRED — FAILED ***
+
+distinct leading words exercised: 10 of 10 (HATCH-CHECKOUT-FAILED, HATCH-DIRTY, HATCH-DRIFT, HATCH-FORCED, HATCH-FOREIGN-ROOT, HATCH-NOREPO, HATCH-PAID-MISSING, HATCH-RESIDUE, HATCH-UNREADABLE, HATCH-UNTRACKED)
+final crates/ diff: EMPTY
+==========================================================================
+FAILED: A3 FOREIGN-ROOT, A4 NOREPO, C3 ROOT-FROM-SUBDIR

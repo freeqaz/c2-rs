@@ -102,20 +102,140 @@ Three things about that comparison that are not obvious:
 3. **Every refusal leads with its own word** — `HATCH-DIRTY`,
    `HATCH-UNREADABLE`, `HATCH-UNTRACKED`, `HATCH-CHECKOUT-FAILED`,
    `HATCH-RESIDUE` in `revert`; `HATCH-DRIFT` and `HATCH-PAID-MISSING` in
-   `apply`. `apply`'s two were one shared `HATCH FAILED:` prefix until this
+   `apply`; `HATCH-FOREIGN-ROOT` and `HATCH-NOREPO` in the root resolution
+   below (lane `w-hatchroot`, #1460). `apply`'s two were one shared
+   `HATCH FAILED:` prefix until this
    lane, and a shared prefix is how `w-throughput` had **two of six mutations
    pass silently**: a later gate's refusal satisfies an earlier case's
    expectation and the earlier case is never really tested.
 
 `revert` also asserts its own POSTCONDITION: after the checkout, the six files
 must be clean. A count, not a status (STATUS.md trap 5).
+
+# 2026-08-08, lane w-hatchroot — IT EDITED THE WRONG REPOSITORY (#1460)
+
+The fourth defect in this file in three days, and like the other three it
+produced a **plausible wrong answer rather than an error**. `ROOT` was
+`dirname³(os.path.abspath(__file__))` — the repository *this script's own file*
+lives in. A worktree lane has no `work/w-front3/` of its own unless it makes
+one, so the natural invocation is `python3 ../../../work/w-front3/hatch.py
+apply`, and that **applied eight edits across five files in the MAIN repository**
+while `git status --short` in the worktree read empty.
+
+The tell was `sha256sum`: the "hatched" binary came out byte-identical to the
+unhatched one, because the edits had gone somewhere else. Without that check a
+climb would have published **the unhatched ladder table as "the hatch moved
+nothing"** — a false zero in the instrument that prices the entire frontier.
+
+`ROOT` is now resolved from the **invoking cwd**, and the script's own location
+is used for exactly one thing: deciding whether this script is *allowed* to edit
+that tree. Two `git rev-parse --show-toplevel` calls — one from the cwd, one
+from the script's directory — must return the same path.
+
+Three things about that test that are not obvious:
+
+1. **A lexical containment test does not work here, in this repository, by
+   construction.** `scripts/setup_worktree.sh` puts worktrees at
+   `<main>/.claude/worktrees/<name>`, i.e. **inside the main repo's own path**.
+   `os.path.commonpath` therefore says a worktree's `hatch.py` is "inside" the
+   main checkout, and the cross-tree invocation in the *other* direction — main
+   repo cwd, worktree script — would sail straight through and edit main with the
+   worktree's `EDITS`. Asking `git` twice has no such hole: `rev-parse` from
+   inside the worktree returns the worktree.
+2. **`HATCH-NOREPO` is checked before `HATCH-FOREIGN-ROOT`**, so a red test that
+   builds "a script belonging somewhere else" out of a bare temp directory fires
+   the *first* word and its second assertion passes on someone else's refusal.
+   That is trap A, in the file that documents trap A;
+   `work/w-hatch/hatch_red.py`'s `A3` arm builds a **real** second git
+   repository for this reason.
+3. **It says which repository it is about to touch, positively, before touching
+   it.** `announce()` prints the target root and this script's own path on every
+   command. #1460 was silent for the same reason #1322 was: nothing stated the
+   thing that turned out to be wrong, so there was nothing to disagree with.
 """
 
 import subprocess
 import sys
 import os
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+SCRIPT = os.path.abspath(__file__)
+
+
+def _git_toplevel(d):
+    """The checkout `git` says a directory belongs to, or None.
+
+    `realpath` on both ends: a worktree reached through a symlinked parent and
+    the same worktree reached directly must compare equal, or the guard below
+    refuses the ordinary case and gets deleted by the next lane.
+    """
+    if not os.path.isdir(d):
+        return None
+    r = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=d,
+                       stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    out = r.stdout.decode("utf-8", "replace").strip()
+    if r.returncode != 0 or not out:
+        return None
+    return os.path.realpath(out)
+
+
+def resolve_root(script=None, cwd=None):
+    """The repository this run is allowed to edit — board #1460.
+
+    `cwd` decides WHICH tree; `script` decides WHETHER this file may edit it.
+    Both are parameters rather than globals so `hatch_red.py` can hand it the
+    exact argument pair #1460 was produced by — a real cross-tree invocation —
+    instead of monkeypatching an internal, which would be a weaker demonstration
+    and the report would have to say so.
+    """
+    script = os.path.abspath(script or SCRIPT)
+    cwd = os.path.abspath(cwd or os.getcwd())
+    here = _git_toplevel(cwd)
+    if here is None:
+        sys.stderr.write(
+            "\nHATCH-NOREPO — the invoking directory is not inside a git "
+            "checkout.\nNOTHING WAS WRITTEN.\n"
+            "  invoking cwd : %s\n"
+            "  this script  : %s\n\n"
+            "  `hatch.py` edits crates/ in place and reverts through `git "
+            "checkout --`,\n  so a tree git does not know about is a tree it "
+            "cannot put back.\n" % (cwd, script))
+        raise SystemExit(7)
+    there = _git_toplevel(os.path.dirname(script))
+    if there != here:
+        sys.stderr.write(
+            "\nHATCH-FOREIGN-ROOT — this script belongs to a DIFFERENT checkout "
+            "from the one\nyou are standing in. NOTHING WAS WRITTEN.\n"
+            "  you are standing in   : %s\n"
+            "  this script belongs to: %s\n"
+            "  this script           : %s\n\n"
+            "  Board #1460: `ROOT` used to come from this script's own path, so "
+            "invoking the\n  main repository's copy from a worktree "
+            "(`python3 ../../../work/w-front3/hatch.py\n  apply`) hatched the "
+            "MAIN tree while `git status` in the worktree read empty. The\n"
+            "  binary you then built was byte-identical to the unhatched one and "
+            "the ladder\n  climbed on it would have been published as \"the hatch "
+            "moved nothing\".\n\n"
+            "  Copy `work/w-front3/hatch.py` into the tree you mean to hatch and "
+            "run that copy.\n"
+            % (here, there if there is not None else "NO GIT CHECKOUT AT ALL",
+               script))
+        raise SystemExit(6)
+    return here
+
+
+ROOT = resolve_root()
+
+
+def announce(cmd):
+    """Say which repository is about to be touched, POSITIVELY, before touching it.
+
+    #1460 was silent because nothing ever stated the thing that was wrong. A
+    line nobody reads is still a line a `diff` of two logs reads.
+    """
+    print("hatch: TARGET REPOSITORY  %s   (resolved from the invoking cwd, "
+          "NOT from this script's path — board #1460)" % ROOT)
+    print("hatch: THIS SCRIPT        %s" % SCRIPT)
+    print("hatch: COMMAND            %s" % cmd)
 
 HELPER = '''
 // ---------------------------------------------------------------------------
@@ -293,6 +413,7 @@ def _plan():
 
 
 def apply():
+    announce("apply")
     cache, writes, already, failures = _plan()
     if failures:
         # Two DIFFERENT defects, and they get two DIFFERENT leading words. They
@@ -394,6 +515,7 @@ def revert(force=False):
     every unstaged change in six `crates/` files whether this instrument put it
     there or not. It ate lane `w-instr`'s own fix to `calls.rs` without a word.
     """
+    announce("revert --force" if force else "revert")
     unapplied, live, problems = _unapply()
 
     dirty, staged_note = [], []
@@ -476,6 +598,7 @@ def revert(force=False):
 
 def check():
     """All-or-nothing, and a COUNT rather than a status (STATUS.md trap 5)."""
+    announce("check")
     _, writes, already, failures = _plan()
     want = len(EDITS)
     dirty = subprocess.run(["git", "diff", "--stat", "--", "crates/"],

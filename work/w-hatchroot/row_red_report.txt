@@ -1,0 +1,47 @@
+extracted 96 lines of ladder_red_verdict + ladder_red_run from scripts/gate.sh
+
+======================================================================
+CASE missing — expect NO-RESULT / leading word LADDER-MISSING
+======================================================================
+  tuple : NO-RESULT|0|0|0|0|LADDER-MISSING work/w-ladders/ladder_red.py is not in this tree
+  VERBATIM: LADDER-MISSING work/w-ladders/ladder_red.py is not in this tree
+  => RED as expected (NO-RESULT / LADDER-MISSING)
+
+======================================================================
+CASE nosubject — expect NO-RESULT / leading word LADDER-NOSUBJECT
+======================================================================
+  tuple : NO-RESULT|0|0|0|0|LADDER-NOSUBJECT work/w-front3/ladder.py is not in this tree, so there is nothing for the arms to fire
+  VERBATIM: LADDER-NOSUBJECT work/w-front3/ladder.py is not in this tree, so there is nothing for the arms to fire
+  => RED as expected (NO-RESULT / LADDER-NOSUBJECT)
+
+======================================================================
+CASE nogit — expect REFUSED / leading word LADDER-NOGIT
+======================================================================
+  tuple : REFUSED|0|5|0|0|LADDER-NOGIT this tree is not a checkout, so the interlock cannot be read
+  VERBATIM: LADDER-NOGIT this tree is not a checkout, so the interlock cannot be read
+  => RED as expected (REFUSED / LADDER-NOGIT)
+
+======================================================================
+CASE dirty — expect REFUSED / leading word LADDER-DIRTY
+======================================================================
+  tuple : REFUSED|0|5|0|0|LADDER-DIRTY the width table the arms read differs from HEAD: crates/c2-il/src/func/body/expr.rs 
+  VERBATIM: LADDER-DIRTY the width table the arms read differs from HEAD: crates/c2-il/src/func/body/expr.rs 
+  => RED as expected (REFUSED / LADDER-DIRTY)
+
+======================================================================
+CASE residue — expect FAIL / leading word LADDER-RESIDUE
+======================================================================
+  tuple : FAIL|0|5|0|0|LADDER-RESIDUE the arms modified crates/, which they have no path to do: crates/c2-il/src/func/body/expr.rs 
+  VERBATIM: LADDER-RESIDUE the arms modified crates/, which they have no path to do: crates/c2-il/src/func/body/expr.rs 
+  => RED as expected (FAIL / LADDER-RESIDUE)
+
+======================================================================
+CASE green — expect PASS and an EMPTY detail
+======================================================================
+  tuple : PASS|5|5|3|2|
+  => GREEN as required (5 of 5 declared arms, no detail)
+
+======================================================================
+distinct leading words fired: 5 of 5 refusals — LADDER-DIRTY LADDER-MISSING LADDER-NOGIT LADDER-NOSUBJECT LADDER-RESIDUE 
+cases: 6 passed, 0 failed
+ALL 6 CASES PASS — 5 runner refusals fired, 1 green control

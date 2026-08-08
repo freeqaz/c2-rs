@@ -116,6 +116,7 @@ the header block this table is read from.
 | 2026-08-08 | w-gen2 | [w-gen2](2026-08-08-w-gen2.md) | 12 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** — NOT re-measured |
 | 2026-08-08 | w-gen | [w-gen](2026-08-08-w-gen.md) | 12 | 711,477 / 2,463,443 unchanged (28.88 %), **+0** — NOT re-measured |
 | 2026-08-08 | w-hatch | [w-hatch](2026-08-08-w-hatch.md) | 12 | 711,486 / 2,463,443 unchanged (28.88 %), **+0**. TU match |
+| 2026-08-08 | w-hatchroot | [w-hatchroot](2026-08-08-w-hatchroot.md) | 12 | 711,486 / 2,463,443 unchanged (28.88 %), **+0**. TU match |
 | 2026-08-08 | w-heap | [w-heap](2026-08-08-w-heap.md) | 12 | 711,477 / 2,463,443 unchanged (28.88 %), **+0**. TU match |
 | 2026-08-08 | w-inl0 | [w-inl0](2026-08-08-w-inl0.md) | 10 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |
 | 2026-08-08 | w-inread | [w-inread](2026-08-08-w-inread.md) | 10 | 711,427 / 2,463,393 unchanged (28.88 %), +0 — this lane touches no |
