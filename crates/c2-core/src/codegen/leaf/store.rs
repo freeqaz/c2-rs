@@ -1257,6 +1257,7 @@ mod tests {
             static_scan_loop: None,
             guard_chain_shared_tail: None,
         alloc_init_or_fail: None,
+        osf_handle_guard: None,
         };
         assert_eq!(
             store_leaf_text(&f, OptMode::Ox).unwrap().unwrap(),
@@ -1373,6 +1374,7 @@ mod tests {
             static_scan_loop: None,
             guard_chain_shared_tail: None,
         alloc_init_or_fail: None,
+        osf_handle_guard: None,
         };
         assert_eq!(
             store_leaf_text(&f, OptMode::Ox).unwrap().unwrap(),
@@ -1528,6 +1530,7 @@ mod tests {
             static_scan_loop: None,
             guard_chain_shared_tail: None,
         alloc_init_or_fail: None,
+        osf_handle_guard: None,
         };
         assert_eq!(
             store_leaf_text(&f, OptMode::Ox).unwrap().unwrap(),
@@ -1775,6 +1778,7 @@ mod tests {
             static_scan_loop: None,
             guard_chain_shared_tail: None,
         alloc_init_or_fail: None,
+        osf_handle_guard: None,
         };
         let lit_group = |b: u32, off: i32, k: i32| {
             vec![

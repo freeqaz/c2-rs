@@ -2387,6 +2387,8 @@ pub struct IlFunction {
     /// (`?append@DName@@QAAXPAVDNameNode@@@Z`). Set by exactly one parser
     /// production; [`Self::ops`] is empty for it.
     pub alloc_init_or_fail: Option<AllocInitOrFailFn>,
+    /// **W-OSFINFO** — the range-and-flag guarded table lookup, or `None`.
+    pub osf_handle_guard: Option<OsfHandleGuardFn>,
     /// True iff this function's body is **empty** (`void f() {}`): no expression at
     /// all, so codegen emits a bare `blr`. Mutually exclusive with the other body
     /// kinds.
@@ -2539,6 +2541,7 @@ impl IlFunction {
             static_scan_loop: None,
             guard_chain_shared_tail: None,
             alloc_init_or_fail: None,
+            osf_handle_guard: None,
             empty_body: false,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
@@ -2695,6 +2698,7 @@ impl IlFunction {
             || self.if_call_join.is_some()
             || self.guard_chain_shared_tail.is_some()
             || self.alloc_init_or_fail.is_some()
+            || self.osf_handle_guard.is_some()
     }
 
     /// **Label-counter slots this function takes BEFORE its own `$M` triple.**
@@ -2777,6 +2781,34 @@ impl IlFunction {
             // recognizer's: this class admits one block plan, so there is no
             // second shape for the charge to be wrong about.
             + u32::from(self.guard_chain_shared_tail.is_some())
+            // **W-OSFINFO charges ONE slot before its own triple**, and this is
+            // the first time the charge was PREDICTED rather than fitted after
+            // the fact.
+            //
+            // The three measurements above look like three unrelated per-class
+            // constants, and this lane's PREREG (§1.5, committed at `cf65d65b`
+            // before any change to `crates/`) registered a RULE that fits all of
+            // them: **the lead is the number of unconditional intra-section `b`
+            // words in the body.** `if_call_join` has one (`b $LN8`) and charges
+            // 1; `guard_chain_shared_tail` has one (the range arm reaching the
+            // shared tail) and charges 1; `alloc_init_or_fail` has **none** — no
+            // `48……` word anywhere in its 140 bytes — and charges 0. The
+            // mechanism the rule proposes is that c2 mints a named block label
+            // for a `b`'s target and charges the counter for it ahead of the
+            // function's own `$M` triple.
+            //
+            // `_free_osfhnd` has exactly one (`b .+32` at +0x64), so the rule
+            // predicts 1. The prediction is graded the same one-witness way its
+            // three predecessors were: `osfinfo.cpp` has one emitted function, so
+            // there is no in-TU difference to take and what is compared is the
+            // port's whole obj against real `c2.dll`'s at the workload's own
+            // flags.
+            //
+            // The rule is a **fit to four points**, not a derivation, and it is
+            // written here rather than in a rung so the next class to be added
+            // meets it before choosing a number. `docs/LABEL_COUNTER.md` §1.1's
+            // placement (a LEAD, before the triple) is unchanged.
+            + u32::from(self.osf_handle_guard.is_some())
     }
 
     /// Every external this function calls, in **first-reference order** — which is
@@ -2839,6 +2871,27 @@ impl IlFunction {
             // Omitting this arm is not a silent gap: the accounting gate refuses
             // the whole TU with `unclaimed-gl-symbol`, which is how it was found.
             .chain(self.alloc_init_or_fail.iter().map(|a| a.alloc.as_str()))
+            // **W-OSFINFO: TWO names, in BLOCK order.** Both `bl`s are in the
+            // one error block and `<errno>`'s is at the lower `.text` offset, so
+            // its symbol is the earlier one in the per-function region.
+            //
+            // The body's other two externals are the range bound and the table,
+            // whose relocations are REFHI/REFLO quads and not branches — they
+            // travel on `IlFunction::data_syms` and are accounted in
+            // `IlBundle::functions` by that field's own clause, exactly as
+            // `alloc_init_or_fail`'s two are.
+            //
+            // Omitting this arm is not a silent gap: the accounting gate refuses
+            // the whole TU with `unclaimed-gl-symbol`, which is how W-UNDNAME's
+            // missing arm was found (#1743). This one was written from that
+            // rung's write-up rather than rediscovered — the fifth conversion
+            // lane in a row to find an unpriced reader refusal made it the first
+            // thing this lane looked for.
+            .chain(
+                self.osf_handle_guard
+                    .iter()
+                    .flat_map(|g| [g.errno.as_str(), g.doserrno.as_str()]),
+            )
     }
 
     pub fn label_slots(&self, fn_level_linking: bool) -> Option<u32> {

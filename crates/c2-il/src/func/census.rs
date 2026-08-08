@@ -608,6 +608,16 @@ impl IlBundle {
                             Ok(BodyShape::AllocInitOrFail(_)) => {
                                 FnVerdict::InClass("alloc-init-or-fail")
                             }
+                            // **W-OSFINFO** — its own bucket for the same
+                            // reason, and one more: it is the first in-class
+                            // shape whose two data symbols are reached
+                            // DIFFERENTLY (one by value, one by address), so a
+                            // census that folded it in with
+                            // `alloc-init-or-fail` could not report its movement
+                            // against the `expr-cmp-ge` bucket it comes out of.
+                            Ok(BodyShape::OsfHandleGuard(_)) => {
+                                FnVerdict::InClass("osf-handle-guard")
+                            }
                             // **W-DATA — the static-array scan loop.** Its own
                             // bucket, like every other whole-body shape, so the
                             // `cflow-loop` axis can report an in-class row

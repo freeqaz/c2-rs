@@ -1303,6 +1303,39 @@ pub(crate) fn shape_to_function(
                     ..IlFunction::base(name, src)
                 })
             }
+            // **W-OSFINFO.** `data_syms` is in EMISSION order — the limit's
+            // `lis` at +0x14 is below the table's at +0x28 — and `data_refs_of`
+            // pairs the two lists by index. The two are reached differently in
+            // the IL (one a `B9` value read, one a `26` designator) and that
+            // difference decides the low half's INSTRUCTION, not its symbol, so
+            // it does not reach this list.
+            BodyShape::OsfHandleGuard(g) => {
+                let limit = resolve(g.limit_tok)?;
+                let table = resolve(g.table_tok)?;
+                Some(IlFunction {
+                    params: g.params.clone(),
+                    data_syms: vec![limit.clone(), table.clone()],
+                    osf_handle_guard: Some(crate::func::OsfHandleGuardFn {
+                        params: g.params,
+                        limit,
+                        table,
+                        errno: resolve(g.errno_tok)?,
+                        doserrno: resolve(g.doserrno_tok)?,
+                        k_shift: g.k_shift,
+                        k_mask: g.k_mask,
+                        k_elem: g.k_elem,
+                        off_file: g.off_file,
+                        k_bit: g.k_bit,
+                        off_hnd: g.off_hnd,
+                        k_invalid: g.k_invalid,
+                        k_ok: g.k_ok,
+                        k_errno: g.k_errno,
+                        k_doserrno: g.k_doserrno,
+                        k_fail: g.k_fail,
+                    }),
+                    ..IlFunction::base(name, src)
+                })
+            }
             BodyShape::PtrWalkChainLoop(l) => {
                 Some(IlFunction {
                     params: l.params.clone(),

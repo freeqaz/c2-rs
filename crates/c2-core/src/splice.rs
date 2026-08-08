@@ -477,6 +477,8 @@ pub fn splice_callee_why<'a>(
         // and a body that is not "nothing but that call". Refused explicitly so
         // a later shape cannot fall into a splice path nobody graded.
         Selected::AllocInitOrFail => return Err("S3-alloc-init-or-fail"),
+        // W-OSFINFO: same clause, same reason — thirty-one words and TWO calls.
+        Selected::OsfHandleGuard => return Err("S3-osf-handle-guard"),
         Selected::Seq { setups, .. } => {
             let Some(seq) = f.call_seq.as_ref() else {
                 return Err("S1-seq-without-call-seq");

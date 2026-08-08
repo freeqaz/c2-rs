@@ -868,6 +868,28 @@ impl PortC2 {
                         Vec::new(),
                     )
                 }
+                // **W-OSFINFO — the range-and-flag guarded table lookup**, built
+                // at `off` for the same reason every framed shape here is: both
+                // `bl` words encode their own `.text` offsets.
+                codegen::Selected::OsfHandleGuard => {
+                    let g = f
+                        .osf_handle_guard
+                        .as_ref()
+                        .expect("OsfHandleGuard implies osf_handle_guard");
+                    let body = codegen::osf_handle_guard::osf_handle_guard_text(g, off, mode)?;
+                    frame = Some(coff::Frame {
+                        prolog_len: body.prolog_len,
+                        func_len: body.text.len() as u32,
+                    });
+                    text.extend_from_slice(&body.text);
+                    (
+                        vec![
+                            coff::Call { reloc_offset: body.bl_offsets[0], callee: &g.errno },
+                            coff::Call { reloc_offset: body.bl_offsets[1], callee: &g.doserrno },
+                        ],
+                        Vec::new(),
+                    )
+                }
                 codegen::Selected::IfCallJoin => {
                     let j = f.if_call_join.as_ref().expect("IfCallJoin implies if_call_join");
                     let body = codegen::if_call_join::if_call_join_text(j, off, mode)?;
