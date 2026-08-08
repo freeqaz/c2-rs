@@ -104,6 +104,24 @@ pub struct FnCensus {
     /// report. It is not consulted by acceptance, by `shape_to_function`, or by the
     /// emitter, and the scanner that produces it constructs no `BodyShape`.
     pub cflow: String,
+    /// **Which operand token took this body out of `CfResidue::Modeled`** —
+    /// `"div-mod"`, `"intrinsic"`, `"virtual-slot"`, … — or `""` when nothing
+    /// did (the body is `+expr-modeled`, or it has no body to scan).
+    ///
+    /// A fifth census axis, and a separate field for exactly the reason
+    /// [`FnCensus::cflow`] is separate from the blocking feature: **the `cflow`
+    /// key says only `not only control flow`, and eight days of published
+    /// numbers are keyed on those strings.** Board **#1344** measured that
+    /// `CfResidue::Modeled` misses 518,991 of the 711,486 bodies the port
+    /// ACCEPTS, and #1345 forbade closing that by a bare widening — what it
+    /// owes is a pair. This field is the half of the pair the tree did not
+    /// have: it says *which* token, so the repair set is a measurement instead
+    /// of a guess, and it can be crossed with IN-CLASS / BLOCKED so a widening
+    /// can be scored on BOTH sides of the two-sided error before it ships.
+    ///
+    /// **Decode-only, and structurally so**: nothing reads it except the
+    /// report. First reason wins; see `control_flow::Scan::off_class`.
+    pub cflow_off: &'static str,
     /// **The exception-handling axis** — which side of `docs/EH_RECORDS.md` §6's
     /// sub-object boundary this body falls on:
     ///
@@ -321,12 +339,13 @@ impl FnCensus {
 /// traversal and a second traversal would double the census's cost for facts the
 /// first one already collected. The two EH keys are the measured predicate and
 /// the refuted one it replaces; see [`FnCensus::eh`] and [`FnCensus::eh_stmt`].
-fn cflow_key(seg: &[u8]) -> (String, String, String) {
+fn cflow_key(seg: &[u8]) -> (String, String, String, &'static str) {
     let Some(lo) = crate::func::readers::find_subslice(seg, &crate::func::bundle::LO_MARKER) else {
         return (
             "cf-no-body".to_string(),
             "eh-unknown".to_string(),
             "eh-unknown".to_string(),
+            "",
         );
     };
     let scan = body::shapes::control_flow::scan_full(seg, lo);
@@ -338,7 +357,19 @@ fn cflow_key(seg: &[u8]) -> (String, String, String) {
         cflow,
         scan.eh.state_key(scan.decoded).to_string(),
         scan.eh.key(scan.decoded).to_string(),
+        scan.off_reason.unwrap_or(""),
     )
+}
+
+/// **The `C2RS_CFRESIDUE_ADMIT` set this process is running under**, verbatim,
+/// or `""` when the variable is unset.
+///
+/// Re-exported so the scan report can print it. A run that admits arms is
+/// **not** the shipped predicate and every `cflow-*` number it produces is a
+/// counterfactual; the only way that stays true is if the run says so itself.
+/// See `body::shapes::control_flow::residue_admits`.
+pub fn cflow_residue_admit_set() -> String {
+    body::shapes::control_flow::residue_admit_set()
 }
 
 /// Bytes of context kept before / after a blocking site.
@@ -870,7 +901,7 @@ impl IlBundle {
                             (seg[start..end].to_vec(), b.off - start)
                         }
                     };
-                    let (cflow, eh, eh_stmt) = cflow_key(seg);
+                    let (cflow, eh, eh_stmt, cflow_off) = cflow_key(seg);
                     // Board #980. Asked of REFUSED rows only, and asked HERE
                     // rather than in the struct literal so the read happens
                     // before `verdict` moves into it.
@@ -904,6 +935,7 @@ impl IlBundle {
                             hex_mark,
                             calls: call_tokens(seg),
                             cflow,
+                            cflow_off,
                             eh,
                             eh_stmt,
                             dispatch,

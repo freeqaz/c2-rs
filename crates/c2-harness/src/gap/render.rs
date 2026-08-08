@@ -1007,6 +1007,7 @@ mod tests {
             fn_blockers: Default::default(),
             fn_frames: Default::default(),
             fn_cflow: Default::default(),
+            fn_cflow_off: Default::default(),
             fn_eh: Default::default(),
             fn_dispatch: Default::default(),
             fn_complete: Default::default(),

@@ -175,6 +175,24 @@ pub struct TuResult {
     /// stopped — crossing "we could not read this body's control flow" with a
     /// blocker would be a product of two ignorances.
     pub fn_cflow: BTreeMap<String, usize>,
+    /// **WHICH TOKEN took each off-class body out of `CfResidue::Modeled`**,
+    /// crossed with the population: `"<reason>|IN-CLASS"` / `"<reason>|BLOCKED"`.
+    /// Board **#1345**.
+    ///
+    /// **Its own map and not a row of [`TuResult::fn_cflow`], and that is not
+    /// tidiness.** `GapReport::cflow_residue_control` counts every `fn_cflow`
+    /// row ending in `|IN-CLASS` that does not end in `+expr-modeled|IN-CLASS`
+    /// as off-class. A `"div-mod|IN-CLASS"` row added to that map would have
+    /// been silently folded into the 518,991 and the published number would
+    /// have roughly doubled with nothing in git to show for it — the exact
+    /// shared-predicate collision that produces no merge conflict. Two maps
+    /// cannot collide.
+    ///
+    /// The `|IN-CLASS` half sums to `cflow_residue_control().1`; that identity
+    /// is published as `gap-metric cflow-offclass-accounted` rather than
+    /// asserted, because a totality control counted in two different units is
+    /// trap 0's own instance (`w-tag02`, `records` vs `values`).
+    pub fn_cflow_off: BTreeMap<String, usize>,
     /// **The exception-handling axis** (`docs/EH_RECORDS.md` §9.4, §10): which
     /// side of the `maxState` boundary each body falls on. Four row shapes, and
     /// the shape is in the key so no two populations can share a row:

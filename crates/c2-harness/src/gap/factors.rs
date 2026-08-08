@@ -1219,7 +1219,49 @@ impl GapReport {
                 "cflow-residue-straight-modeled-blocked",
                 self.cflow_residue_overclaim().to_string(),
             ),
+            // **The accounting control for the decomposition below** — the sum
+            // of the per-reason IN-CLASS column, printed beside the total it
+            // must equal rather than asserted against it. Board #1345.
+            //
+            // Two counts of the same population in the same unit (bodies), from
+            // two different maps: `cflow-residue-inclass-offclass` reads the
+            // `cflow` cross, this reads `fn_cflow_off`. They agree only if every
+            // off-class body recorded a reason, which is `Scan::off_class`'s
+            // `first reason wins` invariant. `w-tag02` is why it is printed and
+            // not asserted: an identity whose two sides are counted in different
+            // units is 0 forever and green for the wrong reason.
+            (
+                "cflow-offclass-accounted",
+                self.cflow_offclass_reasons().1.to_string(),
+            ),
         ];
+        // **A COUNTERFACTUAL RUN MUST SAY SO ITSELF.** When
+        // `C2RS_CFRESIDUE_ADMIT` is set, every `cflow-*` key above is a
+        // what-if and not the shipped predicate — so the set is printed beside
+        // them, and the key is ABSENT rather than empty when it is not set.
+        // Absence reads as success unless something forbids it (trap 5): an
+        // empty-string key would be indistinguishable from a default run in a
+        // grep, and this is exactly the direction where confusing the two
+        // publishes a counterfactual as a measurement.
+        let admit = c2_il::func::cflow_residue_admit_set();
+        if !admit.is_empty() {
+            m.push(("cflow-residue-admit", admit));
+        }
+        // **The decomposition itself**, one key per reason, both populations.
+        // Emitted as `cflow-offclass-<reason>-{inclass,blocked}` rather than one
+        // packed string so each stays `sed`-able, and emitted only for reasons
+        // that OCCUR — a key printed as 0 for a reason with no bodies would let
+        // a collector read a vanished arm as an empty one.
+        for (why, inc, blk) in self.cflow_offclass_reasons().0 {
+            m.push((
+                Box::leak(format!("cflow-offclass-{why}-inclass").into_boxed_str()),
+                inc.to_string(),
+            ));
+            m.push((
+                Box::leak(format!("cflow-offclass-{why}-blocked").into_boxed_str()),
+                blk.to_string(),
+            ));
+        }
         // The ladder head, when there is one. Emitted as two keys rather than
         // one "name C=n" string so the numeric one stays `sed`-able, and
         // omitted entirely when the vocabulary is closed — a collector that
