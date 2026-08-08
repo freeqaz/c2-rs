@@ -550,6 +550,15 @@ pub(crate) enum SkipForm {
     Byte2,
     /// `<op> <varint> <token>`.
     VarintTok,
+    /// `<op> <TYPE> <one raw byte> <varint>` — the CALL token's shape, and the
+    /// **only** form in this table with a raw byte between two decoded fields.
+    /// It exists because `TypeVarint` is one byte short of it and reusing that
+    /// is exactly the desync this table is built to make impossible: the flags
+    /// byte is `00` at 3,544,297 of 3,544,589 workload sites, so a
+    /// `TypeVarint` reading consumes the `00` as the whole id and lands on the
+    /// `80` of the real id's escape — a byte that opens no operand token
+    /// anywhere in the grammar. See [`chain_skip_form`]'s `0xBD` row.
+    TypeByteVarint,
     /// `43 <sub-opcode>` with a sub-opcode-dependent payload.
     Escape43,
     /// `4F 01 <varint>` — the line marker, and **only** that. `4F 12` is the
@@ -590,6 +599,7 @@ pub(crate) enum SkipForm {
 /// | `67` | VarintTok | `IL_DECODE_REACH.md` §2 — `67 <varint vtable-byte-offset> <token>` |
 /// | `9B` | TypeTok | `IL_EXPR_LAYER.md` §7 — the trailing field is a whole `read_token_var` |
 /// | `B9` | TokType | [`parse_expr_classed`]'s own LOAD arm |
+/// | `BD` | TypeByteVarint | `IL_CALL_GRAMMAR.md` §2.1/§2.2, and **three** readers in this crate that already consume it — see the `0xBD` row below |
 ///
 /// Deliberately **absent**, so their absence is a decision: `1B`/`1C` (`||`/`&&`
 /// — `mcall` records that no capture shows the byte at all), `64`, `66`, `3B`
@@ -664,6 +674,61 @@ pub(crate) fn chain_skip_form(b: u8) -> Option<SkipForm> {
         0x99 => TypeVarint,
         0x9B => TypeTok,
         0xB9 => TokType,
+        // The CALL, `BD <TYPE ret> <flags:1 raw byte> <varint fn-type-id>`
+        // (`lane w-bd`, board **#1314**). `w-front3` (board **#1289**) measured
+        // that `expr-chain-noform-0xBD` is the terminal of **9** of the
+        // seventeen FRONTIER ladders — the instrument running out, not the TU.
+        //
+        // **`0xBD` was never unwitnessed, and that is the finding.** It is the
+        // most heavily witnessed opcode in this crate: `IL_CALL_GRAMMAR.md`
+        // §2.1 states the grammar and §2.2 pins the flags byte from a
+        // three-convention probe, and **three** readers here already consume
+        // exactly this width —
+        // [`mcall::eat_call_and_args`](super::mcall) (the *accepting* parser,
+        // graded byte-exact by the differential), `mcall`'s call-form walk, and
+        // `control_flow.rs`'s `cf-call-fn-type-id` arm. What was missing was a
+        // `SkipForm` able to *express* it: every existing variant is one byte
+        // short or one field long, so `BD` fell through to `None` and the
+        // instrument reported a floor as a price. A width table that cannot
+        // spell a width it already knows refuses for the wrong reason.
+        //
+        // Witnessed a first way by a capture taken at THIS master
+        // (`work/w-bd/probe/bd_cc.cpp`): four externals differing only in
+        // calling convention, byte-identical `int` return type, and the flags
+        // byte is the only field that moves —
+        //
+        // ```text
+        //   __cdecl      26 <cd> BD 86 41 74 >00< 80 01 10 00 00
+        //   __stdcall    26 <sc> BD 86 41 74 >00< 80 02 10 00 00
+        //   __fastcall   26 <fc> BD 86 41 74 >04< 80 07 10 00 00
+        //   varargs      26 <va> BD 86 41 74 >40< 80 06 10 00 00
+        // ```
+        //
+        // — graded `ReferenceReplay=ByteExact` against real `c2.dll` under
+        // wibo, and its cdecl half `Port=Match`, so the port reads a token of
+        // this width and emits an obj byte-exact from it.
+        //
+        // Confirmed a second way on the workload rather than on a probe, the
+        // way `05`/`06` were: over **3,544,589** anchored `BD` sites in 876 dc3
+        // TUs (`work/w-bd/bdwalk.py`) this reading lands on a byte that opens an
+        // operand token at **3,544,566**, and the rivals do not — dropping the
+        // flags byte lands on the `80` of the id's own escape at **3,544,480**,
+        // and stopping after the TYPE lands on the flags byte itself at
+        // **3,544,319**. The 23 residual sites are `BD` bytes inside a
+        // neighbouring TYPE's LEB payload or inside a 4-byte token, screened
+        // mechanically and printed in full.
+        //
+        // **One thing this does NOT settle**, stated because the corpus cannot:
+        // whether the flags field is a raw byte or a `read_varint`. Every value
+        // it takes here is `00` (3,544,297), `40` (171) or `04`, all below
+        // `0x80`, where the two readings agree — so they agree at
+        // **3,544,501 of 3,544,589** sites and the corpus excludes neither.
+        // `IL_CALL_GRAMMAR.md` §2.2 already carries that as UNKNOWN. The tie is
+        // broken by matching the ACCEPTING parser, which reads a raw byte: a
+        // sink that read a field differently from the acceptor would report a
+        // successor key the acceptor can never reach, which is the one way this
+        // instrument could lie.
+        0xBD => TypeByteVarint,
         _ => return None,
     })
 }
@@ -835,6 +900,18 @@ fn chain_step_with(
             q <= seg.len()
         }
         SkipForm::VarintTok => read_varint(seg, &mut q).is_some() && tok(&mut q),
+        // `BD <TYPE> <flags:1 raw byte> <varint>`. The middle field is stepped
+        // over, never decoded: its own encoding is UNKNOWN (`IL_CALL_GRAMMAR.md`
+        // §2.2) and a *step* only needs the width, which both candidate
+        // readings agree on at every value the corpus contains. `q += 1` is
+        // bounds-checked because the varint read that follows cannot be trusted
+        // to fail on a cursor already past the end.
+        SkipForm::TypeByteVarint => {
+            ty(&mut q) && {
+                q += 1;
+                q <= seg.len() && read_varint(seg, &mut q).is_some()
+            }
+        }
         // `43 42 <2 bytes>` is the conditional expression and `43 37` carries
         // nothing; every other sub-opcode is unpinned and says so.
         SkipForm::Escape43 => match seg.get(q) {
@@ -1812,6 +1889,15 @@ mod tests {
     /// capture has ever shown; `3B`/`3C`/`3D` are the switch family, whose table
     /// payload is not a fixed width; `64`/`66` are named nowhere in this tree.
     ///
+    /// **`0xBD` has left this list too** (`lane w-bd`, board **#1314**), and
+    /// deleting it is the assertion this test's own header demands. It was
+    /// never unwitnessed: `IL_CALL_GRAMMAR.md` §2.1 states the grammar, and
+    /// `mcall::eat_call_and_args`, `mcall`'s call-form walk and
+    /// `control_flow.rs`'s `cf-call-fn-type-id` arm all consume exactly
+    /// `<TYPE> <1 raw byte> <varint>` today. What was missing was a `SkipForm`
+    /// able to spell it. Re-witnessed by a capture at this master and confirmed
+    /// over 3,544,589 workload sites — see `chain_skip_form`'s `0xBD` row.
+    ///
     /// `w-depth` measured `0x00` and `0x05` as live chain terminals on the
     /// frontier — two more bytes the instrument refuses rather than guesses
     /// (rung §6). `0x35` was a third until a capture pinned its WIDTH; it is in
@@ -1826,7 +1912,7 @@ mod tests {
     /// never in question — this is `div_mod_leaf`'s own `IL_DIV`/`IL_MOD`.
     #[test]
     fn the_unpinned_opcodes_refuse_rather_than_guess_a_width() {
-        for b in [0x00, 0x1B, 0x1C, 0x3B, 0x3C, 0x3D, 0x64, 0x66, 0xBD] {
+        for b in [0x00, 0x1B, 0x1C, 0x3B, 0x3C, 0x3D, 0x64, 0x66] {
             assert_eq!(chain_skip_form(b), None, "0x{b:02X} must have no pinned form");
         }
         // …and the two that moved are `Bare`, not merely "not None": a width
@@ -1863,6 +1949,102 @@ mod tests {
         // A payload that runs off the end is `expr-chain-short`, not a silent
         // clamp — a clamp would report a fictitious successor.
         assert_eq!(skip_one(&[0x27], 0x27), Some(Err("expr-chain-short")));
+    }
+
+    /// **`BD <TYPE> <flags:1 raw byte> <varint>`, from the CAPTURE and not from
+    /// the table that produced it** (`lane w-bd`, board **#1314**).
+    ///
+    /// These four rows are transcribed off `work/w-bd/probe/bd_cc.cpp`'s `.ex`,
+    /// captured at this master by `c2rs capture` and graded
+    /// `ReferenceReplay=ByteExact` against real `c2.dll` under wibo. The
+    /// externals differ ONLY in calling convention and their return TYPE is
+    /// byte-identical, so the flags byte is the only field that can move — which
+    /// is what makes them a witness for the width rather than for one call.
+    #[test]
+    fn the_call_token_consumes_exactly_its_capture() {
+        // int cd(int)            __cdecl     — and __stdcall, which is the same
+        let cdecl = [0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, 0xB9];
+        assert_eq!(skip_one(&cdecl, 0xBD), Some(Ok(10)), "cdecl ends on the B9");
+        // int __fastcall fc(int) — the ONE byte that moves
+        let fast = [0xBD, 0x86, 0x41, 0x74, 0x04, 0x80, 0x07, 0x10, 0x00, 0x00, 0xB9];
+        assert_eq!(skip_one(&fast, 0xBD), Some(Ok(10)));
+        // int va(const char*, ...)  varargs
+        let vararg = [0xBD, 0x86, 0x41, 0x74, 0x40, 0x80, 0x06, 0x10, 0x00, 0x00, 0xB9];
+        assert_eq!(skip_one(&vararg, 0xBD), Some(Ok(10)));
+        // void v0()  — a 3-byte return TYPE and a zero-argument region, so the
+        // token is followed straight by the `4C` that closes it.
+        let void0 = [0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x09, 0x10, 0x00, 0x00, 0x4C];
+        assert_eq!(skip_one(&void0, 0xBD), Some(Ok(10)));
+        // void* p0() — a 4-byte return TYPE. The SAME reading has to absorb it,
+        // which is what a fixed-width read cannot do: `IL_CALL_GRAMMAR.md` §1.3
+        // measures 3/4/5-byte return types at 1,735,526 / 1,391,017 / 417,958
+        // workload sites, so a fixed 3-byte skip mis-parses one call in two.
+        let ptr = [0xBD, 0x86, 0x43, 0x83, 0x08, 0x00, 0x80, 0x0A, 0x10, 0x00, 0x00, 0x4C];
+        assert_eq!(skip_one(&ptr, 0xBD), Some(Ok(11)));
+        // …and a 5-byte return TYPE, the ~12 % tail. Transcribed from
+        // `IL_CALL_GRAMMAR.md` §2.1's own widest observed token.
+        let wide = [
+            0xBD, 0x86, 0x43, 0x9B, 0xB9, 0x02, 0x00, 0x80, 0x9F, 0x9C, 0x00, 0x00, 0x4C,
+        ];
+        assert_eq!(skip_one(&wide, 0xBD), Some(Ok(12)));
+        // A payload that runs off the end refuses rather than clamping.
+        assert_eq!(skip_one(&[0xBD, 0x86, 0x41, 0x74], 0xBD), Some(Err("expr-chain-short")));
+        assert_eq!(skip_one(&[0xBD, 0x86, 0x41, 0x74, 0x00], 0xBD), Some(Err("expr-chain-short")));
+    }
+
+    /// **The two rival readings, and why the corpus excludes them** — the
+    /// control that makes the row above a measurement instead of an assertion.
+    ///
+    /// A control that cannot go red is not a control, so this asks the positive
+    /// question: *would anything catch the width being wrong in the most likely
+    /// way?* The most likely way is dropping the flags byte, and the answer is
+    /// that the walk then lands on the `0x80` of the fn-type id's own escape —
+    /// a byte no arm of `chain_skip_form` or of `control_flow.rs`'s `operand()`
+    /// accepts. `work/w-bd/bdwalk.py` scores that over the workload at
+    /// **3,544,480 of 3,544,589** sites; this pins the mechanism.
+    #[test]
+    fn dropping_the_call_flags_byte_lands_on_a_byte_no_arm_accepts() {
+        let cdecl = [0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, 0xB9];
+        // The pinned reading lands on `B9`, which IS an operand opcode…
+        assert_eq!(skip_one(&cdecl, 0xBD), Some(Ok(10)));
+        assert_eq!(cdecl[10], 0xB9);
+        assert!(chain_skip_form(cdecl[10]).is_some(), "the landing byte opens a token");
+        // …and the flags-byte-dropped reading, `TypeVarint`, lands on index 5.
+        // Spelled out rather than computed so the byte is visible: TYPE is 3
+        // bytes, the `00` is consumed as a whole short varint, and the cursor
+        // stops on the escape marker.
+        assert_eq!(cdecl[5], 0x80);
+        assert_eq!(chain_skip_form(0x80), None, "0x80 opens nothing — the desync is visible");
+    }
+
+    /// **C3, the null step.** `0xBD` is the only entry this lane added: every
+    /// other byte's form is asserted against the table as it stood, so a
+    /// widening that leaked into a neighbour has to delete a line here.
+    #[test]
+    fn pinning_the_call_moved_no_other_opcode() {
+        for b in 0u8..=255 {
+            if b == 0xBD {
+                assert_eq!(chain_skip_form(b), Some(SkipForm::TypeByteVarint));
+                continue;
+            }
+            let expect = match b {
+                0x02..=0x06 | 0x09..=0x0D | 0x1A | 0x1F..=0x24 | 0x44 | 0x4B | 0x53 => {
+                    Some(SkipForm::Bare)
+                }
+                0x0F | 0x27 | 0x30 | 0x32 | 0x35 | 0x40 | 0x41 | 0x55 => Some(SkipForm::Type),
+                0x26 | 0x29 | 0x38..=0x3A => Some(SkipForm::Tok),
+                0x28 => Some(SkipForm::Byte2),
+                0x2C | 0x33 | 0x99 => Some(SkipForm::TypeVarint),
+                0x43 => Some(SkipForm::Escape43),
+                0x4F => Some(SkipForm::Line4F),
+                0x54 => Some(SkipForm::Byte1),
+                0x67 => Some(SkipForm::VarintTok),
+                0x9B => Some(SkipForm::TypeTok),
+                0xB9 => Some(SkipForm::TokType),
+                _ => None,
+            };
+            assert_eq!(chain_skip_form(b), expect, "0x{b:02X} moved");
+        }
     }
 
     /// Run one [`chain_sink_step`] with `op` sunk, without touching the process
