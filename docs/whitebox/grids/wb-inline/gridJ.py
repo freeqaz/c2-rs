@@ -74,7 +74,7 @@ def cells():
 
 
 def cap(src, mode, tag, d):
-    cpp = os.path.join(d, tag + ".cpp")
+    cpp = os.path.abspath(os.path.join(d, tag + ".cpp"))
     open(cpp, "w").write(src)
     env = dict(os.environ)
     env["C2RS_WIBO"] = WIBO
