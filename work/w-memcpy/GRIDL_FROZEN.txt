@@ -1,0 +1,9 @@
+cells                747
+by class             {"c2": 18, "g1": 675, "g2": 18, "lv": 18, "tail": 18}
+in class             633
+cells with lit+move  684
+lit BELOW a move     390
+R-PARKLIT separated  579 guarded cells
+rival-pair sep       {"R-ASC/R-DESC": 577, "R-ASC/R-LITFIRST": 392, "R-ASC/R-LITLAST": 390, "R-ASC/R-PARKLIT": 606, "R-DESC/R-LITFIRST": 390, "R-DESC/R-LITLAST": 392, "R-DESC/R-PARKLIT": 606, "R-LITFIRST/R-LITLAST": 577, "R-LITFIRST/R-PARKLIT": 579, "R-LITLAST/R-PARKLIT": 624}
+?mmioGetInfo cell    g1_n3_10L_g0_72 (separates 8 of 10 pairs)
+sha256               615ea60941268c3f450ed8e1cf8ce7e0134a4d82392ab17cd1ccc9c4c9a70a66

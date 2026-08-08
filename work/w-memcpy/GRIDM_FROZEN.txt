@@ -1,0 +1,6 @@
+cells        232
+sizes        [0, 1, 2, 3, 4, 5, 7, 8, 10, 12, 15, 16, 20, 24, 28, 31, 32, 36, 40, 44, 48, 56, 64, 72, 96, 128, 256, 1024]
+hint axis    ['c', 'i', 'd', 's']
+rivals       ['M-ALWAYSCALL', 'M-THRESH-16', 'M-THRESH-32', 'M-THRESH-64', 'M-THRESH-8', 'M-VARCALL']
+72 B cells   unanimous across every rival (the target discriminates NOTHING here)
+sha256       b58df6553b1dbce54f504984d1702156c4ddc35642c55253c07e96ff3602a801
