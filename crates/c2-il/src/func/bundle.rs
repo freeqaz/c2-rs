@@ -1336,6 +1336,26 @@ pub(crate) fn shape_to_function(
                     ..IlFunction::base(name, src)
                 })
             }
+            // **W-XLR.** Two callee tokens and nothing else: this class names no
+            // data symbol, and its two frame helpers are minted by
+            // `c2_core::codegen::FrameLayout` from `saved_gprs` rather than read
+            // out of the IL, so they are not resolvable here and must not be.
+            BodyShape::XlrcCreateGuard(g) => {
+                Some(IlFunction {
+                    params: g.params.clone(),
+                    xlrc_create_guard: Some(crate::func::XlrcCreateGuardFn {
+                        params: g.params,
+                        create: resolve(g.create_tok)?,
+                        attach: resolve(g.attach_tok)?,
+                        k_init: g.k_init,
+                        k_bound: g.k_bound,
+                        k_lo: g.k_lo,
+                        k_hi: g.k_hi,
+                        k_fail: g.k_fail,
+                    }),
+                    ..IlFunction::base(name, src)
+                })
+            }
             BodyShape::PtrWalkChainLoop(l) => {
                 Some(IlFunction {
                     params: l.params.clone(),

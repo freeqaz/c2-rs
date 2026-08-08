@@ -609,6 +609,7 @@ impl PortC2 {
                     data_defs: body.data_defs,
                     frame: body.frame,
                     label_lead: leads[fi],
+                    helper_externals: body.helper_externals,
                 });
                 texts.push(body.text);
             }
@@ -871,6 +872,29 @@ impl PortC2 {
                 // **W-OSFINFO — the range-and-flag guarded table lookup**, built
                 // at `off` for the same reason every framed shape here is: both
                 // `bl` words encode their own `.text` offsets.
+                // **W-XLR — refused in the PACKED layout, not emitted.**
+                //
+                // The body itself would build fine at `off`; what has no
+                // measured slot is the symbol table. Every witness of the
+                // `__savegprlr_N`/`__restgprlr_N` pair's placement — after the
+                // `$T` label, `docs/CODEGEN_FRAMED_CALLS.md` §2.3a — is a `/Gy`
+                // obj, and the packed writer has no `$T` group per function to
+                // place them after. Guessing would be a wrong symbol index in an
+                // obj that still links, which is `docs/GAPS.md` §6's shape.
+                //
+                // It costs the workload nothing: the class is `/O1` only and
+                // `/O1` implies `/Gy`, so this arm is unreachable from the
+                // workload and exists so the `/Ox` gate lane gets a refusal
+                // instead of a guess.
+                codegen::Selected::XlrcCreateGuard => {
+                    return Err(BackendError::NotImplemented(
+                        "the `__savegprlr_N` frame class in the PACKED (non-`/Gy`) \
+                         layout: the helper pair's symbol records are witnessed \
+                         only after a `$T` label, which the packed symbol table \
+                         does not have"
+                            .to_string(),
+                    ));
+                }
                 codegen::Selected::OsfHandleGuard => {
                     let g = f
                         .osf_handle_guard
@@ -945,6 +969,13 @@ impl PortC2 {
                 data_defs: Vec::new(),
                 frame,
                 label_lead: leads[fi],
+                // **W-XLR — always empty on this path, by the refusal above.**
+                // The packed layout has no measured slot for a symbol placed
+                // after `$T`: every witness of the `__savegprlr_N` pair's
+                // placement (`docs/CODEGEN_FRAMED_CALLS.md` §2.3a) is a `/Gy`
+                // obj. Refused rather than guessed, exactly as the COMDAT
+                // `.data` above is.
+                helper_externals: Vec::new(),
             });
         }
 

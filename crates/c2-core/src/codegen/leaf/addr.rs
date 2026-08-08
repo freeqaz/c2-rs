@@ -114,6 +114,7 @@ mod tests {
             guard_chain_shared_tail: None,
         alloc_init_or_fail: None,
         osf_handle_guard: None,
+        xlrc_create_guard: None,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
         };

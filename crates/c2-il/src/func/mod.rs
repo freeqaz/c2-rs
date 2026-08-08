@@ -1742,6 +1742,62 @@ pub struct OsfHandleGuard {
     pub k_fail: i32,
 }
 
+/// **W-XLR — a two-stage create/attach guard whose four failure paths converge
+/// on one returned status.**
+///
+/// `src/xdk/xlrc/xlrcimpl.cpp`'s only emitted function, and the first body class
+/// this port emits whose prologue goes through the `__savegprlr_N` helper. See
+/// [`crate::func::body::shapes::xlrc_create_guard`] for the source shape and the
+/// fence, and `c2_core::codegen::xlrc_create_guard` for the thirty-eight words.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct XlrcCreateGuard {
+    /// The FOUR formals, in declaration order: they arrive in r3–r6 and are
+    /// parked in r30–r27 by four pinned `mr` words, because every one of them
+    /// outlives at least one `bl`. That, plus the status accumulator in r26 and
+    /// the create call's result in r31, is what makes `saved_gprs: 6` — the
+    /// `__savegprlr_26` class.
+    pub params: Vec<u32>,
+    /// The first callee, `create(&size)` — the body's SECOND REL24 (the
+    /// prologue's helper `bl` is the first).
+    pub create_tok: u32,
+    /// The second callee, `attach(c, id, size)` — the THIRD REL24.
+    pub attach_tok: u32,
+    /// The stack object's initial value — one `li` immediate.
+    pub k_init: i32,
+    /// The bound the reloaded stack object is compared against — one `cmplwi`
+    /// immediate, and therefore UNSIGNED.
+    pub k_bound: i32,
+    /// The status assigned when the reloaded object is below the bound. Shares
+    /// its high half with [`Self::k_hi`] — see the class doc's fact 1.
+    pub k_lo: i32,
+    /// The status assigned otherwise.
+    pub k_hi: i32,
+    /// The status assigned when the attach call returns null. Its own
+    /// `lis`+`ori` pair in the other arm.
+    pub k_fail: i32,
+}
+
+/// [`XlrcCreateGuard`] with its two callee tokens resolved to mangled names.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct XlrcCreateGuardFn {
+    /// Exactly as [`XlrcCreateGuard::params`].
+    pub params: Vec<u32>,
+    /// The first callee — the lower of the two ordinary REL24 sites.
+    pub create: String,
+    /// The second callee.
+    pub attach: String,
+    /// Exactly as [`XlrcCreateGuard::k_init`].
+    pub k_init: i32,
+    /// Exactly as [`XlrcCreateGuard::k_bound`].
+    pub k_bound: i32,
+    /// Exactly as [`XlrcCreateGuard::k_lo`].
+    pub k_lo: i32,
+    /// Exactly as [`XlrcCreateGuard::k_hi`].
+    pub k_hi: i32,
+    /// Exactly as [`XlrcCreateGuard::k_fail`].
+    pub k_fail: i32,
+}
+
 /// [`OsfHandleGuard`] with its four tokens resolved to mangled names.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OsfHandleGuardFn {
@@ -2389,6 +2445,9 @@ pub struct IlFunction {
     pub alloc_init_or_fail: Option<AllocInitOrFailFn>,
     /// **W-OSFINFO** — the range-and-flag guarded table lookup, or `None`.
     pub osf_handle_guard: Option<OsfHandleGuardFn>,
+    /// **W-XLR** — the two-stage create/attach guard, or `None`. The only body
+    /// kind whose frame uses the `__savegprlr_N`/`__restgprlr_N` helper.
+    pub xlrc_create_guard: Option<XlrcCreateGuardFn>,
     /// True iff this function's body is **empty** (`void f() {}`): no expression at
     /// all, so codegen emits a bare `blr`. Mutually exclusive with the other body
     /// kinds.
@@ -2542,6 +2601,7 @@ impl IlFunction {
             guard_chain_shared_tail: None,
             alloc_init_or_fail: None,
             osf_handle_guard: None,
+            xlrc_create_guard: None,
             empty_body: false,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
@@ -2699,6 +2759,7 @@ impl IlFunction {
             || self.guard_chain_shared_tail.is_some()
             || self.alloc_init_or_fail.is_some()
             || self.osf_handle_guard.is_some()
+            || self.xlrc_create_guard.is_some()
     }
 
     /// **Label-counter slots this function takes BEFORE its own `$M` triple.**
@@ -2809,6 +2870,38 @@ impl IlFunction {
             // meets it before choosing a number. `docs/LABEL_COUNTER.md` §1.1's
             // placement (a LEAD, before the triple) is unchanged.
             + u32::from(self.osf_handle_guard.is_some())
+            // **W-XLR charges TWO slots before its own triple, and it REFUTES
+            // the rule the four terms above were fitted to.**
+            //
+            // The rule written into this function by `w-osfinfo` reads *"the
+            // lead is the number of unconditional intra-section `b` words in the
+            // body"*. `CXLrcImpl_CreateClientWithTransport` has **three** of
+            // them — at `+0x4c`, `+0x54` and `+0x78` — and its lead is **2**.
+            // That is not a near miss to be absorbed; it is the rule's own
+            // quantity reading three where the oracle says two, so the
+            // `b`-counting MECHANISM is dead and the fit it explained was a
+            // coincidence of four classes that each happen to have zero or one
+            // `b`.
+            //
+            // Measured, not fitted: `xlrcimpl.cpp`'s `.gl` label counter is
+            // **2575**, `plan_labels` seeds at `2575 + 9 + 3·1 = 2587`, and the
+            // reference obj's labels are `$M2589`/`$M2590`/`$T2591`. The lead is
+            // forced to exactly 2 before a single byte was emitted.
+            //
+            // What DOES fit is older and better witnessed:
+            // `docs/LABEL_COUNTER.md` §1.1's surcharge table, 29 probes through
+            // `scripts/gt_label_stride.py` at both modes — **a first-introduced
+            // `__savegprlr_N`/`__restgprlr_N` pair costs +2, allocated before
+            // the function's own `$M` pair**, and an intra-section branch costs
+            // nothing at any count. This class is the port's first helper-using
+            // frame, so it is the first body that can tell the two apart.
+            //
+            // **What this does NOT explain** is why the four classes above each
+            // charge 1 or 0; those numbers are still one-witness constants with
+            // no mechanism, and no replacement rule is proposed here. Saying so
+            // is the point — a refuted rule replaced by a second guess would be
+            // worth less than a refuted rule and an honest gap.
+            + 2 * u32::from(self.xlrc_create_guard.is_some())
     }
 
     /// Every external this function calls, in **first-reference order** — which is
@@ -2891,6 +2984,25 @@ impl IlFunction {
                 self.osf_handle_guard
                     .iter()
                     .flat_map(|g| [g.errno.as_str(), g.doserrno.as_str()]),
+            )
+            // **W-XLR: TWO names, in `.text` order** — `create` at `+0x2c` and
+            // `attach` at `+0x64`, in two blocks that no execution reaches both
+            // of. Written before the first census run rather than rediscovered,
+            // for the reason the arm above gives.
+            //
+            // **The `__savegprlr_26`/`__restgprlr_26` pair is deliberately NOT
+            // here.** Those two are relocations against undefined externals and
+            // they *are* branches, so the omission is not the `data_syms`
+            // argument the arms above make — it is that the IL never names them.
+            // They are minted by the frame class, their symbols are placed
+            // AFTER the `$T` label rather than in this list's region, and they
+            // travel on `coff::Function::helper_externals`. Listing them here
+            // would put them in the wrong half of the symbol table and give
+            // `plan_text_order` two call edges the IL does not have.
+            .chain(
+                self.xlrc_create_guard
+                    .iter()
+                    .flat_map(|g| [g.create.as_str(), g.attach.as_str()]),
             )
     }
 
@@ -3093,7 +3205,7 @@ pub(crate) mod test_fixtures {
     /// [`Formals::AllOneRegisterByConstruction`] is test-only and cannot appear in
     /// a release build.
     pub(crate) const NO_LOCALS: SyView<'static> =
-        SyView { locals: &[], ptr_locals: &[], formals: Formals::AllOneRegisterByConstruction };
+        SyView { locals: &[], ptr_locals: &[], addr_locals: &[], formals: Formals::AllOneRegisterByConstruction };
 
     /// Prefix a pinned body with the `53 53 26 <fn>` statement start a real segment
     /// carries, when it does not already have one.

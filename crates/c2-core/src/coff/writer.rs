@@ -290,6 +290,10 @@ pub fn emit_comdat_obj(
     // `None`. Derived here because the `.text` relocation records need it before
     // the symbol table is written, and asserted again where the record goes out.
     let mut def_sym: Vec<Option<u32>> = Vec::with_capacity(funcs.len());
+    // **W-XLR** — per function, the frame-helper externals it INTRODUCES, with
+    // the indices they land at. Sized up front because the index pass fills it
+    // by position.
+    let mut helper_idx: Vec<Vec<(&str, u32)>> = vec![Vec::new(); funcs.len()];
     for (i, f) in funcs.iter().enumerate() {
         next_idx += 2; // section symbol + aux
         fn_idx.push(next_idx);
@@ -327,6 +331,28 @@ pub fn emit_comdat_obj(
             next_idx += 1; // $M(n), the prologue-end label
             next_idx += 2; // .pdata section symbol + aux
             next_idx += 1; // $T(n+2)
+        }
+        // **W-XLR — the frame helpers, AFTER the `$T` label.**
+        //
+        // `docs/CODEGEN_FRAMED_CALLS.md` §2.3a's witnessed group ends
+        // `… .pdata+aux · $T · __restgprlr_29 · __savegprlr_29`, so these two
+        // are not in the callee region above and their indices are allocated
+        // here instead. They go into `callee_syms` all the same, because their
+        // relocations are ordinary REL24s and that is the table a REL24
+        // resolves in.
+        //
+        // The `known` test is the same one the callee region uses and it is
+        // load-bearing for a different reason here: `docs/LABEL_COUNTER.md`
+        // §1.1's `gpr3-dup` row measures that a SECOND function reusing a width
+        // an earlier one introduced pays **no** label surcharge and emits **no**
+        // second symbol.
+        for name in &funcs[i].helper_externals {
+            if callee_syms.iter().chain(data_syms.iter()).any(|(n, _)| n == name) {
+                continue;
+            }
+            callee_syms.push((name, next_idx));
+            helper_idx[i].push((*name, next_idx));
+            next_idx += 1;
         }
         // **W-DATA — this function's object group, immediately after its own.**
         //
@@ -479,6 +505,11 @@ pub fn emit_comdat_obj(
             emit_label_symbol(&mut b, &label_name('M', m[0]), frame.prolog_len, sec_num);
             emit_section_symbol(&mut b, &sections[ps], (ps + 1) as i16, 1);
             emit_pdata_label_symbol(&mut b, &label_name('T', m[2]), 0, (ps + 1) as i16);
+        }
+        // **W-XLR — the frame helpers, in the slot the index pass reserved.**
+        // Both are FUNCTION records (`Type 0x0020`), like any callee.
+        for (name, _) in &helper_idx[i] {
+            emit_external_symbol(&mut b, &mut strtab, name, 0, 0x0020);
         }
         // **W-DATA — this function's defined object's group**, interleaved
         // exactly as its section is.

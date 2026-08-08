@@ -39,6 +39,7 @@ pub mod frame;
 pub(crate) mod frontier_bytes;
 pub mod alloc_init_or_fail;
 pub mod osf_handle_guard;
+pub mod xlrc_create_guard;
 pub mod guard_chain_shared_tail;
 pub mod if_call_join;
 pub mod labels;

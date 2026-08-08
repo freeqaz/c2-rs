@@ -73,6 +73,81 @@ pub const FRAME_STWUX: u32 = 0x7C21_616E;
 /// fit an `addi` immediate.
 const FRAME_BACKCHAIN: u32 = 0x8021_0000;
 
+
+/// `__savegprlr_N` indexed by `N`, for every `N` a layout this emitter can build
+/// can produce: `N = 32 − saved_gprs` with `saved_gprs` in `3..=18`, so
+/// `N ∈ 14..=29`. Empty strings outside that window — the two accessors return
+/// `None` for them because [`FrameLayout::gpr_helper_n`] never yields one.
+///
+/// A table rather than `format!` so the names are `&'static str`: they are
+/// symbol-table entries in `coff::Function`, whose lists borrow.
+const SAVE_GPR_HELPERS: [&str; 30] = [
+    /* 0 */ "",
+    /* 1 */ "",
+    /* 2 */ "",
+    /* 3 */ "",
+    /* 4 */ "",
+    /* 5 */ "",
+    /* 6 */ "",
+    /* 7 */ "",
+    /* 8 */ "",
+    /* 9 */ "",
+    /* 10 */ "",
+    /* 11 */ "",
+    /* 12 */ "",
+    /* 13 */ "",
+    /* 14 */ "__savegprlr_14",
+    /* 15 */ "__savegprlr_15",
+    /* 16 */ "__savegprlr_16",
+    /* 17 */ "__savegprlr_17",
+    /* 18 */ "__savegprlr_18",
+    /* 19 */ "__savegprlr_19",
+    /* 20 */ "__savegprlr_20",
+    /* 21 */ "__savegprlr_21",
+    /* 22 */ "__savegprlr_22",
+    /* 23 */ "__savegprlr_23",
+    /* 24 */ "__savegprlr_24",
+    /* 25 */ "__savegprlr_25",
+    /* 26 */ "__savegprlr_26",
+    /* 27 */ "__savegprlr_27",
+    /* 28 */ "__savegprlr_28",
+    /* 29 */ "__savegprlr_29",
+];
+
+/// `__restgprlr_N`, the epilogue half of the pair above.
+const REST_GPR_HELPERS: [&str; 30] = [
+    /* 0 */ "",
+    /* 1 */ "",
+    /* 2 */ "",
+    /* 3 */ "",
+    /* 4 */ "",
+    /* 5 */ "",
+    /* 6 */ "",
+    /* 7 */ "",
+    /* 8 */ "",
+    /* 9 */ "",
+    /* 10 */ "",
+    /* 11 */ "",
+    /* 12 */ "",
+    /* 13 */ "",
+    /* 14 */ "__restgprlr_14",
+    /* 15 */ "__restgprlr_15",
+    /* 16 */ "__restgprlr_16",
+    /* 17 */ "__restgprlr_17",
+    /* 18 */ "__restgprlr_18",
+    /* 19 */ "__restgprlr_19",
+    /* 20 */ "__restgprlr_20",
+    /* 21 */ "__restgprlr_21",
+    /* 22 */ "__restgprlr_22",
+    /* 23 */ "__restgprlr_23",
+    /* 24 */ "__restgprlr_24",
+    /* 25 */ "__restgprlr_25",
+    /* 26 */ "__restgprlr_26",
+    /* 27 */ "__restgprlr_27",
+    /* 28 */ "__restgprlr_28",
+    /* 29 */ "__restgprlr_29",
+];
+
 /// The **measured X360 frame layout** of one function: how much local/spill
 /// space it needs above the fixed head, and how many callee-saved GPRs and FPRs
 /// it keeps live across its calls.
@@ -214,6 +289,108 @@ impl FrameLayout {
     /// predicates and not one.
     pub fn needs_fpr_helper(&self) -> bool {
         self.saved_fprs >= 4
+    }
+
+    /// The `__savegprlr_N` / `__restgprlr_N` **width** for this layout:
+    /// `N = 32 − saved_gprs`, and `None` when the saves are open-coded.
+    ///
+    /// Measured across `_29` (3 saved) … `_24` (8 saved) in
+    /// `docs/CODEGEN_FRAMED_CALLS.md` §2.3, and again at `_26` (6 saved) on
+    /// `src/xdk/xlrc/xlrcimpl.cpp`'s own obj, which is the witness the Class C
+    /// emitter below is graded against.
+    pub fn gpr_helper_n(&self) -> Option<u8> {
+        self.needs_gpr_helper().then(|| 32 - self.saved_gprs)
+    }
+
+    /// `__savegprlr_N` — the prologue helper's external name, or `None`.
+    ///
+    /// A `&'static str` out of [`SAVE_GPR_HELPERS`] rather than a formatted
+    /// `String`, because the name goes straight into `coff::Function`'s
+    /// `&'a str` symbol lists and a per-call allocation there would need a
+    /// lifetime the frame layout does not have.
+    pub fn save_gpr_helper_name(&self) -> Option<&'static str> {
+        self.gpr_helper_n().and_then(|n| SAVE_GPR_HELPERS.get(n as usize).copied())
+    }
+
+    /// `__restgprlr_N` — the epilogue helper's external name, or `None`.
+    pub fn rest_gpr_helper_name(&self) -> Option<&'static str> {
+        self.gpr_helper_n().and_then(|n| REST_GPR_HELPERS.get(n as usize).copied())
+    }
+
+    /// The refusal reason for a **Class C** layout — one whose GPR saves go
+    /// through `__savegprlr_N` — or `None`.
+    ///
+    /// This is deliberately a *second* predicate rather than a flag on
+    /// [`Self::out_of_class_ctx`]. That one is the gate every shipped emitter
+    /// runs, and it refuses the helper; widening it would change the verdict of
+    /// every class at once, where the whole safety argument for W-XLR is that
+    /// the helper prologue is reachable **only** from an emitter that asked for
+    /// it by name. A layout that does *not* need the helper is refused here for
+    /// the mirror-image reason: Class C's three-word prologue is wrong for it.
+    pub fn out_of_class_ctx_gpr_helper(&self) -> Option<&'static str> {
+        if !self.needs_gpr_helper() {
+            return Some("frame-gpr-helper-class-without-a-helper");
+        }
+        if self.needs_fpr_helper() {
+            return Some("frame-savefpr-helper");
+        }
+        if self.needs_stack_check() {
+            return Some("frame-rtlcheckstack12");
+        }
+        if self.n_saved() > FRAME_MAX_SAVED_NO_SPILL {
+            return Some("frame-allocator-spill");
+        }
+        None
+    }
+
+    /// **Class C prologue** — `mflr r12` / `bl __savegprlr_N` / `stwu r1,−F(r1)`.
+    ///
+    /// Three words whatever `saved_gprs` is, because the helper does the stores:
+    /// the register saves that Class B open-codes as `std`s between the `stw
+    /// r12,−8(r1)` and the `stwu` are gone, **and so is that `stw`** — the
+    /// helper expects LR in r12 and spills it itself, which is why `mflr r12`
+    /// still runs first. `docs/CODEGEN_FRAMED_CALLS.md` §2.3, and byte for byte
+    /// `work/w-xlr/ref/xlrcimpl/dis.txt` offsets 0x00…0x08.
+    ///
+    /// `base_off` is the function's own `.text` offset; the `bl` word encodes
+    /// `−(its own offset)` in MSVC's placeholder convention, so it is the one
+    /// word here that is not position-independent. The REL24 site is
+    /// `base_off + 4`.
+    pub fn prologue_gpr_helper(&self, base_off: u32) -> Result<Vec<u8>, BackendError> {
+        if let Some(ctx) = self.out_of_class_ctx_gpr_helper() {
+            return Err(out_of_class(ctx));
+        }
+        let neg = i32::try_from(self.size())
+            .ok()
+            .and_then(|v| i16::try_from(-v).ok())
+            .ok_or_else(|| out_of_class("frame larger than a stwu immediate"))?;
+        let mut w: Vec<u8> = Vec::with_capacity(12);
+        w.extend_from_slice(&FRAME_MFLR_R12.to_be_bytes());
+        w.extend_from_slice(&crate::codegen::calls::encode_call_branch(base_off + 4));
+        w.extend_from_slice(&encode_stwu(1, 1, neg));
+        Ok(w)
+    }
+
+    /// **Class C epilogue** — `addi r1,r1,F` / `b __restgprlr_N`, and
+    /// **there is no `blr` at all**.
+    ///
+    /// The helper restores the saved GPRs *and* LR and then returns on the
+    /// caller's behalf, so the function's last word is an **unlinked** REL24
+    /// branch (`LK = 0`). Every other epilogue this port emits ends in
+    /// `0x4E800020`; this one ends in a relocation, which is why it is a
+    /// separate function and not a branch inside [`Self::epilogue`].
+    ///
+    /// The REL24 site is `base_off + 4` — the second of the two words.
+    pub fn epilogue_gpr_helper(&self, base_off: u32) -> Result<Vec<u8>, BackendError> {
+        if let Some(ctx) = self.out_of_class_ctx_gpr_helper() {
+            return Err(out_of_class(ctx));
+        }
+        let pos = i16::try_from(self.size())
+            .map_err(|_| out_of_class("frame larger than an addi immediate"))?;
+        let mut w: Vec<u8> = Vec::with_capacity(8);
+        w.extend_from_slice(&encode_addi(1, 1, pos));
+        w.extend_from_slice(&crate::codegen::calls::encode_tail_branch(base_off + 4));
+        Ok(w)
     }
 
     /// The refusal reason for a layout this emitter cannot produce, or `None`.

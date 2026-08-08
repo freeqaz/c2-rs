@@ -263,6 +263,7 @@ impl SyLocals {
             Some(Some(j)) => SyView {
                 locals: &self.blocks[*j].int_locals,
                 ptr_locals: &self.blocks[*j].ptr_locals,
+                addr_locals: &self.blocks[*j].addr_locals,
                 formals: Formals::Declared(&self.blocks[*j].formals),
             },
             _ => SyView::UNKNOWN,
@@ -380,6 +381,12 @@ pub(crate) struct SyView<'a> {
     /// global would make the walk a memory write and `.gl` absence proves
     /// nothing (`docs/GAPS.md` §6).
     pub(crate) ptr_locals: &'a [u32],
+    /// The width-4 scalar automatics whose address IS taken —
+    /// [`SyBlock::addr_locals`]. One consumer: `shapes::xlrc_create_guard`,
+    /// which needs a **positive** answer to *"is this token a four-byte stack
+    /// object"*, because that is what puts `locals: 4` in its `FrameLayout` and
+    /// a wrong frame size is one silent `stwu` immediate.
+    pub(crate) addr_locals: &'a [u32],
     pub(crate) formals: Formals<'a>,
 }
 
@@ -404,7 +411,7 @@ pub(crate) enum Formals<'a> {
 impl SyView<'_> {
     /// No `.sy` binding: no locals, and formal widths undetermined.
     pub(crate) const UNKNOWN: SyView<'static> =
-        SyView { locals: &[], ptr_locals: &[], formals: Formals::Undetermined };
+        SyView { locals: &[], ptr_locals: &[], addr_locals: &[], formals: Formals::Undetermined };
 
     /// The largest parameter width that provably occupies exactly one GPR.
     ///
@@ -658,6 +665,20 @@ pub(crate) struct SyBlock {
     /// is a live register across a back edge. Merging the two would silently
     /// hand `assign.rs` a pointer to substitute.
     pub(crate) ptr_locals: Vec<u32>,
+    /// **W-XLR — automatic scalars of width 4 whose address IS taken**
+    /// (flags `0x0021`, the bit this module has decoded and *excluded* since
+    /// `w-hash`). A third list rather than a widening of either above, for the
+    /// reason those two are separate: its one consumer wants the opposite fact.
+    /// `int_locals` and `ptr_locals` answer *"may this token be folded into the
+    /// expression that reads it"*; this one answers *"is this token a stack
+    /// object the frame must reserve four bytes for"*, which is only ever true
+    /// when the other two are false.
+    ///
+    /// **Verdict-neutral by construction**: a record reaches this list only on
+    /// the `flags == 0x0021` arm, and the `admissible` predicate that feeds the
+    /// other two requires `flags` to be `0x0001` or `0x0000`. The two
+    /// populations are disjoint by a field, not by an ordering.
+    pub(crate) addr_locals: Vec<u32>,
 }
 
 /// The `.ex` close of a function body's own lexical scope — depth
@@ -755,6 +776,10 @@ const FLAGS_HAS_EXTRA: u16 = 0x0080;
 /// That extra field's value at every witness. Meaning unknown, so required.
 const TYPE_EXTRA_FIELD: [u8; 2] = [0x80, 0x00];
 const TYPE_KIND_INT: u8 = 0x01;
+/// The `.sy` type kind for a plain **unsigned** integer. Its own constant beside
+/// the signed one because the address-taken clause admits both and the two are
+/// separate rows of the 21-cell grid in [`read_record`].
+const TYPE_KIND_UNSIGNED: u8 = 0x02;
 /// `.sy` type kind **`05` = "real"**: the floating-point family, and the field
 /// that says a formal is numbered in the FP register file rather than the GPR
 /// one (`docs/ABI_EDGES.md` §2).
@@ -799,6 +824,9 @@ const TID_INT: u32 = 0x74;
 /// refused, because a bit this module cannot name might mean escape as well.
 const FLAGS_REFERENCED: u16 = 0x0001;
 const FLAGS_NONE: u16 = 0x0000;
+/// Flags bit 5 set: the variable's address escapes. Decoded and *excluded* since
+/// `w-hash`; `w-XLR` gives it a positive list (`SyBlock::addr_locals`).
+const FLAGS_ADDRESS_TAKEN: u16 = 0x0021;
 /// A `.sy` name is an identifier or a mangled name; the bound keeps a corrupt
 /// stream from scanning the rest of the file for a NUL.
 const MAX_NAME: usize = 4096;
@@ -881,20 +909,27 @@ pub(crate) fn sy_blocks(sy: &[u8]) -> Option<Vec<SyBlock>> {
                 };
                 p = next;
                 match rec {
+                    // **W-XLR** — first, because it is the only arm keyed on a
+                    // field the others cannot carry, and putting it first makes
+                    // that visible rather than relying on the `Some(f)`
+                    // fall-through below not catching it.
+                    Record::AddressTaken(f) => block.addr_locals.push(f.tok),
                     // A formal is recorded whatever its type: `parse_formals`
                     // already establishes *which* tokens are formals from `.ex`.
                     // What only this layer knows is each one's **width**, which
                     // decides how many argument registers it occupies — see
                     // [`SyFormal`]. So the type is not gated on here, but the
                     // size is carried out.
-                    Some(f) if depth == DEPTH_FORMALS => block.formals.push(f),
+                    Record::Admitted(f) if depth == DEPTH_FORMALS => block.formals.push(f),
                     // `read_record` admits two local classes and the kind is the
                     // discriminator it already carries; sorting here keeps one
                     // predicate in one place rather than two readers of the
                     // same bytes.
-                    Some(f) if f.kind == TYPE_KIND_DATA_PTR => block.ptr_locals.push(f.tok),
-                    Some(f) => block.int_locals.push(f.tok),
-                    None => {}
+                    Record::Admitted(f) if f.kind == TYPE_KIND_DATA_PTR => {
+                        block.ptr_locals.push(f.tok)
+                    }
+                    Record::Admitted(f) => block.int_locals.push(f.tok),
+                    Record::Stepped => {}
                 }
             }
         }
@@ -1110,7 +1145,7 @@ fn skip_wide_inter_block(sy: &[u8], at: usize) -> Option<usize> {
 /// The distinction matters more than it looks: a record this reader cannot step
 /// over exactly would desync and rebind every later token, so the two outcomes are
 /// "admitted" and "located but refused", never "skipped by scanning".
-fn read_record(sy: &[u8], at: usize, depth: u8) -> Option<(Option<SyFormal>, usize)> {
+fn read_record(sy: &[u8], at: usize, depth: u8) -> Option<(Record, usize)> {
     let mut p = at;
     let tag = *sy.get(p)?;
     p += 1;
@@ -1145,7 +1180,7 @@ fn read_record(sy: &[u8], at: usize, depth: u8) -> Option<(Option<SyFormal>, usi
             return None;
         }
         let (_tid, tw) = read_tid(sy, p + 1)?;
-        return Some((None, p + 1 + tw));
+        return Some((Record::Stepped, p + 1 + tw));
     }
 
     // A `static` carries a different, shorter field region and a second token —
@@ -1183,7 +1218,7 @@ fn read_record(sy: &[u8], at: usize, depth: u8) -> Option<(Option<SyFormal>, usi
         let (_body_tok, bw) = read_token_var(sy, p)?;
         p += bw;
         sy.get(p)?;
-        return Some((None, p + 1));
+        return Some((Record::Stepped, p + 1));
     }
 
     // `<tag> [81] <kind> 00 <cls> 04 <size varint> <b> <flags16 LE> <tid>`.
@@ -1223,7 +1258,7 @@ fn read_record(sy: &[u8], at: usize, depth: u8) -> Option<(Option<SyFormal>, usi
         return None;
     }
     if depth == DEPTH_FORMALS {
-        return Some((Some(SyFormal { tok, size, kind }), p));
+        return Some((Record::Admitted(SyFormal { tok, size, kind }), p));
     }
     // `const` and `volatile` do not change `<kind>`; they move `<tid>` into the
     // constructed-type range, which is why the id is checked and not just the
@@ -1283,7 +1318,45 @@ fn read_record(sy: &[u8], at: usize, depth: u8) -> Option<(Option<SyFormal>, usi
         && type_tag == TYPE_TAG
         && (plain_int || plain_ptr4)
         && (flags == FLAGS_REFERENCED || flags == FLAGS_NONE);
-    Some((admissible.then_some(SyFormal { tok, size, kind }), p))
+    if admissible {
+        return Some((Record::Admitted(SyFormal { tok, size, kind }), p));
+    }
+    // **W-XLR — the ADDRESS-TAKEN width-4 scalar, located POSITIVELY.**
+    //
+    // Everything above this line is unchanged and every record it admits still
+    // reaches `Record::Admitted`, so `int_locals` and `ptr_locals` are
+    // byte-identical to what they were: this arm is reachable only when
+    // `admissible` is false, and `flags == FLAGS_ADDRESS_TAKEN` makes that
+    // certain by a *field* rather than by the order of two tests.
+    //
+    // Narrow on purpose. Only a plain, unqualified, four-byte **integer**
+    // scalar (`kind` 1 signed or 2 unsigned — the `int, &x taken` row of the
+    // 21-cell grid above, and its `unsigned` sibling, which is the witness on
+    // `src/xdk/xlrc/xlrcimpl.cpp`). A pointer whose address is taken, an array,
+    // an aggregate and anything wider are all left `Stepped`, because each of
+    // them reserves a different number of bytes and this list's only consumer
+    // turns membership into `FrameLayout::locals`.
+    let addr_taken = tag == REC_PLAIN
+        && type_tag == TYPE_TAG
+        && size == SIZEOF_INT
+        && matches!(kind, TYPE_KIND_INT | TYPE_KIND_UNSIGNED)
+        && flags == FLAGS_ADDRESS_TAKEN;
+    if addr_taken {
+        return Some((Record::AddressTaken(SyFormal { tok, size, kind }), p));
+    }
+    Some((Record::Stepped, p))
+}
+
+/// What one `.sy` variable record turned out to be. Three outcomes, because
+/// "admitted", "a located memory object of a shape we can size" and "stepped
+/// over" are three different facts and the reader had only two.
+enum Record {
+    /// A formal, or a local a value-substituting parse may fold.
+    Admitted(SyFormal),
+    /// A four-byte scalar automatic whose address escapes — [`SyBlock::addr_locals`].
+    AddressTaken(SyFormal),
+    /// Located exactly, and deliberately not admitted to anything.
+    Stepped,
 }
 
 /// A `.ex` type-table id: one byte below `0x80`, or `80` and a 32-bit
@@ -1912,7 +1985,7 @@ mod tests {
     #[test]
     fn a_cv_qualified_float_formal_is_still_a_floating_point_register() {
         let b = sy_blocks(&block_with(DEPTH_FORMALS, SY_SIX_TYPES)).expect("capture must parse");
-        let view = SyView { locals: &[], ptr_locals: &[], formals: Formals::Declared(&b[0].formals) };
+        let view = SyView { locals: &[], ptr_locals: &[], addr_locals: &[], formals: Formals::Declared(&b[0].formals) };
         // Declaration order, as `.ex`'s formals region gives it.
         let toks = [0xe509u32, 0xe609, 0xe709, 0xe809, 0xe909, 0xea09];
         assert_eq!(
@@ -1943,7 +2016,7 @@ mod tests {
     #[test]
     fn the_fp_file_skips_non_fp_formals_and_the_gpr_file_counts_fp_ones() {
         let b = sy_blocks(&block_with(DEPTH_FORMALS, SY_SIX_TYPES)).expect("capture must parse");
-        let view = SyView { locals: &[], ptr_locals: &[], formals: Formals::Declared(&b[0].formals) };
+        let view = SyView { locals: &[], ptr_locals: &[], addr_locals: &[], formals: Formals::Declared(&b[0].formals) };
         let toks = [0xe509u32, 0xe609, 0xe709, 0xe809, 0xe909, 0xea09];
         let cls = view.arg_classes(&toks).unwrap();
         // FP: a→f1, b→f2, e→f3. The index rule would say f1, f2, f5.
@@ -1970,13 +2043,13 @@ mod tests {
             0x03, 0x04, 0x10, 0x00, 0x81, 0x00, 0x80, 0x00, 0x80, 0x04, 0x1a, 0x00, 0x00,
         ];
         let b = sy_blocks(&block_with(DEPTH_FORMALS, rec)).expect("real capture must parse");
-        let view = SyView { locals: &[], ptr_locals: &[], formals: Formals::Declared(&b[0].formals) };
+        let view = SyView { locals: &[], ptr_locals: &[], addr_locals: &[], formals: Formals::Declared(&b[0].formals) };
         // 16 bytes: the width gate catches it first, which is the outer channel.
         assert_eq!(view.arg_classes(&[0x4651]), Err("param-multi-reg"));
         // …and the class gate is the inner one, for the day the same family
         // appears at a width a GPR could hold.
         let narrow = [SyFormal { tok: 1, size: 4, kind: 0x0d }];
-        let view = SyView { locals: &[], ptr_locals: &[], formals: Formals::Declared(&narrow) };
+        let view = SyView { locals: &[], ptr_locals: &[], addr_locals: &[], formals: Formals::Declared(&narrow) };
         assert_eq!(view.arg_classes(&[1]), Err("param-kind-unknown"));
     }
 
