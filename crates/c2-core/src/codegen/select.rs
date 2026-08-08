@@ -29,6 +29,7 @@ use crate::codegen::ptr_walk_chain_loop::ptr_walk_chain_loop_text;
 use crate::codegen::alloc_init_or_fail::alloc_init_or_fail_text;
 use crate::codegen::osf_handle_guard::osf_handle_guard_text;
 use crate::codegen::xlrc_create_guard::xlrc_create_guard_text;
+use crate::codegen::json_utf8_copy::json_utf8_copy_text;
 use crate::codegen::guard_chain_shared_tail::guard_chain_shared_tail_text;
 use crate::codegen::if_call_join::if_call_join_text;
 use crate::codegen::ptr_walk_loop::ptr_walk_loop_text;
@@ -182,6 +183,9 @@ pub enum Selected {
     /// the only emitter that builds a `__savegprlr_N` frame. Four REL24 sites,
     /// two of them the frame's own helpers.
     XlrcCreateGuard,
+    /// **W-JSON** — the UTF-16 → UTF-8 copy loop, seventy-six words, one back
+    /// edge, a frameless `__savegprlr_28` frame and no call site at all.
+    JsonUtf8Copy,
     /// **W8 — a two-arm conditional tail call.** The body with a zero word at
     /// each of its two tail branches, which the caller fills for the same reason
     /// [`Selected::Tail`] carries an incomplete text: a `b` to an external
@@ -352,6 +356,18 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
         // both writers ask it in exactly one place.
         xlrc_create_guard_text(func.xlrc_create_guard.as_ref().unwrap(), 0, mode)?;
         return Ok(Selected::XlrcCreateGuard);
+    }
+    // **W-JSON — the UTF-16 → UTF-8 copy loop.** Same placement argument as its
+    // five neighbours and the same freedom: the field is set by exactly one
+    // parser production, `func.ops` is empty for it, and no leaf pattern-matcher
+    // can take its body. It is after `xlrc_create_guard` because that class
+    // names a TU that was matched before this one.
+    if func.json_utf8_copy.is_some() {
+        // The mode gate is asked in the emitter as well as in the parser (board
+        // #1638), and calling the emitter here is what makes `function_gate` and
+        // both writers ask it in exactly one place.
+        json_utf8_copy_text(func.json_utf8_copy.as_ref().unwrap(), 0, mode)?;
+        return Ok(Selected::JsonUtf8Copy);
     }
     if func.if_call_join.is_some() {
         // The mode gate lives in the emitter, not here, so that `function_gate`

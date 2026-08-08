@@ -295,6 +295,37 @@ pub fn encode_sth(rs: u8, ra: u8, d: i16) -> [u8; 4] {
     word.to_be_bytes()
 }
 
+/// `sthu rS, D(rA)` — store a halfword **with update**: primary opcode 45, and
+/// `rA` is written back to the effective address.
+///
+/// Pinned to a byte real `c2` emitted rather than to a manual's bit layout:
+/// `sthu r9,2(r4)` at `+0xa8` of `?GetBuffer@JsonWriter@@QAAJPAGPAK@Z` is
+/// `b5240002` (`work/w-json/probe/ref.obj`). It is one bit away from
+/// [`encode_sth`] — primary 45 against 44 — and that bit is a pointer bump the
+/// caller then must not emit itself, which is why the two are separate
+/// functions and the test names both words.
+pub fn encode_sthu(rs: u8, ra: u8, d: i16) -> [u8; 4] {
+    let word: u32 =
+        (45 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
+    word.to_be_bytes()
+}
+
+/// `lhzx rD, rA, rB` — indexed zero-extending halfword load: primary 31,
+/// extended 279.
+///
+/// Pinned to a byte real `c2` emitted: `lhzx r11,r11,r6` at `+0x4c` of
+/// `?GetBuffer@JsonWriter@@QAAJPAGPAK@Z` is `7d6b322e`. The neighbouring
+/// [`encode_lwzx`] is extended **23** and [`encode_lhz`] is a different form
+/// entirely, so this is a third cell and not a parameterization of either.
+pub fn encode_lhzx(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
+    let word: u32 = (31 << 26)
+        | ((rd as u32 & 0x1F) << 21)
+        | ((ra as u32 & 0x1F) << 16)
+        | ((rb as u32 & 0x1F) << 11)
+        | (279 << 1);
+    word.to_be_bytes()
+}
+
 // ---- W6: comparison → boolean materialization encoders ---------------------
 //
 // c2 materializes integer comparisons **branchlessly** — it emits no

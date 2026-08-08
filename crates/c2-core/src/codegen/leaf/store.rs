@@ -1259,6 +1259,7 @@ mod tests {
         alloc_init_or_fail: None,
         osf_handle_guard: None,
         xlrc_create_guard: None,
+        json_utf8_copy: None,
         };
         assert_eq!(
             store_leaf_text(&f, OptMode::Ox).unwrap().unwrap(),
@@ -1377,6 +1378,7 @@ mod tests {
         alloc_init_or_fail: None,
         osf_handle_guard: None,
         xlrc_create_guard: None,
+        json_utf8_copy: None,
         };
         assert_eq!(
             store_leaf_text(&f, OptMode::Ox).unwrap().unwrap(),
@@ -1534,6 +1536,7 @@ mod tests {
         alloc_init_or_fail: None,
         osf_handle_guard: None,
         xlrc_create_guard: None,
+        json_utf8_copy: None,
         };
         assert_eq!(
             store_leaf_text(&f, OptMode::Ox).unwrap().unwrap(),
@@ -1783,6 +1786,7 @@ mod tests {
         alloc_init_or_fail: None,
         osf_handle_guard: None,
         xlrc_create_guard: None,
+        json_utf8_copy: None,
         };
         let lit_group = |b: u32, off: i32, k: i32| {
             vec![

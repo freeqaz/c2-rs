@@ -112,6 +112,7 @@ pub fn selected_tag(s: &codegen::Selected) -> &'static str {
         codegen::Selected::AllocInitOrFail => "alloc-init-or-fail",
         codegen::Selected::OsfHandleGuard => "osf-handle-guard",
         codegen::Selected::XlrcCreateGuard => "xlrc-create-guard",
+        codegen::Selected::JsonUtf8Copy => "json-utf8-copy",
     }
 }
 
@@ -360,6 +361,39 @@ pub(crate) fn body_of<'a>(
                 coff::Call { reloc_offset: body.bl_offsets[1], callee: g.create.as_str() },
                 coff::Call { reloc_offset: body.bl_offsets[2], callee: g.attach.as_str() },
                 coff::Call { reloc_offset: body.bl_offsets[3], callee: rest },
+            ];
+            (body.text, calls)
+        }
+        // **W-JSON — the UTF-16 → UTF-8 copy loop.** TWO REL24 sites and NO
+        // IL-named callee at all: both relocations are the frame's
+        // `__savegprlr_28`/`__restgprlr_28` pair, minted here from the layout,
+        // and their two symbols go to `helper_externals` so the writer places
+        // them after the `$T` label. With no ordinary callee the per-function
+        // callee region is EMPTY, which is a symbol-table cell W-XLR's
+        // two-callee witness does not cover.
+        codegen::Selected::JsonUtf8Copy => {
+            let g = f.json_utf8_copy.as_ref().expect("JsonUtf8Copy implies json_utf8_copy");
+            let body = codegen::json_utf8_copy::json_utf8_copy_text(g, 0, mode)
+                .map_err(ComdatDecline::Shape)?;
+            frame = Some(coff::Frame {
+                prolog_len: body.prolog_len,
+                func_len: body.text.len() as u32,
+            });
+            let fr = codegen::json_utf8_copy::json_frame();
+            let (Some(save), Some(rest)) = (fr.save_gpr_helper_name(), fr.rest_gpr_helper_name())
+            else {
+                return Err(ComdatDecline::Shape(crate::BackendError::NotImplemented(
+                    "json-utf8-copy: no `__savegprlr_N` name for this layout".to_string(),
+                )));
+            };
+            // Reverse first-reference over the two helper sites, the same rule
+            // `introduced_externals` applies: the save is the prologue's word
+            // and the restore is the function's last, so the restore's symbol is
+            // the earlier record.
+            helper_externals = vec![rest, save];
+            let calls = vec![
+                coff::Call { reloc_offset: body.bl_offsets[0], callee: save },
+                coff::Call { reloc_offset: body.bl_offsets[1], callee: rest },
             ];
             (body.text, calls)
         }

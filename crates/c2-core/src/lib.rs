@@ -895,6 +895,22 @@ impl PortC2 {
                             .to_string(),
                     ));
                 }
+                // **W-JSON — refused in the PACKED layout, not emitted**, for
+                // exactly W-XLR's reason: every witness of the helper pair's
+                // symbol placement is a `/Gy` obj with a `$T` to put them after,
+                // and the packed symbol table has none. The class is `/O1` only
+                // and `/O1` implies `/Gy`, so this arm is unreachable from the
+                // workload and exists so the `/Ox` gate lane gets a refusal
+                // instead of a guess.
+                codegen::Selected::JsonUtf8Copy => {
+                    return Err(BackendError::NotImplemented(
+                        "the frameless `__savegprlr_N` frame class in the PACKED \
+                         (non-`/Gy`) layout: the helper pair's symbol records are \
+                         witnessed only after a `$T` label, which the packed symbol \
+                         table does not have"
+                            .to_string(),
+                    ));
+                }
                 codegen::Selected::OsfHandleGuard => {
                     let g = f
                         .osf_handle_guard

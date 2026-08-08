@@ -1777,6 +1777,57 @@ pub struct XlrcCreateGuard {
     pub k_fail: i32,
 }
 
+/// **W-JSON — the UTF-16 → UTF-8 copy loop.**
+///
+/// `src/xdk/xjson/jsonwriter.cpp`'s only emitted function
+/// (`?GetBuffer@JsonWriter@@QAAJPAGPAK@Z`), and the first body class this port
+/// emits that contains a **back edge** and the first whose frame saves GPRs and
+/// allocates **no stack frame at all**. See
+/// [`crate::func::body::shapes::json_utf8_copy`] for the source shape and the
+/// fence, and `c2_core::codegen::json_utf8_copy` for the seventy-six words.
+///
+/// **Four values move and nothing else does.** Every UTF-8 constant in the body
+/// — `0x7F`, `0x7FF`, `0xC0`, `0xE0`, `0x80`, the two `rlwimi` rotate/mask
+/// triples and the `clrlwi` width — is PINNED in the emitter and refused by the
+/// recognizer, because varying any one of them without the others is a program
+/// this class has no witness of. #1767's rule applied at its strict end.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct JsonUtf8Copy {
+    /// `this` and the two formals, in declaration order: `this` in r3, the
+    /// buffer in r4 and the size in r5. THREE, and the count is pinned because
+    /// it decides which registers the body's guards read.
+    pub params: Vec<u32>,
+    /// The byte offset of the UTF-16 buffer member — one `lwz` displacement.
+    pub off_buffer: i32,
+    /// The byte offset of the element-count member — two `lwz` displacements,
+    /// the entry guard's and the loop test's, and required equal by the reader.
+    pub off_size: i32,
+    /// The status returned for a bad argument (`0x80070057` on the witness).
+    /// Its own `lis`+`ori` pair; both halves must be non-zero.
+    pub k_arg_err: i32,
+    /// The status returned when the output did not fit (`0x803F0005`). Its own
+    /// `lis`+`ori` pair in the other block.
+    pub k_size_err: i32,
+}
+
+/// [`JsonUtf8Copy`] as the emitter needs it. This class names **no callee and
+/// no data symbol**, so nothing is resolved and the shape travels unchanged —
+/// the two `__savegprlr_28`/`__restgprlr_28` relocations are minted by
+/// `c2_core::codegen::FrameLayout` from `saved_gprs`, exactly as W-XLR's are.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct JsonUtf8CopyFn {
+    /// Exactly as [`JsonUtf8Copy::params`].
+    pub params: Vec<u32>,
+    /// Exactly as [`JsonUtf8Copy::off_buffer`].
+    pub off_buffer: i32,
+    /// Exactly as [`JsonUtf8Copy::off_size`].
+    pub off_size: i32,
+    /// Exactly as [`JsonUtf8Copy::k_arg_err`].
+    pub k_arg_err: i32,
+    /// Exactly as [`JsonUtf8Copy::k_size_err`].
+    pub k_size_err: i32,
+}
+
 /// [`XlrcCreateGuard`] with its two callee tokens resolved to mangled names.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct XlrcCreateGuardFn {
@@ -2448,6 +2499,9 @@ pub struct IlFunction {
     /// **W-XLR** — the two-stage create/attach guard, or `None`. The only body
     /// kind whose frame uses the `__savegprlr_N`/`__restgprlr_N` helper.
     pub xlrc_create_guard: Option<XlrcCreateGuardFn>,
+    /// **W-JSON** — the UTF-16 → UTF-8 copy loop, when the body is exactly that
+    /// class. Set by exactly one parser production; `ops` is empty for it.
+    pub json_utf8_copy: Option<JsonUtf8CopyFn>,
     /// True iff this function's body is **empty** (`void f() {}`): no expression at
     /// all, so codegen emits a bare `blr`. Mutually exclusive with the other body
     /// kinds.
@@ -2602,6 +2656,7 @@ impl IlFunction {
             alloc_init_or_fail: None,
             osf_handle_guard: None,
             xlrc_create_guard: None,
+            json_utf8_copy: None,
             empty_body: false,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
@@ -2760,6 +2815,7 @@ impl IlFunction {
             || self.alloc_init_or_fail.is_some()
             || self.osf_handle_guard.is_some()
             || self.xlrc_create_guard.is_some()
+            || self.json_utf8_copy.is_some()
     }
 
     /// **Label-counter slots this function takes BEFORE its own `$M` triple.**
@@ -2902,6 +2958,34 @@ impl IlFunction {
             // is the point — a refuted rule replaced by a second guess would be
             // worth less than a refuted rule and an honest gap.
             + 2 * u32::from(self.xlrc_create_guard.is_some())
+            // **W-JSON charges FOUR slots before its own triple, and
+            // `docs/LABEL_COUNTER.md` §1.1's surcharge table predicts TWO.**
+            //
+            // Measured before a byte was emitted, the same seed-free way the
+            // arm above was: `jsonwriter.cpp`'s `.gl` label counter is **2578**,
+            // `plan_labels` seeds at `2578 + 9 + 3·1 = 2590`, and the reference
+            // obj's labels are `$M2594`/`$M2595`/`$T2596`. The lead is forced to
+            // exactly **4**.
+            //
+            // §1.1 charges this function `+2` for the first-introduced
+            // `__savegprlr_28`/`__restgprlr_28` pair and nothing else: there is
+            // no floating point anywhere (`_fltused` +1), no pooled FP constant
+            // (+2) and no signed `>`/`<` over two call results (+2) — this body
+            // makes no call at all. So the table is **two low on this class**,
+            // and the number here is the obj's, not the table's.
+            //
+            // Both counterfactuals were built and scanned against real `c2.dll`:
+            // a lead of 0 and a lead of 2 each make `jsonwriter.cpp` read
+            // `mismatch (bytes diverge)`, and only 4 makes it `match`.
+            //
+            // **No mechanism is proposed for the extra +2.** The honest
+            // candidate is that this is the port's first framed body with a
+            // BACK EDGE and §1.1's "an intra-section branch costs nothing at any
+            // count" was measured on 29 probes that are all `if`/`else` shapes —
+            // but that is one witness, and `w-xlr`'s refutation of the
+            // `b`-counting rule is exactly what a second one-witness rule buys
+            // you. The number is recorded; the gap is left open.
+            + 4 * u32::from(self.json_utf8_copy.is_some())
     }
 
     /// Every external this function calls, in **first-reference order** — which is

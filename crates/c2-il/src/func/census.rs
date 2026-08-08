@@ -628,6 +628,15 @@ impl IlBundle {
                             Ok(BodyShape::XlrcCreateGuard(_)) => {
                                 FnVerdict::InClass("xlrc-create-guard")
                             }
+                            // **W-JSON** — its own bucket for the same reason,
+                            // and one more: it is the first in-class shape with
+                            // a BACK EDGE, so the `cflow-loop` axis can report
+                            // an in-class row against it and the rung's gain is
+                            // attributable to this production rather than to one
+                            // of the four pointer-walk loops.
+                            Ok(BodyShape::JsonUtf8Copy(_)) => {
+                                FnVerdict::InClass("json-utf8-copy")
+                            }
                             // **W-DATA — the static-array scan loop.** Its own
                             // bucket, like every other whole-body shape, so the
                             // `cflow-loop` axis can report an in-class row
