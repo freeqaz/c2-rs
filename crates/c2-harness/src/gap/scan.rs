@@ -645,9 +645,13 @@ fn scan_one(
     //       * `alias-inref-*` — the reachable population at the resolution
     //         site, whatever any writer does with it.
     //       * `alias-datatu-relocs-alias` / `alias-emit-names` — the *live*
-    //         population. **KNOWN ANSWER 0 for both**, and a nonzero is a
-    //         relocation naming `??_E<X>` where c2 names `??_G<X>`, which is
-    //         board #232's shape and an alarm rather than a gap.
+    //         population, i.e. what the port would name today. **KNOWN ANSWER
+    //         0 for both**, and both are currently a **zero denominator**
+    //         (`alias-datatu-relocs` is 0), which is printed as a zero
+    //         denominator and never as a passed test.
+    //
+    //       …and a fifth group, `alias-weak-*` / `alias-rule-*`, which is
+    //       where the channel's real obj-level observable turned out to be.
     //
     //       Every key prints its zero, and the nulls are counts and not
     //       statuses (`docs/STATUS.md` trap 5).
@@ -710,13 +714,17 @@ fn scan_one(
         // So: read the real obj's own relocation targets, over **every**
         // section, and count how many name a `dom(alias)` symbol.
         //
-        // `alias-obj-reloc-alias` is the number that says whether resolving is
-        // right: **0 means c2 resolves the alias before it writes the record**,
-        // which is what a consumer must then do too. `alias-obj-reloc-target`
-        // is the same count for the alias's *target*, and it is printed beside
-        // it so that `0` cannot be read as *"vftable relocations were not in
-        // this population"* — a zero denominator is not a passed test
-        // (`w-emitp` §4's `StreamNull.cpp` rule).
+        // `alias-obj-reloc-alias` is the number that decides it, and **it is
+        // 4,248 over 675 of 871 objs**: c2 does NOT resolve, it leaves the
+        // record naming `??_E<X>` at the vftable slot (`.rdata`, `ADDR32`) and
+        // at an adjustor thunk's branch (`.text`, `REL24`). A consumer that
+        // "resolved" here would write a name c2 never writes.
+        //
+        // `alias-obj-reloc-target` is the same count for the alias's *target*
+        // and is printed beside it so that a `0` on either could never be read
+        // as *"vftable relocations were not in this population"* — a zero
+        // denominator is not a passed test (`w-emitp` §4's `StreamNull.cpp`
+        // rule).
         if let Some(rows) = captured.ref_obj.relocs_named() {
             let tgts: std::collections::BTreeSet<&str> =
                 alias.iter_names().map(|(_, t)| t).collect();
