@@ -1,0 +1,10 @@
+== part A: expr_sweep.sh at 16 workers, one killed mid-chunk ==
+   sweep pid 3884241 has 16 worker subshells
+   killing worker 3886602 (and its own children) with SIGKILL
+   expr_sweep.sh exit status: 3
+-- the last 4 lines of its output --
+checked=734 mismatches=0 graded=732 ungraded=2 unknown=0
+FATAL: selected 783 cases and only 734 were graded
+  15 of 16 workers reported a count. A short count is a worker
+  that died; the cases it held were never graded and this run establishes
+  nothing about them.

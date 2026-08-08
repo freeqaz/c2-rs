@@ -1,0 +1,98 @@
+MUST-FAIL EVIDENCE for the cli_flags split (lane w-throughput, 2026-08-08)
+==========================================================================
+
+The split replaces one `#[test]` running eleven invocations serially with four
+`#[test]`s over one roster. `docs/GAPS.md` records a case where an early guard
+made later assertions unreachable and the mutation demonstration "passed while
+demonstrating nothing", so each of the three expensive invocations is mutated
+SEPARATELY and each is shown to redden its own test and NO OTHER.
+
+Mutation method: change one roster row's argv to something `c2rs` refuses
+(exit 2), rebuild, run. The commands and the assertion are otherwise untouched.
+
+-------------------------------------------------------------------------------
+1. (Selftest, vec!["selftest"])  ->  vec!["selftest", "--no-such-flag"]
+
+test every_invocation_the_scripts_make_is_still_accepted_selftest ... FAILED
+
+thread 'every_invocation_the_scripts_make_is_still_accepted_selftest' panicked at
+crates/c2-harness/tests/cli_flags.rs:1013:9:
+assertion `left != right` failed: `c2rs selftest --no-such-flag` is an invocation
+`scripts/` makes and the parser REFUSED it. The seam is a widening plus a set of
+refusals for arguments that were being dropped; it must not narrow a working
+command line.
+stderr:
+selftest: unknown option: --no-such-flag
+
+  left: Some(2)
+ right: Some(2)
+
+-------------------------------------------------------------------------------
+2. (Bench, vec!["bench"])  ->  vec!["bench", "--jobs", "4"]
+
+test every_invocation_the_scripts_make_is_still_accepted_bench ... FAILED
+
+thread 'every_invocation_the_scripts_make_is_still_accepted_bench' panicked at
+crates/c2-harness/tests/cli_flags.rs:1013:9:
+assertion `left != right` failed: `c2rs bench --jobs 4` is an invocation
+`scripts/` makes and the parser REFUSED it. The seam is a widening plus a set of
+refusals for arguments that were being dropped; it must not narrow a working
+command line.
+stderr:
+bench: unknown option: --jobs
+
+  left: Some(2)
+ right: Some(2)
+
+-------------------------------------------------------------------------------
+3. (Perf, vec!["perf"])  ->  vec!["perf", "--no-such-flag"]
+
+test every_invocation_the_scripts_make_is_still_accepted_perf ... FAILED
+
+thread 'every_invocation_the_scripts_make_is_still_accepted_perf' panicked at
+crates/c2-harness/tests/cli_flags.rs:1013:9:
+assertion `left != right` failed: `c2rs perf --no-such-flag` is an invocation
+`scripts/` makes and the parser REFUSED it. The seam is a widening plus a set of
+refusals for arguments that were being dropped; it must not narrow a working
+command line.
+stderr:
+perf: unknown option: --no-such-flag
+
+  left: Some(2)
+ right: Some(2)
+
+-------------------------------------------------------------------------------
+4. INDEPENDENCE — one mutation, all four groups run.
+
+With ONLY mutation 1 applied, all four `..._accepted_*` tests were run together:
+
+    test every_invocation_the_scripts_make_is_still_accepted_selftest ... FAILED
+    test every_invocation_the_scripts_make_is_still_accepted_rest ... ok
+    test every_invocation_the_scripts_make_is_still_accepted_bench ... ok
+    test every_invocation_the_scripts_make_is_still_accepted_perf ... ok
+    test result: FAILED. 3 passed; 1 failed; ... finished in 190.64s
+
+Exactly one test is red. When these eleven invocations were one `#[test]`, the
+`for` loop aborted on the first failure and the invocations after it never ran —
+so this is strictly MORE evidence per red than before the split, not less.
+(190.64 s: the box was simultaneously running this lane's baseline `gate.sh`
+cross leg over a cold capture cache. It is not a timing measurement.)
+
+-------------------------------------------------------------------------------
+5. THE ROSTER CONTROL — an invocation deleted rather than broken.
+
+Deleting `(Rest, vec!["prefilter", "--schema"])` from the roster:
+
+test the_split_is_a_partition_of_the_roster ... FAILED
+
+thread 'the_split_is_a_partition_of_the_roster' panicked at
+crates/c2-harness/tests/cli_flags.rs:1065:5:
+assertion `left == right` failed: the roster held 11 invocations when it was one
+test; it holds 10. An invocation removed from here stops being checked at all,
+and nothing else in this file would notice.
+  left: 10
+ right: 11
+
+This is the check the split itself creates the need for: four hand-copied lists
+would have four places to lose an invocation in, and a lost invocation is a
+check that silently stops running.
