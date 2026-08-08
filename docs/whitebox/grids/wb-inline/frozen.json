@@ -1,0 +1,2417 @@
+[
+ {
+  "id": "A_O1_k4",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 4,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1_k10",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 10,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1_k14",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 14,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1_k16",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 16,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1_k18",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 18,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1_k24",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 24,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1_k32",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 32,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1_k38",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 38,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1_k42",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 42,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1_k50",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 50,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1_k62",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 62,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1_k66",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 66,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1_k80",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 80,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "A_O1_k120",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 120,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "A_O1_k130",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 130,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "A_O2_k4",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 4,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2_k10",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 10,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2_k14",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 14,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2_k16",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 16,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2_k18",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 18,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2_k24",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 24,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2_k32",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 32,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2_k38",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 38,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2_k42",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 42,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2_k50",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 50,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2_k62",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 62,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2_k66",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 66,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2_k80",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 80,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "A_O2_k120",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 120,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "A_O2_k130",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 130,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "A_O1Ot_k4",
+  "kind": "ladder",
+  "mode": "O1Ot",
+  "k": 4,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ot_k10",
+  "kind": "ladder",
+  "mode": "O1Ot",
+  "k": 10,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ot_k14",
+  "kind": "ladder",
+  "mode": "O1Ot",
+  "k": 14,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ot_k16",
+  "kind": "ladder",
+  "mode": "O1Ot",
+  "k": 16,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ot_k18",
+  "kind": "ladder",
+  "mode": "O1Ot",
+  "k": 18,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ot_k24",
+  "kind": "ladder",
+  "mode": "O1Ot",
+  "k": 24,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ot_k32",
+  "kind": "ladder",
+  "mode": "O1Ot",
+  "k": 32,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ot_k38",
+  "kind": "ladder",
+  "mode": "O1Ot",
+  "k": 38,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ot_k42",
+  "kind": "ladder",
+  "mode": "O1Ot",
+  "k": 42,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ot_k50",
+  "kind": "ladder",
+  "mode": "O1Ot",
+  "k": 50,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ot_k62",
+  "kind": "ladder",
+  "mode": "O1Ot",
+  "k": 62,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ot_k66",
+  "kind": "ladder",
+  "mode": "O1Ot",
+  "k": 66,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ot_k80",
+  "kind": "ladder",
+  "mode": "O1Ot",
+  "k": 80,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "A_O1Ot_k120",
+  "kind": "ladder",
+  "mode": "O1Ot",
+  "k": 120,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "A_O1Ot_k130",
+  "kind": "ladder",
+  "mode": "O1Ot",
+  "k": 130,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "A_O2Os_k4",
+  "kind": "ladder",
+  "mode": "O2Os",
+  "k": 4,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2Os_k10",
+  "kind": "ladder",
+  "mode": "O2Os",
+  "k": 10,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2Os_k14",
+  "kind": "ladder",
+  "mode": "O2Os",
+  "k": 14,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2Os_k16",
+  "kind": "ladder",
+  "mode": "O2Os",
+  "k": 16,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2Os_k18",
+  "kind": "ladder",
+  "mode": "O2Os",
+  "k": 18,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2Os_k24",
+  "kind": "ladder",
+  "mode": "O2Os",
+  "k": 24,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2Os_k32",
+  "kind": "ladder",
+  "mode": "O2Os",
+  "k": 32,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2Os_k38",
+  "kind": "ladder",
+  "mode": "O2Os",
+  "k": 38,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2Os_k42",
+  "kind": "ladder",
+  "mode": "O2Os",
+  "k": 42,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2Os_k50",
+  "kind": "ladder",
+  "mode": "O2Os",
+  "k": 50,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2Os_k62",
+  "kind": "ladder",
+  "mode": "O2Os",
+  "k": 62,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2Os_k66",
+  "kind": "ladder",
+  "mode": "O2Os",
+  "k": 66,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O2Os_k80",
+  "kind": "ladder",
+  "mode": "O2Os",
+  "k": 80,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "A_O2Os_k120",
+  "kind": "ladder",
+  "mode": "O2Os",
+  "k": 120,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "A_O2Os_k130",
+  "kind": "ladder",
+  "mode": "O2Os",
+  "k": 130,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "A_O1Ob0_k4",
+  "kind": "ladder",
+  "mode": "O1Ob0",
+  "k": 4,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "called",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ob0_k10",
+  "kind": "ladder",
+  "mode": "O1Ob0",
+  "k": 10,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "called",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ob0_k14",
+  "kind": "ladder",
+  "mode": "O1Ob0",
+  "k": 14,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "called",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ob0_k16",
+  "kind": "ladder",
+  "mode": "O1Ob0",
+  "k": 16,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "called",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ob0_k18",
+  "kind": "ladder",
+  "mode": "O1Ob0",
+  "k": 18,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "called",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ob0_k24",
+  "kind": "ladder",
+  "mode": "O1Ob0",
+  "k": 24,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "called",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ob0_k32",
+  "kind": "ladder",
+  "mode": "O1Ob0",
+  "k": 32,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "called",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ob0_k38",
+  "kind": "ladder",
+  "mode": "O1Ob0",
+  "k": 38,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "called",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ob0_k42",
+  "kind": "ladder",
+  "mode": "O1Ob0",
+  "k": 42,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "called",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ob0_k50",
+  "kind": "ladder",
+  "mode": "O1Ob0",
+  "k": 50,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "called",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ob0_k62",
+  "kind": "ladder",
+  "mode": "O1Ob0",
+  "k": 62,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "called",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ob0_k66",
+  "kind": "ladder",
+  "mode": "O1Ob0",
+  "k": 66,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "called",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "A_O1Ob0_k80",
+  "kind": "ladder",
+  "mode": "O1Ob0",
+  "k": 80,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "called",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "A_O1Ob0_k120",
+  "kind": "ladder",
+  "mode": "O1Ob0",
+  "k": 120,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "called",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "A_O1Ob0_k130",
+  "kind": "ladder",
+  "mode": "O1Ob0",
+  "k": 130,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "called",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "B_O1_k4",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 4,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O1_k10",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 10,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O1_k14",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 14,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O1_k16",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 16,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O1_k18",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 18,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O1_k24",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 24,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O1_k32",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 32,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O1_k38",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 38,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O1_k42",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 42,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O1_k50",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 50,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O1_k62",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 62,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O1_k66",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 66,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O1_k80",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 80,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "B_O1_k120",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 120,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "B_O1_k130",
+  "kind": "ladder",
+  "mode": "O1",
+  "k": 130,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "B_O2_k4",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 4,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O2_k10",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 10,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O2_k14",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 14,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O2_k16",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 16,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O2_k18",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 18,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O2_k24",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 24,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O2_k32",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 32,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O2_k38",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 38,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O2_k42",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 42,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O2_k50",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 50,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O2_k62",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 62,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O2_k66",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 66,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "B_O2_k80",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 80,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "B_O2_k120",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 120,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "B_O2_k130",
+  "kind": "ladder",
+  "mode": "O2",
+  "k": 130,
+  "n": 1,
+  "linkage": "extern",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "C_O1_k10_n1",
+  "kind": "sites",
+  "mode": "O1",
+  "k": 10,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "C_O1_k10_n3",
+  "kind": "sites",
+  "mode": "O1",
+  "k": 10,
+  "n": 3,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "C_O1_k10_n9",
+  "kind": "sites",
+  "mode": "O1",
+  "k": 10,
+  "n": 9,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "C_O1_k24_n1",
+  "kind": "sites",
+  "mode": "O1",
+  "k": 24,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "C_O1_k24_n3",
+  "kind": "sites",
+  "mode": "O1",
+  "k": 24,
+  "n": 3,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "C_O1_k24_n9",
+  "kind": "sites",
+  "mode": "O1",
+  "k": 24,
+  "n": 9,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "C_O1_k50_n1",
+  "kind": "sites",
+  "mode": "O1",
+  "k": 50,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "C_O1_k50_n3",
+  "kind": "sites",
+  "mode": "O1",
+  "k": 50,
+  "n": 3,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "C_O1_k50_n9",
+  "kind": "sites",
+  "mode": "O1",
+  "k": 50,
+  "n": 9,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "C_O2_k10_n1",
+  "kind": "sites",
+  "mode": "O2",
+  "k": 10,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "C_O2_k10_n3",
+  "kind": "sites",
+  "mode": "O2",
+  "k": 10,
+  "n": 3,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "C_O2_k10_n9",
+  "kind": "sites",
+  "mode": "O2",
+  "k": 10,
+  "n": 9,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "C_O2_k24_n1",
+  "kind": "sites",
+  "mode": "O2",
+  "k": 24,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "C_O2_k24_n3",
+  "kind": "sites",
+  "mode": "O2",
+  "k": 24,
+  "n": 3,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "C_O2_k24_n9",
+  "kind": "sites",
+  "mode": "O2",
+  "k": 24,
+  "n": 9,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "C_O2_k50_n1",
+  "kind": "sites",
+  "mode": "O2",
+  "k": 50,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "C_O2_k50_n3",
+  "kind": "sites",
+  "mode": "O2",
+  "k": 50,
+  "n": 3,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "C_O2_k50_n9",
+  "kind": "sites",
+  "mode": "O2",
+  "k": 50,
+  "n": 9,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "D_O1_k24_b0",
+  "kind": "caller",
+  "mode": "O1",
+  "k": 24,
+  "n": 1,
+  "bulk": 0,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "D_O1_k24_b700",
+  "kind": "caller",
+  "mode": "O1",
+  "k": 24,
+  "n": 1,
+  "bulk": 700,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "D_O1_k50_b0",
+  "kind": "caller",
+  "mode": "O1",
+  "k": 50,
+  "n": 1,
+  "bulk": 0,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "D_O1_k50_b700",
+  "kind": "caller",
+  "mode": "O1",
+  "k": 50,
+  "n": 1,
+  "bulk": 700,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "D_O1_k120_b0",
+  "kind": "caller",
+  "mode": "O1",
+  "k": 120,
+  "n": 1,
+  "bulk": 0,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "D_O1_k120_b700",
+  "kind": "caller",
+  "mode": "O1",
+  "k": 120,
+  "n": 1,
+  "bulk": 700,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "D_O2_k24_b0",
+  "kind": "caller",
+  "mode": "O2",
+  "k": 24,
+  "n": 1,
+  "bulk": 0,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "D_O2_k24_b700",
+  "kind": "caller",
+  "mode": "O2",
+  "k": 24,
+  "n": 1,
+  "bulk": 700,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "D_O2_k50_b0",
+  "kind": "caller",
+  "mode": "O2",
+  "k": 50,
+  "n": 1,
+  "bulk": 0,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "D_O2_k50_b700",
+  "kind": "caller",
+  "mode": "O2",
+  "k": 50,
+  "n": 1,
+  "bulk": 700,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "D_O2_k120_b0",
+  "kind": "caller",
+  "mode": "O2",
+  "k": 120,
+  "n": 1,
+  "bulk": 0,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "D_O2_k120_b700",
+  "kind": "caller",
+  "mode": "O2",
+  "k": 120,
+  "n": 1,
+  "bulk": 700,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "E_O1_k24",
+  "kind": "cond",
+  "mode": "O1",
+  "k": 24,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "E_O1_k50",
+  "kind": "cond",
+  "mode": "O1",
+  "k": 50,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "E_O1_k120",
+  "kind": "cond",
+  "mode": "O1",
+  "k": 120,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "E_O2_k24",
+  "kind": "cond",
+  "mode": "O2",
+  "k": 24,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "E_O2_k50",
+  "kind": "cond",
+  "mode": "O2",
+  "k": 50,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "E_O2_k120",
+  "kind": "cond",
+  "mode": "O2",
+  "k": 120,
+  "n": 1,
+  "linkage": "static",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "F_force_O1",
+  "kind": "cat",
+  "mode": "O1",
+  "k": 120,
+  "n": 1,
+  "linkage": "static",
+  "tag": "forceinline",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "F_varargs_O1",
+  "kind": "cat",
+  "mode": "O1",
+  "k": 6,
+  "n": 1,
+  "linkage": "static",
+  "tag": "varargs",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "called",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "F_recurse_O1",
+  "kind": "cat",
+  "mode": "O1",
+  "k": 6,
+  "n": 1,
+  "linkage": "static",
+  "tag": "recurse",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "F_small_O1",
+  "kind": "cat",
+  "mode": "O1",
+  "k": 6,
+  "n": 1,
+  "linkage": "static",
+  "tag": "small",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "F_force_O2",
+  "kind": "cat",
+  "mode": "O2",
+  "k": 120,
+  "n": 1,
+  "linkage": "static",
+  "tag": "forceinline",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "F_varargs_O2",
+  "kind": "cat",
+  "mode": "O2",
+  "k": 6,
+  "n": 1,
+  "linkage": "static",
+  "tag": "varargs",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "called",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "F_recurse_O2",
+  "kind": "cat",
+  "mode": "O2",
+  "k": 6,
+  "n": 1,
+  "linkage": "static",
+  "tag": "recurse",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "F_small_O2",
+  "kind": "cat",
+  "mode": "O2",
+  "k": 6,
+  "n": 1,
+  "linkage": "static",
+  "tag": "small",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "F_force_O1Ob0",
+  "kind": "cat",
+  "mode": "O1Ob0",
+  "k": 120,
+  "n": 1,
+  "linkage": "static",
+  "tag": "forceinline",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "called",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "F_varargs_O1Ob0",
+  "kind": "cat",
+  "mode": "O1Ob0",
+  "k": 6,
+  "n": 1,
+  "linkage": "static",
+  "tag": "varargs",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "called",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "F_recurse_O1Ob0",
+  "kind": "cat",
+  "mode": "O1Ob0",
+  "k": 6,
+  "n": 1,
+  "linkage": "static",
+  "tag": "recurse",
+  "pred": {
+   "R1-INCUMBENT": "called",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "called",
+   "R5-NOSITES": "called"
+  }
+ },
+ {
+  "id": "F_small_O1Ob0",
+  "kind": "cat",
+  "mode": "O1Ob0",
+  "k": 6,
+  "n": 1,
+  "linkage": "static",
+  "tag": "small",
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "called",
+   "R3-SIZE64": "inlined",
+   "R4-OBLEVEL": "called",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "G_O1_k18",
+  "kind": "anchor",
+  "mode": "O1",
+  "k": 18,
+  "n": 1,
+  "linkage": "extern",
+  "multi": true,
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "G_O1_k22",
+  "kind": "anchor",
+  "mode": "O1",
+  "k": 22,
+  "n": 1,
+  "linkage": "extern",
+  "multi": true,
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "G_O1_k26",
+  "kind": "anchor",
+  "mode": "O1",
+  "k": 26,
+  "n": 1,
+  "linkage": "extern",
+  "multi": true,
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "G_O2_k18",
+  "kind": "anchor",
+  "mode": "O2",
+  "k": 18,
+  "n": 1,
+  "linkage": "extern",
+  "multi": true,
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "G_O2_k22",
+  "kind": "anchor",
+  "mode": "O2",
+  "k": 22,
+  "n": 1,
+  "linkage": "extern",
+  "multi": true,
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ },
+ {
+  "id": "G_O2_k26",
+  "kind": "anchor",
+  "mode": "O2",
+  "k": 26,
+  "n": 1,
+  "linkage": "extern",
+  "multi": true,
+  "pred": {
+   "R1-INCUMBENT": "inlined",
+   "R2-CEILING": "inlined",
+   "R3-SIZE64": "called",
+   "R4-OBLEVEL": "inlined",
+   "R5-NOSITES": "inlined"
+  }
+ }
+]
