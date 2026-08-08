@@ -1,0 +1,68 @@
+TUs with a .ex: 876    bodies (LO-anchored): 2462951
+ANCHOR A: reached a `5C` 335716 · walked to the tail with no `5C` 2043658 · ABANDONED 83577
+  abandonment by opcode: [('0x00', 39162), ('0x59', 20550), ('0x60', 9641), ('0x08', 8232), ('0xBC', 730), ('0x27', 702), ('0xE6', 695), ('0xD6', 694), ('0xF6', 693), ('0xC6', 692), ('0x87', 691), ('0x3B', 240)]
+
+-- ANCHOR A — first `5C` per body, walked from the `LO` marker (NON-CIRCULAR)   (n = 335716) --
+   The walk stops AT the `5C` and the EH family supplies no width to it.
+   reading   desync/n            lands on 4B          undecidable
+   P           335716  100.000 %           0    0.00 %          0
+   V           130991  39.018 %           0    0.00 %          0
+   T           210570  62.723 %           0    0.00 %          0
+   TV               0   0.000 %      275112   81.95 %          0
+   TT           59181  17.628 %           1    0.00 %          0
+   room for a payload at all (next byte has bit 7 set): 335716  (100.00 %)
+   TV TYPE byte-lengths: {3: 197660, 4: 64437, 5: 65173, 6: 7197, 7: 1249}
+   TV state: ESCAPED (`80 <LE32>`) 0 of 335716;  top values [(1, 210570), (3, 81625), (2, 37109), (4, 4033), (65, 2217), (67, 162)]
+   P    lands on: ['86:271905', 'C6:30902', '82:13830', 'C7:13595', 'A6:3518', '87:1962']
+   V    lands on: ['41:139362', '42:58293', '43:50443', '81:44501', '86:16109', '16:13825']
+   T    lands on: ['01:210570', '03:81625', '02:37109', '04:4033', '41:2217', '43:162']
+   TV   lands on: ['4B:275112', '9B:50692', '55:9007', '99:717', '26:158', '30:30']
+   TT   lands on: ['3A:94353', '26:80876', '33:41021', '4F:39122', 'B9:18378', '86:9309']
+
+-- ANCHOR B — `55 <TYPE> 4C 5C`, WALK-FREE   (n = 37742) --
+   w-4c's argument-closing call-end with a `5C` after it. A different bias.
+   reading   desync/n            lands on 4B          undecidable
+   P            37742  100.000 %           0    0.00 %          0
+   V               66   0.175 %           0    0.00 %          0
+   T              230   0.609 %           0    0.00 %          0
+   TV               0   0.000 %         230    0.61 %          0
+   TT           36275  96.113 %           0    0.00 %          0
+   room for a payload at all (next byte has bit 7 set): 37742  (100.00 %)
+   TV TYPE byte-lengths: {3: 230, 4: 24764, 5: 12748}
+   TV state: ESCAPED (`80 <LE32>`) 0 of 37742;  top values [(2, 37512), (1, 230)]
+   P    lands on: ['86:37676', '82:66']
+   V    lands on: ['43:37512', '41:164', '07:66']
+   T    lands on: ['02:37512', '01:230']
+   TV   lands on: ['9B:37512', '4B:230']
+   TT   lands on: ['D5:7869', 'E0:908', 'A6:778', 'A2:650', 'D7:442', 'C2:426']
+
+-- PASS C — every `5C` a body reaches once the CLAIM's width is assumed (CIRCULAR)   (n = 417932) --
+   Reported for the per-body multiplicity only. NEVER the claim.
+   reading   desync/n            lands on 4B          undecidable
+   P           417932  100.000 %           0    0.00 %          0
+   V           181335  43.389 %           0    0.00 %          0
+   T           264123  63.198 %           0    0.00 %          0
+   TV               0   0.000 %      319319   76.40 %          0
+   TT           96000  22.970 %           1    0.00 %          0
+   room for a payload at all (next byte has bit 7 set): 417932  (100.00 %)
+   TV TYPE byte-lengths: {3: 228602, 4: 93660, 5: 84491, 6: 9758, 7: 1421}
+   TV state: ESCAPED (`80 <LE32>`) 0 of 417932;  top values [(1, 264123), (3, 103380), (2, 37629), (4, 9568), (65, 2885), (67, 347)]
+   P    lands on: ['86:336626', 'C6:39479', 'C7:17368', '82:13874', '87:5557', 'A6:5022']
+   V    lands on: ['41:163201', '42:65352', '43:57151', '81:56853', '86:40728', '16:13825']
+   T    lands on: ['01:264123', '03:103380', '02:37629', '04:9568', '41:2885', '43:347']
+   TV   lands on: ['4B:319319', '9B:62168', '5E:22608', '55:12218', '99:898', '30:404']
+   TT   lands on: ['3A:102745', '26:92960', '33:56890', '4F:43286', '01:21495', 'B9:20306']
+
+-- PER-BODY MULTIPLICITY (pass C, CIRCULAR — reported, not relied on) --
+   bodies carrying >=1 `5C`: 335772   median sites/body: 1   mean 1.245
+   histogram (sites -> bodies): {1: 292839, 2: 32459, 3: 4056, 4: 2351, 5: 1066, 6: 835, 7: 322, 8: 324, 9: 70, 10: 363, 11: 67, 12: 627, 13: 35, 14: 27}
+
+-- THE TWO ANCHORS ON POSITION (PREREG §7 D1) --
+   anchor B sites: 37742   landing INSIDE a token anchor A stepped: 0
+
+-- THE ESCAPED-STATE CLASS (raw scan, OVER-INCLUSIVE, bias named) --
+   `5C <readable TYPE>` byte positions in the workload: 544783
+   BASE RATE — of those, the varint reading lands on `4B`: 330485 (60.66 %)
+   sites whose state byte is `80` (the ESCAPE): 9744
+     varint  lands on `4B`   9645 /   9744 ( 98.98 %) · legal opener   9715 ( 99.70 %) · top ['4B:9645', '4F:53', '43:11', '07:5', '6A:2']
+     byte1   lands on `4B`      0 /   9744 (  0.00 %) · legal opener     95 (  0.97 %) · top ['01:9645', '5D:87', '5C:6', '84:2', '5A:2']
