@@ -262,6 +262,27 @@ dc3 workload's `/O1 /Oi` only — GRID-M2's docstring lists optimization as axis
 and `build_cells` never crosses it — so "the threshold is 5" was a property of
 one flag set that nothing in 408 cells could distinguish from a constant. (Q8.)
 
+### 5.1b The unroll/loop boundary falls out of the same cells, at 114 of 114
+
+Not a registered prediction — §2.2's shape rule was read but no rival was
+frozen for it, so this is a **corroboration, not a score**. Every part-A cell
+that came back `inline` was classified by §2.2's arithmetic (`unit = min(align,
+8)` halved until it divides the size; `count = size / unit`; `count ≤ 4` ⇒
+straight line, `count ≥ 5` ⇒ counted loop) and the emitted body length is a
+pure function of that bucket:
+
+```text
+   memcpy   count <= 4    36 B   15 cells      count >= 5    32 B   42 cells
+   memset   count <= 4    24 B   15 cells      count >= 5    28 B   42 cells
+```
+
+**114 of 114, no exceptions, across three alignments and five flag sets.** The
+loop bodies are constant-length regardless of `count` — which is what a counted
+loop is — and the straight-line bodies are constant-length because `count = 4`
+is the only unrolled count the `n` axis produces. That last clause is a real
+limitation of this grid: it confirms the *boundary* at `0x10bf6841` and does
+**not** measure the unrolled body's length as a function of `count`.
+
 ### 5.2 Part B: the elimination is a DEAD DESTINATION, not two local operands
 
 | rival | score |
