@@ -366,6 +366,39 @@ impl ObjImage {
         }
         Some(out)
     }
+
+    /// **Every relocation in the obj with its target resolved**, in section
+    /// order and then in table order — [`ObjImage::text_comdat_relocs`] without
+    /// the `.text`-COMDAT restriction.
+    ///
+    /// # Why the restriction had to go
+    ///
+    /// `text_comdat_relocs` answers *what does a function branch to*, which is
+    /// what FUNCTION BYTE MATCH needs. Lane `w-phase7` needed the other
+    /// question: **does c2 ever write a relocation naming a `.gl` tag-0x10
+    /// ALIAS?** An alias (`??_E<X>`) is named by a **vftable initializer**, and
+    /// a vftable is a `.rdata` COMDAT — a section `text_comdat_relocs` skips by
+    /// construction, so asking it would have returned `0` for a reason that has
+    /// nothing to do with aliases. That is `docs/STATUS.md` trap 5 in the shape
+    /// where the instrument's *scope* supplies the zero.
+    ///
+    /// Same fail-closed contract as every other walk here: `None` the moment
+    /// anything does not decode. A short list would read as *"this obj
+    /// relocates against fewer names than it does"*, which is the credit
+    /// direction for the consumer.
+    pub fn relocs_named(&self) -> Option<Vec<(usize, u32, u16, RelocTarget)>> {
+        let targets = self.symbol_targets()?;
+        let mut out = Vec::new();
+        for r in self.relocations()? {
+            let target = if r.sym_is_an_index() {
+                targets.get(r.sym as usize)?.clone()?
+            } else {
+                RelocTarget::PairDisplacement(r.sym)
+            };
+            out.push((r.section, r.va, r.ty, target));
+        }
+        Some(out)
+    }
 }
 
 /// **What one relocation record points AT**, resolved out of the symbol table.

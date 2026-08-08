@@ -74,6 +74,41 @@ costs the project more than the analysis did.
 | **W-ALIAS-1** | **adoption** | **The `.gl` tag-0x10 ALIAS record's grammar and its discriminator bit.** The tag dispatch routes `0x04`/`0x0E`/`0x10` to one shared kind-4 handler that splits only at the end; the `0x10` arm sets `[sym+0x37] \|= 0x400000` and stores **one `varU`** into `[sym+0x4c]`, at the same anchor a tag-0x0E record puts its `.ex` body offset. So on a tag-0x10 record that word is a **symbol token**, not a flag word — which is the whole finding, and it is a *bit layout*, so it is adoption and not navigation. | `0x10b9b91f` (dispatch), `0x10b9bdcf` (shared kind-4 header), **`0x10b9c01e`** (the tag test), **`0x10b9c024`** (`\| 0x400000`), **`0x10b9c030`** (the store), `0x10b9c033` (the shared tail) | `crates/c2-il/src/func/glalias.rs` — module docs, `ALIAS_TAG`, `record_head` | `d2bdadc` | Independently confirmed against real `c2.dll` by lane `w-emitp` (15/15 interventional draws, 0/15 parity control) and reproduced by two implementations agreeing on 850 TUs. The **grey-zone alternative was tried first and is insufficient**: a black-box search for the field position binds at 0.019/0.026 one byte either side, so the position is identified by the disassembly and only *graded* by the corpus. |
 | **W-ALIAS-2** | **route** | **`+0x37 & 0x400000` has exactly two readers, and the emit-relevant one resolves the token and sets `+0x20 \|= 0x2000` on the TARGET.** This is what licenses the extensional claim the port's model uses — an initializer node naming an alias contributes the alias's *target* — and it is the reason `dom(alias)` is never itself emitted. | **`0x10b99621`** (`test [esi+0x37],0x400000`), **`0x10b99635`** (`or [eax+0x20],0x2000`), `0x10b8ac60` (the second reader, `or [eax+0x32],1` — read, modelled nowhere) | `crates/c2-il/src/func/glalias.rs` — module docs only; **no value or layout is copied from these sites** | `d2bdadc` | Logged as `route:` per the grey-zone rule: the reading told this lane what the record *means*, and the meaning was then established by black-box experiment (`w-emitp` §4, real `c2.dll`) and by corpus measurement (`dom(alias) ∩ E` = 0 over 174 417 emitted names). The instruction that turns `+0x20 & 0x2000` into the COFF Mark bit is **named (`0x10b28ca3`) and NOT decoded**. |
 
+> ### **2026-08-08 — lane `w-phase7` gave W-ALIAS-1 and W-ALIAS-2 their first CONSUMER, and adopted NO new address doing it.**
+>
+> The `Adopted into` column of **W-ALIAS-1** should now be read as
+> `crates/c2-il/src/func/glalias.rs` **plus** `IlBundle::data_tu`'s alias
+> fence and `IlBundle::in_alias_report`, and **W-ALIAS-2**'s as unchanged
+> (module docs only). No constant, offset, bit position or layout beyond the
+> two rows above entered `crates/` in that lane:
+>
+> * `ObjImage::weak_externals` and `ObjImage::relocs_named` are **PE/COFF
+>   format** readers — `IMAGE_SYM_CLASS_WEAK_EXTERNAL`, the weak aux record's
+>   `TagIndex`/`Characteristics`, the relocation table — all published format,
+>   none of it derived from `c2.dll`. **No white-box debt.**
+> * The realisation rule *"c2 writes `??_E<X> → ??_G<X>` iff `??_G<X>` is a
+>   `.text` COMDAT leader of the same obj"* is **extensional**, derived from
+>   878 objs and graded per record (4,013/4,013, 0 miss, 0 extra). It is a
+>   statement about c2's **output**, which is the black box's own observable.
+>
+> **And W-ALIAS-2's `route:` claim is now confirmed harder than it was.** That
+> row's stated meaning — *"an initializer node naming an alias contributes the
+> alias's target"* — was licensed by `w-emitp`'s 15/15 interventional draws.
+> The weak-external reading is a second, independent confirmation **from the
+> obj alone**, needing no mutation and no disassembly: the pairing `??_E<X> →
+> ??_G<X>` is written into the symbol table where anybody can read it. A
+> `route:` row whose meaning is independently visible in the output is the
+> cheapest kind of white-box debt there is.
+>
+> **What is still NOT adopted, and what the next lane would need.** A Rust
+> emit-set model needs the `.gl` **reference-list** decode
+> (`work/w-refs/refs.py`), which carries `0x10b9bf99` (the list, gated on
+> `flags4c & 0x1000`), `0x10b276e4` (the Mark walk) and `0x10b9be44` (the
+> storage-class-`0xa` skip). **None of those three is in this ledger and none
+> is in `crates/`.** `w-phase7` declined the port rather than adopt them
+> silently — see `rungs/2026-08-08-w-phase7.md` §7.2, whose first named step is
+> a row here.
+
 **These are the first two rows, and `README.md` changed in the same branch** —
 its clean-room claim now reads per-finding and points here, exactly as step 4 of
 the checklist below requires. Everything else the `w-map` lane produced remains

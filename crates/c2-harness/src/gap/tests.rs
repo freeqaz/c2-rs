@@ -3004,3 +3004,92 @@ fn grade_one_files_a_parse_refusal_under_the_parser_and_not_the_selector() {
          that says a codegen question was never asked"
     );
 }
+
+// ---------------------------------------------------- w-phase7: the alias keys
+
+/// One graded TU carrying the alias keys a scan would have written.
+fn mk_alias(class: TuClass, keys: &[(&str, usize)]) -> TuResult {
+    let mut t = mk("alias");
+    t.class = class;
+    for (k, n) in keys {
+        t.emit.insert((*k).into(), *n);
+    }
+    t
+}
+
+/// **Every alias key rides on the report, INCLUDING the zeroes** — the two
+/// alarms most of all.
+///
+/// `alias-weak-default-disagree` and `alias-weak-not-search-library` have known
+/// answer 0, and a key whose value is 0 and a key that is absent read the same
+/// way to `sed`. `docs/STATUS.md` trap 5 is that absence reads as success, and
+/// an alarm that vanishes when it stops firing is that trap pointed straight at
+/// the thing it was written to watch.
+#[test]
+fn the_alias_keys_print_their_zeroes() {
+    let rep = mk_report(vec![mk_alias(TuClass::VocabGap, &[("alias-bound", 7)])]);
+    let m: std::collections::BTreeMap<&str, String> = rep.metrics().into_iter().collect();
+    for k in [
+        "alias-tag10",
+        "alias-bound",
+        "alias-rt-fail",
+        "alias-self",
+        "alias-dup",
+        "alias-dom-with-body",
+        "alias-dom-emitted",
+        "alias-null-m1-shape",
+        "alias-null-p1-shape",
+        "alias-datatu-relocs-alias",
+        "alias-emit-names",
+        "alias-weak-records",
+        "alias-weak-predicted",
+        "alias-weak-default-disagree",
+        "alias-weak-unpredicted",
+        "alias-weak-not-search-library",
+        "alias-unrealized",
+        "alias-rule-predicted",
+        "alias-rule-miss",
+        "alias-rule-extra",
+        "alias-weak-needed-tus",
+        "alias-weak-needed-in-b-and-c",
+        "alias-weak-needed-in-frontier",
+    ] {
+        assert!(m.contains_key(k), "gap-metric {k} must print, zero or not");
+    }
+    assert_eq!(m.get("alias-bound").map(String::as_str), Some("7"));
+    assert_eq!(m.get("alias-weak-default-disagree").map(String::as_str), Some("0"));
+}
+
+/// **`alias-weak-needed-*` is an INTERSECTION, not a product.**
+///
+/// `w-emitp` §5 refused to multiply `B∧C` by a per-TU exact rate and said so,
+/// because that is the error that left `B∧C` stale at 107 for weeks. The keys
+/// here are the shape that refusal asks for: each is computed by intersecting
+/// two per-TU predicates on the same rows, so a TU that needs a weak external
+/// and fails B or C contributes to `-tus` and to neither of the others.
+#[test]
+fn the_weak_external_need_is_intersected_per_tu_and_never_scaled() {
+    // Three graded TUs. Only the first is inside `B∧C`; the third needs no
+    // weak external at all.
+    let bc = [("emit-sec-readable", 1)];
+    let mut a = mk_alias(TuClass::VocabGap, &[("alias-rule-predicted", 3)]);
+    let mut b = mk_alias(TuClass::VocabGap, &[("alias-rule-predicted", 5)]);
+    let c = mk_alias(TuClass::VocabGap, &[("alias-rule-predicted", 0)]);
+    for (k, n) in bc {
+        a.emit.insert(k.into(), n);
+    }
+    b.emit.insert("emit-sec-unreadable".into(), 1);
+    let rep = mk_report(vec![a, b, c]);
+    let m: std::collections::BTreeMap<&str, String> = rep.metrics().into_iter().collect();
+    assert_eq!(
+        m.get("alias-weak-needed-tus").map(String::as_str),
+        Some("2"),
+        "TUs needing at least one weak external"
+    );
+    // The intersection is *at most* the count above and is derived from the
+    // rows, never from a rate applied to it.
+    let needed: usize = m["alias-weak-needed-tus"].parse().unwrap();
+    let in_bc: usize = m["alias-weak-needed-in-b-and-c"].parse().unwrap();
+    let in_front: usize = m["alias-weak-needed-in-frontier"].parse().unwrap();
+    assert!(in_bc <= needed && in_front <= needed);
+}
