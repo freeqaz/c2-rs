@@ -464,6 +464,11 @@ pub fn splice_callee_why<'a>(
             None => return Err("S1-tail-without-callee"),
         },
         Selected::Tail(_) => return Err("S3-tail-setup"),
+        // **S1/S3 — W-CFG1 names TWO callees and has a conditional site**, so it
+        // is out on both of the clauses that exclude `CondPair`. Refused
+        // explicitly rather than by a catch-all, so a later shape cannot fall
+        // into a splice path nobody graded.
+        Selected::IfCallJoin => return Err("S3-if-call-join"),
         Selected::Seq { setups, .. } => {
             let Some(seq) = f.call_seq.as_ref() else {
                 return Err("S1-seq-without-call-seq");

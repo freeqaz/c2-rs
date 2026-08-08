@@ -1195,6 +1195,23 @@ pub(crate) fn shape_to_function(
             // the reason its sibling has none: it calls nothing, names no data
             // symbol and mints no label, so the operation list travels exactly
             // as it was parsed.
+            // W-CFG1 — the `if`/`else`-with-a-join. Two callee tokens to
+            // resolve, in BLOCK order, and nothing else: the shape names no data
+            // symbol and defines no label the obj can see.
+            BodyShape::IfCallJoin(c) => {
+                Some(IlFunction {
+                    params: c.params.clone(),
+                    if_call_join: Some(crate::func::IfCallJoinFn {
+                        params: c.params,
+                        k1: c.k1,
+                        k2: c.k2,
+                        acc_init: c.acc_init,
+                        callee_hi: resolve(c.callee_hi_tok)?,
+                        callee_lo: resolve(c.callee_lo_tok)?,
+                    }),
+                    ..IlFunction::base(name, src)
+                })
+            }
             BodyShape::PtrWalkChainLoop(l) => {
                 Some(IlFunction {
                     params: l.params.clone(),

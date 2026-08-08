@@ -1471,6 +1471,81 @@ pub struct PtrWalkModLoop {
     pub mul_k: i32,
 }
 
+/// **W-CFG1 — the two-armed `if`/`else` whose arms are CALLS.** The port's first
+/// `cflow-if-n` body class.
+///
+/// ```c
+///   const Node* f(Blend b, void *clip, float t) {
+///       const Node* n = <acc_init>;
+///       if (b >= <k1>) {
+///           if (b == <k1>) { n = <acc_init>; }   // the DEAD arm
+///           else {
+///               if (b >= <k2>) n = <callee_hi>(clip, t);
+///               else           n = <callee_lo>(clip, t);
+///           }
+///       }
+///       return n;
+///   }
+/// ```
+///
+/// The recognizer
+/// ([`crate::func::body::shapes::if_call_join::try_parse_if_call_join`]) carries
+/// the whole accept/refuse boundary, including the facts that are *not* visible
+/// in this struct because they are required literally: three formals of kinds
+/// `(int-like, ptr4, float)` in that order, both arms calling with the **same**
+/// two arguments, the dead arm storing the **same** literal the entry stored,
+/// and both scope-close depths of every block pinned. Each one re-plans c2's
+/// register assignment or its block layout when varied.
+///
+/// Unlike [`PtrWalkModLoop`] this body **is framed**: it gets a `.pdata` record,
+/// a `$M`/`$M`/`$T` triple and two REL24 sites, so it reaches codegen as its own
+/// [`Selected`](../../c2_core/codegen/enum.Selected.html) variant and not as a
+/// `Plain`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct IfCallJoin {
+    /// The three formals in **argument-register order**: `params[0]` the
+    /// scrutinee (r3, evicted to r10 by the entry park), `params[1]` the pointer
+    /// the arms share (r4, hoisted to r3 above every branch), `params[2]` the
+    /// `float` (fr1, untouched — it emits no setup word at all).
+    pub params: Vec<u32>,
+    /// The outer and middle tests' shared literal, inside `simm16` — one `cmpwi`
+    /// serves both, which is the fact that makes this a transcription.
+    pub k1: i32,
+    /// The inner test's literal, inside `simm16`.
+    pub k2: i32,
+    /// The accumulator's initial literal — stored twice in the IL (entry block
+    /// and dead arm) and emitted once, which is why c2's middle block is empty.
+    pub acc_init: i32,
+    /// The `.gl` token of the callee taken when `s >= k2`. Resolved to a name in
+    /// [`crate::IlBundle`].
+    pub callee_hi_tok: u32,
+    /// The `.gl` token of the callee taken when `s < k2`.
+    pub callee_lo_tok: u32,
+}
+
+/// [`IfCallJoin`] with its two callee tokens **resolved** through the `.gl`
+/// symbol index — the form the emitter consumes.
+///
+/// A separate type rather than a mutated field for the reason
+/// `docs/GAPS.md` §6 gives: a token and a symbol name are two facts, and one
+/// field holding either is where they silently disagree.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct IfCallJoinFn {
+    /// The three formals, exactly as [`IfCallJoin::params`].
+    pub params: Vec<u32>,
+    /// The shared literal of the outer and middle tests.
+    pub k1: i32,
+    /// The inner test's literal.
+    pub k2: i32,
+    /// The accumulator's initial literal.
+    pub acc_init: i32,
+    /// The callee taken when `s >= k2` — the FIRST `bl` in block order, so the
+    /// first REL24 site and the earlier symbol in the per-function region.
+    pub callee_hi: String,
+    /// The callee taken when `s < k2`.
+    pub callee_lo: String,
+}
+
 /// The right-hand operand of one accumulate-chain step.
 ///
 /// Two cases and no third: the chain either folds in a literal or folds in the
@@ -1852,6 +1927,14 @@ pub struct IlFunction {
     /// function**, which is the only kind of TU this shape may appear in. Board
     /// **#746**.
     pub ptr_walk_loop: Option<PtrWalkModLoop>,
+    /// If this function is the **`if`/`else`-with-a-join whose arms are calls**,
+    /// its formals, its two literals and its two resolved callees. See
+    /// [`IfCallJoinFn`].
+    ///
+    /// Mutually exclusive with every other body kind — exactly one parser
+    /// production sets it. Unlike [`Self::ptr_walk_loop`] it **is framed**, so
+    /// [`Self::label_slots`] answers with a real number rather than refusing.
+    pub if_call_join: Option<IfCallJoinFn>,
     /// If this function is the **body-parameterized pointer-walk loop**, its
     /// one formal and its accumulate **operation list**. See
     /// [`PtrWalkChainLoop`].
@@ -2060,6 +2143,7 @@ impl IlFunction {
             compare: None,
             cmp_shift_or: None,
             ptr_walk_loop: None,
+            if_call_join: None,
             ptr_walk_chain_loop: None,
             div_mod_leaf: None,
             float_leaf: None,
@@ -2200,6 +2284,15 @@ impl IlFunction {
                 .ops
                 .iter()
                 .any(|o| matches!(o, IlOp::StoreIndFp { .. }))
+            // **W-CFG1 is FP-touching without being FP-SHAPED** — exactly the
+            // miss this doc-comment warns about. Its `float` formal travels in
+            // fr1 and emits no instruction at all, so a predicate written as
+            // "does the body have FP ops" answers no; the obj still carries
+            // `_fltused` (`src/system/negate_test.cpp` symbol 21), and without
+            // it every positive case is one symbol short at COFF offset 12.
+            // The recognizer requires the third formal to be a 4-byte real, so
+            // this is a structural fact of the class and not a body scan.
+            || self.if_call_join.is_some()
     }
 
     /// True iff this function establishes a **stack frame** — it gets a `.pdata`
@@ -2209,7 +2302,7 @@ impl IlFunction {
     /// shape cannot leave one of them behind. Both framed shapes are non-leaf
     /// calls whose result (or whose successor statement) outlives the `bl`.
     pub fn is_framed(&self) -> bool {
-        self.framed_call.is_some() || self.call_seq.is_some()
+        self.framed_call.is_some() || self.call_seq.is_some() || self.if_call_join.is_some()
     }
 
     /// **Label-counter slots this function takes BEFORE its own `$M` triple.**
@@ -2233,7 +2326,19 @@ impl IlFunction {
     /// that `c2_core::coff::plan_labels` — which adds the lead before looking at
     /// the frame at all — charges both kinds through one path.
     pub fn label_lead(&self) -> u32 {
-        self.call_seq.as_ref().map_or(0, |s| s.tail.label_lead()) + u32::from(self.eh_bare)
+        self.call_seq.as_ref().map_or(0, |s| s.tail.label_lead())
+            + u32::from(self.eh_bare)
+            // **W-CFG1 charges ONE slot before its own triple**, so a framed
+            // function of this class strides 6 under `/Gy` where every other
+            // framed class strides 5. Measured seed-free and in-TU on
+            // `src/system/negate_test.cpp`, whose two functions are this class
+            // and nothing else: `$M2581`/`$M2582`/`$T2583` then
+            // `$M2587`/`$M2588`/`$T2589` — a difference of **6**, with the
+            // `_fltused` slot charged once for the TU and therefore cancelling
+            // out of the difference entirely. `scripts/gt_label_stride.py`'s
+            // anchor control is the shipped 5 on a `Seq` body in the same TU
+            // (`fixtures/cpp/wcfg1_join_then_seq.cpp`).
+            + u32::from(self.if_call_join.is_some())
     }
 
     /// Every external this function calls, in **first-reference order** — which is
@@ -2259,10 +2364,18 @@ impl IlFunction {
                     .iter()
                     .flat_map(|c| [c.then_arm.callee.as_str(), c.else_arm.callee.as_str()]),
             )
+            // W-CFG1: both arms, in BLOCK order — the `s >= k2` arm's `bl` is at
+            // the lower `.text` offset, so its symbol is the earlier one in the
+            // per-function region for the same reason W8's then-arm is.
+            .chain(
+                self.if_call_join
+                    .iter()
+                    .flat_map(|c| [c.callee_hi.as_str(), c.callee_lo.as_str()]),
+            )
     }
 
     pub fn label_slots(&self, fn_level_linking: bool) -> Option<u32> {
-        if self.framed_call.is_some() || self.call_seq.is_some() {
+        if self.framed_call.is_some() || self.call_seq.is_some() || self.if_call_join.is_some() {
             return Some(self.label_lead() + if fn_level_linking { 5 } else { 4 });
         }
         // **The pointer-walk loop refuses, and the refusal is the measurement,

@@ -24,6 +24,7 @@ use self::shapes::{
     try_parse_fp_tail_call,
     try_parse_indirect_load_leaf, try_parse_member_tail_call, try_parse_ptr_identity_leaf,
     try_parse_ptr_walk_chain_loop,
+    try_parse_if_call_join,
     try_parse_ptr_walk_loop,
     try_parse_store_leaf, try_parse_store_run, try_parse_store_run_bind,
     try_parse_store_run_call,
@@ -634,6 +635,11 @@ pub(crate) enum BodyShape {
     /// **back edge**. See [`super::shapes::ptr_walk_loop`] for the whole
     /// accept/refuse boundary and [`crate::func::PtrWalkModLoop`] for the fields.
     PtrWalkModLoop(crate::func::PtrWalkModLoop),
+    /// **W-CFG1 — the two-armed `if`/`else` whose arms are CALLS and whose join
+    /// is a real block.** The first `cflow-if-n` body this crate accepts. See
+    /// [`super::shapes::if_call_join`] for the whole accept/refuse boundary and
+    /// [`crate::func::IfCallJoin`] for the fields.
+    IfCallJoin(crate::func::IfCallJoin),
     /// **The body-parameterized pointer-walk loop** — the first shape here
     /// whose emitted body has no fixed length. See
     /// [`super::shapes::ptr_walk_chain_loop`] for the accept/refuse boundary
@@ -1876,6 +1882,23 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                 // those today at its first `3A`.
                 if let Ok(shape) = try_parse_ptr_walk_loop(seg, p, lo, locals, sy.ptr_locals) {
                     disp("disp-ptr-walk-loop");
+                    return Ok(shape);
+                }
+                // **W-CFG1 — the `if`/`else`-with-a-join whose arms are calls.**
+                // It opens on the same `26 <local>` both loops above do — its
+                // first statement is `acc = 0` too — so it is tried here, on the
+                // same terms: its own cursor, `Err` on the first byte that is
+                // not its grammar, no census key moved by a decline.
+                //
+                // Its grammar is disjoint from both loops' at the **second**
+                // statement, whichever is asked first: the loops require a `53`
+                // opening a `for` whose first statement assigns a pointer local,
+                // or the `29 <label>` of a top-test `while`; this one requires a
+                // `53` whose first token is the `B9 <formal>` of a relational
+                // test. So the order between the three is free, and it is last
+                // because the two loops name matched workload TUs.
+                if let Ok(shape) = try_parse_if_call_join(seg, p, lo, locals, sy.ptr_locals) {
+                    disp("disp-if-call-join");
                     return Ok(shape);
                 }
                 // **The body-parameterized loop**, beside its fixed-length

@@ -107,6 +107,7 @@ pub fn selected_tag(s: &codegen::Selected) -> &'static str {
         codegen::Selected::Framed { .. } => "framed",
         codegen::Selected::Seq { .. } => "seq",
         codegen::Selected::CondPair(_) => "cond-pair",
+        codegen::Selected::IfCallJoin => "if-call-join",
     }
 }
 
@@ -235,6 +236,23 @@ pub(crate) fn body_of<'a>(
         }
         // A Class A many-call body: the same frame and `.pdata`, with one REL24
         // site per call instead of one per function.
+        // W-CFG1 — the `if`/`else`-with-a-join. Built at 0 because each
+        // function is its own COMDAT here, which is what its two `bl`
+        // displacements are relative to.
+        codegen::Selected::IfCallJoin => {
+            let j = f.if_call_join.as_ref().expect("IfCallJoin implies if_call_join");
+            let body = codegen::if_call_join::if_call_join_text(j, 0, mode)
+                .map_err(ComdatDecline::Shape)?;
+            frame = Some(coff::Frame {
+                prolog_len: body.prolog_len,
+                func_len: body.text.len() as u32,
+            });
+            let calls = vec![
+                coff::Call { reloc_offset: body.bl_offsets[0], callee: j.callee_hi.as_str() },
+                coff::Call { reloc_offset: body.bl_offsets[1], callee: j.callee_lo.as_str() },
+            ];
+            (body.text, calls)
+        }
         codegen::Selected::Seq { setups, tail, park } => {
             let seq = f.call_seq.as_ref().expect("Seq implies call_seq");
             // **W10** — the guard, when there is one. Resolved through

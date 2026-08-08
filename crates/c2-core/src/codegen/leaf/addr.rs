@@ -98,6 +98,7 @@ mod tests {
             cond_pair: None,
             compare: None,
             cmp_shift_or: None,
+            if_call_join: None,
         ptr_walk_loop: None,
             ptr_walk_chain_loop: None,
         div_mod_leaf: None,

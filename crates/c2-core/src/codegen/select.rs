@@ -26,6 +26,7 @@ use crate::codegen::leaf::float::{
 use crate::codegen::leaf::load::indirect_load_text;
 use crate::codegen::div_mod_leaf::div_mod_leaf_text;
 use crate::codegen::ptr_walk_chain_loop::ptr_walk_chain_loop_text;
+use crate::codegen::if_call_join::if_call_join_text;
 use crate::codegen::ptr_walk_loop::ptr_walk_loop_text;
 use crate::codegen::leaf::store::store_leaf_text;
 use crate::codegen::straightline::select_text;
@@ -137,6 +138,20 @@ pub enum Selected {
         /// same place the moves came from.
         park: calls::SeqPark,
     },
+    /// **W-CFG1 — the two-armed `if`/`else` whose arms are calls.** Like
+    /// [`Selected::Framed`] and [`Selected::Seq`] it owns its whole obj shape —
+    /// a `.pdata` record, a `$M`/`$M`/`$T` triple and two REL24 sites — and like
+    /// them its two `bl` words encode their own `.text` offsets, so the selector
+    /// hands back nothing but the shape and the caller, which knows where the
+    /// function lands, builds the body through
+    /// [`crate::codegen::if_call_join::if_call_join_text`].
+    ///
+    /// A unit variant rather than one carrying bytes: the body is a pure
+    /// function of `f.if_call_join` and `base_off`, and carrying a half-built
+    /// text would give the two writers two chances to disagree about the block
+    /// plan — the defect [`Selected::Seq`]'s `guard`/`early` resolvers were
+    /// centralised to prevent.
+    IfCallJoin,
     /// **W8 — a two-arm conditional tail call.** The body with a zero word at
     /// each of its two tail branches, which the caller fills for the same reason
     /// [`Selected::Tail`] carries an incomplete text: a `b` to an external
@@ -250,6 +265,20 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
     // pattern-matchers below. It sits above them so that a reader meets the one
     // shape with a back edge before the straight-line ones, which is a
     // readability claim and not a correctness one.
+    // **W-CFG1 — the `if`/`else`-with-a-join.** Asked here, beside the other
+    // whole-body shapes and ahead of every leaf recognizer, for the reason the
+    // loops below are: `func.if_call_join` is set by exactly one parser
+    // production, `func.ops` is empty for it, and no leaf pattern-matcher below
+    // can take its body. Its position relative to the two loops is free — the
+    // three fields are mutually exclusive by construction — and it is first
+    // because it is the only one of the three that is FRAMED, which is the
+    // property the arms above this point share.
+    if func.if_call_join.is_some() {
+        // The mode gate lives in the emitter, not here, so that `function_gate`
+        // and both writers ask it in exactly one place.
+        if_call_join_text(func.if_call_join.as_ref().unwrap(), 0, mode)?;
+        return Ok(Selected::IfCallJoin);
+    }
     if let Some(l) = &func.ptr_walk_loop {
         return Ok(Selected::Plain(ptr_walk_loop_text(l, mode)?));
     }

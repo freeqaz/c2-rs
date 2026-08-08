@@ -47,6 +47,7 @@ pub(crate) mod mcall_tail;
 pub(crate) mod no_effect;
 pub(crate) mod params;
 pub(crate) mod ptr_walk_chain_loop;
+pub(crate) mod if_call_join;
 pub(crate) mod ptr_walk_loop;
 pub(crate) mod this_binding;
 #[cfg(test)]
@@ -94,6 +95,7 @@ pub(crate) use params::*;
 #[allow(unused_imports)]
 pub(crate) use ptr_walk_chain_loop::*;
 #[allow(unused_imports)]
+pub(crate) use if_call_join::*;
 pub(crate) use ptr_walk_loop::*;
 #[allow(unused_imports)]
 pub(crate) use this_binding::*;
