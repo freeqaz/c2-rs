@@ -61,6 +61,8 @@ reconciled against the selected count afterwards.
 
     --jobs 4    733,526 free at start -> 693,991 low water   (draw 39,535)
     --jobs 16   733,426 free at start -> 713,387 low water   (draw 20,039)
+    --jobs 16   772,959 free at start -> 753,077 low water   (draw 19,882)
+                (the tip's own final gate: 104 s, lanes 1 s, sweep 81 s, cross 21 s)
 
 Against the floor of **150,000** (`C2RS_GATE_MIN_INODES`, 3× a measured in-flight
 peak) and 733k free, the headroom at the new default is **4.8×** on the low

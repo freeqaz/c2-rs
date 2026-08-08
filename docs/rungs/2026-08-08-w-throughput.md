@@ -43,26 +43,34 @@ base-vs-tip, for the reason in §2.3.
 
 | | base `f49fe5e1` | tip |
 |---|---|---|
-| `cargo test --workspace --release` | **206 s** · 1,159 passed / 0 failed / **36 targets** | **176 s** · 1,163 passed / 0 failed / **36 targets** |
-| — of which `cli_flags` | **119.08 s** | **46.38 s** — **−72.70 s, 2.57×** |
-| — of which `census_gate` | 68.46 s | 112.21 s — **+43.75 s, and it is LOAD, not this lane** (see §1.1) |
+| `cargo test --workspace --release` | **206 s** · 1,159 passed / 0 failed / **36 targets** | **127 s** · 1,163 passed / 0 failed / **36 targets** |
+| — of which `cli_flags` | **119.08 s** | **44.15 s** — **−74.93 s, 2.70×** |
+| — of which `census_gate` | 68.46 s | 66.00 s — the control: this lane does not touch it |
 | `git grep -c '#\[test\]' -- crates` | **1,160** (1,159 anchored) | **1,168** (1,163 anchored; the loose count includes six prose mentions of `#[test]` in the new comment block) |
 | `scripts/gate.sh --require-graded` | 605 s at `--jobs 4` · **GATE: PASS**, 18/18 lanes, 5,184 fixture-verdicts | **112 s** at the new default 16 · **GATE: PASS**, the same verdict block digit for digit |
 | 878-TU scan | **match 11, mismatch 0, codegen-gap 0, vocab-gap 860, capture-fail 7**, 139 `gap-metric` lines | **every digit unchanged** — see §8 |
 
-### 1.1 The workspace leg moved 30 s and the split saved 73 s — read both
+### 1.1 Both ends taken twice, because the first tip run was taken under load
 
-`cli_flags` went **119.08 s → 46.38 s**, which is the predicted win almost
-exactly (`max(44 s) + the small tests` against `sum(116 s)`). The whole leg only
-went 206 s → 176 s because `census_gate` went the other way in the same window,
-**68.46 s → 112.21 s**, on a box whose load average was 4-11 during the base run
-and 15-34 during the tip run. `census_gate` runs 2×16 capture threads and is the
-most load-sensitive target in the suite; nothing in this lane touches it.
+The tip leg was measured twice, and the pair is the point:
 
-This is STATUS.md's own load-sensitivity caution arriving on the test leg instead
-of on the perf geomean, and it is the reason the per-target numbers are published
-beside the total. **Quote the 72.70 s, not the 30 s** — the first is a property
-of the change and the second is a property of the evening.
+| run | load avg | sum of targets | `cli_flags` | `census_gate` |
+|---|---|---:|---:|---:|
+| base `f49fe5e1` | 4-11 | 204.87 s | **119.08 s** | 68.46 s |
+| tip, first run | 15-34 | 175.86 s | 46.38 s | **112.21 s** |
+| tip, second run | 4-13 | **127.27 s** | **44.15 s** | 66.00 s |
+
+The first tip run reads as a 30 s saving and the second as a 79 s saving, and
+**neither `cli_flags` figure moved much between them** (46.38 → 44.15). What
+moved is `census_gate`, 112.21 → 66.00, which runs 2×16 capture threads and is
+the most load-sensitive target in the suite — and which this lane does not touch.
+Its 66.00 s against the base's 68.46 s is the **control**: the two comparable
+runs differ in one target and it is the one that was split.
+
+**Quote the 74.93 s.** It is a property of the change; the 30 s was a property of
+the evening. This is STATUS.md's own load-sensitivity caution arriving on the
+test leg instead of on the perf geomean, which is why the per-target numbers are
+published beside the total rather than only the total.
 
 ---
 
@@ -183,6 +191,7 @@ chosen value on this box:
 
     --jobs 4    733,526 free at start -> 693,991 low water   (draw 39,535)
     --jobs 16   733,426 free at start -> 713,387 low water   (draw 20,039)
+    --jobs 16   772,959 free at start -> 753,077 low water   (draw 19,882)  [the tip's own final gate]
 
 **Raising the concurrency made the draw SMALLER**, because the transient tree is
 held for a fifth of the time; 20,039 lands on the proposal's 19,885. Against
@@ -439,7 +448,7 @@ method and the per-merge table.
 ## 7. What this lane did NOT do
 
 * **Proposal §3 — run the 36 test binaries concurrently.** Not attempted. After
-  §4 the test leg is 176 s and dominated by `census_gate` (112 s of it), and §3's own estimate (~120 s → ~70-80 s)
+  §4 the test leg is 127 s and dominated by `census_gate` (66 s of it), and §3's own estimate (~120 s → ~70-80 s)
   is a ~50 s prize for a new ~100-line runner whose failure mode is *"a binary
   the wrapper never launched"* — instance seventeen, invited deliberately. It is
   worth doing only if the test leg still bites, and it does not yet.
@@ -458,8 +467,9 @@ method and the per-merge table.
 
 | lane | result |
 |---|---|
-| `cargo test --workspace --release` | **1,163 passed, 0 failed, 36 targets**, 176 s (base: 1,159 / 0 / 36, 206 s) |
-| `scripts/gate.sh --require-graded` (new default 16) | **GATE: PASS** — 18/18 lanes, 0 FAIL, 0 SKIP, 0 NO-RESULT, **5,184 fixture-verdicts**, 112 s |
+| `cargo test --workspace --release` | **1,163 passed, 0 failed, 36 targets**, 127 s (base: 1,159 / 0 / 36, 206 s) |
+| `scripts/status.sh --raw --tests-log <that log>` | `STATUS-METRIC tests 1163 passed, 0 failed, 36 targets` — the reuse path, on a real log, without re-running the suite |
+| `scripts/gate.sh --require-graded` (new default 16), **on the committed tip** | **GATE: PASS** — 18/18 lanes, 0 FAIL, 0 SKIP, 0 NO-RESULT, **5,184 fixture-verdicts**, **104 s** (lanes 1 s, sweep 81 s, cross 21 s); `/tmp` 772,959 → 753,077 free inodes, a draw of **19,882** against the 150,000 floor |
 | — generated sweep | `checked=19556 mismatches=0 graded=19460 ungraded=96 unknown=0` |
 | — mode cross | `checked=90812 mismatches=0 graded=90424 ungraded=388 unknown=0` |
 | `scripts/gate.sh --jobs 4 --require-graded` | the same verdict block, 605 s |
