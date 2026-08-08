@@ -55,7 +55,7 @@ over**, at choice points nobody had named.
 its cell was compiled, every cell graded by the real `c2.dll` under wibo at the
 dc3 workload's own flags.
 
-> ### **M-RULE — the park register.** Volatile vs callee-saved is **liveness across calls weighted by the callee's exact register footprint**, and the footprint is a **whole-TU** property. **7 volatile witnesses, 9 callee-saved**, all predicted in advance.
+> ### **M-RULE — the park register.** Volatile vs callee-saved is **liveness across calls weighted by the callee's exact register footprint**, and the footprint is a **whole-TU** property. **14 volatile witnesses, 9 callee-saved**, script-counted, all predicted in advance.
 
 The cell that makes it a mechanism rather than a two-class rule is **M13**: its
 callee writes r3, r8, r9, r10, r11, the call passes four arguments in r3–r6, and
@@ -71,7 +71,7 @@ r11-vs-r10 question, separated on 14 objs.
 
 > ### **B-RULE — the pooled-constant `lis`** goes at the top of the earliest basic block that **dominates every use** of that pool symbol; the `lfs` stays at the use. **3 entry-block witnesses, 6 block-local.**
 
-> ### **B-RULE-2 — compare/branch separation.** Exactly **one** instruction sits between a compare and the branch reading its CR field, when one is available to fill the slot. **6 filled, 5 empty.**
+> ### **B-RULE-2 — compare/branch separation**, `medium`. Exactly **one** instruction sits between a compare and the branch reading its CR field, when one is available to fill the slot. **3 filled, 16 empty** — counted mechanically over every obj this lane produced, **because the first draft of that sentence said "6 filled, 5 empty" from memory and both numbers were wrong**. 3 is exactly #1767's floor and not one witness more, which is why this is the weakest of the four rules and is labelled so.
 
 B-RULE-2 is the correction the base obj could not have given and is the reason
 the lane was worth running: `Biquad` hoists *two* words into the entry block, so
@@ -139,9 +139,15 @@ The contract: *at least one of the two choice points has ≥3 witnesses per side
 with a mechanism reading consistent with all of them — or a written finding that
 the choice is not mechanism-driven.*
 
-**Three choice points cleared it, not one.** M at 7/9, B at 3/6, B′ at 5/15.
-All three mechanism readings are consistent with every witness including the
-base objs, which were never fitted to.
+**Three choice points cleared it, not one.** M at **14/9**, B at **3/6**, B′ at
+**5/15**. All three mechanism readings are consistent with every witness
+including the base objs, which were never fitted to. B-RULE-2, the fourth rule,
+is at **3/16** — exactly the floor, and labelled `medium` for it.
+
+The M count also closes the loop on the decline itself: `park.py` finds that
+**`Biquad.cpp`'s own constructor parks in r10 across `bl ?SetCoefficients`**, so
+the two TUs #1770 declined *together* are witnesses of the *same* chooser — and
+neither was ever one-witness-per-side on it.
 
 And the second half of the floor is also delivered, for the rows themselves:
 **`mmio.cpp` and `Biquad.cpp` are not blocked by an evidence shortage.** They are
@@ -176,4 +182,9 @@ Ranked by what the next lane would get:
    and answers #1762; the reservation itself is unlocated, so the sub-rule is
    `medium` rather than `high`.
 5. **The survey-paraphrase mitigation** (findings §8). Three occurrences this
-   week, all the same shape, no instrument watches for it.
+   week, all the same shape, no instrument watches for it. **This lane
+   committed the same error inside its own findings doc** — "6 filled, 5 empty"
+   written from memory where the objs say 3 and 16 — and caught it only by
+   writing the counter (`work/wb-chooser/sep.py`). The generalisable form of the
+   mitigation is therefore not "quote the rung": it is **count it with a script
+   whenever the number is going on the board**.

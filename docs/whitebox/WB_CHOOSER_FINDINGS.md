@@ -203,15 +203,28 @@ registers and every subsequent word is wrong.
 
 ### 2.6 Witness count — #1767's bar
 
-| side | base | registered grid | total |
-|---|---|---|---|
-| **volatile** | 2 (`mmioGetInfo` r11, `mmioClose` r5) | M1, M3, M4, M8, M9-b | **7** |
-| **callee-saved** | 2 (`mmioSetInfo`, `mmioClose` r31) | M2, M5, M6, M7 (×2 sites), M9-a, M10 | **9** |
+Counted by `work/wb-chooser/park.py` over every obj this lane produced, not by
+hand — see §8 for why that sentence is in this document.
 
-**≥3 per side, with every grid outcome predicted before its cell was compiled,
-and a mechanism reading consistent with all sixteen.** #1767's bar is met for
-choice point M. It was met by *manufacturing* the witnesses, which is exactly
-the remedy the rule anticipates: #1767 refuses a 2-point fit, not a 16-point one.
+| side | script-counted sites | where |
+|---|---:|---|
+| **callee-saved** | **9** | `mmioSetInfo` r31 · `mmioClose` r31 · M2 · M5 · M6 · M7 (**r30 and r31**) · M9 · M10 |
+| **volatile, entry park** | **12** | **`Biquad`'s `??0Biquad` r10** · `mmioGetInfo` r11 · `mmioClose` r5 · M3 · M4 · M8 · M11 · M12 · **M13 r7** · M14 · M15 · M16 |
+| **volatile, no move at all** | **2** | M1 (`a` never leaves r3) · M9's `b` (never leaves r4) — the script cannot count these because they emit no instruction |
+
+**14 volatile-side and 9 callee-saved**, with every grid outcome predicted
+before its cell was compiled and a mechanism reading consistent with all of
+them. #1767's bar is met for choice point M, by *manufacturing* the witnesses —
+which is exactly the remedy the rule anticipates: #1767 refuses a 2-point fit,
+not a 23-point one.
+
+**And the script found a witness the hand count had missed, in the other
+declined TU.** `Biquad.cpp`'s constructor `??0Biquad@DSP@@QAA@PAM@Z` parks
+`this` in **r10** across `bl ?SetCoefficients` — a same-TU callee emitted
+earlier (section 5 vs section 8) which writes r11, f0 and f13 but not r10. So
+**the two TUs #1770 declined together are witnesses of the same chooser**, and
+`Biquad` was never one-witness-per-side on it either. (The parked value is then
+never read — a redundant move, noted and not chased.)
 
 Discriminating cells actually delivered: **3**, the asserted minimum. M3
 separated M-HYP from R-M-A (M-HYP won); M4 separated M-HYP from R-M-C (**R-M-C**
@@ -256,13 +269,27 @@ the same formal in the same slot takes r3 in M1 and r31 in M2).
 
 And the correction B2 forced, which the base obj alone could not have given:
 
-> **B-RULE-2 (compare/branch separation).** Within the entry block, **exactly
-> one instruction sits between a compare and the branch that reads its CR
-> field**, if one is available to fill the slot; the rest of the hoisted words
-> go above the compare. Witnesses: `Biquad` (`cmplwi`, `lfs`, `bf`), B2
-> (`cmpwi`, `lis`, `bt`), B3 (`cmpwi`, `lfs`, `bt`) — one filler each; B1, B4,
-> B5, `mmioGetInfo`, M9 — nothing hoisted into the entry block, nothing to fill
-> with, compare and branch adjacent. **Six witnesses filled, five empty.**
+> **B-RULE-2 (compare/branch separation), `medium`.** Within the entry block,
+> **exactly one instruction sits between a compare and the branch that reads its
+> CR field**, if one is available to fill the slot; the rest of the hoisted
+> words go above the compare.
+
+Counted mechanically over every obj this lane produced —
+`work/wb-chooser/sep.py`, a scratch instrument, run rather than eyeballed
+because the first draft of this paragraph said *"six filled, five empty"* from
+memory and **both numbers were wrong**:
+
+| | count | sites |
+|---|---:|---|
+| **filled** | **3** | `Biquad`'s `?SetCoefficients` +0x04 (`cmplwi`, `lfs`, `bf`), B2 +0x00 (`cmpwi`, `lis`, `bt`), B3 +0x04 (`cmpwi`, `lfs`, `bt`) |
+| **empty** | **16** | all three `mmio` bodies (8 compares), B1, B4, B5, B6, B7 (×2), M9 (×2) — in every one of them nothing was hoisted into that block, so there was nothing to fill the slot with |
+
+**3 is exactly #1767's floor and not one witness more, so this rule is
+`medium`, not `high`.** It is stated because it is the correction B2 forced and
+because a port that gets it wrong is wrong on every guarded body; it is *not*
+stated as settled. The cheapest way to raise it is cells that hoist two or more
+words into a block with a compare in it — this lane produced exactly one such
+shape (`Biquad`'s) and did not vary it.
 
 This is why the base obj's `lis`-at-word-0 looked like "hoist above the
 compare": in `Biquad` *two* words were hoisted (the `lis` and the `lfs`), one
@@ -470,11 +497,20 @@ pooled-`lis` placement (B-RULE + B-RULE-2), and the CSE reload order (B′-RULE)
 Their prices are engineering prices, not evidence prices, and #1767 does not
 refuse any of them.
 
-The mitigation, one line, aimed at the failure that has now fired three times
-(#1760, #1782, this lane): **a survey paragraph that re-states another rung's
-price must quote the rung's own words, not paraphrase them.** All three errors
-were paraphrases — "one mechanism" for a thirteen-item list, "two plans" for a
+The mitigation, aimed at the failure that has now fired three times (#1760,
+#1782, this lane's §1): **a survey paragraph that re-states another rung's price
+must quote the rung's own words, not paraphrase them.** All three errors were
+paraphrases — "one mechanism" for a thirteen-item list, "two plans" for a
 blocked-function count. The rungs themselves were accurate every time.
+
+**And that is not sufficient, on this lane's own evidence.** §3.3's first draft
+said *"six witnesses filled, five empty"*; the objs say **3 and 16**. No rung
+was paraphrased — the number was written from memory about objs this lane had
+itself produced ten minutes earlier, and it was caught only by writing
+`work/wb-chooser/sep.py` and running it. So the generalisable rule is stronger
+than "quote the source": **any count that is going on the board gets counted by
+a script, in the lane, before the row is written.** A hand count of a dozen objs
+is not evidence, and this document contains the proof.
 
 ---
 
