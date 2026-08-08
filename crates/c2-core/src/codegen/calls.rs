@@ -2101,6 +2101,118 @@ mod tests {
         assert!(setups[0].is_empty(), "the identity permutation emits no moves");
     }
 
+    /// **BOARD #1414 IS REFUTED HERE, in the smallest cell that does it.**
+    ///
+    /// #1414 publishes the park's cycle break as *"saving the LOWEST slot's
+    /// home into r11"*. `g(a2,a0,a1)` guarded on **`a2`** breaks that: c2 parks
+    /// **r5**, the guard's own scrutinee, and leaves the whole chain at the
+    /// call. Lane `w-clear`'s five cells could not see it because in all five
+    /// the guard's formal and the cycle minimum were the same register `r3`;
+    /// scored over the 832 in-class cells of `work/w-mmio/probe{,2,3}/`, the
+    /// minimum rule gets **394** and this one gets **832**.
+    ///
+    /// Both anchors are asserted from the SAME permutation, so what this test
+    /// pins is the guard's effect and not the permutation's.
+    #[test]
+    fn the_park_anchors_at_the_guards_scrutinee_and_not_at_the_cycle_minimum() {
+        // `g(a2,a0,a1)`: slot 0 <- a2, slot 1 <- a0, slot 2 <- a1.
+        let sources = [2usize, 0, 1];
+
+        // Guarded on a0 — which IS the cycle minimum, so the two rules agree.
+        let (entry, call, ..) = seq_entry_park(&sources, 0).expect("in class");
+        assert_eq!(entry, [encode_mr(11, 3), encode_mr(3, 5)].concat());
+        assert_eq!(call, [encode_mr(5, 4), encode_mr(4, 11)].concat());
+
+        // Guarded on a2 — the cell #1414 gets wrong. The park is r5, NOT r3.
+        let (entry, call, ..) = seq_entry_park(&sources, 2).expect("in class");
+        assert_eq!(entry, encode_mr(11, 5).to_vec(), "the anchor is the SCRUTINEE");
+        assert_ne!(entry, encode_mr(11, 3).to_vec(), "#1414 predicts r3 here");
+        assert_eq!(
+            call,
+            [encode_mr(5, 4), encode_mr(4, 3), encode_mr(3, 11)].concat(),
+            "nothing is hoisted past the park: the chain descends throughout"
+        );
+    }
+
+    /// **The split: the ENTRY block ascends, the CALL SITE descends — so a
+    /// chain that dips and rises again has no layout at all.**
+    ///
+    /// The two rotations of one three-cycle put the split in different places,
+    /// which is the descent clause; and the same permutation anchored where its
+    /// chain is not unimodal is refused rather than guessed. #1414 had one cell
+    /// for the first half and none for the second.
+    #[test]
+    fn the_entry_block_ascends_the_call_site_descends_and_a_dip_has_no_layout() {
+        // `g(a1,a2,a0)` — the chain writes r3, r4, r5: ascending, hoist two.
+        let (entry, call, ..) = seq_entry_park(&[1, 2, 0], 0).expect("in class");
+        assert_eq!(entry.len(), 12, "park + two hoisted moves");
+        assert_eq!(call, encode_mr(5, 11).to_vec(), "only the closer is left");
+
+        // `g(a2,a0,a1)` — the chain writes r3, r5, r4: the descent at r4 moves
+        // the split one instruction earlier.
+        let (entry, call, ..) = seq_entry_park(&[2, 0, 1], 0).expect("in class");
+        assert_eq!(entry.len(), 8, "park + ONE hoisted move");
+        assert_eq!(call.len(), 8);
+
+        // …and the call site is strictly DESCENDING by destination in both,
+        // which is `moves_descending`'s rule arriving from the other side.
+        for k in (4..call.len()).step_by(4) {
+            let prev = u32::from_be_bytes(call[k - 4..k].try_into().unwrap());
+            let cur = u32::from_be_bytes(call[k..k + 4].try_into().unwrap());
+            assert!((prev >> 16) & 31 > (cur >> 16) & 31, "descending");
+        }
+
+        // The same permutation anchored at a slot whose chain dips and rises.
+        let e = seq_entry_park(&[2, 0, 1], 1).expect_err("no layout");
+        assert!(format!("{e:?}").contains("unimodal"), "{e:?}");
+    }
+
+    /// **The guards' compare register needs TWO maps, and the pair that shows
+    /// it differs by nothing a cost model would notice.**
+    ///
+    /// `gtgt_n4_p0312_g3` and `g2ord_n4_p0312_g23` have byte-identical entry
+    /// blocks — `mr r11,r6` and nothing else — and test the same formal, and
+    /// real `c2` compares **r6** in the first and **r11** in the second. Both
+    /// are correct code. A single map gets 327 of 1,654 measured guards wrong;
+    /// this one gets 0.
+    #[test]
+    fn the_first_guard_reads_a_live_home_and_a_later_guard_reads_where_it_went() {
+        // `g(a0,a3,a1,a2)` anchored on a3: the entry block is the park alone.
+        let (entry, _, first, later) = seq_entry_park(&[0, 3, 1, 2], 3).expect("in class");
+        assert_eq!(entry, encode_mr(11, 6).to_vec());
+        let park = SeqPark { entry, first, later };
+        assert_eq!(park.reg_of(3, ARG_REGS[3], 0), ARG_REGS[3], "guard 0 reads r6");
+        assert_eq!(park.reg_of(3, ARG_REGS[3], 1), SCRATCH_REG, "a later guard reads r11");
+
+        // …and where the entry block DID overwrite the home, both maps agree,
+        // because reading the home would be wrong code rather than a choice.
+        let (entry, _, first, later) = seq_entry_park(&[1, 0], 0).expect("in class");
+        let park = SeqPark { entry, first, later };
+        assert_eq!(park.reg_of(0, ARG_REGS[0], 0), SCRATCH_REG);
+        assert_eq!(park.reg_of(0, ARG_REGS[0], 1), SCRATCH_REG);
+        // The formal that MOVED is read at its new home by a later guard even
+        // though its own home register still holds a live copy — this is
+        // `?mmioGetInfo`'s second guard, `cmplwi cr6,r3,0` at 0x24.
+        assert_eq!(park.reg_of(1, ARG_REGS[1], 1), ARG_REGS[0]);
+    }
+
+    /// **The park this emitter builds is `?mmioGetInfo`'s own, byte for byte.**
+    ///
+    /// `frontier_bytes::C2_MMIOGETINFO_TEXT` is a transcription of what real
+    /// `c2` emitted for the frontier's head (#502); these are the three words
+    /// of it that board #275 is about, and they are now *derived* rather than
+    /// read off. The function still does not emit — its `li r5,72` is
+    /// `callseq-multiarg-lit` — so this is the seam between the two, asserted.
+    #[test]
+    fn the_park_reproduces_mmiogetinfos_own_entry_block_and_call_remainder() {
+        let (entry, call, ..) = seq_entry_park(&[1, 0], 0).expect("in class");
+        let t = crate::codegen::frontier_bytes::C2_MMIOGETINFO_TEXT;
+        assert_eq!(entry, t[0x0c..0x14].to_vec(), "the entry block, 0x0c..0x14");
+        assert_eq!(call, t[0x38..0x3c].to_vec(), "the remainder at the call, 0x38");
+        // And it is NOT the unguarded break, which saves r4 where this saves r3.
+        assert_ne!(&entry[..4], &encode_mr(11, 4)[..]);
+    }
+
     /// **WCO — the chain-result designator, and the one place its two forms
     /// disagree.**
     ///
