@@ -597,6 +597,7 @@ pub(crate) enum SkipForm {
 /// | `4F` | Line4F | [`branch_sink`]'s `Stmt` arm |
 /// | `53` | Bare, `54` | Byte1 | [`eat_scopes`] |
 /// | `55` | Type | the `icall` line of `parse_segment`'s grammar — `55 INT` |
+/// | `5C` | TypeVarint | `EH_RECORDS.md` §7.1's measured `5C <TYPE> <varint>`, and `control_flow.rs`'s `operand()` arm that consumes it today — see the `0x5C` row below |
 /// | `67` | VarintTok | `IL_DECODE_REACH.md` §2 — `67 <varint vtable-byte-offset> <token>` |
 /// | `9B` | TypeTok | `IL_EXPR_LAYER.md` §7 — the trailing field is a whole `read_token_var` |
 /// | `B9` | TokType | [`parse_expr_classed`]'s own LOAD arm |
@@ -604,8 +605,11 @@ pub(crate) enum SkipForm {
 ///
 /// Deliberately **absent**, so their absence is a decision: `1B`/`1C` (`||`/`&&`
 /// — `mcall` records that no capture shows the byte at all), `64`, `66`, `3B`
-/// `3C` `3D` (the switch family, whose table payload is not a fixed width), and
-/// every byte no document in this tree names.
+/// `3C` `3D` (the switch family, whose table payload is not a fixed width),
+/// **`5D`/`5E`** (the EH COUNT trailers — `EH_RECORDS.md` §7.1 gives both as
+/// `<varint n> <varint state>` and no [`SkipForm`] variant can spell
+/// `<varint> <varint>`, which is `0xBD`'s expressiveness problem and not a
+/// missing measurement), and every byte no document in this tree names.
 pub(crate) fn chain_skip_form(b: u8) -> Option<SkipForm> {
     use SkipForm::*;
     Some(match b {
@@ -747,6 +751,116 @@ pub(crate) fn chain_skip_form(b: u8) -> Option<SkipForm> {
         0x53 => Bare,
         0x54 => Byte1,
         0x55 => Type,
+        // The EH LIVE-STATE marker, `5C <TYPE> <varint state>` (`lane w-5c`,
+        // board **#1423**). Emitted at the end of a statement in which an object
+        // with a destructor became live — `docs/EH_RECORDS.md` §7.1, which
+        // measured the width in 2026-07-31 and named the row it was under
+        // (`cf-expr-0x5C`, *"309,804 bodies, the largest single row on the
+        // control-flow axis"*).
+        //
+        // **This is `0xBD`'s diagnosis one family along, with the enum's half of
+        // it already solved.** `5C` was never unwitnessed:
+        // `control_flow.rs`'s `operand()` reads exactly this width **today**
+        // (`cf-eh-live-type` then `cf-eh-live-state`, then `eh.live_stmts += 1`),
+        // and four `ctor_dtor.rs` recognizers eat `5C <TYPE> <state>` inside
+        // shapes the differential grades byte-exact. What was missing was the
+        // ROW — `TypeVarint` could already spell it, so unlike `0xBD` this was a
+        // plain omission and not an expressiveness one. A width table that
+        // cannot spell a width it already knows refuses for the wrong reason;
+        // one that simply forgot to write it down refuses for no reason at all.
+        //
+        // **It is NOT a bracket, and that distinction is why the estimate for
+        // this rung is different from `4C`'s.** `4C` closes every call — one
+        // floor under every call site in a body at once, which is how `w-4c`
+        // came in at +109 % of its own prereg. `5C` is a *statement-terminal
+        // trailer over a narrow population*: measured over the workload, the
+        // bodies that carry one carry a **median of 1** and a mean of **1.245**
+        // (292,839 of 335,772 carry exactly one), against `4C`'s 3.54 M sites.
+        //
+        // Witnessed a first way by a capture taken at THIS master
+        // (`work/w-5c/probe/eh5c.cpp`, read out by `probe/read_5c.py`), where
+        // the object's TYPE is the only field that moves across the rows:
+        //
+        // ```text
+        //   void one_local()  { MemA s; }          5C a6 43 81 20 01  >4B<
+        //   void two_locals() { MemA s; MemB t; }  5C a6 43 81 20 01  >4B<
+        //                                          5C a6 43 8a 20 01  >4B<
+        //   int userfn(int a){ MemA s; g(a); … }   5C 86 41 74 01     >4B<   (3-byte TYPE)
+        //   struct HasMem { MemA m; int k; }       5C 86 46 80 20 01  >4B<
+        // ```
+        //
+        // — graded `ReferenceReplay=ByteExact` against real `c2.dll` under wibo,
+        // and `work/w-5c/probe/eh5c_min.cpp` (three generated destructors, **all
+        // three bodies carrying a `5C`**, census 3/3 in class) **`Port=Match`**:
+        // the port emitted an obj byte-exact from IL containing this token.
+        //
+        // Confirmed a second way on the workload (`work/w-5c/scwalk.py`), over
+        // **335,716** anchored sites in 876 dc3 TUs. **Anchor A is non-circular
+        // by construction**: the walk starts at the tree's own `LO_MARKER`
+        // (`4C 4F 11 53`), uses `control_flow.rs`'s widths — a *different* table
+        // from this one (board #1320) with the whole `5C`/`5D`/`5E` family
+        // REMOVED — and **stops AT the first `5C`, never over one**, so the
+        // site's position is fixed by the other tokens' widths. The rivals:
+        //
+        // ```text
+        //   TV  5C <TYPE> <varint>        0 desyncs   0.000 %   <- this reading
+        //   P   payload-free        335,716         100.000 %
+        //   T   5C <TYPE>           210,570          62.723 %
+        //   V   5C <varint>         130,991          39.018 %
+        //   TT  5C <TYPE> <token>    59,181          17.628 %
+        // ```
+        //
+        // `w-divsplit`'s decisive question — *is there anywhere for a payload to
+        // be?* — answers **100.00 %** here, the exact opposite of `4C`'s 12.27 %:
+        // the byte after a `5C` has bit 7 set at every one of the 335,716 sites,
+        // so it opens a TYPE and the payload-free reading has nowhere to hide.
+        // And a fixed width is dead on its face: the TYPE is 3 B at 197,660
+        // sites, 4 B at 64,437, 5 B at 65,173, 6 B at 7,197 and 7 B at 1,249.
+        //
+        // A second, walk-free anchor (`55 <TYPE> 4C 5C` — `w-4c`'s own
+        // argument-closing call-end, at the gate the emitter applies there) sees
+        // **37,742** sites at **0** TV desyncs, and lands inside a token anchor A
+        // stepped **zero** times, so the two anchors never disagree about a
+        // position.
+        //
+        // **The STRUCTURE, which is not the same as the result.**
+        // `control_flow.rs`'s own comment says the `5C` *"is the last token of
+        // its statement (it stands immediately before the `4B`)"*. Under this
+        // reading it is, at **275,112 of 335,716 (81.95 %)**. The other 18.05 %
+        // land on `9B` (50,692), `55` (9,007), `99`, `26`, `30` — the
+        // OPERAND-position spelling `docs/EH_RECORDS.md` §7.2 records beside the
+        // statement one (*"both spellings occur in one probe"*), not a desync.
+        //
+        // **The one field the anchored population could not decide, and the
+        // population that decides it.** `TypeVarint` and a hypothetical
+        // `TypeByte1` agree at every state below `0x80`, and the anchored walk
+        // reaches **0** sites where the state escapes — `0xBD`'s §2.2 situation,
+        // where the corpus excluded neither reading. Here it does not have to
+        // be: the escaped sites exist, they are just inside bodies whose walk
+        // abandons at an unpinned opcode first. An over-inclusive raw scan
+        // (every `5C` byte with a readable TYPE after it — the bias is stated
+        // and the BASE RATE is printed beside the result) finds **9,744** sites
+        // whose state byte is `80`:
+        //
+        // ```text
+        //   varint (`80 <LE32>`)   lands on 4B  9,645 / 9,744  98.98 %
+        //   one raw byte           lands on 4B      0 / 9,744   0.00 %
+        //   base rate over all 544,783 raw `5C <TYPE>` positions   60.66 %
+        // ```
+        //
+        // So the varint reading is 38 points above the base rate on that class
+        // and the byte reading is 61 below it. It is decided, and it agrees with
+        // the ACCEPTING side: `operand()` reads a varint there too, and a sink
+        // that read a field differently from the reader beside it would report a
+        // successor that reader can never reach.
+        //
+        // **What this does NOT do**: `5D` and `5E`, the count trailers, stay
+        // unpinned. `EH_RECORDS.md` §7.1 gives both as `<varint n> <varint>` from
+        // the same probes and **`SkipForm` has no variant that can spell
+        // `<varint> <varint>`** — which is `0xBD`'s expressiveness problem, and
+        // an enum change is not this row. See
+        // [`the_unpinned_opcodes_refuse_rather_than_guess_a_width`].
+        0x5C => TypeVarint,
         0x67 => VarintTok,
         // The BIND, `99 <TYPE> <varint>`. `IL_EXPR_LAYER.md` §7 pins the field
         // by CONTRAST — "its trailing field is a whole `read_token_var`, not the
@@ -2004,10 +2118,32 @@ mod tests {
     /// prevent. `0x07`, `0x14` and `0x25` are witnessed at token starts by the
     /// same walk (2, 1 and 1 times) — a witness that they OCCUR, and no
     /// evidence at all about their widths.
+    ///
+    /// **`0x5D` and `0x5E` have JOINED it, and their reason is a THIRD kind**
+    /// (`lane w-5c`, board **#1425**). They are not unwitnessed like `0x00`, and
+    /// they are not unmeasured like `0x14`: `docs/EH_RECORDS.md` §7.1 gives both
+    /// as `<varint n> <varint state>` from the same probe session that pinned
+    /// `0x5C`, and `control_flow.rs`'s `operand()` reads them at that width
+    /// today. **`SkipForm` has no variant that can spell `<varint> <varint>`** —
+    /// which is exactly the problem `0xBD` had before `TypeByteVarint` existed,
+    /// so opening them is an ENUM change and not a table row. Recorded here
+    /// rather than added, because the difference between *"nobody measured it"*
+    /// and *"the type cannot say it"* is the difference `chain_skip_form`'s
+    /// `None` is otherwise unable to express (board #1314's finding, restated).
     #[test]
     fn the_unpinned_opcodes_refuse_rather_than_guess_a_width() {
         for b in [0x00, 0x07, 0x08, 0x14, 0x1B, 0x1C, 0x3B, 0x3C, 0x3D, 0x59, 0x64, 0x66] {
             assert_eq!(chain_skip_form(b), None, "0x{b:02X} must have no pinned form");
+        }
+        // The EH COUNT trailers. Kept in their own loop with their own message,
+        // so a lane that adds a `VarintVarint` variant deletes a line that names
+        // the reason instead of one that reads like an oversight.
+        for b in [0x5D, 0x5E] {
+            assert_eq!(
+                chain_skip_form(b),
+                None,
+                "0x{b:02X} is `<varint> <varint>`, which no SkipForm variant can spell"
+            );
         }
         // …and the two that moved are `Bare`, not merely "not None": a width
         // guess in the other direction is the desync this table exists to
@@ -2129,7 +2265,7 @@ mod tests {
                 0x0F | 0x27 | 0x30 | 0x32 | 0x35 | 0x40 | 0x41 | 0x55 => Some(SkipForm::Type),
                 0x26 | 0x29 | 0x38..=0x3A => Some(SkipForm::Tok),
                 0x28 => Some(SkipForm::Byte2),
-                0x2C | 0x33 | 0x99 => Some(SkipForm::TypeVarint),
+                0x2C | 0x33 | 0x5C | 0x99 => Some(SkipForm::TypeVarint),
                 0x43 => Some(SkipForm::Escape43),
                 0x4F => Some(SkipForm::Line4F),
                 0x54 => Some(SkipForm::Byte1),
@@ -2230,6 +2366,98 @@ mod tests {
         assert_eq!(skip_one(&notafter4c, 0xB9), Some(Ok(6)), "the load is 6 bytes");
         assert_ne!(notafter4c[6], 0x4C, "the predecessor is an operator, not a CALL-END");
         assert_eq!(chain_skip_form(0x59), None, "and `59` stays unpinned — it is not evidence about `4C`");
+    }
+
+    /// **The EH LIVE-STATE marker, from the CAPTURE and not from the table that
+    /// reads it** (`lane w-5c`, board **#1423**).
+    ///
+    /// Transcribed off `work/w-5c/probe/eh5c.cpp`'s `.ex`, captured at this
+    /// master by `c2rs capture` at the workload's own flags and graded
+    /// `ReferenceReplay=ByteExact` against real `c2.dll` under wibo. The rows
+    /// differ only in the destroyed object's TYPE, so the TYPE's LENGTH is the
+    /// only field that moves — which is what makes them a witness for the
+    /// *width* rather than for one destructor.
+    #[test]
+    fn the_eh_live_state_marker_consumes_exactly_its_capture() {
+        // `void one_local() { MemA s; }` — a 4-byte object TYPE, state `01`, and
+        // the `4B` statement end immediately after it.
+        let one = [0x5C, 0xA6, 0x43, 0x81, 0x20, 0x01, 0x4B];
+        assert_eq!(skip_one(&one, 0x5C), Some(Ok(6)), "the marker ends on the 4B");
+        assert_eq!(one[6], 0x4B, "and `4B` is the statement end");
+        assert!(chain_skip_form(one[6]).is_some(), "which this table can step");
+
+        // `int userfn(int a){ MemA s; g(a); return a+1; }` — the SAME token with
+        // a 3-byte TYPE, from `EH_RECORDS.md` §7.1's own witness that `5C` is not
+        // a ctor/dtor token. A fixed width cannot absorb both rows; the workload
+        // carries 3-, 4-, 5-, 6- and 7-byte TYPEs here (197,660 / 64,437 /
+        // 65,173 / 7,197 / 1,249 sites).
+        let three = [0x5C, 0x86, 0x41, 0x74, 0x01, 0x4B];
+        assert_eq!(skip_one(&three, 0x5C), Some(Ok(5)));
+
+        // The OPERAND-position spelling, which `EH_RECORDS.md` §7.2 records
+        // beside the statement one and which is 18.05 % of the workload's sites:
+        // the marker stands before a `9B` bind rather than before a `4B`.
+        let operand = [0x5C, 0xA6, 0x43, 0x8A, 0x20, 0x03, 0x9B, 0x86, 0x41, 0x74];
+        assert_eq!(skip_one(&operand, 0x5C), Some(Ok(6)));
+        assert_eq!(chain_skip_form(operand[6]), Some(SkipForm::TypeTok));
+
+        // **THE ESCAPED STATE.** `EH_RECORDS.md` §7.1 published
+        // `5C 86 41 74 80 01 01 00 00` in 2026-07-31 and this master's workload
+        // reproduces it byte for byte at **9,645 sites in 812 TUs** — every
+        // escaped-state site in the corpus is this exact sequence. It is the one
+        // shape that separates `TypeVarint` from a one-raw-byte reading, and a
+        // fixed-byte read stops on the `01` inside the LE32.
+        let esc = [0x5C, 0x86, 0x41, 0x74, 0x80, 0x01, 0x01, 0x00, 0x00, 0x4B];
+        assert_eq!(skip_one(&esc, 0x5C), Some(Ok(9)), "the escape is 5 payload bytes");
+        assert_eq!(esc[9], 0x4B);
+
+        // A payload that runs off the end refuses rather than clamping — a clamp
+        // would report a fictitious successor.
+        assert_eq!(skip_one(&[0x5C, 0x86, 0x41, 0x74], 0x5C), Some(Err("expr-chain-short")));
+        assert_eq!(skip_one(&[0x5C], 0x5C), Some(Err("expr-chain-short")));
+    }
+
+    /// **The rival readings, and the population that decides the one the
+    /// anchored walk could not** — the control that makes the row above a
+    /// measurement instead of an assertion.
+    ///
+    /// `work/w-5c/scwalk.py` refutes payload-free at **335,716 of 335,716**
+    /// anchored sites, `5C <TYPE>` at 210,570, `5C <varint>` at 130,991 and
+    /// `5C <TYPE> <token>` at 59,181. The reading this pins is the last one
+    /// standing at **0**.
+    ///
+    /// The interesting rival is the one those numbers cannot touch: `TypeVarint`
+    /// and a hypothetical `TypeByte1` agree at every state below `0x80`, and the
+    /// anchored walk reaches **zero** escaped sites. That is `0xBD`'s §2.2
+    /// situation — and unlike `0xBD` it is decided, on the 9,744 raw-scan sites
+    /// whose state byte IS `0x80`: the varint reading lands on the statement end
+    /// at 98.98 % against a 60.66 % base rate, and the one-byte reading at
+    /// **0.00 %**. This pins the mechanism.
+    #[test]
+    fn an_eh_state_read_as_one_byte_stops_inside_the_escape() {
+        let esc = [0x5C, 0x86, 0x41, 0x74, 0x80, 0x01, 0x01, 0x00, 0x00, 0x4B];
+        // The pinned reading lands on the statement end…
+        assert_eq!(skip_one(&esc, 0x5C), Some(Ok(9)));
+        assert_eq!(esc[9], 0x4B);
+        // …and the one-raw-byte reading stops on index 5, spelled out rather than
+        // computed so the byte is visible: TYPE is 3 bytes, the `80` is eaten as
+        // the whole field, and the cursor lands inside the LE32's own payload.
+        assert_eq!(esc[5], 0x01);
+        assert_eq!(chain_skip_form(esc[5]), None, "0x01 opens nothing — the desync is visible");
+
+        // And payload-free — the rival that took `4C` — is dead on its face here,
+        // for the reason `w-divsplit` asks about: there is ALWAYS somewhere for
+        // the payload to be. The byte after a `5C` has bit 7 set at 335,716 of
+        // 335,716 anchored workload sites, so it opens a TYPE, and `4C`'s own
+        // 87.7 %-no-room argument runs the other way.
+        for s in [&one_local()[..], &esc[..]] {
+            assert_ne!(s[1] & 0x80, 0, "the byte after a 5C is a TYPE tag");
+            assert_eq!(chain_skip_form(s[1]), None, "…and opens no operand token");
+        }
+    }
+
+    fn one_local() -> [u8; 7] {
+        [0x5C, 0xA6, 0x43, 0x81, 0x20, 0x01, 0x4B]
     }
 
     /// Run one [`chain_sink_step`] with `op` sunk, without touching the process

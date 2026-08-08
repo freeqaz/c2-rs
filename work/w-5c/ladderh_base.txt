@@ -1,0 +1,17 @@
+src/Main.cpp                                   net=3   sink=1   hatch=2  STUCK:expr-call-in-expr-recv-object-then-op-0x5C
+src/system/math/Primes.cpp                     net=7   sink=7   hatch=0  READER-CLEAR
+src/xdk/LIBCMT/osfinfo.cpp                     net=13  sink=12  hatch=1  READER-CLEAR
+src/xdk/LIBCMT/undname.cpp                     net=12  sink=12  hatch=0  READER-CLEAR
+src/xdk/LIBCMT/vswprnc.cpp                     net=11  sink=11  hatch=0  READER-CLEAR
+src/xdk/nuispeech/xboxheap.cpp                 net=0   sink=0   hatch=0  READER-CLEAR
+src/xdk/xjson/jsonwriter.cpp                   net=16  sink=15  hatch=1  READER-CLEAR
+src/xdk/xlrc/xlrcimpl.cpp                      net=0   sink=0   hatch=0  EXIT:assign-rhs-call-0x26(no-lift)
+src/system/negate_test.cpp                     net=12  sink=11  hatch=1  READER-CLEAR
+src/system/synth_xbox/Biquad.cpp               net=7   sink=7   hatch=0  EXIT:expr-chain-noform-0x00(noform)
+src/xdk/LIBCMT/vsnprnc.cpp                     net=13  sink=12  hatch=1  READER-CLEAR
+src/system/rndobj/wordwrap.cpp                 net=19  sink=19  hatch=0  EXIT:expr-chain-noform-0x1C(noform)
+src/system/utl/Pool.cpp                        net=9   sink=9   hatch=0  EXIT:expr-chain-noform-0x10(noform)
+src/xdk/nuispeech/mmio.cpp                     net=12  sink=12  hatch=0  READER-CLEAR
+src/system/synth_xbox/IPP_basicmath_xbox.cpp   net=12  sink=12  hatch=0  EXIT:expr-chain-noform-0x11(noform)
+src/system/utl/EncryptXTEA.cpp                 net=17  sink=17  hatch=0  EXIT:expr-chain-noform-0x00(noform)
+src/keygen_xbox.cpp                            net=20  sink=18  hatch=2  EXIT:expr-chain-noform-0x13(noform)
