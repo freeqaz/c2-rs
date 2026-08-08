@@ -1,0 +1,73 @@
+KILLED-WORKER EVIDENCE (lane w-throughput, 2026-08-08)
+======================================================
+
+The hazard a concurrency raise introduces is a worker that dies and takes its
+cases with it, so the run reports `mismatches=0` over a SHORT corpus. The
+proposal asserts this fails red. It was verified by killing a worker.
+
+Reproduce:  sh work/w-throughput/kill_a_worker.sh sweep
+            sh work/w-throughput/kill_a_worker.sh gate
+
+-------------------------------------------------------------------------------
+PART A — expr_sweep.sh alone, 16 workers, one SIGKILLed mid-chunk
+
+== part A: expr_sweep.sh at 16 workers, one killed mid-chunk ==
+   sweep pid 3884241 has 16 worker subshells
+   killing worker 3886602 (and its own children) with SIGKILL
+   expr_sweep.sh exit status: 3
+-- the last lines of its output --
+checked=734 mismatches=0 graded=732 ungraded=2 unknown=0
+FATAL: selected 783 cases and only 734 were graded
+  15 of 16 workers reported a count. A short count is a worker
+  that died; the cases it held were never graded and this run establishes
+  nothing about them.
+
+Read the two lines together: `mismatches=0` is printed, and it is printed over a
+corpus 49 cases short. THAT is the false green, and the FATAL is standing in
+front of it. Exit 3.
+
+-------------------------------------------------------------------------------
+PART B — the whole gate at --jobs 16, one sweep worker SIGKILLed
+
+== part B: the whole gate at --jobs 16, one sweep worker killed ==
+   widest process in the gate's tree: pid 3437172 with 16 children
+   treating 3437172 as the sweep shell; killing worker 3440333
+   gate.sh exit status: 1
+-- the sweep row and the verdict --
+  FATAL: selected 6519 cases and only 6111 were graded
+  sweeping 1983 of 90812 case-lane cells (STRIDE 46 — a SAMPLE, not the product)
+  checked=1983 mismatches=0 graded=1979 ungraded=4 unknown=0
+expr-sweep           FAIL         6111/6519     6091         0  generated cases (of 19556)   <- SHORT — selected 6519 cases, reached 6111
+GATE: FAIL — expr-sweep failed: SHORT — selected 6519 cases, reached 6111
+
+The gate goes RED and names the reason. Note the row prints `0` in the mismatch
+column while failing: the verdict is not derived from the mismatch count at all,
+it is derived from `checked == run`.
+
+-------------------------------------------------------------------------------
+TWO INDEPENDENT MECHANISMS, NEITHER OF WHICH IS AN EXIT STATUS
+
+1. `expr_sweep.sh` sums the workers' own `checked.N` files — a worker killed
+   mid-chunk never writes one — and compares the sum with the `run` it selected.
+2. `gate.sh`'s `sweep_verdict` RE-DERIVES the same comparison from the log
+   (`FAIL|...|SHORT — selected R cases, reached C`), so a sweep that somehow died
+   with status 0 is still red.
+
+And the gate's own must-fail suite already pins both directions:
+`gate.sh --selftest` carries `sweep-short-count FAIL` and `cross-short-count
+FAIL` with the assertion "grading fewer cases than were selected is a FAIL, not
+a pass" — 102 cases, PASS on this tip.
+
+-------------------------------------------------------------------------------
+A METHOD NOTE THAT COST ONE RUN
+
+Part B's first attempt reported `REFUSED: could not identify a worker`. The
+budget was 800 cases, which at 16 workers is 50 cases each and finishes in ~3 s —
+the kill arrived after the sweep was already over. The default budget is 8,000
+now. A demonstration that cannot find its target is not a demonstration that the
+target is safe, and it is worth saying that the script REFUSED rather than
+silently doing nothing.
+
+No `pgrep -f` appears anywhere in the script: the victim is found by walking
+children of a PID the script itself launched (`pgrep -P <numeric pid>`), so no
+pattern can match the script's own argv.

@@ -52,6 +52,16 @@
 #   scripts/status.sh --check         validate the registry and parsers; no toolchain
 #   scripts/status.sh --raw           print the STATUS-METRIC lines, unrendered
 #   scripts/status.sh --jobs N        gap scan concurrency (default 16)
+#   scripts/status.sh --tests-log F   read the workspace-test row out of a log the
+#                                     caller already produced, instead of running
+#                                     `cargo test --workspace --release` again
+#                                     (~206 s idle, ~300 s under load). The log is
+#                                     accepted only if it is FRESHER than every
+#                                     input the suite reads and INTERNALLY
+#                                     RECONCILED — see collect_tests below. It is
+#                                     never a cache: without this flag the suite
+#                                     runs, and a log that fails any check renders
+#                                     NO-RESULT with the reason, never a number.
 #
 # Environment:
 #   C2RS_DC3      the dc3-decomp source tree     (default: <repo>/../dc3-decomp)
@@ -74,6 +84,7 @@ workload="${C2RS_WORKLOAD:-$repo_root/work/dc3-workload}"
 do_write=0
 do_check=0
 do_raw=0
+tests_log=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -81,6 +92,14 @@ while [ $# -gt 0 ]; do
         --check) do_check=1 ;;
         --raw)   do_raw=1 ;;
         --jobs)  shift; jobs="$1" ;;
+        --tests-log)
+            shift
+            # A missing value must not become "option absent" — that is bug 3 of
+            # `cli_flags.rs`, and here it would silently re-run the suite the
+            # caller asked to skip.
+            [ $# -gt 0 ] || { echo "status.sh: --tests-log needs a path" >&2; exit 2; }
+            tests_log="$1"
+            ;;
         -h|--help) sed -n '1,60p' "$0"; exit 0 ;;
         *) echo "status.sh: unknown argument '$1'" >&2; exit 2 ;;
     esac
@@ -231,7 +250,115 @@ p_geomean()    { sed -n 's/.*geomean speedup over the [0-9]* matched fixture(s):
 # ---- collectors ----------------------------------------------------------------
 # Each prints exactly one STATUS-METRIC line per key on EVERY exit path.
 
+# ---- THE TEST LEG, AND THE ONE WAY TO NOT PAY FOR IT TWICE ---------------------
+#
+# `collect_tests` runs the **whole** workspace suite — 206 s on this box, 300 s
+# under lane load — and a merge ritual that runs `cargo test --workspace
+# --release` and then `status.sh --write` pays for it twice, for a report whose
+# other unique contribution (the 878-TU scan) is **2.1 s warm**.
+#
+# `--tests-log FILE` lets a caller hand over the run it already did. The obvious
+# way to build that is a false green with this project's own name on it — a log
+# from *before* the change is a passing suite for code that was never tested — so
+# the reuse path is gated on FOUR positive checks, each of which renders
+# `NO-RESULT` **with the reason in the value** rather than falling back to a
+# number:
+#
+#   1. the file exists and is non-empty;
+#   2. **nothing cargo would have read is newer than the log.** The input set is
+#      re-derived from the tree on every run (`_tests_inputs`), not remembered:
+#      `crates/`, `fixtures/`, `Cargo.toml`/`Cargo.lock`, the data files the
+#      registry tests read (`scripts/lanes.txt`, `scripts/sweep.d`,
+#      `scripts/sweep_gen.py`, `docs/rungs/`) and every path an `include_str!`
+#      in `crates/` actually names — which is how `work/w-inl0/cells/*.cpp`
+#      is in this list and would not have been if it were typed by hand;
+#   3. **every target cargo launched reported a result.** `Running`/`Doc-tests`
+#      lines and `test result:` lines are counted and must be EQUAL and non-zero.
+#      A target that died without printing a result, or a log truncated
+#      mid-suite, is a short count — the same reconciliation `expr_sweep.sh` and
+#      `mode_cross.sh` use, and the answer to the newest instance of STATUS.md's
+#      trap 5 (a runner that reported `ok` for every target with 169 tests
+#      silently not run);
+#   4. the log ENDS on a `test result:` line, so an interrupted run cannot pass
+#      check 3 by having been cut between two targets.
+#
+# **Check 2 is conservative on purpose and you WILL hit it.** `docs/rungs/` is in
+# the closure because `rung_registry.rs` reads it, so writing a rung doc after
+# running the suite makes the log stale — correctly, because the suite's inputs
+# did change. The ritual that works is: write the rung doc, THEN
+# `cargo test --workspace --release 2>&1 | tee <log>`, then the gate, then
+# `status.sh --write --tests-log <log>`. The refusal names the offending file, so
+# it says which of these it was rather than leaving you to guess.
+#
+# What it deliberately does NOT do is *cache*. There is no state, no sentinel and
+# no "skip if unchanged": every invocation without `--tests-log` runs the suite,
+# exactly as before. `work/fable-perf/PROPOSAL.md` §6 declined "teach it to
+# consume a prior test log" on the grounds that a stale log is worse than the
+# duplication, and that is right about a bare log path; checks 2-4 are the price
+# of disagreeing with it.
+_tests_inputs() {
+    # Printed relative to $repo_root; consumed by `find` there.
+    printf '%s\n' Cargo.toml Cargo.lock crates fixtures \
+        scripts/lanes.txt scripts/sweep.d scripts/sweep_gen.py docs/rungs
+    grep -rho 'include_str!("\.\./\.\./\.\./[^"]*")' "$repo_root/crates" 2>/dev/null \
+        | sed 's|include_str!("\.\./\.\./\.\./||; s|")$||' | sort -u
+}
+
+# Print the first test input strictly newer than $1, or nothing.
+_tests_input_newer_than() {
+    _tin_log="$1"
+    ( cd "$repo_root" || exit 0
+      _tin_paths=""
+      for _p in $(_tests_inputs); do
+          [ -e "$_p" ] && _tin_paths="$_tin_paths $_p"
+      done
+      [ -n "$_tin_paths" ] || exit 0
+      # shellcheck disable=SC2086
+      find $_tin_paths -newer "$_tin_log" \( -type f -o -type l \) -print 2>/dev/null | head -1
+    )
+}
+
+collect_tests_from_log() {
+    _log="$1"
+    if [ ! -f "$_log" ]; then
+        emit tests "NO-RESULT (--tests-log MISSING: no such file: $_log)"; return 0
+    fi
+    if [ ! -s "$_log" ]; then
+        emit tests "NO-RESULT (--tests-log EMPTY: $_log)"; return 0
+    fi
+    _newer=$(_tests_input_newer_than "$_log")
+    if [ -n "$_newer" ]; then
+        emit tests "NO-RESULT (--tests-log STALE: $_newer is newer than the log, so the log did not test this tree)"
+        return 0
+    fi
+    _r=$(grep -cE '^[[:space:]]*(Running|Doc-tests) ' "$_log" || true)
+    _t=$(grep -cE '^test result' "$_log" || true)
+    if [ "${_t:-0}" -eq 0 ] || [ "${_r:-0}" -eq 0 ]; then
+        emit tests "NO-RESULT (--tests-log NO-RUN: $_log has no cargo test run in it — $_r launched, $_t reported)"
+        return 0
+    fi
+    if [ "$_r" -ne "$_t" ]; then
+        emit tests "NO-RESULT (--tests-log SHORT: cargo launched $_r targets and only $_t reported a result)"
+        return 0
+    fi
+    if [ "$(grep -vE '^[[:space:]]*$' "$_log" | tail -1 | cut -c1-12)" != 'test result:' ]; then
+        emit tests "NO-RESULT (--tests-log INTERRUPTED: $_log does not END on a 'test result:' line)"
+        return 0
+    fi
+    _p=$(grep -oE '[0-9]+ passed' "$_log" | awk '{s+=$1} END{if(NR)print s; else print ""}')
+    _f=$(grep -oE '[0-9]+ failed' "$_log" | awk '{s+=$1} END{if(NR)print s; else print ""}')
+    if [ -z "$_p" ]; then emit tests NO-RESULT; return 0; fi
+    if [ "${_f:-0}" -ne 0 ]; then
+        emit tests "FAILING: $_p passed, $_f failed"; return 0
+    fi
+    emit tests "$_p passed, $(val_or_missing "$_f") failed, $_t targets"
+}
+
 collect_tests() {
+    if [ -n "$tests_log" ]; then
+        collect_tests_from_log "$tests_log"
+        return 0
+    fi
     _log="$work_dir/tests.log"
     if ! (cd "$repo_root" && cargo test --workspace --release) > "$_log" 2>&1; then
         # A failing suite is a RESULT, and a loud one — not a missing metric.
@@ -757,6 +884,87 @@ a single-quoted template broken across source lines"; return 1 ;;
     fi
     if check_one_line self-test 'a\b' >/dev/null 2>&1; then
         echo "CHECK FAIL: check_one_line accepted a literal backslash"; fails=$((fails+1))
+    fi
+
+    # ---- `--tests-log` FAILS CLOSED, four ways --------------------------------
+    #
+    # The reuse path exists to not run the suite twice, so the thing it must
+    # never do is report a number for a suite that did not test this tree. Each
+    # case below runs `collect_tests_from_log` for real (no toolchain, no cargo)
+    # into a PRIVATE results file — `lookup` takes the first line for a key, so
+    # sharing one would silently grade only the first case.
+    _tl_dir="$work_dir/tests-log"
+    mkdir -p "$_tl_dir"
+    _saved_results="$results_file"
+    check_tests_log() { # <name> <expect-prefix> <logfile>
+        results_file="$_tl_dir/results.$1"
+        : > "$results_file"
+        collect_tests_from_log "$3"
+        _got=$(lookup tests)
+        case "$_got" in
+            "$2"*) ;;
+            *) echo "CHECK FAIL: --tests-log $1 rendered '$_got', expected '$2…'"
+               fails=$((fails+1)) ;;
+        esac
+        results_file="$_saved_results"
+    }
+
+    # A complete, internally consistent log: 2 targets launched, 2 reported.
+    _tl_good="$_tl_dir/good.log"
+    cat > "$_tl_good" <<'EOF'
+   Compiling c2-harness v0.1.0
+     Running unittests src/lib.rs (target/release/deps/c2_il-0000)
+
+running 3 tests
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/cli_flags.rs (target/release/deps/cli_flags-0000)
+
+running 4 tests
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.00s
+EOF
+    # `find -newer` is strictly-newer, and the checked-out tree is older than a
+    # file written now — but say so positively rather than relying on it.
+    touch "$_tl_good"
+    check_tests_log good '7 passed, 0 failed, 2 targets' "$_tl_good"
+
+    # 1. absent
+    check_tests_log absent 'NO-RESULT (--tests-log MISSING' "$_tl_dir/nope.log"
+    # 2. empty
+    : > "$_tl_dir/empty.log"
+    check_tests_log empty 'NO-RESULT (--tests-log EMPTY' "$_tl_dir/empty.log"
+    # 3. STALE — the same good log, backdated so a real tree file is newer.
+    cp "$_tl_good" "$_tl_dir/stale.log"
+    touch -t 200001010000 "$_tl_dir/stale.log"
+    check_tests_log stale 'NO-RESULT (--tests-log STALE' "$_tl_dir/stale.log"
+    # 4. SHORT — three targets launched, two reported. This is the case the
+    #    whole option turns on: the log looks fine and passes every other check.
+    sed 's|Running tests/cli_flags|Running tests/gone.rs (target/release/deps/gone-0000)\n\n     Running tests/cli_flags|' \
+        "$_tl_good" > "$_tl_dir/short.log"
+    touch "$_tl_dir/short.log"
+    check_tests_log short 'NO-RESULT (--tests-log SHORT' "$_tl_dir/short.log"
+    # 5. INTERRUPTED — the good log with trailing noise after the last result, so
+    #    the launched/reported counts still reconcile and only the end-of-log
+    #    check can see it. `^C` in the middle of a suite is the real shape; this
+    #    is the version of it that survives every earlier gate.
+    { cat "$_tl_good"; printf '\nerror: process didn'\''t exit successfully\n'; } \
+        > "$_tl_dir/interrupted.log"
+    touch "$_tl_dir/interrupted.log"
+    check_tests_log interrupted 'NO-RESULT (--tests-log INTERRUPTED' "$_tl_dir/interrupted.log"
+    # 6. a FAILING suite is a result, not a missing metric
+    sed 's/0 failed/1 failed/; s/^test result: ok/test result: FAILED/' "$_tl_good" \
+        > "$_tl_dir/failing.log"
+    touch "$_tl_dir/failing.log"
+    check_tests_log failing 'FAILING: ' "$_tl_dir/failing.log"
+    # 7. the closure is DERIVED, not remembered: the `include_str!` cells under
+    #    work/ must be in it, which is the surprise nobody would have typed.
+    if ! _tests_inputs | grep -q '^work/'; then
+        echo "CHECK FAIL: _tests_inputs names no work/ path — the include_str! closure"
+        echo "  is not being re-derived, so a change to a frozen grid cell would leave"
+        echo "  a --tests-log accepted as fresh"
+        fails=$((fails+1))
     fi
 
     # ---- EVERY REGISTERED METRIC HAS A COLLECTOR ------------------------------
