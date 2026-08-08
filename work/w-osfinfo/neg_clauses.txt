@@ -1,0 +1,10 @@
+osf-low-guard-convert-0x33
+osf-high-guard-limit-0x2C
+osf-flag-member-is-not-a-byte-0x33
+osf-handle-member-is-not-at-offset-zero-0x30
+osf-element-size-is-a-power-of-two-0x04
+osf-flag-mask-is-not-2n-minus-1-0x0B
+osf-success-value-is-not-the-sentinel-0x32
+osf-live-member-0x53
+osf-not-one-formal-free-fn-0xB9
+osf-call-takes-arguments-0x33
