@@ -1,0 +1,68 @@
+== work/w-xlr/probe/ref.obj  machine=0x01f2 nsec=6 nsym=23 size=1377
+-- sections
+   1 .drectve   raw=132    rawptr=0x0104 rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=160    rawptr=0x0188 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x0228 rel=0  relptr=0x0000 chars=0xc0401040
+   4 .XBLD$W    raw=16     rawptr=0x0238 rel=0  relptr=0x0000 chars=0xc2301040
+   5 .text      raw=152    rawptr=0x0248 rel=4  relptr=0x02e0 chars=0x60401020
+   6 .pdata     raw=8      rawptr=0x0308 rel=1  relptr=0x0310 chars=0x40401040
+-- .text #5 (152 B) CXLrcImpl_CreateClientWithTransport
+   0000  7d8802a6  mflr 12                         
+   0004  4bfffffd  bl .-4                            ; REL24 -> [22] __savegprlr_26
+   0008  9421ff70  stwu 1, -144(1)                 
+   000c  39600004  li 11, 4                        
+   0010  7c7e1b78  mr	30, 3                        
+   0014  91610050  stw 11, 80(1)                   
+   0018  38610050  addi 3, 1, 80                   
+   001c  7c9d2378  mr	29, 4                        
+   0020  7cbc2b78  mr	28, 5                        
+   0024  7cdb3378  mr	27, 6                        
+   0028  3b400000  li 26, 0                        
+   002c  4bffffd5  bl .-44                           ; REL24 -> [16] ?CreateClient@CXLrcImpl@@YAPAVCXLrcClient@@PAI@Z
+   0030  7c7f1b79  mr.	31, 3                       
+   0034  40820024  bf	2, .+36                      
+   0038  81610050  lwz 11, 80(1)                   
+   003c  3f408007  lis 26, -32761                  
+   0040  2b0b0004  cmplwi 6, 11, 4                 
+   0044  4098000c  bf	24, .+12                     
+   0048  635a000e  ori 26, 26, 14                  
+   004c  48000040  b .+64                          
+   0050  635a10dd  ori 26, 26, 4317                
+   0054  48000038  b .+56                          
+   0058  7fc4f378  mr	4, 30                        
+   005c  80a10050  lwz 5, 80(1)                    
+   0060  7fe3fb78  mr	3, 31                        
+   0064  4bffff9d  bl .-100                          ; REL24 -> [15] CXLrcClient_CreateTransport
+   0068  28030000  cmplwi	3, 0                     
+   006c  40820010  bf	2, .+16                      
+   0070  3f408000  lis 26, -32768                  
+   0074  635a4005  ori 26, 26, 16389               
+   0078  48000014  b .+20                          
+   007c  81610050  lwz 11, 80(1)                   
+   0080  917d0000  stw 11, 0(29)                   
+   0084  93fc0000  stw 31, 0(28)                   
+   0088  907b0000  stw 3, 0(27)                    
+   008c  7f43d378  mr	3, 26                        
+   0090  38210090  addi 1, 1, 144                  
+   0094  4bffff6c  b .-148                           ; REL24 -> [21] __restgprlr_26
+-- .pdata #6 raw
+   0000  00 00 00 00 40 00 26 03
+   reloc va=0x0 ADDR32   -> [13] CXLrcImpl_CreateClientWithTransport
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=160 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .XBLD$W                                  sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [10] __C1_11886                               sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [11] .text                                    sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=152 nrel=4 nln=0 cksum=0x00000000 num=0 sel=1)
+  [13] CXLrcImpl_CreateClientWithTransport      sec=5   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [14] $M2590                                   sec=5   val=0x98     sc=LABEL     type=0x0000 naux=0
+  [15] CXLrcClient_CreateTransport              sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [16] ?CreateClient@CXLrcImpl@@YAPAVCXLrcClient@@PAI@Z sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [17] $M2589                                   sec=5   val=0xc      sc=LABEL     type=0x0000 naux=0
+  [18] .pdata                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0xc1c38aa3 num=5 sel=5)
+  [20] $T2591                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=0
+  [21] __restgprlr_26                           sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [22] __savegprlr_26                           sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0

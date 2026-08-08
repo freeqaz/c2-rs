@@ -735,6 +735,7 @@ mod tests {
             guard_chain_shared_tail: None,
         alloc_init_or_fail: None,
         osf_handle_guard: None,
+        xlrc_create_guard: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -1109,6 +1110,7 @@ mod tests {
             guard_chain_shared_tail: None,
         alloc_init_or_fail: None,
         osf_handle_guard: None,
+        xlrc_create_guard: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -1157,6 +1159,7 @@ mod tests {
             guard_chain_shared_tail: None,
         alloc_init_or_fail: None,
         osf_handle_guard: None,
+        xlrc_create_guard: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),

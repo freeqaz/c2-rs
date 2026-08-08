@@ -351,6 +351,33 @@ pub struct Function<'a> {
     /// `scripts/sweep.d/98-cmp-order.py`, i.e. the placement is graded and not
     /// merely the total.
     pub label_lead: u32,
+    /// **W-XLR — undefined externals whose symbol records c2 places AFTER this
+    /// function's `$T` label**, in emission order.
+    ///
+    /// Exactly one population today: the `__savegprlr_N` / `__restgprlr_N` pair
+    /// of a Class C frame. They are unlike every name in
+    /// [`Self::introduced_externals`] in two ways at once — the IL never names
+    /// them (they are minted from the frame's `saved_gprs`), and c2 emits their
+    /// records *after* the `.pdata` group rather than between the two `$M`s.
+    /// `docs/CODEGEN_FRAMED_CALLS.md` §2.3a is the witnessed group:
+    ///
+    /// ```text
+    ///   .text+aux · ?f1 · $M(end) · ?g · $M(prologue) · .pdata+aux · $T
+    ///                                              · __restgprlr_29 · __savegprlr_29
+    /// ```
+    ///
+    /// Their relocation sites still live in [`Self::calls`], because that is
+    /// what `comdat::text_reloc_plan` reads and a REL24 is a REL24 — so the two
+    /// lists overlap by name and [`Self::introduced_externals`] subtracts this
+    /// one. Emitting them in the callee region instead resolves every
+    /// relocation and moves four symbol indices, which is `docs/GAPS.md` §6's
+    /// silent shape exactly.
+    ///
+    /// **The order is reverse first-reference**, the same rule
+    /// `introduced_externals` applies, computed there rather than hardcoded as a
+    /// pair: the save site is the prologue's and the restore site is the last
+    /// word of the function, so the restore's symbol comes first.
+    pub helper_externals: Vec<&'a str>,
 }
 
 impl<'a> Function<'a> {
@@ -366,6 +393,7 @@ impl<'a> Function<'a> {
             data_defs: Vec::new(),
             frame: None,
             label_lead: 0,
+            helper_externals: Vec::new(),
         }
     }
 
@@ -440,6 +468,11 @@ impl<'a> Function<'a> {
     pub(crate) fn introduced_externals(&self) -> Vec<(&'a str, bool)> {
         // (name, first-reference offset, is a FUNCTION record)
         let mut first: Vec<(&'a str, u32, bool)> = Vec::new();
+        // **W-XLR — the frame helpers are subtracted, not skipped.** They are in
+        // `calls` because their relocations are ordinary REL24s; they are not in
+        // this list because c2 puts their symbols after the `$T` label. One
+        // filter, applied to the merged list, so a helper that were ever also an
+        // IL-named callee could not appear twice.
         let mut note = |name: &'a str, off: u32, is_fn: bool| {
             match first.iter_mut().find(|(n, _, _)| *n == name) {
                 Some(e) => {
@@ -450,6 +483,9 @@ impl<'a> Function<'a> {
             }
         };
         for c in &self.calls {
+            if self.helper_externals.contains(&c.callee) {
+                continue;
+            }
             note(c.callee, c.reloc_offset, true);
         }
         for r in &self.data_refs {

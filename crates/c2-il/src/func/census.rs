@@ -618,6 +618,16 @@ impl IlBundle {
                             Ok(BodyShape::OsfHandleGuard(_)) => {
                                 FnVerdict::InClass("osf-handle-guard")
                             }
+                            // **W-XLR** — its own bucket for the same reason,
+                            // and one more: it is the first in-class shape whose
+                            // FRAME is a different class (the `__savegprlr_N`
+                            // helper), so a census that folded it in with a
+                            // neighbouring `cflow-if-n` shape could not report
+                            // the frame rung's movement separately from the body
+                            // rung's.
+                            Ok(BodyShape::XlrcCreateGuard(_)) => {
+                                FnVerdict::InClass("xlrc-create-guard")
+                            }
                             // **W-DATA — the static-array scan loop.** Its own
                             // bucket, like every other whole-body shape, so the
                             // `cflow-loop` axis can report an in-class row

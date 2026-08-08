@@ -51,6 +51,8 @@ pub use func::{
     AllocInitOrFailFn,
     OsfHandleGuard,
     OsfHandleGuardFn,
+    XlrcCreateGuard,
+    XlrcCreateGuardFn,
     GuardChainSharedTailFn,
     IfCallJoinFn,
     PtrWalkModLoop,

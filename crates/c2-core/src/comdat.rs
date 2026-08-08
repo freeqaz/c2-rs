@@ -111,6 +111,7 @@ pub fn selected_tag(s: &codegen::Selected) -> &'static str {
         codegen::Selected::GuardChainSharedTail => "guard-chain-shared-tail",
         codegen::Selected::AllocInitOrFail => "alloc-init-or-fail",
         codegen::Selected::OsfHandleGuard => "osf-handle-guard",
+        codegen::Selected::XlrcCreateGuard => "xlrc-create-guard",
     }
 }
 
@@ -134,6 +135,10 @@ pub struct ComdatBody<'a> {
     /// **W-DATA** — data objects this function DEFINES, with their REFHI/REFLO
     /// sites at offsets within this section. See [`coff::DataDef`].
     pub data_defs: Vec<coff::DataDef<'a>>,
+    /// **W-XLR** — undefined externals whose symbol records go AFTER the `$T`
+    /// label, in emission order. See [`coff::Function::helper_externals`]; empty
+    /// for every shape but the Class C frame.
+    pub helper_externals: Vec<&'a str>,
 }
 
 /// **Build one function's complete `.text` COMDAT body**, exactly as
@@ -215,6 +220,8 @@ pub(crate) fn body_of<'a>(
         }
     }
     let mut frame: Option<coff::Frame> = None;
+    // **W-XLR** — filled by the one arm whose frame mints externals of its own.
+    let mut helper_externals: Vec<&'a str> = Vec::new();
     let (text, calls) = match selected {
         // A framed non-leaf call gets its own `.text` COMDAT like any other
         // function, plus a `.pdata` COMDAT associated to it (W-UNW-1).
@@ -315,6 +322,44 @@ pub(crate) fn body_of<'a>(
             let calls = vec![
                 coff::Call { reloc_offset: body.bl_offsets[0], callee: g.errno.as_str() },
                 coff::Call { reloc_offset: body.bl_offsets[1], callee: g.doserrno.as_str() },
+            ];
+            (body.text, calls)
+        }
+        // **W-XLR — the two-stage create/attach guard.** FOUR REL24 sites for
+        // TWO IL-named callees: the frame's `__savegprlr_26`/`__restgprlr_26`
+        // pair is minted here from the layout, never read out of the IL, and its
+        // two symbols are handed to `helper_externals` so the writer places them
+        // after the `$T` label instead of in the callee region.
+        codegen::Selected::XlrcCreateGuard => {
+            let g = f
+                .xlrc_create_guard
+                .as_ref()
+                .expect("XlrcCreateGuard implies xlrc_create_guard");
+            let body = codegen::xlrc_create_guard::xlrc_create_guard_text(g, 0, mode)
+                .map_err(ComdatDecline::Shape)?;
+            frame = Some(coff::Frame {
+                prolog_len: body.prolog_len,
+                func_len: body.text.len() as u32,
+            });
+            let fr = codegen::xlrc_create_guard::xlrc_frame();
+            let (Some(save), Some(rest)) =
+                (fr.save_gpr_helper_name(), fr.rest_gpr_helper_name())
+            else {
+                return Err(ComdatDecline::Shape(crate::BackendError::NotImplemented(
+                    "xlrc-create-guard: no `__savegprlr_N` name for this layout".to_string(),
+                )));
+            };
+            // Reverse first-reference over the two helper sites — the save is
+            // the prologue's word and the restore is the function's last, so the
+            // restore's symbol is the earlier record. Derived here rather than
+            // written as a literal pair, so it stays the same rule
+            // `introduced_externals` applies.
+            helper_externals = vec![rest, save];
+            let calls = vec![
+                coff::Call { reloc_offset: body.bl_offsets[0], callee: save },
+                coff::Call { reloc_offset: body.bl_offsets[1], callee: g.create.as_str() },
+                coff::Call { reloc_offset: body.bl_offsets[2], callee: g.attach.as_str() },
+                coff::Call { reloc_offset: body.bl_offsets[3], callee: rest },
             ];
             (body.text, calls)
         }
@@ -473,6 +518,7 @@ pub(crate) fn body_of<'a>(
         frame,
         data_refs,
         data_defs,
+        helper_externals,
     })
 }
 

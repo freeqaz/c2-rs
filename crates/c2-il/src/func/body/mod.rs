@@ -27,6 +27,7 @@ use self::shapes::{
     try_parse_guard_chain_shared_tail,
     try_parse_alloc_init_or_fail,
     try_parse_osf_handle_guard,
+    try_parse_xlrc_create_guard,
     try_parse_if_call_join,
     try_parse_ptr_walk_loop,
     try_parse_static_scan_loop,
@@ -657,6 +658,10 @@ pub(crate) enum BodyShape {
     /// **W-OSFINFO** — a range-and-flag guarded two-level table lookup whose two
     /// failure statements are tail-merged with its success statement.
     OsfHandleGuard(crate::func::OsfHandleGuard),
+    /// **W-XLR** — a two-stage create/attach guard whose four failure paths
+    /// converge on one returned status, and the first class this port emits
+    /// whose frame goes through the `__savegprlr_N` helper.
+    XlrcCreateGuard(crate::func::XlrcCreateGuard),
     /// **W-DATA — the static-array scan loop.** The first body class here whose
     /// function DEFINES the data it reads. See
     /// [`super::shapes::static_scan_loop`] for the whole accept/refuse boundary
@@ -1997,6 +2002,29 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                 // refuses today at the `32` of its first store.
                 if let Some(shape) = try_parse_store_run_bind(seg, p, lo, sy, depth) {
                     disp("disp-store-run-bind");
+                    return Ok(shape);
+                }
+                // **W-XLR — the two-stage create/attach guard.** It opens on
+                // the same `26 <local>` every production in this arm does — its
+                // first statement is `size = K_INIT` — so it is tried here on
+                // the same terms: its own cursor, `Err` on the first byte that
+                // is not its grammar, no census key moved by a decline.
+                //
+                // Its grammar separates from all four loops' and from
+                // `if_call_join`'s at the SECOND statement, whichever is asked
+                // first: those require a `53` opening a `for`/`while`/relational
+                // test, or `static_scan_loop`'s rotation `3A`, where this one
+                // requires a second literal ASSIGNMENT (`26 <t> 33 … 32 … 4B`).
+                // It separates from `store_run_bind`'s at the same point. So the
+                // order among them is free; this one is last because every class
+                // above it names a TU that was matched before it.
+                //
+                // The only population that can reach an accept here is a body
+                // whose statement list is exactly this class, and `assign`
+                // refuses every one of those today at the third statement's
+                // `assign-rhs-call`.
+                if let Ok(shape) = try_parse_xlrc_create_guard(seg, p, lo, sy.addr_locals) {
+                    disp("disp-xlrc-create-guard");
                     return Ok(shape);
                 }
                 disp("disp-assign");

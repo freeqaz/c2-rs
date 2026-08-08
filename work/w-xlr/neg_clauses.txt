@@ -1,0 +1,11 @@
+fixtures/cpp/wxlr_create_guard_neg.cpp -> 0/10 functions in class
+  [  0] GAP xlrc-stack-object-is-not-an-unsigned-word-0x4F cflow-if-n                 eh-none     (eh-none     )    527 B  (unnamed)
+  [  1] GAP xlrc-not-exactly-one-address-taken-local-0x4F cflow-if-n                 eh-none     (eh-none     )    535 B  (unnamed)
+  [  2] GAP xlrc-arm-constants-do-not-share-a-lis-0x4F cflow-if-n                 eh-none     (eh-none     )    539 B  (unnamed)
+  [  3] GAP xlrc-status-constant-is-not-lis-plus-ori-0x4F cflow-if-n                 eh-none     (eh-none     )    599 B  (unnamed)
+  [  4] GAP xlrc-result-not-initialized-to-zero-0x4F cflow-if-n                 eh-none     (eh-none     )    599 B  (unnamed)
+  [  5] GAP xlrc-not-four-formals-free-fn-0x26 cflow-if-n                 eh-none     (eh-none     )    569 B  (unnamed)
+  [  6] GAP xlrc-outer-test-relation-0x20 cflow-if-n                 eh-none     (eh-none     )    599 B  (unnamed)
+  [  7] GAP xlrc-ok-close-8-0x26     cflow-if-n                 eh-none     (eh-none     )    631 B  (unnamed)
+  [  8] GAP xlrc-inner-test-relation-0x21 cflow-if-n                 eh-none     (eh-none     )    599 B  (unnamed)
+  [  9] GAP xlrc-attach-arg2-is-not-the-first-formal-0x55 cflow-if-n                 eh-none     (eh-none     )    620 B  (unnamed)

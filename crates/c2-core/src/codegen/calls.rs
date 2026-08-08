@@ -1000,6 +1000,7 @@ fn ops_setup_text(
     let synth = IlFunction {
         alloc_init_or_fail: None,
         osf_handle_guard: None,
+        xlrc_create_guard: None,
         mangled_name: String::new(),
         source_path: None,
         params: params.to_vec(),
