@@ -530,6 +530,70 @@ An alternative arg-push opcode `64 <TYPE>` also occurs **[DIR]**
 The existing code's `55 <INT_TYPE> 4C` is exactly the one-argument, `int`
 special case of the above.
 
+### 5.1 The token that most often follows the `4C` — `5C`, the EH LIVE-STATE marker
+
+Not part of the call, and recorded here because `w-4c` pinned `4C`'s width and
+the very next floor the instrument hit was this byte (board **#1390**, then
+**#1423**). Grammar, **measured**:
+
+```
+EH-LIVE := 5C <TYPE> <varint state>
+```
+
+Emitted at the end of a statement in which an object with a destructor became
+live — `docs/EH_RECORDS.md` §7.1, which measured the width on 2026-07-31 and
+whose finding is that it is **not** a ctor/dtor token: `int userfn(int a){ MemA
+s; g(a); return a+1; }` carries one too.
+
+**It was never unwitnessed.** `control_flow.rs`'s `operand()` has read exactly
+this width since WEH, and four `ctor_dtor.rs` recognizers eat `5C <TYPE>
+<state>` inside shapes the differential grades byte-exact. What `expr.rs`'s
+`chain_skip_form` was missing was the ROW — and unlike `0xBD`, `SkipForm` could
+already spell the width, so this was an omission and not an expressiveness
+problem.
+
+Measured over **335,716** anchored workload sites (`work/w-5c/scwalk.py`),
+anchored by walking from the tree's own `LO` body marker with the whole
+`5C`/`5D`/`5E` family removed from the stepper and stopping **AT** the token, so
+the site's position is fixed by the other tokens' widths:
+
+| reading | desyncs / 335,716 | |
+|---|---:|---|
+| **`5C <TYPE> <varint>`** | **0** | **0.000 %** |
+| payload-free | 335,716 | 100.000 % — and the byte after a `5C` has bit 7 set at **every** site, so there is nowhere for a payload *not* to be |
+| `5C <TYPE>` | 210,570 | 62.723 % |
+| `5C <varint>` | 130,991 | 39.018 % |
+| `5C <TYPE> <token>` | 59,181 | 17.628 % |
+
+A second, walk-free anchor — `55 <TYPE> 4C 5C`, i.e. §5's own argument-closing
+call-end with the marker after it — sees **37,742** sites at **0** desyncs and
+lands inside a token the first anchor stepped **0** times.
+
+**`5C` is a statement-terminal trailer and NOT a bracket, which is why it is
+worth a different sentence from `4C`'s.** `4C` closes every call; the bodies
+that carry a `5C` carry a **median of 1** and a mean of **1.245**. Under the
+pinned reading the marker stands immediately before the `4B` statement end at
+**275,112 of 335,716 (81.95 %)**; the other 18.05 % stand before a `9B`, `55`,
+`99`, `26` or `30`, which is the **operand-position** spelling `EH_RECORDS.md`
+§7.2 records beside the statement one.
+
+**The state field is a `read_varint` and not a raw byte, and the corpus decides
+it** — unlike §2.2's call-flags byte, which it does not. The two readings agree
+at every state below `0x80`, and the anchored walk reaches **zero** escaped
+sites. An over-inclusive raw scan (bias stated, base rate printed) finds
+**9,744** sites whose state byte is `80`: the varint reading lands on the `4B`
+at **9,645 (98.98 %)** against a **60.66 %** base rate, and the one-raw-byte
+reading at **0 (0.00 %)**. Every one of those 9,645 is the same byte sequence,
+`5C 86 41 74 80 01 01 00 00 4B` in 812 TUs — which is `EH_RECORDS.md` §7.1's
+published escape, reproduced at this master.
+
+**`5D`/`5E`, the EH COUNT trailers, are `<varint n> <varint state>` and stay
+UNPINNED in `chain_skip_form`** — no `SkipForm` variant can spell `<varint>
+<varint>`, which is `0xBD`'s expressiveness problem and an enum change rather
+than a table row. They are where 61 % of `5C`'s traffic goes next: with `5C`
+stepped, `expr-op-0x5D` reads **+14,699** and `expr-op-0x5E` **+7,670** over the
+878-TU workload.
+
 ---
 
 ## 6. What `parse_segment` / `parse_call_shape` must become

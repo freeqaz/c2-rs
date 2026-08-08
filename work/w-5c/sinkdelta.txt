@@ -1,0 +1,17 @@
+base keys 74 sum 1867785
+tip keys 74 sum 1867785
+moved 14 neg -36477 pos 36477 net 0
+  expr-chain-noform-0x5C                         36477 ->         0     -36477   TUs  827 ->    0
+  expr-op-0x5D                                      20 ->     14719     +14699   TUs    8 ->  827
+  expr-class-descriptor                         393754 ->    402901      +9147   TUs  832 ->  832
+  expr-op-0x5E                                       0 ->      7670      +7670   TUs    0 ->  827
+  expr-chain-noform-0x4F                        838471 ->    841327      +2856   TUs  859 ->  859
+  expr-op-0x9B                                  168055 ->    169397      +1342   TUs  829 ->  829
+  expr-chain-noform-0x00                         46241 ->     46970       +729   TUs  774 ->  774
+  expr-op-0x67                                   19438 ->     19456        +18   TUs  805 ->  805
+  expr-op-0x64                                   39291 ->     39297         +6   TUs  803 ->  803
+  expr-op-0x19                                   35437 ->     35442         +5   TUs  824 ->  824
+  expr-shr-mixed-sign:mid                         3043 ->      3045         +2   TUs  814 ->  814
+  expr-op-0x36                                    3780 ->      3781         +1   TUs  825 ->  825
+  expr-op-0x44                                    8204 ->      8205         +1   TUs  648 ->  649
+  expr-intrinsic-call                               10 ->        11         +1   TUs   10 ->   11
