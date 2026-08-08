@@ -333,7 +333,21 @@ fn store_type_sink() -> StoreTypeSink {
 /// The store TYPE gate. Identical to the `eat_int_like` call it replaced unless
 /// `C2RS_SINK_STORE_TYPE` names one of the two counterfactual arms.
 fn store_type_gate(seg: &[u8], p: &mut usize) -> bool {
-    match store_type_sink() {
+    store_type_gate_with(store_type_sink(), seg, p)
+}
+
+/// The gate with the arm passed in rather than read from the environment.
+///
+/// Split out **so the arms can be graded against each other**. The sink resolves
+/// through a process-global `OnceLock`, so a test cannot exercise two arms in one
+/// process — and the property that matters most about a counterfactual instrument
+/// is a relation *between* arms, not a fact about any one of them:
+/// `Int ⊆ Ptr4 ⊆ Any`. An arm that refused something the default accepts would
+/// make the row's measured worth an underestimate in a direction nobody would
+/// look, since the only reported number is the recovery and a narrower arm can
+/// only lower it. `the_sink_arms_are_nested` is that check.
+fn store_type_gate_with(sink: StoreTypeSink, seg: &[u8], p: &mut usize) -> bool {
+    match sink {
         StoreTypeSink::Int => eat_int_like(seg, p),
         StoreTypeSink::Ptr4 => eat_int_like_or_ptr4(seg, p).is_some(),
         StoreTypeSink::Any => match read_type(seg, *p) {
@@ -499,6 +513,63 @@ mod tests {
             let want = eat_int_like(ty, &mut a);
             assert_eq!(super::store_type_gate(ty, &mut b), want, "{ty:02X?}");
             assert_eq!(a, b, "cursor disagrees on {ty:02X?}");
+        }
+    }
+
+    /// **The three sink arms are NESTED: `Int ⊆ Ptr4 ⊆ Any`, on both the verdict
+    /// and the cursor.**
+    ///
+    /// This is the property that makes the counterfactual's headline number
+    /// readable, and it is not obvious from the code: `eat_int_like` opens with
+    /// an exact-triple whitelist (`INT_LIKE_TYPES`) *before* it consults
+    /// `read_type`, so a triple on that list which `read_type` could not frame
+    /// would be accepted by the **default** arm and refused by the **widest**
+    /// one. The recovery this lane reports is the only number the arms produce,
+    /// and a narrower wide-arm can only push it down — so the failure would read
+    /// as a cleaner decline, which is the direction nobody re-checks.
+    ///
+    /// Graded over both sides of the boundary, plus the two malformed inputs a
+    /// gate at a segment end really meets. **The first four cases are
+    /// `INT_LIKE_TYPES` entire** — `INT_TYPE`, `UINT_TYPE`, `LONG_TYPE`,
+    /// `ULONG_TYPE`, all four of them — so the whitelist hazard above is covered
+    /// exhaustively rather than by sampling.
+    #[test]
+    fn the_sink_arms_are_nested() {
+        use super::StoreTypeSink::{Any, Int, Ptr4};
+        let cases: &[&[u8]] = &[
+            &[0x86, 0x41, 0x74],           // int
+            &[0x86, 0x42, 0x75],           // unsigned
+            &[0x86, 0x41, 0x12],           // long
+            &[0x86, 0x42, 0x22],           // unsigned long
+            &[0xA6, 0x41, 0x84, 0x20],     // const int, per-TU id
+            &[0x86, 0x43, 0xF4, 0x08],     // int *   — #667's key
+            &[0x86, 0x44, 0x88, 0x20],     // code pointer
+            &[0x96, 0x43, 0xF4, 0x08],     // int * volatile
+            &[0x82, 0x12, 0x30],           // bool
+            &[0x84, 0x21, 0x11],           // short
+            &[0x88, 0x85, 0x41],           // double
+            &[0x88, 0x81, 0x13],           // long long
+            &[],                           // ran off the end
+            &[0x00],                       // not a TYPE at all
+        ];
+        for ty in cases {
+            let (mut a, mut b, mut c) = (0usize, 0usize, 0usize);
+            let (i, p4, an) = (
+                super::store_type_gate_with(Int, ty, &mut a),
+                super::store_type_gate_with(Ptr4, ty, &mut b),
+                super::store_type_gate_with(Any, ty, &mut c),
+            );
+            assert!(!i || p4, "Int accepts and Ptr4 refuses: {ty:02X?}");
+            assert!(!p4 || an, "Ptr4 accepts and Any refuses: {ty:02X?}");
+            // A wider arm must also agree on where the TYPE ends, or the two
+            // scans are parsing from different offsets and their histograms are
+            // not comparable.
+            if i {
+                assert_eq!(a, b, "Int/Ptr4 cursor disagree: {ty:02X?}");
+            }
+            if p4 {
+                assert_eq!(b, c, "Ptr4/Any cursor disagree: {ty:02X?}");
+            }
         }
     }
 
