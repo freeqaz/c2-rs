@@ -371,6 +371,23 @@ def climb(c2rs, tu, flags, cwd, cache, outdir, bound):
         "rounds": rounds,
         "final_emit": rounds[-1]["emit"] if rounds else {},
         "final_gate": rounds[-1]["gate"] if rounds else {},
+        # **`final_gate` READS ONE ROUND AND THE SIGNAL IS NOT IN IT.** (w-ladders)
+        #
+        # `fn_gate_refusals` is the census/gate cross-check, and `TuResult`'s own
+        # doc says it must be EMPTY — anything in it is the census over-claiming.
+        # It is the ONLY field this driver reads that comes from past
+        # `IlBundle::functions()`, and on the hatched instrument it is NOT empty:
+        # `vsnprnc.cpp` carries `{"not implemented": 1}` for THIRTEEN consecutive
+        # rounds and then clears, so the last round — the only one `final_gate`
+        # publishes — sees nothing and the row reads as though the invariant held
+        # all the way up. Board #275's shape, on a real workload TU, recorded
+        # thirteen times and published zero times.
+        #
+        # The union over every round, so a transient cannot be dropped by
+        # finishing quietly. Absence reading as success is STATUS.md trap 5.
+        "gate_seen": {k: max(rd["gate"].get(k, 0) for rd in rounds)
+                      for rd0 in rounds for k in rd0["gate"]},
+        "gate_seen_rounds": sum(1 for rd in rounds if rd["gate"]),
     }
 
 
