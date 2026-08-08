@@ -49,6 +49,8 @@ pub use func::{
     IfCallJoin,
     AllocInitOrFail,
     AllocInitOrFailFn,
+    OsfHandleGuard,
+    OsfHandleGuardFn,
     GuardChainSharedTailFn,
     IfCallJoinFn,
     PtrWalkModLoop,

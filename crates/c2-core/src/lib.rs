@@ -868,6 +868,28 @@ impl PortC2 {
                         Vec::new(),
                     )
                 }
+                // **W-OSFINFO — the range-and-flag guarded table lookup**, built
+                // at `off` for the same reason every framed shape here is: both
+                // `bl` words encode their own `.text` offsets.
+                codegen::Selected::OsfHandleGuard => {
+                    let g = f
+                        .osf_handle_guard
+                        .as_ref()
+                        .expect("OsfHandleGuard implies osf_handle_guard");
+                    let body = codegen::osf_handle_guard::osf_handle_guard_text(g, off, mode)?;
+                    frame = Some(coff::Frame {
+                        prolog_len: body.prolog_len,
+                        func_len: body.text.len() as u32,
+                    });
+                    text.extend_from_slice(&body.text);
+                    (
+                        vec![
+                            coff::Call { reloc_offset: body.bl_offsets[0], callee: &g.errno },
+                            coff::Call { reloc_offset: body.bl_offsets[1], callee: &g.doserrno },
+                        ],
+                        Vec::new(),
+                    )
+                }
                 codegen::Selected::IfCallJoin => {
                     let j = f.if_call_join.as_ref().expect("IfCallJoin implies if_call_join");
                     let body = codegen::if_call_join::if_call_join_text(j, off, mode)?;
@@ -1034,8 +1056,63 @@ impl PortC2 {
 /// register the high half lives in — so **neither** a fixed distance **nor** a
 /// search restricted to `addi <ARG_REG>,r11,0` can derive both. The rule that
 /// does: walk the words once; each `addis rT,0,0` **opens** a pair and the first
-/// `addi rD,rT,0` after it **closes** it, `rD` unconstrained. An `addis` that
+/// low half after it **closes** it, `rD` unconstrained. An `addis` that
 /// never closes, or a low half before any high half, refuses.
+///
+/// # W-OSFINFO: the walk is no longer keyed on the SCRATCH register, and a low
+/// # half can be a `lwz` DISPLACEMENT
+///
+/// `_free_osfhnd` (`src/xdk/LIBCMT/osfinfo.cpp`) breaks the walk above in two
+/// independent ways, and only one of them was a missing clause:
+///
+/// ```text
+///   +0x14  lis  r11,0       REFHI _nhandle   ┐ the low half is a **`lwz`
+///   +0x18  lwz  r11,0(r11)  REFLO _nhandle   ┘ displacement**: the global's
+///                                              VALUE is loaded, so nothing
+///                                              takes its address and there is
+///                                              no `addi` in the body at all
+///   +0x28  lis  r10,0       REFHI __pioinfo  ┐ the high half is in **r10**.
+///   +0x2c  slwi r9,r11,2                     │ The walk keyed its `addis`
+///   +0x30  addi r10,r10,0   REFLO __pioinfo  ┘ test on `SCRATCH_REG`, so this
+///                                              quad was INVISIBLE to it — not
+///                                              merely unpaired
+/// ```
+///
+/// So the `addis` test is now over **any** `rT`, the open slot carries that
+/// register, and the closer must name the same one. Two closer forms are
+/// admitted and they are **not** symmetric:
+///
+/// * `addi rD,rT,0` — never an ordinary instruction. c2 spells a register copy
+///   `mr` (an `or`), so a zero-displacement `addi` off a non-zero base is always
+///   a relocation low half. It therefore keeps its **canary**: one appearing
+///   with no open high half above it still refuses.
+/// * `lwz rD,0(rT)` — an ordinary load, all day long. This very body has one
+///   that is **not** a relocation (`lwz r10,0(r11)` at `+0x50`, reading the
+///   table entry's handle word). It is admitted **only while a pair on `rT` is
+///   open**, and it carries no canary, because one would refuse every body that
+///   loads through a base register at displacement zero.
+///
+/// # Which form closes a pair is decided by LOOKAHEAD, and that is what makes
+/// # the widening byte-neutral BY CONSTRUCTION
+///
+/// If the walk simply closed on whichever form came first, a previously-accepted
+/// body with a `lwz rD,0(r11)` sitting between a REFHI and its REFLO would
+/// close early and relocate a different word — a silent byte change in an obj
+/// that already matched. So the form is chosen when the pair **opens**: within
+/// the window from the open to the next `addis` (or the end), an `addi rD,rT,0`
+/// wins if one exists at all, and only otherwise is the `lwz` form considered.
+///
+/// **Every body the old walk accepted had an `addi` in that window** — it is
+/// what closed the pair — so every one of them takes the identical word, and no
+/// obj the port had ever emitted can move. That is an argument from the shape of
+/// the old code rather than from a survey, and
+/// `data_ref_tests::the_lwz_form_never_preempts_an_addi_form` is it as a
+/// `#[test]`. It is *also* measured, per PREREG **D4**: the 878-TU scan at base
+/// and tip, diffed per TU by name.
+///
+/// A body where both forms sit in the window still takes the `addi`, **even
+/// when the `lwz` comes first** — that is precisely the case the preference
+/// exists for, and it is what the old walk did.
 ///
 /// **The discipline the original clause was written for is kept**: the sites are
 /// DERIVED from the bytes and never declared by the class, so a schedule change
@@ -1061,6 +1138,76 @@ impl PortC2 {
 /// a dead clause. GRID A is `work/w-extdata/GRID_A_RESULT.md`; the cell that
 /// exercises the new arm is this very body, whose externals are
 /// `data · callee · data`.
+/// Which of the two low-half forms a given REFHI/REFLO pair is looking for.
+///
+/// Decided once, when the pair opens — see [`data_refs_of`]'s doc on why a
+/// first-match walk over both forms would not be byte-neutral.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum LoForm {
+    /// `addi rD,rT,0` — the address is TAKEN. Every body the port emitted before
+    /// W-OSFINFO uses this form and only this form.
+    Addi,
+    /// `lwz rD,0(rT)` — the global's VALUE is loaded and the relocation rides
+    /// the load's displacement field. `_free_osfhnd`'s range bound.
+    Lwz,
+}
+
+/// `addis rT,0,0` — a relocation HIGH half, for any `rT`. Returns `rT`.
+///
+/// The `rA = 0` and `SIMM = 0` fields are what distinguish this from an ordinary
+/// `addis`: c2 writes the placeholder as zero and the linker fills it.
+fn hi_half_reg(w: &[u8]) -> Option<u8> {
+    (0u8..32).find(|&rt| w == codegen::encode_addis(rt, 0, 0))
+}
+
+/// `addi rD,rT,0` for the given base, any destination.
+///
+/// `li rD,k` cannot be mistaken for one: its `RA` field is 0, and every caller
+/// here excludes `rT = 0`.
+fn is_addi_lo(w: &[u8], rt: u8) -> bool {
+    (0u8..32).any(|d| w == codegen::encode_addi(d, rt, 0))
+}
+
+/// `lwz rD,0(rT)` for the given base, any destination.
+fn is_lwz_lo(w: &[u8], rt: u8) -> bool {
+    (0u8..32).any(|d| w == codegen::encode_lwz(d, rt, 0))
+}
+
+/// Choose the low-half form for the pair opening at word `hi_i` on register
+/// `rt`, by looking ahead to the next high half (or the end).
+///
+/// **`Addi` wins whenever one exists in the window at all.** That is the clause
+/// that makes admitting the `lwz` form byte-neutral on every body the port
+/// already emits: each of those closed on an `addi`, so each still does, on the
+/// identical word. Only a window with no `addi` at all reaches the `lwz`.
+///
+/// A window holding **both**, with the `lwz` first, still takes the `addi` — and
+/// that is the case the preference exists for. The old walk took the `addi`
+/// there, every obj it produced is graded, and reversing it would move bytes in
+/// a matching obj. Refusing instead would be no better: it would turn an
+/// accepted body into a refused one, which loses a TU for a shape that is
+/// already right.
+///
+/// So the `lwz` arm is reachable **only** from a window with no `addi` in it at
+/// all, which no previously-accepted body has. The widening can therefore turn a
+/// refusal into an acceptance and can do nothing else.
+fn lo_form_for(words: &[&[u8]], hi_i: usize, rt: u8) -> LoForm {
+    for w in words.iter().skip(hi_i + 1) {
+        // The window ends at the next high half: past it a second pair is open
+        // and the walk refuses anyway.
+        if hi_half_reg(w).is_some() {
+            break;
+        }
+        if is_addi_lo(w, rt) {
+            return LoForm::Addi;
+        }
+    }
+    // Either a `lwz` low half, or no closer at all — in which case the walk's
+    // own "high half with no low half" clause reports it, with the offset to
+    // name.
+    LoForm::Lwz
+}
+
 pub(crate) fn data_refs_of<'a>(
     f: &'a c2_il::IlFunction,
     text: &[u8],
@@ -1084,15 +1231,25 @@ pub(crate) fn data_refs_of<'a>(
         None if f.data_syms.is_empty() => return Ok(Vec::new()),
         None => (f.data_syms.iter().map(String::as_str).collect(), false),
     };
-    // One forward walk. `open` holds the `.text` offset of the `addis` whose low
-    // half has not been seen yet; a second `addis` before that one closes is a
-    // body this derivation cannot read.
-    let lis = codegen::encode_addis(codegen::SCRATCH_REG, 0, 0);
+    let words: Vec<&[u8]> = text.chunks_exact(4).collect();
+    // Every register some `addis rT,0,0` in this body writes. Only these can
+    // carry the `addi` canary below — an `addi rD,rT,0` off a register no high
+    // half ever wrote is not a low half of anything.
+    let mut hi_regs: u32 = 0;
+    for w in &words {
+        if let Some(rt) = hi_half_reg(w) {
+            hi_regs |= 1 << rt;
+        }
+    }
+    // One forward walk. `open` holds the `.text` word index of the `addis` whose
+    // low half has not been seen yet, the register it wrote, and which of the two
+    // closer forms this pair is looking for; a second `addis` before that one
+    // closes is a body this derivation cannot read.
     let mut pairs: Vec<(u32, u32)> = Vec::new();
-    let mut open: Option<u32> = None;
-    for (i, w) in text.chunks_exact(4).enumerate() {
+    let mut open: Option<(usize, u8, LoForm)> = None;
+    for (i, w) in words.iter().enumerate() {
         let off = base + 4 * i as u32;
-        if w == lis {
+        if let Some(rt) = hi_half_reg(w) {
             if open.is_some() {
                 return Err(BackendError::NotImplemented(
                     "a second `lis rS,sym@ha` before the first one's low half: \
@@ -1101,29 +1258,49 @@ pub(crate) fn data_refs_of<'a>(
                         .to_string(),
                 ));
             }
-            open = Some(off);
+            if rt == 0 {
+                return Err(BackendError::NotImplemented(
+                    "a `lis r0,sym@ha`: r0 reads as the literal zero in the base \
+                     field of every low-half form, so the pair cannot be closed \
+                     unambiguously"
+                        .to_string(),
+                ));
+            }
+            open = Some((i, rt, lo_form_for(&words, i, rt)));
             continue;
         }
-        // The low half is any `addi rD,r11,0` — the destination is unconstrained
-        // because `?append`'s second pair writes the scratch register itself
-        // (`addi r11,r11,0`), which is not an `ARG_REG` and which the previous
-        // ARG_REG-restricted search could not see. `li rD,k` cannot be mistaken
-        // for one: its `RA` field is 0, not `SCRATCH_REG`.
-        if (0u8..32).any(|d| w == codegen::encode_addi(d, codegen::SCRATCH_REG, 0)) {
-            match open.take() {
-                Some(hi_off) => pairs.push((hi_off, off)),
-                None => {
+        match open {
+            // A pair is open: only the form chosen at the open closes it, and
+            // only on the same base register.
+            Some((hi_i, rt, form)) => {
+                let closes = match form {
+                    LoForm::Addi => is_addi_lo(w, rt),
+                    LoForm::Lwz => is_lwz_lo(w, rt),
+                };
+                if closes {
+                    pairs.push((base + 4 * hi_i as u32, off));
+                    open = None;
+                }
+            }
+            // No pair is open. An `addi rD,rT,0` off a register some `addis`
+            // in this body wrote is a low half with nothing above it — the
+            // canary the scratch-keyed walk carried, kept. A `lwz rD,0(rT)` is
+            // NOT: an ordinary zero-displacement load, of which this very class
+            // contains one.
+            None => {
+                if (1u8..32).any(|rt| hi_regs & (1 << rt) != 0 && is_addi_lo(w, rt)) {
                     return Err(BackendError::NotImplemented(
-                        "an `addi rD,r11,0` low half with no open `lis` above it"
+                        "an `addi rD,rT,0` low half with no open `lis rT,…` above it"
                             .to_string(),
-                    ))
+                    ));
                 }
             }
         }
     }
     if open.is_some() {
         return Err(BackendError::NotImplemented(
-            "a `lis rS,sym@ha` high half with no `addi rD,rS,0` low half below it"
+            "a `lis rS,sym@ha` high half with no `addi rD,rS,0` or `lwz rD,0(rS)` \
+             low half below it"
                 .to_string(),
         ));
     }
@@ -1417,6 +1594,134 @@ mod tests {
         let mut short = f.clone();
         short.data_syms.pop();
         assert!(data_refs_of(&short, &t, 0).is_err(), "count mismatch must refuse");
+    }
+
+    /// `_free_osfhnd`'s two quads, reduced to the words that matter, plus the
+    /// **decoy**: the `lwz r10,0(r11)` at `+0x50` that reads the table entry's
+    /// handle word and is not a relocation of anything.
+    fn osfinfo_text() -> Vec<u8> {
+        let s = codegen::SCRATCH_REG;
+        let mut t = Vec::new();
+        t.extend_from_slice(&codegen::encode_cmpwi(codegen::CR_COMPARE, 3, 0)); // 0x00
+        t.extend_from_slice(&codegen::encode_addis(s, 0, 0)); //                   0x04  REFHI
+        t.extend_from_slice(&codegen::encode_lwz(s, s, 0)); //                     0x08  REFLO
+        t.extend_from_slice(&codegen::encode_cmplw(codegen::CR_COMPARE, 3, s)); // 0x0c
+        t.extend_from_slice(&codegen::encode_srawi(s, 3, 5)); //                   0x10
+        t.extend_from_slice(&codegen::encode_addis(10, 0, 0)); //                  0x14  REFHI
+        t.extend_from_slice(&codegen::encode_rlwinm(9, s, 2, 0, 29)); //           0x18
+        t.extend_from_slice(&codegen::encode_addi(10, 10, 0)); //                  0x1c  REFLO
+        t.extend_from_slice(&codegen::encode_lwzx(10, 9, 10)); //                  0x20
+        t.extend_from_slice(&codegen::encode_add(s, 10, s)); //                    0x24
+        t.extend_from_slice(&codegen::encode_lwz(10, s, 0)); //                    0x28  THE DECOY
+        t.extend_from_slice(&codegen::encode_stw(10, s, 0)); //                    0x2c
+        t
+    }
+
+    /// **W-OSFINFO — the walk is no longer keyed on the scratch register, and a
+    /// low half can be a `lwz` DISPLACEMENT.**
+    ///
+    /// Two quads, and each breaks the shipped walk a different way: the first's
+    /// low half is a `lwz` (no `addi` for it exists anywhere in the body) and
+    /// the second's high half is in **r10**, which the `addis`-on-`SCRATCH_REG`
+    /// test could not see at all.
+    #[test]
+    fn a_lwz_displacement_and_a_non_scratch_high_half_both_pair() {
+        let mut f = codegen::testutil::func_with(Vec::new(), Vec::new());
+        f.mangled_name = "_free_osfhnd".into();
+        f.data_syms = vec!["_nhandle".into(), "__pioinfo".into()];
+        let t = osfinfo_text();
+
+        let refs = data_refs_of(&f, &t, 0).expect("in class");
+        assert_eq!(refs.len(), 2, "two quads");
+        assert_eq!((refs[0].hi_off, refs[0].lo_off), (0x04, 0x08));
+        assert_eq!((refs[1].hi_off, refs[1].lo_off), (0x14, 0x1c));
+        assert_eq!(refs[0].name, "_nhandle");
+        assert_eq!(refs[1].name, "__pioinfo");
+
+        // (a) The first low half really is a `lwz` and NOT any `addi rD,r11,0`,
+        // so the shipped clause could not have matched it.
+        assert!(!(0u8..32).any(|d| t[0x08..0x0c] == codegen::encode_addi(d, codegen::SCRATCH_REG, 0)));
+        // (b) The second high half really is NOT the scratch register, so the
+        // shipped `addis` test could not have opened it.
+        assert_ne!(&t[0x14..0x18], &codegen::encode_addis(codegen::SCRATCH_REG, 0, 0)[..]);
+    }
+
+    /// **THE DECOY: a `lwz rD,0(rT)` with no open high half is NOT a low half**,
+    /// and the same word IS one four words earlier where a pair is open.
+    ///
+    /// This is the asymmetry between the two closer forms stated as a test. An
+    /// `addi rD,rT,0` off a relocated base is never an ordinary instruction, so
+    /// it keeps its canary; a zero-displacement load is one all day long, and a
+    /// canary on it would refuse every body that loads through a base register.
+    #[test]
+    fn a_zero_displacement_load_with_no_open_pair_is_not_a_low_half() {
+        let mut f = codegen::testutil::func_with(Vec::new(), Vec::new());
+        f.mangled_name = "_free_osfhnd".into();
+        f.data_syms = vec!["_nhandle".into(), "__pioinfo".into()];
+        let t = osfinfo_text();
+
+        // The decoy at 0x28 and the REFLO at 0x08 are `lwz` off the SAME base
+        // register at the SAME displacement — only one of them relocates, and
+        // nothing in the word says which.
+        assert!(is_lwz_lo(&t[0x08..0x0c], codegen::SCRATCH_REG));
+        assert!(is_lwz_lo(&t[0x28..0x2c], codegen::SCRATCH_REG));
+        let refs = data_refs_of(&f, &t, 0).expect("in class");
+        assert!(refs.iter().all(|r| r.lo_off != 0x28), "the decoy is not a site");
+
+        // …and the `addi` form's canary is still live: the same body with an
+        // `addi rD,r11,0` where the decoy is refuses outright.
+        let mut with_stray = t.clone();
+        with_stray[0x28..0x2c]
+            .copy_from_slice(&codegen::encode_addi(10, codegen::SCRATCH_REG, 0));
+        assert!(
+            data_refs_of(&f, &with_stray, 0).is_err(),
+            "an `addi rD,rT,0` with no open high half must still refuse"
+        );
+    }
+
+    /// **The widening is byte-neutral on the shipped population BY
+    /// CONSTRUCTION**, and this is that argument as executable code rather than
+    /// as a paragraph.
+    ///
+    /// Every body the port emitted before this change closed its pairs on an
+    /// `addi`. A first-match walk over both forms would close early on any
+    /// `lwz rD,0(rT)` that happened to sit between a REFHI and its REFLO — a
+    /// different relocated word in an obj that already matched. The lookahead
+    /// prevents it: `Addi` wins whenever one exists in the window at all.
+    #[test]
+    fn the_lwz_form_never_preempts_an_addi_form() {
+        let s = codegen::SCRATCH_REG;
+        let mut f = codegen::testutil::func_with(Vec::new(), Vec::new());
+        f.mangled_name = "?w@@YAXXZ".into();
+        f.data_syms = vec!["?gI@@3HA".into()];
+
+        // `lis r11 · lwz r5,0(r11) · addi r3,r11,0` — the load FIRST.
+        let mut t = codegen::encode_addis(s, 0, 0).to_vec();
+        t.extend_from_slice(&codegen::encode_lwz(5, s, 0)); //     0x04
+        t.extend_from_slice(&codegen::encode_addi(3, s, 0)); //    0x08
+        t.extend_from_slice(&codegen::encode_blr());
+
+        // The two candidate words are both present and both match their form…
+        assert!(is_lwz_lo(&t[0x04..0x08], s));
+        assert!(is_addi_lo(&t[0x08..0x0c], s));
+        // …the lookahead picks `Addi` even though the load comes FIRST…
+        assert_eq!(lo_form_for(&t.chunks_exact(4).collect::<Vec<_>>(), 0, s), LoForm::Addi);
+        // …and the pair closes on the `addi` at 0x08, which is the word the
+        // shipped walk closed on. A first-match walk over both forms would
+        // relocate 0x04 instead: different bytes, in an obj that already
+        // matched.
+        let refs = data_refs_of(&f, &t, 0).expect("in class");
+        assert_eq!((refs[0].hi_off, refs[0].lo_off), (0x00, 0x08));
+
+        // With the load AFTER the `addi`, there is no disagreement: the `addi`
+        // closes the pair and the load is an ordinary instruction. This is the
+        // shape every previously-emitted obj has, and it is unchanged.
+        let mut t2 = codegen::encode_addis(s, 0, 0).to_vec();
+        t2.extend_from_slice(&codegen::encode_addi(3, s, 0)); //  0x04
+        t2.extend_from_slice(&codegen::encode_lwz(5, s, 0)); //   0x08
+        t2.extend_from_slice(&codegen::encode_blr());
+        let refs = data_refs_of(&f, &t2, 0).expect("in class");
+        assert_eq!((refs[0].hi_off, refs[0].lo_off), (0x00, 0x04));
     }
 
     // -----------------------------------------------------------------------

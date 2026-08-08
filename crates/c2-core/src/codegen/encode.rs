@@ -439,6 +439,38 @@ pub fn encode_clrlwi31(ra: u8, rs: u8) -> [u8; 4] {
     encode_rlwinm(ra, rs, 0, 31, 31)
 }
 
+/// `rlwinm. rA, rS, SH, MB, ME` — the **record form** of [`encode_rlwinm`]:
+/// primary opcode 21 with `Rc = 1`, so the masked result sets `cr0` and **no
+/// compare instruction is issued at all**.
+///
+/// That last clause is the whole reason this encoder exists as its own name
+/// rather than as an `rc: bool` parameter on [`encode_rlwinm`]. A caller that
+/// reaches for the record form is making a *control-flow* decision — the branch
+/// below it reads `cr0` — where a caller of the non-record form is computing a
+/// value. Two names keep the two decisions apart at the call site.
+///
+/// **Pinned to real `c2` output, not derived from a manual.**
+/// `clrlwi. r10,r10,31` at offset `0x48` of `_free_osfhnd` is `554a07ff`
+/// (`work/w-osfinfo/ref/osfinfo/dis.txt`, the workload's own
+/// `/O1 /Oi /EHsc /GR`), and `codegen::osf_handle_guard` asserts that word in
+/// place against the whole 152-byte function.
+pub fn encode_rlwinm_record(ra: u8, rs: u8, sh: u8, mb: u8, me: u8) -> [u8; 4] {
+    let mut w = encode_rlwinm(ra, rs, sh, mb, me);
+    w[3] |= 1;
+    w
+}
+
+/// `clrlwi. rA, rS, N` — keep the low `32 − N` bits **and set cr0**. The
+/// `rlwinm. rA,rS,0,N,31` form.
+///
+/// `N = 31` is the `& 1` test `_free_osfhnd` uses on its `osfile` byte; the
+/// parameter is open because the reader derives it from the mask literal the IL
+/// carries (`mask + 1` a power of two ⇒ `N = 32 − log2(mask + 1)`), and a class
+/// that hardcoded 31 would have a field it could not vary.
+pub fn encode_clrlwi_record(ra: u8, rs: u8, n: u8) -> [u8; 4] {
+    encode_rlwinm_record(ra, rs, 0, n, 31)
+}
+
 // ---- W13a: floating-point leaf encoders ------------------------------------
 //
 // Single precision is primary opcode 59 (`0xEC…`) and double is 63 (`0xFC…`),
@@ -878,6 +910,39 @@ pub fn encode_cmpw(crf: u8, ra: u8, rb: u8) -> [u8; 4] {
     word.to_be_bytes()
 }
 
+/// Encode `cmplw crf,rA,rB` — the **unsigned** register-register compare:
+/// X-form, primary opcode 31, extended **32**, where [`encode_cmpw`]'s signed
+/// form is extended 0.
+///
+/// **This encoder did not exist, and two published rung tables disagreed about
+/// whether it did.** `w-extdata` §2 priced `osfinfo`'s missing encoders at two;
+/// `w-undname` §5 corrected that to one on the ground that "`encode_cmplw`
+/// already exists". It does not — what exists is [`encode_cmpw`] (extended 0,
+/// signed) and [`encode_cmplwi`] (primary opcode 10, immediate), and neither
+/// produces this word. The original count of two was right. Recorded here
+/// rather than only in a rung because the next lane to read that table will
+/// read this file too.
+///
+/// **Pinned to real `c2` output, not derived from a manual.**
+/// `cmplw cr6,r3,r11` at offset `0x1c` of `_free_osfhnd` is `7f035840`
+/// (`work/w-osfinfo/ref/osfinfo/dis.txt`, the workload's own
+/// `/O1 /Oi /EHsc /GR`), and `codegen::osf_handle_guard` asserts that word in
+/// place against the whole 152-byte function.
+///
+/// The signed/unsigned split is **not** cosmetic here: `_free_osfhnd` tests
+/// `fh >= 0` with the signed immediate form two words earlier and
+/// `fh < _nhandle` with this one, in the same body, on the same operand. A
+/// class that used one form for both emits the right program with one wrong
+/// word and every branch still resolving — `docs/GAPS.md` §6.
+pub fn encode_cmplw(crf: u8, ra: u8, rb: u8) -> [u8; 4] {
+    let word: u32 = (31 << 26)
+        | ((crf as u32 & 7) << 23)
+        | ((ra as u32 & 0x1F) << 16)
+        | ((rb as u32 & 0x1F) << 11)
+        | (32 << 1);
+    word.to_be_bytes()
+}
+
 /// Encode `lwzx rD,rA,rB` — load word, **indexed**: X-form, primary opcode 31,
 /// extended 23.
 ///
@@ -1066,6 +1131,51 @@ mod tests {
         assert_eq!(encode_cmpwi(CR_COMPARE, 3, 0), [0x2F, 0x03, 0x00, 0x00]); // ?b_ifn
         assert_eq!(encode_cmpwi(CR_COMPARE, 3, 7), [0x2F, 0x03, 0x00, 0x07]); // ?d_switch
         assert_eq!(encode_cmpwi(CR_COMPARE, 31, 0), [0x2F, 0x1F, 0x00, 0x00]); // ?d_cont
+    }
+
+    /// **W-OSFINFO — `cmplw` against the byte real `c2` emitted**, plus the
+    /// separation from the three compare encoders that already existed.
+    ///
+    /// The separation is the point rather than the value: two published rung
+    /// tables disagreed about whether this encoder existed, and the reason the
+    /// wrong one was believable is that `cmpw`, `cmplwi` and `cmplw` are one
+    /// letter apart in the name and one field apart in the word.
+    #[test]
+    fn w_osfinfo_cmplw_matches_the_reference_obj_and_is_none_of_its_neighbours() {
+        // `_free_osfhnd` +0x1c, `work/w-osfinfo/ref/osfinfo/dis.txt`.
+        assert_eq!(encode_cmplw(CR_COMPARE, 3, 11), [0x7F, 0x03, 0x58, 0x40]);
+        // …and the signed register form two words of the ISA away, which this
+        // body does NOT use here — extended 0 against extended 32.
+        assert_eq!(encode_cmpw(CR_COMPARE, 3, 11), [0x7F, 0x03, 0x58, 0x00]);
+        assert_ne!(encode_cmplw(CR_COMPARE, 3, 11), encode_cmpw(CR_COMPARE, 3, 11));
+        // …and the immediate form, which is a different primary opcode.
+        assert_ne!(encode_cmplw(CR_COMPARE, 3, 11), encode_cmplwi(CR_COMPARE, 3, 11));
+        // The `rB` field is separated from `rA` by a second pin.
+        assert_eq!(encode_cmplw(CR_COMPARE, 11, 3), [0x7F, 0x0B, 0x18, 0x40]);
+    }
+
+    /// **W-OSFINFO — the record form of `rlwinm` against the byte real `c2`
+    /// emitted**, and the one-bit separation from the non-record form.
+    ///
+    /// A dropped `Rc` bit is the failure this pins: the masked value would be
+    /// identical, `cr0` would hold whatever the last instruction left there, and
+    /// the `bt 2` below it would branch on a stale bit. The program is wrong and
+    /// the obj still links.
+    #[test]
+    fn w_osfinfo_clrlwi_record_matches_the_reference_obj() {
+        // `_free_osfhnd` +0x48, `work/w-osfinfo/ref/osfinfo/dis.txt`.
+        assert_eq!(encode_clrlwi_record(10, 10, 31), [0x55, 0x4A, 0x07, 0xFF]);
+        // The non-record form of the same mask differs in exactly the Rc bit.
+        assert_eq!(encode_clrlwi31(10, 10), [0x55, 0x4A, 0x07, 0xFE]);
+        assert_eq!(encode_clrlwi_record(10, 10, 31)[3] & 1, 1);
+        assert_eq!(encode_clrlwi31(10, 10)[3] & 1, 0);
+        // The mask width is a parameter, not a constant: `& 3` is `clrlwi. ,30`.
+        assert_eq!(encode_clrlwi_record(10, 10, 30), encode_rlwinm_record(10, 10, 0, 30, 31));
+        // …and the *non*-record `rlwinm` this body also emits, so the two
+        // spellings of the same instruction family are pinned side by side:
+        // `clrlwi r11,r3,27` (+0x34) and `slwi r9,r11,2` (+0x2c).
+        assert_eq!(encode_rlwinm(11, 3, 0, 27, 31), [0x54, 0x6B, 0x06, 0xFE]);
+        assert_eq!(encode_rlwinm(9, 11, 2, 0, 29), [0x55, 0x69, 0x10, 0x3A]);
     }
 
     /// Every word below is TRANSCRIBED from `work/w-build/probe/bits.cod` /

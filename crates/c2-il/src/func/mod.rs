@@ -1687,6 +1687,99 @@ pub struct AllocInitOrFailFn {
     pub off_f: i32,
 }
 
+/// **W-OSFINFO — a range-and-flag guarded two-level table lookup whose two
+/// failure statements are tail-merged with its success statement.**
+///
+/// `src/xdk/LIBCMT/osfinfo.cpp`'s `_free_osfhnd`, the third and last TU of the
+/// undefined-external seam. See
+/// [`crate::func::body::shapes::osf_handle_guard`] for the source shape and the
+/// fence, and `c2_core::codegen::osf_handle_guard` for the thirty-one words.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OsfHandleGuard {
+    /// `[fh]` — one formal, arriving in r3 and never parked: every value that
+    /// outlives a `bl` in this body is recomputed, which is what makes the frame
+    /// `saved_gprs: 0`.
+    pub params: Vec<u32>,
+    /// The global whose VALUE bounds the range check, as a `.gl` token. Its
+    /// low half rides a **`lwz` displacement**, not an `addi`: nothing takes its
+    /// address. The FIRST data symbol, referenced at the lower `.text` offset.
+    pub limit_tok: u32,
+    /// The global table the lookup indexes. The SECOND data symbol, and the one
+    /// whose REFHI/REFLO quad lands in a register that is **not** the scratch.
+    pub table_tok: u32,
+    /// The first callee — `*<errno>() = K_ERRNO`. The body's first REL24.
+    pub errno_tok: u32,
+    /// The second callee — `*<doserrno>() = K_DOSERRNO`. The second REL24.
+    pub doserrno_tok: u32,
+    /// `fh >> K_SHIFT` — the outer table index. A `srawi` field, 1..=31.
+    pub k_shift: i32,
+    /// `fh & K_MASK` — the inner index. Must be `2^n − 1`: the class has a
+    /// `clrlwi` and no other masking word.
+    pub k_mask: i32,
+    /// The inner element size — a `mulli` field. Refused when it is a power of
+    /// two, because c2 emits a `slwi` there and the chooser is not fitted.
+    pub k_elem: i32,
+    /// The flag member's byte offset — the `lbz` displacement.
+    pub off_file: i32,
+    /// The bit tested in that byte. Must be `2^n − 1`; it is the record-form
+    /// `clrlwi.`'s mask.
+    pub k_bit: i32,
+    /// The handle member's offset. **Pinned to 0** by the recognizer: the
+    /// success store and the error store are ONE word, which is only legal at
+    /// zero.
+    pub off_hnd: i32,
+    /// The sentinel the handle is compared against and then set to — ONE field
+    /// reaching both the `cmpwi` and the `li`, because the recognizer requires
+    /// the compared literal and the stored literal to be equal.
+    pub k_invalid: i32,
+    /// The success return value — `li r3,K_OK`.
+    pub k_ok: i32,
+    /// The value stored through the first callee's result — `li r11,K_ERRNO`.
+    pub k_errno: i32,
+    /// The value stored through the second callee's result — `li r10,K_DOSERRNO`.
+    pub k_doserrno: i32,
+    /// The failure return value — `li r3,K_FAIL`.
+    pub k_fail: i32,
+}
+
+/// [`OsfHandleGuard`] with its four tokens resolved to mangled names.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OsfHandleGuardFn {
+    /// Exactly as [`OsfHandleGuard::params`].
+    pub params: Vec<u32>,
+    /// The range bound. Travels to the writer on [`IlFunction::data_syms`] as
+    /// element **0** — emission order, its `lis` being the lower of the two.
+    pub limit: String,
+    /// The table. Element **1** of [`IlFunction::data_syms`].
+    pub table: String,
+    /// The first callee — the lower of the two REL24 sites.
+    pub errno: String,
+    /// The second callee.
+    pub doserrno: String,
+    /// Exactly as [`OsfHandleGuard::k_shift`].
+    pub k_shift: i32,
+    /// Exactly as [`OsfHandleGuard::k_mask`].
+    pub k_mask: i32,
+    /// Exactly as [`OsfHandleGuard::k_elem`].
+    pub k_elem: i32,
+    /// Exactly as [`OsfHandleGuard::off_file`].
+    pub off_file: i32,
+    /// Exactly as [`OsfHandleGuard::k_bit`].
+    pub k_bit: i32,
+    /// Exactly as [`OsfHandleGuard::off_hnd`].
+    pub off_hnd: i32,
+    /// Exactly as [`OsfHandleGuard::k_invalid`].
+    pub k_invalid: i32,
+    /// Exactly as [`OsfHandleGuard::k_ok`].
+    pub k_ok: i32,
+    /// Exactly as [`OsfHandleGuard::k_errno`].
+    pub k_errno: i32,
+    /// Exactly as [`OsfHandleGuard::k_doserrno`].
+    pub k_doserrno: i32,
+    /// Exactly as [`OsfHandleGuard::k_fail`].
+    pub k_fail: i32,
+}
+
 /// [`GuardChainSharedTail`] with its four tokens resolved to mangled names.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GuardChainSharedTailFn {
@@ -2294,6 +2387,8 @@ pub struct IlFunction {
     /// (`?append@DName@@QAAXPAVDNameNode@@@Z`). Set by exactly one parser
     /// production; [`Self::ops`] is empty for it.
     pub alloc_init_or_fail: Option<AllocInitOrFailFn>,
+    /// **W-OSFINFO** — the range-and-flag guarded table lookup, or `None`.
+    pub osf_handle_guard: Option<OsfHandleGuardFn>,
     /// True iff this function's body is **empty** (`void f() {}`): no expression at
     /// all, so codegen emits a bare `blr`. Mutually exclusive with the other body
     /// kinds.
@@ -2446,6 +2541,7 @@ impl IlFunction {
             static_scan_loop: None,
             guard_chain_shared_tail: None,
             alloc_init_or_fail: None,
+            osf_handle_guard: None,
             empty_body: false,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
@@ -2602,6 +2698,7 @@ impl IlFunction {
             || self.if_call_join.is_some()
             || self.guard_chain_shared_tail.is_some()
             || self.alloc_init_or_fail.is_some()
+            || self.osf_handle_guard.is_some()
     }
 
     /// **Label-counter slots this function takes BEFORE its own `$M` triple.**
@@ -2684,6 +2781,34 @@ impl IlFunction {
             // recognizer's: this class admits one block plan, so there is no
             // second shape for the charge to be wrong about.
             + u32::from(self.guard_chain_shared_tail.is_some())
+            // **W-OSFINFO charges ONE slot before its own triple**, and this is
+            // the first time the charge was PREDICTED rather than fitted after
+            // the fact.
+            //
+            // The three measurements above look like three unrelated per-class
+            // constants, and this lane's PREREG (§1.5, committed at `cf65d65b`
+            // before any change to `crates/`) registered a RULE that fits all of
+            // them: **the lead is the number of unconditional intra-section `b`
+            // words in the body.** `if_call_join` has one (`b $LN8`) and charges
+            // 1; `guard_chain_shared_tail` has one (the range arm reaching the
+            // shared tail) and charges 1; `alloc_init_or_fail` has **none** — no
+            // `48……` word anywhere in its 140 bytes — and charges 0. The
+            // mechanism the rule proposes is that c2 mints a named block label
+            // for a `b`'s target and charges the counter for it ahead of the
+            // function's own `$M` triple.
+            //
+            // `_free_osfhnd` has exactly one (`b .+32` at +0x64), so the rule
+            // predicts 1. The prediction is graded the same one-witness way its
+            // three predecessors were: `osfinfo.cpp` has one emitted function, so
+            // there is no in-TU difference to take and what is compared is the
+            // port's whole obj against real `c2.dll`'s at the workload's own
+            // flags.
+            //
+            // The rule is a **fit to four points**, not a derivation, and it is
+            // written here rather than in a rung so the next class to be added
+            // meets it before choosing a number. `docs/LABEL_COUNTER.md` §1.1's
+            // placement (a LEAD, before the triple) is unchanged.
+            + u32::from(self.osf_handle_guard.is_some())
     }
 
     /// Every external this function calls, in **first-reference order** — which is
@@ -2746,6 +2871,27 @@ impl IlFunction {
             // Omitting this arm is not a silent gap: the accounting gate refuses
             // the whole TU with `unclaimed-gl-symbol`, which is how it was found.
             .chain(self.alloc_init_or_fail.iter().map(|a| a.alloc.as_str()))
+            // **W-OSFINFO: TWO names, in BLOCK order.** Both `bl`s are in the
+            // one error block and `<errno>`'s is at the lower `.text` offset, so
+            // its symbol is the earlier one in the per-function region.
+            //
+            // The body's other two externals are the range bound and the table,
+            // whose relocations are REFHI/REFLO quads and not branches — they
+            // travel on `IlFunction::data_syms` and are accounted in
+            // `IlBundle::functions` by that field's own clause, exactly as
+            // `alloc_init_or_fail`'s two are.
+            //
+            // Omitting this arm is not a silent gap: the accounting gate refuses
+            // the whole TU with `unclaimed-gl-symbol`, which is how W-UNDNAME's
+            // missing arm was found (#1743). This one was written from that
+            // rung's write-up rather than rediscovered — the fifth conversion
+            // lane in a row to find an unpriced reader refusal made it the first
+            // thing this lane looked for.
+            .chain(
+                self.osf_handle_guard
+                    .iter()
+                    .flat_map(|g| [g.errno.as_str(), g.doserrno.as_str()]),
+            )
     }
 
     pub fn label_slots(&self, fn_level_linking: bool) -> Option<u32> {

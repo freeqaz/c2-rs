@@ -26,6 +26,7 @@ use self::shapes::{
     try_parse_ptr_walk_chain_loop,
     try_parse_guard_chain_shared_tail,
     try_parse_alloc_init_or_fail,
+    try_parse_osf_handle_guard,
     try_parse_if_call_join,
     try_parse_ptr_walk_loop,
     try_parse_static_scan_loop,
@@ -653,6 +654,9 @@ pub(crate) enum BodyShape {
     /// [`shapes::alloc_init_or_fail`] for the class and
     /// [`crate::func::AllocInitOrFail`] for the fields.
     AllocInitOrFail(crate::func::AllocInitOrFail),
+    /// **W-OSFINFO** — a range-and-flag guarded two-level table lookup whose two
+    /// failure statements are tail-merged with its success statement.
+    OsfHandleGuard(crate::func::OsfHandleGuard),
     /// **W-DATA — the static-array scan loop.** The first body class here whose
     /// function DEFINES the data it reads. See
     /// [`super::shapes::static_scan_loop`] for the whole accept/refuse boundary
@@ -2110,6 +2114,26 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // `undname.cpp` read at this lane's base) and no census key moves.
             if let Ok(shape) = try_parse_alloc_init_or_fail(seg, p, lo) {
                 disp("disp-alloc-init-or-fail");
+                return Ok(shape);
+            }
+            // **W-OSFINFO — the range-and-flag guarded table lookup.** Asked
+            // after every production above and separated from all of them at the
+            // SECOND TOKEN of the body, which is worth stating because it is a
+            // stronger separation than `alloc_init_or_fail`'s: every class above
+            // consumes a `33` literal immediately after the guard's opening `B9`
+            // load, and this one consumes a `2C` CONVERSION — the cast that
+            // makes the first compare signed and the second unsigned, which is
+            // fact 1 of its class doc. None of them can reach a body of this
+            // shape and it cannot take one of theirs, whichever is asked first.
+            // It is last because every class above it names a matched TU.
+            //
+            // Non-committal on the same terms as the rest of the ladder: its own
+            // cursor, `Err` on the first byte outside its grammar, so a body that
+            // declines still reports the arm's blocker (`expr-cmp-ge`, which is
+            // what `osfinfo.cpp` read at this lane's base) and no census key
+            // moves.
+            if let Ok(shape) = try_parse_osf_handle_guard(seg, p, lo) {
+                disp("disp-osf-handle-guard");
                 return Ok(shape);
             }
             // **The integer divide/modulo leaf.** Tried here because it is the

@@ -48,6 +48,7 @@ pub(crate) mod no_effect;
 pub(crate) mod params;
 pub(crate) mod ptr_walk_chain_loop;
 pub(crate) mod alloc_init_or_fail;
+pub(crate) mod osf_handle_guard;
 pub(crate) mod guard_chain_shared_tail;
 pub(crate) mod if_call_join;
 pub(crate) mod ptr_walk_loop;
@@ -99,6 +100,7 @@ pub(crate) use params::*;
 pub(crate) use ptr_walk_chain_loop::*;
 #[allow(unused_imports)]
 pub(crate) use alloc_init_or_fail::*;
+pub(crate) use osf_handle_guard::*;
 pub(crate) use guard_chain_shared_tail::*;
 pub(crate) use if_call_join::*;
 pub(crate) use ptr_walk_loop::*;

@@ -110,6 +110,7 @@ pub fn selected_tag(s: &codegen::Selected) -> &'static str {
         codegen::Selected::IfCallJoin => "if-call-join",
         codegen::Selected::GuardChainSharedTail => "guard-chain-shared-tail",
         codegen::Selected::AllocInitOrFail => "alloc-init-or-fail",
+        codegen::Selected::OsfHandleGuard => "osf-handle-guard",
     }
 }
 
@@ -294,6 +295,27 @@ pub(crate) fn body_of<'a>(
                 reloc_offset: body.bl_offset,
                 callee: a.alloc.as_str(),
             }];
+            (body.text, calls)
+        }
+        // **W-OSFINFO — the range-and-flag guarded table lookup.** TWO REL24
+        // sites and TWO REFHI/REFLO quads, the latter derived from the emitted
+        // words by `crate::data_refs_of` below rather than declared here — which
+        // is what lets one of them be a `lwz` displacement.
+        codegen::Selected::OsfHandleGuard => {
+            let g = f
+                .osf_handle_guard
+                .as_ref()
+                .expect("OsfHandleGuard implies osf_handle_guard");
+            let body = codegen::osf_handle_guard::osf_handle_guard_text(g, 0, mode)
+                .map_err(ComdatDecline::Shape)?;
+            frame = Some(coff::Frame {
+                prolog_len: body.prolog_len,
+                func_len: body.text.len() as u32,
+            });
+            let calls = vec![
+                coff::Call { reloc_offset: body.bl_offsets[0], callee: g.errno.as_str() },
+                coff::Call { reloc_offset: body.bl_offsets[1], callee: g.doserrno.as_str() },
+            ];
             (body.text, calls)
         }
         codegen::Selected::IfCallJoin => {

@@ -27,6 +27,7 @@ use crate::codegen::leaf::load::indirect_load_text;
 use crate::codegen::div_mod_leaf::div_mod_leaf_text;
 use crate::codegen::ptr_walk_chain_loop::ptr_walk_chain_loop_text;
 use crate::codegen::alloc_init_or_fail::alloc_init_or_fail_text;
+use crate::codegen::osf_handle_guard::osf_handle_guard_text;
 use crate::codegen::guard_chain_shared_tail::guard_chain_shared_tail_text;
 use crate::codegen::if_call_join::if_call_join_text;
 use crate::codegen::ptr_walk_loop::ptr_walk_loop_text;
@@ -168,6 +169,13 @@ pub enum Selected {
     /// [`crate::codegen::alloc_init_or_fail::alloc_init_or_fail_text`] at the
     /// emission site and this variant carries no payload.
     AllocInitOrFail,
+    /// **W-OSFINFO — the range-and-flag guarded table lookup.** The same
+    /// contract [`Selected::AllocInitOrFail`] has, one block plan over: a unit
+    /// variant, because the body is a pure function of `f.osf_handle_guard` and
+    /// `base_off` and its TWO `bl` words each encode their own `.text` offset.
+    /// Built through
+    /// [`crate::codegen::osf_handle_guard::osf_handle_guard_text`].
+    OsfHandleGuard,
     /// **W8 — a two-arm conditional tail call.** The body with a zero word at
     /// each of its two tail branches, which the caller fills for the same reason
     /// [`Selected::Tail`] carries an incomplete text: a `b` to an external
@@ -315,6 +323,17 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
         // both writers ask it in exactly one place.
         alloc_init_or_fail_text(func.alloc_init_or_fail.as_ref().unwrap(), 0, mode)?;
         return Ok(Selected::AllocInitOrFail);
+    }
+    // **W-OSFINFO — the range-and-flag guarded table lookup.** Same placement
+    // argument as its three neighbours and the same freedom: the field is set by
+    // exactly one parser production, `func.ops` is empty for it, and no leaf
+    // pattern-matcher can take its body.
+    if func.osf_handle_guard.is_some() {
+        // The mode gate is asked in the emitter as well as in the parser (board
+        // #1638), and calling the emitter here is what makes `function_gate` and
+        // both writers ask it in exactly one place.
+        osf_handle_guard_text(func.osf_handle_guard.as_ref().unwrap(), 0, mode)?;
+        return Ok(Selected::OsfHandleGuard);
     }
     if func.if_call_join.is_some() {
         // The mode gate lives in the emitter, not here, so that `function_gate`
