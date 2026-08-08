@@ -95,6 +95,7 @@ the header block this table is read from.
 | 2026-08-07 | w-rtti | [w-rtti](2026-08-07-w-rtti.md) | 10 | 711,427 / 2,463,393 unchanged (28.88 %), +0 — this lane emits nothing |
 | 2026-08-07 | w-tag02 | [w-tag02](2026-08-07-w-tag02.md) | 10 | 711,427 / 2,463,393 unchanged (28.88 %), +0 — this lane touches no |
 | 2026-08-08 | w-4c | [w-4c](2026-08-08-w-4c.md) | 11 | 711,486 / 2,463,443 unchanged (28.88 %), **+0**. TU match |
+| 2026-08-08 | w-5c2 | [w-5c2](2026-08-08-w-5c2.md) | 11 | 711,486 / 2,463,443 unchanged (28.88 %), **+0**. TU match |
 | 2026-08-08 | w-5c | [w-5c](2026-08-08-w-5c.md) | 11 | 711,486 / 2,463,443 unchanged (28.88 %), **+0**. TU match |
 | 2026-08-08 | w-667 | [w-667](2026-08-08-w-667.md) | 11 | 711,486 / 2,463,443 (28.88 %) → **unchanged, +0**. Emitted census |
 | 2026-08-08 | w-align16 | [w-align16](2026-08-08-w-align16.md) | 2 | 711,477 / 2,463,443 (28.88 %), **+0** — this lane emits no function |
