@@ -1,0 +1,35 @@
+ladder.py RED-TEST — lane w-ladders
+--------------------------------------------------------------------------
+ARM W1 NO-TABLE-FILE — the width table's file is GONE — the set must not come back empty
+  rc=1
+  LADDER-NOWIDTHTABLE — cannot read chain_skip_form from <abs> ([Errno 2] No such file or directory: '<abs>'). Refusing to classify rungs against an empty width table.
+  => RED as expected
+--------------------------------------------------------------------------
+ARM W2 EMPTY-TABLE — the function is there and has NO arms — an empty set would make every rung read as a RENAME, which is trap 5 pointing at this lane's own finding
+  rc=1
+  LADDER-NOWIDTHTABLE — parsed only 0 pinned opcode(s) from chain_skip_form; the table has never been that small. Refusing rather than reporting every rung as a rename.
+  => RED as expected
+--------------------------------------------------------------------------
+ARM W3 TRUNCATED-TABLE — TWO arms parse — a table that shrank by 44 entries is a DRIFT and must refuse, not silently reclassify 44 opcodes as unpinned
+  rc=1
+  LADDER-NOWIDTHTABLE — parsed only 2 pinned opcode(s) from chain_skip_form; the table has never been that small. Refusing rather than reporting every rung as a rename.
+  => RED as expected
+--------------------------------------------------------------------------
+ARM G1 REAL-TABLE — THE CONTROL. The tree's own table parses, and the two ends this lane's finding rests on are checked POSITIVELY in both directions
+  rc=0
+  parsed 46 pinned opcodes from the real tree
+  => GREEN as required
+--------------------------------------------------------------------------
+ARM G2 RENAME-CLASSIFIES — the rename rule itself, on both sides: the three bytes six FRONTIER ladders end on, and four grants that are real rungs
+  rc=0
+  7 cases classified, 3 RENAME / 4 rung
+  => GREEN as required
+==========================================================================
+  W1 NO-TABLE-FILE       LADDER-NOWIDTHTABLE      OK
+  W2 EMPTY-TABLE         LADDER-NOWIDTHTABLE      OK
+  W3 TRUNCATED-TABLE     LADDER-NOWIDTHTABLE      OK
+  G1 REAL-TABLE          (green)                  OK
+  G2 RENAME-CLASSIFIES   (green)                  OK
+distinct leading words exercised: 1 of 1
+==========================================================================
+ALL 5 ARMS PASS — 3 red, 2 green

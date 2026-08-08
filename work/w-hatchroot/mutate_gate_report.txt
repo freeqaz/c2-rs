@@ -1,0 +1,55 @@
+unmutated, in place: 138 cases, PASS
+unmutated, as a copy at .mut-gate.sh: exit 0, reddened: NONE
+
+----------------------------------------------------------------------
+M1-drop-truncated
+  selftest exit : 1
+  cases reddened: ladderred-short-run-is-not-a-pass 
+  new vs control:  ladderred-short-run-is-not-a-pass
+  => RED as expected
+----------------------------------------------------------------------
+M2-drop-vacuous
+  selftest exit : 1
+  cases reddened: ladderred-no-red-arms-is-vacuous 
+  new vs control:  ladderred-no-red-arms-is-vacuous
+  => RED as expected
+----------------------------------------------------------------------
+M3-drop-exit
+  selftest exit : 1
+  cases reddened: ladderred-green-then-nonzero-exit 
+  new vs control:  ladderred-green-then-nonzero-exit
+  => RED as expected
+----------------------------------------------------------------------
+M4-unrecognized-passes
+  selftest exit : 1
+  cases reddened: ladderred-junk-log-is-no-result 
+  new vs control:  ladderred-junk-log-is-no-result
+  => RED as expected
+----------------------------------------------------------------------
+M5-absent-tuple-allowed
+  selftest exit : 1
+  cases reddened: ladderred-absent-tuple-fails-the-gate 
+  new vs control:  ladderred-absent-tuple-fails-the-gate
+  => RED as expected
+----------------------------------------------------------------------
+M6-refused-is-a-fail
+  selftest exit : 1
+  cases reddened: bothrows-refused-print-both-suffixes ladderred-refused-exits-zero 
+  new vs control:  bothrows-refused-print-both-suffixes ladderred-refused-exits-zero
+  => RED as expected
+----------------------------------------------------------------------
+M7-no-headline-suffix
+  selftest exit : 1
+  cases reddened: bothrows-refused-print-both-suffixes ladderred-refused-exits-zero 
+  new vs control:  bothrows-refused-print-both-suffixes ladderred-refused-exits-zero
+  => RED as expected
+----------------------------------------------------------------------
+M8-word-collapse
+  selftest exit : 1
+  cases reddened: ladderred-failed-arm-is-a-fail ladderred-shares-no-word-with-hatchred 
+  new vs control:  ladderred-failed-arm-is-a-fail ladderred-shares-no-word-with-hatchred
+  => RED as expected
+
+======================================================================
+mutations: 8 reddened the case they were aimed at, 0 did not
+ALL 8 MUTATIONS RED — every one on the case its guard belongs to
