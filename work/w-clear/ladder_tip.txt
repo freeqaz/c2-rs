@@ -1,0 +1,4 @@
+src/xdk/LIBCMT/undname.cpp                     net=12  sink=12  hatch=0  READER-CLEAR
+src/xdk/LIBCMT/vswprnc.cpp                     net=11  sink=11  hatch=0  READER-CLEAR
+src/xdk/LIBCMT/vsnprnc.cpp                     net=12  sink=12  hatch=0  READER-CLEAR
+src/xdk/nuispeech/mmio.cpp                     net=12  sink=12  hatch=0  READER-CLEAR
