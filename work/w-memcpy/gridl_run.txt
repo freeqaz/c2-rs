@@ -1,0 +1,1 @@
+measured 747 cells -> /home/free/code/milohax/c2-rs/.claude/worktrees/w-memcpy/work/w-memcpy/probeL/measured.json

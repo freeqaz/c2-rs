@@ -1,0 +1,20 @@
+compile errors            0
+in-class cells GRADED     563
+in-class, NO (lit,move) pair to order, by (has-lit, has-move): {(True, False): 56, (True, True): 14}
+
+  R-LITLAST     338 / 563
+  R-DESC        217 / 563
+  R-ASC          53 / 563
+  R-LITFIRST     31 / 563
+
+  per frame driver ({'g1': 503, 'g2': 15, 'c2': 15, 'lv': 15, 'tail': 15}):
+    R-ASC        {'g1': 52, 'g2': 1}
+    R-DESC       {'g1': 208, 'g2': 9}
+    R-LITFIRST   {'g1': 29, 'g2': 2}
+    R-LITLAST    {'g1': 329, 'g2': 9}
+
+R-ASC        misses 510, first 4: ['g1_n2_L0_g0_72', 'g1_n2_1L_g0_72', 'g1_n3_L01_g0_72', 'g1_n3_L02_g0_72']
+R-DESC       misses 346, first 4: ['g1_n3_1L0_g0_72', 'g1_n3_2L0_g0_72', 'g1_n3_02L_g0_72', 'g1_n3_10L_g0_72']
+R-LITFIRST   misses 532, first 4: ['g1_n2_L0_g0_72', 'g1_n3_L01_g0_72', 'g1_n3_L02_g0_72', 'g1_n3_L10_g0_72']
+R-LITLAST    misses 225, first 4: ['g1_n2_1L_g0_72', 'g1_n3_1L2_g0_72', 'g1_n3_2L1_g0_72', 'g1_n3_10L_g0_72']
+R-PARKLIT    misses 563, first 4: ['g1_n2_L0_g0_72', 'g1_n2_1L_g0_72', 'g1_n3_L01_g0_72', 'g1_n3_L02_g0_72']

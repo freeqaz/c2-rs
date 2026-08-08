@@ -447,9 +447,19 @@ def read_setup(words):
         if d[0] in ("mr", "li", "lis", "ori", "addi"):
             entry.append(d)
         i += 1
+    # **The call run is the words before the first `bl`, and `bl` means LK=1.**
+    #
+    # This used to take the first `b` OR `bl` at or after the entry block, and
+    # in a guarded cell that is the early-return arm's own `b` to the epilogue —
+    # so the "call run" came back as the guard's `li r3,5`, the return VALUE,
+    # and 445 of 633 in-class cells graded no (literal, move) pair at all while
+    # R-DESC and R-LITLAST tied at 143 on the rest.  Recorded rather than
+    # quietly fixed: a reader that mistakes a return value for a marshalling
+    # word produces a tie between two rules that the grid separates at 390
+    # cells, which is a green-looking result from a broken instrument.
     branch = None
     for j in range(len(words)):
-        if decode(words[j])[0] in ("bl", "b") and j >= i:
+        if decode(words[j])[0] == "bl":
             branch = j
             break
     call = []

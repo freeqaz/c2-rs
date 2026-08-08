@@ -1,0 +1,20 @@
+== the ENTRY-BLOCK claim (PREREG P5 / rival R-PARKLIT) ==
+  in-class cells carrying a literal            633
+  ...of which a literal is HOISTED into entry  54
+  cells where a MOVE is hoisted into entry     516  (the park)
+
+== the CALL-SITE claim, graded on call-site ops only ==
+  in-class cells GRADED  403   (no call-site (lit,move) pair: 230)
+    R-DESC        379 / 403
+    R-LITLAST     219 / 403
+    R-LITFIRST    125 / 403
+    R-ASC          10 / 403
+  per frame driver ({'g1': 362, 'g2': 11, 'c2': 15, 'lv': 15}):
+    R-ASC        {'c2': 4, 'lv': 6}
+    R-DESC       {'g1': 354, 'g2': 11, 'c2': 8, 'lv': 6}
+    R-LITFIRST   {'g1': 120, 'g2': 5}
+    R-LITLAST    {'g1': 188, 'g2': 5, 'c2': 11, 'lv': 15}
+R-ASC        misses 393, first 6: ['g1_n2_1L_g0_72', 'g1_n3_L01_g0_72', 'g1_n3_L20_g0_72', 'g1_n3_L21_g0_72', 'g1_n3_1L2_g0_72', 'g1_n3_2L0_g0_72']
+R-DESC       misses 24, first 6: ['g1_n4_201L_g0_72', 'lv_n3_1L0_gn_72', 'c2_n3_1L2_gn_72', 'lv_n3_1L2_gn_72', 'lv_n3_2L0_gn_72', 'c2_n3_2L1_gn_72']
+R-LITFIRST   misses 278, first 6: ['g1_n3_L01_g0_72', 'g1_n3_L20_g0_72', 'g1_n3_L21_g0_72', 'g1_n3_2L0_g0_72', 'g1_n3_2L1_g0_72', 'g1_n4_L012_g0_72']
+R-LITLAST    misses 184, first 6: ['g1_n2_1L_g0_72', 'g1_n3_1L2_g0_72', 'g1_n3_2L1_g0_72', 'g1_n3_10L_g0_72', 'g1_n3_12L_g0_72', 'g1_n3_21L_g0_72']
