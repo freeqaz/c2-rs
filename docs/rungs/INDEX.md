@@ -122,6 +122,7 @@ the header block this table is read from.
 | 2026-08-08 | w-ladders | [w-ladders](2026-08-08-w-ladders.md) | 14 | 711,486 / 2,463,443 unchanged (28.88 %), **+0**. TU match |
 | 2026-08-08 | w-lineage | [w-lineage](2026-08-08-w-lineage.md) | 2 | 711,485 → 711,486 / 2,463,443 (28.88 %), **+1**; emitted |
 | 2026-08-08 | w-loop | [w-loop](2026-08-08-w-loop.md) | 12 | 711,486 / 2,463,443 unchanged, **+0** — no accept path changed. |
+| 2026-08-08 | w-memcpy | [w-memcpy](2026-08-08-w-memcpy.md) | 11 | 711,486 / 2,463,443 unchanged (28.88 %), **+0**. TU match |
 | 2026-08-08 | w-memset | [w-memset](2026-08-08-w-memset.md) | 9 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted |
 | 2026-08-08 | w-mixed | [w-mixed](2026-08-08-w-mixed.md) | 25 | 711,485 / 2,463,443 unchanged (28.88 %), **+0**. TU match |
 | 2026-08-08 | w-mmio | [w-mmio](2026-08-08-w-mmio.md) | 1 | 711,486 / 2,463,443 unchanged (28.88 %), **+0**. TU match |
