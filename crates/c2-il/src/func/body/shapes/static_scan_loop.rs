@@ -70,6 +70,7 @@
 //! is the wrong one — and this file never mentions `ptr_locals` at all.
 
 use crate::func::body::expr::{eat_return_plumbing, parse_formals};
+use crate::func::bundle::{opt_word_at, opt_word_mode, OptWordMode};
 use crate::func::body::{blk, Block, BodyShape};
 use crate::func::readers::{
     eat, eat_byte, eat_int_like, eat_opt_stmt_marker, read_token_var, read_type, read_varint,
@@ -185,6 +186,27 @@ pub(crate) fn try_parse_static_scan_loop(
     lo: usize,
     locals: &[u32],
 ) -> Result<BodyShape, Block> {
+    // **THE MODE GATE LIVES HERE, IN THE PARSER — not only in the emitter.**
+    //
+    // The sixteen words are a `/O1` body and nothing else: this lane graded no
+    // cell at any other mode, and the workload compiles `/O1`. The emitter
+    // re-asserts it (`c2_core::codegen::static_scan_loop`) because
+    // `select_function` is what `function_gate` runs — but a gate that lived
+    // ONLY there makes the **census** count these bodies in class while
+    // `PortC2` refuses them, an error term on the published coverage numerator.
+    //
+    // **That is not a hypothetical here.** This class shipped with the clause in
+    // the emitter alone and `crates/c2-harness/tests/census_gate.rs` failed on it
+    // in exactly the words it was written to fail in — three fixture functions
+    // counted in class at `/Ox` and refused by the port. Board **#1638**,
+    // w-cfgclass §5.3, second instance, and `docs/GAPS.md` §6's remedy applied:
+    // *move the gate into the IL parser*.
+    //
+    // Asked FIRST, before any body byte is read, so the refusal cannot depend on
+    // how far the walk got.
+    if opt_word_mode(opt_word_at(seg)) != Some(OptWordMode::O1) {
+        return Err(blk(seg, start, "scan-not-o1"));
+    }
     let params = parse_formals(seg, lo)?;
     // **Exactly one `int` formal.** It lands in `r3` and stays there — the
     // FALLOUT block's `return i` emits *no instruction at all*, which is only
