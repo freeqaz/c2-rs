@@ -665,7 +665,7 @@ impl PortC2 {
                 }
                 // A Class A many-call body, built at `off` for the same reason:
                 // every `bl` word encodes its own `.text` offset.
-                codegen::Selected::Seq { setups, tail } => {
+                codegen::Selected::Seq { setups, tail, park } => {
                     let seq = f.call_seq.as_ref().expect("Seq implies call_seq");
                     // **W10** — same resolver as the `/Gy` path above. The
                     // conditional branch and the intra-section `b` are both
@@ -683,7 +683,8 @@ impl PortC2 {
                     let early = seq
                         .early
                         .iter()
-                        .map(codegen::seq_early_emit)
+                        .enumerate()
+                        .map(|(ix, e)| codegen::seq_early_emit_remapped(e, &park, ix))
                         .collect::<Result<Vec<_>, _>>()?;
                     let body = codegen::call_seq_text(
                         &setups,
@@ -693,6 +694,7 @@ impl PortC2 {
                             saved_gprs: seq.saved_gprs() as u8,
                             ..Default::default()
                         },
+                        &park.entry,
                         guard.as_ref(),
                         &early,
                         mode,

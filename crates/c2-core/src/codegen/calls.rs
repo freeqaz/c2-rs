@@ -384,9 +384,37 @@ pub struct SeqEarlyEmit {
 /// is `work/w-cross/PREREG.md` §1's **empty-arm inversion**, in the smallest
 /// body that has it.
 pub fn seq_early_emit(e: &c2_il::SeqEarlyReturn) -> Result<SeqEarlyEmit, BackendError> {
-    let ra = *ARG_REGS.get(e.cmp_param).ok_or_else(|| {
+    seq_early_emit_remapped(e, &SeqPark::default(), 0)
+}
+
+/// [`seq_early_emit`], but reading the compare register out of the
+/// **entry-block park** rather than out of the formal's home.
+///
+/// Board #275: once a park has run, the formal a guard tests may no longer be
+/// in its home register — `?mmioGetInfo` compares `r11` for `a0` and `r3` for
+/// `a1`, and `h3_n4_p2013_g120` compares `r4`, `r3` and `r11` for `a1`, `a2`
+/// and `a0` in that order. Measured on every cell of grids 1–3: **the guard
+/// reads whatever register currently holds its formal.** Resolving that here,
+/// out of the same [`SeqPark`] that produced the moves, is what stops a compare
+/// from naming a register the entry block did not write.
+pub fn seq_early_emit_remapped(
+    e: &c2_il::SeqEarlyReturn,
+    park: &SeqPark,
+    ix: usize,
+) -> Result<SeqEarlyEmit, BackendError> {
+    let home = *ARG_REGS.get(e.cmp_param).ok_or_else(|| {
         out_of_class("a guarded early return comparing a stack-homed formal")
     })?;
+    let ra = park.reg_of(e.cmp_param, home, ix);
+    if !park.entry.is_empty() && !e.and_conds.is_empty() {
+        // A `&&` conjunct reads a SECOND formal, and no cell of grids 1–3
+        // crossed a conjunct with a park. Refused rather than remapped.
+        return Err(out_of_class(
+            "a short-circuit `&&` conjunct beside an entry-block park: the \
+             conjunct's own scrutinee is a second formal and the composition is \
+             ungraded",
+        ));
+    }
     let cmp = if e.signed {
         let k = i16::try_from(e.k).map_err(|_| {
             out_of_class("a signed early-return guard literal wider than `cmpwi`'s immediate")
@@ -442,11 +470,219 @@ pub fn seq_early_emit(e: &c2_il::SeqEarlyReturn) -> Result<SeqEarlyEmit, Backend
     Ok(SeqEarlyEmit { cmp, bo, bi: cr_bi(CR_COMPARE, bit), and_conds, value: e.value })
 }
 
+/// **Board #275 — the ENTRY-BLOCK PARK**, as the split between what a guarded
+/// permuted call emits *before* its guards and what it leaves at the call.
+///
+/// Built by [`seq_entry_park`], which is the only place the anchor is chosen.
+/// [`SeqEarlyEmit`] resolves its compare register through [`SeqPark::reg_of`],
+/// so the guards and the moves cannot disagree about where a formal lives.
+#[derive(Debug, Default, Clone)]
+pub struct SeqPark {
+    /// The words between the prologue and the first early return: `mr r11,rA`
+    /// and then the ascending prefix of the chain. Empty when there is no park.
+    pub entry: Vec<u8>,
+    /// **Which register the FIRST guard compares**, for every formal whose home
+    /// the entry block overwrote. Parameter index → register.
+    pub first: Vec<(usize, u8)>,
+    /// **Which register every LATER guard compares** — the last register the
+    /// entry block wrote the value into — for every formal that moved at all.
+    pub later: Vec<(usize, u8)>,
+}
+
+impl SeqPark {
+    /// The register holding formal `pi` at guard number `ix`.
+    ///
+    /// **The two maps are different, and that is measured, not defensive.**
+    /// Over all 1,654 guards of grids 1–3:
+    ///
+    /// ```text
+    ///   guard 0     its formal's HOME, unless the entry block overwrote the
+    ///               home — then wherever the value went
+    ///   guard 1..n  the LAST register the entry block wrote the value into,
+    ///               even when the home still holds a live copy
+    /// ```
+    ///
+    /// The separating pair is `gtgt_n4_p0312_g3` against `g2ord_n4_p0312_g23`:
+    /// identical entry blocks (`mr r11,r6` and nothing else) and the same
+    /// formal tested, and c2 compares **r6** in the first and **r11** in the
+    /// second — the only difference being that in the second it is not the
+    /// first guard. Both are correct code; the choice is not forced, and a
+    /// single map gets one of them wrong. Scored: **0 of 1,654** wrong.
+    pub fn reg_of(&self, pi: usize, home: u8, ix: usize) -> u8 {
+        let m = if ix == 0 { &self.first } else { &self.later };
+        m.iter()
+            .find(|(p, _)| *p == pi)
+            .map(|(_, r)| *r)
+            .unwrap_or(home)
+    }
+}
+
+/// **The park's rule, measured over 886 cells against the real `c2.dll`** —
+/// grids 1–3 in `work/w-mmio/probe{,2,3}/`, at the dc3 workload's own flags and
+/// cwd, and re-checked byte-for-byte at `/Ox` and `/O2` on 30 of them.
+///
+/// Board **#1414** publishes this rule as *"break the cycle by saving the
+/// LOWEST slot's home into r11, then hoist the maximal prefix whose destination
+/// register is strictly increasing"*. **The first half is wrong**, and lane
+/// `w-clear`'s five cells could not see it because in all five the guard's
+/// formal and the cycle minimum were the same register `r3`. Measured over a
+/// population that separates them, `R-MIN` scores **394 of 832**.
+///
+/// The rule that holds — and the reason it holds:
+///
+/// 1. **The call site emits DESCENDING by destination** ([`moves_descending`],
+///    the rule this emitter already implements for the unguarded case), and the
+///    **entry block emits ASCENDING**. A chain can therefore be laid out at all
+///    only when its destination sequence is **unimodal**; the split falls at
+///    the peak.
+/// 2. **The anchor is the guard's own scrutinee** when the chain rooted there
+///    is unimodal. That is the case this function admits, and it is 496 of 496
+///    over the three grids — fitted on grid 1, confirmed unchanged on grids 2
+///    and 3, which were generated and committed before they were compiled.
+/// 3. When the first guard cannot anchor, c2 scans on to later guards and, past
+///    that, falls back to the cycle minimum. That clause was refuted twice —
+///    once by grid 2 and once by grid 3 — and each replacement was fitted to
+///    the grid that refuted it. **It is deliberately NOT implemented**, and the
+///    parser refuses its population by name. Board #260's warning is the
+///    reason: a clause that has been re-fitted at every new population is a
+///    clause whose next population will re-fit it again.
+///
+/// ```text
+///   f(p,q){ if(!p) return 5; g(q,p); }
+///     ENTRY   mr r11,r3 · mr r3,r4      the park, ASCENDING
+///             cmplwi cr6,r11,0 · bf …   the guard reads the PARKED register
+///     CALL    mr r4,r11                 the remainder, DESCENDING
+/// ```
+///
+/// Returns `(entry, call, remap)`. `sources[d]` is the formal in slot `d`;
+/// `scrutinee` is the first early return's `cmp_param`.
+pub fn seq_entry_park(
+    sources: &[usize],
+    scrutinee: usize,
+) -> Result<(Vec<u8>, Vec<u8>, Vec<(usize, u8)>, Vec<(usize, u8)>), BackendError> {
+    let n = sources.len();
+    if n > ARG_REGS.len() {
+        return Err(out_of_class("a parked permutation past the register slots"));
+    }
+    // The single non-trivial cycle. Multi-cycle and length > 3 are refused
+    // upstream by `c2_il` (`call-arg-multicycle`, `call-arg-long-cycle`) and by
+    // `permute_args_parts`; this walk is the backstop that says so by name.
+    let mut seen = vec![false; n];
+    let mut cycles: Vec<Vec<usize>> = Vec::new();
+    for start in 0..n {
+        if seen[start] || sources[start] == start {
+            seen[start] = true;
+            continue;
+        }
+        let (mut cycle, mut at) = (Vec::new(), start);
+        while !seen[at] {
+            seen[at] = true;
+            cycle.push(at);
+            if sources[at] >= n {
+                return Err(out_of_class("a parked permutation sources outside its slots"));
+            }
+            at = sources[at];
+        }
+        cycles.push(cycle);
+    }
+    if cycles.len() != 1 {
+        return Err(out_of_class(
+            "a parked permutation with other than one non-trivial cycle",
+        ));
+    }
+    let cycle = &cycles[0];
+    if cycle.len() > 3 {
+        return Err(out_of_class(
+            "a parked permutation with a cycle longer than three: past three c2 \
+             hoists a second save into r10 and the order it picks is not \
+             characterized",
+        ));
+    }
+    // **Clause 2, and ONLY clause 2.** The anchor is the guard's scrutinee or
+    // this shape is out of class — see the doc above for why clause 3 is not
+    // here.
+    if !cycle.contains(&scrutinee) {
+        return Err(out_of_class(
+            "a guarded permuted call whose scrutinee is not in the permutation's \
+             cycle: c2 then anchors at a later guard or at the cycle minimum, and \
+             that clause has been re-fitted at every population that measured it",
+        ));
+    }
+    let chain = park_chain(sources, scrutinee);
+    let dests: Vec<u8> = chain.iter().map(|&(d, _)| d).collect();
+    let mut peak = 0usize;
+    while peak + 1 < dests.len() && dests[peak] < dests[peak + 1] {
+        peak += 1;
+    }
+    let mut down = peak;
+    while down + 1 < dests.len() && dests[down] > dests[down + 1] {
+        down += 1;
+    }
+    if down != dests.len() - 1 {
+        return Err(out_of_class(
+            "a guarded permuted call whose chain is not unimodal: the entry block \
+             ascends and the call site descends, so this chain has no layout and \
+             c2 anchors elsewhere",
+        ));
+    }
+    // `peak` is the index of the highest destination; everything strictly before
+    // it is hoisted, and it and everything after stay at the call.
+    let anchor_reg = ARG_REGS[scrutinee];
+    let mut entry = encode_mr(SCRATCH_REG, anchor_reg).to_vec();
+    for &(d, s) in &chain[..peak] {
+        entry.extend_from_slice(&encode_mr(d, s));
+    }
+    let mut call = Vec::new();
+    for &(d, s) in &chain[peak..] {
+        call.extend_from_slice(&encode_mr(d, s));
+    }
+    // Where every formal lives at the guards, by simulating the entry block —
+    // and the two maps `SeqPark::reg_of` documents, which differ only at guard
+    // zero and differ there in 178 measured cells.
+    let mut at: Vec<u8> = (0..n).map(|i| ARG_REGS[i]).collect();
+    let mut clobbered: Vec<u8> = vec![SCRATCH_REG];
+    at[scrutinee] = SCRATCH_REG;
+    for &(d, s) in &chain[..peak] {
+        if let Some(pi) = (0..n).find(|&i| at[i] == s) {
+            at[pi] = d;
+        }
+        clobbered.push(d);
+    }
+    let later: Vec<(usize, u8)> = (0..n)
+        .filter(|&i| at[i] != ARG_REGS[i])
+        .map(|i| (i, at[i]))
+        .collect();
+    let first: Vec<(usize, u8)> = later
+        .iter()
+        .copied()
+        .filter(|&(i, _)| clobbered.contains(&ARG_REGS[i]))
+        .collect();
+    Ok((entry, call, first, later))
+}
+
+/// The move chain rooted at `anchor`: `anchor <- s(anchor)`, then that slot's
+/// own source, and finally the read-back from [`SCRATCH_REG`]. Its order is
+/// forced by the dependencies and is shared by the entry block and the call.
+fn park_chain(sources: &[usize], anchor: usize) -> Vec<(u8, u8)> {
+    let mut moves = Vec::new();
+    let mut cur = anchor;
+    loop {
+        let nxt = sources[cur];
+        if nxt == anchor {
+            moves.push((ARG_REGS[cur], SCRATCH_REG));
+            return moves;
+        }
+        moves.push((ARG_REGS[cur], ARG_REGS[nxt]));
+        cur = nxt;
+    }
+}
+
 pub fn call_seq_text(
     setups: &[Vec<u8>],
     tail: &[u8],
     base_off: u32,
     frame: FrameLayout,
+    park: &[u8],
     guard: Option<&SeqGuardEmit>,
     early: &[SeqEarlyEmit],
     mode: OptMode,
@@ -476,10 +712,27 @@ pub fn call_seq_text(
              plans, one production each, and the combination is ungraded",
         ));
     }
+    if !park.is_empty() && (guard.is_some() || early.is_empty()) {
+        // The park is the ENTRY BLOCK of a guarded-early-return body and has no
+        // meaning without one. A W10 `guard` beside it is refused two lines
+        // below anyway; saying so here as well keeps the park from being laid
+        // out into a block plan nothing has graded.
+        return Err(out_of_class(
+            "an entry-block park without a guarded early return in front of it",
+        ));
+    }
     let prologue = frame.prologue()?;
     let epilogue = frame.epilogue()?;
     let prolog_len = prologue.len() as u32;
     let mut text = prologue;
+    // ---- board #275: the ENTRY-BLOCK PARK, ahead of the early returns -------
+    //
+    // `mr r11,rA` and the ascending prefix of the permutation's chain, emitted
+    // between the prologue and the first compare. The guards then read the
+    // register each formal has *landed in*, which `seq_early_emit_remapped`
+    // resolves through the same [`SeqPark`] this text came from — one place, so
+    // a compare cannot name a register the moves above it did not write.
+    text.extend_from_slice(park);
     // ---- W11: the guarded early returns, ahead of everything ----------------
     //
     // Each is `cmp ; bc ; <arm>`, and the arm is where the two optimization
@@ -827,7 +1080,8 @@ pub fn call_seq_parts(
     params: &[u32],
     seq: &c2_il::CallSeq,
     mode: OptMode,
-) -> Result<(Vec<Vec<u8>>, Vec<u8>), BackendError> {
+) -> Result<(Vec<Vec<u8>>, Vec<u8>, SeqPark), BackendError> {
+    let mut park = SeqPark::default();
     // The TOTAL, not `seq.saved.len()`: a tail that keeps an earlier call's
     // result alive takes a register from the same file, so a body with two saved
     // formals and such a tail is already the helper class.
@@ -863,7 +1117,7 @@ pub fn call_seq_parts(
         // it goes through the same `match seq.tail` every other sequence uses —
         // no second lowering of `mr r3,r31`.
         let tail = moves_descending(&[(RET_REG, src)]);
-        return Ok((vec![setup], tail));
+        return Ok((vec![setup], tail, park));
     }
     // **The first call's RESULT**, when the tail consumes it across a later `bl`.
     // `docs/CODEGEN_FRAMED_CALLS.md` §3.1: "call results take the next descending
@@ -962,16 +1216,34 @@ pub fn call_seq_parts(
                     // missing encoder: it is a *different cycle break* plus a
                     // *split across two blocks*, chosen by a rule the rung doc
                     // states and no fixture had ever exercised.
+                    //
+                    // **W-MMIO — and this is where the park is now BUILT.**
+                    // [`seq_entry_park`] carries the rule and the population it
+                    // was measured over; what stays refused here is every shape
+                    // it declines — a scrutinee outside the cycle, a chain that
+                    // is not unimodal, a cycle past three — plus the two the
+                    // grid never crossed: a park beside a callee-saved copy
+                    // (already refused above) and a park in any call but the
+                    // first.
                     if !seq.early.is_empty() && !t.is_empty() {
-                        return Err(out_of_class(
-                            "a permuted first call behind a guarded early return: c2 \
-                             hoists the cycle into the ENTRY BLOCK as a park and leaves \
-                             only the remainder at the call, breaking the cycle at the \
-                             lowest slot rather than the highest — 30 of 30 measured \
-                             cells diverge from the unguarded lowering this emitter has",
-                        ));
+                        if i != 0 {
+                            return Err(out_of_class(
+                                "a permuted call after the first behind a guarded \
+                                 early return: the park is an ENTRY-BLOCK move and \
+                                 there is no capture of one belonging to a later call",
+                            ));
+                        }
+                        let (entry, call, first, later) =
+                            seq_entry_park(sources, seq.early[0].cmp_param)?;
+                        park = SeqPark { entry, first, later };
+                        // The write set the callee-saved interleaving reads is
+                        // the CALL's, not the whole permutation's — but a park
+                        // beside a save is refused two arms up, so it is empty
+                        // by construction and stated rather than derived.
+                        (call, Vec::new())
+                    } else {
+                        (t, w)
                     }
-                    (t, w)
                 }
                 (None, []) => (Vec::new(), Vec::new()),
                 // A single passthrough or literal argument selects to `mr r3,rN`
@@ -1148,7 +1420,7 @@ pub fn call_seq_parts(
             moves_descending(&[(RET_REG, src)])
         }
     };
-    Ok((setups, tail))
+    Ok((setups, tail, park))
 }
 
 /// Emit the `.text` for an **integer tail call** `return g(<arg>)` (and the
@@ -1740,7 +2012,7 @@ mod tests {
         // ---- the swap, UNGUARDED: `mr r11,r4 · mr r4,r3 · mr r3,r11` --------
         // The bytes real c2 emits for `f(p,q){ g(q,p); return 0; }`, which the
         // port already reproduces (`work/w-clear/probe/n1.cpp`, `match`).
-        let (setups, _) = call_seq_parts(&params[..2], &seq(vec![1, 0], false), OptMode::O1)
+        let (setups, _, _) = call_seq_parts(&params[..2], &seq(vec![1, 0], false), OptMode::O1)
             .expect("the unguarded permutation is in class and must stay in class");
         assert_eq!(
             setups[0],
@@ -1752,31 +2024,193 @@ mod tests {
             "the unguarded cycle break is the shipped, byte-exact lowering"
         );
 
-        // ---- the SAME permutation behind one early return: REFUSED ----------
-        let e = call_seq_parts(&params[..2], &seq(vec![1, 0], true), OptMode::O1)
-            .expect_err("a permuted call behind a guarded early return must refuse");
-        assert!(
-            format!("{e:?}").contains("guarded early return"),
-            "the refusal must name the shape, not just decline: {e:?}"
+        // ---- the SAME permutation behind one early return: THE PARK ---------
+        //
+        // **W-MMIO.** `w-clear` refused this whole shape after reading 30
+        // `Port=Mismatch`; lane `w-mmio` measured it over 886 cells and it now
+        // emits. The scrutinee is formal 0, which is the cycle minimum, so the
+        // chain `r3<-r4 · r4<-r11` ascends and the split falls after the first
+        // move. **These are `?mmioGetInfo`'s own two entry-block words** —
+        // `frontier_bytes::C2_MMIOGETINFO_TEXT[0x0c..0x14]`.
+        let (setups, _, park) = call_seq_parts(&params[..2], &seq(vec![1, 0], true), OptMode::O1)
+            .expect("the park is in class: the scrutinee is in the cycle and unimodal");
+        assert_eq!(
+            park.entry,
+            vec![
+                0x7c, 0x6b, 0x1b, 0x78, // mr r11,r3   <- the PARK
+                0x7c, 0x83, 0x23, 0x78, // mr r3,r4    <- the ascending prefix
+            ],
+            "the entry block is the park plus the ascending prefix"
         );
+        assert_eq!(
+            setups[0],
+            encode_mr(4, 11).to_vec(),
+            "only the cycle-closing move is left at the call"
+        );
+        // And it is a DIFFERENT cycle break from the unguarded one above: that
+        // saves r4, this saves r3.
+        assert_ne!(park.entry[..4], setups[0][..4]);
+        // The guard reads the PARKED register, because its home was overwritten.
+        assert_eq!(park.reg_of(0, ARG_REGS[0], 0), SCRATCH_REG);
+        // …and a formal whose home the entry block did NOT touch is read at
+        // home by the first guard and at its new location by a later one.
+        assert_eq!(park.reg_of(1, ARG_REGS[1], 1), ARG_REGS[0]);
 
-        // ---- three-argument cycles, both rotations, likewise refused --------
-        for sources in [vec![1, 2, 0], vec![2, 0, 1], vec![2, 1, 0], vec![0, 2, 1]] {
-            assert!(
-                call_seq_parts(&params, &seq(sources.clone(), true), OptMode::O1).is_err(),
-                "{sources:?} behind a guard must refuse"
-            );
+        // ---- three-argument cycles, both rotations ---------------------------
+        //
+        // Scrutinee 0 is the cycle minimum in all four, so all four are in
+        // class; the split differs between them and that is the descent clause.
+        for (sources, entry_words, call_words) in [
+            (vec![1, 2, 0], 3, 1),  // dests r3,r4,r5 — ascending, hoist two
+            (vec![2, 0, 1], 2, 2),  // dests r3,r5,r4 — the DESCENT at r4
+            (vec![2, 1, 0], 2, 1),
+            // `[0,2,1]` is NOT here: it moves formals 1 and 2 only, so
+            // scrutinee 0 sits outside its cycle and it is refused below.
+        ] {
+            let (setups, _, park) = call_seq_parts(&params, &seq(sources.clone(), true), OptMode::O1)
+                .unwrap_or_else(|e| panic!("{sources:?} behind a guard is in class: {e:?}"));
+            assert_eq!(park.entry.len(), entry_words * 4, "{sources:?} entry block");
+            assert_eq!(setups[0].len(), call_words * 4, "{sources:?} call site");
             assert!(
                 call_seq_parts(&params, &seq(sources.clone(), false), OptMode::O1).is_ok(),
                 "{sources:?} with NO guard must still emit — it is byte-exact today"
             );
         }
 
+        // ---- and what stays REFUSED, by name --------------------------------
+        //
+        // A scrutinee outside the cycle: c2 then anchors at a later guard or at
+        // the cycle minimum, and that clause was re-fitted by every population
+        // that measured it (grid 2 refuted grid 1's, grid 3 refuted grid 2's).
+        // `[0,2,1]` moves formals 1 and 2 only, so scrutinee 0 is outside it.
+        let e = seq_entry_park(&[0, 2, 1], 0)
+            .expect_err("a scrutinee outside the cycle is out of class");
+        assert!(format!("{e:?}").contains("not in the permutation"), "{e:?}");
+        // A chain that dips and rises again has no ascending|descending layout.
+        let e = seq_entry_park(&[2, 0, 1], 1)
+            .expect_err("a non-unimodal chain is out of class");
+        assert!(format!("{e:?}").contains("unimodal"), "{e:?}");
+        // …and the SAME permutation anchored at the minimum is in class, so the
+        // refusal above is the chain's shape and not the permutation's.
+        assert!(seq_entry_park(&[2, 0, 1], 0).is_ok());
+
         // ---- and the IDENTITY keeps emitting behind the guard ---------------
         // No moves, nothing to park, and all six measured cells matched.
-        let (setups, _) = call_seq_parts(&params, &seq(vec![0, 1, 2], true), OptMode::O1)
+        let (setups, _, _) = call_seq_parts(&params, &seq(vec![0, 1, 2], true), OptMode::O1)
             .expect("the identity permutation behind a guard is byte-exact today");
         assert!(setups[0].is_empty(), "the identity permutation emits no moves");
+    }
+
+    /// **BOARD #1414 IS REFUTED HERE, in the smallest cell that does it.**
+    ///
+    /// #1414 publishes the park's cycle break as *"saving the LOWEST slot's
+    /// home into r11"*. `g(a2,a0,a1)` guarded on **`a2`** breaks that: c2 parks
+    /// **r5**, the guard's own scrutinee, and leaves the whole chain at the
+    /// call. Lane `w-clear`'s five cells could not see it because in all five
+    /// the guard's formal and the cycle minimum were the same register `r3`;
+    /// scored over the 832 in-class cells of `work/w-mmio/probe{,2,3}/`, the
+    /// minimum rule gets **394** and this one gets **832**.
+    ///
+    /// Both anchors are asserted from the SAME permutation, so what this test
+    /// pins is the guard's effect and not the permutation's.
+    #[test]
+    fn the_park_anchors_at_the_guards_scrutinee_and_not_at_the_cycle_minimum() {
+        // `g(a2,a0,a1)`: slot 0 <- a2, slot 1 <- a0, slot 2 <- a1.
+        let sources = [2usize, 0, 1];
+
+        // Guarded on a0 — which IS the cycle minimum, so the two rules agree.
+        let (entry, call, ..) = seq_entry_park(&sources, 0).expect("in class");
+        assert_eq!(entry, [encode_mr(11, 3), encode_mr(3, 5)].concat());
+        assert_eq!(call, [encode_mr(5, 4), encode_mr(4, 11)].concat());
+
+        // Guarded on a2 — the cell #1414 gets wrong. The park is r5, NOT r3.
+        let (entry, call, ..) = seq_entry_park(&sources, 2).expect("in class");
+        assert_eq!(entry, encode_mr(11, 5).to_vec(), "the anchor is the SCRUTINEE");
+        assert_ne!(entry, encode_mr(11, 3).to_vec(), "#1414 predicts r3 here");
+        assert_eq!(
+            call,
+            [encode_mr(5, 4), encode_mr(4, 3), encode_mr(3, 11)].concat(),
+            "nothing is hoisted past the park: the chain descends throughout"
+        );
+    }
+
+    /// **The split: the ENTRY block ascends, the CALL SITE descends — so a
+    /// chain that dips and rises again has no layout at all.**
+    ///
+    /// The two rotations of one three-cycle put the split in different places,
+    /// which is the descent clause; and the same permutation anchored where its
+    /// chain is not unimodal is refused rather than guessed. #1414 had one cell
+    /// for the first half and none for the second.
+    #[test]
+    fn the_entry_block_ascends_the_call_site_descends_and_a_dip_has_no_layout() {
+        // `g(a1,a2,a0)` — the chain writes r3, r4, r5: ascending, hoist two.
+        let (entry, call, ..) = seq_entry_park(&[1, 2, 0], 0).expect("in class");
+        assert_eq!(entry.len(), 12, "park + two hoisted moves");
+        assert_eq!(call, encode_mr(5, 11).to_vec(), "only the closer is left");
+
+        // `g(a2,a0,a1)` — the chain writes r3, r5, r4: the descent at r4 moves
+        // the split one instruction earlier.
+        let (entry, call, ..) = seq_entry_park(&[2, 0, 1], 0).expect("in class");
+        assert_eq!(entry.len(), 8, "park + ONE hoisted move");
+        assert_eq!(call.len(), 8);
+
+        // …and the call site is strictly DESCENDING by destination in both,
+        // which is `moves_descending`'s rule arriving from the other side.
+        for k in (4..call.len()).step_by(4) {
+            let prev = u32::from_be_bytes(call[k - 4..k].try_into().unwrap());
+            let cur = u32::from_be_bytes(call[k..k + 4].try_into().unwrap());
+            assert!((prev >> 16) & 31 > (cur >> 16) & 31, "descending");
+        }
+
+        // The same permutation anchored at a slot whose chain dips and rises.
+        let e = seq_entry_park(&[2, 0, 1], 1).expect_err("no layout");
+        assert!(format!("{e:?}").contains("unimodal"), "{e:?}");
+    }
+
+    /// **The guards' compare register needs TWO maps, and the pair that shows
+    /// it differs by nothing a cost model would notice.**
+    ///
+    /// `gtgt_n4_p0312_g3` and `g2ord_n4_p0312_g23` have byte-identical entry
+    /// blocks — `mr r11,r6` and nothing else — and test the same formal, and
+    /// real `c2` compares **r6** in the first and **r11** in the second. Both
+    /// are correct code. A single map gets 327 of 1,654 measured guards wrong;
+    /// this one gets 0.
+    #[test]
+    fn the_first_guard_reads_a_live_home_and_a_later_guard_reads_where_it_went() {
+        // `g(a0,a3,a1,a2)` anchored on a3: the entry block is the park alone.
+        let (entry, _, first, later) = seq_entry_park(&[0, 3, 1, 2], 3).expect("in class");
+        assert_eq!(entry, encode_mr(11, 6).to_vec());
+        let park = SeqPark { entry, first, later };
+        assert_eq!(park.reg_of(3, ARG_REGS[3], 0), ARG_REGS[3], "guard 0 reads r6");
+        assert_eq!(park.reg_of(3, ARG_REGS[3], 1), SCRATCH_REG, "a later guard reads r11");
+
+        // …and where the entry block DID overwrite the home, both maps agree,
+        // because reading the home would be wrong code rather than a choice.
+        let (entry, _, first, later) = seq_entry_park(&[1, 0], 0).expect("in class");
+        let park = SeqPark { entry, first, later };
+        assert_eq!(park.reg_of(0, ARG_REGS[0], 0), SCRATCH_REG);
+        assert_eq!(park.reg_of(0, ARG_REGS[0], 1), SCRATCH_REG);
+        // The formal that MOVED is read at its new home by a later guard even
+        // though its own home register still holds a live copy — this is
+        // `?mmioGetInfo`'s second guard, `cmplwi cr6,r3,0` at 0x24.
+        assert_eq!(park.reg_of(1, ARG_REGS[1], 1), ARG_REGS[0]);
+    }
+
+    /// **The park this emitter builds is `?mmioGetInfo`'s own, byte for byte.**
+    ///
+    /// `frontier_bytes::C2_MMIOGETINFO_TEXT` is a transcription of what real
+    /// `c2` emitted for the frontier's head (#502); these are the three words
+    /// of it that board #275 is about, and they are now *derived* rather than
+    /// read off. The function still does not emit — its `li r5,72` is
+    /// `callseq-multiarg-lit` — so this is the seam between the two, asserted.
+    #[test]
+    fn the_park_reproduces_mmiogetinfos_own_entry_block_and_call_remainder() {
+        let (entry, call, ..) = seq_entry_park(&[1, 0], 0).expect("in class");
+        let t = crate::codegen::frontier_bytes::C2_MMIOGETINFO_TEXT;
+        assert_eq!(entry, t[0x0c..0x14].to_vec(), "the entry block, 0x0c..0x14");
+        assert_eq!(call, t[0x38..0x3c].to_vec(), "the remainder at the call, 0x38");
+        // And it is NOT the unguarded break, which saves r4 where this saves r3.
+        assert_ne!(&entry[..4], &encode_mr(11, 4)[..]);
     }
 
     /// **WCO — the chain-result designator, and the one place its two forms
@@ -1900,6 +2334,7 @@ mod tests {
             &[],
             0,
             FrameLayout::default(),
+            &[],
             Some(&guard),
             &[],
             OptMode::Ox,
@@ -1954,6 +2389,7 @@ mod tests {
                 &[],
                 0,
                 FrameLayout::default(),
+                &[],
                 Some(&guard),
                 &[],
                 OptMode::Ox,
@@ -1980,6 +2416,7 @@ mod tests {
                         &[],
                         0,
                         FrameLayout::default(),
+                        &[],
                         Some(&g),
                         &[],
                         OptMode::Ox,
@@ -2017,6 +2454,7 @@ mod tests {
                 &[],
                 0,
                 FrameLayout::default(),
+                &[],
                 Some(&guard),
                 &[],
                 OptMode::Ox,
@@ -2030,6 +2468,7 @@ mod tests {
                 &[],
                 0,
                 FrameLayout::default(),
+                &[],
                 None,
                 &[],
                 OptMode::Ox,

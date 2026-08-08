@@ -1,0 +1,6 @@
+cells             277
+by class          {"g2ord": 90, "gout2": 28, "hi2": 20, "lit2": 9, "mid": 30, "wide": 100}
+anchor at guard   208   fallback to minimum 69
+middle-guard      15 anchor at the guard, 15 fall back
+rivals differ     113 cells separate R-GUARD-UNIMODAL from #1414's R-MIN
+sha256            6db2de4030e2e5e969f9aba67d224b00d2a4160415576babda67e7f4662c324d

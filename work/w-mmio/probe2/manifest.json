@@ -1,0 +1,19603 @@
+[
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    2
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 3,
+  "name": "mid_n3_p120_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   2,
+   0
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    1
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 3,
+  "name": "mid_n3_p201_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   0,
+   1
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    2
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 4,
+  "name": "mid_n4_p1203_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   2,
+   0,
+   3
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    1
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 4,
+  "name": "mid_n4_p2013_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   0,
+   1,
+   3
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    3
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 4,
+  "name": "mid_n4_p1320_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   3,
+   2,
+   0
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    1
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 4,
+  "name": "mid_n4_p3021_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   0,
+   2,
+   1
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 4,
+  "name": "mid_n4_p2130_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   3,
+   0
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     6,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 4,
+  "name": "mid_n4_p3102_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   0,
+   2
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 4,
+  "name": "mid_n4_p0231_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   3,
+   1
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 4,
+  "name": "mid_n4_p0312_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   1,
+   2
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    2
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 5,
+  "name": "mid_n5_p12034_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   2,
+   0,
+   3,
+   4
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    1
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 5,
+  "name": "mid_n5_p20134_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   0,
+   1,
+   3,
+   4
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    3
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 5,
+  "name": "mid_n5_p13204_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   3,
+   2,
+   0,
+   4
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    1
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 5,
+  "name": "mid_n5_p30214_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   0,
+   2,
+   1,
+   4
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    4
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 5,
+  "name": "mid_n5_p14230_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   4,
+   2,
+   3,
+   0
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    4,
+    1
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 5,
+  "name": "mid_n5_p40231_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   4,
+   0,
+   2,
+   3,
+   1
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 5,
+  "name": "mid_n5_p21304_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   3,
+   0,
+   4
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     6,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 5,
+  "name": "mid_n5_p31024_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   0,
+   2,
+   4
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    4
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 5,
+  "name": "mid_n5_p21430_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   4,
+   3,
+   0
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     7,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    4,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 5,
+  "name": "mid_n5_p41032_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   4,
+   1,
+   0,
+   3,
+   2
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    4
+   ]
+  ],
+  "guard_slots": [
+   3
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 5,
+  "name": "mid_n5_p31240_g3_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   2,
+   4,
+   0
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     7,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    4,
+    3
+   ]
+  ],
+  "guard_slots": [
+   3
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 5,
+  "name": "mid_n5_p41203_g3_ln",
+  "ncalls": 1,
+  "perm": [
+   4,
+   1,
+   2,
+   0,
+   3
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 5,
+  "name": "mid_n5_p02314_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   3,
+   1,
+   4
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 5,
+  "name": "mid_n5_p03124_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   1,
+   2,
+   4
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2,
+    4
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 5,
+  "name": "mid_n5_p02431_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   4,
+   3,
+   1
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     7,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    4,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 5,
+  "name": "mid_n5_p04132_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   4,
+   1,
+   3,
+   2
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3,
+    4
+   ]
+  ],
+  "guard_slots": [
+   3
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 5,
+  "name": "mid_n5_p03241_g3_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   2,
+   4,
+   1
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     7,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    4,
+    3
+   ]
+  ],
+  "guard_slots": [
+   3
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 5,
+  "name": "mid_n5_p04213_g3_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   4,
+   2,
+   1,
+   3
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    2,
+    3,
+    4
+   ]
+  ],
+  "guard_slots": [
+   3
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 5,
+  "name": "mid_n5_p01342_g3_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   3,
+   4,
+   2
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    2,
+    4,
+    3
+   ]
+  ],
+  "guard_slots": [
+   3
+  ],
+  "kind": "mid",
+  "lit_slot": null,
+  "n": 5,
+  "name": "mid_n5_p01423_g3_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   4,
+   2,
+   3
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "hi2",
+  "lit_slot": null,
+  "n": 2,
+  "name": "hi2_n2_p10_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   0
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     4,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "hi2",
+  "lit_slot": null,
+  "n": 3,
+  "name": "hi2_n3_p102_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   0,
+   2
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     4,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "hi2",
+  "lit_slot": null,
+  "n": 3,
+  "name": "hi2_n3_p210_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   0
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "hi2",
+  "lit_slot": null,
+  "n": 3,
+  "name": "hi2_n3_p021_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   1
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "hi2",
+  "lit_slot": null,
+  "n": 4,
+  "name": "hi2_n4_p1023_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   0,
+   2,
+   3
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     4,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "hi2",
+  "lit_slot": null,
+  "n": 4,
+  "name": "hi2_n4_p2103_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   0,
+   3
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3
+   ]
+  ],
+  "guard_slots": [
+   3
+  ],
+  "kind": "hi2",
+  "lit_slot": null,
+  "n": 4,
+  "name": "hi2_n4_p3120_g3_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   2,
+   0
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     6,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "hi2",
+  "lit_slot": null,
+  "n": 4,
+  "name": "hi2_n4_p0213_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   1,
+   3
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3
+   ]
+  ],
+  "guard_slots": [
+   3
+  ],
+  "kind": "hi2",
+  "lit_slot": null,
+  "n": 4,
+  "name": "hi2_n4_p0321_g3_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   2,
+   1
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   3
+  ],
+  "kind": "hi2",
+  "lit_slot": null,
+  "n": 4,
+  "name": "hi2_n4_p0132_g3_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   3,
+   2
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "hi2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "hi2_n5_p10234_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   0,
+   2,
+   3,
+   4
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     4,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "hi2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "hi2_n5_p21034_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   0,
+   3,
+   4
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3
+   ]
+  ],
+  "guard_slots": [
+   3
+  ],
+  "kind": "hi2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "hi2_n5_p31204_g3_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   2,
+   0,
+   4
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     6,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    4
+   ]
+  ],
+  "guard_slots": [
+   4
+  ],
+  "kind": "hi2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "hi2_n5_p41230_g4_ln",
+  "ncalls": 1,
+  "perm": [
+   4,
+   1,
+   2,
+   3,
+   0
+  ],
+  "pred": {
+   "anchor": 7,
+   "call": [
+    [
+     7,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "hi2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "hi2_n5_p02134_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   1,
+   3,
+   4
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3
+   ]
+  ],
+  "guard_slots": [
+   3
+  ],
+  "kind": "hi2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "hi2_n5_p03214_g3_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   2,
+   1,
+   4
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    4
+   ]
+  ],
+  "guard_slots": [
+   4
+  ],
+  "kind": "hi2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "hi2_n5_p04231_g4_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   4,
+   2,
+   3,
+   1
+  ],
+  "pred": {
+   "anchor": 7,
+   "call": [
+    [
+     7,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   3
+  ],
+  "kind": "hi2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "hi2_n5_p01324_g3_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   3,
+   2,
+   4
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    2,
+    4
+   ]
+  ],
+  "guard_slots": [
+   4
+  ],
+  "kind": "hi2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "hi2_n5_p01432_g4_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   4,
+   3,
+   2
+  ],
+  "pred": {
+   "anchor": 7,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    3,
+    4
+   ]
+  ],
+  "guard_slots": [
+   4
+  ],
+  "kind": "hi2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "hi2_n5_p01243_g4_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   2,
+   4,
+   3
+  ],
+  "pred": {
+   "anchor": 7,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 6,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2,
+   0
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 3,
+  "name": "g2ord_n3_p120_g20_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   2,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    2
+   ]
+  ],
+  "guard_slots": [
+   0,
+   2
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 3,
+  "name": "g2ord_n3_p120_g02_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   2,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    2
+   ]
+  ],
+  "guard_slots": [
+   1,
+   2
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 3,
+  "name": "g2ord_n3_p120_g12_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   2,
+   0
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    1
+   ]
+  ],
+  "guard_slots": [
+   2,
+   0
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 3,
+  "name": "g2ord_n3_p201_g20_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   0,
+   1
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    1
+   ]
+  ],
+  "guard_slots": [
+   0,
+   2
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 3,
+  "name": "g2ord_n3_p201_g02_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   0,
+   1
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    1
+   ]
+  ],
+  "guard_slots": [
+   1,
+   2
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 3,
+  "name": "g2ord_n3_p201_g12_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   0,
+   1
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2,
+   0
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p1203_g20_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   2,
+   0,
+   3
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    2
+   ]
+  ],
+  "guard_slots": [
+   0,
+   2
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p1203_g02_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   2,
+   0,
+   3
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    2
+   ]
+  ],
+  "guard_slots": [
+   1,
+   2
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p1203_g12_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   2,
+   0,
+   3
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    1
+   ]
+  ],
+  "guard_slots": [
+   2,
+   0
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p2013_g20_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   0,
+   1,
+   3
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    1
+   ]
+  ],
+  "guard_slots": [
+   0,
+   2
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p2013_g02_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   0,
+   1,
+   3
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    1
+   ]
+  ],
+  "guard_slots": [
+   1,
+   2
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p2013_g12_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   0,
+   1,
+   3
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    3
+   ]
+  ],
+  "guard_slots": [
+   3,
+   0
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p1320_g30_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   3,
+   2,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    3
+   ]
+  ],
+  "guard_slots": [
+   0,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p1320_g03_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   3,
+   2,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    3
+   ]
+  ],
+  "guard_slots": [
+   1,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p1320_g13_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   3,
+   2,
+   0
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    1
+   ]
+  ],
+  "guard_slots": [
+   3,
+   0
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p3021_g30_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   0,
+   2,
+   1
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    1
+   ]
+  ],
+  "guard_slots": [
+   0,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p3021_g03_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   0,
+   2,
+   1
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    1
+   ]
+  ],
+  "guard_slots": [
+   1,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p3021_g13_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   0,
+   2,
+   1
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   3,
+   0
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p2130_g30_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   3,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   0,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p2130_g03_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   3,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   2,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p2130_g23_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   3,
+   0
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     6,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    2
+   ]
+  ],
+  "guard_slots": [
+   3,
+   0
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p3102_g30_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   0,
+   2
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    2
+   ]
+  ],
+  "guard_slots": [
+   0,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p3102_g03_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   0,
+   2
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p3102_g23_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   0,
+   2
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   3,
+   1
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p0231_g31_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   3,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   1,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p0231_g13_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   3,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   2,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p0231_g23_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   3,
+   1
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3,
+    2
+   ]
+  ],
+  "guard_slots": [
+   3,
+   1
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p0312_g31_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   1,
+   2
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3,
+    2
+   ]
+  ],
+  "guard_slots": [
+   1,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p0312_g13_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   1,
+   2
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 4,
+  "name": "g2ord_n4_p0312_g23_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   1,
+   2
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2,
+   0
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p12034_g20_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   2,
+   0,
+   3,
+   4
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    2
+   ]
+  ],
+  "guard_slots": [
+   0,
+   2
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p12034_g02_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   2,
+   0,
+   3,
+   4
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    2
+   ]
+  ],
+  "guard_slots": [
+   1,
+   2
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p12034_g12_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   2,
+   0,
+   3,
+   4
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    1
+   ]
+  ],
+  "guard_slots": [
+   2,
+   0
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p20134_g20_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   0,
+   1,
+   3,
+   4
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    1
+   ]
+  ],
+  "guard_slots": [
+   0,
+   2
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p20134_g02_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   0,
+   1,
+   3,
+   4
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    1
+   ]
+  ],
+  "guard_slots": [
+   1,
+   2
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p20134_g12_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   0,
+   1,
+   3,
+   4
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    3
+   ]
+  ],
+  "guard_slots": [
+   3,
+   0
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p13204_g30_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   3,
+   2,
+   0,
+   4
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    3
+   ]
+  ],
+  "guard_slots": [
+   0,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p13204_g03_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   3,
+   2,
+   0,
+   4
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    3
+   ]
+  ],
+  "guard_slots": [
+   1,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p13204_g13_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   3,
+   2,
+   0,
+   4
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    1
+   ]
+  ],
+  "guard_slots": [
+   3,
+   0
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p30214_g30_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   0,
+   2,
+   1,
+   4
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    1
+   ]
+  ],
+  "guard_slots": [
+   0,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p30214_g03_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   0,
+   2,
+   1,
+   4
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    1
+   ]
+  ],
+  "guard_slots": [
+   1,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p30214_g13_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   0,
+   2,
+   1,
+   4
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    4
+   ]
+  ],
+  "guard_slots": [
+   4,
+   0
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p14230_g40_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   4,
+   2,
+   3,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    4
+   ]
+  ],
+  "guard_slots": [
+   0,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p14230_g04_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   4,
+   2,
+   3,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    4
+   ]
+  ],
+  "guard_slots": [
+   1,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p14230_g14_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   4,
+   2,
+   3,
+   0
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    4,
+    1
+   ]
+  ],
+  "guard_slots": [
+   4,
+   0
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p40231_g40_ln",
+  "ncalls": 1,
+  "perm": [
+   4,
+   0,
+   2,
+   3,
+   1
+  ],
+  "pred": {
+   "anchor": 7,
+   "call": [
+    [
+     7,
+     4
+    ],
+    [
+     4,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    4,
+    1
+   ]
+  ],
+  "guard_slots": [
+   0,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p40231_g04_ln",
+  "ncalls": 1,
+  "perm": [
+   4,
+   0,
+   2,
+   3,
+   1
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    4,
+    1
+   ]
+  ],
+  "guard_slots": [
+   1,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p40231_g14_ln",
+  "ncalls": 1,
+  "perm": [
+   4,
+   0,
+   2,
+   3,
+   1
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   3,
+   0
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p21304_g30_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   3,
+   0,
+   4
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   0,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p21304_g03_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   3,
+   0,
+   4
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   2,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p21304_g23_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   3,
+   0,
+   4
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     6,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    2
+   ]
+  ],
+  "guard_slots": [
+   3,
+   0
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p31024_g30_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   0,
+   2,
+   4
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    2
+   ]
+  ],
+  "guard_slots": [
+   0,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p31024_g03_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   0,
+   2,
+   4
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p31024_g23_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   0,
+   2,
+   4
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    4
+   ]
+  ],
+  "guard_slots": [
+   4,
+   0
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p21430_g40_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   4,
+   3,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    4
+   ]
+  ],
+  "guard_slots": [
+   0,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p21430_g04_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   4,
+   3,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    4
+   ]
+  ],
+  "guard_slots": [
+   2,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p21430_g24_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   4,
+   3,
+   0
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     7,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    4,
+    2
+   ]
+  ],
+  "guard_slots": [
+   4,
+   0
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p41032_g40_ln",
+  "ncalls": 1,
+  "perm": [
+   4,
+   1,
+   0,
+   3,
+   2
+  ],
+  "pred": {
+   "anchor": 7,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    4,
+    2
+   ]
+  ],
+  "guard_slots": [
+   0,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p41032_g04_ln",
+  "ncalls": 1,
+  "perm": [
+   4,
+   1,
+   0,
+   3,
+   2
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    4,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p41032_g24_ln",
+  "ncalls": 1,
+  "perm": [
+   4,
+   1,
+   0,
+   3,
+   2
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    4
+   ]
+  ],
+  "guard_slots": [
+   4,
+   0
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p31240_g40_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   2,
+   4,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    4
+   ]
+  ],
+  "guard_slots": [
+   0,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p31240_g04_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   2,
+   4,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    4
+   ]
+  ],
+  "guard_slots": [
+   3,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p31240_g34_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   2,
+   4,
+   0
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     7,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    4,
+    3
+   ]
+  ],
+  "guard_slots": [
+   4,
+   0
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p41203_g40_ln",
+  "ncalls": 1,
+  "perm": [
+   4,
+   1,
+   2,
+   0,
+   3
+  ],
+  "pred": {
+   "anchor": 7,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    4,
+    3
+   ]
+  ],
+  "guard_slots": [
+   0,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p41203_g04_ln",
+  "ncalls": 1,
+  "perm": [
+   4,
+   1,
+   2,
+   0,
+   3
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    4,
+    3
+   ]
+  ],
+  "guard_slots": [
+   3,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p41203_g34_ln",
+  "ncalls": 1,
+  "perm": [
+   4,
+   1,
+   2,
+   0,
+   3
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   3,
+   1
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p02314_g31_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   3,
+   1,
+   4
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   1,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p02314_g13_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   3,
+   1,
+   4
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   2,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p02314_g23_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   3,
+   1,
+   4
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3,
+    2
+   ]
+  ],
+  "guard_slots": [
+   3,
+   1
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p03124_g31_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   1,
+   2,
+   4
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3,
+    2
+   ]
+  ],
+  "guard_slots": [
+   1,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p03124_g13_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   1,
+   2,
+   4
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2,
+   3
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p03124_g23_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   1,
+   2,
+   4
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2,
+    4
+   ]
+  ],
+  "guard_slots": [
+   4,
+   1
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p02431_g41_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   4,
+   3,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2,
+    4
+   ]
+  ],
+  "guard_slots": [
+   1,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p02431_g14_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   4,
+   3,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2,
+    4
+   ]
+  ],
+  "guard_slots": [
+   2,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p02431_g24_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   4,
+   3,
+   1
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     7,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    4,
+    2
+   ]
+  ],
+  "guard_slots": [
+   4,
+   1
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p04132_g41_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   4,
+   1,
+   3,
+   2
+  ],
+  "pred": {
+   "anchor": 7,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    4,
+    2
+   ]
+  ],
+  "guard_slots": [
+   1,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p04132_g14_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   4,
+   1,
+   3,
+   2
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    4,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p04132_g24_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   4,
+   1,
+   3,
+   2
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3,
+    4
+   ]
+  ],
+  "guard_slots": [
+   4,
+   1
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p03241_g41_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   2,
+   4,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3,
+    4
+   ]
+  ],
+  "guard_slots": [
+   1,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p03241_g14_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   2,
+   4,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3,
+    4
+   ]
+  ],
+  "guard_slots": [
+   3,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p03241_g34_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   2,
+   4,
+   1
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     7,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    4,
+    3
+   ]
+  ],
+  "guard_slots": [
+   4,
+   1
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p04213_g41_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   4,
+   2,
+   1,
+   3
+  ],
+  "pred": {
+   "anchor": 7,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    4,
+    3
+   ]
+  ],
+  "guard_slots": [
+   1,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p04213_g14_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   4,
+   2,
+   1,
+   3
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    4,
+    3
+   ]
+  ],
+  "guard_slots": [
+   3,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p04213_g34_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   4,
+   2,
+   1,
+   3
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    2,
+    3,
+    4
+   ]
+  ],
+  "guard_slots": [
+   4,
+   2
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p01342_g42_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   3,
+   4,
+   2
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    2,
+    3,
+    4
+   ]
+  ],
+  "guard_slots": [
+   2,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p01342_g24_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   3,
+   4,
+   2
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    2,
+    3,
+    4
+   ]
+  ],
+  "guard_slots": [
+   3,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p01342_g34_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   3,
+   4,
+   2
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    2,
+    4,
+    3
+   ]
+  ],
+  "guard_slots": [
+   4,
+   2
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p01423_g42_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   4,
+   2,
+   3
+  ],
+  "pred": {
+   "anchor": 7,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    2,
+    4,
+    3
+   ]
+  ],
+  "guard_slots": [
+   2,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p01423_g24_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   4,
+   2,
+   3
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    2,
+    4,
+    3
+   ]
+  ],
+  "guard_slots": [
+   3,
+   4
+  ],
+  "kind": "g2ord",
+  "lit_slot": null,
+  "n": 5,
+  "name": "g2ord_n5_p01423_g34_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   4,
+   2,
+   3
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    2
+   ]
+  ],
+  "guard_slots": [
+   3,
+   2
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 4,
+  "name": "gout2_n4_p1203_g32_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   2,
+   0,
+   3
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    1
+   ]
+  ],
+  "guard_slots": [
+   3,
+   2
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 4,
+  "name": "gout2_n4_p2013_g32_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   0,
+   1,
+   3
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    3
+   ]
+  ],
+  "guard_slots": [
+   2,
+   3
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 4,
+  "name": "gout2_n4_p1320_g23_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   3,
+   2,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    1
+   ]
+  ],
+  "guard_slots": [
+   2,
+   3
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 4,
+  "name": "gout2_n4_p3021_g23_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   0,
+   2,
+   1
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   1,
+   3
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 4,
+  "name": "gout2_n4_p2130_g13_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   3,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    2
+   ]
+  ],
+  "guard_slots": [
+   1,
+   3
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 4,
+  "name": "gout2_n4_p3102_g13_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   0,
+   2
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   0,
+   3
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 4,
+  "name": "gout2_n4_p0231_g03_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   3,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3,
+    2
+   ]
+  ],
+  "guard_slots": [
+   0,
+   3
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 4,
+  "name": "gout2_n4_p0312_g03_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   1,
+   2
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    2
+   ]
+  ],
+  "guard_slots": [
+   3,
+   2
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "gout2_n5_p12034_g32_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   2,
+   0,
+   3,
+   4
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    1
+   ]
+  ],
+  "guard_slots": [
+   3,
+   2
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "gout2_n5_p20134_g32_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   0,
+   1,
+   3,
+   4
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    3
+   ]
+  ],
+  "guard_slots": [
+   2,
+   3
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "gout2_n5_p13204_g23_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   3,
+   2,
+   0,
+   4
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    1
+   ]
+  ],
+  "guard_slots": [
+   2,
+   3
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "gout2_n5_p30214_g23_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   0,
+   2,
+   1,
+   4
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    4
+   ]
+  ],
+  "guard_slots": [
+   2,
+   4
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "gout2_n5_p14230_g24_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   4,
+   2,
+   3,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    4,
+    1
+   ]
+  ],
+  "guard_slots": [
+   2,
+   4
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "gout2_n5_p40231_g24_ln",
+  "ncalls": 1,
+  "perm": [
+   4,
+   0,
+   2,
+   3,
+   1
+  ],
+  "pred": {
+   "anchor": 7,
+   "call": [
+    [
+     7,
+     4
+    ],
+    [
+     4,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   1,
+   3
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "gout2_n5_p21304_g13_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   3,
+   0,
+   4
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    2
+   ]
+  ],
+  "guard_slots": [
+   1,
+   3
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "gout2_n5_p31024_g13_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   0,
+   2,
+   4
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    4
+   ]
+  ],
+  "guard_slots": [
+   1,
+   4
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "gout2_n5_p21430_g14_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   4,
+   3,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    4,
+    2
+   ]
+  ],
+  "guard_slots": [
+   1,
+   4
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "gout2_n5_p41032_g14_ln",
+  "ncalls": 1,
+  "perm": [
+   4,
+   1,
+   0,
+   3,
+   2
+  ],
+  "pred": {
+   "anchor": 7,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    4
+   ]
+  ],
+  "guard_slots": [
+   1,
+   4
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "gout2_n5_p31240_g14_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   2,
+   4,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    4,
+    3
+   ]
+  ],
+  "guard_slots": [
+   1,
+   4
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "gout2_n5_p41203_g14_ln",
+  "ncalls": 1,
+  "perm": [
+   4,
+   1,
+   2,
+   0,
+   3
+  ],
+  "pred": {
+   "anchor": 7,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   0,
+   3
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "gout2_n5_p02314_g03_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   3,
+   1,
+   4
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3,
+    2
+   ]
+  ],
+  "guard_slots": [
+   0,
+   3
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "gout2_n5_p03124_g03_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   1,
+   2,
+   4
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2,
+    4
+   ]
+  ],
+  "guard_slots": [
+   0,
+   4
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "gout2_n5_p02431_g04_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   4,
+   3,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    4,
+    2
+   ]
+  ],
+  "guard_slots": [
+   0,
+   4
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "gout2_n5_p04132_g04_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   4,
+   1,
+   3,
+   2
+  ],
+  "pred": {
+   "anchor": 7,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3,
+    4
+   ]
+  ],
+  "guard_slots": [
+   0,
+   4
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "gout2_n5_p03241_g04_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   2,
+   4,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    4,
+    3
+   ]
+  ],
+  "guard_slots": [
+   0,
+   4
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "gout2_n5_p04213_g04_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   4,
+   2,
+   1,
+   3
+  ],
+  "pred": {
+   "anchor": 7,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    2,
+    3,
+    4
+   ]
+  ],
+  "guard_slots": [
+   0,
+   4
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "gout2_n5_p01342_g04_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   3,
+   4,
+   2
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ],
+    [
+     6,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    2,
+    4,
+    3
+   ]
+  ],
+  "guard_slots": [
+   0,
+   4
+  ],
+  "kind": "gout2",
+  "lit_slot": null,
+  "n": 5,
+  "name": "gout2_n5_p01423_g04_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   4,
+   2,
+   3
+  ],
+  "pred": {
+   "anchor": 7,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "lit2",
+  "lit_slot": 2,
+  "n": 3,
+  "name": "lit2_n3_p102_g1_l2",
+  "ncalls": 1,
+  "perm": [
+   1,
+   0,
+   2
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     4,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "lit2",
+  "lit_slot": 1,
+  "n": 3,
+  "name": "lit2_n3_p210_g2_l1",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   0
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "lit2",
+  "lit_slot": 0,
+  "n": 3,
+  "name": "lit2_n3_p021_g2_l0",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   1
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "lit2",
+  "lit_slot": 3,
+  "n": 4,
+  "name": "lit2_n4_p1023_g1_l3",
+  "ncalls": 1,
+  "perm": [
+   1,
+   0,
+   2,
+   3
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     4,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "lit2",
+  "lit_slot": 3,
+  "n": 4,
+  "name": "lit2_n4_p2103_g2_l3",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   0,
+   3
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3
+   ]
+  ],
+  "guard_slots": [
+   3
+  ],
+  "kind": "lit2",
+  "lit_slot": 2,
+  "n": 4,
+  "name": "lit2_n4_p3120_g3_l2",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   2,
+   0
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     6,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "lit2",
+  "lit_slot": 3,
+  "n": 4,
+  "name": "lit2_n4_p0213_g2_l3",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   1,
+   3
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3
+   ]
+  ],
+  "guard_slots": [
+   3
+  ],
+  "kind": "lit2",
+  "lit_slot": 2,
+  "n": 4,
+  "name": "lit2_n4_p0321_g3_l2",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   2,
+   1
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    2,
+    3
+   ]
+  ],
+  "guard_slots": [
+   3
+  ],
+  "kind": "lit2",
+  "lit_slot": 1,
+  "n": 4,
+  "name": "lit2_n4_p0132_g3_l1",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   3,
+   2
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    5
+   ]
+  ],
+  "guard_slots": [
+   0
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p152340_g0_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   5,
+   2,
+   3,
+   4,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    5
+   ]
+  ],
+  "guard_slots": [
+   5
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p152340_g5_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   5,
+   2,
+   3,
+   4,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    5,
+    1
+   ]
+  ],
+  "guard_slots": [
+   0
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p502341_g0_ln",
+  "ncalls": 1,
+  "perm": [
+   5,
+   0,
+   2,
+   3,
+   4,
+   1
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    5,
+    1
+   ]
+  ],
+  "guard_slots": [
+   5
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p502341_g5_ln",
+  "ncalls": 1,
+  "perm": [
+   5,
+   0,
+   2,
+   3,
+   4,
+   1
+  ],
+  "pred": {
+   "anchor": 8,
+   "call": [
+    [
+     8,
+     4
+    ],
+    [
+     4,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    5
+   ]
+  ],
+  "guard_slots": [
+   0
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p215340_g0_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   5,
+   3,
+   4,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    5
+   ]
+  ],
+  "guard_slots": [
+   5
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p215340_g5_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   5,
+   3,
+   4,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    5,
+    2
+   ]
+  ],
+  "guard_slots": [
+   0
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p510342_g0_ln",
+  "ncalls": 1,
+  "perm": [
+   5,
+   1,
+   0,
+   3,
+   4,
+   2
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    5,
+    2
+   ]
+  ],
+  "guard_slots": [
+   5
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p510342_g5_ln",
+  "ncalls": 1,
+  "perm": [
+   5,
+   1,
+   0,
+   3,
+   4,
+   2
+  ],
+  "pred": {
+   "anchor": 8,
+   "call": [
+    [
+     8,
+     5
+    ],
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    5
+   ]
+  ],
+  "guard_slots": [
+   0
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p312540_g0_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   2,
+   5,
+   4,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     6,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     6,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    5
+   ]
+  ],
+  "guard_slots": [
+   5
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p312540_g5_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   2,
+   5,
+   4,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     6,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     6,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    5,
+    3
+   ]
+  ],
+  "guard_slots": [
+   0
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p512043_g0_ln",
+  "ncalls": 1,
+  "perm": [
+   5,
+   1,
+   2,
+   0,
+   4,
+   3
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    5,
+    3
+   ]
+  ],
+  "guard_slots": [
+   5
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p512043_g5_ln",
+  "ncalls": 1,
+  "perm": [
+   5,
+   1,
+   2,
+   0,
+   4,
+   3
+  ],
+  "pred": {
+   "anchor": 8,
+   "call": [
+    [
+     8,
+     6
+    ],
+    [
+     6,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    4,
+    5
+   ]
+  ],
+  "guard_slots": [
+   0
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p412350_g0_ln",
+  "ncalls": 1,
+  "perm": [
+   4,
+   1,
+   2,
+   3,
+   5,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ],
+    [
+     7,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ],
+    [
+     7,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    4,
+    5
+   ]
+  ],
+  "guard_slots": [
+   5
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p412350_g5_ln",
+  "ncalls": 1,
+  "perm": [
+   4,
+   1,
+   2,
+   3,
+   5,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ],
+    [
+     7,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ],
+    [
+     7,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    5,
+    4
+   ]
+  ],
+  "guard_slots": [
+   0
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p512304_g0_ln",
+  "ncalls": 1,
+  "perm": [
+   5,
+   1,
+   2,
+   3,
+   0,
+   4
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    5,
+    4
+   ]
+  ],
+  "guard_slots": [
+   5
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p512304_g5_ln",
+  "ncalls": 1,
+  "perm": [
+   5,
+   1,
+   2,
+   3,
+   0,
+   4
+  ],
+  "pred": {
+   "anchor": 8,
+   "call": [
+    [
+     8,
+     7
+    ],
+    [
+     7,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     8,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2,
+    5
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p025341_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   5,
+   3,
+   4,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2,
+    5
+   ]
+  ],
+  "guard_slots": [
+   5
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p025341_g5_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   5,
+   3,
+   4,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    5,
+    2
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p051342_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   5,
+   1,
+   3,
+   4,
+   2
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     8,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     8,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    5,
+    2
+   ]
+  ],
+  "guard_slots": [
+   5
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p051342_g5_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   5,
+   1,
+   3,
+   4,
+   2
+  ],
+  "pred": {
+   "anchor": 8,
+   "call": [
+    [
+     8,
+     5
+    ],
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     8,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3,
+    5
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p032541_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   2,
+   5,
+   4,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     6,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     6,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3,
+    5
+   ]
+  ],
+  "guard_slots": [
+   5
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p032541_g5_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   2,
+   5,
+   4,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     6,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     6,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    5,
+    3
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p052143_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   5,
+   2,
+   1,
+   4,
+   3
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     8,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     8,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    5,
+    3
+   ]
+  ],
+  "guard_slots": [
+   5
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p052143_g5_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   5,
+   2,
+   1,
+   4,
+   3
+  ],
+  "pred": {
+   "anchor": 8,
+   "call": [
+    [
+     8,
+     6
+    ],
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     8,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    4,
+    5
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p042351_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   4,
+   2,
+   3,
+   5,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ],
+    [
+     7,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ],
+    [
+     7,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    4,
+    5
+   ]
+  ],
+  "guard_slots": [
+   5
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p042351_g5_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   4,
+   2,
+   3,
+   5,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ],
+    [
+     7,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ],
+    [
+     7,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    5,
+    4
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p052314_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   5,
+   2,
+   3,
+   1,
+   4
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     8,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     8,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    5,
+    4
+   ]
+  ],
+  "guard_slots": [
+   5
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p052314_g5_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   5,
+   2,
+   3,
+   1,
+   4
+  ],
+  "pred": {
+   "anchor": 8,
+   "call": [
+    [
+     8,
+     7
+    ],
+    [
+     7,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     8,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    2,
+    3,
+    5
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p013542_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   3,
+   5,
+   4,
+   2
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ],
+    [
+     6,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ],
+    [
+     6,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    2,
+    3,
+    5
+   ]
+  ],
+  "guard_slots": [
+   5
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p013542_g5_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   3,
+   5,
+   4,
+   2
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ],
+    [
+     6,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ],
+    [
+     6,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    2,
+    5,
+    3
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p015243_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   5,
+   2,
+   4,
+   3
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     8,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     8,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    2,
+    5,
+    3
+   ]
+  ],
+  "guard_slots": [
+   5
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p015243_g5_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   5,
+   2,
+   4,
+   3
+  ],
+  "pred": {
+   "anchor": 8,
+   "call": [
+    [
+     8,
+     6
+    ],
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     8,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    2,
+    4,
+    5
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p014352_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   4,
+   3,
+   5,
+   2
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     7
+    ],
+    [
+     7,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     7
+    ],
+    [
+     7,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    2,
+    4,
+    5
+   ]
+  ],
+  "guard_slots": [
+   5
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p014352_g5_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   4,
+   3,
+   5,
+   2
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     7
+    ],
+    [
+     7,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     7
+    ],
+    [
+     7,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    2,
+    5,
+    4
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p015324_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   5,
+   3,
+   2,
+   4
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     8,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     8,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    2,
+    5,
+    4
+   ]
+  ],
+  "guard_slots": [
+   5
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p015324_g5_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   5,
+   3,
+   2,
+   4
+  ],
+  "pred": {
+   "anchor": 8,
+   "call": [
+    [
+     8,
+     7
+    ],
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     8,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    3,
+    4,
+    5
+   ]
+  ],
+  "guard_slots": [
+   3
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p012453_g3_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   2,
+   4,
+   5,
+   3
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     7
+    ],
+    [
+     7,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 6,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     7
+    ],
+    [
+     7,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    3,
+    4,
+    5
+   ]
+  ],
+  "guard_slots": [
+   5
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p012453_g5_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   2,
+   4,
+   5,
+   3
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     7
+    ],
+    [
+     7,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 6,
+   "call": [
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     7
+    ],
+    [
+     7,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    3,
+    5,
+    4
+   ]
+  ],
+  "guard_slots": [
+   3
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p012534_g3_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   2,
+   5,
+   3,
+   4
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     8,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 6,
+   "call": [
+    [
+     8,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    3,
+    5,
+    4
+   ]
+  ],
+  "guard_slots": [
+   5
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 6,
+  "name": "wide_n6_p012534_g5_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   2,
+   5,
+   3,
+   4
+  ],
+  "pred": {
+   "anchor": 8,
+   "call": [
+    [
+     8,
+     7
+    ],
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     8
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 6,
+   "call": [
+    [
+     8,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     8
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    6
+   ]
+  ],
+  "guard_slots": [
+   0
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p1623450_g0_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   6,
+   2,
+   3,
+   4,
+   5,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    1,
+    6
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p1623450_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   1,
+   6,
+   2,
+   3,
+   4,
+   5,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    6,
+    1
+   ]
+  ],
+  "guard_slots": [
+   0
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p6023451_g0_ln",
+  "ncalls": 1,
+  "perm": [
+   6,
+   0,
+   2,
+   3,
+   4,
+   5,
+   1
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    6,
+    1
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p6023451_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   6,
+   0,
+   2,
+   3,
+   4,
+   5,
+   1
+  ],
+  "pred": {
+   "anchor": 9,
+   "call": [
+    [
+     9,
+     4
+    ],
+    [
+     4,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    6
+   ]
+  ],
+  "guard_slots": [
+   0
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p2163450_g0_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   6,
+   3,
+   4,
+   5,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    2,
+    6
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p2163450_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   2,
+   1,
+   6,
+   3,
+   4,
+   5,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     5,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    6,
+    2
+   ]
+  ],
+  "guard_slots": [
+   0
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p6103452_g0_ln",
+  "ncalls": 1,
+  "perm": [
+   6,
+   1,
+   0,
+   3,
+   4,
+   5,
+   2
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    6,
+    2
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p6103452_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   6,
+   1,
+   0,
+   3,
+   4,
+   5,
+   2
+  ],
+  "pred": {
+   "anchor": 9,
+   "call": [
+    [
+     9,
+     5
+    ],
+    [
+     5,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    6
+   ]
+  ],
+  "guard_slots": [
+   0
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p3126450_g0_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   2,
+   6,
+   4,
+   5,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     6,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     6,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    3,
+    6
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p3126450_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   3,
+   1,
+   2,
+   6,
+   4,
+   5,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     6,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     6,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    6,
+    3
+   ]
+  ],
+  "guard_slots": [
+   0
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p6120453_g0_ln",
+  "ncalls": 1,
+  "perm": [
+   6,
+   1,
+   2,
+   0,
+   4,
+   5,
+   3
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    6,
+    3
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p6120453_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   6,
+   1,
+   2,
+   0,
+   4,
+   5,
+   3
+  ],
+  "pred": {
+   "anchor": 9,
+   "call": [
+    [
+     9,
+     6
+    ],
+    [
+     6,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    4,
+    6
+   ]
+  ],
+  "guard_slots": [
+   0
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p4123650_g0_ln",
+  "ncalls": 1,
+  "perm": [
+   4,
+   1,
+   2,
+   3,
+   6,
+   5,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ],
+    [
+     7,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ],
+    [
+     7,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    4,
+    6
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p4123650_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   4,
+   1,
+   2,
+   3,
+   6,
+   5,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ],
+    [
+     7,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     7
+    ],
+    [
+     7,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    6,
+    4
+   ]
+  ],
+  "guard_slots": [
+   0
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p6123054_g0_ln",
+  "ncalls": 1,
+  "perm": [
+   6,
+   1,
+   2,
+   3,
+   0,
+   5,
+   4
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    6,
+    4
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p6123054_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   6,
+   1,
+   2,
+   3,
+   0,
+   5,
+   4
+  ],
+  "pred": {
+   "anchor": 9,
+   "call": [
+    [
+     9,
+     7
+    ],
+    [
+     7,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    0,
+    5,
+    6
+   ]
+  ],
+  "guard_slots": [
+   0
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p5123460_g0_ln",
+  "ncalls": 1,
+  "perm": [
+   5,
+   1,
+   2,
+   3,
+   4,
+   6,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     8
+    ],
+    [
+     8,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     8
+    ],
+    [
+     8,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    5,
+    6
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p5123460_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   5,
+   1,
+   2,
+   3,
+   4,
+   6,
+   0
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     8
+    ],
+    [
+     8,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     8
+    ],
+    [
+     8,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    6,
+    5
+   ]
+  ],
+  "guard_slots": [
+   0
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p6123405_g0_ln",
+  "ncalls": 1,
+  "perm": [
+   6,
+   1,
+   2,
+   3,
+   4,
+   0,
+   5
+  ],
+  "pred": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     8
+    ],
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     8
+    ],
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    0,
+    6,
+    5
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p6123405_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   6,
+   1,
+   2,
+   3,
+   4,
+   0,
+   5
+  ],
+  "pred": {
+   "anchor": 9,
+   "call": [
+    [
+     9,
+     8
+    ],
+    [
+     8,
+     3
+    ],
+    [
+     3,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 3,
+   "call": [
+    [
+     9,
+     8
+    ],
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     3
+    ],
+    [
+     3,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2,
+    6
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0263451_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   6,
+   3,
+   4,
+   5,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    2,
+    6
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0263451_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   2,
+   6,
+   3,
+   4,
+   5,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    6,
+    2
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0613452_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   6,
+   1,
+   3,
+   4,
+   5,
+   2
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    6,
+    2
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0613452_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   6,
+   1,
+   3,
+   4,
+   5,
+   2
+  ],
+  "pred": {
+   "anchor": 9,
+   "call": [
+    [
+     9,
+     5
+    ],
+    [
+     5,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3,
+    6
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0326451_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   2,
+   6,
+   4,
+   5,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     6,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     6,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    3,
+    6
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0326451_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   3,
+   2,
+   6,
+   4,
+   5,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     6,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     6,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    6,
+    3
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0621453_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   6,
+   2,
+   1,
+   4,
+   5,
+   3
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    6,
+    3
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0621453_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   6,
+   2,
+   1,
+   4,
+   5,
+   3
+  ],
+  "pred": {
+   "anchor": 9,
+   "call": [
+    [
+     9,
+     6
+    ],
+    [
+     6,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    4,
+    6
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0423651_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   4,
+   2,
+   3,
+   6,
+   5,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ],
+    [
+     7,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ],
+    [
+     7,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    4,
+    6
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0423651_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   4,
+   2,
+   3,
+   6,
+   5,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ],
+    [
+     7,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     7
+    ],
+    [
+     7,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    6,
+    4
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0623154_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   6,
+   2,
+   3,
+   1,
+   5,
+   4
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    6,
+    4
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0623154_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   6,
+   2,
+   3,
+   1,
+   5,
+   4
+  ],
+  "pred": {
+   "anchor": 9,
+   "call": [
+    [
+     9,
+     7
+    ],
+    [
+     7,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    1,
+    5,
+    6
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0523461_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   5,
+   2,
+   3,
+   4,
+   6,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     8
+    ],
+    [
+     8,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     8
+    ],
+    [
+     8,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    5,
+    6
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0523461_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   5,
+   2,
+   3,
+   4,
+   6,
+   1
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     8
+    ],
+    [
+     8,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     8
+    ],
+    [
+     8,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    6,
+    5
+   ]
+  ],
+  "guard_slots": [
+   1
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0623415_g1_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   6,
+   2,
+   3,
+   4,
+   1,
+   5
+  ],
+  "pred": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     8
+    ],
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     8
+    ],
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    1,
+    6,
+    5
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0623415_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   6,
+   2,
+   3,
+   4,
+   1,
+   5
+  ],
+  "pred": {
+   "anchor": 9,
+   "call": [
+    [
+     9,
+     8
+    ],
+    [
+     8,
+     4
+    ],
+    [
+     4,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 4,
+   "call": [
+    [
+     9,
+     8
+    ],
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     4
+    ],
+    [
+     4,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    2,
+    3,
+    6
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0136452_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   3,
+   6,
+   4,
+   5,
+   2
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ],
+    [
+     6,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ],
+    [
+     6,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    2,
+    3,
+    6
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0136452_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   3,
+   6,
+   4,
+   5,
+   2
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ],
+    [
+     6,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     6
+    ],
+    [
+     6,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    2,
+    6,
+    3
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0162453_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   6,
+   2,
+   4,
+   5,
+   3
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     9,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     9,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    2,
+    6,
+    3
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0162453_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   6,
+   2,
+   4,
+   5,
+   3
+  ],
+  "pred": {
+   "anchor": 9,
+   "call": [
+    [
+     9,
+     6
+    ],
+    [
+     6,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     9,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    2,
+    4,
+    6
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0143652_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   4,
+   3,
+   6,
+   5,
+   2
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     7
+    ],
+    [
+     7,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     7
+    ],
+    [
+     7,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    2,
+    4,
+    6
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0143652_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   4,
+   3,
+   6,
+   5,
+   2
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     7
+    ],
+    [
+     7,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     7
+    ],
+    [
+     7,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    2,
+    6,
+    4
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0163254_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   6,
+   3,
+   2,
+   5,
+   4
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     9,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     9,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    2,
+    6,
+    4
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0163254_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   6,
+   3,
+   2,
+   5,
+   4
+  ],
+  "pred": {
+   "anchor": 9,
+   "call": [
+    [
+     9,
+     7
+    ],
+    [
+     7,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     9,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    2,
+    5,
+    6
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0153462_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   5,
+   3,
+   4,
+   6,
+   2
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     8
+    ],
+    [
+     8,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     8
+    ],
+    [
+     8,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    2,
+    5,
+    6
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0153462_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   5,
+   3,
+   4,
+   6,
+   2
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     8
+    ],
+    [
+     8,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     8
+    ],
+    [
+     8,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    2,
+    6,
+    5
+   ]
+  ],
+  "guard_slots": [
+   2
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0163425_g2_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   6,
+   3,
+   4,
+   2,
+   5
+  ],
+  "pred": {
+   "anchor": 5,
+   "call": [
+    [
+     9,
+     8
+    ],
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     9,
+     8
+    ],
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    2,
+    6,
+    5
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0163425_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   6,
+   3,
+   4,
+   2,
+   5
+  ],
+  "pred": {
+   "anchor": 9,
+   "call": [
+    [
+     9,
+     8
+    ],
+    [
+     8,
+     5
+    ],
+    [
+     5,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 5,
+   "call": [
+    [
+     9,
+     8
+    ],
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     5
+    ],
+    [
+     5,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    3,
+    4,
+    6
+   ]
+  ],
+  "guard_slots": [
+   3
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0124653_g3_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   2,
+   4,
+   6,
+   5,
+   3
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     7
+    ],
+    [
+     7,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 6,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     7
+    ],
+    [
+     7,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    3,
+    4,
+    6
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0124653_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   2,
+   4,
+   6,
+   5,
+   3
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     7
+    ],
+    [
+     7,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 6,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     7
+    ],
+    [
+     7,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    3,
+    6,
+    4
+   ]
+  ],
+  "guard_slots": [
+   3
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0126354_g3_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   2,
+   6,
+   3,
+   5,
+   4
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     9,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 6,
+   "call": [
+    [
+     9,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    3,
+    6,
+    4
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0126354_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   2,
+   6,
+   3,
+   5,
+   4
+  ],
+  "pred": {
+   "anchor": 9,
+   "call": [
+    [
+     9,
+     7
+    ],
+    [
+     7,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 6,
+   "call": [
+    [
+     9,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    3,
+    5,
+    6
+   ]
+  ],
+  "guard_slots": [
+   3
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0125463_g3_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   2,
+   5,
+   4,
+   6,
+   3
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     8
+    ],
+    [
+     8,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 6,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     8
+    ],
+    [
+     8,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    3,
+    5,
+    6
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0125463_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   2,
+   5,
+   4,
+   6,
+   3
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     8
+    ],
+    [
+     8,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 6,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     8
+    ],
+    [
+     8,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    3,
+    6,
+    5
+   ]
+  ],
+  "guard_slots": [
+   3
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0126435_g3_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   2,
+   6,
+   4,
+   3,
+   5
+  ],
+  "pred": {
+   "anchor": 6,
+   "call": [
+    [
+     9,
+     8
+    ],
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 6,
+   "call": [
+    [
+     9,
+     8
+    ],
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    3,
+    6,
+    5
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0126435_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   2,
+   6,
+   4,
+   3,
+   5
+  ],
+  "pred": {
+   "anchor": 9,
+   "call": [
+    [
+     9,
+     8
+    ],
+    [
+     8,
+     6
+    ],
+    [
+     6,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 6,
+   "call": [
+    [
+     9,
+     8
+    ],
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     6
+    ],
+    [
+     6,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": true
+ },
+ {
+  "cycles": [
+   [
+    4,
+    5,
+    6
+   ]
+  ],
+  "guard_slots": [
+   4
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0123564_g4_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   2,
+   3,
+   5,
+   6,
+   4
+  ],
+  "pred": {
+   "anchor": 7,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ],
+    [
+     7,
+     8
+    ],
+    [
+     8,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 7,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ],
+    [
+     7,
+     8
+    ],
+    [
+     8,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    4,
+    5,
+    6
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0123564_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   2,
+   3,
+   5,
+   6,
+   4
+  ],
+  "pred": {
+   "anchor": 7,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ],
+    [
+     7,
+     8
+    ],
+    [
+     8,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 7,
+   "call": [
+    [
+     9,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ],
+    [
+     7,
+     8
+    ],
+    [
+     8,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    4,
+    6,
+    5
+   ]
+  ],
+  "guard_slots": [
+   4
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0123645_g4_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   2,
+   3,
+   6,
+   4,
+   5
+  ],
+  "pred": {
+   "anchor": 7,
+   "call": [
+    [
+     9,
+     8
+    ],
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ],
+    [
+     7,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 7,
+   "call": [
+    [
+     9,
+     8
+    ],
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ],
+    [
+     7,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": false
+ },
+ {
+  "cycles": [
+   [
+    4,
+    6,
+    5
+   ]
+  ],
+  "guard_slots": [
+   6
+  ],
+  "kind": "wide",
+  "lit_slot": null,
+  "n": 7,
+  "name": "wide_n7_p0123645_g6_ln",
+  "ncalls": 1,
+  "perm": [
+   0,
+   1,
+   2,
+   3,
+   6,
+   4,
+   5
+  ],
+  "pred": {
+   "anchor": 9,
+   "call": [
+    [
+     9,
+     8
+    ],
+    [
+     8,
+     7
+    ],
+    [
+     7,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     9
+    ]
+   ]
+  },
+  "pred_rmin": {
+   "anchor": 7,
+   "call": [
+    [
+     9,
+     8
+    ],
+    [
+     8,
+     11
+    ]
+   ],
+   "entry": [
+    [
+     11,
+     7
+    ],
+    [
+     7,
+     9
+    ]
+   ]
+  },
+  "rivals_differ": true
+ }
+]

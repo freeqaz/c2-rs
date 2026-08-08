@@ -1,0 +1,7 @@
+cells            181
+by class         {"base": 50, "calls": 4, "gcnt": 12, "gout": 28, "gtgt": 28, "lit": 9, "long": 30, "ung": 20}
+in class         122
+descent witness  51 over 10 distinct register triples
+rivals separate  8 out-of-class cells
+guard != cycmin  56 cells (F2)
+sha256           31e527642d2749b3a30783cbea1b468bd474b02ebc4d40bb2af6a7a0c9d9d375

@@ -1,0 +1,1 @@
+/nologo /wd4355 /wd4164 /c /GR /O2 /Oi /EHsc /I src/system/stlport /I src/xdk/LIBCMT /I src/system /I src/lazer /I src/system/oggvorbis /I src/system/synth/tomcrypt /I src/system/net/curl/include /I src

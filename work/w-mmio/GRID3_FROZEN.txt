@@ -1,0 +1,5 @@
+cells            428
+by class         {"h1": 56, "h2": 28, "h3": 168, "h4": 100, "h5": 20, "h6": 56}
+separates SCAN from grid 1's fit   148 cells
+separates SCAN from #1414's R-MIN  324 cells
+sha256           dbde9335432a8470d676d21a66c004fcbdfec8565867af7a19cfb5b78d427f8a

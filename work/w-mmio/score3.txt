@@ -1,0 +1,60 @@
+grid 2 — scored against predictions frozen at d3b61669, no refit
+cells graded            277   (compile errors 0)
+R-GUARD-UNIMODAL        262 / 277
+R-MIN (board #1414)     149 / 277
+on the 113 SEPARATING cells:  R-GUARD-UNIMODAL 113, R-MIN 0
+
+class      UNIM  R-MIN      n
+g2ord        75     45     90
+gout2        28     14     28
+hi2          20      0     20
+lit2          9      0      9
+mid          30     15     30
+wide        100     75    100
+
+--- 15 cells R-GUARD-UNIMODAL gets WRONG ---
+g2ord_n3_p201_g12_ln
+   measured r11<-r5 | r5<-r4 r4<-r3 r3<-r11
+   predict  r11<-r3 r3<-r5 | r5<-r4 r4<-r11
+g2ord_n4_p0312_g23_ln
+   measured r11<-r6 | r6<-r5 r5<-r4 r4<-r11
+   predict  r11<-r4 r4<-r6 | r6<-r5 r5<-r11
+g2ord_n4_p2013_g12_ln
+   measured r11<-r5 | r5<-r4 r4<-r3 r3<-r11
+   predict  r11<-r3 r3<-r5 | r5<-r4 r4<-r11
+g2ord_n4_p3021_g13_ln
+   measured r11<-r6 | r6<-r4 r4<-r3 r3<-r11
+   predict  r11<-r3 r3<-r6 | r6<-r4 r4<-r11
+g2ord_n4_p3102_g23_ln
+   measured r11<-r6 | r6<-r5 r5<-r3 r3<-r11
+   predict  r11<-r3 r3<-r6 | r6<-r5 r5<-r11
+g2ord_n5_p01423_g34_ln
+   measured r11<-r7 | r7<-r6 r6<-r5 r5<-r11
+   predict  r11<-r5 r5<-r7 | r7<-r6 r6<-r11
+g2ord_n5_p03124_g23_ln
+   measured r11<-r6 | r6<-r5 r5<-r4 r4<-r11
+   predict  r11<-r4 r4<-r6 | r6<-r5 r5<-r11
+g2ord_n5_p04132_g24_ln
+   measured r11<-r7 | r7<-r5 r5<-r4 r4<-r11
+   predict  r11<-r4 r4<-r7 | r7<-r5 r5<-r11
+g2ord_n5_p04213_g34_ln
+   measured r11<-r7 | r7<-r6 r6<-r4 r4<-r11
+   predict  r11<-r4 r4<-r7 | r7<-r6 r6<-r11
+g2ord_n5_p20134_g12_ln
+   measured r11<-r5 | r5<-r4 r4<-r3 r3<-r11
+   predict  r11<-r3 r3<-r5 | r5<-r4 r4<-r11
+g2ord_n5_p30214_g13_ln
+   measured r11<-r6 | r6<-r4 r4<-r3 r3<-r11
+   predict  r11<-r3 r3<-r6 | r6<-r4 r4<-r11
+g2ord_n5_p31024_g23_ln
+   measured r11<-r6 | r6<-r5 r5<-r3 r3<-r11
+   predict  r11<-r3 r3<-r6 | r6<-r5 r5<-r11
+g2ord_n5_p40231_g14_ln
+   measured r11<-r7 | r7<-r4 r4<-r3 r3<-r11
+   predict  r11<-r3 r3<-r7 | r7<-r4 r4<-r11
+g2ord_n5_p41032_g24_ln
+   measured r11<-r7 | r7<-r5 r5<-r3 r3<-r11
+   predict  r11<-r3 r3<-r7 | r7<-r5 r5<-r11
+g2ord_n5_p41203_g34_ln
+   measured r11<-r7 | r7<-r6 r6<-r3 r3<-r11
+   predict  r11<-r3 r3<-r7 | r7<-r6 r6<-r11

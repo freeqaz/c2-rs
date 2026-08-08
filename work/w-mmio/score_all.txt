@@ -1,0 +1,15 @@
+probe                  n= 127  R-MIN 113  first-in-cycle 127  R-GUARD-SCAN 127  R-GUARD-LOW 127
+probe2                 n= 277  R-MIN 149  first-in-cycle 262  R-GUARD-SCAN 277  R-GUARD-LOW 277
+probe3                 n= 428  R-MIN 132  first-in-cycle 308  R-GUARD-SCAN 400  R-GUARD-LOW 428
+
+ALL THREE GRIDS, guarded single cycle k<=3, one call:  n=832
+  R-MIN (#1414)                 394 /  832
+  first-in-cycle (grid1 fit)    697 /  832
+  R-GUARD-SCAN (grid2 fit)      804 /  832
+  R-GUARD-LOW (grid3 fit)       832 /  832
+
+RESTRICTED to cells whose FIRST guard qualifies:  n=496
+  R-MIN (#1414)                 207 /  496
+  first-in-cycle (grid1 fit)    496 /  496
+  R-GUARD-SCAN (grid2 fit)      496 /  496
+  R-GUARD-LOW (grid3 fit)       496 /  496
