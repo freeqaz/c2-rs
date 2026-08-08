@@ -33,8 +33,9 @@ import os
 import subprocess
 import sys
 
-REPO = "/home/free/code/milohax/c2-rs"
-WIBO = "/home/free/code/milohax/wibo/build/release/wibo"
+REPO = os.environ.get("C2RS_REPO", os.path.abspath("."))
+WIBO = os.environ.get("C2RS_WIBO",
+                      os.path.join(REPO, "..", "wibo", "build", "release", "wibo"))
 
 WORKLOAD = ("/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc").split()
 PLAIN = "/O1 /GS- /c".split()

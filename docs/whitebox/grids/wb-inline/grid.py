@@ -318,7 +318,7 @@ def cal(d, repo):
     os.makedirs(os.path.join(d, "cal"), exist_ok=True)
     env = dict(os.environ)
     env.setdefault("C2RS_WIBO",
-                   "/home/free/code/milohax/wibo/build/release/wibo")
+                   os.environ.get("C2RS_WIBO", "../wibo/build/release/wibo"))
     env.setdefault("C2RS_COMPILERS", os.path.join(repo, "compilers"))
     sys.path.insert(0, os.path.join(repo, "scripts"))
     from gt_dump import Obj
@@ -398,7 +398,7 @@ def run(d, repo):
     table = json.load(open(os.path.join(d, "frozen.json")))
     env = dict(os.environ)
     env["C2RS_WIBO"] = env.get(
-        "C2RS_WIBO", "/home/free/code/milohax/wibo/build/release/wibo")
+        "C2RS_WIBO", os.environ.get("C2RS_WIBO", "../wibo/build/release/wibo"))
     env["C2RS_COMPILERS"] = env.get(
         "C2RS_COMPILERS", os.path.join(repo, "compilers"))
     out = {}
