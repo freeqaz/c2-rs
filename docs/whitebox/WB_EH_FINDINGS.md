@@ -15,7 +15,7 @@
 Lane `wb-eh` / branch `wt-wb-eh`, branched at master **`9ed20248`**.
 PREREG: [`WB_EH_PREREG.md`](WB_EH_PREREG.md), committed **`70f18db4`**, before
 the first grep of `~/ghidra-projects/export/c2/` and before the first `cl.exe`.
-Scored in §8. Board rows **#1860**–**#1872**; **#1873**–**#1879** left
+Scored in §8. Board rows **#1860**–**#1873**; **#1874**–**#1879** left
 explicitly unminted.
 
 ---
@@ -44,14 +44,16 @@ explicitly unminted.
    the two-word handler prefix**, masked to zero for an `__unwind$` region at
    `0x10c22080`. E3's three-record obj separates that reading from both
    registered rivals (§5.2).
-3. **The EH state map is NOT in the IL.** This is the finding that prices
-   `Main.cpp`. `5C` — the token the project calls the EH live-state marker — is
-   `TYPE` + `i32c`, and across **four objs** its operand takes exactly **two**
-   values (`1` and `0x101`) which are **neither the states in the ip-to-state
-   map nor `maxState`**. c2 *derives* the state map in its IR
-   (`0x10c219a6` seeds `-2`, `0x10c219c4` propagates, `0x10c220c9` emits one
-   8-byte entry per change). A port that reads `5C` cannot produce
-   `__ehfuncinfo$`. **PREREG P3.3's ip2state link is a MISS and is retracted.**
+3. **The EH state map is NOT in the IL — but two of its counts are.** `5C` —
+   the token the project calls the EH live-state marker — is `TYPE` + `i32c`, and
+   across **five objs / nine tokens** its operand takes exactly **two** values,
+   `1` (a destructible-object region) and `0x101` (a `try` block). Those values
+   are **neither the states in the ip-to-state map nor `maxState`**: c2 *derives*
+   the map in its IR (`0x10c219a6` seeds `-2`, `0x10c219c4` propagates,
+   `0x10c220c9` emits one 8-byte entry per change), and 4 `5C` tokens produce 18
+   map entries. **PREREG P3.3's ip2state link is a MISS and is retracted.** What
+   the tokens *do* determine, five for five, is
+   **`nTryBlocks` = n₂₅₇** and **`maxState` = n₁ + 2·n₂₅₇** (§5.3).
 
 ---
 
@@ -386,6 +388,7 @@ cells, deliberately **not** promoted to `fixtures/cpp/`).
 | **E2** | `struct S{S();~S();int m;}; int f(int a){ S s; return g(a)+s.m; }` | unwind |
 | **E3** | both — a destructible local **and** a `try`/`catch`; plus `int leaf(int a){return a+1;}` as the E4 control | catch **and** unwind |
 | **M** | the workload's own `src/Main.cpp`, at the workload flags | unwind |
+| **E6** | the §5.5 third-witness cell, run in-lane: **two** destructible locals, a **nested** `try`, `catch(int)` **and** `catch(...)` | 2 catch **and** 2 unwind |
 
 ### 5.2 E3 separates the bit-31 rivals — the discriminating cell
 
@@ -409,6 +412,24 @@ minimum of 2 discriminating cells. E1 and E2 replicate the two ends separately
 (E1 catch-only: SET/SET; E2 unwind-only: SET/CLEAR), so the reading has **six**
 records over three objs, plus **two** more from `Main.cpp`.
 
+**E6 replicates it at multiplicity.** `?f@@YAHH@Z` there is 356 bytes with
+**five** `.pdata` COMDATs — and every one falls where the reading says:
+
+| region | `.text` | word | bit31 | prefix |
+|---|---|---|:-:|---|
+| `__unwind$2589` | `0x13c..0x164` | `0x40000a04` | **0** | — |
+| `__unwind$2588` | `0x114..0x13c` | `0x40000a04` | **0** | — |
+| `__catch$2587` (`catch(...)`) | `0x100..0x114` | `0xc0000501` | **1** | `.text+0xf8` |
+| `__catch$2586` (`catch(int)`) | `0xd4..0xf8` | `0xc0000902` | **1** | `.text+0xcc` |
+| main body | `0x08..0xcc` | `0xc0003108` | **1** | `.text+0x00` |
+
+**Thirteen records over five objs, two catch funclets and two unwind funclets in
+one function, zero exceptions.** The five COMDATs are again in exact reverse
+`.text` order (`0x13c`, `0x114`, `0x100`, `0xd4`, `0x08`), which takes §2.4's
+rule from three witnesses to five. A `catch(...)` behaves as a `catch` for this
+purpose (`adjectives = 0x40`, `pType = 0`), which is the one thing a reader might
+have guessed the other way.
+
 **E4, the null control**: `?leaf@@YAHH@Z` is emitted into its own 8-byte `.text`
 COMDAT in the same obj and gets **no `.pdata` record at all**. A frameless leaf
 is not a `.pdata` row, so E3's three records cannot be a constant.
@@ -420,26 +441,48 @@ is not a `.pdata` row, so E3's three records cannot be a constant.
 
 ### 5.3 `5C` is NOT the ip-to-state map — P3.3 REFUTED
 
-Four bodies, IL tokenised with `extok.py`, objs decoded with `gt_eh.py`:
+Five bodies, IL tokenised with `extok.py`, objs decoded with `gt_eh.py`:
 
-| cell | `5C` tokens (i32c operand) | obj `maxState` | `nIPMapEntries` | obj ip2state states |
-|---|---|---:|---:|---|
-| **E1** (catch only) | 1 × **`0x101`** | 2 | 1 | `0` |
-| **E2** (unwind only) | 1 × **`1`** | 1 | 2 | `0`, `-1` |
-| **E3** (both) | **`1`**, **`0x101`** | 3 | 6 | `1,0,1,-1,0,-1` |
-| **M** (`Main.cpp`) | 1 × **`1`** | 1 | 2 | `0`, `-1` |
+| cell | `5C` tokens (i32c operand) | `n₁` | `n₂₅₇` | obj `maxState` | `nTryBlocks` | `nIPMapEntries` | obj ip2state states |
+|---|---|---:|---:|---:|---:|---:|---|
+| **E1** (catch only) | `0x101` | 0 | 1 | **2** | **1** | 1 | `0` |
+| **E2** (unwind only) | `1` | 1 | 0 | **1** | **0** | 2 | `0,-1` |
+| **E3** (both) | `1`, `0x101` | 1 | 1 | **3** | **1** | 6 | `1,0,1,-1,0,-1` |
+| **M** (`Main.cpp`) | `1` | 1 | 0 | **1** | **0** | 2 | `0,-1` |
+| **E6** (2 dtors, nested try, `catch(...)`) | `1`, `1`, `0x101`, `0x101` | 2 | 2 | **6** | **2** | 18 | 18 entries |
 
-* **The count does not match**: 1 `5C` → 2 map entries (E2, M); 2 `5C` → 6 (E3).
+**The negative half, which is the one that prices `Main.cpp`:**
+
+* **The count does not match**: 1 `5C` → 2 map entries (E2, M); 2 → 6 (E3);
+  **4 → 18** (E6).
 * **The values do not match**: E1's only `5C` says `0x101`; its map says `0`.
-  `0x101` is not a state number anywhere in any of the four objs.
-* **`maxState` does not follow from the operands** either — but it *is* additive
-  over regions (E1 = 2, E2 = 1, **E3 = 3**), which is the shape a
-  try-block-plus-unwind-slot accounting would give.
-* What the operand **does** track, over four objs, is the **kind** of the region
-  it opens: `1` at an unwind (destructible-object) region, `0x101` at a
-  `try`/`catch` region. Two values, four witnesses, and **no third value
-  observed** — offered as the reading that fits, explicitly not as established
-  (#1767's own rule: two witnesses per side is not a rule).
+  `0x101` never appears as a state in any of the five objs.
+* So the **ip-to-state map is derived, not transcribed** — `0x10c219a6` seeds
+  every state-bearing node to `-2`, `0x10c219c4` propagates forward,
+  `0x10c220c9` emits one entry per *change*. A port that reads `5C` and writes it
+  out has the wrong architecture, not a missing constant.
+
+**The positive half, and it survived the third-witness cell.** The operand takes
+exactly **two** values across five bodies and nine tokens — `1` where the region
+covers a destructible object, `0x101` where it is a `try` block — and E6 was
+written *specifically* to produce a third (a nested try and a `catch(...)`) and
+did not. Four-plus witnesses per side now, which clears #1767's bar, and two
+counts fall straight out:
+
+> **`nTryBlocks` = the number of `5C` tokens whose operand is `0x101`** — 1, 0,
+> 1, 0, **2** against the objs' 1, 0, 1, 0, **2**. Five for five.
+>
+> **`maxState` = n₁ + 2·n₂₅₇** — 2, 1, 3, 1, **6** against the objs' 2, 1, 3, 1,
+> **6**. Five for five, over four distinct `(n₁, n₂₅₇)` configurations.
+
+`maxState` is a 2-parameter fit on 4 configurations, so it is a *rule with one
+degree of freedom left*, not a proof; it is registered here so the next cell
+(three trys, or a try with two catches) either confirms or kills it.
+
+One more field falls out of E6 for free: the `5C`'s **TYPE names the type of the
+object whose lifetime the region covers** — E6's two unwind `5C`s carry
+`a6 43 81` and `a6 43 8a` (its two distinct local types `S` and `T`), while every
+`try` `5C` in all five bodies carries the same `86 41 74`.
 
 > **The EH record set is DERIVED, not transcribed.** `0x10c219a6` seeds every
 > state-bearing node to `-2`, `0x10c219c4` propagates state numbers forward over
@@ -464,9 +507,11 @@ them **reversed** (§2.4).
 
 ### 5.5 Designed and not run
 
-* **A third `5C` value.** Nested `try`s, a `catch(...)`, a `__try` — anything
-  that would give the §5.3 kind-reading a third witness or kill it. This is the
-  cheapest open cell in the lane and the one a follow-on should run first.
+* ~~**A third `5C` value.**~~ **RUN in-lane as E6** — nested `try`, `catch(...)`,
+  two destructible locals. **No third value appeared**, and the cell instead
+  produced the two counting rules in §5.3. The remaining open cell is narrower:
+  **three try blocks, or one try with two `catch` clauses**, which is what
+  separates `maxState = n₁ + 2·n₂₅₇` from its rivals.
 * **A `0x2C` payload `≥ 0x80`.** Not found in any of the five bodies read here;
   `docs/IL_CAST_CONVERT.md`'s corpus is the place to query. Until one exists the
   port's varint reading of `0x2C` cannot be refuted by an obj.
@@ -555,7 +600,7 @@ Board #770's streak stood at ~10 optimistic / 2 pessimistic / 1 hit.
 | P2.6 | all EH relocations are `ADDR32` | **HIT** — every relocation in §5's four objs is `ADDR32`; none is `ADDR32NB` or `SECREL` |
 | **P3.1** | **the stuck rung is a port-side `cstack` artifact, not an EH construct** (registered *pessimistic*) | **HIT** — §4.3, and the master-tip blocker is earlier still |
 | P3.2 | `0x2C`'s byte is a conversion-kind selector, not a symbol id or a length | **MISS, and in the useful direction** — the byte is **discarded** (`0x10b3d694`). Rival (R-d) "the port is right, it is a varint" is refuted by the class table; (R-e) is moot |
-| **P3.3** | **the chain lands on `0x5C`; `0x5C`'s operand is the ip-to-state state** | **SPLIT: first half confirmed (and it was #1354's, not mine); second half a MISS, optimistic, REFUTED by four objs** (§5.3) and retracted |
+| **P3.3** | **the chain lands on `0x5C`; `0x5C`'s operand is the ip-to-state state** | **SPLIT: first half confirmed (and it was #1354's, not mine); second half a MISS, optimistic, REFUTED by five objs** (§5.3) and retracted. What replaced it — `nTryBlocks = n₂₅₇` and `maxState = n₁ + 2·n₂₅₇` — was **not** registered and is scored as an unregistered find, not as a rescue of P3.3 |
 | **P3.4** | **≥ 12 named refusals and a priced decline** (registered *pessimistic*) | **HIT** — 15 (§6) |
 | P3.5 | ≥ 1 `0x2C` site in the workload with payload ≥ `0x80` | **MISS, optimistic** — 8 sites read, all payload `0x00`; the desync stays latent |
 | E1 | E1's obj shape, port refuses without `mismatch` | **HIT** — 2 `.pdata`, 96-byte EH `.rdata`, `??_R0H@8` in `.data`, function symbol `Value = 8`; the port reports a blocker and **no `mismatch`** |
@@ -585,10 +630,13 @@ every re-measured number in §5 is labelled as such and agrees with
   `??_R0H@8` in `.data`, which is the type descriptor and not the record set.
 * **It did not touch the throw side** (`.xdata$x`, `_TI`/`_CTA`/`_CT`). Located
   (`0x10be7b4b`) and left.
-* **It did not establish `maxState`'s arithmetic.** Three points is not a rule.
-* **It did not establish what `0x5C`'s two operand values mean.** Two values,
-  four witnesses, one witness per side per body class — exactly the shape #1767
-  refuses. §5.5 names the cell that would fix it.
+* **It did not PROVE `maxState = n₁ + 2·n₂₅₇`.** Two parameters fitted on four
+  distinct configurations, five objs — a rule with one degree of freedom left,
+  and §5.5 names the cell that spends it. `nTryBlocks = n₂₅₇` is the stronger of
+  the pair (one parameter, five for five, including a zero cell twice).
+* **It did not establish that `0x5C` has only two operand values.** E6 was
+  written to produce a third and did not; that is evidence, not closure. A
+  `__try`, a function-try-block, or a `throw` expression are all untried.
 * **It did not model the state-propagation fixpoint** (`0x10c219c4`). It read the
   seed, the monotone update and the consumer, and stopped.
 * **It did not adopt anything.** No file under `crates/` was modified, and the
