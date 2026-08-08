@@ -1,0 +1,39 @@
+=== op27 + STORE_TYPE=unset
+castint               0/1     assign-store-type-8643
+ptr_same              1/1     ?
+ptr_mirror            0/1     store-run-bind-mixed-kind-alloc:eof
+ptr_twobind           0/1     store-run-bind-mixed-kind-alloc:eof
+ptr_twobind_alias     0/1     store-run-bind-mixed-kind-alloc:eof
+ptr_xobj              0/1     store-run-bind-mixed-kind-alloc:eof
+ptr_chainbind         0/1     assign-store-type-8643
+ptr_deepgp            0/1     assign-store-type-8643
+ptr_reverse           0/1     assign-store-type-8643
+ptr_self2b            0/1     assign-store-type-8643
+ptr_same_nolit        1/1     ?
+ptr_same_nulllit      1/1     ?
+=== op27 + STORE_TYPE=ptr4
+castint               0/1     expr-op-0x32
+ptr_same              1/1     ?
+ptr_mirror            0/1     store-run-bind-mixed-kind-alloc:eof
+ptr_twobind           0/1     store-run-bind-mixed-kind-alloc:eof
+ptr_twobind_alias     0/1     store-run-bind-mixed-kind-alloc:eof
+ptr_xobj              0/1     store-run-bind-mixed-kind-alloc:eof
+ptr_chainbind         0/1     expr-op-0x32
+ptr_deepgp            0/1     expr-op-0x32
+ptr_reverse           0/1     expr-op-0x32
+ptr_self2b            0/1     expr-op-0x32
+ptr_same_nolit        1/1     ?
+ptr_same_nulllit      1/1     ?
+=== op27 + STORE_TYPE=any
+castint               0/1     expr-op-0x32
+ptr_same              1/1     ?
+ptr_mirror            0/1     store-run-bind-mixed-kind-alloc:eof
+ptr_twobind           0/1     store-run-bind-mixed-kind-alloc:eof
+ptr_twobind_alias     0/1     store-run-bind-mixed-kind-alloc:eof
+ptr_xobj              0/1     store-run-bind-mixed-kind-alloc:eof
+ptr_chainbind         0/1     expr-op-0x32
+ptr_deepgp            0/1     expr-op-0x32
+ptr_reverse           0/1     expr-op-0x32
+ptr_self2b            0/1     expr-op-0x32
+ptr_same_nolit        1/1     ?
+ptr_same_nulllit      1/1     ?
