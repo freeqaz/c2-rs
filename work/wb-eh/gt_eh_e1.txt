@@ -1,0 +1,57 @@
+== work/wb-eh/src/e1_catch.obj
+   mode: (pre-existing obj)
+-- section order
+   1 .drectve  raw=132   rel=0  chars=0x00100a00  cksum=0x00000000 Number=0 Sel=0
+   2 .debug$S  raw=180   rel=0  chars=0x42100040  cksum=0x00000000 Number=0 Sel=0
+   3 .XBLD$W   raw=16    rel=0  chars=0xc0401040  cksum=0x00000000 Number=0 Sel=2
+   4 .XBLD$W   raw=16    rel=0  chars=0xc2301040  cksum=0x00000000 Number=0 Sel=2
+   5 .text     raw=116   rel=9  chars=0x60401020  cksum=0x00000009 Number=0 Sel=1
+   6 .pdata    raw=8     rel=1  chars=0x40401040  cksum=0x00000001 Number=5 Sel=5
+   7 .pdata    raw=8     rel=1  chars=0x40401040  cksum=0x00000001 Number=5 Sel=5
+   8 .rdata    raw=96    rel=7  chars=0x40401040  cksum=0x00000007 Number=5 Sel=5
+   9 .data     raw=11    rel=1  chars=0xc0301040  cksum=0x00000001 Number=0 Sel=2
+-- item 1: the handler prefix and the function symbol
+   ?f@@YAHH@Z                               sec=5 Value=0x8
+   prefix @ .text+0x00: [00000000 -> __CxxFrameHandler] [00000000 -> __ehfuncinfo$?f@@YAHH@Z]  <- ?f@@YAHH@Z
+   prefix @ .text+0x48: [00000000 -> __CxxFrameHandler] [00000000 -> __ehfuncinfo$?f@@YAHH@Z]  <- __catch$2554
+-- item 2: .pdata
+  section 6 (8 B)
+    +0x00  BeginAddress=?f@@YAHH@Z+72  word=0xc0000902  [bit31=1 bit30=1 len=9 prolog=2]  covers .text 0x50..0x74 (9 words)  <- __catch$2554
+  section 7 (8 B)
+    +0x00  BeginAddress=?f@@YAHH@Z+0  word=0xc0001007  [bit31=1 bit30=1 len=16 prolog=7]  covers .text 0x8..0x48 (16 words)  <- ?f@@YAHH@Z
+-- item 3: the EH .rdata
+  section 8 (96 B)
+    anchors: 0x00=__unwindtable$?f@@YAHH@Z, 0x10=__catchsym$?f@@YAHH@Z$2, 0x20=__tryblocktable$?f@@YAHH@Z, 0x34=__ehfuncinfo$?f@@YAHH@Z, 0x58=$T2563
+    __unwindtable$ @0x00  (maxState=2)
+      [0] toState=0xffffffff (-1) action=0x00000000 (0)
+      [1] toState=0xffffffff (-1) action=0x00000000 (0)
+    __catchsym$?f@@YAHH@Z$2 @0x10  (1 HandlerType)
+      [0] adjectives=0x00000000 (0) pType=??_R0H@8 (reloc 2) dispCatchObj=0xffffffe4 (-28) addressOfHandler=__catch$2554 (reloc 2)
+    __tryblocktable$ @0x20  (nTryBlocks=1)
+      [0] tryLow=0x00000000 (0) tryHigh=0x00000000 (0) catchHigh=0x00000001 (1) nCatches=0x00000001 (1) pHandlerArray=__catchsym$?f@@YAHH@Z$2 (reloc 2)
+    __ehfuncinfo$ @0x34
+      +0x00 magic          0x19930522 (429065506)
+      +0x04 maxState       0x00000002 (2)
+      +0x08 pUnwindMap     __unwindtable$?f@@YAHH@Z (reloc 2)
+      +0x0c nTryBlocks     0x00000001 (1)
+      +0x10 pTryBlockMap   __tryblocktable$?f@@YAHH@Z (reloc 2)
+      +0x14 nIPMapEntries  0x00000001 (1)
+      +0x18 pIPtoStateMap  $T2563 (reloc 2)
+      +0x1c pESTypeList    0x00000000 (0)
+      +0x20 EHFlags        0x00000001 (1)
+      FuncInfo size = 36 B (9 dwords); ipmap at 0x58 (pad 0)
+    ip2state @0x58  (nIPMapEntries=1)
+      [0] ip=$M2562 (reloc 2)         state=0x00000000 (0)            @ sec5+0x0024  4bffffdd bl .-36  ->?g@@YAHH@Z
+-- item 4: type descriptors
+  section 9 (11 B) syms=['??_R0H@8']  name='.H'  relocs=[('0x0', '??_7type_info@@6B@')]
+-- ip2state against the call sites
+    sec5+0x0024  bl bl ?g@@YAHH@Z                    state=0   ($M2562)  <== $M2562
+-- labels in .text
+   0x0008  ?f@@YAHH@Z
+   0x0024  $M2562
+   0x0024  $M2566
+   0x0030  $LN7
+   0x0048  $M2567
+   0x0050  __catch$2554
+   0x0058  $M2569
+   0x0074  $M2570

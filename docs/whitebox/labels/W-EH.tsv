@@ -1,0 +1,33 @@
+# W-EH — exception-handling emission: .pdata, the unwind word, funclets,
+# __ehfuncinfo$ and the ip-to-state map. Lane wb-eh, 2026-08-08.
+# Every row here is NAVIGATION. `high` means "the instructions were read
+# correctly", not "this is what c2 does" (C2_MAP_METHOD.md §7). Rows whose
+# reading survived an obj check say so; WB_EH_FINDINGS.md §5 is the grading.
+# addr <TAB> cluster <TAB> confidence <TAB> evidence
+# 10be76a8 (.pdata) and 10be7b4b (.xdata) are deliberately NOT re-labelled here:
+# W-SECT.tsv already owns them as `section-select`. Their EH-side detail (class
+# index 0xe / 0x10, align [+0x43]=4) is in WB_EH_FINDINGS.md §1.
+10c217fd	pdata-writer	high	the .pdata RECORD writer: allocates an 8-byte COMDAT at align 4 (FUN_10b9c655(6,8,4,0,4,0x80)), emits {ADDR32 BeginAddress, u32 unwind word}, zeroes the word at 10c218ca and defers it; emits the two prefix relocations when param_4 != 0 (10c21907)
+10c218da	pdata-mainbody-flag	high	`cmp BYTE PTR [ebx+8],0x18` / `sete` — is this region the function-start node; the flag that gates the -2 word correction
+10bff785	pdata-defer	high	pushes a 6-field 0x18-byte fixup {item, base, end, prologEnd, handler, !isMainBody} onto the array at DAT_10c385e4; entry[5] stored at 10bff7fd
+10bff811	pdata-patch-pass	high	the deferred unwind-word pass, run once from 10b34325: word = (handler!=0)<<31 | 1<<30 | (len_words & 0x3FFFFF)<<8 | (prolog_words & 0xFF). OBJ-CONFIRMED on 8 records / 4 objs (WB_EH_FINDINGS §5.2)
+10bff880	pdata-len-field	high	`and eax,0x3fffff` — the length field is 22 bits, in word bits 8..29
+10bff85f	pdata-prolog-field	high	`and edi,0xff` — the prologue field is 8 bits, word bits 0..7
+10bff87d	pdata-bit31	high	`setne bl` on the handler argument; shifted to bit 31 at 10bff88b. Bit 31 is set iff the two-word {handler, handlerData} prefix is emitted — the SAME predicate. OBJ-CONFIRMED; rivals "has a language handler" and "has a prologue" both REFUTED by WB_EH_FINDINGS §5.2
+10bff893	pdata-bit30	high	`or ebx,0x400000` — bit 30 of the unwind word is set UNCONDITIONALLY for every .pdata record. Independently confirms the port's existing c2-core::coff::pdata::UNWIND_THIRTY_TWO_BIT
+10bff852	pdata-prefix-correction	medium	`sub eax,0x2` on the prologue length when a handler is present and the region is the function-start node; the paired length correction is at 10bff876. Consistent with every obj read, but DEGENERATE black-box — the prefix is always two words, so no obj can separate this from a shifted base (WB_EH_FINDINGS §2.3)
+10c21fd2	eh-pdata-driver	high	the C++ EH .pdata driver: mints __CxxFrameHandler at 10c22007 and sets its sub-kind to 'V', then walks the node list cutting .text into regions
+10c22046	eh-region-cut	high	the region-cut predicate: a kind-0x1b LABEL node whose symbol sub-kind is 'V' (__catch$) or 'T' (__unwind$) at 10c22054/10c22058, or the kind-0x19 function-end node at 10c2205c
+10c220ab	eh-unwind-region-test	high	`cmp BYTE PTR [ebx+0x31],0x54` / `sete` — is the region opened by an __unwind$ label; the flag that zeroes both handler arguments
+10c22080	eh-handler-mask	high	`neg/sbb/not/and` applied twice (10c22080-10c22095): an __unwind$ region passes handler = 0 and handlerData = 0, so it gets no prefix and bit 31 clear. OBJ-CONFIRMED (WB_EH_FINDINGS §5.2)
+10c2206b	eh-handler-data-select	high	`cmp BYTE PTR [ecx+8],0x18` selects between TWO different handler-data values for the main body and for a funclet; Ghidra's decompile collapses them into one variable
+10c21b03	seh-pdata-driver	high	the SEH driver (__C_specific_handler, sub-kind 'S'); also the path a NON-EH function takes — FUN_10c217fd(…, 0, 0, …), handler null, bit 31 clear
+10be12c7	ehfuncinfo-builder	high	builds the __ehfuncinfo$ record (9 dwords) and mints __unwindtable$%s, __tryblocktable$%s, __catchsym$%s$%d, __estypeinfo$%s; sizes maxState*8 / n*0x14 / n*0x10, all via FUN_10b9c655(6, size, 7, 0, 4, 0x80)
+10be1425	eh-magic	high	`mov DWORD PTR [eax+0xe],0x19930522` — the EH magic, the only 19930xxx immediate in the image; matches the obj byte for byte
+10c220c9	ip2state-emitter	high	the $T ip-to-state array: one 8-byte {ADDR32 label, i32 state} entry per state CHANGE over nodes with [+9]&1, skipping state -2, array omitted entirely at n==0; writes nIPMapEntries and pIPtoStateMap into FuncInfo
+10c219a6	eh-state-seed	high	sets node[+0x24] = -2 on every node with [+9]&1 — the "unset" sentinel the ip2state emitter skips
+10c219c4	eh-state-propagate	medium	forward monotone propagation of state numbers over the node list (node[+0x24]); read, but its fixpoint is not established. This pass — NOT the .ex stream — is where the EH state map comes from (WB_EH_FINDINGS §5.3)
+10b99dfe	symbol-name-formatter	high	formats a symbol's text name into DAT_10c6a020 by sym[+0x30] (kind) x sym[+0x31] (sub-kind): 'T'->__unwind$ (10b99f3d), 'V'->__catch$ (10b99f36), 'W'->$M, 'Z'->__annotation$, kind1 -> $S/$SG/$T (10b9a04d-10b9a07d), kind4 -> $E, unnamed -> $L{C,L,N}
+10b9a08e	label-number-writer	high	FUN_10c1e739(sym[+0x28], buf, cap, 10) — EVERY label shape above takes its number from the SAME sym[+0x28] field, so __catch$N/__unwind$N are on the $M/$T counter and not a private EH one
+10b3d6b2	ex-op-2c	high	the operand arm for class 05 (opcodes 0x2C convert and 0x34): one TYPE, then a fall-through to 10b3d694 whose GetByte result is stored NOWHERE. The trailing byte is CONSUMED AND DISCARDED — the port's varint reading is wrong in width and irrelevant in value
+10b3d834	ex-op-5c	high	the operand arm for class 13 (opcode 0x5C, the EH marker): TYPE then i32c, stored at node[+0x24] via 10b3d814. Its operand is NOT the ip-to-state state and NOT maxState — measured on 4 objs, WB_EH_FINDINGS §5.3
