@@ -97,13 +97,15 @@ suppressed() {
 9	GAPS.md §6 mis-emit instance series (cited as "§6 #9", R:§6l)
 10	GAPS.md §6 mis-emit instance series (cited as "§6 #10", R:§6l)
 12	GAPS.md §6 mis-emit instance series, not the board series
+1668	endpoint of an explicitly-unminted range declaration ("#1668–#1679 are free")
+1679	endpoint of an explicitly-unminted range declaration ("#1668–#1679 are free")
 EOF
 }
 
 extract_cited() {
     # Every `#N` in prose. Deliberately broad: narrowing the pattern to
     # `board #N` would miss the majority, since ROADMAP cites items bare.
-    grep -o '#[0-9]\{1,3\}\b' "$1" | tr -d '#' | sort -n | uniq -c \
+    grep -o '#[0-9]\{1,4\}\b' "$1" | tr -d '#' | sort -n | uniq -c \
         | while read -r n num; do printf '%s %s\n' "$num" "$n"; done
 }
 
@@ -113,7 +115,7 @@ extract_rows() {
     # and the multi-number `| 46, 48 |` — the last of which is why this is not
     # a one-number match.
     sed -n 's/^| *\*\{0,2\}\([0-9, ]\{1,12\}\).*$/\1/p' "$1" \
-        | tr ',' '\n' | tr -d ' ' | grep '^[0-9]\{1,3\}$' | sort -n -u
+        | tr ',' '\n' | tr -d ' ' | grep '^[0-9]\{1,4\}$' | sort -n -u
 }
 
 # --- check 4-6 helpers -------------------------------------------------------
@@ -286,7 +288,7 @@ EOF
 
     # A suppression list that silently swallowed a real item would defeat the
     # whole script, so its size is pinned too.
-    t 'suppression list size' "$(suppressed | wc -l | tr -d ' ')" '7'
+    t 'suppression list size' "$(suppressed | wc -l | tr -d ' ')" '9'
 
     # -- checks 4-6, on hand-built fixtures, never the live files --------
     cat > "$tmp/rm2.md" <<'EOF'
