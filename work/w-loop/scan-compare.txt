@@ -1,0 +1,17 @@
+# w-loop — base 2b1c89da vs tip: the whole 878-TU gap report, compared
+
+## gap-metric block (187 lines)
+IDENTICAL
+
+## all 878 per-TU verdicts, as a sorted set
+IDENTICAL
+
+## the whole report, excluding progress lines and provenance
+456c456
+< GAP REPORT (878 TUs in 2.8s)
+---
+> GAP REPORT (878 TUs in 13.5s)
+
+The only difference is the elapsed-time line. The tip scan ran at --jobs 6
+CONTENDED against this lane's own gate.sh (mode_cross at --jobs 16) and two
+other lanes; the base ran at --jobs 12 uncontended. Neither figure is a result.
