@@ -3,7 +3,7 @@
     Tag:       w-cflowlabel
     Slug:      w-cflowlabel
     Date:      2026-08-08
-    Fixtures:  none
+    Fixtures:  none — this rung ships an instrument and declines a class
     Census:    711,486 / 2,463,443 unchanged (28.88 %), **+0** — this lane adds
                no arm to any acceptance path. TU match **11 → 11**, mismatch
                **0 → 0**.
