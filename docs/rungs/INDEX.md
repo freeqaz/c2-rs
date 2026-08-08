@@ -112,6 +112,7 @@ the header block this table is read from.
 | 2026-08-08 | w-heap | [w-heap](2026-08-08-w-heap.md) | 12 | 711,477 / 2,463,443 unchanged (28.88 %), **+0**. TU match |
 | 2026-08-08 | w-inl0 | [w-inl0](2026-08-08-w-inl0.md) | 10 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |
 | 2026-08-08 | w-inread | [w-inread](2026-08-08-w-inread.md) | 10 | 711,427 / 2,463,393 unchanged (28.88 %), +0 — this lane touches no |
+| 2026-08-08 | w-instr | [w-instr](2026-08-08-w-instr.md) | 12 | 711,486 / 2,463,443 unchanged (28.88 %), **+0**. TU match |
 | 2026-08-08 | w-lineage | [w-lineage](2026-08-08-w-lineage.md) | 2 | 711,485 → 711,486 / 2,463,443 (28.88 %), **+1**; emitted |
 | 2026-08-08 | w-memset | [w-memset](2026-08-08-w-memset.md) | 9 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted |
 | 2026-08-08 | w-mixed | [w-mixed](2026-08-08-w-mixed.md) | 25 | 711,485 / 2,463,443 unchanged (28.88 %), **+0**. TU match |
