@@ -350,6 +350,32 @@ anyone with the toolchain. That matters for §6.
    on two cells (C5 → 3 / 9 words, C4 → 2 / 56 words) and on the anchor
    (`0x40001A03` → 3 / 26 words).
 
+### 5.7 An independent witness for the same refutation, already in the tree
+
+Method doc §7 puts a finding confirmed by an independent route in a "different
+and much stronger category". R1 has one, and this lane did not construct it.
+
+`docs/DIFF_STRUCTURE.md` §"three long singletons" already records
+`??APaddedJointPos@@QAAAAMH@Z` (`src/system/hamobj/DetectFrame.cpp`) as
+*"13w→1w, where c2's whole body is a bare `b` — **a tail call the port
+framed**"*. Re-measured live at this lane's HEAD:
+
+```
+port: 7d8802a6 9181fff8 fbe1fff0 9421ffa0 7c9f2378 4bffffed 7fe4fb78 4bffffe5
+      38210060 8181fff8 7d8803a6 ebe1fff0 4e800020
+ref : 48000000
+```
+
+Same four prologue words as the anchor, and c2 emits **one** `b`. So the
+project's own workload contained a witness that c2 does not frame a tail call —
+written down two days before this lane read `10bff565` and predicted the
+opposite. R0 was refutable from the tree without compiling anything.
+
+**Stated precisely, because it is easy to overclaim**: this is a witness for the
+predicate, **not** a conversion the frame rule would close. The port emits two
+calls where c2 emits none; closing it needs the inliner, exactly as
+`?supershuffle` does (§7).
+
 ---
 
 ## 6. Pre-drafted DISCLOSURE rows
