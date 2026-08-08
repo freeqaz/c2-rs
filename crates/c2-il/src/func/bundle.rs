@@ -1356,6 +1356,24 @@ pub(crate) fn shape_to_function(
                     ..IlFunction::base(name, src)
                 })
             }
+            // **W-JSON.** Nothing to resolve at all: this class names no
+            // callee and no data symbol, and its two frame helpers are minted
+            // by `c2_core::codegen::FrameLayout` from `saved_gprs` rather than
+            // read out of the IL, so they are not resolvable here and must not
+            // be. The whole shape travels as it was parsed.
+            BodyShape::JsonUtf8Copy(g) => {
+                Some(IlFunction {
+                    params: g.params.clone(),
+                    json_utf8_copy: Some(crate::func::JsonUtf8CopyFn {
+                        params: g.params,
+                        off_buffer: g.off_buffer,
+                        off_size: g.off_size,
+                        k_arg_err: g.k_arg_err,
+                        k_size_err: g.k_size_err,
+                    }),
+                    ..IlFunction::base(name, src)
+                })
+            }
             BodyShape::PtrWalkChainLoop(l) => {
                 Some(IlFunction {
                     params: l.params.clone(),

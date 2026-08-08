@@ -138,6 +138,7 @@ mod tests {
         alloc_init_or_fail: None,
         osf_handle_guard: None,
         xlrc_create_guard: None,
+        json_utf8_copy: None,
         };
         assert_eq!(
             indirect_load_text(&f).unwrap().unwrap(),
@@ -191,6 +192,7 @@ mod tests {
         alloc_init_or_fail: None,
         osf_handle_guard: None,
         xlrc_create_guard: None,
+        json_utf8_copy: None,
         };
         let blr = [0x4E, 0x80, 0x00, 0x20];
         let body = |ops: Vec<IlOp>, params: Vec<u32>| {

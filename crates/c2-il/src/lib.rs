@@ -51,6 +51,8 @@ pub use func::{
     AllocInitOrFailFn,
     OsfHandleGuard,
     OsfHandleGuardFn,
+    JsonUtf8Copy,
+    JsonUtf8CopyFn,
     XlrcCreateGuard,
     XlrcCreateGuardFn,
     GuardChainSharedTailFn,

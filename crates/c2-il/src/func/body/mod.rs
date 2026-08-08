@@ -27,6 +27,7 @@ use self::shapes::{
     try_parse_guard_chain_shared_tail,
     try_parse_alloc_init_or_fail,
     try_parse_osf_handle_guard,
+    try_parse_json_utf8_copy,
     try_parse_xlrc_create_guard,
     try_parse_if_call_join,
     try_parse_ptr_walk_loop,
@@ -662,6 +663,8 @@ pub(crate) enum BodyShape {
     /// converge on one returned status, and the first class this port emits
     /// whose frame goes through the `__savegprlr_N` helper.
     XlrcCreateGuard(crate::func::XlrcCreateGuard),
+    /// **W-JSON** — the UTF-16 → UTF-8 copy loop.
+    JsonUtf8Copy(crate::func::JsonUtf8Copy),
     /// **W-DATA — the static-array scan loop.** The first body class here whose
     /// function DEFINES the data it reads. See
     /// [`super::shapes::static_scan_loop`] for the whole accept/refuse boundary
@@ -2025,6 +2028,25 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                 // `assign-rhs-call`.
                 if let Ok(shape) = try_parse_xlrc_create_guard(seg, p, lo, sy.addr_locals) {
                     disp("disp-xlrc-create-guard");
+                    return Ok(shape);
+                }
+                // **W-JSON — the UTF-16 → UTF-8 copy loop.** It opens on the
+                // same `26 <local>` this whole arm does — its first statement is
+                // `hr = 0` — so it is tried here on the same terms: its own
+                // cursor, `Err` on the first byte outside its grammar, and no
+                // census key moved by a decline.
+                //
+                // It separates from every production above at the SECOND
+                // statement: this class's is a `53` opening a two-term `||`
+                // guard over two POINTER formals, where `xlrc_create_guard`
+                // requires a second literal assignment, the four loops require
+                // their own openers and `store_run_bind` requires a store. And
+                // it separates from `if_call_join` at the first byte, that class
+                // opening on a `B9`. So the order among them is free; this one
+                // is last because every class above it names a TU that was
+                // matched before it.
+                if let Ok(shape) = try_parse_json_utf8_copy(seg, p, lo) {
+                    disp("disp-json-utf8-copy");
                     return Ok(shape);
                 }
                 disp("disp-assign");

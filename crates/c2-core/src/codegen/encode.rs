@@ -295,6 +295,37 @@ pub fn encode_sth(rs: u8, ra: u8, d: i16) -> [u8; 4] {
     word.to_be_bytes()
 }
 
+/// `sthu rS, D(rA)` — store a halfword **with update**: primary opcode 45, and
+/// `rA` is written back to the effective address.
+///
+/// Pinned to a byte real `c2` emitted rather than to a manual's bit layout:
+/// `sthu r9,2(r4)` at `+0xa8` of `?GetBuffer@JsonWriter@@QAAJPAGPAK@Z` is
+/// `b5240002` (`work/w-json/probe/ref.obj`). It is one bit away from
+/// [`encode_sth`] — primary 45 against 44 — and that bit is a pointer bump the
+/// caller then must not emit itself, which is why the two are separate
+/// functions and the test names both words.
+pub fn encode_sthu(rs: u8, ra: u8, d: i16) -> [u8; 4] {
+    let word: u32 =
+        (45 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
+    word.to_be_bytes()
+}
+
+/// `lhzx rD, rA, rB` — indexed zero-extending halfword load: primary 31,
+/// extended 279.
+///
+/// Pinned to a byte real `c2` emitted: `lhzx r11,r11,r6` at `+0x4c` of
+/// `?GetBuffer@JsonWriter@@QAAJPAGPAK@Z` is `7d6b322e`. The neighbouring
+/// [`encode_lwzx`] is extended **23** and [`encode_lhz`] is a different form
+/// entirely, so this is a third cell and not a parameterization of either.
+pub fn encode_lhzx(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
+    let word: u32 = (31 << 26)
+        | ((rd as u32 & 0x1F) << 21)
+        | ((ra as u32 & 0x1F) << 16)
+        | ((rb as u32 & 0x1F) << 11)
+        | (279 << 1);
+    word.to_be_bytes()
+}
+
 // ---- W6: comparison → boolean materialization encoders ---------------------
 //
 // c2 materializes integer comparisons **branchlessly** — it emits no
@@ -1152,6 +1183,40 @@ mod tests {
         assert_ne!(encode_cmplw(CR_COMPARE, 3, 11), encode_cmplwi(CR_COMPARE, 3, 11));
         // The `rB` field is separated from `rA` by a second pin.
         assert_eq!(encode_cmplw(CR_COMPARE, 11, 3), [0x7F, 0x0B, 0x18, 0x40]);
+    }
+
+    /// **W-JSON — `lhzx` against the byte real `c2` emitted**, and the
+    /// separation from the two loads it is one field away from.
+    ///
+    /// `encode_lwzx` beside it is extended **23** where this is **279**, and
+    /// `encode_lhz` is a different primary opcode entirely. The separation is
+    /// the point rather than the value: an indexed halfword load that read a
+    /// word would be a program that runs and reads two code units at once.
+    #[test]
+    fn w_json_lhzx_matches_the_reference_obj_and_is_none_of_its_neighbours() {
+        // `?GetBuffer@JsonWriter@@QAAJPAGPAK@Z` +0x4c, `work/w-json/probe/ref.obj`.
+        assert_eq!(encode_lhzx(11, 11, 6), [0x7D, 0x6B, 0x32, 0x2E]);
+        assert_ne!(encode_lhzx(11, 11, 6), encode_lwzx(11, 11, 6));
+        assert_ne!(encode_lhzx(11, 11, 6), encode_lhz(11, 11, 6));
+        // The three register fields are separated from each other by a second pin.
+        assert_eq!(encode_lhzx(9, 4, 3), [0x7D, 0x24, 0x1A, 0x2E]);
+    }
+
+    /// **W-JSON — `sthu` against the byte real `c2` emitted**, and the ONE-BIT
+    /// separation from `sth`.
+    ///
+    /// Primary 45 against 44. That bit is a pointer bump the caller must then
+    /// not emit itself, so confusing the two is either a lost increment or a
+    /// doubled one — in an obj that links.
+    #[test]
+    fn w_json_sthu_matches_the_reference_obj_and_is_one_bit_from_sth() {
+        // `?GetBuffer@JsonWriter@@QAAJPAGPAK@Z` +0xa8, `work/w-json/probe/ref.obj`.
+        assert_eq!(encode_sthu(9, 4, 2), [0xB5, 0x24, 0x00, 0x02]);
+        assert_eq!(encode_sth(9, 4, 2), [0xB1, 0x24, 0x00, 0x02]);
+        assert_ne!(encode_sthu(9, 4, 2), encode_sth(9, 4, 2));
+        // …and the body's other two `sthu` sites, which separate `rS` and `rA`.
+        assert_eq!(encode_sthu(7, 4, 2), [0xB4, 0xE4, 0x00, 0x02]);
+        assert_eq!(encode_sthu(28, 11, 2), [0xB7, 0x8B, 0x00, 0x02]);
     }
 
     /// **W-OSFINFO — the record form of `rlwinm` against the byte real `c2`

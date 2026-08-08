@@ -1,0 +1,28 @@
+  profile: /nologo /c /O1 /Oi /EHsc /GR (from work/w-json/o1.txt)
+fixtures/cpp/wjson_utf8_copy_neg.cpp -> 0/10 functions in class
+  [  0] GAP json-type-tag-kind-0x86  cflow-loop                 eh-none     (eh-none     )   1336 B  ?GetBuffer@WJsonN1@@QAAJPAGPAK@Z
+  [  1] GAP json-loop-head-and-one-byte-arm-0x3F cflow-loop                 eh-none     (eh-none     )   1461 B  ?GetBuffer@WJsonN2@@QAAJPAGPAK@Z
+  [  2] GAP json-two-byte-arm-0x80   cflow-loop                 eh-none     (eh-none     )   1553 B  ?GetBuffer@WJsonN3@@QAAJPAGPAK@Z
+  [  3] GAP json-type-mismatch-0x86  cflow-loop                 eh-none     (eh-none     )   1541 B  ?GetBuffer@WJsonN4@@QAAJPAGPAK@Z
+  [  4] GAP json-loop-head-and-one-byte-arm-0x21 cflow-loop                 eh-none     (eh-none     )   1553 B  ?GetBuffer@WJsonN5@@QAAJPAGPAK@Z
+  [  5] GAP json-loop-head-and-one-byte-arm-0x53 cflow-loop                 eh-none     (eh-none     )   1553 B  ?GetBuffer@WJsonN6@@QAAJPAGPAK@Z
+  [  6] GAP json-return:eof          cflow-loop                 eh-none     (eh-none     )   1553 B  ?GetBuffer@WJsonN7@@QAAJPAGPAK@Z
+  [  7] GAP json-not-a-two-formal-member-fn-0x26 cflow-loop                 eh-none     (eh-none     )   1557 B  ?GetBuffer@WJsonN8@@QAAJPAGPAKK@Z
+  [  8] GAP json-two-byte-arm-0x62   cflow-loop                 eh-none     (eh-none     )   1558 B  ?GetBuffer@WJsonN9@@QAAJPAGPAK@Z
+  [  9] GAP json-size-check-0x02     cflow-loop                 eh-none     (eh-none     )   1565 B  ?GetBuffer@WJsonN10@@QAAJPAGPAK@Z
+  blocking features (">" marks the byte that blocked the parse):
+         1 x json-loop-head-and-one-byte-arm-0x21
+             b0 0a 86 42 22 b9 a8 0a 86 43 a2 08 30 86 42 22 >21< 38 bb 0a 53 53 4f 01 80 3b 01 00 00 b9 a7 0a 86 43 a1 08 b9 b7 0a 84
+         1 x json-loop-head-and-one-byte-arm-0x3F
+             53 b9 2d 0a 84 22 21 2c 86 41 74 00 33 86 41 74 >3f< 21 38 30 0a 53 53 4f 01 77 26 26 0a 33 86 42 22 01 35 86 42 22 4b 4f
+         1 x json-loop-head-and-one-byte-arm-0x53
+             86 41 74 00 32 86 41 74 4b 4f 01 80 75 01 00 00 >53< 29 e3 0a b9 df 0a 86 42 22 b9 d8 0a a6 43 9c 20 33 86 41 74 04 27 a6
+         1 x json-not-a-two-formal-member-fn-0x26
+             33 0b 2d 32 0b 4c 4f 11 53 4f 01 80 ef 01 00 00 >26< 38 0b 33 86 42 22 00 32 86 42 22 4b 4f 01 80 f0 01 00 00 53 b9 33 0b
+         1 x json-return:eof
+             e1 01 00 00 54 02 29 07 0b 4f 12 47 54 01 54 00
+         1 x json-size-check-0x02
+             90 0b 86 43 a2 08 b9 98 0b 86 42 22 33 86 41 74 >02< 02 32 86 42 22 4b 4f 01 80 a3 02 00 00 54 05 54 04 29 97 0b 54 03 4f
+         1 x json-two-byte-arm-0x62
+             4b 4f 01 80 47 02 00 00 53 b9 6a 0b 86 42 22 b9 >62< 0b 86 43 a2 08 30 86 42 22 22 38 7a 0b 53 53 4f 01 80 48 02 00 00 b9
+         1 x json-two-byte-arm-0x80
