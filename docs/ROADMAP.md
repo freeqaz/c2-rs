@@ -10107,3 +10107,128 @@ where it was designed to.
 
 The ceiling arithmetic doc (board task; the 450-wall decomposition against
 871) remains open and should now be written against *this* ordering.
+
+---
+
+## 10.25 W-CEILING — this file's codegen numbers, TAGGED; and `docs/CEILING.md` (2026-08-08)
+
+**This section is an ANNOTATION BLOCK. It adds nothing to the record above and
+edits nothing in it.** Board **#1476** (lane `w-column`, 2026-08-08) defined a
+**HAND-COUNT / INSTRUMENT** tag for codegen prices in `docs/BOARD.md`'s
+Conventions and swept `BOARD.md`; its row says in as many words *"the open half
+is the other codegen numbers in `ROADMAP.md`, which this lane did not sweep"*.
+This is that sweep.
+
+**Dated records stay as written.** Nothing below is a retraction, a correction or
+a deprecation. Every number listed is a number a person produced by reading an
+obj beside an IL body, and for most of them **that is still the only kind of
+number that exists**. The tag says which kind it is; that is all it says.
+
+### 10.25.1 The sweep's one mechanical result
+
+> **`ROADMAP.md` contains ZERO occurrences of the string `gap-metric`.**
+
+Checked at tree `b234d826`: `grep -c 'gap-metric' docs/ROADMAP.md` → **0**, and
+`grep -c 'frontier-codegen' docs/ROADMAP.md` → **0**. So **not one codegen number
+anywhere in this file names a key a scan prints**, and #1476's default —
+*an untagged codegen number in a record written before 2026-08-08 is a HAND-COUNT*
+— applies to every one of them without exception and without a per-claim
+judgement call. #1464 proved the ladder instrument had no codegen column; this is
+the consequence in this file.
+
+**Section dating is equally mechanical**: of this file's 306 headers, exactly
+**one** carries a date on or after 2026-08-08 (**§10.24**). Everything else
+predates the convention.
+
+### 10.25.2 The affected claims, by section
+
+**17 claims across 10 numbered sections.** All **HAND-COUNT**.
+
+| § | the claim | number | tag |
+|---|---|---|---|
+| **§9.14.10** | `xboxheap.cpp` is *"**three** independent refusals away, not the two the board records"* | 3 | HAND-COUNT |
+| **§9.14.10** | *"**17 of the 19** reachable near-match TUs block on control flow"* | 17 / 19 | HAND-COUNT |
+| **§9.16.4** | near-match table row: `xdk/nuispeech/xboxheap.cpp` — *"**3 refusals**, one of them Phase 4"* | 3 | HAND-COUNT |
+| **§9.16.5** | heading: *"And `xboxheap` is still THREE refusals away, not two"* | 3 | HAND-COUNT |
+| **§9.16.6** | control flow *"gates 17 of the 19 that Phase 7 does not"* | 17 / 19 | HAND-COUNT |
+| **§9.16.7** | prereg row **E8**, *"`xboxheap` refusals remaining after WLR"* — registered 2, measured **3** | 3 | HAND-COUNT |
+| **§9.17.5** | *"Exactly **ONE** independent refusal separates +5 from +356"* | 1 | HAND-COUNT — **and a DECODE refusal, not a codegen one** (see §10.25.3) |
+| **§9.17.5** | *"Registered **≥ 3** independent refusals; measured **1**"* | ≥3 / 1 | HAND-COUNT (decode) |
+| **§9.17.8** | prereg row **B3**, *"≥ 3 independent further refusals"* — measured **1**, MISS | ≥3 / 1 | HAND-COUNT (decode) |
+| **§10.4** | Phase-6 ranking table row **control flow** | 17 | HAND-COUNT |
+| **§10.4** | same table, *"three refusals incl. a Phase-4 item (`xboxheap.cpp`)"* → 1 TU | 3 | HAND-COUNT |
+| **§10.4** | *"**all 19 need at least two constructs at once**. There is no one thing."* | 19 / 2 | HAND-COUNT |
+| **§10.5** | the phase order, row 2: *"Phase 6 — control flow · 17 of the 19 reachable TUs"* | 17 / 19 | HAND-COUNT |
+| **§10.15** | heading: *"the 17 is real, and it converts nothing"* | 17 | HAND-COUNT |
+| **§10.15** | *"§9.16.6 measured that **17 of the 19** reachable-but-unmatched TUs block on control flow"* | 17 / 19 | HAND-COUNT |
+| **§10.15** | *"**All 19 need at least two constructs at once** — 17 on the control-flow axis, plus `Main.cpp` (the EH record) and `xboxheap.cpp` (three independent refusals)"* | 19 / 17 / 3 | HAND-COUNT |
+| **§10.24** | *"the real `?supershuffle` gap is **14 words of uninlined `?shuffle2`**"* | 14 | **HAND-COUNT**, disassembly-derived — the one codegen number in this file dated on/after the convention, tagged here so the block is complete |
+
+Two lines the sweep looked at and **excluded**, recorded so the exclusions are not
+re-litigated:
+
+* **§6n.** — *"all that remains is counting the independent refusals between it
+  and the emitter"*. A method statement with **no number**; not a price.
+* **§10.21** — *"`#180` (`??__F`, the atexit destructor thunk, priced at **+2
+  sections / +10 symbol records**)"*. A **section and symbol-record** price, not a
+  codegen one. Left untagged deliberately; #1476's convention is about codegen.
+
+And one **contrast case**, listed because it shows what the other kind looks like
+in this file: **§10.23**'s base-vs-tip table row `| FRONTIER | 17 | 17 |` is an
+**INSTRUMENT** number (`gap-metric frontier`) and is re-readable at any tree — it
+reads **16** today, with different members.
+
+### 10.25.3 Three things the sweep found that the tag alone does not say
+
+1. **#1476's own named examples are not in this file.** #1105's `>= 15` / `>= 21`,
+   #1418's 776 bytes, #770's eleven-not-eight, #483/#506/#827's seventeen — none
+   of those board rows is cited in `ROADMAP.md` at all
+   (`grep -cE '#269|#401|#1105|#1418|#483|#506|#827'` → **0**). The ROADMAP's
+   hand-counted codegen set is **disjoint** from the BOARD's, older, and smaller:
+   it is essentially **two claims repeated across six sections** — `xboxheap` at
+   three refusals, and control flow at 17 of 19.
+2. **"N independent refusals" names two different quantities and nothing in the
+   text distinguishes them.** §9.16.x's threes are **codegen** refusals (what the
+   emitter cannot lower); §9.17.5/§9.17.8's ones and threes are **decode**
+   refusals (what the IL parser will not accept, `tail_call_shape`'s slot path).
+   Both are HAND-COUNTs, both read identically, and they are not addable. This is
+   #1476's rule needing a second clause: **never sum two hand-counts either,
+   unless they count the same kind of thing.**
+3. **Both repeated claims are measured against POPULATIONS THAT NO LONGER EXIST.**
+   "17 of the 19" was taken when the reachable-but-unmatched set was 19; that set
+   is **16** today (`gap-metric frontier`), the members are not the same, and the
+   modern reading of the same question is `gap-metric cfg-reach-shipped` **2** of
+   `cfg-reach-top` **16** — *14* of 16 held by CFG class alone (board #1346).
+   `xboxheap.cpp`'s three has been re-priced four times since (#401 at 5, #1097 at
+   3, `w-heap`'s frozen 27-cell grid at **5**) and the TU **converted** at
+   `w-lineage` without any of those prices being paid as stated. **A HAND-COUNT
+   does not move when the tree does — and the tree moved.**
+
+### 10.25.4 `docs/CEILING.md`
+
+The other half of this lane, and the item §10.24 closes with (*"The ceiling
+arithmetic doc … remains open and should now be written against this
+ordering"*). [`CEILING.md`](CEILING.md) is the one-page arithmetic between
+today's process and TU match 871, regenerated from `c2rs gap` + `c2rs factors` at
+`b234d826` rather than quoted from this file.
+
+Its two load-bearing results, both INSTRUMENT:
+
+* **`|D ∨ E| = 13` and `match = 11`, so the project's entire non-codegen headroom
+  is 2 TUs.** A perfect factor A, a perfect factor B and `C = 871` — all three,
+  together — move TU match from 11 to at most 13. `D∨E` is invariant in A, B and
+  C by construction. Board **#361** stated this at `|D∨E| = 10` / match 8 on
+  2026-08-05; **both terms have moved by +3 and the gap is still exactly 2.**
+* **"The 450 wall" is a COUNT OF BLOCKED TUs, not a ceiling.** The scan asserts
+  `repaired + wall == graded`, and `421 + 450 == 871` holds. The emit-model
+  ceiling is **421**; 450 is its complement. The figure survives as a measurement
+  and is superseded as a ceiling.
+
+Cost per converted TU, with the denominator stated for the first time: **86
+landed rungs bought 5 TUs over `4233939b^..9b3b45e3` — ~17 rungs per converted
+TU — and the 24 rungs since have bought 0.** The folklore *"~5 TUs per ~161
+lanes"* reconstructs as **159 merge commits** in `4233939b..c34c388c`, i.e. a
+**unit error**: merges presented as lanes, 1.5× pessimistic.
+
+Board rows **#1660**–**#1667** are minted for this lane; **#1668**–**#1679** are
+explicitly **UNMINTED** and free for the next.
