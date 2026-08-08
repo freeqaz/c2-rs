@@ -520,12 +520,43 @@ pub(crate) fn scheduled_gpr_run(
         //    `twop` class grades four such cells and records c2's answer beside
         //    this refusal (`work/w-midrun/grid/t_*/dis.txt`); widening to them
         //    after the grade is what `work/w-midrun/PREREG.md` §4 L3 forbids.
-        if kinds.len() != 1 {
+        //
+        //    > **⚠ NARROWED — board #1297, lane `w-lineage`, and the clause it
+        //    > replaces is kept above because it was the standing statement for
+        //    > two days.** *"An address beside a literal is the mixed-kind run
+        //    > `alloc::allocate` refuses wholesale"* is no longer true of
+        //    > `allocate`: it serves the pairs whose `d` term is **provably
+        //    > zero** (`ProducerRoots::d_is_provably_zero`, GRID L's `SAME` and
+        //    > `MIRROR`, 30 cells at `cu <= ru + 1` and 0 wrong) and refuses
+        //    > every other mix. So this clause stops deciding the mix and goes
+        //    > back to being what its name says — a shape backstop:
+        //    >
+        //    > * **at most ONE interior address.** Two distinct addresses are
+        //    >   single-kind, so `allocate` *answers* them and answering is not
+        //    >   being measured; `w-midrun`'s PREREG §4 L3 forbids widening to
+        //    >   them after its grade, and this is not that widening.
+        //    > * **anything beside it must be a LITERAL.** A third kind has no
+        //    >   grid at all.
+        //    >
+        //    > **The mix itself is decided in exactly one place** —
+        //    > `alloc::allocate` — which is why this arm stops restating it.
+        //    > `c2_il`'s `bind_run_ops` restates it syntactically for the
+        //    > *reader*, and `census/gate disagreement` is the standing check
+        //    > that the two have not drifted. The three refuted keys above
+        //    > (#836/#868/#1134) are all refutations of a rule for the DISPUTED
+        //    > region, which stays refused.
+        if addrs != 1 || kinds.len() > 2 {
             return Some(Err(out_of_class(
-                "a store run with an interior address BESIDE another producer: \
-                 beside a literal that is the mixed-kind run codegen::alloc \
-                 refuses (boards #836/#868/#1134); beside a second address the \
-                 allocator answers but nothing has measured it",
+                "a store run with more than one interior address, or an \
+                 interior address beside a producer that is not a literal: \
+                 the allocator answers a two-address run but nothing has \
+                 measured it, and a third kind has no grid at all",
+            )));
+        }
+        if kinds.len() == 2 && !kinds.iter().any(|p| matches!(p, Prod::Lit(_))) {
+            return Some(Err(out_of_class(
+                "a store run with an interior address beside a producer that \
+                 is not a literal",
             )));
         }
         // 2. **A displacement that materialises something.** At `off == 0` c2

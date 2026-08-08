@@ -1038,6 +1038,28 @@ impl ProducerRoots {
         let l = self.lvalue.lineage.as_ref()?;
         Some(v.contains(&self.lvalue.tok) || l.contains(&self.value.tok))
     }
+
+    /// **Whether the `d` TERM IS PROVABLY ZERO on this pair** — the only
+    /// question [`allocate`]'s mixed arm asks, and the whole of what GRID L
+    /// licenses. Board **#1297**.
+    ///
+    /// `Some(true)` exactly when the two roots stand on one lineage, or the
+    /// store's root is not a bind at all. Those are GRID L's `SAME` and
+    /// `MIRROR`, **30 cells at `cu <= ru + 1` and 0 wrong**, and they are the
+    /// region where every rule ever published at this seam and GRID L agree.
+    ///
+    /// `Some(false)` is *"the store root is a DISTINCT bind"* — GRID L's
+    /// `ALIAS`, `TWOBIND` and `XOBJ`, 45 cells, where every reading of `d` on
+    /// record is now refuted (board **#1295**) and [`allocate`] **refuses**.
+    /// `None` is an uncarried lineage and refuses too.
+    ///
+    /// **This is not the twelfth key.** It states no value for `d` anywhere `d`
+    /// is in dispute; it is the *precondition* of the term, written before
+    /// GRID L was graded ([`Self::lineage_related`], shipped at `2315c569`),
+    /// and used to draw a refusal rather than to guess an answer.
+    pub fn d_is_provably_zero(&self) -> Option<bool> {
+        Some(!self.lvalue.is_bind || self.lineage_related()?)
+    }
 }
 
 /// One distinct value-producer of a store run.
@@ -1070,6 +1092,67 @@ pub const POOL_TOP: u8 = 11;
 /// disagree. Board #541.
 pub const MAX_MODELLED_PRODUCERS: usize = 3;
 
+/// **Whether [`allocate`] serves this MIXED run, or keeps refusing it** — board
+/// **#1297**, lane `w-lineage`.
+///
+/// The mixed refusal was total for five lanes and twelve keys, and it was right
+/// to be: every reading of the `d` term is refuted, and **GRID L refuted the
+/// last four at once** (`H-LIN`, `H-DERIV`, `H-CHAIN`, `H-STEP` and `H-2Z` are
+/// one predicate over everything the reader admits, and it is 10 wrong of 75).
+///
+/// This predicate does **not** state `d`. It says where `d` cannot matter:
+///
+/// ```text
+///   served     exactly two producers, one RegisterDerived and one Constant,
+///              and the address producer's roots say `d` is PROVABLY ZERO —
+///              `ProducerRoots::d_is_provably_zero() == Some(true)`, i.e. the
+///              two roots stand on one bind lineage, or the store's root is not
+///              a bind at all.
+///   refused    everything else, including every cell of the three classes
+///              GRID L put in dispute (`ALIAS`, `TWOBIND`, `XOBJ`).
+/// ```
+///
+/// # Why this is not the thirteenth key
+///
+/// The twelve dead keys each *guessed a value for `d`* and were graded by
+/// reading a register out of a disassembly. This guesses nothing — it refuses
+/// the term wherever it is disputed — and it was graded by the **sole judge**:
+/// byte-exact `port(IL) == c2(IL)` on all 30 served GRID L cells and on
+/// `src/xdk/nuispeech/xboxheap.cpp` itself, with the 45 disputed cells required
+/// to come back `NotImplemented` rather than wrong.
+///
+/// The registration that says so, and says plainly that it was written **after**
+/// GRID L was graded, is `work/w-lineage/PREREG.md`'s addendum.
+///
+/// # The reader restates this and the two must not drift
+///
+/// `c2_il`'s `bind_run_ops` cannot see this type, so it restates the clause
+/// syntactically — *every store consuming the address shares one base token, and
+/// that token is either the bound local itself or is not bound at all*. At the
+/// reachable lineage depth of one (#1294) the two are the same predicate, and
+/// `census/gate disagreement` is the standing check that they have not drifted.
+fn mixed_run_is_served(producers: &[Producer]) -> bool {
+    if producers.len() != 2 {
+        return false;
+    }
+    let rd: Vec<&Producer> = producers
+        .iter()
+        .filter(|p| p.kind == ProducerKind::RegisterDerived)
+        .collect();
+    let ct = producers
+        .iter()
+        .filter(|p| p.kind == ProducerKind::Constant)
+        .count();
+    if rd.len() != 1 || ct != 1 {
+        return false;
+    }
+    rd[0]
+        .roots
+        .as_ref()
+        .and_then(|r| r.d_is_provably_zero())
+        .unwrap_or(false)
+}
+
 /// The allocation, or `None` when the run is outside the modelled regime.
 ///
 /// `pool_floor` is the lowest register number free for the whole run — one
@@ -1091,10 +1174,10 @@ pub fn allocate(producers: &[Producer], pool_floor: u8) -> Option<Vec<(u32, u8)>
     // wrong on 0. `the_mixed_refusal_covers_the_measured_refutations` below
     // pins the seven cells any future mixed rule has to reproduce.
     let constant = producers[0].kind == ProducerKind::Constant;
-    if producers
+    let mixed = producers
         .iter()
-        .any(|p| (p.kind == ProducerKind::Constant) != constant)
-    {
+        .any(|p| (p.kind == ProducerKind::Constant) != constant);
+    if mixed && !mixed_run_is_served(producers) {
         return None;
     }
     if pool_floor > POOL_TOP {
@@ -1105,6 +1188,39 @@ pub fn allocate(producers: &[Producer], pool_floor: u8) -> Option<Vec<(u32, u8)>
     }
 
     let mut order: Vec<&Producer> = producers.iter().collect();
+    if mixed {
+        // **THE SERVED MIXED RUN** — board #1297, and it is one comparison.
+        //
+        // `mixed_run_is_served` has already established that `d` is provably
+        // **0** on this pair, so the frontier is `cu <= ru + 1`: the address
+        // takes `POOL_TOP` exactly when the literal's use count does not exceed
+        // the address's by more than one. GRID L grades that at **30 of 30**
+        // over `SAME` and `MIRROR`, at `ru` 1–4 and `cu` from `ru` to `ru + 3`
+        // (`work/w-lineage/grade.out`), and the port's own objs are byte-exact
+        // against real `c2.dll` on every one of them.
+        //
+        // Written as `uses + (register-derived ? 1 : 0)`, descending, with the
+        // tie going to the register-derived, which for two producers **is**
+        // `cu <= ru + 1`. That is w-next's key from board **#836**, and it is
+        // deliberately the same expression: #836/#868/#1134 refuted it as a
+        // *general* mixed rule, and refuted it on cells that are all in the
+        // region `mixed_run_is_served` declines. Restating it here, fenced, is
+        // the honest form — a second spelling of the same arithmetic would hide
+        // that they are one statement.
+        let key = |p: &Producer| p.uses + usize::from(p.kind != ProducerKind::Constant);
+        order.sort_by(|a, b| {
+            key(b).cmp(&key(a)).then_with(|| {
+                (a.kind == ProducerKind::Constant).cmp(&(b.kind == ProducerKind::Constant))
+            })
+        });
+        return Some(
+            order
+                .iter()
+                .enumerate()
+                .map(|(i, p)| (p.id, POOL_TOP - i as u8))
+                .collect(),
+        );
+    }
     order.sort_by(|a, b| {
         // Clause 1: use count, descending.
         b.uses.cmp(&a.uses).then_with(|| {
@@ -1348,6 +1464,106 @@ mod tests {
             // …and the guard the emitters actually call must decline too.
             assert!(!all_in(&mixed, 4, 11));
         }
+
+        // **AND THE REFUSAL IS NOT VACUOUS AFTER #1297.** `roots: None` is an
+        // UNCARRIED lineage, which refuses; so does a carrier that says the `d`
+        // term is live. Both arms are asserted, because a mixed run reaches
+        // `allocate` from today's emitter and the seven cells above would
+        // otherwise be refused for the wrong reason.
+        let two = |rd_roots: Option<ProducerRoots>| {
+            vec![
+                Producer { id: 0, kind: ProducerKind::Constant, uses: 4, first: 0, roots: None },
+                Producer {
+                    id: 1,
+                    kind: ProducerKind::RegisterDerived,
+                    uses: 2,
+                    first: 1,
+                    roots: rd_roots,
+                },
+            ]
+        };
+        // GRID L's `TWOBIND` / `XOBJ` / `ALIAS`: a DISTINCT bind store root, so
+        // `d` is in dispute and the run is refused however the counts fall.
+        let disputed = ProducerRoots { value: bind(0x130a), lvalue: bind(0x140a) };
+        assert_eq!(disputed.d_is_provably_zero(), Some(false));
+        assert_eq!(allocate(&two(Some(disputed)), 4), None);
+        // an uncarried lineage
+        let uncarried = ProducerRoots {
+            value: Root { tok: 1, is_bind: true, base: None, offsets: None, lineage: None },
+            lvalue: Root { tok: 2, is_bind: true, base: None, offsets: None, lineage: None },
+        };
+        assert_eq!(uncarried.d_is_provably_zero(), None);
+        assert_eq!(allocate(&two(Some(uncarried)), 4), None);
+    }
+
+    /// **THE SERVED MIXED RUN — GRID L's 30 undisputed cells, in the port's own
+    /// types.** Board **#1297**, lane `w-lineage`.
+    ///
+    /// `work/w-lineage/gridL`, frozen with its `sha256` at `74bfeeb0` before one
+    /// cell was compiled, graded against real `c2.dll` under wibo at the
+    /// workload's own `/GR /O1 /Oi /EHsc`. `SAME` is `xboxheap.cpp`'s own class
+    /// — the value is the bound object and the stores go through the same bind —
+    /// and `MIRROR` writes through the formal's path instead. Both are `d = 0`
+    /// and the frontier is `cu <= ru + 1` on **all 30**, at `ru` 1–4 and `cu`
+    /// from `ru` to `ru + 3`.
+    ///
+    /// The three classes GRID L put in dispute are asserted REFUSED in the same
+    /// loop, so this test cannot go green by widening.
+    #[test]
+    fn the_carrier_decides_only_whether_a_mixed_run_is_served() {
+        // (class, roots, served)
+        let same = ProducerRoots { value: bind(0x130a), lvalue: bind(0x130a) };
+        let mirror = ProducerRoots { value: bind(0x130a), lvalue: formal(0x0e0a) };
+        let distinct = ProducerRoots { value: bind(0x130a), lvalue: bind(0x140a) };
+        let cases: [(&str, &ProducerRoots, bool); 3] =
+            [("SAME", &same, true), ("MIRROR", &mirror, true), ("DISTINCT", &distinct, false)];
+
+        let mut n = 0;
+        for (klass, roots, served) in cases {
+            for ru in 1..=4usize {
+                for cu in ru..=ru + 3 {
+                    let ps = vec![
+                        Producer {
+                            id: 0,
+                            kind: ProducerKind::Constant,
+                            uses: cu,
+                            first: 0,
+                            roots: None,
+                        },
+                        Producer {
+                            id: 1,
+                            kind: ProducerKind::RegisterDerived,
+                            uses: ru,
+                            first: 1,
+                            roots: Some(roots.clone()),
+                        },
+                    ];
+                    let got = allocate(&ps, 4);
+                    if !served {
+                        assert_eq!(got, None, "{klass} r{ru}k{cu} must stay REFUSED");
+                        n += 1;
+                        continue;
+                    }
+                    let a = got.unwrap_or_else(|| panic!("{klass} r{ru}k{cu} must be served"));
+                    let addr_top = a.iter().any(|&(id, r)| id == 1 && r == POOL_TOP);
+                    assert_eq!(
+                        addr_top,
+                        cu <= ru + 1,
+                        "{klass} r{ru}k{cu}: GRID L's frontier is cu <= ru + 1"
+                    );
+                    n += 1;
+                }
+            }
+        }
+        assert_eq!(n, 3 * 4 * 4, "every cell of the cross was visited");
+
+        // **A SINGLE-KIND run is untouched by all of this** — the refusal that
+        // #836 measured was never about single-kind runs and this rung does not
+        // move them.
+        let single = run("0011", ProducerKind::RegisterDerived);
+        let mut with = single.clone();
+        with[0].roots = Some(same.clone());
+        assert_eq!(allocate(&with, 4), allocate(&single, 4));
     }
 
     /// **The NARROW lift is refused too, and this pins the grid that killed
@@ -1861,6 +2077,16 @@ mod tests {
     /// Every row of the GRID Z table is crossed with every producer shape the
     /// module models, and the assignment must be **identical** to the
     /// `roots: None` one in all of them.
+    ///
+    /// > **⚠ NARROWED 2026-08-08, lane `w-lineage`, board #1297 — and the
+    /// > narrowing is stated rather than left to the fact that every spec below
+    /// > happens to be single-kind.** `allocate` now reads the carrier in
+    /// > **exactly one place**: [`mixed_run_is_served`], on a run that mixes the
+    /// > two kinds. On a SINGLE-KIND run — every spec this test crosses — it
+    /// > still reads none of it, and that is what is asserted here. The
+    /// > complement is asserted by
+    /// > `the_carrier_decides_only_whether_a_mixed_run_is_served`, so neither
+    /// > half is left to construction.
     #[test]
     fn allocate_ignores_the_roots_carrier() {
         let carriers = [

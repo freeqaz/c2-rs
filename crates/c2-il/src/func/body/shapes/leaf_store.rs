@@ -2247,6 +2247,7 @@ pub(crate) fn bind_run_ops(
     // emits one `addi` for both. Keying on the bound local's own token instead
     // would count one address twice and refuse a run c2 emits.
     let mut addrs: Vec<(u32, i32)> = Vec::new();
+    let mut addr_stores: Vec<(u32, u32)> = Vec::new();
     let mut walk = ops;
     while !walk.is_empty() {
         let [b, v, IlOp::StoreInd { .. }, tail @ ..] = walk else {
@@ -2270,6 +2271,15 @@ pub(crate) fn bind_run_ops(
                 if !addrs.contains(&key) {
                     addrs.push(key);
                 }
+                // **Board #1297** — the pair `(the store's base token, the
+                // bound local NAMING the value)`, kept per store because the
+                // mixed clause below is a relation between the two and neither
+                // `symbols` nor `addrs` can hold it. `addrs` is keyed on the
+                // ADDRESS `(formal, offset)`, deliberately, so that `&r` and
+                // `&h->mBlk` count once; that is exactly why it cannot answer
+                // this question — GRID L's `ALIAS` is two locals with one
+                // address, and it is REFUSED while `SAME` is served.
+                addr_stores.push((*base_tok, *t));
             }
             IlOp::Load(t) if params.contains(t) => {}
             _ => return Err(STORE_RUN_BIND_GROUP_SHAPE),
@@ -2298,8 +2308,55 @@ pub(crate) fn bind_run_ops(
     // The two surviving keys are unchanged in name and meaning, so the key
     // families a peer lane counts do not move.
     if !addrs.is_empty() {
+        // **THE MIXED-KIND REFUSAL IS NARROWED, NOT LIFTED — board #1297, lane
+        // `w-lineage`.**
+        //
+        // `codegen::alloc` refused every mixed run for five lanes and twelve
+        // keys and it was right to: every reading of the `d` bonus is refuted,
+        // and **GRID L refuted the last five at once** — `H-LIN`, `H-DERIV`,
+        // `H-CHAIN`, `H-STEP` and `H-2Z` are ONE predicate over everything this
+        // parser admits (board #1294), and it is **10 wrong of 75** on 83 cells
+        // frozen with their `sha256` before one was compiled.
+        //
+        // What GRID L also established is where `d` **cannot matter**: 30 cells
+        // over two classes, at `cu <= ru + 1`, **0 wrong**, and the port's own
+        // objs byte-exact against real `c2.dll` on every one.
+        //
+        // ```text
+        //   SAME    U& a = p->hub.x0;  a.n0 = &a;             SERVED
+        //   MIRROR  U& a = p->hub.x0;  p->hub.x0.n0 = &a;     SERVED
+        //   ALIAS   U& a = ..; U& c = p->hub.x0;  c.n0 = &a;  REFUSED — d live
+        //   TWOBIND U& a = ..; U& c = p->hub.x1;  c.n0 = &a;  REFUSED — d live
+        //   XOBJ    U& a = ..; U& c = q->hub.x0;  c.n0 = &a;  REFUSED — d live
+        // ```
+        //
+        // This clause is `codegen::alloc::ProducerRoots::d_is_provably_zero`
+        // restated syntactically, because this crate cannot see `c2_core`'s
+        // types. The emitter asks `value.tok == lvalue.tok || !lvalue.is_bind`,
+        // and at the reachable lineage depth of **one** that is exactly what is
+        // written here. `census/gate disagreement` is the standing check that
+        // the two have not drifted.
+        //
+        // **The keying matters and it is not `addrs`'s.** `addrs` is keyed on
+        // the ADDRESS `(formal, offset)` so that `&r` and `&h->mBlk` count once
+        // — which is why it cannot answer this: GRID L's `ALIAS` is two LOCALS
+        // naming one address, and c2 gives it a different register from `SAME`.
+        // The clause is over the local TOKENS.
+        //
+        // …and every store consuming the address must agree on one base token,
+        // because `codegen::leaf::store::producer_roots` returns `None` for a
+        // producer whose stores go through several roots and the emitter then
+        // refuses. A parser that admitted those would count a body in class that
+        // `PortC2` declines, which is the disagreement `census_gate.rs` holds at
+        // zero.
         if !lits.is_empty() {
-            return Err(STORE_RUN_BIND_MIXED_KIND);
+            let vtok = addr_stores[0].1;
+            let served = addr_stores.iter().all(|&(base, t)| {
+                t == vtok && (base == vtok || bound(base).is_none())
+            });
+            if !served {
+                return Err(STORE_RUN_BIND_MIXED_KIND);
+            }
         }
         if addrs.len() != 1 || addrs[0].1 == 0 {
             return Err(STORE_RUN_BIND_ADDR_PRODUCER);
