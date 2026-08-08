@@ -22,7 +22,12 @@ set -eu
 
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 mode="${1:-sweep}"
-cases="${2:-800}"
+# 8,000 by default, not a few hundred: at 16 workers a 800-case stride finishes
+# in ~3 s and the kill lands after the sweep is already over — measured, on the
+# first attempt at part B, which reported "could not identify a worker" because
+# there were none left. The budget has to keep the workers alive long enough to
+# kill one.
+cases="${2:-8000}"
 
 # Every descendant of $1, breadth-first. `pgrep -P <pid>` only ever takes a
 # numeric parent, never a pattern.
@@ -97,14 +102,16 @@ gate)
     # as the parent of the workers: walk the gate's tree and take the process
     # whose children number >= 8.
     victim=""
+    best=0; best_p=""
     for _p in $(descendants "$gate_pid"); do
         _n=$(pgrep -P "$_p" 2>/dev/null | wc -l)
-        if [ "$_n" -ge 8 ]; then
-            victim=$(pgrep -P "$_p" | head -1)
-            echo "   sweep shell $_p has $_n workers; killing worker $victim"
-            break
-        fi
+        [ "$_n" -gt "$best" ] && { best="$_n"; best_p="$_p"; }
     done
+    echo "   widest process in the gate's tree: pid $best_p with $best children"
+    if [ "$best" -ge 4 ]; then
+        victim=$(pgrep -P "$best_p" | head -1)
+        echo "   treating $best_p as the sweep shell; killing worker $victim"
+    fi
     [ -n "$victim" ] || { echo "REFUSED: could not identify a worker"; kill "$gate_pid"; exit 1; }
     for _p in $(descendants "$victim"); do kill -9 "$_p" 2>/dev/null || true; done
 

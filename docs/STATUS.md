@@ -721,7 +721,7 @@ scripts/status.sh --check         # prove the collector, no toolchain needed
 | fixture gate + speedup | `cargo run --release -p c2-harness --bin c2rs -- perf` |
 | the 878-TU workload scan | `c2rs gap --list work/dc3-workload/files.txt --flags-file work/dc3-workload/flags.txt --cwd ../dc3-decomp --jobs 16` |
 | regenerate the workload inputs | `scripts/gen_dc3_workload.sh <dc3-tree>` |
-| **the merge gate** (12 mode lanes **+ the generated sweep + the mode cross**) | `scripts/gate.sh --jobs 8` — `12/12 PASS, 2,940 verdicts` at `33cbdbe` |
+| **the merge gate** (18 mode lanes **+ the generated sweep + the mode cross**) | `scripts/gate.sh --require-graded` — the default `--jobs` is **16** since 2026-08-08 (it was 4, unchanged since the file was written; lane `w-throughput`, board #1323), and `--jobs` still overrides. Reads **18/18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT**, 5,184 fixture-verdicts, sweep `19556/19556 reached, 19460 graded, 0 mismatch`, cross `90812/90812 reached, 90424 graded, 0 mismatch` at `f49fe5e1`+`wt-w-throughput` — **quote it from the run, not from this page** |
 | the sweep alone | `scripts/expr_sweep.sh` (`C2RS_SWEEP_JOBS=8`; ~1 min 26 s, or 9 min 51 s serial). Reads `14817/14817 reached, 14721 graded, 0 mismatch` at `33cbdbe` — **`reached` and `graded` are different numbers and the gap is board #281** |
 | the mode cross alone | `scripts/mode_cross.sh` — the generated corpus × the lane registry, `63,723 selected, 63,335 graded, 0 mismatch`; ~5 m 45 s cold, **13.8 s warm** on the capture cache (board #279) |
 | cross-product lane | `scripts/cross_sweep.sh` |

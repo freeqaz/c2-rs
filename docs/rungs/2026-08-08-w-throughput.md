@@ -43,12 +43,26 @@ base-vs-tip, for the reason in §2.3.
 
 | | base `f49fe5e1` | tip |
 |---|---|---|
-| `cargo test --workspace --release` | **206 s** · 1,159 passed / 0 failed / **36 targets** | TIP_TEST |
-| — of which `cli_flags` | **119.08 s** | TIP_CLIFLAGS |
-| — of which `census_gate` | 68.46 s | TIP_CENSUSGATE |
+| `cargo test --workspace --release` | **206 s** · 1,159 passed / 0 failed / **36 targets** | **176 s** · 1,163 passed / 0 failed / **36 targets** |
+| — of which `cli_flags` | **119.08 s** | **46.38 s** — **−72.70 s, 2.57×** |
+| — of which `census_gate` | 68.46 s | 112.21 s — **+43.75 s, and it is LOAD, not this lane** (see §1.1) |
 | `git grep -c '#\[test\]' -- crates` | **1,160** (1,159 anchored) | **1,168** (1,163 anchored; the loose count includes six prose mentions of `#[test]` in the new comment block) |
-| `scripts/gate.sh --require-graded` | GATE_BEFORE | GATE_AFTER |
-| 878-TU scan | **match 11, mismatch 0, codegen-gap 0, vocab-gap 860, capture-fail 7**, 139 `gap-metric` lines | **every digit unchanged** — see §9 |
+| `scripts/gate.sh --require-graded` | 605 s at `--jobs 4` · **GATE: PASS**, 18/18 lanes, 5,184 fixture-verdicts | **112 s** at the new default 16 · **GATE: PASS**, the same verdict block digit for digit |
+| 878-TU scan | **match 11, mismatch 0, codegen-gap 0, vocab-gap 860, capture-fail 7**, 139 `gap-metric` lines | **every digit unchanged** — see §8 |
+
+### 1.1 The workspace leg moved 30 s and the split saved 73 s — read both
+
+`cli_flags` went **119.08 s → 46.38 s**, which is the predicted win almost
+exactly (`max(44 s) + the small tests` against `sum(116 s)`). The whole leg only
+went 206 s → 176 s because `census_gate` went the other way in the same window,
+**68.46 s → 112.21 s**, on a box whose load average was 4-11 during the base run
+and 15-34 during the tip run. `census_gate` runs 2×16 capture threads and is the
+most load-sensitive target in the suite; nothing in this lane touches it.
+
+This is STATUS.md's own load-sensitivity caution arriving on the test leg instead
+of on the perf geomean, and it is the reason the per-target numbers are published
+beside the total. **Quote the 72.70 s, not the 30 s** — the first is a property
+of the change and the second is a property of the evening.
 
 ---
 
@@ -75,7 +89,37 @@ embarrassingly parallel over per-case scratch directories.
 
 ### 2.2 The verdict is an equivalence, not an approximation
 
-EQUIV_BLOCK
+One tree, cache warm, back to back, ten minutes apart:
+
+| leg | `--jobs 4` | `--jobs 16` |
+|---|---:|---:|
+| lanes (18) | 3 s | 2 s |
+| generated sweep (19,556 cases) | 252 s | **88 s** |
+| mode cross (90,812 cells) | 350 s | **21 s** |
+| **total wall** | **605 s** | **112 s** |
+
+**5.4×, and the verdict block is identical digit for digit at both:**
+
+    lanes:  18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT
+    graded: 5184 fixture-verdicts across all lanes
+    sweep:  checked=19556 mismatches=0 graded=19460 ungraded=96 unknown=0
+    cross:  checked=90812 mismatches=0 graded=90424 ungraded=388 unknown=0
+    GATE: PASS — 18/18 lanes ran and every one of them graded a corpus,
+      the sweep graded 19460 of 19556 generated cases and the cross graded
+      90424 of 90812 case-lane cells, with 0 mismatches anywhere
+
+The **base tree's own** `--jobs 4` sweep leg, run before any edit, printed the
+same count line (`checked=19556 mismatches=0 graded=19460 ungraded=96
+unknown=0`, 262 s), and the third run of the session — `--jobs 16` with a cold
+cross — printed the same verdict again. **Four runs, three concurrency/cache
+combinations, one verdict block.**
+
+Nothing about *what* is graded can move with the worker count: the corpus is
+generated before the split, `awk -v j="$jobs" '{ print > (d "/chunk." ((NR-1) % j)) }'`
+puts every case in exactly one worker, and the workers' own counts are summed
+and reconciled against the selected count afterwards. And the pinned binary is
+provably the same at both ends — `sha fbe465a1ffb1` on the base run and on every
+tip run, `sha256sum target/release/c2rs` → `fbe465a1ffb167a9`.
 
 ### 2.3 Why the A/B is same-tree and not base-vs-tip
 
@@ -126,7 +170,7 @@ it **multiplies**: raising `jobs` 4 → 16 already took the lane leg from 4×8 t
 16×8 concurrent capture threads.
 
 And the leg it governs is not where the time is. Measured on this box today:
-the lane leg is **16 s** of a ~1,300 s gate at `--jobs 4`, and LANE_LEG_16 at
+the lane leg is **16 s** of a ~1,300 s gate at `--jobs 4`, and 2 s at
 `--jobs 16`. There is nothing left in it to win, and raising a second
 concurrency knob in the same commit would make the next timing unattributable.
 It stays 8 and stays overridable.
@@ -135,7 +179,15 @@ It stays 8 and stays overridable.
 
 The concurrency does **not** scale the in-flight inode draw; the corpus does.
 The proposal measured 19,810 at 4 workers and 19,885 at 16. Confirmed at the
-chosen value on this box: INODE_BLOCK
+chosen value on this box: 
+
+    --jobs 4    733,526 free at start -> 693,991 low water   (draw 39,535)
+    --jobs 16   733,426 free at start -> 713,387 low water   (draw 20,039)
+
+**Raising the concurrency made the draw SMALLER**, because the transient tree is
+held for a fifth of the time; 20,039 lands on the proposal's 19,885. Against
+713,387 free at the low water and a floor of 150,000, the headroom at the new
+default is **4.8×**.
 
 The floor is 150,000 (`C2RS_GATE_MIN_INODES`), which is 3× the measured peak
 draw of a run in flight, and the preflight fails **red and distinctly** below it
@@ -175,7 +227,32 @@ the `run` it selected, and `gate.sh`'s own `sweep_verdict` re-derives the same
 comparison from the log (`FAIL|…|SHORT — selected R cases, reached C`), so a
 sweep that died without exiting non-zero is still red.
 
-PART_B_BLOCK
+**And the same kill at the GATE level, end to end**, so the red is the gate's own
+verdict and not just the sweep's exit status:
+
+    == part B: the whole gate at --jobs 16, one sweep worker killed ==
+       widest process in the gate's tree: pid 3437172 with 16 children
+       treating 3437172 as the sweep shell; killing worker 3440333
+       gate.sh exit status: 1
+    -- the sweep row and the verdict --
+      FATAL: selected 6519 cases and only 6111 were graded
+      checked=1983 mismatches=0 graded=1979 ungraded=4 unknown=0
+    expr-sweep           FAIL         6111/6519     6091         0  generated cases (of 19556)   <- SHORT — selected 6519 cases, reached 6111
+    GATE: FAIL — expr-sweep failed: SHORT — selected 6519 cases, reached 6111
+
+The row prints **`0` in the mismatch column while failing**, which is the whole
+point: the verdict is not derived from the mismatch count, it is derived from
+`checked == run`. `gate.sh --selftest` already pins both directions
+(`sweep-short-count FAIL`, `cross-short-count FAIL`, *"grading fewer cases than
+were selected is a FAIL, not a pass"*) and reads **PASS — 102 cases** on this tip;
+what the kill adds is that a real dead worker actually produces that short count.
+
+**One method note, because the first attempt failed to demonstrate anything and
+said so.** Part B initially ran with an 800-case budget, which at 16 workers is
+50 cases per worker and finishes in ~3 s — the kill landed after the sweep was
+over and the script printed `REFUSED: could not identify a worker`. It refused
+rather than reporting a pass, which is the behaviour a demonstration harness
+owes; the default budget is 8,000 now.
 
 ---
 
@@ -362,7 +439,7 @@ method and the per-merge table.
 ## 7. What this lane did NOT do
 
 * **Proposal §3 — run the 36 test binaries concurrently.** Not attempted. After
-  §4 the test leg is TEST_LEG_AFTER, and §3's own estimate (~120 s → ~70-80 s)
+  §4 the test leg is 176 s and dominated by `census_gate` (112 s of it), and §3's own estimate (~120 s → ~70-80 s)
   is a ~50 s prize for a new ~100-line runner whose failure mode is *"a binary
   the wrapper never launched"* — instance seventeen, invited deliberately. It is
   worth doing only if the test leg still bites, and it does not yet.
@@ -379,4 +456,24 @@ method and the per-merge table.
 
 ## 8. Gate evidence
 
-GATE_EVIDENCE
+| lane | result |
+|---|---|
+| `cargo test --workspace --release` | **1,163 passed, 0 failed, 36 targets**, 176 s (base: 1,159 / 0 / 36, 206 s) |
+| `scripts/gate.sh --require-graded` (new default 16) | **GATE: PASS** — 18/18 lanes, 0 FAIL, 0 SKIP, 0 NO-RESULT, **5,184 fixture-verdicts**, 112 s |
+| — generated sweep | `checked=19556 mismatches=0 graded=19460 ungraded=96 unknown=0` |
+| — mode cross | `checked=90812 mismatches=0 graded=90424 ungraded=388 unknown=0` |
+| `scripts/gate.sh --jobs 4 --require-graded` | the same verdict block, 605 s |
+| `scripts/gate.sh --check` | `SHAPE-CHECK: PASS` — 0 of 60 shape markers with zero cases, 62 fragments, 19,556 cases |
+| `scripts/gate.sh --selftest` | **PASS — 102 cases**, the gate fails on every one that should |
+| `scripts/status.sh --check` | **PASS — 23 metrics registered**, parsers pinned, absence renders NO-RESULT |
+| `scripts/board_audit.sh` | 0 rows behind the prose, 0 duplicate row numbers |
+| `cargo test -p c2-harness --test rung_registry` | 2 passed — the index is generated and current |
+| 878-TU workload scan | **match 11, mismatch 0, codegen-gap 0, vocab-gap 860, capture-fail 7** — all **139** `gap-metric` lines byte-identical to the base end |
+
+**The 878-TU scan cannot have moved and that is checkable rather than hopeful**:
+this lane touches one test file, two shell scripts and docs, so the harness
+binary is bit-identical at both ends (`sha256sum target/release/c2rs` →
+`fbe465a1ffb167a9`; the gate pinned `sha fbe465a1ffb1` on the base run and on
+every tip run; `cargo build --release -p c2-harness` at the tip reported nothing
+to do). The scan was run at both ends anyway and `diff` over the two 139-line
+`gap-metric` blocks is empty.
