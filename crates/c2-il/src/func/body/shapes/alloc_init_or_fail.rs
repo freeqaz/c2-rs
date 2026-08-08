@@ -133,12 +133,6 @@ use crate::func::readers::{
 };
 use crate::func::AllocInitOrFail;
 
-/// The number of **initializer stores** inside the `p != 0` block. Pinned: the
-/// emitted schedule interleaves the second `lis`/`addi` into exactly this run,
-/// and with one witness there is no way to tell "after the first store" from
-/// "three before the last".
-const INIT_STORES: usize = 4;
-
 /// Consume any TYPE and discard it.
 fn eat_any_type(seg: &[u8], p: &mut usize, what: &'static str) -> Result<(u8, u8, u32), Block> {
     match read_type(seg, *p) {
@@ -474,8 +468,12 @@ pub(crate) fn try_parse_alloc_init_or_fail(
     if !eat_byte(seg, &mut p, 0x4B) {
         return Err(blk(seg, p, "aiof-store-e-end"));
     }
-    let _ = INIT_STORES;
-
+    // **Exactly FOUR initializer stores, and the count is pinned rather than
+    // looped.** The emitted schedule interleaves the second `lis`/`addi` into
+    // this run — the `lis` before the first store and the `addi` before the
+    // third — and with one witness there is no way to tell "after the first"
+    // from "three before the last". A fifth store is a different schedule, so
+    // the walk consumes four and then requires the block to close.
     eat_close(seg, &mut p, 0x08, "aiof-init-close-8")?;
     eat_close(seg, &mut p, 0x07, "aiof-init-close-7")?;
     if eat_label(seg, &mut p, "aiof-link-label")? != l_link {
