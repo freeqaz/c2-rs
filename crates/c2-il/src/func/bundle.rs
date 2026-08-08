@@ -153,6 +153,9 @@ pub struct GlDataRow {
     pub natural_align: u32,
     pub external: bool,
     pub initialized: bool,
+    /// The object is its own COMDAT section (a function-local `static`) — see
+    /// `gl::DATA_ATTR_COMDAT` for the six graded cells.
+    pub comdat: bool,
     pub flags: u8,
 }
 
@@ -2019,6 +2022,7 @@ impl IlBundle {
                 natural_align: o.natural_align,
                 external: o.external,
                 initialized: o.initialized,
+                comdat: o.comdat,
                 flags: o.flags,
             })
             .collect()
@@ -2125,6 +2129,21 @@ impl IlBundle {
                 && o.flags & super::gl::DATA_FLAG_REFERENCED == 0
             {
                 continue;
+            }
+            // **A COMDAT data object is not one this writer can place** — it is
+            // its own section with its own `Selection`, and `emit_data_obj`
+            // builds one shared `.data` and one shared `.bss`. Dropping it into
+            // either is a wrong section count at file offset 2.
+            //
+            // This refusal is what keeps lane `w-cfg2`'s widening of the
+            // attribute byte (`gl::DATA_ATTR_COMDAT`) **behaviour-neutral for
+            // every obj this path emits today**: before the widening such an
+            // object made `data_object_at` return `None`, so the TU refused at
+            // clause 6's accounting; now it frames and is refused here instead.
+            // Same verdict, an honest reason, and a reader that can now be asked
+            // about the record.
+            if o.comdat {
+                return None;
             }
             // **THE #232 CLAUSE, and it is placed before the byte check on
             // purpose.** Since the `.in` reader learned element tag `02` (board

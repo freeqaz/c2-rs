@@ -953,6 +953,18 @@ pub(crate) struct GlDataObject {
     /// objects is how a caller refuses that TU instead of emitting the
     /// dyninit-only layout for it.
     pub(crate) initialized: bool,
+    /// `true` => the object is **its own COMDAT section** — `IMAGE_SCN_LNK_COMDAT`
+    /// with aux `Selection = 2` (ANY) — rather than a member of the TU's shared
+    /// `.data`/`.bss`. Over lane `w-cfg2`'s grid that is exactly a
+    /// **function-local `static`**, and the section is placed **after** the code
+    /// groups where a non-COMDAT one is placed before them.
+    ///
+    /// Read from [`DATA_ATTR_COMDAT`]; see that constant for the six graded
+    /// cells and the three refuted rival readings. **A consumer that cannot
+    /// place a COMDAT data section must refuse an object with this set**, which
+    /// is what [`crate::IlBundle::data_tu`] does: emitting it into the shared
+    /// section would be a wrong section count *and* a wrong symbol table.
+    pub(crate) comdat: bool,
     /// **The attribute byte immediately AFTER the one [`Self::initialized`] is
     /// read from** — a bit field, published raw so each caller applies its own
     /// gate.
@@ -1093,6 +1105,40 @@ const LINKAGE_STATIC: u8 = 0x04;
 /// in is guessing the section *count*, which mismatches at file offset 2.
 const DATA_ATTR_UNINITIALIZED: u8 = 0x00;
 const DATA_ATTR_INITIALIZED: u8 = 0x80;
+
+/// **The COMDAT bit of the same attribute byte** — the object is its own
+/// section, `IMAGE_SCN_LNK_COMDAT` with aux `Selection = 2` (ANY), and its
+/// symbol is a STATIC in it.
+///
+/// **MEASURED on a six-cell grid, both halves, lane `w-cfg2`**
+/// (`work/w-cfg2/GRID_ATTR.md`). Each cell was read twice — the `.gl` attribute
+/// byte, and independently the obj real `c2.dll` produced for it — and the two
+/// readings agree on all six:
+///
+/// ```text
+///   int f(){ static int p[4]={1,2,3,0}; … }   86 06 00 02 04 10 a0   .data  COMDAT sel 2  STATIC
+///   int f(){ static int p=7; … }              86 01 00 02 04 04 a0   .data  COMDAT sel 2  STATIC
+///   int f(int i){ static int p[4]; … }        86 06 00 02 04 10 20   .bss   COMDAT sel 2  STATIC
+///   static int p[4]={1,2,3,0};                86 06 00 02 04 10 80   .data  plain      0  STATIC
+///   int p[4]={1,2,3,0};                       86 06 00 02 01 10 80   .data  plain      0  EXTERNAL
+///   int gDef=3;                               86 01 00 02 01 04 80   .data  plain      0  EXTERNAL
+/// ```
+///
+/// The last row is the positive control: it is the value this function's own
+/// doc already recorded for `?gDef@@3HA`, so the grid is reading the right byte.
+/// Three rival readings were frozen with the grid and each dies at the cell
+/// named for it — *aggregate* dies on the scalar `static int p=7` (`a0`) and on
+/// the namespace-scope array (`80`); *the reader under-counted the initializer*
+/// dies with it; *`a0` is a third enumerated value rather than a bit* dies on
+/// the **uninitialized** function-local static, which reads `20` and which that
+/// reading has no member for.
+///
+/// **`0x40` is deliberately NOT admitted.** This function's doc records `60`/`E0`
+/// as the `__declspec(selectany)` forms — the same COMDAT bit plus `0x40` — and
+/// no cell of this grid is a `selectany`. Admitting the bit this lane graded and
+/// failing closed on the one it did not is the whole difference between a
+/// measurement and a guess.
+const DATA_ATTR_COMDAT: u8 = 0x20;
 
 /// Every data object this TU defines, keyed by the operand token an `.ex` body
 /// references it with.
@@ -1347,15 +1393,18 @@ fn data_object_at(gl: &[u8], name_nul: usize, name: &[u8]) -> Option<GlDataObjec
     if size <= 0 {
         return None;
     }
-    let initialized = match *gl.get(p)? {
+    // The attribute is a **bit field of two independent bits**, and it is read
+    // as one only for the two bits a grid has graded: `0x80` initialized
+    // ([`DATA_ATTR_INITIALIZED`]) and `0x20` COMDAT ([`DATA_ATTR_COMDAT`]).
+    // Everything else still fails closed — in particular `0x40`, which turns
+    // `20`/`a0` into the `__declspec(selectany)` forms `60`/`E0` that this
+    // reader has never been graded on. Board #172's "COMDAT-ness is NOT in
+    // tag 9" is about the SECTION record and does not carry over to this one.
+    let attr = *gl.get(p)?;
+    let comdat = attr & DATA_ATTR_COMDAT != 0;
+    let initialized = match attr & !DATA_ATTR_COMDAT {
         DATA_ATTR_UNINITIALIZED => false,
         DATA_ATTR_INITIALIZED => true,
-        // `60`/`E0` are `__declspec(selectany)` uninitialized/initialized — the
-        // COMDAT forms of §3.3 and §4.3 — and they fail closed here. MEASURED:
-        // `__declspec(selectany) int sa = 3;` spells `E0` where `int sa = 3;`
-        // spells `80`, and `__declspec(selectany) int sb;` spells `60` where
-        // `int sb;` spells `00`. Board #172's "COMDAT-ness is NOT in tag 9" is
-        // about the SECTION record and does not carry over to the DATA record.
         _ => return None,
     };
     let flags = *gl.get(p + 1)?;
@@ -1369,6 +1418,7 @@ fn data_object_at(gl: &[u8], name_nul: usize, name: &[u8]) -> Option<GlDataObjec
         natural_align,
         external,
         initialized,
+        comdat,
         flags,
     })
 }
@@ -1635,6 +1685,7 @@ mod data_object_tests {
                 natural_align: 1,
                 external: false,
                 initialized: false,
+                comdat: false,
                 flags: 0,
             }),
             "the `$`-introduced name yields the UNDECORATED COFF symbol"
@@ -1655,6 +1706,7 @@ mod data_object_tests {
                 natural_align: 4,
                 external: false,
                 initialized: false,
+                comdat: false,
                 flags: 0,
             })
         );
@@ -1676,6 +1728,7 @@ mod data_object_tests {
                 natural_align: 4,
                 external: true,
                 initialized: false,
+                comdat: false,
                 flags: 0,
             })
         );
@@ -1692,6 +1745,64 @@ mod data_object_tests {
             gl_data_objects(&gl).get(&0x080a).map(|o| o.coff_name.as_str()),
             Some("sL$initializer$")
         );
+    }
+
+    /// **THE COMDAT BIT OF THE ATTRIBUTE BYTE — all six graded cells** (lane
+    /// `w-cfg2`, board **#1680**; `work/w-cfg2/GRID_ATTR.md`).
+    ///
+    /// Each row is a real `.gl` record read off a real capture, and each one's
+    /// verdict here is the one real `c2.dll`'s own obj gives for the same cell —
+    /// COMDAT section with `Selection = 2` where `comdat` is true, a member of
+    /// the TU's shared `.data`/`.bss` where it is false. The two halves were
+    /// predicted separately and agree on all six, which is why the bit is read
+    /// at all rather than left failing closed.
+    ///
+    /// The last row is the **positive control**: it is the value
+    /// [`data_object_at`]'s own doc recorded for `?gDef@@3HA` before this lane
+    /// existed, so a change that broke the reading would show here first.
+    #[test]
+    fn the_attribute_byte_is_two_independent_bits() {
+        //  cell, frame,                                        init, comdat, extern
+        let cells: [(&str, [u8; 7], bool, bool, bool); 6] = [
+            // a1  int f(){ static int p[4]={1,2,3,0}; … }
+            ("a1", [0x86, 0x06, 0x00, 0x02, 0x04, 0x10, 0xa0], true, true, false),
+            // a2  int f(){ static int p=7; … }            — SCALAR, still COMDAT
+            ("a2", [0x86, 0x01, 0x00, 0x02, 0x04, 0x04, 0xa0], true, true, false),
+            // a3  int f(int i){ static int p[4]; … }      — UNINITIALIZED, COMDAT
+            ("a3", [0x86, 0x06, 0x00, 0x02, 0x04, 0x10, 0x20], false, true, false),
+            // a4  static int p[4]={1,2,3,0};              — AGGREGATE, NOT COMDAT
+            ("a4", [0x86, 0x06, 0x00, 0x02, 0x04, 0x10, 0x80], true, false, false),
+            // a5  int p[4]={1,2,3,0};
+            ("a5", [0x86, 0x06, 0x00, 0x02, 0x01, 0x10, 0x80], true, false, true),
+            // a6  int gDef=3;                             — THE POSITIVE CONTROL
+            ("a6", [0x86, 0x01, 0x00, 0x02, 0x01, 0x04, 0x80], true, false, true),
+        ];
+        for (cell, ty, initialized, comdat, external) in cells {
+            let gl = record([0xea, 0x09], 0x24, "p", &ty);
+            let got = gl_data_objects(&gl);
+            let o = got.get(&0xea09).unwrap_or_else(|| panic!("{cell}: refused"));
+            assert_eq!(o.initialized, initialized, "{cell}: initialized");
+            assert_eq!(o.comdat, comdat, "{cell}: comdat");
+            assert_eq!(o.external, external, "{cell}: external");
+        }
+    }
+
+    /// **`__declspec(selectany)` is NOT admitted, and that is the fence.**
+    ///
+    /// `60`/`E0` are the same COMDAT bit plus `0x40`, and no cell of w-cfg2's
+    /// grid is a `selectany`. Widening the byte to a bit field would have made
+    /// them fall out for free; they do not, because the mask names the one bit
+    /// that was graded. Without this test the next reading of the attribute has
+    /// no way to tell which bits carry evidence.
+    #[test]
+    fn the_selectany_forms_still_fail_closed() {
+        for attr in [0x60u8, 0xe0] {
+            let gl = record([0xea, 0x09], 0x24, "p", &[0x86, 0x06, 0x00, 0x02, 0x04, 0x10, attr]);
+            assert!(
+                gl_data_objects(&gl).is_empty(),
+                "attr {attr:#04x} is a selectany form and has never been graded"
+            );
+        }
     }
 
     /// **The `size > 127` probe** — `char pad[200]` spells its size with
@@ -1713,6 +1824,7 @@ mod data_object_tests {
                 natural_align: 1,
                 external: false,
                 initialized: false,
+                comdat: false,
                 flags: 0,
             })
         );

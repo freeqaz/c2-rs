@@ -76,12 +76,17 @@ fn in_init_probe() {
             .iter()
             .map(|r| {
                 format!(
-                    "{}:size={}:align={}:{}:{}",
+                    "{}:size={}:align={}:{}:{}:{}",
                     r.name,
                     r.size,
                     r.natural_align,
                     if r.external { "extern" } else { "static" },
                     if r.initialized { "init" } else { "uninit" },
+                    // Lane `w-cfg2`, board #1680. Printed rather than folded
+                    // into the linkage column: a COMDAT data object is its own
+                    // section, which is a different obj shape and not a
+                    // different linkage.
+                    if r.comdat { "comdat" } else { "shared" },
                 )
             })
             .collect();
