@@ -256,6 +256,12 @@ class Cell(object):
             base = OFF_HUB_X0
         else:
             base = dict((nm, off) for nm, _e, off in self.extra)[self.root]
+        # The four OUT-OF-REACH controls chain their binds, so the spec carries
+        # `None` for the offset: every link of a chain names the SAME object,
+        # `p->hub.x0`.  Fixed here, in the OBSERVATION half only — no source and
+        # no prediction moves, and `--grade` re-checks every sha256 to prove it.
+        if base is None:
+            base = OFF_HUB_X0
         return [base + 4 * i for i in range(self.ru)]
 
 
