@@ -185,6 +185,17 @@ fn symbol_runs(gl: &[u8], sep26: bool) -> Vec<(usize, usize, String)> {
 ///   `extern "C"` name is stored **inline in the 8-byte COFF symbol name field**
 ///   rather than in the string table, which every mangled name uses — a different
 ///   encoding path, characterized by one capture. Refused, positively.
+///
+/// **W-EXTDATA: the SECOND job no longer goes through this function.** The bound
+/// record name is judged by [`INLINE_NAME_MAX`] instead, because that is what the
+/// paragraph above is actually about and `@@` was only a proxy for it — see the
+/// clause in [`gl_defined_names_framed`]. This predicate keeps the FIRST job
+/// unchanged: which unclaimed runs the accounting rule must account for.
+/// The largest name COFF stores **inline** in a symbol record's 8-byte name
+/// field. A longer one goes to the string table, which is the encoding path
+/// every mangled name — and `_vswprintf_s_l` — takes.
+pub(crate) const INLINE_NAME_MAX: usize = 8;
+
 pub(crate) fn looks_mangled(name: &str) -> bool {
     contains_subslice(name.as_bytes(), b"@@")
 }
@@ -307,8 +318,42 @@ pub(crate) fn gl_defined_names_framed(
                 _ => return Err(GlBindStop::NameTooFar),
             };
             // Named positively, then judged: a record name the port cannot emit
-            // refuses the TU. `extern "C"` lands here.
-            if !looks_mangled(&runs[k].2) {
+            // refuses the TU.
+            //
+            // **W-EXTDATA — this clause was `!looks_mangled(name)` and it is the
+            // 8-byte field it says it is about.** [`looks_mangled`]'s own doc
+            // gives the ground: *"an undecorated `extern "C"` name is stored
+            // **inline in the 8-byte COFF symbol name field** rather than in the
+            // string table, which every mangled name uses — a different encoding
+            // path, characterized by one capture."* That is a statement about the
+            // name's LENGTH, and `@@` was a proxy for it: every MSVC-mangled name
+            // is longer than eight bytes, so the two agreed on the whole shipped
+            // population and nothing separated them.
+            //
+            // `_vswprintf_s_l` separates them. Fourteen bytes, `extern "C"`, and
+            // therefore in the **string table** — the encoding path the clause
+            // says is modeled — while `looks_mangled` refuses it for want of a
+            // `@@` it can never have. `coff::symbol::emit_symbol` has branched on
+            // `name.len() <= 8` since it was written; the reader was refusing a
+            // shape the writer already builds.
+            //
+            // So the clause becomes the length test, and the refusal it keeps is
+            // exactly the uncharacterized half: a bound record name that FITS
+            // INLINE. That is a strictly smaller widening than "admit every
+            // unmangled name", and it is the half no capture has graded.
+            //
+            // **The cost of the widening, stated rather than left to be found**:
+            // for a TU with no mangled name anywhere, `Bindings::unclaimed` is
+            // built by filtering runs through `looks_mangled` and therefore comes
+            // back EMPTY — so `IlBundle::functions`' unclaimed-`.gl`-name gate has
+            // nothing to check on such a TU and is vacuous rather than satisfied.
+            // It is not widened here because the runs it would have to admit
+            // include the source path, `__C1_11886`, `size_t` and `r` (measured on
+            // `vswprnc.cpp`'s own `.gl`), and a filter separating those from a
+            // real symbol is a rung of its own. Board **#1721**; the compensating
+            // control is the 878-TU differential, which is what actually grades
+            // every obj this widening lets through.
+            if runs[k].2.len() <= INLINE_NAME_MAX {
                 return Err(GlBindStop::NameNotMangled);
             }
             // **A run the widened scanner ended at `26` is not a record name this

@@ -24,6 +24,7 @@ use self::shapes::{
     try_parse_fp_tail_call,
     try_parse_indirect_load_leaf, try_parse_member_tail_call, try_parse_ptr_identity_leaf,
     try_parse_ptr_walk_chain_loop,
+    try_parse_guard_chain_shared_tail,
     try_parse_if_call_join,
     try_parse_ptr_walk_loop,
     try_parse_static_scan_loop,
@@ -641,6 +642,12 @@ pub(crate) enum BodyShape {
     /// [`super::shapes::if_call_join`] for the whole accept/refuse boundary and
     /// [`crate::func::IfCallJoin`] for the fields.
     IfCallJoin(crate::func::IfCallJoin),
+    /// **W-EXTDATA — a `||` guard chain SUNK to the end of the function and
+    /// TAIL-MERGED with a second error block, around one call whose first
+    /// argument is the ADDRESS OF A FUNCTION** (`_vswprintf_s_l`). See
+    /// [`shapes::guard_chain_shared_tail`] for the whole accept/refuse boundary
+    /// and [`crate::func::GuardChainSharedTail`] for the fields.
+    GuardChainSharedTail(crate::func::GuardChainSharedTail),
     /// **W-DATA — the static-array scan loop.** The first body class here whose
     /// function DEFINES the data it reads. See
     /// [`super::shapes::static_scan_loop`] for the whole accept/refuse boundary
@@ -2059,6 +2066,25 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // `Option`.
             if let Some(shape) = try_parse_early_return_seq(seg, p, lo, depth) {
                 disp("disp-early-return-seq");
+                return Ok(shape);
+            }
+            // **W-EXTDATA — the sunk-`||`-guard, shared-tail body.** Tried after
+            // the three productions above and separated from all of them by ONE
+            // byte, which is the whole argument for the ordering being free:
+            // they consume a `38` (brfalse) after the relation, because an `if`
+            // branches AROUND its block; this one consumes a `39` (brtrue),
+            // because a `||` short-circuits INTO its block. So none of them can
+            // reach a body of this shape and it cannot take one of theirs,
+            // whichever is asked first. It is last because the other three name
+            // classes that were matched before it.
+            //
+            // Non-committal on the same terms as the rest of the ladder: its own
+            // cursor, `Err` on the first byte outside its grammar, so a body that
+            // declines still reports this arm's blocker (`expr-cmp-eq`, the
+            // frontier's largest bucket and the population this shape is drawn
+            // out of) and no census key moves.
+            if let Ok(shape) = try_parse_guard_chain_shared_tail(seg, p, lo) {
+                disp("disp-guard-chain-shared-tail");
                 return Ok(shape);
             }
             // **The integer divide/modulo leaf.** Tried here because it is the

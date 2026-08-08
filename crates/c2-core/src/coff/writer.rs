@@ -463,9 +463,17 @@ pub fn emit_comdat_obj(
         for (name, _) in &introduced[i] {
             emit_function_symbol(&mut b, &mut strtab, name, 0, 0);
         }
-        // WR1: undefined external DATA symbols (`Type` 0x0000), after the callees.
+        // WR1: undefined external symbols for the addresses this body
+        // materializes, after the callees.
+        //
+        // **W-EXTDATA — the `Type` is not always 0x0000.** A REFHI/REFLO against
+        // a FUNCTION carries a callee's `Type 0x0020`; measured side by side in
+        // one workload obj (`coff::DataRef::is_function`). Emitting 0x0000 for
+        // `_woutput_s_l` is one wrong byte in one symbol record, and the
+        // relocation resolves either way — `docs/GAPS.md` §6's silent shape.
         for (name, _) in &introduced_data[i] {
-            emit_external_symbol(&mut b, &mut strtab, name, 0, 0x0000);
+            let is_fn = f.data_refs.iter().any(|r| r.name == *name && r.is_function);
+            emit_external_symbol(&mut b, &mut strtab, name, 0, if is_fn { 0x0020 } else { 0x0000 });
         }
         if let (Some(m), Some(frame), Some(ps)) = (labels[i], f.frame.as_ref(), sec_pdata[i]) {
             emit_label_symbol(&mut b, &label_name('M', m[0]), frame.prolog_len, sec_num);
@@ -831,8 +839,13 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
         // type byte is the whole difference from the callee above, and it is the
         // difference between "a data address" and "a function pointer" in the
         // linker's eyes.
+        // **W-EXTDATA** — same rule as the `/Gy` writer's: a REFHI/REFLO
+        // against a FUNCTION carries `Type 0x0020`. One fact, two writers, and
+        // it is asked through `DataRef::is_function` in both so they cannot
+        // disagree.
         for (name, _) in new_data {
-            emit_external_symbol(&mut b, &mut strtab, name, 0, 0x0000);
+            let is_fn = f.data_refs.iter().any(|r| r.name == *name && r.is_function);
+            emit_external_symbol(&mut b, &mut strtab, name, 0, if is_fn { 0x0020 } else { 0x0000 });
         }
         if let (Some(m), Some(frame), Some(pi)) = (labels[*i], f.frame.as_ref(), pdata_idx) {
             emit_label_symbol(&mut b, &label_name('M', m[0]), f.text_offset + frame.prolog_len, 5);

@@ -469,6 +469,10 @@ pub fn splice_callee_why<'a>(
         // explicitly rather than by a catch-all, so a later shape cannot fall
         // into a splice path nobody graded.
         Selected::IfCallJoin => return Err("S3-if-call-join"),
+        // W-EXTDATA: a framed multi-call body is not a splice source or target
+        // for the same reason W-CFG1 is not — mechanism I replaces a body that
+        // is NOTHING BUT one call, and this one is thirty words.
+        Selected::GuardChainSharedTail => return Err("S3-guard-chain-shared-tail"),
         Selected::Seq { setups, .. } => {
             let Some(seq) = f.call_seq.as_ref() else {
                 return Err("S1-seq-without-call-seq");

@@ -589,6 +589,15 @@ impl IlBundle {
                             // straight reading one at a time, so a widening
                             // cannot slip a second one in unnoticed.
                             Ok(BodyShape::IfCallJoin(_)) => FnVerdict::InClass("if-call-join"),
+                            // W-EXTDATA — its own bucket, for the reason every
+                            // transcription above gets one: it is the first
+                            // in-class shape whose `.text` carries a REFHI/REFLO
+                            // against a FUNCTION, and a census that folded it in
+                            // with `if-call-join` could not report that movement
+                            // against the `expr-cmp-eq` bucket it comes out of.
+                            Ok(BodyShape::GuardChainSharedTail(_)) => {
+                                FnVerdict::InClass("guard-chain-shared-tail")
+                            }
                             // **W-DATA — the static-array scan loop.** Its own
                             // bucket, like every other whole-body shape, so the
                             // `cflow-loop` axis can report an in-class row

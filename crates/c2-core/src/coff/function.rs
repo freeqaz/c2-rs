@@ -212,10 +212,26 @@ pub struct Call<'a> {
 /// gives `?f5@@YAXXZ`, `?gso@@YAXPAH@Z`, `?gI@@3HA`, in that order, with the
 /// callee ahead of the data symbol because its `26` push precedes the argument's
 /// (`docs/IL_CALL_IN_EXPR.md` §17.2 item 6).
+///
+/// # W-EXTDATA — the symbol is not always DATA
+///
+/// `_vswprintf_s_l` materializes the address of `_woutput_s_l`, a **function**,
+/// to pass it as an argument. The relocation is this same REFHI/PAIR/REFLO/PAIR
+/// quad, and the symbol record is a callee's: `Type` **0x0020**. Measured side
+/// by side in one workload obj — `work/w-extdata/ref/vswprnc/dis.txt` symbol 18
+/// reads `type=0x0020` where `work/w-extdata/ref/undname/dis.txt` symbols 15 and
+/// 17 read `type=0x0000` for the same relocation shape.
+///
+/// [`Self::is_function`] carries that, and it is a field rather than a name test
+/// because nothing about a mangled name distinguishes the two reliably (`_errno`
+/// and `_nhandle` differ in no lexical way at all).
 pub struct DataRef<'a> {
     pub hi_off: u32,
     pub lo_off: u32,
     pub name: &'a str,
+    /// `true` when the target is a FUNCTION (`Type` 0x0020) rather than a data
+    /// name (`Type` 0x0000). See the block above.
+    pub is_function: bool,
 }
 
 /// **W-DATA — one data object this TU DEFINES, together with the reference the

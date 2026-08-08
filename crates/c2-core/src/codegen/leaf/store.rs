@@ -1252,8 +1252,10 @@ mod tests {
         fp_arg_sources: None,
             arg_sources: None,
             data_sym: None,
+            fn_addr_sym: None,
             data_def: None,
             static_scan_loop: None,
+            guard_chain_shared_tail: None,
         };
         assert_eq!(
             store_leaf_text(&f, OptMode::Ox).unwrap().unwrap(),
@@ -1365,8 +1367,10 @@ mod tests {
             fp_arg_sources: None,
             arg_sources: None,
             data_sym: None,
+            fn_addr_sym: None,
             data_def: None,
             static_scan_loop: None,
+            guard_chain_shared_tail: None,
         };
         assert_eq!(
             store_leaf_text(&f, OptMode::Ox).unwrap().unwrap(),
@@ -1517,8 +1521,10 @@ mod tests {
             fp_arg_sources: None,
             arg_sources: None,
             data_sym: None,
+            fn_addr_sym: None,
             data_def: None,
             static_scan_loop: None,
+            guard_chain_shared_tail: None,
         };
         assert_eq!(
             store_leaf_text(&f, OptMode::Ox).unwrap().unwrap(),
@@ -1761,8 +1767,10 @@ mod tests {
             fp_arg_sources: None,
             arg_sources: None,
             data_sym: None,
+            fn_addr_sym: None,
             data_def: None,
             static_scan_loop: None,
+            guard_chain_shared_tail: None,
         };
         let lit_group = |b: u32, off: i32, k: i32| {
             vec![
