@@ -220,3 +220,73 @@ partial conversion.
 
 `#1294`–`#1303` are this lane's. Unused numbers are left **unminted** and said
 so.
+
+---
+
+# ADDENDUM — registered AFTER GRID L was graded, and it says so
+
+**This is not part of the preregistration above and must not be read as one.**
+`H-LIN` is **declined** at 10 wrong of 75; F-1 fired and that result is final and
+committed (`6e87d7d1`). What follows is a **second, differently-shaped
+decision**, formed with the grade in hand, and the disclosure is the point.
+
+## A-0. What it is, and why it is not "narrowing around the failing cells"
+
+GRID L splits the mixed run's `d` term into two regions:
+
+| region | cells | what every rule on record and GRID L agree | disputed? |
+|---|---:|---|---|
+| `lineage_related() == Some(true)` **or** the store root is not a bind (`SAME`, `MIRROR`) | 30 | `d = 0`; the frontier is `cu <= ru + 1`, **0 wrong of 30** | **no** |
+| the store root is a **distinct** bind (`ALIAS`, `TWOBIND`, `XOBJ`) | 45 | nothing — GRID L just refuted every reading of `d` there | **yes** |
+
+The move registered here is to **serve the first region and keep refusing the
+second**. That is the opposite of narrowing around failures: the `d` term is not
+guessed anywhere, it is *refused* everywhere it is in dispute, and the served
+region is the one where `d` is **provably 0** by a predicate written before the
+grade (`lineage_related`, shipped in `2315c569`).
+
+It is still a decision taken after seeing the answer, and it is registered as
+such rather than folded into §3.
+
+## A-1. THE CRITERION IS THE SOLE JUDGE, NOT A FITTED SCORE
+
+Every one of the twelve dead keys was graded by reading a register out of a
+disassembly. This is not. It ships only if:
+
+* **byte-exact** `port(IL) == c2(IL)` with `TimeDateStamp` zeroed, on **all 30**
+  served GRID L cells, through the project's own differential;
+* **0 mismatch** on the 45 disputed cells, which must come back
+  `NotImplemented` — a wrong *refusal* is a gap, a wrong *emit* is #232;
+* `census/gate disagreement` **0** on the 878-TU scan;
+* `scripts/gate.sh` PASS with its counts quoted, and sweeps 88/89 unmoved or
+  moved only in the `Match` direction with 0 mismatch.
+
+**Any mismatch anywhere reverts the whole thing**, and the revert is committed
+with its reasoning.
+
+## A-2. The reader clause and the emitter clause must be ONE fact
+
+`census/gate disagreement` is 0 today and the invariant is
+`codegen::select::function_gate`'s. The emitter's predicate is over
+`alloc::ProducerRoots`; the reader cannot see that type, so the clause is
+restated syntactically in `bind_run_ops` and the two are required to coincide:
+
+```text
+  emitter   value.tok == lvalue.tok  ||  !lvalue.is_bind
+  reader    every store consuming the address shares one base token, and that
+            token is either the bound local itself or is not bound at all
+```
+
+At depth 1 — which is the whole reachable population (#1294) — these are the
+same predicate. If they ever disagree the scan prints `census/gate DISAGREEMENT`
+and this ships nothing.
+
+## A-3. What it is expected to buy, registered before it is measured
+
+* `src/xdk/nuispeech/xboxheap.cpp` is class `SAME` at `(ru, cu) = (2, 1)`, well
+  inside `cu <= ru + 1`, so **if the ladder is really two rungs and this is the
+  first, it converts**. TU match **10 → 11**.
+* **And its conversion is NOT evidence for anything disputed** — §4 registered
+  that before any of this, and it holds: `1 <= 2 + 1` needs no `d`.
+* If it does **not** convert, the second rung is not what `w-mixkind` §5
+  measured it to be, and that is the deliverable instead.
