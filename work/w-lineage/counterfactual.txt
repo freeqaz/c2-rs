@@ -1,0 +1,13 @@
+== COUNTERFACTUAL: the 110 direct-spelling mixed cells, PRICED ==
+
+the hatch: mixed_run_is_served drops store_root_is_bind(), and bind_run_ops'
+twin clause is bypassed.  Applied and REVERTED, never committed.
+  git diff --stat -- crates on the probe tree: 2 files, 5 insertions, 2 deletions
+
+                     Match   NotImplemented   MISMATCH
+  sweep 88 shipped     207        1369             0
+  sweep 88 lifted      218        1307            51
+  sweep 89 shipped     394         876             0
+  sweep 89 lifted      402         830            38
+
+  serving the family converts 19 cases and produces 89 WRONG OBJS.

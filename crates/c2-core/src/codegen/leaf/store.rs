@@ -734,7 +734,7 @@ pub(crate) fn scheduled_gpr_run(
         // first free register is r(3 + len).
         let pool_floor = 3u8.saturating_add(params.len().min(9) as u8);
         let Some(assign) = alloc::allocate(&producers, pool_floor) else {
-            // **THE MIXED RUN KEEPS ITS OWN NAME — board #1309.**
+            // **THE MIXED RUN KEEPS ITS OWN NAME — board #1302.**
             //
             // The mixed decision moved into `alloc::allocate` at board #1297,
             // and with it the refusal's *message*: 110 generated cases that had
