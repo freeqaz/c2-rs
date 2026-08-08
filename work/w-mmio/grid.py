@@ -393,9 +393,13 @@ def run(outdir, root):
         cpp = os.path.join(outdir, c["name"] + ".cpp")
         obj = os.path.join(objdir, c["name"] + ".obj")
         if not os.path.exists(obj):
-            r = subprocess.run([c2rs, "compile", cpp, "--keep-obj", obj,
-                                "--flags-file", flags, "--cwd", dc3],
-                               capture_output=True, text=True)
+            # The probe includes nothing, so its own directory is the cwd; the
+            # source name must be relative to it or c1xx cannot open the file.
+            r = subprocess.run([c2rs, "compile", c["name"] + ".cpp",
+                                "--keep-obj", obj,
+                                "--flags-file", flags, "--cwd", outdir],
+                               capture_output=True, text=True, cwd=outdir)
+            _ = (cpp, dc3)
             if not os.path.exists(obj):
                 rows.append(dict(name=c["name"], error=r.stderr.strip()[:200]))
                 continue

@@ -1,0 +1,244 @@
+====================================================================================================
+cell                               MEASURED entry                 MEASURED call                 
+====================================================================================================
+base_n2_p10_g0_c1_ln               r11<-r3 r3<-r4                 r4<-r11                        INC/SCAN
+base_n3_p021_g1_c1_ln              r11<-r4 r4<-r5                 r5<-r11                        INC/SCAN
+base_n3_p102_g0_c1_ln              r11<-r3 r3<-r4                 r4<-r11                        INC/SCAN
+base_n3_p120_g0_c1_ln              r11<-r3 r3<-r4 r4<-r5          r5<-r11                        INC/SCAN
+base_n3_p201_g0_c1_ln              r11<-r3 r3<-r5                 r5<-r4 r4<-r11                 INC/SCAN
+base_n3_p210_g0_c1_ln              r11<-r3 r3<-r5                 r5<-r11                        INC/SCAN
+base_n4_p0132_g2_c1_ln             r11<-r5 r5<-r6                 r6<-r11                        INC/SCAN
+base_n4_p0213_g1_c1_ln             r11<-r4 r4<-r5                 r5<-r11                        INC/SCAN
+base_n4_p0231_g1_c1_ln             r11<-r4 r4<-r5 r5<-r6          r6<-r11                        INC/SCAN
+base_n4_p0312_g1_c1_ln             r11<-r4 r4<-r6                 r6<-r5 r5<-r11                 INC/SCAN
+base_n4_p0321_g1_c1_ln             r11<-r4 r4<-r6                 r6<-r11                        INC/SCAN
+base_n4_p1023_g0_c1_ln             r11<-r3 r3<-r4                 r4<-r11                        INC/SCAN
+base_n4_p1203_g0_c1_ln             r11<-r3 r3<-r4 r4<-r5          r5<-r11                        INC/SCAN
+base_n4_p1320_g0_c1_ln             r11<-r3 r3<-r4 r4<-r6          r6<-r11                        INC/SCAN
+base_n4_p2013_g0_c1_ln             r11<-r3 r3<-r5                 r5<-r4 r4<-r11                 INC/SCAN
+base_n4_p2103_g0_c1_ln             r11<-r3 r3<-r5                 r5<-r11                        INC/SCAN
+base_n4_p2130_g0_c1_ln             r11<-r3 r3<-r5 r5<-r6          r6<-r11                        INC/SCAN
+base_n4_p3021_g0_c1_ln             r11<-r3 r3<-r6                 r6<-r4 r4<-r11                 INC/SCAN
+base_n4_p3102_g0_c1_ln             r11<-r3 r3<-r6                 r6<-r5 r5<-r11                 INC/SCAN
+base_n4_p3120_g0_c1_ln             r11<-r3 r3<-r6                 r6<-r11                        INC/SCAN
+base_n5_p01243_g3_c1_ln            r11<-r6 r6<-r7                 r7<-r11                        INC/SCAN
+base_n5_p01324_g2_c1_ln            r11<-r5 r5<-r6                 r6<-r11                        INC/SCAN
+base_n5_p01342_g2_c1_ln            r11<-r5 r5<-r6 r6<-r7          r7<-r11                        INC/SCAN
+base_n5_p01423_g2_c1_ln            r11<-r5 r5<-r7                 r7<-r6 r6<-r11                 INC/SCAN
+base_n5_p01432_g2_c1_ln            r11<-r5 r5<-r7                 r7<-r11                        INC/SCAN
+base_n5_p02134_g1_c1_ln            r11<-r4 r4<-r5                 r5<-r11                        INC/SCAN
+base_n5_p02314_g1_c1_ln            r11<-r4 r4<-r5 r5<-r6          r6<-r11                        INC/SCAN
+base_n5_p02431_g1_c1_ln            r11<-r4 r4<-r5 r5<-r7          r7<-r11                        INC/SCAN
+base_n5_p03124_g1_c1_ln            r11<-r4 r4<-r6                 r6<-r5 r5<-r11                 INC/SCAN
+base_n5_p03214_g1_c1_ln            r11<-r4 r4<-r6                 r6<-r11                        INC/SCAN
+base_n5_p03241_g1_c1_ln            r11<-r4 r4<-r6 r6<-r7          r7<-r11                        INC/SCAN
+base_n5_p04132_g1_c1_ln            r11<-r4 r4<-r7                 r7<-r5 r5<-r11                 INC/SCAN
+base_n5_p04213_g1_c1_ln            r11<-r4 r4<-r7                 r7<-r6 r6<-r11                 INC/SCAN
+base_n5_p04231_g1_c1_ln            r11<-r4 r4<-r7                 r7<-r11                        INC/SCAN
+base_n5_p10234_g0_c1_ln            r11<-r3 r3<-r4                 r4<-r11                        INC/SCAN
+base_n5_p12034_g0_c1_ln            r11<-r3 r3<-r4 r4<-r5          r5<-r11                        INC/SCAN
+base_n5_p13204_g0_c1_ln            r11<-r3 r3<-r4 r4<-r6          r6<-r11                        INC/SCAN
+base_n5_p14230_g0_c1_ln            r11<-r3 r3<-r4 r4<-r7          r7<-r11                        INC/SCAN
+base_n5_p20134_g0_c1_ln            r11<-r3 r3<-r5                 r5<-r4 r4<-r11                 INC/SCAN
+base_n5_p21034_g0_c1_ln            r11<-r3 r3<-r5                 r5<-r11                        INC/SCAN
+base_n5_p21304_g0_c1_ln            r11<-r3 r3<-r5 r5<-r6          r6<-r11                        INC/SCAN
+base_n5_p21430_g0_c1_ln            r11<-r3 r3<-r5 r5<-r7          r7<-r11                        INC/SCAN
+base_n5_p30214_g0_c1_ln            r11<-r3 r3<-r6                 r6<-r4 r4<-r11                 INC/SCAN
+base_n5_p31024_g0_c1_ln            r11<-r3 r3<-r6                 r6<-r5 r5<-r11                 INC/SCAN
+base_n5_p31204_g0_c1_ln            r11<-r3 r3<-r6                 r6<-r11                        INC/SCAN
+base_n5_p31240_g0_c1_ln            r11<-r3 r3<-r6 r6<-r7          r7<-r11                        INC/SCAN
+base_n5_p40231_g0_c1_ln            r11<-r3 r3<-r7                 r7<-r4 r4<-r11                 INC/SCAN
+base_n5_p41032_g0_c1_ln            r11<-r3 r3<-r7                 r7<-r5 r5<-r11                 INC/SCAN
+base_n5_p41203_g0_c1_ln            r11<-r3 r3<-r7                 r7<-r6 r6<-r11                 INC/SCAN
+base_n5_p41230_g0_c1_ln            r11<-r3 r3<-r7                 r7<-r11                        INC/SCAN
+calls_n3_p120_g0_c2_ln             r11<-r3 r3<-r4 r31<-r5         r5<-r11 r4<-r31                ---/----
+calls_n3_p201_g0_c2_ln             r31<-r5                        r5<-r4 r4<-r3 r3<-r31          ---/----
+calls_n4_p1203_g0_c2_ln            r11<-r3 r3<-r4 r4<-r5 r31<-r6  r6<-r31 r5<-r11                ---/----
+calls_n4_p2013_g0_c2_ln            r11<-r3 r3<-r5 r31<-r6         r5<-r4 r6<-r31 r4<-r11         ---/----
+gcnt_n3_p120_g012_c1_ln            r11<-r3 r3<-r4 r4<-r5          r5<-r11                        INC/SCAN
+gcnt_n3_p120_g01_c1_ln             r11<-r3 r3<-r4 r4<-r5          r5<-r11                        INC/SCAN
+gcnt_n3_p201_g012_c1_ln            r11<-r3 r3<-r5                 r5<-r4 r4<-r11                 INC/SCAN
+gcnt_n3_p201_g01_c1_ln             r11<-r3 r3<-r5                 r5<-r4 r4<-r11                 INC/SCAN
+gcnt_n4_p1203_g012_c1_ln           r11<-r3 r3<-r4 r4<-r5          r5<-r11                        INC/SCAN
+gcnt_n4_p1203_g01_c1_ln            r11<-r3 r3<-r4 r4<-r5          r5<-r11                        INC/SCAN
+gcnt_n4_p2013_g012_c1_ln           r11<-r3 r3<-r5                 r5<-r4 r4<-r11                 INC/SCAN
+gcnt_n4_p2013_g01_c1_ln            r11<-r3 r3<-r5                 r5<-r4 r4<-r11                 INC/SCAN
+gcnt_n5_p12034_g012_c1_ln          r11<-r3 r3<-r4 r4<-r5          r5<-r11                        INC/SCAN
+gcnt_n5_p12034_g01_c1_ln           r11<-r3 r3<-r4 r4<-r5          r5<-r11                        INC/SCAN
+gcnt_n5_p20134_g012_c1_ln          r11<-r3 r3<-r5                 r5<-r4 r4<-r11                 INC/SCAN
+gcnt_n5_p20134_g01_c1_ln           r11<-r3 r3<-r5                 r5<-r4 r4<-r11                 INC/SCAN
+gout_n4_p0231_g0_c1_ln             r11<-r4 r4<-r5 r5<-r6          r6<-r11                        INC/SCAN
+gout_n4_p0312_g0_c1_ln             r11<-r4 r4<-r6                 r6<-r5 r5<-r11                 INC/SCAN
+gout_n4_p1203_g3_c1_ln             r11<-r3 r3<-r4 r4<-r5          r5<-r11                        INC/SCAN
+gout_n4_p1320_g2_c1_ln             r11<-r3 r3<-r4 r4<-r6          r6<-r11                        INC/SCAN
+gout_n4_p2013_g3_c1_ln             r11<-r3 r3<-r5                 r5<-r4 r4<-r11                 INC/SCAN
+gout_n4_p2130_g1_c1_ln             r11<-r3 r3<-r5 r5<-r6          r6<-r11                        INC/SCAN
+gout_n4_p3021_g2_c1_ln             r11<-r3 r3<-r6                 r6<-r4 r4<-r11                 INC/SCAN
+gout_n4_p3102_g1_c1_ln             r11<-r3 r3<-r6                 r6<-r5 r5<-r11                 INC/SCAN
+gout_n5_p01342_g0_c1_ln            r11<-r5 r5<-r6 r6<-r7          r7<-r11                        INC/SCAN
+gout_n5_p01423_g0_c1_ln            r11<-r5 r5<-r7                 r7<-r6 r6<-r11                 INC/SCAN
+gout_n5_p02314_g0_c1_ln            r11<-r4 r4<-r5 r5<-r6          r6<-r11                        INC/SCAN
+gout_n5_p02431_g0_c1_ln            r11<-r4 r4<-r5 r5<-r7          r7<-r11                        INC/SCAN
+gout_n5_p03124_g0_c1_ln            r11<-r4 r4<-r6                 r6<-r5 r5<-r11                 INC/SCAN
+gout_n5_p03241_g0_c1_ln            r11<-r4 r4<-r6 r6<-r7          r7<-r11                        INC/SCAN
+gout_n5_p04132_g0_c1_ln            r11<-r4 r4<-r7                 r7<-r5 r5<-r11                 INC/SCAN
+gout_n5_p04213_g0_c1_ln            r11<-r4 r4<-r7                 r7<-r6 r6<-r11                 INC/SCAN
+gout_n5_p12034_g3_c1_ln            r11<-r3 r3<-r4 r4<-r5          r5<-r11                        INC/SCAN
+gout_n5_p13204_g2_c1_ln            r11<-r3 r3<-r4 r4<-r6          r6<-r11                        INC/SCAN
+gout_n5_p14230_g2_c1_ln            r11<-r3 r3<-r4 r4<-r7          r7<-r11                        INC/SCAN
+gout_n5_p20134_g3_c1_ln            r11<-r3 r3<-r5                 r5<-r4 r4<-r11                 INC/SCAN
+gout_n5_p21304_g1_c1_ln            r11<-r3 r3<-r5 r5<-r6          r6<-r11                        INC/SCAN
+gout_n5_p21430_g1_c1_ln            r11<-r3 r3<-r5 r5<-r7          r7<-r11                        INC/SCAN
+gout_n5_p30214_g2_c1_ln            r11<-r3 r3<-r6                 r6<-r4 r4<-r11                 INC/SCAN
+gout_n5_p31024_g1_c1_ln            r11<-r3 r3<-r6                 r6<-r5 r5<-r11                 INC/SCAN
+gout_n5_p31240_g1_c1_ln            r11<-r3 r3<-r6 r6<-r7          r7<-r11                        INC/SCAN
+gout_n5_p40231_g2_c1_ln            r11<-r3 r3<-r7                 r7<-r4 r4<-r11                 INC/SCAN
+gout_n5_p41032_g1_c1_ln            r11<-r3 r3<-r7                 r7<-r5 r5<-r11                 INC/SCAN
+gout_n5_p41203_g1_c1_ln            r11<-r3 r3<-r7                 r7<-r6 r6<-r11                 INC/SCAN
+gtgt_n4_p0231_g3_c1_ln             r11<-r4 r4<-r5 r5<-r6          r6<-r11                        INC/SCAN
+gtgt_n4_p0312_g3_c1_ln             r11<-r6                        r6<-r5 r5<-r4 r4<-r11          ---/----
+gtgt_n4_p1203_g2_c1_ln             r11<-r3 r3<-r4 r4<-r5          r5<-r11                        INC/SCAN
+gtgt_n4_p1320_g3_c1_ln             r11<-r3 r3<-r4 r4<-r6          r6<-r11                        INC/SCAN
+gtgt_n4_p2013_g2_c1_ln             r11<-r5                        r5<-r4 r4<-r3 r3<-r11          ---/----
+gtgt_n4_p2130_g3_c1_ln             r11<-r3 r3<-r5 r5<-r6          r6<-r11                        INC/SCAN
+gtgt_n4_p3021_g3_c1_ln             r11<-r6                        r6<-r4 r4<-r3 r3<-r11          ---/----
+gtgt_n4_p3102_g3_c1_ln             r11<-r6                        r6<-r5 r5<-r3 r3<-r11          ---/----
+gtgt_n5_p01342_g4_c1_ln            r11<-r5 r5<-r6 r6<-r7          r7<-r11                        INC/SCAN
+gtgt_n5_p01423_g4_c1_ln            r11<-r7                        r7<-r6 r6<-r5 r5<-r11          ---/----
+gtgt_n5_p02314_g3_c1_ln            r11<-r4 r4<-r5 r5<-r6          r6<-r11                        INC/SCAN
+gtgt_n5_p02431_g4_c1_ln            r11<-r4 r4<-r5 r5<-r7          r7<-r11                        INC/SCAN
+gtgt_n5_p03124_g3_c1_ln            r11<-r6                        r6<-r5 r5<-r4 r4<-r11          ---/----
+gtgt_n5_p03241_g4_c1_ln            r11<-r4 r4<-r6 r6<-r7          r7<-r11                        INC/SCAN
+gtgt_n5_p04132_g4_c1_ln            r11<-r7                        r7<-r5 r5<-r4 r4<-r11          ---/----
+gtgt_n5_p04213_g4_c1_ln            r11<-r7                        r7<-r6 r6<-r4 r4<-r11          ---/----
+gtgt_n5_p12034_g2_c1_ln            r11<-r3 r3<-r4 r4<-r5          r5<-r11                        INC/SCAN
+gtgt_n5_p13204_g3_c1_ln            r11<-r3 r3<-r4 r4<-r6          r6<-r11                        INC/SCAN
+gtgt_n5_p14230_g4_c1_ln            r11<-r3 r3<-r4 r4<-r7          r7<-r11                        INC/SCAN
+gtgt_n5_p20134_g2_c1_ln            r11<-r5                        r5<-r4 r4<-r3 r3<-r11          ---/----
+gtgt_n5_p21304_g3_c1_ln            r11<-r3 r3<-r5 r5<-r6          r6<-r11                        INC/SCAN
+gtgt_n5_p21430_g4_c1_ln            r11<-r3 r3<-r5 r5<-r7          r7<-r11                        INC/SCAN
+gtgt_n5_p30214_g3_c1_ln            r11<-r6                        r6<-r4 r4<-r3 r3<-r11          ---/----
+gtgt_n5_p31024_g3_c1_ln            r11<-r6                        r6<-r5 r5<-r3 r3<-r11          ---/----
+gtgt_n5_p31240_g4_c1_ln            r11<-r3 r3<-r6 r6<-r7          r7<-r11                        INC/SCAN
+gtgt_n5_p40231_g4_c1_ln            r11<-r7                        r7<-r4 r4<-r3 r3<-r11          ---/----
+gtgt_n5_p41032_g4_c1_ln            r11<-r7                        r7<-r5 r5<-r3 r3<-r11          ---/----
+gtgt_n5_p41203_g4_c1_ln            r11<-r7                        r7<-r6 r6<-r3 r3<-r11          ---/----
+lit_n3_p021_g1_c1_l0               r11<-r4 r4<-r5                 r5<-r11 r3<-L72                INC/SCAN
+lit_n3_p102_g0_c1_l2               r11<-r3 r3<-r4                 r5<-L72 r4<-r11                INC/SCAN
+lit_n3_p210_g0_c1_l1               r11<-r3 r3<-r5                 r5<-r11 r4<-L72                INC/SCAN
+lit_n4_p0132_g2_c1_l1              r11<-r5 r5<-r6                 r6<-r11 r4<-L72                INC/SCAN
+lit_n4_p0213_g1_c1_l3              r11<-r4 r4<-r5                 r6<-L72 r5<-r11                INC/SCAN
+lit_n4_p0321_g1_c1_l2              r11<-r4 r4<-r6                 r6<-r11 r5<-L72                INC/SCAN
+lit_n4_p1023_g0_c1_l3              r11<-r3 r3<-r4                 r6<-L72 r4<-r11                INC/SCAN
+lit_n4_p2103_g0_c1_l3              r11<-r3 r3<-r5                 r6<-L72 r5<-r11                INC/SCAN
+lit_n4_p3120_g0_c1_l2              r11<-r3 r3<-r6                 r6<-r11 r5<-L72                INC/SCAN
+long_n4_p1230_g0_c1_ln             r11<-r3 r3<-r4 r4<-r5 r5<-r6   r6<-r11                        INC/SCAN
+long_n4_p1302_g0_c1_ln             r11<-r3 r3<-r4 r4<-r6          r6<-r5 r5<-r11                 INC/SCAN
+long_n4_p2031_g0_c1_ln             r11<-r3 r3<-r5 r5<-r6          r6<-r4 r4<-r11                 INC/----
+long_n4_p2310_g0_c1_ln             r11<-r3 r10<-r4 r3<-r5 r4<-r6  r6<-r11 r5<-r10                ---/----
+long_n4_p3012_g0_c1_ln             r11<-r3 r3<-r6                 r6<-r5 r5<-r4 r4<-r11          INC/SCAN
+long_n4_p3201_g0_c1_ln             r11<-r3 r10<-r4 r4<-r5 r3<-r6  r6<-r10 r5<-r11                ---/----
+long_n5_p12340_g0_c1_ln            r11<-r3 r3<-r4 r4<-r5 r5<-r6 r6<-r7 r7<-r11                        INC/SCAN
+long_n5_p12403_g0_c1_ln            r11<-r3 r3<-r4 r4<-r5 r5<-r7   r7<-r6 r6<-r11                 INC/SCAN
+long_n5_p13042_g0_c1_ln            r11<-r3 r3<-r4 r4<-r6 r6<-r7   r7<-r5 r5<-r11                 INC/----
+long_n5_p13420_g0_c1_ln            r11<-r3 r3<-r4 r10<-r5 r4<-r6 r5<-r7 r7<-r11 r6<-r10                ---/----
+long_n5_p14023_g0_c1_ln            r11<-r3 r3<-r4 r4<-r7          r7<-r6 r6<-r5 r5<-r11          INC/SCAN
+long_n5_p14302_g0_c1_ln            r11<-r3 r3<-r4 r10<-r5 r5<-r6 r4<-r7 r7<-r10 r6<-r11                ---/----
+long_n5_p20341_g0_c1_ln            r11<-r3 r3<-r5 r5<-r6 r6<-r7   r7<-r4 r4<-r11                 INC/----
+long_n5_p20413_g0_c1_ln            r11<-r3 r3<-r5 r5<-r7          r7<-r6 r6<-r4 r4<-r11          INC/----
+long_n5_p23140_g0_c1_ln            r11<-r3 r10<-r4 r4<-r6 r3<-r5 r6<-r7 r7<-r11 r5<-r10                ---/----
+long_n5_p23401_g0_c1_ln            r11<-r3 r10<-r4 r3<-r5 r4<-r6 r5<-r7 r7<-r10 r6<-r11                ---/----
+long_n5_p24103_g0_c1_ln            r11<-r3 r10<-r4 r3<-r5 r4<-r7  r7<-r6 r6<-r11 r5<-r10         ---/----
+long_n5_p24310_g0_c1_ln            r11<-r3 r10<-r4 r3<-r5 r5<-r6 r4<-r7 r7<-r11 r6<-r10                ---/----
+long_n5_p30142_g0_c1_ln            r11<-r3 r3<-r6 r6<-r7          r7<-r5 r5<-r4 r4<-r11          INC/----
+long_n5_p30421_g0_c1_ln            r11<-r3 r10<-r5 r3<-r6 r5<-r7  r7<-r4 r6<-r10 r4<-r11         ---/----
+long_n5_p32041_g0_c1_ln            r11<-r3 r10<-r4 r3<-r6 r4<-r5 r6<-r7 r7<-r10 r5<-r11                ---/----
+long_n5_p32410_g0_c1_ln            r11<-r3 r10<-r4 r4<-r5 r3<-r6 r5<-r7 r7<-r11 r6<-r10                ---/----
+long_n5_p34012_g0_c1_ln            r11<-r3 r10<-r4 r3<-r6 r4<-r7  r7<-r5 r6<-r10 r5<-r11         ---/----
+long_n5_p34120_g0_c1_ln            r11<-r3 r10<-r4 r3<-r6 r4<-r7  r6<-r5 r7<-r11 r5<-r10         ---/----
+long_n5_p40123_g0_c1_ln            r11<-r3 r3<-r7                 r7<-r6 r6<-r5 r5<-r4 r4<-r11   INC/SCAN
+long_n5_p40312_g0_c1_ln            r11<-r3 r10<-r5 r5<-r6 r3<-r7  r6<-r4 r7<-r10 r4<-r11         ---/----
+long_n5_p42013_g0_c1_ln            r11<-r3 r10<-r4 r4<-r5 r3<-r7  r7<-r6 r6<-r10 r5<-r11         ---/----
+long_n5_p42301_g0_c1_ln            r11<-r3 r10<-r4 r4<-r5 r5<-r6 r3<-r7 r7<-r10 r6<-r11                ---/----
+long_n5_p43021_g0_c1_ln            r11<-r3 r10<-r4 r4<-r6 r3<-r7  r6<-r5 r7<-r10 r5<-r11         ---/----
+long_n5_p43102_g0_c1_ln            r11<-r3 r10<-r4 r4<-r6 r3<-r7  r7<-r5 r6<-r11 r5<-r10         ---/----
+ung_n2_p10_g0_c1_ln                r11<-r4 r4<-r3 r3<-r11         r11<-r4 r4<-r3 r3<-r11         ---/----
+ung_n3_p021_g0_c1_ln               r11<-r5 r5<-r4 r4<-r11         r11<-r5 r5<-r4 r4<-r11         ---/----
+ung_n3_p102_g0_c1_ln               r11<-r4 r4<-r3 r3<-r11         r11<-r4 r4<-r3 r3<-r11         ---/----
+ung_n3_p120_g0_c1_ln               r11<-r4 r4<-r5 r5<-r3 r3<-r11  r11<-r4 r4<-r5 r5<-r3 r3<-r11  ---/----
+ung_n3_p201_g0_c1_ln               r11<-r5 r5<-r4 r4<-r3 r3<-r11  r11<-r5 r5<-r4 r4<-r3 r3<-r11  ---/----
+ung_n3_p210_g0_c1_ln               r11<-r5 r5<-r3 r3<-r11         r11<-r5 r5<-r3 r3<-r11         ---/----
+ung_n4_p0132_g0_c1_ln              r11<-r6 r6<-r5 r5<-r11         r11<-r6 r6<-r5 r5<-r11         ---/----
+ung_n4_p0213_g0_c1_ln              r11<-r5 r5<-r4 r4<-r11         r11<-r5 r5<-r4 r4<-r11         ---/----
+ung_n4_p0231_g0_c1_ln              r11<-r5 r5<-r6 r6<-r4 r4<-r11  r11<-r5 r5<-r6 r6<-r4 r4<-r11  ---/----
+ung_n4_p0312_g0_c1_ln              r11<-r6 r6<-r5 r5<-r4 r4<-r11  r11<-r6 r6<-r5 r5<-r4 r4<-r11  ---/----
+ung_n4_p0321_g0_c1_ln              r11<-r6 r6<-r4 r4<-r11         r11<-r6 r6<-r4 r4<-r11         ---/----
+ung_n4_p1023_g0_c1_ln              r11<-r4 r4<-r3 r3<-r11         r11<-r4 r4<-r3 r3<-r11         ---/----
+ung_n4_p1203_g0_c1_ln              r11<-r4 r4<-r5 r5<-r3 r3<-r11  r11<-r4 r4<-r5 r5<-r3 r3<-r11  ---/----
+ung_n4_p1320_g0_c1_ln              r11<-r4 r4<-r6 r6<-r3 r3<-r11  r11<-r4 r4<-r6 r6<-r3 r3<-r11  ---/----
+ung_n4_p2013_g0_c1_ln              r11<-r5 r5<-r4 r4<-r3 r3<-r11  r11<-r5 r5<-r4 r4<-r3 r3<-r11  ---/----
+ung_n4_p2103_g0_c1_ln              r11<-r5 r5<-r3 r3<-r11         r11<-r5 r5<-r3 r3<-r11         ---/----
+ung_n4_p2130_g0_c1_ln              r11<-r5 r5<-r6 r6<-r3 r3<-r11  r11<-r5 r5<-r6 r6<-r3 r3<-r11  ---/----
+ung_n4_p3021_g0_c1_ln              r11<-r6 r6<-r4 r4<-r3 r3<-r11  r11<-r6 r6<-r4 r4<-r3 r3<-r11  ---/----
+ung_n4_p3102_g0_c1_ln              r11<-r6 r6<-r5 r5<-r3 r3<-r11  r11<-r6 r6<-r5 r5<-r3 r3<-r11  ---/----
+ung_n4_p3120_g0_c1_ln              r11<-r6 r6<-r3 r3<-r11         r11<-r6 r6<-r3 r3<-r11         ---/----
+
+IN-CLASS (guarded, cycle<=3, no literal):  n=122  R-INC 104  R-SCAN 104
+OUT-OF-CLASS (guarded, cycle>=4):          n=30  R-INC 12  R-SCAN 7
+errors: 0
+
+--- IN-CLASS CELLS R-INC GETS WRONG ---
+calls_n3_p120_g0_c2_ln
+  measured entry r11<-r3 r3<-r4 r31<-r5 | call r5<-r11 r4<-r31
+  R-INC    entry r11<-r3 r3<-r4 r4<-r5 | call r5<-r11
+calls_n3_p201_g0_c2_ln
+  measured entry r31<-r5 | call r5<-r4 r4<-r3 r3<-r31
+  R-INC    entry r11<-r3 r3<-r5 | call r5<-r4 r4<-r11
+calls_n4_p1203_g0_c2_ln
+  measured entry r11<-r3 r3<-r4 r4<-r5 r31<-r6 | call r6<-r31 r5<-r11
+  R-INC    entry r11<-r3 r3<-r4 r4<-r5 | call r5<-r11
+calls_n4_p2013_g0_c2_ln
+  measured entry r11<-r3 r3<-r5 r31<-r6 | call r5<-r4 r6<-r31 r4<-r11
+  R-INC    entry r11<-r3 r3<-r5 | call r5<-r4 r4<-r11
+gtgt_n4_p0312_g3_c1_ln
+  measured entry r11<-r6 | call r6<-r5 r5<-r4 r4<-r11
+  R-INC    entry r11<-r4 r4<-r6 | call r6<-r5 r5<-r11
+gtgt_n4_p2013_g2_c1_ln
+  measured entry r11<-r5 | call r5<-r4 r4<-r3 r3<-r11
+  R-INC    entry r11<-r3 r3<-r5 | call r5<-r4 r4<-r11
+gtgt_n4_p3021_g3_c1_ln
+  measured entry r11<-r6 | call r6<-r4 r4<-r3 r3<-r11
+  R-INC    entry r11<-r3 r3<-r6 | call r6<-r4 r4<-r11
+gtgt_n4_p3102_g3_c1_ln
+  measured entry r11<-r6 | call r6<-r5 r5<-r3 r3<-r11
+  R-INC    entry r11<-r3 r3<-r6 | call r6<-r5 r5<-r11
+gtgt_n5_p01423_g4_c1_ln
+  measured entry r11<-r7 | call r7<-r6 r6<-r5 r5<-r11
+  R-INC    entry r11<-r5 r5<-r7 | call r7<-r6 r6<-r11
+gtgt_n5_p03124_g3_c1_ln
+  measured entry r11<-r6 | call r6<-r5 r5<-r4 r4<-r11
+  R-INC    entry r11<-r4 r4<-r6 | call r6<-r5 r5<-r11
+gtgt_n5_p04132_g4_c1_ln
+  measured entry r11<-r7 | call r7<-r5 r5<-r4 r4<-r11
+  R-INC    entry r11<-r4 r4<-r7 | call r7<-r5 r5<-r11
+gtgt_n5_p04213_g4_c1_ln
+  measured entry r11<-r7 | call r7<-r6 r6<-r4 r4<-r11
+  R-INC    entry r11<-r4 r4<-r7 | call r7<-r6 r6<-r11
+gtgt_n5_p20134_g2_c1_ln
+  measured entry r11<-r5 | call r5<-r4 r4<-r3 r3<-r11
+  R-INC    entry r11<-r3 r3<-r5 | call r5<-r4 r4<-r11
+gtgt_n5_p30214_g3_c1_ln
+  measured entry r11<-r6 | call r6<-r4 r4<-r3 r3<-r11
+  R-INC    entry r11<-r3 r3<-r6 | call r6<-r4 r4<-r11
+gtgt_n5_p31024_g3_c1_ln
+  measured entry r11<-r6 | call r6<-r5 r5<-r3 r3<-r11
+  R-INC    entry r11<-r3 r3<-r6 | call r6<-r5 r5<-r11
+gtgt_n5_p40231_g4_c1_ln
+  measured entry r11<-r7 | call r7<-r4 r4<-r3 r3<-r11
+  R-INC    entry r11<-r3 r3<-r7 | call r7<-r4 r4<-r11
+gtgt_n5_p41032_g4_c1_ln
+  measured entry r11<-r7 | call r7<-r5 r5<-r3 r3<-r11
+  R-INC    entry r11<-r3 r3<-r7 | call r7<-r5 r5<-r11
+gtgt_n5_p41203_g4_c1_ln
+  measured entry r11<-r7 | call r7<-r6 r6<-r3 r3<-r11
+  R-INC    entry r11<-r3 r3<-r7 | call r7<-r6 r6<-r11
