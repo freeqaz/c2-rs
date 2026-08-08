@@ -64,6 +64,37 @@
 //! differential still agree; only the *absolute* path differs from an uncached
 //! run, and it differs on both sides identically.)
 //!
+//! **The root is absolutised the moment it enters the cache, and that is a
+//! correctness property, not tidiness** (board #1388). It used to be
+//! *canonicalized into the key* but stored *as spelled*, and the two disagreed
+//! on exactly one path: a HIT. `capture_reference_with` calls `absolute()` on
+//! the directory it is handed, so a MISS bakes — and returns — an absolute
+//! `-Fo` whatever the spelling; but `read_entry` served
+//! `self.root.join(key)/out.obj` verbatim, so under `--cache <relative dir>` the
+//! port was handed a *relative* `S_OBJNAME` (`to_wibo_path` passes a relative
+//! path through unchanged, without even the `Z:` prefix) while the cached
+//! reference obj carried the absolute one. The differential then compared two
+//! objs that differ only in the path each records about itself and reported
+//! **`mismatch`** on a byte-exact TU — a false ALARM, in the instrument every
+//! ladder on this project runs. It could not fire on a first run, only on the
+//! second, which is the one a reader trusts more.
+//!
+//! Because the key already carried the *canonicalized* root, the two spellings
+//! addressed **one** entry, so the wrong answer was reproducible and stable
+//! rather than intermittent. Absolutising `root` itself makes the served path
+//! and the keyed path the same string by construction; the key is unchanged, so
+//! entries written before this fix stay valid.
+//!
+//! **And a served entry is checked against its own provenance.** `meta.txt`
+//! records the absolute path the capture was actually made at
+//! ([`CAPTURE_PATH_KEY`]), and an entry whose recorded path is not the path it
+//! is being served from is refused — counted as [`CacheStats::foreign`], named
+//! in the report, and re-captured. That is the standing rule for this cache: a
+//! stale or foreign entry must be a MISS or a loud refusal, never a silent wrong
+//! verdict. It is expected to read **0** forever; a non-zero is either a moved
+//! cache or a regression in the absolutisation above, and both want saying out
+//! loud rather than paying for silently in re-captures.
+//!
 //! Captured IL is **never** committed: the default root is `<repo>/work/`, which
 //! `.gitignore` covers, and the entries are `_CL_*` / `*.obj` besides.
 
@@ -83,6 +114,17 @@ use crate::provenance::GitInfo;
 /// On-disk format version. Bump on any layout/key change — old entries then key
 /// differently and are simply never read again.
 const CACHE_FORMAT: &str = "c2rs-capture-cache/v1";
+
+/// `meta.txt` line recording the **absolute path this entry's `out.obj` was
+/// captured at**. Written since board #1388; absent on older entries, which are
+/// still served (the key already pins the cache root, so their path is
+/// derivable — the line exists to make that derivation *checkable* rather than
+/// assumed, and to keep it checkable if the derivation is ever changed again).
+///
+/// Deliberately NOT part of the key material: adding it there would cold-start
+/// every existing entry — ~450 s of CPU per scan, paid by every concurrent lane
+/// — to re-derive bytes that are already correct.
+pub const CAPTURE_PATH_KEY: &str = "objpath ";
 
 /// FNV-1a 64, hand-rolled (the workspace is std-only by hard constraint).
 fn fnv1a64(seed: u64, bytes: &[u8]) -> u64 {
@@ -159,6 +201,14 @@ pub struct CacheStats {
     pub timestamp_only: usize,
     /// One line per poisoned entry: `<src>: <what differed>`.
     pub poison_detail: Vec<String>,
+    /// Entries REFUSED because their recorded capture path
+    /// ([`CAPTURE_PATH_KEY`]) is not the path they would be served from. The
+    /// obj embeds its own `-Fo`, so such bytes are not the bytes c2 would emit
+    /// here; they are re-captured rather than served. **Expected to be 0** —
+    /// see the module docs on board #1388.
+    pub foreign: usize,
+    /// One line per refused entry: `<src>: <recorded> != <serving>`.
+    pub foreign_detail: Vec<String>,
 }
 
 /// The cache.
@@ -282,6 +332,17 @@ impl CaptureCache {
         validate_every: usize,
     ) -> io::Result<CaptureCache> {
         std::fs::create_dir_all(&root)?;
+        // ABSOLUTISE ONCE, HERE, and use the same value for the key and for
+        // every path served out of this cache. Board #1388: the key line below
+        // used to canonicalize while `self.root` kept the caller's spelling, so
+        // `--cache <relative dir>` HIT the entry an absolute run had written and
+        // then handed the port a *relative* `S_OBJNAME` — a false `mismatch` on
+        // a byte-exact TU. One binding, so the two cannot drift apart again.
+        //
+        // `create_dir_all` above guarantees the path resolves; the fallback is
+        // for the pathological case (a race deleting it) and keeps the cache
+        // fail-open rather than turning an unreadable directory into a panic.
+        let root = root.canonicalize().unwrap_or(root);
         let tree = workload_dir.map(GitInfo::probe).unwrap_or_else(GitInfo::unknown);
         let header_closure = tree.head != "unknown";
         let mut context = String::new();
@@ -322,11 +383,10 @@ impl CaptureCache {
         // the default path was the one that lied.
         //
         // Canonicalized so that two spellings of one directory are one key rather
-        // than two; `create_dir_all` above guarantees it resolves.
-        context.push_str(&format!(
-            "cache-root {}\n",
-            root.canonicalize().unwrap_or_else(|_| root.clone()).display()
-        ));
+        // than two. `root` is ALREADY the canonical form (absolutised at the top
+        // of this function), so this line is byte-identical to what it produced
+        // before board #1388's fix and no existing entry is invalidated.
+        context.push_str(&format!("cache-root {}\n", root.display()));
         Ok(CaptureCache {
             root,
             context,
@@ -455,8 +515,18 @@ impl CaptureCache {
         // sharing a cache root. Fail-open: `None` means proceed unguarded.
         let _guard = KeyLock::acquire(&self.root, &key);
 
-        match read_entry(&dir, &material) {
-            Some(hit) => {
+        // A refused entry is recorded BEFORE it is re-captured, so the report
+        // says "this cache had entries it would not serve" rather than quietly
+        // paying for them in misses. Expected to be 0; see the module docs.
+        let entry = read_entry(&dir, &material);
+        if let EntryRead::Foreign(what) = &entry {
+            let mut st = self.stats.lock().unwrap();
+            st.foreign += 1;
+            st.foreign_detail.push(format!("{src_arg}: {what}"));
+        }
+        match entry {
+            EntryRead::Hit(hit) => {
+                let hit = *hit;
                 let n = self.seq.fetch_add(1, Ordering::Relaxed) + 1;
                 let validate = self.validate_every > 0 && n % self.validate_every == 0;
                 if !validate {
@@ -505,7 +575,7 @@ impl CaptureCache {
                     }
                 }
             }
-            None => {
+            EntryRead::Miss | EntryRead::Foreign(_) => {
                 let out = tc.capture_reference_with(src_arg, &dir, flags, cwd);
                 match &out {
                     Ok(cap) => {
@@ -569,43 +639,89 @@ fn dirty_digest(dir: &Path) -> String {
     digest128(&buf)
 }
 
+/// What a lookup at one entry directory produced.
+///
+/// Three outcomes, not two, because "there is nothing here" and "there is
+/// something here that must not be served" want different treatment: the first
+/// is the ordinary cold path, the second is a fact about the cache that the
+/// report has to carry. Both re-capture; only one of them says so.
+#[derive(Debug)]
+pub enum EntryRead {
+    /// Nothing usable: absent, incomplete, or the stored key material differs
+    /// (a hash collision, which is therefore a miss and never a wrong hit).
+    Miss,
+    /// An entry whose recorded capture path is not the path it is being served
+    /// from. **Never served.** The reference obj embeds its own `-Fo` path
+    /// (`S_OBJNAME`), so its bytes are not the bytes c2 would emit here, and
+    /// serving them fakes a `mismatch` on a byte-exact TU — board #1388.
+    Foreign(String),
+    /// A complete entry, served at the path it was captured at.
+    Hit(Box<CapturedReference>),
+}
+
 /// Read a complete entry from `dir`, requiring its stored key material to equal
-/// `material` byte-for-byte (so a hash collision is a miss, not a wrong hit).
-fn read_entry(dir: &Path, material: &[u8]) -> Option<CapturedReference> {
-    let stored = std::fs::read(dir.join("key.bin")).ok()?;
+/// `material` byte-for-byte (so a hash collision is a miss, not a wrong hit) and
+/// its recorded capture path to be the path it is being served from.
+fn read_entry(dir: &Path, material: &[u8]) -> EntryRead {
+    let Ok(stored) = std::fs::read(dir.join("key.bin")) else {
+        return EntryRead::Miss;
+    };
     if stored != material {
-        return None;
+        return EntryRead::Miss;
     }
     // `meta.txt` is written last, so its presence is the completion marker.
-    let meta = std::fs::read_to_string(dir.join("meta.txt")).ok()?;
+    let Ok(meta) = std::fs::read_to_string(dir.join("meta.txt")) else {
+        return EntryRead::Miss;
+    };
     let mut base_name = String::new();
     let mut c2_argv: Vec<String> = Vec::new();
+    let mut recorded_path: Option<&str> = None;
     for line in meta.lines() {
         if let Some(v) = line.strip_prefix("base ") {
             base_name = v.to_string();
         } else if let Some(v) = line.strip_prefix("arg ") {
             c2_argv.push(v.to_string());
+        } else if let Some(v) = line.strip_prefix(CAPTURE_PATH_KEY) {
+            recorded_path = Some(v);
         }
     }
     if base_name.is_empty() || c2_argv.is_empty() {
-        return None;
+        return EntryRead::Miss;
     }
     let ref_obj_path = dir.join("out.obj");
-    let obj = std::fs::read(&ref_obj_path).ok()?;
+    // The provenance check. Absent on entries written before board #1388 — those
+    // are served, because the cache root is in the key and the path is therefore
+    // derivable; the line exists so the derivation is CHECKED rather than
+    // assumed for everything written from now on.
+    if let Some(recorded) = recorded_path {
+        if Path::new(recorded) != ref_obj_path {
+            return EntryRead::Foreign(format!(
+                "entry records its capture at {recorded} but is being served from {} \
+                 — the obj embeds its own -Fo path, so those are not the bytes c2 \
+                 would emit here",
+                ref_obj_path.display()
+            ));
+        }
+    }
+    let Ok(obj) = std::fs::read(&ref_obj_path) else {
+        return EntryRead::Miss;
+    };
     if obj.is_empty() {
-        return None;
+        return EntryRead::Miss;
     }
-    let bundle = IlBundle::load_from_dir(dir, &base_name).ok()?;
+    let Ok(bundle) = IlBundle::load_from_dir(dir, &base_name) else {
+        return EntryRead::Miss;
+    };
     if bundle.ex().map(<[u8]>::is_empty).unwrap_or(true) {
-        return None;
+        return EntryRead::Miss;
     }
-    Some(CapturedReference {
+    EntryRead::Hit(Box::new(CapturedReference {
         bundle,
         base_name,
         c2_argv,
         ref_obj: ObjImage::new(obj),
         ref_obj_path,
-    })
+    }))
 }
 
 /// Complete an entry: the bundle and `out.obj` are already on disk (the capture
@@ -621,6 +737,12 @@ fn write_entry(dir: &Path, material: &[u8], cap: &CapturedReference) -> io::Resu
     for a in &cap.c2_argv {
         meta.push_str(&format!("arg {a}\n"));
     }
+    // The provenance line: where these bytes were actually made. `read_entry`
+    // refuses to serve them from anywhere else (board #1388).
+    meta.push_str(&format!(
+        "{CAPTURE_PATH_KEY}{}\n",
+        cap.ref_obj_path.display()
+    ));
     std::fs::write(dir.join("meta.txt"), meta)
 }
 
@@ -938,7 +1060,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("c2rs-cachelockdir-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        assert!(read_entry(&dir, b"anything").is_none());
+        assert!(matches!(read_entry(&dir, b"anything"), EntryRead::Miss));
         // 32-hex is what an entry name looks like; `.locks` is not that, which
         // is what keeps the age GC's `-name '[0-9a-f]*'` filter honest.
         assert!(!LOCK_DIR.chars().all(|c| c.is_ascii_hexdigit()));
@@ -1029,6 +1151,66 @@ mod tests {
         let _ = std::fs::remove_dir_all(&base);
     }
 
+    /// **Board #1388.** A RELATIVE `--cache` spelling must address the same
+    /// entry as the absolute one *and serve it at the same absolute path*.
+    ///
+    /// The key half of that was already true — `cache-root` is canonicalized —
+    /// and it is exactly what made the defect stable: both spellings hit ONE
+    /// entry, and the relative one then handed the port
+    /// `work/…/out.obj` as `S_OBJNAME` while the cached reference obj carried
+    /// `Z:\…\work\…\out.obj`. Byte-exact TU, verdict `mismatch`.
+    ///
+    /// This asserts the two halves separately, so a future change that fixes
+    /// one and breaks the other cannot pass. No capture is performed, so it
+    /// needs no `strace`; `Toolchain::locate` is required only because the key
+    /// hashes the compiler DLLs.
+    #[test]
+    fn a_relative_root_and_an_absolute_root_agree_on_key_and_on_served_path() {
+        let Some(tc) = Toolchain::locate() else {
+            eprintln!("SKIP: toolchain absent");
+            return;
+        };
+        let base = std::env::temp_dir().join(format!("c2rs-cacherel-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(base.join("cache")).unwrap();
+        std::fs::write(base.join("a.cpp"), b"int f(){return 1;}").unwrap();
+        let flags: Vec<String> = vec!["/O1".into(), "/c".into()];
+
+        // The relative spelling, resolved against THIS process's cwd — which is
+        // what `--cache work/x` means and what the field bug was reported with.
+        // Reached via a `..`-hop so the string is genuinely non-canonical.
+        let abs = base.join("cache");
+        let hop = base.join("cache/../cache");
+
+        let c_abs = CaptureCache::new(abs.clone(), &tc, Some(&base), 0).unwrap();
+        let c_hop = CaptureCache::new(hop, &tc, Some(&base), 0).unwrap();
+
+        // Half 1: one key. (True before the fix, too — this is the half that
+        // made the wrong answer reproducible rather than intermittent.)
+        assert_eq!(
+            c_abs.key_material("a.cpp", &flags, Some(&base)).unwrap(),
+            c_hop.key_material("a.cpp", &flags, Some(&base)).unwrap(),
+            "two spellings of one cache directory must address one entry"
+        );
+
+        // Half 2: one SERVED path, and it is absolute. This is the half that was
+        // false. `root()` is what `read_entry` joins the key onto, so it is the
+        // path the port is handed as `S_OBJNAME` on every hit.
+        assert!(
+            c_hop.root().is_absolute(),
+            "the cache root is served as {:?} — a relative root makes to_wibo_path \
+             hand the port a relative S_OBJNAME on every HIT, while the cached obj \
+             carries the absolute one (board #1388)",
+            c_hop.root()
+        );
+        assert_eq!(
+            c_abs.root(),
+            c_hop.root(),
+            "two spellings of one cache directory must serve from one path"
+        );
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
     #[test]
     fn a_hash_collision_would_read_as_a_miss() {
         // read_entry demands the stored material equal the requested material,
@@ -1038,7 +1220,85 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("key.bin"), b"material-A").unwrap();
         std::fs::write(dir.join("meta.txt"), "base _CL_1\narg -il\n").unwrap();
-        assert!(read_entry(&dir, b"material-B").is_none());
+        assert!(matches!(read_entry(&dir, b"material-B"), EntryRead::Miss));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// **Board #1388's guard, fired on purpose.** An entry that records a
+    /// capture path other than the one it is being served from is REFUSED —
+    /// never served — because the reference obj embeds that path as
+    /// `S_OBJNAME` and serving it fakes a `mismatch` on a byte-exact TU.
+    ///
+    /// Toolchain-free: this is a property of `meta.txt`, not of `c2`.
+    #[test]
+    fn an_entry_recorded_at_another_path_is_refused_not_served() {
+        let dir = std::env::temp_dir().join(format!("c2rs-cacheprov-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("key.bin"), b"material-A").unwrap();
+        let meta = |objpath: Option<&str>| {
+            let mut m = format!("{CACHE_FORMAT}\nbase _CL_1\narg -il\n");
+            if let Some(p) = objpath {
+                m.push_str(&format!("{CAPTURE_PATH_KEY}{p}\n"));
+            }
+            std::fs::write(dir.join("meta.txt"), m).unwrap();
+        };
+
+        // Recorded somewhere else -> Foreign, and the message NAMES both paths.
+        meta(Some("/somewhere/else/out.obj"));
+        let what = match read_entry(&dir, b"material-A") {
+            EntryRead::Foreign(w) => w,
+            other => panic!("a foreign entry read as {other:?} — it must be REFUSED"),
+        };
+        assert!(what.contains("/somewhere/else/out.obj"), "{what}");
+        assert!(what.contains(&dir.join("out.obj").display().to_string()), "{what}");
+
+        // Recorded HERE -> the provenance check passes and the read continues
+        // (and then misses on the absent obj/bundle). Miss, never Foreign: this
+        // is the arm that would catch the check refusing everything, which would
+        // turn the cache into a permanent cold start rather than a wrong answer.
+        meta(Some(&dir.join("out.obj").display().to_string()));
+        assert!(
+            matches!(read_entry(&dir, b"material-A"), EntryRead::Miss),
+            "an entry recorded at its own path must not be refused on provenance"
+        );
+
+        // No line at all -> a pre-#1388 entry. Also not Foreign: the cache root
+        // is in the key, so those entries' paths are already pinned, and
+        // refusing them would cold-start every cache on this box at once.
+        meta(None);
+        assert!(
+            matches!(read_entry(&dir, b"material-A"), EntryRead::Miss),
+            "an entry written before the provenance line must not be refused"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A written entry records where it was captured, so the guard above has
+    /// something to check. Without this, `write_entry` could stop emitting the
+    /// line and every `read_entry` would take the pre-#1388 compatibility arm —
+    /// green, and checking nothing.
+    #[test]
+    fn a_written_entry_records_its_own_capture_path() {
+        let dir = std::env::temp_dir().join(format!("c2rs-cachewrite-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut b = IlBundle::new("_CL_test");
+        b.set("ex", b"EX".to_vec());
+        let cap = CapturedReference {
+            bundle: b,
+            base_name: "_CL_test".to_string(),
+            c2_argv: vec!["-il".to_string()],
+            ref_obj: ObjImage::new(b"OOOOOOOOOOOO".to_vec()),
+            ref_obj_path: dir.join("out.obj"),
+        };
+        write_entry(&dir, b"material-A", &cap).unwrap();
+        let meta = std::fs::read_to_string(dir.join("meta.txt")).unwrap();
+        assert!(
+            meta.lines().any(|l| l
+                == format!("{CAPTURE_PATH_KEY}{}", dir.join("out.obj").display())),
+            "write_entry did not record the capture path; meta.txt was:\n{meta}"
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -1049,7 +1309,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("key.bin"), b"material-A").unwrap();
-        assert!(read_entry(&dir, b"material-A").is_none());
+        assert!(matches!(read_entry(&dir, b"material-A"), EntryRead::Miss));
         let _ = std::fs::remove_dir_all(&dir);
     }
 

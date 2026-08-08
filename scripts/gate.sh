@@ -180,6 +180,30 @@
 # "unconditional" affordable: the trade-off was resolved by removing the cost, not
 # by making the check optional.**
 #
+# ---- AND THE INSTRUMENTS THEMSELVES ARE A ROW NOW (2026-08-08, board #1406) ----
+#
+# Everything above grades the PORT. `hatch-red` grades an INSTRUMENT: it runs
+# `work/w-hatch/hatch_red.py`, which fires every one of `work/w-front3/hatch.py`'s
+# eight refusals on purpose — 11 arms, 9 red, 2 green, 8 distinct leading words.
+# `hatch.py` is the frontier ladder's lift, and its `revert` had already discarded
+# a peer lane's unstaged fix (board #1380) before the refusals existed. The arms
+# were run by hand and nothing executed them; this row is what executes them.
+#
+# It differs from every other row here in three ways, all deliberate:
+#
+#   * It needs NO TOOLCHAIN, so it is not part of the all-skip rule and it still
+#     runs on the portable lane.
+#   * It runs FIRST, before `pin_harness` — the arms write into `crates/` and
+#     restore it, and the gate's one `cargo build` must not start alongside them.
+#   * A DIRTY `crates/` (or a hatch whose needles have drifted out of the tree)
+#     is `REFUSED`, not `FAIL`. Those are properties of the tree, not of
+#     `hatch.py`, and a lane mid-wave is routinely in the first. `REFUSED` exits 0
+#     and forfeits the unqualified headline — `GATE: PASS (HATCH-RED REFUSED)` —
+#     which is the same treatment `SAMPLED` and `SKIPPED` get.
+#
+# Its 11 arms are NOT counted toward `--require-graded`. That demand is about the
+# port, and 11 arms of a `work/` script say nothing about the port.
+#
 # ---- THE RUN TREE, REAPED, AND THE DISK RED TOLD APART FROM THE RED RED --------
 #
 # This gate writes a ~112 MB run tree per invocation and, until 2026-08-05, **never
@@ -713,6 +737,167 @@ sweep_verdict() {
         return 0
     fi
     echo "PASS|$_sv_c|$_sv_sel|$_sv_tot|0||$_sv_g|$_sv_u"
+    return 0
+}
+
+# --------------------------------------------------------------------------------
+# THE HATCH-RED ROW (board #1406, lane w-cache, 2026-08-08).
+#
+# `work/w-front3/hatch.py` is the frontier ladder's lift mechanism and its
+# `revert` was, until lane `w-hatch` repaired it, a bare `git checkout --` over
+# six `crates/` files — which had already eaten a peer lane's unstaged fix
+# (#1380). The repair added eight refusals, each leading with its own word, and
+# `work/w-hatch/hatch_red.py` fires every one of them on purpose: 11 arms, 9 red
+# and 2 green, and against the UNREPAIRED file it fails 10 of 11 with the key arm
+# reading *"the foreign edit SURVIVED: NO — IT WAS EATEN"*.
+#
+# **It was run by hand and nothing executed it automatically.** That is trap 5 —
+# absence reads as success unless something forbids it — sitting one level
+# outside the thing that forbids it. This row is the forbidding.
+#
+# WHY IT RUNS FIRST, BEFORE `pin_harness`
+# ---------------------------------------
+# The arms WRITE INTO `crates/` and restore afterwards. `pin_harness` runs the
+# gate's one and only `cargo build`, so the row has to be finished before that
+# starts or a compile could see a half-hatched tree. It needs no toolchain and no
+# binary, and it takes seconds, so running it first also means a broken hatch is
+# on screen before twenty minutes of compiler.
+#
+# WHY A DIRTY TREE IS `REFUSED` AND NOT `FAIL`
+# --------------------------------------------
+# Two of the outcomes here are properties of the TREE, not of `hatch.py`:
+#
+#   * `crates/` differs from `HEAD` — the arms would `git checkout --` over it,
+#     which is #1380's incident being re-enacted by the test written to prevent
+#     it. Refuse, and name the files.
+#   * the hatch's needles have drifted out of the tree, so `apply` cannot build a
+#     hatched tree at all (#1389's shape, and it is live).
+#
+# A lane mid-wave is routinely in the first state and can be in the second, and
+# reddening a peer's gate for a reason unrelated to their rung is not a thing
+# this row is allowed to do. So `REFUSED` exits 0 — and it **cannot print an
+# unqualified `GATE: PASS`**, exactly the treatment `SAMPLED` and `SKIPPED`
+# already get, for exactly their reason. A skip is visible or it is a silent pass.
+#
+# WHAT IT DOES *NOT* COUNT TOWARD
+# -------------------------------
+# `--require-graded`'s unit sum. Deliberately. That demand is "this run
+# established something about the PORT", and 11 arms of a `work/` script
+# establish nothing about the port; folding them in would let an all-skip
+# toolchain-less run satisfy a demand it must fail.
+#
+# Emits: <verdict>|<armspass>|<armstotal>|<red>|<green>|<detail>
+# where verdict is PASS | FAIL | REFUSED | NO-RESULT and every non-PASS detail
+# LEADS WITH ITS OWN WORD — a shared prefix is how a later refusal comes to
+# satisfy an earlier case's expectation, which has silently passed two of six
+# mutations on this project before.
+#
+# A pure function of the log text plus two numbers, so `--selftest` drives it
+# with fabricated logs and never runs the real thing.
+# --------------------------------------------------------------------------------
+hatch_red_verdict() {   # <log> <exit-status> <expected-arm-count>
+    _hv_log="$1"; _hv_st="${2:-0}"; _hv_exp="${3:-0}"
+    if [ ! -s "$_hv_log" ]; then
+        echo "NO-RESULT|0|$_hv_exp|0|0|NO-LOG hatch_red.py produced no output at all"
+        return 0
+    fi
+    # ORDER IS LOAD-BEARING, and it is the mutation trap in person: a `SETUP
+    # FAILED` arm ALSO prints a `FAILED:` line at the end, so the tree-property
+    # arm must be read BEFORE the guard-property arm. Read the other way round, a
+    # tree whose hatch has drifted is indistinguishable from a `hatch.py` whose
+    # guards have stopped working — the second is a real defect and the first is
+    # a Tuesday.
+    if grep -q '^REFUSING to run on a dirty tree' "$_hv_log" 2>/dev/null; then
+        echo "REFUSED|0|$_hv_exp|0|0|DIRTY-TREE hatch_red.py refused: crates/ was written since it looked"
+        return 0
+    fi
+    if grep -q 'SETUP FAILED' "$_hv_log" 2>/dev/null; then
+        echo "REFUSED|0|$_hv_exp|0|0|HATCH-STALE \`hatch.py apply\` cannot hatch this tree, so the arms have no tree to run on (board #1389)"
+        return 0
+    fi
+    _hv_p=$(sed -n 's/^ALL \([0-9][0-9]*\) ARMS PASS.*[^0-9]\([0-9][0-9]*\) red, \([0-9][0-9]*\) green.*/\1 \2 \3/p' \
+        "$_hv_log" 2>/dev/null | head -1)
+    if [ -n "$_hv_p" ]; then
+        _hv_n=$(echo "$_hv_p" | cut -d' ' -f1)
+        _hv_r=$(echo "$_hv_p" | cut -d' ' -f2)
+        _hv_g=$(echo "$_hv_p" | cut -d' ' -f3)
+        # ANTI-VACUITY, and each arm has its own word. A green line is not
+        # evidence on its own: the count has to be the count the file declares,
+        # the red arms have to exist, and the controls have to exist. Every one
+        # of these three has an equivalent that has read green on this project
+        # while measuring nothing.
+        if [ "$_hv_exp" -le 0 ] || [ "$_hv_n" -ne "$_hv_exp" ]; then
+            echo "FAIL|$_hv_n|$_hv_exp|$_hv_r|$_hv_g|TRUNCATED $_hv_n of $_hv_exp declared arms ran — a short run is not a pass"
+            return 0
+        fi
+        if [ "$_hv_r" -le 0 ] || [ "$_hv_g" -le 0 ] || [ $((_hv_r + _hv_g)) -ne "$_hv_n" ]; then
+            echo "FAIL|$_hv_n|$_hv_exp|$_hv_r|$_hv_g|VACUOUS $_hv_r red and $_hv_g green do not account for $_hv_n arms — a run with no red arms proves nothing and a run with no controls proves less"
+            return 0
+        fi
+        if [ "$_hv_st" != "0" ]; then
+            echo "FAIL|$_hv_n|$_hv_exp|$_hv_r|$_hv_g|EXIT reported every arm passing and then exited $_hv_st"
+            return 0
+        fi
+        echo "PASS|$_hv_n|$_hv_exp|$_hv_r|$_hv_g|"
+        return 0
+    fi
+    if grep -q '^FAILED: ' "$_hv_log" 2>/dev/null; then
+        _hv_d=$(grep -m1 '^FAILED: ' "$_hv_log" | tr '|' ' ')
+        echo "FAIL|0|$_hv_exp|0|0|ARMS-FAILED $_hv_d"
+        return 0
+    fi
+    echo "NO-RESULT|0|$_hv_exp|0|0|UNRECOGNIZED no ALL-ARMS-PASS line and no FAILED line — an unenumerated outcome is the next silence"
+    return 0
+}
+
+# --------------------------------------------------------------------------------
+# Run the hatch-red arms, with the interlock in front and the postcondition
+# behind. Not selftest-driven: it touches `git` and the real tree, and everything
+# it decides on its own has its own word, so the classifier above stays pure.
+# --------------------------------------------------------------------------------
+hatch_red_run() {   # <log-path> -> echoes the tuple
+    _hr_log="$1"
+    _hr_py="$repo_root/work/w-hatch/hatch_red.py"
+    if [ ! -f "$_hr_py" ]; then
+        echo "NO-RESULT|0|0|0|0|MISSING work/w-hatch/hatch_red.py is not in this tree"
+        return 0
+    fi
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo "NO-RESULT|0|0|0|0|MISSING no python3, and the arms are a python script"
+        return 0
+    fi
+    # The DECLARED arm count, read out of the file rather than written here, so
+    # adding an arm cannot leave this row silently grading the old number.
+    _hr_exp=$(python3 "$_hr_py" --list 2>/dev/null | grep -c . || echo 0)
+    if ! git -C "$repo_root" rev-parse --git-dir >/dev/null 2>&1; then
+        echo "REFUSED|0|$_hr_exp|0|0|NO-GIT this tree is not a checkout, so the arms cannot restore what they write"
+        return 0
+    fi
+    # THE INTERLOCK. `HEAD`, not the worktree-vs-index diff `hatch_red.py`
+    # checks itself: a STAGED `crates/` edit survives the arms' `git checkout --`
+    # but can still move one of `hatch.py`'s needles, which would turn a peer's
+    # ordinary work-in-progress into this row's red.
+    _hr_dirty=$(git -C "$repo_root" diff --name-only HEAD -- crates/ 2>/dev/null | tr '\n' ' ')
+    if [ -n "$_hr_dirty" ]; then
+        echo "REFUSED|0|$_hr_exp|0|0|DIRTY-TREE crates/ differs from HEAD and the arms would overwrite it: $_hr_dirty"
+        return 0
+    fi
+    _hr_st=0
+    if command -v timeout >/dev/null 2>&1; then
+        (cd "$repo_root" && timeout 600 python3 "$_hr_py") > "$_hr_log" 2>&1 || _hr_st=$?
+    else
+        (cd "$repo_root" && python3 "$_hr_py") > "$_hr_log" 2>&1 || _hr_st=$?
+    fi
+    # THE POSTCONDITION, and it outranks the classifier: the arms write into
+    # `crates/` and restore in a `finally`, but a SIGKILL has no `finally`. The
+    # gate's `cargo build` is next, so a tree left hatched here would be compiled
+    # and graded. Say so and stop rather than build it.
+    _hr_res=$(git -C "$repo_root" diff --name-only HEAD -- crates/ 2>/dev/null | tr '\n' ' ')
+    if [ -n "$_hr_res" ]; then
+        echo "FAIL|0|$_hr_exp|0|0|RESIDUE the arms left crates/ modified and the build must not proceed from it: $_hr_res"
+        return 0
+    fi
+    hatch_red_verdict "$_hr_log" "$_hr_st" "$_hr_exp"
     return 0
 }
 
@@ -1302,9 +1487,28 @@ gen_why() {
     esac
 }
 
+# The explanation behind a `(HATCH-RED REFUSED)` headline. A function, not four
+# copies: the suffix and the paragraph must never be able to disagree about
+# whether the row ran.
+hatch_refusal_note() {
+    [ "${_d_hrv:-}" = REFUSED ] || return 0
+    echo
+    echo "  HATCH-RED REFUSED — $_d_hrd"
+    echo "  The arms write into crates/ and restore it, so they will not run over a tree"
+    echo "  that is not HEAD, and they cannot run at all on a tree the hatch will not"
+    echo "  apply to. Neither is a statement about \`hatch.py\`'s eight refusals, so this"
+    echo "  run does NOT establish what a full run establishes (board #1406). This is why"
+    echo "  the headline above is qualified: commit or stash crates/ and re-run."
+}
+
 decide() {
     _d_reg="$1"; _d_res="$2"; _d_run="${3:-}"; _d_sw="${4:-}"; _d_filt="${5:-}"
     _d_cx="${6:-}"
+    # The hatch-red tuple (board #1406). Its own argument rather than a third
+    # `gen_*` arm, because the `gen_*` rows are TOOLCHAIN-BOUND — the all-skip
+    # path below requires every one of them to read SKIP — and this row needs no
+    # toolchain and must keep working on the portable lane.
+    _d_hr="${7:-}"
     _d_n=$(wc -l < "$_d_reg")
     _d_rows=$(wc -l < "$_d_res")
 
@@ -1339,6 +1543,26 @@ decide() {
             "$(gen_unit "$_g") (of $(gen_tuple "$_g" | cut -d'|' -f4))" \
             "$([ -z "$(gen_tuple "$_g" | cut -d'|' -f6)" ] && echo "" || echo "   <- $(gen_tuple "$_g" | cut -d'|' -f6)")"
     done
+
+    # The hatch-red row. Absent is a failure too — but that is ruled on BELOW the
+    # completeness check, not here: an early guard that fires first takes the
+    # headline away from the later one, and `short-table` lost its own message to
+    # exactly that while this row was being written.
+    _d_hrv=$(printf '%s\n' "$_d_hr" | cut -d'|' -f1)
+    _d_hrp=$(printf '%s\n' "$_d_hr" | cut -d'|' -f2)
+    _d_hrt=$(printf '%s\n' "$_d_hr" | cut -d'|' -f3)
+    _d_hrr=$(printf '%s\n' "$_d_hr" | cut -d'|' -f4)
+    _d_hrg=$(printf '%s\n' "$_d_hr" | cut -d'|' -f5)
+    _d_hrd=$(printf '%s\n' "$_d_hr" | cut -d'|' -f6)
+    # `n/a` in the mismatch column, never `0`: this row grades instruments, not
+    # objs, and it cannot produce a mismatch. A `0` there would read as a graded
+    # zero, which is the strongest claim on this table and one it cannot make.
+    if [ -n "$_d_hr" ]; then
+        printf "%-20s %-10s %6s/%-6s %6s %9s  %s%s\n" \
+            "hatch-red" "$_d_hrv" "$_d_hrp" "$_d_hrt" "$_d_hrr" "n/a" \
+            "arms ($_d_hrg green controls)" \
+            "$([ -z "$_d_hrd" ] && echo "" || echo "   <- $_d_hrd")"
+    fi
     echo
 
     _d_swv=$(printf '%s\n' "$_d_sw" | cut -d'|' -f1)
@@ -1414,6 +1638,49 @@ decide() {
             return 1
         fi
     done
+
+    # ABSENT IS A FAILURE, same rule and same reason as the sweep and the cross:
+    # a gate that forgot to run this row must not be able to reach a PASS.
+    if [ -z "$_d_hr" ]; then
+        echo
+        echo "GATE: FAIL — no hatch-red verdict was produced at all."
+        echo "  \`work/w-hatch/hatch_red.py\` is part of this gate (board #1406). It fires"
+        echo "  every one of \`work/w-front3/hatch.py\`'s eight refusals on purpose; the"
+        echo "  \`revert\` those refusals guard had already eaten a peer lane's unstaged"
+        echo "  fix once (board #1380), and nothing executed the arms automatically."
+        return 1
+    fi
+    # The hatch-red row's two hard outcomes, ruled on here — above the
+    # `--require-graded` line, which is where every `return 1` in this function
+    # lives. `REFUSED` is NOT here: it exits 0 and is qualified at the bottom.
+    case "$_d_hrv" in
+        FAIL)
+            echo
+            echo "GATE: FAIL — hatch-red: $_d_hrd"
+            echo "  \`work/w-hatch/hatch_red.py\` fires \`work/w-front3/hatch.py\`'s refusals on"
+            echo "  purpose — 9 red arms, 2 green controls, 8 distinct leading words. A guard"
+            echo "  that no longer fires is a guard that is no longer there, and the one this"
+            echo "  covers had already discarded a peer lane's unstaged fix (board #1380)."
+            if [ -n "$_d_run" ] && [ -f "$_d_run/hatchred.log" ]; then
+                echo "  log: $_d_run/hatchred.log"
+                grep -E '^\s*\*\*\* ARM FAILED|^  [A-Z][0-9] .*ARM FAILED|^FAILED: ' \
+                    "$_d_run/hatchred.log" | sed 's/^/    /' || true
+            fi
+            return 1 ;;
+        NO-RESULT)
+            echo
+            echo "GATE: FAIL — hatch-red produced NO RESULT: $_d_hrd"
+            echo "  An instrument that did not run is a failure, not a pass. Nothing in this"
+            echo "  run establishes anything about \`hatch.py\`'s eight refusals."
+            return 1 ;;
+        PASS|REFUSED) : ;;
+        *)
+            echo
+            echo "GATE: FAIL — hatch-red reported an unrecognized verdict '$_d_hrv'."
+            echo "  An unenumerated verdict is the next silence; enumerate it or fix the"
+            echo "  classifier, but do not let it fall through to a PASS."
+            return 1 ;;
+    esac
 
     if [ "$_d_none" -gt 0 ]; then
         echo
@@ -1507,6 +1774,8 @@ decide() {
         done
         echo
         echo "GATE: SKIPPED — all $_d_n lanes, the sweep and the cross skipped, NOTHING WAS GRADED."
+        echo "  (hatch-red is toolchain-free and reported $_d_hrv — it grades INSTRUMENTS,"
+        echo "  not objs, and deliberately counts toward nothing on this line.)"
         echo "  The toolchain is absent (see CLAUDE.md); this exits 0 by design and is"
         echo "  NOT a green gate. This run establishes nothing about the port."
         echo "  Run with --require-graded (or C2RS_GATE_REQUIRE_GRADED=1) to make this"
@@ -1532,12 +1801,18 @@ decide() {
     done
 
     echo
+    # A REFUSED hatch-red exits 0 and forfeits the unqualified headline, exactly
+    # as SAMPLED and SKIPPED do. `_d_hrq` is appended to whichever zero-exit
+    # headline is reached below, so a future headline that forgets it is a
+    # missing suffix rather than a missing check.
+    _d_hrq=""
+    if [ "$_d_hrv" = REFUSED ]; then _d_hrq=" (HATCH-RED REFUSED)"; fi
     # `--lane` filters the registry, and every check above then treats the filtered
     # list AS the registry — which is right, and which also means a one-lane run
     # can print `12/12 lanes ran` shaped exactly like a full gate. Same hole as an
     # unqualified PASS over a sampled sweep, on the half that already existed.
     if [ -n "$_d_filt" ]; then
-        echo "GATE: PASS (LANES FILTERED) — $_d_pass/$_d_n SELECTED lanes ran, out of"
+        echo "GATE: PASS (LANES FILTERED)$_d_hrq — $_d_pass/$_d_n SELECTED lanes ran, out of"
         echo "  $_d_filt in the registry. --lane is for iterating; this run says nothing"
         echo "  about the lanes it did not run. Re-run without --lane before reporting."
         if [ "$_d_swv" = "SAMPLED" ]; then
@@ -1546,13 +1821,14 @@ decide() {
         if [ "$_d_cxv" = "SAMPLED" ]; then
             echo "  The cross was also SAMPLED — $_d_cxsel of $_d_cxtot case-lane cells."
         fi
+        hatch_refusal_note
         return 0
     fi
     if [ "$_d_swv" = "SAMPLED" ] || [ "$_d_cxv" = "SAMPLED" ]; then
         # A sample is a legitimate way to iterate and an illegitimate way to
         # report. It exits 0 and it does NOT get to print an unqualified PASS —
         # same treatment as GATE: SKIPPED, for the same reason.
-        echo "GATE: PASS (SAMPLED) — $_d_pass/$_d_n lanes ran and every one of them graded"
+        echo "GATE: PASS (SAMPLED)$_d_hrq — $_d_pass/$_d_n lanes ran and every one of them graded"
         echo "  a corpus, but a generated instrument graded only part of its corpus:"
         [ "$_d_swv" = "SAMPLED" ] && \
             echo "    expr-sweep  $_d_swc of $_d_swtot generated cases"
@@ -1561,12 +1837,14 @@ decide() {
         echo "  A strided sample is unbiased across fragments and is still a sample: this"
         echo "  run does NOT establish what a full run establishes. Re-run without"
         echo "  --sweep-cases / --cross-cells before reporting or landing."
+        hatch_refusal_note
         return 0
     fi
-    echo "GATE: PASS — $_d_pass/$_d_n lanes ran and every one of them graded a corpus,"
+    echo "GATE: PASS$_d_hrq — $_d_pass/$_d_n lanes ran and every one of them graded a corpus,"
     echo "  the sweep graded ${_d_swg:-?} of $_d_swtot generated cases and the cross graded"
     echo "  ${_d_cxg:-?} of $_d_cxtot case-lane cells, with 0 mismatches anywhere"
     echo "  (${_d_swu:-?} sweep cases carried ungraded — the reference rejects the source)."
+    hatch_refusal_note
     return 0
 }
 
@@ -1723,6 +2001,12 @@ if [ "$mode" = selftest ]; then
     SWEEP_FOR_CASE="$SWEEP_OK"
     CROSS_OK='PASS|61539|61539|61539|0||61151|388'
     CROSS_FOR_CASE="$CROSS_OK"
+    # The hatch-red row (board #1406). Every pre-existing case is driven with a
+    # clean tuple so its verdict is what it always was; the row's own cases
+    # override it. An EMPTY tuple stays a hard failure in `decide`, which is only
+    # safe because every caller here supplies one.
+    HR_OK='PASS|11|11|9|2|'
+    HR_FOR_CASE="$HR_OK"
 
     check_that() {  # <label> <ok?0/1>
         if [ "$2" -eq 0 ]; then
@@ -1753,11 +2037,12 @@ if [ "$mode" = selftest ]; then
         collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
         _rc_got=PASS
         if ! decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "" "$SWEEP_FOR_CASE" "" \
-                "$CROSS_FOR_CASE" > "$CASE_DIR/out.txt" 2>&1; then
+                "$CROSS_FOR_CASE" "$HR_FOR_CASE" > "$CASE_DIR/out.txt" 2>&1; then
             _rc_got=FAIL
         fi
         SWEEP_FOR_CASE="$SWEEP_OK"
         CROSS_FOR_CASE="$CROSS_OK"
+        HR_FOR_CASE="$HR_OK"
         _rc_hdl=$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt" || echo 'GATE: <none printed>')
         cases=$((cases + 1))
         if [ "$_rc_got" = "$_rc_want" ]; then
@@ -1834,7 +2119,7 @@ if [ "$mode" = selftest ]; then
         collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
         _sc_got=PASS
         if ! decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "$_sc_sw" "" \
-                "$_sc_cx" > "$CASE_DIR/out.txt" 2>&1; then
+                "$_sc_cx" "$HR_OK" > "$CASE_DIR/out.txt" 2>&1; then
             _sc_got=FAIL
         fi
         _sc_hdl=$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt" || echo 'GATE: <none printed>')
@@ -1963,7 +2248,7 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
     cases=$((cases + 1))
     if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "$SWEEP_OK" "" "" \
-            > "$CASE_DIR/out.txt" 2>&1; then
+            "$HR_OK" > "$CASE_DIR/out.txt" 2>&1; then
         printf '  FAIL  %-32s a run with NO cross verdict PASSED\n' cross-absent
         fails=$((fails + 1))
     else
@@ -1978,7 +2263,8 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
     cases=$((cases + 1))
     if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" \
-            'SKIP|0|0|0|0|toolchain absent' "" "$CROSS_OK" > "$CASE_DIR/out.txt" 2>&1; then
+            'SKIP|0|0|0|0|toolchain absent' "" "$CROSS_OK" "$HR_OK" \
+            > "$CASE_DIR/out.txt" 2>&1; then
         printf '  FAIL  %-32s all lanes skipped, cross ran, and it PASSED\n' allskip-cross-ran
         fails=$((fails + 1))
     else
@@ -1993,7 +2279,7 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
     cases=$((cases + 1))
     if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "" "" "$CROSS_OK" \
-            > "$CASE_DIR/out.txt" 2>&1; then
+            "$HR_OK" > "$CASE_DIR/out.txt" 2>&1; then
         printf '  FAIL  %-32s a run with NO sweep verdict PASSED\n' sweep-absent
         fails=$((fails + 1))
     else
@@ -2008,7 +2294,7 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
     cases=$((cases + 1))
     if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "$SWEEP_OK" 12 \
-            "$CROSS_OK" > "$CASE_DIR/out.txt" 2>&1; then
+            "$CROSS_OK" "$HR_OK" > "$CASE_DIR/out.txt" 2>&1; then
         if grep -q 'LANES FILTERED' "$CASE_DIR/out.txt" \
            && ! grep -q '^GATE: PASS —' "$CASE_DIR/out.txt"; then
             printf '  ok    %-32s %s\n' lanes-filtered "$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt")"
@@ -2027,7 +2313,7 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     printf 'A\t/O1\tPASS|197|197|91|0|\n' > "$CASE_DIR/results.tsv"
     cases=$((cases + 1))
     if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "" "$SWEEP_OK" "" "$CROSS_OK" \
-            > "$CASE_DIR/out.txt" 2>&1; then
+            "$HR_OK" > "$CASE_DIR/out.txt" 2>&1; then
         printf '  FAIL  %-32s a 1-row table for a 2-lane registry PASSED\n' short-table
         fails=$((fails + 1))
     else
@@ -2429,7 +2715,7 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
         echo 1 > "$CASE_DIR/B.status"
         collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
         decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "$SWEEP_OK" "" \
-            "$CROSS_OK" > "$CASE_DIR/out.txt" 2>&1 || true
+            "$CROSS_OK" "$HR_OK" > "$CASE_DIR/out.txt" 2>&1 || true
         if grep -q 'RESOURCE FAULT, NOT A MISMATCH' "$CASE_DIR/out.txt"; then _r=0; else _r=1; fi
         [ "$3" -eq 1 ] && { [ "$_r" -eq 0 ] && _r=1 || _r=0; }
         t_case "$1" "$_r" "$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt" || echo '(no headline)')"
@@ -2616,6 +2902,135 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
             "every default present -> the hint says the cause is elsewhere, not 'found, found, found'"
     fi
 
+
+    # ---- the HATCH-RED row (board #1406) ---------------------------------------
+    # Two halves, checked separately because they fail separately: the CLASSIFIER
+    # (`hatch_red_verdict`, a pure function of a log) and the RULING (`decide`).
+    # None of this runs the real arms — a selftest that needed a clean `crates/`
+    # would refuse on exactly the trees a lane runs it from.
+    HR_PASS_LOG="$st/hr-pass.log"
+    printf '%s\n' \
+        'hatch.py RED-TEST — board #1380, lane w-hatch' \
+        '  R1 DIRTY-NOHATCH       HATCH-DIRTY              RED as expected' \
+        'ALL 11 ARMS PASS — 9 red, 2 green' > "$HR_PASS_LOG"
+    # A SETUP FAILED log ALSO carries a `FAILED:` line — that is the real shape,
+    # and it is the trap: read in the wrong order, a tree whose hatch has drifted
+    # is indistinguishable from a `hatch.py` whose guards have stopped working.
+    HR_SETUP_LOG="$st/hr-setup.log"
+    printf '%s\n' \
+        'SETUP FAILED (2) — arm cannot run' \
+        '  *** ARM FAILED ***' \
+        'FAILED: R2 DIRTY+HATCH, C1 HATCH-ONLY' > "$HR_SETUP_LOG"
+    HR_ARMS_LOG="$st/hr-arms.log"
+    printf '%s\n' \
+        '  [postcondition] the foreign edit SURVIVED: NO — IT WAS EATEN' \
+        'FAILED: R1 DIRTY-NOHATCH' > "$HR_ARMS_LOG"
+    HR_DIRTY_LOG="$st/hr-dirty.log"
+    printf '%s\n' \
+        'tree state before any arm: crates/c2-il/src/func/body/expr.rs' \
+        'REFUSING to run on a dirty tree — every arm writes to crates/' > "$HR_DIRTY_LOG"
+    HR_SHORT_LOG="$st/hr-short.log"
+    printf '%s\n' 'ALL 9 ARMS PASS — 7 red, 2 green' > "$HR_SHORT_LOG"
+    HR_VAC_LOG="$st/hr-vac.log"
+    printf '%s\n' 'ALL 11 ARMS PASS — 0 red, 11 green' > "$HR_VAC_LOG"
+    HR_JUNK_LOG="$st/hr-junk.log"
+    printf '%s\n' 'some output that says nothing either way' > "$HR_JUNK_LOG"
+    HR_EMPTY_LOG="$st/hr-empty.log"
+    : > "$HR_EMPTY_LOG"
+
+    hr_case() {  # <name> <log> <status> <expect-verdict> <expect-leading-word|-->
+        _hc_got=$(hatch_red_verdict "$2" "$3" 11)
+        _hc_v=$(printf '%s\n' "$_hc_got" | cut -d'|' -f1)
+        _hc_d=$(printf '%s\n' "$_hc_got" | cut -d'|' -f6)
+        _hc_w=$(printf '%s\n' "$_hc_d" | cut -d' ' -f1)
+        if [ "$_hc_v" = "$4" ] && { [ "$5" = "--" ] || [ "$_hc_w" = "$5" ]; }; then
+            t_case "$1" 0 "$_hc_v  ${_hc_d:-(no detail, as required for a clean PASS)}"
+        else
+            t_case "$1" 1 "wanted $4/$5, got $_hc_v/${_hc_w:-none} — $_hc_d"
+        fi
+    }
+    hr_case hatchred-clean-log-passes        "$HR_PASS_LOG"  0 PASS      --
+    hr_case hatchred-dirty-tree-refuses      "$HR_DIRTY_LOG" 1 REFUSED   DIRTY-TREE
+    # THE ORDERING ARM. Its log contains `FAILED:` as well, so a classifier that
+    # reads the guard-property arm first calls a drifted hatch a broken one.
+    hr_case hatchred-stale-hatch-is-not-a-broken-guard "$HR_SETUP_LOG" 1 REFUSED HATCH-STALE
+    hr_case hatchred-failed-arm-is-a-fail    "$HR_ARMS_LOG"  1 FAIL      ARMS-FAILED
+    hr_case hatchred-short-run-is-not-a-pass "$HR_SHORT_LOG" 0 FAIL      TRUNCATED
+    hr_case hatchred-no-red-arms-is-vacuous  "$HR_VAC_LOG"   0 FAIL      VACUOUS
+    hr_case hatchred-green-then-nonzero-exit "$HR_PASS_LOG"  3 FAIL      EXIT
+    hr_case hatchred-empty-log-is-no-result  "$HR_EMPTY_LOG" 0 NO-RESULT NO-LOG
+    hr_case hatchred-junk-log-is-no-result   "$HR_JUNK_LOG"  0 NO-RESULT UNRECOGNIZED
+
+    # TRAP B, asserted rather than hoped for: every non-PASS outcome leads with a
+    # word no other outcome uses. A collapse back onto a shared prefix would let a
+    # later refusal satisfy an earlier case's expectation, which has silently
+    # passed two of six mutations on this project.
+    _hr_words=""
+    for _hr_l in "$HR_DIRTY_LOG" "$HR_SETUP_LOG" "$HR_ARMS_LOG" "$HR_SHORT_LOG" \
+                 "$HR_VAC_LOG" "$HR_EMPTY_LOG" "$HR_JUNK_LOG"; do
+        _hr_words="$_hr_words
+$(hatch_red_verdict "$_hr_l" 0 11 | cut -d'|' -f6 | cut -d' ' -f1)"
+    done
+    _hr_n=$(printf '%s\n' "$_hr_words" | grep -c .)
+    _hr_u=$(printf '%s\n' "$_hr_words" | grep . | sort -u | grep -c .)
+    [ "$_hr_n" -eq "$_hr_u" ] && _r=0 || _r=1
+    t_case hatchred-every-refusal-leads-with-its-own-word "$_r" \
+        "$_hr_u distinct leading words across $_hr_n refusal shapes"
+
+    # ---- and the RULING half, through the real `decide` ------------------------
+    hr_decide() {  # <name> <PASS|FAIL> <tuple> <grep-or-->
+        CASE_DIR="$st/$1"; rm -rf "$CASE_DIR"; mkdir -p "$CASE_DIR"
+        printf '%s\n' "$P" > "$CASE_DIR/A.log"; echo 0 > "$CASE_DIR/A.status"
+        printf '%s\n' "$P" > "$CASE_DIR/B.log"; echo 0 > "$CASE_DIR/B.status"
+        collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
+        _hd_got=PASS
+        if ! decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "$SWEEP_OK" "" \
+                "$CROSS_OK" "$3" > "$CASE_DIR/out.txt" 2>&1; then
+            _hd_got=FAIL
+        fi
+        _hd_ok=1
+        if [ "$_hd_got" = "$2" ]; then
+            _hd_ok=0
+            if [ "$4" != "--" ] && ! grep -q "$4" "$CASE_DIR/out.txt"; then _hd_ok=1; fi
+        fi
+        t_case "$1" "$_hd_ok" "$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt" || echo '(no headline)')"
+    }
+    hr_decide hatchred-pass-is-an-unqualified-pass PASS "$HR_OK" '^GATE: PASS —'
+    hr_decide hatchred-fail-fails-the-gate FAIL \
+        'FAIL|0|11|0|0|ARMS-FAILED FAILED: R1 DIRTY-NOHATCH' 'hatch-red: ARMS-FAILED'
+    hr_decide hatchred-no-result-fails-the-gate FAIL \
+        'NO-RESULT|0|11|0|0|MISSING no python3, and the arms are a python script' \
+        'hatch-red produced NO RESULT'
+    hr_decide hatchred-residue-fails-the-gate FAIL \
+        'FAIL|0|11|0|0|RESIDUE the arms left crates/ modified' 'hatch-red: RESIDUE'
+    hr_decide hatchred-absent-tuple-fails-the-gate FAIL '' 'no hatch-red verdict'
+    hr_decide hatchred-unknown-verdict-fails-the-gate FAIL \
+        'WOBBLY|0|11|0|0|something new' 'unrecognized verdict'
+    # THE ONE THAT MUST NOT REDDEN A PEER. A dirty tree exits 0 — and forfeits
+    # the unqualified headline, exactly as SAMPLED and SKIPPED do.
+    hr_decide hatchred-refused-exits-zero PASS \
+        'REFUSED|0|11|0|0|DIRTY-TREE crates/ differs from HEAD and the arms would overwrite it: crates/c2-il/src/func/body/expr.rs' \
+        'GATE: PASS (HATCH-RED REFUSED)'
+    CASE_DIR="$st/hatchred-refused-exits-zero"
+    saw_no '^GATE: PASS —' 'a REFUSED hatch row never prints an unqualified PASS'
+    saw 'crates/c2-il/src/func/body/expr.rs' 'and it NAMES the files it refused over'
+
+    # The 11 arms must NOT satisfy `--require-graded`. They grade instruments, not
+    # objs; folding them into the unit sum would let an all-skip run on a box with
+    # no toolchain answer a demand it has to fail.
+    CASE_DIR="$st/hatchred-does-not-satisfy-the-demand"; rm -rf "$CASE_DIR"; mkdir -p "$CASE_DIR"
+    printf '%s\n' "$S" > "$CASE_DIR/A.log"; echo 0 > "$CASE_DIR/A.status"
+    printf '%s\n' "$S" > "$CASE_DIR/B.log"; echo 0 > "$CASE_DIR/B.status"
+    collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
+    require_graded=1
+    if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" \
+            'SKIP|0|0|0|0|toolchain absent' "" 'SKIP|0|0|0|0|toolchain absent' \
+            "$HR_OK" > "$CASE_DIR/out.txt" 2>&1; then _r=1; else _r=0; fi
+    require_graded=0
+    t_case hatchred-does-not-satisfy-require-graded "$_r" \
+        "$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt" || echo '(no headline)')"
+    saw 'NOTHING GRADED' 'an all-skip run with 11 green arms still graded nothing'
+
     # ---- the demand meets the modes that grade nothing -------------------------
     # Driven as REAL subprocesses: these are argument-parse decisions and the only
     # honest way to check an exit code is to produce one.
@@ -2657,7 +3072,10 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     # proved nothing. Here `fails` is accumulated by every case before the count
     # is looked at, so a mutation reddens the assertion it actually broke and the
     # per-assertion message says which one.
-    if [ "$cases" -lt 84 ]; then
+    # The floor moves with the file: 102 before board #1406's hatch-red row and
+    # 120 after it. A truncated selftest is the failure it exists to catch, so
+    # this is a COUNT and not a "some cases ran".
+    if [ "$cases" -lt 120 ]; then
         echo "gate.sh --selftest: FAIL — only $cases cases ran; the selftest itself was"
         echo "  truncated, and a truncated selftest is the failure it exists to catch."
         exit 1
@@ -2676,6 +3094,20 @@ fi
 echo
 echo "lane gate: $nlanes lanes from $registry"
 echo "  run dir: $work   (per-lane run dirs under $work/lanes/)"
+
+# --------------------------------------------------------------------------------
+# THE HATCH-RED ROW RUNS FIRST (board #1406). Before `pin_harness`, because that
+# is where the gate's one `cargo build` happens and these arms WRITE INTO
+# `crates/` before restoring it — a build that started alongside them could
+# compile a half-hatched tree. It needs no toolchain and no binary and takes
+# seconds, so a broken hatch is also on screen before twenty minutes of compiler.
+# The interlock and the postcondition are both inside `hatch_red_run`.
+# --------------------------------------------------------------------------------
+echo
+echo "hatch-red:       work/w-hatch/hatch_red.py  (no toolchain; fires hatch.py's refusals)"
+hr_res=$(hatch_red_run "$work/hatchred.log")
+printf '  %s  %s\n' "$(printf '%s\n' "$hr_res" | cut -d'|' -f1)" \
+    "$(printf '%s\n' "$hr_res" | cut -d'|' -f6)"
 
 # Pin ONE binary for the whole gate and hand it to every lane. Stronger than each
 # lane pinning its own copy: all $nlanes lanes are then provably grading the same
@@ -2796,4 +3228,4 @@ printf 'disk:   %s low-water this run — %s and %s inodes free (start: %s / %s)
     "$work_parent" "$(human_kb "$RES_KBMIN")" "$(human_n "$RES_INMIN")" \
     "$(human_kb "$RES_KB0")" "$(human_n "$RES_IN0")"
 
-decide "$reg" "$work/results.tsv" "$work" "$sweep_res" "$filtered" "$cross_res"
+decide "$reg" "$work/results.tsv" "$work" "$sweep_res" "$filtered" "$cross_res" "$hr_res"
