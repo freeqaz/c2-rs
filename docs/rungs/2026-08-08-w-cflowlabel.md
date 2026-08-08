@@ -305,11 +305,57 @@ this lane hit it.
 
 | lane | result |
 |---|---|
-| `cargo test --workspace --release` | **1,165 passed, 0 failed, 36 targets** (1,159 / 36 at base) |
-| `scripts/gate.sh --jobs 16 --require-graded` | see §7.1 |
+| `cargo test --workspace --release` | **1,165 passed, 0 failed, 36 targets** (base 1,159 / 0 / 36) |
+| **`scripts/gate.sh --jobs 16 --require-graded`** | **GATE: PASS — 18/18 lanes ran and every one graded a corpus.** 5,184 fixture-verdicts · sweep **19,460 GRADED of 19,556** selected (96 ungraded: the reference rejects the source) · cross **90,424 GRADED of 90,812** cells · **0 mismatches anywhere** · `EXIT=0` |
 | 878-TU scan, both ends | `match 11 · mismatch 0 · codegen-gap 0 · vocab-gap 860 · capture-fail 7`, identical |
 | `gap-metric` | 139 of 139 byte-identical, +5 new |
 
-**Both timings were taken on a CONTENDED box.** The gate's own preflight named a
-concurrent lane's live gate (`/tmp/c2rs-gate-2772361`), and a third lane was
-gating in the same window. No timing in this document is a performance claim.
+**Which tree the gate ran on, exactly.** `54feb8eb` — the instrument commit.
+The only change to `crates/` after it is `d116e765`, **8 insertions and 3
+deletions in `report.rs`, all inside a `///` doc comment**, verified positively
+by `git diff 54feb8eb HEAD -- crates/` filtered to non-comment lines returning
+empty rather than by assertion. Nothing executable moved after the verdict.
+
+### §7.1 Two failures on the way that were NOT this lane's, and one that was
+
+Both worth recording, because one of them is a red run that means nothing and
+the project's standing instruction is to compare a count rather than a status.
+
+* **`reloc_identity`, 2 of 3 failing with `left: Unbound right: Exact` —
+  TRANSIENT.** Re-run alone on the identical tree: **3 passed, 0 failed.** The
+  failing run was one of *three concurrent gates* on this box hammering the
+  shared capture cache; an `Unbound` verdict is what a function whose capture
+  did not resolve looks like. **Not diagnosed further and not dismissed**: it is
+  filed here because a two-test red on a toolchain-gated integration test under
+  load is exactly the shape that gets waved away, and the only thing that makes
+  waving it away legitimate is that the same binary is green on a quiet re-run.
+* **`rung_docs_claim_their_tag_slug_and_fixtures_exactly_once` — REAL, and the
+  rule working.** This doc shipped `Fixtures: none` bare, and the registry
+  refuses that because a bare `none` is indistinguishable from a widening rung
+  that forgot its fixtures. Fixed by giving the reason on the same line.
+* **A metric this document moved by being written.** `git grep -c` of the test
+  attribute read 1,264 rather than 1,263 while an earlier draft quoted the
+  attribute literally — §1.
+
+### §7.2 The box was CONTENDED and no timing here is a claim
+
+The gate's own preflight named a concurrent lane's live gate
+(`/tmp/c2rs-gate-2772361`, lane `w-throughput`) and lane `w-op27` was gating in
+the same window — **three at once**. The sweep took **421 s** where the
+documented figure is ~86 s, and one `cargo test -p c2-harness --lib` run took
+**67 s** against 0.35 s earlier in the same session. **Every timing in this
+document is a measurement of the box that hour.** The verdicts and the counts
+are not: those are byte-exact comparisons and they do not move with load.
+
+### §7.3 One self-inflicted incident, recorded because CLAUDE.md predicts it
+
+An attempt to stop this lane's own stale gate used
+`pkill -f "c2rs-gate-<runid>"`. **The pattern matched the killing shell's own
+argv** — the exact failure the box's standing instructions describe — so it
+killed its own process group and took the gate's mode-cross with it. The gate
+then did the right thing and **reported `FAIL — mode-cross produced NO RESULT:
+log has no 'checked=' line (exit 143)`**, with *"an instrument that did not run
+is a failure, not a pass"*. **Trap 5's mitigation firing on a real absence**,
+and the reason the run above is a fresh one rather than a salvaged log. No peer
+lane's gate matched the pattern; both were verified still running afterwards by
+PID.
