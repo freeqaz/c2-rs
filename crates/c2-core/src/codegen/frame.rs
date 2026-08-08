@@ -678,6 +678,39 @@ mod tests {
         // Every helper shape refuses by name rather than emitting a prologue with
         // an unrelocated call in it.
         assert_eq!(g(3).out_of_class_ctx(), Some("frame-savegprlr-helper"));
+        // **W-JSON — the frameless Class C pair is a THIRD predicate**, and the
+        // three refuse each other by name. A layout with four saved GPRs and no
+        // locals, no outgoing slots and no FPRs is the only one it admits.
+        let leaf = FrameLayout { locals: 0, out_slots: 0, saved_gprs: 4, saved_fprs: 0 };
+        assert_eq!(leaf.out_of_class_ctx_gpr_helper_leaf(), None);
+        assert_eq!(leaf.out_of_class_ctx(), Some("frame-savegprlr-helper"));
+        assert_eq!(
+            FrameLayout { locals: 4, ..leaf }.out_of_class_ctx_gpr_helper_leaf(),
+            Some("frame-gpr-helper-leaf-with-a-local")
+        );
+        assert_eq!(
+            FrameLayout { out_slots: 3, ..leaf }.out_of_class_ctx_gpr_helper_leaf(),
+            Some("frame-gpr-helper-leaf-with-outgoing-slots")
+        );
+        assert_eq!(
+            FrameLayout { saved_fprs: 1, ..leaf }.out_of_class_ctx_gpr_helper_leaf(),
+            Some("frame-gpr-helper-leaf-with-saved-fprs")
+        );
+        assert_eq!(
+            g(2).out_of_class_ctx_gpr_helper_leaf(),
+            Some("frame-gpr-helper-class-without-a-helper")
+        );
+        // The frameless pair is TWO words and ONE, against Class C's three and
+        // two, and both are pinned to `work/w-json/probe/ref.obj`.
+        assert_eq!(
+            leaf.prologue_gpr_helper_leaf(0).unwrap(),
+            vec![0x7d, 0x88, 0x02, 0xa6, 0x4b, 0xff, 0xff, 0xfd]
+        );
+        assert_eq!(leaf.epilogue_gpr_helper_leaf(0x12c).unwrap(), vec![0x4b, 0xff, 0xfe, 0xd4]);
+        // …and the words a Class C layout would have emitted are NOT these: the
+        // `stwu` and the `addi r1,r1,F` are exactly what this shape drops.
+        assert_eq!(leaf.prologue_gpr_helper(0).unwrap().len(), 12);
+        assert_eq!(leaf.epilogue_gpr_helper(0).unwrap().len(), 8);
         assert_eq!(f(4).out_of_class_ctx(), Some("frame-savefpr-helper"));
         assert_eq!(l(20392).out_of_class_ctx(), Some("frame-rtlcheckstack12"));
         assert!(g(3).prologue().is_err() && f(4).epilogue().is_err());

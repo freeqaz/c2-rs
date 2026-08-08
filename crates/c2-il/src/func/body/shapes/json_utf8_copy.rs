@@ -151,6 +151,35 @@ fn is_two_word_constant(k: i32) -> bool {
     (u >> 16) != 0 && (u & 0xFFFF) != 0
 }
 
+/// The nine BLOCKS of the body, as pattern-element indices. Every structural
+/// refusal inside the template reports the block it happened in rather than one
+/// key for the whole file — board **#1704**'s defect, which is that a census
+/// naming a single fall-through key cannot tell ten `_neg` cells apart. The
+/// boundaries are the pattern's own label definitions (`29 <tok>`), so they are
+/// the body's real blocks and not a hand-chosen split.
+const REGIONS: [(usize, &str); 9] = [
+    (0, "json-init-and-arg-guard"),
+    (31, "json-arg-error-arm"),
+    (51, "json-loop-preheader"),
+    (103, "json-loop-head-and-one-byte-arm"),
+    (255, "json-two-byte-arm"),
+    (410, "json-three-byte-arm"),
+    (602, "json-loop-back-edge"),
+    (628, "json-size-check"),
+    (683, "json-return"),
+];
+
+/// Which block pattern element `ix` is in.
+fn region(ix: usize) -> &'static str {
+    let mut r = REGIONS[0].1;
+    for (at, name) in REGIONS {
+        if ix >= at {
+            r = name;
+        }
+    }
+    r
+}
+
 /// Walk [`PAT`] over the stream, unifying tokens, types and fields.
 fn match_pattern<'a>(
     seg: &'a [u8],
@@ -163,16 +192,16 @@ fn match_pattern<'a>(
         match *el {
             B(x) => {
                 if seg.get(*p) != Some(&x) {
-                    return Err(blk(seg, *p, "json-token"));
+                    return Err(blk(seg, *p, region(ix)));
                 }
                 *p += 1;
             }
             Line => eat_opt_stmt_marker(seg, p),
             T(n) => {
-                let (tok, w) = read_token_var(seg, *p).ok_or(blk(seg, *p, "json-token-varint"))?;
+                let (tok, w) = read_token_var(seg, *p).ok_or(blk(seg, *p, region(ix)))?;
                 let slot = &mut toks[n as usize];
                 match slot {
-                    Some(prev) if *prev != tok => return Err(blk(seg, *p, "json-token-mismatch")),
+                    Some(prev) if *prev != tok => return Err(blk(seg, *p, region(ix))),
                     Some(_) => {}
                     None => *slot = Some(tok),
                 }
@@ -197,14 +226,14 @@ fn match_pattern<'a>(
             }
             K(v) => {
                 let at = *p;
-                let k = read_varint(seg, p).ok_or(blk(seg, at, "json-literal-varint"))?;
+                let k = read_varint(seg, p).ok_or(blk(seg, at, region(ix)))?;
                 if k != v {
-                    return Err(blk(seg, at, "json-pinned-constant"));
+                    return Err(blk(seg, at, region(ix)));
                 }
             }
             F(n) => {
                 let at = *p;
-                let k = read_varint(seg, p).ok_or(blk(seg, at, "json-literal-varint"))?;
+                let k = read_varint(seg, p).ok_or(blk(seg, at, region(ix)))?;
                 let slot = &mut flds[n as usize];
                 match slot {
                     Some(prev) if *prev != k => return Err(blk(seg, at, "json-field-disagrees")),
@@ -213,7 +242,6 @@ fn match_pattern<'a>(
                 }
             }
         }
-        let _ = ix;
     }
     Ok(())
 }
@@ -270,17 +298,23 @@ pub(crate) fn try_parse_json_utf8_copy(
             }
         }
     }
-    // The same argument for the TYPEs, and it is the one that keeps the four
-    // `cmplw`s unsigned: slots 0 and 9 collapsing would make `outputSize` and
-    // the return type one type, and slot 0 and slot 4 collapsing would make the
-    // loop test signed.
-    for i in 0..NTY {
-        for j in (i + 1)..NTY {
-            if tys[i] == tys[j] {
-                return Err(blk(seg, start, "json-two-type-slots-are-one-type"));
-            }
-        }
-    }
+    // **The TYPE slots are deliberately NOT required pairwise distinct**, and
+    // that is a measurement rather than a relaxation. The first version of this
+    // recognizer required it — the twelve slots ARE twelve distinct byte strings
+    // in the workload's own TU — and the positive fixture, which is the same
+    // program in a TU whose type table happens to intern `unsigned short *` once
+    // instead of twice, **refused**. Two slots sharing bytes is a property of the
+    // TU's type table, not of the program.
+    //
+    // Nothing is lost, because every separation that decides an instruction is
+    // already carried by [`TY_TAG_KIND`], which is checked per occurrence above:
+    // slot 0 is pinned `(0x86, 0x42)` and slots 4 and 9 `(0x86, 0x41)`, so the
+    // unsigned-long slot **cannot** collapse into either signed one and the four
+    // `cmplw`s cannot become `cmpw`s. The collapses the template still admits
+    // are within one `(tag, kind)` group — `int` with `long`, `unsigned short *`
+    // with `char *` — and each of those pairs is the same register, the same
+    // width and the same word, with the pointer-arithmetic scale pinned to 1 by
+    // the template itself.
     // The formals must be the tokens the body reads through r3/r4/r5, in that
     // order. Checked by NAME against `parse_params`, not by position in the
     // template, because the template alone would accept a body that swapped the
@@ -399,3 +433,58 @@ const PAT: &[P] = &[
     B(0x54), B(0x00), B(0x4F), B(0x02), B(0x20), B(0x00), Line, B(0x4D),
 ];
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The template is the reference function's whole stream: it must consume
+    /// every byte from the first statement to the `4D` and contain exactly the
+    /// four field holes the emitter reads. Counted here so a hand edit to [`PAT`]
+    /// that drops or duplicates one is caught by a test rather than by an obj.
+    #[test]
+    fn the_template_has_the_shape_the_emitter_expects() {
+        assert_eq!(PAT.len(), 716, "pattern elements");
+        let n = |f: fn(&P) -> bool| PAT.iter().filter(|e| f(e)).count();
+        assert_eq!(n(|e| matches!(e, F(0))), 1, "k_arg_err");
+        assert_eq!(n(|e| matches!(e, F(1))), 2, "off_size — read at TWO sites");
+        assert_eq!(n(|e| matches!(e, F(2))), 1, "off_buffer");
+        assert_eq!(n(|e| matches!(e, F(3))), 1, "k_size_err");
+        assert!(matches!(PAT[0], B(0x26)), "the body opens on the `hr` designator");
+        assert!(matches!(PAT[PAT.len() - 1], B(0x4D)), "and ends on the body terminator");
+        // Every token and type slot is reached, or the unification is vacuous
+        // for it and the post-match binding would panic on an unbound slot.
+        for s in 0..NTOK as u8 {
+            assert!(PAT.iter().any(|e| matches!(e, T(n) if *n == s)), "token slot {s}");
+        }
+        for s in 0..NTY as u8 {
+            assert!(PAT.iter().any(|e| matches!(e, Y(n) if *n == s)), "type slot {s}");
+        }
+    }
+
+    /// **The clause `wjson_utf8_copy_neg.cpp`'s `n7` does not reach.** That cell
+    /// stops earlier, at the body's trailing `4F 02` directive
+    /// (`work/w-json/decline_probe.md`), so the zero-half refusal has no fixture
+    /// witness and is graded here instead — which is the honest place for it,
+    /// not a reworded comment in the `_neg` file.
+    #[test]
+    fn a_status_constant_with_a_zero_half_is_refused() {
+        assert!(is_two_word_constant(0x8007_0057u32 as i32));
+        assert!(is_two_word_constant(0x803F_0005u32 as i32));
+        assert!(!is_two_word_constant(0x8007_0000u32 as i32), "a `lis` alone");
+        assert!(!is_two_word_constant(0x0000_0057), "an `li` alone");
+        assert!(!is_two_word_constant(0));
+    }
+
+    /// The block map is what makes ten `_neg` cells report ten keys instead of
+    /// one (#1704). Its boundaries are the pattern's own label definitions, so a
+    /// drifted index would silently merge two blocks' diagnostics.
+    #[test]
+    fn every_block_boundary_is_a_label_definition() {
+        for (at, name) in REGIONS.into_iter().skip(1) {
+            assert!(matches!(PAT[at], B(0x29)), "{name} does not open ON a `29`");
+        }
+        assert_eq!(region(0), "json-init-and-arg-guard");
+        assert_eq!(region(PAT.len() - 1), "json-return");
+    }
+}
