@@ -113,3 +113,149 @@ TUs at `/Ox`, so **it cannot express this shape at all**. A fixture with exactly
 that layout (`loop leaf` then `framed`) is therefore a *required* deliverable of
 any shipping guard, not an optional extra — and it must be a fixture the gate
 runs, not a probe in `work/`.
+
+---
+---
+
+# w-loop (SECOND RUNG, 2026-08-08) — pre-registration
+
+**This file is APPENDED, not overwritten.** Everything above is the 2026-08-05
+rung's prereg and its scoring lives in `docs/rungs/2026-08-05-w-loop.md` §0. The
+lane tag is reused because the brief reuses it; the two rungs are separate and
+both stay on the page.
+
+Committed **before** the first probe obj and **before the first line under
+`crates/`**, at master `2b1c89da`. Board numbers reserved: **#1393**–**#1402**.
+
+Scored verbatim in `docs/rungs/2026-08-08-w-loop.md` §0. The wrong ones stay.
+
+---
+
+## 0. What is already established before this file (NOT predictions)
+
+Read, not measured by me — recorded here so the predictions below cannot claim
+credit for them:
+
+* Board **#1105** (`w-front2`, 2026-08-08) prices `Primes.cpp` at **≥ 15** with
+  **eight named codegen refusals**.
+* Board **#740** (`w-loop`, 2026-08-05) already refuted the identical framing
+  applied to `Sort.cpp` — *"blocked ONLY by `cflow-loop`"* — on that TU's own
+  bytes, and priced `Primes.cpp` in passing at "REFHI/REFLO + a 248-byte `.data`
+  initializer".
+* `crates/c2-core/src/codegen/ptr_walk_loop.rs` and `ptr_walk_chain_loop.rs`
+  **already exist and already emit a backward branch**, byte-exact, as
+  whole-function *carriers* dispatched from `select.rs` into `Selected::Plain`.
+* `git grep -l 'bdnz\|mtctr'` over `crates/` hits **only** `c2-harness/src/gap/`
+  — no CTR encoder exists in the emitter.
+* The source of `Primes.cpp` declares `static int primes[62]` — **248 bytes**.
+
+## 1. The brief's structural premise
+
+The brief states: *"`Primes.cpp` is structurally the cleanest object on the
+frontier — `w-front2` recorded `Pool.cpp` as three functions, **zero
+relocations**, no `.pdata`, no `.data`, label-free, and `Primes` is in that
+family."*
+
+**P1 — the premise is FALSE and I expect to show it on the obj.** `Primes.cpp`
+carries a `.data` section of **248 bytes** and **≥ 4 relocation records** in
+`.text`. It is label-free and has no `.pdata` (those two clauses hold), and it
+is *not* in `Pool.cpp`'s zero-relocation family.
+**Rival R-P1:** the static array is folded to `.rdata` or to a `.bss`-style
+uninitialized COMDAT and `.data` is absent. I give R-P1 low weight only because
+the array is written-to-never but is a *non-const* `static int`, which MSVC puts
+in `.data`.
+
+**P2 — the 64 bytes are NOT (only) a loop.** I expect the disassembly to show at
+least a scaled-index load (`slwi`/`rlwinm` + `lwzx`), a `cmpw` against a
+register, and a `lis`/`addi`+`lwz` address materialization for `primes`, none of
+which is control flow.
+**Rival R-P2:** every non-loop instruction in the body is already covered by a
+shipped encoder, so the loop really is the whole remaining distance.
+
+## 2. The CTR question — the brief's named build target
+
+**P3 — a CTR loop encoder (`mtctr`/`bdnz`) moves `Primes.cpp` by ZERO bytes.**
+`Primes`' loop has no computable entry trip count (the bound is
+`primes[i2] != 0`, a data-dependent sentinel), and the 2026-08-05 rung's L2
+result says c2 emits CTR **only** for a computable entry trip count with no call
+in the body. So I expect `Primes`' loop to be **compare-form**, entered by a
+`b` into the bottom test, exactly as #1105 records — and `mtctr`/`bdnz` to
+appear **nowhere** in its 64 bytes.
+**Rival R-P3:** c2 counts the array's 62 elements statically and emits CTR.
+
+**P4 — I will therefore NOT ship a CTR encoder**, because it would be an
+ungraded code path by construction (`w-frame` row **F-c**): no `Selected`
+variant and no carrier would call it. If I ship one it will be because a caller
+exists, not because the brief named it.
+
+## 3. Conversion
+
+**P5 — `Primes.cpp` does NOT convert in this lane.** TU match is **11** at both
+ends, mismatch **0** at both ends.
+
+**P6 — `Primes.cpp`'s remaining byte distance is 64 of 64 at both ends** — the
+port accepts zero bytes of it now and will accept zero at the tip.
+
+## 4. The refusal count, taken by the brief's own rule
+
+The brief's rule: *"count the **independent** refusals between ceiling and
+emitter and take the ceiling **neat** — and if the answer to 'what varies
+between these refusals?' is 'nothing, it is one variable at different
+thresholds', it is **one** refusal."*
+
+Applying it to #1105's eight, my collapse is:
+
+| # | #1105's refusals | collapses to |
+|---|---|---|
+| 1 | `cmpw` cr6 register-register | **A. the comparison** |
+| 2 | `slwi`+`lwzx` scaled-index addressing | **B. indexed addressing** |
+| 3 | three-block rotated plan entered by `b` into the bottom test | **C. the rotated CFG** |
+| 4 | the label→offset map over four transfers / three targets / two `blr`s | **C** (same plan, one granularity down) |
+| 5 | the exit block's rematerialization over a value live in r10 | **D. allocation across the back edge** |
+| 8 | the loop-carried allocation | **D** |
+| 6 | one `lis` feeding two REFLOs | **E. the static array's address + section** |
+| 7 | the 248-byte `.data` local-static and its symbol | **E** |
+
+**P7 — the collapsed independent count is 5**, and the ≥ 4 decline clause fires
+on the collapse as well as on the raw eight.
+
+**P8 — REGISTERED BIAS, and I expect to lose P7 in the DEARER direction.**
+Board **#770** is **ten for ten** on optimistic misses, and every one of the last
+six lanes that estimated a frontier TU came back dearer. So P7's honest reading
+is a **lower bound**: I predict the measured count is **≥ 5** and I expect the
+obj to name at least one refusal that is in neither #1105's eight nor my five.
+
+## 5. The labels.rs / ptr_walk_loop consistency question
+
+**P9 — `labels.rs`' forward-only invariant and `ptr_walk_loop.rs`' shipped
+backward branch do not contradict each other**, because the carrier bypasses
+`LabelMap` entirely and encodes both displacements through `encode_bc` as
+constants of the class. If they *do* contradict — i.e. if `ptr_walk_loop` routes
+through `LabelMap` — that is a live defect and outranks everything else in this
+brief.
+
+## 6. What I expect to ship
+
+**P10 — the deliverable is a measurement and at most one encoder, not a
+conversion.** In descending order of what I think I will actually land:
+
+1. the confirmed inventory, re-derived on the current tree (certain);
+2. a scan/instrument column or a doc correction (likely);
+3. an encoder with a real caller (unlikely — see P4);
+4. `Primes.cpp` converting (I register this at **near zero**).
+
+## 7. Grading
+
+`mismatch 0` under `scripts/gate.sh --require-graded` is the sole criterion.
+**No claim in the rung will be graded by reading a disassembly** — a
+disassembly reading is used only to *name* a refusal, never to certify a byte.
+
+## 8. What could make this lane wrong in the OTHER direction
+
+Registered so the write-up cannot be all one way: `coff/data.rs`,
+`coff/reloc.rs` and `coff/function.rs` all already handle REFHI/REFLO, and the
+port already emits `.data` for dynamic initializers (`coff/dyninit.rs`). So
+refusal **E** may be much cheaper than #1105 makes it look — possibly already
+built. If E is free, the collapsed count is **4**, which is exactly the decline
+clause's boundary rather than comfortably past it. I register that as the single
+most likely way P5/P7 are wrong.
