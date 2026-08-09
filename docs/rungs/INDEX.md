@@ -179,6 +179,7 @@ the header block this table is read from.
 | 2026-08-09 | w-inlfence2 | [w-inlfence2](2026-08-09-w-inlfence2.md) | 13 | **+0** — this lane ships no reader and no lowering. Emitted |
 | 2026-08-09 | w-inlfence | [w-inlfence](2026-08-09-w-inlfence.md) | 2 | 712,238 → 712,237 (28.91 % → 28.91 %), **−1** function; |
 | 2026-08-09 | w-jump | [w-jump](2026-08-09-w-jump.md) | 13 | 711,514 / 2,463,443 unchanged (28.88 %), **+0**; emitted |
+| 2026-08-09 | W-MAIN | [w-main](2026-08-09-w-main.md) | 2 | 712,237 / 2,463,443 unchanged (28.91 %), +0 — this rung admits a BINDING, not an emission |
 | 2026-08-09 | w-memfit-R2 | [w-memfit2](2026-08-09-w-memfit2.md) | 10 | 711,514 / 2,463,443 (28.88 %) — **+0, and not by measurement |
 | 2026-08-09 | w-memfit | [w-memfit](2026-08-09-w-memfit.md) | 13 | 711,514 / 2,463,443 unchanged (28.88 %), **+0**. TU match |
 | 2026-08-09 | w-midrun | [w-midrun](2026-08-09-w-midrun.md) | 1 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** — measured at both |

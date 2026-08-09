@@ -1761,19 +1761,111 @@ mod tests {
         assert_eq!(declared(&SyLocals::new(Some(&sy), &segs).view(0)), Some(vec![0x4CDB0600]));
     }
 
-    /// The corroboration is required: a `54 02 29 <tok>` whose token is never
-    /// *assigned* anywhere in the segment is not a return-plumbing site. One
-    /// channel would be a guess; the point of two is that the token is named twice.
+    /// The corroboration is required **where there is something to corroborate**:
+    /// a `54 02 29 <tok>` whose token is never *assigned*, in a segment that
+    /// assigns some **other** token, is not a return-plumbing site. One channel
+    /// would be a guess; the point of two is that the token is named twice.
+    ///
+    /// **CORRECTED 2026-08-09 (lane `w-main`, board #2262).** This test used to
+    /// build its body with **no `3A` at all** and assert `Undetermined` — so what
+    /// it actually pinned was not "the corroboration is required" but "a segment
+    /// that never assigns its exit label does not bind", which is the case
+    /// [`ex_exit_label`]'s `3A`-less arm now takes and `src/Main.cpp` is. It is
+    /// the standing-test half of `docs/GAPS.md` §6: a test whose two readings are
+    /// indistinguishable on the input it was given. The body now assigns a
+    /// *different* token, which separates them — the ambiguous case is still
+    /// refused, and it is refused for the reason the name claims.
     #[test]
     fn a_return_without_a_matching_assign_is_not_an_exit_label() {
-        let mut body = Vec::from(BODY_SCOPE_CLOSE);
+        let mut body = vec![EX_ASSIGN];
+        body.extend_from_slice(&tok(0xEB09)); // some OTHER token is assigned
+        body.push(0x4B);
+        body.extend_from_slice(&BODY_SCOPE_CLOSE);
         body.push(EX_RETURN);
         body.extend_from_slice(&tok(0xF009));
         let seg = ex_seg_tail(&[0xEE09], &body);
+        assert!(seg.contains(&EX_ASSIGN), "the ambiguous case needs a 3A somewhere");
         let sy = sy_block(0xF009, &[0xEE09], &[]);
         let segs = [&seg[..]];
         let locals = SyLocals::new(Some(&sy), &segs);
         assert!(matches!(locals.view(0).formals, Formals::Undetermined));
+    }
+
+    /// The `3A`-less arm. A **non-`void` function with no `return` statement**
+    /// emits no exit-label assignment — there is no value to assign — so the
+    /// segment names its exit token exactly once and the corroboration cannot
+    /// exist. Where there is no `3A` anywhere there is nothing to disambiguate,
+    /// and the anchored site is taken.
+    ///
+    /// The body below is `src/Main.cpp`'s literal tail:
+    /// `4C 4B 4F 01 06 5E 01 21 4B 54 02 29 <tok>` — a sub-object destructor
+    /// statement, then the scope close and the return, and no assignment. That TU
+    /// is the highest-worth frontier row on `w-band`'s ranking and this is the
+    /// refusal `WB_EH_FINDINGS.md` §6 files as R1.
+    #[test]
+    fn a_segment_that_never_assigns_its_exit_label_still_keys() {
+        let body = {
+            let mut b = vec![0x4C, 0x4B, 0x4F, 0x01, 0x06, 0x5E, 0x01, 0x21, 0x4B];
+            b.extend_from_slice(&BODY_SCOPE_CLOSE);
+            b.push(EX_RETURN);
+            b.extend_from_slice(&tok(0xF009));
+            b
+        };
+        let seg = ex_seg_tail(&[0xEE09, 0xED09], &body);
+        assert!(!seg.contains(&EX_ASSIGN), "the whole point of the cell is that there is none");
+        let sy = sy_block(0xF009, &[0xEE09, 0xED09], &[]);
+        let segs = [&seg[..]];
+        assert_eq!(
+            declared(&SyLocals::new(Some(&sy), &segs).view(0)),
+            Some(vec![0xEE09, 0xED09])
+        );
+    }
+
+    /// The `3A`-less arm does **not** weaken the binding: the token it hands back
+    /// still has to name a block that declares every `.ex` formal
+    /// ([`formals_agree`]). That is the independent content channel, and it is
+    /// what a wrong token would have to satisfy by coincidence — the check that
+    /// caught the positional binding being wrong 343,315 times while every gate
+    /// in this repo stayed green.
+    #[test]
+    fn the_3a_less_arm_still_has_to_pass_the_formals_check() {
+        let body = {
+            let mut b = vec![0x4C, 0x4B];
+            b.extend_from_slice(&BODY_SCOPE_CLOSE);
+            b.push(EX_RETURN);
+            b.extend_from_slice(&tok(0xF009));
+            b
+        };
+        // Two formals in `.ex`, one of them undeclared by the block the key finds.
+        let seg = ex_seg_tail(&[0xEE09, 0xED09], &body);
+        let sy = sy_block(0xF009, &[0xEE09], &[0x3333]);
+        let segs = [&seg[..]];
+        let locals = SyLocals::new(Some(&sy), &segs);
+        assert!(matches!(locals.view(0).formals, Formals::Undetermined));
+        assert!(locals.view(0).locals.is_empty());
+    }
+
+    /// The arm takes the **last** anchored site, exactly as the corroborated path
+    /// does. A `3A`-less segment with an inner `54 02 29 <inner>` before the
+    /// terminal one must key on the terminal token, not the inner one.
+    #[test]
+    fn the_3a_less_arm_takes_the_last_anchored_site() {
+        let body = {
+            let mut b = Vec::from(BODY_SCOPE_CLOSE);
+            b.push(EX_RETURN);
+            b.extend_from_slice(&tok(0xEB09)); // an inner site
+            b.push(0x4B);
+            b.extend_from_slice(&BODY_SCOPE_CLOSE);
+            b.push(EX_RETURN);
+            b.extend_from_slice(&tok(0xF009)); // the terminal one
+            b
+        };
+        let seg = ex_seg_tail(&[0xEE09], &body);
+        assert!(!seg.contains(&EX_ASSIGN));
+        let mut sy = sy_block(0xEB09, &[0x1919], &[]);
+        sy.extend_from_slice(&sy_block(0xF009, &[0xEE09], &[]));
+        let segs = [&seg[..]];
+        assert_eq!(declared(&SyLocals::new(Some(&sy), &segs).view(0)), Some(vec![0xEE09]));
     }
 
     /// A segment with no return plumbing at all binds nothing **and costs its
