@@ -11828,8 +11828,10 @@ over-estimate streak ends.
 
 Rung: `docs/rungs/2026-08-09-w-biquad.md`. Board **#2530**–**#2545**;
 **#2546**–**#2559** left explicitly unminted. PREREG `work/w-biquad/PREREG.md`,
-frozen at `50c0b123` before the first `crates/` change. Base master
-`111b6357`; dc3 tree `d7a3c1aa`, 878 TUs, 0 tracked modifications.
+frozen before the first `crates/` change. PREREG base master `111b6357`;
+**rebased onto `7309a02f`** (the `w-vec` merge) with the base re-derived from a
+binary built there and kept, and **every workload number identical at both**.
+dc3 tree `d7a3c1aa`, 878 TUs, 0 tracked modifications.
 
 **`src/system/synth_xbox/Biquad.cpp` converts.** Two body classes ship —
 `fp_store_diamond`, the 35-word null-guarded `if`/`else` whose arms are float
@@ -11860,8 +11862,8 @@ the other side — by converting the TU the key was supposed to be about.
    it.** Making `FpConstRef::lo_off` a field left the packed writer's rebasing
    at `hi_off: r.hi_off + off, ..r` — complete while the field did not exist.
    `w13b_fdedup.cpp` at `/Ox`, `Port=Mismatch @ offset 760`. The 878-TU scan is
-   `/O1`-only, the `/O1` fixture lane was clean and 1,430 workspace tests
-   passed; **the fixture-level neutrality scan at BOTH modes was the only thing
+   `/O1`-only, the `/O1` fixture lane was clean and every workspace test passed;
+   **the fixture-level neutrality scan at BOTH modes was the only thing
    looking**, and the full gate's four `/Ox` lanes then reproduced it.
 3. **The `_neg` confound, caught by running the probe.** Seven of eleven cells
    refused on a `4F` line marker — on SOURCE FORMATTING, not on the axis each
@@ -11874,13 +11876,14 @@ reading — hoist both `lis` into the entry block — which is exactly what
 `Biquad.cpp`'s own obj invites and which only `WB_CHOOSER_FINDINGS`' cell B1
 refutes.
 
-Gate: **18/18 PASS**, 333/333 graded per lane, **0 mismatch anywhere**, 5,994
-fixture-verdicts, sweep 19,460 graded / 0 mismatch, cross 90,424 / 0 mismatch;
-`cargo test --workspace --release --no-fail-fast` **1,430 / 0 / 38 targets**
-(`#[test]` 1,428 → 1,440); `c2rs selftest` **333 PASS / 0 ERROR**;
-`board_audit.sh` five zeros. Verdict neutrality at three levels: 878 TUs by name
-(1 changed, toward `match`, 0 regressions), every `gap-metric` key (0 vanished),
-and all 333 fixtures at `/O1` **and** `/Ox` (1 changed at `/O1`, 0 at `/Ox`).
+Gate: **18/18 PASS**, 336/336 graded per lane, **0 mismatch anywhere**, 6,048
+fixture-verdicts, sweep
+19,460 graded / 0 mismatch, cross 90,424 / 0 mismatch; `cargo test --workspace
+--release --no-fail-fast` **1,434 / 0 / 39 targets** (`#[test]` 1,432 → 1,444);
+`c2rs selftest` **336 PASS / 0 ERROR**; `board_audit.sh` exit 0. Verdict
+neutrality at three levels: 878 TUs by name (1 changed, toward `match`, 0
+regressions), every `gap-metric` key (0 vanished), and all 336 fixtures at
+`/O1` **and** `/Ox` (1 changed at `/O1`, 0 at `/Ox`).
 `hatch-red` is REFUSED by a **pre-existing** `HATCH-DRIFT
 id=call-arg-lit-permuted` in `body/shapes/calls.rs`, reproduced by
 `git checkout 111b6357 -- crates` (#2545, board #1406). The gate's own arm stops one stage earlier
