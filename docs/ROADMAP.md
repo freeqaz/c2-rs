@@ -11881,6 +11881,9 @@ fixture-verdicts, sweep 19,460 graded / 0 mismatch, cross 90,424 / 0 mismatch;
 `board_audit.sh` five zeros. Verdict neutrality at three levels: 878 TUs by name
 (1 changed, toward `match`, 0 regressions), every `gap-metric` key (0 vanished),
 and all 333 fixtures at `/O1` **and** `/Ox` (1 changed at `/O1`, 0 at `/Ox`).
-`hatch-red` is REFUSED by **`HATCH-STALE`** — a different refusal from the
-`HATCH-DRIFT` the commission named — reproduced at `111b6357` with this lane's
-`crates/` reverted (#2545, board #1389 / #1406).
+`hatch-red` is REFUSED by a **pre-existing** `HATCH-DRIFT
+id=call-arg-lit-permuted` in `body/shapes/calls.rs`, reproduced by
+`git checkout 111b6357 -- crates` (#2545, board #1406). The gate's own headline
+reads `HATCH-STALE` one stage earlier, which is an artefact of the gate running
+over a tree with uncommitted docs; the underlying refusal is the drift, and
+`w-fence2` #2482 recorded the same needle a day earlier.
