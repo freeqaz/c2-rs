@@ -44,7 +44,7 @@ def rows(path):
         if not line.startswith("READPX\t"):
             continue
         f = line.rstrip("\n").split("\t")
-        if len(f) != 9:
+        if len(f) < 9:
             continue
         yield {
             "tu": f[1], "name": f[2], "fnb": f[3], "key": f[4],

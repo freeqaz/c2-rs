@@ -1,0 +1,90 @@
+## A. the named residues, sized on the EMITTED column at this tip
+
+### the walker's `9B` (w-value #1943) — 8 keys, **5985 emitted**
+| key | emitted | dTU | dname | e/TU | exact | differs |
+|---|---:|---:|---:|---:|---:|---:|
+| `body-0x9B` | 2212 | 498 | 1080 | 4.44 | 0 | 0 |
+| `expr-op-0x9B` | 1587 | 355 | 959 | 4.47 | 0 | 0 |
+| `expr-call-in-expr-op-0x9B` | 1033 | 319 | 647 | 3.24 | 0 | 0 |
+| `expr-call-in-expr-recv-intrinsic-this-adjust-then-call-op-0x9B` | 803 | 371 | 342 | 2.16 | 0 | 0 |
+| `expr-call-in-expr-recv-load-then-call-op-0x9B` | 259 | 145 | 142 | 1.79 | 0 | 0 |
+| `expr-call-in-expr-recv-object-then-call-op-0x9B` | 84 | 61 | 83 | 1.38 | 0 | 0 |
+| `expr-call-in-expr-chained-then-call-op-0x9B` | 6 | 2 | 6 | 3.00 | 0 | 0 |
+| `call-token-0x9B` | 1 | 1 | 1 | 1.00 | 0 | 0 |
+
+### the walker's `64` — 10 keys, **1576 emitted**
+| key | emitted | dTU | dname | e/TU | exact | differs |
+|---|---:|---:|---:|---:|---:|---:|
+| `expr-call-in-expr-recv-load-then-call-op-0x64` | 615 | 336 | 498 | 1.83 | 0 | 0 |
+| `expr-call-in-expr-chained-then-op-0x64` | 482 | 466 | 3 | 1.03 | 0 | 0 |
+| `expr-op-0x64` | 422 | 379 | 122 | 1.11 | 0 | 0 |
+| `expr-call-in-expr-recv-object-then-call-op-0x64` | 25 | 18 | 25 | 1.39 | 0 | 0 |
+| `expr-call-in-expr-op-0x64` | 17 | 8 | 17 | 2.12 | 0 | 0 |
+| `expr-call-in-expr-recv-load-then-op-0x64` | 4 | 4 | 4 | 1.00 | 0 | 0 |
+| `expr-call-in-expr-recv-intrinsic-vbase-upcast-then-call-op-0x64` | 4 | 4 | 4 | 1.00 | 0 | 0 |
+| `expr-call-in-expr-chained-then-call-op-0x64` | 4 | 1 | 4 | 4.00 | 0 | 0 |
+| `expr-call-in-expr-recv-intrinsic-this-adjust-then-call-op-0x64` | 2 | 2 | 2 | 1.00 | 0 | 0 |
+| `expr-call-in-expr-recv-field-then-call-op-0x64` | 1 | 1 | 1 | 1.00 | 0 | 0 |
+
+### the designator layer `0x27` — 3 keys, **22415 emitted**
+| key | emitted | dTU | dname | e/TU | exact | differs |
+|---|---:|---:|---:|---:|---:|---:|
+| `expr-op-0x27` | 22412 | 801 | 7533 | 27.98 | 0 | 0 |
+| `call-postop-op-0x27` | 2 | 2 | 2 | 1.00 | 0 | 0 |
+| `callseq-postop-op-0x27` | 1 | 1 | 1 | 1.00 | 0 | 0 |
+
+### the designator layer `0x28` — 1 keys, **28 emitted**
+| key | emitted | dTU | dname | e/TU | exact | differs |
+|---|---:|---:|---:|---:|---:|---:|
+| `expr-op-0x28` | 28 | 25 | 28 | 1.12 | 0 | 0 |
+
+### wb-eh R1 -- the `.sy` binding / `param-*` seam — 2 keys, **845 emitted**
+| key | emitted | dTU | dname | e/TU | exact | differs |
+|---|---:|---:|---:|---:|---:|---:|
+| `param-width-undetermined:mid` | 682 | 19 | 322 | 35.89 | 0 | 0 |
+| `param-multi-reg:mid` | 163 | 87 | 118 | 1.87 | 0 | 0 |
+
+### `callee-defined-in-tu` (w-inlfence #2226) — 1 keys, **1 emitted**
+| key | emitted | dTU | dname | e/TU | exact | differs |
+|---|---:|---:|---:|---:|---:|---:|
+| `callee-defined-in-tu:eof` | 1 | 1 | 1 | 1.00 | 0 | 0 |
+
+
+## B. P(fnbyte-exact) on the ALREADY-ADMITTED population
+
+The calibrated prior. `differs` includes `reloc-differs`.
+
+| CFG class | in-class emitted | exact | differs | reloc-differs | P(exact) |
+|---|---:|---:|---:|---:|---:|
+| `cflow-straight` | 26660 | 23570 | 1554 | 532 | 0.884 |
+| `cflow-straight+expr-modeled` | 12970 | 12645 | 325 | 0 | 0.975 |
+| `cflow-if-n` | 6 | 6 | 0 | 0 | 1.000 |
+| `cflow-if-1` | 4 | 4 | 0 | 0 | 1.000 |
+| `cflow-loop` | 3 | 3 | 0 | 0 | 1.000 |
+| **all** | 39643 | 36228 | 1879 | 532 | **0.914** |
+
+### by body size (bytes of c2's own COMDAT)
+
+| size | in-class | exact | P(exact) |
+|---|---:|---:|---:|
+| 0–8 B | 14562 | 13833 | 0.950 |
+| 8–16 B | 19830 | 19160 | 0.966 |
+| 16–32 B | 3570 | 2612 | 0.732 |
+| 32–64 B | 967 | 610 | 0.631 |
+| 64–128 B | 708 | 8 | 0.011 |
+| 128–256 B | 5 | 4 | 0.800 |
+| 256–∞ B | 1 | 1 | 1.000 |
+
+## C. the frontier's single-key TUs
+
+| frontier TU | reader | distinct keys | the key(s) | CFG reachability |
+|---|---:|---:|---|---|
+| `src/Main.cpp` | 1 | 1 | `param-width-undetermined:mid`*1 | REACHABLE — every blocked fn is a port CFG class |
+| `src/system/synth_xbox/Biquad.cpp` | 2 | 2 | `expr-call-in-expr-recv-load-then-plumbing-0x3A`*1 `expr-cmp-eq`*1 | REACHABLE — every blocked fn is a port CFG class |
+| `src/xdk/LIBCMT/vsnprnc.cpp` | 2 | 2 | `call-arg-lit-permuted:mid`*1 `expr-cmp-eq`*1 | needs a CFG class the port lacks: cflow-if-n |
+| `src/system/rndobj/wordwrap.cpp` | 3 | 3 | `expr-brfalse`*1 `expr-cmp-eq`*1 `expr-jump`*1 | needs a CFG class the port lacks: cflow-if-n, cflow-loop |
+| `src/system/utl/Pool.cpp` | 3 | 2 | `expr-brtrue`*1 `expr-op-0x27`*2 | needs a CFG class the port lacks: cflow-loop |
+| `src/xdk/nuispeech/mmio.cpp` | 3 | 1 | `expr-cmp-eq`*3 | needs a CFG class the port lacks: cflow-if-2, cflow-if-n |
+| `src/system/synth_xbox/IPP_basicmath_xbox.cpp` | 4 | 1 | `expr-cmp-eq`*4 | needs a CFG class the port lacks: cflow-loop |
+| `src/system/utl/EncryptXTEA.cpp` | 4 | 3 | `expr-intrinsic-memcpy`*1 `expr-load-type-8882`*1 `expr-op-0x27`*2 | needs a CFG class the port lacks: cflow-loop |
+| `src/keygen_xbox.cpp` | 19 | 11 | 11 keys | needs a CFG class the port lacks: cflow-if-n, cflow-loop |

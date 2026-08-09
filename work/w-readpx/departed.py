@@ -49,7 +49,7 @@ def tip_keys(path):
         if not line.startswith("READPX\t"):
             continue
         f = line.rstrip("\n").split("\t")
-        if len(f) != 9 or f[3] != "fnbyte-refused":
+        if len(f) < 9 or f[3] != "fnbyte-refused":
             continue
         out.setdefault(f[4], []).append((f[1], f[2]))
     return out
@@ -74,7 +74,7 @@ def main():
         if not line.startswith("READPX\t"):
             continue
         f = line.rstrip("\n").split("\t")
-        if len(f) != 9 or f[1] not in fr or f[3] != "fnbyte-refused":
+        if len(f) < 9 or f[1] not in fr or f[3] != "fnbyte-refused":
             continue
         tip.setdefault(f[4], []).append((f[1], f[2]))
 
@@ -91,21 +91,32 @@ def main():
         print("| `%s` | %d | %d |%s |" % (k, b, n, mark or " 0"))
     print("| **total** | **%d** | **%d** | **%+d** |" % (tb, tn, tn - tb))
 
-    # Where are the named departures now?
+    # Where are the named departures now?  `fn_names` in the JSONL is a COUNT,
+    # not a list, so the name -> TU map comes from the READPX rows themselves.
     verd = {}
     for line in open(os.path.join(HERE, STEM + ".jsonl"),
                      encoding="utf-8", errors="replace"):
         d = json.loads(line)
-        verd[d["src"]] = (d["class"], d.get("reason", ""),
-                          set(d.get("fn_names") or []))
-    print("\n--- the departed, by name: which TU, and that TU's verdict now ---")
-    print("| departed function | key it held | TU | TU verdict at this tip |")
-    print("|---|---|---|---|")
+        if d.get("record") == "provenance":
+            continue
+        verd[d["src"]] = d["class"]
+    where = {}
+    for line in open(err, encoding="utf-8", errors="replace"):
+        if not line.startswith("READPX\t"):
+            continue
+        f = line.rstrip("\n").split("\t")
+        if len(f) < 9:
+            continue
+        where.setdefault(f[2], []).append((f[1], f[3], f[4]))
+    print("\n--- the departed, by name: which TU, that TU's verdict now, and "
+          "the class that took the function ---")
+    print("| departed function | key at `c34c388c` | TU | TU verdict now "
+          "| byte verdict now | census key now |")
+    print("|---|---|---|---|---|---|")
     for nm, k in NAMED:
-        hit = [s for s, (_, _, names) in verd.items() if nm in names]
-        for s in hit or ["<no TU carries this name>"]:
-            cl = verd[s][0] if s in verd else "?"
-            print("| `%s` | `%s` | `%s` | **%s** |" % (nm, k, s, cl))
+        for tu, fnb, key in where.get(nm, [("<not emitted anywhere>", "-", "-")]):
+            print("| `%s` | `%s` | `%s` | **%s** | %s | `%s` |"
+                  % (nm, k, tu, verd.get(tu, "?"), fnb, key))
 
 
 main()

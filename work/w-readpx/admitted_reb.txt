@@ -1,0 +1,46 @@
+## Every CENSUS-ADMITTED class, crossed with the BYTE judge
+
+| class (census key) | admitted | exact | differs | reloc-differs | refused by the port | P(exact) |
+|---|---:|---:|---:|---:|---:|---:|
+| `empty-body` | 9689 | 9689 | 0 | 0 | 0 | 1.000 |
+| `indirect-load-leaf` | 9185 | 9185 | 0 | 0 | 0 | 1.000 |
+| `store-run` | 4662 | 4662 | 0 | 0 | 0 | 1.000 |
+| `multiarg-tail-call` | 3793 | 3162 | 581 | 50 | 0 | 0.834 |
+| `straight-line` | 3749 | 3749 | 0 | 0 | 0 | 1.000 |
+| `empty-dtor-delegation` | 2242 | 1649 | 82 | 351 | 160 | 0.736 |
+| `addr-leaf` | 1602 | 1602 | 0 | 0 | 0 | 1.000 |
+| `empty-ctor-base` | 816 | 634 | 182 | 0 | 0 | 0.777 |
+| `call-sequence-value` | 786 | 583 | 150 | 0 | 53 | 0.742 |
+| `call-sequence-cmp-eq` | 542 | 0 | 42 | 0 | 500 | 0.000 |
+| `store-leaf` | 467 | 467 | 0 | 0 | 0 | 1.000 |
+| `float-leaf` | 450 | 450 | 0 | 0 | 0 | 1.000 |
+| `call-sequence-value-fp` | 434 | 0 | 434 | 0 | 0 | 0.000 |
+| `int-tail-call` | 415 | 145 | 269 | 0 | 1 | 0.349 |
+| `empty-dtor-member` | 376 | 167 | 43 | 104 | 62 | 0.444 |
+| `empty-dtor-member-adjusted` | 244 | 26 | 90 | 27 | 101 | 0.107 |
+| `framed-call` | 123 | 0 | 0 | 0 | 123 | 0.000 |
+| `void-tail-call` | 23 | 23 | 0 | 0 | 0 | 1.000 |
+| `call-sequence` | 11 | 8 | 1 | 0 | 2 | 0.727 |
+| `call-sequence-lit` | 9 | 9 | 0 | 0 | 0 | 1.000 |
+| `fp-tail-call` | 5 | 0 | 5 | 0 | 0 | 0.000 |
+| `cond-tail-pair` | 4 | 4 | 0 | 0 | 0 | 1.000 |
+| `store-run-call` | 3 | 3 | 0 | 0 | 0 | 1.000 |
+| `call-sequence-cmp-order` | 2 | 0 | 0 | 0 | 2 | 0.000 |
+| `if-call-join` | 2 | 2 | 0 | 0 | 0 | 1.000 |
+| `static-scan-loop` | 1 | 1 | 0 | 0 | 0 | 1.000 |
+| `ptr-walk-mod-loop` | 1 | 1 | 0 | 0 | 0 | 1.000 |
+| `osf-handle-guard` | 1 | 1 | 0 | 0 | 0 | 1.000 |
+| `alloc-init-or-fail` | 1 | 1 | 0 | 0 | 0 | 1.000 |
+| `guard-chain-shared-tail` | 1 | 1 | 0 | 0 | 0 | 1.000 |
+| `store-run-bind` | 1 | 1 | 0 | 0 | 0 | 1.000 |
+| `cmp-shift-or` | 1 | 1 | 0 | 0 | 0 | 1.000 |
+| `json-utf8-copy` | 1 | 1 | 0 | 0 | 0 | 1.000 |
+| `xlrc-create-guard` | 1 | 1 | 0 | 0 | 0 | 1.000 |
+| **all 34 classes** | 39643 | 36228 | 1879 | 532 | 1004 | 0.914 |
+
+**Census-admitted classes with ZERO byte-exact functions: 5 of 34, 1106 emitted, of which 481 still emit WRONG BYTES at this tip**
+  - `call-sequence-cmp-eq` 542 emitted, 42 still wrong
+  - `call-sequence-value-fp` 434 emitted, 434 still wrong
+  - `framed-call` 123 emitted, 0 still wrong
+  - `fp-tail-call` 5 emitted, 5 still wrong
+  - `call-sequence-cmp-order` 2 emitted, 0 still wrong
