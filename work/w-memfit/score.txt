@@ -1,0 +1,157 @@
+== CONTROL: re-score every rival FROZEN in the manifests ==
+   (must reproduce work/w-memcpy/scorem.txt exactly)
+   GRID-M   M-THRESH-32    182/232  OK
+   GRID-M   M-THRESH-16    174/232  OK
+   GRID-M   M-THRESH-64    166/232  OK
+   GRID-M   M-THRESH-8     158/232  OK
+   GRID-M   M-VARCALL      118/232  OK
+   GRID-M   M-ALWAYSCALL   114/232  OK
+   GRID-M2  F-48           114/176  OK
+   GRID-M2  F-ALL          114/176  OK
+   CONTROL: PASS
+
+== R-WB, wb-memcpy's read decision function, on the SAME cells ==
+   R-WB               GRID-M 232/232   GRID-M2 176/176   BOTH 408/408
+   R-WB/no-deaddst    GRID-M 232/232   GRID-M2 132/176   BOTH 364/408
+        MISS m2_v_ll_n44            pred=call    measured=none     4B
+        MISS m2_v_ll_n46            pred=call    measured=none     4B
+        MISS m2_v_ll_n47            pred=call    measured=none     4B
+        MISS m2_v_ll_n48            pred=call    measured=none     4B
+        MISS m2_v_ll_n49            pred=call    measured=none     4B
+        MISS m2_v_ll_n52            pred=call    measured=none     4B
+        MISS m2_v_ll_n56            pred=call    measured=none     4B
+        MISS m2_v_ll_n60            pred=call    measured=none     4B
+        MISS m2_v_ll_n64            pred=call    measured=none     4B
+        MISS m2_v_ll_n72            pred=call    measured=none     4B
+        MISS m2_v_ll_n96            pred=call    measured=none     4B
+        MISS m2_q_ll_n44            pred=inline  measured=none     4B
+        MISS m2_q_ll_n46            pred=inline  measured=none     4B
+        MISS m2_q_ll_n47            pred=inline  measured=none     4B
+        MISS m2_q_ll_n48            pred=call    measured=none     4B
+        MISS m2_q_ll_n49            pred=call    measured=none     4B
+        MISS m2_q_ll_n52            pred=call    measured=none     4B
+        MISS m2_q_ll_n56            pred=call    measured=none     4B
+        MISS m2_q_ll_n60            pred=call    measured=none     4B
+        MISS m2_q_ll_n64            pred=call    measured=none     4B
+        MISS m2_q_ll_n72            pred=call    measured=none     4B
+        MISS m2_q_ll_n96            pred=call    measured=none     4B
+        MISS m2_s4_ll_n44           pred=call    measured=none     4B
+        MISS m2_s4_ll_n46           pred=call    measured=none     4B
+        MISS m2_s4_ll_n47           pred=call    measured=none     4B
+        MISS m2_s4_ll_n48           pred=call    measured=none     4B
+        MISS m2_s4_ll_n49           pred=call    measured=none     4B
+        MISS m2_s4_ll_n52           pred=call    measured=none     4B
+        MISS m2_s4_ll_n56           pred=call    measured=none     4B
+        MISS m2_s4_ll_n60           pred=call    measured=none     4B
+        MISS m2_s4_ll_n64           pred=call    measured=none     4B
+        MISS m2_s4_ll_n72           pred=call    measured=none     4B
+        MISS m2_s4_ll_n96           pred=call    measured=none     4B
+        MISS m2_s32_ll_n44          pred=inline  measured=none     4B
+        MISS m2_s32_ll_n46          pred=inline  measured=none     4B
+        MISS m2_s32_ll_n47          pred=inline  measured=none     4B
+        MISS m2_s32_ll_n48          pred=call    measured=none     4B
+        MISS m2_s32_ll_n49          pred=call    measured=none     4B
+        MISS m2_s32_ll_n52          pred=call    measured=none     4B
+        MISS m2_s32_ll_n56          pred=call    measured=none     4B
+        MISS m2_s32_ll_n60          pred=call    measured=none     4B
+        MISS m2_s32_ll_n64          pred=call    measured=none     4B
+        MISS m2_s32_ll_n72          pred=call    measured=none     4B
+        MISS m2_s32_ll_n96          pred=call    measured=none     4B
+   R-WB/align-frozen  GRID-M 224/232   GRID-M2 176/176   BOTH 400/408
+        MISS memcpy_s_n48           pred=inline  measured=call     8B
+        MISS memcpy_s_n56           pred=inline  measured=call     8B
+        MISS memcpy_s_n64           pred=inline  measured=call     8B
+        MISS memcpy_s_n72           pred=inline  measured=call     8B
+        MISS memset_s_n48           pred=inline  measured=call     12B
+        MISS memset_s_n56           pred=inline  measured=call     12B
+        MISS memset_s_n64           pred=inline  measured=call     12B
+        MISS memset_s_n72           pred=inline  measured=call     12B
+   R-WB/T=10          GRID-M 198/232   GRID-M2 134/176   BOTH 332/408
+        MISS memcpy_c_n7            pred=inline  measured=call     8B
+        MISS memcpy_c_n8            pred=inline  measured=call     8B
+        MISS memcpy_c_n10           pred=inline  measured=call     8B
+        MISS memcpy_i_n24           pred=inline  measured=call     8B
+        MISS memcpy_i_n28           pred=inline  measured=call     8B
+        MISS memcpy_i_n31           pred=inline  measured=call     8B
+        MISS memcpy_i_n32           pred=inline  measured=call     8B
+        MISS memcpy_i_n36           pred=inline  measured=call     8B
+        MISS memcpy_i_n40           pred=inline  measured=call     8B
+        MISS memcpy_d_n48           pred=inline  measured=call     8B
+        MISS memcpy_d_n56           pred=inline  measured=call     8B
+        MISS memcpy_d_n64           pred=inline  measured=call     8B
+        MISS memcpy_d_n72           pred=inline  measured=call     8B
+        MISS memcpy_s_n48           pred=inline  measured=call     8B
+        MISS memcpy_s_n56           pred=inline  measured=call     8B
+        MISS memcpy_s_n64           pred=inline  measured=call     8B
+        MISS memcpy_s_n72           pred=inline  measured=call     8B
+        MISS memset_c_n7            pred=inline  measured=call     12B
+        MISS memset_c_n8            pred=inline  measured=call     12B
+        MISS memset_c_n10           pred=inline  measured=call     12B
+        MISS memset_i_n24           pred=inline  measured=call     12B
+        MISS memset_i_n28           pred=inline  measured=call     12B
+        MISS memset_i_n31           pred=inline  measured=call     12B
+        MISS memset_i_n32           pred=inline  measured=call     12B
+        MISS memset_i_n36           pred=inline  measured=call     12B
+        MISS memset_i_n40           pred=inline  measured=call     12B
+        MISS memset_d_n48           pred=inline  measured=call     12B
+        MISS memset_d_n56           pred=inline  measured=call     12B
+        MISS memset_d_n64           pred=inline  measured=call     12B
+        MISS memset_d_n72           pred=inline  measured=call     12B
+        MISS memset_s_n48           pred=inline  measured=call     12B
+        MISS memset_s_n56           pred=inline  measured=call     12B
+        MISS memset_s_n64           pred=inline  measured=call     12B
+        MISS memset_s_n72           pred=inline  measured=call     12B
+        MISS m2_q_ff_n48            pred=inline  measured=call     8B
+        MISS m2_q_fl_n48            pred=inline  measured=call     40B
+        MISS m2_q_fg_n48            pred=inline  measured=call     16B
+        MISS m2_q_ff_n49            pred=inline  measured=call     8B
+        MISS m2_q_fl_n49            pred=inline  measured=call     40B
+        MISS m2_q_fg_n49            pred=inline  measured=call     16B
+        MISS m2_q_ff_n52            pred=inline  measured=call     8B
+        MISS m2_q_fl_n52            pred=inline  measured=call     40B
+        MISS m2_q_fg_n52            pred=inline  measured=call     16B
+        MISS m2_q_ff_n56            pred=inline  measured=call     8B
+        MISS m2_q_fl_n56            pred=inline  measured=call     40B
+        MISS m2_q_fg_n56            pred=inline  measured=call     16B
+        MISS m2_q_ff_n60            pred=inline  measured=call     8B
+        MISS m2_q_fl_n60            pred=inline  measured=call     40B
+        MISS m2_q_fg_n60            pred=inline  measured=call     16B
+        MISS m2_q_ff_n64            pred=inline  measured=call     8B
+        MISS m2_q_fl_n64            pred=inline  measured=call     40B
+        MISS m2_q_fg_n64            pred=inline  measured=call     16B
+        MISS m2_q_ff_n72            pred=inline  measured=call     8B
+        MISS m2_q_fl_n72            pred=inline  measured=call     40B
+        MISS m2_q_fg_n72            pred=inline  measured=call     16B
+        MISS m2_s32_ff_n48          pred=inline  measured=call     8B
+        MISS m2_s32_fl_n48          pred=inline  measured=call     40B
+        MISS m2_s32_fg_n48          pred=inline  measured=call     16B
+        MISS m2_s32_ff_n49          pred=inline  measured=call     8B
+        MISS m2_s32_fl_n49          pred=inline  measured=call     40B
+        MISS m2_s32_fg_n49          pred=inline  measured=call     16B
+        MISS m2_s32_ff_n52          pred=inline  measured=call     8B
+        MISS m2_s32_fl_n52          pred=inline  measured=call     40B
+        MISS m2_s32_fg_n52          pred=inline  measured=call     16B
+        MISS m2_s32_ff_n56          pred=inline  measured=call     8B
+        MISS m2_s32_fl_n56          pred=inline  measured=call     40B
+        MISS m2_s32_fg_n56          pred=inline  measured=call     16B
+        MISS m2_s32_ff_n60          pred=inline  measured=call     8B
+        MISS m2_s32_fl_n60          pred=inline  measured=call     40B
+        MISS m2_s32_fg_n60          pred=inline  measured=call     16B
+        MISS m2_s32_ff_n64          pred=inline  measured=call     8B
+        MISS m2_s32_fl_n64          pred=inline  measured=call     40B
+        MISS m2_s32_fg_n64          pred=inline  measured=call     16B
+        MISS m2_s32_ff_n72          pred=inline  measured=call     8B
+        MISS m2_s32_fl_n72          pred=inline  measured=call     40B
+        MISS m2_s32_fg_n72          pred=inline  measured=call     16B
+
+== D0: does GRID-L contain any block-move cell at all? ==
+   GRID-L cells 747 · cells mentioning memcpy/memset: 0
+   -> R-WB is UNDEFINED on GRID-L; the denominator is 408 of 1,155
+
+== CROSS-CHECK: the same r_wb on wb-memcpy's own GRID-W (216) ==
+   R-WB on GRID-W  216/216   (flag sets not decoded: 0)
+
+== HEADLINE ==
+   R-WB on w-memcpy's OWN frozen cells: 408/408 (GRID-M 232/232, GRID-M2 176/176)
+   best frozen rival on the same cells:  296/408 (M-THRESH-32 182/232, F-48 114/176)
+   the id-keyed rule (M-ALWAYSCALL):     114/232 on GRID-M
