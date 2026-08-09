@@ -943,6 +943,48 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
         }
     }
 
+    // **W-VEC (#2500) — the GATE's own first refusal, over the whole
+    // `vocab-gap` bucket.**
+    //
+    // `top vocab gaps` above prints one string, *"il function decode failed"*,
+    // for 851 of 878 TUs, because that is the only `reason` the scan sets on
+    // that path. This is the actionable decomposition `IlBundle::decode_causes`
+    // has produced since lane `w-vocab` and that nothing in this crate called:
+    // which of the eleven gates `functions()` **stops** on, and — separately —
+    // how many TUs each cause fires on *anywhere*, which is what a lane owes
+    // after repairing the first one.
+    //
+    // Printed as a HAND-VERIFIABLE pair rather than a single ranking, because
+    // the two answer different questions and the difference is the whole point:
+    // a repair of the top FIRST cause converts nothing if the same TUs are also
+    // in the ALSO column for four more.
+    let mut first: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
+    let mut anywhere: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
+    for r in &report.results {
+        if let Some(c) = &r.gate_cause {
+            *first.entry(c.as_str()).or_insert(0) += 1;
+        }
+        for c in &r.gate_causes {
+            *anywhere.entry(c.as_str()).or_insert(0) += 1;
+        }
+    }
+    if !first.is_empty() {
+        let total: usize = first.values().sum();
+        println!(
+            "\n  gate FIRST refusal, over the {total} TUs `IlBundle::decodes()` \
+             rejects (c2_il::func::diag; a first cause is what a repair is \
+             guaranteed to move, the ALSO column is what it would still owe):"
+        );
+        let mut rows: Vec<(&&str, &usize)> = first.iter().collect();
+        rows.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
+        for (cause, count) in rows {
+            println!(
+                "    {count:>5} x {cause:<34} (also fires on {} TUs total)",
+                anywhere.get(*cause).copied().unwrap_or(0)
+            );
+        }
+    }
+
     let mismatches = report.count(TuClass::Mismatch);
     if mismatches > 0 || diverged > 0 || report.cache.poisoned > 0 {
         eprintln!(
