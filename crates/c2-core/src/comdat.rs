@@ -129,6 +129,7 @@ pub fn selected_tag(s: &codegen::Selected) -> &'static str {
         codegen::Selected::OsfHandleGuard => "osf-handle-guard",
         codegen::Selected::GuardRetChain => "guard-ret-chain",
         codegen::Selected::XlrcCreateGuard => "xlrc-create-guard",
+        codegen::Selected::XteaEncryptLoop => "xtea-encrypt-loop",
         codegen::Selected::JsonUtf8Copy => "json-utf8-copy",
     }
 }
@@ -390,8 +391,50 @@ fn callee_is_one_c2_expands<'a>(
     // was composed — a caller whose call E dropped has no `REL24` for this fence
     // to see. Excluded here for the same reason S7 excludes it: one function,
     // one rule.
+    // **W-XTEA3 — F9's licensed decline rule, and the FIRST clause here that is
+    // a size rule keyed on something other than the size alone.**
+    //
+    // `docs/whitebox/WB_INLINE_FINDINGS.md` §7's MAY table lists it verbatim:
+    // *"a **loop-bodied** callee **> 80 bytes** ⇒ never inlined at `/O1`"*, F9
+    // + the anchor, **62 cells**, with the port-side use stated as *"the safe
+    // decline side: the port may keep the call"*. GRID-J measures the loop
+    // family's boundary at `(56,80]` against the straight-line family's
+    // `(96,120]`, **identically at the workload flags and at `/O1 /GS- /c`**,
+    // which is what refutes `R7-FLAGS`.
+    //
+    // The mechanism §5 names is why the two families differ: the ceiling is
+    // applied to a pre-codegen tuple COUNT and emitted bytes are a proxy that
+    // over-credits a loop by roughly 1.55, because the induction variables, the
+    // compare and the branch collapse into one `bdnz`.
+    //
+    // **This clause widens acceptance, which is the dangerous direction**, and
+    // it is bounded three ways: it is one of the five rows the whitebox lane
+    // licensed for exactly this use; it fires only above a bound three times
+    // tighter than the one it replaces (80 against 128), so the mixed band
+    // GRID-W measures at 64–95 is untouched on the straight-line side and only
+    // its top 15 bytes are entered on the loop side; and it is graded by the
+    // oracle at 346 fixtures × two modes and 878 workload TUs, where a
+    // mis-prediction is a `mismatch` and not a silence.
+    //
+    // The target is `?Encipher@XTEABlockEncrypter` at **116** emitted bytes with
+    // a `bdnz` — 36 bytes above the top of the loop bracket — and
+    // `EncryptXTEA.obj`'s own `?Encrypt` carries the `bl` against it, so the
+    // oracle agrees on this witness.
+    if g.body_has_loop() && gb.text.len() > INLINE_DECLINE_LOOP_BYTES {
+        return false;
+    }
     !gb.text.is_empty() && gb.text.len() <= INLINE_DECLINE_BYTES
 }
+
+/// **The emitted-body size above which a LOOP-BODIED callee is measured never
+/// to be inlined at `/O1`.** `WB_INLINE_FINDINGS` F9, GRID-J's `(56,80]`
+/// bracket over 56 cells plus the anchor's `(60,84]`, so **80** is the top of
+/// the measured bracket and the rule is stated `> 80`.
+///
+/// Three times tighter than [`INLINE_DECLINE_BYTES`], which is the whole point:
+/// a loop body priced by its emitted size is over-credited relative to the
+/// pre-codegen count c2 actually tests.
+pub const INLINE_DECLINE_LOOP_BYTES: usize = 80;
 
 /// **W-FENCE2 — the emitted-body size above which c2 is measured never to inline
 /// an EXTERNAL callee at `/O1`, with margin.** A call to a locally-defined
@@ -675,6 +718,44 @@ pub(crate) fn body_of<'a>(
             // then gives the second user no second symbol — which is what the
             // same cell's `sub2` shows.
             helper_externals = vec![codegen::guard_ret_chain::MEMCPY_NAME];
+            (body.text, calls)
+        }
+        // **W-XTEA3 — the framed XTEA block loop.** THREE REL24 sites for ONE
+        // IL-named callee: the frame's `__savegprlr_26`/`__restgprlr_26` pair is
+        // minted here from the layout, never read out of the IL, and its two
+        // symbols go on `helper_externals` so the writer places them after the
+        // `$T` label rather than in the callee region. The third site is
+        // `?Encipher`, which is DEFINED in this same obj — so it is an IL-named
+        // callee whose symbol the writer already has.
+        codegen::Selected::XteaEncryptLoop => {
+            let g = f
+                .xtea_encrypt_loop
+                .as_ref()
+                .expect("XteaEncryptLoop implies xtea_encrypt_loop");
+            let body = codegen::xtea_encrypt_loop::xtea_encrypt_loop_text(g, 0, mode)
+                .map_err(ComdatDecline::Shape)?;
+            frame = Some(coff::Frame {
+                prolog_len: body.prolog_len,
+                func_len: body.text.len() as u32,
+            });
+            let fr = codegen::xtea_encrypt_loop::xtea_frame();
+            let (Some(save), Some(rest)) =
+                (fr.save_gpr_helper_name(), fr.rest_gpr_helper_name())
+            else {
+                return Err(ComdatDecline::Shape(crate::BackendError::NotImplemented(
+                    "xtea-encrypt-loop: no `__savegprlr_N` name for this layout".to_string(),
+                )));
+            };
+            // Reverse first-reference over the two helper sites, the same rule
+            // `introduced_externals` applies: the save is the prologue's word
+            // and the restore is the function's last, so the restore's symbol is
+            // the earlier record.
+            helper_externals = vec![rest, save];
+            let calls = vec![
+                coff::Call { reloc_offset: body.bl_offsets[0], callee: save },
+                coff::Call { reloc_offset: body.bl_offsets[1], callee: g.callee.as_str() },
+                coff::Call { reloc_offset: body.bl_offsets[2], callee: rest },
+            ];
             (body.text, calls)
         }
         // **W-XLR — the two-stage create/attach guard.** FOUR REL24 sites for

@@ -863,6 +863,29 @@ impl IlBundle {
                             Ok(BodyShape::MemcpyTail { .. }) => {
                                 FnVerdict::InClass("memcpy-tail")
                             }
+                            // **W-XTEA3 — the two-element 64-bit member run.**
+                            // Its own bucket rather than the store run's: the
+                            // two write a run of `32`s and differ in whether the
+                            // stored value is computed, and a gain that landed
+                            // in `store-run` would be attributable to neither.
+                            Ok(BodyShape::NonceAddRun { .. }) => {
+                                FnVerdict::InClass("nonce-add-run")
+                            }
+                            // **W-XTEA3 — the XTEA round loop.** Its own bucket
+                            // rather than `counted-accum-loop`'s: #1981 defines
+                            // that class to contain no memory reference and this
+                            // one has an `lwzx` inside the loop, so a gain that
+                            // landed there would be attributable to neither.
+                            Ok(BodyShape::XteaRoundLoop { .. }) => {
+                                FnVerdict::InClass("xtea-round-loop")
+                            }
+                            // **W-XTEA3 — the framed XTEA block loop.** Its own
+                            // bucket, for the reason every class here gets one:
+                            // a gain that landed in a shared framed-loop bucket
+                            // would be attributable to neither production.
+                            Ok(BodyShape::XteaEncryptLoop { .. }) => {
+                                FnVerdict::InClass("xtea-encrypt-loop")
+                            }
                             // **W-BIQUAD — the float-store diamond.** Its own
                             // bucket on the same rule every class here follows:
                             // a gain that landed in a shared `cflow-if-1`

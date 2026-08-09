@@ -724,9 +724,9 @@ of them found a multiplier.
 ## 11. NON-CODEGEN LAST BLOCKERS — the class, its detector, and the checklist
 
 Added 2026-08-09 by lane `w-nc` (#2380–#2399). **Read §11.4 before you conclude
-that a body is a codegen problem.** Three consecutive conversion lanes found
-that their *last* blocker was not codegen, each at the end of a lane that had
-already paid for codegen:
+that a body is a codegen problem.** Five conversion lanes have now found that
+their *last* blocker was not codegen, each at the end of a lane that had already
+paid for codegen — and the fifth added a family this list did not have:
 
 | lane | what the rung says | family |
 |---|---|---|
@@ -734,12 +734,14 @@ already paid for codegen:
 | `w-blockir` #2301 | *"the scan read `fnbyte-exact 4 · fnbyte-differs 0` — **every body byte-exact** — and the whole obj graded `mismatch`, because `IlFunction::touches_floating_point` had no arm for this class and the obj came out **one symbol short**… the thing standing between a byte-exact body and a matching TU was a **TU-level fact**, not an instruction."* | NC-1 |
 | `w-main` #2260 | *"`WB_EH_FINDINGS.md` §6 files this as R1, `param-width-undetermined:mid`, `c2-il` formals header. **The key is right and the location is wrong.**"* — the refusal is `func::sy::ex_exit_label` wanting a `3A` byte the `.ex` does not contain | NC-4 |
 | `w-front5` #2621 | *"`src/Main.cpp`'s `.gl` carries exactly ONE framed defined record, at body-start 2713, which is exactly its single `.ex` segment's start — the binding is arithmetically perfect. The name is `main`, four bytes, and `INLINE_NAME_MAX` is 8."* So `Bindings::per_record` returns `None` and **`w-main`'s own thirteen mechanisms price the second layer of a two-layer chain** | NC-4 |
+| `w-xtea3` #2691 | *"With every body emitting the reference obj's bytes the TU refused at `comdat::fenced_inlined_callee`… the oracle disagrees — `EncryptXTEA.obj` carries the `bl ?Encipher` — and one clause turns `codegen-gap` into `match`."*  `fnbyte-exact 5 of 5`, and the blocker is a FENCE rather than an obligation | **NC-5** |
 
 ### 11.1 The class
 
 > **A NON-CODEGEN LAST BLOCKER is an obligation that stands between a TU and a
 > byte-exact obj and that is not a question about any function's instruction
-> bytes.** Four families:
+> bytes.** Four families — and, since 2026-08-09, a **fifth that is not an
+> obligation at all** (NC-5, a refusal the port makes on purpose):
 
 * **NC-1 — a whole-obj SYMBOL obligation.** The obj carries a symbol no function
   body contains, minted by a TU-level predicate. Every one the port's writer can
@@ -810,6 +812,34 @@ already paid for codegen:
   construct it cannot represent: `.sy` admitting `tid == 0x74` and not `0x75`
   (#764) is the recorded instance. Detector: the refusal key ends in a hex
   **type tag** (`expr-load-type-8881`, `assign-store-type-8643`).
+* **NC-5 — a whole-TU CONSERVATISM GATE.** *Added 2026-08-09 by lane
+  `w-xtea3` (#2691), and it is the first family here that is not an
+  **obligation**.* NC-1…NC-4 are all things the obj owes and the port does not
+  supply: a symbol, a section, a type-list row, a clause in the right layer.
+  This one is a deliberate refusal the port makes **because it cannot prove it
+  may not** — right in general, wrong on one TU, and invisible to every
+  per-function instrument.
+
+  `src/system/utl/EncryptXTEA.cpp` reached **`fnbyte-exact 5 of 5`** — every
+  body emitting the reference obj's own bytes — and graded `codegen-gap`,
+  because `c2_core::comdat::fenced_inlined_callee` saw a call to a callee this
+  TU defines whose lowered body is **116** bytes against `INLINE_DECLINE_BYTES`'
+  **128**, and the fence's rule is *"the port cannot prove c2 KEPT this call"*.
+  The oracle disagrees: the reference obj carries the `bl`.
+
+  **The detector is T1**, unchanged — `fnbyte-exact == fnbyte-denominator ∧
+  class != match` fires on it exactly as it does on NC-1. What is different is
+  the **repair**: there is no missing symbol to mint. The port already knows
+  everything it needs; what it lacks is a licence to keep its own call, and the
+  licence was sitting unadopted in `docs/whitebox/WB_INLINE_FINDINGS.md` §7's
+  MAY table (*"a loop-bodied callee > 80 bytes ⇒ never inlined at `/O1`"*, F9 +
+  the anchor, 62 cells, port-side use stated as *"the safe decline side"*).
+
+  > **Before writing an emitter arm for a TU that T1 fires on, read the
+  > FENCES the port applies to it, not only the obligations it owes.** Today
+  > that is `comdat::fenced_inlined_callee`, `elide`'s mechanism E and
+  > `splice`'s S7 — three places where the port refuses a body it can lower.
+
 * **NC-4 — a MISLOCATED reader clause.** The published refusal names a layer
   that is not the one that fails. `w-main`'s R1 is the hand-found instance;
   board **#1416** is the population version — *"`expr-cmp-eq` / `expr-cmp-ne` IS
@@ -934,3 +964,13 @@ fall-through family's size beside any ranking taken off T2 — it is **9,095 of
    also `bind::defined_name_set`, the ground set the inline fence tests callees
    against, where a widening of the walk is a **tightening** of the fence
    (#2623).
+
+9. **If T1 fires, read the port's own FENCES before you read its
+   obligations.** *Added 2026-08-09 by lane `w-xtea3` (#2691, NC-5).* A TU whose
+   every body is `fnbyte-exact` and which still does not match may be blocked by
+   a refusal the port makes on purpose rather than by a symbol it owes.
+   `EncryptXTEA.cpp` was, at 5 of 5 bodies exact, and the repair was one clause
+   in `comdat::fenced_inlined_callee` — adopted from `WB_INLINE_FINDINGS` §7's
+   MAY table, which had five licensed arms of which four were already in the
+   code. The three fences to check are `comdat::fenced_inlined_callee`,
+   `elide`'s mechanism E, and `splice`'s S7.

@@ -37,6 +37,9 @@ use crate::codegen::guard_chain_shared_tail::guard_chain_shared_tail_text;
 use crate::codegen::if_call_join::if_call_join_text;
 use crate::codegen::ptr_walk_loop::ptr_walk_loop_text;
 use crate::codegen::memcpy_tail::memcpy_tail_text;
+use crate::codegen::nonce_add_run::nonce_add_run_text;
+use crate::codegen::xtea_encrypt_loop::xtea_encrypt_loop_text;
+use crate::codegen::xtea_round_loop::xtea_round_loop_text;
 use crate::codegen::leaf::store::store_leaf_text;
 use crate::codegen::straightline::select_text;
 
@@ -217,6 +220,13 @@ pub enum Selected {
     /// Built through
     /// [`crate::codegen::guard_ret_chain::guard_ret_chain_text`].
     GuardRetChain,
+    /// **W-XTEA3 — the framed XTEA block loop.** The same contract
+    /// [`Selected::XlrcCreateGuard`] has: a `__savegprlr_26` frame, a `.pdata`
+    /// record, a `$M`/`$M`/`$T` triple and three REL24 sites, two of them the
+    /// frame's own helpers. A unit variant, because the body is a pure function
+    /// of `f.xtea_encrypt_loop` and `base_off` and its three branch words each
+    /// encode their own `.text` offset.
+    XteaEncryptLoop,
     /// **W-XLR — the two-stage create/attach guard.** The bytes come from
     /// [`crate::codegen::xlrc_create_guard::xlrc_create_guard_text`], which is
     /// the only emitter that builds a `__savegprlr_N` frame. Four REL24 sites,
@@ -472,6 +482,45 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
     // writers ask it in exactly one place.
     if let Some(m) = &func.memcpy_tail {
         return Ok(Selected::MemcpyTail(memcpy_tail_text(m, mode)?));
+    }
+    // **W-XTEA3 — the two-element 64-bit member run.** Same placement argument
+    // as the whole-body shapes above and the same freedom: `func.nonce_add_run`
+    // is set by exactly one parser production, `func.ops` is empty for it, and no
+    // leaf pattern-matcher below can take its body. `Selected::Plain`, because
+    // the class takes no relocation, defines no label and mints no external —
+    // the reference obj's `.text #7` reads `nrel 0`.
+    //
+    // The mode gate is asked in the emitter as well as in the parser (board
+    // #1638), and calling the emitter here is what makes `function_gate` and both
+    // writers ask it in exactly one place.
+    if let Some(n) = &func.nonce_add_run {
+        return Ok(Selected::Plain(nonce_add_run_text(n, mode)?));
+    }
+    // **W-XTEA3 — the XTEA round loop.** Same placement argument as every loop
+    // around it and the same freedom: `func.xtea_round_loop` is set by exactly
+    // one parser production, `func.ops` is empty for it, and no leaf
+    // pattern-matcher below can take its body. `Selected::Plain`, because the
+    // class takes no relocation, mints no external and defines no label symbol —
+    // the reference obj's `.text #8` reads `nrel 0`.
+    //
+    // Unlike `counted_accum_loop` it admits `/O1` alone: at `/Ox` the same
+    // source is 1,352 bytes with a `__savegprlr_28` frame. The gate is in the
+    // READER, where the census can see it too (board #1638), and re-asked here.
+    if let Some(x) = &func.xtea_round_loop {
+        return Ok(Selected::Plain(xtea_round_loop_text(x, mode)?));
+    }
+    // **W-XTEA3 — the framed XTEA block loop.** A whole-obj shape like every
+    // framed class above it: it owns its `.pdata` record, its label triple and
+    // three REL24 sites, so — as with `IfCallJoin` and `XlrcCreateGuard` — the
+    // bytes are built by the caller, which knows where the function lands, and
+    // this arm only decides that the class is in.
+    //
+    // The mode gate is asked in the emitter as well as in the parser (board
+    // #1638), and calling the emitter here is what makes `function_gate` and
+    // both writers ask it in exactly one place.
+    if let Some(x) = &func.xtea_encrypt_loop {
+        xtea_encrypt_loop_text(x, 0, mode)?;
+        return Ok(Selected::XteaEncryptLoop);
     }
     if let Some(l) = &func.ptr_walk_loop {
         return Ok(Selected::Plain(ptr_walk_loop_text(l, mode)?));
