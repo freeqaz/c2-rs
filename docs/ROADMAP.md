@@ -11883,7 +11883,7 @@ fixture-verdicts, sweep 19,460 graded / 0 mismatch, cross 90,424 / 0 mismatch;
 and all 333 fixtures at `/O1` **and** `/Ox` (1 changed at `/O1`, 0 at `/Ox`).
 `hatch-red` is REFUSED by a **pre-existing** `HATCH-DRIFT
 id=call-arg-lit-permuted` in `body/shapes/calls.rs`, reproduced by
-`git checkout 111b6357 -- crates` (#2545, board #1406). The gate's own headline
-reads `HATCH-STALE` one stage earlier, which is an artefact of the gate running
-over a tree with uncommitted docs; the underlying refusal is the drift, and
-`w-fence2` #2482 recorded the same needle a day earlier.
+`git checkout 111b6357 -- crates` (#2545, board #1406). The gate's own arm stops one stage earlier
+and reports `HATCH-STALE` (#1389); why it does was not isolated here. Board
+#1406 makes both readings the same conclusion, and `w-fence2` #2482 reproduced
+the same needle a day earlier.
