@@ -1,17 +1,17 @@
 lane gate: preflight on /tmp
-  keep    /tmp/c2rs-gate-925778        this run
-  keep    /tmp/c2rs-gate-3618132       recent — 1 of 3 finished runs kept for their logs
-  keep    /tmp/c2rs-gate-2005350       recent — 2 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-1592514       this run
+  keep    /tmp/c2rs-gate-925778        recent — 1 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-3618132       recent — 2 of 3 finished runs kept for their logs
           stripped 19556 regenerable cases; logs, reports and parts/ kept
-  keep    /tmp/c2rs-gate-965226        recent — 3 of 3 finished runs kept for their logs
-  reaped  /tmp/c2rs-gate-725542        stale — no live gate owns it
+  keep    /tmp/c2rs-gate-2005350       recent — 3 of 3 finished runs kept for their logs
+  reaped  /tmp/c2rs-gate-965226        stale — no live gate owns it
 reap:   1 stale run tree(s) removed, 4 kept (0 live, 3 recent, 1 this run)
 strip:  1 kept tree(s) lost 19556 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
         freed 169.1 MiB and 19,887 inodes (df delta over a SHARED filesystem)
-disk:   /tmp — free 19.6 GiB / 702,080 inodes (floors: 2.0 GiB / 150,000 inodes)
+disk:   /tmp — free 19.6 GiB / 702,104 inodes (floors: 2.0 GiB / 150,000 inodes)
 
 lane gate: 18 lanes from <repo>/scripts/lanes.txt
-  run dir: /tmp/c2rs-gate-925778   (per-lane run dirs under /tmp/c2rs-gate-925778/lanes/)
+  run dir: /tmp/c2rs-gate-1592514   (per-lane run dirs under /tmp/c2rs-gate-1592514/lanes/)
 
 hatch-red:       work/w-hatch/hatch_red.py  (no toolchain; fires hatch.py's refusals)
   PASS  
@@ -22,27 +22,27 @@ building the harness (no-op if current)
    Compiling c2-core v0.1.0 (<repo>/crates/c2-core)
    Compiling c2-reference v0.1.0 (<repo>/crates/c2-reference)
    Compiling c2-harness v0.1.0 (<repo>/crates/c2-harness)
-    Finished `release` profile [optimized] target(s) in 5.88s
-harness: /tmp/c2rs-gate-925778/c2rs
-  pinned from <repo>/target/release/c2rs  built 2026-08-09 00:53:48
-  sha c7ddbe652d24  tree a4916844
+    Finished `release` profile [optimized] target(s) in 5.84s
+harness: /tmp/c2rs-gate-1592514/c2rs
+  pinned from <repo>/target/release/c2rs  built 2026-08-09 01:11:46
+  sha c7ddbe652d24  tree 53c56b6e-dirty
 
-wall clock: 15s for 18 lanes at --jobs 12 (C2RS_JOBS=8)
+wall clock: 1s for 18 lanes at --jobs 12 (C2RS_JOBS=8)
 
-generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-925778/sweep 0  (jobs 12)
+generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-1592514/sweep 0  (jobs 12)
     62 fragments, 19556 cases total (19556 .cpp on disk)
   sweeping 19556 of 19556 generated cases
     grading at 12 job(s)
   checked=19556 mismatches=0 graded=19460 ungraded=96 unknown=0
-  (99s)
+  (101s)
 
-mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-925778/cross 0  (jobs 12)
+mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-1592514/cross 0  (jobs 12)
   assigned 19556 cases over 18 lanes = 90812 cells (full cross would be 352008)
   sweeping 90812 of 90812 case-lane cells (cross of 0 cases x <repo>/scripts/lanes.txt; the full 12x product is 352008)
   checked=90812 mismatches=0 graded=90424 ungraded=388 unknown=0
-  (406s)
+  (30s)
 
-disk:   /tmp low-water this run — 19.4 GiB and 682,220 inodes free (start: 19.6 GiB / 702,080)
+disk:   /tmp low-water this run — 19.4 GiB and 682,244 inodes free (start: 19.6 GiB / 702,104)
 
 LANE                 VERDICT     graded/total  match  mismatch  flags
 -------------------- ---------- ------------- ------ --------- --------------------
@@ -74,7 +74,7 @@ graded: 5616 fixture-verdicts across all lanes
 sweep:  PASS — 19556 of 19556 selected cases reached, 19460 GRADED by the
         oracle (96 ungraded: no reference obj), 0 mismatch (corpus 19556)
 cross:  PASS — 90424 of 90812 selected cells graded, 0 mismatch (product 90812)
-logs:   /tmp/c2rs-gate-925778/<lane>.log, /tmp/c2rs-gate-925778/sweep.log, /tmp/c2rs-gate-925778/cross.log
+logs:   /tmp/c2rs-gate-1592514/<lane>.log, /tmp/c2rs-gate-1592514/sweep.log, /tmp/c2rs-gate-1592514/cross.log
 
 GATE: PASS — 18/18 lanes ran and every one of them graded a corpus,
   the sweep graded 19460 of 19556 generated cases and the cross graded
