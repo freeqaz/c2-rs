@@ -11,3 +11,6 @@ fixtures /O1 354 rows, 3 MOVED
 fixtures /Ox 354 rows, 0 MOVED
     a: {'vocab-gap': 191, 'match': 146, 'codegen-gap': 17}
     b: {'vocab-gap': 191, 'match': 146, 'codegen-gap': 17}
+
+per-TU (fnbyte-exact, differs, refused) over the same 878 rows: 1 MOVED
+    src/system/utl/EncryptXTEA.cpp                       (2, 0, 3) -> (5, 0, 0)
