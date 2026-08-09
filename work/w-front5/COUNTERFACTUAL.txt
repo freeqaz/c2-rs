@@ -1,0 +1,68 @@
+### COUNTERFACTUAL — the bound-record-name length clause removed
+### base binary 53e70e8fa9cfb8a482a2072927b615aa
+### cf   binary 829e849b2e2d3ad5a00aef577ab18e90
+
+A 259 keys, B 259 keys
+vanished 0, appeared 0, changed 20
+  ~   cflow-emitted-branchy                          35115   ->   35116
+  ~   cflow-offclass-accounted                       522046   ->   521645
+  ~   cflow-offclass-compare-blocked                 41128   ->   41129
+  ~   cflow-offclass-compare-inclass                 16   ->   15
+  ~   cflow-offclass-load-type-blocked               141406   ->   141806
+  ~   cflow-offclass-load-type-inclass               85322   ->   84922
+  ~   cflow-residue-inclass-offclass                 522046   ->   521645
+  ~   fnbyte-calltarget-agree                        35798   ->   35797
+  ~   fnbyte-calltarget-graded                       38228   ->   38227
+  ~   fnbyte-decline-parse                           113631   ->   113632
+  ~   fnbyte-exact                                   35798   ->   35797
+  ~   fnbyte-exact-bytes                             36330   ->   36329
+  ~   fnbyte-exact-relocated                         3817   ->   3816
+  ~   fnbyte-refused                                 114634   ->   114635
+  ~   fnbyte-refused-parse                           113631   ->   113632
+  ~   fnbyte-reloc-graded                            36330   ->   36329
+  ~   fnbyte-reloc-graded-relocated                  4349   ->   4348
+  ~   fnbyte-shape-cond-pair-exact                   4   ->   3
+  ~   fnbyte-shape-parse-refused-refused             113631   ->   113632
+  ~   progress-emitted-in-class                      39241   ->   39240
+
+A 878 TUs, B 878 TUs
+only-in-A 0, only-in-B 0
+== L1 class: 0 moved
+== L2 gate_cause: 15 moved
+   src/Main.cpp                                         gl-stop-name-not-mangled -> body-out-of-class
+   src/system/math/Easing.cpp                           gl-stop-name-not-mangled -> gl-stop-26-introduced
+   src/system/oggvorbis/VorbisMem.cpp                   gl-stop-name-not-mangled -> bind-record-count-ne-segments
+   src/system/rndobj/Anim.cpp                           gl-stop-name-not-mangled -> gl-stop-26-introduced
+   src/system/rndobj/AnimFilter.cpp                     gl-stop-name-not-mangled -> gl-stop-26-introduced
+   src/system/rndobj/CamAnim.cpp                        gl-stop-name-not-mangled -> gl-stop-26-introduced
+   src/system/rndobj/PollAnim.cpp                       gl-stop-name-not-mangled -> gl-stop-26-introduced
+   src/system/synth/CompressionEffect.cpp               gl-stop-name-not-mangled -> bind-record-count-ne-segments
+   src/system/synth/Faders.cpp                          gl-stop-name-not-mangled -> gl-stop-26-introduced
+   src/system/synth/ThreeDSound.cpp                     gl-stop-name-not-mangled -> gl-stop-26-introduced
+   src/system/synth/complex.cpp                         gl-stop-name-not-mangled -> bind-record-count-ne-segments
+   src/system/synth/filterdesign.cpp                    gl-stop-name-not-mangled -> gl-stop-26-introduced
+   src/system/synth_xbox/FFT.cpp                        gl-stop-name-not-mangled -> bind-record-count-ne-segments
+   src/system/synth_xbox/FilterCoeffs.cpp               gl-stop-name-not-mangled -> bind-record-count-ne-segments
+   src/xdk/nuispeech/mmio.cpp                           gl-stop-name-not-mangled -> body-out-of-class
+== L2b gate_causes SET: 16 moved
+   src/Main.cpp                                         ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['body-out-of-class', 'unclaimed-gl-symbol']
+   src/system/math/Easing.cpp                           ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['gl-stop-26-introduced', 'body-out-of-class']
+   src/system/oggvorbis/VorbisMem.cpp                   ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'body-out-of-class']
+   src/system/rndobj/Anim.cpp                           ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['gl-stop-26-introduced', 'body-out-of-class']
+   src/system/rndobj/AnimFilter.cpp                     ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['gl-stop-26-introduced', 'body-out-of-class']
+   src/system/rndobj/CamAnim.cpp                        ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['gl-stop-26-introduced', 'body-out-of-class']
+   src/system/rndobj/PollAnim.cpp                       ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['gl-stop-26-introduced', 'body-out-of-class']
+   src/system/synth/CompressionEffect.cpp               ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'body-out-of-class']
+   src/system/synth/Faders.cpp                          ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['gl-stop-26-introduced', 'body-out-of-class']
+   src/system/synth/ThreeDSound.cpp                     ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['gl-stop-26-introduced', 'body-out-of-class']
+   src/system/synth/complex.cpp                         ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'body-out-of-class']
+   src/system/synth/filterdesign.cpp                    ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['gl-stop-26-introduced', 'body-out-of-class']
+   src/system/synth_xbox/FFT.cpp                        ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'body-out-of-class']
+   src/system/synth_xbox/FilterCoeffs.cpp               ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'body-out-of-class']
+   src/system/synth_xbox/PitchCorrectedVoice.cpp        ['drectve-not-boilerplate', 'gl-stop-name-not-mangled', 'body-out-of-class'] -> ['drectve-not-boilerplate', 'bind-record-count-ne-segments', 'body-out-of-class']
+   src/xdk/nuispeech/mmio.cpp                           ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['body-out-of-class', 'unclaimed-gl-symbol']
+== L3 emit[fnbyte-exact]: 1 moved
+   src/system/synth_xbox/FFT.cpp                        1 -> 0  (-1)
+== L3 emit[fnbyte-differs]: 0 moved
+== L3 emit[fnbyte-refused]: 1 moved
+   src/system/synth_xbox/FFT.cpp                        9 -> 10  (+1)

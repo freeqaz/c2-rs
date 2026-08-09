@@ -1,0 +1,40 @@
+### THREE-LEVEL NEUTRALITY, base -> tip
+### base and tip binaries are BIT-IDENTICAL (md5
+### 53e70e8fa9cfb8a482a2072927b615aa both), because this lane
+### ships no crates/, fixtures/ or scripts/ change. The comparisons
+### below are run anyway: 'identical binary' is a claim about the
+### build, and the verdict sets are the claim about the OUTPUT.
+
+== workload gap-metric keys
+A 259 keys, B 259 keys
+vanished 0, appeared 0, changed 0
+
+== workload, 878 TUs by name
+A 878 TUs, B 878 TUs
+only-in-A 0, only-in-B 0
+== L1 class: 0 moved
+== L2 gate_cause: 0 moved
+== L2b gate_causes SET: 0 moved
+== L3 emit[fnbyte-exact]: 0 moved
+== L3 emit[fnbyte-differs]: 0 moved
+== L3 emit[fnbyte-refused]: 0 moved
+
+== fixtures at /O1
+A 341 TUs, B 341 TUs
+only-in-A 0, only-in-B 0
+== L1 class: 0 moved
+== L2 gate_cause: 0 moved
+== L2b gate_causes SET: 0 moved
+== L3 emit[fnbyte-exact]: 0 moved
+== L3 emit[fnbyte-differs]: 0 moved
+== L3 emit[fnbyte-refused]: 0 moved
+
+== fixtures at /Ox
+A 341 TUs, B 341 TUs
+only-in-A 0, only-in-B 0
+== L1 class: 0 moved
+== L2 gate_cause: 0 moved
+== L2b gate_causes SET: 0 moved
+== L3 emit[fnbyte-exact]: 0 moved
+== L3 emit[fnbyte-differs]: 0 moved
+== L3 emit[fnbyte-refused]: 0 moved

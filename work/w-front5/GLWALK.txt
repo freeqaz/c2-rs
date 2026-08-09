@@ -1,0 +1,60 @@
+### the GATE's binding walk over each frontier TU's own .gl
+---------- main
+6 printable runs, 581 bytes of .gl
+  record @378   body-start 2713   name 'main'                                   STOP gl-stop-name-not-mangled (len 4 <= 8)
+bound 0 record(s); stop = (378, 'main', 'STOP gl-stop-name-not-mangled (len 4 <= 8)')
+.ex 4F 1F starts: 1 [2713]
+per_record binds: False
+---------- mmio
+16 printable runs, 3621 bytes of .gl
+  record @2676  body-start 3133   name 'mmioGetInfo'                            bound
+  record @2717  body-start 3419   name 'mmioSetInfo'                            bound
+  record @2766  body-start 3838   name 'mmioStringToFOURCCW'                    bound
+  record @2809  body-start 3933   name 'mmioFlush'                              bound
+  record @2853  body-start 4028   name 'mmioSeek'                               STOP gl-stop-name-not-mangled (len 8 <= 8)
+bound 4 record(s); stop = (2853, 'mmioSeek', 'STOP gl-stop-name-not-mangled (len 8 <= 8)')
+.ex 4F 1F starts: 11 [3133, 3419, 3838, 3933, 4028, 4126, 4233, 4339, 4851, 4949, 5047]
+per_record binds: False
+---------- wordwrap
+7 printable runs, 627 bytes of .gl
+  record @297   body-start 2694   name '?WordWrap_SetOption@@YAXI@Z'            bound
+  record @356   body-start 2791   name '?IsEastAsianChar@@YA_N_W@Z'             bound
+  record @426   body-start 3293   name '?WordWrap_CanBreakLineAt@@YA_NPB_W0@Z'  bound
+bound 3 record(s); stop = None
+.ex 4F 1F starts: 3 [2694, 2791, 3293]
+per_record binds: True
+---------- xtea
+9 printable runs, 2590 bytes of .gl
+  record @2154  body-start 2958   name '??0XTEABlockEncrypter@@QAA@XZ'          bound
+  record @2221  body-start 3142   name '?SetKey@XTEABlockEncrypter@@QAAXPBE@Z'  bound
+  record @2292  body-start 3333   name '?SetNonce@XTEABlockEncrypter@@QAAXPB_KI@Z' bound
+  record @2364  body-start 3577   name '?Encipher@XTEABlockEncrypter@@AAA_K_KPAI@Z' bound
+  record @2452  body-start 4069   name '?Encrypt@XTEABlockEncrypter@@QAAXPBUXTEABlock@@PAU2@@Z' bound
+bound 5 record(s); stop = None
+.ex 4F 1F starts: 5 [2958, 3142, 3333, 3577, 4069]
+per_record binds: True
+---------- keygen
+23 printable runs, 1591 bytes of .gl
+  record @269   body-start 2694   name '?asciiDigitToHex@@YAED@Z'               bound
+  record @323   body-start 3016   name '?parseHex16@@YAXPBDPAE@Z'               bound
+  record @371   body-start 3363   name '?random@@YAJJ@Z'                        bound
+  record @437   body-start 3546   name '?getMasher@KeyChain@@YAXPAE@Z'          bound
+  record @492   body-start 4174   name '?mash@@YAXPAE0@Z'                       bound
+  record @539   body-start 4464   name '?roll@@YAHH@Z'                          bound
+  record @589   body-start 4595   name '?swap@@YAXAAD0@Z'                       bound
+  record @642   body-start 4753   name '?shuffle1@@YAXPAD@Z'                    bound
+  record @701   body-start 5129   name '?shuffle2@@YAXPAD@Z'                    bound
+  record @757   body-start 5489   name '?shuffle3@@YAXPAD@Z'                    bound
+  record @816   body-start 5883   name '?shuffle4@@YAXPAD@Z'                    bound
+  record @875   body-start 6277   name '?shuffle5@@YAXPAD@Z'                    bound
+  record @934   body-start 6671   name '?shuffle6@@YAXPAD@Z'                    bound
+  record @997   body-start 7065   name '?supershuffle@@YAXPAD@Z'                bound
+  record @1072  body-start 7363   name '?opaquePredicate@@YAXXZ'                bound
+  record @1133  body-start 7476   name '?memcpy_cs@@YAXPAEPBEI@Z'               bound
+  record @1193  body-start 7746   name '?revealKey@@YAXPAJPAE@Z'                bound
+  record @1258  body-start 8011   name '?getKeyImpl@@YAXPAEPAD0@Z'              bound
+  record @1326  body-start 8230   name '?getKey@KeyChain@@YAXIPAE0@Z'           bound
+  record @1399  body-start 8534   name '?getNumKeys@KeyChain@@YAIXZ'            bound
+bound 20 record(s); stop = None
+.ex 4F 1F starts: 20 [2694, 3016, 3363, 3546, 4174, 4464, 4595, 4753, 5129, 5489, 5883, 6277, 6671, 7065, 7363, 7476, 7746, 8011, 8230, 8534]
+per_record binds: True

@@ -1,0 +1,40 @@
+### gate-cause histogram, 878 TUs, base
+== FIRST cause, 878 rows
+     811  gl-stop-26-introduced
+      29  None
+      15  gl-stop-name-not-mangled
+      13  drectve-not-boilerplate
+       7  bind-record-count-ne-segments
+       3  body-out-of-class
+== cause SETS (top 25)
+     811  [gl-stop-26-introduced,body-out-of-class]
+      29  []
+      15  [gl-stop-name-not-mangled,body-out-of-class]
+      12  [drectve-not-boilerplate,gl-stop-26-introduced,body-out-of-class]
+       7  [bind-record-count-ne-segments,body-out-of-class]
+       1  [body-out-of-class,unclaimed-gl-symbol,locally-defined-callee]
+       1  [body-out-of-class,unclaimed-gl-symbol]
+       1  [drectve-not-boilerplate,gl-stop-name-not-mangled,body-out-of-class]
+       1  [body-out-of-class]
+== TUs whose ONLY cause is gl-stop-name-not-mangled
+  -> 0 TU(s)
+== TUs where gl-stop-name-not-mangled is the FIRST cause (any set)
+  -> 15 TU(s)
+
+### the 15 gl-stop-name-not-mangled TUs, by name
+src/Main.cpp                                         class=vocab-gap  fn_names=1   fn_total=1   in_class=0   causes=gl-stop-name-not-mangled,body-out-of-class
+src/system/math/Easing.cpp                           class=vocab-gap  fn_names=154 fn_total=844 in_class=241 causes=gl-stop-name-not-mangled,body-out-of-class
+src/system/oggvorbis/VorbisMem.cpp                   class=vocab-gap  fn_names=7   fn_total=13  in_class=4   causes=gl-stop-name-not-mangled,body-out-of-class
+src/system/rndobj/Anim.cpp                           class=vocab-gap  fn_names=623 fn_total=1888 in_class=515 causes=gl-stop-name-not-mangled,body-out-of-class
+src/system/rndobj/AnimFilter.cpp                     class=vocab-gap  fn_names=765 fn_total=2284 in_class=647 causes=gl-stop-name-not-mangled,body-out-of-class
+src/system/rndobj/CamAnim.cpp                        class=vocab-gap  fn_names=885 fn_total=2748 in_class=805 causes=gl-stop-name-not-mangled,body-out-of-class
+src/system/rndobj/PollAnim.cpp                       class=vocab-gap  fn_names=481 fn_total=1545 in_class=422 causes=gl-stop-name-not-mangled,body-out-of-class
+src/system/synth/CompressionEffect.cpp               class=vocab-gap  fn_names=5   fn_total=239 in_class=115 causes=gl-stop-name-not-mangled,body-out-of-class
+src/system/synth/Faders.cpp                          class=vocab-gap  fn_names=452 fn_total=1565 in_class=422 causes=gl-stop-name-not-mangled,body-out-of-class
+src/system/synth/ThreeDSound.cpp                     class=vocab-gap  fn_names=908 fn_total=2572 in_class=740 causes=gl-stop-name-not-mangled,body-out-of-class
+src/system/synth/complex.cpp                         class=vocab-gap  fn_names=8   fn_total=256 in_class=117 causes=gl-stop-name-not-mangled,body-out-of-class
+src/system/synth/filterdesign.cpp                    class=vocab-gap  fn_names=119 fn_total=656 in_class=216 causes=gl-stop-name-not-mangled,body-out-of-class
+src/system/synth_xbox/FFT.cpp                        class=vocab-gap  fn_names=13  fn_total=244 in_class=116 causes=gl-stop-name-not-mangled,body-out-of-class
+src/system/synth_xbox/FilterCoeffs.cpp               class=vocab-gap  fn_names=3   fn_total=236 in_class=115 causes=gl-stop-name-not-mangled,body-out-of-class
+src/xdk/nuispeech/mmio.cpp                           class=vocab-gap  fn_names=1   fn_total=11  in_class=10  causes=gl-stop-name-not-mangled,body-out-of-class
+-> 15 TU(s) with first cause gl-stop-name-not-mangled
