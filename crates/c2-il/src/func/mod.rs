@@ -1843,8 +1843,18 @@ pub struct GuardRetChain {
 /// layout when varied.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GuardChainSharedTail {
-    /// The six formals in **argument-register order**: `params[i]` arrives in
+    /// The formals in **argument-register order**: `params[i]` arrives in
     /// `ARG_REGS[i]`, and the rotate is a permutation over exactly them.
+    ///
+    /// **W-VSNPRNC: three to seven, not six.** The shipped class pinned this at
+    /// six because one witness could not separate *"the `lis` is after the
+    /// second rotate step"* from *"the `lis` is three steps before the last"*.
+    /// GRID-N (`work/w-vsnprnc/GRID-N.md`) graded six arities against real `c2`
+    /// and refuted both: the `lis` goes immediately before the first rotate move
+    /// whose **destination register is r6 or lower**, which is a statement about
+    /// registers and fits n = 3…8. At n = 8 the ninth argument does not fit the
+    /// argument registers, c2 spills `r10` to the frame and hoists nothing, so
+    /// the class stops at seven and `n8.obj` is the witness for where.
     pub params: Vec<u32>,
     /// Indices into [`Self::params`] of the three formals the `||` chain tests,
     /// **in test order** — which is the order the three `cmplwi`s are emitted
@@ -1870,6 +1880,17 @@ pub struct GuardChainSharedTail {
     pub sentinel: i32,
     /// The value both error arms return.
     pub ret_fail: i32,
+    /// The width in bytes of the `*params[0] = 0` store: **1** (`stb`) or **2**
+    /// (`sth`). Nothing else reaches here — see the recognizer's fence.
+    ///
+    /// **This field closes a live `Port=Mismatch`.** The shipped class read the
+    /// store's type only to refuse a width-4 integer, and then emitted `sth`
+    /// unconditionally. GRID-S (`work/w-vsnprnc/GRID-S.md`) graded twelve
+    /// pointee types against real `c2` at the workload's own flags: `char`,
+    /// `signed char`, `unsigned char` and `bool` all reached the emitter and all
+    /// four came out `b17f0000` where the reference has `997f0000` — **one
+    /// substituted word, five mismatching cells**, `long long` included.
+    pub store_width: u8,
 }
 
 /// **W-UNDNAME — the guarded allocation with a shared error store**
@@ -2166,7 +2187,7 @@ pub struct OsfHandleGuardFn {
 /// [`GuardChainSharedTail`] with its four tokens resolved to mangled names.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GuardChainSharedTailFn {
-    /// The six formals, exactly as [`GuardChainSharedTail::params`].
+    /// The three-to-seven formals, exactly as [`GuardChainSharedTail::params`].
     pub params: Vec<u32>,
     /// Exactly as [`GuardChainSharedTail::guard_ix`].
     pub guard_ix: [usize; 3],
@@ -2190,6 +2211,8 @@ pub struct GuardChainSharedTailFn {
     pub sentinel: i32,
     /// Exactly as [`GuardChainSharedTail::ret_fail`].
     pub ret_fail: i32,
+    /// Exactly as [`GuardChainSharedTail::store_width`]: 1 or 2.
+    pub store_width: u8,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

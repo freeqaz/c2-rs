@@ -445,6 +445,78 @@ fn sym_addr_tail_call(
     Ok(BodyShape::MultiArgTailCall { params, arg_sources: slots, callee_tok })
 }
 
+/// **W-VSNPRNC — is this argument list the formals IN ORDER with ONE LITERAL
+/// INSERTED?** Returns the literal's slot index and its value, or `None`.
+///
+/// The admitted list is exactly
+///
+/// ```text
+///   [ Formal(0), Formal(1), … Formal(j-1), Lit(k), Formal(j), … Formal(n-1) ]
+/// ```
+///
+/// — every formal present, once, in source order, with one constant spliced in.
+/// `vsnprnc.cpp`'s second function is `j = 3, n = 4`:
+/// `vsprintf_s(b,n,f,ap)` tail-calling `_vsprintf_s_l(b,n,f,0,ap)`.
+///
+/// **GRID-L, eighteen cells, one lowering with no exceptions**
+/// (`work/w-vsnprnc/GRID-L.md`; every cell compiled with the real `c2.dll`
+/// under wibo at the workload's own flags and cwd):
+///
+/// ```text
+///   family        n        j       emitted
+///   ------------  -------  ------  ------------------------------------------
+///   l1 (1 move)   2 … 7    n-1     mr r<j+4>,r<j+3> · li r<j+3>,k · b callee
+///   l2 (2 moves)  3 … 7    n-2     mr · mr          · li          · b
+///   l3 (0 moves)  2 … 5    n       li               · b
+///   l4 (n moves)  3 … 5    0       mr ×n            · li r3,k     · b
+/// ```
+///
+/// **The moves run in DESCENDING destination order and the `li` is last.** In
+/// this family that is forced twice over and the two readings cannot be told
+/// apart: the literal's destination is the lowest of all of them (so a plain
+/// descending walk puts it last) *and* the highest move's chain reads it (so the
+/// dependence puts it last too). **This grid therefore does NOT settle board
+/// #1484**, whose rule — *a move whose source a pending op overwrites goes ahead
+/// of every remaining literal* — is the one that separates them on the WLB cell
+/// `g2(b,7)`. Saying so is the point: #1484 was declined for being fitted to the
+/// cells that refuted its predecessor, and a grid that agrees with it only where
+/// nothing could disagree is not the second grid it wants.
+///
+/// The formals must be **exhaustive and ordered**, which is what keeps this
+/// disjoint from the WLB two-slot cell and from its own measured
+/// counterexample; see the caller.
+fn lit_insert_at(slots: &[SlotArg]) -> Option<(usize, i32)> {
+    let mut found: Option<(usize, i32)> = None;
+    for (i, a) in slots.iter().enumerate() {
+        match a {
+            SlotArg::Lit(k) => {
+                if found.is_some() {
+                    // Two literals is two `li`s and a different schedule
+                    // question; this class has one cell and it has one literal.
+                    return None;
+                }
+                found = Some((i, *k));
+            }
+            SlotArg::Formal(ix) => {
+                let want = match found {
+                    None => i,
+                    Some((j, _)) => {
+                        debug_assert!(i > j);
+                        i - 1
+                    }
+                };
+                if *ix != want {
+                    return None;
+                }
+            }
+            // A symbol's address or a W42 shift-mask in this list is a different
+            // production with its own emitter; refused rather than folded in.
+            _ => return None,
+        }
+    }
+    found
+}
+
 fn lit_arg_tail_call(
     seg: &[u8],
     off: usize,
@@ -502,7 +574,23 @@ fn lit_arg_tail_call(
     // `permuted` closure reads `SlotArg::Formal` and skips `Lit` by
     // construction.
     let permutation_decided_downstream = site == ArgSite::Sequence;
-    if !in_place && !one_moved_at_two && !permutation_decided_downstream {
+    // **W-VSNPRNC — the LITERAL INSERTED INTO AN OTHERWISE ORDERED LIST.**
+    // See [`lit_insert_at`]: `vsprintf_s(b,n,f,ap)` forwarding to
+    // `_vsprintf_s_l(b,n,f,0,ap)` is the whole of it, and GRID-L
+    // (`work/w-vsnprnc/GRID-L.md`) is eighteen cells of it graded against real
+    // `c2`.
+    //
+    // **It does not widen `one_moved_at_two` and the two are disjoint.** The
+    // WLB cell `g2(b,7)` is `[Formal(1), Lit]` — slot 0 takes formal 1 and
+    // formal 0 is *dropped*, which no insertion produces. The measured
+    // three-slot counterexample that fence cites, `g3(c,a,7)` =
+    // `[Formal(2), Formal(0), Lit]`, is likewise not an insertion: it moves one
+    // formal up and another down, and `lit_insert_at` requires every formal to
+    // keep its order. So the cell that refutes a rule fitted to two slots is
+    // still refused here, by construction rather than by luck, and there is a
+    // `#[test]` for exactly that.
+    let lit_inserted = lit_insert_at(&slots).is_some();
+    if !in_place && !one_moved_at_two && !permutation_decided_downstream && !lit_inserted {
         return Err(refuse("call-arg-lit-permuted"));
     }
     Ok(BodyShape::MultiArgTailCall { params, arg_sources: slots, callee_tok })

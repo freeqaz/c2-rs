@@ -127,9 +127,24 @@ use crate::func::readers::{
 };
 use crate::func::GuardChainSharedTail;
 
-/// The number of formals this class is graded on. See the fence: the `lis`'s
-/// position inside the rotate cannot be separated from the arity at n = 1.
-const FORMALS: usize = 6;
+/// The formal counts this class is graded on — **W-VSNPRNC**.
+///
+/// The shipped fence read *"the `lis`'s position inside the rotate cannot be
+/// separated from the arity at n = 1"*, and pinned `FORMALS = 6`. GRID-N
+/// (`work/w-vsnprnc/GRID-N.md`) supplied the missing witnesses: six arities,
+/// each compiled with the real `c2.dll` at the workload's own flags, with arity
+/// as the only axis. Both hypotheses the fence named are **refuted** — "after
+/// the second rotate step" holds at n = 6 and nowhere else, and "three before
+/// the last" fails at n = 3, where the hoist takes one of the three.
+///
+/// The surviving rule is about registers, not counts, and the emitter states it
+/// that way. `MAX` is 7 because at n = 8 c2 emits a **different shape**: the
+/// ninth argument does not fit the argument registers, the frame grows to 112,
+/// `r10` is spilled to `84(r1)` at the call site and nothing is hoisted at all.
+/// That cell is `work/w-vsnprnc/probe/n8.obj` and it is a boundary **witness**,
+/// not a guess about where the class stops.
+const FORMALS_MIN: usize = 3;
+const FORMALS_MAX: usize = 7;
 
 /// Consume any TYPE and discard it.
 ///
@@ -186,6 +201,103 @@ fn is_unsigned_or_ptr4(tag: u8, kind: u8) -> bool {
 /// zero-compare is `cmpwi`.
 fn is_signed_int4(tag: u8, kind: u8) -> bool {
     is_int4_type(tag, kind) && (kind & 0x0F) == 0x1
+}
+
+/// **W-VSNPRNC — the width in bytes of `*params[0] = 0`, or `None` to refuse.**
+///
+/// Returns `Some(1)` for a byte store (`stb`) and `Some(2)` for a halfword
+/// (`sth`). Everything else is `None`, and everything else includes the width-4
+/// integer the shipped clause already refused by name.
+///
+/// **This function is the repair for a live wrong-bytes family.** The clause it
+/// replaces was `if is_int4_type(stag, skind) { refuse }` — a test for *one*
+/// wrong width beside an emitter that wrote `sth` for every width that got past
+/// it. GRID-S graded twelve pointee types against real `c2.dll` at the
+/// workload's own flags and cwd, six formals, store type the only axis:
+///
+/// ```text
+///   type              TYPE bytes   c2 emits    shipped port    verdict
+///   char        *     82 11 70     stb         sth             MISMATCH
+///   signed char *     82 11 10     stb         sth             MISMATCH
+///   unsigned char *   82 12 20     stb         sth             MISMATCH
+///   bool        *     82 12 30     stb         sth             MISMATCH
+///   long long   *     88 81 13     (8 bytes)   sth             MISMATCH
+///   short       *     84 21 11     sth         sth             match
+///   unsigned short*   84 22 21     sth         sth             match
+///   wchar_t     *     84 22 71     sth         sth             match     <- the only one tested
+///   int / unsigned    86 41 74     stw         refused         gap
+///   float / double    —            —           refused         gap
+/// ```
+///
+/// **Five of twelve were `Port=Mismatch`, by exactly one substituted word.** The
+/// diff is `b17f0000` against `997f0000` at word 23, with the other 38 words
+/// identical — board #260's failure mode in its purest form: a plausible-looking
+/// wrong instruction in an otherwise byte-perfect body.
+///
+/// `long long` is **refused rather than encoded**. c2's 8-byte store is a `std`
+/// and this class has never been graded on one; a refusal is a gap and the wrong
+/// word is an alarm (CLAUDE.md), so the two are not traded.
+///
+/// The size is read from **both** fields and they must agree, for the reason
+/// [`is_int4_type`]'s doc gives at length: the tag's low nibble is the value's
+/// *alignment* and `kind`'s high nibble is its *size*, and `#pragma pack` is
+/// where the two come apart. The low nibble of `kind` is the class — 1 signed,
+/// 2 unsigned — and a non-integer class (a `float*` buffer) refuses here.
+/// **W-VSNPRNC — consume `p[0]`'s subscript if it is there, and require it to be
+/// index ZERO.**
+///
+/// `*p = 0` carries nothing between the base load and the stored literal;
+/// `p[0] = 0` carries `33 <long> 00 28 00 00`. Both emit the same store word.
+///
+/// Written as an *optional* consume rather than two parse arms, so the class has
+/// one path and not two that can drift. A non-zero subscript, or a `33` that is
+/// not the subscript's, falls through untouched and the caller's own `33` clause
+/// then decides — which is why this returns `Ok(())` and not a boolean.
+fn eat_zero_subscript(seg: &[u8], p: &mut usize) -> Result<(), Block> {
+    // Only a `33` whose literal is followed by `28` is a subscript; a `33`
+    // followed by anything else is the stored value itself.
+    let mut q = *p;
+    if !eat_byte(seg, &mut q, 0x33) {
+        return Ok(());
+    }
+    let Some((tag, kind, _, w)) = read_type(seg, q) else {
+        return Ok(());
+    };
+    q += w;
+    let Some(off) = read_varint(seg, &mut q) else {
+        return Ok(());
+    };
+    if seg.get(q..q + 3) != Some(&[0x28, 0x00, 0x00][..]) {
+        return Ok(());
+    }
+    // It IS a subscript. From here the clauses are refusals, because a
+    // subscript this class cannot express must not read as "no subscript".
+    if off != 0 {
+        return Err(blk(seg, *p, "gcst-store-subscript-not-zero"));
+    }
+    if !is_int4_type(tag, kind) {
+        return Err(blk(seg, *p, "gcst-store-subscript-not-an-int-index"));
+    }
+    *p = q + 3;
+    Ok(())
+}
+
+fn store_width_of(tag: u8, kind: u8) -> Option<u8> {
+    let align = match tag & 0x0F {
+        0x2 => 1u8,
+        0x4 => 2,
+        0x6 => 4,
+        0x8 => 8,
+        _ => return None,
+    };
+    let size = kind >> 4;
+    if size != align || !matches!(kind & 0x0F, 0x1 | 0x2) {
+        return None;
+    }
+    match size {
+        1 | 2 => Some(size),
+        _ => None,
+    }
 }
 
 /// `B9 <tok> <TYPE>` — a value read. Returns the token and the type's two
@@ -379,8 +491,10 @@ pub(crate) fn try_parse_guard_chain_shared_tail(
     // is `this` would emit the wrong `mr`. Both are asked, and required to
     // agree, so a member function is refused here rather than mis-rotated.
     let params = parse_params(seg, lo)?;
-    if params.len() != FORMALS || parse_formals(seg, lo)?.len() != FORMALS {
-        return Err(blk(seg, start, "gcst-formals-not-6"));
+    if !(FORMALS_MIN..=FORMALS_MAX).contains(&params.len())
+        || parse_formals(seg, lo)?.len() != params.len()
+    {
+        return Err(blk(seg, start, "gcst-formals-out-of-3-to-7"));
     }
 
     let mut p = start;
@@ -497,19 +611,43 @@ pub(crate) fn try_parse_guard_chain_shared_tail(
         return Err(blk(seg, p, "gcst-neg-scopes"));
     }
     // `*a0 = 0` — the base is the formal parked in r31, and the store's TYPE is
-    // what makes it an `sth`. Pinned as "not the `int` the rest of this body
-    // uses": a width-4 store here is a `stw` and one different word.
+    // what decides `stb` against `sth`. **W-VSNPRNC: the width is CARRIED now,
+    // not merely screened.** The clause here used to be "refuse a width-4
+    // integer" beside an emitter that wrote `sth` for everything that got past
+    // it, which made every `char*`, `bool*` and `long long*` body a live
+    // `Port=Mismatch` — see [`store_width_of`] for the twelve-cell grid.
     eat_opt_stmt_marker(seg, &mut p);
     if eat_load(seg, &mut p, "gcst-store-base")?.0 != params[0] {
         return Err(blk(seg, p, "gcst-store-base-not-formal-0"));
     }
+    // **W-VSNPRNC — `buffer[0] = 0` as well as `*buffer = 0`.**
+    //
+    // The two spellings are the same statement and c2 emits the same word for
+    // both — measured, not assumed: `x_deref_split` and `x_index_split` differ
+    // only here and their `.text` is byte-identical (`work/w-vsnprnc/GRID-X.md`).
+    // `vswprnc.cpp` writes the dereference and `vsnprnc.cpp` writes the
+    // subscript, which is the entire reason this class read one TU and not both.
+    //
+    // The subscript is `33 <long> <off> 28 00 00` and **`off` must be zero**: a
+    // non-zero constant subscript is a different address and one different
+    // instruction. The two trailing bytes are required at their witnessed value
+    // for `osf_handle_guard::eat_subscript_add`'s reason — an uncharacterized
+    // byte may select something, and this class is fixed words.
+    eat_zero_subscript(seg, &mut p)?;
     if !eat_byte(seg, &mut p, 0x33) {
         return Err(blk(seg, p, "gcst-store-lit"));
     }
     let (stag, skind, sid) = eat_any_type(seg, &mut p, "gcst-store-littype")?;
-    if is_int4_type(stag, skind) {
-        return Err(blk(seg, p, "gcst-store-is-a-word-not-a-halfword"));
-    }
+    let store_width = match store_width_of(stag, skind) {
+        Some(w) => w,
+        // The key keeps the shipped spelling for a width-4 store so a census
+        // series does not break at the rename, and takes a new one for the
+        // widths the shipped clause let through to a wrong word.
+        None if is_int4_type(stag, skind) => {
+            return Err(blk(seg, p, "gcst-store-is-a-word-not-a-halfword"))
+        }
+        None => return Err(blk(seg, p, "gcst-store-width-not-1-or-2")),
+    };
     if read_varint(seg, &mut p).ok_or(blk(seg, p, "gcst-store-varint"))? != 0 {
         return Err(blk(seg, p, "gcst-store-value-not-zero"));
     }
@@ -634,5 +772,6 @@ pub(crate) fn try_parse_guard_chain_shared_tail(
         k_range,
         sentinel,
         ret_fail: ret_a,
+        store_width,
     }))
 }

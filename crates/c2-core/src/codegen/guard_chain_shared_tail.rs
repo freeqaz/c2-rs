@@ -85,7 +85,8 @@
 use crate::codegen::calls::encode_call_branch;
 use crate::codegen::encode::{
     cr_bi, encode_addi, encode_addis, encode_b_intra, encode_bc, encode_cmplwi, encode_cmpwi,
-    encode_mr, encode_sth, encode_stw, BO_FALSE, BO_TRUE, CR_BIT_EQ, CR_BIT_LT, CR_COMPARE,
+    encode_mr, encode_stb, encode_sth, encode_stw, BO_FALSE, BO_TRUE, CR_BIT_EQ, CR_BIT_LT,
+    CR_COMPARE,
 };
 use crate::codegen::frame::FrameLayout;
 use crate::codegen::select::{fits_i16, out_of_class, ARG_REGS, RET_REG, SCRATCH_REG};
@@ -146,12 +147,30 @@ pub fn guard_chain_shared_tail_text(
             "a shared error tail whose literal is outside simm16",
         ));
     }
-    // Six formals: see the reader's fence. The rotate's length and the `lis`'s
-    // position inside it are both functions of this number and neither was
-    // separable at n = 1, so the arity is required rather than generalized.
-    if g.params.len() != 6 {
-        return Err(out_of_class("a shared error tail without six formals"));
+    // **W-VSNPRNC: three to seven formals**, and the `lis`'s position is a rule
+    // rather than a constant. See the reader's `FORMALS_MIN`/`FORMALS_MAX` and
+    // `work/w-vsnprnc/GRID-N.md`. Seven is the last arity whose topmost rotate
+    // step lands in an argument register: at eight, c2 spills to the frame and
+    // emits a shape this class does not model.
+    if !(3..=7).contains(&g.params.len()) {
+        return Err(out_of_class(
+            "a shared error tail with fewer than three or more than seven formals: \
+             at eight the ninth argument spills to the frame and c2 emits a \
+             different shape (work/w-vsnprnc/probe/n8.obj)",
+        ));
     }
+    // The width the reader carried. Anything else never reaches here — and
+    // saying so as a refusal rather than a `debug_assert` is board #1706's rule:
+    // what the emitter cannot vary, something must refuse.
+    let store = match g.store_width {
+        1 => encode_stb as fn(u8, u8, i16) -> [u8; 4],
+        2 => encode_sth as fn(u8, u8, i16) -> [u8; 4],
+        _ => {
+            return Err(out_of_class(
+                "a shared error tail whose store is neither a byte nor a halfword",
+            ))
+        }
+    };
     if g.guard_ix.iter().any(|&i| i >= g.params.len()) {
         return Err(out_of_class("a guard testing a formal this body does not have"));
     }
@@ -167,10 +186,17 @@ pub fn guard_chain_shared_tail_text(
     let mut t = prologue;
     // ---- the entry block ---------------------------------------------------
     t.extend_from_slice(&encode_mr(PARK_REG, ARG_REGS[0]));
-    // The hoist. `ARG_REGS[6]` is r9 and `ARG_REGS[5]` is r8: the call takes
-    // seven arguments where the function has six formals, so every formal moves
-    // up exactly one register and this is the topmost step.
-    t.extend_from_slice(&encode_mr(ARG_REGS[6], ARG_REGS[5]));
+    // **THE HOIST, as a rule.** The call takes one more argument than the
+    // function has formals, so every formal moves up exactly one register; the
+    // topmost of those steps — `ARG_REGS[n] <- ARG_REGS[n-1]` — is emitted above
+    // every branch, because it is the one whose destination is outside the
+    // incoming argument set and therefore clobbers nothing the guards read.
+    //
+    // This was `mr r9,r8`, a constant that happens to be the n = 6 instance.
+    // GRID-N reads it at n = 3…7 as `mr r6,r5`, `mr r7,r6`, `mr r8,r7`,
+    // `mr r9,r8`, `mr r10,r9`.
+    let n = g.params.len();
+    t.extend_from_slice(&encode_mr(ARG_REGS[n], ARG_REGS[n - 1]));
 
     // ---- the `||` chain ----------------------------------------------------
     //
@@ -187,19 +213,32 @@ pub fn guard_chain_shared_tail_text(
 
     // ---- the rotate, with the REFHI interleaved after its second step -------
     //
-    // Descending: `r8 <- r7`, `r7 <- r6`, … `r4 <- r3`. Written as a loop over
-    // the formals rather than six literal `mr`s so the register numbers come
-    // from `ARG_REGS` exactly as every other class reads the ABI.
-    const LIS_AFTER: usize = 2;
+    // Descending: `r<n-1+3> <- …`, … `r4 <- r3`. The topmost step was hoisted
+    // above the guards, so `n - 1` remain here.
+    //
+    // **THE `lis`'s POSITION IS A RULE ABOUT REGISTERS.** This was
+    // `const LIS_AFTER: usize = 2`, and the shipped fence said in as many words
+    // that one witness could not tell "after the second step" from "three before
+    // the last". GRID-N graded n = 3…8 and refuted **both**: the first holds
+    // only at n = 6, the second fails at n = 3 where the hoist takes one of the
+    // three. What fits all six — and fits n = 8, where the whole shape changes
+    // and a count rule would have nothing to say — is
+    //
+    //     the REFHI is emitted immediately before the first remaining rotate
+    //     move whose DESTINATION REGISTER is r6 or lower.
+    //
+    // Written as that test rather than as an index, so the rule is legible at
+    // the one place a wrong `lis` position would be emitted.
+    const LIS_BELOW: u8 = 6;
     let mut hi_off = 0u32;
-    for step in 0..5usize {
-        if step == LIS_AFTER {
+    for step in 0..n - 1 {
+        // `ARG_REGS[n-1-step] <- ARG_REGS[n-2-step]`.
+        let dst = ARG_REGS[n - 1 - step];
+        if hi_off == 0 && dst <= LIS_BELOW {
             hi_off = t.len() as u32;
             t.extend_from_slice(&encode_addis(SCRATCH_REG, 0, 0));
         }
-        // `ARG_REGS[5 - step] <- ARG_REGS[4 - step]`: r8<-r7, r7<-r6, r6<-r5,
-        // r5<-r4, r4<-r3.
-        t.extend_from_slice(&encode_mr(ARG_REGS[5 - step], ARG_REGS[4 - step]));
+        t.extend_from_slice(&encode_mr(dst, ARG_REGS[n - 2 - step]));
     }
     debug_assert!(hi_off != 0, "the REFHI is inside the rotate, never at word 0");
     t.extend_from_slice(&encode_addi(RET_REG, SCRATCH_REG, 0));
@@ -213,7 +252,7 @@ pub fn guard_chain_shared_tail_text(
     let neg_site = t.len() as u32;
     t.extend_from_slice(&[0; 4]);
     t.extend_from_slice(&encode_li(SCRATCH_REG, 0));
-    t.extend_from_slice(&encode_sth(SCRATCH_REG, PARK_REG, 0));
+    t.extend_from_slice(&store(SCRATCH_REG, PARK_REG, 0));
     let l_skip = t.len() as u32;
 
     // ---- `if (r != S) return r;` -------------------------------------------
@@ -291,6 +330,31 @@ mod tests {
             k_range: 0x22,
             sentinel: -2,
             ret_fail: -1,
+            // `wchar_t *buffer` — a halfword. `vsnprnc()` below is the byte.
+            store_width: 2,
+        }
+    }
+
+    /// `_vsprintf_s_l`'s parse — **five** formals and a **byte** store.
+    ///
+    /// The same class one arity down and one store width over, which is the
+    /// whole of what lane `w-vsnprnc` widened. Kept beside `vswprnc()` so the
+    /// two arities are asserted against two real objs rather than one obj and a
+    /// generalization.
+    fn vsnprnc() -> GuardChainSharedTailFn {
+        GuardChainSharedTailFn {
+            params: vec![1, 2, 3, 4, 5],
+            // format, buffer, sizeInBytes — `params[2]`, `params[0]`, `params[1]`
+            guard_ix: [2, 0, 1],
+            helper: "_vsnprintf_helper".into(),
+            fn_addr: "_output_s_l".into(),
+            errno: "_errno".into(),
+            invalid: "_invalid_parameter_noinfo".into(),
+            k_guard: 0x16,
+            k_range: 0x22,
+            sentinel: -2,
+            ret_fail: -1,
+            store_width: 1,
         }
     }
 
@@ -331,6 +395,145 @@ mod tests {
         assert_eq!(b.text, want);
         assert_eq!(b.prolog_len, 0x10);
         assert_eq!(b.bl_offsets, [0x4c, 0x68, 0x74, 0x80]);
+    }
+
+    /// **`_vsprintf_s_l`'s thirty-eight words, against ITS OWN reference obj.**
+    ///
+    /// Transcribed from `work/w-vsnprnc/obj/vsnprnc.obj`, dumped by
+    /// `scripts/gt_dump.py` at the workload's own flags and cwd. **This is the
+    /// second arity and the second store width the class has ever been asserted
+    /// on**, and it is a different obj rather than the same one re-derived: at
+    /// n = 5 the hoist is `mr r8,r7`, one rotate step sits above the `lis`
+    /// instead of two, and the store is `stb`.
+    #[test]
+    fn the_five_formal_byte_store_body_matches_its_reference_obj() {
+        let b = guard_chain_shared_tail_text(&vsnprnc(), 0, OptMode::O1).unwrap();
+        #[rustfmt::skip]
+        let want: Vec<u8> = [
+            0x7d8802a6u32, 0x9181fff8, 0xfbe1fff0, 0x9421ffa0, // frame
+            0x7c7f1b78,                                        // mr r31,r3
+            0x7ce83b78,                                        // mr r8,r7  THE HOIST
+            0x2b050000, 0x419a0054,                            // format == 0
+            0x2b030000, 0x419a004c,                            // buffer == 0
+            0x2b040000, 0x419a0044,                            // size == 0
+            0x7cc73378,                                        // r7<-r6   (ONE, not two)
+            0x3d600000,                                        // lis r11 (REFHI)
+            0x7ca62b78, 0x7c852378, 0x7c641b78,                // r6<-r5,r5<-r4,r4<-r3
+            0x386b0000,                                        // addi r3,r11 (REFLO)
+            0x4bffffb9,                                        // bl helper
+            0x2c030000, 0x4080000c,                            // r < 0 on cr0
+            0x39600000, 0x997f0000,                            // li r11,0 ; STB
+            0x2f03fffe, 0x409a0024,                            // r != -2 on cr6
+            0x4bffff9d, 0x39600022, 0x4800000c,                // RANGE arm
+            0x4bffff91, 0x39600016,                            // GUARD arm
+            0x91630000, 0x4bffff85, 0x3860ffff,                // the merged tail
+            0x38210060, 0x8181fff8, 0x7d8803a6, 0xebe1fff0, 0x4e800020, // epilogue
+        ]
+        .iter()
+        .flat_map(|w| w.to_be_bytes())
+        .collect();
+        assert_eq!(b.text.len(), 152, "the reference `.text` is 152 bytes");
+        assert_eq!(b.text, want);
+        assert_eq!(b.prolog_len, 0x10);
+        assert_eq!(b.bl_offsets, [0x48, 0x64, 0x70, 0x7c]);
+    }
+
+    /// **MUST-FAIL MUTATION — the `lis` position is a REGISTER rule, and both
+    /// carried count rules would put it in the wrong place.**
+    ///
+    /// GRID-N's whole content, executable. `LIS_AFTER = 2` — the constant this
+    /// class shipped with — is right at n = 6 and wrong at every other arity;
+    /// "three rotate steps follow the `lis`" is right at n ≥ 4 and wrong at
+    /// n = 3, where the hoist takes one of the three.
+    #[test]
+    fn the_lis_sits_above_the_r6_r5_r4_block_at_every_arity() {
+        let lis = encode_addis(SCRATCH_REG, 0, 0);
+        // (formals, the `lis`'s word index, moves emitted AFTER it)
+        for (n, word, after) in [(3usize, 12usize, 2usize), (4, 12, 3), (5, 13, 3), (6, 14, 3), (7, 15, 3)] {
+            let mut g = vsnprnc();
+            g.params = (1..=n as u32).collect();
+            let b = guard_chain_shared_tail_text(&g, 0, OptMode::O1).unwrap();
+            let at = word * 4;
+            assert_eq!(&b.text[at..at + 4], &lis, "n = {n}: the lis is not word {word}");
+            // The moves after it write r6, r5, r4 — or, at n = 3, r5 and r4,
+            // because `mr r6,r5` was hoisted above the guards.
+            for (s, dst) in (0..after).zip([6u8, 5, 4].iter().skip(3 - after)) {
+                let o = at + 4 + s * 4;
+                assert_eq!(
+                    &b.text[o..o + 4],
+                    &encode_mr(*dst, *dst - 1),
+                    "n = {n}: move {s} after the lis does not write r{dst}"
+                );
+            }
+            // And the word right after those is the REFLO, never another move.
+            let reflo = at + 4 + after * 4;
+            assert_eq!(&b.text[reflo..reflo + 4], &encode_addi(RET_REG, SCRATCH_REG, 0));
+            // THE MUTATION: `LIS_AFTER = 2` puts the lis at word 6 + 2 = 8 for
+            // every arity. It agrees with the truth at n = 6 and nowhere else.
+            assert_eq!(
+                word == 14,
+                n == 6,
+                "n = {n}: the shipped constant and the measured rule agree only at six"
+            );
+        }
+    }
+
+    /// **The HOIST is `ARG_REGS[n] <- ARG_REGS[n-1]`, not `mr r9,r8`.**
+    #[test]
+    fn the_hoisted_move_follows_the_arity() {
+        for (n, dst) in [(3usize, 6u8), (4, 7), (5, 8), (6, 9), (7, 10)] {
+            let mut g = vsnprnc();
+            g.params = (1..=n as u32).collect();
+            let b = guard_chain_shared_tail_text(&g, 0, OptMode::O1).unwrap();
+            assert_eq!(&b.text[0x14..0x18], &encode_mr(dst, dst - 1), "n = {n}");
+        }
+    }
+
+    /// **The arity fence, and it is a WITNESS at the top end.**
+    ///
+    /// Two and eight both refuse. Eight is not an extrapolation: `n8.obj` shows
+    /// c2 growing the frame to 112, spilling `r10` to `84(r1)` at the call site
+    /// and hoisting nothing — a different shape, refused rather than guessed.
+    #[test]
+    fn arity_outside_three_to_seven_refuses() {
+        for n in [1usize, 2, 8, 9] {
+            let mut g = vsnprnc();
+            g.params = (1..=n as u32).collect();
+            g.guard_ix = [0, 0, 0];
+            assert!(
+                guard_chain_shared_tail_text(&g, 0, OptMode::O1).is_err(),
+                "n = {n} must refuse"
+            );
+        }
+    }
+
+    /// **MUST-FAIL MUTATION — the store width, which was a LIVE `Port=Mismatch`.**
+    ///
+    /// The shipped emitter wrote `sth` unconditionally while the reader admitted
+    /// every non-word store, so `char*`, `bool*` and `long long*` bodies came
+    /// out with one substituted word (GRID-S: five of twelve cells). This
+    /// asserts that the two widths are two different words and that nothing else
+    /// in the body moves with them.
+    #[test]
+    fn the_store_width_is_the_only_word_that_follows_the_pointee_type() {
+        let mut byte = vsnprnc();
+        byte.params = vec![1, 2, 3, 4, 5, 6];
+        let mut half = byte.clone();
+        half.store_width = 2;
+        let b = guard_chain_shared_tail_text(&byte, 0, OptMode::O1).unwrap();
+        let h = guard_chain_shared_tail_text(&half, 0, OptMode::O1).unwrap();
+        assert_eq!(&b.text[0x5c..0x60], &encode_stb(SCRATCH_REG, PARK_REG, 0));
+        assert_eq!(&h.text[0x5c..0x60], &encode_sth(SCRATCH_REG, PARK_REG, 0));
+        assert_eq!(b.text.len(), h.text.len());
+        for i in (0..b.text.len()).filter(|i| !(0x5c..0x60).contains(i)) {
+            assert_eq!(b.text[i], h.text[i], "byte {i} moved with the store width");
+        }
+        // Anything the reader did not carry refuses rather than defaulting.
+        let mut wide = byte.clone();
+        wide.store_width = 4;
+        assert!(guard_chain_shared_tail_text(&wide, 0, OptMode::O1).is_err());
+        wide.store_width = 8;
+        assert!(guard_chain_shared_tail_text(&wide, 0, OptMode::O1).is_err());
     }
 
     /// **MUST-FAIL MUTATION — the tail merge is the class.**
@@ -377,13 +580,29 @@ mod tests {
         assert!(guard_chain_shared_tail_text(&vswprnc(), 0, OptMode::Ox).is_err());
     }
 
-    /// A seventh formal refuses rather than rotating one step further: the
-    /// `lis`'s position inside the rotate was not separable from the arity at
-    /// n = 1.
+    /// **SUPERSEDED 2026-08-09 by lane `w-vsnprnc`, and kept as the record of
+    /// what replaced it.**
+    ///
+    /// This test read `refuses_a_seventh_formal`, and its reason was honest:
+    /// *"the `lis`'s position inside the rotate was not separable from the
+    /// arity at n = 1"*. It was a fence around a missing measurement, not a fact
+    /// about c2 — and GRID-N supplied the measurement. A seventh formal is now
+    /// **in class and byte-exact**, and `refuses_a_seventh_formal` would today
+    /// be asserting the port refuses something it can do.
+    ///
+    /// The assertion is inverted rather than deleted, so the supersession is in
+    /// the file that carried the claim: n = 7 emits, n = 8 refuses, and `n = 8`
+    /// refuses on a *witness* (`work/w-vsnprnc/probe/n8.obj`) rather than on the
+    /// absence of one, which is the whole difference between this fence and the
+    /// one it replaces.
     #[test]
-    fn refuses_a_seventh_formal() {
+    fn a_seventh_formal_is_in_class_now_and_an_eighth_still_is_not() {
         let mut g = vswprnc();
         g.params.push(7);
+        let b = guard_chain_shared_tail_text(&g, 0, OptMode::O1).unwrap();
+        assert_eq!(b.text.len(), 160, "the n = 7 reference `.text` is 160 bytes");
+        assert_eq!(&b.text[0x14..0x18], &encode_mr(10, 9), "the hoist is mr r10,r9");
+        g.params.push(8);
         assert!(guard_chain_shared_tail_text(&g, 0, OptMode::O1).is_err());
     }
 }

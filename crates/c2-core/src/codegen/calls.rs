@@ -1881,6 +1881,76 @@ fn sym_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), Backen
     Ok((w, writes))
 }
 
+/// **W-VSNPRNC — the formals in order with ONE LITERAL SPLICED IN.**
+///
+/// `vsnprnc.cpp`'s `vsprintf_s`: four formals forwarded to a five-argument
+/// callee with a `0` in slot 3, so slot 4 wants the formal sitting one register
+/// low and everything below slot 3 is already home.
+///
+/// ```text
+///   mr r7,r6      the formals AT AND ABOVE the literal's slot, each one up,
+///   li r6,0       emitted DESCENDING; then the literal, into the register the
+///   b callee      last of those moves just read
+/// ```
+///
+/// The accept/refuse boundary is `c2_il`'s `lit_insert_at`, which carries
+/// GRID-L's eighteen graded cells and — deliberately — the statement of what
+/// that grid does **not** settle. This is the backstop, and it re-derives the
+/// slot list rather than trusting it, so the two cannot drift.
+///
+/// `Ok(None)` means "not this shape", so the caller can fall through to the WLB
+/// cell. The two are disjoint by construction: WLB's `[Formal(1), Lit]` drops a
+/// formal and this requires every formal, in order.
+fn lit_insert_shift_text(
+    slots: &[c2_il::SlotArg],
+) -> Result<Option<(Vec<u8>, Vec<u8>)>, BackendError> {
+    // The literal's slot, and the check that the rest is the identity with a
+    // hole in it. Written here as well as in the parser for the reason every
+    // backstop in this file is: `select_function` is what `function_gate` runs,
+    // and a clause that lives on one side only is a clause the two can disagree
+    // about silently (board #1638).
+    let mut lit: Option<(usize, i32)> = None;
+    for (i, a) in slots.iter().enumerate() {
+        match a {
+            c2_il::SlotArg::Lit(k) => {
+                if lit.is_some() {
+                    return Ok(None);
+                }
+                lit = Some((i, *k));
+            }
+            c2_il::SlotArg::Formal(ix) => {
+                let want = if lit.is_some() { i - 1 } else { i };
+                if *ix != want {
+                    return Ok(None);
+                }
+            }
+            _ => return Ok(None),
+        }
+    }
+    let Some((j, k)) = lit else { return Ok(None) };
+    if slots.len() > ARG_REGS.len() {
+        return Err(out_of_class(
+            "an inserted literal past the eight register slots: the rest are \
+             stack-homed; out of class",
+        ));
+    }
+    let k = i16::try_from(k)
+        .map_err(|_| out_of_class("a literal argument wider than an addi immediate"))?;
+    let mut w = Vec::with_capacity(4 * (slots.len() - j));
+    let mut writes = Vec::new();
+    // Descending destination, from the top slot down to the one just above the
+    // literal. Each move reads the register the next one writes, so this order
+    // is the only clobber-free one; the `li` then lands in the register the last
+    // move read.
+    for dst in (j + 1..slots.len()).rev() {
+        w.extend_from_slice(&encode_mr(ARG_REGS[dst], ARG_REGS[dst - 1]));
+        writes.push(ARG_REGS[dst]);
+    }
+    w.extend_from_slice(&encode_addi(ARG_REGS[j], 0, k));
+    writes.push(ARG_REGS[j]);
+    Ok(Some((w, writes)))
+}
+
 fn lit_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), BackendError> {
     let in_place = slots.iter().enumerate().all(|(i, a)| match a {
         c2_il::SlotArg::Lit(_) => true,
@@ -1892,6 +1962,13 @@ fn lit_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), Backen
         c2_il::SlotArg::ShiftMask { .. } => false,
     });
     if !in_place {
+        // **W-VSNPRNC — the inserted literal**, asked ahead of the WLB two-slot
+        // cell because the two are disjoint (see `lit_insert_shift_text`) and
+        // this one is the wider list. A list that is neither still lands on
+        // `one_moved_formal_text`'s refusal, unchanged.
+        if let Some(w) = lit_insert_shift_text(slots)? {
+            return Ok(w);
+        }
         return one_moved_formal_text(slots);
     }
     let mut w = Vec::new();
@@ -2983,11 +3060,28 @@ mod tests {
             permute_args_text(&[Formal(0), Formal(1), Lit(-1)]).unwrap(),
             vec![0x38, 0xA0, 0xFF, 0xFF]
         );
-        // A formal that has to MOVE beside the literal: refused here as well as
-        // in the IL parser, because `g3(a,7,b)` is `mr r5,r4 ; li r4,7` and the
-        // same list over a real cycle is not characterized at all.
-        assert!(permute_args_text(&[Formal(0), Lit(7), Formal(1)]).is_err());
+        // **SUPERSEDED 2026-08-09 by lane `w-vsnprnc`.** This read
+        //
+        //     assert!(permute_args_text(&[Formal(0), Lit(7), Formal(1)]).is_err());
+        //
+        // with the reason *"`g3(a,7,b)` is `mr r5,r4 ; li r4,7` and the same
+        // list over a real cycle is not characterized at all"* — a refusal that
+        // named the right bytes and declined to emit them for want of a grid.
+        // GRID-L is that grid: eighteen cells, and this list is its `l1_n2`,
+        // graded `match` against the real `c2.dll`. The assertion is inverted
+        // rather than deleted so the supersession sits where the claim did.
+        assert_eq!(
+            permute_args_text(&[Formal(0), Lit(7), Formal(1)]).unwrap(),
+            vec![
+                0x7C, 0x85, 0x23, 0x78, // mr r5,r4
+                0x38, 0x80, 0x00, 0x07, // li r4,7
+            ]
+        );
+        // **And the cell that is NOT an insertion still refuses.** `g3(b,a,7)`
+        // reorders two formals; no splice produces it, and the WLB fence's own
+        // measured counterexample `g3(c,a,7)` is refused for the same reason.
         assert!(permute_args_text(&[Formal(1), Formal(0), Lit(7)]).is_err());
+        assert!(permute_args_text(&[Formal(2), Formal(0), Lit(7)]).is_err());
         // Past the eight register slots an argument is stack-homed.
         let nine = [
             Formal(0), Formal(1), Formal(2), Formal(3), Formal(4), Formal(5),
