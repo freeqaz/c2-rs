@@ -1,0 +1,113 @@
+== work/w-xtea2/ref/xtea.obj  machine=0x01f2 nsec=10 nsym=34 size=1942
+-- sections
+   1 .drectve   raw=132    rawptr=0x01a4 rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=152    rawptr=0x0228 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x02c0 rel=0  relptr=0x0000 chars=0xc0401040
+   4 .XBLD$W    raw=16     rawptr=0x02d0 rel=0  relptr=0x0000 chars=0xc2301040
+   5 .text      raw=16     rawptr=0x02e0 rel=0  relptr=0x0000 chars=0x60401020
+   6 .text      raw=12     rawptr=0x02f0 rel=1  relptr=0x02fc chars=0x60401020
+   7 .text      raw=32     rawptr=0x0306 rel=0  relptr=0x0000 chars=0x60401020
+   8 .text      raw=116    rawptr=0x0326 rel=0  relptr=0x0000 chars=0x60401020
+   9 .text      raw=96     rawptr=0x039a rel=3  relptr=0x03fa chars=0x60401020
+  10 .pdata     raw=8      rawptr=0x0418 rel=1  relptr=0x0420 chars=0x40401040
+-- .text #5 (16 B) ??0XTEABlockEncrypter@@QAA@XZ
+   0000  39600000  li 11, 0                        
+   0004  f9630000  std 11, 0(3)                    
+   0008  f9630008  std 11, 8(3)                    
+   000c  4e800020  blr                             
+-- .text #6 (12 B) ?SetKey@XTEABlockEncrypter@@QAAXPBE@Z
+   0000  38630010  addi 3, 3, 16                   
+   0004  38a00010  li 5, 16                        
+   0008  4bfffff8  b .-8                             ; REL24 -> [17] memcpy
+-- .text #7 (32 B) ?SetNonce@XTEABlockEncrypter@@QAAXPB_KI@Z
+   0000  e9440000  ld 10, 0(4)                     
+   0004  78ab0020  clrldi	11, 5, 32                
+   0008  7d4a5a14  add 10, 10, 11                  
+   000c  f9430000  std 10, 0(3)                    
+   0010  e9440008  ld 10, 8(4)                     
+   0014  7d6a5a14  add 11, 10, 11                  
+   0018  f9630008  std 11, 8(3)                    
+   001c  4e800020  blr                             
+-- .text #8 (116 B) ?Encipher@XTEABlockEncrypter@@AAA_K_KPAI@Z
+   0000  39000004  li 8, 4                         
+   0004  548a003e  slwi 10, 4, 0                   
+   0008  78890022  rldicl 9, 4, 32, 32             
+   000c  39600000  li 11, 0                        
+   0010  7d0903a6  mtctr 8                         
+   0014  5568173a  rlwinm 8, 11, 2, 28, 29         
+   0018  55262036  slwi 6, 9, 4                    
+   001c  5527d97e  srwi 7, 9, 5                    
+   0020  7ce73278  xor 7, 7, 6                     
+   0024  7d08282e  lwzx 8, 8, 5                    
+   0028  7ce74a14  add 7, 7, 9                     
+   002c  7d085a14  add 8, 8, 11                    
+   0030  3d6b9e37  addis 11, 11, -25033            
+   0034  7ce84278  xor 8, 7, 8                     
+   0038  396b79b9  addi 11, 11, 31161              
+   003c  7d485214  add 10, 8, 10                   
+   0040  5567bf3a  rlwinm 7, 11, 23, 28, 29        
+   0044  5548d97e  srwi 8, 10, 5                   
+   0048  55462036  slwi 6, 10, 4                   
+   004c  7d083278  xor 8, 8, 6                     
+   0050  7ce7282e  lwzx 7, 7, 5                    
+   0054  7d085214  add 8, 8, 10                    
+   0058  7ce75a14  add 7, 7, 11                    
+   005c  7d083a78  xor 8, 8, 7                     
+   0060  7d284a14  add 9, 8, 9                     
+   0064  4200ffb0  bdnz .-80                       
+   0068  79430020  clrldi	3, 10, 32                
+   006c  7923000e  rldimi 3, 9, 32, 0              
+   0070  4e800020  blr                             
+-- .text #9 (96 B) ?Encrypt@XTEABlockEncrypter@@QAAXPBUXTEABlock@@PAU2@@Z
+   0000  7d8802a6  mflr 12                         
+   0004  4bfffffd  bl .-4                            ; REL24 -> [33] __savegprlr_26
+   0008  9421ff70  stwu 1, -144(1)                 
+   000c  7c7c1b78  mr	28, 3                        
+   0010  7c9f2378  mr	31, 4                        
+   0014  3b630010  addi 27, 3, 16                  
+   0018  7f442850  sub	26, 5, 4                    
+   001c  3bc3fff8  addi 30, 3, -8                  
+   0020  3ba00002  li 29, 2                        
+   0024  7f65db78  mr	5, 27                        
+   0028  e89e0008  ld 4, 8(30)                     
+   002c  7f83e378  mr	3, 28                        
+   0030  4bffffd1  bl .-48                           ; REL24 -> [23] ?Encipher@XTEABlockEncrypter@@AAA_K_KPAI@Z
+   0034  e97f0000  ld 11, 0(31)                    
+   0038  37bdffff  addic. 29, 29, -1               
+   003c  7c6b5a78  xor 11, 3, 11                   
+   0040  7d7af92a  stdx 11, 26, 31                 
+   0044  3bff0008  addi 31, 31, 8                  
+   0048  e97e0008  ld 11, 8(30)                    
+   004c  396b0001  addi 11, 11, 1                  
+   0050  f97e0009  stdu 11, 8(30)                  
+   0054  4082ffd0  bf	2, .-48                      
+   0058  38210090  addi 1, 1, 144                  
+   005c  4bffffa4  b .-92                            ; REL24 -> [32] __restgprlr_26
+-- .pdata #10 raw
+   0000  00 00 00 00 40 00 18 03
+   reloc va=0x0 ADDR32   -> [26] ?Encrypt@XTEABlockEncrypter@@QAAXPBUXTEABlock@@PAU2@@Z
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=152 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .XBLD$W                                  sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [10] __C1_11886                               sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [11] .text                                    sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [13] ??0XTEABlockEncrypter@@QAA@XZ            sec=5   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [14] .text                                    sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=12 nrel=1 nln=0 cksum=0x00000000 num=0 sel=1)
+  [16] ?SetKey@XTEABlockEncrypter@@QAAXPBE@Z    sec=6   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [17] memcpy                                   sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [18] .text                                    sec=7   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=32 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [20] ?SetNonce@XTEABlockEncrypter@@QAAXPB_KI@Z sec=7   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [21] .text                                    sec=8   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=116 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [23] ?Encipher@XTEABlockEncrypter@@AAA_K_KPAI@Z sec=8   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [24] .text                                    sec=9   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=96 nrel=3 nln=0 cksum=0x00000000 num=0 sel=1)
+  [26] ?Encrypt@XTEABlockEncrypter@@QAAXPBUXTEABlock@@PAU2@@Z sec=9   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [27] $M2757                                   sec=9   val=0x60     sc=LABEL     type=0x0000 naux=0
+  [28] $M2756                                   sec=9   val=0xc      sc=LABEL     type=0x0000 naux=0
+  [29] .pdata                                   sec=10  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0x800691de num=9 sel=5)
+  [31] $T2758                                   sec=10  val=0x0      sc=STATIC    type=0x0000 naux=0
+  [32] __restgprlr_26                           sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [33] __savegprlr_26                           sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
