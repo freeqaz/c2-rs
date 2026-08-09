@@ -1,0 +1,159 @@
+
+## `expr-call-in-expr-recv-object-then-call-recv-object-more` — 5608 emitted, 747 TUs, 1139 names, **1 stems**
+   stems: `MakeString` ×5608
+   top TUs: CameraShot.cpp ×30 · PartyModeMgr.cpp ×29 · MoveDir.cpp ×29 · BinkMovieImpl.cpp ×29 · Mesh.cpp ×29 · LightPreset.cpp ×29
+   READ 1  ??$MakeString@$$BY0BF@$$CBDH$$BY0BL@$$CBD@@YAPBDPBDAAY0BF@$$CBDABHAAY0BL@$$CBD@Z
+           demangled = char const * __cdecl MakeString<char const[21], int, char const[27]>(char const *, char const (&)[21], int const &, char const (&)[27])
+           tu=src/App.cpp cflow=cflow-straight off=bind 88B fnbyte=refused
+           hex=00 2D 69 D2 06 00 4C 4F 11 53 4F 01 4B 26 35 3A >26< 75 91 07 00 2C A6 43 98 2E 00 99 86 43 B8 2E 00 BD A6 43 98 2E 00 80
+
+## `expr-call-in-expr-recv-load-then-bit-and-and-branch-more` — 4290 emitted, 711 TUs, 1340 names, **3 stems**
+   stems: `dtor'` ×4288 · `HamSongMgr::InitializePlaylists` ×1 · `ProfileMgr::OnMsg` ×1
+   top TUs: HamDirector.cpp ×47 · Dir.cpp ×33 · LightPreset.cpp ×32 · EventTrigger.cpp ×31 · CameraShot.cpp ×29 · HamNavList.cpp ×28
+   READ 1  ??_G?$ObjDirPtr@VObjectDir@@@@UAAPAXI@Z
+           demangled = public: virtual void * __cdecl ObjDirPtr<class ObjectDir>::`scalar deleting dtor'(unsigned int)
+           tu=src/App.cpp cflow=cflow-if-1 off=bind 76B fnbyte=refused
+           hex=86 43 E0 D6 02 00 46 2D 43 E9 06 00 4C 4F 11 53 >26< 19 77 B9 61 E9 06 00 A6 43 CA D6 02 2C A6 43 CA D6 02 00 99 86 43 D1
+   READ 2  ?InitializePlaylists@HamSongMgr@@QAAXXZ
+           demangled = public: void __cdecl HamSongMgr::InitializePlaylists(void)
+           tu=src/lazer/meta_ham/HamSongMgr.cpp cflow=cflow-loop off=bind 2064B fnbyte=refused
+           hex=E1 B3 01 00 46 4C 4F 11 53 4F 01 80 AA 01 00 00 >26< 13 EA 02 00 B9 7B E1 04 00 A6 43 D3 B3 01 99 86 43 E1 B3 01 00 BD 82
+   READ 3  ?OnMsg@ProfileMgr@@AAA?AVDataNode@@ABVSigninChangedMsg@@@Z
+           demangled = private: class DataNode __cdecl ProfileMgr::OnMsg(class SigninChangedMsg const &)
+           tu=src/lazer/meta_ham/ProfileMgr.cpp cflow=cflow-loop off=bind 744B fnbyte=refused
+           hex=4C 4F 11 53 4F 01 80 A2 04 00 00 26 64 D0 06 00 >26< 59 95 04 00 B9 5F D0 06 00 86 43 B1 E3 02 99 86 43 D0 FD 01 00 BD 86
+
+## `expr-call-in-expr-recv-load-then-call-recv-load-and-deref-load-more` — 2183 emitted, 434 TUs, 974 names, **22 stems**
+   stems: `stlpmtx_std::vector::rbegin` ×881 · `stlpmtx_std::vector::rend` ×881 · `stlpmtx_std::_Rb_tree::begin` ×148 · `stlpmtx_std::_Rb_tree::find` ×94 · `operator` ×75 · `stlpmtx_std::_Rb_tree::lower_bound` ×72 · `ObjDirPtr::operator=` ×14 · `stlpmtx_std::_Rb_tree::upper_bound` ×4
+   (+14 more stems, 14 emitted)
+   top TUs: AccomplishmentManager.cpp ×33 · HamSongMgr.cpp ×30 · Text.cpp ×28 · LightPreset.cpp ×27 · SongMgr.cpp ×26 · HamDirector.cpp ×24
+   READ 1  ?rbegin@?$vector@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@QAA?AV?$reverse_iterator@PAH@2@XZ
+           demangled = public: class stlpmtx_std::reverse_iterator<int *> __cdecl stlpmtx_std::vector<int, class stlpmtx_std::StlNodeAlloc<int>>::rbegin(void)
+           tu=src/lazer/game/BustAMovePanel.cpp cflow=cflow-straight off=bind 12B fnbyte=refused
+           hex=99 86 43 81 71 00 46 65 37 FC 06 00 4C 4F 11 53 >26< EF E5 06 00 B9 37 FC 06 00 86 43 EC EC 02 2C 86 43 ED EC 02 00 99 86
+   READ 2  ?rend@?$vector@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@QAA?AV?$reverse_iterator@PAH@2@XZ
+           demangled = public: class stlpmtx_std::reverse_iterator<int *> __cdecl stlpmtx_std::vector<int, class stlpmtx_std::StlNodeAlloc<int>>::rend(void)
+           tu=src/lazer/game/BustAMovePanel.cpp cflow=cflow-straight off=bind 12B fnbyte=refused
+           hex=99 86 43 81 71 00 46 65 3B FC 06 00 4C 4F 11 53 >26< EF E5 06 00 B9 3B FC 06 00 86 43 EC EC 02 2C 86 43 ED EC 02 00 99 86
+   READ 3  ?InqIncrementalSymbols@AccomplishmentDiscSongConditional@@UBA_NPAVHamProfile@@AAV?$vector@VSymbol@@V?$StlNodeAlloc@VSymbol@@@stlpmtx_std@@@stlpmtx_std@@@Z
+           demangled = public: virtual bool __cdecl AccomplishmentDiscSongConditional::InqIncrementalSymbols(class HamProfile *, class stlpmtx_std::vector<class Symbol, class stlpmtx_std::StlNodeAlloc<class Symbol>> &) const
+           tu=src/lazer/meta_ham/AccomplishmentDiscSongConditional.cpp cflow=cflow-straight off=bind 52B fnbyte=refused
+           hex=85 AE 04 00 2D 80 AE 04 00 4C 4F 11 53 4F 01 32 >26< 9A 8B 02 00 B9 85 AE 04 00 86 43 FC B3 01 99 86 43 FB 87 01 00 BD 86
+
+## `return-scope-close-cflow-label` — 1814 emitted, 411 TUs, 887 names, **21 stems**
+   stems: `stlpmtx_std::__destroy_range_aux` ×1017 · `stlpmtx_std::fill` ×282 · `stlpmtx_std::__fill_n` ×231 · `ObjDirItr::Advance` ×102 · `KeylessHash::FirstFrom` ×64 · `stlpmtx_std::list::_M_insert_dispatch` ×40 · `stlpmtx_std::list::_M_fill_insert` ×33 · `stlpmtx_std::for_each` ×32
+   (+13 more stems, 13 emitted)
+   top TUs: LightPreset.cpp ×39 · Utl.cpp ×29 · Mesh.cpp ×26 · PropAnim.cpp ×26 · Crowd.cpp ×23 · Character.cpp ×22
+   READ 1  ??$__fill_n@PAHIH@stlpmtx_std@@YAPAHPAHIABH@Z
+           demangled = int * __cdecl stlpmtx_std::__fill_n<int *, unsigned int, int>(int *, unsigned int, int const &)
+           tu=src/lazer/game/BustAMovePanel.cpp cflow=cflow-loop off=rmw 32B fnbyte=refused
+           hex=01 00 00 4F 01 80 7A 01 00 00 53 3A 78 C4 07 00 >29< 79 C4 07 00 26 55 8F 07 00 33 86 42 75 01 10 86 42 75 26 54 8F 07 00
+   READ 2  ?Advance@?$ObjDirItr@VDepthBuffer3D@@@@AAAXXZ
+           demangled = private: void __cdecl ObjDirItr<class DepthBuffer3D>::Advance(void)
+           tu=src/lazer/game/BustAMovePanel.cpp cflow=cflow-loop off=off-add 256B fnbyte=refused
+           hex=4F 11 53 4F 01 80 49 02 00 00 53 3A 70 81 07 00 >29< 71 81 07 00 B9 6E 81 07 00 A6 43 C9 E3 02 33 86 41 74 00 27 A6 43 A1
+   READ 3  ?FirstFrom@?$KeylessHash@PBDUEntry@ObjectDir@@@@AAAPAUEntry@ObjectDir@@PAU23@@Z
+           demangled = private: struct ObjectDir::Entry * __cdecl KeylessHash<char const *, struct ObjectDir::Entry>::FirstFrom(struct ObjectDir::Entry *)
+           tu=src/lazer/game/BustAMovePanel.cpp cflow=cflow-loop off=rmw 84B fnbyte=refused
+           hex=4F 11 53 4F 01 80 AD 00 00 00 53 3A 75 8B 07 00 >29< 76 8B 07 00 26 71 8B 07 00 33 86 41 12 08 35 86 43 94 BA 03 4B 29 75
+
+## `expr-call-in-expr-recv-load-whole` — 1488 emitted, 464 TUs, 394 names, **9 stems**
+   stems: `BinStream::operator` ×720 · `stlpmtx_std::vector::operator[]` ×709 · `operator` ×53 · `SkeletonChooser::ClearPlayerSkeletonID` ×1 · `DateTime::DiffSeconds` ×1 · `DxTex::Compress` ×1 · `RndTexBlender::SetupMaterial` ×1 · `int))` ×1
+   (+1 more stems, 1 emitted)
+   top TUs: LightPreset.cpp ×32 · PropAnim.cpp ×19 · PropKeys.cpp ×16 · Text.cpp ×15 · Utl.cpp ×15 · Font.cpp ×14
+   READ 1  ??A?$vector@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@QAAAAHI@Z
+           demangled = public: int & __cdecl stlpmtx_std::vector<int, class stlpmtx_std::StlNodeAlloc<int>>::operator[](unsigned int)
+           tu=src/lazer/game/BustAMovePanel.cpp cflow=cflow-straight off=bind 16B fnbyte=refused
+           hex=99 86 43 89 71 00 46 2D C1 EF 01 00 4C 4F 11 53 >26< B5 EF 01 00 B9 A2 E5 06 00 A6 43 F1 70 99 86 43 FD 70 00 BD 86 43 F4
+   READ 2  ??5BinStream@@QAAAAV0@AAH@Z
+           demangled = public: class BinStream & __cdecl BinStream::operator>>(int &)
+           tu=src/lazer/meta_ham/AccomplishmentProgress.cpp cflow=cflow-straight off=bind 52B fnbyte=refused
+           hex=8D 2A 99 86 43 EF 2A 00 46 2D 6E 34 4C 4F 11 53 >26< 45 34 B9 CD 34 A6 43 8D 2A 99 86 43 9D 2A 00 BD 82 07 03 00 80 1D 15
+   READ 3  ?ClearPlayerSkeletonID@SkeletonChooser@@QAAXH@Z
+           demangled = public: void __cdecl SkeletonChooser::ClearPlayerSkeletonID(int)
+           tu=src/lazer/meta_ham/SkeletonChooser.cpp cflow=cflow-straight off=bind 68B fnbyte=refused
+           hex=2D 7E 97 05 00 4C 4F 11 53 4F 01 80 85 00 00 00 >26< EF DF 01 00 B9 80 97 05 00 A6 43 B2 6E 99 86 43 C4 6E 00 BD 82 07 03
+
+## `expr-call-in-expr-recv-object-then-deref-load-more` — 1463 emitted, 583 TUs, 129 names, **6 stems**
+   stems: `MakeString` ×1432 · `stlpmtx_std::__median` ×14 · `stlpmtx_std::__linear_insert` ×14 · `CharBones::TypeOf` ×1 · `XZErrorWeight` ×1 · `stlpmtx_std::swap` ×1
+   top TUs: MoveDir.cpp ×9 · MoveMgr.cpp ×9 · Challenges.cpp ×8 · SaveLoadManager.cpp ×8 · CharLipSyncDriver.cpp ×8 · LiveCameraInput.cpp ×8
+   READ 1  ??$MakeString@MM@@YAPBDPBDABM1@Z
+           demangled = char const * __cdecl MakeString<float, float>(char const *, float const &, float const &)
+           tu=src/App.cpp cflow=cflow-straight off=bind 108B fnbyte=refused
+           hex=00 2D 04 CF 06 00 4C 4F 11 53 4F 01 44 26 35 3A >26< 0B 91 07 00 2C A6 43 98 2E 00 99 86 43 B8 2E 00 BD A6 43 98 2E 00 80
+   READ 2  ??$__linear_insert@PAHHUSongRankCmp@@@stlpmtx_std@@YAXPAH0HUSongRankCmp@@@Z
+           demangled = void __cdecl stlpmtx_std::__linear_insert<int *, int, struct SongRankCmp>(int *, int *, int, struct SongRankCmp)
+           tu=src/lazer/meta_ham/HamSongMgr.cpp cflow=cflow-if-1 off=bind 112B fnbyte=refused
+           hex=4F 11 53 4F 01 80 6B 03 00 00 53 26 F6 DC 04 00 >26< C8 D0 05 00 99 86 43 EB 99 02 00 BD 82 12 30 00 80 EB 8C 00 00 B9 C5
+   READ 3  ??$__median@HUSongRankCmp@@@stlpmtx_std@@YAABHABH00USongRankCmp@@@Z
+           demangled = int const & __cdecl stlpmtx_std::__median<int, struct SongRankCmp>(int const &, int const &, int const &, struct SongRankCmp)
+           tu=src/lazer/meta_ham/HamSongMgr.cpp cflow=cflow-if-n off=bind 172B fnbyte=refused
+           hex=C0 05 00 4C 4F 11 53 4F 01 52 53 26 F6 DC 04 00 >26< EE C0 05 00 99 86 43 EB 99 02 00 BD 82 12 30 00 80 EB 8C 00 00 B9 EC
+
+## `expr-intrinsic-memset` — 3749 emitted, 497 TUs, 1897 names, **36 stems**
+   stems: `stlpmtx_std::__destroy_range` ×1448 · `stlpmtx_std::_Destroy` ×653 · `stlpmtx_std::vector::_M_erase` ×490 · `stlpmtx_std::__destroy_mv_srcs` ×383 · `stlpmtx_std::_BothPtrType::_Ret` ×207 · `stlpmtx_std::_OKToMemCpy::_Answer` ×167 · `stlpmtx_std::_IsOKToMemCpy` ×159 · `stlpmtx_std::_IsRefType::_Ret` ×56
+   (+28 more stems, 186 emitted)
+   top TUs: PropKeys.cpp ×70 · LightPreset.cpp ×61 · Mesh.cpp ×60 · Utl.cpp ×49 · PropAnim.cpp ×47 · Text.cpp ×46
+   READ 1  ??$_Destroy@H@stlpmtx_std@@YAXPAH@Z
+           demangled = void __cdecl stlpmtx_std::_Destroy<int>(int *)
+           tu=src/lazer/game/BustAMovePanel.cpp cflow=cflow-straight off=intrinsic 4B fnbyte=refused
+           hex=42 26 EB A9 07 00 BD 82 07 03 00 80 8D EB 00 00 >33< 86 41 74 80 AD 00 00 00 40 86 41 74 33 86 41 74 01 55 86 41 74 33 86
+   READ 2  ??$__destroy_range@PAHH@stlpmtx_std@@YAXPAH00@Z
+           demangled = void __cdecl stlpmtx_std::__destroy_range<int *, int>(int *, int *, int *)
+           tu=src/lazer/game/BustAMovePanel.cpp cflow=cflow-straight off=intrinsic 4B fnbyte=refused
+           hex=00 26 0B D6 07 00 BD 82 07 03 00 80 3A F8 00 00 >33< 86 41 74 80 AD 00 00 00 40 86 41 74 33 86 41 74 01 55 86 41 74 33 86
+   READ 3  ?_M_erase@?$vector@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@IAAPAHPAH0ABU__false_type@2@@Z
+           demangled = protected: int * __cdecl stlpmtx_std::vector<int, class stlpmtx_std::StlNodeAlloc<int>>::_M_erase(int *, int *, struct stlpmtx_std::__false_type const &)
+           tu=src/lazer/game/BustAMovePanel.cpp cflow=cflow-straight off=intrinsic 76B fnbyte=refused
+           hex=26 6D 83 07 00 BD 86 43 F4 08 00 80 BC DA 00 00 >33< 86 41 74 80 AD 00 00 00 40 86 41 74 33 86 41 74 01 55 86 41 74 33 86
+
+## `param-width-undetermined:mid` — 682 emitted, 19 TUs, 322 names, **166 stems**
+   stems: `MakeString` ×77 · `EaseLinear` ×10 · `EasePolyIn` ×10 · `EasePolyOut` ×10 · `EasePolyInOut` ×10 · `EasePolyOutIn` ×10 · `EaseBounceIn` ×10 · `EaseBounceInOut` ×10
+   (+158 more stems, 535 emitted)
+   top TUs: MemTracker.cpp ×145 · ShaderMgr.cpp ×93 · VelocityBuffer.cpp ×58 · FxSendWah.cpp ×44 · FxSendBitCrush.cpp ×41 · FxSendCompress.cpp ×41
+   READ 1  main
+           demangled = ?
+           tu=src/Main.cpp cflow=cflow-straight off=bind 124B fnbyte=refused
+           hex=00 4F 01 03 53 53 26 0C 0A 46 2D 0B 0A 2D 0A 0A >4C< 4F 11 53 4F 01 04 26 FB 09 26 0E 0A 2C A6 43 81 20 00 99 86 43 8B 20
+   READ 2  ??__Fmsg@?N@??ContentMounted@PartyModeMgr@@UAAXPBD0@Z@YAXXZ
+           demangled = void __cdecl `dynamic atexit destructor for '`public: virtual void __cdecl PartyModeMgr::ContentMounted(char const *, char const *)'::`13'::msg''(void)
+           tu=src/lazer/game/PartyModeMgr.cpp cflow=cflow-loop off=bind 28B fnbyte=refused
+           hex=43 EC 8B 02 2C 46 2D DB C0 04 00 2D DA C0 04 00 >4C< 4F 11 53 4F 01 80 5A 01 00 00 29 DF C0 04 00 53 53 53 B9 DA C0 04 00
+   READ 3  ??0DebugGraph@@QAA@MMMMVColor@Hmx@@0HMMVString@@@Z
+           demangled = public: __cdecl DebugGraph::DebugGraph(float, float, float, float, class Hmx::Color, class Hmx::Color, int, float, float, class String)
+           tu=src/system/hamobj/RhythmDetector.cpp cflow=cflow-straight off=off-add 320B fnbyte=refused
+           hex=26 CA E1 01 00 46 2D C9 E1 01 00 2D C8 E1 01 00 >4C< 4F 11 53 4F 01 80 AF 00 00 00 26 30 61 BD 82 07 03 00 80 65 1D 00 00
+
+## `param-multi-reg:mid` — 163 emitted, 87 TUs, 118 names, **17 stems**
+   stems: `stlpmtx_std::_STLP_alloc_proxy::_STLP_alloc_proxy` ×111 · `stlpmtx_std::__unguarded_linear_insert` ×7 · `stlpmtx_std::__push_heap` ×7 · `stlpmtx_std::__adjust_heap` ×7 · `stlpmtx_std::__pop_heap` ×7 · `stlpmtx_std::__unguarded_partition` ×7 · `stlpmtx_std::__linear_insert` ×7 · `DrawBounds` ×1
+   (+9 more stems, 9 emitted)
+   top TUs: PropKeys.cpp ×18 · AccomplishmentManager.cpp ×8 · HamSongMgr.cpp ×7 · ClipDistMap.cpp ×6 · MoveMgr.cpp ×6 · Archive.cpp ×6
+   READ 1  ??0?$_STLP_alloc_proxy@U_Rb_tree_node_base@stlpmtx_std@@U?$_Rb_tree_node@U?$pair@$$CBVSymbol@@PAV?$list@VSymbol@@V?$StlNodeAlloc@VSymbol@@@stlpmtx_std@@@stlpmtx_std@@@stlpmtx_std@@@2@V?$StlNodeAlloc@U?$_Rb_tree_node@U?$pair@$$CBVSymbol@@PAV?$list@VSymbol@@V?$StlNodeAlloc@VSymbol@@@stlpmtx_std@@@stlpmtx_std@@@stlpmtx_std@@@stlpmtx_std@@@2@@stlpmtx_std@@QAA@ABV?$StlNodeAlloc@U?$_Rb_tree_node@U?$pair@$$CBVSymbol@@PAV?$list@VSymbol@@V?$StlNodeAlloc@VSymbol@@@stlpmtx_std@@@stlpmtx_std@@@stlpmtx_std@@@stlpmtx_std@@@1@U_Rb_tree_node_base@1@@Z
+           demangled = public: __cdecl stlpmtx_std::_STLP_alloc_proxy<struct stlpmtx_std::_Rb_tree_node_base, struct stlpmtx_std::_Rb_tree_node<struct stlpmtx_std::pair<class Symbol const, class stlpmtx_std::list<class Symbol, class stlpmtx_std::StlNodeAlloc<class Symbol>> *>>, class stlpmtx_std::StlNodeAlloc<struct stlpmtx_std::_Rb_tree_node<struct stlpmtx_std::pair<class Symbol const, class stlpmtx_std::list<class Symbol, class stlpmtx_std::StlNodeAlloc<class Symbol>> *>>>>::_STLP_alloc_proxy<struct stlpmtx_std::_Rb_tree_node_base, struct stlpmtx_std::_Rb_tree_node<struct stlpmtx_std::pair<class Symbol const, class stlpmtx_std::list<class Symbol, class stlpmtx_std::StlNodeAlloc<class Symbol>> *>>, class stlpmtx_std::StlNodeAlloc<struct stlpmtx_std::_Rb_tree_node<struct stlpmtx_std::pair<class Symbol const, class stlpmtx_std::list<class Symbol, class stlpmtx_std::StlNodeAlloc<class Symbol>> *>>>>(class stlpmtx_std::StlNodeAlloc<struct stlpmtx_std::_Rb_tree_node<struct stlpmtx_std::pair<class Symbol const, class stlpmtx_std::list<class Symbol, class stlpmtx_std::StlNodeAlloc<class Symbol>> *>>> const &, struct stlpmtx_std::_Rb_tree_node_base)
+           tu=src/lazer/meta_ham/AccomplishmentManager.cpp cflow=cflow-straight off=intrinsic 48B fnbyte=refused
+           hex=43 CA D8 02 00 46 2D E9 A4 04 00 2D E8 A4 04 00 >4C< 4F 11 53 26 BC A4 04 00 33 86 41 74 80 41 08 00 00 40 82 43 92 C7 02
+   READ 2  ?DrawBounds@@YAXVVector3@@ABVMatrix3@Hmx@@ABV1@PAVRndGraph@@@Z
+           demangled = void __cdecl DrawBounds(class Vector3, class Hmx::Matrix3 const &, class Vector3 const &, class RndGraph *)
+           tu=src/system/char/CharLookAt.cpp cflow=cflow-straight off=bind 264B fnbyte=refused
+           hex=00 2D 10 C0 01 00 2D 0F C0 01 00 2D 0E C0 01 00 >4C< 4F 11 53 4F 01 80 4F 01 00 00 26 4F 61 BD 82 07 03 00 80 16 1F 00 00
+   READ 3  ??$__adjust_heap@PAUNode@ClipDistMap@@HU12@UDistMapNodeSort@@@stlpmtx_std@@YAXPAUNode@ClipDistMap@@HHU12@UDistMapNodeSort@@@Z
+           demangled = void __cdecl stlpmtx_std::__adjust_heap<struct ClipDistMap::Node *, int, struct ClipDistMap::Node, struct DistMapNodeSort>(struct ClipDistMap::Node *, int, int, struct ClipDistMap::Node, struct DistMapNodeSort)
+           tu=src/system/char/ClipDistMap.cpp cflow=cflow-loop off=compare 232B fnbyte=refused
+           hex=00 2D BF 96 02 00 2D BE 96 02 00 2D BD 96 02 00 >4C< 4F 11 53 4F 01 80 94 00 00 00 26 A8 97 02 00 B9 BE 96 02 00 86 41 74
+
+## `expr-op-0x28` — 28 emitted, 25 TUs, 28 names, **28 stems**
+   stems: `RemoveDigitSuffix` ×1 · `CharMeshHide::Save` ×1 · `DirectionGestureFilterSingleUser::HandAtSide` ×1 · `LiveCameraInput::SetTrackedSkeletons` ×1 · `namespace'::GetPlayerIndexes` ×1 · `CSHA1::Transform` ×1 · `GetBreedData` ×1 · `JoypadGetCachedXInputCaps` ×1
+   (+20 more stems, 20 emitted)
+   top TUs: Joypad_Xbox.cpp ×2 · Joypad.cpp ×2 · PeakFinder.cpp ×2 · App.cpp ×1 · CharMeshHide.cpp ×1 · DirectionGestureFilter.cpp ×1
+   READ 1  ?RemoveDigitSuffix@@YA?AVSymbol@@ABV1@@Z
+           demangled = class Symbol __cdecl RemoveDigitSuffix(class Symbol const &)
+           tu=src/App.cpp cflow=cflow-loop off=subscript 212B fnbyte=refused
+           hex=01 80 A5 03 00 00 26 62 CF 06 00 33 86 41 12 00 >28< 00 00 33 82 11 70 00 32 82 11 70 4B 4F 01 80 A6 03 00 00 33 86 41 74
+   READ 2  ?Save@CharMeshHide@@UAAXAAVBinStream@@@Z
+           demangled = public: virtual void __cdecl CharMeshHide::Save(class BinStream &)
+           tu=src/system/char/CharMeshHide.cpp cflow=cflow-straight off=subscript 124B fnbyte=refused
+           hex=4F 01 3D 4F 01 3E 26 15 91 01 00 33 86 41 12 00 >28< 00 00 33 86 41 74 02 32 86 41 74 4B 4F 01 3F 26 2F 34 B9 11 91 01 00
+   READ 3  ?HandAtSide@DirectionGestureFilterSingleUser@@ABA_NABVSkeleton@@MMM@Z
+           demangled = private: bool __cdecl DirectionGestureFilterSingleUser::HandAtSide(class Skeleton const &, float, float, float) const
+           tu=src/system/gesture/DirectionGestureFilter.cpp cflow=cflow-straight off=bind 248B fnbyte=refused
+           hex=00 80 48 1C 00 00 4C 33 86 41 12 80 5C 01 00 00 >28< 00 00 33 86 41 74 00 27 86 43 E9 38 33 86 41 12 00 28 00 00 33 86 41

@@ -1,0 +1,205 @@
+READPX rows: 178977
+emitted denominator 178977 = in-class 39643 + blocked 130117 + unbound 9217
+COLUMN-SUM ASSERT OK
+byte verdict over the WHOLE emitted denominator:
+   fnbyte-refused             130117
+   fnbyte-exact                36228
+   fnbyte-unbound               9217
+   fnbyte-differs               2554
+   fnbyte-reloc-differs          861
+byte verdict over the BLOCKED emitted rows:
+   fnbyte-refused             130117
+
+demangled 34065 distinct names for the top 25 keys; 37 not demangleable (fall back to the mangled name)
+
+| rank | key | emitted | dTU | dname | dstem | e/TU | exact | differs | refused |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | `expr-op-0x27` | 22412 | 801 | 7533 | **4001** | 27.98 | 0 | 0 | 22412 |
+| 2 | `body-cflow-label` | 14990 | 675 | 1585 | **1116** | 22.21 | 0 | 0 | 14990 |
+| 3 | `expr-intrinsic-this-adjust` | 9267 | 698 | 4627 | **1725** | 13.28 | 0 | 0 | 9267 |
+| 4 | `expr-intrinsic-base-member-addr` | 6466 | 673 | 3232 | **831** | 9.61 | 0 | 0 | 6466 |
+| 5 | `expr-call-in-expr-recv-object-then-call-recv-object-more` | 5608 | 747 | 1139 | **1** | 7.51 | 0 | 0 | 5608 |
+| 6 | `expr-call-in-expr-recv-load-then-bit-and-and-branch-more` | 4290 | 711 | 1340 | **3** | 6.03 | 0 | 0 | 4290 |
+| 7 | `expr-intrinsic-memset` | 3749 | 497 | 1897 | **36** | 7.54 | 0 | 0 | 3749 |
+| 8 | `expr-brfalse` | 3104 | 552 | 1388 | **258** | 5.62 | 0 | 0 | 3104 |
+| 9 | `expr-call-in-expr-recv-load-then-intrinsic-call` | 2865 | 375 | 1158 | **75** | 7.64 | 0 | 0 | 2865 |
+| 10 | `expr-cmp-eq` | 2385 | 517 | 1165 | **472** | 4.61 | 0 | 0 | 2385 |
+| 11 | `expr-load-type-8645` | 2272 | 502 | 140 | **135** | 4.53 | 0 | 0 | 2272 |
+| 12 | `body-0x9B` | 2212 | 498 | 1080 | **324** | 4.44 | 0 | 0 | 2212 |
+| 13 | `expr-call-in-expr-recv-load-then-call-recv-load-and-deref-load-more` | 2183 | 434 | 974 | **22** | 5.03 | 0 | 0 | 2183 |
+| 14 | `expr-intrinsic-0xDF` | 2031 | 415 | 1062 | **56** | 4.89 | 0 | 0 | 2031 |
+| 15 | `expr-brtrue` | 1939 | 584 | 896 | **876** | 3.32 | 0 | 0 | 1939 |
+| 16 | `return-scope-close-cflow-label` | 1814 | 411 | 887 | **21** | 4.41 | 0 | 0 | 1814 |
+| 17 | `expr-op-0x9B` | 1587 | 355 | 959 | **94** | 4.47 | 0 | 0 | 1587 |
+| 18 | `expr-call-in-expr-recv-load-whole` | 1488 | 464 | 394 | **9** | 3.21 | 0 | 0 | 1488 |
+| 19 | `expr-call-in-expr-recv-object-then-deref-load-more` | 1463 | 583 | 129 | **6** | 2.51 | 0 | 0 | 1463 |
+| 20 | `expr-intrinsic-base-downcast` | 1315 | 325 | 597 | **30** | 4.05 | 0 | 0 | 1315 |
+| 21 | `expr-lit-type-864A` | 1278 | 488 | 141 | **140** | 2.62 | 0 | 0 | 1278 |
+| 22 | `expr-intrinsic-dynamic-cast` | 1233 | 366 | 385 | **64** | 3.37 | 0 | 0 | 1233 |
+| 23 | `assign-store-type-8643` | 1131 | 312 | 751 | **134** | 3.62 | 0 | 0 | 1131 |
+| 24 | `body-0x67` | 1044 | 562 | 341 | **249** | 1.86 | 0 | 0 | 1044 |
+| 25 | `expr-call-in-expr-recv-load-then-off-add-more` | 1040 | 375 | 267 | **148** | 2.77 | 0 | 0 | 1040 |
+
+--- top keys: blocking byte histogram, cflow_off, and 3 bodies each ---
+
+### 1. `expr-op-0x27` — 22412 emitted, 801 TUs, 7533 names, 4001 stems
+  blocking byte : 27*22412
+  cflow_off     : off-add*22374 intrinsic*25 bind*10 convert-out-of-class*2 load-type*1
+  cflow         : cflow-straight*16812 cflow-if-1*2147 cflow-loop*1585 cflow-if-2*985 cflow-if-n*659 cf-expr-0x59*135
+  READ 1: ??0AutoTimer@@QAA@PAVTimer@@MP6AXMPAX@Z1@Z
+        stem=AutoTimer::AutoTimer
+        tu=src/App.cpp  cflow=cflow-if-2 off=off-add  fnbyte=refused  128B
+        hex=0B 01 00 00 B9 20 54 A6 43 D4 34 33 86 41 74 04 >27< A6 43 C0 08 B9 56 52 86 45 40 32 86 45 40 4B 4F 01 80 0C 01 00 00 B9
+  READ 2: ??0DataNode@@QAA@VSymbol@@@Z
+        stem=DataNode::DataNode
+        tu=src/App.cpp  cflow=cflow-straight off=off-add  fnbyte=refused  16B
+        hex=53 4F 01 69 B9 12 40 A6 43 D0 30 33 86 41 74 04 >27< A6 43 AE 31 33 86 41 D3 30 05 32 86 41 D3 30 4B 4F 01 6A B9 12 40 A6
+  READ 3: ??0Message@@QAA@VSymbol@@@Z
+        stem=Message::Message
+        tu=src/App.cpp  cflow=cflow-straight off=off-add  fnbyte=refused  248B
+        hex=11 53 B9 E2 F9 01 00 A6 43 90 68 33 86 41 74 00 >27< A6 43 A3 21 26 DD F9 01 00 2C 86 43 A2 21 00 32 86 43 A2 21 4B 4F 01
+
+### 2. `body-cflow-label` — 14990 emitted, 675 TUs, 1585 names, 1116 stems
+  blocking byte : 29*14990
+  cflow_off     : load-type*12251 bind*888 off-add*636 compare*594 virtual-slot*261 intrinsic*129
+  cflow         : cf-expr-0x59*10068 cflow-loop*4884 cflow-switch*22 cf-expr-0xBC*8 cf-expr-0x08*7 cf-expr-0x60*1
+  READ 1: ?EaseBackIn@@YAMMMM@Z
+        stem=EaseBackIn
+        tu=src/App.cpp  cflow=cf-expr-0x59 off=load-type  fnbyte=refused  168B
+        hex=2D CC CF 01 00 4C 4F 11 53 4F 01 80 B1 00 00 00 >29< D1 CF 01 00 53 53 53 B9 CC CF 01 00 86 45 40 33 86 4A 40 00 00 00 00
+  READ 2: ?EaseBackInOut@@YAMMMM@Z
+        stem=EaseBackInOut
+        tu=src/App.cpp  cflow=cf-expr-0x59 off=load-type  fnbyte=refused  208B
+        hex=2D E2 CF 01 00 4C 4F 11 53 4F 01 80 BC 00 00 00 >29< E7 CF 01 00 53 53 53 B9 E2 CF 01 00 86 45 40 33 86 4A 40 00 00 00 00
+  READ 3: ?EaseBackOut@@YAMMMM@Z
+        stem=EaseBackOut
+        tu=src/App.cpp  cflow=cf-expr-0x59 off=load-type  fnbyte=refused  172B
+        hex=2D D7 CF 01 00 4C 4F 11 53 4F 01 80 B6 00 00 00 >29< DC CF 01 00 53 53 53 B9 D7 CF 01 00 86 45 40 33 86 4A 40 00 00 00 00
+
+### 3. `expr-intrinsic-this-adjust` — 9267 emitted, 698 TUs, 4627 names, 1725 stems
+  blocking byte : 33*9267
+  cflow_off     : intrinsic*9267
+  cflow         : cflow-straight*7649 cflow-if-1*851 cflow-loop*492 cflow-if-2*105 cflow-if-n*103 cf-expr-0x59*50
+  READ 1: ??0?$ObjDirPtr@VObjectDir@@@@QAA@XZ
+        stem=ObjDirPtr::ObjDirPtr
+        tu=src/App.cpp  cflow=cflow-straight off=intrinsic  fnbyte=refused  28B
+        hex=02 99 86 43 D1 D6 02 00 46 4C 4F 11 53 26 E3 6F >33< 86 41 74 80 41 08 00 00 40 86 43 D0 E1 02 66 02 9F 43 DC 40 55 86 41
+  READ 2: ??0?$ObjRefConcrete@VObjectDir@@V1@@@QAA@PAVObjectDir@@@Z
+        stem=ObjRefConcrete::ObjRefConcrete
+        tu=src/App.cpp  cflow=cflow-if-1 off=intrinsic  fnbyte=refused  68B
+        hex=EE 40 00 46 2D 3B F8 06 00 4C 4F 11 53 26 68 5B >33< 86 41 74 80 41 08 00 00 40 86 43 EF 37 66 02 DC 40 EE 37 55 86 41 74
+  READ 3: ??0FilePath@@QAA@PBD@Z
+        stem=FilePath::FilePath
+        tu=src/App.cpp  cflow=cflow-straight off=intrinsic  fnbyte=refused  128B
+        hex=86 43 B4 3E 00 46 2D C0 6A 4C 4F 11 53 26 2E 2E >33< 86 41 74 80 41 08 00 00 40 86 43 A2 29 66 02 A0 2A E9 28 55 86 41 74
+
+### 4. `expr-intrinsic-base-member-addr` — 6466 emitted, 673 TUs, 3232 names, 831 stems
+  blocking byte : 33*6466
+  cflow_off     : intrinsic*6466
+  cflow         : cflow-straight*4686 cflow-if-1*1068 cflow-loop*358 cflow-if-n*291 cflow-if-2*50 cflow-switch*8
+  READ 1: ??1?$ObjDirPtr@VObjectDir@@@@UAA@XZ
+        stem=ObjDirPtr::~ObjDirPtr
+        tu=src/App.cpp  cflow=cflow-straight off=intrinsic  fnbyte=refused  184B
+        hex=43 CA D6 02 99 86 43 D1 D6 02 00 46 4C 4F 11 53 >33< 86 41 74 80 45 08 00 00 40 A6 43 A3 21 66 03 9F 43 DC 40 EE 37 55 86
+  READ 2: ??1?$ObjRefConcrete@VObjectDir@@V1@@@UAA@XZ
+        stem=ObjRefConcrete::~ObjRefConcrete
+        tu=src/App.cpp  cflow=cflow-if-1 off=intrinsic  fnbyte=refused  64B
+        hex=00 A6 43 E2 40 99 86 43 E7 40 00 46 4C 4F 11 53 >33< 86 41 74 80 45 08 00 00 40 A6 43 A3 21 66 02 DC 40 EE 37 55 86 41 74
+  READ 3: ??1DancerSkeleton@@UAA@XZ
+        stem=DancerSkeleton::~DancerSkeleton
+        tu=src/lazer/game/BustAMovePanel.cpp  cflow=cflow-straight off=intrinsic  fnbyte=refused  16B
+        hex=00 A6 43 83 4C 99 86 43 8A 4C 00 46 4C 4F 11 53 >33< 86 41 74 80 45 08 00 00 40 A6 43 A3 21 66 02 82 4C C3 33 55 86 41 74
+
+### 5. `expr-call-in-expr-recv-object-then-call-recv-object-more` — 5608 emitted, 747 TUs, 1139 names, 1 stems
+  blocking byte : 26*5608
+  cflow_off     : bind*5608
+  cflow         : cflow-straight*5608
+  READ 1: ??$MakeString@$$BY0BF@$$CBDH$$BY0BL@$$CBD@@YAPBDPBDAAY0BF@$$CBDABHAAY0BL@$$CBD@Z
+        stem=MakeString
+        tu=src/App.cpp  cflow=cflow-straight off=bind  fnbyte=refused  88B
+        hex=00 2D 69 D2 06 00 4C 4F 11 53 4F 01 4B 26 35 3A >26< 75 91 07 00 2C A6 43 98 2E 00 99 86 43 B8 2E 00 BD A6 43 98 2E 00 80
+
+### 6. `expr-call-in-expr-recv-load-then-bit-and-and-branch-more` — 4290 emitted, 711 TUs, 1340 names, 3 stems
+  blocking byte : 26*4290
+  cflow_off     : bind*4290
+  cflow         : cflow-if-1*4288 cflow-loop*2
+  READ 1: ??_G?$ObjDirPtr@VObjectDir@@@@UAAPAXI@Z
+        stem=dtor'
+        tu=src/App.cpp  cflow=cflow-if-1 off=bind  fnbyte=refused  76B
+        hex=86 43 E0 D6 02 00 46 2D 43 E9 06 00 4C 4F 11 53 >26< 19 77 B9 61 E9 06 00 A6 43 CA D6 02 2C A6 43 CA D6 02 00 99 86 43 D1
+  READ 2: ?InitializePlaylists@HamSongMgr@@QAAXXZ
+        stem=HamSongMgr::InitializePlaylists
+        tu=src/lazer/meta_ham/HamSongMgr.cpp  cflow=cflow-loop off=bind  fnbyte=refused  2064B
+        hex=E1 B3 01 00 46 4C 4F 11 53 4F 01 80 AA 01 00 00 >26< 13 EA 02 00 B9 7B E1 04 00 A6 43 D3 B3 01 99 86 43 E1 B3 01 00 BD 82
+  READ 3: ?OnMsg@ProfileMgr@@AAA?AVDataNode@@ABVSigninChangedMsg@@@Z
+        stem=ProfileMgr::OnMsg
+        tu=src/lazer/meta_ham/ProfileMgr.cpp  cflow=cflow-loop off=bind  fnbyte=refused  744B
+        hex=4C 4F 11 53 4F 01 80 A2 04 00 00 26 64 D0 06 00 >26< 59 95 04 00 B9 5F D0 06 00 86 43 B1 E3 02 99 86 43 D0 FD 01 00 BD 86
+
+### 7. `expr-intrinsic-memset` — 3749 emitted, 497 TUs, 1897 names, 36 stems
+  blocking byte : 33*3749
+  cflow_off     : intrinsic*3749
+  cflow         : cflow-straight*3741 cflow-loop*4 cflow-if-2*2 cflow-if-1*1 cflow-if-n*1
+  READ 1: ??$_Destroy@H@stlpmtx_std@@YAXPAH@Z
+        stem=stlpmtx_std::_Destroy
+        tu=src/lazer/game/BustAMovePanel.cpp  cflow=cflow-straight off=intrinsic  fnbyte=refused  4B
+        hex=42 26 EB A9 07 00 BD 82 07 03 00 80 8D EB 00 00 >33< 86 41 74 80 AD 00 00 00 40 86 41 74 33 86 41 74 01 55 86 41 74 33 86
+  READ 2: ??$__destroy_range@PAHH@stlpmtx_std@@YAXPAH00@Z
+        stem=stlpmtx_std::__destroy_range
+        tu=src/lazer/game/BustAMovePanel.cpp  cflow=cflow-straight off=intrinsic  fnbyte=refused  4B
+        hex=00 26 0B D6 07 00 BD 82 07 03 00 80 3A F8 00 00 >33< 86 41 74 80 AD 00 00 00 40 86 41 74 33 86 41 74 01 55 86 41 74 33 86
+  READ 3: ?_M_erase@?$vector@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@IAAPAHPAH0ABU__false_type@2@@Z
+        stem=stlpmtx_std::vector::_M_erase
+        tu=src/lazer/game/BustAMovePanel.cpp  cflow=cflow-straight off=intrinsic  fnbyte=refused  76B
+        hex=26 6D 83 07 00 BD 86 43 F4 08 00 80 BC DA 00 00 >33< 86 41 74 80 AD 00 00 00 40 86 41 74 33 86 41 74 01 55 86 41 74 33 86
+
+### 8. `expr-brfalse` — 3104 emitted, 552 TUs, 1388 names, 258 stems
+  blocking byte : 38*3104
+  cflow_off     : load-type*2719 intrinsic*199 bind*102 off-add*19 bitwise*13 virtual-slot*12
+  cflow         : cflow-if-1*2802 cflow-loop*184 cflow-if-2*48 cflow-if-n*48 cf-expr-0x59*11 cflow-switch*4
+  READ 1: ?AllPaused@@YA_NXZ
+        stem=AllPaused
+        tu=src/App.cpp  cflow=cflow-if-n off=bind  fnbyte=refused  52B
+        hex=80 83 00 00 00 53 B9 0A C9 04 00 86 43 F8 89 02 >38< 0E C9 04 00 26 6C C8 04 00 B9 0A C9 04 00 86 43 F8 89 02 99 86 43 AD
+  READ 2: ?random@@YAJJ@Z
+        stem=random
+        tu=src/keygen_xbox.cpp  cflow=cflow-if-1+expr-modeled off=-  fnbyte=refused  48B
+        hex=4F 11 53 4F 01 3A 4F 01 3B 53 B9 FD 09 86 41 12 >38< 02 0A 53 53 4F 01 3C 26 01 0A B9 FD 09 86 41 12 32 86 41 12 4B 4F 01
+  READ 3: ??8Symbol@@QBA_NPBD@Z
+        stem=Symbol::operator==
+        tu=src/lazer/game/BustAMovePanel.cpp  cflow=cflow-if-1 off=intrinsic  fnbyte=refused  88B
+        hex=0A 4C 4F 11 53 4F 01 1F 53 B9 6E 0A 86 43 83 20 >38< 8D 0A 53 4F 01 20 33 86 41 74 80 A5 00 00 00 40 86 41 74 B9 6E 0A 86
+
+### 9. `expr-call-in-expr-recv-load-then-intrinsic-call` — 2865 emitted, 375 TUs, 1158 names, 75 stems
+  blocking byte : 26*2865
+  cflow_off     : bind*2865
+  cflow         : cflow-straight*2840 cflow-loop*14 cflow-if-n*4 cflow-if-2*2 cflow-if-1*2 cf-expr-0x60*2
+  READ 1: ?begin@?$list@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@QAA?AU?$_List_iterator@HU?$_Nonconst_traits@H@stlpmtx_std@@@2@XZ
+        stem=stlpmtx_std::list::begin
+        tu=src/lazer/game/BustAMovePanel.cpp  cflow=cflow-straight off=bind  fnbyte=refused  12B
+        hex=86 43 9C AD 02 00 46 65 A2 EF 06 00 4C 4F 11 53 >26< 06 9D 05 00 B9 A2 EF 06 00 86 43 84 FC 02 2C 86 43 8B E5 02 00 99 86
+  READ 2: ?end@?$list@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@QAA?AU?$_List_iterator@HU?$_Nonconst_traits@H@stlpmtx_std@@@2@XZ
+        stem=stlpmtx_std::list::end
+        tu=src/lazer/game/BustAMovePanel.cpp  cflow=cflow-straight off=bind  fnbyte=refused  8B
+        hex=86 43 9C AD 02 00 46 65 AA EF 06 00 4C 4F 11 53 >26< 06 9D 05 00 B9 AA EF 06 00 86 43 84 FC 02 2C 86 43 8B E5 02 00 99 86
+  READ 3: ?insert@?$list@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@QAA?AU?$_List_iterator@HU?$_Nonconst_traits@H@stlpmtx_std@@@2@U32@ABH@Z
+        stem=stlpmtx_std::list::insert
+        tu=src/lazer/game/BustAMovePanel.cpp  cflow=cflow-straight off=bind  fnbyte=refused  100B
+        hex=4C 4F 11 53 4F 01 80 58 01 00 00 26 DA FE 06 00 >26< CE 9D 03 00 B9 D8 FE 06 00 A6 43 8A AD 02 99 86 43 8B AD 02 00 BD 86
+
+### 10. `expr-cmp-eq` — 2385 emitted, 517 TUs, 1165 names, 472 stems
+  blocking byte : 1F*2385
+  cflow_off     : compare*2206 bind*174 intrinsic*3 bitwise*1 off-add*1
+  cflow         : cflow-if-1*976 cflow-loop*533 cflow-if-n*483 cflow-straight*291 cflow-switch*50 cflow-if-2*42
+  READ 1: ?MainThread@@YA_NXZ
+        stem=MainThread
+        tu=src/App.cpp  cflow=cflow-straight off=compare  fnbyte=refused  80B
+        hex=09 B9 66 50 86 42 22 33 86 42 22 80 FF FF FF FF >1F< B9 66 50 86 42 22 26 9F 50 BD 86 42 22 00 80 FE 19 00 00 4C 1F 1B 41
+  READ 2: ??0PhysMemTypeTracker@@QAA@VSymbol@@@Z
+        stem=PhysMemTypeTracker::PhysMemTypeTracker
+        tu=src/Memory_Xbox.cpp  cflow=cflow-if-1 off=compare  fnbyte=refused  52B
+        hex=43 F0 08 2C 86 43 83 20 00 B9 5A 0A 86 43 83 20 >1F< 38 08 58 53 53 4F 01 80 52 01 00 00 26 E6 56 26 60 0A 26 04 58 2C A6
+  READ 3: ??0BustAMovePanel@@QAA@XZ
+        stem=BustAMovePanel::BustAMovePanel
+        tu=src/lazer/game/BustAMovePanel.cpp  cflow=cflow-if-1 off=compare  fnbyte=refused  880B
+        hex=4F 11 53 B9 01 DA 06 00 86 42 75 33 86 42 75 00 >1F< 39 04 DA 06 00 B9 02 DA 06 00 A6 43 AB C2 01 33 86 41 74 04 27 A6 43

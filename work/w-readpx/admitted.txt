@@ -1,0 +1,32 @@
+## Every ADMITTED class, ranked by WRONG BYTES (differs + reloc-differs)
+
+| class (census key) | in-class emitted | exact | differs | reloc-differs | P(exact) |
+|---|---:|---:|---:|---:|---:|
+| `multiarg-tail-call` | 3793 | 3162 | 581 | 50 | 0.834 |
+| `empty-dtor-delegation` | 2242 | 1649 | 86 | 507 | 0.736 |
+| `call-sequence-cmp-eq` | 542 | 0 | 542 | 0 | 0.000 |
+| `call-sequence-value-fp` | 434 | 0 | 434 | 0 | 0.000 |
+| `int-tail-call` | 415 | 145 | 270 | 0 | 0.349 |
+| `empty-dtor-member-adjusted` | 244 | 26 | 92 | 126 | 0.107 |
+| `empty-dtor-member` | 376 | 167 | 47 | 162 | 0.444 |
+| `call-sequence-value` | 786 | 583 | 189 | 14 | 0.742 |
+| `empty-ctor-base` | 816 | 634 | 182 | 0 | 0.777 |
+| `framed-call` | 123 | 0 | 123 | 0 | 0.000 |
+| `fp-tail-call` | 5 | 0 | 5 | 0 | 0.000 |
+| `call-sequence` | 11 | 8 | 1 | 2 | 0.727 |
+| `call-sequence-cmp-order` | 2 | 0 | 2 | 0 | 0.000 |
+| `straight-line` | 3749 | 3749 | 0 | 0 | 1.000 |
+| `empty-body` | 9689 | 9689 | 0 | 0 | 1.000 |
+| `store-leaf` | 467 | 467 | 0 | 0 | 1.000 |
+| `indirect-load-leaf` | 9185 | 9185 | 0 | 0 | 1.000 |
+| `store-run` | 4662 | 4662 | 0 | 0 | 1.000 |
+| `float-leaf` | 450 | 450 | 0 | 0 | 1.000 |
+| `addr-leaf` | 1602 | 1602 | 0 | 0 | 1.000 |
+| **all 34 classes** | 39643 | 36228 | 2554 | 861 | 0.914 |
+
+**Classes with ZERO byte-exact functions: 5 of 34, 1106 emitted functions**
+  - `call-sequence-cmp-eq` 542
+  - `call-sequence-value-fp` 434
+  - `framed-call` 123
+  - `fp-tail-call` 5
+  - `call-sequence-cmp-order` 2

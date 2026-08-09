@@ -1,0 +1,49 @@
+## The 64-128 B bucket, where P(exact) collapses to 0.011 — WHO IS IN IT
+
+in-class 64-128 B: 708, exact 8
+
+| census key | n | exact |
+|---|---:|---:|
+| `call-sequence-value-fp` | 434 | 0 |
+| `call-sequence-value` | 140 | 0 |
+| `multiarg-tail-call` | 70 | 0 |
+| `empty-dtor-member` | 28 | 0 |
+| `empty-dtor-member-adjusted` | 25 | 0 |
+| `if-call-join` | 2 | 2 |
+| `empty-dtor-delegation` | 2 | 0 |
+| `call-sequence` | 2 | 2 |
+| `store-run-call` | 1 | 1 |
+| `static-scan-loop` | 1 | 1 |
+
+**That is the confound, named**: the bucket is dominated by the classes `w-fltret` (#2082) and `w-fltret2` (#2091) showed c2 INLINES. The prior is not a property of size; it is a property of that population, and it must be read as a LOWER bound for a body with no inlinable callee and as the right number for one with.
+
+## Predicted `fnbyte-exact` delta of transcribing each of the 16 CFG-reachable frontier candidates
+
+| TU | function | bytes | size bucket | P(exact) prior | n behind the prior |
+|---|---|---:|---|---:|---:|
+| `Biquad.cpp` | `?SetCoefficients@Biquad@DSP@@QAAXPAM@Z` | 140 | 128-256 B | 0.800 | 5 |
+| `keygen_xbox.cpp` | `?getKey@KeyChain@@YAXIPAE0@Z` | 128 | 128-256 B | 0.800 | 5 |
+| `Main.cpp` | `main` | 124 | 64-128 B | 0.011 | 708 |
+| `keygen_xbox.cpp` | `?getKeyImpl@@YAXPAEPAD0@Z` | 108 | 64-128 B | 0.011 | 708 |
+| `keygen_xbox.cpp` | `?supershuffle@@YAXPAD@Z` | 104 | 64-128 B | 0.011 | 708 |
+| `keygen_xbox.cpp` | `?random@@YAJJ@Z` | 48 | 32-64 B | 0.631 | 967 |
+| `Biquad.cpp` | `??0Biquad@DSP@@QAA@PAM@Z` | 36 | 32-64 B | 0.631 | 967 |
+| `EncryptXTEA.cpp` | `?SetNonce@XTEABlockEncrypter@@QAAXPB_KI@Z` | 32 | 32-64 B | 0.631 | 967 |
+| `Pool.cpp` | `?Alloc@Pool@@QAAPAXXZ` | 28 | 16-32 B | 0.732 | 3570 |
+| `keygen_xbox.cpp` | `?roll@@YAHH@Z` | 24 | 16-32 B | 0.732 | 3570 |
+| `Pool.cpp` | `?Free@Pool@@QAAXPAX@Z` | 24 | 16-32 B | 0.732 | 3570 |
+| `keygen_xbox.cpp` | `?swap@@YAXAAD0@Z` | 20 | 16-32 B | 0.732 | 3570 |
+| `keygen_xbox.cpp` | `?opaquePredicate@@YAXXZ` | 20 | 16-32 B | 0.732 | 3570 |
+| `wordwrap.cpp` | `?WordWrap_SetOption@@YAXI@Z` | 12 | 8-16 B | 0.966 | 19830 |
+| `EncryptXTEA.cpp` | `?SetKey@XTEABlockEncrypter@@QAAXPBE@Z` | 12 | 8-16 B | 0.966 | 19830 |
+| `vsnprnc.cpp` | `vsprintf_s` | 12 | 8-16 B | 0.966 | 19830 |
+| **sum** | | | | **10.1** | |
+
+**Predicted `fnbyte-exact` delta if all 16 were transcribed: +10 of a possible +16** (base 36,228 -> 36238, FBM 0.20243 -> 0.20247 over the fixed denominator 178,977).
+
+## The calibration this replaces guessing with
+
+| mechanism | landed today | admitted | `fnbyte-exact` delta | TUs |
+|---|---|---:|---:|---:|
+| bespoke one-function transcription | 7 classes | 7 | **+7** | +7 |
+| a wide reader admission | `w-fltret` | 444 | **+0** | +0 |
