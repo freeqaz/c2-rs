@@ -414,6 +414,24 @@ table lookup plus at most one constant test.
 
 ## 4. The in-place expansion switch (deliverable 1, third part)
 
+> **CORRECTION 2026-08-09, lane `wb-tables` (WB-J),
+> [`WB_TABLES_FINDINGS.md`](WB_TABLES_FINDINGS.md) §3.1–§3.2.** `FUN_10c182b4`
+> is **not** an expansion pass and **arm 13 is not the `rlandi` expander**.
+> `FUN_10c182b4` walks the whole instruction list **twice** (`local_c = 2`) and
+> every arm takes `&next`, which is the signature of a **peephole combiner that
+> may delete an instruction and back up**; it is called once, from
+> `FUN_10b7dd2c` @ `0x10b7dd2c`, gated on `DAT_10c2e2fc`. `FUN_10c1772b`
+> **mints no `rlwinm`, no `andi.`, no `and` and no `li`** — it folds an
+> `rlandi` with its source's *defining* instruction (a `mr` is coalesced; a
+> load lets the mask be relaxed to whichever of {original, relaxed} the cost
+> function `FUN_10c0a170` prices cheaper, **ties to the relaxed one**; an
+> `extsb`/`extsh`/`extsw` is deleted when the mask kills its bits; another
+> `rlandi` is merged). **The `rlandi` expander is `FUN_10c0a2e2` @
+> `0x10c0a2e2`**, reached from `FUN_10c0d57e` @ `0x10c0dabc` — the site
+> `WB_SELECT_FINDINGS.md` §2.4 named, and run 1 is right about it. Everything
+> else in this section (the 18 arms, the index `0x10c184a8`, the jump table
+> `0x10c18460`, the arm-13 opcode set) stands as written.
+
 WB-D §4 saw "a giant `switch` on `instr->opcode` rewriting each pseudo-op in
 situ" and did not name its table. It is **`FUN_10c182b4` @ `0x10c182b4`**:
 
@@ -544,6 +562,21 @@ written names a word (`subfic`) that is not in the obj, so it is scored a
 MISS**, per WB-D §7.4's rule. `subfic` does appear in the same compiler on the
 same day — as loop trip-count arithmetic (`d_while_u`) — so the opcode is not
 dead, it is just not on this path.
+
+> **CORRECTION 2026-08-09, lane `wb-tables` (WB-J),
+> [`WB_TABLES_FINDINGS.md`](WB_TABLES_FINDINGS.md) §3.5.** The black-box bound
+> stated in §6.1 and used in (b) below — *"in the biased cells `rlandi`'s
+> source and destination land in the same register and in the unbiased ones
+> they do not"* — is **REFUTED in both directions**. `wb-tables` cell
+> `d1_consumed` (`(x<10u?8u:0u)+y`) has a **contiguous** mask and source **and**
+> destination both `r11`, and c2 emitted `li 10,8 · and 11,11,10`; calibration
+> cell `c_and_add` (`(a & 0xf0u)+b`) has source `r3` and destination `r11`
+> (**different**) and c2 emitted `rlwinm 11,3,0,24,27`. The registers do not
+> decide it. What decides it is **whether an `addi` bias follows** — `base != 0`
+> takes the mask-shape rule, `base == 0` is always `li`+`and` — which is
+> `WB_TABLES_FINDINGS.md` §3.3 rule (B), graded 5/5 on new relational cells and
+> word-exact on four of them. The retraction below stands as a retraction; what
+> is corrected is the *bound*, not the honesty of declining to predict.
 
 **(b) S11 — `rlandi` did not become `rlwinm`.** Retracted: **this lane cannot
 predict the expanded form of an AND-with-constant.** Seven cells bound it
@@ -718,7 +751,17 @@ idiom **with no address at all**. A code lane that ships the §7.3 class needs
 | **W-SELECT-2** | **adoption-ready** | **The 13 per-operator opcode tables and the operand type index**: operator × type → PPC opcode, with the signed/unsigned split confined to `div`, `cmp` and the compare-immediate. | **`0x10c04cb9`** (the installer), `0x10c38f30`, `0x10c38f98`, `0x10c39068`, `0x10c39138`, `0x10c391a0`, `0x10c392d8`, `0x10c39340`, `0x10c393a8`, `0x10c39410`, `0x10c39478`, `0x10c394e0`, `0x10c39548`, `0x10b1fd08` (the tables); `0x10bd7c10` + `0x10bd7cf0` (the type index) | *(nothing)* | *(pending)* | **A black-box re-derivation exists and should be preferred**: one cell per operator × signedness in `grids/wb-select/`. Carry this row only if the table *contents* or the type-index *numbering* are copied. |
 | **W-SELECT-3** | **route** | **A value-producing relational is lowered by two rival hand-written expanders run first in cost-only mode, cheaper one wins, ties to `cntlzw`.** The carry expander is unsigned-only (condition codes 3–6 return "impossible"), normalises every unsigned relation to `ULE` by swapping, and emits `[li] · subfc/subfic+CA · lcarry · [rlandi A−B] · [addi B]`. | **`0x10c1b517`** (the chooser), **`0x10c1ac5c`** (carry), **`0x10c1af2d`** (`cntlzw`), `0x10c1a908` (the against-zero path), `0x10c194b8` (float), `0x10b189a4` (the signed→unsigned condition remap), `0x10b197c0`–`0x10b197f4` (the condition-code names) | *(nothing)* | *(pending)* | **The RULE is black-box** — cells S1, S2, S4, S11 and `diag.cpp`'s mask ladder exhibit it against real `c2.dll` with no address. **The COST TIE-BREAK is not**: no obj in this project separates "cntlzw was cheaper" from "carry was impossible". Grey-zone rule applies to the tie-break only. |
 | **W-SELECT-4** | **route** | **The per-operator dispatch is a `switch` on the tuple opcode with 41 arms over 174 opcodes**, and the in-place machine-opcode expansion pass has 18. | **`0x10c0f882`** (the dispatch), `0x10c0fbd6` + `0x10c0fb32` (its index and jump table), **`0x10c182b4`** (the expansion switch), `0x10c184a8` + `0x10c18460` (its index and jump table), and the arms `0x10c0634b` (add), `0x10c064cb` (sub), `0x10c067f1` (mul), `0x10c068ee` (div), `0x10c0711d` (and), `0x10c0718f` (or/xor), `0x10c0eb17` (compare), `0x10c0f1ed` (convert) | *(nothing)* | *(pending)* | Navigation. The *counts* (41, 18) are the load-bearing claim for §7.1's pattern-set size and cannot be obtained black-box. |
-| **W-SELECT-5** | **navigation, held** | **`FUN_10c1772b` @ `0x10c1772b` is the `rlandi` expander — the one unread pass between this lane's reading and a byte-exact `lower_expr`.** | `0x10c1772b`, reached from expansion-switch arm 13 (`0x10c183a3`) | *(nothing)* | — | **Not adoptable — deliberately.** Recorded so the next lane starts here instead of re-finding it. §6.3b is the obj evidence that bounds it. |
+| **W-SELECT-5** | **navigation, held** — **RELEASED 2026-08-09, see the note below** | **`FUN_10c1772b` @ `0x10c1772b` is the `rlandi` expander — the one unread pass between this lane's reading and a byte-exact `lower_expr`.** | `0x10c1772b`, reached from expansion-switch arm 13 (`0x10c183a3`) | *(nothing)* | — | **Not adoptable — deliberately.** Recorded so the next lane starts here instead of re-finding it. §6.3b is the obj evidence that bounds it. |
+
+> **AMENDMENT 2026-08-09, lane `wb-tables` (WB-J),
+> [`WB_TABLES_FINDINGS.md`](WB_TABLES_FINDINGS.md) §7.** W-SELECT-5 as written
+> names the **wrong function**: `FUN_10c1772b` is a peephole combiner, and the
+> expander is `FUN_10c0a2e2` @ `0x10c0a2e2` (§4's correction). The row is
+> **released from "held"**: with rule (S) and rule (B) obj-confirmed on 32
+> cells, `grids/wb-tables/` re-derives the whole expansion **with no address at
+> all**, so a code lane shipping it needs **no row**. Carry a row only if
+> `FUN_10c0a170`'s word prices (`0x10c0a170`) or `FUN_10c1772b`'s tie-to-the-
+> relaxed-mask are copied — neither of those is visible in any obj.
 
 **Held, not proposed.** The signedness flip (§2.5, `FUN_10c07803` and the
 nibble rewrite in `0x10c0eb17`) is read and **never obj-checked** by this lane.
