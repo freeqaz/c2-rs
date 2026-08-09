@@ -19,8 +19,8 @@
 //    callees and no defined one, the second has none at all. This is the first
 //    with a frame helper PAIR and a callee this same obj DEFINES — three REL24
 //    sites of two different kinds in one function.
-//  * **THE INLINE FENCE'S LOOP CLAUSE.** With all five bodies byte-exact this TU
-//    still refused, because `?Encipher` is 116 emitted bytes against
+//  * **THE INLINE FENCE'S LOOP CLAUSE.** With every body byte-exact the workload
+//    TU still refused, because `?Encipher` is 116 emitted bytes against
 //    `INLINE_DECLINE_BYTES`' 128 and the fence read "the port cannot prove c2
 //    kept this call". `WB_INLINE_FINDINGS` §7's MAY table licenses the answer —
 //    "a loop-bodied callee > 80 bytes is never inlined at /O1", F9 + the anchor,
