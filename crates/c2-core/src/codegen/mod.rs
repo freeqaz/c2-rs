@@ -48,6 +48,7 @@ pub mod float_walk_loop;
 pub mod ctor_forward_call;
 pub mod fp_store_diamond;
 pub mod if_call_join;
+pub mod memcpy_tail;
 pub mod labels;
 pub mod leaf;
 pub mod order;

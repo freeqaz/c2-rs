@@ -113,12 +113,12 @@ use crate::func::{GuardRetChain, GuardRetGuard, GuardRetSpine};
 /// table in [`crate::func::body::expr_opcode_name`]'s doc lists **172** for
 /// `memcpy`, and both witnesses carry `33 <int> 80 ac 00 00 00` — the varint
 /// escape form of 172 — immediately before their `40`.
-const MEMCPY_SELECTOR: i32 = 172;
+pub(crate) const MEMCPY_SELECTOR: i32 = 172;
 
 /// The lowest copy length c2 lowers to a CALL at `/O1 /Oi`. Measured, 25 cells:
 /// `work/w-ifn/probe/mcpy.cpp`. `c2_core::codegen::guard_ret_chain` re-asserts
 /// the same window, and that module's test is what stops the two drifting.
-const MEMCPY_CALL_STEP: i32 = 6;
+pub(crate) const MEMCPY_CALL_STEP: i32 = 6;
 
 /// The lexical depth the body sits at when `parse_segment_shape` dispatches:
 /// `eat_scopes` has already taken the body's own `53` and the first `if`'s.
@@ -157,7 +157,7 @@ fn eat_any_type(seg: &[u8], p: &mut usize, what: &'static str) -> Result<(u8, u8
 
 /// `B9 <tok> <TYPE>` — a value read. Returns the token and whether the type is a
 /// width-4 pointer, because for this class that decides the compare form.
-fn eat_load(seg: &[u8], p: &mut usize, what: &'static str) -> Result<(u32, bool), Block> {
+pub(crate) fn eat_load(seg: &[u8], p: &mut usize, what: &'static str) -> Result<(u32, bool), Block> {
     if !eat_byte(seg, p, 0xB9) {
         return Err(blk(seg, *p, what));
     }
@@ -168,7 +168,7 @@ fn eat_load(seg: &[u8], p: &mut usize, what: &'static str) -> Result<(u32, bool)
 }
 
 /// `33 <TYPE> <varint>` — a literal of any type. Returns the value.
-fn eat_lit_any(seg: &[u8], p: &mut usize, what: &'static str) -> Result<i32, Block> {
+pub(crate) fn eat_lit_any(seg: &[u8], p: &mut usize, what: &'static str) -> Result<i32, Block> {
     if !eat_byte(seg, p, 0x33) {
         return Err(blk(seg, *p, what));
     }
@@ -323,7 +323,7 @@ fn eat_copy(seg: &[u8], p: &mut usize) -> Result<Copy, Block> {
 }
 
 /// `55 <TYPE>` — the argument separator.
-fn eat_arg_sep(seg: &[u8], p: &mut usize, what: &'static str) -> Result<(), Block> {
+pub(crate) fn eat_arg_sep(seg: &[u8], p: &mut usize, what: &'static str) -> Result<(), Block> {
     if !eat_byte(seg, p, 0x55) {
         return Err(blk(seg, *p, what));
     }

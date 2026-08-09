@@ -825,6 +825,18 @@ pub(crate) fn shape_to_function(
                 float_walk_loop: Some(l),
                 ..IlFunction::base(name, src)
             }),
+            // **W-XTEA2 — the whole-body `memcpy` tail branch.** Nothing to
+            // resolve: like `guard_ret_chain`, its one external arrives as an
+            // intrinsic SELECTOR with no `.gl` record, so there is no token to
+            // hand `resolve` and the name is minted in `c2_core::comdat`. The
+            // reference obj's own symbol table is that statement checked against
+            // the oracle — `memcpy` is an undefined external there and appears in
+            // no `.gl` run at all (`work/w-xtea2/ref/xtea.dump`).
+            BodyShape::MemcpyTail { params, dst_off, len } => Some(IlFunction {
+                params,
+                memcpy_tail: Some(crate::func::MemcpyTail { dst_off, len }),
+                ..IlFunction::base(name, src)
+            }),
             // **W-BIQUAD — the null-guarded float-store diamond.** Nothing to
             // resolve, for the same reason the two rows above give: the class
             // references no external symbol, no data object and no callee. Its

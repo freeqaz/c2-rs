@@ -24,7 +24,8 @@ use self::shapes::{
     try_parse_ctor_forward_call,
     try_parse_fp_store_diamond,
     try_parse_fp_tail_call,
-    try_parse_indirect_load_leaf, try_parse_member_tail_call, try_parse_ptr_identity_leaf,
+    try_parse_indirect_load_leaf, try_parse_member_tail_call, try_parse_memcpy_tail,
+    try_parse_ptr_identity_leaf,
     try_parse_ptr_walk_chain_loop,
     try_parse_pool_ctor_chain, try_parse_pool_free_list,
     try_parse_guard_chain_shared_tail,
@@ -728,6 +729,21 @@ pub(crate) enum BodyShape {
     /// the compiled cell behind each, and [`crate::func::FloatWalkLoop`] for the
     /// five fields.
     FloatWalkLoop(crate::func::FloatWalkLoop),
+    /// **W-XTEA2 — the body that is nothing but a `memcpy` into the receiver**,
+    /// lowered by c2 as a TAIL BRANCH: `?SetKey@XTEABlockEncrypter`, one of the
+    /// four blocked bodies of `src/system/utl/EncryptXTEA.cpp`. See
+    /// [`super::shapes::memcpy_tail`] for the five compiled cells and every
+    /// boundary clause; the three fields are all the emitter reads.
+    MemcpyTail {
+        /// The argument registers in order — `[dst-base, src]`, which the
+        /// recognizer has already checked are r3 and r4.
+        params: Vec<u32>,
+        /// The destination member's byte offset from `params[0]`. **Zero emits
+        /// no `addi` at all** (cells `off0` and `freefn`).
+        dst_off: i32,
+        /// The copy length, the `li r5` immediate.
+        len: i32,
+    },
     /// **W-BIQUAD — the null-guarded float-store diamond**, the larger half of
     /// `src/system/synth_xbox/Biquad.cpp`. A two-armed `if`/`else` with a real
     /// join, two pooled `.rdata` constants whose `lis` land in two different
@@ -2580,6 +2596,29 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                 try_parse_float_walk_loop(seg, p, lo, depth, locals, sy.uint_locals)
             {
                 disp("disp-float-walk-loop");
+                return Ok(shape);
+            }
+            // **W-XTEA2 — the whole-body `memcpy` tail branch.** Placed LAST
+            // in this arm, after even `float_walk_loop`, and the placement is
+            // conservative rather than forced: **no body any production above
+            // accepts today can move, by construction.**
+            //
+            // The disjointness argument is available and is worth stating
+            // anyway, because it is a stronger one than most of this ladder's.
+            // This body's SECOND token is `40`, the intrinsic call token, and no
+            // production in this arm consumes a `40` at all — every one of them
+            // continues from the opening `33` literal into an operand, an
+            // operator, a `26` push or a relational opcode. So it can take a
+            // body from nothing above it and nothing above it can take one of
+            // its bodies, whichever is asked first.
+            //
+            // Non-committal on the same terms as the rest of the ladder: its own
+            // cursor, `Err` on the first byte outside its grammar, so a body
+            // that declines still reports this arm's blocker
+            // (`expr-intrinsic-memcpy`, which is what `?SetKey` read at this
+            // lane's base) and no census key moves.
+            if let Ok(shape) = try_parse_memcpy_tail(seg, p, lo, depth) {
+                disp("disp-memcpy-tail");
                 return Ok(shape);
             }
             let (ops, cls) = parse_expr_classed(seg, &mut p, 0x41)?;

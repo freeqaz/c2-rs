@@ -500,6 +500,7 @@ pub fn splice_callee_why<'a>(
         // have to reproduce a prologue that calls out of the function.
         Selected::XlrcCreateGuard => return Err("S3-xlrc-create-guard"),
         Selected::JsonUtf8Copy => return Err("S3-json-utf8-copy"),
+        Selected::MemcpyTail(_) => return Err("S3-memcpy-tail"),
         Selected::Seq { setups, .. } => {
             let Some(seq) = f.call_seq.as_ref() else {
                 return Err("S1-seq-without-call-seq");
