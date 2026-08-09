@@ -165,6 +165,7 @@ the header block this table is read from.
 | 2026-08-08 | w-undname | [w-undname](2026-08-08-w-undname.md) | 2 | 711,490 / 2,463,443 → 711,491 / 2,463,443 (28.88 % → 28.88 %), |
 | 2026-08-08 | w-value | [w-value](2026-08-08-w-value.md) | 2 | 711,494 / 2,463,443 unchanged (28.88 %), **+0**; emitted |
 | 2026-08-08 | w-xlr | [w-xlr](2026-08-08-w-xlr.md) | 2 | 711,492 / 2,463,443 → 711,493 / 2,463,443 (28.88 % → 28.88 %), |
+| 2026-08-09 | W-BAND | [w-band](2026-08-09-w-band.md) | 15 | 712,237 / 2,463,443 unchanged (28.91 %), +0 — no widening is built here |
 | 2026-08-09 | w-bdnz | [w-bdnz](2026-08-09-w-bdnz.md) | 3 | 711,514 / 2,463,443 unchanged (28.88 %), **+0**; emitted |
 | 2026-08-09 | WB-I-R2 | [wb-select2](2026-08-09-wb-select2.md) | 11 | +0 — WHITEBOX/navigation lane, adopts nothing into crates/ |
 | 2026-08-09 | WB-I | [wb-select](2026-08-09-wb-select.md) | 11 | +0 — WHITEBOX/navigation lane, adopts nothing into crates/ |
