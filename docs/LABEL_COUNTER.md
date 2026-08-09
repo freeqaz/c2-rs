@@ -1,5 +1,33 @@
 # The compiler-label counter — measured seed-free
 
+> ## ⚠ BANNER, 2026-08-09 — THIS DOCUMENT'S TABLES ARE RIGHT AND FOUR LANES MEASURED THEM WRONG
+>
+> **Lane `wb-label` (WB-J), board #2430–#2440, `docs/whitebox/WB_LABEL_FINDINGS.md`,
+> §7 below.** Between 2026-08-08 and 2026-08-09 four consecutive lanes reported
+> this document's surcharges as wrong — by 2 (`w-json`), by six (`w-bdnz`), by
+> nine (`w-blockir`) and by a refuted rule (`w-osfinfo` #1761). **Every one of
+> their numbers is a real reading and none of them is the charge this document
+> tabulates.** They used `w-json`'s **counterfactual** form, which measures
+> `Δseed + Δcharge`; the seed is a function of the **source text**, because
+> `c1xx` and `c2` share one symbol-id space and the front end numbers its own
+> labels first.
+>
+> **The one row that settles it:** eight *unused declarations*, emitting not one
+> instruction, move the counterfactual reading by **+16** while the true in-TU
+> stride stays **1**. And `w-bdnz`'s `+7` is reproduced to the digit with a true
+> charge of **+2** — §4.2.1's `for` row, the row that lane called six low.
+>
+> * **Do not use the counterfactual form.** Put the subject in the **MIDDLE** of
+>   a four-function TU (`a0 · P · a1 · a2`) and read the in-obj stride.
+>   `scripts/gt_label_stride.py` already does exactly this.
+> * **Read the `minted` column** — §4's warning box, which is the column a
+>   re-derivation drops.
+> * §4's `for`/`while`/`do/while`/`switch` rows are **confirmed**, and §7 adds
+>   the **EH row this document has never had** and a `/O1` additivity rule
+>   graded 6/6 on held-out compositions.
+>
+> Nothing below is edited. §7 is appended.
+
 The `$M`/`$T` numbers c2 stamps into the symbol table come from one running
 counter. Getting it wrong is six wrong bytes in an obj that still links, and it
 has been wrong three times: the `/Gy` framed stride (5, actually 7 for
@@ -297,6 +325,21 @@ it.**
 ---
 
 ## 4. Uncharacterized, and therefore refuse rather than guess
+
+> **⚠ 2026-08-09, lane `wb-label` (#2430–#2440) — the `for` row is NOT six low,
+> and the four lanes that said so were reading a different quantity.** `for` +2
+> at `/O1` is **reproduced exactly** here (`ctl-for`: stride 9, `minted` 7, so
+> `9 − 5 − 2 = 2`), as are `while` +2, `do/while` +1, `leaf-forever` +3 and the
+> branch-free `mulli` body's +2. **`w-bdnz`'s +7 is reproduced to the digit and
+> its true stride charge is +2.** See the banner at the top and §7.
+>
+> The `/Ox` loop row's *"wildly different from `/O1`"* is confirmed and is now
+> four magnitudes wide (10, 3, 7, 10 across four loop bodies at `/Ox`) — the
+> keyword predicts nothing at `/Ox`, and §7.4 says so with a held-out score.
+>
+> The EH row's *"MODE-DEPENDENT … a second independent reason
+> `IlFunction::label_slots` must stay `None` (#1983)"* — **that verdict stands
+> and its reason is replaced by a stronger one in §7.6.**
 
 | construct | measured | status |
 |---|---|---|
@@ -4982,3 +5025,188 @@ at the default `k = 0..8` in both modes, **every verdict line is byte-identical*
 to the version at `HEAD`, the only difference being the added SPLIT SUMMARY
 block. The `/Ox` run at `--max 6` rather than 12 rests on §6.15.4's measured
 "no N-dependence whatsoever at `/Ox`" and is stated here rather than assumed.
+
+---
+
+# 7. The counter itself — one global, one increment instruction, and an id space shared with the front end (2026-08-09, lane `wb-label`, WB-J)
+
+**Board #2430–#2440. Record: `docs/whitebox/WB_LABEL_FINDINGS.md`. PREREGs:
+`docs/whitebox/WB_LABEL_PREREG.md` (frozen before the first export grep),
+`_R2.md` (before the first `cl.exe`), `_R3.md` (before the held-out cells). Raw
+output: `work/wb-label/RESULTS.md`.**
+
+This section is **appended**; §0–§6 are untouched. It exists because four
+consecutive lanes measured this document's surcharges wrong in four different
+ways, and the cause turned out to be one sentence about how the number is made.
+
+## 7.1 The mechanism
+
+> **`c1xx` and `c2` share one symbol-id space.** The front end numbers the
+> symbols and labels **it** creates, writes those ids into the IL, and hands c2
+> the next free value in `.gl` (`coff::LABEL_SEED_GAP`'s input). c2 sets its
+> counter to that value and allocates upward **only for labels it invents**;
+> labels that arrive in the IL come with their ids already assigned and cost
+> **nothing**.
+
+Read off `c2.dll` (image sha256 `c80981…6258`; provenance and VAs in
+`WB_LABEL_FINDINGS.md` §1, disclosure pre-drafts in its §8):
+
+* the counter is one 32-bit TU-global, `DAT_10c2edd0`;
+* it is incremented at **exactly one instruction**, `inc DWORD PTR
+  ds:0x10c2edd0` at `0x10b97de5`, inside a 28-byte "take a number" routine at
+  `0x10b97dd0` that **faults with internal error `0x37` if the counter is still
+  0** — which is the proof that it is *seeded*, not zeroed;
+* that routine has **31 direct call sites**, one of which is the generic label
+  constructor at `0x10b9a455`, itself called **132 times from 86 distinct
+  functions**;
+* the seed-install path adds **no constant**, so
+  **`LABEL_SEED_GAP = 9` is nine allocations c2 makes before the first
+  function**, not an offset. (Which nine is **not** enumerated — see §7.7.)
+
+**Three published puzzles are consequences of that one sentence:**
+
+1. **Why the charge is not a function of the emitted object** (§4.1, §4.2.2). It
+   is the difference between two label *sets*, one of them the front end's; the
+   folds that produce the final bytes happen after both.
+2. **Why a 12-arm jump-tabled `switch` costs +1, not +13.** The arm labels
+   arrive pre-numbered. **Measured: lead 1 at `/O1`, 3 at `/Ox`** — §4's
+   *"a jump-tabled switch is still unknown"* row is now filled.
+3. **Why the `goto` spelling of §4.2.2's triple costs what `do/while` costs.**
+   Its loop-top label prints in the `/FAsc` listing as **`$top$2561`** — a
+   *source* name carrying a **front-end** id, **below that TU's first c2 label
+   (2613)**. c2 never allocated it.
+
+## 7.2 The instrument that four lanes used, and what it measures
+
+`w-json`'s **counterfactual** form (`[subject, control]` against
+`[leaf, control]`, lead read off the control's `$M`) measures
+**`Δseed + Δcharge`**. Both TUs are different source texts, so both have
+different seeds. Measured side by side with the in-the-middle form, same bodies,
+same flags (`work/wb-label/seedgrid.py`):
+
+| cell | body | counterfactual lead | **true in-TU stride** | true charge |
+|---|---|---:|---:|---:|
+| `s_ctl` | `return a+1;` | — | 1 | 0 |
+| **`s_decl8`** | **the same body** + 8 unused declarations | **+16** | **1** | **0** |
+| `s_loc2` | 2 unused locals, straight line | +2 | 1 | 0 |
+| **`s_loc8`** | 8 unused locals, straight line | **+8** | **1** | **0** |
+| **`s_loop`** | `w-bdnz`'s `for` cell | **+7** | **3** | **+2** |
+| `s_dowhile` | the `do/while` spelling | +5 | 2 | +1 |
+
+**Eight declarations that emit not one instruction move the counterfactual
+reading by sixteen and the true charge by zero.** `w-bdnz`'s own `lab_forever`
+row — *"two `int` locals cost +2 with no loop"* — is `s_loc2`, and its true
+charge is 0.
+
+## 7.3 The `/FAsc` listing is CLOSED as a route to the charge
+
+The listing was the second instrument this settlement was sent to try, and it
+fails at the byte level on §4.2.2's own triple:
+
+```text
+  p_dowhile   stride 2   prints one label:  $LL3@p_dowhile
+  p_forever   stride 4   prints one label:  $LL3@p_forever
+  p_goto      stride 2   prints one label:  $top$2561
+  p_mulli     stride 3   prints NO label
+```
+
+Two bodies with **identical 24 `.text` bytes** and **different charges** print
+the *same* label name at the *same* index. `$LN`/`$LL`/`$LC` numbers come from a
+**second, per-function** counter (`DAT_10c2e918`, reset to 1 at `0x10b7e113`)
+that counts label *objects* — including the ones the IL supplied for free — so
+`stride ≥ max($LN)` fails on the very first row. `CFG_SHAPE.md` §7's *"nothing
+should be derived from the numbers"* is upheld **for this purpose**, and the
+reason is now known rather than cautionary.
+
+## 7.4 What IS predictable: `/O1` construct-additivity, graded on a holdout
+
+Primitive leads over a framed base, `/O1 /GS- /c`, in-the-middle form,
+`minted` surcharge 0 on every row:
+
+| construct | `if` | `if/else` | `switch` (12 sparse arms) | `do/while` | `for` | `while` |
+|---|---:|---:|---:|---:|---:|---:|
+| **`/O1` lead** | **0** | **0** | **1** | **1** | **2** | **2** |
+
+Six **compositions**, predicted as `Σ lead` and **frozen in
+`WB_LABEL_PREREG_R3.md` before they were compiled**:
+
+| composition | predicted | actual `/O1` | predicted | actual `/Ox` |
+|---|---:|---:|---:|---:|
+| `if` in a `while` | 2 | **2** ✓ | 11 | 3 ✗ |
+| `if/else` in a `for` | 2 | **2** ✓ | 10 | 3 ✗ |
+| two sequential `if`s | 0 | **0** ✓ | 2 | 1 ✗ |
+| `switch` in a `while` | 3 | **3** ✓ | 13 | 6 ✗ |
+| `for` in a `for` | 4 | **4** ✓ | 20 | 10 ✗ |
+| `do/while` in an `if` | 1 | **1** ✓ | 2 | **2** ✓ |
+
+> **`/O1`: 6 of 6. `/Ox`: 1 of 6.** Construct-additivity holds at `/O1` and
+> fails at `/Ox`, and the `/Ox` failure has a visible cause: the same `for` loop
+> leads **10** with an empty body and **3** with an `if` in it. At `/Ox` a
+> loop's charge is a property of what the unroller did.
+
+**This is a measurement aid, not an emission rule** — see §7.6.
+
+## 7.5 The EH row this document has never had
+
+A `try` with **two** `catch` handlers, in-the-middle form, `/EHsc`:
+
+| mode | `stride` | `minted` | lead over the framed base |
+|---|---:|---:|---:|
+| `/O1 /GS- /EHsc /c` | **28** | **28** | **+23** |
+| `/Ox /GS- /EHsc /c` | **25** | **24** | **+21** |
+
+**`stride == minted` at `/O1`.** EH charge is almost entirely a *minting*
+charge — every slot buys a symbol record — which is why it is the **only** shape
+this lane predicted correctly before compiling (28 and 25, both exact, from
+`EH_RECORDS.md` §9.8's `11 + 5·S + E`) while five non-EH cells missed by up to a
+factor of three. **The minting population is computable; the internal population
+is not.**
+
+## 7.6 The procedure a conversion lane should use, and `label_slots`' parameters
+
+1. **Never the counterfactual form.** §7.2.
+2. **Subject in the MIDDLE**, one TU per subject: `a0 · P · a1 · a2`.
+   `scripts/gt_label_stride.py` implements it; `work/wb-label/labgrid.py` is a
+   short copy for new probes.
+3. **`base` is measured in the same obj** (`first(a2) − first(a1)`) and must be
+   5 under `/Gy` / 4 packed. If it is not, the row is void.
+4. **Subtract the `minted` surcharge** before calling anything a control-flow
+   lead — §4's warning box, and `ctl-for` (stride 9, `minted` 7, control-flow
+   part **2**) is the worked example.
+5. A once-per-TU slot is invisible if the subject is **first** (`w-ifn`), and a
+   wrong charge on the **last** function moves nothing (`w-blockir` #2305).
+   Step 2 fixes both by construction.
+6. **At `/O1` predict with §7.4's table, then confirm with ONE compile.
+   At `/Ox` measure.**
+
+> **`IlFunction::label_slots` needs NEITHER a mode parameter NOR a sub-shape
+> parameter, and `w-bdnz`'s `None` (#1983) SURVIVES with a stronger reason.**
+> The charge is *the number of labels c2 invents beyond the ones the IL already
+> numbered*, and **no IL field carries that number**. A mode arm would be right
+> at one `/O` level; a **sub-shape** arm would be worse, because `w-blockir`'s
+> "sub-shape dependence" was **the seed** (one more array parameter = one more
+> front-end symbol), so the arm would be fitted to an artifact. #1761 is the
+> standing precedent for what a fit here costs.
+>
+> A class may ship a **measured constant** obtained by steps 1–5, and nothing
+> else. `None` remains correct for every unmeasured class. **This lane changed
+> no line of `crates/`.**
+
+## 7.7 What §7 leaves NOT MODELLED
+
+| # | open |
+|---|---|
+| 1 | **Which nine.** `LABEL_SEED_GAP = 9` is nine allocations; they are not enumerated, and whether the nine moves for a TU with different section needs (a defined global, a string pool, `/GF`) is **unvaried**. |
+| 2 | **The `/Gy` "+3 per function"** is re-confirmed on **22 of 22** rows here — `first(a0)` at `/O1` minus at `/Ox` is `3 × nfuncs` on every one, EH and switch and loops included — but *what* the three are is not read out of the binary. |
+| 3 | **The `/Ox` loop charge**: four magnitudes (10, 3, 7, 10), no rule, and none proposed. |
+| 4 | **A third once-per-TU minting slot.** `_fltused` and `memcpy` are the two known; §7.1's mechanism says the list is **open**, not closed. |
+| 5 | **`w-json`'s 4** is reconciled in kind but not in arithmetic — its cells were not recompiled. |
+
+## 7.8 Reproduction
+
+```sh
+export C2RS_WIBO=<the repo's resolved wibo>
+work/wb-label/labgrid.py                 # the whole grid, both modes, in-the-middle
+work/wb-label/seedgrid.py                # the counterfactual beside the in-the-middle
+c2rs listing work/wb-label/probe/triple.cpp --flag /O1 --flag /GS- --flag /c
+```
