@@ -1,4 +1,4 @@
-== /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a5142b693877d6c0e/work/w-mmioclose/probe/inl_o1.obj  machine=0x01f2 nsec=21 nsym=64 size=2791
+== work/w-mmioclose/probe/inl_o1.obj  machine=0x01f2 nsec=21 nsym=64 size=2791
 -- .text #5 (8 B) ?k1@@YAHH@Z
    0000  38600000  li 3, 0                         
    0004  4e800020  blr                             

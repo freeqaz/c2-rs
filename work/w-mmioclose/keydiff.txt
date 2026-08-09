@@ -1,0 +1,4 @@
+fn_blockers: 634 keys base, 634 keys tip, 0 moved; totals 1751190 -> 1751190
+emit_blockers: 613 keys base, 613 keys tip, 0 moved; totals 113646 -> 113646
+fn_dispatch: 840 keys base, 840 keys tip, 0 moved; totals 6678130 -> 6678130
+fn_gate_refusals: ABSENT from both scans
