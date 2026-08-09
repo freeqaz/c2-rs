@@ -1,0 +1,13 @@
+fnbyte-differs rows in the scan: 2555
+…of which this lane's converted names: 444
+     434  ?SplitMs@Timer@@QAAMXZ
+      10  ?at@?$vector…
+
+port words / ref words, and the direction:
+   shape=seq  port=13  ref=31    x434
+   shape=seq  port=17  ref=12    x6
+   shape=seq  port=17  ref=13    x4
+
+rows where c2 has words the port does not (`del`>0): 434
+rows where the port has words c2 does not (`ins`>0): 10
+rows byte-equal on the FIRST word: 0

@@ -1,0 +1,153 @@
+census in-class 711514 / 2463443
+emitted in-class 39200 / 178977
+family expr-call-in-expr: bodies 423905 emitted 35576
+
+-- R2's population, by the census keys w-callprice §7 names
+     105 emitted     1472 bodies  735 TUs  expr-call-in-expr-chained-then-type-real-whole
+     439 emitted      933 bodies  714 TUs  expr-call-in-expr-recv-load-then-type-real-whole
+       1 emitted        1 bodies    1 TUs  expr-call-in-expr-recv-object-then-type-real-whole
+  R2 TOTAL: 545 emitted / 2406 bodies
+
+-- every `-type-real` key in the family (the wider FP row)
+  60 keys, 9547 bodies, 1211 emitted
+
+-- the FP fences, as census keys
+       1 emitted        1 bodies    1 TUs  result-type-0x33
+       1 emitted      810 bodies  809 TUs  result-type-0x41
+
+-- the `prod` tags this lane moves
+         1  chain-recv-not-a-plain-b9-load/no-b9-plain-call|BLOCKED|result-type-0x33
+      1472  chain-returned-body-does-not-end-at-the-call
+      1472  chain-returned-body-does-not-end-at-the-call|BLOCKED
+      1472  chain-returned-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-chained-then-type-real-whole
+         2  chain-tail-designator-has-no-result-type
+         2  chain-tail-designator-has-no-result-type|BLOCKED
+         2  chain-tail-designator-has-no-result-type|BLOCKED|expr-cmp-eq
+       728  chain-void-body-does-not-end-at-the-call
+       728  chain-void-body-does-not-end-at-the-call|BLOCKED
+         2  chain-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-chained-then-chain-bind-and-deref-load-more
+         1  chain-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-chained-then-chain-bind-whole
+         1  chain-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-chained-then-off-add-and-call-more
+         1  chain-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-chained-then-off-add-and-chain-bind-more
+       723  chain-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-chained-then-plumbing-0x3A
+      1243  tail-returned-body-does-not-end-at-the-call
+      1243  tail-returned-body-does-not-end-at-the-call|BLOCKED
+         1  tail-returned-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-data-addr-1sym-and-type-int1-whole2
+         1  tail-returned-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-data-addr-2sym-and-type-int1-whole2
+       826  tail-returned-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-plumbing-0x3A
+       406  tail-returned-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-type-int1-whole
+         3  tail-returned-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-type-real-whole
+         5  tail-returned-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-type-int1-whole
+         1  tail-returned-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-type-real-whole
+    159068  tail-void-body-does-not-end-at-the-call
+    159068  tail-void-body-does-not-end-at-the-call|BLOCKED
+    102372  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+         4  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-branch-brfalse
+      9708  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-data-addr-1sym-whole
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-data-addr-2sym-whole
+       294  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-data-addr-and-call-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-data-addr-and-deref-load-more
+        10  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-data-addr-and-off-add-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-data-addr-and-temp-bind-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-nested-call-and-call-more
+         4  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-nested-call-and-deref-load-more
+         3  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-nested-call-and-off-add-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-nested-call-and-type-int1-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-nested-call-and-type-real-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-op-0x38
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-op-0x9B
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-other
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-recv-intrinsic-base-member-addr-and-plumbing-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-recv-intrinsic-this-adjust-and-call-more
+        21  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-recv-intrinsic-this-adjust-and-chain-bind-more
+         2  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-recv-object-and-call-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-recv-object-and-op-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-chain-bind-and-call-more
+         3  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-cmp-gt-and-branch-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-cmp-lt-and-branch-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-cmp-ne-and-branch-more
+        24  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-deref-load-more
+        21  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-intrinsic-call
+         2  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-off-add-and-call-more
+         9  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-off-add-and-chain-bind-more
+         2  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-off-add-and-chain-bind-whole2
+        20  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-off-add-and-deref-load-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-off-add-and-deref-load-whole2
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-off-add-and-deref-load-whole3
+         2  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-off-add-and-temp-bind-more
+         2  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-off-add-and-type-int1-whole2
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-off-add-and-type-int1-whole4
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-off-add-and-type-int2-more
+         2  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-off-add-and-type-real-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-off-add-and-virtual-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-off-add-more
+       469  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-off-add-whole
+         3  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-op-0x33
+      4325  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-plumbing-0x3A
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-temp-bind
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-type-int1-and-branch-more
+         3  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-type-int1-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-type-int1-whole
+       219  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-type-real-lit-and-op-more
+         4  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-type-real-lit-and-type-real-more
+       714  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-type-real-whole
+         6  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-virtual
+     11824  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-whole
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-branch-brfalse
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-branch-brtrue
+         2  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-chained-and-branch-more
+       715  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-chained-and-deref-load-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-chained-and-op-more
+         4  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-chained-more
+         4  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-data-addr-and-call-more
+         2  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-data-addr-and-chain-bind-more
+        18  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-data-addr-and-deref-load-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-data-addr-and-off-add-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-data-addr-and-plain-call-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-data-addr-and-plumbing-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-data-addr-and-type-aggregate-more
+      2152  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-nested-call-and-call-more
+         7  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-nested-call-and-call-whole2
+      1410  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-nested-call-and-call-whole3
+         2  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-nested-call-and-call-whole4
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-nested-call-and-plumbing-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-nested-call-and-type-int1-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-nested-call-and-type-real-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-nested-call-whole
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-op-0x05
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-op-0x08
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-op-0x38
+         6  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-op-0x67
+     18912  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-recv-object-more
+         3  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-chain-bind-and-branch-more
+        12  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-chain-bind-and-call-more
+        25  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-chain-bind-and-deref-load-more
+         5  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-chain-bind-and-type-ptr-more
+      2984  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-deref-load-more
+       106  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-intrinsic-call
+         5  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-off-add-and-call-more
+         2  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-off-add-and-chain-bind-more
+       729  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-off-add-and-deref-load-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-off-add-and-deref-load-whole4
+         6  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-off-add-and-op-more
+         3  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-off-add-and-type-aggregate-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-off-add-and-type-aggregate-whole2
+         5  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-off-add-and-type-int1-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-off-add-and-type-real-lit-more
+         2  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-off-add-and-type-real-more
+         2  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-off-add-more
+         3  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-op-0x29
+         5  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-op-0x33
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-op-0x5C
+       134  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-op-0xB9
+         4  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-plain-call-more
+      1472  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-plumbing-0x3A
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-type-int1-and-op-more
+       195  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-type-ptr-and-op-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-type-real-and-op-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-type-real-and-type-real-lit-more
+         1  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-type-real-lit-and-type-real-more
+        14  tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-virtual
+
+-- `recv-load-whole` and `chained-*-whole`, the int siblings
+    1498 emitted    18290 bodies  813 TUs  expr-call-in-expr-recv-load-whole

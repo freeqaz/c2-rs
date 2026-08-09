@@ -1,0 +1,26 @@
+census  1767 -> 1775  (+8)
+emitted 1767 -> 1775  (+8)
+denominators: fn 2737 -> 2737 ; emit 2736 -> 2736
+
+== fn: 203 keys base, 203 keys tip, 3 moved, 0 appeared, 0 vanished
+         -5         8 -> 3        expr-call-in-expr-recv-load-then-type-real-whole
+         -2        10 -> 8        expr-call-in-expr-recv-load-whole
+         -1         3 -> 2        result-type-0x41
+
+== em: 202 keys base, 202 keys tip, 3 moved, 0 appeared, 0 vanished
+         -5         8 -> 3        expr-call-in-expr-recv-load-then-type-real-whole
+         -2        10 -> 8        expr-call-in-expr-recv-load-whole
+         -1         3 -> 2        result-type-0x41
+
+== prod: 213 keys base, 213 keys tip, 8 moved, 1 appeared, 1 vanished
+         +7       239 -> 246      prod-accepted
+         -7        20 -> 13       tail-void-body-does-not-end-at-the-call
+         -7        20 -> 13       tail-void-body-does-not-end-at-the-call|BLOCKED
+         +5         0 -> 5        prod-accepted|INCLASS|call-sequence-value-fp
+         -5         7 -> 2        tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-type-real-whole
+         +2        46 -> 48       prod-accepted|INCLASS|call-sequence-value
+         -2         2 -> 0        tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-whole
+         -1       671 -> 670      prod-not-entered|BLOCKED
+
+== per-TU verdict set: 1 changed, 0 only-in-base, 0 only-in-tip
+   fixtures/cpp/wfltret_value_tail.cpp: vocab-gap -> match
