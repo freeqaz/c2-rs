@@ -604,6 +604,7 @@ impl PortC2 {
                     text_offset: 0,
                     calls: body.calls,
                     is_float: f.touches_floating_point(),
+                    mints_memcpy: f.mints_memcpy(),
                     fp_refs: Vec::new(),
                     data_refs: body.data_refs,
                     data_defs: body.data_defs,
@@ -930,6 +931,25 @@ impl PortC2 {
                         Vec::new(),
                     )
                 }
+                // **W-IFN — refused in the PACKED layout, for W-XLR's reason.**
+                // Its one external is MINTED rather than IL-named, and c2 places
+                // a minted external after the `$T` label — measured,
+                // `work/w-ifn/probe/lab_z.cpp` puts `memcpy` after the first
+                // user's `$T2587` while the IL-named `?gz@@YAHH@Z` sits between
+                // that function's two `$M`s. The packed symbol table has no `$T`
+                // and therefore no measured slot for it. Unreachable as written
+                // — the class is `/O1` only and `/O1` implies `/Gy`
+                // (`docs/OPT_MODE.md` §3.3) — and a named refusal rather than an
+                // `unreachable!()` because an unreachable arm that becomes
+                // reachable is how a guessed layout ships.
+                codegen::Selected::GuardRetChain => {
+                    return Err(BackendError::NotImplemented(
+                        "the minted-external class in the PACKED (non-`/Gy`) \
+                         layout: `memcpy` is witnessed only after a `$T` label, \
+                         which the packed symbol table does not have"
+                            .to_string(),
+                    ));
+                }
                 codegen::Selected::IfCallJoin => {
                     let j = f.if_call_join.as_ref().expect("IfCallJoin implies if_call_join");
                     let body = codegen::if_call_join::if_call_join_text(j, off, mode)?;
@@ -980,6 +1000,7 @@ impl PortC2 {
                 text_offset: off,
                 calls,
                 is_float: f.touches_floating_point(),
+                mints_memcpy: f.mints_memcpy(),
                 fp_refs,
                 data_refs,
                 data_defs: Vec::new(),

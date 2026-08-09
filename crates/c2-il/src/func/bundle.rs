@@ -1357,6 +1357,21 @@ pub(crate) fn shape_to_function(
                     ..IlFunction::base(name, src)
                 })
             }
+            // **W-IFN.** The ONLY body class here that resolves NOTHING: it
+            // names no data symbol and no callee token, because the one external
+            // it calls arrives as an intrinsic SELECTOR (`40` with 172) and has
+            // no `.gl` record at all — checked, `work/w-ifn/il/`'s capture of
+            // `mmio.cpp` has no `memcpy` string in its `.gl` while the obj
+            // carries it as an undefined external. So `data_syms` stays empty
+            // and `callees()` gains no arm; the name is minted by the emitter
+            // (`c2_core::codegen::guard_ret_chain::MEMCPY_NAME`). A class that
+            // put it on `callees()` would fail the accounting gate the other
+            // way — it would claim a `.gl` name that is not there.
+            BodyShape::GuardRetChain(g) => Some(IlFunction {
+                params: g.params.clone(),
+                guard_ret_chain: Some(g),
+                ..IlFunction::base(name, src)
+            }),
             // **W-XLR.** Two callee tokens and nothing else: this class names no
             // data symbol, and its two frame helpers are minted by
             // `c2_core::codegen::FrameLayout` from `saved_gprs` rather than read

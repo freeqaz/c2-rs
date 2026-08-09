@@ -1,0 +1,21 @@
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=160 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .XBLD$W                                  sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [10] __C1_11886                               sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [11] .text                                    sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=84 nrel=1 nln=0 cksum=0x00000000 num=0 sel=1)
+  [13] wifn_get_info                            sec=5   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [14] $M2580                                   sec=5   val=0x54     sc=LABEL     type=0x0000 naux=0
+  [15] memcpy                                   sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [16] $M2579                                   sec=5   val=0xc      sc=LABEL     type=0x0000 naux=0
+  [17] .pdata                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0x35a8ef93 num=5 sel=5)
+  [19] $T2581                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=0
+  [20] .text                                    sec=7   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=108 nrel=1 nln=0 cksum=0x00000000 num=0 sel=1)
+  [22] wifn_set_info                            sec=7   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [23] $M2585                                   sec=7   val=0x6c     sc=LABEL     type=0x0000 naux=0
+  [24] $M2584                                   sec=7   val=0x10     sc=LABEL     type=0x0000 naux=0
+  [25] .pdata                                   sec=8   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0x354f57be num=7 sel=5)
+  [27] $T2586                                   sec=8   val=0x0      sc=STATIC    type=0x0000 naux=0

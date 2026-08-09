@@ -1,0 +1,3 @@
+TUs base 878  tip 878
+  only-in-base 0   only-in-tip 0   changed 1
+    CHANGED  src/xdk/nuispeech/mmio.cpp  ('vocab-gap', 8, 11) -> ('vocab-gap', 10, 11)

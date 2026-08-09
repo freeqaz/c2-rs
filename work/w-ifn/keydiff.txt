@@ -1,0 +1,11 @@
+fn_blockers: 636 keys base, 636 keys tip, 1 moved; totals 1751228 -> 1751226
+    expr-cmp-eq: 19308 -> 19306
+emit_blockers: 615 keys base, 615 keys tip, 1 moved; totals 113684 -> 113682
+    expr-cmp-eq: 2380 -> 2378
+fn_dispatch: 841 keys base, 843 keys tip, 5 moved; totals 6678168 -> 6678166
+    disp-expr-load: 396124 -> 396122
+    disp-expr-load|BLOCKED: 396124 -> 396122
+    disp-expr-load|BLOCKED|expr-cmp-eq: 19291 -> 19289
+    disp-guard-ret-chain: 0 -> 2
+    disp-guard-ret-chain|INCLASS|guard-ret-chain: 0 -> 2
+fn_gate_refusals: ABSENT from both scans

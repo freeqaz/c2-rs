@@ -784,6 +784,15 @@ impl IlBundle {
                             Ok(BodyShape::OsfHandleGuard(_)) => {
                                 FnVerdict::InClass("osf-handle-guard")
                             }
+                            // **W-IFN** — its own bucket for the same reason,
+                            // and one more: it is the first in-class shape that
+                            // calls a function the IL never NAMES (an intrinsic
+                            // selector), so a census that folded it in with a
+                            // neighbouring framed shape could not report the
+                            // minted-external rung separately.
+                            Ok(BodyShape::GuardRetChain(_)) => {
+                                FnVerdict::InClass("guard-ret-chain")
+                            }
                             // **W-XLR** — its own bucket for the same reason,
                             // and one more: it is the first in-class shape whose
                             // FRAME is a different class (the `__savegprlr_N`

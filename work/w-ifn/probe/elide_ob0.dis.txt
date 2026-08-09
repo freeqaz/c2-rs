@@ -1,0 +1,50 @@
+== work/w-ifn/probe/elide_ob0.obj  machine=0x01f2 nsec=24 nsym=75 size=3226
+-- .text #6 (8 B) ?e1k@@YAHHHHH@Z
+   0000  38600000  li 3, 0                         
+   0004  4e800020  blr                             
+-- .text #7 (4 B) ?e1@@YAXH@Z
+   0000  4e800020  blr                             
+-- .text #8 (20 B) ?e2k@@YAHH@Z
+   0000  3d400000  lis 10, 0                         ; REFHI -> [11] ?e2g@@3HA  ; PAIR -> [0] @comp.id
+   0004  7c6b1b78  mr	11, 3                        
+   0008  38600000  li 3, 0                         
+   000c  916a0000  stw 11, 0(10)                     ; REFLO -> [11] ?e2g@@3HA  ; PAIR -> [0] @comp.id
+   0010  4e800020  blr                             
+-- .text #9 (4 B) ?e2@@YAXH@Z
+   0000  48000000  b .+0                             ; REL24 -> [23] ?e2k@@YAHH@Z
+-- .text #10 (4 B) ?e3@@YAXH@Z
+   0000  48000000  b .+0                             ; REL24 -> [30] ?e3k@@YAHH@Z
+-- .text #11 (8 B) ?e4k@@YAHH@Z
+   0000  38600000  li 3, 0                         
+   0004  4e800020  blr                             
+-- .text #12 (4 B) ?e4@@YAHH@Z
+   0000  48000000  b .+0                             ; REL24 -> [33] ?e4k@@YAHH@Z
+-- .text #13 (8 B) ?e5k@@YAHH@Z
+   0000  38600000  li 3, 0                         
+   0004  4e800020  blr                             
+-- .text #14 (4 B) ?e5@@YAXH@Z
+   0000  4e800020  blr                             
+-- .text #15 (8 B) ?e6k@@YAHH@Z
+   0000  38630001  addi 3, 3, 1                    
+   0004  4e800020  blr                             
+-- .text #16 (4 B) ?e6@@YAXH@Z
+   0000  4e800020  blr                             
+-- .text #17 (4 B) ?e7k@@YAHH@Z
+   0000  48000000  b .+0                             ; REL24 -> [52] ?e7x@@YAHH@Z
+-- .text #18 (4 B) ?e7@@YAXH@Z
+   0000  48000000  b .+0                             ; REL24 -> [51] ?e7k@@YAHH@Z
+-- .text #19 (8 B) ?e8k@@YAHH@Z
+   0000  38600000  li 3, 0                         
+   0004  4e800020  blr                             
+-- .text #20 (4 B) ?e9k@@YAXH@Z
+   0000  4e800020  blr                             
+-- .text #21 (8 B) ?e9@@YAHH@Z
+   0000  38600007  li 3, 7                         
+   0004  4e800020  blr                             
+-- .text #22 (8 B) ?e10k@@YAHH@Z
+   0000  38600000  li 3, 0                         
+   0004  4e800020  blr                             
+-- .text #23 (4 B) ?e10@@YAHH@Z
+   0000  48000000  b .+0                             ; REL24 -> [71] ?e10x@@YAHH@Z
+-- .text #24 (4 B) ?e8@@YAXH@Z
+   0000  4e800020  blr                             

@@ -64,11 +64,36 @@ pub fn plan_labels(counter: u32, funcs: &[Function], comdat: bool) -> Vec<Option
     // surcharge table that actually fits — but no new class may be added here on
     // the strength of counting its externals.
     let mut fltused_slot_taken = !funcs.iter().any(|f| f.is_float);
+    // **W-IFN — one extra slot for the TU's first `memcpy`-minting function**,
+    // the same shape as the `_fltused` slot above and measured the same way:
+    // seed-free, as in-TU strides, on three cells at the workload's own flags
+    // (`work/w-ifn/probe/lab_{x,y,z}.cpp`).
+    //
+    // ```text
+    //   [framed, sub(memcpy)]                            stride 6
+    //   [framed, sub1(memcpy), sub2(memcpy), framed]     strides 6, 5, 5
+    // ```
+    //
+    // so the charge is per TU and not per function — which is also what
+    // `src/xdk/nuispeech/mmio.cpp`'s own obj says, its two `memcpy` users
+    // sitting at `$M3381` and `$M3386`, five apart.
+    //
+    // **The third cell is the one worth carrying**: `[sub(memcpy), framed]`
+    // reads stride **5**, because a slot taken before the FIRST function's own
+    // triple moves that function's labels and every later one's equally and is
+    // therefore invisible to every in-TU stride. This rule was measured wrong by
+    // exactly that cell before the differential caught it — see
+    // [`super::Function::mints_memcpy`].
+    let mut memcpy_slot_taken = !funcs.iter().any(|f| f.mints_memcpy);
     funcs
         .iter()
         .map(|f| {
             if f.is_float && !fltused_slot_taken {
                 fltused_slot_taken = true;
+                cur += 1;
+            }
+            if f.mints_memcpy && !memcpy_slot_taken {
+                memcpy_slot_taken = true;
                 cur += 1;
             }
             // **The leading surcharge is taken before the function's own triple**,

@@ -1770,6 +1770,75 @@ pub struct FloatWalkLoop {
     pub others: Vec<usize>,
 }
 
+/// **W-IFN — one guard of a [`GuardRetChain`]**: `if (<formal> == 0) return
+/// <K>;`, lowered as a `cmplwi cr6` and a forward `bf 26` over a two-word arm.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct GuardRetGuard {
+    /// Index into [`GuardRetChain::params`] of the tested formal. The compare's
+    /// register is decided by the PARK, not by this index, which is why the
+    /// emitter resolves the two out of one place.
+    pub formal: usize,
+    /// The literal the arm returns — a `li r3,<K>` immediate.
+    pub ret: i32,
+}
+
+/// **W-IFN — what a [`GuardRetChain`] does once its guards have passed.**
+///
+/// Two variants because there are two graded witnesses and they are two
+/// register plans, not one plan with a parameter. `w-blockir` board #2306
+/// registered a single rule for its walker and a single rule for its park and
+/// both were three constants; this enum is that lesson taken in advance.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GuardRetSpine {
+    /// `memcpy(params[dst], params[src], len); return 0;` —
+    /// `mmio.cpp`'s `mmioGetInfo`. Requires `dst == 1` and `src == 0`: the copy
+    /// wants its operands the other way round from the way they arrive, so the
+    /// park is a SWAP through r11 and the frame saves no GPR.
+    Copy { dst: usize, src: usize, len: i32 },
+    /// The same copy, then `if (m->hi < m->lo) m->hi = m->lo;` over the
+    /// destination — `mmio.cpp`'s `mmioSetInfo`. Requires `dst == 0` and
+    /// `src == 1`: the operands already arrive in place, but the destination is
+    /// read again after the `bl`, so it is parked in r31 and the frame saves
+    /// one GPR.
+    CopyClamp {
+        dst: usize,
+        src: usize,
+        len: i32,
+        /// The member whose value is compared and, if the test passes, stored —
+        /// `pchNext` at `0x1c` in the witness. A `lwz` displacement.
+        lo: i32,
+        /// The member that is compared and stored INTO — `pchEndRead` at `0x20`.
+        hi: i32,
+    },
+}
+
+/// **W-IFN — a framed guard chain whose arms are `return K` and whose spine is
+/// a block copy.**
+///
+/// `src/xdk/nuispeech/mmio.cpp`'s `mmioGetInfo` and `mmioSetInfo`: the frontier's
+/// top byte-fraction row, `ABC--`, so function bytes are the whole remaining
+/// distance. See [`crate::func::body::shapes::guard_ret_chain`] for the source
+/// shapes and the fence, and `c2_core::codegen::guard_ret_chain` for the
+/// twenty-one and twenty-seven words.
+///
+/// **This is a transcription of two named function classes, `/O1` only.
+/// Accepting it is not a claim about `cflow-if-2` or `cflow-if-n` as classes**,
+/// and `PORT_CFG_CLASSES` is not widened for it — the same sentence
+/// [`OsfHandleGuard`], [`AllocInitOrFail`] and [`GuardChainSharedTail`] carry.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GuardRetChain {
+    /// The formals in argument-register order: `params[i]` arrives in
+    /// `ARG_REGS[i]`. Three in both witnesses; the third is never read, and it
+    /// is carried so the accounting sees it.
+    pub params: Vec<u32>,
+    /// The guards, **in source order**, which is also emission order —
+    /// measured over nine cells (`work/w-ifn/probe/blkorder.cpp`), not assumed.
+    /// Exactly two: a third arm has never been graded.
+    pub guards: Vec<GuardRetGuard>,
+    /// What the body does after the guards.
+    pub spine: GuardRetSpine,
+}
+
 /// every label distinct — each re-plan c2's register assignment or its block
 /// layout when varied.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -2719,6 +2788,14 @@ pub struct IlFunction {
     /// **W-JSON** — the UTF-16 → UTF-8 copy loop, when the body is exactly that
     /// class. Set by exactly one parser production; `ops` is empty for it.
     pub json_utf8_copy: Option<JsonUtf8CopyFn>,
+    /// **W-IFN** — the framed guard chain whose arms are `return K` and whose
+    /// spine is a block copy (`mmio.cpp`'s `mmioGetInfo`, `mmioSetInfo`). Set by
+    /// exactly one parser production; [`Self::ops`] is empty for it. It names no
+    /// `.gl` symbol at all — the one external it calls, `memcpy`, arrives as an
+    /// intrinsic SELECTOR and has no `.gl` record — so unlike every other framed
+    /// class here it contributes nothing to [`Self::callees`] or
+    /// [`Self::data_syms`], and the name is minted by the emitter.
+    pub guard_ret_chain: Option<GuardRetChain>,
     /// True iff this function's body is **empty** (`void f() {}`): no expression at
     /// all, so codegen emits a bare `blr`. Mutually exclusive with the other body
     /// kinds.
@@ -2876,6 +2953,7 @@ impl IlFunction {
             osf_handle_guard: None,
             xlrc_create_guard: None,
             json_utf8_copy: None,
+            guard_ret_chain: None,
             empty_body: false,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
@@ -2997,6 +3075,22 @@ impl IlFunction {
     /// was missed. The reader is `c2_core::coff::Function::is_float`, and the
     /// failure mode is an obj one symbol short — `Port=Mismatch @ offset 12`, the
     /// COFF header's `NumberOfSymbols`, on every positive case at once.
+    /// **True iff this function is the reason the obj carries the undefined
+    /// external `memcpy`.**
+    ///
+    /// A TU-level fact of the same kind as [`Self::touches_floating_point`] and
+    /// with the same two readers: `c2_core::coff::Function::mints_memcpy`, which
+    /// decides both where the symbol goes (after the `$T` label, on
+    /// `helper_externals`, not in the callee region) and that the TU's first
+    /// such function takes one extra compiler-label slot.
+    ///
+    /// Keyed on the FIELD rather than on a body scan, because it is a structural
+    /// fact of the class: every `guard_ret_chain` body calls the block-copy
+    /// intrinsic and no other accepted class does.
+    pub fn mints_memcpy(&self) -> bool {
+        self.guard_ret_chain.is_some()
+    }
+
     pub fn touches_floating_point(&self) -> bool {
         self.float_leaf.is_some()
             || self.fp_tail.is_some()
@@ -3060,6 +3154,20 @@ impl IlFunction {
             || self.osf_handle_guard.is_some()
             || self.xlrc_create_guard.is_some()
             || self.json_utf8_copy.is_some()
+            // **W-IFN — the guard chain with a materialised common epilogue.**
+            // It carries a 96-byte frame, a `.pdata` record and a `$M`/`$M`/`$T`
+            // triple, and its label stride is the framed constant: **5** under
+            // `/Gy` and **4** packed, measured twice independently
+            // (`work/w-ifn/LABEL_LEAD.md` — four one-cell counterfactuals at
+            // both modes, and the target TU's own obj, whose three framed
+            // functions sit at `$M3381`, `$M3386` and `$M3396` with five leaves
+            // between the last two). So this arm is the WHOLE label story for
+            // the class: it needs no `label_lead` arm and no `label_slots` arm,
+            // which is the opposite of the last four lanes' finding and for a
+            // stated reason — those four were widening LEAF classes, where
+            // `plan_labels` mints nothing and the counter advances by an amount
+            // with no representation in the obj at all.
+            || self.guard_ret_chain.is_some()
     }
 
     /// **Label-counter slots this function takes BEFORE its own `$M` triple.**

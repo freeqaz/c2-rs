@@ -1000,6 +1000,7 @@ fn ops_setup_text(
     let synth = IlFunction {
         alloc_init_or_fail: None,
         osf_handle_guard: None,
+        guard_ret_chain: None,
         xlrc_create_guard: None,
         json_utf8_copy: None,
         mangled_name: String::new(),

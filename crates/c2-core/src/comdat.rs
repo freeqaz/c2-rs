@@ -124,6 +124,7 @@ pub fn selected_tag(s: &codegen::Selected) -> &'static str {
         codegen::Selected::GuardChainSharedTail => "guard-chain-shared-tail",
         codegen::Selected::AllocInitOrFail => "alloc-init-or-fail",
         codegen::Selected::OsfHandleGuard => "osf-handle-guard",
+        codegen::Selected::GuardRetChain => "guard-ret-chain",
         codegen::Selected::XlrcCreateGuard => "xlrc-create-guard",
         codegen::Selected::JsonUtf8Copy => "json-utf8-copy",
     }
@@ -480,6 +481,38 @@ pub(crate) fn body_of<'a>(
                 coff::Call { reloc_offset: body.bl_offsets[0], callee: g.errno.as_str() },
                 coff::Call { reloc_offset: body.bl_offsets[1], callee: g.doserrno.as_str() },
             ];
+            (body.text, calls)
+        }
+        // **W-IFN — the guard chain with a materialised common epilogue.** ONE
+        // REL24 site and NO data reference at all. Its callee is not read out of
+        // the IL: the copy arrives as an intrinsic selector with no `.gl`
+        // record, so the name is minted here from the emitter's constant — the
+        // only class in this match whose callee is not an `IlFunction` field.
+        codegen::Selected::GuardRetChain => {
+            let g = f
+                .guard_ret_chain
+                .as_ref()
+                .expect("GuardRetChain implies guard_ret_chain");
+            let body = codegen::guard_ret_chain::guard_ret_chain_text(g, 0, mode)
+                .map_err(ComdatDecline::Shape)?;
+            frame = Some(coff::Frame {
+                prolog_len: body.prolog_len,
+                func_len: body.text.len() as u32,
+            });
+            let calls = vec![coff::Call {
+                reloc_offset: body.bl_offset,
+                callee: codegen::guard_ret_chain::MEMCPY_NAME,
+            }];
+            // **The name goes on `helper_externals` and not into the callee
+            // region**, which is the one thing about this class that is not
+            // shared with its four framed neighbours. Measured on
+            // `work/w-ifn/probe/lab_z.cpp`: `memcpy` lands AFTER the first
+            // user's `$T2587`, where the IL-named `?gz@@YAHH@Z` in the same obj
+            // sits BETWEEN its function's two `$M`s. A minted external and an
+            // IL-named one are two placements, and the writer's `known` test
+            // then gives the second user no second symbol — which is what the
+            // same cell's `sub2` shows.
+            helper_externals = vec![codegen::guard_ret_chain::MEMCPY_NAME];
             (body.text, calls)
         }
         // **W-XLR — the two-stage create/attach guard.** FOUR REL24 sites for
