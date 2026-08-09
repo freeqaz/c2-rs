@@ -1,0 +1,22 @@
+census  711514 -> 712238  (+724)
+emitted 39200 -> 39644  (+444)
+denominators: fn 2463443 -> 2463443 ; emit 178977 -> 178977
+
+== fn: 635 keys base, 635 keys tip, 2 moved, 0 appeared, 0 vanished
+       -714       933 -> 219      expr-call-in-expr-recv-load-then-type-real-whole
+        -10     18290 -> 18280    expr-call-in-expr-recv-load-whole
+
+== em: 614 keys base, 614 keys tip, 2 moved, 0 appeared, 0 vanished
+       -434       439 -> 5        expr-call-in-expr-recv-load-then-type-real-whole
+        -10      1498 -> 1488     expr-call-in-expr-recv-load-whole
+
+== prod: 914 keys base, 914 keys tip, 7 moved, 1 appeared, 1 vanished
+       -724    159068 -> 158344   tail-void-body-does-not-end-at-the-call|BLOCKED
+       +724     60080 -> 60804    prod-accepted
+       -724    159068 -> 158344   tail-void-body-does-not-end-at-the-call
+       -714       714 -> 0        tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-type-real-whole
+       +714         0 -> 714      prod-accepted|INCLASS|call-sequence-value-fp
+        -10     11824 -> 11814    tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-whole
+        +10     23851 -> 23861    prod-accepted|INCLASS|call-sequence-value
+
+== per-TU verdict set: 0 changed, 0 only-in-base, 0 only-in-tip

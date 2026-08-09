@@ -1473,6 +1473,7 @@ pub(crate) fn shape_to_function(
                         tail: match tail {
                             body::SeqTail::Void => SeqTail::Void,
                             body::SeqTail::CallValue { add_k } => SeqTail::CallValue { add_k },
+                            body::SeqTail::CallValueFp => SeqTail::CallValueFp,
                             body::SeqTail::Lit(k) => SeqTail::Lit(k),
                             body::SeqTail::CallLoad { off } => SeqTail::CallLoad { off },
                             body::SeqTail::CallLoadFp { off, double } => {

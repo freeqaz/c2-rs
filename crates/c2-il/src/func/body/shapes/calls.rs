@@ -1306,38 +1306,138 @@ pub(crate) const MAX_REGISTER_FORMALS: usize = 8;
 ///   not a register move), a chain, a field, a dereference, the `intrinsic
 ///   2113` base adjust. [`super::mcall_tail::eat_receiver_this`] is the **one**
 ///   locator for that decision and this reader does not carry a second copy;
-/// * a call whose result is **not** discarded — the value tail
-///   ([`SeqTail::CallValue`]) marshals a receiver into slot 0 *and* a post-op
-///   region, and the two have never been graded together;
 /// * a `float`/`double` result, discarded, which still obliges the TU to carry
-///   `_fltused` ([`CallRet::discarded`], `docs/GAPS.md` §6 instance #14).
+///   `_fltused` ([`CallRet::discarded`], `docs/GAPS.md` §6 instance #14). **This
+///   one is still declined and the census key is `call-ret-fp`; lane `w-fltret`
+///   measured it at ZERO bodies and ZERO emitted over the whole 878-TU
+///   workload**, so it is recorded as a fence class with no cases rather than as
+///   a population.
+///
+/// **W-FLTRET paid the value-tail clause** that used to be the second bullet
+/// here (*"a call whose result is not discarded — the value tail"*): see
+/// [`eat_member_value_call`], which shares this reader's head through
+/// [`eat_member_call_upto_apply`].
 fn eat_member_stmt_call(seg: &[u8], p: &mut usize) -> Option<(u32, Vec<Vec<IlOp>>)> {
     let save = *p;
     let mut q = *p;
     let out = (|| {
-        let callee_tok = eat_callee_push(seg, &mut q).ok()?;
-        // A second `26` where the receiver goes is a stacked method (a chain) or
-        // a named data object; both are declined here — with the cursor
-        // untouched — so that `super::mcall_chain` and W-ADJUST keep meaning
-        // what they mean at the tail form.
-        if seg.get(q) != Some(&0xB9) {
-            return None;
-        }
-        let recv_tok = super::mcall_tail::eat_receiver_this(seg, &mut q).ok()?;
-        let ret = eat_call_token(seg, &mut q).ok()?;
-        let mut args = eat_call_args(seg, &mut q).ok()?;
+        let (callee_tok, args, ret) = eat_member_call_upto_apply(seg, &mut q)?;
         // The result is discarded, and only that. `4C` has already been consumed
         // by `eat_call_args`.
         if !eat_byte(seg, &mut q, 0x4B) {
             return None;
         }
         ret.discarded(seg, q).ok()?;
-        // `this` is argument slot 0 and the list is in STREAM order — rightmost
-        // source argument first — so the receiver goes on the END. Getting this
-        // backwards is invisible on a nullary call, which is why the tail form
-        // pins it against a capture where the two readings differ.
-        args.push(vec![IlOp::Load(recv_tok)]);
         Some((callee_tok, args))
+    })();
+    match out {
+        Some(v) => {
+            *p = q;
+            Some(v)
+        }
+        None => {
+            *p = save;
+            None
+        }
+    }
+}
+
+/// The member call's head, receiver, argument region and `4C` apply — everything
+/// the STATEMENT form ([`eat_member_stmt_call`]) and the VALUE form
+/// ([`eat_member_value_call`]) share, which is everything up to the byte that
+/// tells them apart.
+///
+/// **Split out by W-FLTRET so there is exactly one member-call reader.** The two
+/// forms differ in a single byte — `4B` discards the result, `41 <TYPE>` returns
+/// it — and a second copy of the head is the drift `docs/GAPS.md` §6 instance #9
+/// records: `eat_receiver_this` is the one receiver locator, `eat_call_token`
+/// holds the `call-conv` gate and nothing else does, and `eat_call_args` is the
+/// one argument locator. A value form that re-read any of them could admit a
+/// receiver the statement form declines.
+///
+/// The cursor is the **caller's scratch** and is left wherever a failing locator
+/// left it; both callers are atomic and restore on `None`.
+///
+/// Returns the callee token, the argument list **with `this` already pushed onto
+/// the end** (stream order — rightmost source argument first, so slot 0 is last),
+/// and the call's result class.
+fn eat_member_call_upto_apply(
+    seg: &[u8],
+    q: &mut usize,
+) -> Option<(u32, Vec<Vec<IlOp>>, CallRet)> {
+    let callee_tok = eat_callee_push(seg, q).ok()?;
+    // A second `26` where the receiver goes is a stacked method (a chain) or
+    // a named data object; both are declined here — with the cursor
+    // untouched — so that `super::mcall_chain` and W-ADJUST keep meaning
+    // what they mean at the tail form.
+    if seg.get(*q) != Some(&0xB9) {
+        return None;
+    }
+    let recv_tok = super::mcall_tail::eat_receiver_this(seg, q).ok()?;
+    let ret = eat_call_token(seg, q).ok()?;
+    let mut args = eat_call_args(seg, q).ok()?;
+    // `this` is argument slot 0 and the list is in STREAM order — rightmost
+    // source argument first — so the receiver goes on the END. Getting this
+    // backwards is invisible on a nullary call, which is why the tail form
+    // pins it against a capture where the two readings differ.
+    args.push(vec![IlOp::Load(recv_tok)]);
+    Some((callee_tok, args, ret))
+}
+
+/// **W-FLTRET — the member call in the sequence's VALUE TAIL**:
+/// `float f(O* o){ o->Poll(); return o->Level(); }`, and its integer sibling
+/// `int f(O* o){ o->Poll(); return o->ILevel(); }`.
+///
+/// ```text
+///   26 <method>              push the method symbol      the callee
+///   B9 <recv> <TYPE ptr4>    the receiver value          `this`
+///   [ 2C <TYPE ptr4> 00 ]    a pointer conversion on it
+///   99 <TYPE ptr4> 00        bind it as argument zero
+///   BD <ret TYPE> 00 <id>    the CALL token
+///   ( <operands> 55 <T> )*   the explicit arguments, rightmost first
+///   4C                       apply
+///     41 <T> | 33 <T> k 02 41 <T>     …and the result is RETURNED
+/// ```
+///
+/// This was w-mcall's decline clause **D3** — *"a member call in the sequence's
+/// value tail (`SeqTail::CallValue`)"*, filed **unsized** because no census key
+/// separated it — and w-callprice priced it on the emitted column at
+/// **447 emitted over 13 constructs**, the highest-yielding clause inside
+/// `eat_member_stmt_call` (`docs/rungs/2026-08-09-w-callprice.md` §5.2).
+///
+/// # It stops at the `4C`, and that is the point
+///
+/// The cursor is left **on** the `41`/`33`, so the loop's own tail arm — the one
+/// the free-function spelling has always used — reads the post-op and the result
+/// annotation. One tail reader for two call spellings; a copy here would be free
+/// to admit a post-op the free form refuses.
+///
+/// # Declined here, each because it is a different LOWERING
+///
+/// * anything but `41` or `33` after the `4C`. In particular a **`2C`
+///   conversion** on the returned real value: `float f(O*o){ o->Poll(); return
+///   o->D(); }` captures `4C · 2C 86 45 40 00 · 41 …` and c2 emits `frsp fr1,fr1`
+///   for it (measured, `work/w-fltret/probe/v3.cod`). The **widening** direction
+///   wears the identical `2C` and costs **nothing**, so requiring the `41` to
+///   follow the `4C` immediately declines a free conversion along with a costly
+///   one — stated rather than smuggled;
+/// * every receiver [`eat_member_call_upto_apply`] declines, under that reader's
+///   own keys and with no second copy of the decision.
+fn eat_member_value_call(
+    seg: &[u8],
+    p: &mut usize,
+) -> Option<(u32, Vec<Vec<IlOp>>, CallRet)> {
+    let save = *p;
+    let mut q = *p;
+    let out = (|| {
+        let (callee_tok, args, ret) = eat_member_call_upto_apply(seg, &mut q)?;
+        // The result is CONSUMED, not discarded: the result annotation `41 <T>`
+        // or the literal post-op `33 <T> k 02` stands where the `4B` would.
+        // Left UNREAD — the loop's shared tail arm reads it.
+        match seg.get(q) {
+            Some(&0x41) | Some(&0x33) => Some((callee_tok, args, ret)),
+            _ => None,
+        }
     })();
     match out {
         Some(v) => {
@@ -1755,6 +1855,18 @@ pub(crate) fn parse_call_sequence_from(
         // name.** Both are Class A only and both hoist their entry block; no
         // cell in this repo crosses either with a receiver in slot 0, and
         // admitting one would be claiming a lowering no obj has graded.
+        //
+        // **W-FLTRET — the member spelling of the VALUE tail is tried in the
+        // same arm, after the statement one** (lane `w-fltret`, board
+        // **#2080**). w-mcall's decline **D3** was *"a member call in the
+        // sequence's value tail"*, filed unsized; w-callprice priced the clause
+        // at **447 emitted over 13 constructs** (§5.2). It is read by
+        // [`eat_member_value_call`], which shares
+        // [`eat_member_call_upto_apply`] with the statement form and stops **on**
+        // the `41`/`33` so the tail arm below — the free-function spelling's own —
+        // reads the annotation. Atomic on decline, so the `?` on
+        // `eat_call_head` still re-raises the block this loop raises today.
+        let mut member_value = None;
         if guard.is_none() && early.is_empty() {
             let mut probe = *p;
             if eat_call_head(seg, &mut probe).is_err() {
@@ -1765,18 +1877,25 @@ pub(crate) fn parse_call_sequence_from(
                     }
                     continue;
                 }
+                member_value = eat_member_value_call(seg, p);
             }
         }
-        let (tok, ret) = eat_call_head(seg, p)?;
-        let args = eat_call_args(seg, p)?;
-        if eat_byte(seg, p, 0x4B) {
-            ret.discarded(seg, *p)?;
-            raw.push((tok, args));
-            if raw.len() > MAX_SEQ_CALLS {
-                return Err(Block::refuse(seg, *p, "callseq-too-long"));
+        let (tok, args, ret) = match member_value {
+            Some(v) => v,
+            None => {
+                let (tok, ret) = eat_call_head(seg, p)?;
+                let args = eat_call_args(seg, p)?;
+                if eat_byte(seg, p, 0x4B) {
+                    ret.discarded(seg, *p)?;
+                    raw.push((tok, args));
+                    if raw.len() > MAX_SEQ_CALLS {
+                        return Err(Block::refuse(seg, *p, "callseq-too-long"));
+                    }
+                    continue;
+                }
+                (tok, args, ret)
             }
-            continue;
-        }
+        };
         // The value call. `41` = the result is returned as is; `33 <TYPE> k 02` =
         // returned plus a literal — the same post-op the single framed call
         // carries, and the same `addi r3,r3,k`. The literal's TYPE goes through
@@ -1802,9 +1921,65 @@ pub(crate) fn parse_call_sequence_from(
             }
             k
         };
-        eat_return_plumbing(seg, p, true, BODY_SCOPE_DEPTH)?;
+        // **W-FLTRET — the result annotation, split by the call's RESULT CLASS.**
+        //
+        // The integer arm is unchanged byte for byte: `eat_return_plumbing`'s
+        // `has_result_type` consumes `41 <int-like-or-ptr4>` and refuses anything
+        // else at `result-type`, which is where a `float`/`double` value tail has
+        // always stopped (census key `result-type-0x41`, **810 bodies / 1
+        // emitted** over the 878-TU workload — re-derived, not inherited).
+        //
+        // The real arm reads the annotation here instead, and requires the `41`
+        // to stand **immediately** after the `4C`. That single requirement is the
+        // same-width rule: a converted result carries an explicit
+        // `2C <TYPE> 00` between the two, in BOTH directions, and only one of the
+        // two directions costs an instruction —
+        //
+        // ```text
+        //   float  f(O*o){ o->Poll(); return o->F(); }   4C · 41 …        (nothing)
+        //   float  f(O*o){ o->Poll(); return o->D(); }   4C · 2C … · 41 … frsp fr1,fr1
+        //   double f(O*o){ o->Poll(); return o->F(); }   4C · 2C … · 41 … (nothing)
+        // ```
+        //
+        // — measured off c2's own `/FAsc` listing, `work/w-fltret/probe/v3.cod`.
+        // Declining the free one along with the costly one is the honest fence:
+        // separating them needs a width model this rung does not build.
+        tail = match ret {
+            CallRet::Other => {
+                eat_return_plumbing(seg, p, true, BODY_SCOPE_DEPTH)?;
+                SeqTail::CallValue { add_k }
+            }
+            CallRet::Real => {
+                // A literal post-op on a value that is in `f1` is `lfs` from the
+                // `.rdata` FP pool plus `fadds`, not `addi`. KEPT although it is
+                // INERT on every cell tried — `eat_int_like` above already
+                // refuses a `float`/`double` literal's type at `callseq-postop`,
+                // so nothing reaches this with `add_k != 0`. Board #1148: a
+                // recorded unreachability is a statement about the cells someone
+                // thought of, and the conservative direction is to keep the
+                // guard. `SeqTail::CallValueFp` has no `add_k` field, which is
+                // the structural half of the same fence.
+                if add_k != 0 {
+                    return Err(Block::refuse(seg, *p, "callseq-fp-tail-postop"));
+                }
+                if !eat_byte(seg, p, 0x41) {
+                    return Err(blk(seg, *p, "callseq-fp-tail-result-type"));
+                }
+                let (_, kind, _, w) =
+                    read_type(seg, *p).ok_or(blk(seg, *p, "callseq-fp-tail-result-type"))?;
+                // The call token said the callee returns a real, and no `2C`
+                // stands between; so this annotation must say real too. Asked
+                // rather than assumed — the two are read by different locators
+                // and `docs/GAPS.md` §6 #9 is what happens when one is trusted.
+                if kind & 0x0F != TYPE_KIND_REAL_CLASS {
+                    return Err(Block::refuse(seg, *p, "callseq-fp-tail-result-not-real"));
+                }
+                *p += w;
+                eat_return_plumbing(seg, p, false, BODY_SCOPE_DEPTH)?;
+                SeqTail::CallValueFp
+            }
+        };
         raw.push((tok, args));
-        tail = SeqTail::CallValue { add_k };
         break;
     }
 

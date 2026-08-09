@@ -718,6 +718,16 @@ impl IlBundle {
                                 FnVerdict::InClass(match tail {
                                     body::SeqTail::Void => "call-sequence",
                                     body::SeqTail::CallValue { .. } => "call-sequence-value",
+                                    // **W-FLTRET** — the same tail in the OTHER
+                                    // register file, and the reason it is not
+                                    // folded into `-value` is that it emits the
+                                    // identical instruction stream: the only
+                                    // observable is `_fltused` in the obj. A
+                                    // shared key would make a census delta unable
+                                    // to say whether a lane moved the integer
+                                    // tail or the FP one, which is the mistake
+                                    // `-load-fp` was already split to avoid.
+                                    body::SeqTail::CallValueFp => "call-sequence-value-fp",
                                     body::SeqTail::Lit(_) => "call-sequence-lit",
                                     // WCO — the chain result read through, one
                                     // `lwz`. Its own key rather than sharing
