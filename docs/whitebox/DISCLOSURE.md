@@ -122,13 +122,22 @@ costs the project more than the analysis did.
 >   so first and it is upheld: **no obj yields a count of arms**, and those three
 >   numbers are what both judgment rows' prices rest on. A port that only
 >   *implements* the rules needs none of them.
-> * **`W-SELECT-5` is downgraded and re-pointed.** Its adoption-ready clause
->   *"`&` with a contiguous mask is `rlwinm`, never `andi.`"* is over-general
->   (**#2210**); the deciding routine is **`FUN_10c0a2e2`**, not `FUN_10c1772b`
->   (**#2203**). Navigation, held.
-> * **One row neither lane proposed**: `FUN_10c1a908` @ `0x10c1a908`, the
->   against-zero relational, ~20 arms, **unread by both** and the thing five
->   graded cells actually exercised. Navigation, held.
+> * **`W-SELECT-5` — RELEASED, by `wb-tables`, and this note defers to it.**
+>   `wb-selfit` reached the clause *"`&` with a contiguous mask is `rlwinm`,
+>   never `andi.`"* is over-general and the deciding routine is
+>   **`FUN_10c0a2e2`** not `FUN_10c1772b` (**#2210**, **#2203**), and stopped
+>   there with the predicate open. **`wb-tables` closed it** —
+>   `WB_TABLES_FINDINGS.md` §4.2, rules (S) and (B) obj-confirmed on 32 cells —
+>   so the expansion is **black-box re-derivable from `grids/wb-tables/` and a
+>   code lane shipping it needs no row** (**#2119**). Carry it only if
+>   `FUN_10c0a170`'s word prices or `FUN_10c1772b`'s tie to the relaxed mask are
+>   copied; neither is visible in any obj.
+> * **One row neither WB-I lane proposed**: `FUN_10c1a908` @ `0x10c1a908`, the
+>   against-zero relational, ~20 arms, **unread by all three lanes** and the
+>   thing five already-graded cells actually exercised (**#2204**). Navigation,
+>   held — and for an integer `lower_expr` it is a **larger** gap than
+>   `FUN_10c194b8`, which is the floating-point path and not the `{0,1}` path
+>   two documents call it (**#2205**).
 
 > ### **2026-08-08 — lane `w-phase7` gave W-ALIAS-1 and W-ALIAS-2 their first CONSUMER, and adopted NO new address doing it.**
 >

@@ -684,3 +684,113 @@ different contents. This is the merged set. Nothing is carried into
 * **No obj was compiled.** Every measured word here is inherited. Nothing in
   §§1–11 has been re-graded against a new cell, and §12's cross-score is a
   hand-built derivation over cells two other lanes paid for.
+
+---
+
+## 16. A THIRD READING LANDED WHILE THIS ONE WAS RUNNING — `wb-tables` (WB-J)
+
+`wb-tables` merged to master at `20f7eea0`, board **#2110**–**#2119**, record
+[`WB_TABLES_FINDINGS.md`](WB_TABLES_FINDINGS.md). It is an **arbitration lane**
+sent at the same two disagreements from a different angle: it **re-compiled both
+grids** in one worktree, read `FUN_10c0a2e2` and `FUN_10c04daf` properly, and
+froze a **twelve-cell grid of its own** for the mask.
+
+**Neither lane saw the other's work.** This section is written after reading it.
+
+### 16.1 Three of this lane's findings are independently confirmed
+
+| finding | this lane | `wb-tables` |
+|---|---|---|
+| the table count | **13 slots / 17 bodies**; `wb-select`'s 16 omits `convert` @ `0x10b1fd08` (§1) | *"17 `mov` stores into 13 distinct pointer slots … it has no entry for the seventeenth body, the convert/widen table at `0x10b1fd08`"* (**#2110**) |
+| the `rlandi` expander | **`FUN_10c0a2e2`**, reached from `FUN_10c0d57e`; `FUN_10c1772b` is a different pass (§4) | *"`FUN_10c1772b` is **not** the `rlandi` expander … the expander is `FUN_10c0a2e2` @ `0x10c0a2e2`, reached from `FUN_10c0d57e` … Run 1 is right"* (**#2114**) |
+| the two grids are not one denominator | the three shared cells, and a cross-score with per-cell abstentions (§12) | *"NOT COMPARABLE. '10/12 vs 9/12' is not a disagreement about a measurement"* (**#2112**) |
+
+Two lanes reading the same 180-byte installer and the same call graph on the
+same day, with no contact, reaching the same three answers, is the strongest
+evidence any of these three files carries. **`wb-tables` also re-compiled all 24
+published emission listings and reproduced every one** — which independently
+validates the inputs `xscore.py` parses out of the two committed documents.
+
+### 16.2 `wb-tables` goes FURTHER on the mask, and §10 is superseded
+
+§10 left the `x & K` predicate **open** and named the two-square grid that would
+close it. `wb-tables` compiled a **32-cell** version of exactly that and read the
+routine, and its answer is two rules:
+
+* **(S) the mask SHAPE rule**, out of `FUN_10c0a2e2` + `FUN_10c04daf` +
+  `FUN_10c0a170`: rotate ≠ 0 or contiguous ⇒ `rlwinm`; fits u16 ⇒ `andi.`;
+  low half zero ⇒ `andis.`; residue contiguous ⇒ two `rlwinm`; else materialise
+  and `and`.
+* **(B) the BIAS rule**, obj-grounded on 20 cells: inside a value-producing
+  relational the mask step is **`li` + `and` iff `base == 0`**, whatever the mask
+  shape and whatever the registers.
+
+**Rule (B) explains every one of §10's eight cells** — `wbs_s3` and `S1` have a
+bias and get `rlwinm`; `S11` and the five diagnostic cells have `base == 0` and
+get `li`+`and`. The two cells §10 could not place, `wbs_b1`/`wbs_b2`
+(`base == 0`, mask 1, `rlwinm`), are `wb-tables`' own boundary miss `r5_bias1`,
+which it reports as one cell rather than as a rule.
+
+**And it corrects a statement in §10 of this document.** §10 says *"the 'never
+`andi.`' half survives every cell"*. That is true of those eight cells and
+**false in general**: `wb-tables` compiled `x & 0x8001` — a **non-contiguous**
+16-bit mask — and c2 emitted **`andi. 3,3,32769`** (**#2115**). Neither
+`wb-select`'s grid nor `wb-select2`'s contained a non-contiguous mask, and
+neither does this document's cell table, so **the survival of that clause across
+eight cells was a property of the cells, not of the rule.** §10's conclusion
+(the clause is over-general and not adoption-ready) is unchanged and is if
+anything stronger; the reason is different and `wb-tables`' is the right one.
+
+**Consequently `W-SELECT-5` is RELEASED, not held.** §14.2's row is superseded by
+`WB_TABLES_FINDINGS.md` §4.2: the expansion is now black-box re-derivable from
+`grids/wb-tables/`, and a code lane shipping it needs no row. Carry it only if
+`FUN_10c0a170`'s **word prices** or `FUN_10c1772b`'s **tie to the relaxed mask**
+are copied — neither is visible in any obj, and both are new instances of §7's
+category.
+
+### 16.3 What this lane has that `wb-tables` does not — and one correction to file against it
+
+`wb-tables` did not touch the relational driver's two guards, and it carries
+**run 1's error forward**: its §4.3 residue table lists
+
+> **`FUN_10c194b8` @ `0x10c194b8`** (890 bytes, **the `{0,1}` bool path**) — still
+> the largest named gap; it refuted run 1's `wbs_b3`
+
+**It is the FLOATING-POINT path** (§6.2): `double *` and `float` locals,
+`*pdVar3 == 0.0`, operand opcode `0x6a`, and nibble 5 is the float family in
+`FUN_10bd7c10`'s own map. `wbs_b3` is a `FUN_10c1a908` cell, not a
+`FUN_10c194b8` cell — and `wbs_b1`/`wbs_b2` have `{0,1}` results and came out as
+the plain carry idiom, which they could not have if `{0,1}` routed anywhere
+special. **A correction is filed against `WB_TABLES_FINDINGS.md` §4.3**, and it
+matters because that table is what the next lane will prioritise from: the
+"largest named gap" for an integer `lower_expr` is **`FUN_10c1a908`**, which
+that same table ranks below it.
+
+Also this lane's alone, and untouched by `wb-tables`:
+
+* **#2204** — five of the 24 cells never reached the cost race. `wb-tables`
+  lists `FUN_10c1a908`'s twenty arms as *"still unenumerated"* without noticing
+  that five graded cells are inside it, and its **#2118** re-confirms
+  `W-SELECT-3` on other grounds. The two arguments are independent and both
+  point the same way.
+* **#2206** — the record-form rewriter `FUN_10c0b4c0`, and #2044-vs-#2106.
+* **#2207** — the relation-code enum, from its own name array.
+* **#2209** — `wb-select`'s P3.4 = HIT against its own calibration cell.
+* **§12** — a cross-score of the two **readings** on both grids. This is a
+  different exercise from `wb-tables`' §0 item 2, which compares the two lanes'
+  **frozen predictions** and correctly rules them not comparable. Putting the
+  *readings* on one denominator is what makes them comparable, and it is why
+  §12 exists rather than a re-score.
+
+### 16.4 One shared-cell count, reconciled
+
+`wb-tables` reports the grids sharing **3** cells: `wbs_k1` ≡ `S5`,
+`wbs_k2` ≈ `S7`, `wbs_s5` ≡ `S2`. §12.3 names a different third pair —
+`wbs_s1` ≡ `S12`. **Both are right and they are different relations.**
+`wbs_s5`/`S2` are the same *shape* with different result constants (so their
+words differ in two immediates); `wbs_s1`/`S12` are the same predicate and the
+same constants in two *spellings*, and their emitted words are **identical**.
+`wb-tables`' count is of cells that are the same C expression; the pair §12.3
+adds is the one that decides P3.4, and it is not a duplicate of any of its
+three. The honest joint statement is **4 related pairs across the two grids, 3
+of them the same expression and 1 the same expression in two spellings.**

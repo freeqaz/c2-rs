@@ -579,3 +579,61 @@ rows that already exist, and the amendments are net *reductions*:
 
 **W-SELECT-1, W-SELECT-3 and W-SELECT-4 are unchanged**, and §4.2 confirms
 W-SELECT-3's standing as the row whose black-box alternative is insufficient.
+
+---
+
+## 6. CORRECTION — appended 2026-08-09 by lane `wb-selfit`
+
+**Nothing above is rewritten.** This lane (`wb-selfit`, board **#2200**–**#2213**,
+record [`WB_SELECT_RECONCILED.md`](WB_SELECT_RECONCILED.md)) ran concurrently
+with `wb-tables` and neither saw the other. It **independently confirms three of
+this document's answers** — the 13-slot / 17-body count with `convert` @
+`0x10b1fd08` as the missing seventeenth, `FUN_10c0a2e2` (not `FUN_10c1772b`) as
+the `rlandi` expander, and that the two grid scores are not on one denominator —
+and it corrects **one** row.
+
+### 6.1 §4.3's residue table mis-labels `FUN_10c194b8`
+
+> *"**`FUN_10c194b8` @ `0x10c194b8`** (890 bytes, the `{0,1}` bool path) — still
+> the largest named gap; it refuted run 1's `wbs_b3`"*
+
+**It is the FLOATING-POINT path.** The label is inherited from
+`WB_SELECT_FINDINGS.md` §7.6 and is wrong there too (corrected in that
+document's §11.4). The evidence:
+
+* the routine's own locals are `double *pdVar3` and `float fVar8`; it tests
+  `*pdVar3 == 0.0` and the operand opcode `0x6a`;
+* `FUN_10c1b517` reaches it on `(type & 0xf000) == 0x5000`, and type nibble
+  **5 is the float family** in `FUN_10bd7c10`'s own map (size 4 → index 13,
+  size 8 → index 14 — exactly the `f32`/`f64` slots of every table §1.3
+  enumerates);
+* run 1's own cells refute the `{0,1}` reading directly: `wbs_b1` and `wbs_b2`
+  have `{0,1}` result pairs and came out as the **plain carry idiom**.
+
+### 6.2 And the row below it is the one that should be at the top
+
+`wbs_b3` is not a `FUN_10c194b8` cell. `FUN_10c1b517` tests *"is either compare
+operand the constant `0`"* — with the enable `FUN_10c1b2fa` — and routes such a
+tuple to **`FUN_10c1a908`** *before* it calls either costed expander. **Five of
+the two prior grids' 24 cells are against-zero relationals** — `wbs_s4`,
+`wbs_s6`, `wbs_b3`, `S3`, `S4` — and both prior lanes graded all five as
+evidence about `FUN_10c1ac5c` / `FUN_10c1af2d`. `S4`'s emitted `addic 11,3,-1`
+is the tell: `addic` is not in `FUN_10c1ac5c`'s emission list at all.
+
+So §4.3's *"`FUN_10c1a908`'s twenty arms — still unenumerated"* understates it:
+**for an integer `lower_expr` that routine is the largest named gap**, not
+`FUN_10c194b8`, and five already-graded cells are inside it.
+
+This **strengthens** §4.2's confirmation of `W-SELECT-3` on independent grounds:
+`wb-tables` found a second invisible tie; `wb-selfit` found that no obj in the
+project ever reached the first one. Board **#2204**, **#2205**.
+
+### 6.3 What `wb-selfit` takes from this document
+
+§10 of `WB_SELECT_RECONCILED.md` left the `x & K` predicate **open** with eight
+cells as its constraint set. **Rules (S) and (B) close it**, and rule (B)
+explains all eight. That section is superseded, and so is its `W-SELECT-5` row:
+**released**, per §4.2 here, not held. `WB_SELECT_RECONCILED.md` §16 records the
+supersession, and it also records that this document corrected a sentence of its
+own §10 — *"the 'never `andi.`' half survives every cell"* — with `x & 0x8001`
+⇒ `andi. 3,3,32769` (#2115), a cell no prior grid contained.
