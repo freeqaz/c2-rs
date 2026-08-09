@@ -1,0 +1,7 @@
+== R-MEMFIT over every cell ever compiled for this question ==
+   GRID-M   232/232   
+   GRID-M2  176/176   
+   GRID-W   216/216   
+   GRID-F    44/44    
+   GRID-G    56/56    
+   TOTAL    724/724

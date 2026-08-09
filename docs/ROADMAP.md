@@ -10864,3 +10864,56 @@ named (`FUN_10c1772b`) and bounded by seven diagnostic cells.
 admission at the frontier's 48 stays item 2 — replication strengthened both.
 The table-count disagreement is a **precondition on adopting W-SELECT-2** and
 is added to that row's cost.
+
+### 10.26.9 w-memfit REPLICATED — and the replication CORRECTS §10.26.8's rule twice, on cells no prior grid contained (2026-08-09)
+
+**Provenance.** Second duplicate dispatch of the day (see §10.27.1 for the
+first): the w-memfit lane was killed by an infrastructure failure, recovered,
+self-landed as §10.26.8, and the coordinator re-dispatched it without checking
+master. Recorded as the seventh instance of the "check the board before
+dispatching" failure. **This one paid for itself outright**, because the
+replication did not merely agree — it manufactured **100 new cells** and found
+the landed rule to be **incomplete in two ways, both wrong-emit shapes**.
+
+**Both runs agree**: the whitebox reading explains the black-box grids that
+"refuted" it, scoring **408/408** on w-memcpy's own denominator against a best
+frozen rival of 296; "no rule fits" was a **rule-space limitation** whose
+missing axis is the **DIVISION** (`n = size/align`, truncating) — none of the
+six earlier rivals divides. Favor-speed is **not** the missing axis and was
+registered as a negative in advance: both grids are `/O1`-only.
+
+**What the replication corrects — adopt §10.26.8's rule WITHOUT these and the
+port emits wrong bytes:**
+
+| correction | evidence | cost of omitting |
+|---|---|---|
+| the divisor is **clamped at 8 above** | GRID-F, `F-CLAMP` **44/44** vs `F-TYPE` 39/44; `c1xx` writes `0x10` for an `align(16)` pointee and the divisor stays 8 | `align = max(1, BYTE[node+0x38])` taken literally predicts **`inline` on 5 cells that CALL** |
+| the divisor is the **MIN of the two hints**, not the destination's | GRID-G, `G-MIN` **56/56** vs `G-DST` 38/56 | wrong on **18 of 56**; **all 668 previously-graded cells were blind** — every one holds the two hints equal |
+
+Corrected, the rule is **724/724 over five grids**. Its **confident core** —
+exactness 1.000, zero residue — is: both hints present and in `{01,04,08}` ·
+constant non-zero size · favor-size · destination a formal or file-scope object,
+never a local ⇒ `n = size / min(hint_d, hint_s)`, inline iff `n ≤ 5`. Every
+clause has a measured counterexample if dropped (5 · 18 · 54 · 44 cells). The
+last clause is **unexpressible in `c2-il` today**, so the core is
+**refusable-only** — which is the correct shape: a rule right on 95% of cells
+emits wrong bytes on 5%.
+
+**`mmio.cpp` re-priced DOWN and still converts nothing.** Re-running w-park's
+own ladder *file* (not its table) reads **4/5 in class** where w-park recorded
+3/5 — the rung it priced unpaid was paid by the widening it shipped in the same
+commit. TU price **9**, not 12; **`?mmioGetInfo`'s entire remaining distance is
+one word in a symbol table**, and converting it alone moves the byte fraction
+64/380 → 148/380 and the TU verdict by **zero**.
+
+**The successor this hands forward, and it is not `memcpy`.** On the emitted
+column `expr-intrinsic-memset` is **3,749 over 497 TUs** against `memcpy`'s
+**99 over 83** — **38×**, and the pair at 3,848 is **7× the last rung this board
+recommended**. `memset` is *not* the same rung (one operand ⇒ one hint, so the
+min correction cannot apply) and its construct count is **unmeasured** — price
+it before dispatching. Explicitly **not** recommended: shipping the decision
+rule into `crates/`; the decision was never the blocker, the **mint** is.
+
+**Two instrument findings** carried: a committed `measured.json` is a superseded
+two-valued run (reads 126 where the rung publishes 114), and a grid manifest
+records a struct's **size** in a field meaning its **alignment**.

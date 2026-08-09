@@ -1,0 +1,61 @@
+== GRID-F: 44 cells ==
+   F-TYPE   39/44
+   F-CLAMP  44/44
+   F-ELEM   36/44
+   F-PROV   34/44
+
+   per cell: family size  measured   F-TYPE  F-CLAMP  F-ELEM  F-PROV
+   p1        0  none      none     none     none     none      [4B]
+   p1        8  call      call     call     inline*  call      [8B]
+   p1       16  call      call     call     inline*  call      [8B]
+   p1       24  call      call     call     inline*  call      [8B]
+   p1       32  call      call     call     inline*  call      [8B]
+   p1       40  call      call     call     inline*  call      [8B]
+   p1       48  call      call     call     call     call      [8B]
+   p1       64  call      call     call     call     call      [8B]
+   a16      16  inline    inline   inline   call*    inline    [20B]
+   a16      32  inline    inline   inline   call*    inline    [36B]
+   a16      40  inline    inline   inline   call*    inline    [32B]
+   a16      48  call      inline*  call     call     call      [8B]
+   a16      56  call      inline*  call     call     call      [8B]
+   a16      64  call      inline*  call     call     call      [8B]
+   a16      72  call      inline*  call     call     call      [8B]
+   a16      80  call      inline*  call     call     call      [8B]
+   a16      96  call      call     call     call     call      [8B]
+   a16     128  call      call     call     call     call      [8B]
+   cast      8  call      call     call     call     inline*   [8B]
+   cast     16  call      call     call     call     inline*   [8B]
+   cast     24  call      call     call     call     inline*   [8B]
+   cast     32  call      call     call     call     inline*   [8B]
+   cast     40  call      call     call     call     inline*   [8B]
+   cast     48  call      call     call     call     call      [8B]
+   ucast     8  inline    inline   inline   inline   call*     [12B]
+   ucast    16  inline    inline   inline   inline   call*     [20B]
+   ucast    24  inline    inline   inline   inline   call*     [28B]
+   ucast    32  inline    inline   inline   inline   call*     [36B]
+   ucast    40  inline    inline   inline   inline   call*     [32B]
+   ucast    48  call      call     call     call     call      [8B]
+   ctlc      4  inline    inline   inline   inline   inline    [36B]
+   ctlc      5  inline    inline   inline   inline   inline    [32B]
+   ctlc      7  call      call     call     call     call      [8B]
+   ctlc      8  call      call     call     call     call      [8B]
+   ctlc     20  call      call     call     call     call      [8B]
+   ctlc     44  call      call     call     call     call      [8B]
+   ctlc     48  call      call     call     call     call      [8B]
+   ctld      8  inline    inline   inline   inline   inline    [12B]
+   ctld     40  inline    inline   inline   inline   inline    [32B]
+   ctld     44  inline    inline   inline   inline   inline    [32B]
+   ctld     47  inline    inline   inline   inline   inline    [32B]
+   ctld     48  call      call     call     call     call      [8B]
+   ctld     56  call      call     call     call     call      [8B]
+   ctld     96  call      call     call     call     call      [8B]
+
+   * = this rival is WRONG on that cell
+
+   IMPLIED DIVISOR per family (from the inline/call boundary):
+      p1     largest inline None, smallest call 8   -, div < 1.60
+      a16    largest inline 40, smallest call 48   div >= 8.00, div < 9.60
+      cast   largest inline None, smallest call 8   -, div < 1.60
+      ucast  largest inline 40, smallest call 48   div >= 8.00, div < 9.60
+      ctlc   largest inline 5, smallest call 7   div >= 1.00, div < 1.40
+      ctld   largest inline 47, smallest call 48   div >= 9.40, div < 9.60
