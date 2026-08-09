@@ -605,7 +605,7 @@ impl PortC2 {
                     calls: body.calls,
                     is_float: f.touches_floating_point(),
                     mints_memcpy: f.mints_memcpy(),
-                    fp_refs: Vec::new(),
+                    fp_refs: body.fp_refs,
                     data_refs: body.data_refs,
                     data_defs: body.data_defs,
                     frame: body.frame,
@@ -653,6 +653,36 @@ impl PortC2 {
                 // hands back an unfinished text. Emitting it at a hardcoded 0
                 // was a live wrong-bytes emit for any framed function that is
                 // not first in the section.
+                // **W-BIQUAD — the float-store diamond.** Refused on the
+                // PACKED path rather than emitted: the class is `/O1`-gated in
+                // the parser and `/O1` implies `/Gy`, so a packed obj carrying
+                // one is a combination no capture produces and none was graded.
+                // Refusing keeps `emit_obj`'s pool order — which its own comment
+                // documents as first-reference and which
+                // `docs/OBJ_GY_SHAPES.md` §2.3 measures as its REVERSE — out of
+                // reach of the first class that would put two constants in one
+                // function. That disagreement is real and is recorded rather
+                // than repaired here, because repairing it is a claim about
+                // every packed FP obj this port already matches.
+                // **W-BIQUAD — the forwarding constructor**, refused on the
+                // PACKED path for its sibling's reason: the class is `/O1`-gated
+                // in the parser and `/O1` implies `/Gy`, so a packed obj
+                // carrying one is a combination no capture produces. Its callee
+                // footprint gate additionally lives in `comdat`, which this path
+                // does not go through, so admitting it here would emit the park
+                // without the check that makes the park right.
+                codegen::Selected::CtorForwardCall => {
+                    return Err(BackendError::NotImplemented(
+                        "a forwarding constructor in a PACKED obj: the class is                          /O1-only and /O1 implies /Gy, and the callee-footprint                          gate that decides its park register lives on the /Gy                          composition path"
+                            .to_string(),
+                    ))
+                }
+                codegen::Selected::FpStoreDiamond { .. } => {
+                    return Err(BackendError::NotImplemented(
+                        "a float-store diamond in a PACKED obj: the class is                          /O1-only and /O1 implies /Gy, so this combination has                          no capture — and `emit_obj` orders a function's own                          pools forwards where c2 emits them in reverse                          (docs/OBJ_GY_SHAPES.md 2.3), which is unreachable                          today and would become a wrong section table here"
+                            .to_string(),
+                    ))
+                }
                 codegen::Selected::Framed { setup } => {
                     let fc = f.framed_call.as_ref().expect("Framed implies framed_call");
                     let body = codegen::framed_call_text(
@@ -806,8 +836,20 @@ impl PortC2 {
                         Vec::new(),
                         consts
                             .into_iter()
+                            // **BOTH halves are rebased.** `lo_off` used to be
+                            // `hi_off + 4` arithmetic in the writer, so this
+                            // `..r` was complete; once `w-biquad` made it a
+                            // field, rebasing only `hi_off` left the REFLO at a
+                            // function-relative offset and every packed obj with
+                            // a pooled constant in a function that is NOT FIRST
+                            // came out with its low-half relocation on the wrong
+                            // word — `w13b_fdedup.cpp`, `Port=Mismatch @ 760`.
+                            // Caught by the fixture-level neutrality scan at
+                            // `/Ox` and by nothing else: `w-fence2` #2475's
+                            // shape, one field along.
                             .map(|r| codegen::FpConstRef {
                                 hi_off: r.hi_off + off,
+                                lo_off: r.lo_off + off,
                                 ..r
                             })
                             .collect(),

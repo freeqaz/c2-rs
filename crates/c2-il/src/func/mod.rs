@@ -1771,6 +1771,90 @@ pub struct FloatWalkLoop {
     pub others: Vec<usize>,
 }
 
+/// **W-BIQUAD — one constant store of an [`FpStoreDiamond`]**: `m[k] = <K>f;`,
+/// lowered as a single `stfs` out of the FPR the pooled constant was loaded
+/// into.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FpDiamondConstStore {
+    /// The member's byte offset from `this`, already summed over the whole
+    /// `27`/`28` offset-add run by
+    /// [`crate::func::body::shapes::designator::eat_offset_adds`].
+    pub off: i32,
+    /// The constant's value as raw IEEE-754 **binary64** bits, which is how the
+    /// IL carries a `float` literal (`docs/IL_EXPR_LAYER.md`; the trailing `u16`
+    /// width is what says it is a `float`, and the reader has checked it).
+    pub bits: u64,
+}
+
+/// **W-BIQUAD — one division statement of an [`FpStoreDiamond`]**:
+/// `m[off] = src[num] / src[den];`.
+///
+/// `den` is the same for every division in the run — that is what makes it the
+/// CSE run `WB_CHOOSER_FINDINGS` §4.1's B′-RULE is about — and the reader
+/// enforces it, so the emitter may read `den` off any element.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FpDiamondDiv {
+    /// Destination member's byte offset from `this`.
+    pub off: i32,
+    /// Numerator's byte offset from the source pointer.
+    pub num: i32,
+    /// Denominator's byte offset from the source pointer.
+    pub den: i32,
+}
+
+/// **W-BIQUAD — the null-guarded `if`/`else` whose arms are FLOAT MEMBER
+/// STORES** (`?SetCoefficients@Biquad@DSP@@QAAXPAM@Z`).
+///
+/// The accept/refuse boundary is entirely on the recognizer
+/// ([`crate::func::body::shapes::fp_store_diamond`]) and the word-for-word
+/// emission on [`c2_core::codegen::fp_store_diamond`]; this carries only what
+/// the emitter reads back.
+///
+/// **The two pools are not a field.** `A` — the constant whose `lis` is hoisted
+/// into the entry block — is `join_stores[0].bits`, and `B` — the block-local
+/// one — is the last `then_stores` entry's; the reader has established that
+/// every other store uses `A` and that the two differ. Storing them again here
+/// would be a second place for B-RULE's dominator reading to drift from the
+/// clause that checked it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FpStoreDiamond {
+    /// The formals in argument-register order: `params[0]` is `this` (r3) and
+    /// `params[1]` is the guarded pointer (r4). Exactly two, checked by the
+    /// recognizer through `parse_params` so `this` is counted.
+    pub params: Vec<u32>,
+    /// The then-arm's constant stores, in source order. The LAST one uses the
+    /// block-local constant `B`; every earlier one uses `A`.
+    pub then_stores: Vec<FpDiamondConstStore>,
+    /// The else-arm's division run, in source order. At least two, sharing one
+    /// denominator.
+    pub divs: Vec<FpDiamondDiv>,
+    /// The join's constant stores, in source order. All use `A`.
+    pub join_stores: Vec<FpDiamondConstStore>,
+}
+
+/// **W-BIQUAD — the constructor that is nothing but a forwarded member call**
+/// (`??0Biquad@DSP@@QAA@PAM@Z`).
+///
+/// The accept/refuse boundary is on the recognizer
+/// ([`crate::func::body::shapes::ctor_forward_call`]) and the nine words on
+/// [`c2_core::codegen::ctor_forward_call`]; the CALLEE's admissibility — M-RULE
+/// needs its register footprint, which no IL field carries — is decided one
+/// layer down, where the callee's own lowering exists.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CtorForwardCall {
+    /// The formals in argument-register order; `params[0]` is `this` (r3).
+    pub params: Vec<u32>,
+    /// The callee's mangled name, resolved from its `.gl` token by
+    /// [`crate::func::bundle`]. In `Biquad.cpp` it is a function this obj
+    /// DEFINES, so the writer relocates against its own defined symbol.
+    pub callee: String,
+    /// How many argument slots the call occupies, receiver included. The
+    /// emitter cannot recover it — an EMPTY argument setup is exactly what this
+    /// production requires — so it is carried, the same field and the same
+    /// reason [`StoreRunPrefix::live_args`] has.
+    pub live_args: usize,
+}
+
 /// **W-IFN — one guard of a [`GuardRetChain`]**: `if (<formal> == 0) return
 /// <K>;`, lowered as a `cmplwi cr6` and a forward `bf 26` over a two-word arm.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2807,6 +2891,18 @@ pub struct IlFunction {
     /// [`Self::label_slots`] return `None`, on `counted_accum_loop`'s reasoning
     /// and this lane's own measurement — see there.
     pub float_walk_loop: Option<FloatWalkLoop>,
+    /// **W-BIQUAD — the null-guarded float-store diamond**
+    /// (`?SetCoefficients@Biquad@DSP@@QAAXPAM@Z`). Set by exactly one parser
+    /// production; [`Self::ops`] is empty for it. It is a **leaf** — no frame,
+    /// no `.pdata` — and it pools two constants, which is what makes the TU it
+    /// belongs to the first one needing `.rdata` on the `/Gy` path.
+    pub fp_store_diamond: Option<FpStoreDiamond>,
+    /// **W-BIQUAD — the constructor that is nothing but a forwarded member
+    /// call** (`??0Biquad@DSP@@QAA@PAM@Z`). Set by exactly one parser
+    /// production; [`Self::ops`] is empty for it. It IS framed — `.pdata`, a
+    /// `$M`/`$M`/`$T` triple and the framed label stride — so
+    /// [`Self::is_framed`] has an arm for it.
+    pub ctor_forward_call: Option<CtorForwardCall>,
     /// **W-EXTDATA — the sunk-`||`-guard, shared-tail body** (`_vswprintf_s_l`).
     /// Set by exactly one parser production; [`Self::ops`] is empty for it.
     pub guard_chain_shared_tail: Option<GuardChainSharedTailFn>,
@@ -3014,6 +3110,8 @@ impl IlFunction {
             static_scan_loop: None,
             counted_accum_loop: None,
             float_walk_loop: None,
+            fp_store_diamond: None,
+            ctor_forward_call: None,
             guard_chain_shared_tail: None,
             alloc_init_or_fail: None,
             osf_handle_guard: None,
@@ -3208,6 +3306,15 @@ impl IlFunction {
             // and without this arm the whole obj is one symbol short — which is
             // exactly what it was, graded `mismatch` before this line existed.
             || self.float_walk_loop.is_some()
+            // **W-BIQUAD — the float-store diamond.** Every body in the class
+            // stores single-precision floats out of pooled `.rdata` constants,
+            // so this is a structural fact of the class rather than a body scan
+            // — the same form `if_call_join` and `float_walk_loop` use above.
+            // MEASURED: `Biquad.cpp`'s obj carries `_fltused` at symbol 20,
+            // after `?SetCoefficients`' COMPLETE group (its own symbol, then
+            // BOTH `.rdata` section-symbol/`__real@` pairs), and without this
+            // arm the whole obj is one symbol short.
+            || self.fp_store_diamond.is_some()
     }
 
     /// True iff this function establishes a **stack frame** — it gets a `.pdata`
@@ -3218,6 +3325,10 @@ impl IlFunction {
     /// calls whose result (or whose successor statement) outlives the `bl`.
     pub fn is_framed(&self) -> bool {
         self.framed_call.is_some()
+            // **W-BIQUAD** — nine words with a `stwu`, a `bl` and a `.pdata`
+            // record. The label triple that comes with it is the reason
+            // `Biquad.cpp`'s other function's label charge had to be measured.
+            || self.ctor_forward_call.is_some()
             || self.call_seq.is_some()
             || self.if_call_join.is_some()
             || self.guard_chain_shared_tail.is_some()
@@ -3457,6 +3568,9 @@ impl IlFunction {
             .as_deref()
             .into_iter()
             .chain(self.framed_call.as_ref().map(|c| c.callee.as_str()))
+            // **W-BIQUAD** — one call, one REL24, and in `Biquad.cpp` the target
+            // is a function this obj defines.
+            .chain(self.ctor_forward_call.as_ref().map(|c| c.callee.as_str()))
             .chain(
                 self.call_seq
                     .iter()

@@ -1858,7 +1858,7 @@ pub(crate) fn try_parse_store_run_call(
 ///
 /// Returns `(callee token, live argument slots)`, or `None` for a tail that is
 /// not this one.
-fn run_call_tail(
+pub(crate) fn run_call_tail(
     seg: &[u8],
     mut p: usize,
     lo: usize,

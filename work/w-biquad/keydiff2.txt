@@ -1,0 +1,46 @@
+base 256 keys, tip 259 keys
+vanished 0
+appeared 3
+   + fnbyte-shape-ctor-forward-call-exact = 1
+   + fnbyte-shape-ctor-forward-call-partial = 10
+   + fnbyte-shape-fp-store-diamond-exact = 1
+changed  39
+   ~ a-and-b-and-c-and-d: 18 -> 19
+   ~ a-and-b-and-c-and-d-or-e: 20 -> 21
+   ~ bytefrac-control-full: 13 -> 14
+   ~ cfg-reach-enumerated: 2 -> 1
+   ~ cfg-reach-shipped: 2 -> 1
+   ~ cfg-reach-top: 7 -> 6
+   ~ cflow-emitted-branchy: 35119 -> 35118
+   ~ cflow-offclass-accounted: 519785 -> 522043
+   ~ cflow-offclass-bind-blocked: 362445 -> 360188
+   ~ cflow-offclass-bind-inclass: 60743 -> 63000
+   ~ cflow-offclass-compare-blocked: 41129 -> 41128
+   ~ cflow-offclass-compare-inclass: 15 -> 16
+   ~ cflow-residue-inclass-offclass: 519785 -> 522043
+   ~ factor-d: 20 -> 21
+   ~ fnbyte-calltarget-agree: 35793 -> 35795
+   ~ fnbyte-calltarget-graded: 38223 -> 38225
+   ~ fnbyte-decline-gy-shape: 0 -> 10
+   ~ fnbyte-decline-parse: 113646 -> 113634
+   ~ fnbyte-exact: 35793 -> 35795
+   ~ fnbyte-exact-bytes: 36325 -> 36327
+   ~ fnbyte-exact-relocated: 3815 -> 3817
+   ~ fnbyte-match: 0.22083 -> 0.22084
+   ~ fnbyte-name-disagree: 74667 -> 74672
+   ~ fnbyte-partial: 0 -> 10
+   ~ fnbyte-refused: 114649 -> 114637
+   ~ fnbyte-refused-parse: 113646 -> 113634
+   ~ fnbyte-reloc-graded: 36325 -> 36327
+   ~ fnbyte-reloc-graded-relocated: 4347 -> 4349
+   ~ fnbyte-shape-parse-refused-refused: 113646 -> 113634
+   ~ fnbyte-tus-full: 16 -> 17
+   ~ frontier: 7 -> 6
+   ~ frontier-bytefrac-zero: 4 -> 3
+   ~ frontier-codegen-denominator: 45 -> 43
+   ~ frontier-codegen-reader: 33 -> 31
+   ~ frontier-if-a: 129 -> 128
+   ~ match: 20 -> 21
+   ~ progress-emitted-in-class: 39226 -> 39238
+   ~ progress-mass: 0.21406 -> 0.21408
+   ~ vocab-gap: 851 -> 850

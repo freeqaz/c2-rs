@@ -85,6 +85,33 @@ pub fn plan_labels(counter: u32, funcs: &[Function], comdat: bool) -> Vec<Option
     // exactly that cell before the differential caught it — see
     // [`super::Function::mints_memcpy`].
     let mut memcpy_slot_taken = !funcs.iter().any(|f| f.mints_memcpy);
+    // **W-BIQUAD — `+2` per newly pooled FP constant**, `docs/LABEL_COUNTER.md`
+    // §1.1's fourth surcharge row: *"a newly pooled FP constant — each distinct
+    // `(bits,width)` first introduced — **+2**"*, measured on `const2-led` at
+    // both `/Gy` and `/O x` (§1.2: *"every surcharge is byte-for-byte the same
+    // integer"*).
+    //
+    // **It has been unobservable until now, and that is why it was not here.**
+    // Only a FRAMED function has labels, so a surcharge taken by a leaf is
+    // visible only when a framed function follows it in the same TU. Every
+    // pool-bearing obj this port has emitted was leaves alone
+    // (`w13b_fconst.cpp`, `w13b_fdedup.cpp`, `w13b_fpool.cpp`), where the whole
+    // counter is dead. `Biquad.cpp` is the first TU with both: a two-pool leaf
+    // and then a framed constructor, and without this the constructor's triple
+    // came out `$M2570`/`$M2571`/`$T2572` against the reference's
+    // `$M2574`/`$M2575`/`$T2576` — **exactly four low, which is 2 + 2**.
+    //
+    // TU-wide first-introduction, deduped on the same `(bits, double)` key the
+    // writer pools on and read off the same `fp_refs` list, so the surcharge and
+    // the `.rdata` section it pays for cannot disagree about which constants are
+    // new. §1.1's last row — *"a helper width / FP constant an earlier function
+    // already introduced: **0**, at any count"* — is that dedup.
+    //
+    // **Order against `_fltused` is NOT determined by any capture here.** In
+    // `Biquad.cpp` both surcharges are taken by the same function, which is also
+    // the first, so every later label moves by their SUM and no obj separates
+    // them. Stated rather than left implicit.
+    let mut pooled: Vec<(u64, bool)> = Vec::new();
     funcs
         .iter()
         .map(|f| {
@@ -95,6 +122,13 @@ pub fn plan_labels(counter: u32, funcs: &[Function], comdat: bool) -> Vec<Option
             if f.mints_memcpy && !memcpy_slot_taken {
                 memcpy_slot_taken = true;
                 cur += 1;
+            }
+            for r in &f.fp_refs {
+                let key = (r.bits, r.double);
+                if !pooled.contains(&key) {
+                    pooled.push(key);
+                    cur += 2;
+                }
             }
             // **The leading surcharge is taken before the function's own triple**,
             // so it moves this function's `$M` numbers as well as every later

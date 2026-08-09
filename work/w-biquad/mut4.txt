@@ -1,0 +1,377 @@
+building the harness (no-op if current)
+    Finished `release` profile [optimized] target(s) in 0.00s
+harness: /tmp/c2rs-mode-lane/-O1/c2rs
+  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a183e8a527984c88a/target/release/c2rs  built 2026-08-09 15:51:35
+  sha fac3ca5695b6  tree 71ce3ecc-dirty
+grading 333 fixtures at /O1
+GAP REPORT (333 TUs in 0.1s)
+  match           162   48.6%
+  mismatch          1    0.3%
+  codegen-gap      12    3.6%
+  vocab-gap       158   47.4%
+  port-error        0    0.0%
+  capture-fail      0    0.0%
+  capture cache: 333 hit, 0 miss, 0 uncacheable  |  validator: 0 re-captured and agreed (0 of them only after zeroing the COFF TimeDateStamp), 0 POISONED
+  cache entries REFUSED on provenance: 0 (expected 0 — an entry whose recorded capture path is not where it is being served from is re-captured, never served)
+
+  FUNCTION CENSUS (P2b): 1825/2840 functions in class (64.26%)
+  census/gate DISAGREEMENT: 12 (0.66% of the numerator) — the census OVER-CLAIMS by this much
+         12  not implemented
+  .gl binding invariants: 0 violations (every generated destructor resolves to a destructor)
+         26  dtor-callee-1
+
+  EMITTED CENSUS (§8): 1825/2839 emitted functions in class (64.28%)
+    bound 2835  |  residue 4: 0 compiler-generated (no IL body), 4 unexplained  (0.14% of the denominator)
+    ceiling if every residue symbol were in class: 1829 (64.42%)
+    ground truth VIOLATED: 6 emitted symbols on the 162 byte-exact TUs did not bind to an in-class row — the BINDING is wrong, not the port
+    binding: 2843 records, 0 nameless, 2 before the first row, 2 row-conflicts, 0 name-conflicts, 0 accounting breaks, 0 unreadable objs
+    binding arity (#144 — residue 0 is not a control): 2843 record offsets against 2843 records, 0 arity breaks (known answer 0)
+    .in initializers: 12364 records = 12363 accepted + 1 residue, 14810 elements (ARITY), 12363 values (TOKENS, not records), 0 duplicate records, 0 conflicts, 0 accounting breaks (known answer 0)
+    .in symbol addresses (element tag 02, board #931): 24 elements over 24 records
+    .in UNANCHORED (the denominator, board #961): 17 records whose first element is a tag-03 blob or a tag-08 fill, 0 `00 02` candidates dropped by the fail-closed arm, 0 anchors with no token — none of these is in `records` OR in the residue
+      .in residue symbol-address              0
+      .in residue floating-point              1
+      .in residue unknown-type                0
+      .in residue unknown-width               0
+      .in residue value-did-not-frame         0
+      .in residue pointer-width               0
+      .in residue zero-fill                   0
+      .in residue inline-bytes                0
+      .in residue truncated                   0
+      residue ordinary                   4 (100.0% of the unexplained)
+    TU distance to matching (blocked functions) — ≤0: 158, ≤1: 179, ≤10: 274, ≤100: 308, ≤1000: 308
+    TU distance to matching (blocked EMITTED functions) — ≤0: 160, ≤1: 181, ≤10: 274, ≤100: 308, ≤1000: 308
+    emit-set ceiling: 329 of 333 graded TUs have `.ex` segments == obj `.text` COMDATs — the most TU match can reach before ROADMAP §8.3 Phase 7 (violations among matching TUs, must be 0: 0)
+    emit-set MODEL ceiling: 332 of 333 TUs bind every emitted symbol today; 333 would if `bind.rs` lost none; 0 carry an emitted symbol with NO `.gl` body record and are a wall for any segment-driven model
+      unbound emitted symbols: 4 have a body record (instrument defect), 0 have none (wall) — nesting invariant, must hold: today <= repaired (true), repaired + wall == graded (true)
+    the widening order OVER EMITTED CODE (1010 blocked):
+          101 ( 10.0%)  expr-op-0x27
+           65 (  6.4%)  expr-cmp-eq
+           59 (  5.8%)  expr-load-type-8645
+           39 (  3.9%)  expr-cmp-ne
+           31 (  3.1%)  expr-jump
+           30 (  3.0%)  expr-ptr-arith:mid
+           27 (  2.7%)  expr-op-0x30
+           25 (  2.5%)  expr-brfalse
+           19 (  1.9%)  expr-out-of-class-tree-depth:eof
+           17 (  1.7%)  assign-dst-not-formal-0x26
+           16 (  1.6%)  expr-load-type-8885
+           13 (  1.3%)  body-0x67
+           13 (  1.3%)  expr-affine-pending-imm:eof
+           11 (  1.1%)  assign-rhs-call-0x26
+           11 (  1.1%)  call-arg-lit-permuted:eof
+           11 (  1.1%)  expr-intrinsic-this-adjust
+           11 (  1.1%)  expr-load-type-8211
+           10 (  1.0%)  callseq-tail-lit:mid
+           10 (  1.0%)  data-sym-not-extern:eof
+           10 (  1.0%)  expr-cmp-ge
+      … and 186 more distinct features
+    TUs within 100 blocked functions of matching: 308 (blocked | emitted in-class/emitted | src)
+          0 |    9/9    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_accum4.cpp [match]
+          0 |    7/7    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_base_member.cpp [match]
+          0 |    6/6    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_bool_materialization.cpp [match]
+          0 |    6/6    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_args2.cpp [match]
+          0 |    7/7    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_perm.cpp [match]
+          0 |    5/5    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_value.cpp [match]
+          0 |    2/2    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_dllexport_neg.cpp [vocab-gap]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_drectve_pragma.cpp [vocab-gap]
+          0 |   16/16   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_deref.cpp [match]
+          0 |    6/6    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_member.cpp [match]
+          0 |    2/2    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_extern_c_name.cpp [vocab-gap]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_gl_data_symbol.cpp [vocab-gap]
+          0 |    2/2    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_intra_tu_call.cpp [codegen-gap]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_line_marker.cpp [match]
+          0 |    9/9    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_param_aggr.cpp [match]
+          0 |    3/3    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_param_poly.cpp [match]
+          0 |   16/16   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_reassoc.cpp [match]
+          0 |    3/3    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_local_decl.cpp [match]
+          0 |    3/3    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_param_assign.cpp [match]
+          0 |    7/7    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_scope.cpp [match]
+          0 |    4/4    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_seq.cpp [match]
+          0 |   10/10   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_sy_locals_clean.cpp [match]
+          0 |    4/4    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_sy_size_extent.cpp [match]
+          0 |    2/2    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_this_line70.cpp [match]
+          0 |   11/11   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_this_straightline.cpp [match]
+          0 |   12/12   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_type_intlike.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_add3.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_argtail.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call.cpp [match]
+          0 |   10/10   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_seq.cpp [match]
+          0 |   18/18   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_seq_b.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_submod.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_twice.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_edit_ab.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_edit_addk.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_edit_addk2.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_fmul3.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_framed.cpp [match]
+          0 |    3/3    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_lit.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_plus0.cpp [match]
+          0 |    3/3    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_sub.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_tailret.cpp [match]
+          0 |    2/2    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_two.cpp [match]
+          0 |    3/3    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_wide.cpp [match]
+          0 |    2/2    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w10_empty_fn.cpp [match]
+          0 |   12/12   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w10_guarded_seq.cpp [match]
+          0 |   15/15   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w1199_bind_run.cpp [match]
+          0 |   15/15   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w11_early_return.cpp [match]
+          0 |    9/9    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w1212_bind_run_call.cpp [match]
+          0 |    5/5    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w1274_addr_producer.cpp [match]
+          0 |   51/51   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w12_narrow_getters.cpp [match]
+          0 |   13/13   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w12_ptr_leaf.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13b_fconst.cpp [codegen-gap]
+          0 |    4/4    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13b_fdedup.cpp [codegen-gap]
+          0 |    9/9    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w14_dtor_delegate.cpp [match]
+          0 |   10/10   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w15_dtor_member.cpp [match]
+          0 |   29/29   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w16_addr_leaf.cpp [match]
+          0 |   23/23   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w17_ptr_operand.cpp [match]
+          0 |   38/38   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w18_reg_move.cpp [match]
+          0 |   17/17   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w19_ctor_this.cpp [match]
+      … and 248 more
+  blocking features (the widening order):
+        102 ( 10.0%)  expr-op-0x27
+         65 (  6.4%)  expr-cmp-eq
+         59 (  5.8%)  expr-load-type-8645
+         39 (  3.8%)  expr-cmp-ne
+         31 (  3.1%)  expr-jump
+         30 (  3.0%)  expr-ptr-arith:mid
+         27 (  2.7%)  expr-op-0x30
+         25 (  2.5%)  expr-brfalse
+         19 (  1.9%)  expr-out-of-class-tree-depth:eof
+         17 (  1.7%)  assign-dst-not-formal-0x26
+         16 (  1.6%)  expr-load-type-8885
+         13 (  1.3%)  body-0x67
+         13 (  1.3%)  expr-affine-pending-imm:eof
+         11 (  1.1%)  assign-rhs-call-0x26
+         11 (  1.1%)  call-arg-lit-permuted:eof
+         11 (  1.1%)  data-sym-not-extern:eof
+         11 (  1.1%)  expr-intrinsic-this-adjust
+         11 (  1.1%)  expr-load-type-8211
+         10 (  1.0%)  callseq-tail-lit:mid
+         10 (  1.0%)  expr-cmp-ge
+    … and 187 more distinct features
+  frame class (CALL tokens per body — decode-only, §18):
+       1567 ( 55.2%)  calls-0
+        763 ( 26.9%)  calls-1
+        510 ( 18.0%)  calls-2plus
+         77           calls-2plus|cond-tail-pair
+         54           calls-2plus|call-sequence-value
+         46           calls-2plus|call-sequence
+         30           calls-2plus|call-sequence-cmp-order
+         24           calls-2plus|expr-cmp-eq
+         19           calls-2plus|call-sequence-load-fp
+         16           calls-2plus|call-sequence-cmp-eq
+         13           calls-2plus|call-sequence-load
+         12           calls-2plus|call-sequence-guarded
+         10           calls-2plus|assign-rhs-call-0x26
+  control-flow class (statement layer, decode-only): 2818 of 2840 bodies decoded end to end (99.2%)
+       1613 ( 56.8%)  cflow-straight
+        837 ( 29.5%)  cflow-straight+expr-modeled
+        157 (  5.5%)  cflow-if-1
+         89 (  3.1%)  cflow-loop
+         68 (  2.4%)  cflow-if-n
+         18 (  0.6%)  cflow-if-2
+         14 (  0.5%)  cflow-multi-exit+expr-modeled
+         12 (  0.4%)  cf-no-body
+         11 (  0.4%)  cflow-if-1+expr-modeled
+          7 (  0.2%)  cf-expr-0x59
+          7 (  0.2%)  cflow-loop+expr-modeled
+          3 (  0.1%)  cf-expr-0x08
+          3 (  0.1%)  cflow-if-2+expr-modeled
+          1 (  0.0%)  cflow-switch+expr-modeled
+         77           cflow-if-1|cond-tail-pair
+         30           cflow-loop|expr-jump
+         25           cflow-if-1|expr-cmp-eq
+         20           cflow-if-1|call-sequence-early-return
+         14           cflow-if-n|expr-cmp-eq
+         12           cflow-if-1|call-sequence-guarded
+         12           cflow-if-2|call-sequence-early-return
+         12           cflow-loop|counted-accum-loop
+         11           cflow-loop|expr-cmp-eq
+         10           cflow-if-1+expr-modeled|expr-brfalse
+         10           cflow-if-n|assign-rhs-call-0x26
+         10           cflow-if-n|expr-cmp-ge
+    CONTROL-FLOW COUNTERFACTUAL (board #1343) — what a block IR would convert BY ITSELF: 36 bodies, 23 of the 186 blocked EMITTED functions a block IR must serve. Neither is a bound — both are a PROXY whose two-sided error the next two lines measure. Never quote one without them.
+    RESIDUE CONTROL (board #1344) — `CfResidue::Modeled` is a hand-written mirror of the port's class and NOTHING checked it against the port. It calls 1179 of the 1825 bodies the port ACCEPTS off-class (64.6%), recognising only 646. NOT a gate and NOT an error: a residue LOOSER than the emitter would over-claim, which is worse. What it IS is the counterfactual's error term, and it was assumed rather than measured for eight days.
+    …and it errs BOTH WAYS, so `lower bound` is the wrong word for the line above: 204 straight-line bodies are `+expr-modeled` and the port REFUSES them anyway. `Modeled` neither contains nor is contained in the class — it is a different predicate, and the counterfactual inherits both differences.
+  EH class (maxState, decode-only): 4 of 2840 bodies have maxState >= 1 and need the whole EH record (0.1%)
+       2778 ( 97.8%)  eh-none       blocked     986
+         36 (  1.3%)  eh-state0     blocked       3
+         22 (  0.8%)  eh-unknown    blocked      22
+          4 (  0.1%)  eh-state1     blocked       4
+    blocked residue, by census key (accepted shapes excluded):
+          7           eh-unknown|BLOCKED|data-sym-not-extern:eof
+          7           eh-unknown|BLOCKED|expr-load-type-8645
+          4           eh-unknown|BLOCKED|data-sym-unresolved:eof
+          2           eh-state0|BLOCKED|expr-intrinsic-this-adjust
+          2           eh-unknown|BLOCKED|expr-load-type-8885
+          1           eh-state0|BLOCKED|expr-intrinsic-base-member-addr
+          1           eh-state1|BLOCKED|expr-call-in-expr-recv-intrinsic-this-adjust-then-call-recv-field-whole
+          1           eh-state1|BLOCKED|expr-call-in-expr-recv-intrinsic-this-adjust-then-chain-bind-whole
+          1           eh-state1|BLOCKED|expr-call-in-expr-recv-intrinsic-this-adjust-whole
+          1           eh-state1|BLOCKED|expr-intrinsic-this-adjust
+          1           eh-unknown|BLOCKED|expr-call-in-expr-recv-object-then-call-nested-call-and-call-whole2
+          1           eh-unknown|BLOCKED|expr-op-0x27
+    in-class control group (ACCEPTED functions, never a rung):
+         14           eh-state0|INCLASS|empty-dtor-delegation
+          9           eh-state0|INCLASS|empty-dtor-member-adjusted
+          7           eh-state0|INCLASS|empty-ctor-base
+          3           eh-state0|INCLASS|empty-dtor-member
+    maxState x statement-count (the refuted predicate, for reconciliation):
+         33           eh-migrate|eh-state0|eh-bare
+         22           eh-migrate|eh-unknown|eh-unknown
+          3           eh-migrate|eh-state0|eh-plus-stmt
+          3           eh-migrate|eh-state1|eh-multi
+          1           eh-migrate|eh-state1|eh-plus-stmt
+  grammar completeness (decode-only): 2840 of 2840 bodies read
+       1825 ( 64.3%)  complete-in-class               blocked       0
+        636 ( 22.4%)  complete-none                   blocked     636
+        187 (  6.6%)  complete-whole:segment-end      blocked     187
+         99 (  3.5%)  complete-partial:segment-end    blocked      99
+         68 (  2.4%)  complete-whole:grammar          blocked      68
+         13 (  0.5%)  complete-unmeasured:grammar     blocked      13
+         12 (  0.4%)  complete-more:grammar           blocked      12
+    grammar-COMPLETE and blocked, both producers summed: 255
+  body dispatch (which recognizer claimed the body, decode-only): 2840 of 2840 bodies tagged on the dispatch axis, 2840 on the production axis
+        462 ( 16.3%)  disp-plain-call                   blocked     162
+        432 ( 15.2%)  disp-expr-load                    blocked     432
+        360 ( 12.7%)  disp-straight-line                blocked      57
+        318 ( 11.2%)  disp-member-call                  blocked      82
+        254 (  8.9%)  disp-assign                       blocked     211
+        158 (  5.6%)  disp-indirect-load-leaf           blocked       0
+        104 (  3.7%)  disp-store-run                    blocked       0
+         90 (  3.2%)  disp-float-leaf                   blocked       0
+         89 (  3.1%)  disp-store-leaf                   blocked       0
+         77 (  2.7%)  disp-cond-tail-pair               blocked       0
+         59 (  2.1%)  disp-compare-leaf                 blocked       0
+         58 (  2.0%)  disp-cmp-shift-or                 blocked       0
+         47 (  1.7%)  disp-fp-tail-call                 blocked       0
+         37 (  1.3%)  disp-addr-leaf                    blocked       0
+         34 (  1.2%)  disp-early-return-seq             blocked       0
+         31 (  1.1%)  disp-store-run-bind               blocked       6
+         30 (  1.1%)  disp-expr-lit                     blocked      30
+         28 (  1.0%)  disp-empty-body                   blocked       1
+         28 (  1.0%)  disp-ptr-identity-leaf            blocked       0
+         26 (  0.9%)  disp-empty-dtor-delegation        blocked       0
+         21 (  0.7%)  disp-body-byte                    blocked      21
+         12 (  0.4%)  disp-counted-accum-loop           blocked       0
+         12 (  0.4%)  disp-guarded-seq                  blocked       0
+         11 (  0.4%)  disp-store-run-call               blocked       0
+         10 (  0.4%)  disp-empty-ctor-base-delegation   blocked       0
+          9 (  0.3%)  disp-guard-chain-shared-tail      blocked       0
+          8 (  0.3%)  disp-formals-width                blocked       8
+          5 (  0.2%)  disp-float-walk-loop              blocked       0
+          5 (  0.2%)  disp-if-call-join                 blocked       0
+          5 (  0.2%)  disp-static-scan-loop             blocked       2
+          4 (  0.1%)  disp-div-mod-leaf                 blocked       0
+          4 (  0.1%)  disp-ptr-walk-chain-loop          blocked       0
+          3 (  0.1%)  disp-not-run                      blocked       3
+          2 (  0.1%)  disp-ctor-forward-call            blocked       0
+          2 (  0.1%)  disp-ptr-walk-loop                blocked       0
+          1 (  0.0%)  disp-alloc-init-or-fail           blocked       0
+          1 (  0.0%)  disp-fp-store-diamond             blocked       0
+          1 (  0.0%)  disp-json-utf8-copy               blocked       0
+          1 (  0.0%)  disp-osf-handle-guard             blocked       0
+          1 (  0.0%)  disp-xlrc-create-guard            blocked       0
+    blocked residue of the arms that never enter a member-call production:
+         90           disp-expr-load|BLOCKED|expr-op-0x27
+         63           disp-expr-load|BLOCKED|expr-cmp-eq
+         42           disp-expr-load|BLOCKED|expr-load-type-8645
+         39           disp-expr-load|BLOCKED|expr-cmp-ne
+         28           disp-expr-load|BLOCKED|expr-ptr-arith:mid
+         26           disp-expr-load|BLOCKED|expr-op-0x30
+         19           disp-straight-line|BLOCKED|expr-out-of-class-tree-depth:eof
+         17           disp-plain-call|BLOCKED|expr-load-type-8645
+         15           disp-expr-load|BLOCKED|expr-brfalse
+         13           disp-body-byte|BLOCKED|body-0x67
+         13           disp-straight-line|BLOCKED|expr-affine-pending-imm:eof
+         11           disp-expr-load|BLOCKED|expr-load-type-8211
+         11           disp-expr-load|BLOCKED|expr-load-type-8885
+         11           disp-plain-call|BLOCKED|call-arg-lit-permuted:eof
+         10           disp-expr-load|BLOCKED|expr-cmp-ge
+         10           disp-plain-call|BLOCKED|callseq-tail-lit:mid
+          8           disp-expr-load|BLOCKED|expr-load-type-8421
+          8           disp-formals-width|BLOCKED|param-multi-reg:mid
+          7           disp-body-byte|BLOCKED|body-cflow-label
+          7           disp-expr-load|BLOCKED|expr-cmp-gt
+          7           disp-expr-load|BLOCKED|expr-convert-target-8641
+          7           disp-plain-call|BLOCKED|call-arg-lit-wide:eof
+          7           disp-plain-call|BLOCKED|callseq-saved-with-first-call-setup:eof
+          7           disp-straight-line|BLOCKED|expr-repeated-leaf:eof
+  member-call production first blocker (decode-only): 0 bodies entered a production, declined, and reached NO tagged bail — the tag-coverage residue (target 0)
+       2215 ( 78.0%)  prod-not-entered                  blocked     715
+        251 (  8.8%)  prod-accepted                     blocked      15
+         98 (  3.5%)  tail-recv-not-a-plain-b9-load/no-b9-literal  blocked      63
+         67 (  2.4%)  prod-committed-refusal            blocked      67
+         64 (  2.3%)  tail-recv-not-a-plain-b9-load/b9-not-a-ptr4  blocked      35
+         29 (  1.0%)  tail-recv-not-a-plain-b9-load/then-off-add  blocked      11
+         21 (  0.7%)  framed-result-not-consumed-by-a-literal-post-op  blocked      21
+         15 (  0.5%)  chain-recv-not-a-plain-b9-load/no-b9-plain-call  blocked       8
+         13 (  0.5%)  tail-void-body-does-not-end-at-the-call  blocked      13
+         11 (  0.4%)  tail-argument-not-in-the-operand-vocabulary  blocked      11
+         11 (  0.4%)  tail-recv-not-a-plain-b9-load/no-b9-this-adjust  blocked      11
+          5 (  0.2%)  chain-body-does-not-end-at-the-call  blocked       5
+          5 (  0.2%)  cmp-two-results-not-consumed-by-a-relation  blocked       5
+          4 (  0.1%)  chain-tail-designator-has-no-result-type  blocked       4
+          4 (  0.1%)  cmp-result-convert-not-a-plain-int  blocked       4
+          3 (  0.1%)  chain-link-does-not-bind-the-previous-result  blocked       3
+          3 (  0.1%)  tail-recv-not-a-plain-b9-load/no-b9-off-add  blocked       3
+          2 (  0.1%)  chain-link-argument-not-in-the-operand-vocabulary  blocked       2
+          2 (  0.1%)  chain-recv-not-a-plain-b9-load/no-b9-convert  blocked       2
+          2 (  0.1%)  chain-recv-not-a-plain-b9-load/no-b9-off-add  blocked       2
+          2 (  0.1%)  chain-void-body-does-not-end-at-the-call  blocked       2
+          2 (  0.1%)  cmp-relation-result-not-annotated-bool  blocked       2
+          2 (  0.1%)  tail-returned-body-does-not-end-at-the-call  blocked       2
+          1 (  0.0%)  chain-recv-not-a-plain-b9-load/b9-not-a-ptr4  blocked       1
+          1 (  0.0%)  chain-recv-not-a-plain-b9-load/then-deref-load  blocked       1
+          1 (  0.0%)  chain-recv-not-a-plain-b9-load/then-off-add  blocked       1
+          1 (  0.0%)  framed-post-op-body-does-not-end-at-the-return  blocked       1
+          1 (  0.0%)  tail-object-receiver-is-not-a-tail-call  blocked       1
+          1 (  0.0%)  tail-recv-not-a-plain-b9-load/no-b9-stmt-end  blocked       1
+          1 (  0.0%)  tail-recv-not-a-plain-b9-load/no-b9-temp-bind  blocked       1
+          1 (  0.0%)  tail-recv-not-a-plain-b9-load/then-deref-load  blocked       1
+          1 (  0.0%)  tail-recv-not-a-plain-b9-load/then-store  blocked       1
+         29           tail-recv-not-a-plain-b9-load/no-b9-literal|BLOCKED|expr-jump
+         16           tail-recv-not-a-plain-b9-load/b9-not-a-ptr4|BLOCKED|assign-dst-not-formal-0x26
+         11           tail-recv-not-a-plain-b9-load/no-b9-this-adjust|BLOCKED|expr-intrinsic-this-adjust
+         10           tail-recv-not-a-plain-b9-load/no-b9-literal|BLOCKED|assign-rhs-call-0x26
+         10           tail-recv-not-a-plain-b9-load/no-b9-literal|BLOCKED|expr-brfalse
+          9           prod-accepted|BLOCKED|data-sym-not-extern:eof
+          6           prod-committed-refusal|BLOCKED|mcall-chain-tail-load-width:mid
+          6           tail-recv-not-a-plain-b9-load/no-b9-literal|BLOCKED|assign-store-type-8643
+          6           tail-recv-not-a-plain-b9-load/then-off-add|BLOCKED|expr-op-0x27
+          5           framed-result-not-consumed-by-a-literal-post-op|BLOCKED|expr-call-in-expr-recv-load-whole
+          5           tail-argument-not-in-the-operand-vocabulary|BLOCKED|expr-call-in-expr-recv-load-then-temp-bind
+          5           tail-recv-not-a-plain-b9-load/no-b9-literal|BLOCKED|expr-label
+          4           framed-result-not-consumed-by-a-literal-post-op|BLOCKED|expr-call-in-expr-recv-load-then-cmp-gt-and-type-int1-whole2
+          4           prod-accepted|BLOCKED|data-sym-unresolved:eof
+          4           prod-committed-refusal|BLOCKED|call-arg-nonformal:eof
+          4           prod-committed-refusal|BLOCKED|call-arg-sym-permuted:eof
+          4           prod-committed-refusal|BLOCKED|call-ret-fp:mid
+          4           prod-committed-refusal|BLOCKED|mcall-cmp-args:eof
+          4           prod-committed-refusal|BLOCKED|mcall-cmp-rel-ge:eof
+          3           framed-result-not-consumed-by-a-literal-post-op|BLOCKED|expr-call-in-expr-recv-load-then-off-add-and-deref-load-whole2
+
+  top vocab gaps:
+      158 x il function decode failed
+
+  top codegen gaps:
+        7 x a TU that defines no functions but whose `.gl` names storage the bare four-secti…
+        2 x pooled floating-point constant under function-level linking (/Gy): sections inte…
+        1 x a call c2 replaces with its callee's body (mechanism I: `?g@@YAXXZ` is `?f@@YAXX…
+        1 x a call c2 replaces with its callee's body (mechanism I: `?w_add@@YAHH@Z` is `?w_…
+        1 x inlined-callee ?wf2m_big@@YAHH@Z: this TU defines it and its lowered body is <= …
+
+  mismatches:
+        1 x bytes diverge
+
+CORRECTNESS SIGNAL: 1 mismatching TU(s), 0 replay divergence(s), 0 poisoned cache entr(ies)
+
+MISMATCH at /O1 — the port emitted wrong bytes, not a gap:
+  [208/333] mismatch     z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wbiquad_fp_store_diamond.cpp  (bytes diverge)
+    and honest acceptance (the emitted census). A TU graded `mismatch` contributes 0 to every
+    mismatch-zeroed TUs: 1
+    gap-metric mismatch 1
+    gap-metric progress-mismatch-zeroed 1
+CORRECTNESS SIGNAL: 1 mismatching TU(s), 0 replay divergence(s), 0 poisoned cache entr(ies)
+LANE-RESULT FAIL flags=[/O1 /GS- /c ] graded=333 total=333 match=162 mismatch=1

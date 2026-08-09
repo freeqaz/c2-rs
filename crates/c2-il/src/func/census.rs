@@ -844,6 +844,22 @@ impl IlBundle {
                             Ok(BodyShape::FloatWalkLoop(_)) => {
                                 FnVerdict::InClass("float-walk-loop")
                             }
+                            // **W-BIQUAD — the float-store diamond.** Its own
+                            // bucket on the same rule every class here follows:
+                            // a gain that landed in a shared `cflow-if-1`
+                            // bucket would be attributable to neither of the two
+                            // productions that write into it.
+                            Ok(BodyShape::FpStoreDiamond(_)) => {
+                                FnVerdict::InClass("fp-store-diamond")
+                            }
+                            // **W-BIQUAD — the forwarding constructor.** Its own
+                            // bucket, not the store run's: the two productions
+                            // share `run_call_tail` and differ by whether there
+                            // is a run at all, and a gain that landed in one
+                            // bucket would be attributable to neither.
+                            Ok(BodyShape::CtorForwardCall { .. }) => {
+                                FnVerdict::InClass("ctor-forward-call")
+                            }
                             Ok(BodyShape::DivModLeaf(_)) => FnVerdict::InClass("div-mod-leaf"),
                             Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
                             // Split from the integer tail call by the register

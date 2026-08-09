@@ -1164,6 +1164,64 @@ fn differential_wjson_utf8_copy_refuses_outside_its_mode() {
     }
 }
 
+/// **W-BIQUAD's pair, graded by the oracle at the default `/Ox` profile.**
+///
+/// Board **#2530**. `wbiquad_fp_store_diamond.cpp` is
+/// `src/system/synth_xbox/Biquad.cpp` verbatim and is a byte-exact `match` at
+/// `/O1` — the TU that took match 20 → 21 — but both of its classes are
+/// `/O1`-only and the clause lives in the **parser**, asked before any body byte
+/// is read (board #1638). `differential()` drives the default `/Ox` profile, so
+/// this test grades exactly the arm the workload never exercises, and the
+/// assertion is `NotImplemented`: a refusal becoming a wrong emit is strictly
+/// worse than a gap (board #232).
+///
+/// There is a second lock, and it is worth naming because it is not the mode
+/// gate: `/Ox` does not imply `/Gy`, and the PACKED writer refuses both classes
+/// outright. For the diamond the reason is a measured disagreement —
+/// `emit_obj`'s own comment says it orders a function's pools in first-reference
+/// order and `docs/OBJ_GY_SHAPES.md` §2.3 measures c2 emitting them in the
+/// REVERSE of it, which no obj has ever reached because no packed class put two
+/// constants in one function. For the constructor it is that the
+/// callee-footprint gate deciding its park register lives on the `/Gy`
+/// composition path.
+///
+/// **The `/O1` arm is graded by `scripts/mode_lane.sh /O1`, not here**, and that
+/// is where the positive cell comes back `match` (163, against 162 before it).
+/// This test cannot make that claim and does not: `differential()` has no
+/// `--flags-file`.
+///
+/// `wbiquad_fp_store_diamond_neg.cpp` refuses at every mode. **Ten of its eleven
+/// cells refuse in the READER and they trip TEN DISTINCT clauses**, checked per
+/// cell with a reverted probe patch (`work/w-biquad/NEG_CLAUSES.md`) — a check
+/// that caught seven of them refusing on SOURCE FORMATTING rather than on the
+/// axis each was written for. The eleventh is accepted by the reader and
+/// declined in `c2_core::comdat`, because its callee is an undefined external
+/// and M-RULE's park register is a fact about the callee.
+#[test]
+fn differential_wbiquad_fp_store_diamond_pair() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        eprintln!("SKIP: strace/mingw absent");
+        return;
+    }
+    for name in ["wbiquad_fp_store_diamond.cpp", "wbiquad_fp_store_diamond_neg.cpp"] {
+        let w = work("wbiquad");
+        let port = PortC2::default();
+        let report = differential(&fixture(name), &tc, &port, &w);
+        match report {
+            DiffReport::ReferenceReplayByteExact { port, .. } => match port {
+                PortStatus::NotImplemented(_) => {}
+                other => panic!("expected NotImplemented for {name} at /Ox, got {other:?}"),
+            },
+            other => panic!("expected ReferenceReplayByteExact for {name}, got {other:?}"),
+        }
+        std::fs::remove_dir_all(&w).ok();
+    }
+}
+
 /// **W-PARK's pair, graded by the oracle at the default `/Ox` profile.**
 ///
 /// Board **#1920**. Unlike every mode-fenced class beside it, this one is

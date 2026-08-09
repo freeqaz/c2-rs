@@ -11823,3 +11823,72 @@ Neutrality at three levels, all zero: 878 TUs by name **0 changed**, 257
 unchanged. The `#[test]` delta was registered **+4** on `w-fence2` #2481's
 scored correction and landed **+4** exactly — the six-lane same-direction
 over-estimate streak ends.
+
+## 10.35 W-BIQUAD — `Biquad.cpp` MATCHES (20 → 21); the designator layer was never the blocker and its 403,879-body key moved by ZERO; and the last thing in the way was a label surcharge that has been unobservable since the port first pooled a constant (2026-08-09)
+
+Rung: `docs/rungs/2026-08-09-w-biquad.md`. Board **#2530**–**#2545**; the rest
+of the lane's allocated block is declared unminted in `BOARD.md` itself, which
+is where `board_audit.sh` reads such a declaration from. PREREG
+`work/w-biquad/PREREG.md`,
+frozen before the first `crates/` change. PREREG base master `111b6357`;
+**rebased onto `7309a02f`** (the `w-vec` merge) with the base re-derived from a
+binary built there and kept, and **every workload number identical at both**.
+dc3 tree `d7a3c1aa`, 878 TUs, 0 tracked modifications.
+
+**`src/system/synth_xbox/Biquad.cpp` converts.** Two body classes ship —
+`fp_store_diamond`, the 35-word null-guarded `if`/`else` whose arms are float
+member stores with a CSE'd division run, and `ctor_forward_call`, the nine-word
+constructor that is nothing but a forwarded member call. Both bodies byte-exact,
+the whole obj byte-exact. `w-park` (#1923) declined this TU at fifteen and
+`w-band` (#2242) confirmed it strictly deeper than `mmio.cpp`.
+
+**The commission's headline key is a DISPATCH FACT and it moved by zero.**
+`expr-op-0x27` is `parse_expr`'s fall-through arm — *"no recognizer claimed this
+body"* — and `designator::walk_offset_adds` has consumed `27` and `28` since
+`w-34`. Both classes read every designator through it and **add no grammar**.
+Base and tip: **22,409 emitted / 844 TUs / 403,879 bodies, identical to the
+unit**. `Biquad.cpp` was never in that population; its first blocker was
+`expr-cmp-eq`. This confirms `w-readpx` §3.3, `w-dclass` §6.1 and `w-band` from
+the other side — by converting the TU the key was supposed to be about.
+
+**Three things this lane found that are not about `Biquad`.**
+
+1. **A label surcharge that has been missing harmlessly forever.**
+   `LABEL_COUNTER` §1.1's *"a newly pooled FP constant … +2"* was absent from
+   `plan_labels`, and could not be observed: only a framed function has labels,
+   so a leaf's surcharge is invisible unless a framed function follows it, and
+   every pool-bearing obj the port had emitted is leaves alone. With both
+   emitters finished and both bodies byte-exact the obj still graded `mismatch`,
+   four label numbers low. **CEILING §11.4 paying a fourth time.**
+2. **This lane's own live wrong-bytes emit, and the one instrument that saw
+   it.** Making `FpConstRef::lo_off` a field left the packed writer's rebasing
+   at `hi_off: r.hi_off + off, ..r` — complete while the field did not exist.
+   `w13b_fdedup.cpp` at `/Ox`, `Port=Mismatch @ offset 760`. The 878-TU scan is
+   `/O1`-only, the `/O1` fixture lane was clean and every workspace test passed;
+   **the fixture-level neutrality scan at BOTH modes was the only thing
+   looking**, and the full gate's four `/Ox` lanes then reproduced it.
+3. **The `_neg` confound, caught by running the probe.** Seven of eleven cells
+   refused on a `4F` line marker — on SOURCE FORMATTING, not on the axis each
+   was written for — because the recognizer skipped a marker once before a
+   scope-close pair, which fits `Biquad.cpp`'s brace-per-line source exactly.
+   Post-fix: ten cells, ten distinct clauses, and the class is strictly wider.
+
+**Four must-fail mutations, four `mismatch`es**, including B-RULE's rival
+reading — hoist both `lis` into the entry block — which is exactly what
+`Biquad.cpp`'s own obj invites and which only `WB_CHOOSER_FINDINGS`' cell B1
+refutes.
+
+Gate: **18/18 PASS**, 336/336 graded per lane, **0 mismatch anywhere**, 6,048
+fixture-verdicts, sweep
+19,460 graded / 0 mismatch, cross 90,424 / 0 mismatch; `cargo test --workspace
+--release --no-fail-fast` **1,434 / 0 / 39 targets** (`#[test]` 1,432 → 1,444);
+`c2rs selftest` **336 PASS / 0 ERROR**; `board_audit.sh` exit 0. Verdict
+neutrality at three levels: 878 TUs by name (1 changed, toward `match`, 0
+regressions), every `gap-metric` key (0 vanished), and all 336 fixtures at
+`/O1` **and** `/Ox` (1 changed at `/O1`, 0 at `/Ox`).
+`hatch-red` is REFUSED by a **pre-existing** `HATCH-DRIFT
+id=call-arg-lit-permuted` in `body/shapes/calls.rs`, reproduced by
+`git checkout 111b6357 -- crates` (#2545, board #1406). The gate's own arm stops one stage earlier
+and reports `HATCH-STALE` (#1389); why it does was not isolated here. Board
+#1406 makes both readings the same conclusion, and `w-fence2` #2482 reproduced
+the same needle a day earlier.

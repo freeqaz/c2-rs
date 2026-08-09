@@ -116,6 +116,8 @@ pub fn selected_tag(s: &codegen::Selected) -> &'static str {
         codegen::Selected::Plain(_) => "plain",
         codegen::Selected::Tail(_) => "tail",
         codegen::Selected::Float { consts, .. } if consts.is_empty() => "float",
+        codegen::Selected::FpStoreDiamond { .. } => "fp-store-diamond",
+        codegen::Selected::CtorForwardCall => "ctor-forward-call",
         codegen::Selected::Float { .. } => "float-const",
         codegen::Selected::Framed { .. } => "framed",
         codegen::Selected::Seq { .. } => "seq",
@@ -129,6 +131,11 @@ pub fn selected_tag(s: &codegen::Selected) -> &'static str {
         codegen::Selected::JsonUtf8Copy => "json-utf8-copy",
     }
 }
+
+/// **W-BIQUAD** — the GPR the forwarding constructor parks `this` in. Named
+/// here as well as in the emitter because the callee-footprint gate below has to
+/// ask about it, and the two must be one number.
+const PARK_GPR: u8 = 10;
 
 /// One function's complete `/Gy` COMDAT body and its obj-side attachments.
 ///
@@ -154,6 +161,12 @@ pub struct ComdatBody<'a> {
     /// label, in emission order. See [`coff::Function::helper_externals`]; empty
     /// for every shape but the Class C frame.
     pub helper_externals: Vec<&'a str>,
+    /// **W-BIQUAD** — pooled floating-point constant reference sites, in
+    /// EMISSION order, at offsets within this section. The writer reverses that
+    /// order when it mints the `.rdata` COMDATs a function introduces
+    /// (`docs/OBJ_GY_SHAPES.md` §2.4 rule 3), so this list must stay in the
+    /// order the words were laid down and not be pre-sorted here.
+    pub fp_refs: Vec<crate::codegen::FpConstRef>,
 }
 
 /// **Build one function's complete `.text` COMDAT body**, exactly as
@@ -468,6 +481,8 @@ pub(crate) fn body_of<'a>(
     let mut frame: Option<coff::Frame> = None;
     // **W-XLR** — filled by the one arm whose frame mints externals of its own.
     let mut helper_externals: Vec<&'a str> = Vec::new();
+    // **W-BIQUAD** — filled by the one arm that pools constants under `/Gy`.
+    let mut fp_refs: Vec<crate::codegen::FpConstRef> = Vec::new();
     let (text, calls) = match selected {
         // A framed non-leaf call gets its own `.text` COMDAT like any other
         // function, plus a `.pdata` COMDAT associated to it (W-UNW-1).
@@ -476,6 +491,64 @@ pub(crate) fn body_of<'a>(
         // its own `.text` offset, so only the caller — which knows where the
         // function lands — can finish it. Under `/Gy` that offset is 0, because
         // each function starts its own section.
+        // **W-BIQUAD — the forwarding constructor**, and the ONE place in this
+        // crate where a body's words depend on a fact about a DIFFERENT
+        // function.
+        //
+        // M-RULE (`WB_CHOOSER_FINDINGS` §2.3) puts a value live across a call in
+        // a register the callee does not write, and for a same-TU callee it uses
+        // that callee's EXACT footprint. `codegen::ctor_forward_call` therefore
+        // emits `mr r10,r3` with no restore — nine words that are right only if
+        // the callee writes neither r10 nor r3. Nothing in this constructor's
+        // own IL says that, so it is asked here, where `tu` carries the callee's
+        // definition and this crate carries its lowering.
+        //
+        // **The admitted set is one class**, and that is the honest size of the
+        // knowledge: `fp_store_diamond::GPR_FOOTPRINT` is a statement one
+        // function away from the words that make it true. Every other callee —
+        // an external, an ambiguous name, a class whose footprint nobody has
+        // stated — DECLINES, which is a named `codegen-gap` rather than a wrong
+        // obj. `w-blockir` #2305's lesson in advance: the alternative to
+        // refusing is guessing a register, and eight of the nine words would
+        // still be right.
+        codegen::Selected::CtorForwardCall => {
+            let c = f
+                .ctor_forward_call
+                .as_ref()
+                .expect("CtorForwardCall implies ctor_forward_call");
+            let footprint = tu
+                .definition(&c.callee)
+                .and_then(|(g, _)| {
+                    g.fp_store_diamond
+                        .as_ref()
+                        .map(|_| codegen::fp_store_diamond::GPR_FOOTPRINT)
+                })
+                .ok_or_else(|| {
+                    ComdatDecline::Shape(BackendError::NotImplemented(format!(
+                        "a forwarding constructor whose callee `{}` has no STATED                          GPR footprint in this port: M-RULE picks the park register                          out of the callee's exact register set for a same-TU                          callee and out of the whole volatile set otherwise, and                          the two differ in the park register, in the presence of a                          `std`/`ld` pair and in whether a restore is emitted. See                          c2_core::codegen::ctor_forward_call.",
+                        c.callee,
+                    )))
+                })?;
+            if footprint.contains(&PARK_GPR) || footprint.contains(&3) {
+                return Err(ComdatDecline::Shape(BackendError::NotImplemented(
+                    "a forwarding constructor whose callee writes the park                      register or r3: the volatile park and the absent restore                      are both statements that it writes neither"
+                        .to_string(),
+                )));
+            }
+            let body = codegen::ctor_forward_call::ctor_forward_call_text(0)
+                .map_err(ComdatDecline::Shape)?;
+            frame = Some(coff::Frame {
+                prolog_len: body.prolog_len,
+                func_len: body.text.len() as u32,
+            });
+            (
+                body.text,
+                vec![coff::Call {
+                    reloc_offset: body.bl_offset,
+                    callee: c.callee.as_str(),
+                }],
+            )
+        }
         codegen::Selected::Framed { setup } => {
             let fc = f.framed_call.as_ref().expect("Framed implies framed_call");
             let body =
@@ -817,6 +890,14 @@ pub(crate) fn body_of<'a>(
             )
         }
         codegen::Selected::Float { text, .. } => (text, Vec::new()),
+        // **W-BIQUAD — the float-store diamond.** A leaf with two branches: no
+        // frame, no `.pdata`, no REL24. Its two pools travel on `fp_refs`, and
+        // the emitter has already placed both halves of each — `lo_off` is NOT
+        // `hi_off + 4` here (B-RULE puts one `lis` five words above its `lfs`).
+        codegen::Selected::FpStoreDiamond { text, consts } => {
+            fp_refs = consts;
+            (text, Vec::new())
+        }
         codegen::Selected::Plain(t) => (t, Vec::new()),
     };
     // Under `/Gy` each function starts at offset 0 of its own COMDAT.
@@ -830,6 +911,7 @@ pub(crate) fn body_of<'a>(
         data_refs,
         data_defs,
         helper_externals,
+        fp_refs,
     })
 }
 
@@ -843,6 +925,13 @@ pub(crate) fn body_of<'a>(
 pub enum PlanTarget<'a> {
     Symbol(&'a str),
     PairDisplacement(u32),
+    /// **W-BIQUAD — a pooled FP constant's `.rdata` symbol.** Carried as the
+    /// `(bit pattern, width)` key rather than as a name because the name is a
+    /// *rendering* of exactly that key
+    /// ([`coff::real_symbol_name`]) and a plan holding both could disagree with
+    /// itself. Consumers that need the spelling call the renderer; the writer
+    /// resolves the key against its own pool table.
+    FpPool { bits: u64, double: bool },
 }
 
 /// One relocation record the `/Gy` writer will emit for a `.text` COMDAT, with
@@ -885,6 +974,7 @@ pub fn text_reloc_plan<'a>(
     calls: &[coff::Call<'a>],
     data_refs: &[coff::DataRef<'a>],
     data_defs: &[coff::DataDef<'a>],
+    fp_refs: &[crate::codegen::FpConstRef],
 ) -> Vec<TextReloc<'a>> {
     let mut recs: Vec<TextReloc<'a>> = Vec::with_capacity(calls.len() + 4 * data_refs.len());
     for c in calls {
@@ -949,6 +1039,32 @@ pub fn text_reloc_plan<'a>(
                 target: PlanTarget::PairDisplacement(0),
             });
         }
+    }
+    // **W-BIQUAD — the same quad shape a third time**, against a `.rdata`
+    // COMDAT this obj also defines. `lo_off` is a field and not `hi_off + 4`:
+    // B-RULE puts a block-local `lis` at the top of its block and its `lfs` at
+    // the use, five words apart in `?SetCoefficients`.
+    for r in fp_refs {
+        recs.push(TextReloc {
+            va: r.hi_off,
+            ty: coff::REL_PPC_REFHI,
+            target: PlanTarget::FpPool { bits: r.bits, double: r.double },
+        });
+        recs.push(TextReloc {
+            va: r.hi_off,
+            ty: coff::REL_PPC_PAIR,
+            target: PlanTarget::PairDisplacement(0),
+        });
+        recs.push(TextReloc {
+            va: r.lo_off,
+            ty: coff::REL_PPC_REFLO,
+            target: PlanTarget::FpPool { bits: r.bits, double: r.double },
+        });
+        recs.push(TextReloc {
+            va: r.lo_off,
+            ty: coff::REL_PPC_PAIR,
+            target: PlanTarget::PairDisplacement(0),
+        });
     }
     recs.sort_by_key(|r| r.va);
     recs

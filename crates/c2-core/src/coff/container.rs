@@ -31,6 +31,11 @@ pub(crate) enum SectionOwner {
     /// **after** every code group. It carries no relocations of its own; the
     /// relocations that name it live in the referring function's `.text`.
     Data(usize),
+    /// **W-BIQUAD** — the COMDAT `.rdata` of pool entry `k`, placed immediately
+    /// after the `.text` of the function that first references it. Like
+    /// [`SectionOwner::Data`] it carries no relocations of its own; the
+    /// REFHI/REFLO quads that name it live in the referring function's `.text`.
+    Rdata(usize),
 }
 
 /// A section, resolved to its raw data + header metadata.

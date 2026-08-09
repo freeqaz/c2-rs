@@ -40,8 +40,18 @@ const FP_RET: u8 = 1;
 ///
 /// Both immediates are emitted as 0; the linker patches them. `hi_off` is the
 /// `addis` byte offset **relative to the start of this function's text** — the
-/// caller rebases it by the function's `.text` offset. The `lfs`/`lfd` always
-/// immediately follows, so the REFLO site is `hi_off + 4`.
+/// caller rebases it by the function's `.text` offset.
+///
+/// **`lo_off` is a separate field and not `hi_off + 4`.** It was that constant
+/// until `w-biquad`, on the honest ground that every graded site had the load
+/// immediately after the `addis`. `Biquad.cpp`'s second pool separates them:
+/// B-RULE puts the `lis` at the **top of the dominating block** and the `lfs`
+/// **at the use**, and in `?SetCoefficients` those are five words apart
+/// (`lis` at 0x10, `lfs` at 0x24, four unrelated `stfs` between them). The
+/// arithmetic form would have emitted the REFLO against the third of those
+/// stores. `DataRef` had carried the two offsets separately since W-R1 for the
+/// same reason, which is the shape of `docs/GAPS.md` §6: one fact with two
+/// locators that disagree.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FpConstRef {
     /// The constant's value as raw IEEE-754 **binary64** bits (as the IL carries
@@ -51,6 +61,9 @@ pub struct FpConstRef {
     pub double: bool,
     /// Byte offset of the `addis` within this function's text.
     pub hi_off: u32,
+    /// Byte offset of the `lfs`/`lfd` within this function's text — the REFLO
+    /// site. Equal to `hi_off + 4` for every straight-line float leaf.
+    pub lo_off: u32,
 }
 
 /// Select `.text` for a **W13a/W13b floating-point leaf**: a straight-line chain
@@ -226,6 +239,10 @@ pub fn float_leaf_text(
                     bits: *bits,
                     double,
                     hi_off: text.len() as u32,
+                    // The straight-line leaf emits the load immediately after
+                    // the `addis`, so the two are adjacent here — stated, not
+                    // assumed globally (see the type's doc).
+                    lo_off: text.len() as u32 + 4,
                 });
                 text.extend_from_slice(&encode_addis(gpr, 0, 0));
                 text.extend_from_slice(&encode_lfs(double, fd, gpr, 0));
@@ -629,7 +646,7 @@ mod tests {
         );
         assert_eq!(
             consts,
-            vec![FpConstRef { bits: f64bits(1.0), double: false, hi_off: 0 }]
+            vec![FpConstRef { bits: f64bits(1.0), double: false, hi_off: 0, lo_off: 4 }]
         );
     }
 

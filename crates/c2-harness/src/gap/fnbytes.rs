@@ -562,6 +562,13 @@ pub fn compare_relocs(port: &[TextReloc], reference: &[CodeReloc]) -> Option<(Re
         }
         let agree = match (&p.target, &r.target) {
             (PlanTarget::Symbol(a), RelocTarget::Symbol(b)) => a == b,
+            // **W-BIQUAD** — the port names a pooled constant by its
+            // `(bits, width)` key and the obj by the symbol that key RENDERS to,
+            // so the compare goes through the one renderer rather than through a
+            // second spelling of the same string.
+            (PlanTarget::FpPool { bits, double }, RelocTarget::Symbol(b)) => {
+                c2_core::coff::real_symbol_name(*bits, *double) == *b
+            }
             (PlanTarget::PairDisplacement(a), RelocTarget::PairDisplacement(b)) => a == b,
             // A section-definition target and anything the port can plan are
             // never equal — see decision 4 above.
@@ -581,6 +588,7 @@ fn describe_plan(r: &TextReloc) -> String {
     let target = match r.target {
         PlanTarget::Symbol(n) => n.to_string(),
         PlanTarget::PairDisplacement(d) => format!("<pair +{d}>"),
+        PlanTarget::FpPool { bits, double } => c2_core::coff::real_symbol_name(bits, double),
     };
     CodeReloc {
         va: r.va,
@@ -748,7 +756,7 @@ pub fn grade_one(
                 FnByte::Exact => match relocs {
                     None => FnByte::RelocUnknown,
                     Some(rs) => {
-                        let plan = text_reloc_plan(&b.calls, &b.data_refs, &b.data_defs);
+                        let plan = text_reloc_plan(&b.calls, &b.data_refs, &b.data_defs, &b.fp_refs);
                         match compare_relocs(&plan, rs) {
                             None => FnByte::Exact,
                             Some((kind, _)) => FnByte::RelocDiffers(kind),
@@ -1984,7 +1992,7 @@ pub(super) fn measure(
             let (plan, refrs) = match (row, refrel) {
                 (Some((c, Ok(f))), Some(rs)) => {
                     match complete_comdat(f, c.opt_word, &tu) {
-                        Ok(b) => (text_reloc_plan(&b.calls, &b.data_refs, &b.data_defs), rs),
+                        Ok(b) => (text_reloc_plan(&b.calls, &b.data_refs, &b.data_defs, &b.fp_refs), rs),
                         // Unreachable from this arm — the body was composed to
                         // get here. Representable rather than a panic.
                         Err(_) => (Vec::new(), rs),
@@ -2020,6 +2028,7 @@ pub(super) fn measure(
                 let pn = match p.target {
                     PlanTarget::Symbol(n) => Some(n),
                     PlanTarget::PairDisplacement(_) => None,
+                    PlanTarget::FpPool { .. } => None,
                 };
                 let rn = match &r.target {
                     RelocTarget::Symbol(n) => Some(n.as_str()),
@@ -2092,7 +2101,7 @@ pub(super) fn measure(
         if v.bytes_exact() {
             let (plan, refrs) = match (row, refrel) {
                 (Some((c, Ok(f))), Some(rs)) => match complete_comdat(f, c.opt_word, &tu) {
-                    Ok(b) => (text_reloc_plan(&b.calls, &b.data_refs, &b.data_defs), rs),
+                    Ok(b) => (text_reloc_plan(&b.calls, &b.data_refs, &b.data_defs, &b.fp_refs), rs),
                     Err(_) => (Vec::new(), rs),
                 },
                 _ => (Vec::new(), &[][..]),
@@ -2188,6 +2197,9 @@ pub(super) fn measure(
                         _ => false,
                     },
                     PlanTarget::PairDisplacement(_) => false,
+                    // A pooled constant is not a callee: it names a `.rdata`
+                    // COMDAT this obj defines, and there is no body to refuse.
+                    PlanTarget::FpPool { .. } => false,
                 });
                 if names_refused_local {
                     let b = if was_differ {

@@ -19,7 +19,9 @@ pub(crate) const CH_TEXT_COMDAT: u32 = 0x6040_1020;
 /// on an obj that was otherwise byte-identical.
 fn text_reloc_count(f: &Function) -> u16 {
     let fanout: usize = f.data_defs.iter().map(|d| 2 + 2 * d.lo_offs.len()).sum();
-    (f.calls.len() + 4 * f.data_refs.len() + fanout) as u16
+    // **W-BIQUAD** — a pooled FP constant reference is the same REFHI/PAIR +
+    // REFLO/PAIR quad a `DataRef` is.
+    (f.calls.len() + 4 * f.data_refs.len() + 4 * f.fp_refs.len() + fanout) as u16
 }
 
 /// Build the complete `.obj` image with **one COMDAT `.text` section per
@@ -112,6 +114,18 @@ pub fn emit_comdat_obj(
         if !f.data_defs.is_empty() && (f.frame.is_some() || f.is_float) {
             return None;
         }
+        // **W-BIQUAD — a FRAMED function that also introduces a pooled
+        // constant.** Where its `.rdata` COMDATs sit relative to its own
+        // `.pdata` COMDAT — which is associative and tied back to the `.text` —
+        // and where their symbol pairs sit among the `$M`/`$M`/`$T` triple are
+        // both unmeasured: `docs/OBJ_GY_SHAPES.md` §2 captures pools only on
+        // leaf functions and §3 captures the `.pdata` group only without them.
+        // `Biquad.cpp` is the leaf-pools-plus-framed-caller shape, which needs
+        // neither answer. Refused rather than ordered on a guess, which is a
+        // wrong section count at file offset 2.
+        if !f.fp_refs.is_empty() && f.frame.is_some() {
+            return None;
+        }
         for d in &f.data_defs {
             if d.bytes.len() as usize != d.size as usize || d.size == 0 || d.lo_offs.is_empty() {
                 return None;
@@ -136,6 +150,50 @@ pub fn emit_comdat_obj(
     // `.text`. `None` for a function that defines no object, which is every
     // function the port emitted before this field existed.
     let mut sec_data: Vec<Option<usize>> = vec![None; funcs.len()];
+    // **W-BIQUAD — the TU-wide constant pool, and the order it is built in.**
+    //
+    // `docs/OBJ_GY_SHAPES.md` §2.4, three rules, and the third is the one a
+    // straight port gets wrong:
+    //
+    //  1. INTERLEAVED — a constant's `.rdata` COMDAT (and its symbol pair) is
+    //     emitted immediately after the `.text` COMDAT of the function that
+    //     FIRST references it, not grouped at the end;
+    //  2. one section per distinct `(bit pattern, width)` TU-wide, with later
+    //     functions relocating against the existing symbol index;
+    //  3. within ONE introducing function, several new constants are appended
+    //     in **reverse first-reference order** (LIFO). §2.3's three-constant
+    //     cell separates that from descending bit-pattern order, which the
+    //     two-constant cells alone do not; this lane re-confirmed it on
+    //     `work/w-biquad/probe/pool{1,2}.cpp`, whose two constants are the same
+    //     pair in both use orders, and on `Biquad.cpp` itself.
+    //
+    // `pool_of[i]` is the list of pool indices function `i` introduces, already
+    // reversed, so the section loop and the symbol loop below walk one order.
+    let mut pool: Vec<(u64, bool)> = Vec::new();
+    let mut pool_of: Vec<Vec<usize>> = Vec::with_capacity(funcs.len());
+    for f in funcs {
+        let mut here: Vec<usize> = Vec::new();
+        for r in &f.fp_refs {
+            let key = (r.bits, r.double);
+            // Rule 2's dedup is TU-wide and therefore also covers a constant
+            // this same function references twice.
+            if pool.contains(&key) {
+                continue;
+            }
+            pool.push(key);
+            here.push(pool.len() - 1);
+        }
+        // Rule 3 — LIFO within the introducing function. Reversing the INDEX
+        // list rather than the pool itself keeps every already-assigned index
+        // stable, which is what rule 2's cross-function dedup relies on.
+        here.reverse();
+        pool_of.push(here);
+    }
+    let pool_ix = |bits: u64, double: bool| -> Option<usize> {
+        pool.iter().position(|&k| k == (bits, double))
+    };
+    // `.rdata` section index per pool entry, filled by the section loop.
+    let mut sec_pool: Vec<Option<usize>> = vec![None; pool.len()];
     // The inverse map, so the layout and relocation passes below index rather
     // than search: section -> the function it belongs to, and which of its two
     // sections it is. `SectionOwner::None` for the fixed prefix.
@@ -213,6 +271,29 @@ pub fn emit_comdat_obj(
                 uninit_size: None,
             });
         }
+        // **W-BIQUAD — the `.rdata` pools this function introduces**, in the
+        // LIFO order `pool_of` already fixed, immediately after its `.text`
+        // (rule 1). A framed function that introduces one is refused by the
+        // class check above, so this never has to decide whether it goes before
+        // or after a `.pdata` — the same sentence the `.data` loop above carries
+        // and for the same reason.
+        for &k in &pool_of[i] {
+            let (bits, double) = pool[k];
+            sec_pool[k] = Some(sections.len());
+            owner.push(SectionOwner::Rdata(k));
+            sections.push(Section {
+                name: ".rdata",
+                characteristics: if double { CH_RDATA_F64 } else { CH_RDATA_F32 },
+                raw: std::borrow::Cow::Owned(real_raw_bytes(bits, double)),
+                // 0, not a real one: a `.rdata` constant pool is the COMDAT c2
+                // leaves the aux CheckSum at zero, unlike the `.data` above and
+                // the `.pdata` beside it (`docs/OBJ_GY_SHAPES.md` §2.4 rule 4).
+                checksum: 0,
+                selection: 2,
+                assoc: 0,
+                uninit_size: None,
+            });
+        }
     }
     let n_sections = sections.len();
 
@@ -245,7 +326,7 @@ pub fn emit_comdat_obj(
             SectionOwner::Pdata(_) => 1,
             // The relocations that name a defined object live in the referring
             // function's `.text`; the object's own section is pure data.
-            SectionOwner::Data(_) | SectionOwner::Fixed => 0,
+            SectionOwner::Data(_) | SectionOwner::Rdata(_) | SectionOwner::Fixed => 0,
         })
         .collect();
     let (ptrs, reloc_ptr, ptr_symtab) = layout_sections(&sections, &n_reloc_of);
@@ -294,6 +375,10 @@ pub fn emit_comdat_obj(
     // the indices they land at. Sized up front because the index pass fills it
     // by position.
     let mut helper_idx: Vec<Vec<(&str, u32)>> = vec![Vec::new(); funcs.len()];
+    // **W-BIQUAD** — the `__real@…` external's symbol index per pool entry.
+    // Filled by this pass because the `.text` relocation records need it before
+    // the symbol table is written.
+    let mut real_idx: Vec<Option<u32>> = vec![None; pool.len()];
     for (i, f) in funcs.iter().enumerate() {
         next_idx += 2; // section symbol + aux
         fn_idx.push(next_idx);
@@ -392,6 +477,22 @@ pub fn emit_comdat_obj(
             next_idx += 1; // the object's own defined STATIC symbol
             Some(next_idx - 1)
         });
+        // **W-BIQUAD — this function's pool groups**, interleaved exactly as
+        // their sections are and in the same LIFO order. Each is a `.rdata`
+        // section symbol + aux, then the `__real@…` EXTERNAL.
+        //
+        // **Before `_fltused`, and that is measured rather than convenient**:
+        // `docs/OBJ_GY_SHAPES.md` §1.2 states the marker goes after the first
+        // float function's COMPLETE group — *"its `.text` section symbol + aux,
+        // its function symbol, any callee externals it introduced, and any
+        // `.rdata`/`__real@` pairs it introduced"*. `Biquad.cpp`'s obj is that
+        // sentence: `?SetCoefficients` at 13, the two pool groups at 14–19,
+        // `_fltused` at 20.
+        for &k in &pool_of[i] {
+            next_idx += 2; // the `.rdata` section symbol + its aux record
+            real_idx[k] = Some(next_idx);
+            next_idx += 1; // the `__real@…` external
+        }
         if fltused_after == Some(i) {
             next_idx += 1;
         }
@@ -430,11 +531,22 @@ pub fn emit_comdat_obj(
                     &funcs[k].calls,
                     &funcs[k].data_refs,
                     &funcs[k].data_defs,
+                    &funcs[k].fp_refs,
                 );
                 debug_assert_eq!(recs.len(), n_reloc_of[i] as usize);
                 for r in recs {
                     let sym = match r.target {
                         crate::comdat::PlanTarget::PairDisplacement(d) => d,
+                        // **W-BIQUAD — a FIFTH table**, and the only one keyed
+                        // by a value rather than a name: a pooled constant's
+                        // symbol is identified by its `(bit pattern, width)`,
+                        // which is exactly the key the pool is deduped on. A
+                        // name lookup here would have to render the symbol and
+                        // then parse it back, which is two spellings of one
+                        // fact.
+                        crate::comdat::PlanTarget::FpPool { bits, double } => real_idx
+                            [pool_ix(bits, double).expect("every FP reference is pooled")]
+                        .expect("every pooled constant got a symbol"),
                         // A call site resolves in the CALLEE table and a data
                         // reference in the DATA table — never one list searched
                         // for both, which would silently resolve a data symbol
@@ -501,7 +613,7 @@ pub fn emit_comdat_obj(
                 b.u32(fn_idx[k]);
                 b.u16(REL_PPC_ADDR32);
             }
-            SectionOwner::Data(_) | SectionOwner::Fixed => {}
+            SectionOwner::Data(_) | SectionOwner::Rdata(_) | SectionOwner::Fixed => {}
         }
     }
     debug_assert_eq!(b.0.len(), ptr_symtab);
@@ -560,6 +672,33 @@ pub fn emit_comdat_obj(
             // from the WR1 undefined external emitted a few lines above, which
             // is class 2 in section 0.
             emit_symbol(&mut b, &mut strtab, d.symbol, 0, dsec, 0x0000, 3);
+        }
+        // **W-BIQUAD — this function's pool groups**, in the slots the index
+        // pass reserved. A `.rdata` section symbol carries `nrel` 0 (the section
+        // is pure data) and the `__real@…` record is an undefined EXTERNAL of
+        // DATA type `0x0000` — not `0x0020`, which is what a callee carries.
+        for &k in &pool_of[i] {
+            let si = sec_pool[k].expect("every introduced pool got a section");
+            emit_section_symbol(&mut b, &sections[si], (si + 1) as i16, 0);
+            debug_assert_eq!(
+                ((b.0.len() - ptr_symtab) / SYMBOL_LEN) as u32,
+                real_idx[k].expect("every introduced pool got a symbol"),
+                "the index the `.text` relocation records were written with"
+            );
+            let (bits, double) = pool[k];
+            // **In its OWN section, not section 0.** The record is storage class
+            // EXTERNAL and DATA type `0x0000`, but it is a DEFINED external —
+            // the constant lives in the `.rdata` COMDAT emitted three lines up.
+            // Emitting section 0 makes it undefined, which links (the linker
+            // finds another TU's copy) and is one wrong `i16` in the middle of
+            // the symbol table.
+            emit_external_symbol(
+                &mut b,
+                &mut strtab,
+                &real_symbol_name(bits, double),
+                (si + 1) as i16,
+                0x0000,
+            );
         }
         // The CRT float-support marker, once, after the first FP function's group.
         if fltused_after == Some(i) {
@@ -804,8 +943,8 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
             let sym = real_idx[pool_ix(r.bits, r.double)].expect("pooled symbol");
             text_relocs.push((r.hi_off, sym, REL_PPC_REFHI));
             text_relocs.push((r.hi_off, 0, REL_PPC_PAIR));
-            text_relocs.push((r.hi_off + 4, sym, REL_PPC_REFLO));
-            text_relocs.push((r.hi_off + 4, 0, REL_PPC_PAIR));
+            text_relocs.push((r.lo_off, sym, REL_PPC_REFLO));
+            text_relocs.push((r.lo_off, 0, REL_PPC_PAIR));
         }
         // WR1: byte-for-byte the same quad, against an undefined external instead
         // of a pooled constant's `.rdata` symbol.
