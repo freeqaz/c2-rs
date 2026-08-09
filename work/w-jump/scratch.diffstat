@@ -1,0 +1,4 @@
+ crates/c2-harness/src/gap/scan.rs                  | 27 ++++++++++++++++++++--
+ crates/c2-il/src/func/body/mod.rs                  | 17 ++++++++++----
+ .../src/func/body/shapes/counted_accum_loop.rs     | 11 ++++++---
+ 3 files changed, 45 insertions(+), 10 deletions(-)

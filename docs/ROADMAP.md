@@ -10504,3 +10504,71 @@ that key**. That is the measurement a next lane should take before it takes a
 lowering.
 
 [`rungs/2026-08-09-w-bdnz.md`](rungs/2026-08-09-w-bdnz.md).
+
+### 10.26.6 w-jump — `expr-jump` decomposed, and the answer is that the key was never a class (2026-08-09)
+
+§10.26.5 closed with the one measurement its list had deferred: *"what would
+make the loop family a lever is a **reader** rung on `expr-jump` itself — 2,286
+bodies / 302 emitted, and **nobody has decomposed that key**."* It is decomposed
+([`rungs/2026-08-09-w-jump.md`](rungs/2026-08-09-w-jump.md), board
+**#2000**–**#2007**), and the deferral was right.
+
+**The family is three constructs and a tail.**
+`?__stl_hash_string@stlpmtx_std@@YAIPBD@Z` is **826 of the 2,286 bodies, in 826
+distinct TUs — one apiece**. `??$__lg@H@stlpmtx_std@@YAHH@Z` is **700, in 699
+TUs**. Both are STLport header inlines and both were read back to their source.
+A further **438** are one-statement `void` functions whose `3A` is the **return
+to the epilogue** and which contain no loop at all; all seven of that group's
+emitted members were read individually. That is **85.9 % of the body column and
+14.9 % of the emitted column**. The real counted loops are the remaining **312
+bodies / 248 emitted**, carrying **249 distinct names**.
+
+**A seventh instance of the ranking-instruments lesson, with a new mechanism.**
+The prior six were keys shattered by an id, or first blockers naming the parse
+rather than the body. This one is a key **inflated by TU replication** —
+`bodies == TUs` in every top signature group — and `docs/GAPS.md` §6 has only
+ever recorded the shattering direction. **A body column counts segments, not
+constructs.** Board **#2000**.
+
+**Four results that change what a follow-on should do.**
+
+1. **The instrument #1988 specified is an ID axis.** `WB_READER_FINDINGS.md`
+   §3.1 puts opcode `3A` in operand class `02` → class `08` (`varU`→`sym`), so
+   the token after it is a **label symbol id**. Measured: **255 distinct values
+   with a largest share of 8.7 %**. The axis that decomposes is the byte
+   **BEFORE** the `3A` — **four values in the whole workload**. This was
+   registered in the PREREG *before the first scan*, from a document already in
+   the tree. Board **#2001**.
+2. **#1988's three "cheap" extensions are worth exactly zero.** Running
+   `counted_accum_loop`'s own `Err` committed over the workload, **97.9 % die at
+   clause 1**; with clause 1 relaxed — which *is* extension (a) — **not one body
+   reaches `ctr-loop-test-not-lt`, `ctr-loop-ctr-start-not-zero` or
+   `ctr-loop-formals-alias`**. They are not cheap, they are **empty**. And the
+   first-order table is shadowed by its own clause 1, so the family **cannot** be
+   priced in one scan as #1988 estimated. Board **#2002**.
+3. **The whole intra-body control-flow vocabulary is the LAST blocker of zero
+   functions in 878 TUs.** Measured with the **shipped** `C2RS_SINK_BRANCH`
+   sink — no scratch needed: `expr-branch-sink-poison` is **0 / 0** at `cflow`
+   and at `stmt`. WB_READER §0 measured 48 → 48 on the frontier; this is that
+   result on the whole workload, and it prices every reader rung on the family
+   at zero before one is designed. Board **#2003**.
+4. **What stands behind the emitted column is a call in the loop body.**
+   Isolating the `29`/`3A`/`4B` contribution, **295 of the 358** moved emitted
+   symbols land on `expr-call-in-expr-*` — corroborated by hand on
+   `BaseSkeleton::CamBoneLengths`, `revealKey` and `memcpy_cs`, two of them in
+   the frontier TU `src/keygen_xbox.cpp`. Board **#2004**.
+
+**The recommendation, and it is a decline.** All three candidate rungs are
+priced in §7 of the rung with a population and a hand-check. The largest
+converts **7 → 0**; #1988's (a)–(c) convert **0**; and the only real lever is
+the **call-in-loop-body** seam, which is not a reader rung and not a loop rung
+at all. It must be priced from `expr-call-in-expr-*` — whose single largest key
+already carries 46,036 bodies / 1,033 emitted — and **not** from this family's
+248, or a lane will re-run exactly the mistake this one was commissioned to
+correct. Board **#2007**.
+
+**This lane ships no `crates/` change**: both instruments are scratch and
+reverted, their diffs quoted in the rung and recorded at
+`work/w-jump/scratch.patch`, and the third instrument was already in the tree.
+
+[`rungs/2026-08-09-w-jump.md`](rungs/2026-08-09-w-jump.md).

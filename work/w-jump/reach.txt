@@ -1,0 +1,40 @@
+bodies   total  2286 | calls==0  1992 ( 87.1%) | seg<=195   438 ( 19.2%) | BOTH   438 ( 19.2%)
+           BOTH:   431 x -
+           BOTH:     1 x ?Init@FixedSizeSaveable@@SAXHH@Z
+           BOTH:     1 x ?E3CheatSetMinVelocity@UsbMidiGuitar@@SAXH@Z
+           BOTH:     1 x ?SetHighlightStyle@RndDrawable@@SAXW4HighlightStyle@@@Z
+           BOTH:     1 x ?ClearBlacklight@RndText@@SAXXZ
+           BOTH:     1 x ?WordWrap_SetOption@@YAXI@Z
+           BOTH:     1 x ?disableExtensions@@YAXI@Z
+           BOTH:     1 x ?MemForceNewOperatorAlign@@YAXH@Z
+           calls distribution: [(0, 1992), (1, 67), (2, 33), (3, 43), (4, 25), (5, 27), (6, 9), (7, 13)]
+           cflow x calls: cflow-loop                     calls=0    1550
+           cflow x calls: cflow-straight+expr-modeled    calls=0     438
+           cflow x calls: cflow-loop                     calls>0     288
+           cflow x calls: cf-expr-0x59                   calls>0       4
+           cflow x calls: cf-expr-0x59                   calls=0       4
+           cflow x calls: cflow-switch                   calls>0       1
+           cflow x calls: cf-expr-0xBC                   calls>0       1
+emitted  total   302 | calls==0    59 ( 19.5%) | seg<=195     7 (  2.3%) | BOTH     7 (  2.3%)
+           BOTH:     1 x ?Init@FixedSizeSaveable@@SAXHH@Z
+           BOTH:     1 x ?E3CheatSetMinVelocity@UsbMidiGuitar@@SAXH@Z
+           BOTH:     1 x ?SetHighlightStyle@RndDrawable@@SAXW4HighlightStyle@@@Z
+           BOTH:     1 x ?ClearBlacklight@RndText@@SAXXZ
+           BOTH:     1 x ?WordWrap_SetOption@@YAXI@Z
+           BOTH:     1 x ?disableExtensions@@YAXI@Z
+           BOTH:     1 x ?MemForceNewOperatorAlign@@YAXH@Z
+           calls distribution: [(0, 59), (1, 29), (2, 31), (3, 37), (4, 25), (5, 27), (6, 9), (7, 11)]
+           cflow x calls: cflow-loop                     calls>0     238
+           cflow x calls: cflow-loop                     calls=0      48
+           cflow x calls: cflow-straight+expr-modeled    calls=0       7
+           cflow x calls: cf-expr-0x59                   calls>0       4
+           cflow x calls: cf-expr-0x59                   calls=0       4
+           cflow x calls: cf-expr-0xBC                   calls>0       1
+           the call-free STRAIGHT residue, by name:
+                97 B  src/system/rndobj/wordwrap.cpp  ?WordWrap_SetOption@@YAXI@Z
+               101 B  src/system/utl/MemMgr.cpp  ?MemForceNewOperatorAlign@@YAXH@Z
+               103 B  src/system/synth_xbox/soundtouch/source/SoundTouch/cpu_detect_x86_gcc.cpp  ?disableExtensions@@YAXI@Z
+               105 B  src/system/rndobj/Text.cpp  ?ClearBlacklight@RndText@@SAXXZ
+               113 B  src/system/os/UsbMidiGuitar.cpp  ?E3CheatSetMinVelocity@UsbMidiGuitar@@SAXH@Z
+               113 B  src/system/rndobj/Rnd.cpp  ?SetHighlightStyle@RndDrawable@@SAXW4HighlightStyle@@@Z
+               141 B  src/system/meta/FixedSizeSaveable.cpp  ?Init@FixedSizeSaveable@@SAXHH@Z

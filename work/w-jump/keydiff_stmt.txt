@@ -1,0 +1,82 @@
+
+=== BODIES: total 1751929 -> 1751929 ===
+key                                                               base    sink   delta
+expr-op-0x53                                                     27241       0  -27241
+expr-call-in-expr-recv-object-then-branch-brtrue                 23628      18  -23610
+expr-call-in-expr-recv-object-then-call-recv-object-more         18912       0  -18912
+expr-call-in-expr-recv-object-then-deref-load-more                4385    1401   -2984
+expr-call-in-expr-recv-object-then-off-add-and-deref-load-more     731       2    -729
+expr-call-in-expr-recv-object-then-call-chained-and-deref-load-more     715       0    -715
+expr-op-0x54                                                       438       0    -438
+expr-call-in-expr-recv-object-then-type-ptr-and-op-more            195       0    -195
+expr-call-in-expr-recv-object-then-op-0xB9                         135       7    -128
+expr-call-in-expr-recv-object-then-intrinsic-call                  124      19    -105
+expr-call-in-expr-recv-object-then-call-nested-call-and-call-more    2219    2186     -33
+expr-call-in-expr-recv-object-then-chain-bind-and-deref-load-more      25       0     -25
+expr-call-in-expr-recv-object-then-off-add-more                     39      20     -19
+expr-call-in-expr-recv-object-then-call-data-addr-and-deref-load-more      19       1     -18
+expr-call-in-expr-recv-object-then-virtual                          16       2     -14
+expr-call-in-expr-recv-object-then-branch-brfalse                   57      44     -13
+expr-call-in-expr-recv-object-then-type-real-lit-and-op-more        26      13     -13
+expr-call-in-expr-recv-object-then-call-data-addr-and-branch-more      15       3     -12
+  …
+expr-call-in-expr-op-0x67                                           16      28     +12
+expr-call-in-expr-chained-then-branch-brtrue                         0      13     +13
+expr-call-in-expr-op-0x9B                                        46139   46160     +21
+expr-branch-sink-poison:mid                                          0      36     +36
+expr-op-0x67                                                       556     605     +49
+expr-intrinsic-base-member-addr                                 113982  114037     +55
+expr-call-in-expr-other                                              4      85     +81
+expr-call-in-expr-chained-then-call-recv-object-and-op-more          0     126    +126
+expr-call-in-expr-data-addr-then-type-int1-and-branch-more           0     383    +383
+expr-op-0x4F                                                         0     438    +438
+expr-call-in-expr-recv-load-then-branch-brfalse                   2041    2600    +559
+expr-call-in-expr-nested-call-then-branch-brfalse                    0     711    +711
+expr-call-in-expr-op-0x08                                            0     716    +716
+expr-intrinsic-strcmp                                             2526    3352    +826
+expr-op-0x27                                                    406068  408809   +2741
+expr-call-in-expr-chained-then-type-int1-and-branch-more             1   21067  +21066
+expr-call-in-expr-op-0x19                                        32364   55987  +23623
+expr-op-0x30                                                     22189   45865  +23676
+  keys: base 642, sink 649; vanished 36, appeared 43, moved 156
+
+=== EMITTED: total 130560 -> 130560 ===
+key                                                               base    sink   delta
+expr-call-in-expr-recv-object-then-call-recv-object-more          5608       0   -5608
+expr-op-0x53                                                      3045       0   -3045
+expr-call-in-expr-recv-object-then-deref-load-more                1463      29   -1434
+expr-call-in-expr-recv-object-then-branch-brtrue                   426      17    -409
+expr-call-in-expr-recv-object-then-type-ptr-and-op-more            195       0    -195
+expr-call-in-expr-recv-object-then-intrinsic-call                  123      19    -104
+expr-call-in-expr-recv-object-then-call-nested-call-and-call-more      92      60     -32
+expr-call-in-expr-recv-object-then-call-chained-and-deref-load-more      29       0     -29
+expr-call-in-expr-recv-object-then-chain-bind-and-deref-load-more      25       0     -25
+expr-call-in-expr-recv-object-then-call-data-addr-and-deref-load-more      19       1     -18
+expr-call-in-expr-recv-object-then-off-add-and-deref-load-more      18       2     -16
+expr-call-in-expr-recv-object-then-call-data-addr-and-branch-more      15       3     -12
+expr-call-in-expr-recv-object-then-off-add-more                     32      20     -12
+expr-call-in-expr-recv-object-then-virtual                          12       1     -11
+expr-call-in-expr-recv-object-then-type-real-lit-and-op-more        14       4     -10
+expr-call-in-expr-recv-object-then-chain-bind-and-call-more         12       3      -9
+expr-call-in-expr-recv-object-then-branch-brfalse                   49      41      -8
+expr-op-0x54                                                         7       0      -7
+  …
+expr-call-in-expr-recv-field-then-branch-brfalse                     6      13      +7
+expr-op-0x4F                                                         0       7      +7
+expr-call-in-expr-chained-then-branch-brfalse                        5      13      +8
+expr-load-type-8686                                                  0       8      +8
+expr-intrinsic-base-member-addr                                   6466    6475      +9
+expr-call-in-expr-op-0x67                                           16      27     +11
+expr-call-in-expr-chained-then-branch-brtrue                         0      12     +12
+expr-call-in-expr-data-addr-then-type-int1-and-branch-more           0      12     +12
+expr-call-in-expr-recv-load-then-branch-brfalse                    472     488     +16
+expr-call-in-expr-op-0x9B                                         1135    1155     +20
+expr-branch-sink-poison:mid                                          0      36     +36
+expr-op-0x67                                                       145     185     +40
+expr-call-in-expr-other                                              4      81     +77
+expr-op-0x27                                                     22452   22532     +80
+expr-intrinsic-strcmp                                               52     134     +82
+expr-call-in-expr-op-0x19                                         1808    2228    +420
+expr-call-in-expr-chained-then-type-int1-and-branch-more             1    2623   +2622
+expr-op-0x30                                                       644    8108   +7464
+  keys: base 620, sink 627; vanished 35, appeared 42, moved 152

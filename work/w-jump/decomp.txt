@@ -1,0 +1,134 @@
+family expr-jump: bodies 2286, emitted 302 (2286 body rows, 302 emitted rows)
+  rows whose marked byte is NOT 0x3A: 0  (must be 0)
+
+=== AXIS A — the byte AFTER the 0x3A (w-bdnz's proposed instrument) ===
+sub-key                                               bodies      %  emitted      %
+99                                                       198    8.7        1    0.3
+9A                                                       123    5.4        2    0.7
+98                                                       107    4.7        0    0.0
+9B                                                        82    3.6        0    0.0
+9C                                                        41    1.8        2    0.7
+9D                                                        38    1.7        1    0.3
+97                                                        32    1.4        2    0.7
+B0                                                        28    1.2        0    0.0
+65                                                        26    1.1        0    0.0
+A6                                                        25    1.1        1    0.3
+C7                                                        23    1.0        2    0.7
+55                                                        23    1.0        1    0.3
+… 243 further sub-keys                                  1540   67.4      290   96.0
+TOTAL                                                   2286  100.0      302  100.0
+  distinct sub-keys: bodies 255, emitted 182; largest bodies share 8.7%
+
+=== AXIS A' — the DECODED varU label token after the 0x3A ===
+sub-key                                               bodies      %  emitted      %
+39207                                                    197    8.6        0    0.0
+39463                                                    118    5.2        0    0.0
+38951                                                    102    4.5        0    0.0
+39719                                                     81    3.5        0    0.0
+39975                                                     35    1.5        0    0.0
+40231                                                     29    1.3        0    0.0
+38695                                                     24    1.0        0    0.0
+1703608576                                                22    1.0        0    0.0
+42535                                                     21    0.9        0    0.0
+50983                                                     16    0.7        0    0.0
+1238565120                                                14    0.6        0    0.0
+2962030848                                                14    0.6        0    0.0
+… 1348 further sub-keys                                 1613   70.6      302  100.0
+TOTAL                                                   2286  100.0      302  100.0
+  distinct sub-keys: bodies 1360, emitted 301; largest bodies share 8.6%
+
+=== AXIS B1 — the byte BEFORE the 0x3A ===
+sub-key                                               bodies      %  emitted      %
+4B                                                      1453   63.6      295   97.7
+53                                                       831   36.4        5    1.7
+13                                                         1    0.0        1    0.3
+40                                                         1    0.0        1    0.3
+TOTAL                                                   2286  100.0      302  100.0
+  distinct sub-keys: bodies 4, emitted 4; largest bodies share 63.6%
+
+=== AXIS B3 — the 3 bytes BEFORE the 0x3A ===
+sub-key                                               bodies      %  emitted      %
+41 74 4B                                                 959   42.0      274   90.7
+01 2D 53                                                 826   36.1        0    0.0
+84 4A 4B                                                  68    3.0        0    0.0
+42 75 4B                                                  62    2.7       20    6.6
+87 5F 4B                                                  26    1.1        0    0.0
+E8 4D 4B                                                  24    1.0        0    0.0
+A5 4A 4B                                                  22    1.0        0    0.0
+F3 5D 4B                                                  14    0.6        0    0.0
+EA 4F 4B                                                  13    0.6        1    0.3
+B7 5B 4B                                                  12    0.5        0    0.0
+F3 59 4B                                                  10    0.4        0    0.0
+AE 4B 4B                                                  10    0.4        0    0.0
+… 161 further sub-keys                                   240   10.5        7    2.3
+TOTAL                                                   2286  100.0      302  100.0
+  distinct sub-keys: bodies 173, emitted 8; largest bodies share 42.0%
+
+=== AXIS C — the cflow class ===
+sub-key                                               bodies      %  emitted      %
+cflow-loop                                              1838   80.4      286   94.7
+cflow-straight+expr-modeled                              438   19.2        7    2.3
+cf-expr-0x59                                               8    0.3        8    2.6
+cflow-switch                                               1    0.0        0    0.0
+cf-expr-0xBC                                               1    0.0        1    0.3
+TOTAL                                                   2286  100.0      302  100.0
+  distinct sub-keys: bodies 5, emitted 4; largest bodies share 80.4%
+
+=== AXIS D — the ladder dispatch arm ===
+sub-key                                               bodies      %  emitted      %
+disp-assign                                             2286  100.0      302  100.0
+TOTAL                                                   2286  100.0      302  100.0
+  distinct sub-keys: bodies 1, emitted 1; largest bodies share 100.0%
+
+=== AXIS C×B1 — cflow class crossed with the byte before ===
+sub-key                                               bodies      %  emitted      %
+cflow-loop / 4B                                         1008   44.1      282   93.4
+cflow-loop / 53                                          830   36.3        4    1.3
+cflow-straight+expr-modeled / 4B                         436   19.1        5    1.7
+cf-expr-0x59 / 4B                                          7    0.3        7    2.3
+cflow-switch / 4B                                          1    0.0        0    0.0
+cf-expr-0x59 / 53                                          1    0.0        1    0.3
+cflow-straight+expr-modeled / 13                           1    0.0        1    0.3
+cf-expr-0xBC / 4B                                          1    0.0        1    0.3
+cflow-straight+expr-modeled / 40                           1    0.0        1    0.3
+TOTAL                                                   2286  100.0      302  100.0
+  distinct sub-keys: bodies 9, emitted 8; largest bodies share 44.1%
+
+=== AXIS E — the segment length ===
+sub-key                                               bodies      %  emitted      %
+215                                                      826   36.1        0    0.0
+228                                                      700   30.6       38   12.6
+113                                                      422   18.5        2    0.7
+243                                                       26    1.1        1    0.3
+247                                                       13    0.6        1    0.3
+260                                                       11    0.5        0    0.0
+111                                                        9    0.4        0    0.0
+394                                                        4    0.2        4    1.3
+382                                                        4    0.2        0    0.0
+603                                                        4    0.2        3    1.0
+374                                                        3    0.1        3    1.0
+535                                                        3    0.1        3    1.0
+… 223 further sub-keys                                   261   11.4      247   81.8
+TOTAL                                                   2286  100.0      302  100.0
+  distinct sub-keys: bodies 235, emitted 221; largest bodies share 36.1%
+
+=== REPLICATION — distinct signatures over the 2286 bodies ===
+  distinct signatures: 402
+    #  bodies   TUs   varying window positions  cflow / before1 / seg_len
+    1     826   826 [0, 1, 17, 18, 20, 21, 23,  cflow-loop / 53 / 215
+    2     700   699 [2, 3, 4, 17, 18, 19, 22,   cflow-loop / 4B / 228
+    3      59    59     [2, 3, 17, 18, 24, 25]  cflow-straight+expr-modeled / 4B / 113
+    4      26    26     [2, 3, 17, 18, 24, 25]  cflow-straight+expr-modeled / 4B / 113
+    5      26    26 [2, 3, 4, 17, 18, 19, 22,   cflow-loop / 4B / 243
+    6      24    24     [2, 3, 17, 18, 24, 25]  cflow-straight+expr-modeled / 4B / 113
+    7      22    22                [2, 17, 24]  cflow-straight+expr-modeled / 4B / 113
+    8      14    14                [2, 17, 24]  cflow-straight+expr-modeled / 4B / 113
+    9      13    13 [2, 3, 4, 17, 18, 19, 22,   cflow-loop / 4B / 247
+   10      13    13     [2, 3, 17, 18, 24, 25]  cflow-straight+expr-modeled / 4B / 113
+   11      12    12                [2, 17, 24]  cflow-straight+expr-modeled / 4B / 113
+   12      11    11 [2, 3, 4, 17, 18, 19, 22,   cflow-loop / 4B / 260
+   13      10    10                [2, 17, 24]  cflow-straight+expr-modeled / 4B / 113
+   14      10    10                [2, 17, 24]  cflow-straight+expr-modeled / 4B / 113
+  distinct signatures among the 302 EMITTED: 225
+  distinct NAMES among the emitted: 264
+  distinct NAMES among the bodies:  266 (494 rows carry no name)

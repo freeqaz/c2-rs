@@ -1,0 +1,17 @@
+family: 2286 bodies, 302 emitted
+  family rows with no clause row: bodies 21, emitted 20  (must be 0)
+
+clause                                        bodies      %  emitted      %  names
+ctr-loop-acc-not-a-local-0x33                    854   37.4       13    4.3     15
+ctr-loop-for-scope-cflow-jump                    799   35.0      143   47.4    109
+ctr-loop-acc-not-a-local-0xB9                    440   19.2        9    3.0     10
+ctr-loop-formals-not-2-0x26                      155    6.8      100   33.1    100
+<no clause row>                                   21    0.9       20    6.6     21
+ctr-loop-incr-op-0x35                              9    0.4        9    3.0      9
+ctr-loop-acc-init-lit-0xB9                         5    0.2        5    1.7      5
+ctr-loop-ctr-designator-cflow-jump                 2    0.1        2    0.7      2
+ctr-loop-for-scope-0x26                            1    0.0        1    0.3      1
+TOTAL                                           2286  100.0      302  100.0
+
+NEIGHBOURS (board #1988 extensions (a)-(c)): 0 bodies (0.0%), 0 emitted (0.0%)
+STRANGERS: 2286 bodies (100.0%), 302 emitted (100.0%)
