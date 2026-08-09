@@ -1721,6 +1721,26 @@ impl IlBundle {
         let resolve_data_def =
             |tok: u32| -> Option<crate::func::IlDataDef> { bind.resolve_data_def(tok) };
         let n_defined = segs.len();
+        // **W-MMIOCLOSE — the sibling fact, established BEFORE the per-function
+        // loop and consumed inside it.**
+        //
+        // This is where board **#139**'s rule actually lands, and `w-ifn`'s C6
+        // read it one layer too deep. #139 puts acceptance in the parser and
+        // keeps the census and the gate asking ONE question; the seam that
+        // carries that rule is this function, which is bundle-level and already
+        // reasons across siblings four separate ways — `drectve_is_boilerplate`
+        // over the whole `.gl`, the label-counter gate over `funcs.iter()`, the
+        // unclaimed-`.gl`-symbol accounting over every callee of every function,
+        // and `callee_defined_here` against a set built from ALL the names. What
+        // the parser cannot see is a sibling from inside `parse_segment`, which
+        // is the *body* parser and takes one `.ex` segment. Those are different
+        // statements and only the second one is true.
+        //
+        // `None` when [`super::gl::gl_function_attrs`] refused the file, and
+        // then every function's flag stays `None` — the status quo, not a
+        // permission. The map is deliberately NOT required to be total over
+        // `names`: a name it has no row for also gets `None`.
+        let attrs = super::gl::gl_function_attrs(gl);
 
         let mut funcs = Vec::with_capacity(n_defined);
         for (i, (name, seg)) in names.iter().take(n_defined).zip(&segs).enumerate() {
@@ -1732,7 +1752,7 @@ impl IlBundle {
             if bind.is_varargs(i) {
                 return None;
             }
-            let f = shape_to_function(
+            let mut f = shape_to_function(
                 parse_segment(seg, bind.locals(i))?,
                 name,
                 &src,
@@ -1740,6 +1760,14 @@ impl IlBundle {
                 &resolve_data,
                 &resolve_data_def,
             )?;
+            // Keyed on the record name this function was BOUND by — the
+            // per-record binding — because that is the name the `.gl` attribute
+            // row is keyed by too. Keying it on anything else would be #918's
+            // shape: two bindings, one apparent fact.
+            f.inlinable = attrs
+                .as_ref()
+                .and_then(|m| m.get(name.as_str()))
+                .map(|a| a & super::gl::FN_FLAG_INLINABLE != 0);
             funcs.push(f);
         }
 

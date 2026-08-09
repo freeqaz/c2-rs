@@ -725,6 +725,26 @@ pub fn splice_body_why<'a>(
         let Some((g, opt_word)) = tu.definition(callee) else {
             return Err(SpliceDecline::Refused("S5-callee-extern"));
         };
+        // **S7-noinline — `__declspec(noinline)`, read off the `.gl`.**
+        //
+        // `crates/c2-harness/tests/noinline_boundary.rs` cell `w10` is a
+        // **shipped, demonstrated wrong emit**: the splice puts the callee's
+        // body where c2 emits `b ?g`, and that file's own note says the port
+        // *"cannot read the attribute"*. It can now —
+        // `c2_il::func::gl::FN_FLAG_INLINABLE`, board **#1039**'s undecoded
+        // field — so the splice stops expanding what c2 keeps a call to.
+        //
+        // Asked **per link and inside the loop**, not once before it: `S6-chain`
+        // steps `callee` down the chain and every intermediate is a body the
+        // splice would take, so an attribute on link three has to refuse at link
+        // three. Placed after `tu.definition` because the attribute belongs to a
+        // function this TU DEFINES; an external's is unreadable and unneeded,
+        // since `S5-callee-extern` has already refused it.
+        //
+        // `None` (unasked) and `Some(true)` behave exactly as before.
+        if g.inlinable == Some(false) {
+            return Err(SpliceDecline::Refused("S7-callee-noinline"));
+        }
         // The callee's own mode. A callee under a different `#pragma optimize`
         // than its caller allocates a chain intermediate to a different register
         // (`OptMode`'s doc), so splicing across that boundary would emit the
@@ -1404,5 +1424,55 @@ mod tests {
         let tu = TuContext::of(&funcs);
         assert_eq!(tu.definitions(), 0);
         assert!(tu.definition("").is_none());
+    }
+
+    /// **`S7-callee-noinline` — the shipped wrong emit, closed.**
+    ///
+    /// `crates/c2-harness/tests/noinline_boundary.rs` cell `w10` is
+    /// `__declspec(noinline) int g(int a){return a+1;} int f(int a){return g(a);}`
+    /// and it records what the port does today: the splice puts `?g`'s body into
+    /// `?f` where c2 emits `b ?g`. That file's note says the port *"cannot read
+    /// the attribute"*; `c2_il::func::gl::FN_FLAG_INLINABLE` is the attribute,
+    /// and this is the refusal it buys.
+    ///
+    /// The control is the same TU with the flag left `None`, which still
+    /// splices — so the cell measures the attribute and not the shape.
+    #[test]
+    fn a_noinline_callee_is_not_spliced() {
+        let g = leaf("?g@@YAHH@Z");
+        let caller = tail("?f@@YAHH@Z", "?g@@YAHH@Z");
+        let sel = select_function(&caller, OptMode::O1).expect("the caller lowers");
+
+        let tu_ok = TuContext::of_rows(vec![("?g@@YAHH@Z", Some(Reduction::Parsed(&g)), None)]);
+        assert!(
+            splice_body_why(&caller, &sel, OptMode::O1, &tu_ok).is_ok(),
+            "the CONTROL must splice, or the cell below is measuring the shape"
+        );
+
+        let mut g_ni = leaf("?g@@YAHH@Z");
+        g_ni.inlinable = Some(false);
+        let tu_ni =
+            TuContext::of_rows(vec![("?g@@YAHH@Z", Some(Reduction::Parsed(&g_ni)), None)]);
+        assert!(
+            matches!(
+                splice_body_why(&caller, &sel, OptMode::O1, &tu_ni),
+                Err(SpliceDecline::Refused("S7-callee-noinline"))
+            ),
+            "c2 emits `b ?g` here; the port must not emit ?g's body — and the \
+             clause KEY is asserted, not merely that something refused, because \
+             a cell that passes on the wrong clause is a cell that tests nothing"
+        );
+
+        // `Some(true)` is a positive permission and `None` is UNASKED, and
+        // neither may move the splice — the must-fail half of the pair.
+        for flag in [None, Some(true)] {
+            let mut g2 = leaf("?g@@YAHH@Z");
+            g2.inlinable = flag;
+            let tu = TuContext::of_rows(vec![("?g@@YAHH@Z", Some(Reduction::Parsed(&g2)), None)]);
+            assert!(
+                splice_body_why(&caller, &sel, OptMode::O1, &tu).is_ok(),
+                "inlinable = {flag:?} must leave the splice exactly where it was"
+            );
+        }
     }
 }

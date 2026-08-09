@@ -58,7 +58,8 @@ pub use self::census::{
 pub use self::diag::{cause, DecodeCauses};
 pub use self::ininit::{InInitReport, InInitResidue, InSymbolRef};
 pub use self::gl::{
-    gl_symbol_conflicts, gl_symbol_index, label_counter, mangled_name, mangled_names, source_path,
+    gl_function_attrs, gl_noinline_names, gl_symbol_conflicts, gl_symbol_index, label_counter,
+    mangled_name, mangled_names, source_path, FN_FLAG_INLINABLE,
 };
 pub use self::glalias::{
     gl_alias_table, gl_alias_table_shifted, GlAliasStats, GlAliasTable,
@@ -2934,6 +2935,38 @@ pub struct IlFunction {
     /// loosened: this list accounts for the name and contributes nothing to
     /// [`Self::callees`], which is what the emitter reads.
     pub eh_unwind_callees: Vec<String>,
+    /// **Whether c2's inliner may expand THIS function at a call site** — the
+    /// `.gl` function record's [`gl::FN_FLAG_INLINABLE`] bit, read by
+    /// [`gl::gl_function_attrs`].
+    ///
+    /// Three-valued, and the third value is the whole point:
+    ///
+    /// * `Some(true)`  — the record says c2 may expand it.
+    /// * `Some(false)` — `__declspec(noinline)`. c2 emits the call.
+    /// * **`None`** — *this reader has nothing to say*. Every consumer is
+    ///   required to behave **exactly** as it did before this field existed.
+    ///
+    /// # It does NOT come from `base()`, and that is deliberate
+    ///
+    /// [`IlFunction::base`]'s own doc forbids routing a field through it whose
+    /// correct value is ever non-default. This field's value is not a property
+    /// of the body shape at all — it is a **whole-bundle** fact, like the label
+    /// counter and the `.drectve` boilerplate test — so `base()` supplies the
+    /// `None` that means "unasked" and the two bundle-level constructions
+    /// ([`super::bundle::IlBundle::functions`] and
+    /// [`super::census::IlBundle::census_functions`]) fill it in from the
+    /// `.gl`. A body parser that set it would be claiming to know something it
+    /// cannot see.
+    ///
+    /// # Why the port is allowed to read it at all
+    ///
+    /// `docs/whitebox/WB_INLINE_FINDINGS.md` §7 offers five narrowings and says
+    /// the **accept** side is not offered, because a mis-predicted accept is a
+    /// wrong obj. The direction here is the safe one twice over: `Some(false)`
+    /// is a prediction that c2 does **not** expand, and it is what lets the port
+    /// keep a call it was already emitting — never what lets it emit a new one.
+    /// `Some(true)` is not consulted by anything.
+    pub inlinable: Option<bool>,
 }
 
 impl IlFunction {
@@ -2990,6 +3023,11 @@ impl IlFunction {
             empty_body: false,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
+            // **`None` means UNASKED, and every consumer must read it that
+            // way.** See the field's doc: this is a whole-bundle fact and
+            // `base()` is the body-shape default, so the only honest value here
+            // is "nobody has looked at the `.gl` yet".
+            inlinable: None,
         }
     }
 

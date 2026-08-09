@@ -9,13 +9,15 @@
 //! the 3,803 relocating bodies the judge credits today.
 //!
 //! **This file is the counterexample that stops it.** `__declspec(noinline)` is
-//! a chain c2 declines to close, and the port cannot read the attribute:
+//! a chain c2 declines to close. The port could not read the attribute when this
+//! file was written and can since lane `w-mmioclose` — the verdict column below
+//! is the *current* one and the history of each cell is in its own note:
 //!
 //! | cell | port | c2 | verdict |
 //! |---|---|---|---|
-//! | `w04a` — `noinline` intermediate, caller `?f` | *(refused)* | `b ?g` | **`Refused`** since 2026-08-09 — see below. c2 did NOT close, so a closure rule would still break a body that WAS right |
+//! | `w04a` — `noinline` intermediate, caller `?f` | `b ?g` | `b ?g` | **`Exact`** — see the 2026-08-09 entries below: `Refused` for one day, then graded again |
 //! | `w04a` — the intermediate `?g` itself | `b ?ext` | `b ?ext` | `Exact` |
-//! | `w10` — `noinline` LEAF, spliced | `addi r3,r3,1 ; blr` | `b ?g` | **`Differs`** — the SHIPPED splice already gets this wrong |
+//! | `w10` — `noinline` LEAF | `b ?g` | `b ?g` | **`Exact`** since `w-mmioclose` — it read `Differs (2, 1, 0)` from the day it was written until the attribute was decoded |
 //! | `w12` — `w10` without the attribute | the callee's body | the callee's body | `Exact` — the control |
 //!
 //! # 2026-08-09, lane `w-inlfence2` — `w04a`'s caller moved `Exact` → `Refused`
@@ -33,6 +35,26 @@
 //! for is unaffected and is now asserted **against c2's own relocation table**
 //! rather than inferred from the port agreeing — which is stronger, because a
 //! verdict of `Exact` never said *what* the two sides agreed on.
+//!
+//! # 2026-08-09, lane `w-mmioclose` — BOTH open items closed, and it is ONE field
+//!
+//! `__declspec(noinline)` clears **bit 0x40** of the attribute byte in the `.gl`
+//! FUNCTION record, three fields past the body-start offset
+//! (`c2_il::func::gl::gl_function_attrs`). That is board **#1039**'s undecoded
+//! field, and 0x40 is bit 6 — the bit `WB_INLINE_FINDINGS.md` §1 read off c2's
+//! own legality test at `0x10b5c06b` before this byte was located.
+//!
+//! Two consequences land here in the same commit:
+//!
+//! * `w04a`'s `?f` goes **`Refused` → `Exact`**: `comdat::callee_is_one_c2_expands`
+//!   stops predicting an expansion c2 does not perform, so the fence's measured
+//!   reach cost is back to **zero**.
+//! * `w10` goes **`Differs (2, 1, 0)` → `Exact`**: `splice_body_why` gains
+//!   `S7-callee-noinline`, and declining the splice leaves `Selected::Tail` to
+//!   emit the branch c2 emits. **Board #1038 is closed.**
+//!
+//! The note below stands unchanged and is the reason both tests are kept rather
+//! than deleted: the corpus still does not exercise either shape.
 //!
 //! # The attribute is present in the workload and the exposure is LATENT, not live
 //!
@@ -259,16 +281,17 @@ fn c2_does_not_close_a_chain_through_a_noinline_intermediate() {
          #1013's closure rule is unblocked — which is the whole reason this cell \
          exists (board #1037)"
     );
-    // …and the port's side, pinned at the conservative refusal it now gives.
+    // …and the port's side, back at `Exact` since lane `w-mmioclose`.
     let f = find(&rows, "?f@@YAXXZ");
     assert_eq!(
         f.1,
-        FnByte::Refused,
-        "`?f@@YAXXZ` is REFUSED by the inline fence, not graded. `?g` is defined \
-         in this TU and lowers to 4 bytes, so the fence predicts c2 expands it; \
-         `__declspec(noinline)` is what makes that prediction wrong and it lives \
-         in an undecoded `.gl` field (board #1039). A refusal is the safe error — \
-         when the port reads the field this must go back to Exact"
+        FnByte::Exact,
+        "`?f@@YAXXZ` is graded again. `?g` is defined in this TU and lowers to 4 \
+         bytes, so the SIZE half of `comdat::callee_is_one_c2_expands` predicts \
+         c2 expands it — and `__declspec(noinline)` is what makes that \
+         prediction wrong. This is the line the 2026-08-09 note below said would \
+         have to move: the field is `c2_il::func::gl::FN_FLAG_INLINABLE`, the \
+         fence reads it, and the reach cost is back to zero"
     );
     // The inverse, on the same obj: without the attribute in the way, `?g`'s own
     // branch to the external is right on both sides. A cell where everything is
@@ -286,51 +309,61 @@ fn c2_does_not_close_a_chain_through_a_noinline_intermediate() {
     }
 }
 
-/// **AN OPEN GAP, PINNED.** The shipped `SPLICE-0-PORT` fires through a
-/// `noinline` leaf and emits the callee's body where c2 emits a branch — two
-/// words against one, zero words equal, and the port emits no relocation where
-/// c2 emits a `REL24` against `?g`.
+/// **BOARD #1038, CLOSED — and this is the cell that was red on purpose until
+/// it was.**
 ///
-/// # This test asserts the WRONG behaviour on purpose
+/// Until lane `w-mmioclose` the shipped `SPLICE-0-PORT` fired through this
+/// `noinline` leaf and emitted the callee's body where c2 emits a branch: two
+/// words against one, **zero words equal**, and no relocation where c2 emits a
+/// `REL24` against `?g`. The assertion below said so, in those numbers, and
+/// said in terms that the commit which fixed it had to come here — *"do not
+/// delete it"*.
 ///
-/// It is a characterization test for board **#1038**. When the port learns to
-/// read the attribute the assertion below goes red, and the commit that fixes
-/// it updates this test in the same change — which is the point: the alternative
-/// is a defect that is demonstrated in a rung and then quietly forgotten,
-/// because the 878-TU workload does not exercise it (`fnbyte-spliced-exact` is
-/// 723 of 723).
+/// It is fixed by `c2_core::splice`'s `S7-callee-noinline`, which reads
+/// `c2_il::func::gl::FN_FLAG_INLINABLE` — board **#1039**'s undecoded `.gl`
+/// field, decoded. **The wrong emit is now byte-exact**, because declining to
+/// splice leaves `Selected::Tail` to emit the `b ?g` c2 emits.
+///
+/// The test is kept and inverted rather than deleted, for the reason it was
+/// written: the 878-TU workload does not exercise this shape
+/// (`fnbyte-spliced-exact` is 723 of 723), so a regression here would be
+/// invisible to every scan.
 #[test]
-fn the_shipped_splice_emits_the_wrong_body_through_a_noinline_callee() {
+fn a_noinline_callee_is_no_longer_spliced_through() {
     let Some(tc) = Toolchain::locate() else {
         println!("SKIP: toolchain absent");
         return;
     };
-    let rows = grade(&tc, "w10", W10);
+    let (rows, targets) = grade_with_targets(&tc, "w10", W10);
     if rows.is_empty() {
         println!("SKIP: capture produced no graded function");
         return;
     }
+    // **What c2 DID, off its own relocation table** — the same strengthening
+    // `w04a` took above. `Exact` on its own never said what the two sides
+    // agreed on, and here the whole content of the fix is that they agree on a
+    // BRANCH TO `?g` rather than on `?g`'s body.
+    let f_targets = targets
+        .iter()
+        .find(|(n, _)| n == "?f@@YAHH@Z")
+        .map(|(_, t)| t.clone())
+        .expect("no `?f@@YAHH@Z` in the reference obj's REL24 table");
+    assert_eq!(
+        f_targets,
+        vec!["?g@@YAHH@Z".to_string()],
+        "c2 must still emit a REL24 against the `noinline` `?g`; if this ever \
+         reads empty, c2 has started expanding a `noinline` callee and the \
+         splice clause is wrong rather than merely untested"
+    );
     let f = find(&rows, "?f@@YAHH@Z");
-    match f.1 {
-        FnByte::Differs {
-            port_words,
-            ref_words,
-            equal_words,
-        } => {
-            assert_eq!(
-                (port_words, ref_words, equal_words),
-                (2, 1, 0),
-                "the port splices `?g`'s two-word body in where c2 emits one \
-                 branch word; if these counts move, the gap has changed shape \
-                 and #1038 needs re-reading rather than re-asserting"
-            );
-        }
-        other => panic!(
-            "`?f@@YAHH@Z` read {other:?}. If it is now Exact, board #1038 is \
-             CLOSED — the port has learned `__declspec(noinline)`. Update this \
-             test and the rung in the same commit; do not delete it"
-        ),
-    }
+    assert_eq!(
+        f.1,
+        FnByte::Exact,
+        "the port must emit that same branch. A `Differs` of (2, 1, 0) here is \
+         the ORIGINAL defect returning — the splice taking `?g`'s body — and a \
+         `Refused` means the attribute is being read but `Selected::Tail` is no \
+         longer picking the branch up behind it"
+    );
 }
 
 /// **THE CONTROL for the test above**, in its own TU. The identical source

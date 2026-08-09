@@ -13,6 +13,7 @@ use c2_il::{IlFunction, IlOp};
 
 pub(crate) fn func_with(params: Vec<u32>, ops: Vec<IlOp>) -> IlFunction {
     IlFunction {
+        inlinable: None,
         mangled_name: "?f@@YAHH@Z".into(),
         source_path: None,
         tail_call: None,

@@ -709,6 +709,7 @@ mod tests {
         // `a - b - c`: LOAD a, LOAD b, SUB, LOAD c, SUB. The subf operand order
         // (rA=rhs, rB=lhs) must reproduce c2's `subf r11,r4,r3 ; subf r3,r5,r11`.
         let func = IlFunction {
+            inlinable: None,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
             mangled_name: "?sub3@@YAHHHH@Z".into(),
@@ -1088,6 +1089,7 @@ mod tests {
     fn select_text_mul_is_commutative_order() {
         // `a * b * c` → mullw r11,r3,r4 ; mullw r3,r11,r5 ; blr.
         let func = IlFunction {
+            inlinable: None,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
             mangled_name: "?mul3@@YAHHHH@Z".into(),
@@ -1141,6 +1143,7 @@ mod tests {
     #[test]
     fn select_text_for_add3() {
         let func = IlFunction {
+            inlinable: None,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
             mangled_name: "?add3@@YAHHHH@Z".into(),

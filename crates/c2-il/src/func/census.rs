@@ -645,6 +645,11 @@ impl IlBundle {
         // so the two cannot key one function two ways.
         let empty_here: std::cell::OnceCell<std::collections::BTreeSet<String>> =
             std::cell::OnceCell::new();
+        // **W-MMIOCLOSE — the `.gl` function attribute byte, once per bundle.**
+        // `None` when the reader refused the file; see
+        // [`super::gl::gl_function_attrs`] for why that is a whole-file answer
+        // and not a per-record one.
+        let attrs = super::gl::gl_function_attrs(gl);
         Some(
             segs.iter()
                 .enumerate()
@@ -1220,7 +1225,30 @@ impl IlBundle {
                                     let _ = f;
                                     FnVerdict::Blocked(Block::at_end(seg, CALLEE_DEFINED_IN_TU))
                                 }
-                                Some(f) => {
+                                Some(mut f) => {
+                                    // **W-MMIOCLOSE — the `.gl` inlinability
+                                    // bit, keyed on `EmitBinding::name`.**
+                                    //
+                                    // That key and not `f.mangled_name`: this
+                                    // census's names come from
+                                    // [`Bindings::positional`], which #918
+                                    // measured disagreeing with the per-record
+                                    // binding on 74,955 workload rows, while
+                                    // `emit.name(i)` is the key
+                                    // `c2_harness::gap::fnbytes::tu_empty_callees`
+                                    // builds its `TuContext` rows with. The
+                                    // consumer looks the callee up by THAT key,
+                                    // so the flag has to be filed under it or
+                                    // the two would be looking at two functions.
+                                    //
+                                    // `None` — no attribute map, or no row for
+                                    // this name — leaves every consumer where it
+                                    // was.
+                                    f.inlinable = attrs
+                                        .as_ref()
+                                        .zip(emit.name(i))
+                                        .and_then(|(m, n)| m.get(n))
+                                        .map(|a| a & super::gl::FN_FLAG_INLINABLE != 0);
                                     func = Ok(f);
                                     FnVerdict::InClass(label)
                                 }

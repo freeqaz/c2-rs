@@ -297,6 +297,30 @@ fn callee_is_one_c2_expands<'a>(
         // size to measure.
         return false;
     };
+    // **`__declspec(noinline)` is never inlined, and the port can now SEE it.**
+    //
+    // `c2_il::func::gl::FN_FLAG_INLINABLE` is the `.gl` function record bit
+    // board **#1039** filed as undecoded and `w-inlfence2` **#2155** named as
+    // this fence's missing input — *"the missing input is not definedness"*.
+    // That rung's answer was the callee's SIZE; this is the second one, and it
+    // is the one this TU's own reference obj turns on: `mmioClose`'s
+    // `bl mmioFlush` survives at `/O1 /Oi /EHsc /GR` while eight cells of
+    // `work/w-mmioclose/probe/inl.cpp` — the same shape without the attribute,
+    // including a callee defined BELOW its caller and a `static` one — are all
+    // expanded. Size does not separate them: `mmioFlush` is 8 bytes.
+    //
+    // **Asked before the size, deliberately.** `WB_INLINE_FINDINGS` §2.1's
+    // candidacy ceiling is 128 instructions and §7's licensed narrowings are all
+    // decline rules keyed on size; `noinline` is a **legality** fact
+    // (`0x10b5c06b`, *"requires bit 6 of `[sym+0x4c]`"*), and legality is
+    // checked before profitability in c2 too. Putting it after the size test
+    // would give the same answer and read as if size were the primary fact.
+    //
+    // `None` (unasked) and `Some(true)` both fall through to exactly the
+    // behaviour this function had before the bit existed.
+    if g.inlinable == Some(false) {
+        return false;
+    }
     // **Direct recursion is never inlined** — `WB_INLINE_FINDINGS` F5, and
     // `INLINE_PREDICATE.md` §4 grades `recurse` 336/336 declined by c2 as well.
     // Compared by ADDRESS and not by name: `IlFunction::mangled_name` is the
@@ -1075,5 +1099,52 @@ mod inlfence_tests {
         let big = vec![big_leaf("?g@@YAHH@Z"), caller_with_setup("?f@@YAHH@Z", "?g@@YAHH@Z")];
         assert!(is_fenced(&compose(&small, 1)), "small callee: c2 expands it");
         assert!(!is_fenced(&compose(&big, 1)), "large callee: c2 keeps the call");
+    }
+
+    /// **N7 — `__declspec(noinline)`, the clause this lane added.**
+    ///
+    /// Byte for byte cell `P`'s TU, with one bit of the callee's `.gl`
+    /// attribute cleared. c2 does **not** expand a `noinline` callee, so the
+    /// port's `bl` is right and the fence must not fire — and the pair is what
+    /// makes that a measurement rather than a claim, because the ONLY
+    /// difference between the two cells is `IlFunction::inlinable`.
+    ///
+    /// The shape is `mmio.cpp`'s own: `mmioClose` calls `mmioFlush`, defined in
+    /// that TU, eight bytes long, `__declspec(noinline)` — and the reference obj
+    /// keeps the `bl`. `work/w-mmioclose/probe/inl.cpp` is the control from the
+    /// other side: eight cells of the same shape WITHOUT the attribute and c2
+    /// expands seven of them, so size does not separate this pair.
+    #[test]
+    fn n7_a_noinline_same_tu_callee_is_untouched() {
+        let mut g = leaf("?g@@YAHH@Z");
+        g.inlinable = Some(false);
+        let funcs = vec![g, caller_with_setup("?f@@YAHH@Z", "?g@@YAHH@Z")];
+        let body = compose(&funcs, 1).expect("c2 keeps the call, so the port may emit it");
+        assert_eq!(
+            body.calls.len(),
+            1,
+            "the REL24 must SURVIVE — a cell that passes because the body has \
+             no call at all tests nothing"
+        );
+        assert_eq!(body.calls[0].callee, "?g@@YAHH@Z");
+    }
+
+    /// **N7's must-fail mutation, and it is the pair `P` cannot supply on its
+    /// own.** `Some(true)` and `None` are the two values that are NOT the
+    /// attribute, and both must land exactly where the fence has always put
+    /// them. A clause written `!= Some(true)` would pass N7 and fail here.
+    #[test]
+    fn n7_only_some_false_moves_the_fence() {
+        for flag in [None, Some(true)] {
+            let mut g = leaf("?g@@YAHH@Z");
+            g.inlinable = flag;
+            let funcs = vec![g, caller_with_setup("?f@@YAHH@Z", "?g@@YAHH@Z")];
+            assert!(
+                is_fenced(&compose(&funcs, 1)),
+                "inlinable = {flag:?} must leave the fence exactly where it was: \
+                 None is UNASKED and Some(true) is a positive permission, and \
+                 neither is `__declspec(noinline)`"
+            );
+        }
     }
 }

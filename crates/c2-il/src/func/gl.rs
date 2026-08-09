@@ -883,6 +883,138 @@ pub fn label_counter(gl: &[u8]) -> Option<u32> {
     Some(u32::from_le_bytes([gl[7], gl[8], gl[9], gl[10]]))
 }
 
+/// The bit of a `.gl` **function** record's attribute byte that says *c2's
+/// inliner may expand this body*. `__declspec(noinline)` is the one thing
+/// measured to clear it.
+///
+/// This is the field board **#1039** recorded as UNDECODED. `w-target`'s
+/// `nicmp2.sh` had already narrowed it to `.gl` — *"`.ex`, `.sy`, `.in` and
+/// `.db` are byte-identical on both shapes and only `.gl` moves, by 2 bytes"* —
+/// and `crates/c2-harness/tests/noinline_boundary.rs` pins the consequence of
+/// not reading it: a **shipped** splice that emits the callee's body where c2
+/// emits a branch.
+///
+/// `0x40` is **bit 6**, and that number is not this lane's. `WB_INLINE_FINDINGS`
+/// §1 read c2's own legality test at `0x10b5c06b` off the disassembly as
+/// *"requires bit 6 of `[sym+0x4c]`"*, from the other side of the seam and
+/// before this byte was located. The two derivations agree.
+pub const FN_FLAG_INLINABLE: u8 = 0x40;
+
+/// The `.gl` **function** record's attribute byte, per defined function, or
+/// `None` when any record in the file fails to decode.
+///
+/// # The record, and where the byte is
+///
+/// [`gl_defined_names_framed`]'s table stops at the body-start offset. Three
+/// fields follow it, and the attribute is the third:
+///
+/// ```text
+///   00 <name> 00  <TYPE>  80 01 10 00 00 00 00  80 <LE32 offset>  <SRCPOS>  <SIZE>  <ATTR>
+///                         \___ the framing ___/  \_ gl_offset_framed _____/
+/// ```
+///
+/// `SRCPOS` is a byte under `0x80`, or the escape `80 <LE32>` — **the same
+/// `80`-plus-fixed-width-`u32` shape as the offset field itself**, which is
+/// what makes it a record encoding rather than a guess. `SIZE` is a byte under
+/// `0x80`.
+///
+/// Measured on `work/w-mmioclose/probe/glgrid.cpp` (nine one-line functions,
+/// `SRCPOS` stepping 0, 30, 60, 90, 120, then `80 96 00 00 00` = 150,
+/// `80 b4 00 00 00` = 180, `80 d2 00 00 00` = 210 — the escape appearing
+/// exactly where the value first exceeds `0x7f`) and reproduced on
+/// `src/xdk/nuispeech/mmio.cpp` (eleven records, `SRCPOS` 0 … 1,034).
+///
+/// **The first version of this reader took the escape for `80 <LE16>` and it
+/// decoded nine of `mmio.cpp`'s eleven records as attribute `0x00` — a byte
+/// with `FN_FLAG_INLINABLE` clear, which is the reading a consumer takes as
+/// permission.** It was caught because the two records whose `SRCPOS` fits in
+/// one byte decoded correctly and the other nine all came back the same value:
+/// a uniform answer where the grid predicts a split. That is the failure mode
+/// the whole-file `None` above exists for, and it is recorded rather than
+/// tidied away — a mis-decoded displacement does not look like an error, it
+/// looks like a fact.
+///
+/// # Why it returns `None` for the whole file rather than skipping a record
+///
+/// `w-inlfence` (#2220–#2227) and its peer's second fence established the
+/// standard the emit path owes: [`super::bind::Bindings::per_record`] binds
+/// nothing at all unless the records are 1:1 with the segments, because a
+/// *partial* answer to a whole-TU question is indistinguishable from a complete
+/// one at the point of use. The same applies here and more sharply, because the
+/// consumer's direction is inverted: a caller reads *"the bit is clear"* as
+/// *"c2 keeps this call, so the port may emit it"*, and a record decoded at the
+/// wrong displacement could produce that reading from an unrelated byte. So a
+/// single unrecognized `SRCPOS`/`SIZE` encoding anywhere refuses the map, every
+/// consumer sees "no information", and "no information" is required to be the
+/// **status quo** rather than a permission.
+///
+/// The two shapes above are the only ones admitted. A third would refuse rather
+/// than be guessed at, which is `label_counter`'s rule one field over.
+pub fn gl_function_attrs(gl: &[u8]) -> Option<std::collections::BTreeMap<String, u8>> {
+    let runs = symbol_runs(gl, true);
+    let mut out = std::collections::BTreeMap::new();
+    let mut p = 0usize;
+    while p + 5 <= gl.len() {
+        if !crate::codec::gl_offset_framed(gl, p) {
+            p += 1;
+            continue;
+        }
+        // The record's own name, by exactly the rule `gl_defined_names_framed`
+        // uses: the last run to END at or before the offset field, near enough
+        // to be part of the same record. A framed offset with no such run is a
+        // record shape this reader does not understand — refuse the file.
+        let k = match runs.iter().rposition(|&(_, end, _)| end <= p) {
+            Some(k) if p - runs[k].1 <= MAX_NAME_TO_OFFSET => k,
+            _ => return None,
+        };
+        let mut q = p + 5;
+        // SRCPOS.
+        match *gl.get(q)? {
+            b if b < 0x80 => q += 1,
+            0x80 => q += 5,
+            _ => return None,
+        }
+        // SIZE — one byte, and required to be one byte. If it ever escapes the
+        // way SRCPOS does, the attribute is one byte further along and this
+        // reader would hand back an unrelated value; refusing is the only
+        // reading that cannot do that quietly.
+        if *gl.get(q)? >= 0x80 {
+            return None;
+        }
+        q += 1;
+        let attr = *gl.get(q)?;
+        // A name that occurs twice with two different attribute bytes is a file
+        // this reader has no answer for. Refused rather than resolved to either,
+        // for `gl_extern_data_names`' reason one door over: a name that is a
+        // defined symbol *anywhere* must not be admitted on the strength of some
+        // other record.
+        if let Some(&prev) = out.get(&runs[k].2) {
+            if prev != attr {
+                return None;
+            }
+        }
+        out.insert(runs[k].2.clone(), attr);
+        p += 5;
+    }
+    Some(out)
+}
+
+/// The names this TU defines that c2's inliner will **not** expand — the
+/// `__declspec(noinline)` set — or `None` when [`gl_function_attrs`] refused.
+///
+/// `None` and an empty set are different facts and every consumer must keep
+/// them so: the first is *"this reader has nothing to say"*, the second is
+/// *"every function here is inlinable"*.
+pub fn gl_noinline_names(gl: &[u8]) -> Option<std::collections::BTreeSet<String>> {
+    Some(
+        gl_function_attrs(gl)?
+            .into_iter()
+            .filter(|&(_, a)| a & FN_FLAG_INLINABLE == 0)
+            .map(|(n, _)| n)
+            .collect(),
+    )
+}
+
 /// **WR1 — every `.gl` name that is an UNDEFINED-EXTERNAL DATA symbol**, i.e.
 /// the only class of data symbol whose address this port may emit.
 ///
@@ -2649,5 +2781,198 @@ mod tests {
         // means under it.
         assert_eq!(align_of_type_tag(0xC6, Some(0x84)), None, "unmeasured mark");
         assert_eq!(align_of_type_tag(0xC6, Some(0xFF)), None);
+    }
+
+    // ---------------------------------------------------------------- w-mmioclose
+    //
+    // `gl_function_attrs` — the `.gl` function record's attribute byte, and the
+    // one bit of it two fences read.
+
+    /// One measured `.gl` FUNCTION record, spelled field by field.
+    ///
+    /// The literal bytes are `src/xdk/nuispeech/mmio.cpp`'s own, so the fixture
+    /// is a transcription and not an invention:
+    ///
+    /// ```text
+    ///   mmioGetInfo\0  86 01 05 04 00 08 00  80 18 10 00 00 00 00  80 3d 0c 00 00  00  3d  68
+    ///   mmioFlush\0    86 01 05 04 00 08 00  80 0f 10 00 00 00 00  80 5d 0f 00 00  80 4d 01 00 00  10  28
+    /// ```
+    ///
+    /// `srcpos` is `Ok(b)` for the one-byte form and `Err(v)` for the
+    /// `80 <LE32>` escape, which is the same shape as the offset field.
+    fn fn_record(name: &str, off: u32, srcpos: Result<u8, u32>, size: u8, attr: u8) -> Vec<u8> {
+        let mut v = vec![0x00];
+        v.extend_from_slice(name.as_bytes());
+        v.push(0x00);
+        // TYPE, then the seven framing bytes `gl_offset_framed` requires.
+        v.extend_from_slice(&[0x86, 0x01, 0x05, 0x04, 0x00, 0x08, 0x00]);
+        v.extend_from_slice(&[0x80, 0x18, 0x10, 0x00, 0x00, 0x00, 0x00]);
+        v.push(0x80);
+        v.extend_from_slice(&off.to_le_bytes());
+        match srcpos {
+            Ok(b) => v.push(b),
+            Err(w) => {
+                v.push(0x80);
+                v.extend_from_slice(&w.to_le_bytes());
+            }
+        }
+        v.push(size);
+        v.push(attr);
+        v
+    }
+
+    /// The measured attribute bytes, named. Every one is a real record from
+    /// `work/w-mmioclose/probe/glgrid.cpp` or from `mmio.cpp`.
+    const ATTR_PLAIN: u8 = 0x68;
+    const ATTR_NOINLINE: u8 = 0x28;
+    const ATTR_INLINE_KEYWORD: u8 = 0xC8;
+    const ATTR_STATIC: u8 = 0x48;
+    const ATTR_STATIC_NOINLINE: u8 = 0x08;
+
+    /// **The positive, and it is the target TU's own two records.**
+    ///
+    /// `mmioGetInfo` takes the one-byte source position and `mmioFlush` the
+    /// `80 <LE32>` escape, so one fixture exercises both encodings — which is
+    /// what the first version of this reader got wrong, and got wrong SILENTLY,
+    /// by returning an attribute of `0x00` (bit clear, i.e. the permissive
+    /// reading) for every escaped record.
+    #[test]
+    fn the_attribute_byte_separates_noinline_from_plain() {
+        let mut gl = fn_record("mmioGetInfo", 0x0c3d, Ok(0x00), 0x3d, ATTR_PLAIN);
+        gl.extend(fn_record("mmioFlush", 0x0f5d, Err(333), 0x10, ATTR_NOINLINE));
+        let attrs = gl_function_attrs(&gl).expect("both records decode");
+        assert_eq!(attrs.get("mmioGetInfo"), Some(&ATTR_PLAIN));
+        assert_eq!(attrs.get("mmioFlush"), Some(&ATTR_NOINLINE));
+        assert_eq!(
+            gl_noinline_names(&gl).expect("decodes"),
+            ["mmioFlush".to_string()].into_iter().collect(),
+            "exactly the record whose FN_FLAG_INLINABLE is clear"
+        );
+    }
+
+    /// **The must-fail mutation, and it is the one that matters**: flip the one
+    /// bit and the set inverts. Without it the test above would pass just as
+    /// happily against a reader keyed on the whole byte, on the size, or on the
+    /// record's position.
+    #[test]
+    fn flipping_only_fn_flag_inlinable_inverts_the_answer() {
+        let plain = fn_record("g", 0x10, Ok(0x00), 0x10, ATTR_PLAIN);
+        let flipped = fn_record("g", 0x10, Ok(0x00), 0x10, ATTR_PLAIN & !FN_FLAG_INLINABLE);
+        assert!(gl_noinline_names(&plain).expect("decodes").is_empty());
+        assert_eq!(
+            gl_noinline_names(&flipped).expect("decodes"),
+            ["g".to_string()].into_iter().collect()
+        );
+        // …and the bit is the ONLY thing that moved: the two records differ in
+        // exactly one byte, and in exactly one bit of it.
+        let d: Vec<usize> = plain
+            .iter()
+            .zip(&flipped)
+            .enumerate()
+            .filter(|(_, (a, b))| a != b)
+            .map(|(i, _)| i)
+            .collect();
+        assert_eq!(d.len(), 1, "one byte");
+        assert_eq!(plain[d[0]] ^ flipped[d[0]], FN_FLAG_INLINABLE, "one bit");
+    }
+
+    /// The other measured attribute bytes, so the reader is pinned on the axes
+    /// that are NOT `noinline`. `inline` and `__forceinline` both read `0xC8`
+    /// and `static` reads `0x48`; all three keep bit 6, which is the statement
+    /// that the bit is the inliner's legality flag and not a general "this
+    /// declaration carries an attribute" marker.
+    #[test]
+    fn the_inline_keyword_and_static_do_not_clear_the_bit() {
+        for (name, attr) in [("g_inl", ATTR_INLINE_KEYWORD), ("g_static", ATTR_STATIC)] {
+            let gl = fn_record(name, 0x10, Ok(0x00), 0x10, attr);
+            assert!(
+                gl_noinline_names(&gl).expect("decodes").is_empty(),
+                "{name} keeps FN_FLAG_INLINABLE"
+            );
+        }
+        // `static __declspec(noinline)` clears bit 6 on top of static's bit 5,
+        // which is what makes the two axes independent rather than one field.
+        let gl = fn_record("g_sn", 0x10, Ok(0x00), 0x10, ATTR_STATIC_NOINLINE);
+        assert_eq!(
+            gl_noinline_names(&gl).expect("decodes"),
+            ["g_sn".to_string()].into_iter().collect()
+        );
+        assert_eq!(ATTR_STATIC & !FN_FLAG_INLINABLE, ATTR_STATIC_NOINLINE);
+    }
+
+    /// **A file with an unrecognised field encoding yields NOTHING**, not "the
+    /// records I could read".
+    ///
+    /// This is `Bindings::per_record`'s standard (`w-inlfence`, #2220–#2227) and
+    /// the direction is why: the consumer reads a clear bit as *"c2 keeps this
+    /// call"*, so a record decoded at the wrong displacement is a permission
+    /// granted from an unrelated byte. Each clause below trips a DIFFERENT one,
+    /// and the good record in front of it is what proves the refusal is total
+    /// rather than local.
+    #[test]
+    fn one_unreadable_record_refuses_the_whole_file() {
+        let good = fn_record("good", 0x10, Ok(0x00), 0x10, ATTR_PLAIN);
+        assert!(gl_function_attrs(&good).is_some(), "the control decodes");
+
+        // **THE CELLS ARE PROVED LIVE BEFORE THEY ARE TRUSTED.** Each mutation
+        // below is applied to this two-record file, and this two-record file
+        // decodes — so a cell that refuses is refusing because of its own
+        // mutation and not because the carrier was already broken. `_neg` cells
+        // have been confounded or inert in five of the last seven lanes; this is
+        // the two lines that would have caught it.
+        let mut carrier = good.clone();
+        carrier.extend(fn_record("bad", 0x20, Ok(0x00), 0x10, ATTR_PLAIN));
+        let base = gl_function_attrs(&carrier).expect("the CARRIER decodes");
+        assert_eq!(base.len(), 2, "both records, before any mutation");
+
+        // (a) SRCPOS is >= 0x80 and is not the 0x80 escape.
+        let mut a = good.clone();
+        a.extend(fn_record("bad", 0x20, Ok(0x00), 0x10, ATTR_PLAIN));
+        let n = a.len();
+        a[n - 3] = 0x81;
+        assert!(gl_function_attrs(&a).is_none(), "srcpos: unknown encoding");
+
+        // (b) SIZE is >= 0x80 — the attribute would be one byte further along
+        // and this reader would hand back an unrelated value.
+        let mut b = good.clone();
+        b.extend(fn_record("bad", 0x20, Ok(0x00), 0x80, ATTR_PLAIN));
+        assert!(gl_function_attrs(&b).is_none(), "size: escaped");
+
+        // (c) the record is truncated before its attribute byte.
+        let mut c = good.clone();
+        c.extend(fn_record("bad", 0x20, Ok(0x00), 0x10, ATTR_PLAIN));
+        c.pop();
+        assert!(gl_function_attrs(&c).is_none(), "no attribute byte");
+
+        // (d) a framed offset with no name run near enough to be its record's.
+        let mut d = good.clone();
+        let mut orphan = fn_record("x", 0x30, Ok(0x00), 0x10, ATTR_PLAIN);
+        let at = 3; // just past `00 x 00`
+        for _ in 0..MAX_NAME_TO_OFFSET + 1 {
+            orphan.insert(at, 0x00);
+        }
+        d.extend(orphan);
+        assert!(gl_function_attrs(&d).is_none(), "name too far from the offset");
+
+        // (e) one name, two records, two different attribute bytes.
+        let mut e = good.clone();
+        e.extend(fn_record("good", 0x20, Ok(0x00), 0x10, ATTR_NOINLINE));
+        assert!(gl_function_attrs(&e).is_none(), "one name, two answers");
+    }
+
+    /// **`None` and the empty set are different facts**, and a consumer that
+    /// collapsed them would read "this reader has nothing to say" as "nothing
+    /// here is `noinline`" — which is the permissive direction.
+    #[test]
+    fn a_refused_file_is_not_an_empty_noinline_set() {
+        let mut bad = fn_record("bad", 0x20, Ok(0x00), 0x80, ATTR_PLAIN);
+        bad.push(0x00);
+        assert_eq!(gl_noinline_names(&bad), None);
+        let empty: &[u8] = &[];
+        assert_eq!(
+            gl_noinline_names(empty),
+            Some(std::collections::BTreeSet::new()),
+            "a .gl with no function record at all HAS an answer, and it is empty"
+        );
     }
 }

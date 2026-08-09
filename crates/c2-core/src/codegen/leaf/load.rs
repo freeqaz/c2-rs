@@ -109,6 +109,7 @@ mod tests {
     #[test]
     fn indirect_load_text_is_one_lwz_and_a_blr() {
         let mut f = IlFunction {
+            inlinable: None,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
             mangled_name: "?ld_p@@YAHPAH@Z".into(),
@@ -166,6 +167,7 @@ mod tests {
     #[test]
     fn narrow_indirect_load_text_matches_the_captured_bodies() {
         let f = |ops: Vec<IlOp>, params: Vec<u32>| IlFunction {
+            inlinable: None,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
             mangled_name: "?g@@YADPAD@Z".into(),
