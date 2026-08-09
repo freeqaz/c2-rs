@@ -11826,8 +11826,10 @@ over-estimate streak ends.
 
 ## 10.35 W-BIQUAD — `Biquad.cpp` MATCHES (20 → 21); the designator layer was never the blocker and its 403,879-body key moved by ZERO; and the last thing in the way was a label surcharge that has been unobservable since the port first pooled a constant (2026-08-09)
 
-Rung: `docs/rungs/2026-08-09-w-biquad.md`. Board **#2530**–**#2545**;
-**#2546**–**#2559** left explicitly unminted. PREREG `work/w-biquad/PREREG.md`,
+Rung: `docs/rungs/2026-08-09-w-biquad.md`. Board **#2530**–**#2545**; the rest
+of the lane's allocated block is declared unminted in `BOARD.md` itself, which
+is where `board_audit.sh` reads such a declaration from. PREREG
+`work/w-biquad/PREREG.md`,
 frozen before the first `crates/` change. PREREG base master `111b6357`;
 **rebased onto `7309a02f`** (the `w-vec` merge) with the base re-derived from a
 binary built there and kept, and **every workload number identical at both**.
