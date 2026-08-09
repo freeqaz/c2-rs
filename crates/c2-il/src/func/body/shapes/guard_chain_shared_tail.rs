@@ -455,6 +455,129 @@ fn eat_error_block(
     Ok((errno, k, invalid, r, l))
 }
 
+/// **W-VSNPRNC — the SECOND IL spelling of this class's error arms.**
+///
+/// `vswprnc.cpp` writes each arm out — `*_errno() = K; _invalid(); return -1;`
+/// — and c2's optimizer merges the shared tail. `vsnprnc.cpp` writes the merge
+/// **in the source**: each arm assigns two locals and jumps to one block that
+/// does the store, the call and the return.
+///
+/// ```c
+///   /* Inline  — vswprnc.cpp   */   /* Sunk — vsnprnc.cpp                  */
+///   if (bad) {                      if (bad) { ep = _errno(); ev = 22; }
+///       *_errno() = 22;             else     { …; ep = _errno(); ev = 34; }
+///       _invalid(); return -1;      *ep = ev; _invalid(); return -1;
+///   }
+/// ```
+///
+/// **The emitted `.text` is byte-identical, and that is measured rather than
+/// argued.** Four cells — the two spellings crossed with `*b = 0` / `b[0] = 0` —
+/// compile to the same 38 words under real `c2` at the workload's own flags
+/// (`work/w-vsnprnc/GRID-X.md`). So this is **reader work with no emitter
+/// change at all**: there is no new byte anywhere, and therefore no new way to
+/// emit a wrong one.
+///
+/// The two spellings differ in exactly two places: the arm shape, and a uniform
+/// **+3 on every scope-close depth** in the middle of the body, because the
+/// `if`/`else` braces one level deeper than the `if`-and-fall-through. Both are
+/// parameters of the one walk below rather than a second copy of it.
+enum ArmForm {
+    /// `*e() = K; v(); return R;`, written out in both arms.
+    Inline {
+        errno: u32,
+        k_guard: i32,
+        invalid: u32,
+        ret: i32,
+        l_epi: u32,
+    },
+    /// `ep = e(); ev = K;` in both arms, joining at `l_merge`.
+    Sunk {
+        err_ptr: u32,
+        err_val: u32,
+        errno: u32,
+        k_guard: i32,
+        l_merge: u32,
+    },
+}
+
+/// `26 <local> · 26 <fn> · BD … · 4C · 32 <ptr4> · 4B` — `local = fn();` where
+/// the callee returns a pointer. Returns `(local, callee)`.
+fn eat_ptr_local_from_call(
+    seg: &[u8],
+    p: &mut usize,
+    what: &'static str,
+) -> Result<(u32, u32), Block> {
+    eat_opt_stmt_marker(seg, p);
+    let local = eat_designator(seg, p, what)?;
+    let callee = eat_designator(seg, p, what)?;
+    eat_call_token(seg, p)?;
+    if !eat_byte(seg, p, 0x4C) {
+        return Err(blk(seg, *p, "gcst-errno-call-takes-arguments"));
+    }
+    if !eat_byte(seg, p, 0x32) {
+        return Err(blk(seg, *p, what));
+    }
+    let (tag, kind, _) = eat_any_type(seg, p, what)?;
+    if !is_ptr_to_4(tag, kind) {
+        // The merged store is a `stw` through this pointer; a pointer to
+        // anything else is a different store instruction.
+        return Err(blk(seg, *p, "gcst-sunk-errno-local-is-not-a-pointer-to-4"));
+    }
+    if !eat_byte(seg, p, 0x4B) {
+        return Err(blk(seg, *p, what));
+    }
+    Ok((local, callee))
+}
+
+/// `26 <local> · 33 <int> <k> · 32 <int> · 4B` — `local = k;`.
+fn eat_int_local_from_lit(
+    seg: &[u8],
+    p: &mut usize,
+    what: &'static str,
+) -> Result<(u32, i32), Block> {
+    eat_opt_stmt_marker(seg, p);
+    let local = eat_designator(seg, p, what)?;
+    let k = eat_int_lit(seg, p, what)?;
+    if !eat_byte(seg, p, 0x32) {
+        return Err(blk(seg, *p, what));
+    }
+    eat_int4(seg, p, what)?;
+    if !eat_byte(seg, p, 0x4B) {
+        return Err(blk(seg, *p, what));
+    }
+    Ok((local, k))
+}
+
+/// `B9 <ep> <ptr4> · B9 <ev> <int4> · 32 <int4> · 4B` — `*ep = ev;`, the one
+/// store the sunk spelling's merged block does. Both locals are required by
+/// token, so a body that stores something else through the same pointer is not
+/// this class.
+fn eat_sunk_merged_store(
+    seg: &[u8],
+    p: &mut usize,
+    err_ptr: u32,
+    err_val: u32,
+) -> Result<(), Block> {
+    let what = "gcst-sunk-merged-store";
+    eat_opt_stmt_marker(seg, p);
+    let (t0, tag, kind) = eat_load(seg, p, what)?;
+    if t0 != err_ptr || !is_ptr_to_4(tag, kind) {
+        return Err(blk(seg, *p, "gcst-sunk-merged-store-base"));
+    }
+    let (t1, vtag, vkind) = eat_load(seg, p, what)?;
+    if t1 != err_val || !is_int4_type(vtag, vkind) {
+        return Err(blk(seg, *p, "gcst-sunk-merged-store-value"));
+    }
+    if !eat_byte(seg, p, 0x32) {
+        return Err(blk(seg, *p, what));
+    }
+    eat_int4(seg, p, what)?;
+    if !eat_byte(seg, p, 0x4B) {
+        return Err(blk(seg, *p, what));
+    }
+    Ok(())
+}
+
 /// **The recognizer.** `start` is the first byte after the body's own `53`, the
 /// leading line markers and the `if`'s own `53` — all eaten by `eat_scopes`, so
 /// the cursor arrives on the first guard's `B9`. `lo` is the `4C 4F 11` marker.
@@ -527,14 +650,66 @@ pub(crate) fn try_parse_guard_chain_shared_tail(
     if !eat_byte(seg, &mut p, 0x53) || !eat_byte(seg, &mut p, 0x53) {
         return Err(blk(seg, p, "gcst-err-scopes"));
     }
-    let (errno_a, k_guard, invalid_a, ret_a, l_epi_a) =
-        eat_error_block(seg, &mut p, "gcst-err-block")?;
+    //
+    // **WHICH SPELLING?** Both arms open `26 <token>`. In the inline form that
+    // token is the *callee* and a `BD` call marker follows it; in the sunk form
+    // it is the *local* and a second `26` follows. One byte of lookahead, and it
+    // is read on a scratch cursor so a body that is neither still reports its
+    // refusal at the byte the inline walk stops on.
+    let arm = {
+        let mut q = p;
+        eat_opt_stmt_marker(seg, &mut q);
+        let _ = eat_designator(seg, &mut q, "gcst-err-block")?;
+        if seg.get(q) == Some(&0x26) {
+            let (err_ptr, errno) = eat_ptr_local_from_call(seg, &mut p, "gcst-sunk-err-ptr")?;
+            let (err_val, k_guard) = eat_int_local_from_lit(seg, &mut p, "gcst-sunk-err-val")?;
+            if err_ptr == err_val {
+                return Err(blk(seg, p, "gcst-sunk-locals-alias"));
+            }
+            ArmForm::Sunk { err_ptr, err_val, errno, k_guard, l_merge: 0 }
+        } else {
+            let (errno, k_guard, invalid, ret, l_epi) =
+                eat_error_block(seg, &mut p, "gcst-err-block")?;
+            ArmForm::Inline { errno, k_guard, invalid, ret, l_epi }
+        }
+    };
     eat_close(seg, &mut p, 0x05, "gcst-err-close-5")?;
     eat_close(seg, &mut p, 0x04, "gcst-err-close-4")?;
+    // **The sunk arm ENDS IN A GOTO and the inline one does not.** The inline
+    // arm returned, so control cannot fall out of it; the sunk arm has to jump
+    // over the `else` to the merged block. This is the label the range arm must
+    // also reach, and it is captured here so the two are compared rather than
+    // assumed equal.
+    let arm = match arm {
+        ArmForm::Sunk { err_ptr, err_val, errno, k_guard, .. } => ArmForm::Sunk {
+            err_ptr,
+            err_val,
+            errno,
+            k_guard,
+            l_merge: eat_transfer(seg, &mut p, 0x3A, "gcst-sunk-arm-jump")?,
+        },
+        inline => inline,
+    };
     if eat_label(seg, &mut p, "gcst-cont-label")? != l_cont {
         return Err(blk(seg, p, "gcst-cont-label"));
     }
-    eat_close(seg, &mut p, 0x03, "gcst-cont-close-3")?;
+    // **The bracing, which is the other half of the difference.** `if {…return}`
+    // then the rest CLOSES one scope here; `if {…} else {…}` OPENS the else's
+    // two. Everything the shared walk below closes is then three deeper, which
+    // is what `depth` carries — one number, applied at every site, rather than
+    // six literals that could drift apart.
+    let depth: u8 = match arm {
+        ArmForm::Inline { .. } => {
+            eat_close(seg, &mut p, 0x03, "gcst-cont-close-3")?;
+            0
+        }
+        ArmForm::Sunk { .. } => {
+            if !eat_byte(seg, &mut p, 0x53) || !eat_byte(seg, &mut p, 0x53) {
+                return Err(blk(seg, p, "gcst-sunk-else-scopes"));
+            }
+            3
+        }
+    };
 
     // ---- the call: SEVEN arguments, the last of which is a function address --
     eat_opt_stmt_marker(seg, &mut p);
@@ -661,12 +836,12 @@ pub(crate) fn try_parse_guard_chain_shared_tail(
     if !eat_byte(seg, &mut p, 0x4B) {
         return Err(blk(seg, p, "gcst-store-end"));
     }
-    eat_close(seg, &mut p, 0x05, "gcst-neg-close-5")?;
-    eat_close(seg, &mut p, 0x04, "gcst-neg-close-4")?;
+    eat_close(seg, &mut p, 0x05 + depth, "gcst-neg-close-5")?;
+    eat_close(seg, &mut p, 0x04 + depth, "gcst-neg-close-4")?;
     if eat_label(seg, &mut p, "gcst-skip-label")? != l_skip {
         return Err(blk(seg, p, "gcst-skip-label"));
     }
-    eat_close(seg, &mut p, 0x03, "gcst-skip-close-3")?;
+    eat_close(seg, &mut p, 0x03 + depth, "gcst-skip-close-3")?;
 
     // ---- `if (r != S) return r;` -------------------------------------------
     eat_opt_stmt_marker(seg, &mut p);
@@ -693,16 +868,49 @@ pub(crate) fn try_parse_guard_chain_shared_tail(
     }
     eat_int4(seg, &mut p, "gcst-ret-anntype")?;
     let l_epi_b = eat_transfer(seg, &mut p, 0x3A, "gcst-ret-jump")?;
-    eat_close(seg, &mut p, 0x05, "gcst-sent-close-5")?;
-    eat_close(seg, &mut p, 0x04, "gcst-sent-close-4")?;
+    eat_close(seg, &mut p, 0x05 + depth, "gcst-sent-close-5")?;
+    eat_close(seg, &mut p, 0x04 + depth, "gcst-sent-close-4")?;
     if eat_label(seg, &mut p, "gcst-tail-label")? != l_tail {
         return Err(blk(seg, p, "gcst-tail-label"));
     }
-    eat_close(seg, &mut p, 0x03, "gcst-tail-close-3")?;
+    eat_close(seg, &mut p, 0x03 + depth, "gcst-tail-close-3")?;
 
     // ---- the RANGE arm, which is the same block with a different literal ----
-    let (errno_b, k_range, invalid_b, ret_b, l_epi_c) =
-        eat_error_block(seg, &mut p, "gcst-range-block")?;
+    //
+    // Whichever spelling the guard arm used, this one must use too — the arms
+    // are compared field by field below, so a body that mixed them would fail
+    // on the callee tokens rather than parse.
+    let (errno_a, k_guard, sunk_arms, l_merge) = match arm {
+        ArmForm::Inline { errno, k_guard, .. } => (errno, k_guard, false, None),
+        ArmForm::Sunk { errno, k_guard, l_merge, .. } => (errno, k_guard, true, Some(l_merge)),
+    };
+    let (errno_b, k_range, invalid_b, ret_b, l_epi_c, invalid_a, ret_a, l_epi_a) = match arm {
+        ArmForm::Inline { ret, l_epi, invalid, .. } => {
+            let (e, k, v, r, l) = eat_error_block(seg, &mut p, "gcst-range-block")?;
+            (e, k, v, r, l, invalid, ret, l_epi)
+        }
+        // **The SUNK range arm, and then the merged block itself.** The arm is
+        // the same two assignments; the block after the join is the store, the
+        // reporter call and the one `return`, which in the inline spelling are
+        // written twice and merged by c2 instead.
+        ArmForm::Sunk { err_ptr, err_val, l_merge: l_m, .. } => {
+            let (ep2, e2) = eat_ptr_local_from_call(seg, &mut p, "gcst-sunk-range-ptr")?;
+            let (ev2, k) = eat_int_local_from_lit(seg, &mut p, "gcst-sunk-range-val")?;
+            if ep2 != err_ptr || ev2 != err_val {
+                return Err(blk(seg, p, "gcst-sunk-arms-use-different-locals"));
+            }
+            eat_close(seg, &mut p, 0x05, "gcst-sunk-range-close-5")?;
+            eat_close(seg, &mut p, 0x04, "gcst-sunk-range-close-4")?;
+            if eat_label(seg, &mut p, "gcst-sunk-merge-label")? != l_m {
+                return Err(blk(seg, p, "gcst-sunk-merge-label"));
+            }
+            eat_close(seg, &mut p, 0x03, "gcst-sunk-merge-close-3")?;
+            eat_sunk_merged_store(seg, &mut p, err_ptr, err_val)?;
+            let v = eat_void_call(seg, &mut p, "gcst-sunk-merge-reporter")?;
+            let (r, l) = eat_return_lit(seg, &mut p, "gcst-sunk-merge-return")?;
+            (e2, k, v, r, l, v, r, l)
+        }
+    };
     // **The tail merge is only legal because the two arms agree**, and this is
     // where that is established rather than assumed. Four words are emitted once
     // and reached from both; two different callees, two different return values
@@ -741,7 +949,13 @@ pub(crate) fn try_parse_guard_chain_shared_tail(
     // Every label distinct: two of them aliasing would make two different
     // successors one block, and every displacement after the alias would be
     // right for a program this is not.
-    let labels = [l_err, l_cont, l_skip, l_tail, l_epi_a];
+    //
+    // **The sunk spelling has a SIXTH label** — the merged block both arms jump
+    // to — and it goes in the same set. A merge label aliasing the epilogue or
+    // the skip target would be exactly the "two successors, one block" error
+    // this check exists for, one block later.
+    let mut labels = vec![l_err, l_cont, l_skip, l_tail, l_epi_a];
+    labels.extend(l_merge);
     for i in 0..labels.len() {
         for j in i + 1..labels.len() {
             if labels[i] == labels[j] {
@@ -773,5 +987,6 @@ pub(crate) fn try_parse_guard_chain_shared_tail(
         sentinel,
         ret_fail: ret_a,
         store_width,
+        sunk_arms,
     }))
 }
