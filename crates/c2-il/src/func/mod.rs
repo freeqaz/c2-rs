@@ -2218,6 +2218,94 @@ pub struct JsonUtf8CopyFn {
     pub k_size_err: i32,
 }
 
+/// Which of the two free-list leaves a [`PoolFreeList`] is.
+///
+/// One class with two members rather than two classes, because they are the two
+/// halves of one intrusive free list and share every gate: the same guard fold
+/// (band 2, `bclr 12,26`), the same single member offset, the same `/O1`-only
+/// clause. What differs is six words against seven and which way the link moves.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PoolFreeListOp {
+    /// `void Pool::Free(void *v)` — link `v` in at the head.
+    Push,
+    /// `void *Pool::Alloc()` — unlink the head and return it.
+    Pop,
+}
+
+/// **W-POOL2 — the intrusive free-list PUSH/POP leaf pair.**
+///
+/// `src/system/utl/Pool.cpp`'s `?Free@Pool@@QAAXPAX@Z` (24 B) and
+/// `?Alloc@Pool@@QAAPAXXZ` (28 B). See
+/// [`crate::func::body::shapes::pool_free_list`] for the grammar, every refusal
+/// and why board #187's fold cost model is neither read nor needed, and
+/// `c2_core::codegen::pool_free_list` for the six and seven words.
+///
+/// **Nothing here is resolved**, so the shape travels from the parser to the
+/// emitter unchanged: the class calls nothing, names no data symbol, mints no
+/// label and takes no relocation. `Pool.obj` has **zero relocations in the whole
+/// file**.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PoolFreeList {
+    /// `this` and, for [`PoolFreeListOp::Push`], the one pointer formal — in
+    /// declaration order, so slot `i` is register `3 + i`. The count is pinned
+    /// per variant by the recognizer.
+    pub params: Vec<u32>,
+    /// Which half.
+    pub op: PoolFreeListOp,
+    /// The byte offset of the free-list head member within the object. One
+    /// `lwz`/`stw` displacement, and the recognizer requires the body's two
+    /// designators to agree on it.
+    pub off: i32,
+}
+
+/// **W-POOL2 — the free-list constructor's chain build.**
+///
+/// `src/system/utl/Pool.cpp`'s `??0Pool@@QAA@HPAXH@Z`, 80 B and twenty words:
+/// a member-init store, an alignment round-up, a **signed division with its two
+/// `twi` traps interleaved into the address arithmetic**, and a `bdnz` counted
+/// loop under the source's own `if (count > 1)` that threads every block onto
+/// the list.
+///
+/// ```cpp
+///   Pool::Pool(int i1, void *v, int i2) : mFree((char *)v) {
+///       char *ptr = (char *)v;
+///       int stride = (i1 + 3) & ~3;
+///       int count  = i2 / stride;
+///       if (count > 1) {
+///           int n = count - 1;
+///           do { char *next = ptr + stride; *(char **)ptr = next; ptr = next; }
+///           while (--n);
+///       }
+///       *(char **)ptr = 0;
+///   }
+/// ```
+///
+/// **This is a TRANSCRIPTION and the file says so** — the same standing this
+/// project's `codegen::div_mod_leaf` has ("eight constant bodies … no free
+/// fields"). What varies is [`Self::off`] and the two register-derived operands;
+/// the *schedule* — `rotlwi` above the member-init store, `andc` between the
+/// `divw` and the first trap — is c2's, read off this lane's own obj, and no
+/// rule here predicts it. See
+/// [`crate::func::body::shapes::pool_ctor_chain`] and
+/// `c2_core::codegen::pool_ctor_chain`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PoolCtorChain {
+    /// `this` and the three formals in declaration order — the block size in
+    /// r4, the arena base in r5 and the arena size in r6. **Four**, and the
+    /// count is pinned because it decides every register in the body.
+    pub params: Vec<u32>,
+    /// The byte offset of the free-list head member. Two displacements: the
+    /// member-init `stw` and nothing else — the loop threads the arena, not the
+    /// object — and the recognizer requires the one designator that names it.
+    pub off: i32,
+    /// The round-up alignment, `(i1 + align-1) & ~(align-1)`. **Pinned at 4**
+    /// by the recognizer: the mask's `rlwinm` MB/ME pair is a *matched* pair
+    /// with the addend, and this lane graded exactly one of them. Varying it
+    /// without a witness is the widening `JsonUtf8Copy`'s doc refuses for its
+    /// UTF-8 constants.
+    pub align: i32,
+}
+
 /// [`XlrcCreateGuard`] with its two callee tokens resolved to mangled names.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct XlrcCreateGuardFn {
@@ -2918,6 +3006,15 @@ pub struct IlFunction {
     /// **W-JSON** — the UTF-16 → UTF-8 copy loop, when the body is exactly that
     /// class. Set by exactly one parser production; `ops` is empty for it.
     pub json_utf8_copy: Option<JsonUtf8CopyFn>,
+    /// **W-POOL2** — the intrusive free-list PUSH/POP leaf, or `None`. Set by
+    /// exactly one parser production; [`Self::ops`] is empty for it. It is a
+    /// LEAF with no relocation, so it appears in no other accessor on this
+    /// struct: not [`Self::callees`], not `data_syms`, not [`Self::is_framed`].
+    pub pool_free_list: Option<PoolFreeList>,
+    /// **W-POOL2** — the free-list constructor's chain build, or `None`. A LEAF
+    /// with a `bdnz` loop, so — like every other loop class here — it takes
+    /// [`Self::label_slots`]'s `None`.
+    pub pool_ctor_chain: Option<PoolCtorChain>,
     /// **W-IFN** — the framed guard chain whose arms are `return K` and whose
     /// spine is a block copy (`mmio.cpp`'s `mmioGetInfo`, `mmioSetInfo`). Set by
     /// exactly one parser production; [`Self::ops`] is empty for it. It names no
@@ -3117,6 +3214,8 @@ impl IlFunction {
             osf_handle_guard: None,
             xlrc_create_guard: None,
             json_utf8_copy: None,
+            pool_free_list: None,
+            pool_ctor_chain: None,
             guard_ret_chain: None,
             empty_body: false,
             eh_bare: false,
@@ -3795,6 +3894,26 @@ impl IlFunction {
         // the `None` costs that TU nothing and fences every TU that pairs this
         // class with a framed one.
         if self.float_walk_loop.is_some() {
+            return None;
+        }
+        // **W-POOL2 — `None` for the free-list constructor, and the reason is
+        // the one every loop class above states rather than a new one.**
+        //
+        // `w-loop`'s leaf grid measured four different charges for loops whose
+        // emitted text is indistinguishable — `do/while` +1, `for(;;)`+`break`
+        // +3, a backward `goto` +1, all three emitting the **identical 24
+        // bytes** — and this class is spelled `do/while`. So the charge cannot
+        // be read off what the port can see, exactly as for `ptr_walk_loop`,
+        // `ptr_walk_chain_loop`, `counted_accum_loop` and `float_walk_loop`, and
+        // the honest value is the refusal.
+        //
+        // **Nothing is lost on the target TU.** `Pool.obj` carries **zero**
+        // `$M`/`$T` symbols in its whole 20-symbol table — all three of its
+        // functions are leaves — so `IlBundle::functions`' three-valued gate
+        // admits it: a `None` here rejects only a TU that pairs this shape with
+        // a **framed** function, and `Pool.cpp` has none. That boundary is
+        // `w-loop` §5.1's, unchanged.
+        if self.pool_ctor_chain.is_some() {
             return None;
         }
         if let Some(c) = &self.compare {

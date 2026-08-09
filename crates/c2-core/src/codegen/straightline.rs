@@ -742,6 +742,8 @@ mod tests {
         ctor_forward_call: None,
         xlrc_create_guard: None,
         json_utf8_copy: None,
+            pool_free_list: None,
+            pool_ctor_chain: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -1124,6 +1126,8 @@ mod tests {
         ctor_forward_call: None,
         xlrc_create_guard: None,
         json_utf8_copy: None,
+            pool_free_list: None,
+            pool_ctor_chain: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -1180,6 +1184,8 @@ mod tests {
         ctor_forward_call: None,
         xlrc_create_guard: None,
         json_utf8_copy: None,
+            pool_free_list: None,
+            pool_ctor_chain: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),

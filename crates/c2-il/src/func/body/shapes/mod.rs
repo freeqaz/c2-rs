@@ -50,6 +50,8 @@ pub(crate) mod mcall_tail;
 /// see the module's own header.
 pub(crate) mod no_effect;
 pub(crate) mod params;
+pub(crate) mod pool_ctor_chain;
+pub(crate) mod pool_free_list;
 pub(crate) mod ptr_walk_chain_loop;
 pub(crate) mod alloc_init_or_fail;
 pub(crate) mod guard_ret_chain;
@@ -109,6 +111,10 @@ pub(crate) use leaf_store::*;
 pub(crate) use mcall_tail::*;
 #[allow(unused_imports)]
 pub(crate) use params::*;
+#[allow(unused_imports)]
+pub(crate) use pool_ctor_chain::*;
+#[allow(unused_imports)]
+pub(crate) use pool_free_list::*;
 #[allow(unused_imports)]
 pub(crate) use ptr_walk_chain_loop::*;
 #[allow(unused_imports)]

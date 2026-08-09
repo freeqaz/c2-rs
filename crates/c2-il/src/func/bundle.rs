@@ -1269,6 +1269,26 @@ pub(crate) fn shape_to_function(
                     ..IlFunction::base(name, src)
                 })
             }
+            // **W-POOL2 — the free-list PUSH/POP leaf.** Nothing to resolve,
+            // for the reason the loop above has none: it calls nothing, names
+            // no data symbol, mints no label and takes no relocation, so the
+            // whole shape travels as it was parsed.
+            BodyShape::PoolFreeList(g) => {
+                Some(IlFunction {
+                    params: g.params.clone(),
+                    pool_free_list: Some(g),
+                    ..IlFunction::base(name, src)
+                })
+            }
+            // **W-POOL2 — the free-list constructor.** Nothing to resolve, on
+            // the same three counts.
+            BodyShape::PoolCtorChain(c) => {
+                Some(IlFunction {
+                    params: c.params.clone(),
+                    pool_ctor_chain: Some(c),
+                    ..IlFunction::base(name, src)
+                })
+            }
             // The body-parameterized pointer-walk loop. Nothing to resolve, for
             // the reason its sibling has none: it calls nothing, names no data
             // symbol and mints no label, so the operation list travels exactly

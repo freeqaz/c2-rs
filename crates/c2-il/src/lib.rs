@@ -63,6 +63,9 @@ pub use func::{
     GuardChainSharedTailFn,
     IfCallJoinFn,
     PtrWalkModLoop,
+    // W-POOL2 — the intrusive free list: the two guarded leaves and the
+    // constructor that builds the chain.
+    PoolCtorChain, PoolFreeList, PoolFreeListOp,
     // W-BDNZ — the counted-`for` accumulate loop's three free fields.
     CountedAccumLoop, CountedAccumOp,
     ChainOp, ChainOpKind, ChainRhs, PtrWalkChainLoop,

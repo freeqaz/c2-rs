@@ -121,6 +121,8 @@ mod tests {
         ctor_forward_call: None,
         xlrc_create_guard: None,
         json_utf8_copy: None,
+            pool_free_list: None,
+            pool_ctor_chain: None,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
             float_walk_loop: None,

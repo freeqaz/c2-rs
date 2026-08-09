@@ -1008,6 +1008,8 @@ fn ops_setup_text(
         ctor_forward_call: None,
         xlrc_create_guard: None,
         json_utf8_copy: None,
+        pool_free_list: None,
+        pool_ctor_chain: None,
         mangled_name: String::new(),
         source_path: None,
         params: params.to_vec(),

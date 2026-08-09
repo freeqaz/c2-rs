@@ -1,3 +1,31 @@
+// ### **THIS CELL CONVERTED. IT IS NO LONGER A NEGATIVE** — lane `w-pool2`
+// ### (#2591), 2026-08-09. The `_neg` in the filename is `w-pool`'s and is kept
+// ### so its rung still names the file it shipped; everything below this banner
+// ### is `w-pool`'s text, left as written.
+//
+// `shapes::pool_free_list` admits this body and `codegen::pool_free_list` emits
+// its six words byte-exact against real `c2.dll` at `/O1` — it *is*
+// `?Free@Pool@@QAAXPAX@Z`, and `src/system/utl/Pool.cpp` converted on it (TU
+// match 21 -> 22). **w-pool's fence fired exactly as designed**: the assertion
+// in `crates/c2-harness/tests/pool_cells.rs` failed the build, and the cell is
+// re-stated there rather than quietly relaxed.
+//
+// The reading below is right about the bytes and wrong about one sentence.
+// `w-pool` §3.1 closes with *"adding a construct never makes a body more
+// acceptable"*, and **this cell refutes it**: cell B — this body with the guard
+// deleted — is STILL blocked at `expr-op-0x27`, because without a guard it
+// reaches `leaf_store::collect_store_run` and dies on the `value_is_load`
+// clause. A longer body is acceptable where the shorter one it contains is not,
+// because acceptance runs through whole-body productions rather than through an
+// incrementally widening expression grammar. That is `w-biquad` #2531's point,
+// arriving from the other side.
+//
+// What is untouched: `leaf_store`'s value clause. `w-pool2` declined to widen it
+// (403,879 workload bodies carry that key), so cell B's fence is still live and
+// still the one that matters.
+//
+// ---
+//
 // **MUST REFUSE — lane `w-pool` (#2564).** `wpool_store_run_member_value_neg.cpp`
 // with **one thing added**: a null guard whose arm is a bare `return`.
 //

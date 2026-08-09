@@ -44,6 +44,8 @@ pub(crate) fn func_with(params: Vec<u32>, ops: Vec<IlOp>) -> IlFunction {
         ctor_forward_call: None,
         xlrc_create_guard: None,
         json_utf8_copy: None,
+            pool_free_list: None,
+            pool_ctor_chain: None,
         params,
         ops,
         eh_bare: false,
