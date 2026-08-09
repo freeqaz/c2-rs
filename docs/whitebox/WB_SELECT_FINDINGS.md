@@ -824,3 +824,147 @@ are one arm) is re-derivable from any C compiler's structure.
 arms, `FUN_10c0b300`, the magic-number divide, the multiply strength reducer,
 float or VMX selection, or `dag.c`'s tree-to-tuple walk. §9.5 is the list, and
 §7.6 is the cell that paid for the first entry on it.
+
+---
+
+## 11. CORRECTIONS — appended 2026-08-09 by lane `wb-selfit`
+
+**Nothing above is rewritten.** §§0–10 stand as this lane wrote them, including
+the scores, the frozen grid and the PREREG table. This section is appended the
+way `CEILING.md` was annotated: six corrections, each with the export reading
+that settles it. Full working in
+[`WB_SELECT_RECONCILED.md`](WB_SELECT_RECONCILED.md); evidence in
+`work/wb-selfit/EXPORT_READS.md`, re-read from the same image
+(sha256 `c80981…6258`, re-verified).
+
+### 11.1 §0/§2.2 — the table count is **13 slots and 17 bodies**, not sixteen
+
+`FUN_10c04cb9` writes **thirteen** destination pointers,
+`DAT_10c6fddc`…**`DAT_10c6fdac`**, and then — under `DAT_10c2e978` —
+**reassigns four of those same thirteen** (`DAT_10c6fdd8/d4/d0/cc`) to the
+`-QVMX128` alternates. So the alternates are *bodies for existing slots*, not
+tables of their own.
+
+**The thirteenth table is missing from §2.2's pointer block and from §0's
+enumeration: `DAT_10c6fdac = 0x10b1fd08`, the CONVERT / widen table**
+(`extsb`/`extsh`/`extsw`/`mr`). It is not on §9.5's "not claimed" list either,
+so it is missed rather than declined. `WB_SELECT_FINDINGS_R2.md` §2.2 has it and
+decodes it.
+
+**Cost, measured**: without the convert table this reading can make no
+prediction for a `signed char` or `short` load-and-widen, and abstains on two of
+the other lane's cells (`S9`, `S10`) that the other reading predicted
+byte-exact (`WB_SELECT_RECONCILED.md` §12).
+
+### 11.2 §2.1 — "a **46**-arm jump-table switch" counts case labels, not arms
+
+`(0x10c0fbd6 − 0x10c0fb32) / 4 = 41`: the jump table has **41** entries.
+Ghidra's decompilation has **46 `case` labels** in **39 maximal groups**, two of
+which share a body. 46 is a true number about a real object; it is not the arm
+count, and the number to quote when pricing the selector is **41**. Nothing in
+§8's P4.5 changes — "under 120" passes either way.
+
+### 11.3 §7.3 — `wbs_s4` is NOT evidence that the tie-break exists
+
+> §7.3: *"That single cell is the only black-box evidence in this project that
+> the tie-break exists."*
+
+**Withdrawn.** `wbs_s4` is `x == 0 ? 5 : 6` — one compare operand is the
+constant `0` — and §3.1's own transcription of `FUN_10c1b517` shows the driver
+testing exactly that **before** it calls either expander, routing such a tuple
+to `FUN_10c1a908`. That routine (768 B, ~20 arms) handles arbitrary result
+operands, so `{5,6}` is inside its remit, and this lane located it without
+reading it (§3.6, §9.5).
+
+The same applies to `wbs_s6` and `wbs_b3`, and to the other lane's `S3` and
+`S4`. **Five of the two grids' 24 cells are against-zero relationals that never
+reached the cost race**, and both lanes graded them as though they had.
+
+This does not weaken §3 — it **strengthens** §10's `W-SELECT-3`. The tie rule is
+not merely un-obtainable from an obj in principle; there is no cell anywhere in
+this project that reached the comparison.
+
+### 11.4 §7.6/§9.5 — `FUN_10c194b8` is the **floating-point** path, not the bool path
+
+Its locals are `double *` and `float`; it tests `*pdVar3 == 0.0` and the operand
+opcode `0x6a`. Type nibble **5 is the float family** in `FUN_10bd7c10`'s own map
+(size 4 → index 13, size 8 → index 14 — precisely the `f32`/`f64` slots of
+§2.2's tables).
+
+So §7.6's account of `wbs_b3` is wrong, and with it §9.3's class exclusion
+*"result values that are not `{0,1}`"*. **This reading's own grid refutes it**:
+`wbs_b1` and `wbs_b2` have `{0,1}` result pairs and came out as the plain carry
+idiom, which they could not have if `{0,1}` routed to `FUN_10c194b8`.
+
+The exclusion is **unnecessary** and cost this reading three more abstentions.
+The candidate explanation for `wbs_b3`'s one-word `srwi 3,3,31` is a
+`FUN_10c1a908` arm (§11.3) — stated as a candidate, since those twenty arms are
+still unread.
+
+### 11.5 §1.1/§8 P4.4 — record forms **are** a fusion, and the fusion's action is `opcode + 1`
+
+§8 scores P4.4 (*"record forms are a fusion peephole"*) a **MISS** and retracts
+it. That is a mis-scoring. `FUN_10c0b4c0` @ **`0x10c0b4c0`** — not named in this
+document — walks backwards from a compare-against-zero, promotes `addi` → `addic`
+with a minted carry operand, requires `(&DAT_10c3afd8)[op] & 0x10`, executes
+`*(int *)(iVar9 + 4) = *(int *)(iVar9 + 4) + 1;` and then **deletes the
+compare**. (`FUN_10c0b300`, recorded here as `unknown`, is the *predicate* half
+of the same mechanism.)
+
+§1.1's *"a record form is the next opcode number"* is right; what is wrong is
+the inference that this makes it *not* a fusion. It is both, in one pass.
+**P4.4 should read HIT**, and board `#2044`'s headline is false as written.
+
+### 11.6 §8 P3.4 — HIT is contradicted by this document's own calibration cell
+
+§8 scores P3.4 (*"branch context selects `cmplwi`+`bc`; there is a
+value-vs-branch bit"*) a **HIT**. §6.1 of this same document already refutes it:
+
+> *"`wbk_2` (the `if` spelling of `wbk_1`) is **byte-identical** to `wbk_1`."*
+
+If the `if` spelling emits the same bytes as the `?:` spelling, there is no
+branch context selecting `cmplwi`+`bc`. The other lane's cell `S12` is the
+graded form of the same observation, and the two grids agree to the word: `S12`
+and `wbs_s1` are the two spellings of `x < 10u ? 1 : 2` and **both emit
+`li 11,10 · subc 11,3,11 · subfe 11,11,11 · addi 3,11,2 · blr`**.
+
+**P3.4 should read MISS.** The substantive half survives — `0x2d4` versus
+`0x2ea` really is the selector's only context — but a C `if` does not put a
+relational at `0x2d4`; an if-conversion pass upstream of selection decides that,
+and its rule is *"the branch survives iff an arm has a side effect or the
+relation is signed with a non-zero bound"*. Cell `wbs_s5` is an instance of the
+second clause, which is why `wbs_s5` landed while P3.4 did not.
+
+**Re-scored PREREG total: 33 registered, 22 hits, 5 misses, 2 partial, 4
+withdrawn ⇒ 22 hits, 5 misses** — P4.4 MISS → HIT and P3.4 HIT → MISS cancel, so
+the totals are unchanged and only the rows move.
+
+### 11.7 §10 `W-SELECT-5` — the mask clause is **over-general** and is not adoption-ready
+
+> *"`&` with a contiguous mask is `rlwinm`, never `andi.`"*, carried as
+> **adoption-ready**.
+
+The "never `andi.`" half survives all eight mask cells across both grids. The
+"always `rlwinm`" half does **not**: the other lane's `S11` (`x < 10u ? 8 : 0`)
+has a contiguous mask of 8 and emits **`li 10,8` · `and 3,11,10`**, and five of
+its diagnostic cells do the same. `FUN_10c0a2e2` — correctly named in §2.4 —
+chooses between **three** forms, not two, and the `li`+`and` arm is at
+`LAB_10c0a9a6`. The clause is **downgraded to navigation** and the predicate is
+open; `WB_SELECT_RECONCILED.md` §10 puts all eight cells on one page as the
+constraint set.
+
+### 11.8 What this lane CONFIRMED rather than corrected
+
+* **§3.5's relation-code space is exactly right**, and it was derived from the
+  remap tables' fixed points and involutions with no access to the names. The
+  name array (`0x10c38690` → the pool descending from `0x10b197f4`) reads
+  `1 EQ, 2 NE, 3 LT, 4 GT, 5 LE, 6 GE, 7 ULT, 8 UGT, 9 ULE, 10 UGE`. The other
+  lane published two transposed pairs; this one did not.
+* **§1.2's correction to WB-D §4 stands.** The `0x2f0`/`0x2f4` call sites *are*
+  inside `FUN_10c0d57e` (`decomp_all.c:213277-213285`), and `0x10c216f5` /
+  `0x10c21719` are their own 19- and 25-byte thunks.
+* **§2.4's naming of `FUN_10c0a2e2` as the `rlandi` expander is right**, and it
+  is the correction to the *other* lane, which named `FUN_10c1772b` (a real but
+  different pass) as its single blocker.
+* **§2.3's `cr6`-default / `cr0`-exception reading**, and §3.1/§3.2/§3.3's
+  emission lists, agree with the second lane's independent transcription.
