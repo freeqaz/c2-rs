@@ -271,8 +271,20 @@ pub struct DataDef<'a> {
     /// takes ALIGN_8 (`0xC0401040`) where a 16-byte `int[4]` takes ALIGN_4
     /// (`0xC0301040`): both were read off c2's own obj.
     pub natural_align: u32,
-    /// The initializer, in the obj's byte order, `bytes.len() == size`.
+    /// The initializer, in the obj's byte order, `bytes.len() == size` — and
+    /// **empty when [`Self::uninitialized`] is set**.
     pub bytes: &'a [u8],
+    /// **W-WORDWRAP — the object has no initializer and belongs in `.bss`.**
+    ///
+    /// Carried so the relocation plan can be built for it (the quad is
+    /// identical, and `comdat::text_reloc_plan` compares targets by name) and
+    /// **refused by [`super::writer`] by name**: a non-COMDAT `.bss` goes in the
+    /// SHELL, between the two `.XBLD$W` watermarks and before any `.text`,
+    /// where the COMDAT `.data` this writer places goes immediately after its
+    /// owning function's own `.text`. Different section order, different symbol
+    /// order, different layout walk — and no cell has graded it on a
+    /// function-bearing TU. See `c2_il::IlDataDef::uninitialized`.
+    pub uninitialized: bool,
     /// The `.text` byte offset of the `lis rS,sym@ha` that opens the reference.
     pub hi_off: u32,
     /// Every `.text` byte offset carrying a low half against this symbol, in

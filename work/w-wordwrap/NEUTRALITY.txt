@@ -1,0 +1,71 @@
+=== 1. 878 WORKLOAD TU VERDICTS, BY FULL PATH
+   workload 878 878 rows, 0 MOVED
+    a: {'vocab-gap': 848, 'match': 23, 'capture-fail': 7}
+    b: {'vocab-gap': 848, 'match': 23, 'capture-fail': 7}
+
+=== 2. THE PER-TU BYTE-VERDICT TRIPLE, SAME 878 ROWS, SAME KEY
+   workload 878 878 rows, 8 TRIPLES MOVED
+    src/system/char/Character.cpp                        (264, 12, 934) -> (265, 12, 933)
+    src/system/meta/FixedSizeSaveable.cpp                (23, 5, 111) -> (24, 5, 110)
+    src/system/obj/DirLoader.cpp                         (74, 4, 312) -> (75, 4, 311)
+    src/system/rndobj/wordwrap.cpp                       (0, 0, 3) -> (1, 0, 2)
+    src/system/synth/Sequence.cpp                        (95, 7, 469) -> (96, 7, 468)
+    src/system/utl/ChunkStream.cpp                       (17, 0, 74) -> (18, 0, 73)
+    src/system/utl/Locale.cpp                            (27, 2, 82) -> (28, 2, 81)
+    src/system/utl/MemMgr.cpp                            (20, 2, 99) -> (21, 2, 98)
+    total exact       35802 ->    35810
+    total differs      1898 ->     1898
+    total refused    114630 ->   114622
+
+=== 3. EVERY gap-metric KEY, AS A MAP
+keys: 261 -> 261   0 vanished, 0 appeared, 27 changed
+   cflow-offclass-accounted                       522050 -> 522058
+   cflow-offclass-load-type-blocked               141405 -> 141400
+   cflow-offclass-load-type-inclass               85323 -> 85328
+   cflow-offclass-store-type-blocked              7899 -> 7896
+   cflow-offclass-store-type-inclass              4 -> 7
+   cflow-residue-inclass-modeled                  192495 -> 192497
+   cflow-residue-inclass-offclass                 522050 -> 522058
+   cflow-residue-straight-modeled-blocked         83776 -> 83774
+   fnbyte-calltarget-agree                        35802 -> 35810
+   fnbyte-calltarget-graded                       38232 -> 38240
+   fnbyte-decline-parse                           113627 -> 113619
+   fnbyte-exact                                   35802 -> 35810
+   fnbyte-exact-bytes                             36334 -> 36342
+   fnbyte-exact-relocated                         3819 -> 3827
+   fnbyte-match                                   0.22089 -> 0.22094
+   fnbyte-name-disagree                           74677 -> 74678
+   fnbyte-refused                                 114630 -> 114622
+   fnbyte-refused-parse                           113627 -> 113619
+   fnbyte-reloc-graded                            36334 -> 36342
+   fnbyte-reloc-graded-relocated                  4351 -> 4359
+   fnbyte-shape-parse-refused-refused             113627 -> 113619
+   fnbyte-shape-plain-exact                       29370 -> 29378
+   frontier-bytefrac-zero                         2 -> 1
+   frontier-codegen-exact                         11 -> 12
+   frontier-codegen-reader                        24 -> 23
+   progress-emitted-in-class                      39245 -> 39253
+   progress-mass                                  0.21409 -> 0.21410
+
+=== 4. EVERY FIXTURE, BOTH MODES, BOTH BINARIES
+   fixtures o1 363 rows, 2 MOVED
+    wwrap_gstore.cpp                                     vocab-gap -> codegen-gap
+    wwrap_gstore_widths.cpp                              vocab-gap -> codegen-gap
+    a: {'vocab-gap': 181, 'match': 170, 'codegen-gap': 12}
+    b: {'vocab-gap': 179, 'match': 170, 'codegen-gap': 14}
+   fixtures o1 363 rows, 3 TRIPLES MOVED
+    w25_store_leaf_neg.cpp                               (4, 0, 11) -> (5, 0, 10)
+    wwrap_gstore.cpp                                     (0, 0, 1) -> (1, 0, 0)
+    wwrap_gstore_widths.cpp                              (0, 0, 3) -> (3, 0, 0)
+    total exact        1821 ->     1826
+    total differs         7 ->        7
+    total refused      1043 ->     1038
+   fixtures ox 363 rows, 2 MOVED
+    wwrap_gstore.cpp                                     vocab-gap -> codegen-gap
+    wwrap_gstore_widths.cpp                              vocab-gap -> codegen-gap
+    a: {'vocab-gap': 200, 'match': 146, 'codegen-gap': 17}
+    b: {'vocab-gap': 198, 'match': 146, 'codegen-gap': 19}
+   fixtures ox 363 rows, 0 TRIPLES MOVED
+    total exact           3 ->        3
+    total differs         0 ->        0
+    total refused        13 ->       13

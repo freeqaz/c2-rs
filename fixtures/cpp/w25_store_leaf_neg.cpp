@@ -45,6 +45,14 @@
 //   an ADDR32 relocation pair (W14), and whose destination is pushed with `26`
 //   rather than through a pointer designator.
 //
+//   > **2026-08-09, lane `w-wordwrap`: this cell is now ACCEPTED — by
+//   > `global_store_leaf`, which is a different class.** The `_neg` assertion
+//   > this file makes is unchanged and still holds: *0 of these may be in the
+//   > STORE-LEAF class*, and `n_global` is not. It is the only function here
+//   > that is `fnbyte-exact`, which is why the file's byte triple moved
+//   > `(4,0,11) -> (5,0,10)` while its verdict did not. A reader who takes a
+//   > `_neg` file's byte gain as a leak should check WHICH class took the body.
+//
 // `n_index` — a store at a **variable** index (`s->arr[i] = v`), which is
 //   `stwx` with a scaled index, not a folded displacement.
 //

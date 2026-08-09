@@ -2693,6 +2693,7 @@ mod tests {
             &|_| Some("?callee@@AAAXXZ".to_string()),
             &|_| None,
             &|_| None,
+            &|_| None,
         )
         .expect("the composition has a carrier (board #844)");
         assert!(

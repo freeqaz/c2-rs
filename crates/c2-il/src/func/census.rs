@@ -448,6 +448,7 @@ fn tu_modelled_callees(
     resolve: &dyn Fn(u32) -> Option<String>,
     resolve_data: &dyn Fn(u32) -> Option<String>,
     resolve_data_def: &dyn Fn(u32) -> Option<crate::func::IlDataDef>,
+    resolve_bss_def: &dyn Fn(u32) -> Option<crate::func::IlDataDef>,
 ) -> std::collections::BTreeSet<String> {
     use std::collections::{BTreeMap, BTreeSet};
     let mut seed: BTreeSet<String> = BTreeSet::new();
@@ -482,6 +483,7 @@ fn tu_modelled_callees(
             resolve,
             resolve_data,
             resolve_data_def,
+            resolve_bss_def,
         ) else {
             continue;
         };
@@ -629,6 +631,10 @@ impl IlBundle {
         // question about an object or the census over-claims (`docs/GAPS.md` §6).
         let resolve_data_def =
             |tok: u32| -> Option<crate::func::IlDataDef> { bind.resolve_data_def(tok) };
+        // **W-WORDWRAP** — the `.bss` sibling, built beside the `.data` one and
+        // from the same `Bindings`, so the two answer about one `.gl`.
+        let resolve_bss_def =
+            |tok: u32| -> Option<crate::func::IlDataDef> { bind.resolve_bss_def(tok) };
         let src = bind.src.clone();
         // **W-INLFENCE** — the names this TU DEFINES, built once per bundle for
         // the post-parse gate (c) below. Built from `.gl` directly and not from
@@ -862,6 +868,15 @@ impl IlBundle {
                             // tail-call bucket would be attributable to neither.
                             Ok(BodyShape::MemcpyTail { .. }) => {
                                 FnVerdict::InClass("memcpy-tail")
+                            }
+                            // **W-WORDWRAP — the file-scope-global store leaf.**
+                            // Its own bucket rather than `leaf-store`'s: that
+                            // class's destination is positively a `.sy`
+                            // automatic and this one's is a `.gl` DEFINED
+                            // OBJECT, so a gain that landed there would be
+                            // attributable to neither production.
+                            Ok(BodyShape::GlobalStoreLeaf { .. }) => {
+                                FnVerdict::InClass("global-store-leaf")
                             }
                             // **W-XTEA3 — the two-element 64-bit member run.**
                             // Its own bucket rather than the store run's: the
@@ -1133,7 +1148,7 @@ impl IlBundle {
                             // consumed, for the reason the `sym_fail` probe
                             // above is: `shape_to_function` takes `sh` by value.
                             let bind_key = bind_refusal_key(&sh);
-                            match shape_to_function(sh, &name, &src, &resolve, &resolve_data, &resolve_data_def) {
+                            match shape_to_function(sh, &name, &src, &resolve, &resolve_data, &resolve_data_def, &resolve_bss_def) {
                                 None if sym_fail.is_some() => FnVerdict::Blocked(Block::at_end(
                                     seg,
                                     sym_fail.expect("just checked"),
@@ -1275,6 +1290,7 @@ impl IlBundle {
                                                     &resolve,
                                                     &resolve_data,
                                                     &resolve_data_def,
+                                                    &resolve_bss_def,
                                                 )
                                             }),
                                         )

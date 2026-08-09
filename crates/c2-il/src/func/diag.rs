@@ -314,6 +314,10 @@ impl IlBundle {
         let resolve_data = |tok: u32| -> Option<String> { bind.resolve_data(tok) };
         let resolve_data_def =
             |tok: u32| -> Option<crate::func::IlDataDef> { bind.resolve_data_def(tok) };
+        // **W-WORDWRAP** — the `.bss` sibling, built beside the `.data` one and
+        // from the same `Bindings`, so the two answer about one `.gl`.
+        let resolve_bss_def =
+            |tok: u32| -> Option<crate::func::IlDataDef> { bind.resolve_bss_def(tok) };
         let mut funcs = Vec::with_capacity(segs.len());
         for (i, shape) in shapes.into_iter().enumerate() {
             let Some(shape) = shape else { continue };
@@ -324,6 +328,7 @@ impl IlBundle {
                 &resolve,
                 &resolve_data,
                 &resolve_data_def,
+                &resolve_bss_def,
             ) {
                 Some(f) => funcs.push(f),
                 None => out.push(cause::SHAPE_RESOLVE),

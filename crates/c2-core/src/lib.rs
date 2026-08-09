@@ -1525,7 +1525,23 @@ pub(crate) fn data_defs_of<'a>(
     let Some(d) = f.data_def.as_ref() else {
         return Ok(Vec::new());
     };
-    let text = match codegen::static_scan_loop::static_scan_loop_text(f) {
+    // **W-WORDWRAP** — the second class whose body materializes a defined
+    // object's address, and it is asked FIRST because it is the cheaper test:
+    // `global_store_leaf` is a set field, `static_scan_loop_text` re-runs a
+    // pattern match. The two are mutually exclusive by construction — each is
+    // set by exactly one parser production and neither sets the other's field.
+    //
+    // Its low half is a **STORE** (`stb`/`sth`/`stw`/`std`) rather than the
+    // `addi`/`lwz` the scan loop's is, so the detector below carries all six
+    // spellings. That widening is why this arm exists at all instead of the
+    // class simply reusing the derivation.
+    let text = if let Some(g) = f.global_store_leaf.as_ref() {
+        match codegen::global_store_leaf::global_store_leaf_text(g) {
+            Ok(t) => t,
+            Err(e) => return Err(e),
+        }
+    } else {
+        match codegen::static_scan_loop::static_scan_loop_text(f) {
         Some(t) => t,
         None => {
             return Err(BackendError::NotImplemented(
@@ -1533,6 +1549,7 @@ pub(crate) fn data_defs_of<'a>(
                  materialize its address: nothing derives the relocation sites"
                     .to_string(),
             ))
+        }
         }
     };
     let words: Vec<[u8; 4]> = text.chunks_exact(4).map(|w| [w[0], w[1], w[2], w[3]]).collect();
@@ -1563,8 +1580,21 @@ pub(crate) fn data_defs_of<'a>(
         if at <= hi_off {
             continue;
         }
+        // **W-WORDWRAP adds the four STORE spellings.** `?WordWrap_SetOption`'s
+        // low half is `stw r3,0(r11)` — a write to the object rather than a read
+        // of it — and the reference obj's REFLO sits on exactly that word
+        // (`work/w-wordwrap/ref/wordwrap.dump`, `.text #6`). The store's width
+        // is the class's one free field, so all four are carried: a table with
+        // only `stw` would silently emit ONE relocation for a `char` or a
+        // `long long` global, which is a wrong `NumberOfRelocations` and not a
+        // gap.
         let is_lo = (0u8..32).any(|rd| {
-            *w == codegen::encode_addi(rd, rt, 0) || *w == codegen::encode_lwz(rd, rt, 0)
+            *w == codegen::encode_addi(rd, rt, 0)
+                || *w == codegen::encode_lwz(rd, rt, 0)
+                || *w == codegen::encode_stb(rd, rt, 0)
+                || *w == codegen::encode_sth(rd, rt, 0)
+                || *w == codegen::encode_stw(rd, rt, 0)
+                || *w == codegen::encode_std(rd, rt, 0)
         });
         if is_lo {
             lo_offs.push(at);
@@ -1580,6 +1610,7 @@ pub(crate) fn data_defs_of<'a>(
         size: d.size,
         natural_align: d.natural_align,
         bytes: &d.bytes,
+        uninitialized: d.uninitialized,
         hi_off,
         lo_offs,
     }])

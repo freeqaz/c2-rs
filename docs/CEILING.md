@@ -918,6 +918,22 @@ fall-through family's size beside any ranking taken off T2 — it is **9,095 of
    `scripts/gt_dump.py <obj>` prints it. A symbol with no body — `_fltused`,
    `__real@…`, `__savegprlr_N`, a `$M`/`$T` label — is an obligation no
    per-function byte test can see.
+
+   **Read it as a FORECAST of what the WRITER will owe, not only as a
+   checklist.** *Added 2026-08-09 by lane `w-wordwrap` (#2722, #2727).* That
+   lane's PREREG described `wordwrap.cpp`'s 588-byte `.bss`, both its data
+   symbols and their offsets — `?g_LineBreakTable` at `+0x0` and `?g_uOption`
+   at `+0x248`, the **reverse** of declaration order — and then priced only
+   `.text`. What actually capped the lane is that a **non-COMDAT `.bss` on a
+   function-bearing TU has no graded placement in `coff::writer`**: it belongs
+   in the shell between the two `.XBLD$W` watermarks, where every `data_defs`
+   path there puts a COMDAT `.data` immediately after its owning function's own
+   `.text`. So the obj is refused however many of its bodies are exact.
+   The two questions come apart cleanly and it is worth knowing which one you
+   are answering: `comdat::text_reloc_plan` compares relocation targets by
+   **NAME**, never by storage class, so a body storing to a `.bss` object can be
+   `fnbyte-exact` — bytes *and* all four relocation records — inside an obj the
+   port honestly declines.
 4. **Check whether the refusal is LIST MEMBERSHIP.** A key ending in a hex type
    tag is a positive-list question (#764), not a construct. `.sy` has four
    positive lists; `read_record`'s own 21-cell table carried the `unsigned` row
@@ -928,6 +944,14 @@ fall-through family's size beside any ranking taken off T2 — it is **9,095 of
    body — `w-nc` found `void WordWrap_SetOption(unsigned o){ g_uOption = o; }`,
    **twelve bytes of PowerPC with no control flow whatsoever**, reported blocked
    at **`expr-jump`**.
+   **And grep the WORKLOAD for the construct before pricing the class.**
+   *Added by the same lane (#2721).* A frontier-driven lane sees exactly one
+   instance of every class it builds, because the frontier is a list of TUs, and
+   nothing in that framing can tell it whether the class has a population.
+   `w-wordwrap` priced `void f(T x) { g = x; }` as *"the smallest unconverted
+   body on the frontier, worth +1 `fnbyte-exact`"* and shipped **+8**, in eight
+   different TUs. The check is one grep and it has never been run.
+
 6. **Check factor A before pricing any reader or emitter work.** 14 of the 17
    TUs within 2 functions of all-exact fail A, so closing their reader gap
    converts **nothing**, and the 3 that pass A are already in the frontier. `A∧B∧C` minus the match set is the only population

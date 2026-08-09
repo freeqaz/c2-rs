@@ -127,6 +127,19 @@ pub fn emit_comdat_obj(
             return None;
         }
         for d in &f.data_defs {
+            // **W-WORDWRAP — an UNINITIALIZED object, refused by name.** Its
+            // section is a non-COMDAT `.bss` in the shell (between the two
+            // `.XBLD$W` watermarks, before any `.text`); every `data_defs` path
+            // below places a COMDAT `.data` immediately after its owning
+            // function's `.text`. That is a different section order, a different
+            // symbol order and a different layout walk (Rule A1), and no cell
+            // has graded it on a function-bearing TU. Refusing here makes the
+            // whole obj `NotImplemented`, which is the honest answer; the
+            // FUNCTION's bytes and relocations are still graded, because those
+            // are a different question (`c2_il::IlDataDef::uninitialized`).
+            if d.uninitialized {
+                return None;
+            }
             if d.bytes.len() as usize != d.size as usize || d.size == 0 || d.lo_offs.is_empty() {
                 return None;
             }

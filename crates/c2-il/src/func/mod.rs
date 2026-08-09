@@ -1550,8 +1550,52 @@ pub struct IlDataDef {
     /// computes it; carrying the promoted value here would put one fact in two
     /// places.
     pub natural_align: u32,
-    /// The static initializer from `.in`, exactly `size` bytes.
+    /// The static initializer from `.in`, exactly `size` bytes — and **empty
+    /// when [`Self::uninitialized`] is set**, which is the one case where the
+    /// field's own invariant does not hold.
     pub bytes: Vec<u8>,
+    /// **W-WORDWRAP — the object has NO initializer and lives in `.bss`.**
+    ///
+    /// Added because the frontier's smallest body stores to one:
+    /// `wordwrap.cpp`'s `unsigned int g_uOption;` is a namespace-scope,
+    /// non-COMDAT, uninitialized object, and every field above is readable off
+    /// its `.gl` record while `bytes` is not — there is no `.in` record to read.
+    ///
+    /// **The struct's own header said this case is refused, and it said so for a
+    /// reason that is still live**: the writer's data path places a *COMDAT
+    /// `.data`* immediately after its owning function's `.text`, and a
+    /// non-COMDAT `.bss` goes in the SHELL, between the two `.XBLD$W`
+    /// watermarks, before any `.text` at all (`OBJ_DATA_BSS_SHAPE.md` §2.2;
+    /// `coff::data`'s `bss_slot`). That is a different section order, a
+    /// different symbol order and a different `.bss` layout walk (Rule A1), and
+    /// **no cell of any lane has graded it on a function-bearing TU**.
+    ///
+    /// So this flag exists to be *carried and refused*, not to be emitted:
+    /// `coff::writer::emit_obj_multi` returns `None` on it by name, which makes
+    /// the whole obj `NotImplemented`. What it buys is the FUNCTION-BYTE
+    /// question, which is a different one and is answerable today — the
+    /// relocation plan a `.bss` object needs is the identical REFHI/PAIR/REFLO/
+    /// PAIR quad against the identical name (`comdat::text_reloc_plan` compares
+    /// targets by NAME, never by storage class), so a body storing to one can be
+    /// graded `fnbyte-exact` while the obj it belongs to is honestly refused.
+    /// That is the state `w-front5` measured on `mmio.cpp` — ten of eleven
+    /// bodies exact, TU refused — reached deliberately instead of by accident.
+    pub uninitialized: bool,
+}
+
+/// **W-WORDWRAP — the file-scope-global store leaf's parse.**
+///
+/// `void f(T x) { g = x; }` — three words, one free field. See
+/// [`crate::func::body::shapes::global_store_leaf`] for GRID G and GRID T, the
+/// compiled cells every clause of the recognizer is a reading off.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GlobalStoreLeaf {
+    /// The store width in bytes — 1, 2, 4 or 8 — which selects
+    /// `stb`/`sth`/`stw`/`std`. The only thing the emitter reads: the address
+    /// scratch is always r11, the value is always r3 and the displacement is
+    /// always 0, each because the class is fenced at one formal, one statement
+    /// and no conversion (cells `G_second`, `G_two`, `G_narrow`).
+    pub width: u8,
 }
 
 /// **W-DATA — the static-array scan loop's parse.**
@@ -3043,6 +3087,14 @@ pub struct IlFunction {
     /// **W-DATA — the static-array scan loop** (`?NextHashPrime@@YAHH@Z`).
     /// Set by exactly one parser production; [`Self::ops`] is empty for it.
     pub static_scan_loop: Option<StaticScanLoop>,
+    /// **W-WORDWRAP — the file-scope-global store leaf**
+    /// (`wordwrap.cpp`'s `?WordWrap_SetOption@@YAXI@Z`). Set by exactly one
+    /// parser production; [`Self::ops`] is empty for it. A LEAF that DEFINES the
+    /// object it writes, so — like [`Self::static_scan_loop`] — it travels with
+    /// [`Self::data_def`] set and contributes nothing to [`Self::callees`] or
+    /// [`Self::data_syms`]; unlike it, the object is `.bss` rather than a
+    /// `.data` COMDAT, which is what [`IlDataDef::uninitialized`] carries.
+    pub global_store_leaf: Option<GlobalStoreLeaf>,
     /// **W-BDNZ — the counted-loop class** (`wb-loop`'s guard + `mtctr`/`bdnz`
     /// passes). Set by exactly one parser production; [`Self::ops`] is empty for
     /// it. Makes [`Self::label_slots`] return `None`, for a reason this lane
@@ -3310,6 +3362,7 @@ impl IlFunction {
             fn_addr_sym: None,
             data_def: None,
             static_scan_loop: None,
+            global_store_leaf: None,
             counted_accum_loop: None,
             float_walk_loop: None,
             fp_store_diamond: None,
