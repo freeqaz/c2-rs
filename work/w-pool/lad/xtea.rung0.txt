@@ -1,0 +1,20 @@
+  profile: /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I src/system/stlport /I src/xdk/LIBCMT /I src/system /I src/lazer /I src/system/oggvorbis /I src/system/synth/tomcrypt /I src/system/net/curl/include /I src (from /home/free/code/milohax/c2-rs/.claude/worktrees/agent-afbb2a590581a5442/work/dc3-workload/flags.txt)
+  cwd:     /home/free/code/milohax/dc3-decomp
+src/system/utl/EncryptXTEA.cpp -> 1/5 functions in class
+  [  0] ok  store-run                cflow-straight             eh-none     (eh-none     )    184 B  (unnamed)
+  [  1] GAP expr-intrinsic-memcpy    cflow-straight             eh-none     (eh-none     )    191 B  (unnamed)
+  [  2] GAP expr-op-0x27             cflow-straight             eh-none     (eh-none     )    244 B  (unnamed)
+  [  3] GAP expr-load-type-8882      cflow-loop                 eh-none     (eh-none     )    492 B  (unnamed)
+  [  4] GAP expr-op-0x27             cflow-loop                 eh-none     (eh-none     )    478 B  (unnamed)
+  blocking features (">" marks the byte that blocked the parse):
+         2 x expr-op-0x27
+             53 4f 01 0c b9 7f 0a a6 43 81 20 33 86 41 74 00 >27< a6 43 99 20 33 86 41 12 00 28 00 00 b9 7c 0a 86 43 8d 20 33 86 41 12
+         1 x expr-intrinsic-memcpy
+             81 20 99 86 43 8b 20 00 46 2d 78 0a 4c 4f 11 53 >33< 86 41 74 80 ac 00 00 00 40 86 43 83 08 33 86 41 74 01 55 86 41 74 33
+         1 x expr-load-type-8882
+             2d 82 0a 2d 81 0a 4c 4f 11 53 4f 01 11 26 86 0a >b9< 81 0a 88 82 23 33 88 82 23 80 ff ff ff ff 00 00 00 00 0b 2c 86 42 22
+  control-flow class (decode-only): 5/5 bodies decoded end to end
+         3 x cflow-straight
+         2 x cflow-loop
+  EH class (maxState, decode-only): 0/5 bodies have maxState >= 1 and need the whole EH record
+         5 x eh-none
