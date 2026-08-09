@@ -1,7 +1,7 @@
 building the harness (no-op if current)
     Finished `release` profile [optimized] target(s) in 0.01s
 harness: /tmp/c2rs-mode-lane/-O1/c2rs
-  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a183e8a527984c88a/target/release/c2rs  built 2026-08-09 15:36:15
+  pinned from <home>/code/milohax/c2-rs/.claude/worktrees/agent-a183e8a527984c88a/target/release/c2rs  built 2026-08-09 15:36:15
   sha d5beed6af9a3  tree d3bd3ddc
 grading 332 fixtures at /O1
 GAP REPORT (332 TUs in 2.9s)

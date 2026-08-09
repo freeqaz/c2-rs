@@ -1,11 +1,11 @@
 provenance:
-  c2-rs      036726cd2710 (DIRTY)  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a183e8a527984c88a
-  binary     a7932dd7a668aca3  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a183e8a527984c88a/target/release/c2rs
+  c2-rs      036726cd2710 (DIRTY)  <home>/code/milohax/c2-rs/.claude/worktrees/agent-a183e8a527984c88a
+  binary     a7932dd7a668aca3  <home>/code/milohax/c2-rs/.claude/worktrees/agent-a183e8a527984c88a/target/release/c2rs
   workload   (none — fixtures)
-  wibo       wibo 1.2.0-c2rs.1 (Linux x86_64)  /home/free/code/milohax/wibo/build/release/wibo
-  cl.exe     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/cl.exe
-  c2.dll     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c2.dll
-  c1xx.dll   /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c1xx.dll
+  wibo       wibo 1.2.0-c2rs.1 (Linux x86_64)  <home>/code/milohax/wibo/build/release/wibo
+  cl.exe     <home>/code/milohax/c2-rs/compilers/X360/16.00.11886.00/cl.exe
+  c2.dll     <home>/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c2.dll
+  c1xx.dll   <home>/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c1xx.dll
   strace     /usr/bin/strace
   mingw      /usr/bin/i686-w64-mingw32-gcc
 oracle self-test (determinism + capture stability):
