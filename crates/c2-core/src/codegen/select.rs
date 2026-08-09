@@ -38,6 +38,7 @@ use crate::codegen::if_call_join::if_call_join_text;
 use crate::codegen::ptr_walk_loop::ptr_walk_loop_text;
 use crate::codegen::memcpy_tail::memcpy_tail_text;
 use crate::codegen::nonce_add_run::nonce_add_run_text;
+use crate::codegen::xtea_round_loop::xtea_round_loop_text;
 use crate::codegen::leaf::store::store_leaf_text;
 use crate::codegen::straightline::select_text;
 
@@ -486,6 +487,19 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
     // writers ask it in exactly one place.
     if let Some(n) = &func.nonce_add_run {
         return Ok(Selected::Plain(nonce_add_run_text(n, mode)?));
+    }
+    // **W-XTEA3 — the XTEA round loop.** Same placement argument as every loop
+    // around it and the same freedom: `func.xtea_round_loop` is set by exactly
+    // one parser production, `func.ops` is empty for it, and no leaf
+    // pattern-matcher below can take its body. `Selected::Plain`, because the
+    // class takes no relocation, mints no external and defines no label symbol —
+    // the reference obj's `.text #8` reads `nrel 0`.
+    //
+    // Unlike `counted_accum_loop` it admits `/O1` alone: at `/Ox` the same
+    // source is 1,352 bytes with a `__savegprlr_28` frame. The gate is in the
+    // READER, where the census can see it too (board #1638), and re-asked here.
+    if let Some(x) = &func.xtea_round_loop {
+        return Ok(Selected::Plain(xtea_round_loop_text(x, mode)?));
     }
     if let Some(l) = &func.ptr_walk_loop {
         return Ok(Selected::Plain(ptr_walk_loop_text(l, mode)?));

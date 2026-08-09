@@ -56,6 +56,8 @@ pub use func::{
     MemcpyTail,
     // W-XTEA3 — the two-element 64-bit member run (`EncryptXTEA.cpp`).
     NonceAddRun,
+    // W-XTEA3 — the XTEA round loop (`EncryptXTEA.cpp`).
+    XteaRoundLoop,
     GuardRetGuard,
     GuardRetSpine,
     OsfHandleGuard,

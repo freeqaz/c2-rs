@@ -1890,6 +1890,25 @@ pub struct NonceAddRun {
     pub src_off: i32,
 }
 
+/// **W-XTEA3 — the XTEA round loop** (`?Encipher@XTEABlockEncrypter@@AAA_K_KPAI@Z`).
+///
+/// The accept/refuse boundary is entirely on the recognizer
+/// ([`crate::func::body::shapes::xtea_round_loop`], which lists the four
+/// compiled cells and says out loud that the class is a TRANSCRIPTION) and the
+/// emission on [`c2_core::codegen::xtea_round_loop`]; this carries only the two
+/// things the cells let move, plus the round constant.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct XteaRoundLoop {
+    /// The `for` bound and the `li r8,N` immediate. Cell `Encipher8` is the
+    /// witness that nothing else moves with it.
+    pub trips: i32,
+    /// The round constant, materialised as an `addis`/`addi` pair split around
+    /// an unrelated `xor`.
+    pub delta: i32,
+    /// `true` when the returned halves are exchanged. Cell `EncipherSwap`.
+    pub swapped: bool,
+}
+
 /// **W-IFN — one guard of a [`GuardRetChain`]**: `if (<formal> == 0) return
 /// <K>;`, lowered as a `cmplwi cr6` and a forward `bf 26` over a two-word arm.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -3075,6 +3094,13 @@ pub struct IlFunction {
     /// label counter — `plan_labels` already charges it the 1 that
     /// `work/w-xtea2/LABGRID.txt`'s `x-setnonce` row measures.
     pub nonce_add_run: Option<NonceAddRun>,
+    /// **W-XTEA3** — the XTEA round loop (`EncryptXTEA.cpp`'s `?Encipher`). Set
+    /// by exactly one parser production; [`Self::ops`] is empty for it. A LEAF
+    /// that names no `.gl` symbol and takes no relocation, but it carries a BACK
+    /// EDGE, so unlike every other leaf here its label stride is not 1 — see
+    /// [`Self::label_lead`], which returns **2** for it on
+    /// `work/w-xtea2/LABGRID.txt`'s `x-encipher` row.
+    pub xtea_round_loop: Option<XteaRoundLoop>,
     /// True iff this function's body is **empty** (`void f() {}`): no expression at
     /// all, so codegen emits a bare `blr`. Mutually exclusive with the other body
     /// kinds.
@@ -3271,6 +3297,7 @@ impl IlFunction {
             guard_ret_chain: None,
             memcpy_tail: None,
             nonce_add_run: None,
+            xtea_round_loop: None,
             empty_body: false,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
@@ -3716,6 +3743,38 @@ impl IlFunction {
             // `b`-counting rule is exactly what a second one-witness rule buys
             // you. The number is recorded; the gap is left open.
             + 4 * u32::from(self.json_utf8_copy.is_some())
+            // **W-XTEA3 — the XTEA round loop charges TWO slots**, and it is the
+            // first LEAF class here whose lead is not zero.
+            //
+            // Every term above belongs to a FRAMED class, where the lead moves
+            // the function's own `$M` triple. This one has no triple at all: it
+            // is a leaf, so the lead and the total are the same number and what
+            // it moves is every LATER function's labels. `plan_labels` charges
+            // `label_lead + 1` for a non-framed function, so this is exactly the
+            // stride-3 reading and **no arm in `plan_labels` changes**.
+            //
+            // MEASURED in `LABEL_COUNTER.md` §7.6's mandatory IN-THE-MIDDLE form
+            // — the subject between three framed anchors with `base` re-measured
+            // in every obj — and never the counterfactual, which `wb-label` §7.2
+            // retired as reading `Δseed + Δcharge`. `work/w-xtea2/LABGRID.txt`,
+            // at the workload's own `/O1`, with `base = 5` holding on every row:
+            //
+            // ```text
+            //   ctl-leaf        a plain leaf                  stride 1
+            //   ctl-leaf-for    w-loop's leaf-`for` row       stride 3
+            //   x-encipher      THIS CLASS                    stride 3
+            // ```
+            //
+            // and the whole TU closes against its own obj with **zero
+            // residual**: `2721 (.gl) + 9 + 3·5 + (1 + 2 + 1 + 3 + 4) = 2756`,
+            // which is `EncryptXTEA.obj`'s own first label `$M2756`.
+            //
+            // **The `/Ox` column is 13, not 3**, and `label_slots` has no mode
+            // parameter — `wb-label` §7.6 forbids giving it one. What keeps that
+            // from being a wrong number is the recognizer's mode gate: this class
+            // is unreachable at any mode but the one the 3 was measured at, and
+            // at `/Ox` the same source is 1,352 bytes anyway.
+            + 2 * u32::from(self.xtea_round_loop.is_some())
     }
 
     /// Every external this function calls, in **first-reference order** — which is

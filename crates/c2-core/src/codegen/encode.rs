@@ -542,6 +542,28 @@ pub fn encode_rldicl(ra: u8, rs: u8, sh: u8, mb: u8) -> [u8; 4] {
     word.to_be_bytes()
 }
 
+/// `rldimi rA, rS, SH, MB` — **rotate left DOUBLEWORD immediate then mask
+/// INSERT**: primary opcode 30, extended opcode 3, Rc=0. Unlike
+/// [`encode_rldicl`] this reads `rA` as well as writing it — the bits outside
+/// the mask survive, which is what lets one word splice a 32-bit value into the
+/// high half of a register that already holds the low half.
+///
+/// The two split immediate fields are [`encode_rldicl`]'s, and the only
+/// difference is the extended opcode. Read off `?Encipher@XTEABlockEncrypter`'s
+/// `7923000e`, which decodes as `rA=3, rS=9, SH=32, MB=0`.
+pub fn encode_rldimi(ra: u8, rs: u8, sh: u8, mb: u8) -> [u8; 4] {
+    let sh = sh as u32 & 0x3F;
+    let mb = mb as u32 & 0x3F;
+    let word: u32 = (30 << 26)
+        | ((rs as u32 & 0x1F) << 21)
+        | ((ra as u32 & 0x1F) << 16)
+        | ((sh & 0x1F) << 11)
+        | (((mb & 0x1F) << 1 | (mb >> 5)) << 5)
+        | (3 << 2)
+        | ((sh >> 5) << 1);
+    word.to_be_bytes()
+}
+
 /// `srwi rA, rS, 31` — extract the sign bit. The `rlwinm rA,rS,1,31,31` form.
 pub fn encode_srwi31(ra: u8, rs: u8) -> [u8; 4] {
     encode_rlwinm(ra, rs, 1, 31, 31)

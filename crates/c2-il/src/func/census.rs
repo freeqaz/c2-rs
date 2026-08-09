@@ -871,6 +871,14 @@ impl IlBundle {
                             Ok(BodyShape::NonceAddRun { .. }) => {
                                 FnVerdict::InClass("nonce-add-run")
                             }
+                            // **W-XTEA3 — the XTEA round loop.** Its own bucket
+                            // rather than `counted-accum-loop`'s: #1981 defines
+                            // that class to contain no memory reference and this
+                            // one has an `lwzx` inside the loop, so a gain that
+                            // landed there would be attributable to neither.
+                            Ok(BodyShape::XteaRoundLoop { .. }) => {
+                                FnVerdict::InClass("xtea-round-loop")
+                            }
                             // **W-BIQUAD — the float-store diamond.** Its own
                             // bucket on the same rule every class here follows:
                             // a gain that landed in a shared `cflow-if-1`

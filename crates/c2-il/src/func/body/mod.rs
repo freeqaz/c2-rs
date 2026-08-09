@@ -25,7 +25,7 @@ use self::shapes::{
     try_parse_fp_store_diamond,
     try_parse_fp_tail_call,
     try_parse_indirect_load_leaf, try_parse_member_tail_call, try_parse_memcpy_tail,
-    try_parse_nonce_add_run,
+    try_parse_nonce_add_run, try_parse_xtea_round_loop,
     try_parse_ptr_identity_leaf,
     try_parse_ptr_walk_chain_loop,
     try_parse_pool_ctor_chain, try_parse_pool_free_list,
@@ -762,6 +762,25 @@ pub(crate) enum BodyShape {
         /// The first element's byte offset from `params[1]`. Moves
         /// **independently** of `dst_off` — cell `EncOff` is the witness.
         src_off: i32,
+    },
+    /// **W-XTEA3 — the XTEA round loop**: `?Encipher@XTEABlockEncrypter`, 116 B
+    /// / 29 words, the largest of the three bodies still blocking
+    /// `src/system/utl/EncryptXTEA.cpp` after `w-xtea2`. See
+    /// [`super::shapes::xtea_round_loop`] for the four compiled cells, the two
+    /// parameters they let move and why the class says out loud that it is a
+    /// TRANSCRIPTION.
+    XteaRoundLoop {
+        /// The argument registers in order — `[receiver, nonce, key]`. The
+        /// receiver is unused by the body, which is a fact about the words: r3
+        /// is written only by the last two.
+        params: Vec<u32>,
+        /// The `for` bound and the `li r8,N` immediate. Cell `Encipher8`.
+        trips: i32,
+        /// The round constant, materialised as an `addis`/`addi` pair.
+        delta: i32,
+        /// `true` when the returned halves are exchanged — cell `EncipherSwap`,
+        /// which moves exactly the two register fields of the last two words.
+        swapped: bool,
     },
     /// **W-BIQUAD — the null-guarded float-store diamond**, the larger half of
     /// `src/system/synth_xbox/Biquad.cpp`. A two-armed `if`/`else` with a real
@@ -2241,6 +2260,28 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                     try_parse_counted_accum_loop(seg, p, lo, locals, sy.uint_locals)
                 {
                     disp("disp-counted-accum-loop");
+                    return Ok(shape);
+                }
+                // **W-XTEA3 — the XTEA round loop.** Placed LAST in this arm,
+                // after `counted_accum_loop`, and the placement is conservative
+                // rather than forced: **no body any production above accepts
+                // today can move, by construction.**
+                //
+                // The disjointness argument is available and worth stating.
+                // `counted_accum_loop` — the only production above that reads
+                // this same rotated pre-test `for` — is defined by #1981 to
+                // contain NO memory reference, and this body's round has an
+                // `lwzx` inside the loop. So it can take a body from nothing
+                // above it and nothing above it can take one of its bodies,
+                // whichever is asked first.
+                //
+                // Non-committal on the same terms as the rest of the ladder: its
+                // own cursor, `Err` on the first byte outside its grammar, so a
+                // body that declines still reports this arm's blocker
+                // (`expr-load-type-8882`, which is what `?Encipher` read at this
+                // lane's base) and no census key moves.
+                if let Ok(shape) = try_parse_xtea_round_loop(seg, p, lo, depth) {
+                    disp("disp-xtea-round-loop");
                     return Ok(shape);
                 }
                 disp("disp-assign");

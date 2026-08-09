@@ -847,6 +847,16 @@ pub(crate) fn shape_to_function(
                 nonce_add_run: Some(crate::func::NonceAddRun { dst_off, src_off }),
                 ..IlFunction::base(name, src)
             }),
+            // **W-XTEA3 — the XTEA round loop.** Nothing to resolve: the class
+            // names no callee, no data object and no external. The reference
+            // obj's `?Encipher` COMDAT carries **zero** relocations, which is
+            // that statement checked against the oracle
+            // (`work/w-xtea3/ref/xtea.dump`, `.text #8`).
+            BodyShape::XteaRoundLoop { params, trips, delta, swapped } => Some(IlFunction {
+                params,
+                xtea_round_loop: Some(crate::func::XteaRoundLoop { trips, delta, swapped }),
+                ..IlFunction::base(name, src)
+            }),
             // **W-BIQUAD — the null-guarded float-store diamond.** Nothing to
             // resolve, for the same reason the two rows above give: the class
             // references no external symbol, no data object and no callee. Its
