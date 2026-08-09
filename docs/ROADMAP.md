@@ -10720,3 +10720,49 @@ no longer the constraint; the reader is.**
    §10.26.7) as the largest priced conversion rung on the board.
 4. The `{0,1}` result pair routes to a **located-and-unread** 890-byte function —
    the next selection lane's first job, and the only named gap in this reading.
+
+### 10.27.1 WB-I REPLICATED — two independent readings, one headline, two open disagreements (2026-08-09)
+
+**Provenance, stated because it is a process failure worth keeping.** The WB-I
+lane was killed mid-flight by an infrastructure failure, recovered, and landed
+as §10.27 (board #2040–#2047). The coordinator then **re-dispatched it without
+checking that master already carried it** — the exact failure the standing
+"check the board before dispatching" rule exists to prevent, now recorded as
+its sixth instance. The duplicate is kept rather than discarded, because what
+it produced is a genuine **independent replication**: same question, same
+PREREG (cherry-picked so its predictions stay pre-registered), a separate read
+of the same binary. Board rows renumbered **#2100–#2109**, rung
+`2026-08-09-wb-select2.md`, record `WB_SELECT_FINDINGS_R2.md`.
+
+**What both runs agree on** — the headline survives replication:
+
+* A general `lower_expr` **is** derivable; the reason it generalises is that
+  the knowledge lives in **tables indexed by the operand type**, so one
+  adoption covers every type at once.
+* `cmpw`/`cmplw` (#1788) is a **lookup, not a branch**.
+* A relational used as a **value** is the one genuine algorithm: two expanders
+  **costed in words**, cheaper wins.
+* Record forms are a fusion at **opcode+1**, and `cr0`-vs-`cr6` falls out of it.
+* **First-scan reach is 0** — 48 of the frontier's 59 functions die at the IL
+  **reader**. Both runs state it independently. **The emitter is not the
+  constraint; the reader is.**
+
+**What they disagree on — open, and neither is authoritative:**
+
+| item | §10.27 (run 1) | §10.27.1 (run 2) | how to settle |
+|---|---|---|---|
+| operator × type tables | **sixteen** | **thirteen** | count the installer's stores at `0x10c04cb9` in one sitting; a table adopted with the wrong count silently drops operators |
+| frozen grid score | 10/12 primary | 9/12 | different cell sets; re-grade both cell lists against one obj run |
+
+**What run 2 adds that run 1 did not have**, all obj-backed: the value-vs-branch
+**context bit is REFUTED** (P3.4), replaced by a rule from 8 objs — *a two-way
+`if` keeps compare-and-branch iff an arm has a side effect or the relation is
+signed with a non-zero bound*, else it is if-converted **before** selection; **no
+magic-number multiply** and **no shift/add decomposition** at `/O1`; and the
+`x & K` expansion is **not predictable** by either run, with the deciding pass
+named (`FUN_10c1772b`) and bounded by seven diagnostic cells.
+
+**Effect on the §10.27 ordering: none.** `lower_expr` stays item 1 and reader
+admission at the frontier's 48 stays item 2 — replication strengthened both.
+The table-count disagreement is a **precondition on adopting W-SELECT-2** and
+is added to that row's cost.
