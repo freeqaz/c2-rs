@@ -40,6 +40,18 @@ use super::{GapReport, TuClass, TuResult, PORT_WRITER_SECTIONS, WHOLE_TU_RECOGNI
 /// remaining loop TU as buildable. **Widen this entry only alongside a
 /// `Selected` variant that can express loops in general.**
 ///
+/// **2026-08-09, lane `w-blockir` — the FIFTH lane to leave `cflow-loop` out,
+/// and the first to do so from inside a converted TU.** That lane shipped
+/// `codegen::float_walk_loop` and converted
+/// `src/system/synth_xbox/IPP_basicmath_xbox.cpp`, whose four bodies are all
+/// `cflow-loop`. It is still **one CFG shape in three transcribed register
+/// plans**, `/O1` only, and not a lowering of the class: the walker, the park's
+/// position and the load order are per-shape constants with six / four / four
+/// graded witnesses apiece, and `probe/walk.cpp`'s `c4` is the cell that kills
+/// the generalisation of the first of them. Adding `cflow-loop` here would
+/// report the frontier's other five loop TUs as buildable, and they are not.
+/// Board **#2300**; `rungs/2026-08-09-w-blockir.md` §10.
+///
 /// The `+expr-modeled` spellings are the same two classes with the statement
 /// layer fully decoded — the census emits both forms and they are the same CFG.
 ///
