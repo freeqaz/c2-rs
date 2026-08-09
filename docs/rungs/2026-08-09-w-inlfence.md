@@ -151,6 +151,45 @@ refusal survived one of its own cells silently becoming a positive.
 
 ---
 
+## 2.4 CAN THE PORT EMIT A WRONG BODY IN THIS CLASS? — **No**, and here is why in full
+
+**No obj the port emits can contain a call to a callee the same TU defines.**
+The emit path is `IlBundle::functions`, and three facts compose:
+
+1. **The fence on the emit path is TOTAL, not fail-open.** The census's
+   fail-openness (§4) comes from `gl_defined_names` yielding an empty pair when
+   its walk stops. `functions()` cannot reach that state: it binds through
+   `Bindings::per_record`, which **returns `None` unless the bound records are
+   1:1 with the `.ex` `4F 1F` segments, in order**. So on the emit path, either
+   the defined-name list is complete or there is no `IlFunction` at all.
+2. **The predicate reads every call carrier.** It is written over
+   `IlFunction::callees()`, which is the same iterator the symbol-accounting
+   gate uses — tail calls, the framed call, every call in a `CallSeq`, both arms
+   of a `CondTailPair`, both of an `IfCallJoin`, and the four transcription
+   classes' helpers.
+3. **A callee with no `.gl` symbol never gets that far**: `shape_to_function`
+   refuses a token that does not resolve, per function, before this is asked.
+
+**And the gate does NOT take the census's exemption.** §2.2's mechanism-E and
+mechanism-I yields are census-only; `functions()` refuses a locally-defined
+callee unconditionally, because `elide` and `splice` run inside
+`c2_core::comdat_function_body` and no obj has ever been emitted for a TU that
+defines one of its own callees.
+
+**What pins it against a future narrowing** — which is the whole reason this
+lane exists, since `WB_INLINE_FINDINGS.md` §7 proposes one — is
+`crates/c2-harness/tests/inline_fence.rs`: four cells assert
+`IlBundle::functions(...).is_none()` for a TU with an unmodelled local callee,
+and four more assert `is_some()` for the opaque twin. A widening that admits the
+first fails a test instead of shipping an obj.
+
+**What is NOT claimed.** That the port emits *correctly* for every call it does
+emit — `fnbyte-reloc-differs` is 861 and `fnbyte-differs` 2,554, and neither is
+this fence's business. And that the census is honest about this class: it is not,
+on 845 of 871 TUs (§4), and that is a driver being wrong, not an obj.
+
+---
+
 ## 3. The census delta, signed and script-counted BY NAME
 
 ```text
