@@ -1,0 +1,12 @@
+baseline: neg 7/7 GAP, pos 3/3 ok
+
+N1: cell 0 — moved [0] — positive lost [] — EXACT
+N2: cell 1 — moved [1] — positive lost [2] — EXACT
+N3: cell 2 — moved [2] — positive lost [] — EXACT
+N4: cell 3 — moved [3] — positive lost [] — EXACT
+N5: cell 4 — moved [4] — positive lost [] — EXACT
+N6: cell 5 — moved [5] — positive lost [0] — EXACT
+N7: cell 6 — moved [6] — positive lost [] — EXACT
+
+final crates/ diff:  M crates/c2-harness/tests/pool_cells.rs
+
