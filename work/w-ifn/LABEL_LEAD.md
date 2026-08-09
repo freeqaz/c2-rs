@@ -1,5 +1,37 @@
 # W-IFN — the compiler-label lead of the three `mmio.cpp` shapes, MEASURED
 
+> ## ⚠ THIS DOCUMENT'S CONCLUSION IS REFUTED, AND THE REFUTATION IS THE FINDING
+>
+> **Everything measured below is correct and the conclusion drawn from it is
+> wrong.** The strides are exactly as tabulated — 5 under `/Gy`, 4 packed, on
+> all three shapes, twice independently — and the sentence *"this class needs no
+> `label_lead` arm and no `label_slots` arm at all"* is **false**. The TU's
+> **first `memcpy`-minting function takes one extra counter slot before its own
+> `$M` triple**, once per TU, and the class needed it.
+>
+> **A slot taken before the FIRST function's triple moves that function's labels
+> and every later one's *equally*, so no in-TU stride can see it.** Every
+> measurement in this file put the subject FIRST. It was caught by the
+> differential — the fixture graded `Port=Mismatch` with every body byte-exact
+> and the whole triple one low — and not by any counterfactual.
+>
+> `w-blockir` board **#2305** recorded the mirror of this: a wrong charge on the
+> **LAST** function of a TU moves nothing after it, so a `_neg` cell that puts
+> the subject last cannot fail. Together:
+>
+> > **A stride measurement is blind at BOTH ends of a function list. Put the
+> > subject in the MIDDLE, or read the absolute numbers against a modelled
+> > seed.**
+>
+> `w-json`'s counterfactual form, which four lanes have now used, has this hole.
+> The three cells that DO see the charge are
+> `work/w-ifn/probe/lab_{x,y,z}.cpp`, and they are tabulated in
+> `work/w-ifn/MMIO_PRICE.md` §2.3. **This file is kept as written**, with this
+> banner, because the sequence is worth more than the corrected number: the
+> §"Three findings" section below is a lane reasoning carefully from four sound
+> seed-free measurements to a false conclusion, which is the failure mode the
+> banner exists to make legible.
+
 `docs/LABEL_COUNTER.md`'s published surcharges have now been measured wrong by
 **four consecutive lanes** (`w-json` by two, `w-bdnz` by six, `w-main` by
 twenty-five, `w-blockir` by nine), and `w-blockir` additionally found the charge
@@ -57,7 +89,7 @@ lead_cctl o1: $M2575 $M2574 $T2576
 lead_cctl ox: $M2563 $M2562 $T2564
 ```
 
-## The finding, and it is the OPPOSITE of the last four lanes'
+## The finding, and it is the OPPOSITE of the last four lanes' — AND IT IS WRONG (see the banner)
 
 **All three shapes charge exactly what an ordinary framed call charges: 5 under
 `/Gy` and 4 packed, i.e. `label_lead() == 0`.** `coff::plan_labels`
@@ -97,7 +129,7 @@ three are framed:
 each charging 1 — so the subject charges **5** again. Two derivations, one from
 one-cell counterfactuals and one from the target's own obj, agreeing.
 
-## The must-fail mutation
+## The must-fail mutation — inverted by the banner
 
 Because `label_lead()` is 0 and `label_slots` needs no arm, the mutation that
 has to fail is the *opposite* of the last four lanes': it is adding a charge

@@ -765,6 +765,27 @@ already paid for codegen:
      A wrong count here is a wrong obj with every body byte-exact.
   6. **`@comp.id` and the 13 fixed shell slots**, and the string table that
      follows from every name above.
+  7. **A MINTED INTRINSIC EXTERNAL, and its own once-per-TU label slot.**
+     *Added 2026-08-09 by lane `w-ifn` (#2354, #2353), the day after this
+     enumeration was written, and it is trap 0's shape applied to the
+     enumeration itself: the list was complete over the classes the port then
+     emitted.* `memcpy` arrives in the `.ex` as **intrinsic selector 172 on a
+     `40` token** and has **no `.gl` record at all** — so it is not a callee in
+     the sense item 3 means, and `IlFunction::callees` must NOT name it. It owes
+     two things:
+     * **placement** — after the FIRST user's `$T` label, on
+       `Function::helper_externals` (item 4's slot, reached from an intrinsic
+       instead of from the frame), and **not** in the callee region between the
+       two `$M`s, where an IL-named callee goes. `work/w-ifn/probe/lab_z.cpp`
+       is one obj showing both placements;
+     * **one compiler-label slot, once per TU**, before the first minting
+       function's own triple — item 5's `_fltused` rule, one external over.
+       Measured `[framed, sub]` stride **6**, `[framed, sub1, sub2, framed]`
+       strides **6, 5, 5**.
+
+     **Both were live wrong emits when `w-ifn`'s class first shipped**, with
+     every body byte-exact, which is exactly what T1 below detects. Any future
+     class that mints an external the IL does not name inherits both.
 * **NC-2 — a SECTION obligation.** The section set (factor **C**: 10 writer
   names of 13 workload names), the section *count* at file offset 2, the section
   *order* (Rule S1's three `.bss` slots, **#1148**/**#1179**), and `.pdata`'s
@@ -788,7 +809,7 @@ by construction.
 
 | test | catches | how |
 |---|---|---|
-| **T1 ALL-EXACT-NO-MATCH** | NC-1, NC-2 | from a `c2rs gap --jsonl` scan: `fnbyte-denominator > 0` ∧ `fnbyte-exact == fnbyte-denominator` ∧ `class != match`. This is `w-blockir`'s shape one day before it converted. `work/w-nc/sweep.py` |
+| **T1 ALL-EXACT-NO-MATCH** | NC-1, NC-2 | from a `c2rs gap --jsonl` scan: `fnbyte-denominator > 0` ∧ `fnbyte-exact == fnbyte-denominator` ∧ `class != match`. This is `w-blockir`'s shape one day before it converted. `work/w-nc/sweep.py`. **`w-ifn` fired it a fourth time the same day, on a FIXTURE rather than a workload TU**: `fnbyte-exact 2 · fnbyte-differs 0` with the whole obj `mismatch`, over the two obligations item 7 adds — so the test works at fixture scale, which is where a conversion lane meets it first |
 | **T1b ZERO-BYTE** | NC-1, NC-2 | `fnbyte-denominator == 0` ∧ `class != match` — the reference obj has no code at all, so the *entire* remaining distance is a whole-obj obligation |
 | **T2 emitted-side refusal keys** | NC-3, NC-4 | the census verdict key of every `fnbyte-refused` **emitted** function. `work/w-nc/keys.py` + the reverted `C2RS_NC_KEYS` scratch. The published `fn_blockers` is over all 2.4 M bodies and is fail-open on 845 of 871 TUs (#2220); this one sums to `fnbyte-refused` |
 | **T3 the type-tag regex** | NC-3 | `(type\|target)-[0-9A-F]{4}` over T2's keys |
