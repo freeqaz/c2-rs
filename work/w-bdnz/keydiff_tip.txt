@@ -1,0 +1,6 @@
+
+=== bodies (fn_blockers): 635 keys, 0 moved (0 appeared, 0 vanished)
+    totals base 1751929 -> tip 1751929 (must be equal: True)
+
+=== emitted (emit_blockers): 614 keys, 0 moved (0 appeared, 0 vanished)
+    totals base 130560 -> tip 130560 (must be equal: True)

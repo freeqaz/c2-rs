@@ -1,0 +1,24 @@
+  [  0] GAP ctr-loop-body-scope-close-0x53
+  [  1] GAP ctr-loop-body-designator-0x53
+  [  2] GAP ctr-loop-ctr-not-a-local-0x33
+  [  3] GAP ctr-loop-step-not-1-0x0F
+  [  4] GAP ctr-loop-incr-lit-0xB9
+  [  5] GAP ctr-loop-test-not-lt-0x33
+  [  6] GAP ctr-loop-operand-not-formal1-0x11
+  [  7] GAP ctr-loop-body-operand-load-0x26
+  [  8] GAP ctr-loop-body-not-the-accumulator-0x33
+  [  9] GAP ctr-loop-bound-not-formal0-0x22
+  [ 10] GAP result-type-0x33
+  [ 11] GAP ctr-loop-body-operand-load-0x33
+  [ 12] GAP ctr-loop-body-op-0x0F
+  [ 13] GAP ctr-loop-body-op-0x12
+  [ 14] GAP ctr-loop-acc-init-wide-0x32
+  [ 15] GAP ctr-loop-formals-not-2-0x26
+  [ 16] GAP ctr-loop-acc-not-a-local-0x33
+  [ 17] GAP ctr-loop-acc-not-a-local-0x33
+  [ 18] GAP ctr-loop-ctr-start-not-zero-0x32
+  [ 19] GAP ctr-loop-test-not-lt-0x21
+  [ 20] GAP ctr-loop-test-not-lt-0x20
+  [ 21] GAP ctr-loop-ctr-init-lit-0xB9
+  [ 22] GAP ctr-loop-for-scope-0x26
+  blocking features (">" marks the byte that blocked the parse):
