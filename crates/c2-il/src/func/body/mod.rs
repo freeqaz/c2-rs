@@ -27,6 +27,7 @@ use self::shapes::{
     try_parse_guard_chain_shared_tail,
     try_parse_alloc_init_or_fail,
     try_parse_osf_handle_guard,
+    try_parse_guard_ret_chain,
     try_parse_json_utf8_copy,
     try_parse_xlrc_create_guard,
     try_parse_if_call_join,
@@ -685,6 +686,10 @@ pub(crate) enum BodyShape {
     /// **W-OSFINFO** — a range-and-flag guarded two-level table lookup whose two
     /// failure statements are tail-merged with its success statement.
     OsfHandleGuard(crate::func::OsfHandleGuard),
+    /// **W-IFN** — a framed guard chain whose arms are `return K` and whose
+    /// spine is a block copy. See [`shapes::guard_ret_chain`] for the class and
+    /// [`crate::func::GuardRetChain`] for the fields.
+    GuardRetChain(crate::func::GuardRetChain),
     /// **W-XLR** — a two-stage create/attach guard whose four failure paths
     /// converge on one returned status, and the first class this port emits
     /// whose frame goes through the `__savegprlr_N` helper.
@@ -2275,6 +2280,30 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // moves.
             if let Ok(shape) = try_parse_osf_handle_guard(seg, p, lo) {
                 disp("disp-osf-handle-guard");
+                return Ok(shape);
+            }
+            // **W-IFN — the guard chain whose arms are `return K`.** Asked LAST
+            // among the framed productions of this arm, and the position went
+            // the conservative way rather than on a disjointness argument this
+            // lane has not proved on cells.
+            //
+            // Its first four tokens — `B9 <formal> <PTR>`, `33 <PTR> 0`, `1F`,
+            // `38` — are shared VERBATIM with `cond_tail_pair`, `guarded_seq`,
+            // `early_return_seq` and `alloc_init_or_fail`, all of which live in
+            // this same arm. Rather than assert a disjointness on four bytes,
+            // the production goes after every one of them, so *"no body any
+            // production above accepts today can move"* is true by
+            // construction. That is `w-bdnz`'s frozen fence order applied in
+            // this arm, and `work/w-ifn/NEG_CLAUSES.md`'s per-key counterfactual
+            // is what checks it.
+            //
+            // Non-committal on the same terms as the rest of the ladder: its own
+            // cursor, `Err` on the first byte outside its grammar, so a body that
+            // declines still reports the arm's blocker (`expr-cmp-eq`, which is
+            // what all three `mmio.cpp` bodies read at this lane's base) and no
+            // census key moves.
+            if let Ok(shape) = try_parse_guard_ret_chain(seg, p, lo) {
+                disp("disp-guard-ret-chain");
                 return Ok(shape);
             }
             // **The integer divide/modulo leaf.** Tried here because it is the

@@ -27,6 +27,7 @@ use crate::codegen::leaf::load::indirect_load_text;
 use crate::codegen::div_mod_leaf::div_mod_leaf_text;
 use crate::codegen::ptr_walk_chain_loop::ptr_walk_chain_loop_text;
 use crate::codegen::alloc_init_or_fail::alloc_init_or_fail_text;
+use crate::codegen::guard_ret_chain::guard_ret_chain_text;
 use crate::codegen::osf_handle_guard::osf_handle_guard_text;
 use crate::codegen::xlrc_create_guard::xlrc_create_guard_text;
 use crate::codegen::json_utf8_copy::json_utf8_copy_text;
@@ -178,6 +179,13 @@ pub enum Selected {
     /// Built through
     /// [`crate::codegen::osf_handle_guard::osf_handle_guard_text`].
     OsfHandleGuard,
+    /// **W-IFN — the guard chain with a materialised common epilogue.** The
+    /// same contract [`Selected::OsfHandleGuard`] has, one block plan over: a
+    /// unit variant, because the body is a pure function of `f.guard_ret_chain`
+    /// and `base_off` and its ONE `bl` word encodes its own `.text` offset.
+    /// Built through
+    /// [`crate::codegen::guard_ret_chain::guard_ret_chain_text`].
+    GuardRetChain,
     /// **W-XLR — the two-stage create/attach guard.** The bytes come from
     /// [`crate::codegen::xlrc_create_guard::xlrc_create_guard_text`], which is
     /// the only emitter that builds a `__savegprlr_N` frame. Four REL24 sites,
@@ -344,6 +352,17 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
         // both writers ask it in exactly one place.
         osf_handle_guard_text(func.osf_handle_guard.as_ref().unwrap(), 0, mode)?;
         return Ok(Selected::OsfHandleGuard);
+    }
+    // **W-IFN — the guard chain with a materialised common epilogue.** Same
+    // placement argument as its neighbours and the same freedom: the field is
+    // set by exactly one parser production, `func.ops` is empty for it, and no
+    // leaf pattern-matcher can take its body.
+    if func.guard_ret_chain.is_some() {
+        // The mode gate is asked in the emitter as well as in the parser (board
+        // #1638), and calling the emitter here is what makes `function_gate` and
+        // both writers ask it in exactly one place.
+        guard_ret_chain_text(func.guard_ret_chain.as_ref().unwrap(), 0, mode)?;
+        return Ok(Selected::GuardRetChain);
     }
     // **W-XLR — the two-stage create/attach guard.** Same placement argument as
     // its four neighbours and the same freedom: the field is set by exactly one

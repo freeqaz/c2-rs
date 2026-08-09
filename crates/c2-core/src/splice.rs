@@ -479,6 +479,7 @@ pub fn splice_callee_why<'a>(
         Selected::AllocInitOrFail => return Err("S3-alloc-init-or-fail"),
         // W-OSFINFO: same clause, same reason — thirty-one words and TWO calls.
         Selected::OsfHandleGuard => return Err("S3-osf-handle-guard"),
+        Selected::GuardRetChain => return Err("S3-guard-ret-chain"),
         // W-XLR: same clause, same reason — thirty-eight words and FOUR
         // relocations, two of which are its own frame's helpers. A splice would
         // have to reproduce a prologue that calls out of the function.

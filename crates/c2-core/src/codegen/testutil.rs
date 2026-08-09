@@ -38,6 +38,7 @@ pub(crate) fn func_with(params: Vec<u32>, ops: Vec<IlOp>) -> IlFunction {
         guard_chain_shared_tail: None,
         alloc_init_or_fail: None,
         osf_handle_guard: None,
+        guard_ret_chain: None,
         xlrc_create_guard: None,
         json_utf8_copy: None,
         params,

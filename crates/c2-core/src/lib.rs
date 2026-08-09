@@ -930,6 +930,25 @@ impl PortC2 {
                         Vec::new(),
                     )
                 }
+                codegen::Selected::GuardRetChain => {
+                    let g = f
+                        .guard_ret_chain
+                        .as_ref()
+                        .expect("GuardRetChain implies guard_ret_chain");
+                    let body = codegen::guard_ret_chain::guard_ret_chain_text(g, off, mode)?;
+                    frame = Some(coff::Frame {
+                        prolog_len: body.prolog_len,
+                        func_len: body.text.len() as u32,
+                    });
+                    text.extend_from_slice(&body.text);
+                    (
+                        vec![coff::Call {
+                            reloc_offset: body.bl_offset,
+                            callee: codegen::guard_ret_chain::MEMCPY_NAME,
+                        }],
+                        Vec::new(),
+                    )
+                }
                 codegen::Selected::IfCallJoin => {
                     let j = f.if_call_join.as_ref().expect("IfCallJoin implies if_call_join");
                     let body = codegen::if_call_join::if_call_join_text(j, off, mode)?;
