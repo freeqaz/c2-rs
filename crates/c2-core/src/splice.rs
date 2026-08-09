@@ -1425,4 +1425,54 @@ mod tests {
         assert_eq!(tu.definitions(), 0);
         assert!(tu.definition("").is_none());
     }
+
+    /// **`S7-callee-noinline` — the shipped wrong emit, closed.**
+    ///
+    /// `crates/c2-harness/tests/noinline_boundary.rs` cell `w10` is
+    /// `__declspec(noinline) int g(int a){return a+1;} int f(int a){return g(a);}`
+    /// and it records what the port does today: the splice puts `?g`'s body into
+    /// `?f` where c2 emits `b ?g`. That file's note says the port *"cannot read
+    /// the attribute"*; `c2_il::func::gl::FN_FLAG_INLINABLE` is the attribute,
+    /// and this is the refusal it buys.
+    ///
+    /// The control is the same TU with the flag left `None`, which still
+    /// splices — so the cell measures the attribute and not the shape.
+    #[test]
+    fn a_noinline_callee_is_not_spliced() {
+        let g = leaf("?g@@YAHH@Z");
+        let caller = tail("?f@@YAHH@Z", "?g@@YAHH@Z");
+        let sel = select_function(&caller, OptMode::O1).expect("the caller lowers");
+
+        let tu_ok = TuContext::of_rows(vec![("?g@@YAHH@Z", Some(Reduction::Parsed(&g)), None)]);
+        assert!(
+            splice_body_why(&caller, &sel, OptMode::O1, &tu_ok).is_ok(),
+            "the CONTROL must splice, or the cell below is measuring the shape"
+        );
+
+        let mut g_ni = leaf("?g@@YAHH@Z");
+        g_ni.inlinable = Some(false);
+        let tu_ni =
+            TuContext::of_rows(vec![("?g@@YAHH@Z", Some(Reduction::Parsed(&g_ni)), None)]);
+        assert!(
+            matches!(
+                splice_body_why(&caller, &sel, OptMode::O1, &tu_ni),
+                Err(SpliceDecline::Refused("S7-callee-noinline"))
+            ),
+            "c2 emits `b ?g` here; the port must not emit ?g's body — and the \
+             clause KEY is asserted, not merely that something refused, because \
+             a cell that passes on the wrong clause is a cell that tests nothing"
+        );
+
+        // `Some(true)` is a positive permission and `None` is UNASKED, and
+        // neither may move the splice — the must-fail half of the pair.
+        for flag in [None, Some(true)] {
+            let mut g2 = leaf("?g@@YAHH@Z");
+            g2.inlinable = flag;
+            let tu = TuContext::of_rows(vec![("?g@@YAHH@Z", Some(Reduction::Parsed(&g2)), None)]);
+            assert!(
+                splice_body_why(&caller, &sel, OptMode::O1, &tu).is_ok(),
+                "inlinable = {flag:?} must leave the splice exactly where it was"
+            );
+        }
+    }
 }
