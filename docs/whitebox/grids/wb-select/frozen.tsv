@@ -1,0 +1,101 @@
+# FROZEN BEFORE THE FIRST cl.exe OF select_grid.cpp — lane wb-select (WB-I), 2026-08-09.
+# Scored in docs/whitebox/WB_SELECT_FINDINGS.md §7.  A cell whose premise fails is
+# scored a MISS, not excluded (wb-regalloc §7.4's rule, inherited).
+#
+# ---------------------------------------------------------------------------
+# WHAT THE READING SAYS, in the form the cells test
+#
+#  A value-producing relational reaches FUN_10c1b517 @ 0x10c1b517 as tuple
+#  opcode 0x2ea.  It races two expanders, both of which return a COST when
+#  called with param_2 == 0 and EMIT when called with param_2 == 1, and the
+#  driver takes the cheaper with TIES GOING TO B:
+#
+#    A = FUN_10c1ac5c @ 0x10c1ac5c   the CARRY idiom
+#        normalise the relation to canonical `local_c >u local_8` using
+#          rel 1 (==)  -> swap the two RESULT values, become rel 2
+#          rel 2 (!=)  -> require the compare's 2nd operand to be constant 0,
+#                         become rel 8
+#          rel 7 (<u)  -> swap the COMPARE operands, become rel 8
+#          rel 9 (<=u) -> swap the two RESULT values, become rel 8
+#          rel 10 (>=u)-> swap COMPARE operands, become rel 9, then as rel 9
+#          anything else (3,4,5,6 = the SIGNED relations, and the floats)
+#                      -> return 500  == infeasible
+#        then emit, with base = second result operand and delta = first - second:
+#          [li rT, K]                if local_c is a constant       (+1 cost)
+#          subfic rD, local_c, SIMM  if local_8 is a 16-bit constant
+#          subfc  rD, local_c, local_8   otherwise                  (base 2)
+#          lcarry (0x28c)  ->  subfe rD,rD,rD      == XER[CA] - 1
+#          [rlandi rD, 0, delta]     unless delta == -1             (+mask cost)
+#          [addi rD, rD, base]       unless base == 0               (+1)
+#        so `cost` is a word count, and mask = -1 exactly when the canonical
+#        relation is TRUE.
+#
+#    B = FUN_10c1af2d @ 0x10c1af2d   the CNTLZW idiom
+#        requires the compare's 2nd operand to be the constant 0 OR the
+#        relation to be == / != ; requires the two result values to differ and
+#        |delta| == 1 or {0, power of two}.  Emits
+#          [addi rD, x, -K]  or  [subf]   to bring the compare to zero
+#          [cntlzw]                        an extra one for a SIGNED relation
+#          cntlzw rD, rD
+#          rlandi rD, 27, 1   == rlwinm rD,rD,27,31,31 == srwi rD,rD,5
+#          [xori rD, rD, 1] [neg] [addi base] [rlandi log2(delta)]
+#
+#  and FUN_10c1b315 @ 0x10c1b315 is the profitability gate applied upstream in
+#  p2\misc.c (caller 0x10b813f1): if-convert only when 2*cost < 20 at /O1
+#  (DAT_10c2e310 == 0) or cost < 10 under favour-speed.  cost 500 therefore
+#  means NO branchless form at all.
+#
+# ---------------------------------------------------------------------------
+# THE RIVALS
+#
+# R-LC1  the `lcarry` pseudo expands to `subfe rD,rD,rD` and the base is a
+#        separate `addi rD,rD,base`   (what FUN_10c1ac5c literally emits)
+# R-LC2  a later peephole folds `subfe rD,rD,rD` + `addi rD,rD,base` into
+#        `li rT,-base` + `subfze rD,rT`  (same word count)
+#        -- R-LC2 is registered because the calibration cell wbk_4 showed
+#           exactly that shape and FUN_10c1ac5c does not contain it.
+# R-M1   the rlandi mask expands to `rlwinm rD,rD,0,mb,me` when the mask is a
+#        contiguous bit run
+# R-M2   the rlandi mask expands to `andi. rD,rD,mask` when it fits 16 bits
+# R-SB1  `x < 0` as a value is a one-word `srwi rD,rX,31`, i.e. a peephole
+#        beats the read cntlzw/cntlzw/srwi form
+# R-SB2  `x < 0` as a value is the read three-word cntlzw/cntlzw/srwi form
+#
+# ---------------------------------------------------------------------------
+# COLUMNS
+#   cell | predicted mnemonic sequence (PRIMARY, graded) | predicted words with
+#   registers (SECONDARY, graded separately) | predicted cost | rival elected
+#
+cell	primary_mnemonic_sequence	secondary_words_with_registers	cost	rival
+wbs_s1	li ; subc ; subfe ; addi ; blr	li r11,10 / subc r10,r3,r11 / subfe r10,r10,r10 / addi r3,r10,2 / blr	4	R-LC1
+wbs_s2	subc ; subfe ; addi ; blr	subc r11,r3,r4 / subfe r11,r11,r11 / addi r3,r11,2 / blr	3	R-LC1
+wbs_s3	subfic ; subfe ; rlwinm ; addi ; blr	subfic r11,r3,7 / subfe r11,r11,r11 / rlwinm r11,r11,0,28,28 / addi r3,r11,4 / blr	4	R-LC1+R-M1
+wbs_s4	cntlzw ; rlwinm ; xori ; addi ; blr	cntlzw r11,r3 / rlwinm r11,r11,27,31,31 / xori r11,r11,1 / addi r3,r11,5 / blr	4	B wins the tie
+wbs_s5	CLASS: a real compare-and-branch. contains cmpwi ; contains a conditional branch ; contains NO subfc/subfic/subfe/cntlzw	(not predicted word-exact: block order is WB-H's subject)	500	neither expander
+wbs_s6	CLASS: contains exactly two cntlzw and one rlwinm rD,rD,27,31,31 ; contains NO subfc/subfic/subfe ; 4 or 5 words incl. blr	(not predicted word-exact)	4	B
+wbs_b1	li ; subc ; subfe ; rlwinm ; blr	li r11,10 / subc r10,r3,r11 / subfe r10,r10,r10 / rlwinm r3,r10,0,31,31 / blr	4	R-LC1+R-M1
+wbs_b2	subc ; subfe ; rlwinm ; blr	subc r11,r4,r3 / subfe r11,r11,r11 / rlwinm r3,r11,0,31,31 / blr	3	R-LC1+R-M1
+wbs_b3	cntlzw ; cntlzw ; rlwinm ; blr	cntlzw r11,r3 / cntlzw r11,r11 / rlwinm r3,r11,27,31,31 / blr	3	R-SB2
+wbs_k1	srawi ; addze ; blr	srawi r3,r3,3 / addze r3,r3 / blr	2	-
+wbs_k2	rlwinm ; blr	rlwinm r3,r3,0,24,31 / blr	1	R-M1
+wbs_k3	subc ; subfe ; rlwinm ; add ; blr	subc r11,r3,r4 / subfe r11,r11,r11 / rlwinm r11,r11,0,31,31 / add r3,r11,r5 / blr	4	R-LC1+R-M1
+#
+# ---------------------------------------------------------------------------
+# SEPARATION ASSERTION, checked before the run
+#
+#  * R-LC1 vs R-LC2 separate on wbs_s1, wbs_s2 (2 cells, floor 2).
+#  * R-M1 vs R-M2 separate on wbs_s3, wbs_k2, wbs_b1, wbs_b2, wbs_k3 (5 cells).
+#  * R-SB1 vs R-SB2 separate on wbs_b3 (1 cell) — asserted as the weakest pair
+#    and reported as such whichever way it lands.
+#  * A-vs-B separates on wbs_s1/s2/s3 (A) against wbs_s4/s6/b3 (B): 6 cells.
+#  * The "cost 500 means no branchless form" claim separates on wbs_s5 alone
+#    against every other S cell.
+#
+#  CELLS THE PORT (c2-core) DOES NOT EMIT TODAY, asserted floor 4:
+#    wbs_s1, wbs_s2, wbs_s3, wbs_s4, wbs_s6, wbs_b1, wbs_b2, wbs_b3, wbs_k1,
+#    wbs_k2, wbs_k3  = 11.
+#  COMBINATION CELLS (more than one C operator, or one operator whose lowering
+#  is more than one word with a carry dependency), asserted floor 2:
+#    wbs_k1 (one `/` -> srawi + addze, carry-coupled), wbs_k3 (relational into
+#    an add), and wbs_s1/s3 (a relational whose two result constants take part
+#    in the selection) = 4.
