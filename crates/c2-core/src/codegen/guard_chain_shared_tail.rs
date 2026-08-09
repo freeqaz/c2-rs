@@ -332,6 +332,9 @@ mod tests {
             ret_fail: -1,
             // `wchar_t *buffer` — a halfword. `vsnprnc()` below is the byte.
             store_width: 2,
+            // vswprnc.cpp writes each error arm out; vsnprnc.cpp sinks them.
+            // The bytes are identical and only the label lead differs.
+            sunk_arms: false,
         }
     }
 
@@ -355,6 +358,7 @@ mod tests {
             sentinel: -2,
             ret_fail: -1,
             store_width: 1,
+            sunk_arms: true,
         }
     }
 

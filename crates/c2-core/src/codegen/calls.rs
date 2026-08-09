@@ -3035,6 +3035,74 @@ mod tests {
     /// the whole assertion: emitting them ascending is byte-wrong on every call
     /// that carries more than one constant.
     #[test]
+    fn the_spliced_literal_matches_grid_l_at_every_arity_it_graded() {
+        use c2_il::SlotArg::{Formal, Lit};
+        // GRID-L's four families, transcribed from the reference objs. `mr rD,rS`
+        // is `7c 00 03 78 | S<<21 | D<<16 | S<<11`; the constants below are the
+        // words `scripts/gt_dump.py` printed.
+        //
+        // l1_n4 — `vsnprnc.cpp::vsprintf_s` itself: one move, `li` into the
+        // register that move just read.
+        assert_eq!(
+            permute_args_text(&[Formal(0), Formal(1), Formal(2), Lit(0), Formal(3)]).unwrap(),
+            vec![
+                0x7C, 0xC7, 0x33, 0x78, // mr r7,r6
+                0x38, 0xC0, 0x00, 0x00, // li r6,0
+            ]
+        );
+        // l2_n4 — TWO moves, descending, then the `li`.
+        assert_eq!(
+            permute_args_text(&[Formal(0), Formal(1), Lit(0), Formal(2), Formal(3)]).unwrap(),
+            vec![
+                0x7C, 0xC7, 0x33, 0x78, // mr r7,r6
+                0x7C, 0xA6, 0x2B, 0x78, // mr r6,r5
+                0x38, 0xA0, 0x00, 0x00, // li r5,0
+            ]
+        );
+        // l4_n3 — the literal FIRST: every formal shifts and the `li` lands in
+        // r3 last. The far edge, and the cell where a rule that emitted the
+        // literal first would pass three arguments wrong.
+        assert_eq!(
+            permute_args_text(&[Lit(0), Formal(0), Formal(1), Formal(2)]).unwrap(),
+            vec![
+                0x7C, 0xA6, 0x2B, 0x78, // mr r6,r5
+                0x7C, 0x85, 0x23, 0x78, // mr r5,r4
+                0x7C, 0x64, 0x1B, 0x78, // mr r4,r3
+                0x38, 0x60, 0x00, 0x00, // li r3,0
+            ]
+        );
+    }
+
+    /// **The splice class and the shipped WLB two-slot cell are DISJOINT**, and
+    /// the fixture `wvsnprnc_lit_insert_tail_neg.cpp::n2` is this in C++.
+    ///
+    /// `[Formal(2), Lit]` DROPS formals 0 and 1. No insertion produces that, so
+    /// it must still reach `one_moved_formal_text` — which emits the hoist —
+    /// rather than the splice path. Asserted on the bytes, because both paths
+    /// would produce *something* and only one of them is right.
+    #[test]
+    fn a_dropped_formal_is_not_an_insertion() {
+        use c2_il::SlotArg::{Formal, Lit};
+        // `void f(int a,int b,int c){ g2(c, 7); }` — the `li` FIRST (descending),
+        // because r4 does not hold the value the move needs.
+        assert_eq!(
+            permute_args_text(&[Formal(2), Lit(7)]).unwrap(),
+            vec![
+                0x38, 0x80, 0x00, 0x07, // li r4,7
+                0x7C, 0xA3, 0x2B, 0x78, // mr r3,r5
+            ]
+        );
+        // And the WLB hoist cell, where it does.
+        assert_eq!(
+            permute_args_text(&[Formal(1), Lit(7)]).unwrap(),
+            vec![
+                0x7C, 0x83, 0x23, 0x78, // mr r3,r4
+                0x38, 0x80, 0x00, 0x07, // li r4,7
+            ]
+        );
+    }
+
+    #[test]
     fn a_literal_call_argument_is_one_li_and_two_of_them_descend() {
         use c2_il::SlotArg::{Formal, Lit};
         // `void f(int a,int b){ g3(a, b, 7); }` -> `li 5,7` (38a00007).
