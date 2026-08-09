@@ -1,0 +1,51 @@
+== <repo>/work/w-blockir/probe/ipp_o1.obj  machine=0x01f2 nsec=8 nsym=24 size=1453
+-- .text #5 (48 B) ?Add_InPlace@IPP@@YAXIPBMPAM@Z
+   0000  7cab2b78  mr	11, 5                        
+   0004  2b030000  cmplwi 6, 3, 0                  
+   0008  4d9a0020  bclr	12, 26                     
+   000c  7c6903a6  mtctr 3                         
+   0010  7d452050  sub	10, 4, 5                    
+   0014  7c0a5c2e  lfsx 0, 10, 11                  
+   0018  c1ab0000  lfs 13, 0(11)                   
+   001c  ec00682a  fadds 0, 0, 13                  
+   0020  d00b0000  stfs 0, 0(11)                   
+   0024  396b0004  addi 11, 11, 4                  
+   0028  4200ffec  bdnz .-20                       
+   002c  4e800020  blr                             
+-- .text #6 (36 B) ?MulConstant_InPlace@IPP@@YAXIPAMM@Z
+   0000  2b030000  cmplwi 6, 3, 0                  
+   0004  4d9a0020  bclr	12, 26                     
+   0008  3964fffc  addi 11, 4, -4                  
+   000c  7c6903a6  mtctr 3                         
+   0010  c00b0004  lfs 0, 4(11)                    
+   0014  ec000072  fmuls 0, 0, 1                   
+   0018  d40b0004  stfsu 0, 4(11)                  
+   001c  4200fff4  bdnz .-12                       
+   0020  4e800020  blr                             
+-- .text #7 (48 B) ?Mul_InPlace@IPP@@YAXIPBMPAM@Z
+   0000  7cab2b78  mr	11, 5                        
+   0004  2b030000  cmplwi 6, 3, 0                  
+   0008  4d9a0020  bclr	12, 26                     
+   000c  7c6903a6  mtctr 3                         
+   0010  7d452050  sub	10, 4, 5                    
+   0014  7c0a5c2e  lfsx 0, 10, 11                  
+   0018  c1ab0000  lfs 13, 0(11)                   
+   001c  ec000372  fmuls 0, 0, 13                  
+   0020  d00b0000  stfs 0, 0(11)                   
+   0024  396b0004  addi 11, 11, 4                  
+   0028  4200ffec  bdnz .-20                       
+   002c  4e800020  blr                             
+-- .text #8 (52 B) ?Mul@IPP@@YAXIPBM0PAM@Z
+   0000  2b030000  cmplwi 6, 3, 0                  
+   0004  4d9a0020  bclr	12, 26                     
+   0008  7cab2b78  mr	11, 5                        
+   000c  7c6903a6  mtctr 3                         
+   0010  7d452050  sub	10, 4, 5                    
+   0014  7d253050  sub	9, 6, 5                     
+   0018  7c0a5c2e  lfsx 0, 10, 11                  
+   001c  c1ab0000  lfs 13, 0(11)                   
+   0020  ec000372  fmuls 0, 0, 13                  
+   0024  7c095d2e  stfsx 0, 9, 11                  
+   0028  396b0004  addi 11, 11, 4                  
+   002c  4200ffec  bdnz .-20                       
+   0030  4e800020  blr                             
