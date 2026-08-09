@@ -1398,4 +1398,61 @@ mod tests {
             "the two callers must never disagree about a variadic function"
         );
     }
+
+    /// **W-INLFENCE — the fence matches a whole mangled NAME, never a prefix.**
+    ///
+    /// The near-miss is in `fixtures/cpp/winlfence_opaque_callee.cpp` as cell
+    /// F5 and graded byte-exact there; this is the same claim at unit cost, so
+    /// the day someone rewrites the set membership as a `starts_with` the
+    /// portable lane fails without a toolchain.
+    #[test]
+    fn the_inline_fence_matches_a_whole_name_and_not_a_prefix() {
+        let defined: std::collections::BTreeSet<String> =
+            ["?wif_local_leaf@@YAHH@Z".to_string()].into_iter().collect();
+        let mut f = crate::func::IlFunction::base("?caller@@YAHH@Z", &None);
+        f.tail_call = Some("?wif_local_leaf_x@@YAHH@Z".to_string());
+        assert_eq!(
+            callee_defined_here(&f, &defined),
+            None,
+            "a callee of which a defined name is a strict PREFIX is a different \
+             symbol and c2 has no body for it"
+        );
+        f.tail_call = Some("?wif_local_leaf@@YAHH@Z".to_string());
+        assert_eq!(
+            callee_defined_here(&f, &defined),
+            Some("?wif_local_leaf@@YAHH@Z"),
+            "the exact name is the fence"
+        );
+    }
+
+    /// **The fence reads EVERY call edge, because it reads
+    /// [`crate::func::IlFunction::callees`].**
+    ///
+    /// A fence written against `tail_call` alone would have been green on every
+    /// cell of `winlfence_local_callee_neg.cpp` that is a tail call and silent
+    /// on its `CallSeq` ones — which is five of the seven, including the shape
+    /// of the one function the whole 878-TU workload takes back.
+    #[test]
+    fn the_inline_fence_reads_every_call_edge_and_not_only_the_tail() {
+        let defined: std::collections::BTreeSet<String> =
+            ["?g@@YAHH@Z".to_string()].into_iter().collect();
+        let mut f = crate::func::IlFunction::base("?caller@@YAHH@Z", &None);
+        f.framed_call = Some(crate::func::FramedCall {
+            callee: "?g@@YAHH@Z".to_string(),
+            add_k: 0,
+        });
+        assert_eq!(callee_defined_here(&f, &defined), Some("?g@@YAHH@Z"));
+    }
+
+    /// **An empty defined set fences nothing**, which is the direction this
+    /// predicate fails in and the reason the rung sizes the residue instead of
+    /// claiming coverage: `gl_defined_names` yields an empty pair when its walk
+    /// stops, and that is **845 of the 871 captured workload TUs**.
+    #[test]
+    fn an_empty_defined_set_fences_nothing_and_that_is_the_open_direction() {
+        let none = std::collections::BTreeSet::new();
+        let mut f = crate::func::IlFunction::base("?caller@@YAHH@Z", &None);
+        f.tail_call = Some("?g@@YAHH@Z".to_string());
+        assert_eq!(callee_defined_here(&f, &none), None);
+    }
 }
