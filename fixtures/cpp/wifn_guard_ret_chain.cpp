@@ -72,3 +72,21 @@ extern "C" long wifn_set_info(void *h, wifn_info *p, uint flags) {
     }
     return 0;
 }
+
+// ---- the downstream fence, and the two-placement cell ----------------------
+//
+// An ORDINARY framed call, LAST. Two things depend on its being here and both
+// are live:
+//
+//  * **the label fence is downstream-visible.** The TU's first `memcpy`-minting
+//    function takes one extra counter slot before its own `$M` triple, so a
+//    wrong charge moves this function's `$M`/`$M`/`$T` too. `w-blockir` board
+//    #2305 recorded the mirror of this — a wrong charge on the LAST function in
+//    a TU moves nothing after it, so a `_neg` cell that puts the subject last
+//    is a cell that cannot fail.
+//  * **both external placements are graded in ONE obj.** `?wifn_gz` is
+//    IL-named and lands BETWEEN this function's two `$M`s; `memcpy` is minted
+//    and lands after the FIRST subject's `$T`. A writer that used one placement
+//    for both would be right about the symbols and wrong about four indices.
+int wifn_gz(int);
+int wifn_after(int a) { return wifn_gz(a) + 7; }

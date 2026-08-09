@@ -25,6 +25,7 @@ mod comdat_tests {
             text_offset: off,
             calls: vec![Call { reloc_offset: off, callee }],
             is_float: false,
+            mints_memcpy: false,
             helper_externals: Vec::new(),
             fp_refs: Vec::new(),
             data_refs: Vec::new(),
@@ -68,6 +69,7 @@ mod comdat_tests {
             text_offset: 0,
             calls: vec![Call { reloc_offset: 0, callee }],
             is_float: false,
+            mints_memcpy: false,
             helper_externals: Vec::new(),
             fp_refs: Vec::new(),
             data_refs: Vec::new(),
@@ -412,6 +414,7 @@ mod tests {
         };
         let mk_fp = || Function {
             is_float: true,
+            mints_memcpy: false,
             fp_refs: vec![crate::codegen::FpConstRef {
                 hi_off: 0,
                 bits: 0x3FF0_0000_0000_0000,
@@ -1885,6 +1888,7 @@ mod tests {
         let text = vec![0u8; 12];
         let f = Function {
             is_float: true,
+            mints_memcpy: false,
             fp_refs: vec![crate::codegen::FpConstRef {
                 hi_off: 0,
                 bits: 0x3FF0_0000_0000_0000,
