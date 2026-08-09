@@ -363,12 +363,51 @@ pricing counted** — and the first of the three is the one that gates everythin
 | fixtures, `/Ox` | 144 match · **0 mismatch** of 327 |
 | **`c2rs selftest`** | **327 PASS · 0 ERROR** |
 | `scripts/board_audit.sh` | **0 / 0 / 0 / 0 / 0** |
-| `scripts/gate.sh --require-graded --jobs 6` | see §8.1 |
-| `cargo test -p c2-harness --release --test rung_registry` | **passes** |
+| `scripts/gate.sh --require-graded --jobs 6` | **18/18 PASS · 0 FAIL · 0 SKIP · 0 NO-RESULT · 5,886 fixture-verdicts · 0 mismatch anywhere** — §8.1 |
+| `cargo test -p c2-harness --release --test rung_registry` | **2 passed** |
 
 The base test count is a **counterfactual**, taken with
 `git checkout master -- crates/` at the rebased tree; this lane ships no fixture
 and no rung-named fixture, so nothing had to be moved aside for it.
+
+### 8.1 What the gate printed, quoted rather than summarised
+
+```
+O1                   PASS          327/327       161         0  /O1
+O1-Oi-EHsc-GR        PASS          327/327       162         0  /O1 /Oi /EHsc /GR
+Ox                   PASS          327/327       144         0  /Ox
+Od                   PASS          327/327        18         0  /Od
+expr-sweep           PASS        19556/19556   19460         0  generated cases
+mode-cross           PASS        90812/90812   90424         0  case-lane cells
+
+lanes:  18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT
+graded: 5886 fixture-verdicts across all lanes
+sweep:  PASS — 19556 of 19556 selected cases reached, 19460 GRADED, 0 mismatch
+cross:  PASS — 90424 of 90812 selected cells graded, 0 mismatch (product 90812)
+
+GATE: PASS (HATCH-RED REFUSED) — 18/18 lanes ran and every one of them graded a
+  corpus … with 0 mismatches anywhere
+```
+
+The sixteen fixture lanes all read `327/327` and the mode gate is visible in
+their own table: 161–162 match at the four `/O1` sets, 142–144 at the four
+`/Ox`, 18 at the four `/Od`. A run that graded 0 is a failure and not a pass, so
+the counts are quoted and not the statuses.
+
+**Three runs, and what makes them comparable is the BINARY.** `gate_tip.out`
+(tree `36e49048`, docs uncommitted), `gate_final.out` (tree `39c88230`) and
+`gate_clean.out` (tree `b6578c51`, a fully clean HEAD) all pin **the same
+harness, `sha a240638ad747`** — which is the statement that matters, since two
+runs of one tree can pin two binaries if a build lands between them.
+
+**`hatch-red` is `REFUSED` with `HATCH-STALE` (board #1389) in all three, and it
+is NOT this lane's.** The qualifier says the arms had no tree to run on, so the
+run does not establish what a full run establishes (board #1406). Checked
+rather than assumed: `python3 work/w-hatch/hatch_red.py` run directly gives the
+**identical** result — 14 arms, 10 of 10 leading words exercised, `final crates/
+diff: EMPTY`, `FAILED: R2 R6 A2 F1 C1` — at this tree's `crates/` **and** at
+`git checkout master -- crates/`. The condition predates the lane and is
+unmoved by it.
 
 ---
 
