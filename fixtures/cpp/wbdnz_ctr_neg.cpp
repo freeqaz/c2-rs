@@ -7,9 +7,20 @@
 // # Read the third column, because it is what makes this a measurement
 //
 // Every cell below was compiled by real `c2.dll` under wibo at the workload's
-// own `/O1 /Oi /EHsc /GR` before this file was written; the dumps are in
-// `work/w-bdnz/probe/L3.obj`, `L4.obj` and `N1.obj` and the conversion column
-// below is COUNTED off `N1.obj` by a script, not read by eye.
+// own `/O1 /Oi /EHsc /GR` before this file was written, and the conversion
+// column is COUNTED off the reference obj by a script, not read by eye.
+//
+// **The objs are NOT committed** — nothing under `fixtures/` or `work/` may
+// carry one — and neither are the `.cpp` copies a reader would otherwise have
+// to trust this comment about. Both regenerate from files that ARE committed,
+// in one command each (`work/w-bdnz/probe/{L3,L4}.cpp` and this file):
+//
+//     c2rs compile fixtures/cpp/wbdnz_ctr_neg.cpp --keep-obj /tmp/n.obj \
+//         --flags-file work/w-bdnz/o1.txt
+//     python3 scripts/gt_dump.py /tmp/n.obj --text-only
+//
+// Board #1127's lesson is that a rung's handover claims about its own artifacts
+// get checked, so this comment names a command rather than a path.
 //
 // **SIXTEEN of the twenty-three are loops c2 DOES convert** — they carry a
 // `mtctr`/`bdnz` in the reference obj and this port refuses them anyway, because
