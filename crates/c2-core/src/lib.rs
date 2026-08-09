@@ -836,8 +836,20 @@ impl PortC2 {
                         Vec::new(),
                         consts
                             .into_iter()
+                            // **BOTH halves are rebased.** `lo_off` used to be
+                            // `hi_off + 4` arithmetic in the writer, so this
+                            // `..r` was complete; once `w-biquad` made it a
+                            // field, rebasing only `hi_off` left the REFLO at a
+                            // function-relative offset and every packed obj with
+                            // a pooled constant in a function that is NOT FIRST
+                            // came out with its low-half relocation on the wrong
+                            // word — `w13b_fdedup.cpp`, `Port=Mismatch @ 760`.
+                            // Caught by the fixture-level neutrality scan at
+                            // `/Ox` and by nothing else: `w-fence2` #2475's
+                            // shape, one field along.
                             .map(|r| codegen::FpConstRef {
                                 hi_off: r.hi_off + off,
+                                lo_off: r.lo_off + off,
                                 ..r
                             })
                             .collect(),

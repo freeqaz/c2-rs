@@ -1,0 +1,39 @@
+lane gate: preflight on /tmp
+  keep    /tmp/c2rs-gate-1175240       this run
+  keep    /tmp/c2rs-gate-4107112       recent — 1 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-3148617       recent — 2 of 3 finished runs kept for their logs
+          stripped 19556 regenerable cases; logs, reports and parts/ kept
+  keep    /tmp/c2rs-gate-1878378       recent — 3 of 3 finished runs kept for their logs
+  reaped  /tmp/c2rs-gate-1567108       stale — no live gate owns it
+reap:   1 stale run tree(s) removed, 4 kept (0 live, 3 recent, 1 this run)
+strip:  1 kept tree(s) lost 19556 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
+        freed 171.2 MiB and 19,863 inodes (df delta over a SHARED filesystem)
+disk:   /tmp — free 19.3 GiB / 700,649 inodes (floors: 2.0 GiB / 150,000 inodes)
+
+lane gate: 18 lanes from /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a183e8a527984c88a/scripts/lanes.txt
+  run dir: /tmp/c2rs-gate-1175240   (per-lane run dirs under /tmp/c2rs-gate-1175240/lanes/)
+
+hatch-red:       work/w-hatch/hatch_red.py  (no toolchain; fires hatch.py's refusals)
+  REFUSED  HATCH-STALE `hatch.py apply` cannot hatch this tree, so the arms have no tree to run on (board #1389)
+ladder-red:      work/w-ladders/ladder_red.py  (no toolchain; fires ladder.py's width-table refusal)
+  PASS  
+building the harness (no-op if current)
+   Compiling c2-il v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/agent-a183e8a527984c88a/crates/c2-il)
+   Compiling c2-core v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/agent-a183e8a527984c88a/crates/c2-core)
+   Compiling c2-reference v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/agent-a183e8a527984c88a/crates/c2-reference)
+   Compiling c2-harness v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/agent-a183e8a527984c88a/crates/c2-harness)
+    Finished `release` profile [optimized] target(s) in 6.26s
+harness: /tmp/c2rs-gate-1175240/c2rs
+  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a183e8a527984c88a/target/release/c2rs  built 2026-08-09 15:55:23
+  sha 770b1db625d0  tree 71ce3ecc
+
+wall clock: 16s for 18 lanes at --jobs 6 (C2RS_JOBS=8)
+
+generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-1175240/sweep 0  (jobs 6)
+    62 fragments, 19556 cases total (19556 .cpp on disk)
+  sweeping 19556 of 19556 generated cases
+    grading at 6 job(s)
+  checked=19556 mismatches=0 graded=19460 ungraded=96 unknown=0
+  (203s)
+
+mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-1175240/cross 0  (jobs 6)
