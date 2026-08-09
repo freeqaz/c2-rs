@@ -1,0 +1,13 @@
+fn_blockers   635 keys, sum 1751929
+emit_blockers 614 keys, sum 130560
+
+key                                   bodies       %     emitted       %
+expr-intrinsic-memcpy                   3366  0.192%          99  0.076%
+expr-intrinsic-memset                  34795  1.986%        3749  2.871%
+  the family                           38161  2.178%        3848  2.947%
+
+memset / memcpy on the emitted column: 37.9x
+
+the neighbouring reader clauses, for the mmio chain:
+   call-arg-lit-permuted:eof          bodies     34   emitted     34
+   call-arg-lit-permuted:mid          bodies      1   emitted      1
