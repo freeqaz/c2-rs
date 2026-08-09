@@ -11292,8 +11292,8 @@ every callee its TU defines. Board **#2151**.
 
 **Why it keeps them is the size, and WB-INLINE reproduces from the other side.**
 Every same-TU call site crossed against the callee's own COMDAT size in c2's
-obj: below ~80 B the caller is **wrong 3,852** times and **right 10**; above it
-**right 1,071** and **wrong 7**.
+obj: below ~80 B the caller is **wrong 4,357** times and **right 10**; above it
+**right 1,071** and **wrong 9**.
 [`whitebox/WB_INLINE_FINDINGS.md`](whitebox/WB_INLINE_FINDINGS.md) F1/F9 were
 measured on 320 compiled cells at swept flags; this is the same boundary read
 out of the workload's own objs by the port's own failure pattern, on 60× the

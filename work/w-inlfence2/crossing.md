@@ -80,8 +80,14 @@ the callee (**the shippable input**; `none` = the port cannot lower it).
 | reloc-differs | > 308 B | 2 |
 
 > **The separation is at ~80 bytes and it is near-total**: below it the caller
-> is wrong 3,852 times and right 10; above it the caller is right 1,071 times
-> and wrong 7. That is `WB_INLINE_FINDINGS` F1/F9 reproduced from the other
+> is wrong 4,357 times and right 10; above it the caller is right 1,071 times
+> and wrong 9.
+>
+> **Those four totals are computed by `work/w-inlfence/sizetab.py`, not typed.**
+> The first version of this paragraph published *"wrong 3,852"* — it summed the
+> `<= 64 B` differs bucket and lost the 505 sites in `65–80 B` — and the slip
+> reached the rung, the board row and the ROADMAP before the script existed.
+> Corrected in place, and the script is the reason it stays corrected. That is `WB_INLINE_FINDINGS` F1/F9 reproduced from the other
 > side — c2 inlines the small callee and keeps the call to the large one — on a
 > population 60× the 320 cells that lane compiled, and with no flag axis.
 
