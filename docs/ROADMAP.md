@@ -11582,3 +11582,62 @@ resolving it.
 
 Boards **#2300**–**#2311**;
 [`rungs/2026-08-09-w-blockir.md`](rungs/2026-08-09-w-blockir.md).
+
+## 10.32 SESSION CLOSE 2026-08-09 — where the run stands, and the one thing that is RED
+
+Written at the funnel, not by a lane, so the next session starts from measured
+state rather than from the last lane's headline.
+
+**The metric.** `match` **19** of 871 graded · `mismatch` **0** · `codegen-gap`
+**0** · `vocab-gap` 852 · `capture-fail` 7 · FRONTIER **8** · `fnbyte-exact`
+**36,232** · `fnbyte-differs` 1,879 · census 712,241 / 2,463,443 · workspace
+**1,376 passed / 0 failed / 37 targets** (`--no-fail-fast`) · `gate.sh` **18/18,
+5,778 fixture-verdicts, 0 mismatch anywhere** · `board_audit.sh` five zeros over
+1,364 rows · `rung_registry` 2/2.
+
+**RED, and openly recorded rather than carried.** `c2rs selftest` exits non-zero:
+**319 PASS, 2 ERROR**. `fixtures/cpp/wmain_no_return{,_neg}.cpp` (lane `w-main`,
+#2260–#2266) exercise a real class — a non-`void` function with no `return`,
+which never emits the `3A` exit-label assignment — that the Xbox 360 `cl.exe`
+**rejects outright at the selftest profile** (`/Ox /GS- /c`) with
+`error C4716: must return a value`, while compiling cleanly at the workload's
+flags (`/O1 /Oi /EHsc /GR /c` → 1,666 bytes, verified at the funnel).
+`all_fixtures()` feeds **every** `.cpp` to `selftest` at
+`CAPTURE_IL_DEFAULT_FLAGS`; there is **no per-fixture profile and no opt-out**.
+The generated STATUS block therefore renders `Oracle self-test | FAILING` plus
+two dependent `NO-RESULT` rows, which is the instrument working. **Nothing about
+the port's correctness is implicated** — no obj, no verdict, no byte; the
+workload scan, the 18-lane gate and the workspace suite are all green above.
+Lane `w-oxfix` (rows 2330–2349, reserved and not yet minted — cited without
+the `#` form so the board audit is not handed a false positive) owns the
+repair, and its acceptance test is
+`scripts/status.sh --write` rendering with **zero** `NO-RESULT` rows. It is
+briefed to **fail loudly, never skip**: a silent opt-out would be §9.18.8's
+absence-read-as-success, which this project has now caught nine times.
+
+**What the day established, in one place.** Two whitebox campaigns closed the
+question the program hung on: **a general lowering IS derivable** (§10.27,
+§10.31) — selection is table-driven, the operand type is the table's own index,
+there is no scheduler, and the loop, frame, register and inline-decline machinery
+are all read and obj-confirmed. **The emitter is no longer the binding
+constraint; the reader is** — and §10.30 then priced the reader and found *it*
+is not a lever either: no reader rung converts a TU. Meanwhile §10.28 and §10.29
+proved the corollary the hard way — **a census gain is not a goal gain**: +444
+emitted functions moved `fnbyte-exact` by exactly zero, and the fence that
+followed took the frontier's only positively-measured codegen error to 0.
+
+**The calibration to carry** (§10.30): **seven one-function transcriptions bought
++7 byte-exact and +7 TU conversions; one 444-wide admission bought +0 and +0.**
+Sixty-three times the admissions, zero the bytes. `docs/CEILING.md` §10 holds the
+arithmetic this rests on, measured from three independent directions, and the
+re-scope decision it equips remains the user's.
+
+**Standing hazards, none of them hidden.** `framed-call` — a class this repo's
+README names as byte-exact MVP — is **0-for-123 on the workload** (true on the
+fixtures, scoped in the README on 2026-08-09). **88,228** emitted-name-carrying
+call rows sit behind `vocab-gap`'s door and arm the day a binding lane opens it
+(#2226). `LABEL_COUNTER.md`'s published surcharges have been measured wrong by
+**four** consecutive lanes and are mode- *and* sub-shape-dependent; measure the
+lead against the obj, never quote the table. `cargo test --workspace` **stops at
+the first failing target**, so every red total ever quoted here is a truncation
+(#2262) — pass `--no-fail-fast`.

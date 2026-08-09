@@ -662,13 +662,20 @@ git rev-list --merges --count 4233939b..c34c388c   # §4.3's reconstruction: 159
 `CEILING.md` was written on 2026-08-08 to equip the re-scope decision. Three
 lanes since have measured the same distance independently, and they agree.
 
-**1. The arithmetic is unchanged and was re-derived live** (tree `5ad60e9e`):
-`factor-a` **28** · `factor-b` **338** · `factor-c` **169** · `b-and-c` **151** ·
-`a-and-b-and-c` **27** · `frontier` **9** · `frontier-if-a` **131** ·
-`match` **18** · **`|D∨E|` 20**. Perfect A + perfect B + `C = 871`, together,
-move match **18 → 20**. The non-codegen headroom was **2** at match 11 on
-2026-08-08 and is **2** at match 18 today — unmoved across seven conversions
-and eleven lanes. **To reach 871, `|D∨E|` must reach 871.**
+**1. The arithmetic is unchanged and was re-derived live** — first at tree
+`5ad60e9e` (`match` 18), then again at `bf7ef653` after `w-blockir`'s conversion
+(`match` **19**, `frontier` **8**, `factor-d` **19**, `|D∨E|` **21**,
+`A∧B∧C∧D` 17, `frontier-if-a` **130**). `factor-a` **28** · `factor-b` **338** ·
+`factor-c` **169** · `b-and-c` **151** · `a-and-b-and-c` **27** are unmoved
+across both. Perfect A + perfect B + `C = 871`, together, move match
+**19 → 21**.
+
+**The non-codegen headroom has been exactly 2 at every reading**: at match 11 on
+2026-08-08, at match 18, and at match 19 — unmoved across eight conversions and
+sixteen lanes, with both terms rising together each time. That invariance is the
+finding, and it is why **to reach 871, `|D∨E|` must reach 871**: every non-codegen
+lever the project has pulled moved `D∨E` and `match` by the same amount, one TU
+at a time.
 
 **2. A census gain is not a goal gain, and now that is measured.** `w-fltret`
 (#2080–#2087) admitted **+444** emitted functions at 99.3 % of its predicted
@@ -690,12 +697,22 @@ only cleanly-one-TU rung in either band is `src/Main.cpp`.
 Every remaining TU is an independent unit of function-byte codegen. The
 project's demonstrated rate is ~1 TU per lane at its best (2026-08-08: seven
 conversions), and the cheap transcription pool is exhausted — the frontier is
-9 and its remaining rows are EH, block IR, and two TUs above the one-block-plan
-licence. `WB-I` (§10.27) establishes that a *general* lowering is derivable
-(~60 rules), which changes the price of every future class — but its own
-predicted first-scan reach is **0**, because the reader gates 48 of the
-frontier's 59 functions, and the reader's own residue is now the binding
-constraint rather than the emitter's.
+**8** and its remaining rows are EH, block IR, and two TUs above the
+one-block-plan licence. `WB-I` (§10.27) establishes that a *general* lowering is
+derivable (~60 rules), which changes the price of every future class — but its
+own predicted first-scan reach is **0**, because the reader gates most of the
+frontier's functions before any emitter question is asked. §10.30 then priced
+the reader itself and found **no reader rung converts a TU either**; the
+frontier's blocked column is **41 of 51**, and its 8 departures were 8
+one-function transcriptions with measured reach 1 apiece.
+
+**The rate comparison that settles the shape of the problem** (§10.30):
+**seven one-function transcriptions bought +7 `fnbyte-exact` and +7 TU
+conversions; one 444-wide admission bought +0 and +0.** Breadth does not convert;
+depth converts one at a time. §10.31's conversion is the first driven by a
+*derived* generator reading rather than a transcription, and it still converted
+exactly one TU — but it cost one lane, and the machinery it used is now reusable,
+which is the only thing on the board that could change the rate.
 
 **The re-scope decision remains the user's.** This page still does not argue
 for or against continuing. What it now says that it could not say yesterday is

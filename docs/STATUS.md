@@ -395,13 +395,16 @@ because the ladder is greedy and re-ranks.)
   13 holds empirically; re-run that grep before any new corpus inherits it.
 
 **C is necessary, not sufficient** — reaching C = 871 converts nothing on its
-own; only codegen converts. And **the pre-Phase-7 frontier is 17**: `A∧B∧C` = 27
-with 8 already matched, so 19 graded TUs are reachable by codegen breadth alone
-and the other 1 of A's 28 needs section or binding work first. `gap.rs` prints
-those 17 by name each scan as the **FRONTIER**. Board **#160**. (It read 19 with
-8 matched; `xboxmem.cpp` and `Sort.cpp` have come out of it since, and the
-paragraph is corrected rather than annotated — **quote it from a scan, not from
-this page**, which is the standing instruction two sections up.)
+own; only codegen converts. And **the pre-Phase-7 frontier is 8** (2026-08-09):
+`A∧B∧C` = 27 with **19 already matched**, so 8 graded TUs are reachable by
+codegen breadth alone and the other 1 of A's 28 needs section or binding work
+first. `gap.rs` prints those 8 by name each scan as the **FRONTIER**. Board
+**#160**. (This paragraph has now read 19-with-8, 17-with-10 and 16-with-11 as
+conversions landed; it is corrected in place rather than annotated each time —
+**quote it from a scan, not from this page**, which is the standing instruction
+two sections up. `xboxheap.cpp`, discussed at length below, is in **neither**
+end's frontier list as of board **#1792** — that block describes a TU the
+instrument no longer ranks.)
 
 > ### 2026-08-05 — **the frontier has had its first CFG conversion.** `src/system/math/Sort.cpp` matched at lane `w-hash` (board **#760**), and it is the **first TU ever converted that needed a control-flow class**: `?HashString@@YAHPBDH@Z` is an 80-byte pointer-walk loop with a back edge. What shipped is a **twenty-word transcription of one function class at `/O1`** — two immediate fields, no scheduler, no register allocator, no CFG builder — and **not** a loop lowering; `codegen::ptr_walk_loop`'s own module doc leads with that sentence, and `PORT_CFG_CLASSES` deliberately still does **not** list `cflow-loop` (board **#761**). The last blocker was not codegen at all: `.sy` admitted plain `int` automatics only, so the induction variable had no positive automatic-local test (board **#764**).
 
