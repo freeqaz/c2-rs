@@ -144,6 +144,8 @@ mod tests {
         ctor_forward_call: None,
         xlrc_create_guard: None,
         json_utf8_copy: None,
+            pool_free_list: None,
+            pool_ctor_chain: None,
         float_walk_loop: None,
     };
         assert_eq!(
@@ -204,6 +206,8 @@ mod tests {
         ctor_forward_call: None,
         xlrc_create_guard: None,
         json_utf8_copy: None,
+            pool_free_list: None,
+            pool_ctor_chain: None,
         float_walk_loop: None,
     };
         let blr = [0x4E, 0x80, 0x00, 0x20];

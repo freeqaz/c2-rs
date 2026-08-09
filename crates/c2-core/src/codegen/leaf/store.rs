@@ -1265,6 +1265,8 @@ mod tests {
         ctor_forward_call: None,
         xlrc_create_guard: None,
         json_utf8_copy: None,
+            pool_free_list: None,
+            pool_ctor_chain: None,
         float_walk_loop: None,
     };
         assert_eq!(
@@ -1390,6 +1392,8 @@ mod tests {
         ctor_forward_call: None,
         xlrc_create_guard: None,
         json_utf8_copy: None,
+            pool_free_list: None,
+            pool_ctor_chain: None,
         float_walk_loop: None,
     };
         assert_eq!(
@@ -1554,6 +1558,8 @@ mod tests {
         ctor_forward_call: None,
         xlrc_create_guard: None,
         json_utf8_copy: None,
+            pool_free_list: None,
+            pool_ctor_chain: None,
         float_walk_loop: None,
     };
         assert_eq!(
@@ -1810,6 +1816,8 @@ mod tests {
         ctor_forward_call: None,
         xlrc_create_guard: None,
         json_utf8_copy: None,
+            pool_free_list: None,
+            pool_ctor_chain: None,
         float_walk_loop: None,
     };
         let lit_group = |b: u32, off: i32, k: i32| {
