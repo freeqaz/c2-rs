@@ -51,11 +51,6 @@ fn roundtrip_all_fixtures_byte_identical() {
     assert!(!fixtures.is_empty(), "no fixtures found");
 
     let mut checked = 0usize;
-    // **W-VEC (#2507)** — the fixtures whose `.gl` frames fewer body starts than
-    // `.ex` has bodies, named by the gate rather than by this file. Printed, not
-    // asserted against a count: a pinned count is the skip list this exemption
-    // exists to avoid being.
-    let mut bind_count_exempt: Vec<String> = Vec::new();
     for cpp in &fixtures {
         let name = cpp
             .file_name()
@@ -99,52 +94,13 @@ fn roundtrip_all_fixtures_byte_identical() {
         // offset per function — the `== function_count` invariant K3 relies on
         // (K2a strengthened this from the earlier `>= 1`, now that offsets are
         // located by record framing and gated 1:1/in-order against the `.ex`
-        // `4F 1F` markers).
-        //
-        // **This read *"This 1:1 claim holds for every fixture"* until lane
-        // `w-vec` (board #2507), and the claim was universal only because the
-        // corpus contained no counterexample.** It is FALSE on **811 of the
-        // 878 workload TUs** — the single most common shape there — and the
-        // fixture spread had zero instances of it. `docs/STATUS.md` trap 5,
-        // absence reading as success, in a standing gate.
-        //
-        // Two claims replace the one, and together they are STRICTLY MORE than
-        // it asserted:
-        //
-        //  * **the DIRECTION is universal and stays a hard failure.** `.gl` may
-        //    frame fewer body starts than `.ex` has bodies — that is the
-        //    workload's normal state, c2 emitting a fraction of what c1xx hands
-        //    it. A *surplus* is a codec defect and has no legitimate cause;
-        //  * **the EQUALITY holds unless the gate itself says the record count
-        //    differs.** The exemption is not a name list and cannot be turned
-        //    into one: it is read from `IlBundle::decode_causes().first`, the
-        //    same reader, and it is `BIND_COUNT` — literally *"the records
-        //    bound, but their count is not the `.ex` segment count"*. A fixture
-        //    can only be exempt by making the gate say so, and when it does the
-        //    inequality must be STRICT, so an exempt cell cannot quietly become
-        //    an equal one and keep its exemption.
+        // `4F 1F` markers). This 1:1 claim holds for every fixture.
         let noff = model.gl_body_start_offsets().len();
         let nfns = model.ex_function_count();
-        assert!(
-            noff <= nfns,
-            "{name}: typed .gl offsets ({noff}) EXCEED .ex functions ({nfns}) — \
-             a surplus is a codec defect, not a workload shape"
+        assert_eq!(
+            noff, nfns,
+            "{name}: typed .gl offsets ({noff}) must be 1:1 with .ex functions ({nfns})"
         );
-        if bundle.decode_causes().first == Some(c2_il::func::cause::BIND_COUNT) {
-            assert!(
-                noff < nfns,
-                "{name}: the gate reports `{}` and yet the offsets are 1:1 \
-                 ({noff} == {nfns}) — the exemption is claimed by a cell that \
-                 does not need it",
-                c2_il::func::cause::BIND_COUNT
-            );
-            bind_count_exempt.push(name.clone());
-        } else {
-            assert_eq!(
-                noff, nfns,
-                "{name}: typed .gl offsets ({noff}) must be 1:1 with .ex functions ({nfns})"
-            );
-        }
 
         // The body-token claim is conditional on the TU actually having bodies.
         // `mvp_empty.cpp` (R1) defines no functions: the front end still emits a
@@ -219,17 +175,6 @@ fn roundtrip_all_fixtures_byte_identical() {
 
     assert!(checked >= 15, "expected the full fixture spread, ran {checked}");
     eprintln!("K1 round-trip: {checked} fixture bundles byte-identical");
-    eprintln!(
-        "K2a 1:1 offsets: {} of {checked} exempt by the gate's own `{}` \
-         (the workload's majority shape){}",
-        bind_count_exempt.len(),
-        c2_il::func::cause::BIND_COUNT,
-        if bind_count_exempt.is_empty() {
-            String::new()
-        } else {
-            format!(" — {}", bind_count_exempt.join(", "))
-        }
-    );
 }
 
 /// True iff `.ex` carries at least one `4C 4F 11` — the marker the codec's

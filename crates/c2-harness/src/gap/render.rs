@@ -1119,8 +1119,6 @@ mod tests {
             fn_complete: Default::default(),
             fn_prod: Default::default(),
             fn_gate_refusals: Default::default(),
-            gate_cause: None,
-            gate_causes: Vec::new(),
             bind_checks: Default::default(),
             emit: Default::default(),
             emit_blockers: Default::default(),
