@@ -1,0 +1,82 @@
+
+=== BODIES: total 1751929 -> 1751929 ===
+key                                                               base    sink   delta
+expr-brtrue                                                      35466       0  -35466
+expr-brfalse                                                     26514       0  -26514
+expr-jump                                                         2286       0   -2286
+expr-label                                                        1463       0   -1463
+expr-call-in-expr-recv-object-then-branch-brfalse                   62      57      -5
+expr-call-in-expr-recv-object-then-branch-brtrue                 23633   23628      -5
+expr-call-in-expr-chained-then-branch-brfalse                        4       5      +1
+expr-call-in-expr-op-0x38                                            0       1      +1
+expr-call-in-expr-other                                              3       4      +1
+expr-call-in-expr-recv-intrinsic-this-adjust-then-branch-brfalse       0       1      +1
+expr-call-in-expr-recv-intrinsic-vbase-upcast-then-branch-brfalse       3       4      +1
+expr-cmp-gt                                                       1580    1581      +1
+expr-intrinsic-base-downcast                                     19978   19979      +1
+expr-op-0x06-8641                                                    4       5      +1
+expr-call-in-expr-op-0x36                                            0       2      +2
+expr-call-in-expr-op-0x39                                            0       2      +2
+expr-call-in-expr-recv-load-then-type-int1-and-branch-more           4       6      +2
+expr-intrinsic-base-upcast                                       19471   19473      +2
+  …
+expr-call-in-expr-op-0x39                                            0       2      +2
+expr-call-in-expr-recv-load-then-type-int1-and-branch-more           4       6      +2
+expr-intrinsic-base-upcast                                       19471   19473      +2
+expr-cmp-eq                                                      19312   19316      +4
+expr-call-in-expr-nested-call-then-bit-and-and-branch-more           0       6      +6
+expr-op-0x30                                                     22182   22189      +7
+expr-op-0x67                                                       547     556      +9
+expr-call-in-expr-recv-load-then-branch-brfalse                   1986    2041     +55
+expr-call-in-expr-op-0x9B                                        46036   46139    +103
+expr-call-in-expr-op-0x35                                            0     319    +319
+expr-op-0x54                                                         0     438    +438
+expr-call-in-expr-op-0x16                                            0     700    +700
+expr-cmp-lt                                                       3599    4324    +725
+expr-cmp-ne                                                       9863   10603    +740
+expr-call-in-expr-op-0x0F                                            0     826    +826
+expr-op-0x27                                                    403882  406068   +2186
+expr-op-0x53                                                         0   27241  +27241
+expr-call-in-expr-op-0x19                                            0   32364  +32364
+  keys: base 635, sink 642; vanished 4, appeared 11, moved 33
+
+=== EMITTED: total 130560 -> 130560 ===
+key                                                               base    sink   delta
+expr-brfalse                                                      3104       0   -3104
+expr-brtrue                                                       1939       0   -1939
+expr-jump                                                          302       0    -302
+expr-label                                                          51       0     -51
+expr-call-in-expr-recv-object-then-branch-brtrue                   431     426      -5
+expr-call-in-expr-recv-object-then-branch-brfalse                   53      49      -4
+expr-call-in-expr-chained-then-branch-brfalse                        4       5      +1
+expr-call-in-expr-op-0x38                                            0       1      +1
+expr-call-in-expr-other                                              3       4      +1
+expr-call-in-expr-recv-intrinsic-this-adjust-then-branch-brfalse       0       1      +1
+expr-call-in-expr-recv-intrinsic-vbase-upcast-then-branch-brfalse       3       4      +1
+expr-cmp-gt                                                        148     149      +1
+expr-intrinsic-base-downcast                                      1315    1316      +1
+expr-op-0x06-8641                                                    4       5      +1
+expr-call-in-expr-op-0x36                                            0       2      +2
+expr-call-in-expr-op-0x39                                            0       2      +2
+expr-call-in-expr-recv-load-then-type-int1-and-branch-more           2       4      +2
+expr-intrinsic-base-upcast                                         635     637      +2
+  …
+expr-call-in-expr-op-0x36                                            0       2      +2
+expr-call-in-expr-op-0x39                                            0       2      +2
+expr-call-in-expr-recv-load-then-type-int1-and-branch-more           2       4      +2
+expr-intrinsic-base-upcast                                         635     637      +2
+expr-cmp-eq                                                       2385    2389      +4
+expr-call-in-expr-nested-call-then-bit-and-and-branch-more           0       6      +6
+expr-op-0x30                                                       638     644      +6
+expr-op-0x54                                                         0       7      +7
+expr-op-0x67                                                       136     145      +9
+expr-cmp-ne                                                       1024    1036     +12
+expr-call-in-expr-recv-load-then-branch-brfalse                    453     472     +19
+expr-call-in-expr-op-0x16                                            0      38     +38
+expr-cmp-lt                                                        377     416     +39
+expr-op-0x27                                                     22412   22452     +40
+expr-call-in-expr-op-0x9B                                         1033    1135    +102
+expr-call-in-expr-op-0x35                                            0     254    +254
+expr-call-in-expr-op-0x19                                            0    1808   +1808
+expr-op-0x53                                                         0    3045   +3045
+  keys: base 614, sink 620; vanished 4, appeared 10, moved 32

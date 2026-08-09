@@ -1,0 +1,105 @@
+diff --git a/crates/c2-harness/src/gap/scan.rs b/crates/c2-harness/src/gap/scan.rs
+index e0873eab..4a20a220 100644
+--- a/crates/c2-harness/src/gap/scan.rs
++++ b/crates/c2-harness/src/gap/scan.rs
+@@ -26,6 +26,29 @@ use super::{
+     WHOLE_TU_RECOGNIZERS,
+ };
+ 
++// ***** w-jump SCRATCH INSTRUMENT — REVERTED, NEVER COMMITTED *****
++// Explodes the `expr-jump` first-blocker key into a compound key carrying every
++// axis this lane wants to decompose on, so ONE scan decides all of them offline
++// and both columns sum to the family total by construction.
++fn wjump_key(f: &c2_il::func::FnCensus) -> String {
++    let k = f.verdict.key();
++    if k != "expr-jump" && !k.starts_with("ctr-loop-") {
++        return k;
++    }
++    let hex: String = f.hex.iter().map(|b| format!("{b:02X}")).collect();
++    format!(
++        "{k}|{}|{}|{}|{}|{}|{}|{}|{}",
++        f.cflow,
++        f.dispatch,
++        f.calls,
++        f.seg_len,
++        f.hex_mark,
++        hex,
++        f.index,
++        f.name.as_deref().or(f.emit_name.as_deref()).unwrap_or("-")
++    )
++}
++
+ /// Scan one TU. `work` must be a private (per-TU) directory.
+ fn scan_one(
+     tc: &Toolchain,
+@@ -119,7 +142,7 @@ fn scan_one(
+                     *res.fn_gate_refusals.entry(k).or_insert(0) += 1;
+                 }
+             } else {
+-                *res.fn_blockers.entry(f.verdict.key()).or_insert(0) += 1;
++                *res.fn_blockers.entry(wjump_key(f)).or_insert(0) += 1;
+             }
+             // The D6 frame axis, over *every* function: the in-class shapes are
+             // the control group (all of them are leaves or single tail calls, so
+@@ -398,7 +421,7 @@ fn scan_one(
+                             if f.verdict.in_class() {
+                                 *res.emit.entry("emit-in-class".into()).or_insert(0) += 1;
+                             } else {
+-                                *res.emit_blockers.entry(f.verdict.key()).or_insert(0) += 1;
++                                *res.emit_blockers.entry(wjump_key(f)).or_insert(0) += 1;
+                                 // **The control-flow counterfactual, on the
+                                 // column that ranks.** `emit_blockers` is the
+                                 // widening order and its #2 row is
+diff --git a/crates/c2-il/src/func/body/mod.rs b/crates/c2-il/src/func/body/mod.rs
+index d3058a4b..fe79b191 100644
+--- a/crates/c2-il/src/func/body/mod.rs
++++ b/crates/c2-il/src/func/body/mod.rs
+@@ -2082,12 +2082,19 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
+                 // `e253ee0e`, which is an arithmetic CEILING and not the class's
+                 // size (w-mcall §4.3; five lanes have now been dispatched off a
+                 // blocked-key ranking and found the ranking was an artifact).
+-                if let Ok(shape) =
+-                    try_parse_counted_accum_loop(seg, p, lo, locals, sy.uint_locals)
+-                {
+-                    disp("disp-counted-accum-loop");
+-                    return Ok(shape);
++                // ***** w-jump SCRATCH INSTRUMENT — REVERTED, NEVER COMMITTED *****
++                // w-bdnz §5.1's probe, pointed at the WORKLOAD instead of at a
++                // `_neg` fixture: commit the recognizer's own `Err` so that every
++                // body it declines names the CLAUSE it died on instead of
++                // reporting `assign`'s `expr-jump`.
++                match try_parse_counted_accum_loop(seg, p, lo, locals, sy.uint_locals) {
++                    Ok(shape) => {
++                        disp("disp-counted-accum-loop");
++                        return Ok(shape);
++                    }
++                    Err(b) => return Err(b),
+                 }
++                #[allow(unreachable_code)]
+                 disp("disp-assign");
+                 try_parse_assign_body_detail(seg, p, lo, locals, depth)
+             }
+diff --git a/crates/c2-il/src/func/body/shapes/counted_accum_loop.rs b/crates/c2-il/src/func/body/shapes/counted_accum_loop.rs
+index 34f6bfdb..6beb75bc 100644
+--- a/crates/c2-il/src/func/body/shapes/counted_accum_loop.rs
++++ b/crates/c2-il/src/func/body/shapes/counted_accum_loop.rs
+@@ -240,11 +240,16 @@ pub(crate) fn try_parse_counted_accum_loop(
+     // `three` in `work/w-bdnz/probe/L4.obj` are the cells; `swapf` re-plans the
+     // whole body and `three` does not, and both are refused, because the graded
+     // set and the accepted set must be the same set.
+-    if params.len() != 2 {
++    // ***** w-jump SCRATCH INSTRUMENT — REVERTED, NEVER COMMITTED *****
++    // Clause 1 shadows the whole recognizer on the workload (97.9 % of the
++    // 2,286 die here), so it is relaxed to a PLACEHOLDER to read where those
++    // bodies die NEXT. Board #1988 extension (a) is exactly this relaxation, so
++    // the second-order histogram is what (a) is actually worth.
++    if params.is_empty() {
+         return Err(blk(seg, start, "ctr-loop-formals-not-2"));
+     }
+-    let (bound_tok, operand_tok) = (params[0], params[1]);
+-    if bound_tok == operand_tok {
++    let (bound_tok, operand_tok) = (params[0], params[params.len() - 1]);
++    if bound_tok == operand_tok && params.len() > 1 {
+         return Err(blk(seg, start, "ctr-loop-formals-alias"));
+     }
+ 

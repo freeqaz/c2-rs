@@ -1,0 +1,64 @@
+
+=== BODIES: total 1751929 -> 1751929 ===
+key                                                               base    sink   delta
+expr-jump                                                         2286       0   -2286
+expr-label                                                        1468       0   -1468
+expr-call-in-expr-other                                              3       4      +1
+expr-op-0x30                                                     22188   22189      +1
+expr-op-0x67                                                       555     556      +1
+expr-call-in-expr-op-0x36                                            0       2      +2
+expr-op-0x27                                                    406065  406068      +3
+expr-op-0x53                                                     27231   27241     +10
+expr-call-in-expr-op-0x35                                            0     319    +319
+expr-op-0x54                                                         0     438    +438
+expr-call-in-expr-op-0x16                                            0     700    +700
+expr-cmp-lt                                                       3600    4324    +724
+expr-cmp-ne                                                       9874   10603    +729
+expr-call-in-expr-op-0x0F                                            0     826    +826
+  …
+expr-jump                                                         2286       0   -2286
+expr-label                                                        1468       0   -1468
+expr-call-in-expr-other                                              3       4      +1
+expr-op-0x30                                                     22188   22189      +1
+expr-op-0x67                                                       555     556      +1
+expr-call-in-expr-op-0x36                                            0       2      +2
+expr-op-0x27                                                    406065  406068      +3
+expr-op-0x53                                                     27231   27241     +10
+expr-call-in-expr-op-0x35                                            0     319    +319
+expr-op-0x54                                                         0     438    +438
+expr-call-in-expr-op-0x16                                            0     700    +700
+expr-cmp-lt                                                       3600    4324    +724
+expr-cmp-ne                                                       9874   10603    +729
+expr-call-in-expr-op-0x0F                                            0     826    +826
+  keys: base 639, sink 642; vanished 2, appeared 5, moved 14
+
+=== EMITTED: total 130560 -> 130560 ===
+key                                                               base    sink   delta
+expr-jump                                                          302       0    -302
+expr-label                                                          56       0     -56
+expr-call-in-expr-other                                              3       4      +1
+expr-op-0x30                                                       643     644      +1
+expr-op-0x67                                                       144     145      +1
+expr-call-in-expr-op-0x36                                            0       2      +2
+expr-cmp-ne                                                       1033    1036      +3
+expr-op-0x27                                                     22449   22452      +3
+expr-op-0x54                                                         0       7      +7
+expr-op-0x53                                                      3035    3045     +10
+expr-call-in-expr-op-0x16                                            0      38     +38
+expr-cmp-lt                                                        378     416     +38
+expr-call-in-expr-op-0x35                                            0     254    +254
+  …
+expr-jump                                                          302       0    -302
+expr-label                                                          56       0     -56
+expr-call-in-expr-other                                              3       4      +1
+expr-op-0x30                                                       643     644      +1
+expr-op-0x67                                                       144     145      +1
+expr-call-in-expr-op-0x36                                            0       2      +2
+expr-cmp-ne                                                       1033    1036      +3
+expr-op-0x27                                                     22449   22452      +3
+expr-op-0x54                                                         0       7      +7
+expr-op-0x53                                                      3035    3045     +10
+expr-call-in-expr-op-0x16                                            0      38     +38
+expr-cmp-lt                                                        378     416     +38
+expr-call-in-expr-op-0x35                                            0     254    +254
+  keys: base 618, sink 620; vanished 2, appeared 4, moved 13
