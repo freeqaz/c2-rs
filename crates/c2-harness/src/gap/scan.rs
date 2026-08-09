@@ -55,6 +55,8 @@ fn scan_one(
         fn_prod: BTreeMap::new(),
         fn_gate_refusals: BTreeMap::new(),
         bind_checks: BTreeMap::new(),
+        gate_cause: None,
+        gate_causes: Vec::new(),
         emit: BTreeMap::new(),
         emit_blockers: BTreeMap::new(),
         emit_witness: Vec::new(),
@@ -1201,9 +1203,34 @@ fn scan_one(
     if !captured.bundle.decodes() {
         res.class = TuClass::VocabGap;
         res.reason = "il function decode failed".to_string();
+        // **W-VEC (#2500) — name the gate's OWN first refusal.**
+        //
+        // `decode_causes()` has answered "which of the eleven gates fired" since
+        // lane `w-vocab` and had **no caller in this crate**, so every `vocab-gap`
+        // row rendered two sizes and the fact that both acceptance paths said
+        // `None`. That is `CEILING.md` §11.4 item 8's trap with the instrument
+        // already built and never wired: a lane pricing a TU conversion had to
+        // write a scratch patch to learn what `functions()` stopped on, and the
+        // one that did not got `src/system/math/vec.cpp` priced four mechanisms
+        // downstream of its actual first stop.
+        //
+        // Diagnostic only, and asked **after** the class is already decided by
+        // `decodes()` — the same predicate, so this cannot move a verdict. The
+        // anti-drift invariant is `c2_il`'s own: `causes.is_empty() == decodes`.
+        let causes = captured.bundle.decode_causes();
+        res.gate_cause = causes.first.map(str::to_string);
+        res.gate_causes = causes.causes.iter().map(|c| c.to_string()).collect();
         res.detail = format!(
-            ".ex {} B, {} .gl names — c2_il::functions() and dyninit_tu() both None",
-            res.ex_len, res.fn_names
+            ".ex {} B, {} .gl names — c2_il::functions() and dyninit_tu() both None; \
+             gate stops at {} (all: {})",
+            res.ex_len,
+            res.fn_names,
+            res.gate_cause.as_deref().unwrap_or("<none>"),
+            if res.gate_causes.is_empty() {
+                "<none>".to_string()
+            } else {
+                res.gate_causes.join(",")
+            }
         );
         return res;
     }
@@ -1418,9 +1445,21 @@ pub fn gap_scan(
                 .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
                 .collect::<Vec<_>>()
                 .join(",");
+            // **W-VEC (#2500)** — the gate's own refusal, per TU, in the machine
+            // -readable stream. `gate_cause` is `null` on every TU that decodes.
+            let gate_cause = match &r.gate_cause {
+                None => "null".to_string(),
+                Some(c) => crate::jstr(c),
+            };
+            let gate_causes = r
+                .gate_causes
+                .iter()
+                .map(|c| crate::jstr(c))
+                .collect::<Vec<_>>()
+                .join(",");
             writeln!(
                 f,
-                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_cflow\":{{{}}},\"fn_eh\":{{{}}},\"fn_dispatch\":{{{}}},\"fn_complete\":{{{}}},\"fn_prod\":{{{}}},\"fn_gate_refusals\":{{{}}},\"bind_checks\":{{{}}},\"emit\":{{{}}},\"emit_blockers\":{{{}}}}}",
+                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"gate_cause\":{gate_cause},\"gate_causes\":[{gate_causes}],\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_cflow\":{{{}}},\"fn_eh\":{{{}}},\"fn_dispatch\":{{{}}},\"fn_complete\":{{{}}},\"fn_prod\":{{{}}},\"fn_gate_refusals\":{{{}}},\"bind_checks\":{{{}}},\"emit\":{{{}}},\"emit_blockers\":{{{}}}}}",
                 crate::jstr(&r.src),
                 crate::jstr(r.class.label()),
                 crate::jstr(&r.reason),

@@ -44,6 +44,8 @@ fn mk(reason: &str) -> TuResult {
         fn_prod: BTreeMap::new(),
         fn_gate_refusals: BTreeMap::new(),
         bind_checks: BTreeMap::new(),
+        gate_cause: None,
+        gate_causes: Vec::new(),
         emit: BTreeMap::new(),
         emit_blockers: BTreeMap::new(),
         emit_witness: Vec::new(),

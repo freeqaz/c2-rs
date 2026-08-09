@@ -1,0 +1,34 @@
+//! SCRATCH — lane w-vec. Not shipped; reverted, kept as work/w-vec/scratch_probe.patch.
+use c2_il::IlBundle;
+use std::path::Path;
+
+#[test]
+fn wvec_probe() {
+    let dir = std::env::var("WVEC_IL").unwrap_or_default();
+    if dir.is_empty() {
+        return;
+    }
+    let base = std::env::var("WVEC_BASE").unwrap();
+    let mut b = IlBundle::new(base.clone());
+    for s in ["ex", "gl", "sy", "in", "db"] {
+        let p = Path::new(&dir).join(format!("{base}.{s}"));
+        if let Ok(bytes) = std::fs::read(&p) {
+            b.set(s, bytes);
+        }
+    }
+    let d = b.decode_causes();
+    println!("PROBE segments        = {}", d.segments);
+    println!("PROBE records_gate    = {}", d.records_gate);
+    println!("PROBE records_wide    = {}", d.records_wide);
+    println!("PROBE bodies_ooc      = {}", d.bodies_out_of_class);
+    println!("PROBE first           = {:?}", d.first);
+    println!("PROBE causes          = {:?}", d.causes);
+    println!("PROBE decodes         = {}", d.decodes);
+    println!("PROBE whole_tu        = {}", d.whole_tu);
+    println!("PROBE downstream_eval = {}", d.downstream_evaluated);
+    println!("PROBE window_blocks   = {}", d.window_blocks_binding);
+    println!("PROBE functions()     = {:?}", b.functions().map(|f| f.len()));
+    println!("PROBE dyninit_tu()    = {}", b.dyninit_tu().is_some());
+    println!("PROBE data_tu()       = {}", b.data_tu().is_some());
+    println!("PROBE shell_only_tu() = {}", b.shell_only_tu());
+}

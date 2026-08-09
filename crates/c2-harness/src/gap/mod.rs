@@ -315,6 +315,41 @@ pub struct TuResult {
     ///   `dtor-callee-other` is the count that says the binding names something
     ///   the shape cannot delegate to, and its known answer is 0.
     pub bind_checks: BTreeMap<String, usize>,
+    /// **The GATE's own first refusal, by name** — `IlBundle::decode_causes().first`
+    /// (lane `w-vec`, board **#2500**).
+    ///
+    /// `None` when the bundle decodes. Otherwise the cause
+    /// [`c2_il::IlBundle::functions`] actually stops on: `gl-stop-26-introduced`,
+    /// `bind-record-count-ne-segments`, `body-out-of-class`,
+    /// `unclaimed-gl-symbol`, … — the closed string set in `c2_il::func::diag`.
+    ///
+    /// # Why this field exists, and it is CEILING §11.4 item 8 made checkable
+    ///
+    /// Before this, every `vocab-gap` TU rendered one string —
+    /// *"il function decode failed"*, 851 of 878 of them — and the `detail`
+    /// beside it named only two sizes (`.ex` bytes, `.gl` names) and the fact
+    /// that both acceptance paths said `None`. **Neither says which of eleven
+    /// gates fired.** `IlBundle::decode_causes` had answered exactly that
+    /// question since lane `w-vocab` and **no caller in `c2-harness` ever
+    /// called it**, so a lane that wanted the gate's own refusal had to write a
+    /// scratch patch — which is how `src/system/math/vec.cpp` came to be
+    /// commissioned as *"`_fltused` plus seven non-instruction sections"* when
+    /// the gate's first stop on it is `gl-stop-26-introduced`, four mechanisms
+    /// upstream of either.
+    ///
+    /// This is a **diagnostic and never a gate**: it is read from the same
+    /// predicate `decodes()` already decided the class with, after the class is
+    /// decided, and no verdict anywhere depends on it. `c2_il`'s own
+    /// `causes.is_empty() == decodes` invariant is what keeps it from drifting.
+    pub gate_cause: Option<String>,
+    /// Every cause that fires on this TU, not just the first — the same list,
+    /// ascending and deduplicated. Empty iff the bundle decodes.
+    ///
+    /// The first cause is what `functions()` **stops** on and is therefore the
+    /// only one a repair is guaranteed to move; the rest are what a lane would
+    /// still owe after repairing it, which is the number a conversion price
+    /// needs and the first cause alone cannot give.
+    pub gate_causes: Vec<String>,
     /// **The emitted-function census** (`docs/GAPS.md` §8, `docs/ROADMAP.md`
     /// §8.2) — the per-TU join between the census's rows and the *reference
     /// obj's* `.text` COMDAT leaders.
