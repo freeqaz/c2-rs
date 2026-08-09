@@ -718,3 +718,132 @@ which is the only thing on the board that could change the rate.
 for or against continuing. What it now says that it could not say yesterday is
 that the distance has been measured from three independent directions and none
 of them found a multiplier.
+
+---
+
+## 11. NON-CODEGEN LAST BLOCKERS — the class, its detector, and the checklist
+
+Added 2026-08-09 by lane `w-nc` (#2380–#2399). **Read §11.4 before you conclude
+that a body is a codegen problem.** Three consecutive conversion lanes found
+that their *last* blocker was not codegen, each at the end of a lane that had
+already paid for codegen:
+
+| lane | what the rung says | family |
+|---|---|---|
+| `w-bdnz` #1980 | *"The unsigned half of the class is byte-exact against real `c2` and was blocked by the reader, not by codegen."* … *"So the emitter was never the question."* — `.sy`'s predicate is `kind == 1 && size == 4 && tid == 0x74`, plain `int` only (**#764**) | NC-3 |
+| `w-blockir` #2301 | *"the scan read `fnbyte-exact 4 · fnbyte-differs 0` — **every body byte-exact** — and the whole obj graded `mismatch`, because `IlFunction::touches_floating_point` had no arm for this class and the obj came out **one symbol short**… the thing standing between a byte-exact body and a matching TU was a **TU-level fact**, not an instruction."* | NC-1 |
+| `w-main` #2260 | *"`WB_EH_FINDINGS.md` §6 files this as R1, `param-width-undetermined:mid`, `c2-il` formals header. **The key is right and the location is wrong.**"* — the refusal is `func::sy::ex_exit_label` wanting a `3A` byte the `.ex` does not contain | NC-4 |
+
+### 11.1 The class
+
+> **A NON-CODEGEN LAST BLOCKER is an obligation that stands between a TU and a
+> byte-exact obj and that is not a question about any function's instruction
+> bytes.** Four families:
+
+* **NC-1 — a whole-obj SYMBOL obligation.** The obj carries a symbol no function
+  body contains, minted by a TU-level predicate. Every one the port's writer can
+  owe, enumerated from `crates/c2-core/src/coff/writer.rs` and `function.rs`:
+
+  1. **`_fltused`** — one per TU, emitted immediately after the FIRST float
+     function's complete symbol group. Producer
+     `c2_il::IlFunction::touches_floating_point`. **This is the one `w-blockir`
+     paid.**
+  2. **`__real@…` pooled FP constants** — one `.rdata` section symbol + aux +
+     one external per *distinct* constant, in first-reference order, deduped
+     **across functions**. A per-function byte test sees each body and not the
+     TU-wide pool.
+  3. **Undefined externals, deduped TU-wide, in REVERSE first-reference order**
+     over `callees ∪ data names` (`Function::introduced_externals`). Both the
+     dedup and the order are whole-obj facts; emitting one per call site instead
+     resolves every relocation and is still the wrong obj.
+  4. **`__savegprlr_N` / `__restgprlr_N`** (`Function::helper_externals`) —
+     minted from the frame's `saved_gprs`, never named in the IL, and placed
+     *after* the `.pdata` group.
+  5. **The compiler-label counter** — the `$M`/`$M`/`$T` numbering, seeded from
+     `.gl` and advanced per function by a measured stride, **plus one slot
+     charged once per TU for the first FP-touching function** (`_fltused`'s).
+     A wrong count here is a wrong obj with every body byte-exact.
+  6. **`@comp.id` and the 13 fixed shell slots**, and the string table that
+     follows from every name above.
+* **NC-2 — a SECTION obligation.** The section set (factor **C**: 10 writer
+  names of 13 workload names), the section *count* at file offset 2, the section
+  *order* (Rule S1's three `.bss` slots, **#1148**/**#1179**), and `.pdata`'s
+  existence at all — decided by "does any function in this TU have a frame".
+* **NC-3 — a TYPE-LIST gap.** A reader refuses on **list membership**, not on a
+  construct it cannot represent: `.sy` admitting `tid == 0x74` and not `0x75`
+  (#764) is the recorded instance. Detector: the refusal key ends in a hex
+  **type tag** (`expr-load-type-8881`, `assign-store-type-8643`).
+* **NC-4 — a MISLOCATED reader clause.** The published refusal names a layer
+  that is not the one that fails. `w-main`'s R1 is the hand-found instance;
+  board **#1416** is the population version — *"`expr-cmp-eq` / `expr-cmp-ne` IS
+  A FALL-THROUGH KEY ON THIS FRONTIER — it is the reported first blocker of 6 of
+  the 7 blocked EMITTED functions in the four READER-CLEAR TUs and **it names
+  none of their refusals**"* — **diagnosed and not repaired.**
+
+### 11.2 The detector
+
+Three tests, all over the **emitted** population, which `w-readpx` (#2280)
+established is the only discriminating one — blocked rows are `fnbyte-refused`
+by construction.
+
+| test | catches | how |
+|---|---|---|
+| **T1 ALL-EXACT-NO-MATCH** | NC-1, NC-2 | from a `c2rs gap --jsonl` scan: `fnbyte-denominator > 0` ∧ `fnbyte-exact == fnbyte-denominator` ∧ `class != match`. This is `w-blockir`'s shape one day before it converted. `work/w-nc/sweep.py` |
+| **T1b ZERO-BYTE** | NC-1, NC-2 | `fnbyte-denominator == 0` ∧ `class != match` — the reference obj has no code at all, so the *entire* remaining distance is a whole-obj obligation |
+| **T2 emitted-side refusal keys** | NC-3, NC-4 | the census verdict key of every `fnbyte-refused` **emitted** function. `work/w-nc/keys.py` + the reverted `C2RS_NC_KEYS` scratch. The published `fn_blockers` is over all 2.4 M bodies and is fail-open on 845 of 871 TUs (#2220); this one sums to `fnbyte-refused` |
+| **T3 the type-tag regex** | NC-3 | `(type\|target)-[0-9A-F]{4}` over T2's keys |
+
+**T2 is itself subject to NC-4** and the detector must say so: #1416's
+fall-through means a reported key can name none of the refusal. Publish the
+fall-through family's size beside any ranking taken off T2 — it is **9,095 of
+114,687 emitted refusals (7.93 %)**.
+
+### 11.3 What the sweep found (2026-08-09, dc3 `eb40a361`)
+
+* **T1 = 1**: `src/system/math/vec.cpp` — `??0Vector3@@QAA@MMM@Z` and
+  `??0Vector4@@QAA@MMMM@Z`, **both byte-exact**, factors `-BCD-`.
+* **T1b = 1**: `src/system/decomp_pch.cpp` — its whole obj is 933 bytes, the
+  four-section shell plus one 4-byte `.rdata` COMDAT (`ff ff ff ff`) carrying
+  one external, `?npos@?$basic_string@…`. **1,312 `.ex` bodies and zero emitted
+  functions.**
+* So the **byte-distance-zero population is 2**, and it is exactly the two TUs
+  §2.5 and board **#213** already name as *"inside `B∧C`, failing A, already
+  accepted by the port"*. What is new is that it is now **byte-verified**: a
+  perfect factor A converts these two with **zero codegen**, and that had been a
+  reachability claim with no bytes behind it.
+* **The frontier 8 carry ZERO all-exact TUs and 8 of 8 carry ≥1
+  `fnbyte-refused`.** Its codegen column reads `denominator 47 · exact 10 ·
+  wrong 0 · refused 0 · reader 37` — **quote it from a scan; §2.1's copy is a
+  stale 59/10/1/0/48.**
+* Every one of the 25 declines in the `1–2 functions short` band is
+  `Decline::Parse`. **The reader, not the emitter, is the whole band.**
+
+### 11.4 THE CHECKLIST — before you call a body a codegen problem
+
+1. **Ask the BYTE judge, not the census.** `fnbyte-exact` / `differs` /
+   `refused` per function, from a scan. The per-function census is fail-open on
+   845 of 871 TUs (#2220) and a census gain is not a goal gain (§10.2).
+2. **If every body is already `fnbyte-exact`, the blocker is NOT codegen.** Run
+   T1. Then walk NC-1's six-item list and NC-2's four before you write an
+   emitter arm. `w-blockir` paid `_fltused` in **one line** at the end of a lane
+   that had already built a loop.
+3. **Read the reference obj's SYMBOL TABLE, not just its `.text`.**
+   `scripts/gt_dump.py <obj>` prints it. A symbol with no body — `_fltused`,
+   `__real@…`, `__savegprlr_N`, a `$M`/`$T` label — is an obligation no
+   per-function byte test can see.
+4. **Check whether the refusal is LIST MEMBERSHIP.** A key ending in a hex type
+   tag is a positive-list question (#764), not a construct. `.sy` has four
+   positive lists; `read_record`'s own 21-cell table carried the `unsigned` row
+   **unconsumed** from the lane that measured it until `w-bdnz` used it.
+5. **Do not trust the reported key's LAYER.** #1416: `expr-cmp-eq`/`-ne` names
+   none of the refusal on this frontier, and #420 measured the whole relational
+   family absorbing into branch keys under a sink. Confirm the key against the
+   body — `w-nc` found `void WordWrap_SetOption(unsigned o){ g_uOption = o; }`,
+   **twelve bytes of PowerPC with no control flow whatsoever**, reported blocked
+   at **`expr-jump`**.
+6. **Check factor A before pricing any reader or emitter work.** 13 of the 17
+   TUs within 2 functions of all-exact fail A, so closing their reader gap
+   converts **nothing**. `A∧B∧C` minus the match set is the only population
+   where codegen alone can convert.
+7. **Check the board.** Five rows have re-entered a ranking after already
+   measuring zero. `grep` `BOARD.md` for the key before sizing a rung on it.
