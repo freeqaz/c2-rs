@@ -10677,3 +10677,46 @@ recorded at `work/w-callprice/scratch.patch`, and `git diff master -- crates/` i
 empty at its tip.
 
 [`rungs/2026-08-09-w-callprice.md`](rungs/2026-08-09-w-callprice.md).
+
+## 10.27 WB-I — the rate question is ANSWERED: a general lowering IS derivable (2026-08-09)
+
+`wb-select` (board #2040–#2047, `docs/whitebox/WB_SELECT_FINDINGS.md`) read c2's
+instruction selection and answered the question every lane since §10.24 has been
+circling. **Yes.** A general `lower_expr` is derivable at roughly **640 lines and
+~60 rules plus two cost models**, and the reason it generalises is structural:
+**the knowledge is in tables and the operand type is the table's own index**, so
+one adoption covers every type at once.
+
+Selection is one opcode field overwritten downward in place; sixteen 26-entry
+operator × type arrays decide form; `cmpw` vs `cmplw` (#1788) is a lookup, not a
+branch, and `divw`/`divwu` and the load widths come free with it. The only place
+selection is a genuine algorithm is a relational used as a **value**, where two
+expanders are **costed in words**, the cheaper wins and ties go to the second —
+a rule frozen as a predicted 4–4 tie *before* the cell was compiled, which then
+went the predicted way, word-exact. The grid returned **10/12 primary and 6 of 10
+word-exact on 11 cells the port cannot emit**, four of them predicted
+instruction-word for instruction-word sight unseen.
+
+**What this does and does not change.** It changes the *price of every future
+emitter class* — WB-H shipped one shape; this shipped the index that made a shape
+necessary. It does **not** change first-scan reach, which stays **0**: 48 of the
+frontier's 59 functions die at the port's IL **reader** before any selection
+question is reachable (WB-D P5.4, WB-H §9.1, re-confirmed here). **The emitter is
+no longer the constraint; the reader is.**
+
+**The ordering this licenses**, superseding §10.26.6's "out of levers":
+
+1. **`lower_expr` as infrastructure** — the operator × type tables, the
+   immediate-fit rule, the `rlandi` expansion, the cost race, then WB-D's
+   register rule (free). Adoption note: W-SELECT-2 and W-SELECT-5 are
+   adoption-ready and **black-box re-derivable one fixture per cell**;
+   **W-SELECT-3 is the only row in either campaign where the black-box
+   alternative is genuinely insufficient** — no obj can distinguish "it was a
+   tie" from "B was cheaper", so the cost model and tie rule need their
+   addresses in a same-commit DISCLOSURE row.
+2. **Reader admission at the frontier's 48**, which is now the binding
+   constraint on everything above.
+3. `w-callprice`'s **R2** (the float value tail, 544 emitted over 9 constructs,
+   §10.26.7) as the largest priced conversion rung on the board.
+4. The `{0,1}` result pair routes to a **located-and-unread** 890-byte function —
+   the next selection lane's first job, and the only named gap in this reading.
