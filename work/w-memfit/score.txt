@@ -1,0 +1,77 @@
+==============================================================================
+CONTROL — reproduce every score w-memcpy published, from its own files
+==============================================================================
+  GRID-M   M-THRESH-32    182 / 232   (rung says 182)  OK
+  GRID-M   M-THRESH-16    174 / 232   (rung says 174)  OK
+  GRID-M   M-THRESH-64    166 / 232   (rung says 166)  OK
+  GRID-M   M-THRESH-8     158 / 232   (rung says 158)  OK
+  GRID-M   M-VARCALL      118 / 232   (rung says 118)  OK
+  GRID-M   M-ALWAYSCALL   114 / 232   (rung says 114)  OK
+  GRID-M2  F-48           114 / 176   (rung says 114)  OK
+  GRID-M2  F-ALL          114 / 176   (rung says 114)  OK
+  ALL REPRODUCED — the scores below are on the same denominators.
+
+==============================================================================
+THE TWO-VALUED LABEL TRAP (w-memcpy §6.2, board #984)
+==============================================================================
+  probeM2/measured.json `verdict` field: 62 rows read `inline`
+  recomputed from nbytes:                44 of them are `none` (4-byte bodies)
+  scoring against the committed field would grade 44 eliminated bodies as inline.
+
+==============================================================================
+GRID-M — 232 cells, the READ rule and its controls
+==============================================================================
+  R-N5      floor(size/align) <= 5   232 / 232
+  R-N5+DEAD  ... with E-DEADDST      232 / 232
+  R-N10     floor(size/align) <= 10  198 / 232
+         34 miss  operands=ff(2 formals) predicted inline  measured call    e.g. memcpy_c_n7
+  R-N10+DEAD ... with E-DEADDST      198 / 232
+         34 miss  operands=ff(2 formals) predicted inline  measured call    e.g. memcpy_c_n7
+  R-SIZE5   size <= 5                162 / 232
+         70 miss  operands=ff(2 formals) predicted call    measured inline  e.g. memcpy_i_n7
+  R-SIZE5+DEAD ... with E-DEADDST    162 / 232
+         70 miss  operands=ff(2 formals) predicted call    measured inline  e.g. memcpy_i_n7
+
+==============================================================================
+GRID-M2 — 176 cells, the READ rule and its controls
+==============================================================================
+  R-N5      floor(size/align) <= 5   132 / 176
+         38 miss  operands=ll            predicted call    measured none    e.g. m2_v_ll_n44
+          6 miss  operands=ll            predicted inline  measured none    e.g. m2_q_ll_n44
+  R-N5+DEAD  ... with E-DEADDST      176 / 176
+  R-N10     floor(size/align) <= 10   90 / 176
+         14 miss  operands=ff            predicted inline  measured call    e.g. m2_q_ff_n48
+         14 miss  operands=fg            predicted inline  measured call    e.g. m2_q_fg_n48
+         14 miss  operands=fl            predicted inline  measured call    e.g. m2_q_fl_n48
+         24 miss  operands=ll            predicted call    measured none    e.g. m2_v_ll_n44
+         20 miss  operands=ll            predicted inline  measured none    e.g. m2_q_ll_n44
+  R-N10+DEAD ... with E-DEADDST      134 / 176
+         14 miss  operands=ff            predicted inline  measured call    e.g. m2_q_ff_n48
+         14 miss  operands=fg            predicted inline  measured call    e.g. m2_q_fg_n48
+         14 miss  operands=fl            predicted inline  measured call    e.g. m2_q_fl_n48
+  R-SIZE5   size <= 5                114 / 176
+          6 miss  operands=ff            predicted call    measured inline  e.g. m2_q_ff_n44
+          6 miss  operands=fg            predicted call    measured inline  e.g. m2_q_fg_n44
+          6 miss  operands=fl            predicted call    measured inline  e.g. m2_q_fl_n44
+         44 miss  operands=ll            predicted call    measured none    e.g. m2_v_ll_n44
+  R-SIZE5+DEAD ... with E-DEADDST    158 / 176
+          6 miss  operands=ff            predicted call    measured inline  e.g. m2_q_ff_n44
+          6 miss  operands=fg            predicted call    measured inline  e.g. m2_q_fg_n44
+          6 miss  operands=fl            predicted call    measured inline  e.g. m2_q_fl_n44
+
+==============================================================================
+THE CONFIDENT CORE — R-N5+DEAD restricted to the two grids' shared axes
+==============================================================================
+  constant non-zero size, live destination, hint in {1,4,8}, /O1:
+    R-N5  348 / 348
+  cells DELIBERATELY excluded from the core and counted separately:
+    non-constant size          8 cells, rule agrees on 8
+    size 0                     8 cells, rule agrees on 8
+    dead local destination    44 cells, rule agrees on 44
+
+==============================================================================
+DO w-memcpy's OWN CELLS DISCRIMINATE T=5 FROM T=10?
+==============================================================================
+  GRID-M   cells where T=5 and T=10 disagree:  34 ; measured agrees with T=5 on 34, with T=10 on 0, with NEITHER on 0
+  GRID-M2  cells where T=5 and T=10 disagree:  56 ; measured agrees with T=5 on 42, with T=10 on 0, with NEITHER on 14
+           of which 42 have a LIVE destination: T=5 on 42, T=10 on 0
