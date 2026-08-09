@@ -47,6 +47,7 @@ pub use func::{
     IlFunction, IlOp,
     DivModLeaf,
     FloatWalkLoop, FloatWalkOp, FloatWalkShape,
+    FpDiamondConstStore, FpDiamondDiv, FpStoreDiamond, CtorForwardCall,
     IfCallJoin,
     AllocInitOrFail,
     AllocInitOrFailFn,

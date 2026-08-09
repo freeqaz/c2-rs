@@ -469,6 +469,21 @@ pub fn splice_callee_why<'a>(
         // explicitly rather than by a catch-all, so a later shape cannot fall
         // into a splice path nobody graded.
         Selected::IfCallJoin => return Err("S3-if-call-join"),
+        // **W-BIQUAD: thirty-five words, two branches and no call at all.**
+        // Mechanism I replaces a body that is NOTHING BUT one call, and this
+        // one names no callee, so it can be neither source nor target. Refused
+        // explicitly rather than by a catch-all, for the same reason every
+        // clause here is: a later shape must not fall into a splice path nobody
+        // graded.
+        Selected::FpStoreDiamond { .. } => return Err("S3-fp-store-diamond"),
+        // **W-BIQUAD's constructor IS "nothing but one call"**, which is exactly
+        // mechanism I's shape — and it is refused all the same, because S3's
+        // measured stratum is a body whose emitted words are the call and
+        // nothing else. This one parks `this` first and carries a frame, so
+        // splicing the callee in would drop the park, the frame, the `.pdata`
+        // record and the label triple with it. Named rather than caught by a
+        // catch-all, because it is the near miss.
+        Selected::CtorForwardCall => return Err("S3-ctor-forward-call-has-a-frame"),
         // W-EXTDATA: a framed multi-call body is not a splice source or target
         // for the same reason W-CFG1 is not — mechanism I replaces a body that
         // is NOTHING BUT one call, and this one is thirty words.

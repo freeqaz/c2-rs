@@ -45,6 +45,8 @@ pub mod json_utf8_copy;
 pub mod guard_chain_shared_tail;
 pub mod counted_accum_loop;
 pub mod float_walk_loop;
+pub mod ctor_forward_call;
+pub mod fp_store_diamond;
 pub mod if_call_join;
 pub mod labels;
 pub mod leaf;

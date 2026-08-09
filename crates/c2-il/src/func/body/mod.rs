@@ -21,6 +21,8 @@ use self::shapes::{
     try_parse_guarded_seq,
     try_parse_empty_dtor_delegation,
     try_parse_float_leaf,
+    try_parse_ctor_forward_call,
+    try_parse_fp_store_diamond,
     try_parse_fp_tail_call,
     try_parse_indirect_load_leaf, try_parse_member_tail_call, try_parse_ptr_identity_leaf,
     try_parse_ptr_walk_chain_loop,
@@ -718,6 +720,18 @@ pub(crate) enum BodyShape {
     /// the compiled cell behind each, and [`crate::func::FloatWalkLoop`] for the
     /// five fields.
     FloatWalkLoop(crate::func::FloatWalkLoop),
+    /// **W-BIQUAD — the null-guarded float-store diamond**, the larger half of
+    /// `src/system/synth_xbox/Biquad.cpp`. A two-armed `if`/`else` with a real
+    /// join, two pooled `.rdata` constants whose `lis` land in two different
+    /// blocks, and a CSE'd division run whose last statement swaps its operands.
+    /// See [`super::shapes::fp_store_diamond`] for every boundary clause and
+    /// [`crate::func::FpStoreDiamond`] for the four fields.
+    FpStoreDiamond(crate::func::FpStoreDiamond),
+    /// **W-BIQUAD — the constructor that is nothing but a forwarded member
+    /// call**, the smaller half of `src/system/synth_xbox/Biquad.cpp`. See
+    /// [`super::shapes::ctor_forward_call`] for the boundary and
+    /// [`crate::func::CtorForwardCall`] for the three fields.
+    CtorForwardCall { params: Vec<u32>, callee_tok: u32, live_args: usize },
     /// **The body-parameterized pointer-walk loop** — the first shape here
     /// whose emitted body has no fixed length. See
     /// [`super::shapes::ptr_walk_chain_loop`] for the accept/refuse boundary
@@ -1969,6 +1983,29 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                 // `PROD_NOT_ENTERED`, so the two are never confused: the residue
                 // under this name is the population whose refusal is inside a
                 // production and not yet attributed to a site.
+                // **W-BIQUAD — the constructor that is nothing but a forwarded
+                // member call.** Tried BEFORE `try_parse_member_tail_call`,
+                // because that production is the one that reports this body
+                // today (`expr-call-in-expr-recv-load-then-plumbing-0x3A`, which
+                // is what `Biquad.cpp`'s `??0Biquad` read at this lane's base) —
+                // so asking it first would let a *committed refusal* return
+                // before this recognizer is ever offered the body.
+                //
+                // It cannot take a body the tail production accepts: this one
+                // requires the call's result to be DISCARDED (`4B`) and the
+                // function to end on the CONSTRUCTOR tail — `3A`, the scope
+                // closes, `29`, then `return this` — where the tail production
+                // requires the body to END at the call. `run_call_tail`'s own
+                // gates are what enforce both, and they are the same gates
+                // `try_parse_store_run_call` has been shipping since w-seam2.
+                //
+                // Non-committal: its own cursor, `Err` on the first byte outside
+                // its grammar, so a body that declines still reports the
+                // member-call production's blocker and no census key moves.
+                if let Ok(shape) = try_parse_ctor_forward_call(seg, p, lo) {
+                    disp("disp-ctor-forward-call");
+                    return Ok(shape);
+                }
                 disp("disp-member-call");
                 prod_tag(PROD_ENTERED_UNTAGGED);
                 match try_parse_member_tail_call(seg, p, lo, depth) {
@@ -2304,6 +2341,29 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // census key moves.
             if let Ok(shape) = try_parse_guard_ret_chain(seg, p, lo) {
                 disp("disp-guard-ret-chain");
+                return Ok(shape);
+            }
+            // **W-BIQUAD — the null-guarded float-store diamond.** Asked after
+            // every framed production of this arm, on `guard_ret_chain`'s
+            // reasoning taken rather than re-argued: its first four tokens —
+            // `B9 <formal> <PTR>`, `33 <PTR> 0`, `1F`, `38` — are shared
+            // VERBATIM with `cond_tail_pair`, `guarded_seq`, `early_return_seq`,
+            // `alloc_init_or_fail` and `guard_ret_chain`, all of which live in
+            // this same arm. Rather than assert disjointness on four bytes, the
+            // production goes after every one of them, so *"no body any
+            // production above accepts today can move"* is true by construction.
+            // The FIFTH token is where it separates and separates totally: every
+            // class above continues into a `26` push, a `33` literal or a `3A`,
+            // and this one opens its arm with two `53` scopes and then a `B9`
+            // load whose designator is an offset-add run.
+            //
+            // Non-committal on the same terms as the rest of the ladder: its own
+            // cursor, `Err` on the first byte outside its grammar, so a body that
+            // declines still reports the arm's blocker (`expr-cmp-eq`, which is
+            // what `Biquad.cpp`'s `?SetCoefficients` read at this lane's base)
+            // and no census key moves.
+            if let Ok(shape) = try_parse_fp_store_diamond(seg, p, lo) {
+                disp("disp-fp-store-diamond");
                 return Ok(shape);
             }
             // **The integer divide/modulo leaf.** Tried here because it is the

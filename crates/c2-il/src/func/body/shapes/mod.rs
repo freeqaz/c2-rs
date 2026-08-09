@@ -29,10 +29,12 @@ pub(crate) mod cond_tail;
 pub(crate) mod counted_accum_loop;
 pub(crate) mod control_flow;
 pub(crate) mod ctor_dtor;
+pub(crate) mod ctor_forward_call;
 pub(crate) mod designator;
 pub(crate) mod div_mod_leaf;
 pub(crate) mod early_return;
 pub(crate) mod float_walk_loop;
+pub(crate) mod fp_store_diamond;
 pub(crate) mod guarded_seq;
 pub(crate) mod leaf_addr;
 pub(crate) mod leaf_compare;
@@ -92,6 +94,10 @@ pub(crate) use leaf_compare::*;
 pub(crate) use mcall_chain::*;
 #[allow(unused_imports)]
 pub(crate) use mcall_cmp::*;
+#[allow(unused_imports)]
+pub(crate) use ctor_forward_call::*;
+#[allow(unused_imports)]
+pub(crate) use fp_store_diamond::*;
 #[allow(unused_imports)]
 pub(crate) use leaf_float::*;
 #[allow(unused_imports)]

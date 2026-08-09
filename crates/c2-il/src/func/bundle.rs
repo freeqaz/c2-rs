@@ -825,6 +825,36 @@ pub(crate) fn shape_to_function(
                 float_walk_loop: Some(l),
                 ..IlFunction::base(name, src)
             }),
+            // **W-BIQUAD — the null-guarded float-store diamond.** Nothing to
+            // resolve, for the same reason the two rows above give: the class
+            // references no external symbol, no data object and no callee. Its
+            // only *outbound* names are the two `__real@…` constants, and those
+            // are minted by the writer out of the emitter's `FpConstRef` list
+            // rather than bound here — `Biquad.cpp`'s `?SetCoefficients` section
+            // carries eight relocations and every one is a REFHI/REFLO/PAIR
+            // against an `.rdata` COMDAT this obj also defines.
+            BodyShape::FpStoreDiamond(d) => Some(IlFunction {
+                params: d.params.clone(),
+                fp_store_diamond: Some(d),
+                ..IlFunction::base(name, src)
+            }),
+            // **W-BIQUAD — the forwarding constructor.** The one name it emits
+            // is its callee's, resolved through the same `resolve` every call
+            // shape uses; in `Biquad.cpp` that callee is DEFINED here, so the
+            // writer relocates against its own defined symbol and mints no
+            // undefined external — the seam `w-fence2` opened.
+            BodyShape::CtorForwardCall { params, callee_tok, live_args } => {
+                let callee = resolve(callee_tok)?;
+                Some(IlFunction {
+                    params: params.clone(),
+                    ctor_forward_call: Some(crate::func::CtorForwardCall {
+                        params,
+                        callee,
+                        live_args,
+                    }),
+                    ..IlFunction::base(name, src)
+                })
+            }
             BodyShape::IndirectLoad { params, ops } => {
                 Some(IlFunction {
                     params,

@@ -158,6 +158,24 @@ pub enum Selected {
     /// plan — the defect [`Selected::Seq`]'s `guard`/`early` resolvers were
     /// centralised to prevent.
     IfCallJoin,
+    /// **W-BIQUAD — the forwarding constructor.** A FRAMED shape: it owns its
+    /// `.pdata` record and its `$M`/`$M`/`$T` triple, and its one `bl` word
+    /// encodes its own `.text` offset, so — like every framed whole-body shape
+    /// here — the bytes are built by the caller, which knows where the function
+    /// lands. A unit variant for [`Selected::IfCallJoin`]'s reason: the body is a
+    /// pure function of `base_off` and carrying a half-built text would give the
+    /// two writers two chances to disagree about it.
+    CtorForwardCall,
+    /// **W-BIQUAD — the null-guarded float-store diamond.** A LEAF that
+    /// branches: no frame, no `.pdata`, no label triple, two `.rdata` pools and
+    /// two intra-function branches whose displacements are self-relative and
+    /// take no relocation. Carries its bytes (like [`Selected::Float`], and
+    /// unlike every framed shape below) precisely because nothing in it depends
+    /// on where the function lands.
+    FpStoreDiamond {
+        text: Vec<u8>,
+        consts: Vec<FpConstRef>,
+    },
     /// **W-EXTDATA — the sunk-`||`-guard body with a shared error tail.** The
     /// same contract [`Selected::IfCallJoin`] has, one block plan over: a unit
     /// variant, because the body is a pure function of
@@ -265,6 +283,24 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
     // production and by nothing else.
     if let Some(pair) = &func.cond_pair {
         return Ok(Selected::CondPair(cond_pair_parts(func, pair)?));
+    }
+    // **W-BIQUAD — the float-store diamond.** Asked beside the other shapes
+    // that own their whole branch layout and ahead of every leaf: its body ends
+    // in a `blr` like a leaf, but it contains two intra-function branches and
+    // two pooled constants, and none of the leaf recognizers below can spell
+    // either. It cannot take a body from any of them —
+    // `func.fp_store_diamond` is set by exactly one parser production and by
+    // nothing else.
+    // **W-BIQUAD — the forwarding constructor**, asked beside the other framed
+    // shapes that own their whole obj shape and ahead of every leaf, exactly
+    // where `framed_call` is. `func.ctor_forward_call` is set by one parser
+    // production and by nothing else, so it can take a body from nothing.
+    if func.ctor_forward_call.is_some() {
+        return Ok(Selected::CtorForwardCall);
+    }
+    if let Some(d) = &func.fp_store_diamond {
+        let (text, consts) = crate::codegen::fp_store_diamond::fp_store_diamond_text(d)?;
+        return Ok(Selected::FpStoreDiamond { text, consts });
     }
     if func.tail_call.is_some() {
         // A single-argument **floating-point** tail call: the argument is in the
@@ -517,6 +553,13 @@ pub fn function_gate(
                 "pooled floating-point constant under function-level linking (/Gy)",
             ))
         }
+        // **W-BIQUAD's pools are NOT refused under `/Gy`** — `emit_comdat_obj`
+        // emits them, interleaved per first-referencing function and appended
+        // in reverse first-reference order within one function
+        // (`docs/OBJ_GY_SHAPES.md` §2.4 rules 1 and 3). The arm above stays as
+        // it is: the straight-line float leaf reaches the writer through a path
+        // that has never been graded with a pool under `/Gy`, and widening it
+        // here would be a claim about a population this lane did not compile.
         _ => Ok(()),
     }
 }

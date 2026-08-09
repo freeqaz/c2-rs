@@ -547,7 +547,7 @@ pub(crate) const CH_RDATA_F64: u32 = 0x4040_1040;
 /// The mangled symbol name c2 gives a pooled FP constant: `__real@` followed by
 /// the big-endian IEEE bit pattern in lowercase hex — 8 digits for a `float`,
 /// 16 for a `double`.
-pub(crate) fn real_symbol_name(bits: u64, double: bool) -> String {
+pub fn real_symbol_name(bits: u64, double: bool) -> String {
     if double {
         format!("__real@{bits:016x}")
     } else {

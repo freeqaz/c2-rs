@@ -1004,6 +1004,8 @@ fn ops_setup_text(
         alloc_init_or_fail: None,
         osf_handle_guard: None,
         guard_ret_chain: None,
+        fp_store_diamond: None,
+        ctor_forward_call: None,
         xlrc_create_guard: None,
         json_utf8_copy: None,
         mangled_name: String::new(),
