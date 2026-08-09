@@ -1,0 +1,19 @@
+base 251 keys, tip 251 keys
+vanished 0, appeared 0, changed 17, unchanged 234
+  CHANGED  cflow-residue-inclass-modeled                  192495 -> 192494
+  CHANGED  cflow-residue-straight-modeled-blocked         83776 -> 83777
+  CHANGED  fnbyte-calltarget-disagree                     3416 -> 3415
+  CHANGED  fnbyte-calltarget-disagree-count               2227 -> 2226
+  CHANGED  fnbyte-calltarget-disagree-differs             2555 -> 2554
+  CHANGED  fnbyte-calltarget-graded                       39644 -> 39643
+  CHANGED  fnbyte-decline-parse                           130116 -> 130117
+  CHANGED  fnbyte-differs                                 2555 -> 2554
+  CHANGED  fnbyte-differs-witnesses                       933 -> 932
+  CHANGED  fnbyte-refused                                 130116 -> 130117
+  CHANGED  fnbyte-refused-parse                           130116 -> 130117
+  CHANGED  fnbyte-shape-parse-refused-refused             130116 -> 130117
+  CHANGED  fnbyte-shape-seq-differs                       1351 -> 1350
+  CHANGED  frontier-codegen-measured                      1 -> 0
+  CHANGED  frontier-codegen-reader                        40 -> 41
+  CHANGED  frontier-codegen-wrong                         1 -> 0
+  CHANGED  progress-emitted-in-class                      39644 -> 39643

@@ -1,0 +1,18 @@
+BASE
+        1877  fnbyte-elided
+        1877  fnbyte-elided-exact
+         723  fnbyte-spliced
+         723  fnbyte-spliced-exact
+         723  fnbyte-spliced-reloc|no-relocs
+         634  fnbyte-spliced|seq
+          89  fnbyte-spliced|tail
+      102273  fnbyte-tu-empty-callees
+TIP
+        1877  fnbyte-elided
+        1877  fnbyte-elided-exact
+         723  fnbyte-spliced
+         723  fnbyte-spliced-exact
+         723  fnbyte-spliced-reloc|no-relocs
+         634  fnbyte-spliced|seq
+          89  fnbyte-spliced|tail
+      102273  fnbyte-tu-empty-callees

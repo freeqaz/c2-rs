@@ -1,0 +1,4 @@
+entries: base 316, tip 316
+  match     base  143   tip  143
+  mismatch  base    0   tip    0
+changed 0, only-in-base 0, only-in-tip 0
