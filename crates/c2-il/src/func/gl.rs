@@ -3038,6 +3038,14 @@ mod tests {
         // require `@@`, so the `extern "C"` record was invisible and the binding
         // fell back to the nearest *mangled* run — the previous record's name. Two
         // bodies under one symbol, wrong bytes at obj offset 804.
+        //
+        // **W-DECOUPLE — the SEEN half is unchanged and the REFUSED half is now
+        // the FENCE walk's answer, not the gate's.** This test compiled and
+        // passed across the split without a line changing, which is exactly how
+        // a claim rots: `il_extern_c_name.cpp` MATCHES at this tip. The
+        // assertions below still say something true — `gl_defined_names` is the
+        // fence's ground set and it must not have grown (#2623) — and the two
+        // added at the end say the thing this test is named after.
         let mut gl = Vec::new();
         gl.extend_from_slice(&gl_record("?w_mangled@@YAHH@Z", 2644));
         gl.extend_from_slice(&gl_record("c1", 2743));
@@ -3058,6 +3066,25 @@ mod tests {
         rev.extend_from_slice(&gl_record("c1", 2644));
         rev.extend_from_slice(&gl_record("?w_mangled@@YAHH@Z", 2743));
         assert_eq!(gl_defined_names(&rev), (Vec::new(), Vec::new()));
+
+        // **W-DECOUPLE** — and the GATE now binds both records, in both orders,
+        // each to its OWN offset. The borrowed-name bug this test is named after
+        // is refused by the POSITION rule and by nothing else; the name test was
+        // only ever hiding it behind a wholesale refusal.
+        assert_eq!(
+            gl_bound_names(&gl).0,
+            vec![
+                (2644, "?w_mangled@@YAHH@Z".to_string()),
+                (2743, "c1".to_string()),
+            ]
+        );
+        assert_eq!(
+            gl_bound_names(&rev).0,
+            vec![
+                (2644, "c1".to_string()),
+                (2743, "?w_mangled@@YAHH@Z".to_string()),
+            ]
+        );
     }
 
     #[test]

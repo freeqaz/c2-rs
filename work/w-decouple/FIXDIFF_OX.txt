@@ -1,0 +1,31 @@
+A 369 TUs, B 369 TUs
+only-in-A 0, only-in-B 0
+== L1 class: 5 moved
+   fixtures/cpp/il_extern_c_name.cpp                    vocab-gap -> match
+   fixtures/cpp/wdec_ec_varargs_long_neg.cpp            mismatch -> vocab-gap
+   fixtures/cpp/wdec_ecshort_eight.cpp                  vocab-gap -> match
+   fixtures/cpp/wdec_ecshort_leaf.cpp                   vocab-gap -> match
+   fixtures/cpp/wdec_ecshort_mix.cpp                    vocab-gap -> match
+== L2 gate_cause: 9 moved
+   fixtures/cpp/il_extern_c_name.cpp                    gl-stop-name-not-mangled -> None
+   fixtures/cpp/wdec_ec_localcall_neg.cpp               gl-stop-name-not-mangled -> shape-token-unresolved
+   fixtures/cpp/wdec_ec_varargs_long_neg.cpp            None -> gl-stop-varargs-record
+   fixtures/cpp/wdec_ec_varargs_neg.cpp                 gl-stop-name-not-mangled -> gl-stop-varargs-record
+   fixtures/cpp/wdec_ecshort_eight.cpp                  gl-stop-name-not-mangled -> None
+   fixtures/cpp/wdec_ecshort_leaf.cpp                   gl-stop-name-not-mangled -> None
+   fixtures/cpp/wdec_ecshort_mix.cpp                    gl-stop-name-not-mangled -> None
+   fixtures/cpp/wifn_guard_ret_chain_neg.cpp            gl-stop-name-not-mangled -> body-out-of-class
+   fixtures/cpp/wxlr_create_guard_neg.cpp               gl-stop-name-not-mangled -> body-out-of-class
+== L2b gate_causes SET: 9 moved
+   fixtures/cpp/il_extern_c_name.cpp                    ['gl-stop-name-not-mangled'] -> []
+   fixtures/cpp/wdec_ec_localcall_neg.cpp               ['gl-stop-name-not-mangled'] -> ['shape-token-unresolved']
+   fixtures/cpp/wdec_ec_varargs_long_neg.cpp            [] -> ['gl-stop-varargs-record']
+   fixtures/cpp/wdec_ec_varargs_neg.cpp                 ['gl-stop-name-not-mangled'] -> ['gl-stop-varargs-record']
+   fixtures/cpp/wdec_ecshort_eight.cpp                  ['gl-stop-name-not-mangled'] -> []
+   fixtures/cpp/wdec_ecshort_leaf.cpp                   ['gl-stop-name-not-mangled'] -> []
+   fixtures/cpp/wdec_ecshort_mix.cpp                    ['gl-stop-name-not-mangled'] -> []
+   fixtures/cpp/wifn_guard_ret_chain_neg.cpp            ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['body-out-of-class']
+   fixtures/cpp/wxlr_create_guard_neg.cpp               ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['body-out-of-class']
+== L3 emit[fnbyte-exact]: 0 moved
+== L3 emit[fnbyte-differs]: 0 moved
+== L3 emit[fnbyte-refused]: 0 moved
