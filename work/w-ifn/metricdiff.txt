@@ -1,0 +1,25 @@
+keys base 255  tip 256
+  only-in-base 0  only-in-tip 1  changed 22  identical 233
+    APPEARED  fnbyte-shape-guard-ret-chain-exact = 2
+    CHANGED   cflow-emitted-branchy: 35122 -> 35120
+    CHANGED   cflow-offclass-accounted: 519748 -> 519750
+    CHANGED   cflow-offclass-compare-blocked: 41132 -> 41130
+    CHANGED   cflow-offclass-compare-inclass: 12 -> 14
+    CHANGED   cflow-residue-inclass-offclass: 519748 -> 519750
+    CHANGED   fnbyte-calltarget-agree: 35774 -> 35776
+    CHANGED   fnbyte-calltarget-graded: 38185 -> 38187
+    CHANGED   fnbyte-decline-parse: 113684 -> 113682
+    CHANGED   fnbyte-exact: 35774 -> 35776
+    CHANGED   fnbyte-exact-bytes: 36306 -> 36308
+    CHANGED   fnbyte-exact-relocated: 3796 -> 3798
+    CHANGED   fnbyte-match: 0.22071 -> 0.22073
+    CHANGED   fnbyte-name-disagree: 74666 -> 74667
+    CHANGED   fnbyte-refused: 114687 -> 114685
+    CHANGED   fnbyte-refused-parse: 113684 -> 113682
+    CHANGED   fnbyte-reloc-graded: 36306 -> 36308
+    CHANGED   fnbyte-reloc-graded-relocated: 4328 -> 4330
+    CHANGED   fnbyte-shape-parse-refused-refused: 113684 -> 113682
+    CHANGED   frontier-bytefrac-top-accepted: 64 -> 256
+    CHANGED   frontier-codegen-exact: 10 -> 12
+    CHANGED   frontier-codegen-reader: 37 -> 35
+    CHANGED   progress-emitted-in-class: 39188 -> 39190

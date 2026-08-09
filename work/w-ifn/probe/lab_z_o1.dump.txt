@@ -1,0 +1,124 @@
+== work/w-ifn/probe/lab_z_o1.obj  machine=0x01f2 nsec=12 nsym=45 size=2082
+-- sections
+   1 .drectve   raw=132    rawptr=0x01f4 rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=184    rawptr=0x0278 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x0330 rel=0  relptr=0x0000 chars=0xc0401040
+   4 .XBLD$W    raw=16     rawptr=0x0340 rel=0  relptr=0x0000 chars=0xc2301040
+   5 .text      raw=36     rawptr=0x0350 rel=1  relptr=0x0374 chars=0x60401020
+   6 .pdata     raw=8      rawptr=0x037e rel=1  relptr=0x0386 chars=0x40401040
+   7 .text      raw=84     rawptr=0x0390 rel=1  relptr=0x03e4 chars=0x60401020
+   8 .pdata     raw=8      rawptr=0x03ee rel=1  relptr=0x03f6 chars=0x40401040
+   9 .text      raw=84     rawptr=0x0400 rel=1  relptr=0x0454 chars=0x60401020
+  10 .pdata     raw=8      rawptr=0x045e rel=1  relptr=0x0466 chars=0x40401040
+  11 .text      raw=36     rawptr=0x0470 rel=1  relptr=0x0494 chars=0x60401020
+  12 .pdata     raw=8      rawptr=0x049e rel=1  relptr=0x04a6 chars=0x40401040
+-- .text #5 (36 B) ?framed0@@YAHH@Z
+   0000  7d8802a6  7d8802a6                        
+   0004  9181fff8  9181fff8                        
+   0008  9421ffa0  9421ffa0                        
+   000c  4bfffff5  4bfffff5                          ; REL24 -> [15] ?gz@@YAHH@Z
+   0010  38630007  38630007                        
+   0014  38210060  38210060                        
+   0018  8181fff8  8181fff8                        
+   001c  7d8803a6  7d8803a6                        
+   0020  4e800020  4e800020                        
+-- .pdata #6 raw
+   0000  00 00 00 00 40 00 09 03
+   reloc va=0x0 ADDR32   -> [13] ?framed0@@YAHH@Z
+-- .text #7 (84 B) sub1
+   0000  7d8802a6  7d8802a6                        
+   0004  9181fff8  9181fff8                        
+   0008  9421ffa0  9421ffa0                        
+   000c  7c6b1b78  7c6b1b78                        
+   0010  7c832378  7c832378                        
+   0014  2b0b0000  2b0b0000                        
+   0018  409a000c  409a000c                        
+   001c  38600005  38600005                        
+   0020  48000024  48000024                        
+   0024  2b030000  2b030000                        
+   0028  409a000c  409a000c                        
+   002c  3860000b  3860000b                        
+   0030  48000014  48000014                        
+   0034  38a00048  38a00048                        
+   0038  7d645b78  7d645b78                        
+   003c  4bffffc5  4bffffc5                          ; REL24 -> [28] memcpy
+   0040  38600000  38600000                        
+   0044  38210060  38210060                        
+   0048  8181fff8  8181fff8                        
+   004c  7d8803a6  7d8803a6                        
+   0050  4e800020  4e800020                        
+-- .pdata #8 raw
+   0000  00 00 00 00 40 00 15 03
+   reloc va=0x0 ADDR32   -> [22] sub1
+-- .text #9 (84 B) sub2
+   0000  7d8802a6  7d8802a6                        
+   0004  9181fff8  9181fff8                        
+   0008  9421ffa0  9421ffa0                        
+   000c  7c6b1b78  7c6b1b78                        
+   0010  7c832378  7c832378                        
+   0014  2b0b0000  2b0b0000                        
+   0018  409a000c  409a000c                        
+   001c  38600005  38600005                        
+   0020  48000024  48000024                        
+   0024  2b030000  2b030000                        
+   0028  409a000c  409a000c                        
+   002c  3860000b  3860000b                        
+   0030  48000014  48000014                        
+   0034  38a00048  38a00048                        
+   0038  7d645b78  7d645b78                        
+   003c  4bffffc5  4bffffc5                          ; REL24 -> [28] memcpy
+   0040  38600000  38600000                        
+   0044  38210060  38210060                        
+   0048  8181fff8  8181fff8                        
+   004c  7d8803a6  7d8803a6                        
+   0050  4e800020  4e800020                        
+-- .pdata #10 raw
+   0000  00 00 00 00 40 00 15 03
+   reloc va=0x0 ADDR32   -> [31] sub2
+-- .text #11 (36 B) ?framed1@@YAHH@Z
+   0000  7d8802a6  7d8802a6                        
+   0004  9181fff8  9181fff8                        
+   0008  9421ffa0  9421ffa0                        
+   000c  4bfffff5  4bfffff5                          ; REL24 -> [15] ?gz@@YAHH@Z
+   0010  38630009  38630009                        
+   0014  38210060  38210060                        
+   0018  8181fff8  8181fff8                        
+   001c  7d8803a6  7d8803a6                        
+   0020  4e800020  4e800020                        
+-- .pdata #12 raw
+   0000  00 00 00 00 40 00 09 03
+   reloc va=0x0 ADDR32   -> [39] ?framed1@@YAHH@Z
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=184 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .XBLD$W                                  sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [10] __C1_11886                               sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [11] .text                                    sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=36 nrel=1 nln=0 cksum=0x00000000 num=0 sel=1)
+  [13] ?framed0@@YAHH@Z                         sec=5   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [14] $M2580                                   sec=5   val=0x24     sc=LABEL     type=0x0000 naux=0
+  [15] ?gz@@YAHH@Z                              sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [16] $M2579                                   sec=5   val=0xc      sc=LABEL     type=0x0000 naux=0
+  [17] .pdata                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0xd3dfb2ce num=5 sel=5)
+  [19] $T2581                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=0
+  [20] .text                                    sec=7   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=84 nrel=1 nln=0 cksum=0x00000000 num=0 sel=1)
+  [22] sub1                                     sec=7   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [23] $M2586                                   sec=7   val=0x54     sc=LABEL     type=0x0000 naux=0
+  [24] $M2585                                   sec=7   val=0xc      sc=LABEL     type=0x0000 naux=0
+  [25] .pdata                                   sec=8   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0x35a8ef93 num=7 sel=5)
+  [27] $T2587                                   sec=8   val=0x0      sc=STATIC    type=0x0000 naux=0
+  [28] memcpy                                   sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [29] .text                                    sec=9   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=84 nrel=1 nln=0 cksum=0x00000000 num=0 sel=1)
+  [31] sub2                                     sec=9   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [32] $M2591                                   sec=9   val=0x54     sc=LABEL     type=0x0000 naux=0
+  [33] $M2590                                   sec=9   val=0xc      sc=LABEL     type=0x0000 naux=0
+  [34] .pdata                                   sec=10  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0x35a8ef93 num=9 sel=5)
+  [36] $T2592                                   sec=10  val=0x0      sc=STATIC    type=0x0000 naux=0
+  [37] .text                                    sec=11  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=36 nrel=1 nln=0 cksum=0x00000000 num=0 sel=1)
+  [39] ?framed1@@YAHH@Z                         sec=11  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [40] $M2596                                   sec=11  val=0x24     sc=LABEL     type=0x0000 naux=0
+  [41] $M2595                                   sec=11  val=0xc      sc=LABEL     type=0x0000 naux=0
+  [42] .pdata                                   sec=12  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0xd3dfb2ce num=11 sel=5)
+  [44] $T2597                                   sec=12  val=0x0      sc=STATIC    type=0x0000 naux=0

@@ -1,0 +1,24 @@
+diff --git a/crates/c2-il/src/func/body/mod.rs b/crates/c2-il/src/func/body/mod.rs
+index cc072438..505837ec 100644
+--- a/crates/c2-il/src/func/body/mod.rs
++++ b/crates/c2-il/src/func/body/mod.rs
+@@ -2302,9 +2302,16 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
+             // declines still reports the arm's blocker (`expr-cmp-eq`, which is
+             // what all three `mmio.cpp` bodies read at this lane's base) and no
+             // census key moves.
+-            if let Ok(shape) = try_parse_guard_ret_chain(seg, p, lo) {
+-                disp("disp-guard-ret-chain");
+-                return Ok(shape);
++            match try_parse_guard_ret_chain(seg, p, lo) {
++                Ok(shape) => {
++                    disp("disp-guard-ret-chain");
++                    return Ok(shape);
++                }
++                Err(b) => {
++                    if std::env::var_os("C2RS_GRET").is_some() {
++                        eprintln!("GRET-DECLINE {}", b.feature());
++                    }
++                }
+             }
+             // **The integer divide/modulo leaf.** Tried here because it is the
+             // only production in this ladder that consumes an `05`/`06`, and
