@@ -654,3 +654,50 @@ git rev-list --merges --count 4233939b..c34c388c   # §4.3's reconstruction: 159
 | what the CFG step must emit | [`CFG_SHAPE.md`](CFG_SHAPE.md) |
 | what is inside the differing bodies | [`DIFF_STRUCTURE.md`](DIFF_STRUCTURE.md) |
 | the emit-set model's own plan and its held-out validation | [`PHASE7_PLAN.md`](PHASE7_PLAN.md), [`PHASE7_VALIDATION.md`](PHASE7_VALIDATION.md) |
+
+---
+
+## 10. The 2026-08-09 addendum — the distance is measured from three directions now
+
+`CEILING.md` was written on 2026-08-08 to equip the re-scope decision. Three
+lanes since have measured the same distance independently, and they agree.
+
+**1. The arithmetic is unchanged and was re-derived live** (tree `5ad60e9e`):
+`factor-a` **28** · `factor-b` **338** · `factor-c` **169** · `b-and-c` **151** ·
+`a-and-b-and-c` **27** · `frontier` **9** · `frontier-if-a` **131** ·
+`match` **18** · **`|D∨E|` 20**. Perfect A + perfect B + `C = 871`, together,
+move match **18 → 20**. The non-codegen headroom was **2** at match 11 on
+2026-08-08 and is **2** at match 18 today — unmoved across seven conversions
+and eleven lanes. **To reach 871, `|D∨E|` must reach 871.**
+
+**2. A census gain is not a goal gain, and now that is measured.** `w-fltret`
+(#2080–#2087) admitted **+444** emitted functions at 99.3 % of its predicted
+population and moved **`fnbyte-exact` by exactly zero** (36,228 → 36,228),
+because c2 inlines the callees. `w-inlfence` (#2220–#2227) then fenced the
+class and showed the per-function census is **fail-open on 845 of 871 TUs**.
+**Only `fnbyte-exact` and per-TU byte-exactness map to the goal.**
+
+**3. There is no multi-TU cluster.** `w-band` (#2240–#2247) priced the two
+distance bands `STATUS.md` publishes. The published distance is
+three-quarters **not** blocked functions; the `≤1` band is **7 live TUs**, not
+21 (13 already match); the `≤10` band is **69**. Of those, **56 carry ≥2
+distinct blocking keys**, **8 of the 11 single-key candidates are `-BC--`** and
+so fail factor A regardless of codegen, and **exactly one key owns two TUs** —
+which dies on inspection, needing block IR rather than reader admission. The
+only cleanly-one-TU rung in either band is `src/Main.cpp`.
+
+**What this means for the goal, stated as arithmetic and not as an argument.**
+Every remaining TU is an independent unit of function-byte codegen. The
+project's demonstrated rate is ~1 TU per lane at its best (2026-08-08: seven
+conversions), and the cheap transcription pool is exhausted — the frontier is
+9 and its remaining rows are EH, block IR, and two TUs above the one-block-plan
+licence. `WB-I` (§10.27) establishes that a *general* lowering is derivable
+(~60 rules), which changes the price of every future class — but its own
+predicted first-scan reach is **0**, because the reader gates 48 of the
+frontier's 59 functions, and the reader's own residue is now the binding
+constraint rather than the emitter's.
+
+**The re-scope decision remains the user's.** This page still does not argue
+for or against continuing. What it now says that it could not say yesterday is
+that the distance has been measured from three independent directions and none
+of them found a multiplier.
