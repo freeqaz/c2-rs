@@ -6,7 +6,10 @@ use super::body::{
     DATA_SYM_LINKAGE, DATA_SYM_UNRESOLVED, OPT_MODE, PTR_WALK_CHAIN_LOOP_NOT_O1,
     PTR_WALK_LOOP_NOT_O1,
 };
-use super::bind::{callee_defined_here, defined_name_set, Bindings, EmitBinding};
+use super::bind::{
+    callee_defined_here, callee_defined_here_unmodelled, defined_name_set, Bindings,
+    EmitBinding,
+};
 use super::bundle::shape_to_function;
 use super::bundle::split_function_bodies_at;
 use super::bundle::{opt_word_at, opt_word_mode};
@@ -486,6 +489,14 @@ impl IlBundle {
         // callees included — so testing a callee against them would refuse every
         // call in the workload. See [`defined_name_set`].
         let defined = &defined_name_set(gl);
+        // **W-INLFENCE** — the defined callees mechanism E already models,
+        // built LAZILY because the fence fires on **one** row in the whole
+        // 878-TU workload and this pass costs a second parse of every segment.
+        // Keyed on `EmitBinding::name`, which is the key
+        // `c2_harness::gap::fnbytes::tu_empty_callees` uses for the same fact,
+        // so the two cannot key one function two ways.
+        let empty_here: std::cell::OnceCell<std::collections::BTreeSet<String>> =
+            std::cell::OnceCell::new();
         Some(
             segs.iter()
                 .enumerate()
@@ -1000,7 +1011,53 @@ impl IlBundle {
                                 // the gate refuses such a TU for want of names
                                 // before this could matter, and the residue is
                                 // sized in the rung rather than folded in.
-                                Some(f) if callee_defined_here(&f, defined).is_some() => {
+                                //
+                                // **AND IT YIELDS TO A GRADED MODEL.** The port
+                                // is not silent about every inline: mechanism E
+                                // (`c2_core::elide`) says a call to a callee
+                                // this TU defines and that emits NOTHING costs
+                                // no branch at all, and the judge grades that
+                                // **1,877 of 1,877 byte-exact** on the workload.
+                                // Fencing those would refuse bodies the port
+                                // provably gets right — over-broad in the one
+                                // direction a fence is not allowed to be
+                                // cheaply. So a callee in `empty_here` is NOT
+                                // fenced.
+                                //
+                                // The set is **depth 1** where `elide`'s is a
+                                // fixpoint, so this under-exempts and never
+                                // over-exempts; the residue is a refusal, which
+                                // is the safe side. It is built LAZILY and the
+                                // `parse_segment` calls it makes are safe only
+                                // because `dispatch`/`prod` were read for this
+                                // row several lines above and the next row calls
+                                // `dispatch_reset()` — the exact hazard that
+                                // block's own comment warns about.
+                                Some(f)
+                                    if callee_defined_here(&f, defined).is_some()
+                                        && callee_defined_here_unmodelled(
+                                            &f,
+                                            defined,
+                                            empty_here.get_or_init(|| {
+                                                let mut set: std::collections::BTreeSet<String> =
+                                                    std::collections::BTreeSet::new();
+                                                for (j, s2) in segs.iter().enumerate() {
+                                                    let Some(n) = emit.name(j) else { continue };
+                                                    let nothing = matches!(
+                                                        body::parse_segment(s2, bind.locals(j)),
+                                                        Some(BodyShape::EmptyBody)
+                                                    ) || body::shapes::no_effect::no_effect_nothing(
+                                                        s2,
+                                                    );
+                                                    if nothing {
+                                                        set.insert(n.to_string());
+                                                    }
+                                                }
+                                                set
+                                            }),
+                                        )
+                                        .is_some() =>
+                                {
                                     let _ = f;
                                     FnVerdict::Blocked(Block::at_end(seg, CALLEE_DEFINED_IN_TU))
                                 }

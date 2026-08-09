@@ -750,6 +750,34 @@ pub(crate) fn callee_defined_here<'a>(
     f.callees().find(|c| defined.contains(*c))
 }
 
+/// [`callee_defined_here`], minus the callees the port already has a **graded
+/// model** of.
+///
+/// Mechanism E (`c2_core::elide`) says a call to a callee this TU defines and
+/// that emits **nothing** costs no branch at all, and the judge grades that
+/// **1,877 of 1,877 byte-exact** over the 878-TU workload. Refusing those
+/// bodies would be the fence being over-broad in the one direction that costs
+/// something real, so the census asks this form and gets `None` for them.
+///
+/// **[`IlBundle::functions`] deliberately does NOT take the exemption.** The
+/// gate is the emit path and stays wholesale: `elide` runs inside
+/// `c2_core::comdat_function_body`, and no obj has ever been emitted for a TU
+/// that defines one of its own callees, so the exemption there would be a
+/// widening with no capture behind it. The two callers therefore ask the same
+/// question about *definition* and only the census subtracts what is modelled —
+/// which is the direction that cannot produce a wrong obj.
+///
+/// `exempt` is DEPTH 1 where `elide`'s reduction is a fixpoint, so this
+/// under-exempts and never over-exempts.
+pub(crate) fn callee_defined_here_unmodelled<'a>(
+    f: &'a crate::func::IlFunction,
+    defined: &std::collections::BTreeSet<String>,
+    exempt: &std::collections::BTreeSet<String>,
+) -> Option<&'a str> {
+    f.callees()
+        .find(|c| defined.contains(*c) && !exempt.contains(*c))
+}
+
 /// The set [`callee_defined_here`] tests against, for a caller that has only
 /// `.gl` — the census, whose [`Bindings::positional`] names are all mangled
 /// names and not the defined ones.

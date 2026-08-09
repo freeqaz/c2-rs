@@ -50,6 +50,16 @@
 //       878-TU workload the fence takes back, and the one the oracle grades
 //       `fnbyte-differs` at base.
 //
+//   X1  **the CONTROL, and it is not a negative cell.** The fence YIELDS to
+//       mechanism E: a callee this TU defines and that emits NOTHING is one
+//       `c2_core::elide` already models, graded **1,877 of 1,877 byte-exact**
+//       over the 878-TU workload, and refusing it would be the fence being
+//       over-broad in the one direction that costs something real. X1's row
+//       stays in class. **Every cell N1–N7 has a non-empty callee for exactly
+//       this reason** — one `{}` is the difference between grading the fence
+//       and grading the exemption, and the first draft of N1, N2 and N3 got it
+//       wrong and graded the exemption.
+//
 // **What this file does NOT contain is a `__forceinline` cell.** F3/F4 measure
 // that `__forceinline` bypasses every size test and that `/Ob0` overrides even
 // it; both are *accept-side* facts about c2 and neither changes what this fence
@@ -73,12 +83,14 @@ struct T {
 };
 
 void wif_n_void();
+void wif_n_ext();
 
 // N1 — a void tail call to a function this TU defines.
 void wif_n_use_local() {
     wif_n_void();
 }
 void wif_n_void() {
+    wif_n_ext();
 }
 
 // N2 — the statement form of the sequence, both callees defined here.
@@ -87,8 +99,10 @@ void wif_n_seq(S *s) {
     s->n();
 }
 void S::m() {
+    wif_n_ext();
 }
 void S::n() {
+    wif_n_ext();
 }
 
 // N3 — the 444's class: the float value tail with the callees defined here.
@@ -97,6 +111,7 @@ float T::SplitMs() {
     return Ms();
 }
 void  T::Split() {
+    wif_n_ext();
 }
 float T::Ms() {
     return 0.0f;
@@ -150,4 +165,17 @@ void wif_n_supershuffle(char *p) {
     wif_n_loop(p);
     wif_n_loop(p);
     wif_n_loop(p);
+}
+
+// X1 — THE CONTROL, and it is not a negative cell. `wif_n_empty` is defined
+// here and emits NOTHING, which is mechanism E's own population
+// (`c2_core::elide`, 1,877 of 1,877 byte-exact on the workload): the fence
+// YIELDS to it and this row stays in class. Every cell above has a non-empty
+// callee for exactly this reason — one `{}` is the difference between grading
+// the fence and grading the exemption, and a file without X1 could not tell a
+// reader which of the two its cells measured.
+void wif_n_empty() {
+}
+void wif_n_use_empty() {
+    wif_n_empty();
 }
