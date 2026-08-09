@@ -103,8 +103,12 @@ for m in o1 ox; do
         ox) printf '/Ox /GS- /c\n' > "$here/mut_flags.txt" ;;
     esac
     echo "  -- gate causes at /$m"
+    # `|| true`: `gap` exits nonzero when a TU MISMATCHES, which is the whole
+    # point of a must-fail cell — under `set -e` the grid would abort before its
+    # own restore and leave the tree mutated. It did, once.
     "$here/c2rs-mut" gap --list "$here/mut_list.txt" --flags-file "$here/mut_flags.txt" \
-        --cwd "$repo" --jsonl "$here/mut_${cell}_$m.jsonl" > "$here/mut_${cell}_$m.gap" 2>&1
+        --cwd "$repo" --jsonl "$here/mut_${cell}_$m.jsonl" > "$here/mut_${cell}_$m.gap" 2>&1 \
+        || true
     python3 "$here/rowfields.py" "$here/mut_${cell}_$m.jsonl" \
         | grep -E '^===|class |gate_causes' | sed 's/^/    /'
 done
