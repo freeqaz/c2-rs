@@ -636,6 +636,52 @@ impl<'a> Bindings<'a> {
             size: o.size,
             natural_align: o.natural_align,
             bytes,
+            uninitialized: false,
+        })
+    }
+
+    /// **W-WORDWRAP — the `.bss` sibling of [`Self::resolve_data_def`].**
+    ///
+    /// One token → the UNINITIALIZED object it names, when this TU defines one.
+    /// The three gates are the exact complement of the `.data` resolver's, and
+    /// each is a positive requirement rather than a relaxation:
+    ///
+    /// * **not COMDAT.** A COMDAT `.bss` is a function-local `static` with no
+    ///   initializer (`gl.rs`'s cell `a3`, attribute `20`), and it is placed
+    ///   *after* the code groups where a non-COMDAT one is placed before them —
+    ///   two different section orders, and no cell has graded the first.
+    /// * **not initialized.** An initialized object is `.data` and belongs to
+    ///   the resolver above; admitting one here would emit a `.bss` for an
+    ///   object whose bytes exist.
+    /// * **not thread-local**, the same clause `resolve_data_def` draws.
+    ///
+    /// **There is no `.in` read at all**, and that is the point: an
+    /// uninitialized object has no `.in` record, so the totality gate the
+    /// `.data` path runs has nothing to check here. `size` and `natural_align`
+    /// come from the `.gl` record exactly as they do there.
+    ///
+    /// The result is marked [`crate::func::IlDataDef::uninitialized`], which the
+    /// COFF writer refuses by name — see that field for what is and is not
+    /// answerable about a `.bss` object today.
+    pub(crate) fn resolve_bss_def(&self, tok: u32) -> Option<crate::func::IlDataDef> {
+        let (_, o) = super::gl::gl_data_objects_ordered(self.gl)
+            .into_iter()
+            .find(|(t, _)| *t == tok)?;
+        if o.comdat || o.initialized {
+            return None;
+        }
+        if o.flags & super::gl::DATA_FLAG_THREAD_LOCAL != 0 {
+            return None;
+        }
+        if o.size == 0 {
+            return None;
+        }
+        Some(crate::func::IlDataDef {
+            coff_name: o.coff_name,
+            size: o.size,
+            natural_align: o.natural_align,
+            bytes: Vec::new(),
+            uninitialized: true,
         })
     }
 

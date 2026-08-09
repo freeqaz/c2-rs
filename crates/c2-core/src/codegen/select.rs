@@ -542,6 +542,20 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
             func, mode,
         )?));
     }
+    // **W-WORDWRAP — the file-scope-global store leaf.** Placed immediately
+    // after `static_scan_loop`, its only sibling that also carries a
+    // `Function::data_defs`, and on the same freedom: `func.global_store_leaf`
+    // is set by exactly one parser production, `func.ops` is empty for it, and
+    // no leaf pattern-matcher below can take its body.
+    //
+    // **No mode is asked, and that is a measurement.** Every other arm here that
+    // gates on `mode` does so because its `/Ox` bytes DIFFER; GRID G compiled
+    // this body at `/O1`, `/O1 /Oi`, `/O2`, `/Ox` and `/Ox /Gy` and got the
+    // identical three words each time. `/Od` is refused upstream by
+    // `opt_word_mode`, which is `None` there.
+    if let Some(g) = &func.global_store_leaf {
+        return Ok(Selected::Plain(crate::codegen::global_store_leaf::global_store_leaf_text(g)?));
+    }
     // **W-BDNZ — the counted-`for` accumulate loop.** Same placement argument as
     // every loop around it and the same freedom: `func.counted_accum_loop` is
     // set by exactly one parser production, `func.ops` is empty for it, and no

@@ -1027,6 +1027,7 @@ fn ops_setup_text(
         if_call_join: None,
         ptr_walk_loop: None,
         static_scan_loop: None,
+        global_store_leaf: None,
             counted_accum_loop: None,
         guard_chain_shared_tail: None,
         data_def: None,

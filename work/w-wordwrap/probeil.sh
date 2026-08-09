@@ -13,7 +13,7 @@ rm -rf "$here/il_probe/$tag"
 mkdir -p "$here/il_probe/$tag"
 "$repo/target/release/c2rs" capture "$here/$src" \
     --keep-il "$here/il_probe/$tag" \
-    --flags-file "$here/flags_probe.txt" > "$here/il_probe/$tag/capture.log" 2>&1
+    --flags-file "$here/flags_o1oi.txt" > "$here/il_probe/$tag/capture.log" 2>&1
 tail -3 "$here/il_probe/$tag/capture.log"
 for f in "$here/il_probe/$tag"/*.ex; do
     python3 "$here/exdump.py" "$f"

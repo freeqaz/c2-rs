@@ -782,6 +782,7 @@ pub(crate) fn shape_to_function(
     resolve: &dyn Fn(u32) -> Option<String>,
     resolve_data: &dyn Fn(u32) -> Option<String>,
     resolve_data_def: &dyn Fn(u32) -> Option<crate::func::IlDataDef>,
+    resolve_bss_def: &dyn Fn(u32) -> Option<crate::func::IlDataDef>,
 ) -> Option<IlFunction> {
     match shape {
             // An indirect-load leaf reaches the ordinary integer selector,
@@ -800,6 +801,26 @@ pub(crate) fn shape_to_function(
                 Some(IlFunction {
                     params: l.params.clone(),
                     static_scan_loop: Some(l),
+                    data_def: Some(data_def),
+                    ..IlFunction::base(name, src)
+                })
+            }
+            // **W-WORDWRAP — the file-scope-global store leaf.** The
+            // destination's token is resolved to a whole DEFINED OBJECT here,
+            // the way `BodyShape::StaticScanLoop` resolves its array, and a
+            // token that does not resolve refuses the function rather than
+            // yielding one with an unrelocatable body. The resolver is the
+            // **`.bss`** one: `resolve_data_def` requires a COMDAT with an `.in`
+            // initializer and this object has neither. That is also what refuses
+            // cell `G_ext` — a global this TU does not define is in no `.gl`
+            // data-object run at all, so it resolves to nothing and the body is
+            // declined rather than relocated against an undefined external the
+            // class has no field for.
+            BodyShape::GlobalStoreLeaf { params, dest_tok, width } => {
+                let data_def = resolve_bss_def(dest_tok)?;
+                Some(IlFunction {
+                    params,
+                    global_store_leaf: Some(crate::func::GlobalStoreLeaf { width }),
                     data_def: Some(data_def),
                     ..IlFunction::base(name, src)
                 })
@@ -1820,6 +1841,10 @@ impl IlBundle {
         // and from the same `Bindings`, so the two answer about one `.gl`.
         let resolve_data_def =
             |tok: u32| -> Option<crate::func::IlDataDef> { bind.resolve_data_def(tok) };
+        // **W-WORDWRAP** — the `.bss` sibling, built beside the `.data` one and
+        // from the same `Bindings`, so the two answer about one `.gl`.
+        let resolve_bss_def =
+            |tok: u32| -> Option<crate::func::IlDataDef> { bind.resolve_bss_def(tok) };
         let n_defined = segs.len();
         // **W-MMIOCLOSE — the sibling fact, established BEFORE the per-function
         // loop and consumed inside it.**
@@ -1859,6 +1884,7 @@ impl IlBundle {
                 &resolve,
                 &resolve_data,
                 &resolve_data_def,
+                &resolve_bss_def,
             )?;
             // Keyed on the record name this function was BOUND by — the
             // per-record binding — because that is the name the `.gl` attribute

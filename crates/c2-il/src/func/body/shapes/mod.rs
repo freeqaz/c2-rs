@@ -34,6 +34,7 @@ pub(crate) mod designator;
 pub(crate) mod div_mod_leaf;
 pub(crate) mod early_return;
 pub(crate) mod float_walk_loop;
+pub(crate) mod global_store_leaf;
 pub(crate) mod fp_store_diamond;
 pub(crate) mod guarded_seq;
 pub(crate) mod leaf_addr;
@@ -106,6 +107,8 @@ pub(crate) use ctor_forward_call::*;
 pub(crate) use fp_store_diamond::*;
 #[allow(unused_imports)]
 pub(crate) use memcpy_tail::*;
+#[allow(unused_imports)]
+pub(crate) use global_store_leaf::*;
 #[allow(unused_imports)]
 pub(crate) use nonce_add_run::*;
 #[allow(unused_imports)]

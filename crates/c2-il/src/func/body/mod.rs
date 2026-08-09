@@ -25,6 +25,7 @@ use self::shapes::{
     try_parse_fp_store_diamond,
     try_parse_fp_tail_call,
     try_parse_indirect_load_leaf, try_parse_member_tail_call, try_parse_memcpy_tail,
+    try_parse_global_store_leaf,
     try_parse_nonce_add_run, try_parse_xtea_encrypt_loop, try_parse_xtea_round_loop,
     try_parse_ptr_identity_leaf,
     try_parse_ptr_walk_chain_loop,
@@ -744,6 +745,26 @@ pub(crate) enum BodyShape {
         dst_off: i32,
         /// The copy length, the `li r5` immediate.
         len: i32,
+    },
+    /// **W-WORDWRAP — the file-scope-global store leaf**: `void f(T x) { g = x; }`,
+    /// `wordwrap.cpp`'s `?WordWrap_SetOption@@YAXI@Z`, twelve bytes, and the
+    /// smallest unconverted body on the whole frontier (board **#2625**). See
+    /// [`super::shapes::global_store_leaf`] for GRID G's cells, GRID T's
+    /// store-opcode table, and why the `expr-jump` this body is published under
+    /// names none of its refusal.
+    GlobalStoreLeaf {
+        /// The one argument register, which the recognizer has already checked
+        /// is a formal in r3 rather than a `this`.
+        params: Vec<u32>,
+        /// The `.gl` operand token of the object stored to. Resolved to
+        /// [`crate::func::IlFunction::data_def`] before the function leaves the
+        /// parser, exactly as [`Self::StaticScanLoop`]'s array token is — this
+        /// layer cannot see a `.gl` record and must not pretend to.
+        dest_tok: u32,
+        /// The store width in bytes — 1, 2, 4 or 8 — from GRID T's enumerated
+        /// `(tag, kind)` table. The ONE free field: every other word of the body
+        /// is fixed.
+        width: u8,
     },
     /// **W-XTEA3 — the two-element 64-bit member run whose addend is a
     /// zero-extended 32-bit formal**: `?SetNonce@XTEABlockEncrypter`, one of the
@@ -2313,6 +2334,32 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                 // first literal.
                 if let Ok(shape) = try_parse_xtea_encrypt_loop(seg, p, lo, depth) {
                     disp("disp-xtea-encrypt-loop");
+                    return Ok(shape);
+                }
+                // **W-WORDWRAP — the file-scope-global store leaf.** Placed LAST
+                // in this arm, after the two XTEA loops, on the same
+                // conservative placement they took: **no body any production
+                // above accepts today can move, by construction.**
+                //
+                // The disjointness argument is available and worth stating. This
+                // body is ONE `32` store whose destination is a `26` designator
+                // with no offset run and whose value is a bare `B9` formal with
+                // no conversion. `leaf_store` — the only production above that
+                // consumes a `26`-designated single store — requires the
+                // destination token to be positively a `.sy` automatic
+                // (`sy.ptr_locals`), and a file-scope object is in no `.sy`
+                // list at all; `store_run` requires a run of two or more. So it
+                // can take a body from nothing above it and nothing above it can
+                // take one of its bodies, whichever is asked first.
+                //
+                // Non-committal on the same terms as the rest of the ladder: its
+                // own cursor, `Err` on the first byte outside its grammar, so a
+                // body that declines still reports this arm's blocker
+                // (`expr-jump`, which is what `?WordWrap_SetOption` read at this
+                // lane's base and which #2387 hand-checked names no jump at all)
+                // and no census key moves.
+                if let Ok(shape) = try_parse_global_store_leaf(seg, p, lo, depth) {
+                    disp("disp-global-store-leaf");
                     return Ok(shape);
                 }
                 disp("disp-assign");

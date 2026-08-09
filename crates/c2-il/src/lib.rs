@@ -52,6 +52,8 @@ pub use func::{
     AllocInitOrFail,
     AllocInitOrFailFn,
     GuardRetChain,
+    // W-WORDWRAP — the file-scope-global store leaf (`wordwrap.cpp`).
+    GlobalStoreLeaf,
     // W-XTEA2 — the whole-body `memcpy` tail branch (`EncryptXTEA.cpp`).
     MemcpyTail,
     // W-XTEA3 — the two-element 64-bit member run (`EncryptXTEA.cpp`).
