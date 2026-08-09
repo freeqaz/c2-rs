@@ -96,9 +96,70 @@ Include-free is deliberate: no `e:\` include roots means no `WIBO_PATH_MAP` /
 `WIBO_COMPUTER_NAME` string-hash determinism knobs are needed — the capture is
 reproducible with a bare toolchain.
 
+## Per-fixture compile profiles
+
+`c2rs selftest` compiles **every** `cpp/*.cpp` — `all_fixtures()` has no
+opt-out, by design. The profile it uses is `CAPTURE_IL_DEFAULT_FLAGS`
+(`/Ox /GS- /c`) unless the fixture says otherwise, **in the fixture**:
+
+```
+// c2rs-profile: /Ox /GS- /w14716 /c  # <why the default cannot compile this class>
+```
+
+* The flags before the `#` are the **complete** profile, not a delta on the
+  default — a delta would silently re-derive itself if the default moved.
+* The reason after the `#` is **mandatory and non-empty**. This is the same rule
+  the rung registry puts on `Fixtures: none — <reason>`: an opt-out that does not
+  have to justify itself becomes a skip list.
+* **At most one marker per file**, and `/c` is mandatory. Both are hard errors,
+  not last-wins and not a fallback to the default.
+
+A fixture that declares nothing is graded byte-for-byte as before. The parser and
+its full rationale are `crates/c2-harness/src/fixture_profile.rs`; the invariant
+"every fixture compiles at the profile `selftest` will use for it" is asserted by
+`crates/c2-harness/tests/fixture_profiles.rs`.
+
+**This is not a skip list and cannot be made into one.** A fixture that cannot
+compile at its resolved profile is a *loud named failure* carrying the fixture,
+the profile and where the profile came from. Nothing here drops a fixture from
+the corpus; an opt-out that silently did so would be this project's "absence read
+as success" shape (`ROADMAP.md` §9.18.8) — worse than the bug the mechanism
+closes.
+
+### Why it exists — and what it does NOT mean (W-OXFIX, 2026-08-09)
+
+`wmain_no_return.cpp` and `wmain_no_return_neg.cpp` pin **a non-`void` function
+with no `return` statement**, which this `cl.exe` reports as
+`error C4716: 'f' : must return a value`. That took `c2rs selftest` to 319 PASS +
+2 ERROR and a named gate row RED.
+
+**No optimization, EH, `/GS` or `/GR` flag promotes or demotes C4716** — measured,
+one cell per flag, X360 `cl.exe` 16.00.11886.00 under wibo:
+
+| profile | result |
+|---|---|
+| `/Ox /GS- /c`, `/Ox /c`, `/O1 /c`, `/O1 /GS- /c`, `/Od /c`, bare `/c` | `error C4716`, no obj |
+| `/Ox /GS- /EHsc /c`, `/Ox /GS- /GR /c` | `error C4716`, no obj |
+| `/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc` (**the workload's own**) | `error C4716`, no obj |
+| `/Ox /GS- /w14716 /c` | `warning C4716`, obj — 1394 B |
+| `/Ox /GS- /wd4716 /c` | silent, obj — **byte-identical** to `/w14716` |
+
+So the declaration is **not** "this fixture wants a different optimization mode".
+It is "this fixture's class is a *diagnostic*, and the only flag that moves a
+diagnostic is a warning-level override". `/w14716` is chosen over `/wd4716`
+because it demotes C4716 to the level-1 warning MSVC documents it as while
+keeping it visible; the two produce the same obj.
+
+The consequence worth writing down: **no translation unit in the 878-TU workload
+can contain this class**, because such a TU would never have compiled. The
+capture path still works (`/Bd /d2nop` needs only the `_CL_*` bundle, which c1xx
+writes before the error is fatal), which is why the class is measurable as IL at
+all — see `docs/rungs/2026-08-09-w-oxfix.md` §4.
+
 ## Adding a fixture
 
 Drop a self-contained `.cpp` into `cpp/`. `c2rs bench` picks up every
 `cpp/*.cpp` automatically. Do not add headers or include paths without also
 wiring the include/path-map handling in `c2-reference` — the current capture
-path is include-free by design.
+path is include-free by design. If its class cannot compile at
+`/Ox /GS- /c`, declare a profile (above) — do not leave it to fail in `selftest`.

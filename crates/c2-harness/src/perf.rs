@@ -134,7 +134,8 @@ pub fn bench_fixture(
     let port_iters = cfg.port_iters.max(1);
 
     // Capture the pipeline obj + IL bundle + exact c2 argv (one real compile).
-    let captured = tc.capture_reference(cpp, &work.join("cap"))?;
+    // The fixture's declared profile, or the default (`crate::fixture_profile`).
+    let captured = crate::fixture_profile::capture_fixture_reference(tc, cpp, &work.join("cap"))?;
     let obj_name = to_wibo_path(&captured.ref_obj_path);
     let bundle_dir = work.join("il");
     // Replay to the SAME `/Fo` path the reference used: MSVC embeds that path
@@ -303,7 +304,8 @@ pub fn scale_measure(
     cfg: &ScaleConfig,
     work: &Path,
 ) -> io::Result<(Vec<ScalePoint>, usize)> {
-    let captured = tc.capture_reference(cpp, &work.join("cap"))?;
+    // The fixture's declared profile, or the default (`crate::fixture_profile`).
+    let captured = crate::fixture_profile::capture_fixture_reference(tc, cpp, &work.join("cap"))?;
     let obj_name = to_wibo_path(&captured.ref_obj_path);
 
     // Warm c2host + confirm the P0.1 replay is byte-exact for this fixture.

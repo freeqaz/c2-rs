@@ -1,3 +1,5 @@
+// c2rs-profile: /Ox /GS- /w14716 /c  # This fixture's CLASS is `error C4716: must return a value`. W-OXFIX measured it at /Ox, /O1, /O2, /Od, a bare /c, with and without /GS- /EHsc /GR, and at the 878-TU workload's own /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc: an ERROR at every one, so NO obj at any flag word. /w14716 puts C4716 back to the level-1 warning it is documented as; the obj is byte-identical to the /wd4716 spelling, and the warning stays visible rather than being suppressed.
+
 // The `.sy` binding of a function that **never assigns its exit label**.
 //
 // `.sy`'s per-function blocks are keyed by the `.ex` segment's exit-label token,

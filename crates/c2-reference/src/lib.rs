@@ -426,12 +426,36 @@ impl Toolchain {
         Ok(())
     }
 
-    /// Normal compile: `/Ox /GS- /c` → a real `.obj`. Returns its bytes.
+    /// Normal compile at [`CAPTURE_IL_DEFAULT_FLAGS`] (`/Ox /GS- /c`) → a real
+    /// `.obj`. Returns its bytes.
     ///
     /// Success is detected by presence of the output file (exit code is checked
     /// as a secondary signal). On failure the exact stderr is included in the
     /// error — never papered over.
     pub fn compile_obj(&self, cpp: &Path, out_obj: &Path) -> io::Result<ObjImage> {
+        let flags: Vec<String> =
+            CAPTURE_IL_DEFAULT_FLAGS.iter().map(|s| s.to_string()).collect();
+        self.compile_obj_flags(cpp, out_obj, &flags)
+    }
+
+    /// [`Toolchain::compile_obj`] with the compile profile **chosen by the
+    /// caller**, keeping its path handling and its failure reporting exactly.
+    ///
+    /// This is the obj-side twin of [`Toolchain::capture_il_flags`], and it
+    /// exists for the same reason: the flags used to be a *literal* in the body,
+    /// so a caller that needed a different profile had no seam and the corpus had
+    /// to be universal at `/Ox /GS- /c`. It is not (W-OXFIX: `error C4716` is an
+    /// error at **every** optimization level this toolchain has, so a fixture
+    /// whose class is a non-`void` function with no `return` cannot be compiled
+    /// by any flag word — only by an explicit `/w14716`). Passing
+    /// [`CAPTURE_IL_DEFAULT_FLAGS`] here is byte-identical to calling
+    /// `compile_obj`, which is what makes this a widening rather than a change.
+    pub fn compile_obj_flags(
+        &self,
+        cpp: &Path,
+        out_obj: &Path,
+        flags: &[String],
+    ) -> io::Result<ObjImage> {
         if let Some(parent) = out_obj.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -443,9 +467,7 @@ impl Toolchain {
 
         let output = Command::new(&self.wibo)
             .arg(&self.cl_exe)
-            .arg("/Ox")
-            .arg("/GS-")
-            .arg("/c")
+            .args(flags)
             .arg(format!("/Fo{z_obj}"))
             .arg(&z_src)
             .env("WIBO_FS_CACHE", "1")
@@ -622,10 +644,31 @@ impl Toolchain {
         cpp: &Path,
         work_dir: &Path,
     ) -> io::Result<CapturedReference> {
-        let z_src = to_wibo_path(&absolute(cpp)?);
         let flags: Vec<String> =
-            ["/Ox", "/GS-", "/c"].iter().map(|s| s.to_string()).collect();
-        self.capture_reference_with(&z_src, work_dir, &flags, None)
+            CAPTURE_IL_DEFAULT_FLAGS.iter().map(|s| s.to_string()).collect();
+        self.capture_reference_flags(cpp, work_dir, &flags)
+    }
+
+    /// [`Toolchain::capture_reference`] with the compile profile **chosen by the
+    /// caller**, keeping its `Z:\…` source-argument handling.
+    ///
+    /// The third member of the `*_flags` family, alongside
+    /// [`Toolchain::capture_il_flags`] and [`Toolchain::compile_obj_flags`], and
+    /// it exists for the same reason: this method's flags used to be a literal,
+    /// so a *fixture* that cannot compile at the default had no seam here and
+    /// `c2rs diff` / `c2rs perf` reported a bare `replay produced no obj` for it
+    /// (W-OXFIX — `error C4716` is an error at every flag word, and `perf`
+    /// exiting non-zero is what put two `scripts/status.sh` rows at `NO-RESULT`).
+    /// Passing [`CAPTURE_IL_DEFAULT_FLAGS`] is byte-identical to calling
+    /// `capture_reference`.
+    pub fn capture_reference_flags(
+        &self,
+        cpp: &Path,
+        work_dir: &Path,
+        flags: &[String],
+    ) -> io::Result<CapturedReference> {
+        let z_src = to_wibo_path(&absolute(cpp)?);
+        self.capture_reference_with(&z_src, work_dir, flags, None)
     }
 
     /// [`Toolchain::capture_reference`] generalized to an arbitrary compile
