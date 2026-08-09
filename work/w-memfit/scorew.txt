@@ -1,0 +1,5 @@
+GRID-W, the composite rule (T by favor-speed): 216 / 216
+   part A: 180 / 180
+   part B: 36 / 36
+GRID-W CORE (constant non-zero size, live destination): 204 / 204
+GRID-W dead-destination cells: 12, all `none`: True

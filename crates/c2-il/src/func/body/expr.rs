@@ -1471,6 +1471,20 @@ pub(crate) fn parse_expr_classed(
         // yet (the emission depends on the *literal argument values*, not on the
         // id: id 2114 with offset `00` is nothing at all, with offset `04` it is
         // a null-guarded `addi` plus a control-flow split).
+        //
+        // **For `memcpy` / `memset` that dependence is now a MEASURED RULE and
+        // this refusal is still the right one.** `docs/IL_INTRINSIC_CALL.md`
+        // §5.1.1 records it, graded 624 of 624 over three independently frozen
+        // grids (lane `w-memfit`, `docs/rungs/2026-08-09-w-memfit.md`). Knowing
+        // *whether* c2 emits a call is one of five things an accept needs, and
+        // the other four are unpaid: the `40` token is not a call head, the
+        // callee has **no `.gl` token** so `bundle::resolve` can never produce
+        // the symbol, five IL argument operands reduce to three emitted slots,
+        // and each pointer argument carries a `2C`. Widening here without those
+        // is board #232's shape — a plausible emit is worse than a gap.
+        //
+        // No constant from that rule is in this crate; the provenance of the
+        // search that found it is `docs/whitebox/DISCLOSURE.md` row W-MEMCPY-1.
         if let Some(id) = intrinsic_selector(seg, *p) {
             // **w-depth chain sink — `C2RS_SINK_CHAIN=intrinsic` and nothing
             // else.** The two-token unit is consumed whole (`33 <int> <id>` is

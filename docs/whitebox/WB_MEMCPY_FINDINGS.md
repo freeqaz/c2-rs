@@ -477,3 +477,55 @@ fact is obj-established and the disassembly only said where to look.
 
 **If any of these is ever carried**, `README.md`'s clean-room wording must change
 in the same commit (ledger step 4), and the code comment must name this file.
+
+---
+
+## 10. 2026-08-09 — CARRIED, and W-MEMCPY-1 was carried as `route:` and not as `adoption`
+
+Lane **`w-memfit`** ([`../rungs/2026-08-09-w-memfit.md`](../rungs/2026-08-09-w-memfit.md))
+graded §2's decision function against `w-memcpy`'s **own** 408 frozen cells —
+the comparison neither lane had made, and the one the two documents' opposite
+conclusions turn on.
+
+**The reading explains the cells, completely**: `232 / 232` on GRID-M and
+`176 / 176` on GRID-M2 with `E-DEADDST`, against best-frozen-rival scores of 182
+and 114 on the same denominators. With this document's own GRID-W that is
+**624 of 624** over three independently frozen grids. `w-memcpy`'s *"no rule
+fits"* was a **rule-space** limitation and §5.1's diagnosis of *which* axis is
+**wrong**: the missing thing was not favor-speed — GRID-M is `/O1` only, where
+`T = 5` is correct, and its cells discriminate `T = 5` from `T = 10` by
+themselves on **34 cells, 34–0** — it was that none of the six rivals it froze
+was a **quotient**.
+
+Three corrections and one addition this document should be read with:
+
+1. **§3's `align` for the 16-byte struct is right, and for the reason recorded
+   here rather than assumed.** `w-memfit` measured the hint byte black box at
+   `.ex` offsets 2733/2742 over eight pointee types; it is `alignof(pointee)`,
+   so `S16{double;double;}` hints **8**. GRID-M's own manifest records
+   `align = 16` for that type, and a rescoring that trusted the manifest would
+   have scored the reading **224 / 232** instead of 232 / 232 — eight cells, at
+   sizes 48, 56, 64 and 72, every one of them a miss in the *inline* direction
+   (`work/w-memfit/s16.py`). Eight is small enough to have been written up as
+   "the rule is nearly right", which is the shape a wrong emit hides in.
+2. **§8.1's "two misses" understates Q3 slightly in the port's favour.** The
+   non-constant-size arm is measured after all — by `w-memcpy`'s four
+   `memcpy_*_var` cells, at `/O1`. What they show is that a variable size is a
+   **tail call** (`b memcpy`, one instruction, four bytes **and** a REL24), which
+   is also the reason a naive three-valued verdict function mislabels them
+   `none`.
+3. **GRID-W cannot see the truncating division at all.** Its `n` axis is built
+   from exact multiples of the alignment, so **0** of its 216 cells separate
+   `size / align` from `ceil(size / align)`. `w-memcpy`'s grids separate them on
+   **22**, and truncating wins 22–0. The single sharpest arithmetic claim in §2
+   rests on the black-box lane's cells, not on this one's.
+4. **Carried as `route:`.** §9 proposed W-MEMCPY-1 as an **adoption** row on the
+   argument that the grey-zone alternative had been tried and was insufficient.
+   `w-memfit` tried it again with a different instrument — an exhaustive fit over
+   four candidate quantities × every threshold 0..2048, held out in both
+   directions — and it **succeeds**: both constants are recoverable from obj
+   cells alone and each population predicts the other at 100 %. So the ledger
+   row names the addresses for re-checking and discloses that the *search space*
+   came from here, which is what `route:` means. **W-MEMCPY-2 and W-MEMCPY-4 are
+   not carried at all**, and W-MEMCPY-3 was re-derived black box; the reasons are
+   in [`DISCLOSURE.md`](DISCLOSURE.md) under the row.

@@ -1,0 +1,5 @@
+GRID-M cells with the 16-byte struct: 58
+  cells where align=8 and align=16 predict differently: 8
+  of those, align=16 is WRONG against the obj on: 8
+  sizes: [48, 56, 64, 72]
+  the whole grid scored with the manifest's align: 224 / 232

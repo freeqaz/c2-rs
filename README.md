@@ -31,9 +31,12 @@ modern Rust with any internal structure it likes, as long as:
 
 There is no attempt to reproduce c2.dll's own code, and no decompiled source
 anywhere in the port. The original binary is treated as a black box and its
-observable output as the spec, **with two disclosed exceptions**: the `.gl`
-tag-0x10 alias record's grammar and discriminator bit are transcribed from the
-disassembly, and are logged with their addresses in
+observable output as the spec, **with one disclosed adoption and two disclosed
+routes**: the `.gl` tag-0x10 alias record's grammar and discriminator bit are
+transcribed from the disassembly (the adoption), and two further findings —
+what that record *means*, and c2's block-move expansion decision — were located
+in the disassembly and then established from the oracle's own output, which the
+ledger marks `route:`. All three are logged with their addresses in
 [`docs/whitebox/DISCLOSURE.md`](docs/whitebox/DISCLOSURE.md). That ledger is the
 complete list — the claim above is **per-finding**, not blanket, and every row
 in it names the site so a reader can re-check the reading. The real `c2.dll`
