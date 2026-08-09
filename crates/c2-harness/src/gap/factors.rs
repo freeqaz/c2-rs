@@ -1430,6 +1430,35 @@ impl GapReport {
             m.push(("fnbyte-unbound", f.unbound.to_string()));
             m.push(("fnbyte-partition-broken", f.partition_broken.to_string()));
             m.push(("fnbyte-census-disagree", f.census_disagree.to_string()));
+            // **The split** (lane `w-inlfence2`). `-expressible` is the half
+            // board #139's rule reaches and its target is **0**; the per-stage
+            // rows are the post-lowering stages no parser clause can express,
+            // and they are the measured size of `emit-in-class`'s over-claim.
+            // Published rather than folded, for the reason `fnbyte-refused` is
+            // split into `-parse` / `-codegen`: a total that can legitimately be
+            // nonzero has stopped being an alarm.
+            m.push((
+                "fnbyte-census-disagree-expressible",
+                self.emit_total("fnbyte-census-disagree-expressible").to_string(),
+            ));
+            for d in [
+                "parse",
+                "opt-mode",
+                "selector",
+                "gy-shape",
+                "data-ref",
+                "inlined-callee",
+                "no-stage",
+            ] {
+                let k = format!("fnbyte-census-disagree|{d}");
+                let v = self.emit_total(&k);
+                if v > 0 {
+                    m.push((
+                        Box::leak(format!("fnbyte-census-disagree-{d}").into_boxed_str()),
+                        v.to_string(),
+                    ));
+                }
+            }
             m.push(("fnbyte-exact-relocated", f.exact_relocated.to_string()));
             // **RELOC-EQ** (lane `w-relo`, board #884). `fnbyte-reloc-differs`
             // is published as its OWN key and never folded into `differs`: the
@@ -1658,7 +1687,7 @@ impl GapReport {
             // 130,575 — every digit of it a body the IL parser refused, under a
             // codegen name. The split moves that count to `-parse` and leaves
             // `-selector` reading **0**, which is what it has always been worth.
-            for d in ["parse", "opt-mode", "selector", "gy-shape", "data-ref"] {
+            for d in ["parse", "opt-mode", "selector", "gy-shape", "data-ref", "inlined-callee"] {
                 m.push((
                     Box::leak(format!("fnbyte-decline-{d}").into_boxed_str()),
                     self.emit_total(&format!("fnbyte-decline|{d}")).to_string(),

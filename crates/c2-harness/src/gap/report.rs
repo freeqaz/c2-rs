@@ -702,6 +702,7 @@ impl GapReport {
                 t("fnbyte-differs-equal-words"),
             ),
             census_disagree: t("fnbyte-census-disagree"),
+            census_disagree_expressible: t("fnbyte-census-disagree-expressible"),
             exact_relocated: t("fnbyte-exact-relocated"),
             reloc_differs: t("fnbyte-reloc-differs"),
             reloc_unknown: t("fnbyte-reloc-unknown"),

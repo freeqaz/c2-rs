@@ -1,0 +1,173 @@
+diff --git a/crates/c2-harness/src/gap/factors.rs b/crates/c2-harness/src/gap/factors.rs
+index 111504f5..b1033d46 100644
+--- a/crates/c2-harness/src/gap/factors.rs
++++ b/crates/c2-harness/src/gap/factors.rs
+@@ -1440,6 +1440,65 @@ impl GapReport {
+             // the number this widening replaced stays derivable to the digit,
+             // and `fnbyte-reloc-graded` / `-reloc-unknown` are the population
+             // the compare could reach and its counted residue (trap 0).
++            // ==== SCRATCH — lane w-inlfence2 MEASUREMENT ONLY, never shipped ====
++            // Publish every `xf-…` key the scratch in `gap/fnbytes.rs` writes.
++            // Enumerated rather than prefix-scanned so a key that stopped being
++            // written prints `0` instead of vanishing (STATUS trap 5).
++            for bare in [
++                "fnbyte-exact",
++                "fnbyte-differs",
++                "fnbyte-reloc-differs",
++                "fnbyte-reloc-unknown",
++                "fnbyte-partial",
++                "fnbyte-refused",
++            ] {
++                for arm in ["localcallee", "nolocal"] {
++                    let k = format!("xf-{bare}|{arm}");
++                    m.push((
++                        Box::leak(k.clone().into_boxed_str()),
++                        self.emit_total(&k).to_string(),
++                    ));
++                }
++            }
++            for bare in ["fnbyte-exact", "fnbyte-differs", "fnbyte-reloc-differs"] {
++                for shape in [
++                    "plain", "tail", "float", "float-const", "framed", "seq", "cond-pair",
++                    "if-call-join", "empty", "spliced", "elided",
++                ] {
++                    for n in ["1", "2", "3", "4"] {
++                        let k = format!("xf-shape|{bare}|{shape}|{n}");
++                        let v = self.emit_total(&k);
++                        if v > 0 {
++                            m.push((Box::leak(k.into_boxed_str()), v.to_string()));
++                        }
++                    }
++                }
++            }
++            for bare in ["fnbyte-exact", "fnbyte-differs", "fnbyte-reloc-differs"] {
++                for r in ["none", "a<=64", "b<=80", "c<=308", "d>308"] {
++                    for p in ["none", "a<=64", "b<=80", "c<=308", "d>308"] {
++                        let k = format!("xz-{bare}|ref={r}|port={p}");
++                        let v = self.emit_total(&k);
++                        if v > 0 {
++                            m.push((Box::leak(k.into_boxed_str()), v.to_string()));
++                        }
++                    }
++                }
++            }
++            for bare in [
++                "fnbyte-exact",
++                "fnbyte-differs",
++                "fnbyte-reloc-differs",
++                "fnbyte-reloc-unknown",
++                "fnbyte-partial",
++            ] {
++                let k = format!("xw-fence-fires|{bare}");
++                m.push((
++                    Box::leak(k.clone().into_boxed_str()),
++                    self.emit_total(&k).to_string(),
++                ));
++            }
++            // ==== END SCRATCH ====
+             m.push(("fnbyte-reloc-differs", f.reloc_differs.to_string()));
+             m.push(("fnbyte-reloc-unknown", f.reloc_unknown.to_string()));
+             m.push(("fnbyte-reloc-graded", f.reloc_graded.to_string()));
+diff --git a/crates/c2-harness/src/gap/fnbytes.rs b/crates/c2-harness/src/gap/fnbytes.rs
+index fbffcd0b..2c4be85d 100644
+--- a/crates/c2-harness/src/gap/fnbytes.rs
++++ b/crates/c2-harness/src/gap/fnbytes.rs
+@@ -1438,6 +1438,98 @@ pub(super) fn measure(
+         };
+         let graded = grade_one(row, Some(bytes.as_slice()), &tu, refrel);
+         let v = graded.verdict;
++        // ==== SCRATCH — lane w-inlfence2 MEASUREMENT ONLY, never shipped ====
++        // The crossing the fence is priced on: this function's FBM bucket ×
++        // whether the port's OWN composed body emits a REL24 against a symbol
++        // THIS TU DEFINES. That is the fence predicate exactly — asked after
++        // elide (E) and splice (I) have had their say, so a spliced body is
++        // scored on the target it actually relocates against.
++        //
++        // `xf-<bucket>|localcallee` is what the fence would refuse;
++        // `xf-<bucket>|nolocal` is what it would leave alone. The cost of the
++        // fence is `xf-exact|localcallee`, and it is the number D2 gates on.
++        {
++            let lc = row
++                .and_then(|(c, gate)| gate.as_ref().ok().map(|f| (c, f)))
++                .and_then(|(c, f)| complete_comdat(f, c.opt_word, &tu).ok())
++                .map(|b| {
++                    let n = b.calls.iter().filter(|cl| tu.mentions(cl.callee)).count();
++                    (n > 0, b.calls.len(), b.shape)
++                });
++            if let Some((hit, ncalls, shape)) = lc {
++                let arm = if hit { "localcallee" } else { "nolocal" };
++                *res.emit
++                    .entry(format!("xf-{}|{}", v.bare(), arm))
++                    .or_insert(0) += 1;
++                if hit {
++                    *res.emit
++                        .entry(format!("xf-shape|{}|{}|{}", v.bare(), shape, ncalls))
++                        .or_insert(0) += 1;
++                }
++            }
++            // **THE SIZE DISCRIMINATOR.** WB_INLINE_FINDINGS F1: a callee whose
++            // emitted `.text` is > 308 B is never inlined at `/O1`; F9: a
++            // loop-bodied one > 80 B is not either. So a `bl` to a LARGE
++            // same-TU callee is a call c2 keeps, and refusing it is pure loss.
++            // Two sizes are bucketed, because only one of them is an input the
++            // port could actually consult:
++            //   `ref`  — the callee's own COMDAT in c2's obj. Ground truth, and
++            //            NOT available to a shipped emitter.
++            //   `port` — the port's own lowered body for the callee. The
++            //            shippable input; `none` when the port cannot lower it,
++            //            which must bias to REFUSAL.
++            {
++                let caller_word = row.map(|(c, _)| c.opt_word).unwrap_or(None);
++                let mut fires = false;
++                if let Some(b) = row
++                    .and_then(|(c, gate)| gate.as_ref().ok().map(|f| (c, f)))
++                    .and_then(|(c, f)| complete_comdat(f, c.opt_word, &tu).ok())
++                {
++                    for cl in b.calls.iter().filter(|cl| tu.mentions(cl.callee)) {
++                        let rsz = entries
++                            .iter()
++                            .find(|(n, _)| n == cl.callee)
++                            .map(|(_, by)| by.len());
++                        let psz = tu
++                            .definition(cl.callee)
++                            .and_then(|(g, w)| {
++                                opt_mode_of_word(w.or(caller_word)).ok().and_then(|m| {
++                                    c2_core::comdat::comdat_function_body(g, m, &tu).ok()
++                                })
++                            })
++                            .map(|gb| gb.text.len());
++                        let bucket = |s: Option<usize>| -> String {
++                            match s {
++                                None => "none".to_string(),
++                                Some(n) if n <= 64 => "a<=64".to_string(),
++                                Some(n) if n <= 80 => "b<=80".to_string(),
++                                Some(n) if n <= 308 => "c<=308".to_string(),
++                                _ => "d>308".to_string(),
++                            }
++                        };
++                        *res.emit
++                            .entry(format!(
++                                "xz-{}|ref={}|port={}",
++                                v.bare(),
++                                bucket(rsz),
++                                bucket(psz)
++                            ))
++                            .or_insert(0) += 1;
++                        // **THE SHIPPED PREDICATE, priced per CALL SITE.**
++                        if psz.is_some_and(|n| n <= c2_core::splice::INLINE_UNBOUNDED_BYTES) {
++                            fires = true;
++                        }
++                    }
++                    // …and per FUNCTION, which is the unit the metric is in.
++                    if fires {
++                        *res.emit
++                            .entry(format!("xw-fence-fires|{}", v.bare()))
++                            .or_insert(0) += 1;
++                    }
++                }
++            }
++        }
++        // ==== END SCRATCH ====
+         *res.emit.entry(v.key()).or_insert(0) += 1;
+         if v.bare() != v.key() {
+             *res.emit.entry(v.bare().into()).or_insert(0) += 1;

@@ -1,0 +1,11 @@
+R2 (w-fltret's increment) = 444
+the base population        = 2111
+witness rows at the fenced tip = 38640
+
+-- R2: (bucket at the FENCED tip, fence arm) --
+       444  fnbyte-differs         localcallee
+
+-- BASE-2111: (bucket at the FENCED tip, fence arm) --
+      1411  fnbyte-differs         localcallee
+       675  <no-witness>           <no-witness>
+        25  fnbyte-differs         nolocal

@@ -1,0 +1,15 @@
+raw rows (bucket, ref size of the callee, port size, sites):
+    fnbyte-differs         ref=a<=80    port=a<=80      1177
+    fnbyte-differs         ref=a<=80    port=none       2322
+    fnbyte-differs         ref=b<=308   port=none          7
+    fnbyte-exact           ref=a<=80    port=none         10
+    fnbyte-exact           ref=b<=308   port=none       1050
+    fnbyte-exact           ref=c>308    port=none         21
+    fnbyte-reloc-differs   ref=a<=80    port=a<=80       329
+    fnbyte-reloc-differs   ref=a<=80    port=none        529
+    fnbyte-reloc-differs   ref=c>308    port=none          2
+
+callee <= 80 B  : caller WRONG   4357   RIGHT     10
+callee >  80 B  : caller WRONG      9   RIGHT   1071
+
+c2 inlines the small callee (so the port's call is wrong) and keeps the call to the large one (so the port's call is right).

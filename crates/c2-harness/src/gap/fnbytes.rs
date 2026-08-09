@@ -301,6 +301,25 @@ pub enum Decline {
     /// question is asked of the *composed body's bytes*, which do not exist
     /// until after lowering, so there is nothing for a parser clause to test.
     DataRef,
+    /// **W-INLFENCE** — the composed body emits a `REL24` against a callee this
+    /// TU DEFINES, whose own lowered body is small enough that c2 expands it.
+    /// The port would be emitting a call c2 does not
+    /// (`c2_core::comdat::fenced_inlined_callee`).
+    ///
+    /// **Legitimately nonzero, and the THIRD such stage** — #139's rule (*every
+    /// emitter refusal must have a parser refusal or the census over-claims*)
+    /// does not reach it for [`Decline::DataRef`]'s exact reason: the question
+    /// is asked of the *composed body's relocation sites*, which do not exist
+    /// until after lowering. It is asked one step later than `DataRef` because
+    /// it must be asked after mechanisms **E** (`elide`, the call is dropped)
+    /// and **I** (`splice`, the `REL24` becomes the callee's own) have had their
+    /// say — a parser clause fires on both of those and un-ships them, which is
+    /// the 1,074-byte-exact price `work/w-inlfence2/crossing.md` measures.
+    ///
+    /// Functions landing here were `fnbyte-differs` before the fence existed:
+    /// the port lowered them and the judge said the bytes were wrong. They are
+    /// **refusals now**, which scores the same 0 and states the truth.
+    InlinedCallee,
 }
 
 impl Decline {
@@ -311,6 +330,7 @@ impl Decline {
             Decline::Selector => "selector",
             Decline::GyShape => "gy-shape",
             Decline::DataRef => "data-ref",
+            Decline::InlinedCallee => "inlined-callee",
         }
     }
 
@@ -350,6 +370,10 @@ fn complete_comdat<'a>(
         }
         Err(ComdatDecline::Shape(_)) => Err((shape, Decline::GyShape)),
         Err(ComdatDecline::DataRef(_)) => Err((shape, Decline::DataRef)),
+        // **W-INLFENCE.** The shape tag is kept as the CALLER's own selection,
+        // exactly as the two arms above keep it, so `fnbyte-shape|seq|refused`
+        // still counts what the selector chose and not what the fence did to it.
+        Err(ComdatDecline::InlinedCallee(_)) => Err((shape, Decline::InlinedCallee)),
         // Unreachable: the selection already succeeded above and is handed in.
         Err(ComdatDecline::Selector(_)) => Err((shape, Decline::Selector)),
     }
@@ -1474,10 +1498,19 @@ pub(super) fn measure(
             // and the reason `fnbyte-partial` prints `NONE` with a denominator.
             //
             // **Read `-codegen` with `Decline`'s own doc or not at all.** Three
-            // of its four stages are zero *by construction* while acceptance
-            // lives in the parser, so a zero here is an ALARM that did not fire,
-            // not a measurement that the codegen distance is zero. The
-            // measurable codegen distance on an accepted body is
+            // of its five stages are zero *by construction* while acceptance
+            // lives in the parser, so a zero there is an ALARM that did not
+            // fire, not a measurement that the codegen distance is zero.
+            //
+            // **It stopped being zero on 2026-08-09** (lane `w-inlfence2`) and
+            // the reason is not a regression: `Decline::InlinedCallee` refuses a
+            // composed body that emits a `bl` to a same-TU callee c2 expands.
+            // Every one of those was `fnbyte-differs` before — LOWERED AND
+            // WRONG — so this row growing by 1,004 is exactly 1,004 wrong bodies
+            // becoming honest refusals, at identical FBM credit of zero. Read it
+            // against `fnbyte-decline-inlined-callee`, which names the stage.
+            //
+            // The measurable codegen distance on an accepted body is still
             // `fnbyte-differs` + `fnbyte-reloc-differs` — lowered, and WRONG.
             if matches!(graded.verdict, FnByte::Refused) {
                 *res.emit
@@ -1893,12 +1926,51 @@ pub(super) fn measure(
         // population.** `GapReport::fn_gate_disagreement` measures it over all
         // IL bodies; this is the same disagreement over the population the goal
         // is written in, and it is the error term on `emit-in-class` — the
-        // PROGRESS MASS's `f` numerator. Target 0.
+        // PROGRESS MASS's `f` numerator.
+        //
+        // # It is DECOMPOSED BY STAGE, and the target is 0 on one part only
+        //
+        // Lane `w-inlfence2`. Board #139's rule — *every emitter refusal must
+        // have a parser refusal or the census over-claims* — is the reason the
+        // total's target was 0, and it holds for every stage the parser **can**
+        // express. Three stages exist that it cannot, because they are not a
+        // function of the IL body alone: `gy-shape` (`/Gy` is an argv flag and
+        // is not in the bundle), `data-ref` (asked of the composed body's
+        // bytes), and `inlined-callee` (asked of the composed body's relocation
+        // sites, and only *after* mechanisms E and I have had their say).
+        //
+        // Both of the first two read **0 on this workload**, so the total read 0
+        // and nobody had to decide what it meant. `inlined-callee` is 1,004, and
+        // folding it into one number would either weaken a live alarm to
+        // "nonzero is fine now" or hide a real over-claim. So the split is
+        // published: **`fnbyte-census-disagree-expressible` keeps the target of
+        // 0**, and the post-lowering stages are named and sized beside it.
+        //
+        // The residue is not an accounting convenience. It is the honest size of
+        // the emitted census's over-claim: `emit-in-class` counts 1,004
+        // functions the emitter will not emit, and it counted them before this
+        // fence too — as bodies it emitted **wrongly** instead of refusing.
         if let Some((f, _)) = row {
             if f.verdict.in_class() && v == FnByte::Refused {
                 *res.emit
                     .entry("fnbyte-census-disagree".into())
                     .or_insert(0) += 1;
+                let stage = graded.decline.map(Decline::key).unwrap_or("no-stage");
+                *res.emit
+                    .entry(format!("fnbyte-census-disagree|{stage}"))
+                    .or_insert(0) += 1;
+                // Everything the parser COULD have refused. This is the number
+                // that must stay 0, and it is the one an alarm should watch.
+                if !matches!(
+                    graded.decline,
+                    Some(Decline::GyShape)
+                        | Some(Decline::DataRef)
+                        | Some(Decline::InlinedCallee)
+                ) {
+                    *res.emit
+                        .entry("fnbyte-census-disagree-expressible".into())
+                        .or_insert(0) += 1;
+                }
             }
         }
         // ---- THE RELOCATION WITNESS AND ITS FAMILIES (lane `w-relo`) --------

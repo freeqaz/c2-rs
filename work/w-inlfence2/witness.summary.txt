@@ -1,0 +1,6 @@
+  35154 fnbyte-exact	nolocal
+   1855 fnbyte-differs	localcallee
+   1074 fnbyte-exact	localcallee
+    529 fnbyte-reloc-differs	localcallee
+     25 fnbyte-differs	nolocal
+      3 fnbyte-reloc-differs	nolocal

@@ -1,0 +1,29 @@
+differs  pre(05d743f7) 2111   base(0faa855a) 2555   tip 1879
+
+R2 = base \ pre  (w-fltret's increment)      : 444
+     pre \ base (differing BEFORE, not after) : 0
+REMOVED by the fence = base \ tip             : 676
+ADDED by the fence   = tip \ base (must be 0) : 0
+
+-- the crossing --
+of R2 (444), the fence removes                 : 0  (0.0%)
+of the BASE 2,111 (2111), the fence removes    : 676  (32.0%)
+    check: 0 + 676 = 676 == 676  True
+
+R2 SURVIVING the fence: 444
+    ('src/App.cpp', '?SplitMs@Timer@@QAAMXZ')
+    ('src/lazer/game/BustAMovePanel.cpp', '?SplitMs@Timer@@QAAMXZ')
+    ('src/lazer/game/Game.cpp', '?SplitMs@Timer@@QAAMXZ')
+    ('src/lazer/game/GameMode.cpp', '?SplitMs@Timer@@QAAMXZ')
+    ('src/lazer/game/GamePanel.cpp', '?SplitMs@Timer@@QAAMXZ')
+    ('src/lazer/game/HamUser.cpp', '?SplitMs@Timer@@QAAMXZ')
+    ('src/lazer/game/HamUserMgr.cpp', '?SplitMs@Timer@@QAAMXZ')
+    ('src/lazer/game/LiveInput.cpp', '?SplitMs@Timer@@QAAMXZ')
+    ('src/lazer/game/PartyModeMgr.cpp', '?SplitMs@Timer@@QAAMXZ')
+    ('src/lazer/game/PresenceMgr.cpp', '?SplitMs@Timer@@QAAMXZ')
+    ('src/lazer/game/SongSequence.cpp', '?SplitMs@Timer@@QAAMXZ')
+    ('src/lazer/meta_ham/AccomplishmentManager.cpp', '?SplitMs@Timer@@QAAMXZ')
+    ('src/lazer/meta_ham/AccomplishmentProgress.cpp', '?SplitMs@Timer@@QAAMXZ')
+    ('src/lazer/meta_ham/AppLabel.cpp', '?SplitMs@Timer@@QAAMXZ')
+    ('src/lazer/meta_ham/AppMiniLeaderboardDisplay.cpp', '?SplitMs@Timer@@QAAMXZ')
+    … and 429 more

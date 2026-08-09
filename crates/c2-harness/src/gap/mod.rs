@@ -534,8 +534,22 @@ pub struct FnByteMatch {
     pub differ_words: (usize, usize, usize),
     /// Emitted functions the census calls in class that the port refuses — the
     /// census/gate disagreement restricted to the emitted population, which is
-    /// the error term on [`ProgressMass`]'s `f` numerator. Target 0.
+    /// the error term on [`ProgressMass`]'s `f` numerator.
+    ///
+    /// **Not a target of 0 as a total** — see
+    /// [`FnByteMatch::census_disagree_expressible`], which is. Lane
+    /// `w-inlfence2`.
     pub census_disagree: usize,
+    /// The half of [`FnByteMatch::census_disagree`] board #139's rule reaches:
+    /// every stage the IL parser **could** have refused. **Target 0.**
+    ///
+    /// The complement is the post-lowering stages — `gy-shape`, `data-ref` and
+    /// `inlined-callee` — which are not a function of the IL body alone, so no
+    /// parser clause can express them. Both of the first two read 0 on the dc3
+    /// workload, which is why the total could be read as the alarm until
+    /// `inlined-callee` existed. Splitting it keeps the alarm sharp instead of
+    /// re-defining "nonzero is fine now".
+    pub census_disagree_expressible: usize,
     /// Of the `exact` bucket, how many carry at least one relocation in c2's
     /// obj.
     ///

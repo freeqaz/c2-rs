@@ -176,6 +176,7 @@ the header block this table is read from.
 | 2026-08-09 | w-fltret2 | [w-fltret2](2026-08-09-w-fltret2.md) | 13 | **+0** — this lane ships no class, so it moves nothing. Master |
 | 2026-08-09 | w-fltret | [w-fltret](2026-08-09-w-fltret.md) | 2 | 711,514 → 712,238 (28.88 % → 28.91 %), **+724** functions; |
 | 2026-08-09 | w-front3 | [w-front3](2026-08-09-w-front3.md) | 11 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** — this lane |
+| 2026-08-09 | w-inlfence2 | [w-inlfence2](2026-08-09-w-inlfence2.md) | 13 | **+0** — this lane ships no reader and no lowering. Emitted |
 | 2026-08-09 | w-inlfence | [w-inlfence](2026-08-09-w-inlfence.md) | 2 | 712,238 → 712,237 (28.91 % → 28.91 %), **−1** function; |
 | 2026-08-09 | w-jump | [w-jump](2026-08-09-w-jump.md) | 13 | 711,514 / 2,463,443 unchanged (28.88 %), **+0**; emitted |
 | 2026-08-09 | w-memfit-R2 | [w-memfit2](2026-08-09-w-memfit2.md) | 10 | 711,514 / 2,463,443 (28.88 %) — **+0, and not by measurement |
