@@ -170,6 +170,7 @@ the header block this table is read from.
 | 2026-08-09 | w-disagree | [w-disagree](2026-08-09-w-disagree.md) | 12 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** on the 878-TU |
 | 2026-08-09 | w-front3 | [w-front3](2026-08-09-w-front3.md) | 11 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** — this lane |
 | 2026-08-09 | w-jump | [w-jump](2026-08-09-w-jump.md) | 13 | 711,514 / 2,463,443 unchanged (28.88 %), **+0**; emitted |
+| 2026-08-09 | w-memfit | [w-memfit](2026-08-09-w-memfit.md) | 10 | 711,514 / 2,463,443 (28.88 %) — **+0, and not by measurement |
 | 2026-08-09 | w-midrun | [w-midrun](2026-08-09-w-midrun.md) | 1 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** — measured at both |
 | 2026-08-09 | w-mixkind | [w-mixkind](2026-08-09-w-mixkind.md) | 8 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** — measured at both |
 | 2026-08-09 | w-mrslot | [w-mrslot](2026-08-09-w-mrslot.md) | 1 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** — measured at both |
