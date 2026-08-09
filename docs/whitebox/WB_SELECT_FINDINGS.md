@@ -185,6 +185,21 @@ selector. It is one arm of `FUN_10c0f882` (`0x2eb`), the intrinsic arm.
 
 ### 2.2 The sixteen per-type opcode tables — `FUN_10c04cb9` @ `0x10c04cb9`
 
+> **CORRECTION 2026-08-09, lane `wb-tables` (WB-J),
+> [`WB_TABLES_FINDINGS.md`](WB_TABLES_FINDINGS.md) §1.** The installer was
+> counted instruction by instruction: it contains **17 stores into 13 distinct
+> pointer slots** (`DAT_10c6fdac`…`DAT_10c6fddc`), the last four overwriting
+> four of the thirteen under `DAT_10c2e978`. **"Sixteen" is a real count — of
+> the table *bodies* contiguous in `.data` at `0x10c38f30`…`0x10c395b0`, stride
+> `0x68`** — but the list below is *twelve named plus four `-QVMX128`* and
+> therefore **omits the thirteenth installed table, convert/widen at
+> `0x10b1fd08`** (`extsb`/`extsh`/`extsw`/`mr`), which is in `.text`, not in
+> the `.data` block. A port adopting this list drops the narrowing operator.
+> The full 17-body enumeration with all 26 slots decoded, and the slot map that
+> shows only 17 of 26 are ever live, are in `WB_TABLES_FINDINGS.md` §1.3–§1.4.
+> Nothing else in this section is corrected; every entry below that this lane
+> re-decoded is right.
+
 ```
 DAT_10c6fddc = 0x10c38f30   move        DAT_10c6fdc8 = 0x10c392d8   negate
 DAT_10c6fdd8 = 0x10c38f98   load        DAT_10c6fdc4 = 0x10c39340   add
@@ -565,6 +580,16 @@ there are four words because `cost = 2 + mask + base = 4`. `wbs_s2`, `wbs_b2`,
   **not** a peephole over strategy A. Recorded as unread ground, not explained.
 * **`R-M1` beats `R-M2`, 5 for 5.** A contiguous mask is always `rlwinm`,
   never `andi.` — c2 does not clobber `CR0` for a value.
+
+  > **CORRECTION 2026-08-09, lane `wb-tables` (WB-J),
+  > [`WB_TABLES_FINDINGS.md`](WB_TABLES_FINDINGS.md) §3.5.** The first sentence
+  > holds and survives 17 further cells. **The second is wrong.** `andi.` is
+  > exactly what a **non-contiguous** 16-bit mask gets, and c2 clobbers `CR0`
+  > for a value without hesitation: cell `m3_split16` (`x & 0x8001`) emits
+  > `andi. 3,3,32769`, and `c_m_101`, `c_m_f0f0`, `k_plain_2nd` and
+  > `k_101_bias` do the same. This grid contained no non-contiguous mask, so
+  > its five cells could not have seen it. The rule is in
+  > `WB_TABLES_FINDINGS.md` §3.3 (rule S) and is graded 6/6 there.
 * **`R-SB1` beats `R-SB2`** on `wbs_b3`. §7.6.
 
 ### 7.3 The A-vs-B race, and the tie rule

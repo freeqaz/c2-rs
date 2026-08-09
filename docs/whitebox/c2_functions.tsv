@@ -1678,7 +1678,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b7d85e	920		unknown	unknown	1	28	-
 10b7dbf6	91		unknown	unknown	1	5	-
 10b7dc51	219		unknown	unknown	1	5	-
-10b7dd2c	211		unknown	unknown	1	9	-
+10b7dd2c	211		emit.pass.pipeline	medium	1	9	A pass-pipeline driver: FUN_10bc6487, then the peephole 0x10c182b4 (gated), then 0x10bd1068, 0x10c113f3, 0x10c2764e, 0x10c2226b. The pass ORDER around register allocation was not established by this lane [src:W-TABLES]
 10b7ddff	75		unknown	unknown	1	4	-
 10b7de4a	139		unknown	unknown	1	5	-
 10b7ded5	130		unknown	unknown	1	6	-
@@ -1758,7 +1758,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b8107b	789		unknown	unknown	1	13	-
 10b81390	31		unknown	unknown	3	1	-
 10b813af	66		unknown	unknown	1	1	-
-10b813f1	511		unknown	unknown	3	7	-
+10b813f1	511		emit.ifconv.site	unknown	3	7	The caller of the profitability gate FUN_10c1b315, in p2\misc.c. Two obj results are unexplained at this site: run 2's 8 d_if_* cells and this lane's r5_bias1, where a result constant that does not fit SI16 kept its branch. One cell is not a rule [src:W-TABLES]
 10b815f0	648		unknown	unknown	1	1	-
 10b81878	139		unknown	unknown	1	1	-
 10b81903	83		unknown	unknown	3	1	-
@@ -3433,10 +3433,10 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10bd7a8e	56		unknown	unknown	2	3	-
 10bd7ac6	60		unknown	unknown	7	3	-
 10bd7b02	7	thunk_FUN_10bd6a37	thunk	high	1	1	ghidra-resolved thunk: thunk_FUN_10bd6a37
-10bd7b09	29		unknown	unknown	83	2	-
+10bd7b09	29		emit.rebind.dest	medium	83	2	Rebinds an instruction's destination operand. Called at the tail of FUN_10c1ac5c on the LAST instruction of the expanded idiom; the only structural difference this lane could find between the two arms of rule (B), and the causal step is NOT read (WB_TABLES_FINDINGS.md 3.4) [src:W-TABLES]
 10bd7b26	156		unknown	unknown	2	5	-
 10bd7bc2	78		unknown	unknown	3	3	-
-10bd7c10	15		unknown	unknown	43	0	-
+10bd7c10	15		emit.optab.typeindex	high	43	0	Operand type word -> table slot 0..29. jmp [0x10bd7cf0 + 4*(type>>12)], 13 arms (nibble 0..12), a size ladder inside each. Only 17 of the 26 slots are ever live; nibbles 8..11 return 26..29, which is OFF THE END of every 26-entry table and is unbounded here [src:W-TABLES]
 10bd7d24	13		unknown	unknown	23	1	-
 10bd7d31	168		unknown	unknown	36	1	-
 10bd7dd9	125		unknown	unknown	2	0	-
@@ -4260,9 +4260,9 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c02767	108		unknown	unknown	1	4	str:Label
 10c027d3	8796		unknown	unknown	1	50	str:Invalid operands\n | Unsupported instruction form\n | First and third operands must be equal\n
 10c04bcc	237		unknown	unknown	1	5	-
-10c04cb9	180		sel-table-install	high	1	0	Installs the SIXTEEN per-type opcode tables (move/load/loadx/store/storex/neg/add/sub/mul/div/cmp-imm/cmp-reg and four -QVMX128 variants) into DAT_10c6fdb0..DAT_10c6fddc.  Each table is 26 ints indexed by FUN_10bd7c10(type).  THIS IS THE PATTERN SET IN TABLE FORM [src:W-SELECT]
+10c04cb9	180		emit.optab.install	high	1	0	Installs the operator x type opcode tables: 17 stores, 13 distinct slots (DAT_10c6fdac..DAT_10c6fddc), 17 distinct bodies; the last 4 overwrite 4 of the 13 iff DAT_10c2e978 (-QVMX128). Counted instruction by instruction; WB_TABLES_FINDINGS.md 1.1 [src:W-TABLES]
 10c04d6d	66		unknown	unknown	1	2	-
-10c04daf	91		unknown	unknown	6	0	-
+10c04daf	91		emit.mask.decompose	high	6	0	Rotate-mask decomposition. Returns 0xffffffff EXACTLY when the argument is a valid PPC rotate mask (contiguous run, wrapping allowed) and fills MB/ME; otherwise returns the residue (gaps between first and last run filled). The contiguity test rule (S) turns on [src:W-TABLES]
 10c04e0a	201		unknown	unknown	3	0	-
 10c04ed3	67		unknown	unknown	6	1	-
 10c04f16	46		unknown	unknown	5	1	-
@@ -4290,15 +4290,15 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c064cb	498		sel-sub	high	4	15	The subtract selector.  Picks subfe (0x187) when a carry-in operand is present, subfc (0x183) when a carry-out is consumed, subfic (0x18b) for a 16-bit constant, subfme (0x18c) / subfze (0x192) for the -1 / 0 cases, and add/addi when the operand is negated.  Then attaches a dead CA def if 10c3afd8[opcode] & 0x20 [src:W-SELECT]
 10c066bd	201		unknown	unknown	4	2	-
 10c06786	107		unknown	unknown	1	2	-
-10c067f1	253		unknown	unknown	2	12	-
+10c067f1	253		select-mul	high	2	12	MUL lowering (tuple 0x2c7). Constant power of two -> FUN_10c06786 (shift); any other constant -> mulli (0x110); otherwise the mul table 0x10c39410. NO shift/add decomposition — obj-confirmed by calib cal_mul6/cal_mul8 [src:W-SELECT-R2]
 10c068ee	1475		sel-div	high	1	17	The divide selector.  Emits the two twi division traps, and for a power-of-two signed divisor the srawi + addze pair.  Obj-confirmed word-exact by cell wbs_k1 (x/8 -> srawi r11,r3,3 ; addze r3,r11) [src:W-SELECT]
 10c06eb1	620		unknown	unknown	1	21	-
-10c0711d	114		unknown	unknown	2	7	-
-10c0718f	117		unknown	unknown	2	6	-
+10c0711d	114		select-and	high	2	7	AND lowering (tuple 0x2ca). A constant operand mints the PSEUDO-op rlandi (0x26e) rather than selecting andi.; a register operand selects and (0x19). Obj-confirmed by cell S7 (clrlwi 3,3,24) [src:W-SELECT-R2]
+10c0718f	117		select-or-xor	high	2	6	Shared OR/XOR lowering (tuple 0x2cb with (0x11d,0x121); 0x2cc with (0x26a,0x26c)). Immediate opcode iff operand 1 is a constant — NO 16-bit fit test, obj-confirmed by cell S8 (oris+ori for 0x12345) [src:W-SELECT-R2]
 10c07204	716		unknown	unknown	1	9	-
 10c074f8	679		unknown	unknown	1	7	-
 10c0779f	67		unknown	unknown	1	1	-
-10c07803	100		unknown	unknown	3	1	-
+10c07803	100		select-signedness-flip	medium	3	1	Value-range query used by 0x10c0eb17; when it succeeds and the constant does not fit the form its own type wants, the comparison's type nibble is REWRITTEN (1 -> 2, else -> 1) to reach an immediate form. Explains WB-D 7.6's unsigned compare of a signed C type. READ, NEVER OBJ-CHECKED by this lane [src:W-SELECT-R2]
 10c07867	50		unknown	unknown	2	2	-
 10c07899	79		unknown	unknown	6	3	-
 10c078e8	40		unknown	unknown	1	3	-
@@ -4340,8 +4340,8 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c09f4a	20		unknown	unknown	1	0	-
 10c09f5e	214		unknown	unknown	1	6	-
 10c0a034	316		unknown	unknown	1	11	-
-10c0a170	370		unknown	unknown	5	7	-
-10c0a2e2	1871		sel-rlandi-expand	high	2	20	Expands the rlandi (0x26e) AND-with-immediate pseudo-op into rlwinm / rlwinm. / andi. / andis. / rldicl / li+and.  Obj-confirmed: a contiguous mask always took rlwinm, never andi. (cells wbs_s3, wbs_k2, wbs_b1, wbs_b2, wbs_k3 — 5 for 5) [src:W-SELECT]
+10c0a170	370		emit.mask.cost	high	5	7	Mask cost in WORDS: 0 -> 1; fits u16 or (m & 0xffff)==0 -> 1; contiguous non-wrapping -> 1; contiguous wrapping -> 2; residue contiguous -> 2; else 3. Read by 0x10c0a2e2 and by 0x10c1772b's tie. NOT visible in any obj [src:W-TABLES]
+10c0a2e2	1871		emit.expand.rlandi	high	2	20	THE rlandi (AND-with-constant) EXPANDER. Two callers: 0x10c0dabc inside the expansion switch FUN_10c0d57e, and 0x10c1cf75. Rule (S): contiguous mask -> rlwinm; else u16 -> andi.; else high-u16 -> andis.; else residue contiguous -> two rlwinm; else materialise + and. Graded 6/6 on mask shapes, WB_TABLES_FINDINGS.md 3.7. CORRECTS WB_SELECT_FINDINGS_R2.md 4, which named 0x10c1772b [src:W-TABLES]
 10c0aa31	305		unknown	unknown	1	10	-
 10c0ab62	139		unknown	unknown	2	6	-
 10c0abed	774		unknown	unknown	1	15	-
@@ -4368,7 +4368,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c0ee2c	32		unknown	unknown	1	2	-
 10c0f12e	32		unknown	unknown	1	2	-
 10c0f14e	159		unknown	unknown	2	6	-
-10c0f1ed	1506		unknown	unknown	3	26	-
+10c0f1ed	1506		select-convert	high	3	26	Convert/widen lowering (tuple 0x2b3), table 0x10b1fd08: extsb / extsh / extsw / mr by type index [src:W-SELECT-R2]
 10c0f7f9	775		loop-ctr-convert	high	2	14	p2\ppc\lower.c: the per-loop mtctr/bdnz conversion. Recurses into child loops (loop+0x04) FIRST, then ~20 refusal clauses, then the rewrite: mint mtctr assign + bdnz (opcodes 0x2af/0xf8/0x288, CTR operand 0x54), DELETE the compare (0x2d4), the assign (0x2af) and the add (0x2c6). FINDINGS 2 [src:W-LOOP]
 10c0f81e	100		loop-ctr-driver	high	1	6	p2\ppc\lower.c: the bdnz pass driver. Gated on DAT_10c2e2fc (optimize) and DAT_10c2ecf8 (-QXnobdnz); walks the per-function LOOP LIST at func+0x0c calling 10c0f7f9. Called FIRST from the md-lowering driver 10c24021. Obj-confirmed by /d2QXnobdnz removing all 29 bdnz (FINDINGS 7.7) [src:W-LOOP]
 10c0f882	686		sel-dispatch	high	10	44	THE PER-OPERATOR SELECTION DISPATCH.  A 46-arm jump-table switch on the tuple opcode (instr[1]) that rewrites the SAME field into a machine opcode.  0x2c5/0x327/0x328 -> add 10c0634b, 0x2c6/0x329/0x32a -> sub 10c064cb, 0x2c7 -> mul 10c067f1, 0x2ca -> and 10c0711d, 0x2cb -> or (0x11d/0x121), 0x2cc -> xor (0x26a/0x26c), 0x2cd -> div 10c068ee, 0x2ce -> mod 10c06eb1, 0x2d4 -> compare 10c0eb17, 0x2dc -> call 10c0e4b9, 0x2dd/0x2e7 -> branch 10c0b690, 0x2ea -> relational-as-VALUE 10c1b517, 0x2eb -> intrinsics 10bf7c59 (cgintrin.c), 0x2f0/0x2f4 -> prologue/epilogue [src:W-SELECT]
@@ -4466,7 +4466,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c16803	75		unknown	unknown	1	0	-
 10c1684e	467		unknown	unknown	2	8	-
 10c16a21	37		unknown	unknown	2	0	-
-10c16a46	351		unknown	unknown	11	2	-
+10c16a46	351		emit.peephole.finddef	medium	11	2	Walks backwards from an instruction to the one defining a given operand; the entry point of every arm of 0x10c182b4 [src:W-TABLES]
 10c16ba5	23		unknown	unknown	14	1	-
 10c16bbc	30		unknown	unknown	2	1	-
 10c16bda	140		unknown	unknown	6	2	-
@@ -4487,7 +4487,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c175df	76		unknown	unknown	3	3	-
 10c1762b	137		unknown	unknown	5	6	-
 10c176b4	43		unknown	unknown	2	0	-
-10c1772b	1007		unknown	unknown	1	14	-
+10c1772b	1007		emit.peephole.rlandi	high	1	14	A PEEPHOLE COMBINER on rlandi, arm 13 of FUN_10c182b4 — NOT an expander. Folds the rlandi with its source's def: mr -> coalesce; a load -> relax the mask to the cheaper of {original, relaxed} by 0x10c0a170, TIES TO RELAXED; extsb/extsh/extsw -> delete the extension when the mask kills its bits; another rlandi -> merge the (rotate,mask) pairs. Mints no rlwinm/andi./and/li [src:W-TABLES]
 10c17b1a	34		unknown	unknown	1	0	-
 10c17b3c	60		unknown	unknown	1	0	-
 10c17b78	55		unknown	unknown	1	0	-
@@ -4496,7 +4496,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c17e78	235		unknown	unknown	2	5	-
 10c17f63	484		unknown	unknown	1	5	-
 10c18147	365		unknown	unknown	1	8	-
-10c182b4	426		unknown	unknown	1	15	-
+10c182b4	426		emit.peephole.pass	high	1	15	The peephole pass, not an expansion pass: walks the whole instruction list TWICE (local_c = 2), 18 arms, every arm takes &next so an arm may delete and back up. Called once, from 0x10b7dd2c, gated on DAT_10c2e2fc. CORRECTS WB_SELECT_FINDINGS_R2.md 4's "in-place expansion switch" [src:W-TABLES]
 10c1873b	92		unknown	unknown	1	2	-
 10c18797	52		unknown	unknown	6	0	-
 10c187cb	199		unknown	unknown	5	0	-

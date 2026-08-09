@@ -1,0 +1,24 @@
+addr	label	confidence	note
+# DISASSEMBLY-DERIVED. Lane wb-tables (WB-J), campaign 2 (2026-08-09).
+# Image c2.dll sha256 c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258.
+# `high` means "the instructions were read correctly", NOT "this is what c2 does" —
+# the obj grade is in docs/whitebox/WB_TABLES_FINDINGS.md §3.7.  `unknown` is respectable.
+#
+# This lane arbitrates two prior readings (W-SELECT.tsv, W-SELECT-R2.tsv).  Where it
+# CORRECTS one of them the note says so and names the cell that decided it.
+10c04cb9	emit.optab.install	high	Installs the operator x type opcode tables: 17 stores, 13 distinct slots (DAT_10c6fdac..DAT_10c6fddc), 17 distinct bodies; the last 4 overwrite 4 of the 13 iff DAT_10c2e978 (-QVMX128). Counted instruction by instruction; WB_TABLES_FINDINGS.md 1.1
+10bd7c10	emit.optab.typeindex	high	Operand type word -> table slot 0..29. jmp [0x10bd7cf0 + 4*(type>>12)], 13 arms (nibble 0..12), a size ladder inside each. Only 17 of the 26 slots are ever live; nibbles 8..11 return 26..29, which is OFF THE END of every 26-entry table and is unbounded here
+10bd7cf0	emit.optab.typeindex.jt	high	The 13-entry jump table for 0x10bd7c10; ends at 0x10bd7d24, the next function
+10b1fd08	emit.optab.convert	high	The CONVERT/WIDEN operator x type table, 26 ints, in .text not .data. extsb/extsh/extsw/mr. Installed into DAT_10c6fdac. WB_SELECT_FINDINGS.md 2.2 has no row for it — the one table its list drops
+10c39548	emit.optab.cmpreg	high	compare-register table; slots 1/2/4/6 cmp, 7/8/10/12/16/17/20..23 cmpl. #1788's mechanism
+10c394e0	emit.optab.cmpimm	high	compare-immediate table; cmpi / cmpli on the same split
+10c393a8	emit.optab.sub	high	subtract table; slot 25 is vsubfp, which neither prior decode table carries
+10c0a2e2	emit.expand.rlandi	high	THE rlandi (AND-with-constant) EXPANDER. Two callers: 0x10c0dabc inside the expansion switch FUN_10c0d57e, and 0x10c1cf75. Rule (S): contiguous mask -> rlwinm; else u16 -> andi.; else high-u16 -> andis.; else residue contiguous -> two rlwinm; else materialise + and. Graded 6/6 on mask shapes, WB_TABLES_FINDINGS.md 3.7. CORRECTS WB_SELECT_FINDINGS_R2.md 4, which named 0x10c1772b
+10c04daf	emit.mask.decompose	high	Rotate-mask decomposition. Returns 0xffffffff EXACTLY when the argument is a valid PPC rotate mask (contiguous run, wrapping allowed) and fills MB/ME; otherwise returns the residue (gaps between first and last run filled). The contiguity test rule (S) turns on
+10c0a170	emit.mask.cost	high	Mask cost in WORDS: 0 -> 1; fits u16 or (m & 0xffff)==0 -> 1; contiguous non-wrapping -> 1; contiguous wrapping -> 2; residue contiguous -> 2; else 3. Read by 0x10c0a2e2 and by 0x10c1772b's tie. NOT visible in any obj
+10c1772b	emit.peephole.rlandi	high	A PEEPHOLE COMBINER on rlandi, arm 13 of FUN_10c182b4 — NOT an expander. Folds the rlandi with its source's def: mr -> coalesce; a load -> relax the mask to the cheaper of {original, relaxed} by 0x10c0a170, TIES TO RELAXED; extsb/extsh/extsw -> delete the extension when the mask kills its bits; another rlandi -> merge the (rotate,mask) pairs. Mints no rlwinm/andi./and/li
+10c182b4	emit.peephole.pass	high	The peephole pass, not an expansion pass: walks the whole instruction list TWICE (local_c = 2), 18 arms, every arm takes &next so an arm may delete and back up. Called once, from 0x10b7dd2c, gated on DAT_10c2e2fc. CORRECTS WB_SELECT_FINDINGS_R2.md 4's "in-place expansion switch"
+10b7dd2c	emit.pass.pipeline	medium	A pass-pipeline driver: FUN_10bc6487, then the peephole 0x10c182b4 (gated), then 0x10bd1068, 0x10c113f3, 0x10c2764e, 0x10c2226b. The pass ORDER around register allocation was not established by this lane
+10c16a46	emit.peephole.finddef	medium	Walks backwards from an instruction to the one defining a given operand; the entry point of every arm of 0x10c182b4
+10bd7b09	emit.rebind.dest	medium	Rebinds an instruction's destination operand. Called at the tail of FUN_10c1ac5c on the LAST instruction of the expanded idiom; the only structural difference this lane could find between the two arms of rule (B), and the causal step is NOT read (WB_TABLES_FINDINGS.md 3.4)
+10b813f1	emit.ifconv.site	unknown	The caller of the profitability gate FUN_10c1b315, in p2\misc.c. Two obj results are unexplained at this site: run 2's 8 d_if_* cells and this lane's r5_bias1, where a result constant that does not fit SI16 kept its branch. One cell is not a rule

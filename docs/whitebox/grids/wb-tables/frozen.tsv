@@ -1,0 +1,94 @@
+# FROZEN BEFORE THE FIRST cl.exe OF mask_grid.cpp — lane wb-tables (WB-J), 2026-08-09.
+# Scored in docs/whitebox/WB_TABLES_FINDINGS.md §3.7.  A cell whose premise fails is
+# scored a MISS, not excluded (wb-regalloc §7.4's rule, inherited through both WB-I runs).
+# A prediction with a false conjunct is a MISS.
+#
+# ---------------------------------------------------------------------------
+# WHERE THESE PREDICTIONS COME FROM.  All VAs are in the image pinned by
+# C2_MAP_METHOD.md §0, sha256 c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258,
+# verified at the top of this lane.
+#
+#  * FUN_10c0a2e2 @ 0x10c0a2e2 — THE `rlandi` EXPANDER, reached from the
+#    in-place expansion switch FUN_10c0d57e @ 0x10c0dabc.  (WB_SELECT_FINDINGS.md
+#    §2.4 named this site and is RIGHT; WB_SELECT_FINDINGS_R2.md §4 named
+#    FUN_10c1772b instead and is WRONG — that one is a peephole combiner.)
+#  * FUN_10c04daf @ 0x10c04daf — the rotate-mask decomposition.  Returns
+#    0xffffffff EXACTLY when its argument is a valid PowerPC rotate mask (a
+#    contiguous run of 1s, wrapping allowed), and fills in MB/ME.  When the
+#    mask is NOT contiguous it returns the "residue": the mask with the gaps
+#    between the first and last run filled.
+#  * FUN_10c0a170 @ 0x10c0a170 — the mask COST function, in words:
+#        mask == 0                                  -> 1
+#        mask fits u16, or (mask & 0xffff) == 0     -> 1   (andi. / andis.)
+#        contiguous, non-wrapping                   -> 1   (rlwinm)
+#        contiguous, wrapping                       -> 2
+#        residue contiguous                         -> 2   (two rlwinm)
+#        residue NOT contiguous                     -> 3   (materialise + and)
+#  * FUN_10c1ac5c @ 0x10c1ac5c — the carry expander.  It emits the mask step
+#    UNCONDITIONALLY as `rlandi rD, 0, delta` whenever delta != -1, and then at
+#    its tail calls FUN_10bd7b09 to rebind the LAST instruction's destination
+#    operand to the select tuple's own destination.
+#
+# THE RULE UNDER TEST, in two halves.
+#
+#   (S) THE SHAPE RULE, for a plain `x & K` at 32 bits with rotate 0:
+#         K contiguous (FUN_10c04daf(K) == 0xffffffff)  -> ONE `rlwinm rD,rS,0,MB,ME`
+#         else K fits u16                               -> ONE `andi. rD,rS,K`
+#         else (K & 0xffff) == 0                        -> ONE `andis. rD,rS,K>>16`
+#         else residue contiguous                       -> TWO `rlwinm`
+#         else                                          -> materialise K, then `and`
+#       This CORRECTS run 1's frozen rival R-M1 as stated ("a contiguous mask is
+#       always rlwinm, never andi.").  Contiguous is indeed never `andi.` — but
+#       `andi.` is NOT absent from the expander: it is what a NON-contiguous
+#       16-bit mask gets, a case run 1's grid never contained.
+#
+#   (B) THE BIAS RULE, for the mask step of a value-producing relational:
+#         base != 0  (an `addi` bias follows the rlandi) -> rule (S) applies
+#         base == 0  (the rlandi is the LAST instruction and inherits the
+#                     select tuple's destination)        -> ALWAYS `li rT,delta`
+#                                                          + `and rD,rS,rT`,
+#                                                          whatever the mask shape
+#
+# RIVALS, frozen as live possibilities and not dismissed:
+#
+#   R-SHAPE  (this lane)  rule (S) + rule (B) above.
+#   R-REG    (run 2, WB_SELECT_FINDINGS_R2.md §6.1/§6.3b)  the form tracks the
+#            REGISTERS: `rlwinm` when the rlandi's source and destination land
+#            in the same register, `li`+`and` when they do not.  Cell d1 is the
+#            separating cell: its rlandi has src == dst == r11 AND base == 0, so
+#            R-REG predicts `rlwinm` and R-SHAPE predicts `li`+`and`.
+#   R-M1     (run 1, WB_SELECT_FINDINGS.md §7.2)  a contiguous mask is always
+#            `rlwinm` and `andi.` never appears.  Cell m3 separates it.
+#   R-COST   the expander minimises FUN_10c0a170's word count outright, so a
+#            2-run mask whose residue is contiguous could still come out as a
+#            single materialise+`and` if the register were free.  Cell m5
+#            separates R-COST from R-SHAPE.
+#
+# SEPARATION ASSERTION, made before the run: 12 of 12 cells predict a word
+# sequence `c2-core` does not emit today (it ships straight-line integer
+# add-chains, tail calls, one framed non-leaf call and four transcribed body
+# shapes; it emits no `rlwinm`, no `andi.`, no `subfe` and no `rlandi` at all).
+# No cell is a loop, a call, or a transcribed shape.
+#
+# GRADING GRANULARITY, stated in advance.  Each cell is graded on its MNEMONIC
+# SEQUENCE and its IMMEDIATE VALUES ("core") — that is the selection claim and
+# it is what "primary" means in both prior runs.  Register identities are
+# graded separately ("regs", WB-D §3.4: r11 first, then r10, result in r3); a
+# regs-only miss is reported and does not refute the reading.  Word COUNTS are
+# implied by the core prediction and are not graded separately.
+#
+# REGISTERED IN ADVANCE: at least 2 of the 12 cells will MISS on core.
+#
+#cell	source	predicted core (mnemonics + immediates)	predicted regs	rival that would win instead
+m1_run	x & 0x7f8	rlwinm 0,21,28 ; blr	rlwinm 3,3	R-COST would give li+and
+m2_low16	x & 0xffff	rlwinm 0,16,31 (prints as clrlwi 16) ; blr	rlwinm 3,3	R-M1 agrees; andi. would refute rule (S) ordering
+m3_split16	x & 0x8001	andi. 0x8001 ; blr	andi. 3,3	R-M1 predicts NO andi. anywhere; a li+and here refutes rule (S)
+m4_wrap	x & 0x80000001	rlwinm 0,31,0 ; blr	rlwinm 3,3	FUN_10c0a170 prices this 2, so a 2-word answer would favour R-COST
+m5_two	x & 0x00ff00ff	rlwinm 0,8,31 ; rlwinm 0,24,15 ; blr	both 3,3	R-COST would give lis+ori+and
+m6_four	x & 0xf0f0f0f0	lis 0xf0f0 ; ori 0xf0f0 ; and ; blr	lis/ori 11, and 3,3,11	three rlwinm would refute the residue-depth-1 reading
+d1_consumed	(x<10u?8:0)+y	li 10 ; li 8 ; subc ; subfe ; and ; add ; blr	li 11,10 ; li 10,8 ; subc 11,3,11 ; subfe 11,11,11 ; and 11,11,10 ; add 3,11,4	R-REG predicts rlwinm 11,11,0,28,28 instead of li+and
+r1_bias16	x<10u?0x18:0x10	li 10 ; subc ; subfe ; rlwinm 0,28,28 ; addi 16 ; blr	li 11,10 ; subc 11,3,11 ; subfe 11,11,11 ; rlwinm 11,11 ; addi 3,11,16	a li+and here refutes rule (B)
+r2_pow_nb	x<10u?0x100:0	li 10 ; li 256 ; subc ; subfe ; and ; blr	li 11,10 ; li 10,256 ; subc 11,3,11 ; subfe 11,11,11 ; and 3,11,10	rlwinm 0,23,23 would refute rule (B) — the mask IS contiguous
+r3_spl_nb	x<10u?0x101:0	li 10 ; li 257 ; subc ; subfe ; and ; blr	li 11,10 ; li 10,257 ; subc ; subfe ; and 3,11,10	andi. 0x101 would refute rule (B)
+r4_regbnd	a<b?6:2	subc ; subfe ; rlwinm 0,29,29 ; addi 2 ; blr	subc 11,3,4 ; subfe 11,11,11 ; rlwinm 11,11 ; addi 3,11,2	li+and would refute rule (B)
+r5_bias1	x<10u?0x8001:1	li 10 ; subc ; subfe ; rlwinm 0,16,16 ; addi 1 ; blr	li 11,10 ; subc ; subfe ; rlwinm 11,11 ; addi 3,11,1	andi. 0x8000 would show rule (S) misordered for a contiguous mask
