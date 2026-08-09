@@ -61,6 +61,16 @@ handles returns `NotImplemented` instead of guessing.
   Same IL in, same 5-section COFF out, verified against real c2 on every run.
   Everything outside that class returns `NotImplemented`; that boundary is
   the open frontier, not a footnote. (`c2rs diff`)
+
+  **Scope of that claim, measured 2026-08-09** (lane `w-readpx`, board
+  #2280–#2293): it holds **on the fixtures**, where it is checked every run.
+  On the 878-TU workload the admitted classes are **bimodal** — ten
+  one-function classes are `fnbyte-exact` 11/11, and five *call-bearing*
+  classes are **0.000 over 1,106 bodies**, `framed-call` among them at
+  **0-for-123**, because c2 inlines callees the port keeps as calls. No wrong
+  `.obj` results (the emit path's fence is total — lane `w-inlfence`, board
+  #2220–#2227), but "byte-exact on the class" must be read as *on the class as
+  fenced by the fixtures*, not as a workload-wide property.
 * **Standalone front-end replay is proven too.** Driving `c1xx.dll` alone
   (via the sibling `c1host` stub) reproduces the captured IL bundle
   byte-for-byte on all 25 fixtures. That opens the same porting path for the
