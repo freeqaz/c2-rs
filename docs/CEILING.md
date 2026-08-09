@@ -841,9 +841,9 @@ fall-through family's size beside any ranking taken off T2 — it is **9,095 of
    body — `w-nc` found `void WordWrap_SetOption(unsigned o){ g_uOption = o; }`,
    **twelve bytes of PowerPC with no control flow whatsoever**, reported blocked
    at **`expr-jump`**.
-6. **Check factor A before pricing any reader or emitter work.** 13 of the 17
+6. **Check factor A before pricing any reader or emitter work.** 14 of the 17
    TUs within 2 functions of all-exact fail A, so closing their reader gap
-   converts **nothing**. `A∧B∧C` minus the match set is the only population
+   converts **nothing**, and the 3 that pass A are already in the frontier. `A∧B∧C` minus the match set is the only population
    where codegen alone can convert.
 7. **Check the board.** Five rows have re-entered a ranking after already
    measuring zero. `grep` `BOARD.md` for the key before sizing a rung on it.
