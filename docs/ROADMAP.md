@@ -11217,8 +11217,7 @@ target, three unit tests. Board **#2220**.
 
 **And the fence's whole reach on the workload is ONE FUNCTION**, because the port
 can enumerate a TU's own defined names on **25 of 871** captured TUs: **845 have
-an empty defined-name set**, **76** names are readable across the entire
-workload, and **212,114 of the 212,125** in-class rows carrying a callee
+an empty defined-name set**, **76** names in total are readable across all 871 TUs, and **212,114 of the 212,125** in-class rows carrying a callee
 (99.995 %) are fail-open on the inline question. Census **−1**, emitted **−1**.
 Board **#2221**.
 

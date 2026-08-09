@@ -32,7 +32,7 @@
 
 > ### **THE EXPOSURE WAS REAL AND IT IS NOW A CLASS INVARIANT.** w-fltret admitted 444 emitted functions whose callees c2 inlines and `fnbyte-exact` moved by zero (#2082). Nothing was wrong on disk, because `IlBundle::functions` has refused *"a callee that is also DEFINED here"* wholesale since the MVP — but that refusal was **one `any()` at the bottom of a whole-TU gate**, and `WB_INLINE_FINDINGS.md` §7 explicitly proposes narrowing it. It is now **one named predicate** with three callers, a `_neg` fixture, an integration target of its own and three unit tests. **Board #2220.**
 
-> ### **AND ITS ENTIRE REACH ON THE 878-TU WORKLOAD IS ONE FUNCTION.** Census **−1**, emitted **−1**. The reason is measured and it is not subtle: the port can enumerate a TU's own defined function names on **25 of 871** captured TUs. **845 have an EMPTY defined-name set** and 6 more are partial; **76 names** are readable across the entire workload; **212,114 of the 212,125 in-class rows that carry a callee (99.995 %) are FAIL-OPEN** on the inline question, and the port can positively establish that a callee is opaque for exactly **10** functions. **Board #2221.**
+> ### **AND ITS ENTIRE REACH ON THE 878-TU WORKLOAD IS ONE FUNCTION.** Census **−1**, emitted **−1**. The reason is measured and it is not subtle: the port can enumerate a TU's own defined function names on **25 of 871** captured TUs. **845 have an EMPTY defined-name set** and 6 more are partial; **76 names in total** are readable across all 871 TUs put together; **212,114 of the 212,125 in-class rows that carry a callee (99.995 %) are FAIL-OPEN** on the inline question, and the port can positively establish that a callee is opaque for exactly **10** functions. **Board #2221.**
 
 > ### **THE ONE FUNCTION IS `?supershuffle@@YAXPAD@Z`, AND IT IS THE FRONTIER'S ONLY MEASURED WRONG BODY.** `src/keygen_xbox.cpp`, the frontier's head TU — port **21 words**, reference **26**, seven words c2 has that the port does not (`work/w-inlfence/fnd_base_keygen.jsonl`). It is `wb-inline` §6's anchor and `wb-frame` §1's 26 words, reached from a completely different direction. `gap-metric frontier-codegen-wrong` goes **1 → 0** and `frontier-codegen-measured` **1 → 0**: across nine frontier TUs and 51 emitted functions this was the *only* positively-measured codegen error, and the fence converts it into a refusal. **Board #2222.**
 
@@ -62,7 +62,7 @@
 | distinct body-blocker keys | 635 | 636 | **1 appeared, 0 vanished** |
 | distinct emitted-blocker keys | 614 | 615 | **1 appeared, 0 vanished** |
 | `gap-metric` keys | 251 | 251 | 0 appeared, 0 vanished, **17 changed** |
-| workspace tests | 1,347 / 0 / 36 targets | **1,355 / 0 / 37** | **+8, +1 target** |
+| workspace tests | 1,349 / 0 / 36 targets | **1,355 / 0 / 37** | **+6, +1 target** |
 | `#[test]` count (`git grep -c`) | 1,357 | **1,363** | **+6** |
 
 ---
@@ -194,7 +194,7 @@ whole exposure. It is the fence's reach, and the reach is the finding.
 | …whose defined-name binding is **TOTAL** (records 1:1 with the `4F 1F` segments, in order) | **25** |
 | …**partial** | 6 |
 | …with an **EMPTY** defined-name set | **845** |
-| distinct defined names readable across the **whole workload** | **76** |
+| defined names readable across the **whole workload**, SUMMED over all 871 TUs | **76** |
 | in-class rows carrying ≥ 1 callee | **212,125** |
 | …**FAIL-OPEN** (the TU's names cannot be enumerated) | **212,114 — 99.995 %** |
 | …provably CLEAN (TU total, callee not defined here) | **10** |
@@ -341,7 +341,7 @@ frontier moved **in one direction, by one row, on its head TU** — and
 
 | lane | result |
 |---|---|
-| `cargo test --workspace --release` | **1,355 passed, 0 failed, 37 targets** (base 1,347 / 36 — **+8, +1 target**) |
+| `cargo test --workspace --release` | **1,355 passed, 0 failed, 37 targets** (base 1,349 / 36 — **+6, +1 target**) |
 | `#[test]` DELTA, by name at both revs | **+6** (1,357 → 1,363) |
 | `scripts/gate.sh --require-graded --jobs 8` | §9.1 |
 | `scripts/board_audit.sh` | §9.1 |
