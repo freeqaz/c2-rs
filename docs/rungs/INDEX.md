@@ -193,7 +193,7 @@ the header block this table is read from.
 | 2026-08-09 | w-mrslot | [w-mrslot](2026-08-09-w-mrslot.md) | 1 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** — measured at both |
 | 2026-08-09 | w-nc | [w-nc](2026-08-09-w-nc.md) | 8 | +0 — unmoved by construction. No `crates/` change lands; the |
 | 2026-08-09 | W-OXFIX | [w-oxfix](2026-08-09-w-oxfix.md) | 16 | unchanged, +0 — no emission, no binding, no new arm in the port |
-| 2026-08-09 | w-pool | [w-pool](2026-08-09-w-pool.md) | 1 | per-function **712,280 → 712,280**, emitted **39,226 → 39,226** — |
+| 2026-08-09 | w-pool | [w-pool](2026-08-09-w-pool.md) | 1 | per-function **714,538 → 714,538**, emitted **39,238 → 39,238** — |
 | 2026-08-09 | w-prod | [w-prod](2026-08-09-w-prod.md) | 12 | 711,485 / 2,463,443 unchanged (28.88 %), +0. TU match 10 → 10, |
 | 2026-08-09 | W-READPX | [w-readpx](2026-08-09-w-readpx.md) | 13 | **+0**. This lane ships no `crates/` change: `git diff master -- |
 | 2026-08-09 | w-vec | [w-vec](2026-08-09-w-vec.md) | 1 | per-function **712,280 → 712,280**, emitted **39,226 → 39,226** — |

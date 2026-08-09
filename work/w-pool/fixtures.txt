@@ -207,6 +207,8 @@ fixtures/cpp/walign_dyninit_poly_double.cpp
 fixtures/cpp/wbdnz_ctr.cpp
 fixtures/cpp/wbdnz_ctr_neg.cpp
 fixtures/cpp/wbdnz_ctr_then_framed_neg.cpp
+fixtures/cpp/wbiquad_fp_store_diamond.cpp
+fixtures/cpp/wbiquad_fp_store_diamond_neg.cpp
 fixtures/cpp/wblockir_float_walk.cpp
 fixtures/cpp/wblockir_float_walk_neg.cpp
 fixtures/cpp/wblockir_float_walk_then_framed_neg.cpp

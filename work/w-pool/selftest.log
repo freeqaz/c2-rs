@@ -1,6 +1,6 @@
 provenance:
-  c2-rs      52820e0c7b09 (clean)  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-afbb2a590581a5442
-  binary     f129d3b7d087c054  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-afbb2a590581a5442/work/w-pool/c2rs-tip
+  c2-rs      7eda6c7eefad (DIRTY)  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-afbb2a590581a5442
+  binary     c4ef7049b8988320  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-afbb2a590581a5442/work/w-pool/c2rs-tip
   workload   (none — fixtures)
   wibo       wibo 1.0.1-23-g4a9dd6f (Linux x86_64)  /home/free/code/milohax/wibo/build/wibo
   cl.exe     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/cl.exe
@@ -218,6 +218,8 @@ oracle self-test (determinism + capture stability):
   wbdnz_ctr.cpp                      PASS   obj=1522B ex=4676B
   wbdnz_ctr_neg.cpp                  PASS   obj=2793B ex=7026B
   wbdnz_ctr_then_framed_neg.cpp      PASS   obj=1116B ex=2952B
+  wbiquad_fp_store_diamond.cpp       PASS   obj=1588B ex=3644B
+  wbiquad_fp_store_diamond_neg.cpp   PASS   obj=4713B ex=10331B
   wblockir_float_walk.cpp            PASS   obj=1931B ex=3683B
   wblockir_float_walk_neg.cpp        PASS   obj=3819B ex=5965B
   wblockir_float_walk_then_framed_neg.cpp PASS   obj=1289B ex=3020B
