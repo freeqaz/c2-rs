@@ -1,0 +1,37 @@
+KEYS  base 251  tip 255  union 257
+MOVED 21 · UNCHANGED 228 · BASE-ONLY 2 · TIP-ONLY 6
+
+-- MOVED --
+  fnbyte-calltarget-disagree                                   3416 ->         2412  -1004
+  fnbyte-calltarget-disagree-count                             2227 ->         1558  -669
+  fnbyte-calltarget-disagree-differs                           2555 ->         1880  -675
+  fnbyte-calltarget-disagree-exact                              861 ->          532  -329
+  fnbyte-calltarget-disagree-name                              1189 ->          854  -335
+  fnbyte-calltarget-graded                                    39644 ->        38640  -1004
+  fnbyte-census-disagree                                          0 ->         1004  +1004
+  fnbyte-differs                                               2555 ->         1880  -675
+  fnbyte-differs-witnesses                                      933 ->          622  -311
+  fnbyte-exact-bytes                                          37089 ->        36760  -329
+  fnbyte-refused                                             130116 ->       131120  +1004
+  fnbyte-refused-codegen                                          0 ->         1004  +1004
+  fnbyte-reloc-differs                                          861 ->          532  -329
+  fnbyte-reloc-differs-target                                   861 ->          532  -329
+  fnbyte-reloc-graded                                         37089 ->        36760  -329
+  fnbyte-reloc-graded-relocated                                4683 ->         4354  -329
+  fnbyte-reloc-vs-calltarget-both                               861 ->          532  -329
+  fnbyte-reloc-witnesses                                        277 ->          196  -81
+  fnbyte-shape-seq-differs                                     1351 ->          810  -541
+  fnbyte-shape-tail-differs                                    1081 ->         1070  -11
+  fnbyte-shape-tail-reloc-differs                               845 ->          532  -313
+
+-- TIP-ONLY (a key the fence minted) --
+  fnbyte-census-disagree-expressible                              0
+  fnbyte-census-disagree-inlined-callee                        1004
+  fnbyte-decline-inlined-callee                                1004
+  fnbyte-shape-framed-refused                                   123
+  fnbyte-shape-seq-refused                                      557
+  fnbyte-shape-tail-refused                                     324
+
+-- BASE-ONLY (a key that VANISHED — must be empty) --
+  fnbyte-shape-framed-differs                                   123
+  fnbyte-shape-seq-reloc-differs                                 16

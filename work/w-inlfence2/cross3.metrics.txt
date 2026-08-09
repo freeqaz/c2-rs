@@ -1,0 +1,1164 @@
+  [1/878] vocab-gap    src/keygen_xbox.cpp  (il function decode failed)
+  [2/878] vocab-gap    src/ChecksumData_xbox.cpp  (il function decode failed)
+  [3/878] vocab-gap    src/lazer/game/SongDB.cpp  (il function decode failed)
+  [4/878] vocab-gap    src/lazer/game/Shuttle.cpp  (il function decode failed)
+  [5/878] vocab-gap    src/lazer/game/HamUser.cpp  (il function decode failed)
+  [6/878] vocab-gap    src/lazer/meta_ham/AccomplishmentCategory.cpp  (il function decode failed)
+  [7/878] vocab-gap    src/lazer/meta_ham/AccomplishmentCharacterListConditional.cpp  (il function decode failed)
+  [8/878] vocab-gap    src/lazer/game/LiveInput.cpp  (il function decode failed)
+  [9/878] vocab-gap    src/lazer/game/PresenceMgr.cpp  (il function decode failed)
+  [10/878] vocab-gap    src/lazer/meta_ham/AccomplishmentCampaignConditional.cpp  (il function decode failed)
+  [11/878] vocab-gap    src/App.cpp  (il function decode failed)
+  [12/878] vocab-gap    src/lazer/meta_ham/AccomplishmentGroup.cpp  (il function decode failed)
+  [13/878] vocab-gap    src/lazer/game/HamUserMgr.cpp  (il function decode failed)
+  [14/878] vocab-gap    src/lazer/game/GamePanel.cpp  (il function decode failed)
+  [15/878] vocab-gap    src/lazer/game/PartyModeMgr.cpp  (il function decode failed)
+  [16/878] vocab-gap    src/lazer/meta_ham/AccomplishmentConditional.cpp  (il function decode failed)
+  [17/878] vocab-gap    src/lazer/game/GameMode.cpp  (il function decode failed)
+  [18/878] vocab-gap    src/lazer/meta_ham/Accomplishment.cpp  (il function decode failed)
+  [19/878] vocab-gap    src/lazer/game/SongSequence.cpp  (il function decode failed)
+  [20/878] vocab-gap    src/lazer/game/Game.cpp  (il function decode failed)
+  [21/878] vocab-gap    src/lazer/game/BustAMovePanel.cpp  (il function decode failed)
+  [22/878] vocab-gap    src/lazer/meta_ham/AccomplishmentCountConditional.cpp  (il function decode failed)
+  [23/878] vocab-gap    src/lazer/meta_ham/AccomplishmentDiscSongConditional.cpp  (il function decode failed)
+  [24/878] vocab-gap    src/lazer/meta_ham/AccomplishmentOneShot.cpp  (il function decode failed)
+  [25/878] vocab-gap    src/lazer/meta_ham/AccomplishmentSongListConditional.cpp  (il function decode failed)
+  [26/878] vocab-gap    src/lazer/meta_ham/AccomplishmentProgress.cpp  (il function decode failed)
+  [27/878] vocab-gap    src/lazer/meta_ham/CampaignEra.cpp  (il function decode failed)
+  [28/878] vocab-gap    src/lazer/meta_ham/AccomplishmentSongConditional.cpp  (il function decode failed)
+  [29/878] vocab-gap    src/lazer/meta_ham/AppMiniLeaderboardDisplay.cpp  (il function decode failed)
+  [30/878] vocab-gap    src/lazer/meta_ham/Award.cpp  (il function decode failed)
+  [31/878] vocab-gap    src/lazer/meta_ham/AppNavProvider.cpp  (il function decode failed)
+  [32/878] vocab-gap    src/lazer/meta_ham/AppLabel.cpp  (il function decode failed)
+  [33/878] vocab-gap    src/lazer/meta_ham/AccomplishmentManager.cpp  (il function decode failed)
+  [34/878] vocab-gap    src/lazer/meta_ham/BlacklightPanel.cpp  (il function decode failed)
+  [35/878] vocab-gap    src/lazer/meta_ham/Campaign.cpp  (il function decode failed)
+  [36/878] vocab-gap    src/lazer/meta_ham/CalibrationPanel.cpp  (il function decode failed)
+  [37/878] vocab-gap    src/lazer/meta_ham/CampaignMasterQuestCrewSelectPanel.cpp  (il function decode failed)
+  [38/878] vocab-gap    src/lazer/meta_ham/CampaignDiffSelectPanel.cpp  (il function decode failed)
+  [39/878] vocab-gap    src/lazer/meta_ham/ChallengeRecord.cpp  (il function decode failed)
+  [40/878] vocab-gap    src/lazer/meta_ham/CampaignProgress.cpp  (il function decode failed)
+  [41/878] vocab-gap    src/lazer/meta_ham/CampaignMasterQuestSongSelectPanel.cpp  (il function decode failed)
+  [42/878] vocab-gap    src/lazer/meta_ham/ChallengeResultPanel.cpp  (il function decode failed)
+  [43/878] vocab-gap    src/lazer/meta_ham/CampaignSongSelectPanel.cpp  (il function decode failed)
+  [44/878] vocab-gap    src/lazer/meta_ham/ChallengeSortByScore.cpp  (il function decode failed)
+  [45/878] vocab-gap    src/lazer/meta_ham/ChallengeSort.cpp  (il function decode failed)
+  [46/878] vocab-gap    src/lazer/meta_ham/ChooseModeProvider.cpp  (il function decode failed)
+  [47/878] vocab-gap    src/lazer/meta_ham/ChallengeSortMgr.cpp  (il function decode failed)
+  [48/878] vocab-gap    src/lazer/meta_ham/ContentLoadingPanel.cpp  (il function decode failed)
+  [49/878] vocab-gap    src/lazer/meta_ham/CampaignPerformer.cpp  (il function decode failed)
+  [50/878] vocab-gap    src/lazer/meta_ham/Challenges.cpp  (il function decode failed)
+  [51/878] vocab-gap    src/lazer/meta_ham/CursorPanel.cpp  (il function decode failed)
+  [52/878] vocab-gap    src/lazer/meta_ham/CharacterProvider.cpp  (il function decode failed)
+  [53/878] vocab-gap    src/lazer/meta_ham/ChallengeSortNode.cpp  (il function decode failed)
+  [54/878] vocab-gap    src/lazer/meta_ham/FitnessCalorieSortByCalorie.cpp  (il function decode failed)
+  [55/878] vocab-gap    src/lazer/meta_ham/ContextChecker.cpp  (il function decode failed)
+  [56/878] vocab-gap    src/lazer/meta_ham/EventDialogPanel.cpp  (il function decode failed)
+  [57/878] vocab-gap    src/lazer/meta_ham/ChooseProfilePanel.cpp  (il function decode failed)
+  [58/878] vocab-gap    src/lazer/meta_ham/CorrectIdentityPanel.cpp  (il function decode failed)
+  [59/878] vocab-gap    src/lazer/meta_ham/FitnessCalorieSortMgr.cpp  (il function decode failed)
+  [60/878] vocab-gap    src/lazer/meta_ham/DifficultyProvider.cpp  (il function decode failed)
+  [61/878] vocab-gap    src/lazer/meta_ham/DepthBuffer.cpp  (il function decode failed)
+  [62/878] vocab-gap    src/lazer/meta_ham/CrewProvider.cpp  (il function decode failed)
+  [63/878] vocab-gap    src/lazer/meta_ham/FitnessCalorieSort.cpp  (il function decode failed)
+  [64/878] vocab-gap    src/lazer/meta_ham/HamMemcardAction.cpp  (il function decode failed)
+  [65/878] vocab-gap    src/lazer/meta_ham/HamStoreOffer.cpp  (il function decode failed)
+  [66/878] vocab-gap    src/lazer/meta_ham/FitnessGoalMgr.cpp  (il function decode failed)
+  [67/878] vocab-gap    src/lazer/meta_ham/FitnessCalorieSortNode.cpp  (il function decode failed)
+  [68/878] vocab-gap    src/lazer/meta_ham/FitnessProvider.cpp  (il function decode failed)
+  [69/878] vocab-gap    src/lazer/meta_ham/Instarank.cpp  (il function decode failed)
+  [70/878] vocab-gap    src/lazer/meta_ham/HamPanel.cpp  (il function decode failed)
+  [71/878] vocab-gap    src/lazer/meta_ham/HamStarsDisplay.cpp  (il function decode failed)
+  [72/878] vocab-gap    src/lazer/meta_ham/HamScreen.cpp  (il function decode failed)
+  [73/878] vocab-gap    src/lazer/meta_ham/HamSongMetadata.cpp  (il function decode failed)
+  [74/878] vocab-gap    src/lazer/meta_ham/HamProfile.cpp  (il function decode failed)
+  [75/878] vocab-gap    src/lazer/meta_ham/HamStoreFilterProvider.cpp  (il function decode failed)
+  [76/878] vocab-gap    src/lazer/meta_ham/HamSongMgr.cpp  (il function decode failed)
+  [77/878] vocab-gap    src/lazer/meta_ham/HamStorePanel.cpp  (il function decode failed)
+  [78/878] vocab-gap    src/lazer/meta_ham/LoadingPanel.cpp  (il function decode failed)
+  [79/878] vocab-gap    src/lazer/meta_ham/HamStoreProvider.cpp  (il function decode failed)
+  [80/878] vocab-gap    src/lazer/meta_ham/LetterboxPanel.cpp  (il function decode failed)
+  [81/878] vocab-gap    src/lazer/meta_ham/HelpBarPanel.cpp  (il function decode failed)
+  [82/878] vocab-gap    src/lazer/meta_ham/KinectSharePanel.cpp  (il function decode failed)
+  [83/878] vocab-gap    src/lazer/meta_ham/HamUI.cpp  (il function decode failed)
+  [84/878] vocab-gap    src/lazer/meta_ham/MoveRatingHistory.cpp  (il function decode failed)
+  [85/878] vocab-gap    src/lazer/meta_ham/Leaderboards.cpp  (il function decode failed)
+  [86/878] vocab-gap    src/lazer/meta_ham/MainMenuProvider.cpp  (il function decode failed)
+  [87/878] vocab-gap    src/lazer/meta_ham/LockedContentPanel.cpp  (il function decode failed)
+  [88/878] vocab-gap    src/lazer/meta_ham/MetagameStats.cpp  (il function decode failed)
+  [89/878] vocab-gap    src/lazer/meta_ham/MainMenuPanel.cpp  (il function decode failed)
+  [90/878] vocab-gap    src/lazer/meta_ham/MQSongSortByCharacter.cpp  (il function decode failed)
+  [91/878] vocab-gap    src/lazer/meta_ham/MovieProvider.cpp  (il function decode failed)
+  [92/878] vocab-gap    src/lazer/meta_ham/MetaPanel.cpp  (il function decode failed)
+  [93/878] vocab-gap    src/lazer/meta_ham/NavListSort.cpp  (il function decode failed)
+  [94/878] vocab-gap    src/lazer/meta_ham/MetagameRank.cpp  (il function decode failed)
+  [95/878] vocab-gap    src/lazer/meta_ham/MQSongSortMgr.cpp  (il function decode failed)
+  [96/878] vocab-gap    src/lazer/meta_ham/NavListNode.cpp  (il function decode failed)
+  [97/878] vocab-gap    src/lazer/meta_ham/MQSongSort.cpp  (il function decode failed)
+  [98/878] vocab-gap    src/lazer/meta_ham/MetaPerformer.cpp  (il function decode failed)
+  [99/878] vocab-gap    src/lazer/meta_ham/PassiveMessenger.cpp  (il function decode failed)
+  [100/878] vocab-gap    src/lazer/meta_ham/PassiveMessagesPanel.cpp  (il function decode failed)
+  [101/878] vocab-gap    src/lazer/meta_ham/MQSongSortNode.cpp  (il function decode failed)
+  [102/878] vocab-gap    src/lazer/meta_ham/NavListSortMgr.cpp  (il function decode failed)
+  [103/878] vocab-gap    src/lazer/meta_ham/PlaylistSortByTypeCmp.cpp  (il function decode failed)
+  [104/878] vocab-gap    src/lazer/meta_ham/MultiUserGesturePanel.cpp  (il function decode failed)
+  [105/878] vocab-gap    src/lazer/meta_ham/OptionsPanel.cpp  (il function decode failed)
+  [106/878] vocab-gap    src/lazer/meta_ham/OutfitProvider.cpp  (il function decode failed)
+  [107/878] vocab-gap    src/lazer/meta_ham/Playlist.cpp  (il function decode failed)
+  [108/878] vocab-gap    src/lazer/meta_ham/Overshell.cpp  (il function decode failed)
+  [109/878] vocab-gap    src/lazer/meta_ham/OverlayPanel.cpp  (il function decode failed)
+  [110/878] vocab-gap    src/lazer/meta_ham/SigninScreen.cpp  (il function decode failed)
+  [111/878] vocab-gap    src/lazer/meta_ham/PlaylistSongProvider.cpp  (il function decode failed)
+  [112/878] vocab-gap    src/lazer/meta_ham/PlaylistSort.cpp  (il function decode failed)
+  [113/878] vocab-gap    src/lazer/meta_ham/PlaylistSortMgr.cpp  (il function decode failed)
+  [114/878] vocab-gap    src/lazer/meta_ham/PlaylistSortNode.cpp  (il function decode failed)
+  [115/878] vocab-gap    src/lazer/meta_ham/SaveLoadManager.cpp  (il function decode failed)
+  [116/878] vocab-gap    src/lazer/meta_ham/SongRecord.cpp  (il function decode failed)
+  [117/878] vocab-gap    src/lazer/meta_ham/SkillsAwardList.cpp  (il function decode failed)
+  [118/878] vocab-gap    src/lazer/meta_ham/ProfileMgr.cpp  (il function decode failed)
+  [119/878] vocab-gap    src/lazer/meta_ham/ShellInput.cpp  (il function decode failed)
+  [120/878] vocab-gap    src/lazer/meta_ham/PracticeChoosePanel.cpp  (il function decode failed)
+  [121/878] vocab-gap    src/lazer/meta_ham/SingleUserCrewSelectPanel.cpp  (il function decode failed)
+  [122/878] vocab-gap    src/lazer/meta_ham/SkeletonIdentifier.cpp  (il function decode failed)
+  [123/878] vocab-gap    src/lazer/meta_ham/SkeletonChooser.cpp  (il function decode failed)
+  [124/878] vocab-gap    src/lazer/meta_ham/SongSelectPanel.cpp  (il function decode failed)
+  [125/878] vocab-gap    src/lazer/meta_ham/TitleProvider.cpp  (il function decode failed)
+  [126/878] vocab-gap    src/lazer/meta_ham/SongSortBySong.cpp  (il function decode failed)
+  [127/878] vocab-gap    src/lazer/meta_ham/Utl.cpp  (il function decode failed)
+  [128/878] vocab-gap    src/lazer/meta_ham/SongSelectPlaylistCustomizePanel.cpp  (il function decode failed)
+  [129/878] vocab-gap    src/lazer/meta_ham/SongSortByDiff.cpp  (il function decode failed)
+  [130/878] vocab-gap    src/lazer/meta_ham/SongSortByLocation.cpp  (il function decode failed)
+  [131/878] vocab-gap    src/lazer/meta_ham/SongSelectPlaylistPanel.cpp  (il function decode failed)
+  [132/878] vocab-gap    src/lazer/meta_ham/SongStatusMgr.cpp  (il function decode failed)
+  [133/878] vocab-gap    src/lazer/meta_ham/SongSortMgr.cpp  (il function decode failed)
+  [134/878] vocab-gap    src/lazer/meta_ham/SongSort.cpp  (il function decode failed)
+  [135/878] vocab-gap    src/lazer/meta_ham/TexLoadPanel.cpp  (il function decode failed)
+  [136/878] vocab-gap    src/lazer/net_ham/KinectShare.cpp  (il function decode failed)
+  [137/878] vocab-gap    src/lazer/meta_ham/SongSortNode.cpp  (il function decode failed)
+  [138/878] vocab-gap    src/lazer/net_ham/KinectShareJobs.cpp  (il function decode failed)
+  [139/878] vocab-gap    src/lazer/meta_ham/VenueProvider.cpp  (il function decode failed)
+  [140/878] vocab-gap    src/lazer/meta_ham/UIEventMgr.cpp  (il function decode failed)
+  [141/878] vocab-gap    src/lazer/net_ham/MotdJobs.cpp  (il function decode failed)
+  [142/878] vocab-gap    src/lazer/net_ham/ChallengeSystemJobs.cpp  (il function decode failed)
+  [143/878] vocab-gap    src/lazer/net_ham/FitnessGoalJobs.cpp  (il function decode failed)
+  [144/878] vocab-gap    src/lazer/meta_ham/WeightInput.cpp  (il function decode failed)
+  [145/878] vocab-gap    src/lazer/net_ham/PlaylistJobs.cpp  (il function decode failed)
+  [146/878] vocab-gap    src/lazer/net_ham/RCJobDingo.cpp  (il function decode failed)
+  [147/878] vocab-gap    src/lazer/meta_ham/VoiceInputPanel.cpp  (il function decode failed)
+  [148/878] vocab-gap    src/Main.cpp  (il function decode failed)
+  [149/878] vocab-gap    src/lazer/meta_ham/VoiceControlPanel.cpp  (il function decode failed)
+  [150/878] vocab-gap    src/lazer/net_ham/TokenJobs.cpp  (il function decode failed)
+  [151/878] vocab-gap    src/Memory_Xbox.cpp  (il function decode failed)
+  [152/878] vocab-gap    src/lazer/net_ham/WebLinkJobs.cpp  (il function decode failed)
+  [153/878] vocab-gap    src/lazer/net_ham/HamStoreCartJobs.cpp  (il function decode failed)
+  [154/878] vocab-gap    src/lazer/net_ham/DataMinerJobs.cpp  (il function decode failed)
+  [155/878] vocab-gap    src/system/char/CharBlendBone.cpp  (il function decode failed)
+  [156/878] vocab-gap    src/system/char/CharBone.cpp  (il function decode failed)
+  [157/878] vocab-gap    src/lazer/net_ham/LeaderboardJobs.cpp  (il function decode failed)
+  [158/878] vocab-gap    src/lazer/net_ham/FriendsListJobs.cpp  (il function decode failed)
+  [159/878] vocab-gap    src/system/char/CharBonesBlender.cpp  (il function decode failed)
+  [160/878] vocab-gap    src/system/char/CharBoneOffset.cpp  (il function decode failed)
+  [161/878] vocab-gap    src/system/char/CharacterTest.cpp  (il function decode failed)
+  [162/878] vocab-gap    src/lazer/net_ham/PartyModeJobs.cpp  (il function decode failed)
+  [163/878] vocab-gap    src/system/char/CharBones.cpp  (il function decode failed)
+  [164/878] vocab-gap    src/system/char/CharBoneDir.cpp  (il function decode failed)
+  [165/878] vocab-gap    src/system/char/CharBoneTwist.cpp  (il function decode failed)
+  [166/878] vocab-gap    src/system/char/CharBonesSamples.cpp  (il function decode failed)
+  [167/878] vocab-gap    src/lazer/net_ham/ScoreJobs.cpp  (il function decode failed)
+  [168/878] vocab-gap    src/system/char/Character.cpp  (il function decode failed)
+  [169/878] vocab-gap    src/system/char/CharBonesMeshes.cpp  (il function decode failed)
+  [170/878] vocab-gap    src/system/char/CharClipDriver.cpp  (il function decode failed)
+  [171/878] vocab-gap    src/system/char/CharClipDisplay.cpp  (il function decode failed)
+  [172/878] vocab-gap    src/lazer/net_ham/RockCentral.cpp  (il function decode failed)
+  [173/878] vocab-gap    src/system/char/CharEyeDartRuleset.cpp  (il function decode failed)
+  [174/878] vocab-gap    src/system/char/CharClipGroup.cpp  (il function decode failed)
+  [175/878] vocab-gap    src/system/char/CharCollide.cpp  (il function decode failed)
+  [176/878] vocab-gap    src/system/char/CharCuff.cpp  (il function decode failed)
+  [177/878] vocab-gap    src/system/char/CharClipSet.cpp  (il function decode failed)
+  [178/878] vocab-gap    src/system/char/CharDriverMidi.cpp  (il function decode failed)
+  [179/878] vocab-gap    src/system/char/CharGuitarString.cpp  (il function decode failed)
+  [180/878] vocab-gap    src/system/char/CharForeTwist.cpp  (il function decode failed)
+  [181/878] vocab-gap    src/system/char/CharClip.cpp  (il function decode failed)
+  [182/878] vocab-gap    src/link_glue.cpp  (il function decode failed)
+  [183/878] vocab-gap    src/system/char/CharFaceServo.cpp  (il function decode failed)
+  [184/878] vocab-gap    src/system/char/CharIKFingers.cpp  (il function decode failed)
+  [185/878] vocab-gap    src/system/char/CharDriver.cpp  (il function decode failed)
+  [186/878] vocab-gap    src/system/char/CharIKFoot.cpp  (il function decode failed)
+  [187/878] vocab-gap    src/system/char/CharIKRod.cpp  (il function decode failed)
+  [188/878] vocab-gap    src/system/char/CharIKScale.cpp  (il function decode failed)
+  [189/878] vocab-gap    src/system/char/CharIKHand.cpp  (il function decode failed)
+  [190/878] vocab-gap    src/system/char/CharIKHead.cpp  (il function decode failed)
+  [191/878] vocab-gap    src/system/char/Char.cpp  (il function decode failed)
+  [192/878] vocab-gap    src/system/char/CharIKMidi.cpp  (il function decode failed)
+  [193/878] vocab-gap    src/system/char/CharInterest.cpp  (il function decode failed)
+  [194/878] vocab-gap    src/system/char/CharMeshHide.cpp  (il function decode failed)
+  [195/878] vocab-gap    src/system/char/CharEyes.cpp  (il function decode failed)
+  [196/878] vocab-gap    src/system/char/CharHair.cpp  (il function decode failed)
+  [197/878] vocab-gap    src/system/char/CharMirror.cpp  (il function decode failed)
+  [198/878] vocab-gap    src/system/char/CharLookAt.cpp  (il function decode failed)
+  [199/878] vocab-gap    src/system/char/CharIKSliderMidi.cpp  (il function decode failed)
+  [200/878] vocab-gap    src/system/char/CharNeckTwist.cpp  (il function decode failed)
+  [201/878] vocab-gap    src/system/char/CharPosConstraint.cpp  (il function decode failed)
+  [202/878] vocab-gap    src/system/char/CharTaskMgr.cpp  (il function decode failed)
+  [203/878] vocab-gap    src/system/char/CharSignalApplier.cpp  (il function decode failed)
+  [204/878] vocab-gap    src/system/char/CharUpperTwist.cpp  (il function decode failed)
+  [205/878] vocab-gap    src/system/char/CharLipSync.cpp  (il function decode failed)
+  [206/878] vocab-gap    src/system/char/CharPollGroup.cpp  (il function decode failed)
+  [207/878] vocab-gap    src/system/char/CharWeightable.cpp  (il function decode failed)
+  [208/878] vocab-gap    src/system/char/CharServoBone.cpp  (il function decode failed)
+  [209/878] vocab-gap    src/system/char/CharSleeve.cpp  (il function decode failed)
+  [210/878] vocab-gap    src/system/char/CharTransDraw.cpp  (il function decode failed)
+  [211/878] vocab-gap    src/system/dsp/Common_Xbox.cpp  (il function decode failed)
+  [212/878] vocab-gap    src/system/char/ClipGraphGen.cpp  (il function decode failed)
+  [213/878] vocab-gap    src/system/char/CharWeightSetter.cpp  (il function decode failed)
+  [214/878] vocab-gap    src/system/dsp/BitCrushEffect.cpp  (il function decode failed)
+  [215/878] vocab-gap    src/system/char/CharUtl.cpp  (il function decode failed)
+  [216/878] vocab-gap    src/system/char/CharLipSyncDriver.cpp  (il function decode failed)
+  [217/878] vocab-gap    src/system/decomp_pch.cpp  (il function decode failed)
+  [218/878] vocab-gap    src/system/dsp/DelayEffect.cpp  (il function decode failed)
+  [219/878] vocab-gap    src/system/dsp/DistortionEffect.cpp  (il function decode failed)
+  [220/878] vocab-gap    src/system/char/ClipDistMap.cpp  (il function decode failed)
+  [221/878] vocab-gap    src/system/char/Waypoint.cpp  (il function decode failed)
+  [222/878] vocab-gap    src/system/dsp/FlangerEffect.cpp  (il function decode failed)
+  [223/878] vocab-gap    src/system/char/ClipCollide.cpp  (il function decode failed)
+  [224/878] vocab-gap    src/system/char/FileMerger.cpp  (il function decode failed)
+  [225/878] vocab-gap    src/system/dsp/WahEffect.cpp  (il function decode failed)
+  [226/878] vocab-gap    src/system/dsp/EQEffect.cpp  (il function decode failed)
+  [227/878] vocab-gap    src/system/flow/DrivenPropertyMathOps.cpp  (il function decode failed)
+  [228/878] vocab-gap    src/system/flow/DrivenPropertyEntry.cpp  (il function decode failed)
+  [229/878] vocab-gap    src/system/flow/FlowAnimate.cpp  (il function decode failed)
+  [230/878] vocab-gap    src/system/flow/FlowIf.cpp  (il function decode failed)
+  [231/878] vocab-gap    src/system/flow/FlowCommand.cpp  (il function decode failed)
+  [232/878] vocab-gap    src/system/flow/FlowDistance.cpp  (il function decode failed)
+  [233/878] vocab-gap    src/system/flow/FlowEventListener.cpp  (il function decode failed)
+  [234/878] vocab-gap    src/system/flow/FlowLabel.cpp  (il function decode failed)
+  [235/878] vocab-gap    src/system/flow/FlowOnStop.cpp  (il function decode failed)
+  [236/878] vocab-gap    src/system/flow/FlowOutPort.cpp  (il function decode failed)
+  [237/878] vocab-gap    src/system/flow/FlowNode.cpp  (il function decode failed)
+  [238/878] vocab-gap    src/system/flow/FlowPtr.cpp  (il function decode failed)
+  [239/878] vocab-gap    src/system/flow/FlowManager.cpp  (il function decode failed)
+  [240/878] vocab-gap    src/system/flow/FlowQueueable.cpp  (il function decode failed)
+  [241/878] vocab-gap    src/system/flow/FlowSequence.cpp  (il function decode failed)
+  [242/878] vocab-gap    src/system/flow/FlowRun.cpp  (il function decode failed)
+  [243/878] vocab-gap    src/system/char/FileMergerOrganizer.cpp  (il function decode failed)
+  [244/878] vocab-gap    src/system/flow/FlowPickOne.cpp  (il function decode failed)
+  [245/878] vocab-gap    src/system/flow/FlowMultiSetProperty.cpp  (il function decode failed)
+  [246/878] vocab-gap    src/system/flow/FlowSetProperty.cpp  (il function decode failed)
+  [247/878] vocab-gap    src/system/flow/Flow.cpp  (il function decode failed)
+  [248/878] vocab-gap    src/system/flow/FlowValueCase.cpp  (il function decode failed)
+  [249/878] vocab-gap    src/system/flow/FlowSlider.cpp  (il function decode failed)
+  [250/878] vocab-gap    src/system/flow/PropertyEventListener.cpp  (il function decode failed)
+  [251/878] vocab-gap    src/system/flow/FlowSound.cpp  (il function decode failed)
+  [252/878] vocab-gap    src/system/flow/FlowSwitch.cpp  (il function decode failed)
+  [253/878] vocab-gap    src/system/flow/PropertyEventProvider.cpp  (il function decode failed)
+  [254/878] vocab-gap    src/system/flow/FlowTrigger.cpp  (il function decode failed)
+  [255/878] vocab-gap    src/system/gesture/BaseSkeleton.cpp  (il function decode failed)
+  [256/878] vocab-gap    src/system/gesture/ArchiveSkeleton.cpp  (il function decode failed)
+  [257/878] vocab-gap    src/system/flow/FlowWhile.cpp  (il function decode failed)
+  [258/878] vocab-gap    src/system/flow/FlowTimer.cpp  (il function decode failed)
+  [259/878] vocab-gap    src/system/gesture/CameraInput.cpp  (il function decode failed)
+  [260/878] vocab-gap    src/system/gesture/HandHeightGestureFilter.cpp  (il function decode failed)
+  [261/878] vocab-gap    src/system/gesture/FreestyleMotionFilter.cpp  (il function decode failed)
+  [262/878] vocab-gap    src/system/flow/FlowSwitchCase.cpp  (il function decode failed)
+  [263/878] vocab-gap    src/system/gesture/HandInvokeGestureFilter.cpp  (il function decode failed)
+  [264/878] vocab-gap    src/system/gesture/ArcDetector.cpp  (il function decode failed)
+  [265/878] vocab-gap    src/system/gesture/CameraTilt.cpp  (il function decode failed)
+  [266/878] vocab-gap    src/system/gesture/DirectionGestureFilter.cpp  (il function decode failed)
+  [267/878] vocab-gap    src/system/gesture/FitnessFilter.cpp  (il function decode failed)
+  [268/878] vocab-gap    src/system/gesture/DrawUtl.cpp  (il function decode failed)
+  [269/878] vocab-gap    src/system/gesture/HighFiveGestureFilter.cpp  (il function decode failed)
+  [270/878] vocab-gap    src/system/gesture/JointUtl.cpp  (il function decode failed)
+  [271/878] vocab-gap    src/system/gesture/HandRaisedGestureFilter.cpp  (il function decode failed)
+  [272/878] vocab-gap    src/system/gesture/HandsUpGestureFilter.cpp  (il function decode failed)
+  [273/878] vocab-gap    src/system/gesture/GestureMgr.cpp  (il function decode failed)
+  [274/878] vocab-gap    src/system/gesture/DepthBuffer3D.cpp  (il function decode failed)
+  [275/878] vocab-gap    src/system/gesture/Gesture.cpp  (il function decode failed)
+  [276/878] vocab-gap    src/system/gesture/IdentityInfo.cpp  (il function decode failed)
+  [277/878] vocab-gap    src/system/gesture/SkeletonHistory.cpp  (il function decode failed)
+  [278/878] vocab-gap    src/system/gesture/Skeleton.cpp  (il function decode failed)
+  [279/878] vocab-gap    src/system/gesture/LiveCameraInput.cpp  (il function decode failed)
+  [280/878] vocab-gap    src/system/gesture/NavigationSkeletonDir.cpp  (il function decode failed)
+  [281/878] vocab-gap    src/system/gesture/SpeechMgr.cpp  (il function decode failed)
+  [282/878] vocab-gap    src/system/gesture/SkeletonExtentTracker.cpp  (il function decode failed)
+  [283/878] vocab-gap    src/system/gesture/SkeletonQualityFilter.cpp  (il function decode failed)
+  [284/878] vocab-gap    src/system/gesture/SkeletonRecoverer.cpp  (il function decode failed)
+  [285/878] vocab-gap    src/system/gesture/SkeletonDir.cpp  (il function decode failed)
+  [286/878] vocab-gap    src/system/gesture/StubCameraInput.cpp  (il function decode failed)
+  [287/878] vocab-gap    src/system/gesture/SkeletonUpdate.cpp  (il function decode failed)
+  [288/878] vocab-gap    src/system/gesture/StandingStillGestureFilter.cpp  (il function decode failed)
+  [289/878] vocab-gap    src/system/hamobj/BustAMoveData.cpp  (il function decode failed)
+  [290/878] vocab-gap    src/system/hamobj/CamShotCatVO.cpp  (il function decode failed)
+  [291/878] vocab-gap    src/system/hamobj/CrazeHollaback.cpp  (il function decode failed)
+  [292/878] vocab-gap    src/system/gesture/StreamRecorder.cpp  (il function decode failed)
+  [293/878] vocab-gap    src/system/hamobj/DancerSkeleton.cpp  (il function decode failed)
+  [294/878] vocab-gap    src/system/gesture/StreamRenderer.cpp  (il function decode failed)
+  [295/878] vocab-gap    src/system/hamobj/CharCameraInput.cpp  (il function decode failed)
+  [296/878] vocab-gap    src/system/hamobj/CharFeedback.cpp  (il function decode failed)
+  [297/878] vocab-gap    src/system/gesture/SkeletonViz.cpp  (il function decode failed)
+  [298/878] vocab-gap    src/system/hamobj/Difficulty.cpp  (il function decode failed)
+  [299/878] vocab-gap    src/system/hamobj/FreestyleMove.cpp  (il function decode failed)
+  [300/878] vocab-gap    src/system/hamobj/DetectFrame.cpp  (il function decode failed)
+  [301/878] vocab-gap    src/system/gesture/SkeletonClip.cpp  (il function decode failed)
+  [302/878] vocab-gap    src/system/hamobj/HamAudio.cpp  (il function decode failed)
+  [303/878] vocab-gap    src/system/hamobj/ErrorNode.cpp  (il function decode failed)
+  [304/878] vocab-gap    src/system/hamobj/DancerSequence.cpp  (il function decode failed)
+  [305/878] vocab-gap    src/system/hamobj/FilterVersion.cpp  (il function decode failed)
+  [306/878] vocab-gap    src/system/hamobj/FreestyleMoveRecorder.cpp  (il function decode failed)
+  [307/878] vocab-gap    src/system/gesture/WaveToTurnOnLight.cpp  (il function decode failed)
+  [308/878] vocab-gap    src/system/hamobj/FilterQueue.cpp  (il function decode failed)
+  [309/878] vocab-gap    src/system/hamobj/HamBattleData.cpp  (il function decode failed)
+  [310/878] vocab-gap    src/system/hamobj/ClipPlayer.cpp  (il function decode failed)
+  [311/878] vocab-gap    src/system/hamobj/HamDriver.cpp  (il function decode failed)
+  [312/878] vocab-gap    src/system/hamobj/HamGameData.cpp  (il function decode failed)
+  [313/878] vocab-gap    src/system/hamobj/HamCamTransform.cpp  (il function decode failed)
+  [314/878] vocab-gap    src/system/hamobj/DanceRemixer.cpp  (il function decode failed)
+  [315/878] vocab-gap    src/system/hamobj/HamCharacter.cpp  (il function decode failed)
+  [316/878] vocab-gap    src/system/hamobj/HamIKEffector.cpp  (il function decode failed)
+  [317/878] vocab-gap    src/system/hamobj/HamList.cpp  (il function decode failed)
+  [318/878] vocab-gap    src/system/hamobj/HamMaster.cpp  (il function decode failed)
+  [319/878] vocab-gap    src/system/hamobj/HamIKSkeleton.cpp  (il function decode failed)
+  [320/878] vocab-gap    src/system/hamobj/HamLabel.cpp  (il function decode failed)
+  [321/878] vocab-gap    src/system/hamobj/HamPartyJumpData.cpp  (il function decode failed)
+  [322/878] vocab-gap    src/system/hamobj/HamCamShot.cpp  (il function decode failed)
+  [323/878] vocab-gap    src/system/hamobj/HamIconMan.cpp  (il function decode failed)
+  [324/878] vocab-gap    src/system/hamobj/HamListRibbon.cpp  (il function decode failed)
+  [325/878] vocab-gap    src/system/hamobj/HamProviderPrinter.cpp  (il function decode failed)
+  [326/878] vocab-gap    src/system/hamobj/HamPhotoDisplay.cpp  (il function decode failed)
+  [327/878] vocab-gap    src/system/hamobj/HamPhraseMeter.cpp  (il function decode failed)
+  [328/878] vocab-gap    src/system/hamobj/Ham.cpp  (il function decode failed)
+  [329/878] vocab-gap    src/system/hamobj/HamRegulate.cpp  (il function decode failed)
+  [330/878] vocab-gap    src/system/hamobj/HamRibbon.cpp  (il function decode failed)
+  [331/878] vocab-gap    src/system/hamobj/HamSong.cpp  (il function decode failed)
+  [332/878] vocab-gap    src/system/hamobj/HamScrollSpeedIndicator.cpp  (il function decode failed)
+  [333/878] vocab-gap    src/system/hamobj/HamNavProvider.cpp  (il function decode failed)
+  [334/878] vocab-gap    src/system/hamobj/HamMove.cpp  (il function decode failed)
+  [335/878] vocab-gap    src/system/hamobj/HamNavList.cpp  (il function decode failed)
+  [336/878] vocab-gap    src/system/hamobj/HamSongData.cpp  (il function decode failed)
+  [337/878] vocab-gap    src/system/hamobj/HamDirector.cpp  (il function decode failed)
+  [338/878] vocab-gap    src/system/hamobj/HamSupereasyData.cpp  (il function decode failed)
+  [339/878] vocab-gap    src/system/hamobj/HamScrollBehavior.cpp  (il function decode failed)
+  [340/878] vocab-gap    src/system/hamobj/HamSkeletonConverter.cpp  (il function decode failed)
+  [341/878] vocab-gap    src/system/hamobj/HamPlayerData.cpp  (il function decode failed)
+  [342/878] vocab-gap    src/system/hamobj/MiniLeaderboardDisplay.cpp  (il function decode failed)
+  [343/878] vocab-gap    src/system/hamobj/HamVisDir.cpp  (il function decode failed)
+  [344/878] vocab-gap    src/system/hamobj/MoveGraph.cpp  (il function decode failed)
+  [345/878] vocab-gap    src/system/hamobj/MoveParent.cpp  (il function decode failed)
+  [346/878] vocab-gap    src/system/hamobj/MeterDisplay.cpp  (il function decode failed)
+  [347/878] vocab-gap    src/system/hamobj/MoveVariant.cpp  (il function decode failed)
+  [348/878] vocab-gap    src/system/hamobj/Pose.cpp  (il function decode failed)
+  [349/878] vocab-gap    src/system/hamobj/HamWardrobe.cpp  (il function decode failed)
+  [350/878] vocab-gap    src/system/hamobj/PhotoSpotlightPositioner.cpp  (il function decode failed)
+  [351/878] vocab-gap    src/system/hamobj/OriginalChoreoRemixer.cpp  (il function decode failed)
+  [352/878] vocab-gap    src/system/hamobj/PracticeOptionsProvider.cpp  (il function decode failed)
+  [353/878] vocab-gap    src/system/hamobj/MiniGameMgr.cpp  (il function decode failed)
+  [354/878] vocab-gap    src/system/hamobj/HollaBackMinigame.cpp  (il function decode failed)
+  [355/878] vocab-gap    src/system/hamobj/ScoreUtl.cpp  (il function decode failed)
+  [356/878] vocab-gap    src/system/hamobj/MocapSkeletonIterator.cpp  (il function decode failed)
+  [357/878] vocab-gap    src/system/hamobj/PracticeSection.cpp  (il function decode failed)
+  [358/878] vocab-gap    src/system/hamobj/MoveAsyncDetector.cpp  (il function decode failed)
+  [359/878] vocab-gap    src/system/hamobj/SongUtl.cpp  (il function decode failed)
+  [360/878] vocab-gap    src/system/hamobj/SongDifficultyDisplay.cpp  (il function decode failed)
+  [361/878] vocab-gap    src/system/hamobj/RhythmDetector.cpp  (il function decode failed)
+  [362/878] vocab-gap    src/system/hamobj/MoveMgr.cpp  (il function decode failed)
+  [363/878] vocab-gap    src/system/jpeg/Jpeg.cpp  (il function decode failed)
+  [364/878] vocab-gap    src/system/hamobj/MoveDir.cpp  (il function decode failed)
+  [365/878] vocab-gap    src/system/math/Color.cpp  (il function decode failed)
+  [366/878] vocab-gap    src/system/math/Decibels.cpp  (il function decode failed)
+  [367/878] vocab-gap    src/system/math/DoubleExponentialSmoother.cpp  (il function decode failed)
+  [368/878] vocab-gap    src/system/math/FileChecksum.cpp  (il function decode failed)
+  [369/878] vocab-gap    src/system/hamobj/PoseFatalities.cpp  (il function decode failed)
+  [370/878] vocab-gap    src/system/math/Easing.cpp  (il function decode failed)
+  [371/878] vocab-gap    src/system/hamobj/TransConstraint.cpp  (il function decode failed)
+  [372/878] match        src/system/math/Primes.cpp
+  [373/878] vocab-gap    src/system/math/Rand2.cpp  (il function decode failed)
+  [374/878] vocab-gap    src/system/hamobj/RhythmDetectorGroup.cpp  (il function decode failed)
+  [375/878] vocab-gap    src/system/math/Key.cpp  (il function decode failed)
+  [376/878] vocab-gap    src/system/math/Interp.cpp  (il function decode failed)
+  [377/878] vocab-gap    src/system/math/mtx.cpp  (il function decode failed)
+  [378/878] match        src/system/math/Sort.cpp
+  [379/878] vocab-gap    src/system/math/SHA1.cpp  (il function decode failed)
+  [380/878] vocab-gap    src/system/math/Rand.cpp  (il function decode failed)
+  [381/878] vocab-gap    src/system/math/Geo.cpp  (il function decode failed)
+  [382/878] vocab-gap    src/system/hamobj/StarsDisplay.cpp  (il function decode failed)
+  [383/878] vocab-gap    src/system/math/Rot.cpp  (il function decode failed)
+  [384/878] vocab-gap    src/system/math/vec.cpp  (il function decode failed)
+  [385/878] vocab-gap    src/system/math/StreamChecksum.cpp  (il function decode failed)
+  [386/878] vocab-gap    src/system/math/Trig.cpp  (il function decode failed)
+  [387/878] vocab-gap    src/system/meta/Achievements.cpp  (il function decode failed)
+  [388/878] vocab-gap    src/system/meta/Achievements_Xbox.cpp  (il function decode failed)
+  [389/878] vocab-gap    src/system/hamobj/RhythmBattlePlayer.cpp  (il function decode failed)
+  [390/878] vocab-gap    src/system/meta/DataArraySongInfo.cpp  (il function decode failed)
+  [391/878] vocab-gap    src/system/meta/ButtonHolder.cpp  (il function decode failed)
+  [392/878] vocab-gap    src/system/meta/ConnectionStatusPanel.cpp  (il function decode failed)
+  [393/878] vocab-gap    src/system/meta/Jukebox.cpp  (il function decode failed)
+  [394/878] vocab-gap    src/system/meta/FixedSizeSaveableStream.cpp  (il function decode failed)
+  [395/878] vocab-gap    src/system/meta/FixedSizeSaveable.cpp  (il function decode failed)
+  [396/878] vocab-gap    src/system/meta/DeJitterPanel.cpp  (il function decode failed)
+  [397/878] vocab-gap    src/system/hamobj/SongCollision.cpp  (il function decode failed)
+  [398/878] vocab-gap    src/system/meta/MemcardAction.cpp  (il function decode failed)
+  [399/878] vocab-gap    src/system/hamobj/RhythmBattle.cpp  (il function decode failed)
+  [400/878] vocab-gap    src/system/meta/MetaMusicScene.cpp  (il function decode failed)
+  [401/878] vocab-gap    src/system/meta/HeldButtonPanel.cpp  (il function decode failed)
+  [402/878] vocab-gap    src/system/hamobj/SongLayout.cpp  (il function decode failed)
+  [403/878] vocab-gap    src/system/meta/MetaMusicManager.cpp  (il function decode failed)
+  [404/878] vocab-gap    src/system/meta/MemcardMgr.cpp  (il function decode failed)
+  [405/878] vocab-gap    src/system/meta/Sorting.cpp  (il function decode failed)
+  [406/878] vocab-gap    src/system/meta/Meta.cpp  (il function decode failed)
+  [407/878] vocab-gap    src/system/meta/CreditsPanel.cpp  (il function decode failed)
+  [408/878] vocab-gap    src/system/meta/MemcardMgr_Xbox.cpp  (il function decode failed)
+  [409/878] vocab-gap    src/system/meta/Profile.cpp  (il function decode failed)
+  [410/878] vocab-gap    src/system/meta/HAQManager.cpp  (il function decode failed)
+  [411/878] vocab-gap    src/system/meta/StoreEnumeration.cpp  (il function decode failed)
+  [412/878] vocab-gap    src/system/meta/SongMetadata.cpp  (il function decode failed)
+  [413/878] vocab-gap    src/system/hamobj/SuperEasyRemixer.cpp  (il function decode failed)
+  [414/878] vocab-gap    src/system/midi/DataEventList.cpp  (il function decode failed)
+  [415/878] vocab-gap    src/system/meta/PreloadPanel.cpp  (il function decode failed)
+  [416/878] vocab-gap    src/system/meta/StoreOffer.cpp  (il function decode failed)
+  [417/878] vocab-gap    src/system/midi/MidiReader.cpp  (il function decode failed)
+  [418/878] vocab-gap    src/system/meta/SongMgr.cpp  (il function decode failed)
+  [419/878] vocab-gap    src/system/meta/StreamPlayer.cpp  (il function decode failed)
+  [420/878] vocab-gap    src/system/meta/MoviePanel.cpp  (il function decode failed)
+  [421/878] vocab-gap    src/system/midi/DisplayEvents.cpp  (il function decode failed)
+  [422/878] vocab-gap    src/system/midi/MidiReceiver.cpp  (il function decode failed)
+  [423/878] vocab-gap    src/system/midi/MidiVarLen.cpp  (il function decode failed)
+  [424/878] vocab-gap    src/system/meta/SongPreview.cpp  (il function decode failed)
+  [425/878] vocab-gap    src/system/meta/StorePreviewMgr.cpp  (il function decode failed)
+  [426/878] vocab-gap    src/system/midi/MidiParserMgr.cpp  (il function decode failed)
+  [427/878] vocab-gap    src/system/movie/MovieImpl.cpp  (il function decode failed)
+  [428/878] match        src/system/negate_test.cpp
+  [429/878] vocab-gap    src/system/meta/StorePurchaser.cpp  (il function decode failed)
+  [430/878] vocab-gap    src/system/midi/MidiParser.cpp  (il function decode failed)
+  [431/878] vocab-gap    src/system/moviebink/BinkMovieImpl_Xbox.cpp  (il function decode failed)
+  [432/878] vocab-gap    src/system/moviebink/BinkMovieSys.cpp  (il function decode failed)
+  [433/878] vocab-gap    src/system/meta/StorePanel.cpp  (il function decode failed)
+  [434/878] vocab-gap    src/system/movie/MovieSys.cpp  (il function decode failed)
+  [435/878] vocab-gap    src/system/moviebink/BinkMovieSys_Xbox.cpp  (il function decode failed)
+  [436/878] vocab-gap    src/system/net/JsonMemory.cpp  (il function decode failed)
+  [437/878] vocab-gap    src/system/net/HttpReq.cpp  (il function decode failed)
+  [438/878] vocab-gap    src/system/net/HttpGet.cpp  (il function decode failed)
+  [439/878] vocab-gap    src/system/net/HttpReqCurl.cpp  (il function decode failed)
+  [440/878] vocab-gap    src/system/net/JsonUtils.cpp  (il function decode failed)
+  [441/878] vocab-gap    src/system/moviebink/BinkMovieImpl.cpp  (il function decode failed)
+  [442/878] vocab-gap    src/system/movie/Movie.cpp  (il function decode failed)
+  [443/878] vocab-gap    src/system/movie/TexMovie.cpp  (il function decode failed)
+  [444/878] vocab-gap    src/system/net/DingoJob.cpp  (il function decode failed)
+  [445/878] vocab-gap    src/system/net/DingoAuthJob.cpp  (il function decode failed)
+  [446/878] vocab-gap    src/system/net/DingoSvr.cpp  (il function decode failed)
+  [447/878] vocab-gap    src/system/movie/Splash.cpp  (il function decode failed)
+  [448/878] vocab-gap    src/system/net/XLSPConnection.cpp  (il function decode failed)
+  [449/878] vocab-gap    src/system/net/DingoSvr_Xbox.cpp  (il function decode failed)
+  [450/878] vocab-gap    src/system/net/WebSvcReq.cpp  (il function decode failed)
+  [451/878] vocab-gap    src/system/net/WebSvcMgr.cpp  (il function decode failed)
+  [452/878] vocab-gap    src/system/net/WebSvcMgrCurl.cpp  (il function decode failed)
+  [453/878] vocab-gap    src/system/net/SessionJobs_Xbox.cpp  (il function decode failed)
+  [454/878] vocab-gap    src/system/obj/DataArray.cpp  (il function decode failed)
+  [455/878] vocab-gap    src/system/obj/DirUnloader.cpp  (il function decode failed)
+  [456/878] vocab-gap    src/system/obj/DataUtl.cpp  (il function decode failed)
+  [457/878] vocab-gap    src/system/obj/PropSync.cpp  (il function decode failed)
+  [458/878] vocab-gap    src/system/obj/DataFile.cpp  (il function decode failed)
+  [459/878] vocab-gap    src/system/obj/MessageTimer.cpp  (il function decode failed)
+  [460/878] vocab-gap    src/system/oggvorbis/VorbisMem.cpp  (il function decode failed)
+  [461/878] vocab-gap    src/system/obj/DataNode.cpp  (il function decode failed)
+  [462/878] vocab-gap    src/system/obj/Object.cpp  (il function decode failed)
+  [463/878] vocab-gap    src/system/obj/DirLoader.cpp  (il function decode failed)
+  [464/878] vocab-gap    src/system/obj/DataFunc.cpp  (il function decode failed)
+  [465/878] vocab-gap    src/system/obj/TextFile.cpp  (il function decode failed)
+  [466/878] vocab-gap    src/system/os/AppChild.cpp  (il function decode failed)
+  [467/878] vocab-gap    src/system/obj/Dir.cpp  (il function decode failed)
+  [468/878] vocab-gap    src/system/os/ArkFile.cpp  (il function decode failed)
+  [469/878] vocab-gap    src/system/os/AsyncFile.cpp  (il function decode failed)
+  [470/878] vocab-gap    src/system/os/AsyncTask.cpp  (il function decode failed)
+  [471/878] vocab-gap    src/system/obj/Utl.cpp  (il function decode failed)
+  [472/878] vocab-gap    src/system/os/CritSec.cpp  (il function decode failed)
+  [473/878] vocab-gap    src/system/os/AsyncFileHolmes.cpp  (il function decode failed)
+  [474/878] vocab-gap    src/system/obj/Task.cpp  (il function decode failed)
+  [475/878] vocab-gap    src/system/obj/TypeProps.cpp  (il function decode failed)
+  [476/878] vocab-gap    src/system/os/AsyncFile_Win.cpp  (il function decode failed)
+  [477/878] vocab-gap    src/system/os/Archive.cpp  (il function decode failed)
+  [478/878] vocab-gap    src/system/os/DateTime.cpp  (il function decode failed)
+  [479/878] vocab-gap    src/system/obj/Msg.cpp  (il function decode failed)
+  [480/878] vocab-gap    src/system/os/BlockMgr.cpp  (il function decode failed)
+  [481/878] vocab-gap    src/system/os/HDCache.cpp  (il function decode failed)
+  [482/878] vocab-gap    src/system/os/CDReader.cpp  (il function decode failed)
+  [483/878] vocab-gap    src/system/os/HolmesUtl.cpp  (il function decode failed)
+  [484/878] vocab-gap    src/system/os/ContentMgr.cpp  (il function decode failed)
+  [485/878] vocab-gap    src/system/os/File_Win.cpp  (il function decode failed)
+  [486/878] vocab-gap    src/system/os/HolmesClient_NetSocket.cpp  (il function decode failed)
+  [487/878] vocab-gap    src/system/os/File.cpp  (il function decode failed)
+  [488/878] vocab-gap    src/system/os/HolmesClient.cpp  (il function decode failed)
+  [489/878] vocab-gap    src/system/os/ContentMgr_Xbox.cpp  (il function decode failed)
+  [490/878] vocab-gap    src/system/os/HolmesKeyboard.cpp  (il function decode failed)
+  [491/878] vocab-gap    src/system/os/JoypadMsgs.cpp  (il function decode failed)
+  [492/878] vocab-gap    src/system/os/JoypadClient.cpp  (il function decode failed)
+  [493/878] vocab-gap    src/system/os/FileCache.cpp  (il function decode failed)
+  [494/878] vocab-gap    src/system/os/Joypad_Xbox.cpp  (il function decode failed)
+  [495/878] vocab-gap    src/system/os/Joypad.cpp  (il function decode failed)
+  [496/878] vocab-gap    src/system/os/Joypad_Xinput.cpp  (il function decode failed)
+  [497/878] vocab-gap    src/system/os/NetworkSocket.cpp  (il function decode failed)
+  [498/878] vocab-gap    src/system/os/MapFile_Xbox.cpp  (il function decode failed)
+  [499/878] vocab-gap    src/system/os/NetworkSocket_Win.cpp  (il function decode failed)
+  [500/878] vocab-gap    src/system/os/KeyboardJoypadAdapter.cpp  (il function decode failed)
+  [501/878] vocab-gap    src/system/os/Keyboard.cpp  (il function decode failed)
+  [502/878] vocab-gap    src/system/os/NetStream.cpp  (il function decode failed)
+  [503/878] vocab-gap    src/system/os/Keyboard_Xbox.cpp  (il function decode failed)
+  [504/878] vocab-gap    src/system/os/OnlineID.cpp  (il function decode failed)
+  [505/878] vocab-gap    src/system/os/SynchronizationEvent.cpp  (il function decode failed)
+  [506/878] vocab-gap    src/system/os/ThreadCall_Win.cpp  (il function decode failed)
+  [507/878] vocab-gap    src/system/os/Memcard.cpp  (il function decode failed)
+  [508/878] vocab-gap    src/system/os/Debug.cpp  (il function decode failed)
+  [509/878] vocab-gap    src/system/os/Memcard_Xbox.cpp  (il function decode failed)
+  [510/878] vocab-gap    src/system/os/System_Xbox.cpp  (il function decode failed)
+  [511/878] vocab-gap    src/system/os/PlatformMgr.cpp  (il function decode failed)
+  [512/878] vocab-gap    src/system/os/Timer.cpp  (il function decode failed)
+  [513/878] vocab-gap    src/system/os/UsbMidiGuitar.cpp  (il function decode failed)
+  [514/878] vocab-gap    src/system/os/UsbMidiGuitarMsgs.cpp  (il function decode failed)
+  [515/878] vocab-gap    src/system/os/UsbMidiKeyboard.cpp  (il function decode failed)
+  [516/878] vocab-gap    src/system/os/UsbMidiKeyboardMsgs.cpp  (il function decode failed)
+  [517/878] vocab-gap    src/system/os/User.cpp  (il function decode failed)
+  [518/878] vocab-gap    src/system/os/System.cpp  (il function decode failed)
+  [519/878] vocab-gap    src/system/os/UserMgr.cpp  (il function decode failed)
+  [520/878] vocab-gap    src/system/os/VirtualKeyboard.cpp  (il function decode failed)
+  [521/878] vocab-gap    src/system/os/VirtualKeyboard_Xbox.cpp  (il function decode failed)
+  [522/878] vocab-gap    src/system/rnddx9/Env.cpp  (il function decode failed)
+  [523/878] vocab-gap    src/system/rnddx9/Mat.cpp  (il function decode failed)
+  [524/878] vocab-gap    src/system/rnddx9/Lit.cpp  (il function decode failed)
+  [525/878] vocab-gap    src/system/rnddx9/Movie.cpp  (il function decode failed)
+  [526/878] vocab-gap    src/system/rnddx9/CubeTex.cpp  (il function decode failed)
+  [527/878] vocab-gap    src/system/rnddx9/Cam.cpp  (il function decode failed)
+  [528/878] vocab-gap    src/system/rnddx9/Mesh.cpp  (il function decode failed)
+  [529/878] vocab-gap    src/system/rnddx9/MultiMesh.cpp  (il function decode failed)
+  [530/878] vocab-gap    src/system/rnddx9/Part.cpp  (il function decode failed)
+  [531/878] vocab-gap    src/system/rnddx9/RenderState.cpp  (il function decode failed)
+  [532/878] vocab-gap    src/system/rnddx9/Rnd.cpp  (il function decode failed)
+  [533/878] vocab-gap    src/system/rnddx9/ShaderMgr.cpp  (il function decode failed)
+  [534/878] vocab-gap    src/system/rnddx9/Tex.cpp  (il function decode failed)
+  [535/878] vocab-gap    src/system/rndobj/Bitmap.cpp  (il function decode failed)
+  [536/878] vocab-gap    src/system/rndobj/Anim.cpp  (il function decode failed)
+  [537/878] vocab-gap    src/system/rnddx9/Utl.cpp  (il function decode failed)
+  [538/878] vocab-gap    src/system/rnddx9/Rnd_Xbox.cpp  (il function decode failed)
+  [539/878] vocab-gap    src/system/rndobj/BoxMap.cpp  (il function decode failed)
+  [540/878] vocab-gap    src/system/rnddx9/TexMgr.cpp  (il function decode failed)
+  [541/878] vocab-gap    src/system/rndobj/ColorXfm.cpp  (il function decode failed)
+  [542/878] vocab-gap    src/system/rndobj/BaseMaterial.cpp  (il function decode failed)
+  [543/878] vocab-gap    src/system/rndobj/AnimFilter.cpp  (il function decode failed)
+  [544/878] vocab-gap    src/system/rndobj/CubeTex.cpp  (il function decode failed)
+  [545/878] vocab-gap    src/system/rndobj/Enter.cpp  (il function decode failed)
+  [546/878] vocab-gap    src/system/os/PlatformMgr_Xbox.cpp  (il function decode failed)
+  [547/878] vocab-gap    src/system/rndobj/DOFProc.cpp  (il function decode failed)
+  [548/878] vocab-gap    src/system/rndobj/Console.cpp  (il function decode failed)
+  [549/878] vocab-gap    src/system/rndobj/CamAnim.cpp  (il function decode failed)
+  [550/878] vocab-gap    src/system/rndobj/Cam.cpp  (il function decode failed)
+  [551/878] vocab-gap    src/system/rndobj/AmbientOcclusion.cpp  (il function decode failed)
+  [552/878] vocab-gap    src/system/rndobj/Env.cpp  (il function decode failed)
+  [553/878] vocab-gap    src/system/rndobj/DOFProc_NG.cpp  (il function decode failed)
+  [554/878] vocab-gap    src/system/rndobj/Draw.cpp  (il function decode failed)
+  [555/878] vocab-gap    src/system/rndobj/Env_NG.cpp  (il function decode failed)
+  [556/878] vocab-gap    src/system/rndobj/Fur.cpp  (il function decode failed)
+  [557/878] vocab-gap    src/system/rndobj/FontBase.cpp  (il function decode failed)
+  [558/878] vocab-gap    src/system/rndobj/Dir.cpp  (il function decode failed)
+  [559/878] vocab-gap    src/system/rndobj/Flare.cpp  (il function decode failed)
+  [560/878] vocab-gap    src/system/rndobj/Font3d.cpp  (il function decode failed)
+  [561/878] vocab-gap    src/system/rndobj/Fur_NG.cpp  (il function decode failed)
+  [562/878] vocab-gap    src/system/rndobj/Graph.cpp  (il function decode failed)
+  [563/878] vocab-gap    src/system/rndobj/Gen.cpp  (il function decode failed)
+  [564/878] vocab-gap    src/system/rndobj/Font.cpp  (il function decode failed)
+  [565/878] vocab-gap    src/system/rndobj/EventTrigger.cpp  (il function decode failed)
+  [566/878] vocab-gap    src/system/rndobj/HiResScreen.cpp  (il function decode failed)
+  [567/878] vocab-gap    src/system/rndobj/Lit.cpp  (il function decode failed)
+  [568/878] vocab-gap    src/system/rndobj/LitAnim.cpp  (il function decode failed)
+  [569/878] vocab-gap    src/system/rndobj/Lit_NG.cpp  (il function decode failed)
+  [570/878] vocab-gap    src/system/rndobj/Line.cpp  (il function decode failed)
+  [571/878] vocab-gap    src/system/rndobj/MatAnim.cpp  (il function decode failed)
+  [572/878] vocab-gap    src/system/rndobj/Group.cpp  (il function decode failed)
+  [573/878] vocab-gap    src/system/rndobj/Mat.cpp  (il function decode failed)
+  [574/878] vocab-gap    src/system/rndobj/MeshDeform.cpp  (il function decode failed)
+  [575/878] vocab-gap    src/system/rndobj/MetaMaterial.cpp  (il function decode failed)
+  [576/878] vocab-gap    src/system/rndobj/Mat_NG.cpp  (il function decode failed)
+  [577/878] vocab-gap    src/system/rndobj/Movie.cpp  (il function decode failed)
+  [578/878] vocab-gap    src/system/rndobj/MeshAnim.cpp  (il function decode failed)
+  [579/878] vocab-gap    src/system/rndobj/Morph.cpp  (il function decode failed)
+  [580/878] vocab-gap    src/system/rndobj/MultiMeshProxy.cpp  (il function decode failed)
+  [581/878] vocab-gap    src/system/rndobj/MotionBlur.cpp  (il function decode failed)
+  [582/878] vocab-gap    src/system/rndobj/Overlay.cpp  (il function decode failed)
+  [583/878] vocab-gap    src/system/rndobj/Poll.cpp  (il function decode failed)
+  [584/878] vocab-gap    src/system/rndobj/PollAnim.cpp  (il function decode failed)
+  [585/878] vocab-gap    src/system/rndobj/MultiMesh.cpp  (il function decode failed)
+  [586/878] vocab-gap    src/system/rndobj/PartLauncher.cpp  (il function decode failed)
+  [587/878] vocab-gap    src/system/rndobj/PostProcMgr.cpp  (il function decode failed)
+  [588/878] vocab-gap    src/system/rndobj/Mesh.cpp  (il function decode failed)
+  [589/878] vocab-gap    src/system/rndobj/PartAnim.cpp  (il function decode failed)
+  [590/878] vocab-gap    src/system/rndobj/PostProc.cpp  (il function decode failed)
+  [591/878] vocab-gap    src/system/rndobj/Part.cpp  (il function decode failed)
+  [592/878] vocab-gap    src/system/rndobj/Ribbon.cpp  (il function decode failed)
+  [593/878] vocab-gap    src/system/rndobj/ShaderOptions.cpp  (il function decode failed)
+  [594/878] vocab-gap    src/system/rndobj/Set.cpp  (il function decode failed)
+  [595/878] vocab-gap    src/system/rndobj/Rnd_NG.cpp  (il function decode failed)
+  [596/878] vocab-gap    src/system/rndobj/SIVideo.cpp  (il function decode failed)
+  [597/878] vocab-gap    src/system/rndobj/PropKeys.cpp  (il function decode failed)
+  [598/878] vocab-gap    src/system/rndobj/ScreenMask.cpp  (il function decode failed)
+  [599/878] vocab-gap    src/system/rndobj/Shockwave.cpp  (il function decode failed)
+  [600/878] vocab-gap    src/system/rndobj/ShaderMgr.cpp  (il function decode failed)
+  [601/878] vocab-gap    src/system/rndobj/ShadowMap.cpp  (il function decode failed)
+  [602/878] vocab-gap    src/system/rndobj/ShaderProgram.cpp  (il function decode failed)
+  [603/878] vocab-gap    src/system/rndobj/Shader.cpp  (il function decode failed)
+  [604/878] vocab-gap    src/system/rndobj/Spline.cpp  (il function decode failed)
+  [605/878] vocab-gap    src/system/rndobj/PropAnim.cpp  (il function decode failed)
+  [606/878] vocab-gap    src/system/rndobj/SoftParticleBuffer.cpp  (il function decode failed)
+  [607/878] vocab-gap    src/system/rndobj/SoftParticles.cpp  (il function decode failed)
+  [608/878] vocab-gap    src/system/rndobj/TexBlendController.cpp  (il function decode failed)
+  [609/878] vocab-gap    src/system/rndobj/TransProxy.cpp  (il function decode failed)
+  [610/878] vocab-gap    src/system/rndobj/TexProc.cpp  (il function decode failed)
+  [611/878] vocab-gap    src/system/rndobj/Tex.cpp  (il function decode failed)
+  [612/878] vocab-gap    src/system/rndobj/wordwrap.cpp  (il function decode failed)
+  [613/878] vocab-gap    src/system/rndobj/TexBlender.cpp  (il function decode failed)
+  [614/878] vocab-gap    src/system/rndobj/TexRenderer.cpp  (il function decode failed)
+  [615/878] vocab-gap    src/system/rndobj/TransAnim.cpp  (il function decode failed)
+  [616/878] vocab-gap    src/system/rndobj/Watcher.cpp  (il function decode failed)
+  [617/878] vocab-gap    src/system/synth/complex.cpp  (il function decode failed)
+  [618/878] vocab-gap    src/system/rndobj/Wind.cpp  (il function decode failed)
+  [619/878] vocab-gap    src/system/synth/CompressionEffect.cpp  (il function decode failed)
+  [620/878] vocab-gap    src/system/rndobj/Rnd.cpp  (il function decode failed)
+  [621/878] vocab-gap    src/system/rndobj/Trans.cpp  (il function decode failed)
+  [622/878] vocab-gap    src/system/synth/ADSR.cpp  (il function decode failed)
+  [623/878] vocab-gap    src/system/rndobj/PostProc_NG.cpp  (il function decode failed)
+  [624/878] vocab-gap    src/system/synth/BinkReader.cpp  (il function decode failed)
+  [625/878] vocab-gap    src/system/rndobj/VelocityBuffer.cpp  (il function decode failed)
+  [626/878] vocab-gap    src/system/synth/AudioDucker.cpp  (il function decode failed)
+  [627/878] vocab-gap    src/system/synth/filterdesign.cpp  (il function decode failed)
+  [628/878] vocab-gap    src/system/synth/ByteGrinder.cpp  (il function decode failed)
+  [629/878] vocab-gap    src/system/synth/FxSendBitCrush.cpp  (il function decode failed)
+  [630/878] vocab-gap    src/system/synth/FxSendChorus.cpp  (il function decode failed)
+  [631/878] vocab-gap    src/system/synth/FxSendDelay.cpp  (il function decode failed)
+  [632/878] vocab-gap    src/system/synth/Faders.cpp  (il function decode failed)
+  [633/878] vocab-gap    src/system/synth/FxSendCompress.cpp  (il function decode failed)
+  [634/878] vocab-gap    src/system/synth/FxSendDistortion.cpp  (il function decode failed)
+  [635/878] vocab-gap    src/system/synth/FxSendEQ.cpp  (il function decode failed)
+  [636/878] vocab-gap    src/system/rndobj/Text.cpp  (il function decode failed)
+  [637/878] vocab-gap    src/system/synth/FxSendFlanger.cpp  (il function decode failed)
+  [638/878] vocab-gap    src/system/synth/FxSendMeterEffect.cpp  (il function decode failed)
+  [639/878] vocab-gap    src/system/synth/FxSend.cpp  (il function decode failed)
+  [640/878] vocab-gap    src/system/synth/FxSendPitchShift.cpp  (il function decode failed)
+  [641/878] vocab-gap    src/system/synth/FxSendReverb.cpp  (il function decode failed)
+  [642/878] vocab-gap    src/system/synth/MidiChannel.cpp  (il function decode failed)
+  [643/878] vocab-gap    src/system/rndobj/Utl.cpp  (il function decode failed)
+  [644/878] vocab-gap    src/system/synth/FxSendSynapse.cpp  (il function decode failed)
+  [645/878] vocab-gap    src/system/synth/Emitter.cpp  (il function decode failed)
+  [646/878] vocab-gap    src/system/synth/Mic.cpp  (il function decode failed)
+  [647/878] vocab-gap    src/system/synth/FxSendWah.cpp  (il function decode failed)
+  [648/878] vocab-gap    src/system/synth/MicNull.cpp  (il function decode failed)
+  [649/878] vocab-gap    src/system/synth/Pollable.cpp  (il function decode failed)
+  [650/878] vocab-gap    src/system/synth/MeterEffectMonitor.cpp  (il function decode failed)
+  [651/878] vocab-gap    src/system/synth/MidiSynth.cpp  (il function decode failed)
+  [652/878] vocab-gap    src/system/synth/OggMap.cpp  (il function decode failed)
+  [653/878] vocab-gap    src/system/synth/MicClientMapper.cpp  (il function decode failed)
+  [654/878] vocab-gap    src/system/synth/MetaMusic.cpp  (il function decode failed)
+  [655/878] vocab-gap    src/system/synth/SampleData.cpp  (il function decode failed)
+  [656/878] vocab-gap    src/system/synth/MoggClipMap.cpp  (il function decode failed)
+  [657/878] vocab-gap    src/system/synth/SampleZone.cpp  (il function decode failed)
+  [658/878] vocab-gap    src/system/synth/SampleInst.cpp  (il function decode failed)
+  [659/878] vocab-gap    src/system/synth/SfxMap.cpp  (il function decode failed)
+  [660/878] vocab-gap    src/system/synth/MidiInstrument.cpp  (il function decode failed)
+  [661/878] vocab-gap    src/system/synth/MoggClip.cpp  (il function decode failed)
+  [662/878] match        src/system/synth/tomcrypt/TomCryptLicense.cpp
+  [663/878] vocab-gap    src/system/synth/Sequence.cpp  (il function decode failed)
+  [664/878] vocab-gap    src/system/synth/StreamReceiverFile.cpp  (il function decode failed)
+  [665/878] vocab-gap    src/system/synth/StreamReceiver.cpp  (il function decode failed)
+  [666/878] vocab-gap    src/system/synth/StreamNull.cpp  (il function decode failed)
+  [667/878] vocab-gap    src/system/synth_xbox/Biquad.cpp  (il function decode failed)
+  [668/878] vocab-gap    src/system/synth/Sound.cpp  (il function decode failed)
+  [669/878] vocab-gap    src/system/synth/Sfx.cpp  (il function decode failed)
+  [670/878] vocab-gap    src/system/synth/Stream.cpp  (il function decode failed)
+  [671/878] vocab-gap    src/system/synth_xbox/EnvelopeGenerator.cpp  (il function decode failed)
+  [672/878] vocab-gap    src/system/synth_xbox/FFT.cpp  (il function decode failed)
+  [673/878] vocab-gap    src/system/synth/Utl.cpp  (il function decode failed)
+  [674/878] vocab-gap    src/system/synth_xbox/FilterCoeffs.cpp  (il function decode failed)
+  [675/878] vocab-gap    src/system/synth_xbox/ExternalMic.cpp  (il function decode failed)
+  [676/878] vocab-gap    src/system/synth/SynthSample.cpp  (il function decode failed)
+  [677/878] vocab-gap    src/system/synth_xbox/FftIpp.cpp  (il function decode failed)
+  [678/878] vocab-gap    src/system/synth/WavMgr.cpp  (il function decode failed)
+  [679/878] vocab-gap    src/system/synth/StandardStream.cpp  (il function decode failed)
+  [680/878] vocab-gap    src/system/synth/WavReader.cpp  (il function decode failed)
+  [681/878] vocab-gap    src/system/synth/ThreeDSound.cpp  (il function decode failed)
+  [682/878] vocab-gap    src/system/synth/VorbisReader.cpp  (il function decode failed)
+  [683/878] vocab-gap    src/system/synth_xbox/FxSendCompress.cpp  (il function decode failed)
+  [684/878] vocab-gap    src/system/synth_xbox/FxSendBitCrush.cpp  (il function decode failed)
+  [685/878] vocab-gap    src/system/synth_xbox/FxSendChorus.cpp  (il function decode failed)
+  [686/878] vocab-gap    src/system/synth_xbox/FxSendDistortion.cpp  (il function decode failed)
+  [687/878] vocab-gap    src/system/synth_xbox/FxSendEQ.cpp  (il function decode failed)
+  [688/878] match        src/system/synth_xbox/GainEffect.cpp
+  [689/878] vocab-gap    src/system/synth_xbox/FxSendDelay.cpp  (il function decode failed)
+  [690/878] vocab-gap    src/system/synth_xbox/FxSendFlanger.cpp  (il function decode failed)
+  [691/878] match        src/system/synth_xbox/HeadsetPlaybackEffect.cpp
+  [692/878] vocab-gap    src/system/synth_xbox/IPP_basicmath_xbox.cpp  (il function decode failed)
+  [693/878] vocab-gap    src/system/synth_xbox/HeadsetXferEffect.cpp  (il function decode failed)
+  [694/878] vocab-gap    src/system/synth_xbox/MeterEffect.cpp  (il function decode failed)
+  [695/878] match        src/system/synth_xbox/PeakDetector.cpp
+  [696/878] vocab-gap    src/system/synth_xbox/PitchCorrectedVoice.cpp  (il function decode failed)
+  [697/878] vocab-gap    src/system/synth_xbox/GranularSynth.cpp  (il function decode failed)
+  [698/878] vocab-gap    src/system/synth_xbox/FxSend.cpp  (il function decode failed)
+  [699/878] vocab-gap    src/system/synth/Synth.cpp  (il function decode failed)
+  [700/878] vocab-gap    src/system/synth_xbox/PitchDetector.cpp  (il function decode failed)
+  [701/878] vocab-gap    src/system/synth_xbox/PitchShiftEffect.cpp  (il function decode failed)
+  [702/878] vocab-gap    src/system/synth_xbox/FxSendMeterEffect.cpp  (il function decode failed)
+  [703/878] vocab-gap    src/system/synth_xbox/soundtouch/source/SoundStretch/WavFile.cpp  (il function decode failed)
+  [704/878] vocab-gap    src/system/synth_xbox/soundtouch/source/SoundTouch/AAFilter.cpp  (il function decode failed)
+  [705/878] vocab-gap    src/system/synth_xbox/FxSendSynapse.cpp  (il function decode failed)
+  [706/878] vocab-gap    src/system/synth_xbox/FxSendPitchShift.cpp  (il function decode failed)
+  [707/878] vocab-gap    src/system/synth_xbox/FxSendReverb.cpp  (il function decode failed)
+  [708/878] vocab-gap    src/system/synth_xbox/soundtouch/source/SoundTouch/cpu_detect_x86_gcc.cpp  (il function decode failed)
+  [709/878] vocab-gap    src/system/synth_xbox/soundtouch/source/SoundTouch/BPMDetect.cpp  (il function decode failed)
+  [710/878] vocab-gap    src/system/synth_xbox/FxSendWah.cpp  (il function decode failed)
+  [711/878] match        src/system/synth_xbox/soundtouch/source/SoundTouch/mmx_optimized.cpp
+  [712/878] vocab-gap    src/system/synth_xbox/soundtouch/source/SoundTouch/PeakFinder.cpp  (il function decode failed)
+  [713/878] vocab-gap    src/system/synth_xbox/soundtouch/source/SoundTouch/FIFOSampleBuffer.cpp  (il function decode failed)
+  [714/878] vocab-gap    src/system/synth_xbox/SampleInst360.cpp  (il function decode failed)
+  [715/878] match        src/system/synth_xbox/soundtouch/source/SoundTouch/sse_optimized.cpp
+  [716/878] vocab-gap    src/system/synth_xbox/soundtouch/source/SoundTouch/FIRFilter.cpp  (il function decode failed)
+  [717/878] vocab-gap    src/system/synth_xbox/soundtouch/source/SoundTouch/RateTransposer.cpp  (il function decode failed)
+  [718/878] vocab-gap    src/system/synth_xbox/soundtouch/source/SoundTouch/TDStretch.cpp  (il function decode failed)
+  [719/878] vocab-gap    src/system/synth_xbox/SpectralAnalysis.cpp  (il function decode failed)
+  [720/878] vocab-gap    src/system/synth_xbox/soundtouch/source/SoundTouch/SoundTouch.cpp  (il function decode failed)
+  [721/878] vocab-gap    src/system/synth_xbox/SynapseAPO.cpp  (il function decode failed)
+  [722/878] vocab-gap    src/system/synth_xbox/Synapse_dsp.cpp  (il function decode failed)
+  [723/878] vocab-gap    src/system/synth_xbox/Mic.cpp  (il function decode failed)
+  [724/878] vocab-gap    src/system/synth_xbox/StreamReceiver.cpp  (il function decode failed)
+  [725/878] vocab-gap    src/system/synth_xbox/StreamReceiver360.cpp  (il function decode failed)
+  [726/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundTouch/3dnow_win.cpp  (C1189)
+  [727/878] vocab-gap    src/system/synth_xbox/SynthSample.cpp  (il function decode failed)
+  [728/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundTouch/cpu_detect_x86_win.cpp  (C1189)
+  [729/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundTouchDLL/SoundTouchDLL.cpp  (C1083)
+  [730/878] vocab-gap    src/system/synth_xbox/Synth.cpp  (il function decode failed)
+  [731/878] vocab-gap    src/system/synth_xbox/Voice.cpp  (il function decode failed)
+  [732/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundStretch/main.cpp  (C1083)
+  [733/878] vocab-gap    src/system/ui/ResourceDirPtr.cpp  (il function decode failed)
+  [734/878] vocab-gap    src/system/ui/CheatProvider.cpp  (il function decode failed)
+  [735/878] vocab-gap    src/system/ui/InlineHelp.cpp  (il function decode failed)
+  [736/878] vocab-gap    src/system/ui/LabelShrinkWrapper.cpp  (il function decode failed)
+  [737/878] vocab-gap    src/system/ui/LabelNumberTicker.cpp  (il function decode failed)
+  [738/878] vocab-gap    src/system/ui/LocalePanel.cpp  (il function decode failed)
+  [739/878] vocab-gap    src/system/ui/UIColor.cpp  (il function decode failed)
+  [740/878] vocab-gap    src/system/ui/Screenshot.cpp  (il function decode failed)
+  [741/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundStretch/RunParameters.cpp  (C1083)
+  [742/878] vocab-gap    src/system/ui/ScrollSelect.cpp  (il function decode failed)
+  [743/878] vocab-gap    src/system/ui/PanelDir.cpp  (il function decode failed)
+  [744/878] vocab-gap    src/system/ui/UIButton.cpp  (il function decode failed)
+  [745/878] vocab-gap    src/system/ui/UIGuide.cpp  (il function decode failed)
+  [746/878] vocab-gap    src/system/ui/UIComponent.cpp  (il function decode failed)
+  [747/878] vocab-gap    src/system/ui/UIFontImporter.cpp  (il function decode failed)
+  [748/878] vocab-gap    src/system/ui/UIListArrow.cpp  (il function decode failed)
+  [749/878] vocab-gap    src/system/ui/UILabelDir.cpp  (il function decode failed)
+  [750/878] vocab-gap    src/system/ui/UIListCustom.cpp  (il function decode failed)
+  [751/878] vocab-gap    src/system/ui/UILabel.cpp  (il function decode failed)
+  [752/878] vocab-gap    src/system/ui/UI.cpp  (il function decode failed)
+  [753/878] vocab-gap    src/system/ui/UIListHighlight.cpp  (il function decode failed)
+  [754/878] vocab-gap    src/system/ui/UIListDir.cpp  (il function decode failed)
+  [755/878] vocab-gap    src/system/ui/UIList.cpp  (il function decode failed)
+  [756/878] vocab-gap    src/system/ui/UIListLabel.cpp  (il function decode failed)
+  [757/878] vocab-gap    src/system/ui/UIListMesh.cpp  (il function decode failed)
+  [758/878] vocab-gap    src/system/ui/UIListProvider.cpp  (il function decode failed)
+  [759/878] vocab-gap    src/system/ui/UIPanel.cpp  (il function decode failed)
+  [760/878] vocab-gap    src/system/ui/UIListState.cpp  (il function decode failed)
+  [761/878] vocab-gap    src/system/ui/UIPicture.cpp  (il function decode failed)
+  [762/878] vocab-gap    src/system/ui/UIListSlot.cpp  (il function decode failed)
+  [763/878] vocab-gap    src/system/ui/UIListWidget.cpp  (il function decode failed)
+  [764/878] vocab-gap    src/system/ui/UIListSubList.cpp  (il function decode failed)
+  [765/878] vocab-gap    src/system/utl/BeatMap.cpp  (il function decode failed)
+  [766/878] vocab-gap    src/system/utl/AllocInfo.cpp  (il function decode failed)
+  [767/878] vocab-gap    src/system/ui/UISlider.cpp  (il function decode failed)
+  [768/878] vocab-gap    src/system/utl/BufStream.cpp  (il function decode failed)
+  [769/878] vocab-gap    src/system/utl/Cache.cpp  (il function decode failed)
+  [770/878] vocab-gap    src/system/utl/CacheMgr.cpp  (il function decode failed)
+  [771/878] vocab-gap    src/system/utl/BinStream.cpp  (il function decode failed)
+  [772/878] vocab-gap    src/system/ui/UIScreen.cpp  (il function decode failed)
+  [773/878] vocab-gap    src/system/ui/UITransitionHandler.cpp  (il function decode failed)
+  [774/878] vocab-gap    src/system/utl/ChunkIDs.cpp  (il function decode failed)
+  [775/878] vocab-gap    src/system/ui/Utl.cpp  (il function decode failed)
+  [776/878] vocab-gap    src/system/utl/Compress.cpp  (il function decode failed)
+  [777/878] vocab-gap    src/system/utl/BinkIntegration.cpp  (il function decode failed)
+  [778/878] vocab-gap    src/system/utl/Chunks.cpp  (il function decode failed)
+  [779/878] vocab-gap    src/system/utl/Crc.cpp  (il function decode failed)
+  [780/878] vocab-gap    src/system/utl/Cache_Xbox.cpp  (il function decode failed)
+  [781/878] vocab-gap    src/system/utl/EncryptXTEA.cpp  (il function decode failed)
+  [782/878] vocab-gap    src/system/utl/CacheMgr_Xbox.cpp  (il function decode failed)
+  [783/878] vocab-gap    src/system/utl/DataPointMgr.cpp  (il function decode failed)
+  [784/878] vocab-gap    src/system/utl/DeJitter.cpp  (il function decode failed)
+  [785/878] vocab-gap    src/system/utl/FilePath.cpp  (il function decode failed)
+  [786/878] vocab-gap    src/system/utl/FileStream.cpp  (il function decode failed)
+  [787/878] vocab-gap    src/system/utl/FakeSongMgr.cpp  (il function decode failed)
+  [788/878] vocab-gap    src/system/utl/ChunkStream.cpp  (il function decode failed)
+  [789/878] vocab-gap    src/system/ui/UITrigger.cpp  (il function decode failed)
+  [790/878] vocab-gap    src/system/utl/JsonEncode.cpp  (il function decode failed)
+  [791/878] vocab-gap    src/system/utl/HxGuid.cpp  (il function decode failed)
+  [792/878] vocab-gap    src/system/utl/Licenses.cpp  (il function decode failed)
+  [793/878] vocab-gap    src/system/utl/LocaleOrdinal.cpp  (il function decode failed)
+  [794/878] vocab-gap    src/system/utl/Cheats.cpp  (il function decode failed)
+  [795/878] vocab-gap    src/system/utl/JobMgr.cpp  (il function decode failed)
+  [796/878] vocab-gap    src/system/utl/GlitchFinder.cpp  (il function decode failed)
+  [797/878] vocab-gap    src/system/utl/DebugMeter.cpp  (il function decode failed)
+  [798/878] vocab-gap    src/system/utl/MakeString.cpp  (il function decode failed)
+  [799/878] vocab-gap    src/system/utl/MBT.cpp  (il function decode failed)
+  [800/878] vocab-gap    src/system/utl/DebugGraph.cpp  (il function decode failed)
+  [801/878] vocab-gap    src/system/utl/Locale.cpp  (il function decode failed)
+  [802/878] vocab-gap    src/system/utl/Magnu.cpp  (il function decode failed)
+  [803/878] vocab-gap    src/system/utl/MeasureMap.cpp  (il function decode failed)
+  [804/878] vocab-gap    src/system/utl/MemStream.cpp  (il function decode failed)
+  [805/878] vocab-gap    src/system/utl/Loader.cpp  (il function decode failed)
+  [806/878] vocab-gap    src/system/utl/MemPoint.cpp  (il function decode failed)
+  [807/878] vocab-gap    src/system/utl/MemStats.cpp  (il function decode failed)
+  [808/878] vocab-gap    src/system/utl/MemMgr.cpp  (il function decode failed)
+  [809/878] vocab-gap    src/system/utl/KnownIssues.cpp  (il function decode failed)
+  [810/878] vocab-gap    src/system/utl/MemHeap.cpp  (il function decode failed)
+  [811/878] vocab-gap    src/system/utl/MultiTempoTempoMap.cpp  (il function decode failed)
+  [812/878] vocab-gap    src/system/utl/MemTrack.cpp  (il function decode failed)
+  [813/878] vocab-gap    src/system/utl/Pool.cpp  (il function decode failed)
+  [814/878] vocab-gap    src/system/utl/NetCacheLoader.cpp  (il function decode failed)
+  [815/878] vocab-gap    src/system/utl/PoolAlloc.cpp  (il function decode failed)
+  [816/878] vocab-gap    src/system/utl/NetCacheMgr_Xbox.cpp  (il function decode failed)
+  [817/878] vocab-gap    src/system/utl/NetLoader.cpp  (il function decode failed)
+  [818/878] match        src/system/utl/Spew.cpp
+  [819/878] vocab-gap    src/system/utl/NetLoader_Xbox.cpp  (il function decode failed)
+  [820/878] vocab-gap    src/system/utl/Option.cpp  (il function decode failed)
+  [821/878] vocab-gap    src/system/utl/MemTracker.cpp  (il function decode failed)
+  [822/878] vocab-gap    src/system/utl/Profiler.cpp  (il function decode failed)
+  [823/878] vocab-gap    src/system/utl/NetCacheMgr.cpp  (il function decode failed)
+  [824/878] vocab-gap    src/system/utl/TempoMap.cpp  (il function decode failed)
+  [825/878] vocab-gap    src/system/utl/OSCMessenger.cpp  (il function decode failed)
+  [826/878] vocab-gap    src/system/utl/SongInfoAudioType.cpp  (il function decode failed)
+  [827/878] vocab-gap    src/system/utl/SongInfoCopy.cpp  (il function decode failed)
+  [828/878] vocab-gap    src/system/utl/TextFileStream.cpp  (il function decode failed)
+  [829/878] vocab-gap    src/system/utl/UrlEncode.cpp  (il function decode failed)
+  [830/878] vocab-gap    src/system/utl/SuperFormatString.cpp  (il function decode failed)
+  [831/878] vocab-gap    src/system/utl/Str.cpp  (il function decode failed)
+  [832/878] vocab-gap    src/system/utl/trie.cpp  (il function decode failed)
+  [833/878] vocab-gap    src/system/utl/TextStream.cpp  (il function decode failed)
+  [834/878] vocab-gap    src/system/utl/StringTable.cpp  (il function decode failed)
+  [835/878] vocab-gap    src/system/utl/VarTimer.cpp  (il function decode failed)
+  [836/878] vocab-gap    src/system/utl/UTF8.cpp  (il function decode failed)
+  [837/878] vocab-gap    src/system/utl/TimeConversion.cpp  (il function decode failed)
+  [838/878] vocab-gap    src/system/utl/Symbol.cpp  (il function decode failed)
+  [839/878] vocab-gap    src/system/utl/WaveFile.cpp  (il function decode failed)
+  [840/878] vocab-gap    src/system/world/ColorPalette.cpp  (il function decode failed)
+  [841/878] vocab-gap    src/system/world/BeatClock.cpp  (il function decode failed)
+  [842/878] vocab-gap    src/system/world/LightHue.cpp  (il function decode failed)
+  [843/878] vocab-gap    src/system/world/Crowd3DCharHandle.cpp  (il function decode failed)
+  [844/878] vocab-gap    src/system/world/DefaultPhysicsManager.cpp  (il function decode failed)
+  [845/878] capture-fail src/system/synth_xbox/FxSendSynapse360.cpp  (C2084)
+  [846/878] vocab-gap    src/system/utl/Song.cpp  (il function decode failed)
+  [847/878] capture-fail src/system/synth_xbox/FxSendPitchShift360.cpp  (C2084)
+  [848/878] vocab-gap    src/system/world/Instance.cpp  (il function decode failed)
+  [849/878] vocab-gap    src/system/world/Crowd.cpp  (il function decode failed)
+  [850/878] vocab-gap    src/system/world/PhysicsManager.cpp  (il function decode failed)
+  [851/878] vocab-gap    src/system/world/FreeCamera.cpp  (il function decode failed)
+  [852/878] vocab-gap    src/system/world/CameraManager.cpp  (il function decode failed)
+  [853/878] vocab-gap    src/system/world/PostProcer.cpp  (il function decode failed)
+  [854/878] vocab-gap    src/system/world/PhysicsVolume.cpp  (il function decode failed)
+  [855/878] match        src/system/zlib/ZlibLicense.cpp
+  [856/878] match        src/xdk/LIBCMT/osfinfo.cpp
+  [857/878] vocab-gap    src/xdk/LIBCMT/rtti.cpp  (il function decode failed)
+  [858/878] match        src/xdk/LIBCMT/undname.cpp
+  [859/878] vocab-gap    src/xdk/LIBCMT/vsnprnc.cpp  (il function decode failed)
+  [860/878] match        src/xdk/LIBCMT/vswprnc.cpp
+  [861/878] vocab-gap    src/xdk/nuiapi/headtracker.cpp  (il function decode failed)
+  [862/878] vocab-gap    src/xdk/nuiapi/nuidetroit.cpp  (il function decode failed)
+  [863/878] vocab-gap    src/xdk/nuispeech/mmio.cpp  (il function decode failed)
+  [864/878] match        src/xdk/nuispeech/xboxheap.cpp
+  [865/878] match        src/xdk/nuispeech/xboxmem.cpp
+  [866/878] match        src/xdk/xjson/jsonwriter.cpp
+  [867/878] match        src/xdk/xlrc/xlrcimpl.cpp
+  [868/878] vocab-gap    src/system/world/Dir.cpp  (il function decode failed)
+  [869/878] vocab-gap    src/system/world/Reflection.cpp  (il function decode failed)
+  [870/878] vocab-gap    src/system/world/SpotlightEnder.cpp  (il function decode failed)
+  [871/878] vocab-gap    src/system/world/LightPresetManager.cpp  (il function decode failed)
+  [872/878] vocab-gap    src/system/world/CameraShot.cpp  (il function decode failed)
+  [873/878] vocab-gap    src/system/world/SpotlightDrawer.cpp  (il function decode failed)
+  [874/878] vocab-gap    src/system/world/LightPreset.cpp  (il function decode failed)
+  [875/878] vocab-gap    src/system/world/Spotlight.cpp  (il function decode failed)
+  [876/878] vocab-gap    src/system/world/SpotlightDrawer_NG.cpp  (il function decode failed)
+  [877/878] vocab-gap    src/system/world/ThreeDSoundManager.cpp  (il function decode failed)
+  [878/878] vocab-gap    src/system/world/World.cpp  (il function decode failed)
+    gap-metric tu-total 878
+    gap-metric graded 871
+    gap-metric match 18
+    gap-metric mismatch 0
+    gap-metric codegen-gap 0
+    gap-metric vocab-gap 853
+    gap-metric port-error 0
+    gap-metric capture-fail 7
+    gap-metric factor-a 28
+    gap-metric factor-a-lo 27
+    gap-metric factor-b 338
+    gap-metric factor-c 169
+    gap-metric factor-d 18
+    gap-metric factor-e 2
+    gap-metric b-and-c 151
+    gap-metric a-and-b-and-c 27
+    gap-metric a-and-b-and-c-and-d 16
+    gap-metric a-and-b-and-c-and-d-or-e 18
+    gap-metric frontier 9
+    gap-metric frontier-if-a 131
+    gap-metric emit-predicate-worth 124
+    gap-metric writer-sections 10
+    gap-metric cfg-reach-bottom 0
+    gap-metric cfg-reach-enumerated 2
+    gap-metric cfg-reach-shipped 2
+    gap-metric cfg-reach-top 9
+    gap-metric cfg-bounds-violations 0
+    gap-metric cfg-subclass-entries 4
+    gap-metric cfg-subclass-restricted 0
+    gap-metric cfg-subclass-unwitnessed 0
+    gap-metric cfg-subclass-intruders 0
+    gap-metric workload-sections 13
+    gap-metric ladder-steps 3
+    gap-metric cflow-emitted-branchy 38219
+    gap-metric cflow-emitted-modeled 9
+    gap-metric cflow-residue-inclass-modeled 192495
+    gap-metric cflow-residue-inclass-offclass 519743
+    gap-metric cflow-residue-straight-modeled-blocked 83776
+    gap-metric cflow-offclass-accounted 519743
+    gap-metric cflow-offclass-off-add-inclass 275605
+    gap-metric cflow-offclass-off-add-blocked 436509
+    gap-metric cflow-offclass-load-type-inclass 85289
+    gap-metric cflow-offclass-load-type-blocked 141439
+    gap-metric cflow-offclass-intrinsic-inclass 73346
+    gap-metric cflow-offclass-intrinsic-blocked 401589
+    gap-metric cflow-offclass-bind-inclass 60742
+    gap-metric cflow-offclass-bind-blocked 362441
+    gap-metric cflow-offclass-lit-type-inclass 23125
+    gap-metric cflow-offclass-lit-type-blocked 21372
+    gap-metric cflow-offclass-deref-inclass 1623
+    gap-metric cflow-offclass-deref-blocked 14653
+    gap-metric cflow-offclass-compare-inclass 8
+    gap-metric cflow-offclass-compare-blocked 41136
+    gap-metric cflow-offclass-store-type-inclass 4
+    gap-metric cflow-offclass-store-type-blocked 7899
+    gap-metric cflow-offclass-rmw-inclass 1
+    gap-metric cflow-offclass-rmw-blocked 11971
+    gap-metric cflow-offclass-bitwise-inclass 0
+    gap-metric cflow-offclass-bitwise-blocked 32387
+    gap-metric cflow-offclass-call-cc-inclass 0
+    gap-metric cflow-offclass-call-cc-blocked 15
+    gap-metric cflow-offclass-convert-out-of-class-inclass 0
+    gap-metric cflow-offclass-convert-out-of-class-blocked 9006
+    gap-metric cflow-offclass-div-mod-inclass 0
+    gap-metric cflow-offclass-div-mod-blocked 4745
+    gap-metric cflow-offclass-eh-trailer-inclass 0
+    gap-metric cflow-offclass-eh-trailer-blocked 10
+    gap-metric cflow-offclass-logical-inclass 0
+    gap-metric cflow-offclass-logical-blocked 7675
+    gap-metric cflow-offclass-materialize-64-inclass 0
+    gap-metric cflow-offclass-materialize-64-blocked 24422
+    gap-metric cflow-offclass-shift-inclass 0
+    gap-metric cflow-offclass-shift-blocked 5195
+    gap-metric cflow-offclass-subscript-inclass 0
+    gap-metric cflow-offclass-subscript-blocked 37
+    gap-metric cflow-offclass-temp-inclass 0
+    gap-metric cflow-offclass-temp-blocked 82233
+    gap-metric cflow-offclass-ternary-inclass 0
+    gap-metric cflow-offclass-ternary-blocked 1554
+    gap-metric cflow-offclass-virtual-slot-inclass 0
+    gap-metric cflow-offclass-virtual-slot-blocked 19700
+    gap-metric ladder-head .rdata$r
+    gap-metric ladder-head-c 590
+    gap-metric progress-mass 0.20893
+    gap-metric progress-emitted-in-class 39644
+    gap-metric progress-emitted-total 178977
+    gap-metric progress-mismatch-zeroed 0
+    gap-metric fnbyte-match 0.20243
+    gap-metric fnbyte-exact 36228
+    gap-metric fnbyte-denominator 178977
+    gap-metric fnbyte-differs 2555
+    gap-metric fnbyte-partial 0
+    gap-metric fnbyte-refused 130116
+    gap-metric fnbyte-unbound 9217
+    gap-metric fnbyte-partition-broken 0
+    gap-metric fnbyte-census-disagree 0
+    gap-metric fnbyte-exact-relocated 3822
+    gap-metric xf-fnbyte-exact|localcallee 1074
+    gap-metric xf-fnbyte-exact|nolocal 35154
+    gap-metric xf-fnbyte-differs|localcallee 2530
+    gap-metric xf-fnbyte-differs|nolocal 25
+    gap-metric xf-fnbyte-reloc-differs|localcallee 858
+    gap-metric xf-fnbyte-reloc-differs|nolocal 3
+    gap-metric xf-fnbyte-reloc-unknown|localcallee 0
+    gap-metric xf-fnbyte-reloc-unknown|nolocal 0
+    gap-metric xf-fnbyte-partial|localcallee 0
+    gap-metric xf-fnbyte-partial|nolocal 0
+    gap-metric xf-fnbyte-refused|localcallee 0
+    gap-metric xf-fnbyte-refused|nolocal 0
+    gap-metric xf-shape|fnbyte-exact|tail|1 1055
+    gap-metric xf-shape|fnbyte-exact|seq|1 3
+    gap-metric xf-shape|fnbyte-exact|seq|2 15
+    gap-metric xf-shape|fnbyte-exact|cond-pair|2 1
+    gap-metric xf-shape|fnbyte-differs|tail|1 1080
+    gap-metric xf-shape|fnbyte-differs|framed|1 123
+    gap-metric xf-shape|fnbyte-differs|seq|1 182
+    gap-metric xf-shape|fnbyte-differs|seq|2 1143
+    gap-metric xf-shape|fnbyte-reloc-differs|tail|1 842
+    gap-metric xf-shape|fnbyte-reloc-differs|seq|2 16
+    gap-metric xz-fnbyte-exact|ref=a<=80|port=none 10
+    gap-metric xz-fnbyte-exact|ref=b<=308|port=none 1050
+    gap-metric xz-fnbyte-exact|ref=c>308|port=none 21
+    gap-metric xz-fnbyte-differs|ref=a<=80|port=none 2322
+    gap-metric xz-fnbyte-differs|ref=a<=80|port=a<=80 1177
+    gap-metric xz-fnbyte-differs|ref=b<=308|port=none 7
+    gap-metric xz-fnbyte-reloc-differs|ref=a<=80|port=none 529
+    gap-metric xz-fnbyte-reloc-differs|ref=a<=80|port=a<=80 329
+    gap-metric xz-fnbyte-reloc-differs|ref=c>308|port=none 2
+    gap-metric fnbyte-reloc-differs 861
+    gap-metric fnbyte-reloc-unknown 0
+    gap-metric fnbyte-reloc-graded 37089
+    gap-metric fnbyte-exact-bytes 37089
+    gap-metric fnbyte-reloc-partition-broken 0
+    gap-metric fnbyte-match-tu-reloc-differs 0
+    gap-metric fnbyte-reloc-table-unreadable 0
+    gap-metric fnbyte-reloc-index-desync 0
+    gap-metric fnbyte-reloc-graded-relocated 4683
+    gap-metric fnbyte-reloc-differs-count 0
+    gap-metric fnbyte-reloc-differs-offset 0
+    gap-metric fnbyte-reloc-differs-type 0
+    gap-metric fnbyte-reloc-differs-target 861
+    gap-metric fnbyte-reloc-differs-section-target 0
+    gap-metric fnbyte-reloc-witnesses 277
+    gap-metric fnbyte-match-tu-differs 0
+    gap-metric fnbyte-whole-tu 2
+    gap-metric fnbyte-tus-full 14
+    gap-metric fnbyte-tus 865
+    gap-metric fnbyte-elided 1877
+    gap-metric fnbyte-elided-exact 1877
+    gap-metric fnbyte-elided-ref-reloc 0
+    gap-metric fnbyte-name-disagree 75381
+    gap-metric fnbyte-calltarget-graded 39644
+    gap-metric fnbyte-calltarget-agree 36228
+    gap-metric fnbyte-calltarget-disagree 3416
+    gap-metric fnbyte-calltarget-disagree-exact 861
+    gap-metric fnbyte-calltarget-disagree-differs 2555
+    gap-metric fnbyte-calltarget-disagree-name 1189
+    gap-metric fnbyte-calltarget-disagree-count 2227
+    gap-metric fnbyte-calltarget-ungraded 0
+    gap-metric fnbyte-call-targets-unreadable 0
+    gap-metric fnbyte-reloc-vs-calltarget-both 861
+    gap-metric fnbyte-reloc-vs-calltarget-reloc-only 0
+    gap-metric fnbyte-reloc-vs-calltarget-calltarget-only 0
+    gap-metric fnbyte-noeffect-rows 16888
+    gap-metric fnbyte-noeffect-admitted 7343
+    gap-metric fnbyte-noeffect-ref-blr 998
+    gap-metric fnbyte-noeffect-ref-other 0
+    gap-metric fnbyte-noeffect-ref-absent 6345
+    gap-metric fnbyte-noeffect-callee-unbound 36
+    gap-metric fnbyte-noeffect-callee-parsed-live 0
+    gap-metric fnbyte-noeffect-callee-refused 9509
+    gap-metric fnbyte-nothing-rows 4166
+    gap-metric fnbyte-nothing-ref-blr 398
+    gap-metric fnbyte-nothing-ref-other 0
+    gap-metric fnbyte-nothing-ref-absent 3767
+    gap-metric fnbyte-nothing-not-admitted 0
+    gap-metric fnbyte-nothing-unnamed 1
+    gap-metric fnbyte-nothing-key-expr-lit-type-8207 4156
+    gap-metric fnbyte-nothing-key-param-width-undetermined:mid 10
+    gap-metric fnbyte-noeffect-stop-body-0x67 5154
+    gap-metric fnbyte-noeffect-stop-return-scope-close-cflow-label 2518
+    gap-metric fnbyte-noeffect-stop-expr-call-in-expr-recv-load-then-type-void-and-op-more 1754
+    gap-metric fnbyte-noeffect-stop-param-width-undetermined:mid 73
+    gap-metric fnbyte-noeffect-stop-expr-lit-type-8207 7
+    gap-metric fnbyte-noeffect-stop-module-end-0x4D 3
+    gap-metric fnbyte-blr-stop-expr-intrinsic-memset 8
+    gap-metric fnbyte-blr-stop-callee-unbound 1
+    gap-metric fnbyte-blr-stop2-return-scope-close-cflow-label 5
+    gap-metric fnbyte-blr-stop2-module-end-0x4D 2
+    gap-metric fnbyte-blr-stop2-callee-unbound 1
+    gap-metric fnbyte-blr-stop3-expr-lit-type-8207 4
+    gap-metric fnbyte-blr-stop3-expr-call-in-expr-recv-load-then-type-void-and-op-more 1
+    gap-metric fnbyte-shape-parse-refused-refused 130116
+    gap-metric fnbyte-shape-plain-exact 29357
+    gap-metric fnbyte-shape-unbound-unbound 9217
+    gap-metric fnbyte-shape-tail-exact 5172
+    gap-metric fnbyte-shape-seq-differs 1351
+    gap-metric fnbyte-shape-seq-exact 1238
+    gap-metric fnbyte-shape-tail-differs 1081
+    gap-metric fnbyte-shape-tail-reloc-differs 845
+    gap-metric fnbyte-shape-float-exact 450
+    gap-metric fnbyte-shape-framed-differs 123
+    gap-metric fnbyte-shape-seq-reloc-differs 16
+    gap-metric fnbyte-shape-cond-pair-exact 4
+    gap-metric fnbyte-shape-if-call-join-exact 2
+    gap-metric fnbyte-shape-alloc-init-or-fail-exact 1
+    gap-metric fnbyte-shape-guard-chain-shared-tail-exact 1
+    gap-metric fnbyte-shape-json-utf8-copy-exact 1
+    gap-metric fnbyte-shape-osf-handle-guard-exact 1
+    gap-metric fnbyte-shape-xlrc-create-guard-exact 1
+    gap-metric fnbyte-decline-parse 130116
+    gap-metric fnbyte-decline-opt-mode 0
+    gap-metric fnbyte-decline-selector 0
+    gap-metric fnbyte-decline-gy-shape 0
+    gap-metric fnbyte-decline-data-ref 0
+    gap-metric fnbyte-refused-parse 130116
+    gap-metric fnbyte-refused-codegen 0
+    gap-metric fnbyte-refused-split-broken 0
+    gap-metric fnbyte-differs-witnesses 933
+    gap-metric frontier-bytefrac-top-tu src/xdk/nuispeech/mmio.cpp
+    gap-metric frontier-bytefrac-top-accepted 64
+    gap-metric frontier-bytefrac-top-denominator 380
+    gap-metric frontier-bytefrac-zero 6
+    gap-metric frontier-bytefrac-no-denominator 0
+    gap-metric frontier-codegen-denominator 51
+    gap-metric frontier-codegen-exact 10
+    gap-metric frontier-codegen-wrong 1
+    gap-metric frontier-codegen-refused 0
+    gap-metric frontier-codegen-reader 40
+    gap-metric frontier-codegen-ungraded 0
+    gap-metric frontier-codegen-measured 1
+    gap-metric frontier-codegen-partition-broken 0
+    gap-metric bytefrac-control-full 11
+    gap-metric bytefrac-control-no-denominator 5
+    gap-metric bytefrac-control-shortfall-explained 2
+    gap-metric bytefrac-control-unexplained 0
+    gap-metric alias-runs 2961919
+    gap-metric alias-tag10 98669
+    gap-metric alias-head-fail 361
+    gap-metric alias-rt-fail 0
+    gap-metric alias-unbound-target 45
+    gap-metric alias-self 0
+    gap-metric alias-dup 0
+    gap-metric alias-bound 98263
+    gap-metric alias-shape-e-to-g 98260
+    gap-metric alias-dom-with-body 0
+    gap-metric alias-null-m1-bound 1832
+    gap-metric alias-null-m1-shape 0
+    gap-metric alias-null-p1-bound 2466
+    gap-metric alias-null-p1-shape 0
+    gap-metric alias-dom-emitted 0
+    gap-metric alias-dom-emitted-tus 0
+    gap-metric alias-target-emitted 4013
+    gap-metric alias-inref-total 1934614
+    gap-metric alias-inref-unbound 617
+    gap-metric alias-inref-alias 94786
+    gap-metric alias-inref-records 94786
+    gap-metric alias-inref-tus 832
+    gap-metric alias-datatu-relocs 0
+    gap-metric alias-datatu-relocs-alias 0
+    gap-metric alias-emit-names 0
+    gap-metric alias-obj-relocs 1819168
+    gap-metric alias-obj-reloc-alias 4248
+    gap-metric alias-obj-reloc-alias-tus 675
+    gap-metric alias-obj-reloc-target 4013
+    gap-metric alias-obj-reloc-unreadable 0
+    gap-metric alias-weak-records 4013
+    gap-metric alias-weak-predicted 4013
+    gap-metric alias-weak-default-disagree 0
+    gap-metric alias-weak-unpredicted 0
+    gap-metric alias-weak-not-search-library 0
+    gap-metric alias-weak-unreadable 0
+    gap-metric alias-weak-tus 675
+    gap-metric alias-weak-exact-tus 2
+    gap-metric alias-unrealized 94250
+    gap-metric alias-rule-predicted 4013
+    gap-metric alias-rule-miss 0
+    gap-metric alias-rule-extra 0
+    gap-metric alias-rule-exact-tus 871
+    gap-metric alias-weak-needed-tus 675
+    gap-metric alias-weak-needed-in-b-and-c 0
+    gap-metric alias-weak-needed-in-frontier 0
+  match            18    2.1%
+  mismatch          0    0.0%
+  FUNCTION CENSUS (P2b): 712238/2463443 functions in class (28.91%)
+  EMITTED CENSUS (§8): 39644/178977 emitted functions in class (22.15%)
