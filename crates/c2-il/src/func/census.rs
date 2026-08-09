@@ -645,6 +645,17 @@ impl IlBundle {
                             Ok(BodyShape::StaticScanLoop(_)) => {
                                 FnVerdict::InClass("static-scan-loop")
                             }
+                            // **W-BDNZ — the counted-`for` accumulate loop.**
+                            // Its own bucket for the same reason: `cflow-loop`
+                            // now has five in-class productions and a gain that
+                            // landed in a shared bucket would be attributable to
+                            // none of them. This is the first one whose lowering
+                            // is derived from a READING of c2's algorithm
+                            // (`wb-loop`'s passes 1 and 2) rather than
+                            // transcribed from one workload function.
+                            Ok(BodyShape::CountedAccumLoop(_)) => {
+                                FnVerdict::InClass("counted-accum-loop")
+                            }
                             Ok(BodyShape::DivModLeaf(_)) => FnVerdict::InClass("div-mod-leaf"),
                             Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
                             // Split from the integer tail call by the register

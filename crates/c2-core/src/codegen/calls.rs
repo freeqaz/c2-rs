@@ -1015,6 +1015,7 @@ fn ops_setup_text(
         if_call_join: None,
         ptr_walk_loop: None,
         static_scan_loop: None,
+            counted_accum_loop: None,
         guard_chain_shared_tail: None,
         data_def: None,
         ptr_walk_chain_loop: None,

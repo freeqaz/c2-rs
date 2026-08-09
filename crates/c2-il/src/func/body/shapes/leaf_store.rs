@@ -2862,7 +2862,7 @@ mod tests {
         SyView {
             locals: &[],
             ptr_locals: tok,
-            addr_locals: &[],
+            addr_locals: &[], uint_locals: &[],
             formals: Formals::AllOneRegisterByConstruction,
         }
     }
