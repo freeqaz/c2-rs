@@ -311,6 +311,7 @@ it.**
 | integer `/`, `%`, variable shift | +0 | measured |
 | a body the front end **inlined into** | ~~+3 / +8 / +13 for 1 / 2 / 3 sites, +5 per site after the first~~ **RETRACTED 2026-07-31 — see §6.** Measured against a family baseline it is **+3 per site, flat, from the first**, and the callee class does not enter it | **modelled**, §6 |
 | whether the `/Gy` upfront surcharge is per function or per `.text` COMDAT | — | **ANSWERED 2026-07-31: per emitted `.text` COMDAT.** An unreferenced `static` (or `inline`) function is not emitted and costs **0** slots — `a0 → a1` is 5 with one sitting between them, exactly as with none. See §6.5 |
+| **an EH function — a destructible local, so an unwind funclet and the whole record set** | **+31 at `/O1`, +28 at `/Ox`** against `leaf-none`; **+12 / +10** net of a framed two-call control; and the **no-`return` spelling is −2** at both modes | measured 2026-08-09, lane `w-main` (`rungs/2026-08-09-w-main.md` §5, board **#2265**), **not modelled**. **This document had NO EH row at all** and the workload is 100 % `/EHsc`. It is MODE-DEPENDENT, like the `/Ox` loop row and unlike everything else here, which is a second independent reason `IlFunction::label_slots` must stay `None` (#1983) |
 
 The `do/while` row is the small print worth reading twice: "a loop costs 2" is
 already a rule fitted to two of three loop forms.

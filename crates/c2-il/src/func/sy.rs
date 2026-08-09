@@ -326,12 +326,53 @@ fn formals_agree(seg: &[u8], blk: &SyBlock) -> bool {
 ///   (`3A t1 54 04 29 t2 54 03 4F 01 23 54 02 29 t1`), and taking the first site
 ///   picks `t2`.
 ///
-/// `None` for a segment with no return plumbing at all — measured 3 times in 871
-/// TUs: two `.sy`-less-looking stubs whose body is `4C 4F 11 53 54 02 29 <tok>` with
-/// no `3A`, and one whose body ends `4C 4B 4F 01 06 5E 01 21 4B 54 02 29 <tok>`
-/// likewise. Those segments simply do not bind; nothing is guessed for them.
+/// # The `3A`-less arm — a function that never assigns its exit label
+///
+/// The rule above used to end here, and it returned `None` for a segment with **no
+/// `3A` at all**: two `.sy`-less-looking stubs whose body is
+/// `4C 4F 11 53 54 02 29 <tok>`, and one whose body ends
+/// `4C 4B 4F 01 06 5E 01 21 4B 54 02 29 <tok>`. That third one is
+/// **`src/Main.cpp`'s `main`** — the highest-worth frontier row on `w-band`'s own
+/// ranking (#2246) — and the refusal it caused is what
+/// `WB_EH_FINDINGS.md` §6 files as **R1, `param-width-undetermined:mid`, "`c2-il`
+/// formals header"**. The key is right and the location is not: the `.sy` file
+/// parses to EOF, contains exactly one block, and that block declares `argc` and
+/// `argv` at four bytes each. Nothing about a formals *header* fails. What fails is
+/// this function, and the whole file's binding is withheld downstream of it.
+///
+/// MEASURED, five cells at the workload's own flags, all differing in one clause:
+///
+/// | cell | `3A` | why |
+/// |---|---|---|
+/// | `int w(int a,int b){ sink(b,a); }` | **absent** | non-void, falls off the end |
+/// | `int w(int a,int b){ sink(b,a); return a; }` | present | the `return` assigns it |
+/// | `int w(int a,int b){ }` | **absent** | non-void, empty |
+/// | `void w(int a,int b){ sink(b,a); }` | present | a `void` function still assigns |
+/// | `int w(int,char**){ S s(..); s.Run(); }` | **absent** | `Main.cpp`'s own shape |
+///
+/// So the discriminator is neither `main` nor EH: it is **a non-`void` function
+/// with no `return` statement**, for which the front end emits no exit-label
+/// assignment because there is no value to assign. `void` functions assign it
+/// anyway.
+///
+/// The corroboration is a **disambiguator**, and when the segment holds no `3A`
+/// byte anywhere there is nothing to disambiguate — every rival reading of the
+/// bytes it exists to reject requires a `3A` to be misread, and there is none. So
+/// the fallback is gated on the *absence of the byte in the whole segment*, not on
+/// "the corroboration failed": a segment that has a `3A` somewhere and still cannot
+/// corroborate is exactly the ambiguous case, and it keeps failing closed.
+///
+/// The binding does **not** rest on this arm alone. A token it returns must still
+/// name a block whose header token is unique in the file, must bind in strictly
+/// increasing order, and must pass [`formals_agree`] — an independent content
+/// channel that a wrong token has to satisfy by coincidence. That check is what
+/// caught the positional binding being wrong 343,315 times while every gate in this
+/// repo stayed green, and it is live on this arm too.
 fn ex_exit_label(seg: &[u8]) -> Option<u32> {
     let mut found = None;
+    // The last anchored `54 02 [4F 01 <line>]* 29 <tok>` site regardless of
+    // corroboration. Only ever consulted when the segment contains no `3A`.
+    let mut uncorroborated = None;
     let mut i = 0usize;
     while i + BODY_SCOPE_CLOSE.len() <= seg.len() {
         if seg[i..i + BODY_SCOPE_CLOSE.len()] != BODY_SCOPE_CLOSE {
@@ -342,6 +383,7 @@ fn ex_exit_label(seg: &[u8]) -> Option<u32> {
         eat_opt_stmt_marker(seg, &mut p);
         if seg.get(p) == Some(&EX_RETURN) {
             if let Some((tok, _)) = read_token_var(seg, p + 1) {
+                uncorroborated = Some(tok);
                 let (bytes, w) = token_bytes(tok);
                 let mut pat = [EX_ASSIGN, 0, 0, 0, 0];
                 pat[1..1 + w].copy_from_slice(&bytes[..w]);
@@ -352,7 +394,7 @@ fn ex_exit_label(seg: &[u8]) -> Option<u32> {
         }
         i += 1;
     }
-    found
+    found.or_else(|| if seg.contains(&EX_ASSIGN) { None } else { uncorroborated })
 }
 
 /// A token's canonical byte encoding, the inverse of [`read_token_var`]: two bytes
@@ -1719,19 +1761,111 @@ mod tests {
         assert_eq!(declared(&SyLocals::new(Some(&sy), &segs).view(0)), Some(vec![0x4CDB0600]));
     }
 
-    /// The corroboration is required: a `54 02 29 <tok>` whose token is never
-    /// *assigned* anywhere in the segment is not a return-plumbing site. One
-    /// channel would be a guess; the point of two is that the token is named twice.
+    /// The corroboration is required **where there is something to corroborate**:
+    /// a `54 02 29 <tok>` whose token is never *assigned*, in a segment that
+    /// assigns some **other** token, is not a return-plumbing site. One channel
+    /// would be a guess; the point of two is that the token is named twice.
+    ///
+    /// **CORRECTED 2026-08-09 (lane `w-main`, board #2262).** This test used to
+    /// build its body with **no `3A` at all** and assert `Undetermined` — so what
+    /// it actually pinned was not "the corroboration is required" but "a segment
+    /// that never assigns its exit label does not bind", which is the case
+    /// [`ex_exit_label`]'s `3A`-less arm now takes and `src/Main.cpp` is. It is
+    /// the standing-test half of `docs/GAPS.md` §6: a test whose two readings are
+    /// indistinguishable on the input it was given. The body now assigns a
+    /// *different* token, which separates them — the ambiguous case is still
+    /// refused, and it is refused for the reason the name claims.
     #[test]
     fn a_return_without_a_matching_assign_is_not_an_exit_label() {
-        let mut body = Vec::from(BODY_SCOPE_CLOSE);
+        let mut body = vec![EX_ASSIGN];
+        body.extend_from_slice(&tok(0xEB09)); // some OTHER token is assigned
+        body.push(0x4B);
+        body.extend_from_slice(&BODY_SCOPE_CLOSE);
         body.push(EX_RETURN);
         body.extend_from_slice(&tok(0xF009));
         let seg = ex_seg_tail(&[0xEE09], &body);
+        assert!(seg.contains(&EX_ASSIGN), "the ambiguous case needs a 3A somewhere");
         let sy = sy_block(0xF009, &[0xEE09], &[]);
         let segs = [&seg[..]];
         let locals = SyLocals::new(Some(&sy), &segs);
         assert!(matches!(locals.view(0).formals, Formals::Undetermined));
+    }
+
+    /// The `3A`-less arm. A **non-`void` function with no `return` statement**
+    /// emits no exit-label assignment — there is no value to assign — so the
+    /// segment names its exit token exactly once and the corroboration cannot
+    /// exist. Where there is no `3A` anywhere there is nothing to disambiguate,
+    /// and the anchored site is taken.
+    ///
+    /// The body below is `src/Main.cpp`'s literal tail:
+    /// `4C 4B 4F 01 06 5E 01 21 4B 54 02 29 <tok>` — a sub-object destructor
+    /// statement, then the scope close and the return, and no assignment. That TU
+    /// is the highest-worth frontier row on `w-band`'s ranking and this is the
+    /// refusal `WB_EH_FINDINGS.md` §6 files as R1.
+    #[test]
+    fn a_segment_that_never_assigns_its_exit_label_still_keys() {
+        let body = {
+            let mut b = vec![0x4C, 0x4B, 0x4F, 0x01, 0x06, 0x5E, 0x01, 0x21, 0x4B];
+            b.extend_from_slice(&BODY_SCOPE_CLOSE);
+            b.push(EX_RETURN);
+            b.extend_from_slice(&tok(0xF009));
+            b
+        };
+        let seg = ex_seg_tail(&[0xEE09, 0xED09], &body);
+        assert!(!seg.contains(&EX_ASSIGN), "the whole point of the cell is that there is none");
+        let sy = sy_block(0xF009, &[0xEE09, 0xED09], &[]);
+        let segs = [&seg[..]];
+        assert_eq!(
+            declared(&SyLocals::new(Some(&sy), &segs).view(0)),
+            Some(vec![0xEE09, 0xED09])
+        );
+    }
+
+    /// The `3A`-less arm does **not** weaken the binding: the token it hands back
+    /// still has to name a block that declares every `.ex` formal
+    /// ([`formals_agree`]). That is the independent content channel, and it is
+    /// what a wrong token would have to satisfy by coincidence — the check that
+    /// caught the positional binding being wrong 343,315 times while every gate
+    /// in this repo stayed green.
+    #[test]
+    fn the_3a_less_arm_still_has_to_pass_the_formals_check() {
+        let body = {
+            let mut b = vec![0x4C, 0x4B];
+            b.extend_from_slice(&BODY_SCOPE_CLOSE);
+            b.push(EX_RETURN);
+            b.extend_from_slice(&tok(0xF009));
+            b
+        };
+        // Two formals in `.ex`, one of them undeclared by the block the key finds.
+        let seg = ex_seg_tail(&[0xEE09, 0xED09], &body);
+        let sy = sy_block(0xF009, &[0xEE09], &[0x3333]);
+        let segs = [&seg[..]];
+        let locals = SyLocals::new(Some(&sy), &segs);
+        assert!(matches!(locals.view(0).formals, Formals::Undetermined));
+        assert!(locals.view(0).locals.is_empty());
+    }
+
+    /// The arm takes the **last** anchored site, exactly as the corroborated path
+    /// does. A `3A`-less segment with an inner `54 02 29 <inner>` before the
+    /// terminal one must key on the terminal token, not the inner one.
+    #[test]
+    fn the_3a_less_arm_takes_the_last_anchored_site() {
+        let body = {
+            let mut b = Vec::from(BODY_SCOPE_CLOSE);
+            b.push(EX_RETURN);
+            b.extend_from_slice(&tok(0xEB09)); // an inner site
+            b.push(0x4B);
+            b.extend_from_slice(&BODY_SCOPE_CLOSE);
+            b.push(EX_RETURN);
+            b.extend_from_slice(&tok(0xF009)); // the terminal one
+            b
+        };
+        let seg = ex_seg_tail(&[0xEE09], &body);
+        assert!(!seg.contains(&EX_ASSIGN));
+        let mut sy = sy_block(0xEB09, &[0x1919], &[]);
+        sy.extend_from_slice(&sy_block(0xF009, &[0xEE09], &[]));
+        let segs = [&seg[..]];
+        assert_eq!(declared(&SyLocals::new(Some(&sy), &segs).view(0)), Some(vec![0xEE09]));
     }
 
     /// A segment with no return plumbing at all binds nothing **and costs its
