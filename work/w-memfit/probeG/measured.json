@@ -1,0 +1,694 @@
+[
+ {
+  "name": "g_d_c_n8",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00008",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_d_c_n16",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00010",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_d_c_n20",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00014",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_d_c_n24",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00018",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_d_c_n32",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00020",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_d_c_n40",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00028",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_d_c_n48",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00030",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_c_d_n8",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00008",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_c_d_n16",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00010",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_c_d_n20",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00014",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_c_d_n24",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00018",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_c_d_n32",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00020",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_c_d_n40",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00028",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_c_d_n48",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00030",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_d_i_n8",
+  "nbytes": 20,
+  "relocs": [],
+  "verdict": "inline",
+  "words": [
+   "81640000",
+   "91630000",
+   "81640004",
+   "91630004",
+   "4e800020"
+  ]
+ },
+ {
+  "name": "g_d_i_n16",
+  "nbytes": 36,
+  "relocs": [],
+  "verdict": "inline",
+  "words": [
+   "81640000",
+   "91630000",
+   "81640004",
+   "91630004",
+   "81640008",
+   "91630008",
+   "8164000c",
+   "9163000c",
+   "4e800020"
+  ]
+ },
+ {
+  "name": "g_d_i_n20",
+  "nbytes": 32,
+  "relocs": [],
+  "verdict": "inline",
+  "words": [
+   "39600005",
+   "3944fffc",
+   "3923fffc",
+   "7d6903a6",
+   "856a0004",
+   "95690004",
+   "4200fff8",
+   "4e800020"
+  ]
+ },
+ {
+  "name": "g_d_i_n24",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00018",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_d_i_n32",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00020",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_d_i_n40",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00028",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_d_i_n48",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00030",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_i_d_n8",
+  "nbytes": 20,
+  "relocs": [],
+  "verdict": "inline",
+  "words": [
+   "81640000",
+   "91630000",
+   "81640004",
+   "91630004",
+   "4e800020"
+  ]
+ },
+ {
+  "name": "g_i_d_n16",
+  "nbytes": 36,
+  "relocs": [],
+  "verdict": "inline",
+  "words": [
+   "81640000",
+   "91630000",
+   "81640004",
+   "91630004",
+   "81640008",
+   "91630008",
+   "8164000c",
+   "9163000c",
+   "4e800020"
+  ]
+ },
+ {
+  "name": "g_i_d_n20",
+  "nbytes": 32,
+  "relocs": [],
+  "verdict": "inline",
+  "words": [
+   "39600005",
+   "3944fffc",
+   "3923fffc",
+   "7d6903a6",
+   "856a0004",
+   "95690004",
+   "4200fff8",
+   "4e800020"
+  ]
+ },
+ {
+  "name": "g_i_d_n24",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00018",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_i_d_n32",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00020",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_i_d_n40",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00028",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_i_d_n48",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00030",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_i_c_n8",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00008",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_i_c_n16",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00010",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_i_c_n20",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00014",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_i_c_n24",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00018",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_i_c_n32",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00020",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_i_c_n40",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00028",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_i_c_n48",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00030",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_c_i_n8",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00008",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_c_i_n16",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00010",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_c_i_n20",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00014",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_c_i_n24",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00018",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_c_i_n32",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00020",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_c_i_n40",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00028",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_c_i_n48",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00030",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_a32_c_n8",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00008",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_a32_c_n16",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00010",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_a32_c_n20",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00014",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_a32_c_n24",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00018",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_a32_c_n32",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00020",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_a32_c_n40",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00028",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_a32_c_n48",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00030",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_c_a32_n8",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00008",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_c_a32_n16",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00010",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_c_a32_n20",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00014",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_c_a32_n24",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00018",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_c_a32_n32",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00020",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_c_a32_n40",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00028",
+   "4bfffffc"
+  ]
+ },
+ {
+  "name": "g_c_a32_n48",
+  "nbytes": 8,
+  "relocs": [
+   "memcpy"
+  ],
+  "verdict": "call",
+  "words": [
+   "38a00030",
+   "4bfffffc"
+  ]
+ }
+]

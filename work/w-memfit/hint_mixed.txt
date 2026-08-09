@@ -1,0 +1,23 @@
+w-memfit — the TWO alignment hint bytes are per-operand IN THE IL
+=================================================================
+Four captures at size 96 differing only in the two pointee spellings, at the
+workload's /O1.  All four .ex files are 2817 bytes and differ in THREE
+positions.  `c2rs capture --keep-il`, work/w-memfit/probeH2.
+
+   off     dd    cc    dc    cd
+   2733    08    01    01    08
+   2742    08    01    08    01
+   2779    c1    f0    c1    f0
+
+`dc` is (dst double, src char): 2733 reads 01 and 2742 reads 08.  `cd` is the
+reverse.  So the two bytes are the SOURCE's hint and the DESTINATION's hint,
+carried separately and UNCOMBINED, and offset 2779 is the type word that moves
+with the destination.
+
+GRID-G measures the effective divisor as the MIN of the two (G-MIN 56/56,
+G-DST 38/56, G-SRC 38/56, G-MAX 20/56).  The IL does not carry that min, so
+the combination happens inside c2.  wb-memcpy's `align = max(1, BYTE[node+0x38])`
+names ONE byte; either c2 writes the min into that byte earlier than the
+lowering, or the single-byte account is incomplete.  This lane does not read
+the binary and does not choose between those; the OBSERVABLE is the min, at
+56 of 56.
