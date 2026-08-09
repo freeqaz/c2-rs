@@ -1,0 +1,574 @@
+diff --git a/crates/c2-core/src/codegen/calls.rs b/crates/c2-core/src/codegen/calls.rs
+index 42523a0e..91581e6b 100644
+--- a/crates/c2-core/src/codegen/calls.rs
++++ b/crates/c2-core/src/codegen/calls.rs
+@@ -1533,6 +1533,22 @@ pub fn call_seq_parts(
+         c2_il::SeqTail::CallLoadFp { off, double } => {
+             crate::codegen::leaf::float::chain_result_fp_load_text(RET_REG, off, double)?
+         }
++        // **W-FLTRET — the FP value tail emits NOTHING**, for
++        // `CallValue { add_k: 0 }`'s reason one register file over: the callee
++        // left the value in f1 and the caller's own return reads f1. MEASURED,
++        // `work/w-fltret/probe/P1.obj` at `/O1 /Oi /EHsc /GR` — `?l3_member_float`
++        // is byte-identical to `?l1_member_int` (52 B) and `?l2_free_float` to
++        // `?c1_free_int` (36 B).
++        //
++        // It is a separate arm from `CallValue { add_k: 0 }` and not a fold into
++        // it because the **TU** differs: `IlFunction::touches_floating_point` is
++        // true here, so `coff::Function::is_float` is true, so the obj carries
++        // `_fltused` and the TU's label counter takes one extra slot. A body
++        // that arrived as `CallValue` would emit these same zero bytes and an
++        // obj one symbol short — `Port=Mismatch @ offset 12`, the COFF header's
++        // `NumberOfSymbols`, which is `docs/GAPS.md` §6 instance #14's own
++        // failure.
++        c2_il::SeqTail::CallValueFp => Vec::new(),
+         // **WCB/WCR — `return a->m() <rel> b->n();`**, the register-register
+         // comparison spines (`docs/CMP_PRODUCES_A_VALUE.md` reading 4). All three
+         // — `==`, signed order, unsigned order — live in
+diff --git a/crates/c2-core/src/splice.rs b/crates/c2-core/src/splice.rs
+index c169f2b7..9b5a7de8 100644
+--- a/crates/c2-core/src/splice.rs
++++ b/crates/c2-core/src/splice.rs
+@@ -554,6 +554,11 @@ pub fn splice_callee_why<'a>(
+                 SeqTail::Lit(_) => return Err("S3-seq-tail-lit"),
+                 SeqTail::CallLoad { .. } => return Err("S3-seq-tail-callload"),
+                 SeqTail::CallLoadFp { .. } => return Err("S3-seq-tail-callloadfp"),
++                // W-FLTRET. Refused for `CallLoadFp`'s reason: S3 splices a
++                // body whose result is an integer in r3, and this one's is in
++                // f1 — and the TU it would be spliced into may have no
++                // `_fltused` at all.
++                SeqTail::CallValueFp => return Err("S3-seq-tail-callvaluefp"),
+                 SeqTail::Cmp { .. } => return Err("S3-seq-tail-cmp"),
+             }
+             seq.calls[0].callee.as_str()
+diff --git a/crates/c2-il/src/func/body/mod.rs b/crates/c2-il/src/func/body/mod.rs
+index d3058a4b..125a351b 100644
+--- a/crates/c2-il/src/func/body/mod.rs
++++ b/crates/c2-il/src/func/body/mod.rs
+@@ -500,6 +500,38 @@ pub(crate) enum SeqTail {
+     /// loads and converts in one instruction — so the promotion is free and the
+     /// emitted opcode still follows the member.
+     CallLoadFp { off: i32, double: bool },
++    /// **W-FLTRET** — the last call's result is a `float`/`double` and the body
++    /// returns it **unchanged**: `float T::m(){ a(); return b(); }`, which is
++    /// `float Timer::SplitMs(){ Split(); return Ms(); }` — 434 emitted in 434
++    /// TUs on the 878-TU workload, the single largest construct behind
++    /// `expr-call-in-expr-recv-load-then-type-real-whole`.
++    ///
++    /// **It emits nothing at all**, exactly as [`Self::CallValue`] with
++    /// `add_k == 0` does: the callee left the value in `f1` and the caller's own
++    /// return wants it in `f1`. MEASURED — `work/w-fltret/probe/P1.obj` at
++    /// `/O1 /Oi /EHsc /GR`: `?l3_member_float@@YAMPAUS@@@Z` is **byte-identical**
++    /// to the integer `?l1_member_int@@YAHPAUS@@@Z`, all 52 bytes, and the free
++    /// spelling `?l2_free_float@@YAMXZ` is byte-identical to `?c1_free_int@@YAHXZ`.
++    ///
++    /// So why a variant rather than a `CallValue { add_k: 0 }`, when the text is
++    /// the same? For [`Self::CallLoadFp`]'s reason exactly: the **TU** is not the
++    /// same. The obj acquires the undefined external `_fltused`
++    /// ([`crate::func::IlFunction::touches_floating_point`]) and the TU's label
++    /// counter takes the one extra slot `c2_core::coff::label` charges for its
++    /// first FP-touching function. In the same probe obj the framed triples run
++    /// `…2625/2626/2627` then **`2631`**`/2632/2633` — a stride of 6 across the
++    /// first FP function and 5 everywhere else — and `_fltused` is symbol [48],
++    /// immediately after that function's **complete** framed group. A body that
++    /// reached the emitter as `CallValue` would emit the right `.text` and an obj
++    /// one symbol short and every later label one low.
++    ///
++    /// **No post-op and no conversion.** `return b() + k` on an FP result is an
++    /// `fadds` against an `.rdata` constant, and a *converted* result is a real
++    /// instruction in one direction (`double`→`float` is `frsp 1,1`, measured on
++    /// `?l4_narrowing@@YAMPAUS@@@Z`) and nothing in the other. Both refuse; see
++    /// [`super::shapes::calls`]'s value-tail arm, which requires the returned
++    /// TYPE's FP width to equal the callee's own.
++    CallValueFp,
+     /// **WCB/WCR** — `return <call> <rel> <call>;`: the two calls' results
+     /// compared and materialized to a 0/1 in r3. `lhs_first` says whether the
+     /// source's left operand is the call emitted *first*; c2 orders the pair by
+diff --git a/crates/c2-il/src/func/body/shapes/calls.rs b/crates/c2-il/src/func/body/shapes/calls.rs
+index 5fa70b0d..71d67100 100644
+--- a/crates/c2-il/src/func/body/shapes/calls.rs
++++ b/crates/c2-il/src/func/body/shapes/calls.rs
+@@ -17,11 +17,12 @@ use crate::func::body::expr::{
+     eat_return_plumbing, intrinsic_selector, parse_expr, BODY_SCOPE_DEPTH,
+ };
+ use crate::func::body::{
+-    blk, Block, BodyShape, SeqCall, SeqEarlyReturnShape, SeqGuardShape, SeqTail, SlotArg,
++    blk, prod_tag, Block, BodyShape, SeqCall, SeqEarlyReturnShape, SeqGuardShape, SeqTail,
++    SlotArg,
+ };
+ use crate::func::readers::{
+-    eat, eat_byte, eat_int_like, eat_int_like_or_ptr4, eat_opt_stmt_marker, read_token_var,
+-    read_type, read_varint, TYPE_KIND_REAL_CLASS,
++    eat, eat_byte, eat_fp_type, eat_int_like, eat_int_like_or_ptr4, eat_opt_stmt_marker,
++    is_fp_type, read_token_var, read_type, read_varint, TYPE_KIND_REAL_CLASS,
+ };
+ use crate::func::{IlOp, LINK_FIRST_SLOT};
+ 
+@@ -853,7 +854,24 @@ pub(crate) fn eat_call_head(seg: &[u8], p: &mut usize) -> Result<(u32, CallRet),
+ #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+ pub(crate) enum CallRet {
+     /// A `float`/`double`/other class-5 result.
+-    Real,
++    ///
++    /// **W-FLTRET — `double` is the WIDTH, and it is an `Option` on purpose.**
++    /// `Some(false)` is a 4-byte real, `Some(true)` an 8-byte one, and `None` a
++    /// class-5 result that is neither ([`is_fp_type`]'s own third answer —
++    /// `long double` under some other flag, or a misread record). The
++    /// [`SeqTail::CallValueFp`] tail requires the *returned* TYPE's width to
++    /// equal this one, so that a conversion applied to the result — `frsp 1,1`
++    /// in the narrowing direction, measured on
++    /// `work/w-fltret/probe/P1.obj::?l4_narrowing@@YAMPAUS@@@Z` — refuses
++    /// instead of emitting the unconverted value. `None` refuses there too:
++    /// nothing this crate can name is equal to it.
++    ///
++    /// The field is deliberately invisible to [`Self::discarded`], whose answer
++    /// has never depended on the width and must not start to.
++    ///
++    /// [`is_fp_type`]: crate::func::readers::is_fp_type
++    /// [`SeqTail::CallValueFp`]: crate::func::body::SeqTail::CallValueFp
++    Real { double: Option<bool> },
+     /// Anything else — `void`, an integer, a pointer, an aggregate.
+     Other,
+ }
+@@ -865,7 +883,7 @@ impl CallRet {
+     /// `41` result annotation, and the FP tail call marks the function itself.
+     pub(crate) fn discarded(self, seg: &[u8], off: usize) -> Result<(), Block> {
+         match self {
+-            CallRet::Real => Err(Block::refuse(seg, off, "call-ret-fp")),
++            CallRet::Real { .. } => Err(Block::refuse(seg, off, "call-ret-fp")),
+             CallRet::Other => Ok(()),
+         }
+     }
+@@ -925,9 +943,18 @@ pub(crate) fn eat_call_token(seg: &[u8], p: &mut usize) -> Result<CallRet, Block
+         }
+         return Err(blk(seg, *p, "call-token"));
+     }
+-    let (_, ret_kind, _, ret_w) = read_type(seg, *p).ok_or(blk(seg, *p, "call-ret-type"))?;
++    let (ret_tag, ret_kind, _, ret_w) = read_type(seg, *p).ok_or(blk(seg, *p, "call-ret-type"))?;
+     *p += ret_w;
+-    let ret = if ret_kind & 0x0F == TYPE_KIND_REAL_CLASS { CallRet::Real } else { CallRet::Other };
++    // The class nibble decides `Real`, exactly as it always has. The **width**
++    // is read beside it and carried, never substituted for the class test: a
++    // class-5 result whose width [`is_fp_type`] declines to name is still
++    // `Real` — `CallRet::discarded` must keep refusing it — and is
++    // `double: None`, which the value tail then refuses on its own account.
++    let ret = if ret_kind & 0x0F == TYPE_KIND_REAL_CLASS {
++        CallRet::Real { double: is_fp_type(ret_tag, ret_kind) }
++    } else {
++        CallRet::Other
++    };
+     // Calling convention: 0x00 = cdecl/stdcall, 0x04 = fastcall, 0x40 = varargs.
+     // Only cdecl is in class — the others need argument-passing the port does
+     // not implement, and accepting them would mis-emit rather than refuse.
+@@ -1315,17 +1342,7 @@ fn eat_member_stmt_call(seg: &[u8], p: &mut usize) -> Option<(u32, Vec<Vec<IlOp>
+     let save = *p;
+     let mut q = *p;
+     let out = (|| {
+-        let callee_tok = eat_callee_push(seg, &mut q).ok()?;
+-        // A second `26` where the receiver goes is a stacked method (a chain) or
+-        // a named data object; both are declined here — with the cursor
+-        // untouched — so that `super::mcall_chain` and W-ADJUST keep meaning
+-        // what they mean at the tail form.
+-        if seg.get(q) != Some(&0xB9) {
+-            return None;
+-        }
+-        let recv_tok = super::mcall_tail::eat_receiver_this(seg, &mut q).ok()?;
+-        let ret = eat_call_token(seg, &mut q).ok()?;
+-        let mut args = eat_call_args(seg, &mut q).ok()?;
++        let (callee_tok, mut args, recv_tok, ret) = eat_member_call_to_args(seg, &mut q)?;
+         // The result is discarded, and only that. `4C` has already been consumed
+         // by `eat_call_args`.
+         if !eat_byte(seg, &mut q, 0x4B) {
+@@ -1351,6 +1368,193 @@ fn eat_member_stmt_call(seg: &[u8], p: &mut usize) -> Option<(u32, Vec<Vec<IlOp>
+     }
+ }
+ 
++/// A **member** call's head, receiver and argument region — everything up to and
++/// including the argument region's `4C`, which is where the statement form and
++/// the value form stop agreeing.
++///
++/// ```text
++///   26 <method> · B9 <recv> <TYPE> 99 <TYPE> 00 · BD <ret TYPE> 00 <id> · args 4C
++/// ```
++///
++/// **W-FLTRET split this out of [`eat_member_stmt_call`] byte for byte.** Two
++/// readers now enter the same production and the alternative was a second copy
++/// of the receiver decision — `docs/GAPS.md` §6 instance #9's exact shape, and
++/// the shape [`super::mcall_tail::eat_receiver_this`] exists to prevent. The
++/// caller decides what follows the `4C` and nothing else.
++///
++/// Advances `q` only on success; on any decline the caller restores.
++fn eat_member_call_to_args(
++    seg: &[u8],
++    q: &mut usize,
++) -> Option<(u32, Vec<Vec<IlOp>>, u32, CallRet)> {
++    let callee_tok = eat_callee_push(seg, q).ok()?;
++    // A second `26` where the receiver goes is a stacked method (a chain) or
++    // a named data object; both are declined here — with the cursor
++    // untouched — so that `super::mcall_chain` and W-ADJUST keep meaning
++    // what they mean at the tail form.
++    if seg.get(*q) != Some(&0xB9) {
++        return None;
++    }
++    let recv_tok = super::mcall_tail::eat_receiver_this(seg, q).ok()?;
++    let ret = eat_call_token(seg, q).ok()?;
++    let args = eat_call_args(seg, q).ok()?;
++    Some((callee_tok, args, recv_tok, ret))
++}
++
++/// **W-FLTRET** — a **member** call in a sequence whose result is the body's
++/// **return value**: `float T::m(){ a(); return b(); }`.
++///
++/// This is the position `fixtures/cpp/wmcall_seq_neg.cpp` cell **N6** records as
++/// declined — *"`SeqTail::CallValue` marshals a receiver into slot 0 and a
++/// post-op region, and the two have never been graded together"* — and it is
++/// now graded: `work/w-fltret/probe/P1.obj` at the workload's own
++/// `/O1 /Oi /EHsc /GR`. Every cell's `.text` is **byte-identical to the free
++/// spelling's**, because `p->m()` is `m(p)` on this ABI and the receiver is
++/// argument slot 0 exactly as it is in the statement form.
++///
++/// Three tails, each with its own measured reference body in that obj:
++///
++/// ```text
++///   41 <int-like|ptr4>        return s->get();       nothing after the last bl
++///   41 <float|double>         return s->f();         nothing after the last bl
++///   33 <int-like> k 02  41    return s->get() + 3;   addi r3,r3,3
++/// ```
++///
++/// **The FP tail requires the returned TYPE's width to EQUAL the callee's own**
++/// ([`CallRet::Real`]'s `double`). A converted result is a different body in one
++/// direction and an ungraded one in the other, and both refuse here:
++/// `?l4_narrowing@@YAMPAUS@@@Z` (`return (float)s->d();`) is 56 bytes with an
++/// `fc200818` = `frsp 1,1` between the `bl` and the epilogue, and
++/// `?l4_widening@@YANPAUS@@@Z` (`double` from a `float` callee) is 52 bytes with
++/// nothing there — same key, opposite answers, told apart only by comparing the
++/// two widths. That is `leaf_fp_tail`'s rule at the return boundary rather than
++/// the argument one.
++///
++/// Non-committal, like [`eat_member_stmt_call`]: on every decline the cursor is
++/// restored and the caller re-raises the block the body already reported, so no
++/// census key is re-keyed (w-mcall clause D7).
++///
++/// # Every decline past the head NAMES ITSELF on the `prod` axis
++///
++/// [`prod_tag`] is last-write-wins and this production runs last, so a tag
++/// written here would bury w-mcall #1963's split if it fired on every body that
++/// reaches the arm. It is therefore written **only after
++/// [`eat_member_call_to_args`] has succeeded** — i.e. only for bodies that
++/// really are a member call this reader could have taken and did not. That
++/// population is exactly this rung's declines, and naming it is the difference
++/// between the next lane pricing them off a scan and pricing them off a scratch
++/// instrument (`w-callprice` §2, four of them, all reverted).
++///
++/// It is also what makes `fixtures/cpp/wfltret_value_neg.cpp` checkable
++/// per cell: a `_neg` cell that fires on an earlier clause than the one it is
++/// written for passes the fixture gate exactly like a correct one
++/// (`w-bdnz` §5.1 caught two that way).
++fn mv_tag<T>(tag: &'static str) -> Option<T> {
++    prod_tag(tag);
++    None
++}
++
++fn eat_member_value_call(seg: &[u8], p: &mut usize) -> Option<(u32, Vec<Vec<IlOp>>, SeqTail)> {
++    let save = *p;
++    let mut q = *p;
++    let out = (|| {
++        let (callee_tok, mut args, recv_tok, ret) = eat_member_call_to_args(seg, &mut q)?;
++        // The post-op region, if any: `33 <TYPE> k 02` — one `addi r3,r3,k`,
++        // read through the same [`eat_int_like`] the free spelling's tail and
++        // the literal tail both read, so the three positions cannot drift.
++        let add_k = if seg.get(q) == Some(&0x33) {
++            eat_byte(seg, &mut q, 0x33).then_some(())?;
++            if !eat_int_like(seg, &mut q) {
++                return mv_tag("msc-value-postop-type");
++            }
++            let k = read_varint(seg, &mut q)?;
++            // A non-ADD post-op is a different instruction, and a wide literal
++            // is `lis`+`ori`. Both refuse, on the free spelling's own bounds.
++            if !eat_byte(seg, &mut q, 0x02) {
++                return mv_tag("msc-value-postop-op");
++            }
++            if !(-0x8000..=0x7FFF).contains(&k) {
++                return mv_tag("msc-value-postop-wide");
++            }
++            Some(k)
++        } else {
++            None
++        };
++        if !eat_byte(seg, &mut q, 0x41) {
++            // **A CONVERSION of the result is spelled `2C`, and that is where
++            // BOTH directions actually land** — measured, not assumed
++            // (`work/w-fltret/probe/P2.cpp`, and `wfltret_value_neg.cpp` N1/N2).
++            // `return (float)s->d();` and `double f(){ …; return s->f(); }` both
++            // open `4C 2C <TYPE> 00 41`, and their reference bodies differ by an
++            // `fc200818` = `frsp 1,1` that nothing in the census key can see.
++            // Named apart from the generic decline so a next lane can price the
++            // two directions separately: one is a real instruction and the other
++            // is free, and admitting the free one on the `41` type alone admits
++            // the other with it.
++            return mv_tag(if seg.get(q) == Some(&0x2C) {
++                "msc-value-result-conversion"
++            } else {
++                "msc-value-no-result-annotation"
++            });
++        }
++        let tail = match (ret, add_k) {
++            // The FP value tail. A post-op on it would be an `fadds` against an
++            // `.rdata` constant and is refused by construction — this arm is
++            // reachable only with `add_k == None`.
++            (CallRet::Real { double }, None) => {
++                let Some(want) = double else {
++                    return mv_tag("msc-value-fp-width-unnamed");
++                };
++                let mut r = q;
++                if eat_fp_type(seg, &mut r) != Some(want) {
++                    // The returned TYPE does not name the callee's own width.
++                    //
++                    // **MEASURED UNREACHABLE on every cell tried, and kept
++                    // anyway** — #1963's precedent for an inert guard, recorded
++                    // as inert. Every result conversion this lane could write is
++                    // spelled `2C` and is caught one arm up; this clause is the
++                    // fail-closed half of the *assumption* that a `41` standing
++                    // directly after a real call always names that call's own
++                    // width. Nothing measured that assumption, so it is guarded
++                    // rather than trusted — and #1148's lesson is that a
++                    // recorded unreachability is a statement about the cells
++                    // somebody thought of.
++                    return mv_tag("msc-value-fp-result-width");
++                }
++                q = r;
++                SeqTail::CallValueFp
++            }
++            (CallRet::Real { .. }, Some(_)) => return mv_tag("msc-value-fp-postop"),
++            (CallRet::Other, k) => {
++                if eat_int_like_or_ptr4(seg, &mut q).is_none() {
++                    return mv_tag("msc-value-result-type");
++                }
++                SeqTail::CallValue { add_k: k.unwrap_or(0) }
++            }
++        };
++        // The result annotation is consumed here rather than through
++        // [`eat_return_plumbing`]'s own `41` gate, for `leaf_fp_tail`'s reason:
++        // that gate is [`eat_int_like_or_ptr4`] and is deliberately not widened
++        // to the FP classes, because every *other* production that asks it is
++        // one no obj has graded with a real result.
++        if eat_return_plumbing(seg, &mut q, false, BODY_SCOPE_DEPTH).is_err() {
++            return mv_tag("msc-value-plumbing");
++        }
++        args.push(vec![IlOp::Load(recv_tok)]);
++        Some((callee_tok, args, tail))
++    })();
++    match out {
++        Some(v) => {
++            *p = q;
++            Some(v)
++        }
++        None => {
++            *p = save;
++            None
++        }
++    }
++}
++
+ /// Parse a call shape (already positioned at the `26 <tok>` function ref): the
+ /// bare terminal void call, an integer tail call `return g(<arg>)` (passthrough
+ /// or arg-setup, plus the `g(a)+0` identity fold), the framed
+@@ -1765,6 +1969,20 @@ pub(crate) fn parse_call_sequence_from(
+                     }
+                     continue;
+                 }
++                // **W-FLTRET — the member VALUE tail, tried LAST of the three.**
++                // The order is frozen in `work/w-fltret/PREREG.md` §3 before a
++                // line of this was written, and it is the whole of this rung's
++                // neutrality: the free head is probed first (so no
++                // free-function refusal key can move), the statement form
++                // second (so w-mcall's class is unchanged), and this only when
++                // both have declined. [`eat_member_value_call`] is atomic, so
++                // when it declines too the `?` below re-raises exactly the block
++                // this loop raises today.
++                if let Some((tok, args, t)) = eat_member_value_call(seg, p) {
++                    raw.push((tok, args));
++                    tail = t;
++                    break;
++                }
+             }
+         }
+         let (tok, ret) = eat_call_head(seg, p)?;
+@@ -1777,6 +1995,29 @@ pub(crate) fn parse_call_sequence_from(
+             }
+             continue;
+         }
++        // **W-FLTRET — the FREE-function FP value tail**, tried before the
++        // integer one and reachable only when the CALL token itself said the
++        // result is real, so no integer body can enter it. `float f(){ gv();
++        // return gf(); }` is `?l2_free_float@@YAMXZ` in
++        // `work/w-fltret/probe/P1.obj` and is **byte-identical** to the integer
++        // `?c1_free_int@@YAHXZ`, all 36 bytes: the callee left the value in f1
++        // and the caller's return wants it in f1.
++        //
++        // Non-committal on a scratch cursor. When it declines, the code below
++        // runs unchanged and raises exactly the `result-type` block it raises
++        // today — which is the census key this whole population sits on.
++        if let CallRet::Real { double: Some(want) } = ret {
++            let mut q = *p;
++            if eat_byte(seg, &mut q, 0x41)
++                && eat_fp_type(seg, &mut q) == Some(want)
++                && eat_return_plumbing(seg, &mut q, false, BODY_SCOPE_DEPTH).is_ok()
++            {
++                *p = q;
++                raw.push((tok, args));
++                tail = SeqTail::CallValueFp;
++                break;
++            }
++        }
+         // The value call. `41` = the result is returned as is; `33 <TYPE> k 02` =
+         // returned plus a literal — the same post-op the single framed call
+         // carries, and the same `addi r3,r3,k`. The literal's TYPE goes through
+diff --git a/crates/c2-il/src/func/body/shapes/mcall_tail.rs b/crates/c2-il/src/func/body/shapes/mcall_tail.rs
+index 9dcf270d..04854ae1 100644
+--- a/crates/c2-il/src/func/body/shapes/mcall_tail.rs
++++ b/crates/c2-il/src/func/body/shapes/mcall_tail.rs
+@@ -1647,17 +1647,51 @@ mod tests {
+         assert_eq!(saved, vec![0]);
+     }
+ 
+-    /// **The VALUE TAIL is declined, and the body keeps the key it has at
+-    /// base.** `SeqTail::CallValue` marshals a receiver into slot 0 *and* a
+-    /// post-op region and the two have never been graded together — decline D3.
++    /// **The VALUE TAIL is ADMITTED — w-mcall's decline D3 is PAID.**
+     ///
+-    /// The second assertion is the rung's D7: an arm that declines re-raises the
+-    /// block the body already reported, so a refusal is never re-keyed.
++    /// This test read, until 2026-08-09:
++    ///
++    /// ```text
++    /// /// **The VALUE TAIL is declined, and the body keeps the key it has at
++    /// /// base.** `SeqTail::CallValue` marshals a receiver into slot 0 *and* a
++    /// /// post-op region and the two have never been graded together — decline D3.
++    /// assert!(parse_segment(MCS_VALUE_TAIL, NO_LOCALS).is_none());
++    /// let b = parse_segment_detail(MCS_VALUE_TAIL, NO_LOCALS).unwrap_err();
++    /// assert_eq!(b.feature(), "expr-call-in-expr-recv-load-whole");
++    /// ```
++    ///
++    /// **It is re-pointed rather than deleted** (`docs/BOARD.md` #1710a — a test
++    /// that vanishes with the boundary it guarded takes the boundary's record
++    /// with it). The capture cell is the same bytes; what changed is the answer,
++    /// and the assertions below are now the *shape*, which is strictly more than
++    /// the decline asserted. The two facts the decline was protecting are still
++    /// checked, one line apart: the receiver is argument slot 0 of **each** call,
++    /// and it is the LAST element of the stream-order list.
++    ///
++    /// Lane `w-fltret`, `docs/rungs/2026-08-09-w-fltret.md`; graded byte-exact
++    /// as `fixtures/cpp/wfltret_value.cpp::wfltret_member_int`.
+     #[test]
+-    fn a_member_statement_call_whose_result_is_not_discarded_declines() {
+-        assert!(parse_segment(MCS_VALUE_TAIL, NO_LOCALS).is_none());
+-        let b = parse_segment_detail(MCS_VALUE_TAIL, NO_LOCALS).unwrap_err();
+-        assert_eq!(b.feature(), "expr-call-in-expr-recv-load-whole", "{}", b.feature());
++    fn a_member_statement_call_whose_result_is_not_discarded_is_the_value_tail() {
++        let Some(BodyShape::CallSeq { params, calls, saved, tail, .. }) =
++            parse_segment(MCS_VALUE_TAIL, NO_LOCALS)
++        else {
++            panic!("the member value tail is a statement-call sequence with a value tail");
++        };
++        assert_eq!(
++            tail,
++            crate::func::body::SeqTail::CallValue { add_k: 0 },
++            "an INTEGER member value tail is the free spelling's own tail — nothing \
++             is emitted for it, and `CallValueFp` is the FP twin that is not this"
++        );
++        assert_eq!(calls.len(), 2, "the statement call and the value call");
++        assert_eq!(calls[0].arg_ops, vec![IlOp::Load(params[0])]);
++        assert_eq!(
++            calls[1].arg_ops,
++            vec![IlOp::Load(params[0])],
++            "the VALUE call's receiver is slot 0 too — the fact the decline was \
++             protecting, now asserted instead of avoided"
++        );
++        assert_eq!(saved, vec![0], "`s` is live across the first `bl`");
+     }
+ 
+     /// **A GUARDED sequence never admits a member call** — decline D4. That
+diff --git a/crates/c2-il/src/func/bundle.rs b/crates/c2-il/src/func/bundle.rs
+index 4460eac4..7634a476 100644
+--- a/crates/c2-il/src/func/bundle.rs
++++ b/crates/c2-il/src/func/bundle.rs
+@@ -1478,6 +1478,7 @@ pub(crate) fn shape_to_function(
+                             body::SeqTail::CallLoadFp { off, double } => {
+                                 SeqTail::CallLoadFp { off, double }
+                             }
++                            body::SeqTail::CallValueFp => SeqTail::CallValueFp,
+                             body::SeqTail::Cmp { cmp, lhs_first } => {
+                                 SeqTail::Cmp { cmp, lhs_first }
+                             }
+diff --git a/crates/c2-il/src/func/census.rs b/crates/c2-il/src/func/census.rs
+index a1a29f9a..cfb43690 100644
+--- a/crates/c2-il/src/func/census.rs
++++ b/crates/c2-il/src/func/census.rs
+@@ -736,6 +736,17 @@ impl IlBundle {
+                                     // history is deltas attributed to the wrong
+                                     // production.
+                                     body::SeqTail::CallLoadFp { .. } => "call-sequence-load-fp",
++                                    // W-FLTRET — the call's own FP result
++                                    // returned. Its own key rather than sharing
++                                    // `-value`'s for the reason `-load-fp` does
++                                    // not share `-load`'s: the two emit the same
++                                    // (zero) bytes and produce **different
++                                    // objs**, because this one carries
++                                    // `_fltused` and a label slot. A shared key
++                                    // would make the delta that ships this
++                                    // unreadable, which is exactly the failure
++                                    // this family's history is made of.
++                                    body::SeqTail::CallValueFp => "call-sequence-value-fp",
+                                     // Split by relation, not merged: the `==`
+                                     // fold and the order spines are different
+                                     // instruction counts and different label
+diff --git a/crates/c2-il/src/func/mod.rs b/crates/c2-il/src/func/mod.rs
+index 6cb47c42..46f39995 100644
+--- a/crates/c2-il/src/func/mod.rs
++++ b/crates/c2-il/src/func/mod.rs
+@@ -1039,6 +1039,23 @@ pub enum SeqTail {
+     /// `lfd f0 ; frsp f1,f0`, two words into a scratch register, and the parser
+     /// refuses it.
+     CallLoadFp { off: i32, double: bool },
++    /// **W-FLTRET** — the last call's `float`/`double` result **is** the return
++    /// value: `float T::m(){ a(); return b(); }`, i.e.
++    /// `float Timer::SplitMs(){ Split(); return Ms(); }`.
++    ///
++    /// **Emits nothing** — the value is already in f1 — so its `.text` is
++    /// byte-identical to [`SeqTail::CallValue`] with `add_k == 0`. It is a
++    /// sibling anyway, for [`SeqTail::CallLoadFp`]'s reason: the register file
++    /// decides [`IlFunction::touches_floating_point`], which decides `_fltused`
++    /// and the TU's first-FP-function label slot. Two bodies with identical
++    /// text and different objs need two variants, or the difference has nowhere
++    /// to live.
++    ///
++    /// Carries no width: nothing is emitted, so `float` and `double` are the
++    /// same tail. The width is still *read* — the parser requires the returned
++    /// TYPE's width to equal the callee's, so that a conversion (`frsp`) refuses
++    /// rather than emitting the unconverted value.
++    CallValueFp,
+     /// **WCB/WCR — the two calls' results compared**, materialized to a 0/1 in
+     /// r3: `return a->m() <rel> b->n();`.
+     ///
+@@ -2895,7 +2912,19 @@ impl IlFunction {
+             || self
+                 .call_seq
+                 .as_ref()
+-                .is_some_and(|s| matches!(s.tail, SeqTail::CallLoadFp { .. }))
++                // **W-FLTRET is the FIFTH producer and the first with no FP
++                // instruction in it at all.** `float T::m(){ a(); return b(); }`
++                // emits the integer body's exact bytes — the value is already in
++                // f1 — so a predicate written as "does the body have FP ops"
++                // answers no, and this doc-comment's own warning fires for the
++                // third time. MEASURED, `work/w-fltret/probe/P1.obj`: `_fltused`
++                // is symbol [48] and the TU's framed triples step
++                // `2625/2626/2627` then **`2631`**`/2632/2633` — one extra slot
++                // at the first FP-touching function, which is exactly what
++                // `c2_core::coff::label` charges off this predicate.
++                .is_some_and(|s| {
++                    matches!(s.tail, SeqTail::CallLoadFp { .. } | SeqTail::CallValueFp)
++                })
+             || self
+                 .ops
+                 .iter()

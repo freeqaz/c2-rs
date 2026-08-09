@@ -1,0 +1,5 @@
+base differs 2111   this lane 2555   landed 2555
+newly differing:  this lane 444   landed 444
+  identical set? True   symmetric difference 0
+  of the shared 444, port .text words identical on 444
+  ASSERTED: same set, same bytes.

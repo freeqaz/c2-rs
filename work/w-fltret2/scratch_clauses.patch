@@ -1,0 +1,46 @@
+diff --git a/crates/c2-harness/src/cli/census.rs b/crates/c2-harness/src/cli/census.rs
+index a42a0c0e..5fdcbce2 100644
+--- a/crates/c2-harness/src/cli/census.rs
++++ b/crates/c2-harness/src/cli/census.rs
+@@ -307,7 +307,7 @@ pub(crate) fn cmd_census(rest: &[String]) -> ExitCode {
+                 f.eh,
+                 f.eh_stmt,
+                 f.seg_len,
+-                f.name.as_deref().unwrap_or("(unnamed)")
++                format!("{} prod={}", f.name.as_deref().unwrap_or("(unnamed)"), f.prod)
+             );
+         }
+         *cflow_hist.entry(f.cflow.clone()).or_insert(0) += 1;
+diff --git a/crates/c2-il/src/func/body/shapes/mcall_tail.rs b/crates/c2-il/src/func/body/shapes/mcall_tail.rs
+index 04854ae1..77f748f2 100644
+--- a/crates/c2-il/src/func/body/shapes/mcall_tail.rs
++++ b/crates/c2-il/src/func/body/shapes/mcall_tail.rs
+@@ -492,6 +492,7 @@ pub(crate) fn try_parse_member_tail_call(
+     // the assignment parse and keep its de-conflated
+     // `expr-call-in-expr-recv-load-*` key.
+     let mut depth = depth;
++    let mut wfr_seq: Option<&'static str> = None;
+     if eat_byte(seg, &mut p, 0x4B) {
+         // The result is discarded, so a `float`/`double` one still obliges the TU
+         // to carry `_fltused` and the port has no model of that — see
+@@ -538,7 +539,10 @@ pub(crate) fn try_parse_member_tail_call(
+             ) {
+                 return Ok(shape);
+             }
+-            // Re-arm: the failed attempt above may have written a tag of its own.
++            let t = crate::func::body::prod_site();
++            if t.starts_with("msc-value-") {
++                wfr_seq = Some(t);
++            }
+             prod_tag("tail-void-body-does-not-end-at-the-call");
+         }
+         // A brace scope closes **between** the statement end and the return
+@@ -552,7 +556,7 @@ pub(crate) fn try_parse_member_tail_call(
+         eat_scopes(seg, &mut p, &mut depth)
+             .map_err(|_| prod_tag("tail-void-brace-scopes-do-not-close"))?;
+         eat_return_plumbing(seg, &mut p, false, depth)
+-            .map_err(|_| prod_tag("tail-void-body-does-not-end-at-the-call"))?;
++            .map_err(|_| prod_tag(wfr_seq.unwrap_or("tail-void-body-does-not-end-at-the-call")))?;
+     } else if seg.get(p) == Some(&0x41) {
+         eat_return_plumbing(seg, &mut p, true, depth)
+             .map_err(|_| prod_tag("tail-returned-body-does-not-end-at-the-call"))?;

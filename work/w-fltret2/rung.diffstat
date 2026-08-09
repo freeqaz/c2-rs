@@ -1,0 +1,9 @@
+ crates/c2-core/src/codegen/calls.rs             |  16 ++
+ crates/c2-core/src/splice.rs                    |   5 +
+ crates/c2-il/src/func/body/mod.rs               |  32 +++
+ crates/c2-il/src/func/body/shapes/calls.rs      | 277 ++++++++++++++++++++++--
+ crates/c2-il/src/func/body/shapes/mcall_tail.rs |  52 ++++-
+ crates/c2-il/src/func/bundle.rs                 |   1 +
+ crates/c2-il/src/func/census.rs                 |  11 +
+ crates/c2-il/src/func/mod.rs                    |  31 ++-
+ 8 files changed, 397 insertions(+), 28 deletions(-)

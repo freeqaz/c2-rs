@@ -1,0 +1,51 @@
+WHOLE BLOCKED CENSUS   bodies 1751929   emitted 130560
+FAMILY expr-call-in-expr   bodies 423905   emitted 35576
+  share of the blocked EMITTED column: 27.25 %
+  ASSERTED: the de-shattered key preserves the emitted column exactly (35576).
+
+=== THE COMMISSIONED POPULATION, RE-DERIVED ===
+ emitted  cons    TUs   bodies   em/1k  key
+     439     5    436      933   470.5  expr-call-in-expr-recv-load-then-type-real-whole
+     105     4     96     1472    71.3  expr-call-in-expr-chained-then-type-real-whole
+     544     9                          TOTAL (w-callprice §7-R2 published 544 / 9)
+
+--- the names on expr-call-in-expr-recv-load-then-type-real-whole ---
+     434 emitted     434 TUs  ?SplitMs@Timer@@QAAMXZ  <= emitted == TUs
+       2 emitted       2 TUs  ?LengthBeats@CharClip@@QBAMXZ  <= emitted == TUs
+       1 emitted       1 TUs  ?EndFrame@HamCamShot@@UAAMXZ  <= emitted == TUs
+       1 emitted       1 TUs  ??$_outline_UISeconds@VTaskMgr@@@@YAMPAVTaskMgr@@@Z  <= emitted == TUs
+       1 emitted       1 TUs  ?TickToBeat@@YAMH@Z  <= emitted == TUs
+
+--- the names on expr-call-in-expr-chained-then-type-real-whole ---
+      86 emitted      86 TUs  ?Float@DataArray@@QAAMH@Z  <= emitted == TUs
+      17 emitted      17 TUs  ?Float@DataArray@@QBAMH@Z  <= emitted == TUs
+       1 emitted       1 TUs  ?EndFrame@RndCamAnim@@UAAMXZ  <= emitted == TUs
+       1 emitted       1 TUs  ?EndFrame@RndLightAnim@@UAAMXZ  <= emitted == TUs
+
+=== the whole family, top 25 by EMITTED, with the constructs column ===
+  #  emitted  cons    bodies   em/1k  key
+  1     5608  1139     18912   296.5  expr-call-in-expr-recv-object-then-call-recv-object-more
+  2     4290  1340    102374    41.9  expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+  3     2865  1158     20155   142.1  expr-call-in-expr-recv-load-then-intrinsic-call
+  4     2183   974     19240   113.5  expr-call-in-expr-recv-load-then-call-recv-load-and-deref-load-more
+  5     1498   403     18290    81.9  expr-call-in-expr-recv-load-whole
+  6     1463   129      4385   333.6  expr-call-in-expr-recv-object-then-deref-load-more
+  7     1040   267     22564    46.1  expr-call-in-expr-recv-load-then-off-add-more
+  8     1033   647     46036    22.4  expr-call-in-expr-op-0x9B
+  9      828   429      4194   197.4  expr-call-in-expr-recv-intrinsic-this-adjust-then-intrinsic-call
+ 10      811   350      8488    95.5  expr-call-in-expr-recv-field-then-off-add-and-deref-load-more
+ 11      803   342      8343    96.2  expr-call-in-expr-recv-intrinsic-this-adjust-then-call-op-0x9B
+ 12      757    62      4912   154.1  expr-call-in-expr-recv-object-then-call-nested-call-and-call-whole2
+ 13      635   366      2435   260.8  expr-call-in-expr-recv-load-then-call-other
+ 14      615   498      6791    90.6  expr-call-in-expr-recv-load-then-call-op-0x64
+ 15      561   353      4400   127.5  expr-call-in-expr-recv-load-then-type-int1-more
+ 16      496     8      9708    51.1  expr-call-in-expr-recv-load-then-call-data-addr-1sym-whole
+ 17      484   142      8269    58.5  expr-call-in-expr-recv-load-then-deref-load-more
+ 18      482     3      2205   218.6  expr-call-in-expr-chained-then-op-0x64
+ 19      457    10      1477   309.4  expr-call-in-expr-recv-object-then-plumbing-0x3A
+ 20      453   343      1986   228.1  expr-call-in-expr-recv-load-then-branch-brfalse
+ 21      439     5       933   470.5  expr-call-in-expr-recv-load-then-type-real-whole
+ 22      438   237      4247   103.1  expr-call-in-expr-recv-load-then-call-data-addr-and-deref-load-more
+ 23      431   128     23633    18.2  expr-call-in-expr-recv-object-then-branch-brtrue
+ 24      419     1       699   599.4  expr-call-in-expr-recv-field-off0-then-call-nested-call-and-type-real-more
+ 25      350   127      2666   131.3  expr-call-in-expr-recv-field-off0-then-chain-bind-whole

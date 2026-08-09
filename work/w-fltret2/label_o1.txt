@@ -1,0 +1,47 @@
+== flags: /nologo /c /O1 /Oi /EHsc /GR
+== lab_ctl
+  [17] $M2566                                   sec=6   val=0x24     sc=LABEL     type=0x0000 naux=0
+  [19] $M2565                                   sec=6   val=0xc      sc=LABEL     type=0x0000 naux=0
+  [22] $T2567                                   sec=7   val=0x0      sc=STATIC    type=0x0000 naux=0
+== lab_seq_int
+  [14] $M2566                                   sec=5   val=0x24     sc=LABEL     type=0x0000 naux=0
+  [17] $M2565                                   sec=5   val=0xc      sc=LABEL     type=0x0000 naux=0
+  [20] $T2567                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=0
+  [24] $M2571                                   sec=7   val=0x24     sc=LABEL     type=0x0000 naux=0
+  [26] $M2570                                   sec=7   val=0xc      sc=LABEL     type=0x0000 naux=0
+  [29] $T2572                                   sec=8   val=0x0      sc=STATIC    type=0x0000 naux=0
+== lab_seq_fp
+  [14] $M2567                                   sec=5   val=0x24     sc=LABEL     type=0x0000 naux=0
+  [17] $M2566                                   sec=5   val=0xc      sc=LABEL     type=0x0000 naux=0
+  [20] $T2568                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=0
+  [21] _fltused                                 sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [25] $M2572                                   sec=7   val=0x24     sc=LABEL     type=0x0000 naux=0
+  [27] $M2571                                   sec=7   val=0xc      sc=LABEL     type=0x0000 naux=0
+  [30] $T2573                                   sec=8   val=0x0      sc=STATIC    type=0x0000 naux=0
+== lab_mem_int
+  [14] $M2566                                   sec=5   val=0x34     sc=LABEL     type=0x0000 naux=0
+  [17] $M2565                                   sec=5   val=0x10     sc=LABEL     type=0x0000 naux=0
+  [20] $T2567                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=0
+  [24] $M2571                                   sec=7   val=0x24     sc=LABEL     type=0x0000 naux=0
+  [26] $M2570                                   sec=7   val=0xc      sc=LABEL     type=0x0000 naux=0
+  [29] $T2572                                   sec=8   val=0x0      sc=STATIC    type=0x0000 naux=0
+== lab_mem_fp
+  [14] $M2567                                   sec=5   val=0x34     sc=LABEL     type=0x0000 naux=0
+  [17] $M2566                                   sec=5   val=0x10     sc=LABEL     type=0x0000 naux=0
+  [20] $T2568                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=0
+  [21] _fltused                                 sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [25] $M2572                                   sec=7   val=0x24     sc=LABEL     type=0x0000 naux=0
+  [27] $M2571                                   sec=7   val=0xc      sc=LABEL     type=0x0000 naux=0
+  [30] $T2573                                   sec=8   val=0x0      sc=STATIC    type=0x0000 naux=0
+== lab_mem_stmt
+  [14] $M2566                                   sec=5   val=0x34     sc=LABEL     type=0x0000 naux=0
+  [16] $M2565                                   sec=5   val=0x10     sc=LABEL     type=0x0000 naux=0
+  [19] $T2567                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=0
+  [23] $M2571                                   sec=7   val=0x24     sc=LABEL     type=0x0000 naux=0
+  [25] $M2570                                   sec=7   val=0xc      sc=LABEL     type=0x0000 naux=0
+  [28] $T2572                                   sec=8   val=0x0      sc=STATIC    type=0x0000 naux=0
+== lab_fpleaf
+  [17] _fltused                                 sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [21] $M2570                                   sec=7   val=0x24     sc=LABEL     type=0x0000 naux=0
+  [23] $M2569                                   sec=7   val=0xc      sc=LABEL     type=0x0000 naux=0
+  [26] $T2571                                   sec=8   val=0x0      sc=STATIC    type=0x0000 naux=0

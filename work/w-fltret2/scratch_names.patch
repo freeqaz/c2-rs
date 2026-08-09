@@ -1,0 +1,22 @@
+diff --git a/crates/c2-harness/src/gap/scan.rs b/crates/c2-harness/src/gap/scan.rs
+index e0873eab..554bfb45 100644
+--- a/crates/c2-harness/src/gap/scan.rs
++++ b/crates/c2-harness/src/gap/scan.rs
+@@ -398,7 +398,16 @@ fn scan_one(
+                             if f.verdict.in_class() {
+                                 *res.emit.entry("emit-in-class".into()).or_insert(0) += 1;
+                             } else {
+-                                *res.emit_blockers.entry(f.verdict.key()).or_insert(0) += 1;
++                                // ***** w-fltret SCRATCH INSTRUMENT — REVERTED, NEVER COMMITTED *****
++                                {
++                                    let k = f.verdict.key();
++                                    let k = if k.starts_with("expr-call-in-expr") {
++                                        format!("{k}|{name}")
++                                    } else {
++                                        k
++                                    };
++                                    *res.emit_blockers.entry(k).or_insert(0) += 1;
++                                }
+                                 // **The control-flow counterfactual, on the
+                                 // column that ranks.** `emit_blockers` is the
+                                 // widening order and its #2 row is

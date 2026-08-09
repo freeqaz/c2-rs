@@ -1,0 +1,21 @@
+  profile: /Ox /GS- /c (default — NOT the workload's; /Ox does not imply /GF)
+fixtures/cpp/wfltret_value_neg.cpp -> 0/10 functions in class
+  [  0] GAP expr-call-in-expr-recv-load-then-type-real-whole cflow-straight             eh-none     (eh-none     )    156 B  (unnamed) prod=msc-value-result-conversion
+  [  1] GAP expr-call-in-expr-recv-load-then-type-real-whole cflow-straight             eh-none     (eh-none     )    156 B  (unnamed) prod=msc-value-result-conversion
+  [  2] GAP callseq-postop-0x2C      cflow-straight             eh-none     (eh-none     )    127 B  (unnamed) prod=prod-not-entered
+  [  3] GAP expr-call-in-expr-recv-load-then-type-real-lit-and-type-real-whole2 cflow-straight             eh-none     (eh-none     )    166 B  (unnamed) prod=msc-value-postop-type
+  [  4] GAP expr-call-in-expr-recv-load-then-type-int8-whole cflow-straight             eh-none     (eh-none     )    151 B  (unnamed) prod=msc-value-result-type
+  [  5] GAP expr-call-in-expr-recv-object-then-type-real-whole cflow-straight             eh-none     (eh-none     )    152 B  (unnamed) prod=tail-void-body-does-not-end-at-the-call
+  [  6] GAP call-token-0x26          cflow-straight             eh-none     (eh-none     )    159 B  (unnamed) prod=prod-not-entered
+  [  7] GAP body-0x67                cflow-straight             eh-none     (eh-none     )    171 B  (unnamed) prod=prod-not-entered
+  [  8] GAP expr-brfalse             cflow-if-1                 eh-none     (eh-none     )    205 B  (unnamed) prod=prod-not-entered
+  [  9] GAP call-ret-fp:mid          cflow-straight             eh-none     (eh-none     )    179 B  (unnamed) prod=prod-committed-refusal
+  profile: /Ox /GS- /c (default — NOT the workload's; /Ox does not imply /GF)
+work/w-fltret/probe/P2.cpp -> 2/6 functions in class
+  [  0] GAP call-token-0xB9          cflow-straight             eh-none     (eh-none     )    143 B  (unnamed) prod=msc-value-result-conversion
+  [  1] GAP call-token-0xB9          cflow-straight             eh-none     (eh-none     )    143 B  (unnamed) prod=msc-value-result-conversion
+  [  2] GAP call-token-0xB9          cflow-straight             eh-none     (eh-none     )    153 B  (unnamed) prod=msc-value-postop-type
+  [  3] GAP call-token-0xB9          cflow-straight             eh-none     (eh-none     )    138 B  (unnamed) prod=msc-value-result-type
+  [  4] ok  call-sequence-value-fp   cflow-straight             eh-none     (eh-none     )    138 B  (unnamed) prod=prod-not-entered
+  [  5] ok  call-sequence-value      cflow-straight             eh-none     (eh-none     )    146 B  (unnamed) prod=prod-not-entered
+  blocking features (">" marks the byte that blocked the parse):
