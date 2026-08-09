@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use crate::{Args, Arity, Spec};
-use crate::cli::util::scratch;
+use crate::cli::util::Scratch;
 
 /// **Board #132 — the listing seam.** Capture one TU and print (or write) c2's
 /// own `.cod` assembly listing beside the obj the differential grades.
@@ -50,7 +50,7 @@ pub(crate) fn cmd_listing(rest: &[String]) -> ExitCode {
             .map(|s| s.to_string())
             .collect();
     }
-    let w = scratch("listing");
+    let w = Scratch::new("listing");
     let src = c2_reference::to_wibo_path(&cpp);
     let code = match tc.capture_listing_with(&src, &w, &flags, None, qxstalls) {
         Ok((captured, cod)) => {
@@ -92,7 +92,6 @@ pub(crate) fn cmd_listing(rest: &[String]) -> ExitCode {
             ExitCode::FAILURE
         }
     };
-    let _ = std::fs::remove_dir_all(&w);
     code
 }
 
@@ -180,13 +179,17 @@ pub(crate) fn cmd_listing_scan(rest: &[String]) -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
+    // As in `gap`: `listing_scan` owns a per-TU subdir inside this container and
+    // removes it, so the container is empty at the end and the listing goes to
+    // stdout/`--jsonl`. A user-supplied `--work` is left on disk.
+    let work = Scratch::or_work(work, "listing-scan");
     let cfg = c2_harness::listing::ListingScanConfig {
         sources,
         flags,
         cwd,
         limit,
         jobs,
-        work: work.unwrap_or_else(|| scratch("listing-scan")),
+        work: work.path().to_path_buf(),
         qxstalls,
         jsonl,
     };

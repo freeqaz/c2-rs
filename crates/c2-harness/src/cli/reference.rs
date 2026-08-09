@@ -15,7 +15,7 @@ use c2_il::IL_SUFFIXES;
 use c2_obj::{ObjDiff, ObjImage};
 
 use crate::{Args, Arity, Spec};
-use crate::cli::util::{first_line, require_cpp, scratch, CPP_PROFILE_REQUIRES};
+use crate::cli::util::{first_line, require_cpp, Scratch, CPP_PROFILE_REQUIRES};
 
 static CAPTURE_SPEC: Spec = Spec::new(
     "capture",
@@ -78,7 +78,7 @@ pub(crate) fn cmd_capture(rest: &[String]) -> ExitCode {
     let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
-    let w = scratch("capture");
+    let w = Scratch::new("capture");
     let captured = match &flags_file {
         None => tc.capture_il(&cpp, &w),
         Some(_) => tc.capture_il_flags(&cpp, &w, &flags, cwd.as_deref()),
@@ -116,12 +116,10 @@ pub(crate) fn cmd_capture(rest: &[String]) -> ExitCode {
                     }
                 }
             }
-            let _ = std::fs::remove_dir_all(&w);
             ExitCode::SUCCESS
         }
         Err(e) => {
             eprintln!("capture failed: {e}");
-            let _ = std::fs::remove_dir_all(&w);
             ExitCode::FAILURE
         }
     }
@@ -187,7 +185,7 @@ pub(crate) fn cmd_compile(rest: &[String]) -> ExitCode {
     let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
-    let w = scratch("compile");
+    let w = Scratch::new("compile");
     let out = w.join("out.obj");
     if let Some(ff) = &flags_file {
         let res = tc.capture_reference_with(&cpp.to_string_lossy(), &w, &flags, cwd.as_deref());
@@ -213,12 +211,10 @@ pub(crate) fn cmd_compile(rest: &[String]) -> ExitCode {
                     let _ = std::fs::write(dest, c.ref_obj.as_bytes());
                     println!("  kept reference obj at {}", dest.display());
                 }
-                let _ = std::fs::remove_dir_all(&w);
                 ExitCode::SUCCESS
             }
             Err(e) => {
                 eprintln!("compile failed: {e}");
-                let _ = std::fs::remove_dir_all(&w);
                 ExitCode::FAILURE
             }
         };
@@ -251,12 +247,10 @@ pub(crate) fn cmd_compile(rest: &[String]) -> ExitCode {
                     Err(e) => eprintln!("  cannot write {}: {e}", dest.display()),
                 }
             }
-            let _ = std::fs::remove_dir_all(&w);
             ExitCode::SUCCESS
         }
         Err(e) => {
             eprintln!("compile failed: {e}");
-            let _ = std::fs::remove_dir_all(&w);
             ExitCode::FAILURE
         }
     }
@@ -315,11 +309,10 @@ pub(crate) fn cmd_selftest(rest: &[String]) -> ExitCode {
     print!("{}", Provenance::collect(&tc, None).render());
     println!("oracle self-test (determinism + capture stability):");
     for cpp in &targets {
-        let w = scratch("selftest");
+        let w = Scratch::new("selftest");
         let report = oracle_selftest(cpp, &tc, &w);
         all_pass &= report.passed();
         println!("{}", selftest_row(&report));
-        let _ = std::fs::remove_dir_all(&w);
     }
     if all_pass {
         ExitCode::SUCCESS
@@ -353,7 +346,7 @@ pub(crate) fn cmd_replay(rest: &[String]) -> ExitCode {
         println!("SKIP: i686-w64-mingw32-gcc absent (needed to build c2host)");
         return ExitCode::SUCCESS;
     }
-    let w = scratch("replay");
+    let w = Scratch::new("replay");
     let out = (|| {
         let captured = tc.capture_reference(&cpp, &w.join("cap"))?;
         // Replay to the SAME /Fo path as the reference for an exact byte compare.
@@ -385,7 +378,6 @@ pub(crate) fn cmd_replay(rest: &[String]) -> ExitCode {
             ExitCode::FAILURE
         }
     };
-    let _ = std::fs::remove_dir_all(&w);
     code
 }
 
@@ -418,7 +410,7 @@ pub(crate) fn cmd_replay_c1(rest: &[String]) -> ExitCode {
         println!("SKIP: c1xx.dll absent (front end not located)");
         return ExitCode::SUCCESS;
     }
-    let w = scratch("replay-c1");
+    let w = Scratch::new("replay-c1");
     let report = c1_replay_check(&cpp, &tc, &w);
     let code = match &report {
         C1ReplayReport::ToolchainAbsent => {
@@ -460,7 +452,6 @@ pub(crate) fn cmd_replay_c1(rest: &[String]) -> ExitCode {
             }
         }
     };
-    let _ = std::fs::remove_dir_all(&w);
     code
 }
 
@@ -481,7 +472,7 @@ pub(crate) fn cmd_diff(rest: &[String]) -> ExitCode {
     let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
-    let w = scratch("diff");
+    let w = Scratch::new("diff");
     let port = PortC2::default();
     let report = differential(&cpp, &tc, &port, &w);
     let line = match &report {
@@ -513,7 +504,6 @@ pub(crate) fn cmd_diff(rest: &[String]) -> ExitCode {
         }
     };
     println!("{} -> {}", cpp.display(), line);
-    let _ = std::fs::remove_dir_all(&w);
     // A byte-exact reference replay is the pass condition, and the port may be
     // Match or NotImplemented depending on the TU — both, and clean skips, are
     // success for scripting.
@@ -555,7 +545,7 @@ pub(crate) fn cmd_bench(rest: &[String]) -> ExitCode {
     println!("bench: oracle self-test across {} fixture(s)", targets.len());
     let (mut pass, mut fail, mut err) = (0u32, 0u32, 0u32);
     for cpp in &targets {
-        let w = scratch("bench");
+        let w = Scratch::new("bench");
         let report = oracle_selftest(cpp, &tc, &w);
         match &report.outcome {
             SelfTestOutcome::Pass { .. } => pass += 1,
@@ -563,7 +553,6 @@ pub(crate) fn cmd_bench(rest: &[String]) -> ExitCode {
             _ => fail += 1,
         }
         println!("{}", selftest_row(&report));
-        let _ = std::fs::remove_dir_all(&w);
     }
     println!("\nsummary: {pass} pass, {fail} fail, {err} error (of {})", targets.len());
     if fail == 0 && err == 0 {

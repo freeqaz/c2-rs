@@ -6,7 +6,7 @@ use std::process::ExitCode;
 use c2_harness::prefilter;
 
 use crate::{Args, Arity, Spec};
-use crate::cli::util::scratch;
+use crate::cli::util::Scratch;
 
 /// `c2rs prefilter` — the reject-only pre-filter seam (see
 /// [`c2_harness::prefilter`] for the contract that binds callers).
@@ -86,8 +86,15 @@ pub(crate) fn cmd_prefilter(rest: &[String]) -> ExitCode {
         return ExitCode::from(2);
     }
 
-    let work = work.unwrap_or_else(|| scratch("prefilter"));
-    let owned_work = work.clone();
+    // Captured IL bundles are large and this runs per candidate; the JSON (and
+    // the emitted obj, which lives wherever the caller asked) is the record, so
+    // the working dir goes away. It used to go away even when the caller named
+    // it: the old spelling cloned the path *after* `unwrap_or_else` and passed
+    // the clone to an unconditional `remove_dir_all`, so `prefilter --work DIR`
+    // deleted DIR -- a directory the harness did not create. `Scratch` removes
+    // only what it minted, and drops on the two error returns above's successors
+    // as well as this one.
+    let work = Scratch::or_work(work, "prefilter");
     let req = prefilter::Request {
         source,
         flags,
@@ -95,15 +102,12 @@ pub(crate) fn cmd_prefilter(rest: &[String]) -> ExitCode {
         emit_obj,
         compare_obj,
         obj_name,
-        work,
+        work: work.path().to_path_buf(),
     };
     // `toolchain_quiet`, not `toolchain`: this command emits one line of JSON
     // and reports toolchain absence *inside* it, so a bare `SKIP:` line would
     // corrupt the output it is contracted to produce.
     let out = prefilter::run(args.toolchain_quiet().as_ref(), &req);
     println!("{}", out.to_json());
-    // Captured IL bundles are large and this runs per candidate; the JSON (and
-    // the emitted obj, which lives wherever the caller asked) is the record.
-    let _ = std::fs::remove_dir_all(&owned_work);
     ExitCode::SUCCESS
 }

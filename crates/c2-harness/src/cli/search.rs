@@ -7,7 +7,7 @@ use std::process::ExitCode;
 use std::time::Duration;
 
 use crate::{Args, Arity, Spec};
-use crate::cli::util::{first_line, scratch};
+use crate::cli::util::{first_line, Scratch};
 
 // ---------------------------------------------------------------------------
 // T-A IL-space search prototype
@@ -130,7 +130,7 @@ pub(crate) fn cmd_search_solve(rest: &[String]) -> ExitCode {
         println!("SKIP: strace / i686-w64-mingw32-gcc absent (needed for replay)");
         return ExitCode::SUCCESS;
     }
-    let w = scratch("search-solve");
+    let w = Scratch::new("search-solve");
     // An inserted redundant term is the cleanest obj-changing single demo.
     let r = search::solve_instance(&tc, &cpp, Perturb::AddTerm, 1, &moves, &budget, &w, timeout);
     let code = match (&r.outcome, &r.error) {
@@ -163,7 +163,6 @@ pub(crate) fn cmd_search_solve(rest: &[String]) -> ExitCode {
             ExitCode::SUCCESS
         }
     };
-    let _ = std::fs::remove_dir_all(&w);
     code
 }
 
@@ -210,7 +209,7 @@ pub(crate) fn cmd_search_eval(rest: &[String]) -> ExitCode {
         .map(|n| c2_harness::fixtures_dir().join(n))
         .collect();
 
-    let w = scratch("search-eval");
+    let w = Scratch::new("search-eval");
     println!(
         "T-A IL-space solve-rate: {} fixtures x {} perturbation families, moves={}, budget steps={} compiles={}",
         fixtures.len(),
@@ -260,7 +259,6 @@ pub(crate) fn cmd_search_eval(rest: &[String]) -> ExitCode {
         "  {:<14} {}/{} = {:>5.1}%   mean compiles-to-solve: {:.1}",
         "OVERALL", solved, attempted, pct, mean
     );
-    let _ = std::fs::remove_dir_all(&w);
     if attempted > 0 && solved == attempted {
         ExitCode::SUCCESS
     } else if solved > 0 {
@@ -337,7 +335,7 @@ pub(crate) fn cmd_search_from_retrieval(rest: &[String]) -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    let w = scratch("search-from-retrieval");
+    let w = Scratch::new("search-from-retrieval");
     println!(
         "T-A from-unrelated-seed: sample={} (multi={}) select-seed={} budget steps={} compiles={} beam={} timeout={}s",
         cfg.sample,
@@ -352,11 +350,9 @@ pub(crate) fn cmd_search_from_retrieval(rest: &[String]) -> ExitCode {
         Ok(r) => r,
         Err(e) => {
             eprintln!("from-retrieval eval failed: {e}");
-            let _ = std::fs::remove_dir_all(&w);
             return ExitCode::FAILURE;
         }
     };
-    let _ = std::fs::remove_dir_all(&w);
 
     println!("  corpus items: {}", report.n_items);
     println!("  per-target (target[fns] <- seed[fns] : class):");
@@ -494,17 +490,15 @@ pub(crate) fn cmd_search_from_lifter(rest: &[String]) -> ExitCode {
         timeout.as_secs(),
     );
 
-    let w = scratch("search-from-lifter");
+    let w = Scratch::new("search-from-lifter");
     let report =
         match search::from_lifter_eval(&tc, &dir, &gens, k, limit, &moves, &budget, timeout, &w) {
             Ok(r) => r,
             Err(e) => {
                 eprintln!("from-lifter eval failed: {e}");
-                let _ = std::fs::remove_dir_all(&w);
                 return ExitCode::FAILURE;
             }
         };
-    let _ = std::fs::remove_dir_all(&w);
 
     println!("  corpus ok-rows: {}", report.n_items);
     println!("  per-target (id[fns] class : detail):");
