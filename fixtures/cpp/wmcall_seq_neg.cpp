@@ -30,26 +30,38 @@
 //         found — and the member arm asks `CallRet::discarded` exactly where the
 //         free-function arm does.
 //
-//   N6  `expr-call-in-expr-recv-load-whole`
-//         the VALUE TAIL: `s->a(); return s->get();`. `SeqTail::CallValue`
-//         marshals a receiver into slot 0 *and* a post-op region, and the two
-//         have never been graded together. This cell keeps the key it has at
-//         base, which is the rung's D7 working as designed: a member arm that
-//         declines re-raises the block the body already reported, so a refusal
-//         is never re-keyed.
+//   N6  `tail-argument-not-in-the-operand-vocabulary`
+//         a member call whose ARGUMENT is a nested call — `s->take(t->get())`.
+//         The argument operand vocabulary is the largest `prod` tag on this
+//         whole family's emitted column (**8,909 emitted over 4,088 distinct
+//         functions**, w-callprice §5), and it is a *lowering*, not an
+//         admission: a call standing as an operand is w-value's class and
+//         w-mcall's own decline **D1**.
+//
+//         **This slot used to hold the VALUE TAIL** — `s->a(); return
+//         s->get();`, w-mcall's decline **D3**, filed unsized. Lane `w-fltret`
+//         PAID it (`docs/rungs/2026-08-09-w-fltret.md`), the cell became
+//         `call-sequence-value`, and **this file went on grading
+//         `Port=NotImplemented` exactly as before** — a `_neg` fixture's graded
+//         property is a whole-TU refusal, so it cannot see one of its own cells
+//         being converted. The needle is re-taken here rather than deleted,
+//         which is w-park's precedent: retire a cell only when it is FULLY
+//         paid, and replace it so the file keeps six live declines.
 //
 // N1–N3 are receiver productions this rung declines; N4–N6 are sequence
 // positions it declines. Both directions matter: a reader that admitted every
 // receiver and one that admitted every position would each look like this file
 // passing.
 //
-// Board rows #1960–#1963; `docs/rungs/2026-08-08-w-mcall.md`.
+// Board rows #1960–#1963; `docs/rungs/2026-08-08-w-mcall.md`. N6 re-taken at
+// board **#2085**.
 
 struct S {
     void a();
     void b();
     int get();
     float f();
+    void take(int v);
 };
 struct L {
     L *Next();
@@ -93,8 +105,9 @@ void wmcall_neg_fp(S *s) {
     s->a();
 }
 
-// N6 — the value tail.
-int wmcall_neg_value_tail(S *s) {
-    s->a();
-    return s->get();
+// N6 — a nested call in an argument slot (the slot the value tail used to hold;
+// that clause is paid, see the header).
+void wmcall_neg_argvocab(S *s, S *t) {
+    s->take(t->get());
+    s->b();
 }

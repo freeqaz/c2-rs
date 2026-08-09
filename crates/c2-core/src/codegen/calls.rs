@@ -2466,6 +2466,14 @@ mod tests {
         // `addi r3,r3,4` — and NOTHING at 0.
         assert_eq!(tail_of(c2_il::SeqTail::CallValue { add_k: 4 }), vec![0x38, 0x63, 0x00, 0x04]);
         assert_eq!(tail_of(c2_il::SeqTail::CallValue { add_k: 0 }), Vec::<u8>::new());
+        // **W-FLTRET — the FP value tail emits nothing, and that is a
+        // MEASUREMENT and not an omission.** c2's own `/FAsc` listing for
+        // `float f(O*o){ o->Poll(); return o->Level(); }` ends `bl ?Level ; addi
+        // r1,r1,96 ; …` — no `fmr`, no `frsp`, the callee's `f1` IS the result
+        // (`work/w-fltret/probe/v1.cod`). The difference between this tail and
+        // the integer one above it is one obj symbol, `_fltused`, and no
+        // instruction at all.
+        assert_eq!(tail_of(c2_il::SeqTail::CallValueFp), Vec::<u8>::new());
         // A negative displacement is representable and is not a fold either.
         assert_eq!(tail_of(c2_il::SeqTail::CallLoad { off: -4 }), vec![0x80, 0x63, 0xFF, 0xFC]);
         // Past the signed-16-bit displacement it refuses rather than truncating.

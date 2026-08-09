@@ -1536,8 +1536,10 @@ mod tests {
         0x4D,
     ];
 
-    /// `int wmcall_neg_value_tail(S* s){ s->a(); return s->get(); }` —
-    /// `wmcall_seq_neg.cpp` cell N6, the VALUE TAIL this rung declines.
+    /// `int wmcall_neg_value_tail(S* s){ s->a(); return s->get(); }` — the
+    /// integer VALUE TAIL. It was w-mcall's decline **D3** and
+    /// `wmcall_seq_neg.cpp` cell N6; **lane `w-fltret` paid it**, so this cell is
+    /// a positive now and the fixture cell was re-taken.
     const MCS_VALUE_TAIL: &[u8] = &[
         0x4F, 0x1F, 0x80, 0x05, 0x00, 0x20, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
         0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
@@ -1647,17 +1649,133 @@ mod tests {
         assert_eq!(saved, vec![0]);
     }
 
-    /// **The VALUE TAIL is declined, and the body keeps the key it has at
-    /// base.** `SeqTail::CallValue` marshals a receiver into slot 0 *and* a
-    /// post-op region and the two have never been graded together — decline D3.
+    /// **W-FLTRET — the VALUE TAIL is admitted**, and the receiver still lands in
+    /// slot 0 of the last call exactly as it does in the statement positions.
     ///
-    /// The second assertion is the rung's D7: an arm that declines re-raises the
-    /// block the body already reported, so a refusal is never re-keyed.
+    /// This test asserted the **opposite** until w-fltret: w-mcall's decline D3
+    /// was *"`SeqTail::CallValue` marshals a receiver into slot 0 and a post-op
+    /// region, and the two have never been graded together"*. They are graded
+    /// together now (`fixtures/cpp/wfltret_value_tail.cpp` cells F3 and F8, a
+    /// whole-TU byte-exact match at `/O1` and `/Ox`), so the test is turned
+    /// around rather than deleted — #1710a, a test that vanishes takes its
+    /// coverage with it.
     #[test]
-    fn a_member_statement_call_whose_result_is_not_discarded_declines() {
-        assert!(parse_segment(MCS_VALUE_TAIL, NO_LOCALS).is_none());
-        let b = parse_segment_detail(MCS_VALUE_TAIL, NO_LOCALS).unwrap_err();
-        assert_eq!(b.feature(), "expr-call-in-expr-recv-load-whole", "{}", b.feature());
+    fn a_member_call_in_the_value_tail_is_admitted_with_this_in_slot_zero() {
+        let Some(BodyShape::CallSeq { calls, saved, tail, .. }) =
+            parse_segment(MCS_VALUE_TAIL, NO_LOCALS)
+        else {
+            panic!("the integer member value tail is a statement-call sequence");
+        };
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0].arg_ops, vec![IlOp::Load(0x140A)], "the statement call's `this`");
+        assert_eq!(calls[1].arg_ops, vec![IlOp::Load(0x140A)], "the VALUE call's `this`");
+        assert_eq!(saved, vec![0], "`s` is live across the first `bl`");
+        assert_eq!(tail, crate::func::body::SeqTail::CallValue { add_k: 0 });
+    }
+
+    /// **The FLOAT value tail is the same body with a different tail**, and the
+    /// tail is what puts `_fltused` in the obj.
+    ///
+    /// `float v_float(O* o){ o->Poll(); return o->Level(); }`, captured
+    /// (`work/w-fltret/probe/v1.cpp`, segment 0). Note the two CALL tokens: the
+    /// statement call's return TYPE is `82 07 03` (void) and the value call's is
+    /// `86 45 40` (a 4-byte real), and the result annotation `41 86 45 40` stands
+    /// **immediately** after the `4C` — no `2C` conversion, which is the
+    /// same-width rule this reader enforces.
+    const MCS_VALUE_TAIL_FP: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x0D, 0x53, 0x53, 0x26, 0xF1, 0x09,
+        0x46, 0x2D, 0xF0, 0x09, 0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE4, 0x09, 0xB9, 0xF0, 0x09, 0x86,
+        0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80,
+        0x04, 0x10, 0x00, 0x00, 0x4C, 0x4B, 0x26, 0xE5, 0x09, 0xB9, 0xF0, 0x09, 0x86, 0x43, 0x81,
+        0x20, 0x99, 0x86, 0x43, 0x85, 0x20, 0x00, 0xBD, 0x86, 0x45, 0x40, 0x00, 0x80, 0x05, 0x10,
+        0x00, 0x00, 0x4C, 0x41, 0x86, 0x45, 0x40, 0x3A, 0xF2, 0x09, 0x54, 0x02, 0x29, 0xF2, 0x09,
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// The same cell with the value call's result **converted** — a `double`
+    /// callee narrowed to a `float` result, which c2 lowers as an extra
+    /// `frsp fr1,fr1` (`work/w-fltret/probe/v3.cod`). The only edit is the
+    /// `2C 86 45 40 00` conversion spliced between the `4C` and the `41`, and
+    /// the value CALL token's result type widened to `88 85 41`; everything else
+    /// is byte for byte the cell above, so the pair separates **exactly** the
+    /// immediacy rule and nothing else.
+    const MCS_VALUE_TAIL_FP_NARROW: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x0D, 0x53, 0x53, 0x26, 0xF1, 0x09,
+        0x46, 0x2D, 0xF0, 0x09, 0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE4, 0x09, 0xB9, 0xF0, 0x09, 0x86,
+        0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80,
+        0x04, 0x10, 0x00, 0x00, 0x4C, 0x4B, 0x26, 0xE5, 0x09, 0xB9, 0xF0, 0x09, 0x86, 0x43, 0x81,
+        0x20, 0x99, 0x86, 0x43, 0x85, 0x20, 0x00, 0xBD, 0x88, 0x85, 0x41, 0x00, 0x80, 0x05, 0x10,
+        0x00, 0x00, 0x4C, 0x2C, 0x86, 0x45, 0x40, 0x00, 0x41, 0x86, 0x45, 0x40, 0x3A, 0xF2, 0x09,
+        0x54, 0x02, 0x29, 0xF2, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    #[test]
+    fn the_float_value_tail_is_what_puts_fltused_in_the_obj() {
+        let Some(BodyShape::CallSeq { calls, saved, tail, .. }) =
+            parse_segment(MCS_VALUE_TAIL_FP, NO_LOCALS)
+        else {
+            panic!("the float member value tail is a statement-call sequence");
+        };
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[1].arg_ops, vec![IlOp::Load(0xF009)], "the value call's `this`");
+        assert_eq!(saved, vec![0]);
+        assert_eq!(tail, crate::func::body::SeqTail::CallValueFp);
+
+        // The whole point of the variant: the resolved function reports itself
+        // FP-touching although its body has no FP instruction at all. W36 lost a
+        // symbol by missing a shape in this producer, and the failure mode is an
+        // obj one symbol short on every positive case at once —
+        // `Port=Mismatch @ offset 12`, the COFF header's `NumberOfSymbols`.
+        let fp = crate::func::IlFunction {
+            call_seq: Some(crate::func::CallSeq {
+                early: Vec::new(),
+                guard: None,
+                calls: Vec::new(),
+                tail: crate::func::SeqTail::CallValueFp,
+                saved: Vec::new(),
+                store_run: None,
+            }),
+            ..crate::func::IlFunction::base("?v_float@@YAMPAUO@@@Z", &None)
+        };
+        assert!(fp.touches_floating_point(), "the FP value tail is a `_fltused` producer");
+        // …and the integer sibling, which emits the identical instruction
+        // stream, is not.
+        let int_tail = crate::func::IlFunction {
+            call_seq: Some(crate::func::CallSeq {
+                early: Vec::new(),
+                guard: None,
+                calls: Vec::new(),
+                tail: crate::func::SeqTail::CallValue { add_k: 0 },
+                saved: Vec::new(),
+                store_run: None,
+            }),
+            ..crate::func::IlFunction::base("?v_int@@YAHPAUO@@@Z", &None)
+        };
+        assert!(!int_tail.touches_floating_point());
+    }
+
+    /// **A conversion on the returned real is refused, and refused WITHOUT
+    /// re-keying.** The narrowing direction costs `frsp fr1,fr1`, so admitting
+    /// it would be wrong bytes; the widening direction wears the identical `2C`
+    /// and costs nothing, and decline D6 gives that one up rather than build a
+    /// width model. The second assertion is the no-re-key property: the block
+    /// the body reports is the free-function reader's own, unchanged.
+    #[test]
+    fn a_converted_real_result_is_refused_and_keeps_its_key() {
+        assert!(parse_segment(MCS_VALUE_TAIL_FP_NARROW, NO_LOCALS).is_none());
+        let b = parse_segment_detail(MCS_VALUE_TAIL_FP_NARROW, NO_LOCALS).unwrap_err();
+        assert_eq!(
+            b.feature(),
+            "expr-call-in-expr-recv-load-then-type-real-whole",
+            "{}",
+            b.feature()
+        );
     }
 
     /// **A GUARDED sequence never admits a member call** — decline D4. That
