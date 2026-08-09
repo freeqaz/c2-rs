@@ -725,6 +725,26 @@ pub fn splice_body_why<'a>(
         let Some((g, opt_word)) = tu.definition(callee) else {
             return Err(SpliceDecline::Refused("S5-callee-extern"));
         };
+        // **S7-noinline — `__declspec(noinline)`, read off the `.gl`.**
+        //
+        // `crates/c2-harness/tests/noinline_boundary.rs` cell `w10` is a
+        // **shipped, demonstrated wrong emit**: the splice puts the callee's
+        // body where c2 emits `b ?g`, and that file's own note says the port
+        // *"cannot read the attribute"*. It can now —
+        // `c2_il::func::gl::FN_FLAG_INLINABLE`, board **#1039**'s undecoded
+        // field — so the splice stops expanding what c2 keeps a call to.
+        //
+        // Asked **per link and inside the loop**, not once before it: `S6-chain`
+        // steps `callee` down the chain and every intermediate is a body the
+        // splice would take, so an attribute on link three has to refuse at link
+        // three. Placed after `tu.definition` because the attribute belongs to a
+        // function this TU DEFINES; an external's is unreadable and unneeded,
+        // since `S5-callee-extern` has already refused it.
+        //
+        // `None` (unasked) and `Some(true)` behave exactly as before.
+        if g.inlinable == Some(false) {
+            return Err(SpliceDecline::Refused("S7-callee-noinline"));
+        }
         // The callee's own mode. A callee under a different `#pragma optimize`
         // than its caller allocates a chain intermediate to a different register
         // (`OptMode`'s doc), so splicing across that boundary would emit the

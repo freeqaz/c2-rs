@@ -297,6 +297,30 @@ fn callee_is_one_c2_expands<'a>(
         // size to measure.
         return false;
     };
+    // **`__declspec(noinline)` is never inlined, and the port can now SEE it.**
+    //
+    // `c2_il::func::gl::FN_FLAG_INLINABLE` is the `.gl` function record bit
+    // board **#1039** filed as undecoded and `w-inlfence2` **#2155** named as
+    // this fence's missing input — *"the missing input is not definedness"*.
+    // That rung's answer was the callee's SIZE; this is the second one, and it
+    // is the one this TU's own reference obj turns on: `mmioClose`'s
+    // `bl mmioFlush` survives at `/O1 /Oi /EHsc /GR` while eight cells of
+    // `work/w-mmioclose/probe/inl.cpp` — the same shape without the attribute,
+    // including a callee defined BELOW its caller and a `static` one — are all
+    // expanded. Size does not separate them: `mmioFlush` is 8 bytes.
+    //
+    // **Asked before the size, deliberately.** `WB_INLINE_FINDINGS` §2.1's
+    // candidacy ceiling is 128 instructions and §7's licensed narrowings are all
+    // decline rules keyed on size; `noinline` is a **legality** fact
+    // (`0x10b5c06b`, *"requires bit 6 of `[sym+0x4c]`"*), and legality is
+    // checked before profitability in c2 too. Putting it after the size test
+    // would give the same answer and read as if size were the primary fact.
+    //
+    // `None` (unasked) and `Some(true)` both fall through to exactly the
+    // behaviour this function had before the bit existed.
+    if g.inlinable == Some(false) {
+        return false;
+    }
     // **Direct recursion is never inlined** — `WB_INLINE_FINDINGS` F5, and
     // `INLINE_PREDICATE.md` §4 grades `recurse` 336/336 declined by c2 as well.
     // Compared by ADDRESS and not by name: `IlFunction::mangled_name` is the

@@ -1226,6 +1226,7 @@ mod tests {
         // `fixtures/cpp/w25_store_leaf.cpp` and `work/lf/probes/p1.cpp`, not
         // derived from the encoding rule.
         let mut f = IlFunction {
+            inlinable: None,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
             mangled_name: "?s_b@@YAXPAUS@@H@Z".into(),
@@ -1345,6 +1346,7 @@ mod tests {
     #[test]
     fn store_run_text_is_one_store_per_statement_in_source_order() {
         let mut f = IlFunction {
+            inlinable: None,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
             mangled_name: "?s2@@YAXPAUS@@HH@Z".into(),
@@ -1508,6 +1510,7 @@ mod tests {
     #[test]
     fn load_valued_store_is_a_scratch_pair_and_the_mode_picks_the_register() {
         let mut f = IlFunction {
+            inlinable: None,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
             mangled_name: "?c1@@YAXPAUS@@PAUQ@@@Z".into(),
@@ -1766,6 +1769,7 @@ mod tests {
     #[test]
     fn the_widening_refuses_one_step_outside_every_models_domain() {
         let base = |ops: Vec<IlOp>, params: Vec<u32>| IlFunction {
+            inlinable: None,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
             mangled_name: "?x@@YAXPAUS@@@Z".into(),

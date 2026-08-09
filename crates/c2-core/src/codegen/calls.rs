@@ -998,6 +998,9 @@ fn ops_setup_text(
         return Ok(Vec::new());
     }
     let synth = IlFunction {
+        // A SYNTHETIC function, never a `.gl` record — so "unasked" is the only
+        // honest value, and it is also the one no consumer acts on.
+        inlinable: None,
         alloc_init_or_fail: None,
         osf_handle_guard: None,
         guard_ret_chain: None,

@@ -88,6 +88,7 @@ mod tests {
         // `fixtures/cpp/w16_addr_leaf.cpp` and `work/bma/probes/p{1,2,3}.cpp`,
         // not derived from the encoding rule.
         let mut f = IlFunction {
+            inlinable: None,
             mangled_name: "?a_off4@@YAPAHPAUS@@@Z".into(),
             source_path: None,
             params: vec![0xEE09],
