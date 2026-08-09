@@ -801,6 +801,26 @@ already paid for codegen:
   the 7 blocked EMITTED functions in the four READER-CLEAR TUs and **it names
   none of their refusals**"* — **diagnosed and not repaired.**
 
+  **A THIRD instance, and it is a whole PRICE rather than one key.** *Added
+  2026-08-09 by lane `w-mmioclose` (#2405, #2406).* `w-ifn` priced
+  `src/xdk/nuispeech/mmio.cpp` at six codegen mechanisms, all of them
+  `mmioClose`'s, and closed with *"`mmioClose`'s 124 bytes are the entire
+  remaining distance"*. The TU's own scan row reads **`1 .gl names`** against
+  **11** `.ex` segments: ten of its functions are `extern "C"` and undecorated,
+  `c2_il::mangled_names` is `looks_mangled` = `contains("@@")`, and
+  `Bindings::per_record` binds nothing unless the records are 1:1 with the
+  segments. **So `IlBundle::functions()` returns `None` before any body is
+  looked at, and paying all six converts nothing.**
+
+  The mislocation has a *mechanism* here and it belongs on this list beside the
+  key-level one: **the instrument that said the distance was bytes is keyed on a
+  different binding from the gate that decides conversion.**
+  `frontier-bytefrac-*` and every `fnbyte-*` row are keyed on
+  `FnCensus::emit_name`; TU `match` is decided by `Bindings::per_record`; board
+  **#918** measured those two disagreeing on **74,955** workload rows. A
+  per-function instrument can go 16.8 % → 67.4 % on a TU the gate has never
+  bound. **Checklist item 8 below.**
+
 ### 11.2 The detector
 
 Three tests, all over the **emitted** population, which `w-readpx` (#2280)
@@ -868,3 +888,11 @@ fall-through family's size beside any ranking taken off T2 — it is **9,095 of
    where codegen alone can convert.
 7. **Check the board.** Five rows have re-entered a ranking after already
    measuring zero. `grep` `BOARD.md` for the key before sizing a rung on it.
+8. **Before pricing a TU CONVERSION, quote the GATE's number, not a
+   per-function one.** *Added by `w-mmioclose` (#2406).* `fn_names` and the
+   scan row's own `detail` string say whether `Bindings::per_record` binds this
+   TU at all; `frontier-bytefrac-*`, `fnbyte-exact` and the emitted census do
+   not, because they are keyed on `FnCensus::emit_name`. A TU can be at 67 % by
+   byte with **one** of its eleven names bound. The two bindings disagree on
+   74,955 workload rows (#918), and the cheap check is one line of the TU's own
+   `gap --jsonl` row.
