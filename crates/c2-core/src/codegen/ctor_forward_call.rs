@@ -104,3 +104,64 @@ pub fn ctor_forward_call_text(base_off: u32) -> Result<CtorForwardBody, BackendE
     text.extend_from_slice(&epilogue);
     Ok(CtorForwardBody { text, bl_offset, prolog_len })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn words(t: &[u8]) -> Vec<u32> {
+        t.chunks(4).map(|w| u32::from_be_bytes(w.try_into().unwrap())).collect()
+    }
+
+    /// **The nine words, against `work/w-biquad/real.obj`.**
+    /// `??0Biquad@DSP@@QAA@PAM@Z` is 36 bytes and its `bl` is at 0x10 with
+    /// `disp = −0x10` and LK set.
+    #[test]
+    fn the_nine_words_are_the_reference_obj() {
+        let b = ctor_forward_call_text(0).expect("in class");
+        assert_eq!(b.text.len(), 36, "the reference `.text` COMDAT is 36 bytes");
+        assert_eq!(b.prolog_len, 12);
+        assert_eq!(b.bl_offset, 0x10);
+        assert_eq!(
+            words(&b.text),
+            vec![
+                0x7d8802a6, 0x9181fff8, 0x9421ffa0, // the 96-byte frame
+                0x7c6a1b78,                         // mr r10,r3 — THE PARK
+                0x4bfffff1,                         // bl <callee>, REL24
+                0x38210060, 0x8181fff8, 0x7d8803a6, 0x4e800020,
+            ]
+        );
+    }
+
+    /// **There is no post-call word.** [`crate::codegen::framed_call_text`]
+    /// emits `addi r3,r3,k` between the `bl` and the epilogue for its
+    /// `return g(x) + k` shape; this class has nothing there, and `addi r3,r3,0`
+    /// would be ten words where c2 has nine. Asserted positively — the word
+    /// after the `bl` is the epilogue's first — rather than as an absence.
+    #[test]
+    fn nothing_sits_between_the_call_and_the_epilogue() {
+        let b = ctor_forward_call_text(0).expect("in class");
+        let w = words(&b.text);
+        let bl = (b.bl_offset / 4) as usize;
+        assert_eq!(w[bl + 1], 0x38210060, "`addi r1,r1,96`, the epilogue");
+    }
+
+    /// **`base_off` is threaded, not hardcoded.** The `bl` displacement follows
+    /// MSVC's `disp = −(own .text offset)` convention, and a class built at a
+    /// hardcoded 0 is a live wrong-bytes emit for any function that is not first
+    /// in a packed `.text` — the defect `framed_call_text`'s own doc records
+    /// having shipped. This class is refused on the packed path today, so
+    /// nothing exercises the threading; it is asserted here rather than left to
+    /// be discovered by whatever lifts that refusal.
+    #[test]
+    fn the_call_displacement_follows_the_function() {
+        for base in [0u32, 8, 0x24, 0x100] {
+            let b = ctor_forward_call_text(base).expect("in class");
+            assert_eq!(b.bl_offset, base + 0x10);
+            let word = words(&b.text)[4];
+            assert_eq!(word & 1, 1, "LK is set");
+            let disp = ((word & 0x03ff_fffc) as i32) << 6 >> 6;
+            assert_eq!(disp, -((base as i32) + 0x10));
+        }
+    }
+}

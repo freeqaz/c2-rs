@@ -140,6 +140,21 @@ const ARM_DEPTH: u8 = 5;
 /// they are the only place the source's *bracing* shows up in this stream, and a
 /// differently braced body is a different block plan.
 fn eat_close(seg: &[u8], p: &mut usize, k: u8, what: &'static str) -> Result<(), Block> {
+    // **The marker is consumed INSIDE the close**, not once before the run.
+    // Each `54` is preceded by its own `4F 01 <line>` — the source line of the
+    // `}` it closes — so a body whose two closing braces are on different lines
+    // carries two markers and a body whose arms are written on ONE line carries
+    // one. [`super::super::expr::eat_return_head`] states the same rule for the
+    // return plumbing's run and for the same reason.
+    //
+    // **This was measured, not foreseen.** The first draft skipped a marker once
+    // before the pair, which fits `Biquad.cpp`'s own formatting exactly and
+    // refuses a semantically identical body written on one line — and it turned
+    // seven of this class's eleven `_neg` cells into refusals on a FORMATTING
+    // axis instead of the axis each was written for, which is the confound six
+    // of the last nine lanes have paid for. The probe in
+    // `work/w-biquad/decline_probe.md` is what read it.
+    eat_opt_stmt_marker(seg, p);
     if !eat_byte(seg, p, 0x54) || !eat_byte(seg, p, k) {
         return Err(blk(seg, *p, what));
     }
@@ -148,6 +163,7 @@ fn eat_close(seg: &[u8], p: &mut usize, k: u8, what: &'static str) -> Result<(),
 
 /// Consume `29 <tok>` — a label definition — and return the label token.
 fn eat_label(seg: &[u8], p: &mut usize, what: &'static str) -> Result<u32, Block> {
+    eat_opt_stmt_marker(seg, p);
     if !eat_byte(seg, p, 0x29) {
         return Err(blk(seg, *p, what));
     }
@@ -158,6 +174,7 @@ fn eat_label(seg: &[u8], p: &mut usize, what: &'static str) -> Result<u32, Block
 
 /// Consume `<op> <tok>` for a transfer opcode and return the target label.
 fn eat_transfer(seg: &[u8], p: &mut usize, op: u8, what: &'static str) -> Result<u32, Block> {
+    eat_opt_stmt_marker(seg, p);
     if !eat_byte(seg, p, op) {
         return Err(blk(seg, *p, what));
     }
@@ -363,6 +380,7 @@ pub(crate) fn try_parse_fp_store_diamond(
     let l_else = eat_transfer(seg, &mut p, 0x38, "fpdiamond-guard-branch")?;
 
     // ---- the THEN arm: constant stores through `this` ----------------------
+    eat_opt_stmt_marker(seg, &mut p);
     if !eat_byte(seg, &mut p, 0x53) || !eat_byte(seg, &mut p, 0x53) {
         return Err(blk(seg, p, "fpdiamond-then-scopes"));
     }
@@ -373,7 +391,6 @@ pub(crate) fn try_parse_fp_store_diamond(
     if then_stores.len() < 2 {
         return Err(blk(seg, p, "fpdiamond-then-fewer-than-2-stores"));
     }
-    eat_opt_stmt_marker(seg, &mut p);
     eat_close(seg, &mut p, ARM_DEPTH, "fpdiamond-then-close-5")?;
     eat_close(seg, &mut p, ARM_DEPTH - 1, "fpdiamond-then-close-4")?;
     let l_join = eat_transfer(seg, &mut p, 0x3A, "fpdiamond-then-jump")?;
@@ -382,6 +399,7 @@ pub(crate) fn try_parse_fp_store_diamond(
     }
 
     // ---- the ELSE arm: a CSE'd division run --------------------------------
+    eat_opt_stmt_marker(seg, &mut p);
     if !eat_byte(seg, &mut p, 0x53) || !eat_byte(seg, &mut p, 0x53) {
         return Err(blk(seg, p, "fpdiamond-else-scopes"));
     }
@@ -398,7 +416,6 @@ pub(crate) fn try_parse_fp_store_diamond(
     if divs.iter().any(|d| d.den != divs[0].den) {
         return Err(blk(seg, p, "fpdiamond-divisors-differ"));
     }
-    eat_opt_stmt_marker(seg, &mut p);
     eat_close(seg, &mut p, ARM_DEPTH, "fpdiamond-else-close-5")?;
     eat_close(seg, &mut p, ARM_DEPTH - 1, "fpdiamond-else-close-4")?;
     if eat_label(seg, &mut p, "fpdiamond-join-label")? != l_join {

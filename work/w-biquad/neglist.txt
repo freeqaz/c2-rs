@@ -1,0 +1,1 @@
+z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wbiquad_fp_store_diamond_neg.cpp

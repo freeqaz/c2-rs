@@ -306,3 +306,192 @@ pub(crate) fn store_offsets(d: &FpStoreDiamond) -> Vec<i32> {
         .map(|s: &FpDiamondConstStore| s.off)
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use c2_il::FpDiamondDiv;
+
+    /// `Biquad.cpp`'s own shape, as `IlFunction` carries it.
+    fn biquad() -> FpStoreDiamond {
+        let f = |v: f32| (v as f64).to_bits();
+        FpStoreDiamond {
+            params: vec![1, 2],
+            then_stores: vec![
+                FpDiamondConstStore { off: 16, bits: f(0.0) },
+                FpDiamondConstStore { off: 12, bits: f(0.0) },
+                FpDiamondConstStore { off: 8, bits: f(0.0) },
+                FpDiamondConstStore { off: 4, bits: f(0.0) },
+                FpDiamondConstStore { off: 0, bits: f(1.0) },
+            ],
+            divs: vec![
+                FpDiamondDiv { off: 0, num: 0, den: 12 },
+                FpDiamondDiv { off: 4, num: 4, den: 12 },
+                FpDiamondDiv { off: 8, num: 8, den: 12 },
+                FpDiamondDiv { off: 12, num: 16, den: 12 },
+                FpDiamondDiv { off: 16, num: 20, den: 12 },
+            ],
+            join_stores: vec![
+                FpDiamondConstStore { off: 24, bits: f(0.0) },
+                FpDiamondConstStore { off: 20, bits: f(0.0) },
+            ],
+        }
+    }
+
+    fn words(t: &[u8]) -> Vec<u32> {
+        t.chunks(4).map(|w| u32::from_be_bytes(w.try_into().unwrap())).collect()
+    }
+
+    /// **The 35 words, against `work/w-biquad/real.obj` word for word.** Not a
+    /// spot check: the whole `.text` COMDAT of
+    /// `?SetCoefficients@Biquad@DSP@@QAAXPAM@Z`, taken off the reference obj
+    /// this lane compiled with real `c2.dll` under wibo at the workload's own
+    /// flags. The length is asserted separately, because emitting a body of the
+    /// wrong LENGTH is the one error this class can make that still links.
+    #[test]
+    fn the_thirty_five_words_are_the_reference_obj() {
+        let (text, _) = fp_store_diamond_text(&biquad()).expect("in class");
+        assert_eq!(text.len(), 140, "the reference `.text` COMDAT is 140 bytes");
+        assert_eq!(
+            words(&text),
+            vec![
+                0x3d600000, 0x2b040000, 0xc00b0000, 0x409a0024, // entry
+                0x3d600000, 0xd0030010, 0xd003000c, 0xd0030008, // then
+                0xd0030004, 0xc1ab0000, 0xd1a30000, 0x48000054,
+                0xc184000c, 0xc1a40000, 0xedad6024, 0xd1a30000, // else, x5
+                0xc184000c, 0xc1a40004, 0xedad6024, 0xd1a30004,
+                0xc184000c, 0xc1a40008, 0xedad6024, 0xd1a30008,
+                0xc184000c, 0xc1a40010, 0xedad6024, 0xd1a3000c,
+                0xc1a40014, 0xc184000c, 0xedad6024, 0xd1a30010, // ...the FLIP
+                0xd0030018, 0xd0030014, 0x4e800020, // join
+            ]
+        );
+    }
+
+    /// **B′-RULE, isolated: exactly one flip and it is the last division.**
+    ///
+    /// Read off the emitted words rather than off the source, and asserted over
+    /// runs of 2, 3, 4 and 5 — four of the five run lengths
+    /// `WB_CHOOSER_FINDINGS` §4.1 compiled. A rule fitted to `Biquad.cpp`'s run
+    /// of five alone would pass a test written only at five.
+    #[test]
+    fn the_divisor_loads_first_in_every_statement_but_the_last() {
+        for n in 2..=5usize {
+            let mut d = biquad();
+            d.divs.truncate(n);
+            let (text, _) = fp_store_diamond_text(&d).expect("in class");
+            let w = words(&text);
+            let (entry, then, _) = block_lengths(&d);
+            let base = ((entry + then) / 4) as usize;
+            let mut flips = Vec::new();
+            for i in 0..n {
+                // `lfs f12,…` is the divisor and `lfs f13,…` the numerator; the
+                // FRT field is bits 6..11 of the word.
+                let frt = (w[base + 4 * i] >> 21) & 0x1f;
+                if frt == FPR_B as u32 {
+                    flips.push(i);
+                }
+            }
+            assert_eq!(flips, vec![n - 1], "run of {n}: one flip, on the last");
+        }
+    }
+
+    /// **`lo_off` is NOT `hi_off + 4` for the block-local pool**, which is the
+    /// whole reason [`FpConstRef`] grew the field. Five words separate B's
+    /// `lis` from its `lfs`, with four unrelated `stfs` between them, and the
+    /// arithmetic form would have put the REFLO on the third of those.
+    #[test]
+    fn the_block_local_pool_has_its_halves_five_words_apart() {
+        let (_, consts) = fp_store_diamond_text(&biquad()).expect("in class");
+        assert_eq!(consts.len(), 2);
+        // A — the entry-hoisted pool; the `cmplwi` sits between its two halves.
+        assert_eq!((consts[0].hi_off, consts[0].lo_off), (0, 8));
+        // B — the block-local one.
+        assert_eq!((consts[1].hi_off, consts[1].lo_off), (0x10, 0x24));
+        assert_ne!(consts[1].lo_off, consts[1].hi_off + 4);
+        // EMISSION order, which the writer REVERSES to get the section order.
+        assert_eq!(consts[0].bits, (0.0f32 as f64).to_bits());
+        assert_eq!(consts[1].bits, (1.0f32 as f64).to_bits());
+    }
+
+    /// **The branch displacements are a function of the arm sizes**, and both
+    /// branches are self-relative with no relocation. Asserted over a grid
+    /// rather than at `Biquad.cpp`'s one shape, because a displacement computed
+    /// from a different formula than the one the layout obeys is
+    /// `docs/CFG_SHAPE.md` §3.3's defect and agrees at exactly one point.
+    #[test]
+    fn both_branches_land_on_their_blocks_at_every_arm_size() {
+        for nt in 2..=5usize {
+            for nd in 2..=5usize {
+                let mut d = biquad();
+                d.then_stores.truncate(nt - 1);
+                d.then_stores
+                    .push(FpDiamondConstStore { off: 0, bits: (1.0f32 as f64).to_bits() });
+                d.divs.truncate(nd);
+                let (text, _) = fp_store_diamond_text(&d).expect("in class");
+                let w = words(&text);
+                let (entry, then, els) = block_lengths(&d);
+                let bc = w[3];
+                assert_eq!(bc >> 16, 0x409a, "`bne cr6` at every size");
+                assert_eq!(bc & 0xffff, entry - 0x0c + then, "then={nt} div={nd}");
+                let b_at = ((entry + then) / 4 - 1) as usize;
+                assert_eq!(w[b_at] >> 26, 18, "primary opcode 18, AA=0 LK=0");
+                assert_eq!(
+                    w[b_at] & 0x03ff_fffc,
+                    entry + then - 4 * b_at as u32 + els,
+                    "then={nt} div={nd}"
+                );
+            }
+        }
+    }
+
+    /// Every backstop refuses, and each names its own construct. The reader has
+    /// established all of these already; the emitter restates them because a
+    /// wrong emit here is silent, and a test exercising only the accepted shape
+    /// would leave seven arms ungraded (board #1148).
+    #[test]
+    fn the_emitter_backstops_refuse_by_name() {
+        let one = (1.0f32 as f64).to_bits();
+        let cases: Vec<(&str, FpStoreDiamond)> = vec![
+            ("formals", FpStoreDiamond { params: vec![1], ..biquad() }),
+            ("one division", FpStoreDiamond { divs: biquad().divs[..1].to_vec(), ..biquad() }),
+            (
+                "one then-store",
+                FpStoreDiamond { then_stores: biquad().then_stores[..1].to_vec(), ..biquad() },
+            ),
+            ("empty join", FpStoreDiamond { join_stores: Vec::new(), ..biquad() }),
+            (
+                "one pool",
+                FpStoreDiamond {
+                    join_stores: vec![FpDiamondConstStore { off: 24, bits: one }],
+                    ..biquad()
+                },
+            ),
+            (
+                "divisors differ",
+                FpStoreDiamond {
+                    divs: vec![
+                        FpDiamondDiv { off: 0, num: 0, den: 12 },
+                        FpDiamondDiv { off: 4, num: 4, den: 16 },
+                    ],
+                    ..biquad()
+                },
+            ),
+        ];
+        for (what, d) in cases {
+            assert!(fp_store_diamond_text(&d).is_err(), "{what} must refuse");
+        }
+        // …and the displacement bound, the one refusal about a range rather than
+        // about a shape.
+        let mut wide = biquad();
+        wide.join_stores[0].off = 0x8000;
+        assert!(fp_store_diamond_text(&wide).is_err(), "a 16-bit displacement bound");
+    }
+
+    /// The decode-only offset list, kept honest: then-stores then join-stores,
+    /// in emission order.
+    #[test]
+    fn store_offsets_are_then_then_join() {
+        assert_eq!(store_offsets(&biquad()), vec![16, 12, 8, 4, 0, 24, 20]);
+    }
+}

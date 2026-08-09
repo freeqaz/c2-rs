@@ -417,6 +417,7 @@ mod tests {
             mints_memcpy: false,
             fp_refs: vec![crate::codegen::FpConstRef {
                 hi_off: 0,
+                lo_off: 4,
                 bits: 0x3FF0_0000_0000_0000,
                 double: false,
             }],
@@ -546,6 +547,84 @@ mod tests {
         assert_eq!(
             plan_labels(2539, &two, true),
             vec![Some([2554, 2555, 2556]), Some([2559, 2560, 2561])]
+        );
+    }
+
+    /// **W-BIQUAD — a newly pooled FP constant costs +2, TU-wide, and it took
+    /// `Biquad.cpp` to make it observable.**
+    ///
+    /// `docs/LABEL_COUNTER.md` §1.1's fourth surcharge row, measured on
+    /// `const2-led` at `/Gy` and again at `/Ox` (§1.2: every surcharge is the
+    /// same integer at both). It was missing from `plan_labels` until this lane
+    /// and it was **harmlessly** missing, because only a FRAMED function has
+    /// labels: a surcharge taken by a leaf is invisible unless a framed function
+    /// follows it in the same TU, and every pool-bearing obj this port had
+    /// emitted (`w13b_fconst`, `w13b_fdedup`, `w13b_fpool`) is leaves alone.
+    ///
+    /// The exact shape below is `Biquad.cpp`'s: a two-pool float leaf, then a
+    /// framed constructor. Real `c2.dll` mints `$M2574`/`$M2575`/`$T2576` for
+    /// that constructor and the port did too only after this row existed —
+    /// before it, the triple was `2570`/`2571`/`2572`, four low, which is 2 + 2.
+    #[test]
+    fn a_newly_pooled_fp_constant_costs_two_slots_and_dedups_tu_wide() {
+        let framed = |name| Function { frame: Some(frame(0x24)), ..Function::plain(name, 0) };
+        let pool = |name, bits: &[u64]| Function {
+            is_float: true,
+            fp_refs: bits
+                .iter()
+                .enumerate()
+                .map(|(i, &b)| crate::codegen::FpConstRef {
+                    hi_off: i as u32 * 8,
+                    lo_off: i as u32 * 8 + 4,
+                    bits: b,
+                    double: false,
+                })
+                .collect(),
+            ..Function::plain(name, 0)
+        };
+        let zero = 0u64;
+        let one = (1.0f32 as f64).to_bits();
+        // The control: a float leaf with NO pool. `_fltused` (+1) and the leaf's
+        // own slot (+1) and nothing else.
+        assert_eq!(
+            plan_labels(2553, &[pool("?L@@YAXXZ", &[]), framed("?C@@YAXXZ")], true),
+            vec![None, Some([2570, 2571, 2572])]
+        );
+        // ONE pool: +2 on top.
+        assert_eq!(
+            plan_labels(2553, &[pool("?L@@YAXXZ", &[zero]), framed("?C@@YAXXZ")], true),
+            vec![None, Some([2572, 2573, 2574])]
+        );
+        // TWO — `Biquad.cpp`'s own shape. This is the row the obj pinned.
+        assert_eq!(
+            plan_labels(2553, &[pool("?L@@YAXXZ", &[zero, one]), framed("?C@@YAXXZ")], true),
+            vec![None, Some([2574, 2575, 2576])]
+        );
+        // The SAME constant referenced twice is one introduction, not two —
+        // §1.1's last row, *"a … FP constant an earlier function already
+        // introduced: 0, at any count"*, applied within one function.
+        assert_eq!(
+            plan_labels(2553, &[pool("?L@@YAXXZ", &[zero, zero]), framed("?C@@YAXXZ")], true),
+            vec![None, Some([2572, 2573, 2574])]
+        );
+        // …and TU-wide across two functions: the second pays nothing for a
+        // constant the first introduced, and +2 for the one it does not.
+        assert_eq!(
+            plan_labels(
+                2553,
+                &[
+                    pool("?L1@@YAXXZ", &[zero]),
+                    pool("?L2@@YAXXZ", &[zero, one]),
+                    framed("?C@@YAXXZ"),
+                ],
+                true,
+            ),
+            vec![None, None, Some([2578, 2579, 2580])]
+        );
+        // Packed pays the same integers — §1.2 — over the packed framed base.
+        assert_eq!(
+            plan_labels(2553, &[pool("?L@@YAXXZ", &[zero, one]), framed("?C@@YAXXZ")], false),
+            vec![None, Some([2568, 2569, 2570])]
         );
     }
 
@@ -1829,6 +1908,81 @@ mod tests {
         );
     }
 
+    /// **W-BIQUAD — `.rdata` constant pools under `/Gy`: interleaved, LIFO, and
+    /// their `__real@` symbols DEFINED in their own sections.**
+    ///
+    /// `docs/OBJ_GY_SHAPES.md` §2.4's three rules, all in one obj, and §2.3's
+    /// discriminating reading — the pools a single function introduces come out
+    /// in the **reverse** of its reference order, which is what separates LIFO
+    /// from descending bit-pattern order. This lane re-confirmed it on
+    /// `work/w-biquad/probe/pool{1,2}.cpp` (the same two constants in both use
+    /// orders) before writing the code, and `Biquad.cpp`'s own obj is the third
+    /// witness.
+    ///
+    /// The section number on the `__real@…` record is asserted because the first
+    /// draft emitted **0** — an undefined external, which links perfectly well
+    /// against another TU's copy of the same constant and is one wrong `i16` in
+    /// the middle of the symbol table.
+    #[test]
+    fn gy_constant_pools_interleave_and_reverse_within_one_function() {
+        let zero = 0u64;
+        let one = (1.0f32 as f64).to_bits();
+        let leaf = Function {
+            is_float: true,
+            fp_refs: vec![
+                crate::codegen::FpConstRef { hi_off: 0, lo_off: 8, bits: zero, double: false },
+                crate::codegen::FpConstRef { hi_off: 16, lo_off: 36, bits: one, double: false },
+            ],
+            ..Function::plain("?L@@YAXPAM@Z", 0)
+        };
+        let after = Function::plain("?Z@@YAXXZ", 0);
+        let blr = crate::codegen::encode_blr().to_vec();
+        let obj = emit_comdat_obj("Z:\\t.obj", &[leaf, after], &[blr.clone(), blr], 0)
+            .expect("no defined data");
+        let names: Vec<String> = sections_of(&obj).into_iter().map(|s| s.0).collect();
+        assert_eq!(
+            names,
+            vec![
+                ".drectve", ".debug$S", ".XBLD$W", ".XBLD$W",
+                // rule 1: both pools sit immediately after the `.text` of the
+                // function that first references them, not grouped at the end.
+                ".text", ".rdata", ".rdata",
+                ".text",
+            ]
+        );
+        // rule 3: the function references `zero` first, so the pools come out
+        // ONE then ZERO. A first-reference emitter produces the other order and
+        // every relocation still resolves, which is why this is asserted on the
+        // raw payloads rather than on the count.
+        let raw = |i: usize| {
+            let h = COFF_HEADER_LEN + i * SECTION_HEADER_LEN;
+            let ptr = u32::from_le_bytes(obj[h + 20..][..4].try_into().unwrap()) as usize;
+            obj[ptr..ptr + 4].to_vec()
+        };
+        assert_eq!(raw(5), vec![0x3f, 0x80, 0x00, 0x00], "__real@3f800000 FIRST");
+        assert_eq!(raw(6), vec![0x00, 0x00, 0x00, 0x00], "__real@00000000 second");
+        // The symbol table follows section order, so the groups interleave too,
+        // and `_fltused` comes after the first float function's COMPLETE group —
+        // both `.rdata` pairs included (§1.2).
+        let syms: Vec<(String, i16)> =
+            symbols_full(&obj).into_iter().map(|(s, _)| (s.0, s.2)).collect();
+        let at = |n: &str| syms.iter().position(|m| m.0 == n).expect(n);
+        assert!(at("?L@@YAXPAM@Z") < at("__real@3f800000"));
+        assert!(at("__real@3f800000") < at("__real@00000000"));
+        assert!(at("__real@00000000") < at("_fltused"));
+        assert!(at("_fltused") < at("?Z@@YAXXZ"));
+        // …and each `__real@` is DEFINED in its own section, not section 0.
+        assert_eq!(syms[at("__real@3f800000")].1, 6, "section 6, not undefined");
+        assert_eq!(syms[at("__real@00000000")].1, 7, "section 7, not undefined");
+        // The REFHI/REFLO quads name the pools, and `lo_off` is NOT `hi_off + 4`
+        // on the second one.
+        let rel = relocations_of(&obj, ".text");
+        assert_eq!(
+            rel.iter().map(|r| r.0).collect::<Vec<_>>(),
+            vec![0, 0, 8, 8, 16, 16, 36, 36]
+        );
+    }
+
     /// The alignment rule (§4.2), both sides, at every measured threshold.
     #[test]
     fn the_alignment_nibble_rule_matches_both_measured_columns() {
@@ -1891,6 +2045,7 @@ mod tests {
             mints_memcpy: false,
             fp_refs: vec![crate::codegen::FpConstRef {
                 hi_off: 0,
+                lo_off: 4,
                 bits: 0x3FF0_0000_0000_0000,
                 double: false,
             }],
