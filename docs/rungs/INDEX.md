@@ -180,6 +180,7 @@ the header block this table is read from.
 | 2026-08-09 | w-fltret2 | [w-fltret2](2026-08-09-w-fltret2.md) | 13 | **+0** — this lane ships no class, so it moves nothing. Master |
 | 2026-08-09 | w-fltret | [w-fltret](2026-08-09-w-fltret.md) | 2 | 711,514 → 712,238 (28.88 % → 28.91 %), **+724** functions; |
 | 2026-08-09 | w-front3 | [w-front3](2026-08-09-w-front3.md) | 11 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** — this lane |
+| 2026-08-09 | w-front5 | [w-front5](2026-08-09-w-front5.md) | 11 | **+0** — per-function **714,541 → 714,541**, emitted |
 | 2026-08-09 | w-ifn | [w-ifn](2026-08-09-w-ifn.md) | 2 | per-function 712,242 → **712,244** (+2); emitted 39,188 → |
 | 2026-08-09 | w-inlfence2 | [w-inlfence2](2026-08-09-w-inlfence2.md) | 13 | **+0** — this lane ships no reader and no lowering. Emitted |
 | 2026-08-09 | w-inlfence | [w-inlfence](2026-08-09-w-inlfence.md) | 2 | 712,238 → 712,237 (28.91 % → 28.91 %), **−1** function; |

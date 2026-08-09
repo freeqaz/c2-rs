@@ -1,0 +1,35 @@
+== the five FRONTIER TUs, from this lane's own base scan
+  FRONTIER — 5 graded TUs satisfy A and B and C, are NOT a match, and are outside BOTH acceptance paths (not D, not E), so per-function codegen breadth is the whole remaining distance (blocked emitted | emitted | src):
+       1 |    1 | src/Main.cpp
+       1 |   11 | src/xdk/nuispeech/mmio.cpp
+       3 |    3 | src/system/rndobj/wordwrap.cpp
+       4 |    5 | src/system/utl/EncryptXTEA.cpp
+      19 |   20 | src/keygen_xbox.cpp
+  FRONTIER BY `.text` BYTE FRACTION (board #500) — how much of each TU's `.text` the port already produces a body for, BY BYTE. Board #465 counted FUNCTIONS and was refuted by the TU registered to confirm it (mmio: 72.7% by function, 16.8% by byte, DECLINED; xboxmem: 50.0% by function, 54.5% by byte, CONVERTED). n = 2 outcomes — this ranks, it does not license. `exact` is the oracle-graded floor under `accepted`; a TU with no `.text` bytes prints n/a, NEVER 100%. 0 of 5 frontier TUs have NO denominator, and 2 are at EXACTLY 0% — TUs where codegen breadth has not begun:
+     accepted/total bytes    frac   exact  remain | src   (REMAIN = total - accepted = the PowerPC still to write. A FOURTH unit, printed and NOT chosen between: it agrees with `frac` on both outcome cells and DISAGREES with it at this frontier's head.)
+
+== byte fraction
+     accepted/total bytes    frac   exact  remain | src   (REMAIN = total - accepted = the PowerPC still to write. A FOURTH unit, printed and NOT chosen between: it agrees with `frac` on both outcome cells and DISAGREES with it at this frontier's head.)
+         256/380      bytes   67.4%    256     124 | src/xdk/nuispeech/mmio.cpp
+          16/272      bytes    5.9%     16     256 | src/system/utl/EncryptXTEA.cpp
+           8/1440     bytes    0.6%      8    1432 | src/keygen_xbox.cpp
+           0/124      bytes    0.0%      0     124 | src/Main.cpp
+           0/816      bytes    0.0%      0     816 | src/system/rndobj/wordwrap.cpp
+  BYTE-FRACTION CONTROL (board #501) — a `match` TU is byte-identical to c2's obj, so the port produced a body for every `.text` byte in it and its fraction MUST read 100%. 15 of 22 matched TUs do; 2 fall short; 5 have no `.text` denominator (a TU that defines data and no functions — board #276's shape — which is a 100%-free zero, not a failure).
+
+== CFG reachability
+      1 blocked | src/Main.cpp                                       | labels 9   | REACHABLE — every blocked fn is a port CFG class
+     19 blocked | src/keygen_xbox.cpp                                | labels 15  | needs a CFG class the port lacks: cflow-if-n, cflow-loop
+      3 blocked | src/system/rndobj/wordwrap.cpp                     | labels 3   | needs a CFG class the port lacks: cflow-if-n, cflow-loop
+      4 blocked | src/system/utl/EncryptXTEA.cpp                     | labels 3   | needs a CFG class the port lacks: cflow-loop
+      1 blocked | src/xdk/nuispeech/mmio.cpp                         | labels 9   | needs a CFG class the port lacks: cflow-if-2, cflow-if-n
+    LABEL CHANNEL (board #742) — `$M`/`$T` are the ONLY way the value of c2's compiler-label counter reaches an obj, and `coff::plan_labels` mints them for a FRAMED function and nothing else. A leaf loop charges that counter +1..+4 while `plan_labels` charges 0 (17 seed-free cells, docs/LABEL_COUNTER.md §4.2), which is the whole stated justification for `codegen::labels` invariant 4 refusing every BACKWARD branch. On a `label-free` obj that error has nowhere to land — and that is now SHIPPED rather than observed: `IlFunction::label_slots` returns `None` for the one loop shape the port emits, so a TU pairing it with a framed function refuses and a TU without one converts (boards #746/#747, `fixtures/cpp/whash_loop_then_framed.cpp` and its control). 0 of 5 frontier TUs are label-free; of the 3 blocked on `cflow-loop`, 0 are. NOT a licence — every one is still gated on codegen that does not exist, and the counter is only the FIRST of that TU's refusals.
+
+== frontier by codegen
+     den exact wrong cg-ref reader ungrade | src
+       1     0     0      0      1       0 | src/Main.cpp
+      20     1     0      0     19       0 | src/keygen_xbox.cpp
+       3     0     0      0      3       0 | src/system/rndobj/wordwrap.cpp
+       5     1     0      0      4       0 | src/system/utl/EncryptXTEA.cpp
+      11    10     0      0      1       0 | src/xdk/nuispeech/mmio.cpp
+    TOTAL 40 = exact 12 + wrong 0 + cg-ref 0 + reader 28 + ungraded 0;  partition-broken 0 (target 0).

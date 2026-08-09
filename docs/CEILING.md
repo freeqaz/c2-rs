@@ -733,6 +733,7 @@ already paid for codegen:
 | `w-bdnz` #1980 | *"The unsigned half of the class is byte-exact against real `c2` and was blocked by the reader, not by codegen."* … *"So the emitter was never the question."* — `.sy`'s predicate is `kind == 1 && size == 4 && tid == 0x74`, plain `int` only (**#764**) | NC-3 |
 | `w-blockir` #2301 | *"the scan read `fnbyte-exact 4 · fnbyte-differs 0` — **every body byte-exact** — and the whole obj graded `mismatch`, because `IlFunction::touches_floating_point` had no arm for this class and the obj came out **one symbol short**… the thing standing between a byte-exact body and a matching TU was a **TU-level fact**, not an instruction."* | NC-1 |
 | `w-main` #2260 | *"`WB_EH_FINDINGS.md` §6 files this as R1, `param-width-undetermined:mid`, `c2-il` formals header. **The key is right and the location is wrong.**"* — the refusal is `func::sy::ex_exit_label` wanting a `3A` byte the `.ex` does not contain | NC-4 |
+| `w-front5` #2621 | *"`src/Main.cpp`'s `.gl` carries exactly ONE framed defined record, at body-start 2713, which is exactly its single `.ex` segment's start — the binding is arithmetically perfect. The name is `main`, four bytes, and `INLINE_NAME_MAX` is 8."* So `Bindings::per_record` returns `None` and **`w-main`'s own thirteen mechanisms price the second layer of a two-layer chain** | NC-4 |
 
 ### 11.1 The class
 
@@ -896,3 +897,25 @@ fall-through family's size beside any ranking taken off T2 — it is **9,095 of
    byte with **one** of its eleven names bound. The two bindings disagree on
    74,955 workload rows (#918), and the cheap check is one line of the TU's own
    `gap --jsonl` row.
+
+   **`fn_names` IS NOT THAT LINE, and reading it as one is how the second
+   instance was missed for a day.** *Amended by `w-front5` (#2621, #2624).*
+   `fn_names` is `c2_il::mangled_names(gl).len()` — the census's loose scan —
+   and it can equal `fn_total` on a TU the gate does not bind (`src/Main.cpp`
+   reads `fn_names 1, fn_total 1` and binds **nothing**) and disagree with it
+   on a TU it does. **The field that answers item 8 is `gate_cause` /
+   `gate_causes`**: any `gl-stop-*` or `bind-*` clause in the SET means
+   `Bindings::per_record` returned `None` and every emitter question on that
+   TU is unasked. For the stop **record** rather than the stop clause — which
+   is what tells you how much of the walk survives — run
+   `work/w-front5/glwalk.py <bundle.gl> <bundle.ex>`, a transcription of
+   `gl_defined_names_framed(gl, true, codec::gl_offset_framed)` over the TU's
+   own capture.
+
+   **And do not assume the binding repair is free.** `w-front5` #2622 built the
+   one-line widening as a counterfactual: it binds **2 of the 15** TUs that
+   stop on `gl-stop-name-not-mangled`, converts **0**, moves **0** of 878 TU
+   verdicts — and costs **−1 `fnbyte-exact`**, because `gl_defined_names` is
+   also `bind::defined_name_set`, the ground set the inline fence tests callees
+   against, where a widening of the walk is a **tightening** of the fence
+   (#2623).
