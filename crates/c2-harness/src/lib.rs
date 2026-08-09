@@ -98,8 +98,13 @@ pub fn differential(
         );
     }
 
-    // 1. Capture the pipeline reference obj + IL bundle + exact c2 argv.
-    let captured = match reference.capture_reference(cpp, &work.join("cap")) {
+    // 1. Capture the pipeline reference obj + IL bundle + exact c2 argv, at the
+    //    profile this fixture declares (or the default — see `fixture_profile`).
+    let captured = match fixture_profile::capture_fixture_reference(
+        reference,
+        cpp,
+        &work.join("cap"),
+    ) {
         Ok(c) => c,
         Err(e) => return DiffReport::ReferenceError(format!("capture_reference failed: {e}")),
     };

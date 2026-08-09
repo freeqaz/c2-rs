@@ -644,10 +644,31 @@ impl Toolchain {
         cpp: &Path,
         work_dir: &Path,
     ) -> io::Result<CapturedReference> {
-        let z_src = to_wibo_path(&absolute(cpp)?);
         let flags: Vec<String> =
-            ["/Ox", "/GS-", "/c"].iter().map(|s| s.to_string()).collect();
-        self.capture_reference_with(&z_src, work_dir, &flags, None)
+            CAPTURE_IL_DEFAULT_FLAGS.iter().map(|s| s.to_string()).collect();
+        self.capture_reference_flags(cpp, work_dir, &flags)
+    }
+
+    /// [`Toolchain::capture_reference`] with the compile profile **chosen by the
+    /// caller**, keeping its `Z:\…` source-argument handling.
+    ///
+    /// The third member of the `*_flags` family, alongside
+    /// [`Toolchain::capture_il_flags`] and [`Toolchain::compile_obj_flags`], and
+    /// it exists for the same reason: this method's flags used to be a literal,
+    /// so a *fixture* that cannot compile at the default had no seam here and
+    /// `c2rs diff` / `c2rs perf` reported a bare `replay produced no obj` for it
+    /// (W-OXFIX — `error C4716` is an error at every flag word, and `perf`
+    /// exiting non-zero is what put two `scripts/status.sh` rows at `NO-RESULT`).
+    /// Passing [`CAPTURE_IL_DEFAULT_FLAGS`] is byte-identical to calling
+    /// `capture_reference`.
+    pub fn capture_reference_flags(
+        &self,
+        cpp: &Path,
+        work_dir: &Path,
+        flags: &[String],
+    ) -> io::Result<CapturedReference> {
+        let z_src = to_wibo_path(&absolute(cpp)?);
+        self.capture_reference_with(&z_src, work_dir, flags, None)
     }
 
     /// [`Toolchain::capture_reference`] generalized to an arbitrary compile

@@ -290,6 +290,27 @@ pub fn parse_profile(path: &Path, text: &str) -> Result<Option<FixtureProfile>, 
     }))
 }
 
+/// Capture a **fixture's** pipeline reference (obj + IL bundle + c2 argv) at the
+/// profile the fixture declares, or at [`CAPTURE_IL_DEFAULT_FLAGS`].
+///
+/// The one seam every fixture-corpus consumer of `capture_reference` goes
+/// through — `differential` (`c2rs diff`), `perf::bench_fixture` and
+/// `perf::scale_measure`. Without it those three hardcode `/Ox /GS- /c` and a
+/// profile-declaring fixture reports a bare `replay produced no (or an empty)
+/// obj`, which is what made `c2rs perf` exit non-zero and put
+/// `scripts/status.sh`'s two perf rows at `NO-RESULT` even after `selftest` was
+/// green. A malformed declaration is surfaced as an `InvalidData` error carrying
+/// the full [`ProfileError`] text rather than being swallowed.
+pub fn capture_fixture_reference(
+    tc: &c2_reference::Toolchain,
+    cpp: &Path,
+    work_dir: &Path,
+) -> std::io::Result<c2_reference::CapturedReference> {
+    let profile = resolve_profile(cpp)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
+    tc.capture_reference_flags(cpp, work_dir, &profile.flags)
+}
+
 /// Read `cpp` and resolve the profile `oracle_selftest` will compile it at:
 /// the declared one, or [`FixtureProfile::default_profile`].
 ///
