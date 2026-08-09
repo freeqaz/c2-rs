@@ -1,11 +1,36 @@
-// **Negative** — W36's boundary. NOT ONE function here may census in class, and
-// the whole TU must read `Port=NotImplemented`.
+// **Negative** — W36's boundary. Every case is a neighbour of `p->m(a…);` that
+// lowers to something other than a register permutation plus `b <method>`, or
+// that this port has not separated. Each carries its measured cost on the 878-TU
+// dc3 workload where one is known; `UNMEASURED` means the row exists and its
+// size has not been taken, and `structural` means the walk cannot reach the case
+// at all.
 //
-// Every case is a neighbour of `p->m(a…);` that lowers to something other than a
-// register permutation plus `b <method>`, or that this port has not separated.
-// Each carries its measured cost on the 878-TU dc3 workload where one is known;
-// `UNMEASURED` means the row exists and its size has not been taken, and
-// `structural` means the walk cannot reach the case at all.
+// > **⚠ THE HEADER THIS REPLACES READ *"NOT ONE function here may census in
+// > class"*, AND IT HAD BEEN FALSE FOR TWO CELLS BEFORE ANY OF THEM WAS
+// > NOTICED.** `docs/rungs/2026-07-31-member-call.md` recorded **0/17**;
+// > `c2rs census … --flags-file` reads **3/17** at `/O1` and did so at **2/17**
+// > before lane `w-mcall` (measured on a binary built from the parent commit,
+// > `work/w-mcall/c2rs_base`). Nothing checked the claim — no test, no gate row
+// > names this file — so a `_neg` file's headline property went stale twice in
+// > silence. Board **#1965**, and board **#1710a**'s vanishing-test trap in the
+// > form where the test never existed.
+// >
+// > A cell that goes in class here is **not** a defect: this file's cells are
+// > *neighbours* of W36, and a neighbour being taken by a later rung is the plan
+// > working. What is a defect is a header stating a property nothing measures.
+// > The whole TU still reads `Port=NotImplemented`, which is the property the
+// > fixture gate actually grades, and that is the one stated here now.
+//
+// **In class, and by which rung** — re-derive with `c2rs census`, do not quote:
+//
+//   (5)  `n_recv_object`   `gObj.v0()`        — taken by **W-ADJUST**, which
+//                          gave the named-object receiver its own `IlOp::SymAddr`
+//                          slot; it censuses `multiarg-tail-call`, and cell (5)'s
+//                          own comment below is corrected in place.
+//   (6b) `n_recv_call`     `o->nxt()->v0()`   — the member-call CHAIN
+//                          (`shapes::mcall_chain`), which builds a `CallSeq`.
+//   (13) `n_two_stmts`     `o->v0(); q->v0()` — taken by lane **w-mcall**, the
+//                          rung comment (13) below already named.
 
 struct Obj {
     int i;
@@ -55,9 +80,12 @@ void n_multicycle(Obj *o, int a, int b, int c, int d) { o->v4(d, c, b, a); }
 void n_global_arg(Obj *o) { o->v1(gInt); }
 
 // (5) A receiver that is not a formal: a **named object**, whose address has to
-//     be materialized with a `lis`/`addi` relocation pair. The census names it
+//     be materialized with a `lis`/`addi` relocation pair. The census named it
 //     `expr-call-in-expr-recv-object-…` — a different receiver production with a
 //     different lowering, not a narrower one.
+//     **CORRECTION: this cell is IN CLASS and has been since W-ADJUST**, which
+//     shipped that lowering as an `IlOp::SymAddr` argument slot. It censuses
+//     `multiarg-tail-call`. See the header.
 void n_recv_object() { gObj.v0(); }
 
 // (6) A receiver that is a **member** of another object: `w->o` is an indirect
@@ -107,9 +135,15 @@ void n_ret_struct(Ret *r) { r->gv(); }
 void n_float_arg(Obj *o, float f) { o->v1((int)f); }
 
 // (13) A second STATEMENT after the call. The body is no longer terminal, so the
-//      call is not a tail call at all — it is the Class A statement sequence with
-//      a member call in it, a further rung. Falls through with its measured
-//      second-blocker key rather than being claimed here.
+//      call is not a tail call at all — it is the statement-call sequence with a
+//      member call in it, which this comment called "a further rung".
+//      **THAT RUNG LANDED: lane `w-mcall`, board #1960.** This cell censuses
+//      `call-sequence` and its body is byte-exact; the receiver is argument slot
+//      0 and `BodyShape::CallSeq` lowered it with no new emitter code at all.
+//      Kept here rather than moved: it is still W36's neighbour, and a `_neg`
+//      cell that a later rung takes is the record of the boundary MOVING, which
+//      is worth more than a tidy file. `fixtures/cpp/wmcall_seq.cpp` is the
+//      positive fixture that grades it.
 void n_two_stmts(Obj *o, Obj *q) { o->v0(); q->v0(); }
 
 // (14) Nine argument registers: `this` plus eight explicit. Past the eighth a

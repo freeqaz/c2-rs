@@ -1,0 +1,12 @@
+
+=== bodies (fn_blockers): 635 keys, 3 moved (0 appeared, 0 vanished)
+    totals base 1751949 -> tip 1751929 (must be equal: False)
+          -20       18310 ->     18290   expr-call-in-expr-recv-load-whole
+           -1           6 ->         5   call-token-0xB9
+           +1           9 ->        10   call-token-0x26
+
+=== emitted (emit_blockers): 614 keys, 3 moved (0 appeared, 0 vanished)
+    totals base 130567 -> tip 130560 (must be equal: False)
+           -7        1505 ->      1498   expr-call-in-expr-recv-load-whole
+           +1           9 ->        10   call-token-0x26
+           -1           6 ->         5   call-token-0xB9

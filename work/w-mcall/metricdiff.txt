@@ -1,0 +1,21 @@
+gap-metric keys: base 251  tip 251  union 251
+  vanished 0  appeared 0  changed 19  identical 232
+    CHANGED   cflow-offclass-accounted: 518999 -> 519019
+    CHANGED   cflow-offclass-bind-blocked: 363185 -> 363165
+    CHANGED   cflow-offclass-bind-inclass: 59998 -> 60018
+    CHANGED   cflow-residue-inclass-offclass: 518999 -> 519019
+    CHANGED   fnbyte-calltarget-agree: 36221 -> 36228
+    CHANGED   fnbyte-calltarget-graded: 39193 -> 39200
+    CHANGED   fnbyte-decline-parse: 130567 -> 130560
+    CHANGED   fnbyte-exact: 36221 -> 36228
+    CHANGED   fnbyte-exact-bytes: 37082 -> 37089
+    CHANGED   fnbyte-exact-relocated: 3815 -> 3822
+    CHANGED   fnbyte-match: 0.20239 -> 0.20243
+    CHANGED   fnbyte-refused: 130567 -> 130560
+    CHANGED   fnbyte-refused-parse: 130567 -> 130560
+    CHANGED   fnbyte-reloc-graded: 37082 -> 37089
+    CHANGED   fnbyte-reloc-graded-relocated: 4676 -> 4683
+    CHANGED   fnbyte-shape-parse-refused-refused: 130567 -> 130560
+    CHANGED   fnbyte-shape-seq-exact: 1231 -> 1238
+    CHANGED   progress-emitted-in-class: 39193 -> 39200
+    CHANGED   progress-mass: 0.20830 -> 0.20831

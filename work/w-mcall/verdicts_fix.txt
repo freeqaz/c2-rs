@@ -1,0 +1,5 @@
+TUs base 307  tip 309
+  only-in-base 0   only-in-tip 2   changed 1
+    only-in-tip   fixtures/cpp/wmcall_seq.cpp  ('match', 8, 8)
+    only-in-tip   fixtures/cpp/wmcall_seq_neg.cpp  ('vocab-gap', 0, 6)
+    CHANGED       fixtures/cpp/w36_member_call_neg.cpp  ('vocab-gap', 2, 17) -> ('vocab-gap', 3, 17)

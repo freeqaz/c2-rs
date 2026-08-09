@@ -1258,6 +1258,99 @@ pub(crate) fn eat_call_postop(seg: &[u8], p: &mut usize) -> Result<i32, Block> {
 /// under-claiming direction of `docs/GAPS.md` §6).
 pub(crate) const MAX_REGISTER_FORMALS: usize = 8;
 
+/// **W-MCALL — ONE MEMBER CALL IN STATEMENT POSITION**, read as a
+/// [`SeqCall`]'s head + arguments (lane `w-mcall`, board **#1960**).
+///
+/// ```text
+///   26 <method>              push the method symbol       the callee
+///   B9 <recv> <TYPE ptr4>    the receiver value           `this`
+///   [ 2C <TYPE ptr4> 00 ]    a pointer conversion on it
+///   99 <TYPE ptr4> 00        bind it as argument zero
+///   BD <ret TYPE> 00 <id>    the CALL token
+///   ( <operands> 55 <T> )*   the explicit arguments, rightmost first
+///   4C 4B                    apply, and the result is DISCARDED
+/// ```
+///
+/// # Why this is a reader rung and not a lowering one
+///
+/// `p->m(a…)` is `m(p, a…)` on this ABI, so a statement-position member call is
+/// a statement-position call **with one more argument slot** — and
+/// [`BodyShape::CallSeq`] already lowers a sequence of those byte-exactly, at
+/// Class A and at Class B alike (`c2_core::codegen::calls`). The receiver is
+/// therefore appended to the argument list as slot 0, exactly as
+/// [`super::mcall_tail::try_parse_member_tail_call`] already does for the tail
+/// form and as `member_tail_call_puts_this_in_slot_zero` already pins, and
+/// **not one byte of `crates/c2-core` changes**.
+///
+/// w-value (`docs/rungs/2026-08-08-w-value.md` §4.2) measured board #1534's
+/// family at **33,277 emitted (90.5 %) with nothing else in their expression**
+/// and concluded that only a member-call *lowering* moves them. That is right
+/// about a call which is an **operand** of an enclosing expression — its own
+/// 1,168 (3.2 %) — and this production is the other reading of "nothing else in
+/// the expression": the call **is** the statement.
+///
+/// # Atomic, so that no refusal is re-keyed
+///
+/// On any refusal the cursor is restored and `None` is returned, and the caller
+/// re-raises the **free-function** reader's own `Err` — which is the block every
+/// one of these bodies reports today. So this reader can only ever turn an `Err`
+/// into an `Ok`: every census key it does not convert is byte-identical, which
+/// is the lane's PREREG clause D7 and w-value #1942's finding one production
+/// over (a re-key that makes the histogram less informative is not a
+/// measurement).
+///
+/// # What it declines, each with a reason that is a different LOWERING
+///
+/// * a receiver that is not a plain `B9 <tok> <ptr4>` load, optionally behind
+///   one class-preserving `2C` — a named object (`gObj.m()`, a relocation and
+///   not a register move), a chain, a field, a dereference, the `intrinsic
+///   2113` base adjust. [`super::mcall_tail::eat_receiver_this`] is the **one**
+///   locator for that decision and this reader does not carry a second copy;
+/// * a call whose result is **not** discarded — the value tail
+///   ([`SeqTail::CallValue`]) marshals a receiver into slot 0 *and* a post-op
+///   region, and the two have never been graded together;
+/// * a `float`/`double` result, discarded, which still obliges the TU to carry
+///   `_fltused` ([`CallRet::discarded`], `docs/GAPS.md` §6 instance #14).
+fn eat_member_stmt_call(seg: &[u8], p: &mut usize) -> Option<(u32, Vec<Vec<IlOp>>)> {
+    let save = *p;
+    let mut q = *p;
+    let out = (|| {
+        let callee_tok = eat_callee_push(seg, &mut q).ok()?;
+        // A second `26` where the receiver goes is a stacked method (a chain) or
+        // a named data object; both are declined here — with the cursor
+        // untouched — so that `super::mcall_chain` and W-ADJUST keep meaning
+        // what they mean at the tail form.
+        if seg.get(q) != Some(&0xB9) {
+            return None;
+        }
+        let recv_tok = super::mcall_tail::eat_receiver_this(seg, &mut q).ok()?;
+        let ret = eat_call_token(seg, &mut q).ok()?;
+        let mut args = eat_call_args(seg, &mut q).ok()?;
+        // The result is discarded, and only that. `4C` has already been consumed
+        // by `eat_call_args`.
+        if !eat_byte(seg, &mut q, 0x4B) {
+            return None;
+        }
+        ret.discarded(seg, q).ok()?;
+        // `this` is argument slot 0 and the list is in STREAM order — rightmost
+        // source argument first — so the receiver goes on the END. Getting this
+        // backwards is invisible on a nullary call, which is why the tail form
+        // pins it against a capture where the two readings differ.
+        args.push(vec![IlOp::Load(recv_tok)]);
+        Some((callee_tok, args))
+    })();
+    match out {
+        Some(v) => {
+            *p = q;
+            Some(v)
+        }
+        None => {
+            *p = save;
+            None
+        }
+    }
+}
+
 /// Parse a call shape (already positioned at the `26 <tok>` function ref): the
 /// bare terminal void call, an integer tail call `return g(<arg>)` (passthrough
 /// or arg-setup, plus the `g(a)+0` identity fold), the framed
@@ -1646,6 +1739,34 @@ pub(crate) fn parse_call_sequence_from(
         }
         // (3) Another call. Either a statement (`4B`, result discarded) or the
         // value the body returns.
+        //
+        // **W-MCALL — the member spelling is tried LAST, and only when the free
+        // one has already refused** (lane `w-mcall`, board **#1961**; the order
+        // is frozen in `work/w-mcall/PREREG.md` §2 before a line of this was
+        // written). A free call and a member call share the `26 <tok>` head, so
+        // an arm that guessed "member" first would have to un-read it; asking
+        // [`eat_call_head`] first on a scratch cursor leaves every
+        // free-function refusal key byte-identical **by construction** rather
+        // than by a test. [`eat_member_stmt_call`] is atomic, so when it too
+        // declines the `?` below re-raises exactly the block this loop raises
+        // today (`call-token-0xB9` at the receiver's own byte).
+        //
+        // **The guarded (W10) and early-return (W11) sequences are excluded by
+        // name.** Both are Class A only and both hoist their entry block; no
+        // cell in this repo crosses either with a receiver in slot 0, and
+        // admitting one would be claiming a lowering no obj has graded.
+        if guard.is_none() && early.is_empty() {
+            let mut probe = *p;
+            if eat_call_head(seg, &mut probe).is_err() {
+                if let Some((tok, args)) = eat_member_stmt_call(seg, p) {
+                    raw.push((tok, args));
+                    if raw.len() > MAX_SEQ_CALLS {
+                        return Err(Block::refuse(seg, *p, "callseq-too-long"));
+                    }
+                    continue;
+                }
+            }
+        }
         let (tok, ret) = eat_call_head(seg, p)?;
         let args = eat_call_args(seg, p)?;
         if eat_byte(seg, p, 0x4B) {
@@ -2393,6 +2514,66 @@ mod tests {
         assert!(b.off < b.seg_len, "the refusal is inside the segment, with bytes left after it");
         assert_eq!(b.feature(), "call-arg-outer-formal:mid");
         assert_eq!(parse_segment(ARG2_OUTER_FORMAL, NO_LOCALS), None);
+    }
+
+    /// **W-MCALL — [`eat_member_stmt_call`] is ATOMIC over its whole input
+    /// domain** (board **#1960**).
+    ///
+    /// The rung's clause D7 is that a member arm which declines re-raises the
+    /// block the body already reported, and that rests on one property: the
+    /// reader either consumes the whole `26 … B9 … BD … 4C 4B` production or
+    /// leaves the cursor exactly where it found it. A reader that advanced past
+    /// `26 <tok>` and then declined would hand `parse_call_sequence_from`'s
+    /// `eat_call_head` a cursor in the middle of a token, and the block it then
+    /// raised would name a byte that is not the byte anybody's census key is
+    /// written against.
+    ///
+    /// Enumerated over all 256 second bytes and every prefix of a real
+    /// production, rather than sampled: a decline reachable only from one byte
+    /// value is exactly the site a future edit re-opens (§9.14.6's finding).
+    #[test]
+    fn eat_member_stmt_call_restores_the_cursor_on_every_decline() {
+        // A well-formed member statement call, in isolation: `26 <m> B9 <r>
+        // <ptr4> 99 <ptr4> 00 BD <void> 00 <id> 4C 4B`.
+        const CELL: &[u8] = &[
+            0x26, 0xE5, 0x09, 0xB9, 0xF1, 0x09, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84,
+            0x20, 0x00, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x4B,
+        ];
+        let mut p = 0usize;
+        assert_eq!(
+            eat_member_stmt_call(CELL, &mut p),
+            Some((0xE509, vec![vec![IlOp::Load(0xF109)]])),
+            "the receiver is the ONLY argument and it is the LAST element of the \
+             stream-order list, which is what makes it slot 0"
+        );
+        assert_eq!(p, CELL.len(), "the whole production is consumed, `4B` included");
+
+        // Every prefix: a truncated production must decline with the cursor at 0.
+        for cut in 0..CELL.len() {
+            let mut p = 0usize;
+            assert_eq!(eat_member_stmt_call(&CELL[..cut], &mut p), None, "prefix {cut}");
+            assert_eq!(p, 0, "prefix {cut} moved the cursor on a decline");
+        }
+        // Every second byte: only the real one can open a receiver, and every
+        // other value must leave the cursor alone.
+        for b in 0u8..=0xFF {
+            let mut seg = CELL.to_vec();
+            seg[3] = b;
+            let mut p = 0usize;
+            let got = eat_member_stmt_call(&seg, &mut p);
+            if b == 0xB9 {
+                assert!(got.is_some(), "the receiver byte");
+            } else {
+                assert_eq!(got, None, "byte {b:#04X} is not a receiver designator");
+                assert_eq!(p, 0, "byte {b:#04X} moved the cursor on a decline");
+            }
+        }
+        // And a non-zero cursor is restored to ITS value, not to zero.
+        let mut seg = vec![0x00, 0x00];
+        seg.extend_from_slice(&CELL[..CELL.len() - 1]);
+        let mut p = 2usize;
+        assert_eq!(eat_member_stmt_call(&seg, &mut p), None);
+        assert_eq!(p, 2);
     }
 
     /// **The walk itself is TOTAL — asserted on the function, not on the caller

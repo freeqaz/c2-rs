@@ -70,7 +70,7 @@
 //!   further rung and is refused by name here rather than routed into a
 //!   production that has never been graded with a receiver argument.
 
-use crate::func::body::expr::{eat_return_plumbing, eat_scopes};
+use crate::func::body::expr::{eat_return_plumbing, eat_scopes, BODY_SCOPE_DEPTH};
 use crate::func::body::{blk, prod_tag, Block, BodyShape};
 use crate::func::readers::{
     eat_byte, eat_operand_type, eat_value_type, is_ptr4_kind, read_token_var, read_type,
@@ -483,17 +483,64 @@ pub(crate) fn try_parse_member_tail_call(
     // register the caller's own return would use — so the two arms differ only in
     // which plumbing they require.
     //
-    // A body that does NOT end here (a second statement after the call — the Class A
-    // sequence with a member call in it) falls through to the assignment parse and
-    // keeps its de-conflated `expr-call-in-expr-recv-load-then-…` key, which already
-    // names what else is in the way. Claiming it here would replace a measured
-    // second-blocker key with an uninformative one.
+    // A body that does NOT end here is a second statement after the call — the
+    // statement-call SEQUENCE with a member call in it. This paragraph used to
+    // read *"a further rung … refused by name here rather than routed into a
+    // production that has never been graded with a receiver argument"*, and
+    // **lane `w-mcall` is that rung** (board **#1962**): the sequence is
+    // attempted below, and only when it declines does the body fall through to
+    // the assignment parse and keep its de-conflated
+    // `expr-call-in-expr-recv-load-*` key.
     let mut depth = depth;
     if eat_byte(seg, &mut p, 0x4B) {
         // The result is discarded, so a `float`/`double` one still obliges the TU
         // to carry `_fltused` and the port has no model of that — see
         // [`super::calls::CallRet`] and `docs/GAPS.md` §6 instance #14.
         ret.discarded(seg, p).map_err(Some)?;
+        // **W-MCALL — the statement-call SEQUENCE whose first statement is this
+        // member call** (lane `w-mcall`, board **#1962**).
+        //
+        // `p->m(a…);` is `m(p, a…)` on this ABI, so this is a statement-position
+        // call with one more argument slot, and `args` already carries the
+        // receiver in slot 0 from the push above. [`BodyShape::CallSeq`] lowers
+        // a sequence of those byte-exactly at Class A and Class B alike, so the
+        // whole rung is this route plus the one in
+        // [`super::calls::parse_call_sequence_from`] — and **no byte of
+        // `crates/c2-core` moves**.
+        //
+        // Run on a SCRATCH cursor, and the production tag is re-armed on
+        // failure. `prod_tag` is last-write-wins
+        // (`mod.rs::prod_tag_is_the_seam_the_member_call_productions_write_against`),
+        // so a failed attempt would otherwise overwrite this production's own
+        // tag and move the `prod` axis for bodies whose verdict did not change.
+        // That hazard is `work/w-mcall/PREREG.md` §2.2, frozen before the code.
+        //
+        // **The depth gate is INERT on every cell tried, and it is kept
+        // fail-closed anyway — measured, not argued** (board **#1963**). The
+        // sequence loop asks for the return plumbing at [`BODY_SCOPE_DEPTH`], so
+        // a braced body (`void f(A* p){ { p->m(); p->n(); } }`) would be read at
+        // the wrong depth. A scratch counterfactual replaced this condition with
+        // `true` and re-censused `work/w-mcall/probe/p4.cpp`: the braced cell's
+        // verdict **did not move** — the loop's own plumbing parse refuses it on
+        // the unconsumed `54 03` regardless. So this clause holds nothing today
+        // and is not claimed as a fence that fires; board **#1148**'s lesson is
+        // that a recorded unreachability is a statement about the cells someone
+        // thought of, and the conservative direction is to keep the guard.
+        if depth == BODY_SCOPE_DEPTH {
+            let mut q = p;
+            if let Ok(shape) = super::calls::parse_call_sequence_from(
+                seg,
+                &mut q,
+                lo,
+                vec![(callee_tok, args.clone())],
+                None,
+                Vec::new(),
+            ) {
+                return Ok(shape);
+            }
+            // Re-arm: the failed attempt above may have written a tag of its own.
+            prod_tag("tail-void-body-does-not-end-at-the-call");
+        }
         // A brace scope closes **between** the statement end and the return
         // branch, not after it: `void f(A* p){ { p->m(); } }` captures
         // `… 4C 4B · 54 03 · 3A <lbl> · 54 02 · 29 <lbl> …`, so the inner close
@@ -815,7 +862,7 @@ pub(super) fn assert_no_decline_lands_in_the_residue(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::func::body::{parse_segment, parse_segment_detail, BodyShape};
+    use crate::func::body::{parse_segment, parse_segment_detail, BodyShape, SeqTail};
     use crate::func::test_fixtures::*;
 
     /// Every refusal context [`eat_receiver_this`] can raise, verbatim. A test
@@ -1412,5 +1459,238 @@ mod tests {
             "{}",
             b.feature()
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // W-MCALL — the member call in STATEMENT-SEQUENCE position (board #1960)
+    // -----------------------------------------------------------------------
+    //
+    // Every segment below is transcribed verbatim from a live-toolchain capture
+    // of the lane's own fixtures at the workload's flags
+    // (`c2rs capture fixtures/cpp/wmcall_seq{,_neg}.cpp --keep-il`, split on the
+    // `4F 1F` gate marker by `work/w-mcall/pin.py`), never hand-assembled: the
+    // one fact a hand-written segment gets backwards is the argument list's
+    // stream order, and that is exactly what these tests are about.
+
+    /// `void wmcall_two(S* s){ s->a(); s->b(); }` — `wmcall_seq.cpp` cell P1.
+    const MCS_TWO: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0x20, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x37, 0x53, 0x53, 0x26, 0xF2, 0x09,
+        0x46, 0x2D, 0xF1, 0x09, 0x4C, 0x4F, 0x11, 0x53, 0x4F, 0x01, 0x38, 0x26, 0xE5, 0x09, 0xB9,
+        0xF1, 0x09, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x82, 0x07,
+        0x03, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x4B, 0x4F, 0x01, 0x39, 0x26, 0xE6, 0x09,
+        0xB9, 0xF1, 0x09, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x82,
+        0x07, 0x03, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x4B, 0x4F, 0x01, 0x3A, 0x3A, 0xF3,
+        0x09, 0x54, 0x02, 0x29, 0xF3, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `void wmcall_two_recv(S* s, S* t){ s->a(); t->a(); }` — cell P4. Two
+    /// formals, one callee-saved GPR, and the parked one is the SECOND.
+    const MCS_TWO_RECV: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0x20, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x4B, 0x53, 0x53, 0x26, 0xFD, 0x09,
+        0x46, 0x2D, 0xFC, 0x09, 0x2D, 0xFB, 0x09, 0x4C, 0x4F, 0x11, 0x53, 0x4F, 0x01, 0x4C, 0x26,
+        0xE5, 0x09, 0xB9, 0xFB, 0x09, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00,
+        0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x4B, 0x4F, 0x01, 0x4D,
+        0x26, 0xE5, 0x09, 0xB9, 0xFC, 0x09, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20,
+        0x00, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x4B, 0x4F, 0x01,
+        0x4E, 0x3A, 0xFE, 0x09, 0x54, 0x02, 0x29, 0xFE, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54,
+        0x00,
+    ];
+
+    /// `void wmcall_free_then(S* s){ wmcall_free(); s->a(); }` — cell P6. The
+    /// FREE call is first, so this body never enters
+    /// [`try_parse_member_tail_call`] at all: the member call is read by the
+    /// sequence LOOP. Its base census key was `call-token-0xB9`.
+    const MCS_FREE_THEN: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0x20, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x5A, 0x53, 0x53, 0x26, 0x03, 0x0A,
+        0x46, 0x2D, 0x02, 0x0A, 0x4C, 0x4F, 0x11, 0x53, 0x4F, 0x01, 0x5B, 0x26, 0xF0, 0x09, 0xBD,
+        0x82, 0x07, 0x03, 0x00, 0x80, 0x09, 0x10, 0x00, 0x00, 0x4C, 0x4B, 0x4F, 0x01, 0x5C, 0x26,
+        0xE5, 0x09, 0xB9, 0x02, 0x0A, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00,
+        0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x4B, 0x4F, 0x01, 0x5D,
+        0x3A, 0x04, 0x0A, 0x54, 0x02, 0x29, 0x04, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `void S::both(){ a(); b(); }` — cell P8, the workload's own spelling: the
+    /// receiver is the IMPLICIT `this`, so the formals list is the `this` group
+    /// alone and there is no `2D` parameter run at all.
+    const MCS_THIS: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0x20, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x6A, 0x53, 0x53, 0x26, 0xE9, 0x09,
+        0xB9, 0x09, 0x0A, 0xA6, 0x43, 0x83, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0x46, 0x4C,
+        0x4F, 0x11, 0x53, 0x4F, 0x01, 0x6B, 0x26, 0xE5, 0x09, 0xB9, 0x09, 0x0A, 0xA6, 0x43, 0x83,
+        0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x04, 0x10,
+        0x00, 0x00, 0x4C, 0x4B, 0x4F, 0x01, 0x6C, 0x26, 0xE6, 0x09, 0xB9, 0x09, 0x0A, 0xA6, 0x43,
+        0x83, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x04,
+        0x10, 0x00, 0x00, 0x4C, 0x4B, 0x4F, 0x01, 0x6D, 0x3A, 0x0A, 0x0A, 0x54, 0x02, 0x29, 0x0A,
+        0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x6E,
+        0x4D,
+    ];
+
+    /// `int wmcall_neg_value_tail(S* s){ s->a(); return s->get(); }` —
+    /// `wmcall_seq_neg.cpp` cell N6, the VALUE TAIL this rung declines.
+    const MCS_VALUE_TAIL: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0x20, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x61, 0x53, 0x53, 0x26, 0x15, 0x0A,
+        0x46, 0x2D, 0x14, 0x0A, 0x4C, 0x4F, 0x11, 0x53, 0x4F, 0x01, 0x62, 0x26, 0xE4, 0x09, 0xB9,
+        0x14, 0x0A, 0x86, 0x43, 0xA3, 0x20, 0x99, 0x86, 0x43, 0x83, 0x20, 0x00, 0xBD, 0x82, 0x07,
+        0x03, 0x00, 0x80, 0x03, 0x10, 0x00, 0x00, 0x4C, 0x4B, 0x4F, 0x01, 0x63, 0x26, 0xE6, 0x09,
+        0xB9, 0x14, 0x0A, 0x86, 0x43, 0xA3, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x86,
+        0x41, 0x74, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x41, 0x86, 0x41, 0x74, 0x3A, 0x16,
+        0x0A, 0x4F, 0x01, 0x64, 0x54, 0x02, 0x29, 0x16, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54,
+        0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x65, 0x4D,
+    ];
+
+    /// `void wmcall_neg_guarded(S* s, int c){ if (c) { s->a(); } s->b(); }` —
+    /// cell N4, the GUARDED sequence (W10) this rung excludes by name.
+    const MCS_GUARDED: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0x20, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x53, 0x53, 0x53, 0x26, 0x0E, 0x0A,
+        0x46, 0x2D, 0x0D, 0x0A, 0x2D, 0x0C, 0x0A, 0x4C, 0x4F, 0x11, 0x53, 0x4F, 0x01, 0x54, 0x53,
+        0xB9, 0x0D, 0x0A, 0x86, 0x41, 0x74, 0x38, 0x10, 0x0A, 0x53, 0x53, 0x4F, 0x01, 0x55, 0x26,
+        0xE4, 0x09, 0xB9, 0x0C, 0x0A, 0x86, 0x43, 0xA3, 0x20, 0x99, 0x86, 0x43, 0x83, 0x20, 0x00,
+        0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x03, 0x10, 0x00, 0x00, 0x4C, 0x4B, 0x4F, 0x01, 0x56,
+        0x54, 0x05, 0x4F, 0x01, 0x57, 0x54, 0x04, 0x29, 0x10, 0x0A, 0x54, 0x03, 0x26, 0xE5, 0x09,
+        0xB9, 0x0C, 0x0A, 0x86, 0x43, 0xA3, 0x20, 0x99, 0x86, 0x43, 0x83, 0x20, 0x00, 0xBD, 0x82,
+        0x07, 0x03, 0x00, 0x80, 0x03, 0x10, 0x00, 0x00, 0x4C, 0x4B, 0x4F, 0x01, 0x58, 0x3A, 0x0F,
+        0x0A, 0x54, 0x02, 0x29, 0x0F, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// **The class, at its smallest member: `BodyShape::CallSeq` and Class B.**
+    ///
+    /// There is no Class A two-member-call body — a member call needs its
+    /// receiver, so the receiver of the second call is live across the first
+    /// `bl` by construction — which is why this rung's smallest cell already
+    /// carries a callee-saved GPR where the free-function sequence's does not.
+    #[test]
+    fn a_member_call_sequence_is_a_class_b_call_seq() {
+        let Some(BodyShape::CallSeq { params, calls, tail, saved, guard: None, .. }) =
+            parse_segment(MCS_TWO, NO_LOCALS)
+        else {
+            panic!("a two-statement member-call body is a statement-call sequence");
+        };
+        assert_eq!(params, vec![0xF109], "the one formal, `s`");
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0].callee_tok, 0xE509, "?a — the first statement");
+        assert_eq!(calls[1].callee_tok, 0xE609, "?b — the second");
+        assert_eq!(tail, SeqTail::Void);
+        assert_eq!(saved, vec![0], "the receiver is parked in r31 across both calls");
+    }
+
+    /// **`this` is argument SLOT 0, in every call of the sequence.**
+    ///
+    /// The argument list is in stream order — rightmost source argument first —
+    /// so the receiver goes on the END of it and comes out of the marshalling as
+    /// slot 0. Getting that backwards is invisible on a nullary call, which is
+    /// what `member_tail_call_puts_this_in_slot_zero` pins for the tail form;
+    /// this is the same fact one production over, and the two-receiver cell is
+    /// what makes it visible (the two calls' slot-0 tokens DIFFER).
+    #[test]
+    fn the_receiver_is_argument_slot_zero_in_every_sequence_call() {
+        let Some(BodyShape::CallSeq { params, calls, saved, .. }) =
+            parse_segment(MCS_TWO_RECV, NO_LOCALS)
+        else {
+            panic!("a two-receiver member-call body is a statement-call sequence");
+        };
+        assert_eq!(params, vec![0xFB09, 0xFC09], "`s` then `t`");
+        assert_eq!(calls[0].arg_ops, vec![IlOp::Load(0xFB09)], "call 1's `this` is `s`");
+        assert_eq!(calls[1].arg_ops, vec![IlOp::Load(0xFC09)], "call 2's `this` is `t`");
+        // The SECOND receiver is the parked one: the first call's is already in
+        // r3 and dies there.
+        assert_eq!(saved, vec![1]);
+    }
+
+    /// **The other reader route.** With a free call first the body never enters
+    /// [`try_parse_member_tail_call`]; the member call is read inside
+    /// `parse_call_sequence_from`'s statement arm, whose base census key for this
+    /// exact body was `call-token-0xB9`.
+    #[test]
+    fn the_sequence_loop_reads_a_member_call_after_a_free_one() {
+        let Some(BodyShape::CallSeq { calls, saved, .. }) =
+            parse_segment(MCS_FREE_THEN, NO_LOCALS)
+        else {
+            panic!("a free call then a member call is a statement-call sequence");
+        };
+        assert_eq!(calls.len(), 2);
+        assert!(calls[0].arg_ops.is_empty(), "the free call takes no arguments");
+        assert_eq!(calls[1].arg_ops, vec![IlOp::Load(0x020A)], "the member call's `this`");
+        assert_eq!(saved, vec![0], "`s` is live across the free call's `bl`");
+    }
+
+    /// **The workload's own spelling** — a member function calling its own
+    /// methods, where the parked formal is the implicit `this` and the formals
+    /// list has no `2D` run at all.
+    #[test]
+    fn the_implicit_this_receiver_parses_as_a_sequence() {
+        let Some(BodyShape::CallSeq { params, calls, saved, .. }) =
+            parse_segment(MCS_THIS, NO_LOCALS)
+        else {
+            panic!("an implicit-this member-call body is a statement-call sequence");
+        };
+        assert_eq!(params, vec![0x090A], "the implicit `this`");
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0].arg_ops, vec![IlOp::Load(0x090A)]);
+        assert_eq!(calls[1].arg_ops, vec![IlOp::Load(0x090A)]);
+        assert_eq!(saved, vec![0]);
+    }
+
+    /// **The VALUE TAIL is declined, and the body keeps the key it has at
+    /// base.** `SeqTail::CallValue` marshals a receiver into slot 0 *and* a
+    /// post-op region and the two have never been graded together — decline D3.
+    ///
+    /// The second assertion is the rung's D7: an arm that declines re-raises the
+    /// block the body already reported, so a refusal is never re-keyed.
+    #[test]
+    fn a_member_statement_call_whose_result_is_not_discarded_declines() {
+        assert!(parse_segment(MCS_VALUE_TAIL, NO_LOCALS).is_none());
+        let b = parse_segment_detail(MCS_VALUE_TAIL, NO_LOCALS).unwrap_err();
+        assert_eq!(b.feature(), "expr-call-in-expr-recv-load-whole", "{}", b.feature());
+    }
+
+    /// **A GUARDED sequence never admits a member call** — decline D4. That
+    /// class is Class A only and hoists its entry block; no obj in this repo
+    /// grades it with a receiver in slot 0, so `parse_call_sequence_from`
+    /// excludes `guard`/`early` by name rather than by an argument.
+    #[test]
+    fn a_guarded_sequence_does_not_admit_a_member_call() {
+        assert!(parse_segment(MCS_GUARDED, NO_LOCALS).is_none());
+        let b = parse_segment_detail(MCS_GUARDED, NO_LOCALS).unwrap_err();
+        assert_eq!(b.feature(), "expr-brfalse", "{}", b.feature());
+    }
+
+    /// **The member arm can only turn an `Err` into an `Ok`.**
+    ///
+    /// Truncating a positive cell one byte at a time is the adversarial half a
+    /// capture corpus cannot reach: at every prefix the parse must either accept
+    /// (only the untruncated segment does) or refuse, and it must never panic
+    /// and never run off the end. The atomic reader's cursor discipline is what
+    /// this exercises — a member arm that consumed bytes on the way to a decline
+    /// would hand the sequence loop a cursor in the middle of a token.
+    #[test]
+    fn the_member_arm_only_ever_turns_an_err_into_an_ok() {
+        for cut in 1..MCS_TWO.len() {
+            let seg = &MCS_TWO[..cut];
+            assert!(
+                parse_segment(seg, NO_LOCALS).is_none(),
+                "a truncated segment is not a body ({cut} of {})",
+                MCS_TWO.len()
+            );
+            // The detail parse must produce a Block rather than panicking.
+            let _ = parse_segment_detail(seg, NO_LOCALS);
+        }
+        assert!(parse_segment(MCS_TWO, NO_LOCALS).is_some(), "the whole segment IS a body");
     }
 }

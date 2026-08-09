@@ -1,0 +1,34 @@
+src/Main.cpp  [vocab-gap] fn 0/1
+         1 bodies      1 emitted  param-width-undetermined:mid
+src/keygen_xbox.cpp  [vocab-gap] fn 2/20
+         8 bodies      8 emitted  expr-jump
+         2 bodies      2 emitted  assign-store-type-8643
+         1 bodies      1 emitted  call-arg-outer-formal:eof
+         1 bodies      1 emitted  expr-brfalse
+         1 bodies      1 emitted  expr-call-in-expr-data-addr-then-plain-call-and-op-more
+         1 bodies      1 emitted  expr-call-in-expr-op-0x1F
+         1 bodies      1 emitted  expr-lit-type-9641
+         1 bodies      1 emitted  expr-load-type-8211
+         1 bodies      1 emitted  expr-op-0x0F
+         1 bodies      1 emitted  expr-op-0x30
+src/system/rndobj/wordwrap.cpp  [vocab-gap] fn 0/3
+         1 bodies      1 emitted  expr-brfalse
+         1 bodies      1 emitted  expr-cmp-eq
+         1 bodies      1 emitted  expr-jump
+src/system/synth_xbox/Biquad.cpp  [vocab-gap] fn 0/2
+         1 bodies      1 emitted  expr-call-in-expr-recv-load-then-plumbing-0x3A
+         1 bodies      1 emitted  expr-cmp-eq
+src/system/synth_xbox/IPP_basicmath_xbox.cpp  [vocab-gap] fn 0/4
+         4 bodies      4 emitted  expr-cmp-eq
+src/system/utl/EncryptXTEA.cpp  [vocab-gap] fn 1/5
+         2 bodies      2 emitted  expr-op-0x27
+         1 bodies      1 emitted  expr-intrinsic-memcpy
+         1 bodies      1 emitted  expr-load-type-8882
+src/system/utl/Pool.cpp  [vocab-gap] fn 0/3
+         2 bodies      2 emitted  expr-op-0x27
+         1 bodies      1 emitted  expr-brtrue
+src/xdk/LIBCMT/vsnprnc.cpp  [vocab-gap] fn 0/2
+         1 bodies      1 emitted  call-arg-lit-permuted:mid
+         1 bodies      1 emitted  expr-cmp-eq
+src/xdk/nuispeech/mmio.cpp  [vocab-gap] fn 8/11
+         3 bodies      3 emitted  expr-cmp-eq
