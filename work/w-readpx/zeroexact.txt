@@ -1,0 +1,27 @@
+## call-sequence-cmp-eq — 542 emitted, 311 TUs, 232 names
+   top names: ??$?8PAUNode@?$ObjPtrVec@VRndTransformable@@VObjectDir@@@@@stlpmtx_std@@YA_NABV?$reverse_iterator@PAUNode@?$ObjPtrVec@VRndTransformable@@VObjectDir@@@@@0@0@Z x72 · ??$?8PAVSymbol@@@stlpmtx_std@@YA_NABV?$reverse_iterator@PAVSymbol@@@0@0@Z x58 · ??$?8PAVString@@@stlpmtx_std@@YA_NABV?$reverse_iterator@PAVString@@@0@0@Z x25 · ??$?8PAVFace@RndMesh@@@stlpmtx_std@@YA_NABV?$reverse_iterator@PAVFace@RndMesh@@@0@0@Z x11 · ??$?8PAV?$ObjPtr@VUIColor@@@@@stlpmtx_std@@YA_NABV?$reverse_iterator@PAV?$ObjPtr@VUIColor@@@@@0@0@Z x9
+   sizes: 24
+   READ ??$?8PAUHamMoveKey@@@stlpmtx_std@@YA_NABV?$reverse_iterator@PAUHamMoveKey@@@0@0@Z  tu=src/lazer/game/Game.cpp cflow=cflow-straight 24B verdict=fnbyte-differs
+   READ ??$?8PAUTempoInfoPoint@MultiTempoTempoMap@@@stlpmtx_std@@YA_NABV?$reverse_iterator@PAUTempoInfoPoint@MultiTempoTempoMap@@@0@0@Z  tu=src/lazer/game/Game.cpp cflow=cflow-straight 24B verdict=fnbyte-differs
+   READ ??$?8PAVSymbol@@@stlpmtx_std@@YA_NABV?$reverse_iterator@PAVSymbol@@@0@0@Z  tu=src/lazer/game/Game.cpp cflow=cflow-straight 24B verdict=fnbyte-differs
+
+## framed-call — 123 emitted, 76 TUs, 83 names
+   top names: ?back@?$vector@V?$Key@M@@V?$StlNodeAlloc@V?$Key@M@@@stlpmtx_std@@@stlpmtx_std@@QBAABV?$Key@M@@XZ x14 · ?back@?$vector@V?$Key@VVector3@@@@V?$StlNodeAlloc@V?$Key@VVector3@@@@@stlpmtx_std@@@stlpmtx_std@@QBAABV?$Key@VVector3@@@@XZ x7 · ?back@?$vector@V?$Key@VColor@Hmx@@@@V?$StlNodeAlloc@V?$Key@VColor@Hmx@@@@@stlpmtx_std@@@stlpmtx_std@@QBAABV?$Key@VColor@Hmx@@@@XZ x5 · ?back@?$vector@V?$Key@VSymbol@@@@V?$StlNodeAlloc@V?$Key@VSymbol@@@@@stlpmtx_std@@@stlpmtx_std@@QBAABV?$Key@VSymbol@@@@XZ x4 · ?back@?$vector@V?$Key@VQuat@Hmx@@@@V?$StlNodeAlloc@V?$Key@VQuat@Hmx@@@@@stlpmtx_std@@@stlpmtx_std@@QBAABV?$Key@VQuat@Hmx@@@@XZ x4
+   sizes: 12
+   READ ?back@?$vector@VSymbol@@V?$StlNodeAlloc@VSymbol@@@stlpmtx_std@@@stlpmtx_std@@QAAAAVSymbol@@XZ  tu=src/lazer/game/Game.cpp cflow=cflow-straight 12B verdict=fnbyte-differs
+   READ ?back@?$vector@PAVPartyModePlayer@@V?$StlNodeAlloc@PAVPartyModePlayer@@@stlpmtx_std@@@stlpmtx_std@@QAAAAPAVPartyModePlayer@@XZ  tu=src/lazer/game/PartyModeMgr.cpp cflow=cflow-straight 12B verdict=fnbyte-differs
+   READ ?back@?$vector@PAVBandEvent@UIEventMgr@@V?$StlNodeAlloc@PAVBandEvent@UIEventMgr@@@stlpmtx_std@@@stlpmtx_std@@QAAAAPAVBandEvent@UIEventMgr@@XZ  tu=src/lazer/meta_ham/UIEventMgr.cpp cflow=cflow-straight 12B verdict=fnbyte-differs
+
+## fp-tail-call — 5 emitted, 5 TUs, 1 names
+   top names: ?Abs@@YAMM@Z x5
+   sizes: 8
+   READ ?Abs@@YAMM@Z  tu=src/system/gesture/DepthBuffer3D.cpp cflow=cflow-straight 8B verdict=fnbyte-differs
+   READ ?Abs@@YAMM@Z  tu=src/system/gesture/LiveCameraInput.cpp cflow=cflow-straight 8B verdict=fnbyte-differs
+   READ ?Abs@@YAMM@Z  tu=src/system/rndobj/AmbientOcclusion.cpp cflow=cflow-straight 8B verdict=fnbyte-differs
+
+## call-sequence-cmp-order — 2 emitted, 2 TUs, 2 names
+   top names: ??RMoveDetectorCmp@@QBA_NPAVMoveDetector@@0@Z x1 · ??RPriority@@QBA_NPAVFileCacheEntry@@0@Z x1
+   sizes: 24 32
+   READ ??RMoveDetectorCmp@@QBA_NPAVMoveDetector@@0@Z  tu=src/system/hamobj/MoveAsyncDetector.cpp cflow=cflow-straight 24B verdict=fnbyte-differs
+   READ ??RPriority@@QBA_NPAVFileCacheEntry@@0@Z  tu=src/system/os/FileCache.cpp cflow=cflow-straight 32B verdict=fnbyte-differs
+

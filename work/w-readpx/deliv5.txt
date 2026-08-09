@@ -1,0 +1,55 @@
+PORT CFG CLASSES, read off the scan's own LEDGER: ['cflow-straight', 'cflow-straight+expr-modeled', 'cflow-if-1', 'cflow-if-1+expr-modeled']
+
+## Q1 — the frontier's 41, by whether the EMITTER can hold the CFG
+
+**16 of 41 sit on a port CFG class**; 25 do not.
+
+| CFG class | n | in `PORT_CFG_CLASSES` |
+|---|---:|---|
+| `cflow-loop` | 19 | no |
+| `cflow-straight` | 8 | **yes** |
+| `cflow-if-n` | 5 | no |
+| `cflow-straight+expr-modeled` | 4 | **yes** |
+| `cflow-if-1` | 3 | **yes** |
+| `cflow-if-1+expr-modeled` | 1 | **yes** |
+| `cflow-if-2` | 1 | no |
+| **total** | **41** | |
+
+COLUMN-SUM ASSERT: 16 + 25 == 41  OK
+
+### the 16 candidates a reader rung could actually reach
+
+| TU | function | key | cflow | bytes |
+|---|---|---|---|---:|
+| `Main.cpp` | `main` | `param-width-undetermined:mid` | `cflow-straight` | 124 |
+| `keygen_xbox.cpp` | `?getKey@KeyChain@@YAXIPAE0@Z` | `expr-call-in-expr-data-addr-then-plain-call-and-op-more` | `cflow-straight` | 128 |
+| `keygen_xbox.cpp` | `?getKeyImpl@@YAXPAEPAD0@Z` | `call-arg-outer-formal:eof` | `cflow-straight+expr-modeled` | 108 |
+| `keygen_xbox.cpp` | `?opaquePredicate@@YAXXZ` | `expr-lit-type-9641` | `cflow-straight` | 20 |
+| `keygen_xbox.cpp` | `?random@@YAJJ@Z` | `expr-brfalse` | `cflow-if-1+expr-modeled` | 48 |
+| `keygen_xbox.cpp` | `?roll@@YAHH@Z` | `expr-op-0x0F` | `cflow-straight` | 24 |
+| `keygen_xbox.cpp` | `?supershuffle@@YAXPAD@Z` | `callee-defined-in-tu:eof` | `cflow-straight+expr-modeled` | 104 |
+| `keygen_xbox.cpp` | `?swap@@YAXAAD0@Z` | `expr-op-0x30` | `cflow-straight` | 20 |
+| `wordwrap.cpp` | `?WordWrap_SetOption@@YAXI@Z` | `expr-jump` | `cflow-straight+expr-modeled` | 12 |
+| `Biquad.cpp` | `??0Biquad@DSP@@QAA@PAM@Z` | `expr-call-in-expr-recv-load-then-plumbing-0x3A` | `cflow-straight` | 36 |
+| `Biquad.cpp` | `?SetCoefficients@Biquad@DSP@@QAAXPAM@Z` | `expr-cmp-eq` | `cflow-if-1` | 140 |
+| `EncryptXTEA.cpp` | `?SetKey@XTEABlockEncrypter@@QAAXPBE@Z` | `expr-intrinsic-memcpy` | `cflow-straight` | 12 |
+| `EncryptXTEA.cpp` | `?SetNonce@XTEABlockEncrypter@@QAAXPB_KI@Z` | `expr-op-0x27` | `cflow-straight` | 32 |
+| `Pool.cpp` | `?Alloc@Pool@@QAAPAXXZ` | `expr-op-0x27` | `cflow-if-1` | 28 |
+| `Pool.cpp` | `?Free@Pool@@QAAXPAX@Z` | `expr-brtrue` | `cflow-if-1` | 24 |
+| `vsnprnc.cpp` | `vsprintf_s` | `call-arg-lit-permuted:mid` | `cflow-straight+expr-modeled` | 12 |
+
+## Q2 — the per-TU counterfactual: does ANY single key empty a TU?
+
+| frontier TU | reader | distinct keys | single-key? | all bodies on a port CFG class? | converts on one reader rung? |
+|---|---:|---:|---|---|---|
+| `src/Main.cpp` | 1 | 1 | **yes** | **yes** | **YES** |
+| `src/system/synth_xbox/Biquad.cpp` | 2 | 2 | no | **yes** | no |
+| `src/xdk/LIBCMT/vsnprnc.cpp` | 2 | 2 | no | no | no |
+| `src/system/rndobj/wordwrap.cpp` | 3 | 3 | no | no | no |
+| `src/system/utl/Pool.cpp` | 3 | 2 | no | no | no |
+| `src/xdk/nuispeech/mmio.cpp` | 3 | 1 | **yes** | no | no |
+| `src/system/synth_xbox/IPP_basicmath_xbox.cpp` | 4 | 1 | **yes** | no | no |
+| `src/system/utl/EncryptXTEA.cpp` | 4 | 3 | no | no | no |
+| `src/keygen_xbox.cpp` | 19 | 11 | no | no | no |
+
+**TUs a single reader rung converts: 1** ['src/Main.cpp']

@@ -1,0 +1,13 @@
+| departed function | key at c34c388c | TU | TU verdict now | fnbyte now | key now |
+|---|---|---|---|---|---|
+| `?NextHashPrime@@YAHH@Z` | `expr-jump` | `src/system/math/Primes.cpp` | **match** | fnbyte-exact | `static-scan-loop` |
+| `CXLrcImpl_CreateClientWithTransport` | `assign-rhs-call-0x26` | `src/xdk/xlrc/xlrcimpl.cpp` | **match** | fnbyte-exact | `xlrc-create-guard` |
+| `_free_osfhnd` | `expr-cmp-ge` | `src/xdk/LIBCMT/osfinfo.cpp` | **match** | fnbyte-exact | `osf-handle-guard` |
+| `?append@DName@@QAAXPAVDNameNode@@@Z` | `expr-cmp-ne` | `src/xdk/LIBCMT/undname.cpp` | **match** | fnbyte-exact | `alloc-init-or-fail` |
+| `?GetBuffer@JsonWriter@@QAAJPAGPAK@Z` | `expr-brfalse` | `src/xdk/xjson/jsonwriter.cpp` | **match** | fnbyte-exact | `json-utf8-copy` |
+| `?FindNodeA@@YAPBUCharGraphNode@@W4PlayBlend@@PAXM@Z` | `assign-store-type-8643` | `src/system/negate_test.cpp` | **match** | fnbyte-exact | `if-call-join` |
+
+src/xdk/LIBCMT/vswprnc.cpp                         match
+src/system/utl/Primes.cpp                          MISSING
+src/system/synth_xbox/negate_test.cpp              MISSING
+src/system/utl/JsonWriter.cpp                      MISSING

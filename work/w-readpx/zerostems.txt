@@ -1,0 +1,6 @@
+call-sequence-cmp-eq     emitted   542  names  232  STEMS   2  exact     0 | stlpmtx_std::operator== x541 · ??$?8PAW4SkeletonJoint@@@stlpmtx_std@@YA_NABV?$reverse_iterator@PAW4SkeletonJoint@@@0@0@Z x1
+framed-call              emitted   123  names   83  STEMS   2  exact     0 | stlpmtx_std::vector::back x122 · ?back@?$vector@VVector2@@V?$StlNodeAlloc@VVector2@@@stlpmtx_std@@@stlpmtx_std@@QBAABVVector2@@XZ x1
+multiarg-tail-call       emitted  3793  names  680  STEMS  38  exact  3162 | DebugFailer::operator x758 · stlpmtx_std::_Destroy_Range x616 · DebugNotifier::operator x603 · ObjRefConcrete::Replace x586
+empty-dtor-delegation    emitted  2242  names  834  STEMS  95  exact  1649 | stlpmtx_std::_STLP_alloc_proxy::~_STLP_alloc_proxy x1373 · stlpmtx_std::list::~list x350 · FilePath::~FilePath x104 · stlpmtx_std::__Named_exception::~__Named_exception x66
+int-tail-call            emitted   415  names  243  STEMS  42  exact   145 | stlpmtx_std::_List_iterator::operator- x127 · stlpmtx_std::_Rb_tree_iterator::operator- x108 · stlpmtx_std::vector::front x89 · stlpmtx_std::_Rb_tree::_S_minimum x16
+call-sequence-value      emitted   786  names   92  STEMS  20  exact   583 | DataArray::Int x298 · DataArray::Obj x154 · DataArray::Array x109 · DataArray::Str x91

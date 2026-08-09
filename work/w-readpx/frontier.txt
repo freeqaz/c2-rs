@@ -1,0 +1,89 @@
+FRONTIER TUs: 9
+READPX rows (whole workload emitted denominator): 178977
+frontier emitted denominator: 51
+  fnbyte-exact             10
+  fnbyte-refused           41
+
+reader column (frontier, fnbyte-refused): 41
+
+| key | n | TUs | example function |
+|---|---:|---:|---|
+| `expr-cmp-eq` | 10 | 5 | `?Add_InPlace@IPP@@YAXIPBMPAM@Z` |
+| `expr-jump` | 9 | 2 | `?WordWrap_SetOption@@YAXI@Z` |
+| `expr-op-0x27` | 4 | 2 | `??0Pool@@QAA@HPAXH@Z` |
+| `assign-store-type-8643` | 2 | 1 | `?mash@@YAXPAE0@Z` |
+| `expr-brfalse` | 2 | 2 | `?IsEastAsianChar@@YA_N_W@Z` |
+| `call-arg-lit-permuted:mid` | 1 | 1 | `vsprintf_s` |
+| `call-arg-outer-formal:eof` | 1 | 1 | `?getKeyImpl@@YAXPAEPAD0@Z` |
+| `callee-defined-in-tu:eof` | 1 | 1 | `?supershuffle@@YAXPAD@Z` |
+| `expr-brtrue` | 1 | 1 | `?Free@Pool@@QAAXPAX@Z` |
+| `expr-call-in-expr-data-addr-then-plain-call-and-op-more` | 1 | 1 | `?getKey@KeyChain@@YAXIPAE0@Z` |
+| `expr-call-in-expr-op-0x1F` | 1 | 1 | `?getMasher@KeyChain@@YAXPAE@Z` |
+| `expr-call-in-expr-recv-load-then-plumbing-0x3A` | 1 | 1 | `??0Biquad@DSP@@QAA@PAM@Z` |
+| `expr-intrinsic-memcpy` | 1 | 1 | `?SetKey@XTEABlockEncrypter@@QAAXPBE@Z` |
+| `expr-lit-type-9641` | 1 | 1 | `?opaquePredicate@@YAXXZ` |
+| `expr-load-type-8211` | 1 | 1 | `?asciiDigitToHex@@YAED@Z` |
+| `expr-load-type-8882` | 1 | 1 | `?Encipher@XTEABlockEncrypter@@AAA_K_KPAI@Z` |
+| `expr-op-0x0F` | 1 | 1 | `?roll@@YAHH@Z` |
+| `expr-op-0x30` | 1 | 1 | `?swap@@YAXAAD0@Z` |
+| `param-width-undetermined:mid` | 1 | 1 | `main` |
+| **total** | **41** | 9 | |
+
+COLUMN-SUM ASSERT: 19 keys sum to 41 == 41 refused  OK
+distinct keys: 19 ; distinct names: 41 ; distinct TUs: 9
+
+--- the full listing ---
+| TU | function | key | cflow | cflow_off | bytes |
+|---|---|---|---|---|---:|
+| `Main.cpp` | `main` | `param-width-undetermined:mid` | `cflow-straight` | `bind` | 124 |
+| `keygen_xbox.cpp` | `?asciiDigitToHex@@YAED@Z` | `expr-load-type-8211` | `cflow-if-n` | `load-type` | 76 |
+| `keygen_xbox.cpp` | `?getKey@KeyChain@@YAXIPAE0@Z` | `expr-call-in-expr-data-addr-then-plain-call-and-op-more` | `cflow-straight` | `subscript` | 128 |
+| `keygen_xbox.cpp` | `?getKeyImpl@@YAXPAEPAD0@Z` | `call-arg-outer-formal:eof` | `cflow-straight+expr-modeled` | `-` | 108 |
+| `keygen_xbox.cpp` | `?getMasher@KeyChain@@YAXPAE@Z` | `expr-call-in-expr-op-0x1F` | `cflow-loop` | `deref` | 104 |
+| `keygen_xbox.cpp` | `?mash@@YAXPAE0@Z` | `assign-store-type-8643` | `cflow-loop` | `store-type` | 44 |
+| `keygen_xbox.cpp` | `?memcpy_cs@@YAXPAEPBEI@Z` | `expr-jump` | `cflow-loop` | `rmw` | 56 |
+| `keygen_xbox.cpp` | `?opaquePredicate@@YAXXZ` | `expr-lit-type-9641` | `cflow-straight` | `rmw` | 20 |
+| `keygen_xbox.cpp` | `?parseHex16@@YAXPBDPAE@Z` | `assign-store-type-8643` | `cflow-loop` | `store-type` | 88 |
+| `keygen_xbox.cpp` | `?random@@YAJJ@Z` | `expr-brfalse` | `cflow-if-1+expr-modeled` | `-` | 48 |
+| `keygen_xbox.cpp` | `?revealKey@@YAXPAJPAE@Z` | `expr-jump` | `cflow-loop` | `rmw` | 104 |
+| `keygen_xbox.cpp` | `?roll@@YAHH@Z` | `expr-op-0x0F` | `cflow-straight` | `rmw` | 24 |
+| `keygen_xbox.cpp` | `?shuffle1@@YAXPAD@Z` | `expr-jump` | `cflow-loop` | `rmw` | 104 |
+| `keygen_xbox.cpp` | `?shuffle2@@YAXPAD@Z` | `expr-jump` | `cflow-loop` | `rmw` | 60 |
+| `keygen_xbox.cpp` | `?shuffle3@@YAXPAD@Z` | `expr-jump` | `cflow-loop` | `rmw` | 84 |
+| `keygen_xbox.cpp` | `?shuffle4@@YAXPAD@Z` | `expr-jump` | `cflow-loop` | `rmw` | 84 |
+| `keygen_xbox.cpp` | `?shuffle5@@YAXPAD@Z` | `expr-jump` | `cflow-loop` | `rmw` | 88 |
+| `keygen_xbox.cpp` | `?shuffle6@@YAXPAD@Z` | `expr-jump` | `cflow-loop` | `rmw` | 88 |
+| `keygen_xbox.cpp` | `?supershuffle@@YAXPAD@Z` | `callee-defined-in-tu:eof` | `cflow-straight+expr-modeled` | `-` | 104 |
+| `keygen_xbox.cpp` | `?swap@@YAXAAD0@Z` | `expr-op-0x30` | `cflow-straight` | `deref` | 20 |
+| `wordwrap.cpp` | `?IsEastAsianChar@@YA_N_W@Z` | `expr-brfalse` | `cflow-if-n` | `bitwise` | 164 |
+| `wordwrap.cpp` | `?WordWrap_CanBreakLineAt@@YA_NPB_W0@Z` | `expr-cmp-eq` | `cflow-loop` | `compare` | 640 |
+| `wordwrap.cpp` | `?WordWrap_SetOption@@YAXI@Z` | `expr-jump` | `cflow-straight+expr-modeled` | `-` | 12 |
+| `Biquad.cpp` | `??0Biquad@DSP@@QAA@PAM@Z` | `expr-call-in-expr-recv-load-then-plumbing-0x3A` | `cflow-straight` | `bind` | 36 |
+| `Biquad.cpp` | `?SetCoefficients@Biquad@DSP@@QAAXPAM@Z` | `expr-cmp-eq` | `cflow-if-1` | `compare` | 140 |
+| `IPP_basicmath_xbox.cpp` | `?Add_InPlace@IPP@@YAXIPBMPAM@Z` | `expr-cmp-eq` | `cflow-loop` | `compare` | 48 |
+| `IPP_basicmath_xbox.cpp` | `?Mul@IPP@@YAXIPBM0PAM@Z` | `expr-cmp-eq` | `cflow-loop` | `compare` | 52 |
+| `IPP_basicmath_xbox.cpp` | `?MulConstant_InPlace@IPP@@YAXIPAMM@Z` | `expr-cmp-eq` | `cflow-loop` | `compare` | 36 |
+| `IPP_basicmath_xbox.cpp` | `?Mul_InPlace@IPP@@YAXIPBMPAM@Z` | `expr-cmp-eq` | `cflow-loop` | `compare` | 48 |
+| `EncryptXTEA.cpp` | `?Encipher@XTEABlockEncrypter@@AAA_K_KPAI@Z` | `expr-load-type-8882` | `cflow-loop` | `load-type` | 116 |
+| `EncryptXTEA.cpp` | `?Encrypt@XTEABlockEncrypter@@QAAXPBUXTEABlock@@PAU2@@Z` | `expr-op-0x27` | `cflow-loop` | `off-add` | 96 |
+| `EncryptXTEA.cpp` | `?SetKey@XTEABlockEncrypter@@QAAXPBE@Z` | `expr-intrinsic-memcpy` | `cflow-straight` | `intrinsic` | 12 |
+| `EncryptXTEA.cpp` | `?SetNonce@XTEABlockEncrypter@@QAAXPB_KI@Z` | `expr-op-0x27` | `cflow-straight` | `off-add` | 32 |
+| `Pool.cpp` | `??0Pool@@QAA@HPAXH@Z` | `expr-op-0x27` | `cflow-loop` | `off-add` | 80 |
+| `Pool.cpp` | `?Alloc@Pool@@QAAPAXXZ` | `expr-op-0x27` | `cflow-if-1` | `off-add` | 28 |
+| `Pool.cpp` | `?Free@Pool@@QAAXPAX@Z` | `expr-brtrue` | `cflow-if-1` | `off-add` | 24 |
+| `vsnprnc.cpp` | `_vsprintf_s_l` | `expr-cmp-eq` | `cflow-if-n` | `compare` | 152 |
+| `vsnprnc.cpp` | `vsprintf_s` | `call-arg-lit-permuted:mid` | `cflow-straight+expr-modeled` | `-` | 12 |
+| `mmio.cpp` | `mmioClose` | `expr-cmp-eq` | `cflow-if-n` | `compare` | 124 |
+| `mmio.cpp` | `mmioGetInfo` | `expr-cmp-eq` | `cflow-if-2` | `compare` | 84 |
+| `mmio.cpp` | `mmioSetInfo` | `expr-cmp-eq` | `cflow-if-n` | `compare` | 108 |
+
+--- per frontier TU ---
+src/Main.cpp                                         den  1 exact  0 reader  1 | param-width-undetermined:mid*1
+src/keygen_xbox.cpp                                  den 20 exact  1 reader 19 | assign-store-type-8643*2 call-arg-outer-formal:eof*1 callee-defined-in-tu:eof*1 expr-brfalse*1 expr-call-in-expr-data-addr-then-plain-call-and-op-more*1 expr-call-in-expr-op-0x1F*1 expr-jump*8 expr-lit-type-9641*1 expr-load-type-8211*1 expr-op-0x0F*1 expr-op-0x30*1
+src/system/rndobj/wordwrap.cpp                       den  3 exact  0 reader  3 | expr-brfalse*1 expr-cmp-eq*1 expr-jump*1
+src/system/synth_xbox/Biquad.cpp                     den  2 exact  0 reader  2 | expr-call-in-expr-recv-load-then-plumbing-0x3A*1 expr-cmp-eq*1
+src/system/synth_xbox/IPP_basicmath_xbox.cpp         den  4 exact  0 reader  4 | expr-cmp-eq*4
+src/system/utl/EncryptXTEA.cpp                       den  5 exact  1 reader  4 | expr-intrinsic-memcpy*1 expr-load-type-8882*1 expr-op-0x27*2
+src/system/utl/Pool.cpp                              den  3 exact  0 reader  3 | expr-brtrue*1 expr-op-0x27*2
+src/xdk/LIBCMT/vsnprnc.cpp                           den  2 exact  0 reader  2 | call-arg-lit-permuted:mid*1 expr-cmp-eq*1
+src/xdk/nuispeech/mmio.cpp                           den 11 exact  8 reader  3 | expr-cmp-eq*3
