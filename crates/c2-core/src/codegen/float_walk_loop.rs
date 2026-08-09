@@ -396,6 +396,36 @@ mod tests {
         );
     }
 
+    /// **The class routes through `select_function` and lands on `Plain`**, and
+    /// the TU-level facts it carries are the two that decide the obj SHELL:
+    /// `_fltused` (whose absence was the last thing between four byte-exact
+    /// bodies and a matching TU) and the label charge.
+    #[test]
+    fn the_shape_routes_and_carries_its_two_tu_level_facts() {
+        let fun = f(FloatWalkShape::Compound, FloatWalkOp::Add, 2, vec![1]);
+        // Every body in the class loads, computes and stores floats, so the obj
+        // owes `_fltused`. This is a STRUCTURAL fact of the class, which is why
+        // the predicate keys on the field and not on a body scan.
+        assert!(fun.touches_floating_point());
+        // …and the compiler-label charge is three-valued and reads
+        // `undetermined`, because it is mode-dependent AND sub-shape dependent
+        // (+10/+11 at `/O1`, +13/+15 at `/Ox` — `work/w-blockir/LABEL_LEAD.md`)
+        // while `label_slots` has neither parameter.
+        assert_eq!(fun.label_slots(false), None);
+        assert_eq!(fun.label_slots(true), None);
+        // The class is not framed: no `.pdata`, no `$M`/`$T` triple.
+        assert!(!fun.is_framed());
+        // And it routes: `select_function` must reach this emitter and return a
+        // `Plain` body of the right length rather than falling through to a leaf
+        // pattern-matcher.
+        let sel = crate::codegen::select::select_function(&fun, crate::codegen::select::OptMode::O1);
+        match sel {
+            Ok(crate::codegen::select::Selected::Plain(t)) => assert_eq!(t.len(), 48),
+            Ok(_) => panic!("the float walk loop routed to a variant other than Plain"),
+            Err(e) => panic!("the float walk loop did not route at all: {e:?}"),
+        }
+    }
+
     /// The back edge reaches the first word of the loop body in each shape, and
     /// the two displacements are the ones real `c2` emitted.
     #[test]

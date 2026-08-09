@@ -714,4 +714,32 @@ mod tests {
         assert_eq!(FLOAT_SCALE, 4);
         assert!(RIGHT_HAND_INDICES_MUST_INCREASE);
     }
+
+    /// **The mode gate is the FIRST question, before any body byte** — board
+    /// #1638. A stream at any optimization word but `/O1` refuses on its own
+    /// key, and it refuses even when every later clause would have passed,
+    /// which is why the assertion is on the KEY and not on `is_err()`.
+    #[test]
+    fn the_mode_gate_refuses_before_the_first_body_byte() {
+        // A segment with no readable optimization word at all: `opt_word_at`
+        // returns `None`, `opt_word_mode` returns `None`, and the production
+        // must decline rather than default to `/O1`.
+        let seg = [0x4C, 0x4F, 0x11, 0x53, 0xB9, 0x00];
+        let err = try_parse_float_walk_loop(&seg, 4, 0, ENTRY_DEPTH, &[], &[]).unwrap_err();
+        assert_eq!(err.ctx, "fwalk-opt-mode");
+    }
+
+    /// The entry-depth clause is what licenses the two literal scope closes, so
+    /// a cursor arriving at any other depth refuses **there** and not later on a
+    /// `54 <k>` that happens not to match.
+    #[test]
+    fn a_cursor_at_the_wrong_depth_refuses_on_its_own_clause() {
+        // `4F 1F` + the `/O1` optimization word, so the mode gate passes.
+        let mut seg: Vec<u8> = vec![0x4F, 0x1F, 0x80, 0x05, 0x00, 0x20, 0x00];
+        seg.extend_from_slice(&[0x4C, 0x4F, 0x11, 0x53, 0xB9, 0x00]);
+        for d in [BODY_SCOPE_DEPTH, ENTRY_DEPTH + 1, ENTRY_DEPTH + 2] {
+            let err = try_parse_float_walk_loop(&seg, 11, 7, d, &[], &[]).unwrap_err();
+            assert_eq!(err.ctx, "fwalk-entry-depth", "depth {d}");
+        }
+    }
 }
