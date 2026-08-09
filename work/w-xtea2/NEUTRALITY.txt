@@ -1,0 +1,9 @@
+workload 878 878 rows, 0 MOVED
+    a: {'vocab-gap': 849, 'match': 22, 'capture-fail': 7}
+    b: {'vocab-gap': 849, 'match': 22, 'capture-fail': 7}
+fixtures /O1 346 rows, 0 MOVED
+    a: {'vocab-gap': 167, 'match': 167, 'codegen-gap': 12}
+    b: {'vocab-gap': 167, 'match': 167, 'codegen-gap': 12}
+fixtures /Ox 346 rows, 0 MOVED
+    a: {'vocab-gap': 183, 'match': 146, 'codegen-gap': 17}
+    b: {'vocab-gap': 183, 'match': 146, 'codegen-gap': 17}
