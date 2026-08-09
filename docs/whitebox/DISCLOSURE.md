@@ -94,6 +94,42 @@ costs the project more than the analysis did.
 >   GRID-W and 44/44 in GRID-M2, and it needs no address at all. `0x10b482ba`
 >   stays `unknown`.
 
+> ### **2026-08-09 — the `W-SELECT-*` rows are PRE-DRAFTED IN TWO PLACES WITH DIFFERENT CONTENTS, and lane `wb-selfit` reconciled them. NOTHING IS CARRIED.**
+>
+> `WB_SELECT_FINDINGS.md` §10 and `WB_SELECT_FINDINGS_R2.md` §9 each pre-draft
+> five rows under the same five names, from two independent readings of one
+> image on one day. **Ten drafts, five names, no adopted row** — no lane in that
+> family has changed `crates/`, so none of them belongs in the table above yet.
+> [`WB_SELECT_RECONCILED.md`](WB_SELECT_RECONCILED.md) §14.2 merges them to six;
+> the operative points for whoever carries them:
+>
+> * **`W-SELECT-2` (the operator × type tables) — use `WB_SELECT_FINDINGS_R2.md`'s
+>   version.** The other lane's enumeration is missing the thirteenth table,
+>   `convert` @ `0x10b1fd08` (board **#2200**). **The black-box alternative is
+>   complete and should be preferred**: the two grids plus `diag.cpp` re-derive
+>   every live entry, the signedness split, `srawi`+`addze`, the `lha` fusion and
+>   the absence of a magic-number multiply **with no address**.
+> * **`W-SELECT-3` (the cost model and the tie rule) is the row that genuinely
+>   needs an address, and the case is now STRONGER than either lane made it.**
+>   Both wrote that no obj separates *"`cntlzw` was cheaper"* from *"ties go to
+>   `cntlzw`"*. Board **#2204** adds that no obj in this project ever reached the
+>   comparison: `FUN_10c1b517` routes an against-zero relational to
+>   `FUN_10c1a908` first, and **five of the two grids' 24 cells** are exactly
+>   that. Use `WB_SELECT_FINDINGS.md`'s relation-code table — the other lane's
+>   has two transposed pairs (**#2207**), so the canonical form is `UGT`.
+> * **A SECOND row needs an address, and it is a COUNT.** 13 tables, 41 dispatch
+>   arms, 18 expansion arms. `WB_SELECT_FINDINGS_R2.md`'s `W-SELECT-4` note said
+>   so first and it is upheld: **no obj yields a count of arms**, and those three
+>   numbers are what both judgment rows' prices rest on. A port that only
+>   *implements* the rules needs none of them.
+> * **`W-SELECT-5` is downgraded and re-pointed.** Its adoption-ready clause
+>   *"`&` with a contiguous mask is `rlwinm`, never `andi.`"* is over-general
+>   (**#2210**); the deciding routine is **`FUN_10c0a2e2`**, not `FUN_10c1772b`
+>   (**#2203**). Navigation, held.
+> * **One row neither lane proposed**: `FUN_10c1a908` @ `0x10c1a908`, the
+>   against-zero relational, ~20 arms, **unread by both** and the thing five
+>   graded cells actually exercised. Navigation, held.
+
 > ### **2026-08-08 — lane `w-phase7` gave W-ALIAS-1 and W-ALIAS-2 their first CONSUMER, and adopted NO new address doing it.**
 >
 > The `Adopted into` column of **W-ALIAS-1** should now be read as
