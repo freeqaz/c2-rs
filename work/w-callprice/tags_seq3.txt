@@ -1,0 +1,22 @@
+prod tag                                              emitted   cons    bodies   em/1k
+call-ref                                                 5699   1499    125458    45.4
+msc-recv-0x26-CHAIN                                      5638   1169     19628   287.2
+msc-recv-0x26-NAMED-OBJECT                               2188    215      4094   534.4
+msc-result-not-discarded-value-tail                       447     13       727   614.9
+msc-recv-0x67-virtual                                     296     84       296  1000.0
+formals-marker                                            131    110       830   157.8
+expr                                                       50     18      2124    23.5
+msc-recv-0x26-other-recv-form                              33     32        33  1000.0
+msc-recv-this-not-a-plain-b9-load                          24     24        24  1000.0
+msc-recv-0x33-field-addr                                   19     19        19  1000.0
+call-intrinsic                                             16     16        16  1000.0
+msc-argument-not-in-the-operand-vocabulary                 11     10       229    48.0
+result-type                                                10      2      1411     7.1
+msc-recv-0x26-NESTED-CALL                                   9      9         9  1000.0
+expr-call-in-expr                                           8      8         8  1000.0
+expr-lit-type                                               2      2         2  1000.0
+call-arg-nonformal                                          1      1         1  1000.0
+call-arg-multi-sym                                          1      1         1  1000.0
+msc-recv-0x26-unnamed-form                                  1      1         1  1000.0
+this-undetermined                                           1      1      4139     0.2
+SELECTED TOTAL                                          14585           159050

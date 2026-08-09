@@ -1,0 +1,30 @@
+family: bodies 423905, emitted 35576
+
+=== the `prod` axis, EMITTED-ranked, with the discount ===
+prod tag                                              emitted      %  names   TUs em/name    bodies  em/1k
+tail-argument-not-in-the-operand-vocabulary              8909  25.04   4088   662     2.2     91503   97.4
+call-token                                               8666  24.36   1576   778     5.5     25060  345.8
+call-ref                                                 5699  16.02   1499   735     3.8    125458   45.4
+prod-not-entered                                         4093  11.50   1828   649     2.2     80998   50.5
+framed-result-not-consumed-by-a-literal-post-op          2755   7.74   1330   548     2.1     32444   84.9
+chain-link-does-not-bind-the-previous-result             1482   4.17    935   465     1.6      5808  255.2
+chain-recv-not-a-plain-b9-load/no-b9-this-adjust          847   2.38    465   355     1.8      4517  187.5
+tail-object-receiver-is-not-a-tail-call                   714   2.01    371   445     1.9     24862   28.7
+chain-link-argument-not-in-the-operand-vocabulary         503   1.41     24   467    21.0      2226  226.0
+chain-innermost-argument-not-in-the-operand-vocabulary      464   1.30    271   211     1.7      8593   54.0
+chain-recv-not-a-plain-b9-load/then-off-add               210   0.59    199   113     1.1      2327   90.2
+tail-recv-not-a-plain-b9-load/no-b9-literal               203   0.57    185   132     1.1      1554  130.6
+chain-recv-not-a-plain-b9-load/no-b9-plain-call           189   0.53     97   122     1.9       651  290.3
+tail-returned-body-does-not-end-at-the-call               144   0.40     32   115     4.5      1243  115.8
+formals-marker                                            131   0.37    110    82     1.2       830  157.8
+chain-recv-not-a-plain-b9-load/no-b9-off-add              112   0.31     36    84     3.1      3891   28.8
+chain-returned-body-does-not-end-at-the-call              105   0.30      4    96    26.2      1472   71.3
+chain-recv-not-a-plain-b9-load/no-b9-convert              104   0.29    103    52     1.0       824  126.2
+expr                                                       50   0.14     18    41     2.8      2124   23.5
+tail-recv-not-a-plain-b9-load/then-call-in-expr            32   0.09     21    26     1.5       557   57.5
+chain-recv-not-a-plain-b9-load/no-b9-base-member-addr       20   0.06     19    11     1.1       340   58.8
+chain-recv-not-a-plain-b9-load/no-b9-chain-bind            17   0.05      6     8     2.8        17 1000.0
+call-intrinsic                                             16   0.04     16    16     1.0        16 1000.0
+chain-recv-not-a-plain-b9-load/no-b9-virtual               14   0.04     14     8     1.0        14 1000.0
+TOTAL                                                   35576 100.00
+  ASSERTED: the prod axis partitions both columns exactly.

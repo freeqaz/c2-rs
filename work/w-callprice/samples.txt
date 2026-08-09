@@ -1,0 +1,219 @@
+family expr-call-in-expr: bodies 423905, emitted 35576 (423905 body rows, 35576 emitted rows)
+
+=== names for expr-call-in-expr-recv-object-then-call-recv-object-more: 5608 rows, 1139 distinct ===
+     528 in  528 TUs  ??$MakeString@$$BY0BG@$$CBDH$$BY0L@$$CBD@@YAPBDPBDAAY0BG@$$CBDABHAAY0L@$$CBD@Z
+     489 in  489 TUs  ??$MakeString@VSymbol@@PBDV1@@@YAPBDPBDABVSymbol@@ABQBD1@Z
+     436 in  436 TUs  ??$MakeString@$$BY0BJ@$$CBDH$$BY0BP@$$CBD@@YAPBDPBDAAY0BJ@$$CBDABHAAY0BP@$$CBD@Z
+     436 in  436 TUs  ??$MakeString@$$BY0BJ@$$CBDH$$BY0BB@$$CBD@@YAPBDPBDAAY0BJ@$$CBDABHAAY0BB@$$CBD@Z
+     244 in  244 TUs  ??$MakeString@PBDVSymbol@@HG@@YAPBDPBDABQBDABVSymbol@@ABHABG@Z
+     232 in  232 TUs  ??$MakeString@$$BY0EB@$$CBDH$$BY0CH@$$CBD@@YAPBDPBDAAY0EB@$$CBDABHAAY0CH@$$CBD@Z
+     169 in  169 TUs  ??$MakeString@PBD$$BY0IA@DPBD@@YAPBDPBDABQBDAAY0IA@$$CBD1@Z
+     145 in  145 TUs  ??$MakeString@$$BY0DP@$$CBDH$$BY0N@$$CBD@@YAPBDPBDAAY0DP@$$CBDABHAAY0N@$$CBD@Z
+family expr-call-in-expr: bodies 423905, emitted 35576 (423905 body rows, 35576 emitted rows)
+
+=== sample expr-call-in-expr-recv-object-then-call-recv-object-more (emitted): 5608 over 747 TUs, 1139 names ===
+  src/Memory_Xbox.cpp  #603  seg=316 calls=5
+    ??$MakeString@$$BY0BE@$$CBDH$$BY0EH@$$CBD@@YAPBDPBDAAY0BE@$$CBDABHAAY0EH@$$CBD@Z
+    cflow-straight / disp-assign / tail-void-body-does-not-end-at-the-call
+    2D D7 57 2D D6 57 4C 4F 11 53 4F 01 4B 26 38 3A >26< 71 5A 2C A6 43 98 2E 00 99 86 43 B8 2E 00 BD A6 43 98 2E 00 80 1D 17
+  src/system/flow/FlowTrigger.cpp  #1701  seg=344 calls=5
+    ??$MakeString@$$BY0DP@$$CBDH$$BY0N@$$CBD@@YAPBDPBDAAY0DP@$$CBDABHAAY0N@$$CBD@Z
+    cflow-straight / disp-assign / tail-void-body-does-not-end-at-the-call
+    00 2D 61 AE 01 00 4C 4F 11 53 4F 01 4B 26 1E 3A >26< 5A B1 01 00 2C A6 43 98 2E 00 99 86 43 B8 2E 00 BD A6 43 98 2E 00 80
+  src/lazer/meta_ham/AccomplishmentManager.cpp  #5718  seg=348 calls=5
+    ??$MakeString@$$BY0CN@$$CBDH$$BY0M@$$CBD@@YAPBDPBDAAY0CN@$$CBDABHAAY0M@$$CBD@Z
+    cflow-straight / disp-assign / tail-void-body-does-not-end-at-the-call
+    00 2D 41 CD 04 00 4C 4F 11 53 4F 01 4B 26 1E 3A >26< FB 86 05 00 2C A6 43 98 2E 00 99 86 43 B8 2E 00 BD A6 43 98 2E 00 80
+family expr-call-in-expr: bodies 423905, emitted 35576 (423905 body rows, 35576 emitted rows)
+
+=== names for expr-call-in-expr-recv-load-then-bit-and-and-branch-more: 4290 rows, 1340 distinct ===
+     531 in  531 TUs  ??_GDataArray@@AAAPAXI@Z
+     265 in  265 TUs  ??_GObjRef@@UAAPAXI@Z
+     169 in  169 TUs  ??_GMessage@@UAAPAXI@Z
+     134 in  134 TUs  ??_GObjRefOwner@@UAAPAXI@Z
+      75 in   75 TUs  ??_GFilePath@@UAAPAXI@Z
+      72 in   72 TUs  ??_G?$ObjPtrVec@VRndTransformable@@VObjectDir@@@@UAAPAXI@Z
+      67 in   67 TUs  ??_Gexception@std@@UAAPAXI@Z
+      66 in   66 TUs  ??_Glogic_error@stlpmtx_std@@UAAPAXI@Z
+family expr-call-in-expr: bodies 423905, emitted 35576 (423905 body rows, 35576 emitted rows)
+
+=== sample expr-call-in-expr-recv-load-then-bit-and-and-branch-more (emitted): 4290 over 711 TUs, 1340 names ===
+  src/App.cpp  #1005  seg=196 calls=2
+    ??_GFilePath@@UAAPAXI@Z
+    cflow-if-1 / disp-assign / tail-void-body-does-not-end-at-the-call
+    AD 3E 99 86 43 B9 3E 00 46 2D E2 6A 4C 4F 11 53 >26< CC 6A B9 E3 6A A6 43 AD 3E 2C A6 43 AD 3E 00 99 86 43 B7 3E 00 BD 82
+  src/system/world/CameraShot.cpp  #47  seg=197 calls=2
+    ??_Gbad_alloc@std@@UAAPAXI@Z
+    cflow-if-1 / disp-assign / tail-void-body-does-not-end-at-the-call
+    C4 21 99 86 43 CE 21 00 46 2D 0C 16 4C 4F 11 53 >26< FB 15 B9 0D 16 A6 43 C4 21 2C A6 43 C4 21 00 99 86 43 CB 21 00 BD 82
+  src/system/world/Instance.cpp  #2720  seg=220 calls=2
+    ??_G?$ObjRefConcrete@VWorldInstance@@VObjectDir@@@@UAAPAXI@Z
+    cflow-if-1 / disp-assign / tail-void-body-does-not-end-at-the-call
+    99 86 43 87 59 00 46 2D A3 90 02 00 4C 4F 11 53 >26< 1A A8 01 00 B9 0C 91 02 00 A6 43 F6 58 2C A6 43 F6 58 00 99 86 43 FB
+family expr-call-in-expr: bodies 423905, emitted 35576 (423905 body rows, 35576 emitted rows)
+
+=== names for expr-call-in-expr-recv-load-then-intrinsic-call: 2865 rows, 1158 distinct ===
+      66 in   66 TUs  ?_M_terminate_string@?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@stlpmtx_std@@IAAXXZ
+      66 in   66 TUs  ?c_str@?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@stlpmtx_std@@QBAPBDXZ
+      65 in   65 TUs  ?_M_force_construct_null@?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@stlpmtx_std@@IBAXPADABU__false_type@2@@Z
+      62 in   62 TUs  ?insert@?$list@PAVObjectDir@@V?$StlNodeAlloc@PAVObjectDir@@@stlpmtx_std@@@stlpmtx_std@@QAA?AU?$_List_iterator@PAVObjectDir@@U?$_Nonconst_traits@PAVObjectDir@@@stlpmtx_std@@@2@U32@ABQAVObjectDir@@@Z
+      62 in   62 TUs  ?end@?$list@PAVObjectDir@@V?$StlNodeAlloc@PAVObjectDir@@@stlpmtx_std@@@stlpmtx_std@@QAA?AU?$_List_iterator@PAVObjectDir@@U?$_Nonconst_traits@PAVObjectDir@@@stlpmtx_std@@@2@XZ
+      62 in   62 TUs  ?end@?$list@PAVObjectDir@@V?$StlNodeAlloc@PAVObjectDir@@@stlpmtx_std@@@stlpmtx_std@@QBA?AU?$_List_iterator@PAVObjectDir@@U?$_Const_traits@PAVObjectDir@@@stlpmtx_std@@@2@XZ
+      62 in   62 TUs  ?begin@?$list@PAVObjectDir@@V?$StlNodeAlloc@PAVObjectDir@@@stlpmtx_std@@@stlpmtx_std@@QAA?AU?$_List_iterator@PAVObjectDir@@U?$_Nonconst_traits@PAVObjectDir@@@stlpmtx_std@@@2@XZ
+      62 in   62 TUs  ?begin@?$list@PAVObjectDir@@V?$StlNodeAlloc@PAVObjectDir@@@stlpmtx_std@@@stlpmtx_std@@QBA?AU?$_List_iterator@PAVObjectDir@@U?$_Const_traits@PAVObjectDir@@@stlpmtx_std@@@2@XZ
+family expr-call-in-expr: bodies 423905, emitted 35576 (423905 body rows, 35576 emitted rows)
+
+=== sample expr-call-in-expr-recv-load-then-intrinsic-call (emitted): 2865 over 375 TUs, 1158 names ===
+  src/system/obj/Utl.cpp  #1486  seg=198 calls=1
+    ??R?$equal_to@VString@@@stlpmtx_std@@QBA_NABVString@@0@Z
+    cflow-straight / disp-assign / tail-argument-not-in-the-operand-vocabulary
+    00 46 2D 17 90 01 00 2D 16 90 01 00 4C 4F 11 53 >26< 13 2E B9 16 90 01 00 86 43 D7 58 99 86 43 FA 28 00 BD 82 12 30 00 80
+  src/system/char/CharDriver.cpp  #2633  seg=258 calls=1
+    ?end@?$_Rb_tree@PAVCharClip@@U?$less@PAVCharClip@@@stlpmtx_std@@U?$pair@QAVCharClip@@M@3@U?$_Select1st@U?$pair@QAVCharClip@@M@stlpmtx_std@@@3@U?$_MapTraitsT@U?$pair@QAVCharClip@@M@stlpmtx_std@@@priv@3@V?$StlNodeAlloc@U?$pair@QAVCharClip@@M@stlpmtx_std@@@3@@stlpmtx_std@@QAA?AU?$_Rb_tree_iterator@U?$pair@QAVCharClip@@M@stlpmtx_std@@U?$_MapTraitsT@U?$pair@QAVCharClip@@M@stlpmtx_std@@@priv@2@@2@XZ
+    cflow-straight / disp-assign / tail-argument-not-in-the-operand-vocabulary
+    86 43 F4 8C 01 00 46 65 7E AD 02 00 4C 4F 11 53 >26< D4 9B 02 00 B9 7E AD 02 00 86 43 F8 98 01 2C 86 43 F9 98 01 00 99 86
+  src/system/char/ClipCollide.cpp  #2492  seg=325 calls=2
+    ?pop_front@?$list@PAVObjectDir@@V?$StlNodeAlloc@PAVObjectDir@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ
+    cflow-straight / disp-assign / tail-argument-not-in-the-operand-vocabulary
+    43 97 81 01 99 86 43 C7 81 01 00 46 4C 4F 11 53 >26< 22 7F B9 CF 92 02 00 A6 43 97 81 01 99 86 43 C3 81 01 00 BD 86 43 86
+family expr-call-in-expr: bodies 423905, emitted 35576 (423905 body rows, 35576 emitted rows)
+
+=== names for expr-call-in-expr-recv-load-then-type-real-whole: 439 rows, 5 distinct ===
+     434 in  434 TUs  ?SplitMs@Timer@@QAAMXZ
+       2 in    2 TUs  ?LengthBeats@CharClip@@QBAMXZ
+       1 in    1 TUs  ?EndFrame@HamCamShot@@UAAMXZ
+       1 in    1 TUs  ??$_outline_UISeconds@VTaskMgr@@@@YAMPAVTaskMgr@@@Z
+       1 in    1 TUs  ?TickToBeat@@YAMH@Z
+family expr-call-in-expr: bodies 423905, emitted 35576 (423905 body rows, 35576 emitted rows)
+
+=== sample expr-call-in-expr-recv-load-then-type-real-whole (emitted): 439 over 436 TUs, 5 names ===
+  src/system/utl/TimeConversion.cpp  #1133  seg=136 calls=1
+    ?TickToBeat@@YAMH@Z
+    cflow-straight / disp-assign / tail-returned-body-does-not-end-at-the-call
+    17 53 53 26 EC 09 46 2D B7 85 01 00 4C 4F 11 53 >26< 87 85 01 00 B9 A6 85 01 00 86 43 9A 47 99 86 43 88 46 00 BD 86 45 40
+  src/system/char/FileMerger.cpp  #688  seg=177 calls=2
+    ?SplitMs@Timer@@QAAMXZ
+    cflow-straight / disp-assign / tail-void-body-does-not-end-at-the-call
+    43 98 34 00 46 4C 4F 11 53 4F 01 80 8A 00 00 00 >26< 80 51 B9 B8 51 A6 43 87 34 99 86 43 93 34 00 BD 82 07 03 00 80 13 1A
+  src/system/rndobj/AmbientOcclusion.cpp  #873  seg=177 calls=2
+    ?SplitMs@Timer@@QAAMXZ
+    cflow-straight / disp-assign / tail-void-body-does-not-end-at-the-call
+    43 DA 38 00 46 4C 4F 11 53 4F 01 80 8A 00 00 00 >26< CF 5F B9 07 60 A6 43 C9 38 99 86 43 D5 38 00 BD 82 07 03 00 80 55 1C
+family expr-call-in-expr: bodies 423905, emitted 35576 (423905 body rows, 35576 emitted rows)
+
+=== names for expr-call-in-expr-chained-then-op-0x64: 482 rows, 3 distinct ===
+     465 in  465 TUs  ?Sym@DataArray@@QBA?AVSymbol@@H@Z
+      14 in   14 TUs  ?ForceSym@DataArray@@QBA?AVSymbol@@H@Z
+       3 in    3 TUs  ?LiteralSym@DataArray@@QBA?AVSymbol@@H@Z
+family expr-call-in-expr: bodies 423905, emitted 35576 (423905 body rows, 35576 emitted rows)
+
+=== sample expr-call-in-expr-chained-then-op-0x64 (emitted): 482 over 466 TUs, 3 names ===
+  src/lazer/game/GamePanel.cpp  #491  seg=216 calls=2
+    ?ForceSym@DataArray@@QBA?AVSymbol@@H@Z
+    cflow-straight / disp-assign / chain-link-argument-not-in-the-operand-vocabulary
+    86 43 F8 38 00 46 2D 81 52 65 70 53 4C 4F 11 53 >26< E2 51 26 A6 52 B9 71 53 A6 43 DC 38 99 86 43 82 39 00 BD 86 43 EE 37
+  src/system/char/CharMirror.cpp  #360  seg=230 calls=2
+    ?Sym@DataArray@@QBA?AVSymbol@@H@Z
+    cflow-straight / disp-assign / chain-link-argument-not-in-the-operand-vocabulary
+    55 40 65 40 41 4C 4F 11 53 4F 01 80 8D 01 00 00 >26< B6 3F 26 7E 40 B9 41 41 A6 43 CC 31 99 86 43 F2 31 00 BD 86 43 DB 30
+  src/system/obj/PropSync.cpp  #712  seg=230 calls=2
+    ?Sym@DataArray@@QBA?AVSymbol@@H@Z
+    cflow-straight / disp-assign / chain-link-argument-not-in-the-operand-vocabulary
+    A1 49 65 8A 4A 4C 4F 11 53 4F 01 80 8D 01 00 00 >26< 03 49 26 CA 49 B9 8B 4A A6 43 FB 33 99 86 43 A1 34 00 BD 86 43 8C 33
+family expr-call-in-expr: bodies 423905, emitted 35576 (423905 body rows, 35576 emitted rows)
+
+=== names for expr-call-in-expr-recv-load-then-call-data-addr-1sym-whole: 496 rows, 8 distinct ===
+     283 in  283 TUs  ??6BinStream@@QAAAAV0@H@Z
+     157 in  157 TUs  ??6BinStream@@QAAAAV0@M@Z
+      29 in   29 TUs  ??6BinStream@@QAAAAV0@I@Z
+      10 in   10 TUs  ??6BinStream@@QAAAAV0@E@Z
+       7 in    7 TUs  ??6BinStream@@QAAAAV0@F@Z
+       6 in    6 TUs  ??6BinStream@@QAAAAV0@G@Z
+       2 in    2 TUs  ??6BinStream@@QAAAAV0@_K@Z
+       2 in    2 TUs  ??6BinStream@@QAAAAV0@D@Z
+family expr-call-in-expr: bodies 423905, emitted 35576 (423905 body rows, 35576 emitted rows)
+
+=== sample expr-call-in-expr-recv-load-then-call-data-addr-1sym-whole (emitted): 496 over 290 TUs, 8 names ===
+  src/lazer/meta_ham/AccomplishmentProgress.cpp  #254  seg=163 calls=1
+    ??6BinStream@@QAAAAV0@H@Z
+    cflow-straight / disp-assign / tail-void-body-does-not-end-at-the-call
+    8D 2A 99 86 43 C7 2A 00 46 2D 88 34 4C 4F 11 53 >26< 4B 34 B9 F2 34 A6 43 8D 2A 99 86 43 9E 2A 00 BD 82 07 03 00 80 1E 15
+  src/system/hamobj/HamCamShot.cpp  #254  seg=163 calls=1
+    ??6BinStream@@QAAAAV0@I@Z
+    cflow-straight / disp-assign / tail-void-body-does-not-end-at-the-call
+    8B 2A 99 86 43 C4 2A 00 46 2D 71 34 4C 4F 11 53 >26< 32 34 B9 DC 34 A6 43 8B 2A 99 86 43 9C 2A 00 BD 82 07 03 00 80 1C 15
+  src/system/rndobj/PropAnim.cpp  #253  seg=163 calls=1
+    ??6BinStream@@QAAAAV0@H@Z
+    cflow-straight / disp-assign / tail-void-body-does-not-end-at-the-call
+    8B 2A 99 86 43 C5 2A 00 46 2D 6B 34 4C 4F 11 53 >26< 2E 34 B9 D5 34 A6 43 8B 2A 99 86 43 9C 2A 00 BD 82 07 03 00 80 1C 15
+family expr-call-in-expr: bodies 423905, emitted 35576 (423905 body rows, 35576 emitted rows)
+
+=== names for expr-call-in-expr-recv-object-then-plumbing-0x3A: 457 rows, 10 distinct ===
+     448 in  448 TUs  ?MakeString@@YAPBDPBD@Z
+       1 in    1 TUs  ?CharDeferHighlight@@YAXPAVObject@Hmx@@@Z
+       1 in    1 TUs  ?FindFilterVersion@MoveDir@@SAPBVFilterVersion@@W4FilterVersionType@@@Z
+       1 in    1 TUs  ?RatingToRatingFrac@@YAMVSymbol@@@Z
+       1 in    1 TUs  ?SeedRand@@YAXH@Z
+       1 in    1 TUs  ??GMemPoint@@QAA?AUMemPointDelta@@ABU0@@Z
+       1 in    1 TUs  ??__F_dw@?CK@??Insert@?$KeylessHash@PAXPAVAllocInfo@@@@QAAPAPAVAllocInfo@@ABQAV2@@Z@YAXXZ
+       1 in    1 TUs  ?FindOption@@YAPAPADPBD@Z
+family expr-call-in-expr: bodies 423905, emitted 35576 (423905 body rows, 35576 emitted rows)
+
+=== sample expr-call-in-expr-recv-object-then-plumbing-0x3A (emitted): 457 over 453 TUs, 10 names ===
+  src/system/utl/UTF8.cpp  #331  seg=112 calls=1
+    ??__Fwstring@?3??CharToWideChar@@YAPBGPBD@Z@YAXXZ
+    cf-no-body / disp-assign / tail-void-body-does-not-end-at-the-call
+    01 0D 08 00 0F 53 53 26 99 42 46 4C 53 26 B9 41 >26< 93 42 2C A6 43 CF 32 00 99 86 43 80 33 00 BD 82 07 03 00 80 80 19 00
+  src/system/hamobj/FilterQueue.cpp  #296  seg=177 calls=2
+    ?MakeString@@YAPBDPBD@Z
+    cflow-straight / disp-assign / tail-void-body-does-not-end-at-the-call
+    45 3A 46 2D 44 3A 4C 4F 11 53 4F 01 37 26 1D 3A >26< 47 3A 2C A6 43 98 2E 00 99 86 43 B8 2E 00 BD A6 43 98 2E 00 80 1D 17
+  src/system/rndobj/PostProc.cpp  #296  seg=177 calls=2
+    ?MakeString@@YAPBDPBD@Z
+    cflow-straight / disp-assign / tail-void-body-does-not-end-at-the-call
+    44 3A 46 2D 43 3A 4C 4F 11 53 4F 01 37 26 1C 3A >26< 46 3A 2C A6 43 98 2E 00 99 86 43 B8 2E 00 BD A6 43 98 2E 00 80 1D 17
+family expr-call-in-expr: bodies 423905, emitted 35576 (423905 body rows, 35576 emitted rows)
+
+=== names for expr-call-in-expr-recv-field-off0-then-call-nested-call-and-type-real-more: 419 rows, 1 distinct ===
+     419 in  419 TUs  ??1MessageTimer@@QAA@XZ
+family expr-call-in-expr: bodies 423905, emitted 35576 (423905 body rows, 35576 emitted rows)
+
+=== sample expr-call-in-expr-recv-field-off0-then-call-nested-call-and-type-real-more (emitted): 419 over 419 TUs, 1 names ===
+  src/lazer/game/BustAMovePanel.cpp  #966  seg=203 calls=2
+    ??1MessageTimer@@QAA@XZ
+    cflow-straight / disp-plain-call / prod-not-entered
+    4F 11 53 26 26 77 BD 82 07 03 00 80 CE 1F 00 00 >26< A5 6D B9 3D 77 A6 43 CC 3F 33 86 41 74 00 27 A6 43 C8 3C 99 86 43 90
+  src/system/char/FileMerger.cpp  #724  seg=203 calls=2
+    ??1MessageTimer@@QAA@XZ
+    cflow-straight / disp-plain-call / prod-not-entered
+    4F 11 53 26 02 5B BD 82 07 03 00 80 D7 1B 00 00 >26< 81 51 B9 19 5B A6 43 D5 37 33 86 41 74 00 27 A6 43 D0 34 99 86 43 98
+  src/system/rndobj/AnimFilter.cpp  #920  seg=203 calls=2
+    ??1MessageTimer@@QAA@XZ
+    cflow-straight / disp-plain-call / prod-not-entered
+    4F 11 53 26 B0 61 BD 82 07 03 00 80 35 1D 00 00 >26< 2F 58 B9 C7 61 A6 43 B3 3A 33 86 41 74 00 27 A6 43 AF 37 99 86 43 F7
+family expr-call-in-expr: bodies 423905, emitted 35576 (423905 body rows, 35576 emitted rows)
+
+=== names for expr-call-in-expr-op-0x9B: 1033 rows, 647 distinct ===
+      39 in   39 TUs  ??3RndAnimatable@@SAXPAX@Z
+      18 in   18 TUs  ??3FxSend@@SAXPAX@Z
+      15 in   15 TUs  ??3UIComponent@@SAXPAX@Z
+       6 in    6 TUs  ??3HamNavProvider@@SAXPAX@Z
+       6 in    6 TUs  ??3UIListSlot@@SAXPAX@Z
+       5 in    5 TUs  ??2HamNavProvider@@SAPAXI@Z
+       5 in    5 TUs  ??3RndEnviron@@SAXPAX@Z
+       4 in    4 TUs  ??$New@VObject@Hmx@@@Object@Hmx@@SAPAV01@XZ
+family expr-call-in-expr: bodies 423905, emitted 35576 (423905 body rows, 35576 emitted rows)
+
+=== sample expr-call-in-expr-op-0x9B (emitted): 1033 over 319 TUs, 647 names ===
+  src/system/hamobj/HamList.cpp  #2074  seg=164 calls=2
+    ?Init@HamList@@SAXXZ
+    cflow-straight / disp-plain-call / prod-not-entered
+    26 2D FC 01 00 2C 86 44 9C 3C 00 55 86 44 9C 3C >26< 10 FC 01 00 BD 86 43 9E 20 00 80 02 42 00 00 9B 86 46 80 20 C2 FC 01
+  src/system/char/Char.cpp  #2107  seg=210 calls=3
+    ??3CharIKMidi@@SAXPAX@Z
+    cflow-straight / disp-plain-call / prod-not-entered
+    4F 11 53 26 78 15 BD 82 07 03 00 80 ED 14 00 00 >26< 63 0A 26 4C 92 02 00 BD 86 43 9E 20 00 80 B7 41 00 00 9B 86 46 80 20
+  src/system/rndobj/EventTrigger.cpp  #1729  seg=225 calls=3
+    ??2EventTrigger@@SAPAXI@Z
+    cflow-straight / disp-plain-call / prod-not-entered
+    08 00 80 E9 14 00 00 33 86 41 74 00 55 86 41 74 >26< 63 0A 26 02 CB 01 00 BD 86 43 9E 20 00 80 3B 33 00 00 9B 86 46 80 20

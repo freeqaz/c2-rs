@@ -1,0 +1,15 @@
+[scan_base.jsonl] TUs 878  capture-fail 7  match 18  vocab-gap 853
+       function census 711514/2463443   emitted in class 39200/169760   family 423905 bodies / 35576 emitted
+[scan_r1.jsonl] TUs 878  capture-fail 7  match 18  vocab-gap 853
+       function census 711514/2463443   emitted in class 39200/169760   family 423906 bodies / 35577 emitted
+
+DELTA  in-class +0   emitted-in-class +0   family bodies +1   family emitted +1
+per-TU verdict SET compared BY NAME: 0 only-in-A, 0 only-in-B, 0 changed
+
+emitted-blocker KEY MAP: 614 keys, 0 appeared, 0 vanished, 6 changed
+        -5       10 ->       5  call-token-0x26
+        +1       17 ->      18  call-ref-0x53
+        +1     2031 ->    2032  expr-intrinsic-0xDF
+        +1        5 ->       6  call-token-0xB9
+        +1        5 ->       6  callseq-multiarg-sym:eof
+        +1     1033 ->    1034  expr-call-in-expr-op-0x9B
