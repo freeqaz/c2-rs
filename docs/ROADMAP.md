@@ -10917,3 +10917,49 @@ rule into `crates/`; the decision was never the blocker, the **mint** is.
 **Two instrument findings** carried: a committed `measured.json` is a superseded
 two-valued run (reads 126 where the rung publishes 114), and a grid manifest
 records a struct's **size** in a field meaning its **alignment**.
+
+### 10.27.2 WB-J — the `lower_expr` preconditions are CLEARED, and the DISCLOSURE set closes at three (2026-08-09)
+
+`wb-tables` (board #2110–#2119) arbitrated §10.27.1's two open items and read
+the operator neither WB-I run could predict. All three settled:
+
+1. **The table count: 13 SLOTS, 17 BODIES — both runs partly right.** The
+   installer stores 17 times into 13 distinct slots (four overwritten under a
+   flag); 16 table bodies sit contiguous in `.data` and a seventeenth —
+   **convert/widen**, carrying `extsb`/`extsh`/`extsw` — sits in `.text`.
+   Run 2's *thirteen* is the slot count and is right; run 1's *sixteen* counts
+   the `.data` block correctly but **its list has no entry for the convert
+   table**. §10.27.1 called this a precondition because a table adopted with
+   the wrong count silently drops operators; **that is exactly what it caught.**
+   All 17 are now enumerated with VA, operator and 26 decoded entries.
+   **Hazard carried**: type nibbles 8–11 index 26–29, off the end of every
+   26-entry array — unbounded, and a port copying the indexing must fence it.
+2. **The two WB-I grids are NOT COMPARABLE** — the `w-memfit` shape a third
+   time. 24 of 24 published emissions reproduce; overlap is 3 of 24 and the
+   objs agree on all three. Both scores stand, nothing re-scored, combined
+   19 of 24. Sharpest: run 1's mask-**with**-bias cell and run 2's
+   mask-**without**-bias cell are two halves of one rule and neither lane had
+   both.
+3. **`FUN_10c1772b` is NOT the expander** — it is a peephole folding `rlandi`
+   against its source's definition; the expander is **`FUN_10c0a2e2`**. Both
+   prior bounds are refuted by cells. Two rules frozen before the first
+   `cl.exe` scored 11 of 12 core with 6 word-exact.
+
+**Effect on item 1.** **W-SELECT-5 is RELEASED** — `rlandi` re-derives
+black-box from `grids/wb-tables/` with no address, so one named blocker comes
+off `lower_expr`. The DISCLOSURE-requiring set **closes at three**: the cost
+model and its tie rule (W-SELECT-3, now with a *second* invisible tie found —
+the peephole's mask relaxation also ties), plus the table count and the slot
+map, which are equally out of black-box reach. §10.27's claim that W-SELECT-3
+is "the only row where black-box is insufficient" is **confirmed for an
+emitted decision and corrected as a general statement**.
+
+**The lane's own worst finding, published against itself**: three of its seven
+PREREG misses are one error — it **inherited** run 2's identification of
+`FUN_10c1772b` from its brief instead of re-deriving at base, the ninth
+instance this week, *inside a lane whose commission was arbitrating inherited
+claims*. Briefs that hand a lane a prior claim must mark it re-derivable.
+
+**Ordering unchanged**: `lower_expr` stays item 1, now with three named
+DISCLOSURE items and one fewer blocker; reader admission at the frontier's 48
+stays item 2.
