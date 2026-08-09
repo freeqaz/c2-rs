@@ -1,0 +1,125 @@
+
+=== FRONTIER (A and B and C, open): 8 TUs ===
+-- src/Main.cpp  [ABC--]  exact 0/1  refused 1  differs 0  unbound 0
+       main                                                          expr-call-in-expr-recv-object-then-op-0x5C
+-- src/keygen_xbox.cpp  [ABC--]  exact 1/20  refused 19  differs 0  unbound 0
+       ?asciiDigitToHex@@YAED@Z                                      expr-load-type-8211
+       ?getKey@KeyChain@@YAXIPAE0@Z                                  expr-call-in-expr-data-addr-then-plain-call-and-op-more
+       ?getKeyImpl@@YAXPAEPAD0@Z                                     call-arg-outer-formal:eof
+       ?getMasher@KeyChain@@YAXPAE@Z                                 expr-call-in-expr-op-0x1F
+       ?getNumKeys@KeyChain@@YAIXZ                                   EXACT
+       ?mash@@YAXPAE0@Z                                              assign-store-type-8643
+       ?memcpy_cs@@YAXPAEPBEI@Z                                      expr-jump
+       ?opaquePredicate@@YAXXZ                                       expr-lit-type-9641
+       ?parseHex16@@YAXPBDPAE@Z                                      assign-store-type-8643
+       ?random@@YAJJ@Z                                               expr-brfalse
+       ?revealKey@@YAXPAJPAE@Z                                       expr-jump
+       ?roll@@YAHH@Z                                                 expr-op-0x0F
+       ?shuffle1@@YAXPAD@Z                                           expr-jump
+       ?shuffle2@@YAXPAD@Z                                           expr-jump
+       ?shuffle3@@YAXPAD@Z                                           expr-jump
+       ?shuffle4@@YAXPAD@Z                                           expr-jump
+       ?shuffle5@@YAXPAD@Z                                           expr-jump
+       ?shuffle6@@YAXPAD@Z                                           expr-jump
+       ?supershuffle@@YAXPAD@Z                                       callee-defined-in-tu:eof
+       ?swap@@YAXAAD0@Z                                              expr-op-0x30
+-- src/system/rndobj/wordwrap.cpp  [ABC--]  exact 0/3  refused 3  differs 0  unbound 0
+       ?IsEastAsianChar@@YA_N_W@Z                                    expr-brfalse
+       ?WordWrap_CanBreakLineAt@@YA_NPB_W0@Z                         expr-cmp-eq
+       ?WordWrap_SetOption@@YAXI@Z                                   expr-jump
+-- src/system/synth_xbox/Biquad.cpp  [ABC--]  exact 0/2  refused 2  differs 0  unbound 0
+       ??0Biquad@DSP@@QAA@PAM@Z                                      expr-call-in-expr-recv-load-then-plumbing-0x3A
+       ?SetCoefficients@Biquad@DSP@@QAAXPAM@Z                        expr-cmp-eq
+-- src/system/utl/EncryptXTEA.cpp  [ABC--]  exact 1/5  refused 4  differs 0  unbound 0
+       ??0XTEABlockEncrypter@@QAA@XZ                                 EXACT
+       ?Encipher@XTEABlockEncrypter@@AAA_K_KPAI@Z                    expr-load-type-8882
+       ?Encrypt@XTEABlockEncrypter@@QAAXPBUXTEABlock@@PAU2@@Z        expr-op-0x27
+       ?SetKey@XTEABlockEncrypter@@QAAXPBE@Z                         expr-intrinsic-memcpy
+       ?SetNonce@XTEABlockEncrypter@@QAAXPB_KI@Z                     expr-op-0x27
+-- src/system/utl/Pool.cpp  [ABC--]  exact 0/3  refused 3  differs 0  unbound 0
+       ??0Pool@@QAA@HPAXH@Z                                          expr-op-0x27
+       ?Alloc@Pool@@QAAPAXXZ                                         expr-op-0x27
+       ?Free@Pool@@QAAXPAX@Z                                         expr-brtrue
+-- src/xdk/LIBCMT/vsnprnc.cpp  [ABC--]  exact 0/2  refused 2  differs 0  unbound 0
+       _vsprintf_s_l                                                 expr-cmp-eq
+       vsprintf_s                                                    call-arg-lit-permuted:mid
+-- src/xdk/nuispeech/mmio.cpp  [ABC--]  exact 8/11  refused 3  differs 0  unbound 0
+       mmioAdvance                                                   EXACT
+       mmioClose                                                     expr-cmp-eq
+       mmioFlush                                                     EXACT
+       mmioGetInfo                                                   expr-cmp-eq
+       mmioOpenW                                                     EXACT
+       mmioRead                                                      EXACT
+       mmioSeek                                                      EXACT
+       mmioSetBuffer                                                 EXACT
+       mmioSetInfo                                                   expr-cmp-eq
+       mmioStringToFOURCCW                                           EXACT
+       mmioWrite                                                     EXACT
+   TOTALS: emitted 47, exact 10, refused 37
+   column sums: 10 + 37 + 0 == 47  OK
+
+=== <=10 blocked-bodies band, open: 13 TUs ===
+-- src/ChecksumData_xbox.cpp  [-BC--]  exact 0/1  refused 1  differs 0  unbound 0
+       ?SetFileChecksumData@@YAXXZ                                   data-sym-not-extern:eof
+-- src/Main.cpp  [ABC--]  exact 0/1  refused 1  differs 0  unbound 0
+       main                                                          expr-call-in-expr-recv-object-then-op-0x5C
+-- src/system/math/Rand2.cpp  [-BC--]  exact 0/2  refused 2  differs 0  unbound 0
+       ??0Rand2@@QAA@H@Z                                             expr-op-0x27
+       ?Int@Rand2@@QAAHXZ                                            expr-op-0x27
+-- src/system/net/JsonMemory.cpp  [-BC--]  exact 0/3  refused 3  differs 0  unbound 0
+       JsonCalloc                                                    call-bound-store-0x86
+       JsonMalloc                                                    call-arg-multi-sym:mid
+       JsonRealloc                                                   call-bound-store-0x86
+-- src/system/oggvorbis/VorbisMem.cpp  [-BC--]  exact 1/7  refused 6  differs 0  unbound 0
+       ??0MemTemp@@QAA@XZ                                            call-ref-cflow-jump
+       ??1MemTemp@@QAA@XZ                                            EXACT
+       ??__EsLicense@@YAXXZ                                          data-sym-not-extern:eof
+       OggCalloc                                                     call-bound-store-0x86
+       OggFree                                                       call-arg-multi-sym:eof
+       OggMalloc                                                     call-arg-nonformal:mid
+       OggRealloc                                                    expr-call-in-expr-recv-object-then-op-0x5C
+-- src/system/rndobj/wordwrap.cpp  [ABC--]  exact 0/3  refused 3  differs 0  unbound 0
+       ?IsEastAsianChar@@YA_N_W@Z                                    expr-brfalse
+       ?WordWrap_CanBreakLineAt@@YA_NPB_W0@Z                         expr-cmp-eq
+       ?WordWrap_SetOption@@YAXI@Z                                   expr-jump
+-- src/system/synth_xbox/Biquad.cpp  [ABC--]  exact 0/2  refused 2  differs 0  unbound 0
+       ??0Biquad@DSP@@QAA@PAM@Z                                      expr-call-in-expr-recv-load-then-plumbing-0x3A
+       ?SetCoefficients@Biquad@DSP@@QAAXPAM@Z                        expr-cmp-eq
+-- src/system/synth_xbox/MeterEffect.cpp  [A----]  exact 1/13  refused 7  differs 1  unbound 4
+       ??0?$CSampleXAPOBase@VMeterEffect@@UMeterEffectParams@@@ATG@  expr-intrinsic-this-adjust
+       ??0MeterEffect@@QAA@XZ                                        expr-intrinsic-this-adjust
+       ??1?$CSampleXAPOBase@VMeterEffect@@UMeterEffectParams@@@ATG@  expr-intrinsic-base-member-addr
+       ??_GMeterEffect@@UAAPAXI@Z                                    expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+       ?LockForProcess@?$CSampleXAPOBase@VMeterEffect@@UMeterEffect  expr-call-in-expr-recv-intrinsic-this-adjust-then-cmp-ge-and-branch-more
+       ?OnSetParameters@?$CSampleXAPOBase@VMeterEffect@@UMeterEffec  EXACT
+       ?OnSetParameters@MeterEffect@@UAAXABUMeterEffectParams@@@Z    expr-op-0x27
+       ?Process@?$CSampleXAPOBase@VMeterEffect@@UMeterEffectParams@  expr-call-in-expr-recv-intrinsic-this-adjust-then-off-add-and-deref-load-more
+-- src/system/utl/EncryptXTEA.cpp  [ABC--]  exact 1/5  refused 4  differs 0  unbound 0
+       ??0XTEABlockEncrypter@@QAA@XZ                                 EXACT
+       ?Encipher@XTEABlockEncrypter@@AAA_K_KPAI@Z                    expr-load-type-8882
+       ?Encrypt@XTEABlockEncrypter@@QAAXPBUXTEABlock@@PAU2@@Z        expr-op-0x27
+       ?SetKey@XTEABlockEncrypter@@QAAXPBE@Z                         expr-intrinsic-memcpy
+       ?SetNonce@XTEABlockEncrypter@@QAAXPB_KI@Z                     expr-op-0x27
+-- src/system/utl/Pool.cpp  [ABC--]  exact 0/3  refused 3  differs 0  unbound 0
+       ??0Pool@@QAA@HPAXH@Z                                          expr-op-0x27
+       ?Alloc@Pool@@QAAPAXXZ                                         expr-op-0x27
+       ?Free@Pool@@QAAXPAX@Z                                         expr-brtrue
+-- src/xdk/LIBCMT/vsnprnc.cpp  [ABC--]  exact 0/2  refused 2  differs 0  unbound 0
+       _vsprintf_s_l                                                 expr-cmp-eq
+       vsprintf_s                                                    call-arg-lit-permuted:mid
+-- src/xdk/nuiapi/nuidetroit.cpp  [-BC--]  exact 0/1  refused 1  differs 0  unbound 0
+       XMMatrixRotationX                                             expr-call-in-expr-recv-object-then-call-nested-call-and-type-real-more
+-- src/xdk/nuispeech/mmio.cpp  [ABC--]  exact 8/11  refused 3  differs 0  unbound 0
+       mmioAdvance                                                   EXACT
+       mmioClose                                                     expr-cmp-eq
+       mmioFlush                                                     EXACT
+       mmioGetInfo                                                   expr-cmp-eq
+       mmioOpenW                                                     EXACT
+       mmioRead                                                      EXACT
+       mmioSeek                                                      EXACT
+       mmioSetBuffer                                                 EXACT
+       mmioSetInfo                                                   expr-cmp-eq
+       mmioStringToFOURCCW                                           EXACT
+       mmioWrite                                                     EXACT
+   TOTALS: emitted 54, exact 11, refused 38
+   column sums: 11 + 38 + 5 == 54  OK

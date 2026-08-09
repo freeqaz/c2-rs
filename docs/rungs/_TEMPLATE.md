@@ -17,6 +17,13 @@
 and size of the bias. Estimates taken from a counterfactual build, not from
 blocker-row sizes — `GAPS.md` §6's unstable-attribution rule.>
 
+> **Before pricing this as codegen, run `CEILING.md` §11.4.** Three consecutive
+> conversion lanes (`w-bdnz`, `w-blockir`, `w-main`) found their LAST blocker
+> was a type list, a whole-obj symbol, or a clause that named the wrong layer —
+> each discovered at the end of a lane that had already paid for codegen.
+> `w-blockir`'s cost **one line** and no per-function byte instrument could see
+> it.
+
 ## Gate evidence
 
 | lane | result |
