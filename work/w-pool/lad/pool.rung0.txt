@@ -1,0 +1,16 @@
+  profile: /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I src/system/stlport /I src/xdk/LIBCMT /I src/system /I src/lazer /I src/system/oggvorbis /I src/system/synth/tomcrypt /I src/system/net/curl/include /I src (from /home/free/code/milohax/c2-rs/.claude/worktrees/agent-afbb2a590581a5442/work/dc3-workload/flags.txt)
+  cwd:     /home/free/code/milohax/dc3-decomp
+src/system/utl/Pool.cpp -> 0/3 functions in class
+  [  0] GAP expr-op-0x27             cflow-loop                 eh-none     (eh-none     )    431 B  (unnamed)
+  [  1] GAP expr-op-0x27             cflow-if-1                 eh-none     (eh-none     )    234 B  (unnamed)
+  [  2] GAP expr-brtrue              cflow-if-1                 eh-none     (eh-none     )    230 B  (unnamed)
+  blocking features (">" marks the byte that blocked the parse):
+         2 x expr-op-0x27
+             4c 4f 11 53 b9 f6 09 a6 43 81 20 33 86 41 74 00 >27< a6 43 8b 20 b9 f3 09 86 43 83 08 2c 86 43 f0 08 00 32 86 43 f0 08 4b
+         1 x expr-brtrue
+             0a 4c 4f 11 53 4f 01 1b 53 b9 0b 0a 86 43 83 08 >39< 0f 0a 53 53 4f 01 1c 3a 0e 0a 4f 01 1d 54 05 4f 01 1e 54 04 29 0f 0a
+  control-flow class (decode-only): 3/3 bodies decoded end to end
+         2 x cflow-if-1
+         1 x cflow-loop
+  EH class (maxState, decode-only): 0/3 bodies have maxState >= 1 and need the whole EH record
+         3 x eh-none
