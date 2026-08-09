@@ -2315,6 +2315,93 @@ mod tests {
         v
     }
 
+    /// [`gl_record`] with the five bytes GRID-K measures spelled out — the
+    /// `<tag> <kind> <linkage> <retsize> <flags>` a real defined record carries
+    /// immediately after its name's NUL. `gl_record` writes `00` into all of
+    /// them, which is a linkage no capture produces; every cell below needs the
+    /// real shape.
+    fn gl_record_typed(name: &str, off: u32, linkage: u8, retsize: u8, flags: u8) -> Vec<u8> {
+        let mut v = vec![0u8];
+        v.extend_from_slice(name.as_bytes());
+        v.push(0);
+        v.extend_from_slice(&[0x86, 0x01, linkage, retsize, flags, 0x08, 0x00]);
+        v.extend_from_slice(&[0x80, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x80]);
+        v.extend_from_slice(&off.to_le_bytes());
+        v
+    }
+
+    /// **W-FENCE2 — the exemption is a KNOWN-GOOD allowlist and every other
+    /// value refuses.**
+    ///
+    /// The set this returns is the one `IlBundle::functions` uses to stop
+    /// refusing a TU that defines one of its own callees, so a false positive
+    /// here is an obj. Each cell is one byte away from the admitted one.
+    #[test]
+    fn only_a_plain_external_defined_record_is_exempt() {
+        let ok = "?wf2_plain@@YAHH@Z";
+        let admitted = gl_record_typed(ok, 2644, 0x05, 0x04, 0x00);
+        assert_eq!(
+            plain_external_defined_names(&admitted),
+            [ok.to_string()].into_iter().collect(),
+            "linkage 05, one-byte return size, flags 00 — the class \
+             WB_INLINE_FINDINGS F2 measured the (100,116] ceiling on"
+        );
+
+        // `03` is `static`, whose ceiling F1 puts at (300,308] — three times the
+        // shipped bound, so a decline rule fitted to the external one is wrong
+        // here. `fixtures/cpp/wfence2_static_callee_neg.cpp` is this cell
+        // compiled: c2 inlines the 152-byte callee and emits no REL24 at all.
+        assert!(
+            plain_external_defined_names(&gl_record_typed(ok, 2644, 0x03, 0x04, 0x00)).is_empty(),
+            "a `static` defined record must not be exempt"
+        );
+        // `20` is `inline` / `__forceinline` / a member defined in-class. F4:
+        // `__forceinline` inlines a 980-byte callee at /O1 AND /O2, bypassing
+        // every size test. The LINKAGE byte cannot see it — this one can.
+        assert!(
+            plain_external_defined_names(&gl_record_typed(ok, 2644, 0x05, 0x04, 0x20)).is_empty(),
+            "an `inline`/`__forceinline` defined record must not be exempt"
+        );
+        // A return type wide enough to escape the one-byte size form would shift
+        // the flags byte, so the read refuses rather than reading a field that
+        // is not there.
+        assert!(
+            plain_external_defined_names(&gl_record_typed(ok, 2644, 0x05, 0x80, 0x00)).is_empty(),
+            "an unreadable return-type width must refuse, not read one byte on"
+        );
+    }
+
+    /// A name spelled by two symbol runs cannot be resolved to one record's
+    /// linkage, so it is dropped — the same refusal `Bindings::per_record`
+    /// makes, and the direction of the error if it were resolved to the first is
+    /// an emit.
+    #[test]
+    fn an_ambiguous_defined_name_is_not_exempt() {
+        let dup = "?wf2_twice@@YAHH@Z";
+        let mut gl = gl_record_typed(dup, 2644, 0x05, 0x04, 0x00);
+        // A second run of the same spelling, carrying `static` linkage.
+        gl.push(0);
+        gl.extend_from_slice(dup.as_bytes());
+        gl.extend_from_slice(&[0, 0x86, 0x01, 0x03, 0x04, 0x00]);
+        assert!(
+            plain_external_defined_names(&gl).is_empty(),
+            "two runs spell this name and they disagree about linkage"
+        );
+    }
+
+    /// **The reader inherits every one of `gl_defined_names`' total refusals.**
+    /// A `.gl` whose walk stops binds nothing, so the exemption set is empty and
+    /// the wholesale refusal stands — fail-closed, which is the direction that
+    /// cannot produce an obj.
+    #[test]
+    fn a_gl_whose_walk_stops_exempts_nothing() {
+        // `NameNotMangled`: a bound record name of eight bytes or fewer.
+        assert!(plain_external_defined_names(&gl_record_typed("?w@@YAH", 2644, 0x05, 0x04, 0x00))
+            .is_empty());
+        assert!(plain_external_defined_names(&[]).is_empty());
+        assert!(plain_external_defined_names(&[0u8; 64]).is_empty());
+    }
+
     #[test]
     fn gl_names_bind_to_their_own_record_not_their_position() {
         // The `il_gl_record_order.cpp` layout: a `??`-prefixed thunk first, then a

@@ -1,0 +1,4 @@
+fixtures/cpp/wfence2_kept_local_callee.cpp
+fixtures/cpp/wfence2_static_callee_neg.cpp
+fixtures/cpp/wfence2_forceinline_callee_neg.cpp
+fixtures/cpp/wfence2_small_callee_neg.cpp

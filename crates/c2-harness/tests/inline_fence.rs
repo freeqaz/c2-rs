@@ -279,3 +279,79 @@ fn the_fence_yields_to_the_empty_callee_mechanism_e_already_models() {
          fence must fire. Rows: {rows:?}"
     );
 }
+
+/// **W-FENCE2 — the parser hands a TU on ONLY when the facts the composition
+/// seam needs are available, and refuses otherwise.**
+///
+/// The wholesale refusal above stopped being wholesale on 2026-08-09: a callee
+/// this TU defines no longer refuses the TU when its `.gl` defined record has
+/// **plain external** linkage and every segment is at `/O1`
+/// (`c2_il::func::gl::plain_external_defined_names`,
+/// `docs/rungs/2026-08-09-w-fence2.md`). This is the cell that says the
+/// narrowing is a NARROWING and not a removal.
+///
+/// **Every negative here is a REALIZED wrong emit, not a hypothetical.** The
+/// reference objs were dumped (`work/w-fence2/probe/`), and in both the `static`
+/// and the `__forceinline` cell c2 **inlined** the 152-byte callee — the
+/// wrapper's own `.text` is 152 bytes with **no REL24 to the callee at all** —
+/// while in the positive cell the wrapper is 12 bytes and carries the branch.
+/// Delete either clause and the port emits a call c2 does not.
+///
+/// The four sources are the four shipped fixtures, `include_str!`d rather than
+/// retyped: a cell that drifts from the fixture it claims to be would grade a
+/// different file with the same confidence.
+#[test]
+fn the_parser_hands_on_only_the_linkage_class_the_decline_bound_was_measured_on() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+
+    let kept = include_str!("../../../fixtures/cpp/wfence2_kept_local_callee.cpp");
+    let stat = include_str!("../../../fixtures/cpp/wfence2_static_callee_neg.cpp");
+    let forced = include_str!("../../../fixtures/cpp/wfence2_forceinline_callee_neg.cpp");
+    let small = include_str!("../../../fixtures/cpp/wfence2_small_callee_neg.cpp");
+
+    let (rows, gate) = cells(&tc, "f2-kept", kept);
+    assert!(
+        gate,
+        "the POSITIVE: a plain-external, non-`inline`, `/O1` callee over the \
+         decline bound. c2 keeps this call (the reference wrapper is 12 bytes \
+         and carries the REL24) and the whole TU is byte-exact. Rows: {rows:?}"
+    );
+
+    for (tag, src, why) in [
+        (
+            "f2-static",
+            stat,
+            "`static` — F1 puts the STATIC ceiling at (300,308], three times the \
+             shipped bound, and the reference obj shows c2 INLINING this callee",
+        ),
+        (
+            "f2-forceinline",
+            forced,
+            "`__forceinline` — F4: it bypasses every size test, and the linkage \
+             byte cannot see it. The reference obj shows c2 INLINING this callee",
+        ),
+    ] {
+        let (rows, gate) = cells(&tc, tag, src);
+        assert!(
+            !gate,
+            "cell `{tag}`: IlBundle::functions accepted a TU it has no decline \
+             proof for — {why}. Rows: {rows:?}"
+        );
+    }
+
+    // The SMALL cell is the one that says both halves of the fence are live: the
+    // parser exempts it (plain external, `/O1`) and the obj is still not
+    // emitted, because `c2_core::comdat::fenced_inlined_callee` refuses a callee
+    // whose lowered body is at or under `INLINE_DECLINE_BYTES`. A cell that only
+    // checked the parser would pass with the seam deleted.
+    let (rows, gate) = cells(&tc, "f2-small", small);
+    assert!(
+        gate,
+        "cell `f2-small`: the PARSER must hand this TU on — its callee is plain \
+         external at `/O1`, and the size question is not the parser's. \
+         Rows: {rows:?}"
+    );
+}
