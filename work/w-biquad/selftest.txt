@@ -1,6 +1,6 @@
 provenance:
-  c2-rs      71ce3eccb94e (clean)  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a183e8a527984c88a
-  binary     eb27f7be07f27f40  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a183e8a527984c88a/target/release/c2rs
+  c2-rs      036726cd2710 (DIRTY)  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a183e8a527984c88a
+  binary     a7932dd7a668aca3  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a183e8a527984c88a/target/release/c2rs
   workload   (none — fixtures)
   wibo       wibo 1.2.0-c2rs.1 (Linux x86_64)  /home/free/code/milohax/wibo/build/release/wibo
   cl.exe     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/cl.exe
@@ -332,6 +332,9 @@ oracle self-test (determinism + capture stability):
   wunw_two_leaves_framed.cpp         PASS   obj=1124B ex=2967B
   wvalue_call_value.cpp              PASS   obj=2012B ex=3432B
   wvalue_call_value_neg.cpp          PASS   obj=2390B ex=3515B
+  wvec_float_store_leaf.cpp          PASS   obj=874B ex=2834B
+  wvec_float_store_leaf_data_bss_neg.cpp PASS   obj=1103B ex=2837B
+  wvec_inclass_ctor_folded_statics_neg.cpp PASS   obj=1108B ex=3284B
   wvl_chain3.cpp                     PASS   obj=883B ex=2918B
   wvl_chain6_same.cpp                PASS   obj=895B ex=2987B
   wvl_chain_neg.cpp                  PASS   obj=1128B ex=3564B
