@@ -855,6 +855,14 @@ impl IlBundle {
                             Ok(BodyShape::FloatWalkLoop(_)) => {
                                 FnVerdict::InClass("float-walk-loop")
                             }
+                            // **W-XTEA2 — the `memcpy` tail branch.** Its own
+                            // bucket rather than the tail call's: the two end in
+                            // a REL24 branch and differ in where the callee's
+                            // name comes from, and a gain that landed in the
+                            // tail-call bucket would be attributable to neither.
+                            Ok(BodyShape::MemcpyTail { .. }) => {
+                                FnVerdict::InClass("memcpy-tail")
+                            }
                             // **W-BIQUAD — the float-store diamond.** Its own
                             // bucket on the same rule every class here follows:
                             // a gain that landed in a shared `cflow-if-1`

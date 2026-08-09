@@ -200,4 +200,5 @@ the header block this table is read from.
 | 2026-08-09 | W-READPX | [w-readpx](2026-08-09-w-readpx.md) | 13 | **+0**. This lane ships no `crates/` change: `git diff master -- |
 | 2026-08-09 | w-vec | [w-vec](2026-08-09-w-vec.md) | 1 | per-function **712,280 → 712,280**, emitted **39,226 → 39,226** — |
 | 2026-08-09 | w-vsnprnc | [w-vsnprnc](2026-08-09-w-vsnprnc.md) | 2 | TU match **19 → 19** (DECLINED), mismatch **0 → 0**, |
+| 2026-08-09 | w-xtea2 | [w-xtea2](2026-08-09-w-xtea2.md) | 1 | per-function 714,541 → 714,542 · emitted 39,241 → 39,242 |
 | 2026-08-09 | w-xtea | [w-xtea](2026-08-09-w-xtea.md) | 12 | +0 — this rung admits nothing, so it moves no census cell |

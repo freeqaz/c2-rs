@@ -1855,6 +1855,23 @@ pub struct CtorForwardCall {
     pub live_args: usize,
 }
 
+/// **W-XTEA2 — the body that is nothing but a `memcpy` into the receiver**
+/// (`?SetKey@XTEABlockEncrypter@@QAAXPBE@Z`), lowered by c2 as a tail branch.
+///
+/// The accept/refuse boundary is entirely on the recognizer
+/// ([`crate::func::body::shapes::memcpy_tail`], which lists the five compiled
+/// cells behind every word) and the emission on
+/// [`c2_core::codegen::memcpy_tail`]; this carries only what the emitter reads
+/// back.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MemcpyTail {
+    /// The destination member's byte offset from the first argument register.
+    /// **Zero emits no `addi` at all** — measured, cells `off0` and `freefn`.
+    pub dst_off: i32,
+    /// The copy length: the `li r5` immediate, inside the measured call window.
+    pub len: i32,
+}
+
 /// **W-IFN — one guard of a [`GuardRetChain`]**: `if (<formal> == 0) return
 /// <K>;`, lowered as a `cmplwi cr6` and a forward `bf 26` over a two-word arm.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -3023,6 +3040,15 @@ pub struct IlFunction {
     /// class here it contributes nothing to [`Self::callees`] or
     /// [`Self::data_syms`], and the name is minted by the emitter.
     pub guard_ret_chain: Option<GuardRetChain>,
+    /// **W-XTEA2** — the whole-body `memcpy` tail branch
+    /// (`EncryptXTEA.cpp`'s `?SetKey`). Set by exactly one parser production;
+    /// [`Self::ops`] is empty for it. Like [`Self::guard_ret_chain`] it names no
+    /// `.gl` symbol — `memcpy` arrives as an intrinsic SELECTOR with no `.gl`
+    /// record — so it contributes nothing to [`Self::callees`] or
+    /// [`Self::data_syms`] and the name is minted by the emitter. **Where that
+    /// minted symbol goes is the one thing the two classes do not share**: this
+    /// user is a LEAF with no `$T`, and its `memcpy` sits in the callee region.
+    pub memcpy_tail: Option<MemcpyTail>,
     /// True iff this function's body is **empty** (`void f() {}`): no expression at
     /// all, so codegen emits a bare `blr`. Mutually exclusive with the other body
     /// kinds.
@@ -3217,6 +3243,7 @@ impl IlFunction {
             pool_free_list: None,
             pool_ctor_chain: None,
             guard_ret_chain: None,
+            memcpy_tail: None,
             empty_body: false,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
@@ -3356,7 +3383,14 @@ impl IlFunction {
     /// fact of the class: every `guard_ret_chain` body calls the block-copy
     /// intrinsic and no other accepted class does.
     pub fn mints_memcpy(&self) -> bool {
-        self.guard_ret_chain.is_some()
+        // **Two producers, one predicate.** `plan_labels` charges the TU's
+        // `memcpy` slot once, for the FIRST minting function, so a second class
+        // that mints the same external must answer here or the slot would be
+        // charged to the wrong function — and on `EncryptXTEA.cpp` that is not
+        // academic: `?SetKey` is function 2 of 5 and the framed `?Encrypt` that
+        // carries the TU's only labels is function 5, so a slot charged late
+        // would move a `$M` that a slot charged early does not.
+        self.guard_ret_chain.is_some() || self.memcpy_tail.is_some()
     }
 
     pub fn touches_floating_point(&self) -> bool {

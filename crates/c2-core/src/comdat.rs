@@ -115,6 +115,7 @@ pub fn selected_tag(s: &codegen::Selected) -> &'static str {
     match s {
         codegen::Selected::Plain(_) => "plain",
         codegen::Selected::Tail(_) => "tail",
+        codegen::Selected::MemcpyTail(_) => "memcpy-tail",
         codegen::Selected::Float { consts, .. } if consts.is_empty() => "float",
         codegen::Selected::FpStoreDiamond { .. } => "fp-store-diamond",
         codegen::Selected::CtorForwardCall => "ctor-forward-call",
@@ -886,6 +887,30 @@ pub(crate) fn body_of<'a>(
                 vec![coff::Call {
                     reloc_offset: branch_off,
                     callee,
+                }],
+            )
+        }
+        // **W-XTEA2 — the whole-body `memcpy` tail branch.** The branch is the
+        // ordinary tail call's, word for word; what differs is that the callee is
+        // MINTED here from the emitter's constant, because the copy arrives as an
+        // intrinsic selector with no `.gl` record and `f.tail_call` is `None`.
+        //
+        // **`helper_externals` stays EMPTY, which is the one thing this class
+        // does not share with `GuardRetChain` above.** That class's user is
+        // framed and `w-ifn` measured its `memcpy` landing after the `$T` label;
+        // this user is a LEAF and has no `$T`. Both of this lane's obj readings
+        // put the name in the CALLEE REGION instead — `work/w-xtea2/ref/xtea.dump`
+        // has `[16] ?SetKey · [17] memcpy · [18] .text`, and
+        // `work/w-xtea2/probe/mcpytail.obj` the same one function over — so the
+        // name goes on `calls` alone and `introduced_externals` places it.
+        codegen::Selected::MemcpyTail(mut t) => {
+            let branch_off = t.len() as u32;
+            t.extend_from_slice(&codegen::encode_tail_branch(branch_off));
+            (
+                t,
+                vec![coff::Call {
+                    reloc_offset: branch_off,
+                    callee: codegen::memcpy_tail::MEMCPY_NAME,
                 }],
             )
         }

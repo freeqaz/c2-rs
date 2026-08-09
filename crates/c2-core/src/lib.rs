@@ -992,6 +992,26 @@ impl PortC2 {
                             .to_string(),
                     ));
                 }
+                // **W-XTEA2 — refused in the PACKED layout for a DIFFERENT
+                // reason from the one directly above, and the difference is
+                // worth stating rather than folding in.** This class's `memcpy`
+                // needs no `$T`: it is a leaf and its symbol goes in the callee
+                // region, which the packed symbol table does have. What it does
+                // not have is a reason to be here at all — the class is `/O1`
+                // only (the parser's mode gate and the emitter's), and `/O1`
+                // implies `/Gy` (`docs/OPT_MODE.md` §3.3), so this arm is
+                // unreachable as written. A named refusal rather than an
+                // `unreachable!()`, because an unreachable arm that becomes
+                // reachable is how a guessed layout ships.
+                codegen::Selected::MemcpyTail(_) => {
+                    return Err(BackendError::NotImplemented(
+                        "the whole-body `memcpy` tail branch in the PACKED \
+                         (non-`/Gy`) layout: the class is `/O1`-only and `/O1` \
+                         implies `/Gy`, so no obj has ever been captured for it \
+                         here"
+                            .to_string(),
+                    ));
+                }
                 codegen::Selected::IfCallJoin => {
                     let j = f.if_call_join.as_ref().expect("IfCallJoin implies if_call_join");
                     let body = codegen::if_call_join::if_call_join_text(j, off, mode)?;

@@ -779,6 +779,21 @@ already paid for codegen:
        instead of from the frame), and **not** in the callee region between the
        two `$M`s, where an IL-named callee goes. `work/w-ifn/probe/lab_z.cpp`
        is one obj showing both placements;
+
+       > **⚠ 2026-08-09 — THE PLACEMENT IS A FACT ABOUT THE USER'S FRAME CLASS,
+       > NOT ABOUT THE NAME, and the sentence above is true only of a FRAMED
+       > user.** Every witness behind it is one. Lane `w-xtea2` (#2663) shipped
+       > a **LEAF** user — `?SetKey@XTEABlockEncrypter`, whose whole body is
+       > `addi r3,r3,16 · li r5,16 · b memcpy` — which has no `$T` at all, and
+       > both objs put `memcpy` in the **callee region**: `work/w-xtea2/ref/
+       > xtea.dump` reads `[16] ?SetKey… · [17] memcpy · [18] .text`, and
+       > `work/w-xtea2/probe/mcpytail.obj` the same one function over, with its
+       > three later users minting **no second symbol**. So the crate carries
+       > two placements for one name — `guard_ret_chain` fills
+       > `helper_externals`, `memcpy_tail` leaves it empty and lets
+       > `introduced_externals` place it — and a class that inherited this
+       > paragraph unqualified would resolve every relocation and move two
+       > symbol indices.
      * **one compiler-label slot, once per TU**, before the first minting
        function's own triple — item 5's `_fltused` rule, one external over.
        Measured `[framed, sub]` stride **6**, `[framed, sub1, sub2, framed]`

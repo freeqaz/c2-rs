@@ -36,6 +36,7 @@ use crate::codegen::pool_free_list::pool_free_list_text;
 use crate::codegen::guard_chain_shared_tail::guard_chain_shared_tail_text;
 use crate::codegen::if_call_join::if_call_join_text;
 use crate::codegen::ptr_walk_loop::ptr_walk_loop_text;
+use crate::codegen::memcpy_tail::memcpy_tail_text;
 use crate::codegen::leaf::store::store_leaf_text;
 use crate::codegen::straightline::select_text;
 
@@ -114,6 +115,16 @@ pub enum OptMode {
 pub enum Selected {
     /// A complete body. No relocation, no pooled constants.
     Plain(Vec<u8>),
+    /// **W-XTEA2 — the whole-body `memcpy` tail branch.** Exactly
+    /// [`Selected::Tail`]'s contract — the bytes are everything before the
+    /// `b <callee>` and the caller appends the branch at `text_offset + len`,
+    /// because the branch word encodes its own `.text` offset — with ONE
+    /// difference, which is the whole reason it is not that variant: the callee
+    /// is **minted**, not read out of the IL. `memcpy` arrives as intrinsic
+    /// selector 172 with no `.gl` record, so `f.tail_call` is `None` and
+    /// `Selected::Tail`'s `expect` would fire. See
+    /// [`crate::codegen::memcpy_tail`].
+    MemcpyTail(Vec<u8>),
     /// A tail call. The bytes are everything *before* the `b <callee>`; the
     /// caller appends the branch at `text_offset + len` and registers the REL24
     /// there, because the branch encodes its own `.text` offset.
@@ -447,6 +458,20 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
     }
     if let Some(c) = &func.pool_ctor_chain {
         return Ok(Selected::Plain(pool_ctor_chain_text(c, mode)?));
+    }
+    // **W-XTEA2 — the whole-body `memcpy` tail branch.** Same placement argument
+    // as the whole-body shapes above and the same freedom: `func.memcpy_tail` is
+    // set by exactly one parser production, `func.ops` is empty for it, and no
+    // leaf pattern-matcher below can take its body. It is here — among the
+    // whole-body shapes and above every leaf — rather than beside the ordinary
+    // tail call, because its callee is minted and the tail-call arm above reads
+    // `func.tail_call`, which is `None` for this class.
+    //
+    // The mode gate is asked in the emitter as well as in the parser (board
+    // #1638), and calling the emitter here is what makes `function_gate` and both
+    // writers ask it in exactly one place.
+    if let Some(m) = &func.memcpy_tail {
+        return Ok(Selected::MemcpyTail(memcpy_tail_text(m, mode)?));
     }
     if let Some(l) = &func.ptr_walk_loop {
         return Ok(Selected::Plain(ptr_walk_loop_text(l, mode)?));

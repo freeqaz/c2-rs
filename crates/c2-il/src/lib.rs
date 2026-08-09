@@ -52,6 +52,8 @@ pub use func::{
     AllocInitOrFail,
     AllocInitOrFailFn,
     GuardRetChain,
+    // W-XTEA2 — the whole-body `memcpy` tail branch (`EncryptXTEA.cpp`).
+    MemcpyTail,
     GuardRetGuard,
     GuardRetSpine,
     OsfHandleGuard,
