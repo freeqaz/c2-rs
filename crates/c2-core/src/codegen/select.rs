@@ -31,6 +31,8 @@ use crate::codegen::guard_ret_chain::guard_ret_chain_text;
 use crate::codegen::osf_handle_guard::osf_handle_guard_text;
 use crate::codegen::xlrc_create_guard::xlrc_create_guard_text;
 use crate::codegen::json_utf8_copy::json_utf8_copy_text;
+use crate::codegen::pool_ctor_chain::pool_ctor_chain_text;
+use crate::codegen::pool_free_list::pool_free_list_text;
 use crate::codegen::guard_chain_shared_tail::guard_chain_shared_tail_text;
 use crate::codegen::if_call_join::if_call_join_text;
 use crate::codegen::ptr_walk_loop::ptr_walk_loop_text;
@@ -429,6 +431,22 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
         // and both writers ask it in exactly one place.
         if_call_join_text(func.if_call_join.as_ref().unwrap(), 0, mode)?;
         return Ok(Selected::IfCallJoin);
+    }
+    // **W-POOL2 — the free-list PUSH/POP leaf and the constructor that builds
+    // the chain.** Both take `Selected::Plain`, like `ptr_walk_loop` beside
+    // them and for the same three reasons: no relocation, no pooled constant
+    // and no label. The fields are set by exactly one parser production each,
+    // `func.ops` is empty for both, and no leaf pattern-matcher below can take
+    // either body.
+    //
+    // The mode gate is asked in the emitter as well as in the parser (board
+    // #1638), and calling the emitter here is what makes `function_gate` and
+    // both writers ask it in exactly one place.
+    if let Some(g) = &func.pool_free_list {
+        return Ok(Selected::Plain(pool_free_list_text(g, mode)?));
+    }
+    if let Some(c) = &func.pool_ctor_chain {
+        return Ok(Selected::Plain(pool_ctor_chain_text(c, mode)?));
     }
     if let Some(l) = &func.ptr_walk_loop {
         return Ok(Selected::Plain(ptr_walk_loop_text(l, mode)?));

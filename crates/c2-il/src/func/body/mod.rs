@@ -26,6 +26,7 @@ use self::shapes::{
     try_parse_fp_tail_call,
     try_parse_indirect_load_leaf, try_parse_member_tail_call, try_parse_ptr_identity_leaf,
     try_parse_ptr_walk_chain_loop,
+    try_parse_pool_ctor_chain, try_parse_pool_free_list,
     try_parse_guard_chain_shared_tail,
     try_parse_alloc_init_or_fail,
     try_parse_osf_handle_guard,
@@ -698,6 +699,13 @@ pub(crate) enum BodyShape {
     XlrcCreateGuard(crate::func::XlrcCreateGuard),
     /// **W-JSON** — the UTF-16 → UTF-8 copy loop.
     JsonUtf8Copy(crate::func::JsonUtf8Copy),
+    /// **W-POOL2** — the intrusive free-list PUSH/POP leaf pair. See
+    /// [`shapes::pool_free_list`] for the class and
+    /// [`crate::func::PoolFreeList`] for the fields.
+    PoolFreeList(crate::func::PoolFreeList),
+    /// **W-POOL2** — the free-list constructor's chain build. See
+    /// [`shapes::pool_ctor_chain`] and [`crate::func::PoolCtorChain`].
+    PoolCtorChain(crate::func::PoolCtorChain),
     /// **W-DATA — the static-array scan loop.** The first body class here whose
     /// function DEFINES the data it reads. See
     /// [`super::shapes::static_scan_loop`] for the whole accept/refuse boundary
@@ -2093,6 +2101,24 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                     disp("disp-ptr-walk-chain-loop");
                     return Ok(shape);
                 }
+                // **W-POOL2 — the free-list POP.** It opens on the same
+                // `26 <local>` the three loops and `if_call_join` do — its first
+                // statement is `ptr = mFree` — so it is tried here, on the same
+                // terms: its own cursor, `None` on the first byte that is not
+                // its grammar, no census key moved by a decline.
+                //
+                // Its grammar separates from all four at the SECOND token and
+                // the separation is total: the loops require a `53` opening a
+                // `for`, or the `29 <label>` of a top-test `while`, or the
+                // rotation's `3A <Ltest>`, and `if_call_join` requires a `53`
+                // opening a relational test — this one requires a member
+                // DESIGNATOR (`B9 <this> <PTR> · 33 k 27 <PTR>`) immediately.
+                // So the order among the five is free; it is last because the
+                // other four name TUs that were matched before this one.
+                if let Some(shape) = try_parse_pool_free_list(seg, p, lo, depth) {
+                    disp("disp-pool-free-list");
+                    return Ok(shape);
+                }
                 // **#839 — a store run whose FIRST statement is the reference
                 // bind**, so it opens on this `26` and never reaches the store
                 // block below. The recognizer is the same one that block calls;
@@ -2364,6 +2390,38 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // and no census key moves.
             if let Ok(shape) = try_parse_fp_store_diamond(seg, p, lo) {
                 disp("disp-fp-store-diamond");
+                return Ok(shape);
+            }
+            // **W-POOL2 — the intrusive free-list PUSH, and the constructor
+            // that builds the chain.** Both are asked AFTER every production
+            // above, and the placement went the conservative way for
+            // `guard_ret_chain`'s reason rather than on a disjointness argument
+            // proved on cells — even though one is available and is worth
+            // stating.
+            //
+            // The separation is at the SECOND token and it is total. Every
+            // `if`-shaped class in this arm reads `B9 <formal> <T> · 33 <T> k ·
+            // <rel> · 38 <L>`: a comparison against a literal, then a **brFALSE**
+            // because an `if` branches AROUND its block. `pool_free_list`'s PUSH
+            // reads `B9 <formal> <PTR>` and then a bare **`39`** — `if (!p)`
+            // over a pointer carries no comparison at all — which is the same
+            // one-byte separation `guard_chain_shared_tail` already relies on in
+            // this arm. `pool_ctor_chain`'s first token is not a guard at all:
+            // it is a member DESIGNATOR (`B9 <this> <PTR> · 33 k 27 <PTR>`)
+            // opening a store, where every class above requires a `33` literal
+            // or a `2C` conversion in that position.
+            //
+            // Non-committal on the same terms as the rest of the ladder: their
+            // own cursor and an `Option`, so a body that declines still reports
+            // this arm's blocker — `expr-brtrue` for `?Free@Pool` and
+            // `expr-op-0x27` for `??0Pool`, which is what both read at this
+            // lane's base — and no census key moves.
+            if let Some(shape) = try_parse_pool_free_list(seg, p, lo, depth) {
+                disp("disp-pool-free-list");
+                return Ok(shape);
+            }
+            if let Some(shape) = try_parse_pool_ctor_chain(seg, p, lo, depth) {
+                disp("disp-pool-ctor-chain");
                 return Ok(shape);
             }
             // **The integer divide/modulo leaf.** Tried here because it is the

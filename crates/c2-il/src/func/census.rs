@@ -746,6 +746,17 @@ impl IlBundle {
                             Ok(BodyShape::PtrWalkChainLoop(_)) => {
                                 FnVerdict::InClass("ptr-walk-chain-loop")
                             }
+                            // **W-POOL2** — two buckets, not one, even though
+                            // the two shapes are one class of one TU: the guard
+                            // pair is `cflow-if-1` and the constructor is
+                            // `cflow-loop`, so folding them would hide which of
+                            // the two axes a census move came from.
+                            Ok(BodyShape::PoolFreeList(_)) => {
+                                FnVerdict::InClass("pool-free-list")
+                            }
+                            Ok(BodyShape::PoolCtorChain(_)) => {
+                                FnVerdict::InClass("pool-ctor-chain")
+                            }
                             // The integer divide/modulo leaf. Its own bucket
                             // rather than folded into `straight-line`, so the
                             // rung's census gain is attributable: this key's

@@ -51,6 +51,8 @@ pub mod if_call_join;
 pub mod labels;
 pub mod leaf;
 pub mod order;
+pub mod pool_ctor_chain;
+pub mod pool_free_list;
 pub mod ptr_walk_chain_loop;
 pub mod ptr_walk_loop;
 pub mod schedule;
