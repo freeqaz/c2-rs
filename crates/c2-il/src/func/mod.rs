@@ -3075,6 +3075,22 @@ impl IlFunction {
     /// was missed. The reader is `c2_core::coff::Function::is_float`, and the
     /// failure mode is an obj one symbol short — `Port=Mismatch @ offset 12`, the
     /// COFF header's `NumberOfSymbols`, on every positive case at once.
+    /// **True iff this function is the reason the obj carries the undefined
+    /// external `memcpy`.**
+    ///
+    /// A TU-level fact of the same kind as [`Self::touches_floating_point`] and
+    /// with the same two readers: `c2_core::coff::Function::mints_memcpy`, which
+    /// decides both where the symbol goes (after the `$T` label, on
+    /// `helper_externals`, not in the callee region) and that the TU's first
+    /// such function takes one extra compiler-label slot.
+    ///
+    /// Keyed on the FIELD rather than on a body scan, because it is a structural
+    /// fact of the class: every `guard_ret_chain` body calls the block-copy
+    /// intrinsic and no other accepted class does.
+    pub fn mints_memcpy(&self) -> bool {
+        self.guard_ret_chain.is_some()
+    }
+
     pub fn touches_floating_point(&self) -> bool {
         self.float_leaf.is_some()
             || self.fp_tail.is_some()

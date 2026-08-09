@@ -311,6 +311,43 @@ pub struct Function<'a> {
     /// [`c2_il::IlFunction::label_slots`]. One field, two readers, and the
     /// mismatch it caused was 14 out of 14 objs short by one symbol.
     pub is_float: bool,
+    /// True iff this function is the reason the obj carries the undefined
+    /// external **`memcpy`** — i.e. its body calls the block-copy intrinsic,
+    /// which arrives in the IL as a `40` selector with no `.gl` record at all,
+    /// so the name is minted by the emitter rather than resolved.
+    ///
+    /// Like [`Self::is_float`] this is a per-function fact that
+    /// [`plan_labels`] turns into a **once-per-TU** label slot: the counter
+    /// advances one extra time before the FIRST such function's `$M` triple and
+    /// not at all for any later one. Measured, three cells at the workload's own
+    /// flags (`work/w-ifn/probe/lab_x.cpp`, `lab_y.cpp`, `lab_z.cpp`):
+    ///
+    /// ```text
+    ///   [framed, sub(memcpy)]                    stride 6   the slot
+    ///   [framed, sub1(memcpy), sub2(memcpy),
+    ///                          framed]           strides 6, 5, 5   once per TU
+    ///   [sub(memcpy), framed]                    stride 5   INVISIBLE — the
+    ///                                            slot is taken before the FIRST
+    ///                                            function's own triple
+    /// ```
+    ///
+    /// **The third row is the trap and it cost this lane a wrong `LABEL_LEAD.md`
+    /// section.** A lead on the first function of a TU moves that function's own
+    /// labels and every later one's *equally*, so every in-TU stride reads the
+    /// plain framed constant and the surcharge is invisible. That is
+    /// `w-blockir` board #2305's "cell that could not fail" in a mirror: there a
+    /// wrong charge on the LAST function moved nothing after it, here a real
+    /// charge on the FIRST function moves nothing measurable by strides. It was
+    /// caught by the differential, not by the counterfactual.
+    ///
+    /// **Not unified with [`Self::helper_externals`], though the shape is the
+    /// same** — `docs/LABEL_COUNTER.md` §1.1's `gpr3-dup` row measures that a
+    /// second function reusing a `__savegprlr_N` width pays no surcharge and
+    /// emits no second symbol, which is exactly this rule. They are two fields
+    /// because W-XLR's surcharge is already charged per function through
+    /// `c2_il::IlFunction::label_lead`, and folding it in here would count it
+    /// twice.
+    pub mints_memcpy: bool,
     /// W13b: this function's floating-point constant reference sites, in
     /// emission order, with `hi_off` already rebased to the whole `.text`.
     pub fp_refs: Vec<crate::codegen::FpConstRef>,
@@ -388,6 +425,7 @@ impl<'a> Function<'a> {
             text_offset,
             calls: Vec::new(),
             is_float: false,
+            mints_memcpy: false,
             fp_refs: Vec::new(),
             data_refs: Vec::new(),
             data_defs: Vec::new(),

@@ -503,6 +503,16 @@ pub(crate) fn body_of<'a>(
                 reloc_offset: body.bl_offset,
                 callee: codegen::guard_ret_chain::MEMCPY_NAME,
             }];
+            // **The name goes on `helper_externals` and not into the callee
+            // region**, which is the one thing about this class that is not
+            // shared with its four framed neighbours. Measured on
+            // `work/w-ifn/probe/lab_z.cpp`: `memcpy` lands AFTER the first
+            // user's `$T2587`, where the IL-named `?gz@@YAHH@Z` in the same obj
+            // sits BETWEEN its function's two `$M`s. A minted external and an
+            // IL-named one are two placements, and the writer's `known` test
+            // then gives the second user no second symbol — which is what the
+            // same cell's `sub2` shows.
+            helper_externals = vec![codegen::guard_ret_chain::MEMCPY_NAME];
             (body.text, calls)
         }
         // **W-XLR — the two-stage create/attach guard.** FOUR REL24 sites for
