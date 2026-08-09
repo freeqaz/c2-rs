@@ -471,6 +471,30 @@ pub(crate) enum SeqTail {
     /// (0 for a bare `return g();`, non-zero for `return g() + k;` — the same
     /// `addi r3,r3,k` post-op [`BodyShape::FramedCall`] carries).
     CallValue { add_k: i32 },
+    /// **W-FLTRET** — the same tail whose result is a `float`/`double`:
+    /// `float f(O* o){ o->Poll(); return o->Level(); }`.
+    ///
+    /// **It emits nothing**, exactly like `CallValue { add_k: 0 }` — the callee
+    /// leaves its result in `f1` and the caller's return reads `f1`. MEASURED off
+    /// c2's own `/FAsc` listing (`work/w-fltret/probe/v3.cod`): the float body
+    /// and the `int` body are the same instruction stream, `bl · bl · addi
+    /// r1,r1,96 · …`, and the ONLY difference in the obj is the undefined
+    /// external `_fltused`.
+    ///
+    /// So this is a variant rather than a flag for the reason
+    /// [`Self::CallLoadFp`] is: the value is in the **other register file**, and
+    /// [`crate::func::IlFunction::touches_floating_point`] — which is what puts
+    /// `_fltused` in the obj — enumerates *shapes*. Its own doc warns that the
+    /// shape which gets missed is the one that is FP-touching without being
+    /// FP-*shaped*, and a `CallSeq` whose tail is a call is integer-shaped in
+    /// every field but this one.
+    ///
+    /// **There is no `add_k`, and that is structural.** `addi r3,r3,k` on a value
+    /// that is in `f1` is not a narrower version of this tail, it is a different
+    /// body: `return o->F() + 1.0f` is `lfs` from the `.rdata` FP pool plus
+    /// `fadds` (measured, same listing). Leaving the field out means no future
+    /// widening can set it by accident.
+    CallValueFp,
     /// `return <literal>;` after the last statement call — one `li r3,k`.
     Lit(i32),
     /// **WCO** — the last call's result is a pointer and the body **reads

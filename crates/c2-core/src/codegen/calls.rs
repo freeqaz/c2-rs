@@ -1488,6 +1488,18 @@ pub fn call_seq_parts(
         // The result is already in r3; `+0` folds away exactly as it does for the
         // single framed call.
         c2_il::SeqTail::CallValue { add_k: 0 } => Vec::new(),
+        // **W-FLTRET — the same fold, in the other register file.** The callee
+        // left a `float`/`double` in `f1` and the caller's return reads `f1`, so
+        // there is nothing to emit and nothing to elide: this arm is `Vec::new()`
+        // because the instruction stream genuinely IS the integer one, measured
+        // word for word off c2's `/FAsc` listing (`work/w-fltret/probe/v3.cod`).
+        //
+        // The whole difference is a TU-level symbol. `coff::Function::is_float`
+        // carries it, fed by `c2_il::IlFunction::touches_floating_point`, which
+        // matches this tail; a body that reached here without it emits an obj one
+        // symbol short — `Port=Mismatch @ offset 12`, the COFF header's
+        // `NumberOfSymbols`, on every positive case at once.
+        c2_il::SeqTail::CallValueFp => Vec::new(),
         c2_il::SeqTail::CallValue { add_k } => {
             let k = i16::try_from(add_k)
                 .map_err(|_| out_of_class("call-sequence post-op wider than an addi immediate"))?;

@@ -549,6 +549,14 @@ pub fn splice_callee_why<'a>(
                 SeqTail::CallValue { add_k: 0 } if seq.saved.is_empty() => {}
                 SeqTail::SavedFormal { param: 0 } if seq.saved.as_slice() == [0] => {}
                 SeqTail::CallValue { .. } => return Err("S3-seq-tail-callvalue-k"),
+                // **W-FLTRET.** The ABI identity holds — the callee leaves the
+                // value in `f1` and the caller's return reads `f1` — but splicing
+                // the callee's body in removes the `bl`, and whether the
+                // caller's TU still owes `_fltused` once its only FP-returning
+                // call is gone has **not been captured**. Refused by name rather
+                // than folded into the `add_k: 0` arm it otherwise matches: an
+                // obj one symbol long is the same defect as one symbol short.
+                SeqTail::CallValueFp => return Err("S3-seq-tail-callvaluefp"),
                 SeqTail::SavedFormal { .. } => return Err("S3-seq-tail-savedformal-other"),
                 SeqTail::Void => return Err("S3-seq-tail-void"),
                 SeqTail::Lit(_) => return Err("S3-seq-tail-lit"),

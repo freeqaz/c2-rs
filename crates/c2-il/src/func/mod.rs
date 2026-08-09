@@ -1009,6 +1009,24 @@ pub enum SeqTail {
     /// The last call's result is returned, plus `add_k` (`addi r3,r3,k`, elided
     /// when 0).
     CallValue { add_k: i32 },
+    /// **W-FLTRET** — the last call's `float`/`double` result is returned as is:
+    /// `float f(O* o){ o->Poll(); return o->Level(); }`. **Emits nothing** — the
+    /// callee leaves the value in `f1` and the caller's return reads `f1`, so the
+    /// instruction stream is byte-identical to the `int` body's (measured off
+    /// c2's own `/FAsc` listing, `work/w-fltret/probe/v3.cod`).
+    ///
+    /// What it is *not* identical in is the **obj**: the TU acquires the
+    /// undefined external `_fltused`, which is why this is a variant of its own
+    /// rather than `CallValue { add_k: 0 }` with a note.
+    /// [`IlFunction::touches_floating_point`] matches on it, and that predicate
+    /// enumerates shapes; see its doc for the three earlier times a shape that
+    /// was FP-touching without being FP-*shaped* was missed and cost an obj one
+    /// symbol at COFF offset 12.
+    ///
+    /// **No `add_k`.** The post-op form is `lfs`+`fadds` against the `.rdata` FP
+    /// pool, not `addi`, so the field would have no correct value and its absence
+    /// is the fence.
+    CallValueFp,
     /// `return <literal>;` — one `li r3,k`.
     Lit(i32),
     /// **WCO** — the last call's pointer result is **read through**:
@@ -2895,7 +2913,22 @@ impl IlFunction {
             || self
                 .call_seq
                 .as_ref()
-                .is_some_and(|s| matches!(s.tail, SeqTail::CallLoadFp { .. }))
+            // **W-FLTRET is the fifth producer, and it is the first that emits no
+            // FP instruction at all.** `float f(O* o){ o->Poll(); return
+            // o->Level(); }` is `mr r31,r3 · bl · mr r3,r31 · bl · addi r1,r1,96
+            // · …` — the same words the `int` body emits, with the value arriving
+            // in `f1` because the callee put it there. Its obj still carries
+            // `_fltused` (measured: `EXTRN _fltused:PROC` in
+            // `work/w-fltret/probe/v1.cod`, whose first function is one of these),
+            // placed by the same "after the first FP-touching function's complete
+            // symbol group" rule WFL's framed group already established.
+            //
+            // This is the doc-comment's own warning paying out a second time: a
+            // predicate written as "does the body have FP ops" answers **no** for
+            // every function in this class.
+                .is_some_and(|s| {
+                    matches!(s.tail, SeqTail::CallLoadFp { .. } | SeqTail::CallValueFp)
+                })
             || self
                 .ops
                 .iter()
