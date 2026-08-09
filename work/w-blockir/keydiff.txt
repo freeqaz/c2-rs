@@ -1,0 +1,8 @@
+
+=== bodies (fn_blockers): 636 keys, 1 moved (0 appeared, 0 vanished)
+    totals base 1751206 -> tip 1751202 (must be equal: False)
+           -4       19312 ->     19308   expr-cmp-eq
+
+=== emitted (emit_blockers): 615 keys, 1 moved (0 appeared, 0 vanished)
+    totals base 130117 -> tip 130113 (must be equal: False)
+           -4        2385 ->      2381   expr-cmp-eq
