@@ -1,0 +1,113 @@
+==========================================================================
+CONTROL — re-derive each lane's PUBLISHED verdicts from its own files
+==========================================================================
+  GRID-1 wbs_s1   primary HIT  (doc HIT )  secondary MISS    (doc MISS   )  OK
+  GRID-1 wbs_s2   primary HIT  (doc HIT )  secondary HIT     (doc HIT    )  OK
+  GRID-1 wbs_s3   primary HIT  (doc HIT )  secondary HIT     (doc HIT    )  OK
+  GRID-1 wbs_s4   primary HIT  (doc HIT )  secondary HIT     (doc HIT    )  OK
+  GRID-1 wbs_s5   primary HIT  (doc HIT )  secondary NOTPRED (doc NOTPRED)  OK
+  GRID-1 wbs_s6   primary MISS (doc MISS)  secondary NOTPRED (doc NOTPRED)  OK
+  GRID-1 wbs_b1   primary HIT  (doc HIT )  secondary MISS    (doc MISS   )  OK
+  GRID-1 wbs_b2   primary HIT  (doc HIT )  secondary HIT     (doc HIT    )  OK
+  GRID-1 wbs_b3   primary MISS (doc MISS)  secondary MISS    (doc MISS   )  OK
+  GRID-1 wbs_k1   primary HIT  (doc HIT )  secondary MISS    (doc MISS   )  OK
+  GRID-1 wbs_k2   primary HIT  (doc HIT )  secondary HIT     (doc HIT    )  OK
+  GRID-1 wbs_k3   primary HIT  (doc HIT )  secondary HIT     (doc HIT    )  OK
+  GRID-1 TOTAL primary 10/12 (doc says 10/12)  secondary 6/10 (doc says 6/10)
+  GRID-2 S1   core MISS (doc MISS)  OK
+  GRID-2 S2   core HIT  (doc HIT )  OK
+  GRID-2 S3   core HIT  (doc HIT )  OK
+  GRID-2 S4   core HIT  (doc HIT )  OK
+  GRID-2 S5   core HIT  (doc HIT )  OK
+  GRID-2 S6   core HIT  (doc HIT )  OK
+  GRID-2 S7   core HIT  (doc HIT )  OK
+  GRID-2 S8   core HIT  (doc HIT )  OK
+  GRID-2 S9   core HIT  (doc HIT )  OK
+  GRID-2 S10  core HIT  (doc HIT )  OK
+  GRID-2 S11  core MISS (doc MISS)  OK
+  GRID-2 S12  core MISS (doc MISS)  OK
+  GRID-2 TOTAL core 9/12 (doc says 9/12)
+
+ALL REPRODUCED — the cross-score below is on the same denominators.
+
+==========================================================================
+CROSS-SCORE — policy: PUBLISHED
+==========================================================================
+cell       emitted                                      R1        R2       
+G1 wbs_s1  li subfc subfe addi blr                      HIT       HIT      
+G1 wbs_s2  subfc subfe addi blr                         HIT       HIT      
+G1 wbs_s3  subfic subfe rlwinm addi blr                 HIT       HIT      
+G1 wbs_s4  cntlzw rlwinm xori addi blr                  HIT       HIT      
+G1 wbs_s5  cmpi li bclr li blr                          HIT       HIT      
+G1 wbs_s6  cntlzw cntlzw rlwinm xori addi blr           ABSTAIN   HIT      
+G1 wbs_b1  li subfc subfe rlwinm blr                    ABSTAIN   HIT      
+G1 wbs_b2  subfc subfe rlwinm blr                       ABSTAIN   HIT      
+G1 wbs_b3  rlwinm blr                                   ABSTAIN   MISS     
+G1 wbs_k1  srawi addze blr                              HIT       HIT      
+G1 wbs_k2  rlwinm blr                                   HIT       HIT      
+G1 wbs_k3  subfc subfe rlwinm add blr                   ABSTAIN   HIT      
+G2 S1      li subfc subfe rlwinm addi blr               HIT       HIT      
+G2 S2      cmpi li bclr li blr                          HIT       HIT      
+G2 S3      cntlzw rlwinm blr                            ABSTAIN   HIT      
+G2 S4      addic subfe blr                              ABSTAIN   HIT      
+G2 S5      srawi addze blr                              HIT       HIT      
+G2 S6      li divw blr                                  ABSTAIN   HIT      
+G2 S7      rlwinm blr                                   HIT       HIT      
+G2 S8      oris ori blr                                 ABSTAIN   HIT      
+G2 S9      lbz extsb addi blr                           ABSTAIN   HIT      
+G2 S10     lha addi blr                                 ABSTAIN   HIT      
+G2 S11     li li subfc subfe and blr                    MISS      ABSTAIN  
+G2 S12     li subfc subfe addi blr                      MISS      HIT      
+  R1 (wb-select)   on GRID-1: 7 HIT / 0 MISS / 5 ABSTAIN   = 7/7 of the cells it claims, 7/12 of the grid
+  R1 (wb-select)   on GRID-2: 4 HIT / 2 MISS / 6 ABSTAIN   = 4/6 of the cells it claims, 4/12 of the grid
+  R2 (wb-select2)  on GRID-1: 11 HIT / 1 MISS / 0 ABSTAIN   = 11/12 of the cells it claims, 11/12 of the grid
+  R2 (wb-select2)  on GRID-2: 11 HIT / 0 MISS / 1 ABSTAIN   = 11/11 of the cells it claims, 11/12 of the grid
+
+==========================================================================
+CROSS-SCORE — policy: SYMMETRIC
+==========================================================================
+cell       emitted                                      R1        R2       
+G1 wbs_s1  li subfc subfe addi blr                      HIT       HIT      
+G1 wbs_s2  subfc subfe addi blr                         HIT       HIT      
+G1 wbs_s3  subfic subfe rlwinm addi blr                 HIT       HIT      
+G1 wbs_s4  cntlzw rlwinm xori addi blr                  ABSTAIN   ABSTAIN  
+G1 wbs_s5  cmpi li bclr li blr                          HIT       HIT      
+G1 wbs_s6  cntlzw cntlzw rlwinm xori addi blr           ABSTAIN   ABSTAIN  
+G1 wbs_b1  li subfc subfe rlwinm blr                    ABSTAIN   HIT      
+G1 wbs_b2  subfc subfe rlwinm blr                       ABSTAIN   HIT      
+G1 wbs_b3  rlwinm blr                                   ABSTAIN   ABSTAIN  
+G1 wbs_k1  srawi addze blr                              HIT       HIT      
+G1 wbs_k2  rlwinm blr                                   HIT       HIT      
+G1 wbs_k3  subfc subfe rlwinm add blr                   ABSTAIN   HIT      
+G2 S1      li subfc subfe rlwinm addi blr               HIT       HIT      
+G2 S2      cmpi li bclr li blr                          HIT       HIT      
+G2 S3      cntlzw rlwinm blr                            ABSTAIN   ABSTAIN  
+G2 S4      addic subfe blr                              ABSTAIN   ABSTAIN  
+G2 S5      srawi addze blr                              HIT       HIT      
+G2 S6      li divw blr                                  ABSTAIN   HIT      
+G2 S7      rlwinm blr                                   HIT       HIT      
+G2 S8      oris ori blr                                 ABSTAIN   HIT      
+G2 S9      lbz extsb addi blr                           ABSTAIN   HIT      
+G2 S10     lha addi blr                                 ABSTAIN   HIT      
+G2 S11     li li subfc subfe and blr                    MISS      ABSTAIN  
+G2 S12     li subfc subfe addi blr                      MISS      HIT      
+  R1 (wb-select)   on GRID-1: 6 HIT / 0 MISS / 6 ABSTAIN   = 6/6 of the cells it claims, 6/12 of the grid
+  R1 (wb-select)   on GRID-2: 4 HIT / 2 MISS / 6 ABSTAIN   = 4/6 of the cells it claims, 4/12 of the grid
+  R2 (wb-select2)  on GRID-1: 9 HIT / 0 MISS / 3 ABSTAIN   = 9/9 of the cells it claims, 9/12 of the grid
+  R2 (wb-select2)  on GRID-2: 9 HIT / 0 MISS / 3 ABSTAIN   = 9/9 of the cells it claims, 9/12 of the grid
+
+==========================================================================
+ABSTENTION REASONS (published policy)
+==========================================================================
+  R1 wbs_s6   R1 §3.3 cost arithmetic retracted in its own §7.6
+  R1 wbs_b1   R1 §7.6 excludes {0,1} results as nibble 5
+  R1 wbs_b2   R1 §7.6 excludes {0,1} results as nibble 5
+  R1 wbs_b3   R1 §7.6 routes it to FUN_10c194b8, unread
+  R1 wbs_k3   R1 §7.6 excludes {0,1} results as nibble 5
+  R1 S3       R1 §7.6 excludes {0,1} results as nibble 5
+  R1 S4       R1 §7.6 excludes {0,1} results as nibble 5
+  R1 S6       R1 §9.5: the non-power-of-two divide is NOT claimed
+  R1 S8       R1 §2.1 names ori/or but states no wide-constant split
+  R1 S9       R1 has NO convert table; P4.3 withdrawn untested
+  R1 S10      R1 has NO convert table and no lha fusion
+  R2 S11      R2 §6.3b: the rlandi form is UNREAD, retracted

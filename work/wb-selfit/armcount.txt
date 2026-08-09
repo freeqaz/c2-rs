@@ -1,0 +1,45 @@
+FUN_10c0f882  (167 decompiled lines, size 686 bytes)
+  case labels           : 46     <- wb-select published 46
+  maximal label groups  : 39
+  jump table entries    : (0x10c0fbd6 - 0x10c0fb32)/4 = 41     <- wb-select2 published 41
+  byte index entries    : 0xad + 1 = 174     <- both published 174
+
+    2  case 0x27e: case 0x27f:
+    1  case 0x291:
+    1  case 0x2af:
+    1  case 0x2b2:
+    1  case 0x2b3:
+    1  case 0x2b4:
+    1  case 0x2b5:
+    1  case 0x2b6:
+    1  case 0x2be:
+    2  case 0x2c0: case 0x2f5:
+    3  case 0x2c5: case 0x327: case 0x328:
+    3  case 0x2c6: case 0x329: case 0x32a:
+    1  case 0x2c7:
+    1  case 0x2c8:
+    1  case 0x2c9:
+    1  case 0x2ca:
+    1  case 0x2cb:
+    1  case 0x2cc:
+    1  case 0x2cd:
+    1  case 0x2ce:
+    1  case 0x2cf:
+    1  case 0x2d4:
+    1  case 0x2dc:
+    2  case 0x2dd: case 0x2e7:
+    1  case 0x2de:
+    1  case 0x2e1:
+    1  case 0x2e8:
+    1  case 0x2ea:
+    1  case 0x2eb:
+    1  case 0x2ed:
+    1  case 0x2ee:
+    1  case 0x2f0:
+    1  case 0x2f2:
+    1  case 0x2f3:
+    1  case 0x305:
+    1  case 0x2f4:
+    1  case 0x2f8:
+    1  case 0x2ff:
+    1  case 0x307:
