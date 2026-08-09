@@ -10785,15 +10785,40 @@ circling. **Yes.** A general `lower_expr` is derivable at roughly **640 lines an
 **the knowledge is in tables and the operand type is the table's own index**, so
 one adoption covers every type at once.
 
-Selection is one opcode field overwritten downward in place; sixteen 26-entry
+Selection is one opcode field overwritten downward in place; **thirteen** 26-entry
 operator × type arrays decide form; `cmpw` vs `cmplw` (#1788) is a lookup, not a
 branch, and `divw`/`divwu` and the load widths come free with it. The only place
 selection is a genuine algorithm is a relational used as a **value**, where two
-expanders are **costed in words**, the cheaper wins and ties go to the second —
-a rule frozen as a predicted 4–4 tie *before* the cell was compiled, which then
-went the predicted way, word-exact. The grid returned **10/12 primary and 6 of 10
-word-exact on 11 cells the port cannot emit**, four of them predicted
-instruction-word for instruction-word sight unseen.
+expanders are **costed in words**, the cheaper wins and ties go to `cntlzw`.
+
+> **⚠ CORRECTED 2026-08-09 by `wb-selfit` (#2200–#2213) and `wb-tables`
+> (#2110–#2119), which reached the same count independently.** This section was
+> written from run 1 (`#2040`–`#2047`) before either reconciliation landed, and
+> two of its sentences were wrong:
+>
+> - **"sixteen tables" was an enumeration error**, not a counting convention.
+>   `FUN_10c04cb9` writes **13 slots** and then *reassigns four of the same
+>   thirteen* under `-QVMX128` — 13 slots, 17 bodies — and run 1 also missed the
+>   convert/widen table at `0x10b1fd08` entirely. A table set adopted at the
+>   wrong count silently drops operators.
+> - **The tie evidence is VOID.** The cell run 1 published as the project's only
+>   tie evidence — a 4–4 tie called before the compile — is an against-zero
+>   relational, and `FUN_10c1b517` routes those to an unread function **before**
+>   costing. That cell never reached the comparison; five of the 24 cells across
+>   both runs are in the same position. **The tie rule survives as a reading of
+>   the instruction; its obj-confirmation does not survive at all**, which makes
+>   the cost model a *stronger* DISCLOSURE case, not a weaker one.
+> - Scores: run 2 outscores run 1 **22/23 to 11/13** published, **18/18 to
+>   10/12** symmetric; the two grids are **not directly comparable** (different
+>   cell sets), and eleven of run 1's abstentions are forced by its own
+>   not-claimed list. Also corrected downstream: #2044's record-form headline is
+>   false (there IS a rewriter, `FUN_10c0b4c0`), and `FUN_10c194b8` is the float
+>   path, not the bool path.
+>
+> **The judgment below is unaffected** — both runs, independently, answer the
+> rate question the same way, and the merged build list is *larger* than either
+> (13 clauses, two from neither run) with one clause no single lane had:
+> **exclude any relational compared against zero**.
 
 **What this does and does not change.** It changes the *price of every future
 emitter class* — WB-H shipped one shape; this shipped the index that made a shape
