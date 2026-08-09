@@ -234,15 +234,23 @@ pub(crate) fn try_parse_memcpy_tail(
     }
 
     // **THE REGISTER PLAN, and the whole reason this class is a class.** c2's
-    // three words are right only when the destination's base is already in r3
-    // and the source is already in r4. `rev` is the same source construct with
-    // the two exchanged and it is FIVE words through r11 — so this is a refusal
-    // that names its construct, not a limit hidden in a parse failure.
-    if dst.tok != params[0] {
-        return Err(blk(seg, p, "mcpytail-destination-base-is-not-the-first-argument"));
-    }
-    if src.tok != params[1] {
-        return Err(blk(seg, p, "mcpytail-source-is-not-the-second-argument"));
+    // words are right only when the destination's base is already in r3 and the
+    // source is already in r4. `work/w-xtea2/probe/mcpyswap.cpp` is the pair
+    // that isolates it — two plain pointer formals, no offsets, one length:
+    //
+    // ```text
+    //   ok2(d, s)   memcpy(d, s, 16)    li r5,16 · b memcpy                8 B
+    //   swap2(s, d) memcpy(d, s, 16)    mr r11,r4 · mr r4,r3 · li r5,16
+    //                                   · mr r3,r11 · b memcpy           20 B
+    // ```
+    //
+    // **ONE clause and not two**, and the merge is what makes it gradeable: the
+    // fact is the CONJUNCTION, and split in half either half alone still refuses
+    // the swapped cell, so a must-fail mutation on one of them proves nothing.
+    // Measured — `work/w-xtea2/MUTATIONS.md` M1 came back `vocab-gap` until the
+    // two were joined.
+    if dst.tok != params[0] || src.tok != params[1] {
+        return Err(blk(seg, p, "mcpytail-operands-are-not-already-in-the-argument-registers"));
     }
     // A source with a designator would be `addi r4,r4,k`, which no cell here
     // witnesses in the accepted direction.
