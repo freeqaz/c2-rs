@@ -698,6 +698,98 @@ pub(crate) fn mangled_is_varargs(name: &str) -> bool {
     name.ends_with("ZZ")
 }
 
+/// **W-INLFENCE — the callee this TU also DEFINES, or `None`.**
+///
+/// The one predicate behind the port's inline fence, asked by
+/// [`crate::IlBundle::functions`] (as a whole-TU refusal), by the census (as a
+/// per-function one) and by [`super::diag`]'s re-ask, so the three cannot
+/// disagree about what the port may emit.
+///
+/// # What it is a fence against
+///
+/// **c2 inlines**, and the port does not. `int f(int); int use(int a){return
+/// f(a);} int f(int a){return a+1;}` gets a `.text` of *two* copies of `addi
+/// r3,r3,1 ; blr` and **no relocations** — c2 cloned `f` into `use` rather than
+/// branching to it, and the port's `b ?f` against an undefined external
+/// mismatched at file offset 8. Lane `w-fltret` measured the same mechanism on
+/// the workload at scale (`docs/rungs/2026-08-09-w-fltret.md` §6, board #2082):
+/// `?SplitMs@Timer@@QAAMXZ`'s reference body is **31 words** where the port
+/// emits 13, because `Timer::Split()` and `Timer::Ms()` are `inline` members
+/// defined in the same header, and **not one of that class's 444 functions is
+/// byte-exact**.
+///
+/// # Why the test is DEFINED-HERE and not a size or a ceiling
+///
+/// `docs/whitebox/WB_INLINE_FINDINGS.md` measures c2's decision on 320 obj
+/// cells and its §7 says of the accept side: *"The accept side is not
+/// offered"* — a mis-predicted accept is a wrong obj, and none of the measured
+/// boundaries is a number (they are brackets: `(300,308]`, `(212,252]`,
+/// `(56,80]` for a loop-bodied callee). **Nothing from that document is copied
+/// here.** What this predicate uses is the one categorical fact that needs no
+/// constant at all: *c2 cannot inline a body it does not have.* Where the
+/// callee is a true external the port keeps its own call and is byte-exact —
+/// 5,172 `tail` and 1,238 `seq` emitted functions are graded byte-exact against
+/// real c2 at base, every one of them a call this fence must not take.
+///
+/// # The direction it fails in
+///
+/// `defined` is the set of names this TU is *known* to define. A name **in** it
+/// is certainly defined here and the function is refused. A name **absent** may
+/// still be defined here on a TU whose `.gl` records the walk could not frame —
+/// [`super::gl::gl_defined_names`] yields an empty pair when it stops. That
+/// residue is fail-OPEN in the census and fail-CLOSED in the gate, which
+/// refuses such a TU for want of names before this is ever asked; it is sized
+/// rather than hidden (`docs/rungs/2026-08-09-w-inlfence.md` §5).
+///
+/// Returns the offending name so a caller can report *which* callee, rather
+/// than a bare bool that makes every row look alike.
+pub(crate) fn callee_defined_here<'a>(
+    f: &'a crate::func::IlFunction,
+    defined: &std::collections::BTreeSet<String>,
+) -> Option<&'a str> {
+    f.callees().find(|c| defined.contains(*c))
+}
+
+/// [`callee_defined_here`], minus the callees the port already has a **graded
+/// model** of.
+///
+/// Mechanism E (`c2_core::elide`) says a call to a callee this TU defines and
+/// that emits **nothing** costs no branch at all, and the judge grades that
+/// **1,877 of 1,877 byte-exact** over the 878-TU workload. Refusing those
+/// bodies would be the fence being over-broad in the one direction that costs
+/// something real, so the census asks this form and gets `None` for them.
+///
+/// **[`IlBundle::functions`] deliberately does NOT take the exemption.** The
+/// gate is the emit path and stays wholesale: `elide` runs inside
+/// `c2_core::comdat_function_body`, and no obj has ever been emitted for a TU
+/// that defines one of its own callees, so the exemption there would be a
+/// widening with no capture behind it. The two callers therefore ask the same
+/// question about *definition* and only the census subtracts what is modelled —
+/// which is the direction that cannot produce a wrong obj.
+///
+/// `exempt` is DEPTH 1 where `elide`'s reduction is a fixpoint, so this
+/// under-exempts and never over-exempts.
+pub(crate) fn callee_defined_here_unmodelled<'a>(
+    f: &'a crate::func::IlFunction,
+    defined: &std::collections::BTreeSet<String>,
+    exempt: &std::collections::BTreeSet<String>,
+) -> Option<&'a str> {
+    f.callees()
+        .find(|c| defined.contains(*c) && !exempt.contains(*c))
+}
+
+/// The set [`callee_defined_here`] tests against, for a caller that has only
+/// `.gl` — the census, whose [`Bindings::positional`] names are all mangled
+/// names and not the defined ones.
+///
+/// Every member is a name a `.gl` record with a **body-start offset** claimed,
+/// i.e. a function this TU defines. The set is a subset of the truth and never
+/// a superset, which is what makes a membership test sound in the refusing
+/// direction on a TU that does not fully bind.
+pub(crate) fn defined_name_set(gl: &[u8]) -> std::collections::BTreeSet<String> {
+    gl_defined_names(gl).0.into_iter().map(|(_, n)| n).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1333,5 +1425,62 @@ mod tests {
             (gate.is_varargs(0), gate.is_varargs(1)),
             "the two callers must never disagree about a variadic function"
         );
+    }
+
+    /// **W-INLFENCE — the fence matches a whole mangled NAME, never a prefix.**
+    ///
+    /// The near-miss is in `fixtures/cpp/winlfence_opaque_callee.cpp` as cell
+    /// F5 and graded byte-exact there; this is the same claim at unit cost, so
+    /// the day someone rewrites the set membership as a `starts_with` the
+    /// portable lane fails without a toolchain.
+    #[test]
+    fn the_inline_fence_matches_a_whole_name_and_not_a_prefix() {
+        let defined: std::collections::BTreeSet<String> =
+            ["?wif_local_leaf@@YAHH@Z".to_string()].into_iter().collect();
+        let mut f = crate::func::IlFunction::base("?caller@@YAHH@Z", &None);
+        f.tail_call = Some("?wif_local_leaf_x@@YAHH@Z".to_string());
+        assert_eq!(
+            callee_defined_here(&f, &defined),
+            None,
+            "a callee of which a defined name is a strict PREFIX is a different \
+             symbol and c2 has no body for it"
+        );
+        f.tail_call = Some("?wif_local_leaf@@YAHH@Z".to_string());
+        assert_eq!(
+            callee_defined_here(&f, &defined),
+            Some("?wif_local_leaf@@YAHH@Z"),
+            "the exact name is the fence"
+        );
+    }
+
+    /// **The fence reads EVERY call edge, because it reads
+    /// [`crate::func::IlFunction::callees`].**
+    ///
+    /// A fence written against `tail_call` alone would have been green on every
+    /// cell of `winlfence_local_callee_neg.cpp` that is a tail call and silent
+    /// on its `CallSeq` ones — which is five of the seven, including the shape
+    /// of the one function the whole 878-TU workload takes back.
+    #[test]
+    fn the_inline_fence_reads_every_call_edge_and_not_only_the_tail() {
+        let defined: std::collections::BTreeSet<String> =
+            ["?g@@YAHH@Z".to_string()].into_iter().collect();
+        let mut f = crate::func::IlFunction::base("?caller@@YAHH@Z", &None);
+        f.framed_call = Some(crate::func::FramedCall {
+            callee: "?g@@YAHH@Z".to_string(),
+            add_k: 0,
+        });
+        assert_eq!(callee_defined_here(&f, &defined), Some("?g@@YAHH@Z"));
+    }
+
+    /// **An empty defined set fences nothing**, which is the direction this
+    /// predicate fails in and the reason the rung sizes the residue instead of
+    /// claiming coverage: `gl_defined_names` yields an empty pair when its walk
+    /// stops, and that is **845 of the 871 captured workload TUs**.
+    #[test]
+    fn an_empty_defined_set_fences_nothing_and_that_is_the_open_direction() {
+        let none = std::collections::BTreeSet::new();
+        let mut f = crate::func::IlFunction::base("?caller@@YAHH@Z", &None);
+        f.tail_call = Some("?g@@YAHH@Z".to_string());
+        assert_eq!(callee_defined_here(&f, &none), None);
     }
 }

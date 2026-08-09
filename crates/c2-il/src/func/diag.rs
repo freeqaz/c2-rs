@@ -368,9 +368,13 @@ impl IlBundle {
         {
             out.push(cause::UNCLAIMED);
         }
+        // **W-INLFENCE** — the same predicate `IlBundle::functions` and the
+        // census ask, so this diagnostic cannot drift from the gate it
+        // re-states. `names` is a `per_record` binding, total by construction.
+        let defined: std::collections::BTreeSet<String> = names.iter().cloned().collect();
         if funcs
             .iter()
-            .any(|f| f.callees().any(|c| names.iter().any(|n| n == c)))
+            .any(|f| super::bind::callee_defined_here(f, &defined).is_some())
         {
             out.push(cause::LOCAL_CALLEE);
         }

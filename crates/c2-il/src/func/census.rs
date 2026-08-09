@@ -1,12 +1,15 @@
 use super::body::{
     self, bind_refusal_key, call_tokens, parse_segment_detail, BodyShape, Complete, DtorSubObject,
-    CALLEE_UNRESOLVED_DTOR,
+    CALLEE_DEFINED_IN_TU, CALLEE_UNRESOLVED_DTOR,
     CALLEE_UNRESOLVED_FRAMED, CALLEE_UNRESOLVED_SEQ, CALLEE_UNRESOLVED_TAIL,
     STATIC_SCAN_LOOP_OBJECT, STORE_RUN_BIND_NO_CARRIER, STORE_RUN_CALL_NO_CARRIER,
     DATA_SYM_LINKAGE, DATA_SYM_UNRESOLVED, OPT_MODE, PTR_WALK_CHAIN_LOOP_NOT_O1,
     PTR_WALK_LOOP_NOT_O1,
 };
-use super::bind::{Bindings, EmitBinding};
+use super::bind::{
+    callee_defined_here, callee_defined_here_unmodelled, defined_name_set, Bindings,
+    EmitBinding,
+};
 use super::bundle::shape_to_function;
 use super::bundle::split_function_bodies_at;
 use super::bundle::{opt_word_at, opt_word_mode};
@@ -376,6 +379,154 @@ pub fn cflow_residue_admit_set() -> String {
 pub const CENSUS_HEX_BACK: usize = 16;
 pub const CENSUS_HEX_FWD: usize = 24;
 
+/// **W-INLFENCE — the same-TU callees the port has a MODEL of**, so the inline
+/// fence can refuse only the ones it does not.
+///
+/// # Why this exists, and the cost of it existing
+///
+/// The inline fence ([`super::bind::callee_defined_here`]) refuses a body whose
+/// callee this TU defines, because c2 may inline it. **The port is not silent
+/// about every inline**: mechanism E (`c2_core::elide`) says a call to a callee
+/// that emits nothing costs no branch at all, and the judge grades that
+/// **1,877 of 1,877 byte-exact** on the 878-TU workload. Refusing those in the
+/// census would refuse bodies the port provably gets right.
+///
+/// **And mechanism I** (`c2_core::splice`, SPLICE-0) says a call to a callee this
+/// TU defines and that the port can LOWER is replaced by that callee's own
+/// emitted body, graded **723 of 723 byte-exact**. The two populations are
+/// disjoint in the worst way for a single rule: E's callees are rows the parser
+/// REFUSED and I's are rows it ACCEPTED, so an exemption that covers one covers
+/// neither.
+///
+/// So the set below is the union — *reduces to nothing* **or** *the port can
+/// lower it* — and the fence refuses only a callee the port has **no** model of,
+/// which is the honest statement of what it is for: c2 may inline, and here
+/// nobody knows what that produces.
+///
+/// `c2_core::elide::TuEmptyCallees` is the owner of the first half and this is a
+/// **second implementation of it**, which is a real cost and is stated rather
+/// than hidden: `c2-core` depends on `c2-il` and not the other way round, so the
+/// census cannot call it. What keeps the two in agreement is that six standing
+/// integration cells fail loudly if this one is narrower —
+/// `dead_temp_elision.rs`'s four chains, `call_targets.rs`'s locator and
+/// `empty_elision.rs`'s c19. A **depth-1** version of this function was written
+/// first and five of them caught it; a *reduces-to-nothing only* version was
+/// written second and c19 caught that.
+///
+/// The second half is deliberately **not** a re-statement of SPLICE-0's own
+/// refusals (`splice.rs`'s S1–S6). It is *"the callee's body is one the port
+/// lowers"*, which is broader, so a callee the splice declines is exempted here
+/// and the port keeps its `bl`. That is the pre-existing behaviour and it is a
+/// named residue, not a claim (`docs/rungs/2026-08-09-w-inlfence.md` §6).
+///
+/// # The rule, mirrored clause for clause from `elide.rs`
+///
+/// * **seeds** — [`IlFunction::empty_body`], and a refused row whose grammar
+///   proves it emits nothing at all (`no_effect_nothing`, board #1053).
+/// * **links** — a refused row that emits nothing but one call
+///   (`no_effect_call` / `no_effect_loop`), and a parsed body that is a bare
+///   tail call: no data symbol, no `framed_call`, no `call_seq`, no `cond_pair`
+///   (`elide::elidable_step`, whose doc gives the graded reason each of those
+///   four disqualifies).
+/// * **lowerable** — the segment parses whole, `shape_to_function` resolves
+///   every token in it, and its optimization-settings word is one the port
+///   emits under. Asked WITHOUT the inline fence, which is what keeps this
+///   non-recursive: it is a statement about the callee's own body, not about
+///   whether the callee would itself be admitted.
+/// * **a name two segments disagree about contributes neither**, exactly as
+///   `TuContext::of_rows` drops it.
+///
+/// Keyed on [`EmitBinding::name`], which is the key
+/// `c2_harness::gap::fnbytes::tu_empty_callees` feeds the real context with, so
+/// the two cannot key one function two ways.
+#[allow(clippy::too_many_arguments)]
+fn tu_modelled_callees(
+    segs: &[&[u8]],
+    bind: &Bindings,
+    emit: &EmitBinding,
+    src: &Option<String>,
+    resolve: &dyn Fn(u32) -> Option<String>,
+    resolve_data: &dyn Fn(u32) -> Option<String>,
+    resolve_data_def: &dyn Fn(u32) -> Option<crate::func::IlDataDef>,
+) -> std::collections::BTreeSet<String> {
+    use std::collections::{BTreeMap, BTreeSet};
+    let mut seed: BTreeSet<String> = BTreeSet::new();
+    let mut lowerable: BTreeSet<String> = BTreeSet::new();
+    let mut link: BTreeMap<String, String> = BTreeMap::new();
+    let mut seen: BTreeSet<String> = BTreeSet::new();
+    let mut conflict: BTreeSet<String> = BTreeSet::new();
+    for (j, s2) in segs.iter().enumerate() {
+        let Some(n) = emit.name(j) else { continue };
+        if !seen.insert(n.to_string()) {
+            conflict.insert(n.to_string());
+            continue;
+        }
+        if body::shapes::no_effect::no_effect_nothing(s2) {
+            seed.insert(n.to_string());
+            continue;
+        }
+        if let Some(c) = body::shapes::no_effect::no_effect_call(s2)
+            .or_else(|| body::shapes::no_effect::no_effect_loop(s2))
+            .and_then(resolve)
+        {
+            link.insert(n.to_string(), c);
+            continue;
+        }
+        let Ok(sh) = parse_segment_detail(s2, bind.locals(j)) else {
+            continue;
+        };
+        let Some(f) = shape_to_function(
+            sh,
+            &bind.name_for_shape(j),
+            src,
+            resolve,
+            resolve_data,
+            resolve_data_def,
+        ) else {
+            continue;
+        };
+        // **Mechanism I's half.** The body parses whole, every token in it
+        // resolves, and the mode is one the port emits under: the splice has a
+        // body to substitute, so the caller is not guessing.
+        if opt_word_mode(opt_word_at(s2)).is_some() {
+            lowerable.insert(n.to_string());
+        }
+        if f.empty_body {
+            seed.insert(n.to_string());
+        } else if f.data_syms.is_empty()
+            && f.framed_call.is_none()
+            && f.call_seq.is_none()
+            && f.cond_pair.is_none()
+        {
+            if let Some(c) = f.tail_call.as_deref() {
+                link.insert(n.to_string(), c.to_string());
+            }
+        }
+    }
+    for n in &conflict {
+        seed.remove(n);
+        link.remove(n);
+        lowerable.remove(n);
+    }
+    // The closure. `seed` only grows and is bounded by `link`, so this
+    // terminates on a cycle instead of chasing it — `elide.rs`'s own cycle
+    // re-derivation, and `a_cycle_of_dead_temporary_bodies_is_never_admitted`
+    // is the cell that grades it.
+    loop {
+        let step: Vec<String> = link
+            .iter()
+            .filter(|(n, c)| !seed.contains(*n) && seed.contains(*c))
+            .map(|(n, _)| n.clone())
+            .collect();
+        if step.is_empty() {
+            break;
+        }
+        seed.extend(step);
+    }
+    seed.extend(lowerable);
+    seed
+}
+
 impl IlBundle {
     /// **Function-level census (P2b).** Classify *every* function in the bundle
     /// independently, so a TU whose 700th function uses an unmodeled opcode
@@ -479,6 +630,21 @@ impl IlBundle {
         let resolve_data_def =
             |tok: u32| -> Option<crate::func::IlDataDef> { bind.resolve_data_def(tok) };
         let src = bind.src.clone();
+        // **W-INLFENCE** — the names this TU DEFINES, built once per bundle for
+        // the post-parse gate (c) below. Built from `.gl` directly and not from
+        // `bind.names()`, because the census's binding is
+        // [`Bindings::positional`] and its names are **all** mangled names —
+        // callees included — so testing a callee against them would refuse every
+        // call in the workload. See [`defined_name_set`].
+        let defined = &defined_name_set(gl);
+        // **W-INLFENCE** — the defined callees mechanism E already models,
+        // built LAZILY because the fence fires on **one** row in the whole
+        // 878-TU workload and this pass costs a second parse of every segment.
+        // Keyed on `EmitBinding::name`, which is the key
+        // `c2_harness::gap::fnbytes::tu_empty_callees` uses for the same fact,
+        // so the two cannot key one function two ways.
+        let empty_here: std::cell::OnceCell<std::collections::BTreeSet<String>> =
+            std::cell::OnceCell::new();
         Some(
             segs.iter()
                 .enumerate()
@@ -972,6 +1138,70 @@ impl IlBundle {
                                         aux: opt_word.unwrap_or(0) as u64,
                                         ..Block::at_end(seg, PTR_WALK_CHAIN_LOOP_NOT_O1)
                                     })
+                                }
+                                // **(c) W-INLFENCE — the callee this TU also
+                                // DEFINES.** The body parses, the symbol
+                                // resolves, the mode is one the port emits
+                                // under, and c2 may still **inline** the callee
+                                // — in which case the port's `bl` is a wrong
+                                // body and not a gap. `IlBundle::functions` has
+                                // refused this wholesale since the MVP; this is
+                                // the same predicate
+                                // ([`super::bind::callee_defined_here`]) asked
+                                // per function, so the census stops claiming
+                                // bodies the gate refuses.
+                                //
+                                // LAST of the post-parse gates, deliberately:
+                                // see [`CALLEE_DEFINED_IN_TU`]. Silent on a TU
+                                // whose defined-name walk stopped, exactly as
+                                // [`super::bind::Bindings::is_varargs`] is
+                                // silent when the pairing is not meaningful —
+                                // the gate refuses such a TU for want of names
+                                // before this could matter, and the residue is
+                                // sized in the rung rather than folded in.
+                                //
+                                // **AND IT YIELDS TO A GRADED MODEL.** The port
+                                // is not silent about every inline: mechanism E
+                                // (`c2_core::elide`) says a call to a callee
+                                // this TU defines and that emits NOTHING costs
+                                // no branch at all, and the judge grades that
+                                // **1,877 of 1,877 byte-exact** on the workload.
+                                // Fencing those would refuse bodies the port
+                                // provably gets right — over-broad in the one
+                                // direction a fence is not allowed to be
+                                // cheaply. So a callee in `empty_here` is NOT
+                                // fenced.
+                                //
+                                // The set is **depth 1** where `elide`'s is a
+                                // fixpoint, so this under-exempts and never
+                                // over-exempts; the residue is a refusal, which
+                                // is the safe side. It is built LAZILY and the
+                                // `parse_segment` calls it makes are safe only
+                                // because `dispatch`/`prod` were read for this
+                                // row several lines above and the next row calls
+                                // `dispatch_reset()` — the exact hazard that
+                                // block's own comment warns about.
+                                Some(f)
+                                    if callee_defined_here(&f, defined).is_some()
+                                        && callee_defined_here_unmodelled(
+                                            &f,
+                                            defined,
+                                            empty_here.get_or_init(|| {
+                                                tu_modelled_callees(
+                                                    &segs,
+                                                    &bind,
+                                                    &emit,
+                                                    &src,
+                                                    &resolve,
+                                                    &resolve_data,
+                                                    &resolve_data_def,
+                                                )
+                                            }),
+                                        )
+                                        .is_some() =>
+                                {
+                                    let _ = f;
+                                    FnVerdict::Blocked(Block::at_end(seg, CALLEE_DEFINED_IN_TU))
                                 }
                                 Some(f) => {
                                     func = Ok(f);

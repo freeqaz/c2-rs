@@ -1,0 +1,44 @@
+        76  inlf-defined-names
+     88239  inlf-emit-callee
+        10  inlf-emit-clean
+         1  inlf-emit-fenced
+     88228  inlf-emit-open
+   2501658  inlf-gate-segments
+    212125  inlf-row-callee
+        10  inlf-row-clean
+         1  inlf-row-fenced
+    212114  inlf-row-open
+       845  inlf-tu-empty-set
+       846  inlf-tu-not-total
+         6  inlf-tu-partial-set
+        25  inlf-tu-total
+       871  inlf-tus
+        76  inlf-wide-names
+
+the 25 TUs whose defined-name binding is TOTAL:
+src                                                                    class       names  segs callee fenced  clean
+src/keygen_xbox.cpp                                                    vocab-gap      20    20      1      1      0
+src/system/math/Primes.cpp                                             match           1     1      0      0      0
+src/system/math/Sort.cpp                                               match           1     1      0      0      0
+src/system/negate_test.cpp                                             match           2     2      2      0      2
+src/system/rndobj/wordwrap.cpp                                         vocab-gap       3     3      0      0      0
+src/system/synth/tomcrypt/TomCryptLicense.cpp                          match           1     1      0      0      0
+src/system/synth_xbox/Biquad.cpp                                       vocab-gap       2     2      0      0      0
+src/system/synth_xbox/GainEffect.cpp                                   match           0     0      0      0      0
+src/system/synth_xbox/HeadsetPlaybackEffect.cpp                        match           0     0      0      0      0
+src/system/synth_xbox/IPP_basicmath_xbox.cpp                           vocab-gap       4     4      0      0      0
+src/system/synth_xbox/PeakDetector.cpp                                 match           0     0      0      0      0
+src/system/synth_xbox/soundtouch/source/SoundTouch/mmx_optimized.cpp   match           0     0      0      0      0
+src/system/synth_xbox/soundtouch/source/SoundTouch/sse_optimized.cpp   match           0     0      0      0      0
+src/system/utl/EncryptXTEA.cpp                                         vocab-gap       5     5      0      0      0
+src/system/utl/Pool.cpp                                                vocab-gap       3     3      0      0      0
+src/system/utl/Spew.cpp                                                match           2     2      0      0      0
+src/system/zlib/ZlibLicense.cpp                                        match           1     1      0      0      0
+src/xdk/LIBCMT/osfinfo.cpp                                             match           1     1      1      0      1
+src/xdk/LIBCMT/undname.cpp                                             match           1     1      1      0      1
+src/xdk/LIBCMT/vsnprnc.cpp                                             vocab-gap       2     2      0      0      0
+src/xdk/LIBCMT/vswprnc.cpp                                             match           1     1      1      0      1
+src/xdk/nuispeech/xboxheap.cpp                                         match           1     1      1      0      1
+src/xdk/nuispeech/xboxmem.cpp                                          match           4     4      3      0      3
+src/xdk/xjson/jsonwriter.cpp                                           match           1     1      0      0      0
+src/xdk/xlrc/xlrcimpl.cpp                                              match           1     1      1      0      1

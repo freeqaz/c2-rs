@@ -1,0 +1,134 @@
+diff --git a/crates/c2-harness/src/gap/scan.rs b/crates/c2-harness/src/gap/scan.rs
+index e0873eab..b1385028 100644
+--- a/crates/c2-harness/src/gap/scan.rs
++++ b/crates/c2-harness/src/gap/scan.rs
+@@ -880,6 +880,10 @@ fn scan_one(
+         }
+     }
+ 
++    // w-inlfence SCRATCH — see work/w-inlfence/probe.rs.txt
++    for (k, v) in captured.bundle.inlfence_probe() {
++        *res.bind_checks.entry(k).or_insert(0) += v;
++    }
+     if let Some(gl) = captured.bundle.get("gl") {
+         let (dropped, mangled) = c2_il::gl_symbol_conflicts(gl);
+         if dropped > 0 {
+diff --git a/crates/c2-il/src/func/census.rs b/crates/c2-il/src/func/census.rs
+index 9f2d3de1..4b807ef4 100644
+--- a/crates/c2-il/src/func/census.rs
++++ b/crates/c2-il/src/func/census.rs
+@@ -1079,6 +1079,114 @@ impl IlBundle {
+                 .collect(),
+         )
+     }
++
++    /// **W-INLFENCE SCRATCH.** See `work/w-inlfence/probe.rs.txt`.
++    pub fn inlfence_probe(&self) -> std::collections::BTreeMap<String, usize> {
++        use super::bind::{callee_defined_here, defined_name_set, emit_offset_framed, Bindings, EmitBinding};
++        use super::bundle::{split_function_bodies_at, split_functions_at, shape_to_function};
++        use super::gl::gl_defined_names_framed;
++        let mut out: std::collections::BTreeMap<String, usize> =
++            std::collections::BTreeMap::new();
++        let mut bump = |k: &str, n: usize| {
++            if n > 0 {
++                *out.entry(k.to_string()).or_insert(0) += n;
++            }
++        };
++        let (Some(gl), Some(ex)) = (self.get("gl"), self.ex()) else {
++            return out;
++        };
++        let (starts, gate_segs) = split_functions_at(ex);
++        let narrow = defined_name_set(gl);
++        let wide: std::collections::BTreeSet<String> =
++            match gl_defined_names_framed(gl, true, emit_offset_framed) {
++                Ok((b, _)) => b.into_iter().map(|(_, n)| n).collect(),
++                Err(_) => std::collections::BTreeSet::new(),
++            };
++        let total = match gl_defined_names_framed(gl, true, crate::codec::gl_offset_framed) {
++            Ok((b, _)) => {
++                b.len() == gate_segs.len()
++                    && b.iter().zip(&starts).all(|(&(o, _), &s)| o as usize == s)
++            }
++            Err(_) => false,
++        };
++        bump("inlf-tus", 1);
++        bump("inlf-defined-names", narrow.len());
++        bump("inlf-wide-names", wide.len());
++        bump("inlf-gate-segments", gate_segs.len());
++        bump(if total { "inlf-tu-total" } else { "inlf-tu-not-total" }, 1);
++        if narrow.is_empty() {
++            bump("inlf-tu-empty-set", 1);
++        } else if !total {
++            bump("inlf-tu-partial-set", 1);
++        }
++        if wide.len() > narrow.len() {
++            bump("inlf-tu-wide-is-bigger", 1);
++            bump("inlf-wide-extra-names", wide.len() - narrow.len());
++        }
++
++        // The rows, over the census's own segmentation and its own binding.
++        let (seg_starts, segs) = split_function_bodies_at(ex);
++        let emit = EmitBinding::new(gl, &seg_starts);
++        let bind = Bindings::positional(gl, self.get("in").unwrap_or(&[]), self.get("sy"), &segs);
++        let resolve = |tok: u32| -> Option<String> { bind.resolve(tok) };
++        let resolve_data = |tok: u32| -> Option<String> { bind.resolve_data(tok) };
++        let resolve_data_def =
++            |tok: u32| -> Option<crate::func::IlDataDef> { bind.resolve_data_def(tok) };
++        let src = bind.src.clone();
++        for (i, seg) in segs.iter().enumerate() {
++            if bind.is_varargs(i) {
++                continue;
++            }
++            let Some(sh) = super::body::parse_segment(seg, bind.locals(i)) else {
++                continue;
++            };
++            let name = bind.name_for_shape(i);
++            let Some(f) = shape_to_function(sh, &name, &src, &resolve, &resolve_data, &resolve_data_def)
++            else {
++                continue;
++            };
++            if f.callees().next().is_none() {
++                continue;
++            }
++            // The mode gate, so the probe's population is the CENSUS's and not
++            // a superset of it.
++            let in_mode = opt_word_mode(opt_word_at(seg)).is_some();
++            if !in_mode {
++                bump("inlf-row-callee-offmode", 1);
++                if emit.name(i).is_some() {
++                    bump("inlf-emit-callee-offmode", 1);
++                }
++                continue;
++            }
++            let emitted = emit.name(i).is_some();
++            bump("inlf-row-callee", 1);
++            if emitted {
++                bump("inlf-emit-callee", 1);
++            }
++            if callee_defined_here(&f, &narrow).is_some() {
++                bump("inlf-row-fenced", 1);
++                if emitted {
++                    bump("inlf-emit-fenced", 1);
++                }
++            } else if callee_defined_here(&f, &wide).is_some() {
++                bump("inlf-row-wide-only", 1);
++                if emitted {
++                    bump("inlf-emit-wide-only", 1);
++                }
++            } else if !total {
++                bump("inlf-row-open", 1);
++                if emitted {
++                    bump("inlf-emit-open", 1);
++                }
++            } else {
++                bump("inlf-row-clean", 1);
++                if emitted {
++                    bump("inlf-emit-clean", 1);
++                }
++            }
++        }
++        out
++    }
+ }
+ 
+ #[cfg(test)]

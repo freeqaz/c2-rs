@@ -1852,19 +1852,26 @@ impl IlBundle {
             return None;
         }
         // A callee that is also DEFINED here is out of class: c2 may inline it,
-        // and the port cannot. `int f(int); int use(int a){return f(a);}
-        // int f(int a){return a+1;}` gets a `.text` of *two* copies of
-        // `addi r3,r3,1 ; blr` and **no relocations** — c2 cloned `f` into `use`
-        // rather than branching to it. The port emitted `b ?f` against an
-        // undefined external and mismatched at file offset 8.
+        // and the port cannot.
         //
         // Refused wholesale rather than by callee size, because what makes c2
         // inline (and what it does to the symbol table and `.pdata` when it does)
         // is uncharacterized. Calls to true externals are unaffected — those are
         // the tail calls the class was built on.
+        //
+        // **W-INLFENCE — the test itself now lives in ONE place**
+        // ([`super::bind::callee_defined_here`]) and is asked here, by the
+        // census and by `diag`. The behaviour at this call site is unchanged:
+        // `names` is a `per_record` binding, total and 1:1 with the `.ex`
+        // segments by construction, so the set below is exactly the list this
+        // clause always scanned. What the factoring buys is that the class-level
+        // invariant survives a narrowing of *this* wholesale refusal — which
+        // `docs/whitebox/WB_INLINE_FINDINGS.md` §7 explicitly proposes — instead
+        // of being an accident of TU-level granularity.
+        let defined: std::collections::BTreeSet<String> = names.iter().cloned().collect();
         if funcs
             .iter()
-            .any(|f| f.callees().any(|c| names.iter().any(|n| n == c)))
+            .any(|f| super::bind::callee_defined_here(f, &defined).is_some())
         {
             return None;
         }

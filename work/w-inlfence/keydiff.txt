@@ -1,0 +1,14 @@
+census  712238 -> 712237  (-1)
+emitted 39644 -> 39643  (-1)
+denominators: fn 2463443 -> 2463443 ; emit 178977 -> 178977
+
+== fn: 635 keys base, 636 keys tip, 1 moved, 1 appeared, 0 vanished
+         +1         0 -> 1        callee-defined-in-tu:eof
+
+== em: 614 keys base, 615 keys tip, 1 moved, 1 appeared, 0 vanished
+         +1         0 -> 1        callee-defined-in-tu:eof
+
+== prod: 914 keys base, 914 keys tip, 1 moved, 0 appeared, 0 vanished
+         +1   1021803 -> 1021804  prod-not-entered|BLOCKED
+
+== per-TU verdict set: 0 changed, 0 only-in-base, 0 only-in-tip
