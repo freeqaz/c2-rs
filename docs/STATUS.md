@@ -62,33 +62,33 @@ cost this project real work more than once.
 > 63,335 graded**.
 
 <!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->
-Collected 2026-08-09 · tree `384657d7` · binary `d997ef22d702` · workload `d7a3c1aa`
+Collected 2026-08-09 · tree `6ad9e852` · binary `93f31b433d4b` · workload `d7a3c1aa`
 
 | metric | value |
 |---|---|
-| Workspace tests (cargo test --workspace --release) | 1422 passed, 0 failed, 39 targets |
-| Oracle self-test (c2rs selftest) | 334 PASS, 0 FAIL |
-| Fixture port gate (c2rs perf) | 145 port Match, 0 mismatch, 189 not-implemented (of 334) |
-| Port speedup, geomean over matched fixtures | 455x geomean over matched fixtures |
-| 878-TU dc3 workload scan (c2rs gap) | match 20, mismatch 0, codegen-gap 0, vocab-gap 851, capture-fail 7 |
-| Per-function census (driver, not target) | 712280/2463470 functions in class (28.91%) |
-| Emitted-function census | 39226/162092 emitted functions in class (24.20%) |
+| Workspace tests (cargo test --workspace --release) | 1434 passed, 0 failed, 39 targets |
+| Oracle self-test (c2rs selftest) | 336 PASS, 0 FAIL |
+| Fixture port gate (c2rs perf) | 145 port Match, 0 mismatch, 191 not-implemented (of 336) |
+| Port speedup, geomean over matched fixtures | 495x geomean over matched fixtures |
+| 878-TU dc3 workload scan (c2rs gap) | match 21, mismatch 0, codegen-gap 0, vocab-gap 850, capture-fail 7 |
+| Per-function census (driver, not target) | 714538/2463470 functions in class (29.01%) |
+| Emitted-function census | 39238/162092 emitted functions in class (24.21%) |
 | Emitted-census residue | residue 9220: 1961 compiler-generated (no IL body), 7259 unexplained  (5.69% of the denominator) |
-| TU distance to match, blocked functions | ≤0: 13, ≤1: 17, ≤10: 27, ≤100: 34, ≤1000: 218 |
-| TU distance to match, blocked emitted functions | ≤0: 14, ≤1: 24, ≤10: 91, ≤100: 460, ≤1000: 859 |
+| TU distance to match, blocked functions | ≤0: 14, ≤1: 18, ≤10: 27, ≤100: 34, ≤1000: 221 |
+| TU distance to match, blocked emitted functions | ≤0: 15, ≤1: 25, ≤10: 91, ≤100: 460, ≤1000: 859 |
 | Emit-set ceiling, LO-anchored (segments == COMDATs) | 27 of 871 graded TUs |
 | Emit-set ceiling, GATE-anchored (4F 1F — what the port consumes) | 28 of 871 graded TUs |
 | Emit-set MODEL ceiling (today / repaired / wall) | 338 today / 420 repaired / 451 wall |
 | .gl binding invariants (records / arity / conflicts) | 1507159 records, 420 nameless, 0 before the first row, 39273 row-conflicts, 703 name-conflicts, 0 accounting breaks, 0 unreadable objs |
-| Phase-7 factors over the graded TUs (A / B / C / D / E) | A 28 (LO 27) · B 338 · C 169 · D 20 · E 2, of 871 graded |
-| Joint ceilings (B∧C, A∧B∧C) | B∧C 151 · A∧B∧C 27 · A∧B∧C∧D 18 |
-| Pre-Phase-7 FRONTIER (codegen breadth alone / if A were free) | 7 reachable by codegen breadth alone; 129 if factor A were free |
+| Phase-7 factors over the graded TUs (A / B / C / D / E) | A 28 (LO 27) · B 338 · C 169 · D 21 · E 2, of 871 graded |
+| Joint ceilings (B∧C, A∧B∧C) | B∧C 151 · A∧B∧C 27 · A∧B∧C∧D 19 |
+| Pre-Phase-7 FRONTIER (codegen breadth alone / if A were free) | 6 reachable by codegen breadth alone; 128 if factor A were free |
 | Emit-predicate worth, B∧C − A∧B∧C (board #213) | +124 TUs (B∧C − A∧B∧C) |
 | Factor-C section ladder (writer names / workload names / next step) | 10 writer names of 13 workload names; 3 steps left, next +.rdata$r → C = 590 |
-| PROGRESS MASS (driver, not target — docs/PROGRESS_METRIC.md) | P = 0.21406 · emitted in class 39226/162092 · mismatch-zeroed TUs 0 |
-| FUNCTION BYTE MATCH (driver, not target — docs/FUNCTION_BYTE_MATCH.md) | FBM = 0.22083 · 35793 exact + 2 whole-TU of 162092 emitted functions, over 865 TUs (16 at 100%); 36325 are byte-exact before relocations are graded |
-| FBM partition (the under-report, and the controls) | partial 0 (FBM under-reports by this) · differs 1898 · reloc-differs 532 · reloc-unknown 0 (UNGRADED residue) · refused 114649 · unbound 9220 · 3815 credited fns relocate, every record graded · controls: partition-broken 0, reloc-reach-broken 0, match-TU differs 0, match-TU reloc-differs 0, census disagree 1003 |
-| Per-TU FBM (how close is the other 870) | 16 of 865 TUs with emitted functions are 100% byte-exact per function |
+| PROGRESS MASS (driver, not target — docs/PROGRESS_METRIC.md) | P = 0.21408 · emitted in class 39238/162092 · mismatch-zeroed TUs 0 |
+| FUNCTION BYTE MATCH (driver, not target — docs/FUNCTION_BYTE_MATCH.md) | FBM = 0.22084 · 35795 exact + 2 whole-TU of 162092 emitted functions, over 865 TUs (17 at 100%); 36327 are byte-exact before relocations are graded |
+| FBM partition (the under-report, and the controls) | partial 10 (FBM under-reports by this) · differs 1898 · reloc-differs 532 · reloc-unknown 0 (UNGRADED residue) · refused 114637 · unbound 9220 · 3817 credited fns relocate, every record graded · controls: partition-broken 0, reloc-reach-broken 0, match-TU differs 0, match-TU reloc-differs 0, census disagree 1003 |
+| Per-TU FBM (how close is the other 870) | 17 of 865 TUs with emitted functions are 100% byte-exact per function |
 
 <!-- END GENERATED -->
 
