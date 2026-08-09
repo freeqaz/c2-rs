@@ -1,0 +1,73 @@
+diff --git a/crates/c2-harness/src/gap/fnbytes.rs b/crates/c2-harness/src/gap/fnbytes.rs
+index fbffcd0b..36f73c80 100644
+--- a/crates/c2-harness/src/gap/fnbytes.rs
++++ b/crates/c2-harness/src/gap/fnbytes.rs
+@@ -1438,6 +1438,68 @@ pub(super) fn measure(
+         };
+         let graded = grade_one(row, Some(bytes.as_slice()), &tu, refrel);
+         let v = graded.verdict;
++        // ---- SCRATCH (lane w-readpx) — REVERTED BEFORE THE GATE ------------
++        // One line per EMITTED function: the byte judge's own verdict beside
++        // the census's first-blocker key, the CFG class and the `cflow_off`
++        // reason. Nothing in the tree crosses those two columns per function,
++        // which is exactly what #2080/#2082 say a price must be crossed with.
++        // Writes only when `C2RS_READPX` is set; no behaviour otherwise.
++        if std::env::var_os("C2RS_READPX").is_some() {
++            let (ck, ccf, coff, cin, cbyte, cwin) = match row {
++                Some(f) => {
++                    let b = f
++                        .0
++                        .hex
++                        .get(f.0.hex_mark)
++                        .map(|b| format!("{b:02X}"))
++                        .unwrap_or_else(|| "--".into());
++                    let w: String = f
++                        .0
++                        .hex
++                        .iter()
++                        .enumerate()
++                        .map(|(i, b)| {
++                            if i == f.0.hex_mark {
++                                format!(">{b:02X}<")
++                            } else {
++                                format!("{b:02X}")
++                            }
++                        })
++                        .collect::<Vec<_>>()
++                        .join(" ");
++                    (
++                        f.0.verdict.key(),
++                        f.0.cflow.clone(),
++                        f.0.cflow_off,
++                        if f.0.verdict.in_class() { "in" } else { "blk" },
++                        b,
++                        w,
++                    )
++                }
++                None => (
++                    "<unbound>".to_string(),
++                    String::new(),
++                    "",
++                    "?",
++                    "--".to_string(),
++                    String::new(),
++                ),
++            };
++            eprintln!(
++                "READPX\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
++                tu_label,
++                name,
++                v.bare(),
++                ck,
++                ccf,
++                coff,
++                cin,
++                bytes.len(),
++                cbyte,
++                cwin
++            );
++        }
++        // ---- end scratch ---------------------------------------------------
+         *res.emit.entry(v.key()).or_insert(0) += 1;
+         if v.bare() != v.key() {
+             *res.emit.entry(v.bare().into()).or_insert(0) += 1;
