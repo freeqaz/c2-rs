@@ -1,0 +1,42 @@
+== M1 — clause deleted, rebuilding
+  wdec_ec_varargs_neg          Port=Mismatch @ offset 2
+  wdec_ec_varargs_long_neg     Port=Mismatch @ offset 2
+  wdec_ecshort_leaf            Port=Match
+  wdec_ecshort_eight           Port=Match
+  wdec_ecshort_mix             Port=Match
+  -- gate causes at /o1
+    === None
+    === fixtures/cpp/wdec_ec_varargs_long_neg.cpp
+      class                    mismatch
+      gate_causes              []
+    === fixtures/cpp/wdec_ec_varargs_neg.cpp
+      class                    mismatch
+      gate_causes              []
+    === fixtures/cpp/wdec_ecshort_eight.cpp
+      class                    match
+      gate_causes              []
+    === fixtures/cpp/wdec_ecshort_leaf.cpp
+      class                    match
+      gate_causes              []
+    === fixtures/cpp/wdec_ecshort_mix.cpp
+      class                    match
+      gate_causes              []
+  -- gate causes at /ox
+    === None
+    === fixtures/cpp/wdec_ec_varargs_long_neg.cpp
+      class                    mismatch
+      gate_causes              []
+    === fixtures/cpp/wdec_ec_varargs_neg.cpp
+      class                    mismatch
+      gate_causes              []
+    === fixtures/cpp/wdec_ecshort_eight.cpp
+      class                    match
+      gate_causes              []
+    === fixtures/cpp/wdec_ecshort_leaf.cpp
+      class                    match
+      gate_causes              []
+    === fixtures/cpp/wdec_ecshort_mix.cpp
+      class                    match
+      gate_causes              []
+== M1 restored; crates/ diff:
+   (empty above == restored)
