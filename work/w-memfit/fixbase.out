@@ -1,0 +1,1461 @@
+gap scan: 312 TUs, 6 flags, jobs=8, replay-every=0
+  capture cache: <mainrepo>/work/capture-cache
+provenance:
+  c2-rs      4085ad499044 (DIRTY)  <repo>
+  binary     94d9ddd93cbbca57  <repo>/target/release/c2rs
+  workload   4085ad499044 (DIRTY)  <repo>
+  wibo       wibo 1.2.0-c2rs.1 (Linux x86_64)  <sib>/wibo/build/release/wibo
+  cl.exe     <mainrepo>/compilers/X360/16.00.11886.00/cl.exe
+  c2.dll     <mainrepo>/compilers/X360/16.00.11886.00/c2.dll
+  c1xx.dll   <mainrepo>/compilers/X360/16.00.11886.00/c1xx.dll
+  strace     /usr/bin/strace
+  mingw      /usr/bin/i686-w64-mingw32-gcc
+  [1/312] vocab-gap    fixtures/cpp/il_call_bound_neg.cpp  (il function decode failed)
+  [2/312] vocab-gap    fixtures/cpp/add3.cpp  (il function decode failed)
+  [3/312] match        fixtures/cpp/il_bool_materialization.cpp
+  [4/312] match        fixtures/cpp/il_call_args2.cpp
+  [5/312] vocab-gap    fixtures/cpp/il_call_args1.cpp  (il function decode failed)
+  [6/312] vocab-gap    fixtures/cpp/il_call_multi.cpp  (il function decode failed)
+  [7/312] match        fixtures/cpp/il_base_member.cpp
+  [8/312] match        fixtures/cpp/il_accum4.cpp
+  [9/312] match        fixtures/cpp/il_dyninit_static.cpp
+  [10/312] vocab-gap    fixtures/cpp/il_drectve_pragma.cpp  (il function decode failed)
+  [11/312] vocab-gap    fixtures/cpp/il_deep_chain.cpp  (il function decode failed)
+  [12/312] match        fixtures/cpp/il_call_perm.cpp
+  [13/312] vocab-gap    fixtures/cpp/il_dllexport_neg.cpp  (il function decode failed)
+  [14/312] vocab-gap    fixtures/cpp/il_call_return.cpp  (il function decode failed)
+  [15/312] match        fixtures/cpp/il_call_value.cpp
+  [16/312] vocab-gap    fixtures/cpp/il_convert_scalar.cpp  (il function decode failed)
+  [17/312] vocab-gap    fixtures/cpp/il_expr_index.cpp  (il function decode failed)
+  [18/312] match        fixtures/cpp/il_expr_member.cpp
+  [19/312] vocab-gap    fixtures/cpp/il_expr_cast.cpp  (il function decode failed)
+  [20/312] vocab-gap    fixtures/cpp/il_expr_call_value.cpp  (il function decode failed)
+  [21/312] match        fixtures/cpp/il_expr_deref.cpp
+  [22/312] vocab-gap    fixtures/cpp/il_expr_temp.cpp  (il function decode failed)
+  [23/312] vocab-gap    fixtures/cpp/il_expr_ternary.cpp  (il function decode failed)
+  [24/312] vocab-gap    fixtures/cpp/il_expr_load_neg.cpp  (il function decode failed)
+  [25/312] vocab-gap    fixtures/cpp/il_extern_c_name.cpp  (il function decode failed)
+  [26/312] vocab-gap    fixtures/cpp/il_gl_sep26.cpp  (il function decode failed)
+  [27/312] vocab-gap    fixtures/cpp/il_intrinsic_byval.cpp  (il function decode failed)
+  [28/312] vocab-gap    fixtures/cpp/il_intra_tu_call.cpp  (il function decode failed)
+  [29/312] vocab-gap    fixtures/cpp/il_gl_data_symbol.cpp  (il function decode failed)
+  [30/312] vocab-gap    fixtures/cpp/il_intrinsic_call.cpp  (il function decode failed)
+  [31/312] vocab-gap    fixtures/cpp/il_gl_record_order.cpp  (il function decode failed)
+  [32/312] vocab-gap    fixtures/cpp/il_intrinsic_bits.cpp  (il function decode failed)
+  [33/312] vocab-gap    fixtures/cpp/il_intrinsic_layout.cpp  (il function decode failed)
+  [34/312] vocab-gap    fixtures/cpp/il_intrinsic_fold.cpp  (il function decode failed)
+  [35/312] match        fixtures/cpp/il_param_poly.cpp
+  [36/312] vocab-gap    fixtures/cpp/il_param_aggr_neg.cpp  (il function decode failed)
+  [37/312] match        fixtures/cpp/il_line_marker.cpp
+  [38/312] vocab-gap    fixtures/cpp/il_intrinsic_nullary.cpp  (il function decode failed)
+  [39/312] match        fixtures/cpp/il_param_aggr.cpp
+  [40/312] match        fixtures/cpp/il_reassoc.cpp
+  [41/312] vocab-gap    fixtures/cpp/il_repeated_leaf.cpp  (il function decode failed)
+  [42/312] vocab-gap    fixtures/cpp/il_stmt_global.cpp  (il function decode failed)
+  [43/312] vocab-gap    fixtures/cpp/il_stmt_bare_block.cpp  (il function decode failed)
+  [44/312] vocab-gap    fixtures/cpp/il_stmt_compound_assign.cpp  (il function decode failed)
+  [45/312] vocab-gap    fixtures/cpp/il_stmt_for.cpp  (il function decode failed)
+  [46/312] vocab-gap    fixtures/cpp/il_stmt_early_return.cpp  (il function decode failed)
+  [47/312] vocab-gap    fixtures/cpp/il_stmt_if.cpp  (il function decode failed)
+  [48/312] vocab-gap    fixtures/cpp/il_stmt_if_else.cpp  (il function decode failed)
+  [49/312] match        fixtures/cpp/il_stmt_local_decl.cpp
+  [50/312] vocab-gap    fixtures/cpp/il_stmt_multi.cpp  (il function decode failed)
+  [51/312] match        fixtures/cpp/il_stmt_seq.cpp
+  [52/312] match        fixtures/cpp/il_stmt_scope.cpp
+  [53/312] vocab-gap    fixtures/cpp/il_stmt_while.cpp  (il function decode failed)
+  [54/312] match        fixtures/cpp/il_stmt_param_assign.cpp
+  [55/312] vocab-gap    fixtures/cpp/il_stmt_static.cpp  (il function decode failed)
+  [56/312] match        fixtures/cpp/il_sy_locals_clean.cpp
+  [57/312] match        fixtures/cpp/il_sy_size_extent.cpp
+  [58/312] match        fixtures/cpp/il_this_line70.cpp
+  [59/312] vocab-gap    fixtures/cpp/il_sy_locals.cpp  (il function decode failed)
+  [60/312] vocab-gap    fixtures/cpp/il_type_narrow.cpp  (il function decode failed)
+  [61/312] match        fixtures/cpp/il_this_straightline.cpp
+  [62/312] match        fixtures/cpp/il_type_intlike.cpp
+  [63/312] vocab-gap    fixtures/cpp/il_type_scalars.cpp  (il function decode failed)
+  [64/312] vocab-gap    fixtures/cpp/il_type_pack_neg.cpp  (il function decode failed)
+  [65/312] vocab-gap    fixtures/cpp/il_varargs_neg.cpp  (il function decode failed)
+  [66/312] match        fixtures/cpp/mvp_add3.cpp
+  [67/312] vocab-gap    fixtures/cpp/mvp_call_argframed_plusk.cpp  (il function decode failed)
+  [68/312] match        fixtures/cpp/mvp_call.cpp
+  [69/312] match        fixtures/cpp/mvp_argtail.cpp
+  [70/312] vocab-gap    fixtures/cpp/mvp_call_plus1plus2.cpp  (il function decode failed)
+  [71/312] vocab-gap    fixtures/cpp/mvp_call_mulmod.cpp  (il function decode failed)
+  [72/312] match        fixtures/cpp/mvp_call_seq_b.cpp
+  [73/312] vocab-gap    fixtures/cpp/mvp_call_seq_neg.cpp  (il function decode failed)
+  [74/312] match        fixtures/cpp/mvp_call_seq.cpp
+  [75/312] match        fixtures/cpp/mvp_call_submod.cpp
+  [76/312] vocab-gap    fixtures/cpp/mvp_call_seq_b_neg.cpp  (il function decode failed)
+  [77/312] match        fixtures/cpp/mvp_call_twice.cpp
+  [78/312] vocab-gap    fixtures/cpp/mvp_call_two_framed.cpp  (il function decode failed)
+  [79/312] vocab-gap    fixtures/cpp/mvp_call_then_stmt.cpp  (il function decode failed)
+  [80/312] vocab-gap    fixtures/cpp/mvp_call_widemod.cpp  (il function decode failed)
+  [81/312] match        fixtures/cpp/mvp_edit_ab.cpp
+  [82/312] match        fixtures/cpp/mvp_edit_addk2.cpp
+  [83/312] match        fixtures/cpp/mvp_framed.cpp
+  [84/312] match        fixtures/cpp/mvp_fmul3.cpp
+  [85/312] match        fixtures/cpp/mvp_lit.cpp
+  [86/312] match        fixtures/cpp/mvp_edit_addk.cpp
+  [87/312] match        fixtures/cpp/mvp_plus0.cpp
+  [88/312] match        fixtures/cpp/mvp_empty.cpp
+  [89/312] match        fixtures/cpp/mvp_tailret.cpp
+  [90/312] match        fixtures/cpp/mvp_sub.cpp
+  [91/312] match        fixtures/cpp/mvp_wide.cpp
+  [92/312] match        fixtures/cpp/w10_empty_fn.cpp
+  [93/312] match        fixtures/cpp/mvp_two.cpp
+  [94/312] vocab-gap    fixtures/cpp/w10_guarded_seq_neg.cpp  (il function decode failed)
+  [95/312] match        fixtures/cpp/w10_guarded_seq.cpp
+  [96/312] match        fixtures/cpp/w1199_bind_run.cpp
+  [97/312] vocab-gap    fixtures/cpp/w1199_bind_run_neg.cpp  (il function decode failed)
+  [98/312] match        fixtures/cpp/w11_early_return.cpp
+  [99/312] vocab-gap    fixtures/cpp/w11_early_return_neg.cpp  (il function decode failed)
+  [100/312] match        fixtures/cpp/w1274_addr_producer.cpp
+  [101/312] match        fixtures/cpp/w1212_bind_run_call.cpp
+  [102/312] vocab-gap    fixtures/cpp/w12_aggr_type.cpp  (il function decode failed)
+  [103/312] match        fixtures/cpp/w12_narrow_getters.cpp
+  [104/312] vocab-gap    fixtures/cpp/w12_narrow_neg.cpp  (il function decode failed)
+  [105/312] match        fixtures/cpp/w12_ptr_leaf.cpp
+  [106/312] vocab-gap    fixtures/cpp/w12_ptr_leaf_neg.cpp  (il function decode failed)
+  [107/312] codegen-gap  fixtures/cpp/w13b_fconst.cpp  (pooled floating-point constant under function-level linking (/Gy): sections inte…)
+  [108/312] codegen-gap  fixtures/cpp/w13b_fdedup.cpp  (pooled floating-point constant under function-level linking (/Gy): sections inte…)
+  [109/312] vocab-gap    fixtures/cpp/w13b_ffold.cpp  (il function decode failed)
+  [110/312] vocab-gap    fixtures/cpp/w13b_fpool.cpp  (il function decode failed)
+  [111/312] vocab-gap    fixtures/cpp/w13_fabi.cpp  (il function decode failed)
+  [112/312] vocab-gap    fixtures/cpp/w13_fneg.cpp  (il function decode failed)
+  [113/312] vocab-gap    fixtures/cpp/w13_fops.cpp  (il function decode failed)
+  [114/312] vocab-gap    fixtures/cpp/w13_fparam_neg.cpp  (il function decode failed)
+  [115/312] vocab-gap    fixtures/cpp/w13_freassoc.cpp  (il function decode failed)
+  [116/312] match        fixtures/cpp/w14_dtor_delegate.cpp
+  [117/312] vocab-gap    fixtures/cpp/w13_fscratch.cpp  (il function decode failed)
+  [118/312] vocab-gap    fixtures/cpp/w14_dtor_delegate_neg.cpp  (il function decode failed)
+  [119/312] match        fixtures/cpp/w15_dtor_member.cpp
+  [120/312] match        fixtures/cpp/w16_addr_leaf.cpp
+  [121/312] vocab-gap    fixtures/cpp/w16_addr_leaf_neg.cpp  (il function decode failed)
+  [122/312] vocab-gap    fixtures/cpp/w17_ptr_operand_neg.cpp  (il function decode failed)
+  [123/312] match        fixtures/cpp/w17_ptr_operand.cpp
+  [124/312] match        fixtures/cpp/w18_reg_move.cpp
+  [125/312] vocab-gap    fixtures/cpp/w18_reg_move_neg.cpp  (il function decode failed)
+  [126/312] match        fixtures/cpp/w19_ctor_this.cpp
+  [127/312] vocab-gap    fixtures/cpp/w19_ctor_this_neg.cpp  (il function decode failed)
+  [128/312] match        fixtures/cpp/w20_convert.cpp
+  [129/312] vocab-gap    fixtures/cpp/w20_convert_neg.cpp  (il function decode failed)
+  [130/312] vocab-gap    fixtures/cpp/w21_census_gate.cpp  (il function decode failed)
+  [131/312] vocab-gap    fixtures/cpp/w21_census_gate_neg.cpp  (il function decode failed)
+  [132/312] match        fixtures/cpp/w22_int_spelling.cpp
+  [133/312] vocab-gap    fixtures/cpp/w22_int_spelling_neg.cpp  (il function decode failed)
+  [134/312] vocab-gap    fixtures/cpp/w232_gl_sep26_implicit.cpp  (il function decode failed)
+  [135/312] match        fixtures/cpp/w23_gl_callee_bind.cpp
+  [136/312] vocab-gap    fixtures/cpp/w23_gl_callee_bind_neg.cpp  (il function decode failed)
+  [137/312] vocab-gap    fixtures/cpp/w25_store_leaf_neg.cpp  (il function decode failed)
+  [138/312] match        fixtures/cpp/w25_store_leaf.cpp
+  [139/312] match        fixtures/cpp/w26_bool_value.cpp
+  [140/312] vocab-gap    fixtures/cpp/w26_bool_value_neg.cpp  (il function decode failed)
+  [141/312] match        fixtures/cpp/w275_entry_park.cpp
+  [142/312] match        fixtures/cpp/w27_fp_reg.cpp
+  [143/312] match        fixtures/cpp/w27_fp_reg_qual.cpp
+  [144/312] match        fixtures/cpp/w28_fltused_order.cpp
+  [145/312] match        fixtures/cpp/w28_fp_store_framed.cpp
+  [146/312] match        fixtures/cpp/w28_fp_store.cpp
+  [147/312] vocab-gap    fixtures/cpp/w28_fp_store_framed_neg.cpp  (il function decode failed)
+  [148/312] vocab-gap    fixtures/cpp/w28_fp_store_neg.cpp  (il function decode failed)
+  [149/312] match        fixtures/cpp/w29_fp_contract.cpp
+  [150/312] match        fixtures/cpp/w30_callseq_tail_intlike.cpp
+  [151/312] vocab-gap    fixtures/cpp/w30_callseq_tail_intlike_neg.cpp  (il function decode failed)
+  [152/312] match        fixtures/cpp/w31_fp_tail.cpp
+  [153/312] vocab-gap    fixtures/cpp/w31_fp_tail_neg.cpp  (il function decode failed)
+  [154/312] match        fixtures/cpp/w32_volatile_free.cpp
+  [155/312] vocab-gap    fixtures/cpp/w32_volatile_formal_neg.cpp  (il function decode failed)
+  [156/312] vocab-gap    fixtures/cpp/w34_fp_multi_neg.cpp  (il function decode failed)
+  [157/312] match        fixtures/cpp/w34_fp_multi.cpp
+  [158/312] match        fixtures/cpp/w35_offset_run.cpp
+  [159/312] vocab-gap    fixtures/cpp/w35_offset_run_neg.cpp  (il function decode failed)
+  [160/312] match        fixtures/cpp/w36_member_call.cpp
+  [161/312] vocab-gap    fixtures/cpp/w37_bit_and_neg.cpp  (il function decode failed)
+  [162/312] vocab-gap    fixtures/cpp/w36_member_call_neg.cpp  (il function decode failed)
+  [163/312] match        fixtures/cpp/w38_store_run.cpp
+  [164/312] vocab-gap    fixtures/cpp/w38_store_run_neg.cpp  (il function decode failed)
+  [165/312] match        fixtures/cpp/w41_framed_member_call.cpp
+  [166/312] vocab-gap    fixtures/cpp/w41_framed_member_call_neg.cpp  (il function decode failed)
+  [167/312] vocab-gap    fixtures/cpp/w42_shift_mask_neg.cpp  (il function decode failed)
+  [168/312] match        fixtures/cpp/w42_shift_mask.cpp
+  [169/312] match        fixtures/cpp/w45_store_run_scheduled.cpp
+  [170/312] vocab-gap    fixtures/cpp/w43_cmp_shift_or_neg.cpp  (il function decode failed)
+  [171/312] match        fixtures/cpp/w43_cmp_shift_or.cpp
+  [172/312] match        fixtures/cpp/w5_chain.cpp
+  [173/312] vocab-gap    fixtures/cpp/w45_store_run_scheduled_neg.cpp  (il function decode failed)
+  [174/312] vocab-gap    fixtures/cpp/w5_tree2.cpp  (il function decode failed)
+  [175/312] vocab-gap    fixtures/cpp/w5_tree3.cpp  (il function decode failed)
+  [176/312] vocab-gap    fixtures/cpp/w5_tree_neg.cpp  (il function decode failed)
+  [177/312] vocab-gap    fixtures/cpp/w6_k_boundary.cpp  (il function decode failed)
+  [178/312] vocab-gap    fixtures/cpp/w6_unsigned_wide.cpp  (il function decode failed)
+  [179/312] match        fixtures/cpp/w6_rel_k.cpp
+  [180/312] match        fixtures/cpp/w70_bitwise.cpp
+  [181/312] vocab-gap    fixtures/cpp/w70_bitwise_neg.cpp  (il function decode failed)
+  [182/312] match        fixtures/cpp/w71_alloc_undetermined.cpp
+  [183/312] vocab-gap    fixtures/cpp/w71_alloc_undetermined_neg.cpp  (il function decode failed)
+  [184/312] match        fixtures/cpp/w844_store_run_call.cpp
+  [185/312] match        fixtures/cpp/w8_cond_tail.cpp
+  [186/312] vocab-gap    fixtures/cpp/w844_store_run_call_neg.cpp  (il function decode failed)
+  [187/312] vocab-gap    fixtures/cpp/w8_cond_tail_neg.cpp  (il function decode failed)
+  [188/312] match        fixtures/cpp/w8_cond_tail_value.cpp
+  [189/312] match        fixtures/cpp/w9_cmp_zero_le.cpp
+  [190/312] match        fixtures/cpp/w9_rel_signed.cpp
+  [191/312] match        fixtures/cpp/w9_rel_unsigned.cpp
+  [192/312] match        fixtures/cpp/wa16_bss_static_reloc.cpp
+  [193/312] match        fixtures/cpp/wa16_bss_two_align16.cpp
+  [194/312] match        fixtures/cpp/wa16_data_align16.cpp
+  [195/312] codegen-gap  fixtures/cpp/wa16_data_align32.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
+  [196/312] match        fixtures/cpp/wa16_data_scalar_align16.cpp
+  [197/312] match        fixtures/cpp/wa16_dyninit_plain_align16.cpp
+  [198/312] match        fixtures/cpp/wadjust_obj_recv.cpp
+  [199/312] vocab-gap    fixtures/cpp/wadjust_obj_recv_neg.cpp  (il function decode failed)
+  [200/312] match        fixtures/cpp/wae_assign_dst.cpp
+  [201/312] vocab-gap    fixtures/cpp/wae_assign_dst_neg.cpp  (il function decode failed)
+  [202/312] match        fixtures/cpp/walign_data_declalign8.cpp
+  [203/312] vocab-gap    fixtures/cpp/walign_data_poly_object.cpp  (il function decode failed)
+  [204/312] match        fixtures/cpp/walign_dyninit_align16.cpp
+  [205/312] match        fixtures/cpp/walign_dyninit_poly.cpp
+  [206/312] match        fixtures/cpp/walign_dyninit_poly_double.cpp
+  [207/312] match        fixtures/cpp/wbdnz_ctr.cpp
+  [208/312] vocab-gap    fixtures/cpp/wbdnz_ctr_neg.cpp  (il function decode failed)
+  [209/312] vocab-gap    fixtures/cpp/wbdnz_ctr_then_framed_neg.cpp  (il function decode failed)
+  [210/312] match        fixtures/cpp/wcb_cmp_two_calls.cpp
+  [211/312] vocab-gap    fixtures/cpp/wcb_cmp_two_calls_neg.cpp  (il function decode failed)
+  [212/312] match        fixtures/cpp/wcfg1_if_call_join.cpp
+  [213/312] vocab-gap    fixtures/cpp/wcfg1_if_call_join_neg.cpp  (il function decode failed)
+  [214/312] vocab-gap    fixtures/cpp/wcf_neighbours.cpp  (il function decode failed)
+  [215/312] vocab-gap    fixtures/cpp/wcf_shapes.cpp  (il function decode failed)
+  [216/312] match        fixtures/cpp/wch_chained_call.cpp
+  [217/312] vocab-gap    fixtures/cpp/wch_chained_call_neg.cpp  (il function decode failed)
+  [218/312] vocab-gap    fixtures/cpp/wcl_chain_link_arg_neg.cpp  (il function decode failed)
+  [219/312] match        fixtures/cpp/wcl_chain_link_arg.cpp
+  [220/312] match        fixtures/cpp/wco_chain_tail_load.cpp
+  [221/312] match        fixtures/cpp/wco_explicit_return.cpp
+  [222/312] vocab-gap    fixtures/cpp/wco_chain_tail_load_neg.cpp  (il function decode failed)
+  [223/312] match        fixtures/cpp/wcr_cmp_order.cpp
+  [224/312] vocab-gap    fixtures/cpp/wcr_cmp_order_neg.cpp  (il function decode failed)
+  [225/312] match        fixtures/cpp/wcv_reinterpret.cpp
+  [226/312] vocab-gap    fixtures/cpp/wcv_reinterpret_neg.cpp  (il function decode failed)
+  [227/312] vocab-gap    fixtures/cpp/wda_dataaddr_neg.cpp  (il function decode failed)
+  [228/312] match        fixtures/cpp/wda_neighbours.cpp
+  [229/312] match        fixtures/cpp/wdata_static_scan.cpp
+  [230/312] vocab-gap    fixtures/cpp/wdata_static_scan_neg.cpp  (il function decode failed)
+  [231/312] match        fixtures/cpp/wdivmod_leaf.cpp
+  [232/312] vocab-gap    fixtures/cpp/wdr_neighbours.cpp  (il function decode failed)
+  [233/312] vocab-gap    fixtures/cpp/wec_ctor_base_neg.cpp  (il function decode failed)
+  [234/312] match        fixtures/cpp/wec_ctor_base.cpp
+  [235/312] vocab-gap    fixtures/cpp/wdr_virtual_byval.cpp  (il function decode failed)
+  [236/312] match        fixtures/cpp/wextdata_guard_chain_shared_tail.cpp
+  [237/312] match        fixtures/cpp/wfl_chain_tail_fp_load.cpp
+  [238/312] vocab-gap    fixtures/cpp/wextdata_guard_chain_shared_tail_neg.cpp  (il function decode failed)
+  [239/312] vocab-gap    fixtures/cpp/wfl_chain_tail_fp_load_neg.cpp  (il function decode failed)
+  [240/312] match        fixtures/cpp/wfr_argreg.cpp
+  [241/312] vocab-gap    fixtures/cpp/wfr_argreg_neg.cpp  (il function decode failed)
+  [242/312] match        fixtures/cpp/wfr_argreg_member.cpp
+  [243/312] match        fixtures/cpp/wfr_argreg_types.cpp
+  [244/312] match        fixtures/cpp/wfr_cmp_stride.cpp
+  [245/312] vocab-gap    fixtures/cpp/wfr_cmp_stride_neg.cpp  (il function decode failed)
+  [246/312] vocab-gap    fixtures/cpp/whash_loop_then_framed.cpp  (il function decode failed)
+  [247/312] match        fixtures/cpp/whash_ptr_walk_loop.cpp
+  [248/312] match        fixtures/cpp/wjson_utf8_copy.cpp
+  [249/312] vocab-gap    fixtures/cpp/wla_lit_call_arg_neg.cpp  (il function decode failed)
+  [250/312] match        fixtures/cpp/wla_lit_call_arg.cpp
+  [251/312] match        fixtures/cpp/wlb_moved_formal.cpp
+  [252/312] match        fixtures/cpp/wlin_mixed_bind.cpp
+  [253/312] vocab-gap    fixtures/cpp/wlb_moved_formal_neg.cpp  (il function decode failed)
+  [254/312] vocab-gap    fixtures/cpp/wjson_utf8_copy_neg.cpp  (il function decode failed)
+  [255/312] vocab-gap    fixtures/cpp/wlin_mixed_bind_neg.cpp  (il function decode failed)
+  [256/312] vocab-gap    fixtures/cpp/wlo_dyninit_mixed.cpp  (il function decode failed)
+  [257/312] vocab-gap    fixtures/cpp/wlo_dyninit_pair.cpp  (il function decode failed)
+  [258/312] match        fixtures/cpp/wlr_lit_run.cpp
+  [259/312] vocab-gap    fixtures/cpp/wlr_lit_run_neg.cpp  (il function decode failed)
+  [260/312] vocab-gap    fixtures/cpp/wmcall_seq_neg.cpp  (il function decode failed)
+  [261/312] match        fixtures/cpp/wmcall_seq.cpp
+  [262/312] vocab-gap    fixtures/cpp/worder3_bss_slot_after_text.cpp  (il function decode failed)
+  [263/312] match        fixtures/cpp/worder3_bss_slot_extern.cpp
+  [264/312] codegen-gap  fixtures/cpp/worder3_bss_slot_mixed.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
+  [265/312] match        fixtures/cpp/worder3_bss_slot_y3.cpp
+  [266/312] match        fixtures/cpp/wor_emit_order.cpp
+  [267/312] match        fixtures/cpp/wor_emit_order_led.cpp
+  [268/312] vocab-gap    fixtures/cpp/wor_emit_order_neg.cpp  (il function decode failed)
+  [269/312] match        fixtures/cpp/wosf_handle_guard.cpp
+  [270/312] vocab-gap    fixtures/cpp/wosf_handle_guard_neg.cpp  (il function decode failed)
+  [271/312] match        fixtures/cpp/wpark_lit_permuted.cpp
+  [272/312] vocab-gap    fixtures/cpp/wpark_lit_permuted_neg.cpp  (il function decode failed)
+  [273/312] vocab-gap    fixtures/cpp/wr1c_dyninit_two_objects.cpp  (il function decode failed)
+  [274/312] match        fixtures/cpp/wr1c_dyninit_extern.cpp
+  [275/312] match        fixtures/cpp/wr1_sym_addr.cpp
+  [276/312] vocab-gap    fixtures/cpp/wr1_sym_addr_neg.cpp  (il function decode failed)
+  [277/312] match        fixtures/cpp/wrr_arg_vocab.cpp
+  [278/312] vocab-gap    fixtures/cpp/wrr_arg_vocab_neg.cpp  (il function decode failed)
+  [279/312] match        fixtures/cpp/wsect_both.cpp
+  [280/312] match        fixtures/cpp/wsect_bss_big.cpp
+  [281/312] match        fixtures/cpp/wsect_bss_pad.cpp
+  [282/312] match        fixtures/cpp/wsect_bss_one.cpp
+  [283/312] match        fixtures/cpp/wsect_bss_two.cpp
+  [284/312] match        fixtures/cpp/wsect_data_linkage.cpp
+  [285/312] match        fixtures/cpp/wsect_data_one.cpp
+  [286/312] match        fixtures/cpp/wsect_data_two.cpp
+  [287/312] match        fixtures/cpp/wsect_drop_static.cpp
+  [288/312] codegen-gap  fixtures/cpp/wsect_refuse_const.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
+  [289/312] codegen-gap  fixtures/cpp/wsect_refuse_float.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
+  [290/312] match        fixtures/cpp/wsect_refuse_ptr.cpp
+  [291/312] codegen-gap  fixtures/cpp/wsect_refuse_three.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
+  [292/312] codegen-gap  fixtures/cpp/wsect_refuse_selectany.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
+  [293/312] codegen-gap  fixtures/cpp/wsect_refuse_tls.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
+  [294/312] match        fixtures/cpp/wsl_store_load.cpp
+  [295/312] vocab-gap    fixtures/cpp/wsl_store_load_neg.cpp  (il function decode failed)
+  [296/312] match        fixtures/cpp/wtu3_framed_leaves_framed.cpp
+  [297/312] match        fixtures/cpp/wundname_alloc_init_or_fail.cpp
+  [298/312] match        fixtures/cpp/wunw_float_beside_framed.cpp
+  [299/312] vocab-gap    fixtures/cpp/wundname_alloc_init_or_fail_neg.cpp  (il function decode failed)
+  [300/312] vocab-gap    fixtures/cpp/wunw_float_neg.cpp  (il function decode failed)
+  [301/312] match        fixtures/cpp/wunw_framed_pair.cpp
+  [302/312] match        fixtures/cpp/wunw_leaf_then_framed.cpp
+  [303/312] match        fixtures/cpp/wunw_two_leaves_framed.cpp
+  [304/312] match        fixtures/cpp/wunw_mixed_order.cpp
+  [305/312] vocab-gap    fixtures/cpp/wvalue_call_value.cpp  (il function decode failed)
+  [306/312] match        fixtures/cpp/wvl_chain3.cpp
+  [307/312] vocab-gap    fixtures/cpp/wvalue_call_value_neg.cpp  (il function decode failed)
+  [308/312] match        fixtures/cpp/wvl_chain6_same.cpp
+  [309/312] vocab-gap    fixtures/cpp/wvl_chain_neg.cpp  (il function decode failed)
+  [310/312] match        fixtures/cpp/wvl_chain_two_lengths.cpp
+  [311/312] match        fixtures/cpp/wxlr_create_guard.cpp
+  [312/312] vocab-gap    fixtures/cpp/wxlr_create_guard_neg.cpp  (il function decode failed)
+
+SPLITTER ANCHORS (ROADMAP §10.11/§10.12) — the census splits `.ex` on `4C 4F 11`, the port on `4F 1F`
+  gate-side segment count KNOWN for 312 of 312 captured TUs; UNKNOWN for 0 (no `.ex` at all). Read through `IlBundle::ex_segment_count`, a PURE reader of the `4F 1F` split — not `functions()`, which is an acceptance decision and returns None for every vocab-gap TU, leaving this knowable for only the 6 that already match.
+  of the 312 known: 311 agree with `fn_total`, 1 disagree (1 where the gate sees MORE segments, 0 where the census does)
+  emit-set ceiling, LO-anchored, over ALL graded TUs: 308
+  emit-set ceiling, GATE-anchored (`4F 1F`, what the port consumes), over the 312 known: 309 (+1 entering, -0 leaving vs the LO-anchored set)
+  gate-anchored control on matching TUs: 0 violations over 156 matching TUs whose gate count is known
+
+PHASE 7 FACTORS (ROADMAP §10.19/§10.21, boards #160/#179) — the model is A and B and C and (D or E), over 312 graded TUs
+  A  emit set reachable   `.ex` segments == obj `.text` COMDATs     309  (gate-anchored `4F 1F`; 308 on the census's `4C 4F 11` anchor)
+  B  binding complete     every emitted symbol binds                311
+  C  section shape        obj sections subset of the writer's 10     306
+  D  per-fn acceptance    every emitted COMDAT in class             174  (25 of them emit nothing at all)
+  E  whole-TU acceptance  a REGISTERED whole-TU recognizer takes it  25  (2 in the registry)
+    D and E are the two readings of ONE question — does the port have an accepted route to this TU's contents. Neither is necessary alone (measured: D fails on the whole-TU matches, E on the per-function ones); the DISJUNCTION is the term.
+  B and C jointly (the near-term ceiling, measured per TU — NOT a product of marginals, §8.6): 305
+  A and B and C: 303   |   A and B and C and D (§10.19's original, refuted): 171   |   A and B and C and (D or E): 177   |   TUs the differential graded `match`: 156
+  section headers: 312 objs read, 0 did not decode (outside C, fail-closed)
+    whole-TU recognizer `dyninit-??__E` accepts 6 graded TU(s)
+    whole-TU recognizer `data-only-tu` accepts 19 graded TU(s)
+  the fifth term accounts for 6 TU(s) that A and B and C and D misses: ["fixtures/cpp/il_dyninit_static.cpp", "fixtures/cpp/wa16_dyninit_plain_align16.cpp", "fixtures/cpp/walign_dyninit_align16.cpp", "fixtures/cpp/walign_dyninit_poly.cpp", "fixtures/cpp/walign_dyninit_poly_double.cpp", "fixtures/cpp/wr1c_dyninit_extern.cpp"]
+  the joint is NOT the match set — 21 in the joint only (["fixtures/cpp/il_dllexport_neg.cpp", "fixtures/cpp/il_drectve_pragma.cpp", "fixtures/cpp/il_extern_c_name.cpp", "fixtures/cpp/il_gl_data_symbol.cpp", "fixtures/cpp/il_intra_tu_call.cpp", "fixtures/cpp/w13b_fconst.cpp", "fixtures/cpp/w13b_fdedup.cpp", "fixtures/cpp/w232_gl_sep26_implicit.cpp", "fixtures/cpp/w23_gl_callee_bind_neg.cpp", "fixtures/cpp/w28_fp_store_framed_neg.cpp", "fixtures/cpp/wa16_data_align32.cpp", "fixtures/cpp/wbdnz_ctr_then_framed_neg.cpp", "fixtures/cpp/wfr_cmp_stride_neg.cpp", "fixtures/cpp/whash_loop_then_framed.cpp", "fixtures/cpp/wor_emit_order_neg.cpp", "fixtures/cpp/worder3_bss_slot_mixed.cpp", "fixtures/cpp/wsect_refuse_const.cpp", "fixtures/cpp/wsect_refuse_float.cpp", "fixtures/cpp/wsect_refuse_selectany.cpp", "fixtures/cpp/wsect_refuse_three.cpp", "fixtures/cpp/wunw_float_neg.cpp"]), 0 matching but outside some factor ([]). The second list is the ALARM: every factor is meant to be NECESSARY, so a matching TU outside one voids the bound it carries.
+  known-answer control — matching TUs failing each NECESSARY term (all must be 0, over 156 matching TUs): A 0 B 0 C 0 D-or-E 0
+    diagnostics, NOT required to be 0 (neither disjunct is necessary alone): D 6 E 133
+    D 6 — the per-function census does not model the whole-TU emit path, so §10.19's A∧B∧C∧D conjunction stays refuted by these TU(s). That is the finding board #179 repairs with E, not a defect E hides.
+  SECTION VOCABULARY — 13 distinct names across the workload (objs carrying each):
+      312 objs  [writer]  .XBLD$W
+      312 objs  [writer]  .debug$S
+      312 objs  [writer]  .drectve
+      279 objs  [writer]  .text
+      112 objs  [writer]  .pdata
+       41 objs  [writer]  .bss
+       30 objs  [writer]  .rdata
+       20 objs  [writer]  .data
+        9 objs  [writer]  .CRT$XCU
+        9 objs  [writer]  .text$yc
+        4 objs  [  ---]  .rdata$r
+        1 objs  [  ---]  .text$yd
+        1 objs  [  ---]  .tls$
+  FRONTIER — 126 graded TUs satisfy A and B and C, are NOT a match, and are outside BOTH acceptance paths (not D, not E), so per-function codegen breadth is the whole remaining distance (blocked emitted | emitted | src):
+       1 |    4 | fixtures/cpp/il_call_args1.cpp
+       1 |    2 | fixtures/cpp/il_gl_record_order.cpp
+       1 |    1 | fixtures/cpp/il_stmt_multi.cpp
+       1 |    1 | fixtures/cpp/mvp_call_argframed_plusk.cpp
+       1 |    1 | fixtures/cpp/mvp_call_mulmod.cpp
+       1 |    1 | fixtures/cpp/mvp_call_plus1plus2.cpp
+       1 |    1 | fixtures/cpp/mvp_call_then_stmt.cpp
+       1 |    1 | fixtures/cpp/mvp_call_two_framed.cpp
+       1 |    1 | fixtures/cpp/mvp_call_widemod.cpp
+       1 |    9 | fixtures/cpp/w21_census_gate.cpp
+       1 |    4 | fixtures/cpp/w5_tree2.cpp
+       1 |    1 | fixtures/cpp/worder3_bss_slot_after_text.cpp
+       1 |    1 | fixtures/cpp/wr1c_dyninit_two_objects.cpp
+       2 |    4 | fixtures/cpp/add3.cpp
+       2 |    2 | fixtures/cpp/il_call_bound_neg.cpp
+       2 |    2 | fixtures/cpp/il_stmt_for.cpp
+       2 |    3 | fixtures/cpp/il_stmt_global.cpp
+       2 |    2 | fixtures/cpp/il_stmt_if_else.cpp
+       2 |    2 | fixtures/cpp/il_stmt_while.cpp
+       2 |    2 | fixtures/cpp/mvp_call_seq_neg.cpp
+       2 |    9 | fixtures/cpp/w13_fabi.cpp
+       2 |    2 | fixtures/cpp/w13b_fpool.cpp
+       2 |    2 | fixtures/cpp/w6_k_boundary.cpp
+       2 |    2 | fixtures/cpp/w71_alloc_undetermined_neg.cpp
+       2 |    2 | fixtures/cpp/w8_cond_tail_neg.cpp
+       2 |    2 | fixtures/cpp/wfr_argreg_neg.cpp
+       3 |    3 | fixtures/cpp/il_deep_chain.cpp
+       3 |    3 | fixtures/cpp/il_expr_temp.cpp
+       3 |    5 | fixtures/cpp/il_stmt_bare_block.cpp
+       3 |    4 | fixtures/cpp/il_stmt_compound_assign.cpp
+       3 |    3 | fixtures/cpp/il_stmt_early_return.cpp
+       3 |    3 | fixtures/cpp/il_stmt_if.cpp
+       3 |    4 | fixtures/cpp/il_stmt_static.cpp
+       3 |    6 | fixtures/cpp/il_varargs_neg.cpp
+       3 |    4 | fixtures/cpp/w1199_bind_run_neg.cpp
+       3 |    3 | fixtures/cpp/w13_fparam_neg.cpp
+       3 |    3 | fixtures/cpp/wlin_mixed_bind_neg.cpp
+       3 |   11 | fixtures/cpp/wlr_lit_run_neg.cpp
+       3 |    5 | fixtures/cpp/wrr_arg_vocab_neg.cpp
+       4 |    7 | fixtures/cpp/il_expr_call_value.cpp
+    … and 86 more
+  FRONTIER BY `.text` BYTE FRACTION (board #500) — how much of each TU's `.text` the port already produces a body for, BY BYTE. Board #465 counted FUNCTIONS and was refuted by the TU registered to confirm it (mmio: 72.7% by function, 16.8% by byte, DECLINED; xboxmem: 50.0% by function, 54.5% by byte, CONVERTED). n = 2 outcomes — this ranks, it does not license. `exact` is the oracle-graded floor under `accepted`; a TU with no `.text` bytes prints n/a, NEVER 100%. 0 of 126 frontier TUs have NO denominator, and 76 are at EXACTLY 0% — TUs where codegen breadth has not begun:
+     accepted/total bytes    frac   exact  remain | src   (REMAIN = total - accepted = the PowerPC still to write. A FOURTH unit, printed and NOT chosen between: it agrees with `frac` on both outcome cells and DISAGREES with it at this frontier's head.)
+         120/136      bytes   88.2%    120      16 | fixtures/cpp/w21_census_gate.cpp
+          52/68       bytes   76.5%     52      16 | fixtures/cpp/w13_fabi.cpp
+          12/16       bytes   75.0%     12       4 | fixtures/cpp/il_call_args1.cpp
+          48/64       bytes   75.0%     48      16 | fixtures/cpp/w5_tree2.cpp
+         204/272      bytes   75.0%    204      68 | fixtures/cpp/wlr_lit_run_neg.cpp
+          44/64       bytes   68.8%     44      20 | fixtures/cpp/il_type_scalars.cpp
+          64/100      bytes   64.0%     64      36 | fixtures/cpp/w13_fops.cpp
+          76/144      bytes   52.8%     56      68 | fixtures/cpp/wcf_neighbours.cpp
+          24/52       bytes   46.2%     24      28 | fixtures/cpp/add3.cpp
+           8/20       bytes   40.0%      8      12 | fixtures/cpp/il_gl_record_order.cpp
+          48/128      bytes   37.5%     48      80 | fixtures/cpp/w6_unsigned_wide.cpp
+          32/88       bytes   36.4%     32      56 | fixtures/cpp/il_expr_index.cpp
+          16/44       bytes   36.4%      0      28 | fixtures/cpp/w13b_ffold.cpp
+           8/24       bytes   33.3%      8      16 | fixtures/cpp/wrr_arg_vocab_neg.cpp
+         100/344      bytes   29.1%    100     244 | fixtures/cpp/w36_member_call_neg.cpp
+          24/92       bytes   26.1%     24      68 | fixtures/cpp/w1199_bind_run_neg.cpp
+          32/124      bytes   25.8%     32      92 | fixtures/cpp/w12_ptr_leaf_neg.cpp
+           8/32       bytes   25.0%      8      24 | fixtures/cpp/il_stmt_compound_assign.cpp
+           8/36       bytes   22.2%      8      28 | fixtures/cpp/il_stmt_global.cpp
+          40/180      bytes   22.2%     40     140 | fixtures/cpp/w25_store_leaf_neg.cpp
+          20/92       bytes   21.7%     20      72 | fixtures/cpp/il_varargs_neg.cpp
+         132/628      bytes   21.0%    132     496 | fixtures/cpp/wch_chained_call_neg.cpp
+          44/216      bytes   20.4%     44     172 | fixtures/cpp/il_sy_locals.cpp
+          24/124      bytes   19.4%     24     100 | fixtures/cpp/w16_addr_leaf_neg.cpp
+          32/172      bytes   18.6%     32     140 | fixtures/cpp/wdr_neighbours.cpp
+          80/460      bytes   17.4%     80     380 | fixtures/cpp/wco_chain_tail_load_neg.cpp
+          24/140      bytes   17.1%     24     116 | fixtures/cpp/il_type_narrow.cpp
+           8/52       bytes   15.4%      8      44 | fixtures/cpp/il_stmt_bare_block.cpp
+         252/1820     bytes   13.8%    252    1568 | fixtures/cpp/wcb_cmp_two_calls_neg.cpp
+           4/32       bytes   12.5%      4      28 | fixtures/cpp/il_intrinsic_nullary.cpp
+          20/164      bytes   12.2%     20     144 | fixtures/cpp/il_convert_scalar.cpp
+          16/136      bytes   11.8%     16     120 | fixtures/cpp/w18_reg_move_neg.cpp
+          24/208      bytes   11.5%     24     184 | fixtures/cpp/il_expr_load_neg.cpp
+          20/212      bytes    9.4%     20     192 | fixtures/cpp/w20_convert_neg.cpp
+          20/212      bytes    9.4%     20     192 | fixtures/cpp/w38_store_run_neg.cpp
+           4/44       bytes    9.1%      4      40 | fixtures/cpp/il_stmt_static.cpp
+           4/44       bytes    9.1%      4      40 | fixtures/cpp/w22_int_spelling_neg.cpp
+          32/392      bytes    8.2%      0     360 | fixtures/cpp/w13_fneg.cpp
+          20/300      bytes    6.7%      0     280 | fixtures/cpp/wcf_shapes.cpp
+          16/248      bytes    6.5%     16     232 | fixtures/cpp/w5_tree_neg.cpp
+           8/128      bytes    6.2%      8     120 | fixtures/cpp/il_call_multi.cpp
+          12/192      bytes    6.2%     12     180 | fixtures/cpp/il_expr_call_value.cpp
+           8/132      bytes    6.1%      8     124 | fixtures/cpp/il_intrinsic_layout.cpp
+          12/260      bytes    4.6%     12     248 | fixtures/cpp/w13_fscratch.cpp
+          12/300      bytes    4.0%     12     288 | fixtures/cpp/il_intrinsic_bits.cpp
+           8/220      bytes    3.6%      8     212 | fixtures/cpp/il_intrinsic_call.cpp
+           8/248      bytes    3.2%      8     240 | fixtures/cpp/il_call_return.cpp
+           8/272      bytes    2.9%      8     264 | fixtures/cpp/w17_ptr_operand_neg.cpp
+           8/276      bytes    2.9%      8     268 | fixtures/cpp/w70_bitwise_neg.cpp
+           4/324      bytes    1.2%      4     320 | fixtures/cpp/wvalue_call_value.cpp
+           0/16       bytes    0.0%      0      16 | fixtures/cpp/il_call_bound_neg.cpp
+           0/72       bytes    0.0%      0      72 | fixtures/cpp/il_deep_chain.cpp
+           0/88       bytes    0.0%      0      88 | fixtures/cpp/il_expr_cast.cpp
+           0/100      bytes    0.0%      0     100 | fixtures/cpp/il_expr_temp.cpp
+           0/64       bytes    0.0%      0      64 | fixtures/cpp/il_expr_ternary.cpp
+           0/160      bytes    0.0%      0     160 | fixtures/cpp/il_intrinsic_fold.cpp
+           0/32       bytes    0.0%      0      32 | fixtures/cpp/il_param_aggr_neg.cpp
+           0/52       bytes    0.0%      0      52 | fixtures/cpp/il_repeated_leaf.cpp
+           0/52       bytes    0.0%      0      52 | fixtures/cpp/il_stmt_early_return.cpp
+           0/120      bytes    0.0%      0     120 | fixtures/cpp/il_stmt_for.cpp
+           0/48       bytes    0.0%      0      48 | fixtures/cpp/il_stmt_if.cpp
+           0/32       bytes    0.0%      0      32 | fixtures/cpp/il_stmt_if_else.cpp
+           0/8        bytes    0.0%      0       8 | fixtures/cpp/il_stmt_multi.cpp
+           0/64       bytes    0.0%      0      64 | fixtures/cpp/il_stmt_while.cpp
+           0/84       bytes    0.0%      0      84 | fixtures/cpp/il_type_pack_neg.cpp
+           0/40       bytes    0.0%      0      40 | fixtures/cpp/mvp_call_argframed_plusk.cpp
+           0/36       bytes    0.0%      0      36 | fixtures/cpp/mvp_call_mulmod.cpp
+           0/36       bytes    0.0%      0      36 | fixtures/cpp/mvp_call_plus1plus2.cpp
+           0/464      bytes    0.0%      0     464 | fixtures/cpp/mvp_call_seq_b_neg.cpp
+           0/92       bytes    0.0%      0      92 | fixtures/cpp/mvp_call_seq_neg.cpp
+           0/48       bytes    0.0%      0      48 | fixtures/cpp/mvp_call_then_stmt.cpp
+           0/72       bytes    0.0%      0      72 | fixtures/cpp/mvp_call_two_framed.cpp
+           0/40       bytes    0.0%      0      40 | fixtures/cpp/mvp_call_widemod.cpp
+           0/184      bytes    0.0%      0     184 | fixtures/cpp/w10_guarded_seq_neg.cpp
+           0/316      bytes    0.0%      0     316 | fixtures/cpp/w11_early_return_neg.cpp
+           0/32       bytes    0.0%      0      32 | fixtures/cpp/w12_aggr_type.cpp
+           0/220      bytes    0.0%      0     220 | fixtures/cpp/w12_narrow_neg.cpp
+           0/24       bytes    0.0%      0      24 | fixtures/cpp/w13_fparam_neg.cpp
+           0/156      bytes    0.0%      0     156 | fixtures/cpp/w13_freassoc.cpp
+           0/36       bytes    0.0%      0      36 | fixtures/cpp/w13b_fpool.cpp
+           0/136      bytes    0.0%      0     136 | fixtures/cpp/w21_census_gate_neg.cpp
+           0/112      bytes    0.0%      0     112 | fixtures/cpp/w26_bool_value_neg.cpp
+           0/156      bytes    0.0%      0     156 | fixtures/cpp/w28_fp_store_neg.cpp
+           0/488      bytes    0.0%      0     488 | fixtures/cpp/w30_callseq_tail_intlike_neg.cpp
+           0/248      bytes    0.0%      0     248 | fixtures/cpp/w31_fp_tail_neg.cpp
+           0/416      bytes    0.0%      0     416 | fixtures/cpp/w32_volatile_formal_neg.cpp
+           0/188      bytes    0.0%      0     188 | fixtures/cpp/w34_fp_multi_neg.cpp
+           0/96       bytes    0.0%      0      96 | fixtures/cpp/w35_offset_run_neg.cpp
+           0/224      bytes    0.0%      0     224 | fixtures/cpp/w37_bit_and_neg.cpp
+           0/616      bytes    0.0%      0     616 | fixtures/cpp/w41_framed_member_call_neg.cpp
+           0/264      bytes    0.0%      0     264 | fixtures/cpp/w42_shift_mask_neg.cpp
+           0/336      bytes    0.0%      0     336 | fixtures/cpp/w43_cmp_shift_or_neg.cpp
+           0/148      bytes    0.0%      0     148 | fixtures/cpp/w45_store_run_scheduled_neg.cpp
+           0/112      bytes    0.0%      0     112 | fixtures/cpp/w5_tree3.cpp
+           0/40       bytes    0.0%      0      40 | fixtures/cpp/w6_k_boundary.cpp
+           0/36       bytes    0.0%      0      36 | fixtures/cpp/w71_alloc_undetermined_neg.cpp
+           0/308      bytes    0.0%      0     308 | fixtures/cpp/w844_store_run_call_neg.cpp
+           0/44       bytes    0.0%      0      44 | fixtures/cpp/w8_cond_tail_neg.cpp
+           0/284      bytes    0.0%      0     284 | fixtures/cpp/wadjust_obj_recv_neg.cpp
+           0/88       bytes    0.0%      0      88 | fixtures/cpp/wae_assign_dst_neg.cpp
+           0/880      bytes    0.0%      0     880 | fixtures/cpp/wbdnz_ctr_neg.cpp
+           0/448      bytes    0.0%      0     448 | fixtures/cpp/wcfg1_if_call_join_neg.cpp
+           0/764      bytes    0.0%      0     764 | fixtures/cpp/wcl_chain_link_arg_neg.cpp
+           0/2196     bytes    0.0%      0    2196 | fixtures/cpp/wcr_cmp_order_neg.cpp
+           0/180      bytes    0.0%      0     180 | fixtures/cpp/wcv_reinterpret_neg.cpp
+           0/100      bytes    0.0%      0     100 | fixtures/cpp/wda_dataaddr_neg.cpp
+           0/380      bytes    0.0%      0     380 | fixtures/cpp/wdata_static_scan_neg.cpp
+           0/600      bytes    0.0%      0     600 | fixtures/cpp/wdr_virtual_byval.cpp
+           0/1252     bytes    0.0%      0    1252 | fixtures/cpp/wextdata_guard_chain_shared_tail_neg.cpp
+           0/392      bytes    0.0%      0     392 | fixtures/cpp/wfl_chain_tail_fp_load_neg.cpp
+           0/76       bytes    0.0%      0      76 | fixtures/cpp/wfr_argreg_neg.cpp
+           0/3000     bytes    0.0%      0    3000 | fixtures/cpp/wjson_utf8_copy_neg.cpp
+           0/420      bytes    0.0%      0     420 | fixtures/cpp/wla_lit_call_arg_neg.cpp
+           0/280      bytes    0.0%      0     280 | fixtures/cpp/wlb_moved_formal_neg.cpp
+           0/100      bytes    0.0%      0     100 | fixtures/cpp/wlin_mixed_bind_neg.cpp
+           0/340      bytes    0.0%      0     340 | fixtures/cpp/wmcall_seq_neg.cpp
+           0/16       bytes    0.0%      0      16 | fixtures/cpp/worder3_bss_slot_after_text.cpp
+           0/1524     bytes    0.0%      0    1524 | fixtures/cpp/wosf_handle_guard_neg.cpp
+           0/420      bytes    0.0%      0     420 | fixtures/cpp/wpark_lit_permuted_neg.cpp
+           0/224      bytes    0.0%      0     224 | fixtures/cpp/wr1_sym_addr_neg.cpp
+           0/24       bytes    0.0%      0      24 | fixtures/cpp/wr1c_dyninit_two_objects.cpp
+           0/264      bytes    0.0%      0     264 | fixtures/cpp/wsl_store_load_neg.cpp
+           0/1104     bytes    0.0%      0    1104 | fixtures/cpp/wundname_alloc_init_or_fail_neg.cpp
+           0/344      bytes    0.0%      0     344 | fixtures/cpp/wvalue_call_value_neg.cpp
+           0/160      bytes    0.0%      0     160 | fixtures/cpp/wvl_chain_neg.cpp
+           0/1524     bytes    0.0%      0    1524 | fixtures/cpp/wxlr_create_guard_neg.cpp
+  BYTE-FRACTION CONTROL (board #501) — a `match` TU is byte-identical to c2's obj, so the port produced a body for every `.text` byte in it and its fraction MUST read 100%. 132 of 156 matched TUs do; 6 fall short; 18 have no `.text` denominator (a TU that defines data and no functions — board #276's shape — which is a 100%-free zero, not a failure).
+    SHORTFALL, by name, each classified — 6 explained by factor E (whole-TU emitter, per-function path blind by construction), 0 UNEXPLAINED. **The unexplained count is the one to watch; it must be 0.** Compare the SET across trees, not its size. The FRONTIER is unaffected either way: it is defined as `A and B and C and not (D or E)`, so no factor-E TU can appear in the ranking above.
+      fixtures/cpp/il_dyninit_static.cpp (0/24 bytes, 0.0%)  [factor E — a WHOLE-TU recognizer emitted this; the per-function path cannot see it. EXPECTED.]
+      fixtures/cpp/wa16_dyninit_plain_align16.cpp (0/24 bytes, 0.0%)  [factor E — a WHOLE-TU recognizer emitted this; the per-function path cannot see it. EXPECTED.]
+      fixtures/cpp/walign_dyninit_align16.cpp (0/24 bytes, 0.0%)  [factor E — a WHOLE-TU recognizer emitted this; the per-function path cannot see it. EXPECTED.]
+      fixtures/cpp/walign_dyninit_poly.cpp (0/24 bytes, 0.0%)  [factor E — a WHOLE-TU recognizer emitted this; the per-function path cannot see it. EXPECTED.]
+      fixtures/cpp/walign_dyninit_poly_double.cpp (0/24 bytes, 0.0%)  [factor E — a WHOLE-TU recognizer emitted this; the per-function path cannot see it. EXPECTED.]
+      fixtures/cpp/wr1c_dyninit_extern.cpp (0/24 bytes, 0.0%)  [factor E — a WHOLE-TU recognizer emitted this; the per-function path cannot see it. EXPECTED.]
+  FRONTIER BY CFG REACHABILITY (board #720) — CAN THE EMITTER EXPRESS THIS TU AT ALL? `Selected` covers FOUR control-flow shapes: straight-line, ONE two-arm conditional, — since lane `w-hash`, board #761 — ONE loop, the pointer-walk accumulate of `codegen::ptr_walk_loop`, and — since lane `w-cfgclass`, board #1630 — ONE `if`/`else` with a join whose arms are calls, `codegen::if_call_join`. **The last two are each a transcription of a single function class, not a lowering of its CFG class**: twenty words, two immediate fields, `/O1` only. Every other loop shape and every other `cflow-if-n` shape still has no representation at all — the `if`/`else` class takes 2 of the frontier's 11 `cflow-if-n` functions and the loop 1 of its 21 `cflow-loop` ones. This line read `no variant encodes a backward branch, so NO loop of any kind has a representation` until `Sort.cpp` converted, and `THREE ... shapes` until `negate_test.cpp` did; each correction is here rather than beside the old claim. **A shape being in this list does NOT put its class in `PORT_CFG_CLASSES`** — the two converted TUs left the frontier by MATCHING, so neither appears in the count below, which is why that count can stand still while this sentence grows. This is not a quantity of progress like #269/#465/#500 — a TU can be one 8-byte function from matching and be unreachable because those 8 bytes are a loop. INSTRUMENT, never a gate. 110 of 126 frontier TUs are reachable:
+      2 blocked | fixtures/cpp/add3.cpp                              | label-free | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | fixtures/cpp/il_call_args1.cpp                     | label-free | REACHABLE — every blocked fn is a port CFG class
+      2 blocked | fixtures/cpp/il_call_bound_neg.cpp                 | label-free | REACHABLE — every blocked fn is a port CFG class
+      6 blocked | fixtures/cpp/il_call_multi.cpp                     | label-free | REACHABLE — every blocked fn is a port CFG class
+      7 blocked | fixtures/cpp/il_call_return.cpp                    | labels 9   | REACHABLE — every blocked fn is a port CFG class
+     14 blocked | fixtures/cpp/il_convert_scalar.cpp                 | label-free | REACHABLE — every blocked fn is a port CFG class
+      3 blocked | fixtures/cpp/il_deep_chain.cpp                     | label-free | REACHABLE — every blocked fn is a port CFG class
+      4 blocked | fixtures/cpp/il_expr_call_value.cpp                | labels 12  | REACHABLE — every blocked fn is a port CFG class
+      9 blocked | fixtures/cpp/il_expr_cast.cpp                      | label-free | REACHABLE — every blocked fn is a port CFG class
+      6 blocked | fixtures/cpp/il_expr_index.cpp                     | label-free | REACHABLE — every blocked fn is a port CFG class
+     14 blocked | fixtures/cpp/il_expr_load_neg.cpp                  | label-free | REACHABLE — every blocked fn is a port CFG class
+      3 blocked | fixtures/cpp/il_expr_temp.cpp                      | labels 6   | REACHABLE — every blocked fn is a port CFG class
+      4 blocked | fixtures/cpp/il_expr_ternary.cpp                   | label-free | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | fixtures/cpp/il_gl_record_order.cpp                | label-free | REACHABLE — every blocked fn is a port CFG class
+     18 blocked | fixtures/cpp/il_intrinsic_bits.cpp                 | label-free | REACHABLE — every blocked fn is a port CFG class
+     11 blocked | fixtures/cpp/il_intrinsic_call.cpp                 | label-free | REACHABLE — every blocked fn is a port CFG class
+     10 blocked | fixtures/cpp/il_intrinsic_fold.cpp                 | label-free | REACHABLE — every blocked fn is a port CFG class
+      7 blocked | fixtures/cpp/il_intrinsic_layout.cpp               | label-free | REACHABLE — every blocked fn is a port CFG class
+      4 blocked | fixtures/cpp/il_intrinsic_nullary.cpp              | label-free | REACHABLE — every blocked fn is a port CFG class
+      4 blocked | fixtures/cpp/il_param_aggr_neg.cpp                 | label-free | REACHABLE — every blocked fn is a port CFG class
+      6 blocked | fixtures/cpp/il_repeated_leaf.cpp                  | label-free | REACHABLE — every blocked fn is a port CFG class
+      3 blocked | fixtures/cpp/il_stmt_bare_block.cpp                | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      3 blocked | fixtures/cpp/il_stmt_compound_assign.cpp           | label-free | REACHABLE — every blocked fn is a port CFG class
+      3 blocked | fixtures/cpp/il_stmt_early_return.cpp              | label-free | needs a CFG class the port lacks: cflow-if-2+expr-modeled
+      2 blocked | fixtures/cpp/il_stmt_for.cpp                       | labels 6   | needs a CFG class the port lacks: cflow-loop
+      2 blocked | fixtures/cpp/il_stmt_global.cpp                    | label-free | REACHABLE — every blocked fn is a port CFG class
+      3 blocked | fixtures/cpp/il_stmt_if.cpp                        | label-free | REACHABLE — every blocked fn is a port CFG class
+      2 blocked | fixtures/cpp/il_stmt_if_else.cpp                   | label-free | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | fixtures/cpp/il_stmt_multi.cpp                     | label-free | REACHABLE — every blocked fn is a port CFG class
+      3 blocked | fixtures/cpp/il_stmt_static.cpp                    | label-free | REACHABLE — every blocked fn is a port CFG class
+      2 blocked | fixtures/cpp/il_stmt_while.cpp                     | labels 3   | needs a CFG class the port lacks: cflow-loop+expr-modeled
+      8 blocked | fixtures/cpp/il_sy_locals.cpp                      | labels 6   | REACHABLE — every blocked fn is a port CFG class
+      7 blocked | fixtures/cpp/il_type_narrow.cpp                    | label-free | REACHABLE — every blocked fn is a port CFG class
+      6 blocked | fixtures/cpp/il_type_pack_neg.cpp                  | label-free | REACHABLE — every blocked fn is a port CFG class
+      5 blocked | fixtures/cpp/il_type_scalars.cpp                   | label-free | REACHABLE — every blocked fn is a port CFG class
+      3 blocked | fixtures/cpp/il_varargs_neg.cpp                    | labels 6   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | fixtures/cpp/mvp_call_argframed_plusk.cpp          | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | fixtures/cpp/mvp_call_mulmod.cpp                   | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | fixtures/cpp/mvp_call_plus1plus2.cpp               | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      7 blocked | fixtures/cpp/mvp_call_seq_b_neg.cpp                | labels 21  | REACHABLE — every blocked fn is a port CFG class
+      2 blocked | fixtures/cpp/mvp_call_seq_neg.cpp                  | labels 6   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | fixtures/cpp/mvp_call_then_stmt.cpp                | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | fixtures/cpp/mvp_call_two_framed.cpp               | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | fixtures/cpp/mvp_call_widemod.cpp                  | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      4 blocked | fixtures/cpp/w10_guarded_seq_neg.cpp               | labels 9   | REACHABLE — every blocked fn is a port CFG class
+      3 blocked | fixtures/cpp/w1199_bind_run_neg.cpp                | label-free | REACHABLE — every blocked fn is a port CFG class
+      6 blocked | fixtures/cpp/w11_early_return_neg.cpp              | labels 15  | needs a CFG class the port lacks: cflow-if-2, cflow-if-n
+      4 blocked | fixtures/cpp/w12_aggr_type.cpp                     | label-free | REACHABLE — every blocked fn is a port CFG class
+     16 blocked | fixtures/cpp/w12_narrow_neg.cpp                    | label-free | REACHABLE — every blocked fn is a port CFG class
+      7 blocked | fixtures/cpp/w12_ptr_leaf_neg.cpp                  | label-free | REACHABLE — every blocked fn is a port CFG class
+      2 blocked | fixtures/cpp/w13_fabi.cpp                          | label-free | REACHABLE — every blocked fn is a port CFG class
+     18 blocked | fixtures/cpp/w13_fneg.cpp                          | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      5 blocked | fixtures/cpp/w13_fops.cpp                          | label-free | REACHABLE — every blocked fn is a port CFG class
+      3 blocked | fixtures/cpp/w13_fparam_neg.cpp                    | label-free | REACHABLE — every blocked fn is a port CFG class
+     12 blocked | fixtures/cpp/w13_freassoc.cpp                      | label-free | REACHABLE — every blocked fn is a port CFG class
+      4 blocked | fixtures/cpp/w13_fscratch.cpp                      | label-free | REACHABLE — every blocked fn is a port CFG class
+      4 blocked | fixtures/cpp/w13b_ffold.cpp                        | label-free | REACHABLE — every blocked fn is a port CFG class
+      2 blocked | fixtures/cpp/w13b_fpool.cpp                        | label-free | REACHABLE — every blocked fn is a port CFG class
+      8 blocked | fixtures/cpp/w16_addr_leaf_neg.cpp                 | label-free | REACHABLE — every blocked fn is a port CFG class
+     23 blocked | fixtures/cpp/w17_ptr_operand_neg.cpp               | labels 6   | REACHABLE — every blocked fn is a port CFG class
+     12 blocked | fixtures/cpp/w18_reg_move_neg.cpp                  | label-free | REACHABLE — every blocked fn is a port CFG class
+     14 blocked | fixtures/cpp/w20_convert_neg.cpp                   | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | fixtures/cpp/w21_census_gate.cpp                   | label-free | REACHABLE — every blocked fn is a port CFG class
+      8 blocked | fixtures/cpp/w21_census_gate_neg.cpp               | label-free | REACHABLE — every blocked fn is a port CFG class
+      6 blocked | fixtures/cpp/w22_int_spelling_neg.cpp              | label-free | REACHABLE — every blocked fn is a port CFG class
+     11 blocked | fixtures/cpp/w25_store_leaf_neg.cpp                | label-free | REACHABLE — every blocked fn is a port CFG class
+     10 blocked | fixtures/cpp/w26_bool_value_neg.cpp                | label-free | REACHABLE — every blocked fn is a port CFG class
+     11 blocked | fixtures/cpp/w28_fp_store_neg.cpp                  | label-free | REACHABLE — every blocked fn is a port CFG class
+     13 blocked | fixtures/cpp/w30_callseq_tail_intlike_neg.cpp      | labels 39  | REACHABLE — every blocked fn is a port CFG class
+     10 blocked | fixtures/cpp/w31_fp_tail_neg.cpp                   | labels 12  | REACHABLE — every blocked fn is a port CFG class
+     14 blocked | fixtures/cpp/w32_volatile_formal_neg.cpp           | labels 24  | REACHABLE — every blocked fn is a port CFG class
+     11 blocked | fixtures/cpp/w34_fp_multi_neg.cpp                  | label-free | REACHABLE — every blocked fn is a port CFG class
+      8 blocked | fixtures/cpp/w35_offset_run_neg.cpp                | label-free | REACHABLE — every blocked fn is a port CFG class
+     14 blocked | fixtures/cpp/w36_member_call_neg.cpp               | labels 15  | REACHABLE — every blocked fn is a port CFG class
+     10 blocked | fixtures/cpp/w37_bit_and_neg.cpp                   | labels 9   | REACHABLE — every blocked fn is a port CFG class
+     12 blocked | fixtures/cpp/w38_store_run_neg.cpp                 | label-free | REACHABLE — every blocked fn is a port CFG class
+     15 blocked | fixtures/cpp/w41_framed_member_call_neg.cpp        | labels 45  | REACHABLE — every blocked fn is a port CFG class
+      7 blocked | fixtures/cpp/w42_shift_mask_neg.cpp                | label-free | REACHABLE — every blocked fn is a port CFG class
+     16 blocked | fixtures/cpp/w43_cmp_shift_or_neg.cpp              | label-free | REACHABLE — every blocked fn is a port CFG class
+      6 blocked | fixtures/cpp/w45_store_run_scheduled_neg.cpp       | label-free | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | fixtures/cpp/w5_tree2.cpp                          | label-free | REACHABLE — every blocked fn is a port CFG class
+      4 blocked | fixtures/cpp/w5_tree3.cpp                          | label-free | REACHABLE — every blocked fn is a port CFG class
+     10 blocked | fixtures/cpp/w5_tree_neg.cpp                       | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      2 blocked | fixtures/cpp/w6_k_boundary.cpp                     | label-free | REACHABLE — every blocked fn is a port CFG class
+      4 blocked | fixtures/cpp/w6_unsigned_wide.cpp                  | label-free | REACHABLE — every blocked fn is a port CFG class
+     22 blocked | fixtures/cpp/w70_bitwise_neg.cpp                   | label-free | REACHABLE — every blocked fn is a port CFG class
+      2 blocked | fixtures/cpp/w71_alloc_undetermined_neg.cpp        | label-free | REACHABLE — every blocked fn is a port CFG class
+      7 blocked | fixtures/cpp/w844_store_run_call_neg.cpp           | labels 12  | REACHABLE — every blocked fn is a port CFG class
+      2 blocked | fixtures/cpp/w8_cond_tail_neg.cpp                  | label-free | REACHABLE — every blocked fn is a port CFG class
+     11 blocked | fixtures/cpp/wadjust_obj_recv_neg.cpp              | labels 9   | REACHABLE — every blocked fn is a port CFG class
+      6 blocked | fixtures/cpp/wae_assign_dst_neg.cpp                | labels 3   | REACHABLE — every blocked fn is a port CFG class
+     23 blocked | fixtures/cpp/wbdnz_ctr_neg.cpp                     | labels 3   | needs a CFG class the port lacks: cflow-loop
+     20 blocked | fixtures/cpp/wcb_cmp_two_calls_neg.cpp             | labels 69  | REACHABLE — every blocked fn is a port CFG class
+      5 blocked | fixtures/cpp/wcf_neighbours.cpp                    | label-free | needs a CFG class the port lacks: cflow-loop+expr-modeled, cflow-multi-exit+expr-modeled
+     13 blocked | fixtures/cpp/wcf_shapes.cpp                        | label-free | needs a CFG class the port lacks: cflow-if-2+expr-modeled, cflow-loop, cflow-loop+expr-modeled, cflow-switch+expr-modeled
+      6 blocked | fixtures/cpp/wcfg1_if_call_join_neg.cpp            | labels 15  | needs a CFG class the port lacks: cflow-if-n
+     11 blocked | fixtures/cpp/wch_chained_call_neg.cpp              | labels 42  | REACHABLE — every blocked fn is a port CFG class
+     13 blocked | fixtures/cpp/wcl_chain_link_arg_neg.cpp            | labels 39  | REACHABLE — every blocked fn is a port CFG class
+      9 blocked | fixtures/cpp/wco_chain_tail_load_neg.cpp           | labels 33  | REACHABLE — every blocked fn is a port CFG class
+     27 blocked | fixtures/cpp/wcr_cmp_order_neg.cpp                 | labels 81  | REACHABLE — every blocked fn is a port CFG class
+     19 blocked | fixtures/cpp/wcv_reinterpret_neg.cpp               | label-free | REACHABLE — every blocked fn is a port CFG class
+      6 blocked | fixtures/cpp/wda_dataaddr_neg.cpp                  | label-free | REACHABLE — every blocked fn is a port CFG class
+      6 blocked | fixtures/cpp/wdata_static_scan_neg.cpp             | label-free | needs a CFG class the port lacks: cflow-loop
+      6 blocked | fixtures/cpp/wdr_neighbours.cpp                    | labels 6   | REACHABLE — every blocked fn is a port CFG class
+     15 blocked | fixtures/cpp/wdr_virtual_byval.cpp                 | labels 24  | REACHABLE — every blocked fn is a port CFG class
+      8 blocked | fixtures/cpp/wextdata_guard_chain_shared_tail_neg.cpp | labels 24  | needs a CFG class the port lacks: cflow-if-n
+      8 blocked | fixtures/cpp/wfl_chain_tail_fp_load_neg.cpp        | labels 24  | REACHABLE — every blocked fn is a port CFG class
+      2 blocked | fixtures/cpp/wfr_argreg_neg.cpp                    | labels 6   | REACHABLE — every blocked fn is a port CFG class
+     10 blocked | fixtures/cpp/wjson_utf8_copy_neg.cpp               | labels 30  | needs a CFG class the port lacks: cflow-loop
+     20 blocked | fixtures/cpp/wla_lit_call_arg_neg.cpp              | labels 9   | REACHABLE — every blocked fn is a port CFG class
+     14 blocked | fixtures/cpp/wlb_moved_formal_neg.cpp              | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      3 blocked | fixtures/cpp/wlin_mixed_bind_neg.cpp               | label-free | REACHABLE — every blocked fn is a port CFG class
+      3 blocked | fixtures/cpp/wlr_lit_run_neg.cpp                   | label-free | REACHABLE — every blocked fn is a port CFG class
+      6 blocked | fixtures/cpp/wmcall_seq_neg.cpp                    | labels 18  | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | fixtures/cpp/worder3_bss_slot_after_text.cpp       | label-free | REACHABLE — every blocked fn is a port CFG class
+     10 blocked | fixtures/cpp/wosf_handle_guard_neg.cpp             | labels 30  | needs a CFG class the port lacks: cflow-if-n
+      7 blocked | fixtures/cpp/wpark_lit_permuted_neg.cpp            | labels 21  | REACHABLE — every blocked fn is a port CFG class
+     13 blocked | fixtures/cpp/wr1_sym_addr_neg.cpp                  | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      1 blocked | fixtures/cpp/wr1c_dyninit_two_objects.cpp          | label-free | 1 blocked fn with NO CFG class (census bailed first)
+      3 blocked | fixtures/cpp/wrr_arg_vocab_neg.cpp                 | label-free | REACHABLE — every blocked fn is a port CFG class
+     11 blocked | fixtures/cpp/wsl_store_load_neg.cpp                | label-free | REACHABLE — every blocked fn is a port CFG class
+      8 blocked | fixtures/cpp/wundname_alloc_init_or_fail_neg.cpp   | labels 24  | needs a CFG class the port lacks: cflow-if-n
+      5 blocked | fixtures/cpp/wvalue_call_value.cpp                 | labels 15  | REACHABLE — every blocked fn is a port CFG class
+      6 blocked | fixtures/cpp/wvalue_call_value_neg.cpp             | labels 18  | REACHABLE — every blocked fn is a port CFG class
+      4 blocked | fixtures/cpp/wvl_chain_neg.cpp                     | label-free | needs a CFG class the port lacks: cflow-loop
+     10 blocked | fixtures/cpp/wxlr_create_guard_neg.cpp             | labels 30  | needs a CFG class the port lacks: cflow-if-n
+    LABEL CHANNEL (board #742) — `$M`/`$T` are the ONLY way the value of c2's compiler-label counter reaches an obj, and `coff::plan_labels` mints them for a FRAMED function and nothing else. A leaf loop charges that counter +1..+4 while `plan_labels` charges 0 (17 seed-free cells, docs/LABEL_COUNTER.md §4.2), which is the whole stated justification for `codegen::labels` invariant 4 refusing every BACKWARD branch. On a `label-free` obj that error has nowhere to land — and that is now SHIPPED rather than observed: `IlFunction::label_slots` returns `None` for the one loop shape the port emits, so a TU pairing it with a framed function refuses and a TU without one converts (boards #746/#747, `fixtures/cpp/whash_loop_then_framed.cpp` and its control). 72 of 126 frontier TUs are label-free; of the 6 blocked on `cflow-loop`, 3 are. NOT a licence — every one is still gated on codegen that does not exist, and the counter is only the FIRST of that TU's refusals.
+    CONTROL src/xdk/nuispeech/xboxmem.cpp: absent from this scan's list — NOT a pass, not evaluated.
+    SUB-CLASS NARROWING (board #778) — the screen can now hold a PARTIAL claim (`CfgClass{class, Whole | Keys(&[..])}`), and this is the bracket that keeps a restriction NARROWER OR EQUAL rather than wider. `admits` is `class == class && <sub>`, so `Keys` only ever CONJOINS: a restriction can remove an admitted (class,key) pair and never add one. That is algebra; these four numbers are the measurement, re-derived from this scan's own frontier. BOTTOM 0 ⊆ ENUMERATED 110 == SHIPPED 110 ⊆ TOP 125, of 126 frontier TUs (11 classes in TOP, 245 (class,key) pairs enumerated).
+      BOTTOM=every entry restricted to NO keys (must be 0 — it is the live exercise of the `Keys` path and the detector for a matcher that ignores its key); ENUMERATED=every entry rewritten as the exact key set this scan observed (must equal SHIPPED); TOP=every class the frontier mentions, wholesale — a HYPOTHETICAL the port has no claim to, printed so the refusal has a size: 15 of the 126 frontier TUs are held back by CFG class alone.
+      SHIPPED reachable: [fixtures/cpp/add3.cpp, fixtures/cpp/il_call_args1.cpp, fixtures/cpp/il_call_bound_neg.cpp, fixtures/cpp/il_call_multi.cpp, fixtures/cpp/il_call_return.cpp, fixtures/cpp/il_convert_scalar.cpp, fixtures/cpp/il_deep_chain.cpp, fixtures/cpp/il_expr_call_value.cpp, fixtures/cpp/il_expr_cast.cpp, fixtures/cpp/il_expr_index.cpp, fixtures/cpp/il_expr_load_neg.cpp, fixtures/cpp/il_expr_temp.cpp, fixtures/cpp/il_expr_ternary.cpp, fixtures/cpp/il_gl_record_order.cpp, fixtures/cpp/il_intrinsic_bits.cpp, fixtures/cpp/il_intrinsic_call.cpp, fixtures/cpp/il_intrinsic_fold.cpp, fixtures/cpp/il_intrinsic_layout.cpp, fixtures/cpp/il_intrinsic_nullary.cpp, fixtures/cpp/il_param_aggr_neg.cpp, fixtures/cpp/il_repeated_leaf.cpp, fixtures/cpp/il_stmt_bare_block.cpp, fixtures/cpp/il_stmt_compound_assign.cpp, fixtures/cpp/il_stmt_global.cpp, fixtures/cpp/il_stmt_if.cpp, fixtures/cpp/il_stmt_if_else.cpp, fixtures/cpp/il_stmt_multi.cpp, fixtures/cpp/il_stmt_static.cpp, fixtures/cpp/il_sy_locals.cpp, fixtures/cpp/il_type_narrow.cpp, fixtures/cpp/il_type_pack_neg.cpp, fixtures/cpp/il_type_scalars.cpp, fixtures/cpp/il_varargs_neg.cpp, fixtures/cpp/mvp_call_argframed_plusk.cpp, fixtures/cpp/mvp_call_mulmod.cpp, fixtures/cpp/mvp_call_plus1plus2.cpp, fixtures/cpp/mvp_call_seq_b_neg.cpp, fixtures/cpp/mvp_call_seq_neg.cpp, fixtures/cpp/mvp_call_then_stmt.cpp, fixtures/cpp/mvp_call_two_framed.cpp, fixtures/cpp/mvp_call_widemod.cpp, fixtures/cpp/w10_guarded_seq_neg.cpp, fixtures/cpp/w1199_bind_run_neg.cpp, fixtures/cpp/w12_aggr_type.cpp, fixtures/cpp/w12_narrow_neg.cpp, fixtures/cpp/w12_ptr_leaf_neg.cpp, fixtures/cpp/w13_fabi.cpp, fixtures/cpp/w13_fneg.cpp, fixtures/cpp/w13_fops.cpp, fixtures/cpp/w13_fparam_neg.cpp, fixtures/cpp/w13_freassoc.cpp, fixtures/cpp/w13_fscratch.cpp, fixtures/cpp/w13b_ffold.cpp, fixtures/cpp/w13b_fpool.cpp, fixtures/cpp/w16_addr_leaf_neg.cpp, fixtures/cpp/w17_ptr_operand_neg.cpp, fixtures/cpp/w18_reg_move_neg.cpp, fixtures/cpp/w20_convert_neg.cpp, fixtures/cpp/w21_census_gate.cpp, fixtures/cpp/w21_census_gate_neg.cpp, fixtures/cpp/w22_int_spelling_neg.cpp, fixtures/cpp/w25_store_leaf_neg.cpp, fixtures/cpp/w26_bool_value_neg.cpp, fixtures/cpp/w28_fp_store_neg.cpp, fixtures/cpp/w30_callseq_tail_intlike_neg.cpp, fixtures/cpp/w31_fp_tail_neg.cpp, fixtures/cpp/w32_volatile_formal_neg.cpp, fixtures/cpp/w34_fp_multi_neg.cpp, fixtures/cpp/w35_offset_run_neg.cpp, fixtures/cpp/w36_member_call_neg.cpp, fixtures/cpp/w37_bit_and_neg.cpp, fixtures/cpp/w38_store_run_neg.cpp, fixtures/cpp/w41_framed_member_call_neg.cpp, fixtures/cpp/w42_shift_mask_neg.cpp, fixtures/cpp/w43_cmp_shift_or_neg.cpp, fixtures/cpp/w45_store_run_scheduled_neg.cpp, fixtures/cpp/w5_tree2.cpp, fixtures/cpp/w5_tree3.cpp, fixtures/cpp/w5_tree_neg.cpp, fixtures/cpp/w6_k_boundary.cpp, fixtures/cpp/w6_unsigned_wide.cpp, fixtures/cpp/w70_bitwise_neg.cpp, fixtures/cpp/w71_alloc_undetermined_neg.cpp, fixtures/cpp/w844_store_run_call_neg.cpp, fixtures/cpp/w8_cond_tail_neg.cpp, fixtures/cpp/wadjust_obj_recv_neg.cpp, fixtures/cpp/wae_assign_dst_neg.cpp, fixtures/cpp/wcb_cmp_two_calls_neg.cpp, fixtures/cpp/wch_chained_call_neg.cpp, fixtures/cpp/wcl_chain_link_arg_neg.cpp, fixtures/cpp/wco_chain_tail_load_neg.cpp, fixtures/cpp/wcr_cmp_order_neg.cpp, fixtures/cpp/wcv_reinterpret_neg.cpp, fixtures/cpp/wda_dataaddr_neg.cpp, fixtures/cpp/wdr_neighbours.cpp, fixtures/cpp/wdr_virtual_byval.cpp, fixtures/cpp/wfl_chain_tail_fp_load_neg.cpp, fixtures/cpp/wfr_argreg_neg.cpp, fixtures/cpp/wla_lit_call_arg_neg.cpp, fixtures/cpp/wlb_moved_formal_neg.cpp, fixtures/cpp/wlin_mixed_bind_neg.cpp, fixtures/cpp/wlr_lit_run_neg.cpp, fixtures/cpp/wmcall_seq_neg.cpp, fixtures/cpp/worder3_bss_slot_after_text.cpp, fixtures/cpp/wpark_lit_permuted_neg.cpp, fixtures/cpp/wr1_sym_addr_neg.cpp, fixtures/cpp/wrr_arg_vocab_neg.cpp, fixtures/cpp/wsl_store_load_neg.cpp, fixtures/cpp/wvalue_call_value.cpp, fixtures/cpp/wvalue_call_value_neg.cpp]
+      NESTING: PASS — 0 violations over the 3 checks (BOTTOM⊆SHIPPED⊆TOP, ENUMERATED==SHIPPED), taken as SETS by name.
+      LEDGER — 4 entries, 0 of them RESTRICTED. A restricted entry is a claim about named census keys, and two ways it goes quietly wrong are counted here: a listed key no scan witnesses (a claim doing nothing — trap 5 with the claim still on the page) and a key `admits` accepts that the entry does not list (the matcher and the declaration disagreeing, which is what an exact→prefix slip looks like). unwitnessed 0, intruders 0.
+        cflow-straight                   | WHOLE    |  187 keys observed,  187 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+        cflow-straight+expr-modeled      | WHOLE    |   66 keys observed,   66 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+        cflow-if-1                       | WHOLE    |   16 keys observed,   16 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+        cflow-if-1+expr-modeled          | WHOLE    |    3 keys observed,    3 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+      NOT A LICENCE, and #778 is closed as a MECHANISM only: `cflow-loop` did NOT enter the list in the lane that built this. The list is still a hand-maintained mirror of a `c2-core` enum; what changed is that a lane which has measured part of a class can now write down which part, and the reachability figure it produces is bracketed above.
+  FRONTIER BY CODEGEN (board #1474) — THE COLUMN #1463 PRINTED AS `NO COLUMN`, read off the judge's own per-function predicate (FBM) instead of off a reader ladder. `wrong` is the reader accepting a body, the emitter LOWERING it, and the bytes or relocations DIFFERING: the only positive codegen price this project can measure per function. `cg-ref` is the reader accepting and the emitter DECLINING — read `fnbytes::Decline`'s doc before sizing anything off it, because three of its four stages are ZERO BY CONSTRUCTION while acceptance lives in the IL parser. **`reader` is the hole**: the IL parser refused, so no codegen question was asked and none CAN be — there is no IlFunction to hand to `select_function`. A TU's true codegen distance is `wrong + cg-ref` PLUS an unknown amount hiding in `reader`, so every positive number below is a LOWER BOUND OF UNKNOWN TIGHTNESS and never a price. 126 frontier TUs, 1093 emitted functions: 937 behind the reader (85%), 11 measurable, 145 already byte-exact.
+     den exact wrong cg-ref reader ungrade | src
+       4     2     0      0      2       0 | fixtures/cpp/add3.cpp
+       4     3     0      0      1       0 | fixtures/cpp/il_call_args1.cpp
+       2     0     0      0      2       0 | fixtures/cpp/il_call_bound_neg.cpp
+       7     1     0      0      6       0 | fixtures/cpp/il_call_multi.cpp
+       8     1     0      0      7       0 | fixtures/cpp/il_call_return.cpp
+      19     5     0      0     14       0 | fixtures/cpp/il_convert_scalar.cpp
+       3     0     0      0      3       0 | fixtures/cpp/il_deep_chain.cpp
+       7     3     0      0      4       0 | fixtures/cpp/il_expr_call_value.cpp
+       9     0     0      0      9       0 | fixtures/cpp/il_expr_cast.cpp
+      10     4     0      0      6       0 | fixtures/cpp/il_expr_index.cpp
+      17     3     0      0     14       0 | fixtures/cpp/il_expr_load_neg.cpp
+       3     0     0      0      3       0 | fixtures/cpp/il_expr_temp.cpp
+       4     0     0      0      4       0 | fixtures/cpp/il_expr_ternary.cpp
+       2     1     0      0      1       0 | fixtures/cpp/il_gl_record_order.cpp
+      21     3     0      0     18       0 | fixtures/cpp/il_intrinsic_bits.cpp
+      12     1     0      0     11       0 | fixtures/cpp/il_intrinsic_call.cpp
+      10     0     0      0     10       0 | fixtures/cpp/il_intrinsic_fold.cpp
+       8     1     0      0      7       0 | fixtures/cpp/il_intrinsic_layout.cpp
+       5     1     0      0      4       0 | fixtures/cpp/il_intrinsic_nullary.cpp
+       4     0     0      0      4       0 | fixtures/cpp/il_param_aggr_neg.cpp
+       6     0     0      0      6       0 | fixtures/cpp/il_repeated_leaf.cpp
+       5     2     0      0      3       0 | fixtures/cpp/il_stmt_bare_block.cpp
+       4     1     0      0      3       0 | fixtures/cpp/il_stmt_compound_assign.cpp
+       3     0     0      0      3       0 | fixtures/cpp/il_stmt_early_return.cpp
+       2     0     0      0      2       0 | fixtures/cpp/il_stmt_for.cpp
+       3     1     0      0      2       0 | fixtures/cpp/il_stmt_global.cpp
+       3     0     0      0      3       0 | fixtures/cpp/il_stmt_if.cpp
+       2     0     0      0      2       0 | fixtures/cpp/il_stmt_if_else.cpp
+       1     0     0      0      1       0 | fixtures/cpp/il_stmt_multi.cpp
+       4     1     0      0      3       0 | fixtures/cpp/il_stmt_static.cpp
+       2     0     0      0      2       0 | fixtures/cpp/il_stmt_while.cpp
+      13     5     0      0      8       0 | fixtures/cpp/il_sy_locals.cpp
+      10     3     0      0      7       0 | fixtures/cpp/il_type_narrow.cpp
+       6     0     0      0      6       0 | fixtures/cpp/il_type_pack_neg.cpp
+      16    11     0      0      5       0 | fixtures/cpp/il_type_scalars.cpp
+       6     3     0      0      3       0 | fixtures/cpp/il_varargs_neg.cpp
+       1     0     0      0      1       0 | fixtures/cpp/mvp_call_argframed_plusk.cpp
+       1     0     0      0      1       0 | fixtures/cpp/mvp_call_mulmod.cpp
+       1     0     0      0      1       0 | fixtures/cpp/mvp_call_plus1plus2.cpp
+       7     0     0      0      7       0 | fixtures/cpp/mvp_call_seq_b_neg.cpp
+       2     0     0      0      2       0 | fixtures/cpp/mvp_call_seq_neg.cpp
+       1     0     0      0      1       0 | fixtures/cpp/mvp_call_then_stmt.cpp
+       1     0     0      0      1       0 | fixtures/cpp/mvp_call_two_framed.cpp
+       1     0     0      0      1       0 | fixtures/cpp/mvp_call_widemod.cpp
+       4     0     0      0      4       0 | fixtures/cpp/w10_guarded_seq_neg.cpp
+       4     1     0      0      3       0 | fixtures/cpp/w1199_bind_run_neg.cpp
+       6     0     0      0      6       0 | fixtures/cpp/w11_early_return_neg.cpp
+       4     0     0      0      4       0 | fixtures/cpp/w12_aggr_type.cpp
+      16     0     0      0     16       0 | fixtures/cpp/w12_narrow_neg.cpp
+      11     4     0      0      7       0 | fixtures/cpp/w12_ptr_leaf_neg.cpp
+       9     7     0      0      2       0 | fixtures/cpp/w13_fabi.cpp
+      20     0     0      2     18       0 | fixtures/cpp/w13_fneg.cpp
+      13     8     0      0      5       0 | fixtures/cpp/w13_fops.cpp
+       3     0     0      0      3       0 | fixtures/cpp/w13_fparam_neg.cpp
+      12     0     0      0     12       0 | fixtures/cpp/w13_freassoc.cpp
+      11     1     5      1      4       0 | fixtures/cpp/w13_fscratch.cpp
+       5     0     0      1      4       0 | fixtures/cpp/w13b_ffold.cpp
+       2     0     0      0      2       0 | fixtures/cpp/w13b_fpool.cpp
+      11     3     0      0      8       0 | fixtures/cpp/w16_addr_leaf_neg.cpp
+      25     2     0      0     23       0 | fixtures/cpp/w17_ptr_operand_neg.cpp
+      15     3     0      0     12       0 | fixtures/cpp/w18_reg_move_neg.cpp
+      19     5     0      0     14       0 | fixtures/cpp/w20_convert_neg.cpp
+       9     8     0      0      1       0 | fixtures/cpp/w21_census_gate.cpp
+       8     0     0      0      8       0 | fixtures/cpp/w21_census_gate_neg.cpp
+       7     1     0      0      6       0 | fixtures/cpp/w22_int_spelling_neg.cpp
+      15     4     0      0     11       0 | fixtures/cpp/w25_store_leaf_neg.cpp
+      10     0     0      0     10       0 | fixtures/cpp/w26_bool_value_neg.cpp
+      11     0     0      0     11       0 | fixtures/cpp/w28_fp_store_neg.cpp
+      13     0     0      0     13       0 | fixtures/cpp/w30_callseq_tail_intlike_neg.cpp
+      10     0     0      0     10       0 | fixtures/cpp/w31_fp_tail_neg.cpp
+      14     0     0      0     14       0 | fixtures/cpp/w32_volatile_formal_neg.cpp
+      11     0     0      0     11       0 | fixtures/cpp/w34_fp_multi_neg.cpp
+       8     0     0      0      8       0 | fixtures/cpp/w35_offset_run_neg.cpp
+      17     3     0      0     14       0 | fixtures/cpp/w36_member_call_neg.cpp
+      10     0     0      0     10       0 | fixtures/cpp/w37_bit_and_neg.cpp
+      13     1     0      0     12       0 | fixtures/cpp/w38_store_run_neg.cpp
+      15     0     0      0     15       0 | fixtures/cpp/w41_framed_member_call_neg.cpp
+       7     0     0      0      7       0 | fixtures/cpp/w42_shift_mask_neg.cpp
+      16     0     0      0     16       0 | fixtures/cpp/w43_cmp_shift_or_neg.cpp
+       6     0     0      0      6       0 | fixtures/cpp/w45_store_run_scheduled_neg.cpp
+       4     3     0      0      1       0 | fixtures/cpp/w5_tree2.cpp
+       4     0     0      0      4       0 | fixtures/cpp/w5_tree3.cpp
+      11     1     0      0     10       0 | fixtures/cpp/w5_tree_neg.cpp
+       2     0     0      0      2       0 | fixtures/cpp/w6_k_boundary.cpp
+       7     3     0      0      4       0 | fixtures/cpp/w6_unsigned_wide.cpp
+      23     1     0      0     22       0 | fixtures/cpp/w70_bitwise_neg.cpp
+       2     0     0      0      2       0 | fixtures/cpp/w71_alloc_undetermined_neg.cpp
+       7     0     0      0      7       0 | fixtures/cpp/w844_store_run_call_neg.cpp
+       2     0     0      0      2       0 | fixtures/cpp/w8_cond_tail_neg.cpp
+      11     0     0      0     11       0 | fixtures/cpp/wadjust_obj_recv_neg.cpp
+       6     0     0      0      6       0 | fixtures/cpp/wae_assign_dst_neg.cpp
+      23     0     0      0     23       0 | fixtures/cpp/wbdnz_ctr_neg.cpp
+      23     3     0      0     20       0 | fixtures/cpp/wcb_cmp_two_calls_neg.cpp
+      12     6     0      1      5       0 | fixtures/cpp/wcf_neighbours.cpp
+      14     0     0      1     13       0 | fixtures/cpp/wcf_shapes.cpp
+       6     0     0      0      6       0 | fixtures/cpp/wcfg1_if_call_join_neg.cpp
+      14     3     0      0     11       0 | fixtures/cpp/wch_chained_call_neg.cpp
+      13     0     0      0     13       0 | fixtures/cpp/wcl_chain_link_arg_neg.cpp
+      11     2     0      0      9       0 | fixtures/cpp/wco_chain_tail_load_neg.cpp
+      27     0     0      0     27       0 | fixtures/cpp/wcr_cmp_order_neg.cpp
+      19     0     0      0     19       0 | fixtures/cpp/wcv_reinterpret_neg.cpp
+       6     0     0      0      6       0 | fixtures/cpp/wda_dataaddr_neg.cpp
+       6     0     0      0      6       0 | fixtures/cpp/wdata_static_scan_neg.cpp
+      11     5     0      0      6       0 | fixtures/cpp/wdr_neighbours.cpp
+      15     0     0      0     15       0 | fixtures/cpp/wdr_virtual_byval.cpp
+       8     0     0      0      8       0 | fixtures/cpp/wextdata_guard_chain_shared_tail_neg.cpp
+       8     0     0      0      8       0 | fixtures/cpp/wfl_chain_tail_fp_load_neg.cpp
+       2     0     0      0      2       0 | fixtures/cpp/wfr_argreg_neg.cpp
+      10     0     0      0     10       0 | fixtures/cpp/wjson_utf8_copy_neg.cpp
+      20     0     0      0     20       0 | fixtures/cpp/wla_lit_call_arg_neg.cpp
+      14     0     0      0     14       0 | fixtures/cpp/wlb_moved_formal_neg.cpp
+       3     0     0      0      3       0 | fixtures/cpp/wlin_mixed_bind_neg.cpp
+      11     8     0      0      3       0 | fixtures/cpp/wlr_lit_run_neg.cpp
+       6     0     0      0      6       0 | fixtures/cpp/wmcall_seq_neg.cpp
+       1     0     0      0      1       0 | fixtures/cpp/worder3_bss_slot_after_text.cpp
+      10     0     0      0     10       0 | fixtures/cpp/wosf_handle_guard_neg.cpp
+       7     0     0      0      7       0 | fixtures/cpp/wpark_lit_permuted_neg.cpp
+      13     0     0      0     13       0 | fixtures/cpp/wr1_sym_addr_neg.cpp
+       1     0     0      0      1       0 | fixtures/cpp/wr1c_dyninit_two_objects.cpp
+       5     2     0      0      3       0 | fixtures/cpp/wrr_arg_vocab_neg.cpp
+      11     0     0      0     11       0 | fixtures/cpp/wsl_store_load_neg.cpp
+       8     0     0      0      8       0 | fixtures/cpp/wundname_alloc_init_or_fail_neg.cpp
+       6     1     0      0      5       0 | fixtures/cpp/wvalue_call_value.cpp
+       6     0     0      0      6       0 | fixtures/cpp/wvalue_call_value_neg.cpp
+       4     0     0      0      4       0 | fixtures/cpp/wvl_chain_neg.cpp
+      10     0     0      0     10       0 | fixtures/cpp/wxlr_create_guard_neg.cpp
+    TOTAL 1093 = exact 145 + wrong 5 + cg-ref 6 + reader 937 + ungraded 0;  partition-broken 0 (target 0).
+    11 frontier function(s) are a MEASURED codegen defect — the reader accepts them and the port does not produce c2's bytes. These are the only frontier codegen numbers on this board that are not hand-counts.
+  A PERFECT EMIT PREDICATE (board #213) — reachability, NOT conversions: every TU below is still gated on codegen that does not exist.
+    as REACH:    B and C 305 less A and B and C 303 = +2
+    as FRONTIER: frontier-if-A 126 less FRONTIER 126 = +0
+    THE TWO DISAGREE by 2 — #213's single `+82` is refuted on this tree. The difference is exactly the TU(s) inside B and C that fail A and that the port ALREADY accepts (D or E), so modelling the emit set makes them reachable without adding them to the codegen frontier: ["fixtures/cpp/il_gl_sep26.cpp", "fixtures/cpp/wlo_dyninit_mixed.cpp"]
+  GREEDY LADDER — next section name to teach the writer, and the resulting C (3 steps from 306 to 312):
+    +.rdata$r     C =   310   (+4)
+    +.text$yd     C =   311   (+1)
+    +.tls$        C =   312   (+1)
+
+  PROGRESS MASS — a PROGRESS metric, NEVER a correctness signal (docs/PROGRESS_METRIC.md).
+    The byte-exact differential is the SOLE judge; `match` below is the only correctness count.
+    No term rewards emitted bytes: P counts proven preconditions (A, B, C against the reference obj)
+    and honest acceptance (the emitted census). A TU graded `mismatch` contributes 0 to every
+    numerator, so a wrong emit always scores below the refusal it replaced.
+    P = mean(a, b, c, f) over 312 graded TUs = 0.90298
+      a  emit-set reachable (A)         309/312  = 0.99038
+      b  binding complete (B)           311/312  = 0.99679
+      c  section shape (C)              306/312  = 0.98077
+      f  emitted fns in class     1751/2719  = 0.64399
+    mismatch-zeroed TUs: 0
+
+  FUNCTION BYTE MATCH (FBM) — a PROGRESS instrument, NEVER a gate (docs/FUNCTION_BYTE_MATCH.md).
+    The judge's own predicate — byte-identical to real c2 — asked per EMITTED FUNCTION instead of
+    per TU. No partial credit: a wrong body scores exactly what a refusal scores, which is 0.
+    The denominator is counted off c2's obj, so refusing more never shrinks it.
+    FBM = (1731 + 6)/2719 emitted functions byte-exact = 0.63884
+      exact           1731  (63.66%)   CREDITED — per-function route, bytes identical to c2's
+      whole-TU           6  ( 0.22%)   CREDITED — on a TU the differential graded `match`; the judge certified the whole obj
+      differs            5  ( 0.18%)   complete port body, bytes differ
+      reloc-diff         1  ( 0.04%)   bytes IDENTICAL, RELOCATIONS DIFFER — two bodies branching to two different functions (board #884)
+      reloc-unk          0  ( 0.00%)   bytes identical, reference relocation table did not decode — UNGRADED, never credited
+      partial           13  ( 0.48%)   selected; the PORT's own /Gy composition declined the body (board #322 closed the harness's half)
+      refused          965  (35.49%)   the port declines the function
+      unbound            4  ( 0.15%)   no census row claims the symbol
+      no-bytes           0  ( 0.00%)   COMDAT raw data did not decode
+    objs unreadable (contribute NO denominator): 0   partition breaks (known answer 0): 0
+    KNOWN-ANSWER CONTROL — per-function bodies that DIFFER on a TU the oracle graded `match` (must be 0): 0
+    FIVE-ALARM CONTROL — byte-exact bodies whose RELOCATIONS differ on a `match` TU (must be 0): 0
+    census/gate disagreement on EMITTED fns (the error term on the emitted census, target 0): 1
+    NOTE: the buckets partition the denominator by the PER-FUNCTION route alone; on a `match` TU the whole-obj verdict supersedes them.
+    RELOC-EQ (lane w-relo, board #884 — `exact` now means bytes AND relocations):
+      bytes-exact     1732   the OLD `exact`, i.e. what this instrument credited before relocations were graded
+      graded          1732   of those, how many got a relocation verdict; residue (ungraded) 0   reach breaks (known answer 0): 0
+      of the CREDITED, 726 carry at least one relocation — every one compared by offset, packed type and TARGET SYMBOL NAME.
+    reloc-differ families (shape|kind|where->where|relation), most frequent first:
+           1  tail|target|local->extern|chain1
+    reloc-differ signatures: 1 distinct over 1 functions; top rows with one example symbol each:
+           1  tail|target|n1/1|@0|REL24@0 -> ?g@@YAXXZ => REL24@0 -> ?h@@YAXXZ   e.g. ?f@@YAXXZ
+    forensic (differs class ONLY, credited nowhere): 10 of 23 reference words positionally equal, port wrote 23 words
+    partial by shape: float-const 11 · seq-compose 2
+    graded by shape × verdict: parse-refused/refused 964 · plain/exact 933 · tail/exact 312 · seq/exact 265 · cond-pair/exact 77 · float/exact 73 · framed/exact 59 · float-const/partial 11 · float/differs 5 · if-call-join/exact 5 · unbound/unbound 4 · guard-chain-shared-tail/exact 3 · seq/partial 2 · alloc-init-or-fail/exact 1 · json-utf8-copy/exact 1 · osf-handle-guard/exact 1 · refused/refused 1 · tail/reloc-differs 1 · xlrc-create-guard/exact 1
+    CALL TARGETS (name, not bytes): 1737 graded · 1736 agree · 1 disagree (1 of them EXACT-and-wrong, 0 differs) · 0 by count, 1 by name · 0 ungraded
+      fixtures/cpp/wor_emit_order_neg.cpp|?f@@YAXXZ|port=0x0:?g@@YAXXZ|ref=0x0:?h@@YAXXZ
+    DIFFERS WITNESSES — 5 distinct functions in 5 SIGNATURES (shape | port/ref/equal words | first disagreeing word):
+           1  float|w4/4/eq2|first@1:port=eda000f2,ref=ec0000f2   e.g. ?fm4@@YAMMMMM@Z
+           1  float|w4/4/eq2|first@1:port=eda01828,ref=ec001828   e.g. ?fs4@@YAMMMMM@Z
+           1  float|w4/4/eq2|first@1:port=eda0182a,ref=ec00182a   e.g. ?fa4@@YAMMMMM@Z
+           1  float|w5/5/eq2|first@1:port=eda000f2,ref=ec0000f2   e.g. ?fm5@@YAMMMMMM@Z
+           1  float|w6/6/eq2|first@1:port=eda000f2,ref=ec0000f2   e.g. ?fm6@@YAMMMMMMM@Z
+    DIFF STRUCTURE — 5 signatures in 1 clusters (shape | length | edit shape | field classes).
+      accounting breaks (equal+sub+del == ref words, known answer 0): 0   LCS-capped rows: 0   pure reorderings (same instruction multiset): 0   first word already wrong: 0
+           5 (100.0%)  float|same-len|sub-only|reg
+      substituted WORDS by decoded field class (13 words, 0 undecoded = 0.0% — a word is decoded only if its form's field partition re-encodes it bit-exactly):
+        reg 13
+      first divergence, by word index: w1:5
+      relocation-aware: 0 substitutions and 0 deletions sit under a relocation (0 records not word-aligned, known answer 0)
+    per-TU FBM over 287 TUs with emitted functions — ≥100%: 150, ≥90%: 150, ≥50%: 165, ≥10%: 195
+
+  GAP-METRICS — stable `key value` pairs for scripts/status.sh; keys are an interface, do not rename. The projection `emit-predicate-worth` = `b-and-c` − `a-and-b-and-c` is derived HERE on purpose (board #213):
+    gap-metric tu-total 312
+    gap-metric graded 312
+    gap-metric match 156
+    gap-metric mismatch 0
+    gap-metric codegen-gap 9
+    gap-metric vocab-gap 147
+    gap-metric port-error 0
+    gap-metric capture-fail 0
+    gap-metric factor-a 309
+    gap-metric factor-a-lo 308
+    gap-metric factor-b 311
+    gap-metric factor-c 306
+    gap-metric factor-d 174
+    gap-metric factor-e 25
+    gap-metric b-and-c 305
+    gap-metric a-and-b-and-c 303
+    gap-metric a-and-b-and-c-and-d 171
+    gap-metric a-and-b-and-c-and-d-or-e 177
+    gap-metric frontier 126
+    gap-metric frontier-if-a 126
+    gap-metric emit-predicate-worth 2
+    gap-metric writer-sections 10
+    gap-metric cfg-reach-bottom 0
+    gap-metric cfg-reach-enumerated 110
+    gap-metric cfg-reach-shipped 110
+    gap-metric cfg-reach-top 125
+    gap-metric cfg-bounds-violations 0
+    gap-metric cfg-subclass-entries 4
+    gap-metric cfg-subclass-restricted 0
+    gap-metric cfg-subclass-unwitnessed 0
+    gap-metric cfg-subclass-intruders 0
+    gap-metric workload-sections 13
+    gap-metric ladder-steps 3
+    gap-metric cflow-emitted-branchy 149
+    gap-metric cflow-emitted-modeled 23
+    gap-metric cflow-residue-inclass-modeled 604
+    gap-metric cflow-residue-inclass-offclass 1147
+    gap-metric cflow-residue-straight-modeled-blocked 191
+    gap-metric cflow-offclass-accounted 1147
+    gap-metric cflow-offclass-off-add-inclass 332
+    gap-metric cflow-offclass-off-add-blocked 111
+    gap-metric cflow-offclass-compare-inclass 239
+    gap-metric cflow-offclass-compare-blocked 91
+    gap-metric cflow-offclass-bind-inclass 227
+    gap-metric cflow-offclass-bind-blocked 154
+    gap-metric cflow-offclass-load-type-inclass 152
+    gap-metric cflow-offclass-load-type-blocked 114
+    gap-metric cflow-offclass-intrinsic-inclass 65
+    gap-metric cflow-offclass-intrinsic-blocked 66
+    gap-metric cflow-offclass-deref-inclass 48
+    gap-metric cflow-offclass-deref-blocked 43
+    gap-metric cflow-offclass-bitwise-inclass 20
+    gap-metric cflow-offclass-bitwise-blocked 19
+    gap-metric cflow-offclass-rmw-inclass 15
+    gap-metric cflow-offclass-rmw-blocked 31
+    gap-metric cflow-offclass-shift-inclass 15
+    gap-metric cflow-offclass-shift-blocked 16
+    gap-metric cflow-offclass-subscript-inclass 15
+    gap-metric cflow-offclass-subscript-blocked 7
+    gap-metric cflow-offclass-store-type-inclass 9
+    gap-metric cflow-offclass-store-type-blocked 18
+    gap-metric cflow-offclass-lit-type-inclass 5
+    gap-metric cflow-offclass-lit-type-blocked 13
+    gap-metric cflow-offclass-div-mod-inclass 4
+    gap-metric cflow-offclass-div-mod-blocked 0
+    gap-metric cflow-offclass-convert-out-of-class-inclass 1
+    gap-metric cflow-offclass-convert-out-of-class-blocked 31
+    gap-metric cflow-offclass-temp-inclass 0
+    gap-metric cflow-offclass-temp-blocked 3
+    gap-metric cflow-offclass-ternary-inclass 0
+    gap-metric cflow-offclass-ternary-blocked 3
+    gap-metric cflow-offclass-virtual-slot-inclass 0
+    gap-metric cflow-offclass-virtual-slot-blocked 13
+    gap-metric ladder-head .rdata$r
+    gap-metric ladder-head-c 310
+    gap-metric progress-mass 0.90298
+    gap-metric progress-emitted-in-class 1751
+    gap-metric progress-emitted-total 2719
+    gap-metric progress-mismatch-zeroed 0
+    gap-metric fnbyte-match 0.63884
+    gap-metric fnbyte-exact 1731
+    gap-metric fnbyte-denominator 2719
+    gap-metric fnbyte-differs 5
+    gap-metric fnbyte-partial 13
+    gap-metric fnbyte-refused 965
+    gap-metric fnbyte-unbound 4
+    gap-metric fnbyte-partition-broken 0
+    gap-metric fnbyte-census-disagree 1
+    gap-metric fnbyte-exact-relocated 726
+    gap-metric fnbyte-reloc-differs 1
+    gap-metric fnbyte-reloc-unknown 0
+    gap-metric fnbyte-reloc-graded 1732
+    gap-metric fnbyte-exact-bytes 1732
+    gap-metric fnbyte-reloc-partition-broken 0
+    gap-metric fnbyte-match-tu-reloc-differs 0
+    gap-metric fnbyte-reloc-table-unreadable 0
+    gap-metric fnbyte-reloc-index-desync 0
+    gap-metric fnbyte-reloc-graded-relocated 727
+    gap-metric fnbyte-reloc-differs-count 0
+    gap-metric fnbyte-reloc-differs-offset 0
+    gap-metric fnbyte-reloc-differs-type 0
+    gap-metric fnbyte-reloc-differs-target 1
+    gap-metric fnbyte-reloc-differs-section-target 0
+    gap-metric fnbyte-reloc-witnesses 1
+    gap-metric fnbyte-match-tu-differs 0
+    gap-metric fnbyte-whole-tu 6
+    gap-metric fnbyte-tus-full 150
+    gap-metric fnbyte-tus 287
+    gap-metric fnbyte-elided 1
+    gap-metric fnbyte-elided-exact 1
+    gap-metric fnbyte-elided-ref-reloc 0
+    gap-metric fnbyte-name-disagree 47
+    gap-metric fnbyte-calltarget-graded 1737
+    gap-metric fnbyte-calltarget-agree 1736
+    gap-metric fnbyte-calltarget-disagree 1
+    gap-metric fnbyte-calltarget-disagree-exact 1
+    gap-metric fnbyte-calltarget-disagree-differs 0
+    gap-metric fnbyte-calltarget-disagree-name 1
+    gap-metric fnbyte-calltarget-disagree-count 0
+    gap-metric fnbyte-calltarget-ungraded 0
+    gap-metric fnbyte-call-targets-unreadable 0
+    gap-metric fnbyte-reloc-vs-calltarget-both 1
+    gap-metric fnbyte-reloc-vs-calltarget-reloc-only 0
+    gap-metric fnbyte-reloc-vs-calltarget-calltarget-only 0
+    gap-metric fnbyte-noeffect-rows 0
+    gap-metric fnbyte-noeffect-admitted 0
+    gap-metric fnbyte-noeffect-ref-blr 0
+    gap-metric fnbyte-noeffect-ref-other 0
+    gap-metric fnbyte-noeffect-ref-absent 0
+    gap-metric fnbyte-noeffect-callee-unbound 0
+    gap-metric fnbyte-noeffect-callee-parsed-live 0
+    gap-metric fnbyte-noeffect-callee-refused 0
+    gap-metric fnbyte-nothing-rows 0
+    gap-metric fnbyte-nothing-ref-blr 0
+    gap-metric fnbyte-nothing-ref-other 0
+    gap-metric fnbyte-nothing-ref-absent 0
+    gap-metric fnbyte-nothing-not-admitted 0
+    gap-metric fnbyte-nothing-unnamed 0
+    gap-metric fnbyte-shape-parse-refused-refused 964
+    gap-metric fnbyte-shape-plain-exact 933
+    gap-metric fnbyte-shape-tail-exact 312
+    gap-metric fnbyte-shape-seq-exact 265
+    gap-metric fnbyte-shape-cond-pair-exact 77
+    gap-metric fnbyte-shape-float-exact 73
+    gap-metric fnbyte-shape-framed-exact 59
+    gap-metric fnbyte-shape-float-const-partial 11
+    gap-metric fnbyte-shape-float-differs 5
+    gap-metric fnbyte-shape-if-call-join-exact 5
+    gap-metric fnbyte-shape-unbound-unbound 4
+    gap-metric fnbyte-shape-guard-chain-shared-tail-exact 3
+    gap-metric fnbyte-shape-seq-partial 2
+    gap-metric fnbyte-shape-alloc-init-or-fail-exact 1
+    gap-metric fnbyte-shape-json-utf8-copy-exact 1
+    gap-metric fnbyte-shape-osf-handle-guard-exact 1
+    gap-metric fnbyte-shape-refused-refused 1
+    gap-metric fnbyte-shape-tail-reloc-differs 1
+    gap-metric fnbyte-shape-xlrc-create-guard-exact 1
+    gap-metric fnbyte-decline-parse 964
+    gap-metric fnbyte-decline-opt-mode 0
+    gap-metric fnbyte-decline-selector 1
+    gap-metric fnbyte-decline-gy-shape 13
+    gap-metric fnbyte-decline-data-ref 0
+    gap-metric fnbyte-refused-parse 964
+    gap-metric fnbyte-refused-codegen 1
+    gap-metric fnbyte-refused-split-broken 0
+    gap-metric fnbyte-differs-witnesses 5
+    gap-metric frontier-bytefrac-top-tu fixtures/cpp/w21_census_gate.cpp
+    gap-metric frontier-bytefrac-top-accepted 120
+    gap-metric frontier-bytefrac-top-denominator 136
+    gap-metric frontier-bytefrac-zero 76
+    gap-metric frontier-bytefrac-no-denominator 0
+    gap-metric frontier-codegen-denominator 1093
+    gap-metric frontier-codegen-exact 145
+    gap-metric frontier-codegen-wrong 5
+    gap-metric frontier-codegen-refused 6
+    gap-metric frontier-codegen-reader 937
+    gap-metric frontier-codegen-ungraded 0
+    gap-metric frontier-codegen-measured 11
+    gap-metric frontier-codegen-partition-broken 0
+    gap-metric bytefrac-control-full 132
+    gap-metric bytefrac-control-no-denominator 18
+    gap-metric bytefrac-control-shortfall-explained 6
+    gap-metric bytefrac-control-unexplained 0
+    gap-metric alias-runs 3891
+    gap-metric alias-tag10 2
+    gap-metric alias-head-fail 0
+    gap-metric alias-rt-fail 0
+    gap-metric alias-unbound-target 0
+    gap-metric alias-self 0
+    gap-metric alias-dup 0
+    gap-metric alias-bound 2
+    gap-metric alias-shape-e-to-g 2
+    gap-metric alias-dom-with-body 0
+    gap-metric alias-null-m1-bound 0
+    gap-metric alias-null-m1-shape 0
+    gap-metric alias-null-p1-bound 0
+    gap-metric alias-null-p1-shape 0
+    gap-metric alias-dom-emitted 0
+    gap-metric alias-dom-emitted-tus 0
+    gap-metric alias-target-emitted 1
+    gap-metric alias-inref-total 78
+    gap-metric alias-inref-unbound 4
+    gap-metric alias-inref-alias 2
+    gap-metric alias-inref-records 2
+    gap-metric alias-inref-tus 2
+    gap-metric alias-datatu-relocs 6
+    gap-metric alias-datatu-relocs-alias 0
+    gap-metric alias-emit-names 0
+    gap-metric alias-obj-relocs 3474
+    gap-metric alias-obj-reloc-alias 1
+    gap-metric alias-obj-reloc-alias-tus 1
+    gap-metric alias-obj-reloc-target 1
+    gap-metric alias-obj-reloc-unreadable 0
+    gap-metric alias-weak-records 1
+    gap-metric alias-weak-predicted 1
+    gap-metric alias-weak-default-disagree 0
+    gap-metric alias-weak-unpredicted 0
+    gap-metric alias-weak-not-search-library 0
+    gap-metric alias-weak-unreadable 0
+    gap-metric alias-weak-tus 1
+    gap-metric alias-weak-exact-tus 1
+    gap-metric alias-unrealized 1
+    gap-metric alias-rule-predicted 1
+    gap-metric alias-rule-miss 0
+    gap-metric alias-rule-extra 0
+    gap-metric alias-rule-exact-tus 312
+    gap-metric alias-weak-needed-tus 1
+    gap-metric alias-weak-needed-in-b-and-c 0
+    gap-metric alias-weak-needed-in-frontier 0
+  GAP-FACTOR-TUS: NOT REQUESTED — pass `--factors-tsv PATH` for the per-TU A/B/C/D/E membership. The joints above are counts; `|{some per-TU set} and B and C|` cannot be got from one, and multiplying a rate by a joint count is how `B and C` stayed published at 107 after C moved.
+
+GAP REPORT (312 TUs in 2.2s)
+  match           156   50.0%
+  mismatch          0    0.0%
+  codegen-gap       9    2.9%
+  vocab-gap       147   47.1%
+  port-error        0    0.0%
+  capture-fail      0    0.0%
+  capture cache: 0 hit, 312 miss, 0 uncacheable  |  validator: 0 re-captured and agreed (0 of them only after zeroing the COFF TimeDateStamp), 0 POISONED
+  cache entries REFUSED on provenance: 0 (expected 0 — an entry whose recorded capture path is not where it is being served from is re-captured, never served)
+
+  FUNCTION CENSUS (P2b): 1751/2720 functions in class (64.38%)
+  census/gate DISAGREEMENT: 12 (0.69% of the numerator) — the census OVER-CLAIMS by this much
+         12  not implemented
+  .gl binding invariants: 0 violations (every generated destructor resolves to a destructor)
+         26  dtor-callee-1
+
+  EMITTED CENSUS (§8): 1751/2719 emitted functions in class (64.40%)
+    bound 2715  |  residue 4: 0 compiler-generated (no IL body), 4 unexplained  (0.15% of the denominator)
+    ceiling if every residue symbol were in class: 1755 (64.55%)
+    ground truth VIOLATED: 6 emitted symbols on the 156 byte-exact TUs did not bind to an in-class row — the BINDING is wrong, not the port
+    binding: 2723 records, 0 nameless, 2 before the first row, 2 row-conflicts, 0 name-conflicts, 0 accounting breaks, 0 unreadable objs
+    binding arity (#144 — residue 0 is not a control): 2723 record offsets against 2723 records, 0 arity breaks (known answer 0)
+    .in initializers: 11621 records = 11620 accepted + 1 residue, 14037 elements (ARITY), 11620 values (TOKENS, not records), 0 duplicate records, 0 conflicts, 0 accounting breaks (known answer 0)
+    .in symbol addresses (element tag 02, board #931): 78 elements over 58 records
+    .in UNANCHORED (the denominator, board #961): 17 records whose first element is a tag-03 blob or a tag-08 fill, 0 `00 02` candidates dropped by the fail-closed arm, 0 anchors with no token — none of these is in `records` OR in the residue
+      .in residue symbol-address              0
+      .in residue floating-point              1
+      .in residue unknown-type                0
+      .in residue unknown-width               0
+      .in residue value-did-not-frame         0
+      .in residue pointer-width               0
+      .in residue zero-fill                   0
+      .in residue inline-bytes                0
+      .in residue truncated                   0
+      residue ordinary                   4 (100.0% of the unexplained)
+    TU distance to matching (blocked functions) — ≤0: 147, ≤1: 167, ≤10: 254, ≤100: 287, ≤1000: 287
+    TU distance to matching (blocked EMITTED functions) — ≤0: 149, ≤1: 169, ≤10: 254, ≤100: 287, ≤1000: 287
+    emit-set ceiling: 308 of 312 graded TUs have `.ex` segments == obj `.text` COMDATs — the most TU match can reach before ROADMAP §8.3 Phase 7 (violations among matching TUs, must be 0: 0)
+    emit-set MODEL ceiling: 311 of 312 TUs bind every emitted symbol today; 312 would if `bind.rs` lost none; 0 carry an emitted symbol with NO `.gl` body record and are a wall for any segment-driven model
+      unbound emitted symbols: 4 have a body record (instrument defect), 0 have none (wall) — nesting invariant, must hold: today <= repaired (true), repaired + wall == graded (true)
+    the widening order OVER EMITTED CODE (964 blocked):
+           97 ( 10.1%)  expr-op-0x27
+           59 (  6.1%)  expr-load-type-8645
+           38 (  3.9%)  expr-cmp-ne
+           35 (  3.6%)  expr-cmp-eq
+           30 (  3.1%)  expr-ptr-arith:mid
+           29 (  3.0%)  expr-jump
+           27 (  2.8%)  expr-op-0x30
+           24 (  2.5%)  expr-brfalse
+           19 (  2.0%)  expr-out-of-class-tree-depth:eof
+           17 (  1.8%)  assign-dst-not-formal-0x26
+           14 (  1.5%)  call-arg-lit-permuted:eof
+           14 (  1.5%)  expr-load-type-8885
+           13 (  1.3%)  body-0x67
+           13 (  1.3%)  expr-affine-pending-imm:eof
+           11 (  1.1%)  assign-rhs-call-0x26
+           11 (  1.1%)  expr-intrinsic-this-adjust
+           11 (  1.1%)  expr-load-type-8211
+           10 (  1.0%)  callseq-tail-lit:mid
+           10 (  1.0%)  data-sym-not-extern:eof
+           10 (  1.0%)  expr-cmp-ge
+      … and 188 more distinct features
+    TUs within 100 blocked functions of matching: 287 (blocked | emitted in-class/emitted | src)
+          0 |    9/9    | fixtures/cpp/il_accum4.cpp [match]
+          0 |    7/7    | fixtures/cpp/il_base_member.cpp [match]
+          0 |    6/6    | fixtures/cpp/il_bool_materialization.cpp [match]
+          0 |    6/6    | fixtures/cpp/il_call_args2.cpp [match]
+          0 |    7/7    | fixtures/cpp/il_call_perm.cpp [match]
+          0 |    5/5    | fixtures/cpp/il_call_value.cpp [match]
+          0 |    2/2    | fixtures/cpp/il_dllexport_neg.cpp [vocab-gap]
+          0 |    1/1    | fixtures/cpp/il_drectve_pragma.cpp [vocab-gap]
+          0 |   16/16   | fixtures/cpp/il_expr_deref.cpp [match]
+          0 |    6/6    | fixtures/cpp/il_expr_member.cpp [match]
+          0 |    2/2    | fixtures/cpp/il_extern_c_name.cpp [vocab-gap]
+          0 |    1/1    | fixtures/cpp/il_gl_data_symbol.cpp [vocab-gap]
+          0 |    2/2    | fixtures/cpp/il_intra_tu_call.cpp [vocab-gap]
+          0 |    1/1    | fixtures/cpp/il_line_marker.cpp [match]
+          0 |    9/9    | fixtures/cpp/il_param_aggr.cpp [match]
+          0 |    3/3    | fixtures/cpp/il_param_poly.cpp [match]
+          0 |   16/16   | fixtures/cpp/il_reassoc.cpp [match]
+          0 |    3/3    | fixtures/cpp/il_stmt_local_decl.cpp [match]
+          0 |    3/3    | fixtures/cpp/il_stmt_param_assign.cpp [match]
+          0 |    7/7    | fixtures/cpp/il_stmt_scope.cpp [match]
+          0 |    4/4    | fixtures/cpp/il_stmt_seq.cpp [match]
+          0 |   10/10   | fixtures/cpp/il_sy_locals_clean.cpp [match]
+          0 |    4/4    | fixtures/cpp/il_sy_size_extent.cpp [match]
+          0 |    2/2    | fixtures/cpp/il_this_line70.cpp [match]
+          0 |   11/11   | fixtures/cpp/il_this_straightline.cpp [match]
+          0 |   12/12   | fixtures/cpp/il_type_intlike.cpp [match]
+          0 |    1/1    | fixtures/cpp/mvp_add3.cpp [match]
+          0 |    1/1    | fixtures/cpp/mvp_argtail.cpp [match]
+          0 |    1/1    | fixtures/cpp/mvp_call.cpp [match]
+          0 |   10/10   | fixtures/cpp/mvp_call_seq.cpp [match]
+          0 |   18/18   | fixtures/cpp/mvp_call_seq_b.cpp [match]
+          0 |    1/1    | fixtures/cpp/mvp_call_submod.cpp [match]
+          0 |    1/1    | fixtures/cpp/mvp_call_twice.cpp [match]
+          0 |    1/1    | fixtures/cpp/mvp_edit_ab.cpp [match]
+          0 |    1/1    | fixtures/cpp/mvp_edit_addk.cpp [match]
+          0 |    1/1    | fixtures/cpp/mvp_edit_addk2.cpp [match]
+          0 |    1/1    | fixtures/cpp/mvp_fmul3.cpp [match]
+          0 |    1/1    | fixtures/cpp/mvp_framed.cpp [match]
+          0 |    3/3    | fixtures/cpp/mvp_lit.cpp [match]
+          0 |    1/1    | fixtures/cpp/mvp_plus0.cpp [match]
+          0 |    3/3    | fixtures/cpp/mvp_sub.cpp [match]
+          0 |    1/1    | fixtures/cpp/mvp_tailret.cpp [match]
+          0 |    2/2    | fixtures/cpp/mvp_two.cpp [match]
+          0 |    3/3    | fixtures/cpp/mvp_wide.cpp [match]
+          0 |    2/2    | fixtures/cpp/w10_empty_fn.cpp [match]
+          0 |   12/12   | fixtures/cpp/w10_guarded_seq.cpp [match]
+          0 |   15/15   | fixtures/cpp/w1199_bind_run.cpp [match]
+          0 |   15/15   | fixtures/cpp/w11_early_return.cpp [match]
+          0 |    9/9    | fixtures/cpp/w1212_bind_run_call.cpp [match]
+          0 |    5/5    | fixtures/cpp/w1274_addr_producer.cpp [match]
+          0 |   51/51   | fixtures/cpp/w12_narrow_getters.cpp [match]
+          0 |   13/13   | fixtures/cpp/w12_ptr_leaf.cpp [match]
+          0 |    1/1    | fixtures/cpp/w13b_fconst.cpp [codegen-gap]
+          0 |    4/4    | fixtures/cpp/w13b_fdedup.cpp [codegen-gap]
+          0 |    9/9    | fixtures/cpp/w14_dtor_delegate.cpp [match]
+          0 |   10/10   | fixtures/cpp/w15_dtor_member.cpp [match]
+          0 |   29/29   | fixtures/cpp/w16_addr_leaf.cpp [match]
+          0 |   23/23   | fixtures/cpp/w17_ptr_operand.cpp [match]
+          0 |   38/38   | fixtures/cpp/w18_reg_move.cpp [match]
+          0 |   17/17   | fixtures/cpp/w19_ctor_this.cpp [match]
+      … and 227 more
+  blocking features (the widening order):
+         98 ( 10.1%)  expr-op-0x27
+         59 (  6.1%)  expr-load-type-8645
+         38 (  3.9%)  expr-cmp-ne
+         35 (  3.6%)  expr-cmp-eq
+         30 (  3.1%)  expr-ptr-arith:mid
+         29 (  3.0%)  expr-jump
+         27 (  2.8%)  expr-op-0x30
+         24 (  2.5%)  expr-brfalse
+         19 (  2.0%)  expr-out-of-class-tree-depth:eof
+         17 (  1.8%)  assign-dst-not-formal-0x26
+         14 (  1.4%)  call-arg-lit-permuted:eof
+         14 (  1.4%)  expr-load-type-8885
+         13 (  1.3%)  body-0x67
+         13 (  1.3%)  expr-affine-pending-imm:eof
+         11 (  1.1%)  assign-rhs-call-0x26
+         11 (  1.1%)  data-sym-not-extern:eof
+         11 (  1.1%)  expr-intrinsic-this-adjust
+         11 (  1.1%)  expr-load-type-8211
+         10 (  1.0%)  callseq-tail-lit:mid
+         10 (  1.0%)  expr-cmp-ge
+    … and 189 more distinct features
+  frame class (CALL tokens per body — decode-only, §18):
+       1553 ( 57.1%)  calls-0
+        692 ( 25.4%)  calls-1
+        475 ( 17.5%)  calls-2plus
+         77           calls-2plus|cond-tail-pair
+         52           calls-2plus|call-sequence-value
+         45           calls-2plus|call-sequence
+         30           calls-2plus|call-sequence-cmp-order
+         20           calls-2plus|expr-cmp-eq
+         19           calls-2plus|call-sequence-load-fp
+         16           calls-2plus|call-sequence-cmp-eq
+         13           calls-2plus|call-sequence-load
+         12           calls-2plus|call-sequence-guarded
+         10           calls-2plus|assign-rhs-call-0x26
+  control-flow class (statement layer, decode-only): 2698 of 2720 bodies decoded end to end (99.2%)
+       1603 ( 58.9%)  cflow-straight
+        782 ( 28.8%)  cflow-straight+expr-modeled
+        145 (  5.3%)  cflow-if-1
+         68 (  2.5%)  cflow-loop
+         55 (  2.0%)  cflow-if-n
+         14 (  0.5%)  cflow-multi-exit+expr-modeled
+         12 (  0.4%)  cf-no-body
+         11 (  0.4%)  cflow-if-1+expr-modeled
+          9 (  0.3%)  cflow-if-2
+          7 (  0.3%)  cf-expr-0x59
+          7 (  0.3%)  cflow-loop+expr-modeled
+          3 (  0.1%)  cf-expr-0x08
+          3 (  0.1%)  cflow-if-2+expr-modeled
+          1 (  0.0%)  cflow-switch+expr-modeled
+         77           cflow-if-1|cond-tail-pair
+         28           cflow-loop|expr-jump
+         20           cflow-if-1|call-sequence-early-return
+         16           cflow-if-1|expr-cmp-eq
+         12           cflow-if-1|call-sequence-guarded
+         12           cflow-loop|counted-accum-loop
+         10           cflow-if-1+expr-modeled|expr-brfalse
+         10           cflow-if-n|assign-rhs-call-0x26
+         10           cflow-if-n|expr-cmp-ge
+         10           cflow-loop|expr-brfalse
+          9           cflow-if-n|expr-cmp-ne
+          8           cflow-if-n|expr-cmp-eq
+    CONTROL-FLOW COUNTERFACTUAL (board #1343) — what a block IR would convert BY ITSELF: 36 bodies, 23 of the 149 blocked EMITTED functions a block IR must serve. Neither is a bound — both are a PROXY whose two-sided error the next two lines measure. Never quote one without them.
+    RESIDUE CONTROL (board #1344) — `CfResidue::Modeled` is a hand-written mirror of the port's class and NOTHING checked it against the port. It calls 1147 of the 1751 bodies the port ACCEPTS off-class (65.5%), recognising only 604. NOT a gate and NOT an error: a residue LOOSER than the emitter would over-claim, which is worse. What it IS is the counterfactual's error term, and it was assumed rather than measured for eight days.
+    …and it errs BOTH WAYS, so `lower bound` is the wrong word for the line above: 191 straight-line bodies are `+expr-modeled` and the port REFUSES them anyway. `Modeled` neither contains nor is contained in the class — it is a different predicate, and the counterfactual inherits both differences.
+  EH class (maxState, decode-only): 4 of 2720 bodies have maxState >= 1 and need the whole EH record (0.1%)
+       2658 ( 97.7%)  eh-none       blocked     940
+         36 (  1.3%)  eh-state0     blocked       3
+         22 (  0.8%)  eh-unknown    blocked      22
+          4 (  0.1%)  eh-state1     blocked       4
+    blocked residue, by census key (accepted shapes excluded):
+          7           eh-unknown|BLOCKED|data-sym-not-extern:eof
+          7           eh-unknown|BLOCKED|expr-load-type-8645
+          4           eh-unknown|BLOCKED|data-sym-unresolved:eof
+          2           eh-state0|BLOCKED|expr-intrinsic-this-adjust
+          2           eh-unknown|BLOCKED|expr-load-type-8885
+          1           eh-state0|BLOCKED|expr-intrinsic-base-member-addr
+          1           eh-state1|BLOCKED|expr-call-in-expr-recv-intrinsic-this-adjust-then-call-recv-field-whole
+          1           eh-state1|BLOCKED|expr-call-in-expr-recv-intrinsic-this-adjust-then-chain-bind-whole
+          1           eh-state1|BLOCKED|expr-call-in-expr-recv-intrinsic-this-adjust-whole
+          1           eh-state1|BLOCKED|expr-intrinsic-this-adjust
+          1           eh-unknown|BLOCKED|expr-call-in-expr-recv-object-then-call-nested-call-and-call-whole2
+          1           eh-unknown|BLOCKED|expr-op-0x27
+    in-class control group (ACCEPTED functions, never a rung):
+         14           eh-state0|INCLASS|empty-dtor-delegation
+          9           eh-state0|INCLASS|empty-dtor-member-adjusted
+          7           eh-state0|INCLASS|empty-ctor-base
+          3           eh-state0|INCLASS|empty-dtor-member
+    maxState x statement-count (the refuted predicate, for reconciliation):
+         33           eh-migrate|eh-state0|eh-bare
+         22           eh-migrate|eh-unknown|eh-unknown
+          3           eh-migrate|eh-state0|eh-plus-stmt
+          3           eh-migrate|eh-state1|eh-multi
+          1           eh-migrate|eh-state1|eh-plus-stmt
+  grammar completeness (decode-only): 2720 of 2720 bodies read
+       1751 ( 64.4%)  complete-in-class               blocked       0
+        609 ( 22.4%)  complete-none                   blocked     609
+        184 (  6.8%)  complete-whole:segment-end      blocked     184
+         91 (  3.3%)  complete-partial:segment-end    blocked      91
+         61 (  2.2%)  complete-whole:grammar          blocked      61
+         12 (  0.4%)  complete-more:grammar           blocked      12
+         12 (  0.4%)  complete-unmeasured:grammar     blocked      12
+    grammar-COMPLETE and blocked, both producers summed: 245
+  body dispatch (which recognizer claimed the body, decode-only): 2720 of 2720 bodies tagged on the dispatch axis, 2720 on the production axis
+        404 ( 14.9%)  disp-plain-call                   blocked     142
+        399 ( 14.7%)  disp-expr-load                    blocked     399
+        356 ( 13.1%)  disp-straight-line                blocked      57
+        305 ( 11.2%)  disp-member-call                  blocked      79
+        241 (  8.9%)  disp-assign                       blocked     198
+        158 (  5.8%)  disp-indirect-load-leaf           blocked       0
+        104 (  3.8%)  disp-store-run                    blocked       0
+         90 (  3.3%)  disp-float-leaf                   blocked       0
+         89 (  3.3%)  disp-store-leaf                   blocked       0
+         77 (  2.8%)  disp-cond-tail-pair               blocked       0
+         59 (  2.2%)  disp-compare-leaf                 blocked       0
+         58 (  2.1%)  disp-cmp-shift-or                 blocked       0
+         55 (  2.0%)  disp-expr-lit                     blocked      55
+         46 (  1.7%)  disp-fp-tail-call                 blocked       0
+         37 (  1.4%)  disp-addr-leaf                    blocked       0
+         31 (  1.1%)  disp-store-run-bind               blocked       6
+         28 (  1.0%)  disp-early-return-seq             blocked       0
+         28 (  1.0%)  disp-ptr-identity-leaf            blocked       0
+         27 (  1.0%)  disp-empty-body                   blocked       1
+         26 (  1.0%)  disp-empty-dtor-delegation        blocked       0
+         20 (  0.7%)  disp-body-byte                    blocked      20
+         12 (  0.4%)  disp-counted-accum-loop           blocked       0
+         12 (  0.4%)  disp-guarded-seq                  blocked       0
+         11 (  0.4%)  disp-store-run-call               blocked       0
+         10 (  0.4%)  disp-empty-ctor-base-delegation   blocked       0
+          7 (  0.3%)  disp-formals-width                blocked       7
+          5 (  0.2%)  disp-if-call-join                 blocked       0
+          5 (  0.2%)  disp-static-scan-loop             blocked       2
+          4 (  0.1%)  disp-div-mod-leaf                 blocked       0
+          4 (  0.1%)  disp-ptr-walk-chain-loop          blocked       0
+          3 (  0.1%)  disp-guard-chain-shared-tail      blocked       0
+          3 (  0.1%)  disp-not-run                      blocked       3
+          2 (  0.1%)  disp-ptr-walk-loop                blocked       0
+          1 (  0.0%)  disp-alloc-init-or-fail           blocked       0
+          1 (  0.0%)  disp-json-utf8-copy               blocked       0
+          1 (  0.0%)  disp-osf-handle-guard             blocked       0
+          1 (  0.0%)  disp-xlrc-create-guard            blocked       0
+    blocked residue of the arms that never enter a member-call production:
+         89           disp-expr-load|BLOCKED|expr-op-0x27
+         42           disp-expr-load|BLOCKED|expr-load-type-8645
+         38           disp-expr-load|BLOCKED|expr-cmp-ne
+         33           disp-expr-load|BLOCKED|expr-cmp-eq
+         28           disp-expr-load|BLOCKED|expr-ptr-arith:mid
+         26           disp-expr-load|BLOCKED|expr-op-0x30
+         19           disp-straight-line|BLOCKED|expr-out-of-class-tree-depth:eof
+         17           disp-plain-call|BLOCKED|expr-load-type-8645
+         14           disp-expr-load|BLOCKED|expr-brfalse
+         14           disp-plain-call|BLOCKED|call-arg-lit-permuted:eof
+         13           disp-body-byte|BLOCKED|body-0x67
+         13           disp-straight-line|BLOCKED|expr-affine-pending-imm:eof
+         11           disp-expr-load|BLOCKED|expr-load-type-8211
+         11           disp-expr-load|BLOCKED|expr-load-type-8885
+         10           disp-expr-load|BLOCKED|expr-cmp-ge
+         10           disp-plain-call|BLOCKED|callseq-tail-lit:mid
+          8           disp-expr-load|BLOCKED|expr-load-type-8421
+          7           disp-body-byte|BLOCKED|body-cflow-label
+          7           disp-expr-lit|BLOCKED|expr-intrinsic-abs
+          7           disp-expr-load|BLOCKED|expr-cmp-gt
+          7           disp-expr-load|BLOCKED|expr-convert-target-8641
+          7           disp-formals-width|BLOCKED|param-multi-reg:mid
+          7           disp-plain-call|BLOCKED|call-arg-lit-wide:eof
+          7           disp-plain-call|BLOCKED|callseq-saved-with-first-call-setup:eof
+  member-call production first blocker (decode-only): 0 bodies entered a production, declined, and reached NO tagged bail — the tag-coverage residue (target 0)
+       2121 ( 78.0%)  prod-not-entered                  blocked     685
+        239 (  8.8%)  prod-accepted                     blocked      13
+         96 (  3.5%)  tail-recv-not-a-plain-b9-load/no-b9-literal  blocked      61
+         66 (  2.4%)  prod-committed-refusal            blocked      66
+         63 (  2.3%)  tail-recv-not-a-plain-b9-load/b9-not-a-ptr4  blocked      34
+         26 (  1.0%)  tail-recv-not-a-plain-b9-load/then-off-add  blocked       8
+         21 (  0.8%)  framed-result-not-consumed-by-a-literal-post-op  blocked      21
+         15 (  0.6%)  chain-recv-not-a-plain-b9-load/no-b9-plain-call  blocked       8
+         11 (  0.4%)  tail-recv-not-a-plain-b9-load/no-b9-this-adjust  blocked      11
+         10 (  0.4%)  tail-argument-not-in-the-operand-vocabulary  blocked      10
+          7 (  0.3%)  tail-void-body-does-not-end-at-the-call  blocked       7
+          5 (  0.2%)  chain-body-does-not-end-at-the-call  blocked       5
+          5 (  0.2%)  cmp-two-results-not-consumed-by-a-relation  blocked       5
+          4 (  0.1%)  chain-tail-designator-has-no-result-type  blocked       4
+          4 (  0.1%)  cmp-result-convert-not-a-plain-int  blocked       4
+          3 (  0.1%)  chain-link-does-not-bind-the-previous-result  blocked       3
+          3 (  0.1%)  tail-recv-not-a-plain-b9-load/no-b9-off-add  blocked       3
+          2 (  0.1%)  chain-link-argument-not-in-the-operand-vocabulary  blocked       2
+          2 (  0.1%)  chain-recv-not-a-plain-b9-load/no-b9-convert  blocked       2
+          2 (  0.1%)  chain-recv-not-a-plain-b9-load/no-b9-off-add  blocked       2
+          2 (  0.1%)  chain-void-body-does-not-end-at-the-call  blocked       2
+          2 (  0.1%)  cmp-relation-result-not-annotated-bool  blocked       2
+          2 (  0.1%)  tail-returned-body-does-not-end-at-the-call  blocked       2
+          1 (  0.0%)  chain-recv-not-a-plain-b9-load/b9-not-a-ptr4  blocked       1
+          1 (  0.0%)  chain-recv-not-a-plain-b9-load/then-deref-load  blocked       1
+          1 (  0.0%)  chain-recv-not-a-plain-b9-load/then-off-add  blocked       1
+          1 (  0.0%)  framed-post-op-body-does-not-end-at-the-return  blocked       1
+          1 (  0.0%)  tail-object-receiver-is-not-a-tail-call  blocked       1
+          1 (  0.0%)  tail-recv-not-a-plain-b9-load/no-b9-stmt-end  blocked       1
+          1 (  0.0%)  tail-recv-not-a-plain-b9-load/no-b9-temp-bind  blocked       1
+          1 (  0.0%)  tail-recv-not-a-plain-b9-load/then-deref-load  blocked       1
+          1 (  0.0%)  tail-recv-not-a-plain-b9-load/then-store  blocked       1
+         27           tail-recv-not-a-plain-b9-load/no-b9-literal|BLOCKED|expr-jump
+         16           tail-recv-not-a-plain-b9-load/b9-not-a-ptr4|BLOCKED|assign-dst-not-formal-0x26
+         11           tail-recv-not-a-plain-b9-load/no-b9-this-adjust|BLOCKED|expr-intrinsic-this-adjust
+         10           tail-recv-not-a-plain-b9-load/no-b9-literal|BLOCKED|assign-rhs-call-0x26
+         10           tail-recv-not-a-plain-b9-load/no-b9-literal|BLOCKED|expr-brfalse
+          9           prod-accepted|BLOCKED|data-sym-not-extern:eof
+          6           prod-committed-refusal|BLOCKED|mcall-chain-tail-load-width:mid
+          6           tail-recv-not-a-plain-b9-load/no-b9-literal|BLOCKED|assign-store-type-8643
+          5           framed-result-not-consumed-by-a-literal-post-op|BLOCKED|expr-call-in-expr-recv-load-whole
+          5           tail-argument-not-in-the-operand-vocabulary|BLOCKED|expr-call-in-expr-recv-load-then-temp-bind
+          5           tail-recv-not-a-plain-b9-load/no-b9-literal|BLOCKED|expr-label
+          4           framed-result-not-consumed-by-a-literal-post-op|BLOCKED|expr-call-in-expr-recv-load-then-cmp-gt-and-type-int1-whole2
+          4           prod-accepted|BLOCKED|data-sym-unresolved:eof
+          4           prod-committed-refusal|BLOCKED|call-arg-nonformal:eof
+          4           prod-committed-refusal|BLOCKED|call-arg-sym-permuted:eof
+          4           prod-committed-refusal|BLOCKED|mcall-cmp-args:eof
+          4           prod-committed-refusal|BLOCKED|mcall-cmp-rel-ge:eof
+          3           framed-result-not-consumed-by-a-literal-post-op|BLOCKED|expr-call-in-expr-recv-load-then-off-add-and-deref-load-whole2
+          3           prod-committed-refusal|BLOCKED|call-arg-computed:eof
+          3           prod-committed-refusal|BLOCKED|call-ret-fp:mid
+
+  top vocab gaps:
+      147 x il function decode failed
+
+  top codegen gaps:
+        7 x a TU that defines no functions but whose `.gl` names storage the bare four-secti…
+        2 x pooled floating-point constant under function-level linking (/Gy): sections inte…
