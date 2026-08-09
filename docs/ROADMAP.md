@@ -11599,9 +11599,35 @@ state rather than from the last lane's headline.
 **319 PASS, 2 ERROR**. `fixtures/cpp/wmain_no_return{,_neg}.cpp` (lane `w-main`,
 #2260–#2266) exercise a real class — a non-`void` function with no `return`,
 which never emits the `3A` exit-label assignment — that the Xbox 360 `cl.exe`
-**rejects outright at the selftest profile** (`/Ox /GS- /c`) with
-`error C4716: must return a value`, while compiling cleanly at the workload's
-flags (`/O1 /Oi /EHsc /GR /c` → 1,666 bytes, verified at the funnel).
+**rejects outright** with `error C4716: must return a value`.
+
+> **⚠ CORRECTED 2026-08-09, and the correction is mine, not a lane's.** This
+> paragraph first read *"…rejects at the selftest profile (`/Ox /GS- /c`) while
+> compiling cleanly at the workload's flags (`/O1 /Oi /EHsc /GR /c` → 1,666
+> bytes, verified at the funnel)."* **That is wrong, and the diagnosis I briefed
+> `w-oxfix` with was wrong with it.** `w-oxfix` measured eleven cells against
+> `cl.exe` directly and found **no flag word compiles this class** — `/Ox`,
+> `/O1`, `/O2`, `/Od`, a bare `/c`, with and without `/GS-` `/EHsc` `/GR`, and
+> the workload's own `/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc` — all
+> `error C4716`, no obj. Re-verified at the funnel by hand: `wibo cl.exe /O1 /c`
+> on the same body prints `error C4716` and writes nothing.
+>
+> **Why my figure looked real, which is the finding worth keeping.**
+> `c2rs compile --flags-file …` does **not** invoke `cl.exe` the way the gate
+> does — it routes through `Toolchain::capture_reference_with`, the split
+> capture path, which **produced a 1,662-byte obj at the very flags where a
+> direct `cl.exe` refuses**. Two harness paths disagree about whether a TU
+> compiles at all, and the one I reached for is the one that answers "yes". Any
+> "verified at the funnel" that used `c2rs compile --flags-file` as a stand-in
+> for `cl.exe` inherits this. **The asymmetry is already on the board as #2335**,
+> filed by `w-oxfix` with the mechanism I did not have: `c1xx` writes the
+> `_CL_*` files *before* C4716 becomes fatal, so the capture half of
+> `oracle_selftest` succeeds while the obj half produces nothing — the two halves
+> disagree about whether the fixture exists, and only the obj half was ever red.
+> Checking the board before publishing a finding would have saved this
+> paragraph. The demotion `/w14716` in the fixture's declared profile
+> is therefore **load-bearing, not cosmetic** — without it the class has no
+> compilable spelling at any flag word.
 `all_fixtures()` feeds **every** `.cpp` to `selftest` at
 `CAPTURE_IL_DEFAULT_FLAGS`; there is **no per-fixture profile and no opt-out**.
 The generated STATUS block therefore renders `Oracle self-test | FAILING` plus
