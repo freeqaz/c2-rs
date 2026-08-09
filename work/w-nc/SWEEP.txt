@@ -1,0 +1,75 @@
+TUs in scan            878
+graded (not capture-fail) 871
+  class capture-fail   7
+  class match          19
+  class vocab-gap      852
+
+per-TU FBM partition broken: 0  (must be 0)
+
+TUs with fnbyte-denominator > 0        865   (gap-metric fnbyte-tus)
+  of those, class == match             14   [G2]
+  of those, exact == denominator       13
+ALL-EXACT-NO-MATCH (the gold)          1   [G3]
+fnbyte-tus-full (with match override)  15   [G1]
+  match TUs NOT per-function full      2  (the override's whole content)
+      src/system/synth/tomcrypt/TomCryptLicense.cpp  exact 0/1
+      src/system/zlib/ZlibLicense.cpp  exact 0/1
+
+--- the gold population, by name ---
+  src/system/math/vec.cpp
+      class=vocab-gap  reason=il function decode failed  letters=-BCD-
+      fnbyte: exact 2/2  ex_len=170578  fn_total=811 fn_in_class=237
+
+--- NEAR-GOLD: 1 or 2 functions short of ALL-EXACT, not matching: 17 ---
+  short  1  src/ChecksumData_xbox.cpp  letters=-BC--  exact 0/1  {'fnbyte-refused': 1}
+  short  1  src/Main.cpp  letters=ABC--  exact 0/1  {'fnbyte-refused': 1}
+  short  1  src/system/rnddx9/Env.cpp  letters=-BC--  exact 0/1  {'fnbyte-refused': 1}
+  short  1  src/system/synth_xbox/GranularSynth.cpp  letters=-BC--  exact 0/1  {'fnbyte-refused': 1}
+  short  1  src/system/utl/Crc.cpp  letters=-BC--  exact 1/2  {'fnbyte-refused': 1}
+  short  1  src/system/utl/JsonEncode.cpp  letters=-BC--  exact 0/1  {'fnbyte-refused': 1}
+  short  1  src/xdk/nuiapi/nuidetroit.cpp  letters=-BC--  exact 0/1  {'fnbyte-refused': 1}
+  short  2  src/system/math/Rand2.cpp  letters=-BC--  exact 0/2  {'fnbyte-refused': 2}
+  short  2  src/system/moviebink/BinkMovieSys_Xbox.cpp  letters=-BC--  exact 0/2  {'fnbyte-refused': 2}
+  short  2  src/system/os/HolmesUtl.cpp  letters=-BC--  exact 1/3  {'fnbyte-refused': 2}
+  short  2  src/system/os/Keyboard_Xbox.cpp  letters=-BC--  exact 2/4  {'fnbyte-refused': 2}
+  short  2  src/system/os/NetworkSocket.cpp  letters=--C--  exact 2/4  {'fnbyte-unbound': 2}
+  short  2  src/system/synth_xbox/Biquad.cpp  letters=ABC--  exact 0/2  {'fnbyte-refused': 2}
+  short  2  src/system/synth_xbox/FilterCoeffs.cpp  letters=-BC--  exact 0/2  {'fnbyte-refused': 2}
+  short  2  src/system/synth_xbox/soundtouch/source/SoundTouch/cpu_detect_x86_gcc.cpp  letters=-BC--  exact 0/2  {'fnbyte-refused': 2}
+  short  2  src/system/utl/UrlEncode.cpp  letters=-BC--  exact 0/2  {'fnbyte-refused': 2}
+  short  2  src/xdk/LIBCMT/vsnprnc.cpp  letters=ABC--  exact 0/2  {'fnbyte-refused': 2}
+
+--- FRONTIER (A and B and C, not matched): 8 ---
+  src/Main.cpp
+      exact 0/1  refused 1  differs 0  reloc-differs 0  unbound 0
+  src/keygen_xbox.cpp
+      exact 1/20  refused 19  differs 0  reloc-differs 0  unbound 0
+  src/system/rndobj/wordwrap.cpp
+      exact 0/3  refused 3  differs 0  reloc-differs 0  unbound 0
+  src/system/synth_xbox/Biquad.cpp
+      exact 0/2  refused 2  differs 0  reloc-differs 0  unbound 0
+  src/system/utl/EncryptXTEA.cpp
+      exact 1/5  refused 4  differs 0  reloc-differs 0  unbound 0
+  src/system/utl/Pool.cpp
+      exact 0/3  refused 3  differs 0  reloc-differs 0  unbound 0
+  src/xdk/LIBCMT/vsnprnc.cpp
+      exact 0/2  refused 2  differs 0  reloc-differs 0  unbound 0
+  src/xdk/nuispeech/mmio.cpp
+      exact 8/11  refused 3  differs 0  reloc-differs 0  unbound 0
+  frontier TUs carrying >=1 fnbyte-refused: 8 of 8   [G5]
+  frontier TUs ALL-EXACT: 0   [G4]
+
+A and B and C, all TUs: 27   (matched 19, open 8)
+
+--- ZERO-BYTE: fnbyte-denominator == 0 ---
+  graded TUs with no emitted function      6
+    of those, class == match               5
+    of those, NOT matching  [zero-byte gold] 1
+      src/system/decomp_pch.cpp  letters=-BCD-  reason=il function decode failed  ex_len=299107 fn_total=1312 fn_in_class=380
+
+=== THE BYTE-DISTANCE-ZERO POPULATION = 1 + 1 = 2 ===
+
+--- refusal STAGE over the near-gold band (w-column's codegen column) ---
+  parse                    25
+  TOTAL                    25
+  non-exact functions in the band: 27 (= declines 25 + unbound 2)
