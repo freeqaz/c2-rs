@@ -857,6 +857,24 @@ pub(crate) fn shape_to_function(
                 xtea_round_loop: Some(crate::func::XteaRoundLoop { trips, delta, swapped }),
                 ..IlFunction::base(name, src)
             }),
+            // **W-XTEA3 — the framed XTEA block loop.** ONE name to resolve, and
+            // it is DEFINED in this TU: `?Encipher`. Resolved through the same
+            // `resolve` every call shape uses, so the writer relocates against
+            // its own defined symbol and mints no undefined external — the seam
+            // `w-fence2` opened and `ctor_forward_call` already travels.
+            BodyShape::XteaEncryptLoop { params, callee_tok, key_off, nonce_off, trips } => {
+                let callee = resolve(callee_tok)?;
+                Some(IlFunction {
+                    params,
+                    xtea_encrypt_loop: Some(crate::func::XteaEncryptLoop {
+                        callee,
+                        key_off,
+                        nonce_off,
+                        trips,
+                    }),
+                    ..IlFunction::base(name, src)
+                })
+            }
             // **W-BIQUAD — the null-guarded float-store diamond.** Nothing to
             // resolve, for the same reason the two rows above give: the class
             // references no external symbol, no data object and no callee. Its

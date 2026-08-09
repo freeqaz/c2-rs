@@ -501,6 +501,7 @@ pub fn splice_callee_why<'a>(
         Selected::XlrcCreateGuard => return Err("S3-xlrc-create-guard"),
         Selected::JsonUtf8Copy => return Err("S3-json-utf8-copy"),
         Selected::MemcpyTail(_) => return Err("S3-memcpy-tail"),
+        Selected::XteaEncryptLoop => return Err("S3-xtea-encrypt-loop"),
         Selected::Seq { setups, .. } => {
             let Some(seq) = f.call_seq.as_ref() else {
                 return Err("S1-seq-without-call-seq");

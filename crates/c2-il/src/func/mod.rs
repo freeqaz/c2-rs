@@ -1909,6 +1909,26 @@ pub struct XteaRoundLoop {
     pub swapped: bool,
 }
 
+/// **W-XTEA3 — the framed XTEA block loop**
+/// (`?Encrypt@XTEABlockEncrypter@@QAAXPBUXTEABlock@@PAU2@@Z`).
+///
+/// The accept/refuse boundary is on the recognizer
+/// ([`crate::func::body::shapes::xtea_encrypt_loop`]) and the emission on
+/// [`c2_core::codegen::xtea_encrypt_loop`]; this carries the three immediates
+/// the three compiled cells let move, plus the resolved callee name.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct XteaEncryptLoop {
+    /// The same-TU callee — `?Encipher`, DEFINED in this obj.
+    pub callee: String,
+    /// The key member's byte offset — `addi r27,r3,<key_off>`.
+    pub key_off: i32,
+    /// The nonce member's byte offset, UNBIASED. The emitter subtracts one
+    /// element because the loop's `stdu` post-increments the base.
+    pub nonce_off: i32,
+    /// The `for` bound and the `li r29,N` immediate.
+    pub trips: i32,
+}
+
 /// **W-IFN — one guard of a [`GuardRetChain`]**: `if (<formal> == 0) return
 /// <K>;`, lowered as a `cmplwi cr6` and a forward `bf 26` over a two-word arm.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -3101,6 +3121,13 @@ pub struct IlFunction {
     /// [`Self::label_lead`], which returns **2** for it on
     /// `work/w-xtea2/LABGRID.txt`'s `x-encipher` row.
     pub xtea_round_loop: Option<XteaRoundLoop>,
+    /// **W-XTEA3** — the framed XTEA block loop (`EncryptXTEA.cpp`'s
+    /// `?Encrypt`). Set by exactly one parser production; [`Self::ops`] is empty
+    /// for it. FRAMED: it owns a `.pdata` record, a `$M`/`$M`/`$T` triple and
+    /// three REL24 sites, two of which are the frame's own
+    /// `__savegprlr_26`/`__restgprlr_26` pair. Its label lead is **4** — see
+    /// [`Self::label_lead`].
+    pub xtea_encrypt_loop: Option<XteaEncryptLoop>,
     /// True iff this function's body is **empty** (`void f() {}`): no expression at
     /// all, so codegen emits a bare `blr`. Mutually exclusive with the other body
     /// kinds.
@@ -3298,6 +3325,7 @@ impl IlFunction {
             memcpy_tail: None,
             nonce_add_run: None,
             xtea_round_loop: None,
+            xtea_encrypt_loop: None,
             empty_body: false,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
@@ -3537,6 +3565,36 @@ impl IlFunction {
             // `plan_labels` mints nothing and the counter advances by an amount
             // with no representation in the obj at all.
             || self.guard_ret_chain.is_some()
+            // **W-XTEA3 — the framed XTEA block loop.** A `__savegprlr_26`
+            // frame, a `.pdata` record and a `$M`/`$M`/`$T` triple, so it is
+            // framed in exactly the sense this predicate means.
+            || self.xtea_encrypt_loop.is_some()
+    }
+
+    /// **Does this function's body carry a BACK EDGE?**
+    ///
+    /// One locator over the loop classes, added by `w-xtea3` for exactly one
+    /// consumer: `c2_core::comdat`'s inline fence, which needs
+    /// `WB_INLINE_FINDINGS` **F9**'s licensed decline rule — *"a **loop-bodied**
+    /// callee **> 80 bytes** ⇒ never inlined at `/O1`"*, F9 + the anchor,
+    /// **62 cells**, whose stated port-side use is *"the safe decline side: the
+    /// port may keep the call"*.
+    ///
+    /// An **enumeration and not a derivation**, for the reason every list in
+    /// this crate is one: a class silently absent from it is indistinguishable
+    /// from one nobody thought about, and here an absent class only costs reach
+    /// (the fence keeps refusing) and never a byte. Every member is a class
+    /// whose emitted body contains a `bdnz` or a backward `bc`.
+    pub fn body_has_loop(&self) -> bool {
+        self.ptr_walk_loop.is_some()
+            || self.ptr_walk_chain_loop.is_some()
+            || self.counted_accum_loop.is_some()
+            || self.float_walk_loop.is_some()
+            || self.static_scan_loop.is_some()
+            || self.pool_ctor_chain.is_some()
+            || self.json_utf8_copy.is_some()
+            || self.xtea_round_loop.is_some()
+            || self.xtea_encrypt_loop.is_some()
     }
 
     /// **Label-counter slots this function takes BEFORE its own `$M` triple.**
@@ -3775,6 +3833,29 @@ impl IlFunction {
             // is unreachable at any mode but the one the 3 was measured at, and
             // at `/Ox` the same source is 1,352 bytes anyway.
             + 2 * u32::from(self.xtea_round_loop.is_some())
+            // **W-XTEA3 — the framed XTEA block loop charges FOUR slots before
+            // its own triple**, and it is the largest lead on this list.
+            //
+            // MEASURED in `LABEL_COUNTER.md` §7.6's in-the-middle form, never
+            // the counterfactual (`work/w-xtea2/LABGRID.txt`, row `x-encrypt`,
+            // at the workload's own `/O1`, `base = 5` holding): stride **9**
+            // against `ctl-plain`'s framed **5**, i.e. `extra 4`. Two of the
+            // four are the `__savegprlr_26`/`__restgprlr_26` pair — the same
+            // row reads `minted 7` against `ctl-plain`'s 5 with the frame alone
+            // — and two are the framed `for`.
+            //
+            // With this term the whole TU closes against its own obj with ZERO
+            // residual: `2721 (.gl) + 9 + 3·5 + (1 + 2 + 1 + 3 + 4) = 2756`,
+            // which is `EncryptXTEA.obj`'s first label `$M2756`. Nothing is
+            // fitted: every one of the five strides is read out of its own probe
+            // obj and the sum is the target's own number.
+            //
+            // **`/Ox` reads 41/37 and is a different world**, which the
+            // recognizer's mode gate makes unreachable — and the same grid says
+            // why: `x-encrypt` against `x-encrypt-alone` differ by
+            // **thirty-three** at `/Ox` and by **zero** at `/O1`, so what moves
+            // there is the INLINER, not the counter.
+            + 4 * u32::from(self.xtea_encrypt_loop.is_some())
     }
 
     /// Every external this function calls, in **first-reference order** — which is
@@ -3790,6 +3871,14 @@ impl IlFunction {
             // **W-BIQUAD** — one call, one REL24, and in `Biquad.cpp` the target
             // is a function this obj defines.
             .chain(self.ctor_forward_call.as_ref().map(|c| c.callee.as_str()))
+            // **W-XTEA3: ONE name.** The body's other two REL24 sites are the
+            // frame's `__savegprlr_26`/`__restgprlr_26` pair, which the IL never
+            // names — they are minted by the frame class, travel on
+            // `coff::Function::helper_externals` and are placed AFTER the `$T`
+            // label rather than in this list's region. Listing them here would
+            // put them in the wrong half of the symbol table, which is the same
+            // note `xlrc_create_guard`'s omission carries three arms up.
+            .chain(self.xtea_encrypt_loop.as_ref().map(|c| c.callee.as_str()))
             .chain(
                 self.call_seq
                     .iter()

@@ -58,6 +58,8 @@ pub use func::{
     NonceAddRun,
     // W-XTEA3 — the XTEA round loop (`EncryptXTEA.cpp`).
     XteaRoundLoop,
+    // W-XTEA3 — the framed XTEA block loop (`EncryptXTEA.cpp`).
+    XteaEncryptLoop,
     GuardRetGuard,
     GuardRetSpine,
     OsfHandleGuard,

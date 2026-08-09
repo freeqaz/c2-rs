@@ -25,7 +25,7 @@ use self::shapes::{
     try_parse_fp_store_diamond,
     try_parse_fp_tail_call,
     try_parse_indirect_load_leaf, try_parse_member_tail_call, try_parse_memcpy_tail,
-    try_parse_nonce_add_run, try_parse_xtea_round_loop,
+    try_parse_nonce_add_run, try_parse_xtea_encrypt_loop, try_parse_xtea_round_loop,
     try_parse_ptr_identity_leaf,
     try_parse_ptr_walk_chain_loop,
     try_parse_pool_ctor_chain, try_parse_pool_free_list,
@@ -781,6 +781,25 @@ pub(crate) enum BodyShape {
         /// `true` when the returned halves are exchanged — cell `EncipherSwap`,
         /// which moves exactly the two register fields of the last two words.
         swapped: bool,
+    },
+    /// **W-XTEA3 — the framed XTEA block loop**: `?Encrypt@XTEABlockEncrypter`,
+    /// 96 B / 24 words, the LAST blocked body of
+    /// `src/system/utl/EncryptXTEA.cpp`. See
+    /// [`super::shapes::xtea_encrypt_loop`] for the three compiled cells and the
+    /// three immediates they let move.
+    XteaEncryptLoop {
+        /// The argument registers in order — `[receiver, in, out]`.
+        params: Vec<u32>,
+        /// The same-TU callee's `.gl` token — `?Encipher`, whose symbol is
+        /// DEFINED in this obj.
+        callee_tok: u32,
+        /// The key member's byte offset — `addi r27,r3,<key_off>`.
+        key_off: i32,
+        /// The nonce member's byte offset. The emitter biases it by one element
+        /// because the loop's `stdu` post-increments the base.
+        nonce_off: i32,
+        /// The `for` bound and the `li r29,N` immediate.
+        trips: i32,
     },
     /// **W-BIQUAD — the null-guarded float-store diamond**, the larger half of
     /// `src/system/synth_xbox/Biquad.cpp`. A two-armed `if`/`else` with a real
@@ -2282,6 +2301,18 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                 // lane's base) and no census key moves.
                 if let Ok(shape) = try_parse_xtea_round_loop(seg, p, lo, depth) {
                     disp("disp-xtea-round-loop");
+                    return Ok(shape);
+                }
+                // **W-XTEA3 — the framed XTEA block loop.** Immediately after
+                // its leaf sibling and last in this arm, on the same
+                // conservative placement: no body any production above accepts
+                // today can move, by construction. It cannot take a body from
+                // the round loop either — that one's first statement is an `&`
+                // of the nonce formal and this one's is a member designator
+                // followed by a `2C`, and each refuses the other's at its own
+                // first literal.
+                if let Ok(shape) = try_parse_xtea_encrypt_loop(seg, p, lo, depth) {
+                    disp("disp-xtea-encrypt-loop");
                     return Ok(shape);
                 }
                 disp("disp-assign");

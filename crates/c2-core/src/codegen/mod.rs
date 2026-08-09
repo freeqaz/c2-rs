@@ -50,6 +50,7 @@ pub mod fp_store_diamond;
 pub mod if_call_join;
 pub mod memcpy_tail;
 pub mod nonce_add_run;
+pub mod xtea_encrypt_loop;
 pub mod xtea_round_loop;
 pub mod labels;
 pub mod leaf;

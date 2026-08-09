@@ -564,6 +564,47 @@ pub fn encode_rldimi(ra: u8, rs: u8, sh: u8, mb: u8) -> [u8; 4] {
     word.to_be_bytes()
 }
 
+/// `stdu rS, DS(rA)` — **store doubleword with update**: primary opcode 62,
+/// XO = 1, and the displacement is a **DS** field (14 bits, the low two implied
+/// zero). One word for two facts — the store and the base's post-increment — and
+/// board **#2567** recorded it as missing.
+///
+/// Read off `?Encrypt@XTEABlockEncrypter`'s `f97e0009`: `rS=11, rA=30, DS=8`.
+pub fn encode_stdu(rs: u8, ra: u8, ds: i16) -> [u8; 4] {
+    debug_assert_eq!(ds & 3, 0, "a DS displacement's low two bits are implied zero");
+    let word: u32 = (62 << 26)
+        | ((rs as u32 & 0x1F) << 21)
+        | ((ra as u32 & 0x1F) << 16)
+        | ((ds as u16 as u32) & 0xFFFC)
+        | 1;
+    word.to_be_bytes()
+}
+
+/// `stdx rS, rA, rB` — **store doubleword indexed**: primary opcode 31,
+/// XO = 149, Rc = 0. Board **#2567** recorded it as missing.
+///
+/// Read off `?Encrypt@XTEABlockEncrypter`'s `7d7af92a`: `rS=11, rA=26, rB=31`.
+pub fn encode_stdx(rs: u8, ra: u8, rb: u8) -> [u8; 4] {
+    let word: u32 = (31 << 26)
+        | ((rs as u32 & 0x1F) << 21)
+        | ((ra as u32 & 0x1F) << 16)
+        | ((rb as u32 & 0x1F) << 11)
+        | (149 << 1);
+    word.to_be_bytes()
+}
+
+/// `addic. rD, rA, SI` — **add immediate carrying, RECORD form**: primary
+/// opcode **13**, against [`encode_addic`]'s 12. One word for two facts, the
+/// decrement and the cr0 test, and board **#2567** recorded the record form as
+/// missing while the plain one was present.
+///
+/// Read off `?Encrypt@XTEABlockEncrypter`'s `37bdffff`: `rD=29, rA=29, SI=-1`.
+pub fn encode_addic_record(rd: u8, ra: u8, si: i16) -> [u8; 4] {
+    let word: u32 =
+        (13 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (si as u16 as u32);
+    word.to_be_bytes()
+}
+
 /// `srwi rA, rS, 31` — extract the sign bit. The `rlwinm rA,rS,1,31,31` form.
 pub fn encode_srwi31(ra: u8, rs: u8) -> [u8; 4] {
     encode_rlwinm(ra, rs, 1, 31, 31)

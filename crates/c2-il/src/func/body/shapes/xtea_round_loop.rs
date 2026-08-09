@@ -107,7 +107,7 @@ fn trip_count_ok(n: i64) -> bool {
 
 /// `<op> <tok>` for the one-token statement bytes — `26` push, `29` label,
 /// `3A` jump, `38` branch-if-true, `B9` load.
-fn eat_tok(seg: &[u8], p: &mut usize, op: u8, what: &'static str) -> Result<u32, Block> {
+pub(crate) fn eat_tok(seg: &[u8], p: &mut usize, op: u8, what: &'static str) -> Result<u32, Block> {
     if !eat_byte(seg, p, op) {
         return Err(blk(seg, *p, what));
     }
@@ -117,14 +117,14 @@ fn eat_tok(seg: &[u8], p: &mut usize, op: u8, what: &'static str) -> Result<u32,
 }
 
 /// A whole TYPE, returned as `(tag, kind)`.
-fn eat_ty(seg: &[u8], p: &mut usize, what: &'static str) -> Result<(u8, u8), Block> {
+pub(crate) fn eat_ty(seg: &[u8], p: &mut usize, what: &'static str) -> Result<(u8, u8), Block> {
     let (tag, kind, _, w) = read_type(seg, *p).ok_or(blk(seg, *p, what))?;
     *p += w;
     Ok((tag, kind))
 }
 
 /// `B9 <tok> <TYPE>` where the TYPE is a 4-byte GPR value.
-fn eat_load4(seg: &[u8], p: &mut usize, what: &'static str) -> Result<u32, Block> {
+pub(crate) fn eat_load4(seg: &[u8], p: &mut usize, what: &'static str) -> Result<u32, Block> {
     let tok = eat_tok(seg, p, 0xB9, what)?;
     let (tag, kind) = eat_ty(seg, p, what)?;
     if value_class(tag, kind).is_none() {
@@ -137,7 +137,7 @@ fn eat_load4(seg: &[u8], p: &mut usize, what: &'static str) -> Result<u32, Block
 /// signed byte, or `80` followed by **eight** bytes for a tag-`0x88` type and
 /// **four** otherwise, which is `expr::lit_payload_step`'s rule restated because
 /// `readers::read_varint` documents that it reads only the 4-byte escape.
-fn eat_lit(seg: &[u8], p: &mut usize, what: &'static str) -> Result<i64, Block> {
+pub(crate) fn eat_lit(seg: &[u8], p: &mut usize, what: &'static str) -> Result<i64, Block> {
     if !eat_byte(seg, p, 0x33) {
         return Err(blk(seg, *p, what));
     }
@@ -160,14 +160,14 @@ fn eat_lit(seg: &[u8], p: &mut usize, what: &'static str) -> Result<i64, Block> 
 }
 
 /// `26 <tok>` — the destination push that opens an assignment statement.
-fn eat_push(seg: &[u8], p: &mut usize, what: &'static str) -> Result<u32, Block> {
+pub(crate) fn eat_push(seg: &[u8], p: &mut usize, what: &'static str) -> Result<u32, Block> {
     eat_opt_stmt_marker(seg, p);
     eat_tok(seg, p, 0x26, what)
 }
 
 /// `<op> <TYPE>` then `4B` — the assignment operator and the statement end.
 /// `op` is `0x32` for `=` and `0x35`/`0x0F` for the two `+=` spellings.
-fn eat_assign_end(seg: &[u8], p: &mut usize, op: u8, what: &'static str) -> Result<(), Block> {
+pub(crate) fn eat_assign_end(seg: &[u8], p: &mut usize, op: u8, what: &'static str) -> Result<(), Block> {
     if !eat_byte(seg, p, op) {
         return Err(blk(seg, *p, what));
     }
@@ -502,7 +502,7 @@ pub(crate) fn try_parse_xtea_round_loop(
 }
 
 /// `2C <TYPE> <varint>` — one reinterpreting conversion carrying no offset.
-fn eat_convert(seg: &[u8], p: &mut usize, what: &'static str) -> Result<(), Block> {
+pub(crate) fn eat_convert(seg: &[u8], p: &mut usize, what: &'static str) -> Result<(), Block> {
     if !eat_byte(seg, p, 0x2C) {
         return Err(blk(seg, *p, what));
     }

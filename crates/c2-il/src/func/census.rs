@@ -879,6 +879,13 @@ impl IlBundle {
                             Ok(BodyShape::XteaRoundLoop { .. }) => {
                                 FnVerdict::InClass("xtea-round-loop")
                             }
+                            // **W-XTEA3 — the framed XTEA block loop.** Its own
+                            // bucket, for the reason every class here gets one:
+                            // a gain that landed in a shared framed-loop bucket
+                            // would be attributable to neither production.
+                            Ok(BodyShape::XteaEncryptLoop { .. }) => {
+                                FnVerdict::InClass("xtea-encrypt-loop")
+                            }
                             // **W-BIQUAD — the float-store diamond.** Its own
                             // bucket on the same rule every class here follows:
                             // a gain that landed in a shared `cflow-if-1`
