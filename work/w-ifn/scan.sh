@@ -2,9 +2,7 @@
 # w-ifn — one 878-TU workload scan. `$1` is the output stem under work/w-ifn/.
 #
 # The dc3 tree is resolved through `C2RS_DC3` (the documented override) with the
-# sibling `../dc3-decomp` as the fallback, so no absolute path lives in this
-# file. Run it through `work/w-ifn/run.sh`, which exports the worktree's
-# toolchain overrides.
+# sibling `../dc3-decomp` as the fallback, so no absolute path lives in this file.
 set -eu
 stem="$1"
 here=$(cd "$(dirname "$0")/../.." && pwd)
