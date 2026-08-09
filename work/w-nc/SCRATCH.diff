@@ -1,0 +1,43 @@
+diff --git a/crates/c2-harness/src/gap/fnbytes.rs b/crates/c2-harness/src/gap/fnbytes.rs
+index 11531204..c07453c6 100644
+--- a/crates/c2-harness/src/gap/fnbytes.rs
++++ b/crates/c2-harness/src/gap/fnbytes.rs
+@@ -1477,6 +1477,38 @@ pub(super) fn measure(
+         *res.emit
+             .entry(format!("fnbyte-shape|{}|{}", graded.shape, v.bare()))
+             .or_insert(0) += 1;
++        // ===== w-nc SCRATCH (reverted before landing) =====================
++        // The reader's own refusal STRING for an EMITTED function. `grade_one`
++        // reads `Err(&'static str)` off the gate and throws it away, so the
++        // published `fnbyte-decline|parse` is a count with no key — which is
++        // exactly the reading `w-bdnz` (#764, a `.sy` TYPE LIST) and `w-main`
++        // (`ex_exit_label`, a MISLOCATED clause) each needed and had to
++        // hand-derive. Keyed per TU so a lane can rank the *emitted* side,
++        // which `w-readpx` (#2280) established is the only discriminating one.
++        // The EXACT side by name, so a small TU's byte-exact set can be read
++        // off the scan instead of hand-disassembled. Bounded to small TUs — the
++        // key is a witness, not a census, and the counts beside it are the
++        // unbounded thing (`MAX_CALLTARGET_WITNESSES`' own argument).
++        // ENV-GATED, so ONE binary produces both the control scan and the
++        // instrumented one — board #420's design (`C2RS_SINK_REL=expr`, *"two
++        // full 878-TU scans of the SAME binary, one env var apart"*). A rebuild
++        // busts the capture cache and the workload tree is not pinned, so two
++        // binaries is two corpora and the delta would not be the instrument's.
++        if std::env::var_os("C2RS_NC_KEYS").is_some() {
++            if matches!(graded.verdict, FnByte::Exact) && entries.len() <= 24 {
++                *res.emit.entry(format!("fnbyte-exactfn|{name}")).or_insert(0) += 1;
++            }
++            if matches!(graded.verdict, FnByte::Refused) {
++                if let Some(c) = row.map(|(c, _)| c) {
++                    let why = c.verdict.key();
++                    *res.emit.entry(format!("fnbyte-parsekey|{why}")).or_insert(0) += 1;
++                    *res.emit
++                        .entry(format!("fnbyte-parsefn|{name}|{why}"))
++                        .or_insert(0) += 1;
++                }
++            }
++        }
++        // ===== end w-nc SCRATCH ==========================================
+         if let Some(d) = graded.decline {
+             *res.emit
+                 .entry(format!("fnbyte-decline|{}", d.key()))
