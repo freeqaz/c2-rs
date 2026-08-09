@@ -113,12 +113,18 @@ fn eat_addr(seg: &[u8], p: &mut usize, what: &'static str) -> Result<(u32, i32),
     Ok((tok, off))
 }
 
-/// `B9 <tok> <TYPE>` where the TYPE is a **4-byte value in a GPR** — the addend.
-/// Asked through [`value_class`], the shared predicate the store and load leaves
-/// already use for exactly this question, rather than a second width table.
+/// `B9 <tok> <4-BYTE TYPE> · 2C <8-BYTE TYPE> 00` — the addend **and its
+/// widening, as ONE clause**, which is the whole reason there is a `clrldi`.
 ///
-/// This is the clause cell `SetNonceU64` separates: a 64-bit addend emits no
-/// `clrldi` and rearranges every register in the body.
+/// **The two halves are deliberately not two clauses.** They state one fact —
+/// *the addend is a 4-byte value zero-extended to 8* — and cell `SetNonceU64`
+/// (an `unsigned long long` addend, which is neither 4-byte nor widened) is
+/// refused by **either** of them alone. `w-xtea2` #2665 measured exactly that
+/// shape: a cell fenced by several clauses grades NONE of them, because deleting
+/// one leaves the others refusing it, and the repair is MERGING rather than
+/// adding cells. `work/w-xtea3/MUTATIONS.md` M2 came back `vocab-gap` twice —
+/// once against the split clauses and once against a mutation that broke only
+/// half of the merged one — before the whole conjunction was deleted at once.
 fn eat_addend(seg: &[u8], p: &mut usize) -> Result<u32, Block> {
     if !eat_byte(seg, p, 0xB9) {
         return Err(blk(seg, *p, "nonce-addend"));
@@ -126,10 +132,14 @@ fn eat_addend(seg: &[u8], p: &mut usize) -> Result<u32, Block> {
     let (tok, w) = read_token_var(seg, *p).ok_or(blk(seg, *p, "nonce-addend"))?;
     *p += w;
     let (tag, kind, _, tw) = read_type(seg, *p).ok_or(blk(seg, *p, "nonce-addend-type"))?;
-    if value_class(tag, kind).is_none() {
-        return Err(blk(seg, *p, "nonce-addend-is-not-a-4-byte-gpr-value"));
-    }
+    let four = value_class(tag, kind).is_some();
     *p += tw;
+    // The `2C` widening, read non-committally so that the conjunction below is
+    // ONE refusal and not two.
+    let widened = eat_widen8(seg, p, "nonce-addend-widening").is_ok();
+    if !(four && widened) {
+        return Err(blk(seg, *p, "nonce-addend-is-not-a-4-byte-value-widened-to-eight"));
+    }
     Ok(tok)
 }
 
@@ -210,7 +220,6 @@ fn eat_stmt(
     if atok != addend_tok {
         return Err(blk(seg, *p, "nonce-addend-is-not-the-same-token-in-every-statement"));
     }
-    eat_widen8(seg, p, "nonce-addend-widening")?;
     if !eat_byte(seg, p, 0x02) {
         return Err(blk(seg, *p, "nonce-operator-is-not-add"));
     }
