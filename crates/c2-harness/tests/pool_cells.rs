@@ -15,16 +15,35 @@
 //! each step moves the verdict:
 //!
 //! ```text
-//!   A  *(void**)v = p->mFree;                       IN CLASS  store-leaf
-//!   B  A + one more store                           BLOCKED   expr-op-0x27
-//!   C  B + a null guard whose arm is a bare return  BLOCKED   expr-brtrue
+//!                                                   w-pool     w-pool2
+//!   A  *(void**)v = p->mFree;                       store-leaf  store-leaf
+//!   B  A + one more store                           expr-op-0x27  expr-op-0x27
+//!   C  B + a null guard whose arm is a bare return  expr-brtrue   pool-free-list
 //! ```
 //!
-//! **A → B is the must-fail mutation for B's fence** and **B → C is the
-//! must-fail mutation for C's**, and both endpoints ship, so neither `_neg` can
-//! go inert without a test failing: if B's clause were repaired, B's key would
-//! stop being `expr-op-0x27` and this file says so; if C's guard were admitted,
-//! C's key would fall back to B's and the distinctness assertion fires.
+//! # **CELL C CONVERTED, AND THE LADDER INVERTS** — lane `w-pool2`, board #2591
+//!
+//! `w-pool` shipped C as a `_neg` and its fence fired exactly as designed: this
+//! lane's `shapes::pool_free_list` admits C, the assertion below stopped the
+//! build, and the cell is re-stated here rather than quietly relaxed. **C is now
+//! IN CLASS and byte-exact against real `c2.dll`** — it *is* `?Free@Pool`, and
+//! `Pool.cpp` converted on it.
+//!
+//! What that costs w-pool's reading is one sentence and what it buys is the
+//! architecture fact underneath: **B is still blocked and C is not, so a LONGER
+//! body is acceptable where the shorter one it contains is not.** Acceptance
+//! runs through *whole-body productions*, not through an incrementally widening
+//! expression grammar, so adding a construct can move a body out of one
+//! recognizer's reach and into another's. `w-pool` §3.1's own line — *"adding a
+//! construct never makes a body more acceptable"* — is refuted here by its own
+//! cell, and `w-biquad` #2531 is what predicted it: the repair for
+//! `expr-op-0x27` was never grammar.
+//!
+//! **The fence that MATTERS is untouched and still live.** B refuses because it
+//! has no guard, so it reaches `leaf_store::collect_store_run` and dies on the
+//! `value_is_load` clause (board #2563) — **which this lane did NOT widen**, by
+//! decline clause D1. If that clause were repaired B's key would stop being
+//! `expr-op-0x27`, and this file still says so.
 //!
 //! # Why the sources are `include_str!`-ed
 //!
@@ -138,23 +157,40 @@ fn the_three_pool_cells_each_move_the_verdict_by_one_construct() {
     );
 
     // C — B plus a null guard whose arm is a bare `return`. This body IS
-    // `?Free@Pool@@QAAXPAX@Z`. Its key is DIFFERENT from B's, which is what says
-    // the guard is a second, independent rung rather than the same one again.
+    // `?Free@Pool@@QAAXPAX@Z`, and at `w-pool2` it is **IN CLASS**: the guard is
+    // what takes it out of `leaf_store`'s reach and into the whole-body
+    // production that reads the guard and the run together. Its key is still
+    // DIFFERENT from B's — it is an ACCEPTANCE key now rather than a refusal —
+    // which is the same distinctness w-pool asserted, with the sign flipped.
     let (c_rows, c_causes) = cell(&tc, "c", CELL_C);
     let c = only(&c_rows, "c");
     assert_eq!(
         c.verdict.key(),
-        "expr-brtrue",
-        "cell C must stop at the guard: {c:?}"
+        "pool-free-list",
+        "cell C is the free-list PUSH and must be admitted as one: {c:?}"
+    );
+    assert!(
+        c.verdict.in_class(),
+        "…IN CLASS, where w-pool shipped it blocked at `expr-brtrue`: {c:?}"
     );
     assert_eq!(
         c.cflow, "cflow-if-1",
         "…and it is the one cell here that HAS control flow: {c:?}"
     );
+    // …and the TU-level gate now stops NOWHERE. Cells A and B report
+    // `body-out-of-class`; this one reports no cause at all and `decodes`, which
+    // is the cell-scale form of what `Pool.cpp` itself does at this tree. It is
+    // asserted rather than left implicit because it is the difference between
+    // "the body was admitted" and "the whole TU is admitted", and only the
+    // second converts anything.
     assert_eq!(
-        c_causes.first,
-        Some(c2_il::func::cause::BODY_DECODE),
-        "still only the body: {c_causes:?}"
+        c_causes.first, None,
+        "cell C's TU stops at no gate at all now: {c_causes:?}"
+    );
+    assert!(c_causes.decodes, "…and it decodes: {c_causes:?}");
+    assert_eq!(
+        c_causes.bodies_out_of_class, 0,
+        "…with no body out of class: {c_causes:?}"
     );
 
     // The three verdicts are pairwise distinct. Stated as a set so a future edit
@@ -228,15 +264,28 @@ fn each_pool_negative_is_fenced_by_its_own_shipped_neighbour() {
     );
 
     assert!(a.verdict.in_class(), "A in class: {a:?}");
+    // **B is the one live negative, and it is the one that matters.** It refuses
+    // at `leaf_store::collect_store_run`'s `value_is_load` clause (#2563), which
+    // `w-pool2` declined to widen (D1) — 403,879 workload bodies carry that key
+    // and a widening fitted to one two-statement run is `w-blockir` #2306's
+    // error. Its fence is A, which ships and is in class one store away.
     assert!(!b.verdict.in_class(), "B blocked: {b:?}");
-    assert!(!c.verdict.in_class(), "C blocked: {c:?}");
+    // **C is no longer a negative** — see the module header. Asserted positively
+    // here rather than deleted, because a fence that fires is worth more than a
+    // fence that is quietly removed, and this is where a future widening of the
+    // free-list class would be seen to have swallowed B as well.
+    assert!(c.verdict.in_class(), "C in class at w-pool2: {c:?}");
     assert_ne!(
         b.verdict.key(),
         c.verdict.key(),
-        "B and C must be blocked at DIFFERENT keys, or C adds nothing and \
-         `Pool::Free` looks one repair from a match when it owes two"
+        "B and C must land at DIFFERENT keys — B blocked and C admitted — or \
+         the free-list production has widened past the guard it needs"
     );
-    // …and the direction: adding a construct never makes a body more acceptable.
+    // …and the sizes still ascend, which is what makes each cell a superset of
+    // the last rather than a rewrite of it. **NOT a claim about acceptance**:
+    // w-pool's line here read *"adding a construct never makes a body more
+    // acceptable"*, and C refutes it — a longer body reaches a whole-body
+    // production the shorter one cannot.
     assert!(
         b.seg_len > a.seg_len && c.seg_len > b.seg_len,
         "each cell adds IL rather than replacing it: {} -> {} -> {}",
