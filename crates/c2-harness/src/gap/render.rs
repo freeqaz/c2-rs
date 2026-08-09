@@ -780,7 +780,12 @@ pub(super) fn print_factorization(report: &GapReport) {
                  \x20   FIVE-ALARM CONTROL — byte-exact bodies whose RELOCATIONS differ on a \
                  `match` TU (must be 0): {}\n\
                  \x20   census/gate disagreement on EMITTED fns (the error term on the \
-                 emitted census, target 0): {}\n\
+                 emitted census): {} TOTAL, of which {} are PARSER-EXPRESSIBLE \
+                 (target 0 — board #139) and the rest are the post-lowering \
+                 stages no parser clause can reach (`gy-shape`, `data-ref`, \
+                 `inlined-callee`; see `gap-metric fnbyte-census-disagree-*`). \
+                 The residue is the measured size of the emitted census's \
+                 OVER-CLAIM, not an accounting convenience\n\
                  \x20   NOTE: the buckets partition the denominator by the PER-FUNCTION \
                  route alone; on a `match` TU the whole-obj verdict supersedes them.\n\
                  \x20   RELOC-EQ (lane w-relo, board #884 — `exact` now means bytes AND \
@@ -818,6 +823,7 @@ pub(super) fn print_factorization(report: &GapReport) {
                 f.match_tu_differs,
                 f.match_tu_reloc_differs,
                 f.census_disagree,
+                f.census_disagree_expressible,
                 f.exact_bytes,
                 f.reloc_graded,
                 f.reloc_unknown,

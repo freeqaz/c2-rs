@@ -73,13 +73,26 @@ pub enum ComdatDecline {
     /// The body exists, but [`crate::data_refs_of`] cannot locate the
     /// data-symbol relocation halves inside it.
     DataRef(BackendError),
+    /// **W-INLFENCE** — the composed body emits a `REL24` against a callee this
+    /// TU **defines** and whose own lowered body the port can see is small
+    /// enough that c2 expands it. The port would be emitting a call c2 does not.
+    ///
+    /// A **fourth** post-lowering stage, and the reason it is post-lowering is
+    /// [`ComdatDecline::DataRef`]'s: the question is asked of the *composed
+    /// body's relocation sites*, which do not exist until after lowering, so
+    /// there is nothing for a parser clause to test. Asking it in the parser is
+    /// strictly worse and was measured — see [`fenced_inlined_callee`].
+    InlinedCallee(BackendError),
 }
 
 impl ComdatDecline {
     /// The underlying refusal, for a caller that only needs to propagate it.
     pub fn into_error(self) -> BackendError {
         match self {
-            ComdatDecline::Selector(e) | ComdatDecline::Shape(e) | ComdatDecline::DataRef(e) => e,
+            ComdatDecline::Selector(e)
+            | ComdatDecline::Shape(e)
+            | ComdatDecline::DataRef(e)
+            | ComdatDecline::InlinedCallee(e) => e,
         }
     }
 }
@@ -180,7 +193,150 @@ pub fn comdat_body_from_selected<'a>(
     mode: OptMode,
     tu: &TuContext<'a>,
 ) -> Result<ComdatBody<'a>, ComdatDecline> {
-    body_of(f, selected, mode, tu, true)
+    let body = body_of(f, selected, mode, tu, true)?;
+    fenced_inlined_callee(f, &body, mode, tu)?;
+    Ok(body)
+}
+
+/// **W-INLFENCE — refuse a body that emits a call c2 does not emit.**
+///
+/// `docs/INLINE_PREDICATE.md`'s title is the whole of it: *"when c2 does not
+/// emit the call the IL contains"*. [`crate::splice`] is the half that
+/// **performs** the expansion when it can prove the whole body is nothing but
+/// the call. This is the other half: when the port cannot perform it but can
+/// still prove c2 **would**, the port must return `NotImplemented` rather than
+/// emit a `bl` c2 replaced with the callee's body. `CLAUDE.md`'s cardinal rule,
+/// and board #232's shape — a refusal that became a wrong emit.
+///
+/// # The predicate
+///
+/// The composed body relocates against a name **this TU defines**, and the port
+/// can lower that callee, and the callee's own lowered `/Gy` body is at most
+/// [`crate::splice::INLINE_UNBOUNDED_BYTES`] bytes.
+///
+/// **No new constant is minted.** That is `w-splice`'s S7 bound —
+/// `INLINE_PREDICATE.md` §2's `N_max` is UNBOUNDED at `index <= 64` in *both*
+/// linkage classes and `index <= s`, so a callee whose emitted body is at most
+/// 64 bytes is inlined at every site whatever its linkage, its parameter count,
+/// its `inline` keyword or the model's unreadable `leaf` bit. `splice.rs` reads
+/// that claim as *"the port MAY expand this"*; this reads the identical claim as
+/// *"the port MUST NOT emit a call to this"*. One constant, two consequences.
+///
+/// # Why a mis-prediction here cannot cost a byte
+///
+/// `docs/whitebox/WB_INLINE_FINDINGS.md` §7 offers only **decline** rules and
+/// says the accept side is not offered, because *"a mis-predicted accept is a
+/// wrong obj"*. That warning is about a lane that would **perform** the inline.
+/// Here the accept prediction drives a **refusal**: predicting "c2 inlines this"
+/// when c2 did not makes the port decline a function it would have got right —
+/// which costs reach and cannot produce a wrong emit. The hazard is inverted,
+/// and this is the one place the accept side is safe to consult.
+///
+/// # Why it is not in the parser
+///
+/// `IlBundle::functions` already carries the parser-side form — *any* callee
+/// this TU defines refuses the **whole TU** — and it stays exactly as it is.
+/// The parser cannot ask this question per function, because whether the port
+/// still emits the call is decided *after* mechanism E (the callee reduces to
+/// nothing, so the call is dropped) and mechanism I (the body is replaced by
+/// the callee's, so the REL24 becomes the callee's own). A parser clause would
+/// fire on both of those and un-ship them. Measured on the 878-TU workload: the
+/// coarse parser-shaped form costs **1,074** byte-exact functions; this one
+/// costs **0**. `work/w-inlfence/crossing.md`.
+///
+/// # What it deliberately does NOT refuse
+///
+/// A callee this TU defines that the port **cannot lower**. 1,081 byte-exact
+/// functions call one, and every one of them is a callee of 65–308 emitted
+/// bytes, which is the class c2 **keeps the call to** (`WB_INLINE_FINDINGS` F1;
+/// re-measured here at 1,071 right against 7 wrong above ~80 B). Refusing those
+/// would be the coarse fence and D2's decline clause forbids it.
+fn fenced_inlined_callee<'a>(
+    f: &'a IlFunction,
+    body: &ComdatBody<'a>,
+    mode: OptMode,
+    tu: &TuContext<'a>,
+) -> Result<(), ComdatDecline> {
+    for call in &body.calls {
+        if callee_is_one_c2_expands(f, call.callee, mode, tu) {
+            return Err(ComdatDecline::InlinedCallee(codegen::out_of_class(&format!(
+                "inlined-callee {}: this TU defines it and its lowered body is \
+                 <= {} bytes, so c2 expands it and emits no call here. See \
+                 c2_core::comdat::fenced_inlined_callee.",
+                call.callee,
+                crate::splice::INLINE_UNBOUNDED_BYTES,
+            ))));
+        }
+    }
+    Ok(())
+}
+
+/// Can the port PROVE c2 expands `name` at a site in this TU?
+///
+/// Every `false` is a "not proven", never a "proven not" — the fence's whole
+/// contract is that it fires only on what it can establish, and leaves the rest
+/// exactly where it was.
+fn callee_is_one_c2_expands<'a>(
+    caller: &'a IlFunction,
+    name: &str,
+    mode: OptMode,
+    tu: &TuContext<'a>,
+) -> bool {
+    // **S7's varargs half, read off the mangled name** exactly as
+    // `splice_body_why` reads it: `N_max = 0` categorically for a varargs
+    // callee (`INLINE_PREDICATE.md` §6.18.5, and `WB_INLINE_FINDINGS` F5 on 6
+    // compiled cells). c2 keeps the call, so the port's is right.
+    if name.ends_with("ZZ") {
+        return false;
+    }
+    let Some((g, opt_word)) = tu.definition(name) else {
+        // Not defined here (an external), or defined TWICE — `TuContext`
+        // refuses an ambiguous name rather than resolving it to the first, and
+        // this fence inherits that refusal rather than guessing which body's
+        // size to measure.
+        return false;
+    };
+    // **Direct recursion is never inlined** — `WB_INLINE_FINDINGS` F5, and
+    // `INLINE_PREDICATE.md` §4 grades `recurse` 336/336 declined by c2 as well.
+    // Compared by ADDRESS and not by name: `IlFunction::mangled_name` is the
+    // positional binding, which #918 measured disagreeing with the per-record
+    // one on 74,955 workload rows. A false negative here only fails to skip,
+    // which costs reach and never a byte.
+    if std::ptr::eq(g, caller) {
+        return false;
+    }
+    // The callee's own mode, falling back to the caller's when the caller does
+    // not track one per function — the convention `TuContext::of_named`
+    // documents and `splice_body_why` already follows.
+    let m = match opt_word {
+        Some(w) => match codegen::opt_mode_of_word(Some(w)) {
+            Ok(m) => m,
+            Err(_) => return false,
+        },
+        None => mode,
+    };
+    let Ok(sel) = codegen::select_function(g, m) else {
+        return false;
+    };
+    // **`body_of` and not `comdat_body_from_selected`** — the unfenced
+    // composition. Two reasons, and both are load-bearing:
+    //
+    // 1. **Termination.** `A` calls `B` and `B` calls `A`, both small, is a
+    //    legal TU; a fenced probe would ask the same question back and forth
+    //    forever. This asks one level and stops, so there is no recursion to
+    //    bound and no cycle set to carry.
+    // 2. **It is the right question.** What is wanted is the callee's emitted
+    //    SIZE. Whether the callee is itself refused for *its* callees says
+    //    nothing about how big it is.
+    let Ok(gb) = body_of(g, sel, m, tu, true) else {
+        return false;
+    };
+    // An empty body is mechanism **E**'s (the callee reduces to nothing), not
+    // this one's, and `elide.rs` has already had its say by the time the caller
+    // was composed — a caller whose call E dropped has no `REL24` for this fence
+    // to see. Excluded here for the same reason S7 excludes it: one function,
+    // one rule.
+    !gb.text.is_empty() && gb.text.len() <= crate::splice::INLINE_UNBOUNDED_BYTES
 }
 
 /// [`comdat_body_from_selected`] with the splice's **re-entry** switch exposed.
@@ -675,4 +831,216 @@ pub fn text_reloc_plan<'a>(
     }
     recs.sort_by_key(|r| r.va);
     recs
+}
+
+#[cfg(test)]
+mod inlfence_tests {
+    //! **W-INLFENCE — the fence in both directions.**
+    //!
+    //! One positive cell and SIX negative ones, and every negative cell is
+    //! declined by a **different clause** of [`callee_is_one_c2_expands`] /
+    //! [`fenced_inlined_callee`]. That is the `_neg`-cell discipline `w-bdnz`
+    //! paid for twice: two negative cells refused by the same earlier clause
+    //! are one cell, and the later clause is untested while the table says it
+    //! is covered.
+    //!
+    //! Each negative additionally asserts the `REL24` **survives**, so no cell
+    //! can pass by the body having no call at all — the confound that would
+    //! make every one of them vacuous.
+
+    use super::*;
+    use crate::codegen::select_function;
+    use crate::codegen::testutil::func_with;
+    use c2_il::IlOp;
+
+    /// `int g(int a) { return a + 1; }` — 8 emitted bytes, well under the 64
+    /// the fence tests against. Same shape as `splice.rs`'s own `leaf`.
+    fn leaf(name: &str) -> IlFunction {
+        let mut f = func_with(vec![0xE309], vec![IlOp::Load(0xE309), IlOp::Lit(1), IlOp::Add]);
+        f.mangled_name = name.into();
+        f.data_syms.clear();
+        f
+    }
+
+    /// A leaf whose lowered body is deliberately **over** 64 bytes.
+    ///
+    /// `a + a + a + …`, and the repetition is not laziness. The first version
+    /// of this helper was `a + 1 + 2 + … + 20` and lowered to **8 bytes** — the
+    /// port folds the constant chain, which is `WB_INLINE_FINDINGS` §3.1's own
+    /// GRID-I v1 failure verbatim (*"c2 folds the whole chain to two words at
+    /// every k, so the size axis did not occur: 159 cells that all measured the
+    /// same 28-byte callee"*). There is no constant here to fold. `n2` asserts
+    /// the resulting size rather than trusting this comment.
+    fn big_leaf(name: &str) -> IlFunction {
+        let mut ops = vec![IlOp::Load(0xE309)];
+        for _ in 0..20 {
+            ops.push(IlOp::Load(0xE309));
+            ops.push(IlOp::Add);
+        }
+        let mut f = func_with(vec![0xE309], ops);
+        f.mangled_name = name.into();
+        f.data_syms.clear();
+        f
+    }
+
+    /// `int f(int a) { return g(a + 1); }` — a tail call **with an argument
+    /// setup**, which is what makes `splice` decline (S3) so the port really
+    /// does emit the `bl`. Without the setup, mechanism I takes the body and
+    /// there is no relocation for this fence to see — that is cell N5.
+    fn caller_with_setup(name: &str, callee: &str) -> IlFunction {
+        let mut f = func_with(vec![0xE309], vec![IlOp::Load(0xE309), IlOp::Lit(1), IlOp::Add]);
+        f.mangled_name = name.into();
+        f.data_syms.clear();
+        f.tail_call = Some(callee.into());
+        f
+    }
+
+    /// The whole composition, selector included — so a cell whose *callee* the
+    /// selector refuses (N6) gets an `Err` here rather than a panic. Before this
+    /// took the selector's own refusal, `n6` unwrapped it and died on the line
+    /// that was supposed to be its precondition.
+    fn compose<'a>(funcs: &'a [IlFunction], i: usize) -> Result<ComdatBody<'a>, ComdatDecline> {
+        let tu = TuContext::of(funcs);
+        let sel = select_function(&funcs[i], OptMode::O1).map_err(ComdatDecline::Selector)?;
+        comdat_body_from_selected(&funcs[i], sel, OptMode::O1, &tu)
+    }
+
+    fn is_fenced(r: &Result<ComdatBody<'_>, ComdatDecline>) -> bool {
+        matches!(r, Err(ComdatDecline::InlinedCallee(_)))
+    }
+
+    /// **P — the positive cell.** The port would emit `b ?g` where c2 emits
+    /// `?g`'s own body, because `?g` is defined here and is 8 bytes.
+    #[test]
+    fn p_a_call_to_a_small_same_tu_callee_is_refused() {
+        let funcs = vec![leaf("?g@@YAHH@Z"), caller_with_setup("?f@@YAHH@Z", "?g@@YAHH@Z")];
+        let g = compose(&funcs, 0).expect("the leaf lowers");
+        assert!(
+            g.text.len() <= crate::splice::INLINE_UNBOUNDED_BYTES,
+            "the positive cell needs a callee UNDER the bound; got {} bytes",
+            g.text.len()
+        );
+        assert!(
+            is_fenced(&compose(&funcs, 1)),
+            "THE PORT EMITTED A CALL c2 REPLACES WITH THE CALLEE'S BODY. Board \
+             #232's shape, and CLAUDE.md's rule is that outside its class the \
+             port returns NotImplemented"
+        );
+    }
+
+    /// **N1 — `tu.definition` is `None`.** A true external: c2 has no body to
+    /// expand and the port's branch is right. The clause that keeps every
+    /// ordinary tail call in class.
+    #[test]
+    fn n1_an_external_callee_is_untouched() {
+        let funcs = vec![caller_with_setup("?f@@YAHH@Z", "?ext@@YAHH@Z")];
+        let body = compose(&funcs, 0).expect("an external callee is not this fence's business");
+        assert_eq!(
+            body.calls.len(),
+            1,
+            "the REL24 must SURVIVE — a cell that passes because the body has \
+             no call at all tests nothing"
+        );
+        assert_eq!(body.calls[0].callee, "?ext@@YAHH@Z");
+    }
+
+    /// **N2 — the SIZE clause.** Defined here, lowerable, and over the bound,
+    /// so c2 keeps the call. On the workload 1,071 such callers are byte-EXACT
+    /// today and 7 are not (`work/w-inlfence/crossing.md` §2) — which is why
+    /// refusing them is the coarse fence decline clause D2 rejected.
+    #[test]
+    fn n2_a_large_same_tu_callee_is_untouched() {
+        let funcs = vec![big_leaf("?g@@YAHH@Z"), caller_with_setup("?f@@YAHH@Z", "?g@@YAHH@Z")];
+        let g = compose(&funcs, 0).expect("the big leaf lowers");
+        assert!(
+            g.text.len() > crate::splice::INLINE_UNBOUNDED_BYTES,
+            "N2 IS CONFOUNDED: its callee is {} bytes, inside the bound, so the \
+             cell would be decided by the clause the positive one fires on",
+            g.text.len()
+        );
+        let body = compose(&funcs, 1).expect("c2 keeps a call to a callee this large");
+        assert_eq!(body.calls.len(), 1, "the REL24 must SURVIVE");
+    }
+
+    /// **N3 — the VARARGS clause**, read off the mangled `ZZ` exactly as
+    /// `splice_body_why` reads it. `N_max = 0` categorically
+    /// (`INLINE_PREDICATE.md` §6.18.5, `WB_INLINE_FINDINGS` F5, 6 cells).
+    #[test]
+    fn n3_a_varargs_callee_is_untouched() {
+        let funcs = vec![leaf("?g@@YAHHZZ"), caller_with_setup("?f@@YAHH@Z", "?g@@YAHHZZ")];
+        let g = compose(&funcs, 0).expect("the leaf lowers");
+        assert!(
+            g.text.len() <= crate::splice::INLINE_UNBOUNDED_BYTES,
+            "N3 IS CONFOUNDED: the size clause would decide it too"
+        );
+        let body = compose(&funcs, 1).expect("c2 never inlines a varargs callee");
+        assert_eq!(body.calls.len(), 1, "the REL24 must SURVIVE");
+    }
+
+    /// **N4 — DIRECT RECURSION**, compared by ADDRESS and not by name.
+    /// `INLINE_PREDICATE.md` §4 grades `recurse` 336/336 declined by c2.
+    #[test]
+    fn n4_direct_recursion_is_untouched() {
+        let funcs = vec![caller_with_setup("?f@@YAHH@Z", "?f@@YAHH@Z")];
+        let body = compose(&funcs, 0).expect("c2 never inlines direct recursion");
+        assert_eq!(body.calls.len(), 1, "the REL24 must SURVIVE");
+        assert_eq!(body.calls[0].callee, "?f@@YAHH@Z");
+    }
+
+    /// **N5 — MECHANISM I already handled it.** With no argument setup the
+    /// splice fires, the caller's body **is** the callee's, and no `REL24`
+    /// against the callee exists for the fence to see.
+    ///
+    /// This is the cell that says the fence is in the right PLACE: a
+    /// parser-side clause fires here on the IL's call token and un-ships
+    /// `w-splice`.
+    #[test]
+    fn n5_a_body_mechanism_i_replaced_has_no_call_to_fence() {
+        let mut caller = func_with(vec![0xE309], Vec::new());
+        caller.mangled_name = "?f@@YAHH@Z".into();
+        caller.data_syms.clear();
+        caller.tail_call = Some("?g@@YAHH@Z".into());
+        let funcs = vec![leaf("?g@@YAHH@Z"), caller];
+        let body = compose(&funcs, 1).expect("the splice fires and there is no call left");
+        assert!(
+            body.calls.is_empty(),
+            "N5 IS CONFOUNDED: the splice did not fire, so this cell is really \
+             the positive one"
+        );
+        let g = compose(&funcs, 0).expect("the leaf lowers");
+        assert_eq!(body.text, g.text, "SPLICE-0: the caller's body IS the callee's");
+    }
+
+    /// **N6 — defined here and the port CANNOT LOWER IT.** The fence fires only
+    /// on what it can PROVE, so an unlowerable callee leaves the call alone.
+    ///
+    /// The clause that carries the whole residue: 1,081 byte-exact functions on
+    /// the workload call one, and every one is a callee of 65-308 emitted
+    /// bytes — the class c2 keeps the call to.
+    #[test]
+    fn n6_an_unlowerable_same_tu_callee_is_untouched() {
+        let mut bad = func_with(vec![0xE309], vec![IlOp::Load(0xE309), IlOp::Div]);
+        bad.mangled_name = "?g@@YAHH@Z".into();
+        bad.data_syms.clear();
+        let funcs = vec![bad, caller_with_setup("?f@@YAHH@Z", "?g@@YAHH@Z")];
+        assert!(
+            compose(&funcs, 0).is_err(),
+            "N6 IS CONFOUNDED: the port CAN lower this callee, so the cell is \
+             really testing the size clause"
+        );
+        let body = compose(&funcs, 1)
+            .expect("an unlowerable callee is a size the port cannot see, and it must not guess");
+        assert_eq!(body.calls.len(), 1, "the REL24 must SURVIVE");
+    }
+
+    /// **THE MUST-FAIL PAIR.** One caller, two callees differing in exactly one
+    /// field — the callee's emitted size — must land on opposite sides. If both
+    /// landed together the fence would be reading something else.
+    #[test]
+    fn the_size_is_the_only_field_that_moves_the_verdict() {
+        let small = vec![leaf("?g@@YAHH@Z"), caller_with_setup("?f@@YAHH@Z", "?g@@YAHH@Z")];
+        let big = vec![big_leaf("?g@@YAHH@Z"), caller_with_setup("?f@@YAHH@Z", "?g@@YAHH@Z")];
+        assert!(is_fenced(&compose(&small, 1)), "small callee: c2 expands it");
+        assert!(!is_fenced(&compose(&big, 1)), "large callee: c2 keeps the call");
+    }
 }

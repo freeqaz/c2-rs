@@ -13,10 +13,26 @@
 //!
 //! | cell | port | c2 | verdict |
 //! |---|---|---|---|
-//! | `w04a` — `noinline` intermediate, caller `?f` | `b ?g` | `b ?g` | **`Exact`** — c2 did NOT close, so a closure rule would break a body that is right today |
+//! | `w04a` — `noinline` intermediate, caller `?f` | *(refused)* | `b ?g` | **`Refused`** since 2026-08-09 — see below. c2 did NOT close, so a closure rule would still break a body that WAS right |
 //! | `w04a` — the intermediate `?g` itself | `b ?ext` | `b ?ext` | `Exact` |
 //! | `w10` — `noinline` LEAF, spliced | `addi r3,r3,1 ; blr` | `b ?g` | **`Differs`** — the SHIPPED splice already gets this wrong |
 //! | `w12` — `w10` without the attribute | the callee's body | the callee's body | `Exact` — the control |
+//!
+//! # 2026-08-09, lane `w-inlfence` — `w04a`'s caller moved `Exact` → `Refused`
+//!
+//! The inline fence (`c2_core::comdat::fenced_inlined_callee`) refuses a
+//! composed body that emits a `REL24` against a same-TU callee whose lowered
+//! body is at most `INLINE_UNBOUNDED_BYTES`. `?g` qualifies on size — and
+//! `__declspec(noinline)` is exactly the field that makes the prediction wrong,
+//! and exactly the field board **#1039** measured to be undecoded. So this cell
+//! is the fence's **measured reach cost**, and it is one function.
+//!
+//! It is in the direction that cannot be a wrong emit: a mis-predicted *"c2
+//! inlines this"* makes the port **decline**. On the 878-TU workload the cost is
+//! **0** (`work/w-inlfence/crossing.md` §4). The counterexample this file exists
+//! for is unaffected and is now asserted **against c2's own relocation table**
+//! rather than inferred from the port agreeing — which is stronger, because a
+//! verdict of `Exact` never said *what* the two sides agreed on.
 //!
 //! # The attribute is present in the workload and the exposure is LATENT, not live
 //!
@@ -100,19 +116,33 @@ fn work(cell: &str) -> PathBuf {
 /// Grade every emitted `.text` COMDAT of one cell on the FULL identity — bytes
 /// **and** relocations — through the scan's own `grade_one`, never a copy.
 fn grade(tc: &Toolchain, tag: &str, src_text: &str) -> Vec<(&'static str, FnByte, String)> {
+    grade_with_targets(tc, tag, src_text).0
+}
+
+/// [`grade`] plus **c2's own REL24 targets, by COMDAT and by name**.
+///
+/// Added by lane `w-inlfence` so `w04a`'s counterexample can be asserted against
+/// the reference obj directly rather than inferred from the port agreeing with
+/// it. A verdict of `Exact` says the two sides match; it does not say *what*
+/// they matched on, and the fact this cell exists to pin is a fact about **c2**.
+fn grade_with_targets(
+    tc: &Toolchain,
+    tag: &str,
+    src_text: &str,
+) -> (Vec<(&'static str, FnByte, String)>, Vec<(String, Vec<String>)>) {
     let dir = work(tag);
     let cpp = dir.join(format!("{tag}.cpp"));
     std::fs::write(&cpp, src_text).unwrap();
     let flags: Vec<String> = FLAGS.iter().map(|s| s.to_string()).collect();
     let src = c2_reference::to_wibo_path(&cpp);
     let Ok(cap) = tc.capture_reference_with(&src, &dir, &flags, None) else {
-        return Vec::new();
+        return (Vec::new(), Vec::new());
     };
     let (Some(census), Some(entries)) = (
         cap.bundle.census_functions(),
         cap.ref_obj.text_comdat_functions_with_bytes(),
     ) else {
-        return Vec::new();
+        return (Vec::new(), Vec::new());
     };
     let mut claim: BTreeMap<&str, Vec<usize>> = BTreeMap::new();
     for (i, (f, _)) in census.iter().enumerate() {
@@ -139,7 +169,18 @@ fn grade(tc: &Toolchain, tag: &str, src_text: &str) -> Vec<(&'static str, FnByte
         let g = grade_one(row, Some(bytes.as_slice()), &tu, rr);
         out.push((g.shape, g.verdict, sym.clone()));
     }
-    out
+    // c2's REL24 targets per COMDAT, by NAME (#644/#918's rule — never an index
+    // and never a position). `None` is a decode failure and is returned as an
+    // empty list, which every caller asserts against rather than reading as
+    // agreement.
+    let targets: Vec<(String, Vec<String>)> = cap
+        .ref_obj
+        .text_comdat_call_targets()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(n, v)| (n, v.into_iter().map(|(_, t)| t).collect()))
+        .collect();
+    (out, targets)
 }
 
 fn find<'a>(
@@ -156,40 +197,92 @@ fn find<'a>(
     })
 }
 
-/// **THE COUNTEREXAMPLE.** `?f` calls a `noinline` `?g`; c2 obeys the attribute
-/// and emits `b ?g`, exactly as the port does. The body is `48000000` on both
-/// sides and the relocation names the same symbol — so this function is
-/// **`Exact` today**, and a rule that closed the chain would rename its target
-/// to `?ext` and take it out of the credited count.
+/// **THE COUNTEREXAMPLE, now asserted on c2's OWN OBJ.** `?f` calls a
+/// `noinline` `?g`; c2 obeys the attribute and emits `b ?g` rather than closing
+/// the chain to `?ext`. That is `w-target`'s registered unconditional stop
+/// against #1013's closure rule, and it is still true and still checked — but it
+/// is checked HERE now, against the reference obj's own relocation, instead of
+/// being read off the port's verdict.
 ///
-/// This is `w-target`'s registered unconditional stop, on one compiled obj.
+/// # Why the assertion moved (2026-08-09, lane `w-inlfence`)
+///
+/// `?f@@YAXXZ` used to be **`Exact`**: the port emitted the same `b ?g`. It is
+/// **`Refused`** now, and the refusal is `ComdatDecline::InlinedCallee` — the
+/// fence that stops the port emitting a `bl` to a same-TU callee c2 expands.
+/// `?g` is defined here and its lowered body is 4 bytes, so the fence's
+/// predicate (`<= INLINE_UNBOUNDED_BYTES`) holds and it fires. **The attribute
+/// is what makes that prediction wrong, and the port cannot read it**: board
+/// **#1039** measured the discriminator to be an undecoded two-byte `.gl` field
+/// — `.ex`, `.sy`, `.in` and `.db` are byte-identical across a matched pair, and
+/// the per-function optimization word is `00a00005` either way — so no clause
+/// over the body IL or the opt word can separate the two cases.
+///
+/// **This is the fence's reach cost, and it is in the safe direction.** A
+/// mis-predicted *"c2 inlines this"* makes the port **decline** a function it
+/// would have got right; it can never make it emit a wrong byte. Measured on the
+/// 878-TU workload the cost is **zero** — `xw-fence-fires|fnbyte-exact` = 0,
+/// `work/w-inlfence/crossing.md` §4 — because the three `noinline` functions in
+/// the corpus (`src/lazer/game/BustAMovePanel.cpp`, TU #4) are not bodies either
+/// mechanism reaches. On this cell it is one function, and it is recorded rather
+/// than absorbed.
+///
+/// **When the port learns to read the `.gl` field, this test goes red** and the
+/// fixing commit restores `Exact`. That is the same contract
+/// `the_shipped_splice_emits_the_wrong_body_through_a_noinline_callee` carries,
+/// with the sign flipped: that one pins a wrong EMIT, this one pins a
+/// conservative REFUSAL.
 #[test]
 fn c2_does_not_close_a_chain_through_a_noinline_intermediate() {
     let Some(tc) = Toolchain::locate() else {
         println!("SKIP: toolchain absent");
         return;
     };
-    let rows = grade(&tc, "w04a", W04A);
+    let (rows, targets) = grade_with_targets(&tc, "w04a", W04A);
     if rows.is_empty() {
         println!("SKIP: capture produced no graded function");
         return;
     }
+    // **THE STOP ITSELF, read off c2's obj and not off a port verdict.** This is
+    // strictly stronger evidence than the assertion it replaces: the old form
+    // could only say "the port and c2 agree", which a change on either side
+    // moves. This says what c2 DID.
+    let f_targets = targets
+        .iter()
+        .find(|(n, _)| n == "?f@@YAXXZ")
+        .map(|(_, t)| t.clone())
+        .expect("no `?f@@YAXXZ` in the reference obj's REL24 table");
+    assert_eq!(
+        f_targets,
+        vec!["?g@@YAXXZ".to_string()],
+        "c2's `?f` must branch to the `noinline` `?g` and NOT close the chain to \
+         `?ext`. If this ever reads `?ext`, c2 has started closing this chain and \
+         #1013's closure rule is unblocked — which is the whole reason this cell \
+         exists (board #1037)"
+    );
+    // …and the port's side, pinned at the conservative refusal it now gives.
     let f = find(&rows, "?f@@YAXXZ");
     assert_eq!(
         f.1,
-        FnByte::Exact,
-        "`?f@@YAXXZ` must be Exact: c2 declined to inline the `noinline` `?g`, \
-         so both sides branch to `?g`. If this ever reads RelocDiffers, c2 has \
-         started closing this chain and #1013's closure rule is unblocked"
+        FnByte::Refused,
+        "`?f@@YAXXZ` is REFUSED by the inline fence, not graded. `?g` is defined \
+         in this TU and lowers to 4 bytes, so the fence predicts c2 expands it; \
+         `__declspec(noinline)` is what makes that prediction wrong and it lives \
+         in an undecoded `.gl` field (board #1039). A refusal is the safe error — \
+         when the port reads the field this must go back to Exact"
     );
-    assert_eq!(f.0, "tail", "the shape behind the verdict");
     // The inverse, on the same obj: without the attribute in the way, `?g`'s own
     // branch to the external is right on both sides. A cell where everything is
-    // Exact cannot distinguish "c2 declined" from "the grader is asleep", so the
-    // anchor is asserted too.
+    // Refused cannot distinguish "the fence fired" from "the grader is asleep",
+    // so the anchor is asserted too — and `?g` calls only an EXTERNAL, which is
+    // the fence's N1 clause and must leave it alone.
     for sym in ["?g@@YAXXZ", "?anchor@@YAXXZ"] {
         let r = find(&rows, sym);
-        assert_eq!(r.1, FnByte::Exact, "`{sym}` is byte- and relocation-exact");
+        assert_eq!(
+            r.1,
+            FnByte::Exact,
+            "`{sym}` is byte- and relocation-exact — it calls an EXTERNAL, which \
+             the fence must never touch"
+        );
     }
 }
 
