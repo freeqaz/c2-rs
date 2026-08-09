@@ -11735,3 +11735,91 @@ fixture-verdicts, sweep 19,460 graded / 0 mismatch, cross 90,424 / 0 mismatch;
 `board_audit.sh` five zeros; `rung_registry` 2 passed. `hatch-red` is REFUSED
 by a **pre-existing** `HATCH-DRIFT` in `body/shapes/calls.rs`, reproduced at
 master with this lane's `crates/` reverted (#2482, board #1406).
+
+---
+
+## 10.34 W-VEC — `vec.cpp` DECLINES at five mechanisms, its `_fltused` half was already paid, and the gate's own first refusal is now a scan field: 811 of 851 refused TUs stop at ONE `.gl` clause and repairing it converts ZERO (2026-08-09)
+
+Full record: [`docs/rungs/2026-08-09-w-vec.md`](rungs/2026-08-09-w-vec.md).
+Board **#2500**–**#2510**. Base master `111b6357`, workload dc3 `d7a3c1aa`
+(clean), base binary `fac478feafeab975`, every figure this lane's own scan at
+both ends with each end scanned by its own binary.
+
+**The commission was to convert `src/system/math/vec.cpp` — §11.3's last T1
+ALL-EXACT-NO-MATCH TU — on the ground that its two emitted functions are already
+byte-exact and the residue is *"`_fltused` plus seven non-instruction
+sections"*. Both halves of that price are wrong.**
+
+1. **`_fltused` was already paid**, by `w-blockir` (#2301), and this lane ships
+   the proof as a fixture rather than an argument.
+   `fixtures/cpp/wvec_float_store_leaf.cpp` is `??0Vector3@@QAA@MMM@Z`'s body
+   instruction for instruction — `d0230000 d0430004 d0630008 4e800020` — and
+   grades **`Port=Match`, byte-exact, at `/O1` and `/Ox`**, with `_fltused` at
+   symbol [14] immediately after the function's own [13].
+2. **The section half is not a vocabulary problem.** All seven distinct names in
+   `vec.obj` are already in `PORT_WRITER_SECTIONS`; factor C is TRUE on this TU
+   and always was. The live fence is **one clause**, `cause::UNCLAIMED`.
+3. **And the gate's first stop is neither.** `IlBundle::functions()` and
+   `dyninit_tu()` both return `None` at **`gl-stop-26-introduced`** — **811
+   `.ex` segments against 36 framed defined records**, 573 of the 811 bodies
+   outside the modeled class, and the reference obj emits 2. **No obj is
+   produced at all**, so every per-function byte figure on this TU is keyed on
+   `FnCensus::emit_name` and says nothing about the gate. `CEILING.md` §11.4
+   item 8 — `w-mmioclose`'s trap — firing a **second** time, this time on a TU
+   whose names *are* C++-mangled.
+
+**`vec.cpp` DECLINES. TU match 20 → 20.** Priced at five mechanisms (§4): the
+`.gl` walk stop, the binding, the emit set, the writer composition, and the
+plain-data `.rdata` COMDAT. Sized at zero and named so nobody re-prices them:
+`_fltused`, the label counter (the obj has no `$M`/`$T` at all), factor C, and
+any widening of `Bindings::per_record`.
+
+**What ships is the instrument the commission needed and did not have.**
+`IlBundle::decode_causes` had decomposed the `vocab-gap` verdict into eleven
+named causes since lane `w-vocab`, and **nothing in `c2-harness` ever called
+it** — so 851 of 878 TUs rendered one string and a lane pricing a conversion had
+to write a scratch patch. It is now `TuResult::gate_cause` / `gate_causes`, a
+`--jsonl` field, and a **FIRST-vs-ALSO** histogram, asked *after* `decodes()`
+has already decided the class so it cannot move a verdict — and all **257**
+`gap-metric` keys are `diff`-identical at both ends.
+
+**Its first run produced the lane's largest number.** Over the 851 refused TUs:
+
+```text
+    811 x gl-stop-26-introduced              (also fires on 823 TUs total)
+     15 x gl-stop-name-not-mangled           (also fires on  16 TUs total)
+     13 x drectve-not-boilerplate            (also fires on  13 TUs total)
+      7 x bind-record-count-ne-segments      (also fires on   7 TUs total)
+      5 x body-out-of-class                  (also fires on 851 TUs total)
+```
+
+**811 of 851 — 95.3 % of the bucket — stop at one `.gl` clause, and repairing it
+converts ZERO TUs**, because `body-out-of-class` fires on **851 of 851** and no
+TU in the workload is refused by the `.gl` stop alone. Exactly **three** TUs —
+`Biquad.cpp`, `EncryptXTEA.cpp`, `Pool.cpp` — are refused by the reader and
+nothing else. This is why the histogram is a **pair** and not a ranking: a
+single-column ranking would have read *"811, go build that reader"*, which is
+the fifth instance of a ranking measuring the instrument that made it.
+
+**Two things found and not taken.** The section order of a `.text` COMDAT beside
+`.data`/`.bss` is **unmeasured** and two minimal `/O1` cells disagree (#2508),
+which is why the composition was declined rather than priced small — building on
+either cell is `w-data`'s GRID C error in the same emitter. And the emit set
+**has to run before the parse gate** (#2509): `PortC2::build` parses all 811
+bodies or refuses, 573 are out of class, so no post-parse selection reaches the
+two that matter. That re-prices `w-root`'s validated root rule as an
+architecture change rather than a clause.
+
+**One standing gate was found true only by absence.** `il_roundtrip`'s K2a claim
+— typed `.gl` offsets exactly 1:1 with `.ex` function count, *"holds for every
+fixture"* — is **false on 811 of 878 workload TUs** and the 331-fixture spread
+had zero instances. It now asserts the **direction** universally (a surplus is a
+codec defect) and the **equality** unless the gate itself reports `BIND_COUNT`,
+which is strictly more than it asserted before (#2507).
+
+Neutrality at three levels, all zero: 878 TUs by name **0 changed**, 257
+`gap-metric` keys **0 changed** (`diff`-empty), 334 fixtures × {`/O1`, `/Ox`} ×
+{base binary, tip binary} **0 changed, mismatch 0**. T1 at the tip is **1**,
+unchanged. The `#[test]` delta was registered **+4** on `w-fence2` #2481's
+scored correction and landed **+4** exactly — the six-lane same-direction
+over-estimate streak ends.
