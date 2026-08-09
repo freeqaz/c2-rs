@@ -11533,3 +11533,52 @@ between them.
 tip.
 
 [`rungs/2026-08-09-w-readpx.md`](rungs/2026-08-09-w-readpx.md).
+
+## 10.31 W-BLOCKIR — the float array-walk loop ships and `IPP_basicmath_xbox.cpp` MATCHES; `mmio.cpp` declines at eleven; the last blocker was `_fltused` and not codegen (2026-08-09)
+
+**TU match 18 → 19, and it is the first frontier TU ever converted whose whole
+remaining distance was a loop.** `w-band` (§10.29, board #2242) and `w-readpx`
+(§10.30, board #2282) independently found that `expr-cmp-eq` is the only key
+owning two frontier TUs — `src/system/synth_xbox/IPP_basicmath_xbox.cpp` and
+`src/xdk/nuispeech/mmio.cpp` — and both concluded that *"what these two need is
+the **block IR** … a **new lowering**, not a reader admission"*. One of the two
+is taken.
+
+**What shipped is not the block IR `docs/CFG_SHAPE.md` §6 specifies**, and the
+rung says so item by item: no fixup list, no liveness across a block boundary
+(§6.2 item **F**, the one the spec itself calls the pivot), no scheduler, no
+register allocator. It is **one CFG shape in three transcribed register plans**,
+`/O1` only, drawn around four workload bodies and refusing everything else — the
+mechanism `w-readpx` §6.4 calibrated at **+7 `fnbyte-exact` and +7 TUs over
+seven one-function classes**, against a 444-wide admission's **+0 and +0**.
+
+**Three things this rung found that are worth more than the conversion:**
+
+1. **The last blocker was `_fltused`.** With the reader and the emitter both
+   finished the scan read `fnbyte-exact 4 · fnbyte-differs 0` — every body
+   byte-exact — and the whole obj graded **`mismatch`**, one symbol short,
+   because `touches_floating_point` had no arm for the class. Board #764's shape
+   a third time: `.sy` blocked `w-hash`, `.sy` blocked half of `w-bdnz`, and a
+   TU-level fact blocked this one. **A lane grading only per-function bytes
+   cannot see it** — `fnbyte-exact` was at its final value on both sides.
+2. **The label charge is +10 at `/O1` where `LABEL_COUNTER.md` read literally
+   predicts +1**, it is mode-dependent (+13 at `/Ox`), and — new — it is
+   **sub-shape dependent** (+11 / +15 for the third plan). Fourth consecutive
+   lane to measure a published surcharge low, and the first to find a second
+   parameter. And the must-fail mutation caught a `_neg` cell that **could not
+   fail**: with the framed function first, a wrong charge on the last function in
+   a TU moves nothing after it.
+3. **`mmio.cpp` declines at eleven distinct unbuilt mechanisms**, and the
+   eleventh is an **elided call** — the source calls `mmioSetBuffer(hmmio,0,0,0)`
+   and the obj carries no branch for it, though the callee is
+   `__declspec(noinline)` with a non-empty body. That is #2284's inlined-callee
+   hazard made concrete, and `elide.rs`'s mechanism E does not reach it.
+
+Both of the lane's registered mechanism calls — walker selection and the park's
+position — **posited one rule where the answer is three constants**, and the
+park's is refuted from both sides. `WB_LOOP_FINDINGS.md` §4.3 declined to claim
+the walker at all; that decline was right and this rung honours it rather than
+resolving it.
+
+Boards **#2300**–**#2311**;
+[`rungs/2026-08-09-w-blockir.md`](rungs/2026-08-09-w-blockir.md).
