@@ -10,7 +10,10 @@
 
 Lane `wb-select` (WB-I), campaign 2026-08-08, run 2026-08-09. PREREG:
 [`WB_SELECT_PREREG.md`](WB_SELECT_PREREG.md), committed in `18a2ec45`
-**before the first grep of `~/ghidra-projects/export/c2/`**. Grid:
+**before the first grep of `~/ghidra-projects/export/c2/`** — one `ls -la` of
+that directory ran earlier, to confirm the export exists at all, and is
+disclosed here because it is the only thing that touched the path before the
+freeze. Grid:
 [`grids/wb-select/select_grid.cpp`](grids/wb-select/select_grid.cpp) +
 [`frozen.tsv`](grids/wb-select/frozen.tsv), committed in `3624bb93` **before
 the first `cl.exe` of the grid**. Calibration:
