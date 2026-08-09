@@ -269,7 +269,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b2e214	666		unknown	unknown	1	8	-
 10b2e4ae	794		unknown	unknown	1	19	-
 10b2e7c8	48		unknown	unknown	1	3	-
-10b2e7f8	582		unknown	unknown	1	13	-
+10b2e7f8	582		reg-select	high	1	13	THE register selector, color.c: min cost over the interference-allowed candidates, cost = penalties minus copy preferences, strict '<' so ties go to the EARLIEST entry of the per-class ordered list; the only reader of 10c385c4. Order confirmed 6/6 by the wb-regalloc obj grid (WB_REGALLOC_FINDINGS.md 7.1) [src:W-REGALLOC]
 10b2ea3e	465		unknown	unknown	1	7	-
 10b2ec0f	619		unknown	unknown	1	9	-
 10b2ee7a	348		unknown	unknown	1	5	-
@@ -283,7 +283,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b2fc58	732		unknown	unknown	1	14	-
 10b2ff34	1014		unknown	unknown	1	11	-
 10b3032a	493		unknown	unknown	1	13	-
-10b30517	2214		unknown	unknown	1	24	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
+10b30517	2214		reg-interfere	high	1	24	color.c's interference walk; consumes (&DAT_10c3d024)[class] and returns the candidate set the selector picks from [src:W-REGALLOC]
 10b30dbd	569		unknown	unknown	3	9	-
 10b30ff6	966		unknown	unknown	2	19	-
 10b313bc	70		unknown	unknown	1	3	-
@@ -293,7 +293,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b316b1	164		unknown	unknown	1	4	-
 10b31755	884		unknown	unknown	1	15	-
 10b31ac9	465		unknown	unknown	1	11	-
-10b31c9a	826		unknown	unknown	1	31	-
+10b31c9a	826		reg-alloc-driver	high	1	31	the per-function allocator driver: iterates register classes 7 down to 0 over DAT_10c400d8[class], calling the interference walk then 10b2e7f8 then 10b31ac9 [src:W-REGALLOC]
 10b31fd4	52		unknown	unknown	2	2	-
 10b32008	44		unknown	unknown	1	0	-
 10b32034	36		unknown	unknown	2	1	-
@@ -1333,7 +1333,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b6fdba	60		unknown	unknown	2	2	-
 10b6fdf6	11		unknown	unknown	2	0	-
 10b6fe01	135		unknown	unknown	1	2	-
-10b6fedd	181		unknown	unknown	2	1	str:Possible branch flush penalty | Possible load-hit-store condition | ; %9s  %5u   %6u  %s\n
+10b6fedd	181		stall-listing	high	2	1	the /QXSTALLS stall-summary writer; with 10b71d8f it is the ONLY consumer of the stall-reason table at 10b12af8..10b12bd4, so the stall model is listing-only and does not reorder anything [src:W-REGALLOC]
 10b6ff92	342		unknown	unknown	1	4	str:, VMX IPC = %u/%u = %0.3f | ; Estimated block IPC = %u/%u = %0.3f
 10b700e8	359		unknown	unknown	1	7	-
 10b7024f	40		unknown	unknown	1	0	-
@@ -1818,8 +1818,8 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b83874	242		unknown	unknown	1	4	-
 10b83966	909		unknown	unknown	1	5	-
 10b83cf3	404		unknown	unknown	1	4	-
-10b84844	2530		unknown	unknown	2	28	-
-10b84869	45		unknown	unknown	1	1	-
+10b84844	2530		loop-preinc-pass	medium	2	28	p2\misc.c: the per-loop pre-increment/update-form formation (2530 bytes, not read clause by clause). The SELECTION RULE is not claimed — FINDINGS 4.4 elects no rival [src:W-LOOP]
+10b84869	45		loop-preinc-driver	high	1	1	p2\misc.c (machine-INDEPENDENT): the lwzu/stwu update-form pass driver. Gated on DAT_10c2ecfc (-QXnopreinc) and DAT_10c2e2fc; walks the same func+0x0c loop list calling 10b84844. Obj-confirmed by /d2QXnopreinc removing all 28 update forms and NO bdnz (FINDINGS 7.7) [src:W-LOOP]
 10b84896	70		unknown	unknown	1	0	-
 10b848dc	1756		argv-parse	high	2	17	option driver: memset(0x10c40220,0,0xce0), match loop, C1007 at 0x10b84a95, options fold [src:W-FLAG]
 10b84fb8	33		unknown	unknown	2	0	-
@@ -4135,8 +4135,8 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10bf9e55	96		unknown	unknown	1	1	-
 10bf9eb5	96		unknown	unknown	1	1	-
 10bf9f15	3861		ppc-codegen	high	2	13	same region, same reasoning [src:W-IL]
-10bfb00d	237		unknown	unknown	1	2	-
-10bfb0fa	117		unknown	unknown	1	3	-
+10bfb00d	237		reg-set-fpr-vmx	high	1	2	builds the class-1 (FPR, list 10c37f20) and class-5 (VMX, 10c37fa8 / 10c38030 / 10c38440) sets; -QFPU# = DAT_10c2e974, -QVMX128 = DAT_10c2e978, -QVMXReserve = DAT_10c2e97c [src:W-REGALLOC]
+10bfb0fa	117		reg-set-gpr	high	1	3	builds the class-0 (GPR) allocatable set + ordered list: default 10c37de0, -QGPRReserve 10c37e50, POGO 10c37eb8; then drops the frame-pointer register (DAT_10c6fd9c) or adds r31 (0x20) when there is none [src:W-REGALLOC]
 10bfb16f	146		unknown	unknown	1	2	-
 10bfb201	202		unknown	unknown	4	5	-
 10bfb2cb	172		unknown	unknown	2	5	-
@@ -4163,7 +4163,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10bfbe3d	402		unknown	unknown	1	8	-
 10bfbfcf	48		unknown	unknown	1	1	-
 10bfbfff	48		unknown	unknown	1	1	-
-10bfc02f	44		unknown	unknown	1	0	-
+10bfc02f	44		reg-list-hook	high	1	0	the machine-dependent pre-select hook; touches class 5 (VMX) ONLY, and only under -QVMX128 -- so for GPRs and FPRs the ordered preference list is the fixed image-resident array [src:W-REGALLOC]
 10bfc05b	61		unknown	unknown	1	1	-
 10bfc098	71		unknown	unknown	1	2	-
 10bfc0df	83		unknown	unknown	1	1	-
@@ -4195,7 +4195,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10bfe793	814		unknown	unknown	3	10	-
 10bfeac1	145		unknown	unknown	3	5	-
 10bfeb52	165		prolog-lr-slot	medium	1	4	the LR-slot half of the bit-0 arm; reads the final frame size from [[fn]+0x5c] [src:W-FRAME]
-10bfebf7	123		saved-gpr-mask	high	1	0	callee-saved GPR bitmask: register numbers 0x0f..0x20 (r14..r31), narrowed to 0x12..0x20 when DAT_10c2e980 != 0 [src:W-FRAME]
+10bfebf7	123		saved-gpr-mask	high	1	0	callee-saved GPR bitmask: register numbers 0x0f..0x20 (r14..r31), narrowed to 0x12..0x20 when DAT_10c2e980 != 0 -- and DAT_10c2e980 is -QGPRReserve, which reserves exactly r14/r15/r16 (wb-regalloc, W-REGALLOC.tsv) [src:W-FRAME]
 10bfec72	211		prolog-emit	high	1	3	emits the prologue: bit 0 -> LR spill (10bfec7d), bit 2 -> frame (10bfed12); size = [fn+0x68] + 8*nSaved + 8 at 10bfed35 [src:W-FRAME]
 10bfed45	14		unknown	unknown	2	0	-
 10bfed53	89		unknown	unknown	1	2	-
@@ -4260,14 +4260,14 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c02767	108		unknown	unknown	1	4	str:Label
 10c027d3	8796		unknown	unknown	1	50	str:Invalid operands\n | Unsupported instruction form\n | First and third operands must be equal\n
 10c04bcc	237		unknown	unknown	1	5	-
-10c04cb9	180		unknown	unknown	1	0	-
+10c04cb9	180		sel-table-install	high	1	0	Installs the SIXTEEN per-type opcode tables (move/load/loadx/store/storex/neg/add/sub/mul/div/cmp-imm/cmp-reg and four -QVMX128 variants) into DAT_10c6fdb0..DAT_10c6fddc.  Each table is 26 ints indexed by FUN_10bd7c10(type).  THIS IS THE PATTERN SET IN TABLE FORM [src:W-SELECT]
 10c04d6d	66		unknown	unknown	1	2	-
 10c04daf	91		unknown	unknown	6	0	-
 10c04e0a	201		unknown	unknown	3	0	-
 10c04ed3	67		unknown	unknown	6	1	-
 10c04f16	46		unknown	unknown	5	1	-
 10c04f44	107		unknown	unknown	1	2	-
-10c04faf	392		unknown	unknown	2	3	-
+10c04faf	392		reg-env-init	high	2	3	per-function register environment: DAT_10c6fd9c = the FRAME-POINTER register (2 = sp when none, 0x20 = r31 when needed); DAT_10c6fda8 = the volatile set r3..r12 / fp0..fp13 / cr0,cr1,cr6,cr7 / ctr / lr; DAT_10c6fda4 = reserved, r14..r16 under -QGPRReserve and vr64..vr95 under -QVMXReserve [src:W-REGALLOC]
 10c05137	224		unknown	unknown	2	1	-
 10c05217	171		unknown	unknown	4	2	-
 10c052c2	179		unknown	unknown	5	2	-
@@ -4286,12 +4286,12 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c06215	118		unknown	unknown	1	4	-
 10c0628b	53		unknown	unknown	1	4	-
 10c062c0	139		unknown	unknown	2	7	-
-10c0634b	384		unknown	unknown	10	14	-
-10c064cb	498		unknown	unknown	4	15	-
+10c0634b	384		sel-add	high	10	14	The add selector; the mirror of 10c064cb (adde 0x007 / addze 0x015 / addme 0x00f / addc 0x003) [src:W-SELECT]
+10c064cb	498		sel-sub	high	4	15	The subtract selector.  Picks subfe (0x187) when a carry-in operand is present, subfc (0x183) when a carry-out is consumed, subfic (0x18b) for a 16-bit constant, subfme (0x18c) / subfze (0x192) for the -1 / 0 cases, and add/addi when the operand is negated.  Then attaches a dead CA def if 10c3afd8[opcode] & 0x20 [src:W-SELECT]
 10c066bd	201		unknown	unknown	4	2	-
 10c06786	107		unknown	unknown	1	2	-
 10c067f1	253		unknown	unknown	2	12	-
-10c068ee	1475		unknown	unknown	1	17	-
+10c068ee	1475		sel-div	high	1	17	The divide selector.  Emits the two twi division traps, and for a power-of-two signed divisor the srawi + addze pair.  Obj-confirmed word-exact by cell wbs_k1 (x/8 -> srawi r11,r3,3 ; addze r3,r11) [src:W-SELECT]
 10c06eb1	620		unknown	unknown	1	21	-
 10c0711d	114		unknown	unknown	2	7	-
 10c0718f	117		unknown	unknown	2	6	-
@@ -4302,7 +4302,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c07867	50		unknown	unknown	2	2	-
 10c07899	79		unknown	unknown	6	3	-
 10c078e8	40		unknown	unknown	1	3	-
-10c07910	446		reg-slot-store	high	3	6	emits "store register R at offset D off r1"; register 0x53 takes the 0xe6 arm and emits no PPC instruction — the frame-establish/unwind pseudo [src:W-FRAME]
+10c07910	446		reg-slot-store	high	3	6	emits "store register R at offset D off r1"; register 0x53 takes the 0xe6 arm and emits no PPC instruction. CORRECTED by wb-regalloc: 0x53 is `lr`, not a "frame-establish pseudo-register" (register-name table 10b181c0). The behaviour stands; the name was wrong [src:W-FRAME]
 10c07ace	414		unknown	unknown	3	6	-
 10c07c6c	1915		unknown	unknown	1	21	str:__pexit
 10c083e7	363		unknown	unknown	1	10	str:memcpy
@@ -4333,7 +4333,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c0968d	1366		unknown	unknown	1	10	-
 10c09be3	127		unknown	unknown	1	4	-
 10c09c62	31		unknown	unknown	1	2	-
-10c09c81	285		unknown	unknown	2	7	-
+10c09c81	285		tuple-uses-ctr	high	2	7	the per-tuple CTR test. Machine tuples: refuse if the tuple uses/defs the CTR pseudo-symbol DAT_10c31008 or has an operand of register 0x54. Tuple-IR: refuse on opcodes 0x290/0x2bd/0x2dc/0x2e8/0x2ed, on a kind-0x12 branch with 10bd5209==0, and conditionally on 0x2be/0x2eb. THIS is the clause a `bl` trips — obj-confirmed by grid cells a4/cal_call [src:W-LOOP]
 10c09d9e	28		unknown	unknown	1	2	-
 10c09dba	187		unknown	unknown	1	8	-
 10c09e75	213		unknown	unknown	1	4	-
@@ -4341,7 +4341,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c09f5e	214		unknown	unknown	1	6	-
 10c0a034	316		unknown	unknown	1	11	-
 10c0a170	370		unknown	unknown	5	7	-
-10c0a2e2	1871		unknown	unknown	2	20	-
+10c0a2e2	1871		sel-rlandi-expand	high	2	20	Expands the rlandi (0x26e) AND-with-immediate pseudo-op into rlwinm / rlwinm. / andi. / andis. / rldicl / li+and.  Obj-confirmed: a contiguous mask always took rlwinm, never andi. (cells wbs_s3, wbs_k2, wbs_b1, wbs_b2, wbs_k3 — 5 for 5) [src:W-SELECT]
 10c0aa31	305		unknown	unknown	1	10	-
 10c0ab62	139		unknown	unknown	2	6	-
 10c0abed	774		unknown	unknown	1	15	-
@@ -4349,7 +4349,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c0afd5	241		unknown	unknown	1	6	-
 10c0b0c6	153		unknown	unknown	2	9	-
 10c0b15f	417		unknown	unknown	2	15	-
-10c0b300	448		unknown	unknown	1	9	-
+10c0b300	448		sel-cmp-cr0	unknown	1	9	Decides cr0 instead of cr6 in 10c0eb17 (its result shifts the descriptor index by -6).  Not read by this lane; the black-box fact stands (every explicit compare in three lanes' grids is cr6) [src:W-SELECT]
 10c0b4c0	464		unknown	unknown	1	12	-
 10c0b690	106		unknown	unknown	8	4	-
 10c0b6fa	464		frame-alloc	high	2	9	the frame allocator: nothing emitted when size <= 0 (10c0b708); F = align16(size) ONCE and AFTER the additions (10c0b722); stwu, or _RtlCheckStack12 + stwux at F >= 5 * the page datum DAT_10c386f4 = 0x1000 (10c0b74d) [src:W-FRAME]
@@ -4360,18 +4360,18 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c0d32b	34		unknown	unknown	1	2	-
 10c0d34d	22		unknown	unknown	2	1	-
 10c0d363	155		unknown	unknown	3	5	-
-10c0d3fe	87		unknown	unknown	2	1	-
+10c0d3fe	87		loop-ctr-available	high	2	1	p2\ppc\lower.c: is CTR free through this loop? Refuses on -QXnobdnz (DAT_10c2ecf8), DAT_10c3de20==1, (DAT_10c472e8+0xcdc)&10, or any tuple in any block satisfying 10c09c81 [src:W-LOOP]
 10c0d455	297		unknown	unknown	1	1	-
-10c0d57e	3899		unknown	unknown	3	41	-
+10c0d57e	3899		sel-expand-switch	high	3	41	The in-place expansion switch WB-D §4 saw — a 3899-byte binary decision tree on instr[1] with arms at 0x0b..0x0d (addi/addic/addic.), 0x21 (bc), 0x2e/0x30 (cmpi/cmpli), 0x270 (li) AND 0x2f0/0x2f4.  It therefore spans BOTH halves of one opcode space: <= 0x298 machine, > 0x298 tuple/IR [src:W-SELECT]
 10c0e4b9	1630		unknown	unknown	5	35	str:__r12_indirect
-10c0eb17	789		unknown	unknown	3	10	-
+10c0eb17	789		sel-cmp	high	3	10	The compare selector.  Reads the type nibble (>>12) of the tuple's type word, tests a 16-bit SIGNED fit for nibble 1 and a 16-bit UNSIGNED fit for nibbles 2/3/4, and indexes DAT_10c6fdb4 (immediate) or DAT_10c6fdb0 (register).  Assigns the CR field as descriptor 0x10c2f088 + 0x60*(0x49) = cr6, or 0x43 = cr0 when 10c0b300 says so [src:W-SELECT]
 10c0ee2c	32		unknown	unknown	1	2	-
 10c0f12e	32		unknown	unknown	1	2	-
 10c0f14e	159		unknown	unknown	2	6	-
 10c0f1ed	1506		unknown	unknown	3	26	-
-10c0f7f9	775		unknown	unknown	2	14	-
-10c0f81e	100		unknown	unknown	1	6	-
-10c0f882	686		unknown	unknown	10	44	-
+10c0f7f9	775		loop-ctr-convert	high	2	14	p2\ppc\lower.c: the per-loop mtctr/bdnz conversion. Recurses into child loops (loop+0x04) FIRST, then ~20 refusal clauses, then the rewrite: mint mtctr assign + bdnz (opcodes 0x2af/0xf8/0x288, CTR operand 0x54), DELETE the compare (0x2d4), the assign (0x2af) and the add (0x2c6). FINDINGS 2 [src:W-LOOP]
+10c0f81e	100		loop-ctr-driver	high	1	6	p2\ppc\lower.c: the bdnz pass driver. Gated on DAT_10c2e2fc (optimize) and DAT_10c2ecf8 (-QXnobdnz); walks the per-function LOOP LIST at func+0x0c calling 10c0f7f9. Called FIRST from the md-lowering driver 10c24021. Obj-confirmed by /d2QXnobdnz removing all 29 bdnz (FINDINGS 7.7) [src:W-LOOP]
+10c0f882	686		sel-dispatch	high	10	44	THE PER-OPERATOR SELECTION DISPATCH.  A 46-arm jump-table switch on the tuple opcode (instr[1]) that rewrites the SAME field into a machine opcode.  0x2c5/0x327/0x328 -> add 10c0634b, 0x2c6/0x329/0x32a -> sub 10c064cb, 0x2c7 -> mul 10c067f1, 0x2ca -> and 10c0711d, 0x2cb -> or (0x11d/0x121), 0x2cc -> xor (0x26a/0x26c), 0x2cd -> div 10c068ee, 0x2ce -> mod 10c06eb1, 0x2d4 -> compare 10c0eb17, 0x2dc -> call 10c0e4b9, 0x2dd/0x2e7 -> branch 10c0b690, 0x2ea -> relational-as-VALUE 10c1b517, 0x2eb -> intrinsics 10bf7c59 (cgintrin.c), 0x2f0/0x2f4 -> prologue/epilogue [src:W-SELECT]
 10c0fc83	510		unknown	unknown	1	9	-
 10c0fe81	3580		unknown	unknown	3	41	-
 10c10c7d	20		listing-writer	high	2	1	.cod file header (TITLE/.PPC/.MODEL FLAT/ORG) [src:W-EMIT]
@@ -4462,7 +4462,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c15fe4	333		unknown	unknown	1	8	-
 10c16131	665		unknown	unknown	9	24	-
 10c1642f	314		unknown	unknown	1	4	-
-10c16569	666		unknown	unknown	1	10	-
+10c16569	666		md-peephole-driver	medium	1	10	the machine-instruction peephole loop; gates 10c15d7f (opcode 1) and 10c15b87 (opcode 0xb) on DAT_10c2ecfc. A second consumer of the -QXnopreinc flag, at machine level [src:W-LOOP]
 10c16803	75		unknown	unknown	1	0	-
 10c1684e	467		unknown	unknown	2	8	-
 10c16a21	37		unknown	unknown	2	0	-
@@ -4554,12 +4554,12 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c1a677	294		unknown	unknown	1	9	-
 10c1a79d	155		unknown	unknown	1	7	-
 10c1a838	208		unknown	unknown	1	11	-
-10c1a908	768		unknown	unknown	1	26	-
-10c1ac5c	721		unknown	unknown	2	13	-
-10c1af2d	973		unknown	unknown	2	9	-
+10c1a908	768		sel-setcc-zero-table	high	1	26	The zero-operand fast path: a 20-arm switch on the relation code selecting one of ~20 expander functions in 10c198d2..10c1a838, with a second variant chosen when the other operand is the constant 1 or -1 [src:W-SELECT]
+10c1ac5c	721		sel-setcc-carry	high	2	13	STRATEGY A, the branchless CARRY idiom, and the flagship reading of this lane.  Normalises the relation to canonical `a >u b` (== swaps the result pair; != needs a zero operand; <u swaps the compare operands; <=u swaps the result pair; >=u does both), refuses every SIGNED relation with cost 500, then emits [li] / subfic|subfc / lcarry / [rlandi delta] / [addi base].  param_2 == 0 returns the cost, which IS the word count.  Obj-confirmed word-exact on wbs_s2, wbs_s3, wbs_b2, wbs_k3 and mnemonic-exact on wbs_s1, wbs_b1 [src:W-SELECT]
+10c1af2d	973		sel-setcc-cntlzw	high	2	9	STRATEGY B, the CNTLZW idiom: [addi -K | subf] / [cntlzw for a signed relation] / cntlzw / rlwinm 27,31,31 / [xori 1] / [neg] / [addi base] / [rlandi log2 delta].  Feasible only when a compare operand is the constant 0 or the relation is ==/!=, and when the two result values differ by 1 or are {0, a power of two}.  Obj-confirmed word-exact on wbs_s4; mechanism-confirmed on wbs_s6 [src:W-SELECT]
 10c1b2fa	27		unknown	unknown	3	0	-
-10c1b315	514		unknown	unknown	1	4	-
-10c1b517	140		unknown	unknown	1	5	-
+10c1b315	514		sel-ifconv-profit	high	1	4	THE PROFITABILITY GATE for turning a branch into a branchless value.  Called from p2\misc.c (0x10b813f1).  Races the two expanders in COST mode and accepts when 2*cost < 20 at /O1 (DAT_10c2e310 == 0, the favour-speed word) or cost < 10 under favour-speed.  Obj-confirmed by cell wbs_s5: a signed relational against a non-zero constant is infeasible for both expanders (cost 500) and c2 emits a real cmpwi + bclr [src:W-SELECT]
+10c1b517	140		sel-setcc-driver	high	1	5	The value-producing-relational driver, tuple opcode 0x2ea.  Type nibble 5 -> 10c194b8; one compare operand constant 0 and 10c1b2fa enabled -> the table dispatch 10c1a908; otherwise cost(10c1ac5c) vs cost(10c1af2d), EMIT THE CHEAPER, TIES TO 10c1af2d.  Obj-confirmed: cell wbs_s4 is a 4-4 tie and B won (FINDINGS 7) [src:W-SELECT]
 10c1b5a3	51		unknown	unknown	1	0	-
 10c1b5d6	537		unknown	unknown	1	3	-
 10c1b7ef	25		unknown	unknown	1	0	-
@@ -4767,8 +4767,8 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c23023	30		unknown	unknown	1	2	-
 10c23041	43		unknown	unknown	1	1	-
 10c2306c	229		unknown	unknown	1	1	-
-10c23151	44		unknown	unknown	1	1	-
-10c2317d	60		unknown	unknown	1	2	-
+10c23151	44		find-def-in-block	high	1	1	p2\ppc\lowersmd.c: find the 0x2af assignment in a block whose destination matches an operand (used to locate the counter's preheader initialisation) [src:W-LOOP]
+10c2317d	60		range-references-sym	high	1	2	p2\ppc\lowersmd.c: does any tuple in [from->next, to) use (10bd4874) or def (10bd482d) this symbol? 10c0f7f9 calls it five times to prove the counter is dead outside the loop [src:W-LOOP]
 10c231b9	61		unknown	unknown	1	0	-
 10c231f6	802		unknown	unknown	8	11	-
 10c23539	1371		unknown	unknown	12	19	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
@@ -4782,7 +4782,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c23ecf	244		unknown	unknown	1	4	-
 10c23fc3	46		unknown	unknown	2	2	-
 10c23ff1	48		unknown	unknown	1	1	-
-10c24021	352		unknown	unknown	2	14	-
+10c24021	352		md-lower-driver	high	2	14	p2\ppc\lowersmd.c: the machine-dependent lowering driver. Phase order: 10c0f81e (bdnz) FIRST, then 10c2262b, the peepholes, 10c2306c, then 10c04faf (WB-D's volatile/reserved sets). The ctr conversion is therefore UPSTREAM of register allocation [src:W-LOOP]
 10c24181	222		unknown	unknown	1	3	-
 10c2425f	135		unknown	unknown	1	3	-
 10c242e6	389		unknown	unknown	4	8	-
