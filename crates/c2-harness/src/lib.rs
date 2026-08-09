@@ -22,6 +22,7 @@ use c2_reference::Toolchain;
 
 pub mod capture_cache;
 pub mod corpus;
+pub mod fixture_profile;
 pub mod gap;
 pub mod listing;
 pub mod perf;
@@ -284,19 +285,30 @@ pub fn oracle_selftest(cpp: &Path, reference: &Toolchain, work: &Path) -> SelfTe
 }
 
 fn run_selftest(cpp: &Path, reference: &Toolchain, work: &Path) -> SelfTestOutcome {
+    // The profile is per fixture (`crates/c2-harness/src/fixture_profile.rs`):
+    // the flags the fixture declares, or `CAPTURE_IL_DEFAULT_FLAGS` when it
+    // declares none — which is every fixture but the declaring few, byte for
+    // byte as before. A MALFORMED declaration is an error here rather than a
+    // silent fall back to the default: a typo'd marker that quietly reverted to
+    // `/Ox` would be the same defect one level quieter.
+    let profile = match fixture_profile::resolve_profile(cpp) {
+        Ok(p) => p,
+        Err(e) => return SelfTestOutcome::Error(e.to_string()),
+    };
+
     // --- determinism ---
     // NOTE: MSVC embeds the /Fo output path in the COFF (near the C1/C2 version
     // strings), so the obj is a deterministic function of (source, output-path).
     // Both compiles therefore use the SAME output path — differing paths would
     // be a spurious "difference" that is really just the embedded filename.
     let det = work.join("det.obj");
-    let a = match reference.compile_obj(cpp, &det) {
+    let a = match reference.compile_obj_flags(cpp, &det, &profile.flags) {
         Ok(o) => o,
-        Err(e) => return SelfTestOutcome::Error(format!("compile #1 failed: {e}")),
+        Err(e) => return SelfTestOutcome::Error(profile.compile_failure(cpp, "compile #1", &e)),
     };
-    let b = match reference.compile_obj(cpp, &det) {
+    let b = match reference.compile_obj_flags(cpp, &det, &profile.flags) {
         Ok(o) => o,
-        Err(e) => return SelfTestOutcome::Error(format!("compile #2 failed: {e}")),
+        Err(e) => return SelfTestOutcome::Error(profile.compile_failure(cpp, "compile #2", &e)),
     };
     if let ObjDiff::Differs {
         first_offset,
@@ -312,13 +324,16 @@ fn run_selftest(cpp: &Path, reference: &Toolchain, work: &Path) -> SelfTestOutco
     }
 
     // --- capture stability ---
-    let ca = match reference.capture_il(cpp, &work.join("cap_a")) {
+    // Same profile as the determinism half: capturing at flags the obj was not
+    // compiled at is exactly the skew `capture_il_flags`' doc comment exists to
+    // warn about.
+    let ca = match reference.capture_il_flags(cpp, &work.join("cap_a"), &profile.flags, None) {
         Ok(bundle) => bundle,
-        Err(e) => return SelfTestOutcome::Error(format!("capture #1 failed: {e}")),
+        Err(e) => return SelfTestOutcome::Error(profile.compile_failure(cpp, "capture #1", &e)),
     };
-    let cb = match reference.capture_il(cpp, &work.join("cap_b")) {
+    let cb = match reference.capture_il_flags(cpp, &work.join("cap_b"), &profile.flags, None) {
         Ok(bundle) => bundle,
-        Err(e) => return SelfTestOutcome::Error(format!("capture #2 failed: {e}")),
+        Err(e) => return SelfTestOutcome::Error(profile.compile_failure(cpp, "capture #2", &e)),
     };
     let ex_a = ca.ex().unwrap_or(&[]);
     let ex_b = cb.ex().unwrap_or(&[]);

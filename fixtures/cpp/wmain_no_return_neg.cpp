@@ -1,3 +1,5 @@
+// c2rs-profile: /Ox /GS- /w14716 /c  # Same class, same reason as wmain_no_return.cpp: all three cells are non-`void` functions with no `return`, which this cl.exe reports as `error C4716` at EVERY optimization level including /Od and the workload's own profile. /w14716 demotes it to the level-1 warning it is documented as, leaving the diagnostic visible.
+
 // The refusals behind `wmain_no_return.cpp`'s binding — three cells, three
 // DISTINCT census keys, none of them a `param-width-undetermined`.
 //
