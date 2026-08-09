@@ -22,9 +22,14 @@
                `crates/`**. Scored in §9. The price is
                `work/w-mmioclose/MMIO_PRICE2.md`.
     Lane:      `w-mmioclose`, branch `wt-w-mmioclose`, off master **`981efd7f`**
-               (the `w-ifn` merge) and **rebased onto `c31ded7d`** (the
-               `w-vsnprnc` merge) before reporting. **Master advanced mid-lane
-               and it invalidated a measurement** — §2.1.
+               (the `w-ifn` merge) and **rebased TWICE** before reporting —
+               onto **`c31ded7d`** (the `w-vsnprnc` merge) and then onto
+               **`acb151ed`** (the `wb-label` merge). **The first advance
+               invalidated a measurement** (§2.1); the second touches **no
+               `crates/`, no `fixtures/` and no `scripts/` file**
+               (`git diff c31ded7d acb151ed --stat -- crates/ fixtures/
+               scripts/` is empty), so every number below stands unchanged and
+               is quoted against `c31ded7d`.
     Ships:     `c2_il::func::gl::{FN_FLAG_INLINABLE, gl_function_attrs,
                gl_noinline_names}`; `IlFunction::inlinable` and its two
                bundle-level fills (`IlBundle::functions`,
@@ -136,6 +141,20 @@ work, present in the "base" binary and absent from the tip.
 The commission warned that peer sessions had modified a lane's worktree twice.
 This is the third shape of the same hazard and it did not touch the worktree at
 all — it moved the *ref the lane compared against*.
+
+**It happened a second time before this rung landed**, and the second time cost
+nothing: `wb-label` merged at `acb151ed` while the gate was running, and
+`git diff c31ded7d acb151ed --stat -- crates/ fixtures/ scripts/` is **empty**,
+so the rebase is a re-parenting and not a re-measurement. **That check is the
+one command §2.1 says should have been first**, and it is cheap enough to run
+on every advance rather than only on a surprise.
+
+`wb-label` is also the lane the commission named as reading the label channel
+from the binary, and it landed first: its board **#2431** settles that
+`docs/LABEL_COUNTER.md`'s table was right and four consecutive lanes —
+`w-ifn`'s `LABEL_LEAD.md` among them — were measuring a different quantity. This
+lane ships no label change and asserts none; `plan_labels` is untouched and the
+`gap-metric` diff (§6.2) is the evidence that nothing in that channel moved.
 
 ---
 
