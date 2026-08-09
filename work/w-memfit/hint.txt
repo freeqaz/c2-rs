@@ -1,0 +1,18 @@
+   c    .ex 2817 bytes
+   i    .ex 2817 bytes
+   d    .ex 2817 bytes
+   p1   .ex 2817 bytes
+   a16  .ex 2817 bytes
+
+   .ex positions that differ across the five pointee types: 7
+   off    c     i     d     p1    a16 
+   2733   01    04    08    01    10  
+   2742   01    04    08    01    10  
+   2761   81    81    81    82    82  
+   2766   83    83    83    87    87  
+   2772   83    83    83    87    87  
+   2779   f0    f4    c1    88    88  
+   2780   08    08    08    20    20  
+
+   GRID-F's measured divisor, for comparison:
+   div    1     4     8     1     8   

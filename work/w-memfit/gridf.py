@@ -258,3 +258,9 @@ if __name__ == "__main__":
         run(sys.argv[2], sys.argv[3])
     else:
         score(sys.argv[2])
+
+
+# Shared by GRID-G (`work/w-memfit/gridg.py`): the compile + read-back half is
+# identical, and the three-valued verdict function must be the SAME one or the
+# two grids are not on one denominator.
+Obj_run_helper = run

@@ -1,0 +1,11 @@
+   G-DST  vs G-SRC  separated on 36 cells
+   G-DST  vs G-MIN  separated on 18 cells
+   G-DST  vs G-MAX  separated on 18 cells
+   G-SRC  vs G-MIN  separated on 18 cells
+   G-SRC  vs G-MAX  separated on 18 cells
+   G-MIN  vs G-MAX  separated on 36 cells
+cells        56
+pairs        [('d', 'c'), ('c', 'd'), ('d', 'i'), ('i', 'd'), ('i', 'c'), ('c', 'i'), ('a32', 'c'), ('c', 'a32')]
+rivals       ['G-DST', 'G-SRC', 'G-MIN', 'G-MAX']
+min pairwise separation 18
+sha256       879ff36c69de9d5f58df331f787a2f20dc2589823504c31a6d661b37569435fb
