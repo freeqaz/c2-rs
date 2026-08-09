@@ -1,0 +1,11 @@
+   F-TYPE   vs F-CLAMP  separated on  5 cells
+   F-TYPE   vs F-ELEM   separated on 13 cells
+   F-TYPE   vs F-PROV   separated on 15 cells
+   F-CLAMP  vs F-ELEM   separated on  8 cells
+   F-CLAMP  vs F-PROV   separated on 10 cells
+   F-ELEM   vs F-PROV   separated on 18 cells
+cells        44
+families     ['p1', 'a16', 'cast', 'ucast', 'ctlc', 'ctld']
+rivals       ['F-TYPE', 'F-CLAMP', 'F-ELEM', 'F-PROV']
+min pairwise separation 5
+sha256       d8e86edc48aae59136bdb803332a0d57b98213cc022f02b0ff54d7bcd2b2400a
