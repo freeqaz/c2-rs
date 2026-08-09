@@ -49,8 +49,8 @@ p = sys.argv[1]
 s = open(p).read()
 old = """    let four = value_class(tag, kind).is_some();
     *p += tw;
-    // The `2C` widening, read non-committally so that the conjunction below can
-    // be one refusal rather than two.
+    // The `2C` widening, read non-committally so that the conjunction below is
+    // ONE refusal and not two.
     let widened = eat_widen8(seg, p, "nonce-addend-widening").is_ok();
     if !(four && widened) {
         return Err(blk(seg, *p, "nonce-addend-is-not-a-4-byte-value-widened-to-eight"));
