@@ -1,0 +1,142 @@
+== <repo>/work/w-blockir/probe/bound_o1.obj  machine=0x01f2 nsec=15 nsym=45 size=2593
+-- .text #5 (52 B) ?d1@B@@YAXIPBM0PAM@Z
+   0000  2b030000  cmplwi 6, 3, 0                  
+   0004  4d9a0020  bclr	12, 26                     
+   0008  7cab2b78  mr	11, 5                        
+   000c  7c6903a6  mtctr 3                         
+   0010  7d452050  sub	10, 4, 5                    
+   0014  7d253050  sub	9, 6, 5                     
+   0018  7c0a5c2e  lfsx 0, 10, 11                  
+   001c  c1ab0000  lfs 13, 0(11)                   
+   0020  ec00682a  fadds 0, 0, 13                  
+   0024  7c095d2e  stfsx 0, 9, 11                  
+   0028  396b0004  addi 11, 11, 4                  
+   002c  4200ffec  bdnz .-20                       
+   0030  4e800020  blr                             
+-- .text #6 (52 B) ?d2@B@@YAXIPBM0PAM@Z
+   0000  2b030000  cmplwi 6, 3, 0                  
+   0004  4d9a0020  bclr	12, 26                     
+   0008  7cab2b78  mr	11, 5                        
+   000c  7c6903a6  mtctr 3                         
+   0010  7d452050  sub	10, 4, 5                    
+   0014  7d253050  sub	9, 6, 5                     
+   0018  7c0a5c2e  lfsx 0, 10, 11                  
+   001c  c1ab0000  lfs 13, 0(11)                   
+   0020  ec006828  fsubs 0, 0, 13                  
+   0024  7c095d2e  stfsx 0, 9, 11                  
+   0028  396b0004  addi 11, 11, 4                  
+   002c  4200ffec  bdnz .-20                       
+   0030  4e800020  blr                             
+-- .text #7 (36 B) ?d3@B@@YAXIPAMM@Z
+   0000  2b030000  cmplwi 6, 3, 0                  
+   0004  4d9a0020  bclr	12, 26                     
+   0008  3964fffc  addi 11, 4, -4                  
+   000c  7c6903a6  mtctr 3                         
+   0010  c00b0004  lfs 0, 4(11)                    
+   0014  ec00082a  fadds 0, 0, 1                   
+   0018  d40b0004  stfsu 0, 4(11)                  
+   001c  4200fff4  bdnz .-12                       
+   0020  4e800020  blr                             
+-- .text #8 (36 B) ?d4@B@@YAXIPAMM@Z
+   0000  2b030000  cmplwi 6, 3, 0                  
+   0004  4d9a0020  bclr	12, 26                     
+   0008  3964fffc  addi 11, 4, -4                  
+   000c  7c6903a6  mtctr 3                         
+   0010  c00b0004  lfs 0, 4(11)                    
+   0014  ec000828  fsubs 0, 0, 1                   
+   0018  d40b0004  stfsu 0, 4(11)                  
+   001c  4200fff4  bdnz .-12                       
+   0020  4e800020  blr                             
+-- .text #9 (48 B) ?d5@B@@YAXIPAMPBMI@Z
+   0000  7c8b2378  mr	11, 4                        
+   0004  2b030000  cmplwi 6, 3, 0                  
+   0008  4d9a0020  bclr	12, 26                     
+   000c  7c6903a6  mtctr 3                         
+   0010  7d442850  sub	10, 5, 4                    
+   0014  7c0a5c2e  lfsx 0, 10, 11                  
+   0018  c1ab0000  lfs 13, 0(11)                   
+   001c  ec000372  fmuls 0, 0, 13                  
+   0020  d00b0000  stfs 0, 0(11)                   
+   0024  396b0004  addi 11, 11, 4                  
+   0028  4200ffec  bdnz .-20                       
+   002c  4e800020  blr                             
+-- .text #10 (68 B) ?e1@B@@YAIIPBMPAM@Z
+   0000  7c6a1b78  mr	10, 3                        
+   0004  2b030000  cmplwi 6, 3, 0                  
+   0008  7cab2b78  mr	11, 5                        
+   000c  38600000  li 3, 0                         
+   0010  4d9a0020  bclr	12, 26                     
+   0014  7d4903a6  mtctr 10                        
+   0018  39200000  li 9, 0                         
+   001c  7d452050  sub	10, 4, 5                    
+   0020  7c0a5c2e  lfsx 0, 10, 11                  
+   0024  7c691a14  add 3, 9, 3                     
+   0028  c1ab0000  lfs 13, 0(11)                   
+   002c  39290001  addi 9, 9, 1                    
+   0030  ec00682a  fadds 0, 0, 13                  
+   0034  d00b0000  stfs 0, 0(11)                   
+   0038  396b0004  addi 11, 11, 4                  
+   003c  4200ffe4  bdnz .-28                       
+   0040  4e800020  blr                             
+-- .text #11 (60 B) ?e2@B@@YAXIPBMPAM@Z
+   0000  2b030000  cmplwi 6, 3, 0                  
+   0004  4d9a0020  bclr	12, 26                     
+   0008  7cab2b78  mr	11, 5                        
+   000c  7c6903a6  mtctr 3                         
+   0010  7d452050  sub	10, 4, 5                    
+   0014  7c0a5c2e  lfsx 0, 10, 11                  
+   0018  c1ab0000  lfs 13, 0(11)                   
+   001c  ec00682a  fadds 0, 0, 13                  
+   0020  d00b0000  stfs 0, 0(11)                   
+   0024  396b0004  addi 11, 11, 4                  
+   0028  4200ffec  bdnz .-20                       
+   002c  3d600000  lis 11, 0                         ; REFHI -> [35] __real@3f800000  ; PAIR -> [0] @comp.id
+   0030  c00b0000  lfs 0, 0(11)                      ; REFLO -> [35] __real@3f800000  ; PAIR -> [0] @comp.id
+   0034  d0050000  stfs 0, 0(5)                    
+   0038  4e800020  blr                             
+-- .text #13 (60 B) ?e3@B@@YAXIPBMPAM@Z
+   0000  7cab2b78  mr	11, 5                        
+   0004  2b030000  cmplwi 6, 3, 0                  
+   0008  4d9a0020  bclr	12, 26                     
+   000c  3943ffff  addi 10, 3, -1                  
+   0010  7d252050  sub	9, 4, 5                     
+   0014  554af87e  srwi 10, 10, 1                  
+   0018  394a0001  addi 10, 10, 1                  
+   001c  7d4903a6  mtctr 10                        
+   0020  7c095c2e  lfsx 0, 9, 11                   
+   0024  c1ab0000  lfs 13, 0(11)                   
+   0028  ec00682a  fadds 0, 0, 13                  
+   002c  d00b0000  stfs 0, 0(11)                   
+   0030  396b0008  addi 11, 11, 8                  
+   0034  4200ffec  bdnz .-20                       
+   0038  4e800020  blr                             
+-- .text #14 (56 B) ?e4@B@@YAXIIPBMPAM@Z
+   0000  7ccb3378  mr	11, 6                        
+   0004  2b030000  cmplwi 6, 3, 0                  
+   0008  4d9a0020  bclr	12, 26                     
+   000c  2b040000  cmplwi 6, 4, 0                  
+   0010  4d9a0020  bclr	12, 26                     
+   0014  7c8903a6  mtctr 4                         
+   0018  7d462850  sub	10, 5, 6                    
+   001c  7c0a5c2e  lfsx 0, 10, 11                  
+   0020  c1ab0000  lfs 13, 0(11)                   
+   0024  ec00682a  fadds 0, 0, 13                  
+   0028  d00b0000  stfs 0, 0(11)                   
+   002c  396b0004  addi 11, 11, 4                  
+   0030  4200ffec  bdnz .-20                       
+   0034  4e800020  blr                             
+-- .text #15 (56 B) ?e5@B@@YAXIPBMPAM1@Z
+   0000  7cab2b78  mr	11, 5                        
+   0004  2b030000  cmplwi 6, 3, 0                  
+   0008  4d9a0020  bclr	12, 26                     
+   000c  7c6903a6  mtctr 3                         
+   0010  7d452050  sub	10, 4, 5                    
+   0014  7d253050  sub	9, 6, 5                     
+   0018  7c0a5c2e  lfsx 0, 10, 11                  
+   001c  c1ab0000  lfs 13, 0(11)                   
+   0020  ec00682a  fadds 0, 0, 13                  
+   0024  d00b0000  stfs 0, 0(11)                   
+   0028  7c095d2e  stfsx 0, 9, 11                  
+   002c  396b0004  addi 11, 11, 4                  
+   0030  4200ffe8  bdnz .-24                       
+   0034  4e800020  blr                             

@@ -44,5 +44,6 @@ pub(crate) fn func_with(params: Vec<u32>, ops: Vec<IlOp>) -> IlFunction {
         ops,
         eh_bare: false,
         eh_unwind_callees: Vec::new(),
+        float_walk_loop: None,
     }
 }

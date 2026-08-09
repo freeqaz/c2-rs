@@ -608,6 +608,59 @@ pub fn encode_fdiv(double: bool, fd: u8, fa: u8, fb: u8) -> [u8; 4] {
     fp_a_form(double, fd, fa, fb, 0, 18)
 }
 
+/// `lfsx fD, rA, rB` — load float single, **X-form indexed**: primary 31,
+/// XO 535. The effective address is `rA + rB` with no displacement field at all.
+///
+/// **W-BLOCKIR.** This is the word the base-difference strength reduction needs
+/// (`docs/whitebox/WB_LOOP_FINDINGS.md` §4.3): with two arrays walked by one
+/// pointer, the array that is *not* the walker is reached at a preheader-computed
+/// difference, and an X-form is the only load that can take two registers. It is
+/// also — stated here because it is the reason the update form is not free — why
+/// the walker cannot fold its `addi` into this access: `lfsx` has no
+/// displacement to fold into.
+///
+/// Captured as `7c0a5c2e` = `lfsx f0, r10, r11`
+/// (`work/w-blockir/ref/ipp.dis.txt`, `?Add_InPlace@IPP@@YAXIPBMPAM@Z` +0x14).
+pub fn encode_lfsx(fd: u8, ra: u8, rb: u8) -> [u8; 4] {
+    xo31(fd, ra, rb, 535)
+}
+
+/// `stfsx fS, rA, rB` — store float single, X-form indexed: primary 31, XO 663.
+///
+/// The store side of the same rule. Captured as `7c095d2e` =
+/// `stfsx f0, r9, r11` (`work/w-blockir/ref/ipp.dis.txt`,
+/// `?Mul@IPP@@YAXIPBM0PAM@Z` +0x24).
+pub fn encode_stfsx(fs: u8, ra: u8, rb: u8) -> [u8; 4] {
+    xo31(fs, ra, rb, 663)
+}
+
+/// `stfsu fS, d(rA)` — store float single **with update**: primary **53**,
+/// D-form, and `rA` is written back with the effective address.
+///
+/// One word doing a store and the induction step, which is why c2 reaches for it
+/// — and it can only be reached when *every* access on the walking pointer is
+/// D-form, because the write-back moves the base out from under any X-form
+/// access sharing it. That is `WB_LOOP_FINDINGS.md` §4.3's *"the base-difference
+/// trick is what kills the update form"*, and it is why this encoder appears in
+/// exactly one arm of `super::float_walk_loop` (the single-array shape) and
+/// nowhere else.
+///
+/// **This is NOT `wb-loop`'s declined pass 3.** That pass is a *general* rule for
+/// choosing the update form, over which four rivals were gridded and none
+/// elected (`w-bdnz` board #1981). This is one word in one transcribed shape
+/// with one graded witness pair (`?MulConstant_InPlace@IPP@@YAXIPAMM@Z` and
+/// `probe/walk.cpp`'s `c12`, byte-identical at 36 B).
+///
+/// Captured as `d40b0004` = `stfsu f0, 4(r11)`
+/// (`work/w-blockir/ref/ipp.dis.txt`, `?MulConstant_InPlace` +0x18).
+pub fn encode_stfsu(fs: u8, ra: u8, d: i16) -> [u8; 4] {
+    let word: u32 = (53u32 << 26)
+        | ((fs as u32 & 0x1F) << 21)
+        | ((ra as u32 & 0x1F) << 16)
+        | (d as u16 as u32);
+    word.to_be_bytes()
+}
+
 /// `stfs fS, d(rA)` / `stfd fS, d(rA)` — store a floating-point register.
 ///
 /// Primary **52** single, **54** double, both plain D-form. Note the asymmetry
@@ -1252,6 +1305,40 @@ mod tests {
         assert_ne!(encode_lhzx(11, 11, 6), encode_lhz(11, 11, 6));
         // The three register fields are separated from each other by a second pin.
         assert_eq!(encode_lhzx(9, 4, 3), [0x7D, 0x24, 0x1A, 0x2E]);
+    }
+
+    /// **W-BLOCKIR — the three FP forms the array-walk loop needs**, each
+    /// against the byte real `c2` emitted, and each separated from the
+    /// neighbours it is one field or one primary opcode away from.
+    ///
+    /// The separation is the point rather than the value. `lfsx` and `stfsx`
+    /// differ by their extended opcode alone (535 against 663) and a load
+    /// written where a store belongs is a program that runs; `stfsu` and `stfs`
+    /// differ by their **primary** opcode alone (53 against 52) and the wrong
+    /// one silently drops the induction step, which reads as an infinite loop
+    /// rather than as a wrong byte.
+    #[test]
+    fn w_blockir_fp_walk_forms_match_the_reference_obj_and_are_none_of_their_neighbours() {
+        // `?Add_InPlace@IPP@@YAXIPBMPAM@Z` +0x14, work/w-blockir/ref/ipp.dis.txt.
+        assert_eq!(encode_lfsx(0, 10, 11), [0x7C, 0x0A, 0x5C, 0x2E]);
+        // `?Mul@IPP@@YAXIPBM0PAM@Z` +0x24, same dump.
+        assert_eq!(encode_stfsx(0, 9, 11), [0x7C, 0x09, 0x5D, 0x2E]);
+        // `?MulConstant_InPlace@IPP@@YAXIPAMM@Z` +0x18, same dump.
+        assert_eq!(encode_stfsu(0, 11, 4), [0xD4, 0x0B, 0x00, 0x04]);
+        // One extended opcode apart, and the two are not the same word.
+        assert_ne!(encode_lfsx(0, 9, 11), encode_stfsx(0, 9, 11));
+        // One PRIMARY opcode apart: `stfs f0,4(r11)` is `d00b0004`.
+        assert_eq!(encode_stfs(false, 0, 11, 4), [0xD0, 0x0B, 0x00, 0x04]);
+        assert_ne!(encode_stfsu(0, 11, 4), encode_stfs(false, 0, 11, 4));
+        // …and the D-form load the walker itself uses, which is a third word.
+        assert_eq!(encode_lfs(false, 13, 11, 0), [0xC1, 0xAB, 0x00, 0x00]);
+        assert_ne!(encode_lfs(false, 0, 11, 0), encode_lfsx(0, 0, 11));
+        // The register fields are separated from each other by a second pin:
+        // `lfsx f13,r10,r11` is `?Mul_InPlace`'s `-=` sibling's word.
+        assert_eq!(encode_lfsx(13, 10, 11), [0x7D, 0xAA, 0x5C, 0x2E]);
+        // A negative displacement on the update form is the pre-bias's own
+        // sibling and must sign-extend rather than wrap into the base field.
+        assert_eq!(encode_stfsu(0, 11, -4), [0xD4, 0x0B, 0xFF, 0xFC]);
     }
 
     /// **W-JSON — `sthu` against the byte real `c2` emitted**, and the ONE-BIT

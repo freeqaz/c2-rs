@@ -1,0 +1,33 @@
+gap-metric keys: base 255  tip 255  union 255
+  vanished 0  appeared 0  changed 31  identical 224
+    CHANGED   a-and-b-and-c-and-d: 16 -> 17
+    CHANGED   a-and-b-and-c-and-d-or-e: 18 -> 19
+    CHANGED   bytefrac-control-full: 11 -> 12
+    CHANGED   cfg-reach-top: 9 -> 8
+    CHANGED   cflow-emitted-branchy: 38219 -> 38215
+    CHANGED   cflow-offclass-accounted: 519743 -> 519747
+    CHANGED   cflow-offclass-compare-blocked: 41136 -> 41132
+    CHANGED   cflow-offclass-compare-inclass: 8 -> 12
+    CHANGED   cflow-residue-inclass-offclass: 519743 -> 519747
+    CHANGED   factor-d: 18 -> 19
+    CHANGED   fnbyte-calltarget-agree: 36228 -> 36232
+    CHANGED   fnbyte-calltarget-graded: 38639 -> 38643
+    CHANGED   fnbyte-decline-parse: 130117 -> 130113
+    CHANGED   fnbyte-exact: 36228 -> 36232
+    CHANGED   fnbyte-exact-bytes: 36760 -> 36764
+    CHANGED   fnbyte-match: 0.20243 -> 0.20245
+    CHANGED   fnbyte-refused: 131121 -> 131117
+    CHANGED   fnbyte-refused-parse: 130117 -> 130113
+    CHANGED   fnbyte-reloc-graded: 36760 -> 36764
+    CHANGED   fnbyte-shape-parse-refused-refused: 130117 -> 130113
+    CHANGED   fnbyte-shape-plain-exact: 29357 -> 29361
+    CHANGED   fnbyte-tus-full: 14 -> 15
+    CHANGED   frontier: 9 -> 8
+    CHANGED   frontier-bytefrac-zero: 6 -> 5
+    CHANGED   frontier-codegen-denominator: 51 -> 47
+    CHANGED   frontier-codegen-reader: 41 -> 37
+    CHANGED   frontier-if-a: 131 -> 130
+    CHANGED   match: 18 -> 19
+    CHANGED   progress-emitted-in-class: 39643 -> 39647
+    CHANGED   progress-mass: 0.20893 -> 0.20894
+    CHANGED   vocab-gap: 853 -> 852

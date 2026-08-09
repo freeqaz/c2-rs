@@ -822,6 +822,14 @@ impl IlBundle {
                             Ok(BodyShape::CountedAccumLoop(_)) => {
                                 FnVerdict::InClass("counted-accum-loop")
                             }
+                            // **W-BLOCKIR — the float array-walk loop.** Its own
+                            // bucket on the same rule every loop class here
+                            // follows: a gain that landed in a shared
+                            // `cflow-loop` bucket would be attributable to none
+                            // of the six productions that now write into it.
+                            Ok(BodyShape::FloatWalkLoop(_)) => {
+                                FnVerdict::InClass("float-walk-loop")
+                            }
                             Ok(BodyShape::DivModLeaf(_)) => FnVerdict::InClass("div-mod-leaf"),
                             Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
                             // Split from the integer tail call by the register

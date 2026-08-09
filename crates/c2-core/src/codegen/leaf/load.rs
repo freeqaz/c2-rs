@@ -140,7 +140,8 @@ mod tests {
         osf_handle_guard: None,
         xlrc_create_guard: None,
         json_utf8_copy: None,
-        };
+        float_walk_loop: None,
+    };
         assert_eq!(
             indirect_load_text(&f).unwrap().unwrap(),
             vec![0x80, 0x63, 0x00, 0x00, 0x4E, 0x80, 0x00, 0x20]
@@ -195,7 +196,8 @@ mod tests {
         osf_handle_guard: None,
         xlrc_create_guard: None,
         json_utf8_copy: None,
-        };
+        float_walk_loop: None,
+    };
         let blr = [0x4E, 0x80, 0x00, 0x20];
         let body = |ops: Vec<IlOp>, params: Vec<u32>| {
             indirect_load_text(&f(ops, params)).unwrap().unwrap()

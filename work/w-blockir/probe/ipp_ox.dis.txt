@@ -1,0 +1,174 @@
+== <repo>/work/w-blockir/probe/ipp_ox.obj  machine=0x01f2 nsec=6 nsym=25 size=1963
+-- .text #5 (688 B) ?Add_InPlace@IPP@@YAXIPBMPAM@Z
+   0000  2b030000  cmplwi 6, 3, 0                  
+   0004  4d9a0020  bclr	12, 26                     
+   0008  39200000  li 9, 0                         
+   000c  2f030004  cmpwi 6, 3, 4                   
+   0010  41980064  bt	24, .+100                    
+   0014  3903fffd  addi 8, 3, -3                   
+   0018  3944fffc  addi 10, 4, -4                  
+   001c  39650004  addi 11, 5, 4                   
+   0020  7ce52050  sub	7, 4, 5                     
+   0024  c00a0004  lfs 0, 4(10)                    
+   0028  39290004  addi 9, 9, 4                    
+   002c  c1abfffc  lfs 13, -4(11)                  
+   0030  ed8d002a  fadds 12, 13, 0                 
+   0034  c16b0000  lfs 11, 0(11)                   
+   0038  d18bfffc  stfs 12, -4(11)                 
+   003c  7f094040  cmplw 6, 9, 8                   
+   0040  7d475c2e  lfsx 10, 7, 11                  
+   0044  ed2a582a  fadds 9, 10, 11                 
+   0048  c10b0004  lfs 8, 4(11)                    
+   004c  d12b0000  stfs 9, 0(11)                   
+   0050  c0ea000c  lfs 7, 12(10)                   
+   0054  ecc8382a  fadds 6, 8, 7                   
+   0058  c0ab0008  lfs 5, 8(11)                    
+   005c  d0cb0004  stfs 6, 4(11)                   
+   0060  c40a0010  lfsu 0, 16(10)                  
+   0064  ec85002a  fadds 4, 5, 0                   
+   0068  d08b0008  stfs 4, 8(11)                   
+   006c  396b0010  addi 11, 11, 16                 
+   0070  4198ffb4  bt	24, .-76                     
+   0074  7f091840  cmplw 6, 9, 3                   
+   0078  4c980020  bclr	4, 24                      
+   007c  7d091850  sub	8, 3, 9                     
+   0080  552b103a  slwi 11, 9, 2                   
+   0084  7d452050  sub	10, 4, 5                    
+   0088  7d6b2a14  add 11, 11, 5                   
+   008c  7d0903a6  mtctr 8                         
+   0090  7c0b542e  lfsx 0, 11, 10                  
+   0094  c1ab0000  lfs 13, 0(11)                   
+   0098  ed80682a  fadds 12, 0, 13                 
+   009c  d18b0000  stfs 12, 0(11)                  
+   00a0  396b0004  addi 11, 11, 4                  
+   00a4  4200ffec  bdnz .-20                       
+   00a8  4e800020  blr                             
+   00ac  00000000  <undecodable 00000000>          
+   00b0  2b030000  cmplwi 6, 3, 0                  
+   00b4  4d9a0020  bclr	12, 26                     
+   00b8  39400000  li 10, 0                        
+   00bc  2f030004  cmpwi 6, 3, 4                   
+   00c0  41980048  bt	24, .+72                     
+   00c4  3923fffd  addi 9, 3, -3                   
+   00c8  3964fffc  addi 11, 4, -4                  
+   00cc  c00b0004  lfs 0, 4(11)                    
+   00d0  394a0004  addi 10, 10, 4                  
+   00d4  c1ab0008  lfs 13, 8(11)                   
+   00d8  ed800072  fmuls 12, 0, 1                  
+   00dc  c16b000c  lfs 11, 12(11)                  
+   00e0  ed4d0072  fmuls 10, 13, 1                 
+   00e4  c12b0010  lfs 9, 16(11)                   
+   00e8  ed0b0072  fmuls 8, 11, 1                  
+   00ec  d18b0004  stfs 12, 4(11)                  
+   00f0  ece90072  fmuls 7, 9, 1                   
+   00f4  d14b0008  stfs 10, 8(11)                  
+   00f8  7f0a4840  cmplw 6, 10, 9                  
+   00fc  d10b000c  stfs 8, 12(11)                  
+   0100  d4eb0010  stfsu 7, 16(11)                 
+   0104  4198ffc8  bt	24, .-56                     
+   0108  7f0a1840  cmplw 6, 10, 3                  
+   010c  4c980020  bclr	4, 24                      
+   0110  554b103a  slwi 11, 10, 2                  
+   0114  7d4a1850  sub	10, 3, 10                   
+   0118  7d6b2214  add 11, 11, 4                   
+   011c  396bfffc  addi 11, 11, -4                 
+   0120  7d4903a6  mtctr 10                        
+   0124  c00b0004  lfs 0, 4(11)                    
+   0128  eda00072  fmuls 13, 0, 1                  
+   012c  d5ab0004  stfsu 13, 4(11)                 
+   0130  4200fff4  bdnz .-12                       
+   0134  4e800020  blr                             
+   0138  2b030000  cmplwi 6, 3, 0                  
+   013c  4d9a0020  bclr	12, 26                     
+   0140  39200000  li 9, 0                         
+   0144  2f030004  cmpwi 6, 3, 4                   
+   0148  41980064  bt	24, .+100                    
+   014c  3903fffd  addi 8, 3, -3                   
+   0150  3944fffc  addi 10, 4, -4                  
+   0154  39650004  addi 11, 5, 4                   
+   0158  7ce52050  sub	7, 4, 5                     
+   015c  c00a0004  lfs 0, 4(10)                    
+   0160  39290004  addi 9, 9, 4                    
+   0164  c1abfffc  lfs 13, -4(11)                  
+   0168  ed8d0032  fmuls 12, 13, 0                 
+   016c  c16b0000  lfs 11, 0(11)                   
+   0170  d18bfffc  stfs 12, -4(11)                 
+   0174  7f094040  cmplw 6, 9, 8                   
+   0178  7d475c2e  lfsx 10, 7, 11                  
+   017c  ed2a02f2  fmuls 9, 10, 11                 
+   0180  c10b0004  lfs 8, 4(11)                    
+   0184  d12b0000  stfs 9, 0(11)                   
+   0188  c0ea000c  lfs 7, 12(10)                   
+   018c  ecc801f2  fmuls 6, 8, 7                   
+   0190  c0ab0008  lfs 5, 8(11)                    
+   0194  d0cb0004  stfs 6, 4(11)                   
+   0198  c40a0010  lfsu 0, 16(10)                  
+   019c  ec850032  fmuls 4, 5, 0                   
+   01a0  d08b0008  stfs 4, 8(11)                   
+   01a4  396b0010  addi 11, 11, 16                 
+   01a8  4198ffb4  bt	24, .-76                     
+   01ac  7f091840  cmplw 6, 9, 3                   
+   01b0  4c980020  bclr	4, 24                      
+   01b4  7d091850  sub	8, 3, 9                     
+   01b8  552b103a  slwi 11, 9, 2                   
+   01bc  7d452050  sub	10, 4, 5                    
+   01c0  7d6b2a14  add 11, 11, 5                   
+   01c4  7d0903a6  mtctr 8                         
+   01c8  7c0b542e  lfsx 0, 11, 10                  
+   01cc  c1ab0000  lfs 13, 0(11)                   
+   01d0  ed800372  fmuls 12, 0, 13                 
+   01d4  d18b0000  stfs 12, 0(11)                  
+   01d8  396b0004  addi 11, 11, 4                  
+   01dc  4200ffec  bdnz .-20                       
+   01e0  4e800020  blr                             
+   01e4  00000000  <undecodable 00000000>          
+   01e8  7d8802a6  mflr 12                         
+   01ec  4bfffe15  bl .-492                          ; REL24 -> [24] __savegprlr_29
+   01f0  2b030000  cmplwi 6, 3, 0                  
+   01f4  419a00b8  bt	26, .+184                    
+   01f8  39200000  li 9, 0                         
+   01fc  2f030004  cmpwi 6, 3, 4                   
+   0200  41980074  bt	24, .+116                    
+   0204  38e3fffd  addi 7, 3, -3                   
+   0208  3904fffc  addi 8, 4, -4                   
+   020c  39460008  addi 10, 6, 8                   
+   0210  39650004  addi 11, 5, 4                   
+   0214  7fe52050  sub	31, 4, 5                    
+   0218  7fc53050  sub	30, 6, 5                    
+   021c  7fa62050  sub	29, 4, 6                    
+   0220  c0080004  lfs 0, 4(8)                     
+   0224  39290004  addi 9, 9, 4                    
+   0228  c1abfffc  lfs 13, -4(11)                  
+   022c  ed8d0032  fmuls 12, 13, 0                 
+   0230  d18afff8  stfs 12, -8(10)                 
+   0234  7d7f5c2e  lfsx 11, 31, 11                 
+   0238  7f093840  cmplw 6, 9, 7                   
+   023c  c14b0000  lfs 10, 0(11)                   
+   0240  ed2b02b2  fmuls 9, 11, 10                 
+   0244  7d3e5d2e  stfsx 9, 30, 11                 
+   0248  7d1d542e  lfsx 8, 29, 10                  
+   024c  c0eb0004  lfs 7, 4(11)                    
+   0250  ecc801f2  fmuls 6, 8, 7                   
+   0254  d0ca0000  stfs 6, 0(10)                   
+   0258  c0ab0008  lfs 5, 8(11)                    
+   025c  396b0010  addi 11, 11, 16                 
+   0260  c4080010  lfsu 0, 16(8)                   
+   0264  ec850032  fmuls 4, 5, 0                   
+   0268  d08a0004  stfs 4, 4(10)                   
+   026c  394a0010  addi 10, 10, 16                 
+   0270  4198ffb0  bt	24, .-80                     
+   0274  7f091840  cmplw 6, 9, 3                   
+   0278  40980034  bf	24, .+52                     
+   027c  7d091850  sub	8, 3, 9                     
+   0280  552b103a  slwi 11, 9, 2                   
+   0284  7d452050  sub	10, 4, 5                    
+   0288  7d6b2a14  add 11, 11, 5                   
+   028c  7d253050  sub	9, 6, 5                     
+   0290  7d0903a6  mtctr 8                         
+   0294  7c0b542e  lfsx 0, 11, 10                  
+   0298  c1ab0000  lfs 13, 0(11)                   
+   029c  ed800372  fmuls 12, 0, 13                 
+   02a0  7d8b4d2e  stfsx 12, 11, 9                 
+   02a4  396b0004  addi 11, 11, 4                  
+   02a8  4200ffec  bdnz .-20                       
+   02ac  4bfffd54  b .-684                           ; REL24 -> [23] __restgprlr_29

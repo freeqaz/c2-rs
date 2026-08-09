@@ -1261,7 +1261,8 @@ mod tests {
         osf_handle_guard: None,
         xlrc_create_guard: None,
         json_utf8_copy: None,
-        };
+        float_walk_loop: None,
+    };
         assert_eq!(
             store_leaf_text(&f, OptMode::Ox).unwrap().unwrap(),
             vec![0x90, 0x83, 0x00, 0x04, 0x4E, 0x80, 0x00, 0x20],
@@ -1381,7 +1382,8 @@ mod tests {
         osf_handle_guard: None,
         xlrc_create_guard: None,
         json_utf8_copy: None,
-        };
+        float_walk_loop: None,
+    };
         assert_eq!(
             store_leaf_text(&f, OptMode::Ox).unwrap().unwrap(),
             vec![
@@ -1540,7 +1542,8 @@ mod tests {
         osf_handle_guard: None,
         xlrc_create_guard: None,
         json_utf8_copy: None,
-        };
+        float_walk_loop: None,
+    };
         assert_eq!(
             store_leaf_text(&f, OptMode::Ox).unwrap().unwrap(),
             vec![
@@ -1791,7 +1794,8 @@ mod tests {
         osf_handle_guard: None,
         xlrc_create_guard: None,
         json_utf8_copy: None,
-        };
+        float_walk_loop: None,
+    };
         let lit_group = |b: u32, off: i32, k: i32| {
             vec![
                 IlOp::Load(b),

@@ -1,0 +1,11 @@
+FWALK	fwalk-compound-op
+FWALK	fwalk-compound-op
+FWALK	fwalk-guard-type
+FWALK	fwalk-body-dst
+FWALK	fwalk-body-rhs1-type
+FWALK	fwalk-incr-lit-type
+FWALK	fwalk-then-return
+FWALK	fwalk-for-scope-close
+FWALK	fwalk-bound-not-formal0
+FWALK	fwalk-compound-arity
+FWALK	fwalk-binary-operands-descending

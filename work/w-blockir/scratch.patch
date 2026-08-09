@@ -1,0 +1,32 @@
+diff --git a/crates/c2-il/src/func/body/mod.rs b/crates/c2-il/src/func/body/mod.rs
+index e0b6b6da..abc31343 100644
+--- a/crates/c2-il/src/func/body/mod.rs
++++ b/crates/c2-il/src/func/body/mod.rs
+@@ -2429,11 +2429,22 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
+             // Non-committal on the same terms as the rest of the ladder: its own
+             // cursor, `Err` on the first byte outside its grammar, so a body that
+             // declines still reports this arm's blocker and no census key moves.
+-            if let Ok(shape) =
+-                try_parse_float_walk_loop(seg, p, lo, depth, locals, sy.uint_locals)
+-            {
+-                disp("disp-float-walk-loop");
+-                return Ok(shape);
++            match try_parse_float_walk_loop(seg, p, lo, depth, locals, sy.uint_locals) {
++                Ok(shape) => {
++                    disp("disp-float-walk-loop");
++                    return Ok(shape);
++                }
++                // ---- SCRATCH (lane w-blockir) — REVERTED BEFORE THE GATE ----
++                Err(b) => {
++                    if std::os::unix::ffi::OsStrExt::as_bytes(
++                        std::env::var_os("C2RS_FWALK").unwrap_or_default().as_os_str(),
++                    )
++                    .len()
++                        > 0
++                    {
++                        eprintln!("FWALK\t{}", b.ctx);
++                    }
++                }
+             }
+             let (ops, cls) = parse_expr_classed(seg, &mut p, 0x41)?;
+             // The expression itself parsed. Everything from here down is the

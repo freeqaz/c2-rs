@@ -119,6 +119,7 @@ mod tests {
         json_utf8_copy: None,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
+            float_walk_loop: None,
         };
         assert_eq!(
             addr_leaf_text(&f).unwrap().unwrap(),
