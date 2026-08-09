@@ -266,6 +266,22 @@ pub(crate) fn gl_defined_names(gl: &[u8]) -> (Vec<(u32, String)>, Vec<String>) {
 /// the port keep a call to a locally-defined callee when the *linkage class* of
 /// that callee is the one the decline boundary was measured on.
 ///
+/// **W-DECOUPLE — a subset of the FENCE walk, deliberately, and no longer a
+/// subset of the BINDING.** This set is an EXEMPTION, and widening an exemption
+/// is the licensing direction; [`NameFit`] argues the choice and names what it
+/// costs. The one thing it must not be is *silently* the other walk, so it is
+/// spelled here: on a TU the binding newly reaches, this returns the empty set
+/// and `IlBundle::functions` refuses at `locally-defined-callee` instead of
+/// asking `c2_core::comdat::fenced_inlined_callee` the size question.
+///
+/// GRID-K's own witnesses are the reason this is worth a paragraph rather than
+/// a line: `k_ext_a`, `k_cfi_a` and `k_exp_a` are **seven-byte `extern "C"`
+/// names** and `k_stat_a` is eight, so the three-byte reader below was fitted
+/// on a population its own ground set cannot reach. That is an argument for
+/// widening it and it is not an argument this lane took — the population is
+/// unmeasured on the accept side and a refusal is the only error this project
+/// tolerates.
+///
 /// # The three bytes, and why each one is required
 ///
 /// A defined function's `.gl` record continues, immediately after its name's NUL,
@@ -343,14 +359,70 @@ pub(crate) fn plain_external_defined_names(gl: &[u8]) -> std::collections::BTree
     out
 }
 
+/// The return type's size, in its one-byte form. A wider return type shifts the
+/// flags byte, so a record whose size escapes is one whose flags byte is not
+/// where this module reads it.
+const RETSIZE_ESCAPE: u8 = 0x80;
+
+/// **W-DECOUPLE, GRID-V — the VARIADIC bit of a defined record's flags byte.**
+///
+/// The flags byte is the one at `name_nul + 5` that GRID-K
+/// ([`plain_external_defined_names`]) reads for `inline`/`__forceinline`
+/// (`0x20`). `0x40` is a second bit in the same byte and it is this lane's own
+/// measurement, `work/w-decouple/probe/vgrid.cpp` through
+/// `work/w-decouple/gridv.py`, ten defined records in one TU at `/Ox /GS- /c`:
+///
+/// ```text
+///   v_s                 86 01 05 04 40   extern "C" int v_s(int, ...)
+///   n_s                 86 01 05 04 00   extern "C" int n_s(int)
+///   v_long_name_here    86 01 05 04 40   extern "C" variadic, name > 8 B
+///   n_long_name_here    86 01 05 04 00   extern "C" plain,    name > 8 B
+///   fi_s                86 01 05 04 20   extern "C" __forceinline
+///   st_s                86 01 03 04 00   static
+///   ?cppv@@YAHHZZ       86 01 05 04 40   a C++ VARIADIC
+///   ?cppn@@YAHH@Z       86 01 05 04 00   a C++ plain
+/// ```
+///
+/// **3 of 3 variadic records carry `0x40`; 7 of 7 non-variadic records do not**,
+/// across both linkages, both name lengths and both mangling states. The
+/// cross-check is `?cppv@@YAHHZZ`: the one record where the byte and
+/// [`super::bind::mangled_is_varargs`] can *both* speak, and they agree.
+///
+/// # Why this bit had to be read at all
+///
+/// [`super::bind::mangled_is_varargs`]' own doc states the coupling it depends
+/// on: *"An `extern "C"` variadic function has an undecorated name and is
+/// invisible here. That is covered, for a different reason that must not be
+/// quietly relied upon: `gl_defined_names` accepts only `?…@@…` forms… **If that
+/// ever loosens, this gate stops covering C variadics**"*. [`NameFit`]'s wide
+/// walk is that loosening, so the walk pays for it here, positively.
+///
+/// And the obj says what the error would have been: `cva.obj` against `cnv.obj`
+/// (`work/w-decouple/probe/`) is **36 bytes of `.text` against 8** — seven
+/// register-home `std`s, a `.pdata` section the twin does not have, and three
+/// label symbols — on a body whose `.ex` is **byte-identical**, `cmp`-checked,
+/// 2,751 bytes both. So the parser genuinely cannot see it and the record can.
+const FN_FLAG_VARARGS: u8 = 0x40;
+
+/// Does the record whose name ends at `name_nul` declare a variadic function?
+///
+/// `None` when the answer is not readable — a return size in its escaped form
+/// puts the flags byte somewhere else, and a *missing* answer to a varargs
+/// question must never read as "no" (the direction of that error is an emit,
+/// and the emit is 28 bytes and a whole section short). Callers fail CLOSED.
+fn record_is_varargs(gl: &[u8], name_nul: usize) -> Option<bool> {
+    if !gl.get(name_nul + 4).is_some_and(|b| *b < RETSIZE_ESCAPE) {
+        return None;
+    }
+    Some(gl.get(name_nul + 5)? & FN_FLAG_VARARGS != 0)
+}
+
 /// The three-byte test [`plain_external_defined_names`] documents, at the fixed
 /// displacement [`linkage_needs_a_directive`] establishes.
 fn record_is_plain_external(gl: &[u8], name_nul: usize) -> bool {
     /// A DEFINED function with external linkage. `03` is `static`, `09` is
     /// `__declspec(dllexport)`; GRID-K takes no other value on a defined record.
     const LINKAGE_DEFINED_EXTERNAL: u8 = 0x05;
-    /// The return type's size, in its one-byte form.
-    const RETSIZE_ESCAPE: u8 = 0x80;
     /// `inline`, `__forceinline`, or a member defined in-class.
     const FLAGS_PLAIN: u8 = 0x00;
     gl.get(name_nul + 3) == Some(&LINKAGE_DEFINED_EXTERNAL)
@@ -383,6 +455,70 @@ pub(crate) enum GlBindStop {
     /// A `26`-**introduced** defined name: COMDAT-style linkage against a
     /// packed single-`.text` writer (board #232).
     Name26Introduced,
+    /// **W-DECOUPLE** — a defined record that [`FN_FLAG_VARARGS`] says is
+    /// VARIADIC and whose name [`looks_mangled`] cannot answer for. Reached
+    /// only by [`NameFit::InlineOrStringTable`]: it is the clause that walk
+    /// pays for its own widening with.
+    VariadicRecord,
+}
+
+/// **W-DECOUPLE — WHICH OF ITS TWO JOBS a `.gl` defined-name walk is doing.**
+///
+/// [`gl_defined_names`] used to be one function with two callers that wanted
+/// two different things, and board **#2623** measured what that costs: a
+/// widening at the BINDING site is a *tightening* at the FENCE site, because
+/// the fence's ground set is the same walk's output, so letting the walk run
+/// further makes `callee_defined_here` match more callees and refuse more
+/// bodies. `w-front5`'s one-clause widening bound 2 TUs, converted 0 and cost
+/// **−1 `fnbyte-exact`** for exactly that reason (#2622).
+///
+/// The two jobs are not the same question and never were:
+///
+/// | job | asks | policy |
+/// |---|---|---|
+/// | **the BINDING** ([`super::bind::Bindings::per_record`], and [`super::diag`]'s transcription of it) | *"what name does each defined body carry, so the writer can emit its symbol?"* | [`Self::InlineOrStringTable`] |
+/// | **the FENCE's ground set** ([`super::bind::defined_name_set`] for the census, [`plain_external_defined_names`] for the gate's W-FENCE2 exemption) | *"which names is this TU KNOWN to define, for a membership test that must be sound in the refusing direction?"* | [`Self::StringTableOnly`] |
+///
+/// # Why separating them does not weaken either side
+///
+/// **The widening is MONOTONE.** [`gl_defined_names_framed`] returns `Err` — and
+/// [`gl_defined_names`] the EMPTY pair — on a *whole-TU* basis. So the wide walk
+/// can differ from the narrow one only on a TU where the narrow one stopped, and
+/// on exactly those TUs both fence sets are already **empty**. Keeping them on
+/// the narrow walk therefore leaves the fence bit-identical **everywhere**, not
+/// merely "where it matters":
+///
+/// * `defined_name_set`'s stated property is *"a subset of the truth and never a
+///   superset"*. A smaller subset is still a subset, so the property survives
+///   unchanged; and the census is fail-open by design (board #2220) and emits
+///   nothing.
+/// * the GATE's own inline fence does not read either of these — it reads
+///   `Bindings::names()`, which IS the binding. So on a newly-binding TU the
+///   gate's fence gets **stronger**: `defined` becomes the full name list where
+///   it used to be a TU the gate refused outright.
+///
+/// # The residue, named rather than left to be found
+///
+/// `plain_external_defined_names` is the gate's fence **exemption**, and
+/// widening an exemption is the *licensing* direction. It keeps the narrow walk,
+/// which means that on a newly-binding TU carrying an intra-TU call edge the
+/// exemption is empty and the gate refuses wholesale at `locally-defined-callee`
+/// rather than handing the TU to `c2_core::comdat::fenced_inlined_callee`.
+/// `src/xdk/nuispeech/mmio.cpp` is such a TU — `mmioClose` calls `mmioFlush`,
+/// which it defines. That is a refusal and never an emit, so it is the safe half
+/// of the choice; `work/w-decouple/` sizes the other half as a build that was
+/// measured and not shipped.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum NameFit {
+    /// A bound record name must be longer than [`INLINE_NAME_MAX`], i.e. must
+    /// take the string-table encoding path. **The incumbent**, byte for byte.
+    StringTableOnly,
+    /// A bound record name may also FIT the 8-byte COFF inline name field —
+    /// which `c2_core::coff::symbol::emit_symbol` has branched on since it was
+    /// written (`if name.len() <= 8 { b.name8(name) }`) and which the port
+    /// already emits byte-exact for an undefined external (`memcpy`, 6 bytes,
+    /// on every TU of `w-ifn`'s class).
+    InlineOrStringTable,
 }
 
 /// [`gl_defined_names`], but reporting the stop clause instead of swallowing it,
@@ -398,6 +534,7 @@ pub(crate) fn gl_defined_names_framed(
     gl: &[u8],
     sep26: bool,
     framed: fn(&[u8], usize) -> bool,
+    fit: NameFit,
 ) -> Result<(Vec<(u32, String)>, Vec<String>), GlBindStop> {
     let runs = symbol_runs(gl, sep26);
     let mut claimed = vec![false; runs.len()];
@@ -454,7 +591,15 @@ pub(crate) fn gl_defined_names_framed(
             // real symbol is a rung of its own. Board **#1721**; the compensating
             // control is the 878-TU differential, which is what actually grades
             // every obj this widening lets through.
-            if runs[k].2.len() <= INLINE_NAME_MAX {
+            //
+            // **W-DECOUPLE — and this is now the ONLY thing the two policies
+            // differ in.** `NameFit::StringTableOnly` is the clause exactly as
+            // W-EXTDATA left it. `NameFit::InlineOrStringTable` drops it and
+            // pays for the drop two clauses down, at
+            // [`GlBindStop::VariadicRecord`]. See [`NameFit`] for why the
+            // widening cannot reach the fence, and #2622/#2623 for what it
+            // costs when it does.
+            if fit == NameFit::StringTableOnly && runs[k].2.len() <= INLINE_NAME_MAX {
                 return Err(GlBindStop::NameNotMangled);
             }
             // **A run the widened scanner ended at `26` is not a record name this
@@ -485,6 +630,39 @@ pub(crate) fn gl_defined_names_framed(
             // refuses. It was a live wrong-bytes emit on a one-line getter.
             if linkage_needs_a_directive(gl, runs[k].1) {
                 return Err(GlBindStop::DllexportLinkage);
+            }
+            // **W-DECOUPLE — …and a record the WIDENED walk admits, whose NAME
+            // cannot answer the varargs question, and whose own flags byte says
+            // it is variadic.**
+            //
+            // This is the clause `NameFit::InlineOrStringTable` pays for its own
+            // widening with, and it is here rather than beside
+            // [`super::bind::mangled_is_varargs`] because that predicate is
+            // keyed on the name and the name is precisely what has stopped
+            // being informative. Its doc names the dependency it is being
+            // relieved of: *"An `extern "C"` variadic function has an
+            // undecorated name and is invisible here… If that ever loosens,
+            // this gate stops covering C variadics."*
+            //
+            // Guarded on `!looks_mangled` so the clause covers **exactly** the
+            // population the name test cannot, and on the WIDE policy so the
+            // narrow walk — the fence's ground set — stays byte-for-byte the
+            // incumbent. A mangled variadic keeps stopping where it always did,
+            // one layer down at `Bindings::is_varargs`, so no existing
+            // `varargs` row moves.
+            //
+            // FAIL-CLOSED on an unreadable record: `None` from
+            // [`record_is_varargs`] means the return size escaped its one-byte
+            // form and the flags byte is not at `name_nul + 5`, and a varargs
+            // question that cannot be answered must not answer "no". The obj
+            // that error would have produced is measured in
+            // [`FN_FLAG_VARARGS`]' own doc: 36 bytes of `.text` against 8, plus
+            // a `.pdata` section, on a body whose `.ex` is byte-identical.
+            if fit == NameFit::InlineOrStringTable
+                && !looks_mangled(&runs[k].2)
+                && record_is_varargs(gl, runs[k].1) != Some(false)
+            {
+                return Err(GlBindStop::VariadicRecord);
             }
             // **…and a DEFINED record whose name is `26`-INTRODUCED refuses it
             // too, because `26` marks COMDAT-style linkage and the port's packed
@@ -570,7 +748,39 @@ pub(crate) fn gl_defined_names_framed(
 fn gl_defined_names_with(gl: &[u8], sep26: bool) -> (Vec<(u32, String)>, Vec<String>) {
     // Every stop clause maps to the same empty pair this reader always
     // returned. The clause NAMES are new; the accepted class is not.
-    gl_defined_names_framed(gl, sep26, crate::codec::gl_offset_framed).unwrap_or_default()
+    gl_defined_names_framed(
+        gl,
+        sep26,
+        crate::codec::gl_offset_framed,
+        NameFit::StringTableOnly,
+    )
+    .unwrap_or_default()
+}
+
+/// **W-DECOUPLE — the GATE's binding walk**, and the only caller of
+/// [`NameFit::InlineOrStringTable`] on the accept path.
+///
+/// [`gl_defined_names`] answers *"which names is this TU known to define"* for
+/// the two membership tests that fence the port. This one answers *"what name
+/// does each defined body carry"* for [`super::bind::Bindings::per_record`],
+/// which is a different question and, until this lane, the same function.
+/// [`NameFit`] is where the separation is argued; #2622/#2623 is what it costs
+/// not to have it.
+///
+/// Two workload TUs are the whole reason it exists, and both are `CEILING.md`
+/// §11's NC-4: `src/Main.cpp`, whose one framed record is `main` — four bytes,
+/// binding to its one `.ex` segment at offset 2713 *exactly*, and refused on
+/// its own name; and `src/xdk/nuispeech/mmio.cpp`, which binds four of eleven
+/// records and stops at `mmioSeek`, eight bytes, exactly at
+/// [`INLINE_NAME_MAX`].
+pub(crate) fn gl_bound_names(gl: &[u8]) -> (Vec<(u32, String)>, Vec<String>) {
+    gl_defined_names_framed(
+        gl,
+        true,
+        crate::codec::gl_offset_framed,
+        NameFit::InlineOrStringTable,
+    )
+    .unwrap_or_default()
 }
 
 /// Whether the record whose name ends at `name_nul` declares a linkage the port's
@@ -2400,6 +2610,128 @@ mod tests {
             .is_empty());
         assert!(plain_external_defined_names(&[]).is_empty());
         assert!(plain_external_defined_names(&[0u8; 64]).is_empty());
+    }
+
+    // ---- W-DECOUPLE: the binding walk and the fence walk ---------------------
+
+    /// **The two walks differ in exactly one clause, and only on a TU where the
+    /// FENCE walk returns nothing.**
+    ///
+    /// This is the property board #2623 says a repair must have and #2622's
+    /// one-line widening did not: the fence's ground set may not grow. Because
+    /// [`gl_defined_names_framed`] refuses on a WHOLE-TU basis, "may not grow"
+    /// is not an approximation — it is `narrow == wide ∨ narrow == ∅`, which is
+    /// what this asserts on both sides of the clause.
+    #[test]
+    fn the_fence_walk_never_grows_when_the_binding_walk_widens() {
+        // A record name that FITS the 8-byte COFF inline field. `mmioSeek` is
+        // the live one: eight bytes exactly, and the record `w-front5` measured
+        // `src/xdk/nuispeech/mmio.cpp`'s walk stopping on.
+        let short = gl_record_typed("mmioSeek", 4028, 0x05, 0x04, 0x00);
+        assert_eq!(
+            gl_defined_names(&short),
+            (Vec::new(), Vec::new()),
+            "the FENCE walk stops on it, exactly as W-EXTDATA left it"
+        );
+        assert_eq!(
+            gl_bound_names(&short).0,
+            vec![(4028, "mmioSeek".to_string())],
+            "and the BINDING walk carries it, which is the whole lane"
+        );
+        // …and where the fence walk binds anything at all, the two agree
+        // outright: the wide policy adds a clause it never reaches.
+        let long = gl_record_typed("?wf2_plain@@YAHH@Z", 2644, 0x05, 0x04, 0x00);
+        assert_eq!(gl_defined_names(&long), gl_bound_names(&long));
+        assert!(!gl_defined_names(&long).0.is_empty());
+        // The invariant itself, over every cell this module builds.
+        for gl in [
+            short,
+            long,
+            gl_record_typed("main", 2713, 0x05, 0x04, 0x00),
+            gl_record_typed("st", 2644, 0x03, 0x04, 0x00),
+            gl_record("?w_add@@YAHH@Z", 2753),
+            Vec::new(),
+            vec![0u8; 64],
+        ] {
+            let narrow = gl_defined_names(&gl);
+            assert!(
+                narrow.0.is_empty() || narrow == gl_bound_names(&gl),
+                "the fence walk must be the incumbent or nothing"
+            );
+        }
+    }
+
+    /// **GRID-V — the widened walk refuses a VARIADIC record whose name cannot
+    /// say so, and only that one.**
+    ///
+    /// [`super::super::bind::mangled_is_varargs`] is `ends_with("ZZ")` and its
+    /// own doc names this dependency: an `extern "C"` variadic is invisible to
+    /// it, and the only thing covering that was `gl_defined_names` refusing
+    /// every undecorated name. [`NameFit::InlineOrStringTable`] removes that
+    /// cover, so the walk replaces it with the record's own flags byte.
+    #[test]
+    fn the_widened_walk_refuses_an_unmangled_variadic_record() {
+        // `0x40` — measured on three variadic records against seven others,
+        // `work/w-decouple/probe/vgrid.cpp`.
+        let c_variadic = gl_record_typed("v_s", 2544, 0x05, 0x04, 0x40);
+        assert_eq!(
+            gl_defined_names_framed(
+                &c_variadic,
+                true,
+                crate::codec::gl_offset_framed,
+                NameFit::InlineOrStringTable
+            ),
+            Err(GlBindStop::VariadicRecord)
+        );
+        // A long undecorated name is the SAME hole — it has bound since
+        // W-EXTDATA's length clause and `mangled_is_varargs` cannot see it
+        // either. Closed here for the first time.
+        assert_eq!(
+            gl_defined_names_framed(
+                &gl_record_typed("v_long_name_here", 2544, 0x05, 0x04, 0x40),
+                true,
+                crate::codec::gl_offset_framed,
+                NameFit::InlineOrStringTable
+            ),
+            Err(GlBindStop::VariadicRecord)
+        );
+        // Its non-variadic twin binds: the clause keys on the byte, not on the
+        // linkage and not on the name length.
+        assert_eq!(
+            gl_bound_names(&gl_record_typed("n_s", 2544, 0x05, 0x04, 0x00)).0,
+            vec![(2544, "n_s".to_string())]
+        );
+        // `0x20` is `__forceinline` (GRID-K F4) and is NOT this bit.
+        assert_eq!(
+            gl_bound_names(&gl_record_typed("fi_s", 2544, 0x05, 0x04, 0x20)).0,
+            vec![(2544, "fi_s".to_string())]
+        );
+        // A MANGLED variadic still binds here and is still caught one layer
+        // down by `Bindings::is_varargs`, so no existing `varargs` row moves.
+        let cpp_variadic = gl_record_typed("?cppv@@YAHHZZ", 2544, 0x05, 0x04, 0x40);
+        assert_eq!(
+            gl_bound_names(&cpp_variadic).0,
+            vec![(2544, "?cppv@@YAHHZZ".to_string())]
+        );
+        assert!(super::super::bind::mangled_is_varargs("?cppv@@YAHHZZ"));
+        // FAIL-CLOSED: a return size in its escaped form puts the flags byte
+        // somewhere this reader is not looking, so the answer is a refusal and
+        // never a "no".
+        assert_eq!(
+            gl_defined_names_framed(
+                &gl_record_typed("v_s", 2544, 0x05, 0x80, 0x00),
+                true,
+                crate::codec::gl_offset_framed,
+                NameFit::InlineOrStringTable
+            ),
+            Err(GlBindStop::VariadicRecord)
+        );
+        // …and none of the four cells above moves the FENCE walk off empty.
+        for flags in [0x00u8, 0x20, 0x40] {
+            assert!(gl_defined_names(&gl_record_typed("v_s", 2544, 0x05, 0x04, flags))
+                .0
+                .is_empty());
+        }
     }
 
     #[test]
