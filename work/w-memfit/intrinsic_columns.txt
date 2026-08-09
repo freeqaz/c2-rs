@@ -1,0 +1,30 @@
+# w-memfit — the intrinsic family on BOTH columns, at tree f6037294
+#
+# Extracted from the 878-TU scan (work/w-memfit/scan_tip.log; the 63 MB
+# scan_tip.jsonl is NOT committed, per w-memcpy's own precedent).  Per
+# board #2020 a family is priced on the EMITTED column, not the body one.
+#
+# key                                        emitted    bodies    TUs      em/1k
+  expr-intrinsic-this-adjust                    9267    135866    698       68.2
+  expr-intrinsic-base-member-addr               6466    113982    673       56.7
+  expr-intrinsic-memset                         3749     34795    497      107.7
+  expr-intrinsic-0xDF                           2031     12738    415      159.4
+  expr-intrinsic-base-downcast                  1315     19978    325       65.8
+  expr-intrinsic-dynamic-cast                   1233     17334    366       71.1
+  expr-intrinsic-base-upcast                     635     19471    261       32.6
+  expr-intrinsic-sqrt                            524      2942    474      178.1
+  expr-intrinsic-strlen                          110      2465    101       44.6
+  expr-intrinsic-memcpy                           99      3366     83       29.4
+  expr-intrinsic-fabs                             54      5815     48        9.3
+  expr-intrinsic-strcmp                           52      2526     44       20.6
+  expr-intrinsic-vbase-upcast                      7      1352      7        5.2
+  expr-intrinsic-0xDD                              6         6      6     1000.0
+  expr-intrinsic-strcpy                            5         5      4     1000.0
+  expr-intrinsic-__mftb                            3         5      2      600.0
+  expr-intrinsic-call                              2         5      2      400.0
+  expr-intrinsic-memcmp                            1       812      1        1.2
+  expr-intrinsic-__frsqrte                         1         1      1     1000.0
+  expr-intrinsic-vbase-member-addr                 1       351      1        2.8
+  expr-intrinsic-0x848                             1         1      1     1000.0
+  expr-intrinsic-abs                               0       831      0        0.0
+  expr-intrinsic-_abs64                            0       831      0        0.0
