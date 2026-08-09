@@ -33,6 +33,7 @@ use self::shapes::{
     try_parse_ptr_walk_loop,
     try_parse_static_scan_loop,
     try_parse_counted_accum_loop,
+    try_parse_float_walk_loop,
     try_parse_store_leaf, try_parse_store_run, try_parse_store_run_bind,
     try_parse_store_run_call,
 };
@@ -704,6 +705,14 @@ pub(crate) enum BodyShape {
     /// and the measured cell that exercises each, and
     /// [`crate::func::CountedAccumLoop`] for the three fields.
     CountedAccumLoop(crate::func::CountedAccumLoop),
+    /// **W-BLOCKIR — the float array-walk counted loop**, the whole of
+    /// `src/system/synth_xbox/IPP_basicmath_xbox.cpp`. The same two `wb-loop`
+    /// passes around a body whose one statement walks one or three float arrays
+    /// with a base-differenced strength reduction. See
+    /// [`super::shapes::float_walk_loop`] for the twelve boundary clauses and
+    /// the compiled cell behind each, and [`crate::func::FloatWalkLoop`] for the
+    /// five fields.
+    FloatWalkLoop(crate::func::FloatWalkLoop),
     /// **The body-parameterized pointer-walk loop** — the first shape here
     /// whose emitted body has no fixed length. See
     /// [`super::shapes::ptr_walk_chain_loop`] for the accept/refuse boundary
@@ -2391,6 +2400,39 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // this is where it took it.
             if let Some(shape) = try_parse_store_run_bind(seg, p, lo, sy, depth) {
                 disp("disp-store-run-bind");
+                return Ok(shape);
+            }
+            // **W-BLOCKIR — the float array-walk counted loop.** Placed LAST
+            // in this arm, which is this lane's FENCE ORDER decision and is
+            // deliberate rather than free.
+            //
+            // Every production above argues its disjointness at one byte or at
+            // one statement. This class's first four tokens — a `B9` load of a
+            // formal, an unsigned literal, `1F`, `38` — are shared verbatim with
+            // `cond_tail`, `guarded_seq`, `early_return_seq` and
+            // `alloc_init_or_fail`, and it diverges from all four only at what
+            // follows the then-clause. Rather than assert a disjointness this
+            // lane has not proved on cells, the recognizer goes last: **no body
+            // any production above accepts today can move, by construction.**
+            // That is `w-bdnz`'s frozen fence order applied in the other arm,
+            // and it is why this class's census neutrality is provable rather
+            // than measured-and-hoped.
+            //
+            // The only population it can reach is one every production above
+            // declined and which the straight-line expression parse below
+            // refuses today at the `1F` of the guard — census key `expr-cmp-eq`,
+            // 19,295 bodies on the `disp-expr-load` arm at this lane's base.
+            // That is an arithmetic CEILING and emphatically not the class's
+            // size: five lanes have been dispatched off a blocked-key ranking
+            // and found the ranking was an artifact.
+            //
+            // Non-committal on the same terms as the rest of the ladder: its own
+            // cursor, `Err` on the first byte outside its grammar, so a body that
+            // declines still reports this arm's blocker and no census key moves.
+            if let Ok(shape) =
+                try_parse_float_walk_loop(seg, p, lo, depth, locals, sy.uint_locals)
+            {
+                disp("disp-float-walk-loop");
                 return Ok(shape);
             }
             let (ops, cls) = parse_expr_classed(seg, &mut p, 0x41)?;

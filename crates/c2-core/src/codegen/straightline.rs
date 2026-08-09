@@ -746,6 +746,7 @@ mod tests {
                 IlOp::Load(0xE509),
                 IlOp::Sub,
             ],
+            float_walk_loop: None,
         };
         assert_eq!(
             select_text(&func, OptMode::Ox).unwrap(),
@@ -1123,6 +1124,7 @@ mod tests {
                 IlOp::Load(0xE509),
                 IlOp::Mul,
             ],
+            float_walk_loop: None,
         };
         assert_eq!(
             select_text(&func, OptMode::Ox).unwrap(),
@@ -1174,6 +1176,7 @@ mod tests {
                 IlOp::Load(0xE509),
                 IlOp::Add,
             ],
+            float_walk_loop: None,
         };
         let text = select_text(&func, OptMode::Ox).unwrap();
         assert_eq!(

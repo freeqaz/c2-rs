@@ -1032,6 +1032,7 @@ fn ops_setup_text(
         // sees this value.
         eh_bare: false,
         eh_unwind_callees: Vec::new(),
+            float_walk_loop: None,
     };
     let mut t = select_text(&synth, mode)?;
     let blr = encode_blr();

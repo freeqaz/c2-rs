@@ -1685,6 +1685,91 @@ pub struct CountedAccumLoop {
 /// what the emitter reads back. The facts that are *not* here because they are
 /// required literally — six formals, seven call arguments in reverse order with
 /// a function address last, both error arms calling the same two functions,
+/// **W-BLOCKIR — which of the three array-walk sub-shapes a body occupies.**
+///
+/// Not a field the emitter interpolates: each variant is a **different word
+/// sequence**, with its own park position and its own store form, and each was
+/// read off real `c2`'s own `.text`. They are one enum rather than three classes
+/// because they share one reader — everything up to the loop body's single
+/// statement is byte-identical across all three — and splitting them would put
+/// the same 90 clauses in three files.
+///
+/// The witness counts are the honest size of each arm and are stated here rather
+/// than in prose: `work/w-blockir/PROBES.md` §1.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FloatWalkShape {
+    /// `dst[i] OP= src[i]` — two arrays, compound assign. The walker is `dst`
+    /// and its `mr` park floats **above** the guard. Six graded witnesses
+    /// (`Add_InPlace`, `Mul_InPlace`, and `probe/walk.cpp`'s `c2`, `c7`, `c8`,
+    /// `probe/bound.cpp`'s `d5`).
+    Compound,
+    /// `dst[i] OP= s` — one array and an FPR scalar formal. The walker is `dst`,
+    /// **pre-biased by −4**, and the store takes the **update form**. Four
+    /// graded witnesses (`MulConstant_InPlace`, `c12`, `d3`, `d4`).
+    Scalar,
+    /// `dst[i] = a[i] OP b[i]` — two right-hand arrays and a third destination.
+    /// The walker is **`b`, the later-declared right-hand array**, and the park
+    /// sits **below** the guard. Four graded witnesses (`Mul`, `c1`, `c6`,
+    /// `d1`).
+    ///
+    /// The walker rule does **not** extend to three right-hand arrays — `c4`
+    /// walks the *second* of three and c2 restructures the expression tree to
+    /// get there — which is why the reader admits exactly one right-hand
+    /// operator.
+    Binary,
+}
+
+/// **W-BLOCKIR — which floating-point operation the array-walk loop performs.**
+///
+/// Two variants, and the absentees are absent because they are a **different
+/// word order** rather than a different field: with `-=` or `/=` the walker's
+/// own `lfs` is emitted *first* and the other array's `lfsx` second, because the
+/// non-commutative op pins its left operand (`probe/walk.cpp` cells `c7` and
+/// `c8`, both compiled and read — `work/w-blockir/PROBES.md` §4). An arm that
+/// substituted only the opcode would emit two loads in the wrong order.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FloatWalkOp {
+    /// `fadds` — IL `0F` as a compound assign, `02` as a plain binary.
+    Add,
+    /// `fmuls` — IL `11` as a compound assign, `04` as a plain binary.
+    Mul,
+}
+
+/// **W-BLOCKIR — the float array-walk counted loop's parse.**
+///
+/// ```c
+///   void f(unsigned n, const float *a, float *b) {
+///       if (n == 0) return;
+///       for (unsigned i = 0; i < n; i++) b[i] += a[i];
+///   }
+/// ```
+///
+/// The accept/refuse boundary is entirely on the recognizer
+/// ([`crate::func::body::shapes::float_walk_loop`]); this carries only what the
+/// emitter reads back. **Every field is an index into [`Self::params`], never a
+/// register**, because the formal→register map is positional and belongs to one
+/// place.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FloatWalkLoop {
+    /// The formals in argument-register order. `params[0]` is the loop **bound**
+    /// and the guard's subject, and it arrives in `r3`; every later GPR formal
+    /// follows positionally. A float formal is required to be **last**, so no
+    /// index this struct carries is ever downstream of one.
+    pub params: Vec<u32>,
+    /// Which sub-shape, and therefore which word sequence.
+    pub shape: FloatWalkShape,
+    /// Which floating-point operation the single body statement performs.
+    pub op: FloatWalkOp,
+    /// Index into [`Self::params`] of the array the induction pointer walks —
+    /// the one reached at `0(r11)` and stepped by the `addi`/`stfsu`.
+    pub walker: usize,
+    /// Indices into [`Self::params`] of the arrays that are **not** the walker,
+    /// in the order their preheader `sub` is emitted (which is also the order
+    /// `r10`, `r9` are handed out). Empty for [`FloatWalkShape::Scalar`], one
+    /// entry for `Compound`, two for `Binary`.
+    pub others: Vec<usize>,
+}
+
 /// every label distinct — each re-plan c2's register assignment or its block
 /// layout when varied.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -2614,6 +2699,11 @@ pub struct IlFunction {
     /// it. Makes [`Self::label_slots`] return `None`, for a reason this lane
     /// measured rather than inherited — see there.
     pub counted_accum_loop: Option<CountedAccumLoop>,
+    /// **W-BLOCKIR — the float array-walk counted loop.** Set by exactly one
+    /// parser production; [`Self::ops`] is empty for it. Makes
+    /// [`Self::label_slots`] return `None`, on `counted_accum_loop`'s reasoning
+    /// and this lane's own measurement — see there.
+    pub float_walk_loop: Option<FloatWalkLoop>,
     /// **W-EXTDATA — the sunk-`||`-guard, shared-tail body** (`_vswprintf_s_l`).
     /// Set by exactly one parser production; [`Self::ops`] is empty for it.
     pub guard_chain_shared_tail: Option<GuardChainSharedTailFn>,
@@ -2780,6 +2870,7 @@ impl IlFunction {
             data_def: None,
             static_scan_loop: None,
             counted_accum_loop: None,
+            float_walk_loop: None,
             guard_chain_shared_tail: None,
             alloc_init_or_fail: None,
             osf_handle_guard: None,
@@ -2942,6 +3033,16 @@ impl IlFunction {
             // The recognizer requires the third formal to be a 4-byte real, so
             // this is a structural fact of the class and not a body scan.
             || self.if_call_join.is_some()
+            // **W-BLOCKIR — the float array-walk loop.** Every body in the class
+            // loads, computes and stores single-precision floats, so this is a
+            // structural fact of the class rather than a body scan — the same
+            // form `if_call_join` uses above and for the same reason. Measured:
+            // `IPP_basicmath_xbox.cpp`'s obj carries `_fltused` at symbol 14,
+            // immediately after `?Add_InPlace`'s own symbol
+            // (`work/w-blockir/ref/ipp.dis.txt` and the symbol table beside it),
+            // and without this arm the whole obj is one symbol short — which is
+            // exactly what it was, graded `mismatch` before this line existed.
+            || self.float_walk_loop.is_some()
     }
 
     /// True iff this function establishes a **stack frame** — it gets a `.pdata`
@@ -3349,6 +3450,22 @@ impl IlFunction {
         // same `k` — and both would additionally have to be mode-aware. That is
         // three things a later rung owes, and none of them is this one's.
         if self.counted_accum_loop.is_some() {
+            return None;
+        }
+        // **W-BLOCKIR — `None` for the float array-walk loop, and MEASURED here
+        // rather than inherited from the paragraph above.** The lead over a
+        // `leaf-none` control is in `work/w-blockir/LABEL_LEAD.md`, taken by
+        // w-json's counterfactual form at `/O1`; `docs/LABEL_COUNTER.md`'s
+        // published table has been measured wrong by three lanes and is
+        // mode-dependent, so nothing here is quoted from it. `label_slots` has
+        // no mode parameter, which is the same reason `counted_accum_loop`
+        // gives, and it is sufficient on its own.
+        //
+        // This gate is only ASKED when the TU also holds a framed function
+        // (`IlBundle::functions`), and `IPP_basicmath_xbox.cpp` holds none — so
+        // the `None` costs that TU nothing and fences every TU that pairs this
+        // class with a framed one.
+        if self.float_walk_loop.is_some() {
             return None;
         }
         if let Some(c) = &self.compare {

@@ -32,6 +32,7 @@ pub(crate) mod ctor_dtor;
 pub(crate) mod designator;
 pub(crate) mod div_mod_leaf;
 pub(crate) mod early_return;
+pub(crate) mod float_walk_loop;
 pub(crate) mod guarded_seq;
 pub(crate) mod leaf_addr;
 pub(crate) mod leaf_compare;
@@ -113,6 +114,7 @@ pub(crate) use guard_chain_shared_tail::*;
 pub(crate) use if_call_join::*;
 pub(crate) use ptr_walk_loop::*;
 #[allow(unused_imports)]
+pub(crate) use float_walk_loop::*;
 pub(crate) use static_scan_loop::*;
 #[allow(unused_imports)]
 pub(crate) use this_binding::*;

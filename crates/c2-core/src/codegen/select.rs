@@ -410,6 +410,21 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
             crate::codegen::counted_accum_loop::counted_accum_loop_emit(func, mode)?,
         ));
     }
+    // **W-BLOCKIR — the float array-walk counted loop.** Same placement
+    // argument as the shape above and the same freedom: `func.float_walk_loop`
+    // is set by exactly one parser production, `func.ops` is empty for it, and
+    // no leaf pattern-matcher below can take its body. Board #844's invariant is
+    // unaffected — this shape sets one field and no other.
+    //
+    // Unlike `counted_accum_loop` it takes no `mode`: the reader admits `/O1`
+    // alone, because `/Ox` unrolls the loop four times and emits 688 bytes where
+    // `/O1` emits 48 (`work/w-blockir/probe/ipp_ox.dis.txt`). The mode gate is
+    // in the READER, where the census can see it too (board #1638).
+    if func.float_walk_loop.is_some() {
+        return Ok(Selected::Plain(
+            crate::codegen::float_walk_loop::float_walk_loop_text(func)?,
+        ));
+    }
     // **The body-parameterized pointer-walk loop.** Same placement argument as
     // the shape above and the same freedom: `func.ptr_walk_chain_loop` is set by
     // exactly one parser production, `func.ops` is empty for it, and no leaf

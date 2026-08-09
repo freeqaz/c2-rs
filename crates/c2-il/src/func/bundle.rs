@@ -814,6 +814,17 @@ pub(crate) fn shape_to_function(
                 counted_accum_loop: Some(l),
                 ..IlFunction::base(name, src)
             }),
+            // **W-BLOCKIR — the float array-walk counted loop.** Nothing to
+            // resolve, for the same reason the row above gives: the class
+            // references no external symbol, no data object and no callee — its
+            // only operands are its own formals — so the carrier travels whole.
+            // `IPP_basicmath_xbox.cpp`'s obj has **zero relocations**, which is
+            // that statement checked against the oracle.
+            BodyShape::FloatWalkLoop(l) => Some(IlFunction {
+                params: l.params.clone(),
+                float_walk_loop: Some(l),
+                ..IlFunction::base(name, src)
+            }),
             BodyShape::IndirectLoad { params, ops } => {
                 Some(IlFunction {
                     params,

@@ -46,6 +46,7 @@ pub use func::{
     CallSeq, CmpShiftOr, CompareLeaf, DataObject, DataTu, DynInitTu, FpTail, FramedCall, GlDataRow, InAliasReport,
     IlFunction, IlOp,
     DivModLeaf,
+    FloatWalkLoop, FloatWalkOp, FloatWalkShape,
     IfCallJoin,
     AllocInitOrFail,
     AllocInitOrFailFn,
