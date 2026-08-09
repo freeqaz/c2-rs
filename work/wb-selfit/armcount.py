@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """wb-selfit — the FUN_10c0f882 arm count, three ways, from the flat export."""
+import os
 import re
 
-P = "/home/free/ghidra-projects/export/c2/decomp_all.c"
+# The flat export lives outside the repo by design (C2_MAP_METHOD.md §4 — the
+# Ghidra project is never opened; only this directory is grepped).
+P = os.path.expanduser(
+    os.environ.get("C2RS_C2_EXPORT", "~/ghidra-projects/export/c2") + "/decomp_all.c")
 src = open(P).read().split("\n")
 start = 214218 - 1
 end = next(i for i in range(start + 3, len(src)) if src[i] == "}")
