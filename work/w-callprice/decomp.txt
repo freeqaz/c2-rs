@@ -1,0 +1,170 @@
+family expr-call-in-expr: bodies 423905, emitted 35576 (423905 body rows, 35576 emitted rows)
+BASE scan (un-instrumented): bodies 423905, emitted 35576
+  ASSERTED: the compound key preserves both columns exactly.
+
+=== AXIS PROD — the production tag, crossed with the EMITTED column for the first time ===
+sub-key                                                   emitted      %    bodies      %  em/1k
+tail-void-body-does-not-end-at-the-call                     14602  41.04    159068  37.52   91.8
+tail-argument-not-in-the-operand-vocabulary                  8909  25.04     91503  21.59   97.4
+prod-not-entered                                             4093  11.50     80998  19.11   50.5
+framed-result-not-consumed-by-a-literal-post-op              2755   7.74     32444   7.65   84.9
+chain-link-does-not-bind-the-previous-result                 1482   4.17      5808   1.37  255.2
+chain-recv-not-a-plain-b9-load/no-b9-this-adjust              847   2.38      4517   1.07  187.5
+tail-object-receiver-is-not-a-tail-call                       714   2.01     24862   5.86   28.7
+chain-link-argument-not-in-the-operand-vocabulary             503   1.41      2226   0.53  226.0
+chain-innermost-argument-not-in-the-operand-vocabulary        464   1.30      8593   2.03   54.0
+chain-recv-not-a-plain-b9-load/then-off-add                   210   0.59      2327   0.55   90.2
+tail-recv-not-a-plain-b9-load/no-b9-literal                   203   0.57      1554   0.37  130.6
+chain-recv-not-a-plain-b9-load/no-b9-plain-call               189   0.53       651   0.15  290.3
+tail-returned-body-does-not-end-at-the-call                   144   0.40      1243   0.29  115.8
+chain-recv-not-a-plain-b9-load/no-b9-off-add                  112   0.31      3891   0.92   28.8
+chain-returned-body-does-not-end-at-the-call                  105   0.30      1472   0.35   71.3
+chain-recv-not-a-plain-b9-load/no-b9-convert                  104   0.29       824   0.19  126.2
+tail-recv-not-a-plain-b9-load/then-call-in-expr                32   0.09       557   0.13   57.5
+chain-recv-not-a-plain-b9-load/no-b9-base-member-addr          20   0.06       340   0.08   58.8
+… 16 further                                                   88   0.25      1027   0.24
+TOTAL                                                       35576 100.00    423905 100.00
+
+=== AXIS DISPATCH — which arm of the body ladder claimed the body ===
+sub-key                                                   emitted      %    bodies      %  em/1k
+disp-assign                                                 31483  88.50    342907  80.89   91.8
+disp-expr-lit                                                2550   7.17     31043   7.32   82.1
+disp-plain-call                                              1531   4.30     48074  11.34   31.8
+disp-expr-load                                                 12   0.03      1881   0.44    6.4
+TOTAL                                                       35576 100.00    423905 100.00
+
+=== AXIS CFLOW ===
+sub-key                                                   emitted      %    bodies      %  em/1k
+cflow-straight                                              24814  69.75    256939  60.61   96.6
+cflow-if-1                                                   5860  16.47    114572  27.03   51.1
+cflow-loop                                                   1606   4.51     11308   2.67  142.0
+cflow-if-n                                                   1261   3.54     25617   6.04   49.2
+cf-expr-0x60                                                 1137   3.20      5776   1.36  196.8
+cflow-if-2                                                    690   1.94      3203   0.76  215.4
+cf-expr-0x59                                                   96   0.27      1501   0.35   64.0
+cf-expr-0x08                                                   66   0.19      3559   0.84   18.5
+cflow-switch                                                   28   0.08        35   0.01  800.0
+cf-no-body                                                     13   0.04       692   0.16   18.8
+cflow-straight+expr-modeled                                     3   0.01       701   0.17    4.3
+cf-expr-0xBC                                                    2   0.01         2   0.00 1000.0
+TOTAL                                                       35576 100.00    423905 100.00
+
+=== AXIS FORM — the receiver form alone (the key's head) ===
+sub-key                                                   emitted      %    bodies      %  em/1k
+expr-call-in-expr-recv-load                                 17778  49.97    242046  57.10   73.4
+expr-call-in-expr-recv-object                               10144  28.51     63049  14.87  160.9
+expr-call-in-expr-recv-intrinsic-this-adjust                 2009   5.65     18547   4.38  108.3
+expr-call-in-expr-recv-load-whole                            1498   4.21     18290   4.31   81.9
+expr-call-in-expr-recv-field                                 1057   2.97     11191   2.64   94.5
+expr-call-in-expr-op-0x9B                                    1033   2.90     46036  10.86   22.4
+expr-call-in-expr-recv-field-off0                             900   2.53      6762   1.60  133.1
+expr-call-in-expr-chained                                     795   2.23      8949   2.11   88.8
+expr-call-in-expr-data-read                                   116   0.33      3897   0.92   29.8
+expr-call-in-expr-recv-intrinsic-this-adjust-whole             70   0.20       832   0.20   84.1
+expr-call-in-expr-recv-field-whole                             36   0.10       587   0.14   61.3
+expr-call-in-expr-recv-deref                                   30   0.08       251   0.06  119.5
+expr-call-in-expr-op-0x64                                      17   0.05        17   0.00 1000.0
+expr-call-in-expr-nested-call                                  17   0.05       949   0.22   17.9
+expr-call-in-expr-op-0x67                                      16   0.04        16   0.00 1000.0
+expr-call-in-expr-data-addr                                    12   0.03       725   0.17   16.6
+expr-call-in-expr-recv-intrinsic-vbase-upcast                  10   0.03        11   0.00  909.1
+expr-call-in-expr-recv-intrinsic-base-downcast                  6   0.02         6   0.00 1000.0
+… 12 further                                                   32   0.09      1744   0.41
+TOTAL                                                       35576 100.00    423905 100.00
+
+=== AXIS BLOCKER2 — the SECOND blocker alone (the key's tail) ===
+sub-key                                                   emitted      %    bodies      %  em/1k
+-then-call-recv-object-more                                  5609  15.77     18913   4.46  296.6
+-then-bit-and-and-branch-more                                4291  12.06    102375  24.15   41.9
+-then-intrinsic-call                                         3818  10.73     24476   5.77  156.0
+(whole / no second blocker)                                  2692   7.57     67511  15.93   39.9
+-then-call-recv-load-and-deref-load-more                     2185   6.14     19242   4.54  113.6
+-then-deref-load-more                                        1950   5.48     12657   2.99  154.1
+-then-call-op-0x9B                                           1152   3.24      9163   2.16  125.7
+-then-off-add-more                                           1106   3.11     22856   5.39   48.4
+-then-off-add-and-deref-load-more                            1015   2.85     11336   2.67   89.5
+-then-plumbing-0x3A                                           782   2.20     11982   2.83   65.3
+-then-call-nested-call-and-call-whole2                        757   2.13      4912   1.16  154.1
+-then-type-int1-more                                          735   2.07      7473   1.76   98.4
+-then-call-op-0x64                                            651   1.83      6827   1.61   95.4
+-then-call-other                                              635   1.78      2435   0.57  260.8
+-then-branch-brtrue                                           615   1.73     25330   5.98   24.3
+-then-chain-bind-whole                                        570   1.60      5189   1.22  109.8
+-then-type-real-whole                                         545   1.53      2406   0.57  226.5
+-then-branch-brfalse                                          520   1.46      2063   0.49  252.1
+… 206 further                                                5948  16.72     66759  15.75
+TOTAL                                                       35576 100.00    423905 100.00
+
+=== AXIS CALLS — call tokens in the body ===
+sub-key                                                   emitted      %    bodies      %  em/1k
+2                                                           12800  35.98    183571  43.30   69.7
+1                                                            6371  17.91     95921  22.63   66.4
+5                                                            6027  16.94     29827   7.04  202.1
+3                                                            3719  10.45     61119  14.42   60.8
+4                                                            2177   6.12     14828   3.50  146.8
+8                                                             677   1.90      2456   0.58  275.7
+6                                                             637   1.79      3459   0.82  184.2
+11                                                            530   1.49      2135   0.50  248.2
+13                                                            494   1.39     23828   5.62   20.7
+12                                                            383   1.08       642   0.15  596.6
+… 108 further                                                1761   4.95      6119   1.44
+TOTAL                                                       35576 100.00    423905 100.00
+
+=== REPLICATION — the EMITTED column by key, discounted ===
+  #   count      %   TUs  names  sigs topname x DISCOUNTED  group
+  1    5608  15.76   747   1139    55       528       1139  expr-call-in-expr-recv-object-then-call-recv-object-more
+  2    4290  12.06   711   1340    79       531       1340  expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+  3    2865   8.05   375   1158   183        66       1158  expr-call-in-expr-recv-load-then-intrinsic-call
+  4    2183   6.14   434    974    84        72        974  expr-call-in-expr-recv-load-then-call-recv-load-and-deref-load-more
+  5    1498   4.21   464    403    28       295        403  expr-call-in-expr-recv-load-whole
+  6    1463   4.11   583    129    61       423        129  expr-call-in-expr-recv-object-then-deref-load-more
+  7    1040   2.92   375    267   183       286        267  expr-call-in-expr-recv-load-then-off-add-more
+  8    1033   2.90   319    647   102        39        647  expr-call-in-expr-op-0x9B
+  9     828   2.33   329    429    71        62        429  expr-call-in-expr-recv-intrinsic-this-adjust-then-intrinsic-call
+ 10     811   2.28   373    350    40        72        350  expr-call-in-expr-recv-field-then-off-add-and-deref-load-more
+ 11     803   2.26   371    342    17        72        342  expr-call-in-expr-recv-intrinsic-this-adjust-then-call-op-0x9B
+ 12     757   2.13   297     62    21       265         62  expr-call-in-expr-recv-object-then-call-nested-call-and-call-whole2
+ 13     635   1.78   317    366    71        48        366  expr-call-in-expr-recv-load-then-call-other
+ 14     615   1.73   336    498   348        17        498  expr-call-in-expr-recv-load-then-call-op-0x64
+ 15     561   1.58   287    353   106        48        353  expr-call-in-expr-recv-load-then-type-int1-more
+ 16     496   1.39   290      8     2       283          8  expr-call-in-expr-recv-load-then-call-data-addr-1sym-whole
+ 17     484   1.36   286    142    81        76        142  expr-call-in-expr-recv-load-then-deref-load-more
+ 18     482   1.35   466      3     2       465          3  expr-call-in-expr-chained-then-op-0x64
+ 19     457   1.28   453     10    11       448         10  expr-call-in-expr-recv-object-then-plumbing-0x3A
+ 20     453   1.27   209    343   247        12        343  expr-call-in-expr-recv-load-then-branch-brfalse
+ 21     439   1.23   436      5     6       434          5  expr-call-in-expr-recv-load-then-type-real-whole
+ 22     438   1.23   216    237   193       133        237  expr-call-in-expr-recv-load-then-call-data-addr-and-deref-load-more
+ 23     431   1.21   382    128    42       274        128  expr-call-in-expr-recv-object-then-branch-brtrue
+ 24     419   1.18   419      1     1       419          1  expr-call-in-expr-recv-field-off0-then-call-nested-call-and-type-real-
+    total 35576, DISCOUNTED total (distinct names per group) 13336
+
+=== REPLICATION — the BODY column by key, discounted ===
+  #   count      %   TUs  names  sigs topname x DISCOUNTED  group
+  1  102374  24.15   832   1404   181       829       1404  expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+  2   46036  10.86   703    689   149       699        689  expr-call-in-expr-op-0x9B
+  3   23633   5.58   699    132   136       597        132  expr-call-in-expr-recv-object-then-branch-brtrue
+  4   22564   5.32   733    269   210       705        269  expr-call-in-expr-recv-load-then-off-add-more
+  5   20155   4.75   827   1166   188       826       1166  expr-call-in-expr-recv-load-then-intrinsic-call
+  6   19240   4.54   737    976    87       699        976  expr-call-in-expr-recv-load-then-call-recv-load-and-deref-load-more
+  7   18912   4.46   783   1161    55       720       1161  expr-call-in-expr-recv-object-then-call-recv-object-more
+  8   18290   4.31   813    420    34       809        420  expr-call-in-expr-recv-load-whole
+  9    9708   2.29   809      8     2       719          8  expr-call-in-expr-recv-load-then-call-data-addr-1sym-whole
+ 10    8488   2.00   735    363    50       699        363  expr-call-in-expr-recv-field-then-off-add-and-deref-load-more
+ 11    8343   1.97   733    347    21       699        347  expr-call-in-expr-recv-intrinsic-this-adjust-then-call-op-0x9B
+ 12    8269   1.95   817    143    95       708        143  expr-call-in-expr-recv-load-then-deref-load-more
+    total 423905, DISCOUNTED total (distinct names per group) 15837
+
+=== the emitted column's own name histogram ===
+  distinct names among the 35576 emitted: 13329 (0 rows carry no name)
+     531  1.49%  ??_GDataArray@@AAAPAXI@Z
+     528  1.48%  ??$MakeString@$$BY0BG@$$CBDH$$BY0L@$$CBD@@YAPBDPBDAAY0BG@$$CBDABHAAY0L@$$CBD@Z
+     489  1.37%  ??$MakeString@VSymbol@@PBDV1@@@YAPBDPBDABVSymbol@@ABQBD1@Z
+     465  1.31%  ?Sym@DataArray@@QBA?AVSymbol@@H@Z
+     448  1.26%  ?MakeString@@YAPBDPBD@Z
+     436  1.23%  ??$MakeString@$$BY0BJ@$$CBDH$$BY0BP@$$CBD@@YAPBDPBDAAY0BJ@$$CBDABHAAY0BP@$$CBD@Z
+     436  1.23%  ??$MakeString@$$BY0BJ@$$CBDH$$BY0BB@$$CBD@@YAPBDPBDAAY0BJ@$$CBDABHAAY0BB@$$CBD@Z
+     434  1.22%  ?SplitMs@Timer@@QAAMXZ
+     423  1.19%  ??$MakeString@PBDVSymbol@@@@YAPBDPBDABQBDABVSymbol@@@Z
+     419  1.18%  ??1MessageTimer@@QAA@XZ
+     295  0.83%  ??5BinStream@@QAAAAV0@AAH@Z
+     286  0.80%  ?AddRef@Object@Hmx@@QAAXPAVObjRef@@@Z

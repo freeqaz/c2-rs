@@ -1,0 +1,18 @@
+prod tag                                              emitted   cons    bodies   em/1k
+R1-not-a-named-object-by-the-tail-locator                6541   1319     21319   306.8
+call-ref                                                 5705   1505    125464    45.5
+R1-argument-not-in-the-operand-vocabulary                 809     64      1570   515.3
+R1-result-not-discarded                                   493     17       850   580.0
+msc-result-not-discarded-value-tail                       447     13       727   614.9
+msc-recv-0x67-virtual                                     296     84       296  1000.0
+msc-recv-this-not-a-plain-b9-load                          30     30        30  1000.0
+msc-recv-0x33-field-addr                                   23     23        23  1000.0
+call-intrinsic                                             19     19        19  1000.0
+msc-argument-not-in-the-operand-vocabulary                 12     11       230    52.2
+callseq-multiarg-sym                                        8      8         9   888.9
+callseq-over-eight-formals                                  5      5         5  1000.0
+callseq-tail-lit                                            4      4         4  1000.0
+call-end                                                    1      1         1  1000.0
+call-arg-nonformal                                          1      1         1  1000.0
+call-arg-multi-sym                                          1      1         1  1000.0
+SELECTED TOTAL                                          14395           150549

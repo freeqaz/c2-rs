@@ -1,0 +1,56 @@
+WHOLE BLOCKED CENSUS  bodies 1751929  emitted 130560
+FAMILY expr-call-in-expr      bodies 423905  emitted 35576
+  family share of the blocked EMITTED column: 27.25 %
+  family share of the blocked BODY    column: 24.20 %
+  distinct family keys: 476 on bodies, 462 on emitted
+
+=== TOP 30 FAMILY KEYS BY THE **EMITTED** COLUMN ===
+  # emitted      %   cum%    bodies  em/1k  key
+  1    5608  15.76   15.8     18912  296.5  expr-call-in-expr-recv-object-then-call-recv-object-more
+  2    4290  12.06   27.8    102374   41.9  expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+  3    2865   8.05   35.9     20155  142.1  expr-call-in-expr-recv-load-then-intrinsic-call
+  4    2183   6.14   42.0     19240  113.5  expr-call-in-expr-recv-load-then-call-recv-load-and-deref-load-more
+  5    1498   4.21   46.2     18290   81.9  expr-call-in-expr-recv-load-whole
+  6    1463   4.11   50.3      4385  333.6  expr-call-in-expr-recv-object-then-deref-load-more
+  7    1040   2.92   53.3     22564   46.1  expr-call-in-expr-recv-load-then-off-add-more
+  8    1033   2.90   56.2     46036   22.4  expr-call-in-expr-op-0x9B
+  9     828   2.33   58.5      4194  197.4  expr-call-in-expr-recv-intrinsic-this-adjust-then-intrinsic-call
+ 10     811   2.28   60.8      8488   95.5  expr-call-in-expr-recv-field-then-off-add-and-deref-load-more
+ 11     803   2.26   63.0      8343   96.2  expr-call-in-expr-recv-intrinsic-this-adjust-then-call-op-0x9B
+ 12     757   2.13   65.2      4912  154.1  expr-call-in-expr-recv-object-then-call-nested-call-and-call-whole2
+ 13     635   1.78   66.9      2435  260.8  expr-call-in-expr-recv-load-then-call-other
+ 14     615   1.73   68.7      6791   90.6  expr-call-in-expr-recv-load-then-call-op-0x64
+ 15     561   1.58   70.2      4400  127.5  expr-call-in-expr-recv-load-then-type-int1-more
+ 16     496   1.39   71.6      9708   51.1  expr-call-in-expr-recv-load-then-call-data-addr-1sym-whole
+ 17     484   1.36   73.0      8269   58.5  expr-call-in-expr-recv-load-then-deref-load-more
+ 18     482   1.35   74.4      2205  218.6  expr-call-in-expr-chained-then-op-0x64
+ 19     457   1.28   75.6      1477  309.4  expr-call-in-expr-recv-object-then-plumbing-0x3A
+ 20     453   1.27   76.9      1986  228.1  expr-call-in-expr-recv-load-then-branch-brfalse
+ 21     439   1.23   78.1       933  470.5  expr-call-in-expr-recv-load-then-type-real-whole
+ 22     438   1.23   79.4      4247  103.1  expr-call-in-expr-recv-load-then-call-data-addr-and-deref-load-more
+ 23     431   1.21   80.6     23633   18.2  expr-call-in-expr-recv-object-then-branch-brtrue
+ 24     419   1.18   81.8       699  599.4  expr-call-in-expr-recv-field-off0-then-call-nested-call-and-type-real-more
+ 25     350   0.98   82.7      2666  131.3  expr-call-in-expr-recv-field-off0-then-chain-bind-whole
+ 26     337   0.95   83.7      3197  105.4  expr-call-in-expr-recv-load-then-call-recv-load-whole
+ 27     295   0.83   84.5       295 1000.0  expr-call-in-expr-recv-load-then-call-data-addr-and-call-more
+ 28     259   0.73   85.3       720  359.7  expr-call-in-expr-recv-load-then-call-op-0x9B
+ 29     230   0.65   85.9      1904  120.8  expr-call-in-expr-recv-load-then-type-void-and-op-more
+ 30     202   0.57   86.5      1406  143.7  expr-call-in-expr-recv-load-then-temp-bind
+  keys needed to cover 25 % of the emitted column: 2
+  keys needed to cover 50 % of the emitted column: 6
+  keys needed to cover 80 % of the emitted column: 23
+
+=== TOP 12 FAMILY KEYS BY THE **BODY** COLUMN (what every prior ranking used) ===
+  #    bodies      % emitted  em/1k  key
+  1    102374  24.15    4290   41.9  expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+  2     46036  10.86    1033   22.4  expr-call-in-expr-op-0x9B
+  3     23633   5.58     431   18.2  expr-call-in-expr-recv-object-then-branch-brtrue
+  4     22564   5.32    1040   46.1  expr-call-in-expr-recv-load-then-off-add-more
+  5     20155   4.75    2865  142.1  expr-call-in-expr-recv-load-then-intrinsic-call
+  6     19240   4.54    2183  113.5  expr-call-in-expr-recv-load-then-call-recv-load-and-deref-load-more
+  7     18912   4.46    5608  296.5  expr-call-in-expr-recv-object-then-call-recv-object-more
+  8     18290   4.31    1498   81.9  expr-call-in-expr-recv-load-whole
+  9      9708   2.29     496   51.1  expr-call-in-expr-recv-load-then-call-data-addr-1sym-whole
+ 10      8488   2.00     811   95.5  expr-call-in-expr-recv-field-then-off-add-and-deref-load-more
+ 11      8343   1.97     803   96.2  expr-call-in-expr-recv-intrinsic-this-adjust-then-call-op-0x9B
+ 12      8269   1.95     484   58.5  expr-call-in-expr-recv-load-then-deref-load-more

@@ -1,0 +1,254 @@
+diff --git a/crates/c2-harness/src/gap/scan.rs b/crates/c2-harness/src/gap/scan.rs
+index e0873eab..ce8f3f18 100644
+--- a/crates/c2-harness/src/gap/scan.rs
++++ b/crates/c2-harness/src/gap/scan.rs
+@@ -26,6 +26,30 @@ use super::{
+     WHOLE_TU_RECOGNIZERS,
+ };
+ 
++// ***** w-callprice SCRATCH INSTRUMENT — REVERTED, NEVER COMMITTED *****
++// Every offline axis in the key, so ONE scan decides them all and both columns
++// sum to the family total by construction. `prod` is the axis that has never
++// been crossed with the emitted column.
++fn wcp_key(f: &c2_il::func::FnCensus) -> String {
++    let k = f.verdict.key();
++    if !k.starts_with("expr-call-in-expr") {
++        return k;
++    }
++    let hex: String = f.hex.iter().map(|b| format!("{b:02X}")).collect();
++    format!(
++        "{k}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
++        f.cflow,
++        f.dispatch,
++        f.prod,
++        f.calls,
++        f.seg_len,
++        f.hex_mark,
++        hex,
++        f.index,
++        f.name.as_deref().or(f.emit_name.as_deref()).unwrap_or("-")
++    )
++}
++
+ /// Scan one TU. `work` must be a private (per-TU) directory.
+ fn scan_one(
+     tc: &Toolchain,
+@@ -119,7 +143,7 @@ fn scan_one(
+                     *res.fn_gate_refusals.entry(k).or_insert(0) += 1;
+                 }
+             } else {
+-                *res.fn_blockers.entry(f.verdict.key()).or_insert(0) += 1;
++                *res.fn_blockers.entry(wcp_key(f)).or_insert(0) += 1;
+             }
+             // The D6 frame axis, over *every* function: the in-class shapes are
+             // the control group (all of them are leaves or single tail calls, so
+@@ -398,7 +422,7 @@ fn scan_one(
+                             if f.verdict.in_class() {
+                                 *res.emit.entry("emit-in-class".into()).or_insert(0) += 1;
+                             } else {
+-                                *res.emit_blockers.entry(f.verdict.key()).or_insert(0) += 1;
++                                *res.emit_blockers.entry(wcp_key(f)).or_insert(0) += 1;
+                                 // **The control-flow counterfactual, on the
+                                 // column that ranks.** `emit_blockers` is the
+                                 // widening order and its #2 row is
+diff --git a/crates/c2-il/src/func/body/shapes/calls.rs b/crates/c2-il/src/func/body/shapes/calls.rs
+index 5fa70b0d..6d576c2c 100644
+--- a/crates/c2-il/src/func/body/shapes/calls.rs
++++ b/crates/c2-il/src/func/body/shapes/calls.rs
+@@ -1258,6 +1258,26 @@ pub(crate) fn eat_call_postop(seg: &[u8], p: &mut usize) -> Result<i32, Block> {
+ /// under-claiming direction of `docs/GAPS.md` §6).
+ pub(crate) const MAX_REGISTER_FORMALS: usize = 8;
+ 
++// ***** w-callprice SCRATCH INSTRUMENT — REVERTED, NEVER COMMITTED *****
++// The SECOND-ORDER split of `call-token`. Every decline inside
++// `eat_member_stmt_call` names itself; last write wins, exactly like `prod_tag`.
++thread_local! {
++    static WCP_MSC: std::cell::Cell<&'static str> =
++        const { std::cell::Cell::new("msc-unset") };
++}
++#[inline]
++fn wcp_msc(tag: &'static str) {
++    WCP_MSC.with(|c| c.set(tag));
++}
++pub(crate) fn wcp_msc_site() -> &'static str {
++    WCP_MSC.with(|c| c.get())
++}
++/// Per-attempt reset. A stale tag from the previous segment is the one failure
++/// mode that would make this instrument report fiction (`mod.rs::dispatch_reset`).
++pub(crate) fn wcp_msc_reset() {
++    WCP_MSC.with(|c| c.set("msc-not-attempted"));
++}
++
+ /// **W-MCALL — ONE MEMBER CALL IN STATEMENT POSITION**, read as a
+ /// [`SeqCall`]'s head + arguments (lane `w-mcall`, board **#1960**).
+ ///
+@@ -1315,23 +1335,100 @@ fn eat_member_stmt_call(seg: &[u8], p: &mut usize) -> Option<(u32, Vec<Vec<IlOp>
+     let save = *p;
+     let mut q = *p;
+     let out = (|| {
+-        let callee_tok = eat_callee_push(seg, &mut q).ok()?;
++        let callee_tok = eat_callee_push(seg, &mut q).ok().or_else(|| {
++            wcp_msc("msc-not-a-callee-push");
++            None
++        })?;
+         // A second `26` where the receiver goes is a stacked method (a chain) or
+         // a named data object; both are declined here — with the cursor
+         // untouched — so that `super::mcall_chain` and W-ADJUST keep meaning
+         // what they mean at the tail form.
++        // ***** w-callprice COUNTERFACTUAL (env-gated, SCRATCH) *****
++        // R1 priced by running it: admit a NAMED DATA OBJECT receiver in a later
++        // statement of the sequence — `gObj.m();` — exactly as the tail form
++        // already does (`mcall_tail`'s W-ADJUST arm), with `IlOp::SymAddr` in
++        // slot 0. Off unless `C2RS_WCP_R1=1`.
++        if seg.get(q) == Some(&0x26) && std::env::var_os("C2RS_WCP_R1").is_some() {
++            let mut r = q;
++            match super::mcall_tail::eat_receiver_object(seg, &mut r) {
++                None => wcp_msc("R1-not-a-named-object-by-the-tail-locator"),
++                Some(tok) => match eat_call_token(seg, &mut r) {
++                    Err(_) => wcp_msc("R1-no-cdecl-call-token"),
++                    Ok(ret) => match eat_call_args(seg, &mut r) {
++                        Err(_) => wcp_msc("R1-argument-not-in-the-operand-vocabulary"),
++                        Ok(mut args) => {
++                            if !eat_byte(seg, &mut r, 0x4B) {
++                                wcp_msc("R1-result-not-discarded");
++                            } else if ret.discarded(seg, r).is_err() {
++                                wcp_msc("R1-discarded-fp-result");
++                            } else {
++                                args.push(vec![IlOp::SymAddr(tok)]);
++                                q = r;
++                                return Some((callee_tok, args));
++                            }
++                        }
++                    },
++                },
++            }
++            return None;
++        }
+         if seg.get(q) != Some(&0xB9) {
++            wcp_msc(match seg.get(q) {
++                // THIRD ORDER: `mcall`'s own walk names the receiver form, so
++                // "chain or named object" is decided by the one locator that
++                // already decides it and not by a second tokenizer.
++                Some(&0x26) => {
++                    let f = super::super::mcall::feature(
++                        super::super::mcall::classify(seg, q).aux,
++                    );
++                    if f.contains("-chained") {
++                        "msc-recv-0x26-CHAIN"
++                    } else if f.contains("-recv-object") {
++                        "msc-recv-0x26-NAMED-OBJECT"
++                    } else if f.contains("-recv-") {
++                        "msc-recv-0x26-other-recv-form"
++                    } else if f.contains("-nested-call") {
++                        "msc-recv-0x26-NESTED-CALL"
++                    } else if f.contains("-data-") {
++                        "msc-recv-0x26-data-designator"
++                    } else {
++                        "msc-recv-0x26-unnamed-form"
++                    }
++                }
++                Some(&0x30) => "msc-recv-0x30-deref-load",
++                Some(&0x33) => "msc-recv-0x33-field-addr",
++                Some(&0x40) => "msc-recv-0x40-intrinsic",
++                Some(&0x2C) => "msc-recv-0x2C-convert",
++                Some(&0x9B) => "msc-recv-0x9B-by-value-temp",
++                Some(&0x64) => "msc-recv-0x64",
++                Some(&0x67) => "msc-recv-0x67-virtual",
++                Some(_) => "msc-recv-other-byte",
++                None => "msc-recv-eof",
++            });
+             return None;
+         }
+-        let recv_tok = super::mcall_tail::eat_receiver_this(seg, &mut q).ok()?;
+-        let ret = eat_call_token(seg, &mut q).ok()?;
+-        let mut args = eat_call_args(seg, &mut q).ok()?;
++        let recv_tok = super::mcall_tail::eat_receiver_this(seg, &mut q).ok().or_else(|| {
++            wcp_msc("msc-recv-this-not-a-plain-b9-load");
++            None
++        })?;
++        let ret = eat_call_token(seg, &mut q).ok().or_else(|| {
++            wcp_msc("msc-no-cdecl-call-token-after-the-receiver");
++            None
++        })?;
++        let mut args = eat_call_args(seg, &mut q).ok().or_else(|| {
++            wcp_msc("msc-argument-not-in-the-operand-vocabulary");
++            None
++        })?;
+         // The result is discarded, and only that. `4C` has already been consumed
+         // by `eat_call_args`.
+         if !eat_byte(seg, &mut q, 0x4B) {
++            wcp_msc("msc-result-not-discarded-value-tail");
+             return None;
+         }
+-        ret.discarded(seg, q).ok()?;
++        ret.discarded(seg, q).ok().or_else(|| {
++            wcp_msc("msc-discarded-fp-result-fltused");
++            None
++        })?;
+         // `this` is argument slot 0 and the list is in STREAM order — rightmost
+         // source argument first — so the receiver goes on the END. Getting this
+         // backwards is invisible on a nullary call, which is why the tail form
+diff --git a/crates/c2-il/src/func/body/shapes/mcall_tail.rs b/crates/c2-il/src/func/body/shapes/mcall_tail.rs
+index 9dcf270d..a24fd8c1 100644
+--- a/crates/c2-il/src/func/body/shapes/mcall_tail.rs
++++ b/crates/c2-il/src/func/body/shapes/mcall_tail.rs
+@@ -377,7 +377,7 @@ pub(crate) fn recv_prod_tag(arm: RecvArm, seg: &[u8], b: &Block) -> Option<Block
+ /// instance #9 records, and here it would decide independently whether an offset
+ /// run or a `30` load may ride along — the two spellings whose emission is a
+ /// third instruction WR1 measured and refused.
+-fn eat_receiver_object(seg: &[u8], p: &mut usize) -> Option<u32> {
++pub(crate) fn eat_receiver_object(seg: &[u8], p: &mut usize) -> Option<u32> {
+     let save = *p;
+     let tok = eat_sym_addr_value(seg, p, 0x99)?;
+     if eat_this_bind(seg, p).is_err() {
+@@ -491,6 +491,11 @@ pub(crate) fn try_parse_member_tail_call(
+     // attempted below, and only when it declines does the body fall through to
+     // the assignment parse and keep its de-conflated
+     // `expr-call-in-expr-recv-load-*` key.
++    // ***** w-callprice SCRATCH INSTRUMENT — REVERTED, NEVER COMMITTED *****
++    // w-mcall #1963 split this tag's 159,068 BODIES; nobody has split its
++    // EMITTED column. Carry the sequence route's own refusal so the re-arm
++    // below reports it instead of the generic tag.
++    let mut wcp_seq: Option<&'static str> = None;
+     let mut depth = depth;
+     if eat_byte(seg, &mut p, 0x4B) {
+         // The result is discarded, so a `float`/`double` one still obliges the TU
+@@ -528,7 +533,8 @@ pub(crate) fn try_parse_member_tail_call(
+         // thought of, and the conservative direction is to keep the guard.
+         if depth == BODY_SCOPE_DEPTH {
+             let mut q = p;
+-            if let Ok(shape) = super::calls::parse_call_sequence_from(
++            super::calls::wcp_msc_reset(); // w-callprice SCRATCH
++            match super::calls::parse_call_sequence_from(
+                 seg,
+                 &mut q,
+                 lo,
+@@ -536,7 +542,17 @@ pub(crate) fn try_parse_member_tail_call(
+                 None,
+                 Vec::new(),
+             ) {
+-                return Ok(shape);
++                Ok(shape) => return Ok(shape),
++                // w-callprice SCRATCH: keep the route's own refusal name, and
++                // for `call-token` — w-mcall #1963's named next step — the
++                // SECOND-ORDER clause inside `eat_member_stmt_call`.
++                Err(b) => {
++                    wcp_seq = Some(if b.ctx == "call-token" {
++                        super::calls::wcp_msc_site()
++                    } else {
++                        b.ctx
++                    })
++                }
+             }
+             // Re-arm: the failed attempt above may have written a tag of its own.
+             prod_tag("tail-void-body-does-not-end-at-the-call");
+@@ -552,7 +568,8 @@ pub(crate) fn try_parse_member_tail_call(
+         eat_scopes(seg, &mut p, &mut depth)
+             .map_err(|_| prod_tag("tail-void-brace-scopes-do-not-close"))?;
+         eat_return_plumbing(seg, &mut p, false, depth)
+-            .map_err(|_| prod_tag("tail-void-body-does-not-end-at-the-call"))?;
++            // w-callprice SCRATCH: the sequence route's own refusal, when it ran.
++            .map_err(|_| prod_tag(wcp_seq.unwrap_or("tail-void-body-does-not-end-at-the-call")))?;
+     } else if seg.get(p) == Some(&0x41) {
+         eat_return_plumbing(seg, &mut p, true, depth)
+             .map_err(|_| prod_tag("tail-returned-body-does-not-end-at-the-call"))?;

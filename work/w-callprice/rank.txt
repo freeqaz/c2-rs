@@ -1,0 +1,109 @@
+family: 423905 bodies / 35576 emitted, 462 keys on the emitted column
+distinct mangled names over the whole emitted column: 13329 (35576 emitted symbols → 2.67 emitted per construct; 62.5 % of the column is TU replication)
+
+=== RANKED BY RAW EMITTED (what the metric moves) ===
+  # emitted     %  cons   lev   TUs   bodies  em/1k top name x  key
+  1    5608  15.8  1139   4.9   747    18912  296.5        528  expr-call-in-expr-recv-object-then-call-recv-object-more
+  2    4290  12.1  1340   3.2   711   102374   41.9        531  expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+  3    2865   8.1  1158   2.5   375    20155  142.1         66  expr-call-in-expr-recv-load-then-intrinsic-call
+  4    2183   6.1   974   2.2   434    19240  113.5         72  expr-call-in-expr-recv-load-then-call-recv-load-and-deref-load-m
+  5    1498   4.2   403   3.7   464    18290   81.9        295  expr-call-in-expr-recv-load-whole
+  6    1463   4.1   129  11.3   583     4385  333.6        423  expr-call-in-expr-recv-object-then-deref-load-more
+  7    1040   2.9   267   3.9   375    22564   46.1        286  expr-call-in-expr-recv-load-then-off-add-more
+  8    1033   2.9   647   1.6   319    46036   22.4         39  expr-call-in-expr-op-0x9B
+  9     828   2.3   429   1.9   329     4194  197.4         62  expr-call-in-expr-recv-intrinsic-this-adjust-then-intrinsic-call
+ 10     811   2.3   350   2.3   373     8488   95.5         72  expr-call-in-expr-recv-field-then-off-add-and-deref-load-more
+ 11     803   2.3   342   2.3   371     8343   96.2         72  expr-call-in-expr-recv-intrinsic-this-adjust-then-call-op-0x9B
+ 12     757   2.1    62  12.2   297     4912  154.1        265  expr-call-in-expr-recv-object-then-call-nested-call-and-call-who
+ 13     635   1.8   366   1.7   317     2435  260.8         48  expr-call-in-expr-recv-load-then-call-other
+ 14     615   1.7   498   1.2   336     6791   90.6         17  expr-call-in-expr-recv-load-then-call-op-0x64
+ 15     561   1.6   353   1.6   287     4400  127.5         48  expr-call-in-expr-recv-load-then-type-int1-more
+ 16     496   1.4     8  62.0   290     9708   51.1        283  expr-call-in-expr-recv-load-then-call-data-addr-1sym-whole
+ 17     484   1.4   142   3.4   286     8269   58.5         76  expr-call-in-expr-recv-load-then-deref-load-more
+ 18     482   1.4     3 160.7   466     2205  218.6        465  expr-call-in-expr-chained-then-op-0x64
+ 19     457   1.3    10  45.7   453     1477  309.4        448  expr-call-in-expr-recv-object-then-plumbing-0x3A
+ 20     453   1.3   343   1.3   209     1986  228.1         12  expr-call-in-expr-recv-load-then-branch-brfalse
+
+=== RANKED BY CONSTRUCTS (distinct mangled names) — the DISCOUNT ===
+  #  cons emitted   lev raw rank  key
+  1  1340    4290   3.2        2  expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+  2  1158    2865   2.5        3  expr-call-in-expr-recv-load-then-intrinsic-call
+  3  1139    5608   4.9        1  expr-call-in-expr-recv-object-then-call-recv-object-more
+  4   974    2183   2.2        4  expr-call-in-expr-recv-load-then-call-recv-load-and-deref-load-m
+  5   647    1033   1.6        8  expr-call-in-expr-op-0x9B
+  6   498     615   1.2       14  expr-call-in-expr-recv-load-then-call-op-0x64
+  7   429     828   1.9        9  expr-call-in-expr-recv-intrinsic-this-adjust-then-intrinsic-call
+  8   403    1498   3.7        5  expr-call-in-expr-recv-load-whole
+  9   366     635   1.7       13  expr-call-in-expr-recv-load-then-call-other
+ 10   353     561   1.6       15  expr-call-in-expr-recv-load-then-type-int1-more
+ 11   350     811   2.3       10  expr-call-in-expr-recv-field-then-off-add-and-deref-load-more
+ 12   343     453   1.3       20  expr-call-in-expr-recv-load-then-branch-brfalse
+ 13   342     803   2.3       11  expr-call-in-expr-recv-intrinsic-this-adjust-then-call-op-0x9B
+ 14   267    1040   3.9        7  expr-call-in-expr-recv-load-then-off-add-more
+ 15   237     438   1.8       22  expr-call-in-expr-recv-load-then-call-data-addr-and-deref-load-m
+ 16   179     337   1.9       26  expr-call-in-expr-recv-load-then-call-recv-load-whole
+ 17   156     185   1.2       32  expr-call-in-expr-recv-object-then-op-0x5C
+ 18   143     230   1.6       29  expr-call-in-expr-recv-load-then-type-void-and-op-more
+ 19   142     484   3.4       17  expr-call-in-expr-recv-load-then-deref-load-more
+ 20   142     259   1.8       28  expr-call-in-expr-recv-load-then-call-op-0x9B
+
+=== RANKED BY LEVERAGE (emitted per construct), keys with ≥150 emitted ===
+  #    lev emitted  cons   TUs raw rank  key   [top name]
+  1  419.0     419     1   419       24  expr-call-in-expr-recv-field-off0-then-call-nested-call-
+                                      ??1MessageTimer@@QAA@XZ  x419
+  2  160.7     482     3   466       18  expr-call-in-expr-chained-then-op-0x64
+                                      ?Sym@DataArray@@QBA?AVSymbol@@H@Z  x465
+  3   87.8     439     5   436       21  expr-call-in-expr-recv-load-then-type-real-whole
+                                      ?SplitMs@Timer@@QAAMXZ  x434
+  4   62.0     496     8   290       16  expr-call-in-expr-recv-load-then-call-data-addr-1sym-who
+                                      ??6BinStream@@QAAAAV0@H@Z  x283
+  5   45.7     457    10   453       19  expr-call-in-expr-recv-object-then-plumbing-0x3A
+                                      ?MakeString@@YAPBDPBD@Z  x448
+  6   12.2     757    62   297       12  expr-call-in-expr-recv-object-then-call-nested-call-and-
+                                      ?Replace@ObjRef@@UAAXPAVObject@Hmx@@@Z  x265
+  7   11.3    1463   129   583        6  expr-call-in-expr-recv-object-then-deref-load-more
+                                      ??$MakeString@PBDVSymbol@@@@YAPBDPBDABQBDABVSymbol@@@Z  x423
+  8    5.3     195    37   171       31  expr-call-in-expr-recv-object-then-type-ptr-and-op-more
+                                      ??$MakeString@$$BY0IA@D@@YAPBDPBDAAY0IA@$$CBD@Z  x154
+  9    4.9    5608  1139   747        1  expr-call-in-expr-recv-object-then-call-recv-object-more
+                                      ??$MakeString@$$BY0BG@$$CBDH$$BY0L@$$CBD@@YAPBDPBDAAY0BG@$$CBDABHAAY0L@$$CBD@Z  x528
+ 10    4.0     179    45    96       34  expr-call-in-expr-recv-load-then-off-add-and-deref-load-
+                                      ?_M_Start@?$_String_base@DV?$allocator@D@stlpmtx_std@@@stlpmtx_std@@IAAPADXZ  x66
+ 11    3.9    1040   267   375        7  expr-call-in-expr-recv-load-then-off-add-more
+                                      ?AddRef@Object@Hmx@@QAAXPAVObjRef@@@Z  x286
+ 12    3.7    1498   403   464        5  expr-call-in-expr-recv-load-whole
+                                      ??5BinStream@@QAAAAV0@AAH@Z  x295
+ 13    3.6     295    83   154       27  expr-call-in-expr-recv-load-then-call-data-addr-and-call
+                                      ?Load@?$ObjRefConcrete@VRndTransformable@@VObjectDir@@@@QAA_NAAVBinStream@@_NPAVObjectDir@@@Z  x45
+ 14    3.4     484   142   286       17  expr-call-in-expr-recv-load-then-deref-load-more
+                                      ?Print@String@@UAAXPBD@Z  x76
+ 15    3.4     183    54    93       33  expr-call-in-expr-recv-load-then-branch-brtrue
+                                      ?_M_deallocate_block@?$_String_base@DV?$allocator@D@stlpmtx_std@@@stlpmtx_std@@IAAXXZ  x66
+ 16    3.4     431   128   382       23  expr-call-in-expr-recv-object-then-branch-brtrue
+                                      ?SetType@Object@Hmx@@UAAXVSymbol@@@Z  x274
+ 17    3.2    4290  1340   711        2  expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+                                      ??_GDataArray@@AAAPAXI@Z  x531
+ 18    2.8     350   127   209       25  expr-call-in-expr-recv-field-off0-then-chain-bind-whole
+                                      ??1?$_List_base@PAVObjectDir@@V?$StlNodeAlloc@PAVObjectDir@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ  x63
+ 19    2.5    2865  1158   375        3  expr-call-in-expr-recv-load-then-intrinsic-call
+                                      ?_M_terminate_string@?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@stlpmtx_std@@IA  x66
+ 20    2.3     803   342   371       11  expr-call-in-expr-recv-intrinsic-this-adjust-then-call-o
+                                      ??1?$vector@UNode@?$ObjPtrVec@VRndTransformable@@VObjectDir@@@@V?$StlNodeAlloc@UNode@?$ObjPtrVec@VRn  x72
+
+=== the `-whole…` slice — granting the SECOND blocker finishes the body ===
+  4754 emitted (13.4 %), 55955 bodies (13.2 %), 1136 name-slots
+emitted  cons   lev   bodies  key
+   1498   403   3.7    18290  expr-call-in-expr-recv-load-whole
+    757    62  12.2     4912  expr-call-in-expr-recv-object-then-call-nested-call-and-call-who
+    496     8  62.0     9708  expr-call-in-expr-recv-load-then-call-data-addr-1sym-whole
+    439     5  87.8      933  expr-call-in-expr-recv-load-then-type-real-whole
+    350   127   2.8     2666  expr-call-in-expr-recv-field-off0-then-chain-bind-whole
+    337   179   1.9     3197  expr-call-in-expr-recv-load-then-call-recv-load-whole
+    143    73   2.0     1686  expr-call-in-expr-recv-intrinsic-this-adjust-then-chain-bind-who
+    111    24   4.6     3743  expr-call-in-expr-recv-object-then-call-nested-call-and-call-who
+    105     4  26.2     1472  expr-call-in-expr-chained-then-type-real-whole
+     76     5  15.2      836  expr-call-in-expr-recv-field-then-chain-bind-whole
+     70     5  14.0      832  expr-call-in-expr-recv-intrinsic-this-adjust-whole
+     69    50   1.4      705  expr-call-in-expr-recv-intrinsic-this-adjust-then-call-recv-fiel
+     68    21   3.2      407  expr-call-in-expr-recv-load-then-type-int1-whole
+     50    36   1.4      574  expr-call-in-expr-recv-field-off0-then-call-recv-field-whole

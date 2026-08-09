@@ -1,0 +1,4 @@
+ crates/c2-harness/src/gap/scan.rs               |  28 ++++++-
+ crates/c2-il/src/func/body/shapes/calls.rs      | 107 ++++++++++++++++++++++--
+ crates/c2-il/src/func/body/shapes/mcall_tail.rs |  25 +++++-
+ 3 files changed, 149 insertions(+), 11 deletions(-)
