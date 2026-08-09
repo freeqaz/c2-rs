@@ -863,6 +863,14 @@ impl IlBundle {
                             Ok(BodyShape::MemcpyTail { .. }) => {
                                 FnVerdict::InClass("memcpy-tail")
                             }
+                            // **W-XTEA3 — the two-element 64-bit member run.**
+                            // Its own bucket rather than the store run's: the
+                            // two write a run of `32`s and differ in whether the
+                            // stored value is computed, and a gain that landed
+                            // in `store-run` would be attributable to neither.
+                            Ok(BodyShape::NonceAddRun { .. }) => {
+                                FnVerdict::InClass("nonce-add-run")
+                            }
                             // **W-BIQUAD — the float-store diamond.** Its own
                             // bucket on the same rule every class here follows:
                             // a gain that landed in a shared `cflow-if-1`

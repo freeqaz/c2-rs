@@ -38,6 +38,7 @@ pub(crate) mod fp_store_diamond;
 pub(crate) mod guarded_seq;
 pub(crate) mod leaf_addr;
 pub(crate) mod memcpy_tail;
+pub(crate) mod nonce_add_run;
 pub(crate) mod leaf_compare;
 pub(crate) mod leaf_float;
 pub(crate) mod leaf_fp_tail;
@@ -103,6 +104,8 @@ pub(crate) use ctor_forward_call::*;
 pub(crate) use fp_store_diamond::*;
 #[allow(unused_imports)]
 pub(crate) use memcpy_tail::*;
+#[allow(unused_imports)]
+pub(crate) use nonce_add_run::*;
 #[allow(unused_imports)]
 pub(crate) use leaf_float::*;
 #[allow(unused_imports)]

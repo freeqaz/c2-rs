@@ -54,6 +54,8 @@ pub use func::{
     GuardRetChain,
     // W-XTEA2 — the whole-body `memcpy` tail branch (`EncryptXTEA.cpp`).
     MemcpyTail,
+    // W-XTEA3 — the two-element 64-bit member run (`EncryptXTEA.cpp`).
+    NonceAddRun,
     GuardRetGuard,
     GuardRetSpine,
     OsfHandleGuard,

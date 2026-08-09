@@ -118,6 +118,7 @@ mod tests {
         osf_handle_guard: None,
         guard_ret_chain: None,
         memcpy_tail: None,
+            nonce_add_run: None,
         fp_store_diamond: None,
         ctor_forward_call: None,
         xlrc_create_guard: None,

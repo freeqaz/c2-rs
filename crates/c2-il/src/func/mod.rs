@@ -1872,6 +1872,24 @@ pub struct MemcpyTail {
     pub len: i32,
 }
 
+/// **W-XTEA3 — the two-element 64-bit member run whose addend is a
+/// zero-extended 32-bit formal** (`?SetNonce@XTEABlockEncrypter@@QAAXPB_KI@Z`).
+///
+/// The accept/refuse boundary is entirely on the recognizer
+/// ([`crate::func::body::shapes::nonce_add_run`], which lists the six compiled
+/// cells behind every word) and the emission on
+/// [`c2_core::codegen::nonce_add_run`]; this carries only what the emitter reads
+/// back. **The run length is not here**: it is a constant of the class, because
+/// a one-statement and a three-statement body are two other register plans.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct NonceAddRun {
+    /// The first element's byte offset from the first argument register.
+    pub dst_off: i32,
+    /// The first element's byte offset from the second argument register.
+    /// **Independent of `dst_off`** — measured, cell `EncOff`.
+    pub src_off: i32,
+}
+
 /// **W-IFN — one guard of a [`GuardRetChain`]**: `if (<formal> == 0) return
 /// <K>;`, lowered as a `cmplwi cr6` and a forward `bf 26` over a two-word arm.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -3049,6 +3067,14 @@ pub struct IlFunction {
     /// minted symbol goes is the one thing the two classes do not share**: this
     /// user is a LEAF with no `$T`, and its `memcpy` sits in the callee region.
     pub memcpy_tail: Option<MemcpyTail>,
+    /// **W-XTEA3** — the two-element 64-bit member run whose addend is a
+    /// zero-extended 32-bit formal (`EncryptXTEA.cpp`'s `?SetNonce`). Set by
+    /// exactly one parser production; [`Self::ops`] is empty for it. A LEAF that
+    /// names no `.gl` symbol, takes no relocation and emits no label, so it
+    /// contributes nothing to [`Self::callees`], [`Self::data_syms`] or the
+    /// label counter — `plan_labels` already charges it the 1 that
+    /// `work/w-xtea2/LABGRID.txt`'s `x-setnonce` row measures.
+    pub nonce_add_run: Option<NonceAddRun>,
     /// True iff this function's body is **empty** (`void f() {}`): no expression at
     /// all, so codegen emits a bare `blr`. Mutually exclusive with the other body
     /// kinds.
@@ -3244,6 +3270,7 @@ impl IlFunction {
             pool_ctor_chain: None,
             guard_ret_chain: None,
             memcpy_tail: None,
+            nonce_add_run: None,
             empty_body: false,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),

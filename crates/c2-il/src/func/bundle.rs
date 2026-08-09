@@ -837,6 +837,16 @@ pub(crate) fn shape_to_function(
                 memcpy_tail: Some(crate::func::MemcpyTail { dst_off, len }),
                 ..IlFunction::base(name, src)
             }),
+            // **W-XTEA3 — the two-element 64-bit member run.** Nothing to
+            // resolve: the class names no callee, no data object and no external
+            // at all. `EncryptXTEA.cpp`'s `?SetNonce` COMDAT carries **zero**
+            // relocations in the reference obj, which is that statement checked
+            // against the oracle (`work/w-xtea3/ref/xtea.dump`, `.text #7`).
+            BodyShape::NonceAddRun { params, dst_off, src_off } => Some(IlFunction {
+                params,
+                nonce_add_run: Some(crate::func::NonceAddRun { dst_off, src_off }),
+                ..IlFunction::base(name, src)
+            }),
             // **W-BIQUAD — the null-guarded float-store diamond.** Nothing to
             // resolve, for the same reason the two rows above give: the class
             // references no external symbol, no data object and no callee. Its

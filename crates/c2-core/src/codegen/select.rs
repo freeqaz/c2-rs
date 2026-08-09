@@ -37,6 +37,7 @@ use crate::codegen::guard_chain_shared_tail::guard_chain_shared_tail_text;
 use crate::codegen::if_call_join::if_call_join_text;
 use crate::codegen::ptr_walk_loop::ptr_walk_loop_text;
 use crate::codegen::memcpy_tail::memcpy_tail_text;
+use crate::codegen::nonce_add_run::nonce_add_run_text;
 use crate::codegen::leaf::store::store_leaf_text;
 use crate::codegen::straightline::select_text;
 
@@ -472,6 +473,19 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
     // writers ask it in exactly one place.
     if let Some(m) = &func.memcpy_tail {
         return Ok(Selected::MemcpyTail(memcpy_tail_text(m, mode)?));
+    }
+    // **W-XTEA3 — the two-element 64-bit member run.** Same placement argument
+    // as the whole-body shapes above and the same freedom: `func.nonce_add_run`
+    // is set by exactly one parser production, `func.ops` is empty for it, and no
+    // leaf pattern-matcher below can take its body. `Selected::Plain`, because
+    // the class takes no relocation, defines no label and mints no external —
+    // the reference obj's `.text #7` reads `nrel 0`.
+    //
+    // The mode gate is asked in the emitter as well as in the parser (board
+    // #1638), and calling the emitter here is what makes `function_gate` and both
+    // writers ask it in exactly one place.
+    if let Some(n) = &func.nonce_add_run {
+        return Ok(Selected::Plain(nonce_add_run_text(n, mode)?));
     }
     if let Some(l) = &func.ptr_walk_loop {
         return Ok(Selected::Plain(ptr_walk_loop_text(l, mode)?));
