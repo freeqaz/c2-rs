@@ -1843,8 +1843,18 @@ pub struct GuardRetChain {
 /// layout when varied.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GuardChainSharedTail {
-    /// The six formals in **argument-register order**: `params[i]` arrives in
+    /// The formals in **argument-register order**: `params[i]` arrives in
     /// `ARG_REGS[i]`, and the rotate is a permutation over exactly them.
+    ///
+    /// **W-VSNPRNC: three to seven, not six.** The shipped class pinned this at
+    /// six because one witness could not separate *"the `lis` is after the
+    /// second rotate step"* from *"the `lis` is three steps before the last"*.
+    /// GRID-N (`work/w-vsnprnc/GRID-N.md`) graded six arities against real `c2`
+    /// and refuted both: the `lis` goes immediately before the first rotate move
+    /// whose **destination register is r6 or lower**, which is a statement about
+    /// registers and fits n = 3…8. At n = 8 the ninth argument does not fit the
+    /// argument registers, c2 spills `r10` to the frame and hoists nothing, so
+    /// the class stops at seven and `n8.obj` is the witness for where.
     pub params: Vec<u32>,
     /// Indices into [`Self::params`] of the three formals the `||` chain tests,
     /// **in test order** — which is the order the three `cmplwi`s are emitted
@@ -1870,6 +1880,25 @@ pub struct GuardChainSharedTail {
     pub sentinel: i32,
     /// The value both error arms return.
     pub ret_fail: i32,
+    /// **W-VSNPRNC — which of the two IL spellings the body was written in.**
+    ///
+    /// `false` is the inline arms (`vswprnc.cpp`), `true` the sunk arms
+    /// (`vsnprnc.cpp`) — see the recognizer's `ArmForm`. **The emitted `.text`
+    /// is byte-identical either way**, so this field reaches exactly one number:
+    /// the compiler-label LEAD in [`IlFunction::label_lead`], which is 1 for the
+    /// inline spelling and 0 for the sunk one.
+    pub sunk_arms: bool,
+    /// The width in bytes of the `*params[0] = 0` store: **1** (`stb`) or **2**
+    /// (`sth`). Nothing else reaches here — see the recognizer's fence.
+    ///
+    /// **This field closes a live `Port=Mismatch`.** The shipped class read the
+    /// store's type only to refuse a width-4 integer, and then emitted `sth`
+    /// unconditionally. GRID-S (`work/w-vsnprnc/GRID-S.md`) graded twelve
+    /// pointee types against real `c2` at the workload's own flags: `char`,
+    /// `signed char`, `unsigned char` and `bool` all reached the emitter and all
+    /// four came out `b17f0000` where the reference has `997f0000` — **one
+    /// substituted word, five mismatching cells**, `long long` included.
+    pub store_width: u8,
 }
 
 /// **W-UNDNAME — the guarded allocation with a shared error store**
@@ -2166,7 +2195,7 @@ pub struct OsfHandleGuardFn {
 /// [`GuardChainSharedTail`] with its four tokens resolved to mangled names.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GuardChainSharedTailFn {
-    /// The six formals, exactly as [`GuardChainSharedTail::params`].
+    /// The three-to-seven formals, exactly as [`GuardChainSharedTail::params`].
     pub params: Vec<u32>,
     /// Exactly as [`GuardChainSharedTail::guard_ix`].
     pub guard_ix: [usize; 3],
@@ -2190,6 +2219,10 @@ pub struct GuardChainSharedTailFn {
     pub sentinel: i32,
     /// Exactly as [`GuardChainSharedTail::ret_fail`].
     pub ret_fail: i32,
+    /// Exactly as [`GuardChainSharedTail::store_width`]: 1 or 2.
+    pub store_width: u8,
+    /// Exactly as [`GuardChainSharedTail::sunk_arms`].
+    pub sunk_arms: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -3249,7 +3282,43 @@ impl IlFunction {
             // A **one-witness** number, therefore, and the fence around it is the
             // recognizer's: this class admits one block plan, so there is no
             // second shape for the charge to be wrong about.
-            + u32::from(self.guard_chain_shared_tail.is_some())
+            //
+            // **W-VSNPRNC — AND IT IS 1 FOR ONE IL SPELLING AND 0 FOR THE
+            // OTHER, ON BYTE-IDENTICAL BODIES.** The paragraph above calls its
+            // number one-witness and fences it with *"this class admits one
+            // block plan, so there is no second shape for the charge to be wrong
+            // about"*. There were two source spellings of that one block plan,
+            // and the charge differs between them.
+            //
+            // Measured **in-TU and seed-free**, which is stronger than the
+            // whole-obj compare above and is the measurement the fence wanted:
+            // two probe TUs, each with **two** bodies of one spelling, so the
+            // stride is the difference between two `$M`/`$T` triples and the
+            // seed cancels.
+            //
+            // ```text
+            //   work/w-vsnprnc/probe/lead_split2.obj   $M2601 … $M2607   stride 6  -> lead 1
+            //   work/w-vsnprnc/probe/lead_sunk2.obj    $M2606 … $M2611   stride 5  -> lead 0
+            // ```
+            //
+            // The `split2` row **reproduces the shipped charge** and is this
+            // term's control; the `sunk2` row is the new one.
+            //
+            // **This refutes `w-osfinfo`'s rule from the sharpest possible
+            // direction.** That rule — *"the lead is the number of
+            // unconditional intra-section `b` words in the body"* — is written
+            // three terms above and was already refuted once by `w-xlr`. Here
+            // the two spellings emit the **identical thirty-eight words**, one
+            // `b` in each, and charge **1 and 0**. So the lead is not a function
+            // of the emitted bytes at all: nothing a codegen lane can look at
+            // distinguishes these two, and only the IL's own block structure
+            // does. `docs/LABEL_COUNTER.md` is mode- AND sub-shape-dependent,
+            // and this is a sub-shape at zero byte distance.
+            + u32::from(
+                self.guard_chain_shared_tail
+                    .as_ref()
+                    .is_some_and(|g| !g.sunk_arms),
+            )
             // **W-OSFINFO charges ONE slot before its own triple**, and this is
             // the first time the charge was PREDICTED rather than fitted after
             // the fact.

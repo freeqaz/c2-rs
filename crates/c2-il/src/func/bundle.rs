@@ -1285,6 +1285,8 @@ pub(crate) fn shape_to_function(
                         k_range: c.k_range,
                         sentinel: c.sentinel,
                         ret_fail: c.ret_fail,
+                        store_width: c.store_width,
+                        sunk_arms: c.sunk_arms,
                     }),
                     ..IlFunction::base(name, src)
                 })

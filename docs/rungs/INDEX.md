@@ -191,4 +191,5 @@ the header block this table is read from.
 | 2026-08-09 | W-OXFIX | [w-oxfix](2026-08-09-w-oxfix.md) | 16 | unchanged, +0 — no emission, no binding, no new arm in the port |
 | 2026-08-09 | w-prod | [w-prod](2026-08-09-w-prod.md) | 12 | 711,485 / 2,463,443 unchanged (28.88 %), +0. TU match 10 → 10, |
 | 2026-08-09 | W-READPX | [w-readpx](2026-08-09-w-readpx.md) | 13 | **+0**. This lane ships no `crates/` change: `git diff master -- |
+| 2026-08-09 | w-vsnprnc | [w-vsnprnc](2026-08-09-w-vsnprnc.md) | 2 | TU match **19 → 19** (DECLINED), mismatch **0 → 0**, |
 | 2026-08-09 | w-xtea | [w-xtea](2026-08-09-w-xtea.md) | 12 | +0 — this rung admits nothing, so it moves no census cell |
