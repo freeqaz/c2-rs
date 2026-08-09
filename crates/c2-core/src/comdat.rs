@@ -992,9 +992,18 @@ mod inlfence_tests {
     /// every k, so the size axis did not occur: 159 cells that all measured the
     /// same 28-byte callee"*). There is no constant here to fold. `n2` asserts
     /// the resulting size rather than trusting this comment.
+    /// A leaf whose lowered body is over [`INLINE_DECLINE_BYTES`].
+    ///
+    /// **The rung count was 20 and is 40 — w-fence2, 2026-08-09.** The bound
+    /// this cell has to clear moved from `splice::INLINE_UNBOUNDED_BYTES` (64)
+    /// to `INLINE_DECLINE_BYTES` (128) when the fence stopped meaning *"the port
+    /// can prove c2 expands this"* and started meaning *"the port cannot prove
+    /// c2 kept this"*. The cell's own guard caught it — it asserts its callee is
+    /// outside the bound before grading anything, which is why this was a test
+    /// failure and not a silent confound.
     fn big_leaf(name: &str) -> IlFunction {
         let mut ops = vec![IlOp::Load(0xE309)];
-        for _ in 0..20 {
+        for _ in 0..40 {
             ops.push(IlOp::Load(0xE309));
             ops.push(IlOp::Add);
         }
@@ -1037,7 +1046,7 @@ mod inlfence_tests {
         let funcs = vec![leaf("?g@@YAHH@Z"), caller_with_setup("?f@@YAHH@Z", "?g@@YAHH@Z")];
         let g = compose(&funcs, 0).expect("the leaf lowers");
         assert!(
-            g.text.len() <= crate::splice::INLINE_UNBOUNDED_BYTES,
+            g.text.len() <= INLINE_DECLINE_BYTES,
             "the positive cell needs a callee UNDER the bound; got {} bytes",
             g.text.len()
         );
@@ -1074,7 +1083,7 @@ mod inlfence_tests {
         let funcs = vec![big_leaf("?g@@YAHH@Z"), caller_with_setup("?f@@YAHH@Z", "?g@@YAHH@Z")];
         let g = compose(&funcs, 0).expect("the big leaf lowers");
         assert!(
-            g.text.len() > crate::splice::INLINE_UNBOUNDED_BYTES,
+            g.text.len() > INLINE_DECLINE_BYTES,
             "N2 IS CONFOUNDED: its callee is {} bytes, inside the bound, so the \
              cell would be decided by the clause the positive one fires on",
             g.text.len()
@@ -1091,7 +1100,7 @@ mod inlfence_tests {
         let funcs = vec![leaf("?g@@YAHHZZ"), caller_with_setup("?f@@YAHH@Z", "?g@@YAHHZZ")];
         let g = compose(&funcs, 0).expect("the leaf lowers");
         assert!(
-            g.text.len() <= crate::splice::INLINE_UNBOUNDED_BYTES,
+            g.text.len() <= INLINE_DECLINE_BYTES,
             "N3 IS CONFOUNDED: the size clause would decide it too"
         );
         let body = compose(&funcs, 1).expect("c2 never inlines a varargs callee");
