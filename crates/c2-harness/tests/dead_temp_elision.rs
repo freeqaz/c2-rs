@@ -278,12 +278,32 @@ fn a_callee_that_keeps_bytes_stops_the_chain() {
         c.2
     );
     let w = row(&rows, "??$destroy_range@", "m02");
-    assert!(
-        matches!(w.1, FnByte::Differs { .. }),
-        "m02: the wrapper came back {:?}. c2 inlined the leaf's store into it \
-         (mechanism I, which this port does not model), so the honest outcome is \
-         a differ — an `Exact` here would mean the port emitted nothing for a \
-         body that does something",
+    // **2026-08-09, lane `w-inlfence` (board #2224): this was `Differs` and it
+    // is `Refused` now, and the change is the point of that lane.**
+    //
+    // The wrapper's callee is defined in this TU and does NOT reduce to nothing
+    // (the assertion above is exactly that), so c2 may inline it — and here it
+    // does, folding the leaf's store into the wrapper. The port has no model of
+    // that (mechanism I), and until this lane it emitted `b ?dr` anyway and this
+    // cell pinned the resulting **wrong body** as the honest outcome. It is not
+    // the honest outcome; `CLAUDE.md`'s rule is that a refusal is strictly
+    // better than a wrong emit, and `IlBundle::functions` had always refused the
+    // whole TU for exactly this reason while the per-function census went on
+    // claiming the body.
+    //
+    // So the cell now grades the fence: the wrapper is refused **before**
+    // codegen, by `callee-defined-in-tu`. Everything m02 was written to guard is
+    // unchanged and still asserted above — the callee condition, and that `?dr`
+    // keeps bytes. An `Exact` here would still be the alarm it always was.
+    assert_eq!(
+        w.1,
+        FnByte::Refused,
+        "m02: the wrapper came back {:?}. c2 inlines the leaf's store into it \
+         (mechanism I, which this port does not model), and the inline fence \
+         must refuse the wrapper rather than let the port emit a body c2 does \
+         not have. `Differs` means the fence stopped firing and the port is \
+         emitting a measured-wrong body again; `Exact` would mean it emitted \
+         nothing for a body that does something",
         w.1
     );
     let _ = std::fs::remove_dir_all(&d);

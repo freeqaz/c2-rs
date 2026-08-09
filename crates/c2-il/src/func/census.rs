@@ -379,6 +379,154 @@ pub fn cflow_residue_admit_set() -> String {
 pub const CENSUS_HEX_BACK: usize = 16;
 pub const CENSUS_HEX_FWD: usize = 24;
 
+/// **W-INLFENCE — the same-TU callees the port has a MODEL of**, so the inline
+/// fence can refuse only the ones it does not.
+///
+/// # Why this exists, and the cost of it existing
+///
+/// The inline fence ([`super::bind::callee_defined_here`]) refuses a body whose
+/// callee this TU defines, because c2 may inline it. **The port is not silent
+/// about every inline**: mechanism E (`c2_core::elide`) says a call to a callee
+/// that emits nothing costs no branch at all, and the judge grades that
+/// **1,877 of 1,877 byte-exact** on the 878-TU workload. Refusing those in the
+/// census would refuse bodies the port provably gets right.
+///
+/// **And mechanism I** (`c2_core::splice`, SPLICE-0) says a call to a callee this
+/// TU defines and that the port can LOWER is replaced by that callee's own
+/// emitted body, graded **723 of 723 byte-exact**. The two populations are
+/// disjoint in the worst way for a single rule: E's callees are rows the parser
+/// REFUSED and I's are rows it ACCEPTED, so an exemption that covers one covers
+/// neither.
+///
+/// So the set below is the union — *reduces to nothing* **or** *the port can
+/// lower it* — and the fence refuses only a callee the port has **no** model of,
+/// which is the honest statement of what it is for: c2 may inline, and here
+/// nobody knows what that produces.
+///
+/// `c2_core::elide::TuEmptyCallees` is the owner of the first half and this is a
+/// **second implementation of it**, which is a real cost and is stated rather
+/// than hidden: `c2-core` depends on `c2-il` and not the other way round, so the
+/// census cannot call it. What keeps the two in agreement is that six standing
+/// integration cells fail loudly if this one is narrower —
+/// `dead_temp_elision.rs`'s four chains, `call_targets.rs`'s locator and
+/// `empty_elision.rs`'s c19. A **depth-1** version of this function was written
+/// first and five of them caught it; a *reduces-to-nothing only* version was
+/// written second and c19 caught that.
+///
+/// The second half is deliberately **not** a re-statement of SPLICE-0's own
+/// refusals (`splice.rs`'s S1–S6). It is *"the callee's body is one the port
+/// lowers"*, which is broader, so a callee the splice declines is exempted here
+/// and the port keeps its `bl`. That is the pre-existing behaviour and it is a
+/// named residue, not a claim (`docs/rungs/2026-08-09-w-inlfence.md` §6).
+///
+/// # The rule, mirrored clause for clause from `elide.rs`
+///
+/// * **seeds** — [`IlFunction::empty_body`], and a refused row whose grammar
+///   proves it emits nothing at all (`no_effect_nothing`, board #1053).
+/// * **links** — a refused row that emits nothing but one call
+///   (`no_effect_call` / `no_effect_loop`), and a parsed body that is a bare
+///   tail call: no data symbol, no `framed_call`, no `call_seq`, no `cond_pair`
+///   (`elide::elidable_step`, whose doc gives the graded reason each of those
+///   four disqualifies).
+/// * **lowerable** — the segment parses whole, `shape_to_function` resolves
+///   every token in it, and its optimization-settings word is one the port
+///   emits under. Asked WITHOUT the inline fence, which is what keeps this
+///   non-recursive: it is a statement about the callee's own body, not about
+///   whether the callee would itself be admitted.
+/// * **a name two segments disagree about contributes neither**, exactly as
+///   `TuContext::of_rows` drops it.
+///
+/// Keyed on [`EmitBinding::name`], which is the key
+/// `c2_harness::gap::fnbytes::tu_empty_callees` feeds the real context with, so
+/// the two cannot key one function two ways.
+#[allow(clippy::too_many_arguments)]
+fn tu_modelled_callees(
+    segs: &[&[u8]],
+    bind: &Bindings,
+    emit: &EmitBinding,
+    src: &Option<String>,
+    resolve: &dyn Fn(u32) -> Option<String>,
+    resolve_data: &dyn Fn(u32) -> Option<String>,
+    resolve_data_def: &dyn Fn(u32) -> Option<crate::func::IlDataDef>,
+) -> std::collections::BTreeSet<String> {
+    use std::collections::{BTreeMap, BTreeSet};
+    let mut seed: BTreeSet<String> = BTreeSet::new();
+    let mut lowerable: BTreeSet<String> = BTreeSet::new();
+    let mut link: BTreeMap<String, String> = BTreeMap::new();
+    let mut seen: BTreeSet<String> = BTreeSet::new();
+    let mut conflict: BTreeSet<String> = BTreeSet::new();
+    for (j, s2) in segs.iter().enumerate() {
+        let Some(n) = emit.name(j) else { continue };
+        if !seen.insert(n.to_string()) {
+            conflict.insert(n.to_string());
+            continue;
+        }
+        if body::shapes::no_effect::no_effect_nothing(s2) {
+            seed.insert(n.to_string());
+            continue;
+        }
+        if let Some(c) = body::shapes::no_effect::no_effect_call(s2)
+            .or_else(|| body::shapes::no_effect::no_effect_loop(s2))
+            .and_then(resolve)
+        {
+            link.insert(n.to_string(), c);
+            continue;
+        }
+        let Ok(sh) = parse_segment_detail(s2, bind.locals(j)) else {
+            continue;
+        };
+        let Some(f) = shape_to_function(
+            sh,
+            &bind.name_for_shape(j),
+            src,
+            resolve,
+            resolve_data,
+            resolve_data_def,
+        ) else {
+            continue;
+        };
+        // **Mechanism I's half.** The body parses whole, every token in it
+        // resolves, and the mode is one the port emits under: the splice has a
+        // body to substitute, so the caller is not guessing.
+        if opt_word_mode(opt_word_at(s2)).is_some() {
+            lowerable.insert(n.to_string());
+        }
+        if f.empty_body {
+            seed.insert(n.to_string());
+        } else if f.data_syms.is_empty()
+            && f.framed_call.is_none()
+            && f.call_seq.is_none()
+            && f.cond_pair.is_none()
+        {
+            if let Some(c) = f.tail_call.as_deref() {
+                link.insert(n.to_string(), c.to_string());
+            }
+        }
+    }
+    for n in &conflict {
+        seed.remove(n);
+        link.remove(n);
+        lowerable.remove(n);
+    }
+    // The closure. `seed` only grows and is bounded by `link`, so this
+    // terminates on a cycle instead of chasing it — `elide.rs`'s own cycle
+    // re-derivation, and `a_cycle_of_dead_temporary_bodies_is_never_admitted`
+    // is the cell that grades it.
+    loop {
+        let step: Vec<String> = link
+            .iter()
+            .filter(|(n, c)| !seed.contains(*n) && seed.contains(*c))
+            .map(|(n, _)| n.clone())
+            .collect();
+        if step.is_empty() {
+            break;
+        }
+        seed.extend(step);
+    }
+    seed.extend(lowerable);
+    seed
+}
+
 impl IlBundle {
     /// **Function-level census (P2b).** Classify *every* function in the bundle
     /// independently, so a TU whose 700th function uses an unmodeled opcode
@@ -1039,21 +1187,15 @@ impl IlBundle {
                                             &f,
                                             defined,
                                             empty_here.get_or_init(|| {
-                                                let mut set: std::collections::BTreeSet<String> =
-                                                    std::collections::BTreeSet::new();
-                                                for (j, s2) in segs.iter().enumerate() {
-                                                    let Some(n) = emit.name(j) else { continue };
-                                                    let nothing = matches!(
-                                                        body::parse_segment(s2, bind.locals(j)),
-                                                        Some(BodyShape::EmptyBody)
-                                                    ) || body::shapes::no_effect::no_effect_nothing(
-                                                        s2,
-                                                    );
-                                                    if nothing {
-                                                        set.insert(n.to_string());
-                                                    }
-                                                }
-                                                set
+                                                tu_modelled_callees(
+                                                    &segs,
+                                                    &bind,
+                                                    &emit,
+                                                    &src,
+                                                    &resolve,
+                                                    &resolve_data,
+                                                    &resolve_data_def,
+                                                )
                                             }),
                                         )
                                         .is_some() =>

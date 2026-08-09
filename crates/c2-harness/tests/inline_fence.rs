@@ -115,38 +115,43 @@ fn a_callee_this_tu_defines_is_fenced_and_its_opaque_twin_is_not() {
 
     // (tag, local source, opaque source)
     //
-    // **Every LOCAL callee below is NON-EMPTY**, deliberately: an empty one is
-    // exempted by mechanism E (see the third test), and a cell whose callee is
-    // `{}` would grade the exemption while claiming to grade the fence.
+    // **Every LOCAL callee below is non-empty AND out of class**, deliberately.
+    // A callee that emits nothing is mechanism E's population and a callee the
+    // port can lower is mechanism I's; the fence yields to both, so a cell with
+    // either would grade an exemption while claiming to grade the fence. A
+    // counted loop is the cheapest body that is neither — it is also the shape
+    // of the five surviving `bl`s in `src/keygen_xbox.cpp`.
     let pairs: [(&str, &str, &str); 4] = [
         (
             "tail",
-            "void wif_t_ext();\nvoid wif_t_g();\n\
-             void wif_t_use() { wif_t_g(); }\nvoid wif_t_g() { wif_t_ext(); }\n",
-            "void wif_t_g();\nvoid wif_t_use() { wif_t_g(); }\n",
+            "void wif_t_g(char *p);\n\
+             void wif_t_use(char *p) { wif_t_g(p); }\n\
+             void wif_t_g(char *p) { for (int i = 0; i < 64; ++i) { p[i] = (char)(p[i] * 3 + i); } }\n",
+            "void wif_t_g(char *p);\nvoid wif_t_use(char *p) { wif_t_g(p); }\n",
         ),
         (
             "seq",
-            "void wif_s_ext();\nstruct S { void m(); void n(); };\n\
+            "struct S { char *b; void m(); void n(); };\n\
              void wif_s_use(S *s) { s->m(); s->n(); }\n\
-             void S::m() { wif_s_ext(); }\nvoid S::n() { wif_s_ext(); }\n",
-            "struct S { void m(); void n(); };\n\
+             void S::m() { char *p = b; for (int i = 0; i < 64; ++i) { p[i] = (char)(p[i] * 3 + i); } }\n\
+             void S::n() { char *p = b; for (int i = 0; i < 64; ++i) { p[i] = (char)(p[i] * 3 + i); } }\n",
+            "struct S { char *b; void m(); void n(); };\n\
              void wif_s_use(S *s) { s->m(); s->n(); }\n",
         ),
         (
             "valuetail",
-            "void wif_v_ext();\n\
-             struct T { void Split(); float Ms(); float SplitMs(); };\n\
+            "struct T { char *b; void Split(); float Ms(); float SplitMs(); };\n\
              float T::SplitMs() { Split(); return Ms(); }\n\
-             void T::Split() { wif_v_ext(); }\nfloat T::Ms() { return 0.0f; }\n",
+             void T::Split() { char *p = b; for (int i = 0; i < 64; ++i) { p[i] = (char)(p[i] * 3 + i); } }\n\
+             float T::Ms() { return (float)b[0] * 3.5f; }\n",
             "struct T { void Split(); float Ms(); float SplitMs(); };\n\
              float T::SplitMs() { Split(); return Ms(); }\n",
         ),
         (
             "inttail",
-            "int wif_i_g(int a);\nint wif_i_use(int a) { return wif_i_g(a); }\n\
-             int wif_i_g(int a) { return a + 1; }\n",
-            "int wif_i_g(int a);\nint wif_i_use(int a) { return wif_i_g(a); }\n",
+            "int wif_i_g(char *p);\nint wif_i_use(char *p) { return wif_i_g(p); }\n\
+             int wif_i_g(char *p) { for (int i = 0; i < 64; ++i) { p[i] = (char)(p[i] * 3 + i); } return p[0]; }\n",
+            "int wif_i_g(char *p);\nint wif_i_use(char *p) { return wif_i_g(p); }\n",
         ),
     ];
 
@@ -243,18 +248,34 @@ fn the_fence_yields_to_the_empty_callee_mechanism_e_already_models() {
          population — refusing it is the fence being over-broad. Rows: {rows:?}"
     );
 
-    // …and the control: the SAME shape with a non-empty callee is fenced, so
-    // this test cannot pass by the fence having stopped working.
+    // …and mechanism I's: an in-class callee is one `c2_core::splice` has a
+    // body to substitute, graded 723 of 723 byte-exact.
     let (rows, _) = cells(
         &tc,
-        "empty-control",
-        "void wif_e_ext();\nvoid wif_e_g();\n\
-         void wif_e_use() { wif_e_g(); }\nvoid wif_e_g() { wif_e_ext(); }\n",
+        "lowerable",
+        "int wif_l_g(int a);\nint wif_l_use(int a) { return wif_l_g(a); }\n\
+         int wif_l_g(int a) { return a + 1; }\n",
+    );
+    assert_eq!(
+        fenced(&rows),
+        0,
+        "the callee is defined here and the port LOWERS it — mechanism I's own \
+         discriminating cell (`empty_elision.rs` c19). Rows: {rows:?}"
+    );
+
+    // …and the control: the same shape with a callee the port has NO model of
+    // must be fenced, so this test cannot pass by the fence having stopped
+    // working altogether.
+    let (rows, _) = cells(
+        &tc,
+        "unmodelled-control",
+        "void wif_e_g(char *p);\nvoid wif_e_use(char *p) { wif_e_g(p); }\n\
+         void wif_e_g(char *p) { for (int i = 0; i < 64; ++i) { p[i] = (char)(p[i] * 3 + i); } }\n",
     );
     assert_eq!(
         fenced(&rows),
         1,
-        "the control: one `{{}}` removed from the callee and the fence must \
-         fire. Rows: {rows:?}"
+        "the control: a callee that is neither empty nor lowerable, and the \
+         fence must fire. Rows: {rows:?}"
     );
 }
