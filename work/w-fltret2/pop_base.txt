@@ -1,0 +1,7 @@
+WHOLE BLOCKED CENSUS   bodies 1751929   emitted 130560
+FAMILY expr-call-in-expr   bodies 423905   emitted 35576
+  share of the blocked EMITTED column: 27.25 %
+
+=== THE TWO TARGET KEYS (no constructs column in this scan) ===
+     439 emitted       933 bodies    436 TUs   expr-call-in-expr-recv-load-then-type-real-whole
+     105 emitted      1472 bodies     96 TUs   expr-call-in-expr-chained-then-type-real-whole
