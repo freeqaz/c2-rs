@@ -477,3 +477,100 @@ fact is obj-established and the disassembly only said where to look.
 
 **If any of these is ever carried**, `README.md`'s clean-room wording must change
 in the same commit (ledger step 4), and the code comment must name this file.
+
+---
+
+## 10. ✔ 2026-08-09 — GRADED AGAINST w-memcpy's OWN CELLS, and CORRECTED TWICE
+
+Lane `w-memfit` ([`rungs/2026-08-09-w-memfit.md`](../rungs/2026-08-09-w-memfit.md))
+was commissioned to resolve the contradiction between this document and
+`w-memcpy`'s *"no rule fits"*, by scoring the reading in §2 against
+`w-memcpy`'s **own** 408 frozen expansion cells on `w-memcpy`'s **own**
+denominator. **Nothing here is retracted, and the reading is not complete.**
+
+### 10.1 The score
+
+| rule | GRID-M | GRID-M2 | both |
+|---|---:|---:|---:|
+| **§2's reading, made total** | **232/232** | **176/176** | **408/408** |
+| `M-THRESH-32` — w-memcpy's best frozen rival | 182/232 | — | — |
+| `F-48` — the sub-class GRID-M2 refuted | — | 114/176 | — |
+| `M-ALWAYSCALL` — the id-keyed rule | 114/232 | — | — |
+
+The control ran first: all six GRID-M rivals and both GRID-M2 rivals were
+re-scored from `w-memfit`'s scorer and reproduce `work/w-memcpy/scorem.txt`
+exactly, so the 408 and the 182 are the same cells and the same verdicts.
+`w-memfit` also re-scored **this lane's own GRID-W from a second
+implementation** — 216/216, reproducing §5.1's 180/180 and §5.2's 36/36.
+
+**So `w-memcpy`'s "no rule" was a RULE-SPACE limitation, and the axis it
+lacked was the DIVISOR** — every one of its six rivals is a predicate on
+`size`, on the id, or on constancy, and not one divides by anything.
+**Favor-speed is not the missing axis on these cells**: GRID-M and GRID-M2
+compiled at `/O1` only, where `T = 5` either way, and varying it changes zero
+of the 408. §5.1's `Q8` is about *this lane's* grid, not about theirs.
+
+### 10.2 Correction 1 — there is an UPPER CLAMP at 8, and §2 does not have it
+
+`w-memfit`'s GRID-F, 44 cells, four total rivals frozen before its first
+`cl.exe`: **`min(8, alignof(pointee))` scores 44/44** and `alignof(pointee)`
+scores **39/44**, missing exactly the five `__declspec(align(16))` cells in
+the 48..80 band.
+
+And the IL says the clamp is **c2's**, not `c1xx`'s. Five captures differing
+only in the pointee spelling give `.ex` files differing in seven bytes, two of
+them the hints §5.3 located, reading
+
+```text
+   char 01 · int 04 · double 08 · #pragma pack(1) struct of doubles 01
+   __declspec(align(16)) struct 10          <- SIXTEEN, and the divisor is 8
+```
+
+§2's `align = max(1, BYTE[node+0x38])` has a lower clamp and no upper one.
+Taken literally with a `0x10` hint it computes `48/16 = 3 <= 5` and predicts
+**INLINE** where c2 **CALLS**. That is a wrong-emit shape, and it was
+invisible to all 624 cells graded before GRID-F because every one of their
+pointees is a naturally aligned type of alignment ≤ 8.
+
+### 10.3 Correction 2 — the divisor is the MIN of the TWO hints
+
+`w-memfit`'s GRID-G, 56 cells, both orders of every mixed pair:
+
+| rival | score |
+|---|---:|
+| **`min` of the two clamped hints** | **56/56** |
+| the destination's hint alone | 38/56 |
+| the source's hint alone | 38/56 |
+| the larger of the two | 20/56 |
+
+`w-memcpy` §2 recorded two alignment hints and §5.3 here located them; **every
+cell in GRID-M, GRID-M2, GRID-W and GRID-F gives them the same value**, so all
+668 are blind to which one divides. A port keyed on the destination's hint —
+the natural reading of a single `BYTE[node+0x38]` — emits `inline` on **18 of
+these 56** where c2 calls.
+
+The two bytes are separate *in the IL*: `double* ← char*` reads `(01, 08)` and
+`char* ← double*` reads `(08, 01)` at the same two offsets. So the combination
+is c2's. **This document says one byte and the obj says a min of two**; whether
+c2 writes the min into `node+0x38` before the lowering, or the single-byte
+account is incomplete, is **not settled** — `w-memfit` did not read the binary.
+Method doc §7 case 1 is the live warning and it is not ruled out.
+
+### 10.4 The rows, and what a code lane may now carry
+
+**`W-MEMCPY-1` is not retracted and it is not sufficient.** Its algorithm and
+its two constants are confirmed at 724 of 724 cells across five grids once
+§10.2 and §10.3 are applied. **But a code lane no longer needs it**: every
+element of the corrected predicate is derivable from obj and IL alone —
+
+* the truncating division, from GRID-M's `double*` 44/47/48 boundary;
+* `T = 5` / `T = 10` and that it follows favor-speed and not `/O<n>`, from
+  §5.1's 180 obj cells at five flag sets;
+* the divisor, from GRID-F and GRID-G plus the hint bytes read out of a
+  captured `.ex`;
+* `size 0 ⇒ nothing` and `non-constant ⇒ call`, from GRID-M;
+* `E-DEADDST`, from §5.2's 36 cells and GRID-M2's 44.
+
+`w-memfit` therefore carried **no `W-MEMCPY-*` row**, and adopted nothing into
+`crates/`. The rows stay drafted for a lane that wants the *provenance*; a lane
+that wants the *rule* should cite the grids.

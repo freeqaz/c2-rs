@@ -367,6 +367,11 @@ bare `33 86 41 74 10` literal (`li r3,16`). Recorded here because
 
 ## 5. What can be lowered — nothing yet, and three separate reasons
 
+> **2026-08-09**: still nothing, and §5.5 is now the one family whose *decision
+> rule* is fully measured (724/724). Knowing the rule did not make it
+> lowerable — §5.5's last two paragraphs say what stands in the way, and
+> §5.6 restates that the fail-closed reject is unchanged.
+
 ### 5.1 The emission depends on the literal argument values, not the id
 
 §4.1 is the sharp case: same id, same descriptor, one literal byte apart, four
@@ -419,6 +424,79 @@ Reject every `0x40`. The decode reports the selector and returns `Err`
 admitted is id 2114 with offset literal `00`, which is provably nothing — and even
 that requires modelling the `66 <n>` descriptor, the whole argument region, and the
 pointer TYPEs, for a census gain that the histogram does not show as material.
+
+### 5.5 The BLOCK-MOVE family (`0xac` memcpy / `0xad` memset) — the rule IS known now
+
+> **✔ 2026-08-09.** §5.1's sentence is right and it is no longer the end of the
+> story for these two ids. Lane `w-memfit`
+> ([`rungs/2026-08-09-w-memfit.md`](rungs/2026-08-09-w-memfit.md)) established
+> the expansion decision at **724 of 724 cells across five frozen grids**, all
+> graded against real `c2.dll`. Two of the grids are new (`GRID-F` 44 cells,
+> `GRID-G` 56 cells); the other three are `w-memcpy`'s 408 and `wb-memcpy`'s
+> 216, re-scored from one implementation so the number is on one denominator.
+
+**R-MEMFIT**, in full. `hint_d` and `hint_s` are the **two** alignment hints
+§1.3 documents — one per pointer operand, in that argument region, and
+*separate*: a `double* ← char*` copy reads `01` and `08` at the two positions
+and the reverse copy reads them the other way round.
+
+```text
+   clamp(h) = min(8, max(1, h))
+   align    = min( clamp(hint_d), clamp(hint_s) )
+
+   destination is a dead, non-escaping local  ->  emit NOTHING   (E-DEADDST)
+   the size operand is not a constant         ->  CALL
+   size == 0                                  ->  emit NOTHING
+   n = size / align          TRUNCATING
+   n <= T   ->  INLINE       else  ->  CALL
+   T = 5 when favor-SIZE is in effect, 10 when favor-SPEED is
+       (/O1 and /O2 /Os give 5; /O2, /Ox and /O1 /Ot give 10 — the threshold
+        follows the favor bit, NOT the /O<n> level, at 180 of 180 cells)
+```
+
+`memset` obeys the same rule at every cell of the boundary, and the shape
+chosen *inside* the inline arm falls out of `unit = min(align, 8)` halved
+until it divides the size, `count = size / unit`, `count <= 4` straight line
+and `count >= 5` a counted loop — 114 of 114 as a corroboration, not a scored
+prediction.
+
+**Four things a lowering must not get wrong**, each measured and each the
+shape of a wrong emit rather than a gap:
+
+1. **The division truncates.** `44/8 = 47/8 = 5` inline, `48/8 = 6` call, at
+   one alignment. No threshold on *size* can produce that, which is why
+   `w-memcpy`'s four separately frozen ones all missed.
+2. **The divisor is clamped at 8 above.** `c1xx` writes `10` for a
+   `__declspec(align(16))` pointee and `20` for `align(32)`; the divisor stays
+   8. Reading the hint byte raw predicts `inline` on five cells that call.
+3. **The divisor is the MIN of the two hints.** Keyed on the destination's
+   alone it predicts `inline` on 18 cells of `GRID-G` that call.
+4. **`#pragma pack` reaches the hint and a CAST sets it; provenance does
+   not.** A packed struct of doubles divides by 1;
+   `memcpy((char*)d, (const char*)s, n)` on `double*` formals divides by 1 and
+   the reverse cast divides by 8.
+
+**What this does NOT make lowerable.** The rule is the *decision*, and the
+decision on the workload's own witnesses is almost always `CALL` — at which
+point the callee is a symbol **c2 mints itself** and the `.gl` stream has no
+token for it (`w-memcpy` §2, observed black-box over a whole bundle). So the
+remaining price on the call arm is a reader that consumes the `0x40` statement
+as a call and an emitter that mints and *places* an external
+`bundle::resolve` cannot produce. `crates/c2-core/src/comdat.rs` already mints
+`__savegprlr_28`/`__restgprlr_28` from the frame layout, so minting is not new;
+matching c2's symbol **index** is.
+
+**And the family is bigger on the emitted column than either lane thought.**
+At tree `f6037294`, `expr-intrinsic-memset` is **3,749 emitted** over 497 TUs
+(34,795 bodies) and `expr-intrinsic-memcpy` is **99 emitted** over 83 TUs
+(3,366 bodies). **memset is 38× memcpy on the column the metric moves**, and
+both prior lanes treated it as the sibling. The pair is 3,848 emitted, 2.95 %
+of the blocked emitted column.
+
+### 5.6 The fail-closed rule is UNCHANGED
+
+Everything in §5.4 stands. Knowing the decision does not admit the id: the
+`0x40` reject is still the rule, and `w-memfit` shipped no `crates/` change.
 
 ---
 
