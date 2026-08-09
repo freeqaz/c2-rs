@@ -81,10 +81,23 @@ if ! cargo build --release > "$here/mut_$cell.build" 2>&1; then
     git checkout -- crates/
     exit 1
 fi
+# `Port=` AND the gate CAUSE. A `_neg` cell whose clause only ever moves a
+# refusal from one gate to a later one is graded by the cause and by nothing
+# else — `Port=NotImplemented` on both sides of the mutation is not evidence the
+# cell grades nothing (that is M3's whole shape, and reading only `Port=` is how
+# this lane first concluded it did).
+cp "$repo/target/release/c2rs" "$here/c2rs-mut"
+printf '/Ox /GS- /c\n' > "$here/mut_flags.txt"
+: > "$here/mut_list.txt"
 for f in $graded; do
     printf '  %-28s ' "$f"
     "$repo/target/release/c2rs" diff "fixtures/cpp/$f.cpp" 2>&1 | tail -1 | sed 's/.*  //'
+    printf 'fixtures/cpp/%s.cpp\n' "$f" >> "$here/mut_list.txt"
 done
+"$here/c2rs-mut" gap --list "$here/mut_list.txt" --flags-file "$here/mut_flags.txt" \
+    --cwd "$repo" --jsonl "$here/mut_$cell.jsonl" > "$here/mut_$cell.gap" 2>&1
+python3 "$here/rowfields.py" "$here/mut_$cell.jsonl" \
+    | grep -E '^===|class |gate_causes' | sed 's/^/  /'
 git checkout -- crates/
 cargo build --release > /dev/null 2>&1
 echo "== $cell restored; crates/ diff:"
