@@ -391,7 +391,70 @@ frontier moved **in one direction, by one row, on its head TU** — and
 
 ### 9.1 The gate, at the shipping tree
 
-See `work/w-inlfence/gate.out`, `work/w-inlfence/board_audit.out`.
+```text
+LANE                 VERDICT     graded/total  match  mismatch  flags
+-------------------- ---------- ------------- ------ --------- --------------------
+O1                   PASS          316/316       158         0  /O1
+O1-EHsc              PASS          316/316       158         0  /O1 /EHsc
+O1-Oi                PASS          316/316       158         0  /O1 /Oi
+O1-Oi-EHsc           PASS          316/316       158         0  /O1 /Oi /EHsc
+Ox                   PASS          316/316       143         0  /Ox
+Ox-EHsc              PASS          316/316       143         0  /Ox /EHsc
+Ox-Gy                PASS          316/316       141         0  /Ox /Gy
+Ox-Gy-EHsc           PASS          316/316       141         0  /Ox /Gy /EHsc
+O2                   PASS          316/316       147         0  /O2
+O2-EHsc              PASS          316/316       147         0  /O2 /EHsc
+Od                   PASS          316/316        18         0  /Od
+Od-EHsc              PASS          316/316        18         0  /Od /EHsc
+O1-Oi-GR             PASS          316/316       158         0  /O1 /Oi /GR
+O1-Oi-EHsc-GR        PASS          316/316       158         0  /O1 /Oi /EHsc /GR
+Ox-GR                PASS          316/316       143         0  /Ox /GR
+Ox-EHsc-GR           PASS          316/316       143         0  /Ox /EHsc /GR
+Od-GR                PASS          316/316        18         0  /Od /GR
+Od-EHsc-GR           PASS          316/316        18         0  /Od /EHsc /GR
+expr-sweep           PASS        19556/19556   19460         0  generated cases (of 19556)
+mode-cross           PASS        90812/90812   90424         0  case-lane cells (of 90812)
+hatch-red            PASS           14/14         11       n/a  arms (3 green controls)
+ladder-red           PASS            5/5           3       n/a  arms (2 green controls)
+
+lanes:  18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT
+graded: 5688 fixture-verdicts across all lanes
+sweep:  PASS — 19556 of 19556 selected cases reached, 19460 GRADED by the
+        oracle (96 ungraded: no reference obj), 0 mismatch (corpus 19556)
+cross:  PASS — 90424 of 90812 selected cells graded, 0 mismatch (product 90812)
+```
+
+```text
+GATE: PASS — 18/18 lanes ran and every one of them graded a corpus,
+  the sweep graded 19460 of 19556 generated cases and the cross graded
+  90424 of 90812 case-lane cells, with 0 mismatches anywhere
+  (96 sweep cases carried ungraded — the reference rejects the source).
+```
+
+**`hatch-red` and `ladder-red` passed on the FIRST run and no needle was
+re-taken.** This lane's `crates/` edits are in `bind.rs`, `census.rs`,
+`bundle.rs`, `body/mod.rs` and `diag.rs`, and neither `hatch.py`'s nor
+`ladder.py`'s needles live in any of them — there is no `HATCH-DRIFT`. The
+needle that *was* re-taken is a peer lane's test assertion, not a hatch edit:
+`dead_temp_elision.rs` m02, §5 and board #2224.
+
+| audit | result |
+|---|---|
+| `scripts/board_audit.sh` | **0** cited-but-rowless · **0** unresolved anchors · **0** raw line-number anchors · **0** rows-behind-the-prose · **0** duplicate row numbers (`work/w-inlfence/board_audit.out`, re-taken at the rebased tree) |
+| `cargo test -p c2-harness --release --test rung_registry` | **2 passed**, after `scripts/gen_rung_index.sh` (the index is GENERATED and was regenerated, never hand-edited) |
+
+### 9.2 Rebased onto master `0faa855a`, and why the gate above still stands
+
+Master advanced by **3 commits** while this lane ran (`w-fltret2`, an
+independent session that built §10.28's rung and declined to ship it).
+**`git diff --stat 751351b6 0faa855a -- crates/ fixtures/ scripts/` is EMPTY** —
+every one of them is `docs/` and `work/` — so the tree the gate ran on is
+byte-identical in code to the rebased tip. Re-checked at the rebased tip anyway:
+`cargo test --workspace --release` **1,355 / 0**, `rung_registry` **2 passed**,
+`board_audit.sh` five zeros. Only `docs/BOARD.md` and `docs/ROADMAP.md`
+conflicted, both pure appends, both resolved by keeping **both** sides; `w-fltret2`
+re-landed into `#2088`–`#2096` and claimed no row in `#2220`–`#2239`.
+
 
 ---
 
