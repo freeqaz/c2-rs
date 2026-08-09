@@ -257,6 +257,107 @@ pub(crate) fn gl_defined_names(gl: &[u8]) -> (Vec<(u32, String)>, Vec<String>) {
     gl_defined_names_with(gl, true)
 }
 
+/// **W-FENCE2 — the defined names this TU declares with PLAIN EXTERNAL linkage**:
+/// not `static`, not `__declspec(dllexport)`, and **not `inline` or
+/// `__forceinline`**.
+///
+/// A subset of [`gl_defined_names`]' bound names, and it exists for exactly one
+/// caller: the inline fence in [`crate::IlBundle::functions`], which may only let
+/// the port keep a call to a locally-defined callee when the *linkage class* of
+/// that callee is the one the decline boundary was measured on.
+///
+/// # The three bytes, and why each one is required
+///
+/// A defined function's `.gl` record continues, immediately after its name's NUL,
+/// with a two-byte `<tag> <kind>` return type, then a **linkage** byte, then the
+/// return type's **size**, then a **flags** byte — measured over fifteen defined
+/// records, one per linkage form, in `work/w-fence2/GRID-K.md`:
+///
+/// ```text
+///   k_ext_a\0             82 07 05 00 00   extern "C"                 PLAIN
+///   k_stat_a\0            82 07 03 00 00   static                     linkage 03
+///   k_cfi_a\0             82 07 05 00 20   extern "C" __forceinline   flags 20
+///   k_exp_a\0             82 07 09 00 00   __declspec(dllexport)      linkage 09
+///   ?k_cpp_ext@@YAHH@Z\0  86 01 05 04 00   a C++ free function        PLAIN
+///   ?k_cpp_inline@…\0     86 01 05 04 20   inline                     flags 20
+///   ?m_in@KS@@QAAHH@Z\0   86 01 05 04 20   member defined in-class    flags 20
+///   ?m_out@KS@@QAAHH@Z\0  86 01 05 04 00   member defined out-of-line PLAIN
+/// ```
+///
+/// * **linkage `0x05`** — `docs/whitebox/WB_INLINE_FINDINGS.md` F1/F2 measure two
+///   different size ceilings for the two linkage classes: `(100,116]` for an
+///   EXTERNAL callee at `/O1` and `(300,308]` for a STATIC one. A decline bound
+///   fitted to the first is *wrong* on the second, so `static` (`03`) keeps the
+///   wholesale refusal. `09` is `__declspec(dllexport)`, which
+///   [`linkage_needs_a_directive`] already refuses for an unrelated reason.
+/// * **the flags byte `0x00`** — F4 measured `__forceinline` inlining a
+///   **980-byte** callee at `/O1` *and* `/O2`: it bypasses every size test there
+///   is, so **no** size-keyed decline rule may be applied to it. The linkage byte
+///   cannot see it — `k_ext_a` and `k_cfi_a` differ in this one byte of the whole
+///   record and in nothing else — and this is the byte that does.
+/// * **the size byte `< 0x80`** — it is the return type's size (`00` void, `04`
+///   int, `14` for [`linkage_needs_a_directive`]'s 20-byte aggregate). A return
+///   type wide enough to escape the one-byte form would shift the flags byte, so
+///   an unreadable width refuses rather than reading a field that is not there.
+///
+/// Requiring the flags byte to be **exactly** `0x00`, rather than testing bit
+/// `0x20`, refuses every value GRID-K did not see — the opposite choice from
+/// [`linkage_needs_a_directive`]'s known-bad bit test, and for the opposite
+/// reason: that one turns a mis-emit into a refusal, this one *licenses* an emit,
+/// so it must be a known-good allowlist.
+///
+/// # How it fails
+///
+/// **Closed, three times over.** [`gl_defined_names`] yields an empty pair when
+/// its walk stops, and this is a subset of what it bound; a name carried by more
+/// than one symbol run is dropped rather than resolved to the first (the same
+/// refusal [`crate::func::bind::Bindings::per_record`] makes); and any of the
+/// three byte tests failing drops the name. An empty set means "no exemption",
+/// which is the wholesale refusal this reader exists to narrow.
+pub(crate) fn plain_external_defined_names(gl: &[u8]) -> std::collections::BTreeSet<String> {
+    let (bound, _) = gl_defined_names(gl);
+    if bound.is_empty() {
+        return Default::default();
+    }
+    let runs = symbol_runs(gl, true);
+    let mut out = std::collections::BTreeSet::new();
+    for (_, name) in bound {
+        // The record's own name run. A name spelled by two runs is AMBIGUOUS and
+        // is dropped: reading the first run's fields would be reading some other
+        // record's linkage, and the direction of that error is an emit.
+        let mut nul: Option<usize> = None;
+        let mut hits = 0usize;
+        for (_, end, n) in &runs {
+            if *n == name {
+                hits += 1;
+                nul = Some(*end);
+            }
+        }
+        if hits != 1 {
+            continue;
+        }
+        if nul.is_some_and(|at| record_is_plain_external(gl, at)) {
+            out.insert(name);
+        }
+    }
+    out
+}
+
+/// The three-byte test [`plain_external_defined_names`] documents, at the fixed
+/// displacement [`linkage_needs_a_directive`] establishes.
+fn record_is_plain_external(gl: &[u8], name_nul: usize) -> bool {
+    /// A DEFINED function with external linkage. `03` is `static`, `09` is
+    /// `__declspec(dllexport)`; GRID-K takes no other value on a defined record.
+    const LINKAGE_DEFINED_EXTERNAL: u8 = 0x05;
+    /// The return type's size, in its one-byte form.
+    const RETSIZE_ESCAPE: u8 = 0x80;
+    /// `inline`, `__forceinline`, or a member defined in-class.
+    const FLAGS_PLAIN: u8 = 0x00;
+    gl.get(name_nul + 3) == Some(&LINKAGE_DEFINED_EXTERNAL)
+        && gl.get(name_nul + 4).is_some_and(|b| *b < RETSIZE_ESCAPE)
+        && gl.get(name_nul + 5) == Some(&FLAGS_PLAIN)
+}
+
 /// **Which of `gl_defined_names`'s total-refusal clauses fired** — the name of
 /// the byte that stopped the read, never a guess.
 ///
@@ -2212,6 +2313,93 @@ mod tests {
         v.extend_from_slice(&[0x80, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x80]);
         v.extend_from_slice(&body_off.to_le_bytes());
         v
+    }
+
+    /// [`gl_record`] with the five bytes GRID-K measures spelled out — the
+    /// `<tag> <kind> <linkage> <retsize> <flags>` a real defined record carries
+    /// immediately after its name's NUL. `gl_record` writes `00` into all of
+    /// them, which is a linkage no capture produces; every cell below needs the
+    /// real shape.
+    fn gl_record_typed(name: &str, off: u32, linkage: u8, retsize: u8, flags: u8) -> Vec<u8> {
+        let mut v = vec![0u8];
+        v.extend_from_slice(name.as_bytes());
+        v.push(0);
+        v.extend_from_slice(&[0x86, 0x01, linkage, retsize, flags, 0x08, 0x00]);
+        v.extend_from_slice(&[0x80, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x80]);
+        v.extend_from_slice(&off.to_le_bytes());
+        v
+    }
+
+    /// **W-FENCE2 — the exemption is a KNOWN-GOOD allowlist and every other
+    /// value refuses.**
+    ///
+    /// The set this returns is the one `IlBundle::functions` uses to stop
+    /// refusing a TU that defines one of its own callees, so a false positive
+    /// here is an obj. Each cell is one byte away from the admitted one.
+    #[test]
+    fn only_a_plain_external_defined_record_is_exempt() {
+        let ok = "?wf2_plain@@YAHH@Z";
+        let admitted = gl_record_typed(ok, 2644, 0x05, 0x04, 0x00);
+        assert_eq!(
+            plain_external_defined_names(&admitted),
+            [ok.to_string()].into_iter().collect(),
+            "linkage 05, one-byte return size, flags 00 — the class \
+             WB_INLINE_FINDINGS F2 measured the (100,116] ceiling on"
+        );
+
+        // `03` is `static`, whose ceiling F1 puts at (300,308] — three times the
+        // shipped bound, so a decline rule fitted to the external one is wrong
+        // here. `fixtures/cpp/wfence2_static_callee_neg.cpp` is this cell
+        // compiled: c2 inlines the 152-byte callee and emits no REL24 at all.
+        assert!(
+            plain_external_defined_names(&gl_record_typed(ok, 2644, 0x03, 0x04, 0x00)).is_empty(),
+            "a `static` defined record must not be exempt"
+        );
+        // `20` is `inline` / `__forceinline` / a member defined in-class. F4:
+        // `__forceinline` inlines a 980-byte callee at /O1 AND /O2, bypassing
+        // every size test. The LINKAGE byte cannot see it — this one can.
+        assert!(
+            plain_external_defined_names(&gl_record_typed(ok, 2644, 0x05, 0x04, 0x20)).is_empty(),
+            "an `inline`/`__forceinline` defined record must not be exempt"
+        );
+        // A return type wide enough to escape the one-byte size form would shift
+        // the flags byte, so the read refuses rather than reading a field that
+        // is not there.
+        assert!(
+            plain_external_defined_names(&gl_record_typed(ok, 2644, 0x05, 0x80, 0x00)).is_empty(),
+            "an unreadable return-type width must refuse, not read one byte on"
+        );
+    }
+
+    /// A name spelled by two symbol runs cannot be resolved to one record's
+    /// linkage, so it is dropped — the same refusal `Bindings::per_record`
+    /// makes, and the direction of the error if it were resolved to the first is
+    /// an emit.
+    #[test]
+    fn an_ambiguous_defined_name_is_not_exempt() {
+        let dup = "?wf2_twice@@YAHH@Z";
+        let mut gl = gl_record_typed(dup, 2644, 0x05, 0x04, 0x00);
+        // A second run of the same spelling, carrying `static` linkage.
+        gl.push(0);
+        gl.extend_from_slice(dup.as_bytes());
+        gl.extend_from_slice(&[0, 0x86, 0x01, 0x03, 0x04, 0x00]);
+        assert!(
+            plain_external_defined_names(&gl).is_empty(),
+            "two runs spell this name and they disagree about linkage"
+        );
+    }
+
+    /// **The reader inherits every one of `gl_defined_names`' total refusals.**
+    /// A `.gl` whose walk stops binds nothing, so the exemption set is empty and
+    /// the wholesale refusal stands — fail-closed, which is the direction that
+    /// cannot produce an obj.
+    #[test]
+    fn a_gl_whose_walk_stops_exempts_nothing() {
+        // `NameNotMangled`: a bound record name of eight bytes or fewer.
+        assert!(plain_external_defined_names(&gl_record_typed("?w@@YAH", 2644, 0x05, 0x04, 0x00))
+            .is_empty());
+        assert!(plain_external_defined_names(&[]).is_empty());
+        assert!(plain_external_defined_names(&[0u8; 64]).is_empty());
     }
 
     #[test]

@@ -317,6 +317,21 @@ pub fn emit_comdat_obj(
             if known {
                 continue;
             }
+            // **W-FENCE2 — a callee THIS OBJ DEFINES is not an undefined
+            // external, and minting one for it is an extra 18-byte symbol
+            // record.** It was unreachable until this lane: `IlBundle::functions`
+            // refused every TU that defined one of its own callees, so no obj had
+            // ever carried an intra-TU `REL24`. `vsnprnc.cpp` is the first, and
+            // the omission read as `Port=Mismatch @ offset 12`
+            // (`NumberOfSymbols`), 1,501 bytes against the reference's 1,483.
+            //
+            // The resolution side is below, in the same `PlanTarget::Symbol`
+            // arm the DEFINED-object table (W-DATA) already lives in — searched
+            // FIRST there, for the same reason: a name this obj defines is never
+            // also one of its undefined externals.
+            if funcs.iter().any(|g| g.name == name) {
+                continue;
+            }
             if f.calls.iter().any(|c| c.callee == name) {
                 callee_syms.push((name, next_idx));
             }
@@ -432,7 +447,22 @@ pub fn emit_comdat_obj(
                         // first because a name that is defined here is never
                         // also an undefined external, so a hit is unambiguous.
                         crate::comdat::PlanTarget::Symbol(n) => {
+                            // **W-FENCE2 — a FOURTH table, and it is searched
+                            // before all of them**: a `REL24` whose target is a
+                            // function THIS OBJ DEFINES resolves to that
+                            // function's own defined symbol, not to an undefined
+                            // external. Same argument as the DEFINED-object table
+                            // below — a name this obj defines is never also one
+                            // of its undefined externals, so a hit is
+                            // unambiguous — and the index-assignment pass above
+                            // therefore mints no symbol for it.
                             if let Some(ix) = funcs
+                                .iter()
+                                .zip(&fn_idx)
+                                .find_map(|(g, ix)| (g.name == n).then_some(*ix))
+                            {
+                                ix
+                            } else if let Some(ix) = funcs
                                 .iter()
                                 .zip(&def_sym)
                                 .find_map(|(g, ix)| {

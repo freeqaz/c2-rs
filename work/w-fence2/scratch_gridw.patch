@@ -1,0 +1,80 @@
+diff --git a/crates/c2-harness/src/gap/fnbytes.rs b/crates/c2-harness/src/gap/fnbytes.rs
+index 11531204..63ef4342 100644
+--- a/crates/c2-harness/src/gap/fnbytes.rs
++++ b/crates/c2-harness/src/gap/fnbytes.rs
+@@ -1462,6 +1462,75 @@ pub(super) fn measure(
+         };
+         let graded = grade_one(row, Some(bytes.as_slice()), &tu, refrel);
+         let v = graded.verdict;
++        // ==== SCRATCH — lane w-fence2 GRID-W, MEASUREMENT ONLY, never shipped ====
++        // **Did c2 KEEP the call?** — the decline side, read directly off the
++        // reference obj and with no inference from the port's own correctness.
++        // For every IL call edge (this function -> a callee THIS TU defines),
++        // ask whether the REFERENCE caller's own REL24 target set names the
++        // callee. `kept` = c2 declined to inline it; `inlined` = it does not,
++        // and the only way a REL24 that the IL spells disappears is expansion.
++        // `unknown` = the reference obj has no target list for this caller.
++        //
++        // Crossed against TWO sizes, because only one of them is an input a
++        // shipped emitter has:
++        //   ref  — the callee's own `.text` COMDAT in c2's obj (ground truth)
++        //   port — the port's own lowered `/Gy` body for the callee (shippable)
++        {
++            let caller_word = row.map(|(c, _)| c.opt_word).unwrap_or(None);
++            if let Some(f) = row.and_then(|(_, gate)| gate.as_ref().ok()) {
++                let mut seen: Vec<&str> = Vec::new();
++                for callee in f.callees().filter(|c| tu.mentions(c)) {
++                    if seen.contains(&callee) {
++                        continue;
++                    }
++                    seen.push(callee);
++                    let arm = match call_targets.get(name.as_str()) {
++                        None => "unknown",
++                        Some(v) if v.iter().any(|(_, t)| t == callee) => "kept",
++                        Some(_) => "inlined",
++                    };
++                    let rsz = entries
++                        .iter()
++                        .find(|(n, _)| n == callee)
++                        .map(|(_, by)| by.len());
++                    let psz = tu
++                        .definition(callee)
++                        .and_then(|(g, w)| {
++                            opt_mode_of_word(w.or(caller_word)).ok().and_then(|m| {
++                                c2_core::comdat::comdat_function_body(g, m, &tu).ok()
++                            })
++                        })
++                        .map(|gb| gb.text.len());
++                    // 16-byte bands so the boundary is READ rather than fitted.
++                    let band = |s: Option<usize>| -> String {
++                        match s {
++                            None => "none".to_string(),
++                            Some(n) if n >= 512 => "z512+".to_string(),
++                            Some(n) => format!("{:04}", (n / 16) * 16),
++                        }
++                    };
++                    *res.emit
++                        .entry(format!("xw-{}|ref={}", arm, band(rsz)))
++                        .or_insert(0) += 1;
++                    *res.emit
++                        .entry(format!("xw-{}|port={}", arm, band(psz)))
++                        .or_insert(0) += 1;
++                    if arm == "inlined" {
++                        eprintln!(
++                            "XW-INLINED {} :: {} -> {} ref={:?} port={:?}",
++                            tu_label, name, callee, rsz, psz
++                        );
++                    }
++                    if arm == "kept" && psz.is_some_and(|n| n <= 200) {
++                        eprintln!(
++                            "XW-KEPT-SMALL {} :: {} -> {} ref={:?} port={:?}",
++                            tu_label, name, callee, rsz, psz
++                        );
++                    }
++                }
++            }
++        }
++        // ==== END SCRATCH ====
+         *res.emit.entry(v.key()).or_insert(0) += 1;
+         if v.bare() != v.key() {
+             *res.emit.entry(v.bare().into()).or_insert(0) += 1;

@@ -213,44 +213,55 @@ pub fn comdat_body_from_selected<'a>(
 ///
 /// The composed body relocates against a name **this TU defines**, and the port
 /// can lower that callee, and the callee's own lowered `/Gy` body is at most
-/// [`crate::splice::INLINE_UNBOUNDED_BYTES`] bytes.
+/// [`INLINE_DECLINE_BYTES`] bytes.
 ///
-/// **No new constant is minted.** That is `w-splice`'s S7 bound —
-/// `INLINE_PREDICATE.md` §2's `N_max` is UNBOUNDED at `index <= 64` in *both*
-/// linkage classes and `index <= s`, so a callee whose emitted body is at most
-/// 64 bytes is inlined at every site whatever its linkage, its parameter count,
-/// its `inline` keyword or the model's unreadable `leaf` bit. `splice.rs` reads
-/// that claim as *"the port MAY expand this"*; this reads the identical claim as
-/// *"the port MUST NOT emit a call to this"*. One constant, two consequences.
+/// **W-FENCE2 raised that bound from `splice::INLINE_UNBOUNDED_BYTES` (64) to
+/// [`INLINE_DECLINE_BYTES`] (128), and the change of meaning is the point.** At
+/// 64 the test read *"the port can PROVE c2 expands this"* — the categorical
+/// accept region, used as a refusal. At 128 it reads *"the port cannot prove c2
+/// KEPT this"*, and the difference is the **mixed band**: GRID-W measures 64–95
+/// emitted bytes as 146 calls c2 kept against 570 it inlined, which is a region
+/// no rule may answer in either direction. `splice.rs`'s S7 is **unchanged** —
+/// the port still only *performs* an expansion inside the categorical accept
+/// region, and this constant is not that one.
 ///
 /// # Why a mis-prediction here cannot cost a byte
 ///
 /// `docs/whitebox/WB_INLINE_FINDINGS.md` §7 offers only **decline** rules and
 /// says the accept side is not offered, because *"a mis-predicted accept is a
 /// wrong obj"*. That warning is about a lane that would **perform** the inline.
-/// Here the accept prediction drives a **refusal**: predicting "c2 inlines this"
-/// when c2 did not makes the port decline a function it would have got right —
-/// which costs reach and cannot produce a wrong emit. The hazard is inverted,
-/// and this is the one place the accept side is safe to consult.
+/// Here the prediction drives a **refusal**: firing where c2 in fact kept the
+/// call makes the port decline a function it would have got right — which costs
+/// reach and cannot produce a wrong emit. The hazard is inverted, and this is
+/// the one place the size question is safe to get wrong.
 ///
-/// # Why it is not in the parser
+/// # Why it is not in the parser, and what the parser DOES ask
 ///
-/// `IlBundle::functions` already carries the parser-side form — *any* callee
-/// this TU defines refuses the **whole TU** — and it stays exactly as it is.
-/// The parser cannot ask this question per function, because whether the port
-/// still emits the call is decided *after* mechanism E (the callee reduces to
-/// nothing, so the call is dropped) and mechanism I (the body is replaced by
-/// the callee's, so the REL24 becomes the callee's own). A parser clause would
-/// fire on both of those and un-ship them. Measured on the 878-TU workload: the
-/// coarse parser-shaped form costs **1,074** byte-exact functions; this one
-/// costs **0**. `work/w-inlfence2/crossing.md`.
+/// The parser cannot ask *this* question, because whether the port still emits
+/// the call is decided *after* mechanism E (the callee reduces to nothing, so
+/// the call is dropped) and mechanism I (the body is replaced by the callee's,
+/// so the REL24 becomes the callee's own). A parser clause would fire on both of
+/// those and un-ship them. Measured on the 878-TU workload: the coarse
+/// parser-shaped form costs **1,074** byte-exact functions; this one costs
+/// **0**. `work/w-inlfence2/crossing.md`.
+///
+/// What the parser asks instead — since W-FENCE2 — is whether the *facts this
+/// seam needs* are available at all: `IlBundle::functions` hands a TU on only
+/// when every locally-defined callee has PLAIN EXTERNAL linkage (not `static`,
+/// whose ceiling F1 puts three times higher; not `inline`/`__forceinline`, which
+/// F4 measured bypassing every size test) and every segment is at `/O1` (the
+/// mode the bound is measured at). The two halves are total together:
+/// `Bindings::per_record` is 1:1 with the `.ex` segments, so every locally
+/// defined callee is one of the TU's own functions and `PortC2::build` lowers
+/// all of them — a callee the port cannot lower fails the whole TU before an obj
+/// exists.
 ///
 /// # What it deliberately does NOT refuse
 ///
 /// A callee this TU defines that the port **cannot lower**. 1,081 byte-exact
 /// functions call one, and every one of them is a callee of 65–308 emitted
 /// bytes, which is the class c2 **keeps the call to** (`WB_INLINE_FINDINGS` F1;
-/// re-measured here at 1,071 right against 7 wrong above ~80 B). Refusing those
+/// GRID-W re-measures it as 955 kept and 0 inlined above 80 B). Refusing those
 /// would be the coarse fence and D2's decline clause forbids it.
 fn fenced_inlined_callee<'a>(
     f: &'a IlFunction,
@@ -262,21 +273,25 @@ fn fenced_inlined_callee<'a>(
         if callee_is_one_c2_expands(f, call.callee, mode, tu) {
             return Err(ComdatDecline::InlinedCallee(codegen::out_of_class(&format!(
                 "inlined-callee {}: this TU defines it and its lowered body is \
-                 <= {} bytes, so c2 expands it and emits no call here. See \
+                 <= {} bytes, so the port cannot prove c2 kept this call. See \
                  c2_core::comdat::fenced_inlined_callee.",
-                call.callee,
-                crate::splice::INLINE_UNBOUNDED_BYTES,
+                call.callee, INLINE_DECLINE_BYTES,
             ))));
         }
     }
     Ok(())
 }
 
-/// Can the port PROVE c2 expands `name` at a site in this TU?
+/// Is `name` a callee at a site in this TU whose call the port **cannot prove c2
+/// kept**?
 ///
-/// Every `false` is a "not proven", never a "proven not" — the fence's whole
-/// contract is that it fires only on what it can establish, and leaves the rest
-/// exactly where it was.
+/// Every `false` is either a positive decline proof (varargs, direct recursion,
+/// a lowered body over [`INLINE_DECLINE_BYTES`]) or a "not established" — an
+/// external, an ambiguous name, an unreadable mode, a callee the port cannot
+/// lower. The second kind is left exactly where it was, and on the emit path it
+/// is unreachable: `IlBundle::functions` hands on only TUs whose every locally
+/// defined callee is one of the TU's own segments, and `PortC2::build` lowers
+/// every one of them.
 fn callee_is_one_c2_expands<'a>(
     caller: &'a IlFunction,
     name: &str,
@@ -361,8 +376,57 @@ fn callee_is_one_c2_expands<'a>(
     // was composed — a caller whose call E dropped has no `REL24` for this fence
     // to see. Excluded here for the same reason S7 excludes it: one function,
     // one rule.
-    !gb.text.is_empty() && gb.text.len() <= crate::splice::INLINE_UNBOUNDED_BYTES
+    !gb.text.is_empty() && gb.text.len() <= INLINE_DECLINE_BYTES
 }
+
+/// **W-FENCE2 — the emitted-body size above which c2 is measured never to inline
+/// an EXTERNAL callee at `/O1`, with margin.** A call to a locally-defined
+/// callee whose lowered body exceeds this is one the port may keep; anything at
+/// or below it is refused, whether or not c2 would in fact have kept it.
+///
+/// # Measured, on the decline side only
+///
+/// `work/w-fence2/GRID-W.md` — for every IL call edge to a callee its own TU
+/// defines, over the whole 878-TU dc3 workload, whether the **reference** obj's
+/// caller carries a `REL24` naming the callee. 1,101 kept, 6,451 inlined, 0
+/// unknown, banded by the callee's own reference `.text` size:
+///
+/// ```text
+///    0- 63 B      0 kept   5,881 inlined
+///   64- 79 B      9 kept     503 inlined     <-- MIXED
+///   80- 95 B    137 kept      67 inlined     <-- MIXED, and the last inline
+///   96+   B    955 kept       0 inlined
+/// ```
+///
+/// **The largest callee c2 is measured to inline anywhere on the workload is 80
+/// bytes.** The boundary is `(80, 96]`, on 7,552 sites — 23× the 320 cells
+/// `WB_INLINE_FINDINGS` compiled, and tighter than every bracket it must live
+/// under: F2's `(100,116]` EXTERNAL at `/O1`, GRID-J's `(96,120]`.
+///
+/// # Why 128 and not 96
+///
+/// 128 is **48 bytes / 12 words above the largest measured inline**, and it is
+/// *above* both published `/O1` first-declined points (116 and 120) rather than
+/// fitted between them. It is not fitted to the TU this bound was raised for
+/// either: `vsnprnc.cpp`'s `_vsprintf_s_l` is 152 B, and any value in `(95,152]`
+/// produces the identical result on this workload — GRID-W's port-side table has
+/// no site at all between 47 B and 152 B.
+///
+/// # What it is NOT
+///
+/// **Not `splice::INLINE_UNBOUNDED_BYTES`.** That one is the *accept* region —
+/// `index <= 64` is where `INLINE_PREDICATE.md` §2's `N_max` is unbounded in
+/// both linkage classes — and it licenses the port to *perform* an expansion.
+/// This one licenses nothing; it only decides where a refusal stops. They must
+/// not be merged: raising the splice bound would make the port inline bodies c2
+/// keeps, which is the wrong-obj direction.
+///
+/// **Not linkage-agnostic, and not mode-agnostic.** F1 puts the STATIC ceiling
+/// at `(300,308]` and F1/F2 put the favour-speed ceilings at `(212,252]` and
+/// `(156,164]` — all above this. The parser refuses a TU whose locally-defined
+/// callee is `static`, `inline`/`__forceinline` or at any mode but `/O1`, so no
+/// obj reaches this constant outside the class it was measured on.
+pub const INLINE_DECLINE_BYTES: usize = 128;
 
 /// [`comdat_body_from_selected`] with the splice's **re-entry** switch exposed.
 ///
@@ -928,9 +992,18 @@ mod inlfence_tests {
     /// every k, so the size axis did not occur: 159 cells that all measured the
     /// same 28-byte callee"*). There is no constant here to fold. `n2` asserts
     /// the resulting size rather than trusting this comment.
+    /// A leaf whose lowered body is over [`INLINE_DECLINE_BYTES`].
+    ///
+    /// **The rung count was 20 and is 40 — w-fence2, 2026-08-09.** The bound
+    /// this cell has to clear moved from `splice::INLINE_UNBOUNDED_BYTES` (64)
+    /// to `INLINE_DECLINE_BYTES` (128) when the fence stopped meaning *"the port
+    /// can prove c2 expands this"* and started meaning *"the port cannot prove
+    /// c2 kept this"*. The cell's own guard caught it — it asserts its callee is
+    /// outside the bound before grading anything, which is why this was a test
+    /// failure and not a silent confound.
     fn big_leaf(name: &str) -> IlFunction {
         let mut ops = vec![IlOp::Load(0xE309)];
-        for _ in 0..20 {
+        for _ in 0..40 {
             ops.push(IlOp::Load(0xE309));
             ops.push(IlOp::Add);
         }
@@ -973,7 +1046,7 @@ mod inlfence_tests {
         let funcs = vec![leaf("?g@@YAHH@Z"), caller_with_setup("?f@@YAHH@Z", "?g@@YAHH@Z")];
         let g = compose(&funcs, 0).expect("the leaf lowers");
         assert!(
-            g.text.len() <= crate::splice::INLINE_UNBOUNDED_BYTES,
+            g.text.len() <= INLINE_DECLINE_BYTES,
             "the positive cell needs a callee UNDER the bound; got {} bytes",
             g.text.len()
         );
@@ -1010,7 +1083,7 @@ mod inlfence_tests {
         let funcs = vec![big_leaf("?g@@YAHH@Z"), caller_with_setup("?f@@YAHH@Z", "?g@@YAHH@Z")];
         let g = compose(&funcs, 0).expect("the big leaf lowers");
         assert!(
-            g.text.len() > crate::splice::INLINE_UNBOUNDED_BYTES,
+            g.text.len() > INLINE_DECLINE_BYTES,
             "N2 IS CONFOUNDED: its callee is {} bytes, inside the bound, so the \
              cell would be decided by the clause the positive one fires on",
             g.text.len()
@@ -1027,7 +1100,7 @@ mod inlfence_tests {
         let funcs = vec![leaf("?g@@YAHHZZ"), caller_with_setup("?f@@YAHH@Z", "?g@@YAHHZZ")];
         let g = compose(&funcs, 0).expect("the leaf lowers");
         assert!(
-            g.text.len() <= crate::splice::INLINE_UNBOUNDED_BYTES,
+            g.text.len() <= INLINE_DECLINE_BYTES,
             "N3 IS CONFOUNDED: the size clause would decide it too"
         );
         let body = compose(&funcs, 1).expect("c2 never inlines a varargs callee");

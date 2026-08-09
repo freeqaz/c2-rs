@@ -750,25 +750,22 @@ pub(crate) fn callee_defined_here<'a>(
     f.callees().find(|c| defined.contains(*c))
 }
 
-/// [`callee_defined_here`], minus the callees the port already has a **graded
-/// model** of.
+/// [`callee_defined_here`], minus a caller-supplied set of callees for which
+/// **that caller already has an answer**.
 ///
-/// Mechanism E (`c2_core::elide`) says a call to a callee this TU defines and
-/// that emits **nothing** costs no branch at all, and the judge grades that
-/// **1,877 of 1,877 byte-exact** over the 878-TU workload. Refusing those
-/// bodies would be the fence being over-broad in the one direction that costs
-/// something real, so the census asks this form and gets `None` for them.
+/// The two callers supply two different sets, and neither is the other's:
 ///
-/// **[`IlBundle::functions`] deliberately does NOT take the exemption.** The
-/// gate is the emit path and stays wholesale: `elide` runs inside
-/// `c2_core::comdat_function_body`, and no obj has ever been emitted for a TU
-/// that defines one of its own callees, so the exemption there would be a
-/// widening with no capture behind it. The two callers therefore ask the same
-/// question about *definition* and only the census subtracts what is modelled —
-/// which is the direction that cannot produce a wrong obj.
+/// | caller | `exempt` | what the exemption asserts |
+/// |---|---|---|
+/// | the **census** | `census::tu_modelled_callees` | mechanism **E** (`c2_core::elide`) — the callee emits **nothing**, so the call costs no branch. Graded **1,877 of 1,877 byte-exact**. DEPTH 1 where `elide`'s reduction is a fixpoint, so it under-exempts and never over-exempts |
+/// | the **gate** ([`crate::IlBundle::functions`]) | `gl::plain_external_defined_names`, at `/O1` | **W-FENCE2** — the callee's linkage class is the one `WB_INLINE_FINDINGS` F2 measured the decline ceiling on, and it is not `inline`/`__forceinline` (F4). It asserts nothing about *size*: the size question is asked one stage later, at `c2_core::comdat::fenced_inlined_callee`, where a lowered body exists to measure |
 ///
-/// `exempt` is DEPTH 1 where `elide`'s reduction is a fixpoint, so this
-/// under-exempts and never over-exempts.
+/// **The gate's exemption is NOT a claim that the call survives.** It is a claim
+/// that the *facts the composition seam needs are available* — which is why it
+/// is sound for `IlBundle::functions` to hand the TU on rather than refuse it,
+/// and why `w-inlfence`'s D8 (*"the gate does not take the exemption"*) is
+/// superseded rather than contradicted: that lane had no seam to hand to, and
+/// `w-inlfence2` built one on the same day.
 pub(crate) fn callee_defined_here_unmodelled<'a>(
     f: &'a crate::func::IlFunction,
     defined: &std::collections::BTreeSet<String>,

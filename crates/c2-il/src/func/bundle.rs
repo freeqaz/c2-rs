@@ -1925,9 +1925,63 @@ impl IlBundle {
         // `docs/whitebox/WB_INLINE_FINDINGS.md` §7 explicitly proposes — instead
         // of being an accident of TU-level granularity.
         let defined: std::collections::BTreeSet<String> = names.iter().cloned().collect();
+        // **W-FENCE2 — the wholesale refusal is NARROWED, on the DECLINE side
+        // only, and only where the port can still be asked the size question
+        // afterwards.**
+        //
+        // The clause above refused *"could c2 have inlined this?"* where the
+        // question that decides an obj is *"did it?"*. `vsnprnc.cpp` is the
+        // measured cost of the difference: both its functions are byte-exact
+        // against real c2 and the TU did not match, held out by this clause alone
+        // (`docs/rungs/2026-08-09-w-vsnprnc.md` §5, isolated four ways).
+        //
+        // **What is exempted, and what each condition buys** — `work/w-fence2/`:
+        //
+        // 1. **The callee's linkage class is the one the boundary was measured
+        //    on** ([`super::gl::plain_external_defined_names`]): plain external,
+        //    not `static` (whose ceiling is three times higher — F1's
+        //    `(300,308]` against F2's `(100,116]`), not `dllexport`, and **not
+        //    `inline`/`__forceinline`** (F4: a 980-byte `__forceinline` callee is
+        //    inlined at every optimizing mode, so no size rule may touch it).
+        // 2. **Every segment in the TU is at `/O1`.** The ceilings move with the
+        //    favour-speed bit — F1/F2 put them at `(212,252]` and `(156,164]` at
+        //    `/O2` — and the bound the seam applies is an `/O1` constant. Mode
+        //    gate in the parser, board #1638.
+        //
+        // **What this clause does NOT decide is the size**, and that is
+        // deliberate: the parser has no lowered body to measure. The decision
+        // stays where the bodies are, at
+        // `c2_core::comdat::fenced_inlined_callee`, which refuses any composed
+        // body relocating against a locally-defined callee the port can lower
+        // whose lowered body is at most `INLINE_DECLINE_BYTES` — i.e. everything
+        // it cannot prove c2 KEPT. The two halves compose into a total emit-path
+        // fence because `Bindings::per_record` is 1:1 with the `.ex` segments, so
+        // every name in `defined` is one of `funcs` and `PortC2::build` lowers
+        // **all** of them: a callee the port cannot lower fails the whole TU
+        // before an obj exists.
+        //
+        // GRID-W is the evidence and it is the decline side only: over 7,552
+        // workload call sites to a locally-defined callee, read off the
+        // *reference* obj's own REL24 targets, **c2 inlines nothing above 80
+        // emitted bytes** (955 kept, 0 inlined) and 64–95 B is a MIXED band that
+        // the seam's bound refuses rather than answers.
+        let exempt = if funcs
+            .iter()
+            .all(|f| super::bind::callee_defined_here(f, &defined).is_none())
+        {
+            // No intra-TU call edge at all: the reader below is pure cost.
+            Default::default()
+        } else if starts
+            .iter()
+            .all(|&s| opt_word_mode(opt_word_at(&ex[s..])) == Some(OptWordMode::O1))
+        {
+            super::gl::plain_external_defined_names(gl)
+        } else {
+            Default::default()
+        };
         if funcs
             .iter()
-            .any(|f| super::bind::callee_defined_here(f, &defined).is_some())
+            .any(|f| super::bind::callee_defined_here_unmodelled(f, &defined, &exempt).is_some())
         {
             return None;
         }
