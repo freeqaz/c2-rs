@@ -112,14 +112,34 @@ the port stopped:
 | `Selector` | `select_function` refused a body **the parser accepted** | **no — 0 by construction**, and this is the verdict #1464 says does not exist. It counts exactly the population `TuResult::fn_gate_refusals` counts, by the same decision procedure, so it must be 0 for the same reason: anything here is the census over-claiming (board #139) |
 | `GyShape` | the selector lowered it; the `/Gy` composition has no obj model | **YES.** `/Gy` is an argv flag and is not in the IL bundle at all, so no parser clause could express this refusal |
 | `DataRef` | the data-symbol relocation halves are not locatable in the composed body | **YES.** The question is asked of bytes that do not exist until after lowering |
+| **`InlinedCallee`** | the composed body emits a `REL24` against a name **this TU DEFINES**, and the port can lower that callee and its lowered body is at most `splice::INLINE_UNBOUNDED_BYTES` — so c2 expands it and emits no call here (`c2_core::comdat::fenced_inlined_callee`, lane `w-inlfence`) | **YES, and it is the first one that actually is**: **1,004** on the 878-TU workload. The question is asked of the composed body's **relocation sites**, and only *after* mechanisms **E** and **I** have had their say |
 
 **The invariant, stated once.** Board #139 requires every emitter refusal to have
 a parser counterpart, or the census over-claims. That rule binds only on
 refusals **the parser is able to express** — i.e. on refusals that are a function
-of the IL body alone. `GyShape` and `DataRef` are not, so they are legitimate and
-permanent; `OptMode` and `Selector` are, so they must be zero and their zero is
-an **alarm that did not fire**, never a measurement that the codegen distance is
-zero.
+of the IL body alone. `GyShape`, `DataRef` and `InlinedCallee` are not, so they
+are legitimate and permanent; `OptMode` and `Selector` are, so they must be zero
+and their zero is an **alarm that did not fire**, never a measurement that the
+codegen distance is zero.
+
+> **Until 2026-08-09 all three of the legitimate stages read 0, so the rule's
+> exceptions had never been tested and the totals built on them looked like
+> alarms.** `InlinedCallee` is the first non-zero one, and two published numbers
+> moved with it: `fnbyte-refused-codegen` **0 → 1,004** and
+> `fnbyte-census-disagree` **0 → 1,004**.
+>
+> **Neither was weakened.** `fnbyte-census-disagree` is now published beside
+> **`fnbyte-census-disagree-expressible`** — the half board #139's rule reaches,
+> whose target is still **0** and which reads 0 — plus one
+> `fnbyte-census-disagree-<stage>` row per post-lowering stage. The residue is
+> not an accounting convenience: it is the measured size of the emitted census's
+> **over-claim**, and it was that size before the fence existed too — as bodies
+> the port emitted *wrongly* instead of refusing. Lane `w-inlfence`, board
+> **#2157**; `rungs/2026-08-09-w-inlfence.md` §8.
+>
+> A refusal and a wrong emit score the **same zero** under FBM, so no credit
+> moved when 1,004 functions crossed between them. What moved is whether the
+> port's claim about them was true.
 
 **Consequently the useful codegen reading is not the refusal column at all.** It
 is `fnbyte-differs` + `fnbyte-reloc-differs` — *the reader accepted, the emitter
@@ -618,7 +638,7 @@ day is legible either way.
   `fnbyte-reloc-graded-relocated`, `fnbyte-exact-bytes`,
   `fnbyte-reloc-partition-broken`, `fnbyte-match-tu-reloc-differs`,
   `fnbyte-reloc-table-unreadable`, `fnbyte-reloc-index-desync`,
-  `fnbyte-reloc-witnesses`; and — since lane `w-column` — `fnbyte-decline-{parse,opt-mode,selector,gy-shape,data-ref}`, `fnbyte-refused-{parse,codegen}`, `fnbyte-refused-split-broken`, `frontier-codegen-{denominator,exact,wrong,refused,reader,ungraded,measured,partition-broken}`. Keys are an interface; **absence means NO-RESULT**,
+  `fnbyte-reloc-witnesses`; and — since lane `w-column` — `fnbyte-decline-{parse,opt-mode,selector,gy-shape,data-ref}`, `fnbyte-refused-{parse,codegen}`, `fnbyte-refused-split-broken`; and — since lane `w-inlfence` — `fnbyte-decline-inlined-callee`, `fnbyte-census-disagree-expressible` and one `fnbyte-census-disagree-<stage>` per stage that fired, `frontier-codegen-{denominator,exact,wrong,refused,reader,ungraded,measured,partition-broken}`. Keys are an interface; **absence means NO-RESULT**,
   never 0 and never 1.
 * Collected into `docs/STATUS.md` by `scripts/status.sh` as four rows, with
   **three** must-fail mutations in `--check`: the ratio must never render
