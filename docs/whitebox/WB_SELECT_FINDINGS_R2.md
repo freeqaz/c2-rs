@@ -773,3 +773,160 @@ tuple `0x2ea` (§6.3c gives its rule from 8 objs, not its site), the switch
 decision tree's pivot algorithm, `FUN_10c1772b` itself, the remainder lowering
 `FUN_10c06eb1`, the shift lowerings, `cgintrin.c`'s intrinsic expanders, or any
 floating-point or VMX path.
+
+---
+
+## 10. CORRECTIONS — appended 2026-08-09 by lane `wb-selfit`
+
+**Nothing above is rewritten.** §§0–9 stand as this lane wrote them, including
+the 9/12 score, the frozen grid and the PREREG table. This section is appended
+the way `CEILING.md` was annotated: four corrections and one promotion, each
+with the export reading that settles it. Full working in
+[`WB_SELECT_RECONCILED.md`](WB_SELECT_RECONCILED.md); evidence in
+`work/wb-selfit/EXPORT_READS.md`, re-read from the same image
+(sha256 `c80981…6258`, re-verified).
+
+**This document's reading came out the more complete and the more accurate of
+the two** — 22 of the 23 cells it claims across *both* lanes' grids, and 18 of
+18 under the symmetric abstention policy, against 11 of 13 for the first reading
+(`WB_SELECT_RECONCILED.md` §12). The corrections below are real and they are
+narrower than that number.
+
+### 10.1 §3.1 — the condition-code enum has **two transposed pairs**
+
+Published here: `0 ILLEGAL, 1 EQ, 2 NE, 3 LT, 4 LE, 5 GT, 6 GE, 7 ULT, 8 ULE,
+9 UGT, 10 UGE`, beside the address range `0x10b197c0`–`0x10b197f4`.
+
+Decoded from that range in the verified image (pointer array at `0x10c38690`
+into the pool descending from `0x10b197f4`):
+
+```
+ 0 ILLEGAL   1 EQ    2 NE    3 LT    4 GT    5 LE    6 GE
+ 7 ULT       8 UGT   9 ULE  10 UGE  11 SO   12 NSO  13 NS
+```
+
+**`4`/`5` and `8`/`9` are swapped.** Consequences, all naming:
+
+* the carry expander normalises to **`UGT`** (code 8), not `ULE` — so §3.1's
+  table row "`8 ULE` → **expand**" should read "`8 UGT` → expand", and
+  "`9 UGT` swap, code := 8" should read "`9 ULE` → swap the RESULT values,
+  code := 8";
+* `0x10b189a4`'s mapping is `3 LT→7 ULT, 4 GT→8 UGT, 5 LE→9 ULE, 6 GE→10 UGE`.
+  The arrows drawn here are right; only the labels are mis-ordered;
+* §9's `W-SELECT-3` row (*"normalises every unsigned relation to `ULE`"*) and
+  board `#2102` inherit the same swap.
+
+`WB_SELECT_FINDINGS.md` §3.5 derived this enum correctly from the three remap
+tables' fixed points and involutions, without reading the names.
+
+### 10.2 §4/§6.3b/§7.2/§9 — the `rlandi` expander is **`FUN_10c0a2e2`**, not `FUN_10c1772b`
+
+This document's single named blocker — *"a port that wants byte-exactness on any
+expression containing `&` with a constant **must read `FUN_10c1772b` first**"* —
+names the wrong routine.
+
+`FUN_10c0a2e2` @ **`0x10c0a2e2`** (1871 B) has exactly two callers and both gate
+on `rlandi`:
+
+```
+decomp_all.c:212862  (inside FUN_10c0d57e)  if (uVar7 - 0x26e < 2) FUN_10c0a2e2(param_2);
+decomp_all.c:226196  FUN_10c1cf59: if (op != 0x26e && op != 0x26f) return; FUN_10c0a2e2(param_1);
+```
+
+and it contains all three forms in one body: `FUN_10c04daf` (the contiguity
+analysis), `local_30 = 0x133` / `0x134` → **`rlwinm`/`rlwinm.`**, `LAB_10c0a802`
+→ **`andi.`/`andis.`** (guarded by `DAT_10c2ecf0` **and by the favour-speed word
+`DAT_10c2e310`**, plus a CR0-availability query
+`thunk_FUN_10bd5a62(*param_1, 0x10c309a8)`), and `LAB_10c0a9a6` → mints a
+constant and sets the opcode to `0x19` (**`and`**) — **the `li` + `and` form
+cell `S11` and the seven diagnostic cells produced.**
+
+`FUN_10c1772b` is real and *is* arm 13 of `FUN_10c182b4`, so §4's table is
+right; but it is a **mask-merging peephole** — it recomputes a mask, compares
+two costs through `FUN_10c0a170` and rewrites operand *values* — and mints no
+opcode on the read path. The next lane should start at `LAB_10c0a4cb` in
+`FUN_10c0a2e2`.
+
+`W-SELECT-5` is re-pointed accordingly; `WB_SELECT_FINDINGS.md` §2.4 named the
+right routine and did not read the decision out of it.
+
+### 10.3 §6 cells `S3` and `S4` — neither exercised the two expanders
+
+`FUN_10c1b517`'s second guard tests *"is either compare operand the constant
+`0`"* and routes such a tuple to **`FUN_10c1a908`** — the against-zero path this
+document lists in `W-SELECT-3` as **unread** — *before* it calls
+`FUN_10c1ac5c` or `FUN_10c1af2d`. `S3` (`x == 0`) and `S4` (`x != 0`) are both
+against zero.
+
+The guard is live at `/O1`: `FUN_10c1b2fa` needs `DAT_10c2e2fc != 0`, and **cell
+`S10` of this very grid establishes that black box** — `lha` is the
+`lhz`+`extsh` fusion emitted by arms 3/4/5 of `FUN_10c182b4`, whose only caller
+gates on the same word. (`DAT_10c2ed00`, the other conjunct, is still unknown.)
+
+`S4` carries its own tell: c2 emitted **`addic 11,3,-1`**, and `addic` is not in
+`FUN_10c1ac5c`'s emission list at all — that routine mints `li` (`0x270`),
+`subfic` (`0x18b`), `subfc` (`0x183`), `lcarry` (`0x28c`), `rlandi` (`0x26e`)
+and `addi` (`0x0b`). **The verdicts stand** (the predicted *words* are the
+emitted words); what does not stand is `frozen.tsv`'s "what a miss refutes"
+column for `S4` — *"the cost comparison in `FUN_10c1b517`"* — and §3's
+"`x == 0` takes `cntlzw`, `x != 0` takes the carry route" as a statement about
+the race.
+
+The first lane's `wbs_s4`, `wbs_s6` and `wbs_b3` are the same case, and its §7.3
+claim that `wbs_s4` is the project's only evidence for the tie rule is withdrawn
+in that document's §11.3. **Five of the two grids' 24 cells never reached the
+race.** Board `#2103` inherits this.
+
+### 10.4 §6.1 — the same-register conjecture for `rlandi` is refuted by the other grid
+
+> §6.1: *"the distinguishing fact is that in the biased cells `rlandi`'s source
+> and destination land in the same register and in the unbiased ones they do
+> not."*
+
+`WB_SELECT_FINDINGS.md`'s cells `wbs_b1` and `wbs_b2` have `rlandi` going
+`r11 → r3` — **different** registers, **no** bias — and emit `clrlwi 3,11,31`,
+i.e. `rlwinm`. And this document's own `S7` has no bias at all and emits
+`clrlwi`. Neither "bias" nor "same register" separates the eight cells;
+`WB_SELECT_RECONCILED.md` §10 tabulates all of them, and §10.2 above gives the
+four inputs the real predicate reads.
+
+**§6.3b's honesty stands** — this document said the predicate was unread and
+named a routine rather than guessing. The conjecture in §6.1 is the part that
+falls.
+
+### 10.5 §2.6 — the record-form **rewriter** is `FUN_10c0b4c0`, and P4.4 = HIT is right
+
+§2.6 attributes the whole mechanism to `FUN_10c0b300`. That routine is the
+**predicate** (it returns `1`/`0` and tests `(&DAT_10c3afd8)[op] & 0x10`); the
+rewriter is **`FUN_10c0b4c0` @ `0x10c0b4c0`**, and every clause §2.6 describes is
+in it — the backwards walk (`iVar9 = param_1[4]`, then
+`*(int *)(iVar9 + 0x10)`), the `addi` (`0xb`) → `addic` (`0xc`) promotion with a
+minted carry operand, the `& 0x10` gate, the literal
+`*(int *)(iVar9 + 4) = *(int *)(iVar9 + 4) + 1`, and the **deletion of the
+compare**.
+
+**So P4.4 = HIT is correct and `#2106` is correct**, and the contradicting board
+row is `#2044` (*"record forms are NOT a fusion"*), corrected in the other
+document's §11.5. This is a **promotion**, not a correction: this reading is
+right and the other lane's headline is the one that is false.
+
+### 10.6 What this lane CONFIRMED
+
+* **13 tables** — the installer writes thirteen slots `DAT_10c6fdac`…`DAT_10c6fddc`
+  and then reassigns four of them to the `-QVMX128` alternates. §2.2's list,
+  including `convert` @ `0x10b1fd08`, is complete; the other lane's sixteen is
+  `12 + 4` with the convert table missing.
+* **41 arms** — `(0x10c0fbd6 − 0x10c0fb32)/4 = 41`, re-derivable from the two
+  VAs this document itself published. The other lane's 46 is a case-label count.
+* **`FUN_10c182b4` is real**, is a top-level phase (one caller, `FUN_10b7dd2c`,
+  gated on `DAT_10c2e2fc`, list walked twice), and is a *different* switch from
+  the first lane's `FUN_10c0d57e` — which is the one WB-D §4 saw, since it
+  carries the `0x2f0`/`0x2f4` prologue arms. **Neither lane is wrong about the
+  switch it named.**
+* **Nibble 5 is floating point** and `FUN_10c194b8` is the float path — §3's
+  label is right and the other lane's "bool-typed" is wrong.
+* **P3.4's retraction is right**, and it is corroborated by the other lane's own
+  unscored calibration cell `wbk_2`, and to the word by `S12` ≡ `wbs_s1`.
+* **The signed/unsigned split** — "three of thirteen tables" and the other
+  lane's "the type is the table's index" are the same fact at two granularities.
+  Nothing to reconcile.
