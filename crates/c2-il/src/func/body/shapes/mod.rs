@@ -26,6 +26,7 @@
 pub(crate) mod assign;
 pub(crate) mod calls;
 pub(crate) mod cond_tail;
+pub(crate) mod counted_accum_loop;
 pub(crate) mod control_flow;
 pub(crate) mod ctor_dtor;
 pub(crate) mod designator;
@@ -67,6 +68,8 @@ pub(crate) use assign::*;
 pub(crate) use calls::*;
 #[allow(unused_imports)]
 pub(crate) use cond_tail::*;
+#[allow(unused_imports)]
+pub(crate) use counted_accum_loop::*;
 #[allow(unused_imports)]
 pub(crate) use control_flow::*;
 #[allow(unused_imports)]

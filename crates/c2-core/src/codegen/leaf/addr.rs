@@ -111,6 +111,7 @@ mod tests {
             fn_addr_sym: None,
             data_def: None,
             static_scan_loop: None,
+            counted_accum_loop: None,
             guard_chain_shared_tail: None,
         alloc_init_or_fail: None,
         osf_handle_guard: None,

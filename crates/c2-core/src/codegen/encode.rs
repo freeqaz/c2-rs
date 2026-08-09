@@ -187,6 +187,58 @@ pub fn encode_bclr(bo: u8, bi: u8) -> [u8; 4] {
     word.to_be_bytes()
 }
 
+/// `mtctr rS` — `mtspr 9,rS`: opcode 31, XO 467, with the SPR number carried in
+/// a **split five-and-five field**, low half first.
+///
+/// The split is the part worth spelling out, because writing `9 << 11` produces
+/// a legal-looking `mtspr` naming SPR 288 and the assembler in your head does
+/// not catch it: the field at bits 11..20 is `(spr & 0x1F) << 5 | (spr >> 5)`,
+/// so SPR 9 is `0x120` and not `0x009`.
+///
+/// Captured, not derived: `7d6903a6` = `mtctr r11` in every converted cell of
+/// `work/w-bdnz/probe/L3.obj`, and `7c8903a6` = `mtctr r4` in `L1.obj`. Both are
+/// reproduced by the assertion in this module's tests.
+///
+/// **This is `wb-loop`'s pass 2 in one word.** It is minted by
+/// `p2\ppc\lower.c`'s per-loop converter and nothing else creates it, which is
+/// why `/d2QXnobdnz` removes all 29 `bdnz` **and** 29 of the 31 `mtctr` from a
+/// 36-cell obj — the two survivors being a `bctrl` and a `bctr`, i.e. genuine
+/// indirect branches (`WB_LOOP_FINDINGS.md` §7.7). That counterfactual is the
+/// black-box evidence this encoder rests on; no address out of `c2.dll` is used
+/// here or anywhere in the class.
+pub fn encode_mtctr(rs: u8) -> [u8; 4] {
+    const SPR_CTR: u32 = 9;
+    let spr_field = ((SPR_CTR & 0x1F) << 5) | ((SPR_CTR >> 5) & 0x1F);
+    let word: u32 =
+        (31 << 26) | ((rs as u32 & 0x1F) << 21) | (spr_field << 11) | (467 << 1);
+    word.to_be_bytes()
+}
+
+/// `BO` for **"decrement CTR, then branch if CTR is still non-zero"** — the
+/// `bdnz` form. Bit 2 of `BO` clears ("decrement the counter"), bit 1 clears
+/// ("branch if the counter is non-zero") and bit 0 sets ("ignore the CR"),
+/// giving `10000` = 16.
+///
+/// It is a **named constant beside [`BO_TRUE`]/[`BO_FALSE`]** rather than a
+/// literal for the reason [`CR_COMPARE`]'s doc gives one level over: `BO = 16`
+/// ignores `BI` entirely, so a `bdnz` that borrowed a CR bit from a nearby
+/// compare would still assemble and still branch correctly — and would differ
+/// from c2's word in bits nobody would think to look at. `BI` is **0** in every
+/// captured `bdnz`.
+pub const BO_DNZ: u8 = 16;
+
+/// `bdnz <target>` — decrement CTR and branch back while it is non-zero.
+///
+/// Captured: `4200fffc` = `bdnz .-4` (the one-instruction body of every cell in
+/// `work/w-bdnz/probe/L3.obj`) and `4200fff8` = `bdnz .-8` (`L1.obj`, a two-word
+/// body). `disp` is self-relative and the reach is [`BC_MAX_DISP`]'s, so this is
+/// [`encode_bc`] at [`BO_DNZ`] with `BI = 0` and it returns `None` out of range
+/// for the same reason: a truncated `BD` is a legal-looking branch to the wrong
+/// place.
+pub fn encode_bdnz(disp: i32) -> Option<[u8; 4]> {
+    encode_bc(BO_DNZ, 0, disp)
+}
+
 /// `lwz rD, D(rA)` — load a 32-bit word: primary opcode 32.
 ///
 /// The constants are transcribed from raw captures rather than derived:

@@ -804,6 +804,16 @@ pub(crate) fn shape_to_function(
                     ..IlFunction::base(name, src)
                 })
             }
+            // **W-BDNZ — the counted-`for` accumulate loop.** Nothing to
+            // resolve: the class references no external symbol, no data object
+            // and no callee, so the carrier travels whole. That is the same
+            // shape `BodyShape::PtrWalkModLoop` travels in and for the same
+            // reason — the loop's only operands are its own two formals.
+            BodyShape::CountedAccumLoop(l) => Some(IlFunction {
+                params: l.params.clone(),
+                counted_accum_loop: Some(l),
+                ..IlFunction::base(name, src)
+            }),
             BodyShape::IndirectLoad { params, ops } => {
                 Some(IlFunction {
                     params,

@@ -32,6 +32,7 @@ use self::shapes::{
     try_parse_if_call_join,
     try_parse_ptr_walk_loop,
     try_parse_static_scan_loop,
+    try_parse_counted_accum_loop,
     try_parse_store_leaf, try_parse_store_run, try_parse_store_run_bind,
     try_parse_store_run_call,
 };
@@ -670,6 +671,15 @@ pub(crate) enum BodyShape {
     /// [`super::shapes::static_scan_loop`] for the whole accept/refuse boundary
     /// and [`crate::func::StaticScanLoop`] for the fields.
     StaticScanLoop(crate::func::StaticScanLoop),
+    /// **W-BDNZ — the counted-`for` accumulate loop.** `wb-loop`'s first two of
+    /// three composable passes — the rotated pre-test guard and the
+    /// `mtctr`/`bdnz` conversion — around a body of one compound assignment; the
+    /// update-form pass is declined by name and cannot apply, because the class
+    /// has no memory reference. See
+    /// [`super::shapes::counted_accum_loop`] for all fourteen boundary clauses
+    /// and the measured cell that exercises each, and
+    /// [`crate::func::CountedAccumLoop`] for the three fields.
+    CountedAccumLoop(crate::func::CountedAccumLoop),
     /// **The body-parameterized pointer-walk loop** — the first shape here
     /// whose emitted body has no fixed length. See
     /// [`super::shapes::ptr_walk_chain_loop`] for the accept/refuse boundary
@@ -2047,6 +2057,35 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                 // matched before it.
                 if let Ok(shape) = try_parse_json_utf8_copy(seg, p, lo) {
                     disp("disp-json-utf8-copy");
+                    return Ok(shape);
+                }
+                // **W-BDNZ — the counted-`for` accumulate loop**, and it is
+                // **LAST on purpose**, which is the one place in this arm where
+                // the order is load-bearing rather than free.
+                //
+                // Every production above argues its disjointness at the SECOND
+                // statement. This class's second statement is `53` then a
+                // literal assignment to an `int` local — one `53` away from
+                // `xlrc_create_guard`'s stated separator ("a second literal
+                // ASSIGNMENT") and, in outline, from what the four loops open
+                // with. Rather than assert a disjointness this lane has not
+                // proved on cells, the recognizer goes last: **no body any
+                // production above accepts today can move, by construction.**
+                // That is w-bdnz's frozen FENCE ORDER (`work/w-bdnz/PREREG.md`
+                // §1.2) and it is why the census neutrality is provable rather
+                // than measured-and-hoped.
+                //
+                // The only population it can reach is one every production above
+                // declined and which `try_parse_assign_body_detail` refuses
+                // today at the `3A` of the `for` rotation — census key
+                // `expr-jump`, 2,286 bodies / 302 emitted on the workload at
+                // `e253ee0e`, which is an arithmetic CEILING and not the class's
+                // size (w-mcall §4.3; five lanes have now been dispatched off a
+                // blocked-key ranking and found the ranking was an artifact).
+                if let Ok(shape) =
+                    try_parse_counted_accum_loop(seg, p, lo, locals, sy.uint_locals)
+                {
+                    disp("disp-counted-accum-loop");
                     return Ok(shape);
                 }
                 disp("disp-assign");

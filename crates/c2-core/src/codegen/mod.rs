@@ -42,6 +42,7 @@ pub mod osf_handle_guard;
 pub mod xlrc_create_guard;
 pub mod json_utf8_copy;
 pub mod guard_chain_shared_tail;
+pub mod counted_accum_loop;
 pub mod if_call_join;
 pub mod labels;
 pub mod leaf;

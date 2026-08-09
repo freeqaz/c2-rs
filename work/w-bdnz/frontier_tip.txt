@@ -1,0 +1,13 @@
+  FRONTIER — 9 graded TUs satisfy A and B and C, are NOT a match, and are outside BOTH acceptance paths (not D, not E), so per-function codegen breadth is the whole remaining distance (blocked emitted | emitted | src):
+       1 |    1 | src/Main.cpp
+       2 |    2 | src/system/synth_xbox/Biquad.cpp
+       2 |    2 | src/xdk/LIBCMT/vsnprnc.cpp
+       3 |    3 | src/system/rndobj/wordwrap.cpp
+       3 |    3 | src/system/utl/Pool.cpp
+       3 |   11 | src/xdk/nuispeech/mmio.cpp
+       4 |    4 | src/system/synth_xbox/IPP_basicmath_xbox.cpp
+       4 |    5 | src/system/utl/EncryptXTEA.cpp
+      18 |   20 | src/keygen_xbox.cpp
+  FRONTIER BY `.text` BYTE FRACTION (board #500) — how much of each TU's `.text` the port already produces a body for, BY BYTE. Board #465 counted FUNCTIONS and was refuted by the TU registered to confirm it (mmio: 72.7% by function, 16.8% by byte, DECLINED; xboxmem: 50.0% by function, 54.5% by byte, CONVERTED). n = 2 outcomes — this ranks, it does not license. `exact` is the oracle-graded floor under `accepted`; a TU with no `.text` bytes prints n/a, NEVER 100%. 0 of 9 frontier TUs have NO denominator, and 6 are at EXACTLY 0% — TUs where codegen breadth has not begun:
+     accepted/total bytes    frac   exact  remain | src   (REMAIN = total - accepted = the PowerPC still to write. A FOURTH unit, printed and NOT chosen between: it agrees with `frac` on both outcome cells and DISAGREES with it at this frontier's head.)
+          64/380      bytes   16.8%     64     316 | src/xdk/nuispeech/mmio.cpp

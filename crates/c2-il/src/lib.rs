@@ -58,6 +58,8 @@ pub use func::{
     GuardChainSharedTailFn,
     IfCallJoinFn,
     PtrWalkModLoop,
+    // W-BDNZ — the counted-`for` accumulate loop's three free fields.
+    CountedAccumLoop, CountedAccumOp,
     ChainOp, ChainOpKind, ChainRhs, PtrWalkChainLoop,
     Rel, SeqCall, SeqCmp, SeqEarlyReturn, SeqGuard, SeqTail, StoreRunPrefix,
     SlotArg, LINK_FIRST_SLOT,

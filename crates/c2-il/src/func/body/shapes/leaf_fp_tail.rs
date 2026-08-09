@@ -470,7 +470,7 @@ mod tests {
     /// GPR and this whole production would decline. Stating the classes here is
     /// what makes the numbering the thing under test.
     fn sy(formals: &'static [SyFormal]) -> SyView<'static> {
-        SyView { locals: &[], ptr_locals: &[], addr_locals: &[], formals: Formals::Declared(formals) }
+        SyView { locals: &[], ptr_locals: &[], addr_locals: &[], uint_locals: &[], formals: Formals::Declared(formals) }
     }
     const FLOAT: u8 = 0x45;
     const DOUBLE: u8 = 0x85;
@@ -655,7 +655,7 @@ mod tests {
     /// `arg_classes` is all-or-nothing.
     #[test]
     fn an_undetermined_sy_declines_and_leaves_the_census_key_alone() {
-        let unknown = SyView { locals: &[], ptr_locals: &[], addr_locals: &[], formals: Formals::Undetermined };
+        let unknown = SyView { locals: &[], ptr_locals: &[], addr_locals: &[], uint_locals: &[], formals: Formals::Undetermined };
         assert_eq!(parse_segment(FP_TAIL_GAP, unknown), None);
         let b = parse_segment_detail(FP_TAIL_GAP, unknown).unwrap_err();
         // `:mid`: the widths are withheld *before* the body is parsed at all, at

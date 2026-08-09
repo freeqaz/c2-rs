@@ -395,6 +395,21 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
             func, mode,
         )?));
     }
+    // **W-BDNZ — the counted-`for` accumulate loop.** Same placement argument as
+    // every loop around it and the same freedom: `func.counted_accum_loop` is
+    // set by exactly one parser production, `func.ops` is empty for it, and no
+    // leaf pattern-matcher below can take its body.
+    //
+    // It is the first arm here that accepts **both** optimization modes on a
+    // measurement rather than by inheriting `Ox` from the MVP: `/Ox` emits the
+    // identical eight words (`work/w-bdnz/probe/L5ox.obj`) and every cell is
+    // graded at both. Board #844's invariant is unaffected — this shape sets one
+    // field and no other.
+    if func.counted_accum_loop.is_some() {
+        return Ok(Selected::Plain(
+            crate::codegen::counted_accum_loop::counted_accum_loop_emit(func, mode)?,
+        ));
+    }
     // **The body-parameterized pointer-walk loop.** Same placement argument as
     // the shape above and the same freedom: `func.ptr_walk_chain_loop` is set by
     // exactly one parser production, `func.ops` is empty for it, and no leaf

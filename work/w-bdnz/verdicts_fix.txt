@@ -1,0 +1,5 @@
+TUs base 309  tip 312
+  only-in-base 0   only-in-tip 3   changed 0
+    only-in-tip   fixtures/cpp/wbdnz_ctr.cpp  ('match', 11, 11)
+    only-in-tip   fixtures/cpp/wbdnz_ctr_neg.cpp  ('vocab-gap', 0, 23)
+    only-in-tip   fixtures/cpp/wbdnz_ctr_then_framed_neg.cpp  ('vocab-gap', 2, 2)

@@ -1555,6 +1555,110 @@ pub struct StaticScanLoop {
     pub scale: i32,
 }
 
+/// **W-BDNZ — which compound assignment the counted loop's body performs.**
+///
+/// One variant per IL opcode this class admits, and the mapping to the emitted
+/// word is one-to-one and injective; the emitter
+/// (`c2_core::codegen::counted_accum_loop`) has no other free field of this
+/// kind. Every variant was read off real `c2`'s own `.text` for a cell of
+/// `work/w-bdnz/probe/L3.cpp` at the workload's `/O1`, and the cells that are
+/// **not** here are absent because c2 emits something else for them, not
+/// because nobody tried:
+///
+/// ```text
+///   IL   source     c2 emits        why it is / is not here
+///   0F   s += k     mullw r3,r11,r4 THE LOOP IS DELETED — the accumulation is
+///                                   strength-reduced to one multiply, guard and
+///                                   all. Refused; `n_addop` is the cell.
+///   10   s -= k     subf  r3,r4,r3  Sub
+///   11   s *= k     mullw r3,r3,r4  Mul
+///   12   s /= k     rotlwi/divw/twi/twi — a different spine with two traps.
+///                                   Refused; `n_divop` is the cell.
+///   15   s <<= k    slw   r3,r3,r4  Shl
+///   16   s >>= k    sraw  r3,r3,r4  Sar — and **only for a SIGNED accumulator**:
+///                                   `unsigned` is `srw`, a different word keyed
+///                                   on a type this carrier does not hold, which
+///                                   is why the recognizer requires the
+///                                   accumulator's own signedness nibble
+///   17   s &= k     and   r3,r3,r4  And
+///   18   s ^= k     xor   r3,r3,r4  Xor
+///   19   s |= k     or    r3,r3,r4  Or
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CountedAccumOp {
+    /// IL `10` — `subf rD,rB,rA` (note the operand order: `r3 = r3 - r4`).
+    Sub,
+    /// IL `11` — `mullw`.
+    Mul,
+    /// IL `17` — `and`.
+    And,
+    /// IL `19` — `or`.
+    Or,
+    /// IL `18` — `xor`.
+    Xor,
+    /// IL `15` — `slw`.
+    Shl,
+    /// IL `16` — `sraw`. Signed accumulator only.
+    Sar,
+}
+
+/// **W-BDNZ — the counted-loop class's parse.** `wb-loop`'s first two of three
+/// composable passes: the rotated pre-test guard and the `mtctr`/`bdnz`
+/// conversion, around a body that performs one compound assignment.
+///
+/// ```c
+///   int f(int n, int k) {
+///       int s = INIT;
+///       for (C i = 0; i < n; ++i)   // C = int or unsigned
+///           s OP= k;
+///       return s;
+///   }
+/// ```
+///
+/// The accept/refuse boundary is entirely on the recognizer
+/// ([`crate::func::body::shapes::counted_accum_loop`]), which states all
+/// fourteen clauses and names the measured cell that exercises each. This
+/// carries only what the emitter reads back — and the emitter has exactly three
+/// free fields, which is why there are exactly three here.
+///
+/// **The update-form pass is not in this class and cannot be**: the body has no
+/// memory reference at all. `wb-loop` §4.4 elected no update-form rival (RU0′
+/// 8/10, RU2 8/10, on disjoint cells) and filed RU-H unfrozen; a class defined
+/// to contain no load and no store is the largest one that is provably outside
+/// that undecided question.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CountedAccumLoop {
+    /// The two formals in argument-register order: `params[0]` is the loop
+    /// **bound** (r3) and `params[1]` the accumulate **operand** (r4).
+    ///
+    /// The order is load-bearing and measured, not conventional: with the bound
+    /// in slot 1 (`work/w-bdnz/probe/L4.obj`, cell `swapf`) c2 re-plans the
+    /// whole body — the accumulator cannot coalesce into `r3`, so it takes
+    /// `r11`, the guard becomes a **forward** `bf 25` instead of a conditional
+    /// return, and a closing `mr r3,r11` appears. A different block plan, not a
+    /// different register field.
+    pub params: Vec<u32>,
+    /// The accumulator's initial literal — the `li r3,INIT` immediate.
+    /// Constrained to `simm16` by the recognizer: `32768` is a `lis`/`ori` pair
+    /// **and c2 interleaves the guard compare between the two**
+    /// (`work/w-bdnz/probe/L4.obj`, cell `init_over`), so it is not a wider
+    /// literal in the same block — it is a different block.
+    pub acc_init: i32,
+    /// Which compound assignment the body performs.
+    pub op: CountedAccumOp,
+    /// Whether the loop **counter and bound** are unsigned. It decides two
+    /// words and nothing else: `cmplwi`+`bclr 12,26` against
+    /// `cmpwi`+`bclr 4,25`.
+    ///
+    /// **This is board #1788 in its purest form.** The two spellings differ in
+    /// the IL by exactly one TYPE byte — `86 41 74` against `86 42 75` — while
+    /// the relational opcode (`22`) and the branch (`38`) are byte-identical
+    /// (`work/w-bdnz/il_L5`). `readers::eat_int_like` accepts both, so a
+    /// recognizer written on it would emit `cmpwi`/`bf 25` into an obj that has
+    /// `cmplwi`/`bt 26`.
+    pub counter_unsigned: bool,
+}
+
 /// **W-EXTDATA — the sunk-`||`-guard, shared-tail body's parse**, with its four
 /// external names still as `.gl` tokens.
 ///
@@ -2487,6 +2591,11 @@ pub struct IlFunction {
     /// **W-DATA — the static-array scan loop** (`?NextHashPrime@@YAHH@Z`).
     /// Set by exactly one parser production; [`Self::ops`] is empty for it.
     pub static_scan_loop: Option<StaticScanLoop>,
+    /// **W-BDNZ — the counted-loop class** (`wb-loop`'s guard + `mtctr`/`bdnz`
+    /// passes). Set by exactly one parser production; [`Self::ops`] is empty for
+    /// it. Makes [`Self::label_slots`] return `None`, for a reason this lane
+    /// measured rather than inherited — see there.
+    pub counted_accum_loop: Option<CountedAccumLoop>,
     /// **W-EXTDATA — the sunk-`||`-guard, shared-tail body** (`_vswprintf_s_l`).
     /// Set by exactly one parser production; [`Self::ops`] is empty for it.
     pub guard_chain_shared_tail: Option<GuardChainSharedTailFn>,
@@ -2652,6 +2761,7 @@ impl IlFunction {
             fn_addr_sym: None,
             data_def: None,
             static_scan_loop: None,
+            counted_accum_loop: None,
             guard_chain_shared_tail: None,
             alloc_init_or_fail: None,
             osf_handle_guard: None,
@@ -3144,6 +3254,70 @@ impl IlFunction {
         if self.ptr_walk_chain_loop.is_some() {
             return None;
         }
+        // **W-BDNZ — the counted loop refuses too, and the reason is this
+        // lane's OWN MEASUREMENT rather than the two above.**
+        //
+        // The commission required the lead to be measured against the obj and
+        // not read off `docs/LABEL_COUNTER.md`, because w-json measured its
+        // §1.1 surcharge two low for a back-edge class. `work/w-bdnz/label.sh`
+        // did that, in w-json's counterfactual form — two TUs differing in
+        // exactly one function body, the same framed `z9` second in every one,
+        // its `$M`/`$T` triple the readout — over real `c2.dll` under wibo at
+        // the workload's `/O1` and again at `/Ox`
+        // (`work/w-bdnz/LABEL_LEAD.md`):
+        //
+        // ```text
+        //   leaf-none, 0 locals          2556  --     2550  --
+        //   straight line, 2 locals      2558  +2     2552  +2
+        //   THIS CLASS                   2563  +7     2558  +8
+        //   the `while` spelling         2563  +7     2558  +8   identical text
+        //   the `do/while` spelling      2562  +6     2556  +6   different text
+        //   HashString's pointer walk    2564  +8     2559  +9
+        //   this class with `*=`         2563  +7     2558  +8
+        //   this class with `unsigned`   2563  +7     2558  +8
+        // ```
+        //
+        // Three readings, and the second is the one that decides this `None`:
+        //
+        //  1. §4.2.1's `for` row records `+2` against `leaf-none = 1` — a lead
+        //     of `+1`, where the obj says **+7** (`+5` net of the two locals,
+        //     which the straight-line control prices at `+2`). The table is not
+        //     the number for this class.
+        //  2. **THE CHARGE IS MODE-DEPENDENT** — `+7` at `/O1` and `+8` at
+        //     `/Ox`, on the same source — and this method has **no mode
+        //     parameter**. Any `Some(k)` would be right at one mode and a `$M`
+        //     triple one low at the other: six wrong bytes in an obj that still
+        //     links, board #263's shape. This class accepts BOTH modes, so it
+        //     would meet the wrong one immediately. `None` is not conservatism
+        //     here; it is the only value that can be right.
+        //  3. The `for`/`while` confound the two `None`s above rest on does not
+        //     arise for this class: the two spellings that emit identical text
+        //     charge identically, and `do/while` — which charges differently —
+        //     is not in the class at all, because c2 does not convert it
+        //     (`wb-loop` P3.4's `cal_dowhile`, reproduced on this lane's own
+        //     cell). So the inherited argument is *absent* and reading 2
+        //     replaces it.
+        //
+        // **MUST-FAIL MUTATION, verified**, the same shape as the two above:
+        // replacing this `None` with `Some(self.label_lead() + 1)` turns
+        // `fixtures/cpp/wbdnz_ctr_then_framed_neg.cpp` from `NotImplemented`
+        // into a live `mismatch` against real `c2.dll`, while its separating
+        // control `fixtures/cpp/wbdnz_ctr.cpp` (the same loops with no framed
+        // function beside them) stays `match`.
+        //
+        // **And the SECOND counterfactual is the one that prices the next
+        // rung**: `Some(8)` — the charge this lane actually measured at `/O1` —
+        // does **not** produce a match either. It produces a *refusal*, because
+        // `IlBundle::functions`' gate is `label_slots(false)? != label_lead() +
+        // 1`: the question it asks is not "is the charge right" but "does the
+        // charge agree with what `plan_labels` will advance", and `plan_labels`
+        // advances exactly 1 for a non-framed function. So the seam has **two**
+        // layers, not one — a correct `Some(k)` needs `plan_labels` to learn the
+        // same `k` — and both would additionally have to be mode-aware. That is
+        // three things a later rung owes, and none of them is this one's.
+        if self.counted_accum_loop.is_some() {
+            return None;
+        }
         if let Some(c) = &self.compare {
             return Some(self.label_lead() + c.label_slots());
         }
@@ -3289,7 +3463,7 @@ pub(crate) mod test_fixtures {
     /// [`Formals::AllOneRegisterByConstruction`] is test-only and cannot appear in
     /// a release build.
     pub(crate) const NO_LOCALS: SyView<'static> =
-        SyView { locals: &[], ptr_locals: &[], addr_locals: &[], formals: Formals::AllOneRegisterByConstruction };
+        SyView { locals: &[], ptr_locals: &[], addr_locals: &[], uint_locals: &[], formals: Formals::AllOneRegisterByConstruction };
 
     /// Prefix a pinned body with the `53 53 26 <fn>` statement start a real segment
     /// carries, when it does not already have one.

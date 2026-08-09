@@ -264,6 +264,7 @@ impl SyLocals {
                 locals: &self.blocks[*j].int_locals,
                 ptr_locals: &self.blocks[*j].ptr_locals,
                 addr_locals: &self.blocks[*j].addr_locals,
+                uint_locals: &self.blocks[*j].uint_locals,
                 formals: Formals::Declared(&self.blocks[*j].formals),
             },
             _ => SyView::UNKNOWN,
@@ -387,6 +388,12 @@ pub(crate) struct SyView<'a> {
     /// object"*, because that is what puts `locals: 4` in its `FrameLayout` and
     /// a wrong frame size is one silent `stwu` immediate.
     pub(crate) addr_locals: &'a [u32],
+    /// The plain `unsigned` width-4 automatics — [`SyBlock::uint_locals`]. One
+    /// consumer: `shapes::counted_accum_loop`, which needs the same positive
+    /// answer `ptr_locals` gives `ptr_walk_loop` — *"is this induction variable
+    /// a register-resident automatic"* — for a counter whose type makes the
+    /// loop's guard `cmplwi` instead of `cmpwi`.
+    pub(crate) uint_locals: &'a [u32],
     pub(crate) formals: Formals<'a>,
 }
 
@@ -411,7 +418,7 @@ pub(crate) enum Formals<'a> {
 impl SyView<'_> {
     /// No `.sy` binding: no locals, and formal widths undetermined.
     pub(crate) const UNKNOWN: SyView<'static> =
-        SyView { locals: &[], ptr_locals: &[], addr_locals: &[], formals: Formals::Undetermined };
+        SyView { locals: &[], ptr_locals: &[], addr_locals: &[], uint_locals: &[], formals: Formals::Undetermined };
 
     /// The largest parameter width that provably occupies exactly one GPR.
     ///
@@ -679,6 +686,24 @@ pub(crate) struct SyBlock {
     /// other two requires `flags` to be `0x0001` or `0x0000`. The two
     /// populations are disjoint by a field, not by an ordering.
     pub(crate) addr_locals: Vec<u32>,
+    /// **W-BDNZ — automatic locals of plain (unqualified) `unsigned` type whose
+    /// address is never taken.** A fourth list, for the reason the three above
+    /// are separate lists: its one consumer wants a fact none of them carries.
+    ///
+    /// `int_locals` answers *"may this token be folded"*; this one answers the
+    /// same question **and** carries *"its comparisons are UNSIGNED"*. Merging
+    /// the two would be board **#1788** one layer down — every consumer of
+    /// `int_locals` silently gaining a type whose `cmpwi` must be a `cmplwi`,
+    /// with the IL byte that says so already discarded. So a consumer opts in,
+    /// and today exactly one does
+    /// ([`super::body::shapes::counted_accum_loop`], which reads the *`.ex`*
+    /// type byte for the signedness and uses this list only for the
+    /// automatic-local test).
+    ///
+    /// **Verdict-neutral by construction**: an `unsigned` record used to leave
+    /// `read_record` as `Record::Stepped` — no list held it — so this one can
+    /// only take from that residue.
+    pub(crate) uint_locals: Vec<u32>,
 }
 
 /// The `.ex` close of a function body's own lexical scope — depth
@@ -817,6 +842,14 @@ const SIZE_LEAD: u8 = 0x04;
 const SIZEOF_INT: u32 = 4;
 /// `.ex` type-table id of plain `int`.
 const TID_INT: u32 = 0x74;
+
+/// The `unsigned` type id — **row 2 of the 21-cell table** in [`read_record`],
+/// measured by `w-hash`'s `work/w-hash/sygrid.py` one type axis at a time. It is
+/// a named constant beside [`TID_INT`] rather than a literal for the same reason
+/// that one is: `const unsigned` moves the id into the constructed range and
+/// must NOT be admitted, so the id is what separates the plain type from its
+/// cv-qualified spellings — the kind alone does not.
+const TID_UINT: u32 = 0x75;
 /// Flags bit 0 is *referenced* and bit 5 is *address-taken*, so `0x0001` is an
 /// ordinary variable and `0x0021` one whose address escapes. `0x0000` — seen on an
 /// unreferenced formal — is accepted for locals too: an unread variable cannot
@@ -927,6 +960,16 @@ pub(crate) fn sy_blocks(sy: &[u8]) -> Option<Vec<SyBlock>> {
                     // same bytes.
                     Record::Admitted(f) if f.kind == TYPE_KIND_DATA_PTR => {
                         block.ptr_locals.push(f.tok)
+                    }
+                    // **W-BDNZ — the plain `unsigned` automatic, sorted into its
+                    // OWN list and not into `int_locals`.** The two are the same
+                    // storage and a different `cmp`, and merging them here is
+                    // precisely board #1788's defect one layer down: every
+                    // consumer of `int_locals` would silently gain a type whose
+                    // comparisons are unsigned. A separate list makes each
+                    // consumer opt in — today exactly one does.
+                    Record::Admitted(f) if f.kind == TYPE_KIND_UNSIGNED => {
+                        block.uint_locals.push(f.tok)
                     }
                     Record::Admitted(f) => block.int_locals.push(f.tok),
                     Record::Stepped => {}
@@ -1314,9 +1357,34 @@ fn read_record(sy: &[u8], at: usize, depth: u8) -> Option<(Record, usize)> {
     //   local whose address escapes is a memory object and the loop's `lbzu`
     //   would drop a write to it.
     let plain_ptr4 = kind == TYPE_KIND_DATA_PTR && size == SIZEOF_INT;
+    // **The plain `unsigned` automatic — lane `w-bdnz`, and it is ADDITIVE.**
+    //
+    // Row 2 of the table above (`86 02 4 0001 0x75`) has been measured since
+    // `w-hash` and nothing consumed it: an `unsigned` local fell through
+    // `admissible`, missed the address-taken arm on its flags, and left as
+    // `Stepped`. So this clause can only move records **out of `Stepped`** — it
+    // is unreachable for anything the three existing lists already hold, and
+    // `int_locals`, `ptr_locals` and `addr_locals` are byte-identical across it
+    // by construction rather than by measurement. (They were measured anyway:
+    // the 878-TU scan's per-TU verdict set and all `gap-metric` keys are
+    // accounted in `docs/rungs/2026-08-09-w-bdnz.md` §4.1.)
+    //
+    // **Why it is needed and what it is NOT.** `w-bdnz`'s counted loop admits an
+    // `unsigned` induction variable — the guard is `cmplwi`/`bclr 12,26` where a
+    // signed one is `cmpwi`/`bclr 4,25`, and both are byte-exact against real
+    // `c2` — and the *only* thing that blocked it was this predicate. That is
+    // board **#764**'s finding one class over: `w-hash` hit the identical wall
+    // (*"`.sy` admitted plain `int` automatics only, so the induction variable
+    // had no positive automatic-local test"*) and widened it to pointers; this
+    // widens it to the type the same table already priced.
+    //
+    // It is **not** a general relaxation: `size` and `tid` are both required, so
+    // `unsigned char`, `unsigned long`, `const unsigned` and an address-taken
+    // `unsigned` all still refuse, each on a field the table measures.
+    let plain_uint = kind == TYPE_KIND_UNSIGNED && size == SIZEOF_INT && tid == TID_UINT;
     let admissible = tag == REC_PLAIN
         && type_tag == TYPE_TAG
-        && (plain_int || plain_ptr4)
+        && (plain_int || plain_uint || plain_ptr4)
         && (flags == FLAGS_REFERENCED || flags == FLAGS_NONE);
     if admissible {
         return Some((Record::Admitted(SyFormal { tok, size, kind }), p));
@@ -1864,6 +1932,66 @@ mod tests {
         assert!(plain[0].addr_locals.is_empty());
     }
 
+    /// **W-BDNZ — the plain `unsigned` automatic goes to `uint_locals` and NOT
+    /// to `int_locals`**, and the widening is verdict-neutral for the three
+    /// lists that existed before it.
+    ///
+    /// The four cells vary ONE field each off the table in [`read_record`], and
+    /// the point of the last two is that `unsigned` is admitted **by its type
+    /// id**, not by its kind: `unsigned char` shares the kind and refuses on
+    /// size, and a `const unsigned` (id in the constructed range) refuses on id.
+    #[test]
+    fn a_plain_unsigned_local_lands_in_its_own_list_and_moves_nothing_else() {
+        let signed = sy_blocks(&one_block(&[int_rec()])).unwrap();
+        let unsigned = sy_blocks(&one_block(&[local_rec(
+            TYPE_KIND_UNSIGNED,
+            SIZEOF_INT,
+            FLAGS_REFERENCED,
+            &[TID_UINT as u8],
+        )]))
+        .unwrap();
+        // The two populations are disjoint in BOTH directions, not merely "one
+        // of them is empty" — merging them would be board #1788 one layer down.
+        assert_eq!(signed[0].int_locals, vec![0xe609]);
+        assert!(signed[0].uint_locals.is_empty());
+        assert_eq!(unsigned[0].uint_locals, vec![0xe609]);
+        assert!(unsigned[0].int_locals.is_empty());
+        // …and the widening takes nothing from the other two lists.
+        assert!(unsigned[0].ptr_locals.is_empty() && unsigned[0].addr_locals.is_empty());
+
+        // `unsigned char`: same KIND, one byte. Refused, and by the size field.
+        let uchar = sy_blocks(&one_block(&[local_rec(
+            TYPE_KIND_UNSIGNED,
+            1,
+            FLAGS_REFERENCED,
+            &[0x20],
+        )]))
+        .unwrap();
+        assert!(uchar[0].uint_locals.is_empty() && uchar[0].int_locals.is_empty());
+        // A cv-qualified `unsigned`: same kind, same size, an id in the
+        // constructed range. Refused, and by the id — which is the reason
+        // `TID_UINT` is checked at all and not just the kind.
+        let cv = sy_blocks(&one_block(&[local_rec(
+            TYPE_KIND_UNSIGNED,
+            SIZEOF_INT,
+            FLAGS_REFERENCED,
+            &sy_varint(0x1000),
+        )]))
+        .unwrap();
+        assert!(cv[0].uint_locals.is_empty() && cv[0].int_locals.is_empty());
+        // An address-taken `unsigned` still goes to `addr_locals` and to neither
+        // fold list — the flags arm is unchanged and still wins.
+        let taken = sy_blocks(&one_block(&[local_rec(
+            TYPE_KIND_UNSIGNED,
+            SIZEOF_INT,
+            0x0021,
+            &[TID_UINT as u8],
+        )]))
+        .unwrap();
+        assert_eq!(taken[0].addr_locals, vec![0xe609]);
+        assert!(taken[0].uint_locals.is_empty() && taken[0].int_locals.is_empty());
+    }
+
     /// **W-XLR — `addr_locals` admits exactly the four-byte integer scalars and
     /// nothing else**, and the widening is verdict-neutral for the two lists
     /// that existed before it.
@@ -2025,7 +2153,7 @@ mod tests {
     #[test]
     fn a_cv_qualified_float_formal_is_still_a_floating_point_register() {
         let b = sy_blocks(&block_with(DEPTH_FORMALS, SY_SIX_TYPES)).expect("capture must parse");
-        let view = SyView { locals: &[], ptr_locals: &[], addr_locals: &[], formals: Formals::Declared(&b[0].formals) };
+        let view = SyView { locals: &[], ptr_locals: &[], addr_locals: &[], uint_locals: &[], formals: Formals::Declared(&b[0].formals) };
         // Declaration order, as `.ex`'s formals region gives it.
         let toks = [0xe509u32, 0xe609, 0xe709, 0xe809, 0xe909, 0xea09];
         assert_eq!(
@@ -2056,7 +2184,7 @@ mod tests {
     #[test]
     fn the_fp_file_skips_non_fp_formals_and_the_gpr_file_counts_fp_ones() {
         let b = sy_blocks(&block_with(DEPTH_FORMALS, SY_SIX_TYPES)).expect("capture must parse");
-        let view = SyView { locals: &[], ptr_locals: &[], addr_locals: &[], formals: Formals::Declared(&b[0].formals) };
+        let view = SyView { locals: &[], ptr_locals: &[], addr_locals: &[], uint_locals: &[], formals: Formals::Declared(&b[0].formals) };
         let toks = [0xe509u32, 0xe609, 0xe709, 0xe809, 0xe909, 0xea09];
         let cls = view.arg_classes(&toks).unwrap();
         // FP: a→f1, b→f2, e→f3. The index rule would say f1, f2, f5.
@@ -2083,13 +2211,13 @@ mod tests {
             0x03, 0x04, 0x10, 0x00, 0x81, 0x00, 0x80, 0x00, 0x80, 0x04, 0x1a, 0x00, 0x00,
         ];
         let b = sy_blocks(&block_with(DEPTH_FORMALS, rec)).expect("real capture must parse");
-        let view = SyView { locals: &[], ptr_locals: &[], addr_locals: &[], formals: Formals::Declared(&b[0].formals) };
+        let view = SyView { locals: &[], ptr_locals: &[], addr_locals: &[], uint_locals: &[], formals: Formals::Declared(&b[0].formals) };
         // 16 bytes: the width gate catches it first, which is the outer channel.
         assert_eq!(view.arg_classes(&[0x4651]), Err("param-multi-reg"));
         // …and the class gate is the inner one, for the day the same family
         // appears at a width a GPR could hold.
         let narrow = [SyFormal { tok: 1, size: 4, kind: 0x0d }];
-        let view = SyView { locals: &[], ptr_locals: &[], addr_locals: &[], formals: Formals::Declared(&narrow) };
+        let view = SyView { locals: &[], ptr_locals: &[], addr_locals: &[], uint_locals: &[], formals: Formals::Declared(&narrow) };
         assert_eq!(view.arg_classes(&[1]), Err("param-kind-unknown"));
     }
 
