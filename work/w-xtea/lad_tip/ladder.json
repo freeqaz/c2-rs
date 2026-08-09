@@ -1,0 +1,596 @@
+[
+ {
+  "tu": "src/system/utl/EncryptXTEA.cpp",
+  "status": "STUCK:expr-shr-mixed-sign:mid",
+  "rungs_raw": 23,
+  "rungs_net": 17,
+  "renames": [],
+  "rungs_stepped": 17,
+  "sink_rungs": 16,
+  "hatch_rungs": 1,
+  "ladder": [
+   {
+    "kind": "sink",
+    "token": "intrinsic",
+    "opened": "expr-intrinsic-memcpy"
+   },
+   {
+    "kind": "sink",
+    "token": "type",
+    "opened": "expr-load-type-8882"
+   },
+   {
+    "kind": "sink",
+    "token": "op:27",
+    "opened": "expr-op-0x27"
+   },
+   {
+    "kind": "sink",
+    "token": "op:28",
+    "opened": "expr-op-0x28"
+   },
+   {
+    "kind": "sink",
+    "token": "op:55",
+    "opened": "expr-op-0x55"
+   },
+   {
+    "kind": "sink",
+    "token": "op:30",
+    "opened": "expr-op-0x30"
+   },
+   {
+    "kind": "sink",
+    "token": "op:4C",
+    "opened": "expr-op-0x4C"
+   },
+   {
+    "kind": "sink",
+    "token": "convert",
+    "opened": "expr-convert-target-A882"
+   },
+   {
+    "kind": "sink",
+    "token": "op:32",
+    "opened": "expr-op-0x32"
+   },
+   {
+    "kind": "sink",
+    "token": "op:26",
+    "opened": "expr-call-in-expr-op-0x0A"
+   },
+   {
+    "kind": "hatch",
+    "token": "expr-shr-mixed-sign",
+    "opened": "expr-shr-mixed-sign:mid"
+   },
+   {
+    "kind": "sink",
+    "token": "op:35",
+    "opened": "expr-op-0x35"
+   },
+   {
+    "kind": "sink",
+    "token": "op:22",
+    "opened": "expr-cmp-lt"
+   },
+   {
+    "kind": "sink",
+    "token": "op:38",
+    "opened": "expr-brfalse"
+   },
+   {
+    "kind": "sink",
+    "token": "op:99",
+    "opened": "expr-op-0x99"
+   },
+   {
+    "kind": "sink",
+    "token": "op:BD",
+    "opened": "expr-op-0xBD"
+   },
+   {
+    "kind": "sink",
+    "token": "op:0F",
+    "opened": "expr-op-0x0F"
+   }
+  ],
+  "rounds": [
+   {
+    "round": 0,
+    "reader": {
+     "expr-intrinsic-memcpy": 1,
+     "expr-load-type-8882": 1,
+     "expr-op-0x27": 2
+    },
+    "emit": {
+     "expr-intrinsic-memcpy": 1,
+     "expr-load-type-8882": 1,
+     "expr-op-0x27": 2
+    },
+    "gate": {},
+    "sinks": [
+     "op:41"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 1,
+    "reader": {
+     "expr-chain-sink-poison:mid": 2,
+     "expr-op-0x28": 1,
+     "expr-op-0x55": 1
+    },
+    "emit": {
+     "expr-chain-sink-poison:mid": 2,
+     "expr-op-0x28": 1,
+     "expr-op-0x55": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 2,
+    "reader": {
+     "expr-chain-sink-poison:mid": 2,
+     "expr-op-0x30": 1,
+     "expr-op-0x4C": 1
+    },
+    "emit": {
+     "expr-chain-sink-poison:mid": 2,
+     "expr-op-0x30": 1,
+     "expr-op-0x4C": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:28",
+     "op:55"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 3,
+    "reader": {
+     "expr-chain-sink-poison:mid": 2,
+     "expr-convert-target-A882": 1,
+     "expr-op-0x4B": 1
+    },
+    "emit": {
+     "expr-chain-sink-poison:mid": 2,
+     "expr-convert-target-A882": 1,
+     "expr-op-0x4B": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 4,
+    "reader": {
+     "expr-chain-sink-poison:mid": 2,
+     "expr-jump": 1,
+     "expr-op-0x32": 1
+    },
+    "emit": {
+     "expr-chain-sink-poison:mid": 2,
+     "expr-jump": 1,
+     "expr-op-0x32": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 5,
+    "reader": {
+     "expr-op-0x4F": 3,
+     "expr-op-0x54": 1
+    },
+    "emit": {
+     "expr-op-0x4F": 3,
+     "expr-op-0x54": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B",
+     "op:3A",
+     "op:32"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 6,
+    "reader": {
+     "expr-call-in-expr-op-0x0A": 1,
+     "expr-call-in-expr-other": 1,
+     "expr-label": 2
+    },
+    "emit": {
+     "expr-call-in-expr-op-0x0A": 1,
+     "expr-call-in-expr-other": 1,
+     "expr-label": 2
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B",
+     "op:3A",
+     "op:32",
+     "op:4F",
+     "op:54"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 7,
+    "reader": {
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0x53": 1,
+     "expr-shr-mixed-sign:mid": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0x53": 1,
+     "expr-shr-mixed-sign:mid": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B",
+     "op:3A",
+     "op:32",
+     "op:4F",
+     "op:54",
+     "op:26",
+     "op:29"
+    ],
+    "hatches": []
+   },
+   {
+    "round": 8,
+    "reader": {
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0x35": 1,
+     "expr-shr-mixed-sign:mid": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0x35": 1,
+     "expr-shr-mixed-sign:mid": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B",
+     "op:3A",
+     "op:32",
+     "op:4F",
+     "op:54",
+     "op:26",
+     "op:29",
+     "op:53"
+    ],
+    "hatches": [
+     "expr-shr-mixed-sign"
+    ]
+   },
+   {
+    "round": 9,
+    "reader": {
+     "expr-chain-noform-0x4F": 2,
+     "expr-cmp-lt": 1,
+     "expr-shr-mixed-sign:mid": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 2,
+     "expr-cmp-lt": 1,
+     "expr-shr-mixed-sign:mid": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B",
+     "op:3A",
+     "op:32",
+     "op:4F",
+     "op:54",
+     "op:26",
+     "op:29",
+     "op:53",
+     "op:35"
+    ],
+    "hatches": [
+     "expr-shr-mixed-sign"
+    ]
+   },
+   {
+    "round": 10,
+    "reader": {
+     "expr-brfalse": 1,
+     "expr-chain-noform-0x4F": 2,
+     "expr-shr-mixed-sign:mid": 1
+    },
+    "emit": {
+     "expr-brfalse": 1,
+     "expr-chain-noform-0x4F": 2,
+     "expr-shr-mixed-sign:mid": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B",
+     "op:3A",
+     "op:32",
+     "op:4F",
+     "op:54",
+     "op:26",
+     "op:29",
+     "op:53",
+     "op:35",
+     "op:22"
+    ],
+    "hatches": [
+     "expr-shr-mixed-sign"
+    ]
+   },
+   {
+    "round": 11,
+    "reader": {
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0x99": 1,
+     "expr-shr-mixed-sign:mid": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0x99": 1,
+     "expr-shr-mixed-sign:mid": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B",
+     "op:3A",
+     "op:32",
+     "op:4F",
+     "op:54",
+     "op:26",
+     "op:29",
+     "op:53",
+     "op:35",
+     "op:22",
+     "op:38"
+    ],
+    "hatches": [
+     "expr-shr-mixed-sign"
+    ]
+   },
+   {
+    "round": 12,
+    "reader": {
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0xBD": 1,
+     "expr-shr-mixed-sign:mid": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0xBD": 1,
+     "expr-shr-mixed-sign:mid": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B",
+     "op:3A",
+     "op:32",
+     "op:4F",
+     "op:54",
+     "op:26",
+     "op:29",
+     "op:53",
+     "op:35",
+     "op:22",
+     "op:38",
+     "op:99"
+    ],
+    "hatches": [
+     "expr-shr-mixed-sign"
+    ]
+   },
+   {
+    "round": 13,
+    "reader": {
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0x0F": 1,
+     "expr-shr-mixed-sign:mid": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 2,
+     "expr-op-0x0F": 1,
+     "expr-shr-mixed-sign:mid": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B",
+     "op:3A",
+     "op:32",
+     "op:4F",
+     "op:54",
+     "op:26",
+     "op:29",
+     "op:53",
+     "op:35",
+     "op:22",
+     "op:38",
+     "op:99",
+     "op:BD"
+    ],
+    "hatches": [
+     "expr-shr-mixed-sign"
+    ]
+   },
+   {
+    "round": 14,
+    "reader": {
+     "expr-chain-noform-0x4F": 3,
+     "expr-shr-mixed-sign:mid": 1
+    },
+    "emit": {
+     "expr-chain-noform-0x4F": 3,
+     "expr-shr-mixed-sign:mid": 1
+    },
+    "gate": {},
+    "sinks": [
+     "op:41",
+     "intrinsic",
+     "type",
+     "op:27",
+     "op:28",
+     "op:55",
+     "op:30",
+     "op:4C",
+     "convert",
+     "op:4B",
+     "op:3A",
+     "op:32",
+     "op:4F",
+     "op:54",
+     "op:26",
+     "op:29",
+     "op:53",
+     "op:35",
+     "op:22",
+     "op:38",
+     "op:99",
+     "op:BD",
+     "op:0F"
+    ],
+    "hatches": [
+     "expr-shr-mixed-sign"
+    ]
+   }
+  ],
+  "final_emit": {
+   "expr-chain-noform-0x4F": 3,
+   "expr-shr-mixed-sign:mid": 1
+  },
+  "final_gate": {},
+  "gate_seen": {},
+  "gate_seen_rounds": 0,
+  "verify": {
+   "checked": 17,
+   "inert": [
+    {
+     "kind": "hatch",
+     "token": "expr-shr-mixed-sign",
+     "opened": "expr-shr-mixed-sign:mid",
+     "verdict": "INERT"
+    }
+   ],
+   "load_bearing": 16
+  }
+ }
+]

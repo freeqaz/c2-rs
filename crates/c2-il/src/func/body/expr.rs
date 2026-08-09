@@ -540,6 +540,65 @@ pub(crate) enum SkipForm {
     Tok,
     /// `<op> <TYPE> <varint>`.
     TypeVarint,
+    /// `33 <TYPE> <payload>` — the INT LITERAL, whose escape width is set by the
+    /// TYPE, not fixed at four bytes (lane `w-xtea`, board **#2336**).
+    ///
+    /// [`super::super::readers::read_varint`] already carries the note that a
+    /// tag-`0x88` (8-byte) type escapes to **eight** payload bytes rather than
+    /// four, and says *"those types are rejected upstream, so this reads only the
+    /// 4-byte form; widening to 64-bit literals must fix this too."* Rejected
+    /// upstream is true of the **accepting** parser and false of the **sink**:
+    /// the `type` sink token exists precisely to walk past the operand-TYPE gate,
+    /// so it delivers the walk into a 64-bit literal with a 4-byte reader. The
+    /// cursor then lands four bytes inside the payload, and — on
+    /// `src/system/utl/EncryptXTEA.cpp`, whose `nonce & 0xFFFFFFFF` is
+    /// `33 88 82 23 80 ff ff ff ff 00 00 00 00 0B` — that landing byte is `00`.
+    ///
+    /// **This is why that TU's ladder reports `expr-chain-noform-0x00`, and the
+    /// key is not what it looks like.** Board **#1465** classified the `op:00`
+    /// rung as a rename of an *unpinned opcode*; the byte is not an opcode at
+    /// all, it is literal payload. #1465's conclusion (the rung buys zero decode
+    /// distance) is right and its mechanism is wrong, and the mechanism is the
+    /// part that matters: no entry in this table can ever fix a desync, so the
+    /// rung was unfixable-by-pinning rather than merely unpinned.
+    ///
+    /// ### The measured width table (lane `w-xtea`, `work/w-xtea/probe/`)
+    ///
+    /// Read off `c2rs capture` of purpose-built probes, never inferred:
+    ///
+    /// | TYPE | source literal | payload | width |
+    /// |---|---|---|---|
+    /// | `88 82 23` `unsigned long long` | `0xFFFFFFFFull` | `80 ff ff ff ff 00 00 00 00` | escape + **8** |
+    /// | `88 82 23` | `0x123456789ABCDEF0ull` | `80 f0 de bc 9a 78 56 34 12` | escape + **8** |
+    /// | `88 82 23` | `0x100000000ull` | `80 00 00 00 00 01 00 00 00` | escape + **8** |
+    /// | `88 82 23` | `5ull` | `05` | short form, **1** |
+    /// | `88 81 13` `long long` | `-5ll` | `fb` | short form, **1** |
+    /// | `86 42 75` `unsigned` (CONTROL) | `0xFFFFFFFFu` | `80 ff ff ff ff` | escape + **4** |
+    /// | `86 41 74` `int` (CONTROL) | `33` as a shift count | `21` | short form, **1** |
+    ///
+    /// So the **short form is unchanged at every width** — only the `0x80`
+    /// escape is type-directed, and only that branch is touched here.
+    ///
+    /// ### Two things this deliberately does NOT widen, each with its own cells
+    ///
+    /// * **`2C` (CONVERT) keeps a plain varint.** Measured at three targets —
+    ///   `88 82 23` (`(ull)a`), `86 42 75` (`(unsigned)a`) and `88 85 41`
+    ///   (`(double)a`) — and the trailer is the single byte `00` in all three.
+    ///   An 8-byte *target* does not widen it, so `0x2C` stays [`TypeVarint`].
+    ///   Sweeping it in on the strength of `0x33`'s witnesses would have been a
+    ///   guess dressed as a rule.
+    /// * **FLOATING-POINT literals are a different production entirely** and are
+    ///   not reached by this arm. `1.5` as a `double` is
+    ///   `33 88 8a 41 · 00 00 00 00 00 00 f8 3f · 08 00` and as a `float` is
+    ///   `33 86 4a 40 · 00 00 00 00 00 00 f8 3f · 04 00` — eight RAW IEEE bytes
+    ///   with **no `80` marker**, then a width byte. Their lead payload byte is
+    ///   `00`, so they never enter the escape branch; they desync the short-form
+    ///   branch by nine bytes instead, which is a separate unfixed fact and is
+    ///   left refusing rather than half-handled. That is also why the escape
+    ///   branch below keys on the integer KINDS it has witnesses for and
+    ///   [`Option::None`]s on any other tag-`0x88` kind: an unmeasured sub-shape
+    ///   fails closed instead of inheriting a width it was never shown to have.
+    LitTypeVarint,
     /// `<op> <token> <TYPE>`.
     TokType,
     /// `<op> <TYPE> <token>`.
@@ -651,7 +710,13 @@ pub(crate) fn chain_skip_form(b: u8) -> Option<SkipForm> {
         0x29 | 0x38 | 0x39 | 0x3A => Tok,
         0x2C => TypeVarint,
         0x30 | 0x32 => Type,
-        0x33 => TypeVarint,
+        // The INT LITERAL. **Not `TypeVarint`** — its escape width is set by the
+        // operand TYPE, and reading the 4-byte form over a 64-bit literal walks
+        // the cursor four bytes into the payload. See [`SkipForm::LitTypeVarint`]
+        // for the measured width table, the `2C` control that says the CONVERT
+        // trailer is *not* widened, and what that desync did to
+        // `EncryptXTEA.cpp`'s published ladder.
+        0x33 => LitTypeVarint,
         // A COMPOUND-ASSIGN, `35 <TYPE>` — the same shape as `0F`, pinned by
         // `w-depth` from a capture of `src/system/math/Primes.cpp` at the
         // workload's own flags (`c2rs census … --keep-il`). The loop increment
@@ -1116,6 +1181,16 @@ fn chain_step_with(
         SkipForm::Type => ty(&mut q),
         SkipForm::Tok => tok(&mut q),
         SkipForm::TypeVarint => ty(&mut q) && read_varint(seg, &mut q).is_some(),
+        // `33 <TYPE> <payload>`, payload width TYPE-directed. The type is read
+        // for its TAG and KIND here rather than through `ty`, because `ty`
+        // throws both away and the tag is the whole content of this arm.
+        SkipForm::LitTypeVarint => match read_type(seg, q) {
+            Some((tag, kind, _, w)) => {
+                q += w;
+                lit_payload_step(seg, &mut q, tag, kind)
+            }
+            None => false,
+        },
         SkipForm::TokType => tok(&mut q) && ty(&mut q),
         SkipForm::TypeTok => ty(&mut q) && tok(&mut q),
         SkipForm::Byte1 => {
@@ -1176,6 +1251,57 @@ fn chain_step_with(
         }
     };
     Some(if ok { Ok(q) } else { Err("expr-chain-short") })
+}
+
+/// Step over a `33 <TYPE> <payload>` literal payload, TYPE-directed.
+///
+/// Returns whether the payload had a width this tree can justify; `false` is a
+/// refusal, reported by the caller as `expr-chain-short`, and is the right
+/// answer for every sub-shape the probes in
+/// [`SkipForm::LitTypeVarint`]'s table did not cover.
+///
+/// The rule, in one sentence: **the short form is one byte at every width, and
+/// only the `0x80` escape is type-directed** — four payload bytes normally,
+/// eight for the 8-byte integer types.
+///
+/// **The rule is `docs/IL_CAST_CONVERT.md` §3.2's, not this lane's** — that
+/// section states it outright (*"the escape width is 4 for any type whose tag is
+/// `0x82`/`0x84`/`0x86`, and 8 for tag `0x88`"*) and §5.5 lists *"`read_varint`
+/// must take the operand type, to get the 8-byte escape"* as a known
+/// prerequisite. `w-xtea` did not find this; it found that the sink walks into
+/// it, and re-measured the table as a **known-answer control** before wiring it
+/// (`work/w-xtea/probe/p1.cpp`, `p3.cpp`). The probes reproduce §3.2 row for row
+/// and add one the doc does not have: the **unsigned** 8-byte kind `88 82 23`,
+/// where every 8-byte row in §3.2's table is the signed `88 81 13`.
+///
+/// Keyed on the TAG alone, exactly as the doc states it. `kind` is taken and
+/// deliberately unused for the width so this function cannot drift from §3.2 by
+/// acquiring a second, narrower rule — the tag *is* the width (§`IL_TYPE_TAGS`
+/// encodes size in it), and a kind-conditioned copy would be a second table to
+/// go stale.
+///
+/// **Floating point does not reach here**, and that is measured rather than
+/// assumed: an FP literal is `docs/IL_CAST_CONVERT.md` §3.1's separate
+/// `<8 IEEE bytes> <u16 size>` payload with **no `0x80` marker** — `1.5` is
+/// `33 88 8a 41 · 00 00 00 00 00 00 f8 3f · 08 00` as a `double` and
+/// `33 86 4a 40 · … · 04 00` as a `float`. Its lead byte is `00`, so it takes
+/// the short-form branch and desyncs by nine. That is a **separate, still-open**
+/// defect (§5.5's `read_float_literal`), and it is left refusing rather than
+/// half-handled here.
+fn lit_payload_step(seg: &[u8], q: &mut usize, tag: u8, _kind: u8) -> bool {
+    let Some(&marker) = seg.get(*q) else {
+        return false;
+    };
+    if marker != 0x80 {
+        // The signed short form — one byte at every type width. Witnessed at
+        // `5ull` (`05`), `-5ll` (`fb`) and the `int` control `33` (`21`), and
+        // §3.2's own `return -5LL;` row (`33 88 81 13 fb`) says the same.
+        *q += 1;
+        return true;
+    }
+    let payload = if tag == 0x88 { 8 } else { 4 };
+    *q += 1 + payload;
+    *q <= seg.len()
 }
 
 /// Skip a whole TYPE at `p` for the `type` / `convert` chain-sink tokens.
@@ -1573,6 +1699,16 @@ pub(crate) fn parse_expr_classed(
                 *p += 1;
                 note_int4_signedness(seg, *p, &mut saw_int4_signed, &mut saw_int4_unsigned);
                 note_operand_type(seg, *p, &mut last_type);
+                // **The payload WIDTH is set by the TYPE** (lane `w-xtea`, board
+                // **#2336**), so the tag is read before the type is consumed.
+                // See [`SkipForm::LitTypeVarint`] for the measured table.
+                let lit_ty = read_type(seg, *p).map(|(tag, kind, _, _)| (tag, kind));
+                // Whether the operand-TYPE gate REFUSED and the sink carried the
+                // walk past it. This is the fence on the wide payload reader
+                // below, and it is structural rather than a flag check: the wide
+                // form is reachable on exactly the path where nothing is being
+                // admitted, so no accepted literal can ever take it.
+                let mut ty_sunk = false;
                 match eat_operand_type(seg, p) {
                     Some(c) => {
                         saw_ptr |= c == ValueClass::Ptr4;
@@ -1587,12 +1723,37 @@ pub(crate) fn parse_expr_classed(
                         cstack.push(ValueClass::Int4);
                         cstack_ok = false;
                         saw_chain_sink = true;
+                        ty_sunk = true;
                     }
                     None => return Err(blk_type(seg, *p, start, "expr-lit-type")),
                 }
-                ops.push(IlOp::Lit(
-                    read_varint(seg, p).ok_or(blk(seg, *p, "expr-lit-varint"))?,
-                ));
+                // **This is the site the `noform-0x00` on `EncryptXTEA.cpp` was
+                // raised four bytes downstream of.** `eat_operand_type` admits
+                // nothing eight bytes wide, so on the ACCEPTING path the escape
+                // is always four bytes and [`read_varint`] is exactly right.
+                // Under the `type` sink it is not: the sink's whole job is to
+                // walk past that gate, and it therefore delivers this line a
+                // 64-bit literal whose escape carries eight payload bytes. The
+                // cursor then stops inside the payload and the census reports
+                // whatever byte it landed on as an unmodelled opcode.
+                //
+                // The VALUE is not recovered on the wide path and is not needed:
+                // [`IlOp::Lit`] is an `i32`, a 64-bit literal does not fit it,
+                // and this path is poisoned (`cstack_ok` is already false) so
+                // nothing downstream may act on the operand. Widening the value
+                // model is a separate question from widening the WIDTH, and only
+                // the width is answered here — a step is not an acceptance.
+                if ty_sunk {
+                    let (tag, kind) = lit_ty.unwrap_or((0, 0));
+                    if !lit_payload_step(seg, p, tag, kind) {
+                        return Err(blk(seg, *p, "expr-lit-varint"));
+                    }
+                    ops.push(IlOp::Lit(0));
+                } else {
+                    ops.push(IlOp::Lit(
+                        read_varint(seg, p).ok_or(blk(seg, *p, "expr-lit-varint"))?,
+                    ));
+                }
             }
             0x02 => {
                 *p += 1;
@@ -2567,7 +2728,16 @@ mod tests {
                 0x0F | 0x27 | 0x30 | 0x32 | 0x35 | 0x40 | 0x41 | 0x55 => Some(SkipForm::Type),
                 0x26 | 0x29 | 0x38..=0x3A => Some(SkipForm::Tok),
                 0x28 => Some(SkipForm::Byte2),
-                0x2C | 0x33 | 0x5C | 0x99 => Some(SkipForm::TypeVarint),
+                // **`0x33` MOVED, deliberately, and this is the line lane
+                // `w-xtea` had to edit** — the control worked exactly as its
+                // header says it should. `0x2C`, `0x5C` and `0x99` stay
+                // `TypeVarint` and that is the whole point of leaving them on
+                // this line: the `2C` CONVERT trailer was *measured* at three
+                // targets (`ull`, `unsigned`, `double`) and is a single `00`
+                // byte at all three, so the literal's type-directed escape was
+                // NOT swept into its neighbours. See `SkipForm::LitTypeVarint`.
+                0x33 => Some(SkipForm::LitTypeVarint),
+                0x2C | 0x5C | 0x99 => Some(SkipForm::TypeVarint),
                 0x43 => Some(SkipForm::Escape43),
                 0x4F => Some(SkipForm::Line4F),
                 0x54 => Some(SkipForm::Byte1),
@@ -2816,6 +2986,184 @@ mod tests {
         c.any = true;
         c.ops[op as usize] = true;
         chain_step_with(&c, seg, 0)
+    }
+
+    // ---- the 64-bit INT LITERAL escape (lane `w-xtea`, board #2336) ---------
+    //
+    // Every stream below is TRANSCRIBED from a fresh `c2rs capture` of a probe
+    // in `work/w-xtea/probe/`, never written to suit the reader. The trailing
+    // byte of each is the token the literal is followed by in that capture, and
+    // it is the whole test: a wrong payload width swallows it, so the landing
+    // index is checked against the real successor opcode and not against a
+    // number computed from the same rule under test.
+
+    /// **The defect, stated as a test.** A 64-bit literal read at the 4-byte
+    /// width lands *inside its own payload*, four bytes short — and the byte it
+    /// lands on is `0x00`, which is what `src/system/utl/EncryptXTEA.cpp`'s
+    /// published ladder reported as the unpinned opcode `op:00` (board #1465).
+    ///
+    /// This test is written so it would still be red if the fix were reverted,
+    /// which is the only way the board row above can be checked later.
+    #[test]
+    fn the_64_bit_literal_desync_lands_on_a_byte_that_is_not_an_opcode() {
+        // `nonce & 0xFFFFFFFF` from EncryptXTEA.cpp, verbatim from its capture.
+        const LIT: &[u8] = &[
+            0x33, 0x88, 0x82, 0x23, // 33 <unsigned long long>
+            0x80, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, // escape + 8
+            0x0B, // the `&` that follows it in the source
+        ];
+        // The pinned reading consumes the whole payload and lands on the `&`.
+        assert_eq!(skip_one(LIT, 0x33), Some(Ok(13)));
+        assert_eq!(LIT[13], 0x0B, "the landing byte is the `&`");
+        assert!(chain_skip_form(LIT[13]).is_some(), "and it opens a token");
+        // The 4-byte reading would have stopped at index 9 — inside the payload.
+        assert_eq!(LIT[9], 0x00);
+        assert_eq!(
+            chain_skip_form(0x00),
+            None,
+            "0x00 opens nothing, so the desync surfaces as `noform-0x00` and \
+             looks exactly like an unpinned opcode without being one"
+        );
+    }
+
+    /// The width table of [`SkipForm::LitTypeVarint`], one row per probe cell.
+    /// The 4-byte CONTROLS are in the same table on purpose: a rule that widened
+    /// every literal would pass a table containing only 8-byte rows.
+    #[test]
+    fn the_literal_escape_width_is_type_directed() {
+        // (stream, landing index, the successor byte the capture really has)
+        let cases: &[(&[u8], usize, u8)] = &[
+            // --- 8-byte INTEGER types: escape + 8 -----------------------------
+            // `a & 0x123456789ABCDEF0ull`
+            (
+                &[
+                    0x33, 0x88, 0x82, 0x23, 0x80, 0xF0, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34, 0x12,
+                    0x0B,
+                ],
+                13,
+                0x0B,
+            ),
+            // `a + 0x100000000ull` — the successor is `02`, ADD.
+            (
+                &[
+                    0x33, 0x88, 0x82, 0x23, 0x80, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+                    0x02,
+                ],
+                13,
+                0x02,
+            ),
+            // `a > 0xFFFFFFFFull` — the successor is `24`, CMP-GT. Same payload
+            // bytes as the `&` cell above, different operator: the width cannot
+            // have been read off the neighbour.
+            (
+                &[
+                    0x33, 0x88, 0x82, 0x23, 0x80, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+                    0x24,
+                ],
+                13,
+                0x24,
+            ),
+            // --- the SHORT form is one byte at EVERY width --------------------
+            // `a & 5ull` — 8-byte TYPE, one-byte payload.
+            (&[0x33, 0x88, 0x82, 0x23, 0x05, 0x0B], 5, 0x0B),
+            // `a + (-5ll)` — signed 8-byte, negative short form `fb`.
+            (&[0x33, 0x88, 0x81, 0x13, 0xFB, 0x02], 5, 0x02),
+            // `a >> 33` — the shift COUNT is a 4-byte int literal, short form.
+            (&[0x33, 0x86, 0x41, 0x74, 0x21, 0x0A], 5, 0x0A),
+            // --- 4-byte CONTROL: the escape stays FOUR bytes -------------------
+            // `a & 0xFFFFFFFFu` at `unsigned`. Byte-for-byte the same escape
+            // marker and the same `ff ff ff ff` as the 8-byte cells, and it must
+            // land four bytes earlier.
+            (&[0x33, 0x86, 0x42, 0x75, 0x80, 0xFF, 0xFF, 0xFF, 0xFF, 0x0B], 9, 0x0B),
+        ];
+        for (seg, land, next) in cases {
+            assert_eq!(skip_one(seg, 0x33), Some(Ok(*land)), "stream {seg:02X?}");
+            assert_eq!(seg[*land], *next, "landing byte of {seg:02X?}");
+        }
+    }
+
+    /// **The neighbour that was measured and NOT widened.** `2C`'s trailer is a
+    /// single `00` at an 8-byte target, a 4-byte target and a `double` target
+    /// alike, so the CONVERT keeps a plain varint. Without this cell the `0x33`
+    /// widening is one edit away from a guess about `0x2C`.
+    #[test]
+    fn the_convert_trailer_is_not_widened_by_an_8_byte_target() {
+        // `(ull)a`, `(unsigned)a`, `(double)a` — the byte after the trailer is
+        // `41`, the result annotation, in all three captures.
+        for ty in [
+            [0x88u8, 0x82, 0x23], // unsigned long long
+            [0x86, 0x42, 0x75],   // unsigned
+            [0x88, 0x85, 0x41],   // double
+        ] {
+            let seg = [0x2C, ty[0], ty[1], ty[2], 0x00, 0x41];
+            assert_eq!(skip_one(&seg, 0x2C), Some(Ok(5)), "convert {ty:02X?}");
+            assert_eq!(seg[5], 0x41);
+        }
+    }
+
+    /// `docs/IL_CAST_CONVERT.md` §3.2's own table, transcribed from the DOC and
+    /// not from a capture — a **known-answer control** on the width rule. The
+    /// lane's probes and the doc were written from different captures years
+    /// apart in project time; if they disagreed, one of them is wrong and this
+    /// is where that shows up.
+    #[test]
+    fn the_documented_cast_convert_table_still_holds() {
+        // Every escape row of §3.2, with a `4B` (statement end) appended so the
+        // landing index is checked against a real successor byte.
+        let rows: &[(&[u8], usize)] = &[
+            // `return 128;`               int, escape, 4
+            (&[0x33, 0x86, 0x41, 0x74, 0x80, 0x80, 0x00, 0x00, 0x00, 0x4B], 9),
+            // `return (char)-128;`        1-byte type, escape, still 4
+            (&[0x33, 0x82, 0x11, 0x70, 0x80, 0x80, 0xFF, 0xFF, 0xFF, 0x4B], 9),
+            // `return (short)300;`        2-byte type, escape, still 4
+            (&[0x33, 0x84, 0x21, 0x11, 0x80, 0x2C, 0x01, 0x00, 0x00, 0x4B], 9),
+            // `return (long long)-128;`   tag 88, escape, 8
+            (
+                &[
+                    0x33, 0x88, 0x81, 0x13, 0x80, 0x80, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                    0x4B,
+                ],
+                13,
+            ),
+            // `return 0x1122334455667788LL;`
+            (
+                &[
+                    0x33, 0x88, 0x81, 0x13, 0x80, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11,
+                    0x4B,
+                ],
+                13,
+            ),
+            // The short-form rows, including §3.2's `-5LL` at an 8-byte type.
+            (&[0x33, 0x86, 0x41, 0x74, 0x7F, 0x4B], 5), // `return 127;`
+            (&[0x33, 0x86, 0x41, 0x74, 0xFB, 0x4B], 5), // `return -5;`
+            (&[0x33, 0x88, 0x81, 0x13, 0xFB, 0x4B], 5), // `return -5LL;`
+            (&[0x33, 0x82, 0x12, 0x30, 0x01, 0x4B], 5), // `return true;`
+        ];
+        for (seg, land) in rows {
+            assert_eq!(skip_one(seg, 0x33), Some(Ok(*land)), "row {seg:02X?}");
+            assert_eq!(seg[*land], 0x4B, "landing byte of {seg:02X?}");
+        }
+    }
+
+    /// **FLOATING-POINT literals are NOT handled**, and this test exists to keep
+    /// that honest rather than to claim it. `docs/IL_CAST_CONVERT.md` §3.1 gives
+    /// them a different payload — `<8 IEEE bytes> <u16 size>`, no `0x80` marker —
+    /// and §5.5 lists a `read_float_literal` as still owed. The lead byte is
+    /// `00`, so an FP literal takes the SHORT-FORM branch, steps one byte, and is
+    /// wrong by nine.
+    ///
+    /// Recorded so nobody reads lane `w-xtea` as having closed §3.1 as well.
+    #[test]
+    fn a_float_literal_still_desyncs_and_this_lane_did_not_fix_it() {
+        // `1.5` as a double, verbatim from `work/w-xtea/probe/p3.cpp`'s capture.
+        let dbl = [0x33, 0x88, 0x8A, 0x41, 0x00, 0, 0, 0, 0, 0, 0xF8, 0x3F, 0x08, 0x00];
+        assert_eq!(skip_one(&dbl, 0x33), Some(Ok(5)), "steps ONE payload byte");
+        assert_ne!(dbl.len(), 5, "and the other nine are unaccounted for");
+        // The same value as a `float` is the same eight IEEE bytes with a `04`
+        // size word — so the size field, not the type tag, carries the width,
+        // which is why §3.1 needs its own reader and not a wider escape.
+        let flt = [0x33, 0x86, 0x4A, 0x40, 0x00, 0, 0, 0, 0, 0, 0xF8, 0x3F, 0x04, 0x00];
+        assert_eq!(skip_one(&flt, 0x33), Some(Ok(5)));
     }
 
     #[test]
