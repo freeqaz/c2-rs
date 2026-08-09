@@ -1016,6 +1016,33 @@ impl PortC2 {
             });
         }
 
+        // **W-FENCE2 — the PACKED layout has no measured shape for an intra-TU
+        // call, so it refuses one.**
+        //
+        // `IlBundle::functions` stopped refusing every TU that defines one of its
+        // own callees, and the `/Gy` writer learned to resolve such a `REL24`
+        // against the callee's own defined symbol (`coff::writer`, the fourth
+        // table). Packed, the callee is not a section of its own but an offset
+        // inside ONE shared `.text`, and nothing measures whether c2 keeps a
+        // relocation at all there or resolves the branch displacement itself.
+        //
+        // Reachable, and not hypothetically: `#pragma optimize("s", on)` under
+        // `/Ox` produces the `/O1` optimization word the parser gates on while
+        // the FLAGS still select this writer (`docs/OPT_MODE.md` §2). Refused
+        // rather than guessed — the direction `CLAUDE.md` ranks above every gap.
+        if let Some(f) = placed
+            .iter()
+            .find(|f| f.calls.iter().any(|c| placed.iter().any(|g| g.name == c.callee)))
+        {
+            return Err(BackendError::NotImplemented(format!(
+                "{}: an intra-TU call in a PACKED obj — the callee is defined in \
+                 this TU and shares its `.text`, and no capture measures whether \
+                 c2 keeps a REL24 there. The `/Gy` layout is the one this class \
+                 is graded on. See c2_core::PortC2::build.",
+                f.name
+            )));
+        }
+
         let bytes = coff::emit_obj(obj_name, &placed, &text, label_counter);
         Ok(ObjImage::new(bytes))
     }
