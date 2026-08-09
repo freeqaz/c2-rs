@@ -326,12 +326,53 @@ fn formals_agree(seg: &[u8], blk: &SyBlock) -> bool {
 ///   (`3A t1 54 04 29 t2 54 03 4F 01 23 54 02 29 t1`), and taking the first site
 ///   picks `t2`.
 ///
-/// `None` for a segment with no return plumbing at all — measured 3 times in 871
-/// TUs: two `.sy`-less-looking stubs whose body is `4C 4F 11 53 54 02 29 <tok>` with
-/// no `3A`, and one whose body ends `4C 4B 4F 01 06 5E 01 21 4B 54 02 29 <tok>`
-/// likewise. Those segments simply do not bind; nothing is guessed for them.
+/// # The `3A`-less arm — a function that never assigns its exit label
+///
+/// The rule above used to end here, and it returned `None` for a segment with **no
+/// `3A` at all**: two `.sy`-less-looking stubs whose body is
+/// `4C 4F 11 53 54 02 29 <tok>`, and one whose body ends
+/// `4C 4B 4F 01 06 5E 01 21 4B 54 02 29 <tok>`. That third one is
+/// **`src/Main.cpp`'s `main`** — the highest-worth frontier row on `w-band`'s own
+/// ranking (#2246) — and the refusal it caused is what
+/// `WB_EH_FINDINGS.md` §6 files as **R1, `param-width-undetermined:mid`, "`c2-il`
+/// formals header"**. The key is right and the location is not: the `.sy` file
+/// parses to EOF, contains exactly one block, and that block declares `argc` and
+/// `argv` at four bytes each. Nothing about a formals *header* fails. What fails is
+/// this function, and the whole file's binding is withheld downstream of it.
+///
+/// MEASURED, five cells at the workload's own flags, all differing in one clause:
+///
+/// | cell | `3A` | why |
+/// |---|---|---|
+/// | `int w(int a,int b){ sink(b,a); }` | **absent** | non-void, falls off the end |
+/// | `int w(int a,int b){ sink(b,a); return a; }` | present | the `return` assigns it |
+/// | `int w(int a,int b){ }` | **absent** | non-void, empty |
+/// | `void w(int a,int b){ sink(b,a); }` | present | a `void` function still assigns |
+/// | `int w(int,char**){ S s(..); s.Run(); }` | **absent** | `Main.cpp`'s own shape |
+///
+/// So the discriminator is neither `main` nor EH: it is **a non-`void` function
+/// with no `return` statement**, for which the front end emits no exit-label
+/// assignment because there is no value to assign. `void` functions assign it
+/// anyway.
+///
+/// The corroboration is a **disambiguator**, and when the segment holds no `3A`
+/// byte anywhere there is nothing to disambiguate — every rival reading of the
+/// bytes it exists to reject requires a `3A` to be misread, and there is none. So
+/// the fallback is gated on the *absence of the byte in the whole segment*, not on
+/// "the corroboration failed": a segment that has a `3A` somewhere and still cannot
+/// corroborate is exactly the ambiguous case, and it keeps failing closed.
+///
+/// The binding does **not** rest on this arm alone. A token it returns must still
+/// name a block whose header token is unique in the file, must bind in strictly
+/// increasing order, and must pass [`formals_agree`] — an independent content
+/// channel that a wrong token has to satisfy by coincidence. That check is what
+/// caught the positional binding being wrong 343,315 times while every gate in this
+/// repo stayed green, and it is live on this arm too.
 fn ex_exit_label(seg: &[u8]) -> Option<u32> {
     let mut found = None;
+    // The last anchored `54 02 [4F 01 <line>]* 29 <tok>` site regardless of
+    // corroboration. Only ever consulted when the segment contains no `3A`.
+    let mut uncorroborated = None;
     let mut i = 0usize;
     while i + BODY_SCOPE_CLOSE.len() <= seg.len() {
         if seg[i..i + BODY_SCOPE_CLOSE.len()] != BODY_SCOPE_CLOSE {
@@ -342,6 +383,7 @@ fn ex_exit_label(seg: &[u8]) -> Option<u32> {
         eat_opt_stmt_marker(seg, &mut p);
         if seg.get(p) == Some(&EX_RETURN) {
             if let Some((tok, _)) = read_token_var(seg, p + 1) {
+                uncorroborated = Some(tok);
                 let (bytes, w) = token_bytes(tok);
                 let mut pat = [EX_ASSIGN, 0, 0, 0, 0];
                 pat[1..1 + w].copy_from_slice(&bytes[..w]);
@@ -352,7 +394,7 @@ fn ex_exit_label(seg: &[u8]) -> Option<u32> {
         }
         i += 1;
     }
-    found
+    found.or_else(|| if seg.contains(&EX_ASSIGN) { None } else { uncorroborated })
 }
 
 /// A token's canonical byte encoding, the inverse of [`read_token_var`]: two bytes
