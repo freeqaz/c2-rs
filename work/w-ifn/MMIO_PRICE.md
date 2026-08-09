@@ -132,7 +132,7 @@ counts encoders; it does not judge.
 
 ```
 mmioGetInfo: 21 words, 13 distinct mnemonics   MISSING ENCODERS: 0
-mmioSetInfo: 27 words, 15 distinct mnemonics   MISSING ENCODERS: 0
+mmioSetInfo: 27 words, 16 distinct mnemonics   MISSING ENCODERS: 0
 mmioClose:   31 words, 17 distinct mnemonics   MISSING ENCODERS: 1  ['bctrl']
 ```
 
