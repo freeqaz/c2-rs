@@ -1,12 +1,12 @@
 use super::body::{
     self, bind_refusal_key, call_tokens, parse_segment_detail, BodyShape, Complete, DtorSubObject,
-    CALLEE_UNRESOLVED_DTOR,
+    CALLEE_DEFINED_IN_TU, CALLEE_UNRESOLVED_DTOR,
     CALLEE_UNRESOLVED_FRAMED, CALLEE_UNRESOLVED_SEQ, CALLEE_UNRESOLVED_TAIL,
     STATIC_SCAN_LOOP_OBJECT, STORE_RUN_BIND_NO_CARRIER, STORE_RUN_CALL_NO_CARRIER,
     DATA_SYM_LINKAGE, DATA_SYM_UNRESOLVED, OPT_MODE, PTR_WALK_CHAIN_LOOP_NOT_O1,
     PTR_WALK_LOOP_NOT_O1,
 };
-use super::bind::{Bindings, EmitBinding};
+use super::bind::{callee_defined_here, defined_name_set, Bindings, EmitBinding};
 use super::bundle::shape_to_function;
 use super::bundle::split_function_bodies_at;
 use super::bundle::{opt_word_at, opt_word_mode};
@@ -479,6 +479,13 @@ impl IlBundle {
         let resolve_data_def =
             |tok: u32| -> Option<crate::func::IlDataDef> { bind.resolve_data_def(tok) };
         let src = bind.src.clone();
+        // **W-INLFENCE** — the names this TU DEFINES, built once per bundle for
+        // the post-parse gate (c) below. Built from `.gl` directly and not from
+        // `bind.names()`, because the census's binding is
+        // [`Bindings::positional`] and its names are **all** mangled names —
+        // callees included — so testing a callee against them would refuse every
+        // call in the workload. See [`defined_name_set`].
+        let defined = &defined_name_set(gl);
         Some(
             segs.iter()
                 .enumerate()
@@ -972,6 +979,30 @@ impl IlBundle {
                                         aux: opt_word.unwrap_or(0) as u64,
                                         ..Block::at_end(seg, PTR_WALK_CHAIN_LOOP_NOT_O1)
                                     })
+                                }
+                                // **(c) W-INLFENCE — the callee this TU also
+                                // DEFINES.** The body parses, the symbol
+                                // resolves, the mode is one the port emits
+                                // under, and c2 may still **inline** the callee
+                                // — in which case the port's `bl` is a wrong
+                                // body and not a gap. `IlBundle::functions` has
+                                // refused this wholesale since the MVP; this is
+                                // the same predicate
+                                // ([`super::bind::callee_defined_here`]) asked
+                                // per function, so the census stops claiming
+                                // bodies the gate refuses.
+                                //
+                                // LAST of the post-parse gates, deliberately:
+                                // see [`CALLEE_DEFINED_IN_TU`]. Silent on a TU
+                                // whose defined-name walk stopped, exactly as
+                                // [`super::bind::Bindings::is_varargs`] is
+                                // silent when the pairing is not meaningful —
+                                // the gate refuses such a TU for want of names
+                                // before this could matter, and the residue is
+                                // sized in the rung rather than folded in.
+                                Some(f) if callee_defined_here(&f, defined).is_some() => {
+                                    let _ = f;
+                                    FnVerdict::Blocked(Block::at_end(seg, CALLEE_DEFINED_IN_TU))
                                 }
                                 Some(f) => {
                                     func = Ok(f);

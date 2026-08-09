@@ -698,6 +698,70 @@ pub(crate) fn mangled_is_varargs(name: &str) -> bool {
     name.ends_with("ZZ")
 }
 
+/// **W-INLFENCE — the callee this TU also DEFINES, or `None`.**
+///
+/// The one predicate behind the port's inline fence, asked by
+/// [`crate::IlBundle::functions`] (as a whole-TU refusal), by the census (as a
+/// per-function one) and by [`super::diag`]'s re-ask, so the three cannot
+/// disagree about what the port may emit.
+///
+/// # What it is a fence against
+///
+/// **c2 inlines**, and the port does not. `int f(int); int use(int a){return
+/// f(a);} int f(int a){return a+1;}` gets a `.text` of *two* copies of `addi
+/// r3,r3,1 ; blr` and **no relocations** — c2 cloned `f` into `use` rather than
+/// branching to it, and the port's `b ?f` against an undefined external
+/// mismatched at file offset 8. Lane `w-fltret` measured the same mechanism on
+/// the workload at scale (`docs/rungs/2026-08-09-w-fltret.md` §6, board #2082):
+/// `?SplitMs@Timer@@QAAMXZ`'s reference body is **31 words** where the port
+/// emits 13, because `Timer::Split()` and `Timer::Ms()` are `inline` members
+/// defined in the same header, and **not one of that class's 444 functions is
+/// byte-exact**.
+///
+/// # Why the test is DEFINED-HERE and not a size or a ceiling
+///
+/// `docs/whitebox/WB_INLINE_FINDINGS.md` measures c2's decision on 320 obj
+/// cells and its §7 says of the accept side: *"The accept side is not
+/// offered"* — a mis-predicted accept is a wrong obj, and none of the measured
+/// boundaries is a number (they are brackets: `(300,308]`, `(212,252]`,
+/// `(56,80]` for a loop-bodied callee). **Nothing from that document is copied
+/// here.** What this predicate uses is the one categorical fact that needs no
+/// constant at all: *c2 cannot inline a body it does not have.* Where the
+/// callee is a true external the port keeps its own call and is byte-exact —
+/// 5,172 `tail` and 1,238 `seq` emitted functions are graded byte-exact against
+/// real c2 at base, every one of them a call this fence must not take.
+///
+/// # The direction it fails in
+///
+/// `defined` is the set of names this TU is *known* to define. A name **in** it
+/// is certainly defined here and the function is refused. A name **absent** may
+/// still be defined here on a TU whose `.gl` records the walk could not frame —
+/// [`super::gl::gl_defined_names`] yields an empty pair when it stops. That
+/// residue is fail-OPEN in the census and fail-CLOSED in the gate, which
+/// refuses such a TU for want of names before this is ever asked; it is sized
+/// rather than hidden (`docs/rungs/2026-08-09-w-inlfence.md` §5).
+///
+/// Returns the offending name so a caller can report *which* callee, rather
+/// than a bare bool that makes every row look alike.
+pub(crate) fn callee_defined_here<'a>(
+    f: &'a crate::func::IlFunction,
+    defined: &std::collections::BTreeSet<String>,
+) -> Option<&'a str> {
+    f.callees().find(|c| defined.contains(*c))
+}
+
+/// The set [`callee_defined_here`] tests against, for a caller that has only
+/// `.gl` — the census, whose [`Bindings::positional`] names are all mangled
+/// names and not the defined ones.
+///
+/// Every member is a name a `.gl` record with a **body-start offset** claimed,
+/// i.e. a function this TU defines. The set is a subset of the truth and never
+/// a superset, which is what makes a membership test sound in the refusing
+/// direction on a TU that does not fully bind.
+pub(crate) fn defined_name_set(gl: &[u8]) -> std::collections::BTreeSet<String> {
+    gl_defined_names(gl).0.into_iter().map(|(_, n)| n).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1038,6 +1038,25 @@ pub(crate) const PTR_WALK_CHAIN_LOOP_NOT_O1: &str = "ptr-walk-chain-loop-not-o1"
 /// `.gl` symbol. See the census for why this is a refusal and not a fallback.
 pub(crate) const CALLEE_UNRESOLVED_TAIL: &str = "callee-unresolved-tail-call";
 
+/// **W-INLFENCE — the body parses in class, its callee resolves, and the TU
+/// DEFINES that callee, so c2 may inline it and the port may not emit.**
+///
+/// Its own key and not one of the `callee-unresolved-*` family, for the reason
+/// [`STORE_RUN_CALL_NO_CARRIER`] has one: nothing about the *symbol* is
+/// missing — it resolves perfectly. What is wrong is that the port's `bl` is a
+/// claim about c2's **inliner**, and lane `w-fltret` measured that claim
+/// failing on 444 of 444 functions (board #2082). `IlBundle::functions` has
+/// refused this wholesale since the MVP; this key is the census asking the same
+/// question per function, so the emitted census stops claiming bodies the port
+/// cannot produce.
+///
+/// Raised **after** the body parse and the mode gates, and only for an
+/// otherwise-in-class function, for the reason [`OPT_MODE`] is: gating it up
+/// front would replace every real function's actual blocking feature with this
+/// one and destroy the histogram that ranks the roadmap. Applied last, it
+/// removes exactly the over-claim and nothing else.
+pub(crate) const CALLEE_DEFINED_IN_TU: &str = "callee-defined-in-tu";
+
 /// **F3's residue key** — the body is a store run followed by a call, it parses
 /// **to the end of the segment**, and the only thing left wrong with it is that
 /// `IlFunction` has no carrier for the composition.
