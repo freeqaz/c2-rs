@@ -1,5 +1,5 @@
 #!/bin/sh
-# w-inlfence — make the committable extracts of the scan logs.
+# w-inlfence2 — make the committable extracts of the scan logs.
 #
 # The full `*.fnd.out` are 152 KB each and every one embeds the worktree's own
 # absolute path (the `--cwd` and `--list` arguments the run was invoked with).

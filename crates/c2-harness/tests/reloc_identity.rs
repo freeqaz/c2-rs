@@ -19,18 +19,18 @@
 //!
 //! | symbol | port emits | c2 emits | must read |
 //! |---|---|---|---|
-//! | `?f@@YAXXZ` | *(refused)* | `b ?ext` | **`Refused`** since 2026-08-09 — the inline fence; it read `RelocDiffers` between `w-relo` and `w-inlfence`, and `Exact` before both |
+//! | `?f@@YAXXZ` | *(refused)* | `b ?ext` | **`Refused`** since 2026-08-09 — the inline fence; it read `RelocDiffers` between `w-relo` and `w-inlfence2`, and `Exact` before both |
 //! | `?g@@YAXXZ` | `b ?ext` | `b ?ext` | **`Exact`** — the inverse control |
 //! | `?anchor@@YAXXZ` | `b ?ext_anchor` | `b ?ext_anchor` | **`Exact`** — the anchor |
 //!
-//! # 2026-08-09, lane `w-inlfence` — the known answer became a REPAIR
+//! # 2026-08-09, lane `w-inlfence2` — the known answer became a REPAIR
 //!
 //! `?f`'s `RelocDiffers` was a **measured wrong emit**: the port claimed a body
 //! and the relocation in it named the wrong function.
 //! `c2_core::comdat::fenced_inlined_callee` now proves c2 expands the same-TU
 //! 4-byte `?g` and refuses the caller instead. `s12` is the canonical reproducer
 //! of that family — **858 of the workload's 861 `fnbyte-reloc-differs` bodies
-//! relocate against a name their own TU defines** (`work/w-inlfence/crossing.md`
+//! relocate against a name their own TU defines** (`work/w-inlfence2/crossing.md`
 //! §1), and the fence removes 329 of them.
 //!
 //! Refused and RelocDiffers score the same **zero** under FBM, so no credit
@@ -145,14 +145,14 @@ fn find<'a>(
 /// as this instrument existed; `w-relo` widened FBM to grade the relocation and
 /// this cell then read **`RelocDiffers(Target)`** — a *measured wrong emit*.
 ///
-/// # 2026-08-09, lane `w-inlfence` — it reads `Refused` now, and that is the repair
+/// # 2026-08-09, lane `w-inlfence2` — it reads `Refused` now, and that is the repair
 ///
 /// `?g` is defined in this TU and its lowered body is 4 bytes, so
 /// `c2_core::comdat::fenced_inlined_callee` proves c2 expands it and refuses the
 /// caller instead of emitting a branch c2 does not emit. **This is the whole
 /// point of the fence**: `s12` is the canonical reproducer of the family, and on
 /// the 878-TU workload 858 of the 861 `fnbyte-reloc-differs` bodies are the same
-/// shape (`work/w-inlfence/crossing.md` §1).
+/// shape (`work/w-inlfence2/crossing.md` §1).
 ///
 /// A `Refused` and a `RelocDiffers` score the **same zero** under FBM — no
 /// credit moves. What moves is the truth of the claim: the port no longer says
@@ -231,7 +231,7 @@ fn a_function_whose_bytes_and_relocations_are_both_c2s_stays_exact() {
 /// The row has read three different things and each was true at the time:
 /// `exact 3 · differs 0` before `w-relo` (the blind byte compare),
 /// `bytes-exact 3 · exact 2 · reloc-differs 1` after it (the wrong emit, seen),
-/// and `bytes-exact 2 · exact 2 · refused 1` after `w-inlfence` (the wrong emit,
+/// and `bytes-exact 2 · exact 2 · refused 1` after `w-inlfence2` (the wrong emit,
 /// **removed**). The whole sequence is kept in the assertion message because a
 /// count with no history cannot say which of those three a regression is.
 #[test]
@@ -264,7 +264,7 @@ fn the_cells_population_is_three_functions_one_of_which_disagrees() {
          `exact 3 · differs 0` before `w-relo` (the blind byte compare), \
          `bytes-exact 3 · exact 2 · reloc-differs 1` after it (the wrong emit, \
          SEEN), and `bytes-exact 2 · exact 2 · reloc-differs 0 · refused 1` \
-         after `w-inlfence` (the wrong emit, REMOVED — `?f` no longer has bytes \
+         after `w-inlfence2` (the wrong emit, REMOVED — `?f` no longer has bytes \
          at all, which is why `bytes-exact` fell to 2). Got: {rows:?}"
     );
 }

@@ -1,8 +1,8 @@
 
-### 10.29 w-inlfence — the port REFUSES a body that emits a call c2 replaces with the callee's body: 1,004 wrong bodies removed for ZERO byte-exact functions lost, and the 444 are untouched for a reason nobody predicted (2026-08-09)
+### 10.29 w-inlfence2 — the port REFUSES a body that emits a call c2 replaces with the callee's body: 1,004 wrong bodies removed for ZERO byte-exact functions lost, and the 444 are untouched for a reason nobody predicted (2026-08-09)
 
-Lane `w-inlfence`, branch `wt-w-inlfence`, off master `0faa855a`
-([`rungs/2026-08-09-w-inlfence.md`](rungs/2026-08-09-w-inlfence.md), board
+Lane `w-inlfence2`, branch `wt-w-inlfence2`, off master `0faa855a`
+([`rungs/2026-08-09-w-inlfence2.md`](rungs/2026-08-09-w-inlfence2.md), board
 **#2150**–**#2162**). Commissioned off §10.28/§10.28.1's finding — the port
 emits the calls the IL contains where c2 has inlined both callees — with the
 instruction to *make the port REFUSE what c2 inlines, rather than emit a call c2
@@ -56,7 +56,7 @@ Board **#2153**.
 
 #### The 444 are untouched, and the reason is not the expected one
 
-`work/w-inlfence/reach.py` and `r2arm.py`, as set intersections per `(TU, sym)`
+`work/w-inlfence2/reach.py` and `r2arm.py`, as set intersections per `(TU, sym)`
 over three 878-TU scans (`05d743f7`, `0faa855a`, this tip):
 
 ```text
@@ -100,7 +100,7 @@ no fit.
 3. **The 444 were never a live wrong-obj liability** (**#2159**), and this is
    the one inherited claim that did not survive re-derivation.
    `IlBundle::functions()` has refused any TU defining one of its own callees
-   since long before `w-fltret`. `work/w-inlfence/probe/M3.cpp` is the
+   since long before `w-fltret`. `work/w-inlfence2/probe/M3.cpp` is the
    reduction: the census reads **`4/4 functions in class`** and the differential
    reads **`Port=NotImplemented`** for the same TU. The 444 were a **census and
    FBM** liability — a different repair, and a smaller one.
@@ -129,4 +129,4 @@ been on this board since the MVP, and the same defect is live in `int-tail-call`
 each and leave 1,411 identical functions behind it. **The fence is the general
 repair and the revert is not**; the decision on the class is the coordinator's.
 
-[`rungs/2026-08-09-w-inlfence.md`](rungs/2026-08-09-w-inlfence.md).
+[`rungs/2026-08-09-w-inlfence2.md`](rungs/2026-08-09-w-inlfence2.md).

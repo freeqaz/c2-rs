@@ -538,7 +538,7 @@ pub struct FnByteMatch {
     ///
     /// **Not a target of 0 as a total** — see
     /// [`FnByteMatch::census_disagree_expressible`], which is. Lane
-    /// `w-inlfence`.
+    /// `w-inlfence2`.
     pub census_disagree: usize,
     /// The half of [`FnByteMatch::census_disagree`] board #139's rule reaches:
     /// every stage the IL parser **could** have refused. **Target 0.**

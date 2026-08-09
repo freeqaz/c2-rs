@@ -1430,7 +1430,7 @@ impl GapReport {
             m.push(("fnbyte-unbound", f.unbound.to_string()));
             m.push(("fnbyte-partition-broken", f.partition_broken.to_string()));
             m.push(("fnbyte-census-disagree", f.census_disagree.to_string()));
-            // **The split** (lane `w-inlfence`). `-expressible` is the half
+            // **The split** (lane `w-inlfence2`). `-expressible` is the half
             // board #139's rule reaches and its target is **0**; the per-stage
             // rows are the post-lowering stages no parser clause can express,
             // and they are the measured size of `emit-in-class`'s over-claim.

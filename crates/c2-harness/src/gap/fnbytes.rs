@@ -314,7 +314,7 @@ pub enum Decline {
     /// it must be asked after mechanisms **E** (`elide`, the call is dropped)
     /// and **I** (`splice`, the `REL24` becomes the callee's own) have had their
     /// say — a parser clause fires on both of those and un-ships them, which is
-    /// the 1,074-byte-exact price `work/w-inlfence/crossing.md` measures.
+    /// the 1,074-byte-exact price `work/w-inlfence2/crossing.md` measures.
     ///
     /// Functions landing here were `fnbyte-differs` before the fence existed:
     /// the port lowered them and the judge said the bytes were wrong. They are
@@ -1502,7 +1502,7 @@ pub(super) fn measure(
             // lives in the parser, so a zero there is an ALARM that did not
             // fire, not a measurement that the codegen distance is zero.
             //
-            // **It stopped being zero on 2026-08-09** (lane `w-inlfence`) and
+            // **It stopped being zero on 2026-08-09** (lane `w-inlfence2`) and
             // the reason is not a regression: `Decline::InlinedCallee` refuses a
             // composed body that emits a `bl` to a same-TU callee c2 expands.
             // Every one of those was `fnbyte-differs` before — LOWERED AND
@@ -1930,7 +1930,7 @@ pub(super) fn measure(
         //
         // # It is DECOMPOSED BY STAGE, and the target is 0 on one part only
         //
-        // Lane `w-inlfence`. Board #139's rule — *every emitter refusal must
+        // Lane `w-inlfence2`. Board #139's rule — *every emitter refusal must
         // have a parser refusal or the census over-claims* — is the reason the
         // total's target was 0, and it holds for every stage the parser **can**
         // express. Three stages exist that it cannot, because they are not a

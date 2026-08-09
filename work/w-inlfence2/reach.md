@@ -1,4 +1,4 @@
-# w-inlfence §2 — what the fence reaches, and the 444 it does NOT
+# w-inlfence2 §2 — what the fence reaches, and the 444 it does NOT
 
 All figures script-counted. Three 878-TU scans, each with
 `--fnbyte-diff-jsonl` (one row per `fnbyte-differs` FUNCTION, keyed
@@ -10,7 +10,7 @@ All figures script-counted. Three 878-TU scans, each with
 | `base` | `0faa855a` — master, w-fltret in | **36,228** | **2,555** | 861 | **39,644** |
 | `tip2` | this lane | **36,228** | **1,880** | **532** | 39,644 |
 
-`work/w-inlfence/reach.py`, on those three:
+`work/w-inlfence2/reach.py`, on those three:
 
 ```
 differs  pre(05d743f7) 2111   base(0faa855a) 2555   tip 1880
@@ -29,8 +29,8 @@ of the BASE 2,111 (2111), the fence removes    : 675  (32.0%)
 
 ## 1. Why — and it is a SET, not an argument from two totals
 
-`work/w-inlfence/r2arm.py` crosses the 444 with the fence arm measured at the
-**fenced** tip (`work/w-inlfence/witness.fnd.err`, one line per emitted
+`work/w-inlfence2/r2arm.py` crosses the 444 with the fence arm measured at the
+**fenced** tip (`work/w-inlfence2/witness.fnd.err`, one line per emitted
 function):
 
 ```
@@ -56,7 +56,7 @@ lowering the callee, and the callee is exactly the thing it cannot lower.
 ## 2. The coarse alternative, priced at the FUNCTION level
 
 *"Refuse whenever the composed body relocates against a name this TU defines"*,
-measured at the fenced tip (`xf-*` keys, `work/w-inlfence/witness.fnd.out`):
+measured at the fenced tip (`xf-*` keys, `work/w-inlfence2/witness.fnd.out`):
 
 | | it would additionally REMOVE | it would COST |
 |---|--:|--:|

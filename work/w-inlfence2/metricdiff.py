@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""w-inlfence — base vs tip on EVERY published `gap-metric` key.
+"""w-inlfence2 — base vs tip on EVERY published `gap-metric` key.
 
 Verdict neutrality level 2: the commission requires *all* gap-metric keys
 accounted, not the four the lane cares about. This prints the whole key set,
 partitioned into MOVED / UNCHANGED / BASE-ONLY / TIP-ONLY, so a key that
 appeared or vanished cannot hide inside "unchanged".
 
-Usage: python3 work/w-inlfence/metricdiff.py <base.fnd.out> <tip.fnd.out>
+Usage: python3 work/w-inlfence2/metricdiff.py <base.fnd.out> <tip.fnd.out>
 """
 import sys
 

@@ -1,13 +1,13 @@
-# w-inlfence §1 — the crossing, script-counted at base `0faa855a`
+# w-inlfence2 §1 — the crossing, script-counted at base `0faa855a`
 
-Instrument: `work/w-inlfence/scratch_cross.patch` (151 lines over
+Instrument: `work/w-inlfence2/scratch_cross.patch` (151 lines over
 `gap/fnbytes.rs` and `gap/factors.rs`), applied to the base tree and reverted
 after. **In no commit as a `crates/` change.** Scans:
-`work/w-inlfence/cross2.fnd.out`, `cross3.fnd.out`, `cross4.fnd.out`.
+`work/w-inlfence2/cross2.fnd.out`, `cross3.fnd.out`, `cross4.fnd.out`.
 
 ## 0. The base, re-derived (not inherited)
 
-`work/w-inlfence/base.fnd.out`, one un-instrumented 878-TU scan at `0faa855a`:
+`work/w-inlfence2/base.fnd.out`, one un-instrumented 878-TU scan at `0faa855a`:
 
 ```
     gap-metric fnbyte-exact             36228
@@ -83,7 +83,7 @@ the callee (**the shippable input**; `none` = the port cannot lower it).
 > is wrong 4,357 times and right 10; above it the caller is right 1,071 times
 > and wrong 9.
 >
-> **Those four totals are computed by `work/w-inlfence/sizetab.py`, not typed.**
+> **Those four totals are computed by `work/w-inlfence2/sizetab.py`, not typed.**
 > The first version of this paragraph published *"wrong 3,852"* — it summed the
 > `<= 64 B` differs bucket and lost the 505 sites in `65–80 B` — and the slip
 > reached the rung, the board row and the ROADMAP before the script existed.

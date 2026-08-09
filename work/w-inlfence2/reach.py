@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""w-inlfence — how much of each differing population the fence reaches.
+"""w-inlfence2 — how much of each differing population the fence reaches.
 
 Three scans, each `--fnbyte-diff-jsonl`, one row per `fnbyte-differs` FUNCTION,
 keyed on `(tu, sym)`:
@@ -15,7 +15,7 @@ and the crossing of those two is the answer to "how much of the base 2,111 does
 the fence reach", with R2 accounted separately so neither can be read as the
 other.
 
-Usage: python3 work/w-inlfence/reach.py <pre.jsonl> <base.jsonl> <tip.jsonl>
+Usage: python3 work/w-inlfence2/reach.py <pre.jsonl> <base.jsonl> <tip.jsonl>
 """
 import json
 import sys

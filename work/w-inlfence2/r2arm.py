@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""w-inlfence — where w-fltret's 444 land, as a SET intersection.
+"""w-inlfence2 — where w-fltret's 444 land, as a SET intersection.
 
 `reach.py` establishes that the shipped fence removes 0 of the 444. This says
 WHY, by crossing the 444 with the `localcallee` arm measured at the fenced tip:
@@ -14,7 +14,7 @@ WHY, by crossing the 444 with the `localcallee` arm measured at the fenced tip:
 Two totals cannot answer this. A set can.
 
 Usage:
-  python3 work/w-inlfence/r2arm.py <pre.jsonl> <base.jsonl> <witness.fnd.err>
+  python3 work/w-inlfence2/r2arm.py <pre.jsonl> <base.jsonl> <witness.fnd.err>
 """
 import json
 import sys

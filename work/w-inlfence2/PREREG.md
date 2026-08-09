@@ -1,19 +1,19 @@
-# PREREG — lane `w-inlfence`: make the port REFUSE what c2 inlines
+# PREREG — lane `w-inlfence2`: make the port REFUSE what c2 inlines
 
-    Lane:      w-inlfence          <-- LANE-NAME CLAIM, board #2096's prevention
+    Lane:      w-inlfence2          <-- LANE-NAME CLAIM, board #2096's prevention
     Kind:      CORRECTNESS (a fence; a refusal, not a conversion)
     Date:      2026-08-09
-    Branch:    wt-w-inlfence
+    Branch:    wt-w-inlfence2
     Base:      master 0faa855a (merge w-fltret2; 8dd1a577 w-callprice is an
                ancestor of it, checked with `git merge-base --is-ancestor`)
     Rows:      #2150-#2169  (verified free: the highest minted row on master is
                #2214, and 2142-2199 / 2120-2129 are unminted gaps; no `**2150**`
                .. `**2169**` row exists in docs/BOARD.md)
-    Rung:      docs/rungs/2026-08-09-w-inlfence.md
-    Scratch:   work/w-inlfence/          (never /tmp)
+    Rung:      docs/rungs/2026-08-09-w-inlfence2.md
+    Scratch:   work/w-inlfence2/          (never /tmp)
 
-**IF A PEER SESSION IS READING THIS: THE NAME `w-inlfence`, ROWS #2150-#2169,
-THE RUNG FILENAME AND `work/w-inlfence/` ARE CLAIMED BY THIS COMMIT.** Board
+**IF A PEER SESSION IS READING THIS: THE NAME `w-inlfence2`, ROWS #2150-#2169,
+THE RUNG FILENAME AND `work/w-inlfence2/` ARE CLAIMED BY THIS COMMIT.** Board
 #2096 cost two sessions four namespaces on 2026-08-09 because nothing claimed a
 name; this block is that row's stated prevention, discharged in the first
 commit. `git log master --oneline | grep -i inlfence` was empty at freeze.

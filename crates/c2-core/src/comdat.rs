@@ -242,7 +242,7 @@ pub fn comdat_body_from_selected<'a>(
 /// the callee's, so the REL24 becomes the callee's own). A parser clause would
 /// fire on both of those and un-ship them. Measured on the 878-TU workload: the
 /// coarse parser-shaped form costs **1,074** byte-exact functions; this one
-/// costs **0**. `work/w-inlfence/crossing.md`.
+/// costs **0**. `work/w-inlfence2/crossing.md`.
 ///
 /// # What it deliberately does NOT refuse
 ///
@@ -946,7 +946,7 @@ mod inlfence_tests {
 
     /// **N2 — the SIZE clause.** Defined here, lowerable, and over the bound,
     /// so c2 keeps the call. On the workload 1,071 such callers are byte-EXACT
-    /// today and 7 are not (`work/w-inlfence/crossing.md` §2) — which is why
+    /// today and 7 are not (`work/w-inlfence2/crossing.md` §2) — which is why
     /// refusing them is the coarse fence decline clause D2 rejected.
     #[test]
     fn n2_a_large_same_tu_callee_is_untouched() {

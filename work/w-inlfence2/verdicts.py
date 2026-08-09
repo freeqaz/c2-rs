@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""w-inlfence — verdict neutrality LEVEL 1: the 878 TUs BY NAME.
+"""w-inlfence2 — verdict neutrality LEVEL 1: the 878 TUs BY NAME.
 
 A count of 18 at both ends does not say the same 18. This compares the per-TU
 class of every source path in both scans and prints every disagreement.
 
-Usage: python3 work/w-inlfence/verdicts.py <base.fnd.out> <tip.fnd.out>
+Usage: python3 work/w-inlfence2/verdicts.py <base.fnd.out> <tip.fnd.out>
 """
 import re
 import sys

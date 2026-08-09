@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""w-inlfence — the size table, SUMMED BY SCRIPT.
+"""w-inlfence2 — the size table, SUMMED BY SCRIPT.
 
 The first hand-written version of `crossing.md` §2 published *"below ~80 B the
 caller is wrong 3,852 times"*. That is wrong: it summed the `<=64` differs
@@ -7,10 +7,10 @@ bucket and forgot the 505 sites in `65-80`. The correct figure is 4,357. The
 slip survived into the rung, the board row and the ROADMAP before this script
 existed, and it is the reason the totals are computed here instead of typed.
 
-Reads a `gap-metric xz-…` block (`work/w-inlfence/cross3.metrics.txt`, the
+Reads a `gap-metric xz-…` block (`work/w-inlfence2/cross3.metrics.txt`, the
 `a<=80 / b<=308 / c>308` bucketing) and prints the two-sided table.
 
-Usage: python3 work/w-inlfence/sizetab.py <metrics.txt>
+Usage: python3 work/w-inlfence2/sizetab.py <metrics.txt>
 """
 import re
 import sys

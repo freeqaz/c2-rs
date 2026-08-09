@@ -18,7 +18,7 @@
 //! | `w10` — `noinline` LEAF, spliced | `addi r3,r3,1 ; blr` | `b ?g` | **`Differs`** — the SHIPPED splice already gets this wrong |
 //! | `w12` — `w10` without the attribute | the callee's body | the callee's body | `Exact` — the control |
 //!
-//! # 2026-08-09, lane `w-inlfence` — `w04a`'s caller moved `Exact` → `Refused`
+//! # 2026-08-09, lane `w-inlfence2` — `w04a`'s caller moved `Exact` → `Refused`
 //!
 //! The inline fence (`c2_core::comdat::fenced_inlined_callee`) refuses a
 //! composed body that emits a `REL24` against a same-TU callee whose lowered
@@ -29,7 +29,7 @@
 //!
 //! It is in the direction that cannot be a wrong emit: a mis-predicted *"c2
 //! inlines this"* makes the port **decline**. On the 878-TU workload the cost is
-//! **0** (`work/w-inlfence/crossing.md` §4). The counterexample this file exists
+//! **0** (`work/w-inlfence2/crossing.md` §4). The counterexample this file exists
 //! for is unaffected and is now asserted **against c2's own relocation table**
 //! rather than inferred from the port agreeing — which is stronger, because a
 //! verdict of `Exact` never said *what* the two sides agreed on.
@@ -121,7 +121,7 @@ fn grade(tc: &Toolchain, tag: &str, src_text: &str) -> Vec<(&'static str, FnByte
 
 /// [`grade`] plus **c2's own REL24 targets, by COMDAT and by name**.
 ///
-/// Added by lane `w-inlfence` so `w04a`'s counterexample can be asserted against
+/// Added by lane `w-inlfence2` so `w04a`'s counterexample can be asserted against
 /// the reference obj directly rather than inferred from the port agreeing with
 /// it. A verdict of `Exact` says the two sides match; it does not say *what*
 /// they matched on, and the fact this cell exists to pin is a fact about **c2**.
@@ -204,7 +204,7 @@ fn find<'a>(
 /// is checked HERE now, against the reference obj's own relocation, instead of
 /// being read off the port's verdict.
 ///
-/// # Why the assertion moved (2026-08-09, lane `w-inlfence`)
+/// # Why the assertion moved (2026-08-09, lane `w-inlfence2`)
 ///
 /// `?f@@YAXXZ` used to be **`Exact`**: the port emitted the same `b ?g`. It is
 /// **`Refused`** now, and the refusal is `ComdatDecline::InlinedCallee` — the
@@ -221,7 +221,7 @@ fn find<'a>(
 /// mis-predicted *"c2 inlines this"* makes the port **decline** a function it
 /// would have got right; it can never make it emit a wrong byte. Measured on the
 /// 878-TU workload the cost is **zero** — `xw-fence-fires|fnbyte-exact` = 0,
-/// `work/w-inlfence/crossing.md` §4 — because the three `noinline` functions in
+/// `work/w-inlfence2/crossing.md` §4 — because the three `noinline` functions in
 /// the corpus (`src/lazer/game/BustAMovePanel.cpp`, TU #4) are not bodies either
 /// mechanism reaches. On this cell it is one function, and it is recorded rather
 /// than absorbed.

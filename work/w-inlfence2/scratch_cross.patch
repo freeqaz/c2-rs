@@ -6,7 +6,7 @@ index 111504f5..b1033d46 100644
              // the number this widening replaced stays derivable to the digit,
              // and `fnbyte-reloc-graded` / `-reloc-unknown` are the population
              // the compare could reach and its counted residue (trap 0).
-+            // ==== SCRATCH — lane w-inlfence MEASUREMENT ONLY, never shipped ====
++            // ==== SCRATCH — lane w-inlfence2 MEASUREMENT ONLY, never shipped ====
 +            // Publish every `xf-…` key the scratch in `gap/fnbytes.rs` writes.
 +            // Enumerated rather than prefix-scanned so a key that stopped being
 +            // written prints `0` instead of vanishing (STATUS trap 5).
@@ -76,7 +76,7 @@ index fbffcd0b..2c4be85d 100644
          };
          let graded = grade_one(row, Some(bytes.as_slice()), &tu, refrel);
          let v = graded.verdict;
-+        // ==== SCRATCH — lane w-inlfence MEASUREMENT ONLY, never shipped ====
++        // ==== SCRATCH — lane w-inlfence2 MEASUREMENT ONLY, never shipped ====
 +        // The crossing the fence is priced on: this function's FBM bucket ×
 +        // whether the port's OWN composed body emits a REL24 against a symbol
 +        // THIS TU DEFINES. That is the fence predicate exactly — asked after

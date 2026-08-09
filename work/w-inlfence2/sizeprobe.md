@@ -1,4 +1,4 @@
-# w-inlfence — finding a leaf the port lowers to more than 64 bytes
+# w-inlfence2 — finding a leaf the port lowers to more than 64 bytes
 
 The first `big_leaf` was an `a + 1 + 2 + ... + 20` constant chain and it lowered
 to **8 bytes**. That is `WB_INLINE_FINDINGS` §3.1's own failure, verbatim:
