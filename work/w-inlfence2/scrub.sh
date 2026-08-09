@@ -12,7 +12,7 @@
 # of the rung says how.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
-for stem in pre base tip tip2 cross2 cross3 cross4 witness; do
+for stem in pre base tip tip2 cross2 cross3 cross4 witness rebase_base rebase_tip; do
     f="$here/$stem.fnd.out"
     [ -f "$f" ] || continue
     {
@@ -26,8 +26,13 @@ if [ -f "$here/witness.fnd.err" ]; then
     awk -F'\t' '/^XLOCAL\t/ {print $4"\t"$5}' "$here/witness.fnd.err" \
         | sort | uniq -c | sort -rn > "$here/witness.summary.txt"
 fi
-grep -rl '/home/' "$here"/*.txt "$here"/*.md 2>/dev/null && {
+# The gate transcripts are scrubbed by their own step AFTER the run finishes —
+# a gate still writing would fail this check on a line it has not finished. They
+# are excluded here and checked explicitly before they are staged.
+if grep -rl '/home/' "$here"/*.txt "$here"/*.md 2>/dev/null \
+     | grep -v '/gate_' | grep -q .; then
     echo "SCRUB FAILED: an absolute path survived" >&2
+    grep -rl '/home/' "$here"/*.txt "$here"/*.md 2>/dev/null | grep -v '/gate_' >&2
     exit 1
-}
+fi
 echo "scrubbed ok"

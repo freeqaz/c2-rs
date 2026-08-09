@@ -8,22 +8,31 @@ All figures script-counted. Three 878-TU scans, each with
 |---|---|--:|--:|--:|--:|
 | `pre` | `05d743f7` — w-fltret's parent | **36,228** | **2,111** | 861 | **39,200** |
 | `base` | `0faa855a` — master, w-fltret in | **36,228** | **2,555** | 861 | **39,644** |
-| `tip2` | this lane | **36,228** | **1,880** | **532** | 39,644 |
+| `tip2` | this lane, pre-rebase | **36,228** | **1,880** | **532** | 39,644 |
+| `rebase_base` | master `5ad60e9e` — **the PEER lane's fence in** | **36,228** | **2,554** | 861 | **39,643** |
+| `rebase_tip` | **this lane, REBASED — what ships** | **36,228** | **1,879** | **532** | 39,643 |
 
 `work/w-inlfence2/reach.py`, on those three:
 
 ```
-differs  pre(05d743f7) 2111   base(0faa855a) 2555   tip 1880
+differs  pre(05d743f7) 2111   base(0faa855a) 2555   tip 1879
 
 R2 = base \ pre  (w-fltret's increment)      : 444
      pre \ base (differing BEFORE, not after) : 0
-REMOVED by the fence = base \ tip             : 675
+REMOVED by the fence = base \ tip             : 676
 ADDED by the fence   = tip \ base (must be 0) : 0
 
 of R2 (444), the fence removes                 : 0  (0.0%)
-of the BASE 2,111 (2111), the fence removes    : 675  (32.0%)
-    check: 0 + 675 = 675 == 675  True
+of the BASE 2,111 (2111), the fence removes    : 676  (32.0%)
+    check: 0 + 676 = 676 == 676  True
 ```
+
+**676, not 675, and the extra one is the PEER lane's**: `?supershuffle@@YAXPAD@Z`
+in `src/keygen_xbox.cpp`, taken by §10.29's parser-side fence. This run measures
+against `0faa855a` — the tree *before either* fence — so the column is the two
+lanes' **combined** reach. This lane's own marginal figure, measured against the
+peer's tip `5ad60e9e`, is **675** (`metricdiff.txt`). **Both are from the base
+2,111 and neither is from the 444**, which is the finding either way.
 
 > ## **THE FENCE REACHES 32 % OF THE BASE 2,111 AND **ZERO** OF w-fltret's 444 — WHICH IS THE EXACT INVERSE OF WHAT THE COMMISSION AND THIS LANE'S PREREG BOTH EXPECTED.**
 

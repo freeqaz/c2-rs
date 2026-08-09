@@ -1,0 +1,3 @@
+fnbyte-elided 1877
+fnbyte-elided-exact 1877
+fnbyte-elided-ref-reloc 0

@@ -1,14 +1,14 @@
-differs  pre(05d743f7) 2111   base(0faa855a) 2555   tip 1880
+differs  pre(05d743f7) 2111   base(0faa855a) 2555   tip 1879
 
 R2 = base \ pre  (w-fltret's increment)      : 444
      pre \ base (differing BEFORE, not after) : 0
-REMOVED by the fence = base \ tip             : 675
+REMOVED by the fence = base \ tip             : 676
 ADDED by the fence   = tip \ base (must be 0) : 0
 
 -- the crossing --
 of R2 (444), the fence removes                 : 0  (0.0%)
-of the BASE 2,111 (2111), the fence removes    : 675  (32.0%)
-    check: 0 + 675 = 675 == 675  True
+of the BASE 2,111 (2111), the fence removes    : 676  (32.0%)
+    check: 0 + 676 = 676 == 676  True
 
 R2 SURVIVING the fence: 444
     ('src/App.cpp', '?SplitMs@Timer@@QAAMXZ')

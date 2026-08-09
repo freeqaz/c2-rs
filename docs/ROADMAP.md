@@ -11253,9 +11253,39 @@ not the census gain but whether `callee-defined-in-tu` appears with it: **88,228
 emitted-name-carrying call rows are behind that door** (**#2226**).
 ### 10.29.1 w-inlfence2 — a SECOND session on the same commission, and the two fences differ in ONE FIELD: which binding names the TU's own functions. The peer's reaches ONE function; this one reaches 1,004 for ZERO byte-exact lost, and the 444 are untouched for a reason nobody predicted (2026-08-09)
 
-Lane `w-inlfence2`, branch `wt-w-inlfence2`, off master `0faa855a`
+**TWO SESSIONS WERE DISPATCHED ON THIS COMMISSION AND NEITHER KNEW.** The peer
+landed first (`cd2e3ccb`, §10.29, board #2220–#2227). This is the second run,
+**rebased onto that tip** and re-landed as `w-inlfence2` (board **#2150**–
+**#2164**); every number below is re-measured at the rebased tree, base master
+`5ad60e9e`. **Board #2096's own prevention was executed exactly as written — a
+lane-name claim in the first commit — and it did not help, because the claim
+lived on an unpushed worktree branch.** A claim that is not on a shared ref is
+not a claim (board **#2164**).
+
+**The duplication was not waste: the two fences differ in ONE FIELD, and it is
+worth 675 functions.**
+
+| | §10.29 (the peer) | §10.29.1 (this lane) |
+|---|---|---|
+| where | `c2-il/src/func/bind.rs` — the parser, the census, `diag.rs` | `c2-core/src/comdat.rs` — the **composition** seam |
+| the name set | `gl_defined_names` — the **GATE** binding | `FnCensus::emit_name` via `TuContext` — the **per-record** binding |
+| when it asks | **before** lowering | **after** mechanisms E and I |
+| its measured coverage | *"EMPTY on **845 of 871** TUs, **99.995 %** fail-open"* (#2221) | every TU the census binds |
+| **reach on 878 TUs** | **1 function** | **1,004 functions** |
+| `fnbyte-exact` cost | 0 | **0** |
+
+They are **additive** — this lane's base is the peer's tip — and neither is
+redundant: the peer's makes the refusal a named class invariant with fixtures,
+this one is where the numbers are. §10.29's board **#2226** says the fail-open
+residue *"arms itself exactly when the biggest item on the board is paid"*
+(`vocab-gap`, 853 TUs); **it does not have to** — `emit_name` supplies the names
+today, and it is the binding `splice`'s 723 and `elide`'s 1,877 byte-exact
+conversions already ride on. Board **#2163**, and it is a statement about the
+binding, not about the peer's clause work.
+
+Lane `w-inlfence2`, branch `wt-w-inlfence`, off master `0faa855a`
 ([`rungs/2026-08-09-w-inlfence2.md`](rungs/2026-08-09-w-inlfence2.md), board
-**#2150**–**#2162**). Commissioned off §10.28/§10.28.1's finding — the port
+**#2150**–**#2164**). Commissioned off §10.28/§10.28.1's finding — the port
 emits the calls the IL contains where c2 has inlined both callees — with the
 instruction to *make the port REFUSE what c2 inlines, rather than emit a call c2
 does not*.
@@ -11274,13 +11304,13 @@ a copy:
 `splice.rs` reads it as *"the port MAY expand this body"*; the fence reads the
 identical claim as *"the port MUST NOT emit a call to it"*. Board **#2154**.
 
-| 878-TU scan | base `0faa855a` | tip | Δ |
+| 878-TU scan | base `5ad60e9e` | tip | Δ |
 |---|--:|--:|--:|
 | `fnbyte-exact` | 36,228 | **36,228** | **0** |
-| `fnbyte-differs` | 2,555 | **1,880** | **−675** |
+| `fnbyte-differs` | 2,554 | **1,879** | **−675** |
 | `fnbyte-reloc-differs` | 861 | **532** | **−329** |
-| `fnbyte-refused` | 130,116 | 131,120 | +1,004 |
-| emitted census · per-function census | 39,644 · 712,238 | 39,644 · 712,238 | 0 · 0 |
+| `fnbyte-refused` | 130,117 | 131,121 | +1,004 |
+| emitted census · per-function census | 39,643 · 712,237 | 39,643 · 712,237 | 0 · 0 |
 | TU match (by NAME) · mismatch | 18 · 0 | **18, identical set** · **0** | 0 · 0 |
 
 **The commission's coarse form was priced and DECLINED.** *"Refuse any body
