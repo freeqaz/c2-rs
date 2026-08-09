@@ -1,0 +1,54 @@
+==============================================================================
+FIT — exhaustive over quantity x threshold, on OBJ CELLS ALONE
+==============================================================================
+GRID-W, fitted per flag set (216 cells; part B has no `flags` axis):
+   O1     Q-SIZE 56/72 @T5..35  Q-QUOT 72/72 @T5  Q-QUOT-CEIL 72/72 @T5  Q-WORDS 56/72 @T5..8
+   O1Ot   Q-SIZE 32/36 @T80..87  Q-QUOT 36/36 @T10  Q-QUOT-CEIL 36/36 @T10  Q-WORDS 32/36 @T20..21
+   O2     Q-SIZE 32/36 @T80..87  Q-QUOT 36/36 @T10  Q-QUOT-CEIL 36/36 @T10  Q-WORDS 32/36 @T20..21
+   O2Os   Q-SIZE 28/36 @T5  Q-QUOT 36/36 @T5  Q-QUOT-CEIL 36/36 @T5  Q-WORDS 26/36 @T1..2
+   Ox     Q-SIZE 32/36 @T80..87  Q-QUOT 36/36 @T10  Q-QUOT-CEIL 36/36 @T10  Q-WORDS 32/36 @T20..21
+
+GRID-M + GRID-M2 fitted together (408 cells, all `/O1`):
+   Q-SIZE       348 / 408   best T = 20..47
+   Q-QUOT       408 / 408   best T = 5
+   Q-QUOT-CEIL  396 / 408   best T = 6
+   Q-WORDS      348 / 408   best T = 5..11
+
+==============================================================================
+HELD OUT — fit on one population, score on the other
+==============================================================================
+  fit on GRID-W `/O1` only (72 cells): Q-QUOT, T = [5], 72/72
+      -> scored on GRID-M   (never fitted): 232 / 232
+      -> scored on GRID-M2  (never fitted): 176 / 176
+  fit on GRID-M + GRID-M2 only (408 cells): Q-QUOT, T = [5], 408/408
+      -> scored on GRID-W `/O1` (never fitted):  72 / 72
+      -> scored on GRID-W O1Ot :  18 / 36   (its own best fit is T=10 at 36)
+      -> scored on GRID-W O2   :  18 / 36   (its own best fit is T=10 at 36)
+      -> scored on GRID-W O2Os :  36 / 36   (its own best fit is T=5 at 36)
+      -> scored on GRID-W Ox   :  18 / 36   (its own best fit is T=10 at 36)
+
+==============================================================================
+WHICH GRID DECIDES THE *TRUNCATING* DIVISION
+==============================================================================
+  Q-QUOT and Q-QUOT-CEIL are the same rule up to rounding, and they
+  only differ on a size the alignment does NOT divide.
+    GRID-W /O1   separating cells   0   truncating right on 0, ceiling right on 0
+    GRID-W all   separating cells   0   truncating right on 0, ceiling right on 0
+    GRID-M       separating cells   4   truncating right on 4, ceiling right on 0
+    GRID-M2      separating cells  18   truncating right on 18, ceiling right on 0
+  GRID-W's `n` axis is built from EXACT multiples of the alignment,
+  so it cannot see the rounding at all.  w-memcpy's already-paid-for
+  cells are what settle it — they do not merely agree with the
+  reading, they decide a part of it the whitebox lane's own grid
+  could not.
+
+==============================================================================
+WHAT THE HOLD-OUT DOES AND DOES NOT ESTABLISH
+==============================================================================
+  Both constants are recoverable from obj cells with no disassembler:
+  the QUANTITY is picked out by a four-way search and the THRESHOLD
+  by an exhaustive one, on either population, and each transfers to
+  the other.  What the disassembly supplied was the SEARCH SPACE —
+  `size / align, truncating` is not a quantity anybody enumerated
+  before reading it (w-memcpy froze six rivals and none of them is a
+  quotient).  That is navigation, and it is worth a `route:` row.

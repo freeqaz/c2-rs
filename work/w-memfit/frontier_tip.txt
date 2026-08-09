@@ -1,0 +1,70 @@
+  FRONTIER — 9 graded TUs satisfy A and B and C, are NOT a match, and are outside BOTH acceptance paths (not D, not E), so per-function codegen breadth is the whole remaining distance (blocked emitted | emitted | src):
+       1 |    1 | src/Main.cpp
+       2 |    2 | src/system/synth_xbox/Biquad.cpp
+       2 |    2 | src/xdk/LIBCMT/vsnprnc.cpp
+       3 |    3 | src/system/rndobj/wordwrap.cpp
+       3 |    3 | src/system/utl/Pool.cpp
+       3 |   11 | src/xdk/nuispeech/mmio.cpp
+       4 |    4 | src/system/synth_xbox/IPP_basicmath_xbox.cpp
+       4 |    5 | src/system/utl/EncryptXTEA.cpp
+      18 |   20 | src/keygen_xbox.cpp
+  FRONTIER BY `.text` BYTE FRACTION (board #500) — how much of each TU's `.text` the port already produces a body for, BY BYTE. Board #465 counted FUNCTIONS and was refuted by the TU registered to confirm it (mmio: 72.7% by function, 16.8% by byte, DECLINED; xboxmem: 50.0% by function, 54.5% by byte, CONVERTED). n = 2 outcomes — this ranks, it does not license. `exact` is the oracle-graded floor under `accepted`; a TU with no `.text` bytes prints n/a, NEVER 100%. 0 of 9 frontier TUs have NO denominator, and 6 are at EXACTLY 0% — TUs where codegen breadth has not begun:
+     accepted/total bytes    frac   exact  remain | src   (REMAIN = total - accepted = the PowerPC still to write. A FOURTH unit, printed and NOT chosen between: it agrees with `frac` on both outcome cells and DISAGREES with it at this frontier's head.)
+          64/380      bytes   16.8%     64     316 | src/xdk/nuispeech/mmio.cpp
+          16/272      bytes    5.9%     16     256 | src/system/utl/EncryptXTEA.cpp
+           8/1440     bytes    0.6%      8    1432 | src/keygen_xbox.cpp
+           0/124      bytes    0.0%      0     124 | src/Main.cpp
+           0/816      bytes    0.0%      0     816 | src/system/rndobj/wordwrap.cpp
+           0/176      bytes    0.0%      0     176 | src/system/synth_xbox/Biquad.cpp
+           0/184      bytes    0.0%      0     184 | src/system/synth_xbox/IPP_basicmath_xbox.cpp
+           0/132      bytes    0.0%      0     132 | src/system/utl/Pool.cpp
+           0/164      bytes    0.0%      0     164 | src/xdk/LIBCMT/vsnprnc.cpp
+  BYTE-FRACTION CONTROL (board #501) — a `match` TU is byte-identical to c2's obj, so the port produced a body for every `.text` byte in it and its fraction MUST read 100%. 11 of 18 matched TUs do; 2 fall short; 5 have no `.text` denominator (a TU that defines data and no functions — board #276's shape — which is a 100%-free zero, not a failure).
+    SHORTFALL, by name, each classified — 2 explained by factor E (whole-TU emitter, per-function path blind by construction), 0 UNEXPLAINED. **The unexplained count is the one to watch; it must be 0.** Compare the SET across trees, not its size. The FRONTIER is unaffected either way: it is defined as `A and B and C and not (D or E)`, so no factor-E TU can appear in the ranking above.
+      src/system/synth/tomcrypt/TomCryptLicense.cpp (0/24 bytes, 0.0%)  [factor E — a WHOLE-TU recognizer emitted this; the per-function path cannot see it. EXPECTED.]
+      src/system/zlib/ZlibLicense.cpp (0/24 bytes, 0.0%)  [factor E — a WHOLE-TU recognizer emitted this; the per-function path cannot see it. EXPECTED.]
+  FRONTIER BY CFG REACHABILITY (board #720) — CAN THE EMITTER EXPRESS THIS TU AT ALL? `Selected` covers FOUR control-flow shapes: straight-line, ONE two-arm conditional, — since lane `w-hash`, board #761 — ONE loop, the pointer-walk accumulate of `codegen::ptr_walk_loop`, and — since lane `w-cfgclass`, board #1630 — ONE `if`/`else` with a join whose arms are calls, `codegen::if_call_join`. **The last two are each a transcription of a single function class, not a lowering of its CFG class**: twenty words, two immediate fields, `/O1` only. Every other loop shape and every other `cflow-if-n` shape still has no representation at all — the `if`/`else` class takes 2 of the frontier's 11 `cflow-if-n` functions and the loop 1 of its 21 `cflow-loop` ones. This line read `no variant encodes a backward branch, so NO loop of any kind has a representation` until `Sort.cpp` converted, and `THREE ... shapes` until `negate_test.cpp` did; each correction is here rather than beside the old claim. **A shape being in this list does NOT put its class in `PORT_CFG_CLASSES`** — the two converted TUs left the frontier by MATCHING, so neither appears in the count below, which is why that count can stand still while this sentence grows. This is not a quantity of progress like #269/#465/#500 — a TU can be one 8-byte function from matching and be unreachable because those 8 bytes are a loop. INSTRUMENT, never a gate. 2 of 9 frontier TUs are reachable:
+      1 blocked | src/Main.cpp                                       | labels 9   | REACHABLE — every blocked fn is a port CFG class
+     18 blocked | src/keygen_xbox.cpp                                | labels 15  | needs a CFG class the port lacks: cflow-if-n, cflow-loop
+      3 blocked | src/system/rndobj/wordwrap.cpp                     | labels 3   | needs a CFG class the port lacks: cflow-if-n, cflow-loop
+      2 blocked | src/system/synth_xbox/Biquad.cpp                   | labels 3   | REACHABLE — every blocked fn is a port CFG class
+      4 blocked | src/system/synth_xbox/IPP_basicmath_xbox.cpp       | label-free | needs a CFG class the port lacks: cflow-loop
+      4 blocked | src/system/utl/EncryptXTEA.cpp                     | labels 3   | needs a CFG class the port lacks: cflow-loop
+      3 blocked | src/system/utl/Pool.cpp                            | label-free | needs a CFG class the port lacks: cflow-loop
+      2 blocked | src/xdk/LIBCMT/vsnprnc.cpp                         | labels 3   | needs a CFG class the port lacks: cflow-if-n
+      3 blocked | src/xdk/nuispeech/mmio.cpp                         | labels 9   | needs a CFG class the port lacks: cflow-if-2, cflow-if-n
+    LABEL CHANNEL (board #742) — `$M`/`$T` are the ONLY way the value of c2's compiler-label counter reaches an obj, and `coff::plan_labels` mints them for a FRAMED function and nothing else. A leaf loop charges that counter +1..+4 while `plan_labels` charges 0 (17 seed-free cells, docs/LABEL_COUNTER.md §4.2), which is the whole stated justification for `codegen::labels` invariant 4 refusing every BACKWARD branch. On a `label-free` obj that error has nowhere to land — and that is now SHIPPED rather than observed: `IlFunction::label_slots` returns `None` for the one loop shape the port emits, so a TU pairing it with a framed function refuses and a TU without one converts (boards #746/#747, `fixtures/cpp/whash_loop_then_framed.cpp` and its control). 2 of 9 frontier TUs are label-free; of the 5 blocked on `cflow-loop`, 2 are. NOT a licence — every one is still gated on codegen that does not exist, and the counter is only the FIRST of that TU's refusals.
+    CONTROL src/xdk/nuispeech/xboxmem.cpp: PASS — the one TU ever converted from codegen breadth carries only port CFG classes (measured: cflow-if-1 x3 + cflow-straight x1).
+    SUB-CLASS NARROWING (board #778) — the screen can now hold a PARTIAL claim (`CfgClass{class, Whole | Keys(&[..])}`), and this is the bracket that keeps a restriction NARROWER OR EQUAL rather than wider. `admits` is `class == class && <sub>`, so `Keys` only ever CONJOINS: a restriction can remove an admitted (class,key) pair and never add one. That is algebra; these four numbers are the measurement, re-derived from this scan's own frontier. BOTTOM 0 ⊆ ENUMERATED 2 == SHIPPED 2 ⊆ TOP 9, of 9 frontier TUs (7 classes in TOP, 24 (class,key) pairs enumerated).
+      BOTTOM=every entry restricted to NO keys (must be 0 — it is the live exercise of the `Keys` path and the detector for a matcher that ignores its key); ENUMERATED=every entry rewritten as the exact key set this scan observed (must equal SHIPPED); TOP=every class the frontier mentions, wholesale — a HYPOTHETICAL the port has no claim to, printed so the refusal has a size: 7 of the 9 frontier TUs are held back by CFG class alone.
+      SHIPPED reachable: [src/Main.cpp, src/system/synth_xbox/Biquad.cpp]
+      NESTING: PASS — 0 violations over the 3 checks (BOTTOM⊆SHIPPED⊆TOP, ENUMERATED==SHIPPED), taken as SETS by name.
+      LEDGER — 4 entries, 0 of them RESTRICTED. A restricted entry is a claim about named census keys, and two ways it goes quietly wrong are counted here: a listed key no scan witnesses (a claim doing nothing — trap 5 with the claim still on the page) and a key `admits` accepts that the entry does not list (the matcher and the declaration disagreeing, which is what an exact→prefix slip looks like). unwitnessed 0, intruders 0.
+        cflow-straight                   | WHOLE    |  441 keys observed,  441 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+        cflow-straight+expr-modeled      | WHOLE    |   38 keys observed,   38 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+        cflow-if-1                       | WHOLE    |  185 keys observed,  185 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+        cflow-if-1+expr-modeled          | WHOLE    |    3 keys observed,    3 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+      NOT A LICENCE, and #778 is closed as a MECHANISM only: `cflow-loop` did NOT enter the list in the lane that built this. The list is still a hand-maintained mirror of a `c2-core` enum; what changed is that a lane which has measured part of a class can now write down which part, and the reachability figure it produces is bracketed above.
+  FRONTIER BY CODEGEN (board #1474) — THE COLUMN #1463 PRINTED AS `NO COLUMN`, read off the judge's own per-function predicate (FBM) instead of off a reader ladder. `wrong` is the reader accepting a body, the emitter LOWERING it, and the bytes or relocations DIFFERING: the only positive codegen price this project can measure per function. `cg-ref` is the reader accepting and the emitter DECLINING — read `fnbytes::Decline`'s doc before sizing anything off it, because three of its four stages are ZERO BY CONSTRUCTION while acceptance lives in the IL parser. **`reader` is the hole**: the IL parser refused, so no codegen question was asked and none CAN be — there is no IlFunction to hand to `select_function`. A TU's true codegen distance is `wrong + cg-ref` PLUS an unknown amount hiding in `reader`, so every positive number below is a LOWER BOUND OF UNKNOWN TIGHTNESS and never a price. 9 frontier TUs, 51 emitted functions: 40 behind the reader (78%), 1 measurable, 10 already byte-exact.
+     den exact wrong cg-ref reader ungrade | src
+       1     0     0      0      1       0 | src/Main.cpp
+      20     1     1      0     18       0 | src/keygen_xbox.cpp
+       3     0     0      0      3       0 | src/system/rndobj/wordwrap.cpp
+       2     0     0      0      2       0 | src/system/synth_xbox/Biquad.cpp
+       4     0     0      0      4       0 | src/system/synth_xbox/IPP_basicmath_xbox.cpp
+       5     1     0      0      4       0 | src/system/utl/EncryptXTEA.cpp
+       3     0     0      0      3       0 | src/system/utl/Pool.cpp
+       2     0     0      0      2       0 | src/xdk/LIBCMT/vsnprnc.cpp
+      11     8     0      0      3       0 | src/xdk/nuispeech/mmio.cpp
+    TOTAL 51 = exact 10 + wrong 1 + cg-ref 0 + reader 40 + ungraded 0;  partition-broken 0 (target 0).
+    1 frontier function(s) are a MEASURED codegen defect — the reader accepts them and the port does not produce c2's bytes. These are the only frontier codegen numbers on this board that are not hand-counts.
+  A PERFECT EMIT PREDICATE (board #213) — reachability, NOT conversions: every TU below is still gated on codegen that does not exist.
+    as REACH:    B and C 151 less A and B and C 27 = +124
+    as FRONTIER: frontier-if-A 131 less FRONTIER 9 = +122
+    THE TWO DISAGREE by 2 — #213's single `+82` is refuted on this tree. The difference is exactly the TU(s) inside B and C that fail A and that the port ALREADY accepts (D or E), so modelling the emit set makes them reachable without adding them to the codegen frontier: ["src/system/decomp_pch.cpp", "src/system/math/vec.cpp"]
+  GREEDY LADDER — next section name to teach the writer, and the resulting C (3 steps from 169 to 871):
+    +.rdata$r     C =   590   (+421)
+    +.text$yd     C =   804   (+214)
+    +.xdata$x     C =   871   (+67)
+
+  PROGRESS MASS — a PROGRESS metric, NEVER a correctness signal (docs/PROGRESS_METRIC.md).

@@ -374,6 +374,78 @@ instructions and a branch apart. Accepting a `0x40` on the strength of its
 selector would silently drop a null-guarded pointer adjustment on the largest
 subfamily in the workload.
 
+### 5.1.1 For `memcpy` / `memset` / block-assign, the dependence is now a RULE — measured at 624 of 624 cells (lane `w-memfit`, 2026-08-09)
+
+§5.1's sentence stands and is **sharpened, not weakened**, for the one subfamily
+where it has been gridded. The emission does depend on the literal argument
+values, and for the block-move family the dependence is a two-line function:
+
+```text
+  align = the front end's ALIGNMENT HINT for the pointee type
+  n     = size / align            integer division, TRUNCATING
+
+  size is not a compile-time constant   ->  CALL
+  size == 0                             ->  NOTHING EMITTED
+  the destination is a non-escaping local never read afterwards
+                                        ->  NOTHING EMITTED
+  n <= T                                ->  INLINE (loads/stores)
+  otherwise                             ->  CALL
+
+  T = 5   at /O1 and /O2 /Os        (favor SIZE)
+  T = 10  at /O2, /Ox and /O1 /Ot   (favor SPEED)
+```
+
+`memset` obeys it identically on every cell it was crossed with.
+
+**Where each part is measured.** `align` is the byte at `.ex` offsets 2733 and
+2742 of a one-`memcpy` TU (two hints, both written), and it equals
+`alignof(pointee)` for all eight pointee types tested —
+`char`/`int`/`double`/`struct{double;double;}` = 1/4/8/8 and
+`void`/`long long`/`struct{int}`/`struct{double[4]}` = 1/8/4/8
+(`work/w-memfit/hint.py`). Note the fourth: a 16-byte struct of two doubles
+hints **8**, its *alignment*, not its size.
+
+**The grading, on three independently frozen grids, 624 cells, no exceptions:**
+
+| grid | cells | score | the best rival that grid had frozen |
+|---|---:|---:|---|
+| `w-memcpy` GRID-M | 232 | **232 / 232** | `M-THRESH-32` at 182; `M-ALWAYSCALL` at 114 |
+| `w-memcpy` GRID-M2 | 176 | **176 / 176** | `F-48` at 114; `F-ALL` at 114 |
+| `wb-memcpy` GRID-W | 216 | **216 / 216** | `W-LEVEL` at 144; `W-T5` at 126 |
+
+Both constants are recoverable **from obj cells alone**, held out in both
+directions: fitted on GRID-W's 72 `/O1` cells the rule scores 232/232 and
+176/176 on grids it was never fitted to; fitted on GRID-M + GRID-M2's 408 it
+scores 72/72 on GRID-W's `/O1` and refuses `/O2`, `/Ox` and `/O1 /Ot` at 18/36
+each, which is the favor-speed split (`work/w-memfit/holdout.py`).
+
+**What is NOT licensed by this, stated so absence does not read as coverage.**
+
+* **The rule decides `call` vs `inline`; it does not emit either.** For the
+  `call` arm the callee has **no `.gl` token at all** — re-derived black box: a
+  TU whose only call is `memcpy` carries the names `?f@@…`, `.XBLD$W`,
+  `__C1_11886` and the `/include:` directive in its `.gl`, and **no `memcpy`**,
+  while the obj carries `[14] memcpy sc=EXTERNAL sec=0 type=0x0020`. So c2 mints
+  the symbol and `bundle::resolve` can never produce it.
+* **The `inline` arm's body layout is bracketed, not measured.** `wb-memcpy`
+  §5.1b classifies 114 inline cells by `unit = min(align,8)` halved until it
+  divides the size, `count = size/unit`, `count <= 4` straight line and
+  `count >= 5` a counted loop — 114 of 114 — but its `n` axis produces only
+  `count = 4` on the unrolled side, so the unrolled body's **length as a
+  function of `count`** is unmeasured.
+* **The confident core, for any port predicate**, is the intersection of the
+  three grids' axes: a **compile-time-constant, non-zero** size, a **live**
+  destination, an alignment hint in {1, 4, 8}, and a **known** favor-speed
+  setting. On that core the rule is **348 of 348** over `w-memcpy`'s two grids
+  and **204 of 204** over GRID-W. Everything outside it must refuse — the
+  arms outside the core are each right on their own cells (8 non-constant, 8
+  zero-size, 56 dead-destination) but each rests on a mechanism that is not the
+  expansion, and two of them are *upstream* of it.
+
+Lane rung: [`rungs/2026-08-09-w-memfit.md`](rungs/2026-08-09-w-memfit.md).
+Provenance, and why the search space is disclosed:
+[`whitebox/DISCLOSURE.md`](whitebox/DISCLOSURE.md) row **W-MEMCPY-1**.
+
 ### 5.2 The destination register is chosen by the consumer — **[CF] `il_intrinsic_fold.cpp`**
 
 Even the one-instruction intrinsics are not context-free:

@@ -166,11 +166,13 @@ the header block this table is read from.
 | 2026-08-08 | w-value | [w-value](2026-08-08-w-value.md) | 2 | 711,494 / 2,463,443 unchanged (28.88 %), **+0**; emitted |
 | 2026-08-08 | w-xlr | [w-xlr](2026-08-08-w-xlr.md) | 2 | 711,492 / 2,463,443 → 711,493 / 2,463,443 (28.88 % → 28.88 %), |
 | 2026-08-09 | w-bdnz | [w-bdnz](2026-08-09-w-bdnz.md) | 3 | 711,514 / 2,463,443 unchanged (28.88 %), **+0**; emitted |
+| 2026-08-09 | WB-I-R2 | [wb-select2](2026-08-09-wb-select2.md) | 11 | +0 — WHITEBOX/navigation lane, adopts nothing into crates/ |
 | 2026-08-09 | WB-I | [wb-select](2026-08-09-wb-select.md) | 11 | +0 — WHITEBOX/navigation lane, adopts nothing into crates/ |
 | 2026-08-09 | w-callprice | [w-callprice](2026-08-09-w-callprice.md) | 13 | 711,514 / 2,463,443 unchanged (28.88 %), **+0**; emitted |
 | 2026-08-09 | w-disagree | [w-disagree](2026-08-09-w-disagree.md) | 12 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** on the 878-TU |
 | 2026-08-09 | w-front3 | [w-front3](2026-08-09-w-front3.md) | 11 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** — this lane |
 | 2026-08-09 | w-jump | [w-jump](2026-08-09-w-jump.md) | 13 | 711,514 / 2,463,443 unchanged (28.88 %), **+0**; emitted |
+| 2026-08-09 | w-memfit | [w-memfit](2026-08-09-w-memfit.md) | 13 | 711,514 / 2,463,443 unchanged (28.88 %), **+0**. TU match |
 | 2026-08-09 | w-midrun | [w-midrun](2026-08-09-w-midrun.md) | 1 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** — measured at both |
 | 2026-08-09 | w-mixkind | [w-mixkind](2026-08-09-w-mixkind.md) | 8 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** — measured at both |
 | 2026-08-09 | w-mrslot | [w-mrslot](2026-08-09-w-mrslot.md) | 1 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** — measured at both |
