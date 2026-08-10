@@ -1,0 +1,61 @@
+gate transcripts with a pinned identity : 125
+  named commit unresolvable in this repo: 0
+  OUTSIDE the window (gate.sh had no hatch-red row; the defect did not
+  exist in the code that produced them) : 89
+  INSIDE the window 378a3cae..c6d6602e        : 36
+
+THE 36 RUNS INSIDE THE WINDOW, and what their own hatch-red row says:
+
+  transcript                                     tree      dirty  hatch-red row
+  work/w-5c2/gate_tip.txt                        9647c5b7  yes    PASS building
+  work/w-biquad/gate_tip.txt                     036726cd  yes    REFUSED HATCH-STALE
+  work/w-biquad/ml_O1.txt                        d3bd3ddc  no     - 
+  work/w-biquad/mut1.txt                         71ce3ecc  yes    - 
+  work/w-biquad/mut2.txt                         71ce3ecc  yes    - 
+  work/w-biquad/mut3.txt                         71ce3ecc  yes    - 
+  work/w-biquad/mut4.txt                         71ce3ecc  yes    - 
+  work/w-column/gate_tip.txt                     e06e7e07  no     PASS building
+  work/w-fence2/gate_rtip.txt                    9b854801  no     REFUSED HATCH-STALE
+  work/w-fence2/gate_tip.txt                     ca264cd2  no     REFUSED HATCH-STALE
+  work/w-fltret2/gate_counterfactual.txt         cdfdc170  yes    REFUSED DIRTY-TREE
+  work/w-fltret2/gate_tip.txt                    99b150e4  yes    PASS ladder-red:
+  work/w-gatefix/reproA.log                      0d0a74d2  no     REFUSED HATCH-STALE
+  work/w-gatefix/reproB1.log                     0d0a74d2  no     REFUSED HATCH-STALE
+  work/w-gatefix/reproB2.log                     b8801857  no     REFUSED HATCH-STALE
+  work/w-gatefix/v1.log                          dfdb7285  yes    REFUSED HATCH-STALE
+  work/w-gatefix/v3-allow.log                    dfdb7285  yes    REFUSED DIRTY-TREE
+  work/w-gatefix/v4-allow.log                    dfdb7285  yes    REFUSED DIRTY-TREE
+  work/w-hatchroot/gate_master.txt               e95cd428  no     PASS building
+  work/w-hatchroot/gate_tip.txt                  64b8e18c  no     PASS ladder-red:
+  work/w-inlfence2/gate_rebased.txt              556e1bb9  yes    PASS ladder-red:
+  work/w-inlfence2/gate_tip.txt                  2dbf0dd0  no     PASS ladder-red:
+  work/w-ladders/gate_tip.txt                    8e61897c  no     PASS building
+  work/w-mass/gate_tip.txt                       500b6ed8  no     PASS ladder-red:
+  work/w-mass/gate_tip2.txt                      a3c15ba8  no     PASS ladder-red:
+  work/w-memcpy/gate_tip.txt                     29c5e6c8  no     PASS building
+  work/w-memfit/gate_tip.txt                     dc228e06  yes    PASS ladder-red:
+  work/w-mmio/gate_tip.txt                       6e08f6d4  no     PASS building
+  work/w-phase7/gate.log                         54f9cbc8  no     PASS ladder-red:
+  work/w-pool/gate_tip.txt                       7eda6c7e  yes    REFUSED HATCH-STALE
+  work/w-readpx/gate.txt                         105ce173  yes    PASS ladder-red:
+  work/w-seclayout/GATE.txt                      d8468318  yes    REFUSED HATCH-STALE
+  work/w-wordwrap/gate_tip.txt                   5b7900a5  no     REFUSED HATCH-STALE
+  work/w-xtea/gate/gate.txt                      e75535c0  no     PASS ladder-red:
+  work/w-xtea2/gate_tip.txt                      7543d97d  no     REFUSED HATCH-STALE
+  work/wb-memcpy/gate_tip.txt                    d7c2ccbb  yes    PASS ladder-red:
+
+  hatch-red verdicts seen inside the window:
+    -                                                                      5
+    PASS building                                                          6
+    PASS ladder-red:                                                       11
+    REFUSED DIRTY-TREE                                                     3
+    REFUSED HATCH-STALE                                                    11
+
+READING
+  DIRTY-TREE  = the row REFUSED before running: the tree was dirty in a way
+                `git diff HEAD` could still see, i.e. STAGED. `git checkout --`
+                restores from the index, so a staged edit was never at risk,
+                and the row not running means nothing was written either.
+  HATCH-STALE = the arms RAN. The --list probe had already reverted `crates/`
+                by then, so anything UNSTAGED there is gone and the build that
+                follows is of the named commit exactly.
