@@ -53,16 +53,36 @@ pub(crate) const CH_RDATA_EH: u32 = 0x4040_1040;
 /// `c2.dll` (board **#1869**).
 pub(crate) const EH_MAGIC: u32 = 0x1993_0522;
 
-/// `_s_FuncInfo` is **TEN** dwords, not the nine board #1869 and
-/// `WB_EH_FINDINGS.md` §3.1 record.
+/// `_s_FuncInfo` is **NINE** dwords — `magic`, `maxState`, `pUnwindMap`,
+/// `nTryBlocks`, `pTryBlockMap`, `nIPMapEntries`, `pIPtoStateMap`,
+/// `pESTypeList`, `EHFlags` — and board **#1869** and `EH_RECORDS.md` §11.2 are
+/// right about that.
 ///
-/// The obj's own arithmetic forces it and it is not a matter of taste: the EH
-/// `.rdata` is 64 bytes, `__unwindtable$main` occupies `+0x00..+0x08` and
-/// `$T<n>` — the ip-to-state array, two 8-byte entries — starts at `+0x30`. The
-/// record between them is `0x30 − 0x08 = 0x28` = 40 bytes = 10 dwords. The
-/// tenth is zero on every cell measured here, which is exactly why counting the
-/// *populated* fields gives nine.
-pub(crate) const EH_FUNCINFO_DWORDS: u32 = 10;
+/// **This constant is 9 + a PAD, and the distinction cost this lane a
+/// prediction.** The EH `.rdata` is 64 bytes with `__unwindtable$` at `+0x00`
+/// and the ip-to-state array at `+0x30`, so the span between them is 40 bytes;
+/// from the obj alone *"ten dwords"* and *"nine dwords then four bytes of
+/// alignment"* are the same forty bytes and nothing separates them. They are
+/// separated already, and not by an obj: `EH_RECORDS.md` §11.1 reads c2's own
+/// `/FAsc` listing, where the pad is a printed `ORG $+4` directive between
+/// `__ehfuncinfo$F` and its `$T` — **pad 0 on 13 probes and pad 4 on 50**, so
+/// the pad is a real alignment and not a constant.
+///
+/// The port emits the same forty bytes either way; what the two readings
+/// disagree about is what happens when the ip-to-state array is already
+/// 8-aligned, and the recognizer's one-object gate means this emitter never
+/// meets that case. Written as the sum so the next reader sees the seam.
+pub(crate) const EH_FUNCINFO_DWORDS: u32 = 9;
+
+/// The `ORG $+4` alignment pad `EH_RECORDS.md` §11.1 reads out of c2's own
+/// listing: the ip-to-state array is 8-aligned within the EH `.rdata`, and with
+/// an 8-byte `__unwindtable$` in front of a 36-byte `FuncInfo` it always needs
+/// four bytes here. **Derived, not assumed** — `align8` over the running offset
+/// — so a class with a different `maxState` would compute a different pad
+/// rather than inherit this one.
+fn eh_ip2state_pad(off: u32) -> u32 {
+    (8 - (off % 8)) % 8
+}
 
 /// One ip-to-state entry: `{ ip, state }`, both 4 bytes, the `ip` carrying an
 /// ADDR32 relocation against a `$M` label.
@@ -379,7 +399,8 @@ pub fn emit_eh_scope_obj(obj_name: &str, tu: &EhScopeTu<'_>) -> Option<Vec<u8>> 
     // that holds one is written as zero.
     let unwind_table_at = 0u32;
     let funcinfo_at = unwind_table_at + EH_UNWIND_ENTRY;
-    let ip2state_at = funcinfo_at + 4 * EH_FUNCINFO_DWORDS;
+    let funcinfo_end = funcinfo_at + 4 * EH_FUNCINFO_DWORDS;
+    let ip2state_at = funcinfo_end + eh_ip2state_pad(funcinfo_end);
     let n_ip2state = 2u32;
     let mut rdata: Vec<u8> = Vec::with_capacity((ip2state_at + n_ip2state * EH_IP2STATE_ENTRY) as usize);
     let mut w = |v: u32| rdata.extend_from_slice(&v.to_be_bytes());
@@ -397,7 +418,12 @@ pub fn emit_eh_scope_obj(obj_name: &str, tu: &EhScopeTu<'_>) -> Option<Vec<u8>> 
     w(0); // -> $T<n>   (ADDR32)
     w(0);
     w(EH_FLAGS_EHS);
-    w(0);
+    // The `ORG $+4` pad — printed as a directive in c2's own listing, computed
+    // here rather than written out, so a record set of a different length gets
+    // the alignment and not this constant.
+    for _ in 0..eh_ip2state_pad(funcinfo_end) / 4 {
+        w(0);
+    }
     // The ip-to-state array. Entry 0 opens state 0 at the member call; entry 1
     // closes it at the destructor call. Both `ip` fields are relocations.
     w(0); // -> $M(state 0)
@@ -744,14 +770,21 @@ mod tests {
         assert_eq!(b.body, [2573, 2574, 2575]);
     }
 
-    /// The EH `.rdata` is 64 bytes exactly, and it is that only because
-    /// `__ehfuncinfo$` is TEN dwords. Nine would put `$T` at `+0x2c` and the
-    /// section at 60 bytes; board #1869 and `WB_EH_FINDINGS.md` §3.1 both say
-    /// nine.
+    /// The EH `.rdata` is 64 bytes exactly: an 8-byte `__unwindtable$`, a NINE
+    /// dword `FuncInfo`, the `ORG $+4` alignment pad `EH_RECORDS.md` §11.1 reads
+    /// out of c2's own listing, and two 8-byte ip-to-state entries. Board #1869
+    /// and `WB_EH_FINDINGS.md` §3.1 say nine and are right; this lane's PREREG
+    /// P4 said ten and is the MISS.
     #[test]
-    fn the_eh_rdata_is_sixty_four_bytes_and_the_funcinfo_is_ten_dwords() {
-        assert_eq!(EH_UNWIND_ENTRY + 4 * EH_FUNCINFO_DWORDS + 2 * EH_IP2STATE_ENTRY, 64);
-        assert_eq!(EH_UNWIND_ENTRY + 4 * EH_FUNCINFO_DWORDS, 0x30);
+    fn the_eh_rdata_is_sixty_four_bytes_as_nine_dwords_plus_the_printed_pad() {
+        let end = EH_UNWIND_ENTRY + 4 * EH_FUNCINFO_DWORDS;
+        assert_eq!(end, 0x2C, "nine dwords after an 8-byte unwind map");
+        assert_eq!(eh_ip2state_pad(end), 4, "the printed `ORG $+4`");
+        assert_eq!(end + eh_ip2state_pad(end), 0x30, "where `$T` sits");
+        assert_eq!(end + eh_ip2state_pad(end) + 2 * EH_IP2STATE_ENTRY, 64);
+        // The pad is a real alignment, not a constant: EH_RECORDS §11.1 reads
+        // pad 0 on 13 probes and pad 4 on 50.
+        assert_eq!(eh_ip2state_pad(0x30), 0);
     }
 
     /// A formal count outside the measured shift refuses rather than emitting a
