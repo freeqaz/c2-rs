@@ -1939,7 +1939,8 @@ impl IlBundle {
         // `sel_segs`. Where `seg_ix.len() == segs.len()` the two are the same
         // list and this whole function is byte-for-byte what it was.
         let (bind, seg_ix) =
-            Bindings::selective(gl, self.get("in").unwrap_or(&[]), self.get("sy"), &segs, &starts)?;
+            Bindings::selective(gl, self.get("in").unwrap_or(&[]), self.get("sy"), &segs, &starts)
+                .ok()?;
         let sel_segs: Vec<&[u8]> = seg_ix.iter().map(|&i| segs[i]).collect();
         let names = bind.names();
         let src = bind.src.clone();
@@ -2993,18 +2994,23 @@ mod dyninit_tests {
     /// discharges that from the input by requiring every `.gl` symbol run that
     /// could be a COFF symbol name to be claimed by a bound record.*
     ///
-    /// Two bundles, identical but for one symbol run:
+    /// Two bundles, identical but for one symbol run, and **both refuse** — at
+    /// different clauses, which is the whole point:
     ///
-    /// * one record, three segments, and **nothing unclaimed** — the binding is
-    ///   selective and reaches the body parser (which then refuses these
-    ///   synthetic bodies, so the assertion here is on `decode_causes`, whose
-    ///   `causes.is_empty() == decodes` invariant is what ties it to the gate);
-    /// * the same bundle plus one unclaimed `extern "C"`-shaped run — refused at
-    ///   the binding, before any body is looked at.
+    /// * one record, three segments, **nothing unclaimed** — clause 3 is
+    ///   satisfied, and clause 4 refuses because a record is c1xx saying *this TU
+    ///   has a body for this symbol*, not c2 saying *I emitted it*;
+    /// * the same bundle plus one unclaimed `extern "C"`-shaped run — refused
+    ///   earlier, at clause 3.
     ///
-    /// The second is the shape `work/w-small/probe/l1_counterexample.cpp`
-    /// measured as `Port=Mismatch @ offset 8` under a binding that accepted a
-    /// short prefix.
+    /// Both refusals are measured shapes rather than hypotheses.
+    /// `work/w-small/probe/l1_counterexample.cpp` is the clause-3 witness
+    /// (`Port=Mismatch @ offset 8`, `g` present in c2's obj and absent from the
+    /// port's) and `65-linkage-comdat-0028.cpp` is the clause-4 one
+    /// (`inline int u`, `inline int v` calling it, `int f`: **2** records over
+    /// **3** segments, **0** unclaimed, and c2's 833-byte obj holds
+    /// `?f@@YAHH@Z` alone — the same verdict at offset 8, on 5 sweep cases and
+    /// 30 `mode_cross` cells).
     #[test]
     fn functions_refuses_when_a_body_c2_may_have_emitted_is_unaccounted_for() {
         let starts = [0usize, 40, 80];
@@ -3015,14 +3021,24 @@ mod dyninit_tests {
         let mut b = IlBundle::new("selective-accounted");
         b.set("ex", ex.clone());
         b.set("gl", named.clone());
+        assert!(
+            b.functions().is_none(),
+            "clause 3 holds and the binding is still refused: the one record may \
+             be a SUPERSET of what c2 emitted, and the port would carry an extra \
+             function"
+        );
         let d = b.decode_causes();
         assert!(
             !d.causes.contains(&super::super::diag::cause::SELECTIVE_UNACCOUNTED),
-            "every run is a record name, so the two unbound segments cannot be \
-             emitted bodies and the totality clause must not fire: {:?}",
+            "every run is a record name, so the UNDER-emit clause must not fire \
+             and the refusal must be attributed to the OVER-emit one: {:?}",
             d.causes
         );
+        assert!(d
+            .causes
+            .contains(&super::super::diag::cause::SELECTIVE_EMIT_SET_UNKNOWN));
         assert_eq!(d.causes.is_empty(), d.decodes);
+        assert!(!d.decodes);
 
         // …now one more symbol run, claimed by no record. Eight bytes or fewer,
         // no `@@` — invisible to `looks_mangled` and therefore absent from
@@ -3043,6 +3059,12 @@ mod dyninit_tests {
         );
         let d2 = b2.decode_causes();
         assert!(d2.causes.contains(&super::super::diag::cause::SELECTIVE_UNACCOUNTED));
+        assert!(
+            !d2.causes
+                .contains(&super::super::diag::cause::SELECTIVE_EMIT_SET_UNKNOWN),
+            "the two clauses are ordered, and the histogram must attribute this \
+             TU to the one that actually stopped it"
+        );
         assert!(d2.causes.contains(&super::super::diag::cause::BIND_COUNT));
         assert_eq!(d2.causes.is_empty(), d2.decodes);
         assert!(!d2.decodes);

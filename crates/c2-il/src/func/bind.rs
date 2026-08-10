@@ -421,6 +421,34 @@ pub fn gl_gate_record_names(gl: &[u8]) -> std::collections::BTreeSet<String> {
         .collect()
 }
 
+/// **W-SELBIND — which clause of the selective contract refused.**
+///
+/// A refusal is a refusal to [`crate::IlBundle::functions`], which maps every
+/// variant to `None`. The variants exist for [`super::diag`], because the
+/// clauses have different futures: 1, 2 and 3 are discharged from the input
+/// today and a lane can read how often; [`Self::EmitSetUnknown`] needs factor A
+/// and a lane needs to see that it is the one that fired.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SelectiveStop {
+    /// The `.gl` walk bound nothing — it stopped, or there are no records. Not a
+    /// selective binding at all.
+    NoRecords,
+    /// Clause 1: a record's framed body-start offset is not an `.ex` split point.
+    OffsetNotASplitPoint,
+    /// Clause 2: two records name one segment, or the records do not run forward
+    /// through the segment list.
+    RecordsDoNotAdvance,
+    /// Clause 3: a `.gl` symbol run that could be a COFF symbol name is claimed
+    /// by no bound record, so a body c2 EMITTED may be among the segments the
+    /// port would leave out. **Under**-emit.
+    Unaccounted,
+    /// Clause 4: every earlier clause holds and the binding is still refused,
+    /// because the bound record set is a **superset** of c2's emit set and
+    /// nothing in the input says which records c2 kept. **Over**-emit — measured
+    /// at 35 wrong objs inside this lane; see [`Bindings::selective`].
+    EmitSetUnknown,
+}
+
 /// Everything a `.ex` segment list needs bound to it, built once per bundle.
 ///
 /// There is no "which binding" discriminant field: the two constructors —
@@ -516,13 +544,17 @@ impl<'a> Bindings<'a> {
     ///
     /// # THE CONTRACT, stated as the invariant this function enforces
     ///
-    /// A selective binding binds a *subset* of the segments. A segment it does
-    /// not bind yields no [`crate::IlFunction`], hence no symbol and no `.text`
-    /// bytes, so the binding is sound **only if c2 emits no body for any unbound
-    /// segment**. The port cannot observe c2's emit set — `.ex` carries no
-    /// per-body emit marker at all (board **#2787**: the three bytes after the
-    /// optimization word are `4f 20 80` on 2,123 of 2,123 segments) — so the
-    /// obligation is discharged from the input, in the refusing direction:
+    /// A selective binding binds a *subset* of the segments and emits exactly
+    /// that subset. It is sound only if the subset **IS** c2's emit set, which is
+    /// **two** obligations and not one, because the port can be wrong in two
+    /// directions and each has its own witness:
+    ///
+    /// | direction | the wrong obj | what discharges it |
+    /// |---|---|---|
+    /// | **UNDER-emit** — a segment c2 emitted that the port leaves unbound | an obj **missing** a function | clause 3, and it works |
+    /// | **OVER-emit** — a segment c2 discarded that the port binds and emits | an obj carrying an **extra** function | clause 4, and **nothing in the input discharges it** |
+    ///
+    /// The clauses:
     ///
     /// 1. **every record's framed body-start offset must BE an `.ex` split
     ///    point.** A record whose offset is not a body start is a name attached
@@ -531,13 +563,54 @@ impl<'a> Bindings<'a> {
     ///    class, which the oracle cannot grade.
     /// 2. **no two records may name the same segment**, or the port emits one
     ///    body under two names.
-    /// 3. **the TOTALITY CONDITION — every `.gl` symbol run that could be a COFF
-    ///    symbol name must be claimed by a bound record.** Both halves are
-    ///    required and each closes a different hole
-    ///    ([`super::gl::gl_unclaimed_run_kinds`]): a **mangled** unclaimed run is
-    ///    a name the reference obj may define, and an **inline-fit** unclaimed
-    ///    run is the `extern "C"` shape board **#1721** records `looks_mangled`
-    ///    cannot see.
+    /// 3. **UNDER-EMIT — every `.gl` symbol run that could be a COFF symbol name
+    ///    must be claimed by a bound record.** Both halves are required and each
+    ///    closes a different hole ([`super::gl::gl_unclaimed_run_kinds`]): a
+    ///    **mangled** unclaimed run is a name the reference obj may define, and an
+    ///    **inline-fit** unclaimed run is the `extern "C"` shape board **#1721**
+    ///    records `looks_mangled` cannot see.
+    /// 4. **OVER-EMIT — the bound record set must BE the emit set, and NO WITNESS
+    ///    FOR THAT EXISTS ON TODAY'S INPUT.** A `.gl` record is c1xx saying *this
+    ///    translation unit has a body for this symbol*; it is **not** c2 saying
+    ///    *I emitted it*, and the two differ. So this clause refuses
+    ///    unconditionally, and the selective path is a stated refusal rather than
+    ///    an acceptance the port has no warrant for.
+    ///
+    /// # Clause 4 is MEASURED, at 35 wrong objs, and it is why this path refuses
+    ///
+    /// Clause 3 alone was shipped inside this lane and graded. It is not enough,
+    /// and the counterexample is small:
+    ///
+    /// ```cpp
+    /// inline int u(int a){return a+2;}
+    /// inline int v(int a){return u(a)+3;}
+    /// int f(int a){return a+1;}
+    /// ```
+    ///
+    /// `.ex` splits into **3** segments. `.gl` carries **2** framed records —
+    /// `?u@@YAHH@Z` at body-start 2644 and `?f@@YAHH@Z` at 2860 — and **0**
+    /// unclaimed runs of either kind, so clause 3 is **satisfied**. c2's obj is
+    /// 833 bytes, five sections, and one 8-byte `.text` holding `?f@@YAHH@Z`
+    /// **alone**: it discarded `u` and `v`. Binding the record set emits `u` as
+    /// well, and the verdict is **`Port=Mismatch @ offset 8`**
+    /// (`PointerToSymbolTable`). The same shape on **5** generated sweep cases —
+    /// `65-linkage-comdat-00{18,28,38,48,58}`, one per linkage variant of `u`
+    /// (`static`, `inline`, `static inline`, `__forceinline`,
+    /// `__declspec(noinline) static`) — and **30** `mode_cross` cells, six mode
+    /// lanes deep.
+    ///
+    /// So `.gl`'s record set is a **strict superset** of the emit set, which is
+    /// what w-phase7b's §10 item 3 said in the abstract (*"the `.gl` describes a
+    /// superset of the emit set and a subset of the segment list"*) and what this
+    /// lane paid 35 graded wrong objs to make concrete. Nothing in `.ex` marks a
+    /// body as emitted (board **#2787**: the three bytes after the optimization
+    /// word are `4f 20 80` on 2,123 of 2,123 segments) and nothing in `.gl`
+    /// separates a record c2 kept from one it discarded.
+    ///
+    /// **This is `w-vec` §8 and w-phase7b's D-V2 confirmed by measurement rather
+    /// than by argument**: *"Selectivity is that widening with an emit set as its
+    /// warrant, so D-V1 cannot be paid before factor A."* Clause 4 is where
+    /// factor A would attach, and until it exists the honest answer is a refusal.
     ///
     /// # Why clause 3 has NO callee escape, and the incumbent gate does
     ///
@@ -548,68 +621,74 @@ impl<'a> Bindings<'a> {
     /// the TU refuses if the port cannot prove c2 kept the call. Under a
     /// selective binding an unbound segment's name is exactly what a callee
     /// account would hide: the port would emit a `bl` against a symbol it
-    /// declares undefined-external while c2's obj **defines** it. So on this path
-    /// an unclaimed run is refused outright.
+    /// declares undefined-external while c2's obj **defines** it.
     ///
-    /// # Why this is not the widening `w-vec` §8 ruled out
+    /// # Why this is not the widening `w-vec` §8 ruled out — and why that did not
+    /// save it
     ///
     /// That rung's sentence is *"binding fewer names than segments is the one
-    /// change that lets a wrong obj out of the gate on 851 TUs."* This binds
-    /// fewer **segments** than names and refuses unless the names are exhausted,
-    /// which is the opposite quantifier. Where the records are 1:1 with the
-    /// segments clause 3 is implied by the incumbent contract; where they are
-    /// not, clause 3 is **strictly stronger** than the 1:1 requirement it
-    /// replaces, because it forbids the callee account the incumbent allows.
+    /// change that lets a wrong obj out of the gate on 851 TUs."* This binds fewer
+    /// **segments** than names, which is the opposite quantifier, and the wrong
+    /// obj came out anyway — by the door that sentence does not describe. Recorded
+    /// here because "not the thing that was ruled out" is not a safety argument.
     ///
-    /// # The open edge, named
+    /// # The open edge of clause 3, named
     ///
-    /// A run that is neither mangled nor inline-fit is not counted by clause 3,
-    /// and one such shape is a real symbol (a long undecorated `extern "C"`
-    /// name). It is not counted because the same population holds the source
-    /// path, `__C1_11886` and bare type names, and no reader here separates them
-    /// (#1721). **At the tree that shipped this, the clause-3 population is
-    /// empty over the whole workload**, so the edge is unreachable rather than
-    /// merely unlikely — see `docs/rungs/2026-08-10-w-selbind.md` §4. A lane that
-    /// makes this path accept a TU must close the edge in the same commit.
+    /// A run that is neither mangled nor inline-fit is not counted, and one such
+    /// shape is a real symbol (a long undecorated `extern "C"` name). It is not
+    /// counted because the same population holds the source path, `__C1_11886`
+    /// and bare type names, and no reader here separates them (#1721). Clause 4
+    /// makes the edge unreachable today; a lane that gives clause 4 a witness must
+    /// close it in the same commit.
     pub(crate) fn selective(
         gl: &'a [u8],
         inb: &'a [u8],
         sy: Option<&[u8]>,
         segs: &[&[u8]],
         starts: &[usize],
-    ) -> Option<(Bindings<'a>, Vec<usize>)> {
+    ) -> Result<(Bindings<'a>, Vec<usize>), SelectiveStop> {
         let (bound, unclaimed) = super::gl::gl_bound_names(gl);
         // Nothing bound is not a selective binding, it is the walk failing. The
         // positively-empty `.ex` is recognized upstream and never arrives here.
         if bound.is_empty() {
-            return None;
+            return Err(SelectiveStop::NoRecords);
         }
         // Clause 1 and clause 2, in one pass. `starts` is ascending, so a record
         // list that is itself ascending and lands on split points cannot repeat
-        // one; the strict `>` is what states clause 2 rather than assuming it.
+        // one; the strict comparison is what states clause 2 rather than
+        // assuming it.
         let mut seg_ix: Vec<usize> = Vec::with_capacity(bound.len());
         let mut last: Option<usize> = None;
         for &(off, _) in &bound {
-            let i = starts.iter().position(|&s| s == off as usize)?;
+            let Some(i) = starts.iter().position(|&s| s == off as usize) else {
+                return Err(SelectiveStop::OffsetNotASplitPoint);
+            };
             if last.is_some_and(|l| i <= l) {
-                return None;
+                return Err(SelectiveStop::RecordsDoNotAdvance);
             }
             last = Some(i);
             seg_ix.push(i);
         }
-        // Clause 3 — the totality condition. Asked only when the binding is
-        // genuinely selective: on a 1:1 binding every segment is bound, so no
-        // unbound segment exists to be emitted and the incumbent accounting
-        // (which this clause has no callee escape for) is the right one.
         let names: Vec<String> = bound.into_iter().map(|(_, n)| n).collect();
+        // Clauses 3 and 4, asked only when the binding is genuinely selective:
+        // on a 1:1 binding every segment is bound, no segment is left out, and
+        // the port emits exactly what `.ex` carries — which is the incumbent
+        // contract and is untouched below.
+        //
+        // Clause 3 is evaluated FIRST and its answer is REPORTED even though
+        // clause 4 refuses either way. That is deliberate: the two obligations
+        // have different futures. Clause 3 is discharged from the input today
+        // and a lane can read how often; clause 4 needs factor A and a lane
+        // needs to see that it is the one that fired.
         if seg_ix.len() != segs.len() {
             let (mangled, inline_fit) = super::gl::gl_unclaimed_run_kinds(gl, &names);
             if mangled != 0 || inline_fit != 0 {
-                return None;
+                return Err(SelectiveStop::Unaccounted);
             }
+            return Err(SelectiveStop::EmitSetUnknown);
         }
         let sub: Vec<&[u8]> = seg_ix.iter().map(|&i| segs[i]).collect();
-        Some((
+        Ok((
             Bindings {
                 paired: true,
                 names,
@@ -1124,21 +1203,33 @@ mod tests {
     /// discharges that from the input by requiring every `.gl` symbol run that
     /// could be a COFF symbol name to be claimed by a bound record.*
     ///
-    /// Here the names ARE exhausted — both runs are record names — so the third
-    /// segment cannot be an emitted body and the binding stands at two.
-    /// [`Bindings::per_record`] refuses this same input, and that difference is
-    /// the whole of what this constructor adds.
+    /// Here the names ARE exhausted — both runs are record names — so clause 3
+    /// is satisfied and no unbound segment can be an emitted body the port
+    /// omits. **And the binding is still refused**, at clause 4, because nothing
+    /// says the two records are not a SUPERSET of what c2 emitted. That is the
+    /// whole finding of this lane and it cost 35 graded wrong objs to establish,
+    /// so it is asserted as a stop value and not as a bare `is_err`.
     #[test]
-    fn selective_binds_the_named_subset_when_the_names_are_exhausted() {
+    fn selective_refuses_even_an_exhausted_name_set_because_records_are_not_the_emit_set() {
         let gl = two_records();
         let segs: Vec<&[u8]> = vec![&[0u8; 4], &[0u8; 4], &[0u8; 4]];
-        let (b, ix) = Bindings::selective(&gl, &[], None, &segs, &[0, 40, 80])
-            .expect("every run is a record name, so no unbound segment can be emitted");
-        assert_eq!(ix, vec![0, 1], "the SEGMENT indices, not the record indices");
-        assert_eq!(b.names(), ["?a@@YAHXZ".to_string(), "?b@@YAHXZ".to_string()]);
+        assert_eq!(
+            super::super::gl::gl_unclaimed_run_kinds(
+                &gl,
+                &["?a@@YAHXZ".to_string(), "?b@@YAHXZ".to_string()]
+            ),
+            (0, 0),
+            "clause 3 is SATISFIED on this input — the refusal below is clause 4"
+        );
+        assert_eq!(
+            Bindings::selective(&gl, &[], None, &segs, &[0, 40, 80])
+                .err()
+                .expect("clause 4 refuses"),
+            SelectiveStop::EmitSetUnknown,
+        );
         assert!(
             Bindings::per_record(&gl, &[], None, &segs, &[0, 40, 80]).is_none(),
-            "the incumbent 1:1 contract refuses exactly this input"
+            "the incumbent 1:1 contract refuses the same input, for a weaker reason"
         );
     }
 
@@ -1157,8 +1248,8 @@ mod tests {
         assert_eq!(s.names(), p.names());
         // …and where `per_record` refuses a 1:1 list, so does this one: the
         // offsets must still BE the split points.
-        assert!(Bindings::selective(&gl, &[], None, &segs, &[0, 41]).is_none());
-        assert!(Bindings::selective(&gl, &[], None, &segs, &[40, 0]).is_none());
+        assert!(Bindings::selective(&gl, &[], None, &segs, &[0, 41]).is_err());
+        assert!(Bindings::selective(&gl, &[], None, &segs, &[40, 0]).is_err());
     }
 
     /// **Clause 3, mangled half — an unclaimed `?…@@…` run refuses the whole
@@ -1172,9 +1263,11 @@ mod tests {
         let mut gl = two_records();
         gl.extend_from_slice(&loose_run("?c@@YAHXZ"));
         let segs: Vec<&[u8]> = vec![&[0u8; 4], &[0u8; 4], &[0u8; 4]];
-        assert!(
-            Bindings::selective(&gl, &[], None, &segs, &[0, 40, 80]).is_none(),
-            "an unclaimed mangled run may be an emitted body the port would omit"
+        assert_eq!(
+            Bindings::selective(&gl, &[], None, &segs, &[0, 40, 80]).err(),
+            Some(SelectiveStop::Unaccounted),
+            "an unclaimed mangled run may be an emitted body the port would omit, \
+             and it must stop AHEAD of clause 4 so the histogram can tell them apart"
         );
     }
 
@@ -1212,9 +1305,10 @@ mod tests {
             (0, 1),
             "0 unclaimed mangled runs, 1 unclaimed run that fits the 8-byte field"
         );
-        assert!(
-            Bindings::selective(&gl, &[], None, &segs, &[0, 40, 80]).is_none(),
-            "an unclaimed extern \"C\" name is the measured wrong-emit shape"
+        assert_eq!(
+            Bindings::selective(&gl, &[], None, &segs, &[0, 40, 80]).err(),
+            Some(SelectiveStop::Unaccounted),
+            "an unclaimed extern \"C\" name is the measured UNDER-emit shape"
         );
     }
 
@@ -1226,7 +1320,10 @@ mod tests {
     fn selective_refuses_a_record_offset_that_is_not_a_split_point() {
         let gl = two_records();
         let segs: Vec<&[u8]> = vec![&[0u8; 4], &[0u8; 4], &[0u8; 4]];
-        assert!(Bindings::selective(&gl, &[], None, &segs, &[0, 41, 80]).is_none());
+        assert_eq!(
+            Bindings::selective(&gl, &[], None, &segs, &[0, 41, 80]).err(),
+            Some(SelectiveStop::OffsetNotASplitPoint)
+        );
     }
 
     /// **Clause 2 — records that do not run forward through the segment list.**
@@ -1240,11 +1337,17 @@ mod tests {
         gl.extend_from_slice(&gl_record("?a@@YAHXZ", 40));
         gl.extend_from_slice(&gl_record("?b@@YAHXZ", 0));
         let segs: Vec<&[u8]> = vec![&[0u8; 4], &[0u8; 4], &[0u8; 4]];
-        assert!(Bindings::selective(&gl, &[], None, &segs, &[0, 40, 80]).is_none());
+        assert_eq!(
+            Bindings::selective(&gl, &[], None, &segs, &[0, 40, 80]).err(),
+            Some(SelectiveStop::RecordsDoNotAdvance)
+        );
         let mut dup = Vec::new();
         dup.extend_from_slice(&gl_record("?a@@YAHXZ", 40));
         dup.extend_from_slice(&gl_record("?b@@YAHXZ", 40));
-        assert!(Bindings::selective(&dup, &[], None, &segs, &[0, 40, 80]).is_none());
+        assert_eq!(
+            Bindings::selective(&dup, &[], None, &segs, &[0, 40, 80]).err(),
+            Some(SelectiveStop::RecordsDoNotAdvance)
+        );
     }
 
     /// Positional pairing is meaningful only when the counts agree, and when it

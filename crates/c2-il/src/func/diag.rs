@@ -96,6 +96,16 @@ pub mod cause {
     /// that could be a COFF symbol name is claimed by no bound record, so a body
     /// c2 emitted may be among the segments the port would leave out.
     pub const SELECTIVE_UNACCOUNTED: &str = "selective-unaccounted-emitted-body";
+    /// **W-SELBIND** — the binding is genuinely selective, every other clause
+    /// holds, and it is refused anyway: the bound record set is a **superset** of
+    /// c2's emit set and nothing in the input says which records c2 kept.
+    ///
+    /// `.gl`'s records are c1xx saying *this TU has a body for this symbol*, not
+    /// c2 saying *I emitted it*. Measured at 35 wrong objs inside the lane that
+    /// added this — `inline int u; inline int v{u}; int f` puts **2** records over
+    /// **3** segments with **0** unclaimed runs, and c2's obj holds `?f@@YAHH@Z`
+    /// alone. See `Bindings::selective`.
+    pub const SELECTIVE_EMIT_SET_UNKNOWN: &str = "selective-emit-set-unknown";
 
     /// A defined name that mangles as variadic.
     pub const VARARGS: &str = "varargs";
@@ -281,22 +291,29 @@ impl IlBundle {
             Err(s) => out.push(stop_cause(*s)),
             Ok((bound, _)) => {
                 if bound.len() != segs.len() {
-                    if Bindings::selective(
+                    // The selective binding's own stop, transcribed rather than
+                    // re-derived: clause 3 and clause 4 are different
+                    // obligations with different futures and the histogram has
+                    // to be able to tell them apart.
+                    match Bindings::selective(
                         gl,
                         self.get("in").unwrap_or(&[]),
                         self.get("sy"),
                         &segs,
                         &starts,
-                    )
-                    .is_none()
-                    {
-                        out.push(cause::BIND_COUNT);
-                        let names: Vec<String> =
-                            bound.iter().map(|(_, n)| n.clone()).collect();
-                        let (mangled, inline_fit) =
-                            super::gl::gl_unclaimed_run_kinds(gl, &names);
-                        if mangled != 0 || inline_fit != 0 {
-                            out.push(cause::SELECTIVE_UNACCOUNTED);
+                    ) {
+                        Ok(_) => {}
+                        Err(stop) => {
+                            out.push(cause::BIND_COUNT);
+                            match stop {
+                                super::bind::SelectiveStop::Unaccounted => {
+                                    out.push(cause::SELECTIVE_UNACCOUNTED)
+                                }
+                                super::bind::SelectiveStop::EmitSetUnknown => {
+                                    out.push(cause::SELECTIVE_EMIT_SET_UNKNOWN)
+                                }
+                                _ => {}
+                            }
                         }
                     }
                 } else if bound
@@ -333,7 +350,7 @@ impl IlBundle {
         // this instrument cannot drift from the gate it re-states. `segs.len()`
         // is no longer the name count, so the varargs sweep is over the NAMES.
         let real = Bindings::selective(gl, self.get("in").unwrap_or(&[]), self.get("sy"), &segs, &starts);
-        if let Some((b, _)) = &real {
+        if let Ok((b, _)) = &real {
             if (0..b.names().len()).any(|i| b.is_varargs(i)) {
                 out.push(cause::VARARGS);
             }
@@ -361,8 +378,8 @@ impl IlBundle {
         // segments it BOUND. On a 1:1 binding, and on a TU whose binding failed
         // outright, the two are the same set and this is what it always was.
         let graded: Vec<usize> = match &real {
-            Some((_, seg_ix)) => seg_ix.clone(),
-            None => (0..segs.len()).collect(),
+            Ok((_, seg_ix)) => seg_ix.clone(),
+            Err(_) => (0..segs.len()).collect(),
         };
         if graded.iter().any(|&i| shapes[i].is_none()) {
             out.push(cause::BODY_DECODE);
@@ -370,8 +387,8 @@ impl IlBundle {
 
         // ── everything downstream needs real names ────────────────────────
         let (bind, seg_ix) = match real {
-            Some(b) => b,
-            None => return out,
+            Ok(b) => b,
+            Err(_) => return out,
         };
         out.downstream_evaluated = true;
 
