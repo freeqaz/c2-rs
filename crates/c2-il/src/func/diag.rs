@@ -80,9 +80,22 @@ pub mod cause {
     pub const GL_VARARGS_RECORD: &str = "gl-stop-varargs-record";
 
     /// The records bound, but their count is not the `.ex` segment count.
+    ///
+    /// **W-SELBIND — the FACT this key names is unchanged and so is its
+    /// population; what changed is that it is no longer sufficient on its own.**
+    /// [`super::super::bind::Bindings::selective`] binds the named subset and
+    /// refuses on its own clause 3, so this is pushed exactly when that refusal
+    /// happens — which keeps the first-cause histogram comparable across
+    /// sessions (the strings are an interface) while
+    /// [`SELECTIVE_UNACCOUNTED`] carries the reason beside it.
     pub const BIND_COUNT: &str = "bind-record-count-ne-segments";
     /// The counts agree but a record's offset is not its segment's start.
     pub const BIND_OFFSET: &str = "bind-offset-ne-segment-start";
+    /// **W-SELBIND** — the binding is genuinely selective (fewer records than
+    /// `.ex` segments) and its **totality condition** fails: a `.gl` symbol run
+    /// that could be a COFF symbol name is claimed by no bound record, so a body
+    /// c2 emitted may be among the segments the port would leave out.
+    pub const SELECTIVE_UNACCOUNTED: &str = "selective-unaccounted-emitted-body";
 
     /// A defined name that mangles as variadic.
     pub const VARARGS: &str = "varargs";
@@ -258,11 +271,34 @@ impl IlBundle {
             crate::codec::gl_offset_framed,
             NameFit::InlineOrStringTable,
         );
+        // **W-SELBIND — transcribed from `Bindings::selective`, which is what
+        // `IlBundle::functions` now calls.** A short record list is no longer a
+        // refusal by itself; it is a refusal when the selective binding's
+        // totality clause fails. Both keys are pushed together in that case so
+        // `bind-record-count-ne-segments` keeps naming the same fact and the same
+        // population (#2790 measured it on 12 TUs) while the reason is visible.
         match &gate_bind {
             Err(s) => out.push(stop_cause(*s)),
             Ok((bound, _)) => {
                 if bound.len() != segs.len() {
-                    out.push(cause::BIND_COUNT);
+                    if Bindings::selective(
+                        gl,
+                        self.get("in").unwrap_or(&[]),
+                        self.get("sy"),
+                        &segs,
+                        &starts,
+                    )
+                    .is_none()
+                    {
+                        out.push(cause::BIND_COUNT);
+                        let (mangled, inline_fit) = super::gl::gl_unclaimed_run_kinds(
+                            gl,
+                            crate::codec::gl_offset_framed,
+                        );
+                        if mangled != 0 || inline_fit != 0 {
+                            out.push(cause::SELECTIVE_UNACCOUNTED);
+                        }
+                    }
                 } else if bound
                     .iter()
                     .zip(&starts)
@@ -293,9 +329,12 @@ impl IlBundle {
         // *before* each segment's `parse_segment`. (It fires on 0 of the 878
         // workload TUs, so the ordering is a correctness property of this
         // instrument rather than a number in any histogram.)
-        let real = Bindings::per_record(gl, self.get("in").unwrap_or(&[]), self.get("sy"), &segs, &starts);
-        if let Some(b) = &real {
-            if (0..segs.len()).any(|i| b.is_varargs(i)) {
+        // **W-SELBIND** — the same constructor `IlBundle::functions` calls, so
+        // this instrument cannot drift from the gate it re-states. `segs.len()`
+        // is no longer the name count, so the varargs sweep is over the NAMES.
+        let real = Bindings::selective(gl, self.get("in").unwrap_or(&[]), self.get("sy"), &segs, &starts);
+        if let Some((b, _)) = &real {
+            if (0..b.names().len()).any(|i| b.is_varargs(i)) {
                 out.push(cause::VARARGS);
             }
         }
@@ -316,12 +355,21 @@ impl IlBundle {
                 }
             }
         }
-        if out.bodies_out_of_class > 0 {
+        // **W-SELBIND — the COUNT stays over the whole `.ex` and the CAUSE does
+        // not.** `bodies_out_of_class` is a measurement of the file and keeps its
+        // meaning; the cause has to mirror the gate, and the gate parses only the
+        // segments it BOUND. On a 1:1 binding, and on a TU whose binding failed
+        // outright, the two are the same set and this is what it always was.
+        let graded: Vec<usize> = match &real {
+            Some((_, seg_ix)) => seg_ix.clone(),
+            None => (0..segs.len()).collect(),
+        };
+        if graded.iter().any(|&i| shapes[i].is_none()) {
             out.push(cause::BODY_DECODE);
         }
 
         // ── everything downstream needs real names ────────────────────────
-        let bind = match real {
+        let (bind, seg_ix) = match real {
             Some(b) => b,
             None => return out,
         };
@@ -337,12 +385,15 @@ impl IlBundle {
         // from the same `Bindings`, so the two answer about one `.gl`.
         let resolve_bss_def =
             |tok: u32| -> Option<crate::func::IlDataDef> { bind.resolve_bss_def(tok) };
-        let mut funcs = Vec::with_capacity(segs.len());
-        for (i, shape) in shapes.into_iter().enumerate() {
-            let Some(shape) = shape else { continue };
+        // **W-SELBIND** — over the BOUND segments, and `k` (not the segment
+        // index) is what `name_for_shape` is keyed on: `Bindings::selective`'s
+        // name list is 1:1 with `seg_ix`.
+        let mut funcs = Vec::with_capacity(seg_ix.len());
+        for (k, &i) in seg_ix.iter().enumerate() {
+            let Some(shape) = shapes[i].clone() else { continue };
             match shape_to_function(
                 shape,
-                &bind.name_for_shape(i),
+                &bind.name_for_shape(k),
                 &src,
                 &resolve,
                 &resolve_data,

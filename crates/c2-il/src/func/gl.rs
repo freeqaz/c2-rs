@@ -257,6 +257,66 @@ pub(crate) fn gl_defined_names(gl: &[u8]) -> (Vec<(u32, String)>, Vec<String>) {
     gl_defined_names_with(gl, true)
 }
 
+/// **W-SELBIND — every `.gl` symbol run NO framed record claims, split by
+/// whether the run could be a COFF symbol name at all.**
+///
+/// `(mangled, inline_fit)` counts. [`gl_defined_names_framed`]'s own `unclaimed`
+/// list is filtered through [`looks_mangled`], which is right for the incumbent
+/// 1:1 gate — there every segment is bound, so a run that is not a record name
+/// cannot be a body's name either — and **wrong for a selective binding**, where
+/// an unclaimed run is precisely the thing that might be an unbound body's
+/// symbol. Board **#1721** names the hole this second count closes: an
+/// undecorated `extern "C"` name is stored **inline** in the 8-byte COFF symbol
+/// name field, carries no `@@`, and is therefore invisible to `looks_mangled`.
+///
+/// Deliberately does NOT walk past a stop clause: it takes the record set as an
+/// argument, so the caller decides which framing produced it and this reader
+/// makes no acceptance decision of its own.
+///
+/// # What it cannot classify, stated rather than left to be found
+///
+/// A run that is neither mangled nor inline-fit is **not** counted, and one such
+/// shape is a real symbol: a long undecorated `extern "C"` name
+/// (`_vswprintf_s_l`, 14 bytes, string table — the W-EXTDATA population). It is
+/// left out because the same population contains the source path, `__C1_11886`,
+/// `size_t` and bare type names, and no reader in this crate separates them
+/// (#1721: *"a filter separating those from a real symbol is a rung of its
+/// own"*). That is the selective contract's one open edge and
+/// [`super::bind::Bindings::selective`] states it in those words.
+pub(crate) fn gl_unclaimed_run_kinds(
+    gl: &[u8],
+    framed: fn(&[u8], usize) -> bool,
+) -> (usize, usize) {
+    let runs = symbol_runs(gl, true);
+    let mut claimed = vec![false; runs.len()];
+    let mut p = 0usize;
+    while p + 5 <= gl.len() {
+        if !framed(gl, p) {
+            p += 1;
+            continue;
+        }
+        if let Some(k) = runs.iter().rposition(|&(_, end, _)| end <= p) {
+            if p - runs[k].1 <= MAX_NAME_TO_OFFSET {
+                claimed[k] = true;
+            }
+        }
+        p += 5;
+    }
+    let mut mangled = 0usize;
+    let mut inline_fit = 0usize;
+    for ((_, _, n), c) in runs.iter().zip(&claimed) {
+        if *c {
+            continue;
+        }
+        if looks_mangled(n) {
+            mangled += 1;
+        } else if n.len() <= INLINE_NAME_MAX {
+            inline_fit += 1;
+        }
+    }
+    (mangled, inline_fit)
+}
+
 /// **W-FENCE2 — the defined names this TU declares with PLAIN EXTERNAL linkage**:
 /// not `static`, not `__declspec(dllexport)`, and **not `inline` or
 /// `__forceinline`**.

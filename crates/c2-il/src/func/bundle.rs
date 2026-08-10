@@ -1894,7 +1894,17 @@ impl IlBundle {
         // they are resolved by token through the `.gl` symbol index, because the
         // CALL token carries only a function-type id and cannot distinguish two
         // callees with the same signature.
-        let bind = Bindings::per_record(gl, self.get("in").unwrap_or(&[]), self.get("sy"), &segs, &starts)?;
+        //
+        // **W-SELBIND — the binding is SELECTIVE, and `per_record` is the case
+        // where it selects everything.** [`Bindings::selective`] states the
+        // contract; the two things this call site must not forget are that
+        // `names` is now 1:1 with `seg_ix` rather than with `segs`, and that
+        // every downstream consumer of "the segments" below therefore means
+        // `sel_segs`. Where `seg_ix.len() == segs.len()` the two are the same
+        // list and this whole function is byte-for-byte what it was.
+        let (bind, seg_ix) =
+            Bindings::selective(gl, self.get("in").unwrap_or(&[]), self.get("sy"), &segs, &starts)?;
+        let sel_segs: Vec<&[u8]> = seg_ix.iter().map(|&i| segs[i]).collect();
         let names = bind.names();
         let src = bind.src.clone();
         let resolve = |tok: u32| -> Option<String> { bind.resolve(tok) };
@@ -1907,7 +1917,12 @@ impl IlBundle {
         // from the same `Bindings`, so the two answer about one `.gl`.
         let resolve_bss_def =
             |tok: u32| -> Option<crate::func::IlDataDef> { bind.resolve_bss_def(tok) };
-        let n_defined = segs.len();
+        // **The number of bodies the port will EMIT**, which is the number of
+        // segments it BOUND and not the number `.ex` carries. Under a 1:1
+        // binding these are equal; under a selective one the difference is
+        // exactly the bodies c2 discards, and `Bindings::selective`'s clause 3
+        // is what licenses ignoring them.
+        let n_defined = seg_ix.len();
         // **W-MMIOCLOSE — the sibling fact, established BEFORE the per-function
         // loop and consumed inside it.**
         //
@@ -1930,7 +1945,7 @@ impl IlBundle {
         let attrs = super::gl::gl_function_attrs(gl);
 
         let mut funcs = Vec::with_capacity(n_defined);
-        for (i, (name, seg)) in names.iter().take(n_defined).zip(&segs).enumerate() {
+        for (i, (name, seg)) in names.iter().take(n_defined).zip(&sel_segs).enumerate() {
             // A variadic function's body IL is byte-identical to its non-variadic
             // twin's, so this is the one gate that cannot live in the body parser
             // ([`super::bind::mangled_is_varargs`]). The census asks the SAME
@@ -2911,6 +2926,90 @@ mod dyninit_tests {
         let mut bg = IlBundle::new("nogl");
         bg.set("ex", ex_with_starts(&starts, 800));
         assert_eq!(bg.gl_body_start_coverage(), None);
+    }
+
+    /// One `.gl` function record in the shape `codec::gl_offset_framed`
+    /// recognizes, plus the `.drectve` boilerplate `IlBundle::functions` gates on
+    /// before it looks at a single body.
+    fn gl_record_at(name: &str, body_off: u32) -> Vec<u8> {
+        let mut v = vec![0u8];
+        v.extend_from_slice(name.as_bytes());
+        v.push(0);
+        v.extend_from_slice(&[0x80, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x80]);
+        v.extend_from_slice(&body_off.to_le_bytes());
+        v
+    }
+
+    fn drectve_boilerplate() -> Vec<u8> {
+        let mut v = vec![0x00u8, 0x00, 0x01, 0x0A];
+        v.extend_from_slice(b"/include:__C1_11886\0");
+        v
+    }
+
+    /// **W-SELBIND — THE REFUSAL THE SELECTIVE CONTRACT IS FOR, at the gate
+    /// itself: a body c2 may have EMITTED is unaccounted for, so
+    /// `functions()` is `None`.**
+    ///
+    /// The contract, in the words `Bindings::selective` enforces: *a selective
+    /// binding binds a subset of the `.ex` segments; a segment it does not bind
+    /// yields no function, hence no symbol and no `.text` bytes, so it is sound
+    /// only if c2 emits no body for any unbound segment — and the port
+    /// discharges that from the input by requiring every `.gl` symbol run that
+    /// could be a COFF symbol name to be claimed by a bound record.*
+    ///
+    /// Two bundles, identical but for one symbol run:
+    ///
+    /// * one record, three segments, and **nothing unclaimed** — the binding is
+    ///   selective and reaches the body parser (which then refuses these
+    ///   synthetic bodies, so the assertion here is on `decode_causes`, whose
+    ///   `causes.is_empty() == decodes` invariant is what ties it to the gate);
+    /// * the same bundle plus one unclaimed `extern "C"`-shaped run — refused at
+    ///   the binding, before any body is looked at.
+    ///
+    /// The second is the shape `work/w-small/probe/l1_counterexample.cpp`
+    /// measured as `Port=Mismatch @ offset 8` under a binding that accepted a
+    /// short prefix.
+    #[test]
+    fn functions_refuses_when_a_body_c2_may_have_emitted_is_unaccounted_for() {
+        let starts = [0usize, 40, 80];
+        let ex = ex_with_starts(&starts, 200);
+
+        let mut named = drectve_boilerplate();
+        named.extend_from_slice(&gl_record_at("?a@@YAHXZ", 0));
+        let mut b = IlBundle::new("selective-accounted");
+        b.set("ex", ex.clone());
+        b.set("gl", named.clone());
+        let d = b.decode_causes();
+        assert!(
+            !d.causes.contains(&super::super::diag::cause::SELECTIVE_UNACCOUNTED),
+            "every run is a record name, so the two unbound segments cannot be \
+             emitted bodies and the totality clause must not fire: {:?}",
+            d.causes
+        );
+        assert_eq!(d.causes.is_empty(), d.decodes);
+
+        // …now one more symbol run, claimed by no record. Eight bytes or fewer,
+        // no `@@` — invisible to `looks_mangled` and therefore absent from
+        // `Bindings::unclaimed`, which is exactly why the totality clause counts
+        // it separately (board #1721).
+        let mut hidden = named.clone();
+        hidden.push(0);
+        hidden.extend_from_slice(b"g");
+        hidden.push(0);
+        let mut b2 = IlBundle::new("selective-unaccounted");
+        b2.set("ex", ex);
+        b2.set("gl", hidden);
+        assert!(
+            b2.functions().is_none(),
+            "an unclaimed run that fits the 8-byte COFF inline name field may be \
+             a body c2 emitted; the port must refuse rather than emit an obj \
+             missing a function"
+        );
+        let d2 = b2.decode_causes();
+        assert!(d2.causes.contains(&super::super::diag::cause::SELECTIVE_UNACCOUNTED));
+        assert!(d2.causes.contains(&super::super::diag::cause::BIND_COUNT));
+        assert_eq!(d2.causes.is_empty(), d2.decodes);
+        assert!(!d2.decodes);
     }
 
     /// The over-count is DELIBERATE and is pinned, because the only published
