@@ -328,8 +328,9 @@
 #   scripts/gate.sh --sweep-cases 400     STRIDED subset — never an unqualified PASS
 #   scripts/gate.sh --cross-cells 4000    ditto, for the mode-cross row
 #   scripts/gate.sh --list                print the registry and exit
-#   scripts/gate.sh --check               validate the registry AND the corpus's
-#                                         shape coverage; no toolchain, no compiler
+#   scripts/gate.sh --check               validate the registry, the corpus's shape
+#                                         coverage AND the gate's own tree-integrity
+#                                         arms (#2668/#2907); no toolchain, no compiler
 #   scripts/gate.sh --selftest            prove the gate fails when it should
 #   scripts/gate.sh --work DIR            run directory (default /tmp/c2rs-gate-$$)
 #   scripts/gate.sh --reap-only           run the reaper and the disk preflight and
@@ -350,9 +351,26 @@
 #                                         Opt-in; unset, nothing below moves. Run
 #                                         mode only — see the block above for why
 #                                         SAMPLED and `--lane` runs satisfy it.
+#   scripts/gate.sh --allow-dirty-crates  GRADE AN UNCOMMITTED `crates/` ANYWAY.
+#                                         Without it, a `crates/` that differs from
+#                                         HEAD is REFUSED (exit 4) and nothing runs
+#                                         — boards #2668/#2907, where the gate
+#                                         silently reverted a lane's work and then
+#                                         graded the reverted tree. With it, the run
+#                                         proceeds, NAMES itself on every headline,
+#                                         and the one row that writes into `crates/`
+#                                         is refused rather than run. It never
+#                                         re-enables the restore.
+#
+# every run prints `graded tree: <hash> (N files)` twice — once before any row can
+# write, once after everything has — over `crates/ fixtures/ scripts/`. That, and
+# not `git rev-parse HEAD`, is the identity of what a run graded: HEAD is exactly
+# what lied in #2907. Two hashes that differ mean the tree moved mid-run and the
+# verdict is evidence about neither end.
 #
 # exit codes:  0 = PASS / SKIPPED / SAMPLED   1 = a real gate failure
 #              2 = usage   **3 = out of disk, and nothing was graded**
+#              **4 = refused: `crates/` is dirty, and nothing was graded or touched**
 #
 #              These are the codes WITHOUT `--require-graded`, and they do not
 #              move when it is unset. **With it set**, exactly one thing changes:
@@ -492,8 +510,18 @@ reap=1
 require_graded=0
 if [ "${C2RS_GATE_REQUIRE_GRADED:-0}" = 1 ]; then require_graded=1; fi
 
+# THE DIRTY-`crates/` ESCAPE HATCH — board #2907/#2668, lane `w-gatefix`.
+# Default 0: a graded run over a `crates/` that differs from `HEAD` is REFUSED,
+# because this gate has rows that write there and one of them silently reverted
+# a lane's uncommitted work and then graded the reverted tree. Compared against
+# the exact string `1` for the reason `require_graded` is: a half-set variable
+# must neither arm nor disarm a check that changes what the gate will run.
+allow_dirty=0
+if [ "${C2RS_GATE_ALLOW_DIRTY_CRATES:-0}" = 1 ]; then allow_dirty=1; fi
+
 while [ $# -gt 0 ]; do
     case "$1" in
+        --allow-dirty-crates) allow_dirty=1 ;;
         --list)     mode=list ;;
         --check)    mode=check ;;
         --selftest) mode=selftest ;;
@@ -758,6 +786,95 @@ sweep_verdict() {
     return 0
 }
 
+# ================================================================================
+# WHICH TREE DID THIS RUN ACTUALLY GRADE?  (boards #2668 / #2907, lane w-gatefix)
+# ================================================================================
+#
+# Until 2026-08-10 the only identity a gate run printed was `pin_harness`'s
+# `tree <short HEAD>[-dirty]`, and **HEAD is exactly what lied**. Two runs of
+# this gate, same invocation, same printed identity, different graded code:
+#
+#   | `crates/` when the gate started     | pinned binary  | printed identity |
+#   |-------------------------------------|----------------|------------------|
+#   | one uncommitted edit                | `0a252107b376` | `tree 0d0a74d2`  |
+#   | the SAME edit, committed            | `6efc8913269f` | `tree b8801857`  |
+#
+# The first row is the defect: `hatch_red_run`'s arm-count probe
+# (`hatch_red.py --list`) ran a `git checkout -- crates/` before the interlock
+# that was supposed to prevent exactly that, the edit was gone, the run graded
+# the pre-edit tree, and `-dirty` was ABSENT from the identity because the
+# thing that computed it ran after the thing that cleaned the tree. Lane
+# `w-seclayout` shipped a "byte-identical binary" claim off such a run and had
+# to retract it (#2907); lane `w-xtea2` had to re-apply an edit the gate ate
+# (#2668). Both fixes are below; this is the instrument that makes a third
+# instance visible instead of silent.
+#
+# WHY A CONTENT HASH AND NOT A COMMIT
+# -----------------------------------
+# A commit id answers "what is checked in". A gate grades **what is on disk**,
+# and the two diverge exactly when it matters — uncommitted work, a
+# half-restored tree, a peer session writing into the worktree mid-run (which
+# has happened here). So the identity is a hash of file CONTENT over the three
+# directories a run's verdict depends on:
+#
+#   * `crates/`   — the port and the harness, i.e. the code under test;
+#   * `fixtures/` — the corpus the fixture scan grades;
+#   * `scripts/`  — the graders themselves, this file included.
+#
+# `docs/STATUS.md`'s generated block already pins a binary hash for the same
+# reason; this is that precedent applied to the inputs rather than the output.
+#
+# The file COUNT travels with the hash. A digest computed over three files and a
+# digest computed over seven hundred are both 12 hex characters, and a `find`
+# that silently returned almost nothing would otherwise print a confident,
+# stable, meaningless identity — this project's most-repeated defect (absence
+# reads as success) aimed at the instrument built to stop it.
+#
+# Deterministic by construction: `LC_ALL=C sort -z` fixes the order, the digest
+# is over `sha256sum`'s own `<hash>  <path>` lines so a RENAME moves it, and no
+# mtime, inode or timestamp is read. `xargs -r` so an empty file list produces
+# no `sha256sum` invocation at all — without it, `sha256sum` with no operands
+# reads standard input and the gate hangs forever.
+#
+# Emits `<12hex>:<nfiles>`, or `:0` when it cannot be computed. Never fatal on
+# its own: a missing `sha256sum` must degrade to "identity unavailable" and say
+# so, not turn a green gate red.
+# --------------------------------------------------------------------------------
+GRADED_DIRS="crates fixtures scripts"
+
+graded_tree_hash() {   # <root> [dirs] -> <12hex>:<nfiles>
+    _gh_root="$1"; _gh_dirs="${2:-$GRADED_DIRS}"
+    if [ ! -d "$_gh_root" ] || ! command -v sha256sum >/dev/null 2>&1; then
+        echo ":0"; return 0
+    fi
+    _gh_n=$(cd "$_gh_root" && find $_gh_dirs -type f 2>/dev/null | wc -l)
+    [ -n "$_gh_n" ] || _gh_n=0
+    if [ "$_gh_n" -le 0 ]; then echo ":0"; return 0; fi
+    _gh_h=$(cd "$_gh_root" && find $_gh_dirs -type f -print0 2>/dev/null \
+        | LC_ALL=C sort -z | xargs -0 -r sha256sum 2>/dev/null \
+        | sha256sum | cut -c1-12)
+    [ -n "$_gh_h" ] || { echo ":0"; return 0; }
+    echo "$_gh_h:$_gh_n"
+}
+
+# --------------------------------------------------------------------------------
+# THE TRACKED-MODIFICATION VIEW OF `crates/`, which is what `git checkout --`
+# destroys and what the refusal below is about.
+#
+# `git diff --name-only HEAD` and NOT `git status --porcelain`, deliberately and
+# with the trade-off named: `status` also reports UNTRACKED files, and a stray
+# `crates/scratch.txt` would then refuse every gate on this box for a reason
+# that has nothing to do with the hazard — a check that refuses for unrelated
+# reasons is a check somebody deletes. Untracked files are not lost to a
+# checkout; they are still covered, because the content hash above walks the
+# filesystem and sees them.
+# --------------------------------------------------------------------------------
+crates_dirty() {    # <root> -> space-separated paths, empty when clean
+    _cd_root="$1"
+    git -C "$_cd_root" rev-parse --git-dir >/dev/null 2>&1 || { echo ''; return 0; }
+    git -C "$_cd_root" diff --name-only HEAD -- crates/ 2>/dev/null | tr '\n' ' '
+}
+
 # --------------------------------------------------------------------------------
 # THE HATCH-RED ROW (board #1406, lane w-cache, 2026-08-08).
 #
@@ -884,6 +1001,44 @@ hatch_red_run() {   # <log-path> -> echoes the tuple
         echo "NO-RESULT|0|0|0|0|MISSING no python3, and the arms are a python script"
         return 0
     fi
+    # ---- THE INTERLOCK RUNS BEFORE ANYTHING INVOKES THE SCRIPT (#2907) --------
+    #
+    # It used to run one line lower, AFTER the `--list` arm-count probe, and
+    # that ordering is the whole defect: `hatch_red.py`'s module-level
+    # `finally: restore()` fired on `--list` too, so the probe did the very
+    # `git checkout -- crates/` this interlock exists to prevent, and the
+    # interlock then read the tree the probe had just cleaned and let the row
+    # run. A dirty tree came out as `REFUSED HATCH-STALE`, the lane's work was
+    # gone, and the gate went on to build and grade `HEAD`.
+    #
+    # `hatch_red.py` is fixed too (its `restore()` is armed by `arm()`), and
+    # this order is the second lock rather than the same lock twice: the file
+    # could regain a destructive path, and the rule "nothing runs that script
+    # until this has passed" survives that. **No invocation of `$_hr_py` — not
+    # even `--list` — may appear above this block.**
+    # --------------------------------------------------------------------------
+    if ! git -C "$repo_root" rev-parse --git-dir >/dev/null 2>&1; then
+        echo "REFUSED|0|0|0|0|NO-GIT this tree is not a checkout, so the arms cannot restore what they write"
+        return 0
+    fi
+    # `HEAD`, not the worktree-vs-index diff `hatch_red.py` checks itself: a
+    # STAGED `crates/` edit survives the arms' `git checkout --` but can still
+    # move one of `hatch.py`'s needles, which would turn a peer's ordinary
+    # work-in-progress into this row's red.
+    _hr_dirty=$(crates_dirty "$repo_root")
+    if [ -n "$_hr_dirty" ]; then
+        echo "REFUSED|0|0|0|0|DIRTY-TREE crates/ differs from HEAD and the arms would overwrite it: $_hr_dirty"
+        return 0
+    fi
+    # And the caller's explicit escape hatch is a refusal HERE as well, with its
+    # own word. `--allow-dirty-crates` says "grade this tree as it is"; the one
+    # row that would rewrite it must not run under that promise, and it must not
+    # run merely because the tree happened to be clean at this instant either —
+    # the flag is the statement of intent, not the diff.
+    if [ "${allow_dirty:-0}" = 1 ]; then
+        echo "REFUSED|0|0|0|0|DIRTY-ALLOWED --allow-dirty-crates was given: these arms write into crates/ and this run promised not to touch it"
+        return 0
+    fi
     # The DECLARED arm count, read out of the file rather than written here, so
     # adding an arm cannot leave this row silently grading the old number.
     #
@@ -893,18 +1048,19 @@ hatch_red_run() {   # <log-path> -> echoes the tuple
     # checkout from its own — so a gate launched from outside the repository
     # would have got an arm count of 0 here, and 0 is `LADDER`/`TRUNCATED`'s own
     # trigger. The real run below already cds; this line did not.
+    # THE PROBE'S OWN POSTCONDITION, and it is a CONTENT hash rather than a `git
+    # diff`. `--list` is documented to run nothing and for two lanes it silently
+    # reverted `crates/` instead; "the probe is harmless" is exactly the belief
+    # that cost #2907 a retracted claim, so it is checked. A git diff could not
+    # be the check here — the interlock above has already established that the
+    # tree matches `HEAD`, so a *revert* is invisible to `git` and visible only
+    # to a hash of the bytes. This also covers untracked files, which the
+    # interlock deliberately does not.
+    _hr_h0=$(graded_tree_hash "$repo_root" "crates")
     _hr_exp=$(cd "$repo_root" && python3 "$_hr_py" --list 2>/dev/null | grep -c . || echo 0)
-    if ! git -C "$repo_root" rev-parse --git-dir >/dev/null 2>&1; then
-        echo "REFUSED|0|$_hr_exp|0|0|NO-GIT this tree is not a checkout, so the arms cannot restore what they write"
-        return 0
-    fi
-    # THE INTERLOCK. `HEAD`, not the worktree-vs-index diff `hatch_red.py`
-    # checks itself: a STAGED `crates/` edit survives the arms' `git checkout --`
-    # but can still move one of `hatch.py`'s needles, which would turn a peer's
-    # ordinary work-in-progress into this row's red.
-    _hr_dirty=$(git -C "$repo_root" diff --name-only HEAD -- crates/ 2>/dev/null | tr '\n' ' ')
-    if [ -n "$_hr_dirty" ]; then
-        echo "REFUSED|0|$_hr_exp|0|0|DIRTY-TREE crates/ differs from HEAD and the arms would overwrite it: $_hr_dirty"
+    _hr_h1=$(graded_tree_hash "$repo_root" "crates")
+    if [ "$_hr_h0" != "$_hr_h1" ]; then
+        echo "FAIL|0|$_hr_exp|0|0|PROBE-WROTE reading the arm count with --list changed crates/ ($_hr_h0 -> $_hr_h1), which it must never do"
         return 0
     fi
     _hr_st=0
@@ -917,9 +1073,15 @@ hatch_red_run() {   # <log-path> -> echoes the tuple
     # `crates/` and restore in a `finally`, but a SIGKILL has no `finally`. The
     # gate's `cargo build` is next, so a tree left hatched here would be compiled
     # and graded. Say so and stop rather than build it.
-    _hr_res=$(git -C "$repo_root" diff --name-only HEAD -- crates/ 2>/dev/null | tr '\n' ' ')
-    if [ -n "$_hr_res" ]; then
-        echo "FAIL|0|$_hr_exp|0|0|RESIDUE the arms left crates/ modified and the build must not proceed from it: $_hr_res"
+    #
+    # A DELTA against the state the arms inherited, for `ladder-red`'s reason and
+    # one of its own: `git diff HEAD` cannot see a revert, and these arms' bug of
+    # record IS a revert. Here the two happen to coincide — the interlock above
+    # has already established the tree matched `HEAD` — but a postcondition that
+    # is only correct because of an earlier check is one refactor from silent.
+    _hr_res1=$(graded_tree_hash "$repo_root" "crates")
+    if [ "$_hr_h1" != "$_hr_res1" ]; then
+        echo "FAIL|0|$_hr_exp|0|0|RESIDUE the arms left crates/ changed ($_hr_h1 -> $_hr_res1) and the build must not proceed from it"
         return 0
     fi
     hatch_red_verdict "$_hr_log" "$_hr_st" "$_hr_exp"
@@ -1040,6 +1202,9 @@ ladder_red_run() {   # <log-path> -> echoes the tuple
         echo "REFUSED|0|$_lr_exp|0|0|LADDER-DIRTY the width table the arms read differs from HEAD: $_lr_dirty"
         return 0
     fi
+    # The BEFORE half of the residue delta below — read after the interlocks and
+    # immediately before the arms, so it is the state the arms inherited.
+    _lr_res0=$(graded_tree_hash "$repo_root" "crates")
     _lr_st=0
     if command -v timeout >/dev/null 2>&1; then
         (cd "$repo_root" && timeout 600 python3 "$_lr_py") > "$_lr_log" 2>&1 || _lr_st=$?
@@ -1050,12 +1215,286 @@ ladder_red_run() {   # <log-path> -> echoes the tuple
     # — that is the claim, and this is the check of it. It is a postcondition
     # against a future edit and against a SIGKILL, not against a known path, and
     # the rung says so rather than counting it as a fired guard.
-    _lr_res=$(git -C "$repo_root" diff --name-only HEAD -- crates/ 2>/dev/null | tr '\n' ' ')
-    if [ -n "$_lr_res" ]; then
-        echo "FAIL|0|$_lr_exp|0|0|LADDER-RESIDUE the arms modified crates/, which they have no path to do: $_lr_res"
+    #
+    # **A DELTA, NOT A DIFF AGAINST `HEAD` (lane w-gatefix, 2026-08-10).** It
+    # was `git diff HEAD -- crates/`, which reads "the arms modified crates/"
+    # for any file that was already modified when the row started — so under
+    # `--allow-dirty-crates` this row accused itself of a peer's edit and the
+    # gate failed on `LADDER-RESIDUE`, naming a file no arm here has ever
+    # touched. Observed, not anticipated. A postcondition must measure what the
+    # thing under it DID, and the difference only shows up on the trees where
+    # the answer matters. Content hash rather than `git`, so the delta also
+    # covers untracked files and a revert-to-`HEAD` (invisible to a diff).
+    _lr_res1=$(graded_tree_hash "$repo_root" "crates")
+    if [ "$_lr_res0" != "$_lr_res1" ]; then
+        echo "FAIL|0|$_lr_exp|0|0|LADDER-RESIDUE the arms changed crates/ ($_lr_res0 -> $_lr_res1), which they have no path to do"
         return 0
     fi
     ladder_red_verdict "$_lr_log" "$_lr_st" "$_lr_exp"
+    return 0
+}
+
+# ================================================================================
+# THE TREE-INTEGRITY ARMS — board #2969, lane w-gatefix, 2026-08-10.
+#
+# The regression test for #2668 / #2907. Everything else in this file grades the
+# port or an instrument; these arms grade **this file's own ability to be wrong
+# about which tree it graded**, which is the failure that makes every other
+# number here unreadable.
+#
+# WHY THEY RUN AGAINST A SYNTHETIC CHECKOUT
+# -----------------------------------------
+# The behaviour under test is destructive by construction: the arm that matters
+# asserts that a dirty `crates/` SURVIVES, and the pre-fix code destroys it. Run
+# against the real tree, a red arm would be indistinguishable from the incident
+# — the test would have to eat a lane's work in order to report that work gets
+# eaten. So each arm builds a throwaway `git init` tree with a `crates/`, a
+# `fixtures/`, a `scripts/` and a copy of `hatch_red.py`, points `repo_root` at
+# it, and drives the REAL `hatch_red_run` / `graded_tree_hash` / `crates_dirty`
+# — not a reimplementation, which would only prove the copy agrees with itself.
+#
+# THE COUNTERFACTUAL IS BUILT IN, AND THAT IS THE POINT
+# -----------------------------------------------------
+# `C1` and `C2` run the same two arms against the code AS IT WAS AT THE PRE-LANE
+# COMMIT, read out of git rather than described here, and require them to FAIL.
+# A red test nobody has watched fail on the unfixed code is a red test that
+# might be asserting nothing — the same argument that makes `hatch_red.py`'s
+# `--master` mode exist, one level up. Without C1/C2 these arms could be
+# tautologies and read green forever.
+#
+# `TI_BASE` is the merge base this lane branched from and is a FIXED string on
+# purpose: it names the last commit at which the defect was present. Resolving
+# it to `HEAD~n` or to `master` would make the counterfactual quietly re-target
+# itself once this lands, and it would then compare the fix against the fix.
+# When git cannot produce that blob (a shallow clone, an exported tarball) the
+# arm reports `SKIP` and says so — an unavailable counterfactual must not read
+# as a passing one.
+# ================================================================================
+TI_BASE=0d0a74d2
+
+# One synthetic checkout. `<dir>` is rebuilt from scratch; `<hatchred>` is the
+# copy of `hatch_red.py` under test, which is how the counterfactual arms swap in
+# the pre-lane file.
+_ti_mktree() {   # <dir> <hatchred-path>
+    rm -rf "$1" 2>/dev/null || true
+    mkdir -p "$1/crates" "$1/fixtures" "$1/scripts" "$1/work/w-hatch" \
+        "$1/work/w-front3" || return 1
+    printf 'pub fn probe() -> u32 { 1 }\n' > "$1/crates/probe.rs"
+    printf 'int f(void) { return 1; }\n'   > "$1/fixtures/f.cpp"
+    printf '#!/bin/sh\nexit 0\n'           > "$1/scripts/s.sh"
+    cp "$2" "$1/work/w-hatch/hatch_red.py" || return 1
+    # `hatch.py` is the subject the arms load. It is copied so a full run has
+    # something to import; every arm below refuses before that point, but a
+    # missing subject would change WHICH refusal fires and the arms assert on
+    # the word, so it is present.
+    cp "$repo_root/work/w-front3/hatch.py" "$1/work/w-front3/hatch.py" 2>/dev/null || true
+    git -C "$1" init -q 2>/dev/null || return 1
+    # By name, never `add -A` over a directory: a lane swept captured IL and objs
+    # into git that way last night. This tree is synthetic and small enough to
+    # enumerate, so it is enumerated.
+    git -C "$1" add crates/probe.rs fixtures/f.cpp scripts/s.sh \
+        work/w-hatch/hatch_red.py 2>/dev/null || return 1
+    [ -f "$1/work/w-front3/hatch.py" ] && git -C "$1" add work/w-front3/hatch.py 2>/dev/null
+    git -C "$1" -c user.name=gate -c user.email=gate@localhost \
+        commit -q -m "synthetic tree for the gate's tree-integrity arms" 2>/dev/null || return 1
+    return 0
+}
+
+# The foreign edit every arm uses, and the question every arm asks about it.
+_ti_dirty()   { printf '\n// A FOREIGN UNCOMMITTED EDIT. IT MUST SURVIVE.\n' >> "$1/crates/probe.rs"; }
+_ti_survived() { grep -q 'IT MUST SURVIVE' "$1/crates/probe.rs" 2>/dev/null; }
+
+# --------------------------------------------------------------------------------
+# Run the arms. Emits one `PASS`/`FAIL`/`SKIP` line each; returns 1 if any FAILed.
+# `<scratch>` is a directory this may destroy.
+# --------------------------------------------------------------------------------
+tree_integrity_arms() {   # <scratch-dir>
+    _ti_dir="$1"; _ti_bad=0; _ti_n=0
+    _ti_say() {   # <verdict> <name> <detail>
+        _ti_n=$((_ti_n + 1))
+        printf '  %-5s %-34s %s\n' "$1" "$2" "$3"
+        [ "$1" = FAIL ] && _ti_bad=$((_ti_bad + 1))
+        return 0
+    }
+    if ! command -v python3 >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1; then
+        _ti_say SKIP arms-need-python3-and-git "not both present; these arms grade nothing here"
+        return 0
+    fi
+    _ti_save="$repo_root"
+    _ti_hr="$repo_root/work/w-hatch/hatch_red.py"
+
+    # ---- A1. THE HASH IS ABOUT CONTENT, AND HEAD CANNOT MOVE IT ---------------
+    # The deliverable in one arm: at a FIXED commit, changing a byte under
+    # `crates/` must change the printed identity. `git rev-parse HEAD` is the
+    # control — it does not move, which is exactly why it could not be the
+    # identity.
+    if _ti_mktree "$_ti_dir/a1" "$_ti_hr"; then
+        _ti_h0=$(graded_tree_hash "$_ti_dir/a1")
+        _ti_head0=$(git -C "$_ti_dir/a1" rev-parse HEAD 2>/dev/null || echo '?')
+        _ti_dirty "$_ti_dir/a1"
+        _ti_h1=$(graded_tree_hash "$_ti_dir/a1")
+        _ti_head1=$(git -C "$_ti_dir/a1" rev-parse HEAD 2>/dev/null || echo '!')
+        if [ "$_ti_h0" != "$_ti_h1" ] && [ "$_ti_head0" = "$_ti_head1" ]; then
+            _ti_say PASS hash-moves-when-content-moves \
+                "${_ti_h0%%:*} -> ${_ti_h1%%:*} at one unchanged HEAD"
+        else
+            _ti_say FAIL hash-moves-when-content-moves \
+                "content changed and the identity did not ($_ti_h0 / $_ti_h1)"
+        fi
+        # ...and it counts what it hashed. A digest over an empty file list is
+        # still 12 stable hex characters, which is this project's own defect
+        # (absence reading as success) wearing the instrument's face.
+        if [ "${_ti_h1##*:}" -eq 3 ]; then
+            _ti_say PASS hash-reports-its-file-count "3 files, one in each graded directory"
+        else
+            _ti_say FAIL hash-reports-its-file-count \
+                "expected 3 files under $GRADED_DIRS, counted ${_ti_h1##*:}"
+        fi
+        # Each of the three directories is really in it. A hash that silently
+        # covered `crates/` alone would pass every arm above and be blind to a
+        # fixture or a grader changing under the run.
+        for _ti_d in crates fixtures scripts; do
+            _ti_hb=$(graded_tree_hash "$_ti_dir/a1")
+            printf '\n// touched\n' >> "$_ti_dir/a1/$_ti_d/"*
+            _ti_ha=$(graded_tree_hash "$_ti_dir/a1")
+            if [ "$_ti_hb" != "$_ti_ha" ]; then
+                _ti_say PASS "hash-covers-$_ti_d" "editing $_ti_d/ moves the identity"
+            else
+                _ti_say FAIL "hash-covers-$_ti_d" \
+                    "$_ti_d/ changed and the identity did not — it is not in the hash"
+            fi
+        done
+        # Determinism: same bytes, same answer. Without this the arms above pass
+        # on an identity that is a clock.
+        _ti_hx=$(graded_tree_hash "$_ti_dir/a1")
+        _ti_hy=$(graded_tree_hash "$_ti_dir/a1")
+        if [ "$_ti_hx" = "$_ti_hy" ]; then
+            _ti_say PASS hash-is-deterministic "two reads of an unchanged tree agree"
+        else
+            _ti_say FAIL hash-is-deterministic "$_ti_hx then $_ti_hy on an unchanged tree"
+        fi
+    else
+        _ti_say FAIL synthetic-tree-a1 "could not build the scratch checkout"
+    fi
+
+    # ---- A2. THE ARM-COUNT PROBE WRITES NOTHING ------------------------------
+    # #2907's mechanism, named: `hatch_red.py --list` is documented to run
+    # nothing and used to `git checkout -- crates/` on its way out.
+    if _ti_mktree "$_ti_dir/a2" "$_ti_hr"; then
+        _ti_dirty "$_ti_dir/a2"
+        (cd "$_ti_dir/a2" && python3 work/w-hatch/hatch_red.py --list) >/dev/null 2>&1 || true
+        if _ti_survived "$_ti_dir/a2"; then
+            _ti_say PASS list-probe-writes-nothing "an uncommitted crates/ edit survives --list"
+        else
+            _ti_say FAIL list-probe-writes-nothing \
+                "--list DESTROYED an uncommitted crates/ edit (board #2907)"
+        fi
+    else
+        _ti_say FAIL synthetic-tree-a2 "could not build the scratch checkout"
+    fi
+
+    # ---- A3. THE ROW REFUSES A DIRTY TREE, AND THE EDIT IS STILL THERE --------
+    # Two assertions in one arm ON PURPOSE, because either alone has read green
+    # while the defect was live: the row DID refuse (`REFUSED HATCH-STALE`) on
+    # the run that ate w-seclayout's work, and a row that preserved the tree by
+    # never running would satisfy the other half without being the guard.
+    if _ti_mktree "$_ti_dir/a3" "$_ti_hr"; then
+        _ti_dirty "$_ti_dir/a3"
+        repo_root="$_ti_dir/a3"
+        _ti_t=$(hatch_red_run "$_ti_dir/a3.log" 2>/dev/null || echo 'NO-RESULT|0|0|0|0|the row itself errored')
+        repo_root="$_ti_save"
+        _ti_v=$(printf '%s\n' "$_ti_t" | cut -d'|' -f1)
+        _ti_w=$(printf '%s\n' "$_ti_t" | cut -d'|' -f6 | cut -d' ' -f1)
+        if [ "$_ti_v" = REFUSED ] && [ "$_ti_w" = DIRTY-TREE ] && _ti_survived "$_ti_dir/a3"; then
+            _ti_say PASS dirty-tree-refused-and-preserved "REFUSED DIRTY-TREE, edit intact"
+        else
+            _ti_say FAIL dirty-tree-refused-and-preserved \
+                "verdict=$_ti_v word=$_ti_w survived=$(_ti_survived "$_ti_dir/a3" && echo yes || echo NO)"
+        fi
+    else
+        _ti_say FAIL synthetic-tree-a3 "could not build the scratch checkout"
+    fi
+
+    # ---- A4. THE INTERLOCK IS ABOVE EVERY INVOCATION, IN SOURCE ORDER --------
+    # A structural arm, and it is not redundant with A2/A3: those grade today's
+    # `hatch_red.py`, and this one grades the rule that survives it regaining a
+    # destructive path. `_hr_py` must not be executed anywhere above the
+    # `crates_dirty` interlock inside `hatch_red_run`.
+    _ti_body=$(sed -n '/^hatch_red_run()/,/^}/p' "$0")
+    _ti_lock=$(printf '%s\n' "$_ti_body" | grep -n 'crates_dirty "\$repo_root"' | head -1 | cut -d: -f1)
+    _ti_first=$(printf '%s\n' "$_ti_body" | grep -n 'python3 "\$_hr_py"' | head -1 | cut -d: -f1)
+    if [ -n "$_ti_lock" ] && [ -n "$_ti_first" ] && [ "$_ti_lock" -lt "$_ti_first" ]; then
+        _ti_say PASS interlock-precedes-every-invocation \
+            "interlock at body line $_ti_lock, first invocation at $_ti_first"
+    else
+        _ti_say FAIL interlock-precedes-every-invocation \
+            "interlock=${_ti_lock:-ABSENT} first-invocation=${_ti_first:-ABSENT} — the probe runs first"
+    fi
+
+    # ---- C1/C2. THE COUNTERFACTUAL: BOTH MUST FAIL ON THE PRE-LANE FILE ------
+    _ti_old="$_ti_dir/hatch_red.$TI_BASE.py"
+    if git -C "$_ti_save" show "$TI_BASE:work/w-hatch/hatch_red.py" > "$_ti_old" 2>/dev/null \
+       && [ -s "$_ti_old" ]; then
+        if _ti_mktree "$_ti_dir/c1" "$_ti_old"; then
+            _ti_dirty "$_ti_dir/c1"
+            (cd "$_ti_dir/c1" && python3 work/w-hatch/hatch_red.py --list) >/dev/null 2>&1 || true
+            if _ti_survived "$_ti_dir/c1"; then
+                _ti_say FAIL counterfactual-list-probe-was-destructive \
+                    "the edit SURVIVED $TI_BASE's --list, so arm A2 is asserting nothing"
+            else
+                _ti_say PASS counterfactual-list-probe-was-destructive \
+                    "$TI_BASE's --list ate the edit; A2 is a real assertion"
+            fi
+        else
+            _ti_say FAIL synthetic-tree-c1 "could not build the scratch checkout"
+        fi
+        if _ti_mktree "$_ti_dir/c2" "$_ti_old"; then
+            _ti_dirty "$_ti_dir/c2"
+            repo_root="$_ti_dir/c2"
+            hatch_red_run "$_ti_dir/c2.log" >/dev/null 2>&1 || true
+            repo_root="$_ti_save"
+            if _ti_survived "$_ti_dir/c2"; then
+                _ti_say PASS counterfactual-row-now-preserves \
+                    "with $TI_BASE's file the row's own interlock now saves the edit"
+            else
+                _ti_say FAIL counterfactual-row-now-preserves \
+                    "$TI_BASE's file still eats the edit through THIS gate — the reorder did not take"
+            fi
+        else
+            _ti_say FAIL synthetic-tree-c2 "could not build the scratch checkout"
+        fi
+    else
+        _ti_say SKIP counterfactual-unavailable \
+            "git cannot produce $TI_BASE:work/w-hatch/hatch_red.py; NOT a pass"
+    fi
+
+    # ---- C3. AND THE PRE-LANE `gate.sh` HAD THE ORDER THE OTHER WAY ROUND ----
+    _ti_oldg="$_ti_dir/gate.$TI_BASE.sh"
+    if git -C "$_ti_save" show "$TI_BASE:scripts/gate.sh" > "$_ti_oldg" 2>/dev/null \
+       && [ -s "$_ti_oldg" ]; then
+        _ti_ob=$(sed -n '/^hatch_red_run()/,/^}/p' "$_ti_oldg")
+        _ti_ol=$(printf '%s\n' "$_ti_ob" | grep -n 'diff --name-only HEAD -- crates/' | head -1 | cut -d: -f1)
+        _ti_of=$(printf '%s\n' "$_ti_ob" | grep -n 'python3 "\$_hr_py"' | head -1 | cut -d: -f1)
+        if [ -n "$_ti_ol" ] && [ -n "$_ti_of" ] && [ "$_ti_of" -lt "$_ti_ol" ]; then
+            _ti_say PASS counterfactual-interlock-was-second \
+                "$TI_BASE ran the probe at body line $_ti_of, interlock at $_ti_ol"
+        else
+            _ti_say FAIL counterfactual-interlock-was-second \
+                "$TI_BASE's order reads probe=${_ti_of:-ABSENT} interlock=${_ti_ol:-ABSENT}; A4 may be vacuous"
+        fi
+    else
+        _ti_say SKIP counterfactual-gate-unavailable \
+            "git cannot produce $TI_BASE:scripts/gate.sh; NOT a pass"
+    fi
+
+    repo_root="$_ti_save"
+    rm -rf "$_ti_dir" 2>/dev/null || true
+    if [ "$_ti_bad" -gt 0 ]; then
+        echo "  tree integrity: $_ti_bad of $_ti_n arms FAILED — this gate can be wrong about"
+        echo "  which tree it graded, and every number it prints is unreadable until that is fixed."
+        return 1
+    fi
+    echo "  tree integrity: $_ti_n arms, 0 failed (boards #2668 / #2907)"
     return 0
 }
 
@@ -2210,6 +2649,14 @@ check)
         echo "FATAL: no python3 — the corpus shape check and the sweep both need it." >&2
         exit 2
     fi
+    # And the gate's own ability to be wrong about which tree it graded (#2907).
+    # It belongs in the preflight for the corpus check's reason — toolchain-free,
+    # seconds — and for one of its own: the answer is a property of this file and
+    # of `work/w-hatch/hatch_red.py`, so it is knowable before twenty minutes of
+    # compiler rather than after.
+    echo
+    echo "tree integrity (boards #2668 / #2907): the gate cannot report a tree it did not grade"
+    tree_integrity_arms "$work/integrity" || exit 1
     exit 0 ;;
 esac
 
@@ -3431,13 +3878,42 @@ $(hatch_red_verdict "$_hr_l" 0 11 | cut -d'|' -f6 | cut -d' ' -f1)"
     # proved nothing. Here `fails` is accumulated by every case before the count
     # is looked at, so a mutation reddens the assertion it actually broke and the
     # per-assertion message says which one.
+    # ---- THE TREE-INTEGRITY ARMS, RUN HERE TOO AND COUNTED HERE TOO ----------
+    # They are in `--check` because that is the toolchain-free preflight, and
+    # they are here because this is the mode whose one job is proving the gate
+    # fails when it should. Running them in only one of the two would leave the
+    # other's floor able to read green over the defect that makes every number
+    # in this file unattributable. Each arm becomes a case, so the floor below
+    # governs them as well.
+    echo
+    echo "tree integrity (boards #2668 / #2907):"
+    if tree_integrity_arms "$st/integrity" > "$st/integrity.out" 2>&1; then _r=0; else _r=1; fi
+    sed 's/^/  /' "$st/integrity.out"
+    _ti_ran=$(grep -c '^  \(PASS\|FAIL\|SKIP\) ' "$st/integrity.out" 2>/dev/null || echo 0)
+    t_case tree-integrity-arms-all-pass "$_r" \
+        "the gate cannot report a tree it did not grade ($_ti_ran arms)"
+    # ANTI-VACUITY, and it is the arm that matters: an `integrity` function that
+    # printed nothing and returned 0 would satisfy the case above. The count is
+    # a floor on the arms, inside the floor on the cases.
+    [ "${_ti_ran:-0}" -ge 12 ] && _r=0 || _r=1
+    t_case tree-integrity-arms-not-truncated "$_r" \
+        "$_ti_ran arms ran (floor 12) — a short run of them is not a pass"
+    # And the counterfactual arms must have RUN, not SKIPped: they are the proof
+    # that the arms above are asserting something, and a SKIP there is an
+    # unavailable counterfactual, never a passing one.
+    [ "$(grep -c '^  PASS  counterfactual-' "$st/integrity.out" 2>/dev/null || echo 0)" -ge 3 ] \
+        && _r=0 || _r=1
+    t_case tree-integrity-counterfactual-ran "$_r" \
+        "all three pre-lane counterfactuals resolved and failed as required"
+
     # The floor moves with the file: 102 before board #1406's hatch-red row, 120
-    # after it, and **138** after `w-hatchroot` added the ladder-red row (7
+    # after it, **138** after `w-hatchroot` added the ladder-red row (7
     # classifier cases, 9 rulings, the cross-row word-distinctness assertion, the
     # absent-tuple mirror with its own anti-theft check, both-suffixes, and the
-    # `--require-graded` pair). A truncated selftest is the failure it exists to
-    # catch, so this is a COUNT and not a "some cases ran".
-    if [ "$cases" -lt 138 ]; then
+    # `--require-graded` pair), and **141** after `w-gatefix` added the three
+    # tree-integrity cases above. A truncated selftest is the failure it exists
+    # to catch, so this is a COUNT and not a "some cases ran".
+    if [ "$cases" -lt 141 ]; then
         echo "gate.sh --selftest: FAIL — only $cases cases ran; the selftest itself was"
         echo "  truncated, and a truncated selftest is the failure it exists to catch."
         exit 1
@@ -3456,6 +3932,79 @@ fi
 echo
 echo "lane gate: $nlanes lanes from $registry"
 echo "  run dir: $work   (per-lane run dirs under $work/lanes/)"
+
+# ================================================================================
+# THE TREE PREFLIGHT — FIRST, BEFORE ANY ROW CAN WRITE INTO IT (#2668 / #2907).
+#
+# This runs above `hatch-red`, which is itself deliberately first, because
+# `hatch-red` is the row that writes into `crates/`. The identity read here is
+# therefore the identity of the tree AS THE CALLER SUPPLIED IT, not as some
+# earlier row left it — which is the whole difference between a run that says
+# what it graded and a run that says what it ended up with. `pin_harness`'s
+# `-dirty` marker is computed after `hatch-red` and has already read `clean` for
+# a run that started dirty; this line cannot.
+#
+# TWO THINGS HAPPEN HERE AND THEY ARE INDEPENDENT:
+#
+#   1. **The identity is printed.** Always, whatever the verdict, and again in
+#      the epilogue after everything has run. Two hashes that agree say "the
+#      tree did not move under this run"; two that differ say the run is not
+#      evidence about either tree, which is a thing a gate has never been able
+#      to say here before.
+#
+#   2. **A dirty `crates/` REFUSES THE RUN.** Not a warning, not a restore.
+#      Board #2668 and #2907 are the same incident twice: the gate silently
+#      reverted a lane's uncommitted work and then graded the reverted tree,
+#      once costing a re-applied edit and once a retracted claim. A gate that
+#      quietly reverts the thing under test is worse than one that stops, and
+#      the standing rule — commit before running any gate row or mutation
+#      script — is now enforced by the gate rather than remembered by the lane.
+#
+# `--allow-dirty-crates` is the opt-in, and it is NAMED IN THE OUTPUT every time
+# it is used, on the banner and again in the epilogue. It does not re-enable the
+# restore; it disables the row that would perform it (`DIRTY-ALLOWED`), so the
+# promise "this run grades the tree you gave it" holds under the flag too.
+#
+# Exit 4, its own code: 2 is usage, 3 is the disk preflight, 1 is a real gate
+# failure. A refusal to start is none of those, and a lane that reads exit
+# codes must be able to tell "your tree was not gradeable" from "the port is
+# wrong" — reusing 1 here would put a tooling refusal in the same bucket as a
+# mismatch, which is the reading error this gate exists to prevent.
+# ================================================================================
+GRADED_TREE_0=$(graded_tree_hash "$repo_root")
+echo "  graded tree: ${GRADED_TREE_0%%:*}  (${GRADED_TREE_0##*:} files under $GRADED_DIRS, content-hashed)"
+if [ "${GRADED_TREE_0##*:}" = 0 ]; then
+    echo "  *** IDENTITY UNAVAILABLE — no sha256sum, or those directories are empty."
+    echo "      This run cannot say which tree it graded. That is not a mismatch."
+fi
+gate_dirty=$(crates_dirty "$repo_root")
+if [ -n "$gate_dirty" ] && [ "$allow_dirty" -eq 0 ]; then
+    echo
+    echo "GATE: REFUSED (DIRTY crates/) — nothing was graded and nothing was touched."
+    echo "  These files differ from HEAD:"
+    for _f in $gate_dirty; do echo "    $_f"; done
+    echo
+    echo "  This gate has a row that writes into crates/ and restores it with"
+    echo "  \`git checkout --\`. Until 2026-08-10 it ran on trees like this one and"
+    echo "  the restore ate the edit: board #2668 (a lane re-applied work the gate"
+    echo "  discarded) and board #2907 (a lane shipped, then retracted, a claim made"
+    echo "  from a run that graded the pre-edit tree while printing the post-edit"
+    echo "  commit). The row is fixed; this refusal is the part that does not depend"
+    echo "  on any row staying fixed."
+    echo
+    echo "  Commit or stash, then re-run — a gate run is evidence about the tree it"
+    echo "  graded, and uncommitted work has no name to put on that evidence."
+    echo "  If you truly mean to grade an uncommitted tree, pass"
+    echo "  --allow-dirty-crates: the run proceeds, says so on every headline, and"
+    echo "  the row that would rewrite crates/ is refused instead of run."
+    exit 4
+fi
+if [ -n "$gate_dirty" ]; then
+    echo "  *** --allow-dirty-crates: crates/ differs from HEAD and is being graded AS IS."
+    for _f in $gate_dirty; do echo "        $_f"; done
+    echo "      The commit id below names a tree this run did NOT grade. The content"
+    echo "      hash above is this run's only true identity."
+fi
 
 # --------------------------------------------------------------------------------
 # THE HATCH-RED ROW RUNS FIRST (board #1406). Before `pin_harness`, because that
@@ -3594,4 +4143,42 @@ printf 'disk:   %s low-water this run — %s and %s inodes free (start: %s / %s)
     "$work_parent" "$(human_kb "$RES_KBMIN")" "$(human_n "$RES_INMIN")" \
     "$(human_kb "$RES_KB0")" "$(human_n "$RES_IN0")"
 
-decide "$reg" "$work/results.tsv" "$work" "$sweep_res" "$filtered" "$cross_res" "$hr_res" "$lr_res"
+# --------------------------------------------------------------------------------
+# THE VERDICT, AND THEN THE IDENTITY OF WHAT IT IS A VERDICT ABOUT (#2668/#2907).
+#
+# `decide`'s status is captured rather than inherited, because the epilogue below
+# has to print on EVERY path — a headline nobody can attribute to a tree is the
+# defect this lane exists to close, and `GATE: FAIL` needs the attribution just
+# as much as `GATE: PASS` does. `|| st=$?` and not a bare call: `set -e` is on
+# and `decide` returns 1 on a real failure.
+#
+# The second hash is not ceremony. A peer session has modified a lane's worktree
+# mid-run on this box, `hatch-red` writes into `crates/` by design, and a killed
+# run leaves whatever it left. If the tree moved, the two headline numbers were
+# produced by two different trees and the run is evidence about neither — which
+# is a thing that can now be SAID rather than discovered later from a binary
+# hash that did not match.
+# --------------------------------------------------------------------------------
+gate_status=0
+decide "$reg" "$work/results.tsv" "$work" "$sweep_res" "$filtered" "$cross_res" "$hr_res" "$lr_res" \
+    || gate_status=$?
+
+GRADED_TREE_1=$(graded_tree_hash "$repo_root")
+echo
+echo "graded tree: ${GRADED_TREE_1%%:*}  (${GRADED_TREE_1##*:} files: $GRADED_DIRS, content-hashed)"
+if [ "$GRADED_TREE_0" != "$GRADED_TREE_1" ]; then
+    echo "  *** THE TREE MOVED UNDER THIS RUN — it began at ${GRADED_TREE_0%%:*}"
+    echo "      (${GRADED_TREE_0##*:} files) and ended at ${GRADED_TREE_1%%:*} (${GRADED_TREE_1##*:} files)."
+    echo "      The verdict above was produced partly from each, so it is evidence"
+    echo "      about NEITHER tree. Find what wrote to $GRADED_DIRS during the run"
+    echo "      (a gate row, a peer session, a killed process) and re-run."
+    gate_status=1
+fi
+if [ -n "$gate_dirty" ]; then
+    echo "  *** graded with --allow-dirty-crates: this is NOT the tree at"
+    echo "      $(git -C "$repo_root" rev-parse --short HEAD 2>/dev/null || echo '?'), whatever any commit id printed above suggests."
+fi
+echo "  This is the identity of what was graded. It is a hash of file CONTENT, not"
+echo "  a commit — HEAD is what lied in #2907, and a commit id is silent about"
+echo "  uncommitted work, a half-restored tree and a concurrent writer alike."
+exit "$gate_status"
