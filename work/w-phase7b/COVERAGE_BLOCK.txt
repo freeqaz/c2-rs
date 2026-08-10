@@ -1,0 +1,15 @@
+`.gl` BODY-START COVERAGE — can `Bindings::per_record` bind this TU at all?
+       29 TUs where `.gl` spells a body-start for EVERY `.ex` segment
+      842 TUs where it does not — 952723 segments across them can bind to NO record, whatever the framing
+        7 TUs with no `.ex` or no `.gl` (the field is null, which is not zero)
+        6297 of 9355   src/lazer/meta_ham/ProfileMgr.cpp
+        6435 of 9471   src/lazer/game/PresenceMgr.cpp
+        6794 of 9825   src/lazer/game/BustAMovePanel.cpp
+        6728 of 9747   src/lazer/meta_ham/HamUI.cpp
+        6825 of 9841   src/lazer/game/Game.cpp
+        6232 of 9198   src/App.cpp
+        6834 of 9752   src/lazer/meta_ham/PracticeChoosePanel.cpp
+        6375 of 9292   src/lazer/meta_ham/MetaPanel.cpp
+        6409 of 9296   src/lazer/game/GamePanel.cpp
+        6340 of 9198   src/lazer/meta_ham/MetagameRank.cpp
+      … and 832 more

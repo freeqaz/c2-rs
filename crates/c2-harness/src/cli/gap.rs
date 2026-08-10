@@ -985,6 +985,49 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
         }
     }
 
+    // **W-PHASE7B — IS THE BINDING THIS TU FAILED SATISFIABLE AT ALL?**
+    //
+    // Every published binding instrument is about the READER: `fn_names` is the
+    // census's loose scan, `emit-bound` is `EmitBinding`, `gate_cause` is the
+    // clause `gl_defined_names_framed` stopped on. Four fields have been used to
+    // answer `CEILING.md` §11.4 item 8 and three were wrong, and all four have
+    // the same blind spot — they report on a walk, so their answer always looks
+    // like a repair address.
+    //
+    // `Bindings::per_record` needs the `.gl` records 1:1 with the `.ex`
+    // segments. A segment whose body-start offset `.gl` does not spell **at
+    // all** cannot be bound by any framing anyone writes, so this row separates
+    // "the reader stopped early" from "there is nothing to stop at". It is the
+    // one column on this page that can retire a repair rather than locate one.
+    let mut short: Vec<(&str, usize, usize)> = Vec::new();
+    let mut whole = 0usize;
+    let mut absent = 0usize;
+    for r in &report.results {
+        match r.gl_body_starts {
+            None => absent += 1,
+            Some((p, t)) if p < t => short.push((r.src.as_str(), p, t)),
+            Some(_) => whole += 1,
+        }
+    }
+    if !short.is_empty() || whole > 0 {
+        let segs_short: usize = short.iter().map(|&(_, p, t)| t - p).sum();
+        println!(
+            "\n  `.gl` BODY-START COVERAGE — can `Bindings::per_record` bind this TU at all?\n    \
+             {whole:>5} TUs where `.gl` spells a body-start for EVERY `.ex` segment\n    \
+             {:>5} TUs where it does not — {segs_short} segments across them can bind to NO \
+             record, whatever the framing\n    \
+             {absent:>5} TUs with no `.ex` or no `.gl` (the field is null, which is not zero)",
+            short.len()
+        );
+        short.sort_by(|a, b| (b.2 - b.1).cmp(&(a.2 - a.1)).then(a.0.cmp(b.0)));
+        for (src, p, t) in short.iter().take(10) {
+            println!("      {p:>6} of {t:<6} {src}");
+        }
+        if short.len() > 10 {
+            println!("      … and {} more", short.len() - 10);
+        }
+    }
+
     let mismatches = report.count(TuClass::Mismatch);
     if mismatches > 0 || diverged > 0 || report.cache.poisoned > 0 {
         eprintln!(

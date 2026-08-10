@@ -1760,6 +1760,68 @@ impl IlBundle {
         Some(split_functions_at(self.ex()?).0.len())
     }
 
+    /// **W-PHASE7B — how many of this bundle's `.ex` function segments does
+    /// `.gl` carry a BODY-START OFFSET for at all?**
+    ///
+    /// `(present, total)`, where `total` is [`Self::ex_segment_count`] and
+    /// `present` counts the split points whose five-byte spelling
+    /// `80 <LE32 offset>` — the only encoding this crate has ever read a
+    /// body-start offset in — occurs **anywhere** in `.gl`.
+    ///
+    /// # Why this is a different question from every binding the crate has
+    ///
+    /// [`super::bind::Bindings::per_record`] binds a `.gl` record to an `.ex`
+    /// segment when the record's framed body-start offset **is** that segment's
+    /// split point, in order and 1:1, and binds *nothing* otherwise. Three
+    /// separate instruments then report on the result — `fn_names`
+    /// ([`crate::mangled_names`]), `EmitBinding`, and the gate itself — and
+    /// board **#918** measured them disagreeing on 74,955 workload rows, which
+    /// is why `CEILING.md` §11.4 item 8 exists and why four fields have been
+    /// used to answer it with three of them wrong.
+    ///
+    /// **All four of those fields are about the READER.** This one is about the
+    /// INPUT: a segment whose offset is not in `.gl` at all cannot be bound by
+    /// any reader, however framed, so `present < total` says the 1:1 requirement
+    /// is unsatisfiable *on this bundle* rather than unimplemented. On the two
+    /// TUs `CEILING.md` §2.2 names as `projection-divergence` it reads
+    /// **622 of 1,312** (`src/system/decomp_pch.cpp`) and **373 of 811**
+    /// (`src/system/math/vec.cpp`); the control, a TU that already matches
+    /// (`src/system/utl/EncryptXTEA.cpp`), reads **5 of 5**.
+    ///
+    /// # `present` is deliberately an OVER-count
+    ///
+    /// The search is for the byte sequence anywhere in `.gl`, not for a framed
+    /// record field, so a coincidental `80 <LE32>` whose value happens to equal a
+    /// split point is counted as present. That biases the answer **towards**
+    /// "this could bind", which is the safe direction for a reader whose only
+    /// published use is the negative one: `total - present` is a **lower bound**
+    /// on the segments no record can name. A tighter reader would make the
+    /// negative claim larger, never smaller.
+    ///
+    /// A pure reader. It makes no acceptance decision, never refuses, and is
+    /// available on a bundle whose [`Self::functions`] returns `None` — which is
+    /// the whole population it is about. `None` only when `.ex` or `.gl` is
+    /// absent, because "no `.gl`" and "a `.gl` that names nothing" are different
+    /// facts (`docs/STATUS.md` trap 5).
+    pub fn gl_body_start_coverage(&self) -> Option<(usize, usize)> {
+        let ex = self.ex()?;
+        let gl = self.get("gl")?;
+        // Every `80 <LE32>` in `.gl`, by value. Built once per bundle: the
+        // per-segment alternative is a substring search per split point, which
+        // is quadratic and this reader runs on 878 TUs.
+        let mut spelled: std::collections::HashSet<u32> = std::collections::HashSet::new();
+        let mut i = 0usize;
+        while i + 5 <= gl.len() {
+            if gl[i] == 0x80 {
+                spelled.insert(u32::from_le_bytes([gl[i + 1], gl[i + 2], gl[i + 3], gl[i + 4]]));
+            }
+            i += 1;
+        }
+        let starts = split_functions_at(ex).0;
+        let present = starts.iter().filter(|&&s| spelled.contains(&(s as u32))).count();
+        Some((present, starts.len()))
+    }
+
     pub fn opt_words(&self) -> Option<Vec<Option<u32>>> {
         let ex = self.ex()?;
         Some(
@@ -2795,6 +2857,79 @@ mod dyninit_tests {
     fn decodes_is_the_union_of_both_acceptance_paths() {
         let b = IlBundle::new("empty");
         assert_eq!(b.decodes(), b.functions().is_some() || b.dyninit_tu().is_some());
+    }
+
+    /// Build an `.ex` whose `4F 1F` split points are exactly `starts`.
+    fn ex_with_starts(starts: &[usize], len: usize) -> Vec<u8> {
+        let mut ex = vec![0x11u8; len];
+        for &s in starts {
+            ex[s] = 0x4F;
+            ex[s + 1] = 0x1F;
+        }
+        ex
+    }
+
+    fn spell(off: u32) -> Vec<u8> {
+        let mut v = vec![0x80u8];
+        v.extend_from_slice(&off.to_le_bytes());
+        v
+    }
+
+    /// **W-PHASE7B.** `gl_body_start_coverage` answers a question about the
+    /// INPUT, not about the reader: a segment whose offset `.gl` does not spell
+    /// cannot be bound by any framing. The two `projection-divergence` TUs are
+    /// the reason it exists and both are far below 1:1 — so the count has to be
+    /// a genuine per-segment membership test and not the segment count again.
+    #[test]
+    fn gl_body_start_coverage_counts_the_segments_gl_can_never_name() {
+        let starts = [200usize, 400, 600];
+        let mut b = IlBundle::new("cov");
+        b.set("ex", ex_with_starts(&starts, 800));
+        // `.gl` spells two of the three, with padding either side so the search
+        // is a real scan rather than a prefix match.
+        let mut gl = vec![0x00u8; 16];
+        gl.extend_from_slice(&spell(200));
+        gl.extend_from_slice(&[0x00; 8]);
+        gl.extend_from_slice(&spell(600));
+        gl.extend_from_slice(&[0x00; 8]);
+        b.set("gl", gl);
+        assert_eq!(b.gl_body_start_coverage(), Some((2, 3)));
+        assert_eq!(b.ex_segment_count(), Some(3));
+
+        // A `.gl` that spells none of them is 0 of 3 — NOT `None`, because
+        // "this `.gl` names no body" is a fact and absence must not read as
+        // success in either direction.
+        let mut b0 = IlBundle::new("cov0");
+        b0.set("ex", ex_with_starts(&starts, 800));
+        b0.set("gl", vec![0x00u8; 64]);
+        assert_eq!(b0.gl_body_start_coverage(), Some((0, 3)));
+
+        // …and a missing stream is `None`, not `(0, 0)`.
+        let mut bx = IlBundle::new("noex");
+        bx.set("gl", vec![0x00u8; 64]);
+        assert_eq!(bx.gl_body_start_coverage(), None);
+        let mut bg = IlBundle::new("nogl");
+        bg.set("ex", ex_with_starts(&starts, 800));
+        assert_eq!(bg.gl_body_start_coverage(), None);
+    }
+
+    /// The over-count is DELIBERATE and is pinned, because the only published
+    /// use of this reader is the negative one — `total - present` is a lower
+    /// bound on the segments no record can name, and a reader that silently
+    /// tightened would make a published lower bound wrong in the unsafe
+    /// direction without anything failing.
+    #[test]
+    fn gl_body_start_coverage_over_counts_towards_bindability_on_purpose() {
+        let starts = [200usize];
+        let mut b = IlBundle::new("coincidence");
+        b.set("ex", ex_with_starts(&starts, 400));
+        // Not a record field at all: `80 c8 00 00 00` sitting inside a run of
+        // unrelated bytes. It is counted as present anyway.
+        let mut gl = vec![0x41u8; 8];
+        gl.extend_from_slice(&spell(200));
+        gl.extend_from_slice(&[0x41; 8]);
+        b.set("gl", gl);
+        assert_eq!(b.gl_body_start_coverage(), Some((1, 1)));
     }
 }
 
