@@ -51,8 +51,11 @@
                hash only because rustc embeds the build path, and this build is
                in a separate merge-base worktree — and that is the binary the
                final base/tip neutrality scan uses. The tip's is
-               **`886231ceec3d…8c0f62`**. Every figure below is a scan at both
-               ends, each end scanned by **its own binary**.
+               **`886231ceec3d…8c0f62`**. The reverted counterfactual's binary
+               went the same way; what is kept instead is the **patch and its
+               full result table**, `work/w-seclayout/cf26.patch`, which is
+               what a reader actually needs. Every figure below is a scan at
+               both ends, each end scanned by **its own binary**.
     Ships:     **no behaviour.** Two doc corrections in `crates/`:
                `gl.rs`'s `Name26Introduced` clause comment (its `/Ox` premise
                named as such, with the `/O1` measurement that replaces it) and
