@@ -41,7 +41,9 @@
 use super::bind::{emit_offset_framed, Bindings};
 use super::body::parse_segment;
 use super::bundle::{split_functions_at, LO_MARKER};
-use super::gl::{drectve_is_boilerplate, gl_defined_names_framed, label_counter, GlBindStop};
+use super::gl::{
+    drectve_is_boilerplate, gl_defined_names_framed, label_counter, GlBindStop, NameFit,
+};
 use super::readers::find_subslice;
 use super::bundle::shape_to_function;
 use crate::IlBundle;
@@ -72,6 +74,10 @@ pub mod cause {
     pub const GL_DLLEXPORT: &str = "gl-stop-dllexport";
     /// …a `26`-**introduced** defined name (COMDAT linkage, board #232).
     pub const GL_26_INTRODUCED: &str = "gl-stop-26-introduced";
+    /// …**W-DECOUPLE** — a defined record the widened binding admits, whose
+    /// name cannot answer the varargs question, and whose own flags byte
+    /// (`0x40`, GRID-V) says it is VARIADIC.
+    pub const GL_VARARGS_RECORD: &str = "gl-stop-varargs-record";
 
     /// The records bound, but their count is not the `.ex` segment count.
     pub const BIND_COUNT: &str = "bind-record-count-ne-segments";
@@ -156,6 +162,7 @@ fn stop_cause(s: GlBindStop) -> &'static str {
         GlBindStop::RunEndsAt26 => cause::GL_RUN_ENDS_26,
         GlBindStop::DllexportLinkage => cause::GL_DLLEXPORT,
         GlBindStop::Name26Introduced => cause::GL_26_INTRODUCED,
+        GlBindStop::VariadicRecord => cause::GL_VARARGS_RECORD,
     }
 }
 
@@ -184,7 +191,10 @@ fn binds_under(
     starts: &[usize],
     framed: fn(&[u8], usize) -> bool,
 ) -> bool {
-    match gl_defined_names_framed(gl, true, framed) {
+    // **W-DECOUPLE** — the GATE's policy, because this predicate exists to say
+    // what the gate would do. `NameFit::StringTableOnly` here would report a
+    // binding nothing runs.
+    match gl_defined_names_framed(gl, true, framed, NameFit::InlineOrStringTable) {
         Ok((bound, _)) => {
             bound.len() == segs_len
                 && bound
@@ -238,7 +248,16 @@ impl IlBundle {
         }
 
         // ── the binding, under the gate's framing ─────────────────────────
-        let gate_bind = gl_defined_names_framed(gl, true, crate::codec::gl_offset_framed);
+        // **W-DECOUPLE** — `NameFit::InlineOrStringTable`, the policy
+        // `Bindings::per_record` runs. `decode_causes`' whole contract is that
+        // `causes.is_empty() == decodes`, and it holds only while this walk is
+        // the gate's walk.
+        let gate_bind = gl_defined_names_framed(
+            gl,
+            true,
+            crate::codec::gl_offset_framed,
+            NameFit::InlineOrStringTable,
+        );
         match &gate_bind {
             Err(s) => out.push(stop_cause(*s)),
             Ok((bound, _)) => {

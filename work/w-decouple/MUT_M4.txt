@@ -1,0 +1,42 @@
+== M4 — clause deleted, rebuilding
+  wdec_ecshort_leaf            Port=NotImplemented
+  wdec_ecshort_eight           Port=NotImplemented
+  wdec_ecshort_mix             Port=NotImplemented
+  wdec_ec_varargs_neg          Port=NotImplemented
+  wdec_ec_localcall_neg        Port=NotImplemented
+  -- gate causes at /o1
+    === None
+    === fixtures/cpp/wdec_ec_localcall_neg.cpp
+      class                    vocab-gap
+      gate_causes              []
+    === fixtures/cpp/wdec_ec_varargs_neg.cpp
+      class                    vocab-gap
+      gate_causes              ['gl-stop-varargs-record']
+    === fixtures/cpp/wdec_ecshort_eight.cpp
+      class                    vocab-gap
+      gate_causes              []
+    === fixtures/cpp/wdec_ecshort_leaf.cpp
+      class                    vocab-gap
+      gate_causes              []
+    === fixtures/cpp/wdec_ecshort_mix.cpp
+      class                    vocab-gap
+      gate_causes              []
+  -- gate causes at /ox
+    === None
+    === fixtures/cpp/wdec_ec_localcall_neg.cpp
+      class                    vocab-gap
+      gate_causes              []
+    === fixtures/cpp/wdec_ec_varargs_neg.cpp
+      class                    vocab-gap
+      gate_causes              ['gl-stop-varargs-record']
+    === fixtures/cpp/wdec_ecshort_eight.cpp
+      class                    vocab-gap
+      gate_causes              []
+    === fixtures/cpp/wdec_ecshort_leaf.cpp
+      class                    vocab-gap
+      gate_causes              []
+    === fixtures/cpp/wdec_ecshort_mix.cpp
+      class                    vocab-gap
+      gate_causes              []
+== M4 restored; crates/ diff:
+   (empty above == restored)

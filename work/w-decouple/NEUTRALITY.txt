@@ -1,0 +1,39 @@
+A 878 TUs, B 878 TUs
+only-in-A 0, only-in-B 0
+== L1 class: 0 moved
+== L2 gate_cause: 15 moved
+   src/Main.cpp                                         gl-stop-name-not-mangled -> body-out-of-class
+   src/system/math/Easing.cpp                           gl-stop-name-not-mangled -> gl-stop-26-introduced
+   src/system/oggvorbis/VorbisMem.cpp                   gl-stop-name-not-mangled -> bind-record-count-ne-segments
+   src/system/rndobj/Anim.cpp                           gl-stop-name-not-mangled -> gl-stop-26-introduced
+   src/system/rndobj/AnimFilter.cpp                     gl-stop-name-not-mangled -> gl-stop-26-introduced
+   src/system/rndobj/CamAnim.cpp                        gl-stop-name-not-mangled -> gl-stop-26-introduced
+   src/system/rndobj/PollAnim.cpp                       gl-stop-name-not-mangled -> gl-stop-26-introduced
+   src/system/synth/CompressionEffect.cpp               gl-stop-name-not-mangled -> bind-record-count-ne-segments
+   src/system/synth/Faders.cpp                          gl-stop-name-not-mangled -> gl-stop-26-introduced
+   src/system/synth/ThreeDSound.cpp                     gl-stop-name-not-mangled -> gl-stop-26-introduced
+   src/system/synth/complex.cpp                         gl-stop-name-not-mangled -> bind-record-count-ne-segments
+   src/system/synth/filterdesign.cpp                    gl-stop-name-not-mangled -> gl-stop-26-introduced
+   src/system/synth_xbox/FFT.cpp                        gl-stop-name-not-mangled -> bind-record-count-ne-segments
+   src/system/synth_xbox/FilterCoeffs.cpp               gl-stop-name-not-mangled -> bind-record-count-ne-segments
+   src/xdk/nuispeech/mmio.cpp                           gl-stop-name-not-mangled -> body-out-of-class
+== L2b gate_causes SET: 16 moved
+   src/Main.cpp                                         ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['body-out-of-class', 'unclaimed-gl-symbol']
+   src/system/math/Easing.cpp                           ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['gl-stop-26-introduced', 'body-out-of-class']
+   src/system/oggvorbis/VorbisMem.cpp                   ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'body-out-of-class']
+   src/system/rndobj/Anim.cpp                           ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['gl-stop-26-introduced', 'body-out-of-class']
+   src/system/rndobj/AnimFilter.cpp                     ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['gl-stop-26-introduced', 'body-out-of-class']
+   src/system/rndobj/CamAnim.cpp                        ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['gl-stop-26-introduced', 'body-out-of-class']
+   src/system/rndobj/PollAnim.cpp                       ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['gl-stop-26-introduced', 'body-out-of-class']
+   src/system/synth/CompressionEffect.cpp               ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'body-out-of-class']
+   src/system/synth/Faders.cpp                          ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['gl-stop-26-introduced', 'body-out-of-class']
+   src/system/synth/ThreeDSound.cpp                     ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['gl-stop-26-introduced', 'body-out-of-class']
+   src/system/synth/complex.cpp                         ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'body-out-of-class']
+   src/system/synth/filterdesign.cpp                    ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['gl-stop-26-introduced', 'body-out-of-class']
+   src/system/synth_xbox/FFT.cpp                        ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'body-out-of-class']
+   src/system/synth_xbox/FilterCoeffs.cpp               ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'body-out-of-class']
+   src/system/synth_xbox/PitchCorrectedVoice.cpp        ['drectve-not-boilerplate', 'gl-stop-name-not-mangled', 'body-out-of-class'] -> ['drectve-not-boilerplate', 'bind-record-count-ne-segments', 'body-out-of-class']
+   src/xdk/nuispeech/mmio.cpp                           ['gl-stop-name-not-mangled', 'body-out-of-class'] -> ['body-out-of-class', 'unclaimed-gl-symbol']
+== L3 emit[fnbyte-exact]: 0 moved
+== L3 emit[fnbyte-differs]: 0 moved
+== L3 emit[fnbyte-refused]: 0 moved

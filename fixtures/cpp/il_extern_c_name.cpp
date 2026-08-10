@@ -1,3 +1,29 @@
+// **W-DECOUPLE, 2026-08-09 — THIS CELL NOW MATCHES, AND THE PARAGRAPH IT USED
+// TO END ON IS THE ONE THAT WAS ANSWERED.**
+//
+// Everything below is kept verbatim because the *binding* half of it is still
+// the reason this file exists and is still live: a record's name is the run
+// immediately preceding its framing, positionally, and a name borrowed from
+// another record is a body emitted under the wrong symbol. That is what the two
+// records here fence and nothing about it has changed.
+//
+// What HAS changed is the last paragraph's verdict. It reads *"Refusing is right
+// rather than conservative… a different encoding path, characterized by exactly
+// one capture, and nothing yet says what it does to storage class or to `/Gy`
+// COMDAT naming."* Something says now. `Bindings::per_record` runs
+// `NameFit::InlineOrStringTable`, `c1` binds, and the port's obj is **byte-exact
+// against real c2 at `/O1` and at `/Ox`** — storage class, COMDAT selection and
+// all. The fence that was doing the refusing was never about `extern "C"`: it
+// was `INLINE_NAME_MAX`, and `c1` is two bytes. `wdec_ecshort_leaf.cpp` and
+// `wdec_ecshort_eight.cpp` are the cells that grade the class directly; this one
+// grades it beside a MANGLED record, which is the mixed shape
+// `src/xdk/nuispeech/mmio.cpp` has and neither of those does.
+//
+// The refusal this file was authored to assert has not been weakened — it has
+// been PAID. Keep reading for what it was.
+//
+// ---
+//
 // **Negative** — an undecorated (`extern "C"`) function name must refuse, and
 // this is the fixture for a regression that a fix *introduced*.
 //

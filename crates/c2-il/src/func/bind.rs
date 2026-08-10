@@ -454,7 +454,13 @@ impl<'a> Bindings<'a> {
         segs: &[&[u8]],
         starts: &[usize],
     ) -> Option<Bindings<'a>> {
-        let (bound, unclaimed) = gl_defined_names(gl);
+        // **W-DECOUPLE — the BINDING walk, which is no longer the FENCE walk.**
+        // [`super::gl::gl_bound_names`] admits a record name that fits the
+        // 8-byte COFF inline field; [`defined_name_set`] and
+        // [`super::gl::plain_external_defined_names`] keep the incumbent, so a
+        // widening here is not a tightening there (#2623) and cannot cost the
+        // `fnbyte-exact` #2622 measured. See [`super::gl::NameFit`].
+        let (bound, unclaimed) = super::gl::gl_bound_names(gl);
         if bound.len() != segs.len()
             || bound
                 .iter()
@@ -829,6 +835,18 @@ pub(crate) fn callee_defined_here_unmodelled<'a>(
 /// i.e. a function this TU defines. The set is a subset of the truth and never
 /// a superset, which is what makes a membership test sound in the refusing
 /// direction on a TU that does not fully bind.
+///
+/// **W-DECOUPLE — this keeps [`super::gl::NameFit::StringTableOnly`], and that
+/// is now a CHOICE rather than the only walk there is.** It is the site
+/// board #2623 named: widening the walk here made the subset larger, so
+/// `callee_defined_here` matched more callees, the fence refused more bodies,
+/// and one byte-exact function on `src/system/synth_xbox/FFT.cpp` was lost
+/// (#2622, −1 `fnbyte-exact`, `fn_in_class` 116 → 15). A smaller subset is
+/// still a subset, so the soundness sentence above survives the choice
+/// unchanged — and because [`super::gl::gl_defined_names`] fails on a WHOLE-TU
+/// basis, this set is not merely *safe* under the split but **bit-identical**
+/// on every TU: the widened walk can differ only where this one returned the
+/// empty pair.
 pub(crate) fn defined_name_set(gl: &[u8]) -> std::collections::BTreeSet<String> {
     gl_defined_names(gl).0.into_iter().map(|(_, n)| n).collect()
 }

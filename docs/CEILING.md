@@ -981,6 +981,16 @@ fall-through family's size beside any ranking taken off T2 — it is **9,095 of
    `gl_defined_names_framed(gl, true, codec::gl_offset_framed)` over the TU's
    own capture.
 
+   **`emit-bound` / `emit-gate-segments` IS NOT THAT LINE EITHER.** *Amended
+   2026-08-09 by lane `w-decouple` (#2754).* It reads **1 == 1** on
+   `src/Main.cpp` and **11 == 11** on `src/xdk/nuispeech/mmio.cpp`, and
+   **neither binds** — `emit-*` is `EmitBinding`, a THIRD binding whose job is
+   *"which obj symbol, if any, is this row"*, and #918 measured it disagreeing
+   with the gate on 74,955 workload rows. **Four fields have now been used to
+   answer this item and three of them were wrong** (`fn_names`, the census's
+   own binding, and this one). The field is `gate_cause` / `gate_causes`, as
+   this item says, and nothing else is.
+
    **And do not assume the binding repair is free.** `w-front5` #2622 built the
    one-line widening as a counterfactual: it binds **2 of the 15** TUs that
    stop on `gl-stop-name-not-mangled`, converts **0**, moves **0** of 878 TU
@@ -989,11 +999,51 @@ fall-through family's size beside any ranking taken off T2 — it is **9,095 of
    against, where a widening of the walk is a **tightening** of the fence
    (#2623).
 
+   **THE REPAIR EXISTS AND IT IS A DECOUPLING, NOT A WIDENING — SHIPPED, AT
+   ZERO COST.** *Amended 2026-08-09 by lane `w-decouple` (#2750, #2751).* There
+   are **three** call sites, not #2623's two, and the third
+   (`gl::plain_external_defined_names`) is the gate fence's exemption.
+   `gl::NameFit` gives the BINDING a widened policy and leaves BOTH fences on
+   the incumbent walk. It is sound because the widening is **MONOTONE** —
+   `gl_defined_names_framed` refuses on a whole-TU basis, so the wide walk can
+   differ only where the narrow one returned the empty pair, and on exactly
+   those TUs both fence sets are already empty. Result: `fnbyte-exact`
+   **35,810 → 35,810**, **0** of 878 class verdicts moved, **0** of 261
+   `gap-metric` keys changed value, both TUs bind, and
+   `gl-stop-name-not-mangled` is **retired from the workload** (first cause on
+   15, present in 16 sets, now 0 and 0). **Neither TU converted**, and the two
+   are now ordinary priced rows rather than unpriceable ones — which is the
+   thing to expect from this class of repair, not a conversion.
+
+8b. **AN INSTRUMENT'S POPULATION IS BOUNDED BY THE READER, AND A ZERO IN IT MAY
+   BE A ZERO IN THE SAMPLE.** *Added 2026-08-09 by lane `w-decouple` (#2756),
+   and it is item 8's mechanism one instrument over.* `w-fence2`'s GRID-W reads
+   *"every **IL call edge** to a callee its own TU defines"* over 7,552 sites
+   and its 0–63 B band says **kept 0, inlined 5,881**. An IL call edge needs
+   `IlFunction::callees()`, which needs the caller's body to **parse** — so
+   every blocked body's edges are outside the sample. `mmio.cpp`'s `mmioClose`
+   is `Decline::Parse`, and its obj carries `bl` → `mmioFlush`, a **KEPT** call
+   to an **8-byte** locally-defined callee. The band is not wrong about what it
+   sampled; it is a statement about accepted bodies and reads like one about
+   the workload. **Before a decline bound is quoted at a blocked TU, ask what
+   the instrument that fitted it could see.**
+
 9. **If T1 fires, read the port's own FENCES before you read its
    obligations.** *Added 2026-08-09 by lane `w-xtea3` (#2691, NC-5).* A TU whose
    every body is `fnbyte-exact` and which still does not match may be blocked by
    a refusal the port makes on purpose rather than by a symbol it owes.
-   `EncryptXTEA.cpp` was, at 5 of 5 bodies exact, and the repair was one clause
+   **A SECOND INSTANCE, and it is BEHIND an unwritten body rather than in front
+  of byte-exact ones.** *Added 2026-08-09 by lane `w-decouple` (#2756).*
+  `src/xdk/nuispeech/mmio.cpp`'s `mmioClose` calls `mmioFlush`, which mmio
+  defines and whose whole body is `li 3,0 ; blr` — **8 bytes** — and c2 **kept**
+  the `bl`. All eleven of mmio's records are plain external, so the fence goes
+  live the moment `mmioClose` parses; today it does not, so T1 cannot fire and
+  no per-function instrument can see it at all. **The fence a TU will hit is
+  part of its price even when the TU is blocked in front of it**, and mmio's
+  published prices — six codegen mechanisms — name neither this nor the
+  exemption it needs first.
+
+  `EncryptXTEA.cpp` was, at 5 of 5 bodies exact, and the repair was one clause
    in `comdat::fenced_inlined_callee` — adopted from `WB_INLINE_FINDINGS` §7's
    MAY table, which had five licensed arms of which four were already in the
    code. The three fences to check are `comdat::fenced_inlined_callee`,
