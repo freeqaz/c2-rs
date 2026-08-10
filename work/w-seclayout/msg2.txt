@@ -1,0 +1,25 @@
+w-seclayout: the CONTROL — every record the port emits today reads flags 0x00, so the Selection rule is a no-op on the whole matched population, and the read seven have A and C in a pincer
+
+Two measurements, both off the base binary:
+
+* the 23 matching TUs carry 32 emitted records and ALL 32 read linkage=05
+  flags=0x00, Selection=NODUPLICATES(1). The candidate rule agrees 32/32 and
+  the agreement is VACUOUS: the ANY branch is never exercised by any obj the
+  port has ever emitted. Read the other way, that is the neutrality proof —
+  shipping the rule cannot move a single byte of the matched population — and
+  also the reason shipping it buys nothing today.
+
+* the read seven, from the scan's OWN --factors-tsv and not re-derived by hand:
+
+      MeterEffect        A----      13 records = 13 segments = 13 obj .text
+      headtracker        -BC--      21 records,  9 emitted
+      UrlEncode          -BC--     116 records,  2 emitted
+      Pollable           -B---
+      rtti               -B---
+      HeadsetXferEffect  -----
+      TempoMap           -----
+
+  Not one has A and C together, and D or E is 0 on all seven. The TU that
+  satisfies factor A fails C on 28 .rdata$r sections — the ladder head two
+  lanes have already declined — and the two that satisfy C fail A by 12 and by
+  114 bodies. match = A and B and C and (D or E); the 380 miss at least two.
