@@ -158,6 +158,64 @@ pub(crate) fn emit_shell_symbols(b: &mut Buf, strtab: &mut StringTable, sections
 /// How many symbol records [`emit_shell_symbols`] writes.
 pub(crate) const N_SHELL_SYMBOLS: u32 = 11;
 
+/// **W-WORDWRAP2 — the shell with a non-COMDAT `.bss` SPLICED INTO IT at Rule
+/// S1′'s slot `B`** (board #2727), for a TU that also defines functions.
+///
+/// `sections` must be [`shell_sections`]' four with the `.bss` inserted at index
+/// **3** — between the two `.XBLD$W` watermarks, which is where every one of the
+/// eight extern-only cells in `work/w-wordwrap2/probe/grid_b.txt` puts it, and
+/// where the workload's own `wordwrap.obj` puts its 588-byte one.
+///
+/// `bss_syms` is `(name, Value, external)` in **emission** order — Rule Y1's
+/// external clause, i.e. the REVERSE of the `.gl` record order the storage walk
+/// uses. The caller derives it, because the relocation records need the
+/// resulting indices before this point in the file.
+///
+/// **A separate function rather than a flag on [`emit_shell_symbols`]**, for the
+/// reason `coff::data`'s own symbol block records at file offset 716: the helper
+/// indexes `sections` positionally, and a spliced section silently shifts every
+/// index past it — there, `.bss`'s aux record went out as the C1 watermark's.
+/// Spelling the two sequences separately is what stops that.
+pub(crate) fn emit_shell_symbols_bss_slot_b(
+    b: &mut Buf,
+    strtab: &mut StringTable,
+    sections: &[Section],
+    bss_syms: &[(&str, u32, bool)],
+) {
+    // slot 0: @comp.id (ABS, STATIC, no aux)
+    b.name8("@comp.id");
+    b.u32(COMP_ID_VALUE);
+    b.i16(-1); // IMAGE_SYM_ABSOLUTE
+    b.u16(0x0000);
+    b.u8(3); // STATIC
+    b.u8(0);
+    emit_section_symbol(b, &sections[0], 1, 0); // slot 1/2  .drectve
+    emit_section_symbol(b, &sections[1], 2, 0); // slot 3/4  .debug$S
+    emit_section_symbol(b, &sections[2], 3, 0); // slot 5/6  .XBLD$W C2
+    emit_external_symbol(b, strtab, NAME_C2, 3, 0x0000); // slot 7
+    emit_section_symbol(b, &sections[3], 4, 0); // slot 8/9  .bss
+    for (name, value, external) in bss_syms {
+        emit_symbol(b, strtab, name, *value, 4, 0x0000, if *external { 2 } else { 3 });
+    }
+    emit_section_symbol(b, &sections[4], 5, 0); // .XBLD$W C1
+    emit_external_symbol(b, strtab, NAME_C1, 5, 0x0000);
+}
+
+/// How many symbol records [`emit_shell_symbols_bss_slot_b`] writes for `n`
+/// objects: the eleven of the plain shell, plus the `.bss` section symbol and
+/// its aux, plus one per object.
+pub(crate) fn n_shell_symbols_bss(n: usize) -> u32 {
+    N_SHELL_SYMBOLS + 2 + n as u32
+}
+
+/// The symbol index of the FIRST `.bss` object record under
+/// [`emit_shell_symbols_bss_slot_b`] — `@comp.id` + `.drectve`/aux +
+/// `.debug$S`/aux + `.XBLD$W`/aux + `__C2_11886` + `.bss`/aux = 10.
+///
+/// Derived from that function's own sequence and asserted where the records go
+/// out, never hard-coded twice.
+pub(crate) const FIRST_BSS_SYMBOL_SLOT_B: u32 = 10;
+
 
 /// Build the complete `.obj` image for a translation unit that **defines no
 /// functions** (R1).
