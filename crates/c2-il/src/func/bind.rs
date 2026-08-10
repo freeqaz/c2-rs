@@ -398,6 +398,29 @@ pub fn gl_body_record_names(gl: &[u8]) -> std::collections::BTreeSet<String> {
     out
 }
 
+/// **W-SELBIND — [`gl_body_record_names`] under the GATE's own framing.**
+///
+/// That function uses [`emit_offset_framed`], the window-free framing the
+/// *instrument* runs; this one uses [`crate::codec::gl_offset_framed`], which is
+/// what [`Bindings::selective`] and [`Bindings::per_record`] actually read. The
+/// two are a **different set on a real TU** — `src/system/math/vec.cpp` has 36
+/// records under the gate's framing and 369 under the window-free one — and
+/// board **#2783** is the measurement of why: the `gl[o-5] == 0x10` clause pins
+/// the record's preceding field into `0x1000..=0x10FF`, and that field is a
+/// rising per-record number.
+///
+/// Existing separately rather than as a parameter on the other function because
+/// the two answer different questions and the project has already paid for
+/// conflating a gate reader with an instrument reader four times (`CEILING.md`
+/// §11.4 item 8: four fields used, three wrong).
+pub fn gl_gate_record_names(gl: &[u8]) -> std::collections::BTreeSet<String> {
+    super::gl::gl_bound_names(gl)
+        .0
+        .into_iter()
+        .map(|(_, n)| n)
+        .collect()
+}
+
 /// Everything a `.ex` segment list needs bound to it, built once per bundle.
 ///
 /// There is no "which binding" discriminant field: the two constructors —
@@ -578,14 +601,13 @@ impl<'a> Bindings<'a> {
         // genuinely selective: on a 1:1 binding every segment is bound, so no
         // unbound segment exists to be emitted and the incumbent accounting
         // (which this clause has no callee escape for) is the right one.
+        let names: Vec<String> = bound.into_iter().map(|(_, n)| n).collect();
         if seg_ix.len() != segs.len() {
-            let (mangled, inline_fit) =
-                super::gl::gl_unclaimed_run_kinds(gl, crate::codec::gl_offset_framed);
+            let (mangled, inline_fit) = super::gl::gl_unclaimed_run_kinds(gl, &names);
             if mangled != 0 || inline_fit != 0 {
                 return None;
             }
         }
-        let names: Vec<String> = bound.into_iter().map(|(_, n)| n).collect();
         let sub: Vec<&[u8]> = seg_ix.iter().map(|&i| segs[i]).collect();
         Some((
             Bindings {
@@ -1183,7 +1205,10 @@ mod tests {
         // The mangled half is satisfied — both `?a`/`?b` runs are claimed — so
         // this refusal is the inline-fit half or it is nothing.
         assert_eq!(
-            super::super::gl::gl_unclaimed_run_kinds(&gl, crate::codec::gl_offset_framed),
+            super::super::gl::gl_unclaimed_run_kinds(
+                &gl,
+                &["?a@@YAHXZ".to_string(), "?b@@YAHXZ".to_string()]
+            ),
             (0, 1),
             "0 unclaimed mangled runs, 1 unclaimed run that fits the 8-byte field"
         );

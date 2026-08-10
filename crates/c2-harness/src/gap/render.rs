@@ -1122,6 +1122,7 @@ mod tests {
             gate_cause: None,
             gate_causes: Vec::new(),
             gl_body_starts: None,
+            selective_bind: None,
             bind_checks: Default::default(),
             emit: Default::default(),
             emit_blockers: Default::default(),

@@ -291,10 +291,10 @@ impl IlBundle {
                     .is_none()
                     {
                         out.push(cause::BIND_COUNT);
-                        let (mangled, inline_fit) = super::gl::gl_unclaimed_run_kinds(
-                            gl,
-                            crate::codec::gl_offset_framed,
-                        );
+                        let names: Vec<String> =
+                            bound.iter().map(|(_, n)| n.clone()).collect();
+                        let (mangled, inline_fit) =
+                            super::gl::gl_unclaimed_run_kinds(gl, &names);
                         if mangled != 0 || inline_fit != 0 {
                             out.push(cause::SELECTIVE_UNACCOUNTED);
                         }

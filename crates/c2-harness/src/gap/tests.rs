@@ -47,6 +47,7 @@ fn mk(reason: &str) -> TuResult {
         gate_cause: None,
         gate_causes: Vec::new(),
         gl_body_starts: None,
+        selective_bind: None,
         emit: BTreeMap::new(),
         emit_blockers: BTreeMap::new(),
         emit_witness: Vec::new(),

@@ -1822,6 +1822,42 @@ impl IlBundle {
         Some((present, starts.len()))
     }
 
+    /// **W-SELBIND — can the SELECTIVE binding bind this TU, and if not, by how
+    /// much does its totality clause miss?**
+    ///
+    /// `(records, segments, unclaimed_mangled, unclaimed_inline_fit)`, all under
+    /// the **gate's** framing ([`crate::codec::gl_offset_framed`]). A pure
+    /// reader: it makes no acceptance decision, never refuses, and is available
+    /// on a bundle whose [`Self::functions`] returns `None`.
+    ///
+    /// # Why this is a different question from `gl_body_start_coverage`
+    ///
+    /// That reader asks whether a segment's body-start offset is **spelled**
+    /// anywhere in `.gl`, and its own doc says `present` is a deliberate
+    /// **over-count**. This one asks whether a **record NAMES** the segment,
+    /// which is what a binding needs. On `src/system/math/vec.cpp` the two
+    /// disagree by an order of magnitude — 373 spelled against **36** named —
+    /// and the disagreement is the whole reason the commission that produced
+    /// this reader was mis-stated: both emitted constructors are *spelled* and
+    /// **neither has a record** under the gate's framing.
+    ///
+    /// The last two fields are [`super::bind::Bindings::selective`]'s clause 3,
+    /// reported rather than decided: `(0, 0)` is the only value at which a
+    /// selective binding may stand, so any other value is the size of the
+    /// accounting a lane would have to build first.
+    pub fn selective_bind_coverage(&self) -> Option<(usize, usize, usize, usize)> {
+        let gl = self.get("gl")?;
+        let ex = self.ex()?;
+        let names: Vec<String> = super::gl::gl_bound_names(gl)
+            .0
+            .into_iter()
+            .map(|(_, n)| n)
+            .collect();
+        let segments = split_functions_at(ex).0.len();
+        let (mangled, inline_fit) = super::gl::gl_unclaimed_run_kinds(gl, &names);
+        Some((names.len(), segments, mangled, inline_fit))
+    }
+
     pub fn opt_words(&self) -> Option<Vec<Option<u32>>> {
         let ex = self.ex()?;
         Some(

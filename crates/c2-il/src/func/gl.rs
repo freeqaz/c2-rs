@@ -269,9 +269,14 @@ pub(crate) fn gl_defined_names(gl: &[u8]) -> (Vec<(u32, String)>, Vec<String>) {
 /// undecorated `extern "C"` name is stored **inline** in the 8-byte COFF symbol
 /// name field, carries no `@@`, and is therefore invisible to `looks_mangled`.
 ///
-/// Deliberately does NOT walk past a stop clause: it takes the record set as an
-/// argument, so the caller decides which framing produced it and this reader
-/// makes no acceptance decision of its own.
+/// **Keyed on the BOUND NAME SET and NOT on a re-walk, and the difference is a
+/// soundness one.** [`gl_defined_names_framed`] refuses a TU at the first record
+/// it cannot read, so on `src/system/math/vec.cpp` the walk binds **0** records
+/// while the framing can *see* 36. A reader that re-walked and marked all 36
+/// runs claimed would report 461 unclaimed where the binding leaves 488 — an
+/// **under**-count, which for a clause that decides whether a body may be
+/// omitted is the licensing direction. So the caller passes what it actually
+/// bound, and this reader makes no acceptance decision and no walk of its own.
 ///
 /// # What it cannot classify, stated rather than left to be found
 ///
@@ -283,32 +288,15 @@ pub(crate) fn gl_defined_names(gl: &[u8]) -> (Vec<(u32, String)>, Vec<String>) {
 /// (#1721: *"a filter separating those from a real symbol is a rung of its
 /// own"*). That is the selective contract's one open edge and
 /// [`super::bind::Bindings::selective`] states it in those words.
-pub(crate) fn gl_unclaimed_run_kinds(
-    gl: &[u8],
-    framed: fn(&[u8], usize) -> bool,
-) -> (usize, usize) {
-    let runs = symbol_runs(gl, true);
-    let mut claimed = vec![false; runs.len()];
-    let mut p = 0usize;
-    while p + 5 <= gl.len() {
-        if !framed(gl, p) {
-            p += 1;
-            continue;
-        }
-        if let Some(k) = runs.iter().rposition(|&(_, end, _)| end <= p) {
-            if p - runs[k].1 <= MAX_NAME_TO_OFFSET {
-                claimed[k] = true;
-            }
-        }
-        p += 5;
-    }
+pub(crate) fn gl_unclaimed_run_kinds(gl: &[u8], bound: &[String]) -> (usize, usize) {
+    let set: std::collections::BTreeSet<&str> = bound.iter().map(String::as_str).collect();
     let mut mangled = 0usize;
     let mut inline_fit = 0usize;
-    for ((_, _, n), c) in runs.iter().zip(&claimed) {
-        if *c {
+    for (_, _, n) in symbol_runs(gl, true) {
+        if set.contains(n.as_str()) {
             continue;
         }
-        if looks_mangled(n) {
+        if looks_mangled(&n) {
             mangled += 1;
         } else if n.len() <= INLINE_NAME_MAX {
             inline_fit += 1;

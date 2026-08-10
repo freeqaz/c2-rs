@@ -1028,6 +1028,53 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
         }
     }
 
+    // **W-SELBIND — the SELECTIVE contract's denominator, printed beside the
+    // coverage block because reading one as the other is the specific error this
+    // lane was commissioned on.**
+    //
+    // The block above asks whether a segment's body-start offset is SPELLED in
+    // `.gl`; its own reader is a deliberate over-count. This asks whether a `.gl`
+    // record NAMES it, which is what a binding needs, and on `vec.cpp` the two
+    // read 373 and 36. The join at the end is the one w-phase7b §10 item 3 left
+    // open and it is the number that decides whether selectivity has a
+    // denominator at all: a TU where some symbol c2 EMITTED carries no record can
+    // never be bound selectively however good the accounting gets, because the
+    // port would emit an obj missing that function.
+    let sel_1to1 = report.bind_total("selbind-one-to-one-tus");
+    let sel_sel = report.bind_total("selbind-selective-tus");
+    let sel_total = report.bind_total("selbind-total-tus");
+    let emit_tus = report.bind_total("selbind-emit-tus");
+    if sel_1to1 + sel_sel > 0 {
+        println!(
+            "\n  SELECTIVE BINDING (`Bindings::selective`) — how many TUs can bind a SUBSET, \
+             and is the subset SOUND?\n    \
+             {sel_1to1:>5} TUs whose records are 1:1 with the segments (the incumbent contract; \
+             `per_record` is this case)\n    \
+             {sel_sel:>5} TUs where a record NAMES some but not all segments — the selective \
+             population\n    \
+             {sel_total:>5} of those pass the TOTALITY clause (every `.gl` run that could be a \
+             COFF symbol name is claimed), i.e. MAY bind today\n    \
+             {:>5} blocked by an unclaimed MANGLED run · {:>5} blocked by an unclaimed run that \
+             FITS the 8-byte inline name field (board #1721's hole, and the shape\n          \
+             `work/w-small/probe/l1_counterexample.cpp` measured as `Port=Mismatch @ offset 8`)",
+            report.bind_total("selbind-blocked-mangled-tus"),
+            report.bind_total("selbind-blocked-inline-fit-tus"),
+        );
+        println!(
+            "    IS `emitted ⊆ named`?  {} of {} emitted symbols carry a `.gl` record the GATE's \
+             framing sees ({} under the window-free one, board #2783).\n      \
+             {:>5} of {emit_tus} TUs with any emitted symbol have ALL of them named by the gate's \
+             framing — the CEILING on a selective binding — and {:>5} under the wide framing.\n      \
+             The difference between those two is the price of the unshipped frame relaxation, \
+             and it is the only thing standing between the two numbers.",
+            report.bind_total("selbind-emitted-named-gate"),
+            report.bind_total("selbind-emitted"),
+            report.bind_total("selbind-emitted-named-wide"),
+            report.bind_total("selbind-emit-subset-gate-tus"),
+            report.bind_total("selbind-emit-subset-wide-tus"),
+        );
+    }
+
     let mismatches = report.count(TuClass::Mismatch);
     if mismatches > 0 || diverged > 0 || report.cache.poisoned > 0 {
         eprintln!(

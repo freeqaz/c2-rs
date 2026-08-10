@@ -304,6 +304,17 @@ impl GapReport {
         merge_counts(self.results.iter().map(|r| &r.bind_checks))
     }
 
+    /// One aggregated binding-invariant row. **W-SELBIND** — the `selbind-*`
+    /// keys ride here rather than in their own map because they are exactly what
+    /// [`TuResult::bind_checks`] is for: facts about the `.gl` binding, counted
+    /// per TU and summed.
+    pub fn bind_total(&self, key: &str) -> usize {
+        self.results
+            .iter()
+            .map(|r| r.bind_checks.get(key).copied().unwrap_or(0))
+            .sum()
+    }
+
     /// **The emitted-function census**, aggregated (see [`TuResult::emit`]).
     pub fn emit_histogram(&self) -> Vec<(String, usize)> {
         merge_counts(self.results.iter().map(|r| &r.emit))
