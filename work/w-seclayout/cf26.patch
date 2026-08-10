@@ -1,0 +1,50 @@
+w-seclayout — THE COUNTERFACTUAL, verbatim.  NOT FOR SHIPPING.
+
+Apply to `crates/c2-il/src/func/gl.rs`, rebuild, scan, revert.  It removes
+`GlBindStop::Name26Introduced` from the BINDING policy only — `w-decouple`'s
+seam — so both fence ground sets keep the incumbent walk bit for bit and
+#2622/#2623's -1 `fnbyte-exact` cannot be confounded into the measurement.
+
+Replace
+
+    if runs[k].0 > 0 && gl[runs[k].0 - 1] == NAME_SEPARATORS[1] {
+        return Err(GlBindStop::Name26Introduced);
+    }
+
+with
+
+    if !(fit == NameFit::InlineOrStringTable)
+        && runs[k].0 > 0
+        && gl[runs[k].0 - 1] == NAME_SEPARATORS[1]
+    {
+        return Err(GlBindStop::Name26Introduced);
+    }
+
+Result, over the committed 878-TU list and flags at dc3 104e7df9c:
+
+    match                          23 -> 23
+    mismatch                        0 -> 0
+    codegen-gap / vocab-gap / capture-fail   0 / 848 / 7  unchanged
+    fnbyte-exact               35,810 -> 35,810
+    factor-a / a-and-b-and-c    28 / 27 -> 28 / 27
+    selbind-one-to-one-tus         22 -> 24      <- BINDS +2
+    selbind-selective-tus          12 -> 506
+    selbind-emit-subset-gate-tus   34 -> 342
+    selbind-total-tus               0 -> 0
+    TU class verdicts moved                0 of 878   <- CONVERTS 0
+    gap-metric keys changed value          6
+
+    first cause of 819 TUs moves one clause along:
+       492  gl-stop-26-introduced -> bind-record-count-ne-segments
+       316  gl-stop-26-introduced -> gl-stop-varargs-record
+         9  gl-stop-26-introduced -> gl-stop-name-too-far
+         2  gl-stop-26-introduced -> body-out-of-class
+
+    the two that reach a binding:
+       HeadsetXferEffect.cpp  selective_bind 16 of 16, then refused by
+                              unclaimed-gl-symbol + body-out-of-class.
+                              c2's obj has 14 .text -> would have been a
+                              2-function OVER-EMIT (board #2903).
+       MeterEffect.cpp        selective_bind 13 of 13, then refused by
+                              unclaimed-gl-symbol + locally-defined-callee
+                              + body-out-of-class.  c2's obj has 13 .text.

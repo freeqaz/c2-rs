@@ -1,0 +1,31 @@
+w-seclayout: the priced decline — CEILING §15, board #2900-#2906, the rung, and the two doc claims in crates/ that would have sent the next lane at the wrong work
+
+Ships no behaviour.  The tip binary is BYTE-IDENTICAL to the merge-base's
+(sha256 ac193eab2651...c902e3, 5,320,272 B both), which is the whole neutrality
+argument at every level at once.
+
+Two corrections in crates/, both doc-only and both load-bearing:
+
+* gl.rs, the Name26Introduced clause.  Its opening sentence — "26 marks
+  COMDAT-style linkage and the port's packed writer has one .text for the whole
+  TU" — describes /Ox /GS- /c, which is where w-cross measured it.  The
+  workload is /O1, /O1 implies /Gy, and flags_imply_function_level_linking
+  routes all 380 to emit_comdat_obj, which already mints one COMDAT .text per
+  function.  A lane taking that sentence at face value would have built a
+  per-function COMDAT minter the port already has.  The comment now carries the
+  measurement that replaces it: 117 .text over 7 objs, 117 COMDAT, 0 packed,
+  MIXED on 0 of 7; the aux Selection byte wrong on 99 of 117; and the .gl FLAGS
+  byte at name_nul+5 predicting it 117 for 117 where 26 does not.
+
+* bind.rs, Bindings::per_record.  selective states the over-emit obligation and
+  refuses on it at clause 4.  per_record states nothing and has no such clause:
+  it rests on the unstated premise that a record set covering every segment IS
+  c2's emit set.  Measured over the 29 TUs gl_body_start_coverage reports n of
+  n — CEILING §12's "full coverage of this acceptance path" — exactly one fails
+  factor A, and HeadsetXferEffect.cpp would emit two functions absent from c2's
+  obj entirely.  So 29 is not a sound bound on that path; 28 is.
+
+CEILING gets §15 and board rows #2900-#2906 (#2907-#2939 unminted).  No fixture:
+il_gl_sep26.cpp already carries a 3-records/1-emitted over-emit at /Ox in all 12
+mode lanes, so a second cell on that axis grades nothing (#2698/#2699), and the
+shape is pinned in the doc and on the board instead.

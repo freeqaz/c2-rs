@@ -1,0 +1,7 @@
+src/system/synth_xbox/HeadsetXferEffect.cpp headset
+src/system/synth_xbox/MeterEffect.cpp meter
+src/system/utl/TempoMap.cpp tempomap
+src/xdk/LIBCMT/rtti.cpp rtti
+src/xdk/nuiapi/headtracker.cpp headtracker
+src/system/synth/Pollable.cpp pollable
+src/system/utl/UrlEncode.cpp urlencode

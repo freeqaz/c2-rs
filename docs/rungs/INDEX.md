@@ -207,4 +207,5 @@ the header block this table is read from.
 | 2026-08-09 | w-xtea | [w-xtea](2026-08-09-w-xtea.md) | 12 | +0 — this rung admits nothing, so it moves no census cell |
 | 2026-08-10 | w-frame783 | [w-frame783](2026-08-10-w-frame783.md) | 11 | per-function unchanged, **+0**. TU match **23 → 23**, mismatch |
 | 2026-08-10 | w-phase7b | [w-phase7b](2026-08-10-w-phase7b.md) | 10 | per-function unchanged, **+0**. TU match **23 → 23**, mismatch **0 → 0**, |
+| 2026-08-10 | w-seclayout | [w-seclayout](2026-08-10-w-seclayout.md) | 11 | per-function unchanged, **+0**. TU match **23 → 23**, mismatch |
 | 2026-08-10 | w-selbind | [w-selbind](2026-08-10-w-selbind.md) | 11 | per-function unchanged, **+0**. TU match **23 → 23**, mismatch |

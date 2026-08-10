@@ -1,0 +1,152 @@
+== work/w-seclayout/obj/headset.obj   60 sections
+   section names: .rdata$rx22, .textx14, .rdatax7, .pdatax7, .datax5, .XBLD$Wx2, .drectvex1, .debug$Sx1, .bssx1
+   .text: 14 total — 14 COMDAT, 0 packed  => all COMDAT
+   .text aux Selection: ANY(2)x13, NODUPLICATES(1)x1
+     #  6 raw=   16 chars=0x60401020 sel=ANY ??1IXAPOParameters@ATG@@UAA@XZ@0
+     # 13 raw=    4 chars=0x60401020 sel=ANY ?SetParameters@IXAPOParameters@ATG@@UAAXPBXI@Z@0
+     # 14 raw=   68 chars=0x60401020 sel=ANY ??_GIXAPOParameters@ATG@@UAAPAXI@Z@0
+     # 16 raw=   16 chars=0x60401020 sel=ANY ??1CXAPOBase@ATG@@UAA@XZ@0
+     # 23 raw=   68 chars=0x60401020 sel=ANY ??_GCXAPOBase@ATG@@UAAPAXI@Z@0
+     # 25 raw=   28 chars=0x60401020 sel=ANY ??1CXAPOParametersBase@ATG@@UAA@XZ@0
+     # 26 raw=   28 chars=0x60401020 sel=ANY ??1?$CSampleXAPOBase@VHeadsetXferEffect@@UHeadsetXferEffectParams@@@ATG@@MAA@XZ@0
+     # 27 raw=   80 chars=0x60401020 sel=ANY ??_G?$CSampleXAPOBase@VHeadsetXferEffect@@UHeadsetXferEffectParams@@@ATG@@MAAPAXI@Z@0
+     # 29 raw=   92 chars=0x60401020 sel=ANY ??0?$CSampleXAPOBase@VHeadsetXferEffect@@UHeadsetXferEffectParams@@@ATG@@IAA@XZ@0
+     # 44 raw=    8 chars=0x60401020 sel=ANY ??_E?$CSampleXAPOBase@VHeadsetXferEffect@@UHeadsetXferEffectParams@@@ATG@@OCA@AAPAXI@Z@0
+     # 45 raw=  172 chars=0x60401020 sel=NODUPLICATES ??0HeadsetXferEffect@@QAA@XZ@8
+     # 57 raw=    8 chars=0x60401020 sel=ANY ??_EHeadsetXferEffect@@WCA@AAPAXI@Z@0
+     # 58 raw=   28 chars=0x60401020 sel=ANY ??1HeadsetXferEffect@@UAA@XZ@0
+     # 59 raw=   80 chars=0x60401020 sel=ANY ??_GHeadsetXferEffect@@UAAPAXI@Z@0
+
+== work/w-seclayout/obj/headtracker.obj   29 sections
+   section names: .textx9, .pdatax8, .rdatax8, .XBLD$Wx2, .drectvex1, .debug$Sx1
+   .text: 9 total — 9 COMDAT, 0 packed  => all COMDAT
+   .text aux Selection: ANY(2)x6, NODUPLICATES(1)x3
+     #  5 raw=    8 chars=0x60401020 sel=ANY ??2@YAPAXIPAX@Z@0
+     #  6 raw=    4 chars=0x60401020 sel=ANY ??3@YAXPAX0@Z@0
+     #  7 raw=  156 chars=0x60401020 sel=ANY ??$XMemNew@VLDARegressor@HeadOrientation@@@FaceCommon@@YAPAVLDARegressor@HeadOrientation@@KI@Z@8
+     # 11 raw=   84 chars=0x60401020 sel=ANY ??$sprintf_s@$0BAE@@@YAHAAY0BAE@DPBDZZ@0
+     # 13 raw=   76 chars=0x60401020 sel=ANY ??_GLDARegressor@HeadOrientation@@QAAPAXI@Z@0
+     # 15 raw=  112 chars=0x60401020 sel=ANY ??$XMemDelete@VLDARegressor@HeadOrientation@@@FaceCommon@@YAXAAPAVLDARegressor@HeadOrientation@@K@Z@0
+     # 17 raw=  196 chars=0x60401020 sel=NODUPLICATES ?CreateRegressor@HeadOrientation@@YAJPAPAVLDARegressor@1@W4ANGLE_TYPE@1@PBD22@Z@0
+     # 20 raw=   72 chars=0x60401020 sel=NODUPLICATES ?Destroy@HeadTracker@HeadOrientation@@QAAXXZ@0
+     # 22 raw=  156 chars=0x60401020 sel=NODUPLICATES ?Initialize@HeadTracker@HeadOrientation@@QAAJPBD@Z@0
+
+== work/w-seclayout/obj/meter.obj   65 sections
+   section names: .rdata$rx28, .textx13, .pdatax7, .datax7, .rdatax6, .XBLD$Wx2, .drectvex1, .debug$Sx1
+   .text: 13 total — 13 COMDAT, 0 packed  => all COMDAT
+   .text aux Selection: ANY(2)x11, NODUPLICATES(1)x2
+     #  5 raw=   36 chars=0x60401020 sel=NODUPLICATES ?OnSetParameters@MeterEffect@@UAAXABUMeterEffectParams@@@Z@0
+     #  6 raw=  120 chars=0x60401020 sel=ANY ??0?$CSampleXAPOBase@VMeterEffect@@UMeterEffectParams@@@ATG@@IAA@XZ@0
+     # 39 raw=   60 chars=0x60401020 sel=ANY ?LockForProcess@?$CSampleXAPOBase@VMeterEffect@@UMeterEffectParams@@@ATG@@UAAJIPBUXAPO_LOCKFORPROCESS_BUFFER_PARAMETERS@@I0@Z@0
+     # 41 raw=  132 chars=0x60401020 sel=ANY ?Process@?$CSampleXAPOBase@VMeterEffect@@UMeterEffectParams@@@ATG@@UAAXIPBUXAPO_PROCESS_BUFFER_PARAMETERS@@IPAU3@H@Z@0
+     # 43 raw=   28 chars=0x60401020 sel=ANY ??1?$CSampleXAPOBase@VMeterEffect@@UMeterEffectParams@@@ATG@@MAA@XZ@0
+     # 44 raw=    4 chars=0x60401020 sel=ANY ?OnSetParameters@?$CSampleXAPOBase@VMeterEffect@@UMeterEffectParams@@@ATG@@MAAXABUMeterEffectParams@@@Z@0
+     # 45 raw=  100 chars=0x60401020 sel=ANY ??_G?$CSampleXAPOBase@VMeterEffect@@UMeterEffectParams@@@ATG@@MAAPAXI@Z@0
+     # 47 raw=    8 chars=0x60401020 sel=ANY ?AddRef@CXAPOParametersBase@@WCA@AAKXZ@0
+     # 48 raw=    8 chars=0x60401020 sel=ANY ?QueryInterface@CXAPOParametersBase@@WCA@AAJABU_GUID@@PAPAX@Z@0
+     # 49 raw=    8 chars=0x60401020 sel=ANY ?Release@CXAPOParametersBase@@WCA@AAKXZ@0
+     # 50 raw=  196 chars=0x60401020 sel=NODUPLICATES ??0MeterEffect@@QAA@XZ@8
+     # 63 raw=   28 chars=0x60401020 sel=ANY ??1MeterEffect@@UAA@XZ@0
+     # 64 raw=  100 chars=0x60401020 sel=ANY ??_GMeterEffect@@UAAPAXI@Z@0
+
+== work/w-seclayout/obj/pollable.obj   72 sections
+   section names: .textx43, .pdatax12, .rdata$rx4, .rdatax3, .XBLD$Wx2, .datax2, .drectvex1, .debug$Sx1, .text$ycx1, .text$ydx1, .bssx1, .CRT$XCUx1
+   .text: 43 total — 43 COMDAT, 0 packed  => all COMDAT
+   .text aux Selection: ANY(2)x38, NODUPLICATES(1)x5
+     #  5 raw=    8 chars=0x60401020 sel=ANY ??2@YAPAXIPAX@Z@0
+     #  6 raw=   12 chars=0x60401020 sel=ANY ?name@type_info@@QBAPBDXZ@0
+     #  7 raw=    8 chars=0x60401020 sel=ANY ??0_List_iterator_base@stlpmtx_std@@QAA@PAU_List_node_base@1@@Z@0
+     #  8 raw=   16 chars=0x60401020 sel=ANY ?_M_incr@_List_iterator_base@stlpmtx_std@@QAAXXZ@0
+     #  9 raw=    4 chars=0x60401020 sel=ANY ??0?$StlNodeAlloc@PAVSynthPollable@@@stlpmtx_std@@QAA@XZ@0
+     # 10 raw=    4 chars=0x60401020 sel=ANY ??1?$StlNodeAlloc@PAVSynthPollable@@@stlpmtx_std@@QAA@XZ@0
+     # 11 raw=   12 chars=0x60401020 sel=ANY ??0?$_List_iterator@PAVSynthPollable@@U?$_Nonconst_traits@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QAA@ABU01@@Z@0
+     # 12 raw=   20 chars=0x60401020 sel=ANY ??8?$_List_iterator@PAVSynthPollable@@U?$_Nonconst_traits@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QBA_NU?$_List_iterator@PAVSynthPollable@@U?$_Const_traits@PAVSynthPollable@@@stlpmtx_std@@@1@@Z@0
+     # 13 raw=   20 chars=0x60401020 sel=ANY ??9?$_List_iterator@PAVSynthPollable@@U?$_Nonconst_traits@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QBA_NU?$_List_iterator@PAVSynthPollable@@U?$_Const_traits@PAVSynthPollable@@@stlpmtx_std@@@1@@Z@0
+     # 14 raw=   12 chars=0x60401020 sel=ANY ??0?$_List_iterator@PAVSynthPollable@@U?$_Const_traits@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QAA@ABU?$_List_iterator@PAVSynthPollable@@U?$_Nonconst_traits@PAVSynthPollable@@@stlpmtx_std@@@1@@Z@0
+     # 15 raw=   12 chars=0x60401020 sel=ANY ??D?$_List_iterator@PAVSynthPollable@@U?$_Const_traits@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QBAABQAVSynthPollable@@XZ@0
+     # 16 raw=   20 chars=0x60401020 sel=ANY ??E?$_List_iterator@PAVSynthPollable@@U?$_Const_traits@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QAA?AU01@H@Z@0
+     # 17 raw=   20 chars=0x60401020 sel=ANY ??9?$_List_iterator@PAVSynthPollable@@U?$_Const_traits@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QBA_NU01@@Z@0
+     # 18 raw=  128 chars=0x60401020 sel=ANY ?deallocate@?$StlNodeAlloc@V?$_List_node@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QBAXPAV?$_List_node@PAVSynthPollable@@@2@I@Z@0
+     # 22 raw=    8 chars=0x60401020 sel=ANY ??0?$_List_iterator@PAVSynthPollable@@U?$_Nonconst_traits@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QAA@PAU_List_node_base@1@@Z@0
+     # 23 raw=   12 chars=0x60401020 sel=ANY ?_M_empty_initialize@?$_List_base@PAVSynthPollable@@V?$StlNodeAlloc@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ@0
+     # 24 raw=    4 chars=0x60401020 sel=ANY ??1?$StlNodeAlloc@V?$_List_node@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ@0
+     # 25 raw=    4 chars=0x60401020 sel=ANY ??0?$StlNodeAlloc@V?$_List_node@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QAA@ABV01@@Z@0
+     # 26 raw=  112 chars=0x60401020 sel=ANY ?allocate@?$StlNodeAlloc@V?$_List_node@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QBAPAV?$_List_node@PAVSynthPollable@@@2@IPBX@Z@0
+     # 28 raw=    4 chars=0x60401020 sel=ANY ??$?0PAVSynthPollable@@@?$StlNodeAlloc@V?$_List_node@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QAA@ABV?$StlNodeAlloc@PAVSynthPollable@@@1@@Z@0
+     # 29 raw=   20 chars=0x60401020 sel=ANY ??$_Copy_Construct@PAVSynthPollable@@@stlpmtx_std@@YAXPAPAVSynthPollable@@ABQAV1@@Z@0
+     # 30 raw=    4 chars=0x60401020 sel=ANY ??$__destroy_aux@PAVSynthPollable@@@stlpmtx_std@@YAXPAPAVSynthPollable@@ABU__true_type@0@@Z@0
+     # 31 raw=   12 chars=0x60401020 sel=ANY ?begin@?$list@PAVSynthPollable@@V?$StlNodeAlloc@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QAA?AU?$_List_iterator@PAVSynthPollable@@U?$_Nonconst_traits@PAVSynthPollable@@@stlpmtx_std@@@2@XZ@0
+     # 32 raw=    8 chars=0x60401020 sel=ANY ?end@?$list@PAVSynthPollable@@V?$StlNodeAlloc@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QAA?AU?$_List_iterator@PAVSynthPollable@@U?$_Nonconst_traits@PAVSynthPollable@@@stlpmtx_std@@@2@XZ@0
+     # 33 raw=    4 chars=0x60401020 sel=ANY ??1?$_STLP_alloc_proxy@U_List_node_base@stlpmtx_std@@V?$_List_node@PAVSynthPollable@@@2@V?$StlNodeAlloc@V?$_List_node@PAVSynthPollable@@@stlpmtx_std@@@2@@stlpmtx_std@@QAA@XZ@0
+     # 34 raw=   68 chars=0x60401020 sel=ANY ?_M_create_node@?$list@PAVSynthPollable@@V?$StlNodeAlloc@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@IAAPAU_List_node_base@2@ABQAVSynthPollable@@@Z@0
+     # 36 raw=    8 chars=0x60401020 sel=ANY ??0?$_STLP_alloc_proxy@U_List_node_base@stlpmtx_std@@V?$_List_node@PAVSynthPollable@@@2@V?$StlNodeAlloc@V?$_List_node@PAVSynthPollable@@@stlpmtx_std@@@2@@stlpmtx_std@@QAA@ABV?$StlNodeAlloc@V?$_List_node@PAVSynthPollable@@@stlpmtx_std@@@1@U_List_node_base@1@@Z@0
+     # 37 raw=    4 chars=0x60401020 sel=ANY ??$_Destroy@PAVSynthPollable@@@stlpmtx_std@@YAXPAPAVSynthPollable@@@Z@0
+     # 38 raw=   36 chars=0x60401020 sel=NODUPLICATES ??0SynthPollable@@QAA@XZ@0
+     # 45 raw=   12 chars=0x60401020 sel=ANY ?GetSoundDisplayName@SynthPollable@@UAAPBDXZ@0
+     # 47 raw=   96 chars=0x60401020 sel=NODUPLICATES ?PollAll@SynthPollable@@SAXXZ@0
+     # 49 raw=   92 chars=0x60401020 sel=ANY ?erase@?$list@PAVSynthPollable@@V?$StlNodeAlloc@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QAA?AU?$_List_iterator@PAVSynthPollable@@U?$_Nonconst_traits@PAVSynthPollable@@@stlpmtx_std@@@2@U32@@Z@0
+     # 51 raw=  100 chars=0x60401020 sel=ANY ?insert@?$list@PAVSynthPollable@@V?$StlNodeAlloc@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QAA?AU?$_List_iterator@PAVSynthPollable@@U?$_Nonconst_traits@PAVSynthPollable@@@stlpmtx_std@@@2@U32@ABQAVSynthPollable@@@Z@0
+     # 53 raw=   32 chars=0x60401020 sel=ANY ??0?$_List_base@PAVSynthPollable@@V?$StlNodeAlloc@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QAA@ABV?$StlNodeAlloc@PAVSynthPollable@@@1@@Z@0
+     # 54 raw=   92 chars=0x60401020 sel=ANY ?clear@?$_List_base@PAVSynthPollable@@V?$StlNodeAlloc@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ@0
+     # 56 raw=  112 chars=0x60401020 sel=NODUPLICATES ?CancelPolling@SynthPollable@@QAAXXZ@0
+     # 58 raw=   56 chars=0x60401020 sel=ANY ?push_front@?$list@PAVSynthPollable@@V?$StlNodeAlloc@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QAAXABQAVSynthPollable@@@Z@0
+     # 60 raw=    4 chars=0x60401020 sel=ANY ??1?$_List_base@PAVSynthPollable@@V?$StlNodeAlloc@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ@0
+     # 61 raw=   16 chars=0x60401020 sel=NODUPLICATES ??1SynthPollable@@UAA@XZ@0
+     # 62 raw=  116 chars=0x60401020 sel=NODUPLICATES ?StartPolling@SynthPollable@@QAAXXZ@0
+     # 64 raw=   32 chars=0x60401020 sel=ANY ??0?$list@PAVSynthPollable@@V?$StlNodeAlloc@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QAA@ABV?$StlNodeAlloc@PAVSynthPollable@@@1@@Z@0
+     # 65 raw=    4 chars=0x60401020 sel=ANY ??1?$list@PAVSynthPollable@@V?$StlNodeAlloc@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ@0
+     # 66 raw=   88 chars=0x60401020 sel=ANY ??_GSynthPollable@@UAAPAXI@Z@0
+
+== work/w-seclayout/obj/rtti.obj   53 sections
+   section names: .rdata$rx16, .textx14, .pdatax10, .rdatax5, .datax4, .XBLD$Wx2, .drectvex1, .debug$Sx1
+   .text: 14 total — 14 COMDAT, 0 packed  => all COMDAT
+   .text aux Selection: ANY(2)x11, NODUPLICATES(1)x3
+     #  5 raw=   84 chars=0x60401020 sel=ANY ??1exception@std@@UAA@XZ@0
+     # 13 raw=   24 chars=0x60401020 sel=ANY ?what@exception@std@@UBAPBDXZ@0
+     # 15 raw=  112 chars=0x60401020 sel=ANY ?_Copy_str@exception@std@@AAAXPBD@Z@0
+     # 17 raw=   76 chars=0x60401020 sel=ANY ??_Gexception@std@@UAAPAXI@Z@0
+     # 19 raw=   16 chars=0x60401020 sel=ANY ??1bad_typeid@std@@UAA@XZ@0
+     # 26 raw=   88 chars=0x60401020 sel=ANY ??_Gbad_typeid@std@@UAAPAXI@Z@0
+     # 28 raw=   72 chars=0x60401020 sel=ANY ??0exception@std@@QAA@PBD@Z@0
+     # 30 raw=   84 chars=0x60401020 sel=NODUPLICATES ??0bad_cast@std@@QAA@PBD@Z@0
+     # 38 raw=   16 chars=0x60401020 sel=ANY ??1bad_cast@std@@UAA@XZ@0
+     # 39 raw=   88 chars=0x60401020 sel=ANY ??_Gbad_cast@std@@UAAPAXI@Z@0
+     # 41 raw=   84 chars=0x60401020 sel=NODUPLICATES ??0bad_typeid@std@@QAA@PBD@Z@0
+     # 43 raw=   60 chars=0x60401020 sel=NODUPLICATES ??0__non_rtti_object@std@@QAA@PBD@Z@0
+     # 51 raw=   16 chars=0x60401020 sel=ANY ??1__non_rtti_object@std@@UAA@XZ@0
+     # 52 raw=   88 chars=0x60401020 sel=ANY ??_G__non_rtti_object@std@@UAAPAXI@Z@0
+
+== work/w-seclayout/obj/tempomap.obj   51 sections
+   section names: .textx22, .rdatax8, .rdata$rx8, .datax3, .pdatax3, .XBLD$Wx2, .drectvex1, .debug$Sx1, .text$ycx1, .text$ydx1, .CRT$XCUx1
+   .text: 22 total — 22 COMDAT, 0 packed  => all COMDAT
+   .text aux Selection: ANY(2)x20, NODUPLICATES(1)x2
+     #  6 raw=   16 chars=0x60401020 sel=ANY ??0TempoMap@@QAA@XZ@0
+     # 13 raw=   16 chars=0x60401020 sel=ANY ??1TempoMap@@UAA@XZ@0
+     # 14 raw=    4 chars=0x60401020 sel=ANY ?Finalize@TempoMap@@UAAXXZ@0
+     # 15 raw=   24 chars=0x60401020 sel=ANY ??3TempoMap@@SAXPAX@Z@0
+     # 18 raw=   88 chars=0x60401020 sel=ANY ??_GTempoMap@@UAAPAXI@Z@0
+     # 20 raw=   32 chars=0x60401020 sel=ANY ??0SimpleTempoMap@@QAA@M@Z@0
+     # 28 raw=   16 chars=0x60401020 sel=ANY ??1SimpleTempoMap@@UAA@XZ@0
+     # 29 raw=   12 chars=0x60401020 sel=ANY ?TickToTime@SimpleTempoMap@@UBAMM@Z@0
+     # 30 raw=   12 chars=0x60401020 sel=ANY ?TimeToTick@SimpleTempoMap@@UBAMM@Z@0
+     # 31 raw=   20 chars=0x60401020 sel=ANY ?GetTempo@SimpleTempoMap@@UBAMH@Z@0
+     # 33 raw=   68 chars=0x60401020 sel=ANY ?GetTempoInMicroseconds@SimpleTempoMap@@UBAHH@Z@0
+     # 36 raw=   32 chars=0x60401020 sel=ANY ?GetTempoBPM@SimpleTempoMap@@UBAMH@Z@0
+     # 38 raw=    8 chars=0x60401020 sel=ANY ?GetNumTempoChangePoints@SimpleTempoMap@@UBAHXZ@0
+     # 39 raw=    8 chars=0x60401020 sel=ANY ?GetTempoChangePoint@SimpleTempoMap@@UBAHH@Z@0
+     # 40 raw=    4 chars=0x60401020 sel=ANY ?ClearLoopPoints@SimpleTempoMap@@UAAXXZ@0
+     # 41 raw=    4 chars=0x60401020 sel=ANY ?SetLoopPoints@SimpleTempoMap@@UAAXHH@Z@0
+     # 42 raw=    8 chars=0x60401020 sel=ANY ?GetLoopTick@SimpleTempoMap@@UBAHHAAH@Z@0
+     # 43 raw=    8 chars=0x60401020 sel=ANY ?GetLoopTick@SimpleTempoMap@@UBAHH@Z@0
+     # 44 raw=    4 chars=0x60401020 sel=ANY ?GetTimeInLoop@SimpleTempoMap@@UAAMM@Z@0
+     # 45 raw=   88 chars=0x60401020 sel=ANY ??_GSimpleTempoMap@@UAAPAXI@Z@0
+     # 47 raw=   12 chars=0x60401020 sel=NODUPLICATES ?SetTheTempoMap@@YAXPAVTempoMap@@@Z@0
+     # 48 raw=   20 chars=0x60401020 sel=NODUPLICATES ?ResetTheTempoMap@@YAXXZ@0
+
+== work/w-seclayout/obj/urlencode.obj   12 sections
+   section names: .rdatax5, .XBLD$Wx2, .textx2, .drectvex1, .debug$Sx1, .pdatax1
+   .text: 2 total — 2 COMDAT, 0 packed  => all COMDAT
+   .text aux Selection: NODUPLICATES(1)x2
+     #  6 raw=   88 chars=0x60401020 sel=NODUPLICATES ?IsCharInString@?A0x28c2a8ea@@YA_NDPBD@Z@0
+     #  7 raw=  276 chars=0x60401020 sel=NODUPLICATES ?URLEncode@@YAXPBDAAVString@@_N@Z@0
+

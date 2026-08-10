@@ -1374,3 +1374,118 @@ repair could serve goes **5 → 380**. #2783 buys a *denominator*, not a ceiling
 front of it: `gl-stop-26-introduced` on 379 of 380, and `body-out-of-class` on
 380 of 380 — both of which are the emit-set/section-layout model under another
 name.
+
+---
+
+## 15. 2026-08-10 — the section-layout model is NOT the successor: at the workload's flags the port is ALREADY on the COMDAT writer, and the 26-stop is worth **+2 binds, 0 converts**
+
+§14.3 named the successor as a **section-layout model**, on #232's ground that
+*"a `26`-introduced defined name is COMDAT-style linkage against a packed
+single-`.text` writer"*. Lane `w-seclayout` (#2900–#2911) was commissioned to
+price it and surveyed first. **The premise is true of #232's reproducer and
+false of the 380**, and the correction is one line: **#232 was measured at
+`/Ox /GS- /c`; the dc3 workload compiles at `/O1`, `/O1` implies `/Gy`, and
+`PortC2::flags_imply_function_level_linking` already routes every one of the 380
+to `coff::emit_comdat_obj`.**
+
+### 15.1 What c2's objs actually look like, read rather than counted
+
+Seven of the 380 read at the workload's own flags — `HeadsetXferEffect.cpp`,
+`MeterEffect.cpp`, `TempoMap.cpp`, `LIBCMT/rtti.cpp`, `nuiapi/headtracker.cpp`,
+`synth/Pollable.cpp`, `utl/UrlEncode.cpp` — with the counterfactual walk beside
+c2's own section and symbol tables:
+
+| TU | records | `.ex` segs | obj `.text` | named-not-emitted | factors |
+|---|---:|---:|---:|---:|---|
+| `MeterEffect.cpp` | 13 | 13 | **13** | 0 | `A----` |
+| `HeadsetXferEffect.cpp` | 16 | 16 | 14 | **2** | `-----` |
+| `TempoMap.cpp` | 24 | 34 | 22 | 2 | `-----` |
+| `LIBCMT/rtti.cpp` | 19 | 23 | 14 | 5 | `-B---` |
+| `nuiapi/headtracker.cpp` | 21 | 32 | 9 | 12 | `-BC--` |
+| `synth/Pollable.cpp` | 73 | 119 | 43 | 30 | `-B---` |
+| `utl/UrlEncode.cpp` | 116 | 236 | 2 | **114** | `-BC--` |
+
+* **`.text` is 100 % COMDAT: 117 sections over 7 objs, 0 packed, MIXED on 0 of
+  7.** The section *kind* and the one-section-per-function *shape* — the thing
+  §14.3 said was missing — the writer already produces.
+* **What it has wrong is one byte per section.** `emit_comdat_obj` hard-codes
+  `COMDAT_SELECT_NODUPLICATES` (1); c2 emits `IMAGE_COMDAT_SELECT_ANY` (2) on
+  **99 of the 117**.
+* **`26` is not the byte that predicts it.** 80 of the 117 emitted records carry
+  `SELECT_ANY` and are **not** `26`-introduced. The byte that predicts it, 117
+  for 117, is the record's own FLAGS at `name_nul + 5` — the byte
+  `record_is_plain_external` already reads: `flags & 0x20` ⇒ `ANY`,
+  `flags == 0x00` ⇒ `NODUPLICATES`.
+* **And that rule is worth zero today.** All **32** records the port emits
+  across the 23 matching TUs read `flags == 0x00`, so the ANY branch is
+  unreachable on everything that has ever become an obj. That is simultaneously
+  its neutrality proof and the reason it is not shipped: it is a *denominator*
+  purchase of exactly #2865's kind.
+* **Not one of the seven satisfies `A ∧ C`, and `D ∨ E` is 0 on all seven.**
+  The TU that satisfies factor A fails C on 28 `.rdata$r` sections — §2.4's
+  ladder head, declined by `w-rdata` and again by `w-rtti` — and the two that
+  satisfy C fail A by 12 and by 114 bodies. Board **#2902**.
+
+### 15.2 The counterfactual, measured and reverted — **binds +2, converts 0**
+
+`GlBindStop::Name26Introduced` built out of the **binding policy only**
+(`w-decouple`'s seam, so neither fence ground set moves and #2622/#2623's
+−1 `fnbyte-exact` is not confounded in), the same 878 TUs, the same committed
+list and flags:
+
+| key | base | 26-stop removed |
+|---|---:|---:|
+| `match` | 23 | **23** |
+| `mismatch` | 0 | **0** |
+| `fnbyte-exact` | 35,810 | **35,810** |
+| `selbind-emit-subset-gate-tus` | 34 | 342 |
+| `selbind-one-to-one-tus` | 22 | **24** |
+| `selbind-selective-tus` | 12 | 506 |
+| `selbind-total-tus` | **0** | **0** |
+| TU class verdicts moved | — | **0** |
+
+**BINDS +2. CONVERTS 0.** The +494 that become selective all die at clause 4 by
+construction; the first cause of 819 TUs merely moves one clause along (492 to
+`bind-record-count-ne-segments`, 316 to `gl-stop-varargs-record`, 9 to
+`gl-stop-name-too-far`, 2 to `body-out-of-class`). Board **#2904**.
+
+### 15.3 What the survey found on the way, and it is a latent wrong emit
+
+`Bindings::selective` states the over-emit obligation and refuses on it at
+clause 4. **`Bindings::per_record` — the shipping 1:1 path — has no such
+clause**, resting instead on an unstated premise: that a record set covering
+*every* segment **is** c2's emit set. `w-selbind` refuted that premise for a
+*subset* (#2820); nobody re-asked it for the total case.
+
+Measured over its own population — the **29** TUs `gl_body_start_coverage`
+reports `n of n`, which §12 calls *"full coverage of this acceptance path"* —
+**exactly one fails factor A**: `HeadsetXferEffect.cpp`, `.gl` spelling 16
+body-starts against an obj with **14** `.text` COMDATs, the two extra names
+(`??_E`/`??_G` of `CXAPOParametersBase`) **absent from the obj entirely**, not
+even as undefined externals. **So §12's 29 is not a sound bound on this
+acceptance path; 28 is.** Three live fences hold it — `Name26Introduced` in
+front, `unclaimed-gl-symbol` (#1721) and `body-out-of-class` behind — so it is
+latent and not live. It is #232's exact direction, and #232 also had a fence
+that covered a neighbouring shape. Board **#2903**.
+
+### 15.4 The priced decline
+
+Nothing is shipped to `crates/` but two doc corrections, because the mechanisms
+are these and none of them is a routing change:
+
+| # | mechanism | state |
+|---:|---|---|
+| 1 | per-function COMDAT `.text`, one per emitted function | **ALREADY SHIPPED** (`emit_comdat_obj`) — this is the routing answer |
+| 2 | the aux `Selection` byte from the `.gl` FLAGS byte | measured 117/117, **worth 0 today**, unreachable until 3 is paid |
+| 3 | **factor A** — which segments c2 emits at all; `selective` clause 4, and `per_record`'s missing one | **no solution in the input**, on 6 of 7 read TUs and on 380 of 380 |
+| 4 | factor C's `.rdata$r` | 7 refusals, declined twice (§2.4) |
+| 5 | `.text$yd` / `.xdata$x` | the ladder's remaining two steps |
+| 6 | `body-out-of-class` codegen | 380 of 380 |
+
+**The one-sentence version.** §14.4 said the two clauses in front of factor A
+are `gl-stop-26-introduced` and `body-out-of-class` and called both *"the
+section-layout model under another name"*. The section-layout model is **not**
+what either of them is: the layout is already right, the first clause is worth
+**+2 binds and 0 converts**, and what is actually left is **factor A and
+codegen** — the same two things §13.2 and §10 already named, with one fewer
+place to look.
