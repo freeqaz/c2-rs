@@ -549,6 +549,43 @@ impl<'a> Bindings<'a> {
     /// record shape we cannot frame or the splitter miscounted bodies, and in
     /// both cases every name after the divergence would be wrong — so bind none
     /// of them.
+    ///
+    /// # THIS PATH HAS NO CLAUSE 4, AND THE PREMISE THAT REPLACES IT IS FALSE
+    /// ON ONE WORKLOAD TU
+    ///
+    /// *Added 2026-08-10 by lane `w-seclayout` (board **#2903**).*
+    /// [`Bindings::selective`] states the over-emit obligation explicitly — *"a
+    /// segment c2 DISCARDED that the port binds and emits"* — and refuses on it
+    /// unconditionally at clause 4. **This function has no such clause.** Its
+    /// soundness rests on an unstated premise: that a record set covering
+    /// *every* `.ex` segment **is** c2's emit set. `w-selbind` (#2820) proved
+    /// that premise false for a *subset* of records; nobody re-asked it for the
+    /// total case.
+    ///
+    /// Measured over its own population — the 29 workload TUs
+    /// `IlBundle::gl_body_start_coverage` reports `n of n`, which is what
+    /// `docs/CEILING.md` §12 calls *"full coverage of this acceptance path"* —
+    /// **exactly one fails factor A**, i.e. has more `.ex` segments than c2's
+    /// obj has `.text` COMDATs:
+    ///
+    /// ```text
+    /// src/system/synth_xbox/HeadsetXferEffect.cpp
+    ///     `.gl` body-start coverage   16 of 16    <- this path would bind 16
+    ///     obj `.text` COMDATs         14          <- c2 emitted 14
+    ///     absent from the obj entirely, not even as undefined externals:
+    ///         ??_ECXAPOParametersBase@ATG@@WCA@AAPAXI@Z
+    ///         ??_GCXAPOParametersBase@ATG@@UAAPAXI@Z
+    /// ```
+    ///
+    /// So **29 is not a sound bound on this acceptance path; 28 is.** The TU is
+    /// out of reach today behind three live fences —
+    /// `super::gl::GlBindStop::Name26Introduced` in front, and
+    /// `unclaimed-gl-symbol` (#1721) plus `body-out-of-class` behind it, all
+    /// three read out of a reverted counterfactual's own `gate_causes` — so
+    /// this is a **latent** hazard and not a live wrong emit. It is #232's exact
+    /// direction, and #232 also had a fence that covered a neighbouring shape.
+    /// A lane that repairs any of those three must pay this clause in the same
+    /// commit.
     pub(crate) fn per_record(
         gl: &'a [u8],
         inb: &'a [u8],

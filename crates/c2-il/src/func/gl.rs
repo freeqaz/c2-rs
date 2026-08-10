@@ -775,6 +775,51 @@ pub(crate) fn gl_defined_names_framed(
             // [`NAME_SEPARATORS`] declines to say what `26` *means*, and this
             // clause does not claim to know either — it keys on the byte, and the
             // byte is what the obj disagreed about.
+            // **W-SECLAYOUT — THE SENTENCE THIS CLAUSE OPENS WITH IS TRUE OF
+            // THE `/Ox` REPRODUCER AND FALSE OF THE WORKLOAD, AND A LANE THAT
+            // BELIEVES IT WILL BUILD THE WRONG THING.** *Board #2900,
+            // 2026-08-10.* *"The port's packed writer has one `.text` for the
+            // whole TU"* describes `/Ox /GS- /c`, which is what `w-cross`
+            // measured. The dc3 workload compiles at **`/O1`**, `/O1` implies
+            // `/Gy`, and `PortC2::flags_imply_function_level_linking` therefore
+            // routes **every** workload TU to `coff::emit_comdat_obj`, which
+            // already gives each function its own COMDAT `.text`. Read off
+            // seven of the 380 TUs #2864 names, at the workload's own flags:
+            //
+            // ```text
+            //   117 `.text` sections over 7 objs — 117 COMDAT, 0 packed
+            //   MIXED (a COMDAT `.text` beside a packed one) occurs on 0 of 7
+            // ```
+            //
+            // So the successor named in `docs/CEILING.md` §14.3 is **not**
+            // "teach the packed writer to mint per-function COMDATs" for this
+            // population. What the writer actually has wrong is **one byte per
+            // section**: `c2_core::coff::writer::emit_comdat_obj` hard-codes
+            // `COMDAT_SELECT_NODUPLICATES` (1) and c2 emits
+            // `IMAGE_COMDAT_SELECT_ANY` (2) on **99 of those 117**.
+            //
+            // **And `26` is not the byte that predicts it.** 80 of the 117
+            // emitted records carry `SELECT_ANY` and are *not* `26`-introduced.
+            // The byte that predicts it, 117 for 117, is the record's own FLAGS
+            // at `name_nul + 5` — the byte [`record_is_plain_external`] already
+            // reads as `FLAGS_PLAIN`: `flags & 0x20` ⇒ `ANY`, `flags == 0x00`
+            // ⇒ `NODUPLICATES`. Control: all **32** records the port emits
+            // today, across the 23 byte-exactly matching workload TUs, read
+            // `flags == 0x00`, so that rule is a no-op on everything that has
+            // ever reached an obj — which is both its neutrality proof and the
+            // reason shipping it alone buys nothing (#2901).
+            //
+            // **The clause stays exactly as it is**, because what it is actually
+            // holding back is not the section kind. Measured in a counterfactual
+            // that removed it from the binding policy only (`w-seclayout`,
+            // reverted): TU match **23 → 23**, mismatch **0 → 0**,
+            // `fnbyte-exact` **35,810 → 35,810**, `selbind-total-tus` **0 → 0**,
+            // and of the 380 exactly **two** reach a binding — both then refused
+            // by `unclaimed-gl-symbol` and `body-out-of-class`, and one of them
+            // (`HeadsetXferEffect.cpp`) would have emitted **two functions c2
+            // discarded** (#2903, #2904). See
+            // [`super::bind::Bindings::per_record`], which is where that hole
+            // lives and which has no clause 4 to catch it.
             if runs[k].0 > 0 && gl[runs[k].0 - 1] == NAME_SEPARATORS[1] {
                 return Err(GlBindStop::Name26Introduced);
             }
