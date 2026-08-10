@@ -1195,6 +1195,16 @@ and `MeterEffect.cpp`, two TUs no lane has examined. **29 bounds one acceptance
 path, not the project** (#2791) — it is not a new "the ceiling" and must not be
 quoted as one.
 
+> **⚠ CORRECTED 2026-08-10 — 29 IS NOT A SOUND BOUND; 28 IS** (`w-seclayout`,
+> board **#2903**, §15). `Bindings::per_record` **has no clause 4** — no
+> over-emit check — so `n of n` coverage is necessary and not sufficient. Of
+> the 29, **`HeadsetXferEffect.cpp` fails factor A**: its `.gl` spells **16**
+> body-starts against **14** `.text` COMDATs, and the two extra names are
+> absent from the obj entirely. The port would emit two functions c2 discarded.
+> It is latent behind three fences and an existing fixture already grades the
+> axis in all twelve gate lanes, so nothing is wrong on disk — but the number
+> is. **Quote 28.**
+
 **What this leaves.** The two TUs do not share a mechanism and neither is
 cheap: `vec.cpp`'s emit set *is* nameable (both constructors sit in `.gl` at
 their body starts) and its repair is a **selective binding** that stops
