@@ -265,6 +265,42 @@ fn match_template(body: &[u8]) -> Option<(u32, u32, u32, u32, u32, [u32; 2], u32
     Some((f, ctor, member, dtor, obj, [f0, f1], t_obj))
 }
 
+/// The statement opcodes this class accounts for. A byte from this set anywhere
+/// in the segment PREFIX means a statement the template never saw.
+const STATEMENT_BYTES: [u8; 7] = [0x26, 0x2C, 0x4B, 0x4C, 0x54, 0x5C, 0x5E];
+
+/// **The one region of the segment the template does not cover, fenced rather
+/// than assumed.**
+///
+/// [`match_template`] matches from the block open (`53 53`) to the last byte of
+/// the segment, so everything it says is exact. What it says nothing about is
+/// the segment PREFIX — the `4F 1F` header with its optimization word, the
+/// `4F 20` and `4F 33` records, the `4F 02 20 00` module marker and the first
+/// line marker. On both captures that prefix is 55 bytes of file and line
+/// metadata and carries no statement, and the natural thing to do is to write
+/// that down as an assumption. This checks it instead.
+///
+/// **With one exemption, and it is why this is a function and not a `contains`.**
+/// The `4F 33` record is a content hash — 35 arbitrary bytes on both captures —
+/// so scanning it for opcode bytes would refuse this class at random as the
+/// source moves, which is a *refusal* and therefore safe, but also useless. The
+/// record runs from its own `4F 33` to the `4F 02 20 00` that follows it, both
+/// distinctive, and it is cut out of the scan. Everything on either side of it
+/// must be statement-free.
+///
+/// A `4F 33` with no `4F 02 20 00` after it refuses: that is a prefix shaped
+/// unlike either capture and there is nothing to exempt.
+fn prefix_is_statement_free(prefix: &[u8]) -> bool {
+    let clean = |r: &[u8]| !r.iter().any(|b| STATEMENT_BYTES.contains(b));
+    let Some(h) = prefix.windows(2).position(|w| w == [0x4F, 0x33]) else {
+        return clean(prefix);
+    };
+    let Some(rel) = prefix[h..].windows(4).position(|w| w == [0x4F, 0x02, 0x20, 0x00]) else {
+        return false;
+    };
+    clean(&prefix[..h]) && clean(&prefix[h + rel..])
+}
+
 // ---------------------------------------------------------------------------
 // `.sy` — the local's CodeView type index
 // ---------------------------------------------------------------------------
@@ -459,6 +495,9 @@ pub(crate) fn eh_scope_tu(b: &crate::IlBundle) -> Option<EhScopeTuIl> {
     if seg.get(..2) != Some(&[0x4F, 0x1F]) {
         return None;
     }
+    if !prefix_is_statement_free(&seg[..anchor]) {
+        return None;
+    }
     let (fn_tok, ctor_tok, member_tok, dtor_tok, obj_tok, _formals, _t_obj) =
         match_template(&seg[anchor..])?;
 
@@ -550,6 +589,36 @@ mod tests {
     fn anchor(seg: &[u8]) -> &[u8] {
         let a = seg.windows(2).position(|w| w == [0x53, 0x53]).unwrap();
         &seg[a..]
+    }
+
+    /// The prefix fence, on both captures and on the two shapes it exists for.
+    #[test]
+    fn the_segment_prefix_is_fenced_with_the_hash_record_exempt() {
+        let pre = |seg: &[u8]| {
+            let a = seg.windows(2).position(|w| w == [0x53, 0x53]).unwrap();
+            seg[..a].to_vec()
+        };
+        // Both real prefixes pass, and both CONTAIN the `4F 33` hash record.
+        for seg in [MAIN_SEG, M0_SEG] {
+            let p = pre(seg);
+            assert!(p.windows(2).any(|w| w == [0x4F, 0x33]));
+            assert!(prefix_is_statement_free(&p));
+        }
+        // A statement byte OUTSIDE the hash record refuses — injected into the
+        // `4F 1F` header, ahead of the `4F 33`.
+        let mut p = pre(MAIN_SEG);
+        p[3] = 0x26;
+        assert!(!prefix_is_statement_free(&p));
+        // …and one INSIDE the hash record does not, which is the exemption.
+        let mut p = pre(MAIN_SEG);
+        let h = p.windows(2).position(|w| w == [0x4F, 0x33]).unwrap();
+        p[h + 4] = 0x26;
+        assert!(prefix_is_statement_free(&p));
+        // A `4F 33` with no `4F 02 20 00` after it has nothing to exempt.
+        let mut p = pre(MAIN_SEG);
+        let e = p.windows(4).rposition(|w| w == [0x4F, 0x02, 0x20, 0x00]).unwrap();
+        p[e] = 0x00;
+        assert!(!prefix_is_statement_free(&p));
     }
 
     #[test]

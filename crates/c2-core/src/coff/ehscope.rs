@@ -571,12 +571,14 @@ pub fn emit_eh_scope_obj(obj_name: &str, tu: &EhScopeTu<'_>) -> Option<Vec<u8>> 
     emit_section_symbol(&mut b, &sections[sec_text], text_num, n_reloc_of[sec_text]);
     // The function: EXTERNAL, FUNCTION type, and `Value` = the entry offset.
     emit_function_symbol(&mut b, &mut strtab, tu.name, text_num, plan.entry);
-    let lab = |b: &mut Buf, st: &mut StringTable, prefix: char, n: u32, value: u32| {
-        emit_label_symbol(b, &label_name(prefix, n), value, text_num);
-        let _ = st;
+    // Every `$M` in `.text` is a class-6 LABEL symbol with no aux; only the
+    // number and the value change, so they go through one closure rather than
+    // six near-copies.
+    let lab = |b: &mut Buf, n: u32, value: u32| {
+        emit_label_symbol(b, &label_name('M', n), value, text_num);
     };
-    lab(&mut b, &mut strtab, 'M', labels.funclet_triple[1], plan.funclet_end);
-    lab(&mut b, &mut strtab, 'M', labels.funclet_triple[0], plan.funclet_prolog_end);
+    lab(&mut b, labels.funclet_triple[1], plan.funclet_end);
+    lab(&mut b, labels.funclet_triple[0], plan.funclet_prolog_end);
     // `__unwind$N` — STATIC with FUNCTION type, the second entry point.
     emit_symbol(
         &mut b,
@@ -587,13 +589,13 @@ pub fn emit_eh_scope_obj(obj_name: &str, tu: &EhScopeTu<'_>) -> Option<Vec<u8>> 
         0x0020,
         3,
     );
-    lab(&mut b, &mut strtab, 'M', labels.body[1], plan.body_end);
+    lab(&mut b, labels.body[1], plan.body_end);
     emit_function_symbol(&mut b, &mut strtab, tu.dtor, 0, 0);
-    lab(&mut b, &mut strtab, 'M', labels.state[1], plan.call_sites[2]);
+    lab(&mut b, labels.state[1], plan.call_sites[2]);
     emit_function_symbol(&mut b, &mut strtab, tu.member, 0, 0);
-    lab(&mut b, &mut strtab, 'M', labels.state[0], plan.call_sites[1]);
+    lab(&mut b, labels.state[0], plan.call_sites[1]);
     emit_function_symbol(&mut b, &mut strtab, tu.ctor, 0, 0);
-    lab(&mut b, &mut strtab, 'M', labels.body[0], plan.body_prolog_end);
+    lab(&mut b, labels.body[0], plan.body_prolog_end);
 
     emit_section_symbol(
         &mut b,
@@ -631,9 +633,37 @@ pub fn emit_eh_scope_obj(obj_name: &str, tu: &EhScopeTu<'_>) -> Option<Vec<u8>> 
     emit_symbol(&mut b, &mut strtab, &format!("__unwindtable${}", tu.name), unwind_table_at, rdata_num, 0, 3);
     emit_symbol(&mut b, &mut strtab, &label_name('T', labels.ip2state), ip2state_at, rdata_num, 0, 3);
 
-    b.bytes(&strtab.finish());
+    // **The index map above and the emission order here are two transcriptions
+    // of one symbol table, and this is where they are made to agree.** Six of
+    // the sixteen indices are referenced by no relocation — the `$M` pair on the
+    // funclet, the `$M` pair on the body, and the two `.pdata` `$T` — so nothing
+    // else in this function would notice if the emission order drifted from the
+    // map. `writer.rs` carries the scar of a count living in three places; this
+    // is the same discipline one file over.
+    debug_assert_eq!(
+        (b.0.len() - ptr_symtab) / SYMBOL_LEN,
+        n_symbols as usize,
+        "the emitted symbol count must be the one the index map predicted"
+    );
     debug_assert_eq!(i_t_ip2state + 1, n_symbols);
-    let _ = (i_m_funclet_end, i_m_funclet_prolog, i_m_body_end, i_m_body_prolog, i_t_funclet, i_t_body);
+    debug_assert!(
+        i_func < i_m_funclet_end
+            && i_m_funclet_end < i_m_funclet_prolog
+            && i_m_funclet_prolog < i_unwind
+            && i_unwind < i_m_body_end
+            && i_m_body_end < i_dtor
+            && i_dtor < i_m_state1
+            && i_m_state1 < i_member
+            && i_member < i_m_state0
+            && i_m_state0 < i_ctor
+            && i_ctor < i_m_body_prolog
+            && i_m_body_prolog < i_t_funclet
+            && i_t_funclet < i_t_body
+            && i_t_body < i_handler
+            && i_handler < i_funcinfo,
+        "the `.text` group is emitted in DESCENDING address order"
+    );
+    b.bytes(&strtab.finish());
     Some(b.0)
 }
 
