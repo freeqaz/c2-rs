@@ -1,0 +1,86 @@
+     Running unittests src/lib.rs (target/release/deps/c2_core-d11d0e0158155eff)
+test codegen::labels::tests::an_unreferenced_label_is_not_an_error ... ok
+test codegen::osf_handle_guard::tests::four_guards_name_one_sunk_error_block ... ok
+test codegen::osf_handle_guard::tests::the_success_and_error_stores_are_one_word ... ok
+test result: ok. 469 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running unittests src/lib.rs (target/release/deps/c2_harness-c90fb563741b697b)
+test fixture_profile::tests::two_markers_is_an_error_not_last_wins ... ok
+test gap::tests::cl_error_normalization_extracts_code ... ok
+test gap::tests::cl_error_normalization_survives_codeless_blobs ... ok
+test prefilter::tests::cl_error_normalization_extracts_the_code ... ok
+test result: ok. 198 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+     Running unittests src/main.rs (target/release/deps/c2rs-401c9b732c599a8c)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/call_targets.rs (target/release/deps/call_targets-027486321f6cdee2)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+     Running tests/capture_cache.rs (target/release/deps/capture_cache-05568a7c1e95138c)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+     Running tests/census_gate.rs (target/release/deps/census_gate-24f17dcc28e8d1e1)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 65.71s
+     Running tests/cli_flags.rs (target/release/deps/cli_flags-3325071abf144b04)
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 51.39s
+     Running tests/corpus.rs (target/release/deps/corpus-689520cc59170ad5)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+     Running tests/dead_temp_elision.rs (target/release/deps/dead_temp_elision-6fa4fece7fbbdd51)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+     Running tests/destroy_loop_elision.rs (target/release/deps/destroy_loop_elision-979881370bdb8f19)
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+     Running tests/differential.rs (target/release/deps/differential-25105e4ac011580d)
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.98s
+     Running tests/edit_differential.rs (target/release/deps/edit_differential-03385a0befbb1e88)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+     Running tests/empty_elision.rs (target/release/deps/empty_elision-796edcddcc29bfa8)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+     Running tests/fixture_profiles.rs (target/release/deps/fixture_profiles-33212c6693f1eba1)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.86s
+     Running tests/float_leaf_neighbors.rs (target/release/deps/float_leaf_neighbors-127d9fcefc34794a)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/fnbyte_gy.rs (target/release/deps/fnbyte_gy-6bad78d914a07acb)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.44s
+     Running tests/gate_cause.rs (target/release/deps/gate_cause-a541719d9673949e)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+     Running tests/il_roundtrip.rs (target/release/deps/il_roundtrip-80759236b1bad35c)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.95s
+     Running tests/inline_fence.rs (target/release/deps/inline_fence-aeadef78018a3d03)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+     Running tests/lane_registry.rs (target/release/deps/lane_registry-b2baf85f4c9415af)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/noinline_boundary.rs (target/release/deps/noinline_boundary-65b48e76c1cb014e)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+     Running tests/nothing_seed.rs (target/release/deps/nothing_seed-e15fb0cd6f65bb23)
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+     Running tests/pool2_cells.rs (target/release/deps/pool2_cells-786c90f8a506049d)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+     Running tests/pool_cells.rs (target/release/deps/pool_cells-7b3739435e778537)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+     Running tests/reloc_identity.rs (target/release/deps/reloc_identity-02be4ab8a171d4bb)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+     Running tests/rung_registry.rs (target/release/deps/rung_registry-972b0442be65e94c)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.89s
+     Running tests/search_differential.rs (target/release/deps/search_differential-4edc8671d3288e7a)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.13s
+     Running tests/sweep_registry.rs (target/release/deps/sweep_registry-e75c5afdefe5dba1)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.01s
+     Running unittests src/lib.rs (target/release/deps/c2_il-767bc6b9b20b36af)
+test codec::tests::edit_errors_are_typed_and_nonmutating ... ok
+test tests::missing_files_are_skipped_not_errors ... ok
+test result: ok. 613 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests/gl_alias_corpus.rs (target/release/deps/gl_alias_corpus-5bd678705e6b8448)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/in_init_probe.rs (target/release/deps/in_init_probe-819a573b8cc09113)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running unittests src/lib.rs (target/release/deps/c2_obj-526fc0fb2d58308e)
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/reloc_corpus.rs (target/release/deps/reloc_corpus-522f56357fabe6d8)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running unittests src/lib.rs (target/release/deps/c2_reference-9115a35840b551c1)
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/listing.rs (target/release/deps/listing-7e785cd467830636)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+     Running tests/reference.rs (target/release/deps/reference-b360339e1d0dd16b)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
