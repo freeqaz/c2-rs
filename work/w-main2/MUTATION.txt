@@ -1,0 +1,51 @@
+W-MAIN2 — the `_neg` fixture's MUST-FAIL MUTATION, run and reverted
+==================================================================
+
+Board #2698/#2699: a `_neg` cell is worth nothing until someone has watched the
+clause it pins go RED, and for a MERGED clause the mutation has to delete the
+WHOLE conjunction. `wmain2_eh_scope_neg.cpp` pins the tail conjunction of
+`c2_il::func::ehscope::match_template`:
+
+    m.lit(&[0x5E, 0x01, 0x21, 0x4B])?;      // the scope end, ONE sub-object
+    m.lit(&[0x54, 0x02, 0x29])?;            // the exit label, immediately after
+
+The two literals are adjacent, so relaxing only the first leaves the second
+standing on the explicit `return 0;`'s own value bytes and the cell goes on
+refusing for a reason the fixture is not about. The mutation deletes both:
+
+    -    m.lit(&[0x5E, 0x01, 0x21, 0x4B])?;
+    -    m.lit(&[0x54, 0x02, 0x29])?;
+    +    m.p += body[m.p..].windows(3).position(|w| w == [0x54, 0x02, 0x29])?;
+    +    m.lit(&[0x54, 0x02, 0x29])?;
+
+Built, run against real `c2.dll` under wibo at `/nologo /c /GR /O1 /Oi /EHsc`,
+and REVERTED (`git checkout -- crates/c2-il/src/func/ehscope.rs`).
+
+    SHIPPED                              MUTATED
+    [1/2] match     wmain2_eh_scope      [1/2] match     wmain2_eh_scope
+    [2/2] vocab-gap wmain2_eh_scope_neg  [2/2] MISMATCH  wmain2_eh_scope_neg
+                                         CORRECTNESS SIGNAL: 1 mismatching TU(s)
+
+So the clause is live, the `_neg` cell reaches it, and the positive cell is
+unaffected by the mutation — which is the second half of the demonstration and
+the half that says the mutation did not simply break the recognizer.
+
+WHAT THE WRONG OBJ WOULD BE, measured rather than asserted
+----------------------------------------------------------
+`work/w-main2/probe/n1.cpp` is the `_neg` source; its real obj is 1810 bytes and
+its `.text`, both `.pdata` records and its 64-byte EH `.rdata` are byte-identical
+to the positive class's. What differs is every one of the ten compiler labels:
+
+    no `return`   seed 2551   __unwind$ +10   $M +15 +16   $T +17   $M +19 +20 …
+    `return 0;`   seed 2552   __unwind$ +11   $M +16 +17   $T +18   $M +20 +21 …
+
+An explicit `return` takes ONE more slot of the compiler-label counter. So the
+mutated build emits ten symbol names one lower than c2's, in an obj that still
+links — `docs/LABEL_COUNTER.md`'s own reason for existing, and the reason this
+cell is a `_neg` and not a widening opportunity.
+
+(`w-main` §5 measured the same fact as a COUNTER ADVANCE — `lab_dtor` +33
+against `lab_main` +31, i.e. the no-`return` spelling is −2 — from four
+counterfactual cells. This is the same fact read in `LABEL_COUNTER.md` §7.6's
+in-the-middle form, where it is +1 per label rather than −2 per TU. The two
+numbers are not the same quantity and neither is wrong.)
