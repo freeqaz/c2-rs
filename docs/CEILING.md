@@ -1499,3 +1499,71 @@ what either of them is: the layout is already right, the first clause is worth
 **+2 binds and 0 converts**, and what is actually left is **factor A and
 codegen** — the same two things §13.2 and §10 already named, with one fewer
 place to look.
+
+---
+
+## 16. 2026-08-10 — `src/Main.cpp` CONVERTED, and it paid TEN of its fourteen while paying NEITHER of its two reader clauses
+
+`w-main2` (#2970–#2978) was dispatched at the frontier's highest-worth row and
+it converted: **TU match 23 → 24**, `mismatch` 0, `frontier` 4 → 3, and the port
+emits its first EH obj — two code regions in one `.text` COMDAT, two `.pdata`
+COMDATs in reverse region order, a 64-byte EH `.rdata` at `Selection = 5`, and a
+function symbol whose `Value` is 8.
+
+### 16.1 The number this page should carry forward
+
+**`fnbyte-exact` 35,810 → 35,810 and the per-function census 714,555 →
+714,555 — both exactly zero — on a lane that moved the payoff metric.** §10.2
+says a census gain is not a goal gain; this is the converse and it is the
+sharper half. The route is a **whole-TU emitter** (factor E's third registered
+recognizer), so `IlBundle::functions()` still refuses `main`'s body at
+`op-0x5C`, `emit_comdat_obj` and `Selected` are untouched, and every
+per-function instrument reads the TU exactly as it did at base — including the
+byte-fraction control, which now names `src/Main.cpp` as a **third** explained
+shortfall at `0 of 124 bytes`.
+
+So the two continuous drivers on `docs/STATUS.md` are **blind to an entire
+conversion route**, by construction and not by defect. A lane ranked by either
+of them would have scored this day at zero.
+
+### 16.2 What it says about the published prices, and it is item 8's shape again
+
+`src/Main.cpp` has been priced four times: `wb-eh` at **fifteen** (#1865),
+`w-main` at **thirteen** (#2263), `w-front5` at **≥ 14 in two layers** (#2621),
+`w-decouple` at **fourteen** (#2760). Every mechanism they named was real, and
+**ten of the fourteen were built by this lane**. What was not built is the other
+two: **R4a (the `5C` trailer TYPE gate) and R16 (`op-0x5E`) are UNPAID**, and the
+TU matches anyway.
+
+> **A price is a statement about the path the pricer had in mind.** All four
+> prices counted the per-function route — reader clause, then emitter mechanism,
+> then obj — because that is the route `functions()` defines. The conversion took
+> a different one. This is §11.4 item 8's rule (*"the field that answers it is
+> the one taken from the accept path itself"*) one level up: **the accept path
+> is not unique, and a price derived from one of them bounds only that one.**
+
+The operative correction for a dispatching coordinator: **when a TU's price is
+dominated by whole-obj obligations rather than by body shape — an EH record set,
+a second code region, a symbol whose `Value` is not 0 — ask whether the reader
+clauses in the price are on the path at all.** `docs/GAPS.md`'s unstable-
+attribution rule for blocker rows, at the level of a whole route.
+
+### 16.3 The two misses, and they are one shape
+
+Both of `w-main2`'s substantive PREREG misses are a fact read off **one obj**
+where a second instrument had already separated two readings the obj could not:
+
+* **`__ehfuncinfo$` is nine dwords and a printed `ORG $+4` pad, not ten**
+  (#2973). Forty bytes is `9 × 4 + 4` exactly as well as it is `10 × 4`;
+  `EH_RECORDS.md` §11.1 reads the pad as a literal directive out of c2's own
+  `/FAsc` listing, **pad 0 on 13 probes and pad 4 on 50**.
+* **`__unwind$N`'s label offset** is `B−2` when the EH function is the TU's
+  first and `B+0` when anything precedes it (#2974); six probe cells do not
+  separate the two mechanisms that fit them, and the class is **gated at one
+  function** so that only the measured branch can fire.
+
+`docs/STATUS.md` trap 0, with the population being *one compilation*. **The
+checklist item this supports: before deriving a record's structure from an obj's
+arithmetic, ask whether a listing, a disassembly or a second flag word has
+already separated the readings the obj cannot.** For EH specifically, the answer
+is yes and it is `EH_RECORDS.md` §11.
