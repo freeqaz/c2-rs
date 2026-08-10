@@ -1079,6 +1079,31 @@ fall-through family's size beside any ranking taken off T2 — it is **9,095 of
    question *"could any binding"*, and a lane pricing a selective repair needs
    both.
 
+   **AND A SIXTH FIELD, `gl_body_record_names`, WHICH IS NOT A WALK AT ALL —
+   the difference between it and the gate is TWO things and was published as
+   one.** *Added 2026-08-10 by lane `w-frame783` (#2860).* The published pair
+   *34 at the gate's framing, 414 at the window-free one* (#2824) was read as a
+   statement about the **framing**, and #2783's relaxation was commissioned on
+   that reading. It is shipped now — `gl::GATE_BIND_FRAME`,
+   `codec::gl_offset_framed_relaxed` — and **`selbind-emit-subset-gate-tus`
+   reads 34 before and 34 after.** `gl_body_record_names` runs a raw scan over
+   `.gl` with **none** of `gl_defined_names_framed`'s six stop clauses, any one
+   of which empties a whole TU; so 414 is bounded by the framing alone and 34
+   by the framing **and** the walk. The four keys that decompose the gap rather
+   than attributing it print on every scan now:
+
+   ```text
+    39  selbind-emit-subset-scan-narrow-tus    walk-free, incumbent framing
+   414  selbind-emit-subset-scan-precise-tus   walk-free, shipped framing
+   414  selbind-emit-subset-wide-tus           walk-free, window-free framing
+    34  selbind-emit-subset-gate-tus           the GATE's walk, shipped framing
+   ```
+
+   That is **six** fields used to answer this item and **five** wrong, and the
+   rule generalizes past the field list: **before quoting a gap between two
+   readers, count the axes they differ on.** `gate_cause` keeps winning
+   because it is the only one taken from the accept path itself.
+
    **And do not assume the binding repair is free.** `w-front5` #2622 built the
    one-line widening as a counterfactual: it binds **2 of the 15** TUs that
    stop on `gl-stop-name-not-mangled`, converts **0**, moves **0** of 878 TU
@@ -1244,8 +1269,20 @@ factor A converts none of the 124"* is right about the 1:1 contract and is the
 > **All three are NECESSARY-condition ceilings on ONE acceptance path.** #2791's
 > caveat carries verbatim — 29 was never *the* ceiling and neither is 34 nor
 > 414 — and today the path converts **zero**: `selbind-total-tus` is **0**, and
-> after clause 4 it is 0 by construction. The 380-TU gap between 34 and 414 is
-> entirely #2783's one-byte frame relaxation, which converts nothing on its own.
+> after clause 4 it is 0 by construction. ~~The 380-TU gap between 34 and 414 is
+> entirely #2783's one-byte frame relaxation, which converts nothing on its
+> own.~~
+>
+> > **⚠ 2026-08-10 — THE STRUCK SENTENCE IS REFUTED.** Lane `w-frame783`
+> > shipped #2783 (`gl::GATE_BIND_FRAME`) and **`selbind-emit-subset-gate-tus`
+> > read 34 before and 34 after**, with 0 of 878 TU verdicts moved. The two
+> > numbers differ on **two** axes and the table above names only one: the
+> > 414-reader `gl_body_record_names` runs **no walk**, so it is bounded by the
+> > framing alone, while the gate's 34 is bounded by the framing **and**
+> > `gl_defined_names_framed`'s six stop clauses. Measured as a decomposition
+> > (§14): walk-free, the framing is worth **39 → 414**; at the gate it is
+> > worth **34 → 34**. Board **#2860**;
+> > [`rungs/2026-08-10-w-frame783.md`](rungs/2026-08-10-w-frame783.md).
 
 ### 13.2 What this leaves, and it is one sentence
 
@@ -1256,3 +1293,84 @@ priced: `vec.cpp` at **nine** mechanisms (#2827 — two of them, the `26`-stop a
 the frame window, sit *in front of* w-phase7b's seven), `decomp_pch.cpp` at six
 with an emit set of ∅.
 
+
+---
+
+## 14. 2026-08-10 — #2783 is SHIPPED and the acceptance path's bound did not move: the 34-to-414 gap is the WALK
+
+§13.1 published three necessary-condition ceilings and attributed the largest
+step among them — 380 TUs — to board **#2783's one-byte frame relaxation**.
+Lane `w-frame783` shipped that relaxation. **The bound moved by zero.**
+
+### 14.1 What shipped
+
+`codec::gl_offset_framed_relaxed`, reached through `gl::GATE_BIND_FRAME`. The
+incumbent framing's `gl[o-5] == 0x10` clause pins the record's PREV field into
+`0x1000..=0x10FF`, and PREV is a rising per-record counter — so the clause
+truncates the record list wherever PREV leaves its first 256 values. Dropping
+it is #2783. **One byte freed and one byte pinned**, over 876 of 878 workload
+TUs captured by the lane:
+
+| framing | framed records | offsets that are **not** an `.ex` `4F 1F` split point |
+|---|---:|---:|
+| `codec::gl_offset_framed` (incumbent) | 28,870 | **1** (`src/system/utl/TempoMap.cpp` — #2862) |
+| `bind::emit_offset_framed` (#2783 as filed) | 1,507,159 | **551**, over 406 TUs |
+| **shipped** (`… + GL_OFFSET_MAX`) | **1,506,608** | **0** |
+
+The extra clause is a **value** test named as one: every on-a-split offset in
+the workload has top byte 0 and every not-a-split one has top byte ≥ 2, 551 for
+551, against a largest real offset of 2,837,591. Board **#2861**.
+
+It ships at the **binding only** — `w-decouple`'s seam one axis over. Both
+fence ground sets and `codec::parse_gl`'s K2a typing keep the incumbent framing
+bit for bit, so #2622/#2623's **−1 `fnbyte-exact`** is not paid again. The
+`NameFit` monotonicity argument does **not** transfer to a framing (a framing
+widening can see more records on a TU that already binds), so it is measured:
+record positions a strict superset on **876 of 876** TUs, the 1:1 contract
+**32 = 32 with 0 lost and 0 gained**, all 23 matches identical. Board **#2863**.
+
+### 14.2 The decomposition, which is the durable part
+
+| reader | framing | walk | TUs whose emit set is ENTIRELY named |
+|---|---|---|---:|
+| `selbind-emit-subset-scan-narrow-tus` | incumbent | none | **39** |
+| `selbind-emit-subset-scan-precise-tus` | shipped | none | **414** |
+| `selbind-emit-subset-wide-tus` | window-free | none | **414** |
+| `selbind-emit-subset-gate-tus` | shipped | **the six stop clauses** | **34** |
+
+**Walk-free, the framing is worth +375. At the gate it is worth 0.** And the
+551 false-positive records are worth **0 TUs and 0 names** — `-scan-precise`
+and `-wide` agree at 414 and at 157,487 symbols — so the published 414 was not
+inflated by them either.
+
+### 14.3 The successor, and it is one clause
+
+Of the **380** TUs whose emit set is entirely named by a framed record and on
+which the gate's walk binds nothing:
+
+```text
+   379   first cause  gl-stop-26-introduced
+     1   first cause  drectve-not-boilerplate
+   380   also carry   body-out-of-class
+```
+
+`GlBindStop::Name26Introduced` is **not a reader defect**: a `26`-introduced
+defined name is COMDAT-style linkage against a packed single-`.text` writer,
+and board **#232** is what relaxing it costs without the writer — a live wrong
+emit for 255 commits. So paying it is a **section-layout model**, which is
+Phase 7 reached from a second direction; `body-out-of-class` on 380 of 380 says
+codegen is still owed after that; and `Bindings::selective` clause 4 refuses all
+380 regardless. Board **#2864**.
+
+**What the ship is worth, in the quantity it is worth it in**: only **5** of
+those 380 were complete under the incumbent framing, so the population a walk
+repair could serve goes **5 → 380**. #2783 buys a *denominator*, not a ceiling
+(#2865).
+
+### 14.4 The one-sentence version
+
+§13.2 said the distance *"is factor A, and there is now exactly one clause in
+`crates/` waiting for it"*. That is still true and it is now **two** clauses in
+front of it: `gl-stop-26-introduced` on 379 of 380, and `body-out-of-class` on
+380 of 380 — both of which are the emit-set/section-layout model under another
+name.

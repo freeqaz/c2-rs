@@ -1269,9 +1269,30 @@ fn try_ex_token(body: &[u8], p: usize) -> Option<(ExToken, usize)> {
 
 /// True iff a `.gl` body-start offset field's `80 <LE32>` at `o` sits in its
 /// record framing: `80 XX 10 00 00 00 00` immediately precedes it (a `80`-field
-/// with a `10 00 00` body, then two zero bytes). Verified byte-exact ahead of
-/// every offset field across the full fixture spread — this locates the field
-/// **by position within the record**, not by what its value happens to be.
+/// with a `10 00 00` body, then two zero bytes).
+///
+/// **The docstring this used to carry — *"this locates the field by position
+/// within the record, not by what its value happens to be"* — is FALSE of one
+/// of its seven bytes**, and board **#2783** is the measurement. The record is
+///
+/// ```text
+///     80 <LE32 PREV> 00 00 | 80 <LE32 BODY-START>
+///     ^o-7  ^o-6…o-3  ^o-2   ^o   ^o+1…o+4
+/// ```
+///
+/// so `gl[o - 5]` is **PREV's byte 1**, and with `gl[o-4] == gl[o-3] == 0`
+/// already required the clause `gl[o-5] == 0x10` pins `PREV` into
+/// `0x1000..=0x10FF`. `PREV` is a **rising per-record number** — `0x100f`
+/// through `0x1b53` across `src/system/math/vec.cpp`'s 369 records — so this
+/// clause is a *value* window and it truncates the record list at whatever
+/// point PREV leaves the first 256 values. That is why the same reader is 5 of
+/// 5 on a 2.5 KB `.gl` and 36 of 811 on a 65 KB one.
+///
+/// **Kept, unchanged, and still the framing three callers want**:
+/// [`parse_gl`]'s K2a span typing, and — through
+/// [`crate::func::gl::gl_defined_names`] — both of the port's fence ground
+/// sets. See [`gl_offset_framed_relaxed`] for the one that binds, and
+/// `crate::func::gl::GATE_BIND_FRAME` for which caller runs which.
 pub(crate) fn gl_offset_framed(gl: &[u8], o: usize) -> bool {
     o >= 7
         && gl[o] == 0x80
@@ -1281,6 +1302,93 @@ pub(crate) fn gl_offset_framed(gl: &[u8], o: usize) -> bool {
         && gl[o - 3] == 0x00
         && gl[o - 2] == 0x00
         && gl[o - 1] == 0x00
+}
+
+/// The largest `.gl` body-start offset this framing will accept, exclusive.
+///
+/// **W-FRAME783, and it is a VALUE test named as one.** The clause
+/// [`gl_offset_framed_relaxed`] removes is a value window on the *preceding*
+/// field; replacing it with nothing costs precision, and this is the smallest
+/// thing that buys the precision back. Measured over 876 of the 878 workload
+/// TUs (`work/w-frame783/fpshape.py`), against the `.ex` `4F 1F` split points
+/// those offsets are supposed to name:
+///
+/// ```text
+///   framed offsets that ARE an .ex split point : 1,506,608 — top byte 0, all of them
+///   framed offsets that are NOT                :       551 — top byte >= 2, all of them
+///   largest offset that IS a split point       : 2,837,591  (0x2b4c57)
+/// ```
+///
+/// So the separation is **551 for 551 and 1,506,608 for 1,506,608**, with three
+/// orders of magnitude of headroom between the largest real offset and the
+/// bound. A `.gl` body-start is an index into `.ex`, the workload's largest
+/// `.ex` is 2.6 MB, and 16 MB is not a size this container reaches.
+///
+/// It is not a *proof* that no real offset can exceed it — nothing in the
+/// container promises a width — so it fails in the **refusing** direction: an
+/// offset past the bound is not framed, its record is not bound, and (under
+/// [`crate::func::bind::Bindings::selective`] clause 3) an unclaimed run
+/// refuses the whole TU. `docs/GAPS.md` §6's rule applies: this says what the
+/// byte *is worth*, not what it *means*.
+const GL_OFFSET_MAX: u32 = 0x0100_0000;
+
+/// [`gl_offset_framed`] with **board #2783's relaxation** — the `gl[o-5] ==
+/// 0x10` value window dropped — and with [`GL_OFFSET_MAX`] pinned in its place.
+///
+/// **One byte freed and one byte pinned.** The freed one is `PREV`'s byte 1,
+/// which is a rising counter and never a tag; the pinned one is the
+/// body-start's own top byte, which is 0 on every offset in the workload that
+/// names a real body. Net, over 876 workload TUs:
+///
+/// | framing | framed records | offsets that are not an `.ex` split point |
+/// |---|---:|---:|
+/// | [`gl_offset_framed`] (incumbent) | 28,870 | **1** (`src/system/utl/TempoMap.cpp`) |
+/// | `bind::emit_offset_framed` (#2783 as filed) | 1,507,159 | **551**, over 406 TUs |
+/// | **this one** | **1,506,608** | **0** |
+///
+/// The incumbent's single false positive is worth its own sentence: #2783 reads
+/// as *"the gate's framing is precise and the relaxed one is not"*, and the
+/// gate's framing is not precise either. `TempoMap.cpp` frames
+/// `80 0b 0b 00 5c` as an offset of 1,543,506,699 inside a 34-segment `.ex`.
+///
+/// # Why widening this is safe where widening the *fence* walk was not
+///
+/// #2622/#2623 measured a one-clause widening of `gl_defined_names` costing
+/// **−1 `fnbyte-exact`**, because that walk is also
+/// [`crate::func::bind::defined_name_set`] — the ground set the inline fence
+/// tests callees against — where a widening of the walk is a **tightening** of
+/// the fence. `w-decouple` answered that with [`crate::func::gl::NameFit`]:
+/// give the BINDING the widened policy and leave both fences on the incumbent
+/// walk. This lane takes the same seam for the *framing*, and it needs a
+/// different argument, because a framing widening is **not** monotone the way
+/// `NameFit`'s was — that one could only differ on a TU the narrow walk had
+/// already emptied, and this one can see more records on a TU that binds.
+///
+/// So it is measured instead of argued, over 876 of 878 workload TUs
+/// (`work/w-frame783/sweep783.py`, `superset.py`):
+///
+/// * the relaxed scan's record **positions** are a strict superset of the
+///   incumbent's on **876 of 876** TUs — 0 positions lost. (Not free: both
+///   scans step `p += 5` on a hit and `p += 1` on a miss, so an extra hit can
+///   step *over* a position the narrow scan would have matched. It does not,
+///   anywhere in this workload, and that is a count rather than an argument.)
+/// * the incumbent 1:1 contract is **unchanged**: 32 TUs are 1:1 with their
+///   segments under each framing, **0 lost and 0 gained**, and all 23 matching
+///   TUs frame record-for-record identically under both.
+/// * a framed offset that is not a split point is caught by
+///   [`crate::func::bind::Bindings::selective`]'s clause 1, which refuses the
+///   **whole TU** — so the failure direction is a refusal even where the
+///   framing is wrong.
+pub(crate) fn gl_offset_framed_relaxed(gl: &[u8], o: usize) -> bool {
+    o >= 7
+        && o + 4 < gl.len()
+        && gl[o] == 0x80
+        && gl[o - 7] == 0x80
+        && gl[o - 4] == 0x00
+        && gl[o - 3] == 0x00
+        && gl[o - 2] == 0x00
+        && gl[o - 1] == 0x00
+        && u32::from_le_bytes([gl[o + 1], gl[o + 2], gl[o + 3], gl[o + 4]]) < GL_OFFSET_MAX
 }
 
 /// Model `.gl`: type each function's `80 <LE32>` body-start offset field as a

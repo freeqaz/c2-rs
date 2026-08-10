@@ -1060,18 +1060,32 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
             report.bind_total("selbind-blocked-mangled-tus"),
             report.bind_total("selbind-blocked-inline-fit-tus"),
         );
+        // **W-FRAME783 — this block used to end with *"the difference between
+        // those two is the price of the unshipped frame relaxation, and it is
+        // the only thing standing between the two numbers."* The relaxation is
+        // SHIPPED and the gate's number did not move, so the sentence is
+        // replaced by the decomposition that says why.**
         println!(
-            "    IS `emitted ⊆ named`?  {} of {} emitted symbols carry a `.gl` record the GATE's \
-             framing sees ({} under the window-free one, board #2783).\n      \
-             {:>5} of {emit_tus} TUs with any emitted symbol have ALL of them named by the gate's \
-             framing — the CEILING on a selective binding — and {:>5} under the wide framing.\n      \
-             The difference between those two is the price of the unshipped frame relaxation, \
-             and it is the only thing standing between the two numbers.",
+            "    IS `emitted ⊆ named`?  {} of {} emitted symbols carry a `.gl` record the GATE \
+             BINDS ({} named by a walk-free scan at the same framing, {} at the window-free one).\n      \
+             TUs with any emitted symbol whose emit set is ENTIRELY named, {emit_tus} in the \
+             denominator — the CEILING on a selective binding, decomposed:\n        \
+             {:>5}  scan, INCUMBENT framing  (`codec::gl_offset_framed`, no walk)\n        \
+             {:>5}  scan, SHIPPED framing    (#2783 relaxed + the 16 MB offset bound, no walk)\n        \
+             {:>5}  scan, window-free framing (board #2783 as filed — includes 551 offsets that \
+             are not `.ex` split points)\n        \
+             {:>5}  the GATE's own binding walk, at the shipped framing — six stop clauses, any \
+             one of which empties the whole TU\n      \
+             Read the last two rows against each other: what separates the gate from the \
+             instrument is the WALK, not the framing (board #2860).",
             report.bind_total("selbind-emitted-named-gate"),
             report.bind_total("selbind-emitted"),
+            report.bind_total("selbind-emitted-named-scan-precise"),
             report.bind_total("selbind-emitted-named-wide"),
-            report.bind_total("selbind-emit-subset-gate-tus"),
+            report.bind_total("selbind-emit-subset-scan-narrow-tus"),
+            report.bind_total("selbind-emit-subset-scan-precise-tus"),
             report.bind_total("selbind-emit-subset-wide-tus"),
+            report.bind_total("selbind-emit-subset-gate-tus"),
         );
     }
 

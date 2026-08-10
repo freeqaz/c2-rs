@@ -1,0 +1,23 @@
+w-frame783: PREREG — #2783 re-derived off this lane's own capture, and the deciding row is that 414 is not a framing number
+
+Frozen before the first crates/ change. What the capture says, over 876 of 878
+workload TUs and none of it inherited:
+
+  * the relaxation is PREV in [0x1000,0x10FF] -> PREV < 0x10000, and it takes
+    the framed record count 28,870 -> 1,507,159;
+  * the wide record-position set is a strict SUPERSET of the gate's on 876 of
+    876 TUs, and the incumbent 1:1 contract is unchanged — 32 TUs both ways,
+    0 lost, 0 gained;
+  * the wide framing admits 551 offsets that are not .ex 4F 1F split points,
+    over 406 TUs — and THE GATE'S OWN FRAMING ADMITS ONE, on TempoMap.cpp, so
+    "a value test wearing a position test's docstring" cuts both ways;
+  * those 551 are separable by one more byte, 551 for 551: every on-a-split
+    offset has top byte 0 and every not-a-split one has top byte >= 2. The
+    largest real offset in the workload is 0x2b4c57, so the extra clause
+    discards nothing real.
+
+The deciding row (C2, P=0.85) is that shipping the framing does NOT take the
+acceptance path's bound to 414: gl_body_record_names runs no walk, so 414 is
+bounded by the framing alone while the gate's 34 is bounded by the framing AND
+the six stop clauses. #2824's "the 380-TU gap is entirely #2783" is a claim
+about only one of the two differences.

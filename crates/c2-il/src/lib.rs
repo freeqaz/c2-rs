@@ -36,7 +36,8 @@ pub mod codec;
 pub mod func;
 pub use codec::{CodecError, EditError, EditReport, ExToken, FileModel, IlModel, Span};
 pub use func::{
-    chain_form, gl_body_record_names, gl_gate_record_names, slot_sources, ChainForm,
+    chain_form, gl_body_record_names, gl_gate_record_names, gl_narrow_record_names,
+    gl_precise_record_names, slot_sources, ChainForm,
     EmitBinding, FP_SCRATCH,
     detect_token_width, gl_alias_table, gl_alias_table_shifted, gl_symbol_conflicts,
     gl_symbol_index, GlAliasStats, GlAliasTable, is_empty_module, label_counter,
