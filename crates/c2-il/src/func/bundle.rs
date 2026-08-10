@@ -2838,7 +2838,7 @@ impl IlBundle {
     /// Adding a third path means adding it here, in one place, rather than
     /// discovering that two crates disagree about what decoded.
     pub fn decodes(&self) -> bool {
-        self.functions().is_some() || self.dyninit_tu().is_some()
+        self.functions().is_some() || self.dyninit_tu().is_some() || self.eh_scope_tu().is_some()
     }
 
     /// Parse this bundle as a SINGLE MVP function. Convenience wrapper over

@@ -51,16 +51,16 @@ pub const FRAME_PAGE: u32 = 4096;
 /// frame. The LR slot is the topmost doubleword of *this* function's frame
 /// (`F-8(r1)` after the `stwu`), which is why it is written before the frame is
 /// allocated and read back after it is freed.
-const FRAME_LR_STORE: u32 = 0x9181_FFF8;
+pub(crate) const FRAME_LR_STORE: u32 = 0x9181_FFF8;
 
 /// `lwz r12,-8(r1)` — the matching reload.
-const FRAME_LR_LOAD: u32 = 0x8181_FFF8;
+pub(crate) const FRAME_LR_LOAD: u32 = 0x8181_FFF8;
 
 /// `mflr r12` (`mfspr r12,8`).
-const FRAME_MFLR_R12: u32 = 0x7D88_02A6;
+pub(crate) const FRAME_MFLR_R12: u32 = 0x7D88_02A6;
 
 /// `mtlr r12` (`mtspr 8,r12`).
-const FRAME_MTLR_R12: u32 = 0x7D88_03A6;
+pub(crate) const FRAME_MTLR_R12: u32 = 0x7D88_03A6;
 
 /// `stwux r1,r1,r12` — opcode 31, XO 183. The variable-size frame allocation
 /// c2 emits immediately after `bl _RtlCheckStack12`, which takes `−F` in r12.

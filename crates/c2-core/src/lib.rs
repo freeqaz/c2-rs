@@ -340,6 +340,46 @@ impl PortC2 {
             ));
         }
 
+        // **W-MAIN2 — the `/EHsc` scope-object TU (board #2970).**
+        //
+        // Tried before `functions()` for the same reason the `??__E` arm above
+        // is: it is a *whole-TU* shape, not a function class. The obj is two
+        // code regions in one `.text` COMDAT, two `.pdata` COMDATs in reverse
+        // region order and a 64-byte EH `.rdata`, and the function symbol's
+        // `Value` is 8 rather than 0 — none of which `Selected`, `plan_labels`
+        // or `emit_comdat_obj` can express. `IlBundle::functions()` refuses this
+        // TU at `op-0x5C` and still does; nothing below this arm changed.
+        //
+        // The optimization mode is read HERE rather than inherited from the
+        // block below, because that block runs after `functions()` and this arm
+        // returns before it. `/O1` only: the class was measured at the
+        // workload's own flags and the funclet's frame has no `/Ox` witness.
+        if let Some(tu) = il.eh_scope_tu() {
+            let words = il.opt_words().unwrap_or_default();
+            let one_o1 = words.len() == 1
+                && matches!(codegen::opt_mode_of_word(words[0]), Ok(codegen::OptMode::O1));
+            if one_o1 {
+                let d = coff::EhScopeTu {
+                    name: &tu.name,
+                    ctor: &tu.ctor,
+                    member: &tu.member,
+                    dtor: &tu.dtor,
+                    object_size: tu.object_size,
+                    formals: tu.formals,
+                    label_counter: tu.label_counter,
+                };
+                if let Some(obj) = coff::emit_eh_scope_obj(obj_name, &d) {
+                    return Ok(ObjImage::new(obj));
+                }
+            }
+            return Err(BackendError::NotImplemented(
+                "a `/EHsc` scope-object TU outside the measured class: the \
+                 optimization mode, the object's size, the formal count or the \
+                 frame is one this port has not been graded on"
+                    .to_string(),
+            ));
+        }
+
         let funcs = il.functions().ok_or_else(|| {
             BackendError::NotImplemented(
                 "PortC2 only handles straight-line int add-chain functions \

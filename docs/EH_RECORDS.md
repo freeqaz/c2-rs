@@ -1765,6 +1765,16 @@ Two things the listing states that §8.3 had to infer:
 
 ### 11.2 `FuncInfo` — §8.3's byte-derived table, confirmed field for field
 
+> **⚠ 2026-08-10 — AND THE `ORG $+4` ABOVE IS THE REASON A LANE READ THIS AS TEN
+> DWORDS.** `w-main2` derived the record's length from `src/Main.cpp`'s obj
+> alone: `__unwindtable$` at `+0x00`, `$T` at `+0x30`, so **forty bytes** — which
+> is *nine dwords plus four bytes of alignment* exactly as well as it is ten
+> dwords, and its PREREG registered ten at 0.75 (board **#2973**). **§11.1 had
+> already separated them** and not with an obj: the pad is a printed directive,
+> and it reads **0 on 13 probes and 4 on 50**, so it is an alignment and not a
+> constant. The shipped emitter computes it (`coff::ehscope::eh_ip2state_pad`)
+> rather than folding it into the dword count. **Nine is right; #1869 stands.**
+
 The listing names all nine dwords, and **agrees with §8.3 on 9 of 9** (A3 HIT).
 No field moved, none was added, and there is still no `dispUnwindHelp`.
 

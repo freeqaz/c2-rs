@@ -294,6 +294,37 @@ COMDATs, stride 3), `__catch$2575`, `__unwind$2576`.
 
 ---
 
+> ## ✔ 2026-08-10 — **`src/Main.cpp` CONVERTED. TU match 23 → 24, and every §2/§3 reading below is confirmed by a byte-exact obj this port emitted.**
+>
+> Lane `w-main2` (boards **#2970**–**#2978**,
+> [`rungs/2026-08-10-w-main2.md`](../rungs/2026-08-10-w-main2.md)). §2.2's unwind
+> word, §2.4's reverse `.pdata` order, §3.1's magic, §3.2's ip-to-state array,
+> §3.3's bit-31-and-prefix-are-one-predicate and §3.4's counter-minted funclet
+> symbol are all now *emitted* rather than only read, and the differential grades
+> the result byte for byte.
+>
+> **Two corrections, both to this document's own §3.1 and §6:**
+>
+> * **§3.1's "9 dwords" is RIGHT** and this lane's own PREREG registered ten
+>   against it, at 0.75, from the obj's arithmetic alone — forty bytes between
+>   `__unwindtable$` and `$T` is *nine dwords plus a four-byte alignment pad*
+>   exactly as well as it is ten. `EH_RECORDS.md` §11.1 had already settled it
+>   from c2's own `/FAsc` listing, where the pad is a printed `ORG $+4` and reads
+>   **0 on 13 probes and 4 on 50**. Board **#2973**.
+> * **§6's fifteen: ten were built, and the two READER clauses were not.** R4a
+>   (the `5C` trailer TYPE gate) and R16 (`op-0x5E`) are **unpaid at the tip that
+>   converts this TU** — the route is a whole-TU emitter, so `functions()` still
+>   refuses `main`'s body exactly as it did. §6's count was never wrong about the
+>   mechanisms; it was a count of the per-function route, and the conversion took
+>   a different one. Board **#2976**, `CEILING.md` §16.2.
+>
+> **And §3.4 gets its arithmetic.** *"There is no private EH counter"* is
+> confirmed and now quantified: `label_lead = 7`, an EH scope-object function
+> consumes **17** counter slots, and the nine `$M`/`$T` sit at fixed offsets from
+> `plan_labels`' own cursor. `__unwind$N` is the one that does not, and the class
+> is gated at one function rather than guessing it — `LABEL_COUNTER.md` §7.6a,
+> board **#2974**.
+
 ## §4 Main.cpp — the chain, un-stuck
 
 ### 4.1 The row, re-measured at this tip

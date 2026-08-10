@@ -5192,6 +5192,57 @@ is not.**
 > else. `None` remains correct for every unmeasured class. **This lane changed
 > no line of `crates/`.**
 
+## 7.6a The SCOPE-OBJECT EH shape, resolved to the individual symbol — and it is a `label_lead` of **7**
+
+*Added 2026-08-10 by lane `w-main2` (board **#2974**), in §7.6's in-the-middle
+form and never the counterfactual one. Reproduce with
+`sh work/w-main2/cells.sh`; the write-up is `work/w-main2/LABELS.md`.*
+
+§7.5's EH row is a `try` with two `catch` handlers. This is the **other** EH
+shape and the one the workload is made of: a destructible local held across a
+call, which mints an unwind funclet and no try-block map at all. It is
+`src/Main.cpp`'s shape, and unlike §7.5's it is now resolved **per symbol**
+rather than as a total, over **six probe cells and four distinct `.gl` seeds**
+(`work/w-main2/probe/m0`…`m5`, plus the workload TU itself).
+
+Write `B = seed + LABEL_SEED_GAP + 3·nfuncs + Σ(preceding consumption)` — the
+value of `plan_labels`' cursor when this function's turn begins. Then **every
+cell**, EH function first or third, one leaf before or two or none:
+
+| symbol | number | what it lands on |
+|---|---|---|
+| the two ip-to-state `$M` | `B+3`, `B+4` | the member call's `bl`, and the destructor's |
+| the ip-to-state `$T` | `B+5` | the array itself, in the EH `.rdata` |
+| the function's own triple | `B+7`, `B+8`, `B+9` | prologue end, function end, its `.pdata` |
+| the funclet's triple | `B+10`, `B+11`, `B+12` | funclet prologue end, funclet end, its `.pdata` |
+
+So in this document's units the charge is **`label_lead = 7`**, plus a funclet
+that consumes a second framed function's worth of slots: an EH scope-object
+function consumes **17** where a framed one consumes 12 and a leaf 1, and that
+17 re-derives `B` independently on every cell. `coff::plan_labels` is
+**unmodified** — the whole EH charge fits its existing `label_lead` parameter,
+which is the first time an EH shape has.
+
+> ### The one offset that does NOT fit, named rather than fitted
+>
+> `__unwind$N`, the funclet's own symbol, is **not** at a fixed offset from `B`.
+> It reads `B−2` when the EH function is the TU's **first** and `B+0` when
+> anything precedes it — a leaf, two leaves, or another EH function — and the
+> six cells **do not separate** the two readings that fit them (the funclet
+> label may be minted before the first function's block, or the `/Gy` `+3` may
+> not be a single lump). This lane did not model it. The shipped recognizer is
+> gated at **exactly one `.ex` segment**, under which only the `B−2` branch can
+> ever fire, and it is measured there on three distinct seeds.
+
+**And the explicit-`return` spelling is `+1` PER LABEL**, measured on
+`work/w-main2/probe/n1.cpp` against `m0`: `int main(…){S s(…); s.Run(); return 0;}`
+moves all ten symbols up by one while the 124 `.text` bytes, both `.pdata`
+records and the 64-byte EH `.rdata` stay byte-identical. `w-main` §5 measured
+the same fact in the counterfactual form as **−2 per TU** for the no-`return`
+spelling (board #2265). **Neither is wrong and they are not the same quantity** —
+which is this section's banner one level down, and it is why the `_neg` fixture
+`wmain2_eh_scope_neg.cpp` exists.
+
 ## 7.7 What §7 leaves NOT MODELLED
 
 | # | open |
@@ -5201,6 +5252,7 @@ is not.**
 | 3 | **The `/Ox` loop charge**: four magnitudes (10, 3, 7, 10), no rule, and none proposed. |
 | 4 | **A third once-per-TU minting slot.** `_fltused` and `memcpy` are the two known; §7.1's mechanism says the list is **open**, not closed. |
 | 5 | **`w-json`'s 4** is reconciled in kind but not in arithmetic — its cells were not recompiled. |
+| 6 | **`__unwind$N`'s offset**, §7.6a: `B−2` when the EH function is the TU's first and `B+0` otherwise, two readings that six cells do not separate. The shipped recognizer refuses the second case rather than guessing it. |
 
 ## 7.8 Reproduction
 

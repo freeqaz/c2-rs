@@ -1,0 +1,12 @@
+TUs: base 878, tip 878
+moved: 1 of 878
+  src/Main.cpp
+      class          'vocab-gap' -> 'match'
+      gate_cause     'body-out-of-class' -> None
+      gate_causes    ['body-out-of-class', 'unclaimed-gl-symbol'] -> []
+sum fn_in_class: 714555 -> 714555   (delta +0)
+sum fn_total:    2463470 -> 2463470   (delta +0)
+TUs whose fn_in_class FELL: 0 []
+TUs whose fn_in_class ROSE: 0 []
+match: 23 -> 24 ; entered ['src/Main.cpp'] ; left []
+mismatch: 0 -> 0 ; entered [] ; left []
