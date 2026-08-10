@@ -195,11 +195,12 @@ mod tests {
     /// every `coff/*.rs` that contains the literal `Section {`.
     #[test]
     fn the_writer_vocabulary_is_every_section_name_this_file_emits() {
-        const SECTION_SOURCES: [(&str, &str); 5] = [
+        const SECTION_SOURCES: [(&str, &str); 6] = [
             ("data.rs", include_str!("data.rs")),
             ("shell.rs", include_str!("shell.rs")),
             ("writer.rs", include_str!("writer.rs")),
             ("dyninit.rs", include_str!("dyninit.rs")),
+            ("ehscope.rs", include_str!("ehscope.rs")),
             ("function.rs", include_str!("function.rs")),
         ];
         // The list above is a transcription too, so it gets the same treatment as
@@ -287,11 +288,12 @@ mod tests {
     /// Portable: source text only, no toolchain.
     #[test]
     fn every_production_emitter_has_a_lib_rs_caller() {
-        const EMITTER_SOURCES: [(&str, &str); 5] = [
+        const EMITTER_SOURCES: [(&str, &str); 6] = [
             ("data.rs", include_str!("data.rs")),
             ("shell.rs", include_str!("shell.rs")),
             ("writer.rs", include_str!("writer.rs")),
             ("dyninit.rs", include_str!("dyninit.rs")),
+            ("ehscope.rs", include_str!("ehscope.rs")),
             ("function.rs", include_str!("function.rs")),
         ];
         // Same discipline as SECTION_SOURCES above: the list is a transcription,
@@ -381,7 +383,7 @@ mod tests {
         // read the same as a run that checked everything.
         assert_eq!(
             production.len(),
-            5,
+            6,
             "production emitters: {production:?} — update this count deliberately"
         );
     }
