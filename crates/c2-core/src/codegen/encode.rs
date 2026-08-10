@@ -214,6 +214,31 @@ pub fn encode_mtctr(rs: u8) -> [u8; 4] {
     word.to_be_bytes()
 }
 
+/// **W-MMIO3 — `bctrl`**: branch to CTR, unconditional, and set LR.
+///
+/// `4e800421`, one word with no operands at all. `XL`-form:
+/// opcode 19, `BO = 20` (branch always, CR ignored, CTR not decremented),
+/// `BI = 0`, `BH = 0`, extended opcode **528** (`bcctr`), `LK = 1`.
+///
+/// **Captured, not derived.** `src/xdk/nuispeech/mmio.cpp`'s reference obj at
+/// the workload's own flags carries it at `.text #14 + 0x50`, immediately after
+/// the `mtctr r11` [`encode_mtctr`] already emits, and
+/// `WB_LOOP_FINDINGS.md` §7.7's `/d2QXnobdnz` counterfactual names the same
+/// word from the other side: of a 36-cell obj's 31 `mtctr`, the two that
+/// SURVIVE the switch are the ones feeding a `bctrl` and a `bctr`, i.e. the
+/// genuine indirect branches that `p2\ppc\lower.c`'s loop converter did not
+/// mint. This is the `bctrl` of that pair.
+///
+/// **`LK = 1` is the whole difference from `bctr`** and it is what makes the
+/// caller framed: the callee's `blr` returns here, so LR must be saved, which
+/// is why every user of this word is a `.pdata`-bearing function.
+pub fn encode_bctrl() -> [u8; 4] {
+    const BO_ALWAYS: u32 = 20;
+    const XO_BCCTR: u32 = 528;
+    let word: u32 = (19 << 26) | (BO_ALWAYS << 21) | (XO_BCCTR << 1) | 1;
+    word.to_be_bytes()
+}
+
 /// `BO` for **"decrement CTR, then branch if CTR is still non-zero"** — the
 /// `bdnz` form. Bit 2 of `BO` clears ("decrement the counter"), bit 1 clears
 /// ("branch if the counter is non-zero") and bit 0 sets ("ignore the CR"),

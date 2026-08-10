@@ -41,6 +41,7 @@ pub(crate) fn func_with(params: Vec<u32>, ops: Vec<IlOp>) -> IlFunction {
         alloc_init_or_fail: None,
         osf_handle_guard: None,
         guard_ret_chain: None,
+        close_call_chain: None,
         memcpy_tail: None,
             nonce_add_run: None,
             xtea_round_loop: None,

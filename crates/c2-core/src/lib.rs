@@ -1048,6 +1048,26 @@ impl PortC2 {
                             .to_string(),
                     ));
                 }
+                // **W-MMIO3 — refused in the PACKED layout for a THIRD reason,
+                // and it is the cheapest of the three to state: the class is
+                // `/O1` only (the parser's mode gate and the emitter's) and
+                // `/O1` implies `/Gy` (`docs/OPT_MODE.md` §3.3), so this arm is
+                // unreachable as written. A named refusal rather than an
+                // `unreachable!()`, because an unreachable arm that becomes
+                // reachable is how a guessed layout ships — and this class has
+                // more to guess than its neighbours: two `bl` whose
+                // displacements are relative to the whole packed `.text`, and
+                // an ELIDED call whose absence has never been graded anywhere
+                // but in a COMDAT obj.
+                codegen::Selected::CloseCallChain => {
+                    return Err(BackendError::NotImplemented(
+                        "the guarded close chain in the PACKED (non-`/Gy`) \
+                         layout: the class is `/O1` only and `/O1` implies \
+                         `/Gy`, so no capture produces this combination and \
+                         none was graded"
+                            .to_string(),
+                    ));
+                }
                 // **W-XTEA2 — refused in the PACKED layout for a DIFFERENT
                 // reason from the one directly above, and the difference is
                 // worth stating rather than folding in.** This class's `memcpy`

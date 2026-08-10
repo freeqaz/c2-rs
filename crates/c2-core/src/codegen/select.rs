@@ -220,6 +220,13 @@ pub enum Selected {
     /// Built through
     /// [`crate::codegen::guard_ret_chain::guard_ret_chain_text`].
     GuardRetChain,
+    /// **W-MMIO3 — the guarded close chain.** Same contract: a 96-byte frame
+    /// with one saved GPR, a `.pdata` record, a `$M`/`$M`/`$T` triple and TWO
+    /// REL24 sites. A unit variant, because the body is a pure function of
+    /// `f.close_call_chain` and `base_off` and both `bl` words encode their own
+    /// `.text` offset. Built through
+    /// [`crate::codegen::close_call_chain::close_call_chain_text`].
+    CloseCallChain,
     /// **W-XTEA3 — the framed XTEA block loop.** The same contract
     /// [`Selected::XlrcCreateGuard`] has: a `__savegprlr_26` frame, a `.pdata`
     /// record, a `$M`/`$M`/`$T` triple and three REL24 sites, two of them the
@@ -422,6 +429,22 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
         // both writers ask it in exactly one place.
         guard_ret_chain_text(func.guard_ret_chain.as_ref().unwrap(), 0, mode)?;
         return Ok(Selected::GuardRetChain);
+    }
+    // **W-MMIO3 — the guarded close chain.** Same placement argument as its
+    // neighbours and the same freedom: the field is set by exactly one parser
+    // production, `func.ops` is empty for it, and no leaf pattern-matcher can
+    // take its body. It is beside `guard_ret_chain` because the two are the
+    // same TU's, and after it because that one names a class already matched.
+    if func.close_call_chain.is_some() {
+        // The mode gate is asked in the emitter as well as in the parser (board
+        // #1638), and calling the emitter here is what makes `function_gate` and
+        // both writers ask it in exactly one place.
+        crate::codegen::close_call_chain::close_call_chain_text(
+            func.close_call_chain.as_ref().unwrap(),
+            0,
+            mode,
+        )?;
+        return Ok(Selected::CloseCallChain);
     }
     // **W-XLR — the two-stage create/attach guard.** Same placement argument as
     // its four neighbours and the same freedom: the field is set by exactly one

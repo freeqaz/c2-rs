@@ -34,6 +34,7 @@ use self::shapes::{
     try_parse_alloc_init_or_fail,
     try_parse_osf_handle_guard,
     try_parse_guard_ret_chain,
+    try_parse_close_call_chain,
     try_parse_json_utf8_copy,
     try_parse_xlrc_create_guard,
     try_parse_if_call_join,
@@ -696,6 +697,11 @@ pub(crate) enum BodyShape {
     /// spine is a block copy. See [`shapes::guard_ret_chain`] for the class and
     /// [`crate::func::GuardRetChain`] for the fields.
     GuardRetChain(crate::func::GuardRetChain),
+    /// **W-MMIO3** — the guarded close chain (`mmio.cpp`'s `mmioClose`). See
+    /// [`shapes::close_call_chain`] for the class and
+    /// [`crate::func::CloseCallChain`] for the resolved fields; the variant
+    /// carries callee TOKENS, which `IlBundle::shape_to_function` resolves.
+    CloseCallChain(shapes::CloseCallChainShape),
     /// **W-XLR** — a two-stage create/attach guard whose four failure paths
     /// converge on one returned status, and the first class this port emits
     /// whose frame goes through the `__savegprlr_N` helper.
@@ -2521,6 +2527,31 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // census key moves.
             if let Ok(shape) = try_parse_guard_ret_chain(seg, p, lo) {
                 disp("disp-guard-ret-chain");
+                return Ok(shape);
+            }
+            // **W-MMIO3 — the guarded close chain.** Asked immediately after
+            // `guard_ret_chain` and for the same reason, taken rather than
+            // re-argued: its first four tokens — `B9 <formal> <PTR>`,
+            // `33 <PTR> 0`, `1F`, `38` — are shared VERBATIM with
+            // `cond_tail_pair`, `guarded_seq`, `early_return_seq`,
+            // `alloc_init_or_fail`, `guard_ret_chain` and `fp_store_diamond`,
+            // so rather than assert a disjointness on four bytes the
+            // production goes after every one of them and *"no body any
+            // production above accepts today can move"* is true by
+            // construction.
+            //
+            // It separates from `guard_ret_chain` totally at the statement
+            // after the FIRST guard: that class takes a second braced guard
+            // (`53` then `B9`), this one takes a bound call statement (`26`
+            // then a second `26` then `BD`). Neither can take the other's.
+            //
+            // Non-committal on the same terms as the rest of the ladder: its
+            // own cursor, `Err` on the first byte outside its grammar, so a
+            // body that declines still reports the arm's blocker
+            // (`expr-cmp-eq`, which is what `mmioClose` read at this lane's
+            // base) and no census key moves.
+            if let Ok(shape) = try_parse_close_call_chain(seg, p, lo) {
+                disp("disp-close-call-chain");
                 return Ok(shape);
             }
             // **W-BIQUAD — the null-guarded float-store diamond.** Asked after

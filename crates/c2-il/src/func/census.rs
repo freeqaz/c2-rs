@@ -815,6 +815,24 @@ impl IlBundle {
                             Ok(BodyShape::GuardRetChain(_)) => {
                                 FnVerdict::InClass("guard-ret-chain")
                             }
+                            // **W-MMIO3** — its own bucket for the same reason,
+                            // and one more: it is the first in-class shape with
+                            // an INDIRECT call (a `bctrl` whose callee the IL
+                            // names nowhere) and the first whose acceptance
+                            // depends on a fact about a SIBLING segment, so a
+                            // census that folded it in with a neighbouring
+                            // framed shape could not report either rung
+                            // separately. **The census is fail-open on the
+                            // sibling facts by construction** — they are asked
+                            // at `IlBundle::functions`, which is where board
+                            // #139 puts a whole-TU clause and where
+                            // `Bindings::is_varargs` already lives — so this
+                            // bucket can count a body the GATE refuses, exactly
+                            // as `unclaimed-gl-symbol` and the label-counter
+                            // gate already can.
+                            Ok(BodyShape::CloseCallChain(_)) => {
+                                FnVerdict::InClass("close-call-chain")
+                            }
                             // **W-XLR** — its own bucket for the same reason,
                             // and one more: it is the first in-class shape whose
                             // FRAME is a different class (the `__savegprlr_N`

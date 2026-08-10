@@ -60,6 +60,7 @@ pub(crate) mod pool_free_list;
 pub(crate) mod ptr_walk_chain_loop;
 pub(crate) mod alloc_init_or_fail;
 pub(crate) mod guard_ret_chain;
+pub(crate) mod close_call_chain;
 pub(crate) mod osf_handle_guard;
 pub(crate) mod json_utf8_copy;
 pub(crate) mod xlrc_create_guard;
@@ -135,6 +136,8 @@ pub(crate) use ptr_walk_chain_loop::*;
 #[allow(unused_imports)]
 pub(crate) use alloc_init_or_fail::*;
 pub(crate) use guard_ret_chain::*;
+#[allow(unused_imports)]
+pub(crate) use close_call_chain::*;
 pub(crate) use osf_handle_guard::*;
 #[allow(unused_imports)]
 pub(crate) use json_utf8_copy::*;

@@ -378,21 +378,83 @@ pub(crate) fn gl_unclaimed_run_kinds(gl: &[u8], bound: &[String]) -> (usize, usi
 /// refusal [`crate::func::bind::Bindings::per_record`] makes); and any of the
 /// three byte tests failing drops the name. An empty set means "no exemption",
 /// which is the wholesale refusal this reader exists to narrow.
+///
+/// **W-MMIO3 — NOT ON THE ACCEPT PATH ANY MORE, and kept as the incumbent.**
+/// [`crate::IlBundle::functions`] calls [`plain_external_names_among`] instead,
+/// which is the same per-name test over the BINDING's names rather than over
+/// this walk's output. This function is now written *in terms of* that one —
+/// deliberately, so that the claim *"the intersection is unchanged, only the
+/// ground set moved"* is a property of the code rather than a comparison of two
+/// copies of the same three-byte test. It survives as the thing a neutrality
+/// counterfactual is run against.
+#[allow(dead_code)]
 pub(crate) fn plain_external_defined_names(gl: &[u8]) -> std::collections::BTreeSet<String> {
     let (bound, _) = gl_defined_names(gl);
     if bound.is_empty() {
         return Default::default();
     }
+    plain_external_names_among(gl, bound.iter().map(|(_, n)| n.as_str()))
+}
+
+/// **W-MMIO3 — [`plain_external_defined_names`] DECOUPLED FROM THE WALK.**
+///
+/// Same per-name test, different ground set: the caller's own bound names
+/// instead of [`gl_defined_names`]'s. It is the repair for the residue
+/// [`NameFit`]'s doc block names in its last paragraph — *"on a newly-binding
+/// TU carrying an intra-TU call edge the exemption is empty and the gate
+/// refuses wholesale at `locally-defined-callee` … `src/xdk/nuispeech/mmio.cpp`
+/// is such a TU"* — and it is `w-decouple`'s own shape one seam over: that lane
+/// gave the BINDING a widened policy and left both fences on the incumbent
+/// walk; this one takes the FENCE'S EXEMPTION off the walk entirely.
+///
+/// # Why this is not a widening, and why the two are not the same thing
+///
+/// [`plain_external_defined_names`] is exactly *"`gl_defined_names`'s bound
+/// list, intersected with [`record_is_plain_external`] at an unambiguous run"*.
+/// The intersection is unchanged here — **byte for byte, the same three-byte
+/// test at the same displacement, with the same `hits != 1` refusal** — and
+/// only the list it is applied to moves, from a WALK's output to the caller's.
+///
+/// **On every TU where the narrow walk succeeds the two sets are equal.** The
+/// gate's caller passes `Bindings::names()`, and a `Bindings` exists only when
+/// the records are 1:1 (or selectively) bound under
+/// [`NameFit::InlineOrStringTable`]; where the narrow walk did **not** stop,
+/// neither walk stops and both bind the same records, so the two name lists are
+/// the same list. Where the narrow walk **did** stop it returns the EMPTY pair
+/// on a whole-TU basis — the monotonicity [`NameFit`] already proves — so this
+/// function can differ from it only by turning ∅ into a set, on a TU where the
+/// incumbent exemption was vacuous.
+///
+/// # What the difference licenses, and what still refuses
+///
+/// On exactly those TUs the gate stops refusing wholesale at
+/// `locally-defined-callee` and instead asks the SIZE question one stage later,
+/// at `c2_core::comdat::fenced_inlined_callee` — which is the seam
+/// `w-inlfence2` built for it and which refuses every call the port cannot
+/// prove c2 kept: a lowered callee at or under `INLINE_DECLINE_BYTES`, or a
+/// loop-bodied one at or under `INLINE_DECLINE_LOOP_BYTES`. The one thing that
+/// gets THROUGH that seam and is relevant here is a
+/// `__declspec(noinline)` callee, whose `FN_FLAG_INLINABLE` bit
+/// [`gl_function_attrs`] reads and which c2 is measured never to expand.
+///
+/// So the licence this adds is bounded by a size test the port already owns,
+/// and the direction of any error is a **wrong emit** rather than a refusal —
+/// which is why the intersection above is stated as unchanged rather than
+/// merely equivalent.
+pub(crate) fn plain_external_names_among<'a>(
+    gl: &[u8],
+    names: impl IntoIterator<Item = &'a str>,
+) -> std::collections::BTreeSet<String> {
     let runs = symbol_runs(gl, true);
     let mut out = std::collections::BTreeSet::new();
-    for (_, name) in bound {
-        // The record's own name run. A name spelled by two runs is AMBIGUOUS and
-        // is dropped: reading the first run's fields would be reading some other
-        // record's linkage, and the direction of that error is an emit.
+    for name in names {
+        // The record's own name run. A name spelled by two runs is AMBIGUOUS
+        // and is dropped: reading the first run's fields would be reading some
+        // other record's linkage, and the direction of that error is an emit.
         let mut nul: Option<usize> = None;
         let mut hits = 0usize;
         for (_, end, n) in &runs {
-            if *n == name {
+            if n == name {
                 hits += 1;
                 nul = Some(*end);
             }
@@ -401,7 +463,7 @@ pub(crate) fn plain_external_defined_names(gl: &[u8]) -> std::collections::BTree
             continue;
         }
         if nul.is_some_and(|at| record_is_plain_external(gl, at)) {
-            out.insert(name);
+            out.insert(name.to_string());
         }
     }
     out

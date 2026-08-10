@@ -128,6 +128,7 @@ pub fn selected_tag(s: &codegen::Selected) -> &'static str {
         codegen::Selected::AllocInitOrFail => "alloc-init-or-fail",
         codegen::Selected::OsfHandleGuard => "osf-handle-guard",
         codegen::Selected::GuardRetChain => "guard-ret-chain",
+        codegen::Selected::CloseCallChain => "close-call-chain",
         codegen::Selected::XlrcCreateGuard => "xlrc-create-guard",
         codegen::Selected::XteaEncryptLoop => "xtea-encrypt-loop",
         codegen::Selected::JsonUtf8Copy => "json-utf8-copy",
@@ -718,6 +719,44 @@ pub(crate) fn body_of<'a>(
             // then gives the second user no second symbol — which is what the
             // same cell's `sub2` shows.
             helper_externals = vec![codegen::guard_ret_chain::MEMCPY_NAME];
+            (body.text, calls)
+        }
+        // **W-MMIO3 — the guarded close chain.** TWO REL24 sites and no data
+        // reference, and **both callee names come out of the IL** — which is
+        // what makes this class the ordinary case and its neighbour above the
+        // exception: nothing is minted, `helper_externals` stays empty, and the
+        // writer places both symbols in the per-function callee region between
+        // this function's two `$M`s, exactly as it places
+        // `work/w-ifn/probe/lab_z.cpp`'s `?gz@@YAHH@Z`.
+        //
+        // On the reference obj the first of the two is `mmioFlush`, which this
+        // same obj DEFINES — so the writer's `known` test gives it no second
+        // symbol — and only `?FreeHandle@@YAXPAX@Z` becomes a new undefined
+        // external. The list is in `.text` OFFSET order (`+0x30` then `+0x60`),
+        // which is `IlFunction::callees`' order for this class and is the
+        // reverse-first-reference rule every other arm here follows.
+        //
+        // **The ELIDED callee is not in this list and there is no third
+        // `coff::Call` for it.** The obj has no branch and no relocation for
+        // that statement; the fact that licenses dropping it was established
+        // over the callee's own `.ex` segment at `c2_il::IlBundle::functions`,
+        // and by the time the body is composed there is no `REL24` for any
+        // fence here to see.
+        codegen::Selected::CloseCallChain => {
+            let c = f
+                .close_call_chain
+                .as_ref()
+                .expect("CloseCallChain implies close_call_chain");
+            let body = codegen::close_call_chain::close_call_chain_text(c, 0, mode)
+                .map_err(ComdatDecline::Shape)?;
+            frame = Some(coff::Frame {
+                prolog_len: body.prolog_len,
+                func_len: body.text.len() as u32,
+            });
+            let calls = vec![
+                coff::Call { reloc_offset: body.bl_offsets[0], callee: c.call1.as_str() },
+                coff::Call { reloc_offset: body.bl_offsets[1], callee: c.void_call.as_str() },
+            ];
             (body.text, calls)
         }
         // **W-XTEA3 — the framed XTEA block loop.** THREE REL24 sites for ONE

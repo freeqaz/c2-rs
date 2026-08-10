@@ -39,6 +39,7 @@ pub mod frame;
 pub(crate) mod frontier_bytes;
 pub mod alloc_init_or_fail;
 pub mod guard_ret_chain;
+pub mod close_call_chain;
 pub mod osf_handle_guard;
 pub mod xlrc_create_guard;
 pub mod json_utf8_copy;

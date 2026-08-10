@@ -54,6 +54,8 @@ pub use func::{
     AllocInitOrFail,
     AllocInitOrFailFn,
     GuardRetChain,
+    // W-MMIO3 — the guarded close chain (mmio.cpp`s mmioClose).
+    CloseCallChain,
     // W-WORDWRAP — the file-scope-global store leaf (`wordwrap.cpp`).
     GlobalStoreLeaf,
     // W-XTEA2 — the whole-body `memcpy` tail branch (`EncryptXTEA.cpp`).
