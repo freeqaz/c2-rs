@@ -1,4 +1,4 @@
-== p1
+== p1   P1 — one eager EXTERNAL .bss object, one leaf function that stores to it.
 -- sections
    1 .drectve   raw=132    rawptr=0x0104 rel=0  relptr=0x0000 chars=0x00100a00
    2 .debug$S   raw=148    rawptr=0x0188 rel=0  relptr=0x0000 chars=0x42100040
@@ -6,7 +6,6 @@
    4 .bss       raw=4      rawptr=0x0000 rel=0  relptr=0x0000 chars=0xc0300080
    5 .XBLD$W    raw=16     rawptr=0x022c rel=0  relptr=0x0000 chars=0xc2301040
    6 .text      raw=12     rawptr=0x023c rel=4  relptr=0x0248 chars=0x60401020
--- .bss #4 raw
 -- symbols
   [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
   [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
@@ -19,7 +18,8 @@
   [13] __C1_11886                               sec=5   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
   [14] .text                                    sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=12 nrel=4 nln=0 cksum=0x00000000 num=0 sel=1)
   [16] ?S1@@YAXI@Z                              sec=6   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
-== p2
+
+== p2   P2 — TWO eager EXTERNAL .bss objects, one function each.
 -- sections
    1 .drectve   raw=132    rawptr=0x012c rel=0  relptr=0x0000 chars=0x00100a00
    2 .debug$S   raw=148    rawptr=0x01b0 rel=0  relptr=0x0000 chars=0x42100040
@@ -28,7 +28,6 @@
    5 .XBLD$W    raw=16     rawptr=0x0254 rel=0  relptr=0x0000 chars=0xc2301040
    6 .text      raw=12     rawptr=0x0264 rel=4  relptr=0x0270 chars=0x60401020
    7 .text      raw=12     rawptr=0x0298 rel=4  relptr=0x02a4 chars=0x60401020
--- .bss #4 raw
 -- symbols
   [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
   [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
@@ -44,7 +43,8 @@
   [17] ?S1@@YAXI@Z                              sec=6   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
   [18] .text                                    sec=7   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=12 nrel=4 nln=0 cksum=0x00000000 num=0 sel=1)
   [20] ?S2@@YAXI@Z                              sec=7   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
-== p3
+
+== p3   P3 — TWO eager EXTERNAL .bss objects, ONE function referencing BOTH
 -- sections
    1 .drectve   raw=132    rawptr=0x0104 rel=0  relptr=0x0000 chars=0x00100a00
    2 .debug$S   raw=148    rawptr=0x0188 rel=0  relptr=0x0000 chars=0x42100040
@@ -52,7 +52,6 @@
    4 .bss       raw=8      rawptr=0x0000 rel=0  relptr=0x0000 chars=0xc0300080
    5 .XBLD$W    raw=16     rawptr=0x022c rel=0  relptr=0x0000 chars=0xc2301040
    6 .text      raw=20     rawptr=0x023c rel=8  relptr=0x0250 chars=0x60401020
--- .bss #4 raw
 -- symbols
   [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
   [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
@@ -66,7 +65,8 @@
   [14] __C1_11886                               sec=5   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
   [15] .text                                    sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=20 nrel=8 nln=0 cksum=0x00000000 num=0 sel=1)
   [17] ?S@@YAXI@Z                               sec=6   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
-== p4
+
+== p4   P4 — one eager EXTERNAL .bss object and a FRAMED function.
 -- sections
    1 .drectve   raw=132    rawptr=0x012c rel=0  relptr=0x0000 chars=0x00100a00
    2 .debug$S   raw=148    rawptr=0x01b0 rel=0  relptr=0x0000 chars=0x42100040
@@ -75,7 +75,6 @@
    5 .XBLD$W    raw=16     rawptr=0x0254 rel=0  relptr=0x0000 chars=0xc2301040
    6 .text      raw=52     rawptr=0x0264 rel=5  relptr=0x0298 chars=0x60401020
    7 .pdata     raw=8      rawptr=0x02ca rel=1  relptr=0x02d2 chars=0x40401040
--- .bss #4 raw
 -- symbols
   [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
   [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
@@ -93,7 +92,8 @@
   [19] $M2549                                   sec=6   val=0x10     sc=LABEL     type=0x0000 naux=0
   [20] .pdata                                   sec=7   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0x29d7e269 num=6 sel=5)
   [22] $T2551                                   sec=7   val=0x0      sc=STATIC    type=0x0000 naux=0
-== p5
+
+== p5   P5 — an INTERNAL-linkage object first reached from a FUNCTION BODY: slot C.
 -- sections
    1 .drectve   raw=132    rawptr=0x012c rel=0  relptr=0x0000 chars=0x00100a00
    2 .debug$S   raw=148    rawptr=0x01b0 rel=0  relptr=0x0000 chars=0x42100040
@@ -102,7 +102,6 @@
    5 .text      raw=12     rawptr=0x0264 rel=4  relptr=0x0270 chars=0x60401020
    6 .bss       raw=4      rawptr=0x0000 rel=0  relptr=0x0000 chars=0xc0300080
    7 .text      raw=12     rawptr=0x0298 rel=4  relptr=0x02a4 chars=0x60401020
--- .text #5 (12 B) ?S1@@YAXI@Z
 -- symbols
   [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
   [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
@@ -117,7 +116,8 @@
   [16] s1                                       sec=6   val=0x0      sc=STATIC    type=0x0000 naux=0
   [17] .text                                    sec=7   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=12 nrel=4 nln=0 cksum=0x00000000 num=0 sel=1)
   [19] ?R@@YAIXZ                                sec=7   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
-== p6
+
+== p6   P6 — an eager EXTERNAL .bss object BESIDE an initialized .data object.
 -- sections
    1 .drectve   raw=132    rawptr=0x0154 rel=0  relptr=0x0000 chars=0x00100a00
    2 .debug$S   raw=148    rawptr=0x01d8 rel=0  relptr=0x0000 chars=0x42100040
@@ -127,7 +127,6 @@
    6 .data      raw=4      rawptr=0x028c rel=0  relptr=0x0000 chars=0xc0300040
    7 .text      raw=12     rawptr=0x0290 rel=4  relptr=0x029c chars=0x60401020
    8 .text      raw=12     rawptr=0x02c4 rel=4  relptr=0x02d0 chars=0x60401020
--- .bss #4 raw
 -- symbols
   [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
   [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
@@ -144,7 +143,8 @@
   [19] ?S1@@YAXI@Z                              sec=7   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
   [20] .text                                    sec=8   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=12 nrel=4 nln=0 cksum=0x00000000 num=0 sel=1)
   [22] ?S2@@YAXI@Z                              sec=8   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
-== p7
+
+== p7   P7 — THREE eager EXTERNAL .bss objects: above MAX_OBJECTS_PER_SECTION.
 -- sections
    1 .drectve   raw=132    rawptr=0x0154 rel=0  relptr=0x0000 chars=0x00100a00
    2 .debug$S   raw=148    rawptr=0x01d8 rel=0  relptr=0x0000 chars=0x42100040
@@ -154,4 +154,72 @@
    6 .text      raw=12     rawptr=0x028c rel=4  relptr=0x0298 chars=0x60401020
    7 .text      raw=12     rawptr=0x02c0 rel=4  relptr=0x02cc chars=0x60401020
    8 .text      raw=12     rawptr=0x02f4 rel=4  relptr=0x0300 chars=0x60401020
--- .bss #4 raw
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=148 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .bss                                     sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=12 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [10] ?g2@@3IA                                 sec=4   val=0x8      sc=EXTERNAL  type=0x0000 naux=0
+  [11] ?g1@@3IA                                 sec=4   val=0x4      sc=EXTERNAL  type=0x0000 naux=0
+  [12] ?g3@@3IA                                 sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [13] .XBLD$W                                  sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [15] __C1_11886                               sec=5   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [16] .text                                    sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=12 nrel=4 nln=0 cksum=0x00000000 num=0 sel=1)
+  [18] ?S1@@YAXI@Z                              sec=6   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [19] .text                                    sec=7   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=12 nrel=4 nln=0 cksum=0x00000000 num=0 sel=1)
+  [21] ?S2@@YAXI@Z                              sec=7   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [22] .text                                    sec=8   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=12 nrel=4 nln=0 cksum=0x00000000 num=0 sel=1)
+  [24] ?S3@@YAXI@Z                              sec=8   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+
+== p8   P8 — a .bss object of a size/alignment pair that PROMOTES (n >= 64 -> 8).
+-- sections
+   1 .drectve   raw=132    rawptr=0x012c rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=148    rawptr=0x01b0 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x0244 rel=0  relptr=0x0000 chars=0xc0401040
+   4 .bss       raw=132    rawptr=0x0000 rel=0  relptr=0x0000 chars=0xc0400080
+   5 .XBLD$W    raw=16     rawptr=0x0254 rel=0  relptr=0x0000 chars=0xc2301040
+   6 .text      raw=12     rawptr=0x0264 rel=4  relptr=0x0270 chars=0x60401020
+   7 .text      raw=12     rawptr=0x0298 rel=4  relptr=0x02a4 chars=0x60401020
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=148 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .bss                                     sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [10] ?g1@@3IA                                 sec=4   val=0x80     sc=EXTERNAL  type=0x0000 naux=0
+  [11] ?big@@3PAIA                              sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [12] .XBLD$W                                  sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [14] __C1_11886                               sec=5   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [15] .text                                    sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=12 nrel=4 nln=0 cksum=0x00000000 num=0 sel=1)
+  [17] ?S1@@YAXI@Z                              sec=6   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [18] .text                                    sec=7   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=12 nrel=4 nln=0 cksum=0x00000000 num=0 sel=1)
+  [20] ?S2@@YAXI@Z                              sec=7   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+
+== p9   P9 — the .bss object declared FIRST but laid out SECOND (wordwrap's own
+-- sections
+   1 .drectve   raw=132    rawptr=0x012c rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=148    rawptr=0x01b0 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x0244 rel=0  relptr=0x0000 chars=0xc0401040
+   4 .bss       raw=588    rawptr=0x0000 rel=0  relptr=0x0000 chars=0xc0400080
+   5 .XBLD$W    raw=16     rawptr=0x0254 rel=0  relptr=0x0000 chars=0xc2301040
+   6 .text      raw=12     rawptr=0x0264 rel=4  relptr=0x0270 chars=0x60401020
+   7 .text      raw=12     rawptr=0x0298 rel=4  relptr=0x02a4 chars=0x60401020
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=148 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .bss                                     sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=588 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [10] ?g_first@@3IA                            sec=4   val=0x248    sc=EXTERNAL  type=0x0000 naux=0
+  [11] ?g_arr@@3PAIA                            sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [12] .XBLD$W                                  sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [14] __C1_11886                               sec=5   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [15] .text                                    sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=12 nrel=4 nln=0 cksum=0x00000000 num=0 sel=1)
+  [17] ?S1@@YAXI@Z                              sec=6   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [18] .text                                    sec=7   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=12 nrel=4 nln=0 cksum=0x00000000 num=0 sel=1)
+  [20] ?S2@@YAXI@Z                              sec=7   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+
