@@ -987,6 +987,25 @@ fall-through family's size beside any ranking taken off T2 — it is **9,095 of
    **NAME**, never by storage class, so a body storing to a `.bss` object can be
    `fnbyte-exact` — bytes *and* all four relocation records — inside an obj the
    port honestly declines.
+
+   **AND THE FORECAST'S SECOND HALF IS *"IS IT ALREADY PAID?"*, WHICH IS A
+   DIFFERENT QUESTION FROM *"WHAT DOES THE WRITER OWE?"* AND IS THE ONE THAT
+   DECIDED THE RETURN VISIT.** *Added 2026-08-10 by lane `w-wordwrap2` (#3031).*
+   That lane read the same symbol table `w-wordwrap` had described correctly and
+   then **measured each obligation against `crates/`** rather than pricing it.
+   **Five of the six were already shipped** — Rule S1′'s slot `B`, Rule A1's
+   `.gl` walk, Rule A3′'s bump, Rule B1's max nibble and Rule Y1's reverse-`.gl`
+   symbol order, all in `coff::data::emit_data_obj`, the writer for
+   **functionless** TUs, paid by `w-sect`, `w-bss` and `w-order3`. The term was a
+   **composition**, not a derivation. So the item reads in three steps now:
+   *what does the writer owe · which of it is already in the tree · what does the
+   remainder convert* — and for this one the last answer was **0**, because
+   `A∧B∧C − match` is 2 and the other member has no `.bss` (§18.3).
+
+   **The item discriminates in BOTH directions, which is the case for it being
+   an item rather than a habit**: `w-mmio3` read this table *empty* and that is
+   what told it a per-function rung was the right shape; `w-wordwrap2` read it
+   *full* and that is what told it the rung was a writer rung.
 4. **Check whether the refusal is LIST MEMBERSHIP.** A key ending in a hex type
    tag is a positive-list question (#764), not a construct. `.sy` has four
    positive lists; `read_record`'s own 21-cell table carried the `unsigned` row
@@ -1674,3 +1693,114 @@ bodies). `frontier-if-A` is 124. The cheapest row is gone and the two that
 remain are both codegen-mass rows rather than fence rows, which is the first
 time that has been true.
 
+> **⚠ The clause *"both codegen-mass rows rather than fence rows"* was not yet
+> true when it was written, and it is now.** `wordwrap.cpp` still carried the
+> `.bss` writer term at this tip — a term that is neither codegen nor a fence —
+> and `w-wordwrap2` paid it (§18.3). Its price is **20 live mechanisms** rather
+> than 21 bodies, of which two are named refusals and eighteen are codegen. See
+> §18.4.
+
+---
+
+## 18. 2026-08-10 — `wordwrap.cpp` DECLINES a second time, and the term it was declined FOR was five-sixths already paid
+
+`w-wordwrap2` (#3030–#3038) was dispatched at one of the frontier's last two rows
+and **declined**: TU match **25 → 25**, `mismatch` 0, `frontier` 2 → 2. What it
+shipped instead is the **writer** term the previous attempt was capped by, and
+what it found is that four fifths of that term's price had been paid by lanes
+serving a different TU shape.
+
+### 18.1 The number this page should carry forward, and it is a THIRD kind of day
+
+**`fnbyte-exact` 35,811 → 35,811, the per-function census 714,556 → 714,556, TU
+match 25 → 25, and 277 `gap-metric` keys with 0 changed value — on a lane that
+shipped a graded production.**
+
+§16.1 found the two continuous drivers blind to a **whole-TU** conversion.
+§17.1 sharpened it: *"the drivers see a per-function conversion and are blind to a
+whole-TU one, and nothing in either number says which kind of day it was."* The
+pair named two routes. **There are three.**
+
+| route | drivers see it | converts today |
+|---|---|---|
+| per-function codegen | **yes** (`fnbyte-exact`, census) | yes |
+| whole-TU recognizer (factor E) | no | yes |
+| **the WRITER** — a section the emitter could not place | **no** | **no**, and it is a prerequisite for TUs that will |
+
+**The difference from §16.1 and §17.1 is that this one was PREDICTED.** The
+PREREG registered *"the `fnbyte-exact` delta is EXACTLY 0"* at **0.85**, against
+a commission that asked for a positive one, and gave the reason in the row: a
+writer term is invisible to a per-function byte judge by construction. A finding
+that has been discovered twice after the fact was used forward once, which is
+what §10's calibration section exists to produce.
+
+### 18.2 The price, and the shape of its error — item 8's SEVENTH question, twice in two lanes
+
+`wordwrap.cpp` was priced by `w-front5` at *"3 bodies, 816 B"* with no
+mechanism count (#2625) and by `w-wordwrap` at **21** (#2720). Re-derived at
+`6f3ba44c` against `crates/`, the answer is **23 named, 3 PAID, 20 live** — and
+the count moved in *both* directions:
+
+* `w-wordwrap`'s M1–M3 shipped in its own lane, so three are paid;
+* **two refusals it never named are live**, and both are named BY NAME in the
+  code it did not read: `crate::data_defs_of` refuses *two `lis rT,sym@ha` high
+  halves in one body*, and `?WordWrap_CanBreakLineAt` has exactly two;
+  `coff::writer::emit_comdat_obj` refuses a `data_def` on a **framed** function,
+  and that same function is framed and carries both objects.
+
+**Those two are the ones that survive the `.bss` payment.** A lane that
+transcribed all 160 words would still not assemble this obj — which is the
+operative sentence for a dispatching coordinator and is not derivable from any
+byte fraction.
+
+> **§11.4 item 8's seventh question (#3001) — *which lane would have had to pay
+> each term* — has now been run twice and paid twice.** `w-mmio3` found **two of
+> eight** already in the tree, paid by `w-mmioclose` while it priced a `.gl`
+> attribute bit. This lane found **five of six** of the `.bss` term already in
+> `coff::data::emit_data_obj` — the writer for **functionless** TUs — paid by
+> `w-sect`, `w-bss` and `w-order3`, none of which named `wordwrap.cpp` or this
+> term. **The check is one `grep` of `crates/` per term and it is not a field on
+> any row.**
+
+### 18.3 The `.bss` term, and why "cheapest unpaid obj-level rung" was never "converting"
+
+Board #2727 called the `.bss` placement on a function-bearing TU *"the cheapest
+unpaid obj-level rung on the board"* and left two graded cells for it. Both
+halves of that are true and they do not compose:
+
+* **cheapest** — GRID B (nine cells, real `c2.dll` under wibo) shows Rule S1′'s
+  slot `B`, Rule A1's `.gl` walk, Rule A3′'s bump, Rule B1's max nibble and Rule
+  Y1's reverse-`.gl` symbol order **all already shipped**. `p9.obj` reproduces
+  `wordwrap.obj`'s own 588-byte `.bss` exactly — `?g_first@+0x248`,
+  `?g_arr@+0x0`, characteristics `0xC0400080` — from two leaf functions. The term
+  is a **composition**, not a derivation, and the composition is what
+  `bss_shell` ships.
+* **converting 0, and the bound is hard** — `A∧B∧C` = 27, `match` = 25, so the
+  reachable set is the frontier's **2**, and `keygen_xbox.cpp` **has no `.bss` at
+  all**. `codegen-gap` is **0 over all 878**, so every non-matching TU is refused
+  at the READER before the writer is consulted.
+
+**A writer rung's yield is not measured in conversions and never was.** What it
+buys is that a TU's remaining price stops containing a term nobody can price, and
+`wordwrap.cpp`'s does now: 20 live mechanisms, every one of them codegen or a
+named refusal.
+
+### 18.4 What the frontier is now, and it is the first time this sentence is true
+
+**2, and BOTH rows are pure codegen mass.** `wordwrap.cpp` at 20 live mechanisms
+(12 of them in one 160-word body with three data-dependent binary searches, ~40
+basic blocks and a block placed **after the epilogue**) and `keygen_xbox.cpp` at
+19 bodies / 1,432 B / 11 loops. `frontier-if-A` is 124.
+
+There is **no non-codegen term left on either**. §17.4 said the two remaining
+rows were *"both codegen-mass rows rather than fence rows, which is the first
+time that has been true"* — and one of them still carried a writer term when that
+was written. It does not now.
+
+**So codegen breadth alone cannot move TU match again without a multi-lane
+transcription**, and the cheapest unit on either row is priced: `?IsEastAsianChar`
+at 6 mechanisms and 41 words, worth **+1 `fnbyte-exact` and 0 conversions**,
+because §11.4 item 5's workload grep — run with a control, per #3007 — puts its
+construct's population at **one**. `w-wordwrap` ran the same check on
+`global_store_leaf` and shipped **+8**. The check discriminates; that is what
+makes it worth running rather than either of its answers.
