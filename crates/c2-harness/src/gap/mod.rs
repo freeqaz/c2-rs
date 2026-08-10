@@ -350,6 +350,20 @@ pub struct TuResult {
     /// still owe after repairing it, which is the number a conversion price
     /// needs and the first cause alone cannot give.
     pub gate_causes: Vec<String>,
+    /// **W-PHASE7B — `(present, total)` from `IlBundle::gl_body_start_coverage`:
+    /// how many of this TU's `.ex` function segments does `.gl` carry a
+    /// body-start offset for AT ALL.**
+    ///
+    /// Every other field on this struct that bears on binding — `fn_names`,
+    /// `gate_cause`, the `emit-*` rows — is about the READER. This one is about
+    /// the **input**, and it is the only one that can say a binding is
+    /// impossible rather than unimplemented: `Bindings::per_record` needs the
+    /// records 1:1 with the segments, and a segment whose offset `.gl` never
+    /// spells cannot be bound by any framing anyone writes.
+    ///
+    /// `None` when `.ex` or `.gl` is absent. Diagnostic only — nothing anywhere
+    /// branches on it, and the scan reads it after the class is already decided.
+    pub gl_body_starts: Option<(usize, usize)>,
     /// **The emitted-function census** (`docs/GAPS.md` §8, `docs/ROADMAP.md`
     /// §8.2) — the per-TU join between the census's rows and the *reference
     /// obj's* `.text` COMDAT leaders.

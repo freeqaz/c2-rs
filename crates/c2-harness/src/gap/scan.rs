@@ -57,6 +57,7 @@ fn scan_one(
         bind_checks: BTreeMap::new(),
         gate_cause: None,
         gate_causes: Vec::new(),
+        gl_body_starts: None,
         emit: BTreeMap::new(),
         emit_blockers: BTreeMap::new(),
         emit_witness: Vec::new(),
@@ -93,6 +94,11 @@ fn scan_one(
         .get("gl")
         .map(|gl| c2_il::mangled_names(gl).len())
         .unwrap_or(0);
+    // **W-PHASE7B — read for EVERY class, not only the refused ones.** The
+    // matching TUs are the control: if a TU the port already emits byte-exact
+    // could read `present < total`, the field would be measuring the reader and
+    // not the input, which is the one thing it claims not to do.
+    res.gl_body_starts = captured.bundle.gl_body_start_coverage();
 
     // 1b. P2b function-level census — runs regardless of the TU class below, so
     //     even a `vocab-gap` TU contributes its per-function ranking. This is
@@ -1220,9 +1226,25 @@ fn scan_one(
         let causes = captured.bundle.decode_causes();
         res.gate_cause = causes.first.map(str::to_string);
         res.gate_causes = causes.causes.iter().map(|c| c.to_string()).collect();
+        // **W-PHASE7B — and say whether the binding this TU failed is
+        // SATISFIABLE AT ALL.** `gate_cause` names the clause the walk stopped
+        // on, which reads as a repair address; on a TU where `.gl` spells a
+        // body-start offset for half its `.ex` segments there is no repair at
+        // that address, because `Bindings::per_record`'s 1:1 requirement has no
+        // solution on the input. Printed only when it bites, so the 848-row
+        // bucket does not grow a column that is `n of n` on most of it.
+        let cover = match res.gl_body_starts {
+            Some((p, t)) if p < t => format!(
+                "; .gl spells a body-start for {} of {} .ex segments — {} can bind to NO record",
+                p,
+                t,
+                t - p
+            ),
+            _ => String::new(),
+        };
         res.detail = format!(
             ".ex {} B, {} .gl names — c2_il::functions() and dyninit_tu() both None; \
-             gate stops at {} (all: {})",
+             gate stops at {} (all: {}){}",
             res.ex_len,
             res.fn_names,
             res.gate_cause.as_deref().unwrap_or("<none>"),
@@ -1230,7 +1252,8 @@ fn scan_one(
                 "<none>".to_string()
             } else {
                 res.gate_causes.join(",")
-            }
+            },
+            cover
         );
         return res;
     }
@@ -1457,9 +1480,15 @@ pub fn gap_scan(
                 .map(|c| crate::jstr(c))
                 .collect::<Vec<_>>()
                 .join(",");
+            // **W-PHASE7B** — `null` when `.ex` or `.gl` is absent, which is a
+            // different fact from `[0,0]` and has to stay different here.
+            let gl_body_starts = match r.gl_body_starts {
+                None => "null".to_string(),
+                Some((p, t)) => format!("[{p},{t}]"),
+            };
             writeln!(
                 f,
-                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"gate_cause\":{gate_cause},\"gate_causes\":[{gate_causes}],\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_cflow\":{{{}}},\"fn_eh\":{{{}}},\"fn_dispatch\":{{{}}},\"fn_complete\":{{{}}},\"fn_prod\":{{{}}},\"fn_gate_refusals\":{{{}}},\"bind_checks\":{{{}}},\"emit\":{{{}}},\"emit_blockers\":{{{}}}}}",
+                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"gate_cause\":{gate_cause},\"gate_causes\":[{gate_causes}],\"gl_body_starts\":{gl_body_starts},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_cflow\":{{{}}},\"fn_eh\":{{{}}},\"fn_dispatch\":{{{}}},\"fn_complete\":{{{}}},\"fn_prod\":{{{}}},\"fn_gate_refusals\":{{{}}},\"bind_checks\":{{{}}},\"emit\":{{{}}},\"emit_blockers\":{{{}}}}}",
                 crate::jstr(&r.src),
                 crate::jstr(r.class.label()),
                 crate::jstr(&r.reason),

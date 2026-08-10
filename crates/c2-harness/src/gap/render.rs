@@ -1121,6 +1121,7 @@ mod tests {
             fn_gate_refusals: Default::default(),
             gate_cause: None,
             gate_causes: Vec::new(),
+            gl_body_starts: None,
             bind_checks: Default::default(),
             emit: Default::default(),
             emit_blockers: Default::default(),
