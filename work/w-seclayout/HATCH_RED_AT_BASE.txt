@@ -24,7 +24,7 @@ SETUP FAILED: `hatch.py apply` refused; cannot build a hatched tree for this arm
 SETUP FAILED (2) — arm cannot run
 NOTHING WAS REVERTED — 1 further problem(s) with the files this would overwrite:
   HATCH-UNREADABLE   crates/c2-il/src/func/body/shapes/NOT_A_FILE_w_hatch.rs
-      cannot read the working copy: [Errno 2] No such file or directory: '/home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/crates/c2-il/src/func/body/shapes/NOT_A_FILE_w_hatch.rs'
+      cannot read the working copy: [Errno 2] No such file or directory: '<home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/crates/c2-il/src/func/body/shapes/NOT_A_FILE_w_hatch.rs'
 
   clauses currently live in the tree: NONE
   files this revert would have touched: 7
@@ -85,9 +85,9 @@ it would be a measurement of a tree nobody intended.
 
 HATCH-FOREIGN-ROOT — this script belongs to a DIFFERENT checkout from the one
 you are standing in. NOTHING WAS WRITTEN.
-  you are standing in   : /home/free/tmp/w-hatchroot-mf08lqdu
-  this script belongs to: /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree
-  this script           : /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
+  you are standing in   : <home>/tmp/w-hatchroot-mf08lqdu
+  this script belongs to: <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree
+  this script           : <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
 
   Board #1460: `ROOT` used to come from this script's own path, so invoking the
   main repository's copy from a worktree (`python3 ../../../work/w-front3/hatch.py
@@ -103,8 +103,8 @@ tree state before any arm: crates/ diff: EMPTY
 ARM R1 DIRTY-NOHATCH — expect leading word HATCH-DIRTY
      an unstaged foreign edit and NO hatch — #1380's incident exactly
 ==========================================================================
-hatch: TARGET REPOSITORY  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
-hatch: THIS SCRIPT        /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
+hatch: TARGET REPOSITORY  <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
 hatch: COMMAND            revert
 
   [postcondition] working tree byte-identical across the refusal: YES — 354 bytes of diff, unchanged
@@ -121,8 +121,8 @@ hatch: COMMAND            revert
 ARM R2 DIRTY+HATCH — expect leading word HATCH-DIRTY
      fully hatched AND dirty: the guard must separate the two
 ==========================================================================
-hatch: TARGET REPOSITORY  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
-hatch: THIS SCRIPT        /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
+hatch: TARGET REPOSITORY  <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
 hatch: COMMAND            apply
 
   SETUP FAILED — this arm could not build its tree.
@@ -132,8 +132,8 @@ hatch: COMMAND            apply
 ARM R3 UNREADABLE — expect leading word HATCH-UNREADABLE
      a file in FILES that cannot be read — must NOT read as DIRTY
 ==========================================================================
-hatch: TARGET REPOSITORY  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
-hatch: THIS SCRIPT        /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
+hatch: TARGET REPOSITORY  <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
 hatch: COMMAND            revert
 
   [postcondition] working tree byte-identical across the refusal: YES — 0 bytes of diff, unchanged
@@ -149,8 +149,8 @@ hatch: COMMAND            revert
 ARM R4 UNTRACKED — expect leading word HATCH-UNTRACKED
      a file with no stage-0 index entry: `git checkout --` has nothing to restore
 ==========================================================================
-hatch: TARGET REPOSITORY  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
-hatch: THIS SCRIPT        /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
+hatch: TARGET REPOSITORY  <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
 hatch: COMMAND            revert
 
   [postcondition] working tree byte-identical across the refusal: YES — 0 bytes of diff, unchanged
@@ -166,8 +166,8 @@ hatch: COMMAND            revert
 ARM R5 CHECKOUT-FAILED — expect leading word HATCH-CHECKOUT-FAILED   [INJECTED through the _checkout seam]
      unreachable on a well-formed tree; fired through the _checkout seam
 ==========================================================================
-hatch: TARGET REPOSITORY  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
-hatch: THIS SCRIPT        /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
+hatch: TARGET REPOSITORY  <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
 hatch: COMMAND            revert
 
   rc                      : 4
@@ -181,8 +181,8 @@ hatch: COMMAND            revert
 ARM R6 RESIDUE — expect leading word HATCH-RESIDUE   [INJECTED through the _checkout seam]
      the POSTCONDITION: a checkout that silently restored nothing
 ==========================================================================
-hatch: TARGET REPOSITORY  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
-hatch: THIS SCRIPT        /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
+hatch: TARGET REPOSITORY  <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
 hatch: COMMAND            apply
 
   SETUP FAILED — this arm could not build its tree.
@@ -192,8 +192,8 @@ hatch: COMMAND            apply
 ARM A1 DRIFT — expect leading word HATCH-DRIFT
      apply's #1322 arm — its own word now, not a shared prefix
 ==========================================================================
-hatch: TARGET REPOSITORY  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
-hatch: THIS SCRIPT        /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
+hatch: TARGET REPOSITORY  <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
 hatch: COMMAND            apply
 
   [postcondition] working tree byte-identical across the refusal: YES — 0 bytes of diff, unchanged
@@ -209,8 +209,8 @@ hatch: COMMAND            apply
 ARM A2 PAID-MISSING — expect leading word HATCH-PAID-MISSING
      a RETIRED entry whose paid_witness is gone — a DIFFERENT defect from DRIFT and it must say so
 ==========================================================================
-hatch: TARGET REPOSITORY  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
-hatch: THIS SCRIPT        /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
+hatch: TARGET REPOSITORY  <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
 hatch: COMMAND            apply
 
   [postcondition] working tree byte-identical across the refusal: YES — 0 bytes of diff, unchanged
@@ -237,8 +237,8 @@ ARM A3 FOREIGN-ROOT — expect leading word HATCH-FOREIGN-ROOT
   crates/ clean afterwards: YES
 HATCH-NOREPO — the invoking directory is not inside a git checkout.
 NOTHING WAS WRITTEN.
-  invoking cwd : /home/free/tmp/w-hatchroot-lm0cnko9
-  this script  : /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
+  invoking cwd : <home>/tmp/w-hatchroot-lm0cnko9
+  this script  : <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
 
   `hatch.py` edits crates/ in place and reverts through `git checkout --`,
   so a tree git does not know about is a tree it cannot put back.
@@ -286,8 +286,8 @@ ARM A4 NOREPO — expect leading word HATCH-NOREPO
 ARM F1 FORCE — expect leading word HATCH-FORCED
      the escape hatch: reverts anyway, names what it destroys first
 ==========================================================================
-hatch: TARGET REPOSITORY  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
-hatch: THIS SCRIPT        /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
+hatch: TARGET REPOSITORY  <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
 hatch: COMMAND            apply
 
   SETUP FAILED — this arm could not build its tree.
@@ -297,8 +297,8 @@ hatch: COMMAND            apply
 ARM C1 HATCH-ONLY — expect GREEN, no refusal word
      THE CONTROL. A fully hatched tree is not dirty and must revert silently
 ==========================================================================
-hatch: TARGET REPOSITORY  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
-hatch: THIS SCRIPT        /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
+hatch: TARGET REPOSITORY  <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
 hatch: COMMAND            apply
 
   SETUP FAILED — this arm could not build its tree.
@@ -308,8 +308,8 @@ hatch: COMMAND            apply
 ARM C2 CLEAN — expect GREEN, no refusal word
      a clean tree: revert is a no-op and still must not fire
 ==========================================================================
-hatch: TARGET REPOSITORY  /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
-hatch: THIS SCRIPT        /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
+hatch: TARGET REPOSITORY  <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/work/w-front3/hatch.py
 hatch: COMMAND            revert
 hatch: REVERTED 6 file(s); 0 clause(s) were live: NONE
 
@@ -327,8 +327,8 @@ ARM C3 ROOT-FROM-SUBDIR — expect GREEN, no refusal word
      THE CONTROL FOR #1460's GUARD, and the one most likely to break: `cd crates && python3 ../work/w-front3/hatch.py` must still resolve to THIS checkout's root. A guard that refuses the ordinary invocation is a guard the next lane deletes
 ==========================================================================
 
-  [postcondition] resolve_root(cwd=/home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/crates)
-  [postcondition]   -> /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree
+  [postcondition] resolve_root(cwd=<home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree/crates)
+  [postcondition]   -> <home>/code/milohax/c2-rs/.claude/worktrees/agent-a611741296081ab81/work/w-seclayout/basetree
   [postcondition] equals this checkout's root: YES
 
   rc                      : 0
