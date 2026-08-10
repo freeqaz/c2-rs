@@ -535,6 +535,19 @@ pub const WHOLE_TU_RECOGNIZERS: &[(&str, fn(&c2_il::IlBundle) -> bool)] = &[
     // recognizer names the path, not the emitter's every gate — and it errs
     // toward counting a TU the port declines, never toward missing one it takes.
     ("data-only-tu", |b| b.data_tu().is_some()),
+    // **W-MAIN2, board #2970 — the `/EHsc` scope-object TU.** Registered in the
+    // same commit that gave `PortC2::build` the arm, for the reason this table's
+    // doc gives: an unregistered arm turns the `D∨E` control red the moment it
+    // converts anything.
+    //
+    // It over-approximates in the same direction as the two above:
+    // `eh_scope_tu` is the DECODE bound, and the emitter's own gates — the
+    // optimization mode, the frame's `out_of_class_ctx`, the `stwu` immediate —
+    // live in `coff::emit_eh_scope_obj` and this predicate cannot see them. A
+    // TU it accepts and the emitter declines reads as E-true and refuses, which
+    // errs toward counting a TU the port declines and never toward missing one
+    // it takes.
+    ("ehscope-/EHsc-local", |b| b.eh_scope_tu().is_some()),
 ];
 
 /// Aggregated scan report.

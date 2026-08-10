@@ -45,7 +45,7 @@ pub use func::{
     OPT_WORD_O1, OPT_WORD_OX, OPT_WORD_SPECIAL_MEMBER,
     FnVerdict,
     InInitReport, InInitResidue, InSymbolRef,
-    CallSeq, CmpShiftOr, CompareLeaf, DataObject, DataTu, DynInitTu, FpTail, FramedCall, GlDataRow, InAliasReport,
+    CallSeq, CmpShiftOr, CompareLeaf, DataObject, DataTu, DynInitTu, EhScopeTuIl, FpTail, FramedCall, GlDataRow, InAliasReport,
     IlFunction, IlOp,
     DivModLeaf,
     FloatWalkLoop, FloatWalkOp, FloatWalkShape,
