@@ -7,7 +7,7 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$REPO"
 time "$BIN" gap --list work/dc3-workload/files.txt \
      --flags-file work/dc3-workload/flags.txt \
-     --cwd "${C2RS_DC3:-/home/free/code/milohax/dc3-decomp}" \
+     --cwd "${C2RS_DC3:-$REPO/../dc3-decomp}" \
      --jobs "${JOBS:-24}" --jsonl "work/w-frame783/$TAG.jsonl" \
      > "work/w-frame783/$TAG.log" 2>&1
 echo "EXIT=$?  -> work/w-frame783/$TAG.log"
