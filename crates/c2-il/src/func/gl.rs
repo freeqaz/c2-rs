@@ -2597,6 +2597,146 @@ mod tests {
         v
     }
 
+    /// **W-FRAME783** — [`gl_record`] with the record's PREV field spelled out
+    /// instead of fixed at `0x1000`. `codec::gl_offset_framed` reads PREV's
+    /// byte 1 and requires `0x10`; `codec::gl_offset_framed_relaxed` does not.
+    /// Every cell below that needs a record the incumbent framing cannot see
+    /// builds it here, from the field the capture says is a rising counter
+    /// (`work/w-frame783/PREREG.md` §1.2: `0x100f`…`0x1b53` on `vec.cpp`).
+    /// Built on [`gl_record_typed`]'s shape and **not** on [`gl_record`]'s,
+    /// because the two overlap fields that a real record keeps apart: with the
+    /// framing written straight after the name's NUL, PREV's byte 1 lands on
+    /// `name_nul + 3`, which is the **linkage** byte
+    /// [`linkage_needs_a_directive`] reads — so `prev = 0x189a` would refuse
+    /// for `__declspec(dllexport)` rather than frame. The real record carries
+    /// `<tag> <kind> <linkage> <retsize> <flags>` in between (GRID-K), and the
+    /// capture puts `??0Vector3@@QAA@MMM@Z`'s name 30 bytes ahead of its offset
+    /// field, not 8.
+    fn gl_record_prev(name: &str, body_off: u32, prev: u16) -> Vec<u8> {
+        let mut v = vec![0u8];
+        v.extend_from_slice(name.as_bytes());
+        v.push(0);
+        v.extend_from_slice(&[0x86, 0x01, 0x05, 0x04, 0x00, 0x08, 0x00]);
+        v.push(0x80);
+        v.extend_from_slice(&(prev as u32).to_le_bytes());
+        v.extend_from_slice(&[0x00, 0x00, 0x80]);
+        v.extend_from_slice(&body_off.to_le_bytes());
+        v
+    }
+
+    /// **W-FRAME783 — the SHIPPED framing binds a record the incumbent cannot
+    /// see, and BOTH FENCE GROUND SETS STAY EMPTY ON THE SAME INPUT.**
+    ///
+    /// This is the whole safety argument of the lane as one assertion.
+    /// `w-decouple` gave the binding a widened *naming policy* and left both
+    /// fences on the incumbent walk because #2622/#2623 measured a widening at
+    /// the fence costing **−1 `fnbyte-exact`**; this lane does the same one
+    /// axis over, for the *framing*. If a later change routes
+    /// [`gl_defined_names`] through [`GATE_BIND_FRAME`], this cell fails —
+    /// which is the only thing standing between that change and the fence
+    /// tightening it would cause.
+    ///
+    /// The second record's PREV is `0x189a`, the value
+    /// `src/system/math/vec.cpp`'s `??0Vector3@@QAA@MMM@Z` record actually
+    /// carries (measured, `work/w-frame783/frame783.py`).
+    #[test]
+    fn the_relaxed_framing_reaches_the_binding_and_neither_fence() {
+        let mut gl = gl_record_prev("?wide_a@@YAHH@Z", 100, 0x1001);
+        gl.extend_from_slice(&gl_record_prev("?wide_b@@YAHH@Z", 200, 0x189a));
+
+        // The incumbent framing sees ONE record — the second's PREV byte 1 is
+        // `0x18`, not `0x10`.
+        let narrow =
+            gl_defined_names_framed(&gl, true, crate::codec::gl_offset_framed, NameFit::InlineOrStringTable)
+                .expect("the one record it can see is well-formed");
+        assert_eq!(narrow.0.len(), 1);
+        assert_eq!(narrow.0[0].1, "?wide_a@@YAHH@Z");
+
+        // The gate's BINDING walk sees both.
+        let (bound, _) = gl_bound_names(&gl);
+        assert_eq!(
+            bound,
+            vec![
+                (100u32, "?wide_a@@YAHH@Z".to_string()),
+                (200u32, "?wide_b@@YAHH@Z".to_string())
+            ],
+            "GATE_BIND_FRAME must be the relaxed framing"
+        );
+
+        // …and the two FENCE ground sets are the incumbent walk, so the second
+        // name is NOT in either. A widening here is a TIGHTENING of the fence.
+        let fence = super::super::bind::defined_name_set(&gl);
+        assert!(fence.contains("?wide_a@@YAHH@Z"));
+        assert!(
+            !fence.contains("?wide_b@@YAHH@Z"),
+            "defined_name_set must keep codec::gl_offset_framed (#2622/#2623)"
+        );
+        // `plain_external_defined_names` is a subset of that walk and these
+        // records carry no GRID-K linkage bytes, so it is empty; what matters
+        // is that it cannot contain a name the narrow walk never bound.
+        assert!(!plain_external_defined_names(&gl).contains("?wide_b@@YAHH@Z"));
+    }
+
+    /// **W-FRAME783 — the framing's OFFSET BOUND, on the byte pattern the
+    /// workload actually produces.**
+    ///
+    /// `codec::GL_OFFSET_MAX` is the value clause that replaces the one #2783
+    /// removes, and it is what keeps the relaxed framing from admitting the 551
+    /// offsets that name no `.ex` split point. The literal here is
+    /// `src/system/decomp_pch.cpp`'s, at `.gl`+99,894:
+    /// `80 9f 11 00 00 00 00 80 1c 0b 00 75` → 1,962,937,116.
+    #[test]
+    fn the_relaxed_framing_refuses_an_offset_past_the_bound() {
+        let mut gl = vec![0u8];
+        gl.extend_from_slice(b"?real@@YAHH@Z");
+        gl.push(0);
+        gl.extend_from_slice(&[0x80, 0x9f, 0x11, 0x00, 0x00, 0x00, 0x00, 0x80]);
+        gl.extend_from_slice(&[0x1c, 0x0b, 0x00, 0x75]);
+        // The window-free framing #2783 filed takes it…
+        assert!(super::super::bind::emit_offset_framed(&gl, gl.len() - 5));
+        // …the shipped one does not, and the walk therefore binds nothing.
+        assert!(!crate::codec::gl_offset_framed_relaxed(&gl, gl.len() - 5));
+        assert!(gl_bound_names(&gl).0.is_empty());
+    }
+
+    /// **W-FRAME783 — the `partition_point` rewrite is semantics-free, and the
+    /// distance bound it replaced a linear search with still refuses.**
+    ///
+    /// `MAX_NAME_TO_OFFSET` is the only thing standing between a framed offset
+    /// and a body emitted under some *other* record's name, so the rewrite is
+    /// graded on both sides of the bound rather than on the happy path.
+    #[test]
+    fn the_name_lookup_rewrite_keeps_the_distance_bound() {
+        // A framed offset with NO preceding run at all.
+        let mut orphan = vec![0x80u8, 0x01, 0x10, 0x00, 0x00, 0x00, 0x00, 0x80];
+        orphan.extend_from_slice(&64u32.to_le_bytes());
+        assert_eq!(
+            gl_defined_names_framed(
+                &orphan,
+                true,
+                crate::codec::gl_offset_framed,
+                NameFit::InlineOrStringTable
+            ),
+            Err(GlBindStop::NameTooFar)
+        );
+        // …and one whose nearest preceding run is just past the bound.
+        let mut far = vec![0u8];
+        far.extend_from_slice(b"?far@@YAHXZ");
+        far.push(0);
+        far.extend_from_slice(&vec![0xEEu8; MAX_NAME_TO_OFFSET + 1]);
+        far.extend_from_slice(&[0x80, 0x01, 0x10, 0x00, 0x00, 0x00, 0x00, 0x80]);
+        far.extend_from_slice(&64u32.to_le_bytes());
+        assert_eq!(
+            gl_defined_names_framed(
+                &far,
+                true,
+                crate::codec::gl_offset_framed,
+                NameFit::InlineOrStringTable
+            ),
+            Err(GlBindStop::NameTooFar)
+        );
+    }
+
     /// [`gl_record`] with the five bytes GRID-K measures spelled out — the
     /// `<tag> <kind> <linkage> <retsize> <flags>` a real defined record carries
     /// immediately after its name's NUL. `gl_record` writes `00` into all of

@@ -1,0 +1,29 @@
+w-frame783: four cells for the shipped framing, and the one that grades the DECOUPLING
+
++4 #[test] (c2-il lib 609 -> 613). Each grades a conjunction the lane relies on
+and each is built from a byte pattern the workload actually produces, not from
+a shape invented to make an assertion pass:
+
+  * `the_relaxed_framing_reaches_the_binding_and_neither_fence` — the whole
+    safety argument as one cell. The relaxed framing binds a PREV-0x189a record
+    (vec.cpp's ??0Vector3 value) that the incumbent cannot see, and
+    `defined_name_set` / `plain_external_defined_names` DO NOT contain it. If a
+    later change routes gl_defined_names through GATE_BIND_FRAME this fails,
+    which is the only thing standing between that change and #2622/#2623's
+    -1 fnbyte-exact.
+  * `the_relaxed_framing_refuses_an_offset_past_the_bound` — decomp_pch.cpp's
+    literal `80 9f 11 00 00 00 00 80 1c 0b 00 75`. emit_offset_framed takes it;
+    GL_OFFSET_MAX does not; the walk binds nothing.
+  * `the_name_lookup_rewrite_keeps_the_distance_bound` — the partition_point
+    rewrite graded on BOTH sides of MAX_NAME_TO_OFFSET (no preceding run at
+    all, and one just past the bound), because that bound is the only thing
+    between a framed offset and a body emitted under another record's name.
+  * `the_three_walk_free_readers_differ_by_exactly_one_byte_each` — narrow /
+    precise / wide on one input, strictly nested, using DelayEffect.cpp's
+    1,962,937,121 as the past-the-bound record.
+
+The gl_record_prev builder is deliberately NOT gl_record's shape: writing the
+framing straight after the name's NUL puts PREV's byte 1 on name_nul+3, which
+is the LINKAGE byte, so prev=0x189a would refuse for __declspec(dllexport)
+rather than frame. That cost one red test to find and the reason is in the
+builder's doc.
