@@ -1,0 +1,12 @@
+NOTHING WAS WRITTEN. 1 edit(s) could not be decided:
+  HATCH-DRIFT        id=call-arg-lit-permuted      crates/c2-il/src/func/body/shapes/calls.rs
+      needle matched 0 times, want 1
+      '    if !in_place && !one_moved_at_two && !permutation_decided_downstream {\n        return Err(refuse("call-arg-lit-permu'
+
+This is board #1322's failure mode and it now FAILS CLOSED. An
+edit whose clause the port has PAID belongs in RETIRED with a
+paid_witness (HATCH-PAID-MISSING is that check failing); an edit
+that merely stopped matching is HATCH-DRIFT and the ladder built on
+it would be a measurement of a tree nobody intended.
+hatch: TARGET REPOSITORY  <REPO>   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <REPO>/work/w-front3/hatch.py
