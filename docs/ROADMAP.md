@@ -11892,3 +11892,58 @@ id=call-arg-lit-permuted` in `body/shapes/calls.rs`, reproduced by
 and reports `HATCH-STALE` (#1389); why it does was not isolated here. Board
 #1406 makes both readings the same conclusion, and `w-fence2` #2482 reproduced
 the same needle a day earlier.
+
+## 10.35 SESSION CLOSE 2026-08-10 — the distance is MAPPED, and it is not a conversion backlog
+
+Written at the funnel. `match` **11 → 23** across this session (twelve
+conversions), `mismatch` **0** throughout, and a live wrong emit that had been
+sitting on master found and closed (`w-decouple`, #2750–#2762 — the fixture
+gate went 1 → 0).
+
+**What the last five lanes established, and it supersedes every earlier framing
+of the goal.** The distance to 871 was never "codegen, one TU at a time":
+
+1. **`A∧B∧C` = 27 is the ceiling of the conversion approach**, and all four
+   remaining frontier rows are priced from their own captures — `Main.cpp` 14,
+   `mmio.cpp` ≥ 8, `wordwrap.cpp` 21 (a 160-word body, 5.5× anything
+   transcribed), `keygen_xbox.cpp` 19 bodies.
+2. **A perfect factor A converts none of the 124-TU reach-pool** (`w-phase7b`,
+   #2780–#2793, `CEILING.md` §12). `Bindings::per_record` requires `.gl`
+   records 1:1 with **all** `.ex` segments, and for those TUs the missing
+   body-start offsets are **absent from `.gl` byte for byte**. §2.5's *"both
+   need factor A alone"*, carried since `CEILING.md` was written and confirmed
+   twice from the byte side, is **retracted**.
+3. **A selective binding contract is buildable and tops out at 34**
+   (`w-selbind`, #2820–#2827, §13) — and its first draft, specified in a
+   funnel brief, **graded 35 wrong objs**, because a `.gl` record set is a
+   strict **superset** of c2's emit set. A record is `c1xx` saying *"this TU
+   has a body for this symbol"*, not c2 saying *"I emitted it"*.
+4. **The `.gl` frame relaxation ships and moves the bound by zero**
+   (`w-frame783`, #2860–#2867, §14). The published **414** was an *instrument*
+   number with the gate's clauses removed; at the gate it reads **34**, and the
+   claim that the 380-TU gap was entirely this framing is refuted — the gap has
+   two axes and the framing is the one worth nothing.
+
+**The successor to the frontier, named (#2864).** Of the 380 TUs the relaxation
+newly names, **379 stop at `gl-stop-26-introduced`** — which is **not a reader
+defect**. It is COMDAT-style linkage against a packed single-`.text` writer:
+**a section-layout model**, and board **#232** is 255 commits of live wrong
+emit from the last time it was relaxed. That is a design question with a known
+hazard, not a backlog item.
+
+**So the honest map is:** 23 matched · 4 frontier rows priced · a 34-TU
+acceptance path whose fences are total · and beyond it a section-layout model
+nobody has built, in front of a codegen distance `CEILING.md` §10 already
+measured. **Every one of those numbers is now backed by a lane that tried to
+move it and reported what happened**, which is the state this project was not
+in twenty-four hours ago.
+
+**Method that outlived its lanes.** `CEILING.md` §11.4 grew to nine items plus
+8b and steered or saved eleven consecutive lanes; §11.4 item 8 alone has had
+**six** candidate fields proposed and **five were wrong** (two of them in
+funnel briefs). The estimate ledger converged on a standard no single lane
+invented: declare downstream rows conditional; register the row that could
+actually go wrong; check the antecedent you wrote is the one the claim
+requires; *"an antecedent that only makes your registered clause true is not
+the antecedent the claim needs"*; and if you register an unlosable row, write
+down what would falsify it — after one such row, at 0.96, **lost**.
