@@ -143,13 +143,23 @@ pub struct DecodeCauses {
 
     /// `4F 1F` segments in `.ex` — the count the port consumes.
     pub segments: usize,
-    /// `.gl` body-start records the **gate's** framing can see
-    /// (`codec::gl_offset_framed`, whose `gl[o-5] == 0x10` clause pins the
-    /// preceding field into `0x1000..=0x10FF`).
+    /// `.gl` body-start records the **gate's binding** framing can see.
+    ///
+    /// **W-FRAME783 — this is `gl::GATE_BIND_FRAME` now**, i.e.
+    /// `codec::gl_offset_framed_relaxed`: board #2783's relaxation is shipped
+    /// and the `gl[o-5] == 0x10` window is gone from the binding. It was
+    /// `codec::gl_offset_framed`, which read **28,870** records over the
+    /// workload against this one's **1,506,608**. The incumbent framing is
+    /// still what both fence ground sets and `codec::parse_gl` run; see
+    /// `gl::GATE_BIND_FRAME`'s table.
     pub records_gate: usize,
     /// `.gl` body-start records the **window-free** framing can see
     /// (`bind::emit_offset_framed`, the same record shape with the value
     /// restricted only to `< 0x10000`).
+    ///
+    /// Now differs from [`Self::records_gate`] by exactly the offset bound
+    /// `codec::GL_OFFSET_MAX`: **551** records over 406 TUs, every one of them
+    /// an offset that is not an `.ex` `4F 1F` split point.
     pub records_wide: usize,
     /// `.ex` segments whose body is outside the modeled class. Evaluated for
     /// every bundle with a splittable `.ex`, whatever the binding did.
@@ -254,7 +264,7 @@ impl IlBundle {
             }
         };
 
-        out.records_gate = framed_record_count(gl, crate::codec::gl_offset_framed);
+        out.records_gate = framed_record_count(gl, super::gl::GATE_BIND_FRAME);
         out.records_wide = framed_record_count(gl, emit_offset_framed);
 
         if !drectve_is_boilerplate(gl) {
@@ -275,10 +285,14 @@ impl IlBundle {
         // `Bindings::per_record` runs. `decode_causes`' whole contract is that
         // `causes.is_empty() == decodes`, and it holds only while this walk is
         // the gate's walk.
+        // **W-FRAME783** — and the framing is `gl::GATE_BIND_FRAME` for the
+        // same reason the policy is `InlineOrStringTable`: this instrument's
+        // whole contract is `causes.is_empty() == decodes`, which holds only
+        // while this walk **is** the gate's walk, framing included.
         let gate_bind = gl_defined_names_framed(
             gl,
             true,
-            crate::codec::gl_offset_framed,
+            super::gl::GATE_BIND_FRAME,
             NameFit::InlineOrStringTable,
         );
         // **W-SELBIND — transcribed from `Bindings::selective`, which is what
@@ -332,12 +346,19 @@ impl IlBundle {
         // record count: a TU can have records the gate cannot see and still
         // fail to bind for four other reasons, and only this comparison
         // separates the two.
-        out.window_blocks_binding = !binds_under(
-            gl,
-            segs.len(),
-            &starts,
-            crate::codec::gl_offset_framed,
-        ) && binds_under(gl, segs.len(), &starts, emit_offset_framed);
+        //
+        // **W-FRAME783 — the window this measured is SHIPPED, so the first arm
+        // is the gate's new framing and what is left is the residue.** The two
+        // framings now differ only in `codec::GL_OFFSET_MAX`, so a `true` here
+        // means "a record whose offset field exceeds 16 MB is the only thing
+        // standing between this TU and a 1:1 binding" — which is a statement
+        // about 551 records that name no `.ex` split point, and is expected to
+        // read 0. It is kept, not deleted: a field that has gone to zero
+        // *because the thing it measured was paid* is the record of that, and
+        // the anti-drift value is the same as it ever was.
+        out.window_blocks_binding =
+            !binds_under(gl, segs.len(), &starts, super::gl::GATE_BIND_FRAME)
+                && binds_under(gl, segs.len(), &starts, emit_offset_framed);
 
         // ── the real binding, and the varargs gate that sits behind it ────
         //

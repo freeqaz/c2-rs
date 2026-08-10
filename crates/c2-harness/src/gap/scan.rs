@@ -143,9 +143,22 @@ fn scan_one(
             captured.bundle.get("gl"),
             captured.ref_obj.text_comdat_functions(),
         ) {
+            // **W-FRAME783 — FOUR readers, because the gate-vs-wide gap has TWO
+            // terms and was published as if it had one.** #2824 attributed the
+            // whole 34 → 414 to #2783's framing; the framing is shipped now and
+            // the gate's number did not move. `narrow` and `precise` are the
+            // same walk-free scan as `wide` under the two other framings, so
+            // the gap decomposes instead of being attributed:
+            //
+            //   narrow  → precise : what the FRAMING is worth (this lane's ship)
+            //   precise → wide    : the 551 framed offsets that are not `.ex`
+            //                       split points, i.e. how much of 414 is noise
+            //   precise → gate    : what the WALK's six stop clauses cost
             let gate = c2_il::gl_gate_record_names(gl);
             let wide = c2_il::gl_body_record_names(gl);
-            let (mut ng, mut nw) = (0usize, 0usize);
+            let narrow = c2_il::gl_narrow_record_names(gl);
+            let precise = c2_il::gl_precise_record_names(gl);
+            let (mut ng, mut nw, mut nn, mut np) = (0usize, 0usize, 0usize, 0usize);
             for e in &emitted {
                 if gate.contains(e) {
                     ng += 1;
@@ -153,10 +166,22 @@ fn scan_one(
                 if wide.contains(e) {
                     nw += 1;
                 }
+                if narrow.contains(e) {
+                    nn += 1;
+                }
+                if precise.contains(e) {
+                    np += 1;
+                }
             }
             *res.bind_checks.entry(key("selbind-emitted")).or_insert(0) += emitted.len();
             *res.bind_checks.entry(key("selbind-emitted-named-gate")).or_insert(0) += ng;
             *res.bind_checks.entry(key("selbind-emitted-named-wide")).or_insert(0) += nw;
+            *res.bind_checks
+                .entry(key("selbind-emitted-named-scan-narrow"))
+                .or_insert(0) += nn;
+            *res.bind_checks
+                .entry(key("selbind-emitted-named-scan-precise"))
+                .or_insert(0) += np;
             if !emitted.is_empty() {
                 *res.bind_checks.entry(key("selbind-emit-tus")).or_insert(0) += 1;
                 if ng == emitted.len() {
@@ -167,6 +192,16 @@ fn scan_one(
                 if nw == emitted.len() {
                     *res.bind_checks
                         .entry(key("selbind-emit-subset-wide-tus"))
+                        .or_insert(0) += 1;
+                }
+                if nn == emitted.len() {
+                    *res.bind_checks
+                        .entry(key("selbind-emit-subset-scan-narrow-tus"))
+                        .or_insert(0) += 1;
+                }
+                if np == emitted.len() {
+                    *res.bind_checks
+                        .entry(key("selbind-emit-subset-scan-precise-tus"))
                         .or_insert(0) += 1;
                 }
             }

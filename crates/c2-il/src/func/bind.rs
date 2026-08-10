@@ -379,12 +379,35 @@ pub(crate) fn emit_offset_framed(gl: &[u8], o: usize) -> bool {
 /// name-distance bound as [`EmitBinding::new`] — deliberately, so a difference
 /// in the two answers is a difference in the *binding*, never in the reader.
 pub fn gl_body_record_names(gl: &[u8]) -> std::collections::BTreeSet<String> {
+    record_names_scanned(gl, emit_offset_framed)
+}
+
+/// **W-FRAME783 — [`gl_body_record_names`]'s scan under an arbitrary framing.**
+///
+/// The three readers this crate now has for *"which names own a `.gl` body-start
+/// record"* differ along **two** axes, not one, and the published 34-versus-414
+/// gap has been read as if there were only the first:
+///
+/// | reader | framing | walk |
+/// |---|---|---|
+/// | [`gl_gate_record_names`] | `gl::GATE_BIND_FRAME` (#2783, shipped) | the gate's, **all six stop clauses**, any one of which empties the whole TU |
+/// | [`gl_body_record_names`] | `emit_offset_framed` (window-free) | **none** |
+/// | [`gl_narrow_record_names`] | `crate::codec::gl_offset_framed` (the incumbent window) | **none** |
+///
+/// The third exists so the gap between the first two is a *decomposition*
+/// rather than an attribution. `w-frame783` shipped the framing and the
+/// acceptance path's bound moved by **zero**; the third reader is what says
+/// where the 380 TUs actually live.
+fn record_names_scanned(
+    gl: &[u8],
+    framed: fn(&[u8], usize) -> bool,
+) -> std::collections::BTreeSet<String> {
     let runs = gl_symbol_runs_all_separators(gl);
     let ends: Vec<usize> = runs.iter().map(|&(_, end, _)| end).collect();
     let mut out = std::collections::BTreeSet::new();
     let mut p = 0usize;
     while p + 5 <= gl.len() {
-        if !emit_offset_framed(gl, p) {
+        if !framed(gl, p) {
             p += 1;
             continue;
         }
@@ -396,6 +419,34 @@ pub fn gl_body_record_names(gl: &[u8]) -> std::collections::BTreeSet<String> {
         p += 5;
     }
     out
+}
+
+/// **W-FRAME783 — [`gl_body_record_names`] under the framing #2783 REPLACES.**
+///
+/// The control on the whole lane. If this reads close to
+/// [`gl_body_record_names`], the framing was never what separated the gate's 34
+/// from the instrument's 414 and the walk is the entire distance; if it reads
+/// close to the gate's 34, the framing was.
+///
+/// **Diagnostic only** — nothing in the gate, the census verdict or the emitter
+/// consults it.
+pub fn gl_narrow_record_names(gl: &[u8]) -> std::collections::BTreeSet<String> {
+    record_names_scanned(gl, crate::codec::gl_offset_framed)
+}
+
+/// **W-FRAME783 — [`gl_body_record_names`] under the framing the gate now
+/// BINDS with** (`gl::GATE_BIND_FRAME`), i.e. #2783's relaxation with
+/// `codec::GL_OFFSET_MAX` pinned in place of the removed window.
+///
+/// Against [`gl_body_record_names`] this measures how much of the published
+/// **414** rests on the 551 framed offsets that are not `.ex` split points —
+/// each of which still contributes its nearest preceding run to the name set,
+/// so the direction of that error is to make `emitted ⊆ named` look **more**
+/// satisfiable than it is.
+///
+/// **Diagnostic only.**
+pub fn gl_precise_record_names(gl: &[u8]) -> std::collections::BTreeSet<String> {
+    record_names_scanned(gl, super::gl::GATE_BIND_FRAME)
 }
 
 /// **W-SELBIND — [`gl_body_record_names`] under the GATE's own framing.**

@@ -585,6 +585,9 @@ pub(crate) fn gl_defined_names_framed(
     fit: NameFit,
 ) -> Result<(Vec<(u32, String)>, Vec<String>), GlBindStop> {
     let runs = symbol_runs(gl, sep26);
+    // Strictly increasing — `symbol_runs` scans forward and resumes at `end`.
+    // See the `partition_point` below.
+    let ends: Vec<usize> = runs.iter().map(|&(_, end, _)| end).collect();
     let mut claimed = vec![false; runs.len()];
     let mut bound: Vec<(u32, String)> = Vec::new();
     let mut p = 0usize;
@@ -594,13 +597,22 @@ pub(crate) fn gl_defined_names_framed(
             // The record's own name: the last run to END at or before this field,
             // and near enough to be part of the same record. Searched backwards so
             // a record cannot borrow the name of a *following* one.
-            let k = match runs.iter().rposition(|&(_, end, _)| end <= p) {
-                // A framed offset whose nearest preceding run is too far away, or
-                // has none at all, is a record shape we do not understand. Refuse
-                // the whole TU rather than emit a function under a name that
-                // belongs to some other record — which is precisely the bug this
-                // bound exists to stop.
-                Some(k) if p - runs[k].1 <= MAX_NAME_TO_OFFSET => k,
+            // **W-FRAME783 — `partition_point`, not `rposition`, and it is a
+            // performance change with no semantics in it.** `symbol_runs`
+            // scans forward and sets `i = end` after each run, so the run
+            // `end`s are strictly increasing and the last one `<= p` is the
+            // partition point less one. Under [`GATE_BIND_FRAME`] this loop
+            // runs over 1.5 M records rather than 29 k, against ~10 k runs on
+            // the largest TUs, and the linear search was quadratic in exactly
+            // the two quantities the relaxation multiplies.
+            //
+            // A framed offset whose nearest preceding run is too far away, or
+            // has none at all, is a record shape we do not understand. Refuse
+            // the whole TU rather than emit a function under a name that
+            // belongs to some other record — which is precisely the bug this
+            // bound exists to stop.
+            let k = match ends.partition_point(|&e| e <= p) {
+                k @ 1.. if p - runs[k - 1].1 <= MAX_NAME_TO_OFFSET => k - 1,
                 _ => return Err(GlBindStop::NameTooFar),
             };
             // Named positively, then judged: a record name the port cannot emit
@@ -822,14 +834,26 @@ fn gl_defined_names_with(gl: &[u8], sep26: bool) -> (Vec<(u32, String)>, Vec<Str
 /// records and stops at `mmioSeek`, eight bytes, exactly at
 /// [`INLINE_NAME_MAX`].
 pub(crate) fn gl_bound_names(gl: &[u8]) -> (Vec<(u32, String)>, Vec<String>) {
-    gl_defined_names_framed(
-        gl,
-        true,
-        crate::codec::gl_offset_framed,
-        NameFit::InlineOrStringTable,
-    )
-    .unwrap_or_default()
+    gl_defined_names_framed(gl, true, GATE_BIND_FRAME, NameFit::InlineOrStringTable)
+        .unwrap_or_default()
 }
+
+/// **W-FRAME783 — the record framing the GATE'S BINDING walk runs, named once.**
+///
+/// [`NameFit`] separated the *naming policy* of the binding from that of the
+/// two fences; this separates their *framing*. Board **#2783**'s relaxation
+/// ships here and **only** here:
+///
+/// | caller | framing | why |
+/// |---|---|---|
+/// | [`gl_bound_names`] → `bind::Bindings::selective` / `per_record`, and `diag`'s transcription of it | **this** | the binding wants every record the container has |
+/// | [`gl_defined_names`] → `bind::defined_name_set`, [`plain_external_defined_names`] | [`crate::codec::gl_offset_framed`] | a fence ground set, where a widening of the walk is a **tightening** of the fence (#2622/#2623, measured at **−1 `fnbyte-exact`**) |
+/// | `codec::parse_gl`'s K2a span typing | [`crate::codec::gl_offset_framed`] | its cross-check is `values == ex_offsets_ordered`, and a widened framing can only turn that equality into "type nothing" |
+///
+/// The alias exists so those three are a table rather than three literals that
+/// can drift apart. `codec::gl_offset_framed_relaxed` carries the measurement.
+pub(crate) const GATE_BIND_FRAME: fn(&[u8], usize) -> bool =
+    crate::codec::gl_offset_framed_relaxed;
 
 /// Whether the record whose name ends at `name_nul` declares a linkage the port's
 /// **constant `.drectve`** cannot represent — today, `__declspec(dllexport)`.

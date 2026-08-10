@@ -1340,8 +1340,14 @@ impl GapReport {
             // can see. A TU outside it can never bind selectively however good the
             // accounting gets, because the port would emit an obj missing a
             // function. `-wide-tus` is the same join under `bind::emit_offset_
-            // framed`, and the gap between them is the price of board #2783's
-            // unshipped frame relaxation.
+            // framed`.
+            //
+            // **W-FRAME783 — the sentence that used to close this paragraph,
+            // *"and the gap between them is the price of board #2783's
+            // unshipped frame relaxation"*, is RETRACTED.** The relaxation is
+            // shipped (`gl::GATE_BIND_FRAME`) and `-gate-tus` did not move:
+            // **34 → 34**. The four `scan`/`gate` keys below decompose the gap
+            // rather than attributing it — board **#2860**.
             //
             // `selbind-total-tus` is `Bindings::selective`'s clause 3 over the
             // genuinely selective TUs: the count that may bind TODAY.
@@ -1373,6 +1379,28 @@ impl GapReport {
             (
                 "selbind-emit-subset-wide-tus",
                 self.bind_total("selbind-emit-subset-wide-tus").to_string(),
+            ),
+            // **W-FRAME783 — the two keys that turn the gate-vs-wide gap from an
+            // attribution into a decomposition.** Both are the same walk-free
+            // scan as `-wide-`, under the incumbent framing and under the one
+            // this lane shipped. Board **#2860**: the framing is worth
+            // **39 → 414** in the walk-free instrument and **34 → 34** at the
+            // gate, so what separates the two published numbers is the WALK.
+            (
+                "selbind-emitted-named-scan-narrow",
+                self.bind_total("selbind-emitted-named-scan-narrow").to_string(),
+            ),
+            (
+                "selbind-emitted-named-scan-precise",
+                self.bind_total("selbind-emitted-named-scan-precise").to_string(),
+            ),
+            (
+                "selbind-emit-subset-scan-narrow-tus",
+                self.bind_total("selbind-emit-subset-scan-narrow-tus").to_string(),
+            ),
+            (
+                "selbind-emit-subset-scan-precise-tus",
+                self.bind_total("selbind-emit-subset-scan-precise-tus").to_string(),
             ),
             ("workload-sections", self.section_vocabulary().len().to_string()),
             ("ladder-steps", ladder.len().to_string()),

@@ -1,0 +1,50 @@
+w-frame783: ship #2783's frame relaxation at the BINDING seam — and the acceptance path's bound does not move
+
+The relaxation is real, sound and shipped: `codec::gl_offset_framed_relaxed`
+drops the `gl[o-5] == 0x10` value window (PREV in [0x1000,0x10FF] -> PREV <
+0x10000) and pins `GL_OFFSET_MAX = 0x1000000` in its place. Over 876 of the 878
+workload TUs, captured by this lane:
+
+  incumbent framing        28,870 records ·   1 offset that is not an .ex split
+  #2783 as filed        1,507,159 records · 551 offsets that are not, over 406 TUs
+  what ships            1,506,608 records ·   0
+
+The extra byte is a VALUE test and is named as one. It separates 551 for 551:
+every on-a-split offset has top byte 0, every not-a-split one has top byte >= 2,
+and the largest real offset in the workload is 0x2b4c57.
+
+It ships at the BINDING only — `gl::GATE_BIND_FRAME`, w-decouple's seam one
+axis over. Both fence ground sets (`bind::defined_name_set`,
+`gl::plain_external_defined_names`) and `codec::parse_gl`'s K2a typing keep
+`codec::gl_offset_framed` bit for bit, so #2622/#2623's -1 fnbyte-exact is not
+paid again. The monotonicity argument NameFit had is not available for a
+framing, so it is measured instead: the relaxed scan's record positions are a
+strict superset of the incumbent's on 876 of 876 TUs, and the 1:1 contract is
+unchanged — 32 TUs both ways, 0 lost, 0 gained.
+
+AND THE POINT OF THE LANE: `selbind-emit-subset-gate-tus` reads 34 before and
+34 after. The four-reader decomposition this commit adds says why —
+
+    39  walk-free scan, INCUMBENT framing
+   414  walk-free scan, SHIPPED framing
+   414  walk-free scan, window-free framing (#2783 as filed)
+    34  the GATE's own binding walk, at the shipped framing
+
+so the framing is worth +375 to an instrument and +0 to the gate, and what
+separates 34 from 414 is the WALK's six stop clauses. #2824's "the 380-TU gap
+between 34 and 414 is entirely #2783's one-byte frame relaxation" is retracted
+in `factors.rs` where it was written.
+
+Also: `gl_defined_names_framed`'s name lookup goes `rposition` -> `partition_point`
+(the run ends are strictly increasing; a semantics-free change), because the
+walk now runs over 1.5 M records instead of 29 k.
+
+Four-level neutrality, base binary c943b836 vs tip, both scans this lane's own:
+  L1  gap-metric keys 272 -> 276: 4 added (the new instruments), 0 removed,
+      0 CHANGED VALUE
+  L2  0 of 878 TU classes moved; match 23, mismatch 0, vocab-gap 848
+  L3  2 of 878 first-causes moved, both toward an EARLIER refusal:
+      SongPreview.cpp gl-stop-26-introduced -> gl-stop-varargs-record,
+      RenderState.cpp bind-record-count-ne-segments -> gl-stop-26-introduced
+  L4  0 of 871 per-TU byte triples moved; 3,759 per-TU `emit` keys tracked and
+      0 moved on any TU; the 1,898-row --fnbyte-diff-jsonl is byte-identical
