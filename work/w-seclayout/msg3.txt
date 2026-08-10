@@ -1,0 +1,59 @@
+w-seclayout: the counterfactual, measured and reverted — the 26-stop is worth +2 BINDS and 0 CONVERTS, and it hides one TU where the 1:1 path would emit two functions c2 discarded
+
+Built GlBindStop::Name26Introduced out of the BINDING policy only (w-decouple's
+seam, so neither fence ground set moves and #2622/#2623's -1 fnbyte-exact is not
+confounded in), scanned the same 878 TUs with the same committed list and flags,
+and reverted.  crates/ is clean again at this commit; the binary is kept as
+work/w-seclayout/c2rs-cf26.
+
+  key                              base      cf26
+  match                              23        23
+  mismatch                            0         0
+  fnbyte-exact                    35810     35810
+  selbind-emit-subset-gate-tus       34       342
+  selbind-one-to-one-tus             22        24
+  selbind-selective-tus              12       506
+  selbind-total-tus                   0         0
+  factor-a / a-and-b-and-c        28 / 27   28 / 27
+  TU class verdicts moved                        0
+  gap-metric keys that changed value             6
+
+So the two numbers the commission asks for, measured rather than promised:
+
+  BINDS    +2 of the 380     (selbind-one-to-one-tus 22 -> 24)
+  CONVERTS  0 of the 380     (match 23 -> 23, 0 class verdicts moved)
+
+The +494 that go to selbind-selective-tus all die at clause 4 —
+selbind-total-tus is 0 before and 0 after, by construction — and the first
+cause of 819 TUs merely moves one clause along: 492 to
+bind-record-count-ne-segments, 316 to gl-stop-varargs-record, 9 to
+gl-stop-name-too-far, 2 to body-out-of-class.
+
+The two that reach the 1:1 contract are HeadsetXferEffect.cpp and
+MeterEffect.cpp — the two TUs CEILING.md 12 named as "no lane has examined" and
+counted into its 29.  And they are not the same case:
+
+* MeterEffect  13 records = 13 segments = 13 obj .text.  Factor A holds.
+* HeadsetXfer  16 records = 16 segments and c2's obj has FOURTEEN .text.
+  ??_ECXAPOParametersBase@ATG@@WCA@AAPAXI@Z and
+  ??_GCXAPOParametersBase@ATG@@UAAPAXI@Z are framed records at their own .ex
+  body-starts and are ABSENT FROM THE OBJ ENTIRELY — not defined, not even
+  referenced as undefined externals.
+
+Bindings::per_record has no clause 4.  The over-emit obligation
+Bindings::selective states explicitly is discharged on the 1:1 path by nothing
+at all, on the unstated assumption that a record set covering every segment IS
+c2's emit set — the assumption w-selbind refuted for the selective path and
+nobody re-asked for this one.  Measured over its own population: of the 29 TUs
+gl_body_start_coverage reports n of n, exactly ONE fails factor A, and it is
+HeadsetXferEffect.cpp.  So 29 is an over-count by one as a SOUND acceptance
+bound; the sound number is 28.
+
+Today two live fences stop it — unclaimed-gl-symbol (#1721) and
+body-out-of-class — so this is a latent hazard and not a live wrong emit.  It
+is #232's exact direction and #232 also had a fence that covered a neighbouring
+shape.
+
+Also cross-checked: glwalk26.py's independent python transcription of the walk
+agrees with the Rust reader's own selective_bind quad on 7 of 7 read TUs
+(16/16, 13/13, 24/34, 19/23, 21/32, 73/119, 116/236).
