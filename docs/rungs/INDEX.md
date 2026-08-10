@@ -175,6 +175,7 @@ the header block this table is read from.
 | 2026-08-09 | WB-I-FIT | [wb-selfit](2026-08-09-wb-selfit.md) | 12 | unchanged, **+0** — RECONCILIATION lane, adopts nothing into |
 | 2026-08-09 | WB-J | [wb-tables](2026-08-09-wb-tables.md) | 7 | +0 — WHITEBOX/navigation lane, adopts nothing into crates/ |
 | 2026-08-09 | w-callprice | [w-callprice](2026-08-09-w-callprice.md) | 13 | 711,514 / 2,463,443 unchanged (28.88 %), **+0**; emitted |
+| 2026-08-09 | w-decouple | [w-decouple](2026-08-09-w-decouple.md) | 6 | per-function **714,541 → 714,541**, emitted **39,241 → 39,241**. |
 | 2026-08-09 | w-disagree | [w-disagree](2026-08-09-w-disagree.md) | 12 | 711,485 / 2,463,443 unchanged (28.88 %), **+0** on the 878-TU |
 | 2026-08-09 | w-fence2 | [w-fence2](2026-08-09-w-fence2.md) | 2 | per-function **712,280 → 712,280**, emitted **39,226 → 39,226** — |
 | 2026-08-09 | w-fltret2 | [w-fltret2](2026-08-09-w-fltret2.md) | 13 | **+0** — this lane ships no class, so it moves nothing. Master |
