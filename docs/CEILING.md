@@ -1115,3 +1115,52 @@ fall-through family's size beside any ranking taken off T2 — it is **9,095 of
    MAY table, which had five licensed arms of which four were already in the
    code. The three fences to check are `comdat::fenced_inlined_callee`,
    `elide`'s mechanism E, and `splice`'s S7.
+
+---
+
+## 12. 2026-08-10 — the acceptance path is bounded at 29, and factor A is NOT the lever §2 said it was
+
+`w-phase7b` (#2780–#2793) was dispatched at the one move this page has named
+since it was written — §2.1's *"What would move it: factor A — an emit-set
+model (Phase 7). Nothing else."* It measured the premise and the premise is
+**wrong**.
+
+**`Bindings::per_record` binds nothing unless the `.gl` records are 1:1 with
+ALL `.ex` segments** — and for the TUs outside `A∧B∧C` the missing body-start
+offsets are **absent from `.gl` byte for byte**, not merely unframed
+(`decomp_pch.cpp` covers 622 of 1,312; `vec.cpp` 373 of 811; the 690 and 438
+missing offsets found absent by raw search, control 0). Every one of the 23
+matches reads `n of n`.
+
+The by-name join, measured:
+
+| population | TUs | the gate can bind |
+|---|---:|---:|
+| `match` | 23 | 23 |
+| `A∧B∧C` | 27 | **27** |
+| FRONTIER | 4 | 4 |
+| **`reach-pool`** | **124** | **0** |
+
+**A perfect factor A converts none of the 124.** §2.5's *"Both need factor A
+alone"* — carried on this page since it was written, and confirmed twice from
+the byte side by T1 — **is retracted**. Full coverage of *this acceptance path*
+is **29 TUs**: the 23 matches, the 4 frontier rows, and `HeadsetXferEffect.cpp`
+and `MeterEffect.cpp`, two TUs no lane has examined. **29 bounds one acceptance
+path, not the project** (#2791) — it is not a new "the ceiling" and must not be
+quoted as one.
+
+**What this leaves.** The two TUs do not share a mechanism and neither is
+cheap: `vec.cpp`'s emit set *is* nameable (both constructors sit in `.gl` at
+their body starts) and its repair is a **selective binding** that stops
+insisting on the 438 bodies c2 discards — **7 mechanisms**. `decomp_pch.cpp`'s
+emit set is **empty**, so its repair is a new acceptance path in front of the
+gate whose licence the input cannot supply — **6 mechanisms**. They share one
+row, the COMDAT `.rdata` writer.
+
+**So the honest statement of the distance, superseding §10's framing:** it was
+never "codegen one TU at a time up to 871". The current acceptance path tops
+out at **29**, the frontier's last 4 are priced at 14 / ≥8 / 21 / 19-bodies,
+and everything beyond requires a **different binding contract** — selective
+rather than 1:1 — which no lane has built and which this page had never
+priced. That is a design question, not a conversion backlog, and it is the
+first time this page can say so with a measurement behind it.
