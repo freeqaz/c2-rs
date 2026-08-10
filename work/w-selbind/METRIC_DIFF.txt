@@ -1,0 +1,12 @@
+32a33,43
+> gap-metric selbind-one-to-one-tus 22
+> gap-metric selbind-selective-tus 12
+> gap-metric selbind-total-tus 0
+> gap-metric selbind-blocked-mangled-tus 9
+> gap-metric selbind-blocked-inline-fit-tus 8
+> gap-metric selbind-emitted 162092
+> gap-metric selbind-emitted-named-gate 134
+> gap-metric selbind-emitted-named-wide 157487
+> gap-metric selbind-emit-tus 865
+> gap-metric selbind-emit-subset-gate-tus 34
+> gap-metric selbind-emit-subset-wide-tus 414

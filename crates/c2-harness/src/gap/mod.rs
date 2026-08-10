@@ -364,6 +364,27 @@ pub struct TuResult {
     /// `None` when `.ex` or `.gl` is absent. Diagnostic only — nothing anywhere
     /// branches on it, and the scan reads it after the class is already decided.
     pub gl_body_starts: Option<(usize, usize)>,
+    /// **W-SELBIND — `(records, segments, unclaimed_mangled, unclaimed_inline_fit)`
+    /// from [`c2_il::IlBundle::selective_bind_coverage`]: can the SELECTIVE
+    /// binding bind this TU, and if not, by how much does its totality clause
+    /// miss?**
+    ///
+    /// [`TuResult::gl_body_starts`] asks whether a segment's body-start offset is
+    /// **spelled** in `.gl` and is a deliberate over-count. This asks whether a
+    /// **record NAMES** it, which is what a binding needs, and the two disagree by
+    /// an order of magnitude on a real TU — `src/system/math/vec.cpp` reads
+    /// `373 of 811` spelled and **36 of 811** named. Reading the first as the
+    /// second is how this lane's own commission came to say *"`.gl` names both
+    /// emitted bodies"* when under the gate's framing it names **neither**.
+    ///
+    /// The last two fields are `Bindings::selective`'s clause 3, reported and not
+    /// decided: `(0, 0)` is the only value at which a selective binding may
+    /// stand, so anything else is the size of the accounting a lane would have to
+    /// build before selectivity buys it a TU.
+    ///
+    /// `None` when `.ex` or `.gl` is absent. Diagnostic only — nothing branches
+    /// on it, and the scan reads it after the class is already decided.
+    pub selective_bind: Option<(usize, usize, usize, usize)>,
     /// **The emitted-function census** (`docs/GAPS.md` §8, `docs/ROADMAP.md`
     /// §8.2) — the per-TU join between the census's rows and the *reference
     /// obj's* `.text` COMDAT leaders.

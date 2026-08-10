@@ -58,6 +58,7 @@ fn scan_one(
         gate_cause: None,
         gate_causes: Vec::new(),
         gl_body_starts: None,
+        selective_bind: None,
         emit: BTreeMap::new(),
         emit_blockers: BTreeMap::new(),
         emit_witness: Vec::new(),
@@ -99,6 +100,78 @@ fn scan_one(
     // could read `present < total`, the field would be measuring the reader and
     // not the input, which is the one thing it claims not to do.
     res.gl_body_starts = captured.bundle.gl_body_start_coverage();
+    // **W-SELBIND — the same question one instrument tighter, and read for every
+    // class for the same reason.** `gl_body_starts` asks whether a segment's
+    // body-start offset is SPELLED in `.gl` and its own doc says `present` is a
+    // deliberate over-count; this asks whether a RECORD NAMES it, which is what a
+    // binding needs. On `src/system/math/vec.cpp` the two read 373 and **36**.
+    res.selective_bind = captured.bundle.selective_bind_coverage();
+    if let Some((records, segments, mangled, inline_fit)) = res.selective_bind {
+        let key = |k: &str| k.to_string();
+        if records > 0 && records < segments {
+            *res.bind_checks.entry(key("selbind-selective-tus")).or_insert(0) += 1;
+            // The totality clause, reported rather than decided: `(0, 0)` is the
+            // only value at which a selective binding may stand.
+            if mangled == 0 && inline_fit == 0 {
+                *res.bind_checks.entry(key("selbind-total-tus")).or_insert(0) += 1;
+            }
+            if mangled != 0 {
+                *res.bind_checks.entry(key("selbind-blocked-mangled-tus")).or_insert(0) += 1;
+            }
+            if inline_fit != 0 {
+                *res.bind_checks
+                    .entry(key("selbind-blocked-inline-fit-tus"))
+                    .or_insert(0) += 1;
+            }
+        } else if records == segments && records > 0 {
+            *res.bind_checks.entry(key("selbind-one-to-one-tus")).or_insert(0) += 1;
+        }
+        // **THE JOIN w-phase7b §10 item 3 left open: is `emitted ⊆ claimed`?**
+        //
+        // Per emitted symbol — the reference obj's own `.text` COMDAT leaders,
+        // the same denominator `emit-emitted` counts — does a `.gl` record NAME
+        // it? Asked under both framings, because they are a different set on a
+        // real TU (#2783) and the gate only has the first: `gl_gate_record_names`
+        // is `codec::gl_offset_framed`, what `Bindings::selective` reads, and
+        // `gl_body_record_names` is the window-free framing the instrument runs.
+        //
+        // This is the measurement that says whether a selective binding has a
+        // denominator at all. A TU where some emitted symbol is unclaimed can
+        // never be bound selectively however good the accounting gets, because
+        // the port would emit an obj missing that function.
+        if let (Some(gl), Some(emitted)) = (
+            captured.bundle.get("gl"),
+            captured.ref_obj.text_comdat_functions(),
+        ) {
+            let gate = c2_il::gl_gate_record_names(gl);
+            let wide = c2_il::gl_body_record_names(gl);
+            let (mut ng, mut nw) = (0usize, 0usize);
+            for e in &emitted {
+                if gate.contains(e) {
+                    ng += 1;
+                }
+                if wide.contains(e) {
+                    nw += 1;
+                }
+            }
+            *res.bind_checks.entry(key("selbind-emitted")).or_insert(0) += emitted.len();
+            *res.bind_checks.entry(key("selbind-emitted-named-gate")).or_insert(0) += ng;
+            *res.bind_checks.entry(key("selbind-emitted-named-wide")).or_insert(0) += nw;
+            if !emitted.is_empty() {
+                *res.bind_checks.entry(key("selbind-emit-tus")).or_insert(0) += 1;
+                if ng == emitted.len() {
+                    *res.bind_checks
+                        .entry(key("selbind-emit-subset-gate-tus"))
+                        .or_insert(0) += 1;
+                }
+                if nw == emitted.len() {
+                    *res.bind_checks
+                        .entry(key("selbind-emit-subset-wide-tus"))
+                        .or_insert(0) += 1;
+                }
+            }
+        }
+    }
 
     // 1b. P2b function-level census — runs regardless of the TU class below, so
     //     even a `vocab-gap` TU contributes its per-function ranking. This is
@@ -1242,6 +1315,17 @@ fn scan_one(
             ),
             _ => String::new(),
         };
+        // **W-SELBIND — and say how many of those segments a RECORD NAMES**, which
+        // is the number a selective binding is about and is not the number above.
+        // Printed only when the two disagree, so the 848-row bucket does not grow
+        // a column that repeats its neighbour.
+        let named = match res.selective_bind {
+            Some((rc, sg, m, i)) if rc < sg => format!(
+                "; a .gl RECORD NAMES {rc} of {sg} — selective binding blocked by \
+                 {m} unclaimed mangled + {i} unclaimed inline-fit run(s)"
+            ),
+            _ => String::new(),
+        };
         res.detail = format!(
             ".ex {} B, {} .gl names — c2_il::functions() and dyninit_tu() both None; \
              gate stops at {} (all: {}){}",
@@ -1253,7 +1337,7 @@ fn scan_one(
             } else {
                 res.gate_causes.join(",")
             },
-            cover
+            format!("{cover}{named}")
         );
         return res;
     }
@@ -1486,9 +1570,16 @@ pub fn gap_scan(
                 None => "null".to_string(),
                 Some((p, t)) => format!("[{p},{t}]"),
             };
+            // **W-SELBIND** — `[records, segments, unclaimed_mangled,
+            // unclaimed_inline_fit]`, `null` on a bundle with no `.ex` or no
+            // `.gl` for the same reason the row above is.
+            let selective_bind = match r.selective_bind {
+                None => "null".to_string(),
+                Some((rc, sg, m, i)) => format!("[{rc},{sg},{m},{i}]"),
+            };
             writeln!(
                 f,
-                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"gate_cause\":{gate_cause},\"gate_causes\":[{gate_causes}],\"gl_body_starts\":{gl_body_starts},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_cflow\":{{{}}},\"fn_eh\":{{{}}},\"fn_dispatch\":{{{}}},\"fn_complete\":{{{}}},\"fn_prod\":{{{}}},\"fn_gate_refusals\":{{{}}},\"bind_checks\":{{{}}},\"emit\":{{{}}},\"emit_blockers\":{{{}}}}}",
+                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"gate_cause\":{gate_cause},\"gate_causes\":[{gate_causes}],\"gl_body_starts\":{gl_body_starts},\"selective_bind\":{selective_bind},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_cflow\":{{{}}},\"fn_eh\":{{{}}},\"fn_dispatch\":{{{}}},\"fn_complete\":{{{}}},\"fn_prod\":{{{}}},\"fn_gate_refusals\":{{{}}},\"bind_checks\":{{{}}},\"emit\":{{{}}},\"emit_blockers\":{{{}}}}}",
                 crate::jstr(&r.src),
                 crate::jstr(r.class.label()),
                 crate::jstr(&r.reason),

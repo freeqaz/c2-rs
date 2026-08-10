@@ -1058,6 +1058,27 @@ fall-through family's size beside any ranking taken off T2 — it is **9,095 of
    `A∧B∧C`; it reads short on **842 of 871**, and on **124 of 124** of the
    reach-pool. The rendered block in `c2rs gap` prints the whole split.
 
+   **AND `gl_body_starts` IS NOT THE FIELD EITHER, ONCE THE QUESTION IS A
+   SELECTIVE BINDING — *spelled* is not *named*.** *Added 2026-08-10 by lane
+   `w-selbind` (#2823).* `gl_body_start_coverage`'s own doc says `present` is a
+   **deliberate over-count**: any `80 <LE32>` anywhere in `.gl` counts, framed
+   or not. That is the right bias for the negative claim it was built for
+   (`total − present` is a lower bound on segments no record can name) and the
+   **wrong** one for *"can a record name this body"*. The `--jsonl` field
+   `selective_bind` is `(records, segments, unclaimed_mangled,
+   unclaimed_inline_fit)` from `IlBundle::selective_bind_coverage`, and it asks
+   whether a **framed record** names the segment. On `src/system/math/vec.cpp`
+   the two read **373 of 811** and **0 of 811** — zero, because
+   `gl_defined_names_framed` refuses a TU at the first record it cannot read and
+   this one stops at `gl-stop-26-introduced` on record **9** of the 36 its
+   framing can see. **Board #2784 — *"`vec.cpp`'s emit set is nameable from its
+   own `.gl`"* — is true only under #2783's UNSHIPPED frame relaxation**, and
+   the two rows were never joined. That is now **five** fields used to answer
+   this item and **four** wrong, and the fifth (`gate_cause`) is still the one
+   that answers *"does the gate bind"*: `selective_bind` answers the different
+   question *"could any binding"*, and a lane pricing a selective repair needs
+   both.
+
    **And do not assume the binding repair is free.** `w-front5` #2622 built the
    one-line widening as a counterfactual: it binds **2 of the 15** TUs that
    stop on `gl-stop-name-not-mangled`, converts **0**, moves **0** of 878 TU
@@ -1164,3 +1185,74 @@ and everything beyond requires a **different binding contract** — selective
 rather than 1:1 — which no lane has built and which this page had never
 priced. That is a design question, not a conversion backlog, and it is the
 first time this page can say so with a measurement behind it.
+
+---
+
+## 13. 2026-08-10 — the selective binding contract is BUILT, and it refuses: `.gl`'s record set is a **strict superset** of c2's emit set
+
+§12 closed on *"everything beyond requires a **different binding contract** —
+selective rather than 1:1 — which no lane has built and which this page had
+never priced. That is a design question, not a conversion backlog."* Lane
+`w-selbind` (#2820–#2827) built it. It is priced now, and the answer is not the
+one §12 anticipated.
+
+**A selective binding is TWO obligations, not one.**
+
+| direction | the wrong obj | discharged by |
+|---|---|---|
+| **UNDER-emit** — a segment c2 emitted that the port leaves unbound | an obj **missing** a function | `Bindings::selective` clause 3, and it works |
+| **OVER-emit** — a segment c2 **discarded** that the port binds and emits | an obj carrying an **extra** function | clause 4, and **nothing in the input discharges it** |
+
+§12's framing — *"bind the bodies `.gl` does name, and refuse only if a body c2
+EMITTED is unaccounted"* — is the **first row only**. Shipping it alone was
+graded: **35 wrong objs**, 5 `expr_sweep` cases and 30 `mode_cross` cells.
+
+```cpp
+inline int u(int a){return a+2;}
+inline int v(int a){return u(a)+3;}
+int f(int a){return a+1;}
+```
+
+`.ex` splits into **3** segments; `.gl` carries **2** framed records
+(`?u@@YAHH@Z` at 2644, `?f@@YAHH@Z` at 2860) and **0** unclaimed runs of either
+kind, so clause 3 is *satisfied*; and c2's 833-byte obj holds one 8-byte `.text`
+— `?f@@YAHH@Z` **alone**. `Port=Mismatch @ offset 8`. **A `.gl` record is c1xx
+saying *this TU has a body for this symbol*; it is not c2 saying *I emitted it*.**
+Board **#2820**.
+
+So clause 4 is exactly where **factor A** would attach, and until it exists the
+selective path is a *stated refusal with a named hole* rather than a design
+question. That is the upgrade §12 asked for.
+
+### 13.1 The ceiling it moves, and what that is and is not
+
+Re-run by name over 871 graded TUs at dc3 `104e7df9` — §12's own table
+reproduces exactly, which is the control:
+
+| necessary condition | reader | TUs |
+|---|---|---:|
+| the **1:1** path — `.gl` SPELLS every segment's body-start | `gl_body_start_coverage` | **29** |
+| the **selective** path — every symbol c2 EMITTED is NAMED by a record | `gl_gate_record_names` | **34** |
+| …the same, under `bind::emit_offset_framed` (#2783, **unshipped**) | `gl_body_record_names` | **414** |
+
+`gate-subset ⊆ wide-subset` with 0 outside; `cover ∖ gate` is 7 and `gate ∖
+cover` is 12. **The reach-pool reads 0 of 124 by coverage, 12 of 124 by the
+gate's framing, and 123 of 124 by the window-free one.** §12's *"a perfect
+factor A converts none of the 124"* is right about the 1:1 contract and is the
+**wrong question** for a selective one.
+
+> **All three are NECESSARY-condition ceilings on ONE acceptance path.** #2791's
+> caveat carries verbatim — 29 was never *the* ceiling and neither is 34 nor
+> 414 — and today the path converts **zero**: `selbind-total-tus` is **0**, and
+> after clause 4 it is 0 by construction. The 380-TU gap between 34 and 414 is
+> entirely #2783's one-byte frame relaxation, which converts nothing on its own.
+
+### 13.2 What this leaves, and it is one sentence
+
+The distance was never *"codegen one TU at a time"* (§10), and it is not *"build
+a selective binding"* (§12) either. **It is factor A, and there is now exactly
+one clause in `crates/` waiting for it.** Everything else on both target TUs is
+priced: `vec.cpp` at **nine** mechanisms (#2827 — two of them, the `26`-stop and
+the frame window, sit *in front of* w-phase7b's seven), `decomp_pch.cpp` at six
+with an emit set of ∅.
+

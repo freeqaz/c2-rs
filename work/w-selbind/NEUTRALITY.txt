@@ -1,0 +1,20 @@
+base 878 TUs, tip 878 TUs; only-in-base 0, only-in-tip 0
+LEVEL 1 class verdicts:      CHANGED 0   (toward acceptance 0, away 0)
+LEVEL 2 per-TU byte triples: CHANGED 0
+  base per-TU triple SUM: exact 35810  differs 1898  refused 114622
+  tip  per-TU triple SUM: exact 35810  differs 1898  refused 114622
+LEVEL 1b gate FIRST cause:   CHANGED 0
+LEVEL 1c gate cause SET:     CHANGED 13
+   src/ChecksumData_xbox.cpp: ['bind-record-count-ne-segments', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'selective-unaccounted-emitted-body', 'body-out-of-class']
+   src/system/math/Rand2.cpp: ['bind-record-count-ne-segments', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'selective-unaccounted-emitted-body', 'body-out-of-class']
+   src/system/net/JsonMemory.cpp: ['bind-record-count-ne-segments', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'selective-unaccounted-emitted-body', 'body-out-of-class']
+   src/system/oggvorbis/VorbisMem.cpp: ['bind-record-count-ne-segments', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'selective-unaccounted-emitted-body', 'body-out-of-class']
+   src/system/os/CritSec.cpp: ['bind-record-count-ne-segments', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'selective-unaccounted-emitted-body', 'body-out-of-class']
+   src/system/rnddx9/RenderState.cpp: ['bind-record-count-ne-segments', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'selective-unaccounted-emitted-body', 'body-out-of-class']
+   src/system/synth/CompressionEffect.cpp: ['bind-record-count-ne-segments', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'selective-unaccounted-emitted-body', 'body-out-of-class']
+   src/system/synth/complex.cpp: ['bind-record-count-ne-segments', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'selective-unaccounted-emitted-body', 'body-out-of-class']
+   src/system/synth_xbox/FFT.cpp: ['bind-record-count-ne-segments', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'selective-unaccounted-emitted-body', 'body-out-of-class']
+   src/system/synth_xbox/FilterCoeffs.cpp: ['bind-record-count-ne-segments', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'selective-unaccounted-emitted-body', 'body-out-of-class']
+   src/system/synth_xbox/PitchCorrectedVoice.cpp: ['drectve-not-boilerplate', 'bind-record-count-ne-segments', 'body-out-of-class'] -> ['drectve-not-boilerplate', 'bind-record-count-ne-segments', 'selective-unaccounted-emitted-body', 'body-out-of-class']
+   src/system/synth_xbox/soundtouch/source/SoundTouch/PeakFinder.cpp: ['bind-record-count-ne-segments', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'selective-unaccounted-emitted-body', 'body-out-of-class']
+   src/xdk/nuiapi/nuidetroit.cpp: ['bind-record-count-ne-segments', 'body-out-of-class'] -> ['bind-record-count-ne-segments', 'selective-unaccounted-emitted-body', 'body-out-of-class']

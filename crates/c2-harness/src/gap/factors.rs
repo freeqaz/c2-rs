@@ -1329,6 +1329,51 @@ impl GapReport {
                     .sum::<usize>()
                     .to_string(),
             ),
+            // **W-SELBIND — the SELECTIVE binding's denominator, published so it
+            // cannot be assembled from two independently-stale halves.**
+            //
+            // `emit-predicate-worth` (above) and `gl_body_starts` both describe
+            // populations a binding might one day reach. These describe the
+            // population a binding CAN reach: `selbind-emit-subset-gate-tus` is
+            // the join w-phase7b §10 item 3 left open — the TUs where **every**
+            // symbol c2 emitted is NAMED by a `.gl` record the gate's own framing
+            // can see. A TU outside it can never bind selectively however good the
+            // accounting gets, because the port would emit an obj missing a
+            // function. `-wide-tus` is the same join under `bind::emit_offset_
+            // framed`, and the gap between them is the price of board #2783's
+            // unshipped frame relaxation.
+            //
+            // `selbind-total-tus` is `Bindings::selective`'s clause 3 over the
+            // genuinely selective TUs: the count that may bind TODAY.
+            ("selbind-one-to-one-tus", self.bind_total("selbind-one-to-one-tus").to_string()),
+            ("selbind-selective-tus", self.bind_total("selbind-selective-tus").to_string()),
+            ("selbind-total-tus", self.bind_total("selbind-total-tus").to_string()),
+            (
+                "selbind-blocked-mangled-tus",
+                self.bind_total("selbind-blocked-mangled-tus").to_string(),
+            ),
+            (
+                "selbind-blocked-inline-fit-tus",
+                self.bind_total("selbind-blocked-inline-fit-tus").to_string(),
+            ),
+            ("selbind-emitted", self.bind_total("selbind-emitted").to_string()),
+            (
+                "selbind-emitted-named-gate",
+                self.bind_total("selbind-emitted-named-gate").to_string(),
+            ),
+            (
+                "selbind-emitted-named-wide",
+                self.bind_total("selbind-emitted-named-wide").to_string(),
+            ),
+            ("selbind-emit-tus", self.bind_total("selbind-emit-tus").to_string()),
+            (
+                "selbind-emit-subset-gate-tus",
+                self.bind_total("selbind-emit-subset-gate-tus").to_string(),
+            ),
+            (
+                "selbind-emit-subset-wide-tus",
+                self.bind_total("selbind-emit-subset-wide-tus").to_string(),
+            ),
             ("workload-sections", self.section_vocabulary().len().to_string()),
             ("ladder-steps", ladder.len().to_string()),
             // **The control-flow counterfactual and its denominator, together.**

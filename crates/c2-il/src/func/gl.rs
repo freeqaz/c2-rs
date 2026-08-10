@@ -257,6 +257,54 @@ pub(crate) fn gl_defined_names(gl: &[u8]) -> (Vec<(u32, String)>, Vec<String>) {
     gl_defined_names_with(gl, true)
 }
 
+/// **W-SELBIND — every `.gl` symbol run NO framed record claims, split by
+/// whether the run could be a COFF symbol name at all.**
+///
+/// `(mangled, inline_fit)` counts. [`gl_defined_names_framed`]'s own `unclaimed`
+/// list is filtered through [`looks_mangled`], which is right for the incumbent
+/// 1:1 gate — there every segment is bound, so a run that is not a record name
+/// cannot be a body's name either — and **wrong for a selective binding**, where
+/// an unclaimed run is precisely the thing that might be an unbound body's
+/// symbol. Board **#1721** names the hole this second count closes: an
+/// undecorated `extern "C"` name is stored **inline** in the 8-byte COFF symbol
+/// name field, carries no `@@`, and is therefore invisible to `looks_mangled`.
+///
+/// **Keyed on the BOUND NAME SET and NOT on a re-walk, and the difference is a
+/// soundness one.** [`gl_defined_names_framed`] refuses a TU at the first record
+/// it cannot read, so on `src/system/math/vec.cpp` the walk binds **0** records
+/// while the framing can *see* 36. A reader that re-walked and marked all 36
+/// runs claimed would report 461 unclaimed where the binding leaves 488 — an
+/// **under**-count, which for a clause that decides whether a body may be
+/// omitted is the licensing direction. So the caller passes what it actually
+/// bound, and this reader makes no acceptance decision and no walk of its own.
+///
+/// # What it cannot classify, stated rather than left to be found
+///
+/// A run that is neither mangled nor inline-fit is **not** counted, and one such
+/// shape is a real symbol: a long undecorated `extern "C"` name
+/// (`_vswprintf_s_l`, 14 bytes, string table — the W-EXTDATA population). It is
+/// left out because the same population contains the source path, `__C1_11886`,
+/// `size_t` and bare type names, and no reader in this crate separates them
+/// (#1721: *"a filter separating those from a real symbol is a rung of its
+/// own"*). That is the selective contract's one open edge and
+/// [`super::bind::Bindings::selective`] states it in those words.
+pub(crate) fn gl_unclaimed_run_kinds(gl: &[u8], bound: &[String]) -> (usize, usize) {
+    let set: std::collections::BTreeSet<&str> = bound.iter().map(String::as_str).collect();
+    let mut mangled = 0usize;
+    let mut inline_fit = 0usize;
+    for (_, _, n) in symbol_runs(gl, true) {
+        if set.contains(n.as_str()) {
+            continue;
+        }
+        if looks_mangled(&n) {
+            mangled += 1;
+        } else if n.len() <= INLINE_NAME_MAX {
+            inline_fit += 1;
+        }
+    }
+    (mangled, inline_fit)
+}
+
 /// **W-FENCE2 — the defined names this TU declares with PLAIN EXTERNAL linkage**:
 /// not `static`, not `__declspec(dllexport)`, and **not `inline` or
 /// `__forceinline`**.

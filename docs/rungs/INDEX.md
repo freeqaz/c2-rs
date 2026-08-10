@@ -206,3 +206,4 @@ the header block this table is read from.
 | 2026-08-09 | w-xtea3 | [w-xtea3](2026-08-09-w-xtea3.md) | 3 | per-function 714,542 → 714,545 · emitted 39,242 → 39,245 |
 | 2026-08-09 | w-xtea | [w-xtea](2026-08-09-w-xtea.md) | 12 | +0 — this rung admits nothing, so it moves no census cell |
 | 2026-08-10 | w-phase7b | [w-phase7b](2026-08-10-w-phase7b.md) | 10 | per-function unchanged, **+0**. TU match **23 → 23**, mismatch **0 → 0**, |
+| 2026-08-10 | w-selbind | [w-selbind](2026-08-10-w-selbind.md) | 11 | per-function unchanged, **+0**. TU match **23 → 23**, mismatch |
