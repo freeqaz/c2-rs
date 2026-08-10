@@ -1,0 +1,5 @@
+base 878 TUs, tip 878 TUs; only-in-base 0, only-in-tip 0
+LEVEL 1 class verdicts: CHANGED 0  (toward acceptance 0, away 0)
+LEVEL 2 per-TU byte triples (exact,differs,refused): CHANGED 0
+  base per-TU triple SUM: exact 35810 differs 1898 refused 114622
+  tip per-TU triple SUM: exact 35810 differs 1898 refused 114622
