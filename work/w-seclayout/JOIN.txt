@@ -1,0 +1,112 @@
+############ headset   src/system/synth_xbox/HeadsetXferEffect.cpp
+work/w-seclayout/cap/headset/_CL_e9341e46.gl: 6102 B .gl, 16 framed defined records
+   26-introduced    9
+   bound            7
+   counterfactual walk (26-stop removed) STOPS AT: nothing — it completes
+   records the counterfactual would hand Bindings::selective: 16
+   .ex 4F 1F segments: 16
+   of the 16 kept records, 16 land on a split point  (clause 1: PASS)
+   strictly ascending in segment index (clause 2): PASS
+   clause 3/4: records 16 vs segments 16 -> 1:1 (per_record)
+   -> work/w-seclayout/cap/headset/walk.tsv
+== work/w-seclayout/obj/headset.obj   60 sections
+   section names: .rdata$rx22, .textx14, .rdatax7, .pdatax7, .datax5, .XBLD$Wx2, .drectvex1, .debug$Sx1, .bssx1
+   .text: 14 total — 14 COMDAT, 0 packed  => all COMDAT
+   .text aux Selection: ANY(2)x13, NODUPLICATES(1)x1
+
+############ meter   src/system/synth_xbox/MeterEffect.cpp
+work/w-seclayout/cap/meter/_CL_982f4a6d.gl: 11874 B .gl, 13 framed defined records
+   bound            10
+   26-introduced    3
+   counterfactual walk (26-stop removed) STOPS AT: nothing — it completes
+   records the counterfactual would hand Bindings::selective: 13
+   .ex 4F 1F segments: 13
+   of the 13 kept records, 13 land on a split point  (clause 1: PASS)
+   strictly ascending in segment index (clause 2): PASS
+   clause 3/4: records 13 vs segments 13 -> 1:1 (per_record)
+   -> work/w-seclayout/cap/meter/walk.tsv
+== work/w-seclayout/obj/meter.obj   65 sections
+   section names: .rdata$rx28, .textx13, .pdatax7, .datax7, .rdatax6, .XBLD$Wx2, .drectvex1, .debug$Sx1
+   .text: 13 total — 13 COMDAT, 0 packed  => all COMDAT
+   .text aux Selection: ANY(2)x11, NODUPLICATES(1)x2
+
+############ tempomap   src/system/utl/TempoMap.cpp
+work/w-seclayout/cap/tempomap/_CL_c6cbd4fa.gl: 4682 B .gl, 24 framed defined records
+   bound            22
+   26-introduced    2
+   counterfactual walk (26-stop removed) STOPS AT: nothing — it completes
+   records the counterfactual would hand Bindings::selective: 24
+   .ex 4F 1F segments: 34
+   of the 24 kept records, 24 land on a split point  (clause 1: PASS)
+   strictly ascending in segment index (clause 2): PASS
+   clause 3/4: records 24 vs segments 34 -> SELECTIVE — clause 4 EmitSetUnknown unless an unclaimed run fires clause 3 first
+   -> work/w-seclayout/cap/tempomap/walk.tsv
+== work/w-seclayout/obj/tempomap.obj   51 sections
+   section names: .textx22, .rdatax8, .rdata$rx8, .datax3, .pdatax3, .XBLD$Wx2, .drectvex1, .debug$Sx1, .text$ycx1, .text$ydx1, .CRT$XCUx1
+   .text: 22 total — 22 COMDAT, 0 packed  => all COMDAT
+   .text aux Selection: ANY(2)x20, NODUPLICATES(1)x2
+
+############ rtti   src/xdk/LIBCMT/rtti.cpp
+work/w-seclayout/cap/rtti/_CL_8f30eeb4.gl: 5541 B .gl, 19 framed defined records
+   bound            14
+   26-introduced    5
+   counterfactual walk (26-stop removed) STOPS AT: nothing — it completes
+   records the counterfactual would hand Bindings::selective: 19
+   .ex 4F 1F segments: 23
+   of the 19 kept records, 19 land on a split point  (clause 1: PASS)
+   strictly ascending in segment index (clause 2): PASS
+   clause 3/4: records 19 vs segments 23 -> SELECTIVE — clause 4 EmitSetUnknown unless an unclaimed run fires clause 3 first
+   -> work/w-seclayout/cap/rtti/walk.tsv
+== work/w-seclayout/obj/rtti.obj   53 sections
+   section names: .rdata$rx16, .textx14, .pdatax10, .rdatax5, .datax4, .XBLD$Wx2, .drectvex1, .debug$Sx1
+   .text: 14 total — 14 COMDAT, 0 packed  => all COMDAT
+   .text aux Selection: ANY(2)x11, NODUPLICATES(1)x3
+
+############ headtracker   src/xdk/nuiapi/headtracker.cpp
+work/w-seclayout/cap/headtracker/_CL_c6b6a5de.gl: 8591 B .gl, 21 framed defined records
+   bound            17
+   26-introduced    4
+   counterfactual walk (26-stop removed) STOPS AT: nothing — it completes
+   records the counterfactual would hand Bindings::selective: 21
+   .ex 4F 1F segments: 32
+   of the 21 kept records, 21 land on a split point  (clause 1: PASS)
+   strictly ascending in segment index (clause 2): PASS
+   clause 3/4: records 21 vs segments 32 -> SELECTIVE — clause 4 EmitSetUnknown unless an unclaimed run fires clause 3 first
+   -> work/w-seclayout/cap/headtracker/walk.tsv
+== work/w-seclayout/obj/headtracker.obj   29 sections
+   section names: .textx9, .pdatax8, .rdatax8, .XBLD$Wx2, .drectvex1, .debug$Sx1
+   .text: 9 total — 9 COMDAT, 0 packed  => all COMDAT
+   .text aux Selection: ANY(2)x6, NODUPLICATES(1)x3
+
+############ pollable   src/system/synth/Pollable.cpp
+work/w-seclayout/cap/pollable/_CL_b2344e64.gl: 21675 B .gl, 73 framed defined records
+   bound            65
+   26-introduced    8
+   counterfactual walk (26-stop removed) STOPS AT: nothing — it completes
+   records the counterfactual would hand Bindings::selective: 73
+   .ex 4F 1F segments: 119
+   of the 73 kept records, 73 land on a split point  (clause 1: PASS)
+   strictly ascending in segment index (clause 2): PASS
+   clause 3/4: records 73 vs segments 119 -> SELECTIVE — clause 4 EmitSetUnknown unless an unclaimed run fires clause 3 first
+   -> work/w-seclayout/cap/pollable/walk.tsv
+== work/w-seclayout/obj/pollable.obj   72 sections
+   section names: .textx43, .pdatax12, .rdata$rx4, .rdatax3, .XBLD$Wx2, .datax2, .drectvex1, .debug$Sx1, .text$ycx1, .text$ydx1, .bssx1, .CRT$XCUx1
+   .text: 43 total — 43 COMDAT, 0 packed  => all COMDAT
+   .text aux Selection: ANY(2)x38, NODUPLICATES(1)x5
+
+############ urlencode   src/system/utl/UrlEncode.cpp
+work/w-seclayout/cap/urlencode/_CL_e75ff946.gl: 34188 B .gl, 116 framed defined records
+   bound            79
+   26-introduced    37
+   counterfactual walk (26-stop removed) STOPS AT: nothing — it completes
+   records the counterfactual would hand Bindings::selective: 116
+   .ex 4F 1F segments: 236
+   of the 116 kept records, 116 land on a split point  (clause 1: PASS)
+   strictly ascending in segment index (clause 2): PASS
+   clause 3/4: records 116 vs segments 236 -> SELECTIVE — clause 4 EmitSetUnknown unless an unclaimed run fires clause 3 first
+   -> work/w-seclayout/cap/urlencode/walk.tsv
+== work/w-seclayout/obj/urlencode.obj   12 sections
+   section names: .rdatax5, .XBLD$Wx2, .textx2, .drectvex1, .debug$Sx1, .pdatax1
+   .text: 2 total — 2 COMDAT, 0 packed  => all COMDAT
+   .text aux Selection: NODUPLICATES(1)x2
+

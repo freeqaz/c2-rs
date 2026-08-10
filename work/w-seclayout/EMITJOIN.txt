@@ -1,0 +1,254 @@
+== headset:  16 counterfactual records, 14 function symbols in 14 `.text` sections
+   EMITTED and NAMED     : 14
+   NAMED but NOT EMITTED : 2   <- the port would emit these; c2 did not  (#232's direction)
+        26=1 lk=5 fl=32  ??_ECXAPOParametersBase@ATG@@WCA@AAPAXI@Z
+        26=1 lk=5 fl=32  ??_GCXAPOParametersBase@ATG@@UAAPAXI@Z
+   EMITTED but NOT NAMED : 0   <- the port would omit a body c2 emitted
+   --- does `26`-introduction predict the COMDAT Selection byte?
+        26-introduced=0  Selection=NODUPLICATES(1)  x1
+        26-introduced=0  Selection=ANY(2)  x6
+        26-introduced=1  Selection=ANY(2)  x7
+   --- does the `.gl` FLAGS byte (name_nul+5) predict it?
+        linkage=5 flags=0 -> Selection=NODUPLICATES(1)  x1
+        linkage=5 flags=32 -> Selection=ANY(2)  x13
+   --- #2243 stem column: 9 `26`-introduced names -> 9 distinct names -> 9 distinct stems
+
+== meter:  13 counterfactual records, 13 function symbols in 13 `.text` sections
+   EMITTED and NAMED     : 13
+   NAMED but NOT EMITTED : 0   <- the port would emit these; c2 did not  (#232's direction)
+   EMITTED but NOT NAMED : 0   <- the port would omit a body c2 emitted
+   --- does `26`-introduction predict the COMDAT Selection byte?
+        26-introduced=0  Selection=NODUPLICATES(1)  x2
+        26-introduced=0  Selection=ANY(2)  x8
+        26-introduced=1  Selection=ANY(2)  x3
+   --- does the `.gl` FLAGS byte (name_nul+5) predict it?
+        linkage=5 flags=0 -> Selection=NODUPLICATES(1)  x2
+        linkage=5 flags=32 -> Selection=ANY(2)  x11
+   --- #2243 stem column: 3 `26`-introduced names -> 3 distinct names -> 3 distinct stems
+
+== tempomap:  24 counterfactual records, 22 function symbols in 22 `.text` sections
+   EMITTED and NAMED     : 22
+   NAMED but NOT EMITTED : 2   <- the port would emit these; c2 did not  (#232's direction)
+        26=0 lk=3 fl=32  ??__EgDefaultTempoMap@@YAXXZ
+        26=0 lk=3 fl=32  ??__FgDefaultTempoMap@@YAXXZ
+   EMITTED but NOT NAMED : 0   <- the port would omit a body c2 emitted
+   --- does `26`-introduction predict the COMDAT Selection byte?
+        26-introduced=0  Selection=NODUPLICATES(1)  x2
+        26-introduced=0  Selection=ANY(2)  x18
+        26-introduced=1  Selection=ANY(2)  x2
+   --- does the `.gl` FLAGS byte (name_nul+5) predict it?
+        linkage=5 flags=0 -> Selection=NODUPLICATES(1)  x2
+        linkage=5 flags=32 -> Selection=ANY(2)  x20
+   --- #2243 stem column: 2 `26`-introduced names -> 2 distinct names -> 2 distinct stems
+
+== rtti:  19 counterfactual records, 14 function symbols in 14 `.text` sections
+   EMITTED and NAMED     : 14
+   NAMED but NOT EMITTED : 5   <- the port would emit these; c2 did not  (#232's direction)
+        26=0 lk=5 fl=32  ??0exception@std@@QAA@XZ
+        26=0 lk=5 fl=32  ??1bad_exception@std@@UAA@XZ
+        26=0 lk=5 fl=32  ??4exception@std@@QAAAAV01@ABV01@@Z
+        26=1 lk=5 fl=32  ??_Gbad_exception@std@@UAAPAXI@Z
+        26=0 lk=5 fl=32  ?what@bad_exception@std@@UBAPBDXZ
+   EMITTED but NOT NAMED : 0   <- the port would omit a body c2 emitted
+   --- does `26`-introduction predict the COMDAT Selection byte?
+        26-introduced=0  Selection=NODUPLICATES(1)  x3
+        26-introduced=0  Selection=ANY(2)  x7
+        26-introduced=1  Selection=ANY(2)  x4
+   --- does the `.gl` FLAGS byte (name_nul+5) predict it?
+        linkage=5 flags=0 -> Selection=NODUPLICATES(1)  x3
+        linkage=5 flags=32 -> Selection=ANY(2)  x11
+   --- #2243 stem column: 5 `26`-introduced names -> 5 distinct names -> 5 distinct stems
+
+== headtracker:  21 counterfactual records, 9 function symbols in 9 `.text` sections
+   EMITTED and NAMED     : 9
+   NAMED but NOT EMITTED : 12   <- the port would emit these; c2 did not  (#232's direction)
+        26=0 lk=5 fl=32  ??0exception@std@@QAA@PBD_N@Z
+        26=0 lk=5 fl=32  ??0exception@std@@QAA@XZ
+        26=0 lk=5 fl=32  ??1bad_alloc@std@@UAA@XZ
+        26=0 lk=5 fl=32  ??1bad_exception@std@@UAA@XZ
+        26=0 lk=5 fl=32  ??1exception@std@@UAA@XZ
+        26=0 lk=5 fl=32  ??4exception@std@@QAAAAV01@ABV01@@Z
+        26=1 lk=5 fl=32  ??_Gbad_alloc@std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_Gbad_exception@std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_Gexception@std@@UAAPAXI@Z
+        26=0 lk=5 fl=32  ?_Copy_str@exception@std@@AAAXPBD@Z
+        26=0 lk=5 fl=32  ?what@bad_exception@std@@UBAPBDXZ
+        26=0 lk=5 fl=32  ?what@exception@std@@UBAPBDXZ
+   EMITTED but NOT NAMED : 0   <- the port would omit a body c2 emitted
+   --- does `26`-introduction predict the COMDAT Selection byte?
+        26-introduced=0  Selection=NODUPLICATES(1)  x3
+        26-introduced=0  Selection=ANY(2)  x5
+        26-introduced=1  Selection=ANY(2)  x1
+   --- does the `.gl` FLAGS byte (name_nul+5) predict it?
+        linkage=5 flags=0 -> Selection=NODUPLICATES(1)  x3
+        linkage=5 flags=32 -> Selection=ANY(2)  x5
+        linkage=5 flags=96 -> Selection=ANY(2)  x1
+   --- #2243 stem column: 4 `26`-introduced names -> 4 distinct names -> 4 distinct stems
+
+== pollable:  73 counterfactual records, 43 function symbols in 43 `.text` sections
+   EMITTED and NAMED     : 43
+   NAMED but NOT EMITTED : 30   <- the port would emit these; c2 did not  (#232's direction)
+        26=0 lk=5 fl=32  ??$min@H@stlpmtx_std@@YAABHABH0@Z
+        26=0 lk=5 fl=32  ??$min@I@stlpmtx_std@@YAABIABI0@Z
+        26=0 lk=5 fl=32  ??0_STLP_mutex@stlpmtx_std@@QAA@XZ
+        26=0 lk=5 fl=32  ??0exception@std@@QAA@PBD_N@Z
+        26=0 lk=5 fl=32  ??0exception@std@@QAA@XZ
+        26=0 lk=5 fl=32  ??1_STLP_mutex@stlpmtx_std@@QAA@XZ
+        26=0 lk=5 fl=32  ??1__non_rtti_object@std@@UAA@XZ
+        26=0 lk=5 fl=32  ??1bad_alloc@std@@UAA@XZ
+        26=0 lk=5 fl=32  ??1bad_cast@std@@UAA@XZ
+        26=0 lk=5 fl=32  ??1bad_exception@std@@UAA@XZ
+        26=0 lk=5 fl=32  ??1bad_typeid@std@@UAA@XZ
+        26=0 lk=5 fl=32  ??1exception@std@@UAA@XZ
+        26=0 lk=5 fl=32  ??4exception@std@@QAAAAV01@ABV01@@Z
+        26=1 lk=5 fl=32  ??_G__non_rtti_object@std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_Gbad_alloc@std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_Gbad_cast@std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_Gbad_exception@std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_Gbad_typeid@std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_Gexception@std@@UAAPAXI@Z
+        26=0 lk=3 fl=32  ??__E?sPollables@SynthPollable@@0V?$list@PAVSynthPollable@@V?$StlNodeAlloc@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@A@@YAXXZ
+        26=0 lk=3 fl=32  ??__F?sPollables@SynthPollable@@0V?$list@PAVSynthPollable@@V?$StlNodeAlloc@PAVSynthPollable@@@stlpmtx_std@@@stlpmtx_std@@A@@YAXXZ
+        26=0 lk=5 fl=32  ?_Copy_str@exception@std@@AAAXPBD@Z
+        26=0 lk=5 fl=32  ?_M_acquire_lock@_STLP_mutex_base@stlpmtx_std@@QAAXXZ
+        26=0 lk=5 fl=32  ?_M_destroy@_STLP_mutex_base@stlpmtx_std@@QAAXXZ
+        26=0 lk=5 fl=32  ?_M_initialize@_STLP_mutex_base@stlpmtx_std@@QAAXXZ
+        26=0 lk=5 fl=32  ?_M_release_lock@_STLP_mutex_base@stlpmtx_std@@QAAXXZ
+        26=0 lk=5 fl=32  ?__stl_delete@stlpmtx_std@@YAXPAX@Z
+        26=0 lk=5 fl=32  ?__stl_new@stlpmtx_std@@YAPAXI@Z
+        26=0 lk=5 fl=32  ?what@bad_exception@std@@UBAPBDXZ
+        26=0 lk=5 fl=32  ?what@exception@std@@UBAPBDXZ
+   EMITTED but NOT NAMED : 0   <- the port would omit a body c2 emitted
+   --- does `26`-introduction predict the COMDAT Selection byte?
+        26-introduced=0  Selection=NODUPLICATES(1)  x5
+        26-introduced=0  Selection=ANY(2)  x36
+        26-introduced=1  Selection=ANY(2)  x2
+   --- does the `.gl` FLAGS byte (name_nul+5) predict it?
+        linkage=5 flags=0 -> Selection=NODUPLICATES(1)  x5
+        linkage=5 flags=32 -> Selection=ANY(2)  x38
+   --- #2243 stem column: 8 `26`-introduced names -> 8 distinct names -> 8 distinct stems
+
+== urlencode:  116 counterfactual records, 2 function symbols in 2 `.text` sections
+   EMITTED and NAMED     : 2
+   NAMED but NOT EMITTED : 114   <- the port would emit these; c2 did not  (#232's direction)
+        26=0 lk=5 fl=32  ??$min@H@stlpmtx_std@@YAABHABH0@Z
+        26=0 lk=5 fl=32  ??$min@I@stlpmtx_std@@YAABIABI0@Z
+        26=0 lk=5 fl=32  ??0?$_STLP_alloc_proxy@PADDV?$allocator@D@stlpmtx_std@@@stlpmtx_std@@QAA@ABV?$allocator@D@1@PAD@Z
+        26=0 lk=5 fl=32  ??0?$_String_base@DV?$allocator@D@stlpmtx_std@@@stlpmtx_std@@IAA@ABV?$allocator@D@1@@Z
+        26=0 lk=5 fl=32  ??0?$allocator@D@stlpmtx_std@@QAA@ABV01@@Z
+        26=0 lk=5 fl=32  ??0?$allocator@D@stlpmtx_std@@QAA@XZ
+        26=0 lk=5 fl=32  ??0?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@stlpmtx_std@@QAA@PBDABV?$allocator@D@1@@Z
+        26=0 lk=5 fl=32  ??0_STLP_mutex@stlpmtx_std@@QAA@XZ
+        26=1 lk=5 fl=32  ??0__Named_exception@stlpmtx_std@@QAA@ABV01@@Z
+        26=0 lk=5 fl=32  ??0__Named_exception@stlpmtx_std@@QAA@ABV?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@1@@Z
+        26=1 lk=5 fl=32  ??0bad_alloc@std@@QAA@ABV01@@Z
+        26=0 lk=5 fl=32  ??0bad_alloc@std@@QAA@XZ
+        26=0 lk=5 fl=32  ??0exception@std@@QAA@ABV01@@Z
+        26=0 lk=5 fl=32  ??0exception@std@@QAA@PBD_N@Z
+        26=0 lk=5 fl=32  ??0exception@std@@QAA@XZ
+        26=1 lk=5 fl=32  ??0invalid_argument@stlpmtx_std@@QAA@ABV01@@Z
+        26=0 lk=5 fl=32  ??0invalid_argument@stlpmtx_std@@QAA@ABV?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@1@@Z
+        26=1 lk=5 fl=32  ??0length_error@stlpmtx_std@@QAA@ABV01@@Z
+        26=0 lk=5 fl=32  ??0length_error@stlpmtx_std@@QAA@ABV?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@1@@Z
+        26=1 lk=5 fl=32  ??0logic_error@stlpmtx_std@@QAA@ABV01@@Z
+        26=0 lk=5 fl=32  ??0logic_error@stlpmtx_std@@QAA@ABV?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@1@@Z
+        26=1 lk=5 fl=32  ??0out_of_range@stlpmtx_std@@QAA@ABV01@@Z
+        26=0 lk=5 fl=32  ??0out_of_range@stlpmtx_std@@QAA@ABV?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@1@@Z
+        26=1 lk=5 fl=32  ??0overflow_error@stlpmtx_std@@QAA@ABV01@@Z
+        26=0 lk=5 fl=32  ??0overflow_error@stlpmtx_std@@QAA@ABV?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@1@@Z
+        26=1 lk=5 fl=32  ??0range_error@stlpmtx_std@@QAA@ABV01@@Z
+        26=0 lk=5 fl=32  ??0range_error@stlpmtx_std@@QAA@ABV?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@1@@Z
+        26=1 lk=5 fl=32  ??0runtime_error@stlpmtx_std@@QAA@ABV01@@Z
+        26=0 lk=5 fl=32  ??0runtime_error@stlpmtx_std@@QAA@ABV?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@1@@Z
+        26=1 lk=5 fl=32  ??1?$_STLP_alloc_proxy@PADDV?$allocator@D@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+        26=0 lk=5 fl=32  ??1?$_String_base@DV?$allocator@D@stlpmtx_std@@@stlpmtx_std@@IAA@XZ
+        26=0 lk=5 fl=32  ??1?$allocator@D@stlpmtx_std@@QAA@XZ
+        26=0 lk=5 fl=32  ??1?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@stlpmtx_std@@QAA@XZ
+        26=0 lk=5 fl=32  ??1TextStream@@UAA@XZ
+        26=0 lk=5 fl=32  ??1_STLP_mutex@stlpmtx_std@@QAA@XZ
+        26=1 lk=5 fl=32  ??1__Named_exception@stlpmtx_std@@UAA@XZ
+        26=0 lk=5 fl=32  ??1__non_rtti_object@std@@UAA@XZ
+        26=0 lk=5 fl=32  ??1bad_alloc@std@@UAA@XZ
+        26=0 lk=5 fl=32  ??1bad_cast@std@@UAA@XZ
+        26=0 lk=5 fl=32  ??1bad_exception@std@@UAA@XZ
+        26=0 lk=5 fl=32  ??1bad_typeid@std@@UAA@XZ
+        26=1 lk=5 fl=32  ??1domain_error@stlpmtx_std@@UAA@XZ
+        26=0 lk=5 fl=32  ??1exception@std@@UAA@XZ
+        26=1 lk=5 fl=32  ??1invalid_argument@stlpmtx_std@@UAA@XZ
+        26=1 lk=5 fl=32  ??1length_error@stlpmtx_std@@UAA@XZ
+        26=1 lk=5 fl=32  ??1logic_error@stlpmtx_std@@UAA@XZ
+        26=1 lk=5 fl=32  ??1out_of_range@stlpmtx_std@@UAA@XZ
+        26=1 lk=5 fl=32  ??1overflow_error@stlpmtx_std@@UAA@XZ
+        26=1 lk=5 fl=32  ??1range_error@stlpmtx_std@@UAA@XZ
+        26=1 lk=5 fl=32  ??1runtime_error@stlpmtx_std@@UAA@XZ
+        26=1 lk=5 fl=32  ??1underflow_error@stlpmtx_std@@UAA@XZ
+        26=0 lk=5 fl=32  ??4_Bit_reference@stlpmtx_std@@QAAAAU01@ABU01@@Z
+        26=0 lk=5 fl=32  ??4_Bit_reference@stlpmtx_std@@QAAAAU01@_N@Z
+        26=0 lk=5 fl=32  ??4exception@std@@QAAAAV01@ABV01@@Z
+        26=0 lk=5 fl=32  ??8Symbol@@QBA_NPBD@Z
+        26=0 lk=5 fl=32  ??B_Bit_reference@stlpmtx_std@@QBA_NXZ
+        26=0 lk=5 fl=32  ??Mstlpmtx_std@@YA_NABU_Bit_iterator_base@0@0@Z
+        26=1 lk=5 fl=32  ??_GTextStream@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_G__Named_exception@stlpmtx_std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_G__non_rtti_object@std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_Gbad_alloc@std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_Gbad_cast@std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_Gbad_exception@std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_Gbad_typeid@std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_Gdomain_error@stlpmtx_std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_Gexception@std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_Ginvalid_argument@stlpmtx_std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_Glength_error@stlpmtx_std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_Glogic_error@stlpmtx_std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_Gout_of_range@stlpmtx_std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_Goverflow_error@stlpmtx_std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_Grange_error@stlpmtx_std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_Gruntime_error@stlpmtx_std@@UAAPAXI@Z
+        26=1 lk=5 fl=32  ??_Gunderflow_error@stlpmtx_std@@UAAPAXI@Z
+        26=0 lk=5 fl=32  ?Null@Symbol@@QBA_NXZ
+        26=0 lk=5 fl=32  ?_Copy_str@exception@std@@AAAXPBD@Z
+        26=0 lk=5 fl=32  ?_Destroy_Range@stlpmtx_std@@YAXPAD0@Z
+        26=0 lk=5 fl=32  ?_M_Finish@?$_String_base@DV?$allocator@D@stlpmtx_std@@@stlpmtx_std@@IBAPBDXZ
+        26=0 lk=5 fl=32  ?_M_Start@?$_String_base@DV?$allocator@D@stlpmtx_std@@@stlpmtx_std@@IAAPADXZ
+        26=0 lk=5 fl=32  ?_M_Start@?$_String_base@DV?$allocator@D@stlpmtx_std@@@stlpmtx_std@@IBAPBDXZ
+        26=0 lk=5 fl=32  ?_M_acquire_lock@_STLP_mutex_base@stlpmtx_std@@QAAXXZ
+        26=0 lk=5 fl=32  ?_M_allocate_block@?$_String_base@DV?$allocator@D@stlpmtx_std@@@stlpmtx_std@@IAAXI@Z
+        26=0 lk=5 fl=32  ?_M_construct_null_aux@?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@stlpmtx_std@@IBAXPADABU__true_type@2@@Z
+        26=0 lk=5 fl=32  ?_M_copy@?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@stlpmtx_std@@IAAXPBD0PAD@Z
+        26=0 lk=5 fl=32  ?_M_deallocate_block@?$_String_base@DV?$allocator@D@stlpmtx_std@@@stlpmtx_std@@IAAXXZ
+        26=0 lk=5 fl=32  ?_M_destroy@_STLP_mutex_base@stlpmtx_std@@QAAXXZ
+        26=0 lk=5 fl=32  ?_M_destroy_range@?$_String_base@DV?$allocator@D@stlpmtx_std@@@stlpmtx_std@@IAAXII@Z
+        26=0 lk=5 fl=32  ?_M_force_construct_null@?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@stlpmtx_std@@IBAXPADABU__false_type@2@@Z
+        26=0 lk=5 fl=32  ?_M_force_terminate_string@?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@stlpmtx_std@@IAAXABU__true_type@2@@Z
+        26=0 lk=5 fl=32  ?_M_initialize@_STLP_mutex_base@stlpmtx_std@@QAAXXZ
+        26=0 lk=5 fl=32  ?_M_initialize@subtractive_rng@stlpmtx_std@@QAAXK@Z
+        26=0 lk=5 fl=32  ?_M_range_initialize@?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@stlpmtx_std@@IAAXPBD0@Z
+        26=0 lk=5 fl=32  ?_M_release_lock@_STLP_mutex_base@stlpmtx_std@@QAAXXZ
+        26=0 lk=5 fl=32  ?_M_terminate_string@?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@stlpmtx_std@@IAAXXZ
+        26=0 lk=5 fl=32  ?_M_throw_length_error@?$_String_base@DV?$allocator@D@stlpmtx_std@@@stlpmtx_std@@IBAXXZ
+        26=0 lk=5 fl=32  ?_M_using_static_buf@?$_String_base@DV?$allocator@D@stlpmtx_std@@@stlpmtx_std@@IBA_NXZ
+        26=0 lk=5 fl=32  ?__get_c_string@stlpmtx_std@@YAPBDABV?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@1@@Z
+        26=0 lk=5 fl=32  ?__stl_delete@stlpmtx_std@@YAXPAX@Z
+        26=0 lk=5 fl=32  ?__stl_hash_string@stlpmtx_std@@YAIPBD@Z
+        26=0 lk=5 fl=32  ?__stl_new@stlpmtx_std@@YAPAXI@Z
+        26=0 lk=5 fl=32  ?__stl_throw_length_error@stlpmtx_std@@YAXPBD@Z
+        26=0 lk=5 fl=32  ?__ucopy_trivial@stlpmtx_std@@YAPAXPBX0PAX@Z
+        26=0 lk=5 fl=32  ?allocate@?$allocator@D@stlpmtx_std@@QAAPADIPBX@Z
+        26=0 lk=5 fl=32  ?c_str@?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@stlpmtx_std@@QBAPBDXZ
+        26=0 lk=5 fl=32  ?c_str@FixedString@@QBAPBDXZ
+        26=0 lk=5 fl=32  ?copy@?$__char_traits_base@DH@stlpmtx_std@@SAPADPADPBDI@Z
+        26=0 lk=5 fl=32  ?deallocate@?$allocator@D@stlpmtx_std@@QAAXPADI@Z
+        26=0 lk=5 fl=32  ?length@?$char_traits@D@stlpmtx_std@@SAIPBD@Z
+        26=0 lk=5 fl=32  ?max_size@?$_String_base@DV?$allocator@D@stlpmtx_std@@@stlpmtx_std@@IBAIXZ
+        26=0 lk=5 fl=32  ?max_size@?$allocator@D@stlpmtx_std@@QBAIXZ
+        26=0 lk=5 fl=32  ?uninitialized_copy@stlpmtx_std@@YAPADPBD0PAD@Z
+        26=0 lk=5 fl=32  ?what@__Named_exception@stlpmtx_std@@UBAPBDXZ
+        26=0 lk=5 fl=32  ?what@bad_exception@std@@UBAPBDXZ
+        26=0 lk=5 fl=32  ?what@exception@std@@UBAPBDXZ
+   EMITTED but NOT NAMED : 0   <- the port would omit a body c2 emitted
+   --- does `26`-introduction predict the COMDAT Selection byte?
+        26-introduced=0  Selection=NODUPLICATES(1)  x2
+   --- does the `.gl` FLAGS byte (name_nul+5) predict it?
+        linkage=5 flags=0 -> Selection=NODUPLICATES(1)  x2
+   --- #2243 stem column: 37 `26`-introduced names -> 37 distinct names -> 37 distinct stems
+

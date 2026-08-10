@@ -1,0 +1,39 @@
+w-seclayout: the survey, off seven read TUs — the workload's objs are ALL-COMDAT, the 26 byte is NOT the layout signal, and the .gl FLAGS byte predicts the Selection byte 117 for 117
+
+Read (not counted) seven of the 380 at the WORKLOAD's own flags, which is the
+correction the whole commission turns on: the workload is /O1, /O1 implies /Gy,
+and PortC2::build already routes every one of these TUs to emit_comdat_obj.
+
+  TU            CF records  .ex segs  obj .text   named-not-emitted
+  headset            16        16        14            2
+  meter              13        13        13            0
+  tempomap           24        34        22            2
+  rtti               19        23        14            5
+  headtracker        21        32         9           12
+  pollable           73       119        43           30
+  urlencode         116       236         2          114
+
+Four things fall out, none of which is a section-layout model:
+
+* .text is 100% COMDAT on 7 of 7 objs — 117 sections, 0 packed. #232's MIXED
+  obj (one COMDAT .text beside one packed .text) is a /Ox shape and does not
+  occur at the workload's flags at all, so "COMDAT-style linkage against a
+  packed single-.text writer" is true of the reproducer and false of the 380.
+
+* the aux Selection byte, not the section kind, is what the writer has wrong:
+  emit_comdat_obj hard-codes COMDAT_SELECT_NODUPLICATES (1) and c2 emits
+  SELECT_ANY (2) on 99 of the 117. The .gl record's FLAGS byte at name_nul+5 —
+  the byte record_is_plain_external already reads as FLAGS_PLAIN — predicts it
+  117 for 117: flags & 0x20 gives ANY, flags == 0x00 gives NODUPLICATES.
+
+* the 26 separator does NOT predict it. 80 of the 117 emitted records carry
+  Selection=ANY and are NOT 26-introduced. The clause the commission was sent
+  to price refuses on a byte that is not the one the layout depends on.
+
+* EMITTED-but-NOT-NAMED is 0 on 7 of 7 (clause 3 discharged everywhere) and
+  NAMED-but-NOT-EMITTED is nonzero on 6 of 7, up to 114 on urlencode. That is
+  clause 4, that is factor A, and nothing in .gl discharges it.
+
+Tools are transcriptions off this lane's own capture, not re-used rankings:
+glwalk26.py runs gl_defined_names_framed at THIS tree with Name26Introduced
+recorded and not taken; seclayout.py and emitjoin.py read the obj.
