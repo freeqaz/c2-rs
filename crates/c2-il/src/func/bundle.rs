@@ -1495,6 +1495,30 @@ pub(crate) fn shape_to_function(
                 guard_ret_chain: Some(g),
                 ..IlFunction::base(name, src)
             }),
+            // **W-MMIO3.** THREE callee tokens resolved and only TWO of them
+            // emitted: the elided one is resolved because
+            // `IlBundle::functions` has to prove it is one of this TU's own
+            // defined names before the elision is licensed, and it is kept off
+            // `callees()` because the obj has no relocation for it. Resolving
+            // it here rather than at the use site is the same choice
+            // `xlrc_create_guard` makes two arms down: a token this class
+            // cannot resolve is a TU it must refuse, not a field to leave
+            // empty.
+            BodyShape::CloseCallChain(c) => Some(IlFunction {
+                params: c.params.clone(),
+                close_call_chain: Some(crate::func::CloseCallChain {
+                    params: c.params,
+                    guard_ret: c.guard_ret,
+                    call1: resolve(c.call1_tok)?,
+                    call1_arg1: c.call1_arg1,
+                    fnptr_off: c.fnptr_off,
+                    icall_arg1: c.icall_arg1,
+                    icall_arg3: c.icall_arg3,
+                    elided: resolve(c.elided_tok)?,
+                    void_call: resolve(c.void_call_tok)?,
+                }),
+                ..IlFunction::base(name, src)
+            }),
             // **W-XLR.** Two callee tokens and nothing else: this class names no
             // data symbol, and its two frame helpers are minted by
             // `c2_core::codegen::FrameLayout` from `saved_gprs` rather than read
@@ -2165,6 +2189,76 @@ impl IlBundle {
         // `docs/whitebox/WB_INLINE_FINDINGS.md` §7 explicitly proposes — instead
         // of being an accident of TU-level granularity.
         let defined: std::collections::BTreeSet<String> = names.iter().cloned().collect();
+        // **W-MMIO3 — THE TWO INTERPROCEDURAL FACTS, asked HERE and nowhere
+        // else.**
+        //
+        // `w-ifn` declined `mmioClose` at six mechanisms and called the sixth
+        // *architectural*: board **#139** puts acceptance in the PARSER, the
+        // parser sees one `.ex` segment, and a sibling's body cannot gate it.
+        // **That reads #139 one layer too deep**, and the comment on `attrs`
+        // above already says so: `functions` IS the parser's acceptance seam
+        // and it is bundle-level. This clause is the third whole-TU question it
+        // asks about `funcs` (after the label counter and the unclaimed-`.gl`
+        // accounting) and the first that reads a sibling's BODY.
+        //
+        // Two facts, one for each half of `close_call_chain`'s register plan:
+        //
+        // 1. **The ELISION.** `w-ifn` #2351's D2, obj-derived, ten cells at
+        //    `/O1` and again at `/Ob0`: *a call whose result is unused and
+        //    whose callee is defined in this TU with a body that has no side
+        //    effect is deleted.* The reader has already established
+        //    result-unused and side-effect-free ARGUMENTS; what is left is that
+        //    the callee is a sibling and that ITS body is pure. Both halves are
+        //    required — a callee this TU does not define is D2's `e3` and c2
+        //    KEEPS that call, so emitting nothing for it would drop a `bl` and
+        //    a relocation the obj has.
+        // 2. **The r5 PARK.** `WB_CHOOSER_FINDINGS` §2.3's M-RULE: the footprint
+        //    of a direct call to a same-TU callee that itself calls nothing is
+        //    *the exact set of registers that callee writes*, and for every
+        //    other call — external, indirect, or same-TU-calling-unknown — it
+        //    is the whole volatile set. A pure expression leaf of at most two
+        //    formals writes r3 and a scratch and never r5, and the reader has
+        //    pinned that this call passes exactly two arguments, so r5 is not
+        //    an argument register at it either. `w-ifn`'s `probe/park.cpp` is
+        //    the second instrument and it moves in the predicted direction:
+        //    make that callee external and the park goes to r30 and the frame
+        //    grows 96 → 112.
+        //
+        //    The same rule is what forces the OTHER park: the value in r31
+        //    is live across the `bctrl` and across the void call, whose callee
+        //    must therefore NOT be a sibling — an external's footprint is the
+        //    whole volatile set, which is what leaves no volatile qualifying.
+        //
+        // Refuses the whole TU rather than the function, which is this
+        // function's only vocabulary and the right one: a body it cannot lower
+        // must not become an obj at all.
+        for f in &funcs {
+            let Some(c) = f.close_call_chain.as_ref() else {
+                continue;
+            };
+            let sibling = |n: &str| {
+                defined
+                    .contains(n)
+                    .then(|| funcs.iter().find(|g| g.mangled_name == n))
+                    .flatten()
+            };
+            // 1 — the elided callee is a sibling with a pure body.
+            match sibling(&c.elided) {
+                Some(g) if g.is_pure_expression_leaf() => {}
+                _ => return None,
+            }
+            // 2a — the parked-across callee is a sibling with a pure body of at
+            // most two formals, so its footprint cannot reach r5.
+            match sibling(&c.call1) {
+                Some(g) if g.is_pure_expression_leaf() && g.params.len() <= 2 => {}
+                _ => return None,
+            }
+            // 2b — the void callee is an EXTERNAL, which is what makes the r31
+            // park forced rather than chosen.
+            if defined.contains(&c.void_call) {
+                return None;
+            }
+        }
         // **W-FENCE2 — the wholesale refusal is NARROWED, on the DECLINE side
         // only, and only where the port can still be asked the size question
         // afterwards.**
@@ -2215,7 +2309,25 @@ impl IlBundle {
             .iter()
             .all(|&s| opt_word_mode(opt_word_at(&ex[s..])) == Some(OptWordMode::O1))
         {
-            super::gl::plain_external_defined_names(gl)
+            // **W-MMIO3 — the exemption is DECOUPLED FROM THE WALK.**
+            //
+            // This used to be `gl::plain_external_defined_names(gl)`, which
+            // applies the same per-name record test to `gl_defined_names`'s
+            // NARROW (`NameFit::StringTableOnly`) walk. That walk refuses on a
+            // whole-TU basis, so on a TU it stops the exemption was the EMPTY
+            // set and this gate refused wholesale at `locally-defined-callee`
+            // — never reaching `c2_core::comdat::fenced_inlined_callee`, where
+            // the size question the exemption exists to enable is asked.
+            // `gl::NameFit`'s doc block names that residue and names
+            // `src/xdk/nuispeech/mmio.cpp` as the TU it costs.
+            //
+            // `plain_external_names_among` keeps the three-byte test byte for
+            // byte and changes only the ground set, to the BINDING's own names
+            // — which is what this call site already has in hand and which is
+            // 1:1 with the segments `defined` is built from. The two are the
+            // SAME SET wherever the narrow walk succeeds (both walks then bind
+            // the same records) and differ only where it returned ∅.
+            super::gl::plain_external_names_among(gl, names.iter().map(String::as_str))
         } else {
             Default::default()
         };

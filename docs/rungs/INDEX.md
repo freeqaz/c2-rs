@@ -208,6 +208,7 @@ the header block this table is read from.
 | 2026-08-10 | w-frame783 | [w-frame783](2026-08-10-w-frame783.md) | 11 | per-function unchanged, **+0**. TU match **23 → 23**, mismatch |
 | 2026-08-10 | w-gatefix | [w-gatefix](2026-08-10-w-gatefix.md) | 11 | **+0**, and not by measurement but by construction: this lane |
 | 2026-08-10 | W-MAIN2 | [w-main2](2026-08-10-w-main2.md) | 2 | 714,555 / 2,463,470 unchanged (29.01 %), +0 — this rung admits a WHOLE-TU EMITTER, not a function class |
+| 2026-08-10 | W-MMIO3 | [w-mmio3](2026-08-10-w-mmio3.md) | 2 | 714,555 -> 714,556 / 2,463,471 (29.01 %), +1 — a per-function class, so the driver moves |
 | 2026-08-10 | w-phase7b | [w-phase7b](2026-08-10-w-phase7b.md) | 10 | per-function unchanged, **+0**. TU match **23 → 23**, mismatch **0 → 0**, |
 | 2026-08-10 | w-seclayout | [w-seclayout](2026-08-10-w-seclayout.md) | 11 | per-function unchanged, **+0**. TU match **23 → 23**, mismatch |
 | 2026-08-10 | w-selbind | [w-selbind](2026-08-10-w-selbind.md) | 11 | per-function unchanged, **+0**. TU match **23 → 23**, mismatch |

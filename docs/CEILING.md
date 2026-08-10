@@ -1004,6 +1004,16 @@ fall-through family's size beside any ranking taken off T2 — it is **9,095 of
    `w-wordwrap` priced `void f(T x) { g = x; }` as *"the smallest unconverted
    body on the frontier, worth +1 `fnbyte-exact`"* and shipped **+8**, in eight
    different TUs. The check is one grep and it has never been run.
+   **IT HAS NOW, AND IT ANSWERED NEGATIVELY ABOUT ITSELF.** *Added 2026-08-10 by
+   lane `w-mmio3` (#3007).* `work/w-mmio3/popn.sh` collects every `(*name)(`
+   function-pointer member declared in the workload's headers (126) and lists
+   every workload `.cpp` spelling `->name(` for one of them (**0**) — and
+   `src/xdk/nuispeech/mmio.cpp`, the known positive, is **missed**, because
+   `pIOProc` is declared through a typedef with no `(*` at the member. **A
+   population instrument that cannot see its own known positive reports absence
+   as evidence of absence.** So the grep is worth running and its zero is worth
+   publishing as UNMEASURED: run it with a control that is known to be in the
+   population, and if the control does not appear, the number is not a bound.
 
 6. **Check factor A before pricing any reader or emitter work.** 14 of the 17
    TUs within 2 functions of all-exact fail A, so closing their reader gap
@@ -1128,6 +1138,16 @@ fall-through family's size beside any ranking taken off T2 — it is **9,095 of
    are now ordinary priced rows rather than unpriceable ones — which is the
    thing to expect from this class of repair, not a conversion.
 
+   **AND A SEVENTH FIELD IS NOT NEEDED, BUT A SEVENTH QUESTION IS: WHICH LANE
+   WOULD HAVE HAD TO PAY EACH TERM.** *Added 2026-08-10 by lane `w-mmio3`
+   (#3001, #3002).* `gate_cause` answered this item correctly on
+   `src/xdk/nuispeech/mmio.cpp` and the TU still converted for a reason no field
+   reports: **two of its eight priced mechanisms were already in the tree**,
+   both paid by `w-mmioclose` — a lane pricing a `.gl` attribute bit, which
+   named neither. One of them is the mechanism `w-ifn` called *architectural*
+   and declined a whole rung over. See §17.2; the check is one `grep` of
+   `crates/` per term and it is not a field on any row.
+
 8b. **AN INSTRUMENT'S POPULATION IS BOUNDED BY THE READER, AND A ZERO IN IT MAY
    BE A ZERO IN THE SAMPLE.** *Added 2026-08-09 by lane `w-decouple` (#2756),
    and it is item 8's mechanism one instrument over.* `w-fence2`'s GRID-W reads
@@ -1161,6 +1181,21 @@ fall-through family's size beside any ranking taken off T2 — it is **9,095 of
    MAY table, which had five licensed arms of which four were already in the
    code. The three fences to check are `comdat::fenced_inlined_callee`,
    `elide`'s mechanism E, and `splice`'s S7.
+
+  **RESOLVED ON `mmio.cpp`, AND THE ANSWER IS THAT ONE OF THE TWO HALVES WAS
+  ALREADY PAID AND THE OTHER WAS NOT A FENCE AT ALL BUT ITS GROUND SET.**
+  *Added 2026-08-10 by lane `w-mmio3` (#3002, #3003).* Of the three fences
+  named above, `comdat::fenced_inlined_callee` **never asks the size question**
+  about `mmioFlush`: `w-mmioclose` shipped `g.inlinable == Some(false)` ahead of
+  it, so `__declspec(noinline)` decides the call and `INLINE_DECLINE_BYTES` is
+  unreached. What refused is one stage EARLIER —
+  `IlBundle::functions`'s exemption `gl::plain_external_defined_names`, whose
+  **narrow walk** refuses the TU whole and yields ∅. So the checklist item
+  generalizes: **when a fence refuses, ask whether the fence's PREDICATE or the
+  fence's GROUND SET is what said no.** The two have different repairs — a
+  licensed narrowing for the first, a decoupling for the second — and
+  `gl::NameFit`'s doc block had already written the second one down, by path,
+  before anybody paid it (§17.3).
 
 ---
 
@@ -1567,3 +1602,75 @@ checklist item this supports: before deriving a record's structure from an obj's
 arithmetic, ask whether a listing, a disassembly or a second flag word has
 already separated the readings the obj cannot.** For EH specifically, the answer
 is yes and it is `EH_RECORDS.md` §11.
+
+---
+
+## 17. 2026-08-10 — `src/xdk/nuispeech/mmio.cpp` CONVERTED, and its price re-derived to EIGHT of which TWO were already paid by a lane pricing neither
+
+`w-mmio3` (#3000–#3010) was dispatched at the frontier's cheapest row and it
+converted: **TU match 24 → 25**, `mismatch` 0, `frontier` 3 → 2, and the port
+emits its first indirect call (`mtctr`/`bctrl`) and its first call that **is not
+there** — the `.ex` stream spells `mmioSetBuffer(hmmio,0,0,0)` and the obj
+carries no branch, no relocation and no symbol for it.
+
+### 17.1 The number this page should carry forward, and it is #2970's converse
+
+**`fnbyte-exact` 35,810 → 35,811 and the per-function census 714,555 →
+714,556 — both exactly +1 — on the lane immediately after one that moved both by
+exactly ZERO while also converting a TU.** §16.1 said the two continuous drivers
+on `docs/STATUS.md` are blind to an entire conversion route. The pair is the
+sharper statement: **the drivers see a per-function conversion and are blind to a
+whole-TU one, and nothing in either number says which kind of day it was.** A
+lane ranked by `fnbyte-exact` would have scored 2026-08-10's two conversions at
+0 and +1 and been right about neither ordering.
+
+### 17.2 The price, and the shape of its error
+
+`mmio.cpp` was priced by `w-blockir` at **eleven** (against the obj), by `w-ifn`
+at **six** for the remaining body plus two it added, and by `w-decouple` at
+**≥ 8**. Re-derived at the tip against `crates/`, the eight are real and **two of
+them were already in the tree**:
+
+| | mechanism | who paid it, and when |
+|---|---|---|
+| 6 | the ACCEPTANCE SEAM for an interprocedural fact | `w-mmioclose`, in a comment, while paying a `.gl` attribute bit |
+| 8 | the NC-5 LICENCE for an 8-byte kept callee | `w-mmioclose`, `g.inlinable == Some(false)` ahead of the size test |
+
+`w-ifn` called mechanism 6 *architectural*: board #139 puts acceptance in the
+parser, the parser sees one `.ex` segment, a sibling's body cannot gate it.
+**`IlBundle::functions` IS the parser's acceptance seam and it is
+bundle-level** — it already reasons across siblings four ways. What cannot see a
+sibling is `parse_segment`. Those are different statements and only the second
+is true, and the lane that noticed wrote it into the code rather than into a
+price.
+
+> **The operative correction for a dispatching coordinator, and it is item 8's
+> shape a fifth time:** before quoting a published price, ask **which lane would
+> have had to pay each term** — not just whether the term is real. A mechanism
+> can be paid by a lane that never named it, at a seam that lane was not
+> pricing, and no instrument on this page reports that.
+
+### 17.3 The live term was NOT codegen, and it was written down before it was paid
+
+Item 9 (NC-5) fires here on **one** of its two halves. The one that refused is
+`IlBundle::functions`'s W-FENCE2 exemption: `gl::plain_external_defined_names`
+runs `gl_defined_names`' **narrow** walk, which refuses `mmio.cpp` whole-TU at
+`mmioSeek` (8 bytes, no `@@`) and yields **∅**, so the gate refuses at
+`locally-defined-callee` before `comdat` ever sees a body.
+
+**`gl::NameFit`'s own doc block names that residue and names this TU by path**,
+because `w-decouple` measured the repair and deliberately did not ship it. The
+repair as shipped is a **decoupling and not a widening**: the three-byte record
+test is unchanged (the incumbent is rewritten in terms of the new primitive, so
+that is a property of the code), and only the ground set moves — from a WALK's
+output to the BINDING's own names. Cost to the other 877 TUs: **zero**, measured
+at four levels.
+
+### 17.4 What the frontier is now
+
+**2**: `wordwrap.cpp` (21 bodies, a 160-word body, and a non-COMDAT `.bss` with
+no graded placement — §11.4 item 3's own example) and `keygen_xbox.cpp` (19
+bodies). `frontier-if-A` is 124. The cheapest row is gone and the two that
+remain are both codegen-mass rows rather than fence rows, which is the first
+time that has been true.
+

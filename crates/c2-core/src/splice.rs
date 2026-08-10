@@ -495,6 +495,13 @@ pub fn splice_callee_why<'a>(
         // W-OSFINFO: same clause, same reason — thirty-one words and TWO calls.
         Selected::OsfHandleGuard => return Err("S3-osf-handle-guard"),
         Selected::GuardRetChain => return Err("S3-guard-ret-chain"),
+        // W-MMIO3: same clause, same reason — thirty-one words, THREE call
+        // statements of which one is elided, and a body that is not "nothing
+        // but that call". Refused explicitly so a later shape cannot fall
+        // into a splice path nobody graded — and here that matters more than
+        // usual, because a splice of this body would have to decide the
+        // elision again, at a seam that has no access to the sibling.
+        Selected::CloseCallChain => return Err("S3-close-call-chain"),
         // W-XLR: same clause, same reason — thirty-eight words and FOUR
         // relocations, two of which are its own frame's helpers. A splice would
         // have to reproduce a prologue that calls out of the function.

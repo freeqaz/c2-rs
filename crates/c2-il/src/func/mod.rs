@@ -2047,6 +2047,89 @@ pub struct GuardRetChain {
     pub spine: GuardRetSpine,
 }
 
+/// **W-MMIO3 — the guarded close chain**: `src/xdk/nuispeech/mmio.cpp`'s
+/// `mmioClose`, the last blocked body of the frontier's top byte-fraction row
+/// and the third of that TU's three (`w-ifn` shipped the other two).
+///
+/// ```c
+///   R f(P p, U u) {
+///       if (p == 0) return K;         // pointer guard, cr6, arm in source order
+///       V r1 = g(p, L1);              // a BOUND call statement, same-TU callee
+///       if (r1 != 0) return r1;       // braceless early return on the RESULT, cr0
+///       T *t = (T *)p;                // a reinterpreting assignment — no code
+///       V r2 = t->fp(t, A1, u, A3);   // an INDIRECT call through a loaded member
+///       if (r2 != 0) return r2;       // a second braceless early return, cr0
+///       h(p, 0, 0, 0);                // ELIDED — same-TU, pure, result unused
+///       k(p);                         // a void call to an EXTERNAL
+///       return 0;
+///   }
+/// ```
+///
+/// **This is a transcription of ONE named function class, `/O1` only.
+/// Accepting it is not a claim about `cflow-if-n` as a class**, and
+/// `PORT_CFG_CLASSES` is not widened for it — the same sentence
+/// [`GuardRetChain`], [`OsfHandleGuard`] and [`AllocInitOrFail`] carry.
+///
+/// # The two facts that are INTERPROCEDURAL, and where each is asked
+///
+/// Neither can be settled by [`crate::func::body::shapes::close_call_chain`],
+/// which sees one `.ex` segment. Both are asked at [`crate::IlBundle::functions`]
+/// — the parser's **bundle** level, which already reasons across siblings four
+/// ways and which board #139 is about (`w-ifn`'s C6 read #139 one layer too
+/// deep; `w-mmioclose` put `gl_function_attrs` at this level and said so).
+///
+/// * **The ELISION.** `w-ifn` #2351, obj-derived, 10 cells at `/O1` and again
+///   at `/Ob0`: *a call whose RESULT IS UNUSED and whose callee is defined in
+///   this TU with a body that has NO SIDE EFFECT is deleted.* Not `noinline`
+///   (`e5` elides without it), not empty-body (`e6`'s callee emits
+///   `addi r3,r3,1 ; blr`), not tail position (`e9`), and identical at `/Ob0`,
+///   which is what separates it from the inliner. The reader records
+///   [`Self::elided_tok`] and refuses to emit anything for it; the bundle
+///   proves the callee is a sibling whose own body is side-effect-free.
+/// * **The r5 PARK.** `WB_CHOOSER_FINDINGS` §2.3's M-RULE and its first
+///   sub-rule, *"coalescing beats allocation"* (3 witnesses: this body's r5,
+///   M9-b, M14-b). `u` is live across exactly one call, that call's callee is
+///   defined in this TU and writes only r3, and r5 is the register the *next*
+///   consumer — the `bctrl`'s third argument — wants. `w-ifn`'s
+///   `probe/park.cpp` is the second instrument: replace the callee with an
+///   external one and the park moves to r30 and the frame grows 96 → 112.
+///   **Sub-rule #1882 (`r11` when the value does not cross a call, `r10` when
+///   it does) does NOT apply to this body** — it decides which volatile a
+///   *move* picks, and both parks here are settled one rule earlier.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CloseCallChain {
+    /// The formals in argument-register order: `params[i]` arrives in
+    /// `ARG_REGS[i]`. Exactly two — a different arity moves every argument
+    /// register and the class has one witness.
+    pub params: Vec<u32>,
+    /// The guard's `li r3,<K>` immediate. The guard tests `params[0]`, which is
+    /// the only formal any witness guards.
+    pub guard_ret: i32,
+    /// The same-TU callee of the FIRST call, `g` above. Its `bl` is REL24 #1
+    /// and it is the call the r5 park crosses.
+    pub call1: String,
+    /// `g`'s second argument, a `li r4,<L1>` immediate. Its first is
+    /// `params[0]`.
+    pub call1_arg1: i32,
+    /// The `lwz r11,<off>(r31)` displacement — the member holding the function
+    /// pointer the indirect call goes through.
+    pub fnptr_off: i32,
+    /// The indirect call's second argument, a `li r4,<A1>`.
+    pub icall_arg1: i32,
+    /// Its fourth, a `li r6,<A3>`. Its first is `params[0]` and its **third is
+    /// `params[1]`, which is the whole reason for the r5 park**.
+    pub icall_arg3: i32,
+    /// The ELIDED call's callee. Carried so the bundle can prove it is a
+    /// sibling with a side-effect-free body — nothing is emitted for it, and it
+    /// is deliberately NOT on [`IlFunction::callees`], because the obj has no
+    /// relocation for it.
+    pub elided: String,
+    /// The void call's callee, `k` above. Its `bl` is REL24 #2. Required to be
+    /// an EXTERNAL: the r31 park is only correct because this call's footprint
+    /// is the whole volatile set.
+    pub void_call: String,
+}
+
 /// every label distinct — each re-plan c2's register assignment or its block
 /// layout when varied.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -3154,6 +3237,21 @@ pub struct IlFunction {
     /// class here it contributes nothing to [`Self::callees`] or
     /// [`Self::data_syms`], and the name is minted by the emitter.
     pub guard_ret_chain: Option<GuardRetChain>,
+    /// **W-MMIO3** — the guarded close chain (`mmio.cpp`'s `mmioClose`). Set by
+    /// exactly one parser production; [`Self::ops`] is empty for it. FRAMED: a
+    /// 96-byte frame with one saved GPR, a `.pdata` record and an ordinary
+    /// `$M`/`$M`/`$T` triple, so it needs no [`Self::label_lead`] arm and no
+    /// [`Self::label_slots`] arm — the same finding `guard_ret_chain` records
+    /// two fields up, and here it is checked against this TU's own obj, whose
+    /// three framed functions sit at `$M3381`, `$M3386` and `$M3396` with five
+    /// leaves between the last two.
+    ///
+    /// It contributes **two** names to [`Self::callees`] and not three: the
+    /// ELIDED callee is deliberately absent, because the obj carries no
+    /// relocation, no branch and no symbol for it. It is still accounted at
+    /// `IlBundle::functions` — as one of the TU's own `.gl` defined names,
+    /// which it must be for the elision to be licensed at all.
+    pub close_call_chain: Option<CloseCallChain>,
     /// **W-XTEA2** — the whole-body `memcpy` tail branch
     /// (`EncryptXTEA.cpp`'s `?SetKey`). Set by exactly one parser production;
     /// [`Self::ops`] is empty for it. Like [`Self::guard_ret_chain`] it names no
@@ -3380,6 +3478,7 @@ impl IlFunction {
             pool_free_list: None,
             pool_ctor_chain: None,
             guard_ret_chain: None,
+            close_call_chain: None,
             memcpy_tail: None,
             nonce_add_run: None,
             xtea_round_loop: None,
@@ -3410,6 +3509,88 @@ impl IlFunction {
     /// the invariant is a property of the model. `select_function` consults it
     /// and refuses by name; refusing is the whole point, because the alternative
     /// to refusing is picking a winner, and picking a winner is the defect.
+    /// **W-MMIO3 — is this body a PURE EXPRESSION LEAF?**
+    ///
+    /// The port-side transcription of `w-ifn` #2351's D2 clause *"a body that
+    /// has NO SIDE EFFECT"*, and the fact
+    /// [`crate::IlBundle::functions`] needs about a SIBLING before it may drop
+    /// an elided call or park a formal in a volatile across a `bl`.
+    ///
+    /// **Stated POSITIVELY and as an allowlist**, for the reason every list in
+    /// this crate is one: a body shape silently absent from a *deny*list is
+    /// indistinguishable from one nobody thought about, and here the direction
+    /// of an error is a **wrong emit** — a call deleted that c2 kept, or a
+    /// value left in r5 that the callee clobbered. So: `ops` is the ONLY body
+    /// this function has, every op in it is a formal read, a literal or an
+    /// integer arithmetic combinator, and it names no symbol of any kind.
+    ///
+    /// What that admits is exactly D2's measured accept side — `e5`
+    /// (`return 0`, no `noinline`), `e6` (`return a + 1`, which emits real
+    /// bytes), `e8` (defined below the caller) and `e9` — and what it refuses
+    /// is D2's measured decline side and everything unmeasured: `e2` (stores to
+    /// a TU-static) fails on `StoreInd`/`global_store_leaf`, `e7` (calls an
+    /// external) fails on `callees`, and an indirect READ (`LoadInd`) is
+    /// refused too, because D2's ten cells did not separate it and the rule
+    /// this is a transcription of says nothing about one.
+    ///
+    /// The FP ops are absent from the allowlist deliberately: an FP leaf mints
+    /// `_fltused` and may pool a constant, both of which move the label counter
+    /// (`c2_core::coff::plan_labels`), and neither is a purity question this
+    /// has a witness for.
+    pub fn is_pure_expression_leaf(&self) -> bool {
+        if self.ops.is_empty() {
+            return false;
+        }
+        if self.callees().next().is_some()
+            || !self.data_syms.is_empty()
+            || self.fn_addr_sym.is_some()
+            || self.data_def.is_some()
+            || !self.eh_unwind_callees.is_empty()
+            || self.eh_bare
+            || self.empty_body
+            || self.is_framed()
+            || self.body_has_loop()
+        {
+            return false;
+        }
+        // Every remaining body-shape discriminator this struct carries. Listed
+        // rather than derived, so a NEW shape does not silently become "pure".
+        if self.tail_call.is_some()
+            || self.cond_pair.is_some()
+            || self.compare.is_some()
+            || self.cmp_shift_or.is_some()
+            || self.div_mod_leaf.is_some()
+            || self.float_leaf.is_some()
+            || self.fp_tail.is_some()
+            || self.fp_arg_sources.is_some()
+            || self.arg_sources.is_some()
+            || self.global_store_leaf.is_some()
+            || self.fp_store_diamond.is_some()
+            || self.pool_free_list.is_some()
+            || self.memcpy_tail.is_some()
+            || self.nonce_add_run.is_some()
+        {
+            return false;
+        }
+        self.ops.iter().all(|op| {
+            matches!(
+                op,
+                IlOp::Load(_)
+                    | IlOp::Lit(_)
+                    | IlOp::Add
+                    | IlOp::Sub
+                    | IlOp::Mul
+                    | IlOp::Div
+                    | IlOp::And
+                    | IlOp::Or
+                    | IlOp::Xor
+                    | IlOp::Shl
+                    | IlOp::ShrS
+                    | IlOp::ShrU
+            )
+        })
+    }
+
     pub fn store_run_carried_twice(&self) -> bool {
         !self.ops.is_empty()
             && self
@@ -3623,6 +3804,12 @@ impl IlFunction {
             // `plan_labels` mints nothing and the counter advances by an amount
             // with no representation in the obj at all.
             || self.guard_ret_chain.is_some()
+            // **W-MMIO3 — the guarded close chain.** A 96-byte frame with one
+            // saved GPR, a `.pdata` record and a `$M`/`$M`/`$T` triple, framed
+            // in exactly the sense this predicate means. Its label stride is
+            // the framed constant and needs no arm anywhere else — re-derived
+            // seed-free on `mmio.cpp`'s own three framed functions.
+            || self.close_call_chain.is_some()
             // **W-XTEA3 — the framed XTEA block loop.** A `__savegprlr_26`
             // frame, a `.pdata` record and a `$M`/`$M`/`$T` triple, so it is
             // framed in exactly the sense this predicate means.
@@ -3937,6 +4124,18 @@ impl IlFunction {
             // put them in the wrong half of the symbol table, which is the same
             // note `xlrc_create_guard`'s omission carries three arms up.
             .chain(self.xtea_encrypt_loop.as_ref().map(|c| c.callee.as_str()))
+            // **W-MMIO3: TWO names, in `.text` OFFSET order.** The first call's
+            // `bl` is at `+0x30` and the void call's at `+0x60`, so the first
+            // is the earlier symbol in the per-function region — the same rule
+            // W8's then-arm and W-CFG1's high arm follow. The **elided** callee
+            // is NOT here and must not be: the obj has no relocation for it, so
+            // listing it would put a symbol in the callee region that nothing
+            // relocates against.
+            .chain(
+                self.close_call_chain
+                    .iter()
+                    .flat_map(|c| [c.call1.as_str(), c.void_call.as_str()]),
+            )
             .chain(
                 self.call_seq
                     .iter()

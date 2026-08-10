@@ -1,0 +1,33 @@
+TUs: base 878  tip 878
+
+-- LEVEL 1: TU CLASS — 1 moved
+     src/xdk/nuispeech/mmio.cpp
+        vocab-gap
+     -> match
+   directions: {'vocab-gap -> match': 1}
+
+-- LEVEL 3: CENSUS (in_class, total) — 1 moved
+     src/xdk/nuispeech/mmio.cpp
+        (10, 11)
+     -> (11, 11)
+
+-- LEVEL 4: GATE CAUSE (first, SET) — 1 moved
+     src/xdk/nuispeech/mmio.cpp
+        ('body-out-of-class', ('body-out-of-class', 'unclaimed-gl-symbol'))
+     -> (None, ())
+
+-- LEVEL 2: PER-TU BYTE TRIPLE (exact, differs, refused | denominator) — 1 moved
+     src/xdk/nuispeech/mmio.cpp
+        (10, 0, 1, 11) -> (11, 0, 0, 11)   delta (1, 0, -1, 0)
+   totals: exact +1   differs +0   refused -1
+
+-- BLOCKER HISTOGRAM `fn_blockers` — 635 keys base, 635 tip, 1 moved
+     expr-cmp-eq                                     19304 -> 19303    -1
+   top 8 unmoved: [('expr-op-0x27', 403876), ('expr-intrinsic-this-adjust', 135865), ('expr-intrinsic-base-member-addr', 113981), ('expr-call-in-expr-recv-load-then-bit-and-and-branch-more', 102374), ('expr-load-type-8645', 55681), ('body-cflow-label', 48124), ('expr-call-in-expr-op-0x9B', 46036), ('expr-load-type-8885', 40669)]
+
+-- BLOCKER HISTOGRAM `emit_blockers` — 615 keys base, 615 tip, 1 moved
+     expr-cmp-eq                                      2376 -> 2375     -1
+   top 8 unmoved: [('expr-op-0x27', 22406), ('expr-intrinsic-this-adjust', 9267), ('expr-intrinsic-base-member-addr', 6464), ('expr-call-in-expr-recv-object-then-call-recv-object-more', 4750), ('expr-call-in-expr-recv-load-then-bit-and-and-branch-more', 4290), ('expr-intrinsic-memset', 3747), ('expr-brfalse', 3104), ('expr-call-in-expr-recv-load-then-intrinsic-call', 2865)]
+   (`differs` is the direction that must never rise: a body the port
+    emitted and c2 did not agree with. `refused` falling and `exact`
+    rising by the same amount is a body newly written and correct.)

@@ -122,10 +122,10 @@ pub(crate) const MEMCPY_CALL_STEP: i32 = 6;
 
 /// The lexical depth the body sits at when `parse_segment_shape` dispatches:
 /// `eat_scopes` has already taken the body's own `53` and the first `if`'s.
-const GUARD_ENTRY_DEPTH: u8 = 3;
+pub(crate) const GUARD_ENTRY_DEPTH: u8 = 3;
 
 /// `29 <tok>` — a label definition.
-fn eat_label(seg: &[u8], p: &mut usize, what: &'static str) -> Result<u32, Block> {
+pub(crate) fn eat_label(seg: &[u8], p: &mut usize, what: &'static str) -> Result<u32, Block> {
     if !eat_byte(seg, p, 0x29) {
         return Err(blk(seg, *p, what));
     }
@@ -135,7 +135,7 @@ fn eat_label(seg: &[u8], p: &mut usize, what: &'static str) -> Result<u32, Block
 }
 
 /// `<op> <tok>` for a transfer opcode. Returns the target label.
-fn eat_transfer(seg: &[u8], p: &mut usize, op: u8, what: &'static str) -> Result<u32, Block> {
+pub(crate) fn eat_transfer(seg: &[u8], p: &mut usize, op: u8, what: &'static str) -> Result<u32, Block> {
     if !eat_byte(seg, p, op) {
         return Err(blk(seg, *p, what));
     }
@@ -145,7 +145,7 @@ fn eat_transfer(seg: &[u8], p: &mut usize, op: u8, what: &'static str) -> Result
 }
 
 /// Consume any TYPE and return its two discriminating bytes.
-fn eat_any_type(seg: &[u8], p: &mut usize, what: &'static str) -> Result<(u8, u8), Block> {
+pub(crate) fn eat_any_type(seg: &[u8], p: &mut usize, what: &'static str) -> Result<(u8, u8), Block> {
     match read_type(seg, *p) {
         Some((tag, kind, _, w)) => {
             *p += w;
@@ -182,7 +182,7 @@ pub(crate) fn eat_lit_any(seg: &[u8], p: &mut usize, what: &'static str) -> Resu
 /// [`super::alloc_init_or_fail`]'s reason: they are the only place the *bracing*
 /// of the source shows up in this stream, and a differently braced body is a
 /// different block plan.
-fn eat_close(seg: &[u8], p: &mut usize, k: u8, what: &'static str) -> Result<(), Block> {
+pub(crate) fn eat_close(seg: &[u8], p: &mut usize, k: u8, what: &'static str) -> Result<(), Block> {
     eat_opt_stmt_marker(seg, p);
     if !eat(seg, p, &[0x54, k]) {
         return Err(blk(seg, *p, what));
@@ -201,14 +201,14 @@ fn eat_close(seg: &[u8], p: &mut usize, k: u8, what: &'static str) -> Result<(),
 ///   53 53  [line]  33 <INT> <K>  41 <INT>  3A <Lepi>
 ///   [line] 54 05  [line] 54 04  29 <Lskip>  54 03
 /// ```
-struct Guard {
-    tok: u32,
-    ret: i32,
-    skip: u32,
-    epi: u32,
+pub(crate) struct Guard {
+    pub(crate) tok: u32,
+    pub(crate) ret: i32,
+    pub(crate) skip: u32,
+    pub(crate) epi: u32,
 }
 
-fn eat_guard(seg: &[u8], p: &mut usize) -> Result<Guard, Block> {
+pub(crate) fn eat_guard(seg: &[u8], p: &mut usize) -> Result<Guard, Block> {
     let (tok, is_ptr) = eat_load(seg, p, "gret-guard-operand")?;
     if !is_ptr {
         // An `int` guard is `cmpwi`, not `cmplwi` — one word different, and it

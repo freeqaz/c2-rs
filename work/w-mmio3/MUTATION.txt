@@ -1,0 +1,27 @@
+BASELINE (unmutated, for comparison)
+  [1/3] match          wmmio3_close_call_chain.cpp
+  [2/3] vocab-gap      wmmio3_close_sibling_neg.cpp  (il function decode failed)
+  [3/3] vocab-gap      wmmio3_close_extern_neg.cpp  (il function decode failed)
+ [1/1] match src/xdk/nuispeech/mmio.cpp
+
+== M1
+  [1/2] match          wmmio3_close_call_chain.cpp
+  [2/2] mismatch       wmmio3_close_sibling_neg.cpp  (bytes diverge)
+
+== M2
+  [1/2] match          wmmio3_close_call_chain.cpp
+  [2/2] mismatch       wmmio3_close_extern_neg.cpp  (bytes diverge)
+
+== M3
+  [1/1] vocab-gap      wmmio3_close_call_chain.cpp  (il function decode failed)
+
+== M3-mmio
+ [1/1] vocab-gap src/xdk/nuispeech/mmio.cpp (il function decode failed)
+
+== M4
+  [1/1] mismatch       wmmio3_close_call_chain.cpp  (bytes diverge)
+
+== M5
+  [1/1] mismatch       wmmio3_close_call_chain.cpp  (bytes diverge)
+
+restored:
