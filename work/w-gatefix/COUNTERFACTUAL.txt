@@ -1,0 +1,13 @@
+==============================================================================
+COUNTERFACTUAL — master's gate.sh (0d0a74d2) vs this tip's, same synthetic tree
+==============================================================================
+
+  BASE  0d0a74d2 : edit EATEN     <-- as required; the defect is real here
+        tuple: NO-RESULT|0|14|0|0|UNRECOGNIZED no ALL-ARMS-PASS line and no FAILED line — an unenumerated outcome is the next silence
+        (note the word: it is not DIRTY-TREE, because the --list probe
+         cleaned the tree before the interlock two lines below it looked)
+
+  TIP         : edit SURVIVED  <-- as required; the row refused first
+        tuple: REFUSED|0|0|0|0|DIRTY-TREE crates/ differs from HEAD and the arms would overwrite it: crates/probe.rs 
+
+COUNTERFACTUAL: PASS — the base eats, the tip refuses.

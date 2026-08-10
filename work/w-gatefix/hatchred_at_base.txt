@@ -1,0 +1,363 @@
+
+HATCH-DIRTY — 1 file(s) carry changes that are NOT this hatch's.
+NOTHING WAS REVERTED. `git checkout --` would discard them silently.
+
+  crates/c2-il/src/func/body/shapes/calls.rs
+
+
+  clauses currently live in the tree: NONE
+  files this revert would have touched: 6
+
+  Nothing here is lost yet. Commit or stash the work that is not the
+  hatch, then re-run; or `revert --force` to destroy it deliberately.
+NOTHING WAS WRITTEN. 1 edit(s) could not be decided:
+  HATCH-DRIFT        id=call-arg-lit-permuted      crates/c2-il/src/func/body/shapes/calls.rs
+      needle matched 0 times, want 1
+      '    if !in_place && !one_moved_at_two && !permutation_decided_downstream {\n        return Err(refuse("call-arg-lit-permu'
+
+This is board #1322's failure mode and it now FAILS CLOSED. An
+edit whose clause the port has PAID belongs in RETIRED with a
+paid_witness (HATCH-PAID-MISSING is that check failing); an edit
+that merely stopped matching is HATCH-DRIFT and the ladder built on
+it would be a measurement of a tree nobody intended.
+SETUP FAILED: `hatch.py apply` refused; cannot build a hatched tree for this arm.
+SETUP FAILED (2) — arm cannot run
+NOTHING WAS REVERTED — 1 further problem(s) with the files this would overwrite:
+  HATCH-UNREADABLE   crates/c2-il/src/func/body/shapes/NOT_A_FILE_w_hatch.rs
+      cannot read the working copy: [Errno 2] No such file or directory: '<repo>/crates/c2-il/src/func/body/shapes/NOT_A_FILE_w_hatch.rs'
+
+  clauses currently live in the tree: NONE
+  files this revert would have touched: 7
+
+  Nothing here is lost yet. Commit or stash the work that is not the
+  hatch, then re-run; or `revert --force` to destroy it deliberately.
+NOTHING WAS REVERTED — 1 further problem(s) with the files this would overwrite:
+  HATCH-UNTRACKED    work/w-hatch/.untracked_probe.tmp
+      no stage-0 index entry — `git checkout --` has nothing to restore and would fail or delete
+
+  clauses currently live in the tree: NONE
+  files this revert would have touched: 7
+
+  Nothing here is lost yet. Commit or stash the work that is not the
+  hatch, then re-run; or `revert --force` to destroy it deliberately.
+
+HATCH-CHECKOUT-FAILED — `git checkout --` exited 128.
+fatal: injected by work/w-hatch/hatch_red.py
+
+NOTHING WAS WRITTEN. 1 edit(s) could not be decided:
+  HATCH-DRIFT        id=call-arg-lit-permuted      crates/c2-il/src/func/body/shapes/calls.rs
+      needle matched 0 times, want 1
+      '    if !in_place && !one_moved_at_two && !permutation_decided_downstream {\n        return Err(refuse("call-arg-lit-permu'
+
+This is board #1322's failure mode and it now FAILS CLOSED. An
+edit whose clause the port has PAID belongs in RETIRED with a
+paid_witness (HATCH-PAID-MISSING is that check failing); an edit
+that merely stopped matching is HATCH-DRIFT and the ladder built on
+it would be a measurement of a tree nobody intended.
+SETUP FAILED: `hatch.py apply` refused; cannot build a hatched tree for this arm.
+SETUP FAILED (2) — arm cannot run
+NOTHING WAS WRITTEN. 2 edit(s) could not be decided:
+  HATCH-DRIFT        id=param-width                crates/c2-il/src/func/sy.rs
+      needle matched 0 times, want 1
+      '        if formals.len() <= 1 {\n            return Ok(());\n        }\n        let declared = match self.formals {\n// NOT '
+  HATCH-DRIFT        id=call-arg-lit-permuted      crates/c2-il/src/func/body/shapes/calls.rs
+      needle matched 0 times, want 1
+      '    if !in_place && !one_moved_at_two && !permutation_decided_downstream {\n        return Err(refuse("call-arg-lit-permu'
+
+This is board #1322's failure mode and it now FAILS CLOSED. An
+edit whose clause the port has PAID belongs in RETIRED with a
+paid_witness (HATCH-PAID-MISSING is that check failing); an edit
+that merely stopped matching is HATCH-DRIFT and the ladder built on
+it would be a measurement of a tree nobody intended.
+NOTHING WAS WRITTEN. 2 edit(s) could not be decided:
+  HATCH-DRIFT        id=call-arg-lit-permuted      crates/c2-il/src/func/body/shapes/calls.rs
+      needle matched 0 times, want 1
+      '    if !in_place && !one_moved_at_two && !permutation_decided_downstream {\n        return Err(refuse("call-arg-lit-permu'
+  HATCH-PAID-MISSING id=store-run-bind-mixed-kind  crates/c2-il/src/func/body/shapes/leaf_store.rs
+      needle matched 0 times, want 1
+      'paid_witness absent: a witness string that is not in the file'
+
+This is board #1322's failure mode and it now FAILS CLOSED. An
+edit whose clause the port has PAID belongs in RETIRED with a
+paid_witness (HATCH-PAID-MISSING is that check failing); an edit
+that merely stopped matching is HATCH-DRIFT and the ladder built on
+it would be a measurement of a tree nobody intended.
+
+HATCH-FOREIGN-ROOT — this script belongs to a DIFFERENT checkout from the one
+you are standing in. NOTHING WAS WRITTEN.
+  you are standing in   : <home>/tmp/w-hatchroot-7peo461c
+  this script belongs to: <repo>
+  this script           : <repo>/work/w-front3/hatch.py
+
+  Board #1460: `ROOT` used to come from this script's own path, so invoking the
+  main repository's copy from a worktree (`python3 ../../../work/w-front3/hatch.py
+  apply`) hatched the MAIN tree while `git status` in the worktree read empty. The
+  binary you then built was byte-identical to the unhatched one and the ladder
+  climbed on it would have been published as "the hatch moved nothing".
+
+  Copy `work/w-front3/hatch.py` into the tree you mean to hatch and run that copy.
+
+HATCH-NOREPO — the invoking directory is not inside a git checkout.
+NOTHING WAS WRITTEN.
+  invoking cwd : <home>/tmp/w-hatchroot-9h0sybfr
+  this script  : <repo>/work/w-front3/hatch.py
+
+  `hatch.py` edits crates/ in place and reverts through `git checkout --`,
+  so a tree git does not know about is a tree it cannot put back.
+hatch.py RED-TEST — board #1380, lane w-hatch
+tree state before any arm: crates/ diff: EMPTY
+
+==========================================================================
+ARM R1 DIRTY-NOHATCH — expect leading word HATCH-DIRTY
+     an unstaged foreign edit and NO hatch — #1380's incident exactly
+==========================================================================
+hatch: TARGET REPOSITORY  <repo>   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <repo>/work/w-front3/hatch.py
+hatch: COMMAND            revert
+
+  [postcondition] working tree byte-identical across the refusal: YES — 354 bytes of diff, unchanged
+  [postcondition] the foreign edit SURVIVED: YES
+
+  rc                      : 3
+  leading HATCH-* words   : HATCH-DIRTY
+  expected word present   : YES
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM R2 DIRTY+HATCH — expect leading word HATCH-DIRTY
+     fully hatched AND dirty: the guard must separate the two
+==========================================================================
+hatch: TARGET REPOSITORY  <repo>   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <repo>/work/w-front3/hatch.py
+hatch: COMMAND            apply
+
+  SETUP FAILED — this arm could not build its tree.
+  *** ARM FAILED ***
+
+==========================================================================
+ARM R3 UNREADABLE — expect leading word HATCH-UNREADABLE
+     a file in FILES that cannot be read — must NOT read as DIRTY
+==========================================================================
+hatch: TARGET REPOSITORY  <repo>   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <repo>/work/w-front3/hatch.py
+hatch: COMMAND            revert
+
+  [postcondition] working tree byte-identical across the refusal: YES — 0 bytes of diff, unchanged
+
+  rc                      : 3
+  leading HATCH-* words   : HATCH-UNREADABLE
+  expected word present   : YES
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM R4 UNTRACKED — expect leading word HATCH-UNTRACKED
+     a file with no stage-0 index entry: `git checkout --` has nothing to restore
+==========================================================================
+hatch: TARGET REPOSITORY  <repo>   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <repo>/work/w-front3/hatch.py
+hatch: COMMAND            revert
+
+  [postcondition] working tree byte-identical across the refusal: YES — 0 bytes of diff, unchanged
+
+  rc                      : 3
+  leading HATCH-* words   : HATCH-UNTRACKED
+  expected word present   : YES
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM R5 CHECKOUT-FAILED — expect leading word HATCH-CHECKOUT-FAILED   [INJECTED through the _checkout seam]
+     unreachable on a well-formed tree; fired through the _checkout seam
+==========================================================================
+hatch: TARGET REPOSITORY  <repo>   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <repo>/work/w-front3/hatch.py
+hatch: COMMAND            revert
+
+  rc                      : 4
+  leading HATCH-* words   : HATCH-CHECKOUT-FAILED
+  expected word present   : YES
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM R6 RESIDUE — expect leading word HATCH-RESIDUE   [INJECTED through the _checkout seam]
+     the POSTCONDITION: a checkout that silently restored nothing
+==========================================================================
+hatch: TARGET REPOSITORY  <repo>   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <repo>/work/w-front3/hatch.py
+hatch: COMMAND            apply
+
+  SETUP FAILED — this arm could not build its tree.
+  *** ARM FAILED ***
+
+==========================================================================
+ARM A1 DRIFT — expect leading word HATCH-DRIFT
+     apply's #1322 arm — its own word now, not a shared prefix
+==========================================================================
+hatch: TARGET REPOSITORY  <repo>   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <repo>/work/w-front3/hatch.py
+hatch: COMMAND            apply
+
+  [postcondition] working tree byte-identical across the refusal: YES — 0 bytes of diff, unchanged
+
+  rc                      : 2
+  leading HATCH-* words   : HATCH-DRIFT
+  expected word present   : YES
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM A2 PAID-MISSING — expect leading word HATCH-PAID-MISSING
+     a RETIRED entry whose paid_witness is gone — a DIFFERENT defect from DRIFT and it must say so
+==========================================================================
+hatch: TARGET REPOSITORY  <repo>   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <repo>/work/w-front3/hatch.py
+hatch: COMMAND            apply
+
+  [postcondition] working tree byte-identical across the refusal: YES — 0 bytes of diff, unchanged
+
+  rc                      : 2
+  leading HATCH-* words   : HATCH-DRIFT, HATCH-PAID-MISSING
+  expected word present   : YES
+  no OTHER arm's word     : NO — ARM FAILED, prefix collapse (trap B)
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM A3 FOREIGN-ROOT — expect leading word HATCH-FOREIGN-ROOT
+     cwd in a REAL second git checkout, script in this one — #1460 exactly. A lexical containment test does not catch this repository's own layout, where worktrees live INSIDE the main repo's path
+==========================================================================
+
+  [postcondition] working tree byte-identical across the refusal: YES — 0 bytes of diff, unchanged
+
+  rc                      : 6
+  leading HATCH-* words   : HATCH-FOREIGN-ROOT
+  expected word present   : YES
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM A4 NOREPO — expect leading word HATCH-NOREPO
+     cwd in no checkout at all — a DIFFERENT defect from FOREIGN-ROOT and it must say so, because it is checked FIRST and would otherwise satisfy that arm (trap A)
+==========================================================================
+
+  [postcondition] working tree byte-identical across the refusal: YES — 0 bytes of diff, unchangedNOTHING WAS WRITTEN. 1 edit(s) could not be decided:
+  HATCH-DRIFT        id=call-arg-lit-permuted      crates/c2-il/src/func/body/shapes/calls.rs
+      needle matched 0 times, want 1
+      '    if !in_place && !one_moved_at_two && !permutation_decided_downstream {\n        return Err(refuse("call-arg-lit-permu'
+
+This is board #1322's failure mode and it now FAILS CLOSED. An
+edit whose clause the port has PAID belongs in RETIRED with a
+paid_witness (HATCH-PAID-MISSING is that check failing); an edit
+that merely stopped matching is HATCH-DRIFT and the ladder built on
+it would be a measurement of a tree nobody intended.
+SETUP FAILED: `hatch.py apply` refused; cannot build a hatched tree for this arm.
+SETUP FAILED (2) — arm cannot run
+NOTHING WAS WRITTEN. 1 edit(s) could not be decided:
+  HATCH-DRIFT        id=call-arg-lit-permuted      crates/c2-il/src/func/body/shapes/calls.rs
+      needle matched 0 times, want 1
+      '    if !in_place && !one_moved_at_two && !permutation_decided_downstream {\n        return Err(refuse("call-arg-lit-permu'
+
+This is board #1322's failure mode and it now FAILS CLOSED. An
+edit whose clause the port has PAID belongs in RETIRED with a
+paid_witness (HATCH-PAID-MISSING is that check failing); an edit
+that merely stopped matching is HATCH-DRIFT and the ladder built on
+it would be a measurement of a tree nobody intended.
+SETUP FAILED: `hatch.py apply` refused; cannot build a hatched tree for this arm.
+SETUP FAILED (2) — arm cannot run
+
+
+  rc                      : 7
+  leading HATCH-* words   : HATCH-NOREPO
+  expected word present   : YES
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM F1 FORCE — expect leading word HATCH-FORCED
+     the escape hatch: reverts anyway, names what it destroys first
+==========================================================================
+hatch: TARGET REPOSITORY  <repo>   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <repo>/work/w-front3/hatch.py
+hatch: COMMAND            apply
+
+  SETUP FAILED — this arm could not build its tree.
+  *** ARM FAILED ***
+
+==========================================================================
+ARM C1 HATCH-ONLY — expect GREEN, no refusal word
+     THE CONTROL. A fully hatched tree is not dirty and must revert silently
+==========================================================================
+hatch: TARGET REPOSITORY  <repo>   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <repo>/work/w-front3/hatch.py
+hatch: COMMAND            apply
+
+  SETUP FAILED — this arm could not build its tree.
+  *** ARM FAILED ***
+
+==========================================================================
+ARM C2 CLEAN — expect GREEN, no refusal word
+     a clean tree: revert is a no-op and still must not fire
+==========================================================================
+hatch: TARGET REPOSITORY  <repo>   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <repo>/work/w-front3/hatch.py
+hatch: COMMAND            revert
+hatch: REVERTED 6 file(s); 0 clause(s) were live: NONE
+
+  [postcondition] crates/ diff after the revert: EMPTY
+
+  rc                      : 0
+  leading HATCH-* words   : NONE
+  expected word present   : YES
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+ARM C3 ROOT-FROM-SUBDIR — expect GREEN, no refusal word
+     THE CONTROL FOR #1460's GUARD, and the one most likely to break: `cd crates && python3 ../work/w-front3/hatch.py` must still resolve to THIS checkout's root. A guard that refuses the ordinary invocation is a guard the next lane deletes
+==========================================================================
+
+  [postcondition] resolve_root(cwd=<repo>/crates)
+  [postcondition]   -> <repo>
+  [postcondition] equals this checkout's root: YES
+
+  rc                      : 0
+  leading HATCH-* words   : NONE
+  expected word present   : YES
+  no OTHER arm's word     : YES
+  arm postcondition       : YES
+  crates/ clean afterwards: YES
+
+==========================================================================
+RED arms (11) — each fired its OWN word and no other arm's:
+  R1 DIRTY-NOHATCH       HATCH-DIRTY              RED as expected
+  R2 DIRTY+HATCH         HATCH-DIRTY              *** ARM FAILED ***
+  R3 UNREADABLE          HATCH-UNREADABLE         RED as expected
+  R4 UNTRACKED           HATCH-UNTRACKED          RED as expected
+  R5 CHECKOUT-FAILED     HATCH-CHECKOUT-FAILED    RED as expected   [INJECTED]
+  R6 RESIDUE             HATCH-RESIDUE            *** ARM FAILED ***   [INJECTED]
+  A1 DRIFT               HATCH-DRIFT              RED as expected
+  A2 PAID-MISSING        HATCH-PAID-MISSING       *** ARM FAILED ***
+  A3 FOREIGN-ROOT        HATCH-FOREIGN-ROOT       RED as expected
+  A4 NOREPO              HATCH-NOREPO             RED as expected
+  F1 FORCE               HATCH-FORCED             *** ARM FAILED ***
+
+GREEN controls (3) — these must NOT fire:
+  C1 HATCH-ONLY                                   *** CONTROL FIRED — FAILED ***
+  C2 CLEAN                                        GREEN as required
+  C3 ROOT-FROM-SUBDIR                             GREEN as required
+
+distinct leading words exercised: 10 of 10 (HATCH-CHECKOUT-FAILED, HATCH-DIRTY, HATCH-DRIFT, HATCH-FORCED, HATCH-FOREIGN-ROOT, HATCH-NOREPO, HATCH-PAID-MISSING, HATCH-RESIDUE, HATCH-UNREADABLE, HATCH-UNTRACKED)
+final crates/ diff: EMPTY
+==========================================================================
+FAILED: R2 DIRTY+HATCH, R6 RESIDUE, A2 PAID-MISSING, F1 FORCE, C1 HATCH-ONLY

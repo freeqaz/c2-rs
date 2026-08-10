@@ -1,0 +1,38 @@
+lane           landed   graded   relation  transcript
+----------------------------------------------------------------------------------------
+w-5c2          0220fc73 =        EXACT     a frozen gate graded the crates/ that landed
+w-biquad       9f7d7187 =        EXACT     a frozen gate graded the crates/ that landed
+w-column       c118e536 =        EXACT     a frozen gate graded the crates/ that landed
+w-fence2       13dc655e =        EXACT     a frozen gate graded the crates/ that landed
+w-fltret2      01ef4333 =        EXACT     a frozen gate graded the crates/ that landed
+w-hatchroot    5418a7f7 =        EXACT     a frozen gate graded the crates/ that landed
+w-inlfence2    c615467c =        EXACT     a frozen gate graded the crates/ that landed
+w-ladders      cede232c =        EXACT     a frozen gate graded the crates/ that landed
+w-mass         4d97e0a9 =        EXACT     a frozen gate graded the crates/ that landed
+w-memcpy       41c5683f =        EXACT     a frozen gate graded the crates/ that landed
+w-memfit       e535c62a dc228e06 REBASE    work/w-memfit/gate_tip.txt
+w-mmio         120aecc6 6e08f6d4 AHEAD     work/w-mmio/gate_tip.txt
+w-phase7       476c7822 54f9cbc8 AHEAD     work/w-phase7/gate.log
+w-pool         683b09ad =        EXACT     a frozen gate graded the crates/ that landed
+w-readpx       b5843e73 =        EXACT     a frozen gate graded the crates/ that landed
+w-seclayout    512f3476 =        EXACT     a frozen gate graded the crates/ that landed
+w-wordwrap     e4060147 =        EXACT     a frozen gate graded the crates/ that landed
+w-xtea         45b51acb e75535c0 REBASE    work/w-xtea/gate/gate.txt
+w-xtea2        07d41532 7543d97d AHEAD     work/w-xtea2/gate_tip.txt
+wb-memcpy      aa32be85 =        EXACT     a frozen gate graded the crates/ that landed
+----------------------------------------------------------------------------------------
+lanes with an in-window transcript that graded the LANDED crates/ : 15
+in-window transcripts differing by REBASE (peers moved, not #2907) : 2
+in-window transcripts differing by AHEAD (lane committed after)    : 3
+landed lanes whose transcripts are all OUTSIDE the window          : 57
+
+THE AHEAD ROWS — what `crates/` moved between the gate and the landing:
+  w-mmio   6e08f6d4 -> 120aecc6
+     1 file changed, 112 insertions(+)
+   98e3f60f w-mmio: the rung doc, board rows #1443-#1449, and four tests for the three clauses
+  w-phase7   54f9cbc8 -> 476c7822
+     1 file changed, 18 insertions(+), 10 deletions(-)
+   7ea61bfc scan: correct two comments written BEFORE the measurement they describe
+  w-xtea2   7543d97d -> 07d41532
+     5 files changed, 11 insertions(+)
+   27278e66 w-xtea2: carry the new IlFunction field into the codegen unit-test initializers — and re-ap

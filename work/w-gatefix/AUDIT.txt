@@ -1,0 +1,84 @@
+landed lanes found by `merge w-*` merge commits: 136
+gate transcripts carrying a pinned identity: 125 lines over 88 lane dirs
+  of those, 48 printed `-dirty` and 77 printed a clean identity
+
+==============================================================================
+RESULT
+==============================================================================
+  lanes whose gate transcript graded the EXACT crates/ that landed : 47
+  lanes with no gate transcript under work/<lane>/                 : 59
+  lanes where NO transcript matches the landed crates/            : 30
+  unresolved                                                      : 0
+
+  the lanes to read by hand:
+    w-bind           landed tip 5250d81f (crates 0281da42)
+        work/w-bind/gate_tip.txt                     tree 13b9d9a8  crates ca3c61ba
+    w-bytes          landed tip b9ea88b9 (crates e0e43bf9)
+        work/w-bytes/gate.log                        tree 3a01902   crates 5d2c2688
+    w-cflowlabel     landed tip 3ed32806 (crates b92422ee)
+        work/w-cflowlabel/gate-tip.txt               tree 54feb8eb  crates 53b616e8
+    w-classes        landed tip 186e2c6b (crates 500db0fe)
+        work/w-classes/gate-tip.txt                  tree d74576c1  crates fdb5aded
+        work/w-classes/sweep.log                     tree d74576c1  crates fdb5aded
+    w-disagree       landed tip 8f2036fc (crates 09921dce)
+        work/w-disagree/out/gate_tip.txt             tree af90b637  crates 2721f294
+    w-drop3          landed tip a5b8c7a9 (crates 18987b1f)
+        work/w-drop3/gate_final.txt                  tree d3a0923   crates 4e1a8013
+        work/w-drop3/gate_tip.txt                    tree 4889be3   crates 644966d8
+    w-empty          landed tip 96eeef0f (crates 209c5713)
+        work/w-empty/gate_tip.txt                    tree 11e99f0   crates d401cf65
+    w-f23            landed tip 663312ad (crates 02d5ea00)
+        work/w-f23/gate_final.txt                    tree e7a9dec4  crates bb4f9605
+    w-fix            landed tip 22ffe724 (crates c8f6d8f4)
+        work/w-fix/gate_final.txt                    tree 8f04109   crates 26dd383e
+        work/w-fix/gate_tip.txt                      tree 3fa56c2   crates 37d7e240
+    w-gate           landed tip 48bdfdd2 (crates a86b8c86)
+        work/w-gate/accept_B_demand.txt              tree c614a7b0  crates a46f716b
+        work/w-gate/accept_B_env.txt                 tree c614a7b0  crates a46f716b
+        work/w-gate/accept_C_no_demand.txt           tree c614a7b0  crates a46f716b
+        work/w-gate/gate_baseline.txt                tree f57fe61e  crates a46f716b
+        work/w-gate/gate_final.txt                   tree 20b2bb4e  crates a46f716b
+    w-inread         landed tip a0fe9641 (crates dae12d73)
+        work/w-inread/gate.log                       tree b0df3ed   crates 4f9f7ead
+    w-memfit         landed tip e535c62a (crates e8a7a307)
+        work/w-memfit/gate_tip.txt                   tree dc228e06  crates 37317327
+    w-memset         landed tip 3a69e11c (crates 1fb075a2)
+        work/w-memset/gate_tip.txt                   tree c2d2a8b7  crates 66b8fe87
+    w-mmio           landed tip 120aecc6 (crates 584e5d3e)
+        work/w-mmio/gate_tip.txt                     tree 6e08f6d4  crates eeccce1a
+    w-next           landed tip 8b1690fd (crates c3768e01)
+        work/w-next/gate.log                         tree 930d675   crates 351fc2df
+    w-one            landed tip 7808fba2 (crates d2921a3e)
+        work/w-one/gate.txt                          tree 00aa9d71  crates b3418295
+    w-op27           landed tip 62c76286 (crates 38a0ed68)
+        work/w-op27/gate_tip.txt                     tree b3762994  crates 6facb72a
+    w-phase7         landed tip 476c7822 (crates 4cbdc92e)
+        work/w-phase7/gate.log                       tree 54f9cbc8  crates 55ec6667
+    w-quar           landed tip 9da6142a (crates c85ed416)
+        work/w-quar/gate.log                         tree 18ea1928  crates c246c0f1
+    w-root           landed tip a7cef9ad (crates a46f716b)
+        work/w-root/gate.log                         tree 839d6689  crates c85ed416
+    w-rtti           landed tip 8aede9f0 (crates 35a121f8)
+        work/w-rtti/gate_evidence.txt                tree a83594a   crates 596e05df
+    w-sched2         landed tip 54e4aa52 (crates 4f02702e)
+        work/w-sched2/gate.txt                       tree 916679d   crates 374d17b4
+    w-seam           landed tip a9586baa (crates 7bfd5031)
+        work/w-seam/gate.log                         tree e8f138d   crates ddbb07d2
+    w-seam2          landed tip fc815731 (crates ed842e92)
+        work/w-seam2/gate_tip.txt                    tree f5bd6428  crates aa532706
+    w-seed           landed tip 70764690 (crates 7e8cc15f)
+        work/w-seed/gate_tip.txt                     tree 1118572d  crates d62b86ac
+    w-spell          landed tip ccc31305 (crates e4a44e8b)
+        work/w-spell/gate.log                        tree 3591340   crates 7bfd5031
+    w-splice         landed tip 575aaed9 (crates c246c0f1)
+        work/w-splice/gate_tip.txt                   tree 2d0b79cd  crates 6df9b5ba
+    w-tag02          landed tip 9736edd8 (crates 392dc156)
+        work/w-tag02/gate.txt                        tree f240b96   crates b85e3aaa
+    w-xtea           landed tip 45b51acb (crates 5bdfe43c)
+        work/w-xtea/gate/gate.txt                    tree e75535c0  crates d93ce964
+    w-xtea2          landed tip 07d41532 (crates bf6fe978)
+        work/w-xtea2/gate_tip.txt                    tree 7543d97d  crates 76311e1a
+
+  lanes with no transcript in their own work/ dir (their gate output
+  lives in the rung, in a peer's dir, or was never frozen):
+    w-align w-band w-bcgap w-bdnz w-blockir w-cache w-callprice w-ceiling w-cfg2 w-cfgclass w-data w-decouple w-divmod w-divsplit w-extdata w-fltret w-fork w-frame783 w-front5 w-gen w-ifn w-inlfence w-json w-jump w-lineage w-magic w-main w-mcall w-memfit2 w-mmioclose w-nc w-order3 w-osfinfo w-oxfix w-park w-phase7b w-pool2 w-rdata3 w-rotate w-selbind w-throughput w-tmpstrip w-undname w-value w-vec w-vsnprnc w-xlr w-xtea3 wb-chooser wb-eh wb-frame wb-inline wb-label wb-loop wb-reader wb-regalloc wb-select wb-selfit wb-tables

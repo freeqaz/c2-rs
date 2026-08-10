@@ -1,0 +1,144 @@
+w-gatefix — THE TWO-DIRECTION REPRODUCTION OF #2907 / #2668, FROZEN
+====================================================================
+Boards #2940 / #2941. Every run below is `scripts/gate.sh` AS IT WAS AT THE
+MERGE BASE `0d0a74d2`, in this lane's worktree, on 2026-08-10. Machine paths
+scrubbed to `<repo>`.
+
+The permanent, re-runnable form of this reproduction is `gate.sh --check`'s
+arms `A2` / `A3` and their counterfactuals `C1` / `C2` / `C3`, which drive the
+same behaviour against throwaway `git init` trees and against `0d0a74d2`'s own
+`hatch_red.py` read out of git. What is below is the incident itself, in the
+real repository, once.
+
+
+--------------------------------------------------------------------------
+0. THE MECHANISM, ISOLATED — the arm-count probe is the destructive step
+--------------------------------------------------------------------------
+`hatch_red_run()` reads the declared arm count with `--list` BEFORE its
+interlock, and `hatch_red.py`'s module-level `finally: restore()` fires on that
+path too. `--list`'s own docstring (line 5) says "runs nothing".
+
+    $ python3 -c "…prepend a doc line to crates/c2-obj/src/lib.rs…"
+    dirty before        : crates/c2-obj/src/lib.rs
+    $ python3 work/w-hatch/hatch_red.py --list
+    --list exit: 0   lines: 14
+    dirty after --list  : (clean)     <-- EATEN BY --list
+
+So by the time the interlock two lines below runs, there is nothing left for it
+to refuse over. `hatch_red.py`'s OWN `REFUSING to run on a dirty tree` guard is
+also never reached, because `--list` returns above it.
+
+
+--------------------------------------------------------------------------
+1. DIRECTION ONE — a gate run eats an uncommitted `crates/` edit
+--------------------------------------------------------------------------
+Tree: `0d0a74d2`, clean, plus ONE uncommitted line in
+`crates/c2-obj/src/lib.rs`:
+
+    //! W-GATEFIX REPRO PROBE A — an uncommitted lane edit that a gate run must not eat.
+
+    $ git diff --name-only HEAD -- crates/
+    crates/c2-obj/src/lib.rs
+
+    $ scripts/gate.sh --no-reap --work /tmp/c2rs-gatefix-reproA
+    lane gate: 18 lanes from <repo>/scripts/lanes.txt
+      run dir: /tmp/c2rs-gatefix-reproA
+
+    hatch-red:       work/w-hatch/hatch_red.py  (no toolchain; fires hatch.py's refusals)
+      REFUSED  HATCH-STALE `hatch.py apply` cannot hatch this tree, so the arms
+               have no tree to run on (board #1389)
+    …
+      sha 0a252107b376  tree 0d0a74d2
+
+    $ git diff --name-only HEAD -- crates/
+    (empty)
+    $ head -4 crates/c2-obj/src/lib.rs
+    //! COFF object handling for the differential compare.
+    //! …                                    <-- THE PROBE LINE IS GONE
+
+Three things to read off it, in order of cost:
+
+  * the edit is gone;
+  * the row said **HATCH-STALE**, not **DIRTY-TREE** — the interlock that exists
+    for exactly this saw a clean tree, because the probe had cleaned it;
+  * `tree 0d0a74d2` carries **no `-dirty` suffix**. `pin_harness` computes that
+    marker with `git diff --quiet HEAD` AFTER the hatch-red row, so the gate's
+    one signal for "this is not the tree you handed me" is evaluated downstream
+    of the thing that made it false.
+
+
+--------------------------------------------------------------------------
+2. DIRECTION TWO — the run reports a tree it did not grade
+--------------------------------------------------------------------------
+The same edit, in a place that provably reaches the binary: one bracketed word
+added to `print_usage()`'s first line in `crates/c2-harness/src/main.rs`.
+
+  run B1 — the edit UNCOMMITTED
+    $ scripts/gate.sh --no-reap --work /tmp/c2rs-gatefix-reproB1
+      hatch-red … REFUSED  HATCH-STALE
+      sha 0a252107b376  tree 0d0a74d2
+    $ grep -c "W-GATEFIX PROBE B" crates/c2-harness/src/main.rs
+    0                                        <-- eaten again
+
+  run B2 — the SAME edit COMMITTED (b8801857)
+    $ scripts/gate.sh --no-reap --work /tmp/c2rs-gatefix-reproB2
+      hatch-red … REFUSED  HATCH-STALE
+      sha 6efc8913269f  tree b8801857
+
+  | `crates/` when the gate started | pinned binary  | printed identity |
+  |---------------------------------|----------------|------------------|
+  | probe edit uncommitted          | `0a252107b376` | `tree 0d0a74d2`  |
+  | the SAME edit committed         | `6efc8913269f` | `tree b8801857`  |
+  | (control) tree clean, no edit   | `0a252107b376` | `tree 0d0a74d2`  |
+
+Run B1 was invoked on a tree containing the change under test and graded one
+that did not. Its report is indistinguishable from the control's. This is
+`w-seclayout`'s retracted byte-identical-binary claim, reproduced from the
+other end: their run pinned the merge-base binary while naming the tip.
+
+
+--------------------------------------------------------------------------
+3. AFTER THE FIX — the same three trees, the same gate
+--------------------------------------------------------------------------
+    $ scripts/gate.sh --no-reap --work …            # crates/ dirty
+      graded tree: fe898be5013b  (709 files under crates fixtures scripts)
+
+      GATE: REFUSED (DIRTY crates/) — nothing was graded and nothing was touched.
+        These files differ from HEAD:
+          crates/c2-obj/src/lib.rs
+        …
+      exit 4
+    $ head -1 crates/c2-obj/src/lib.rs
+    //! W-GATEFIX REFUSAL PROBE            <-- the edit is still there
+
+    $ scripts/gate.sh --no-reap --allow-dirty-crates --work …
+      graded tree: fe898be5013b  (709 files under crates fixtures scripts)
+      *** --allow-dirty-crates: crates/ differs from HEAD and is being graded AS IS.
+            crates/c2-obj/src/lib.rs
+          The commit id below names a tree this run did NOT grade. …
+
+      hatch-red …
+        REFUSED  DIRTY-TREE crates/ differs from HEAD and the arms would overwrite it
+      …
+      graded tree: fe898be5013b  (709 files: crates fixtures scripts, content-hashed)
+        *** graded with --allow-dirty-crates: this is NOT the tree at dfdb7285 …
+    $ head -1 crates/c2-obj/src/lib.rs
+    //! W-GATEFIX REFUSAL PROBE            <-- still there
+
+Note `fe898be5013b` against the clean tree's `5691a3ed49dc` at the SAME `HEAD`.
+That difference is the whole deliverable: a run's identity that moves when the
+graded bytes move, and that a reader cannot confuse with the commit they think
+they are on.
+
+
+--------------------------------------------------------------------------
+4. WHAT WAS DELIBERATELY NOT FIXED
+--------------------------------------------------------------------------
+`hatch_red.py`'s arms fail five of fourteen at this merge base — `R2 DIRTY+HATCH`,
+`R6 RESIDUE`, `A2 PAID-MISSING`, `F1 FORCE`, `C1 HATCH-ONLY` — because
+`hatch.py apply` cannot hatch this tree (`HATCH-DRIFT` on `call-arg-lit-permuted`,
+board #1322/#1389). That is seven lanes old, it is a property of the tree and
+not of this defect, and it is untouched. It is reproduced at this lane's merge
+base in `work/w-gatefix/hatchred_at_base.txt`; the gate still reports it as
+`REFUSED HATCH-STALE`, exactly as before, and this lane makes it neither more
+nor less visible.

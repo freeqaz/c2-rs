@@ -188,7 +188,40 @@ def crates_diff():
     return git("diff", "--name-only", "--", "crates/").stdout.split()
 
 
+# THE ARMED FLAG — board **#2907**, lane `w-gatefix`, 2026-08-10.
+#
+# `restore()` is an unconditional `git checkout -- crates/`, and it used to be
+# reached from a module-level `finally` that ran on EVERY exit path, including
+# `--list` — a mode whose own docstring on line 5 says "runs nothing". Nothing
+# in this file wrote to `crates/` under `--list`, so the checkout could only
+# destroy somebody else's work, and it did:
+#
+#   * `gate.sh`'s `hatch_red_run()` reads the declared arm count with
+#     `python3 hatch_red.py --list` **before** its dirty-tree interlock. The
+#     probe reverted the tree; the interlock then read a CLEAN tree and let the
+#     row proceed; the run graded `HEAD` while its caller had supplied `HEAD` +
+#     an uncommitted edit. That is #2668's `final crates/ diff: EMPTY` and
+#     #2907's "base tree wearing the tip's name", and it is the same defect
+#     seen from the two ends.
+#   * The `REFUSING to run on a dirty tree` guard below (line ~490) is correct
+#     and was unreachable from `--list`, because `--list` returns above it.
+#
+# So the destructive call is now ARMED rather than unconditional: only a path
+# that has actually written into `crates/` may un-write it. A mode that writes
+# nothing restores nothing — there is no tree state a `--list` could be
+# repairing, so a checkout there is destruction with no upside. The flag is set
+# by `arm()` (the only writer) immediately BEFORE its first write, never after,
+# so a crash between the flag and the write costs one redundant checkout of a
+# tree the guard above already proved clean, while a crash the other way round
+# would leave a hatched tree behind — the failure modes are not symmetric and
+# the ordering picks the survivable one.
+ARMED = False
+
+
 def restore():
+    """Undo what the arms wrote. A no-op unless an arm actually wrote."""
+    if not ARMED:
+        return
     git("checkout", "--", "crates/")
 
 
@@ -237,6 +270,12 @@ RESULTS = []
 def arm(name, setup, run, want, also=(), injected=False, expect_rc=None,
         note="", check=None):
     """One arm. `want` is the leading word, or None for a GREEN control."""
+    # ARM THE CHECKOUT — #2907. From here on this file writes into `crates/`
+    # (`setup` is `s_dirty`/`hatch_tree`/…), so from here on it is entitled to
+    # un-write it. Set BEFORE the first write and before the defensive
+    # `restore()` below, never after: see the note on `ARMED`.
+    global ARMED
+    ARMED = True
     print("=" * 74)
     print("ARM %s — expect %s%s"
           % (name, ("leading word " + want) if want else "GREEN, no refusal word",

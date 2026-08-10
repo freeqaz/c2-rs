@@ -1,0 +1,39 @@
+lane registry: <repo>/scripts/lanes.txt
+  18 lanes, slugs unique, every row parses.
+  O1                   /O1
+  O1-EHsc              /O1 /EHsc
+  O1-Oi                /O1 /Oi
+  O1-Oi-EHsc           /O1 /Oi /EHsc
+  Ox                   /Ox
+  Ox-EHsc              /Ox /EHsc
+  Ox-Gy                /Ox /Gy
+  Ox-Gy-EHsc           /Ox /Gy /EHsc
+  O2                   /O2
+  O2-EHsc              /O2 /EHsc
+  Od                   /Od
+  Od-EHsc              /Od /EHsc
+  O1-Oi-GR             /O1 /Oi /GR
+  O1-Oi-EHsc-GR        /O1 /Oi /EHsc /GR
+  Ox-GR                /Ox /GR
+  Ox-EHsc-GR           /Ox /EHsc /GR
+  Od-GR                /Od /GR
+  Od-EHsc-GR           /Od /EHsc /GR
+
+corpus: 62 fragments, 19556 generated cases (source pass needs no toolchain)
+check: 0 of 60 shape markers have zero cases (baseline 0), 62 fragments all non-empty, 19556 cases
+SHAPE-CHECK: PASS
+
+tree integrity (boards #2668 / #2907): the gate cannot report a tree it did not grade
+  PASS  hash-moves-when-content-moves      6df5faa203c3 -> a0f3c84c49e2 at one unchanged HEAD
+  PASS  hash-reports-its-file-count        3 files, one in each graded directory
+  PASS  hash-covers-crates                 editing crates/ moves the identity
+  PASS  hash-covers-fixtures               editing fixtures/ moves the identity
+  PASS  hash-covers-scripts                editing scripts/ moves the identity
+  PASS  hash-is-deterministic              two reads of an unchanged tree agree
+  PASS  list-probe-writes-nothing          an uncommitted crates/ edit survives --list
+  PASS  dirty-tree-refused-and-preserved   REFUSED DIRTY-TREE, edit intact
+  PASS  interlock-precedes-every-invocation interlock at body line 36, first invocation at 68
+  PASS  counterfactual-list-probe-was-destructive 0d0a74d2's --list ate the edit; A2 is a real assertion
+  PASS  counterfactual-row-now-preserves   with 0d0a74d2's file the row's own interlock now saves the edit
+  PASS  counterfactual-interlock-was-second 0d0a74d2 ran the probe at body line 21, interlock at 30
+  tree integrity: 12 arms, 0 failed (boards #2668 / #2907)
