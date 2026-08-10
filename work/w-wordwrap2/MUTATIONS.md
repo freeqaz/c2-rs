@@ -1,7 +1,8 @@
 # w-wordwrap2 — THE MUTATION GRID
 
 Every cell is graded by the **differential against real `c2.dll` under wibo**, at
-`/O1 /Oi /GS- /c`, over this lane's own thirteen `fixtures/cpp/wwrap_*.cpp`.
+`/O1 /Oi /GS- /c`, over the thirteen `fixtures/cpp/wwrap_*.cpp` and
+`fixtures/cpp/wwbss_*.cpp` cells this lane and `w-wordwrap` own between them.
 Apparatus: `work/w-wordwrap2/mutate.py` (one conjunction deleted per mutation,
 anchor uniqueness asserted), `work/w-wordwrap2/mutrun.sh`,
 `work/w-wordwrap2/mut/GRID_RAW.txt` (every run, including the three that came
@@ -20,7 +21,7 @@ that is louder rather than weaker.
 |---|---|---|
 | **M0** | restore `w-wordwrap`'s `return None` on `IlDataDef::uninitialized` | **both accepted cells fall back to `codegen-gap`** |
 
-So `wwrap_gstore.cpp` and `wwrap_bss_two.cpp` are accepted **by this production
+So `wwrap_gstore.cpp` and `wwbss_two.cpp` are accepted **by this production
 and by nothing else**. Without it the lane could be crediting itself with an obj
 some other path emits.
 
@@ -30,19 +31,19 @@ some other path emits.
 
 | # | conjunction deleted | cell | base → mutated |
 |---|---|---|---|
-| **M1** | Rule S1′'s **linkage** clause — *the object must be EXTERNAL* — in **both** crates | `wwrap_bss_static_neg` | refused → **`mismatch`** |
+| **M1** | Rule S1′'s **linkage** clause — *the object must be EXTERNAL* — in **both** crates | `wwbss_static_neg` | refused → **`mismatch`** |
 | **M2** | board **#184**'s object-count bound (`MAX_OBJECTS_PER_SECTION`) | `wwrap_gstore_widths` | refused → **`mismatch`** |
-| **M3** | Rule **Y1**'s external clause — the symbol group is the **reverse** of the walk | `wwrap_bss_two` | match → **`mismatch`** |
-| **M4** | Rule **B1** — the section nibble is the **max** over the objects | `wwrap_bss_two` | match → **`mismatch`** |
-| **M5** | Rule **S1′** slot `B` — the section goes **between** the watermarks (index 3, not 4) | `wwrap_gstore` **and** `wwrap_bss_two` | match → **`mismatch`**, both |
-| **M6** | the **unconditional** dangling-def test, in both crates | `wwrap_bss_static_neg` | refused → **3 PANICS** |
+| **M3** | Rule **Y1**'s external clause — the symbol group is the **reverse** of the walk | `wwbss_two` | match → **`mismatch`** |
+| **M4** | Rule **B1** — the section nibble is the **max** over the objects | `wwbss_two` | match → **`mismatch`** |
+| **M5** | Rule **S1′** slot `B` — the section goes **between** the watermarks (index 3, not 4) | `wwrap_gstore` **and** `wwbss_two` | match → **`mismatch`**, both |
+| **M6** | the **unconditional** dangling-def test, in both crates | `wwbss_static_neg` | refused → **3 PANICS** |
 
 **Six graded of seven attempted.**
 
 ### M2 is the sharpest, because its two cells disagree
 
 Deleting #184's bound turns `wwrap_gstore_widths.cpp` into a **`mismatch`** and
-`wwrap_bss_three_neg.cpp` into a **`match`**. Both are three-object TUs. That is
+`wwbss_three_neg.cpp` into a **`match`**. Both are three-object TUs. That is
 `OBJ_DATA_BSS_SHAPE.md` §8.1's *"38 of 62"* reproduced live in two cells: at
 three objects the walk is right *sometimes*, and a bound that let the right ones
 through would let the wrong ones through with them. A grid with only the
@@ -87,7 +88,7 @@ lane shipped for one commit and it is graded rather than described.
 
 ## The cell that grades NOTHING, NAMED and not counted (#2698)
 
-**M7 — the `__declspec(thread)` clause.** `wwrap_bss_tls_neg.cpp` is
+**M7 — the `__declspec(thread)` clause.** `wwbss_tls_neg.cpp` is
 `vocab-gap` at **`unclaimed-gl-symbol`** before and after the deletion:
 `IlBundle::functions()` refuses the TU because nothing claims the `.tls$`
 object's `.gl` name, and it refuses it whether or not this lane's clause is

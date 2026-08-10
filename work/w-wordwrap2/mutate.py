@@ -89,7 +89,7 @@ MUTATIONS = {
     # over two crates — the second merged mutation, and for the same reason M1
     # is merged. Re-gating the writer's dangling-def test alone came back GREEN
     # because the READER's separated refusal now catches the cell first; the two
-    # repairs are one conjunction over `wwrap_bss_static_neg.cpp`.
+    # repairs are one conjunction over `wwbss_static_neg.cpp`.
     #
     # The must-fail signal here is a PANIC, not a `mismatch`, and that is the
     # honest grading: `every relocation target got a symbol` is what the defect

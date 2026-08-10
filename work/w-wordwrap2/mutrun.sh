@@ -12,7 +12,7 @@ mkdir -p "$W/mut"
 tag="$1"
 
 : > "$W/mut/list.txt"
-for f in "$ROOT"/fixtures/cpp/wwrap_*.cpp; do
+for f in "$ROOT"/fixtures/cpp/wwrap_*.cpp "$ROOT"/fixtures/cpp/wwbss_*.cpp; do
     printf 'z:%s\n' "$(printf '%s' "$f" | tr '/' '\\')" >> "$W/mut/list.txt"
 done
 

@@ -2206,7 +2206,7 @@ mod xlrc_helper_symbols {
     // W-WORDWRAP2 — the shared non-COMDAT `.bss` in the shell (board #2727).
     //
     // These pin the facts the differential grades on
-    // `fixtures/cpp/wwrap_bss_two.cpp` but which no PORTABLE test could see
+    // `fixtures/cpp/wwbss_two.cpp` but which no PORTABLE test could see
     // before, because the whole class lived behind a `return None`. They are
     // here rather than only beside the fixture for the reason `docs/GAPS.md` §7
     // records: a fixture grades only where the toolchain is present, and the
@@ -2286,7 +2286,7 @@ mod xlrc_helper_symbols {
     /// **The STORAGE walk and the SYMBOL order are DIFFERENT permutations** —
     /// Rule A1/A3' forwards over `.gl` order, Rule Y1's external clause
     /// backwards — and the section nibble is Rule B1's MAX, not the first
-    /// object's. `fixtures/cpp/wwrap_bss_two.cpp` is this cell against real c2.
+    /// object's. `fixtures/cpp/wwbss_two.cpp` is this cell against real c2.
     #[test]
     fn two_shared_bss_objects_bump_forwards_and_emit_their_symbols_backwards() {
         // `.gl` record order: the 8-byte object first, then the 4-byte one.
@@ -2327,7 +2327,7 @@ mod xlrc_helper_symbols {
     /// the panic this lane shipped for one commit: an `uninitialized` def whose
     /// object the TU-level list does not carry has no symbol to relocate
     /// against, and gating the test on that list being non-empty asks the broken
-    /// input to report itself. `wwrap_bss_static_neg.cpp` is the source shape.
+    /// input to report itself. `wwbss_static_neg.cpp` is the source shape.
     #[test]
     fn an_uninitialized_def_with_no_tu_level_object_refuses_rather_than_panics() {
         let funcs = [bss_storer("?SetA@@YAXI@Z", "s_a", 4, 4)];

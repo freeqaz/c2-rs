@@ -11,7 +11,7 @@
   base histogram {'codegen-gap': 18, 'match': 177, 'vocab-gap': 184}
   tip  histogram {'codegen-gap': 16, 'match': 179, 'vocab-gap': 184}
   verdicts BY FULL PATH: 379 rows compared, 2 MOVED (class)
-      fixtures\cpp\wwrap_bss_two.cpp   codegen-gap -> match
+      fixtures\cpp\wwbss_two.cpp   codegen-gap -> match
       fixtures\cpp\wwrap_gstore.cpp   codegen-gap -> match
   byte triples (exact, differs, refused): 352 rows compared, 0 MOVED (fnbyte)
   base totals: exact 1834  differs 11  refused 1069

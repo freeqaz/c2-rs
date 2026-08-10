@@ -212,3 +212,4 @@ the header block this table is read from.
 | 2026-08-10 | w-phase7b | [w-phase7b](2026-08-10-w-phase7b.md) | 10 | per-function unchanged, **+0**. TU match **23 → 23**, mismatch **0 → 0**, |
 | 2026-08-10 | w-seclayout | [w-seclayout](2026-08-10-w-seclayout.md) | 11 | per-function unchanged, **+0**. TU match **23 → 23**, mismatch |
 | 2026-08-10 | w-selbind | [w-selbind](2026-08-10-w-selbind.md) | 11 | per-function unchanged, **+0**. TU match **23 → 23**, mismatch |
+| 2026-08-10 | w-wordwrap2 | [w-wordwrap2](2026-08-10-w-wordwrap2.md) | 1 | per-function 714,556 → 714,556 · emitted 39,254 → 39,254 |

@@ -2759,7 +2759,7 @@ impl IlBundle {
     /// `.bss` here", the writer placed no section, and the REFHI/REFLO quad
     /// `Bindings::resolve_bss_def` had already put on the function had no symbol
     /// to resolve against. `every relocation target got a symbol` fired inside
-    /// the `/O1` fixture lane on `wwrap_bss_static_neg.cpp`. `docs/STATUS.md`
+    /// the `/O1` fixture lane on `wwbss_static_neg.cpp`. `docs/STATUS.md`
     /// trap 5 — *absence reads as success* — with the absence being the object
     /// this method declined to report.
     ///
