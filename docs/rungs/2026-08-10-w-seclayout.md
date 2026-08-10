@@ -19,9 +19,11 @@
                **0 → 0**, codegen-gap **0 → 0**, vocab-gap **848 → 848**,
                capture-fail **7 → 7**. `fnbyte-exact` **35,810 → 35,810**
                (**+0**). `gap-metric` keys: **0 added, 0 removed, 0 changed
-               value**. Zero of 878 TU class verdicts moved. This lane changes
-               no executable byte, and the neutrality is the *whole* metric
-               table rather than a selected row.
+               value**. Zero of 878 TU class verdicts moved, and **zero of
+               878 rows differ on ANY `--jsonl` field**. This lane changes no
+               executable statement — the only `crates/` edits are doc
+               comments — and the neutrality is the *whole* metric table
+               rather than a selected row.
     Record:    this file; PREREG `work/w-seclayout/PREREG.md`, committed at
                **`26595bdb`** — before the first `crates/` change of any kind,
                including the reverted counterfactual. Scored in §9.
@@ -38,18 +40,26 @@
                regenerated** (#2700). Toolchain
                `compilers/X360/16.00.11886.00`, wibo `1.2.0-c2rs.1`. Base
                binary sha256 **`ac193eab2651…c902e3`**, copied to
-               `work/w-seclayout/c2rs-base` before the first edit (#2409) and
-               **KEPT** — re-verified by sha256 at the end of the lane. The
-               reverted counterfactual's binary is kept beside it as
-               `c2rs-cf26`, and the tip's as `c2rs-tip`. Every figure below is
-               a scan at both ends, each end scanned by **its own binary**.
+               `work/w-seclayout/c2rs-base` before the first edit (#2409) —
+               that binary produced the base scan and the counterfactual
+               comparison in §5.4. It was **destroyed mid-lane** by a
+               `git filter-branch` that stripped this lane's oversized scratch
+               out of its own commits (captured IL, objs and binaries, which
+               `CLAUDE.md` forbids committing and which a `git add -f` of the
+               lane directory had swept in). It was **rebuilt at the same
+               merge-base** as sha256 **`06ec9f9473da…165487`** — a different
+               hash only because rustc embeds the build path, and this build is
+               in a separate merge-base worktree — and that is the binary the
+               final base/tip neutrality scan uses. The tip's is
+               **`886231ceec3d…8c0f62`**. Every figure below is a scan at both
+               ends, each end scanned by **its own binary**.
     Ships:     **no behaviour.** Two doc corrections in `crates/`:
                `gl.rs`'s `Name26Introduced` clause comment (its `/Ox` premise
                named as such, with the `/O1` measurement that replaces it) and
                `bind.rs`'s `Bindings::per_record` (the missing clause 4, with
                the one workload TU that falsifies its unstated premise).
-               `docs/CEILING.md` §15. Board rows **#2900**–**#2906**;
-               **#2907**–**#2939** left explicitly unminted.
+               `docs/CEILING.md` §15. Board rows **#2900**–**#2907**;
+               **#2908**–**#2939** left explicitly unminted.
                **+0** `#[test]` (1,497 → 1,497), **0** new cargo targets.
     Adopts:    **nothing.**
 
@@ -323,19 +333,36 @@ already named, with one fewer place to look.
 
 ## 8. NEUTRALITY, FOUR LEVELS, WITH DIRECTIONS
 
-This lane changes no executable byte, so the neutrality claim is the whole
-table rather than a selected row.
+This lane changes no executable statement — the only `crates/` edits are doc
+comments — so the neutrality claim is the *whole* table rather than a selected
+row. Both ends scanned by their own binary: base
+`06ec9f9473da…165487` (rebuilt at the merge-base `5127a20e`, **KEPT** at
+`work/w-seclayout/c2rs-base`), tip `886231ceec3d…8c0f62`.
 
 | level | base | tip | direction |
 |---|---|---|---|
-| **1 — obj bytes** | mismatch 0 | mismatch 0 | unchanged |
-| **2 — TU verdicts** | 23 / 0 / 0 / 848 / 7 | 23 / 0 / 0 / 848 / 7 | **0 of 878 moved**, checked per TU and not by subtracting totals |
-| **3 — per-function bytes** | `fnbyte-exact` 35,810 | 35,810 | **+0** |
-| **4 — every `gap-metric` key** | see `work/w-seclayout/base.keys` | `tip.keys` | **0 added, 0 removed, 0 changed value** |
+| **1 — obj bytes** | mismatch **0** | mismatch **0** | unchanged; 19,556 `expr_sweep` cases and the `mode_cross` grid at the tip |
+| **2 — TU verdicts** | 23 / 0 / 0 / 848 / 7 | 23 / 0 / 0 / 848 / 7 | **0 of 878 moved**, checked **per TU** and not by subtracting totals |
+| **2b — gate first cause** | — | — | **0 of 878 moved** |
+| **3 — per-function bytes** | `fnbyte-exact` 35,810 | 35,810 | **+0**; `fnbyte-differs` 1,898 → 1,898 |
+| **4 — every `gap-metric` key** | 277 keys | 277 keys | **0 added, 0 removed, 0 changed value** |
+| **5 — every FIELD of every ROW** | 878 rows | 878 rows | **0 rows differ on any field**, `detail` string included (`rowdiff.py`) |
 
-`fnbyte-exact` counterfactual, run before shipping as required: the only
-`crates/` edit the lane ever compiled was the reverted counterfactual, and it
-read **35,810 → 35,810**.
+Level 5 is there because "0 moved" can be an artifact of which columns were
+compared. `rowdiff.py` compares every key of every `--jsonl` row, including the
+rendered `detail` prose, and finds **0** differences over 878 TUs.
+
+**The `fnbyte-exact` counterfactual, run before shipping as required**: the only
+`crates/` edit this lane ever *compiled* is the reverted 26-stop
+counterfactual, and it read **35,810 → 35,810**. A walk change cost one earlier
+lane −1, so it was measured rather than assumed.
+
+**One claim retracted inside the lane.** An intermediate commit message asserted
+the tip binary was *byte-identical* to the base. It is not: the doc comments
+shift line numbers, and `#[track_caller]`/panic-location strings carry them, so
+the binaries differ. That observation came from a build the gate had made after
+`hatch_red.py` reverted `crates/` (§10), i.e. from the base tree wearing the
+tip's name. The neutrality above is measured on output, not on the binary.
 
 ---
 
@@ -383,7 +410,33 @@ same direction #2820 and #2860 were wrong in.
 
 ---
 
-## 10. WHAT THIS LANE DECLINED TO RE-PRICE
+## 10. A PROCESS FINDING, PAID FOR IN THIS LANE — `scripts/gate.sh` DISCARDS UNCOMMITTED `crates/` WORK
+
+#2668 says *"commit before any gate row or mutation script"*. This lane can now
+name the mechanism, because it paid for it.
+
+`gate.sh`'s **first** lane is `work/w-hatch/hatch_red.py`, whose arms restore the
+tree with an **unconditional `git checkout -- crates/`** in a `finally`
+(`hatch_red.py:192`; its own module doc says so at line 45). The lane's *verdict*
+is a pure function of the log, so a `REFUSED HATCH-STALE` — which is what this
+tree produces — is reported **after** the arms and their `finally` have already
+run.
+
+Observed here, both directions, same script and same refusal:
+
+| `crates/` state when `gate.sh` started | what happened |
+|---|---|
+| two doc edits **uncommitted** | discarded. The gate then built the *base* tree and pinned it as the tip: `sha ac193eab2651`, which is the merge-base binary's own hash |
+| the same two edits **committed** | preserved. The gate built and pinned `sha 886231ceec3d`, the tip's |
+
+The second-order cost is the one worth recording: the run **looked green** and
+was green — on a tree that no longer contained the change under test. The
+byte-identical-binary claim retracted in §8 is exactly that artifact. Board
+**#2907**.
+
+---
+
+## 11. WHAT THIS LANE DECLINED TO RE-PRICE
 
 * the seven / six / nine mechanisms on `vec.cpp` and `decomp_pch.cpp`
   (`w-phase7b` §4–§5, #2827) — read, not re-derived;

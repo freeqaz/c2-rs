@@ -1,0 +1,38 @@
+w-seclayout: retract the byte-identical-binary claim, mint #2907 for the gate that discarded this lane's own uncommitted crates/ work, and record five-level neutrality measured on OUTPUT
+
+Three corrections, all of them things this lane got wrong and then measured.
+
+1. The previous commit message says the tip binary is byte-identical to the
+   base.  It is not.  The doc comments shift line numbers and panic-location
+   strings carry them, so the binaries differ; the observation came from a
+   build gate.sh made AFTER hatch_red.py had reverted crates/, i.e. from the
+   base tree wearing the tip's name.  Neutrality is now measured on OUTPUT and
+   at five levels, both ends scanned by their own binary:
+
+       L1  mismatch                       0 -> 0
+       L2  TU class verdicts        0 of 878 moved (per TU, not by subtraction)
+       L2b gate first cause         0 of 878 moved
+       L3  fnbyte-exact             35,810 -> 35,810; differs 1,898 -> 1,898
+       L4  gap-metric keys          277, 0 added / 0 removed / 0 changed
+       L5  every FIELD of every ROW 0 of 878 rows differ, detail string included
+
+   L5 exists because "0 moved" can be an artifact of which columns were
+   compared; rowdiff.py compares every key of every --jsonl row.
+
+2. #2907: scripts/gate.sh discards uncommitted crates/ work.  Its FIRST lane is
+   work/w-hatch/hatch_red.py, whose arms restore the tree with an unconditional
+   `git checkout -- crates/` in a finally (hatch_red.py:192).  The verdict is a
+   pure function of the log, so the REFUSED HATCH-STALE this tree produces is
+   reported after that finally has already run.  Observed both ways with the
+   same script and the same refusal: uncommitted, the edits were discarded and
+   the gate pinned the MERGE-BASE binary as the tip (sha ac193eab2651);
+   committed, it pinned the tip's (sha 886231ceec3d).  That is #2668's "commit
+   before any gate row or mutation script" with its mechanism named, and the
+   expensive part is that the run WAS green, on the wrong tree.
+
+3. The lane's own commits had swept captured IL, objs and binaries into git via
+   a `git add -f` of the whole lane directory, which CLAUDE.md forbids.  The
+   five commits were rewritten with filter-branch to drop them; messages and
+   boundaries are unchanged.  That rewrite is also what destroyed the kept base
+   binary, which was rebuilt at the same merge-base (06ec9f9473da...) and is
+   what the final neutrality scan uses.

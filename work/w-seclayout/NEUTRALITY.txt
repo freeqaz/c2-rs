@@ -1,0 +1,7 @@
+TUs: 878   tip classes: {'vocab-gap': 848, 'match': 23, 'capture-fail': 7}
+L2  class verdicts moved            : 0
+L2b gate first causes moved         : 0
+L3  per-TU binding/census fields moved: 0
+878 TUs compared on EVERY field except ['detail']
+rows that differ anywhere: 0
+rows whose `detail` string differs: 0
