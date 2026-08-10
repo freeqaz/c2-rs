@@ -2705,6 +2705,118 @@ impl IlBundle {
             .collect()
     }
 
+    /// **W-WORDWRAP2 — the TU-level non-COMDAT `.bss` of a FUNCTION-BEARING
+    /// TU**, in `.gl` record order, or `None` when the TU carries a data object
+    /// this reader cannot account for.
+    ///
+    /// This is the DECODE bound for board **#2727**'s shell slot. The LAYOUT
+    /// bound — at most [`crate`]-external `MAX_OBJECTS_PER_SECTION` objects per
+    /// non-COMDAT section, board #184 — lives in `coff::writer`, so neither
+    /// crate assumes the other ran. That is the same split
+    /// [`Self::data_tu`]/`coff::emit_data_obj` already draw.
+    ///
+    /// # What this is NOT
+    ///
+    /// It is not a widening of [`Self::data_tu`], which serves the FUNCTIONLESS
+    /// TU and reads `.in` for `.data` bytes. This one answers the one question
+    /// `emit_comdat_obj` needs: *which objects does this TU put in the shared
+    /// `.bss` between the two `.XBLD$W` watermarks, and in what order?*
+    ///
+    /// # Every clause, and the cell behind it
+    ///
+    /// `work/w-wordwrap2/probe/grid_b.txt`, nine cells, real `c2.dll` under
+    /// wibo at the workload's own flags:
+    ///
+    /// * **an empty answer is `Some(vec![])`, never `None`.** A TU with no
+    ///   uninitialized non-COMDAT object is every TU the port emitted before
+    ///   this method existed, and it must behave exactly as it did. So every
+    ///   refusal below fires only once at least one such object has been seen.
+    /// * **every one EXTERNAL.** An internal-linkage object first reached from
+    ///   a FUNCTION BODY takes a third slot — *after* its first referrer's own
+    ///   `.text` — which is board **#1179**'s slot `C` over 109 workload objs
+    ///   and which nothing places. Cell `p5` is that obj:
+    ///   `.XBLD$W · .XBLD$W · .text(S1) · .bss · .text(R)`.
+    /// * **not `__declspec(thread)`** ([`super::gl::DATA_FLAG_THREAD_LOCAL`]) —
+    ///   `.tls$` is a section name the writer does not have, and the record is
+    ///   byte-identical to a `.bss` one in every other field.
+    /// * **size > 0**, the clause [`super::bind::Bindings::resolve_bss_def`]
+    ///   already draws.
+    /// * **no COMDAT `.bss` anywhere in the TU.** That is a function-local
+    ///   `static` with no initializer, placed after the code groups, and mixing
+    ///   one into the shared section is a wrong section count at file offset 2.
+    /// * **no non-COMDAT INITIALIZED object anywhere in the TU.** Cell `p6`
+    ///   shows it as a fifth section *after* the second watermark and before
+    ///   the code groups — a real `.data` this path does not place, distinct
+    ///   from the per-function COMDAT `.data` `w-data` already emits.
+    ///
+    /// The order is `gl_data_objects_ordered`'s — **Rule A1's walk**, which is
+    /// what `coff::data`'s bump allocator consumes and what its Rule Y1
+    /// reverses for the symbol group.
+    /// **The two refusals are NOT the same refusal, and collapsing them shipped
+    /// a PANIC.** The first draft returned `Some(vec![])` whenever the admitted
+    /// list came out empty, *before* testing the refusal flag — so a TU whose
+    /// only uninitialized object is `static` (slot `C`) answered "no shared
+    /// `.bss` here", the writer placed no section, and the REFHI/REFLO quad
+    /// `Bindings::resolve_bss_def` had already put on the function had no symbol
+    /// to resolve against. `every relocation target got a symbol` fired inside
+    /// the `/O1` fixture lane on `wwbss_static_neg.cpp`. `docs/STATUS.md`
+    /// trap 5 — *absence reads as success* — with the absence being the object
+    /// this method declined to report.
+    ///
+    /// So they are separated:
+    ///
+    /// * `bad_uninit` — a non-COMDAT uninitialized object this path cannot
+    ///   place. **Always `None`**, whatever else the TU holds, because
+    ///   `resolve_bss_def` will have admitted it into some function's
+    ///   `data_defs` and something must own it. This is exactly the refusal
+    ///   `emit_comdat_obj` made unconditionally before this lane, so a TU with
+    ///   one is refused now for the reason it was refused then.
+    /// * `other_section` — a COMDAT `.bss` or a non-COMDAT `.data`, neither of
+    ///   which `resolve_bss_def`/`resolve_data_def` admits at all, so neither
+    ///   reaches `data_defs` and neither is a dangling relocation. It is only a
+    ///   refusal **when a shared `.bss` is actually being placed**, where it
+    ///   would be an additional unplaced section. Gating it that way is what
+    ///   keeps this method from tightening the port on TUs that have nothing to
+    ///   do with its class.
+    pub fn bss_shell_objects(&self) -> Option<Vec<DataObject>> {
+        let Some(gl) = self.get("gl") else { return Some(Vec::new()) };
+        let mut out: Vec<DataObject> = Vec::new();
+        let mut bad_uninit = false;
+        let mut other_section = false;
+        for (tok, o) in super::gl::gl_data_objects_ordered(gl) {
+            if o.initialized {
+                // A COMDAT `.data` is `w-data`'s per-function section and is
+                // fine; a non-COMDAT one is a fifth section after the second
+                // watermark (cell `p6`) that nothing places.
+                other_section |= !o.comdat;
+                continue;
+            }
+            if o.comdat {
+                // A COMDAT `.bss` — a function-local `static` with no
+                // initializer — sits after the code groups.
+                other_section = true;
+                continue;
+            }
+            if o.flags & super::gl::DATA_FLAG_THREAD_LOCAL != 0 || o.size == 0 || !o.external {
+                bad_uninit = true;
+                continue;
+            }
+            out.push(DataObject {
+                coff_name: o.coff_name,
+                size: o.size,
+                natural_align: o.natural_align,
+                external: o.external,
+                bytes: None,
+                decl_index: tok,
+                relocs: Vec::new(),
+            });
+        }
+        if bad_uninit || (other_section && !out.is_empty()) {
+            return None;
+        }
+        Some(out)
+    }
+
     pub fn data_tu(&self) -> Option<DataTu> {
         let gl = self.get("gl")?;
         let ex = self.ex()?;

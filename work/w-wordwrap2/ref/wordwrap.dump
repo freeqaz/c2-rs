@@ -1,0 +1,245 @@
+== work/w-wordwrap2/ref/wordwrap.obj  machine=0x01f2 nsec=9 nsym=31 size=2490
+-- sections
+   1 .drectve   raw=132    rawptr=0x017c rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=148    rawptr=0x0200 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x0294 rel=0  relptr=0x0000 chars=0xc0401040
+   4 .bss       raw=588    rawptr=0x0000 rel=0  relptr=0x0000 chars=0xc0400080
+   5 .XBLD$W    raw=16     rawptr=0x02a4 rel=0  relptr=0x0000 chars=0xc2301040
+   6 .text      raw=12     rawptr=0x02b4 rel=4  relptr=0x02c0 chars=0x60401020
+   7 .text      raw=164    rawptr=0x02e8 rel=4  relptr=0x038c chars=0x60401020
+   8 .text      raw=640    rawptr=0x03b4 rel=12 relptr=0x0634 chars=0x60401020
+   9 .pdata     raw=8      rawptr=0x06ac rel=1  relptr=0x06b4 chars=0x40401040
+-- .bss #4 raw
+-- .text #6 (12 B) ?WordWrap_SetOption@@YAXI@Z
+   0000  3d600000  lis 11, 0                         ; REFHI -> [10] ?g_uOption@@3IA  ; PAIR -> [0] @comp.id
+   0004  906b0000  stw 3, 0(11)                      ; REFLO -> [10] ?g_uOption@@3IA  ; PAIR -> [0] @comp.id
+   0008  4e800020  blr                             
+-- .text #7 (164 B) ?IsEastAsianChar@@YA_N_W@Z
+   0000  3d600000  lis 11, 0                         ; REFHI -> [10] ?g_uOption@@3IA  ; PAIR -> [0] @comp.id
+   0004  816b0000  lwz 11, 0(11)                     ; REFLO -> [10] ?g_uOption@@3IA  ; PAIR -> [0] @comp.id
+   0008  556b077b  rlwinm. 11, 11, 0, 29, 29       
+   000c  41820040  bt	2, .+64                      
+   0010  546b043e  clrlwi	11, 3, 16                
+   0014  2b0b1100  cmplwi 6, 11, 4352              
+   0018  4198000c  bt	24, .+12                     
+   001c  2b0b11ff  cmplwi 6, 11, 4607              
+   0020  40990024  bf	25, .+36                     
+   0024  2b0b3130  cmplwi 6, 11, 12592             
+   0028  4198000c  bt	24, .+12                     
+   002c  2b0b318f  cmplwi 6, 11, 12687             
+   0030  40990014  bf	25, .+20                     
+   0034  2b0bac00  cmplwi 6, 11, 44032             
+   0038  41980014  bt	24, .+20                     
+   003c  2b0bd7a3  cmplwi 6, 11, 55203             
+   0040  4199000c  bt	25, .+12                     
+   0044  38600000  li 3, 0                         
+   0048  4e800020  blr                             
+   004c  546b043e  clrlwi	11, 3, 16                
+   0050  2b0b1100  cmplwi 6, 11, 4352              
+   0054  4198000c  bt	24, .+12                     
+   0058  2b0b11ff  cmplwi 6, 11, 4607              
+   005c  40990034  bf	25, .+52                     
+   0060  2b0b3000  cmplwi 6, 11, 12288             
+   0064  4198000c  bt	24, .+12                     
+   0068  2b0bd7af  cmplwi 6, 11, 55215             
+   006c  40990024  bf	25, .+36                     
+   0070  2b0bf900  cmplwi 6, 11, 63744             
+   0074  4198000c  bt	24, .+12                     
+   0078  2b0bfaff  cmplwi 6, 11, 64255             
+   007c  40990014  bf	25, .+20                     
+   0080  2b0bff00  cmplwi 6, 11, 65280             
+   0084  41980014  bt	24, .+20                     
+   0088  2b0bffdc  cmplwi 6, 11, 65500             
+   008c  4199000c  bt	25, .+12                     
+   0090  39600001  li 11, 1                        
+   0094  48000008  b .+8                           
+   0098  39600000  li 11, 0                        
+   009c  5563063e  clrlwi	3, 11, 24                
+   00a0  4e800020  blr                             
+-- .text #8 (640 B) ?WordWrap_CanBreakLineAt@@YA_NPB_W0@Z
+   0000  7d8802a6  mflr 12                         
+   0004  4bfffffd  bl .-4                            ; REL24 -> [30] __savegprlr_29
+   0008  9421ff90  stwu 1, -112(1)                 
+   000c  7c651b78  mr	5, 3                         
+   0010  7f032040  cmplw 6, 3, 4                   
+   0014  419a0254  bt	26, .+596                    
+   0018  3d400000  lis 10, 0                         ; REFHI -> [10] ?g_uOption@@3IA  ; PAIR -> [0] @comp.id
+   001c  a0630000  lhz 3, 0(3)                     
+   0020  3d600000  lis 11, 0                         ; REFHI -> [11] ?g_LineBreakTable@@3PAULineBreakEntry@@A  ; PAIR -> [0] @comp.id
+   0024  7c7f1b78  mr	31, 3                        
+   0028  3bcb0000  addi 30, 11, 0                    ; REFLO -> [11] ?g_LineBreakTable@@3PAULineBreakEntry@@A  ; PAIR -> [0] @comp.id
+   002c  2b030009  cmplwi 6, 3, 9                  
+   0030  83aa0000  lwz 29, 0(10)                     ; REFLO -> [10] ?g_uOption@@3IA  ; PAIR -> [0] @comp.id
+   0034  419a001c  bt	26, .+28                     
+   0038  2b03000d  cmplwi 6, 3, 13                 
+   003c  419a0014  bt	26, .+20                     
+   0040  2b030020  cmplwi 6, 3, 32                 
+   0044  419a000c  bt	26, .+12                     
+   0048  2b033000  cmplwi 6, 3, 12288              
+   004c  409a0060  bf	26, .+96                     
+   0050  a1450002  lhz 10, 2(5)                    
+   0054  57ab07ff  clrlwi.	11, 29, 31              
+   0058  41820048  bt	2, .+72                      
+   005c  39600000  li 11, 0                        
+   0060  38e00091  li 7, 145                       
+   0064  5546043e  clrlwi	6, 10, 16                
+   0068  7d4b3850  sub	10, 7, 11                   
+   006c  7d4a0e70  srawi 10, 10, 1                 
+   0070  7d4a0194  addze 10, 10                    
+   0074  7d2a5a14  add 9, 10, 11                   
+   0078  552a103a  slwi 10, 9, 2                   
+   007c  7d0af22e  lhzx 8, 10, 30                  
+   0080  7f064040  cmplw 6, 6, 8                   
+   0084  419a015c  bt	26, .+348                    
+   0088  4098000c  bf	24, .+12                     
+   008c  38e9ffff  addi 7, 9, -1                   
+   0090  48000008  b .+8                           
+   0094  39690001  addi 11, 9, 1                   
+   0098  7f0b3800  cmpw 6, 11, 7                   
+   009c  4099ffcc  bf	25, .-52                     
+   00a0  39600000  li 11, 0                        
+   00a4  556b063f  clrlwi.	11, 11, 24              
+   00a8  408201c0  bf	2, .+448                     
+   00ac  7d642850  sub	11, 5, 4                    
+   00b0  556b003c  rlwinm 11, 11, 0, 0, 30         
+   00b4  2f0b0002  cmpwi 6, 11, 2                  
+   00b8  40990054  bf	25, .+84                     
+   00bc  a165fffc  lhz 11, -4(5)                   
+   00c0  2b0b0009  cmplwi 6, 11, 9                 
+   00c4  419a001c  bt	26, .+28                     
+   00c8  2b0b000d  cmplwi 6, 11, 13                
+   00cc  419a0014  bt	26, .+20                     
+   00d0  2b0b0020  cmplwi 6, 11, 32                
+   00d4  419a000c  bt	26, .+12                     
+   00d8  2b0b3000  cmplwi 6, 11, 12288             
+   00dc  409a0030  bf	26, .+48                     
+   00e0  a165fffe  lhz 11, -2(5)                   
+   00e4  2b0b0022  cmplwi 6, 11, 34                
+   00e8  409a0024  bf	26, .+36                     
+   00ec  2b1f0009  cmplwi 6, 31, 9                 
+   00f0  419a001c  bt	26, .+28                     
+   00f4  2b1f000d  cmplwi 6, 31, 13                
+   00f8  419a0014  bt	26, .+20                     
+   00fc  2b1f0020  cmplwi 6, 31, 32                
+   0100  419a000c  bt	26, .+12                     
+   0104  2b1f3000  cmplwi 6, 31, 12288             
+   0108  409a0160  bf	26, .+352                    
+   010c  a145fffe  lhz 10, -2(5)                   
+   0110  7d445378  mr	4, 10                        
+   0114  2b0a0009  cmplwi 6, 10, 9                 
+   0118  419a0048  bt	26, .+72                     
+   011c  2b0a000d  cmplwi 6, 10, 13                
+   0120  419a0040  bt	26, .+64                     
+   0124  2b0a0020  cmplwi 6, 10, 32                
+   0128  419a0038  bt	26, .+56                     
+   012c  2b0a3000  cmplwi 6, 10, 12288             
+   0130  419a0030  bt	26, .+48                     
+   0134  2b1f0022  cmplwi 6, 31, 34                
+   0138  409a0028  bf	26, .+40                     
+   013c  a1650002  lhz 11, 2(5)                    
+   0140  2b0b0009  cmplwi 6, 11, 9                 
+   0144  419a0124  bt	26, .+292                    
+   0148  2b0b000d  cmplwi 6, 11, 13                
+   014c  419a011c  bt	26, .+284                    
+   0150  2b0b0020  cmplwi 6, 11, 32                
+   0154  419a0114  bt	26, .+276                    
+   0158  2b0b3000  cmplwi 6, 11, 12288             
+   015c  419a010c  bt	26, .+268                    
+   0160  2b1f0009  cmplwi 6, 31, 9                 
+   0164  419a0040  bt	26, .+64                     
+   0168  2b1f000d  cmplwi 6, 31, 13                
+   016c  419a0038  bt	26, .+56                     
+   0170  2b1f0020  cmplwi 6, 31, 32                
+   0174  419a0030  bt	26, .+48                     
+   0178  2b1f3000  cmplwi 6, 31, 12288             
+   017c  419a0028  bt	26, .+40                     
+   0180  4bfffe81  bl .-384                          ; REL24 -> [20] ?IsEastAsianChar@@YA_N_W@Z
+   0184  546b063f  clrlwi.	11, 3, 24               
+   0188  4082001c  bf	2, .+28                      
+   018c  7d435378  mr	3, 10                        
+   0190  4bfffe71  bl .-400                          ; REL24 -> [20] ?IsEastAsianChar@@YA_N_W@Z
+   0194  546b063f  clrlwi.	11, 3, 24               
+   0198  4082000c  bf	2, .+12                      
+   019c  2b04002d  cmplwi 6, 4, 45                 
+   01a0  409a00c8  bf	26, .+200                    
+   01a4  57a607ff  clrlwi.	6, 29, 31               
+   01a8  41820050  bt	2, .+80                      
+   01ac  39600000  li 11, 0                        
+   01b0  38e00091  li 7, 145                       
+   01b4  7d4b3850  sub	10, 7, 11                   
+   01b8  7d4a0e70  srawi 10, 10, 1                 
+   01bc  7d4a0194  addze 10, 10                    
+   01c0  7d2a5a14  add 9, 10, 11                   
+   01c4  552a103a  slwi 10, 9, 2                   
+   01c8  7d0af22e  lhzx 8, 10, 30                  
+   01cc  7f1f4040  cmplw 6, 31, 8                  
+   01d0  419a0070  bt	26, .+112                    
+   01d4  40980018  bf	24, .+24                     
+   01d8  38e9ffff  addi 7, 9, -1                   
+   01dc  48000014  b .+20                          
+   01e0  397e0002  addi 11, 30, 2                  
+   01e4  7d6a58ae  lbzx 11, 10, 11                 
+   01e8  4bfffebc  b .-324                         
+   01ec  39690001  addi 11, 9, 1                   
+   01f0  7f0b3800  cmpw 6, 11, 7                   
+   01f4  4099ffc0  bf	25, .-64                     
+   01f8  39600000  li 11, 0                        
+   01fc  556b063f  clrlwi.	11, 11, 24              
+   0200  40820068  bf	2, .+104                     
+   0204  2b060000  cmplwi 6, 6, 0                  
+   0208  419a0050  bt	26, .+80                     
+   020c  39600000  li 11, 0                        
+   0210  38e00091  li 7, 145                       
+   0214  7d4b3850  sub	10, 7, 11                   
+   0218  7d4a0e70  srawi 10, 10, 1                 
+   021c  7d4a0194  addze 10, 10                    
+   0220  7d2a5a14  add 9, 10, 11                   
+   0224  552a103a  slwi 10, 9, 2                   
+   0228  7d0af22e  lhzx 8, 10, 30                  
+   022c  7f044040  cmplw 6, 4, 8                   
+   0230  419a0044  bt	26, .+68                     
+   0234  40980018  bf	24, .+24                     
+   0238  38e9ffff  addi 7, 9, -1                   
+   023c  48000014  b .+20                          
+   0240  397e0002  addi 11, 30, 2                  
+   0244  7d6a58ae  lbzx 11, 10, 11                 
+   0248  4bffffb4  b .-76                          
+   024c  39690001  addi 11, 9, 1                   
+   0250  7f0b3800  cmpw 6, 11, 7                   
+   0254  4099ffc0  bf	25, .-64                     
+   0258  39600000  li 11, 0                        
+   025c  556b063f  clrlwi.	11, 11, 24              
+   0260  38600001  li 3, 1                         
+   0264  41820008  bt	2, .+8                       
+   0268  38600000  li 3, 0                         
+   026c  38210070  addi 1, 1, 112                  
+   0270  4bfffd90  b .-624                           ; REL24 -> [29] __restgprlr_29
+   0274  397e0003  addi 11, 30, 3                  
+   0278  7d6a58ae  lbzx 11, 10, 11                 
+   027c  4bffffe0  b .-32                          
+-- .pdata #9 raw
+   0000  00 00 00 00 40 00 a0 03
+   reloc va=0x0 ADDR32   -> [23] ?WordWrap_CanBreakLineAt@@YA_NPB_W0@Z
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=148 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .bss                                     sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=588 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [10] ?g_uOption@@3IA                          sec=4   val=0x248    sc=EXTERNAL  type=0x0000 naux=0
+  [11] ?g_LineBreakTable@@3PAULineBreakEntry@@A sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [12] .XBLD$W                                  sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [14] __C1_11886                               sec=5   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [15] .text                                    sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=12 nrel=4 nln=0 cksum=0x00000000 num=0 sel=1)
+  [17] ?WordWrap_SetOption@@YAXI@Z              sec=6   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [18] .text                                    sec=7   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=164 nrel=4 nln=0 cksum=0x00000000 num=0 sel=1)
+  [20] ?IsEastAsianChar@@YA_N_W@Z               sec=7   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [21] .text                                    sec=8   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=640 nrel=12 nln=0 cksum=0x00000000 num=0 sel=1)
+  [23] ?WordWrap_CanBreakLineAt@@YA_NPB_W0@Z    sec=8   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [24] $M2667                                   sec=8   val=0x280    sc=LABEL     type=0x0000 naux=0
+  [25] $M2666                                   sec=8   val=0xc      sc=LABEL     type=0x0000 naux=0
+  [26] .pdata                                   sec=9   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0xac1ab56e num=8 sel=5)
+  [28] $T2668                                   sec=9   val=0x0      sc=STATIC    type=0x0000 naux=0
+  [29] __restgprlr_29                           sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [30] __savegprlr_29                           sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0

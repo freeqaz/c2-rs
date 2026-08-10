@@ -1,0 +1,104 @@
+=== M1 ===
+M1: applied to crates/c2-il/src/func/bundle.rs
+  codegen-gap  wwrap_bss_static_neg.cpp
+  codegen-gap  wwrap_bss_three_neg.cpp
+  vocab-gap    wwrap_bss_tls_neg.cpp
+  match        wwrap_bss_two.cpp
+  match        wwrap_gstore.cpp
+  codegen-gap  wwrap_gstore_widths.cpp
+  panics: 0
+=== M2 ===
+M2: applied to crates/c2-core/src/coff/writer.rs
+  codegen-gap  wwrap_bss_static_neg.cpp
+  match        wwrap_bss_three_neg.cpp
+  vocab-gap    wwrap_bss_tls_neg.cpp
+  match        wwrap_bss_two.cpp
+  match        wwrap_gstore.cpp
+  mismatch     wwrap_gstore_widths.cpp
+  panics: 0
+=== M3 ===
+M3: applied to crates/c2-core/src/coff/writer.rs
+  codegen-gap  wwrap_bss_static_neg.cpp
+  codegen-gap  wwrap_bss_three_neg.cpp
+  vocab-gap    wwrap_bss_tls_neg.cpp
+  mismatch     wwrap_bss_two.cpp
+  match        wwrap_gstore.cpp
+  codegen-gap  wwrap_gstore_widths.cpp
+  panics: 0
+=== M4 ===
+M4: applied to crates/c2-core/src/coff/writer.rs
+  codegen-gap  wwrap_bss_static_neg.cpp
+  codegen-gap  wwrap_bss_three_neg.cpp
+  vocab-gap    wwrap_bss_tls_neg.cpp
+  match        wwrap_bss_two.cpp
+  match        wwrap_gstore.cpp
+  codegen-gap  wwrap_gstore_widths.cpp
+  panics: 0
+=== M5 ===
+M5: applied to crates/c2-core/src/coff/writer.rs
+  codegen-gap  wwrap_bss_static_neg.cpp
+  codegen-gap  wwrap_bss_three_neg.cpp
+  vocab-gap    wwrap_bss_tls_neg.cpp
+  mismatch     wwrap_bss_two.cpp
+  mismatch     wwrap_gstore.cpp
+  codegen-gap  wwrap_gstore_widths.cpp
+  panics: 0
+=== M6 ===
+M6: applied to crates/c2-core/src/coff/writer.rs
+  codegen-gap  wwrap_bss_static_neg.cpp
+  codegen-gap  wwrap_bss_three_neg.cpp
+  vocab-gap    wwrap_bss_tls_neg.cpp
+  match        wwrap_bss_two.cpp
+  match        wwrap_gstore.cpp
+  codegen-gap  wwrap_gstore_widths.cpp
+  panics: 0
+=== M7 ===
+M7: applied to crates/c2-il/src/func/bundle.rs
+  codegen-gap  wwrap_bss_static_neg.cpp
+  codegen-gap  wwrap_bss_three_neg.cpp
+  vocab-gap    wwrap_bss_tls_neg.cpp
+  match        wwrap_bss_two.cpp
+  match        wwrap_gstore.cpp
+  codegen-gap  wwrap_gstore_widths.cpp
+  panics: 0
+reverted
+=== M1 ===
+M1: applied to crates/c2-il/src/func/bundle.rs
+M1: applied to crates/c2-core/src/coff/writer.rs
+  mismatch     wwrap_bss_static_neg.cpp
+  codegen-gap  wwrap_bss_three_neg.cpp
+  vocab-gap    wwrap_bss_tls_neg.cpp
+  match        wwrap_bss_two.cpp
+  match        wwrap_gstore.cpp
+  codegen-gap  wwrap_gstore_widths.cpp
+  panics: 0
+=== M4 ===
+M4: applied to crates/c2-core/src/coff/writer.rs
+  codegen-gap  wwrap_bss_static_neg.cpp
+  codegen-gap  wwrap_bss_three_neg.cpp
+  vocab-gap    wwrap_bss_tls_neg.cpp
+  mismatch     wwrap_bss_two.cpp
+  match        wwrap_gstore.cpp
+  codegen-gap  wwrap_gstore_widths.cpp
+  panics: 0
+=== M6 ===
+M6: applied to crates/c2-core/src/coff/writer.rs
+M6: applied to crates/c2-il/src/func/bundle.rs
+  codegen-gap  wwrap_bss_static_neg.cpp
+  codegen-gap  wwrap_bss_three_neg.cpp
+  vocab-gap    wwrap_bss_tls_neg.cpp
+  match        wwrap_bss_two.cpp
+  match        wwrap_gstore.cpp
+  codegen-gap  wwrap_gstore_widths.cpp
+  panics: 3
+reverted
+=== M0 ===
+M0: applied to crates/c2-core/src/coff/writer.rs
+  codegen-gap  wwrap_bss_static_neg.cpp
+  codegen-gap  wwrap_bss_three_neg.cpp
+  vocab-gap    wwrap_bss_tls_neg.cpp
+  codegen-gap  wwrap_bss_two.cpp
+  codegen-gap  wwrap_gstore.cpp
+  codegen-gap  wwrap_gstore_widths.cpp
+  panics: 0
+reverted

@@ -56,11 +56,19 @@ fn text_reloc_count(f: &Function) -> u16 {
 /// with the function. `label_counter` is the `.gl` seed
 /// ([`c2_il::label_counter`]); it is unused when no function is framed, and a
 /// caller with a framed function and no counter must refuse rather than guess.
+/// **W-WORDWRAP2 — `bss` is the TU's shared non-COMDAT `.bss`**, board #2727's
+/// shell slot, in `c2_il::IlBundle::bss_shell_objects`' `.gl` record order
+/// (Rule A1's walk). Empty for every obj this writer emitted before that field
+/// existed; when it is non-empty every `DataDef` marked `uninitialized` on any
+/// function must name one of these objects, and each such def contributes only
+/// its REFHI/PAIR/REFLO/PAIR quad — the section and the symbol belong to the
+/// TU, not to the referring function.
 pub fn emit_comdat_obj(
     obj_name: &str,
     funcs: &[Function],
     texts: &[Vec<u8>],
     label_counter: u32,
+    bss: &[crate::coff::DataObj<'_>],
 ) -> Option<Vec<u8>> {
     assert_eq!(funcs.len(), texts.len(), "one text per function");
     // **W-DATA — the defined-data class check.**
@@ -107,10 +115,69 @@ pub fn emit_comdat_obj(
     //   along: `_fltused` goes after the first float function's *complete*
     //   group, and whether the data group is inside that "complete" is a cell
     //   nobody has cut.
-    for f in funcs {
-        if f.data_defs.len() > 1 {
+    //
+    // # W-WORDWRAP2 — the SHARED `.bss` is a different question and gets its own
+    //
+    // Everything above is about a COMDAT `.data` a single function OWNS. A
+    // non-COMDAT `.bss` is owned by the TU: `wordwrap.cpp`'s 588-byte one holds
+    // two objects shared by three functions. So its class check is here, over
+    // the whole obj rather than per function, and the per-function loop below
+    // only has to know that an `uninitialized` def emits relocations and no
+    // section of its own.
+    //
+    // The LAYOUT bound is board #184's, quoted from the sibling writer rather
+    // than restated: above [`super::data::MAX_OBJECTS_PER_SECTION`] objects the
+    // walk order is open and a guess is a wrong `Value` on every symbol.
+    if bss.len() > super::data::MAX_OBJECTS_PER_SECTION {
+        return None;
+    }
+    for o in bss {
+        // `.bss` means no bytes at all; an `external` one is Rule S1′'s slot `B`
+        // and an internal one is slot `C`, which nothing places (cell `p5`).
+        // Both are the reader's clauses, re-asserted here because neither crate
+        // may assume the other ran.
+        if o.bytes.is_some() || !o.external || o.size == 0 || !o.relocs.is_empty() {
             return None;
         }
+    }
+    // **Every `uninitialized` def must name one of them, and this test is
+    // UNCONDITIONAL.** It read `if !bss.is_empty() { … }` for one commit and
+    // that is the same hole `IlBundle::bss_shell_objects`' own doc records: an
+    // EMPTY `bss` beside a function that carries an uninitialized def is
+    // precisely the dangling case, and gating the check on `bss` being
+    // non-empty is asking the broken input to report itself. It panicked —
+    // `every relocation target got a symbol`, in the `/O1` fixture lane.
+    //
+    // Two crates, two independent statements of one rule, on purpose: this one
+    // fires whatever the reader did.
+    for f in funcs {
+        for d in &f.data_defs {
+            if d.uninitialized && !bss.iter().any(|o| o.symbol == d.symbol) {
+                return None;
+            }
+        }
+    }
+    for f in funcs {
+        // The COMDAT-`.data` clauses below count only the defs that ask for a
+        // `.data` section. A shared-`.bss` reference asks for none.
+        let owned = f.data_defs.iter().filter(|d| !d.uninitialized).count();
+        if owned > 1 {
+            return None;
+        }
+        if owned > 0 && (f.frame.is_some() || f.is_float) {
+            return None;
+        }
+        // **The FRAMED and FLOAT refusals stay live for a shared `.bss` too**,
+        // and that is a measurement this lane did NOT make rather than a
+        // conservatism it chose. Cell `p4` shows real c2 emitting
+        // `.bss · .XBLD$W · .text · .pdata` for a framed function that stores to
+        // one, so the SECTION order is known; what is not known is where the
+        // object's symbol group sits among that function's `$M`/`$M`/`$T`
+        // triple, because `p4`'s `.bss` group is in the shell and its label
+        // group is in the code region and no cell puts a second data object
+        // between them. `?WordWrap_CanBreakLineAt` is exactly this shape, so
+        // this clause is one of the two that keep `wordwrap.cpp` refused after
+        // the shell placement is paid (the other is `lib.rs`'s two-`lis` fence).
         if !f.data_defs.is_empty() && (f.frame.is_some() || f.is_float) {
             return None;
         }
@@ -127,18 +194,24 @@ pub fn emit_comdat_obj(
             return None;
         }
         for d in &f.data_defs {
-            // **W-WORDWRAP — an UNINITIALIZED object, refused by name.** Its
-            // section is a non-COMDAT `.bss` in the shell (between the two
-            // `.XBLD$W` watermarks, before any `.text`); every `data_defs` path
-            // below places a COMDAT `.data` immediately after its owning
-            // function's `.text`. That is a different section order, a different
-            // symbol order and a different layout walk (Rule A1), and no cell
-            // has graded it on a function-bearing TU. Refusing here makes the
-            // whole obj `NotImplemented`, which is the honest answer; the
-            // FUNCTION's bytes and relocations are still graded, because those
-            // are a different question (`c2_il::IlDataDef::uninitialized`).
+            // **W-WORDWRAP2 — an UNINITIALIZED object is now PLACED, in the
+            // shell, and its class check ran above over the whole obj.**
+            //
+            // This arm read `return None` from `w-wordwrap` (board #2722) until
+            // this lane, on the honest ground that no cell had graded a
+            // non-COMDAT `.bss` on a function-bearing TU. GRID B graded nine,
+            // and the finding is that every LAYOUT rule the slot needs was
+            // already shipped in `coff::data` by three lanes serving the
+            // FUNCTIONLESS TU — S1′, A1, A3′, B1 and Y1's external clause. What
+            // was missing was the composition, which is what this file now does.
+            //
+            // The one clause that still fires is `lo_offs`: a def with a high
+            // half and no low half has no relocation quad to emit.
             if d.uninitialized {
-                return None;
+                if d.lo_offs.is_empty() {
+                    return None;
+                }
+                continue;
             }
             if d.bytes.len() as usize != d.size as usize || d.size == 0 || d.lo_offs.is_empty() {
                 return None;
@@ -154,6 +227,54 @@ pub fn emit_comdat_obj(
         funcs.iter().map(|f| f.frame.as_ref().map(|fr| pdata_record(0, fr))).collect();
 
     let mut sections: Vec<Section> = shell_sections(obj_name);
+    // **W-WORDWRAP2 — the shared `.bss`, spliced into the shell at Rule S1′'s
+    // slot `B`: index 3, BETWEEN the two `.XBLD$W` watermarks and before every
+    // code group.** Eight of GRID B's nine cells put it there, including the
+    // framed one (`p4`) and the one that also has a COMDAT-free `.data` (`p6`);
+    // the ninth (`p5`) is the internal-linkage object that takes slot `C`, and
+    // the reader refuses it.
+    //
+    // The walk and the allocator are `coff::data`'s own, CALLED and not copied
+    // (board #1120's rule: `section_nibble` was already a second copy of
+    // `align_nibble`'s table once, and a lane edited one of the two).
+    let bss_refs: Vec<&DataObj> = bss.iter().collect();
+    let bss_walk: Vec<usize> = (0..bss.len()).collect();
+    let (bss_offsets, bss_size) = if bss.is_empty() {
+        (Vec::new(), 0)
+    } else {
+        super::data::bump_layout(&bss_refs, &bss_walk)?
+    };
+    let sec_bss: Option<usize> = if bss.is_empty() {
+        None
+    } else {
+        let nibble = super::data::section_nibble(&bss_refs)?;
+        sections.insert(
+            3,
+            Section {
+                name: ".bss",
+                characteristics: CH_BSS_BASE | (nibble << 20),
+                raw: std::borrow::Cow::Borrowed(&[]),
+                checksum: 0,
+                selection: 0,
+                assoc: 0,
+                uninit_size: Some(bss_size),
+            },
+        );
+        Some(3)
+    };
+    // Rule Y1's EXTERNAL clause — the symbol group is the REVERSE of the `.gl`
+    // record order the storage walk above uses. Cells `p2` (`g2 g1`), `p7`
+    // (`g2 g1 g3`), `p8` and `p9` each separate it from ascending address, from
+    // descending address and from declaration order, and `wordwrap.obj` itself
+    // is `p9`'s permutation.
+    let bss_symbol_order: Vec<usize> = (0..bss.len()).rev().collect();
+    // Index of each shared object's symbol, derived from
+    // `emit_shell_symbols_bss_slot_b`'s own sequence and asserted where the
+    // records go out.
+    let mut bss_sym: Vec<(&str, u32)> = Vec::with_capacity(bss.len());
+    for (slot, &i) in bss_symbol_order.iter().enumerate() {
+        bss_sym.push((bss[i].symbol, FIRST_BSS_SYMBOL_SLOT_B + slot as u32));
+    }
     // Per function: its `.text` COMDAT, then — if it is framed — its `.pdata`
     // COMDAT immediately after, tied back with SELECT_ASSOCIATIVE. `sec_text[i]`
     // / `sec_pdata[i]` are 0-based indices into `sections`.
@@ -252,6 +373,11 @@ pub fn emit_comdat_obj(
         // A framed function is refused upstream, so this never has to decide
         // whether it goes before or after a `.pdata`.
         for d in &funcs[i].data_defs {
+            // A shared-`.bss` reference has no section of its own — the TU's is
+            // already spliced into the shell above.
+            if d.uninitialized {
+                continue;
+            }
             let nibble = align_nibble(d.size, d.natural_align)?;
             sec_data[i] = Some(sections.len());
             owner.push(SectionOwner::Data(i));
@@ -371,7 +497,15 @@ pub fn emit_comdat_obj(
     // Omitting it entirely is what left `mvp_fmul3.cpp` one symbol short of the
     // reference under `/Gy`.
     let fltused_after = funcs.iter().position(|f| f.is_float);
-    let mut next_idx: u32 = N_SHELL_SYMBOLS;
+    // **W-WORDWRAP2** — with a shared `.bss` in the shell the prefix is longer
+    // by its section symbol, its aux and one record per object, and every index
+    // below shifts with it. Derived from `emit_shell_symbols_bss_slot_b`'s own
+    // sequence, never counted twice.
+    let mut next_idx: u32 = if bss.is_empty() {
+        N_SHELL_SYMBOLS
+    } else {
+        n_shell_symbols_bss(bss.len())
+    };
     // The callee symbols this function emits, in emission order (reverse
     // first-reference), each with the index it lands at.
     // Per function, the undefined externals it introduces, in EMISSION order —
@@ -483,7 +617,9 @@ pub fn emit_comdat_obj(
         // have to be: a float function carrying an object is refused by the
         // class check above, because no cell says whether the marker goes inside
         // this group or after it.
-        def_sym.push(if funcs[i].data_defs.is_empty() {
+        def_sym.push(if funcs[i].data_defs.iter().all(|d| d.uninitialized) {
+            // Either no object at all, or only references into the TU's shared
+            // `.bss`, whose group is in the shell and was counted there.
             None
         } else {
             next_idx += 2; // the `.data` section symbol + its aux record
@@ -581,7 +717,18 @@ pub fn emit_comdat_obj(
                             // of its undefined externals, so a hit is
                             // unambiguous — and the index-assignment pass above
                             // therefore mints no symbol for it.
-                            if let Some(ix) = funcs
+                            // **W-WORDWRAP2 — a SIXTH table, searched with the
+                            // fourth and for its argument**: the TU's shared
+                            // `.bss` objects. Their symbols live in the shell,
+                            // not in any function's group, so `def_sym` cannot
+                            // hold them; and a name this obj defines in `.bss`
+                            // is never also one of its undefined externals, so
+                            // a hit is unambiguous.
+                            if let Some(ix) =
+                                bss_sym.iter().find_map(|(nm, ix)| (*nm == n).then_some(*ix))
+                            {
+                                ix
+                            } else if let Some(ix) = funcs
                                 .iter()
                                 .zip(&fn_idx)
                                 .find_map(|(g, ix)| (g.name == n).then_some(*ix))
@@ -632,7 +779,25 @@ pub fn emit_comdat_obj(
     debug_assert_eq!(b.0.len(), ptr_symtab);
 
     let mut strtab = StringTable::new();
-    emit_shell_symbols(&mut b, &mut strtab, &sections);
+    if sec_bss.is_some() {
+        // **W-WORDWRAP2** — the shell with the shared `.bss` group spliced in.
+        // `bss_symbol_order` is Rule Y1's reverse-`.gl` permutation and
+        // `bss_offsets` is Rule A1/A3′'s forward bump, so the two are read from
+        // different vectors on purpose: a writer that used one order for both
+        // reproduces `p2` and is wrong on `p9`, which is `wordwrap.obj`.
+        let syms: Vec<(&str, u32, bool)> = bss_symbol_order
+            .iter()
+            .map(|&i| (bss[i].symbol, bss_offsets[i], bss[i].external))
+            .collect();
+        debug_assert_eq!(
+            syms.iter().map(|s| s.0).collect::<Vec<_>>(),
+            bss_sym.iter().map(|s| s.0).collect::<Vec<_>>(),
+            "the order the relocation records were written with"
+        );
+        emit_shell_symbols_bss_slot_b(&mut b, &mut strtab, &sections, &syms);
+    } else {
+        emit_shell_symbols(&mut b, &mut strtab, &sections);
+    }
 
     for (i, f) in funcs.iter().enumerate() {
         let sec_num = (sec_text[i] + 1) as i16;
@@ -668,7 +833,9 @@ pub fn emit_comdat_obj(
         }
         // **W-DATA — this function's defined object's group**, interleaved
         // exactly as its section is.
-        if let (Some(si), Some(d)) = (sec_data[i], f.data_defs.first()) {
+        if let (Some(si), Some(d)) =
+            (sec_data[i], f.data_defs.iter().find(|d| !d.uninitialized))
+        {
             let dsec = (si + 1) as i16;
             // `nrel` 0: the section is pure data (see `n_reloc_of` above), and
             // the aux record is the SECOND place that count lives — this

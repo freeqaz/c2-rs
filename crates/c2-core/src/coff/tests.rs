@@ -85,7 +85,7 @@ mod comdat_tests {
             mk("?c@@YAHXZ", "?g@@YAHXZ"),
         ];
         let texts = vec![blr.clone(), blr.clone(), blr];
-        let obj = emit_comdat_obj("Z:\\t.obj", &funcs, &texts, 0).expect("no defined data");
+        let obj = emit_comdat_obj("Z:\\t.obj", &funcs, &texts, 0, &[]).expect("no defined data");
 
         // 11 fixed + per function (section symbol + aux + defined symbol) = 9,
         // + 2 distinct callees, NOT 3.
@@ -126,7 +126,7 @@ mod comdat_tests {
             Function::plain("?SpewInit@@YAXXZ", 0),
             Function::plain("?SpewTerminate@@YAXXZ", 0),
         ];
-        let obj = emit_comdat_obj("Z:\\x.obj", &funcs, &[blr.clone(), blr], 0).expect("no defined data");
+        let obj = emit_comdat_obj("Z:\\x.obj", &funcs, &[blr.clone(), blr], 0, &[]).expect("no defined data");
 
         let u16at = |o: usize| u16::from_le_bytes([obj[o], obj[o + 1]]);
         let u32at = |o: usize| {
@@ -439,6 +439,7 @@ mod tests {
                     &[mk_call(), mk_data()],
                     &[vec![0u8; 0x24], vec![0u8; 16]],
                     2536,
+                    &[],
                 )
                 .expect("no defined data"),
             ),
@@ -452,6 +453,7 @@ mod tests {
                     ],
                     &[blr.clone(), blr],
                     0,
+                    &[],
                 )
                 .expect("no defined data"),
             ),
@@ -972,7 +974,7 @@ mod tests {
             data_refs: vec![DataRef { hi_off: 0, lo_off: 8, name: "?gI@@3HA", is_function: false }],
             ..Function::plain("?a7@@YAXXZ", 0)
         };
-        let obj = emit_comdat_obj(r"Z:\t\a7.obj", &[f], &[text], 2536).expect("no defined data");
+        let obj = emit_comdat_obj(r"Z:\t\a7.obj", &[f], &[text], 2536, &[]).expect("no defined data");
         let recs = text_relocations(&obj);
         assert_eq!(
             recs.len(),
@@ -1068,7 +1070,7 @@ mod tests {
             ("packed", emit_obj(r"Z:\t\f.obj", &[mk()], &text, 2536), planned(false)),
             (
                 "/Gy",
-                emit_comdat_obj(r"Z:\t\f.obj", &[mk()], &[text.clone()], 2536)
+                emit_comdat_obj(r"Z:\t\f.obj", &[mk()], &[text.clone()], 2536, &[])
                     .expect("no defined data"),
                 planned(true),
             ),
@@ -1939,7 +1941,7 @@ mod tests {
         };
         let after = Function::plain("?Z@@YAXXZ", 0);
         let blr = crate::codegen::encode_blr().to_vec();
-        let obj = emit_comdat_obj("Z:\\t.obj", &[leaf, after], &[blr.clone(), blr], 0)
+        let obj = emit_comdat_obj("Z:\\t.obj", &[leaf, after], &[blr.clone(), blr], 0, &[])
             .expect("no defined data");
         let names: Vec<String> = sections_of(&obj).into_iter().map(|s| s.0).collect();
         assert_eq!(
@@ -2139,7 +2141,7 @@ mod xlrc_helper_symbols {
     fn the_helper_pair_is_emitted_after_the_t_label() {
         let f = helper_fn();
         let text = vec![0u8; 0x98];
-        let obj = emit_comdat_obj(r"Z:\t\f.obj", &[f], &[text], 2575).expect("no defined data");
+        let obj = emit_comdat_obj(r"Z:\t\f.obj", &[f], &[text], 2575, &[]).expect("no defined data");
         let syms = symbols(&obj);
         let ix = |n: &str| syms.iter().position(|s| s == n).unwrap_or_else(|| panic!("no {n}"));
         // The lead of 2 puts the triple at 2575 + 9 + 3 + 2 = 2589, which is
@@ -2167,7 +2169,7 @@ mod xlrc_helper_symbols {
     fn all_three_relocations_resolve_against_the_indices_the_writer_assigned() {
         let f = helper_fn();
         let text = vec![0u8; 0x98];
-        let obj = emit_comdat_obj(r"Z:\t\f.obj", &[f], &[text], 2575).expect("no defined data");
+        let obj = emit_comdat_obj(r"Z:\t\f.obj", &[f], &[text], 2575, &[]).expect("no defined data");
         let syms = symbols(&obj);
         // Walk the `.text` COMDAT's relocation records: (VirtualAddress, index).
         let u16at = |o: usize| u16::from_le_bytes([obj[o], obj[o + 1]]);
@@ -2197,6 +2199,180 @@ mod xlrc_helper_symbols {
             ],
             "each REL24 must point at the symbol its site names, wherever that \
              symbol's record was placed"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // W-WORDWRAP2 — the shared non-COMDAT `.bss` in the shell (board #2727).
+    //
+    // These pin the facts the differential grades on
+    // `fixtures/cpp/wwbss_two.cpp` but which no PORTABLE test could see
+    // before, because the whole class lived behind a `return None`. They are
+    // here rather than only beside the fixture for the reason `docs/GAPS.md` §7
+    // records: a fixture grades only where the toolchain is present, and the
+    // portable lane is the one that runs everywhere.
+    // -----------------------------------------------------------------------
+
+    fn bss_obj(symbol: &str, size: u32, natural_align: u32) -> DataObj<'_> {
+        DataObj {
+            symbol,
+            size,
+            natural_align,
+            external: true,
+            bytes: None,
+            decl_index: 0,
+            relocs: &[],
+        }
+    }
+
+    /// A leaf that stores to `symbol` through the WR1 quad: `lis r11,sym@ha` at
+    /// 0, `stw r3,sym@l(r11)` at 4, `blr` at 8 — `?WordWrap_SetOption` verbatim.
+    fn bss_storer<'a>(name: &'a str, symbol: &'a str, size: u32, align: u32) -> Function<'a> {
+        let mut f = Function::plain(name, 0);
+        f.data_defs = vec![DataDef {
+            symbol,
+            size,
+            natural_align: align,
+            bytes: &[],
+            uninitialized: true,
+            hi_off: 0,
+            lo_offs: vec![4],
+        }];
+        f
+    }
+
+    fn bss_text() -> Vec<u8> {
+        let mut t = Vec::new();
+        t.extend_from_slice(&crate::codegen::encode_addis(11, 0, 0)); // `lis r11,sym@ha`
+        t.extend_from_slice(&crate::codegen::encode_stw(3, 11, 0));
+        t.extend_from_slice(&crate::codegen::encode_blr());
+        t
+    }
+
+    /// **The section goes at index 3 — BETWEEN the two `.XBLD$W` watermarks**,
+    /// Rule S1' slot `B`, and the symbol group goes with it. Eight of GRID B's
+    /// nine cells say so and `work/w-wordwrap2/probe/p1.obj` is the smallest.
+    #[test]
+    fn a_shared_bss_is_spliced_into_the_shell_between_the_watermarks() {
+        let bss = [bss_obj("?g1@@3IA", 4, 4)];
+        let funcs = [bss_storer("?S1@@YAXI@Z", "?g1@@3IA", 4, 4)];
+        let obj = emit_comdat_obj(r"Z:\p1.obj", &funcs, &[bss_text()], 0, &bss)
+            .expect("one eager external object is the class");
+        let u16at = |o: usize| u16::from_le_bytes([obj[o], obj[o + 1]]);
+        let u32at = |o: usize| u32::from_le_bytes(obj[o..o + 4].try_into().unwrap());
+        assert_eq!(u16at(2), 6, "4 shell sections + .bss + one .text");
+        let name_of = |i: usize| {
+            let h = COFF_HEADER_LEN + i * SECTION_HEADER_LEN;
+            String::from_utf8_lossy(&obj[h..h + 8]).trim_end_matches('\0').to_string()
+        };
+        assert_eq!(
+            (0..6).map(name_of).collect::<Vec<_>>(),
+            vec![".drectve", ".debug$S", ".XBLD$W", ".bss", ".XBLD$W", ".text"],
+            "Rule S1' slot B — the .bss is INSIDE the shell, not after it"
+        );
+        // An uninitialized section carries its size and NO file bytes.
+        let h = COFF_HEADER_LEN + 3 * SECTION_HEADER_LEN;
+        assert_eq!(u32at(h + 16), 4, "SizeOfRawData is the object's size");
+        assert_eq!(u32at(h + 20), 0, "PointerToRawData is 0 for a .bss");
+        assert_eq!(
+            u32at(h + 36),
+            0xC030_0080,
+            "CNT_UNINITIALIZED|READ|WRITE|ALIGN_4 — Rule B1 at one 4-byte object"
+        );
+        // 11 shell + (.bss + aux + one object) + 3 for the function.
+        assert_eq!(u32at(12), 11 + 3 + 3, "the .bss group lengthens the prefix");
+    }
+
+    /// **The STORAGE walk and the SYMBOL order are DIFFERENT permutations** —
+    /// Rule A1/A3' forwards over `.gl` order, Rule Y1's external clause
+    /// backwards — and the section nibble is Rule B1's MAX, not the first
+    /// object's. `fixtures/cpp/wwbss_two.cpp` is this cell against real c2.
+    #[test]
+    fn two_shared_bss_objects_bump_forwards_and_emit_their_symbols_backwards() {
+        // `.gl` record order: the 8-byte object first, then the 4-byte one.
+        let bss = [bss_obj("?g_ll@@3_KA", 8, 8), bss_obj("?g_i@@3IA", 4, 4)];
+        let funcs = [
+            bss_storer("?SetLL@@YAX_K@Z", "?g_ll@@3_KA", 8, 8),
+            bss_storer("?SetI@@YAXI@Z", "?g_i@@3IA", 4, 4),
+        ];
+        let obj = emit_comdat_obj(r"Z:\p2.obj", &funcs, &[bss_text(), bss_text()], 0, &bss)
+            .expect("two eager external objects is the measured bound");
+        let u32at = |o: usize| u32::from_le_bytes(obj[o..o + 4].try_into().unwrap());
+        let h = COFF_HEADER_LEN + 3 * SECTION_HEADER_LEN;
+        assert_eq!(u32at(h + 16), 12, "8 bumped to 0, 4 bumped to 8");
+        assert_eq!(
+            u32at(h + 36),
+            0xC040_0080,
+            "Rule B1 — ALIGN_8 from the WIDER object, not from the first or the last"
+        );
+        // The symbol table: `.bss` section symbol + aux at 8/9, then the objects
+        // in REVERSE `.gl` order at 10 and 11.
+        let ptr_symtab = u32at(8) as usize;
+        let n_symbols = u32at(12) as usize;
+        let rec = |i: usize| &obj[ptr_symtab + i * SYMBOL_LEN..][..SYMBOL_LEN];
+        let strtab_at = |r: &[u8]| {
+            let off = u32::from_le_bytes(r[4..8].try_into().unwrap()) as usize;
+            let base = ptr_symtab + n_symbols * SYMBOL_LEN;
+            let t = &obj[base + off..];
+            String::from_utf8_lossy(&t[..t.iter().position(|&b| b == 0).unwrap()]).to_string()
+        };
+        let value = |i: usize| u32::from_le_bytes(rec(i)[8..12].try_into().unwrap());
+        assert_eq!(strtab_at(rec(10)), "?g_i@@3IA", "Rule Y1 — reverse .gl order");
+        assert_eq!(value(10), 8, "…and its ADDRESS is the higher one");
+        assert_eq!(strtab_at(rec(11)), "?g_ll@@3_KA");
+        assert_eq!(value(11), 0);
+    }
+
+    /// **The dangling-def refusal is UNCONDITIONAL**, which is the repair for
+    /// the panic this lane shipped for one commit: an `uninitialized` def whose
+    /// object the TU-level list does not carry has no symbol to relocate
+    /// against, and gating the test on that list being non-empty asks the broken
+    /// input to report itself. `wwbss_static_neg.cpp` is the source shape.
+    #[test]
+    fn an_uninitialized_def_with_no_tu_level_object_refuses_rather_than_panics() {
+        let funcs = [bss_storer("?SetA@@YAXI@Z", "s_a", 4, 4)];
+        assert!(
+            emit_comdat_obj(r"Z:\neg.obj", &funcs, &[bss_text()], 0, &[]).is_none(),
+            "an EMPTY bss list beside an uninitialized def is the dangling case"
+        );
+        // And a def naming an object the list does not carry is the same fault
+        // wearing a non-empty list.
+        let other = [bss_obj("?g_other@@3IA", 4, 4)];
+        assert!(
+            emit_comdat_obj(r"Z:\neg2.obj", &funcs, &[bss_text()], 0, &other).is_none(),
+            "the def must name one of the TU's own objects"
+        );
+    }
+
+    /// The two class bounds, each quoted from the sibling writer rather than
+    /// restated: board #184's object count and Rule S1' linkage clause.
+    #[test]
+    fn the_shared_bss_class_bounds_refuse_rather_than_guess() {
+        let text = bss_text();
+        let three =
+            [bss_obj("?g1@@3IA", 4, 4), bss_obj("?g2@@3IA", 4, 4), bss_obj("?g3@@3IA", 4, 4)];
+        let funcs3 = [
+            bss_storer("?S1@@YAXI@Z", "?g1@@3IA", 4, 4),
+            bss_storer("?S2@@YAXI@Z", "?g2@@3IA", 4, 4),
+            bss_storer("?S3@@YAXI@Z", "?g3@@3IA", 4, 4),
+        ];
+        assert!(
+            emit_comdat_obj(
+                r"Z:\n3.obj",
+                &funcs3,
+                &[text.clone(), text.clone(), text.clone()],
+                0,
+                &three
+            )
+            .is_none(),
+            "board #184 — above two objects the walk order is open"
+        );
+        let mut internal = bss_obj("s_a", 4, 4);
+        internal.external = false;
+        let funcs1 = [bss_storer("?SetA@@YAXI@Z", "s_a", 4, 4)];
+        assert!(
+            emit_comdat_obj(r"Z:\nI.obj", &funcs1, &[text], 0, &[internal]).is_none(),
+            "Rule S1' slot C — an internal-linkage object goes after the code groups"
         );
     }
 }

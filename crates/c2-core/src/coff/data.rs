@@ -133,7 +133,7 @@ pub(crate) const MAX_OBJECTS_PER_SECTION: usize = 2;
 /// `walk` is the visit order as indices into `objs`. Returns the offset for each
 /// index of `objs` (parallel to `objs`, not to `walk`) and the section's final
 /// size, or `None` for an object whose alignment is outside the modeled set.
-fn bump_layout(objs: &[&DataObj<'_>], walk: &[usize]) -> Option<(Vec<u32>, u32)> {
+pub(crate) fn bump_layout(objs: &[&DataObj<'_>], walk: &[usize]) -> Option<(Vec<u32>, u32)> {
     let mut offsets = vec![0u32; objs.len()];
     let mut cursor: u32 = 0;
     for &i in walk {
@@ -160,7 +160,7 @@ fn bump_layout(objs: &[&DataObj<'_>], walk: &[usize]) -> Option<(Vec<u32>, u32)>
 /// in it by cell `A13` — a one-byte `char` and a 16-aligned object in **one**
 /// `.bss`, where c2 gives the section nibble 5 and puts the second object at
 /// offset 16.
-fn section_nibble(objs: &[&DataObj<'_>]) -> Option<u32> {
+pub(crate) fn section_nibble(objs: &[&DataObj<'_>]) -> Option<u32> {
     let mut best = 1u32;
     for o in objs {
         best = best.max(placement_align(o.size, o.natural_align)?);

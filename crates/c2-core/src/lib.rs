@@ -660,7 +660,43 @@ impl PortC2 {
             // spell). Emitting a guess would be a wrong section count at file
             // offset 2, which is the mismatch `IlBundle::functions`' own
             // unclaimed-name gate cost two objs to learn.
-            let obj = coff::emit_comdat_obj(obj_name, &placed, &texts, label_counter)
+            // **W-WORDWRAP2 — the TU's shared non-COMDAT `.bss`** (board
+            // #2727). A TU-level fact, read once here because this is the only
+            // place that sees the whole bundle: `wordwrap.cpp`'s 588-byte
+            // section holds two objects shared by three functions, so no
+            // per-function composition can derive it and none may guess it.
+            //
+            // `None` is a TU carrying a data object this reader cannot account
+            // for — a COMDAT `.bss`, an internal-linkage one (Rule S1′'s slot
+            // `C`, board #1179's 109 objs), a `.tls$`, or a non-COMDAT `.data`.
+            // Refusing the obj is the honest answer; emitting without the
+            // section is a wrong section COUNT at file offset 2, which is what
+            // board #276 cost.
+            let bss_objects = il.bss_shell_objects().ok_or_else(|| {
+                BackendError::NotImplemented(
+                    "a TU that defines functions and a namespace-scope data \
+                     object outside the shared non-COMDAT `.bss` this writer \
+                     places: a COMDAT `.bss` (a function-local `static` with no \
+                     initializer, placed after the code groups), an \
+                     internal-linkage one (Rule S1′'s third slot, after its own \
+                     first referrer's `.text`), a `__declspec(thread)`, or a \
+                     non-COMDAT `.data`"
+                        .to_string(),
+                )
+            })?;
+            let bss: Vec<coff::DataObj> = bss_objects
+                .iter()
+                .map(|o| coff::DataObj {
+                    symbol: &o.coff_name,
+                    size: o.size,
+                    natural_align: o.natural_align,
+                    external: o.external,
+                    bytes: None,
+                    decl_index: o.decl_index,
+                    relocs: &[],
+                })
+                .collect();
+            let obj = coff::emit_comdat_obj(obj_name, &placed, &texts, label_counter, &bss)
                 .ok_or_else(|| {
                     BackendError::NotImplemented(
                         "a `/Gy` obj whose defined COMDAT data is outside the                          measured class: every rule about its section slot, its                          alignment nibble, its aux CheckSum and its symbol                          group was read off ONE obj, and nothing separates a                          second object's placement from any ordering that                          coincides with it at n = 1"
