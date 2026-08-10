@@ -7,7 +7,7 @@ scanned are the same bytes at both revisions.
 """
 import subprocess
 
-DC3 = '/home/free/code/milohax/dc3-decomp'
+DC3 = '<repos>/dc3-decomp'
 OLD = 'b5a9e00a0f6bde9389fc26db881ef4d6a1cf97de'
 
 
