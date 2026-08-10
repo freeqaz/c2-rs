@@ -1,0 +1,14 @@
+<TU>.gl: 1312 .ex split points
+   `80 <LE32>` PRESENT anywhere in .gl : 622
+   ABSENT from .gl byte-for-byte       : 690
+   first 10 absent: [3229, 3652, 3797, 4179, 4303, 4765, 4877, 5188, 5892, 6114]
+   split points < 0x80 (short form possible): 0
+<TU>.gl: 811 .ex split points
+   `80 <LE32>` PRESENT anywhere in .gl : 373
+   ABSENT from .gl byte-for-byte       : 438
+   first 10 absent: [2960, 3095, 3221, 3499, 3644, 3789, 4171, 4295, 4649, 4869]
+   split points < 0x80 (short form possible): 0
+<TU>.gl: 5 .ex split points
+   `80 <LE32>` PRESENT anywhere in .gl : 5
+   ABSENT from .gl byte-for-byte       : 0
+   split points < 0x80 (short form possible): 0

@@ -161,6 +161,31 @@ and the alias channel's 3.1× move in per-TU exact bought **zero** reach
 
 **And every one of the 110 is still gated on codegen.** Reach is not conversion.
 
+> ### ⚠ 2026-08-10 — **AND THE 124 INTERSECTS THE BINDABLE POPULATION AT ZERO.**
+> *Added by lane `w-phase7b` (#2780, #2781).* `Bindings::per_record` binds
+> nothing unless the `.gl` records are 1:1 with **all** the `.ex` segments, and
+> on **842 of 871** graded TUs that requirement has **no solution on the
+> input**: `.gl` carries a body-start offset for only part of the segment list,
+> and the rest are **absent from the file byte-for-byte** (`decomp_pch.cpp`
+> 622 of 1,312, `vec.cpp` 373 of 811; **0 of 5** absent on a matching control).
+> Joined by name against the per-TU factor listing:
+>
+> | population | TUs | can the gate bind it |
+> |---|---:|---:|
+> | `match` | 23 | **23** |
+> | `A∧B∧C` | 27 | **27** |
+> | FRONTIER | 4 | **4** |
+> | **`reach-pool`** | **124** | **0** |
+>
+> **So the 124 is a statement about a binding that does not exist on those
+> inputs.** Coverage and factor **A** are all but co-extensive (28 of 28 A-TUs
+> have full coverage), so the population this row prices a perfect predicate
+> over is exactly the population whose `.gl` cannot describe its `.ex`. It is
+> why `w-bcgap`'s best model bought 110 of 124 and **converted nothing**.
+> The full-coverage set is **29** TUs — the 23 matches, the frontier 4, and
+> `HeadsetXferEffect.cpp` + `MeterEffect.cpp` — and that is a ceiling on **one
+> acceptance path**, not on the project (#2791).
+
 > **⚠ This is the ceiling that supersedes "the 450 wall" as the emit-model
 > number to quote.** See §2.3.
 
@@ -251,7 +276,28 @@ by construction.
 **So: perfect factor A, perfect factor B, and C = 871 — all three, together,
 today — move TU match from 11 to at most 13.** The two TUs are named by the
 scan and are exactly the projection-divergence pair: `src/system/decomp_pch.cpp`
-and `src/system/math/vec.cpp`. Both need factor **A** alone.
+and `src/system/math/vec.cpp`. ~~Both need factor **A** alone.~~
+
+> ### ⚠ 2026-08-10 — **"BOTH NEED FACTOR A ALONE" IS REFUTED, AND THE TWO DO NOT SHARE A MECHANISM.**
+> *Struck by lane `w-phase7b` (#2782, #2784, #2785); `w-vec` §10.5 had already
+> struck the weaker half.* A **perfect** factor A, handed to today's
+> `PortC2::build`, converts **neither** — an emit set can only be applied in
+> front of `functions()`, and behind it the gate has already refused on a
+> requirement §2.2's amendment shows has no solution on either input.
+>
+> | | `decomp_pch.cpp` | `vec.cpp` |
+> |---|---|---|
+> | reference obj | **901 B, zero `.text`** — `emit-emitted` **0** | 1,791 B, two `.text` COMDATs, `fnbyte-exact` **2 of 2** |
+> | emit set | **∅ — no body at all** | **2 bodies, and `.gl` NAMES BOTH** (body-starts 98,922 and 105,430) |
+> | `.gl` body-start coverage | 622 of 1,312 | 373 of 811 |
+> | what it needs | a **new acceptance path** in front of the gate, whose licence the input cannot supply — 690 bodies are unaccountable | a **selective** binding, whose licence the input *can* supply; the gate insists on the 438 bodies c2 **discards** |
+> | mechanisms priced | **six** | **seven** |
+> | shared | the COMDAT `.rdata` writer, and nothing else | |
+>
+> `|D∨E|` is a codegen fact and **stands**; its *route* does not. The
+> replacement sentence: **a perfect factor A is worth 0 conversions until the
+> emit set can be applied in front of the parse gate.** See
+> [`rungs/2026-08-10-w-phase7b.md`](rungs/2026-08-10-w-phase7b.md) §4, §5.
 
 Board **#361** stated this shape at `|D∨E| = 10` with match 8 (lane `w-joint2`,
 2026-08-05) and called it *"the project's entire non-codegen headroom is 2 TUs"*.
@@ -895,9 +941,16 @@ fall-through family's size beside any ranking taken off T2 — it is **9,095 of
   functions.**
 * So the **byte-distance-zero population is 2**, and it is exactly the two TUs
   §2.5 and board **#213** already name as *"inside `B∧C`, failing A, already
-  accepted by the port"*. What is new is that it is now **byte-verified**: a
-  perfect factor A converts these two with **zero codegen**, and that had been a
+  accepted by the port"*. What is new is that it is now **byte-verified**: ~~a
+  perfect factor A converts these two with **zero codegen**~~, and that had been a
   reachability claim with no bytes behind it.
+
+  > ⚠ **2026-08-10 — the struck half.** *Lane `w-phase7b` (#2782, #2785).* The
+  > byte-distance-zero finding stands and is re-confirmed at dc3 `a8cb9ca6`
+  > (T1 = 1, T1b = 1). What does **not** stand is *"a perfect factor A converts
+  > these two"*: see §2.5's amendment. `decomp_pch.cpp`'s obj is **901 B** and
+  > `vec.obj` **1,791 B** at this stamp, not 933 and 1,819 — dc3 has moved
+  > again (#2789), so re-capture before quoting either.
 * **The frontier 8 carry ZERO all-exact TUs and 8 of 8 carry ≥1
   `fnbyte-refused`.** Its codegen column reads `denominator 47 · exact 10 ·
   wrong 0 · refused 0 · reader 37` — **quote it from a scan; §2.1's copy is a
@@ -990,6 +1043,20 @@ fall-through family's size beside any ranking taken off T2 — it is **9,095 of
    answer this item and three of them were wrong** (`fn_names`, the census's
    own binding, and this one). The field is `gate_cause` / `gate_causes`, as
    this item says, and nothing else is.
+
+   **AND BEFORE PRICING A BINDING REPAIR, ASK WHETHER THE BINDING IS
+   SATISFIABLE.** *Added 2026-08-10 by lane `w-phase7b` (#2780).* Every field
+   this item has argued over — `fn_names`, the census's own binding,
+   `emit-bound`/`emit-gate-segments`, and `gate_cause` itself — reports on a
+   **reader**, so its answer always reads as a repair address. The `--jsonl`
+   field `gl_body_starts` reports on the **input**: `(present, total)` from
+   `IlBundle::gl_body_start_coverage`, where `total` is the `.ex` `4F 1F`
+   segment count and `present` counts the ones `.gl` spells a body-start offset
+   for at all. `Bindings::per_record` needs the records 1:1 with **all** the
+   segments, so `present < total` means no framing anyone writes can bind that
+   TU. It reads `n of n` on **all 23** matching TUs and on **27 of 27** of
+   `A∧B∧C`; it reads short on **842 of 871**, and on **124 of 124** of the
+   reach-pool. The rendered block in `c2rs gap` prints the whole split.
 
    **And do not assume the binding repair is free.** `w-front5` #2622 built the
    one-line widening as a counterfactual: it binds **2 of the 15** TUs that
