@@ -1,0 +1,28 @@
+src/system/math/vec.cpp
+   class vocab-gap  gl_body_starts [373, 811]  selective_bind [0, 811, 488, 219]
+   gate_causes ['gl-stop-26-introduced', 'body-out-of-class']
+   emitted 2  named-gate 0  named-wide 2  subset-gate 0  subset-wide 1
+src/system/decomp_pch.cpp
+   class vocab-gap  gl_body_starts [622, 1312]  selective_bind [0, 1312, 937, 202]
+   gate_causes ['gl-stop-26-introduced', 'body-out-of-class']
+   emitted 0  named-gate 0  named-wide 0  subset-gate 0  subset-wide 0
+src/system/rnddx9/RenderState.cpp
+   class vocab-gap  gl_body_starts [1728, 3212]  selective_bind [0, 3212, 3011, 396]
+   gate_causes ['bind-record-count-ne-segments', 'selective-unaccounted-emitted-body', 'body-out-of-class']
+   emitted 19  named-gate 0  named-wide 19  subset-gate 0  subset-wide 1
+src/system/synth_xbox/HeadsetXferEffect.cpp
+   class vocab-gap  gl_body_starts [16, 16]  selective_bind [0, 16, 61, 4]
+   gate_causes ['gl-stop-26-introduced', 'body-out-of-class']
+   emitted 14  named-gate 0  named-wide 14  subset-gate 0  subset-wide 1
+src/system/synth_xbox/MeterEffect.cpp
+   class vocab-gap  gl_body_starts [13, 13]  selective_bind [0, 13, 78, 6]
+   gate_causes ['gl-stop-26-introduced', 'body-out-of-class']
+   emitted 13  named-gate 0  named-wide 13  subset-gate 0  subset-wide 1
+
+SET RELATIONS over 871 graded TUs
+  full-coverage (the 1:1 path's necessary condition)      29
+  emit-subset GATE (the selective path's)                 34
+  emit-subset WIDE (…with board #2783's relaxation)       414
+  cover minus gate-subset  7   ['src/system/synth_xbox/GainEffect.cpp', 'src/system/synth_xbox/HeadsetPlaybackEffect.cpp', 'src/system/synth_xbox/HeadsetXferEffect.cpp', 'src/system/synth_xbox/MeterEffect.cpp', 'src/system/synth_xbox/PeakDetector.cpp', 'src/system/synth_xbox/soundtouch/source/SoundTouch/mmx_optimized.cpp', 'src/system/synth_xbox/soundtouch/source/SoundTouch/sse_optimized.cpp']
+  gate-subset minus cover  12   ['src/ChecksumData_xbox.cpp', 'src/system/math/Rand2.cpp', 'src/system/net/JsonMemory.cpp', 'src/system/oggvorbis/VorbisMem.cpp', 'src/system/os/CritSec.cpp', 'src/system/synth/CompressionEffect.cpp', 'src/system/synth/complex.cpp', 'src/system/synth_xbox/FFT.cpp']
+  gate-subset subset of wide-subset: True (0 outside)
