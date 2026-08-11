@@ -7,7 +7,7 @@ use std::process::ExitCode;
 use c2_harness::provenance::Provenance;
 
 use crate::{Args, Arity, Spec};
-use crate::cli::util::scratch;
+use crate::cli::util::Scratch;
 
 // ---------------------------------------------------------------------------
 // gap — real-workload gap scan
@@ -171,6 +171,13 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
+    // `gap_scan` mints and deletes a `tuNNNNN` subdir per TU inside this one, so
+    // the container is empty by the time the scan returns and the report has
+    // gone to stdout/`--jsonl`/`--factors-tsv`. Held in a binding, not inlined,
+    // so it outlives `cfg` and removes the dir on every exit -- including the
+    // early returns below, which is how 1,924 of these accumulated in one day.
+    // A user-supplied `--work` is theirs and is left alone.
+    let work = Scratch::or_work(work, "gap");
     let cfg = GapConfig {
         sources,
         flags,
@@ -181,7 +188,7 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
         jsonl,
         fndiff_jsonl,
         factors_tsv,
-        work: work.unwrap_or_else(|| scratch("gap")),
+        work: work.path().to_path_buf(),
         cache,
         validate_cache,
     };

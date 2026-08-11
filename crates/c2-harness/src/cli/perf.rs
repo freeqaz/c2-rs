@@ -7,7 +7,7 @@ use std::process::ExitCode;
 use c2_harness::all_fixtures;
 
 use crate::{Args, Arity, Spec};
-use crate::cli::util::{first_line, scratch};
+use crate::cli::util::{first_line, Scratch};
 
 // ---------------------------------------------------------------------------
 // perf — angle-H latency: native port vs standalone c2 (IL bundle -> obj)
@@ -94,7 +94,7 @@ pub(crate) fn cmd_perf(rest: &[String]) -> ExitCode {
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_else(|| cpp.display().to_string());
-        let w = scratch("perf");
+        let w = Scratch::new("perf");
         match perf::bench_fixture(&tc, cpp, &cfg, &w) {
             Ok(r) => {
                 let (port_med, speedup, status) = match r.port {
@@ -131,7 +131,6 @@ pub(crate) fn cmd_perf(rest: &[String]) -> ExitCode {
                 errors += 1;
             }
         }
-        let _ = std::fs::remove_dir_all(&w);
     }
 
     let report = perf::PerfReport {
@@ -261,16 +260,14 @@ pub(crate) fn cmd_perf_scale(rest: &[String]) -> ExitCode {
         cfg.concurrencies, cfg.port_secs, cfg.ref_secs
     );
 
-    let w = scratch("perf-scale");
+    let w = Scratch::new("perf-scale");
     let (points, obj_len) = match perf::scale_measure(&tc, &fixture, &cfg, &w) {
         Ok(v) => v,
         Err(e) => {
             eprintln!("perf-scale failed: {}", first_line(&e.to_string()));
-            let _ = std::fs::remove_dir_all(&w);
             return ExitCode::FAILURE;
         }
     };
-    let _ = std::fs::remove_dir_all(&w);
 
     println!("  obj size: {obj_len} B (both sides produce this exact obj)\n");
     println!(

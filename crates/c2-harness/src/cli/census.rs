@@ -5,7 +5,7 @@ use std::process::ExitCode;
 
 use c2_il::IL_SUFFIXES;
 
-use crate::cli::util::{require_cpp, scratch, CPP_PROFILE_REQUIRES};
+use crate::cli::util::{require_cpp, Scratch, CPP_PROFILE_REQUIRES};
 use crate::{Args, Arity, Spec};
 
 /// `c2rs census <cpp>` — **P2b, single TU**: capture the bundle and print the
@@ -91,7 +91,7 @@ pub(crate) fn cmd_census(rest: &[String]) -> ExitCode {
     let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
-    let w = scratch("census");
+    let w = Scratch::new("census");
     // Two of the port's per-function refusals are `/Gy`-only, so the cross-check
     // below has to see the same flag the emitter would. The default capture is
     // `/Ox`, which does not imply it; a `--flags-file` may.
@@ -121,7 +121,6 @@ pub(crate) fn cmd_census(rest: &[String]) -> ExitCode {
         Ok(b) => b,
         Err(e) => {
             eprintln!("capture failed: {e}");
-            let _ = std::fs::remove_dir_all(&w);
             return ExitCode::FAILURE;
         }
     };
@@ -142,7 +141,6 @@ pub(crate) fn cmd_census(rest: &[String]) -> ExitCode {
     }
     let Some(rows) = bundle.census_functions() else {
         eprintln!("census unavailable: bundle is missing .ex/.gl");
-        let _ = std::fs::remove_dir_all(&w);
         return ExitCode::FAILURE;
     };
     // The census/gate cross-check, per TU (roadmap #44): a function the census
@@ -373,6 +371,5 @@ pub(crate) fn cmd_census(rest: &[String]) -> ExitCode {
             println!("    {count:>6} x {reason}");
         }
     }
-    let _ = std::fs::remove_dir_all(&w);
     ExitCode::SUCCESS
 }
