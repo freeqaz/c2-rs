@@ -55,14 +55,19 @@
 //!
 //! It stays on the page as the record of what was true when the phase was scoped
 //! down to a shape, and `STRATEGY_REVIEW_2026-08-13.md` §2 cites it by line
-//! number as the moment that happened. Two of its three sentences have expired
-//! and the third never was about this file:
+//! number as the moment that happened.
 //!
-//! 1. **The fixup pass had already arrived when this was written**, one module
-//!    over. [`super::labels::LabelMap`] is §6.2 item **B**, board **#290**, and
-//!    it shipped on 2026-08-04 — before this emitter. "Building it now" was
-//!    never the choice; *using* it was, and this file did not.
-//! 2. **The shape this paragraph waited for is not the trigger.** The pass is
+//! 1. **It was RIGHT when it was written, and it stopped being right eleven
+//!    hours later.** This file landed in `be2f00cd`, 2026-08-04 09:38 UTC;
+//!    [`super::labels::LabelMap`] — §6.2 item **B**, board **#290** — landed in
+//!    `b662bc63`, 20:32 UTC the **same day**, in a commit that has this one as
+//!    an ancestor. So "building it now would be a mechanism with no fact behind
+//!    it" was a correct reading of the tree it was written against, and the
+//!    checkable claim to make about it is the *other* one: **the map arrived,
+//!    this file was never revisited, and for nine days and ~150 landed rungs
+//!    neither module pointed at the other.** The failure was not the judgement;
+//!    it was that nothing re-asked the question when its premise expired.
+//! 2. **The trigger this paragraph waits for is the wrong trigger.** The pass is
 //!    not earned by a *variable* block order; it is earned as soon as a body has
 //!    an emission order **at all**, because a displacement computed from
 //!    `then_steps.len()` is a second, private encoding of where the else block
