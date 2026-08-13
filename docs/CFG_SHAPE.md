@@ -1059,6 +1059,50 @@ not implied by traversal, because §3.4 shows it is the IL's statement order and
 §3.4.1 shows one measured case where it is not — a lowering must be able to state
 the order it chose, so the two can be told apart.
 
+> ### ✔ 2026-08-13 — **item A is BUILT**, by lane `w-ir-cond`
+> ([`rungs/2026-08-13-ircond.md`](rungs/2026-08-13-ircond.md)).
+>
+> `crates/c2-core/src/codegen/block_ir.rs`: `BasicBlock` is a straight-line
+> instruction run plus **exactly one** `Terminator` — enforced by the type, not
+> by a check, because the terminator is a field and not a list. All six of this
+> item's kinds are spelled and not a seventh; each is backed by an encoder that
+> already existed in `codegen::encode` and was already byte-graded by a shipped
+> lowering, so none of them is a mechanism invented for the IR.
+>
+> **The emission order is `BodyLayout`'s *placement* order** — blocks are
+> `declare`d (identity only) and then `place`d (position + bytes + terminator),
+> so the order is a thing the lowering did on purpose and can be asked about,
+> which is exactly what this item demands and what a traversal order cannot
+> give. `BlockOrder` carries **one** variant, `IlStatement` (§3.4). §3.4.1's
+> inverted layout gets no variant, because it is downstream of code motion and
+> §6.3 declines to characterize that; a second variant would name a layout no
+> lowering here can produce.
+>
+> **The fixup list is not re-implemented.** `codegen::labels` (item **B**, board
+> **#290**) stays the single reader of a pending intra-section branch site, its
+> target and whether the reference is legal; the two encodings (item **C**), the
+> forward-only rule and the displacement range check (item **D**) are all
+> delegated to it. `Terminator::TailCall` is a *separate* terminator rather than
+> a third `Form` for exactly the reason #191/#290 give: an external tail branch
+> is a relocation, not a label reference, and it never enters the map.
+>
+> **It converted zero TUs, by design.** It was landed as a construct rung on
+> board #290's pattern — the already-byte-exact `cond_tail` class (§4, `?MemFree`)
+> was re-expressed as three basic blocks in a stated emission order, and the
+> success criterion was a **required-zero byte delta**, graded by a
+> line-for-line identity diff of the 878-TU scan's `gap-metric` keys and of every
+> gate lane's fixture-verdict counts. The displacement arithmetic it replaced
+> (`4 * (then_steps.len() + 2)`) **agreed with the map**, which is why that class
+> was the right one to re-express: a disagreement would have been a defect in the
+> new mechanism, visible immediately against §4.1's published bytes.
+>
+> Items **E**, **F** and **G** remain absent, and this changes none of their
+> prices. What it changes is that they now have somewhere to live:
+> `Terminator::Bc` already carries the raw `(BO, BI)` pair, so item E's
+> distinction between a compare into `cr6` and a record form setting `cr0` is
+> *carried* without being *modelled*, and item F's cross-block liveness has a
+> block boundary to be defined over for the first time.
+
 **B. Labels as first-class, resolved by a fixup pass.**
 `3A`/`38`/`39` carry no direction (§2.1), so the target's offset is unknown when
 the branch is emitted. The IR needs a label identity (the IL token will do), a
