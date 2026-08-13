@@ -839,20 +839,140 @@ sweep_verdict() {
 # Emits `<12hex>:<nfiles>`, or `:0` when it cannot be computed. Never fatal on
 # its own: a missing `sha256sum` must degrade to "identity unavailable" and say
 # so, not turn a green gate red.
+#
+# ---- AND THEN THE GATE VOIDED ITS OWN FIRST RUN (board #3048, lane w-keygen) --
+#
+# The identity above is correct and it fired on the gate itself. `expr_sweep.sh`
+# imports `scripts/sweep_gen.py`, CPython writes the bytecode cache next to the
+# source, and `scripts/` is one of the three graded directories. So the run
+# CREATED its own 724th file, between its own two hashes, and the interlock —
+# correctly, by its own rule — declared the run evidence about neither tree.
+#
+# It self-triggers exactly once per FRESH worktree, which is what every lane
+# starts from (`setup_worktree.sh`), so **every lane's first gate run was void
+# and the lanes that did not read both hashes reported it clean.** That is
+# absence-read-as-success (trap 5) inside the merge gate itself, which is the
+# one place this project cannot afford it. It also triggers in a WARM tree once
+# per python minor version: #3048's own tree carried a `cpython-313` cache
+# beside a `cpython-314` one, so "once per worktree" is a lower bound.
+#
+# THE RULE, AND WHY IT IS A RULE AND NOT A LIST
+# --------------------------------------------
+#   **The graded set is every file on disk under `GRADED_DIRS` that git is not
+#   EXPLICITLY IGNORING.**
+#
+# Not "everything except `__pycache__`". An enumeration of the ways a byproduct
+# can appear is the thing that fails here — this file's own history is a list of
+# instruments that were exhaustive over the cases somebody had thought of. The
+# repo already maintains exactly the declaration this needs: a byproduct has to
+# be gitignored or `git status` becomes unusable, so `.gitignore` is a
+# continuously-maintained, independently-motivated statement of "this is
+# generated". `target/`, `*.obj`, `*.il`, `_CL_*`, `*.profraw`, `/work`,
+# `**/*.tmp` and `__pycache__/` are all in it today, and the *next* byproduct
+# will be in it too, for reasons that have nothing to do with this gate.
+#
+# FAIL-OPEN, DELIBERATELY, IN THE DIRECTION THAT OVER-GRADES
+# ----------------------------------------------------------
+# The filter SUBTRACTS from the filesystem walk; it does not replace it with a
+# git listing. So:
+#   * a file nobody gitignored is graded, whatever it is — a byproduct that was
+#     never declared still voids the run, and the fix for that is one line of
+#     `.gitignore`, not a change here;
+#   * a TRACKED file is graded no matter what pattern it matches (`git ls-files
+#     --others` cannot name it), so nothing that is checked in can fall out;
+#   * an untracked file that is NOT ignored — a peer session's new source file,
+#     a half-applied patch — is graded exactly as before. This is the property
+#     `w-gatefix` established and it is not weakened: the identity is still
+#     CONTENT, still not HEAD, and a rename still moves it.
+#   * when there is no git to ask, the filter subtracts nothing and this is the
+#     pre-#3048 function exactly.
+#
+# WHAT IT DOES NOT COVER, said here rather than discovered later:
+#   * a writer that modifies a TRACKED file and restores it before the second
+#     hash. Neither this nor any content hash can see that. `hatch_red.py` does
+#     precisely this by design, which is why it has its own interlock;
+#   * an undeclared byproduct, as above — that still voids, on purpose;
+#   * a grading INPUT that someone gitignores under a graded directory would
+#     silently leave the identity. Nothing does today (measured: the only
+#     ignored files under these three directories on a warm tree are
+#     `scripts/__pycache__/*.pyc`), and the count of what was excluded is
+#     PRINTED beside the identity at both ends of every run so that the day it
+#     stops being true is a number that moved rather than a silence.
+#
+# The rejected alternative was `PYTHONDONTWRITEBYTECODE=1` / `-B`, and it is
+# rejected for three reasons, none of them performance: it changes what the gate
+# RUNS in order to make a statement about what the gate MEASURES; it is specific
+# to one writer, so the second writer is a second incident; and it would have
+# MASKED this one — the interlock would have gone quiet without anybody
+# learning that a gate row writes into the tree it grades.
 # --------------------------------------------------------------------------------
 GRADED_DIRS="crates fixtures scripts"
+
+# The declared-byproduct set under `GRADED_DIRS`, one path per line, into
+# <outfile>. Returns 0 when git ANSWERED (an empty answer is an answer) and 1
+# when it could not be asked at all — the caller must be able to tell "this repo
+# declares no byproducts here" from "there is no repo here to ask".
+graded_ignored_list() {   # <root> <outfile> -> 0 asked / 1 unaskable
+    _gi_root="$1"; _gi_out="$2"
+    : > "$_gi_out" 2>/dev/null || return 1
+    command -v git >/dev/null 2>&1 || return 1
+    git -C "$_gi_root" rev-parse --git-dir >/dev/null 2>&1 || return 1
+    ( cd "$_gi_root" && git ls-files -o -i --exclude-standard -- $GRADED_DIRS ) \
+        > "$_gi_out" 2>/dev/null || return 1
+    return 0
+}
+
+# How many files the identity below deliberately did NOT hash. Printed at both
+# ends of every run: a subtraction nobody can see is a subtraction that grows.
+# Emits `?` when git could not be asked, never `0` — an unavailable answer must
+# not read as "nothing was excluded".
+graded_ignored_count() {   # <root> -> <n> | '?'
+    _gc_out="${TMPDIR:-/tmp}/c2rs-graded-ign-count.$$"
+    if graded_ignored_list "$1" "$_gc_out"; then
+        wc -l < "$_gc_out" | tr -d ' '
+    else
+        echo '?'
+    fi
+    rm -f "$_gc_out" 2>/dev/null || true
+}
 
 graded_tree_hash() {   # <root> [dirs] -> <12hex>:<nfiles>
     _gh_root="$1"; _gh_dirs="${2:-$GRADED_DIRS}"
     if [ ! -d "$_gh_root" ] || ! command -v sha256sum >/dev/null 2>&1; then
         echo ":0"; return 0
     fi
-    _gh_n=$(cd "$_gh_root" && find $_gh_dirs -type f 2>/dev/null | wc -l)
+    # Capability probe, because a `grep` without `-z` would emit NOTHING and an
+    # empty list reads as "identity unavailable" — loud, but for a reason that
+    # has nothing to do with the tree. `-f /dev/null` is the empty pattern file:
+    # it must match nothing, so `-v` must pass the input through.
+    _gh_flt="${TMPDIR:-/tmp}/c2rs-graded-ign.$$"
+    if printf 'a\0' | grep -zvxF -f /dev/null >/dev/null 2>&1 \
+       && graded_ignored_list "$_gh_root" "$_gh_flt"; then
+        _gh_filter=1
+    else
+        _gh_filter=0
+        rm -f "$_gh_flt" 2>/dev/null || true
+    fi
+    if [ "$_gh_filter" = 1 ]; then
+        _gh_n=$(cd "$_gh_root" && find $_gh_dirs -type f -print0 2>/dev/null \
+            | LC_ALL=C sort -z | grep -zvxF -f "$_gh_flt" 2>/dev/null \
+            | tr -dc '\000' | wc -c | tr -d ' ')
+    else
+        _gh_n=$(cd "$_gh_root" && find $_gh_dirs -type f 2>/dev/null | wc -l)
+    fi
     [ -n "$_gh_n" ] || _gh_n=0
-    if [ "$_gh_n" -le 0 ]; then echo ":0"; return 0; fi
-    _gh_h=$(cd "$_gh_root" && find $_gh_dirs -type f -print0 2>/dev/null \
-        | LC_ALL=C sort -z | xargs -0 -r sha256sum 2>/dev/null \
-        | sha256sum | cut -c1-12)
+    if [ "$_gh_n" -le 0 ]; then rm -f "$_gh_flt" 2>/dev/null; echo ":0"; return 0; fi
+    if [ "$_gh_filter" = 1 ]; then
+        _gh_h=$(cd "$_gh_root" && find $_gh_dirs -type f -print0 2>/dev/null \
+            | LC_ALL=C sort -z | grep -zvxF -f "$_gh_flt" 2>/dev/null \
+            | xargs -0 -r sha256sum 2>/dev/null \
+            | sha256sum | cut -c1-12)
+    else
+        _gh_h=$(cd "$_gh_root" && find $_gh_dirs -type f -print0 2>/dev/null \
+            | LC_ALL=C sort -z | xargs -0 -r sha256sum 2>/dev/null \
+            | sha256sum | cut -c1-12)
+    fi
+    rm -f "$_gh_flt" 2>/dev/null || true
     [ -n "$_gh_h" ] || { echo ":0"; return 0; }
     echo "$_gh_h:$_gh_n"
 }
@@ -1272,6 +1392,12 @@ ladder_red_run() {   # <log-path> -> echoes the tuple
 # ================================================================================
 TI_BASE=0d0a74d2
 
+# The same fixed-string discipline for board #3048's counterfactual (C4 below):
+# the last commit at which the gate still hashed its own `__pycache__` byproduct
+# and voided its own first run in every fresh worktree. Resolving it to `master`
+# or `HEAD~n` would re-target it once this lands and compare the fix to itself.
+TI3048_BASE=31a83377
+
 # One synthetic checkout. `<dir>` is rebuilt from scratch; `<hatchred>` is the
 # copy of `hatch_red.py` under test, which is how the counterfactual arms swap in
 # the pre-lane file.
@@ -1353,12 +1479,29 @@ tree_integrity_arms() {   # <scratch-dir>
         # Each of the three directories is really in it. A hash that silently
         # covered `crates/` alone would pass every arm above and be blind to a
         # fixture or a grader changing under the run.
+        # These three arms read `printf ... >> "$_ti_dir/a1/$_ti_d/"*` until
+        # 2026-08-13 and were GREEN FOR THE WRONG REASON. **POSIX `sh` does not
+        # glob a redirection target** (pathname expansion on the redirect word
+        # is optional and only in interactive shells), so `>> crates/*` created
+        # a file whose name is literally `*` instead of appending to the tracked
+        # `crates/probe.rs`. The arm named "editing crates/ moves the identity"
+        # was in fact testing "CREATING an untracked file moves the identity" —
+        # a true statement about a different property, and one that would have
+        # kept the arm green through a change that stopped hashing tracked
+        # content altogether. Found by a #3048 mutant (graded set = tracked
+        # files only), which reddened all three; board **#3050**. The file is
+        # named per directory now, so the arm grades the sentence it prints.
         for _ti_d in crates fixtures scripts; do
+            case "$_ti_d" in
+                crates)   _ti_f=probe.rs ;;
+                fixtures) _ti_f=f.cpp ;;
+                *)        _ti_f=s.sh ;;
+            esac
             _ti_hb=$(graded_tree_hash "$_ti_dir/a1")
-            printf '\n// touched\n' >> "$_ti_dir/a1/$_ti_d/"*
+            printf '\n// touched\n' >> "$_ti_dir/a1/$_ti_d/$_ti_f"
             _ti_ha=$(graded_tree_hash "$_ti_dir/a1")
             if [ "$_ti_hb" != "$_ti_ha" ]; then
-                _ti_say PASS "hash-covers-$_ti_d" "editing $_ti_d/ moves the identity"
+                _ti_say PASS "hash-covers-$_ti_d" "editing the TRACKED $_ti_d/$_ti_f moves the identity"
             else
                 _ti_say FAIL "hash-covers-$_ti_d" \
                     "$_ti_d/ changed and the identity did not — it is not in the hash"
@@ -1485,6 +1628,105 @@ tree_integrity_arms() {   # <scratch-dir>
     else
         _ti_say SKIP counterfactual-gate-unavailable \
             "git cannot produce $TI_BASE:scripts/gate.sh; NOT a pass"
+    fi
+
+    # ================================================================================
+    # B1/B2/C4 — BOARD #3048: THE GATE'S OWN BYPRODUCT MUST NOT MOVE THE IDENTITY,
+    # AND A SOURCE FILE MUST STILL MOVE IT.
+    #
+    # #3048 is the interlock above firing on the GATE rather than on a peer
+    # session: `expr_sweep.sh` imports `scripts/sweep_gen.py`, CPython writes
+    # `scripts/__pycache__/*.pyc`, and `scripts/` is a graded directory. Every
+    # lane's FIRST run in a fresh worktree was therefore void, and the lanes that
+    # did not read both hashes reported it clean.
+    #
+    # B1 is the fix. B2 is the reason B1 is not "exclude everything" — an
+    # exclusion with no lower bound would pass B1 and every arm above it. C4 is
+    # the counterfactual, built the way C1/C2/C3 are: the PRE-fix
+    # `graded_tree_hash` is read out of git, renamed, and required to MOVE on the
+    # same tree. A red test nobody has watched fail is a red test that might be
+    # asserting nothing.
+    # ================================================================================
+    _ti_pymod() {   # <tree> -> makes a graded-dir byproduct the way the gate does
+        # The REAL writer, not a fabricated filename: `import` makes THIS
+        # interpreter write THIS interpreter's cache name. #3048's own tree
+        # carried a `cpython-313` cache beside a `cpython-314` one, so the name
+        # is not a constant and must not be hard-coded here. If this interpreter
+        # writes none (`PYTHONDONTWRITEBYTECODE` in the environment, a read-only
+        # tree), fall back to fabricating one — an arm that vanishes because of
+        # an environment variable is an unavailable control, not a passing one.
+        ( cd "$1/scripts" && python3 -c 'import timod' ) >/dev/null 2>&1
+        if [ -z "$(find "$1/scripts/__pycache__" -maxdepth 1 -type f 2>/dev/null | head -1)" ]; then
+            mkdir -p "$1/scripts/__pycache__" 2>/dev/null || return 1
+            printf 'fabricated bytecode cache\n' > "$1/scripts/__pycache__/timod.fallback.pyc" || return 1
+            echo fabricated; return 0
+        fi
+        echo real; return 0
+    }
+    _ti_mkign() {   # <tree> -> a synthetic tree that DECLARES __pycache__ a byproduct
+        _ti_mktree "$1" "$_ti_hr" || return 1
+        printf '__pycache__/\n' > "$1/.gitignore" || return 1
+        printf 'VALUE = 1\n'    > "$1/scripts/timod.py" || return 1
+        git -C "$1" add .gitignore scripts/timod.py >/dev/null 2>&1 || return 1
+        git -C "$1" -c user.name=gate -c user.email=gate@localhost \
+            commit -q -m "declare __pycache__ a byproduct (board #3048)" >/dev/null 2>&1 || return 1
+        return 0
+    }
+
+    # ---- B1. A DECLARED BYPRODUCT CANNOT MOVE THE IDENTITY --------------------
+    if _ti_mkign "$_ti_dir/b1"; then
+        _ti_b0=$(graded_tree_hash "$_ti_dir/b1")
+        _ti_how=$(_ti_pymod "$_ti_dir/b1")
+        _ti_b1=$(graded_tree_hash "$_ti_dir/b1")
+        if [ -z "$_ti_how" ]; then
+            _ti_say FAIL byproduct-arm-could-not-write "no .pyc and no fallback; this arm graded nothing"
+        elif [ "$_ti_b0" = "$_ti_b1" ]; then
+            _ti_say PASS ignored-byproduct-cannot-move-id \
+                "a $_ti_how .pyc appeared under scripts/; identity held at ${_ti_b0}"
+        else
+            _ti_say FAIL ignored-byproduct-cannot-move-id \
+                "$_ti_b0 -> $_ti_b1 over one gitignored .pyc — board #3048 is LIVE"
+        fi
+        # ---- B2. ...AND AN UNDECLARED FILE STILL DOES. THE NOT-WEAKENED ARM ----
+        printf '#!/bin/sh\nexit 0\n' > "$_ti_dir/b1/scripts/ti_new_source.sh"
+        _ti_b2=$(graded_tree_hash "$_ti_dir/b1")
+        if [ "$_ti_b2" != "$_ti_b1" ] && [ "${_ti_b2##*:}" -gt "${_ti_b1##*:}" ]; then
+            _ti_say PASS untracked-source-still-moves-id \
+                "an untracked, unignored scripts/ file: ${_ti_b1##*:} -> ${_ti_b2##*:} files"
+        else
+            _ti_say FAIL untracked-source-still-moves-id \
+                "a new unignored scripts/ file did not move the identity ($_ti_b1 / $_ti_b2) — the exclusion is too wide"
+        fi
+    else
+        _ti_say FAIL synthetic-tree-b1 "could not build the scratch checkout"
+    fi
+
+    # ---- C4. THE COUNTERFACTUAL: THE PRE-#3048 IDENTITY DID MOVE --------------
+    _ti_g3048="$_ti_dir/gate.$TI3048_BASE.sh"
+    if git -C "$_ti_save" show "$TI3048_BASE:scripts/gate.sh" > "$_ti_g3048" 2>/dev/null \
+       && [ -s "$_ti_g3048" ] \
+       && sed -n '/^graded_tree_hash() {/,/^}/p' "$_ti_g3048" | grep -q 'sha256sum'; then
+        # Read the pre-lane function out of git and rename it. Reimplementing it
+        # here would only prove the copy agrees with itself — C1/C2's argument.
+        eval "$(sed -n '/^graded_tree_hash() {/,/^}/p' "$_ti_g3048" \
+                | sed '1s/^graded_tree_hash()/graded_tree_hash_pre3048()/')"
+        if _ti_mkign "$_ti_dir/c4"; then
+            _ti_c0=$(graded_tree_hash_pre3048 "$_ti_dir/c4")
+            _ti_how4=$(_ti_pymod "$_ti_dir/c4")
+            _ti_c1=$(graded_tree_hash_pre3048 "$_ti_dir/c4")
+            if [ "$_ti_c0" != "$_ti_c1" ]; then
+                _ti_say PASS counterfactual-pre3048-id-moved \
+                    "$TI3048_BASE's hash: $_ti_c0 -> $_ti_c1 on a $_ti_how4 .pyc; B1 is a real assertion"
+            else
+                _ti_say FAIL counterfactual-pre3048-id-moved \
+                    "$TI3048_BASE's hash held over a .pyc ($_ti_c0) — B1 may be asserting nothing"
+            fi
+        else
+            _ti_say FAIL synthetic-tree-c4 "could not build the scratch checkout"
+        fi
+    else
+        _ti_say SKIP counterfactual-pre3048-unavailable \
+            "git cannot produce $TI3048_BASE:scripts/gate.sh; NOT a pass"
     fi
 
     repo_root="$_ti_save"
@@ -3895,16 +4137,19 @@ $(hatch_red_verdict "$_hr_l" 0 11 | cut -d'|' -f6 | cut -d' ' -f1)"
     # ANTI-VACUITY, and it is the arm that matters: an `integrity` function that
     # printed nothing and returned 0 would satisfy the case above. The count is
     # a floor on the arms, inside the floor on the cases.
-    [ "${_ti_ran:-0}" -ge 12 ] && _r=0 || _r=1
+    # The floor moves with the file: 12 at w-gatefix, **15** after board #3048
+    # added B1 (a declared byproduct cannot move the identity), B2 (an undeclared
+    # file still must) and C4 (the pre-#3048 hash, out of git, does move).
+    [ "${_ti_ran:-0}" -ge 15 ] && _r=0 || _r=1
     t_case tree-integrity-arms-not-truncated "$_r" \
-        "$_ti_ran arms ran (floor 12) — a short run of them is not a pass"
+        "$_ti_ran arms ran (floor 15) — a short run of them is not a pass"
     # And the counterfactual arms must have RUN, not SKIPped: they are the proof
     # that the arms above are asserting something, and a SKIP there is an
-    # unavailable counterfactual, never a passing one.
-    [ "$(grep -c '^  PASS  counterfactual-' "$st/integrity.out" 2>/dev/null || echo 0)" -ge 3 ] \
+    # unavailable counterfactual, never a passing one. Four since #3048's C4.
+    [ "$(grep -c '^  PASS  counterfactual-' "$st/integrity.out" 2>/dev/null || echo 0)" -ge 4 ] \
         && _r=0 || _r=1
     t_case tree-integrity-counterfactual-ran "$_r" \
-        "all three pre-lane counterfactuals resolved and failed as required"
+        "all four pre-lane counterfactuals resolved and failed as required"
 
     # The floor moves with the file: 102 before board #1406's hatch-red row, 120
     # after it, **138** after `w-hatchroot` added the ladder-red row (7
@@ -3972,7 +4217,9 @@ echo "  run dir: $work   (per-lane run dirs under $work/lanes/)"
 # mismatch, which is the reading error this gate exists to prevent.
 # ================================================================================
 GRADED_TREE_0=$(graded_tree_hash "$repo_root")
+GRADED_IGNORED_0=$(graded_ignored_count "$repo_root")
 echo "  graded tree: ${GRADED_TREE_0%%:*}  (${GRADED_TREE_0##*:} files under $GRADED_DIRS, content-hashed)"
+echo "               $GRADED_IGNORED_0 gitignored byproduct file(s) under those directories were NOT hashed (board #3048)"
 if [ "${GRADED_TREE_0##*:}" = 0 ]; then
     echo "  *** IDENTITY UNAVAILABLE — no sha256sum, or those directories are empty."
     echo "      This run cannot say which tree it graded. That is not a mismatch."
@@ -4165,7 +4412,13 @@ decide "$reg" "$work/results.tsv" "$work" "$sweep_res" "$filtered" "$cross_res" 
 
 GRADED_TREE_1=$(graded_tree_hash "$repo_root")
 echo
+GRADED_IGNORED_1=$(graded_ignored_count "$repo_root")
 echo "graded tree: ${GRADED_TREE_1%%:*}  (${GRADED_TREE_1##*:} files: $GRADED_DIRS, content-hashed)"
+echo "  $GRADED_IGNORED_1 gitignored byproduct file(s) under those directories were NOT hashed"
+echo "  (board #3048; it was $GRADED_IGNORED_0 at the start of this run). The subtraction is"
+echo "  printed at BOTH ends on purpose: a denominator nobody prints on both sides of a"
+echo "  change is a denominator that grows unwatched (#1002). A rise here is not a failure —"
+echo "  it is the gate saying which of its own byproducts it declined to grade itself on."
 if [ "$GRADED_TREE_0" != "$GRADED_TREE_1" ]; then
     echo "  *** THE TREE MOVED UNDER THIS RUN — it began at ${GRADED_TREE_0%%:*}"
     echo "      (${GRADED_TREE_0##*:} files) and ended at ${GRADED_TREE_1%%:*} (${GRADED_TREE_1##*:} files)."

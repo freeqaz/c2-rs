@@ -1,0 +1,39 @@
+##### MUTANT 1: byproduct filter disabled (= the pre-#3048 gate) #####
+tree integrity (boards #2668 / #2907): the gate cannot report a tree it did not grade
+  PASS  hash-moves-when-content-moves      6df5faa203c3 -> a0f3c84c49e2 at one unchanged HEAD
+  PASS  hash-reports-its-file-count        3 files, one in each graded directory
+  PASS  hash-covers-crates                 editing the TRACKED crates/probe.rs moves the identity
+  PASS  hash-covers-fixtures               editing the TRACKED fixtures/f.cpp moves the identity
+  PASS  hash-covers-scripts                editing the TRACKED scripts/s.sh moves the identity
+  PASS  hash-is-deterministic              two reads of an unchanged tree agree
+  PASS  list-probe-writes-nothing          an uncommitted crates/ edit survives --list
+  PASS  dirty-tree-refused-and-preserved   REFUSED DIRTY-TREE, edit intact
+  PASS  interlock-precedes-every-invocation interlock at body line 36, first invocation at 68
+  PASS  counterfactual-list-probe-was-destructive 0d0a74d2's --list ate the edit; A2 is a real assertion
+  PASS  counterfactual-row-now-preserves   with 0d0a74d2's file the row's own interlock now saves the edit
+  PASS  counterfactual-interlock-was-second 0d0a74d2 ran the probe at body line 21, interlock at 30
+  FAIL  ignored-byproduct-cannot-move-id   bf68f019c0ce:4 -> 345bf6d96237:5 over one gitignored .pyc — board #3048 is LIVE
+  PASS  untracked-source-still-moves-id    an untracked, unignored scripts/ file: 5 -> 6 files
+  PASS  counterfactual-pre3048-id-moved    31a83377's hash: bf68f019c0ce:4 -> 37ed348cb2c5:5 on a real .pyc; B1 is a real assertion
+  tree integrity: 1 of 15 arms FAILED — this gate can be wrong about
+  which tree it graded, and every number it prints is unreadable until that is fixed.
+
+##### MUTANT 2: the rejected rival — graded set = TRACKED FILES ONLY #####
+tree integrity (boards #2668 / #2907): the gate cannot report a tree it did not grade
+  PASS  hash-moves-when-content-moves      6df5faa203c3 -> a0f3c84c49e2 at one unchanged HEAD
+  PASS  hash-reports-its-file-count        3 files, one in each graded directory
+  PASS  hash-covers-crates                 editing the TRACKED crates/probe.rs moves the identity
+  PASS  hash-covers-fixtures               editing the TRACKED fixtures/f.cpp moves the identity
+  PASS  hash-covers-scripts                editing the TRACKED scripts/s.sh moves the identity
+  PASS  hash-is-deterministic              two reads of an unchanged tree agree
+  PASS  list-probe-writes-nothing          an uncommitted crates/ edit survives --list
+  PASS  dirty-tree-refused-and-preserved   REFUSED DIRTY-TREE, edit intact
+  PASS  interlock-precedes-every-invocation interlock at body line 36, first invocation at 68
+  PASS  counterfactual-list-probe-was-destructive 0d0a74d2's --list ate the edit; A2 is a real assertion
+  PASS  counterfactual-row-now-preserves   with 0d0a74d2's file the row's own interlock now saves the edit
+  PASS  counterfactual-interlock-was-second 0d0a74d2 ran the probe at body line 21, interlock at 30
+  PASS  ignored-byproduct-cannot-move-id   a real .pyc appeared under scripts/; identity held at bf68f019c0ce:4
+  FAIL  untracked-source-still-moves-id    a new unignored scripts/ file did not move the identity (bf68f019c0ce:4 / bf68f019c0ce:4) — the exclusion is too wide
+  PASS  counterfactual-pre3048-id-moved    31a83377's hash: bf68f019c0ce:4 -> e257e1737d01:5 on a real .pyc; B1 is a real assertion
+  tree integrity: 1 of 15 arms FAILED — this gate can be wrong about
+  which tree it graded, and every number it prints is unreadable until that is fixed.
