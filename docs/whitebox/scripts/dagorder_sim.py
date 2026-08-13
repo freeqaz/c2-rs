@@ -24,17 +24,24 @@ each micro-model variant (issue width x memory-unit constraint) against every
 cell and prints per-variant scores. Run:  python3 dagorder_sim.py
 """
 
-LAT_ADDR = 5   # ALU result consumed as a memory op's address
-LAT_DATA = 2   # ALU result consumed as a store's data
-LAT_ALU = 2    # ALU -> ALU
-LAT_LOAD = 2   # load -> ALU
-LAT_CMPBR = 2  # cmp -> branch
-LAT_BR = 0     # anything else -> branch (barrier)
+LAT_ADDR = 5   # ALU result consumed as a memory op's address   (matrix -2)
+LAT_DATA = 2   # ALU result consumed as a store's data          (matrix -2, +0x19 bit1)
+LAT_ALU = 2    # ALU -> ALU                                     (matrix [1][1])
+LAT_LOAD = 2   # load -> ALU                                    (matrix -7)
+LAT_CMPBR = 0  # cmp-family -> branch  (0x10c1c25e: opcodes 0x2d..0x30 take 0)
+LAT_ALUBR = 2  # any OTHER ALU -> branch (the same -8 cell's else arm)
+LAT_BR = 0     # barrier edges
+
+# node+0x4c, the unit, from the machine table 0x10b202b0 +8. One instruction
+# per unit per cycle, and at most 2 nonzero-unit instructions per cycle
+# (LAB_10c1bfe2). Unit 0 is free and uncapped.
+UNIT = {"alu": 1, "cmp": 1, "load": 8, "store": 8, "br": 3}
 
 
 class N:
     def __init__(self, name, cls):
         self.name, self.cls = name, cls  # cls: 'alu' | 'load' | 'store' | 'cmp' | 'br'
+        self.unit = UNIT[cls]
         self.succ = []                   # (node, lat)
         self.pred = 0
         self.idx = 0
@@ -67,29 +74,32 @@ def prio(n):
     return (n.height << 13) + (fanout(n) << 8)
 
 
-def schedule(nodes, width, mem_per_cycle):
+def schedule(nodes, width, model="unit"):
+    """model 'unit' = LAB_10c1bfe2 (one per unit per cycle, cap 2 nonzero
+    units); model 'flat' = the naive 'any `width` per cycle' variant."""
     ready = [n for n in nodes if n.pred == 0]
     pending = {n: n.pred for n in nodes if n.pred > 0}
     out, cycle = [], 0
     while ready or pending:
         ready.sort(key=lambda n: (-prio(n), n.idx))
-        mem_used = 0
-        issued = 0
+        used_units, nonzero, issued = set(), 0, 0
         while issued < width:
             pick = None
             for n in ready:
                 if n.start > cycle:
                     continue
-                if n.cls in ("load", "store") and mem_used >= mem_per_cycle:
-                    continue
+                if model == "unit" and n.unit:
+                    if n.unit in used_units or nonzero >= 2:
+                        continue
                 pick = n
                 break
             if pick is None:
                 break
             ready.remove(pick)
             out.append(pick.name)
-            if pick.cls in ("load", "store"):
-                mem_used += 1
+            if pick.unit:
+                used_units.add(pick.unit)
+                nonzero += 1
             issued += 1
             for s, lat in pick.succ:
                 s.start = max(s.start, cycle + lat)
@@ -215,12 +225,13 @@ def cell_if():
     C, B = N("CMP", "cmp"), N("BR", "br")
     edge(ha, La, LAT_ADDR)
     edge(La, C, LAT_LOAD)
-    edge(C, B, LAT_CMPBR)
-    # the branch is the region terminator: barrier edges (latency 0) from
-    # every node with no other successor (FUN_10b3286b)
+    edge(C, B, LAT_CMPBR)   # cmp -> branch is 0, not 2 (0x10c1c25e)
+    # the branch is the region terminator: barrier edges from every node with
+    # no other successor (FUN_10b3286b). An ALU producer feeding the branch
+    # takes the -8 cell's else arm, latency 2.
     for n in ns:
         if not n.succ:
-            edge(n, B, LAT_BR)
+            edge(n, B, LAT_ALUBR if n.cls == "alu" else LAT_BR)
     edge(m["S"], B, LAT_BR)
     ns += [ha, La, C, B]
     return ns
@@ -246,26 +257,28 @@ CELLS = {
 
 
 def main():
-    print(f"{'variant':28s} " + " ".join(f"{c:>5s}" for c in EXPECTED) + "  exact")
+    print(f"{'variant':30s} " + " ".join(f"{c:>5s}" for c in EXPECTED) + "  exact")
     best = []
-    for width in (1, 2, 4):
-        for mem in (1, 2):
+    for model in ("unit", "flat"):
+        for width in (2, 4):
             marks, exact = [], 0
             for name in EXPECTED:
-                got = schedule(build(CELLS[name]), width, mem)
+                got = schedule(build(CELLS[name]), width, model)
                 ok = got == EXPECTED[name]
                 marks.append("ok" if ok else "X")
                 exact += ok
-            tag = f"width={width} mem/cycle={mem}"
-            print(f"{tag:28s} " + " ".join(f"{m:>5s}" for m in marks) + f"  {exact}/{len(EXPECTED)}")
-            best.append((exact, tag))
-    best.sort(reverse=True)
+            tag = f"model={model} width={width}"
+            print(f"{tag:30s} " + " ".join(f"{m:>5s}" for m in marks) + f"  {exact}/{len(EXPECTED)}")
+            best.append((exact, tag, model, width))
+    best.sort(key=lambda t: -t[0])
     print("\nbest:", best[0][1], f"{best[0][0]}/{len(EXPECTED)}")
-    # print the best variant's full sequences for the misses
     for name in EXPECTED:
-        got = schedule(build(CELLS[name]), 2, 1)
+        got = schedule(build(CELLS[name]), best[0][3], best[0][2])
         if got != EXPECTED[name]:
-            print(f"\n{name} (width=2 mem=1):\n  got      {got}\n  expected {EXPECTED[name]}")
+            print(f"\n{name} ({best[0][1]}):\n  got      {got}\n  expected {EXPECTED[name]}")
+
+
+
 
 
 if __name__ == "__main__":

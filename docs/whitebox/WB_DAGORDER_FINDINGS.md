@@ -12,6 +12,33 @@ PREREG: [`WB_DAGORDER_PREREG.md`](WB_DAGORDER_PREREG.md) committed at
 content hash `318bf2d2…`) at `7a91894f` **before the first `cl.exe`**. Scored
 in §6. **Lane wrapped early on user instruction** — §8 lists what was cut.
 
+> ### ⚠ REVISED after first publication — three of this document's own claims were WRONG
+>
+> A delegated second read of the scheduler's machine model landed after the
+> first version of this file was committed (`8c240193`). It contradicted three
+> load-bearing claims here; **each was re-checked against the export by hand
+> before being accepted, and all three of mine were the wrong ones**:
+>
+> 1. **cmp→branch latency is `0`, not `2`** — and non-cmp ALU→branch is `2`.
+>    `0x10c1c25e` reads *"if the producer opcode is **not** in `0x2d`…`0x30`
+>    goto lat = 2"*, so the cmp family takes the fall-through `lat = 0`. I had
+>    the sense of the test inverted, and §3's claim that wb-chooser's B-RULE-2
+>    "falls out of the cmp→branch latency" was therefore right about the cell
+>    and **wrong about the mechanism**: the gap comes from the *other* ALU
+>    producer's latency-2 edge to the branch.
+> 2. **There is a per-unit issue rule**, `LAB_10c1bfe2` (§2): at most **one
+>    instruction per unit per cycle** and at most **two nonzero-unit
+>    instructions per cycle**, whatever the width says. This was the whole of
+>    §8's "unpinned residual" — with it, the simulator goes **6/8 → 7/8** and
+>    the `unit` model **outscores** the flat one, so the rule is now
+>    discriminated rather than assumed.
+> 3. **Mode-0 is the LAST schedule, not a pre-lowering one.** `FUN_10b7e6af`
+>    (`0x10b7e6af`) runs `FUN_10b7dc51` (the three mode-1 passes) **first** and
+>    `FUN_10b7df57` (mode 0) **last**, after the lowering band.
+>
+> The corrections are folded into the text below. This box stays because a
+> document that silently absorbs its own corrections is one nobody can grade.
+
 **The commissioned question** (#3053/#3057; `CFG_SHAPE.md` §6.2 item F): the
 order in which `dag.c`'s walk at `0x10b3219f` lowers a statement list into a
 block's instruction tuples.
@@ -25,8 +52,11 @@ block's instruction tuples.
    on every optimized function: driver `0x10be6382`, invoked **three times**
    (before globregs `0x10b57633`, between globregs and the register allocator
    `0x10b31c9a`, and after the allocator) from the phase driver `0x10b7dc51`,
-   plus a pre-lowering pass (mode 0) from `0x10b7df57`; gated only by the
-   optimizer-on flag `DAT_10c2e2fc`. #1823's three "independent ways" were
+   plus a **fourth and final** pass (mode 0) from `0x10b7df57` *after* the
+   lowering band — `FUN_10b7e6af` orders them `0x10b7dc51` … `0x10b7df57`;
+   gated only by the optimizer-on flag `DAT_10c2e2fc` (bit 21 of the option
+   word, set at `0x10b82429`, i.e. `/Og` vs `/Od`: at `/Od` **none** of the
+   four runs). #1823's three "independent ways" were
    three *absences* — no `sched.c` in the ICE-derived TU table (the scheduler
    band `0x10be5cce`–`0x10be663e` sits in an anchor gap between `except.c` and
    `emit.cpp`: a TU with **no ICE site is invisible to that table by
@@ -60,13 +90,19 @@ block's instruction tuples.
 | anti-dep edges from last readers | `0x10b3227c` (kind 2, latency 0) | list `DAT_10c435b4` |
 | call clobber sets (operand kind `0x0b`) | `0x10b3239a` / `0x10b323cb` | dep on every tracked register's writer/readers |
 | volatile chain | `0x10b321cf` | kind `0x2000`, total order over volatile-marked operands |
-| **region finder** | **`0x10be5d4b`** | ≤ **`0x50` tuples**; ends at tuple category byte (`tuple+8`) ∈ {`0x12`,`0x14`,`0x19`,`0x1b`} or `0x17`-with-opcode-`0x30f` — branches, calls, labels |
-| **priority pass** | **`0x10be5df6`** | height fixpoint + priority; weight table = the **shorts** at `0x10c3bf9c` = `[-1,13,8,-1,-2,10,0]` |
+| **region finder** | **`0x10be5d4b`** | ≤ **`0x50` tuples**; ends at tuple category byte (`tuple+8`) ∈ {`0x12`,`0x14`,`0x19`,`0x1b`} or `0x17`-with-opcode-`0x30f` |
+| the category enum | ctors `0x10bd3750` (writer), sizes `0x10b18910` | **`0x12` = branch (conditional AND unconditional — the cc is `tuple+0xa & 0x1f`), `0x14` = CALL, `0x1b` = label, `0x19` = body end, `0x17`/`0x30d` = entry**; `0x0d`–`0x16` are real instructions and carry `tuple+9` bit 0, which is the DAG builder's actual gate |
+| **priority pass** | **`0x10be5df6`** | height fixpoint + priority; weight table = the **shorts** at `0x10c3bf9c` = `[-1,13,8,-1,-2,10,0]`; the two `-1` weights right-shift a 0/1 term and so contribute **nothing** — those terms are disabled in this build |
 | ready-list compare | `0x10be5cea` | **priority desc (unsigned), then `node+0x44` asc** |
 | **cycle issue loop** | **`0x10be60c0`** | width `DAT_10c3cf98` (init `0x10c1c0e5`: **2**, or 4 when `DAT_10c3d144 && DAT_10c2e2d2`); picks first ready node with earliest-start ≤ cycle |
+| **the issue predicate** | **`LAB_10c1bfe2`** (installed as `DAT_10c3cf8c`) | **unit 0 is free and uncapped; otherwise one instruction per unit per cycle, and at most TWO nonzero-unit instructions per cycle** regardless of width. Then `0x10c1ba4f`: the unit's busy counter must be 0 |
+| the unit / latency / reservation table | `0x10b202b0` stride 12 = `{X, slots, class}` | **`+8` class IS the unit** (`node+0x4c`), 11 units: 1 = integer ALU, 3 = branch, 8 = integer load/store, 2 = scalar FP, 4–7 = VMX, 9 = FP/VMX load-store, 0 = none. `+4 slots` is the reservation length (1 for nearly everything, **0** for `lea`/`blr`); `+0 X` seeds `node+0x4a`, the max latency out of the node |
+| dynamic priority bonus | `0x10c1bbaf` | per cycle, adds ≤ 7 for unit availability — a tie-break only, since the static weights are 8192/256 |
+| microcode / stall penalties | `0x10c1ba6f` | **+15 cycles** for the opcode list at `0x10c3bfb0` (`lha`, `lwa`, `lmw`, `stmw`, `lsw*`, `stsw*` — the Xenon microcoded set); **+40** for the store-forward class, which also ends the cycle |
+| the schedule is ITERATED | `0x10c1bdff` | after each pass, recorded latency requests can rewrite edge slots and force a re-schedule of the same region |
 | scheduler driver / emission | `0x10be6382` / `0x10be626c` / `0x10be5cce` | re-links the tuple list in scheduled order (tuple`+0` next / `+0x10` prev) |
 | per-opcode machine table | `0x10b202b0` stride 12 (`{X, slots, class}`); mnemonic table `0x10b1b260` stride 12 | machine opcodes: `addi`=11, `addis`=14, `b`=31, `bl`=43, `cmp…`=45–48, `lwz`=214, `stw`=378, `li`=624, `lis`=625, `mr`=626, `blr`=645 |
-| **edge latency** | **`0x10c1c1d4`**, 11×11 matrix `0x10c3c1a8` | ALU→ALU **2**; ALU→memory-address **5**; ALU→store-data **2** (flag at `0x10c1bc78`); load→ALU **2**; **cmp→branch 2** (`-8` case, opcodes 45–48); ALU→branch 0; anti-deps 0 |
+| **edge latency** | **`0x10c1c1d4`**, 11×11 matrix `0x10c3c1a8` (class index from a *second* table `0x10b221d0`) | ALU→ALU **2**; ALU→memory-address **5**; ALU→store-data **2** (flag at `0x10c1bc78`); load→ALU **2**; VMX→ALU **17**; load→load **5**; **ALU→branch: `0` when the producer is `cmp`/`cmpi`/`cmpl`/`cmpli` (`0x2d`–`0x30`), `2` otherwise** (the `-8` cell, `0x10c1c25e` — see the revision box); **CR-setting FP/VMX compare → conditional branch 23** (the `-6` cell: `fcmpo`/`fcmpu` or the `vcmp*` range `0x1ba`–`0x1dd` with the `0xc000` recording nibble); anti-deps 0 |
 
 Priority (`0x10be5df6`, machine-level pass):
 
@@ -111,17 +147,26 @@ ranges are a property of this pass (#3053, confirmed at mechanism level).
    this fact). But **values** cross freely — region boundaries bound the
    *scheduler*, not CSE (`dg_call2`).
 
-**Reproduction quality, counted, not eyeballed**: a 40-line reference
-simulator of §2's model ([`scripts/dagorder_sim.py`](scripts/dagorder_sim.py))
-reproduces **6 of 8** call-free cells **instruction-for-instruction** (`one`,
-`two`, `sub`, `chain`, `lit`, `if` — the last including the
-compare/branch-separation slot, i.e. wb-chooser's B-RULE-2 falls out of the
-cmp→branch latency 2). The two misses (`v1`, `v4`) are one systematic
-residual: the real scheduler interleaves the low-priority dest-`lis` group
-with the first loads one slot earlier than the model — a per-cycle resource
-detail (`0x10c1ba6f`'s booking, the slot→unit map at `0x10c1bfe2`, and the
-per-cycle adjust `0x10c1bbaf`) that was **not pinned** (§8). The residual
-never reorders across priority classes.
+**Reproduction quality, counted, not eyeballed**: a reference simulator of
+§2's model ([`scripts/dagorder_sim.py`](scripts/dagorder_sim.py)) reproduces
+**7 of 8** call-free cells **instruction-for-instruction** (`one`, `two`,
+`v1`, `sub`, `chain`, `lit`, `if` — the last including the
+compare/branch-separation slot, i.e. wb-chooser's B-RULE-2 emerges from the
+latency model, though via the non-cmp producer's edge, not the cmp's).
+
+**The per-unit issue rule is discriminated, not assumed.** The simulator runs
+both micro-models over every cell: the `unit` model (`LAB_10c1bfe2`: one per
+unit per cycle, cap 2 nonzero) scores **7/8**, the flat "any two per cycle"
+model **6/8**, and the cell that separates them is `v1` — the flat model
+front-loads all six `lis`, the unit model interleaves the fifth and sixth with
+the first loads exactly as c2 does. Width 2 and width 4 are
+**indistinguishable** on this grid, as expected: the cap of 2 binds first.
+
+The one remaining miss (`v4`) is a single transposition — c2 issues the first
+`addi` one cycle earlier than the model, where the model prefers the third
+load. Candidate causes, unresolved: the dynamic unit-availability bonus
+(`0x10c1bbaf`, ≤ 7) breaking a priority tie, or the re-schedule iteration
+(`0x10c1bdff`). The residual never reorders across priority classes.
 
 ## 4. THE OBJ CHECK
 
@@ -164,9 +209,12 @@ committed); reproduce with `scripts/gt_capture.sh` + `/FAsc`.
   data-edge latency. Navigation-level note; nothing in `ORDER.md`'s shipped
   domain moves.
 * **wb-chooser B-RULE-2** — "exactly one instruction between a compare and
-  its branch when one is available" = cmp→branch latency 2 in the matrix
-  (`0x10c3c1a8` row 1 col 3 `-8` → 2 for opcodes 45–48), reproduced by the
-  simulator on `dg_if`.
+  its branch when one is available" is reproduced by the simulator on
+  `dg_if`, but **not by the mechanism B-RULE-2's wording suggests**: the
+  cmp→branch edge is latency **0** (`0x10c1c25e`), and the separation comes
+  from the *other* work in the region being schedulable into that slot under
+  the per-unit rule. A port that implements "hold the branch 2 cycles after
+  its compare" reproduces `dg_if` and is wrong in general.
 * **#1727** ("the `lis` stays with the call whose argument it is") — the
   region boundary, at mechanism level.
 
@@ -197,34 +245,42 @@ replaces with an address- or cell-cited rule, and none was re-scored.
 ## 7. What a port must implement for item F's step 0
 
 ```
-0. per region (≤ 0x50 tuples, split at branch/call/label):
+0. per region (≤ 0x50 tuples, split at branch/call/label — categories
+   0x12 / 0x14 / 0x1b / 0x19):
 1.   build the dependence DAG: true deps from nearest covering writer
      (registers AND tracked memory symbols), anti-deps latency 0, call
      clobber sets as operands, volatile ops totally ordered, barriers
      for branch/call/label tuples
 2.   latencies: ALU→ALU 2, ALU→mem-address 5, ALU→store-data 2,
-     load→ALU 2, cmp→branch 2, →branch 0, anti 0
+     load→ALU 2, cmp→branch 0, other ALU→branch 2, anti 0
 3.   priority = (height << 13) + (fanout << 8) + (sym-dest << 10);
      ready list (priority desc, original index asc)
-4.   cycle loop, width 2: issue the first ready node whose earliest-start
-     ≤ cycle; successors' earliest-start = cycle + edge latency
+4.   cycle loop: issue the first ready node whose earliest-start ≤ cycle
+     AND whose unit is unused this cycle, at most 2 nonzero-unit
+     instructions per cycle (unit 0 is free); successors' earliest-start
+     = cycle + edge latency
 5.   the allocator runs AFTER this order exists (three invocations:
-     the last one after coloring)
+     the last one after coloring; a fourth schedule runs after lowering)
 ```
 
-Steps 1–4 reproduce 6 of 8 call-free grid cells byte-order-exactly today
-(`dagorder_sim.py`); the residual is §8 item 1.
+Steps 1–4 reproduce **7 of 8** call-free grid cells byte-order-exactly today
+(`dagorder_sim.py`); the residual is §8 item 1. **Step 4's unit clause is
+load-bearing** — dropping it costs a cell.
 
 ## 8. What this lane did NOT establish (wrapped early on user instruction)
 
-1. **The per-cycle resource model** — `0x10c1ba6f` (booking), `0x10c1bfe2`
-   (slot→unit), `0x10c1bbaf` (per-cycle adjust), the unit table pairs at
-   `0x10c3bf70`. This is the v1/v4 residual. A delegated mop-up read of these
-   plus the tuple category-byte assignments was **in flight and did not
-   land**; nothing from it is used above.
-2. **The pre-lowering (mode-0) pass's own effect** — only the composed order
-   is graded. `dg_disc`'s statement rotation is attributed to the fanout term
-   at whichever level the shared node exists; the level was not isolated.
+1. **One transposition in `dg_v4`** — the last simulator miss (§3). The
+   per-cycle machinery is now read (`LAB_10c1bfe2`, `0x10c1ba6f`,
+   `0x10c1bbaf`), so what is unresolved is narrow: which of the dynamic bonus
+   or the re-schedule iteration moves that one `addi`. The two config shorts
+   per unit at `0x10c3bf70` have **no reader found**.
+2. **Each pass's individual effect** — only the composed order is graded, and
+   there are **four** passes (three mode-1, one mode-0 after lowering).
+   `dg_disc`'s statement rotation is attributed to the fanout term at
+   whichever level the shared node exists; the level was not isolated.
+   Widths differ per pass (`DAT_10c2e2d2` is a phase marker set at the tail
+   of `0x10b57633`, so passes 2 and 3 run at width **4**) — but the cap of 2
+   in `LAB_10c1bfe2` makes that unobservable on this grid.
 3. **The region cap's seam** (`dg_cap`) — the naive model is refuted there,
    but pipelining already explains the break; the 0x50 cap itself has no
    isolated witness.
@@ -232,6 +288,18 @@ Steps 1–4 reproduce 6 of 8 call-free grid cells byte-order-exactly today
    name; it has an ICE anchor at `0x10c11060`, far from the band) — left
    open; the ICE-anchor method cannot see a TU without ICE sites, which is
    exactly how #1823 happened.
+4b. **Four OTHER clients of the DAG builder** — `0x10b3b167`, `0x10b3b41b`,
+   `0x10b3b5fd` (under `0x10b3c2cc`) and `0x10c1ce93` (under the `/QXSTALLS`
+   listing writer `0x10b71d8f`) build the same dependence DAG *without*
+   `0x10be5d4b`'s region enders. **Unread.** If any of them reorders tuples,
+   the ordering story has a second author and this document is incomplete in
+   a way its grid cannot detect.
+4c. **A possible latency bug, flagged rather than smoothed**: in the `-6`
+   arm of `0x10c1c1d4`, a producer that is neither `fcmpo`/`fcmpu` nor a
+   recording `vcmp*` leaves `local_10 = -6`, which is stored into the edge's
+   latency slot and read back as a **ushort** by `0x10be60c0` (65530 — an
+   effectively infinite earliest-start). No guard was found. No cell of this
+   grid reaches it.
 5. **The lowering walk itself** (`lower.c` `0x10c053e7` band) — right-first
    operand order and `+`-reassociation are grid facts here, not read code.
 6. **Width-4 mode** (`DAT_10c2e2d2`), POGO paths, floats/VMX (the nibble-5
