@@ -29,6 +29,49 @@ conflicts git flags loudly**.
 
 Start from `_TEMPLATE.md`.
 
+## Lane kinds
+
+Adopted 2026-08-13 from `docs/STRATEGY_REVIEW_2026-08-13.md` §4 lever 1: the
+fixture-claim rung was the only unit of work the repo maintained, and that unit
+cannot carry any of `CEILING.md` §6.1's seven phases — which is why five of
+them never had a building rung. Three kinds are now first-class. The registry
+test already admits all three: kinds 2 and 3 use the `Fixtures: none — <reason>`
++ `Census: … +0` path (`rung_registry.rs`, the instrument-rung exception).
+
+1. **Fixture-claim rung** (the default, everything above): names fixtures,
+   claims a prefix, moves the census. The unit for TU-shaped work.
+2. **Construct rung** (precedent: board **#290**, item B of `CFG_SHAPE.md`
+   §6.2): builds shared machinery — an IR type, a pass, a gate predicate — by
+   re-expressing **already-byte-exact** classes through it. `Fixtures: none —
+   construct rung: <what it builds>`; `Census: +0`; success criterion is a
+   **required-zero byte delta**, graded by a line-for-line identity diff of
+   per-lane gate counts before/after. A construct rung that changed any byte
+   FAILED, whatever else it did.
+3. **Characterization lane** (precedent: `2026-08-13-wb-live.md`): reads real
+   c2's behavior — whitebox addresses plus obj-grid confirmation — and lands
+   findings, not code. `Fixtures: none — characterization: <the question>`;
+   `Census: +0`; prereg frozen before the first probe; every load-bearing
+   claim cites an address or a grid cell; disassembly-derived adoption rules
+   (`docs/whitebox/DISCLOSURE.md`) apply unchanged.
+
+## Outcome, one word
+
+Every rung doc's header carries an `Outcome:` line (new docs; the 209 landed
+before 2026-08-13 are not backfilled). Exactly one of:
+
+- `converted` — TU `match` moved.
+- `declined` — a priced refusal; the decline and its price are the deliverable.
+- `instrument` — built or corrected a measuring instrument.
+- `built` — a construct rung or characterization lane that landed what it
+  preregistered (zero-delta held / findings confirmed).
+- `FAILED` — none of the above. Stated in that word. A lane that neither
+  converts, declines, prices, nor builds is not "a compound finding" — before
+  this field existed, a failed lane was indistinguishable in the record from a
+  successful one at the level of artifacts produced (STRATEGY_REVIEW §2 H3).
+
+The merge funnel checks the field is present and matches the headline before
+authoring `work/merge-<lane>.txt`.
+
 ## What is here, and what is not
 
 The historical rungs live in `docs/ROADMAP.md` §6a–§6m and in the per-subject

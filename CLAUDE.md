@@ -20,7 +20,16 @@ coverage-bounded differential testing — corpus breadth is load-bearing, and a
 green run is sound only on the IL it was tested against, never a total proof.
 
 Do not add "neutrality" / "behavior-preserving" classifiers as gates. The
-compiler is the sole judge.
+compiler is the sole judge. (This bans a semantic classifier standing in for
+the byte judge; it does **not** ban neutrality *measurement* — comparing
+per-fixture verdicts against real c2 at both modes is required, and caught
+live wrong emit #2533.)
+
+A wrong emit scores strictly below the refusal it replaced — a scoring rule
+(`docs/PROGRESS_METRIC.md`), unchanged. It is **not** a licence to refuse
+without pricing: every new fence is priced **two-sided** (#1042, NC-5/#2691 —
+both times the refusal's own cost was counted, the answer flipped), in the
+units the goal is written in, before it ships.
 
 ## Commits
 
@@ -50,13 +59,18 @@ compiler is the sole judge.
 ## Hard constraints
 
 - **std only, zero external crates** (no clap, tempfile, or regex — tiny helpers
-  are hand-rolled). If a dep looks unavoidable, STOP and discuss.
+  are hand-rolled). If a dep looks unavoidable, STOP and discuss. The rule binds
+  `crates/`; it is never a reason to move an instrument that grades the port out
+  of the workspace — anything whose output is quoted as evidence must run under
+  `cargo test` or `scripts/gate.sh` (#1406).
 - Integration tests + the `c2rs` CLI must **degrade cleanly** when the toolchain
   is absent (`SKIP: toolchain absent`) — never panic/fail.
-- The native port (`c2-core::PortC2`) is **byte-exact on the MVP function
-  class** (straight-line int add-chains, tail calls, a single framed non-leaf
-  call) and returns `NotImplemented` outside it — that boundary is the open
-  gate, not a fake. The reference seam (`c2-reference::ReferenceC2` /
+- The native port (`c2-core::PortC2`) is **byte-exact on the function classes
+  its fixtures fence** and returns `NotImplemented` outside them — that
+  boundary is the open gate, not a fake. On the 878-TU workload the admitted
+  classes are bimodal: ten one-function classes at 11/11 and five call-bearing
+  classes at 0.000 over 1,106 bodies (`ROADMAP.md` §10.30) — do not quote "the
+  MVP class" as if it covered the workload. The reference seam (`c2-reference::ReferenceC2` /
   `Toolchain::replay`) drives the **real** `c2.dll` under wibo. **P0.1
   (standalone-c2 IL-replay) is PROVEN** — byte-exact on the fixtures. Never fake
   either side: outside the ported class the port must honestly return
@@ -73,6 +87,27 @@ compiler is the sole judge.
 - **`docs/BOARD.md` enumerates the numbered items** (`#1`…) that `ROADMAP.md`
   references everywhere but never lists. New items take the next free number and
   are added there in the same commit.
+
+## Units of work
+
+Three lane kinds are first-class (`docs/rungs/README.md` § "Lane kinds"):
+
+- **Fixture-claim rung** — the default: names fixtures, moves the census, may
+  convert a TU. The right unit for TU-shaped work only.
+- **Construct rung** — builds shared machinery (IR, passes, gate predicates)
+  by re-expressing already-byte-exact classes through it. `Fixtures: none`,
+  `Census: +0`, **required-zero byte delta**, graded by an identity diff of
+  per-lane gate counts (board #290's pattern).
+- **Characterization lane** — reads real-c2 behavior (whitebox + obj grids)
+  and lands address-cited findings under prereg; predicted reach 0
+  (`wb-live`'s pattern).
+
+**Phase work (CEILING §6.1) is dispatched as construct rungs and
+characterization lanes, never as TU lanes** — a TU lane cannot carry a phase,
+and forcing one to produced 150 rungs of predicted saturation. Every lane
+reports one outcome in its rung header: `converted`, `declined`, `instrument`,
+`built`, or `FAILED` — a lane that produced none of its deliverable says
+**FAILED** in those words, not a compound headline.
 
 ## Layout / entry points
 

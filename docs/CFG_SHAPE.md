@@ -1170,6 +1170,33 @@ decode-only scanner in `control_flow.rs` already reads every shape in this
 document; the emission gate stays a whitelist of *shapes* and never becomes "the
 branches decoded".
 
+> **✔ 2026-08-13, amended (`STRATEGY_REVIEW_2026-08-13.md` §2 H2, adopted by
+> the user).** The paragraph above bundles two rules, and only the first is the
+> safety property. Restated:
+>
+> 1. The emission gate is a **decidable pre-emission predicate**: emit only
+>    where every byte is determined by a rule the port can state and check. A
+>    general lowering behind a checked predicate **satisfies this rule**; a
+>    hand-enumerated catalogue of named function shapes is one *implementation*
+>    of it, not the rule itself. (Item G was already written this way — "band 3
+>    or refuse".)
+> 2. **Every fence is priced two-sided before it ships** — the refusal's cost
+>    in the goal's units beside the wrong-emit risk it removes (#1042,
+>    NC-5/#2691: both times this was done, the answer flipped). A standing
+>    `fence-blocks-exact` counter belongs beside `mismatch`.
+> 3. **Generality is graded offline before promotion**: FBM already scores
+>    per-function bytes against the reference obj without emitting an obj, so
+>    a general lowering is scored across the ~162k emitted functions behind an
+>    env-gated sink and promoted on that evidence — a larger base than any
+>    whitelist entry ever had.
+> 4. **Every generalization rung ships a generator** for the shapes its
+>    predicate admits (board #283: 16 of 56 shape markers have zero corpus
+>    cases — the detection asymmetry is what makes wrong emits scary).
+>
+> The judge is untouched: real c2 + the byte-exact compare stays the sole gate,
+> and #232 (a wrong emit live for 255 commits) is the standing reason 2–4 are
+> mandatory, not optional.
+
 ## 7. The `/FAsc` listing as a decode aid
 
 Recorded because `docs/OBJ_DYNINIT_SHAPE.md` §6 measured the listing disagreeing
