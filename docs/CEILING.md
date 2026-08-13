@@ -367,6 +367,23 @@ this project.**
 
 ## 4. Cost per converted TU
 
+> ### ⚠ 2026-08-13 — **EVERY NUMBER IN THIS SECTION WAS COMPUTED AT MATCH 11 AND IS STALE IN THE OPTIMISTIC DIRECTION'S OPPOSITE.**
+>
+> §4.1's ledger ends at `w-lineage` (10 → 11); §16 and §17 of this same file
+> record 23 → 24 and 24 → 25, and the full 19-event conversion ledger is in
+> [`STRATEGY_REVIEW_2026-08-13.md`](STRATEGY_REVIEW_2026-08-13.md) §2 (H3).
+> At `08915add` the whole-record rate is **209 landed rungs / +19 conversions
+> ≈ 11 rungs per TU**, and the 2026-08-08..10 burst ran at **~4–9 rungs per
+> TU** — the marginal rate *improved* threefold after this section's "∞ so
+> far" row was written. The reason the rate is 0 again is not decay: the
+> frontier is **empty** — `A∧B∧C = 27`, 25 taken, the last 2 rows priced at
+> ~20 live refusals each and declined (`wordwrap.cpp` §11.4;
+> `keygen_xbox.cpp`, [`rungs/2026-08-13-w-keygen.md`](rungs/2026-08-13-w-keygen.md)
+> §7). The population the 4–9 rate was measured on is exhausted, so neither
+> that rate nor §4.4's 17.2 extrapolates forward; what governs now is §6.1's
+> phase list. The figures below are kept as written — they are correct for
+> their window, and the window is stated.
+
 ### 4.1 The numerator — 5 TUs, 4 mechanisms, all four dated from the rung record
 
 TU match has moved **6 → 11** over the entire measured history of the metric. The
@@ -574,8 +591,16 @@ rung.**
 | 6 | **COMDAT synthesis** | §2.3's **450**: TUs carrying an emitted symbol with no `.gl` body record. No binding repair reaches them and no phase in the plan builds this |
 | 7 | **Register allocation and scheduling across a back edge** | board **#770** (**HAND-COUNT**): `Sort.cpp` re-derived at **eleven** refusals, of which loop rotation, memory-reference peeling and cross-back-edge allocation *"are properties of the loop's schedule of values, not of its instruction vocabulary, and no recognizer reading this body alone can derive them"* |
 
-**Five of the seven have never had a rung.** Items 2, 4, 5, 6 and 7 exist as
-measurements and declines only.
+**Five of the seven have never had a rung that BUILT the phase.** Items 2, 4,
+5, 6 and 7 exist as measurements and declines only — stated precisely, because
+the literal "never had a rung" is contradicted by `rungs/INDEX.md`: item 2 has
+had five rungs (`w-inline`, `wb-inline`, `w-inlfence`×2, `w-keygen`) and item 4
+two (`wb-eh`, `w-eh5`), every one a measurement or a decline-side fence, none a
+phase. That the building rung cannot exist in the repository's only lane-shaped
+unit (a fixture-claim rung, §4.2's definition) is the structural finding of
+[`STRATEGY_REVIEW_2026-08-13.md`](STRATEGY_REVIEW_2026-08-13.md) §2 (H1); the
+two exceptions on record — board #290's zero-byte construct rung and `wb-live`'s
+characterization lane — are the unit phase work needs.
 
 ### 6.2 The one-sentence version
 
@@ -721,6 +746,15 @@ git rev-list --merges --count 4233939b..c34c388c   # §4.3's reconstruction: 159
 ---
 
 ## 10. Where the other numbers live
+
+> **⚠ Two sections in this file carry the number 10** — this pointer table and
+> the 2026-08-09 addendum below it. A citation to "CEILING §10" is therefore
+> ambiguous; the widely-quoted findings ("only `fnbyte-exact` and per-TU
+> byte-exactness map to the goal", "the census is fail-open on 845 of 871")
+> live in the **addendum**. Neither is renumbered, because bare-"§10" citations
+> already exist in both directions (`STATUS.md`, memory, rung docs) and
+> renumbering would silently re-point half of them. Cite them as **§10-pointers**
+> and **§10-addendum**. (Flagged by `STRATEGY_REVIEW_2026-08-13.md` §1.)
 
 | question | doc |
 |---|---|

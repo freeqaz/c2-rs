@@ -162,16 +162,23 @@ in this document.
 > > > not nothing (#950). Boards **#946**–**#955**;
 > > > [`rungs/2026-08-07-w-fix.md`](rungs/2026-08-07-w-fix.md).
 
-The **payoff metric has moved for the first time**:
-TU match is **10/878** (this paragraph read **8** until 2026-08-05 and the
-generated block above is the source), up from a 6 that had held across a per-function census run
-from 4.45 % to 28.69 %. The two new TUs are
+The **payoff metric has moved — and then saturated its pre-Phase-7 ceiling**:
+TU match is **25/878** (quote it from a scan; the generated block above is the
+source, and this paragraph read **8**, then **10**, and sat 15 conversions
+stale until 2026-08-13 — `STRATEGY_REVIEW_2026-08-13.md` §1). The 6 → 25 climb
+happened almost entirely in the 2026-08-08..10 burst at ~4–9 rungs per
+converted TU, and it stopped exactly where `CEILING.md` §2.5 said it would:
+`A∧B∧C = 27`, 25 taken, and the last two frontier rows (`wordwrap.cpp`,
+`keygen_xbox.cpp`) priced at ~20 live refusals each and **declined**
+(`rungs/2026-08-13-w-keygen.md` §7). `codegen-gap` is **0 over all 878** — no
+TU waits behind the emitter; every remaining row is `vocab-gap`. The first two
+conversions ever are still worth reading precisely:
 `src/system/synth/tomcrypt/TomCryptLicense.cpp` and
 `src/system/zlib/ZlibLicense.cpp`, converted by a **whole-TU `??__E`
 dynamic-initializer recognizer** (`IlBundle::dyninit_tu`), not by widening the
-per-function class — the census is **+0** across that change and `vocab-gap` fell
-865 → **863**. That is worth reading precisely: the number that had been flat for
-the project's entire history moved by a path the census cannot see, which is also
+per-function class — the census was **+0** across that change: the number that
+had been flat for the project's entire history first moved by a path the census
+cannot see, which is also
 why §10.21 has to add a fifth term to §10.19's factorization. §8.1 still measures
 why the *ordinary* path is stuck, and the emit-set ceilings below still bound how
 far widening alone can ever take it.
