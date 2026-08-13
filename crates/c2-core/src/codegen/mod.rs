@@ -28,6 +28,14 @@
 //! [`select`], one `pub mod` line — and nothing else in `c2-core`.
 
 pub mod alloc;
+/// The block/terminator IR (`docs/CFG_SHAPE.md` §6.2 item **A**).
+///
+/// **Deliberately NOT in the glob re-export list below.** `c2_il::Block` is
+/// public and means the census blocking record; every other name here is
+/// generic enough (`BasicBlock`, `Terminator`, `BlockId`) that arriving in a
+/// module's ambient scope by accident is a real hazard rather than a
+/// hypothetical one. Callers spell `codegen::block_ir::BasicBlock`.
+pub mod block_ir;
 pub mod calls;
 pub mod cond_tail;
 pub mod div_mod_leaf;
