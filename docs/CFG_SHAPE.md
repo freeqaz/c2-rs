@@ -1093,11 +1093,50 @@ This is the item that makes the restructure a restructure. Today's register
 model is positional and local: formals occupy `ARG_REGS` by declaration order,
 the result is r3, temps descend from r11 in emission order
 (`docs/CODEGEN_W6_COMPARE.md` §6). That model has no notion of a value being
-live at a program point, and every one of the cells above needs one. Note also
-that `docs/CODEGEN_W6_COMPARE.md` §6 already records the allocator as
-"demonstrably richer than a descending counter and **not** characterized" — so
-this item depends on work nobody has done, not merely on work nobody has
-scheduled.
+live at a program point, and every one of the cells above needs one.
+
+> ### ✔ 2026-08-13 — **the dependency this item used to name is DISCHARGED, and the blocking work MOVED.**
+>
+> This paragraph used to close: *"`docs/CODEGEN_W6_COMPARE.md` §6 already
+> records the allocator as 'demonstrably richer than a descending counter and
+> **not** characterized' — so this item depends on work nobody has done, not
+> merely on work nobody has scheduled."* **That sentence is retired.** Lane
+> `wb-live` read the liveness and interference construction and obj-checked it
+> on a ten-cell grid frozen by content hash
+> ([`whitebox/WB_LIVE_FINDINGS.md`](whitebox/WB_LIVE_FINDINGS.md);
+> [`rungs/2026-08-13-wb-live.md`](rungs/2026-08-13-wb-live.md)):
+>
+> * **There is no interference graph** (#3049). A candidate carries a bitset of
+>   *still-allowed physical registers*, initialised to the whole class and
+>   narrowed by every physical def and every clobber-set operand its range
+>   spans; the neighbour set the selector's cost term wants is **recomputed per
+>   colouring**, not stored.
+> * **Liveness is a backward round-robin dataflow fixpoint** (#3050),
+>   `live_in = use ∪ (live_out ∖ def)`, iterated in reverse layout order until
+>   `live_out` stops moving — **and then intersected with a forward
+>   availability problem**, which is the clause a port would omit.
+> * **Both of this item's measured cases are consequences of rules already
+>   published** (#3051). A call's clobber list is an *operand*, so a value
+>   crossing it loses every volatile and #1820's fixed order hands it `r31`;
+>   and **framing is a consequence of allocation, not a cause** — proved on a
+>   *leaf* body that takes `r31`–`r28` from pressure alone (#3052).
+> * The **incumbent positional model is refuted on seven cells** (#3054):
+>   `r11` demonstrably holds three different values inside one straight-line
+>   block.
+>
+> **Item F is now specifiable and still not buildable, and what blocks it is a
+> different thing** (#3057): live ranges are a property of the **lowered
+> instruction order**, and `dag.c`'s tree-to-tuple walk (`0x10b3219f`) is
+> unread. `wb-live` froze two cells predicting that N independent statements
+> give N sequential live ranges; c2 **hoists every `lis <sym>@ha` to the top of
+> the block**, so they overlap, and both cells are scored as misses (#3053). A
+> perfect allocator over wrong ranges gives wrong registers.
+>
+> **Four things are explicitly NOT blocking and must not be re-priced as if
+> they were**: the interference graph (there is none), the cost function
+> (measured inert on all 25 cells this project has compiled for the question),
+> the spiller (c2 takes four callee-saved registers rather than spill one
+> value), and a callee-saved policy (there is none).
 
 **G. A place to record the folds, per accepted shape.**
 §3.5's three bands are not passes to reproduce; they are the reason the accepted
