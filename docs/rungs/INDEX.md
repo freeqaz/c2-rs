@@ -214,4 +214,5 @@ the header block this table is read from.
 | 2026-08-10 | w-selbind | [w-selbind](2026-08-10-w-selbind.md) | 11 | per-function unchanged, **+0**. TU match **23 → 23**, mismatch |
 | 2026-08-10 | w-wordwrap2 | [w-wordwrap2](2026-08-10-w-wordwrap2.md) | 1 | per-function 714,556 → 714,556 · emitted 39,254 → 39,254 |
 | 2026-08-13 | WB-LIVE | [wb-live](2026-08-13-wb-live.md) | 8 | +0 — nothing is admitted, no crates/ file is touched |
+| 2026-08-13 | w-gate3048 | [w-gate3048](2026-08-13-w-gate3048.md) | 11 | **+0**, by construction and not by measurement: this lane changes |
 | 2026-08-13 | W-KEYGEN | [w-keygen](2026-08-13-w-keygen.md) | 1 | unchanged — nothing was admitted (a priced decline) |
