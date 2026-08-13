@@ -587,12 +587,18 @@ readings give **0.9980 / 0.8401 / 0.9980**. So:
 > is not evidence for it.
 >
 > **Two things this does NOT license.** 17/17 on n = 17 is not evidence the rule
-> beats its hold-out rate: this TU has *no boundary case*, its callees running
-> index 16…108 with the nearest straddling pair at 60 and 76, every one ≥ 12
-> bytes clear of the step. And the leaf term is still **NOT MODELLED** —
-> dropping it is the best of three bad readings, not a derivation. What the
-> example settles is narrower and worth having: **quote which leaf reading a
-> number was taken in, or the number does not mean anything.**
+> beats its hold-out rate. The callees run index 16…108 and **two of them are
+> boundary cells**: `?shuffle2` at **60**, four below 64, and
+> `?asciiDigitToHex` at **76**, eight above 68. §7 puts this rule's entire
+> 2.84 % residual *"within ±8 bytes of the step"*, so both sit **inside the
+> residual band and the rule called both correctly** — which is a stronger
+> result than a clean-margin TU would have been, and is still two observations.
+> They are also the *only* cells that separate the three leaf readings: the
+> source-leaf variant's single miss is `?asciiDigitToHex` at `76 − 48 = 28`.
+> And the leaf term is still **NOT MODELLED** — dropping it is the best of three
+> bad readings, not a derivation. What the example settles is narrower and worth
+> having: **quote which leaf reading a number was taken in, or the number does
+> not mean anything.**
 >
 > Re-graded on the frozen 100-TU hold-out in the same run (#3045): **0.9716 →
 > 0.9681**, the ordering of the three readings unchanged, and **population
