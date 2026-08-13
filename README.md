@@ -114,6 +114,15 @@ overhead. `c2rs perf` checks the port's output is byte-exact to real c2 on
 every fixture *before* timing anything, so the speedup is never bought with
 wrong bytes.
 
+Two bounds on reading that ratio (`docs/PRIOR_ART.md` §"Amdahl", measured on
+real dc3 TUs): the scaling numbers are taken on fixture-sized bundles, where
+most of real c2's cost is process spawn and PE load — on a workload-sized TU
+c2 does ~150 ms of genuine work and the port's speedup there is unmeasured,
+because the port does not yet accept one; and in a source→obj loop the c2
+stage is 10–37 % of the compile, so an infinitely fast c2 buys 1.1–1.6× there.
+The full ratio is available only to IL-space loops, where c2 is the whole
+cost.
+
 Reproduce with:
 
 ```sh
