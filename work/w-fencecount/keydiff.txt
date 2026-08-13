@@ -1,0 +1,133 @@
+========================================================================
+KEYDIFF — base vs tip gap scan
+========================================================================
+
+metric keys: 277 in base, 370 in tip
+
+-- PRE-EXISTING KEYS ---------------------------------------------
+277 keys compared (every key BASE printed), 0 differ
+
+-- KEYS ONLY IN TIP (additive) -----------------------------------
+93 new keys
+families: fence-* (93)
+
+of the new keys, 7 are nonzero, 86 are zero
+
+    fence-accounting-broken                                  0
+    fence-arity-broken                                       0
+    fence-blocks-exact-bodies:bind-offset-ne-segment-start   0
+    fence-blocks-exact-bodies:bind-record-count-ne-segments  0
+    fence-blocks-exact-bodies:body-out-of-class              0
+    fence-blocks-exact-bodies:drectve-not-boilerplate        0
+    fence-blocks-exact-bodies:gl-stop-26-introduced          0
+    fence-blocks-exact-bodies:gl-stop-dllexport              0
+    fence-blocks-exact-bodies:gl-stop-name-not-mangled       0
+    fence-blocks-exact-bodies:gl-stop-name-too-far           0
+    fence-blocks-exact-bodies:gl-stop-run-ends-26            0
+    fence-blocks-exact-bodies:gl-stop-varargs-record         0
+    fence-blocks-exact-bodies:label-counter-unreadable       0
+    fence-blocks-exact-bodies:label-stride-mismatch          0
+    fence-blocks-exact-bodies:locally-defined-callee         0
+    fence-blocks-exact-bodies:no-ex                          0
+    fence-blocks-exact-bodies:no-gl                          0
+    fence-blocks-exact-bodies:selective-emit-set-unknown     0
+    fence-blocks-exact-bodies:selective-unaccounted-emitted-body 0
+    fence-blocks-exact-bodies:shape-token-unresolved         0
+    fence-blocks-exact-bodies:split-empty-with-lo            0
+    fence-blocks-exact-bodies:unclaimed-gl-symbol            0
+    fence-blocks-exact-bodies:varargs                        0
+    fence-blocks-exact:bind-offset-ne-segment-start          0
+    fence-blocks-exact:bind-record-count-ne-segments         0
+    fence-blocks-exact:body-out-of-class                     0
+    fence-blocks-exact:drectve-not-boilerplate               0
+    fence-blocks-exact:gl-stop-26-introduced                 0
+    fence-blocks-exact:gl-stop-dllexport                     0
+    fence-blocks-exact:gl-stop-name-not-mangled              0
+    fence-blocks-exact:gl-stop-name-too-far                  0
+    fence-blocks-exact:gl-stop-run-ends-26                   0
+    fence-blocks-exact:gl-stop-varargs-record                0
+    fence-blocks-exact:label-counter-unreadable              0
+    fence-blocks-exact:label-stride-mismatch                 0
+    fence-blocks-exact:locally-defined-callee                0
+    fence-blocks-exact:no-ex                                 0
+    fence-blocks-exact:no-gl                                 0
+    fence-blocks-exact:selective-emit-set-unknown            0
+    fence-blocks-exact:selective-unaccounted-emitted-body    0
+    fence-blocks-exact:shape-token-unresolved                0
+    fence-blocks-exact:split-empty-with-lo                   0
+    fence-blocks-exact:unclaimed-gl-symbol                   0
+    fence-blocks-exact:varargs                               0
+    fence-blocks-first:bind-offset-ne-segment-start          0
+    fence-blocks-first:bind-record-count-ne-segments         11
+    fence-blocks-first:body-out-of-class                     2
+    fence-blocks-first:drectve-not-boilerplate               13
+    fence-blocks-first:gl-stop-26-introduced                 819
+    fence-blocks-first:gl-stop-dllexport                     0
+    fence-blocks-first:gl-stop-name-not-mangled              0
+    fence-blocks-first:gl-stop-name-too-far                  0
+    fence-blocks-first:gl-stop-run-ends-26                   0
+    fence-blocks-first:gl-stop-varargs-record                0
+    fence-blocks-first:label-counter-unreadable              0
+    fence-blocks-first:label-stride-mismatch                 0
+    fence-blocks-first:locally-defined-callee                0
+    fence-blocks-first:no-ex                                 0
+    fence-blocks-first:no-gl                                 0
+    fence-blocks-first:selective-emit-set-unknown            0
+    fence-blocks-first:selective-unaccounted-emitted-body    0
+    fence-blocks-first:shape-token-unresolved                0
+    fence-blocks-first:split-empty-with-lo                   0
+    fence-blocks-first:unclaimed-gl-symbol                   0
+    fence-blocks-first:varargs                               0
+    fence-blocks-sole:bind-offset-ne-segment-start           0
+    fence-blocks-sole:bind-record-count-ne-segments          0
+    fence-blocks-sole:body-out-of-class                      0
+    fence-blocks-sole:drectve-not-boilerplate                0
+    fence-blocks-sole:gl-stop-26-introduced                  0
+    fence-blocks-sole:gl-stop-dllexport                      0
+    fence-blocks-sole:gl-stop-name-not-mangled               0
+    fence-blocks-sole:gl-stop-name-too-far                   0
+    fence-blocks-sole:gl-stop-run-ends-26                    0
+    fence-blocks-sole:gl-stop-varargs-record                 0
+    fence-blocks-sole:label-counter-unreadable               0
+    fence-blocks-sole:label-stride-mismatch                  0
+    fence-blocks-sole:locally-defined-callee                 0
+    fence-blocks-sole:no-ex                                  0
+    fence-blocks-sole:no-gl                                  0
+    fence-blocks-sole:selective-emit-set-unknown             0
+    fence-blocks-sole:selective-unaccounted-emitted-body     0
+    fence-blocks-sole:shape-token-unresolved                 0
+    fence-blocks-sole:split-empty-with-lo                    0
+    fence-blocks-sole:unclaimed-gl-symbol                    0
+    fence-blocks-sole:varargs                                0
+    fence-cause-firings                                      1716
+    fence-class-disagree                                     0
+    fence-decodes-not-match                                  0
+    fence-held-tus                                           845
+    fence-match-tus-checked                                  25
+    fence-on-match-tu                                        0
+    fence-residue-no-cause                                   0
+
+-- PER-TU VERDICTS -----------------------------------------------
+878 TU records in base, 878 in tip; 878 names in common, 878 verdicts compared, 0 differ
+only-in-base 0 · only-in-tip 0 · changed-by-name 0
+
+-- HEADLINE CLASS COUNTS (from the .out metric block) -------------
+    class                  base        tip   
+    match                    25         25   OK
+    mismatch                  0          0   OK
+    codegen-gap               0          0   OK
+    vocab-gap               845        845   OK
+    port-error                0          0   OK
+    capture-fail              8          8   OK
+
+    recomputed from the .jsonl verdict maps:
+    match                    25         25   OK
+    mismatch                  0          0   OK
+    codegen-gap               0          0   OK
+    vocab-gap               845        845   OK
+    port-error                0          0   OK
+    capture-fail              8          8   OK
+
+========================================================================
+VERDICT: NEUTRAL — 277 pre-existing keys identical, 878 TU verdicts identical, 93 new keys added
+========================================================================

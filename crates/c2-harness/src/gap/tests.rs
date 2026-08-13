@@ -3422,3 +3422,183 @@ fn a_match_no_acceptance_path_takes_is_still_not_on_the_frontier() {
     assert_eq!(sets::count(&rows, "frontier-if-a").unwrap(), 1);
     assert_eq!(sets::count(&rows, "frontier-pool").unwrap(), 0);
 }
+
+// ---------------------------------------------------------------------------
+// W-FENCECOUNT — the per-fence hold-out counter (`GapReport::fence_blocks`)
+// ---------------------------------------------------------------------------
+
+/// Build a held TU: `vocab-gap`, a cause list, its first blocker, and the two
+/// per-TU FnByte counters the exactness read uses. Pure data — the counter, its
+/// residues and its arity checks must all be gradeable with no toolchain.
+fn mk_fence(src: &str, class: TuClass, causes: &[&str], first: Option<&str>, exact: usize, den: usize) -> TuResult {
+    let mut r = mk("fence");
+    r.src = src.into();
+    r.class = class;
+    r.gate_causes = causes.iter().map(|c| c.to_string()).collect();
+    r.gate_cause = first.map(str::to_string);
+    if den > 0 {
+        r.emit.insert("fnbyte-denominator".into(), den);
+        r.emit.insert("fnbyte-exact".into(), exact);
+    }
+    r
+}
+
+/// **The vsnprnc shape fires the counter**: a sole-cause TU whose every emitted
+/// body is byte-exact lands in `sole`, `exact_tus` AND `exact_bodies` — and a
+/// sole-cause TU with a ZERO denominator lands in `sole` only, because
+/// exactness over zero bodies is a vacuous read (trap 5), not a conversion
+/// shape.
+#[test]
+fn a_sole_blocked_all_exact_tu_fires_the_fence_counter_and_a_bodiless_one_does_not() {
+    let lc = c2_il::func::cause::LOCAL_CALLEE;
+    let fb = mk_report(vec![
+        mk_fence("vsn.cpp", TuClass::VocabGap, &[lc], Some(lc), 2, 2),
+        mk_fence("nobody.cpp", TuClass::VocabGap, &[lc], Some(lc), 0, 0),
+        mk_fence("partial.cpp", TuClass::VocabGap, &[lc], Some(lc), 1, 2),
+    ])
+    .fence_blocks();
+    let row = fb.per_cause[lc];
+    assert_eq!(row.sole, 3, "all three TUs are sole-blocked by the inline fence");
+    assert_eq!(
+        row.exact_tus, 1,
+        "only the all-exact TU may count as fence-blocks-exact: the bodiless TU is vacuous \
+         and the partial TU is not the conversion shape"
+    );
+    assert_eq!(
+        row.exact_bodies, 2,
+        "the bodies count is the exact TU's denominator, nothing folded in from the others"
+    );
+    assert_eq!(row.first_of_multi, 0, "a sole cause is never also a first-of-multi");
+    assert_eq!(fb.held_tus, 3, "the held population is all three");
+    assert_eq!(fb.cause_firings, 3, "arity: one cause each");
+}
+
+/// **A multi-cause TU is a first-blocker row and NEVER a sole or exact one**,
+/// even when every emitted body is byte-exact — a first-blocker key is not a
+/// distance, and the exact counter must not launder it into one.
+#[test]
+fn a_multi_cause_tu_counts_as_first_blocker_only_never_as_exact() {
+    let lc = c2_il::func::cause::LOCAL_CALLEE;
+    let bd = c2_il::func::cause::BODY_DECODE;
+    let fb = mk_report(vec![mk_fence("multi.cpp", TuClass::VocabGap, &[bd, lc], Some(bd), 4, 4)])
+        .fence_blocks();
+    assert_eq!(
+        fb.per_cause[bd].first_of_multi, 1,
+        "the first blocker (what functions() stops on) takes the first-of-multi row"
+    );
+    assert_eq!(
+        fb.per_cause[bd].sole + fb.per_cause[bd].exact_tus,
+        0,
+        "a TU with two causes is not held by one cause and nothing else"
+    );
+    assert!(
+        !fb.per_cause.contains_key(lc) || fb.per_cause[lc] == Default::default(),
+        "the co-blocker gets no row at all: attributing a multi-cause TU to every cause \
+         would double-count the totality identity"
+    );
+    assert_eq!(
+        fb.per_cause[bd].exact_bodies, 0,
+        "byte-exact bodies on a multi-cause TU must not reach the exact counter"
+    );
+}
+
+/// **The controls are counts and each malformed row lands in exactly one** —
+/// totality (`held == attributed + arity_broken`) survives adversarial input
+/// rather than being an identity over well-formed rows only.
+#[test]
+fn fence_controls_catch_malformed_rows_residues_and_class_disagreement() {
+    let lc = c2_il::func::cause::LOCAL_CALLEE;
+    let bd = c2_il::func::cause::BODY_DECODE;
+    let rep = mk_report(vec![
+        // well-formed sole
+        mk_fence("ok.cpp", TuClass::VocabGap, &[lc], Some(lc), 0, 0),
+        // first blocker missing entirely -> arity_broken
+        mk_fence("nofirst.cpp", TuClass::VocabGap, &[lc, bd], None, 0, 0),
+        // first blocker not a member of its own list -> arity_broken
+        mk_fence("wrongfirst.cpp", TuClass::VocabGap, &[lc, bd], Some("no-such-cause"), 0, 0),
+        // vocab-gap with an EMPTY cause list -> the named residue (known 0 live)
+        mk_fence("nocause.cpp", TuClass::VocabGap, &[], None, 0, 0),
+        // decodes-but-not-match -> outside the fence family
+        mk_fence("cg.cpp", TuClass::CodegenGap, &[], None, 0, 0),
+        // ...and one CARRYING a cause anyway -> class_disagree
+        mk_fence("cgbad.cpp", TuClass::CodegenGap, &[lc], Some(lc), 0, 0),
+        // match TUs: one clean (checked), one carrying a cause (known-0 alarm)
+        mk_fence("m.cpp", TuClass::Match, &[], None, 0, 0),
+        mk_fence("mbad.cpp", TuClass::Match, &[lc], Some(lc), 0, 0),
+        // capture-fail must be invisible to every counter
+        mk_fence("cf.cpp", TuClass::CaptureFail, &[lc], Some(lc), 0, 0),
+    ]);
+    let fb = rep.fence_blocks();
+    assert_eq!(fb.held_tus, 3, "held = the three vocab-gap TUs with causes");
+    assert_eq!(fb.arity_broken, 2, "both malformed first-blocker rows are counted, not guessed");
+    let attributed: usize = fb.per_cause.values().map(|c| c.sole + c.first_of_multi).sum();
+    assert_eq!(
+        fb.held_tus,
+        attributed + fb.arity_broken,
+        "totality: every held TU is attributed to exactly one row or counted arity-broken"
+    );
+    assert_eq!(fb.residue_no_cause, 1, "the causeless vocab-gap TU is the named residue");
+    assert_eq!(fb.decodes_not_match, 2, "both decoding non-match TUs are outside the family");
+    assert_eq!(fb.class_disagree, 1, "a decoding TU carrying a cause is the known-0 alarm");
+    assert_eq!(fb.on_match_tu, 1, "a match TU carrying a cause is the known-0 agreement alarm");
+    assert_eq!(fb.match_tus_checked, 1, "the clean match TU is positively counted as checked");
+    assert_eq!(
+        fb.cause_firings, 5,
+        "arity counts contents: 1 (ok) + 2 + 2 from the malformed rows; nothing from \
+         residues, non-vocab classes or capture-fail"
+    );
+}
+
+/// **The metric keys ride with zeros included over the closed cause
+/// vocabulary** — a fence key that never fires and one that was never added
+/// must be different readings — and an observed cause the closed list does not
+/// carry is still printed rather than dropped.
+#[test]
+fn fence_metric_keys_print_zeros_for_the_closed_vocabulary_and_never_drop_an_observed_cause() {
+    let lc = c2_il::func::cause::LOCAL_CALLEE;
+    let rep = mk_report(vec![
+        mk_fence("vsn.cpp", TuClass::VocabGap, &[lc], Some(lc), 2, 2),
+        mk_fence("new.cpp", TuClass::VocabGap, &["some-future-cause"], Some("some-future-cause"), 0, 0),
+    ]);
+    let m: BTreeMap<&str, String> = rep.metrics().into_iter().collect();
+    assert_eq!(
+        m["fence-blocks-exact:locally-defined-callee"], "1",
+        "the inline fence's exact row must carry the firing TU"
+    );
+    assert_eq!(
+        m["fence-blocks-exact-bodies:locally-defined-callee"], "2",
+        "…and its bodies count, in body units"
+    );
+    assert_eq!(
+        m["fence-blocks-sole:gl-stop-26-introduced"], "0",
+        "a cause that never fires still prints, at zero — absence must not read as success"
+    );
+    assert_eq!(
+        m["fence-blocks-sole:some-future-cause"], "1",
+        "a cause the closed list does not carry is printed from the data, never dropped"
+    );
+    for k in [
+        "fence-held-tus",
+        "fence-cause-firings",
+        "fence-residue-no-cause",
+        "fence-decodes-not-match",
+        "fence-class-disagree",
+        "fence-on-match-tu",
+        "fence-match-tus-checked",
+        "fence-arity-broken",
+        "fence-accounting-broken",
+    ] {
+        assert!(m.contains_key(k), "control key `{k}` must ride with the rows");
+    }
+    assert_eq!(m["fence-accounting-broken"], "0", "totality holds on this input");
+    // Every closed-vocabulary cause carries all four rows.
+    for cause in crate::gap::FENCE_CAUSES {
+        for fam in ["sole", "exact", "exact-bodies", "first"] {
+            let key = format!("fence-blocks-{fam}:{cause}");
+            assert!(
+                m.contains_key(key.as_str()),
+                "closed-vocabulary cause `{cause}` is missing its `{fam}` row"
+            );
+        }
+    }
+}

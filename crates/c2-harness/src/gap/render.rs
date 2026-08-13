@@ -1085,6 +1085,69 @@ pub(super) fn print_factorization(report: &GapReport) {
             );
         }
     }
+    // ---- W-FENCECOUNT: the per-fence hold-out counter -----------------------
+    //
+    // The instrument the two-sided fence-pricing rule (CLAUDE.md) needs on the
+    // scan itself: for each decode-gate cause, the TUs it holds ALONE, the
+    // subset whose every emitted body is already byte-exact (the shape of
+    // vsnprnc.cpp before w-fence2 paid its fence, board #2470), and the TUs it
+    // merely blocks FIRST. Diagnostic only; nothing branches on it.
+    {
+        let fence = report.fence_blocks();
+        println!(
+            "\n\x20 FENCE-BLOCKS-EXACT (w-fencecount) — TUs held out of `match` per decode-gate \
+             fence. `sole` = the TU's ONLY firing cause; `exact` = sole AND every emitted body \
+             FnByte-exact (`bodies` counts them); `first` = first blocker of a multi-cause TU. \
+             TWO CAVEATS, standing: a first-blocker count is NOT a distance (the port stops at \
+             its first refusal, so every held TU names one blocker however many it has); and \
+             the `locally-defined-callee` row is `decode_causes`' BROAD re-ask of the inline \
+             fence, which can fire where the narrowed gate exempts (see \
+             `GapReport::fence_blocks`). Machine keys: `gap-metric fence-*`, all causes, zeros \
+             included."
+        );
+        let firing: Vec<(&String, &super::FenceCauseRow)> = fence
+            .per_cause
+            .iter()
+            .filter(|(_, c)| c.sole + c.exact_tus + c.first_of_multi > 0)
+            .collect();
+        if firing.is_empty() {
+            // The zero is stated positively, over its population — never as an
+            // absent block (trap 5).
+            println!(
+                "\x20   no fence fires on this scan: {} held TU(s), every row zero",
+                fence.held_tus
+            );
+        }
+        for (cause, row) in firing {
+            println!(
+                "\x20   {cause:<34} sole {:>4}  exact {:>4}  bodies {:>5}  first-of-multi {:>4}",
+                row.sole, row.exact_tus, row.exact_bodies, row.first_of_multi
+            );
+        }
+        let attributed: usize = fence
+            .per_cause
+            .values()
+            .map(|c| c.sole + c.first_of_multi)
+            .sum();
+        println!(
+            "\x20   controls: held {} = attributed {} + arity-broken {} (accounting-broken {}); \
+             cause-firings {} over {} held TUs (arity); residue-no-cause {} (known 0); \
+             decodes-not-match {} (codegen-gap/mismatch/port-error — outside the fence family); \
+             class-disagree {} (known 0); match TUs checked {}, {} carrying a cause (known 0)",
+            fence.held_tus,
+            attributed,
+            fence.arity_broken,
+            if fence.held_tus != attributed + fence.arity_broken { 1 } else { 0 },
+            fence.cause_firings,
+            fence.held_tus,
+            fence.residue_no_cause,
+            fence.decodes_not_match,
+            fence.class_disagree,
+            fence.match_tus_checked,
+            fence.on_match_tu,
+        );
+    }
+
     println!(
         "\n\x20 GAP-METRICS — stable `key value` pairs for scripts/status.sh; keys are an \
          interface, do not rename. The projection `emit-predicate-worth` = \
