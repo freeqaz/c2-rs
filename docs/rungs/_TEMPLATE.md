@@ -3,7 +3,9 @@
     Tag:       <TAG or the slug, if the number is not assigned yet>
     Slug:      <slug — must equal this file's name minus the date and .md>
     Date:      <YYYY-MM-DD>
-    Fixtures:  <wNN_slug.cpp> <wNN_slug_neg.cpp>
+    Kind:      <fixture-claim | construct | characterization — README "Lane kinds">
+    Outcome:   <converted | declined | instrument | built | FAILED — exactly one>
+    Fixtures:  <wNN_slug.cpp> <wNN_slug_neg.cpp — or `none — <reason>` for kinds 2/3>
     Census:    <before> → <after> (<%> → <%>), <+delta>
     Record:    <the authoritative write-up, if the detail lives elsewhere>
 

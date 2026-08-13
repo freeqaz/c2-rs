@@ -968,7 +968,10 @@ statement opcodes beyond these four.
 *Fail-closed boundary:* this is where the temptation is greatest and the risk is
 highest. Decoding a CFG is not lowering one. Emission must stay gated on a
 whitelist of *shapes* (§9's single-return tail first, then a diamond-free `if`),
-never on "the branches decoded". Also: refuse any body where a label is targeted
+never on "the branches decoded". *(Amended 2026-08-13: "whitelist of shapes"
+means a **decidable pre-emission predicate**, not necessarily an enumerated
+list of named functions — see `CFG_SHAPE.md` §6.3's dated block for the
+four-part rule that replaces the list reading.)* Also: refuse any body where a label is targeted
 before it is defined **and** the port's codegen has no fixup pass — a backward
 jump is a loop, and a loop needs register allocation across a back edge.
 
