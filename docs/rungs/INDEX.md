@@ -215,6 +215,7 @@ the header block this table is read from.
 | 2026-08-10 | w-wordwrap2 | [w-wordwrap2](2026-08-10-w-wordwrap2.md) | 1 | per-function 714,556 → 714,556 · emitted 39,254 → 39,254 |
 | 2026-08-13 | WB-DAGORDER | [dagorder](2026-08-13-dagorder.md) | 9 | +0 — nothing admitted, no crates/ file touched |
 | 2026-08-13 | w-fencecount | [fencecount](2026-08-13-fencecount.md) | 1 | per-function 705,259/2,410,886 → 705,259/2,410,886 (29.25 % → |
+| 2026-08-13 | w-ir-cond | [ircond](2026-08-13-ircond.md) | 12 | unchanged → unchanged, +0 |
 | 2026-08-13 | WB-LIVE | [wb-live](2026-08-13-wb-live.md) | 8 | +0 — nothing is admitted, no crates/ file is touched |
 | 2026-08-13 | w-gate3048 | [w-gate3048](2026-08-13-w-gate3048.md) | 11 | **+0**, by construction and not by measurement: this lane changes |
 | 2026-08-13 | W-KEYGEN | [w-keygen](2026-08-13-w-keygen.md) | 1 | unchanged — nothing was admitted (a priced decline) |
