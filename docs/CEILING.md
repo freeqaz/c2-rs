@@ -536,7 +536,38 @@ rung.**
 | # | phase | what the instruments say about its size |
 |---|---|---|
 | 1 | **Emitter CFG classes** — `cflow-loop`, `cflow-if-n`, `cflow-if-2` | covers **33 of the frontier's 48** reader-blocked functions (`wb-reader`). Today `gap-metric cfg-reach-shipped` is **2** of `cfg-reach-top` **16**: 14 of 16 frontier TUs are held by CFG class alone. What shipped for `cflow-loop` is *"a twenty-word transcription of one function class at `/O1`"* — `PORT_CFG_CLASSES` deliberately does not list it (board **#761**) |
-| 2 | **An inliner** | `keygen_xbox.cpp` is the one frontier TU whose gap is neither reader nor emit-set. `wb-frame` retracted board #1477 and found the real `?supershuffle` gap is **14 words of uninlined `?shuffle2`** (**HAND-COUNT**, disassembly-derived). `INLINE_PREDICATE.md`'s mechanism I holds at **0.9716** on a 100-TU hold-out and is **not shipped** |
+| 2 | **An inliner** | `keygen_xbox.cpp` is the one frontier TU whose gap is neither reader nor emit-set. `wb-frame` retracted board #1477 and found the real `?supershuffle` gap is **14 words of uninlined `?shuffle2`** (**HAND-COUNT**, disassembly-derived). `INLINE_PREDICATE.md`'s mechanism I holds at **0.9716** on a 100-TU hold-out and is **not shipped**. ⚠ **See the correction block below — the 14 words are `SPLICE-0`, and the decision rule is not the expensive half.** |
+
+> ### ⚠ 2026-08-13 — **ROW 2 IS AMENDED IN THREE PLACES, and the phase is smaller in mechanism and exactly as large in conversions.** Lane `w-keygen`, [`rungs/2026-08-13-w-keygen.md`](rungs/2026-08-13-w-keygen.md), boards **#3042**–**#3046**.
+>
+> 1. **The 14 words are not "uninlined `?shuffle2`" in the sense the row's
+>    source meant.** `WB_INLINE_FINDINGS.md` §6.3 and board #1844 say the copy
+>    is *"14 frameless **re-allocated** words, not `?shuffle2`'s own 15-word
+>    COMDAT"*, and #1844 prices the remedy off that as *"a lowering for
+>    arbitrary loop bodies into the caller's register allocation"*. Measured
+>    word for word out of the reference obj: **0 of 14 differ** from
+>    `?shuffle2`'s own COMDAT with its trailing `blr` dropped. That is
+>    **`SPLICE-0`** — the transform `crates/c2-core/src/splice.rs` **already
+>    ships** — at an *interior* site rather than a whole-body one. The phase
+>    needs `splice.rs`'s caller condition widened, **not a register allocator**
+>    (#3043).
+> 2. **The 0.9716 re-grades to 0.9681 today**, on the same frozen hold-out, with
+>    §5's ordering of the three leaf readings intact — but the graded population
+>    fell **9,993 → 8,916 (−10.8 %)** without a line of `sample_b.txt` changing,
+>    because dc3 is a live repo. Quote the denominator with the rate (#3045).
+> 3. **Shipping the decision rule fenced is measured and declined**: **79 of
+>    2,523** predicted-`DECLINED` callees are observed `INLINED-ALL` — the
+>    wrong-emit direction — and a fence reaches zero only at `index ≥ 256`,
+>    four times the published step, covering 4.5 % of callees (#3046). The
+>    fence's whole workload reach as a first blocker is **one function on one
+>    TU**, and even a perfect fence emits nothing there, because producing the
+>    14 words means lowering `?shuffle2`, which has no CFG class.
+>
+> **What does NOT change: the conversion count is still zero.** #1844's decline
+> stands on its own arithmetic; only its reasoning is retracted. And board
+> **#1843**'s *"`INLINE-P` predicts SIX and gets ONE"* is an artifact of reading
+> the leaf bit off the `/O1` obj — in the configuration the 0.9716 was measured
+> in, the rule is **17 of 17** on this TU, the anchor included (#3042).
 | 3 | **`memset` / selector lowering in `c2-core`** | `w-mass`'s priced decline: **5,021** emitted functions terminal on `memset`. Convert-rate per TU **unknown** |
 | 4 | **Exception handling** | ROADMAP §10.20: EH blocks by factor **D** over **740** objs. Board **#283**: the `/EHsc` axis is graded entirely through implicit destructor unwind — **`try`/`throw` have ZERO cases** in the generated corpus |
 | 5 | **Weak externals at scale** | `alias-weak-needed-tus` **675** of 871 carry a COFF weak-external symbol record the port's writer cannot emit. **No factor in §10.19 represents it.** `alias-weak-needed-in-b-and-c` **0** and `-in-frontier` **0**, so it costs the payoff metric **nothing today** and everything at 871 |

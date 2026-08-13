@@ -299,6 +299,65 @@ tuple count of anything.
 
 ## 6. `?supershuffle@@YAXPAD@Z` — the specific clause, and the priced remedies
 
+> ### ⚠ 2026-08-13 — **§6.2 AND §6.3's `the bytes` ROW ARE BOTH CORRECTED, on the obj, and §6.3's VERDICT SURVIVES BOTH.** Lane `w-keygen`, [`../rungs/2026-08-13-w-keygen.md`](../rungs/2026-08-13-w-keygen.md) §3.2, boards **#3042**/**#3043**.
+>
+> **1. §6.2's *"It predicts six inlines and gets one"* is an artifact of the
+> leaf reading, not a property of `INLINE-P`.** §6.2 evaluates `index = s − 48`
+> — the leaf bit read off the `/O1` obj — and
+> [`../INLINE_PREDICATE.md`](../INLINE_PREDICATE.md) §5 had already measured
+> that reading as **the worst of three** (0.9631 against 0.9716) and warned in
+> these words: *"`/O1` over-reports leaf: a callee whose calls were inlined away
+> reads LEAF."* §6.1's own table says the six are *"leaf"* — they are not.
+> **Every one of them calls `swap`, and five call `roll`, in source**; c2 inlined
+> those away before the obj was written.
+>
+> Re-graded on this TU with `work/w-inline/grade_pair.py`, 17 in-TU callees:
+> `/O1`-leaf **11/17** (this section's reading) · **leaf dropped — the
+> configuration the 0.9716 was measured in — 17/17**, precision 1.000, recall
+> 1.000 · source-leaf 16/17. With the term dropped, `index = s` = 104/60/84/84/
+> 88/88 and the plain **EXTERNAL `index ≤ 64` arm selects `?shuffle2` alone**.
+> **So P3.1 was right after all**, on the arm it named, and was scored a miss
+> against a reading of its own inputs that §5 says not to use. The `0x10b5fe14`
+> clause may exist; **this TU is not evidence for it.** (Note the two records
+> also disagree with each other about its bracket — §6.2 says `(60,80]`, board
+> #1843 says `(60,84]`.)
+>
+> **2. §6.3's `the bytes` row is refuted.** It reads *"c2's inlined `?shuffle2`
+> is 14 words that are **not** `?shuffle2`'s own 15-word COMDAT: the copy is
+> frameless, **re-allocated into the caller's registers**, and its base pointers
+> are folded against the caller's `r3`. That is WB-D's register-choice question,
+> unsolved."* Measured by taking `?shuffle2`'s own `.text` COMDAT, dropping its
+> trailing `blr`, and searching `?supershuffle`'s words for that run
+> (`work/w-keygen/anchor.py`): **found at word index 4, 0 of 14 words differ.**
+> No rename, no displacement fold, no reorder. The callee's parameter register
+> and the caller's are both `r3` and c2 keeps it there — which is §7's
+> interprocedural finding seen from the other side.
+>
+> That is **`SPLICE-0`** (`w-seq` #968), the transform
+> `crates/c2-core/src/splice.rs` **already ships**, applied at an *interior*
+> site. Remedy A's blocker is therefore not a register allocator: it is
+> `splice.rs`'s **caller** condition (S2 *"exactly one call site"*, S3 *"the port
+> emits nothing around the call"*), which requires the caller's whole emitted
+> body to be that one call.
+>
+> **3. Neither correction moves `what it converts`, and both leave the
+> recommendation standing.** Producing the 14 words still means lowering
+> `?shuffle2`, which the reader refuses at `expr-jump` and which has no CFG
+> class; `keygen_xbox.cpp` re-derives at **20 independent refusals** (#3040) and
+> **19 of its 20** emitted functions are behind a reader refusal. **Board #1477
+> should still close and the anchor is still the wrong place to spend the
+> inliner** — this block retracts the reasoning, not the verdict.
+>
+> **4. A new hazard for remedy A, which neither remedy priced.** A frozen
+> fixture grid (`fixtures/cpp/wkg_splice_pos.cpp`, real `c2`, sized to reproduce
+> this split) sweeps the two structural axes nobody had varied. **Position:
+> `SPLICE-0` exact at all four indices of a four-call sequence. Count: with the
+> same callee inlined TWICE, `SPLICE-0` FAILS** — c2 hoists the address
+> computation out of the repeated copy and re-derives each one's pointers from
+> the hoisted registers, so the runs differ by 5 and 3 words and the caller
+> acquires an `r31` save. Board **#3044**. The anchor is count 1, so its price
+> is unaffected; a general interior splice must refuse count > 1.
+
 ### 6.1 The measurement
 
 `work/wb-inline/anchor.sh` compiles the real
