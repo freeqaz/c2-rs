@@ -1,0 +1,7 @@
+COLD files=723  __pycache__=ls: cannot access 'scripts/__pycache__': No such file or directory
+HEAD=3fede65c
+RUN1_EXIT=0
+AFTER-RUN1 ignored: scripts/__pycache__/sweep_gen.cpython-314.pyc 
+RUN2_EXIT=0
+AFTER-RUN2 ignored: scripts/__pycache__/sweep_gen.cpython-314.pyc 
+UNION=724
