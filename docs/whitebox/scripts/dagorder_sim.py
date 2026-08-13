@@ -9,13 +9,22 @@ c2.dll (see WB_DAGORDER_FINDINGS.md):
     across every node of these cells and is omitted]  (FUN_10be5df6, weights
     at 0x10c3bf9c); height = 1 + max(succ.height + edge.latency);
   * ready list sorted by (priority desc, original index asc) (FUN_10be5cea);
-  * cycle-driven issue (FUN_10be60c0): per cycle up to WIDTH nodes, each the
-    first ready node whose earliest-start <= cycle and whose unit is free
-    under the variant's constraint; successors' earliest-start updated with
-    the edge latency;
+  * cycle-driven issue (FUN_10be60c0) under the issue predicate LAB_10c1bfe2:
+    unit 0 is free and uncapped, otherwise ONE instruction per unit per cycle
+    and at most TWO nonzero-unit instructions per cycle whatever the width
+    says; each pick is the first ready node whose earliest-start <= cycle;
+    successors' earliest-start updated with the edge latency;
   * latencies (FUN_10c1c1d4, matrix 0x10c3c1a8): ALU->ALU 2, ALU->mem
-    (address) 5, ALU->store (data) 2, load->ALU 2, cmp->branch 2,
-    ALU->branch 0, barrier edges 0.
+    (address) 5, ALU->store (data) 2, load->ALU 2, barrier edges 0, and
+    ALU->branch = 0 when the producer is cmp/cmpi/cmpl/cmpli (opcodes
+    0x2d..0x30) but 2 for every other ALU producer -- the sense of the test
+    at 0x10c1c25e, which this lane first read INVERTED (see the revision box
+    in WB_DAGORDER_FINDINGS.md).
+
+Scoring today: the `unit` model reproduces 7 of 8 cells exactly; the `flat`
+model (any two per cycle) reproduces 6 and is separated by cell v1, so the
+per-unit rule is discriminated by the grid rather than assumed. Width 2 and
+width 4 are indistinguishable here because the cap of 2 binds first.
 
 The grid cells of docs/whitebox/grids/wb-dagorder/dagorder_grid.cpp are
 hand-encoded below from their C source; EXPECTED is the order really emitted
