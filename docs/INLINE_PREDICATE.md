@@ -561,6 +561,45 @@ readings give **0.9980 / 0.8401 / 0.9980**. So:
 > calls are gone by the time it is priced. The truth is between the two and
 > **NOT MODELLED**.
 
+> ### ✔ 2026-08-13 — **THIS SECTION'S WARNING HAS A WORKED EXAMPLE NOW, and it is a published board row that fell to it.** Lane `w-keygen`, board **#3042**, [`rungs/2026-08-13-w-keygen.md`](rungs/2026-08-13-w-keygen.md) §3.2.
+>
+> Board **#1843** reads *"the six shuffles are 104/60/84/84/88/88 B and ONLY THE
+> 60 B ONE INLINES — `INLINE-P` predicts SIX and gets ONE"*, and
+> `whitebox/WB_INLINE_FINDINGS.md` §6 answers it with a **loop-class size
+> ceiling** read out of the disassembly.
+>
+> **`INLINE-P` does not predict six.** `?shuffle1`…`?shuffle6` call `swap` and
+> `roll` **in source**; c2 inlines those away; the `/O1` obj therefore reads all
+> six as `leaf` and subtracts 48 from each — *this paragraph's first sentence,
+> happening on real workload code*. Re-graded on that TU with the same
+> `work/w-inline/grade_pair.py`, over all 17 in-TU callees:
+>
+> | leaf reading | accuracy on `src/keygen_xbox.cpp` |
+> |---|---:|
+> | from the `/O1` obj | **11/17** — six false inlines, which is #1843's reading |
+> | **dropped entirely — the configuration the 0.9716 was measured in** | **17/17**, precision 1.000, recall 1.000 |
+> | from the `/Ob0` obj (source-leaf) | 16/17 |
+>
+> In the frozen configuration `index = s` for these (one parameter; every
+> `.text` COMDAT is `SELECT_NODUPLICATES`, so no `inline` term), and the `≤ 64`
+> arm selects **`?shuffle2` alone**. **The published ceiling clause is not
+> needed to explain the anchor** — it may well exist in the image, but this TU
+> is not evidence for it.
+>
+> **Two things this does NOT license.** 17/17 on n = 17 is not evidence the rule
+> beats its hold-out rate: this TU has *no boundary case*, its callees running
+> index 16…108 with the nearest straddling pair at 60 and 76, every one ≥ 12
+> bytes clear of the step. And the leaf term is still **NOT MODELLED** —
+> dropping it is the best of three bad readings, not a derivation. What the
+> example settles is narrower and worth having: **quote which leaf reading a
+> number was taken in, or the number does not mean anything.**
+>
+> Re-graded on the frozen 100-TU hold-out in the same run (#3045): **0.9716 →
+> 0.9681**, the ordering of the three readings unchanged, and **population
+> 9,993 → 8,916 (−10.8 %)** with `sample_b.txt` byte-identical. **A list frozen
+> by TU *name* is not frozen by *content*** — dc3 is a live repo. Report the
+> denominator beside the rate.
+
 **This is the one place the port is better off than any obj-side instrument.**
 The IL bundle contains the callee's *un-lowered* body, and it contains it before
 any expansion. A recognizer can ask "does this body contain a call" of the IL
