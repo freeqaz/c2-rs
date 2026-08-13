@@ -677,6 +677,120 @@ pub struct FnByteMatch {
     pub value: f64,
 }
 
+/// **W-FENCECOUNT — one fence's row in [`GapReport::fence_blocks`]**: how many
+/// TUs a named decode-gate fence holds out of `match`, stated in the two
+/// registers CLAUDE.md's two-sided-pricing rule needs (a refusal's own cost is
+/// TUs it alone holds, and the sharpest form of that cost is a TU whose every
+/// emitted body is already byte-exact — `vsnprnc.cpp`'s shape before w-fence2
+/// paid it, board #2470).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct FenceCauseRow {
+    /// TUs held out of `match` with this cause as the **only** firing decode
+    /// cause (`IlBundle::decode_causes().causes == [cause]`). The "and nothing
+    /// else" reading — over the causes the diagnostic models; a clause
+    /// `decode_causes` does not re-ask (the w-mmio3 sibling clauses) cannot
+    /// appear here, so a sole count is an upper bound on "this named fence and
+    /// nothing else", never an oracle-graded distance.
+    pub sole: usize,
+    /// Of [`FenceCauseRow::sole`], TUs where **every emitted body is
+    /// FnByte-exact** — per-TU `fnbyte-exact == fnbyte-denominator` with the
+    /// denominator **positive**, the same two counters
+    /// [`GapReport::fn_byte_by_tu`] reads. A TU with no emitted function can
+    /// never be counted here: exactness over zero bodies is the vacuous read
+    /// this repo's trap 5 exists to forbid.
+    pub exact_tus: usize,
+    /// The byte-exact emitted bodies inside the [`FenceCauseRow::exact_tus`]
+    /// TUs — the same quantity in body units, so the pair is its own arity
+    /// check (TUs are entities, bodies are their contents).
+    pub exact_bodies: usize,
+    /// TUs where this cause is the **first** blocker of a multi-cause set
+    /// (`gate_cause`, what `functions()` actually stops on). **NOT a
+    /// distance**: the port stops at its first refusal, so every blocked TU
+    /// reports exactly one first blocker no matter how many it has (the
+    /// coordinator's standing rule; `w-mixed`'s ladder).
+    pub first_of_multi: usize,
+}
+
+/// **The fence-blocks aggregate and its own controls** — see
+/// [`GapReport::fence_blocks`]. An instrument the oracle cannot grade is graded
+/// on its own invariants (totality with a named printed residue, arity, and
+/// agreement where the answer is independently known), so every control is a
+/// **count**, published beside the rows and never instead of them.
+#[derive(Clone, Debug, Default)]
+pub struct FenceBlocks {
+    /// Per-cause rows, keyed by the `c2_il::func::cause` string.
+    pub per_cause: BTreeMap<String, FenceCauseRow>,
+    /// `vocab-gap` TUs carrying at least one cause — the population every row
+    /// partitions. Totality: `held_tus == Σ sole + Σ first_of_multi +
+    /// arity_broken`, republished derived as `fence-accounting-broken`.
+    pub held_tus: usize,
+    /// Causes summed over the held TUs — the **arity** companion to
+    /// [`FenceBlocks::held_tus`] (residue counts entities; arity counts their
+    /// contents — the dropped-DUP lesson, `MEMORY`/w-eh). An edit that dropped
+    /// causes from lists without dropping TUs moves this and not `held_tus`.
+    pub cause_firings: usize,
+    /// `vocab-gap` TUs whose `gate_causes` is EMPTY. **Known answer 0** — the
+    /// scan fills causes for every non-decoding TU and `c2_il`'s own invariant
+    /// is `causes.is_empty() == decodes`.
+    pub residue_no_cause: usize,
+    /// Graded TUs that decode and still are not `match` (`codegen-gap`,
+    /// `mismatch`, `port-error`) — the **named residue outside the decode-gate
+    /// fence family**. These are held by something no decode cause names, so
+    /// they are counted, printed, and never folded into a fence row.
+    pub decodes_not_match: usize,
+    /// Of [`FenceBlocks::decodes_not_match`], TUs carrying a cause anyway.
+    /// **Known answer 0** — the scan populates `gate_causes` only when the
+    /// bundle does not decode.
+    pub class_disagree: usize,
+    /// `match` TUs carrying a cause. **Known answer 0**, and the agreement
+    /// check where the answer is independently known: a byte-exact obj is the
+    /// oracle's own proof that no fence held the TU.
+    pub on_match_tu: usize,
+    /// `match` TUs verified to carry **no** cause — the positive companion to
+    /// [`FenceBlocks::on_match_tu`], so "0 match TUs carry a cause" is a count
+    /// over a stated population (expected: the full match count), never an
+    /// absence.
+    pub match_tus_checked: usize,
+    /// Held TUs whose `gate_cause` (the first blocker) is missing or is not a
+    /// member of their own `gate_causes` list — the cross-field consistency
+    /// check between the two fields `scan.rs` writes from one
+    /// `DecodeCauses`. **Known answer 0.** Such a TU is unattributable and is
+    /// excluded from every row above (it surfaces in the totality identity).
+    pub arity_broken: usize,
+}
+
+/// **The closed decode-cause vocabulary this counter prints unconditionally**,
+/// zeros included — a fence key that never fires and one that was never added
+/// must be different readings (`WHOLE_TU_RECOGNIZERS`' rule). References the
+/// `c2_il::func::cause` constants rather than duplicating their strings, so a
+/// renamed cause fails the build here instead of silently forking the
+/// vocabulary; a cause **added** upstream is still printed (the aggregation is
+/// data-driven and this list only pins the zero rows) but should be appended
+/// here in the same change, like `diag.rs`'s own distinctness test.
+pub const FENCE_CAUSES: &[&str] = &[
+    c2_il::func::cause::NO_GL,
+    c2_il::func::cause::NO_EX,
+    c2_il::func::cause::DRECTVE,
+    c2_il::func::cause::SPLIT_EMPTY_WITH_LO,
+    c2_il::func::cause::GL_NAME_TOO_FAR,
+    c2_il::func::cause::GL_NAME_NOT_MANGLED,
+    c2_il::func::cause::GL_RUN_ENDS_26,
+    c2_il::func::cause::GL_DLLEXPORT,
+    c2_il::func::cause::GL_26_INTRODUCED,
+    c2_il::func::cause::GL_VARARGS_RECORD,
+    c2_il::func::cause::BIND_COUNT,
+    c2_il::func::cause::BIND_OFFSET,
+    c2_il::func::cause::SELECTIVE_UNACCOUNTED,
+    c2_il::func::cause::SELECTIVE_EMIT_SET_UNKNOWN,
+    c2_il::func::cause::VARARGS,
+    c2_il::func::cause::BODY_DECODE,
+    c2_il::func::cause::SHAPE_RESOLVE,
+    c2_il::func::cause::LABEL_STRIDE,
+    c2_il::func::cause::LABEL_COUNTER,
+    c2_il::func::cause::UNCLAIMED,
+    c2_il::func::cause::LOCAL_CALLEE,
+];
+
 pub struct GapReport {
     pub results: Vec<TuResult>,
     /// What produced these numbers (roadmap #46/#48): both trees' git HEADs, the

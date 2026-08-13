@@ -2010,6 +2010,69 @@ impl GapReport {
             m.push(("alias-weak-needed-in-b-and-c", in_bc.to_string()));
             m.push(("alias-weak-needed-in-frontier", in_front.to_string()));
         }
+        // **W-FENCECOUNT — the per-fence hold-out counter**
+        // ([`GapReport::fence_blocks`]). Four keys per cause over the CLOSED
+        // vocabulary (`super::FENCE_CAUSES`), zeros included — a fence key that
+        // never fires and one that was never added must read differently — plus
+        // any cause observed in the data that the closed list does not yet
+        // carry (so an upstream addition is printed, never dropped). The
+        // controls ride beside the rows: totality (`fence-accounting-broken`,
+        // derived HERE from the map against the held counter, the same
+        // discipline as `emit-predicate-worth`), arity (`fence-cause-firings`
+        // against `fence-held-tus`), the named residues, and the two
+        // known-answer-0 agreement checks.
+        //
+        // `Box::leak` for the same reason and under the same bound as the
+        // `fnbyte-shape-*` family above: the key set is bounded by the closed
+        // cause vocabulary, and `metrics()` runs once per report.
+        {
+            let fence = self.fence_blocks();
+            m.push(("fence-held-tus", fence.held_tus.to_string()));
+            m.push(("fence-cause-firings", fence.cause_firings.to_string()));
+            m.push(("fence-residue-no-cause", fence.residue_no_cause.to_string()));
+            m.push(("fence-decodes-not-match", fence.decodes_not_match.to_string()));
+            m.push(("fence-class-disagree", fence.class_disagree.to_string()));
+            m.push(("fence-on-match-tu", fence.on_match_tu.to_string()));
+            m.push(("fence-match-tus-checked", fence.match_tus_checked.to_string()));
+            m.push(("fence-arity-broken", fence.arity_broken.to_string()));
+            let attributed: usize = fence
+                .per_cause
+                .values()
+                .map(|c| c.sole + c.first_of_multi)
+                .sum();
+            m.push((
+                "fence-accounting-broken",
+                (fence.held_tus != attributed + fence.arity_broken)
+                    .then_some(1usize)
+                    .unwrap_or(0)
+                    .to_string(),
+            ));
+            let mut causes: Vec<&str> = super::FENCE_CAUSES.to_vec();
+            for k in fence.per_cause.keys() {
+                if !causes.iter().any(|c| c == k) {
+                    causes.push(Box::leak(k.clone().into_boxed_str()));
+                }
+            }
+            for cause in causes {
+                let row = fence.per_cause.get(cause).copied().unwrap_or_default();
+                m.push((
+                    Box::leak(format!("fence-blocks-sole:{cause}").into_boxed_str()),
+                    row.sole.to_string(),
+                ));
+                m.push((
+                    Box::leak(format!("fence-blocks-exact:{cause}").into_boxed_str()),
+                    row.exact_tus.to_string(),
+                ));
+                m.push((
+                    Box::leak(format!("fence-blocks-exact-bodies:{cause}").into_boxed_str()),
+                    row.exact_bodies.to_string(),
+                ));
+                m.push((
+                    Box::leak(format!("fence-blocks-first:{cause}").into_boxed_str()),
+                    row.first_of_multi.to_string(),
+                ));
+            }
+        }
         m
     }
 

@@ -1072,6 +1072,96 @@ impl GapReport {
         v
     }
 
+    /// **W-FENCECOUNT — the per-fence hold-out counter** (the instrument
+    /// CLAUDE.md's two-sided pricing rule was missing): for each named decode
+    /// cause, how many TUs it holds out of `match` **and nothing else the
+    /// diagnostic models** (`sole`), how many of those hold only byte-exact
+    /// emitted bodies (`exact_tus` / `exact_bodies` — the vsnprnc shape,
+    /// `docs/rungs/2026-08-09-w-vsnprnc.md` §1), and how many it merely blocks
+    /// FIRST (`first_of_multi` — not a distance).
+    ///
+    /// # What this reads, and what it deliberately does not
+    ///
+    /// * Attribution comes from the scan's own `gate_cause`/`gate_causes`
+    ///   fields, i.e. from [`c2_il::IlBundle::decode_causes`] — the one
+    ///   existing re-ask of the gate's predicates. **No second reader of any
+    ///   fence predicate is built here** (duplicate readers of one fact are
+    ///   the merge failure textual conflict detection cannot see).
+    /// * Exactness comes from the same per-TU `fnbyte-exact` /
+    ///   `fnbyte-denominator` counters [`GapReport::fn_byte_by_tu`] reads.
+    /// * **Caveat carried by the `locally-defined-callee` row**: `decode_causes`
+    ///   re-asks the BROAD `bind::callee_defined_here`, while the gate asks the
+    ///   w-fence2-narrowed `callee_defined_here_unmodelled` with the
+    ///   plain-external `/O1` exemption — so that row names the intra-TU-call
+    ///   complex as the diagnostic models it, and on a TU the narrowed gate
+    ///   exempts the invariant `causes.is_empty() == decodes` does not hold
+    ///   (found by this lane, filed as its own board row; not repaired here —
+    ///   the diagnostic is a shared surface).
+    ///
+    /// This is a **diagnostic and never a gate**: it is computed after every
+    /// class is decided, and no verdict anywhere depends on it.
+    pub fn fence_blocks(&self) -> super::FenceBlocks {
+        let mut fb = super::FenceBlocks::default();
+        for r in self.graded() {
+            match r.class {
+                TuClass::Match => {
+                    if r.gate_causes.is_empty() {
+                        fb.match_tus_checked += 1;
+                    } else {
+                        fb.on_match_tu += 1;
+                    }
+                    continue;
+                }
+                TuClass::VocabGap => {}
+                // codegen-gap / mismatch / port-error: the TU decodes, so no
+                // decode-gate fence holds it — the named residue.
+                _ => {
+                    fb.decodes_not_match += 1;
+                    if !r.gate_causes.is_empty() {
+                        fb.class_disagree += 1;
+                    }
+                    continue;
+                }
+            }
+            if r.gate_causes.is_empty() {
+                fb.residue_no_cause += 1;
+                continue;
+            }
+            fb.held_tus += 1;
+            fb.cause_firings += r.gate_causes.len();
+            // Cross-field arity: the first blocker must exist and be a member
+            // of its own cause list; a row that fails is unattributable and is
+            // counted rather than guessed at.
+            let first_is_member = r
+                .gate_cause
+                .as_deref()
+                .is_some_and(|f| r.gate_causes.iter().any(|c| c == f));
+            if !first_is_member {
+                fb.arity_broken += 1;
+                continue;
+            }
+            if let [only] = r.gate_causes.as_slice() {
+                let row = fb.per_cause.entry(only.clone()).or_default();
+                row.sole += 1;
+                let d = r.emit.get("fnbyte-denominator").copied().unwrap_or(0);
+                let e = r.emit.get("fnbyte-exact").copied().unwrap_or(0);
+                if d > 0 && e == d {
+                    row.exact_tus += 1;
+                    row.exact_bodies += d;
+                }
+            } else {
+                // `unwrap` is unreachable: `first_is_member` above requires
+                // `gate_cause` to be `Some`.
+                let first = r.gate_cause.as_deref().unwrap();
+                fb.per_cause
+                    .entry(first.to_string())
+                    .or_default()
+                    .first_of_multi += 1;
+            }
+        }
+        fb
+    }
+
     /// Replay soundness: (checked, diverged).
     pub fn replay_stats(&self) -> (usize, usize) {
         let checked = self.results.iter().filter(|r| r.replay_ok.is_some()).count();
