@@ -13,5 +13,6 @@ tree integrity (boards #2668 / #2907): the gate cannot report a tree it did not 
   PASS  counterfactual-interlock-was-second 0d0a74d2 ran the probe at body line 21, interlock at 30
   PASS  ignored-byproduct-cannot-move-id   a real .pyc appeared under scripts/; identity held at bf68f019c0ce:4
   PASS  untracked-source-still-moves-id    an untracked, unignored scripts/ file: 4 -> 5 files
-  PASS  counterfactual-pre3048-id-moved    31a83377's hash: bf68f019c0ce:4 -> 029bd0de5755:5 on a real .pyc; B1 is a real assertion
-  tree integrity: 15 arms, 0 failed (boards #2668 / #2907)
+  PASS  ignore-everything-does-not-blind-id a root inside an ignored path: identity is 3 files and still moves
+  PASS  counterfactual-pre3048-id-moved    31a83377's hash: bf68f019c0ce:4 -> 7cbf038a855a:5 on a real .pyc; B1 is a real assertion
+  tree integrity: 16 arms, 0 failed (boards #2668 / #2907)

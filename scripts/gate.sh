@@ -953,14 +953,32 @@ graded_tree_hash() {   # <root> [dirs] -> <12hex>:<nfiles>
         _gh_filter=0
         rm -f "$_gh_flt" 2>/dev/null || true
     fi
+    _gh_raw=$(cd "$_gh_root" && find $_gh_dirs -type f 2>/dev/null | wc -l)
+    [ -n "$_gh_raw" ] || _gh_raw=0
     if [ "$_gh_filter" = 1 ]; then
         _gh_n=$(cd "$_gh_root" && find $_gh_dirs -type f -print0 2>/dev/null \
             | LC_ALL=C sort -z | grep -zvxF -f "$_gh_flt" 2>/dev/null \
             | tr -dc '\000' | wc -c | tr -d ' ')
     else
-        _gh_n=$(cd "$_gh_root" && find $_gh_dirs -type f 2>/dev/null | wc -l)
+        _gh_n="$_gh_raw"
     fi
     [ -n "$_gh_n" ] || _gh_n=0
+    # THE SAFETY VALVE, and it is fail-open like everything else here. If the
+    # exclusion would remove EVERY file, do not exclude: hash the raw walk and
+    # let the identity be the pre-#3048 one. The identity going "unavailable"
+    # for a reason that is about the ignore rules rather than about the tree is
+    # a silence in the one instrument built to break silences.
+    #
+    # It fires when the graded root is itself inside an ignored path of an
+    # enclosing repository — `git ls-files` then reports every file under it as
+    # ignored. That cannot happen at this gate's own call site (a repo root has
+    # its own `.git`, and the nearest one wins), and it happened immediately on
+    # the first scratch root a probe pointed at, which is the argument for the
+    # valve rather than against it. GRADING MORE IS ALWAYS THE SAFE DIRECTION.
+    if [ "$_gh_n" -le 0 ] && [ "$_gh_raw" -gt 0 ]; then
+        _gh_filter=0
+        _gh_n="$_gh_raw"
+    fi
     if [ "$_gh_n" -le 0 ]; then rm -f "$_gh_flt" 2>/dev/null; echo ":0"; return 0; fi
     if [ "$_gh_filter" = 1 ]; then
         _gh_h=$(cd "$_gh_root" && find $_gh_dirs -type f -print0 2>/dev/null \
@@ -1699,6 +1717,45 @@ tree_integrity_arms() {   # <scratch-dir>
         fi
     else
         _ti_say FAIL synthetic-tree-b1 "could not build the scratch checkout"
+    fi
+
+    # ---- B3. AN EXCLUSION THAT WOULD SWALLOW THE TREE IS NOT APPLIED ---------
+    # The identity must never go UNAVAILABLE because of the ignore rules. A
+    # `.gitignore` that covers everything (or a graded root sitting inside an
+    # ignored path of an enclosing repo — how this was found) would otherwise
+    # leave `graded_tree_hash` with nothing to hash, and `:0` prints as
+    # "IDENTITY UNAVAILABLE": a silence, in the instrument built to break
+    # silences. The valve hashes the raw walk instead, so the arm asserts both
+    # that an identity EXISTS and that it still MOVES.
+    # The construction is the one that found it, not a convenient one: an OUTER
+    # repository that ignores `sub/`, and the graded root is `sub` with no
+    # `.git` of its own. `git -C sub rev-parse` then resolves to the outer repo
+    # and `git ls-files -o -i` reports every file under `sub` as ignored. A
+    # `.gitignore` full of `*` inside a repo of its own does NOT reproduce it —
+    # tracked files are never `--others` — and an arm built that way passes with
+    # the valve removed, which is how this construction was arrived at.
+    rm -rf "$_ti_dir/b3" 2>/dev/null || true
+    if mkdir -p "$_ti_dir/b3/sub/crates" "$_ti_dir/b3/sub/fixtures" "$_ti_dir/b3/sub/scripts" \
+       && printf 'pub fn p() -> u32 { 1 }\n' > "$_ti_dir/b3/sub/crates/probe.rs" \
+       && printf 'int f(void){return 1;}\n'   > "$_ti_dir/b3/sub/fixtures/f.cpp" \
+       && printf '#!/bin/sh\nexit 0\n'        > "$_ti_dir/b3/sub/scripts/s.sh" \
+       && printf 'sub/\n'                     > "$_ti_dir/b3/.gitignore" \
+       && git -C "$_ti_dir/b3" init -q 2>/dev/null \
+       && git -C "$_ti_dir/b3" add .gitignore >/dev/null 2>&1 \
+       && git -C "$_ti_dir/b3" -c user.name=gate -c user.email=gate@localhost \
+              commit -q -m "outer repo that ignores sub/" >/dev/null 2>&1; then
+        _ti_e0=$(graded_tree_hash "$_ti_dir/b3/sub")
+        printf '\n// touched\n' >> "$_ti_dir/b3/sub/crates/probe.rs"
+        _ti_e1=$(graded_tree_hash "$_ti_dir/b3/sub")
+        if [ "${_ti_e0##*:}" -eq 3 ] && [ "$_ti_e0" != "$_ti_e1" ]; then
+            _ti_say PASS ignore-everything-does-not-blind-id \
+                "a root inside an ignored path: identity is ${_ti_e0##*:} files and still moves"
+        else
+            _ti_say FAIL ignore-everything-does-not-blind-id \
+                "the exclusion swallowed the tree ($_ti_e0 / $_ti_e1) — the identity went blind, not wrong"
+        fi
+    else
+        _ti_say FAIL synthetic-tree-b3 "could not build the nested-ignored scratch tree"
     fi
 
     # ---- C4. THE COUNTERFACTUAL: THE PRE-#3048 IDENTITY DID MOVE --------------
@@ -4137,12 +4194,13 @@ $(hatch_red_verdict "$_hr_l" 0 11 | cut -d'|' -f6 | cut -d' ' -f1)"
     # ANTI-VACUITY, and it is the arm that matters: an `integrity` function that
     # printed nothing and returned 0 would satisfy the case above. The count is
     # a floor on the arms, inside the floor on the cases.
-    # The floor moves with the file: 12 at w-gatefix, **15** after board #3048
+    # The floor moves with the file: 12 at w-gatefix, **16** after board #3048
     # added B1 (a declared byproduct cannot move the identity), B2 (an undeclared
-    # file still must) and C4 (the pre-#3048 hash, out of git, does move).
-    [ "${_ti_ran:-0}" -ge 15 ] && _r=0 || _r=1
+    # file still must), B3 (an exclusion that would swallow the tree is not
+    # applied) and C4 (the pre-#3048 hash, out of git, does move).
+    [ "${_ti_ran:-0}" -ge 16 ] && _r=0 || _r=1
     t_case tree-integrity-arms-not-truncated "$_r" \
-        "$_ti_ran arms ran (floor 15) — a short run of them is not a pass"
+        "$_ti_ran arms ran (floor 16) — a short run of them is not a pass"
     # And the counterfactual arms must have RUN, not SKIPped: they are the proof
     # that the arms above are asserting something, and a SKIP there is an
     # unavailable counterfactual, never a passing one. Four since #3048's C4.
