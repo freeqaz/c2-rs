@@ -591,6 +591,36 @@ rung.**
 | 6 | **COMDAT synthesis** | §2.3's **450**: TUs carrying an emitted symbol with no `.gl` body record. No binding repair reaches them and no phase in the plan builds this |
 | 7 | **Register allocation and scheduling across a back edge** | board **#770** (**HAND-COUNT**): `Sort.cpp` re-derived at **eleven** refusals, of which loop rotation, memory-reference peeling and cross-back-edge allocation *"are properties of the loop's schedule of values, not of its instruction vocabulary, and no recognizer reading this body alone can derive them"* |
 
+> **✔ 2026-08-13 — PHASE 7 IS RE-PRICED UPWARD, AND ITS FIRST HALF NOW HAS A
+> READ.** `w-dagorder` (rung `2026-08-13-dagorder.md`, board **#3067**-**#3071**)
+> establishes that **c2 runs a cycle-driven dependence-DAG LIST SCHEDULER** —
+> driver `0x10be6382`, four passes per function, regions ≤ `0x50` tuples,
+> priority `(height<<13)+(fanout<<8)+(symdest<<10)`, gated on the optimizer flag
+> so that **at `/Od` none of the four run**. **Board #1823 ("this `c2.dll` has
+> no instruction scheduler") is REFUTED**, and #3067 records *how*: its three
+> "independent ways" were three **absences**, the load-bearing one an
+> ICE-site-derived TU table structurally incapable of seeing a TU with no ICE
+> site. This row's own phrase *"properties of the loop's schedule of values"*
+> was more literally right than #770 could have known.
+>
+> **What it costs.** `wb-live` (#3057) had moved item F's blocker to "the
+> lowering order at `0x10b3219f`", implying a walk to be read and item F at
+> *"~30 lines plus the textbook"*. That estimate is dead: `0x10b3219f` is a
+> 48-byte helper of the scheduler, and reproducing c2's within-block order
+> means porting **a list scheduler plus a machine model** — latencies,
+> per-unit issue (one instruction per unit per cycle, max two nonzero-unit
+> per cycle), microcode `+15` and store-forward `+40` penalties. The lane's
+> simulator reaches **7 of 8 instruction-exact** and *discriminates* between
+> two micro-models rather than assuming one. **This is a re-pricing, not a
+> new blocker** — the phase is now specifiable, and more expensive than any
+> number previously attached to it.
+>
+> **Do not re-price these as blocking** (#3057, unchanged): the interference
+> graph (there is none), the cost function (inert on all 25 cells), the
+> spiller, a callee-saved policy. **And one stated blind spot** (#3071): four
+> DAG-builder clients bypass the region finder, are unread, and no cell of
+> `w-dagorder`'s grid could detect it if any of them reorders tuples.
+
 **Five of the seven have never had a rung that BUILT the phase.** Items 2, 4,
 5, 6 and 7 exist as measurements and declines only — stated precisely, because
 the literal "never had a rung" is contradicted by `rungs/INDEX.md`: item 2 has
