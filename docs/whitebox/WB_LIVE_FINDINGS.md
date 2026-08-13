@@ -559,16 +559,22 @@ isolates it: the *same* two-statement shape with a call between the statements
 | P7.3 | 0.85 | the binding constraint remains the IL reader | **H** | unchanged; §9.3 |
 | P7.4 | 0.65 | the spiller is out of scope and is declared so | **H** | §10 |
 
-**Score: 29 H · 5 M · 1 U · 2 N** (of 42).
+**Score: 29 H · 5 M · 1 U · 2 N**, over 37 scored rows of 39 (P0.2 and P0.3 are
+the decline floors and are recorded `cleared`, not scored).
 
 **Calibration by registered band** — this is the line board #770's streak is
-about:
+about. The three bands sum to 29 H, which is the check:
 
-| registered `p` | n | hits | note |
+| registered `p` | n | hits | the misses in that band |
 |---|---:|---:|---|
-| `p ≥ 0.80` | 16 | 14 | misses: P1.2 (0.80), P6.1 (0.85) |
-| `0.60 ≤ p < 0.80` | 17 | 13 | misses: P2.6, P5.3(N), P3.4(U), P5.4(N) |
-| `p ≤ 0.55` | 4 | 2 | misses: P2.3 (0.45), and P5.4 (0.55) unread |
+| `p ≥ 0.80` | 16 | **14** | P1.2 (0.80) — no degree counter exists; P6.1 (0.85) — the reuse cell |
+| `0.60 ≤ p < 0.80` | 17 | **14** | P1.5 (0.75) M; P2.6 (0.60) M; P5.3 (0.70) **N**, unread |
+| `p ≤ 0.55` | 4 | **1** | P2.3 (0.45) M; P3.4 (0.50) **U**; P5.4 (0.55) **N**. Only P2.4 hit |
+
+**The low band is 1 of 4 and that is the honest reading of it**: three of those
+four are the rows this lane hedged, and hedging did not make them right — two
+were never established at all. A lane cannot buy calibration by registering at
+0.5.
 
 The two misses above `0.80` are the informative ones: **P1.2's degree counter
 does not exist** (and that is what produced §5's correction to a published
