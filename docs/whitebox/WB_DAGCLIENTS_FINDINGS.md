@@ -362,7 +362,7 @@ Filed here rather than banked, per `wb-live`'s cost-array precedent:
    > fail).
    >
    > See [`WB_MERGER4_FINDINGS.md`](WB_MERGER4_FINDINGS.md) §1, §4.1, §4.4,
-   > §4.6, §4.7 and board `#3104`–`#3108`.
+   > §4.6, §4.7 and board `#3109`–`#3113`.
 5. **The K1/K2 redundancy** — which one wins when both are live is decided by
    `0x10b3c2cc`'s branch classification (`tuple+0x34`, opcodes `0x2e4`/`0x21`/
    `0x22`), and those opcode numbers were **not decoded**.
