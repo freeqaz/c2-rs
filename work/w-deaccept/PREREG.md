@@ -202,3 +202,39 @@ with real reach de-accepts. That is still R's job, and R's reach at base is
 predicted 0 (C2). If both land, the honest headline is *"the published negative
 is an instrument artifact, and the real widening that would test the other half
 has no reach at base"* — two findings, neither of them a licence.
+
+---
+
+## 6. ADDENDUM — stage-3 prereg, frozen before its own measurement
+
+Stage 2 landed. Arm I is zero-delta with the sink off (372/372 keys, 878/878
+verdict lines) and arm R — the **real, unpoisoned** widening — is byte-for-byte
+identical to base on every column. Stage 1 + S1 leave exactly one load-bearing
+claim still an **argument** rather than a measurement:
+
+> *"The de-acceptance is caused by `chain_sink()` being consulted **before** the
+> `b == stop` check (`expr.rs:1568`, board #663), a construct that exists only
+> in the instrument — not by the poison flag and not by a wider grammar
+> pre-empting a recognizer."*
+
+That is testable by construction, and running it blind would be worse than
+registering it:
+
+| id | registered | p |
+|---|---|---:|
+| **X1** | Moving the `chain_sink()` consultation to **below** the `b == stop` check (scratch mutant, reverted) makes `op:41` de-accept **0** — `match` back to **25** and `fnbyte-exact` back to **35,734** | 0.85 |
+| **X2** | The same mutant makes `op:55` de-accept **0** | 0.80 |
+| **X3** | The same mutant leaves every one of the twelve neutral tokens still neutral, i.e. it is not simply disabling the sink | 0.90 |
+| **X4** | The mutant **does** cost decode depth — the ceiling's `expr-chain-noform-0x4F` reach FALLS, because the walk now halts at the first `41` and w-readphase's `p5_mixed.cpp` finding (#663) is exactly that. So the ordering is a real trade the instrument makes on purpose, not a bug | 0.75 |
+
+If X1–X4 land, the mechanism is **established, not inferred**, and the sentence
+this lane can write is: *`#3094`'s finding is real and its named mechanism is
+wrong; the sink is fail-closed against wrong emits and non-neutral against
+removals, and the removals come from an ordering decision no real widening
+shares.*
+
+**R2 (the `body-0x5D` statement arm) is DEFERRED**, and that is a decision with a
+reason rather than an omission: its whole population is **8** emitted functions,
+all EH-bearing, and accepting them in the statement layer would be an emit
+widening (a body whose EH state transition is dropped), not the decode widening
+this rung is graded as. It is listed as found-and-not-taken.
