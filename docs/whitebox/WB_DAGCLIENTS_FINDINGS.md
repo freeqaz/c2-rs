@@ -73,7 +73,7 @@ lane bet on, and it is the answer `#3071` said no grid could reach.
 | phase order | `0x10b7e6af` | `0x10b7dbf6` · `0x10b7dc51` (3 mode-1 schedules) · `0x10b7dd2c` · `0x10b7ddff` · `0x10b7de4a` · **`0x10b7ded5` (this merger)** · `0x10b7df57` (the **last** schedule, `0x10be6382` mode 0) · `0x10b7e032` |
 | **K1 — tail merge / cross-jump** | **`0x10b3b167`** | two blocks; DAG over each block's **tail**; sinks matches to just before the branch; commits with `0x10b36e93` / `0x10bd5952` / `0x10bd5648` |
 | **K2 — head merge / hoist** | **`0x10b3b41b`** | two blocks; DAG over each block's **head**; hoists matches to just after the branch; commits with **`0x10b39075`** |
-| **K3 — tail merge to a SEARCHED second block** | **`0x10b3b5fd`** | second block found via `0x10b35f88`, else by walking the label's predecessor list `label[10]` for another `0x12` targeting it. Gated `DAT_10c3de20 != 1` **and `DAT_10c2e310 == 0`** |
+| **K3 — tail merge to a SEARCHED second block** | **`0x10b3b5fd`** | second block found via `0x10b35f88`, else by walking the label's predecessor list `label[10]` for another `0x12` targeting it. Gated `DAT_10c3de20 != 1` **and `DAT_10c2e310 == 0`**. **⚠ 2026-08-14 (`w-merger4`): "searched" overstates it — `0x10b35f88` is a COMPLEMENTARY-BRANCH TEST.** It walks `tuple+0x10` back past labels and requires a `0x12` that is *not* plain-conditional, whose cc `(tuple+10) & 0x1f` equals **`DAT_10b189cc[(other+10) & 0x1f]`** (a condition-**inversion** table), whose targets resolve to the same object, and whose target's first non-label tuple is the caller's own. So K3's second block is *the fallthrough predecessor reached by the inverted branch of the same test* — see [`WB_MERGER4_FINDINGS.md`](WB_MERGER4_FINDINGS.md) §2 |
 | **K4 — `/QXSTALLS` stall report** | **`0x10c1ce93`** | allocates its own graph (`0x10b31fd4`), resets it (`0x10b32536`), builds one DAG over the **whole function**, tail-calls the reporter `0x10c1c3f7` ("`PX Dispatch Groups`", `0x10b24160`) |
 | K1's backward scan limit | **`0x10b397ba`** | walks `tuple+0x10` (prev) at most **`0x1d` = 29** tuples, stopping at category `0x17`(non-`0x317`) / `0x18` / `0x1a` / `0x10` / a branch. **Consults `DAT_10c2e310`** — the window differs between favor-size and favor-speed |
 | K2's forward scan limit | `0x10b39837` | the mirror image |
@@ -335,6 +335,34 @@ Filed here rather than banked, per `wb-live`'s cost-array precedent:
 4. **`dk_join3` / `dk_loop_join` merge partially even under `A123`** (3 → 2
    copies with all three mergers ablated), so **a fourth merger exists** that
    is not a DAG-builder client. Not chased.
+
+   > ### ⚠ 2026-08-14 — CHASED, and it splits in two (`w-merger4`)
+   >
+   > **`dk_join3`: the fourth merger is `FUN_10b3baa8` @ `0x10b3baa8`**, whose
+   > worker is `FUN_10b3a790` @ `0x10b3a790` — a **textual** tail merger over
+   > **every pair in a label's predecessor list**, using the same `0x10b36f7e`
+   > equivalence and the same `0x10b36e93` / `0x10bd5648` commit as K1, and
+   > **calling `0x10b328da` nowhere at all**. `mg_arm3` (this cell restated) at
+   > `/O1`: `A0` **1** copy → `A123` **2** → `A123`+`0x10b3baa8` **3**, the
+   > source count. The lead was that **`0x10b36f7e` has SEVEN callers**, not
+   > three; §2 above reads only the three that build a DAG.
+   >
+   > **`dk_loop_join`: NOT a merge.** It collapses 2 → 1 even with the entire
+   > driver `0x10b3c2cc` patched to `return 0`, and the `/FAsc` listing shows
+   > the store **hoisted into the loop preheader** — loop-invariant code
+   > motion. This half of the item is **corrected, not confirmed**.
+   >
+   > The merger set under `0x10b3c6e5` is now **closed on that lane's grid and
+   > this one's**: with K1, K2, K3 and `0x10b3baa8` ablated, killing the whole
+   > driver changes **no copy count** in 13 cells × 6 optimization levels.
+   > `#3103`'s four named candidates went **0 for 4** — `0x10b3a253`,
+   > `0x10b38cd4` and `0x10b388eb` are each entered and byte-neutral, and
+   > `0x10b36805` **cannot be ablated at all** (its caller performs the
+   > `0x10bd38b0` splice before calling it, so short-circuiting it makes `cl`
+   > fail).
+   >
+   > See [`WB_MERGER4_FINDINGS.md`](WB_MERGER4_FINDINGS.md) §1, §4.1, §4.4,
+   > §4.6, §4.7 and board `#3109`–`#3113`.
 5. **The K1/K2 redundancy** — which one wins when both are live is decided by
    `0x10b3c2cc`'s branch classification (`tuple+0x34`, opcodes `0x2e4`/`0x21`/
    `0x22`), and those opcode numbers were **not decoded**.
