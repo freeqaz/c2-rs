@@ -1,17 +1,19 @@
 lane gate: preflight on /tmp
-  keep    /tmp/c2rs-gate-161322        LIVE — pid 161322 is a running gate (a concurrent lane)
-  keep    /tmp/c2rs-gate-360334        this run
-  keep    /tmp/c2rs-gate-3332285       recent — 1 of 3 finished runs kept for their logs
-  keep    /tmp/c2rs-gate-2742778       recent — 2 of 3 finished runs kept for their logs
-  keep    /tmp/c2rs-gate-2132679       recent — 3 of 3 finished runs kept for their logs
-reap:   0 stale run tree(s) removed, 5 kept (1 live, 3 recent, 1 this run)
-strip:  0 kept tree(s) lost 0 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
-disk:   /tmp — free 24.9 GiB / 613,561 inodes (floors: 2.0 GiB / 150,000 inodes)
+  keep    /tmp/c2rs-gate-3130209       this run
+  keep    /tmp/c2rs-gate-2863736       recent — 1 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-654468        recent — 2 of 3 finished runs kept for their logs
+          stripped 19556 regenerable cases; logs, reports and parts/ kept
+  keep    /tmp/c2rs-gate-360334        recent — 3 of 3 finished runs kept for their logs
+  reaped  /tmp/c2rs-gate-161322        stale — no live gate owns it
+reap:   1 stale run tree(s) removed, 4 kept (0 live, 3 recent, 1 this run)
+strip:  1 kept tree(s) lost 19556 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
+        freed 172.0 MiB and 19,815 inodes (df delta over a SHARED filesystem)
+disk:   /tmp — free 25.0 GiB / 633,258 inodes (floors: 2.0 GiB / 150,000 inodes)
 
 lane gate: 18 lanes from /home/free/code/milohax/c2-rs/.claude/worktrees/w-fenceb/scripts/lanes.txt
-  run dir: /tmp/c2rs-gate-360334   (per-lane run dirs under /tmp/c2rs-gate-360334/lanes/)
-  graded tree: abb1201d1ddd  (729 files under crates fixtures scripts, content-hashed)
-               4 gitignored byproduct file(s) under those directories were NOT hashed (board #3048)
+  run dir: /tmp/c2rs-gate-3130209   (per-lane run dirs under /tmp/c2rs-gate-3130209/lanes/)
+  graded tree: ce0aca8ea6bf  (730 files under crates fixtures scripts, content-hashed)
+               5 gitignored byproduct file(s) under those directories were NOT hashed (board #3048)
 
 hatch-red:       work/w-hatch/hatch_red.py  (no toolchain; fires hatch.py's refusals)
   REFUSED  HATCH-STALE `hatch.py apply` cannot hatch this tree, so the arms have no tree to run on (board #1389)
@@ -22,27 +24,27 @@ building the harness (no-op if current)
    Compiling c2-core v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-fenceb/crates/c2-core)
    Compiling c2-reference v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-fenceb/crates/c2-reference)
    Compiling c2-harness v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-fenceb/crates/c2-harness)
-    Finished `release` profile [optimized] target(s) in 10.92s
-harness: /tmp/c2rs-gate-360334/c2rs
-  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/w-fenceb/target/release/c2rs  built 2026-08-14 22:22:33
-  sha 97e7afce3f3b  tree c6324402
+    Finished `release` profile [optimized] target(s) in 9.05s
+harness: /tmp/c2rs-gate-3130209/c2rs
+  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/w-fenceb/target/release/c2rs  built 2026-08-14 23:07:30
+  sha bda2679e6cb2  tree 2211f31c-dirty
 
-wall clock: 37s for 18 lanes at --jobs 4 (C2RS_JOBS=8)
+wall clock: 7s for 18 lanes at --jobs 4 (C2RS_JOBS=8)
 
-generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-360334/sweep 0  (jobs 4)
+generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-3130209/sweep 0  (jobs 4)
     62 fragments, 19556 cases total (19556 .cpp on disk)
   sweeping 19556 of 19556 generated cases
     grading at 4 job(s)
   checked=19556 mismatches=0 graded=19460 ungraded=96 unknown=0
-  (310s)
+  (290s)
 
-mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-360334/cross 0  (jobs 4)
+mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-3130209/cross 0  (jobs 4)
   assigned 19556 cases over 18 lanes = 90812 cells (full cross would be 352008)
   sweeping 90812 of 90812 case-lane cells (cross of 0 cases x /home/free/code/milohax/c2-rs/.claude/worktrees/w-fenceb/scripts/lanes.txt; the full 12x product is 352008)
   checked=90812 mismatches=0 graded=90424 ungraded=388 unknown=0
-  (1264s)
+  (39s)
 
-disk:   /tmp low-water this run — 24.5 GiB and 573,844 inodes free (start: 24.9 GiB / 613,561)
+disk:   /tmp low-water this run — 24.9 GiB and 613,446 inodes free (start: 25.0 GiB / 633,258)
 
 LANE                 VERDICT     graded/total  match  mismatch  flags
 -------------------- ---------- ------------- ------ --------- --------------------
@@ -74,7 +76,7 @@ graded: 6858 fixture-verdicts across all lanes
 sweep:  PASS — 19556 of 19556 selected cases reached, 19460 GRADED by the
         oracle (96 ungraded: no reference obj), 0 mismatch (corpus 19556)
 cross:  PASS — 90424 of 90812 selected cells graded, 0 mismatch (product 90812)
-logs:   /tmp/c2rs-gate-360334/<lane>.log, /tmp/c2rs-gate-360334/sweep.log, /tmp/c2rs-gate-360334/cross.log
+logs:   /tmp/c2rs-gate-3130209/<lane>.log, /tmp/c2rs-gate-3130209/sweep.log, /tmp/c2rs-gate-3130209/cross.log
 
 GATE: PASS (HATCH-RED REFUSED) — 18/18 lanes ran and every one of them graded a corpus,
   the sweep graded 19460 of 19556 generated cases and the cross graded
@@ -88,9 +90,9 @@ GATE: PASS (HATCH-RED REFUSED) — 18/18 lanes ran and every one of them graded 
   run does NOT establish what a full run establishes (board #1406). This is why
   the headline above is qualified: commit or stash crates/ and re-run.
 
-graded tree: abb1201d1ddd  (729 files: crates fixtures scripts, content-hashed)
+graded tree: ce0aca8ea6bf  (730 files: crates fixtures scripts, content-hashed)
   5 gitignored byproduct file(s) under those directories were NOT hashed
-  (board #3048; it was 4 at the start of this run). The subtraction is
+  (board #3048; it was 5 at the start of this run). The subtraction is
   printed at BOTH ends on purpose: a denominator nobody prints on both sides of a
   change is a denominator that grows unwatched (#1002). A rise here is not a failure —
   it is the gate saying which of its own byproducts it declined to grade itself on.
