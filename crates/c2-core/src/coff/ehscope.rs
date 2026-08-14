@@ -549,8 +549,14 @@ pub fn emit_eh_scope_obj(obj_name: &str, tu: &EhScopeTu<'_>) -> Option<Vec<u8>> 
     let mut b = Buf::with_capacity(ptr_symtab + n_symbols as usize * SYMBOL_LEN + 512);
     write_coff_header(&mut b, n_sections, ptr_symtab, n_symbols);
     write_section_headers(&mut b, &sections, &ptrs, &reloc_ptr, &n_reloc_of);
+    // The `emit_comdat_obj` guard (board #3074), latent here for the same
+    // reason as in the packed emitter: nothing uninitialized reaches the EH
+    // shell today. The bare form is the one that was false for four days.
     for (i, s) in sections.iter().enumerate() {
-        debug_assert_eq!(b.0.len(), ptrs[i]);
+        if s.uninit_size.is_none() {
+            debug_assert_eq!(b.0.len(), ptrs[i]);
+        }
+        debug_assert_eq!(s.file_len(), s.raw.len());
         b.bytes(&s.raw);
         if !relocs[i].is_empty() {
             debug_assert_eq!(b.0.len(), reloc_ptr[i].unwrap());
