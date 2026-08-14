@@ -80,23 +80,29 @@ by `A4` — a patched byte in a function that does not run changes nothing.
 
 ## Gate evidence
 
-| lane | result |
+**The gate of record is the REBASED one.** This lane first gated at its
+original base `d9dbefc2` (`graded tree 996f0bf2b4bc`, 725 files, `cargo test`
+1,532 / 42) and then rebased onto `494993f1` — five peer lanes, **three of
+which changed `crates/`** (`w-ir-cond` `codegen/block_ir.rs`, `w-ir-e`
+`codegen/cond.rs`, `w-dbgassert` `coff/writer.rs` / `coff/ehscope.rs` /
+`gap/fnbytes.rs` / the new `scripts/debug_lane.sh`). **The merged configuration
+is one no earlier run covered**, so everything below was re-run on it; the
+pre-rebase numbers are superseded, not deleted.
+
+| lane | result (rebased tree, `494993f1` + this lane) |
 |---|---|
-| `cargo test --workspace --release --no-fail-fast` | **1,532 passed, 0 failed, across 42 targets** — target count identical to base, so no earlier target failed |
-| `scripts/gate.sh --jobs 4` | **GATE: PASS** — 18 lanes in the registry, **18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT**, **6,858 fixture-verdicts**; `graded tree 996f0bf2b4bc (725 files under crates fixtures scripts)` **identical at both ends** (0 gitignored byproducts unhashed) |
+| `cargo test --workspace --release --no-fail-fast` | **1,567 passed, 0 failed, across 42 targets** — pass count matches current master's, and the **target count is unchanged at 42**, so no earlier target failed and left a partial |
+| `scripts/gate.sh --jobs 4 --require-graded` | **GATE: PASS (HATCH-RED REFUSED)** — 18 lanes in the registry, **18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT**, **6,858 fixture-verdicts**; `graded tree b865e54d6939 (728 files under crates fixtures scripts)` **identical at both ends**, 0 gitignored byproducts unhashed |
 | `scripts/expr_sweep.sh` | gate row `expr-sweep PASS 19556/19556`, 19,460 graded, **0 mismatch** |
 | `scripts/mode_cross.sh` | gate row `mode-cross PASS 90812/90812`, 90,424 graded, **0 mismatch** |
-| 878-TU workload scan | `match 25 · mismatch 0 · codegen-gap 0 · vocab-gap 845 · capture-fail 8` — **digit-identical to base**, as a docs-only lane requires |
+| `scripts/debug_lane.sh` (board #3087) | **`DEBUG-LANE-TOTAL lanes=18 ran=18 failed=0`** — all 18 lanes `graded=381 total=381`, **0 mismatch, 0 panics** in the debug profile |
+| 878-TU workload scan | `match 25 · mismatch 0 · codegen-gap 0 · vocab-gap 845 · capture-fail 8` — **digit-identical**, re-measured on the rebased tree rather than argued from construction |
 | `scripts/board_audit.sh` | all-zero (0 cited-but-absent, 0 unresolved anchors, 0 raw line anchors, 0 rows behind the prose, 0 duplicate numbers) |
 | `rung_registry` | **2/2** |
-| fixtures, `c2rs census` | untouched — `git diff <merge-base>..HEAD -- crates fixtures scripts` is **EMPTY**; the nine changed files are all under `docs/` |
+| fixtures, `c2rs census` | untouched — `git diff 494993f1..HEAD -- crates fixtures scripts` is **EMPTY**; the nine changed files are all under `docs/` |
 
-> **`master` advanced under this lane while it ran** (peer rungs `ircond`,
-> `backedge`, `dbgassert`, `ire`, `readphase` landed; tip `494993f1` at the time
-> of writing). The evidence above is against this branch's merge-base
-> `d9dbefc2`, which is the tree the commission named and whose graded identity
-> is `996f0bf2b4bc`. **`docs/rungs/INDEX.md` will conflict on rebase —
-> regenerate it with `scripts/gen_rung_index.sh`, never resolve it by hand.**
+> `docs/rungs/INDEX.md` was regenerated with `scripts/gen_rung_index.sh` after
+> the rebase, never resolved by hand.
 
 ## Found and not taken
 
