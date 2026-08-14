@@ -111,6 +111,7 @@ use c2_il::{CondPlan, CondStep, CondTailPair, IlFunction, Rel};
 use crate::BackendError;
 use crate::codegen::block_ir::{BlockOrder, BodyLayout, Terminator};
 use crate::codegen::cond::{producer_at, Cond};
+use crate::codegen::fold::{ArmEnd, ArmValues, FoldBand, FoldShape, Relation};
 use crate::codegen::encode::{
     encode_cmplwi, encode_cmpwi, encode_mr, BO_FALSE, BO_TRUE, CR_BIT_EQ, CR_BIT_GT, CR_BIT_LT,
     CR_COMPARE,
@@ -196,6 +197,36 @@ pub fn cond_pair_parts(
     func: &IlFunction,
     pair: &CondTailPair,
 ) -> Result<CondPairParts, BackendError> {
+    // ---- item G: the FOLD BAND, checked before a byte is emitted ---------
+    //
+    // `CFG_SHAPE.md` §6.2 item G, lane `w-ir-g`. This class is drawn inside
+    // fold band 3 and the class's own header has said so in prose since it
+    // landed — *"a shape where one arm falls through to the epilogue is fold
+    // band 2 and is out of class"* — as does the recogniser's header, which
+    // calls itself *"a band predicate spelled as a syntactic one, which is what
+    // §6.2 item G asks for"*. Neither of those is executable. This is, and it
+    // is asked FIRST, because §3.5's headline is that **6 of 7** leaf
+    // `cflow-if-1` bodies emit no branch at all: a lowering that reaches its
+    // `bc` before it has established the band is exactly the defect board #186
+    // records.
+    //
+    // **Both arms end in a tail `b` to a different external symbol**, so
+    // neither can be the fall-through-plus-conditional-return and §3.5's band-3
+    // clause fires on the first arm it reads. Band 1's two checkable conjuncts
+    // are described honestly and are **inert** here — nothing an arm that
+    // transfers can be moves it off band 3, which
+    // `fold::tests::band_1s_conjuncts_cannot_move_a_transfer_shape` asserts
+    // positively rather than leaving to be inferred.
+    FoldShape {
+        rel: Relation::of(pair.rel),
+        then_end: ArmEnd::Transfer,
+        else_end: ArmEnd::Transfer,
+        // An arm that ends in a call does not yield a constant; §3.5's band-1
+        // precondition is about the two *values the function yields*.
+        values: ArmValues::NotBothConstants,
+    }
+    .admit(FoldBand::Branch, "a two-arm conditional tail call")?;
+
     let plan: CondPlan = c2_il::plan_cond_pair(
         func.params.len(),
         pair.cmp_param,
@@ -483,6 +514,38 @@ mod tests {
         assert_eq!(branch_sense(Rel::Ge), (BO_TRUE, CR_BIT_LT)); // blt
         assert_eq!(branch_sense(Rel::Gt), (BO_FALSE, CR_BIT_GT)); // ble
         assert_eq!(branch_sense(Rel::Le), (BO_TRUE, CR_BIT_GT)); // bgt
+    }
+
+    /// **This class's fold band, stated where the class is** —
+    /// `CFG_SHAPE.md` §6.2 item **G**, lane `w-ir-g`.
+    ///
+    /// The band is asserted for **every relation the class admits**, because
+    /// `Relation::of` is the one input to the check that varies per body: an
+    /// ordered relation must not be able to move this class out of band 3, and
+    /// §3.5's *"ordered relations never fold"* is about band 1, which an arm
+    /// that transfers has already excluded.
+    ///
+    /// The refusal direction is asserted too. This test is deliberately **not**
+    /// the guard's oracle — that is `memfree_matches_the_published_bytes` and
+    /// `the_relation_grid_matches_the_real_obj_bytes`, which are real obj bytes
+    /// and which go red if the band model is mutated (the lane's control).
+    #[test]
+    fn the_class_states_fold_band_3_for_every_relation_it_admits() {
+        let mut graded = 0;
+        for rel in [Rel::Eq, Rel::Ne, Rel::Lt, Rel::Ge, Rel::Gt, Rel::Le] {
+            let shape = FoldShape {
+                rel: Relation::of(rel),
+                then_end: ArmEnd::Transfer,
+                else_end: ArmEnd::Transfer,
+                values: ArmValues::NotBothConstants,
+            };
+            assert!(shape.admit(FoldBand::Branch, "x").is_ok(), "{rel:?}");
+            // …and the two other bands refuse it, so the check has a direction.
+            assert!(shape.admit(FoldBand::ConditionalReturn, "x").is_err(), "{rel:?}");
+            assert!(shape.admit(FoldBand::Branchless, "x").is_err(), "{rel:?}");
+            graded += 1;
+        }
+        assert_eq!(graded, 6, "six relations graded, not zero");
     }
 
     /// A signed comparison emits `cmpwi`, an unsigned one `cmplwi`, and the

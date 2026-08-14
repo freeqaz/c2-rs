@@ -49,6 +49,17 @@ pub mod calls;
 pub mod cond;
 pub mod cond_tail;
 pub mod div_mod_leaf;
+/// The fold record — `docs/CFG_SHAPE.md` §6.2 item **G**: which of §3.5's three
+/// fold bands a `cflow-if-1` shape is in, checked before emission.
+///
+/// **Deliberately NOT in the glob re-export list below**, for the same reason
+/// [`block_ir`] and [`cond`] are not: `FoldBand`, `FoldShape`, `ArmEnd` and
+/// `Relation` are generic enough that arriving in a module's ambient scope by
+/// accident is a real hazard rather than a hypothetical one — `Relation` in
+/// particular sits one letter from `c2_il::Rel`, which is a different thing (the
+/// IL relation itself, not whether it is an equality). Callers spell
+/// `codegen::fold::FoldShape`.
+pub mod fold;
 pub mod encode;
 pub mod frame;
 /// A MEASUREMENT, not an emitter — see the module header. `cfg(test)` only, so

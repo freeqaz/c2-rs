@@ -48,6 +48,7 @@ use crate::codegen::encode::{
     cr_bi, encode_bclr, encode_blr, encode_cmplwi, encode_lwz, encode_mr, encode_stw,
     BO_TRUE, CR_BIT_EQ, CR_COMPARE,
 };
+use crate::codegen::fold::{ArmEnd, ArmValues, FoldBand, FoldShape, Relation};
 use crate::codegen::select::{out_of_class, OptMode};
 use crate::BackendError;
 
@@ -77,6 +78,38 @@ pub(crate) fn pool_free_list_text(
              and this lane graded only the `/O1` one",
         ));
     }
+    // ---- item G: the FOLD BAND, checked before a byte is emitted ---------
+    //
+    // `CFG_SHAPE.md` §6.2 item G, lane `w-ir-g`. This class is band **2** and
+    // the header above has said so in prose since it landed; so has the
+    // recogniser's. This is the executable form, and the reason it is worth
+    // having *here* is board **#2596**: that row's claim is that band 1 is
+    // unreachable **by the class's own precondition** rather than by a fitted
+    // rule, so the class never has to read #187's declined cost model. Stated
+    // as a shape, that claim becomes checkable — the verdict below is
+    // `Is(ConditionalReturn)`, **decided**, and
+    // `fold::tests::the_two_shipped_clients_decide_to_two_different_bands`
+    // asserts in the same breath that it is *not*
+    // `BranchlessOrConditionalReturn`. If a later widening ever admitted a body
+    // with two constant arms, that assertion is where it would surface, instead
+    // of in an obj.
+    FoldShape {
+        // The guard is `p == 0` and this class admits no other relation: the
+        // compare below is `cmplwi …,0` and the branch is `bclr 12,26`.
+        rel: Relation::Equality,
+        // The guarded arm IS the epilogue jump (a bare `return`, or a
+        // `return 0` whose value is already in r3), and the fall-out arm is a
+        // store sequence that ends at the same epilogue. §3.5's `?a_store`,
+        // `?f_eqvoid`, `?Pool::Alloc` and `?Pool::Free` — four rows, all `bclr`.
+        then_end: ArmEnd::Epilogue,
+        else_end: ArmEnd::Epilogue,
+        // #2596, exactly: the guarded arm computes **nothing** and the fall-out
+        // arm is a store sequence, so there is no constant pair to select
+        // between. This is the conjunct that falsifies band 1.
+        values: ArmValues::NotBothConstants,
+    }
+    .admit(FoldBand::ConditionalReturn, "the intrusive free-list guard")?;
+
     let off = i16::try_from(g.off).map_err(|_| {
         out_of_class(
             "a free-list head member beyond the `lwz`/`stw` displacement: a wide \
@@ -217,5 +250,43 @@ mod tests {
     #[test]
     fn a_wide_member_offset_refuses_rather_than_truncating() {
         assert!(pool_free_list_text(&push(0x1_0000), OptMode::O1).is_err());
+    }
+
+    /// **This class is fold band 2, and it DECIDES — board #2596 as a check
+    /// rather than as a paragraph** (`CFG_SHAPE.md` §6.2 item **G**, lane
+    /// `w-ir-g`).
+    ///
+    /// #2596's claim is that band 1 is unreachable *by the class's own
+    /// precondition*, so this class never reads board **#187**'s declined
+    /// cost model. Two assertions, and the second is the one with content:
+    /// the verdict is band 2, **and it is not the undecided band-1-or-2 pair**.
+    /// A widening that ever admitted a body with two constant arms would land
+    /// in that pair and fail here, rather than in an obj.
+    #[test]
+    fn the_guard_is_fold_band_2_and_the_class_never_reaches_the_declined_cost_model() {
+        let shape = FoldShape {
+            rel: Relation::Equality,
+            then_end: ArmEnd::Epilogue,
+            else_end: ArmEnd::Epilogue,
+            values: ArmValues::NotBothConstants,
+        };
+        assert_eq!(
+            shape.band(),
+            crate::codegen::fold::BandVerdict::Is(FoldBand::ConditionalReturn)
+        );
+        assert_ne!(
+            shape.band(),
+            crate::codegen::fold::BandVerdict::BranchlessOrConditionalReturn
+        );
+        assert!(shape.admit(FoldBand::ConditionalReturn, "x").is_ok());
+        // The band-3 class's band refuses it, which is the direction that makes
+        // the check worth asking: `cond_tail`'s bytes are not these bytes.
+        assert!(shape.admit(FoldBand::Branch, "x").is_err());
+        // And the counterfactual that #2596 turns on: with two constant arms
+        // this shape would be the DECLINED pair and would refuse outright.
+        assert_eq!(
+            FoldShape { values: ArmValues::BothConstants, ..shape }.band(),
+            crate::codegen::fold::BandVerdict::BranchlessOrConditionalReturn
+        );
     }
 }
