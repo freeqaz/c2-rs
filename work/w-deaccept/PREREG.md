@@ -160,3 +160,45 @@ discount factor**.
   vehicle **does not test** the mechanism, and that is the finding.
 * It will not read `match`/`fnbyte-exact` off any run with a sink token set.
 * It will not treat `13,158` as a base-reachable number anywhere in the write-up.
+
+---
+
+## 5. ADDENDUM — stage-2 prereg, frozen after stage 1 and before its own measurement
+
+Stage 1 (the `op:41` control, no `crates/` change) is measured and scored in §6
+below. It came in **exactly** as w-readphase published it and the decomposition
+came in on the informative side of W-c: **all 2,694 de-accepted functions land on
+`expr-jump`, a real refusal key, and ZERO land on `expr-chain-sink-poison`.**
+
+That produces a mechanism hypothesis §2 did not contain, and it is testable
+without any `crates/` change, so it is registered here **before** it is run
+rather than reported as if it had been predicted:
+
+> **S1 — THE SINK DE-ACCEPTS IF AND ONLY IF THE SUNK TOKEN IS ONE OF
+> `parse_expr`'s THREE STOP BYTES.** `chain_sink()` is consulted **before** the
+> `b == stop` check (`expr.rs:1568`, deliberately, board #663), so sinking a stop
+> byte makes every accepted walk run past the end of its own expression. The four
+> `parse_expr` call sites use `stop` ∈ {`0x41`, `0x32`, `0x55`}. If the
+> hypothesis holds, sinking a **non-stop** token de-accepts **0** and sinking a
+> stop byte de-accepts a lot.
+
+| id | registered | p |
+|---|---|---:|
+| **S1a** | `op:9B` (non-stop, `TypeTok`) — Δ`match` **0**, Δ`fnbyte-exact` **0** | 0.80 |
+| **S1b** | `op:30` (non-stop, `Type`) — Δ`match` **0**, Δ`fnbyte-exact` **0** | 0.78 |
+| **S1c** | `op:32` (**stop** at `assign.rs:150`) — Δ`fnbyte-exact` **< 0** | 0.70 |
+| **S1d** | `op:55` (**stop** at `calls.rs:1255`) — Δ`fnbyte-exact` **< 0** | 0.65 |
+| **S1e** | Every non-stop token in w-readphase's 9-token SCAFFOLD
+  (`4F 53 54 4B 29 38 39 3A`) is individually neutral, so the SCAFFOLD's whole
+  −2,694 / −1 is attributable to **`op:41` alone** | 0.60 |
+| **S1f** | If S1 holds, then **#3094's "the poisoned sink is not emission-neutral"
+  is true but its named mechanism is wrong**: it is not the poison flag and it is
+  not a wider grammar pre-empting a recognizer — it is the sink's **stop-byte
+  override**, a construct that exists only in the instrument and that **no real
+  widening has**. That would make the reader's negative price an **artifact** | 0.60 |
+
+**What S1 would NOT establish.** It says nothing about whether a real widening
+with real reach de-accepts. That is still R's job, and R's reach at base is
+predicted 0 (C2). If both land, the honest headline is *"the published negative
+is an instrument artifact, and the real widening that would test the other half
+has no reach at base"* — two findings, neither of them a licence.
