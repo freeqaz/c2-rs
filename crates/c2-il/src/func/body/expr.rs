@@ -1430,7 +1430,17 @@ const FN_TAIL: [u8; 2] = [0x4F, 0x12];
 /// failure a census instrument cannot survive. Both `0x29`s would otherwise
 /// land in one row and the successor question could not be asked of either.
 pub(crate) fn stmt_sink_walk(seg: &[u8], p: usize, site: &StmtSinkSite) -> Option<Block> {
-    let c = stmt_sink();
+    stmt_walk_with(stmt_sink(), seg, p, site)
+}
+
+/// [`stmt_sink_walk`] against an explicit configuration.
+///
+/// Split out for the same reason [`chain_step_with`] is, and that function's
+/// comment states it: [`stmt_sink`] is a `OnceLock` over a process-wide
+/// environment variable, so a test wanting a *particular* sunk set could
+/// otherwise only get one by being the only test in its process — which is the
+/// shape that makes a safety property go unchecked.
+fn stmt_walk_with(c: &ChainSink, seg: &[u8], p: usize, site: &StmtSinkSite) -> Option<Block> {
     if !c.any {
         return None;
     }
@@ -3391,6 +3401,156 @@ mod tests {
         c.any = true;
         c.ops[op as usize] = true;
         chain_step_with(&c, seg, 0)
+    }
+
+    // ---- the STATEMENT SINK (`w-read2`) -------------------------------------
+
+    /// **The statement layer of `il_stmt_while.cpp`'s first body, TRANSCRIBED
+    /// from a `c2rs census … --keep-il` capture**, from the `29` the dispatcher
+    /// refuses on to the function tail that follows it.
+    ///
+    /// It is not written to suit the reader and it is not synthesised: the
+    /// first forty bytes of it are the exact window the tree's **own** census
+    /// prints under `body-cflow-label` for this fixture (`> <` marks the blocking
+    /// byte), and the remainder is the same `.ex` segment continued to `4F 12`.
+    /// The stream is a real `while` loop — `53` scope opens, `4F 01 <line>`
+    /// markers, a `BD` call with an escaped id, a `33` literal, `54 <d>` scope
+    /// closes, `3A` jumps and three `29` labels — so it exercises **ten**
+    /// distinct [`SkipForm`] arms end to end and a wrong width in any of them
+    /// desynchronises the rest.
+    ///
+    /// ```text
+    ///   29 e8 09                          label            Tok
+    ///   b9 e4 09 86 41 74                 LOAD             TokType
+    ///   38 e9 09                          brfalse          Tok
+    ///   53                                scope open       Bare
+    ///   4f 01 0e                          line marker      Line4F
+    ///   26 e3 09                          designator       Tok
+    ///   bd 82 07 03 00 80 01 10 00 00     CALL             TypeByteVarint
+    ///   4c  4b                            apply, stmt end  Bare, Bare
+    ///   4f 01 0f  26 e4 09
+    ///   b9 e4 09 86 41 74
+    ///   33 86 41 74 01                    literal 1        LitTypeVarint
+    ///   03                                                 Bare
+    ///   32 86 41 74                       store            Type
+    ///   4b  4f 01 10
+    ///   54 04                             scope close      Byte1
+    ///   3a e8 09  29 e9 09  54 03  4f 01 11  3a e6 09  54 02  29 e6 09
+    ///   4f 12                             THE FUNCTION TAIL — index 78
+    ///   47 54 01 54 00                    …and the next function's header
+    /// ```
+    const WHILE_STMTS: &[u8] = &[
+        0x29, 0xe8, 0x09, 0xb9, 0xe4, 0x09, 0x86, 0x41, 0x74, 0x38, 0xe9, 0x09, 0x53, 0x4f, 0x01,
+        0x0e, 0x26, 0xe3, 0x09, 0xbd, 0x82, 0x07, 0x03, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, 0x4c,
+        0x4b, 0x4f, 0x01, 0x0f, 0x26, 0xe4, 0x09, 0xb9, 0xe4, 0x09, 0x86, 0x41, 0x74, 0x33, 0x86,
+        0x41, 0x74, 0x01, 0x03, 0x32, 0x86, 0x41, 0x74, 0x4b, 0x4f, 0x01, 0x10, 0x54, 0x04, 0x3a,
+        0xe8, 0x09, 0x29, 0xe9, 0x09, 0x54, 0x03, 0x4f, 0x01, 0x11, 0x3a, 0xe6, 0x09, 0x54, 0x02,
+        0x29, 0xe6, 0x09, 0x4f, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// Run one [`stmt_walk_with`] over an explicit sunk set, without touching the
+    /// process environment.
+    fn stmt_walk(seg: &[u8], ops: &[u8], site: &StmtSinkSite) -> Option<Block> {
+        let mut c = ChainSink::default();
+        c.any = true;
+        for &b in ops {
+            c.ops[b as usize] = true;
+        }
+        stmt_walk_with(&c, seg, 0, site)
+    }
+
+    /// **The one property that makes the instrument free**: OFF unless
+    /// `C2RS_SINK_STMT` names something. Same assertion the chain sink carries,
+    /// and the same precedent (**#403**) for why a sink drifting ON is not a
+    /// tidiness question — with it off, the two call sites see `None` and report
+    /// their own keys, byte for byte as before.
+    #[test]
+    fn the_statement_sink_is_off_unless_the_environment_names_it() {
+        assert!(std::env::var("C2RS_SINK_STMT").is_err(), "the test process must not set it");
+        let c = stmt_sink();
+        assert!(!c.any, "statement sink must default OFF");
+        assert!(!c.ty && !c.convert && !c.intrinsic && !c.bad);
+        assert!(c.ops.iter().all(|on| !on), "no opcode may default to sunk");
+        // …and with it off the walk never claims anything, at either site, on a
+        // stream it would otherwise walk 78 bytes of.
+        for site in [&STMT_SITE_BODY, &STMT_SITE_RSC] {
+            assert!(
+                stmt_sink_walk(WHILE_STMTS, 0, site).is_none(),
+                "the walk claimed a body while OFF"
+            );
+        }
+    }
+
+    /// **The reach terminal is `4F 12` and it is a REACH, not a blocker** — the
+    /// exact ambiguity `w-readphase` §4.1 had to resolve in a scratch tree, on
+    /// real bytes, pinned here so it can never be asked of an ambiguous key
+    /// again.
+    ///
+    /// The oracle is the **capture**, never an index computed from the rule under
+    /// test: index 78 of [`WHILE_STMTS`] is where this function's `4F 12` sits in
+    /// the `.ex`, and every one of the ten forms between byte 0 and there has to
+    /// be the right width for the walk to arrive on it. A wrong width in any of
+    /// them lands elsewhere, and elsewhere is not `4F 12`.
+    ///
+    /// **And a walk that ATE the tail would not stop at all**: bytes 80.. are
+    /// `47 54 01 54 00` and then the *next* function's `4F 1F` header, so the
+    /// instrument would report a reach that is not in this function. That is the
+    /// one way it could lie, and the second assertion is that it does not.
+    #[test]
+    fn the_statement_walk_reaches_the_function_tail_of_a_real_while_loop() {
+        let sunk = [0x29, 0xB9, 0x38, 0x53, 0x4F, 0x26, 0xBD, 0x4C, 0x4B, 0x33, 0x03, 0x32,
+                    0x54, 0x3A];
+        let b = stmt_walk(WHILE_STMTS, &sunk, &STMT_SITE_BODY).expect("sink is on");
+        assert_eq!(b.feature(), "stmt-chain-fntail:mid", "the walk must REACH the tail");
+        assert_eq!(WHILE_STMTS[78], 0x4F, "…and 78 is where the capture puts `4F 12`");
+        assert_eq!(WHILE_STMTS[79], 0x12);
+        // The guard, stated as what it prevents: the byte the walk would land on
+        // if it consumed `4F 12` is `0x47`, which belongs to the function TAIL
+        // plumbing and not to any statement.
+        assert_eq!(WHILE_STMTS[80], 0x47);
+        // Drop ONE token from the sunk set and the walk stops early, at that
+        // token, with a key naming it — so the reach above is earned by the whole
+        // chain rather than by the terminal being easy to hit.
+        for (drop, stop_key) in [(0xBDu8, "stmt-chain-0xBD"), (0x54, "stmt-chain-0x54"),
+                                 (0x33, "stmt-chain-0x33"), (0x3A, "stmt-chain-cflow-jump")] {
+            let less: Vec<u8> = sunk.iter().copied().filter(|&x| x != drop).collect();
+            let b = stmt_walk(WHILE_STMTS, &less, &STMT_SITE_BODY).expect("sink is on");
+            assert_eq!(b.feature(), stop_key, "dropping 0x{drop:02X} must stop the walk on it");
+        }
+    }
+
+    /// **The two call sites do not share a bucket**, and `docs/GAPS.md` §6 is why:
+    /// merging buckets is the one failure a census instrument cannot survive.
+    ///
+    /// `body-cflow-label` and `return-scope-close-cflow-label` are two rows today
+    /// on purpose — `super::Block::feature`'s own comment says *"the production
+    /// they interrupted is different work"* — and both are a `0x29`. A sink that
+    /// reported one key for both would erase that distinction at exactly the
+    /// moment someone asked what the successor is, and the successors **differ**:
+    /// measured over the 878-TU workload, the dispatcher site's `0x29` goes
+    /// overwhelmingly to `0x53` (2,125 of 2,832) and the scope-close site's to
+    /// `0x26` (1,709 of 1,814).
+    #[test]
+    fn the_two_statement_sink_sites_do_not_share_a_bucket() {
+        let one = [0x29u8];
+        let a = stmt_walk(WHILE_STMTS, &one, &STMT_SITE_BODY).expect("sink is on");
+        let b = stmt_walk(WHILE_STMTS, &one, &STMT_SITE_RSC).expect("sink is on");
+        assert_eq!(a.feature(), "stmt-chain-0xB9");
+        assert_eq!(b.feature(), "rsc-chain-0xB9");
+        assert_ne!(a.feature(), b.feature(), "one 0x29 must not become one bucket");
+        // Every key the family can produce is distinct across the two sites.
+        let f = |s: &StmtSinkSite| [s.chain, s.fntail, s.short, s.noform, s.badtoken];
+        for (x, y) in f(&STMT_SITE_BODY).iter().zip(f(&STMT_SITE_RSC).iter()) {
+            assert_ne!(x, y, "site key families must not collide");
+        }
+        // A bad spec fails LOUD rather than reporting a shallower walk.
+        let mut bad = ChainSink::parse("op:29,nonsense");
+        assert!(bad.bad, "an unknown token must set `bad`");
+        bad.any = true;
+        assert_eq!(
+            stmt_walk_with(&bad, WHILE_STMTS, 0, &STMT_SITE_BODY).unwrap().feature(),
+            "stmt-chain-badtoken:mid"
+        );
     }
 
     // ---- the 64-bit INT LITERAL escape (lane `w-xtea`, board #2336) ---------
