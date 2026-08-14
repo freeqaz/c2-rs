@@ -13,16 +13,22 @@
                scratch lifts were applied, measured and reverted; the base scan
                was re-run after the last revert and returned **370 `gap-metric`
                keys, 0 differing** against the scan taken before the first lift.
-    Record:    this file. PREREG `work/w-readphase/PREREG.md`, committed at
-               **`3ee6ff08`** as this lane's first commit, **before the first
-               scan**. Scored in §8.
+    Record:    this file. PREREG `work/w-readphase/PREREG.md`, committed as
+               this lane's **first commit** (`921c1627` post-rebase,
+               `3ee6ff08` as authored) **before the first scan**. Scored in §8.
     Lane:      `w-readphase`, worktree branch `wt-w-readphase`, off master
                **`6f2c7c41`**, **rebased onto `7691dbe8`** (the `w-backedge`
                merge) and re-graded there — §10. `w-backedge` is docs-only, so
                the graded tree is `b865e54d6939` at both ends of both runs.
     Ships:     nothing under `crates/`. Four analysis drivers under
                `work/w-readphase/` (`ladder.py`, `phase.py`, `greedy.py`,
-               `keydiff.py`) and 25 workload scans. Board rows left
+               `keydiff.py`) plus every scan's **printed report, key list and
+               round summary** — 52 files, 3.25 MB. The **25 `--jsonl` scan
+               streams are deliberately NOT tracked** (1.85 GB, regenerable
+               from §10.2's commands); they were committed by an
+               indiscriminate `git add -f work/w-readphase` and stripped from
+               this branch's history with `git filter-branch --index-filter`,
+               which is recorded here rather than quietly done. Board rows left
                **UNNUMBERED** for the coordinator (§9).
     Adopts:    **nothing.** No `docs/whitebox/DISCLOSURE.md` row, no constant,
                no width, no flag bit.
