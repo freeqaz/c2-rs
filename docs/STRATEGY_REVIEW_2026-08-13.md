@@ -343,11 +343,24 @@ every cost below is a **lower bound**.
 >   is **615 keys**, not 648.
 > * **The head class's realized worth is NEGATIVE** (#3093). Lifting the
 >   *entire* `.gl` walk — two rungs, four clauses — gives `match` **+0** and
->   `fnbyte-exact` **−65**. The 22-token decode-only widening costs **−7
->   `match` and −5,949 `fnbyte-exact`**, and one token (`op:41`) buys **zero**
->   decode distance while costing 2,694 functions and `mmio.cpp` — that token
->   is in every published per-TU ladder's `SEED`. **This row read alone
->   dispatches a lane that loses ground.**
+>   `fnbyte-exact` **−65**. ~~The 22-token decode-only widening costs −7
+>   `match` and −5,949 `fnbyte-exact`, and one token (`op:41`) buys zero decode
+>   distance while costing 2,694 functions and `mmio.cpp`.~~ **This row read
+>   alone dispatches a lane that loses ground.**
+>
+>   > **⚠ WITHDRAWN 2026-08-14, one day later** (`w-deaccept`, **#3104**–**#3108**):
+>   > **the struck sentence is an INSTRUMENT ARTIFACT.** Those figures came from
+>   > the poisoned sink, which de-accepts on **5 of 49** pinned tokens and is
+>   > bit-for-bit neutral on the other **44** — and the five are **precisely the
+>   > bytes `parse_expr` already handles**, i.e. the exact *complement* of every
+>   > byte a real widening could target. A **real, unpoisoned** widening
+>   > measured a required-zero delta: `match` 25→25, `fnbyte-exact`
+>   > 35,734→35,734, `fnbyte-refused-parse` 113,612→113,612, **0 of 372 keys
+>   > differing**. And **−5,949 is a floor, not a growth curve** — five token
+>   > sets including the full 49-token ceiling all land on `match` 18 /
+>   > `fnbyte-exact` 29,785, with 20 of the 22 ladder tokens contributing zero.
+>   > **The `.gl` −65 (a real lift) stands; the decode-widening negative does
+>   > not. Decode-only reader work is NOT measured as costly.**
 > * **The grading unit this review called missing already existed** and needed
 >   a side nobody had asked for: `fnbyte-refused-parse` (**113,612 of
 >   162,049**) must fall with **three required-zeros** — `fnbyte-exact`

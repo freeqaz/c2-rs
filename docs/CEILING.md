@@ -549,7 +549,25 @@ distance, from this scan:
      AND SEE #3093 BEFORE ACTING ON ANY OF THEM: lifting the ENTIRE `.gl` walk
      is `match` +0 and `fnbyte-exact` **−65**; the 22-token decode widening is
      **−7 match, −5,949 fnbyte-exact**. The reader holds the mass AND the head
-     class's realized worth is negative. -->
+     class's realized worth is negative.
+
+     ⚠⚠ 2026-08-14, ONE DAY LATER (#3104–#3108, w-deaccept): THE SECOND HALF OF
+     THE PARAGRAPH ABOVE IS AN INSTRUMENT ARTIFACT AND IS WITHDRAWN. The
+     −7/−5,949 figures came from the POISONED SINK, which de-accepts on exactly
+     **5 of 49** pinned tokens and is bit-for-bit neutral on the other **44** —
+     and those five are **precisely the bytes `parse_expr` already handles**,
+     the exact COMPLEMENT of every byte a real widening could target. A real
+     unpoisoned widening measured a **required-zero delta**: `match` 25→25,
+     `fnbyte-exact` 35,734→35,734, `fnbyte-refused-parse` 113,612→113,612, 0 of
+     372 keys differing. **−5,949 is a FLOOR, not a growth curve**: five
+     different token sets — including the full 49-token ceiling — all land on
+     `match` 18 / `fnbyte-exact` 29,785, and 20 of the ladder's 22 tokens
+     contributed zero.
+     The −65 from lifting the `.gl` walk (#3093) is a SEPARATE measurement on a
+     real lift and is NOT withdrawn.
+     This coordinator quoted the withdrawn figures as fact in this file and in
+     STRATEGY_REVIEW lever 5 within hours of #3093 landing; both are corrected
+     here rather than rewritten away. -->
 
 | TUs within ≤ 100 | **407** | same |
 | TUs within ≤ 1000 | **858** | same |
