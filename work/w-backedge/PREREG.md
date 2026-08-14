@@ -99,11 +99,68 @@ the error the control in §4 must be able to see.
 
 ---
 
-## 3. The rule — to be written here BEFORE grid2 is compiled
+## 3. The rule — written BEFORE grid2 was compiled
 
-> **EMPTY AT PREREG TIME. Filled in, with coefficients, in the commit that
-> precedes the grid2 run.** A rule written after the hold-out is scored is not
-> a prediction, and this section's git history is the evidence of which it was.
+**Filled in from grid1 alone (`work/w-backedge/g1_o1.tsv`, 28 cells, 0 controls
+failed, the three-anchor control 0,0,0 on every row). grid2 has not been
+compiled at this commit.**
+
+### R1, the rule
+
+```text
+    charge  =  2 · bwd_uncond  +  1 · bwd_cond
+```
+
+where, over the function's `.ex` statement stream up to the `4F 12 47` tail,
+with the epilogue label excluded:
+
+* `bwd_uncond` = `3A <tok>` references to a token **already defined** by an
+  earlier `29 <tok>` — an unconditional back edge;
+* `bwd_cond` = `38`/`39 <tok>` references to an already-defined token — a
+  conditional back edge.
+
+Both are counted by the port's own IL vocabulary (`cflow_opcode_name`) and need
+**no new IL channel**: §4.1's *"any rung that wants a charging shape owes a new
+IL channel first"* is answered — the channel is the statement stream the census
+already walks.
+
+**R1 scores 26 of 28 on grid1.** It is exact on every `while`, `for`, `do/while`,
+nested and sequential-loop cell, on both frame classes (`d-*` — the charge does
+not key on the frame, confirming §4.2.1 through a different instrument), on
+both branch senses (`f-*`), on all four forward-only `if` counts (`e-if2/3/4`
+charge **0** at 2/3/4 forward labels — forward branches are free at any arity),
+and on the straight-line size control (`g-stmt1` vs `g-stmt8`: 8× the
+statements, charge 0 → 0, so the charge is not a code-volume artifact, which is
+#2341's control reproduced here).
+
+### The two misses, named, and each is ±1
+
+| cell | R1 | actual | the structure |
+|---|---:|---:|---|
+| `a-goto-back` | 2 | **1** | `29 TOP … [body] … 38 SKIP · 3A TOP · 29 SKIP` — a **bottom**-tested backward `3A`. `a-while` is `29 TOP · 38 EXIT … [body] … 3A TOP · 29 EXIT` — the **same** feature vector (`defs` 2, `bwd_uncond` 1, `bwd_cond` 0) and it charges **2**. The two differ only in the ORDER of the exit test against the body. |
+| `a-forever` | 2 | **3** | `for(;;)`+`break`: the loop has **no exit test**, and the `break` is an unconditional forward `3A` to a label defined **after** the back edge. |
+
+**So R1's residual is not noise: it is exactly the two shapes where the exit
+test is not at the loop top.** Both are ±1 and both are the error direction
+registered in §2.
+
+### R2, the refinement — REGISTERED AS A FIT, NOT A DERIVATION
+
+`R2 = R1 + brk − bot`, where `brk` counts unconditional forward `3A`
+references to a label defined after the back edge (a `break` out of an untested
+loop) and `bot` counts back edges whose loop's exit test does **not** precede
+the loop body. **R2 has two free terms and was fitted on exactly two points.**
+It is registered so that grid2 scores it too, and if it beats R1 on the
+hold-out that is evidence; if it does not, it is `CFG_SHAPE.md` §3.5's declined
+fold model a third time and it is dropped in those words.
+
+### What is scored on grid2
+
+| | prediction |
+|---|---|
+| R1 | ≥ 11 of 13 (claim **C5**, P = 0.30) |
+| R2 | strictly better than R1, or dropped |
+| the miss classes | grid2's `h-break-nested`, `h-while-brk-cont` and `h-mixed3` carry `break`/`continue`; if R1's misses recur **there and only there**, the residual is the exit-test position and nothing else |
 
 ---
 
