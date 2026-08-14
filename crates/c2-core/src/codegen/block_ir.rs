@@ -50,6 +50,26 @@
 //! *carry* item E's distinction without *modelling* it, and a later item-E lane
 //! adds the producer side without changing a byte here.
 //!
+//! ## ✔ 2026-08-14, lane `w-ir-e` — **item E's producer side is built, and the
+//! paragraph above held: not a byte here moved**
+//!
+//! The prediction is scored rather than quietly overwritten. [`super::cond`] is
+//! the model — `CondProducer` (an explicit compare, which *names* its field;
+//! a record form, which cannot), `Cond` (producer + `BO` + bit, with `BI`
+//! **derived** from the producer), and a decoder that reads a producer off an
+//! instruction run. [`Terminator::Bc`]'s representation is untouched; what is
+//! new is that [`Terminator::bc`] can *derive* the pair, that
+//! [`Terminator::reads_crf`] can be asked which field a branch reads, and that
+//! [`BasicBlock::cond_source`] can be asked which instruction in the block's own
+//! run wrote it. [`BodyLayout::place`] refuses a block where those two disagree
+//! — §3.2's `409a…`-for-`4082…` hazard, board **#188**, made structural.
+//!
+//! One correction rides along: item E's own text pairs *compare* with *cr6*, and
+//! this crate's shipped bytes refute that as a biconditional —
+//! `close_call_chain` and `alloc_init_or_fail` both compare into **cr0**. The
+//! model carries the field on the compare instead of assuming it; see
+//! [`super::cond`]'s header.
+//!
 //! # The one fact this module does not own
 //!
 //! **The fixup list is [`super::labels::LabelMap`]'s, not this module's.** That
@@ -87,6 +107,7 @@
 //! (`docs/rungs/2026-08-13-ircond.md` §1.3), because this repo has been bitten
 //! three times by lanes colliding through *semantics* with no textual conflict.
 
+use super::cond::{bc_reads_crf, cond_source, Cond, CondSource};
 use super::encode::{encode_bclr, encode_blr};
 use super::labels::{Form, Label, LabelMap};
 use super::select::out_of_class;
@@ -191,6 +212,43 @@ pub enum Terminator {
     TailCall,
 }
 
+impl Terminator {
+    /// A `bc` to `taken` on a **modelled** condition — `CFG_SHAPE.md` §6.2 item
+    /// **E**, from the consumer's end.
+    ///
+    /// The point of the constructor is that `BI` is *derived from the producer*
+    /// ([`Cond::bi`]) instead of spelled beside it. `Terminator::Bc`'s raw form
+    /// stays public and stays the representation — item A carries `(BO, BI)`,
+    /// and this changes none of that — but a lowering that says which
+    /// instruction wrote its condition can no longer name a different field by
+    /// hand.
+    pub fn bc(cond: Cond, taken: BlockId) -> Self {
+        Terminator::Bc { bo: cond.bo(), bi: cond.bi(), taken }
+    }
+
+    /// A conditional return on a modelled condition. Same derivation; §3.5's
+    /// fold band 2.
+    pub fn bclr(cond: Cond) -> Self {
+        Terminator::Bclr { bo: cond.bo(), bi: cond.bi() }
+    }
+
+    /// The condition-register field this terminator **reads**, or `None` if it
+    /// reads none.
+    ///
+    /// Delegates the "`BO` ignores the CR" rule to [`bc_reads_crf`], which is
+    /// the one reader of it: `blr` is `bclr` at `BO = 20`, and `BI >> 2 = 0`
+    /// there is an artefact rather than a claim that a return reads cr0.
+    pub fn reads_crf(self) -> Option<u8> {
+        match self {
+            Terminator::Bc { bo, bi, .. } | Terminator::Bclr { bo, bi } => bc_reads_crf(bo, bi),
+            Terminator::FallThrough
+            | Terminator::B { .. }
+            | Terminator::Blr
+            | Terminator::TailCall => None,
+        }
+    }
+}
+
 /// A straight-line instruction run ending in exactly one [`Terminator`].
 ///
 /// "Exactly one" is enforced by the type rather than by a check: [`Self::term`]
@@ -231,6 +289,19 @@ impl BasicBlock {
     /// The one terminator.
     pub fn terminator(&self) -> Terminator {
         self.term
+    }
+
+    /// **Which instruction in this block's own run wrote the condition its
+    /// terminator reads** — `CFG_SHAPE.md` §6.2 item **E**, the producer side.
+    ///
+    /// This is the accessor item E's demand reduces to once item A exists: the
+    /// producer is a property of the straight-line run, and until `body` was a
+    /// thing there was nowhere for the question to be asked. Three-valued, and
+    /// the three are not interchangeable — see [`CondSource`]. In particular a
+    /// producer in a **predecessor** block is legal and reads
+    /// [`CondSource::NotInThisBlock`], not an error.
+    pub fn cond_source(&self) -> CondSource {
+        cond_source(&self.body)
     }
 }
 
@@ -311,7 +382,7 @@ impl BodyLayout {
     /// Append `id` to the emission order with its instruction run and its one
     /// terminator.
     ///
-    /// Refuses rather than overwrites, on three counts, each of which would
+    /// Refuses rather than overwrites, on four counts, each of which would
     /// otherwise be a legal-looking body in the wrong shape:
     ///
     /// 1. an `id` this layout never declared — the cross-body case;
@@ -320,7 +391,11 @@ impl BodyLayout {
     ///    every branch to it one of two answers;
     /// 3. a `body` that is not a whole number of 4-byte words — PowerPC
     ///    instructions are words, and a misaligned run puts every later block,
-    ///    every displacement and every relocation offset out by the remainder.
+    ///    every displacement and every relocation offset out by the remainder;
+    /// 4. a terminator that reads a **condition-register field this block's own
+    ///    run did not write** — `CFG_SHAPE.md` §6.2 item **E**, added by lane
+    ///    `w-ir-e`. See the check itself for why it fires on a positive
+    ///    disagreement only.
     pub fn place(
         &mut self,
         id: BlockId,
@@ -349,6 +424,38 @@ impl BodyLayout {
                 body.len()
             )));
         }
+        // ---- item E: the branch must read the field its own run WROTE -------
+        //
+        // §3.2's hazard, made structural rather than left to a comment. A block
+        // whose run ends in `addic.` (cr0) under a terminator spelled
+        // `cr_bi(CR_COMPARE, bit)` emits `409a…` where the obj has `4082…` —
+        // two bytes, in a word that still disassembles to a plausible branch,
+        // which is board **#188** and the fuzzy-invisible class
+        // `docs/CODEGEN_PPC_MVP.md` warns about.
+        //
+        // It fires only on a **positive disagreement**. `NotInThisBlock` is
+        // legal and common (the producer is in a predecessor), and `Unknown` is
+        // not an accusation — the two are distinct answers in
+        // [`super::cond::CondSource`] precisely so that this check cannot turn
+        // "I could not read the run" into "the run is wrong".
+        if let Some(read) = term.reads_crf() {
+            if let CondSource::InBlock(p) = cond_source(&body) {
+                if p.crf() != read {
+                    return Err(out_of_class(&format!(
+                        "block `{name}`'s branch reads cr{read}, but the last \
+                         condition-register writer in its own instruction run is \
+                         {} writing cr{}: CFG_SHAPE.md §3.2's two producers, and \
+                         a `BI` of {} where this block's own bytes want {} — \
+                         board #188, a legal-looking branch on a bit nothing set",
+                        p.what(),
+                        p.crf(),
+                        4 * read,
+                        4 * p.crf(),
+                    )));
+                }
+            }
+        }
+
         *placed_at = Some(pos);
         self.placed.push(BasicBlock { id, name, body, term });
         Ok(())
@@ -445,9 +552,14 @@ impl BodyLayout {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::codegen::encode::{cr_bi, BO_FALSE, BO_TRUE, CR_BIT_EQ, CR_COMPARE};
+    use crate::codegen::cond::CondProducer;
+    use crate::codegen::encode::{
+        cr_bi, encode_bctrl, BO_ALWAYS, BO_FALSE, BO_TRUE, CR_BIT_EQ, CR_COMPARE,
+    };
 
     const MR_R11_R4: [u8; 4] = [0x7c, 0x8b, 0x23, 0x78];
+    /// `addic. r11,r11,-1` — `?c_do`'s loop counter, §3.2's record-form row.
+    const ADDIC_R11_M1: [u8; 4] = [0x35, 0x6b, 0xff, 0xff];
     const CMPLWI_CR6_R3_0: [u8; 4] = [0x2b, 0x03, 0x00, 0x00];
     const MR_R4_R5: [u8; 4] = [0x7c, 0xa4, 0x2b, 0x78];
     const MR_R3_R11: [u8; 4] = [0x7d, 0x63, 0x5b, 0x78];
@@ -770,6 +882,154 @@ mod tests {
         // the total 5 and not 6.
         assert_eq!(body.text.len(), 20);
         assert_eq!(body.tail_sites, vec![16]);
+    }
+
+    // ---- item E, the producer side (lane `w-ir-e`) -----------------------
+
+    /// **The refusal fires, and it names both fields.** A block whose run ends
+    /// in `addic.` — a record form, cr0 — under a branch spelled with the
+    /// compare's `BI` is exactly board #188's defect, and it is refused here
+    /// rather than emitted.
+    #[test]
+    fn a_branch_reading_a_field_its_own_run_did_not_write_is_refused() {
+        let mut l = BodyLayout::new(BlockOrder::IlStatement);
+        let top = l.declare("loop-body");
+        let out = l.declare("out");
+        let s = format!(
+            "{:?}",
+            l.place(
+                top,
+                bytes(&[ADDIC_R11_M1]),
+                // The record form wrote cr0; this reads cr6.
+                Terminator::Bc { bo: BO_FALSE, bi: cr_bi(CR_COMPARE, CR_BIT_EQ), taken: out },
+            )
+            .unwrap_err()
+        );
+        assert!(s.contains("loop-body"), "{s}");
+        assert!(s.contains("reads cr6"), "{s}");
+        assert!(s.contains("a record form writing cr0"), "{s}");
+        assert!(s.contains("#188"), "{s}");
+    }
+
+    /// **The control for the refusal above**: the identical block with the `BI`
+    /// its own run wrote is accepted, and lays down `?c_do`'s real obj word.
+    #[test]
+    fn the_same_block_with_the_field_its_run_wrote_is_accepted_and_emits_the_obj_word() {
+        let mut l = BodyLayout::new(BlockOrder::IlStatement);
+        let top = l.declare("loop-top");
+        let body = l.declare("loop-body");
+        let out = l.declare("out");
+        l.place(top, Vec::new(), Terminator::FallThrough).unwrap();
+        l.place(
+            body,
+            bytes(&[ADDIC_R11_M1]),
+            Terminator::bc(Cond::record_form(BO_FALSE, CR_BIT_EQ), out),
+        )
+        .unwrap();
+        l.place(out, Vec::new(), Terminator::Blr).unwrap();
+        let b = l.finish().unwrap();
+        // `bne cr0,+4` — the `?c_do` word at this displacement. The BI byte is
+        // 0x82 and not 0x9a, which is the whole of §3.2.
+        assert_eq!(&b.text[4..8], &[0x40, 0x82, 0x00, 0x04]);
+        assert_eq!(b.text.len(), 12);
+    }
+
+    /// A producer in a **predecessor** block is legal, and the check does not
+    /// invent an accusation out of it. `?d_join`'s shape, and every guard chain
+    /// that compares once and branches twice.
+    #[test]
+    fn a_producer_in_a_predecessor_block_is_not_an_accusation() {
+        let mut l = BodyLayout::new(BlockOrder::IlStatement);
+        let cmp = l.declare("compare");
+        let mid = l.declare("middle");
+        let out = l.declare("out");
+        l.place(cmp, bytes(&[CMPLWI_CR6_R3_0]), Terminator::FallThrough).unwrap();
+        // No CR writer of its own: the answer is NotInThisBlock, positively.
+        l.place(
+            mid,
+            bytes(&[MR_R4_R5]),
+            Terminator::bc(Cond::compare(BO_FALSE, CR_BIT_EQ), out),
+        )
+        .unwrap();
+        l.place(out, Vec::new(), Terminator::Blr).unwrap();
+        assert_eq!(l.blocks()[1].cond_source(), CondSource::NotInThisBlock);
+        assert_eq!(l.finish().unwrap().text.len(), 16);
+    }
+
+    /// **An unmodelled word does not manufacture a refusal.** A block holding a
+    /// call has no readable producer — the volatile CR fields do not survive one
+    /// — and `Unknown` is not `NotInThisBlock` and is certainly not "wrong".
+    #[test]
+    fn an_unmodelled_word_leaves_the_question_open_rather_than_refusing() {
+        let mut l = BodyLayout::new(BlockOrder::IlStatement);
+        let a = l.declare("after-a-call");
+        let out = l.declare("out");
+        let mut run = bytes(&[CMPLWI_CR6_R3_0]);
+        run.extend_from_slice(&encode_bctrl());
+        l.place(
+            a,
+            run,
+            // Reads cr0 after a call: this model cannot say it is wrong, and
+            // says so rather than guessing either way.
+            Terminator::Bc { bo: BO_FALSE, bi: cr_bi(0, CR_BIT_EQ), taken: out },
+        )
+        .unwrap();
+        l.place(out, Vec::new(), Terminator::Blr).unwrap();
+        assert_eq!(l.blocks()[0].cond_source(), CondSource::Unknown);
+        assert_ne!(l.blocks()[0].cond_source(), CondSource::NotInThisBlock);
+    }
+
+    /// The two constructors derive `(BO, BI)` from the producer, and the two
+    /// producers give the two `BI`s §3.2 measures — 26 and 2 — from the same
+    /// `(BO, bit)`.
+    #[test]
+    fn the_terminator_constructors_derive_bo_and_bi_from_the_producer() {
+        let out = BodyLayout::new(BlockOrder::IlStatement).declare("x");
+        let from_compare = Terminator::bc(Cond::compare(BO_FALSE, CR_BIT_EQ), out);
+        let from_record = Terminator::bc(Cond::record_form(BO_FALSE, CR_BIT_EQ), out);
+        assert!(matches!(from_compare, Terminator::Bc { bo: 4, bi: 26, .. }));
+        assert!(matches!(from_record, Terminator::Bc { bo: 4, bi: 2, .. }));
+        assert_eq!(from_compare.reads_crf(), Some(6));
+        assert_eq!(from_record.reads_crf(), Some(0));
+        assert_eq!(
+            Terminator::bclr(Cond::compare(BO_TRUE, CR_BIT_EQ)),
+            Terminator::Bclr { bo: BO_TRUE, bi: 26 }
+        );
+    }
+
+    /// A terminator that transfers control without consulting the condition
+    /// register reads **no** field — `blr` included, whose `BI` is 0 and whose
+    /// `BO` ignores it.
+    #[test]
+    fn the_terminators_that_read_no_condition_register_say_none() {
+        let out = BodyLayout::new(BlockOrder::IlStatement).declare("x");
+        assert_eq!(Terminator::Blr.reads_crf(), None);
+        assert_eq!(Terminator::FallThrough.reads_crf(), None);
+        assert_eq!(Terminator::TailCall.reads_crf(), None);
+        assert_eq!(Terminator::B { target: out }.reads_crf(), None);
+        assert_eq!(Terminator::Bclr { bo: BO_ALWAYS, bi: 0 }.reads_crf(), None);
+        assert_eq!(Terminator::Bclr { bo: BO_TRUE, bi: 26 }.reads_crf(), Some(6));
+    }
+
+    /// A block reports the producer in **its own** run, and the scan is
+    /// backwards: `?b_ifn`'s three compares in one body, each consumed by its
+    /// own branch.
+    #[test]
+    fn a_block_reports_the_producer_in_its_own_run() {
+        let mut l2 = BodyLayout::new(BlockOrder::IlStatement);
+        let b = l2.declare("entry");
+        let c = l2.declare("out");
+        l2.place(
+            b,
+            bytes(&[CMPLWI_CR6_R3_0, MR_R4_R5, ADDIC_R11_M1]),
+            Terminator::bc(Cond::record_form(BO_FALSE, CR_BIT_EQ), c),
+        )
+        .unwrap();
+        l2.place(c, Vec::new(), Terminator::Blr).unwrap();
+        assert_eq!(
+            l2.blocks()[0].cond_source(),
+            CondSource::InBlock(CondProducer::RecordForm)
+        );
     }
 
     /// A block's accessors report what was placed — the surface a later pass
