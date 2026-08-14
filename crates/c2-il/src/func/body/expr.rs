@@ -618,6 +618,29 @@ pub(crate) enum SkipForm {
     /// `80` of the real id's escape — a byte that opens no operand token
     /// anywhere in the grammar. See [`chain_skip_form`]'s `0xBD` row.
     TypeByteVarint,
+    /// `<op> <varint n> <varint state>` — the EH COUNT trailers `5D`/`5E`
+    /// (lane `w-deaccept`).
+    ///
+    /// **The width is not new and this variant restates nothing.**
+    /// `shapes/control_flow.rs`'s `operand()` has read exactly these two fields
+    /// (`cf-eh-count`, `cf-eh-count-state`) since lane WEH, from the fourteen
+    /// hand-written functions of `work/WEH/probe/p1.cpp`/`p2.cpp` at the
+    /// workload's own flags, where the second field really does escape
+    /// (`5D 01 80 A1 00 00 00`) so neither a fixed width nor a plain byte read
+    /// survives the corpus. `docs/EH_RECORDS.md` §7.1 tabulates both.
+    ///
+    /// **And c2's own reader agrees, independently.**
+    /// `docs/whitebox/WB_READER_FINDINGS.md` §3.1 puts `5D 5E` together in c2's
+    /// opcode class **14**, and §3.4 lists `0x5D`/`0x5E <i32c> <i32c>` among the
+    /// *agreements* between the disassembly and the readings this tree reached
+    /// from captures alone. Two independent derivations, one width.
+    ///
+    /// This is `0xBD`'s and `0x66`'s situation a third time, and the enum's half
+    /// of it: what was missing was never a measurement, it was a variant able to
+    /// **spell** `<varint> <varint>`. See
+    /// [`the_unpinned_opcodes_refuse_rather_than_guess_a_width`], whose `5D`/`5E`
+    /// loop said so in those words and is deleted by this commit.
+    VarintVarint,
     /// `43 <sub-opcode>` with a sub-opcode-dependent payload.
     Escape43,
     /// `4F 01 <varint>` — the line marker, and **only** that. `4F 12` is the
@@ -670,6 +693,7 @@ pub(crate) enum SkipForm {
 /// | `53` | Bare, `54` | Byte1 | [`eat_scopes`] |
 /// | `55` | Type | the `icall` line of `parse_segment`'s grammar — `55 INT` |
 /// | `5C` | TypeVarint | `EH_RECORDS.md` §7.1's measured `5C <TYPE> <varint>`, and `control_flow.rs`'s `operand()` arm that consumes it today — see the `0x5C` row below |
+/// | `5D` `5E` | VarintVarint | `EH_RECORDS.md` §7.1's measured `<varint n> <varint state>`, `control_flow.rs`'s `operand()` arm that consumes both today, **and c2's own reader class 14** (`WB_READER_FINDINGS.md` §3.1/§3.4) — see the `0x5D`/`0x5E` row below |
 /// | `66` | ClassDescr | `mcall::eat_class_descriptor`, the one decoder, called rather than restated — see the `0x66` row below |
 /// | `67` | VarintTok | `IL_DECODE_REACH.md` §2 — `67 <varint vtable-byte-offset> <token>` |
 /// | `9B` | TypeTok | `IL_EXPR_LAYER.md` §7 — the trailing field is a whole `read_token_var` |
@@ -678,11 +702,13 @@ pub(crate) enum SkipForm {
 ///
 /// Deliberately **absent**, so their absence is a decision: `1B`/`1C` (`||`/`&&`
 /// — `mcall` records that no capture shows the byte at all), `64`, `66`, `3B`
-/// `3C` `3D` (the switch family, whose table payload is not a fixed width),
-/// **`5D`/`5E`** (the EH COUNT trailers — `EH_RECORDS.md` §7.1 gives both as
-/// `<varint n> <varint state>` and no [`SkipForm`] variant can spell
-/// `<varint> <varint>`, which is `0xBD`'s expressiveness problem and not a
-/// missing measurement), and every byte no document in this tree names.
+/// `3C` `3D` (the switch family, whose table payload is not a fixed width), and
+/// every byte no document in this tree names.
+///
+/// **`5D`/`5E` are no longer in that list** (lane `w-deaccept`). They were the
+/// third kind of absence — measured, read by another reader in this crate, and
+/// simply *unspellable* — and [`SkipForm::VarintVarint`] spells them. That is
+/// `0xBD`'s and `0x66`'s resolution a third time.
 pub(crate) fn chain_skip_form(b: u8) -> Option<SkipForm> {
     use SkipForm::*;
     Some(match b {
@@ -933,13 +959,41 @@ pub(crate) fn chain_skip_form(b: u8) -> Option<SkipForm> {
         // that read a field differently from the reader beside it would report a
         // successor that reader can never reach.
         //
-        // **What this does NOT do**: `5D` and `5E`, the count trailers, stay
-        // unpinned. `EH_RECORDS.md` §7.1 gives both as `<varint n> <varint>` from
-        // the same probes and **`SkipForm` has no variant that can spell
-        // `<varint> <varint>`** — which is `0xBD`'s expressiveness problem, and
-        // an enum change is not this row. See
-        // [`the_unpinned_opcodes_refuse_rather_than_guess_a_width`].
+        // **What this row does NOT do**: `5D` and `5E`, the count trailers, are
+        // the row below, not this one. `w-5c` left them unpinned because
+        // `SkipForm` could not spell `<varint> <varint>`; `w-deaccept` added the
+        // variant, and the reason that was an enum change and not this row is
+        // recorded in [`SkipForm::VarintVarint`].
         0x5C => TypeVarint,
+        // The EH COUNT trailers, `5D <varint n> <varint state>` and
+        // `5E <varint n> <varint state>` (lane `w-deaccept`). `5D` is the
+        // constructor side and `5E` the destructor side; `<n>` is how many
+        // sub-objects the transition covers.
+        //
+        // **This is `0x5C`'s situation one opcode along, with BOTH halves already
+        // solved elsewhere.** The width was measured by lane WEH at the workload's
+        // own flags (`docs/EH_RECORDS.md` §7.1: `5D 01 21`, `5D 01 80 A1 00 00 00`,
+        // `5E 01 21`, `5E 02 21`, `5E 01 23`, `5E 01 01` — the escaped witness is
+        // what kills both the fixed-width and the plain-byte readings), and
+        // `shapes/control_flow.rs`'s `operand()` has consumed exactly it since,
+        // as `cf-eh-count` + `cf-eh-count-state`. Four `ctor_dtor.rs`
+        // recognizers and `mcall::eat_body_end_inner` additionally `eat` the
+        // short form `5D`/`5E <n> <g>` inside shapes the differential grades
+        // byte-exact.
+        //
+        // **And it is confirmed from the other side of the seam**, which `0x5C`
+        // was not: `docs/whitebox/WB_READER_FINDINGS.md` §3.1 reads c2's own
+        // opcode class table at `0x10b25e48` and puts `5D` and `5E` alone
+        // together in **class 14**, and §3.4 lists `0x5D`/`0x5E <i32c> <i32c>`
+        // among the readings where c2's disassembly and this tree AGREE. A width
+        // this table pins from two independent derivations is not a guess.
+        //
+        // **What this row does NOT do**: it does not accept anything. This is the
+        // SINK's table — poisoned, environment-gated, off on every gate lane and
+        // every default scan, pushing no [`IlOp`]. The *accepting* side is the
+        // `0x5D`/`0x5E` arm in [`parse_expr_classed`], which is a separate
+        // decision with a separate measurement (`docs/rungs/2026-08-14-deaccept.md`).
+        0x5D | 0x5E => VarintVarint,
         // The CLASS-PAIR DESCRIPTOR, `66 <arity> <arity LEB ids>` (lane
         // `w-mass`, board **#1530**). It is the token that follows the 2113–2119
         // class-layout intrinsic's `40 <TYPE result>`, and the reason the
@@ -1202,6 +1256,11 @@ fn chain_step_with(
             q <= seg.len()
         }
         SkipForm::VarintTok => read_varint(seg, &mut q).is_some() && tok(&mut q),
+        // `5D`/`5E <varint n> <varint state>`. Both fields are read, neither is
+        // interpreted — a step needs the width and this table is width-only.
+        SkipForm::VarintVarint => {
+            read_varint(seg, &mut q).is_some() && read_varint(seg, &mut q).is_some()
+        }
         // `BD <TYPE> <flags:1 raw byte> <varint>`. The middle field is stepped
         // over, never decoded: its own encoding is UNKNOWN (`IL_CALL_GRAMMAR.md`
         // §2.2) and a *step* only needs the width, which both candidate
@@ -2187,6 +2246,64 @@ pub(crate) fn parse_expr_classed(
                 None => return Err(super::mcall::classify(seg, at)),
                 }
             }
+            // **THE EH COUNT TRAILERS, ACCEPTED — the real, unpoisoned widening**
+            // (lane `w-deaccept`, `docs/rungs/2026-08-14-deaccept.md`).
+            //
+            // `5D <varint n> <varint state>` and `5E <varint n> <varint state>`:
+            // `n` sub-objects stop being live. The width is
+            // [`SkipForm::VarintVarint`]'s, and it is the width
+            // `shapes/control_flow.rs`'s `operand()` has read since lane WEH and
+            // that c2's own reader class 14 confirms
+            // (`docs/whitebox/WB_READER_FINDINGS.md` §3.1/§3.4).
+            //
+            // **This arm is DELIBERATELY different from a sink and that is the
+            // whole experiment.** It sets no poison flag, so a body whose only
+            // remaining refusal was this trailer is genuinely admitted. Board
+            // **#3094** measured that the poisoned sink is *not* emission-neutral
+            // and named the mechanism as the poison; `w-deaccept` measured that
+            // the mechanism is actually the sink being consulted **before** the
+            // `b == stop` check (`#663`), which is why sinking `op:41` or `op:55`
+            // costs seven `match` between them and sinking any of the other
+            // twenty tokens costs zero. This arm is below the stop check by
+            // construction and therefore cannot have that failure mode.
+            //
+            // **Its FAIL-CLOSED boundary is that it pushes no [`IlOp`] and
+            // records nothing.** The trailer is EH bookkeeping — the state
+            // transition `docs/EH_RECORDS.md` §10 lowers `maxState` by `n` on —
+            // and this walker has no EH model at all. So a body reaching the end
+            // of its expression through one arrives at the guards below with an
+            // `ops` chain that is missing nothing (the trailer contributes no
+            // value) but with an EH fact that has been *dropped*, and the emitter
+            // must never see it. It does not: the emitted classes are gated by
+            // `body/mod.rs`'s own productions and by `control_flow.rs`'s
+            // `EhMarkers`, which reads the same two fields and refuses on them.
+            //
+            // **MEASURED at base, and the measurement is the point.** Reach is
+            // **ZERO** — `expr-op-0x5D` and `expr-op-0x5E` are absent from both
+            // `emit_blockers` (615 keys / 113,612) and `fn_blockers` (635 keys /
+            // 1,705,627) over 878 TUs, so no body's walk stops here today. The
+            // 13,158 this widening is worth in `w-readphase` §4.2 is a **sink
+            // ceiling** number: it is realized only once all 47 other pinned
+            // opcodes plus `type`/`convert`/`intrinsic` are granted, at which
+            // point it moves **12,765** functions to the function tail. The
+            // required-zero grade is therefore an identity, and it was checked
+            // rather than assumed: `match` 25, `mismatch` 0, `fnbyte-exact`
+            // 35,734, 372 of 372 `gap-metric` keys and 878 of 878 verdict lines
+            // identical to base.
+            0x5D | 0x5E => {
+                let at = *p;
+                *p += 1;
+                if read_varint(seg, p).is_none() {
+                    return Err(blk(seg, at, "expr-eh-count"));
+                }
+                if read_varint(seg, p).is_none() {
+                    return Err(blk(seg, at, "expr-eh-count-state"));
+                }
+                // The class stack cannot have followed a token that yields no
+                // value, and pretending it did is how a later reader of the top
+                // gets handed a fiction. Same discipline as the sink's arm.
+                cstack_ok = false;
+            }
             // **The DIVIDE / MODULO refusal, carrying its operand type**
             // (`lane w-divsplit`, board **#816**). Identical to the
             // fall-through below in every way that matters — same offset, same
@@ -2575,17 +2692,23 @@ mod tests {
     /// same walk (2, 1 and 1 times) — a witness that they OCCUR, and no
     /// evidence at all about their widths.
     ///
-    /// **`0x5D` and `0x5E` have JOINED it, and their reason is a THIRD kind**
-    /// (`lane w-5c`, board **#1425**). They are not unwitnessed like `0x00`, and
-    /// they are not unmeasured like `0x14`: `docs/EH_RECORDS.md` §7.1 gives both
-    /// as `<varint n> <varint state>` from the same probe session that pinned
-    /// `0x5C`, and `control_flow.rs`'s `operand()` reads them at that width
-    /// today. **`SkipForm` has no variant that can spell `<varint> <varint>`** —
-    /// which is exactly the problem `0xBD` had before `TypeByteVarint` existed,
-    /// so opening them is an ENUM change and not a table row. Recorded here
-    /// rather than added, because the difference between *"nobody measured it"*
-    /// and *"the type cannot say it"* is the difference `chain_skip_form`'s
-    /// `None` is otherwise unable to express (board #1314's finding, restated).
+    /// **`0x5D` and `0x5E` have LEFT it** (`lane w-deaccept`), and the loop that
+    /// asserted them is deleted by that lane rather than edited — which is what
+    /// the sentence below asked for when `w-5c` (board **#1425**) put them here.
+    /// Their absence was the THIRD kind: not unwitnessed like `0x00`, not
+    /// unmeasured like `0x14`, but *unspellable* — `docs/EH_RECORDS.md` §7.1
+    /// gives both as `<varint n> <varint state>` and `control_flow.rs`'s
+    /// `operand()` has read them at that width all along, and no `SkipForm`
+    /// variant could say `<varint> <varint>`. [`SkipForm::VarintVarint`] says it.
+    /// That is exactly `0xBD`'s resolution (`TypeByteVarint`, board #1314) and
+    /// `0x66`'s (`ClassDescr`, board #1530), a third time.
+    ///
+    /// The **guard against that becoming a licence** is
+    /// [`the_pinned_widths_are_exactly_the_documented_table`] below, which now
+    /// pins `5D`/`5E` positively, and
+    /// [`the_varint_varint_form_consumes_exactly_the_eh_probe_bytes`], which
+    /// checks the width against transcribed capture bytes rather than against
+    /// the table that produced it.
     #[test]
     fn the_unpinned_opcodes_refuse_rather_than_guess_a_width() {
         // `0x66` LEFT this list on 2026-08-08 (lane `w-mass`, board #1530) and
@@ -2598,14 +2721,15 @@ mod tests {
         for b in [0x00, 0x07, 0x08, 0x14, 0x1B, 0x1C, 0x3B, 0x3C, 0x3D, 0x59, 0x64] {
             assert_eq!(chain_skip_form(b), None, "0x{b:02X} must have no pinned form");
         }
-        // The EH COUNT trailers. Kept in their own loop with their own message,
-        // so a lane that adds a `VarintVarint` variant deletes a line that names
-        // the reason instead of one that reads like an oversight.
+        // The EH COUNT trailers LEFT this list (`lane w-deaccept`) and the loop
+        // that held them is gone, which is what the header asked a widening lane
+        // to do. They are asserted positively instead — `VarintVarint`, not
+        // merely "not None" — one loop down.
         for b in [0x5D, 0x5E] {
             assert_eq!(
                 chain_skip_form(b),
-                None,
-                "0x{b:02X} is `<varint> <varint>`, which no SkipForm variant can spell"
+                Some(SkipForm::VarintVarint),
+                "0x{b:02X} is `<varint> <varint>`, and SkipForm can spell it now"
             );
         }
         // …and the two that moved are `Bare`, not merely "not None": a width
@@ -2738,6 +2862,12 @@ mod tests {
                 // NOT swept into its neighbours. See `SkipForm::LitTypeVarint`.
                 0x33 => Some(SkipForm::LitTypeVarint),
                 0x2C | 0x5C | 0x99 => Some(SkipForm::TypeVarint),
+                // The EH COUNT trailers, and they are on their own line rather
+                // than folded into `0x5C`'s: they are a DIFFERENT form. `5C`
+                // carries the live object's TYPE and `5D`/`5E` carry a COUNT,
+                // so a reader that swept them together would consume a `21`
+                // state byte as a TYPE tag. Lane `w-deaccept`.
+                0x5D | 0x5E => Some(SkipForm::VarintVarint),
                 0x43 => Some(SkipForm::Escape43),
                 0x4F => Some(SkipForm::Line4F),
                 0x54 => Some(SkipForm::Byte1),
@@ -2977,6 +3107,73 @@ mod tests {
 
     fn one_local() -> [u8; 7] {
         [0x5C, 0xA6, 0x43, 0x81, 0x20, 0x01, 0x4B]
+    }
+
+    /// **The EH COUNT trailers' width, checked against transcribed bytes rather
+    /// than against the table that produced them** (lane `w-deaccept`).
+    ///
+    /// Every stream below is a `5D`/`5E` run this crate already carries in a
+    /// *different* file, put there by a *different* lane reading a real capture:
+    /// `shapes/control_flow.rs`'s fixtures (`5E 01 21 4B`, `5E 02 21 4B`,
+    /// `5E 01 01 44`, `5E 01 23 44`, `5D 01 80 A1 00 00 00 4B`) and
+    /// `func/mod.rs`'s (`5E 01 31`). So the successor byte is fixed by the
+    /// capture and not by the reader: **a wrong width swallows it**, and the
+    /// assertion is on the byte the step lands on, never on an index computed
+    /// from the rule under test.
+    ///
+    /// The escaped row is the load-bearing one. `5D 01 80 A1 00 00 00` is the
+    /// witness `docs/EH_RECORDS.md` §7.1 records for the state field escaping,
+    /// and it is what kills both rivals at once: a fixed three-byte read and a
+    /// `<varint> <one raw byte>` read each land on `0xA1`, four bytes early.
+    #[test]
+    fn the_varint_varint_form_consumes_exactly_the_eh_probe_bytes() {
+        // (stream, the successor byte the capture shows, the landing index)
+        let cases: [(&[u8], u8, usize); 6] = [
+            (&[0x5E, 0x01, 0x21, 0x4B], 0x4B, 3),
+            (&[0x5E, 0x02, 0x21, 0x4B], 0x4B, 3),
+            (&[0x5E, 0x01, 0x31, 0x4B], 0x4B, 3),
+            // The OPERAND spelling — `EH_RECORDS.md` §7.2's "both spellings occur
+            // in one probe". The trailer is followed by a `44`, not a `4B`.
+            (&[0x5E, 0x01, 0x01, 0x44], 0x44, 3),
+            (&[0x5E, 0x01, 0x23, 0x44], 0x44, 3),
+            // The ESCAPED state, `control_flow.rs`'s own fixture bytes.
+            (&[0x5D, 0x01, 0x80, 0xA1, 0x00, 0x00, 0x00, 0x4B], 0x4B, 7),
+        ];
+        for (seg, succ, at) in cases {
+            let op = seg[0];
+            assert_eq!(
+                skip_one(seg, op),
+                Some(Ok(at)),
+                "0x{op:02X} must consume `<varint> <varint>` and stop at {at}"
+            );
+            assert_eq!(seg[at], succ, "…which is the successor byte the capture shows");
+        }
+        // **The rivals, stated as landings rather than as arguments.** On the
+        // escaped stream a three-byte read and a `<varint> <byte>` read both stop
+        // at index 3, which is `0xA1` — the second byte of the escape's own LE32
+        // payload, and a byte that opens no operand token anywhere in the
+        // grammar. That is the desync this table exists to make impossible.
+        let esc = [0x5D, 0x01, 0x80, 0xA1, 0x00, 0x00, 0x00, 0x4B];
+        assert_eq!(esc[3], 0xA1);
+        assert_eq!(chain_skip_form(0xA1), None, "the rivals' landing opens nothing");
+        // …and the form is not `5C`'s. Sweeping the two together would read the
+        // count `01` as a TYPE tag, whose bit 7 is CLEAR, so `read_type` refuses
+        // and the whole step reports `expr-chain-short` — visible, but for the
+        // wrong reason, and only because `01` happens to be small.
+        assert_ne!(SkipForm::VarintVarint, SkipForm::TypeVarint);
+        assert_eq!(
+            skip_one(&[0x5E, 0x01, 0x21, 0x4B], 0x5E),
+            Some(Ok(3)),
+            "and the count field is a varint, not a TYPE"
+        );
+        // A truncated trailer refuses rather than running off the end.
+        for short in [&[0x5D][..], &[0x5E, 0x01][..], &[0x5D, 0x01, 0x80, 0xA1][..]] {
+            assert_eq!(
+                skip_one(short, short[0]),
+                Some(Err("expr-chain-short")),
+                "a truncated `<varint> <varint>` refuses"
+            );
+        }
     }
 
     /// Run one [`chain_sink_step`] with `op` sunk, without touching the process
