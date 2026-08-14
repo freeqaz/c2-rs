@@ -37,6 +37,16 @@ pub mod alloc;
 /// hypothetical one. Callers spell `codegen::block_ir::BasicBlock`.
 pub mod block_ir;
 pub mod calls;
+/// The condition-code model with two producers (`docs/CFG_SHAPE.md` §6.2
+/// item **E**), the producer side.
+///
+/// **Deliberately NOT in the glob re-export list below**, for the same reason
+/// [`block_ir`] is not: `c2_il` already exports `CondPlan`, `CondStep`,
+/// `CondTailPair` and `CondArm`, which are the IL's conditional-tail *plan* and
+/// mean something else entirely, and `Cond`/`CondProducer` arriving in a
+/// module's ambient scope beside them is a real hazard rather than a
+/// hypothetical one. Callers spell `codegen::cond::Cond`.
+pub mod cond;
 pub mod cond_tail;
 pub mod div_mod_leaf;
 pub mod encode;

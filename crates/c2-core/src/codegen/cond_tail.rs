@@ -89,6 +89,20 @@
 //! through a new mechanism: a disagreement would have been a defect in the
 //! mechanism, visible immediately against §4.1's published bytes.
 //!
+//! ## Amendment, lane `w-ir-e`, 2026-08-14 — **the `BI` is derived too now**
+//!
+//! Filed here rather than rewritten into the paragraph above, for the same
+//! reason that paragraph was kept. The `bc`'s **condition-register field** was
+//! still `cr_bi(CR_COMPARE, bit)` after item A landed: a second, private
+//! encoding of *"the word above is a cr6 compare"* — the same shape as the
+//! displacement it had just stopped computing. It now comes from
+//! [`super::cond::cond_source`], which reads the producer off the entry block's
+//! own bytes (§6.2 item **E**). **Not one emitted byte changed**, because the
+//! compare this class emits is `encode_cmpwi/cmplwi(CR_COMPARE, …)` and the
+//! derived field is therefore 6 — which is what the constant said. The five
+//! byte tests below are the oracle for that and were required to pass
+//! unaltered.
+//!
 //! [`Form::Bc`]: super::labels::Form::Bc
 //! [`BasicBlock`]: super::block_ir::BasicBlock
 
@@ -96,9 +110,10 @@ use c2_il::{CondPlan, CondStep, CondTailPair, IlFunction, Rel};
 
 use crate::BackendError;
 use crate::codegen::block_ir::{BlockOrder, BodyLayout, Terminator};
+use crate::codegen::cond::{producer_at, Cond};
 use crate::codegen::encode::{
-    cr_bi, encode_cmplwi, encode_cmpwi, encode_mr, BO_FALSE, BO_TRUE, CR_BIT_EQ, CR_BIT_GT,
-    CR_BIT_LT, CR_COMPARE,
+    encode_cmplwi, encode_cmpwi, encode_mr, BO_FALSE, BO_TRUE, CR_BIT_EQ, CR_BIT_GT, CR_BIT_LT,
+    CR_COMPARE,
 };
 use crate::codegen::encode::{encode_addi, encode_rlwinm};
 use crate::codegen::select::out_of_class;
@@ -124,7 +139,12 @@ pub struct CondPairParts {
 /// block (`docs/CFG_SHAPE.md` §1 prediction A3, RIGHT across ten cells; §4.2
 /// item 2).
 ///
-/// Returns `(BO, bit)`; the caller adds the CR field.
+/// Returns `(BO, bit)`; the caller adds the CR field. **The caller it was
+/// waiting for is [`super::cond::Cond`]** (§6.2 item **E**, lane `w-ir-e`),
+/// which takes exactly this pair and a *producer* and derives the `BI` — so
+/// this function keeps knowing nothing about condition registers, which is why
+/// it is right for a class that compares into cr6 and for one that compares
+/// into cr0 alike.
 pub(crate) fn branch_sense(rel: Rel) -> (u8, u8) {
     match rel {
         // `==` -> branch when EQ is CLEAR, i.e. `bne`.
@@ -229,12 +249,21 @@ pub fn cond_pair_parts(
     // displacement is no longer computed here at all: the map derives it from
     // where `b_else` lands, and the range check §6.2 item D asks for rides along
     // inside `encode_bc`.
+    //
+    // **The CR field is read off the compare this block just emitted** — §6.2
+    // item **E**, lane `w-ir-e`. It used to be `cr_bi(CR_COMPARE, bit)`, which
+    // is a second, private encoding of *"the word above is a cr6 compare"*:
+    // exactly the two-encodings-of-one-fact shape `docs/GAPS.md` §6 keeps
+    // recording, and the shape the displacement had before item A took it. The
+    // producer now comes from [`cond_source`], so if this class ever emitted a
+    // compare into another field — `close_call_chain` and `alloc_init_or_fail`
+    // both compare into cr0, so that is not hypothetical — the `BI` would follow
+    // the bytes instead of contradicting them. **Not one emitted byte moved:**
+    // the compare above is `encode_cmpwi/cmplwi(CR_COMPARE, …)`, so the derived
+    // field is 6, which is what the constant said.
     let (bo, bit) = branch_sense(pair.rel);
-    layout.place(
-        b_entry,
-        entry,
-        Terminator::Bc { bo, bi: cr_bi(CR_COMPARE, bit), taken: b_else },
-    )?;
+    let producer = producer_at(&entry, "a two-arm conditional tail call's entry block")?;
+    layout.place(b_entry, entry, Terminator::bc(Cond::new(producer, bo, bit), b_else))?;
 
     // ---- the two arms, each ending in a tail `b` to an external ----------
     //
