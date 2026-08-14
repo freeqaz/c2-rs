@@ -1,0 +1,69 @@
+rows graded: 878
+class: {'vocab-gap': 845, 'match': 25, 'capture-fail': 8}
+
+first-cause histogram (TUs):
+    720  body-out-of-class
+    106  gl-stop-name-too-far
+     13  drectve-not-boilerplate
+      5  varargs
+      1  shape-token-unresolved
+
+ALL-cause histogram (TUs; decode_causes' independent re-ask):
+    844  body-out-of-class
+    735  unclaimed-gl-symbol
+    725  locally-defined-callee
+    715  shape-token-unresolved
+    107  gl-stop-name-too-far
+     13  drectve-not-boilerplate
+      6  varargs
+
+head class `body-out-of-class`: 720 TUs
+  co-firing causes (the diagnostic's counterfactual successor set):
+      717  unclaimed-gl-symbol
+      710  locally-defined-callee
+      699  shape-token-unresolved
+  cause-set arity within the head class:
+    arity 1: 1 TUs
+    arity 2: 9 TUs
+    arity 3: 13 TUs
+    arity 4: 697 TUs
+
+emit_blockers: 615 keys summing 113678 (whole workload)
+emit_blockers: 540 keys summing 88956 (head class only)
+  head-class top 15:
+      17675  expr-op-0x27
+       7294  expr-intrinsic-this-adjust
+       5066  expr-intrinsic-base-member-addr
+       3790  expr-call-in-expr-recv-object-then-call-recv-object-more
+       3357  expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+       2905  expr-intrinsic-memset
+       2381  expr-brfalse
+       2301  expr-call-in-expr-recv-load-then-intrinsic-call
+       2280  body-cflow-label
+       1935  expr-cmp-eq
+       1654  expr-call-in-expr-recv-load-then-call-recv-load-and-deref-load-more
+       1613  body-0x9B
+       1567  expr-intrinsic-0xDF
+       1416  return-scope-close-cflow-label
+       1304  expr-brtrue
+
+fn_blockers: 635 keys summing 1706407 (whole workload)
+fn_blockers: 564 keys summing 1131363 (head class only)
+  head-class top 15:
+     275246  expr-op-0x27
+      83607  expr-intrinsic-this-adjust
+      65660  expr-intrinsic-base-member-addr
+      63630  expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+      45920  expr-load-type-8645
+      33976  expr-load-type-8885
+      31250  body-cflow-label
+      25187  expr-call-in-expr-op-0x9B
+      19709  expr-brtrue
+      16493  expr-call-in-expr-recv-load-then-off-add-more
+      16477  body-0x9B
+      16477  expr-brfalse
+      16268  expr-intrinsic-memset
+      15757  expr-op-0x30
+      14801  expr-call-in-expr-recv-load-then-intrinsic-call
+
+emitted total 0, in-class 0
