@@ -2343,7 +2343,30 @@ pub(super) fn measure(
                                 }
                                 Some(bs) => {
                                     let mut cat: Vec<u8> = Vec::new();
-                                    let last = bs.len() - 1;
+                                    // **`saturating_sub`, and it is EXACTLY
+                                    // count-preserving** (board #3074's second
+                                    // finding). This arm is reached whenever
+                                    // `callees.len() != 1`, which includes
+                                    // **zero** — and a zero-callee body makes
+                                    // `bs` empty, so the bare `- 1` is an
+                                    // `usize` underflow. In a release build it
+                                    // wraps to `usize::MAX`, the loop below runs
+                                    // zero times either way, `cat` stays empty
+                                    // and the row lands as
+                                    // `spliceN|…|differs|n0`; in a DEBUG build
+                                    // `overflow-checks` turn the same wrap into
+                                    // a panic. Both spellings therefore produce
+                                    // the identical counter on every input, and
+                                    // no published number moves.
+                                    //
+                                    // What does NOT change here: the SPLICE-N
+                                    // hypothesis is still being ASKED of bodies
+                                    // that name no callee at all, where it is
+                                    // vacuous rather than refuted. That is a
+                                    // measurement question, not an overflow, and
+                                    // it is left as its own board row rather
+                                    // than quietly folded into this repair.
+                                    let last = bs.len().saturating_sub(1);
                                     for (i, b) in bs.iter().enumerate() {
                                         let t = if i != last
                                             && b.len() >= 8
