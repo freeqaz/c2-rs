@@ -350,3 +350,77 @@ workload scan, naming what the bucket was already filtered by.
    "neither `9B`'s role nor `44`/`64` is decoded" is now two-thirds false; `44`'s
    meaning remains UNKNOWN (its width was already established) and nothing here
    tested it.
+
+---
+
+## 12. THE SINK INSTRUMENT FAMILY — the five, named in one place at last
+
+*(Added by lane `w-read2`. Board **#3098** is open because the first four are
+documented **only** in `crates/c2-il/src/func/body/expr.rs` doc comments,
+reachable by no `docs/` grep and no board-topic search: `w-readphase` registered
+a prereg against their existence after two hours of orientation and then found
+them by reading the source. This section is the table that row asks for.)*
+
+Every one is **env-gated, OFF by default, off on every gate lane and every
+default scan**, consumes its token so the census reports the **successor**, and
+pushes no `IlOp`.
+
+| variable | board | what it sinks | where it is consulted |
+|---|---|---|---|
+| `C2RS_SINK_OFF_ADD_ARG=expr` | **#143** | `0x27`, the offset-add | `parse_expr_classed` |
+| `C2RS_SINK_REL=expr` | **#420** | the relational family `1F`..`24` | `parse_expr_classed` |
+| `C2RS_SINK_BRANCH=expr\|cflow\|stmt` | **#440** | `38`/`39`; +`29`/`3A`/`4B`; +`53`/`54` | `parse_expr_classed` |
+| `C2RS_SINK_CHAIN=<spec>` | **#660** | any pinned opcode, plus `type`/`convert`/`intrinsic` | `parse_expr_classed` |
+| **`C2RS_SINK_STMT=<spec>`** | **`w-read2`** | the same spec, in the **statement** layer | `parse_body`'s dispatcher `_` arm; `eat_return_head`'s scope-close run |
+
+### 12.1 Three warnings, each of which has already cost a lane
+
+1. **`C2RS_SINK_OFF_ADD_ARG` is not in the family.** Its `0x27` arm pushes
+   `IlOp::Add` and has **no poison** — it is a real widening behind an
+   environment variable, and board **#403** records `cargo test` going to *16
+   targets / 754 passed / 2 failed* under it. It must never be used as a chain
+   step.
+
+2. **A poisoned sink is fail-closed but NOT emission-neutral** (board **#3094**,
+   corrected by **#3104**/**#3105**). `C2RS_SINK_CHAIN` **de-accepts** on 5 of
+   its 49 pinned tokens — `33` −5 `match`, `B9` −4, `55` −6, `41` −1, `2C` −1 —
+   and is bit-for-bit neutral on the other 44. The five are exactly the bytes
+   `parse_expr` **already handles**, by two mechanisms: `chain_sink()` is
+   consulted **before** the `b == stop` check (deliberately, board **#663**), and
+   sinking an accepted production replaces it with a width-skip. **Before quoting
+   any sink run's `match`/`fnbyte-exact`, check whether the sunk token is one
+   `parse_expr` accepts or stops on. If it is, the number is about the
+   instrument.**
+
+3. **`C2RS_SINK_STMT` cannot de-accept, and the reason is structural rather than
+   a flag.** `stmt_sink_walk` returns `Option<Block>` — it has no representation
+   for accepting — and it is only ever consulted on a path that has **already
+   decided to return `Err`**. It replaces the key on a refusal, never the
+   verdict. Measured over 878 TUs at the full 49-token spec: `match` **25**,
+   `fnbyte-exact` **35,734**, both unmoved from base.
+
+### 12.2 What the fifth one was for, and the number it corrects
+
+The first four are **all** consulted from `parse_expr_classed`, so a census key
+raised **outside** `parse_expr` is invariant under every ceiling any of them can
+measure. Lane `w-read2` measured that invariance rather than assuming it: the
+five statement-layer keys — `body-cflow-label` **2,832** · `body-0x9B` **2,213**
+· `return-scope-close-cflow-label` **1,814** · `body-0x67` **1,044** ·
+`body-0x5D` **8** — read **7,911 at base and 7,911 at the full 49-token +
+`type`/`convert`/`intrinsic` ceiling**, `+0` on every one, while every other key
+of the 615 moved.
+
+So the published decode ceiling was measured with **25.0 % of its own residue
+held fixed**, and it composes exactly, because the two layers share no function:
+
+| | reached the function tail | of 120,456 |
+|---|---:|---:|
+| `w-readphase` §4 | 76,041 | 63.1 % |
+| `w-deaccept` §4.5 (`5D`/`5E` pinned) | 88,806 | 73.7 % |
+| **+ `C2RS_SINK_STMT` (`w-read2`)** | **93,990** | **78.0 %** |
+
+The `+5,184` is `stmt-chain-fntail` **3,684** + `rsc-chain-fntail` **1,500**, and
+the addition is exact rather than estimated: the `base → stmt-sink` key diff and
+the `chain-ceiling → both-sinks` key diff are **identical, key for key and count
+for count**, so the expression layer and the statement layer are **orthogonal**
+on this workload.

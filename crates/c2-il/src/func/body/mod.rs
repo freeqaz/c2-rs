@@ -2877,6 +2877,18 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
         }
         _ => {
             disp("disp-body-byte");
+            // **w-read2 statement sink — `C2RS_SINK_STMT` and nothing else.**
+            // The larger of the two sites that raise a statement-layer key
+            // (`body-cflow-label` 2,832 · `body-0x9B` 2,213 · `body-0x67` 1,044
+            // · `body-0x5D` 8), and the one the whole instrument family could
+            // never see: every other sink in this tree is consulted from inside
+            // `parse_expr`, and this arm is reached *without* entering it. The
+            // refusal is already decided here — the sink only replaces the name
+            // with how far a width-walk gets. See `expr::stmt_sink`. OFF and
+            // free on every gate lane and every default scan.
+            if let Some(b) = expr::stmt_sink_walk(seg, p, &expr::STMT_SITE_BODY) {
+                return Err(b);
+            }
             Err(blk(seg, p, "body"))
         }
     }
