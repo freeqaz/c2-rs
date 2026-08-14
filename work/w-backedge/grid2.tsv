@@ -1,0 +1,28 @@
+# w-backedge GRID 2 — the HELD-OUT set. FROZEN BY CONTENT HASH in PREREG.md §0
+# at the same commit as grid1.tsv, BEFORE the first cl.exe of either.
+#
+# Not compiled, not read, and not looked at until the rule fitted on grid1 is
+# WRITTEN DOWN in PREREG.md §3 with its coefficients. `w-keygen` (board #2966)
+# froze a hold-out by NAME and its population moved 10.8 % underneath it while
+# the file stayed byte-identical; the sha256 in §0 is what makes this a
+# hold-out rather than a second fitting set.
+#
+# Every cell here carries a structure grid1 does NOT: a switch, a `break` out of
+# a NESTED loop, a `continue`, a forward `goto`, MIXED loop kinds under one
+# nesting, an empty loop body, and one framed nested cell. If the rule is a fit
+# to grid1's forms rather than a rule about IL labels, these are where it dies.
+#
+# Columns: name <TAB> class <TAB> probe body.
+h-switch	leaf	int r=0; switch (a) { case 1: r=1; break; case 2: r=2; break; case 3: r=3; break; default: r=9; } return r;
+h-break-nested	leaf	int r=0; for (int i=0;i<a;i=i+1) { for (int j=0;j<a;j=j+1) { r=r+j; if (r>100) break; } } return r;
+h-continue	leaf	int r=0; for (int i=0;i<a;i=i+1) { if (i==3) continue; r=r+i; } return r;
+h-while-in-for	leaf	int r=0; for (int i=0;i<a;i=i+1) { int b=i; while (b) { r=r+b; b=b-1; } } return r;
+h-for-in-while	leaf	int r=0; int b=a; while (b) { for (int i=0;i<b;i=i+1) r=r+i; b=b-1; } return r;
+h-goto-fwd	leaf	int r=0; if (a) goto done; r=r+a; done: return r;
+h-do-in-for	leaf	int r=0; for (int i=0;i<a;i=i+1) { int b=i; do { r=r+b; b=b-1; } while (b); } return r;
+h-if-in-loop	leaf	int r=0; while (a) { if (a==3) r=r+7; else r=r+1; a=a-1; } return r;
+h-mixed3	leaf	int r=0; while (a) { r=r+a; a=a-1; } int b=r; do { r=r+b; b=b-1; } while (b); for (int i=0;i<3;i=i+1) r=r+i; return r;
+h-for-empty	leaf	int r=0; for (int i=0;i<a;i=i+1) ; return r+a;
+h-while-brk-cont	leaf	int r=0; while (a) { a=a-1; if (a==5) continue; if (a==2) break; r=r+a; } return r;
+h-tern-loop	leaf	int r=0; while (a) { r=r+(a>3?a:1); a=a-1; } return r;
+h-nest-call	framed	int r=0; for (int i=0;i<a;i=i+1) { for (int j=0;j<a;j=j+1) r=r+ga(j); } return r;

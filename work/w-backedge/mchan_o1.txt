@@ -1,0 +1,20 @@
+mode: /O1 /GS- /c   TU = [ P (leaf, the loop) , F (framed) ]
+  predicted $M(F) = counter + 9 + 3*2 + charge(P) + 1
+
+cell              counter  charge   pred$M   real$M   M0    M1    M2    M3   
+a-none               2539       0     2555     2555   GREEN red   red   GREEN
+a-if                 2540       0     2556     2556   GREEN red   red   GREEN
+a-while              2543       2     2561     2561   GREEN red   red   red  
+a-dowhile            2543       1     2560     2560   GREEN red   red   red  
+a-for                2544       2     2562     2562   GREEN red   red   red  
+a-forever            2544       2     2562     2563   red   GREEN red   red  
+a-goto-back          2542       2     2560     2559   red   red   GREEN red  
+b-for2               2548       4     2568     2568   GREEN red   red   red  
+c-nest2              2548       4     2568     2568   GREEN red   red   red  
+b-dowhile2           2547       2     2565     2565   GREEN red   red   red  
+b-while2             2547       4     2567     2567   GREEN red   red   red  
+
+M0 (R1)          GREEN on 9 of 11 constructed cells
+M1 (charge + 1                                ) red on 10 of 11 DISCRIMINATING cells
+M2 (charge - 1                                ) red on 10 of 11 DISCRIMINATING cells
+M3 (charge = 0 — what plan_labels charges TODAY) red on 9 of 9 DISCRIMINATING cells
