@@ -1,0 +1,1 @@
+op:02,op:03,op:04,op:05,op:06,op:09,op:0A,op:0B,op:0C,op:0D,op:0F,op:1A,op:1F,op:20,op:21,op:22,op:23,op:24,op:26,op:27,op:28,op:29,op:2C,op:30,op:32,op:33,op:35,op:38,op:39,op:3A,op:40,op:41,op:43,op:44,op:4B,op:4C,op:4F,op:53,op:54,op:55,op:5C,op:66,op:67,op:99,op:9B,op:B9,op:BD,type,convert,intrinsic
