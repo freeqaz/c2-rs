@@ -654,8 +654,26 @@ pub fn emit_comdat_obj(
 
     // Interleaved to match the layout computed above: each section's raw data,
     // then its own relocations.
+    //
+    // **The cursor check EXCEPTS an uninitialized section, and that exception is
+    // the whole content of board #3074.** `layout_sections` gives a `.bss`
+    // `PointerToRawData = 0` — measured against real c2, `OBJ_DYNINIT_SHAPE.md`
+    // §1 — so `ptrs[i]` is 0 there and is not a file offset at all. Written
+    // 2026-07-29 (`cebfb88d`, W13b) when no section in this emitter could be
+    // uninitialized, the bare form became FALSE on 2026-08-10 when `w-wordwrap2`
+    // spliced the shared `.bss` into slot `B`, and stayed false for four days
+    // because every standing instrument runs `--release`. The two siblings that
+    // met `.bss` first — [`super::dyninit`] and [`super::data`] — already carry
+    // exactly this guard; this file is the copy that did not get it.
     for (i, s) in sections.iter().enumerate() {
-        debug_assert_eq!(b.0.len(), ptrs[i]);
+        if s.uninit_size.is_none() {
+            debug_assert_eq!(b.0.len(), ptrs[i]);
+        }
+        // The check that actually has teeth here, and the one the bare cursor
+        // assertion could never make: an uninitialized section must carry NO raw
+        // bytes, or this write and the layout cursor disagree by exactly
+        // `raw.len()` and every later section's offset is wrong.
+        debug_assert_eq!(s.file_len(), s.raw.len());
         b.bytes(&s.raw);
         match owner[i] {
             SectionOwner::Text(k) => {
@@ -1166,8 +1184,18 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
 
     // ---- raw section data, each section followed by its own relocations ----
     // (10 bytes each: VA u32, SymIdx u32, Type u16)
+    //
+    // Same guard as `emit_comdat_obj` above, and here it is LATENT rather than
+    // live: no `.bss` reaches the packed emitter today, so this site never
+    // fired. It is corrected anyway because two copies of one invariant, one
+    // right and one known-wrong, is the shape board #880 forbids — the next
+    // section this emitter learns to place uninitialized would trip the same
+    // false assertion, invisibly, for exactly as long.
     for (i, s) in sections.iter().enumerate() {
-        debug_assert_eq!(b.0.len(), ptrs[i]);
+        if s.uninit_size.is_none() {
+            debug_assert_eq!(b.0.len(), ptrs[i]);
+        }
+        debug_assert_eq!(s.file_len(), s.raw.len());
         b.bytes(&s.raw);
         if i == text_idx {
             debug_assert!(n_text_reloc == 0 || b.0.len() == ptr_text_reloc);
