@@ -1,0 +1,43 @@
+lane gate: preflight on /tmp
+  keep    /tmp/c2rs-gate-391450        this run
+  keep    /tmp/c2rs-gate-3738530       recent — 1 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-3703077       recent — 2 of 3 finished runs kept for their logs
+          stripped 19556 regenerable cases; logs, reports and parts/ kept
+  keep    /tmp/c2rs-gate-2814728       recent — 3 of 3 finished runs kept for their logs
+          stripped 19556 regenerable cases; logs, reports and parts/ kept
+  reaped  /tmp/c2rs-gate-2356812       stale — no live gate owns it
+  reaped  /tmp/c2rs-gate-1601646       stale — no live gate owns it
+reap:   2 stale run tree(s) removed, 4 kept (0 live, 3 recent, 1 this run)
+strip:  2 kept tree(s) lost 39112 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
+        freed 334.4 MiB and 39,630 inodes (df delta over a SHARED filesystem)
+disk:   /tmp — free 25.0 GiB / 614,009 inodes (floors: 2.0 GiB / 150,000 inodes)
+
+lane gate: 18 lanes from /home/free/code/milohax/c2-rs/.claude/worktrees/w-readphase/scripts/lanes.txt
+  run dir: /tmp/c2rs-gate-391450   (per-lane run dirs under /tmp/c2rs-gate-391450/lanes/)
+  graded tree: b865e54d6939  (728 files under crates fixtures scripts, content-hashed)
+               1 gitignored byproduct file(s) under those directories were NOT hashed (board #3048)
+
+hatch-red:       work/w-hatch/hatch_red.py  (no toolchain; fires hatch.py's refusals)
+  REFUSED  HATCH-STALE `hatch.py apply` cannot hatch this tree, so the arms have no tree to run on (board #1389)
+ladder-red:      work/w-ladders/ladder_red.py  (no toolchain; fires ladder.py's width-table refusal)
+  PASS  
+building the harness (no-op if current)
+   Compiling c2-il v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-readphase/crates/c2-il)
+   Compiling c2-core v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-readphase/crates/c2-core)
+   Compiling c2-reference v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-readphase/crates/c2-reference)
+   Compiling c2-harness v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-readphase/crates/c2-harness)
+    Finished `release` profile [optimized] target(s) in 6.48s
+harness: /tmp/c2rs-gate-391450/c2rs
+  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/w-readphase/target/release/c2rs  built 2026-08-14 12:33:43
+  sha 9368dd36f644  tree 74db7698
+
+wall clock: 4s for 18 lanes at --jobs 4 (C2RS_JOBS=8)
+
+generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-391450/sweep 0  (jobs 4)
+    62 fragments, 19556 cases total (19556 .cpp on disk)
+  sweeping 19556 of 19556 generated cases
+    grading at 4 job(s)
+  checked=19556 mismatches=0 graded=19460 ungraded=96 unknown=0
+  (250s)
+
+mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-391450/cross 0  (jobs 4)
