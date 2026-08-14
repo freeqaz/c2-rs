@@ -38,7 +38,7 @@
 //! it. [`CondProducer::RecordForm`] carries nothing, because a record form
 //! cannot name a field: it writes cr0 or it is not a record form.
 //!
-//! # One reader, replacing six
+//! # Six private readers, of which this module absorbs two — and says so
 //!
 //! Before this module the crate held **six** private readers of "which CR field
 //! does this producer write" — `encode::CR_COMPARE` (6), two separate
@@ -47,9 +47,16 @@
 //! `alloc_init_or_fail::CR_MIDDLE`, `guard_ret_chain::GUARD_CRF` — plus two
 //! sites spelling the fact as a bare `cr_bi(0, …)` with no name at all. Two
 //! encodings of one fact is the shape `docs/GAPS.md` §6 keeps recording. The two
-//! exact duplicates (`CR_RECORD`) are gone, replaced by
+//! **exact duplicates** (`CR_RECORD`) are gone, replaced by
 //! [`CondProducer::RecordForm`]; `encode::CR_COMPARE` stays exactly where it is
 //! and is **used** by [`CondProducer::compare`], never restated.
+//!
+//! The other three — `GUARD_CRF`, `RESULT_CRF`, `CR_MIDDLE` — are **deliberately
+//! left alone**. They name a field by the *role* it plays in one measured class,
+//! which is information this model does not carry and should not delete; a lane
+//! that points them here should keep the role name and derive the field beside
+//! it. So the honest count is **six readers, two absorbed**, not six replaced by
+//! one.
 //!
 //! # What this module does NOT do
 //!

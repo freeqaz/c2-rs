@@ -1161,8 +1161,13 @@ register emits wrong bytes for every decrement-and-test loop.
 > answers, so the check can never turn *"I could not read it"* into *"it is
 > wrong"*.
 >
-> **Six private readers became one.** `ptr_walk_loop` and
-> `ptr_walk_chain_loop` each carried `const CR_RECORD: u8 = 0`; both are gone.
+> **Of six private readers of this fact, the two exact duplicates are gone.**
+> `ptr_walk_loop` and `ptr_walk_chain_loop` each carried
+> `const CR_RECORD: u8 = 0`; both are gone. The three that name a field by its
+> *role* in one measured class — `close_call_chain::{GUARD_CRF, RESULT_CRF}`,
+> `alloc_init_or_fail::CR_MIDDLE`, `guard_ret_chain::GUARD_CRF` — are left
+> alone on purpose, because a role name is information this model does not
+> carry.
 > `ptr_walk_loop`'s copy is the finding: it named the field for the *back
 > edge*'s `mr.` **and** for the *entry guard*'s `cmplwi cr0` — one constant
 > standing for both of this item's two producers, correct about the field for
