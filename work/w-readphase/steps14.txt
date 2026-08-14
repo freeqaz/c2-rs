@@ -1,0 +1,11 @@
+# IL_STMT_GRAMMAR.md §14.2, step by step, cumulative, measured decode-only
+# through the committed poisoned sink. `op:41` is SCAFFOLD (parse_expr's stop
+# byte) and is present from S0 on, so every row differs only by its own step.
+S0-none	
+S0-scaffold41	op:41
+S1-line-markers	op:41,op:4F
+S2-scope-stack	op:41,op:4F,op:53,op:54
+S3-stmt-list	op:41,op:4F,op:53,op:54,op:4B
+S4-compound-assign	op:41,op:4F,op:53,op:54,op:4B,op:0F,op:35
+S5-branches-labels	op:41,op:4F,op:53,op:54,op:4B,op:0F,op:35,op:29,op:38,op:39,op:3A
+S6-type-gate	op:41,op:4F,op:53,op:54,op:4B,op:0F,op:35,op:29,op:38,op:39,op:3A,type

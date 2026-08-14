@@ -1,0 +1,76 @@
+graded 870 TUs; blocked emitted 120456 over 72 keys
+  reached FUNCTION TAIL (4F 12)    76041  63.1%
+  reached SEGMENT END (poison)         0
+  expr-chain-noform (other 4F/op)      0
+  expr-chain-short                     6
+  RESIDUE (real remaining blockers)44409  36.9%
+
+the residue, every key:
+     8000  expr-op-0x64
+     6815  expr-op-0x5D
+     6343  expr-op-0x5E
+     2832  body-cflow-label
+     2674  expr-op-0x9A
+     2276  expr-op-0x00
+     2213  body-0x9B
+     2208  expr-op-0x19
+     2188  expr-op-0x10
+     2029  expr-op-0x60
+     1814  return-scope-close-cflow-label
+     1044  body-0x67
+      755  expr-op-0x36
+      586  fn-tail-0x26
+      557  expr-op-0x59
+      458  expr-and-and
+      332  param-width-undetermined:mid
+      211  call-args-none:mid
+      165  data-sym-unresolved:eof
+      163  param-multi-reg:mid
+      128  expr-or-or
+      122  expr-switch-dispatch
+      108  module-end-0x4F
+       80  expr-op-0x08
+       58  expr-op-0x11
+       46  expr-op-0x16
+       31  data-sym-not-extern:eof
+       24  call-ref-cflow-jump
+       17  expr-op-0xBC
+       16  callee-unresolved-tail-call:eof
+       12  formals-marker:mid
+       10  expr-op-0x0E
+       10  module-end:eof
+        8  body-0x5D
+        7  expr-op-0x18
+        6  call-arg-nonformal:eof
+        6  module-end-0x4D
+        6  call-token-0x26
+        4  call-ref-0x53
+        4  call-conv-0x40
+        3  call-bound-store-0x86
+        3  call-arg-multi-sym:eof
+        3  call-token-0xB9
+        3  call-ref-0xB9
+        3  expr-op-0x12
+        2  expr-op-0x8C
+        2  mcall-cmp-rel-operand-type-8645
+        2  call-ref-0x67
+        2  expr-op-0x17
+        2  expr-op-0xAF
+        1  expr-op-0x13
+        1  expr-op-0x3F
+        1  expr-op-0x14
+        1  call-intrinsic-this-adjust
+        1  call-token-0x9B
+        1  expr-op-0xD6
+        1  expr-op-0x15
+        1  expr-op-0x47
+        1  expr-op-0xA2
+        1  expr-op-0xA9
+        1  call-arg-multi-sym:mid
+        1  expr-op-0xE7
+        1  expr-op-0xD7
+        1  call-token-0x33
+        1  expr-op-0x6C
+        1  expr-op-0xED
+        1  expr-op-0x82
+        1  expr-op-0xCC

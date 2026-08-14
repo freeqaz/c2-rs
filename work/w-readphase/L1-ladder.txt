@@ -1,0 +1,66 @@
+rows graded: 878
+class: {'vocab-gap': 845, 'match': 25, 'capture-fail': 8}
+
+first-cause histogram (TUs):
+    518  bind-record-count-ne-segments
+    299  gl-stop-varargs-record
+     13  drectve-not-boilerplate
+     11  gl-stop-name-too-far
+      4  body-out-of-class
+
+ALL-cause histogram (TUs; decode_causes' independent re-ask):
+    845  body-out-of-class
+    522  bind-record-count-ne-segments
+    522  selective-unaccounted-emitted-body
+    308  gl-stop-varargs-record
+     13  drectve-not-boilerplate
+     11  gl-stop-name-too-far
+      4  unclaimed-gl-symbol
+      2  locally-defined-callee
+
+head class `bind-record-count-ne-segments`: 518 TUs
+  co-firing causes (the diagnostic's counterfactual successor set):
+      518  selective-unaccounted-emitted-body
+      518  body-out-of-class
+  cause-set arity within the head class:
+    arity 3: 518 TUs
+
+emit_blockers: 615 keys summing 113678 (whole workload)
+emit_blockers: 429 keys summing 45364 (head class only)
+  head-class top 15:
+       9373  expr-op-0x27
+       3509  expr-intrinsic-this-adjust
+       2451  expr-intrinsic-base-member-addr
+       2156  expr-call-in-expr-recv-object-then-call-recv-object-more
+       1887  expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+       1274  expr-intrinsic-memset
+       1194  body-cflow-label
+       1062  expr-brfalse
+        998  expr-call-in-expr-recv-load-then-intrinsic-call
+        975  expr-cmp-eq
+        759  body-0x9B
+        697  expr-call-in-expr-recv-load-then-call-recv-load-and-deref-load-more
+        697  expr-intrinsic-0xDF
+        670  expr-brtrue
+        655  expr-call-in-expr-recv-load-whole
+
+fn_blockers: 635 keys summing 1706407 (whole workload)
+fn_blockers: 455 keys summing 520332 (head class only)
+  head-class top 15:
+     134570  expr-op-0x27
+      32427  expr-intrinsic-this-adjust
+      30460  expr-load-type-8645
+      25882  expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+      23134  expr-load-type-8885
+      19742  expr-intrinsic-base-member-addr
+      13883  body-cflow-label
+       9745  expr-op-0x30
+       9192  expr-call-in-expr-recv-load-then-off-add-more
+       8690  expr-call-in-expr-recv-object-then-call-recv-object-more
+       8118  expr-call-in-expr-recv-load-then-intrinsic-call
+       7218  expr-brfalse
+       7132  expr-call-in-expr-recv-load-whole
+       7096  call-arg-multi-sym:mid
+       6385  body-0x9B
+
+emitted total 0, in-class 0

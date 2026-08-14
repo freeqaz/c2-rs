@@ -1,0 +1,114 @@
+{
+ "label": "S3-stmt-list",
+ "spec": "op:41,op:4F,op:53,op:54,op:4B",
+ "blocked": 116306,
+ "poison": 0,
+ "keys": 601,
+ "match": "24",
+ "mismatch": "0",
+ "fnbyte_exact": "33040",
+ "top": [
+  [
+   "expr-op-0x27",
+   22435
+  ],
+  [
+   "expr-intrinsic-this-adjust",
+   9273
+  ],
+  [
+   "expr-op-0x30",
+   7185
+  ],
+  [
+   "expr-intrinsic-base-member-addr",
+   6476
+  ],
+  [
+   "expr-call-in-expr-recv-load-then-bit-and-and-branch-more",
+   4290
+  ],
+  [
+   "expr-intrinsic-memset",
+   3743
+  ],
+  [
+   "expr-jump",
+   3731
+  ],
+  [
+   "expr-brfalse",
+   3105
+  ],
+  [
+   "expr-call-in-expr-recv-load-then-intrinsic-call",
+   2863
+  ],
+  [
+   "body-cflow-label",
+   2832
+  ],
+  [
+   "expr-cmp-eq",
+   2374
+  ],
+  [
+   "body-0x9B",
+   2213
+  ],
+  [
+   "expr-call-in-expr-recv-load-then-call-recv-load-and-deref-load-more",
+   2182
+  ],
+  [
+   "expr-intrinsic-0xDF",
+   2033
+  ],
+  [
+   "expr-brtrue",
+   1941
+  ],
+  [
+   "return-scope-close-cflow-label",
+   1814
+  ],
+  [
+   "expr-op-0x9B",
+   1595
+  ],
+  [
+   "expr-call-in-expr-recv-load-whole",
+   1493
+  ],
+  [
+   "expr-intrinsic-base-downcast",
+   1320
+  ],
+  [
+   "expr-intrinsic-dynamic-cast",
+   1232
+  ],
+  [
+   "assign-store-type-8643",
+   1119
+  ],
+  [
+   "body-0x67",
+   1044
+  ],
+  [
+   "expr-call-in-expr-recv-load-then-off-add-more",
+   1041
+  ],
+  [
+   "expr-call-in-expr-op-0x9B",
+   1037
+  ],
+  [
+   "expr-cmp-ne",
+   1023
+  ]
+ ],
+ "fn_poison": 0,
+ "fn_blocked": 1750353
+}

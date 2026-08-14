@@ -1,0 +1,63 @@
+rows graded: 878
+class: {'vocab-gap': 845, 'match': 25, 'capture-fail': 8}
+
+first-cause histogram (TUs):
+    819  gl-stop-26-introduced
+     13  drectve-not-boilerplate
+     11  bind-record-count-ne-segments
+      2  body-out-of-class
+
+ALL-cause histogram (TUs; decode_causes' independent re-ask):
+    845  body-out-of-class
+    831  gl-stop-26-introduced
+     13  drectve-not-boilerplate
+     12  bind-record-count-ne-segments
+     12  selective-unaccounted-emitted-body
+      2  unclaimed-gl-symbol
+      1  locally-defined-callee
+
+head class `gl-stop-26-introduced`: 819 TUs
+  co-firing causes (the diagnostic's counterfactual successor set):
+      819  body-out-of-class
+  cause-set arity within the head class:
+    arity 2: 819 TUs
+
+emit_blockers: 615 keys summing 113612 (whole workload)
+emit_blockers: 596 keys summing 110100 (head class only)
+  head-class top 15:
+      21720  expr-op-0x27
+       9016  expr-intrinsic-this-adjust
+       6293  expr-intrinsic-base-member-addr
+       4618  expr-call-in-expr-recv-object-then-call-recv-object-more
+       4129  expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+       3625  expr-intrinsic-memset
+       3034  expr-brfalse
+       2826  expr-call-in-expr-recv-load-then-intrinsic-call
+       2748  body-cflow-label
+       2283  expr-cmp-eq
+       2150  body-0x9B
+       2101  expr-call-in-expr-recv-load-then-call-recv-load-and-deref-load-more
+       1969  expr-intrinsic-0xDF
+       1868  expr-brtrue
+       1747  return-scope-close-cflow-label
+
+fn_blockers: 635 keys summing 1705627 (whole workload)
+fn_blockers: 616 keys summing 1672176 (head class only)
+  head-class top 15:
+     393337  expr-op-0x27
+     130681  expr-intrinsic-this-adjust
+     110755  expr-intrinsic-base-member-addr
+     100204  expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+      54383  expr-load-type-8645
+      45085  body-cflow-label
+      45000  expr-call-in-expr-op-0x9B
+      39648  expr-load-type-8885
+      34686  expr-brtrue
+      28660  expr-intrinsic-memset
+      26540  body-0x9B
+      25372  expr-brfalse
+      23884  expr-op-0x64
+      23183  expr-call-in-expr-recv-object-then-branch-brfalse
+      22146  expr-call-in-expr-recv-load-then-off-add-more
+
+emitted total 0, in-class 0
