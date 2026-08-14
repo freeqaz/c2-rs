@@ -1127,6 +1127,57 @@ instruction's record form sets cr0"*, because §3.2 shows c2 branches on both an
 the `BI` field differs (26 vs 2). A model with a single implicit condition
 register emits wrong bytes for every decrement-and-test loop.
 
+> ### ✔ 2026-08-14 — **item E is BUILT**, by lane `w-ir-e`
+> ([`rungs/2026-08-14-ire.md`](rungs/2026-08-14-ire.md)).
+>
+> `crates/c2-core/src/codegen/cond.rs`: **`CondProducer`** is the two producers
+> and no third; **`Cond`** is producer + `BO` + bit, and its `bi()` is
+> **derived** from the producer through `encode::cr_bi`, never spelled beside
+> it. `cr_effect` decodes what one instruction word does to the condition
+> register and `cond_source` scans a block's instruction run **backwards** for
+> the nearest writer — which is what the *producer* side reduces to once item A
+> exists, because the producer is a property of `BasicBlock::body` and until
+> that existed there was nowhere to ask.
+>
+> **This item's own text is corrected in the same breath, by this crate's
+> shipped bytes.** The sentence above pairs *compare* with *cr6*; the second
+> half is an architectural certainty and **the first half is not a rule at
+> all**. `codegen::close_call_chain` (`RESULT_CRF = 0`, *"the guard's word is
+> `2b030000` and these are `28030000`"*) and `codegen::alloc_init_or_fail`
+> (`CR_MIDDLE = 0`) are byte-exact against real `c2.dll` and emit an explicit
+> compare into **cr0** — so a model mapping `Compare ⇒ cr6` emits `2b03…`/
+> `409a…` where those objs carry `2803…`/`4082…`, which is board **#188**'s
+> defect reached from the other side. `CondProducer::Compare` therefore
+> **carries** its `crf` (a compare names its field, in its own `BF` bits) and
+> `RecordForm` carries nothing (a record form writes cr0 or it is not one).
+>
+> **The distinction is now checkable and not merely carried.**
+> `Terminator::reads_crf()` says which field a branch reads (delegating the
+> "`BO` ignores the CR" rule, so `blr`'s `BI = 0` is not read as cr0);
+> `BasicBlock::cond_source()` says which instruction wrote it; and
+> `BodyLayout::place` **refuses** a block where the two positively disagree.
+> It refuses on a positive disagreement only — a producer in a predecessor
+> block (`NotInThisBlock`) and an unreadable run (`Unknown`) are distinct
+> answers, so the check can never turn *"I could not read it"* into *"it is
+> wrong"*.
+>
+> **Six private readers became one.** `ptr_walk_loop` and
+> `ptr_walk_chain_loop` each carried `const CR_RECORD: u8 = 0`; both are gone.
+> `ptr_walk_loop`'s copy is the finding: it named the field for the *back
+> edge*'s `mr.` **and** for the *entry guard*'s `cmplwi cr0` — one constant
+> standing for both of this item's two producers, correct about the field for
+> the whole life of the class and silent about the distinction the item exists
+> to make. `encode::CR_COMPARE` is untouched and is *used*.
+>
+> **It converted zero TUs, by design** — a construct rung on board #290's
+> pattern, graded by a required-zero byte delta: 878 per-TU verdicts, 372
+> `gap-metric` keys and all 23 gate table lines identical, both gate runs'
+> `graded tree` identical at their own two ends. The re-expression is three
+> already-byte-exact classes (`cond_tail`, `ptr_walk_loop`,
+> `ptr_walk_chain_loop`) whose branches now take their field from the producer
+> the emitter's own bytes name. Items **F** and **G** remain absent and this
+> changes neither price.
+
 **F. Values live across block boundaries — the real cost.**
 §4.2 item 8: `MemFree` copies `v2` from r4 to **r11** in the entry block because
 both successors need it after clobbering r4. §3.4.1's `d_join` holds `b` in
