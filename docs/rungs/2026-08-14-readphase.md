@@ -362,11 +362,49 @@ Next free is **#3092** if `w-backedge` lands first; peers may shift it.
 
 | lane | result |
 |---|---|
-| `cargo test --workspace --release --no-fail-fast` | see §10.1 |
-| `scripts/gate.sh --jobs 4 --require-graded` | see §10.1 |
-| `scripts/board_audit.sh` | see §10.1 |
+| `cargo test --workspace --release --no-fail-fast` | **1,567 passed · 0 failed · 42 targets** — master's baseline to the unit |
+| `scripts/gate.sh --jobs 4 --require-graded` | **`GATE: PASS`**, `GATE_RC=0`. **18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT**; **6,858 fixture-verdicts**; `expr-sweep` **19,556/19,556 reached, 19,460 GRADED, 0 mismatch**; `mode-cross` **90,812/90,812 selected, 90,424 graded, 0 mismatch**; `ladder-red` **PASS 5/5, 3 red, 2 green controls**; `hatch-red` **REFUSED (HATCH-STALE, board #1389)** — pre-existing on this master and unrelated: this lane's `crates/` delta is zero |
+| **`graded tree`, both ends** | **`b865e54d6939` (728 files)** at the header *and* at the summary, identical — and identical to the value the dispatch brief carried |
+| `scripts/board_audit.sh` | **exit 0, all-zero**: cited-but-not-on-board **0** · unresolved section anchors **0** · raw line-number anchors **0** · rows-behind-the-prose **0** · duplicate row numbers **0** |
+| `rung_registry` | **2 passed / 0 failed** (`rung_docs_claim_their_tag_slug_and_fixtures_exactly_once`, `rung_index_is_generated_and_current`) |
 | 878-TU workload scan, **base** | `match 25 · mismatch 0 · codegen-gap 0 · vocab-gap 845 · capture-fail 8 · frontier 2`, 370 keys, 878 rows / **870 graded** |
-| 878-TU workload scan, **tip, after every scratch lift was reverted** | **370 keys, 0 differing**; `git status --porcelain crates/` = **0 lines** |
+| 878-TU workload scan, **tip, after every scratch lift was reverted** | **370 keys, 0 differing**; `git diff 6f2c7c41 -- crates/` **empty**; `git status --porcelain crates/` **0 lines** |
+
+### 10.1 One failure was real, and it is the registry working
+
+The first `cargo test` run came back **1,566 passed / 1 failed / 42 targets**:
+`rung_index_is_generated_and_current`, because this rung doc was added without
+regenerating `docs/rungs/INDEX.md`. `scripts/gen_rung_index.sh` closed it and the
+row above is the re-run. Recorded rather than quietly fixed — it is the same
+failure `w-ladders` §1 records, and it is the test doing its job.
+
+### 10.2 Reproducing every number on this page
+
+```sh
+# base + the identity control (needs the toolchain + the dc3 tree)
+./target/release/c2rs gap --list work/dc3-workload/files.txt \
+    --flags-file work/dc3-workload/flags.txt --cwd ../dc3-decomp --jobs 16 \
+    --jsonl work/w-readphase/base.jsonl > work/w-readphase/base-gap.log
+
+python3 work/w-readphase/ladder.py work/w-readphase/base.jsonl     # §2, §2.1
+python3 work/w-readphase/keydiff.py base.jsonl lad14/s01.jsonl     # §1 finding 5
+
+# §5's step table (labelled specs through the committed poisoned sink)
+python3 work/w-readphase/phase.py work/w-readphase/steps14.txt work/w-readphase/lad14
+
+# §3's class-wide greedy ladder, 14 rounds
+python3 work/w-readphase/greedy.py work/w-readphase/greedy2 40 \
+    "op:41,op:4F,op:53,op:54,op:4B,op:29,op:38,op:39,op:3A"
+
+# §4's ceiling — the spec is DERIVED from chain_skip_form, never typed
+python3 work/w-readphase/phase.py work/w-readphase/steps_ceiling.txt work/w-readphase/ceil
+```
+
+`ladder.py`, `phase.py` and `greedy.py` all **refuse rather than report a null**:
+`< 800` graded TUs, an empty `emit_blockers`, an `expr-chain-badtoken` anywhere,
+or a `chain_skip_form` table of fewer than 20 arms each exit non-zero. The
+§2 lifts are three source patches quoted in this file; each was reverted and the
+revert confirmed by re-running the base scan to **370 keys, 0 differing**.
 
 ---
 
