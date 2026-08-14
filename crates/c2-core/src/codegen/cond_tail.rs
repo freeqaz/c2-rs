@@ -48,13 +48,57 @@
 //! be a mechanism with no fact behind it. The range check §6.2 item D asks for is
 //! still here, inside [`encode_bc`], because a truncated `BD` is a
 //! legal-looking branch to the wrong place.
+//!
+//! [`encode_bc`]: super::encode::encode_bc
+//!
+//! ## Correction, lane `w-ir-cond`, 2026-08-13 — **the paragraph above is spent**
+//!
+//! It stays on the page as the record of what was true when the phase was scoped
+//! down to a shape, and `STRATEGY_REVIEW_2026-08-13.md` §2 cites it by line
+//! number as the moment that happened.
+//!
+//! 1. **It was RIGHT when it was written, and it stopped being right eleven
+//!    hours later.** This file landed in `be2f00cd`, 2026-08-04 09:38 UTC;
+//!    [`super::labels::LabelMap`] — §6.2 item **B**, board **#290** — landed in
+//!    `b662bc63`, 20:32 UTC the **same day**, in a commit that has this one as
+//!    an ancestor. So "building it now would be a mechanism with no fact behind
+//!    it" was a correct reading of the tree it was written against, and the
+//!    checkable claim to make about it is the *other* one: **the map arrived,
+//!    this file was never revisited, and for nine days and ~150 landed rungs
+//!    neither module pointed at the other.** The failure was not the judgement;
+//!    it was that nothing re-asked the question when its premise expired.
+//! 2. **The trigger this paragraph waits for is the wrong trigger.** The pass is
+//!    not earned by a *variable* block order; it is earned as soon as a body has
+//!    an emission order **at all**, because a displacement computed from
+//!    `then_steps.len()` is a second, private encoding of where the else block
+//!    landed. Two encodings of one fact is the shape `docs/GAPS.md` §6 keeps
+//!    recording, and it is the shape that got `calls.rs` a fixup list with one
+//!    implicit target whose identity was carried by the *shape of a tuple*.
+//! 3. The **range check** is still where it was: inside `encode_bc`, reached now
+//!    through [`Form::Bc`] rather than directly. Nothing about item D moved.
+//!
+//! So this emitter is now written against [`super::block_ir`] — §6.2 item
+//! **A** — as **three [`BasicBlock`]s in an explicit emission order**, and the
+//! `bc`'s displacement is derived by the label map from where the `else` block
+//! actually landed. **Not one emitted byte changed**; that was the lane's whole
+//! success criterion, graded by a line-for-line identity diff of the 878-TU scan
+//! and of every gate lane's fixture-verdict counts
+//! (`docs/rungs/2026-08-13-ircond.md`). The arithmetic it replaces agreed with
+//! the map — `4 * (then_steps.len() + 2)` *is* `else_start − bc_site` for this
+//! shape — which is exactly why this class was the right one to re-express
+//! through a new mechanism: a disagreement would have been a defect in the
+//! mechanism, visible immediately against §4.1's published bytes.
+//!
+//! [`Form::Bc`]: super::labels::Form::Bc
+//! [`BasicBlock`]: super::block_ir::BasicBlock
 
 use c2_il::{CondPlan, CondStep, CondTailPair, IlFunction, Rel};
 
 use crate::BackendError;
+use crate::codegen::block_ir::{BlockOrder, BodyLayout, Terminator};
 use crate::codegen::encode::{
-    cr_bi, encode_bc, encode_cmplwi, encode_cmpwi, encode_mr, BO_FALSE, BO_TRUE, CR_BIT_EQ,
-    CR_BIT_GT, CR_BIT_LT, CR_COMPARE,
+    cr_bi, encode_cmplwi, encode_cmpwi, encode_mr, BO_FALSE, BO_TRUE, CR_BIT_EQ, CR_BIT_GT,
+    CR_BIT_LT, CR_COMPARE,
 };
 use crate::codegen::encode::{encode_addi, encode_rlwinm};
 use crate::codegen::select::out_of_class;
@@ -147,15 +191,27 @@ pub fn cond_pair_parts(
         )
     })?;
 
-    let mut text: Vec<u8> = Vec::with_capacity(0x30);
+    // **Three blocks, in the order §3.4 measured** — the entry, the then-arm as
+    // the fall-through, the else-arm. The order is *stated*
+    // ([`BlockOrder::IlStatement`]) rather than implied by the sequence of
+    // `extend_from_slice` calls this used to be, which is §6.2 item A's actual
+    // requirement: §3.4.1 has one measured cell whose layout inverts, and a
+    // lowering that cannot say which order it claimed cannot be told apart from
+    // one that got the other.
+    let mut layout = BodyLayout::new(BlockOrder::IlStatement);
+    let b_entry = layout.declare("entry");
+    let b_then = layout.declare("then");
+    let b_else = layout.declare("else");
+
     // ---- the entry block: shuffles, then the compare --------------------
     //
     // The shuffles come FIRST, and the compare reads the value's *post-hoist*
     // location. `?mmioGetInfo` is the separating cell: `mr r11,r3 ; cmplwi
     // cr6,r11,0` — it compares r11, because r3 is about to be overwritten by the
     // other hoist. `?MemFree` is the same rule with an untouched r3.
-    emit_steps(&plan.entry, &mut text)?;
-    text.extend_from_slice(&if pair.signed {
+    let mut entry: Vec<u8> = Vec::with_capacity(0x10);
+    emit_steps(&plan.entry, &mut entry)?;
+    entry.extend_from_slice(&if pair.signed {
         let k = i16::try_from(pair.k).map_err(|_| {
             out_of_class("a signed comparison literal wider than `cmpwi`'s immediate")
         })?;
@@ -167,35 +223,46 @@ pub fn cond_pair_parts(
         encode_cmplwi(CR_COMPARE, plan.cmp_reg, k)
     });
 
-    // ---- the branch ------------------------------------------------------
-    //
-    // The then-block is the FALL-THROUGH and the `bc` is the edge to the else
-    // block (§3.4, ten cells consistent). Its displacement is its own width plus
-    // the then-block's: the branch, the then-block's steps, and the then-block's
-    // tail `b`.
-    let then_words = plan.then_steps.len() as i32 + 1;
-    let disp = 4 * (then_words + 1);
+    // The then-block is the FALL-THROUGH and the `bc` is the edge to the ELSE
+    // block (§3.4, ten cells consistent; the condition is the negation of the IL
+    // relation, which is [`branch_sense`]'s rule and stays there). The
+    // displacement is no longer computed here at all: the map derives it from
+    // where `b_else` lands, and the range check §6.2 item D asks for rides along
+    // inside `encode_bc`.
     let (bo, bit) = branch_sense(pair.rel);
-    let bc = encode_bc(bo, cr_bi(CR_COMPARE, bit), disp).ok_or_else(|| {
+    layout.place(
+        b_entry,
+        entry,
+        Terminator::Bc { bo, bi: cr_bi(CR_COMPARE, bit), taken: b_else },
+    )?;
+
+    // ---- the two arms, each ending in a tail `b` to an external ----------
+    //
+    // `Terminator::TailCall` leaves a zero word and reports its offset, because
+    // each `b` encodes **its own `.text` offset** and takes a `REL24` — it is a
+    // relocation, not a label reference, so it never enters the map (board #191,
+    // #290). That is the same reason [`crate::codegen::Selected::Tail`] hands
+    // back an unfinished text.
+    let mut then_text: Vec<u8> = Vec::with_capacity(0x10);
+    emit_steps(&plan.then_steps, &mut then_text)?;
+    layout.place(b_then, then_text, Terminator::TailCall)?;
+
+    let mut else_text: Vec<u8> = Vec::with_capacity(0x10);
+    emit_steps(&plan.else_steps, &mut else_text)?;
+    layout.place(b_else, else_text, Terminator::TailCall)?;
+
+    let body = layout.finish()?;
+    // Block order, so the lower offset is the then-arm's — the invariant
+    // `CondPairParts::branch_offsets` documents, now read off the layout's own
+    // emission order instead of off two `text.len()` snapshots.
+    let branch_offsets: [u32; 2] = body.tail_sites[..].try_into().map_err(|_| {
         out_of_class(
-            "a conditional branch past the 14-bit BD field: the expansion \
-             (invert, branch over an unconditional `b`) is measured but not built",
+            "a two-arm conditional tail call that did not lay out to exactly two \
+             tail branches",
         )
     })?;
-    text.extend_from_slice(&bc);
 
-    // ---- the then block, the else block, and the two tail branches -------
-    emit_steps(&plan.then_steps, &mut text)?;
-    let then_branch = text.len() as u32;
-    text.extend_from_slice(&[0; 4]);
-    emit_steps(&plan.else_steps, &mut text)?;
-    let else_branch = text.len() as u32;
-    text.extend_from_slice(&[0; 4]);
-
-    Ok(CondPairParts {
-        text,
-        branch_offsets: [then_branch, else_branch],
-    })
+    Ok(CondPairParts { text: body.text, branch_offsets })
 }
 
 #[cfg(test)]
