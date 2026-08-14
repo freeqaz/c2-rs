@@ -679,6 +679,39 @@ rung.**
 > exists** — candidates `0x10b36805`, `0x10b38cd4`, `0x10b388eb`,
 > `0x10b3a253`. **Phase 7 has been re-priced upward twice in two days and its
 > floor is still not established.**
+>
+> ### ⚠ 2026-08-14 — THE FLOOR IS NOW ESTABLISHED (`w-merger4`, `#3103` CLOSED)
+>
+> The fourth merger is **`FUN_10b3baa8` @ `0x10b3baa8`** → **`FUN_10b3a790` @
+> `0x10b3a790`** — a **textual** tail merger over **every pair in a label's
+> predecessor list**, using `0x10b36f7e` and K1's own commit pair and
+> **building no DAG at all**. `mg_arm3` at `/O1`: `A0` **1** copy → `A123`
+> **2** → `A123`+`0x10b3baa8` **3**, the source arm count. **All four
+> candidates named above are wrong** — three are entered and byte-neutral, and
+> `0x10b36805` cannot be ablated at all.
+>
+> **The set is CLOSED on the grid**: `AFULL` — `0x10b3c2cc` itself patched to
+> `return 0` — changes **no copy count** relative to that ablation in 13 cells
+> × 6 optimization levels, and 12 of the 13 then match their own `/Od` counts.
+> The 13th, `dk_loop_join`/`mg_loop3`, is **loop-invariant code motion and was
+> never a merge** — `#3103`'s second data point is corrected, not confirmed.
+>
+> **What phase 7 must now contain, and does not grow further from here:** the
+> scheduler, the machine model, **and FIVE merge clients** — `0x10b3b167`,
+> `0x10b3b41b`, `0x10b3b5fd` (DAG), `0x10b3baa8` and `0x10b3ab86` (textual) —
+> all gated `mode == 2` / `/Og` / **not `/LTCG:PGI`**, all running at
+> `0x10b7ded5` before the final schedule. **The re-pricing stops here: this is
+> the first estimate of phase 7 with a measured closure argument under it
+> rather than an open relocation.** Two grey-zones remain and neither can grow
+> the set: `0x10b3ab86` has no firing witness (it is entered and bails, 13/13),
+> and the closure is coverage-bounded to these shapes
+> ([`whitebox/WB_MERGER4_FINDINGS.md`](whitebox/WB_MERGER4_FINDINGS.md) §6).
+>
+> One consequence for the port that is *cheaper* than expected: the merger's
+> equivalence is over **tuples**, not statements or instructions
+> (`mg_none3`, §4.3), so `x = 9` and `x = 8` in two arms **do** share a common
+> tail — the store tuple. A port that models this over source statements will
+> be wrong in both directions.
 
 **Five of the seven have never had a rung that BUILT the phase.** Items 2, 4,
 5, 6 and 7 exist as measurements and declines only — stated precisely, because
