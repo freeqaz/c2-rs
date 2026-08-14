@@ -84,11 +84,13 @@ use c2_il::FpDiamondConstStore;
 
 use crate::BackendError;
 use crate::codegen::encode::{
-    encode_addis, encode_b_intra, encode_bc, encode_blr, encode_cmplwi, encode_fdiv, encode_lfs,
+    encode_addis, encode_blr, encode_cmplwi, encode_fdiv, encode_lfs,
     encode_stfs,
 };
 use crate::codegen::leaf::float::FpConstRef;
 use crate::codegen::select::out_of_class;
+use crate::codegen::labels::Form;
+use crate::codegen::reach;
 
 /// `bf 26` — branch if condition-register bit 26 (`cr6`'s EQ) is FALSE, i.e.
 /// `bne cr6`. `BO = 4` (branch if the bit is clear, no counter), `BI = 26`.
@@ -197,10 +199,11 @@ pub fn fp_store_diamond_text(
     // relocation: it names the else arm, which starts one whole then-block below
     // the branch word itself.
     let to_else = (entry_len - text.len() as u32) + then_len;
-    text.extend_from_slice(
-        &encode_bc(BO_FALSE, BI_CR6_EQ, to_else as i32)
-            .ok_or_else(|| out_of_class("the guard branch does not fit a `bc` displacement"))?,
-    );
+    text.extend_from_slice(&reach::direct(
+        Form::Bc { bo: BO_FALSE, bi: BI_CR6_EQ },
+        to_else as i32,
+        "the fp-store diamond guard branch",
+    )?);
 
     // ---- the THEN arm ------------------------------------------------------
     let b_hi = text.len() as u32;
@@ -228,10 +231,11 @@ pub fn fp_store_diamond_text(
     ));
     // The join is one whole else-block below this word.
     let to_join = (entry_len + then_len - text.len() as u32) + else_len;
-    text.extend_from_slice(
-        &encode_b_intra(to_join as i32)
-            .ok_or_else(|| out_of_class("the join branch does not fit a `b` displacement"))?,
-    );
+    text.extend_from_slice(&reach::direct(
+        Form::B,
+        to_join as i32,
+        "the fp-store diamond join branch",
+    )?);
 
     // ---- the ELSE arm: the CSE'd division run ------------------------------
     let last = d.divs.len() - 1;

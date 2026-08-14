@@ -67,10 +67,12 @@ use c2_il::PtrWalkModLoop;
 
 use crate::codegen::cond::{producer_at, Cond, CR0};
 use crate::codegen::encode::{
-    encode_add, encode_addi, encode_andc, encode_bc, encode_blr, encode_cmplwi, encode_divw,
+    encode_add, encode_addi, encode_andc, encode_blr, encode_cmplwi, encode_divw,
     encode_lbz, encode_lbzu, encode_mr, encode_mr_record, encode_mulli, encode_mullw,
     encode_rlwinm, encode_subf, encode_twi, BO_FALSE, BO_TRUE, CR_BIT_EQ,
 };
+use crate::codegen::labels::Form;
+use crate::codegen::reach;
 use crate::codegen::select::{out_of_class, OptMode};
 use crate::BackendError;
 
@@ -195,12 +197,11 @@ pub(crate) fn ptr_walk_loop_text(
     // first word that does.
     let back_at = t.len();
     let back_cond = Cond::new(producer_at(&t[..back_at], "ptr-walk loop back edge")?, BO_FALSE, CR_BIT_EQ);
-    let back = encode_bc(
-        back_cond.bo(),
-        back_cond.bi(),
+    let back = reach::direct(
+        Form::Bc { bo: back_cond.bo(), bi: back_cond.bi() },
         loop_top as i32 - back_at as i32,
-    )
-    .ok_or_else(|| out_of_class("ptr-walk loop back edge past the `bc` field"))?;
+        "ptr-walk loop back edge",
+    )?;
     t.extend_from_slice(&back);
     // --- the exit ------------------------------------------------------------
     let exit_at = t.len();
@@ -212,12 +213,11 @@ pub(crate) fn ptr_walk_loop_text(
     // §3.2's two producers, which is why one constant could never have said
     // both.
     let guard_cond = Cond::new(producer_at(&t[..guard_at], "ptr-walk loop entry guard")?, BO_TRUE, CR_BIT_EQ);
-    let guard = encode_bc(
-        guard_cond.bo(),
-        guard_cond.bi(),
+    let guard = reach::direct(
+        Form::Bc { bo: guard_cond.bo(), bi: guard_cond.bi() },
         exit_at as i32 - guard_at as i32,
-    )
-    .ok_or_else(|| out_of_class("ptr-walk loop entry guard past the `bc` field"))?;
+        "ptr-walk loop entry guard",
+    )?;
     t[guard_at..guard_at + 4].copy_from_slice(&guard);
 
     debug_assert_eq!(t.len(), 80, "the class's body length is a constant");

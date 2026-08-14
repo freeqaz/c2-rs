@@ -72,7 +72,7 @@
 
 use crate::codegen::calls::encode_call_branch;
 use crate::codegen::encode::{
-    cr_bi, encode_addi, encode_addis, encode_bc, encode_cmplwi, encode_lwz, encode_mr, encode_stb,
+    cr_bi, encode_addi, encode_addis, encode_cmplwi, encode_lwz, encode_mr, encode_stb,
     encode_stw, BO_FALSE, BO_TRUE, CR_BIT_EQ, CR_COMPARE,
 };
 use crate::codegen::frame::FrameLayout;
@@ -80,6 +80,8 @@ use crate::codegen::select::{fits_i16, out_of_class, ARG_REGS, RET_REG, SCRATCH_
 use crate::codegen::OptMode;
 use crate::BackendError;
 use c2_il::AllocInitOrFailFn;
+use crate::codegen::labels::Form;
+use crate::codegen::reach;
 
 /// The callee-saved register the RECEIVER is parked in — `this`, read at 0x58,
 /// 0x60 and 0x70.
@@ -219,8 +221,11 @@ pub fn alloc_init_or_fail_text(
     // constant, so a change to any block's length moves them all together. A
     // hardcoded `+0x4c` would keep linking and stop being right.
     let mut patch = |site: u32, target: u32, bo: u8, bi: u8| -> Result<(), BackendError> {
-        let w = encode_bc(bo, bi, target as i32 - site as i32)
-            .ok_or_else(|| out_of_class("a guarded-allocation branch outside its displacement field"))?;
+        let w = reach::direct(
+            Form::Bc { bo, bi },
+            target as i32 - site as i32,
+            "a guarded-allocation branch",
+        )?;
         t[site as usize..site as usize + 4].copy_from_slice(&w);
         Ok(())
     };
@@ -234,6 +239,7 @@ pub fn alloc_init_or_fail_text(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::codegen::encode::encode_bc;
 
     /// `?append@DName@@QAAXPAVDNameNode@@@Z`'s parse, as the reader produces it
     /// from the workload's own IL. Tokens are the capture's; the names are the

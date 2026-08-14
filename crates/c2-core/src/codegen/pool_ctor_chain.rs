@@ -75,12 +75,14 @@
 use c2_il::PoolCtorChain;
 
 use crate::codegen::encode::{
-    cr_bi, encode_add, encode_addi, encode_andc, encode_bc, encode_bdnz, encode_blr,
+    cr_bi, encode_add, encode_addi, encode_andc, encode_bdnz, encode_blr,
     encode_cmpwi, encode_divw, encode_mr, encode_mtctr, encode_rlwinm, encode_stw, encode_twi,
     BO_FALSE, CR_BIT_GT, CR_COMPARE,
 };
 use crate::codegen::select::{out_of_class, OptMode};
 use crate::BackendError;
+use crate::codegen::labels::Form;
+use crate::codegen::reach;
 
 /// `this` — the object, r3.
 const R_THIS: u8 = 3;
@@ -159,11 +161,11 @@ pub(crate) fn pool_ctor_chain_text(
 
     // ---- the source's own `if (count > 1)` --------------------------------
     t.extend_from_slice(&encode_cmpwi(CR_COMPARE, R_COUNT, 1));
-    t.extend_from_slice(
-        &encode_bc(BO_FALSE, cr_bi(CR_COMPARE, CR_BIT_GT), GUARD_SKIP_BYTES).ok_or_else(|| {
-            out_of_class("the guard's displacement does not fit a `bc`")
-        })?,
-    );
+    t.extend_from_slice(&reach::direct(
+        Form::Bc { bo: BO_FALSE, bi: cr_bi(CR_COMPARE, CR_BIT_GT) },
+        GUARD_SKIP_BYTES,
+        "the pool-ctor guard",
+    )?);
 
     // ---- the preheader: `n = count - 1`, and n IS the trip count ----------
     t.extend_from_slice(&encode_addi(R_COUNT, R_COUNT, -1));

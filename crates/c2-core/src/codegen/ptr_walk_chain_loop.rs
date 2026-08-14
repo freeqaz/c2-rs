@@ -77,10 +77,12 @@ use c2_il::{ChainOpKind, ChainRhs, PtrWalkChainLoop};
 
 use crate::codegen::cond::{producer_at, Cond, CR0};
 use crate::codegen::encode::{
-    encode_add, encode_addi, encode_b_intra, encode_bc, encode_bclr, encode_blr, encode_cmplwi,
+    encode_add, encode_addi, encode_bclr, encode_blr, encode_cmplwi,
     encode_extsb_record, encode_lbz, encode_lbzu, encode_mr, encode_mr_record, encode_mulli,
     encode_mullw, encode_or, encode_ori, encode_xor, encode_xori, BO_FALSE, BO_TRUE, CR_BIT_EQ,
 };
+use crate::codegen::labels::Form;
+use crate::codegen::reach;
 use crate::codegen::select::{out_of_class, OptMode};
 use crate::BackendError;
 
@@ -235,10 +237,11 @@ pub(crate) fn ptr_walk_chain_loop_text(
         // **JUMPIN.** The record form is the entry test, so the preamble jumps
         // into it. Computed from the body's length rather than written down.
         let disp = 4 * (body_len as i32);
-        t.extend_from_slice(
-            &encode_b_intra(disp)
-                .ok_or_else(|| out_of_class("ptr-walk chain loop entry jump past the `b` field"))?,
-        );
+        t.extend_from_slice(&reach::direct(
+            Form::B,
+            disp,
+            "ptr-walk chain loop entry jump",
+        )?);
     } else {
         // The peeled character's own test, then **P2's `bclr`**: the block the
         // loop falls out to is a bare `blr`, so the guard folds and carries no
@@ -276,10 +279,11 @@ pub(crate) fn ptr_walk_chain_loop_text(
         BO_FALSE,
         CR_BIT_EQ,
     );
-    t.extend_from_slice(
-        &encode_bc(back.bo(), back.bi(), loop_top as i32 - back_at as i32)
-            .ok_or_else(|| out_of_class("ptr-walk chain loop back edge past the `bc` field"))?,
-    );
+    t.extend_from_slice(&reach::direct(
+        Form::Bc { bo: back.bo(), bi: back.bi() },
+        loop_top as i32 - back_at as i32,
+        "ptr-walk chain loop back edge",
+    )?);
     // ---- the fall-out block, which P2 is a claim about ---------------------
     t.extend_from_slice(&encode_blr());
 

@@ -123,7 +123,7 @@
 
 use crate::codegen::calls::encode_call_branch;
 use crate::codegen::encode::{
-    cr_bi, encode_addi, encode_b_intra, encode_bc, encode_cmplw, encode_cmplwi, encode_lwz,
+    cr_bi, encode_addi, encode_cmplw, encode_cmplwi, encode_lwz,
     encode_mr, encode_stw, BO_FALSE, CR_BIT_EQ, CR_BIT_LT, CR_COMPARE,
 };
 use crate::codegen::frame::FrameLayout;
@@ -131,6 +131,8 @@ use crate::codegen::select::{fits_i16, out_of_class};
 use crate::codegen::OptMode;
 use crate::BackendError;
 use c2_il::{GuardRetChain, GuardRetSpine};
+use crate::codegen::labels::Form;
+use crate::codegen::reach;
 
 /// The condition-register field every guard and the clamp read. Literal, and
 /// re-confirmed on this class's own objs rather than adopted from
@@ -258,10 +260,11 @@ pub fn guard_ret_chain_text(
         let k = i16::try_from(guard.ret)
             .map_err(|_| out_of_class("guard-ret-chain return literal wider than simm16"))?;
         t.extend_from_slice(&encode_cmplwi(GUARD_CRF, guard_reg[i], 0));
-        t.extend_from_slice(
-            &encode_bc(BO_FALSE, cr_bi(GUARD_CRF, CR_BIT_EQ), 12)
-                .ok_or_else(|| out_of_class("guard-ret-chain guard branch out of range"))?,
-        );
+        t.extend_from_slice(&reach::direct(
+            Form::Bc { bo: BO_FALSE, bi: cr_bi(GUARD_CRF, CR_BIT_EQ) },
+            12,
+            "guard-ret-chain guard branch",
+        )?);
         t.extend_from_slice(&encode_li(3, k));
         arm_branches.push(t.len());
         t.extend_from_slice(&[0, 0, 0, 0]);
@@ -299,10 +302,11 @@ pub fn guard_ret_chain_text(
         // `cmplw cr6,r10,r11` then `bf 24` — bit 24 is crf6's LT bit, NOT the
         // EQ bit every guard above reads. The store runs when `hi < lo`.
         t.extend_from_slice(&encode_cmplw(GUARD_CRF, CLAMP_HI_REG, CLAMP_LO_REG));
-        t.extend_from_slice(
-            &encode_bc(BO_FALSE, cr_bi(GUARD_CRF, CR_BIT_LT), 8)
-                .ok_or_else(|| out_of_class("guard-ret-chain clamp branch out of range"))?,
-        );
+        t.extend_from_slice(&reach::direct(
+            Form::Bc { bo: BO_FALSE, bi: cr_bi(GUARD_CRF, CR_BIT_LT) },
+            8,
+            "guard-ret-chain clamp branch",
+        )?);
         t.extend_from_slice(&encode_stw(CLAMP_LO_REG, PARK_REG, hi as i16));
     }
 
@@ -314,8 +318,7 @@ pub fn guard_ret_chain_text(
 
     for site in arm_branches {
         let disp = (epi - site) as i32;
-        let w = encode_b_intra(disp)
-            .ok_or_else(|| out_of_class("guard-ret-chain arm branch out of range"))?;
+        let w = reach::direct(Form::B, disp, "guard-ret-chain arm branch")?;
         t[site..site + 4].copy_from_slice(&w);
     }
 

@@ -84,7 +84,7 @@
 
 use crate::codegen::calls::encode_call_branch;
 use crate::codegen::encode::{
-    cr_bi, encode_addi, encode_addis, encode_b_intra, encode_bc, encode_cmplwi, encode_cmpwi,
+    cr_bi, encode_addi, encode_addis, encode_cmplwi, encode_cmpwi,
     encode_mr, encode_stb, encode_sth, encode_stw, BO_FALSE, BO_TRUE, CR_BIT_EQ, CR_BIT_LT,
     CR_COMPARE,
 };
@@ -93,6 +93,8 @@ use crate::codegen::select::{fits_i16, out_of_class, ARG_REGS, RET_REG, SCRATCH_
 use crate::codegen::OptMode;
 use crate::BackendError;
 use c2_il::GuardChainSharedTailFn;
+use crate::codegen::labels::Form;
+use crate::codegen::reach;
 
 /// The callee-saved register the store target is parked in for the whole body.
 /// It is the only saved GPR, which is what makes the frame `saved_gprs: 1`.
@@ -289,11 +291,11 @@ pub fn guard_chain_shared_tail_text(
     // hardcoded `+0x58` would keep linking and stop being right.
     let mut patch = |site: u32, target: u32, bo: u8, bi: Option<u8>| -> Result<(), BackendError> {
         let disp = target as i32 - site as i32;
-        let w = match bi {
-            Some(bi) => encode_bc(bo, bi, disp),
-            None => encode_b_intra(disp),
-        }
-        .ok_or_else(|| out_of_class("a shared-tail branch outside its displacement field"))?;
+        let form = match bi {
+            Some(bi) => Form::Bc { bo, bi },
+            None => Form::B,
+        };
+        let w = reach::direct(form, disp, "a shared-tail branch")?;
         t[site as usize..site as usize + 4].copy_from_slice(&w);
         Ok(())
     };

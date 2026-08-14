@@ -86,7 +86,7 @@
 
 use crate::codegen::calls::encode_call_branch;
 use crate::codegen::encode::{
-    cr_bi, encode_addi, encode_b_intra, encode_bc, encode_bctrl, encode_cmplwi, encode_lwz,
+    cr_bi, encode_addi, encode_bctrl, encode_cmplwi, encode_lwz,
     encode_mr, encode_mtctr, BO_FALSE, CR_BIT_EQ,
 };
 use crate::codegen::frame::FrameLayout;
@@ -94,6 +94,8 @@ use crate::codegen::select::{fits_i16, out_of_class};
 use crate::codegen::OptMode;
 use crate::BackendError;
 use c2_il::CloseCallChain;
+use crate::codegen::labels::Form;
+use crate::codegen::reach;
 
 /// The condition-register field the GUARD reads — `2b030000` is
 /// `cmplwi cr6,r3,0`, the same field [`super::guard_ret_chain`] measures.
@@ -205,10 +207,11 @@ pub fn close_call_chain_text(
 
     // ---- the guard, on cr6, reading r3 itself ---------------------------------
     t.extend_from_slice(&encode_cmplwi(GUARD_CRF, 3, 0));
-    t.extend_from_slice(
-        &encode_bc(BO_FALSE, cr_bi(GUARD_CRF, CR_BIT_EQ), 12)
-            .ok_or_else(|| out_of_class("close-call-chain guard branch out of range"))?,
-    );
+    t.extend_from_slice(&reach::direct(
+        Form::Bc { bo: BO_FALSE, bi: cr_bi(GUARD_CRF, CR_BIT_EQ) },
+        12,
+        "close-call-chain guard branch",
+    )?);
     t.extend_from_slice(&encode_li(3, k));
     epi_branches.push(t.len());
     t.extend_from_slice(&[0, 0, 0, 0]);
@@ -257,15 +260,15 @@ pub fn close_call_chain_text(
 
     for (i, site) in epi_branches.iter().enumerate() {
         let disp = (epi - site) as i32;
-        let w = if i == 0 {
+        let form = if i == 0 {
             // The guard's arm is an unconditional `b`.
-            encode_b_intra(disp)
+            Form::B
         } else {
             // Both result branches are `bf 2` on cr0 — `BO_FALSE` with the EQ
             // bit of field 0.
-            encode_bc(BO_FALSE, cr_bi(RESULT_CRF, CR_BIT_EQ), disp)
+            Form::Bc { bo: BO_FALSE, bi: cr_bi(RESULT_CRF, CR_BIT_EQ) }
         };
-        let w = w.ok_or_else(|| out_of_class("close-call-chain epilogue branch out of range"))?;
+        let w = reach::direct(form, disp, "close-call-chain epilogue branch")?;
         t[*site..*site + 4].copy_from_slice(&w);
     }
 

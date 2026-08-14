@@ -54,13 +54,15 @@
 //! CTR is not available across it.
 
 use crate::codegen::encode::{
-    encode_addi, encode_addic_record, encode_bc, encode_ld, encode_mr, encode_stdu, encode_stdx,
+    encode_addi, encode_addic_record, encode_ld, encode_mr, encode_stdu, encode_stdx,
     encode_subf, encode_xor,
 };
 use crate::codegen::frame::FrameLayout;
 use crate::codegen::select::{out_of_class, OptMode};
 use crate::BackendError;
 use c2_il::XteaEncryptLoop;
+use crate::codegen::labels::Form;
+use crate::codegen::reach;
 
 /// Callee-saved GPRs: r26–r31, so the helpers are `__savegprlr_26` /
 /// `__restgprlr_26`. Six, which is what `FrameLayout`'s own rule turns into the
@@ -178,10 +180,11 @@ pub fn xtea_encrypt_loop_text(
     t.extend_from_slice(&encode_addi(R_T11, R_T11, 1));
     t.extend_from_slice(&encode_stdu(R_T11, R_NONCE, ELEM as i16));
     let back = loop_top as i32 - t.len() as i32;
-    t.extend_from_slice(
-        &encode_bc(BO_FALSE, BI_CR0_EQ, back)
-            .ok_or_else(|| out_of_class("an XTEA block loop whose back edge does not fit a `bc`"))?,
-    );
+    t.extend_from_slice(&reach::direct(
+        Form::Bc { bo: BO_FALSE, bi: BI_CR0_EQ },
+        back,
+        "an XTEA block loop back edge",
+    )?);
 
     // ---- the Class C epilogue: two words, and no `blr` ----------------------
     let epi = base_off + t.len() as u32;

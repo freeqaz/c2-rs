@@ -210,6 +210,16 @@ impl Cond {
     pub fn bi(self) -> u8 {
         cr_bi(self.crf(), self.bit)
     }
+
+    /// **The same test, read the other way** — the condition §3.3.1's expansion
+    /// puts on its inverted `bc`.
+    ///
+    /// The producer, the field and the bit are unchanged: only the sense moves,
+    /// through [`invert_sense`], which is the one reader of that flip. `None`
+    /// for a `BO` with no sense — see [`invert_sense`].
+    pub fn inverted(self) -> Option<Self> {
+        Some(Cond { producer: self.producer, bo: invert_sense(self.bo)?, bit: self.bit })
+    }
 }
 
 /// The `BO` bit that means **"ignore the condition register"**.
@@ -226,6 +236,42 @@ impl Cond {
 /// [`BO_TRUE`]: super::encode::BO_TRUE
 /// [`BO_FALSE`]: super::encode::BO_FALSE
 pub const BO_IGNORES_CR: u8 = 0x10;
+
+/// The `BO` bit that carries **the sense** — "branch if the bit is SET" versus
+/// "branch if the bit is CLEAR".
+///
+/// PowerPC `BO` bit 1 (`0x08`). It is the **only** bit that differs between
+/// [`BO_TRUE`] (12 = `0b01100`) and [`BO_FALSE`] (4 = `0b00100`), which is why
+/// [`invert_sense`] is a flip of one bit and not a table.
+///
+/// [`BO_TRUE`]: super::encode::BO_TRUE
+/// [`BO_FALSE`]: super::encode::BO_FALSE
+pub const BO_SENSE_BIT: u8 = 0x08;
+
+/// **The opposite sense of the same test** — `BO_TRUE` ⇄ `BO_FALSE` — or `None`
+/// for a `BO` that has no sense to invert.
+///
+/// `CFG_SHAPE.md` §3.3.1's long-branch expansion opens by *inverting the
+/// condition*: the measured pair is `409a…` (`bne cr6`, `BO_FALSE`) becoming
+/// `419a0008` (`beq cr6,+8`, `BO_TRUE`) with `BI` **unchanged**. So the
+/// inversion is over the sense alone; the field and the bit are the branch's
+/// and stay the branch's. [`super::reach`] is the reader that needs it —
+/// `CFG_SHAPE.md` §6.2 item **D**.
+///
+/// **It refuses exactly what [`BO_IGNORES_CR`] covers**, delegating rather than
+/// restating: `BO_ALWAYS` (20) and `BO_DNZ` (16) do not test a condition
+/// register, so "the opposite condition" is not a thing they have.
+/// `BO_DNZ`'s opposite is `BO_DZ`, a different *counter* test and not a sense
+/// flip at all — inverting it by this bit would give `BO = 24`, which tests
+/// CTR-and-the-CR and is a third form no cell in this document measures. A
+/// `Some` here would be a legal-looking branch on a rule with no witness.
+pub fn invert_sense(bo: u8) -> Option<u8> {
+    if bo & BO_IGNORES_CR != 0 {
+        None
+    } else {
+        Some(bo ^ BO_SENSE_BIT)
+    }
+}
 
 /// The condition-register **field a branch reads**, or `None` if it reads none.
 ///
@@ -695,5 +741,35 @@ mod tests {
         let d = Cond::compare(BO_TRUE, CR_BIT_LT);
         assert_eq!(d.crf(), 6);
         assert_eq!(d.bi(), 24);
+    }
+
+    /// **Inverting a condition moves the sense and nothing else** — the
+    /// producer, the field and the bit are the branch's, and `BI` is therefore
+    /// unchanged. That is what `CFG_SHAPE.md` §3.3.1's expansion does when it
+    /// turns `409a…` into `419a…`, and [`super::super::reach`] is the reader.
+    #[test]
+    fn inverting_a_cond_moves_only_the_sense() {
+        let c = Cond::record_form(BO_FALSE, CR_BIT_EQ);
+        let i = c.inverted().expect("a record-form test has a sense");
+        assert_eq!(i.bo(), BO_TRUE);
+        assert_eq!(i.producer(), c.producer());
+        assert_eq!(i.bit(), c.bit());
+        assert_eq!(i.bi(), c.bi(), "BI is the branch's own and does not move");
+        assert_eq!(i.inverted(), Some(c), "the flip is an involution");
+    }
+
+    /// A `BO` that does not consult the condition register has no condition to
+    /// invert, and the refusal is [`BO_IGNORES_CR`]'s and not a second list.
+    /// `BO_DNZ`'s opposite is `BO_DZ` — a different counter test, not a sense
+    /// flip — so a `Some` here would be a branch form nothing measured.
+    #[test]
+    fn a_bo_that_ignores_the_cr_has_no_sense_to_invert() {
+        assert_eq!(invert_sense(BO_ALWAYS), None);
+        assert_eq!(invert_sense(BO_DNZ), None);
+        assert_eq!(Cond::new(CondProducer::compare(), BO_ALWAYS, CR_BIT_EQ).inverted(), None);
+        // …and every BO that BO_IGNORES_CR does not cover does have one.
+        for bo in [BO_TRUE, BO_FALSE] {
+            assert_eq!(invert_sense(bo).and_then(invert_sense), Some(bo));
+        }
     }
 }
