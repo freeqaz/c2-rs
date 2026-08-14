@@ -306,14 +306,35 @@ number is worse than a stopped run.
    the 9 unexecuted ones are exactly the population where a `debug_assert` buys
    nothing at all.
 
+## A note on `Kind:`
+
+`characterization`, and the fit is imperfect rather than silently forced. The
+lane's *question* was a characterization question — which of two things is
+right — and it was settled by grading real c2's obj bytes, which is kind 3's
+criterion. It did land code, which kind 3 says it does not: three corrected
+assertions, one `saturating_sub`, one script. What it did **not** do is kind 2's
+defining act — re-express an already-byte-exact class through new machinery — so
+`construct` would have been the worse label. The deliverable is the finding; the
+code is its consequence.
+
 ## Gate evidence
 
 | lane | result |
 |---|---|
-| `cargo test --workspace --release --no-fail-fast` | see §"Landing" below |
-| `cargo test --workspace` (**DEBUG — the point of this lane**), base `da3ed0d3` | **RED: 42 targets, 1,546 passed, 2 FAILED** |
-| `cargo test --workspace` (**DEBUG**), tip | **GREEN: 42 targets, 1,548 passed, 0 failed** |
-| `scripts/debug_lane.sh` (**DEBUG**, 18 lanes × 381 fixtures) | **18/18 PASS, 0 panics, 0 mismatch, 125 s** |
-| `scripts/gate.sh --jobs 4 --require-graded` | see §"Landing" below |
+| `cargo test --workspace --release --no-fail-fast` | **42 targets, 1,548 passed, 0 failed** — identical to base (**1,548 / 42**), **+0 tests**, and §"Estimate vs outcome" P4c says why that is the right number and not a shortfall |
+| `crates/c2-harness/tests/rung_registry.rs` | **2 passed, 0 failed** (`rung_docs_claim_their_tag_slug_and_fixtures_exactly_once`, `rung_index_is_generated_and_current`) |
+| `cargo test --workspace` (**DEBUG — the point of this lane**), base `da3ed0d3` | **RED: 42 targets, 1,546 passed, 2 FAILED**, both at `writer.rs:658` |
+| `cargo test --workspace` (**DEBUG**), tip | **GREEN: 42 targets, 1,548 passed, 0 failed, 0 panics** |
+| `scripts/debug_lane.sh` (**DEBUG**, 18 lanes × 381 fixtures) | **18/18 PASS, 0 panics, 0 mismatch, 125 s**; per-lane `match` equal to the release table below, digit for digit |
+| `scripts/gate.sh --jobs 4 --require-graded` | **GATE: PASS (HATCH-RED REFUSED)**, exit 0. 18 lanes in the registry — **18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT**; **6,858 fixture-verdicts**; sweep **19,556 of 19,556 reached, 19,460 GRADED, 0 mismatch**; cross **90,424 of 90,812 graded, 0 mismatch**. `graded tree` **`b0ff574cdb34` (727 files) — identical at both ends** |
+| `scripts/board_audit.sh` | **all-zero**: 0 cited-but-not-on-board, 0 unresolved section anchors, 0 raw line-number anchors, 0 rows behind the prose, 0 duplicate row numbers (1,686 board rows, 259 ROADMAP citations) |
 | release `c2rs gap`, 381 fixtures `/Ox /Gy`, base vs tip | **1,861 lines identical** |
 | fixtures, oracle | `wwbss_two.cpp` **`match / byte-exact`**, `wwrap_gstore.cpp` **`match / byte-exact`** |
+
+Against master's own recorded tip run (`rungs/2026-08-13-ircond.md`,
+`graded tree 79901aa0745b`, 726 files): **every count is identical** — 18 PASS,
+6,858 fixture-verdicts, sweep 19,556 / 19,460 / 0, cross 90,424 / 90,812 / 0.
+The only difference is the tree hash and its file count, **727 against 726**,
+which is `scripts/debug_lane.sh` and nothing else. `HATCH-RED REFUSED` is the
+standing condition on this tree (board #1389) and is recorded verbatim in
+master's own base *and* tip runs; it is not this lane's.
