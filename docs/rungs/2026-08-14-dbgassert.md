@@ -355,22 +355,41 @@ code is its consequence.
 
 ## Gate evidence
 
+**Re-graded on the REBASED tree.** The lane was rebased onto master `8a210c27`
+(`w-ir-e` merged, rows #3078–#3082) after its first full gate. The rebase
+conflicted **only** on `docs/BOARD.md` and `docs/rungs/INDEX.md` — **no code
+conflict, and none in `gap/fnbytes.rs`** — and it changed no byte of this lane's
+own `crates/` or `scripts/` content. But the *tree* is new: it now carries
+`w-ir-e`'s `codegen/` work, which no run of mine had seen. The merged
+configuration is one no prior run covered (`w-ir-cond`'s rule, `cf40b43b`), so
+every row below is the **post-rebase** run. The pre-rebase run is recorded
+underneath it, unchanged, because a discarded green run is still evidence about
+the tree it graded.
+
 | lane | result |
 |---|---|
-| `cargo test --workspace --release --no-fail-fast` | **42 targets, 1,548 passed, 0 failed** — identical to base (**1,548 / 42**), **+0 tests**, and §"Estimate vs outcome" P4c says why that is the right number and not a shortfall |
+| `scripts/gate.sh --jobs 4 --require-graded` (**rebased**) | **GATE: PASS (HATCH-RED REFUSED)**, exit 0. 18 lanes in the registry — **18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT**; **6,858 fixture-verdicts**; sweep **19,556 of 19,556 reached, 19,460 GRADED, 0 mismatch**; cross **90,424 of 90,812 graded, 0 mismatch**. `graded tree` **`b865e54d6939` (728 files) — identical at both ends** |
+| `cargo test --workspace --release --no-fail-fast` (**rebased**) | **1,567 passed, 0 failed, 42 targets**, exit 0 — identical to master `8a210c27`'s own **1,567 / 42** (`rungs/2026-08-14-ire.md` §306). **This lane's delta is +0 tests**, and §"Estimate vs outcome" P4c says why that is right rather than a shortfall |
 | `crates/c2-harness/tests/rung_registry.rs` | **2 passed, 0 failed** (`rung_docs_claim_their_tag_slug_and_fixtures_exactly_once`, `rung_index_is_generated_and_current`) |
-| `cargo test --workspace` (**DEBUG — the point of this lane**), base `da3ed0d3` | **RED: 42 targets, 1,546 passed, 2 FAILED**, both at `writer.rs:658` |
-| `cargo test --workspace` (**DEBUG**), tip | **GREEN: 42 targets, 1,548 passed, 0 failed, 0 panics** |
-| `scripts/debug_lane.sh` (**DEBUG**, 18 lanes × 381 fixtures) | **18/18 PASS, 0 panics, 0 mismatch, 125 s**; per-lane `match` equal to the release table below, digit for digit |
-| `scripts/gate.sh --jobs 4 --require-graded` | **GATE: PASS (HATCH-RED REFUSED)**, exit 0. 18 lanes in the registry — **18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT**; **6,858 fixture-verdicts**; sweep **19,556 of 19,556 reached, 19,460 GRADED, 0 mismatch**; cross **90,424 of 90,812 graded, 0 mismatch**. `graded tree` **`b0ff574cdb34` (727 files) — identical at both ends** |
-| `scripts/board_audit.sh` | **all-zero**: 0 cited-but-not-on-board, 0 unresolved section anchors, 0 raw line-number anchors, 0 rows behind the prose, 0 duplicate row numbers (1,686 board rows, 259 ROADMAP citations) |
-| release `c2rs gap`, 381 fixtures `/Ox /Gy`, base vs tip | **1,861 lines identical** |
+| `cargo test --workspace` (**DEBUG — the point of this lane**), base `8a210c27` | **RED**, and the defect is still live at the *new* base: the same two tests, the same `writer.rs:658`, the same `left: 496 / right: 0` and `left: 536 / right: 0`. `w-ir-e`'s merge did not touch it |
+| `cargo test --workspace` (**DEBUG**), tip | **GREEN: 42 targets, 1,567 passed, 0 failed, 0 panics** |
+| `scripts/debug_lane.sh` (**DEBUG**, 18 lanes × 381 fixtures, rebased) | **18/18 PASS, 0 panics, 0 mismatch, 70 s**; per-lane `match` **identical to the release gate's, all 18 lanes**, checked by diff rather than by eye |
+| `scripts/board_audit.sh` (after minting #3083–#3087) | **all-zero**: 0 cited-but-not-on-board, 0 unresolved section anchors, 0 raw line-number anchors, 0 rows behind the prose, 0 duplicate row numbers (**1,696** board rows, 259 ROADMAP citations) |
+| release `c2rs gap`, 381 fixtures `/Ox /Gy`, base vs tip | **1,861 lines identical** (taken pre-rebase, against base `da3ed0d3`; the diff under test is byte-identical after the rebase) |
 | fixtures, oracle | `wwbss_two.cpp` **`match / byte-exact`**, `wwrap_gstore.cpp` **`match / byte-exact`** |
 
-Against master's own recorded tip run (`rungs/2026-08-13-ircond.md`,
-`graded tree 79901aa0745b`, 726 files): **every count is identical** — 18 PASS,
-6,858 fixture-verdicts, sweep 19,556 / 19,460 / 0, cross 90,424 / 90,812 / 0.
-The only difference is the tree hash and its file count, **727 against 726**,
-which is `scripts/debug_lane.sh` and nothing else. `HATCH-RED REFUSED` is the
-standing condition on this tree (board #1389) and is recorded verbatim in
-master's own base *and* tip runs; it is not this lane's.
+Every count in the rebased gate is **identical to master's own tip run of
+record** (`rungs/2026-08-14-ire.md`): 18 PASS, 6,858 fixture-verdicts, sweep
+19,556 / 19,460 / 0, cross 90,424 / 90,812 / 0. The only difference is the tree
+hash and its file count — **728 against master's 727** — which is
+`scripts/debug_lane.sh` and nothing else. `HATCH-RED REFUSED` is the standing
+condition on this tree (board #1389), recorded verbatim in master's own base
+*and* tip runs; it is not this lane's.
+
+**Pre-rebase run, kept rather than dropped.** Base `da3ed0d3`, `graded tree`
+**`b0ff574cdb34` (727 files) — identical at both ends**, GATE PASS (HATCH-RED
+REFUSED), 18 PASS / 0 FAIL / 0 SKIP / 0 NO-RESULT, 6,858 fixture-verdicts, sweep
+19,556 / 19,460 / 0, cross 90,424 / 90,812 / 0; release tests **1,548 / 42**
+(master's count before `w-ir-e`), debug tests **RED 1,546 / 2 FAILED** at base and
+**GREEN 1,548 / 0** at tip; `debug_lane.sh` **18/18 PASS, 0 panics, 125 s**.
+Two independent trees, the same verdict.
