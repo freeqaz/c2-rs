@@ -633,6 +633,35 @@ rung.**
 > DAG-builder clients bypass the region finder, are unread, and no cell of
 > `w-dagorder`'s grid could detect it if any of them reorders tuples.
 
+> **✔ 2026-08-14 — #3071's BLIND SPOT WAS REAL, AND PHASE 7 IS DEARER AGAIN**
+> (`w-dagclients`, board **#3099**–**#3103**). **Two of the four DO reorder
+> tuples.** `0x10b3b167` (tail-merge / cross-jump) and `0x10b3b41b` (head-merge
+> / hoist) are a **dependence-DAG BLOCK MERGER**: each builds the scheduler's
+> own DAG over **two blocks at once** with the region finder never involved,
+> and **unlinks and re-inserts tuples through the same links the scheduler
+> re-links**. **They run at `0x10b7ded5`, BEFORE `0x10b7df57`'s final schedule,
+> so the scheduler's `node+0x44` original-index tie-break is assigned from the
+> POST-MERGE order** — their output is the scheduler's input, and the tie-break
+> `w-dagorder` fitted is fed by a pass it never saw. Reproducing c2's
+> within-block order needs **the merger as well as the scheduler and the
+> machine model**.
+>
+> **Gated on `/Og`, `mode==2`, and NOT `/LTCG:PGI`** — so a port reproducing
+> instruction order under PGO reproduces a *different* order. That is a fact
+> about the workload's build flags, not only about the port.
+>
+> **The evidence is an ablation, not a reading** (#3100): `dt_sfx` at `/O1` is
+> 13 instructions with one hoisted store on the pinned image and **16 with two
+> copies inside the arms** once the clients are ablated — motion the scheduler
+> **provably cannot do** (#3069, 15/15). The lane's own preregistered
+> discriminator **missed**; the ablation answered it.
+>
+> **AND IT RELOCATES RATHER THAN CLOSES** (#3103, **OPEN**): with all three
+> ablated, a cell **still** collapses 3 copies to 2, so a **FOURTH merger
+> exists** — candidates `0x10b36805`, `0x10b38cd4`, `0x10b388eb`,
+> `0x10b3a253`. **Phase 7 has been re-priced upward twice in two days and its
+> floor is still not established.**
+
 **Five of the seven have never had a rung that BUILT the phase.** Items 2, 4,
 5, 6 and 7 exist as measurements and declines only — stated precisely, because
 the literal "never had a rung" is contradicted by `rungs/INDEX.md`: item 2 has
