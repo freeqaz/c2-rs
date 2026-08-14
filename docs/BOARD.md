@@ -2712,6 +2712,32 @@ and `vgl-prereg:<line>` are line numbers into frozen one-shot rung records under
 > block supersedes it.** **No lane is in flight as this block is written**, so
 > the next allocation starts at **`#3104`** from a clean board, and *this*
 > sentence is now the one to re-read immediately before minting.
+
+> ### Lane `w-deaccept` has **FIVE ROWS AWAITING NUMBERS** and minted none. **THE NEXT FREE NUMBER IS STILL `#3104`.**
+>
+> The rows are authored in full — item, worth, defined, notes — as
+> `docs/rungs/2026-08-14-deaccept.md` §7, lettered **(A)**–**(E)** and
+> explicitly holding no number, on lane `w-pair`'s precedent above. **They are
+> not minted here** because the lane landed on a worktree branch and this file's
+> own "Contradictions carried deliberately" item 1 records *"numbers minted
+> inside worktrees"* as the failure mode that started the 2026-08-01 collision;
+> `w-gate3048` repeated it on the day that note was re-read. The coordinator
+> mints them at merge.
+>
+> **(D) is the one to read before quoting any residue ranking.** It measures
+> that `w-readphase` §4.2's *"13,158, the single largest residue refusal"* is
+> reachable by **nothing** at base — `expr-op-0x5D` and `expr-op-0x5E` are absent
+> from `emit_blockers` (615 keys) **and** from `fn_blockers` (635 keys) over 878
+> TUs — and **(B)** measures that **`#3094`'s finding is real and its named
+> mechanism is wrong**: the poisoned sink's de-acceptance is not the poison, it
+> is the sink being consulted before the `b == stop` check, and a scratch mutant
+> reversing that ordering removes the whole published −7 `match` / −5,949
+> `fnbyte-exact`. Neither is filed as an edit to `#3094` or `#3096`; both of
+> those rows keep their sentences and the corrections are rows of their own.
+>
+> `w-deaccept` is a **construct rung** and its own delta is a required-zero
+> identity: `match` 25, `mismatch` 0, `fnbyte-exact` 35,734, **0 of 372
+> `gap-metric` keys and 0 of 878 verdict lines differing**.
 >
 > **`w-gate3048` renumbered from `#3049`–`#3052` as the later-landing side.**
 > It minted inside a worktree while `wb-live` was in flight and both reached

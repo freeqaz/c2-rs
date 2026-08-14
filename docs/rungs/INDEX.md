@@ -222,5 +222,6 @@ the header block this table is read from.
 | 2026-08-13 | W-KEYGEN | [w-keygen](2026-08-13-w-keygen.md) | 1 | unchanged — nothing was admitted (a priced decline) |
 | 2026-08-14 | w-backedge | [backedge](2026-08-14-backedge.md) | 23 | unchanged → unchanged, +0 — nothing is admitted and no `crates/` file is touched |
 | 2026-08-14 | w-dbgassert | [dbgassert](2026-08-14-dbgassert.md) | 14 | unchanged, +0 |
+| 2026-08-14 | w-deaccept | [deaccept](2026-08-14-deaccept.md) | 9 | **+0**. `match` 25 → 25, `mismatch` 0 → 0, `fnbyte-exact` |
 | 2026-08-14 | w-ir-e | [ire](2026-08-14-ire.md) | 14 | unchanged → unchanged, +0 |
 | 2026-08-14 | w-readphase | [readphase](2026-08-14-readphase.md) | 9 | **+0**. `git diff 6f2c7c41 -- crates/` is EMPTY at this tip. Three |
