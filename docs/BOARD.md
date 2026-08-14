@@ -2699,26 +2699,6 @@ and `vgl-prereg:<line>` are line numbers into frozen one-shot rung records under
 >
 > ### `#3099`–`#3103` are `w-dagclients`'s. **THE NEXT FREE NUMBER IS `#3104`, AND NO LANE IS IN FLIGHT.**
 >
-> ### ⚠ 2026-08-14 — `#3104`–`#3108` are `w-deaccept`'s. `#3109`–`#3113` are `w-merger4`'s. **THE NEXT FREE NUMBER IS `#3114`, AND `w-ir-g` IS THE ONE LANE STILL IN FLIGHT.**
->
-> **`w-merger4` first drafted its rows as `#3104`–`#3108` and was wrong**, and
-> the reason is worth leaving on the page rather than silently fixing: peer lane
-> `w-deaccept` was minting that exact range **from a concurrent worktree at the
-> same moment**, and neither branch could see the other's board. This file
-> already records that failure twice — `#143`–`#146`, and `w-gate3048` having to
-> renumber four rows and every internal citation after it. The rule that
-> survived is the one applied here: **re-read this note immediately before
-> minting, not when the lane was briefed.**
->
-> `w-merger4` was allocated **`#3109`–`#3113`** and used all five, so there is
-> **no unminted remainder and no arithmetic to get wrong**. All five are settled
-> findings and belong in **Done**: `#3109` the answer, `#3110` the correction to
-> `#3103`'s second function, `#3111` the positive closure, `#3112` the
-> tuple-vs-statement mechanism, `#3113` the unfalsifiable candidate. **`#3103`
-> is CLOSED by `#3109` and `#3110` and should move to Done in the same edit** —
-> it is annotated in place rather than moved, so the section call stays the
-> coordinator's.
->
 > Lane `w-dagclients` was **allocated `#3099`–`#3103` by the coordinator** and
 > used **all five**, so there is again **no unminted remainder to record and no
 > arithmetic to get wrong**. `#3099`–`#3102` are in **Done** (four settled
@@ -2815,3 +2795,44 @@ and `vgl-prereg:<line>` are line numbers into frozen one-shot rung records under
 > deliberately" item 1 records for `#143`–`#146`, *"numbers minted inside
 > worktrees"*, recurring on the day it was re-read. The rows' content is
 > unchanged; only the four numbers and their internal citations moved.
+
+> ### `#3109`–`#3113` are `w-merger4`'s, MINTED. **THE NEXT FREE NUMBER IS `#3114`, AND `w-ir-g` IS THE ONE LANE STILL IN FLIGHT.**
+>
+> Minted against master **`68f85abc`** — re-read and confirmed at minting time,
+> not at briefing time, and that distinction is the whole content of this block.
+> Lane `w-merger4` was allocated `#3109`–`#3113` and used **all five**, so there
+> is **no unminted remainder to record and no arithmetic to get wrong**. All
+> five are settled findings and belong in **Done**: `#3109` the answer, `#3110`
+> the correction to `#3103`'s second function, `#3111` the positive closure,
+> `#3112` the tuple-vs-statement mechanism, `#3113` the unfalsifiable candidate.
+> **`#3103` is CLOSED by `#3109` and `#3110`** and is annotated in place rather
+> than moved, so the section call stays the coordinator's.
+>
+> **The block immediately above is SUPERSEDED on one clause only**, and it is
+> the clause it told the next lane to re-read: its *"THE NEXT FREE NUMBER IS
+> `#3109`, AND TWO LANES ARE IN FLIGHT"* was true when written and is now half
+> false — `#3109`–`#3113` are taken and **only `w-ir-g` is still running**. Its
+> numbers, its `#3104` reading advice and its `−65` boundary are untouched.
+> *This* sentence is the one to re-read immediately before minting.
+>
+> **`w-merger4` drafted its rows as `#3104`–`#3108` and was wrong**, and the
+> near-miss stays on the page instead of being quietly fixed. Its brief named
+> `#3104` as the next free number; by the time it finished, `w-deaccept` was
+> minting that exact range from a concurrent worktree, and **neither branch
+> could see the other's board**. That is `#143`–`#146` and `w-gate3048`'s
+> four-row renumber for the **third** time in this file. The difference here is
+> that it cost **nothing** — no row was renumbered and no citation moved —
+> because the range was re-read *before* the mint rather than after. **The rule
+> is not "check the next free number", it is "check it in the same edit that
+> spends it."**
+>
+> **`#3109` is the one to read before quoting any tuple-order rule**, and it
+> supersedes the reading advice attached to `#3099`. The transferable part is
+> not the address: it is that **`0x10b36f7e`, the pairwise tuple-equivalence
+> predicate, has SEVEN callers** and `w-dagclients` read the **three** that
+> build a DAG. The fourth merger was findable the whole time by counting
+> callers of the equivalence predicate; what hid it was that lane's own
+> **frame** — it was hunting *DAG-builder clients*, and `0x10b3baa8` builds no
+> DAG. A frame that names a mechanism can conceal every instance that shares
+> the behaviour and not the mechanism, which is the same failure `#1823` made
+> with an ICE-site-derived table.
