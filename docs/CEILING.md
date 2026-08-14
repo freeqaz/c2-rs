@@ -535,10 +535,22 @@ distance, from this scan:
 
 | | value | instrument |
 |---|---:|---|
-| emitted functions the port must additionally accept | **139,792** | `178,977 − 39,185` |
-| of those, blocked at the IL reader | **130,575** | emitted-code widening order total |
+| emitted functions the port must additionally accept | **139,792** ⚠ **126,315** | `178,977 − 39,185`; re-derived `162,049 − 35,734` (#3092) |
+| of those, blocked at the IL reader | **130,575** ⚠ **113,612** | emitted-code widening order total; re-derived as `fnbyte-refused-parse`, **615** keys not 648 (#3092) |
 | of those, unbound (no census row claims the symbol) | **9,217** | FBM partition |
 | TUs within ≤ 10 blocked emitted functions of matching | **82** | `TU distance to matching (blocked EMITTED functions)` |
+<!-- ⚠ 2026-08-14 (#3092, w-readphase): the two ⚠ cells above are STALE and the
+     ratio derived from them — the "93 %" this project converged on — is
+     **89.9 %**, 3.5 points optimistic and 16,963 functions high. Worse, THREE
+     DIFFERENT QUANTITIES ARE CALLED "93 %" and they read **89.9 %** (share of
+     additionally-acceptable), **99.2 %** (share of the REFUSAL population) and
+     **70.1 %** (share of the whole denominator) — a lane pricing against the
+     wrong one is off by 29 points. Say which you mean.
+     AND SEE #3093 BEFORE ACTING ON ANY OF THEM: lifting the ENTIRE `.gl` walk
+     is `match` +0 and `fnbyte-exact` **−65**; the 22-token decode widening is
+     **−7 match, −5,949 fnbyte-exact**. The reader holds the mass AND the head
+     class's realized worth is negative. -->
+
 | TUs within ≤ 100 | **407** | same |
 | TUs within ≤ 1000 | **858** | same |
 | TUs 100 % byte-exact per emitted function | **7** of 865 | per-TU FBM |

@@ -329,7 +329,33 @@ every cost below is a **lower bound**.
 | 2 | **Build the block IR** (`CFG_SHAPE.md` §6.2 items A, D-expansion, E, G) | Construct rungs re-expressing already-byte-exact classes through the IR, `cond_tail` first (its module doc names the exact gap), then `float_walk_loop`, `ptr_walk_loop`. Zero conversions *by design*. | 2–4 construct rungs (item B cost 1) | items F and G have nowhere to live today; Phase 1 generality and Phase 7 are strictly downstream |
 | 3 | **Read `dag.c`'s lowering order** (`0x10b3219f`) | One whitebox lane on the wb-live pattern. It is the *sole* remaining characterization blocker for item F — wb-live discharged the allocator: no interference graph, backward-fixpoint liveness ∩ availability, and #3057 lists four things that are NOT blocking so nobody re-prices them. | 1 characterization lane | item F ("~30 lines plus the textbook" once the IR exists) → register allocation across a back edge → the loop-bearing 80% of the frontier's reader-blocked functions |
 | 4 | **Rewrite the emission gate from list to predicate** (H2's four-part replacement) | Doctrine edit + a standing `fence-blocks-exact` counter + offline FBM grading of general lowerings + a generator per widening. Judge untouched. | doctrine lane + 1 instrument rung | removes the local-optimum trap that priced every generalization out; makes lever 2's IR usable for emission rather than transcription |
-| 5 | **Reader generality as a phase, graded offline** | The reader holds 93% of the remaining distance, but `w-readpx` measured that *no reader rung converts a TU* (7 transcriptions = +7; one 444-wide admission = +0). Reader work must be phase-shaped and graded by fnbyte/offline, never dispatched as TU lanes. | unpriced (the largest unknown) | the 846 |
+| 5 | **Reader generality as a phase, graded offline** ⚠ **PRICED 2026-08-14 — see below** | The reader holds 93% of the remaining distance, but `w-readpx` measured that *no reader rung converts a TU* (7 transcriptions = +7; one 444-wide admission = +0). Reader work must be phase-shaped and graded by fnbyte/offline, never dispatched as TU lanes. | unpriced (the largest unknown) | the 846 |
+
+> **⚠ 2026-08-14 — lever 5 is PRICED, and this row's "93 %" is two errors at
+> once** (`rungs/2026-08-14-readphase.md`, board **#3092**–**#3098**).
+>
+> * **The ratio is 89.9 %, and "93 %" is AMBIGUOUS before it is stale.** Three
+>   different quantities carry that name: **89.9 %** (share of
+>   additionally-acceptable functions), **99.2 %** (share of the *refusal*
+>   population) and **70.1 %** (share of the whole denominator). **A lane
+>   pricing against the wrong one is off by 29 points.** §3 item 2's
+>   `130,575 / 139,792` re-derives to **113,612 / 126,315**; the widening order
+>   is **615 keys**, not 648.
+> * **The head class's realized worth is NEGATIVE** (#3093). Lifting the
+>   *entire* `.gl` walk — two rungs, four clauses — gives `match` **+0** and
+>   `fnbyte-exact` **−65**. The 22-token decode-only widening costs **−7
+>   `match` and −5,949 `fnbyte-exact`**, and one token (`op:41`) buys **zero**
+>   decode distance while costing 2,694 functions and `mmio.cpp` — that token
+>   is in every published per-TU ladder's `SEED`. **This row read alone
+>   dispatches a lane that loses ground.**
+> * **The grading unit this review called missing already existed** and needed
+>   a side nobody had asked for: `fnbyte-refused-parse` (**113,612 of
+>   162,049**) must fall with **three required-zeros** — `fnbyte-exact`
+>   non-decreasing, `match` non-decreasing, `mismatch == 0`. One scan, no obj
+>   emitted. First milestone **≤ 44,415**.
+> * **The ladder is ≥ 3 clause rungs deep and rung 3 is a 615-key space**
+>   (#3095); `decode_causes` under-reports it by up to **725×**, so *"a
+>   first-blocker count is not a distance"* holds for the all-cause set too.
 | 6 | **Phases 5 and 6 in parallel** (weak-external writer records; COMDAT synthesis) | Terminal, independent, unattempted; populations 675 and 450 TUs. Worth **0 today** and mandatory at 871 — schedule them behind levers 2–5, not before. | unpriced | the symbol-table half of 871 |
 | 7 | **Put the goal question to the user** with §2's options A–D | `w-keygen` → `CEILING.md` §6.2 → "the user's call": the chain ends at a decision nobody has been asked to make. | one conversation | either recommits to 871 with the phase plan, or retargets at the fork-server where 100% coverage is available today |
 
