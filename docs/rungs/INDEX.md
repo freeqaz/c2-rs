@@ -213,6 +213,7 @@ the header block this table is read from.
 | 2026-08-10 | w-seclayout | [w-seclayout](2026-08-10-w-seclayout.md) | 11 | per-function unchanged, **+0**. TU match **23 → 23**, mismatch |
 | 2026-08-10 | w-selbind | [w-selbind](2026-08-10-w-selbind.md) | 11 | per-function unchanged, **+0**. TU match **23 → 23**, mismatch |
 | 2026-08-10 | w-wordwrap2 | [w-wordwrap2](2026-08-10-w-wordwrap2.md) | 1 | per-function 714,556 → 714,556 · emitted 39,254 → 39,254 |
+| 2026-08-13 | W-DAGCLIENTS | [dagclients](2026-08-13-dagclients.md) | 13 | +0 — nothing admitted, no crates/ file touched |
 | 2026-08-13 | WB-DAGORDER | [dagorder](2026-08-13-dagorder.md) | 9 | +0 — nothing admitted, no crates/ file touched |
 | 2026-08-13 | w-fencecount | [fencecount](2026-08-13-fencecount.md) | 1 | per-function 705,259/2,410,886 → 705,259/2,410,886 (29.25 % → |
 | 2026-08-13 | w-ir-cond | [ircond](2026-08-13-ircond.md) | 12 | unchanged → unchanged, +0 |
