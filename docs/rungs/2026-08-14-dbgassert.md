@@ -7,7 +7,7 @@
     Outcome:   instrument
     Fixtures:  none — characterization: is the FALSE `coff/writer.rs` assertion wrong, or is the writer wrong?
     Census:    unchanged, +0
-    Record:    this file; board #3074 (closed here), PREREG `docs/rungs/_2026-08-14-w-dbgassert-prereg.md`
+    Record:    this file; board #3074 (CLOSED here, moved to `## Done`); rows #3083-#3087, PREREG `docs/rungs/_2026-08-14-w-dbgassert-prereg.md`
 
 ## The answer, in one sentence
 
@@ -46,11 +46,13 @@ Not read — run. Three witnesses, three different numbers, all at
 base `da3ed0d3` — every one of these was produced before this lane changed a byte
 of `crates/`.
 
-**One correction to #3074's own text**, made because the row will be read as a
-count: it says *"two `debug_assert_eq!`s at writer.rs:658"*. It is **one
-assertion at one site with two witnesses**, and now three. The distinction is not
-pedantry — a sibling census that counts firing *tests* instead of firing *sites*
-gets the population wrong, and this lane's §4 counts sites.
+**One correction to #3074's own text, and it is made IN THAT ROW as well as
+here**, because a row that closes with the wrong cardinality is what a later lane
+cites: #3074 says *"two `debug_assert_eq!`s at writer.rs:658"*, and `gate.sh`'s
+own framing inherits it. **It is ONE SITE WITH THREE WITNESSES** — 496 and 536
+are the two unit cells, 604 is the fixture. The distinction is not pedantry: a
+sibling census that counts firing *tests* instead of firing *sites* gets the
+population wrong, and §4's `0 of 75` is a count of sites.
 
 ## 2. Which side is right — asked of the ORACLE, not of the code
 
@@ -117,7 +119,7 @@ cheap answer and it is registered as such — P2 at 0.97 — but it was *checked
 because the expensive answer would have been a much bigger finding and reading
 the code cannot tell them apart.
 
-## 4. The siblings — measured by coverage, not counted by grep
+## 4. The siblings — measured by coverage, not counted by grep — board #3084
 
 `grep` gives the population; it cannot say which are ever *evaluated*. Measured
 with `-C instrument-coverage` over a debug `cargo test --workspace` (116
@@ -161,7 +163,7 @@ assertion, and this is `docs/GAPS.md`'s absence-read-as-success — ~15 recorded
 instances, twice inside the merge gate itself — reaching the emitter's own
 assertions.
 
-## 5. The second defect, which only the debug lane could see
+## 5. The second defect, which only the debug lane could see — board #3085
 
 Running the fixture corpus through a **debug** `c2rs` — something nothing in this
 repo had ever done — did not stop at `writer.rs`. It also found, at
@@ -231,8 +233,34 @@ change to `crates/`.
 Two misses (P3c, P6) and one registered-then-abandoned row (P4c). Saying it in
 the words the brief asks for: **I was wrong about how much of the assertion
 population the test suite reaches, and wrong by two orders of magnitude about
-what a debug lane costs.** Both errors were in the direction that would have
-argued *against* building the instrument.
+what a debug lane costs.**
+
+### Both misses ran in the direction that argued AGAINST building the instrument
+
+That is the useful direction to be wrong in, and it is worth stating as a
+property of the pair rather than leaving it as two unrelated rows:
+
+* **P3c** said the debug suite reaches only 60 % of the assertion population. If
+  that had been true, a debug lane would have been a *partial* instrument
+  covering three fifths of the sites. It reaches **88 %**, so the lane is a
+  far better instrument than its own designer priced it as.
+* **P6** said a debug lane costs 1–15 minutes. If that had been true, it would
+  have been a real line item against a gate whose cheap lanes cost seconds. It
+  costs **6 s cold / 0.65 s warm**.
+
+**P6's miss is therefore the strongest single argument FOR taking the lane**, and
+it should be read that way rather than as an embarrassment: I priced the debug
+build as if the workspace had a dependency graph to compile. **It has none —
+`CLAUDE.md`'s std-only, zero-external-crates rule means a from-scratch debug
+build of all five crates is 6 seconds.** The constraint that exists to keep the
+port honest turns out to make its own missing instrument free. That is an
+unbudgeted dividend of a rule adopted for a different reason, and it is the
+cheapest argument on the table: **the reason nobody built this was a cost that
+does not exist.**
+
+Had either estimate been right, the honest recommendation at the end of this
+lane would have been weaker. Both were wrong the same way, and neither error was
+in a direction that flattered the lane's own conclusion.
 
 ## The blindness — proposed, priced, and NOT imposed
 
@@ -269,6 +297,14 @@ First full sweep, at tip:
 Against the gate's own measured cost (`lanes.txt`: 6 s cold for 2,364
 fixture-verdicts at `--jobs 4`; the current gate run is minutes), **(b) is free
 and (c) is ~2 minutes.**
+
+**Disposition, 2026-08-14: the coordinator ACCEPTED the recommendation and
+DECLINED the wiring.** `scripts/debug_lane.sh` ships exactly as written, standing
+outside `scripts/gate.sh`. The stated reason is the right one and is recorded
+here rather than paraphrased: **making a debug panic a merge blocker is the
+user's decision, not the coordinator's and not this lane's.** The
+counter-argument below is what that decision turns on, so it stays in the record
+at full weight rather than being trimmed now that the answer went the other way.
 
 The recommendation, for whoever owns the gate: **take (b) unconditionally** — it
 is 0.65 s, it needs no toolchain, it runs in the portable lane where everything
