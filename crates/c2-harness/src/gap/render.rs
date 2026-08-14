@@ -192,10 +192,14 @@ fn render_label_channel_legend(rows: &[(&TuResult, CfgReach)]) {
          function and nothing else. A leaf loop charges that counter +1..+4 while `plan_labels` \
          charges 0 (17 seed-free cells, docs/LABEL_COUNTER.md §4.2), which is the whole stated \
          justification for `codegen::labels` invariant 4 refusing every BACKWARD branch. On a \
-         `label-free` obj that error has nowhere to land — and that is now SHIPPED rather than \
-         observed: `IlFunction::label_slots` returns `None` for the one loop shape the port \
-         emits, so a TU pairing it with a framed function refuses and a TU without one converts \
-         (boards #746/#747, `fixtures/cpp/whash_loop_then_framed.cpp` and its control). {free} of {} frontier TUs are \
+         `label-free` obj that error has nowhere to land — and that is SHIPPED rather than \
+         observed: `IlFunction::label_slots` returns `None` for four of the five loop shapes the \
+         port emits, so a TU pairing one of THOSE with a framed function still refuses. **The \
+         fifth is lifted** (lane `w-fenceb`, board #746's fence B): the pointer-walk loop's \
+         charge was measured at 2 against `fixtures/cpp/whash_loop_then_framed.cpp`'s own obj \
+         and that TU is now `match` at `/O1` — the first time this counter was PAID rather than \
+         refused (boards #746/#747/#3091, and its control `whash_ptr_walk_loop.cpp`). \
+         {free} of {} frontier TUs are \
          label-free; of the {loopy} blocked on `cflow-loop`, {loop_free} are. NOT a licence — \
          every one is still gated on codegen that does not exist, and the counter is only the \
          FIRST of that TU's refusals.",

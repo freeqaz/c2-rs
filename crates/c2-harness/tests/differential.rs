@@ -1034,6 +1034,64 @@ fn differential_wundname_alloc_init_or_fail_refuses_outside_its_mode() {
 /// distinct clauses** — checked per cell with a reverted probe patch
 /// (`work/w-osfinfo/decline_probe.md`), because a file-level `NotImplemented` is
 /// the conjunction and says nothing about which clause each cell reached.
+/// **W-FENCEB's mode fence — the pin on the coupling this lane's lift depends
+/// on, and the reason it is not latent.**
+///
+/// Board **#746**'s fence B is lifted: `IlFunction::label_slots` no longer
+/// returns `None` for the pointer-walk loop, and `IlFunction::label_lead`
+/// charges it **2** instead. That number was measured at `/O1` and it is right
+/// **only** at `/O1` — the same source's framed `?z9` sits at `$M2564` at
+/// `/O1`, `$M2559` at `/Ox`, `$M2565` at `/O2` and `$M2554` at `/Od`, four
+/// integers, two of them BELOW the charge-0 base — while `label_slots` has no
+/// mode parameter and `wb-label` §7.6 forbids giving it one.
+///
+/// What keeps that from being a wrong `$M` is a fact in a **different crate**:
+/// `codegen::ptr_walk_loop::select_function` refuses `mode != OptMode::O1`
+/// outright (`/Ox` and `/O2` emit a different 84-byte body — strength-reduced
+/// multiply, hoisted trap, `cmpli` loop close), so the TU is `NotImplemented`
+/// above `/O1` whatever the charge says. **A correctness argument that rests on
+/// another file's refusal must be a test, not a comment.** `differential()`
+/// drives the default `/Ox` profile, so this test is exactly that pole: a later
+/// lane widening `ptr_walk_loop` codegen to `/Ox` without also measuring the
+/// `/Ox` charge reddens here instead of shipping six wrong bytes in the symbol
+/// table.
+///
+/// **The `/O1` arm is graded by `scripts/mode_lane.sh /O1`, not here**, and
+/// that is where both fixtures come back `match` — the conversion this lane
+/// claims. This test cannot make that claim and does not: `differential()` has
+/// no `--flags-file`.
+///
+/// Both fixtures are listed because the pair is a *separating control*:
+/// `whash_ptr_walk_loop.cpp` is the identical loop with no framed function
+/// beside it, so no label ever reaches its obj (board #742) and it is `match`
+/// at `/O1` under every charge — including the three mutants
+/// (`work/w-fenceb/mutants_o1.txt`, leads 0, 1 and 3) that turn
+/// `whash_loop_then_framed.cpp` into a live `mismatch`.
+#[test]
+fn differential_whash_loop_then_framed_refuses_outside_its_mode() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        eprintln!("SKIP: strace/mingw absent");
+        return;
+    }
+    for name in ["whash_loop_then_framed.cpp", "whash_ptr_walk_loop.cpp"] {
+        let w = work("wfenceb");
+        let port = PortC2::default();
+        let report = differential(&fixture(name), &tc, &port, &w);
+        match report {
+            DiffReport::ReferenceReplayByteExact { port, .. } => match port {
+                PortStatus::NotImplemented(_) => {}
+                other => panic!("expected NotImplemented for {name} at /Ox, got {other:?}"),
+            },
+            other => panic!("expected ReferenceReplayByteExact for {name}, got {other:?}"),
+        }
+        std::fs::remove_dir_all(&w).ok();
+    }
+}
+
 #[test]
 fn differential_wosf_handle_guard_refuses_outside_its_mode() {
     let Some(tc) = Toolchain::locate() else {

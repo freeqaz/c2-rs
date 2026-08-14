@@ -1,0 +1,52 @@
+# w-fenceb GRID 3 — the HOLD-OUT for R1', frozen BY CONTENT HASH in PREREG.md §0
+# before the first `cl.exe` of this lane. `w-keygen` (board #2966) froze a
+# hold-out by NAME and its population moved -10.8 % underneath it while the file
+# stayed byte-identical; the sha256 is what makes this a hold-out.
+#
+# THE DESIGN IS A CROSS, and the cross is the point. `w-backedge` found that NO
+# grid1 cell had two backward references to ONE target, so per-reference and
+# per-target were STRUCTURALLY UNSEPARABLE there. Grid 3 is
+#
+#     {while, for, do/while}  x  {continue count 0,1,2}  x  {break count 0,1,2}
+#
+# thinned to the 16 cells that carry information, plus a named-`goto` family and
+# three must-be-zero controls. Every `continue` cell is a candidate
+# DISCRIMINATOR (two backward references, one backward target); the instrument
+# prints how many cells actually discriminated, so "no cells" is a loud failure
+# and not a silent pass.
+#
+# EIGHT CELLS REPRODUCE A CELL ALREADY COMPILED BY `w-backedge` and are marked
+# `# repro` — they are the instrument's controls, NOT hold-out scoring, and they
+# are excluded from every held-out score. The remaining fifteen have never been
+# compiled by anyone.
+#
+# Columns: name <TAB> class <TAB> probe body.   Probe: `int P(int a){ <body> }`.
+#
+# --- W: `while` x continue x break -----------------------------------------
+w-c0b0	leaf	int r=0; while (a) { r=r+a; a=a-1; } return r;
+w-c1b0	leaf	int r=0; while (a) { a=a-1; if (a==5) continue; r=r+a; } return r;
+w-c2b0	leaf	int r=0; while (a) { a=a-1; if (a==5) continue; if (a==7) continue; r=r+a; } return r;
+w-c0b1	leaf	int r=0; while (a) { a=a-1; if (a==2) break; r=r+a; } return r;
+w-c0b2	leaf	int r=0; while (a) { a=a-1; if (a==2) break; if (a==4) break; r=r+a; } return r;
+w-c1b1	leaf	int r=0; while (a) { a=a-1; if (a==5) continue; if (a==2) break; r=r+a; } return r;
+# --- F: `for` x continue x break --------------------------------------------
+f-c0b0	leaf	int r=0; for (int i=0;i<a;i=i+1) r=r+i; return r;
+f-c1b0	leaf	int r=0; for (int i=0;i<a;i=i+1) { if (i==3) continue; r=r+i; } return r;
+f-c2b0	leaf	int r=0; for (int i=0;i<a;i=i+1) { if (i==3) continue; if (i==5) continue; r=r+i; } return r;
+f-c0b1	leaf	int r=0; for (int i=0;i<a;i=i+1) { if (i==3) break; r=r+i; } return r;
+f-c0b2	leaf	int r=0; for (int i=0;i<a;i=i+1) { if (i==3) break; if (i==5) break; r=r+i; } return r;
+f-c1b1	leaf	int r=0; for (int i=0;i<a;i=i+1) { if (i==3) continue; if (i==5) break; r=r+i; } return r;
+# --- D: `do`/`while` x continue x break -------------------------------------
+d-c0b0	leaf	int r=0; do { r=r+a; a=a-1; } while (a); return r;
+d-c1b0	leaf	int r=0; do { a=a-1; if (a==5) continue; r=r+a; } while (a); return r;
+d-c0b1	leaf	int r=0; do { a=a-1; if (a==2) break; r=r+a; } while (a); return r;
+d-c1b1	leaf	int r=0; do { a=a-1; if (a==5) continue; if (a==2) break; r=r+a; } while (a); return r;
+# --- G: the NAMED back edge (a source `goto`) -------------------------------
+g-back1	leaf	int r=0; top: r=r+a; a=a-1; if (a) goto top; return r;
+g-back2	leaf	int r=0; top: r=r+a; a=a-1; if (a==3) goto top; if (a) goto top; return r;
+g-sep2	leaf	int r=0; t1: r=r+a; a=a-1; if (a) goto t1; int b=r; t2: r=r+b; b=b-1; if (b) goto t2; return r;
+g-mix	leaf	int r=0; top: r=r+a; a=a-1; if (a) goto top; int b=r; while (b) { r=r+b; b=b-1; } return r;
+# --- Z: the must-be-ZERO controls -------------------------------------------
+z-none	leaf	return a+1;
+z-if3	leaf	if (a) return 5; if (a==2) return 6; if (a==3) return 7; return a+1;
+z-switch4	leaf	int r=0; switch (a) { case 1: r=1; break; case 2: r=2; break; case 3: r=3; break; default: r=9; } return r;

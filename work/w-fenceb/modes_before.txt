@@ -1,0 +1,12 @@
+=== /O1
+  [1/2] match        whash_ptr_walk_loop.cpp
+  [2/2] vocab-gap    whash_loop_then_framed.cpp  (il function decode failed)
+=== /Ox
+  [1/2] vocab-gap    whash_loop_then_framed.cpp  (il function decode failed)
+  [2/2] codegen-gap  whash_ptr_walk_loop.cpp  (ptr-walk loop outside /O1: /Ox and /O2 emit a different 84-byte body (strength-r…)
+=== /O2
+  [1/2] codegen-gap  whash_ptr_walk_loop.cpp  (ptr-walk loop outside /O1: /Ox and /O2 emit a different 84-byte body (strength-r…)
+  [2/2] vocab-gap    whash_loop_then_framed.cpp  (il function decode failed)
+=== /Od
+  [1/2] vocab-gap    whash_loop_then_framed.cpp  (il function decode failed)
+  [2/2] codegen-gap  whash_ptr_walk_loop.cpp  (not implemented: opt-mode 00800005 : only 00a00005 (/Ox, /O2) and 00200005 (/O1)…)

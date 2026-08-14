@@ -223,6 +223,7 @@ the header block this table is read from.
 | 2026-08-14 | w-backedge | [backedge](2026-08-14-backedge.md) | 23 | unchanged → unchanged, +0 — nothing is admitted and no `crates/` file is touched |
 | 2026-08-14 | w-dbgassert | [dbgassert](2026-08-14-dbgassert.md) | 14 | unchanged, +0 |
 | 2026-08-14 | w-deaccept | [deaccept](2026-08-14-deaccept.md) | 9 | **+0**. `match` 25 → 25, `mismatch` 0 → 0, `fnbyte-exact` |
+| 2026-08-14 | w-fenceb | [fenceb](2026-08-14-fenceb.md) | 33 | unchanged → unchanged, +0 — no new function class is admitted; what moved is a TU-level GATE, and the census does not see it |
 | 2026-08-14 | w-ir-e | [ire](2026-08-14-ire.md) | 14 | unchanged → unchanged, +0 |
 | 2026-08-14 | w-ir-g | [irg](2026-08-14-irg.md) | 20 | unchanged → unchanged, +0 |
 | 2026-08-14 | w-item-d | [itemd](2026-08-14-itemd.md) | 31 | unchanged → unchanged, +0 |

@@ -36,18 +36,44 @@
 set -eu
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
-work="${C2RS_DEBUG_LANE_WORK:-${TMPDIR:-/tmp}/c2rs-debug-lane}"
+# THE RUN DIRECTORY IS PER RUN (board #3128, lane w-fenceb). It used to be one
+# fixed `${TMPDIR:-/tmp}/c2rs-debug-lane`, shared by every tree, every lane and
+# every concurrent invocation on the box — so two agents running this at once,
+# from two worktrees, wrote one `list.txt`, one `<slug>/flags.txt` and one
+# `<slug>/report.txt`, and each parsed its counts out of whichever report won.
+#
+# `scripts/mode_lane.sh`'s own header documents this EXACT defect, found and
+# fixed there first: *"each lane overwriting the others' flags file and report,
+# and the mismatch count was then parsed out of whichever report won. That is a
+# false green by the same mechanism as a stale binary: the number comes from a
+# run nobody asked for."* This script reintroduced it, and it is the instrument
+# whose whole job is to catch what the release gate cannot.
+#
+# What it cost, concretely: a full sweep read two `/O1` lanes ONE MATCH LOW with
+# `mismatch=0 panics=0 rc=0`, and the two low values were exactly the numbers a
+# tree WITHOUT the lane's change produces. Four concurrent gate directories were
+# live on the box at the time. See `work/w-fenceb/transient.sh`.
+work="${C2RS_DEBUG_LANE_WORK:-${TMPDIR:-/tmp}/c2rs-debug-lane-$$}"
 mkdir -p "$work"
 
 # The binary under test must be a DEBUG build of THIS tree, which is the whole
 # point — a release binary here grades nothing this script exists for.
+#
+# AND IT MUST BE A RUN-PRIVATE COPY, for the second half of #3128: this was the
+# only one of the three standing lane runners that ran the LIVE
+# `target/debug/c2rs` while `gate.sh` and `mode_lane.sh` both pin. A peer
+# rebuilding the shared `target/` mid-sweep swapped the binary under a running
+# grade — `scripts/harness_bin.sh` exists for exactly that and is now used here
+# too, so the three runners agree.
 cd "$repo_root"
 cargo build -p c2-harness --bin c2rs >"$work/build.log" 2>&1 || {
     echo "FAIL: debug build of c2rs failed; see $work/build.log"
     exit 1
 }
-c2rs="$repo_root/target/debug/c2rs"
-[ -x "$c2rs" ] || { echo "FAIL: no debug c2rs at $c2rs"; exit 1; }
+[ -x "$repo_root/target/debug/c2rs" ] || {
+    echo "FAIL: no debug c2rs at $repo_root/target/debug/c2rs"; exit 1; }
+cp "$repo_root/target/debug/c2rs" "$work/c2rs"
+c2rs="$work/c2rs"
 
 list="$work/list.txt"
 : > "$list"

@@ -1,0 +1,24 @@
+w-c0b0      charge  2  pred  2 
+w-c1b0      charge  3  pred  3 
+w-c2b0      charge  4  pred  4 
+w-c0b1      charge  4  pred  4 
+w-c0b2      charge  5  pred  5 
+w-c1b1      charge  5  pred  5 
+f-c0b0      charge  2  pred  2 
+f-c1b0      charge  2  pred  2 
+f-c2b0      charge  2  pred  2 
+f-c0b1      charge  3  pred  3 
+f-c0b2      charge  4  pred  4 
+f-c1b1      charge  3  pred  3 
+d-c0b0      charge  1  pred  1 
+d-c1b0      charge  1  pred  1 
+d-c0b1      charge  2  pred  2 
+d-c1b1      charge  2  pred  2 
+g-back1     charge  1  pred  1 
+g-back2     charge  2  pred  2 
+g-sep2      charge  2  pred  2 
+g-mix       charge  3  pred  3 
+z-none      charge  0  pred  0 
+z-if3       charge  0  pred  0 
+z-switch4   charge  0  pred  0 
+fits 23 of 23  -- A FIT, NOT A SCORE

@@ -1,0 +1,18 @@
+=== /O1
+  [1/2] match        whash_ptr_walk_loop.cpp
+  [2/2] match        whash_loop_then_framed.cpp
+=== /Ox
+  [1/2] codegen-gap  whash_ptr_walk_loop.cpp  (ptr-walk loop outside /O1: /Ox and /O2 emit a different 84-byte body (strength-r…)
+  [2/2] codegen-gap  whash_loop_then_framed.cpp  (ptr-walk loop outside /O1: /Ox and /O2 emit a different 84-byte body (strength-r…)
+=== /O2
+  [1/2] codegen-gap  whash_loop_then_framed.cpp  (ptr-walk loop outside /O1: /Ox and /O2 emit a different 84-byte body (strength-r…)
+  [2/2] codegen-gap  whash_ptr_walk_loop.cpp  (ptr-walk loop outside /O1: /Ox and /O2 emit a different 84-byte body (strength-r…)
+=== /Od
+  [1/2] codegen-gap  whash_loop_then_framed.cpp  (not implemented: opt-mode 00800005 : only 00a00005 (/Ox, /O2) and 00200005 (/O1)…)
+  [2/2] codegen-gap  whash_ptr_walk_loop.cpp  (not implemented: opt-mode 00800005 : only 00a00005 (/Ox, /O2) and 00200005 (/O1)…)
+=== /O1 /Oi /EHsc /GR
+  [1/2] match        whash_loop_then_framed.cpp
+  [2/2] match        whash_ptr_walk_loop.cpp
+=== /Ox /Gy
+  [1/2] codegen-gap  whash_ptr_walk_loop.cpp  (ptr-walk loop outside /O1: /Ox and /O2 emit a different 84-byte body (strength-r…)
+  [2/2] codegen-gap  whash_loop_then_framed.cpp  (ptr-walk loop outside /O1: /Ox and /O2 emit a different 84-byte body (strength-r…)

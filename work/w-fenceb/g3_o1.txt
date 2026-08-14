@@ -1,0 +1,49 @@
+grid 3 (sha256 verified)   mode: /O1 /GS- /c   23 cells
+  charge   = stride - minted        (LABEL_COUNTER.md §4's `minted` correction)
+  CONTROL  : the three identical anchors' sy_decls must be EQUAL
+  DISCRIM  : bwd_refs > bwd_t  -- the cells per-reference and per-target disagree on
+
+cell        CHARGE  bwdR  bwdT  bwdU  bwdC   brk  brkL  namd flag         R1      R1'    M-TGT  M-TGT-L    M-REF  M-REF-L
+w-c0b0           2     1     1     1     0     0     0     0              2.       2.       2.       2.       2.       2.
+w-c1b0           3     2     1     2     0     0     0     0 DISCRIM       4X       2X       2X       2X       4X       4X
+w-c2b0           4     3     1     3     0     0     0     0 DISCRIM       6X       2X       2X       2X       6X       6X
+w-c0b1           4     1     1     1     0     1     1     0              2X       2X       3X       3X       3X       3X
+w-c0b2           5     1     1     1     0     2     1     0              2X       2X       4X       3X       4X       3X
+w-c1b1           5     2     1     2     0     1     1     0 DISCRIM       4X       2X       3X       3X       5.       5.
+f-c0b0           2     1     1     1     0     0     0     0              2.       2.       2.       2.       2.       2.
+f-c1b0           2     2     1     2     0     0     0     0 DISCRIM       4X       2.       2.       2.       4X       4X
+f-c2b0           2     3     1     3     0     0     0     0 DISCRIM       6X       2.       2.       2.       6X       6X
+f-c0b1           3     1     1     1     0     1     1     0              2X       2X       3.       3.       3.       3.
+f-c0b2           4     1     1     1     0     2     1     0              2X       2X       4.       3X       4.       3X
+f-c1b1           3     2     1     2     0     1     1     0 DISCRIM       4X       2X       3.       3.       5X       5X
+d-c0b0           1     1     1     0     1     0     0     0              1.       1.       1.       1.       1.       1.
+d-c1b0           1     1     1     0     1     0     0     0              1.       1.       1.       1.       1.       1.
+d-c0b1           2     1     1     0     1     1     1     0              1X       1X       2.       2.       2.       2.
+d-c1b1           2     1     1     0     1     1     1     0              1X       1X       2.       2.       2.       2.
+g-back1          1     1     1     1     0     0     0     1              2X       1.       1.       1.       1.       1.
+g-back2          2     2     1     2     0     0     0     1 DISCRIM       4X       1X       1X       1X       1X       1X
+g-sep2           2     2     2     2     0     0     0     2              4X       2.       2.       2.       2.       2.
+g-mix            3     2     2     2     0     0     0     1              4X       3.       3.       3.       3.       3.
+z-none           0     0     0     0     0     0     0     0              0.       0.       0.       0.       0.       0.
+z-if3            0     0     0     0     0     0     0     0              0.       0.       0.       0.       0.       0.
+z-switch4        0     0     0     0     0     0     0     0              0.       0.       0.       0.       0.       0.
+
+DISCRIMINATING CELLS (bwd_refs > bwd_t): 7
+cells 23   reproduction controls 8   HELD OUT 15   no-break 15 (held-out no-break 8)
+
+model     all cells        HELD OUT         held-out no-break  DISCRIM cells   
+R1        7 of 23          2 of 15          2 of 8             0 of 7          
+R1'       12 of 23         5 of 15          5 of 8             2 of 7          
+M-TGT     17 of 23         10 of 15         5 of 8             3 of 7          
+M-TGT-L   16 of 23         9 of 15          5 of 8             3 of 7          
+M-REF     15 of 23         8 of 15          4 of 8             1 of 7          
+M-REF-L   14 of 23         7 of 15          4 of 8             1 of 7          
+
+FEATURE-VECTOR COLLISIONS (same (bwd_t,bwd_u,bwd_c,brk,named), different charge): 5
+   w-c1b0      f-c1b0        3 vs 2
+   w-c2b0      f-c2b0        4 vs 2
+   w-c0b1      f-c0b1        4 vs 3
+   w-c0b2      f-c0b2        5 vs 4
+   w-c1b1      f-c1b1        5 vs 3
+
+controls failed: 0
