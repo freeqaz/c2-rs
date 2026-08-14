@@ -19,6 +19,11 @@ PREREG: [`WB_DAGCLIENTS_PREREG.md`](WB_DAGCLIENTS_PREREG.md) committed at
 blind spot: *do any of the four DAG-builder clients that bypass the region
 finder reorder tuples, and under what conditions?*
 
+Landed as board **`#3099`–`#3103`**: `#3099` the answer, `#3100` the method
+(the preregistered discriminator missed and ablation answered), `#3101` the
+grey-zone K3 result stated positively, `#3102` `/QXSTALLS`, and `#3103` — in
+**Open** — the fourth, unattributed merger.
+
 ---
 
 ## 1. THE HEADLINE

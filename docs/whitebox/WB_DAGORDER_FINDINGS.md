@@ -317,7 +317,8 @@ load-bearing** — dropping it costs a cell.
    > four runs" is true of the four *scheduler passes* and **not** of the four
    > DAG clients.
    >
-   > See [`WB_DAGCLIENTS_FINDINGS.md`](WB_DAGCLIENTS_FINDINGS.md) §1, §4, §5.
+   > See [`WB_DAGCLIENTS_FINDINGS.md`](WB_DAGCLIENTS_FINDINGS.md) §1, §4, §5, and
+   > board `#3099`–`#3103`.
 4c. **A possible latency bug, flagged rather than smoothed**: in the `-6`
    arm of `0x10c1c1d4`, a producer that is neither `fcmpo`/`fcmpu` nor a
    recording `vcmp*` leaves `local_10 = -6`, which is stored into the edge's

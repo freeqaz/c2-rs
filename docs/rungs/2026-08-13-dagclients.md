@@ -8,6 +8,7 @@
     Fixtures:  none — characterization: the four DAG-builder clients that bypass the region finder (#3071)
     Census:    +0 — nothing admitted, no crates/ file touched
     Record:    docs/whitebox/WB_DAGCLIENTS_FINDINGS.md
+    Board:     #3099–#3103 (#3099–#3102 Done, #3103 Open)
 
 ## What it admits, and what it refuses
 
