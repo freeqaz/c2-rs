@@ -1,0 +1,13 @@
+mode: /O1 /GS- /c   POST-HOC — not in either frozen grid, not scored in §2
+
+fixtures/cpp/whash_loop_then_framed.cpp
+   counter 2546   2 segments   R1 charge per function: [2, 0]
+   framed ?z9@@YAHH@Z                  real $M2564
+   predicted with R1        $M2564   GREEN
+   predicted with charge 0  $M2562   RED   <- what plan_labels charges today
+   the TRUE lead is 2
+fixtures/cpp/whash_ptr_walk_loop.cpp
+   counter 2541   1 segments   R1 charge per function: [2]
+   no framed function -> the counter's value never reaches this obj (board #742). Nothing to predict, and nothing a wrong charge could break.
+
+2 of 2
