@@ -1121,6 +1121,72 @@ branch" path that assumes one of them corrupts the other.
 unconditional `b` (§3.3.1). This must be in the fixup pass, because the overflow
 is only visible after layout.
 
+> ### ✔ 2026-08-14 — **item D is BUILT**, by lane `w-item-d`
+> ([`rungs/2026-08-14-itemd.md`](rungs/2026-08-14-itemd.md)).
+>
+> `crates/c2-core/src/codegen/reach.rs`: **`Reach`** is the verdict for **one**
+> reference site — `Direct` / `Expanded` / `Misaligned` / `Unmeasured` —
+> **`LongBranch`** is §3.3.1's expansion *as the two words it is*, and
+> **`reach::direct`** is the gate: the branch word if and only if the site is in
+> range, and otherwise a refusal that names the site, the verdict **and what c2
+> does instead**. All four of §3.3.1's measured rows come back out of the model:
+> `409a79c8` and `409a7f74` at +31176 and +32628, `419a0008`+`48008564` at
+> +34148, `419a0008`+`4800b674` at +46708 — real `c2.dll` output off held-out
+> probe `pe.cpp`, reproduced from rules that were **derived and not fitted**.
+>
+> **The title is the half that binds, and the sentence's *must* is FALSE.** Item
+> G's rule, applied before implementing either half. *"A displacement range
+> check with a **defined expansion**"* — the check has shipped since W11;
+> **defined** is what was missing and what this builds. *"This must be in the
+> fixup pass"* — no. `LabelMap::resolve` takes `&mut [u8]`; **a slice cannot
+> grow, and the expansion inserts a word.** That is not an API accident a
+> `&mut Vec<u8>` would repair: inserting a word moves every byte after it by
+> four, invalidating every bound label offset and every other pending site in
+> the same map — including ones already patched on that pass — and can push a
+> second branch out of range. **A patch is four bytes at a known offset; the
+> expansion is a re-layout, and re-layout runs to a fixpoint.** The *because* is
+> right (the overflow is only visible after layout) and the placement is not:
+> detection after layout, rewrite **before** the fixup pass.
+>
+> **The check was spelled twenty-four times in `codegen/` and the expansion
+> zero.** `LabelMap::resolve`'s invariant 5 plus **twenty-three** private
+> `out_of_class("… out of range")` sites over **thirteen** lowerings, each with
+> its own wording, and exactly one of the twenty-four mentioning §3.3.1 at all —
+> to say the expansion is *not built*. The twenty-three now call `reach::direct`
+> and the crate has one reader of the fact. Two sites are left on purpose:
+> `labels.rs`'s (peer-held; delegating is its owner's one-line change) and the
+> two `bdnz` back edges, which are `BO_DNZ` — a `BO` this model already
+> classifies `NoSenseToInvert`, because §3.3.1's *"invert the condition"* has
+> nothing to invert on a counter test.
+>
+> **Two cases §3.3.1 did not sweep are refused rather than guessed, and the
+> arithmetic is why.** The far `b` carries `disp` and **not** `disp − 4`, because
+> the inserted word moves a *forward* target too — which is what §3.3.1's own
+> bytes say, its "displacement needed" column and the emitted `LI` being the same
+> integer on both long rows. For a **backward** target the inserted word moves
+> nothing, so the same expansion would need `disp − 4`; that is arithmetic with
+> no cell behind it, so a backward overflow is `Unmeasured`. A backward branch
+> that *fits* stays `Direct` — narrowing to forward-only would have refused
+> `ptr_walk_loop` and `ptr_walk_chain_loop`, two shipped byte-exact classes,
+> which is item G's trap one item along. And a **misaligned** displacement is its
+> own verdict *ahead* of any range question: `encode_bc` returns `None` for it
+> too, and reading that `None` as "too far" would hand it an expansion whose `b`
+> is misaligned in exactly the same way.
+>
+> **Nothing performs the expansion.** No body in the corpus is 32 KB, so a
+> relaxation pass would be an ungraded code path by construction — w-frame row
+> **F-c**, the mistake `encode_b_intra`'s own header records being made and
+> reverted once already. The bytes are *defined and graded*; the pass has a
+> stated home for the day a 32 KB body arrives.
+>
+> **It converted zero TUs, by design** — a construct rung on board #290's
+> pattern, graded by a required-zero byte delta: 878 per-TU verdicts, 372
+> `gap-metric` keys (113 `fnbyte-*`, `fnbyte-exact` 35,734) and the whole gate
+> lane table identical, both gate runs' `graded tree` identical at their own two
+> ends. Item **F** remains absent and this changes its price by nothing. §6.2 now
+> scores **6 of 7 built** (A, B, C, D, E, G); the one not counted is **F**, whose
+> floor `w-merger4` established.
+
 **E. A condition-code model with two producers.**
 The IR must distinguish *"compare X against Y into cr6"* from *"this arithmetic
 instruction's record form sets cr0"*, because §3.2 shows c2 branches on both and

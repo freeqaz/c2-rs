@@ -2879,3 +2879,37 @@ and `vgl-prereg:<line>` are line numbers into frozen one-shot rung records under
 > inside a backgrounded call that outlived the harness's own completion report.
 > It is a **new mechanism** in the void family: not #3048's byproduct file, not
 > #3075's edit-under-a-live-gate, but *a run believed finished that was not*.
+
+---
+
+## `w-item-d` — rows drafted, **UNNUMBERED**
+
+`CFG_SHAPE.md` §6.2 item **D**, the long-branch expansion
+([`rungs/2026-08-14-itemd.md`](rungs/2026-08-14-itemd.md)). Lettered `AD-a`…
+`AD-f`; the rung's §6 keeps the letters and the mapping goes here when the
+numbers are minted.
+
+| row | claim | state | evidence |
+|---|---|---|---|
+| **AD-a** | **ITEM D IS BUILT — §3.3.1's LONG-BRANCH EXPANSION IS *DEFINED*, AND THE ITEM'S SENTENCE ("this must be in the fixup pass") IS REFUTED BY THE FIXUP PASS'S OWN SIGNATURE** | **DONE — construct rung, board #290/#3072/#3078/#3114's pattern** | `crates/c2-core/src/codegen/reach.rs`: `Reach` (the per-site verdict — `Direct`/`Expanded`/`Misaligned`/`Unmeasured`), `LongBranch` (§3.3.1's two words), `reach::direct` (the gate). All four measured rows of §3.3.1's `pe.cpp` sweep reproduce: `409a79c8` / `409a7f74` direct at +31176 and +32628, `419a0008`+`48008564` at +34148, `419a0008`+`4800b674` at +46708. **`LabelMap::resolve` takes `&mut [u8]` — a slice cannot grow and the expansion inserts a word.** Not an API accident: the insertion moves every byte after it by four, invalidating every bound label offset and every other pending site in the same map, and can push a second branch out of range. A patch is four bytes at a known offset; **the expansion is a re-layout**, monotone and therefore convergent, and it belongs *before* the fixup pass. The *because* ("only visible after layout") is right. §6.2 goes **5 of 7 → 6 of 7** (A, B, C, D, E, G); only **F** is left |
+| **AD-b** | **THE FAR `b` CARRIES `disp`, NOT `disp − 4` — AND THE BACKWARD CASE, WHICH DIFFERS BY EXACTLY THE INSERTED WORD, IS REFUSED AS UNMEASURED** | **DONE** | The pair replaces one word with two, so a *forward* target moves by four as well: `LI = (T+4) − (X+4) = disp`. §3.3.1's own bytes decide it — the table's "displacement needed" column and the emitted `LI` are the **same integer** on both long rows (34148, 46708). For a **backward** target the inserted word moves nothing, so the same construction needs `disp − 4`: arithmetic with no cell behind it, because §3.3.1's probe is forward on every row. `Reach::Unmeasured(Backward)`. **A backward branch that FITS stays `Direct`** — narrowing to forward-only would have refused `ptr_walk_loop` and `ptr_walk_chain_loop`, two shipped byte-exact classes, which is `#3114`'s trap one item along |
+| **AD-c** | **THE RANGE CHECK WAS SPELLED TWENTY-FOUR TIMES IN `codegen/` AND THE EXPANSION ZERO; TWENTY-THREE NOW DELEGATE** | **DONE** | `LabelMap::resolve` invariant 5 plus **23** private `out_of_class("… out of range")` sites over **13** lowerings, each with its own wording, and exactly one of the twenty-four naming §3.3.1 — to say the expansion is *not built*. Every site knew the branch was too far and **no site knew what c2 does about it**, which is the sense in which item D read half-built. Two are left on purpose: `labels.rs`'s (peer-held) and the two `bdnz` back edges (`BO_DNZ` — `NoSenseToInvert` by this model's own rule) |
+| **AD-d** | **§3.3.1's BRACKET DOES NOT PIN THE THRESHOLD TO THE WORD — THE ARCHITECTURE DOES, AND THE DISTINCTION IS NOT DECORATIVE** | **OPEN — priced, declined** | The sweep steps N by 200, i.e. ~1500 bytes of displacement, so the measured bracket is +32628 (direct) / +34148 (expanded) and **any** threshold in that 1520-byte interval fits the data. `BC_MAX_DISP = 32764` comes from the `BD` field's width, not from a cell. Demonstrated by mutation: `BC_MAX_DISP → 32760` reddens **only** a derived sweep-count assertion and **no measured row** — §3.3.1's +32628 is still direct at 32760. A lane wanting it pinned by measurement needs the sweep re-run at word granularity across the limit. **Value today: zero** (the architecture is not in doubt); value the day someone doubts the constant: the whole of item D |
+| **AD-e** | **`labels::Form::encode` IS PRIVATE, SO THE TWO-ENCODING DISPATCH IS NOW WRITTEN TWICE** | **OPEN — one line, in a peer-held file** | `reach::encode_in_form` is a four-line duplicate of `Form::encode`. The *facts* are not duplicated (`BC_MAX_DISP`/`B_MAX_DISP` stay `encode`'s and both spellings read them through the same two encoders), but the dispatch is. Making `Form::encode` `pub(super)` and deleting `encode_in_form` closes it. Belongs to `labels.rs`'s owner (peer `w-fenceb` held it for this lane's whole life) |
+| **AD-f** | **ITEM A HAS ONE PRODUCTION CLIENT AND THE CRATE HAS TWENTY-THREE HAND-PATCHED BRANCH SITES — THAT GAP, NOT ITEM D, IS WHAT MAKES THE EXPANSION UNAPPLIABLE** | **OPEN — the natural next construct rung** | `BodyLayout` (item A, `#3072`) is used by exactly **one** lowering, `cond_tail`; `LabelMap` (item B, `#290`) by two. The other **13** lowerings compute every displacement themselves and patch at a fixed offset — which is precisely the shape a re-layout cannot serve, because a fixed site has nowhere to grow. **The expansion is unappliable today not because it is undefined (it is defined) but because 23 of 25 branch sites are not in a layout that can move.** Sizing that migration is a construct rung on item A's adoption, and it is the prerequisite for AD-a's re-layout, not the other way round |
+
+> ### **THIS LANE MINTED NO NUMBERS, AND THIS BLOCK HANDS OUT NONE.**
+>
+> `w-item-d` was dispatched with *"next free is `#3119`, two peers in flight,
+> coordinator serializes — do not mint numbers yourself"*, and it did not. The
+> six rows above are lettered and stay lettered until the coordinator allocates.
+>
+> **Read the `#3114`–`#3118` block above for the free number, not this one.**
+> This block is appended *below* it and is therefore the last one a reader
+> reaches, which is exactly the hazard `w-merger4`'s rule was written for: a
+> reader who takes the number off the last block they see would take it off a
+> block that never had one. The durable rule is unchanged and is
+> `w-merger4`'s — *check the free number in the same edit that spends it* — and
+> the two peers in flight alongside this lane (`w-fenceb`, holding
+> `codegen/labels.rs`, and `w-read2`, holding `c2-il`'s `func/body/expr.rs`)
+> are the reason no branch could have known its own range.
