@@ -1245,6 +1245,67 @@ emission. Concretely: the port must be able to say "this `cflow-if-1` is band 3"
 and refuse otherwise, rather than emitting a branch and being wrong on 6 of 7
 leaf bodies.
 
+> ### ✔ 2026-08-14 — **item G is BUILT**, by lane `w-ir-g`
+> ([`rungs/2026-08-14-irg.md`](rungs/2026-08-14-irg.md)).
+>
+> `crates/c2-core/src/codegen/fold.rs`: **`FoldBand`** is §3.5's three measured
+> bands and no fourth; **`FoldShape`** is the four facts §3.5's band rules are
+> *stated over* — where each arm ends, whether both arms are constants, whether
+> the relation is an equality — and **`FoldShape::band`** is those rules read
+> back as a decision. **`FoldShape::admit`** is the gate: a class states the band
+> it was drawn in and a shape that does not decide to exactly that band is
+> refused **before a byte is emitted**. This is §6.3's amended doctrine in its
+> reference form — a decidable pre-emission predicate, not a catalogue of names.
+>
+> **"Band 3 or refuse" is this item's sentence and it is NOT the rule; the
+> item's own title is.** *"Per accepted shape"* is load-bearing, because this
+> crate ships **two byte-exact classes in two different bands**: `cond_tail`
+> (`?MemFree`, band 3, §4.1's thirty-six published bytes) and `pool_free_list`
+> (`?Pool::Alloc`/`?Pool::Free`, band **2**, `bclr 12,26` — §3.5's own last two
+> `bclr` rows). A module-wide "band 3 or refuse" would refuse a shipped, graded
+> class. So the band is a **parameter** of the check, and the same rules have to
+> come out `Branch` for one client and `ConditionalReturn` for the other off
+> different inputs — which is what makes the predicate shared rather than a
+> tautology at one call site.
+>
+> **The verdict type is not the band type, and that is §3.5's own logical form
+> rather than a hedge.** `BandVerdict` carries `Is(band)`, plus
+> `BranchlessOrConditionalReturn` — board **#187**'s declined cost model as
+> **one** value, because two values would be a place to write the fitted rule
+> #187 exists to prevent — plus `Unmeasured` for an arm-end combination §3.5's
+> table has no row for (one arm joins, the other returns). **`band()` never
+> returns `Is(Branchless)`**: §3.5 states band 1 as a *necessary* condition
+> (*"reached **only when**…"*) whose third conjunct is the declined one, so band 1
+> can be **falsified by one failing conjunct and never verified**. An ordered
+> relation or a non-constant arm therefore *decides* band 2 with no cost model
+> read — which is #2596's *"band 1 is unreachable by the class's own
+> precondition"* turned from a paragraph into a check, and
+> `pool_free_list`'s own test now asserts that its verdict is band 2 **and is
+> not** the undecided pair.
+>
+> **Graded on §3.5's own eighteen-row table.** All 18 rows classify to their
+> measured branch column, and the safety property is asserted both ways: **a row
+> is called band 3 exactly when its obj carries a `bc`** — 3 rows (`?a_var`,
+> `?f_eqcall`, `?MemFree`), never one of the seven that emit no branch at all.
+> 7 rows decide band 2; 8 land in #187's declined region, including `?f_eq59`,
+> whose `bclr` and `?f_eqzk`'s fold share a constant pair and are the separating
+> cell. The clause order is load-bearing and is §3.5's: band 3 is tested first,
+> because `?a_var` satisfies band 1's *entire checkable* precondition and still
+> emits a `bc`.
+>
+> **`Relation::of` derives the equality clause through `cond_tail::branch_sense`**
+> — the relation is `==`/`!=` exactly when the branch it becomes tests the `EQ`
+> bit — so the six relations are not enumerated a second time.
+>
+> **It converted zero TUs, by design** — a construct rung on board #290's
+> pattern, graded by a required-zero byte delta: 878 per-TU verdicts, 372
+> `gap-metric` keys (113 of them `fnbyte-*`, `fnbyte-exact` 35,734 both ends) and
+> the whole gate lane table identical, both gate runs' `graded tree` identical at
+> their own two ends. Board **#187 is NOT settled** and this lane did not try:
+> what it built is the place where the decline is *represented* instead of
+> repeated in prose. Item **F** remains absent and this changes its price by
+> nothing.
+
 ### 6.3 What it must NOT carry
 
 The port is **I/O-behavioral** and does not reimplement c2's 35 passes. This
