@@ -294,6 +294,30 @@ load-bearing** — dropping it costs a cell.
    `0x10be5d4b`'s region enders. **Unread.** If any of them reorders tuples,
    the ordering story has a second author and this document is incomplete in
    a way its grid cannot detect.
+
+   > ### ⚠ 2026-08-14 — ANSWERED, and the answer is YES (`w-dagclients`)
+   >
+   > Board `#3071` was right to file this, and it resolved against this
+   > document. **`0x10b3b167` and `0x10b3b41b` are a dependence-DAG block
+   > merger** (tail-merge / cross-jump and head-merge / hoist): they unlink and
+   > re-insert tuples through `0x10bd38b0` / `0x10bd3892` — the same `tuple+0`
+   > next / `tuple+0x10` prev links §2 gives the scheduler — and they run at
+   > `0x10b7ded5`, i.e. **before** `0x10b7df57`'s final schedule, so the
+   > `node+0x44` tie-break is assigned from the *post-merge* order. Ablating
+   > them in a patched copy of the image turns a 13-instruction one-copy
+   > `if`/`else` into a 16-instruction two-copy one, with the common store
+   > moving from above the branch back inside both arms.
+   >
+   > **Nothing in §1–§7 is contradicted; §7's recipe is INCOMPLETE.** It is
+   > sound only on a function whose branches do not admit a merge — which
+   > every one of this lane's 15 cells was, by construction. `0x10b3b5fd` is
+   > reached but never fires on either of `w-dagclients`' grids, and
+   > `0x10c1ce93` is read-only and reachable only under `/QXSTALLS` **and**
+   > `/FAsc` — where it runs even at `/Od`, so §1's "at `/Od` **none** of the
+   > four runs" is true of the four *scheduler passes* and **not** of the four
+   > DAG clients.
+   >
+   > See [`WB_DAGCLIENTS_FINDINGS.md`](WB_DAGCLIENTS_FINDINGS.md) §1, §4, §5.
 4c. **A possible latency bug, flagged rather than smoothed**: in the `-6`
    arm of `0x10c1c1d4`, a producer that is neither `fcmpo`/`fcmpu` nor a
    recording `vcmp*` leaves `local_10 = -6`, which is stored into the edge's
