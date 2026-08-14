@@ -1,0 +1,20 @@
+debug lane: 18 lanes x 381 fixtures, binary=/home/free/code/milohax/c2-rs/.claude/worktrees/w-fenceb/target/debug/c2rs
+DEBUG-LANE-RESULT PASS lane=O1 flags=[/O1] graded=381 total=381 match=178 mismatch=0 panics=0 rc=0
+DEBUG-LANE-RESULT PASS lane=O1-EHsc flags=[/O1 /EHsc] graded=381 total=381 match=179 mismatch=0 panics=0 rc=0
+DEBUG-LANE-RESULT PASS lane=O1-Oi flags=[/O1 /Oi] graded=381 total=381 match=180 mismatch=0 panics=0 rc=0
+DEBUG-LANE-RESULT PASS lane=O1-Oi-EHsc flags=[/O1 /Oi /EHsc] graded=381 total=381 match=181 mismatch=0 panics=0 rc=0
+DEBUG-LANE-RESULT PASS lane=Ox flags=[/Ox] graded=381 total=381 match=150 mismatch=0 panics=0 rc=0
+DEBUG-LANE-RESULT PASS lane=Ox-EHsc flags=[/Ox /EHsc] graded=381 total=381 match=150 mismatch=0 panics=0 rc=0
+DEBUG-LANE-RESULT PASS lane=Ox-Gy flags=[/Ox /Gy] graded=381 total=381 match=150 mismatch=0 panics=0 rc=0
+DEBUG-LANE-RESULT PASS lane=Ox-Gy-EHsc flags=[/Ox /Gy /EHsc] graded=381 total=381 match=150 mismatch=0 panics=0 rc=0
+DEBUG-LANE-RESULT PASS lane=O2 flags=[/O2] graded=381 total=381 match=156 mismatch=0 panics=0 rc=0
+DEBUG-LANE-RESULT PASS lane=O2-EHsc flags=[/O2 /EHsc] graded=381 total=381 match=156 mismatch=0 panics=0 rc=0
+DEBUG-LANE-RESULT PASS lane=Od flags=[/Od] graded=381 total=381 match=18 mismatch=0 panics=0 rc=0
+DEBUG-LANE-RESULT PASS lane=Od-EHsc flags=[/Od /EHsc] graded=381 total=381 match=18 mismatch=0 panics=0 rc=0
+DEBUG-LANE-RESULT PASS lane=O1-Oi-GR flags=[/O1 /Oi /GR] graded=381 total=381 match=180 mismatch=0 panics=0 rc=0
+DEBUG-LANE-RESULT PASS lane=O1-Oi-EHsc-GR flags=[/O1 /Oi /EHsc /GR] graded=381 total=381 match=181 mismatch=0 panics=0 rc=0
+DEBUG-LANE-RESULT PASS lane=Ox-GR flags=[/Ox /GR] graded=381 total=381 match=150 mismatch=0 panics=0 rc=0
+DEBUG-LANE-RESULT PASS lane=Ox-EHsc-GR flags=[/Ox /EHsc /GR] graded=381 total=381 match=150 mismatch=0 panics=0 rc=0
+DEBUG-LANE-RESULT PASS lane=Od-GR flags=[/Od /GR] graded=381 total=381 match=18 mismatch=0 panics=0 rc=0
+DEBUG-LANE-RESULT PASS lane=Od-EHsc-GR flags=[/Od /EHsc /GR] graded=381 total=381 match=18 mismatch=0 panics=0 rc=0
+DEBUG-LANE-TOTAL lanes=18 ran=18 failed=0
