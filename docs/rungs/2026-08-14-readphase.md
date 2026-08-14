@@ -17,7 +17,9 @@
                **`3ee6ff08`** as this lane's first commit, **before the first
                scan**. Scored in §8.
     Lane:      `w-readphase`, worktree branch `wt-w-readphase`, off master
-               **`6f2c7c41`**. Master did not move under the lane.
+               **`6f2c7c41`**, **rebased onto `7691dbe8`** (the `w-backedge`
+               merge) and re-graded there — §10. `w-backedge` is docs-only, so
+               the graded tree is `b865e54d6939` at both ends of both runs.
     Ships:     nothing under `crates/`. Four analysis drivers under
                `work/w-readphase/` (`ladder.py`, `phase.py`, `greedy.py`,
                `keydiff.py`) and 25 workload scans. Board rows left
@@ -352,7 +354,8 @@ four columns** and against nothing else — and precisely not a case for a TU la
 
 ## 9. Board rows — **UNNUMBERED**, for the coordinator
 
-Next free is **#3092** if `w-backedge` lands first; peers may shift it.
+`w-backedge` landed while this lane ran and minted **#3088**–**#3091**, so the
+next free is **#3092** (`7d22f186`). Peer `w-dagclients` may still shift it.
 
 | # | item | worth (measured, not estimated) | defined | notes |
 |---|---|---|---|---|
@@ -373,6 +376,7 @@ Next free is **#3092** if `w-backedge` lands first; peers may shift it.
 | `cargo test --workspace --release --no-fail-fast` | **1,567 passed · 0 failed · 42 targets** — master's baseline to the unit |
 | `scripts/gate.sh --jobs 4 --require-graded` | **`GATE: PASS`**, `GATE_RC=0`. **18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT**; **6,858 fixture-verdicts**; `expr-sweep` **19,556/19,556 reached, 19,460 GRADED, 0 mismatch**; `mode-cross` **90,812/90,812 selected, 90,424 graded, 0 mismatch**; `ladder-red` **PASS 5/5, 3 red, 2 green controls**; `hatch-red` **REFUSED (HATCH-STALE, board #1389)** — pre-existing on this master and unrelated: this lane's `crates/` delta is zero |
 | **`graded tree`, both ends** | **`b865e54d6939` (728 files)** at the header *and* at the summary, identical — and identical to the value the dispatch brief carried |
+| **re-graded on the REBASED tree** | Master advanced to **`7691dbe8`** (the `w-backedge` merge) mid-lane and this branch was rebased onto it. `w-backedge` is **docs-only** (`0` files under `crates/`, `fixtures/`, `scripts/`), so the graded tree is unmoved — asserted rather than assumed: the full gate was re-run at the rebased tip and returns **`GATE: PASS`, `GATE_RC=0`, `graded tree b865e54d6939` (728 files) at both ends**, 18/18 lanes, 6,858 verdicts, sweep 19,556/19,460, cross 90,812/90,424, **0 mismatch**. `cargo test` **1,567 / 0 / 42** and `board_audit.sh` all-zero at the rebased tree; the 878-TU scan is **370 keys, 0 differing** |
 | `scripts/board_audit.sh` | **exit 0, all-zero**: cited-but-not-on-board **0** · unresolved section anchors **0** · raw line-number anchors **0** · rows-behind-the-prose **0** · duplicate row numbers **0** |
 | `rung_registry` | **2 passed / 0 failed** (`rung_docs_claim_their_tag_slug_and_fixtures_exactly_once`, `rung_index_is_generated_and_current`) |
 | 878-TU workload scan, **base** | `match 25 · mismatch 0 · codegen-gap 0 · vocab-gap 845 · capture-fail 8 · frontier 2`, 370 keys, 878 rows / **870 graded** |
