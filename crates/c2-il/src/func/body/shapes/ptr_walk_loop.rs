@@ -516,4 +516,46 @@ mod tests {
         assert!(is_mulli_literal(-7));
         assert!(is_mulli_literal(-127));
     }
+
+    /// **W-FENCEB — the label charge, pinned where it can be seen.** This class
+    /// used to return `None` from `IlFunction::label_slots` (board **#746**,
+    /// fence B) and now charges a lead of **2**, so a TU pairing it with a
+    /// framed function is admitted instead of refused whole. The number is not
+    /// fitted to any rule: it is read out of `fixtures/cpp/whash_loop_then_framed.cpp`'s
+    /// own reference obj, whose framed `?z9` sits at `$M2564` against a
+    /// charge-0 base of 2562.
+    ///
+    /// **`docs/LABEL_COUNTER.md` §4.2.1 publishes `+3` for this shape and it is
+    /// ONE HIGH** (board **#3091**). That is asserted here as a distinct value
+    /// rather than mentioned, because a lead of 3 is a live `mismatch` against
+    /// real `c2.dll` and the published table would licence it.
+    ///
+    /// Asserted at BOTH values of `fn_level_linking`: a leaf's slots do not
+    /// depend on `/Gy`, so neither spelling of the question may drift.
+    #[test]
+    fn the_pointer_walk_loop_charges_a_lead_of_two_and_not_the_published_three() {
+        let f = crate::func::IlFunction {
+            ptr_walk_loop: Some(PtrWalkModLoop {
+                params: vec![0xE3, 0xE4],
+                acc_init: 0,
+                mul_k: 0x7F,
+            }),
+            ..crate::func::IlFunction::base("?HashString@@YAHPBDH@Z", &None)
+        };
+        assert_eq!(f.label_lead(), 2, "the obj says 2; §4.2.1's table says 3");
+        assert_eq!(f.label_slots(false), Some(3));
+        assert_eq!(f.label_slots(true), Some(3));
+        // `IlBundle::functions`' three-valued gate is
+        // `label_slots(false)? != label_lead() + 1`, and `coff::plan_labels`
+        // advances exactly `label_lead + 1` for a non-framed function. Asserting
+        // the RELATION and not only the number is what keeps the two halves of
+        // the lift from drifting apart into six wrong bytes.
+        assert_eq!(f.label_slots(false), Some(f.label_lead() + 1));
+        // The separating control: the same builder without the field is an
+        // ordinary leaf at lead 0, so the 2 above is this shape's answer and not
+        // the builder's.
+        let plain = crate::func::IlFunction::base("?g@@YAHH@Z", &None);
+        assert_eq!(plain.label_lead(), 0);
+        assert_eq!(plain.label_slots(false), Some(1));
+    }
 }

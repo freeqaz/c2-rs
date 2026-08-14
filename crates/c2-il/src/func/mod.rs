@@ -4101,6 +4101,56 @@ impl IlFunction {
             // **thirty-three** at `/Ox` and by **zero** at `/O1`, so what moves
             // there is the INLINER, not the counter.
             + 4 * u32::from(self.xtea_encrypt_loop.is_some())
+            // **W-FENCEB — the pointer-walk loop charges TWO slots, and this is
+            // the SECOND leaf class here with a non-zero lead.**
+            //
+            // `xtea_round_loop` above is the first, and this term is placed the
+            // same way for the same reason: `coff::plan_labels` charges a
+            // non-framed function `label_lead + 1`, so a leaf's lead moves every
+            // LATER function's labels and **no arm in `plan_labels` changes**.
+            // Nothing in `coff/` is touched to ship this.
+            //
+            // **MEASURED AGAINST THE FIXTURE'S OWN OBJ, not read off any rule
+            // and not read off `docs/LABEL_COUNTER.md`.** `whash_loop_then_framed.cpp`
+            // is `[HashString (this class, a leaf), z9 (framed)]`; its `.gl` label
+            // counter is **2546**, so a charge-0 `plan_labels` seeds `z9` at
+            // `2546 + 9 + 3·2 + 1 = 2562`, and the reference obj's own triple is
+            // `$M2564`/`$M2565`/`$T2566`. The lead is forced to exactly **2**
+            // before a byte is emitted. (`work/w-fenceb/mfix_modes.txt`.)
+            //
+            // **`docs/LABEL_COUNTER.md` §4.2.1's `leaf-ptrwalk` row says +3 and
+            // it is ONE HIGH for this class** — board **#3091**. That table was
+            // measured on `Sort.cpp`'s pointer walk, and the number was then
+            // quoted into this file's doc and into the fixture's header, where it
+            // stood unchallenged because it made the refusal look *dearer to
+            // lift than it was*. The obj is the judge; the table is not.
+            //
+            // **THE MODE COUPLING, stated because it is the whole risk.** The
+            // same source's framed `$M` is `2564` at `/O1`, `2559` at `/Ox`,
+            // `2565` at `/O2` and `2554` at `/Od` — four modes, four integers,
+            // two of them BELOW the charge-0 base — while this method has no mode
+            // parameter and `wb-label` §7.6 forbids giving it one. That is
+            // `counted_accum_loop`'s reading 2 verbatim, and on its own it would
+            // refuse.
+            //
+            // What licenses the number anyway is **`xtea_round_loop`'s argument,
+            // reproduced and re-measured rather than inherited**: the class is
+            // *unreachable* at any mode but the one the 2 was measured at.
+            // `codegen::ptr_walk_loop::select_function` refuses `mode != O1`
+            // outright ("a different 84-byte body: strength-reduced multiply,
+            // hoisted trap, `cmpli` loop close"), so at `/Ox`, `/O2` and `/Od`
+            // the TU is `NotImplemented` whatever this returns and the number
+            // never reaches an obj. Verified at all four, not assumed:
+            // `work/w-fenceb/modes_before.txt`.
+            //
+            // **That coupling is pinned, not left latent.** It is a fact of a
+            // file this term does not own, so
+            // `crates/c2-harness/tests/differential.rs`'s
+            // `differential_whash_loop_then_framed_*` pair asserts BOTH poles —
+            // `match` at `/O1` and `NotImplemented` at `/Ox` — against real
+            // `c2.dll`. A later lane widening `ptr_walk_loop` codegen to `/Ox`
+            // reddens that test rather than silently emitting a wrong `$M`.
+            + 2 * u32::from(self.ptr_walk_loop.is_some())
     }
 
     /// Every external this function calls, in **first-reference order** — which is
@@ -4232,40 +4282,57 @@ impl IlFunction {
         if self.is_framed() {
             return Some(self.label_lead() + if fn_level_linking { 5 } else { 4 });
         }
-        // **The pointer-walk loop refuses, and the refusal is the measurement,
-        // not caution.** `w-loop` read the *leaf* loop stride seed-free over 17
-        // probes with a 5/5 anchor control on every row: `while` +2, `do/while`
-        // +1, `for` +2, `for(;;)`+`break` +3, nested +4, `Sort.cpp`'s own
-        // pointer-walk shape **+3** — against `leaf-none` = 1. So a loop leaf is
-        // never 1, and *which* of the four it is cannot be read off the emitted
-        // bytes: `do/while`, `for(;;)`+`break` and a backward `goto` emit the
-        // **identical 24 bytes** and charge +1, +3, +1.
+        // **W-FENCEB — THE POINTER-WALK LOOP'S `None` IS LIFTED, and the charge
+        // that replaces it is on [`Self::label_lead`], measured against this
+        // fixture's own obj.** Board **#746**'s fence B, priced two-sided in
+        // `docs/rungs/2026-08-14-fenceb.md` §6. There is no arm here any more:
+        // the class falls through to the `label_lead() + 1` tail, which is
+        // exactly what `coff::plan_labels` advances for a non-framed function,
+        // so [`crate::IlBundle::functions`]' gate (`label_slots(false)? !=
+        // label_lead() + 1`) is satisfied by construction and **nothing in
+        // `coff/` changed**.
         //
-        // `Some(4)` for the +3 measured here would therefore be a rule fitted on
-        // one source spelling of a class whose members are indistinguishable at
-        // the only place this port can look. `None` refuses instead, and the
-        // three-valued gate in [`crate::IlBundle::functions`] turns that into:
-        // **a TU pairing this shape with a framed function is rejected; a TU
-        // with no framed function is admitted**, which is exactly the boundary
-        // `w-loop` §5.1 measured (34 of 34 leaf-only TUs mint zero labels, 28 of
-        // them carrying a backward branch; control 17 of 17). Board **#746**,
-        // and `fixtures/cpp/whash_loop_then_framed.cpp` is board **#747** — the
-        // two-function TU of mixed frame class neither `expr_sweep.sh` nor
-        // `mode_cross.sh` can generate.
-        // **MUST-FAIL MUTATION, verified.** Replacing this `None` with
-        // `Some(1)` — the ordinary leaf charge — turns
-        // `fixtures/cpp/whash_loop_then_framed.cpp` from `NotImplemented` into a
-        // live `mismatch` against real `c2.dll`, while its separating control
-        // `fixtures/cpp/whash_ptr_walk_loop.cpp` (the identical loop with no
-        // framed function beside it) stays `match`. Real `c2` mints
-        // `$M2564`/`$M2565`/`$T2566` for the framed `?z9`; the mutated port
-        // charges the loop 1 where `c2` charges 4, so the triple lands three
-        // low — six wrong bytes in an obj that still links, board #263's shape.
-        // Neither `expr_sweep.sh` nor `mode_cross.sh` can generate that TU
-        // (board #747), so the fixture is the only thing that grades it.
-        if self.ptr_walk_loop.is_some() {
-            return None;
-        }
+        // **What the refusal was, and which half of its reasoning survives.** It
+        // read: *"a loop leaf is never 1, and which of the four charges it is
+        // cannot be read off the emitted bytes — `do/while`, `for(;;)`+`break`
+        // and a backward `goto` emit the identical 24 bytes and charge +1, +3,
+        // +1, so `Some(k)` would be a rule fitted on one source spelling of a
+        // class whose members are indistinguishable where this port looks."*
+        //
+        // **That argument is sound about LOOPS and does not apply to this
+        // CLASS**, and the distinction is the whole lift:
+        //
+        //  * it is an argument that no *general* loop charge is derivable. Lane
+        //    `w-fenceb` confirmed that the hard way — its grid3 hold-out found
+        //    **five** pairs of cells with identical backward-branch feature
+        //    vectors and different charges, every one a `while` against a `for`
+        //    (3v2, 4v2, 4v3, 5v4, 5v3), so the loop KIND is a term no such
+        //    vector contains. `w-backedge`'s candidate `R1′` scores **5 of 15**
+        //    held out. **No general rule is claimed here and none is used.**
+        //  * this class is not a general loop. [`Self::ptr_walk_loop`] is a
+        //    closed recognizer over one `for` shape — no `break`, no `continue`,
+        //    no `goto`, one multiplier form, two formals — so *every* shape the
+        //    hold-out found a residual on is excluded from it by construction.
+        //    Its charge is not fitted: it is **read out of the reference obj**,
+        //    which is the same standard `w-json`, `w-xlr` and `w-xtea3` set for
+        //    their leads.
+        //
+        // **The `+3` this comment used to carry was ONE HIGH** (board #3091),
+        // and the direction matters: an overstated price made the fence look
+        // dearer to lift than it was. See [`Self::label_lead`] for the
+        // arithmetic against `$M2564` and for the **mode coupling**, which is
+        // the residual risk and is pinned by a differential test at both poles.
+        //
+        // **MUST-FAIL MUTATIONS, verified, and there are now THREE.** Deleting
+        // the `+ 2 * ptr_walk_loop` term from [`Self::label_lead`], or making it
+        // `+1` or `+3`, each turns `fixtures/cpp/whash_loop_then_framed.cpp`
+        // from `match` into a live `mismatch` against real `c2.dll` at `/O1`,
+        // while its separating control `fixtures/cpp/whash_ptr_walk_loop.cpp`
+        // (the identical loop with no framed function beside it) stays `match`
+        // under all three — a leaf-only TU mints no labels, so the counter never
+        // reaches its obj (board #742). Neither `expr_sweep.sh` nor
+        // `mode_cross.sh` can generate that two-function mixed-frame-class TU
+        // (board **#747**), so the fixture is the only thing that grades it.
         // **The body-parameterized loop refuses for exactly the same reason**,
         // and the reason is unchanged by the body's length: `w-loop` measured
         // that *which* of the four loop charges applies cannot be read off the
