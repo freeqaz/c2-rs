@@ -109,7 +109,7 @@
 
 use crate::codegen::calls::encode_call_branch;
 use crate::codegen::encode::{
-    cr_bi, encode_add, encode_addi, encode_addis, encode_b_intra, encode_bc, encode_clrlwi_record,
+    cr_bi, encode_add, encode_addi, encode_addis, encode_clrlwi_record,
     encode_cmplw, encode_cmpwi, encode_lbz, encode_lwz, encode_lwzx, encode_mr, encode_mulli,
     encode_rlwinm, encode_srawi, encode_stw, BO_FALSE, BO_TRUE, CR_BIT_EQ, CR_BIT_LT, CR_COMPARE,
 };
@@ -118,6 +118,8 @@ use crate::codegen::select::{fits_i16, out_of_class, ARG_REGS, RET_REG, SCRATCH_
 use crate::codegen::OptMode;
 use crate::BackendError;
 use c2_il::OsfHandleGuardFn;
+use crate::codegen::labels::Form;
+use crate::codegen::reach;
 
 /// The volatile register holding the loaded VALUE throughout — the table entry's
 /// flag byte, then its handle word, then the value the merged store writes.
@@ -329,21 +331,19 @@ pub fn osf_handle_guard_text(
     // Every one is computed from the block layout above rather than written as a
     // constant, so a change to any block's length moves them all together. A
     // hardcoded `+0x58` would keep linking and stop being right.
-    let mut patch = |site: u32, word: Option<[u8; 4]>| -> Result<(), BackendError> {
-        let w = word.ok_or_else(|| {
-            out_of_class("a guarded-table-lookup branch outside its displacement field")
-        })?;
+    let mut patch = |site: u32, form: Form, disp: i32| -> Result<(), BackendError> {
+        let w = reach::direct(form, disp, "a guarded-table-lookup branch")?;
         t[site as usize..site as usize + 4].copy_from_slice(&w);
         Ok(())
     };
     let bi_lt = cr_bi(CR_COMPARE, CR_BIT_LT);
     let bi_eq = cr_bi(CR_COMPARE, CR_BIT_EQ);
     let bi_flag = cr_bi(CR_FLAG, CR_BIT_EQ);
-    patch(low_site, encode_bc(BO_TRUE, bi_lt, l_err as i32 - low_site as i32))?;
-    patch(high_site, encode_bc(BO_FALSE, bi_lt, l_err as i32 - high_site as i32))?;
-    patch(flag_site, encode_bc(BO_TRUE, bi_flag, l_err as i32 - flag_site as i32))?;
-    patch(live_site, encode_bc(BO_TRUE, bi_eq, l_err as i32 - live_site as i32))?;
-    patch(join_site, encode_b_intra(l_join as i32 - join_site as i32))?;
+    patch(low_site, Form::Bc { bo: BO_TRUE, bi: bi_lt }, l_err as i32 - low_site as i32)?;
+    patch(high_site, Form::Bc { bo: BO_FALSE, bi: bi_lt }, l_err as i32 - high_site as i32)?;
+    patch(flag_site, Form::Bc { bo: BO_TRUE, bi: bi_flag }, l_err as i32 - flag_site as i32)?;
+    patch(live_site, Form::Bc { bo: BO_TRUE, bi: bi_eq }, l_err as i32 - live_site as i32)?;
+    patch(join_site, Form::B, l_join as i32 - join_site as i32)?;
 
     Ok(OsfHandleGuardBody { text: t, bl_offsets: [bl0, bl1], prolog_len })
 }
@@ -351,6 +351,7 @@ pub fn osf_handle_guard_text(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::codegen::encode::{encode_b_intra, encode_bc};
     use crate::codegen::encode::{encode_cmpw, encode_clrlwi31};
 
     /// `_free_osfhnd`'s parse, as the reader produces it from the workload's own

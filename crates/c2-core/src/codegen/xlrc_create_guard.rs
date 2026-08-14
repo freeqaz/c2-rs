@@ -106,7 +106,7 @@
 
 use crate::codegen::calls::encode_call_branch;
 use crate::codegen::encode::{
-    cr_bi, encode_addi, encode_addis, encode_b_intra, encode_bc, encode_cmplwi, encode_lwz,
+    cr_bi, encode_addi, encode_addis, encode_cmplwi, encode_lwz,
     encode_mr, encode_mr_record, encode_ori, encode_stw, BO_FALSE, CR_BIT_EQ, CR_BIT_LT,
     CR_COMPARE,
 };
@@ -115,6 +115,8 @@ use crate::codegen::select::{out_of_class, ARG_REGS, RET_REG, SCRATCH_REG};
 use crate::codegen::OptMode;
 use crate::BackendError;
 use c2_il::XlrcCreateGuardFn;
+use crate::codegen::labels::Form;
+use crate::codegen::reach;
 
 /// The callee-saved register each formal is parked in, in declaration order:
 /// `r3→r30`, `r4→r29`, `r5→r28`, `r6→r27`. Transcribed, not derived — see the
@@ -263,29 +265,23 @@ pub fn xlrc_create_guard_text(
     // Each is `bf <bit>` — branch when the tested condition is FALSE — and the
     // three unconditional ones are plain intra-section `b`s. Every displacement
     // is `target − site`, self-relative, so none of them depends on `base_off`.
-    let patch = |t: &mut Vec<u8>, at: usize, word: Option<[u8; 4]>| -> Result<(), BackendError> {
-        let word = word.ok_or_else(|| out_of_class("xlrc branch out of range"))?;
+    let patch = |t: &mut Vec<u8>, at: usize, form: Form, disp: i32| -> Result<(), BackendError> {
+        let word = reach::direct(form, disp, "xlrc branch")?;
         t[at..at + 4].copy_from_slice(&word);
         Ok(())
     };
-    patch(
-        &mut t,
-        at_outer,
-        encode_bc(BO_FALSE, cr_bi(0, CR_BIT_EQ), (l_else - at_outer) as i32),
-    )?;
+    let bf = |bi: u8| Form::Bc { bo: BO_FALSE, bi };
+    patch(&mut t, at_outer, bf(cr_bi(0, CR_BIT_EQ)), (l_else - at_outer) as i32)?;
     patch(
         &mut t,
         at_inner,
-        encode_bc(BO_FALSE, cr_bi(CR_COMPARE, CR_BIT_LT), (l_hi - at_inner) as i32),
+        bf(cr_bi(CR_COMPARE, CR_BIT_LT)),
+        (l_hi - at_inner) as i32,
     )?;
-    patch(&mut t, at_b1, encode_b_intra((l_join - at_b1) as i32))?;
-    patch(&mut t, at_b2, encode_b_intra((l_join - at_b2) as i32))?;
-    patch(
-        &mut t,
-        at_fail,
-        encode_bc(BO_FALSE, cr_bi(0, CR_BIT_EQ), (l_ok - at_fail) as i32),
-    )?;
-    patch(&mut t, at_b3, encode_b_intra((l_join - at_b3) as i32))?;
+    patch(&mut t, at_b1, Form::B, (l_join - at_b1) as i32)?;
+    patch(&mut t, at_b2, Form::B, (l_join - at_b2) as i32)?;
+    patch(&mut t, at_fail, bf(cr_bi(0, CR_BIT_EQ)), (l_ok - at_fail) as i32)?;
+    patch(&mut t, at_b3, Form::B, (l_join - at_b3) as i32)?;
 
     Ok(XlrcCreateGuardBody {
         text: t,

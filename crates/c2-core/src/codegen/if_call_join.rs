@@ -62,7 +62,7 @@
 
 use crate::codegen::calls::encode_call_branch;
 use crate::codegen::encode::{
-    cr_bi, encode_b_intra, encode_bc, encode_blr, encode_cmpwi, encode_mr, BO_TRUE, CR_BIT_EQ,
+    cr_bi, encode_blr, encode_cmpwi, encode_mr, BO_TRUE, CR_BIT_EQ,
     CR_BIT_LT, CR_COMPARE,
 };
 use crate::codegen::frame::FrameLayout;
@@ -70,6 +70,8 @@ use crate::codegen::select::{fits_i16, out_of_class, ARG_REGS, RET_REG, SCRATCH_
 use crate::codegen::OptMode;
 use crate::BackendError;
 use c2_il::IfCallJoinFn;
+use crate::codegen::labels::Form;
+use crate::codegen::reach;
 
 /// The register the scrutinee is parked in for the whole body.
 ///
@@ -152,29 +154,35 @@ pub fn if_call_join_text(
     const I_BL_LO: i32 = 13;
     const I_JOIN: i32 = 14;
     const I_EXIT: i32 = 15;
-    let bt_lt = encode_bc(BO_TRUE, cr_bi(CR_COMPARE, CR_BIT_LT), (I_EXIT - I_BT_LT) * W)
-        .ok_or_else(|| out_of_class("if/else-with-a-join: guard displacement"))?;
-    let bt_eq = encode_bc(BO_TRUE, cr_bi(CR_COMPARE, CR_BIT_EQ), (I_EXIT - I_BT_EQ) * W)
-        .ok_or_else(|| out_of_class("if/else-with-a-join: guard displacement"))?;
+    let bt_lt = reach::direct(
+        Form::Bc { bo: BO_TRUE, bi: cr_bi(CR_COMPARE, CR_BIT_LT) },
+        (I_EXIT - I_BT_LT) * W,
+        "if/else-with-a-join: the LT guard",
+    )?;
+    let bt_eq = reach::direct(
+        Form::Bc { bo: BO_TRUE, bi: cr_bi(CR_COMPARE, CR_BIT_EQ) },
+        (I_EXIT - I_BT_EQ) * W,
+        "if/else-with-a-join: the EQ guard",
+    )?;
     t.extend_from_slice(&bt_lt);
     t.extend_from_slice(&bt_eq);
 
     // The inner test and its arms.
     t.extend_from_slice(&encode_cmpwi(CR_COMPARE, PARK_REG, j.k2 as i16));
-    let bt_inner = encode_bc(
-        BO_TRUE,
-        cr_bi(CR_COMPARE, CR_BIT_LT),
+    let bt_inner = reach::direct(
+        Form::Bc { bo: BO_TRUE, bi: cr_bi(CR_COMPARE, CR_BIT_LT) },
         (I_BL_LO - I_BT_INNER) * W,
-    )
-    .ok_or_else(|| out_of_class("if/else-with-a-join: inner guard displacement"))?;
+        "if/else-with-a-join: the inner guard",
+    )?;
     t.extend_from_slice(&bt_inner);
 
     let bl_hi = base_off + prolog_len + (I_BL_HI as u32 - 3) * 4;
     t.extend_from_slice(&encode_call_branch(bl_hi));
-    t.extend_from_slice(
-        &encode_b_intra((I_JOIN - I_B_JOIN) * W)
-            .ok_or_else(|| out_of_class("if/else-with-a-join: join displacement"))?,
-    );
+    t.extend_from_slice(&reach::direct(
+        Form::B,
+        (I_JOIN - I_B_JOIN) * W,
+        "if/else-with-a-join: the join branch",
+    )?);
     let bl_lo = base_off + prolog_len + (I_BL_LO as u32 - 3) * 4;
     t.extend_from_slice(&encode_call_branch(bl_lo));
 
@@ -197,6 +205,7 @@ fn encode_li(rd: u8, k: i16) -> [u8; 4] {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::codegen::encode::encode_bc;
 
     /// The twenty words real `c2.dll` emits for
     /// `?FindNodeA@@YAPBUCharGraphNode@@W4PlayBlend@@PAXM@Z`, at the dc3

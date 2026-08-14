@@ -44,21 +44,32 @@
 //!
 //! [`LabelMap::resolve`]: super::labels::LabelMap::resolve
 //!
-//! # The check was spelled twenty-one times and the expansion zero
+//! # The check was spelled twenty-four times and the expansion zero
 //!
-//! Before this module, `codegen/` refused an out-of-range displacement in
-//! **twenty-one** places: [`super::labels::LabelMap::resolve`]'s invariant 5,
-//! and **twenty** private `ok_or_else(|| out_of_class("… out of range"))` sites
-//! spread over twelve lowerings, each with its own wording —
-//! *"outside its displacement field"*, *"out of range"*, *"past the `bc`
-//! field"*, *"does not fit a `b` displacement"*. Exactly **one** of the
-//! twenty-one, the map's, mentions §3.3.1 at all, and it mentions it to say the
-//! expansion is *not built*.
+//! Before this module, `codegen/` refused an out-of-range `bc`/`b` displacement
+//! in **twenty-four** places: [`super::labels::LabelMap::resolve`]'s invariant
+//! 5, and **twenty-three** private
+//! `ok_or_else(|| out_of_class("… out of range"))` sites spread over **thirteen**
+//! lowerings, each with its own wording — *"outside its displacement field"*,
+//! *"out of range"*, *"past the `bc` field"*, *"does not fit a `b`
+//! displacement"*, *"if/else-with-a-join: join displacement"*. Exactly **one**
+//! of the twenty-four, the map's, mentions §3.3.1 at all, and it mentions it to
+//! say the expansion is *not built*.
 //!
-//! Twenty-one encodings of one fact is the shape `docs/GAPS.md` §6 keeps
+//! Twenty-four encodings of one fact is the shape `docs/GAPS.md` §6 keeps
 //! recording, and it is why item D reads as half-built: every site knew the
 //! branch was too far and **no site knew what c2 does about it**. This module is
-//! the one answer, and [`direct`] is the gate the twenty call.
+//! the one answer, and [`direct`] is the gate the twenty-three call.
+//!
+//! **Two sites are deliberately left out and neither is an oversight.**
+//! `labels.rs`'s is peer-held and its invariant 5 is item B's, not item D's — it
+//! should delegate here and that is a one-line change belonging to its owner.
+//! And the two `bdnz` back edges (`xtea_round_loop`, `pool_ctor_chain`) go
+//! through `encode_bdnz`, a **different** encoder at `BO_DNZ`: [`Form`] has no
+//! variant for them, and this model already says why — a `BO` that tests CTR
+//! rather than a condition register is [`Unmeasured::NoSenseToInvert`], so
+//! §3.3.1's expansion has nothing to invert on one. Adding a `Form::Bdnz` would
+//! be widening a peer-held type to carry a case the expansion cannot serve.
 //!
 //! # What it derives rather than restates
 //!

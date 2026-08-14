@@ -142,7 +142,7 @@
 //! so they are the only ones that need `base_off`.
 
 use crate::codegen::encode::{
-    cr_bi, encode_addi, encode_addis, encode_b_intra, encode_bc, encode_cmplw, encode_cmplwi,
+    cr_bi, encode_addi, encode_addis, encode_cmplw, encode_cmplwi,
     encode_lhzx, encode_lwz, encode_mr, encode_ori, encode_rlwimi, encode_rlwinm, encode_sth,
     encode_sthu, encode_stw, BO_FALSE, BO_TRUE, CR_BIT_EQ, CR_BIT_GT, CR_BIT_LT, CR_COMPARE,
 };
@@ -151,6 +151,8 @@ use crate::codegen::select::out_of_class;
 use crate::codegen::OptMode;
 use crate::BackendError;
 use c2_il::JsonUtf8CopyFn;
+use crate::codegen::labels::Form;
+use crate::codegen::reach;
 
 /// `this`, the buffer and the size, in r3/r4/r5. r4 is **written** by the
 /// three-byte arm, which is why it is not parked anywhere.
@@ -321,8 +323,11 @@ pub fn json_utf8_copy_text(
     w(encode_lwz(R_T11, R_THIS, off_size), &mut t);
     w(encode_cmplw(CR_COMPARE, R_IX, R_T11), &mut t);
     let at_back = t.len();
-    let back = encode_bc(BO_TRUE, cr_bi(CR_COMPARE, CR_BIT_LT), l_loop as i32 - at_back as i32)
-        .ok_or_else(|| out_of_class("json back edge out of range"))?;
+    let back = reach::direct(
+        Form::Bc { bo: BO_TRUE, bi: cr_bi(CR_COMPARE, CR_BIT_LT) },
+        l_loop as i32 - at_back as i32,
+        "json back edge",
+    )?;
     w(back, &mut t);
 
     // ---- Lafter ------------------------------------------------------------
@@ -356,30 +361,31 @@ pub fn json_utf8_copy_text(
     //
     // Every displacement is `target − site`, self-relative, so none of them
     // depends on `base_off`.
-    let patch = |t: &mut Vec<u8>, at: usize, word: Option<[u8; 4]>| -> Result<(), BackendError> {
-        let word = word.ok_or_else(|| out_of_class("json branch out of range"))?;
+    let patch = |t: &mut Vec<u8>, at: usize, site: (Form, i32)| -> Result<(), BackendError> {
+        let word = reach::direct(site.0, site.1, "json branch")?;
         t[at..at + 4].copy_from_slice(&word);
         Ok(())
     };
     let bt = |bit: u8, target: usize, at: usize| {
-        encode_bc(BO_TRUE, cr_bi(CR_COMPARE, bit), target as i32 - at as i32)
+        (Form::Bc { bo: BO_TRUE, bi: cr_bi(CR_COMPARE, bit) }, target as i32 - at as i32)
     };
     let bf = |bit: u8, target: usize, at: usize| {
-        encode_bc(BO_FALSE, cr_bi(CR_COMPARE, bit), target as i32 - at as i32)
+        (Form::Bc { bo: BO_FALSE, bi: cr_bi(CR_COMPARE, bit) }, target as i32 - at as i32)
     };
+    let b = |target: usize, at: usize| (Form::B, target as i32 - at as i32);
     patch(&mut t, at_fail0, bt(CR_BIT_EQ, l_fail, at_fail0))?;
     patch(&mut t, at_else, bf(CR_BIT_EQ, l_else, at_else))?;
     patch(&mut t, at_fail1, bf(CR_BIT_EQ, l_fail, at_fail1))?;
     patch(&mut t, at_after, bf(CR_BIT_GT, l_after, at_after))?;
     patch(&mut t, at_wide, bt(CR_BIT_GT, l_wide, at_wide))?;
     patch(&mut t, at_cont0, bf(CR_BIT_LT, l_cont, at_cont0))?;
-    patch(&mut t, at_nul, encode_b_intra(l_nul as i32 - at_nul as i32))?;
+    patch(&mut t, at_nul, b(l_nul, at_nul))?;
     patch(&mut t, at_three, bt(CR_BIT_GT, l_three, at_three))?;
     patch(&mut t, at_cont1, bf(CR_BIT_LT, l_cont, at_cont1))?;
-    patch(&mut t, at_cont2, encode_b_intra(l_cont as i32 - at_cont2 as i32))?;
+    patch(&mut t, at_cont2, b(l_cont, at_cont2))?;
     patch(&mut t, at_cont3, bf(CR_BIT_LT, l_cont, at_cont3))?;
     patch(&mut t, at_store, bt(CR_BIT_LT, l_store, at_store))?;
-    patch(&mut t, at_ret, encode_b_intra(l_ret as i32 - at_ret as i32))?;
+    patch(&mut t, at_ret, b(l_ret, at_ret))?;
 
     Ok(JsonUtf8CopyBody { text: t, bl_offsets: [bl_save, bl_rest], prolog_len })
 }
