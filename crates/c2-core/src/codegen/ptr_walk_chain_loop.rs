@@ -75,19 +75,23 @@
 
 use c2_il::{ChainOpKind, ChainRhs, PtrWalkChainLoop};
 
+use crate::codegen::cond::{producer_at, Cond, CR0};
 use crate::codegen::encode::{
-    cr_bi, encode_add, encode_addi, encode_b_intra, encode_bc, encode_bclr, encode_blr,
-    encode_cmplwi, encode_extsb_record, encode_lbz, encode_lbzu, encode_mr, encode_mr_record,
-    encode_mulli, encode_mullw, encode_or, encode_ori, encode_xor, encode_xori, BO_FALSE, BO_TRUE,
-    CR_BIT_EQ,
+    encode_add, encode_addi, encode_b_intra, encode_bc, encode_bclr, encode_blr, encode_cmplwi,
+    encode_extsb_record, encode_lbz, encode_lbzu, encode_mr, encode_mr_record, encode_mulli,
+    encode_mullw, encode_or, encode_ori, encode_xor, encode_xori, BO_FALSE, BO_TRUE, CR_BIT_EQ,
 };
 use crate::codegen::select::{out_of_class, OptMode};
 use crate::BackendError;
 
-/// The `cr` field the record form writes. `extsb.` / `mr.` set **cr0**, and the
-/// branch that reads them must say so — board #188 is the defect this constant
-/// exists to prevent.
-const CR_RECORD: u8 = 0;
+// The private `const CR_RECORD: u8 = 0;` that used to sit here — the second of
+// two identical copies, the other in [`super::ptr_walk_loop`] — is gone. Lane
+// `w-ir-e`, `CFG_SHAPE.md` §6.2 item **E**: the condition-register field now
+// comes from the **producer**, which this class varies by cell and its own
+// `entry_test`/`record_form` doc already spells out — `extsb.` and `mr.` are
+// record forms, and the SAME cell emits `cmplwi cr0` instead, an explicit
+// compare. One constant could name the field; it could not name which of §3.2's
+// two producers wrote it. [`CR0`] names the register itself.
 
 /// The carried character, live across the back edge.
 const R_CHAR: u8 = 11;
@@ -240,7 +244,16 @@ pub(crate) fn ptr_walk_chain_loop_text(
         // loop falls out to is a bare `blr`, so the guard folds and carries no
         // displacement at all.
         t.extend_from_slice(&entry_test(l.elem_unsigned));
-        t.extend_from_slice(&encode_bclr(BO_TRUE, cr_bi(CR_RECORD, CR_BIT_EQ)));
+        // The producer is the word immediately above, and WHICH producer it is
+        // depends on the cell: `cmplwi cr0` for an unsigned element, `extsb.`
+        // for a signed one. Read off the bytes rather than assumed (§6.2 item
+        // E); both write cr0, which is why one constant survived this long.
+        let guard = Cond::new(
+            producer_at(&t, "ptr-walk chain loop entry guard")?,
+            BO_TRUE,
+            CR_BIT_EQ,
+        );
+        t.extend_from_slice(&encode_bclr(guard.bo(), guard.bi()));
     }
     // ---- the body ----------------------------------------------------------
     let loop_top = t.len();
@@ -255,13 +268,17 @@ pub(crate) fn ptr_walk_chain_loop_text(
     }
     // ---- the back edge -----------------------------------------------------
     let back_at = t.len();
+    // The record form is somewhere in the body — its slot is S2's answer and
+    // moves with the schedule — so the scan finds it rather than the emitter
+    // knowing where it put it.
+    let back = Cond::new(
+        producer_at(&t[..back_at], "ptr-walk chain loop back edge")?,
+        BO_FALSE,
+        CR_BIT_EQ,
+    );
     t.extend_from_slice(
-        &encode_bc(
-            BO_FALSE,
-            cr_bi(CR_RECORD, CR_BIT_EQ),
-            loop_top as i32 - back_at as i32,
-        )
-        .ok_or_else(|| out_of_class("ptr-walk chain loop back edge past the `bc` field"))?,
+        &encode_bc(back.bo(), back.bi(), loop_top as i32 - back_at as i32)
+            .ok_or_else(|| out_of_class("ptr-walk chain loop back edge past the `bc` field"))?,
     );
     // ---- the fall-out block, which P2 is a claim about ---------------------
     t.extend_from_slice(&encode_blr());
@@ -282,7 +299,7 @@ pub(crate) fn ptr_walk_chain_loop_text(
 /// is nothing to widen.
 fn entry_test(elem_unsigned: bool) -> [u8; 4] {
     if elem_unsigned {
-        encode_cmplwi(CR_RECORD, R_CHAR, 0)
+        encode_cmplwi(CR0, R_CHAR, 0)
     } else {
         encode_extsb_record(R_CHAR, R_CHAR)
     }
@@ -305,7 +322,7 @@ fn record_form(elem_unsigned: bool, same: bool, ld: u8) -> [u8; 4] {
     match (elem_unsigned, same) {
         (false, _) => encode_extsb_record(R_CHAR, ld),
         (true, false) => encode_mr_record(R_CHAR, ld),
-        (true, true) => encode_cmplwi(CR_RECORD, R_CHAR, 0),
+        (true, true) => encode_cmplwi(CR0, R_CHAR, 0),
     }
 }
 

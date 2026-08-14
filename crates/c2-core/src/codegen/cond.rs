@@ -62,6 +62,8 @@
 //! the `(BO, BI)` pair a branch needs, and nothing else.
 
 use super::encode::{cr_bi, CR_COMPARE};
+use super::select::out_of_class;
+use crate::BackendError;
 
 /// **The instruction that wrote the condition bits a branch reads** — §3.2's
 /// two producers, and no third.
@@ -378,6 +380,35 @@ pub fn cond_source(run: &[u8]) -> CondSource {
         }
     }
     CondSource::NotInThisBlock
+}
+
+/// The producer of the condition a branch at the **end** of `run` reads, or a
+/// refusal that names the site.
+///
+/// The one reader of "turn a scan into a producer or refuse", so that a lowering
+/// asking the question does not each write its own three-armed `match` — three
+/// copies of one rule is how [`CondProducer::RecordForm`]'s field came to be
+/// spelled twice in the first place. `site` appears in the refusal only.
+///
+/// **Both non-answers refuse**, and they refuse for different reasons that the
+/// message keeps apart: a run with no writer means the producer is in a
+/// predecessor block, which is legal in general but means *this* caller cannot
+/// derive a field from what it holds; an unmodelled word means the scan has no
+/// answer at all. Neither is grounds for assuming cr6.
+pub fn producer_at(run: &[u8], site: &str) -> Result<CondProducer, BackendError> {
+    match cond_source(run) {
+        CondSource::InBlock(p) => Ok(p),
+        CondSource::NotInThisBlock => Err(out_of_class(&format!(
+            "{site}: nothing in the instruction run before this branch writes a \
+             condition register, so its CR field would have to be assumed — and \
+             CFG_SHAPE.md §3.2's two producers write different ones"
+        ))),
+        CondSource::Unknown => Err(out_of_class(&format!(
+            "{site}: the instruction run before this branch reaches a word this \
+             condition model does not model before it reaches a producer, so the \
+             branch's CR field is unknown rather than assumed"
+        ))),
+    }
 }
 
 #[cfg(test)]

@@ -65,22 +65,25 @@
 
 use c2_il::PtrWalkModLoop;
 
+use crate::codegen::cond::{producer_at, Cond, CR0};
 use crate::codegen::encode::{
-    cr_bi, encode_add, encode_addi, encode_andc, encode_bc, encode_blr, encode_cmplwi,
-    encode_divw, encode_lbz, encode_lbzu, encode_mr, encode_mr_record, encode_mulli,
-    encode_mullw, encode_rlwinm, encode_subf, encode_twi, BO_FALSE, BO_TRUE, CR_BIT_EQ,
+    encode_add, encode_addi, encode_andc, encode_bc, encode_blr, encode_cmplwi, encode_divw,
+    encode_lbz, encode_lbzu, encode_mr, encode_mr_record, encode_mulli, encode_mullw,
+    encode_rlwinm, encode_subf, encode_twi, BO_FALSE, BO_TRUE, CR_BIT_EQ,
 };
 use crate::codegen::select::{out_of_class, OptMode};
 use crate::BackendError;
 
-/// The `cr` field a **record-form** producer writes. Not [`CR_COMPARE`]'s cr6:
-/// `mr.` sets cr0, and the branch that reads it must say so. Board #188 is the
-/// defect this constant exists to prevent — a lowering that hard-coded
-/// `4*6 + bit` emitted `409a…` where the obj has `4082…` for every
-/// decrement-and-test loop.
-///
-/// [`CR_COMPARE`]: crate::codegen::encode::CR_COMPARE
-const CR_RECORD: u8 = 0;
+// The private `const CR_RECORD: u8 = 0;` that used to sit here is gone, and the
+// **reason it had to go is inside this file** — lane `w-ir-e`, `CFG_SHAPE.md`
+// §6.2 item **E**. Its doc said *"the `cr` field a RECORD-FORM producer
+// writes"*, and it was correct about the back edge; but this class's entry guard
+// is `cmplwi cr0,CHAR,0`, **an explicit compare**, and it used the same
+// constant. One name, one number, two of §3.2's two producers — which is
+// precisely the distinction item E exists to make. Both producers are now read
+// off the emitted words by [`cond_source`], the field comes from the producer,
+// and [`CR0`] names the register rather than one of the ways of reaching it.
+// Board #188's defect is unchanged and still the thing being prevented.
 
 /// The peeled character, live across the back edge.
 const R_CHAR: u8 = 11;
@@ -154,7 +157,7 @@ pub(crate) fn ptr_walk_loop_text(
     t.extend_from_slice(&encode_lbz(R_CHAR, R_SRC, 0));
     t.extend_from_slice(&encode_mr(R_PTR, R_SRC));
     t.extend_from_slice(&encode_addi(R_ACC, 0, k0));
-    t.extend_from_slice(&encode_cmplwi(CR_RECORD, R_CHAR, 0));
+    t.extend_from_slice(&encode_cmplwi(CR0, R_CHAR, 0));
     // Filled once the body's length is known; asserted below against the
     // measured constant rather than trusted.
     let guard_at = t.len();
@@ -184,10 +187,17 @@ pub(crate) fn ptr_walk_loop_text(
     t.extend_from_slice(&encode_subf(R_ACC, R_QUOT, R_DIVIDEND));
     t.extend_from_slice(&encode_twi(5, R_OVF, -1));
     // --- the BACK EDGE, on cr0 ----------------------------------------------
+    //
+    // The producer is `mr. CHAR,ACC` nine words above — a RECORD FORM — and the
+    // field is read off it rather than named again here (§6.2 item E). The scan
+    // walks back over `twi`, `subf`, `andc`, `mullw`, `addi`, `divw`, `rlwinm`
+    // and `add`, none of which touches a condition register, and stops at the
+    // first word that does.
     let back_at = t.len();
+    let back_cond = Cond::new(producer_at(&t[..back_at], "ptr-walk loop back edge")?, BO_FALSE, CR_BIT_EQ);
     let back = encode_bc(
-        BO_FALSE,
-        cr_bi(CR_RECORD, CR_BIT_EQ),
+        back_cond.bo(),
+        back_cond.bi(),
         loop_top as i32 - back_at as i32,
     )
     .ok_or_else(|| out_of_class("ptr-walk loop back edge past the `bc` field"))?;
@@ -197,9 +207,14 @@ pub(crate) fn ptr_walk_loop_text(
     t.extend_from_slice(&encode_mr(3, R_ACC));
     t.extend_from_slice(&encode_blr());
 
+    // The guard's producer is the `cmplwi cr0` immediately above its own site —
+    // a COMPARE, and not into cr6. The two branches of this one class are
+    // §3.2's two producers, which is why one constant could never have said
+    // both.
+    let guard_cond = Cond::new(producer_at(&t[..guard_at], "ptr-walk loop entry guard")?, BO_TRUE, CR_BIT_EQ);
     let guard = encode_bc(
-        BO_TRUE,
-        cr_bi(CR_RECORD, CR_BIT_EQ),
+        guard_cond.bo(),
+        guard_cond.bi(),
         exit_at as i32 - guard_at as i32,
     )
     .ok_or_else(|| out_of_class("ptr-walk loop entry guard past the `bc` field"))?;
@@ -252,6 +267,47 @@ mod tests {
             .map(|c| u32::from_be_bytes([c[0], c[1], c[2], c[3]]))
             .collect();
         assert_eq!(words, want, "the reference obj's own twenty words");
+    }
+
+    /// **This class's two branches have two DIFFERENT producers, and one
+    /// constant could not say so** — `CFG_SHAPE.md` §6.2 item **E**, lane
+    /// `w-ir-e`.
+    ///
+    /// The entry guard at 0x10 reads the explicit `cmplwi cr0,r11,0` above it —
+    /// an *explicit compare*, into cr0 and not into `CR_COMPARE`'s cr6. The back
+    /// edge at 0x44 reads `mr. r11,r10` — a *record form*, nine words earlier,
+    /// with eight condition-register-silent words in between. Both write cr0,
+    /// which is exactly why the private `CR_RECORD` constant this file used to
+    /// carry survived: it was right about the field for the whole life of the
+    /// class and wrong about half of the producers.
+    #[test]
+    fn the_entry_guard_and_the_back_edge_read_two_different_producers() {
+        use crate::codegen::cond::{cond_source, CondProducer, CondSource};
+        const GUARD_AT: usize = 0x10;
+        const BACK_AT: usize = 0x44;
+        let t = ptr_walk_loop_text(&loop_of(0, 127), OptMode::O1).unwrap();
+        assert_eq!(t.len(), 80);
+        // The two branch words really are at those offsets — the offsets are
+        // asserted, not assumed, so this test cannot silently scan the wrong run.
+        assert_eq!(&t[GUARD_AT..GUARD_AT + 4], &[0x41, 0x82, 0x00, 0x38]); // bt 2,+56
+        assert_eq!(&t[BACK_AT..BACK_AT + 4], &[0x40, 0x82, 0xff, 0xd0]); // bf 2,-48
+
+        assert_eq!(
+            cond_source(&t[..GUARD_AT]),
+            CondSource::InBlock(CondProducer::Compare { crf: 0 }),
+            "the entry guard's producer is an explicit compare into cr0"
+        );
+        assert_eq!(
+            cond_source(&t[..BACK_AT]),
+            CondSource::InBlock(CondProducer::RecordForm),
+            "the back edge's producer is `mr.`, a record form"
+        );
+        // Different producers; same field. That pair is the whole of item E.
+        assert_ne!(
+            cond_source(&t[..GUARD_AT]),
+            cond_source(&t[..BACK_AT])
+        );
+        assert_eq!(t[GUARD_AT + 1] & 0xfc, t[BACK_AT + 1] & 0xfc, "both BI = 2");
     }
 
     /// The two immediate fields are the **only** things that move, over the axes
