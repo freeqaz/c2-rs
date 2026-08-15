@@ -1258,6 +1258,25 @@ fall-through family's size beside any ranking taken off T2 — it is **9,095 of
   > these two"*: see §2.5's amendment. `decomp_pch.cpp`'s obj is **901 B** and
   > `vec.obj` **1,791 B** at this stamp, not 933 and 1,819 — dc3 has moved
   > again (#2789), so re-capture before quoting either.
+  >
+  > ⚠⚠ **2026-08-16 — the 901 is wrong too, and so was the 933 it corrected.**
+  > *Lane `w-three` (#3205), measured at master `55933035`.* `decomp_pch.cpp`'s
+  > obj is **905 B** — the four-section shell plus exactly one `sel=2` `.rdata`
+  > COMDAT (`?npos@?$basic_string@…` = `ff ff ff ff`), with **0 `.text`, 0
+  > relocations and 0 undefined externals**. So this file has published **933**
+  > (above), **901** (this block) and **905** (measured) for one object, and
+  > **the correction was itself uncorrected for six days.** That lane found it
+  > while pricing the TU and **did not edit here, because it owns no `docs/`
+  > file this lives in** — the routing is the coordinator's, and this block is
+  > it. Neither prior figure is struck: both stand as the record of what was
+  > believed when.
+  >
+  > **The transferable half is the instruction the 2026-08-10 block already
+  > gave and nobody followed** — *"re-capture before quoting either"*. A
+  > re-capture instruction is not a substitute for a **base commit beside the
+  > number**; the house rule the lanes settled on this month is to **cite a
+  > figure with the commit it was measured at**, which is why the 905 above
+  > carries `55933035`.
 * **The frontier 8 carry ZERO all-exact TUs and 8 of 8 carry ≥1
   `fnbyte-refused`.** Its codegen column reads `denominator 47 · exact 10 ·
   wrong 0 · refused 0 · reader 37` — **quote it from a scan; §2.1's copy is a
