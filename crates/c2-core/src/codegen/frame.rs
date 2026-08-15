@@ -542,6 +542,31 @@ impl FrameLayout {
         w.extend_from_slice(&encode_blr());
         Ok(w)
     }
+
+    /// [`Self::epilogue`] **without its closing `blr`** — the straight-line run
+    /// of the epilogue block, for a class laid out through
+    /// [`super::block_ir::BodyLayout`].
+    ///
+    /// The `blr` is [`super::block_ir::Terminator::Blr`]'s word, so a body that
+    /// kept it in the run would emit it twice, and a body that dropped it
+    /// without checking would emit a return the frame never wrote. This checks
+    /// rather than trims blind: the epilogue is built here, four lines up, and
+    /// the assertion is cheap insurance against a later frame class whose last
+    /// word is something else (`epilogue_gpr_helper`'s is an external `b`, and
+    /// it is a different method for that reason).
+    pub fn epilogue_run(&self) -> Result<Vec<u8>, BackendError> {
+        let mut w = self.epilogue()?;
+        let n = w.len();
+        if n < 4 || w[n - 4..] != encode_blr()[..] {
+            return Err(out_of_class(
+                "a materialised epilogue whose last word is not `blr`: \
+                 `Terminator::Blr` is that word, and trimming a word that is not \
+                 it would emit a body short of its own return",
+            ));
+        }
+        w.truncate(n - 4);
+        Ok(w)
+    }
 }
 
 #[cfg(test)]

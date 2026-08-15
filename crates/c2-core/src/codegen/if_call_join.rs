@@ -70,8 +70,7 @@ use crate::codegen::select::{fits_i16, out_of_class, ARG_REGS, RET_REG, SCRATCH_
 use crate::codegen::OptMode;
 use crate::BackendError;
 use c2_il::IfCallJoinFn;
-use crate::codegen::labels::Form;
-use crate::codegen::reach;
+use crate::codegen::block_ir::{BlockOrder, BodyLayout, Terminator};
 
 /// The register the scrutinee is parked in for the whole body.
 ///
@@ -127,70 +126,81 @@ pub fn if_call_join_text(
 
     let frame = FrameLayout::default();
     let prologue = frame.prologue()?;
-    let epilogue = frame.epilogue()?;
     let prolog_len = prologue.len() as u32;
 
-    let mut t = prologue;
+    // **The body is seven blocks in `BodyLayout`** — `CFG_SHAPE.md` §6.2 item A,
+    // board **#3124**, and this class is the one that motivated the row.
+    //
+    // Every displacement here used to be an entry in a table of WORD INDICES
+    // INTO THE WHOLE BODY — `I_BT_LT = 7`, `I_EXIT = 15`, and four branches
+    // spelled as `(I_EXIT - I_BT_LT) * 4`. That table was correct and it was
+    // eight constants of the *body*: nothing could insert a word anywhere in
+    // this function without silently invalidating all eight, and the two `bl`
+    // offsets carried `- 3` to convert an index back past the prologue. The
+    // shape they encode is the placement order, and it is now written once, as
+    // the placement order.
+    let mut l = BodyLayout::new(BlockOrder::IlStatement);
+    let b_entry = l.declare("entry");
+    let b_eq = l.declare("eq-guard");
+    let b_inner = l.declare("inner-test");
+    let b_hi = l.declare("hi-arm");
+    let b_lo = l.declare("lo-arm");
+    let b_join = l.declare("join");
+    let b_exit = l.declare("exit");
+
     // The entry block. `ARG_REGS[0]` and `ARG_REGS[1]` rather than literal 3 and
     // 4 so this class reads the ABI from the same place every other one does.
-    t.extend_from_slice(&encode_mr(PARK_REG, ARG_REGS[0]));
-    t.extend_from_slice(&encode_mr(RET_REG, ARG_REGS[1]));
-    t.extend_from_slice(&encode_li(SCRATCH_REG, j.acc_init as i16));
-
+    let mut run = prologue;
+    run.extend_from_slice(&encode_mr(PARK_REG, ARG_REGS[0]));
+    run.extend_from_slice(&encode_mr(RET_REG, ARG_REGS[1]));
+    run.extend_from_slice(&encode_li(SCRATCH_REG, j.acc_init as i16));
     // The two guards that share one compare. Both name the SAME successor — the
-    // `mr r3,r11` at the body's exit — because the middle arm is empty.
-    t.extend_from_slice(&encode_cmpwi(CR_COMPARE, PARK_REG, j.k1 as i16));
-    // Offsets, measured from each branch word, to the exit block. The body's
-    // shape is fixed, so these are constants of the class rather than the output
-    // of a label map — and writing them as arithmetic over the *word* offsets is
-    // what keeps them checkable against the listing.
-    const W: i32 = 4;
-    // word index of each branch, and of each of its targets
-    const I_BT_LT: i32 = 7;
-    const I_BT_EQ: i32 = 8;
-    const I_BT_INNER: i32 = 10;
-    const I_BL_HI: i32 = 11;
-    const I_B_JOIN: i32 = 12;
-    const I_BL_LO: i32 = 13;
-    const I_JOIN: i32 = 14;
-    const I_EXIT: i32 = 15;
-    let bt_lt = reach::direct(
-        Form::Bc { bo: BO_TRUE, bi: cr_bi(CR_COMPARE, CR_BIT_LT) },
-        (I_EXIT - I_BT_LT) * W,
-        "if/else-with-a-join: the LT guard",
+    // `mr r3,r11` at the body's exit — because the middle arm is empty, and the
+    // second guard's block is therefore a compare-less block whose only content
+    // is its branch. That is what "they share one compare" *is*, and it now
+    // shows in the IR: `b_eq`'s run is empty and its condition source reads
+    // `NotInThisBlock`.
+    run.extend_from_slice(&encode_cmpwi(CR_COMPARE, PARK_REG, j.k1 as i16));
+    l.place(
+        b_entry,
+        run,
+        Terminator::Bc { bo: BO_TRUE, bi: cr_bi(CR_COMPARE, CR_BIT_LT), taken: b_exit },
     )?;
-    let bt_eq = reach::direct(
-        Form::Bc { bo: BO_TRUE, bi: cr_bi(CR_COMPARE, CR_BIT_EQ) },
-        (I_EXIT - I_BT_EQ) * W,
-        "if/else-with-a-join: the EQ guard",
+    l.place(
+        b_eq,
+        Vec::new(),
+        Terminator::Bc { bo: BO_TRUE, bi: cr_bi(CR_COMPARE, CR_BIT_EQ), taken: b_exit },
     )?;
-    t.extend_from_slice(&bt_lt);
-    t.extend_from_slice(&bt_eq);
 
     // The inner test and its arms.
-    t.extend_from_slice(&encode_cmpwi(CR_COMPARE, PARK_REG, j.k2 as i16));
-    let bt_inner = reach::direct(
-        Form::Bc { bo: BO_TRUE, bi: cr_bi(CR_COMPARE, CR_BIT_LT) },
-        (I_BL_LO - I_BT_INNER) * W,
-        "if/else-with-a-join: the inner guard",
+    l.place(
+        b_inner,
+        encode_cmpwi(CR_COMPARE, PARK_REG, j.k2 as i16).to_vec(),
+        Terminator::Bc { bo: BO_TRUE, bi: cr_bi(CR_COMPARE, CR_BIT_LT), taken: b_lo },
     )?;
-    t.extend_from_slice(&bt_inner);
-
-    let bl_hi = base_off + prolog_len + (I_BL_HI as u32 - 3) * 4;
-    t.extend_from_slice(&encode_call_branch(bl_hi));
-    t.extend_from_slice(&reach::direct(
-        Form::B,
-        (I_JOIN - I_B_JOIN) * W,
-        "if/else-with-a-join: the join branch",
-    )?);
-    let bl_lo = base_off + prolog_len + (I_BL_LO as u32 - 3) * 4;
-    t.extend_from_slice(&encode_call_branch(bl_lo));
+    // Each arm is one `bl`, and each `bl` is a zero placeholder: the word
+    // encodes its own `.text` offset (§3.3, #191), which is the layout's answer.
+    // Both sit at word 0 of their own block, which is why the `- 3` that used to
+    // convert a body word index back past the prologue is gone.
+    const BL_AT_ARM_HEAD: u32 = 0;
+    l.place(b_hi, vec![0; 4], Terminator::B { target: b_join })?;
+    l.place(b_lo, vec![0; 4], Terminator::FallThrough)?;
 
     // The join, then the exit. Two words that compose to nothing and are two
     // blocks — see the module header.
-    t.extend_from_slice(&encode_mr(SCRATCH_REG, RET_REG));
-    t.extend_from_slice(&encode_mr(RET_REG, SCRATCH_REG));
-    t.extend_from_slice(&epilogue);
+    l.place(b_join, encode_mr(SCRATCH_REG, RET_REG).to_vec(), Terminator::FallThrough)?;
+    let mut run = encode_mr(RET_REG, SCRATCH_REG).to_vec();
+    run.extend_from_slice(&frame.epilogue_run()?);
+    l.place(b_exit, run, Terminator::Blr)?;
+
+    let body = l.finish()?;
+    let at_hi = body.at(b_hi, BL_AT_ARM_HEAD)?;
+    let at_lo = body.at(b_lo, BL_AT_ARM_HEAD)?;
+    let bl_hi = base_off + at_hi;
+    let bl_lo = base_off + at_lo;
+    let mut t = body.text;
+    t[at_hi as usize..at_hi as usize + 4].copy_from_slice(&encode_call_branch(bl_hi));
+    t[at_lo as usize..at_lo as usize + 4].copy_from_slice(&encode_call_branch(bl_lo));
 
     debug_assert_eq!(t.len(), 80, "the class is twenty words by construction");
     debug_assert_eq!(t[t.len() - 4..], encode_blr()[..]);

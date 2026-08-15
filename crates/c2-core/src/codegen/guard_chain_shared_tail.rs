@@ -93,8 +93,7 @@ use crate::codegen::select::{fits_i16, out_of_class, ARG_REGS, RET_REG, SCRATCH_
 use crate::codegen::OptMode;
 use crate::BackendError;
 use c2_il::GuardChainSharedTailFn;
-use crate::codegen::labels::Form;
-use crate::codegen::reach;
+use crate::codegen::block_ir::{BlockId, BlockOrder, BodyLayout, Terminator};
 
 /// The callee-saved register the store target is parked in for the whole body.
 /// It is the only saved GPR, which is what makes the frame `saved_gprs: 1`.
@@ -182,8 +181,21 @@ pub fn guard_chain_shared_tail_text(
         ..Default::default()
     };
     let prologue = frame.prologue()?;
-    let epilogue = frame.epilogue()?;
     let prolog_len = prologue.len() as u32;
+
+    // **The body is nine blocks in `BodyLayout`** — `CFG_SHAPE.md` §6.2 item A,
+    // board **#3124**. Six branch words, five `*_site` indices into a flat `Vec`
+    // and one patch closure become six terminators naming `BlockId`s, and every
+    // displacement is `LabelMap`'s (item B, #290).
+    let mut l = BodyLayout::new(BlockOrder::IlStatement);
+    let b_guard: [BlockId; 3] = [l.declare("guard-0"), l.declare("guard-1"), l.declare("guard-2")];
+    let b_rotate = l.declare("rotate-and-call");
+    let b_zero = l.declare("negative-store");
+    let b_skip = l.declare("sentinel-test");
+    let b_range = l.declare("range-arm");
+    let b_err = l.declare("guard-arm");
+    let b_tail = l.declare("merged-tail");
+    let b_epi = l.declare("epilogue");
 
     let mut t = prologue;
     // ---- the entry block ---------------------------------------------------
@@ -202,16 +214,24 @@ pub fn guard_chain_shared_tail_text(
 
     // ---- the `||` chain ----------------------------------------------------
     //
-    // The displacements are filled in after the block layout is known: `Lerr` is
-    // the second-to-last block and its offset depends on nothing before it, but
-    // writing the arithmetic out here would be three copies of the same
-    // off-by-one. The three sites are recorded and patched below.
-    let mut guard_sites = [0u32; 3];
+    // Three blocks, each one compare, each naming the SUNK guard arm. The
+    // displacement used to be `l_err − site` written out three times through one
+    // closure; it is now the same `BlockId` three times and the arithmetic is
+    // `LabelMap`'s.
     for (n, &ix) in g.guard_ix.iter().enumerate() {
-        t.extend_from_slice(&encode_cmplwi(CR_COMPARE, ARG_REGS[ix], 0));
-        guard_sites[n] = t.len() as u32;
-        t.extend_from_slice(&[0; 4]);
+        let mut run = if n == 0 { core::mem::take(&mut t) } else { Vec::new() };
+        run.extend_from_slice(&encode_cmplwi(CR_COMPARE, ARG_REGS[ix], 0));
+        l.place(
+            b_guard[n],
+            run,
+            Terminator::Bc {
+                bo: BO_TRUE,
+                bi: cr_bi(CR_COMPARE, CR_BIT_EQ),
+                taken: b_err,
+            },
+        )?;
     }
+    let mut t: Vec<u8> = Vec::new();
 
     // ---- the rotate, with the REFHI interleaved after its second step -------
     //
@@ -232,83 +252,94 @@ pub fn guard_chain_shared_tail_text(
     // Written as that test rather than as an index, so the rule is legible at
     // the one place a wrong `lis` position would be emitted.
     const LIS_BELOW: u8 = 6;
-    let mut hi_off = 0u32;
+    // `hi_at` is an `Option` and not a `0`-means-absent flag, because it is now
+    // an offset in the ROTATE BLOCK'S OWN RUN and that run starts at zero — the
+    // old sentinel worked only because it was a body offset and the prologue was
+    // above it. This is the sentinel-becomes-legal hazard board #3124's
+    // migration meets in every class that had one.
+    let mut hi_at: Option<u32> = None;
     for step in 0..n - 1 {
         // `ARG_REGS[n-1-step] <- ARG_REGS[n-2-step]`.
         let dst = ARG_REGS[n - 1 - step];
-        if hi_off == 0 && dst <= LIS_BELOW {
-            hi_off = t.len() as u32;
+        if hi_at.is_none() && dst <= LIS_BELOW {
+            hi_at = Some(t.len() as u32);
             t.extend_from_slice(&encode_addis(SCRATCH_REG, 0, 0));
         }
         t.extend_from_slice(&encode_mr(dst, ARG_REGS[n - 2 - step]));
     }
-    debug_assert!(hi_off != 0, "the REFHI is inside the rotate, never at word 0");
+    debug_assert!(hi_at.is_some(), "the REFHI is inside the rotate, always emitted");
     t.extend_from_slice(&encode_addi(RET_REG, SCRATCH_REG, 0));
 
     // ---- the call ----------------------------------------------------------
-    let bl_helper = base_off + t.len() as u32;
-    t.extend_from_slice(&encode_call_branch(bl_helper));
+    //
+    // A zero placeholder: the word encodes its own `.text` offset (§3.3, #191),
+    // which is the layout's answer. `bl_in_rotate` is read off this block's own
+    // run because the rotate's length is `n`-dependent.
+    let bl_in_rotate = t.len() as u32;
+    t.extend_from_slice(&[0; 4]);
 
     // ---- `if (r < 0) *params[0] = 0;` --------------------------------------
     t.extend_from_slice(&encode_cmpwi(0, RET_REG, 0));
-    let neg_site = t.len() as u32;
-    t.extend_from_slice(&[0; 4]);
+    l.place(
+        b_rotate,
+        core::mem::take(&mut t),
+        Terminator::Bc { bo: BO_FALSE, bi: cr_bi(0, CR_BIT_LT), taken: b_skip },
+    )?;
     t.extend_from_slice(&encode_li(SCRATCH_REG, 0));
     t.extend_from_slice(&store(SCRATCH_REG, PARK_REG, 0));
-    let l_skip = t.len() as u32;
+    l.place(b_zero, core::mem::take(&mut t), Terminator::FallThrough)?;
 
     // ---- `if (r != S) return r;` -------------------------------------------
     t.extend_from_slice(&encode_cmpwi(CR_COMPARE, RET_REG, g.sentinel as i16));
-    let sent_site = t.len() as u32;
-    t.extend_from_slice(&[0; 4]);
+    l.place(
+        b_skip,
+        core::mem::take(&mut t),
+        Terminator::Bc { bo: BO_FALSE, bi: cr_bi(CR_COMPARE, CR_BIT_EQ), taken: b_epi },
+    )?;
 
     // ---- the RANGE arm ------------------------------------------------------
-    let bl_errno_range = base_off + t.len() as u32;
-    t.extend_from_slice(&encode_call_branch(bl_errno_range));
-    t.extend_from_slice(&encode_li(SCRATCH_REG, g.k_range as i16));
-    let b_site = t.len() as u32;
+    const BL_AT_ARM_HEAD: u32 = 0;
     t.extend_from_slice(&[0; 4]);
+    t.extend_from_slice(&encode_li(SCRATCH_REG, g.k_range as i16));
+    l.place(b_range, core::mem::take(&mut t), Terminator::B { target: b_tail })?;
 
     // ---- the GUARD arm, sunk here from the top of the IL body ---------------
-    let l_err = t.len() as u32;
-    let bl_errno_guard = base_off + t.len() as u32;
-    t.extend_from_slice(&encode_call_branch(bl_errno_guard));
+    t.extend_from_slice(&[0; 4]);
     t.extend_from_slice(&encode_li(SCRATCH_REG, g.k_guard as i16));
+    l.place(b_err, core::mem::take(&mut t), Terminator::FallThrough)?;
 
     // ---- the MERGED TAIL both arms share ------------------------------------
-    let l_tail = t.len() as u32;
+    const BL_IN_TAIL: u32 = 4;
     t.extend_from_slice(&encode_stw(SCRATCH_REG, RET_REG, 0));
-    let bl_invalid = base_off + t.len() as u32;
-    t.extend_from_slice(&encode_call_branch(bl_invalid));
+    debug_assert_eq!(t.len() as u32, BL_IN_TAIL);
+    t.extend_from_slice(&[0; 4]);
     t.extend_from_slice(&encode_li(RET_REG, g.ret_fail as i16));
-    let l_epi = t.len() as u32;
-    t.extend_from_slice(&epilogue);
+    l.place(b_tail, core::mem::take(&mut t), Terminator::FallThrough)?;
 
-    // ---- the five displacements --------------------------------------------
-    //
-    // Every one is computed from the block layout above rather than written as a
-    // constant, so a change to any block's length moves them all together. A
-    // hardcoded `+0x58` would keep linking and stop being right.
-    let mut patch = |site: u32, target: u32, bo: u8, bi: Option<u8>| -> Result<(), BackendError> {
-        let disp = target as i32 - site as i32;
-        let form = match bi {
-            Some(bi) => Form::Bc { bo, bi },
-            None => Form::B,
-        };
-        let w = reach::direct(form, disp, "a shared-tail branch")?;
-        t[site as usize..site as usize + 4].copy_from_slice(&w);
-        Ok(())
-    };
-    for site in guard_sites {
-        patch(site, l_err, BO_TRUE, Some(cr_bi(CR_COMPARE, CR_BIT_EQ)))?;
+    l.place(b_epi, frame.epilogue_run()?, Terminator::Blr)?;
+
+    let body = l.finish()?;
+    // ---- the four positions this class publishes, all the layout's ----------
+    let sites = [
+        body.at(b_rotate, bl_in_rotate)?,
+        body.at(b_range, BL_AT_ARM_HEAD)?,
+        body.at(b_err, BL_AT_ARM_HEAD)?,
+        body.at(b_tail, BL_IN_TAIL)?,
+    ];
+    let bl_offsets = [
+        base_off + sites[0],
+        base_off + sites[1],
+        base_off + sites[2],
+        base_off + sites[3],
+    ];
+    let mut t = body.text;
+    for (at, off) in sites.iter().zip(bl_offsets.iter()) {
+        t[*at as usize..*at as usize + 4].copy_from_slice(&encode_call_branch(*off));
     }
-    patch(neg_site, l_skip, BO_FALSE, Some(cr_bi(0, CR_BIT_LT)))?;
-    patch(sent_site, l_epi, BO_FALSE, Some(cr_bi(CR_COMPARE, CR_BIT_EQ)))?;
-    patch(b_site, l_tail, 0, None)?;
 
     Ok(GuardChainSharedTailBody {
         text: t,
-        bl_offsets: [bl_helper, bl_errno_range, bl_errno_guard, bl_invalid],
+        bl_offsets,
         prolog_len,
     })
 }

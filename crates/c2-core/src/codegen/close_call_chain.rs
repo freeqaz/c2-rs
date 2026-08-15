@@ -94,8 +94,7 @@ use crate::codegen::select::{fits_i16, out_of_class};
 use crate::codegen::OptMode;
 use crate::BackendError;
 use c2_il::CloseCallChain;
-use crate::codegen::labels::Form;
-use crate::codegen::reach;
+use crate::codegen::block_ir::{BlockOrder, BodyLayout, Terminator};
 
 /// The condition-register field the GUARD reads — `2b030000` is
 /// `cmplwi cr6,r3,0`, the same field [`super::guard_ret_chain`] measures.
@@ -193,52 +192,73 @@ pub fn close_call_chain_text(
     }
 
     let frame = frame_for();
-    let mut t = frame.prologue()?;
-    let prolog_len = t.len() as u32;
+    let prologue = frame.prologue()?;
+    let prolog_len = prologue.len() as u32;
 
-    // ---- the two parks -------------------------------------------------------
-    t.extend_from_slice(&encode_mr(PARK_REG, 3));
-    t.extend_from_slice(&encode_mr(VOL_PARK_REG, 4));
+    // **The body is seven blocks in `BodyLayout`** — `CFG_SHAPE.md` §6.2 item A,
+    // board **#3124**. The four branches this class emits are `LabelMap`'s (item
+    // B, #290): the guard's literal `12` and the three `epi_branches` patches
+    // into a flat `Vec` are gone, and with them the only places this file could
+    // disagree with its own layout.
+    let mut l = BodyLayout::new(BlockOrder::IlStatement);
+    let b_entry = l.declare("entry");
+    let b_guard_arm = l.declare("guard-arm");
+    let b_call1 = l.declare("call-1");
+    let b_indirect = l.declare("indirect-call");
+    let b_void = l.declare("void-call");
+    let b_tail = l.declare("tail");
+    let b_epi = l.declare("epilogue");
 
-    // Every forward branch to the epilogue is patched once its position is
-    // known — the same two-step every self-relative forward branch in this
-    // crate uses, and not a fixup pass over a block IR.
-    let mut epi_branches: Vec<usize> = Vec::with_capacity(3);
-
-    // ---- the guard, on cr6, reading r3 itself ---------------------------------
-    t.extend_from_slice(&encode_cmplwi(GUARD_CRF, 3, 0));
-    t.extend_from_slice(&reach::direct(
-        Form::Bc { bo: BO_FALSE, bi: cr_bi(GUARD_CRF, CR_BIT_EQ) },
-        12,
-        "close-call-chain guard branch",
-    )?);
-    t.extend_from_slice(&encode_li(3, k));
-    epi_branches.push(t.len());
-    t.extend_from_slice(&[0, 0, 0, 0]);
+    // ---- the two parks, then the guard on cr6, reading r3 itself -------------
+    let mut run = prologue;
+    run.extend_from_slice(&encode_mr(PARK_REG, 3));
+    run.extend_from_slice(&encode_mr(VOL_PARK_REG, 4));
+    run.extend_from_slice(&encode_cmplwi(GUARD_CRF, 3, 0));
+    l.place(
+        b_entry,
+        run,
+        Terminator::Bc { bo: BO_FALSE, bi: cr_bi(GUARD_CRF, CR_BIT_EQ), taken: b_call1 },
+    )?;
+    // The guard's arm: one word, and its whole body is the jump to the epilogue.
+    l.place(b_guard_arm, encode_li(3, k).to_vec(), Terminator::B { target: b_epi })?;
 
     // ---- call 1, then the first early return ---------------------------------
-    t.extend_from_slice(&encode_li(4, l1));
-    t.extend_from_slice(&encode_mr(3, PARK_REG));
-    let bl0 = base_off + t.len() as u32;
-    t.extend_from_slice(&encode_call_branch(bl0));
+    //
+    // The `bl` is a zero placeholder: its word encodes its own `.text` offset
+    // (§3.3, #191), which is the layout's answer. `BL0_IN_CALL1` is where it
+    // sits in THIS BLOCK'S own run.
+    const BL0_IN_CALL1: u32 = 8;
+    let mut run = Vec::new();
+    run.extend_from_slice(&encode_li(4, l1));
+    run.extend_from_slice(&encode_mr(3, PARK_REG));
+    debug_assert_eq!(run.len() as u32, BL0_IN_CALL1);
+    run.extend_from_slice(&[0; 4]);
     // The compare is on cr0 and the branch sense is INVERTED against every
     // guard in this seam: `bf 2` is taken when the result is NON-zero, i.e. on
     // the arm, because the arm's value is already in r3 and its whole body is
-    // the jump to the epilogue.
-    t.extend_from_slice(&encode_cmplwi(RESULT_CRF, 3, 0));
-    epi_branches.push(t.len());
-    t.extend_from_slice(&[0, 0, 0, 0]);
+    // the jump to the epilogue. The arm has no words of its own at all, so the
+    // branch names the epilogue directly.
+    run.extend_from_slice(&encode_cmplwi(RESULT_CRF, 3, 0));
+    l.place(
+        b_call1,
+        run,
+        Terminator::Bc { bo: BO_FALSE, bi: cr_bi(RESULT_CRF, CR_BIT_EQ), taken: b_epi },
+    )?;
 
     // ---- the indirect call ---------------------------------------------------
-    t.extend_from_slice(&encode_lwz(FNPTR_REG, PARK_REG, c.fnptr_off as i16));
-    t.extend_from_slice(&encode_li(6, a3));
-    t.extend_from_slice(&encode_li(4, a1));
-    t.extend_from_slice(&encode_mr(3, PARK_REG));
-    t.extend_from_slice(&encode_mtctr(FNPTR_REG));
-    t.extend_from_slice(&encode_bctrl());
-    t.extend_from_slice(&encode_cmplwi(RESULT_CRF, 3, 0));
-    epi_branches.push(t.len());
-    t.extend_from_slice(&[0, 0, 0, 0]);
+    let mut run = Vec::new();
+    run.extend_from_slice(&encode_lwz(FNPTR_REG, PARK_REG, c.fnptr_off as i16));
+    run.extend_from_slice(&encode_li(6, a3));
+    run.extend_from_slice(&encode_li(4, a1));
+    run.extend_from_slice(&encode_mr(3, PARK_REG));
+    run.extend_from_slice(&encode_mtctr(FNPTR_REG));
+    run.extend_from_slice(&encode_bctrl());
+    run.extend_from_slice(&encode_cmplwi(RESULT_CRF, 3, 0));
+    l.place(
+        b_indirect,
+        run,
+        Terminator::Bc { bo: BO_FALSE, bi: cr_bi(RESULT_CRF, CR_BIT_EQ), taken: b_epi },
+    )?;
 
     // ---- the ELIDED call emits NOTHING ---------------------------------------
     //
@@ -248,34 +268,32 @@ pub fn close_call_chain_text(
     // `c2_il::IlBundle::functions`.
 
     // ---- the void call to an external ----------------------------------------
-    t.extend_from_slice(&encode_mr(3, PARK_REG));
-    let bl1 = base_off + t.len() as u32;
-    t.extend_from_slice(&encode_call_branch(bl1));
+    const BL1_IN_VOID: u32 = 4;
+    let mut run = Vec::new();
+    run.extend_from_slice(&encode_mr(3, PARK_REG));
+    debug_assert_eq!(run.len() as u32, BL1_IN_VOID);
+    run.extend_from_slice(&[0; 4]);
+    l.place(b_void, run, Terminator::FallThrough)?;
 
-    t.extend_from_slice(&encode_li(3, 0));
+    l.place(b_tail, encode_li(3, 0).to_vec(), Terminator::FallThrough)?;
 
     // ---- the materialised common epilogue ------------------------------------
-    let epi = t.len();
-    t.extend_from_slice(&frame.epilogue()?);
+    l.place(b_epi, frame.epilogue_run()?, Terminator::Blr)?;
 
-    for (i, site) in epi_branches.iter().enumerate() {
-        let disp = (epi - site) as i32;
-        let form = if i == 0 {
-            // The guard's arm is an unconditional `b`.
-            Form::B
-        } else {
-            // Both result branches are `bf 2` on cr0 — `BO_FALSE` with the EQ
-            // bit of field 0.
-            Form::Bc { bo: BO_FALSE, bi: cr_bi(RESULT_CRF, CR_BIT_EQ) }
-        };
-        let w = reach::direct(form, disp, "close-call-chain epilogue branch")?;
-        t[*site..*site + 4].copy_from_slice(&w);
+    let body = l.finish()?;
+    // ---- the two positions this class publishes, both the layout's -----------
+    let at0 = body.at(b_call1, BL0_IN_CALL1)?;
+    let at1 = body.at(b_void, BL1_IN_VOID)?;
+    let bl_offsets = [base_off + at0, base_off + at1];
+    let mut t = body.text;
+    for (at, off) in [(at0, bl_offsets[0]), (at1, bl_offsets[1])] {
+        t[at as usize..at as usize + 4].copy_from_slice(&encode_call_branch(off));
     }
 
     debug_assert_eq!(t.len() % 4, 0, "a body is a whole number of words");
     Ok(CloseCallChainBody {
         text: t,
-        bl_offsets: [bl0, bl1],
+        bl_offsets,
         prolog_len,
     })
 }

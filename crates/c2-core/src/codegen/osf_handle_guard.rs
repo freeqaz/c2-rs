@@ -118,8 +118,7 @@ use crate::codegen::select::{fits_i16, out_of_class, ARG_REGS, RET_REG, SCRATCH_
 use crate::codegen::OptMode;
 use crate::BackendError;
 use c2_il::OsfHandleGuardFn;
-use crate::codegen::labels::Form;
-use crate::codegen::reach;
+use crate::codegen::block_ir::{BlockOrder, BodyLayout, Terminator};
 
 /// The volatile register holding the loaded VALUE throughout — the table entry's
 /// flag byte, then its handle word, then the value the merged store writes.
@@ -250,102 +249,117 @@ pub fn osf_handle_guard_text(
     // `FrameLayout` then emits 96 bytes, which is the reference's `stwu`.
     let frame = FrameLayout::default();
     let prologue = frame.prologue()?;
-    let epilogue = frame.epilogue()?;
     let prolog_len = prologue.len() as u32;
-
-    let mut t = prologue;
     let fh = ARG_REGS[0];
 
+    // **The body is six blocks in `BodyLayout`** — `CFG_SHAPE.md` §6.2 item A,
+    // board **#3124**. All five displacements are `LabelMap`'s (item B, #290):
+    // four guards that name the error block and one `b` that names the merged
+    // store. The five `*_site` indices into a flat `Vec` are gone.
+    let mut l = BodyLayout::new(BlockOrder::IlStatement);
+    let b_low = l.declare("guard-low");
+    let b_high = l.declare("guard-limit");
+    let b_walk = l.declare("table-walk");
+    let b_live = l.declare("guard-live");
+    let b_ok = l.declare("success");
+    let b_err = l.declare("error");
+    let b_join = l.declare("merged-store");
+
+    let bi_lt = cr_bi(CR_COMPARE, CR_BIT_LT);
+    let bi_eq = cr_bi(CR_COMPARE, CR_BIT_EQ);
+    let bi_flag = cr_bi(CR_FLAG, CR_BIT_EQ);
+
     // ---- guard 1: `fh >= 0` — signed, immediate, branch on LT --------------
-    t.extend_from_slice(&encode_cmpwi(CR_COMPARE, fh, 0));
-    let low_site = t.len() as u32;
-    t.extend_from_slice(&[0; 4]);
+    let mut run = prologue;
+    run.extend_from_slice(&encode_cmpwi(CR_COMPARE, fh, 0));
+    l.place(b_low, run, Terminator::Bc { bo: BO_TRUE, bi: bi_lt, taken: b_err })?;
 
     // ---- guard 2: `fh < *<limit>` — unsigned, register ---------------------
     //
     // The high half is the scratch and the low half is the `lwz` that loads the
     // limit's VALUE. Nothing takes the limit's address, so there is no `addi`
     // here at all — the relocation rides the load's displacement field.
-    t.extend_from_slice(&encode_addis(SCRATCH_REG, 0, 0));
-    t.extend_from_slice(&encode_lwz(SCRATCH_REG, SCRATCH_REG, 0));
-    t.extend_from_slice(&encode_cmplw(CR_COMPARE, fh, SCRATCH_REG));
-    let high_site = t.len() as u32;
-    t.extend_from_slice(&[0; 4]);
+    let mut run = Vec::new();
+    run.extend_from_slice(&encode_addis(SCRATCH_REG, 0, 0));
+    run.extend_from_slice(&encode_lwz(SCRATCH_REG, SCRATCH_REG, 0));
+    run.extend_from_slice(&encode_cmplw(CR_COMPARE, fh, SCRATCH_REG));
+    l.place(b_high, run, Terminator::Bc { bo: BO_FALSE, bi: bi_lt, taken: b_err })?;
 
-    // ---- the two-level table walk ------------------------------------------
+    // ---- the two-level table walk, and guard 3 -----------------------------
     //
     // Written out in this order rather than as "address arithmetic with the high
     // half hoisted N", because the second quad's two words are three apart with
     // two unrelated instructions between them and the first quad's are adjacent:
     // there is no hoist rule here, only a transcription.
-    t.extend_from_slice(&encode_srawi(SCRATCH_REG, fh, g.k_shift as u8));
-    t.extend_from_slice(&encode_addis(VAL_REG, 0, 0));
+    let mut run = Vec::new();
+    run.extend_from_slice(&encode_srawi(SCRATCH_REG, fh, g.k_shift as u8));
+    run.extend_from_slice(&encode_addis(VAL_REG, 0, 0));
     // `slwi rD,rS,2` is `rlwinm rD,rS,2,0,29`. `K_SCALE` is pinned to 4, so the
     // shift amount is 2 and the mask end is 31 − 2.
     let scale_sh = K_SCALE.trailing_zeros() as u8;
-    t.extend_from_slice(&encode_rlwinm(INDEX_REG, SCRATCH_REG, scale_sh, 0, 31 - scale_sh));
-    t.extend_from_slice(&encode_addi(VAL_REG, VAL_REG, 0));
-    t.extend_from_slice(&encode_rlwinm(SCRATCH_REG, fh, 0, mb_mask, 31));
-    t.extend_from_slice(&encode_mulli(SCRATCH_REG, SCRATCH_REG, g.k_elem as i16));
-    t.extend_from_slice(&encode_lwzx(VAL_REG, INDEX_REG, VAL_REG));
-    t.extend_from_slice(&encode_add(SCRATCH_REG, VAL_REG, SCRATCH_REG));
-
-    // ---- guard 3: the flag byte, on cr0 through a record-form mask ---------
-    t.extend_from_slice(&encode_lbz(VAL_REG, SCRATCH_REG, g.off_file as i16));
-    t.extend_from_slice(&encode_clrlwi_record(VAL_REG, VAL_REG, mb_bit));
-    let flag_site = t.len() as u32;
-    t.extend_from_slice(&[0; 4]);
+    run.extend_from_slice(&encode_rlwinm(INDEX_REG, SCRATCH_REG, scale_sh, 0, 31 - scale_sh));
+    run.extend_from_slice(&encode_addi(VAL_REG, VAL_REG, 0));
+    run.extend_from_slice(&encode_rlwinm(SCRATCH_REG, fh, 0, mb_mask, 31));
+    run.extend_from_slice(&encode_mulli(SCRATCH_REG, SCRATCH_REG, g.k_elem as i16));
+    run.extend_from_slice(&encode_lwzx(VAL_REG, INDEX_REG, VAL_REG));
+    run.extend_from_slice(&encode_add(SCRATCH_REG, VAL_REG, SCRATCH_REG));
+    // guard 3: the flag byte, on cr0 through a record-form mask. It is the last
+    // condition-register writer in this block's own run, which is what
+    // `BodyLayout::place` checks the terminator against (item E, board #188) —
+    // and this is the one block in the class where that check has teeth, because
+    // `CR_FLAG` is 0 and every other guard here reads cr6.
+    run.extend_from_slice(&encode_lbz(VAL_REG, SCRATCH_REG, g.off_file as i16));
+    run.extend_from_slice(&encode_clrlwi_record(VAL_REG, VAL_REG, mb_bit));
+    l.place(b_walk, run, Terminator::Bc { bo: BO_TRUE, bi: bi_flag, taken: b_err })?;
 
     // ---- guard 4: the handle word is not already invalid -------------------
-    t.extend_from_slice(&encode_lwz(VAL_REG, SCRATCH_REG, g.off_hnd as i16));
-    t.extend_from_slice(&encode_cmpwi(CR_COMPARE, VAL_REG, g.k_invalid as i16));
-    let live_site = t.len() as u32;
-    t.extend_from_slice(&[0; 4]);
+    let mut run = Vec::new();
+    run.extend_from_slice(&encode_lwz(VAL_REG, SCRATCH_REG, g.off_hnd as i16));
+    run.extend_from_slice(&encode_cmpwi(CR_COMPARE, VAL_REG, g.k_invalid as i16));
+    l.place(b_live, run, Terminator::Bc { bo: BO_TRUE, bi: bi_eq, taken: b_err })?;
 
     // ---- the success arm: set up the merged store's two registers ----------
-    t.extend_from_slice(&encode_li(VAL_REG, g.k_invalid as i16));
-    t.extend_from_slice(&encode_li(RET_REG, g.k_ok as i16));
-    let join_site = t.len() as u32;
-    t.extend_from_slice(&[0; 4]);
+    let mut run = Vec::new();
+    run.extend_from_slice(&encode_li(VAL_REG, g.k_invalid as i16));
+    run.extend_from_slice(&encode_li(RET_REG, g.k_ok as i16));
+    l.place(b_ok, run, Terminator::B { target: b_join })?;
 
     // ---- the error block, SUNK here and reached FOUR ways ------------------
-    let l_err = t.len() as u32;
-    let bl0 = base_off + t.len() as u32;
-    t.extend_from_slice(&encode_call_branch(bl0));
-    t.extend_from_slice(&encode_li(SCRATCH_REG, g.k_errno as i16));
-    t.extend_from_slice(&encode_stw(SCRATCH_REG, RET_REG, 0));
-    let bl1 = base_off + t.len() as u32;
-    t.extend_from_slice(&encode_call_branch(bl1));
-    t.extend_from_slice(&encode_mr(SCRATCH_REG, RET_REG));
-    t.extend_from_slice(&encode_li(VAL_REG, g.k_doserrno as i16));
-    t.extend_from_slice(&encode_li(RET_REG, g.k_fail as i16));
-
-    // ---- the merged store ---------------------------------------------------
-    let l_join = t.len() as u32;
-    t.extend_from_slice(&encode_stw(VAL_REG, SCRATCH_REG, 0));
-
-    t.extend_from_slice(&epilogue);
-
-    // ---- the five displacements --------------------------------------------
     //
-    // Every one is computed from the block layout above rather than written as a
-    // constant, so a change to any block's length moves them all together. A
-    // hardcoded `+0x58` would keep linking and stop being right.
-    let mut patch = |site: u32, form: Form, disp: i32| -> Result<(), BackendError> {
-        let w = reach::direct(form, disp, "a guarded-table-lookup branch")?;
-        t[site as usize..site as usize + 4].copy_from_slice(&w);
-        Ok(())
-    };
-    let bi_lt = cr_bi(CR_COMPARE, CR_BIT_LT);
-    let bi_eq = cr_bi(CR_COMPARE, CR_BIT_EQ);
-    let bi_flag = cr_bi(CR_FLAG, CR_BIT_EQ);
-    patch(low_site, Form::Bc { bo: BO_TRUE, bi: bi_lt }, l_err as i32 - low_site as i32)?;
-    patch(high_site, Form::Bc { bo: BO_FALSE, bi: bi_lt }, l_err as i32 - high_site as i32)?;
-    patch(flag_site, Form::Bc { bo: BO_TRUE, bi: bi_flag }, l_err as i32 - flag_site as i32)?;
-    patch(live_site, Form::Bc { bo: BO_TRUE, bi: bi_eq }, l_err as i32 - live_site as i32)?;
-    patch(join_site, Form::B, l_join as i32 - join_site as i32)?;
+    // Both `bl` go down as zero placeholders: each word encodes its own `.text`
+    // offset (§3.3, #191), which is the layout's answer. The two constants are
+    // positions in THIS BLOCK'S OWN RUN, and the error block is the one that
+    // moves when any guard above it grows.
+    const BL0_IN_ERR: u32 = 0;
+    const BL1_IN_ERR: u32 = 12;
+    let mut run = Vec::new();
+    run.extend_from_slice(&[0; 4]);
+    run.extend_from_slice(&encode_li(SCRATCH_REG, g.k_errno as i16));
+    run.extend_from_slice(&encode_stw(SCRATCH_REG, RET_REG, 0));
+    debug_assert_eq!(run.len() as u32, BL1_IN_ERR);
+    run.extend_from_slice(&[0; 4]);
+    run.extend_from_slice(&encode_mr(SCRATCH_REG, RET_REG));
+    run.extend_from_slice(&encode_li(VAL_REG, g.k_doserrno as i16));
+    run.extend_from_slice(&encode_li(RET_REG, g.k_fail as i16));
+    l.place(b_err, run, Terminator::FallThrough)?;
 
-    Ok(OsfHandleGuardBody { text: t, bl_offsets: [bl0, bl1], prolog_len })
+    // ---- the merged store, then the epilogue --------------------------------
+    let mut run = Vec::new();
+    run.extend_from_slice(&encode_stw(VAL_REG, SCRATCH_REG, 0));
+    run.extend_from_slice(&frame.epilogue_run()?);
+    l.place(b_join, run, Terminator::Blr)?;
+
+    let body = l.finish()?;
+    // ---- the two positions this class publishes, both the layout's -----------
+    let at0 = body.at(b_err, BL0_IN_ERR)?;
+    let at1 = body.at(b_err, BL1_IN_ERR)?;
+    let bl_offsets = [base_off + at0, base_off + at1];
+    let mut t = body.text;
+    for (at, off) in [(at0, bl_offsets[0]), (at1, bl_offsets[1])] {
+        t[at as usize..at as usize + 4].copy_from_slice(&encode_call_branch(off));
+    }
+
+    Ok(OsfHandleGuardBody { text: t, bl_offsets, prolog_len })
 }
 
 #[cfg(test)]

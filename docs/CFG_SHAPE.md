@@ -1102,6 +1102,62 @@ the order it chose, so the two can be told apart.
 > distinction between a compare into `cr6` and a record form setting `cr0` is
 > *carried* without being *modelled*, and item F's cross-block liveness has a
 > block boundary to be defined over for the first time.
+>
+> ### ✔ 2026-08-15 — **item A has NINE production clients, not one, and the
+> layout owns the POSITIONS**, by lane `w-layout`
+> ([`rungs/2026-08-15-layout.md`](rungs/2026-08-15-layout.md)).
+>
+> Board **#3124**, dispatched off `w-item-d`'s finding. When that lane counted,
+> `BodyLayout` had **one** production client — `codegen::cond_tail` — and the
+> crate had **23** branch sites in **13** other lowerings that computed every
+> displacement themselves and patched at a fixed offset, *"the one shape a
+> re-layout cannot serve, because a fixed site has nowhere to grow"*. **Fifteen
+> of the twenty-three, in eight of the thirteen, are now terminators naming a
+> `BlockId`**: `alloc_init_or_fail`, `guard_ret_chain`, `close_call_chain`,
+> `osf_handle_guard`, `guard_chain_shared_tail`, `if_call_join`,
+> `fp_store_diamond`, `xlrc_create_guard`. Item A's client count is **1 → 9**.
+>
+> **The branch sites were not the whole problem, and that is the finding.** Every
+> one of those lowerings also *publishes* offsets off the same running
+> `t.len()` — a `bl`'s `REL24` site, a float constant's `REFHI`/`REFLO` pair, the
+> prologue's length — and a lowering cannot hand its branch positions to a layout
+> while keeping those in a counter of its own, because both come off the same
+> vector. **One** new fact serves all of them: `FinishedBody::start_of`, *where a
+> placed block landed*, with `at(block, k)` as its checked spelling and `run_len`
+> excluding the terminator (which is `LabelMap`'s word, not a lowering's). No new
+> per-site type, no second fixup list, no `Form` variant, no `Terminator`
+> variant.
+>
+> What the migration deletes is the constants. `if_call_join` carried a table of
+> **eight word indices into the whole body** (`I_BT_LT = 7` … `I_EXIT = 15`) and
+> spelled four branches as `(I_EXIT - I_BT_LT) * 4`, with a `- 3` on each `bl` to
+> convert an index back past the prologue; `guard_ret_chain` and
+> `close_call_chain` carried the literal `12`, which is not a fact about a guard
+> but *"over the arm's one word and its own `b`"* — a fact about the two blocks
+> between the branch and its target. `fp_store_diamond`'s `block_lengths` was the
+> *source* of its two displacements, so the assertion that graded it could only
+> restate the formula it had just used; the displacements are the map's now and
+> that assertion does real work for the first time.
+>
+> **The residue is a fence and not a budget, and it is exactly the loops.** Eight
+> sites in five lowerings cannot reach a layout at all: four whose branch is a
+> **back edge** (`ptr_walk_loop`, `ptr_walk_chain_loop`, `json_utf8_copy`,
+> `xtea_encrypt_loop`), which `LabelMap`'s invariant 4 refuses on #746's measured
+> grounds — a body with one back edge cannot go through `finish`, because `finish`
+> resolves *every* branch through the one map — and `pool_ctor_chain`, whose back
+> edge is a `bdnz`, for which `Terminator` has no variant and §6.3 declines the
+> discovery that would justify one. **`#3124`'s "migrate the 23 sites" is
+> therefore not performable in full until #746's fence moves**, and no part of
+> this lane relaxed either fence.
+>
+> **It converted zero TUs, by design** — a construct rung on board #290's
+> pattern, graded by a required-zero byte delta: 878 per-TU verdicts, 372
+> `gap-metric` keys (`fnbyte-exact` 35,734) and the whole gate lane table
+> identical, both gate runs' `graded tree` identical at their own two ends. Eight
+> mutants, eight reds, five of them reddening a real-obj byte oracle. **Nothing
+> here performs a relaxation**, and #3124 is explicit about why the order
+> matters: the pass now has somewhere to stand, and building it first would have
+> been an ungraded code path (w-frame row **F-c**).
 
 **B. Labels as first-class, resolved by a fixup pass.**
 `3A`/`38`/`39` carry no direction (§2.1), so the target's offset is unknown when
