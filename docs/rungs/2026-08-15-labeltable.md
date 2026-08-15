@@ -459,7 +459,7 @@ premise rather than against it.
 | `c2rs perf` `Match` | **381 fixtures at the `/Ox` default** | **+0** | **+0** |
 | **878-TU workload `match`** | **878 dc3 TUs** | **25 → 25** | **25 → 25** |
 | `codegen-gap` / `vocab-gap` / `capture-fail` / `frontier` | 878-TU scan | **0 / 845 / 8 / 2** | **as registered** |
-| `gap-metric` keys · verdict lines | — | **372 · 878** | **as registered** |
+| `gap-metric` keys · verdict lines | — | **372 · 878** | **370 · 878** — the 372 was the BRIEF's base and is a mis-transcription; the tree is byte-identical to master, so 370 *is* master's. §9.1 |
 | `fnbyte-exact` | 878-TU scan | **35734** | **35734** |
 | workspace tests | — | **1610 / 42, no test added** | **1610 / 42** |
 | `graded tree` | `crates fixtures scripts` | **`04e3500f07b7`, 730 files**, both ends | **unchanged, both ends** |
@@ -477,17 +477,47 @@ so that a summary cannot collapse them.
 | lane | result |
 |---|---|
 | `cargo test --workspace --release --no-fail-fast` | **1610 passed, 0 failed, 42 targets** — identical to master's, because no test was added and no `crates/` file was opened. The target count is quoted because a dropped target means an earlier target failed |
-| `scripts/gate.sh --jobs 4 --require-graded` | see `work/w-labeltable/gate_tip.txt` |
-| `graded tree`, **both ends** | **`04e3500f07b7`, 730 files** under `crates fixtures scripts` — the coordinator's stated master value, unchanged at both ends and unchanged in file count. This lane created **no** file under those trees and modified none |
-| **878-TU workload `match`, both ends** | **25 → 25**, `mismatch` 0, `codegen-gap` 0, `vocab-gap` 845, `capture-fail` 8, `frontier` 2, `fnbyte-exact` 35734 |
-| `scripts/debug_lane.sh` | `work/w-labeltable/debug_lane.txt` |
-| `scripts/board_audit.sh` | all-zero |
+| `scripts/gate.sh --jobs 4 --require-graded` | **GATE: PASS (HATCH-RED REFUSED)** — 18/18 lanes ran, **0 FAIL, 0 SKIP, 0 NO-RESULT**, **6858** fixture-verdicts; sweep **19556 of 19556** reached, **19460 graded**, **0 mismatch**; cross **90812 of 90812** reached, **90424 graded**, **0 mismatch**. `work/w-labeltable/gate_tip.txt` |
+| `graded tree`, **both ends of the run** | **`04e3500f07b7`, 730 files** under `crates fixtures scripts` — **exactly the coordinator's stated master value**, printed before the first row could run and again after the last, unchanged in hash and in file count |
+| **the identity diff, which is stronger than a re-run** | `git diff --stat 1f85d14c HEAD -- crates fixtures scripts` is **empty**. The base end could not differ from the tip end because they are the **same bytes**; the 15 files this lane touched are all under `docs/` and `work/`. **F5 measured, not asserted** |
+| per-lane counts | **every one of the 18 identical to master**: `O1` 179, `O1-EHsc` 180, `O1-Oi` 181, `O1-Oi-EHsc` 182, `O1-Oi-GR` 181, `O1-Oi-EHsc-GR` 182, all six `/Ox` 150, both `/O2` 156, all four `/Od` 18, sweep 19460, cross 90424, `mismatch` 0 everywhere |
+| **878-TU workload scan** | **match 25**, `mismatch` **0**, `codegen-gap` **0**, `vocab-gap` **845**, `capture-fail` **8**, `frontier` **2**, `fnbyte-exact` **35734**, **878** verdict lines. `work/w-labeltable/gap_tip.txt` |
+| `scripts/debug_lane.sh` (board #3087/#3128) | **lanes=18 ran=18 failed=0**, 0 panics, 0 mismatch, and **digit-for-digit equal to the release gate on all 18 lanes** |
+| `scripts/board_audit.sh` | cited-but-not-on-board **0**, unresolved section anchors **0**, raw line-number anchors **0**, rows-behind-the-prose **0**, duplicate row numbers **0** |
 | `crates/c2-harness/tests/rung_registry.rs` | **2 passed, 0 failed** |
 
 **A docs lane still runs the whole gate**, because *"no `crates/` file was
-opened"* is a claim about a tree and the identity diff is what proves it. The
-`graded tree` hash at both ends is the sharpest evidence in this rung: it is the
-same 12 hex digits and the same 730 files, so **F5** is measured and not asserted.
+opened"* is a claim about a tree, and it is the identity diff and the `graded
+tree` hash that prove it rather than the sentence.
+
+`HATCH-RED REFUSED (HATCH-STALE, board #1389)` is carried unchanged from master —
+`hatch.py apply` cannot hatch this tree, so the red arms have no tree to run on.
+`ladder-red` PASS. Both are standing conditions of the tree, not of this lane.
+
+**A peer's gate was live in the window** (`/tmp/c2rs-gate-3826403`, seen by this
+run's own preflight) and it did not reach this run: `gate.sh` and the repaired
+`debug_lane.sh` both take PID-keyed directories and run-private binaries
+(board **#3128**), and the two agree digit for digit on all 18 lanes. That
+agreement across two runners in a window with a concurrent peer is the check
+`w-fenceb` §5.2 and `w-read2` paid for.
+
+`docs/STATUS.md` is **not** regenerated here: its block is the coordinator's
+after the wave, and a lane regenerating it on a branch conflicts with every peer.
+
+### 9.1 One registered base number was wrong, and it is the BRIEF's, not the tree's
+
+The dispatching brief and this lane's prereg both registered **372 `gap-metric`
+keys**. The scan prints **370** — and **this lane cannot have moved it**:
+`crates fixtures scripts` is byte-identical to master `1f85d14c` (empty identity
+diff, matching `graded tree` hash), so the scan it produces *is* master's scan.
+
+**370 is master's value and 372 was a mis-transcription of the base.** It is
+recorded rather than quietly adjusted to, because a lane that silently reconciles
+a base number is a lane whose other base numbers cannot be trusted — and because
+the same brief's `match 25 · mismatch 0 · codegen-gap 0 · vocab-gap 845 ·
+capture-fail 8 · frontier 2 · 878 verdict lines · fnbyte-exact 35734` all
+reproduce exactly, which is what makes the one outlier readable as a
+transcription error rather than a movement.
 
 ---
 
