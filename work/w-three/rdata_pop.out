@@ -1,0 +1,4 @@
+graded TUs whose REFERENCE OBJ carries a `.rdata` section: 846 of 870 (97.2 %)
+  by class: {'vocab-gap': 842, 'match': 4}
+  (the instrument cannot say which of them are COMDAT — `emit-sec-name|X` is a
+   NAME key, not a linkage key. Named as unmeasured rather than assumed.)
