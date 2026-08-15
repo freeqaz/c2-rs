@@ -70,6 +70,7 @@
 //! function lands in `.text`; only the one `bl` encodes its own offset, so it is
 //! the only word that needs `base_off`.
 
+use crate::codegen::block_ir::{BlockOrder, BodyLayout, Terminator};
 use crate::codegen::calls::encode_call_branch;
 use crate::codegen::encode::{
     cr_bi, encode_addi, encode_addis, encode_cmplwi, encode_lwz, encode_mr, encode_stb,
@@ -80,8 +81,6 @@ use crate::codegen::select::{fits_i16, out_of_class, ARG_REGS, RET_REG, SCRATCH_
 use crate::codegen::OptMode;
 use crate::BackendError;
 use c2_il::AllocInitOrFailFn;
-use crate::codegen::labels::Form;
-use crate::codegen::reach;
 
 /// The callee-saved register the RECEIVER is parked in — `this`, read at 0x58,
 /// 0x60 and 0x70.
@@ -165,14 +164,35 @@ pub fn alloc_init_or_fail_text(
     let epilogue = frame.epilogue()?;
     let prolog_len = prologue.len() as u32;
 
-    let mut t = prologue;
+    // **The body is six blocks in `BodyLayout`** — `CFG_SHAPE.md` §6.2 item A,
+    // board **#3124**. Nothing below computes a displacement: the three the
+    // class needs are `LabelMap`'s (item B, #290), derived from where the blocks
+    // landed. The two positions this class publishes — the `bl`'s `REL24` site
+    // and the prologue's length — are stated as offsets **inside one block's own
+    // run**, which is the property that makes them survive a re-layout.
+    let mut l = BodyLayout::new(BlockOrder::IlStatement);
+    let b_entry = l.declare("entry");
+    let b_call = l.declare("call");
+    let b_init = l.declare("init");
+    let b_link = l.declare("link");
+    let b_err = l.declare("err");
+    let b_epi = l.declare("epilogue");
 
-    // ---- the entry block: both parks, then the `node != 0` guard -----------
-    t.extend_from_slice(&encode_mr(THIS_REG, ARG_REGS[0]));
-    t.extend_from_slice(&encode_mr(NODE_REG, ARG_REGS[1]));
-    t.extend_from_slice(&encode_cmplwi(CR_COMPARE, ARG_REGS[1], 0));
-    let entry_site = t.len() as u32;
-    t.extend_from_slice(&[0; 4]);
+    // ---- the entry block: the prologue, both parks, then the `node != 0`
+    //      guard, whose `bc` names the error block ---------------------------
+    let mut run = prologue;
+    run.extend_from_slice(&encode_mr(THIS_REG, ARG_REGS[0]));
+    run.extend_from_slice(&encode_mr(NODE_REG, ARG_REGS[1]));
+    run.extend_from_slice(&encode_cmplwi(CR_COMPARE, ARG_REGS[1], 0));
+    l.place(
+        b_entry,
+        run,
+        Terminator::Bc {
+            bo: BO_TRUE,
+            bi: cr_bi(CR_COMPARE, CR_BIT_EQ),
+            taken: b_err,
+        },
+    )?;
 
     // ---- the call: the object's address into r3, two literals above it -----
     //
@@ -180,60 +200,103 @@ pub fn alloc_init_or_fail_text(
     // them. Written out in this order rather than as "arguments descending with
     // the high half hoisted N" because N is 2 here and 3 at 0x40: there is no
     // rule at n = 1, so the class transcribes rather than generalizes.
-    t.extend_from_slice(&encode_addis(SCRATCH_REG, 0, 0));
-    t.extend_from_slice(&encode_li(ARG_REGS[2], a.k_flag as i16));
-    t.extend_from_slice(&encode_addi(RET_REG, SCRATCH_REG, 0));
-    t.extend_from_slice(&encode_li(ARG_REGS[1], a.k_size as i16));
-    let bl_offset = base_off + t.len() as u32;
-    t.extend_from_slice(&encode_call_branch(bl_offset));
+    //
+    // The `bl` goes down as a **zero placeholder**: its word encodes its own
+    // `.text` offset (§3.3, board #191) and that offset is the layout's answer,
+    // not a running count. `BL_IN_CALL` is where it sits in **this block's** run.
+    const BL_IN_CALL: u32 = 16;
+    let mut run = Vec::new();
+    run.extend_from_slice(&encode_addis(SCRATCH_REG, 0, 0));
+    run.extend_from_slice(&encode_li(ARG_REGS[2], a.k_flag as i16));
+    run.extend_from_slice(&encode_addi(RET_REG, SCRATCH_REG, 0));
+    run.extend_from_slice(&encode_li(ARG_REGS[1], a.k_size as i16));
+    debug_assert_eq!(run.len() as u32, BL_IN_CALL);
+    run.extend_from_slice(&[0; 4]);
+    // `if (p != 0) { four stores }` — the middle test reads cr0, and it is the
+    // last condition-register writer in this block's own run, which is what
+    // `BodyLayout::place` checks the terminator against (item E, board #188).
+    run.extend_from_slice(&encode_cmplwi(CR_MIDDLE, RET_REG, 0));
+    l.place(
+        b_call,
+        run,
+        Terminator::Bc {
+            bo: BO_TRUE,
+            bi: cr_bi(CR_MIDDLE, CR_BIT_EQ),
+            taken: b_link,
+        },
+    )?;
 
-    // ---- `if (p != 0) { four stores }` — the middle test reads cr0 ---------
-    t.extend_from_slice(&encode_cmplwi(CR_MIDDLE, RET_REG, 0));
-    let init_site = t.len() as u32;
-    t.extend_from_slice(&[0; 4]);
-    t.extend_from_slice(&encode_addis(SCRATCH_REG, 0, 0));
-    t.extend_from_slice(&encode_stw(NODE_REG, RET_REG, a.off_a as i16));
-    t.extend_from_slice(&encode_li(TEMP_REG, a.k_neg as i16));
-    t.extend_from_slice(&encode_addi(SCRATCH_REG, SCRATCH_REG, 0));
-    t.extend_from_slice(&encode_stw(TEMP_REG, RET_REG, a.off_b as i16));
-    t.extend_from_slice(&encode_stw(SCRATCH_REG, RET_REG, a.off_c as i16));
-    t.extend_from_slice(&encode_lwz(SCRATCH_REG, THIS_REG, a.off_d as i16));
-    t.extend_from_slice(&encode_stw(SCRATCH_REG, RET_REG, a.off_e as i16));
+    // ---- the initialisation the middle guard skips -------------------------
+    let mut run = Vec::new();
+    run.extend_from_slice(&encode_addis(SCRATCH_REG, 0, 0));
+    run.extend_from_slice(&encode_stw(NODE_REG, RET_REG, a.off_a as i16));
+    run.extend_from_slice(&encode_li(TEMP_REG, a.k_neg as i16));
+    run.extend_from_slice(&encode_addi(SCRATCH_REG, SCRATCH_REG, 0));
+    run.extend_from_slice(&encode_stw(TEMP_REG, RET_REG, a.off_b as i16));
+    run.extend_from_slice(&encode_stw(SCRATCH_REG, RET_REG, a.off_c as i16));
+    run.extend_from_slice(&encode_lwz(SCRATCH_REG, THIS_REG, a.off_d as i16));
+    run.extend_from_slice(&encode_stw(SCRATCH_REG, RET_REG, a.off_e as i16));
+    l.place(b_init, run, Terminator::FallThrough)?;
 
     // ---- the link store, reached from both paths ---------------------------
-    let l_link = t.len() as u32;
-    t.extend_from_slice(&encode_stw(RET_REG, THIS_REG, a.off_d as i16));
-    t.extend_from_slice(&encode_cmplwi(CR_COMPARE, RET_REG, 0));
-    let fail_site = t.len() as u32;
-    t.extend_from_slice(&[0; 4]);
+    let mut run = Vec::new();
+    run.extend_from_slice(&encode_stw(RET_REG, THIS_REG, a.off_d as i16));
+    run.extend_from_slice(&encode_cmplwi(CR_COMPARE, RET_REG, 0));
+    l.place(
+        b_link,
+        run,
+        Terminator::Bc {
+            bo: BO_FALSE,
+            bi: cr_bi(CR_COMPARE, CR_BIT_EQ),
+            taken: b_epi,
+        },
+    )?;
 
     // ---- the error block, SUNK here from the middle of the IL body ---------
-    let l_err = t.len() as u32;
-    t.extend_from_slice(&encode_li(SCRATCH_REG, a.k_status as i16));
-    t.extend_from_slice(&encode_stb(SCRATCH_REG, THIS_REG, a.off_f as i16));
+    let mut run = Vec::new();
+    run.extend_from_slice(&encode_li(SCRATCH_REG, a.k_status as i16));
+    run.extend_from_slice(&encode_stb(SCRATCH_REG, THIS_REG, a.off_f as i16));
+    l.place(b_err, run, Terminator::FallThrough)?;
 
-    let l_epi = t.len() as u32;
-    t.extend_from_slice(&epilogue);
+    // The epilogue's last word IS the return, so it is the terminator and not
+    // four more bytes of run — `Terminator::Blr` emits exactly that word.
+    l.place(b_epi, epilogue_run(&epilogue)?, Terminator::Blr)?;
 
-    // ---- the three displacements -------------------------------------------
+    let body = l.finish()?;
+    // ---- the two positions this class publishes ----------------------------
     //
-    // Every one is computed from the block layout above rather than written as a
-    // constant, so a change to any block's length moves them all together. A
-    // hardcoded `+0x4c` would keep linking and stop being right.
-    let mut patch = |site: u32, target: u32, bo: u8, bi: u8| -> Result<(), BackendError> {
-        let w = reach::direct(
-            Form::Bc { bo, bi },
-            target as i32 - site as i32,
-            "a guarded-allocation branch",
-        )?;
-        t[site as usize..site as usize + 4].copy_from_slice(&w);
-        Ok(())
-    };
-    patch(entry_site, l_err, BO_TRUE, cr_bi(CR_COMPARE, CR_BIT_EQ))?;
-    patch(init_site, l_link, BO_TRUE, cr_bi(CR_MIDDLE, CR_BIT_EQ))?;
-    patch(fail_site, l_epi, BO_FALSE, cr_bi(CR_COMPARE, CR_BIT_EQ))?;
+    // Both are the LAYOUT's, and both are block-relative: the `bl` is 16 bytes
+    // into the call block's own run, the prologue is the head of the entry
+    // block's. A change to any block's length moves them together, and a
+    // re-layout that inserted a word would move them without either line here
+    // being edited — which is the whole of board #3124.
+    let bl_at = body.at(b_call, BL_IN_CALL)?;
+    let bl_offset = base_off + bl_at;
+    debug_assert_eq!(body.start_of(b_entry)?, 0);
+    let mut t = body.text;
+    t[bl_at as usize..bl_at as usize + 4].copy_from_slice(&encode_call_branch(bl_offset));
 
     Ok(AllocInitOrFailBody { text: t, bl_offset, prolog_len })
+}
+
+/// An epilogue's run **without** its closing `blr`, which is
+/// [`Terminator::Blr`]'s word and not part of the straight-line run.
+///
+/// Shared by every class in this crate that materialises a common epilogue and
+/// lays its body out through [`BodyLayout`]. It refuses rather than trims blind:
+/// an epilogue that does not end in `blr` is a different frame class, and
+/// silently dropping its last word would emit a body four bytes short with a
+/// return the frame never wrote.
+pub(super) fn epilogue_run(epilogue: &[u8]) -> Result<Vec<u8>, BackendError> {
+    let n = epilogue.len();
+    if n < 4 || epilogue[n - 4..] != crate::codegen::encode::encode_blr()[..] {
+        return Err(out_of_class(
+            "a materialised epilogue whose last word is not `blr`: \
+             `Terminator::Blr` is that word, and trimming a word that is not it \
+             would emit a body short of its own return",
+        ));
+    }
+    Ok(epilogue[..n - 4].to_vec())
 }
 
 #[cfg(test)]
