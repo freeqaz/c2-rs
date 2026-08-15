@@ -3751,3 +3751,491 @@ fn the_step5_boundary_publishes_its_cells_and_always_publishes_its_alarm() {
     let m2: std::collections::BTreeMap<&str, String> = empty.metrics().into_iter().collect();
     assert_eq!(m2.get("step5-consistency-alarms").map(String::as_str), Some("0"));
 }
+
+// ---------------------------------------------------------------------------
+// Lane `w-guards` — guards for the three census surfaces board #3199 measured
+// as having NOTHING that could fail on them
+// ---------------------------------------------------------------------------
+
+/// **Three clauses this instrument's own ranking is built from shipped with no
+/// test that could fail on them** — `docs/rungs/2026-08-16-bind.md` §8, board
+/// **#3199**. `w-bind16` registered four mutants' colours before running them
+/// and **three came back GREEN against a registered RED**:
+///
+/// | id | site | mutation | #3199 |
+/// |---|---|---|---|
+/// | M1 | `c2-il .../shapes/calls.rs:431` | `syms > 1` → `syms > 2` | **GREEN** |
+/// | M2 | `c2-core/src/codegen/calls.rs:1815` | `count != 1` → `count > 2` | RED |
+/// | M3 | `c2-il/src/func/bind.rs:886` | drop `resolve_data`'s linkage gate | **GREEN** |
+/// | M4 | `c2-il/src/func/census.rs:1211` | swap `DATA_SYM_UNRESOLVED` ⇄ `DATA_SYM_LINKAGE` | **GREEN** |
+///
+/// **M4 is the worst placed.** The two census keys board **#3177**'s reachable
+/// widening order is *built from* — `data-sym-unresolved` and
+/// `data-sym-not-extern` — can be **exchanged for each other** with nothing
+/// failing, in an instrument that is **machine-read**: `scan.rs` writes
+/// `format!("emit-cflow-modeled-key|{}", f.verdict.key())` and
+/// [`super::report::GapReport::cflow_emitted_modeled_keys`] strips that prefix
+/// back off. `w-loo` measured five of six published rankings at ρ ≈ +0.047 —
+/// noise (**#3135**) — and an unguarded key in a machine-read instrument is
+/// exactly how that happens without anyone noticing. #3177's own closing words
+/// are *"`board_audit.sh` checks anchors and numbers; nothing checks a key
+/// against the population it is quoted over"*; #3199 sharpens it to **nothing
+/// checks these two keys are not exchanged for each other**.
+///
+/// # Why the guards live here and not beside the clauses
+///
+/// All three mutation sites are in `crates/c2-il`, which this lane does not
+/// own. `parse_segment_detail`, `DATA_SYM_UNRESOLVED`, `DATA_SYM_LINKAGE` and
+/// `gl_extern_data_names` are all `pub(crate)` there and unreachable from here.
+/// So the guards drive hand-built synthetic bundles through the **public**
+/// `IlBundle::census_functions()` and assert on the **observable key string** —
+/// [`c2_il::FnVerdict::key`], which is verbatim what `scan.rs` concatenates
+/// into the instrument's key. That is the stronger form: it guards the string
+/// the instrument publishes rather than the constant behind it, so a mutation
+/// that renames the constant *and* its uses is still caught if the published
+/// key moves.
+///
+/// # The cells, and why each pair discriminates
+///
+/// One transcript, four `.gl` variants and two body variants. Cells **A** and
+/// **B** differ in **exactly one thing** — whether `.gl` names the token — and
+/// that is precisely what M4 destroys. Cells **B** and **C** differ in
+/// **exactly one byte** — the `.gl` linkage byte — and that is precisely what
+/// M3 destroys. The **n = 1 / 2 / 3** series is the arity fence at rank 1 of
+/// #3177's reachable order, **1,296 functions**, and that is what M1 weakens.
+///
+/// Every guard here **prints and asserts its count of discriminating cells**,
+/// because absence read as success is this repo's most-recorded failure and a
+/// bundle that quietly stopped producing a census row would otherwise pass.
+#[cfg(test)]
+mod wr1_census_key_guards {
+    use super::{mk, mk_report};
+    use c2_il::IlBundle;
+
+    /// `static Licenses sLicense("system/src/tomcrypt", (Licenses::Requirement)0);`
+    /// lowering to `??__EsLicense@@YAXXZ` — a **real** `c2.dll` capture at the
+    /// 878-TU workload's own flags (`/nologo /c /GR /O1 /Oi /EHsc`), `4F 1F`
+    /// header through `4D` module end.
+    ///
+    /// Transcribed from `c2-il`'s own `func::body::wr1_dyninit::TOMCRYPT_DYNINIT`
+    /// rather than referenced, because that module is `#[cfg(test)]` inside a
+    /// crate this lane does not own and is not reachable across the crate
+    /// boundary. **It is a copy of a capture, not a second source of truth**: if
+    /// `c2-il`'s readers change under it these guards break, and that is the
+    /// guard working — the response is to re-derive the transcript from the
+    /// capture, never to delete the test.
+    ///
+    /// Its body decodes to
+    /// `MultiArgTailCall { arg_sources: [SymAddr(0xF909), SymAddr(0xFC09), Lit(0)] }`
+    /// with callee token `0xEA09`, and its body marker is the **bare** `4C`
+    /// every `??__E`/`??__F` thunk carries.
+    const DYNINIT: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0x20, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00,
+        0x4F, 0x33, 0x0D, 0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01,
+        0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18, 0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38,
+        0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D, 0x08, 0x00, 0x0F,
+        0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x03, // block start, line 3
+        0x53, 0x53, 0x26, 0xFA, 0x09, // SS SS, result-ref
+        0x46, // formals: EMPTY
+        0x4C, 0x53, // the BARE `LO`, then the body's SS
+        0x26, 0xEA, 0x09, // push the callee
+        0x26, 0xF9, 0x09, 0x2C, 0xA6, 0x43, 0x81, 0x20, 0x00, // &sLicense …
+        0x99, 0x86, 0x43, 0x8D, 0x20, 0x00, // … bound as the receiver
+        0xBD, 0xA6, 0x43, 0x81, 0x20, 0x00, 0x80, 0x07, 0x10, 0x00, 0x00, // CALL
+        0x33, 0x86, 0x41, 0x83, 0x20, 0x00, // arg 2: literal 0
+        0x55, 0x86, 0x41, 0x83, 0x20,
+        0x26, 0xFC, 0x09, 0x2C, 0x86, 0x43, 0x85, 0x20, 0x00, // arg 1: the string
+        0x55, 0x86, 0x43, 0x85, 0x20,
+        0x4C, 0x4B, // void call end
+        0x3A, 0xFB, 0x09, 0x54, 0x02, 0x29, 0xFB, 0x09, // return plumbing
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, // function tail
+        0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x04, // module end
+        0x53, 0x54, 0x00, 0x4D,
+    ];
+
+    /// The `arg 1` production, `26 <tok> 2C …` — one **symbol-address**
+    /// argument. Sliced out by value so the n-series can substitute for it.
+    const SYM_ARG_FC09: [u8; 14] = [
+        0x26, 0xFC, 0x09, 0x2C, 0x86, 0x43, 0x85, 0x20, 0x00,
+        0x55, 0x86, 0x43, 0x85, 0x20,
+    ];
+    /// The `arg 2` production, `33 … 55 …` — one **literal** argument.
+    const LIT_ARG: [u8; 11] = [
+        0x33, 0x86, 0x41, 0x83, 0x20, 0x00, 0x55, 0x86, 0x41, 0x83, 0x20,
+    ];
+
+    /// A `.gl` **symbol** record: `<kind 04> <token> <sep 00> <name> 00 <TYPE>`,
+    /// the framing `gl_symbol_index` binds a token to a name through.
+    fn sym_rec(tok: [u8; 2], name: &str) -> Vec<u8> {
+        let mut v = vec![0x04, tok[0], tok[1], 0x00];
+        v.extend_from_slice(name.as_bytes());
+        v.push(0x00);
+        v.extend_from_slice(&[0x82, 0x07, 0x04]);
+        v
+    }
+
+    /// The same record **plus the type trailer `gl_extern_data_names` reads the
+    /// linkage byte out of** — `80 <kind> 00 02 <linkage>`.
+    ///
+    /// `linkage` is the ONE byte that separates cell **B** from cell **C**.
+    /// `02` is undefined-external (an address the port may reference without
+    /// emitting a section); `01` is defined-here and `04` is `static`, and both
+    /// cost a whole extra section (`docs/IL_CALL_IN_EXPR.md` §17.2 item 7).
+    fn data_rec(tok: [u8; 2], name: &str, linkage: u8) -> Vec<u8> {
+        let mut v = vec![0x04, tok[0], tok[1], 0x00];
+        v.extend_from_slice(name.as_bytes());
+        v.push(0x00);
+        v.extend_from_slice(&[0x80, 0x00, 0x00, 0x02, linkage]);
+        v
+    }
+
+    /// [`DYNINIT`] with the **bare** `4C` body marker replaced by the composed
+    /// `4C 4F 11`, so `body_start_is_bare` is false and the `two_sym_thunk`
+    /// exemption at `calls.rs:431` cannot fire on `syms == 2`.
+    fn composed_lo(seg: &[u8]) -> Vec<u8> {
+        let mut v = seg.to_vec();
+        let at = v
+            .windows(2)
+            .position(|w| w == [0x4C, 0x53])
+            .expect("the bare `4C` body marker followed by the body's SS");
+        v.splice(at..at + 1, [0x4C, 0x4F, 0x11]);
+        v
+    }
+
+    /// Substitute one argument production for another, once, by value.
+    fn swap_arg(seg: &[u8], from: &[u8], to: &[u8]) -> Vec<u8> {
+        let mut v = seg.to_vec();
+        let at = v
+            .windows(from.len())
+            .position(|w| w == from)
+            .expect("the argument production to substitute for");
+        v.splice(at..at + from.len(), to.iter().copied());
+        v
+    }
+
+    fn bundle(seg: &[u8], gl: Vec<u8>) -> IlBundle {
+        let mut b = IlBundle::new("_CL_wguards");
+        let mut ex = Vec::new();
+        ex.extend_from_slice(&c2_il::EX_MAGIC);
+        ex.extend_from_slice(&[0x00; 8]);
+        ex.extend_from_slice(seg);
+        b.set("ex", ex);
+        b.set("gl", gl);
+        b.set("sy", Vec::new());
+        b.set("in", Vec::new());
+        b
+    }
+
+    /// The census key for a one-function bundle, **with the vacuity check
+    /// inside it**.
+    ///
+    /// A synthetic bundle that stops producing a census row would make every
+    /// assertion below unreachable and the whole module would go green for the
+    /// reason `docs/STATUS.md` trap 5 names. So "there is exactly one row" is a
+    /// *named* failure with its own message rather than an `unwrap`, and the
+    /// caller can never observe a missing row as a passing key comparison.
+    fn key_of(cell: &str, seg: &[u8], gl: Vec<u8>) -> String {
+        let rows = bundle(seg, gl)
+            .census_functions()
+            .unwrap_or_else(|| panic!("cell {cell}: the bundle produced NO census at all — \
+                 the guard graded 0 discriminating cells and is vacuous, which is \
+                 not a pass"));
+        assert_eq!(
+            rows.len(),
+            1,
+            "cell {cell}: expected exactly ONE census row from the one-function \
+             transcript, got {} — a guard whose bundle stopped segmenting grades \
+             nothing and must fail loudly rather than pass",
+            rows.len()
+        );
+        rows[0].0.verdict.key()
+    }
+
+    /// `.gl` naming only the callee: the two symbol-argument tokens are
+    /// **unnamed**, so `Bindings::resolve` returns `None` for them. **Cell A.**
+    fn gl_callee_only() -> Vec<u8> {
+        sym_rec([0xEA, 0x09], "?ctor@@YAXXZ")
+    }
+
+    /// `.gl` naming the callee and both symbol arguments, with the first
+    /// argument's record carrying `linkage`. `02` is cell **C**, `01` cell
+    /// **B**; **nothing else differs between them.**
+    fn gl_named(linkage: u8) -> Vec<u8> {
+        let mut g = sym_rec([0xEA, 0x09], "?ctor@@YAXXZ");
+        g.extend(data_rec([0xF9, 0x09], "?objA@@3HA", linkage));
+        g.extend(data_rec([0xFC, 0x09], "?strB@@3HA", 0x02));
+        g
+    }
+
+    const UNRESOLVED: &str = "data-sym-unresolved:eof";
+    const NOT_EXTERN: &str = "data-sym-not-extern:eof";
+
+    /// **M4 — the two keys #3177's ranking is BUILT FROM are not
+    /// interchangeable.**
+    ///
+    /// Registered RED by `w-bind16`, measured **GREEN**: swapping
+    /// `DATA_SYM_UNRESOLVED` and `DATA_SYM_LINKAGE` at `census.rs:1211` failed
+    /// nothing in 1,643 tests. This is the test that fails.
+    ///
+    /// Two cells differing in **one fact** — whether `.gl` names token
+    /// `0xF909`. Not one cell: a single assertion cannot tell a swap from a
+    /// rename, and #3147 is the standing correction that one cell gives a number
+    /// right for that cell and wrong as a rule.
+    #[test]
+    fn the_two_data_symbol_census_keys_are_not_interchangeable() {
+        let unnamed = key_of("A (token unnamed in `.gl`)", DYNINIT, gl_callee_only());
+        let named_wrong_linkage = key_of("B (named, linkage 01)", DYNINIT, gl_named(0x01));
+
+        assert_eq!(
+            unnamed, UNRESOLVED,
+            "M4: a data-symbol argument whose token has NO `.gl` name at all must \
+             be filed under `{UNRESOLVED}`. Getting `{unnamed}` means the \
+             `DATA_SYM_UNRESOLVED` arm of `census.rs`' `sym_fail` probe now \
+             publishes the OTHER key — and board #3177's reachable widening \
+             order is built by counting these two keys apart"
+        );
+        assert_eq!(
+            named_wrong_linkage, NOT_EXTERN,
+            "M4: a data-symbol argument whose token DOES resolve to a `.gl` name \
+             but whose linkage is not undefined-external must be filed under \
+             `{NOT_EXTERN}`. Getting `{named_wrong_linkage}` means the \
+             `DATA_SYM_LINKAGE` arm now publishes the other key. `data-sym-*` is \
+             not a name problem here — it is `IL_CALL_IN_EXPR.md` §17.2 item 7's \
+             whole-extra-section refusal, and the two rows size two different \
+             follow-on rungs"
+        );
+        assert_ne!(
+            unnamed, named_wrong_linkage,
+            "M4: the two cells differ in exactly ONE fact — whether `.gl` names \
+             token 0xF909 — so their keys must differ. Equal keys mean the census \
+             has collapsed the two populations into one row, which is a ranking \
+             that cannot be read even when neither key was renamed"
+        );
+        // **Absence is not success**: the count of cells that actually
+        // discriminated is asserted, not assumed.
+        let distinct: std::collections::BTreeSet<&str> =
+            [unnamed.as_str(), named_wrong_linkage.as_str()].into_iter().collect();
+        assert_eq!(
+            distinct.len(),
+            2,
+            "M4: 2 discriminating cells graded, {} distinct keys — a guard that \
+             graded fewer than 2 distinct keys proves nothing about a swap",
+            distinct.len()
+        );
+    }
+
+    /// **M3 — `resolve_data`'s `.gl` linkage gate is load-bearing, and the ONE
+    /// byte that carries it is the one that moves the key.**
+    ///
+    /// Registered RED by `w-bind16`, measured **GREEN**: deleting
+    /// `extern_data.contains(&name)` from `bind.rs:886` entirely failed nothing.
+    /// That clause is what separates *"has no name"* from *"is defined in this
+    /// TU"* — §17.2 item 7's whole-extra-section refusal — and dropping it makes
+    /// the port willing to reference an address it would have to emit a section
+    /// for.
+    ///
+    /// The cells are the **same bytes** but for the `.gl` linkage byte: `01`
+    /// (defined here) must refuse, `02` (undefined external) must not. This is
+    /// therefore a content check, not an existence check.
+    #[test]
+    fn the_data_symbol_linkage_gate_is_the_one_byte_that_moves_the_key() {
+        let defined_here = key_of("B (linkage 01, defined here)", DYNINIT, gl_named(0x01));
+        let undef_extern = key_of("C (linkage 02, undefined extern)", DYNINIT, gl_named(0x02));
+
+        assert_eq!(
+            defined_here, NOT_EXTERN,
+            "M3: `.gl` linkage `01` is a symbol this TU DEFINES. `resolve_data` \
+             must refuse it, so the census files the body under `{NOT_EXTERN}`. \
+             Getting `{defined_here}` means the linkage gate no longer runs and \
+             a defined global now reads as an address the port may reference \
+             without emitting its section"
+        );
+        assert_ne!(
+            undef_extern, NOT_EXTERN,
+            "M3: the SAME bytes with linkage `02` — an undefined external — must \
+             NOT be refused by `resolve_data`, or the gate is refusing its whole \
+             input and the cell above is passing for the wrong reason. This is \
+             the positive control: it fires on content, and one `.gl` byte is \
+             all that separates the two cells"
+        );
+        assert_ne!(
+            undef_extern, UNRESOLVED,
+            "M3: linkage `02` with a name present must not read as UNRESOLVED \
+             either — that would mean `resolve` itself stopped seeing the record \
+             and the linkage gate was never reached, so the cell above would be \
+             green on a broken `.gl` rather than on the gate"
+        );
+        // 2 cells, and the gate is the only difference between them.
+        assert_eq!(
+            gl_named(0x01).len(),
+            gl_named(0x02).len(),
+            "the two cells' `.gl` must be the same LENGTH — if they are not, \
+             something other than the linkage byte differs and the guard is not \
+             isolating the gate"
+        );
+        let diffs = gl_named(0x01)
+            .iter()
+            .zip(gl_named(0x02).iter())
+            .filter(|(a, b)| a != b)
+            .count();
+        assert_eq!(
+            diffs, 1,
+            "the two cells' `.gl` must differ in exactly ONE byte (the linkage \
+             byte); they differ in {diffs}. A guard whose two cells differ in \
+             more than the thing under test does not locate the clause"
+        );
+    }
+
+    /// **M1 — the call-argument ARITY fence, at rank 1 of board #3177's
+    /// reachable widening order, 1,296 functions.**
+    ///
+    /// Registered RED by `w-bind16`, measured **GREEN**: `syms > 1` could be
+    /// weakened to `syms > 2` — admitting every two-symbol call — and the whole
+    /// suite still passed. A fence no test can see is a fence a later lane can
+    /// silently weaken with no alarm.
+    ///
+    /// Graded as a **SERIES, not a cell** (#3147, which `w-slots` paid for: its
+    /// fixture's obj read 3 and the series was `2n+1`). n = 1 is admitted, n = 2
+    /// and n = 3 refuse. `syms > 2` breaks n = 2; `syms > 3` would break n = 3;
+    /// deleting the fence breaks both.
+    #[test]
+    fn the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol() {
+        // n = 1 — the second symbol argument replaced by a literal.
+        let n1 = key_of(
+            "n=1",
+            &composed_lo(&swap_arg(DYNINIT, &SYM_ARG_FC09, &LIT_ARG)),
+            gl_named(0x02),
+        );
+        // n = 2 — the transcript as captured.
+        let n2 = key_of("n=2", &composed_lo(DYNINIT), gl_named(0x02));
+        // n = 3 — the literal argument replaced by a third symbol.
+        let sym_f709: Vec<u8> = {
+            let mut v = SYM_ARG_FC09.to_vec();
+            v[1] = 0xF7;
+            v
+        };
+        let mut gl3 = gl_named(0x02);
+        gl3.extend(data_rec([0xF7, 0x09], "?strC@@3HA", 0x02));
+        let n3 = key_of("n=3", &composed_lo(&swap_arg(DYNINIT, &LIT_ARG, &sym_f709)), gl3);
+
+        assert_eq!(
+            n1, "multiarg-tail-call",
+            "M1 positive control: ONE symbol argument is IN CLASS. Got `{n1}`. If \
+             this is not in class the fence is refusing its whole input and the \
+             two refusals below prove nothing — this is the cell that makes the \
+             guard a discrimination rather than a constant"
+        );
+        assert_eq!(
+            n2, "call-arg-multi-sym:eof",
+            "M1: TWO symbol arguments must refuse on the arity fence \
+             (`calls.rs` `syms > 1`). Got `{n2}`. This is the rank-1 row of \
+             #3177's reachable order — 1,296 functions — and weakening the \
+             threshold to `syms > 2` admits every two-symbol call silently"
+        );
+        assert_eq!(
+            n3, "call-arg-multi-sym:eof",
+            "M1: THREE symbol arguments must refuse on the same fence. Got \
+             `{n3}`. n=3 is here so the guard is a SERIES: it catches a \
+             threshold moved to `syms > 2` at n=2 and one moved to `syms > 3` at \
+             n=3, where a single cell catches only one of them"
+        );
+    }
+
+    /// **The `two_sym_thunk` exemption is the fence's ONE hole, and it is
+    /// exactly one body-marker byte wide** (W-R1).
+    ///
+    /// `calls.rs` admits `syms == 2` when `body_start_is_bare` — the bare `4C`
+    /// every `??__E`/`??__F` dynamic-initializer thunk carries. That exemption
+    /// has the same property M1 has: nothing failed when it moved. Guarded as a
+    /// pair, because the *whole* claim is that the bare marker and the composed
+    /// one give different answers on otherwise identical bytes.
+    #[test]
+    fn the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone() {
+        let bare = key_of("n=2, BARE `4C`", DYNINIT, gl_named(0x02));
+        let composed = key_of("n=2, composed `4C 4F 11`", &composed_lo(DYNINIT), gl_named(0x02));
+        assert_ne!(
+            bare, "call-arg-multi-sym:eof",
+            "W-R1: a two-symbol body behind the BARE `4C` body marker is the \
+             `??__E`/`??__F` thunk class and is deliberately admitted past the \
+             arity fence. Getting the arity refusal means `two_sym_thunk` no \
+             longer fires and the dynamic-initializer class has silently left \
+             the model"
+        );
+        assert_eq!(
+            composed, "call-arg-multi-sym:eof",
+            "W-R1: the SAME bytes with the composed `4C 4F 11` marker must take \
+             the arity refusal. Got `{composed}`. If both markers give the same \
+             answer the exemption is not conditioned on the marker at all"
+        );
+        assert_eq!(
+            composed_lo(DYNINIT).len(),
+            DYNINIT.len() + 2,
+            "the two cells must differ by exactly the two bytes the composed \
+             marker adds — anything else and the pair is not isolating the marker"
+        );
+    }
+
+    /// **The producer's key and the machine-read consumer's key are the same
+    /// string** — the loop #3199 says nothing closes.
+    ///
+    /// `scan.rs` writes `format!("emit-cflow-modeled-key|{}", f.verdict.key())`
+    /// and [`GapReport::cflow_emitted_modeled_keys`] strips that prefix back
+    /// off. Every test in this file that touches the reachable order feeds the
+    /// consumer **hand-written** key strings, so no test in the repo has ever
+    /// compared the two ends: a key the census renames still reads fine to the
+    /// aggregator, and the ranking that dispatched a whole wave silently
+    /// changes meaning.
+    ///
+    /// This drives real census keys — produced by `c2-il` from the transcript
+    /// above — through the real concatenation and the real strip, and asserts
+    /// round-trip identity plus the counts.
+    #[test]
+    fn the_census_key_survives_the_round_trip_into_the_reachable_ranking() {
+        let keys = [
+            key_of("A", DYNINIT, gl_callee_only()),
+            key_of("B", DYNINIT, gl_named(0x01)),
+            key_of("n=2 composed", &composed_lo(DYNINIT), gl_named(0x02)),
+        ];
+        // The producer's side, spelled exactly as `scan.rs:654` spells it.
+        let emit: Vec<(String, usize)> = keys
+            .iter()
+            .map(|k| (format!("emit-cflow-modeled-key|{k}"), 1usize))
+            .collect();
+        let mut t = mk("modeled-key-roundtrip");
+        for (k, n) in &emit {
+            t.emit.insert(k.clone(), *n);
+        }
+        let rep = mk_report(vec![t]);
+        let (rows, accounted) = rep.cflow_emitted_modeled_keys();
+        assert_eq!(
+            accounted, 3,
+            "3 census rows went in; the consumer accounted {accounted}. A \
+             producer key the consumer's prefix no longer matches vanishes from \
+             the reachable ranking without the ranking getting shorter — it just \
+             counts less, silently"
+        );
+        let got: std::collections::BTreeSet<&str> =
+            rows.iter().map(|(k, _)| k.as_str()).collect();
+        let want: std::collections::BTreeSet<&str> = keys.iter().map(String::as_str).collect();
+        assert_eq!(
+            got, want,
+            "the strings `c2-il`'s census produced and the strings \
+             `cflow_emitted_modeled_keys` published must be the SAME SET. \
+             produced {want:?}, published {got:?}"
+        );
+        assert_eq!(
+            want.len(),
+            3,
+            "3 discriminating cells, {} distinct keys — if the three cells \
+             collapse to fewer keys this round trip is vacuous",
+            want.len()
+        );
+        // …and the two keys #3177's head is counted from are both in it, by
+        // name, having come out of the census rather than out of this file.
+        assert!(
+            got.contains(UNRESOLVED) && got.contains(NOT_EXTERN),
+            "both keys of #3177's head must reach the ranking under their own \
+             names: {got:?}"
+        );
+    }
+}
