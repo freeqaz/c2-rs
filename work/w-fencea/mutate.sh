@@ -18,6 +18,11 @@ if ! (cd "$R" && cargo build --release -p c2-harness >/dev/null 2>&1); then
     echo "  BUILD-RED (the mutant does not compile — a red, and the cheapest kind)"
     mv "$R/$file.orig" "$R/$file"; exit 0
 fi
+# The two `cl.exe` lists are REGENERATED here rather than committed: they hold
+# `z:\\home\\…` machine paths, and this repo does not track those.
+for f in "$R"/work/w-fencea/cells/*.cpp; do
+    printf 'z:%s\n' "$(printf '%s' "$f" | tr '/' '\\')"
+done > "$R/work/w-fencea/cells_list.txt"
 # the cells (real-obj oracles, n = 0..3 plus four plain-leaf controls) …
 (cd "$R" && ./target/release/c2rs gap --list work/w-fencea/cells_list.txt \
     --flags-file work/w-fencea/cells_flags.txt --jobs 4 2>&1 \
