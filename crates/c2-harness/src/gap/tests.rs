@@ -38,6 +38,7 @@ fn mk(reason: &str) -> TuResult {
         fn_frames: BTreeMap::new(),
         fn_cflow: BTreeMap::new(),
         fn_cflow_off: Default::default(),
+        fn_cfg_admit: Default::default(),
         fn_eh: BTreeMap::new(),
         fn_dispatch: BTreeMap::new(),
         fn_complete: BTreeMap::new(),
@@ -3713,18 +3714,29 @@ fn the_modeled_widening_order_is_a_different_order_from_the_full_one() {
 /// fired zero times.
 #[test]
 fn the_step5_boundary_publishes_its_cells_and_always_publishes_its_alarm() {
-    let rep = mk_report(vec![mk_cflow(
-        &[
-            ("step5-admit-straight|IN-CLASS", 187),
-            ("step5-admit-straight|BLOCKED", 79),
-            ("step5-refuse-back-edge|IN-CLASS", 10),
-            ("step5-refuse-back-edge|BLOCKED", 88),
-        ],
-        &[],
-    )]);
+    let mut t = mk("cflow");
+    for (k, n) in [
+        ("admit-straight|IN-CLASS", 187),
+        ("admit-straight|BLOCKED", 79),
+        ("refuse-back-edge|IN-CLASS", 10),
+        ("refuse-back-edge|BLOCKED", 88),
+    ] {
+        t.fn_cfg_admit.insert(k.into(), n);
+    }
+    // **The boundary axis has its OWN map and this test proves the separation
+    // holds**: a `cflow` row is added beside it and must not be counted here,
+    // and `cflow_residue_control` must not count the boundary's rows either.
+    // That collision is not hypothetical — it shipped for one commit and moved
+    // `cflow-residue-inclass-offclass` from 517,425 to 1,222,684.
+    t.fn_cflow.insert("cflow-straight+expr-modeled|IN-CLASS".into(), 3);
+    t.fn_cflow.insert("cflow-loop|IN-CLASS".into(), 5);
+    let rep = mk_report(vec![t]);
     let (rows, disagree) = rep.cfg_admit_histogram();
     assert_eq!(disagree, 0, "the consistency alarm");
-    assert_eq!(rows.iter().map(|r| r.1).sum::<usize>(), 364);
+    assert_eq!(rows.iter().map(|r| r.1).sum::<usize>(), 364, "the cflow rows are NOT in it");
+    // …and the separation the other way: the residue control sees only its own
+    // map, so the boundary's 364 rows leave it at the 5 the `cflow` map holds.
+    assert_eq!(rep.cflow_residue_control(), (3, 5));
     let m: std::collections::BTreeMap<&str, String> = rep.metrics().into_iter().collect();
     assert_eq!(m.get("step5-consistency-alarms").map(String::as_str), Some("0"));
     assert_eq!(m.get("step5-accounted").map(String::as_str), Some("364"));

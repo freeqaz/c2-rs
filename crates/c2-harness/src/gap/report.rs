@@ -249,10 +249,8 @@ impl GapReport {
     pub fn cfg_admit_histogram(&self) -> (Vec<(String, usize)>, usize) {
         let mut by: std::collections::BTreeMap<String, usize> = Default::default();
         for r in &self.results {
-            for (k, n) in &r.fn_cflow {
-                if let Some(b) = k.strip_prefix("step5-") {
-                    *by.entry(b.to_string()).or_insert(0) += *n;
-                }
+            for (k, n) in &r.fn_cfg_admit {
+                *by.entry(k.clone()).or_insert(0) += *n;
             }
         }
         let disagree = by

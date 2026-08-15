@@ -50,6 +50,7 @@ fn scan_one(
         fn_frames: BTreeMap::new(),
         fn_cflow: BTreeMap::new(),
         fn_cflow_off: BTreeMap::new(),
+        fn_cfg_admit: BTreeMap::new(),
         fn_eh: BTreeMap::new(),
         fn_dispatch: BTreeMap::new(),
         fn_complete: BTreeMap::new(),
@@ -252,12 +253,14 @@ fn scan_one(
             // the corpus** (lane `w-stmt5`), on the same `|IN-CLASS` /
             // `|BLOCKED` cross the axes above use.
             //
-            // It rides in `fn_cflow` rather than acquiring a seventh map
-            // because it is the same walk's verdict and the same population; the
-            // `step5-` prefix keeps it `sed`-able apart from the `cflow-` rows
-            // AND apart from the unrelated `cfg-reach-*` / `cfg-subclass-*` /
-            // `cfg-bounds-*` families this scan already publishes,
-            // and `GapReport::cfg_admit_histogram` is what reads it back.
+            // **Its OWN map.** It was written into `fn_cflow` first, with a
+            // comment arguing a seventh map was unnecessary because it is the
+            // same walk's verdict over the same population. That was wrong:
+            // `cflow_residue_control` sweeps every `fn_cflow` row ending
+            // `|IN-CLASS` into its off-class total, and the published
+            // `cflow-residue-inclass-offclass` went 517,425 -> 1,222,684. The
+            // field's own doc records it; `TuResult::fn_cflow_off` had already
+            // written the rule down, one field away, in those words.
             //
             // The IN-CLASS column is the control and it is the interesting one:
             // a body the port already ACCEPTS AND EMITS BYTE-EXACTLY, that this
@@ -265,9 +268,9 @@ fn scan_one(
             // narrower than the shipped class — the same two-sided error
             // `cflow_residue_control` publishes for the residue, asked of the
             // boundary instead.
-            *res.fn_cflow
+            *res.fn_cfg_admit
                 .entry(format!(
-                    "step5-{}|{}",
+                    "{}|{}",
                     f.cfg_admit,
                     if f.verdict.in_class() { "IN-CLASS" } else { "BLOCKED" }
                 ))
@@ -1637,6 +1640,12 @@ pub fn gap_scan(
                 .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
                 .collect::<Vec<_>>()
                 .join(",");
+            let cfg_admit = r
+                .fn_cfg_admit
+                .iter()
+                .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
+                .collect::<Vec<_>>()
+                .join(",");
             let cflow = r
                 .fn_cflow
                 .iter()
@@ -1718,7 +1727,7 @@ pub fn gap_scan(
             };
             writeln!(
                 f,
-                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"gate_cause\":{gate_cause},\"gate_causes\":[{gate_causes}],\"gl_body_starts\":{gl_body_starts},\"selective_bind\":{selective_bind},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_cflow\":{{{}}},\"fn_eh\":{{{}}},\"fn_dispatch\":{{{}}},\"fn_complete\":{{{}}},\"fn_prod\":{{{}}},\"fn_gate_refusals\":{{{}}},\"bind_checks\":{{{}}},\"emit\":{{{}}},\"emit_blockers\":{{{}}}}}",
+                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"gate_cause\":{gate_cause},\"gate_causes\":[{gate_causes}],\"gl_body_starts\":{gl_body_starts},\"selective_bind\":{selective_bind},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_cflow\":{{{}}},\"fn_cfg_admit\":{{{}}},\"fn_eh\":{{{}}},\"fn_dispatch\":{{{}}},\"fn_complete\":{{{}}},\"fn_prod\":{{{}}},\"fn_gate_refusals\":{{{}}},\"bind_checks\":{{{}}},\"emit\":{{{}}},\"emit_blockers\":{{{}}}}}",
                 crate::jstr(&r.src),
                 crate::jstr(r.class.label()),
                 crate::jstr(&r.reason),
@@ -1734,6 +1743,7 @@ pub fn gap_scan(
                 blockers,
                 frames,
                 cflow,
+                cfg_admit,
                 eh,
                 dispatch,
                 complete,

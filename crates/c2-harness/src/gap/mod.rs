@@ -194,6 +194,23 @@ pub struct TuResult {
     /// asserted, because a totality control counted in two different units is
     /// trap 0's own instance (`w-tag02`, `records` vs `values`).
     pub fn_cflow_off: BTreeMap<String, usize>,
+    /// **`IL_STMT_GRAMMAR.md` §14.2 step 5's fail-closed boundary, scored per
+    /// body** and crossed with the population:
+    /// `"<verdict>|IN-CLASS"` / `"<verdict>|BLOCKED"`. Lane `w-stmt5`.
+    ///
+    /// **Its own map, for the reason stated one field up — and that reason was
+    /// learned here a second time rather than read.** These rows were first
+    /// added to [`TuResult::fn_cflow`] with a comment saying a seventh map was
+    /// unnecessary. `GapReport::cflow_residue_control` sweeps every `fn_cflow`
+    /// row ending `|IN-CLASS` that does not end `+expr-modeled|IN-CLASS` into
+    /// its off-class total, so `cflow-residue-inclass-offclass` went
+    /// **517,425 → 1,222,684** — the published number more than doubling with
+    /// nothing in the diff to explain it, which is exactly the failure the
+    /// paragraph above describes and the reason it says *"two maps cannot
+    /// collide"*. It was caught by the base-vs-tip key identity diff and by
+    /// nothing else: no test covered it, and the number is not one this lane
+    /// would have thought to read.
+    pub fn_cfg_admit: BTreeMap<String, usize>,
     /// **The exception-handling axis** (`docs/EH_RECORDS.md` §9.4, §10): which
     /// side of the `maxState` boundary each body falls on. Four row shapes, and
     /// the shape is in the key so no two populations can share a row:
