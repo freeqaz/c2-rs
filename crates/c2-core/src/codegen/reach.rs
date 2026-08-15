@@ -71,6 +71,39 @@
 //! §3.3.1's expansion has nothing to invert on one. Adding a `Form::Bdnz` would
 //! be widening a peer-held type to carry a case the expansion cannot serve.
 //!
+//! ## ✔ 2026-08-15, lane `w-layout` — **fifteen of the twenty-three moved into a
+//! LAYOUT, and their range check moved with them**
+//!
+//! The paragraph above is left exactly as written; this is what happened to its
+//! twenty-three. Board **#3124** — the largest thing the lane that wrote this
+//! module found — dispatched the migration of those sites onto
+//! [`super::block_ir::BodyLayout`], and **fifteen of the twenty-three, in eight
+//! of the thirteen lowerings, are now terminators naming a `BlockId`**. They no
+//! longer call [`direct`], and **that is the deliverable and not a regression**:
+//! a branch whose target is a block is `LabelMap`'s to resolve, which is where
+//! §6.2 items B and D said it belonged.
+//!
+//! **The count in this header is therefore historical, and the live count is
+//! eight.** They are the five lowerings that cannot reach a layout at all: four
+//! whose branch is a **back edge** (`ptr_walk_loop`, `ptr_walk_chain_loop`,
+//! `json_utf8_copy`, `xtea_encrypt_loop`), which `LabelMap`'s invariant 4
+//! refuses and rightly (#746, and the fence is peer-held), and `pool_ctor_chain`,
+//! whose back edge is a `bdnz` — the case this module already classifies
+//! [`Unmeasured::NoSenseToInvert`] and for which [`super::block_ir::Terminator`]
+//! has no variant.
+//!
+//! **What this makes load-bearing is `AD-e` (#3123).** With fifteen sites gone,
+//! the range check on every migrated body is `LabelMap::resolve`'s invariant 5 —
+//! the one of the original twenty-four that this module was *not* allowed to
+//! absorb, because `labels.rs` is peer-held. The two readers agree byte for byte
+//! on every in-range site, and [`tests::the_map_and_the_gate_agree_on_every_in_range_site`]
+//! now asserts it across the whole `BD` field rather than leaving it to be
+//! believed. What they do **not** agree on is the *refusal*: invariant 5 still
+//! says the expansion is "not built", where [`direct`] says what c2 does
+//! instead. Closing that is still `labels.rs`'s owner's one-line change, and it
+//! is now a change that reaches most of the crate's branch sites rather than
+//! none of them.
+//!
 //! # What it derives rather than restates
 //!
 //! * **The threshold.** `Reach::of` asks [`encode_bc`]/[`encode_b_intra`]
@@ -641,4 +674,58 @@ mod tests {
     }
 
     const B_EDGE: i32 = 0x01FF_FFFC;
+
+    /// **The two readers of item D's check agree, byte for byte, on every
+    /// in-range site** — lane `w-layout`, board **#3124**.
+    ///
+    /// Since fifteen of this module's twenty-three call sites became
+    /// [`super::super::block_ir::BodyLayout`] terminators, the range check on
+    /// those bodies is [`LabelMap::resolve`]'s invariant 5 and not [`direct`].
+    /// That is only a re-expression if the two produce the same word, and the
+    /// two are separately written: `labels.rs` is peer-held, so `AD-e` (#3123)
+    /// is still open and `Form::encode` is still private.
+    ///
+    /// So it is asserted rather than assumed, and over the **whole** `BD` field
+    /// in both senses plus the `b` form's edges — the same sweep
+    /// [`tests::the_gate_agrees_with_the_encoder_across_the_entire_field`] runs
+    /// against the encoder, run here against the *map*, which is the reader that
+    /// actually serves the migrated classes.
+    ///
+    /// [`LabelMap::resolve`]: super::super::labels::LabelMap::resolve
+    #[test]
+    fn the_map_and_the_gate_agree_on_every_in_range_site() {
+        use crate::codegen::labels::LabelMap;
+        let (bo, bi) = (BO_FALSE, cr_bi(CR_COMPARE, CR_BIT_EQ));
+        let mut checked = 0usize;
+        // Forward only: the map refuses a backward reference for a reason that
+        // has nothing to do with range (invariant 4, #746), and that difference
+        // is the subject of its own test in `labels.rs`.
+        let mut d = 4i32;
+        while d <= BC_MAX_DISP {
+            let mut t: Vec<u8> = Vec::new();
+            let mut m = LabelMap::new();
+            let target = m.mint("target");
+            m.reference(&mut t, target, Form::Bc { bo, bi });
+            t.resize(d as usize, 0x60);
+            m.define(target, &t).unwrap();
+            m.resolve(&mut t).unwrap();
+            assert_eq!(
+                &t[0..4],
+                &direct(Form::Bc { bo, bi }, d, "sweep").unwrap()[..],
+                "the map and the gate disagree at disp {d}"
+            );
+            checked += 1;
+            d += 4;
+        }
+        assert_eq!(checked, 8_191, "every forward representable BD");
+        // …and the `b` form at its own edge.
+        let mut t: Vec<u8> = Vec::new();
+        let mut m = LabelMap::new();
+        let target = m.mint("far");
+        m.reference(&mut t, target, Form::B);
+        t.resize(40_000, 0x60);
+        m.define(target, &t).unwrap();
+        m.resolve(&mut t).unwrap();
+        assert_eq!(&t[0..4], &direct(Form::B, 40_000, "sweep").unwrap()[..]);
+    }
 }
