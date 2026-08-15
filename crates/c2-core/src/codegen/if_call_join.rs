@@ -6,17 +6,52 @@
 //! [`c2_il::IfCallJoinFn`]: two compare literals, two callees, and the
 //! accumulator's initial value.
 //!
+//! # ✘ Correction, 2026-08-15, board **#3168** — **the park's stated rationale
+//! was refuted by this file's own listing, and by this file's own `PARK_REG`
+//! doc, and the bytes were right the whole time**
+//!
+//! Filed by `w-itemf-price` (docs-only, so it could not apply it) and applied
+//! here by `w-json`, which owns this directory. **It is a prose change and
+//! moves no byte** — that is why it survived: `gate.sh` grades bytes,
+//! `board_audit.sh` grades anchors, and a wrong *reason* attached to a right
+//! *word* is invisible to both.
+//!
+//! The comment at `0x0c` read *"the scrutinee is read by three tests that
+//! straddle two `bl`s, so it cannot stay in a **volatile argument register**"*.
+//! Three things are wrong with it and **the file contained all three refutations
+//! already**:
+//!
+//! 1. **The word it emits is `mr r10,r3`, and `select::ARG_REGS` is
+//!    `[3, 4, 5, 6, 7, 8, 9, 10]`.** r10 **is** a volatile argument register, so
+//!    the rule as stated forbids the register the line beneath it picks.
+//! 2. **The range does not straddle a call.** Both `cmpwi cr6,r10` are at `0x18`
+//!    and `0x24`; both `bl` are at `0x2c` and `0x34`. The listing four lines
+//!    below the claim says so.
+//! 3. **[`PARK_REG`]'s own doc contradicts it in the same file** — *"Both are
+//!    volatile — nothing here is callee-saved"* — which `#3168` does not name and
+//!    which is the sharpest of the three, because the two comments disagree
+//!    about the same register sixty lines apart.
+//!
+//! **What actually gives r10, with no false premise**: r3 is clobbered by the
+//! very next word (`mr r3,r4`, the hoist), r11 is taken by the accumulator home
+//! at `0x14`, and the selector walking `r11, r10, …` returns r10.
+//!
+//! This is `#3171`'s disease at module scope: **the prose and the code quantify
+//! over different sets, and nothing in this repo compares them.** `#3165` is the
+//! same thing at document scope, in the section written to support the item it
+//! refutes.
+//!
 //! ```text
 //!    off  word       instruction              why it is this word
 //!   ----  --------   ----------------------   -----------------------------------
 //!   0x00  7d8802a6   mflr  r12                the shipped Class A 96-byte frame,
 //!   0x04  9181fff8   stw   r12,-8(r1)         built by `FrameLayout` so this
 //!   0x08  9421ffa0   stwu  r1,-96(r1)         class cannot disagree with W10/W11
-//!   0x0c  7c6a1b78   mr    r10,r3             THE PARK: the scrutinee is read by
-//!                                             three tests that straddle two `bl`s,
-//!                                             so it cannot stay in a volatile
-//!                                             argument register — and r3 is
-//!                                             wanted by the very next word
+//!   0x0c  7c6a1b78   mr    r10,r3             THE PARK: r3 is wanted by the very
+//!                                             next word, and r11 is taken by the
+//!                                             result home at 0x14 — see the
+//!                                             correction below on what this
+//!                                             comment used to claim
 //!   0x10  7c832378   mr    r3,r4              THE HOIST: both arms call with the
 //!                                             same argument, so its setup is in
 //!                                             the ENTRY block, above every branch
@@ -77,6 +112,12 @@ use crate::codegen::block_ir::{BlockOrder, BodyLayout, Terminator};
 /// r10 and not r11: r11 is the result home and is live across both `bl`s too, so
 /// the two cannot share. Both are volatile — nothing here is callee-saved, which
 /// is why the frame stays the plain 96-byte Class A one with no GPR save area.
+///
+/// **This paragraph is the one that was right** (board **#3168**): r10 is
+/// volatile *and* is `select::ARG_REGS[7]`, and the module header used to give
+/// "it cannot stay in a volatile argument register" as the reason for choosing
+/// it. See the header's 2026-08-15 correction. The scrutinee's live range ends
+/// at `0x24`, above both `bl`s, so it never straddles a call at all.
 const PARK_REG: u8 = 10;
 
 /// This class's emitted body: the bytes plus the two offsets the writers need.

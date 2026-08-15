@@ -1159,6 +1159,49 @@ the order it chose, so the two can be told apart.
 > matters: the pass now has somewhere to stand, and building it first would have
 > been an ungraded code path (w-frame row **F-c**).
 
+> ### ✔ 2026-08-15 — **item A has THIRTEEN production clients, the migration is
+> finished except for one CTR body, and the block above's "NINE" went stale the
+> day it was written**, by lanes `w-fencea` and `w-json`
+> ([`rungs/2026-08-15-fencea.md`](rungs/2026-08-15-fencea.md),
+> [`rungs/2026-08-15-json.md`](rungs/2026-08-15-json.md)).
+>
+> The count is amended in place with **both** steps kept, because the drift is
+> the point. `w-layout` wrote **9** and was right at the moment it wrote it;
+> `w-fencea` lifted invariant 4 on a closed admission and brought
+> `ptr_walk_loop`, `ptr_walk_chain_loop` and `xtea_encrypt_loop` in, taking it to
+> **12**, and **did not update this block** — so the number on this page has been
+> three low ever since, and nothing in the repo noticed. `w-json` brings
+> `json_utf8_copy` in and it is **13**, measured over the emitters rather than
+> quoted:
+>
+> ```text
+>   alloc_init_or_fail  close_call_chain  cond_tail  fp_store_diamond
+>   guard_chain_shared_tail  guard_ret_chain  if_call_join  json_utf8_copy
+>   osf_handle_guard  ptr_walk_chain_loop  ptr_walk_loop  xlrc_create_guard
+>   xtea_encrypt_loop
+> ```
+>
+> **#3124's twenty-three branch sites are down to one**: `23 − 15 (w-layout) − 5
+> (w-fencea) − 2 (w-json) = 1`, and the one left is `pool_ctor_chain`'s
+> **forward** guard — blocked by its own body's `bdnz` back edge, for which
+> `Terminator` has no variant and §6.3 declines the discovery that would justify
+> one. **The residue is now exactly one fence and no budget.**
+>
+> **`json_utf8_copy` is `#3142`'s shape in full force and that is why it was a
+> lane and not an arm.** It publishes **three** positions off the same running
+> `t.len()` — the `bl __savegprlr_28` `REL24` site, `prolog_len` (`$M(prologue)`
+> and the `.pdata` `PrologLen`), and the `b __restgprlr_28` `REL24` site — so its
+> fourteen branches could never have moved alone. `ptr_walk_chain_loop`, which
+> publishes nothing (`#3154`), is the other end of that scale, and between them
+> the two ends of `w-layout`'s `P17` are now both witnessed.
+>
+> **It converted zero TUs, by design.** 878 per-TU verdicts, **370**
+> `gap-metric` keys (`fnbyte-exact` 35,734) and the whole 18-lane gate table
+> identical, both gate runs' `graded tree` identical at their own two ends.
+> Eleven mutants, ten red, **seven** reddening a real-obj byte oracle
+> (`src/xdk/xjson/jsonwriter.cpp` under real `c2.dll`), one registered **green**
+> in advance. Nothing here performs a relaxation and neither fence moved.
+
 **B. Labels as first-class, resolved by a fixup pass.**
 `3A`/`38`/`39` carry no direction (§2.1), so the target's offset is unknown when
 the branch is emitted. The IR needs a label identity (the IL token will do), a

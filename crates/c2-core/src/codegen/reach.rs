@@ -104,6 +104,40 @@
 //! is now a change that reaches most of the crate's branch sites rather than
 //! none of them.
 //!
+//! ## ✔ 2026-08-15, lanes `w-fencea` and `w-json` — **the live count is ONE**
+//!
+//! The paragraph above says *"the live count is eight"* and has been wrong
+//! since the day `w-fencea` merged. It is corrected in place, dated, with both
+//! steps recorded rather than the final number substituted — the drift is the
+//! same shape as `#3151`'s and pretending it did not happen removes the
+//! evidence.
+//!
+//! ```text
+//!   w-item-d   23 sites, 13 lowerings   the crate's own count when this module shipped
+//!   w-layout   -15                      fifteen became Terminators naming a BlockId
+//!   w-fencea   -5                       ptr_walk_loop 2, ptr_walk_chain_loop 2,
+//!                                       xtea_encrypt_loop 1, on invariant 4's admission
+//!   w-json     -2                       json_utf8_copy, board #3155
+//!   ------------------------------------------------------------------------
+//!              1                        pool_ctor_chain
+//! ```
+//!
+//! **The one that is left is not a budget item and is not a `bc` range
+//! problem.** `pool_ctor_chain`'s remaining site is its **forward** guard, and
+//! it is fenced out by something else entirely: the body's back edge is `bdnz`,
+//! [`super::block_ir::Terminator`] has no variant for it, and a body with one
+//! unrepresentable terminator cannot reach a layout at all — so the *forward*
+//! guard is blocked by the *backward* branch, which is precisely the per-body
+//! shape `#3144` recorded for invariant 4. `CFG_SHAPE.md` §6.3 declines the
+//! CTR-loop discovery that would justify the variant, so this is **#3146**'s and
+//! is not re-priced here.
+//!
+//! **What that does to `AD-e` (#3123).** With one site left, `LabelMap::resolve`
+//! invariant 5 is now the range check on all but one of the crate's branches,
+//! and [`tests::the_map_and_the_gate_agree_on_every_in_range_site`] is what says
+//! the two readers agree. The disagreement is still the *refusal*, and closing
+//! it is still `labels.rs`' owner's one-line change.
+//!
 //! # What it derives rather than restates
 //!
 //! * **The threshold.** `Reach::of` asks [`encode_bc`]/[`encode_b_intra`]
