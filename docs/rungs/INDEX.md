@@ -241,6 +241,7 @@ the header block this table is read from.
 | 2026-08-15 | w-stmt5 | [stmt5](2026-08-15-stmt5.md) | 10 | **+0**. `match` 25 → 25, `mismatch` 0 → 0, `fnbyte-exact` |
 | 2026-08-16 | w-871 | [871](2026-08-16-871.md) | 39 | unchanged → unchanged, +0 |
 | 2026-08-16 | BIND | [bind](2026-08-16-bind.md) | 8 | +0 — every crates/ edit is a reverted ladder rung; the identity |
+| 2026-08-16 | GUARDS | [guards](2026-08-16-guards.md) | 10 | +0 — required-zero byte delta; every `crates/c2-il` edit is a |
 | 2026-08-16 | SECTION | [section](2026-08-16-section.md) | 8 | +0 — every `crates/` edit is a reverted ladder rung; the identity |
 | 2026-08-16 | w-three | [three](2026-08-16-three.md) | 10 | **+0**. `match` 25 → 25, `mismatch` 0 → 0, `codegen-gap` 0 → 0, |
 | 2026-08-16 | w-vocabgap | [vocabgap](2026-08-16-vocabgap.md) | 8 | **+0**. `match` 25 → 25, `mismatch` 0 → 0, `codegen-gap` 0 → 0, |
