@@ -512,12 +512,24 @@ Docs-only. `git diff master..HEAD -- crates fixtures scripts` **empty**.
 
 | check | result |
 |---|---|
-| `gate.sh --jobs 4 --require-graded`, both ends | `graded tree e6d4bfb38066` · **730 files** · identical at both ends |
-| expression sweep | 19,556 checked · **0 mismatches** · 19,460 graded |
+| `gate.sh --jobs 4 --require-graded`, both ends | **GATE: PASS** · `graded tree e6d4bfb38066` · **730 files** at both ends · 18/18 lanes PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT · **6,858 fixture-verdicts** · the 23-line lane table `diff`s **IDENTICAL** between the two runs |
+| expression sweep | 19,556 checked · **0 mismatches** · 19,460 graded (96 ungraded: no reference obj) |
+| mode cross | 90,424 of 90,812 case-lane cells graded · **0 mismatches** |
 | 878-TU scan | `match 25 · mismatch 0 · codegen-gap 0 · vocab-gap 845 · capture-fail 8` · **370 keys** — digit-identical |
-| `board_audit.sh` | all-zero |
-| `rung_registry` | 2/2 |
-| `cargo test --workspace --release --no-fail-fast` | **1,619 passed / 42 targets** |
+| `board_audit.sh` | all-zero — 0 cited-but-not-on-the-board, 0 unresolved anchors, 0 raw line-number anchors, 0 rows-behind-the-prose, 0 duplicate row numbers |
+| `rung_registry` | **2/2** |
+| `cargo test --workspace --release --no-fail-fast` | **1,619 passed, 0 failed / 42 targets** |
+
+> **One qualification, recorded rather than rounded off.** Both runs print
+> `GATE: PASS (**HATCH-RED REFUSED**)` — `hatch.py apply` cannot hatch a worktree
+> whose tree is not the hatch's HEAD (board **#1389**), so the eight
+> `hatch.py` refusals were **not** exercised at either end. That is a
+> **pre-existing worktree condition, identical at both ends, and not caused by
+> this lane**: the `graded tree` hash is master's own `e6d4bfb38066` and
+> `git diff master..HEAD -- crates fixtures scripts` is empty. Per board
+> **#1406** this run does not establish what a full run establishes, and saying
+> so is the point — a qualified pass reported as an unqualified one is the
+> absence-read-as-success family in its cheapest form.
 
 ## 11. Pre-drafted DISCLOSURE rows — NONE
 

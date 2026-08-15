@@ -240,12 +240,20 @@ Docs-only; `git diff master..HEAD -- crates fixtures scripts` **empty**.
 
 | check | result |
 |---|---|
-| `gate.sh --jobs 4 --require-graded`, start and end | `graded tree e6d4bfb38066` · **730 files** · identical at both ends |
+| `gate.sh --jobs 4 --require-graded`, start and end | **GATE: PASS** · `graded tree e6d4bfb38066` · **730 files** at both ends · 18/18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT · **6,858 fixture-verdicts** · the lane table `diff`s **IDENTICAL** between the two runs |
 | expression sweep | 19,556 checked · **0 mismatches** · 19,460 graded |
+| mode cross | 90,424 of 90,812 case-lane cells · **0 mismatches** |
 | 878-TU scan | `match 25 · mismatch 0 · codegen-gap 0 · vocab-gap 845 · capture-fail 8` · **370 keys** — digit-identical |
-| `board_audit.sh` | all-zero |
+| `board_audit.sh` | all-zero on all five checks |
 | `rung_registry` | 2/2 |
-| `cargo test --workspace --release --no-fail-fast` | **1,619 passed / 42 targets** |
+| `cargo test --workspace --release --no-fail-fast` | **1,619 passed, 0 failed / 42 targets** |
+
+**Qualified, and the qualification is stated.** Both runs print `GATE: PASS
+(**HATCH-RED REFUSED**)` — `hatch.py apply` cannot hatch a worktree tree (board
+**#1389**), so its eight refusals were not exercised at either end. **Identical
+at both ends and not caused by this lane** (`graded tree` is master's own hash;
+the `crates fixtures scripts` diff is empty), and per board **#1406** this run
+does not establish what a full run establishes.
 
 ## 9. Proposed board rows — UNNUMBERED
 
