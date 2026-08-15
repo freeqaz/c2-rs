@@ -1,0 +1,6 @@
+a30bc46f6df2fda8f16e85199cc17be8dd35813d63345297bbbb256e7e2d7cfe  work/w-slots/cells/ctl_leafnone.cpp
+52d6dc274246ede81ca797274b7b591db7162c3128e56a80c17afa32270e5d6a  work/w-slots/cells/ctl_straight.cpp
+77660acc4167a7acf168b3ea51945dd4f22b8c4fa387f9e73d88ba9c90a4d390  work/w-slots/cells/fw_a_add.cpp
+9c160b6c29765fb1e12483253899c6025f59fc46bd4a014348572b45b1f67e3c  work/w-slots/cells/fw_a_mul.cpp
+4b6ebb2799c7926f8a4dadec599caddeb8a0eb412284559534abaa310690a16b  work/w-slots/cells/fw_b_mul.cpp
+8a5d61387285a58aad163874b5a43f6021686a6336591fdbf892dbe3b18c6467  work/w-slots/cells/fw_c_bin.cpp
