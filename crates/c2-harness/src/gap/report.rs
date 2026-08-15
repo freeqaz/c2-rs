@@ -180,6 +180,64 @@ impl GapReport {
         )
     }
 
+    /// **The emitted control-flow cross as a SERIES** — `(rows, accounted)`,
+    /// where a row is `("<shape>|<residue>", count)` sorted by count descending,
+    /// and `accounted` is the sum (lane `w-stmt5`).
+    ///
+    /// [`GapReport::cflow_emitted_counterfactual`] is the same cross collapsed
+    /// to one boolean, and the collapse loses precisely the shape that
+    /// `IL_STMT_GRAMMAR.md` §14.2 step 5 is priced from — see
+    /// [`super::classify::cflow_series_bucket`] for why `cflow-straight` being
+    /// excluded from `-branchy` is not a detail.
+    ///
+    /// **`accounted` is published beside the blocked-emitted total and never
+    /// folded into it**, on the same rule as `cflow-offclass-accounted`: the two
+    /// sides are the `emit` map and the `emit_blockers` map, counted at the same
+    /// site in the same unit, and printing both is how the partition stays
+    /// falsifiable. `w-stmt5`'s mutant **M1** drops the `undecoded` bucket and
+    /// this control goes red.
+    pub fn cflow_emitted_series(&self) -> (Vec<(String, usize)>, usize) {
+        let mut by: std::collections::BTreeMap<String, usize> = Default::default();
+        for r in &self.results {
+            for (k, n) in &r.emit {
+                if let Some(b) = k.strip_prefix("emit-cflow-shape|") {
+                    *by.entry(b.to_string()).or_insert(0) += *n;
+                }
+            }
+        }
+        let mut rows: Vec<(String, usize)> = by.into_iter().collect();
+        rows.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        let accounted = rows.iter().map(|r| r.1).sum();
+        (rows, accounted)
+    }
+
+    /// **`emit_blockers`, restricted to the modeled-residue population** —
+    /// `(rows, accounted)`, most frequent first (lane `w-stmt5`).
+    ///
+    /// The full `emit_blockers` ranking is over 113,612 functions and 615 keys,
+    /// and it is the order every reader lane has been dispatched off. This is
+    /// the same ranking over the sub-population a reader step can *reach* —
+    /// bodies whose operand vocabulary is inside `CfResidue::Modeled`. The two
+    /// orders are not the same order, and until this method existed they could
+    /// not be compared without a hand re-derivation.
+    ///
+    /// Read it with [`GapReport::cflow_emitted_series`]: that says which shapes
+    /// the reachable population has, this says what it is blocked ON.
+    pub fn cflow_emitted_modeled_keys(&self) -> (Vec<(String, usize)>, usize) {
+        let mut by: std::collections::BTreeMap<String, usize> = Default::default();
+        for r in &self.results {
+            for (k, n) in &r.emit {
+                if let Some(b) = k.strip_prefix("emit-cflow-modeled-key|") {
+                    *by.entry(b.to_string()).or_insert(0) += *n;
+                }
+            }
+        }
+        let mut rows: Vec<(String, usize)> = by.into_iter().collect();
+        rows.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        let accounted = rows.iter().map(|r| r.1).sum();
+        (rows, accounted)
+    }
+
     /// **The EH axis**, aggregated, most frequent first. Rows are either a bare
     /// class (`eh-…`) or an `"<eh class>|<census key>"` cross-tab; see
     /// [`TuResult::fn_eh`].

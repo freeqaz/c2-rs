@@ -140,3 +140,41 @@ pub(super) fn clip(s: &str, n: usize) -> String {
 pub fn cflow_needs_block_ir(class: &str) -> bool {
     class.starts_with("cflow-") && !class.starts_with("cflow-straight")
 }
+
+/// **The same class name, bucketed for the SERIES** — `<shape>|<residue>`, or
+/// `undecoded|-` (lane `w-stmt5`).
+///
+/// [`cflow_needs_block_ir`] answers one bit and is right about that bit. This
+/// answers *which shape*, because the bit is not enough to price
+/// `IL_STMT_GRAMMAR.md` §14.2 step 5: the step's four opcodes are `38`, `39`,
+/// `3A` and `29`, and `29` — the label definition — occurs in a `cflow-straight`
+/// body (the epilogue's own label) as readily as in a loop. A price taken off
+/// `-branchy` therefore excludes, by that predicate's own first clause, the
+/// shape the step's most common production appears in.
+///
+/// Three shapes of answer, and each has to stay distinguishable:
+///
+/// * `cf-…` — the walk stopped, so the CFG is **not known**. Never folded into
+///   `straight` (that is [`cflow_needs_block_ir`]'s own recorded trap) and never
+///   split by the blocker that stopped it: those keys are per-TU sharded in
+///   places, and `docs/GAPS.md` §6's rule is that a key derived from data the
+///   compiler allocates per input is not a stable key. **One bucket.**
+/// * `cflow-<shape>+expr-modeled` — `<shape>|modeled`. The counterfactual half:
+///   every operand token the walk stepped over is inside the vocabulary the
+///   port's own emitters consume.
+/// * `cflow-<shape>` — `<shape>|expr`. Blocked on the expression layer as well.
+///
+/// **The residue split is `ends_with`, not `contains`**, and the distinction is
+/// load-bearing rather than pedantic: `CfBody::key` appends the suffix, so a
+/// `contains` test would also match a future shape name that had the string
+/// inside it and would silently move the counterfactual column. `w-stmt5`'s
+/// mutant **M2** is that substitution, and it is red.
+pub fn cflow_series_bucket(class: &str) -> String {
+    let Some(rest) = class.strip_prefix("cflow-") else {
+        return "undecoded|-".to_string();
+    };
+    match rest.strip_suffix("+expr-modeled") {
+        Some(shape) => format!("{shape}|modeled"),
+        None => format!("{rest}|expr"),
+    }
+}

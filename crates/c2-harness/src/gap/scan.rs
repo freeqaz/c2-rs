@@ -16,7 +16,8 @@ use crate::capture_cache::CaptureCache;
 use crate::provenance::Provenance;
 
 use super::classify::{
-    cflow_needs_block_ir, clip, dtor_callee_class, gate_key, is_compiler_generated, mangling_class,
+    cflow_needs_block_ir, cflow_series_bucket, clip, dtor_callee_class, gate_key,
+    is_compiler_generated, mangling_class,
     normalize_cl_error,
 };
 use super::render::print_factorization;
@@ -548,6 +549,85 @@ fn scan_one(
                                             .entry("emit-cflow-branchy-modeled".into())
                                             .or_insert(0) += 1;
                                     }
+                                }
+                                // **THE SAME CROSS, AS A SERIES** (lane
+                                // `w-stmt5`). The two counters above collapse
+                                // seven `CfShape`s into one boolean and then
+                                // throw away the largest of them: the
+                                // `-branchy` predicate is
+                                // [`cflow_needs_block_ir`], which excludes
+                                // `cflow-straight` by name. So the emitted
+                                // column — the population `fnbyte-refused-parse`
+                                // is counted over — has never been able to see
+                                // the shape `IL_STMT_GRAMMAR.md` §14.2 step 5's
+                                // `29 <tok>` production serves most often, and
+                                // a lane pricing that step off `-branchy` is
+                                // pricing it off a bucket its own population is
+                                // not in.
+                                //
+                                // `w-slots` board **#3147** is the rule this
+                                // obeys: a number read off one cell is right
+                                // for that cell and wrong as a law, and only
+                                // varying the structural count separates them.
+                                // The structural count here is the CFG shape,
+                                // so the shape is what varies and the series is
+                                // what is published.
+                                //
+                                // **Bucketed, never sharded.** A body the
+                                // scanner did not decode carries a `cf-*`
+                                // blocker key, and those are per-TU sharded in
+                                // places (`GAPS.md` §6). All of them land in one
+                                // `undecoded` bucket: the series is over shapes,
+                                // and "no shape was determined" is one answer,
+                                // not four hundred.
+                                *res.emit
+                                    .entry(format!(
+                                        "emit-cflow-shape|{}",
+                                        cflow_series_bucket(&f.cflow)
+                                    ))
+                                    .or_insert(0) += 1;
+                                // The partition control, counted in the SAME
+                                // unit and at the SAME site as the buckets it
+                                // controls. `w-tag02`'s rule is why it is
+                                // incremented here and not recomputed from
+                                // `emit_blockers` later: an identity whose two
+                                // sides are counted in different units reads 0
+                                // forever and is green for the wrong reason.
+                                *res.emit
+                                    .entry("emit-cflow-shape-accounted".into())
+                                    .or_insert(0) += 1;
+                                // **THE WIDENING ORDER, RESTRICTED TO THE
+                                // POPULATION A READER STEP CAN ACTUALLY REACH.**
+                                //
+                                // `emit_blockers` ranks all 113,612 and is the
+                                // order every reader lane has been dispatched
+                                // off. But a reader step can only move a body it
+                                // can MODEL, and `CfResidue::Modeled` is this
+                                // tree's own name for that — so the rows that
+                                // rank are not the rows that are reachable, and
+                                // the two lists have never been printed side by
+                                // side. This is `emit_blockers` filtered to
+                                // `+expr-modeled`, and it is small enough to
+                                // read whole.
+                                //
+                                // It is what settles a question no aggregate
+                                // can: `body-cflow-label` is rank 2 of
+                                // `emit_blockers` at 2,832 and is §14.2 step 5's
+                                // headline row. If it does not appear here, then
+                                // every one of those 2,832 is blocked on the
+                                // expression layer as well and step 5 converts
+                                // none of them — measured on the grading unit's
+                                // own population instead of inferred from the
+                                // bodies one (**#3107**'s rule, which exists
+                                // because a published ceiling read off the wrong
+                                // population was wrong by 117x).
+                                if f.cflow.ends_with("+expr-modeled") {
+                                    *res.emit
+                                        .entry(format!(
+                                            "emit-cflow-modeled-key|{}",
+                                            f.verdict.key()
+                                        ))
+                                        .or_insert(0) += 1;
                                 }
                             }
                         }

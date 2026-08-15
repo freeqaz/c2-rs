@@ -1469,6 +1469,28 @@ impl GapReport {
         // packed string so each stays `sed`-able, and emitted only for reasons
         // that OCCUR — a key printed as 0 for a reason with no bodies would let
         // a collector read a vanished arm as an empty one.
+        // **THE EMITTED CROSS AS A SERIES** (lane `w-stmt5`), one key per
+        // occupied `<shape>|<residue>` cell plus its accounting control.
+        //
+        // The pair above (`cflow-emitted-branchy` / `-modeled`) is this cross
+        // collapsed to one boolean, and the collapse excludes `cflow-straight`
+        // by [`cflow_needs_block_ir`]'s own first clause — so §14.2 step 5's
+        // `29 <tok>` label production, which occurs in a straight body too, has
+        // never had a price on the population `fnbyte-refused-parse` is counted
+        // over. Emitted only for cells that OCCUR, on the same rule as the
+        // `cflow-offclass-*` rows below: a key printed as 0 for a vanished cell
+        // lets a collector read absence as an empty measurement.
+        //
+        // The control is published, not asserted — `w-tag02`'s rule, and the
+        // same one `cflow-offclass-accounted` is printed under.
+        let (series, series_accounted) = self.cflow_emitted_series();
+        m.push(("emit-cflow-shape-accounted", series_accounted.to_string()));
+        for (cell, n) in series {
+            m.push((
+                Box::leak(format!("emit-cflow-shape-{}", cell.replace('|', "-")).into_boxed_str()),
+                n.to_string(),
+            ));
+        }
         for (why, inc, blk) in self.cflow_offclass_reasons().0 {
             m.push((
                 Box::leak(format!("cflow-offclass-{why}-inclass").into_boxed_str()),
