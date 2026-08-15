@@ -115,8 +115,7 @@ use crate::codegen::select::{out_of_class, ARG_REGS, RET_REG, SCRATCH_REG};
 use crate::codegen::OptMode;
 use crate::BackendError;
 use c2_il::XlrcCreateGuardFn;
-use crate::codegen::labels::Form;
-use crate::codegen::reach;
+use crate::codegen::block_ir::{BlockOrder, BodyLayout, Terminator};
 
 /// The callee-saved register each formal is parked in, in declaration order:
 /// `r3→r30`, `r4→r29`, `r5→r28`, `r6→r27`. Transcribed, not derived — see the
@@ -191,8 +190,30 @@ pub fn xlrc_create_guard_text(
     let mut t: Vec<u8> = Vec::with_capacity(38 * 4);
     let w = |b: [u8; 4], t: &mut Vec<u8>| t.extend_from_slice(&b);
 
+    // **The body is eight blocks in `BodyLayout`** — `CFG_SHAPE.md` §6.2 item A,
+    // board **#3124**. Six branch words, six `at_*` indices into a flat `Vec`,
+    // one patch closure. All six displacements are `LabelMap`'s now.
+    //
+    // This is the class the migration's *stretch* was registered against, and
+    // the thing that made it a question is the **Class C epilogue**: its last
+    // word is `b __restgprlr_N`, an EXTERNAL branch that encodes its own `.text`
+    // offset and takes a `REL24`. That is [`Terminator::TailCall`] exactly — a
+    // placeholder plus a reported site — which is why no new mechanism was
+    // needed. `FrameLayout::epilogue_gpr_helper` stays the single producer of
+    // both of that epilogue's words; what changed is that the offset it is asked
+    // about comes from the layout.
+    let mut l = BodyLayout::new(BlockOrder::IlStatement);
+    let b_entry = l.declare("entry");
+    let b_null = l.declare("null-arm");
+    let b_lo = l.declare("lo-status");
+    let b_hi = l.declare("hi-status");
+    let b_else = l.declare("attach-arm");
+    let b_fail = l.declare("attach-failed");
+    let b_ok = l.declare("attach-ok");
+    let b_join = l.declare("join");
+
     // ---- the Class C prologue: three words, one of them a relocation --------
-    let bl_save = base_off + 4;
+    const BL_SAVE_IN_ENTRY: u32 = 4;
     t.extend_from_slice(&frame.prologue_gpr_helper(base_off)?);
     let prolog_len = t.len() as u32;
 
@@ -207,13 +228,16 @@ pub fn xlrc_create_guard_text(
     w(encode_mr(PARKED[2], ARG_REGS[2]), &mut t);
     w(encode_mr(PARKED[3], ARG_REGS[3]), &mut t);
     w(encode_addi(R_STATUS, 0, 0), &mut t);
-    let bl_create = base_off + t.len() as u32;
-    w(encode_call_branch(bl_create), &mut t);
+    let bl_create_in_entry = t.len() as u32;
+    w([0, 0, 0, 0], &mut t);
 
     // ---- `if (c == 0)`, tested by the record-form move ----------------------
     w(encode_mr_record(R_CLIENT, RET_REG), &mut t);
-    let at_outer = t.len();
-    w([0, 0, 0, 0], &mut t); // patched once `Lelse` is known
+    l.place(
+        b_entry,
+        core::mem::take(&mut t),
+        Terminator::Bc { bo: BO_FALSE, bi: cr_bi(0, CR_BIT_EQ), taken: b_else },
+    )?;
 
     // ---- the null arm: one hoisted `lis`, a cr6 test, two `ori`s -----------
     w(encode_lwz(SCRATCH_REG, 1, local), &mut t);
@@ -221,71 +245,86 @@ pub fn xlrc_create_guard_text(
     let k_bound = u16::try_from(g.k_bound)
         .map_err(|_| out_of_class("xlrc bound wider than a cmplwi immediate"))?;
     w(encode_cmplwi(CR_COMPARE, SCRATCH_REG, k_bound), &mut t);
-    let at_inner = t.len();
-    w([0, 0, 0, 0], &mut t); // patched once `Lhi` is known
+    l.place(
+        b_null,
+        core::mem::take(&mut t),
+        Terminator::Bc { bo: BO_FALSE, bi: cr_bi(CR_COMPARE, CR_BIT_LT), taken: b_hi },
+    )?;
     w(encode_ori(R_STATUS, R_STATUS, lo16(g.k_lo)), &mut t);
-    let at_b1 = t.len();
-    w([0, 0, 0, 0], &mut t); // patched once `Ljoin` is known
-    let l_hi = t.len();
+    l.place(b_lo, core::mem::take(&mut t), Terminator::B { target: b_join })?;
     w(encode_ori(R_STATUS, R_STATUS, lo16(g.k_hi)), &mut t);
-    let at_b2 = t.len();
-    w([0, 0, 0, 0], &mut t);
+    l.place(b_hi, core::mem::take(&mut t), Terminator::B { target: b_join })?;
 
     // ---- the attach arm ----------------------------------------------------
-    let l_else = t.len();
     w(encode_mr(ARG_REGS[1], PARKED[0]), &mut t);
     w(encode_lwz(ARG_REGS[2], 1, local), &mut t);
     w(encode_mr(ARG_REGS[0], R_CLIENT), &mut t);
-    let bl_attach = base_off + t.len() as u32;
-    w(encode_call_branch(bl_attach), &mut t);
+    let bl_attach_in_else = t.len() as u32;
+    w([0, 0, 0, 0], &mut t);
     w(encode_cmplwi(0, RET_REG, 0), &mut t);
-    let at_fail = t.len();
-    w([0, 0, 0, 0], &mut t); // patched once `Lok` is known
+    l.place(
+        b_else,
+        core::mem::take(&mut t),
+        Terminator::Bc { bo: BO_FALSE, bi: cr_bi(0, CR_BIT_EQ), taken: b_ok },
+    )?;
     w(encode_addis(R_STATUS, 0, hi16(g.k_fail)), &mut t);
     w(encode_ori(R_STATUS, R_STATUS, lo16(g.k_fail)), &mut t);
-    let at_b3 = t.len();
-    w([0, 0, 0, 0], &mut t);
+    l.place(b_fail, core::mem::take(&mut t), Terminator::B { target: b_join })?;
 
     // ---- the success arm: three stores through the parked pointers ---------
-    let l_ok = t.len();
     w(encode_lwz(SCRATCH_REG, 1, local), &mut t);
     w(encode_stw(SCRATCH_REG, PARKED[1], 0), &mut t);
     w(encode_stw(R_CLIENT, PARKED[2], 0), &mut t);
     w(encode_stw(RET_REG, PARKED[3], 0), &mut t);
+    l.place(b_ok, core::mem::take(&mut t), Terminator::FallThrough)?;
 
     // ---- the join, and the Class C epilogue --------------------------------
-    let l_join = t.len();
+    //
+    // The epilogue is `addi r1,r1,F` then `b __restgprlr_N`. **The `addi` is the
+    // run and the branch is the terminator**, and the branch's word is not
+    // written here: `Terminator::TailCall` leaves the placeholder and reports the
+    // site, which is exactly what an external branch is (§3.3, board #191 — a
+    // relocation, never a label reference). `frame::epilogue_gpr_helper` stays
+    // the single producer of both words and is asked below, at the offset the
+    // layout gives.
     w(encode_mr(RET_REG, R_STATUS), &mut t);
-    let bl_rest = base_off + t.len() as u32 + 4;
-    t.extend_from_slice(&frame.epilogue_gpr_helper(base_off + t.len() as u32)?);
+    let epi_head = frame.epilogue_gpr_helper(0)?;
+    t.extend_from_slice(&epi_head[..4]);
+    l.place(b_join, core::mem::take(&mut t), Terminator::TailCall)?;
     debug_assert_eq!(f_imm as u32, f);
 
-    // ---- the four forward branches, patched -------------------------------
+    let body = l.finish()?;
+    // ---- the four positions this class publishes, all the layout's ----------
     //
-    // Each is `bf <bit>` — branch when the tested condition is FALSE — and the
-    // three unconditional ones are plain intra-section `b`s. Every displacement
-    // is `target − site`, self-relative, so none of them depends on `base_off`.
-    let patch = |t: &mut Vec<u8>, at: usize, form: Form, disp: i32| -> Result<(), BackendError> {
-        let word = reach::direct(form, disp, "xlrc branch")?;
-        t[at..at + 4].copy_from_slice(&word);
-        Ok(())
-    };
-    let bf = |bi: u8| Form::Bc { bo: BO_FALSE, bi };
-    patch(&mut t, at_outer, bf(cr_bi(0, CR_BIT_EQ)), (l_else - at_outer) as i32)?;
-    patch(
-        &mut t,
-        at_inner,
-        bf(cr_bi(CR_COMPARE, CR_BIT_LT)),
-        (l_hi - at_inner) as i32,
-    )?;
-    patch(&mut t, at_b1, Form::B, (l_join - at_b1) as i32)?;
-    patch(&mut t, at_b2, Form::B, (l_join - at_b2) as i32)?;
-    patch(&mut t, at_fail, bf(cr_bi(0, CR_BIT_EQ)), (l_ok - at_fail) as i32)?;
-    patch(&mut t, at_b3, Form::B, (l_join - at_b3) as i32)?;
+    // `bl_save` is word 1 of the entry block's own run. The prologue helper
+    // encoded that word from `base_off + 4` before the layout existed, which is
+    // sound only while the entry block starts the body — so that is asserted
+    // rather than assumed.
+    let at_save = body.at(b_entry, BL_SAVE_IN_ENTRY)?;
+    debug_assert_eq!(at_save, BL_SAVE_IN_ENTRY, "the entry block starts the body");
+    let at_create = body.at(b_entry, bl_create_in_entry)?;
+    let at_attach = body.at(b_else, bl_attach_in_else)?;
+    // The tail site is the epilogue's second word — the layout reports it, and
+    // the epilogue's own producer is then asked about the word that goes there.
+    let at_rest = *body.tail_sites.first().ok_or_else(|| {
+        out_of_class("xlrc-create-guard: the Class C epilogue left no tail-branch site")
+    })?;
+    let epi = frame.epilogue_gpr_helper(base_off + at_rest - 4)?;
+    let mut t = body.text;
+    debug_assert_eq!(t[at_rest as usize - 4..at_rest as usize], epi[..4]);
+    t[at_rest as usize..at_rest as usize + 4].copy_from_slice(&epi[4..]);
+    for (at, off) in [(at_create, base_off + at_create), (at_attach, base_off + at_attach)] {
+        t[at as usize..at as usize + 4].copy_from_slice(&encode_call_branch(off));
+    }
 
     Ok(XlrcCreateGuardBody {
         text: t,
-        bl_offsets: [bl_save, bl_create, bl_attach, bl_rest],
+        bl_offsets: [
+            base_off + at_save,
+            base_off + at_create,
+            base_off + at_attach,
+            base_off + at_rest,
+        ],
         prolog_len,
     })
 }
