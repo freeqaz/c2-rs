@@ -232,3 +232,4 @@ the header block this table is read from.
 | 2026-08-14 | w-readphase | [readphase](2026-08-14-readphase.md) | 9 | **+0**. `git diff 6f2c7c41 -- crates/` is EMPTY at this tip. Three |
 | 2026-08-15 | w-layout | [layout](2026-08-15-layout.md) | 39 | unchanged → unchanged, +0 |
 | 2026-08-15 | w-loo | [loo](2026-08-15-loo.md) | 9 | **+0**. `match` 25 → 25, `mismatch` 0 → 0, `codegen-gap` 0 → 0, |
+| 2026-08-15 | w-slots | [slots](2026-08-15-slots.md) | 37 | unchanged → unchanged, +0 — no new function class is admitted; what moves is a TU-level GATE, and the census does not see it |

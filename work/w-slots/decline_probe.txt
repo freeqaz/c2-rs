@@ -1,0 +1,19 @@
+=== BASE (the shipped tree: ARM A lifted, B/C/D refusing)
+LANE-RESULT PASS flags=[/O1 /GS- /c ] graded=381 total=381 match=179 mismatch=0
+
+=== CONTROL: ARM A charge deleted (float_walk_loop 2 -> 0)
+LANE-RESULT FAIL flags=[/O1 /GS- /c ] graded=381 total=381 match=178 mismatch=1
+1c1,2
+< LANE-RESULT PASS flags=[/O1 /GS- /c ] graded=381 total=381 match=179 mismatch=0
+---
+>   [211/381] mismatch     wblockir_float_walk_then_framed_neg.cpp  (bytes diverge)
+> LANE-RESULT FAIL flags=[/O1 /GS- /c ] graded=381 total=381 match=178 mismatch=1
+
+=== ARM B: ptr_walk_chain_loop None arm DELETED
+0
+LANE-RESULT PASS flags=[/O1 /GS- /c ] graded=381 total=381 match=179 mismatch=0
+
+=== ARM C: pool_ctor_chain None arm DELETED
+LANE-RESULT PASS flags=[/O1 /GS- /c ] graded=381 total=381 match=179 mismatch=0
+
+=== restored

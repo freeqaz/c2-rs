@@ -1328,3 +1328,68 @@ fn differential_wpark_lit_permuted_pair() {
         std::fs::remove_dir_all(&w).ok();
     }
 }
+
+/// **W-SLOTS's mode pole — the `/Ox` half of fence B's second arm, pinned.**
+///
+/// Board **#746**'s fence B, second arm, is lifted: `IlFunction::label_slots`
+/// no longer returns `None` for the float array-walk loop, and
+/// `IlFunction::label_lead` charges it **2**. That number was measured at `/O1`
+/// and it is right **only** at `/O1` — the lead reads `+3` / `+0` / `+6` / `−7`
+/// at `/O1` / `/Ox` / `/O2` / `/Od` (`work/w-slots/leads_modes.txt`) while
+/// `label_slots` has no mode parameter.
+///
+/// **The difference from `differential_whash_loop_then_framed_refuses_outside_its_mode`
+/// is where the refusal lives, and it is the reason this arm was taken first.**
+/// `ptr_walk_loop`'s safety rests on a **different crate**'s emitter refusing
+/// `mode != O1`. This class refuses in the **READER**, in `c2-il` itself, on its
+/// **first clause before any body byte** (`shapes/float_walk_loop.rs`,
+/// `fwalk-opt-mode`) — so `float_walk_loop.is_some()` *implies* `/O1` and the
+/// charge is unreachable elsewhere by construction, not by coupling.
+///
+/// This test exists anyway, for the reason the sibling above gives: a
+/// correctness argument must be a test and not a comment. `differential()`
+/// drives the default `/Ox` profile, so a later lane widening this reader to
+/// `/Ox` without also measuring the `/Ox` charge reddens **here** instead of
+/// shipping six wrong bytes in the symbol table. At `/Ox` the reader declines,
+/// so the port must be `NotImplemented` — and it is a `vocab-gap`, the reader
+/// declining, rather than an emitter refusal.
+///
+/// **The `/O1` arm is graded by `scripts/mode_lane.sh /O1`, not here**, and that
+/// is where the conversion this lane claims shows up. `differential()` has no
+/// `--flags-file` and this test makes no `match` claim.
+///
+/// Both fixtures are listed because the pair is a *separating control*:
+/// `wblockir_float_walk.cpp` is the same four loops with no framed function
+/// beside them, so no label ever reaches its obj (board #742) and it is `match`
+/// at `/O1` under every charge — including the four mutants
+/// (`work/w-slots/mutants_o1.txt`, charges 0, 1, 3 and 4) that turn
+/// `wblockir_float_walk_then_framed_neg.cpp` into a live `mismatch`. Charge
+/// **3** is among them and is the number this class's objs literally read; the
+/// third slot is the TU's `_fltused`, which `plan_labels` already charges once.
+#[test]
+fn differential_wblockir_float_walk_then_framed_refuses_outside_its_mode() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        eprintln!("SKIP: strace/mingw absent");
+        return;
+    }
+    for name in [
+        "wblockir_float_walk_then_framed_neg.cpp",
+        "wblockir_float_walk.cpp",
+    ] {
+        let w = work("wslots");
+        let port = PortC2::default();
+        let report = differential(&fixture(name), &tc, &port, &w);
+        match report {
+            DiffReport::ReferenceReplayByteExact { port, .. } => match port {
+                PortStatus::NotImplemented(_) => {}
+                other => panic!("expected NotImplemented for {name} at /Ox, got {other:?}"),
+            },
+            other => panic!("expected ReferenceReplayByteExact for {name}, got {other:?}"),
+        }
+        std::fs::remove_dir_all(&w).ok();
+    }
+}

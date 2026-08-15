@@ -407,12 +407,38 @@ mod tests {
         // owes `_fltused`. This is a STRUCTURAL fact of the class, which is why
         // the predicate keys on the field and not on a body scan.
         assert!(fun.touches_floating_point());
-        // …and the compiler-label charge is three-valued and reads
-        // `undetermined`, because it is mode-dependent AND sub-shape dependent
-        // (+10/+11 at `/O1`, +13/+15 at `/Ox` — `work/w-blockir/LABEL_LEAD.md`)
-        // while `label_slots` has neither parameter.
-        assert_eq!(fun.label_slots(false), None);
-        assert_eq!(fun.label_slots(true), None);
+        // …and the compiler-label charge, which lane **w-slots** turned from
+        // `undetermined` into a number (board **#746**, fence B's second arm).
+        //
+        // **This assertion used to read `None`, and the reason it gave has been
+        // CORRECTED against the objs rather than merely superseded.** It said
+        // the charge is mode-dependent *and* **sub-shape dependent** —
+        // "+10/+11 at `/O1`, +13/+15 at `/Ox`", `work/w-blockir/LABEL_LEAD.md`.
+        // Mode-dependence is real. **Sub-shape dependence is an artifact of the
+        // instrument**: that measurement differenced the framed `$M` across two
+        // *different* TUs, whose `.gl` label counters differ because their
+        // source text differs, so shape C's apparent extra slot is its own
+        // counter (2547 against 2546). Re-measured seed-cancelling — subtracting
+        // each TU's **own** counter, which is `w-fenceb`'s `mfix.py` form — all
+        // four shape x op cells read **exactly the same lead**, and the `+10`
+        // is `+3` plus the 7-unit counter gap. `work/w-slots/leads_o1.txt`
+        // reproduces all eight of that file's obj numbers and changes only the
+        // arithmetic over them.
+        //
+        // The charge here is **2** and the objs read **3**: the third slot is
+        // the TU's `_fltused`, which `coff::plan_labels` already charges once
+        // per TU for any `is_float` function — see `touches_floating_point`
+        // above, which is why these two facts sit in one test. Shipping the 3
+        // charges it twice and is a live `mismatch` (`work/w-slots/mutate.sh`
+        // mutant M3). What makes one number safe for the whole class is the
+        // mode gate in the READER, before any body byte, so
+        // `float_walk_loop.is_some()` implies `/O1`.
+        assert_eq!(fun.label_slots(false), Some(3));
+        assert_eq!(fun.label_slots(true), Some(3));
+        assert_eq!(fun.label_lead(), 2);
+        // `IlBundle::functions`' gate is `label_slots(false)? != label_lead() +
+        // 1` and `plan_labels` advances exactly that for a non-framed function.
+        assert_eq!(fun.label_slots(false), Some(fun.label_lead() + 1));
         // The class is not framed: no `.pdata`, no `$M`/`$T` triple.
         assert!(!fun.is_framed());
         // And it routes: `select_function` must reach this emitter and return a
