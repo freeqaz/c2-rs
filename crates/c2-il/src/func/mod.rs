@@ -4485,9 +4485,17 @@ impl IlFunction {
         //
         // Three readings, and the second is the one that decides this `None`:
         //
-        //  1. §4.2.1's `for` row records `+2` against `leaf-none = 1` — a lead
-        //     of `+1`, where the obj says **+2 at `/O1`**. The table is not the
-        //     number for this class at `/Ox`, where it is +3.
+        //  1. **§4.2.1's `for` row records `+2`, and the obj says `+2`. THEY
+        //     AGREE**, at `/O1`. This is `w-labeltable`'s correction
+        //     (`docs/rungs/2026-08-15-labeltable.md` §5.1), applied here by the
+        //     lane that owns the arm because that one's `crates/` delta was
+        //     registered at zero. What shipped here read *"a lead of `+1`, where
+        //     the obj says `+7`"* and was **wrong in both halves, in opposite
+        //     directions**: a §4.2.1 surcharge *is* a lead — `plan_labels`
+        //     charges a leaf `label_lead + 1`, so the sentence subtracted the
+        //     base twice — and the `+7` was the cross-TU artifact above. The
+        //     table is not wrong for this class; **at `/Ox` it does not speak**,
+        //     where the charge is 3.
         //  2. **THE CHARGE IS MODE-DEPENDENT** — **2** at `/O1` and **3** at
         //     `/Ox`/`/O2`, on the same source — and this method has **no mode
         //     parameter** (`docs/LABEL_COUNTER.md` §7.6 forbids giving it one,
