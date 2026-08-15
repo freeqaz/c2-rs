@@ -1,0 +1,12 @@
+=== NARROWED tree, O1
+  [1/3] vocab-gap    wbdnz_ctr_then_framed_neg.cpp  (il function decode failed)
+  [2/3] match        wbdnz_ctr.cpp
+  [3/3] vocab-gap    wbdnz_ctr_neg.cpp  (il function decode failed)
+=== NARROWED tree, Ox
+  [1/3] vocab-gap    wbdnz_ctr_then_framed_neg.cpp  (il function decode failed)
+  [2/3] vocab-gap    wbdnz_ctr.cpp  (il function decode failed)
+  [3/3] vocab-gap    wbdnz_ctr_neg.cpp  (il function decode failed)
+=== NARROWED tree, O2
+  [1/3] vocab-gap    wbdnz_ctr_then_framed_neg.cpp  (il function decode failed)
+  [2/3] vocab-gap    wbdnz_ctr.cpp  (il function decode failed)
+  [3/3] vocab-gap    wbdnz_ctr_neg.cpp  (il function decode failed)
