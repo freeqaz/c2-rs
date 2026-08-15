@@ -1,0 +1,13 @@
+TU rows 878 · TUs with `.gl` records or emitted COMDATs: 865
+  .gl records == emitted .text COMDATs :   31  <- the only cells where .gl could BE the emit set
+  .gl records >  emitted (OVER-counts) :  834
+  .gl records <  emitted (UNDER-counts):    0
+  SUMMED: records 1462226  emitted 162049   -> .gl over-counts c2's emit set by 9.0x
+  per-TU ratio over the 864 TUs with >0 emitted: min 1.0x median 9.5x max 923.0x
+  DISCRIMINATING CELLS: 818 distinct ratios over 864 TUs
+
+  src/system/decomp_pch.cpp                vocab-gap  .gl records   551   c2 emitted   0   -> INFINITE (c2 emitted NOTHING)
+  src/system/math/vec.cpp                  vocab-gap  .gl records   369   c2 emitted   2   -> 184.5x
+  src/system/os/NetworkSocket.cpp          vocab-gap  .gl records   118   c2 emitted   4   -> 29.5x
+  src/system/math/Primes.cpp               match      .gl records     1   c2 emitted   1   -> 1.0x
+  src/system/rndobj/wordwrap.cpp           vocab-gap  .gl records     3   c2 emitted   3   -> 1.0x

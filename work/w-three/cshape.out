@@ -1,0 +1,12 @@
+graded TUs 870   factor C TRUE (emit-sec-reachable) 169   FALSE (emit-sec-blocked) 701
+  cross-check against the published key `factor-c`: 169   -> AGREES
+  of the 169 C-TRUE TUs, the reference obj carries  .rdata 145   .pdata 145   .data 44
+
+  THE EXPOSURE, stated as what it is:
+   * that C is a NAME check is a CODE reading and is certain (gap/scan.rs, the C block).
+   * that the SHAPE is unwritable is PROVEN on 3 objs read here, and on those 3 C is TRUE.
+   * the at-risk population is an UPPER BOUND of exposure, not a measured count: 145 C-TRUE TUs carry a `.rdata` whose linkage this instrument cannot see.
+
+  src/system/decomp_pch.cpp                letters -BCD-  C=TRUE  sections 5 (4 distinct) ['.XBLD$W', '.debug$S', '.drectve', '.rdata']
+  src/system/math/vec.cpp                  letters -BCD-  C=TRUE  sections 9 (7 distinct) ['.XBLD$W', '.bss', '.data', '.debug$S', '.drectve', '.rdata', '.text']
+  src/system/os/NetworkSocket.cpp          letters --C--  C=TRUE  sections 18 (6 distinct) ['.XBLD$W', '.debug$S', '.drectve', '.pdata', '.rdata', '.text']

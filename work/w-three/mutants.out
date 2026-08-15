@@ -1,0 +1,12 @@
+M1   comment-only edit to price.py                              registered GREEN    got GREEN    ok
+M2   match TU renders a DIFFERENT gate profile from the three   registered FIRES    got FIRES    ok
+M2b  factor-E match refuses the ratio instead of printing 0     registered FIRES    got FIRES    ok
+M3   frontier TU is a third/fourth distinct profile (4 over 8)  registered FIRES    got FIRES    ok
+M4   truncated scan (400 rows)                                  registered REFUSE   got REFUSE   ok
+M4b  truncated scan, series.py                                  registered REFUSE   got REFUSE   ok
+M5   a requested TU absent from the stream                      registered REFUSE   got REFUSE   ok
+M6   emit-emitted deleted from every row                        registered REFUSE   got REFUSE   ok
+M7   empty blocker map is falsifiable against a same-class witness registered FIRES    got FIRES    ok
+M8   objdump on a truncated obj                                 registered REFUSE   got REFUSE   ok
+
+MUTANTS: 9 run, 9 as registered, 0 off prereg
