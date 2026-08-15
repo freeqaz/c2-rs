@@ -1,0 +1,124 @@
+== §4.2.1 re-measured: the LEAD instrument, as a SERIES
+   mode: /Ox /GS- /c   TU = [n copies of P, the SAME framed z9]
+   Every cell subtracts its OWN `.gl` counter, so the seed cancels
+   INSIDE the TU (#3148). The n=1/2/3 cells of one row do NOT share
+   a counter — they are different source texts — which is exactly
+   why the difference is taken this way and not across them.
+
+   CALIBRATION: the zero-control reads k = -3, c = -3 at this mode.
+   `base = counter + 9 + 3*segs + nleaf` is a `/Gy` fact and
+   `/Ox` is not `/Gy`: there every function is over-charged by a
+   CONSTANT, which lands in the SLOPE. Both zero-controls
+   (`leaf-none`, `leaf-if`) read the same one, which is what
+   makes it a calibration rather than a fudge. Columns below are
+   net of it.
+
+row                 pub |  L(1)  L(2)  L(3) |    k    c  resid | verdict
+leaf-none             0 |    -6    -9   -12 |    0    0  0,0,0 | AGREES
+leaf-if               0 |    -6    -9   -12 |    0    0  0,0,0 | AGREES
+leaf-while            2 |    -3    -3    -3 |    3    0  0,0,0 | **DISAGREES -> obj says 3**
+leaf-dowhile          1 |    -5    -7    -9 |    1    0  0,0,0 | AGREES
+leaf-for              2 |     2     7    12 |    8    0  0,0,0 | **DISAGREES -> obj says 8**
+leaf-for-k            2 |     7    17    27 |   13    0  0,0,0 | **DISAGREES -> obj says 13**
+leaf-for-stride       2 |     3     9    15 |    9    0  0,0,0 | **DISAGREES -> obj says 9**
+leaf-for-down         2 |     2     7    12 |    8    0  0,0,0 | **DISAGREES -> obj says 8**
+leaf-for-cont         2 |    -3    -3    -3 |    3    0  0,0,0 | **DISAGREES -> obj says 3**
+leaf-for-live         2 |     1     5     9 |    7    0  0,0,0 | **DISAGREES -> obj says 7**
+leaf-idxload          2 |     2    -1    -4 |  CONFOUNDED: [2, 3, 4] framed groups — the probe is not a leaf at this mode, so the triple read is not z9's
+leaf-forever          3 |    -3    -3    -3 |    3    0  0,0,0 | AGREES
+leaf-for-break        3 |    -1     1     3 |    5    0  0,0,0 | **DISAGREES -> obj says 5**
+leaf-ptrwalk          3 |    -3    -3    -3 |    3    0  0,0,0 | AGREES
+leaf-for2             4 |     9    21    33 |   15    0  0,0,0 | **DISAGREES -> obj says 15**
+leaf-fornest          4 |     4    11    18 |   10    0  0,0,0 | **DISAGREES -> obj says 10**
+leaf-goto-back        1 |    -5    -7    -9 |    1    0  0,0,0 | AGREES
+hashstring            2 |    -3    -3    -3 |    3    0  0,0,0 | **DISAGREES -> obj says 3**
+
+rows: 18   discriminating series (L(n) varies with n): 12
+structurally NON-discriminating (published +0, nothing could move): leaf-while, leaf-for-cont, leaf-forever, leaf-ptrwalk, hashstring
+rows where measured != published: 11
+   leaf-while        published +2   obj +3   (ONE LOW)
+   leaf-for          published +2   obj +8   (+6)
+   leaf-for-k        published +2   obj +13   (+11)
+   leaf-for-stride   published +2   obj +9   (+7)
+   leaf-for-down     published +2   obj +8   (+6)
+   leaf-for-cont     published +2   obj +3   (ONE LOW)
+   leaf-for-live     published +2   obj +7   (+5)
+   leaf-for-break    published +3   obj +5   (+2)
+   leaf-for2         published +4   obj +15   (+11)
+   leaf-fornest      published +4   obj +10   (+6)
+   hashstring        published +2   obj +3   (ONE LOW)
+controls failed: 1
+
+== the mutants: a wrong charge is a wrong $M, checked against the
+   reference obj's own bytes, with a leaf-only separating control
+
+row                 base   real | charge k-1 / k / k+1 / 0     | control
+leaf-none           2555   2549 | -4:MISMATCH *-3:match -2:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-if             2556   2550 | -4:MISMATCH *-3:match -2:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-while          2559   2556 | -1:MISMATCH *0:match 1:MISMATCH | green (0 labels)
+leaf-dowhile        2559   2554 | -3:MISMATCH *-2:match -1:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-for            2560   2562 | 4:MISMATCH *5:match 6:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-for-k          2560   2567 | 9:MISMATCH *10:match 11:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-for-stride     2560   2563 | 5:MISMATCH *6:match 7:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-for-down       2560   2562 | 4:MISMATCH *5:match 6:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-for-cont       2561   2558 | -1:MISMATCH *0:match 1:MISMATCH | green (0 labels)
+leaf-for-live       2560   2561 | 3:MISMATCH *4:match 5:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-idxload        2560   2562 | -4:MISMATCH *-3:match -2:MISMATCH 0:MISMATCH | !! CONTROL BROKEN
+leaf-forever        2560   2557 | -1:MISMATCH *0:match 1:MISMATCH | green (0 labels)
+leaf-for-break      2561   2560 | 1:MISMATCH *2:match 3:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-ptrwalk        2560   2557 | -1:MISMATCH *0:match 1:MISMATCH | green (0 labels)
+leaf-for2           2564   2573 | 11:MISMATCH *12:match 13:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-fornest        2564   2568 | 6:MISMATCH *7:match 8:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-goto-back      2558   2553 | -3:MISMATCH *-2:match -1:MISMATCH 0:MISMATCH | green (0 labels)
+hashstring          2562   2559 | -1:MISMATCH *0:match 1:MISMATCH | green (0 labels)
+
+mutant cells that RED (a wrong charge is a wrong obj): 49
+mutant cells that stayed green (a wrong charge nothing detects): 0
+separating controls green with EXACTLY 0 label symbols: 17 of 18
+
+== the same rows through §4.2.1's OWN instrument (`a0 . P . a1 . a2`)
+   surcharge = stride - stride(leaf-none) = stride - 1
+
+row                 pub stride surcharge  control | verdict
+leaf-none             0      1         0        4 | AGREES
+leaf-if               0      1         0        4 | AGREES
+leaf-while            2      4         3        4 | **DISAGREES -> +3**
+leaf-dowhile          1      2         1        4 | AGREES
+leaf-for              2      9         8        4 | **DISAGREES -> +8**
+leaf-for-k            2     14        13        4 | **DISAGREES -> +13**
+leaf-for-stride       2     10         9        4 | **DISAGREES -> +9**
+leaf-for-down         2      9         8        4 | **DISAGREES -> +8**
+leaf-for-cont         2      4         3        4 | **DISAGREES -> +3**
+leaf-for-live         2      8         7        4 | **DISAGREES -> +7**
+leaf-idxload          2     12        11        4 | **DISAGREES -> +11**
+leaf-forever          3      4         3        4 | AGREES
+leaf-for-break        3      6         5        4 | **DISAGREES -> +5**
+leaf-ptrwalk          3      4         3        4 | AGREES
+leaf-for2             4     16        15        4 | **DISAGREES -> +15**
+leaf-fornest          4     11        10        4 | **DISAGREES -> +10**
+leaf-goto-back        1      2         1        4 | AGREES
+hashstring            2      4         3        4 | **DISAGREES -> +3**
+controls failed: 0
+
+== the two seed-free instruments, side by side (PREREG F4)
+   LEAD k is net of the zero-control's -3 (see CALIBRATION above)
+row                  LEAD k  STRIDE-1 | agree?
+leaf-none                 0         0 | yes
+leaf-if                   0         0 | yes
+leaf-while                3         3 | yes
+leaf-dowhile              1         1 | yes
+leaf-for                  8         8 | yes
+leaf-for-k               13        13 | yes
+leaf-for-stride           9         9 | yes
+leaf-for-down             8         8 | yes
+leaf-for-cont             3         3 | yes
+leaf-for-live             7         7 | yes
+leaf-idxload              -        11 | CONFOUNDED (probe is framed at this mode)
+leaf-forever              3         3 | yes
+leaf-for-break            5         5 | yes
+leaf-ptrwalk              3         3 | yes
+leaf-for2                15        15 | yes
+leaf-fornest             10        10 | yes
+leaf-goto-back            1         1 | yes
+hashstring                3         3 | yes
+instrument disagreements: 0 of 18

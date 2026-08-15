@@ -1,0 +1,24 @@
+== `work/w-bdnz/LABEL_LEAD.md`, re-differenced with the
+   seed-cancelling form.  mode: /Ox /Oi /EHsc /GR /c
+   Its cells are SEPARATE TUs and do NOT share a `.gl` counter.
+
+cell            counter     base  real $M | published seed-free | gap
+lab_ctl            2540     2556     2550 |         -        -6 | counter +0 vs lab_ctl
+lab_forever        2542     2558     2552 |        +2        -6 | counter +2 vs lab_ctl
+lab_loop           2545     2561     2558 |        +7        -3 | counter +5 vs lab_ctl
+lab_while          2545     2561     2558 |        +7        -3 | counter +5 vs lab_ctl
+lab_dowhile        2545     2561     2556 |        +6        -5 | counter +5 vs lab_ctl
+lab_goto           2546     2562     2559 |        +8        -3 | counter +6 vs lab_ctl
+lab_op             2545     2561     2558 |        +7        -3 | counter +5 vs lab_ctl
+lab_uns            2545     2561     2558 |        +7        -3 | counter +5 vs lab_ctl
+
+REPRODUCTION CHECK — the published `$M` column must reproduce or the
+re-differencing is of different objs:
+   lab_ctl        real $M2550
+   lab_forever    real $M2552
+   lab_loop       real $M2558
+   lab_while      real $M2558
+   lab_dowhile    real $M2556
+   lab_goto       real $M2559
+   lab_op         real $M2558
+   lab_uns        real $M2558
