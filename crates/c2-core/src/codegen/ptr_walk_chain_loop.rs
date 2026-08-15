@@ -70,19 +70,36 @@
 //! Both displacements are functions of `M`. `bclr` has none at all, which is
 //! P2's practical content: the entry guard of a variable-length body needs no
 //! forward fixup. The back edge is `-4*(M+2)` and the JUMPIN branch is
-//! `+4*(M+2)`, and both go through [`encode_bc`]/[`encode_b_intra`] so that a
-//! displacement past its field width refuses instead of truncating.
+//! `+4*(M+2)`.
+//!
+//! ## ✔ 2026-08-15, lane `w-fencea` — **they are functions of the LAYOUT now,
+//! and `M` is not written down at either site**
+//!
+//! Neither displacement is computed here. The back edge names the body block and
+//! the JUMPIN `b` names the block the body's last word is in, and
+//! [`super::labels::LabelMap`] derives both from where those blocks landed. The
+//! SAME regime is why the body is **two** blocks: the preamble jumps *into* the
+//! record form, which S2 puts at `M + 1` — the body's last slot — so the split
+//! is at `4 * (M + 1)` and the jump gets a block identity instead of a count.
+//!
+//! **The admission is `labels.rs`' SECOND arm, not its first**, and the
+//! difference matters: this class's `c2_il::IlFunction::label_slots` is `None`,
+//! so `IlBundle::functions` refuses every TU in which its `$M` could be observed
+//! (board #742). Its charge is **undetermined and stays undetermined** — nothing
+//! here claims a lead for it, board **#746**'s fence B is untouched and is
+//! peer-held, and the TU-level gate is precisely what makes routing this back
+//! edge through the map safe.
 
 use c2_il::{ChainOpKind, ChainRhs, PtrWalkChainLoop};
 
+use crate::codegen::block_ir::{BlockOrder, BodyLayout, Terminator};
 use crate::codegen::cond::{producer_at, Cond, CR0};
 use crate::codegen::encode::{
-    encode_add, encode_addi, encode_bclr, encode_blr, encode_cmplwi,
+    encode_add, encode_addi, encode_cmplwi,
     encode_extsb_record, encode_lbz, encode_lbzu, encode_mr, encode_mr_record, encode_mulli,
     encode_mullw, encode_or, encode_ori, encode_xor, encode_xori, BO_FALSE, BO_TRUE, CR_BIT_EQ,
 };
-use crate::codegen::labels::Form;
-use crate::codegen::reach;
+use crate::codegen::labels::ChargedClass;
 use crate::codegen::select::{out_of_class, OptMode};
 use crate::BackendError;
 
@@ -228,65 +245,95 @@ pub(crate) fn ptr_walk_chain_loop_text(
         body[slot_of(i, a, rec)] = Some(chain_word(&l.ops[i], regs[i], prev, i)?);
     }
 
-    let mut t: Vec<u8> = Vec::with_capacity(4 * (body_len + 7));
+    // **Blocks, and the two displacements are the LAYOUT's** — lane `w-fencea`,
+    // board **#3144**. Both were computed here until then, because
+    // `BodyLayout::finish` resolves *every* branch through the one map and this
+    // body's back edge closed it to all of them — so even the SAME regime's
+    // forward `b` was fenced out by a branch at the other end of the function.
+    //
+    // The admission is [`ChargedClass::PtrWalkChainLoop`], and it is the
+    // **second** arm of `labels.rs`' rule rather than the first: this class's
+    // `IlFunction::label_slots` is `None`, so `IlBundle::functions` refuses
+    // every TU in which its `$M` could be observed at all (board #742). The
+    // charge is *undetermined* and stays undetermined; **nothing here claims a
+    // lead for it**, and the TU-level gate is exactly what makes routing its
+    // back edge safe. That fence is peer-held (#746 fence B) and is untouched.
+    let mut lay = BodyLayout::admitting_back_edges(
+        BlockOrder::IlStatement,
+        ChargedClass::PtrWalkChainLoop,
+    );
+    let pre = lay.declare("chain-loop preamble");
+    // In SAME the preamble jumps **into** the body's last word, so the body is
+    // two blocks and the jump names the second. In TWO there is one body block
+    // and `chain_tail` is it.
+    let chain_head = lay.declare("chain-loop body");
+    let chain_tail = if same { lay.declare("chain-loop entry test") } else { chain_head };
+    let exit = lay.declare("chain-loop fall-out");
+
     // ---- the preamble ------------------------------------------------------
-    t.extend_from_slice(&encode_lbz(R_CHAR, R_SRC, 0));
-    t.extend_from_slice(&encode_mr(R_PTR, R_SRC));
-    t.extend_from_slice(&encode_addi(R_HOME, 0, k0));
+    let mut pre_run: Vec<u8> = Vec::with_capacity(16);
+    pre_run.extend_from_slice(&encode_lbz(R_CHAR, R_SRC, 0));
+    pre_run.extend_from_slice(&encode_mr(R_PTR, R_SRC));
+    pre_run.extend_from_slice(&encode_addi(R_HOME, 0, k0));
     if same {
         // **JUMPIN.** The record form is the entry test, so the preamble jumps
-        // into it. Computed from the body's length rather than written down.
-        let disp = 4 * (body_len as i32);
-        t.extend_from_slice(&reach::direct(
-            Form::B,
-            disp,
-            "ptr-walk chain loop entry jump",
-        )?);
+        // into it — and *into it* is now a block identity rather than
+        // `4 * body_len` counted off the body's length.
+        lay.place(pre, pre_run, Terminator::B { target: chain_tail })?;
     } else {
         // The peeled character's own test, then **P2's `bclr`**: the block the
         // loop falls out to is a bare `blr`, so the guard folds and carries no
         // displacement at all.
-        t.extend_from_slice(&entry_test(l.elem_unsigned));
+        pre_run.extend_from_slice(&entry_test(l.elem_unsigned));
         // The producer is the word immediately above, and WHICH producer it is
         // depends on the cell: `cmplwi cr0` for an unsigned element, `extsb.`
         // for a signed one. Read off the bytes rather than assumed (§6.2 item
         // E); both write cr0, which is why one constant survived this long.
         let guard = Cond::new(
-            producer_at(&t, "ptr-walk chain loop entry guard")?,
+            producer_at(&pre_run, "ptr-walk chain loop entry guard")?,
             BO_TRUE,
             CR_BIT_EQ,
         );
-        t.extend_from_slice(&encode_bclr(guard.bo(), guard.bi()));
+        lay.place(pre, pre_run, Terminator::bclr(guard))?;
     }
     // ---- the body ----------------------------------------------------------
-    let loop_top = t.len();
+    let mut body_run: Vec<u8> = Vec::with_capacity(4 * body_len);
     for w in body {
         // Every slot is filled: `a`, `rec` and the `m` chain slots are `m + 2`
         // distinct indices by construction. A `None` here would be a schedule
         // that dropped or doubled a word, so it refuses rather than emitting a
         // zero — which would be a legal-looking instruction.
-        t.extend_from_slice(&w.ok_or_else(|| {
+        body_run.extend_from_slice(&w.ok_or_else(|| {
             out_of_class("ptr-walk chain loop schedule left a body slot unfilled")
         })?);
     }
     // ---- the back edge -----------------------------------------------------
-    let back_at = t.len();
+    //
     // The record form is somewhere in the body — its slot is S2's answer and
     // moves with the schedule — so the scan finds it rather than the emitter
-    // knowing where it put it.
+    // knowing where it put it. It is read off the **whole** body run and not off
+    // whichever of the two blocks the run was split into, because the schedule's
+    // answer is a property of the body and the SAME split is a property of the
+    // entry jump.
     let back = Cond::new(
-        producer_at(&t[..back_at], "ptr-walk chain loop back edge")?,
+        producer_at(&body_run, "ptr-walk chain loop back edge")?,
         BO_FALSE,
         CR_BIT_EQ,
     );
-    t.extend_from_slice(&reach::direct(
-        Form::Bc { bo: back.bo(), bi: back.bi() },
-        loop_top as i32 - back_at as i32,
-        "ptr-walk chain loop back edge",
-    )?);
+    if same {
+        // The last word is the record form (S2: `rec == m + 1`), and it is the
+        // word the preamble jumps to. Splitting there is what lets one block
+        // identity name it.
+        let cut = 4 * (body_len - 1);
+        lay.place(chain_head, body_run[..cut].to_vec(), Terminator::FallThrough)?;
+        lay.place(chain_tail, body_run[cut..].to_vec(), Terminator::bc(back, chain_head))?;
+    } else {
+        lay.place(chain_head, body_run, Terminator::bc(back, chain_head))?;
+    }
     // ---- the fall-out block, which P2 is a claim about ---------------------
-    t.extend_from_slice(&encode_blr());
+    lay.place(exit, Vec::new(), Terminator::Blr)?;
 
+    let t = lay.finish()?.text;
     debug_assert_eq!(
         t.len(),
         4 * (m + if same { 8 } else { 9 }),
