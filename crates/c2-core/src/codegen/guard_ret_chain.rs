@@ -131,8 +131,7 @@ use crate::codegen::select::{fits_i16, out_of_class};
 use crate::codegen::OptMode;
 use crate::BackendError;
 use c2_il::{GuardRetChain, GuardRetSpine};
-use crate::codegen::labels::Form;
-use crate::codegen::reach;
+use crate::codegen::block_ir::{BlockId, BlockOrder, BodyLayout, Terminator};
 
 /// The condition-register field every guard and the clamp read. Literal, and
 /// re-confirmed on this class's own objs rather than adopted from
@@ -227,47 +226,63 @@ pub fn guard_ret_chain_text(
     }
 
     let frame = frame_for(g);
-    let mut t = frame.prologue()?;
-    let prolog_len = t.len() as u32;
+    let prologue = frame.prologue()?;
+    let prolog_len = prologue.len() as u32;
+
+    // **The body is a `BodyLayout`** — `CFG_SHAPE.md` §6.2 item A, board
+    // **#3124**. Not one displacement is computed here: the two guard branches
+    // used to be the literal `12`, the clamp branch the literal `8`, and the two
+    // arm branches a patch into a flat `Vec` at a recorded index. All five are
+    // `LabelMap`'s now (item B, #290), derived from where the blocks landed.
+    let mut l = BodyLayout::new(BlockOrder::IlStatement);
+    let b_guard: [BlockId; 2] = [l.declare("guard-0"), l.declare("guard-1")];
+    let b_arm: [BlockId; 2] = [l.declare("arm-0"), l.declare("arm-1")];
+    let b_spine = l.declare("spine");
+    let b_tail = l.declare("tail");
+    let b_epi = l.declare("epilogue");
 
     // ---- the park, per sub-shape --------------------------------------------
     //
     // Two witnesses, two plans, transcribed rather than unified (module doc).
     // `guard_reg[i]` is where guard `i`'s formal is by the time its compare
     // runs — which the park decides, so the two are resolved out of one place.
+    //
+    // The park rides in the FIRST guard's block: it is straight-line and there
+    // is no branch between it and the first compare, so it is that block's run.
+    let mut head = prologue;
     let guard_reg: [u8; 2];
     match g.spine {
         GuardRetSpine::Copy { .. } => {
-            t.extend_from_slice(&encode_mr(SWAP_SCRATCH, 3));
-            t.extend_from_slice(&encode_mr(3, 4));
+            head.extend_from_slice(&encode_mr(SWAP_SCRATCH, 3));
+            head.extend_from_slice(&encode_mr(3, 4));
             guard_reg = [SWAP_SCRATCH, 3];
         }
         GuardRetSpine::CopyClamp { .. } => {
-            t.extend_from_slice(&encode_mr(PARK_REG, 3));
+            head.extend_from_slice(&encode_mr(PARK_REG, 3));
             guard_reg = [3, 4];
         }
     }
 
     // ---- the guard chain ----------------------------------------------------
     //
-    // Each guard is four words and the arm sits INSIDE the chain, in source
-    // order. The `b` to the epilogue is the only word whose displacement is not
-    // known yet, so its offset is recorded and the word patched once the
-    // epilogue's position is known — the same two-step every self-relative
-    // forward branch in this crate uses, and not a fixup pass over a block IR.
-    let mut arm_branches: Vec<usize> = Vec::with_capacity(2);
+    // Each guard is two blocks: the compare, whose `bc` skips the arm, and the
+    // arm, whose `b` leaves for the epilogue. The `12` the guard's branch used
+    // to carry is exactly "over the arm's one word and its own `b`" — a fact
+    // about the two blocks between them, which is now the only place it is
+    // written.
     for (i, guard) in g.guards.iter().enumerate() {
         let k = i16::try_from(guard.ret)
             .map_err(|_| out_of_class("guard-ret-chain return literal wider than simm16"))?;
-        t.extend_from_slice(&encode_cmplwi(GUARD_CRF, guard_reg[i], 0));
-        t.extend_from_slice(&reach::direct(
-            Form::Bc { bo: BO_FALSE, bi: cr_bi(GUARD_CRF, CR_BIT_EQ) },
-            12,
-            "guard-ret-chain guard branch",
-        )?);
-        t.extend_from_slice(&encode_li(3, k));
-        arm_branches.push(t.len());
-        t.extend_from_slice(&[0, 0, 0, 0]);
+        let mut run = if i == 0 { core::mem::take(&mut head) } else { Vec::new() };
+        run.extend_from_slice(&encode_cmplwi(GUARD_CRF, guard_reg[i], 0));
+        // Guard 0 skips to guard 1; guard 1 skips to the spine.
+        let skip_to = if i == 0 { b_guard[1] } else { b_spine };
+        l.place(
+            b_guard[i],
+            run,
+            Terminator::Bc { bo: BO_FALSE, bi: cr_bi(GUARD_CRF, CR_BIT_EQ), taken: skip_to },
+        )?;
+        l.place(b_arm[i], encode_li(3, k).to_vec(), Terminator::B { target: b_epi })?;
     }
 
     // ---- the spine ----------------------------------------------------------
@@ -283,44 +298,64 @@ pub fn guard_ret_chain_text(
             "guard-ret-chain copy length outside the measured call window 6..=32767",
         ));
     }
-    t.extend_from_slice(&encode_li(5, len as i16));
+    let mut run = Vec::new();
+    run.extend_from_slice(&encode_li(5, len as i16));
     if let Some(r) = src_reg {
-        t.extend_from_slice(&encode_mr(4, r));
+        run.extend_from_slice(&encode_mr(4, r));
     }
     if let Some(r) = dst_reg {
-        t.extend_from_slice(&encode_mr(3, r));
+        run.extend_from_slice(&encode_mr(3, r));
     }
-    let bl_offset = base_off + t.len() as u32;
-    t.extend_from_slice(&encode_call_branch(bl_offset));
+    // The `bl` goes down as a zero placeholder: its word encodes its own `.text`
+    // offset (§3.3, #191), which is the layout's answer. `bl_in_spine` is where
+    // it sits in the SPINE BLOCK'S OWN RUN, and it is read off that run rather
+    // than written as a constant, because the park decides whether there is one
+    // `mr` above it or none.
+    let bl_in_spine = run.len() as u32;
+    run.extend_from_slice(&[0; 4]);
 
-    if let Some((lo, hi)) = clamp {
-        if !fits_i16(lo) || !fits_i16(hi) {
-            return Err(out_of_class("guard-ret-chain clamp offset wider than simm16"));
+    // The clamp's store block only exists on the `CopyClamp` sub-shape, so it is
+    // only DECLARED there: `BodyLayout::finish` refuses a block that was
+    // declared and never placed, which is what makes a conditional block a
+    // conditional declaration rather than a silent hole in the order.
+    match clamp {
+        None => {
+            l.place(b_spine, run, Terminator::FallThrough)?;
         }
-        t.extend_from_slice(&encode_lwz(CLAMP_LO_REG, PARK_REG, lo as i16));
-        t.extend_from_slice(&encode_lwz(CLAMP_HI_REG, PARK_REG, hi as i16));
-        // `cmplw cr6,r10,r11` then `bf 24` — bit 24 is crf6's LT bit, NOT the
-        // EQ bit every guard above reads. The store runs when `hi < lo`.
-        t.extend_from_slice(&encode_cmplw(GUARD_CRF, CLAMP_HI_REG, CLAMP_LO_REG));
-        t.extend_from_slice(&reach::direct(
-            Form::Bc { bo: BO_FALSE, bi: cr_bi(GUARD_CRF, CR_BIT_LT) },
-            8,
-            "guard-ret-chain clamp branch",
-        )?);
-        t.extend_from_slice(&encode_stw(CLAMP_LO_REG, PARK_REG, hi as i16));
+        Some((lo, hi)) => {
+            if !fits_i16(lo) || !fits_i16(hi) {
+                return Err(out_of_class("guard-ret-chain clamp offset wider than simm16"));
+            }
+            let b_store = l.declare("clamp-store");
+            run.extend_from_slice(&encode_lwz(CLAMP_LO_REG, PARK_REG, lo as i16));
+            run.extend_from_slice(&encode_lwz(CLAMP_HI_REG, PARK_REG, hi as i16));
+            // `cmplw cr6,r10,r11` then `bf 24` — bit 24 is crf6's LT bit, NOT
+            // the EQ bit every guard above reads. The store runs when `hi < lo`.
+            run.extend_from_slice(&encode_cmplw(GUARD_CRF, CLAMP_HI_REG, CLAMP_LO_REG));
+            l.place(
+                b_spine,
+                run,
+                Terminator::Bc { bo: BO_FALSE, bi: cr_bi(GUARD_CRF, CR_BIT_LT), taken: b_tail },
+            )?;
+            l.place(
+                b_store,
+                encode_stw(CLAMP_LO_REG, PARK_REG, hi as i16).to_vec(),
+                Terminator::FallThrough,
+            )?;
+        }
     }
 
-    t.extend_from_slice(&encode_li(3, 0));
+    l.place(b_tail, encode_li(3, 0).to_vec(), Terminator::FallThrough)?;
 
     // ---- the materialised common epilogue -----------------------------------
-    let epi = t.len();
-    t.extend_from_slice(&frame.epilogue()?);
+    l.place(b_epi, frame.epilogue_run()?, Terminator::Blr)?;
 
-    for site in arm_branches {
-        let disp = (epi - site) as i32;
-        let w = reach::direct(Form::B, disp, "guard-ret-chain arm branch")?;
-        t[site..site + 4].copy_from_slice(&w);
-    }
+    let body = l.finish()?;
+    // The one position this class publishes, and it is the layout's.
+    let bl_at = body.at(b_spine, bl_in_spine)?;
+    let bl_offset = base_off + bl_at;
+    let mut t = body.text;
+    t[bl_at as usize..bl_at as usize + 4].copy_from_slice(&encode_call_branch(bl_offset));
 
     debug_assert_eq!(t.len() % 4, 0, "a body is a whole number of words");
     Ok(GuardRetChainBody {

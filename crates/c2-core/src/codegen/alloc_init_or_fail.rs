@@ -161,7 +161,7 @@ pub fn alloc_init_or_fail_text(
         ..Default::default()
     };
     let prologue = frame.prologue()?;
-    let epilogue = frame.epilogue()?;
+    let epilogue = frame.epilogue_run()?;
     let prolog_len = prologue.len() as u32;
 
     // **The body is six blocks in `BodyLayout`** — `CFG_SHAPE.md` §6.2 item A,
@@ -260,7 +260,7 @@ pub fn alloc_init_or_fail_text(
 
     // The epilogue's last word IS the return, so it is the terminator and not
     // four more bytes of run — `Terminator::Blr` emits exactly that word.
-    l.place(b_epi, epilogue_run(&epilogue)?, Terminator::Blr)?;
+    l.place(b_epi, epilogue, Terminator::Blr)?;
 
     let body = l.finish()?;
     // ---- the two positions this class publishes ----------------------------
@@ -277,26 +277,6 @@ pub fn alloc_init_or_fail_text(
     t[bl_at as usize..bl_at as usize + 4].copy_from_slice(&encode_call_branch(bl_offset));
 
     Ok(AllocInitOrFailBody { text: t, bl_offset, prolog_len })
-}
-
-/// An epilogue's run **without** its closing `blr`, which is
-/// [`Terminator::Blr`]'s word and not part of the straight-line run.
-///
-/// Shared by every class in this crate that materialises a common epilogue and
-/// lays its body out through [`BodyLayout`]. It refuses rather than trims blind:
-/// an epilogue that does not end in `blr` is a different frame class, and
-/// silently dropping its last word would emit a body four bytes short with a
-/// return the frame never wrote.
-pub(super) fn epilogue_run(epilogue: &[u8]) -> Result<Vec<u8>, BackendError> {
-    let n = epilogue.len();
-    if n < 4 || epilogue[n - 4..] != crate::codegen::encode::encode_blr()[..] {
-        return Err(out_of_class(
-            "a materialised epilogue whose last word is not `blr`: \
-             `Terminator::Blr` is that word, and trimming a word that is not it \
-             would emit a body short of its own return",
-        ));
-    }
-    Ok(epilogue[..n - 4].to_vec())
 }
 
 #[cfg(test)]
