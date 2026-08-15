@@ -1,0 +1,12 @@
+mode: /Ox /GS- /c
+
+  fw_a_add.cpp                        LEAD +0   counter 2546  2 segs  base $M2562  real $M2562  framed ?z9@@YAHH@Z
+  wblockir_float_walk_then_framed_neg.cpp  LEAD +0   counter 2546  2 segs  base $M2562  real $M2562  framed ?z9@@YAHH@Z
+mode: /O2 /GS- /c
+
+  fw_a_add.cpp                        LEAD +6   counter 2546  2 segs  base $M2562  real $M2568  framed ?z9@@YAHH@Z
+  wblockir_float_walk_then_framed_neg.cpp  LEAD +6   counter 2546  2 segs  base $M2562  real $M2568  framed ?z9@@YAHH@Z
+mode: /Od /GS- /c
+
+  fw_a_add.cpp                        LEAD -7   counter 2546  2 segs  base $M2562  real $M2555  framed ?z9@@YAHH@Z
+  wblockir_float_walk_then_framed_neg.cpp  LEAD -7   counter 2546  2 segs  base $M2562  real $M2555  framed ?z9@@YAHH@Z

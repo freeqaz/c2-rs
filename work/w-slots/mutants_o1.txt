@@ -1,0 +1,25 @@
+=== M0  charge 2   THE SHIPPED CHARGE
+  [1/4] match        fixtures/cpp/wblockir_float_walk_then_framed_neg.cpp
+  [2/4] match        fixtures/cpp/wblockir_float_walk.cpp
+  [3/4] match        fixtures/cpp/whash_loop_then_framed.cpp
+  [4/4] vocab-gap    fixtures/cpp/wblockir_float_walk_neg.cpp  (il function decode failed)
+=== M1  charge 0   what plan_labels charged BEFORE this lane
+  [1/4] mismatch     fixtures/cpp/wblockir_float_walk_then_framed_neg.cpp  (bytes diverge)
+  [2/4] match        fixtures/cpp/wblockir_float_walk.cpp
+  [3/4] match        fixtures/cpp/whash_loop_then_framed.cpp
+  [4/4] vocab-gap    fixtures/cpp/wblockir_float_walk_neg.cpp  (il function decode failed)
+=== M2  charge 1   the ordinary leaf charge
+  [1/4] match        fixtures/cpp/wblockir_float_walk.cpp
+  [2/4] mismatch     fixtures/cpp/wblockir_float_walk_then_framed_neg.cpp  (bytes diverge)
+  [3/4] match        fixtures/cpp/whash_loop_then_framed.cpp
+  [4/4] vocab-gap    fixtures/cpp/wblockir_float_walk_neg.cpp  (il function decode failed)
+=== M3  charge 3   THE LEAD THE OBJS READ -- _fltused charged twice
+  [1/4] mismatch     fixtures/cpp/wblockir_float_walk_then_framed_neg.cpp  (bytes diverge)
+  [2/4] match        fixtures/cpp/wblockir_float_walk.cpp
+  [3/4] match        fixtures/cpp/whash_loop_then_framed.cpp
+  [4/4] vocab-gap    fixtures/cpp/wblockir_float_walk_neg.cpp  (il function decode failed)
+=== M4  charge 4   one high
+  [1/4] mismatch     fixtures/cpp/wblockir_float_walk_then_framed_neg.cpp  (bytes diverge)
+  [2/4] match        fixtures/cpp/wblockir_float_walk.cpp
+  [3/4] match        fixtures/cpp/whash_loop_then_framed.cpp
+  [4/4] vocab-gap    fixtures/cpp/wblockir_float_walk_neg.cpp  (il function decode failed)

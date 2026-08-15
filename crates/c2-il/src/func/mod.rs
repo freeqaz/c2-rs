@@ -4151,6 +4151,86 @@ impl IlFunction {
             // `c2.dll`. A later lane widening `ptr_walk_loop` codegen to `/Ox`
             // reddens that test rather than silently emitting a wrong `$M`.
             + 2 * u32::from(self.ptr_walk_loop.is_some())
+            // **W-SLOTS — the float array-walk loop charges TWO slots, the SAME
+            // two the pointer-walk loop above charges, and both classes are
+            // spelled `for`.** Third leaf class here with a non-zero lead;
+            // placed the same way for the same reason, and again **no arm in
+            // `coff::plan_labels` changes**.
+            //
+            // **DECOMPOSED against ten cells of this class's own objs, not read
+            // off one** (`work/w-slots/leads_o1.txt`, `work/w-slots/cells/`,
+            // frozen by sha256 before the first `cl.exe`). Each cell is
+            // `[loop leaf …, the same framed z9]`, so the framed function's `$M`
+            // triple is the only thing that varies, and the lead is
+            // `real $M − (counter + 9 + 3·segs + leaves)`.
+            //
+            // ```text
+            //   ctl_leafnone     a bare leaf, no FP                     LEAD +0
+            //   ctl_straight     two locals, no FP                      LEAD +0
+            //   ctl_floatleaf    a plain float leaf, NO loop            LEAD +1
+            //   fw_a_add         shape A `+=`   (Add_InPlace)           LEAD +3
+            //   fw_a_mul         shape A `*=`   (Mul_InPlace)           LEAD +3
+            //   fw_b_mul         shape B `*=` scalar (MulConstant_…)    LEAD +3
+            //   fw_c_bin         shape C binary (Mul)                   LEAD +3
+            //   ctl_floatleaf_plus_loop   that float leaf AND one loop  LEAD +3
+            //   fw_two_loops     two loops                              LEAD +5
+            //   fw_three_loops   three loops                            LEAD +7
+            // ```
+            //
+            // **The objs read 3 and the charge here is 2, and the two controls
+            // that separate them are why.** The series is `2n + 1`, not `3n`, so
+            // one of those slots is not the loop's: `ctl_floatleaf` isolates it
+            // at **+1 with zero loops**, and `ctl_floatleaf_plus_loop` confirms
+            // it is charged **once** and not per function. That `+1` is the TU's
+            // `_fltused` slot, which `coff::plan_labels` **already** charges once
+            // per TU for any function whose [`Self::touches_floating_point`] is
+            // true — and that predicate already contains `float_walk_loop`. So
+            // adding 3 here would double-charge it. **The residual is zero on
+            // all ten cells.**
+            //
+            // This is the eleven-row table in [`Self::label_slots`]' float tail
+            // — *"every function consumes 1, plus one extra slot for the TU if
+            // any function touches floating point"* — reproduced independently
+            // and extended by one row. Nothing is quoted from
+            // `docs/LABEL_COUNTER.md`; that table has been measured wrong by
+            // four lanes now and is mode-dependent.
+            //
+            // **NO GENERAL LOOP RULE IS CLAIMED OR USED.** `w-fenceb`'s grid3
+            // hold-out found five pairs of cells with identical
+            // backward-branch feature vectors and different charges, every one a
+            // `while` against a `for`, so the loop KIND is a term no such vector
+            // contains and `R1′` scores 5 of 15 held out. This class is not a
+            // general loop: [`Self::float_walk_loop`]'s recognizer admits a
+            // mandatory `if (n == 0) return;` guard and **one** `for` over an
+            // unsigned counter with one body statement — **no `break`, no
+            // `continue`, no `goto`, no `while`, no `do/while`** — so every
+            // residual shape that hold-out exposed is excluded **by
+            // construction**. That the number lands on the same 2 as
+            // `ptr_walk_loop`, the other `for`, is a corroboration and is not
+            // what licenses it.
+            //
+            // **THE MODE COUPLING, and why it is not the risk it is for
+            // `ptr_walk_loop`.** The lead reads `+3` / `+0` / `+6` / `−7` at
+            // `/O1` / `/Ox` / `/O2` / `/Od`, and this method has no mode
+            // parameter (`wb-label` §7.6 forbids giving it one). What makes that
+            // safe is that `shapes/float_walk_loop.rs` refuses `mode != O1` in
+            // its **first clause, before any body byte**, so this term is
+            // unreachable at every mode but the one it was measured at — a gate
+            // in **this crate**, not the cross-crate one `ptr_walk_loop` leans
+            // on. `/Ox` unrolls this loop four times behind its own pre-test and
+            // emits 688 bytes where `/O1` emits 48.
+            //
+            // **MUST-FAIL MUTATIONS, verified, and there are FOUR.** Changing
+            // this `2` to `0`, `1`, `3` or `4` turns
+            // `fixtures/cpp/wblockir_float_walk_then_framed_neg.cpp` from `match`
+            // into a live `mismatch` against real `c2.dll` at `/O1`, while its
+            // separating control `fixtures/cpp/wblockir_float_walk.cpp` (the same
+            // four loops with no framed function beside them) stays `match` under
+            // all four — a leaf-only TU mints no labels, so the counter never
+            // reaches its obj (board #742). **`3` is the number the objs
+            // literally read**, and its red is the sharpest cell here: it is the
+            // `_fltused` slot being charged twice. `work/w-slots/mutate.sh`.
+            + 2 * u32::from(self.float_walk_loop.is_some())
     }
 
     /// Every external this function calls, in **first-reference order** — which is
@@ -4413,22 +4493,43 @@ impl IlFunction {
         if self.counted_accum_loop.is_some() {
             return None;
         }
-        // **W-BLOCKIR — `None` for the float array-walk loop, and MEASURED here
-        // rather than inherited from the paragraph above.** The lead over a
-        // `leaf-none` control is in `work/w-blockir/LABEL_LEAD.md`, taken by
-        // w-json's counterfactual form at `/O1`; `docs/LABEL_COUNTER.md`'s
-        // published table has been measured wrong by three lanes and is
-        // mode-dependent, so nothing here is quoted from it. `label_slots` has
-        // no mode parameter, which is the same reason `counted_accum_loop`
-        // gives, and it is sufficient on its own.
+        // **W-SLOTS — THE FLOAT ARRAY-WALK LOOP'S `None` IS LIFTED**, and the
+        // charge that replaces it is on [`Self::label_lead`], **decomposed**
+        // against ten cells of this class's own objs. Board **#746**'s fence B,
+        // second arm; `w-fenceb` lifted the first. There is no arm here any
+        // more: the class falls through to the `label_lead() + 1` tail, which is
+        // exactly what `coff::plan_labels` advances for a non-framed function,
+        // so [`crate::IlBundle::functions`]' gate (`label_slots(false)? !=
+        // label_lead() + 1`) is satisfied by construction and **nothing in
+        // `coff/` changed**.
         //
-        // This gate is only ASKED when the TU also holds a framed function
-        // (`IlBundle::functions`), and `IPP_basicmath_xbox.cpp` holds none — so
-        // the `None` costs that TU nothing and fences every TU that pairs this
-        // class with a framed one.
-        if self.float_walk_loop.is_some() {
-            return None;
-        }
+        // **What the refusal was.** *"`label_slots` has no mode parameter, which
+        // is the same reason `counted_accum_loop` gives, and it is sufficient on
+        // its own."* The premise is TRUE and re-measured here — the same source's
+        // framed `$M` reads a lead of `+3` / `+0` / `+6` / `−7` at `/O1` / `/Ox`
+        // / `/O2` / `/Od`, four modes and four integers, one of them below the
+        // charge-0 base (`work/w-slots/leads_modes.txt`). What is **false** is
+        // that it is sufficient: `counted_accum_loop`'s reason is mode-dependence
+        // **on a class that accepts BOTH modes**
+        // (`shapes/counted_accum_loop.rs`'s reader admits `O1 | Ox`), and this
+        // class accepts exactly one.
+        //
+        // **THE UNREACHABILITY IS IN THIS CRATE, AND THAT IS THE DIFFERENCE FROM
+        // `w-fenceb`.** `shapes/float_walk_loop.rs`'s **first** clause, before
+        // any body byte, is `opt_word_mode(..) != Some(OptWordMode::O1) ->
+        // Err("fwalk-opt-mode")`. So `self.float_walk_loop.is_some()` **implies
+        // `/O1`**, in the same file tree as this method — where `ptr_walk_loop`'s
+        // lift rests on `codegen::ptr_walk_loop::select_function` refusing
+        // `mode != O1` in **another crate** and has to pin that with a
+        // differential test. There is no cross-crate coupling here to pin.
+        // Verified end to end rather than read off the source: at `/Ox`, `/O2`
+        // and `/Od` this class's own control `fixtures/cpp/wblockir_float_walk.cpp`
+        // is `vocab-gap (il function decode failed)` — the READER declining —
+        // and not a codegen refusal (`work/w-slots/modes_before.txt`).
+        //
+        // See [`Self::label_lead`] for the arithmetic, for the ten cells, and
+        // for why the per-function charge is **2** and not the `+3` the objs
+        // read.
         // **W-POOL2 — `None` for the free-list constructor, and the reason is
         // the one every loop class above states rather than a new one.**
         //
