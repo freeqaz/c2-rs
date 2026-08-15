@@ -729,6 +729,73 @@ mod tests {
         assert_eq!(err.ctx, "fwalk-opt-mode");
     }
 
+    /// **W-SLOTS — the label charge, pinned where it can be seen.** This class
+    /// used to return `None` from `IlFunction::label_slots` (board **#746**,
+    /// fence B, second arm) and now charges a lead of **2**, so a TU pairing it
+    /// with a framed function is admitted instead of refused whole.
+    ///
+    /// **The number is 2 and this class's objs read 3**, which is why the two
+    /// are asserted as distinct values here rather than merely described. The
+    /// third slot is the TU's `_fltused`, which `coff::plan_labels` already
+    /// charges once per TU for any `touches_floating_point()` function — and
+    /// that predicate already contains this field, so a lead of 3 charges it
+    /// twice and is a live `mismatch` against real `c2.dll`
+    /// (`work/w-slots/mutants_o1.txt`, mutant M3).
+    ///
+    /// **It is also NOT sub-shape dependent, and `work/w-blockir/LABEL_LEAD.md`
+    /// finding 3 says it is.** That finding differenced the framed `$M` across
+    /// two *different* TUs whose `.gl` label counters differ, so shape C's
+    /// apparent extra slot is its own source text's counter (2547 against
+    /// 2546) and not a charge. Re-measured seed-cancelling, all four
+    /// shape x op cells read **exactly the same lead**
+    /// (`work/w-slots/leads_o1.txt`), which is what licenses one number for the
+    /// whole class. Asserted over every shape below so the claim cannot rot.
+    ///
+    /// Asserted at BOTH values of `fn_level_linking`: a leaf's slots do not
+    /// depend on `/Gy`, so neither spelling of the question may drift.
+    #[test]
+    fn the_float_walk_loop_charges_a_lead_of_two_in_every_shape() {
+        use crate::func::{FloatWalkLoop, FloatWalkOp, FloatWalkShape};
+        for shape in [
+            FloatWalkShape::Compound,
+            FloatWalkShape::Scalar,
+            FloatWalkShape::Binary,
+        ] {
+            for op in [FloatWalkOp::Add, FloatWalkOp::Mul] {
+                let f = crate::func::IlFunction {
+                    float_walk_loop: Some(FloatWalkLoop {
+                        params: vec![0xE3, 0xE4, 0xE5],
+                        shape,
+                        op,
+                        walker: 1,
+                        others: vec![2],
+                    }),
+                    ..crate::func::IlFunction::base("?Add_InPlace@IPP@@YAXIPBMPAM@Z", &None)
+                };
+                assert_eq!(f.label_lead(), 2, "{shape:?}/{op:?}: the objs read a lead of 3 and one of those slots is the TU's _fltused");
+                assert_eq!(f.label_slots(false), Some(3), "{shape:?}/{op:?}");
+                assert_eq!(f.label_slots(true), Some(3), "{shape:?}/{op:?}");
+                // `IlBundle::functions`' three-valued gate is
+                // `label_slots(false)? != label_lead() + 1`, and
+                // `coff::plan_labels` advances exactly `label_lead + 1` for a
+                // non-framed function. Asserting the RELATION and not only the
+                // number is what keeps the two halves of the lift from drifting
+                // apart into six wrong bytes.
+                assert_eq!(f.label_slots(false), Some(f.label_lead() + 1), "{shape:?}/{op:?}");
+                // The TU-level slot this charge deliberately does NOT include.
+                assert!(f.touches_floating_point(), "{shape:?}/{op:?}");
+            }
+        }
+        // The separating control: the same builder without the field is an
+        // ordinary leaf at lead 0, so the 2 above is this shape's answer and not
+        // the builder's — and it does NOT touch floating point, so the TU slot
+        // is not owed either.
+        let plain = crate::func::IlFunction::base("?g@@YAHH@Z", &None);
+        assert_eq!(plain.label_lead(), 0);
+        assert_eq!(plain.label_slots(false), Some(1));
+        assert!(!plain.touches_floating_point());
+    }
+
     /// The entry-depth clause is what licenses the two literal scope closes, so
     /// a cursor arriving at any other depth refuses **there** and not later on a
     /// `54 <k>` that happens not to match.

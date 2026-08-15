@@ -193,12 +193,17 @@ fn render_label_channel_legend(rows: &[(&TuResult, CfgReach)]) {
          charges 0 (17 seed-free cells, docs/LABEL_COUNTER.md §4.2), which is the whole stated \
          justification for `codegen::labels` invariant 4 refusing every BACKWARD branch. On a \
          `label-free` obj that error has nowhere to land — and that is SHIPPED rather than \
-         observed: `IlFunction::label_slots` returns `None` for four of the five loop shapes the \
-         port emits, so a TU pairing one of THOSE with a framed function still refuses. **The \
-         fifth is lifted** (lane `w-fenceb`, board #746's fence B): the pointer-walk loop's \
-         charge was measured at 2 against `fixtures/cpp/whash_loop_then_framed.cpp`'s own obj \
-         and that TU is now `match` at `/O1` — the first time this counter was PAID rather than \
-         refused (boards #746/#747/#3091, and its control `whash_ptr_walk_loop.cpp`). \
+         observed: `IlFunction::label_slots` returns `None` for THREE of the five loop shapes the \
+         port emits, so a TU pairing one of THOSE with a framed function still refuses. **Two are \
+         lifted, both at a charge of 2 and both spelled `for`** (board #746's fence B): the \
+         pointer-walk loop, measured against `fixtures/cpp/whash_loop_then_framed.cpp`'s own obj \
+         (lane `w-fenceb`, the first time this counter was PAID rather than refused, boards \
+         #746/#747/#3091, control `whash_ptr_walk_loop.cpp`), and the float array-walk loop, \
+         measured against `fixtures/cpp/wblockir_float_walk_then_framed_neg.cpp`'s (lane \
+         `w-slots`, control `wblockir_float_walk.cpp`). Both TUs are `match` at `/O1`. The three \
+         that remain are the `while`-spelled chain walk, the `do/while` free-list constructor, \
+         and the counted accumulate — whose charge moves across modes on a class accepting BOTH, \
+         so it is the one arm that must NOT be taken. \
          {free} of {} frontier TUs are \
          label-free; of the {loopy} blocked on `cflow-loop`, {loop_free} are. NOT a licence — \
          every one is still gated on codegen that does not exist, and the counter is only the \
