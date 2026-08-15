@@ -119,6 +119,13 @@ impl CfgVerdict {
 
     /// Whether this verdict permits emission. One method, so no caller spells
     /// the test itself and the admitted set has exactly one definition.
+    ///
+    /// **No production caller yet, and that is the module's own headline** — see
+    /// the "what this module is NOT" section. It is exercised by the tests that
+    /// grade the predicate; the attribute records the absence rather than
+    /// hiding it, so the day an emitter takes this fence the attribute is what
+    /// comes off.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn admits(self) -> bool {
         matches!(self, CfgVerdict::Admit(_))
     }
@@ -209,5 +216,327 @@ impl CfgAdmit {
             return false;
         }
         (cf.shape == CfShape::Loop) != (scan.labels.back_edges() > 0)
+    }
+
+    /// **The map's own liveness check** — `true` when a body decoded end to end
+    /// and the table came back **wholly** empty.
+    ///
+    /// The failure mode it exists for is the one `back_edges() == 0` cannot
+    /// distinguish itself from: an empty map answers *no* to every question, so
+    /// an instrument that had silently stopped collecting sites would look
+    /// perfect. Target **0**, published in the alarm cell.
+    ///
+    /// ## Why it is `&&` and not `||`, which is a measured correction
+    ///
+    /// It was written `defs == 0 || refs == 0`, on `IL_STMT_GRAMMAR.md` §9's
+    /// *"every body has an epilogue `3A` and the `29` it targets"*. **That
+    /// fired on three real bodies and §9 is the thing that is wrong**, in one
+    /// direction: a body may carry the epilogue label with **no jump to it at
+    /// all**, reaching it by fallthrough. The witness is sixteen bytes and is
+    /// pinned in this module's tests —
+    ///
+    /// ```text
+    ///   4C 4F 11 · 53 · 54 02 · 29 <tok> · 4F 12 47 54 01 54 00
+    /// ```
+    ///
+    /// — `src/Main.cpp`, `MidiParserMgr.cpp` and `MidiReader.cpp`, one each, out
+    /// of 2,410,886 scanned bodies. Two of the three were scoring
+    /// `admit-straight` and were **right** to: a body with no branch at all is
+    /// the most admissible body there is, and the guard was refusing it for
+    /// having exactly the property [`LabelTable::dead_defs`] is documented as
+    /// tolerating. The count is kept as its own measurement — see
+    /// [`CfgAdmit::has_fallthrough_epilogue`] — rather than discarded with the
+    /// guard, because a grammar counterexample found by an over-strong control
+    /// is the most valuable thing that control produced.
+    pub(crate) fn label_map_is_empty_on_a_decoded_body(scan: &CfScan) -> bool {
+        if scan.body.is_err() {
+            return false;
+        }
+        let (defs, refs) = scan.labels.sizes();
+        defs == 0 && refs == 0
+    }
+
+    /// **`IL_STMT_GRAMMAR.md` §9's counterexample, counted** — a decoded body
+    /// that defines at least one label and references none.
+    ///
+    /// §9 says the epilogue `3A` is always there. It is not, on three bodies of
+    /// the workload, and this is the standing count of them: a published number
+    /// so the exception cannot quietly grow or quietly vanish. It is **not** a
+    /// refusal and not an alarm — the bodies are admissible and are admitted.
+    pub(crate) fn has_fallthrough_epilogue(scan: &CfScan) -> bool {
+        if scan.body.is_err() {
+            return false;
+        }
+        let (defs, refs) = scan.labels.sizes();
+        defs > 0 && refs == 0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::control_flow::tests::{EARLY_RETURN, EMPTY, IF_ELSE, WHILE};
+    use super::super::control_flow::{scan_full, CfShape};
+    use super::*;
+    use crate::func::bundle::LO_MARKER;
+    use crate::func::readers::find_subslice;
+
+    /// Decode one pinned segment and score it against the boundary.
+    fn verdict(seg: &[u8]) -> CfgVerdict {
+        let lo = find_subslice(seg, &LO_MARKER).expect("a body marker");
+        CfgAdmit::of(&scan_full(seg, lo))
+    }
+
+    /// The map's four questions on one pinned segment:
+    /// `(defs, refs, back_edges, unresolved, dead_defs, duplicate_defs)`.
+    fn table(seg: &[u8]) -> (usize, usize, usize, usize, usize, usize) {
+        let lo = find_subslice(seg, &LO_MARKER).expect("a body marker");
+        let t = scan_full(seg, lo).labels;
+        let (d, r) = t.sizes();
+        (d, r, t.back_edges(), t.unresolved(), t.dead_defs(), t.duplicate_defs())
+    }
+
+    /// **The calibration.** `EMPTY` is one epilogue jump and one epilogue label,
+    /// which is the smallest body there is, so every count below is the floor
+    /// the other segments are read against. Asserted as a whole tuple rather
+    /// than field by field: a partial assertion here is how a map that silently
+    /// stopped collecting reads as correct.
+    #[test]
+    fn the_map_on_the_smallest_body_is_one_definition_and_one_reference() {
+        assert_eq!(table(EMPTY), (1, 1, 0, 0, 0, 0));
+        assert_eq!(verdict(EMPTY), CfgVerdict::Admit(CfShape::Straight));
+    }
+
+    /// `IF_ELSE` is §7's diamond: three labels (`else`, `join`, epilogue), three
+    /// references (the `38`, the `3A` to the join, the epilogue `3A`), all
+    /// forward, none dangling, none dead.
+    #[test]
+    fn the_map_on_a_diamond_is_three_forward_references_and_no_dead_label() {
+        assert_eq!(table(IF_ELSE), (3, 3, 0, 0, 0, 0));
+        assert_eq!(verdict(IF_ELSE), CfgVerdict::Admit(CfShape::Forward(1)));
+    }
+
+    /// **`EARLY_RETURN` is the one that separates `dead_defs` from zero.** Two
+    /// returns converge on ONE epilogue label, and the `if`'s skip label is
+    /// defined but — because the then-clause `return`s rather than falling
+    /// through past a `3A` — is targeted by the `38` alone. It is the segment
+    /// that proves `dead_defs` is a control and not a refusal: a predicate that
+    /// refused on it would refuse this body, which is `Forward` and modeled.
+    #[test]
+    fn a_body_with_two_returns_to_one_label_still_admits() {
+        let (defs, refs, back, unres, _dead, dup) = table(EARLY_RETURN);
+        assert_eq!((defs, refs, back, unres, dup), (2, 3, 0, 0, 0));
+        assert_eq!(verdict(EARLY_RETURN), CfgVerdict::Admit(CfShape::Forward(1)));
+    }
+
+    /// **`WHILE` is §14.2 step 5's own clause, on a real capture.** The
+    /// `3A E8 09` at the end of the body targets the `29 E8 09` that opened it,
+    /// and `3A` carries no direction — so nothing but the recorded positions can
+    /// tell, which is the sentence the map exists to make true.
+    #[test]
+    fn the_back_edge_clause_refuses_a_real_while_loop() {
+        let (_defs, _refs, back, unres, _dead, dup) = table(WHILE);
+        assert_eq!((back, unres, dup), (1, 0, 0));
+        assert_eq!(verdict(WHILE), CfgVerdict::BackEdge);
+    }
+
+    /// **A body the walk did not finish is `Undecoded` and nothing else.** The
+    /// witness is `EMPTY` with its scope-close depth corrupted — every field
+    /// width still correct, so only the depth invariant catches it, and the map
+    /// it leaves behind is a prefix. A predicate that read `back_edges() == 0`
+    /// off that prefix would be answering about a body it never saw.
+    #[test]
+    fn a_partial_walk_scores_undecoded_and_not_admit() {
+        let mut bad = EMPTY.to_vec();
+        // Located by pattern, never by an arithmetic offset: a hand-computed
+        // index that drifts silently corrupts a byte the test is not about and
+        // still fails closed, which reads as the test passing for its reason.
+        let k = bad
+            .windows(3)
+            .position(|w| w == [0x54, 0x02, 0x29])
+            .expect("the body scope close")
+            + 1;
+        bad[k] = 0x07;
+        assert_eq!(verdict(&bad), CfgVerdict::Undecoded);
+        assert!(!verdict(&bad).admits());
+    }
+
+    /// **`unresolved` fires, and it fires on a body `CfShape` calls `Forward`.**
+    /// That is the whole reason the clause exists: retarget `IF_ELSE`'s `38` to
+    /// a token no `29` defines and the shape is unchanged — one conditional, no
+    /// backward reference — while the CFG has stopped being readable. Before the
+    /// map this body was indistinguishable from the diamond above.
+    #[test]
+    fn a_dangling_branch_target_refuses_while_the_shape_still_reads_forward() {
+        let mut bad = IF_ELSE.to_vec();
+        let at = bad.windows(3).position(|w| w == [0x38, 0xE8, 0x09]).expect("the 38");
+        bad[at + 1] = 0xEE; // a token nothing defines
+        let lo = find_subslice(&bad, &LO_MARKER).unwrap();
+        let s = scan_full(&bad, lo);
+        assert_eq!(s.body.as_ref().map(|c| c.shape), Ok(CfShape::Forward(1)));
+        assert_eq!(s.labels.unresolved(), 1);
+        assert_eq!(CfgAdmit::of(&s), CfgVerdict::UnresolvedTarget);
+    }
+
+    /// **`duplicate_defs` fires, and it must be tested BEFORE the two clauses
+    /// that call `position_of`.** Give `IF_ELSE`'s join label the else label's
+    /// token and one token has two `29`s; `position_of` then returns the first
+    /// of two and every question below it is computing with a value that has no
+    /// referent.
+    #[test]
+    fn two_definitions_of_one_token_refuse_before_any_position_is_read() {
+        let mut bad = IF_ELSE.to_vec();
+        let at = bad.windows(3).position(|w| w == [0x29, 0xE9, 0x09]).expect("the join 29");
+        bad[at + 1] = 0xE8; // now two 29s carry E8 09
+        let lo = find_subslice(&bad, &LO_MARKER).unwrap();
+        let s = scan_full(&bad, lo);
+        assert!(s.labels.duplicate_defs() > 0);
+        assert_eq!(CfgAdmit::of(&s), CfgVerdict::AmbiguousLabel);
+    }
+
+    /// **The clause order that is load-bearing, asserted as an order and not as
+    /// two independent facts.** A body with BOTH a dangling target and a back
+    /// edge must report `UnresolvedTarget`: `back_edges` reads an unknown
+    /// position as *not backward*, so if these two swapped, this body would pass
+    /// the back-edge clause and be admitted as a forward DAG.
+    #[test]
+    fn unresolved_outranks_back_edge_and_the_body_that_proves_it_is_both() {
+        let mut bad = WHILE.to_vec();
+        // Keep the back edge; add a dangling target on the conditional.
+        let at = bad.windows(3).position(|w| w == [0x38, 0xE9, 0x09]).expect("the 38");
+        bad[at + 1] = 0xEE;
+        let lo = find_subslice(&bad, &LO_MARKER).unwrap();
+        let s = scan_full(&bad, lo);
+        assert_eq!(s.labels.back_edges(), 1, "the back edge is still there");
+        assert_eq!(s.labels.unresolved(), 1);
+        assert_eq!(CfgAdmit::of(&s), CfgVerdict::UnresolvedTarget);
+    }
+
+    /// **The consistency control, on every pinned segment this file can reach.**
+    /// `CfShape::Loop` and the `BackEdge` clause are two readings of one
+    /// collection, and this is the assertion the corpus-wide
+    /// `step5-backedge-shape-disagree` key generalises — it reads **0** over
+    /// 2,410,886 bodies.
+    #[test]
+    fn the_back_edge_clause_and_the_loop_shape_never_disagree() {
+        for seg in [EMPTY, IF_ELSE, EARLY_RETURN, WHILE] {
+            let lo = find_subslice(seg, &LO_MARKER).unwrap();
+            assert!(!CfgAdmit::backedge_disagrees_with_shape(&scan_full(seg, lo)));
+        }
+    }
+
+    /// **`IL_STMT_GRAMMAR.md` §9's counterexample, pinned to the byte.**
+    ///
+    /// §9 says every body carries an epilogue `3A` and the `29` it targets. This
+    /// sixteen-byte body carries the label and **no jump at all** — it reaches
+    /// the epilogue by fallthrough. It is transcribed from
+    /// `src/system/midi/MidiReader.cpp` at the workload's own flags, and there
+    /// are exactly three like it in 2,410,886 scanned bodies (`src/Main.cpp`,
+    /// `MidiParserMgr.cpp`, `MidiReader.cpp`, one each).
+    ///
+    /// It is here because it is the body that **corrected this module's own
+    /// guard**: `label_map_is_empty_on_a_decoded_body` was written
+    /// `defs == 0 || refs == 0` on the strength of §9's sentence, and this is
+    /// what it fired on. The guard was wrong and §9 is wrong; the body is
+    /// admissible and is admitted.
+    const FALLTHROUGH_EPILOGUE: &[u8] = &[
+        0x4C, 0x4F, 0x11, // LO
+        0x53, // SS — the body scope
+        0x54, 0x02, // close it
+        0x29, 0x49, 0x46, // the epilogue label — and NOTHING jumps to it
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, // fn tail
+    ];
+
+    #[test]
+    fn a_body_can_define_its_epilogue_label_and_never_jump_to_it() {
+        // One definition, ZERO references — which is what §9 forbids.
+        assert_eq!(table(FALLTHROUGH_EPILOGUE), (1, 0, 0, 0, 1, 0));
+        // The liveness guard must NOT fire: the map is not empty, it is
+        // reference-free. `&&`, not `||`.
+        let lo = find_subslice(FALLTHROUGH_EPILOGUE, &LO_MARKER).unwrap();
+        let s = scan_full(FALLTHROUGH_EPILOGUE, lo);
+        assert!(!CfgAdmit::label_map_is_empty_on_a_decoded_body(&s), "THE correction");
+        assert!(CfgAdmit::has_fallthrough_epilogue(&s));
+        // …and the body admits, because a body with no branch at all is the
+        // most admissible body there is.
+        assert_eq!(CfgAdmit::of(&s), CfgVerdict::Admit(CfShape::Straight));
+    }
+
+    /// **The liveness guard fires on a wholly empty map and only there.** An
+    /// instrument that had stopped collecting sites would answer *no* to every
+    /// question the map is asked, and every clause would pass — so the one
+    /// reading that must be distinguished from "simple control flow" is
+    /// "nothing was collected".
+    #[test]
+    fn a_wholly_empty_map_on_a_decoded_body_is_the_alarm() {
+        // The same body with its one `29` removed: still lands on the tail,
+        // still depth-consistent, and now collects nothing at all.
+        let bare: &[u8] = &[
+            0x4C, 0x4F, 0x11, 0x53, 0x54, 0x02, //
+            0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+        ];
+        let lo = find_subslice(bare, &LO_MARKER).unwrap();
+        let s = scan_full(bare, lo);
+        assert!(s.body.is_ok(), "it decodes — that is what makes it dangerous");
+        assert_eq!(s.labels.sizes(), (0, 0));
+        assert!(CfgAdmit::label_map_is_empty_on_a_decoded_body(&s));
+        // …and the alarm does NOT fire on any of the real segments.
+        for seg in [EMPTY, IF_ELSE, EARLY_RETURN, WHILE, FALLTHROUGH_EPILOGUE] {
+            let lo = find_subslice(seg, &LO_MARKER).unwrap();
+            assert!(!CfgAdmit::label_map_is_empty_on_a_decoded_body(&scan_full(seg, lo)));
+        }
+    }
+
+    /// **Every verdict has a distinct census name, checked over the whole
+    /// enum.** A name collision would silently merge two clauses in a histogram,
+    /// which is the one failure `GAPS.md` §6 says a census instrument cannot
+    /// survive. `Forward`'s payload is deliberately dropped by `name` — one
+    /// bucket, not 255 — so the two `Forward` arms below must agree.
+    #[test]
+    fn the_verdict_names_are_distinct_and_forward_is_one_bucket() {
+        let all = [
+            CfgVerdict::Admit(CfShape::Straight),
+            CfgVerdict::Admit(CfShape::MultiExit),
+            CfgVerdict::Admit(CfShape::Forward(1)),
+            CfgVerdict::Undecoded,
+            CfgVerdict::Switch,
+            CfgVerdict::AmbiguousLabel,
+            CfgVerdict::UnresolvedTarget,
+            CfgVerdict::BackEdge,
+            CfgVerdict::UnmodeledOperand,
+        ];
+        let mut names: Vec<&str> = all.iter().map(|v| v.name()).collect();
+        names.sort_unstable();
+        let n = names.len();
+        names.dedup();
+        assert_eq!(names.len(), n, "two verdicts share a census name");
+        assert_eq!(
+            CfgVerdict::Admit(CfShape::Forward(1)).name(),
+            CfgVerdict::Admit(CfShape::Forward(9)).name()
+        );
+        // …and exactly three of the nine admit.
+        assert_eq!(all.iter().filter(|v| v.admits()).count(), 3);
+    }
+
+    /// **The admitted set is closed under the clauses, stated as the property
+    /// rather than as a list.** Nothing but `Admit` admits, and `Admit` is only
+    /// ever reached on a decoded, non-switch, back-edge-free, dangling-free,
+    /// modeled body — so a body that admits satisfies all five, checked here by
+    /// asking the map again instead of trusting the verdict.
+    #[test]
+    fn every_admitted_body_satisfies_all_five_clauses_independently() {
+        for seg in [EMPTY, IF_ELSE, EARLY_RETURN, WHILE] {
+            let lo = find_subslice(seg, &LO_MARKER).unwrap();
+            let s = scan_full(seg, lo);
+            if !CfgAdmit::of(&s).admits() {
+                continue;
+            }
+            let cf = s.body.as_ref().expect("admitted implies decoded");
+            assert_ne!(cf.shape, CfShape::Switch);
+            assert_ne!(cf.shape, CfShape::Loop);
+            assert_eq!(s.labels.back_edges(), 0);
+            assert_eq!(s.labels.unresolved(), 0);
+            assert_eq!(s.labels.duplicate_defs(), 0);
+            assert_eq!(cf.residue, CfResidue::Modeled);
+        }
     }
 }

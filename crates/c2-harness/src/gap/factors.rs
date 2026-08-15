@@ -1486,16 +1486,17 @@ impl GapReport {
         // **§14.2 STEP 5's BOUNDARY, SCORED** (lane `w-stmt5`). One key per
         // occupied `<verdict>|<population>` cell, plus the consistency alarm.
         //
-        // The alarm is emitted UNCONDITIONALLY and the cells only when they
-        // occur — the asymmetry is trap 5's: a cell that vanished must be
+        // The alarm is the SUM of every `DISAGREE-*` cell and is named for what
+        // it counts rather than for one of them: it began as
+        // `step5-backedge-shape-disagree` and the first alarm that ever fired
+        // was the OTHER one, so a name that promised a single mechanism would
+        // have mislabelled its own first result. It is emitted UNCONDITIONALLY
+        // and the cells only when they occur — the asymmetry is trap 5's: a cell that vanished must be
         // distinguishable from a cell that read 0, but an alarm that vanished
         // must NOT be readable as an alarm that fired zero times, so the alarm
         // is always present and the cells are not.
         let (admit_rows, admit_disagree) = self.cfg_admit_histogram();
-        m.push((
-            "step5-backedge-shape-disagree",
-            admit_disagree.to_string(),
-        ));
+        m.push(("step5-consistency-alarms", admit_disagree.to_string()));
         // The partition control, printed beside the cells and never folded into
         // them: every scanned body scores exactly one verdict, so this must
         // equal the census total. Printed rather than asserted — `w-tag02`'s

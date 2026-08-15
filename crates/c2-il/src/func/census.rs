@@ -386,14 +386,34 @@ fn cflow_key(seg: &[u8]) -> (String, String, String, &'static str, &'static str)
     // whatever a hand-written test happens to contain, which is
     // `CFG_SHAPE.md` §6.3 rule 4's answer to board #283 (16 of 56 shape markers
     // had zero corpus cases).
-    let admit = if body::shapes::step5::CfgAdmit::backedge_disagrees_with_shape(&scan) {
+    let admit = if body::shapes::step5::CfgAdmit::label_map_is_empty_on_a_decoded_body(&scan) {
+        "DISAGREE-empty-label-map"
+    } else if body::shapes::step5::CfgAdmit::backedge_disagrees_with_shape(&scan) {
         // **The consistency control is reported IN the axis, not beside it.** A
         // control published as its own key can read 0 because nothing reached
         // it; this one can only read 0 if bodies reached the axis and agreed,
         // because the same rows carry both.
         "DISAGREE-backedge-vs-shape"
     } else {
-        body::shapes::step5::CfgAdmit::of(&scan).name()
+        let v = body::shapes::step5::CfgAdmit::of(&scan);
+        // §9's counterexample gets its own axis value — NOT an alarm and NOT a
+        // refusal, see `has_fallthrough_epilogue` — so the three bodies stay
+        // visible instead of merging into `admit-straight` where nobody would
+        // find them again.
+        //
+        // **Gated on `v.admits()`, and that gate is the whole correctness of
+        // this arm.** Written without it, the fallthrough name was reached
+        // BEFORE the residue clause and relabelled one body that
+        // `refuse-unmodeled-operand` had refused into a name beginning
+        // `admit-` — the census reporting an admission for a body the predicate
+        // rejects, which is the exact confusion "decoding a production is not
+        // licence to emit it" is a rule against. Caught by
+        // `step5-refuse-unmodeled-operand-BLOCKED` moving by one.
+        if v.admits() && body::shapes::step5::CfgAdmit::has_fallthrough_epilogue(&scan) {
+            "admit-fallthrough-epilogue"
+        } else {
+            v.name()
+        }
     };
     (
         cflow,

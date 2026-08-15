@@ -426,6 +426,13 @@ impl LabelTable {
 
     /// Definitions **nothing references**. The control of the three: it is
     /// expected to be non-zero on ordinary bodies and is never a refusal.
+    ///
+    /// Deliberately not consulted by [`super::step5::CfgAdmit`], and the
+    /// attribute is how that stays visible: a lane that adds it as a clause
+    /// would refuse `il_stmt_early_return.cpp`, a `Forward` modeled body whose
+    /// skip label is reached by fallthrough. `step5`'s own test names that
+    /// segment.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn dead_defs(&self) -> usize {
         self.defs
             .iter()
@@ -1243,7 +1250,12 @@ fn lit_payload(s: &mut Scan, tag: u8, kind: u8) -> Result<(), Block> {
 }
 
 #[cfg(test)]
-mod tests {
+// **`pub(crate)` so `super::step5`'s tests can cite these segments rather than
+// transcribe them again.** Four of the consts below are the tree's only pinned
+// real-capture witnesses of a `29`/`38`/`3A` body, and a second copy in another
+// file is a second thing to keep true — the same reason `chain_skip_form`'s
+// widths are called and never restated.
+pub(crate) mod tests {
     use super::*;
     use crate::func::bundle::LO_MARKER;
     use crate::func::readers::find_subslice;
@@ -1271,7 +1283,7 @@ mod tests {
     /// **[CF] `il_stmt_seq.cpp` `void stmt_seq0() {}`** — the smallest body there
     /// is, and the calibration for every shape below: one epilogue jump, one
     /// epilogue label, nothing else.
-    const EMPTY: &[u8] = &[
+    pub(crate) const EMPTY: &[u8] = &[
         0x4C, 0x4F, 0x11, 0x53, // LO SS
         0x3A, 0xE5, 0x09, // jump epilogue
         0x54, 0x02, // close the body scope
@@ -1290,7 +1302,7 @@ mod tests {
     /// **[CF] `il_stmt_if_else.cpp` `void stmt_if_else(int a){ if(a) g(); else h(); }`**,
     /// transcribed byte for byte from `docs/IL_STMT_GRAMMAR.md` §7. The shape is a
     /// diamond: one conditional, forward only.
-    const IF_ELSE: &[u8] = &[
+    pub(crate) const IF_ELSE: &[u8] = &[
         0x4C, 0x4F, 0x11, 0x53, 0x4F, 0x01, 0x0D, 0x53, //
         0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74, // load a
         0x38, 0xE8, 0x09, // brFALSE -> else
@@ -1343,7 +1355,7 @@ mod tests {
     /// §8.1. The `3A E8 09` at the end of the body targets the `29 E8 09` that
     /// opened it — a BACK edge, and `3A` carries no direction, so nothing but the
     /// recorded positions can tell.
-    const WHILE: &[u8] = &[
+    pub(crate) const WHILE: &[u8] = &[
         0x4C, 0x4F, 0x11, 0x53, 0x4F, 0x01, 0x0D, 0x53, //
         0x29, 0xE8, 0x09, // TOP:
         0xB9, 0xE4, 0x09, 0x86, 0x41, 0x74, 0x38, 0xE9, 0x09, // brFALSE -> EXIT
@@ -1372,7 +1384,7 @@ mod tests {
     /// §9. Two returns, ONE epilogue label — the pattern that makes `MultiExit`
     /// worth separating from `Forward`, since here the second exit rides on a
     /// conditional and elsewhere it does not.
-    const EARLY_RETURN: &[u8] = &[
+    pub(crate) const EARLY_RETURN: &[u8] = &[
         0x4C, 0x4F, 0x11, 0x53, 0x4F, 0x01, 0x0E, 0x53, //
         0xB9, 0xE4, 0x09, 0x86, 0x41, 0x74, 0x38, 0xE7, 0x09, //
         0x53, 0x33, 0x86, 0x41, 0x74, 0x01, 0x41, 0x86, 0x41, 0x74, 0x3A, 0xE6,
