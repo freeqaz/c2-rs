@@ -1,0 +1,4 @@
+loops_0 : work/w-fencea/cells/loops_0.cpp -> ReferenceReplay=ByteExact (ref=1050B replay=1050B)  Port=Match 
+loops_1 : work/w-fencea/cells/loops_1.cpp -> ReferenceReplay=ByteExact (ref=1180B replay=1180B)  Port=NotImplemented 
+loops_2 : work/w-fencea/cells/loops_2.cpp -> ReferenceReplay=ByteExact (ref=1310B replay=1310B)  Port=NotImplemented 
+loops_3 : work/w-fencea/cells/loops_3.cpp -> ReferenceReplay=ByteExact (ref=1440B replay=1440B)  Port=NotImplemented 

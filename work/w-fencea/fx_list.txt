@@ -1,0 +1,5 @@
+z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\whash_ptr_walk_loop.cpp
+z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\whash_loop_then_framed.cpp
+z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\wvl_chain3.cpp
+z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\wvl_chain6_same.cpp
+z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\wxtea3_encrypt_loop.cpp

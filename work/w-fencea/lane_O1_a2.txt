@@ -1,0 +1,416 @@
+building the harness (no-op if current)
+    Finished `release` profile [optimized] target(s) in 0.00s
+harness: /tmp/c2rs-mode-lane/-O1/c2rs
+  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/w-fencea/target/release/c2rs  built 2026-08-15 03:05:52
+  sha 89e57f4221e9  tree db158106-dirty
+grading 381 fixtures at /O1
+GAP REPORT (381 TUs in 0.1s)
+  match           179   47.0%
+  mismatch          0    0.0%
+  codegen-gap      16    4.2%
+  vocab-gap       186   48.8%
+  port-error        0    0.0%
+  capture-fail      0    0.0%
+  capture cache: 381 hit, 0 miss, 0 uncacheable  |  validator: 0 re-captured and agreed (0 of them only after zeroing the COFF TimeDateStamp), 0 POISONED
+  cache entries REFUSED on provenance: 0 (expected 0 — an entry whose recorded capture path is not where it is being served from is re-captured, never served)
+
+  FUNCTION CENSUS (P2b): 1885/2951 functions in class (63.88%)
+  census/gate DISAGREEMENT: 12 (0.64% of the numerator) — the census OVER-CLAIMS by this much
+         12  not implemented
+  .gl binding invariants: 0 violations (every generated destructor resolves to a destructor)
+       2947  selbind-emitted
+       2947  selbind-emitted-named-scan-narrow
+       2947  selbind-emitted-named-scan-precise
+       2947  selbind-emitted-named-wide
+       2934  selbind-emitted-named-gate
+        356  selbind-emit-subset-scan-narrow-tus
+        356  selbind-emit-subset-scan-precise-tus
+        356  selbind-emit-subset-wide-tus
+
+  EMITTED CENSUS (§8): 1884/2947 emitted functions in class (63.93%)
+    bound 2943  |  residue 4: 0 compiler-generated (no IL body), 4 unexplained  (0.14% of the denominator)
+    ceiling if every residue symbol were in class: 1888 (64.07%)
+    ground truth VIOLATED: 6 emitted symbols on the 179 byte-exact TUs did not bind to an in-class row — the BINDING is wrong, not the port
+    binding: 2953 records, 0 nameless, 2 before the first row, 2 row-conflicts, 0 name-conflicts, 0 accounting breaks, 0 unreadable objs
+    binding arity (#144 — residue 0 is not a control): 2953 record offsets against 2953 records, 0 arity breaks (known answer 0)
+    .in initializers: 14144 records = 14141 accepted + 3 residue, 16924 elements (ARITY), 14141 values (TOKENS, not records), 0 duplicate records, 0 conflicts, 0 accounting breaks (known answer 0)
+    .in symbol addresses (element tag 02, board #931): 26 elements over 26 records
+    .in UNANCHORED (the denominator, board #961): 17 records whose first element is a tag-03 blob or a tag-08 fill, 0 `00 02` candidates dropped by the fail-closed arm, 0 anchors with no token — none of these is in `records` OR in the residue
+      .in residue symbol-address              0
+      .in residue floating-point              3
+      .in residue unknown-type                0
+      .in residue unknown-width               0
+      .in residue value-did-not-frame         0
+      .in residue pointer-width               0
+      .in residue zero-fill                   0
+      .in residue inline-bytes                0
+      .in residue truncated                   0
+      residue ordinary                   4 (100.0% of the unexplained)
+    TU distance to matching (blocked functions) — ≤0: 182, ≤1: 222, ≤10: 322, ≤100: 356, ≤1000: 356
+    TU distance to matching (blocked EMITTED functions) — ≤0: 185, ≤1: 225, ≤10: 322, ≤100: 356, ≤1000: 356
+    emit-set ceiling: 376 of 381 graded TUs have `.ex` segments == obj `.text` COMDATs — the most TU match can reach before ROADMAP §8.3 Phase 7 (violations among matching TUs, must be 0: 0)
+    emit-set MODEL ceiling: 380 of 381 TUs bind every emitted symbol today; 381 would if `bind.rs` lost none; 0 carry an emitted symbol with NO `.gl` body record and are a wall for any segment-driven model
+      unbound emitted symbols: 4 have a body record (instrument defect), 0 have none (wall) — nesting invariant, must hold: today <= repaired (true), repaired + wall == graded (true)
+    the widening order OVER EMITTED CODE (1059 blocked):
+          114 ( 10.8%)  expr-op-0x27
+           75 (  7.1%)  expr-cmp-eq
+           60 (  5.7%)  expr-load-type-8645
+           39 (  3.7%)  expr-cmp-ne
+           38 (  3.6%)  expr-jump
+           30 (  2.8%)  expr-ptr-arith:mid
+           28 (  2.6%)  expr-op-0x30
+           25 (  2.4%)  expr-brfalse
+           19 (  1.8%)  expr-out-of-class-tree-depth:eof
+           17 (  1.6%)  assign-dst-not-formal-0x26
+           16 (  1.5%)  expr-load-type-8885
+           13 (  1.2%)  body-0x67
+           13 (  1.2%)  expr-affine-pending-imm:eof
+           12 (  1.1%)  call-arg-lit-permuted:eof
+           12 (  1.1%)  callee-defined-in-tu:eof
+           11 (  1.0%)  assign-rhs-call-0x26
+           11 (  1.0%)  expr-intrinsic-this-adjust
+           11 (  1.0%)  expr-load-type-8211
+           10 (  0.9%)  callseq-tail-lit:mid
+           10 (  0.9%)  data-sym-not-extern:eof
+      … and 187 more distinct features
+    TUs within 100 blocked functions of matching: 356 (blocked | emitted in-class/emitted | src)
+          0 |    9/9    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_accum4.cpp [match]
+          0 |    7/7    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_base_member.cpp [match]
+          0 |    6/6    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_bool_materialization.cpp [match]
+          0 |    6/6    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_call_args2.cpp [match]
+          0 |    7/7    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_call_perm.cpp [match]
+          0 |    5/5    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_call_value.cpp [match]
+          0 |    2/2    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_dllexport_neg.cpp [vocab-gap]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_drectve_pragma.cpp [vocab-gap]
+          0 |   16/16   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_expr_deref.cpp [match]
+          0 |    6/6    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_expr_member.cpp [match]
+          0 |    2/2    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_extern_c_name.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_gl_data_symbol.cpp [vocab-gap]
+          0 |    2/2    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_intra_tu_call.cpp [codegen-gap]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_line_marker.cpp [match]
+          0 |    9/9    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_param_aggr.cpp [match]
+          0 |    3/3    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_param_poly.cpp [match]
+          0 |   16/16   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_reassoc.cpp [match]
+          0 |    3/3    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_stmt_local_decl.cpp [match]
+          0 |    3/3    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_stmt_param_assign.cpp [match]
+          0 |    7/7    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_stmt_scope.cpp [match]
+          0 |    4/4    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_stmt_seq.cpp [match]
+          0 |   10/10   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_sy_locals_clean.cpp [match]
+          0 |    4/4    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_sy_size_extent.cpp [match]
+          0 |    2/2    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_this_line70.cpp [match]
+          0 |   11/11   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_this_straightline.cpp [match]
+          0 |   12/12   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\il_type_intlike.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\mvp_add3.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\mvp_argtail.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\mvp_call.cpp [match]
+          0 |   10/10   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\mvp_call_seq.cpp [match]
+          0 |   18/18   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\mvp_call_seq_b.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\mvp_call_submod.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\mvp_call_twice.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\mvp_edit_ab.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\mvp_edit_addk.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\mvp_edit_addk2.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\mvp_fmul3.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\mvp_framed.cpp [match]
+          0 |    3/3    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\mvp_lit.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\mvp_plus0.cpp [match]
+          0 |    3/3    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\mvp_sub.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\mvp_tailret.cpp [match]
+          0 |    2/2    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\mvp_two.cpp [match]
+          0 |    3/3    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\mvp_wide.cpp [match]
+          0 |    2/2    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\w10_empty_fn.cpp [match]
+          0 |   12/12   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\w10_guarded_seq.cpp [match]
+          0 |   15/15   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\w1199_bind_run.cpp [match]
+          0 |   15/15   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\w11_early_return.cpp [match]
+          0 |    9/9    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\w1212_bind_run_call.cpp [match]
+          0 |    5/5    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\w1274_addr_producer.cpp [match]
+          0 |   51/51   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\w12_narrow_getters.cpp [match]
+          0 |   13/13   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\w12_ptr_leaf.cpp [match]
+          0 |    1/1    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\w13b_fconst.cpp [codegen-gap]
+          0 |    4/4    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\w13b_fdedup.cpp [codegen-gap]
+          0 |    9/9    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\w14_dtor_delegate.cpp [match]
+          0 |   10/10   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\w15_dtor_member.cpp [match]
+          0 |   29/29   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\w16_addr_leaf.cpp [match]
+          0 |   23/23   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\w17_ptr_operand.cpp [match]
+          0 |   38/38   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\w18_reg_move.cpp [match]
+          0 |   17/17   | z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\w19_ctor_this.cpp [match]
+      … and 296 more
+  blocking features (the widening order):
+        115 ( 10.8%)  expr-op-0x27
+         75 (  7.0%)  expr-cmp-eq
+         60 (  5.6%)  expr-load-type-8645
+         39 (  3.7%)  expr-cmp-ne
+         38 (  3.6%)  expr-jump
+         30 (  2.8%)  expr-ptr-arith:mid
+         28 (  2.6%)  expr-op-0x30
+         25 (  2.3%)  expr-brfalse
+         19 (  1.8%)  expr-out-of-class-tree-depth:eof
+         17 (  1.6%)  assign-dst-not-formal-0x26
+         16 (  1.5%)  expr-load-type-8885
+         13 (  1.2%)  body-0x67
+         13 (  1.2%)  expr-affine-pending-imm:eof
+         12 (  1.1%)  call-arg-lit-permuted:eof
+         12 (  1.1%)  callee-defined-in-tu:eof
+         11 (  1.0%)  assign-rhs-call-0x26
+         11 (  1.0%)  data-sym-not-extern:eof
+         11 (  1.0%)  expr-intrinsic-this-adjust
+         11 (  1.0%)  expr-load-type-8211
+         10 (  0.9%)  callseq-tail-lit:mid
+    … and 189 more distinct features
+  frame class (CALL tokens per body — decode-only, §18):
+       1633 ( 55.3%)  calls-0
+        783 ( 26.5%)  calls-1
+        535 ( 18.1%)  calls-2plus
+         77           calls-2plus|cond-tail-pair
+         54           calls-2plus|call-sequence-value
+         46           calls-2plus|call-sequence
+         34           calls-2plus|expr-cmp-eq
+         30           calls-2plus|call-sequence-cmp-order
+         19           calls-2plus|call-sequence-load-fp
+         16           calls-2plus|call-sequence-cmp-eq
+         13           calls-2plus|call-sequence-load
+         12           calls-2plus|call-sequence-guarded
+         10           calls-2plus|assign-rhs-call-0x26
+  control-flow class (statement layer, decode-only): 2927 of 2951 bodies decoded end to end (99.2%)
+       1639 ( 55.5%)  cflow-straight
+        885 ( 30.0%)  cflow-straight+expr-modeled
+        164 (  5.6%)  cflow-if-1
+        104 (  3.5%)  cflow-loop
+         81 (  2.7%)  cflow-if-n
+         18 (  0.6%)  cflow-if-2
+         14 (  0.5%)  cf-no-body
+         14 (  0.5%)  cflow-multi-exit+expr-modeled
+         11 (  0.4%)  cflow-if-1+expr-modeled
+          7 (  0.2%)  cf-expr-0x59
+          7 (  0.2%)  cflow-loop+expr-modeled
+          3 (  0.1%)  cf-expr-0x08
+          3 (  0.1%)  cflow-if-2+expr-modeled
+          1 (  0.0%)  cflow-switch+expr-modeled
+         77           cflow-if-1|cond-tail-pair
+         34           cflow-loop|expr-jump
+         25           cflow-if-1|expr-cmp-eq
+         24           cflow-if-n|expr-cmp-eq
+         20           cflow-if-1|call-sequence-early-return
+         12           cflow-if-1|call-sequence-guarded
+         12           cflow-if-2|call-sequence-early-return
+         12           cflow-loop|counted-accum-loop
+         11           cflow-loop|expr-cmp-eq
+         10           cflow-if-1+expr-modeled|expr-brfalse
+         10           cflow-if-n|assign-rhs-call-0x26
+         10           cflow-if-n|expr-cmp-ge
+    CONTROL-FLOW COUNTERFACTUAL (board #1343) — what a block IR would convert BY ITSELF: 36 bodies, 23 of the 210 blocked EMITTED functions a block IR must serve. Neither is a bound — both are a PROXY whose two-sided error the next two lines measure. Never quote one without them.
+    RESIDUE CONTROL (board #1344) — `CfResidue::Modeled` is a hand-written mirror of the port's class and NOTHING checked it against the port. It calls 1201 of the 1885 bodies the port ACCEPTS off-class (63.7%), recognising only 684. NOT a gate and NOT an error: a residue LOOSER than the emitter would over-claim, which is worse. What it IS is the counterfactual's error term, and it was assumed rather than measured for eight days.
+    …and it errs BOTH WAYS, so `lower bound` is the wrong word for the line above: 214 straight-line bodies are `+expr-modeled` and the port REFUSES them anyway. `Modeled` neither contains nor is contained in the class — it is a different predicate, and the counterfactual inherits both differences.
+  EH class (maxState, decode-only): 6 of 2951 bodies have maxState >= 1 and need the whole EH record (0.2%)
+       2885 ( 97.8%)  eh-none       blocked    1033
+         36 (  1.2%)  eh-state0     blocked       3
+         24 (  0.8%)  eh-unknown    blocked      24
+          6 (  0.2%)  eh-state1     blocked       6
+    blocked residue, by census key (accepted shapes excluded):
+          7           eh-unknown|BLOCKED|data-sym-not-extern:eof
+          7           eh-unknown|BLOCKED|expr-load-type-8645
+          4           eh-unknown|BLOCKED|data-sym-unresolved:eof
+          2           eh-state0|BLOCKED|expr-intrinsic-this-adjust
+          2           eh-state1|BLOCKED|expr-call-in-expr-recv-object-then-op-0x5C
+          2           eh-unknown|BLOCKED|expr-call-in-expr-recv-object-then-type-real-lit-and-op-more
+          2           eh-unknown|BLOCKED|expr-load-type-8885
+          1           eh-state0|BLOCKED|expr-intrinsic-base-member-addr
+          1           eh-state1|BLOCKED|expr-call-in-expr-recv-intrinsic-this-adjust-then-call-recv-field-whole
+          1           eh-state1|BLOCKED|expr-call-in-expr-recv-intrinsic-this-adjust-then-chain-bind-whole
+          1           eh-state1|BLOCKED|expr-call-in-expr-recv-intrinsic-this-adjust-whole
+          1           eh-state1|BLOCKED|expr-intrinsic-this-adjust
+          1           eh-unknown|BLOCKED|expr-call-in-expr-recv-object-then-call-nested-call-and-call-whole2
+          1           eh-unknown|BLOCKED|expr-op-0x27
+    in-class control group (ACCEPTED functions, never a rung):
+         14           eh-state0|INCLASS|empty-dtor-delegation
+          9           eh-state0|INCLASS|empty-dtor-member-adjusted
+          7           eh-state0|INCLASS|empty-ctor-base
+          3           eh-state0|INCLASS|empty-dtor-member
+    maxState x statement-count (the refuted predicate, for reconciliation):
+         33           eh-migrate|eh-state0|eh-bare
+         24           eh-migrate|eh-unknown|eh-unknown
+          3           eh-migrate|eh-state0|eh-plus-stmt
+          3           eh-migrate|eh-state1|eh-multi
+          3           eh-migrate|eh-state1|eh-plus-stmt
+  grammar completeness (decode-only): 2951 of 2951 bodies read
+       1885 ( 63.9%)  complete-in-class               blocked       0
+        676 ( 22.9%)  complete-none                   blocked     676
+        194 (  6.6%)  complete-whole:segment-end      blocked     194
+         99 (  3.4%)  complete-partial:segment-end    blocked      99
+         68 (  2.3%)  complete-whole:grammar          blocked      68
+         15 (  0.5%)  complete-unmeasured:grammar     blocked      15
+         14 (  0.5%)  complete-more:grammar           blocked      14
+    grammar-COMPLETE and blocked, both producers summed: 262
+  body dispatch (which recognizer claimed the body, decode-only): 2951 of 2951 bodies tagged on the dispatch axis, 2951 on the production axis
+        484 ( 16.4%)  disp-plain-call                   blocked     174
+        451 ( 15.3%)  disp-expr-load                    blocked     451
+        377 ( 12.8%)  disp-straight-line                blocked      57
+        318 ( 10.8%)  disp-member-call                  blocked      82
+        274 (  9.3%)  disp-assign                       blocked     231
+        158 (  5.4%)  disp-indirect-load-leaf           blocked       0
+        108 (  3.7%)  disp-store-run                    blocked       0
+         90 (  3.0%)  disp-float-leaf                   blocked       0
+         90 (  3.0%)  disp-store-leaf                   blocked       0
+         77 (  2.6%)  disp-cond-tail-pair               blocked       0
+         59 (  2.0%)  disp-compare-leaf                 blocked       0
+         58 (  2.0%)  disp-cmp-shift-or                 blocked       0
+         47 (  1.6%)  disp-fp-tail-call                 blocked       0
+         37 (  1.3%)  disp-addr-leaf                    blocked       0
+         34 (  1.2%)  disp-early-return-seq             blocked       0
+         31 (  1.1%)  disp-store-run-bind               blocked       6
+         30 (  1.0%)  disp-empty-body                   blocked       1
+         30 (  1.0%)  disp-expr-lit                     blocked      30
+         28 (  0.9%)  disp-ptr-identity-leaf            blocked       0
+         26 (  0.9%)  disp-empty-dtor-delegation        blocked       0
+         21 (  0.7%)  disp-body-byte                    blocked      21
+         13 (  0.4%)  disp-global-store-leaf            blocked       0
+         12 (  0.4%)  disp-counted-accum-loop           blocked       0
+         12 (  0.4%)  disp-guarded-seq                  blocked       0
+         11 (  0.4%)  disp-store-run-call               blocked       0
+         10 (  0.3%)  disp-empty-ctor-base-delegation   blocked       0
+          9 (  0.3%)  disp-guard-chain-shared-tail      blocked       0
+          8 (  0.3%)  disp-formals-width                blocked       8
+          5 (  0.2%)  disp-float-walk-loop              blocked       0
+          5 (  0.2%)  disp-if-call-join                 blocked       0
+          5 (  0.2%)  disp-static-scan-loop             blocked       2
+          4 (  0.1%)  disp-div-mod-leaf                 blocked       0
+          4 (  0.1%)  disp-ptr-walk-chain-loop          blocked       0
+          3 (  0.1%)  disp-close-call-chain             blocked       0
+          3 (  0.1%)  disp-not-run                      blocked       3
+          3 (  0.1%)  disp-pool-free-list               blocked       0
+          3 (  0.1%)  disp-xtea-round-loop              blocked       0
+          2 (  0.1%)  disp-ctor-forward-call            blocked       0
+          2 (  0.1%)  disp-nonce-add-run                blocked       0
+          2 (  0.1%)  disp-ptr-walk-loop                blocked       0
+          1 (  0.0%)  disp-alloc-init-or-fail           blocked       0
+          1 (  0.0%)  disp-fp-store-diamond             blocked       0
+          1 (  0.0%)  disp-json-utf8-copy               blocked       0
+          1 (  0.0%)  disp-osf-handle-guard             blocked       0
+          1 (  0.0%)  disp-pool-ctor-chain              blocked       0
+          1 (  0.0%)  disp-xlrc-create-guard            blocked       0
+          1 (  0.0%)  disp-xtea-encrypt-loop            blocked       0
+    blocked residue of the arms that never enter a member-call production:
+         96           disp-expr-load|BLOCKED|expr-op-0x27
+         73           disp-expr-load|BLOCKED|expr-cmp-eq
+         42           disp-expr-load|BLOCKED|expr-load-type-8645
+         39           disp-expr-load|BLOCKED|expr-cmp-ne
+         28           disp-expr-load|BLOCKED|expr-ptr-arith:mid
+         26           disp-expr-load|BLOCKED|expr-op-0x30
+         19           disp-straight-line|BLOCKED|expr-out-of-class-tree-depth:eof
+         17           disp-plain-call|BLOCKED|expr-load-type-8645
+         15           disp-expr-load|BLOCKED|expr-brfalse
+         13           disp-body-byte|BLOCKED|body-0x67
+         13           disp-straight-line|BLOCKED|expr-affine-pending-imm:eof
+         12           disp-plain-call|BLOCKED|call-arg-lit-permuted:eof
+         11           disp-expr-load|BLOCKED|expr-load-type-8211
+         11           disp-expr-load|BLOCKED|expr-load-type-8885
+         10           disp-expr-load|BLOCKED|expr-cmp-ge
+         10           disp-plain-call|BLOCKED|callee-defined-in-tu:eof
+         10           disp-plain-call|BLOCKED|callseq-tail-lit:mid
+          8           disp-expr-load|BLOCKED|expr-load-type-8421
+          8           disp-formals-width|BLOCKED|param-multi-reg:mid
+          7           disp-body-byte|BLOCKED|body-cflow-label
+          7           disp-expr-load|BLOCKED|expr-cmp-gt
+          7           disp-expr-load|BLOCKED|expr-convert-target-8641
+          7           disp-plain-call|BLOCKED|call-arg-lit-wide:eof
+          7           disp-plain-call|BLOCKED|callseq-saved-with-first-call-setup:eof
+  member-call production first blocker (decode-only): 0 bodies entered a production, declined, and reached NO tagged bail — the tag-coverage residue (target 0)
+       2288 ( 77.5%)  prod-not-entered                  blocked     746
+        251 (  8.5%)  prod-accepted                     blocked      15
+        104 (  3.5%)  tail-recv-not-a-plain-b9-load/no-b9-literal  blocked      69
+         86 (  2.9%)  tail-recv-not-a-plain-b9-load/b9-not-a-ptr4  blocked      41
+         67 (  2.3%)  prod-committed-refusal            blocked      67
+         33 (  1.1%)  tail-recv-not-a-plain-b9-load/then-off-add  blocked      13
+         21 (  0.7%)  framed-result-not-consumed-by-a-literal-post-op  blocked      21
+         15 (  0.5%)  chain-recv-not-a-plain-b9-load/no-b9-plain-call  blocked       8
+         13 (  0.4%)  tail-argument-not-in-the-operand-vocabulary  blocked      13
+         13 (  0.4%)  tail-void-body-does-not-end-at-the-call  blocked      13
+         11 (  0.4%)  tail-recv-not-a-plain-b9-load/no-b9-this-adjust  blocked      11
+          5 (  0.2%)  chain-body-does-not-end-at-the-call  blocked       5
+          5 (  0.2%)  cmp-two-results-not-consumed-by-a-relation  blocked       5
+          4 (  0.1%)  chain-tail-designator-has-no-result-type  blocked       4
+          4 (  0.1%)  cmp-result-convert-not-a-plain-int  blocked       4
+          4 (  0.1%)  tail-recv-not-a-plain-b9-load/no-b9-off-add  blocked       4
+          3 (  0.1%)  chain-link-does-not-bind-the-previous-result  blocked       3
+          3 (  0.1%)  tail-object-receiver-is-not-a-tail-call  blocked       3
+          2 (  0.1%)  chain-link-argument-not-in-the-operand-vocabulary  blocked       2
+          2 (  0.1%)  chain-recv-not-a-plain-b9-load/no-b9-convert  blocked       2
+          2 (  0.1%)  chain-recv-not-a-plain-b9-load/no-b9-off-add  blocked       2
+          2 (  0.1%)  chain-void-body-does-not-end-at-the-call  blocked       2
+          2 (  0.1%)  cmp-relation-result-not-annotated-bool  blocked       2
+          2 (  0.1%)  tail-recv-not-a-plain-b9-load/then-deref-load  blocked       2
+          2 (  0.1%)  tail-returned-body-does-not-end-at-the-call  blocked       2
+          1 (  0.0%)  chain-recv-not-a-plain-b9-load/b9-not-a-ptr4  blocked       1
+          1 (  0.0%)  chain-recv-not-a-plain-b9-load/then-deref-load  blocked       1
+          1 (  0.0%)  chain-recv-not-a-plain-b9-load/then-off-add  blocked       1
+          1 (  0.0%)  framed-post-op-body-does-not-end-at-the-return  blocked       1
+          1 (  0.0%)  tail-recv-not-a-plain-b9-load/no-b9-stmt-end  blocked       1
+          1 (  0.0%)  tail-recv-not-a-plain-b9-load/no-b9-temp-bind  blocked       1
+          1 (  0.0%)  tail-recv-not-a-plain-b9-load/then-store  blocked       1
+         34           tail-recv-not-a-plain-b9-load/no-b9-literal|BLOCKED|expr-jump
+         16           tail-recv-not-a-plain-b9-load/b9-not-a-ptr4|BLOCKED|assign-dst-not-formal-0x26
+         11           tail-recv-not-a-plain-b9-load/no-b9-this-adjust|BLOCKED|expr-intrinsic-this-adjust
+         10           tail-recv-not-a-plain-b9-load/no-b9-literal|BLOCKED|assign-rhs-call-0x26
+         10           tail-recv-not-a-plain-b9-load/no-b9-literal|BLOCKED|expr-brfalse
+          9           prod-accepted|BLOCKED|data-sym-not-extern:eof
+          8           tail-recv-not-a-plain-b9-load/then-off-add|BLOCKED|expr-op-0x27
+          6           prod-committed-refusal|BLOCKED|mcall-chain-tail-load-width:mid
+          6           tail-recv-not-a-plain-b9-load/no-b9-literal|BLOCKED|assign-store-type-8643
+          5           framed-result-not-consumed-by-a-literal-post-op|BLOCKED|expr-call-in-expr-recv-load-whole
+          5           tail-argument-not-in-the-operand-vocabulary|BLOCKED|expr-call-in-expr-recv-load-then-temp-bind
+          5           tail-recv-not-a-plain-b9-load/no-b9-literal|BLOCKED|expr-label
+          4           framed-result-not-consumed-by-a-literal-post-op|BLOCKED|expr-call-in-expr-recv-load-then-cmp-gt-and-type-int1-whole2
+          4           prod-accepted|BLOCKED|data-sym-unresolved:eof
+          4           prod-committed-refusal|BLOCKED|call-arg-nonformal:eof
+          4           prod-committed-refusal|BLOCKED|call-arg-sym-permuted:eof
+          4           prod-committed-refusal|BLOCKED|call-ret-fp:mid
+          4           prod-committed-refusal|BLOCKED|mcall-cmp-args:eof
+          4           prod-committed-refusal|BLOCKED|mcall-cmp-rel-ge:eof
+          4           tail-recv-not-a-plain-b9-load/b9-not-a-ptr4|BLOCKED|expr-jump
+
+  top vocab gaps:
+      186 x il function decode failed
+
+  top codegen gaps:
+        7 x a TU that defines no functions but whose `.gl` names storage the bare four-secti…
+        2 x a `/Gy` obj whose defined COMDAT data is outside the                          me…
+        2 x pooled floating-point constant under function-level linking (/Gy): sections inte…
+        1 x a TU that defines functions and a namespace-scope data object outside the shared…
+        1 x a call c2 replaces with its callee's body (mechanism I: `?g@@YAXXZ` is `?f@@YAXX…
+        1 x a call c2 replaces with its callee's body (mechanism I: `?w_add@@YAHH@Z` is `?w_…
+        1 x inlined-callee ?wf2m_big@@YAHH@Z: this TU defines it and its lowered body is <= …
+        1 x inlined-callee cbx: this TU defines it and its lowered body is <= 128 bytes, so …
+
+  gate FIRST refusal, over the 186 TUs `IlBundle::decodes()` rejects (c2_il::func::diag; a first cause is what a repair is guaranteed to move, the ALSO column is what it would still owe):
+      158 x body-out-of-class                  (also fires on 162 TUs total)
+        5 x shape-token-unresolved             (also fires on 11 TUs total)
+        5 x unclaimed-gl-symbol                (also fires on 94 TUs total)
+        4 x gl-stop-26-introduced              (also fires on 4 TUs total)
+        4 x label-stride-mismatch              (also fires on 5 TUs total)
+        3 x locally-defined-callee             (also fires on 8 TUs total)
+        2 x drectve-not-boilerplate            (also fires on 2 TUs total)
+        2 x gl-stop-varargs-record             (also fires on 2 TUs total)
+        1 x bind-record-count-ne-segments      (also fires on 1 TUs total)
+        1 x gl-stop-dllexport                  (also fires on 1 TUs total)
+        1 x varargs                            (also fires on 1 TUs total)
+
+  `.gl` BODY-START COVERAGE — can `Bindings::per_record` bind this TU at all?
+      380 TUs where `.gl` spells a body-start for EVERY `.ex` segment
+        1 TUs where it does not — 1 segments across them can bind to NO record, whatever the framing
+        0 TUs with no `.ex` or no `.gl` (the field is null, which is not zero)
+           3 of 4      z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\fixtures\cpp\wvec_inclass_ctor_folded_statics_neg.cpp
+
+  SELECTIVE BINDING (`Bindings::selective`) — how many TUs can bind a SUBSET, and is the subset SOUND?
+      348 TUs whose records are 1:1 with the segments (the incumbent contract; `per_record` is this case)
+        1 TUs where a record NAMES some but not all segments — the selective population
+        0 of those pass the TOTALITY clause (every `.gl` run that could be a COFF symbol name is claimed), i.e. MAY bind today
+        1 blocked by an unclaimed MANGLED run ·     1 blocked by an unclaimed run that FITS the 8-byte inline name field (board #1721's hole, and the shape
+          `work/w-small/probe/l1_counterexample.cpp` measured as `Port=Mismatch @ offset 8`)
+    IS `emitted ⊆ named`?  2934 of 2947 emitted symbols carry a `.gl` record the GATE BINDS (2947 named by a walk-free scan at the same framing, 2947 at the window-free one).
+      TUs with any emitted symbol whose emit set is ENTIRELY named, 356 in the denominator — the CEILING on a selective binding, decomposed:
+          356  scan, INCUMBENT framing  (`codec::gl_offset_framed`, no walk)
+          356  scan, SHIPPED framing    (#2783 relaxed + the 16 MB offset bound, no walk)
+          356  scan, window-free framing (board #2783 as filed — includes 551 offsets that are not `.ex` split points)
+          349  the GATE's own binding walk, at the shipped framing — six stop clauses, any one of which empties the whole TU
+      Read the last two rows against each other: what separates the gate from the instrument is the WALK, not the framing (board #2860).
+LANE-RESULT PASS flags=[/O1 /GS- /c ] graded=381 total=381 match=179 mismatch=0

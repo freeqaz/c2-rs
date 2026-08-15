@@ -1,0 +1,8 @@
+z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\work\w-fencea\cells\ctl_plain_0.cpp
+z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\work\w-fencea\cells\ctl_plain_1.cpp
+z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\work\w-fencea\cells\ctl_plain_2.cpp
+z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\work\w-fencea\cells\ctl_plain_3.cpp
+z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\work\w-fencea\cells\loops_0.cpp
+z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\work\w-fencea\cells\loops_1.cpp
+z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\work\w-fencea\cells\loops_2.cpp
+z:\home\free\code\milohax\c2-rs\.claude\worktrees\w-fencea\work\w-fencea\cells\loops_3.cpp
