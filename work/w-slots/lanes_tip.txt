@@ -1,0 +1,27 @@
+LANE                 VERDICT     graded/total  match  mismatch  flags
+-------------------- ---------- ------------- ------ --------- --------------------
+O1                   PASS          381/381       179         0  /O1
+O1-EHsc              PASS          381/381       180         0  /O1 /EHsc
+O1-Oi                PASS          381/381       181         0  /O1 /Oi
+O1-Oi-EHsc           PASS          381/381       182         0  /O1 /Oi /EHsc
+Ox                   PASS          381/381       150         0  /Ox
+Ox-EHsc              PASS          381/381       150         0  /Ox /EHsc
+Ox-Gy                PASS          381/381       150         0  /Ox /Gy
+Ox-Gy-EHsc           PASS          381/381       150         0  /Ox /Gy /EHsc
+O2                   PASS          381/381       156         0  /O2
+O2-EHsc              PASS          381/381       156         0  /O2 /EHsc
+Od                   PASS          381/381        18         0  /Od
+Od-EHsc              PASS          381/381        18         0  /Od /EHsc
+O1-Oi-GR             PASS          381/381       181         0  /O1 /Oi /GR
+O1-Oi-EHsc-GR        PASS          381/381       182         0  /O1 /Oi /EHsc /GR
+Ox-GR                PASS          381/381       150         0  /Ox /GR
+Ox-EHsc-GR           PASS          381/381       150         0  /Ox /EHsc /GR
+Od-GR                PASS          381/381        18         0  /Od /GR
+Od-EHsc-GR           PASS          381/381        18         0  /Od /EHsc /GR
+expr-sweep           PASS        19556/19556   19460         0  generated cases (of 19556)
+mode-cross           PASS        90812/90812   90424         0  case-lane cells (of 90812)
+hatch-red            REFUSED         0/14          0       n/a  arms (0 green controls)   <- HATCH-STALE `hatch.py apply` cannot hatch this tree, so the arms have no tree to run on (board #1389)
+ladder-red           PASS            5/5           3       n/a  arms (2 green controls)
+
+lanes:  18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT
+graded: 6858 fixture-verdicts across all lanes
