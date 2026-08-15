@@ -52,6 +52,28 @@
 //!
 //! The back edge is `bf 2` off cr0 and **not** `bdnz`: the body makes a call, so
 //! CTR is not available across it.
+//!
+//! # ✔ 2026-08-15, lane `w-fencea` — three blocks, and the three REL24 sites are
+//! the LAYOUT's
+//!
+//! `w-layout` (board **#3124**) moved fifteen of the crate's twenty-three branch
+//! sites into [`BodyLayout`] and could not move this one, and its own `P19`
+//! records the miss it made about *why*: the class was filed under the absent
+//! CTR terminator from a grep over module names, and its blocker is
+//! [`LabelMap`]'s **invariant 4** — the one `bc` in this body *is* the back edge,
+//! so there was never a partial migration to do here. The whole body was fenced
+//! out by its single branch.
+//!
+//! It is three [`BasicBlock`]s now. The `bc` at 0x54 names the loop block —
+//! **itself** — and its `-0x30` is derived from where that block landed;
+//! `b __restgprlr_26` is a `Terminator::TailCall` because it is a relocation and
+//! not a label reference (board #191); and all three REL24 sites
+//! (`__savegprlr_26`, `?Encipher`, `__restgprlr_26`) are read back out of the
+//! finished layout rather than counted off a running `t.len()`.
+//!
+//! [`BodyLayout`]: super::block_ir::BodyLayout
+//! [`BasicBlock`]: super::block_ir::BasicBlock
+//! [`LabelMap`]: super::labels::LabelMap
 
 use crate::codegen::encode::{
     encode_addi, encode_addic_record, encode_ld, encode_mr, encode_stdu, encode_stdx,
@@ -61,8 +83,8 @@ use crate::codegen::frame::FrameLayout;
 use crate::codegen::select::{out_of_class, OptMode};
 use crate::BackendError;
 use c2_il::XteaEncryptLoop;
-use crate::codegen::labels::Form;
-use crate::codegen::reach;
+use crate::codegen::block_ir::{BlockOrder, BodyLayout, Terminator};
+use crate::codegen::labels::ChargedClass;
 
 /// Callee-saved GPRs: r26–r31, so the helpers are `__savegprlr_26` /
 /// `__restgprlr_26`. Six, which is what `FrameLayout`'s own rule turns into the
@@ -147,52 +169,99 @@ pub fn xtea_encrypt_loop_text(
     })?;
 
     let frame = xtea_frame();
-    let mut t: Vec<u8> = Vec::with_capacity(96);
+    // **Three blocks, and every position this class publishes is the LAYOUT's**
+    // — lane `w-fencea`, board **#3144**. The one branch site here *is* the back
+    // edge (`w-layout`'s `P19` miss: this class was filed under the CTR
+    // terminator and its blocker is invariant 4), so before the admission
+    // existed there was no partial migration to do — the whole body was fenced
+    // out by its one `bc`. The admission is [`ChargedClass::XteaEncryptLoop`],
+    // graded in `labels.rs` against `IlFunction::label_slots` / `label_lead`:
+    // this class is **framed**, its lead is 4, and `coff::plan_labels` advances
+    // `lead + 4` for its own `$M`/`$M`/`$T` triple.
+    let mut l =
+        BodyLayout::admitting_back_edges(BlockOrder::IlStatement, ChargedClass::XteaEncryptLoop);
+    let pre = l.declare("xtea prologue and loop invariants");
+    let body = l.declare("xtea block loop");
+    let epi = l.declare("xtea Class C epilogue");
 
     // ---- the Class C prologue: three words, one of them a relocation --------
-    let bl_save = base_off + 4;
-    t.extend_from_slice(&frame.prologue_gpr_helper(base_off)?);
-    let prolog_len = t.len() as u32;
+    //
+    // The `bl __savegprlr_26` word encodes its own `.text` offset, so it is
+    // written twice: once here, by the frame layout that owns the sequence, and
+    // once after `finish`, from the position the layout gives it. The second
+    // write is the one that is true by construction.
+    const BL_SAVE_IN_PRE: u32 = 4;
+    let mut pre_run = frame.prologue_gpr_helper(base_off)?;
+    let prolog_len = pre_run.len() as u32;
 
     // ---- the loop's invariants ---------------------------------------------
-    t.extend_from_slice(&encode_mr(R_THIS, R_A0));
-    t.extend_from_slice(&encode_mr(R_IN, R_A1));
-    t.extend_from_slice(&encode_addi(R_KEY, R_A0, key_off));
+    pre_run.extend_from_slice(&encode_mr(R_THIS, R_A0));
+    pre_run.extend_from_slice(&encode_mr(R_IN, R_A1));
+    pre_run.extend_from_slice(&encode_addi(R_KEY, R_A0, key_off));
     // `sub rD,rA,rB` is `subf rD,rB,rA` — the operand order is the whole reason
     // this is `encode_subf(R_OFFSET, R_A1, R_A2)` and not the other way round.
-    t.extend_from_slice(&encode_subf(R_OFFSET, R_A1, R_A2));
-    t.extend_from_slice(&encode_addi(R_NONCE, R_A0, nonce_biased));
-    t.extend_from_slice(&encode_addi(R_COUNT, 0, x.trips as i16));
+    pre_run.extend_from_slice(&encode_subf(R_OFFSET, R_A1, R_A2));
+    pre_run.extend_from_slice(&encode_addi(R_NONCE, R_A0, nonce_biased));
+    pre_run.extend_from_slice(&encode_addi(R_COUNT, 0, x.trips as i16));
+    l.place(pre, pre_run, Terminator::FallThrough)?;
 
     // ---- the loop ----------------------------------------------------------
-    let loop_top = t.len();
-    t.extend_from_slice(&encode_mr(R_A2, R_KEY));
-    t.extend_from_slice(&encode_ld(R_A1, R_NONCE, ELEM as i16));
-    t.extend_from_slice(&encode_mr(R_A0, R_THIS));
-    let bl_call = base_off + t.len() as u32;
-    t.extend_from_slice(&crate::codegen::calls::encode_call_branch(bl_call));
-    t.extend_from_slice(&encode_ld(R_T11, R_IN, 0));
-    t.extend_from_slice(&encode_addic_record(R_COUNT, R_COUNT, -1));
-    t.extend_from_slice(&encode_xor(R_T11, R_A0, R_T11));
-    t.extend_from_slice(&encode_stdx(R_T11, R_OFFSET, R_IN));
-    t.extend_from_slice(&encode_addi(R_IN, R_IN, ELEM as i16));
-    t.extend_from_slice(&encode_ld(R_T11, R_NONCE, ELEM as i16));
-    t.extend_from_slice(&encode_addi(R_T11, R_T11, 1));
-    t.extend_from_slice(&encode_stdu(R_T11, R_NONCE, ELEM as i16));
-    let back = loop_top as i32 - t.len() as i32;
-    t.extend_from_slice(&reach::direct(
-        Form::Bc { bo: BO_FALSE, bi: BI_CR0_EQ },
-        back,
-        "an XTEA block loop back edge",
-    )?);
+    const BL_CALL_IN_BODY: u32 = 12;
+    let mut body_run: Vec<u8> = Vec::with_capacity(48);
+    body_run.extend_from_slice(&encode_mr(R_A2, R_KEY));
+    body_run.extend_from_slice(&encode_ld(R_A1, R_NONCE, ELEM as i16));
+    body_run.extend_from_slice(&encode_mr(R_A0, R_THIS));
+    debug_assert_eq!(body_run.len() as u32, BL_CALL_IN_BODY);
+    // A zero placeholder: the `bl ?Encipher` encodes its own `.text` offset and
+    // only the finished layout knows it.
+    body_run.extend_from_slice(&[0; 4]);
+    body_run.extend_from_slice(&encode_ld(R_T11, R_IN, 0));
+    body_run.extend_from_slice(&encode_addic_record(R_COUNT, R_COUNT, -1));
+    body_run.extend_from_slice(&encode_xor(R_T11, R_A0, R_T11));
+    body_run.extend_from_slice(&encode_stdx(R_T11, R_OFFSET, R_IN));
+    body_run.extend_from_slice(&encode_addi(R_IN, R_IN, ELEM as i16));
+    body_run.extend_from_slice(&encode_ld(R_T11, R_NONCE, ELEM as i16));
+    body_run.extend_from_slice(&encode_addi(R_T11, R_T11, 1));
+    body_run.extend_from_slice(&encode_stdu(R_T11, R_NONCE, ELEM as i16));
+    // **The back edge, and the block it branches to is itself.** The condition
+    // is `addic.`'s, seven words up — the record form the `BI_CR0_EQ` above
+    // names.
+    l.place(body, body_run, Terminator::Bc { bo: BO_FALSE, bi: BI_CR0_EQ, taken: body })?;
 
     // ---- the Class C epilogue: two words, and no `blr` ----------------------
-    let epi = base_off + t.len() as u32;
-    t.extend_from_slice(&frame.epilogue_gpr_helper(epi)?);
-    let bl_rest = epi + 4;
+    //
+    // The second word is an **external** `b __restgprlr_26` — a relocation and
+    // not a label reference — which is exactly `Terminator::TailCall`, and is
+    // why `Form` has no variant for it (board #191). `epilogue_gpr_helper` stays
+    // the one writer of both words; it is called here only to run its own
+    // out-of-class gate and to give the `addi`, and again after `finish` at the
+    // offset the layout put the block.
+    let epi_words = frame.epilogue_gpr_helper(0)?;
+    l.place(epi, epi_words[..4].to_vec(), Terminator::TailCall)?;
+
+    let finished = l.finish()?;
+    // ---- the three positions this class publishes, all three the layout's ---
+    let at_save = finished.at(pre, BL_SAVE_IN_PRE)?;
+    let at_call = finished.at(body, BL_CALL_IN_BODY)?;
+    let at_rest = *finished.tail_sites.first().ok_or_else(|| {
+        out_of_class("the XTEA epilogue's tail-branch site went missing from the layout")
+    })?;
+    let epi_off = base_off + finished.start_of(epi)?;
+    let bl_offsets = [base_off + at_save, base_off + at_call, base_off + at_rest];
+
+    let mut t = finished.text;
+    t[at_save as usize..at_save as usize + 4]
+        .copy_from_slice(&crate::codegen::calls::encode_call_branch(bl_offsets[0]));
+    t[at_call as usize..at_call as usize + 4]
+        .copy_from_slice(&crate::codegen::calls::encode_call_branch(bl_offsets[1]));
+    // …and the epilogue's own tail word, from the helper that owns the pair, at
+    // the offset the layout gave the block.
+    let epi_here = frame.epilogue_gpr_helper(epi_off)?;
+    debug_assert_eq!(&t[at_rest as usize - 4..at_rest as usize], &epi_here[..4]);
+    t[at_rest as usize..at_rest as usize + 4].copy_from_slice(&epi_here[4..8]);
 
     debug_assert_eq!(t.len(), 96);
-    Ok(XteaEncryptLoopBody { text: t, bl_offsets: [bl_save, bl_call, bl_rest], prolog_len })
+    Ok(XteaEncryptLoopBody { text: t, bl_offsets, prolog_len })
 }
 
 #[cfg(test)]
@@ -280,6 +349,29 @@ mod tests {
         let moved: Vec<usize> =
             (0..24).filter(|i| b.text[i * 4..i * 4 + 4] != TARGET[i * 4..i * 4 + 4]).collect();
         assert_eq!(moved, vec![1, 12, 23], "the two frame helpers AND the callee");
+    }
+
+    /// **The admission is load-bearing here too.** The same shape of body
+    /// through [`BodyLayout::new`] refuses, in `labels.rs`' own words, naming
+    /// the loop block. `w-layout`'s `P19` filed this class behind the CTR
+    /// terminator; its blocker is and was invariant 4, and this is the line that
+    /// says which.
+    #[test]
+    fn the_same_self_branching_block_through_a_default_layout_is_refused() {
+        let mut l = BodyLayout::new(BlockOrder::IlStatement);
+        let pre = l.declare("xtea prologue and loop invariants");
+        let body = l.declare("xtea block loop");
+        l.place(pre, encode_mr(R_THIS, R_A0).to_vec(), Terminator::FallThrough).unwrap();
+        l.place(
+            body,
+            encode_addic_record(R_COUNT, R_COUNT, -1).to_vec(),
+            Terminator::Bc { bo: BO_FALSE, bi: BI_CR0_EQ, taken: body },
+        )
+        .unwrap();
+        let s = format!("{:?}", l.finish().unwrap_err());
+        assert!(s.contains("BACKWARD"), "{s}");
+        assert!(s.contains("plan_labels"), "{s}");
+        assert!(s.contains("xtea block loop"), "{s}");
     }
 
     #[test]
