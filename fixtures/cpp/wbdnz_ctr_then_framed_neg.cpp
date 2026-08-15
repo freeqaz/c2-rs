@@ -38,27 +38,58 @@
 // class at all, because c2 does not convert it. So the confound the other three
 // classes cite is absent here. What replaces it is sharper:
 //
-// **THE CHARGE IS MODE-DEPENDENT — +7 at `/O1` and +8 at `/Ox` on the same
-// source — and `label_slots` has no mode parameter.** This class accepts BOTH
-// modes, so any `Some(k)` would be right at one and put `?z9`'s `$M`/`$M`/`$T`
-// triple one low at the other: six wrong bytes in an obj that still links,
-// board #263's shape.
+// **THE CHARGE IS MODE-DEPENDENT — and `label_slots` has no mode parameter.**
+// This class accepts BOTH modes, so any `Some(k)` would be right at one and put
+// `?z9`'s `$M`/`$M`/`$T` triple off at the other: six wrong bytes in an obj that
+// still links, board #263's shape.
 //
-// `docs/LABEL_COUNTER.md` §4.2.1's `for` row, read literally, predicts a lead of
-// **+1**. It is **six low** at `/O1` for this class. w-json measured its §1.1
-// surcharge two low for a back-edge class; this is the same finding at a wider
-// margin, and it is why the commission said to measure rather than to quote.
+// # w-counted, 2026-08-15 — THE CONCLUSION SURVIVES AND BOTH NUMBERS DID NOT
+//
+// The table above is `w-json`'s counterfactual form: the cell TU's framed `$M`
+// minus a *separate* `leaf-none` TU's. **A TU's `.gl` label counter depends on
+// its own source text**, so that difference is `Δcharge + Δseed` and not a
+// charge — board **#3148**, which refuted the identical instrument on
+// `float_walk_loop` a day earlier. Re-measured seed-cancelled (each TU's own
+// counter subtracted inside it) over a one/two/three-loop series, with two
+// zero-controls reading exactly 0 and residual 0 on every row:
+//
+//     mode    1 loop   2 loops   3 loops     charge
+//     /O1       +2       +4        +6           2
+//     /O2       +3       +6        +9           3
+//     /Ox       +3        —         —           3    (absolute form void:
+//     /Od        0        —         —           0     packed layout, so the
+//                                                     charge is read at
+//                                                     constant segment count)
+//
+// So the published `+7`/`+8` is `charge + 5`, and `LABEL_COUNTER.md` §4.2.1's
+// `for` row — read literally, a lead of `+1` — is **one** low at `/O1` and two
+// at `/Ox`, not six.
+//
+// **And the two-pole probe is what makes the `None` a demonstration.** With each
+// candidate installed on `label_lead` (the route `float_walk_loop` took, so
+// nothing under `coff/` moves) and graded against real `c2.dll`:
+//
+//     K=0  MISMATCH /O1   MISMATCH /Ox   MISMATCH /O2    <- Some(1), the claim
+//     K=1  MISMATCH       MISMATCH       MISMATCH            below
+//     K=2  match          MISMATCH       MISMATCH        <- right at /O1 ONLY
+//     K=3  MISMATCH       match          match           <- right at /Ox ONLY
+//     K=4  MISMATCH       MISMATCH       MISMATCH
+//
+// **There is no constant.** `/O2` shares `/Ox`'s optimization word byte for
+// byte, so it moves with it and the arm covers eight of the 18 gate lanes.
 //
 // # What this fixture asserts
 //
 // `Port=NotImplemented` over the whole TU, at every lane, with `mismatch 0` —
 // the port declines rather than emitting a `$M` it cannot justify. Its
-// separating control is `wbdnz_ctr.cpp`, eleven of these loops with **no** framed
-// function beside them, byte-exact at `/O1` and `/Ox`.
+// separating control is `wbdnz_ctr.cpp`, twenty of these loops with **no** framed
+// function beside them, byte-exact at `/O1`, `/Ox` and `/O2`.
 //
 // **MUST-FAIL MUTATION, verified**: replacing that `None` with `Some(1)` turns
 // this TU from `NotImplemented` into a live `mismatch` against real `c2.dll`
-// while the control stays `match`.
+// while the control stays `match`. **Re-run 2026-08-15 by `w-counted` — the
+// first thing to check it since it shipped — and it reproduces at `/O1`, `/Ox`
+// and `/O2`, with the control `match` under that mutant and four others.**
 int gz(int);
 int p_sub(int n, int k) { int s = 0; for (int i = 0; i < n; ++i) s -= k; return s; }
 int z9(int a) { return gz(a) + 7; }

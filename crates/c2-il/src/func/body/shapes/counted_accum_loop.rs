@@ -130,6 +130,42 @@
 //! codegen). Every cell of the fixture is graded at both, and the mode gate is
 //! asked **here, before any body byte**, because board #1638's defect is a gate
 //! that lives only in the emitter.
+//!
+//! # The `/Ox` arm was graded on ONE AXIS, and it is graded on the CROSS now
+//!
+//! *Lane `w-counted`, 2026-08-15.* "Every cell of the fixture is graded at
+//! both" was true and it was not the same claim as "the accepted set is graded
+//! at both". The class's free axes are **accumulate opcode × counter
+//! signedness**; the fixture graded all seven opcodes on a *signed* counter and
+//! exactly **one** unsigned cell, so **six of the fourteen crossed cells had
+//! never been compiled at any mode** — which is what `w-slots`'
+//! found-and-not-taken #5 meant by *"whether its `/Ox` acceptance is even
+//! correct appears UNGRADED"*, and it was a fair reading of the record.
+//!
+//! **It is graded now and it is correct.** 20 of 20 in-class cells `match` at
+//! `/O1`, `/Ox`, `/Ox /Gy`, `/Ox /EHsc /GR`, `/O2` and the workload's own
+//! `/O1 /Oi /EHsc /GR` — **120 gradings against real `c2.dll`, `mismatch` 0** —
+//! with a `+=` cell *outside* the class refusing at every one
+//! (`work/w-counted/cross_grid.txt`). The nine missing cells are now rows of
+//! `fixtures/cpp/wbdnz_ctr.cpp`, so they ride all 18 gate lanes rather than one
+//! lane's scratch, and `work/w-counted/codegen_mutants.sh` shows the grid can go
+//! red: making the guard ignore [`CountedAccumLoop::counter_unsigned`] reddens
+//! **exactly** the ten unsigned cells at both modes and leaves the ten signed
+//! ones `match`.
+//!
+//! **`/O2` is a third lane family on this arm and it was never named.**
+//! `/O2`'s optimization word is `OPT_WORD_OX` byte for byte
+//! (`docs/OPT_MODE.md` §3), so `Some(OptWordMode::Ox)` above admits **eight** of
+//! the 18 gate lanes, not six. Everything the `/Ox` half of this gate does, it
+//! does at `/O2` as well — including the label charge, which is 3 at both
+//! (`crates/c2-il/src/func/mod.rs`'s `label_slots` arm for this class).
+//!
+//! **Narrowing this gate to `/O1` is a −8 fixture-verdict move**, measured over
+//! all 18 lanes and 381 fixtures (`work/w-counted/narrow_probe.sh`), and −2 even
+//! when paired with the `/O1` label charge it would unlock. `differential.rs`'s
+//! `differential_wbdnz_ctr_ox_accepted` pins the `/Ox` pole so a later lane
+//! narrowing this line reddens a test instead of quietly withdrawing byte-exact
+//! output.
 
 use crate::func::body::expr::{eat_return_plumbing, parse_formals};
 use crate::func::body::{blk, Block, BodyShape};

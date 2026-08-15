@@ -1393,3 +1393,73 @@ fn differential_wblockir_float_walk_then_framed_refuses_outside_its_mode() {
         std::fs::remove_dir_all(&w).ok();
     }
 }
+
+/// **W-COUNTED — the `/Ox` pole of `counted_accum_loop`'s mode gate is
+/// LOAD-BEARING, and until now nothing asserted it.**
+///
+/// `shapes/counted_accum_loop.rs` admits `Some(O1) | Some(Ox)` and is the only
+/// one of the five loop shapes admitting two modes. `w-slots`'
+/// found-and-not-taken #5 proposed retiring `#746` fence B for this class by
+/// **narrowing that gate to `/O1`**, on the premise that its `/Ox` acceptance
+/// was ungraded. Lane `w-counted` graded it — 20 of 20 accepted-set cells
+/// `match` at four `/Ox`-family profiles and at `/O2`, 120 gradings against real
+/// `c2.dll`, `mismatch` 0 — and priced the narrowing over all 18 gate lanes at
+/// **−8 fixture-verdicts**, one on each lane whose optimization word is `Ox`.
+/// `/O2`'s word is `OPT_WORD_OX` byte for byte, so it moves with `/Ox`.
+///
+/// `differential()` drives the default `/Ox /GS- /c` profile, which is exactly
+/// the pole at risk. **A later lane narrowing that gate reddens here instead of
+/// quietly withdrawing byte-exact output**, which is the whole reason this test
+/// exists: `w-fenceb` and `w-slots` both pinned a mode fence they were *keeping*
+/// and neither pinned one they were *relying on*.
+///
+/// The negative fixture rides along as the separating control: a TU pairing this
+/// class with a framed function is refused whole at every mode, because
+/// `label_slots` returns `None` — the charge is **2** at `/O1` and **3** at
+/// `/Ox`/`/O2`, and `w-counted`'s two-pole probe shows each constant is a live
+/// `mismatch` at the mode it was not measured at. A change that turned this
+/// refusal into a `Match` without a mode-aware charge would be six wrong bytes
+/// in the symbol table, so both poles are asserted here rather than one.
+#[test]
+fn differential_wbdnz_ctr_ox_accepted() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        eprintln!("SKIP: strace/mingw absent");
+        return;
+    }
+    for (name, want_match) in [
+        ("wbdnz_ctr.cpp", true),
+        ("wbdnz_ctr_then_framed_neg.cpp", false),
+    ] {
+        let w = work("wcounted");
+        let port = PortC2::default();
+        let report = differential(&fixture(name), &tc, &port, &w);
+        match report {
+            DiffReport::ReferenceReplayByteExact { port, .. } => {
+                if want_match {
+                    assert_eq!(
+                        port,
+                        PortStatus::Match,
+                        "the /Ox pole of counted_accum_loop's mode gate is gone: {name} \
+                         must stay byte-exact at the default /Ox profile (narrowing that \
+                         gate to /O1 costs 8 fixture-verdicts, work/w-counted/narrow_probe.sh)"
+                    );
+                } else {
+                    match port {
+                        PortStatus::NotImplemented(_) => {}
+                        other => panic!(
+                            "{name} must stay NotImplemented: label_slots returns None for \
+                             this class because the charge is 2 at /O1 and 3 at /Ox, and \
+                             neither constant is right at both, got {other:?}"
+                        ),
+                    }
+                }
+            }
+            other => panic!("expected ReferenceReplayByteExact for {name}, got {other:?}"),
+        }
+        std::fs::remove_dir_all(&w).ok();
+    }
+}

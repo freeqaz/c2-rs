@@ -4432,64 +4432,113 @@ impl IlFunction {
         // **W-BDNZ — the counted loop refuses too, and the reason is this
         // lane's OWN MEASUREMENT rather than the two above.**
         //
-        // The commission required the lead to be measured against the obj and
-        // not read off `docs/LABEL_COUNTER.md`, because w-json measured its
-        // §1.1 surcharge two low for a back-edge class. `work/w-bdnz/label.sh`
-        // did that, in w-json's counterfactual form — two TUs differing in
-        // exactly one function body, the same framed `z9` second in every one,
-        // its `$M`/`$T` triple the readout — over real `c2.dll` under wibo at
-        // the workload's `/O1` and again at `/Ox`
-        // (`work/w-bdnz/LABEL_LEAD.md`):
-        //
-        // ```text
-        //   leaf-none, 0 locals          2556  --     2550  --
-        //   straight line, 2 locals      2558  +2     2552  +2
-        //   THIS CLASS                   2563  +7     2558  +8
-        //   the `while` spelling         2563  +7     2558  +8   identical text
-        //   the `do/while` spelling      2562  +6     2556  +6   different text
-        //   HashString's pointer walk    2564  +8     2559  +9
-        //   this class with `*=`         2563  +7     2558  +8
-        //   this class with `unsigned`   2563  +7     2558  +8
-        // ```
+        // > **W-COUNTED, 2026-08-15 — the conclusion SURVIVES and BOTH of its
+        // > numbers were wrong.** `w-bdnz` measured the charge in w-json's
+        // > counterfactual form — the difference between the framed `$M` in the
+        // > cell TU and in a *separate* `leaf-none` control TU — and published
+        // > **+7 at `/O1`, +8 at `/Ox`**. That is the instrument board **#3148**
+        // > refuted: a TU's `.gl` counter depends on its own source text, so a
+        // > lead differenced across two TUs is `Δcharge + Δseed`, and this
+        // > lane's own cells differ by **6** in their counters.
+        // >
+        // > Re-measured seed-cancelled (`work/w-slots/lead.py`, the `.gl`
+        // > counter subtracted **inside** each TU) over a one/two/three-loop
+        // > series, `work/w-counted/leads_modes.txt`:
+        // >
+        // > ```text
+        // >             1 loop  2 loops  3 loops   zero-controls   charge
+        // >   /O1         +2      +4       +6          0, 0          2
+        // >   /O2         +3      +6       +9          0, 0          3
+        // >   /Ox         +3       —        —         (formula void)  3
+        // >   /Od          0       —        —         (formula void)  0
+        // > ```
+        // >
+        // > `/O1` and `/O2` close with **residual 0** and both zero-controls
+        // > read exactly **0**, which is what validates the base formula rather
+        // > than assuming it. At `/Ox` the zero-control reads **−6** — the
+        // > packed section layout, `LABEL_COUNTER.md` §7.6 step 3's "base 5
+        // > under `/Gy`, 4 packed" — so the absolute form is **void** there and
+        // > the `/Ox` charge is read only at *constant segment count*, where the
+        // > layout term cancels. Stated rather than papered over.
+        // >
+        // > **The 2/3 pair is then confirmed END TO END by the oracle**, which
+        // > is the part no lead arithmetic can supply
+        // > (`work/w-counted/charge_probe.txt`). Each candidate installed the
+        // > way `float_walk_loop`'s was — a `label_lead` term plus deleting this
+        // > arm, nothing under `coff/` — and graded against real `c2.dll`:
+        // >
+        // > ```text
+        // >   K   /O1        /Ox        /O2        control wbdnz_ctr.cpp
+        // >   0   MISMATCH   MISMATCH   MISMATCH   match     <- the SHIPPED
+        // >   1   MISMATCH   MISMATCH   MISMATCH   match        must-fail claim
+        // >   2   match      MISMATCH   MISMATCH   match     <- right at /O1
+        // >   3   MISMATCH   match      match      match     <- right at /Ox
+        // >   4   MISMATCH   MISMATCH   MISMATCH   match
+        // > ```
+        // >
+        // > **There is no constant.** Each of the two charges is byte-exact at
+        // > its own mode and a live `mismatch` at the other, and `/O2` shares
+        // > `/Ox`'s optimization word so it moves with it. That is `None`
+        // > demonstrated rather than argued, and it is why the `+7`/`+8` being
+        // > wrong changes nothing: the *shape* of the finding — mode-dependence
+        // > on a class that accepts both modes — is what decides the arm.
         //
         // Three readings, and the second is the one that decides this `None`:
         //
         //  1. §4.2.1's `for` row records `+2` against `leaf-none = 1` — a lead
-        //     of `+1`, where the obj says **+7** (`+5` net of the two locals,
-        //     which the straight-line control prices at `+2`). The table is not
-        //     the number for this class.
-        //  2. **THE CHARGE IS MODE-DEPENDENT** — `+7` at `/O1` and `+8` at
-        //     `/Ox`, on the same source — and this method has **no mode
-        //     parameter**. Any `Some(k)` would be right at one mode and a `$M`
-        //     triple one low at the other: six wrong bytes in an obj that still
-        //     links, board #263's shape. This class accepts BOTH modes, so it
-        //     would meet the wrong one immediately. `None` is not conservatism
-        //     here; it is the only value that can be right.
+        //     of `+1`, where the obj says **+2 at `/O1`**. The table is not the
+        //     number for this class at `/Ox`, where it is +3.
+        //  2. **THE CHARGE IS MODE-DEPENDENT** — **2** at `/O1` and **3** at
+        //     `/Ox`/`/O2`, on the same source — and this method has **no mode
+        //     parameter** (`docs/LABEL_COUNTER.md` §7.6 forbids giving it one,
+        //     and forbids a sub-shape parameter with it). Any `Some(k)` is right
+        //     at one mode and a `$M` triple off at the other: six wrong bytes in
+        //     an obj that still links, board #263's shape. This class accepts
+        //     BOTH modes — it is the only one of the five loop shapes that does —
+        //     so it meets the wrong one immediately, and the probe above shows it
+        //     doing exactly that. `None` is not conservatism here; it is the only
+        //     value that can be right.
         //  3. The `for`/`while` confound the two `None`s above rest on does not
         //     arise for this class: the two spellings that emit identical text
-        //     charge identically, and `do/while` — which charges differently —
-        //     is not in the class at all, because c2 does not convert it
-        //     (`wb-loop` P3.4's `cal_dowhile`, reproduced on this lane's own
-        //     cell). So the inherited argument is *absent* and reading 2
-        //     replaces it.
+        //     charge identically — re-confirmed seed-cancelled, `lead_while`
+        //     reading the same integer as `lead_ctr1` at all four modes — and
+        //     `do/while`, which charges differently, is not in the class at all
+        //     because c2 does not convert it (`wb-loop` P3.4's `cal_dowhile`).
+        //     So the inherited argument is *absent* and reading 2 replaces it.
         //
-        // **MUST-FAIL MUTATION, verified**, the same shape as the two above:
-        // replacing this `None` with `Some(self.label_lead() + 1)` turns
+        // **MUST-FAIL MUTATION, verified — and now at THREE modes rather than
+        // one.** Replacing this `None` with `Some(self.label_lead() + 1)` turns
         // `fixtures/cpp/wbdnz_ctr_then_framed_neg.cpp` from `NotImplemented`
-        // into a live `mismatch` against real `c2.dll`, while its separating
-        // control `fixtures/cpp/wbdnz_ctr.cpp` (the same loops with no framed
-        // function beside them) stays `match`.
+        // into a live `mismatch` against real `c2.dll` at `/O1`, `/Ox` **and**
+        // `/O2`, while its separating control `fixtures/cpp/wbdnz_ctr.cpp` (the
+        // same loops with no framed function beside them) stays `match` under
+        // that mutant and under all four others. The claim was shipped in 2026-08
+        // and this is the first thing to re-run it.
+        //
+        // **THE `/Ox` ACCEPTANCE IS LOAD-BEARING AND IT IS NOT FREE TO WITHDRAW.**
+        // `w-slots` proposed retiring this arm by *narrowing the reader to
+        // `/O1`*, on the premise that the class's `/Ox` acceptance was ungraded.
+        // It is graded: 20 of 20 accepted-set cells `match` at four `/Ox`-family
+        // profiles and at `/O2`, 120 gradings, `mismatch` 0
+        // (`fixtures/cpp/wbdnz_ctr.cpp`'s own cross tail). Priced over all 18
+        // gate lanes, `work/w-counted/narrow_probe.sh`: narrowing costs **−8**
+        // fixture-verdicts, one on each mode lane whose optimization word is
+        // `Ox`, and narrowing **plus** installing the `/O1` charge of 2 is still
+        // **−2** net. The proposal at its best withdraws byte-exact output. A
+        // later lane that narrows this reader reddens
+        // `differential_wbdnz_ctr_ox_accepted`, which exists for that reason.
         //
         // **And the SECOND counterfactual is the one that prices the next
-        // rung**: `Some(8)` — the charge this lane actually measured at `/O1` —
-        // does **not** produce a match either. It produces a *refusal*, because
-        // `IlBundle::functions`' gate is `label_slots(false)? != label_lead() +
-        // 1`: the question it asks is not "is the charge right" but "does the
-        // charge agree with what `plan_labels` will advance", and `plan_labels`
-        // advances exactly 1 for a non-framed function. So the seam has **two**
-        // layers, not one — a correct `Some(k)` needs `plan_labels` to learn the
-        // same `k` — and both would additionally have to be mode-aware. That is
-        // three things a later rung owes, and none of them is this one's.
+        // rung**: a `Some(k)` for `k != label_lead() + 1` produces a *refusal*
+        // rather than a match, because `IlBundle::functions`' gate is
+        // `label_slots(false)? != label_lead() + 1`: the question it asks is not
+        // "is the charge right" but "does the charge agree with what
+        // `plan_labels` will advance". The probe above sidesteps that layer the
+        // way `float_walk_loop` did — put the number on `label_lead`, where both
+        // sides read it — so what it measures is the charge and nothing else.
+        // What a later rung still owes is the **mode**: a charge this class can
+        // ship needs `label_lead` to know the optimization word, and §7.6
+        // forbids that today.
         if self.counted_accum_loop.is_some() {
             return None;
         }
