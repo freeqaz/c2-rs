@@ -1,0 +1,10 @@
+M1   predicted RED    got RED    AS REGISTERED
+M2   predicted RED    got RED    AS REGISTERED
+M3   predicted RED    got RED    AS REGISTERED
+M4   predicted RED    got RED    AS REGISTERED
+M5   predicted RED    got RED    AS REGISTERED
+M6   predicted RED    got RED    AS REGISTERED
+M7   predicted GREEN  got GREEN  AS REGISTERED
+M7b  predicted GREEN  got GREEN  AS REGISTERED
+M8   predicted RED    got RED    AS REGISTERED
+M9   predicted RED    got RED    AS REGISTERED
