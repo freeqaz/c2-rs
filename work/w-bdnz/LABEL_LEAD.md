@@ -1,5 +1,56 @@
 # w-bdnz — the LABEL LEAD, measured against the obj
 
+> ### ⚠ REVISED 2026-08-15, lane `w-labeltable` — **THE `$M` COLUMN REPRODUCES; THE `lead` COLUMN IS A COUNTER-GAP ARTIFACT**
+>
+> **Nothing below is rewritten.** The objs are right and the arithmetic over them
+> is not, which is `#3148` in a second file: this instrument differences the
+> framed `$M` **across two TUs**, and a TU's `.gl` label counter depends on its
+> **own source text**. Re-differenced with the seed-cancelling form
+> (`work/w-labeltable/table.py --bdnz`, output `work/w-labeltable/bdnz_o1work.txt`),
+> at this file's own `/O1 /Oi /EHsc /GR`:
+>
+> ```text
+>   cell           counter    real $M   published   SEED-FREE   gap vs lab_ctl
+>   lab_ctl           2540       2556          —          0      +0
+>   lab_forever       2542       2558        +2          0      +2
+>   lab_loop          2545       2563        +7          2      +5
+>   lab_while         2545       2563        +7          2      +5
+>   lab_dowhile       2545       2562        +6          1      +5
+>   lab_goto          2546       2564        +8          2      +6
+>   lab_op            2545       2563        +7          2      +5
+>   lab_uns           2545       2563        +7          2      +5
+> ```
+>
+> **All eight `$M` values reproduce exactly, and every published lead is the
+> seed-free lead plus that cell's own counter gap.**
+>
+> The four readings, scored:
+>
+> 1. ***"§4.2.1's `for` row is not the number for this class"*** — **REFUTED, and
+>    in both terms.** A §4.2.1 surcharge **is** a lead (`plan_labels` charges a
+>    leaf `label_lead + 1`, so `stride 3` is `lead 2`), not `lead 1`; and the obj
+>    says **2**, not 7. **§4.2.1's `for` row and this class's obj AGREE at 2.**
+>    §4.2.1 was independently re-audited row by row on the same day and holds
+>    17 of 17.
+> 2. ***"THE CHARGE IS MODE-DEPENDENT"*** — **SURVIVES**, and it is the reason
+>    this arm's `None` still stands. The same body reads **2** at `/O1` and **3**
+>    at `/Ox` (`bdnz_oxwork.txt`). The **step** this lane measured, `+1`, is
+>    right; only the base was inflated.
+> 3. ***"the `for`/`while` confound does not arise"*** — **SURVIVES.**
+>    `lab_loop` and `lab_while` both read **2**, `lab_dowhile` reads **1**.
+> 4. ***"the charge is constant on both free axes"*** — **SURVIVES.** `lab_op`
+>    and `lab_uns` both read **2**.
+>
+> **And `lab_forever` — the separating control this file nets its locals out
+> with — reads 0, not +2.** Two `int` locals cost the counter nothing, so the
+> *"net of locals it is +5 against +1"* sentence is wrong in both terms.
+>
+> **This table is quoted verbatim into `IlFunction::label_slots`' shipped doc
+> comment**, which is the mechanism `#3148` names: a number published in a
+> `work/` table, quoted into code, never graded by anything, pointing in the
+> direction that keeps a refusal in place. `w-labeltable` is a docs lane and did
+> not edit `crates/`; the correction is filed for the coordinator.
+
 **The commission's instruction was to measure it and not to trust
 `docs/LABEL_COUNTER.md`'s table** — w-json measured its §1.1 surcharge two low
 for a back-edge class. For this class the table read literally is **six low at
