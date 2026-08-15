@@ -176,6 +176,90 @@
 //! `encode_lwzx` added with that module. Board **#1105**'s "eight codegen
 //! refusals" is not thereby wrong; what it does not say, and what a lane sizing
 //! this work needs, is that **none of the eight is an encoder**.
+//!
+//! # Correction, lane `w-fencea`, 2026-08-15 — **invariant 4's STATED RULE AND
+//! ITS ENFORCING LINE QUANTIFY OVER DIFFERENT POPULATIONS, AND FOUR SHIPPED
+//! CLASSES LIVE IN THE GAP**
+//!
+//! Everything above stays as written. What this adds is the reading `w-ir-g`
+//! (#3114) and `w-item-d` (#3119) each paid for separately — **read a rule's
+//! sentence and the line that enforces it apart** — applied to this module's own
+//! rule 2.
+//!
+//! * The **stated rule**, four paragraphs up, quantifies over *bodies*: *"every
+//!   body with a BACKWARD intra-section branch charges the compiler-label
+//!   counter >= +1, 11 of 11"*.
+//! * The **enforcing line**, [`LabelMap::resolve`] invariant 4, quantifies over
+//!   *references routed through this map*.
+//!
+//! Those are not the same population, and the 2026-08-08 correction above
+//! already records the gap without drawing its consequence: [`super::ptr_walk_loop`]
+//! and [`super::ptr_walk_chain_loop`] *"both emit a backward `bc` … neither
+//! carrier routes through this map"*. [`super::json_utf8_copy`] and
+//! [`super::xtea_encrypt_loop`] do the same. **So the enforcing line has never
+//! enforced the stated rule**: four byte-exact classes emit the very thing it
+//! refuses, and it refuses none of them.
+//!
+//! What that leaves invariant 4 doing, from `w-layout` onwards, is **blocking 7
+//! of the 8 residual `BodyLayout` sites** (board **#3144**) at zero counter
+//! benefit — because the counter was never this module's to protect. **Reason
+//! 3, above, says so in its own words**: *"That is where a loop rung's
+//! relaxation belongs; it is not here."*
+//!
+//! ## What replaces it, and why the residual is excluded BY CONSTRUCTION
+//!
+//! Invariant 4 becomes a **per-map admission fixed at construction**, defaulting
+//! to the refusal. [`LabelMap::new`] is unchanged and is [`BackEdge::Refused`],
+//! so **all nine of item A's clients keep exactly the map they have today** and
+//! not one byte of theirs moves. The only way past it is
+//! [`LabelMap::admitting_back_edges`], which takes a [`ChargedClass`] — a
+//! **closed** enum whose every variant is graded, in
+//! [`tests::every_admitted_class_has_a_registered_control_flow_surcharge`],
+//! against `c2_il`'s own three-valued counter gate:
+//!
+//! ```text
+//!   label_slots(false) == None                    => IlBundle::functions refuses
+//!                                                    EVERY TU in which this body's
+//!                                                    $M could be observed at all
+//!                                                    (board #742, Q2 above)
+//!   label_slots(false) == Some(label_lead() + 1)
+//!     and label_lead() >= 1                       => coff::plan_labels ALREADY
+//!                                                    advances the surcharge
+//! ```
+//!
+//! A class that is **neither** — `label_lead() == 0` with `label_slots ==
+//! Some(1)` — is exactly the wrong-`$M` case invariant 4 was built for, and the
+//! test refuses it. The closure is the compiler's: the grading test `match`es
+//! [`ChargedClass`] exhaustively and walks [`ChargedClass::ALL`], so a variant
+//! added without evidence does not compile, and one added without being listed
+//! fails [`tests::the_admitted_class_list_is_complete`].
+//!
+//! ## The charge is a SERIES, not one obj reading (`#3147`)
+//!
+//! `w-slots` established that reading a charge off one cell's obj gives a number
+//! that is right for that cell and wrong as a rule, and that only varying the
+//! structural count separates them. The structural count here is **the number of
+//! admitted-class loop functions in one TU**, and `work/w-fencea/cells/` varies
+//! it over `n = 0, 1, 2, 3` against real `c2.dll`:
+//!
+//! ```text
+//!   loops_0  $M2548  lead +0      ctl_plain_0  +0
+//!   loops_1  $M2564  lead +2      ctl_plain_1  +0
+//!   loops_2  $M2580  lead +4      ctl_plain_2  +0
+//!   loops_3  $M2596  lead +6      ctl_plain_3  +0     ==> 2n, and the four
+//!                                                         plain-leaf controls
+//!                                                         say it is not the
+//!                                                         function count
+//! ```
+//!
+//! All eight cells `match` end to end at `/O1`. `w-fenceb` registered the `2`
+//! from `n = 1` alone; this is the first grading of it at `n >= 2`.
+//!
+//! **What this does NOT do.** It does not model a loop charge — `#3127`'s
+//! hold-out (5 of 15, the loop *kind* is a term no backward-branch feature
+//! vector holds) stands untouched, and no rule of that shape is used or implied
+//! here. It admits exactly the classes whose charge `c2_il` has already
+//! registered and graded, and refuses every other body as before.
 
 use super::select::out_of_class;
 use super::{encode_b_intra, encode_bc};
@@ -221,6 +305,85 @@ impl Form {
     }
 }
 
+/// **The classes whose back edge may be resolved through the map**, and the only
+/// values [`BackEdge::ChargedAtIl`] can carry.
+///
+/// This enum is the admission set for invariant 4, and it is **closed**: every
+/// variant is graded against `c2_il`'s own three-valued counter gate by
+/// [`tests::every_admitted_class_has_a_registered_control_flow_surcharge`],
+/// whose `match` is exhaustive, and [`Self::ALL`] is checked complete by
+/// [`tests::the_admitted_class_list_is_complete`]. A class that wants in has to
+/// bring a registered surcharge or it does not compile; a class with
+/// `label_lead() == 0` is refused by the grading test itself, because that is
+/// precisely the wrong-`$M` case invariant 4 exists for.
+///
+/// **The variant does not carry a number**, deliberately. `#3148` records three
+/// published label numbers that drifted because they lived in a second place;
+/// the charge lives in `c2_il::IlFunction::label_lead` and is read from there by
+/// the test, never copied here.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ChargedClass {
+    /// `c2_il::PtrWalkModLoop` — `label_lead` **2**, board **#746** fence B
+    /// lifted by lane `w-fenceb`, and the `2n` series above.
+    PtrWalkModLoop,
+    /// `c2_il::XteaEncryptLoop` — `label_lead` **4** (lane `w-xtea3`), and
+    /// `label_slots` falls through to `label_lead() + 1`.
+    XteaEncryptLoop,
+    /// `c2_il::PtrWalkChainLoop` — `label_slots` is **`None`**, so
+    /// `IlBundle::functions` refuses every TU in which this body's `$M` could be
+    /// observed. Admitted by the second arm of the rule, not the first: the
+    /// charge is *undetermined*, and the TU-level gate is what makes that safe.
+    PtrWalkChainLoop,
+}
+
+impl ChargedClass {
+    /// Every variant. Kept beside the enum and checked complete by a test — a
+    /// list nobody grades is how an admission set silently grows.
+    pub const ALL: [ChargedClass; 3] = [
+        ChargedClass::PtrWalkModLoop,
+        ChargedClass::XteaEncryptLoop,
+        ChargedClass::PtrWalkChainLoop,
+    ];
+
+    /// The `c2_il` shape this class is recognized by. Diagnostic and test text
+    /// only.
+    pub fn il_shape(self) -> &'static str {
+        match self {
+            ChargedClass::PtrWalkModLoop => "c2_il::PtrWalkModLoop",
+            ChargedClass::XteaEncryptLoop => "c2_il::XteaEncryptLoop",
+            ChargedClass::PtrWalkChainLoop => "c2_il::PtrWalkChainLoop",
+        }
+    }
+}
+
+/// **Invariant 4's admission**, fixed when the map is built.
+///
+/// Three clients' worth of history is in this module's `w-fencea` correction.
+/// The short form: the enforcing line quantifies over references routed through
+/// this map, the stated rule quantifies over bodies, and the counter is
+/// `c2_il::IlFunction::label_slots`' business and not this map's. So the map
+/// stops pretending to be a counter gate and starts being what it is — a fixup
+/// pass that will resolve a back edge **only** for a body whose class has
+/// already been graded through the counter gate.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum BackEdge {
+    /// Invariant 4 as written and as measured. [`LabelMap::new`]'s value, and
+    /// every existing client's.
+    #[default]
+    Refused,
+    /// Admitted, for a body of this class and no other.
+    ChargedAtIl(ChargedClass),
+}
+
+impl BackEdge {
+    /// Whether a **strictly** backward reference may be patched. A
+    /// zero-displacement self reference is refused under every value — see
+    /// [`LabelMap::resolve`] invariant 4.
+    pub fn admits(self) -> bool {
+        matches!(self, BackEdge::ChargedAtIl(_))
+    }
+}
+
 /// One pending reference: the `.text` offset of the placeholder word, the label
 /// it names, and which encoding to patch it with.
 struct Ref {
@@ -251,11 +414,32 @@ pub struct LabelMap {
     /// re-derive.
     names: Vec<&'static str>,
     refs: Vec<Ref>,
+    /// Invariant 4's admission for **this body**. `Refused` by default, which is
+    /// what [`Self::new`] gives and what every client had before lane
+    /// `w-fencea`.
+    back_edge: BackEdge,
 }
 
 impl LabelMap {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// A map for a body of `class`, whose **strictly backward** references
+    /// [`Self::resolve`] will patch instead of refusing.
+    ///
+    /// The argument is a [`ChargedClass`] rather than a `bool` because the
+    /// question invariant 4 is really asking is *"has this body's control-flow
+    /// label surcharge been through the counter gate"*, and that is a property
+    /// of a class, graded in `c2_il`. See this module's `w-fencea` correction.
+    pub fn admitting_back_edges(class: ChargedClass) -> Self {
+        Self { back_edge: BackEdge::ChargedAtIl(class), ..Self::default() }
+    }
+
+    /// This map's admission. Read by [`super::block_ir::BodyLayout`] only to
+    /// pass it on; nothing re-derives it.
+    pub fn back_edge(&self) -> BackEdge {
+        self.back_edge
     }
 
     /// Mint a fresh, undefined label. `name` appears in refusal text only.
@@ -319,9 +503,12 @@ impl LabelMap {
     /// 3. **The site still holds the zero placeholder.** A caller that wrote
     ///    over its own fixup site would otherwise get a branch patched on top of
     ///    an instruction.
-    /// 4. **The reference is FORWARD** — see the module header. This is the
-    ///    `coff/` rule, and it is the reason this method exists as a gate rather
-    ///    than as a loop.
+    /// 4. **The reference is FORWARD, unless this map was built for a
+    ///    [`ChargedClass`]** — see the module header, and its `w-fencea`
+    ///    correction for why the admission exists and why the default is
+    ///    unchanged. A **zero-displacement** self reference is refused under
+    ///    every admission: it is a branch to itself, not a back edge, and no
+    ///    measured c2 body carries one.
     /// 5. **The displacement fits the form's field.** `CFG_SHAPE.md` §3.3.1's
     ///    long-branch expansion (invert the condition, branch over an
     ///    unconditional `b`) is measured and **not built** — no fixture body is
@@ -349,7 +536,11 @@ impl LabelMap {
                      something was emitted over a pending branch",
                 ));
             }
-            if target <= r.at {
+            // **Invariant 4.** `target < r.at` is a back edge and is admitted
+            // only for a [`ChargedClass`]; `target == r.at` is a
+            // zero-displacement self reference and is refused under every
+            // admission, which is what the `<=` here rather than `<` is for.
+            if target <= r.at && !(self.back_edge.admits() && target < r.at) {
                 // §1.4 of `work/w-label/PREREG.md`: >= +1 on the compiler-label
                 // counter in 11 of 11 measured cells, and `coff::plan_labels`
                 // charges 0. Emitting this would be a wrong `$M` for this
@@ -370,7 +561,16 @@ impl LabelMap {
                     self.names.get(r.label.0).copied().unwrap_or("?")
                 )));
             }
-            let disp = (target - r.at) as i32;
+            // Signed, and computed in `i64` before it narrows: with a back edge
+            // admitted, `target - r.at` in `usize` is an underflow that would
+            // wrap to a colossal positive displacement — which `encode_bc`
+            // would then refuse for being out of field, so the bug would read
+            // as a range refusal rather than as arithmetic. A `.text` section
+            // cannot reach `i32::MAX`, so the narrowing is total in practice
+            // and is written as a `try_from` rather than an `as` anyway.
+            let disp = i32::try_from(target as i64 - r.at as i64).map_err(|_| {
+                out_of_class("a label displacement outside a 32-bit .text offset")
+            })?;
             let word = r.form.encode(disp).ok_or_else(|| {
                 out_of_class(&format!(
                     "a `{}` past its displacement field: the long-branch \
@@ -535,6 +735,179 @@ mod tests {
         assert_eq!(m.pending(), 0);
         m.resolve(&mut t).unwrap();
         assert_eq!(&t[..], &[0x38, 0x60, 0x00, 0x05]);
+    }
+
+    // ---- lane `w-fencea`: invariant 4's admission ---------------------------
+
+    /// **The admission set is CLOSED, and this is the line that closes it.**
+    ///
+    /// For every [`ChargedClass`] — the `match` is exhaustive, so a new variant
+    /// does not compile until it is answered here — build the `IlFunction` that
+    /// carries only that shape and read `c2_il`'s **own** three-valued counter
+    /// gate off it. One of exactly two things has to hold, and a class that is
+    /// neither is the wrong-`$M` case invariant 4 was built for:
+    ///
+    /// 1. `label_slots(false) == None` — `IlBundle::functions` refuses every TU
+    ///    in which this body's `$M` could be observed (board #742's Q2: 34 of 34
+    ///    leaf-only TUs mint zero labels);
+    /// 2. `label_slots(false) == Some(label_lead() + 1)` with `label_lead() >=
+    ///    1` — `coff::plan_labels` already advances the surcharge.
+    ///
+    /// **No number is copied into this crate.** The lead is read from
+    /// `IlFunction::label_lead`, which is the one place it lives — `#3148`
+    /// records three published label numbers that drifted because a second copy
+    /// existed.
+    #[test]
+    fn every_admitted_class_has_a_registered_control_flow_surcharge() {
+        use c2_il::{ChainOp, ChainOpKind, ChainRhs, PtrWalkChainLoop, PtrWalkModLoop, XteaEncryptLoop};
+        for class in ChargedClass::ALL {
+            let mut f = crate::codegen::testutil::func_with(vec![0x09EA, 0x09EB], Vec::new());
+            match class {
+                ChargedClass::PtrWalkModLoop => {
+                    f.ptr_walk_loop = Some(PtrWalkModLoop {
+                        params: vec![0x09EA, 0x09EB],
+                        acc_init: 0,
+                        mul_k: 127,
+                    })
+                }
+                ChargedClass::XteaEncryptLoop => {
+                    f.xtea_encrypt_loop = Some(XteaEncryptLoop {
+                        callee: "?Encipher@XTEABlockEncrypter@@AAA_K_KPAI@Z".to_string(),
+                        key_off: 16,
+                        nonce_off: 0,
+                        trips: 2,
+                    })
+                }
+                ChargedClass::PtrWalkChainLoop => {
+                    f.ptr_walk_chain_loop = Some(PtrWalkChainLoop {
+                        params: vec![0x09E3],
+                        acc_init: 0,
+                        elem_unsigned: false,
+                        ops: vec![ChainOp { kind: ChainOpKind::Add, rhs: ChainRhs::Char }],
+                    })
+                }
+            }
+            let slots = f.label_slots(false);
+            let lead = f.label_lead();
+            // `plan_labels` advances `label_lead + 4` for a framed function
+            // (5 under `/Gy`, its own `$M`/`$M`/`$T` triple) and `label_lead +
+            // 1` otherwise. **Both already contain the class's surcharge**, so
+            // the frame class decides the constant and never whether the
+            // surcharge is charged. `xtea_encrypt_loop` is framed and
+            // `ptr_walk_loop` is not, which is why this arm is written over the
+            // predicate rather than assuming one of them.
+            let ok = match slots {
+                // Arm 2: the TU-level gate refuses every observable TU.
+                None => true,
+                // Arm 1: `plan_labels` already advances the surcharge, and it
+                // is a REAL surcharge — a lead of 0 is the defect, not the
+                // evidence.
+                Some(k) => lead >= 1 && k == lead + if f.is_framed() { 4 } else { 1 },
+            };
+            assert!(
+                ok,
+                "{} is admitted past invariant 4 with label_slots(false) = {slots:?}, \
+                 label_lead() = {lead}, framed = {}: neither `None` (the TU gate refuses \
+                 every observable TU) nor a NON-ZERO lead that `plan_labels` already \
+                 advances. That is exactly the wrong-$M case invariant 4 exists for",
+                class.il_shape(),
+                f.is_framed()
+            );
+        }
+    }
+
+    /// [`ChargedClass::ALL`] really is all of them. Written as an exhaustive
+    /// `match` returning an index, so that a variant added without being listed
+    /// fails here rather than quietly leaving the grading test above with a
+    /// smaller set than the enum.
+    #[test]
+    fn the_admitted_class_list_is_complete() {
+        fn index(c: ChargedClass) -> usize {
+            match c {
+                ChargedClass::PtrWalkModLoop => 0,
+                ChargedClass::XteaEncryptLoop => 1,
+                ChargedClass::PtrWalkChainLoop => 2,
+            }
+        }
+        assert_eq!(ChargedClass::ALL.len(), 3);
+        for (i, c) in ChargedClass::ALL.iter().enumerate() {
+            assert_eq!(index(*c), i, "{} is out of place in ALL", c.il_shape());
+        }
+    }
+
+    /// **The admission actually patches a back edge, to its true negative
+    /// displacement** — `ptr_walk_loop`'s own `-48`, which is the word
+    /// `4082ffd0` that `work/w-hash/Sort.obj` carries.
+    ///
+    /// The displacement is `LabelMap`'s and nothing in this test computes it.
+    #[test]
+    fn an_admitted_back_edge_resolves_to_its_true_negative_displacement() {
+        let mut m = LabelMap::admitting_back_edges(ChargedClass::PtrWalkModLoop);
+        let top = m.mint("loop-top");
+        let mut t = Vec::new();
+        m.define(top, &t).unwrap(); // the loop top is at 0
+        t.resize(48, 0x60); // twelve words of body
+        m.reference(&mut t, top, Form::Bc { bo: 4, bi: 2 }); // at 48, target 0
+        m.resolve(&mut t).unwrap();
+        assert_eq!(&t[48..52], &[0x40, 0x82, 0xff, 0xd0]);
+    }
+
+    /// …and the **default** map is unchanged, on the identical body. This is the
+    /// pair that says the admission is the only thing that moved.
+    #[test]
+    fn the_same_back_edge_through_a_default_map_is_still_refused() {
+        let mut m = LabelMap::new();
+        assert_eq!(m.back_edge(), BackEdge::Refused);
+        let top = m.mint("loop-top");
+        let mut t = Vec::new();
+        m.define(top, &t).unwrap();
+        t.resize(48, 0x60);
+        m.reference(&mut t, top, Form::Bc { bo: 4, bi: 2 });
+        let s = format!("{:?}", m.resolve(&mut t).unwrap_err());
+        assert!(s.contains("BACKWARD"), "{s}");
+        assert!(s.contains("plan_labels"), "{s}");
+    }
+
+    /// **A zero-displacement self reference is refused even under an
+    /// admission.** A branch to its own word is not a back edge, and no measured
+    /// c2 body carries one — this is what the `<=` rather than `<` in invariant
+    /// 4 still buys after the lift.
+    #[test]
+    fn a_self_reference_is_refused_even_for_an_admitted_class() {
+        let mut m = LabelMap::admitting_back_edges(ChargedClass::PtrWalkModLoop);
+        let l = m.mint("self");
+        let mut t = Vec::new();
+        m.define(l, &t).unwrap();
+        m.reference(&mut t, l, Form::B);
+        let s = format!("{:?}", m.resolve(&mut t).unwrap_err());
+        assert!(s.contains("BACKWARD"), "{s}");
+    }
+
+    /// The displacement range check reaches a **backward** reference too. A
+    /// `bc` 40,000 bytes back is as far out of the `BD` field as one 40,000
+    /// bytes forward, and the refusal still names §3.3.1's unbuilt expansion
+    /// rather than truncating — the arithmetic being signed is what this asserts.
+    #[test]
+    fn a_backward_bc_past_its_field_is_refused_with_the_expansion_named() {
+        let mut m = LabelMap::admitting_back_edges(ChargedClass::PtrWalkModLoop);
+        let top = m.mint("far-back");
+        let mut t = Vec::new();
+        m.define(top, &t).unwrap();
+        t.resize(40_000, 0x60);
+        m.reference(&mut t, top, Form::Bc { bo: 4, bi: 2 });
+        let s = format!("{:?}", m.resolve(&mut t).unwrap_err());
+        assert!(s.contains("displacement field"), "{s}");
+        assert!(s.contains("3.3.1"), "{s}");
+        // …and the same distance IS in range for the wider `LI` field, which is
+        // what makes this a statement about the field and not about the sign.
+        let mut m2 = LabelMap::admitting_back_edges(ChargedClass::PtrWalkModLoop);
+        let top2 = m2.mint("far-back");
+        let mut t2 = Vec::new();
+        m2.define(top2, &t2).unwrap();
+        t2.resize(40_000, 0x60);
+        m2.reference(&mut t2, top2, Form::B);
+        m2.resolve(&mut t2).unwrap();
+        assert_eq!(&t2[40_000..40_004], &(0x4800_0000u32 | (-40_000i32 as u32 & 0x03FF_FFFC)).to_be_bytes());
     }
 
     /// A label minted by one map and used against another is caught rather than
