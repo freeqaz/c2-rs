@@ -1,0 +1,10 @@
+cell                                toks EXPR reach   LOO margin
+neither removed (the full 52)         52     88806            0
+op:B9 removed                         51     88806            0
+type   removed                        51     88806            0
+BOTH removed                          50     81428         7378
+
+Each single-removal row IS that token's leave-one-out margin: 0 and 0.
+Sum of the two marginals = 0.  Joint cost = 7,378 of 88,806 (8.3%).
+Denominator: 88,806, the full-52-token expression reach, of 120,456
+blocked emitted functions over 878 TUs -- COUNTERFACTUAL (PREREG D1).

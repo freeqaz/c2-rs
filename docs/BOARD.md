@@ -3041,3 +3041,78 @@ numbers are minted.
 > already contradicted. **The cheap general fix is `#3125`'s: name the
 > denominator in the same breath as the numerator, in the prereg, before the
 > run.**
+
+
+---
+
+## `w-loo` — **MINTED `#3135`–`#3140`**
+
+The leave-one-out re-score of every token-addressable published ranking
+([`rungs/2026-08-15-loo.md`](rungs/2026-08-15-loo.md)), dispatched off `#3131`'s
+found-and-not-taken (*"re-running the published ladders as leave-one-outs is a
+lane, and `loo.py` is 30 lines"*). Drafted lettered `LO-a`…`LO-f`; the mapping
+is **(A) → `#3135`**, **(B) → `#3136`**, **(C) → `#3137`**, **(D) → `#3138`**,
+**(E) → `#3139`**, **(F) → `#3140`**. `#3135`–`#3139` in Done, `#3140` Open.
+
+> **The free range was re-read in the same edit that spends it** (`#3117`'s
+> rule, and `w-read2`'s practice): at this tip the highest row on the board is
+> **`#3134`** and `master` is **`ba23e8c3`**, unmoved. **`w-layout` and
+> `w-slots` are STILL IN FLIGHT and were both told not to mint**, so this lane
+> is the only allocator and the range is uncontended.
+>
+> **The next free number is `#3141`.** This block is appended at the **bottom**
+> per `2026-08-14-irg.md` §8.5 — an appended free-range block landing *above* a
+> peer's makes the last block a reader reaches hand out a dead number, a
+> semantic conflict `git`, `board_audit.sh` and the gate are all blind to.
+> **The `w-item-d` block above is still UNNUMBERED and hands out no number;
+> read this block for the free number, not that one.**
+
+| row | claim | state | evidence |
+|---|---|---|---|
+| **3135**<sub>w-loo</sub> | **`LADDER B` — THE CLASS-WIDE GREEDY LADDER THE ROADMAP'S WIDENING ORDER IS BUILT ON — DOES NOT MERELY RANK BADLY AND DOES NOT INVERT. IT CORRELATES WITH THE MARGINAL TRUTH AT `rho = +0.047`, WHICH IS NOT A WEAK SIGNAL BUT NO SIGNAL: THE RANKING CARRIES *NO INFORMATION AT ALL*, AND IT HAS BEEN STEERING DISPATCH** | **DONE — instrument, 53 scans** | **MEASURED.** `readphase` §3's greedy per-round delta vs this lane's leave-one-out margin over the 13 granted tokens: **`rho = +0.047`**. **"Fails" is the wrong word and the right one is stronger: an INVERSION would mean the greedy ranking carries information BACKWARDS, and a merely inverted ranking is still a signal you could read upside down. `rho ≈ 0` is NOISE.** **13 of 13** items outside a 2× magnitude band; greedy #1 **`op:BD`** (+26,051 of 41,762) vs LOO #1 **`op:4C`** (**76,409** of 88,806). **`intrinsic` bought `+5,023` greedily for a margin of EXACTLY `0`.** **Two of the thirteen greedy deltas are NEGATIVE** (`op:55` −3,656, `op:26` −9,373) — `readphase` published a ladder whose reach goes *down* on two rungs and the widening order still named those rungs as the next thing to grant. Σ greedy deltas **36,680**; Σ margins **468,571** — **12.8×**. Discriminating cells **13 of 13** | rungs/2026-08-15-loo.md §1.1, §3 · readphase §3 · #1365 · #3131 | **`#1365` said this sentence about ONE row two weeks ago** — *"a greedy blocker ladder credits whichever key the OTHER sinks have exposed"* — **and nothing generalised it.** Denominators, stated as required: the greedy column is of **41,762** (Ladder B's own round-13 reach) and the LOO column of **88,806** (the 52-token ceiling reach), **both counterfactual** |
+| **3136**<sub>w-loo</sub> | **A LADDER NEVER SCORES WHAT IT STARTS WITH — AND THE FOUR MOST VALUABLE TOKENS ON THE ENTIRE EXPRESSION LAYER ARE IN LADDER B's OWN SEED, EACH WORTH THE WHOLE 88,806, BEATING ALL THIRTEEN IT CHOSE** | **DONE — and it is DOCTRINE, because it is the SECOND independent route to `#3131`** | **MEASURED.** `readphase` §3 grants a nine-token scaffold free at round 0 and ranks only the thirteen it then picks. **`op:4F`, `op:54` and `op:29` each read `88,806` of `88,806` — the WHOLE expression-layer reach** — and `op:3A` **88,805**, against a best-of-the-ranked of `op:4C` **76,409**. `op:4B` **67,726** and `op:41` **60,167** also beat greedy champion `op:BD` **63,967**: **six of the nine seed tokens outrank the ladder's own best pick.** Subset cells prove the seed is load-bearing rather than merely first-in-line: removing the whole scaffold from the 52-token ceiling → reach **0**; removing just `{op:54, op:3A}` → **0** | rungs/2026-08-15-loo.md §1.2, §4 · read2 §5.3 · #3131 · w-one §2 | **TWO INDEPENDENT MECHANISMS, SAME THREE TOKENS, SAME CONCLUSION — which is what makes it doctrine rather than an anecdote.** `#3131`: *a terminator is never a first blocker*, so a **mass** ranking cannot name one. This row: *a ladder never scores what it starts with*, so a **greedy** ranking cannot name one either. And **`w-one` §2 has been SUBTRACTING a named `SCAFFOLD` set (`op:41 29 3A 4B 4F 53 54`) for two weeks rather than scoring it** — the repo knew exactly which tokens were seeds and treated that as a reason to remove them from the count |
+| **3137**<sub>w-loo</sub> | **THE EMITTED WIDENING ORDER FAILS ONE STEP UPSTREAM OF ITS CORRELATION: 19.0 % OF ITS HEAD NAMES THINGS THAT ARE NOT GRANTABLE AT ALL, AND THE REST COLLAPSES ONTO FOUR TOKENS** | **DONE** | **MEASURED at base, 878 TUs.** Of the top 20 rows of `CEILING` §3.1 / `readphase` §0's **615 keys over 113,612** functions: **8 map to no grantable token** (`expr-call-in-expr-*`, `expr-brfalse`, `expr-cmp-eq`, `expr-brtrue` — **21,583 fns, 19.0 %**), and the **12** that do collapse onto **4** distinct tokens (`op:27`, `intrinsic`, `op:29`, `op:9B`). `rho = +0.000`; 3 of 4 outside the 2× band; discriminating cells 4 of 4 | rungs/2026-08-15-loo.md §1.3, §5 · CEILING §3.1 · #1333 | **The correlation is the least of it. A ranking exists to say what to do next; a ranking whose head names things that cannot be granted is not a plan that ranks badly — it is not a plan.** §3.1 already warns it is *"a driver, never a forecast"*; this measures **why**, and the reason is structural rather than statistical |
+| **3138**<sub>w-loo</sub> | **THE ONLY PUBLISHED RANKING DENOMINATED IN SOMETHING THAT SHIPS IS UNCORRELATED WITH EVERY REACH RANKING — AND THE CEILING THAT MAXIMISES REACH *DE-ACCEPTS*** | **DONE** | **MEASURED.** `w-deaccept` §2 sinks one token from the *accepting reader* and counts **`fnbyte-exact` of 35,734** — the only base-denominated ranking in the 19-item inventory; every other is a counterfactual reach. Against this lane's reach LOO: **`rho = +0.038`**, **39 of 49** outside the band, **5** nonzero vs **37** nonzero, **overlap 3**. **`op:33` + `op:B9` = 7,124 REAL `fnbyte-exact` functions at 0 reach**; **`op:29` + `op:3A` + `op:4F` = 266,417 of reach at 0 real functions.** And the 52-token ceiling that maximises reach reads **`match` 18** and **`fnbyte-exact` 29,785** against a base of 25 and 35,734 — **it DE-ACCEPTS 5,949** | rungs/2026-08-15-loo.md §1.4, §6.1, §7 · deaccept §2 | **Every ladder in `docs/` is denominated the way that correlates with nothing that ships.** `w-deaccept` §2 was *already structurally a leave-one-out* and nobody had noticed. **Reach does not imply emission — at the ceiling it moves AGAINST it**, which is condition 3 of the five in `#3140` |
+| **3139**<sub>w-loo</sub> | **THE REPLACEMENT INSTRUMENT PUBLISHES ITS OWN BLIND SPOT IN THE SAME BREATH AS ITS VERDICT: `op:B9` AND `type` EACH HAVE A LEAVE-ONE-OUT MARGIN OF EXACTLY 0, AND REMOVING BOTH COSTS 7,378 — LOO's ZEROS DO NOT COMPOSE** | **DONE — 47 scans, and it is a FIXED POINT** | **MEASURED, not conceded.** The **15** margin-0 tokens of the 52 are **jointly worth 40,917 of 88,806 (46.1 %)**. Minimized 15 → 9 → **2**: `op:B9` alone **0**, `type` alone **0**, **sum 0**, **both 7,378 (8.3 %)** — and returning *either* takes the cost straight back to 0. All eight subsets of `{type,convert,intrinsic}` cost 0 (kept as a negative). **CONSEQUENCE, and it is the row's point: `IL_STMT_GRAMMAR` §14.2 STEP 6 STAYS UNPRICED.** `type`'s margin of 0 is **this instrument's blind spot, not a fact about `type`** — **the one step a re-score would most confidently demote is precisely the token the re-scorer is PROVEN blind to**, so the lane declined to demote it | rungs/2026-08-15-loo.md §1.6, §5.1, §6.3 · read2 §5.3 · #3131 | **The exact mirror of `#3131`.** *There*: three tokens each worth the whole reach, any two worth nothing — invisible to a **GREEDY** ladder. *Here*: two tokens each worth nothing, jointly worth thousands — invisible to a **LEAVE-ONE-OUT**, because LOO removes exactly one. **Neither instrument is the right one; they are blind in complementary directions, and the repo now has a measured example of each.** The bound was established **BEFORE** the instrument was used to rank anything (PREREG §4, frozen at `da72bfc0`) |
+| **3140**<sub>w-loo</sub> | (OPEN) **THREE INDEPENDENT RE-SCORES AGREE ON NOTHING — `rho` = +0.047, +0.000, +0.038 — AND THE LANE DELIBERATELY DID NOT DISPATCH THE ONE ROW POINTING AT SOMETHING THAT SHIPS. THE REFUSAL IS THE RESULT, NOT AN OMISSION** | **OPEN — recorded and refused, on purpose** | **MEASURED.** The only survivor of the 19-item inventory is `w-ladders` §2's **`lb`** column (net **154** → lb **147**, **−4.5 %**; hatched 183 → **171**, −6.6 %, `#1466`) — and **it survives NARROWLY AND FOR A STATED REASON: its items and its denominator are the same object** (rungs of that TU's ladder, counted against that TU's ladder), so it can see an inert rung and **cannot** see a seed token or a cross-token conjunction. `w-ladders` §3 prints **"CODEGEN, both = NO COLUMN"** on all sixteen rows. **§7 lists FIVE things that would have to be true for any ranking here to forecast a conversion** — goal denominator · items that are actions · reach implying emission · robustness to interaction · order stable across instruments — **and NONE is established** | rungs/2026-08-15-loo.md §7, §6.2, §11 · #1466 · #500 | **Three instruments agreeing on nothing is not three noisy measurements of one order — it is evidence there is no order to measure.** **`#3138`'s `op:33`+`op:B9` — 7,124 real `fnbyte-exact` functions — is the one row on the page pointing at something that ships, and this lane DID NOT DISPATCH IT.** Dispatching off a mass ranking is the move this repo is **0 for 4** on, with three independent ordinal graveyards (11 refuted selectors, 12 refuted placement rules, 12-deep allocation keys). **A better ranking is not a licence to trust it. RECORDING THE ROW AND REFUSING IT IS THE DELIVERABLE**, and the next reader should read the refusal as the finding rather than as work left undone. **No ranking in this repo — greedy, marginal, or this lane's — has ever forecast a conversion** |
+
+> ### The prior art was in the tree the whole time, and it was a table of the exact phenomenon
+>
+> **`IL_DECODE_REACH.md` §5 has been a published SUPER-ADDITIVITY TABLE for four
+> months** — `67` alone **+0**, `67`+`9A` **+37,639**, `64` alone +119,547, all
+> three +188,794, with **31,608 bodies needing both** `67` and `9A` — **and
+> nobody generalised it.** Not `w-readphase`, not `w-read2`, not the widening
+> order, not this lane's brief. `#3131`'s conjunction and `#3139`'s
+> non-composing zeros are both that table's phenomenon, re-derived twice by two
+> instruments on two populations.
+>
+> This is the **fifth** instance of the pre-brief-grep rule failing, and the
+> **first where the prior art was not a scattered remark but a TABLE OF THE
+> EXACT PHENOMENON**, published, cited elsewhere, and sitting in `docs/`. The
+> rule has been "grep before dispatching"; the failure mode this instance adds
+> is that **the grep terms a lane is given describe its own framing, not the
+> phenomenon** — a lane dispatched to re-score *ladders* will not grep for
+> *decode variants*.
+>
+> ### And the lane's worst prereg miss is the lane's own subject matter
+>
+> **`E6`: predicted `op:27`'s leave-one-out margin at `< 1,000` (p = 0.60),
+> reasoning from board `#1333` — *"the board's #1 row, worth +8 emitted
+> functions"*. It is `34,018` of `88,806`, the sixth-largest margin on the
+> layer.** I let a published number about **EMITTED FUNCTIONS** set my
+> expectation for a **REACH** margin: **the exact denominator confusion this
+> lane was dispatched to find, committed by the lane finding it**, and caught
+> only because the prereg had been frozen first. That is worth more than the
+> four hits around it, and it is why `#3125`'s cheap general fix — name the
+> denominator in the same breath as the numerator, in the prereg, before the
+> run — is the one this lane most needed.
+>
+> **`E9` also missed and the miss is the stronger result:** an inversion was
+> registered at p = 0.30 because an inversion is the memorable outcome. Ladder B
+> does not invert. **No relationship is the worse finding and the harder one to
+> explain away, and it had been assigned no probability mass of its own.**
+>
+> PREREG `work/w-loo/PREREG.md`, frozen at **`da72bfc0`** before the first
+> re-scoring run: **29 predictions, 25 hits, 4 misses** (`E6`, `E9`, `V2`,
+> `V3`). Four mutants RED plus one green control; 105 scans, `mismatch` 0 in
+> every one; `crates/` + `scripts/` byte delta **literally zero**.

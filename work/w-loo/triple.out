@@ -1,0 +1,13 @@
+full ceiling MINUS...                       EXPR  joint cost
+(nothing -- the full set)                  88806           0
+{type}                                     88806           0
+{convert}                                  88806           0
+{intrinsic}                                88806           0
+{type,convert}                             88806           0
+{type,intrinsic}                           88806           0
+{convert,intrinsic}                        88806           0
+{type,convert,intrinsic}                   88806           0
+
+Each single-token row is that token's LEAVE-ONE-OUT MARGIN.
+Denominator: 88,806, the full-52-token expression reach, of 120,456
+blocked emitted functions over 878 TUs -- COUNTERFACTUAL (PREREG D1).
