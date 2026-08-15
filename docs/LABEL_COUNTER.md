@@ -395,6 +395,32 @@ numbers are §4's exactly.
 column a re-derivation is most likely to drop, because a probe that has no helper
 pair does not need it and every probe *with* a loop does.
 
+> ### ✅ RE-DERIVED 2026-08-15, lane `w-labeltable` — **THE TRAP FIRES ON DEMAND, AND §4's ROWS ARE 6 OF 6**
+>
+> This warning is now a *reproduction*, not a caution. Six framed probes through
+> §4's own instrument (`work/w-labeltable/framed_o1.txt`), with the `naive`
+> column printed beside the corrected one so the trap is visible rather than
+> described:
+>
+> ```text
+>   row              pub stride  minted   NAIVE  corrected | verdict
+>   cf-if              0      5       5       0          0 | AGREES
+>   cf-while           2      9       7       4          2 | AGREES
+>   cf-dowhile         1      8       7       3          1 | AGREES
+>   cf-for             2      9       7       4          2 | AGREES
+>   cf-fornest         4     11       7       6          4 | AGREES
+>   cf-goto-back       1      8       7       3          1 | AGREES
+> ```
+>
+> **The `NAIVE` column reads `for` +4 and nested +6 — the exact two numbers the
+> paragraph above says a fresh worktree gets and believes.** Every loop-bearing
+> row is `minted 7` against the `if` row's 5, so the naive reading is uniformly
+> `+2` high, and `stride − minted` recovers §4's published value on all six.
+>
+> So the re-derivation hazard is **a constant `+2` on exactly the rows that
+> spill**, and it is now something an instrument prints rather than something a
+> reader has to remember.
+
 ---
 
 ## 4.1 The control-flow surcharge is derivable from NEITHER the obj NOR the seed
@@ -488,6 +514,67 @@ no `.pdata`, and not one `$M`.
 
 ### 4.2.1 A leaf loop charges the counter, by the same integers
 
+> ### ✅ RE-AUDITED 2026-08-15, lane `w-labeltable` — **ALL 17 ROWS HOLD, AND THE `leaf-ptrwalk` ROW IS NOT ONE HIGH**
+>
+> **The whole table below reproduces, exactly, against the oracle**, on **two
+> independent seed-free instruments**, as a **series** rather than as one cell
+> per row (`#3147`): `work/w-labeltable/table.py`, output in
+> `work/w-labeltable/rows_o1.txt`.
+>
+> ```text
+>   17 of 17 rows AGREE          16 of 18 series discriminating (L(n) varies with n)
+>   50 mutant reds, 0 greens     18 of 18 separating controls green at EXACTLY 0 labels
+>   instrument disagreements: 0 of 18
+> ```
+>
+> Every row was measured at `n = 1, 2, 3` copies of the probe body in one TU.
+> **Every row fits `L(n) = k·n` with intercept `c = 0` and residual 0** — so
+> unlike `w-slots`' float loop, no slot in this table belongs to the translation
+> unit, and reading one cell would have been right here. That is a *result of
+> varying `n`*, not a reason not to have varied it.
+>
+> **The contested row is settled, and it settles the other way.**
+> `#3091`/`#3126` corrected two sites that quoted `+3` at `IlFunction::
+> ptr_walk_loop`, whose lead is **2**, and `w-fenceb` §6 item 3 deliberately left
+> this row alone because *"whether it is wrong or merely a different shape is a
+> measurement nobody has made"*. **It is a different shape.** Run in the same
+> obj, by the same instruments, in the same run:
+>
+> ```text
+>   leaf-ptrwalk   int P(const char* s){ … for (const char* p=s; *p; p++) r=r+*p; }   3
+>   ?HashString    … for (unsigned char *u=(unsigned char*)str; *u!=0; u++) …          2
+> ```
+>
+> and the separating token is **the signedness of the loaded byte**, measured on
+> a 5-cell ladder that walks one body into the other one token at a time
+> (`work/w-labeltable/ladder_o1.txt`):
+>
+> ```text
+>   pw0-signed    const char*                         3 | 6 |  9      k = 3
+>   pw1-unsigned  const unsigned char*                2 | 4 |  6      k = 2   <== THE STEP
+>   pw2-ne0       …and `*p != 0`                      2 | 4 |  6      k = 2
+>   pw3-mul       …and `r = *p + r*0x7F`              2 | 4 |  6      k = 2
+>   pw4-mod       …and `% i`  (= ?HashString)         2 | 4 |  6      k = 2
+> ```
+>
+> **One token, one slot, and the other three steps are flat.** The two objs are
+> the same **40 bytes long** and differ in block structure, not in size: the
+> signed form guards the loop with an unconditional `b .+12` into the body and
+> closes on `extsb.`, the unsigned form returns early through `bclr 12,2` and
+> closes on `mr.`. That coincidence with *"one slot per unconditional
+> intra-section `b`"* is recorded and **is not a rule** — `w-vsnprnc` refuted
+> exactly that rule on two spellings emitting the identical thirty-eight words
+> and charging 1 and 0, and one witness of a discriminator is what `w-xlr`
+> refuted twice.
+>
+> **So the direction of this table's errors is now measured, and it is zero.**
+> Three published label numbers have been found overstated in the direction that
+> makes a fence look dearer to lift than it is (`#3091`, `#3148`, and
+> `LABEL_LEAD.md`'s own finding 1). **None of them was this table.** Every one
+> was a number *quoted out of* it into a class it does not describe, or a lead
+> differenced across two TUs. See the block after the table for the third
+> instance, which is still live in shipped code.
+
 `gt_label_stride.py`'s construction with a **leaf** probe (`a0 · P · a1 · a2`,
 `base` measured in-obj, control **5** on all 17 rows). `stride(leaf-none) = 1`,
 which reproduces the shipped `leaf-int` row.
@@ -521,6 +608,106 @@ refuted on 15 of 17 — the surcharge mints nothing, which is §2.1's shape agai
 magnitudes and no rule that survives them. This table's job is to close one
 remaining hope — that the surcharge was a property of the framed pre-pass and
 that a *leaf* loop would therefore be free. It is not.
+
+#### 4.2.1a The `/Ox` column this table never had (2026-08-15, `w-labeltable`)
+
+The table above is `/O1`. `§4`'s *"a loop at `/Ox`: `for` +8, nested +10"* row is
+the only `/Ox` reading this document has ever carried for a loop, and it was
+taken on **framed** probes. Here is the whole leaf grid at `/Ox`, both
+instruments agreeing on **17 of 17 readable rows**
+(`work/w-labeltable/rows_ox.txt`):
+
+| leaf probe | `/O1` | **`/Ox`** | | leaf probe | `/O1` | **`/Ox`** |
+|---|---:|---:|---|---|---:|---:|
+| `leaf-none` | +0 | **+0** | | `leaf-for-live` | +2 | **+7** |
+| `leaf-if` | +0 | **+0** | | `leaf-idxload` | +2 | **CONFOUNDED** |
+| `leaf-while` | +2 | **+3** | | `leaf-forever` | +3 | **+3** |
+| `leaf-dowhile` | +1 | **+1** | | `leaf-for-break` | +3 | **+5** |
+| `leaf-for` | +2 | **+8** | | `leaf-ptrwalk` | +3 | **+3** |
+| `leaf-for-k` | +2 | **+13** | | `leaf-for2` | +4 | **+15** |
+| `leaf-for-stride` | +2 | **+9** | | `leaf-fornest` | +4 | **+10** |
+| `leaf-for-down` | +2 | **+8** | | `leaf-goto-back` | +1 | **+1** |
+| `leaf-for-cont` | +2 | **+3** | | `?HashString` | +2 | **+3** |
+
+**§4's `/Ox` row reproduces to the digit on the LEAF grid**: `leaf-for` **+8**
+and `leaf-fornest` **+10**, measured on leaves where §4 measured framed bodies.
+So the `/Ox` loop surcharge is frame-class-independent too, which is §4.2.1's own
+finding carried to the second mode.
+
+Three things this column says that the `/O1` one does not:
+
+* **The mode is not a constant offset.** `leaf-dowhile`, `leaf-forever`,
+  `leaf-goto-back` and `leaf-if` do not move at all; `leaf-for-k` moves by
+  **+11**. Any `label_slots` learning a mode word would need the whole table
+  twice, not a delta — which is `#1983`'s reason, now with a magnitude.
+* **`leaf-idxload` is CONFOUNDED at `/Ox` and is marked, not quoted.** Its probe
+  **stops being a leaf** there — the TU acquires a second and third framed group
+  as `n` grows — so the triple the instrument reads is no longer the control's.
+  This is `w-slots` §3's `/Ox` shape-C confound on a different body, caught the
+  same way: by counting framed groups per cell rather than trusting the readout.
+* **§4.2.3's channel claim is `/O1`-scoped.** *"A leaf-only TU mints zero
+  labels"* holds on **18 of 18** cells at `/O1` and **fails on `leaf-idxload` at
+  `/Ox`**, for the same reason: at `/Ox` that body is not a leaf. The claim is
+  about leaves, and the mode decides which bodies are leaves.
+
+The `/Ox` cells need one calibration and it is measured rather than assumed:
+`plan_labels`' `base = counter + 9 + 3·segs + nleaf` is a `/Gy` fact, and `/Ox`
+is not `/Gy`, so every function is over-charged by a constant **3** there. It
+lands in the **slope**, both zero-controls (`leaf-none`, `leaf-if`) read the same
+one, and the `a0·P·a1·a2` instrument — which measures its own base in-obj — needs
+no calibration at all and agrees with the calibrated leads on every readable row.
+
+#### 4.2.1b The third instance, and it is still live in shipped code
+
+**`work/w-bdnz/LABEL_LEAD.md`'s eight-row table is a cross-TU artifact**, of
+exactly the kind `#3148` refuted in `work/w-blockir/LABEL_LEAD.md` — *"two TUs
+differ in exactly one function body"*, and a TU's `.gl` counter depends on its
+own source text. Re-differenced seed-free at that lane's own workload flags
+(`work/w-labeltable/bdnz_o1work.txt`), **its `$M` column reproduces to the
+digit** and its **leads do not**:
+
+```text
+  cell           counter    real $M   published   SEED-FREE   counter gap vs lab_ctl
+  lab_ctl           2540       2556          —          0      +0
+  lab_forever       2542       2558        +2          0      +2     "two locals cost +2"
+  lab_loop          2545       2563        +7          2      +5     THIS CLASS
+  lab_while         2545       2563        +7          2      +5
+  lab_dowhile       2545       2562        +6          1      +5
+  lab_goto          2546       2564        +8          2      +6     ?HashString
+  lab_op            2545       2563        +7          2      +5
+  lab_uns           2545       2563        +7          2      +5
+```
+
+**Every published number is the seed-free lead plus that cell's own counter gap,
+on every row.** Two consequences, and the second is the one that matters:
+
+1. **`lab_goto` reads exactly 2** — independently re-deriving the one leaf-loop
+   charge the oracle has settled (`w-fenceb` §3.3, three mutants red). That is
+   the control that makes the other seven readings evidence.
+2. **`lab_forever`'s `+2` for two `int` locals is `0`.** It was that lane's
+   *separating control*, used to net the locals out of the class's charge — so
+   the "net of locals" arithmetic was wrong in both terms.
+
+**And the comparison this produced is quoted verbatim into shipped code.**
+`IlFunction::label_slots`' `counted_accum_loop` arm reads:
+
+> *"§4.2.1's `for` row records `+2` against `leaf-none = 1` — a lead of `+1`,
+> where the obj says **+7**."*
+
+**Both halves are wrong and they are wrong in opposite directions.** §4.2.1's
+`for` row publishes a **surcharge**, and a surcharge *is* a lead — `plan_labels`
+charges a leaf `label_lead + 1`, so `stride 3` is `lead 2`, not `lead 1`. And the
+obj says **2**, not 7. Corrected, the sentence reads: *§4.2.1's `for` row records
++2, and the obj says +2.* **They agree.**
+
+**This lane does not edit that comment**, and the reason is the one this document
+keeps recording: it is a `crates/` change, this is a docs lane, and the arm it
+sits on belongs to a peer in flight. It is filed for the coordinator with the
+replacement text above. **What it does not change is that arm's verdict**:
+`counted_accum_loop`'s `None` rests on **mode-dependence on a class whose reader
+admits BOTH modes**, and that reason is untouched and re-measured here — the same
+body reads **2** at `/O1` and **3** at `/Ox` (`bdnz_oxwork.txt`, calibrated as
+above). The step is the `+1` that lane measured; only its base was inflated.
 
 ### 4.2.2 The identical-bytes triple — §4.1, at the byte level
 
@@ -618,6 +805,17 @@ work/w-loop/loopcost.py                             # both halves, /O1
 work/w-loop/loopcost.py --q1                        # the 17 leaf strides
 work/w-loop/loopcost.py --q2                        # 34 leaf-only TUs + 17 controls
 work/w-loop/loopcost.py --dis leaf-dowhile leaf-forever leaf-goto-back
+
+# §4.2.1 / §4.2.1a / §4.2.1b — the 2026-08-15 re-audit. BOTH seed-free
+# instruments, every row as a SERIES over n = 1,2,3 copies (#3147). Read the
+# `discriminating series` and `separating controls green with EXACTLY 0 label
+# symbols` counters BEFORE the verdict column: a row nothing could have moved
+# is counted separately and loudly.
+work/w-labeltable/table.py                          # the 17 rows, /O1
+work/w-labeltable/table.py --mode '/Ox /GS- /c'     # §4.2.1a's /Ox column
+work/w-labeltable/table.py --ladder                 # leaf-ptrwalk 3 vs HashString 2
+work/w-labeltable/table.py --framed                 # §4's 6 framed rows + the minted trap
+work/w-labeltable/table.py --bdnz --mode '/O1 /Oi /EHsc /GR /c'   # §4.2.1b
 ```
 
 Exit status is non-zero only if a *control* failed (an anchor pair disagreeing

@@ -1,0 +1,105 @@
+== §4.2.1 re-measured: the LEAD instrument, as a SERIES
+   mode: /O1 /GS- /c   TU = [n copies of P, the SAME framed z9]
+   Every cell subtracts its OWN `.gl` counter, so the seed cancels
+   INSIDE the TU (#3148). The n=1/2/3 cells of one row do NOT share
+   a counter — they are different source texts — which is exactly
+   why the difference is taken this way and not across them.
+
+row                 pub |  L(1)  L(2)  L(3) |    k    c  resid | verdict
+leaf-none             0 |     0     0     0 |    0    0  0,0,0 | AGREES
+leaf-if               0 |     0     0     0 |    0    0  0,0,0 | AGREES
+leaf-while            2 |     2     4     6 |    2    0  0,0,0 | AGREES
+leaf-dowhile          1 |     1     2     3 |    1    0  0,0,0 | AGREES
+leaf-for              2 |     2     4     6 |    2    0  0,0,0 | AGREES
+leaf-for-k            2 |     2     4     6 |    2    0  0,0,0 | AGREES
+leaf-for-stride       2 |     2     4     6 |    2    0  0,0,0 | AGREES
+leaf-for-down         2 |     2     4     6 |    2    0  0,0,0 | AGREES
+leaf-for-cont         2 |     2     4     6 |    2    0  0,0,0 | AGREES
+leaf-for-live         2 |     2     4     6 |    2    0  0,0,0 | AGREES
+leaf-idxload          2 |     2     4     6 |    2    0  0,0,0 | AGREES
+leaf-forever          3 |     3     6     9 |    3    0  0,0,0 | AGREES
+leaf-for-break        3 |     3     6     9 |    3    0  0,0,0 | AGREES
+leaf-ptrwalk          3 |     3     6     9 |    3    0  0,0,0 | AGREES
+leaf-for2             4 |     4     8    12 |    4    0  0,0,0 | AGREES
+leaf-fornest          4 |     4     8    12 |    4    0  0,0,0 | AGREES
+leaf-goto-back        1 |     1     2     3 |    1    0  0,0,0 | AGREES
+hashstring            2 |     2     4     6 |    2    0  0,0,0 | AGREES
+
+rows: 18   discriminating series (L(n) varies with n): 16
+structurally NON-discriminating (published +0, nothing could move): leaf-none, leaf-if
+rows where measured != published: 0
+controls failed: 0
+
+== the mutants: a wrong charge is a wrong $M, checked against the
+   reference obj's own bytes, with a leaf-only separating control
+
+row                 base   real | charge k-1 / k / k+1 / 0     | control
+leaf-none           2555   2555 | -1:MISMATCH *0:match 1:MISMATCH | green (0 labels)
+leaf-if             2556   2556 | -1:MISMATCH *0:match 1:MISMATCH | green (0 labels)
+leaf-while          2559   2561 | 1:MISMATCH *2:match 3:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-dowhile        2559   2560 | 0:MISMATCH *1:match 2:MISMATCH | green (0 labels)
+leaf-for            2560   2562 | 1:MISMATCH *2:match 3:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-for-k          2560   2562 | 1:MISMATCH *2:match 3:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-for-stride     2560   2562 | 1:MISMATCH *2:match 3:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-for-down       2560   2562 | 1:MISMATCH *2:match 3:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-for-cont       2561   2563 | 1:MISMATCH *2:match 3:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-for-live       2560   2562 | 1:MISMATCH *2:match 3:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-idxload        2561   2563 | 1:MISMATCH *2:match 3:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-forever        2560   2563 | 2:MISMATCH *3:match 4:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-for-break      2561   2564 | 2:MISMATCH *3:match 4:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-ptrwalk        2560   2563 | 2:MISMATCH *3:match 4:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-for2           2564   2568 | 3:MISMATCH *4:match 5:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-fornest        2564   2568 | 3:MISMATCH *4:match 5:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-goto-back      2558   2559 | 0:MISMATCH *1:match 2:MISMATCH | green (0 labels)
+hashstring          2562   2564 | 1:MISMATCH *2:match 3:MISMATCH 0:MISMATCH | green (0 labels)
+
+mutant cells that RED (a wrong charge is a wrong obj): 50
+mutant cells that stayed green (a wrong charge nothing detects): 0
+separating controls green with EXACTLY 0 label symbols: 18 of 18
+
+== the same rows through §4.2.1's OWN instrument (`a0 . P . a1 . a2`)
+   surcharge = stride - stride(leaf-none) = stride - 1
+
+row                 pub stride surcharge  control | verdict
+leaf-none             0      1         0        5 | AGREES
+leaf-if               0      1         0        5 | AGREES
+leaf-while            2      3         2        5 | AGREES
+leaf-dowhile          1      2         1        5 | AGREES
+leaf-for              2      3         2        5 | AGREES
+leaf-for-k            2      3         2        5 | AGREES
+leaf-for-stride       2      3         2        5 | AGREES
+leaf-for-down         2      3         2        5 | AGREES
+leaf-for-cont         2      3         2        5 | AGREES
+leaf-for-live         2      3         2        5 | AGREES
+leaf-idxload          2      3         2        5 | AGREES
+leaf-forever          3      4         3        5 | AGREES
+leaf-for-break        3      4         3        5 | AGREES
+leaf-ptrwalk          3      4         3        5 | AGREES
+leaf-for2             4      5         4        5 | AGREES
+leaf-fornest          4      5         4        5 | AGREES
+leaf-goto-back        1      2         1        5 | AGREES
+hashstring            2      3         2        5 | AGREES
+controls failed: 0
+
+== the two seed-free instruments, side by side (PREREG F4)
+   LEAD k is net of the zero-control's 0 (see CALIBRATION above)
+row                  LEAD k  STRIDE-1 | agree?
+leaf-none                 0         0 | yes
+leaf-if                   0         0 | yes
+leaf-while                2         2 | yes
+leaf-dowhile              1         1 | yes
+leaf-for                  2         2 | yes
+leaf-for-k                2         2 | yes
+leaf-for-stride           2         2 | yes
+leaf-for-down             2         2 | yes
+leaf-for-cont             2         2 | yes
+leaf-for-live             2         2 | yes
+leaf-idxload              2         2 | yes
+leaf-forever              3         3 | yes
+leaf-for-break            3         3 | yes
+leaf-ptrwalk              3         3 | yes
+leaf-for2                 4         4 | yes
+leaf-fornest              4         4 | yes
+leaf-goto-back            1         1 | yes
+hashstring                2         2 | yes
+instrument disagreements: 0 of 18

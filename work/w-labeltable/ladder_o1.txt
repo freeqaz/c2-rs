@@ -1,0 +1,65 @@
+== §4.2.1 re-measured: the LEAD instrument, as a SERIES
+   mode: /O1 /GS- /c   TU = [n copies of P, the SAME framed z9]
+   Every cell subtracts its OWN `.gl` counter, so the seed cancels
+   INSIDE the TU (#3148). The n=1/2/3 cells of one row do NOT share
+   a counter — they are different source texts — which is exactly
+   why the difference is taken this way and not across them.
+
+row                 pub |  L(1)  L(2)  L(3) |    k    c  resid | verdict
+pw0-signed            3 |     3     6     9 |    3    0  0,0,0 | AGREES
+pw1-unsigned          3 |     2     4     6 |    2    0  0,0,0 | **DISAGREES -> obj says 2**
+pw2-ne0               3 |     2     4     6 |    2    0  0,0,0 | **DISAGREES -> obj says 2**
+pw3-mul               3 |     2     4     6 |    2    0  0,0,0 | **DISAGREES -> obj says 2**
+pw4-mod               3 |     2     4     6 |    2    0  0,0,0 | **DISAGREES -> obj says 2**
+hashstring            2 |     2     4     6 |    2    0  0,0,0 | AGREES
+leaf-ptrwalk          3 |     3     6     9 |    3    0  0,0,0 | AGREES
+
+rows: 7   discriminating series (L(n) varies with n): 7
+structurally NON-discriminating (published +0, nothing could move): none
+rows where measured != published: 4
+   pw1-unsigned      published +3   obj +2   (ONE HIGH)
+   pw2-ne0           published +3   obj +2   (ONE HIGH)
+   pw3-mul           published +3   obj +2   (ONE HIGH)
+   pw4-mod           published +3   obj +2   (ONE HIGH)
+controls failed: 0
+
+== the mutants: a wrong charge is a wrong $M, checked against the
+   reference obj's own bytes, with a leaf-only separating control
+
+row                 base   real | charge k-1 / k / k+1 / 0     | control
+pw0-signed          2560   2563 | 2:MISMATCH *3:match 4:MISMATCH 0:MISMATCH | green (0 labels)
+pw1-unsigned        2560   2562 | 1:MISMATCH *2:match 3:MISMATCH 0:MISMATCH | green (0 labels)
+pw2-ne0             2560   2562 | 1:MISMATCH *2:match 3:MISMATCH 0:MISMATCH | green (0 labels)
+pw3-mul             2560   2562 | 1:MISMATCH *2:match 3:MISMATCH 0:MISMATCH | green (0 labels)
+pw4-mod             2561   2563 | 1:MISMATCH *2:match 3:MISMATCH 0:MISMATCH | green (0 labels)
+hashstring          2562   2564 | 1:MISMATCH *2:match 3:MISMATCH 0:MISMATCH | green (0 labels)
+leaf-ptrwalk        2560   2563 | 2:MISMATCH *3:match 4:MISMATCH 0:MISMATCH | green (0 labels)
+
+mutant cells that RED (a wrong charge is a wrong obj): 21
+mutant cells that stayed green (a wrong charge nothing detects): 0
+separating controls green with EXACTLY 0 label symbols: 7 of 7
+
+== the same rows through §4.2.1's OWN instrument (`a0 . P . a1 . a2`)
+   surcharge = stride - stride(leaf-none) = stride - 1
+
+row                 pub stride surcharge  control | verdict
+pw0-signed            3      4         3        5 | AGREES
+pw1-unsigned          3      3         2        5 | **DISAGREES -> +2**
+pw2-ne0               3      3         2        5 | **DISAGREES -> +2**
+pw3-mul               3      3         2        5 | **DISAGREES -> +2**
+pw4-mod               3      3         2        5 | **DISAGREES -> +2**
+hashstring            2      3         2        5 | AGREES
+leaf-ptrwalk          3      4         3        5 | AGREES
+controls failed: 0
+
+== the two seed-free instruments, side by side (PREREG F4)
+   LEAD k is net of the zero-control's 0 (see CALIBRATION above)
+row                  LEAD k  STRIDE-1 | agree?
+pw0-signed                3         3 | yes
+pw1-unsigned              2         2 | yes
+pw2-ne0                   2         2 | yes
+pw3-mul                   2         2 | yes
+pw4-mod                   2         2 | yes
+hashstring                2         2 | yes
+leaf-ptrwalk              3         3 | yes
+instrument disagreements: 0 of 7
