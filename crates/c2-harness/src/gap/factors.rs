@@ -1469,6 +1469,56 @@ impl GapReport {
         // packed string so each stays `sed`-able, and emitted only for reasons
         // that OCCUR — a key printed as 0 for a reason with no bodies would let
         // a collector read a vanished arm as an empty one.
+        // **THE EMITTED CROSS AS A SERIES** (lane `w-stmt5`), one key per
+        // occupied `<shape>|<residue>` cell plus its accounting control.
+        //
+        // The pair above (`cflow-emitted-branchy` / `-modeled`) is this cross
+        // collapsed to one boolean, and the collapse excludes `cflow-straight`
+        // by [`cflow_needs_block_ir`]'s own first clause — so §14.2 step 5's
+        // `29 <tok>` label production, which occurs in a straight body too, has
+        // never had a price on the population `fnbyte-refused-parse` is counted
+        // over. Emitted only for cells that OCCUR, on the same rule as the
+        // `cflow-offclass-*` rows below: a key printed as 0 for a vanished cell
+        // lets a collector read absence as an empty measurement.
+        //
+        // The control is published, not asserted — `w-tag02`'s rule, and the
+        // same one `cflow-offclass-accounted` is printed under.
+        // **§14.2 STEP 5's BOUNDARY, SCORED** (lane `w-stmt5`). One key per
+        // occupied `<verdict>|<population>` cell, plus the consistency alarm.
+        //
+        // The alarm is the SUM of every `DISAGREE-*` cell and is named for what
+        // it counts rather than for one of them: it began as
+        // `step5-backedge-shape-disagree` and the first alarm that ever fired
+        // was the OTHER one, so a name that promised a single mechanism would
+        // have mislabelled its own first result. It is emitted UNCONDITIONALLY
+        // and the cells only when they occur — the asymmetry is trap 5's: a cell that vanished must be
+        // distinguishable from a cell that read 0, but an alarm that vanished
+        // must NOT be readable as an alarm that fired zero times, so the alarm
+        // is always present and the cells are not.
+        let (admit_rows, admit_disagree) = self.cfg_admit_histogram();
+        m.push(("step5-consistency-alarms", admit_disagree.to_string()));
+        // The partition control, printed beside the cells and never folded into
+        // them: every scanned body scores exactly one verdict, so this must
+        // equal the census total. Printed rather than asserted — `w-tag02`'s
+        // rule, and the reason `cflow-offclass-accounted` is printed too.
+        m.push((
+            "step5-accounted",
+            admit_rows.iter().map(|r| r.1).sum::<usize>().to_string(),
+        ));
+        for (cell, n) in admit_rows {
+            m.push((
+                Box::leak(format!("step5-{}", cell.replace('|', "-")).into_boxed_str()),
+                n.to_string(),
+            ));
+        }
+        let (series, series_accounted) = self.cflow_emitted_series();
+        m.push(("emit-cflow-shape-accounted", series_accounted.to_string()));
+        for (cell, n) in series {
+            m.push((
+                Box::leak(format!("emit-cflow-shape-{}", cell.replace('|', "-")).into_boxed_str()),
+                n.to_string(),
+            ));
+        }
         for (why, inc, blk) in self.cflow_offclass_reasons().0 {
             m.push((
                 Box::leak(format!("cflow-offclass-{why}-inclass").into_boxed_str()),

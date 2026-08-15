@@ -28,6 +28,7 @@ pub(crate) mod calls;
 pub(crate) mod cond_tail;
 pub(crate) mod counted_accum_loop;
 pub(crate) mod control_flow;
+pub(crate) mod step5;
 pub(crate) mod ctor_dtor;
 pub(crate) mod ctor_forward_call;
 pub(crate) mod designator;

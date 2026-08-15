@@ -331,6 +331,17 @@ pub(crate) struct CfScan {
     /// not the walk finished**, for the same reason [`CfScan::eh`] is — a body
     /// that left the class and then stopped left the class.
     pub(crate) off_reason: Option<&'static str>,
+    /// **The first pass's token → position map**, kept instead of discarded —
+    /// see [`LabelTable`].
+    ///
+    /// It rides on `CfScan` and not on [`CfBody`] for the reason
+    /// [`CfScan::off_reason`] does: `CfBody` is `PartialEq` and a dozen pinned
+    /// segment tests assert whole struct literals against it. It is also
+    /// collected **whether or not the walk finished**, for the same reason the
+    /// EH counts are — but every question it answers is meaningless on a partial
+    /// walk, which is why [`super::step5::CfgAdmit`]'s first clause is
+    /// `decoded`.
+    pub(crate) labels: LabelTable,
 }
 
 /// A branch or label site, in stream order.
@@ -339,6 +350,113 @@ struct Site {
     tok: u32,
     /// Offset of the *opcode*, so "defined before" is a plain comparison.
     at: usize,
+}
+
+/// **The token → position map `docs/IL_STMT_GRAMMAR.md` §14.2 step 5 asks for**,
+/// as a product of the first pass rather than a second walk.
+///
+/// Step 5's text is *"build a token → position map in a first pass over the
+/// body, since `3A` carries no direction"*. The first pass is [`scan_full`] —
+/// there is no cheaper one, because finding a `29` at all requires every field
+/// width before it, and a byte scan for `0x29` hits operand payload. What was
+/// missing is not the pass, it is that the pass **threw the map away**: only
+/// [`CfShape`] survived it, and [`shape_of`] re-derived the one question it
+/// needed (*is any target defined earlier*) by a nested search it did not keep.
+///
+/// Keeping it answers three more questions that nothing in this tree could ask,
+/// and each is a way the CFG can be un-lowerable that [`CfShape`] reports as
+/// `Forward`:
+///
+/// * [`LabelTable::unresolved`] — a `38`/`39`/`3A` names a token **no `29`
+///   defines**. Its position is not merely late, it is *unknown*, so its
+///   direction is unknown too. A body here is not a forward DAG; it is a body
+///   whose CFG this tree cannot claim to have read.
+/// * [`LabelTable::duplicate_defs`] — two `29`s carrying **one** token. The map
+///   is then not a function and "the position of `tok`" has no referent, so
+///   every other question below is unanswerable rather than false.
+/// * [`LabelTable::dead_defs`] — a `29` nothing branches to. Harmless for
+///   lowering and recorded because it is the control: it is the one of the three
+///   that must be allowed to be non-zero (§9's epilogue label is reached by
+///   fallthrough in a body with no early return), so a predicate that refused on
+///   it would refuse the straight-line class.
+///
+/// **Complete for `29`/`38`/`39`/`3A` and for nothing else.** `3B`/`3C`/`3D`
+/// carry label tokens too (§11) and this table does not record them, so on a
+/// `switch` body it is partial **by construction**. That is why
+/// [`super::step5::CfgAdmit`] refuses `CfShape::Switch` *before* it reads any
+/// question off this table, and not as a matter of taste.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct LabelTable {
+    /// `29 <tok>` definitions in stream order, `(token, offset of the 29)`.
+    defs: Vec<(u32, usize)>,
+    /// `38`/`39`/`3A` targets in stream order, `(token, offset of the opcode)`.
+    refs: Vec<(u32, usize)>,
+}
+
+impl LabelTable {
+    /// Where `tok` is defined, or `None` if no `29` defines it.
+    ///
+    /// **`None` is not "late".** Every caller has to decide what an unknown
+    /// position means for it, and the one that matters —
+    /// [`LabelTable::back_edges`] — treats it as *not a back edge*, which is the
+    /// permissive reading. That is safe only because
+    /// [`LabelTable::unresolved`] is a separate refusal clause tested first;
+    /// collapsing the two would let an undefined target pass as forward.
+    pub(crate) fn position_of(&self, tok: u32) -> Option<usize> {
+        self.defs.iter().find(|(t, _)| *t == tok).map(|(_, at)| *at)
+    }
+
+    /// References whose target is defined **earlier in the byte stream** — a back
+    /// edge, i.e. a loop. §14.2 step 5's own refusal clause is written over
+    /// exactly this set.
+    pub(crate) fn back_edges(&self) -> usize {
+        self.refs
+            .iter()
+            .filter(|(tok, at)| self.position_of(*tok).is_some_and(|d| d < *at))
+            .count()
+    }
+
+    /// References naming a token **no `29` defines**.
+    pub(crate) fn unresolved(&self) -> usize {
+        self.refs
+            .iter()
+            .filter(|(tok, _)| self.position_of(*tok).is_none())
+            .count()
+    }
+
+    /// Definitions **nothing references**. The control of the three: it is
+    /// expected to be non-zero on ordinary bodies and is never a refusal.
+    ///
+    /// Deliberately not consulted by [`super::step5::CfgAdmit`], and the
+    /// attribute is how that stays visible: a lane that adds it as a clause
+    /// would refuse `il_stmt_early_return.cpp`, a `Forward` modeled body whose
+    /// skip label is reached by fallthrough. `step5`'s own test names that
+    /// segment.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn dead_defs(&self) -> usize {
+        self.defs
+            .iter()
+            .filter(|(tok, _)| !self.refs.iter().any(|(r, _)| r == tok))
+            .count()
+    }
+
+    /// Tokens carrying **more than one** `29`. Non-zero means the map is not a
+    /// function and no other question here has an answer.
+    pub(crate) fn duplicate_defs(&self) -> usize {
+        self.defs
+            .iter()
+            .enumerate()
+            .filter(|(i, (tok, _))| self.defs[..*i].iter().any(|(t, _)| t == tok))
+            .count()
+    }
+
+    /// How many label definitions and how many references the body carries —
+    /// the two raw counts, so a reader can see the map is not empty before
+    /// believing a zero from any question above. Absence reads as success unless
+    /// something forbids it.
+    pub(crate) fn sizes(&self) -> (usize, usize) {
+        (self.defs.len(), self.refs.len())
+    }
 }
 
 /// Scanner state. Kept in one struct because the walk is one loop and the
@@ -477,7 +595,18 @@ pub(crate) fn scan_full(seg: &[u8], lo: usize) -> CfScan {
         eh_live: 0,
     };
     let body = walk(&mut s);
-    CfScan { decoded: body.is_ok(), body, eh: s.eh, off_reason: s.off_reason }
+    // The map is built from the SAME sites `shape_of` classifies, in the same
+    // pass, so the two can never disagree about what the body contains — only
+    // about what to conclude from it. That is the point: `CfgAdmit`'s back-edge
+    // clause and `CfShape::Loop` are then two readings of one collection rather
+    // than two collections, and the consistency control between them
+    // (`cfg-admit-backedge-shape-disagree`) is checking the readings, which is
+    // the only thing that can drift.
+    let labels = LabelTable {
+        defs: s.labels.iter().map(|x| (x.tok, x.at)).collect(),
+        refs: s.conds.iter().chain(s.jumps.iter()).map(|x| (x.tok, x.at)).collect(),
+    };
+    CfScan { decoded: body.is_ok(), body, eh: s.eh, off_reason: s.off_reason, labels }
 }
 
 fn walk(s: &mut Scan) -> Result<CfBody, Block> {
@@ -1121,7 +1250,12 @@ fn lit_payload(s: &mut Scan, tag: u8, kind: u8) -> Result<(), Block> {
 }
 
 #[cfg(test)]
-mod tests {
+// **`pub(crate)` so `super::step5`'s tests can cite these segments rather than
+// transcribe them again.** Four of the consts below are the tree's only pinned
+// real-capture witnesses of a `29`/`38`/`3A` body, and a second copy in another
+// file is a second thing to keep true — the same reason `chain_skip_form`'s
+// widths are called and never restated.
+pub(crate) mod tests {
     use super::*;
     use crate::func::bundle::LO_MARKER;
     use crate::func::readers::find_subslice;
@@ -1149,7 +1283,7 @@ mod tests {
     /// **[CF] `il_stmt_seq.cpp` `void stmt_seq0() {}`** — the smallest body there
     /// is, and the calibration for every shape below: one epilogue jump, one
     /// epilogue label, nothing else.
-    const EMPTY: &[u8] = &[
+    pub(crate) const EMPTY: &[u8] = &[
         0x4C, 0x4F, 0x11, 0x53, // LO SS
         0x3A, 0xE5, 0x09, // jump epilogue
         0x54, 0x02, // close the body scope
@@ -1168,7 +1302,7 @@ mod tests {
     /// **[CF] `il_stmt_if_else.cpp` `void stmt_if_else(int a){ if(a) g(); else h(); }`**,
     /// transcribed byte for byte from `docs/IL_STMT_GRAMMAR.md` §7. The shape is a
     /// diamond: one conditional, forward only.
-    const IF_ELSE: &[u8] = &[
+    pub(crate) const IF_ELSE: &[u8] = &[
         0x4C, 0x4F, 0x11, 0x53, 0x4F, 0x01, 0x0D, 0x53, //
         0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74, // load a
         0x38, 0xE8, 0x09, // brFALSE -> else
@@ -1221,7 +1355,7 @@ mod tests {
     /// §8.1. The `3A E8 09` at the end of the body targets the `29 E8 09` that
     /// opened it — a BACK edge, and `3A` carries no direction, so nothing but the
     /// recorded positions can tell.
-    const WHILE: &[u8] = &[
+    pub(crate) const WHILE: &[u8] = &[
         0x4C, 0x4F, 0x11, 0x53, 0x4F, 0x01, 0x0D, 0x53, //
         0x29, 0xE8, 0x09, // TOP:
         0xB9, 0xE4, 0x09, 0x86, 0x41, 0x74, 0x38, 0xE9, 0x09, // brFALSE -> EXIT
@@ -1250,7 +1384,7 @@ mod tests {
     /// §9. Two returns, ONE epilogue label — the pattern that makes `MultiExit`
     /// worth separating from `Forward`, since here the second exit rides on a
     /// conditional and elsewhere it does not.
-    const EARLY_RETURN: &[u8] = &[
+    pub(crate) const EARLY_RETURN: &[u8] = &[
         0x4C, 0x4F, 0x11, 0x53, 0x4F, 0x01, 0x0E, 0x53, //
         0xB9, 0xE4, 0x09, 0x86, 0x41, 0x74, 0x38, 0xE7, 0x09, //
         0x53, 0x33, 0x86, 0x41, 0x74, 0x01, 0x41, 0x86, 0x41, 0x74, 0x3A, 0xE6,

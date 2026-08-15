@@ -38,6 +38,7 @@ fn mk(reason: &str) -> TuResult {
         fn_frames: BTreeMap::new(),
         fn_cflow: BTreeMap::new(),
         fn_cflow_off: Default::default(),
+        fn_cfg_admit: Default::default(),
         fn_eh: BTreeMap::new(),
         fn_dispatch: BTreeMap::new(),
         fn_complete: BTreeMap::new(),
@@ -2976,6 +2977,7 @@ fn grade_one_files_a_parse_refusal_under_the_parser_and_not_the_selector() {
             hex_mark: 0,
             cflow: "cflow-straight".into(),
             cflow_off: "",
+            cfg_admit: "admit-straight",
             eh: "eh-none".into(),
             eh_stmt: String::new(),
             calls: 0,
@@ -3601,4 +3603,151 @@ fn fence_metric_keys_print_zeros_for_the_closed_vocabulary_and_never_drop_an_obs
             );
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// w-stmt5 — the emitted cross as a SERIES, and §14.2 step 5's boundary scored
+// ---------------------------------------------------------------------------
+
+/// **The bucketer, over every shape of input it can receive**, including the two
+/// it must NOT split. `cflow_series_bucket` is the scan's own function, called
+/// here rather than restated — a restated copy is how two files come to hold two
+/// opinions of one predicate with no git conflict between them.
+#[test]
+fn the_series_bucketer_never_shards_and_splits_the_residue_on_the_suffix() {
+    let b = crate::gap::classify::cflow_series_bucket;
+    assert_eq!(b("cflow-straight"), "straight|expr");
+    assert_eq!(b("cflow-straight+expr-modeled"), "straight|modeled");
+    assert_eq!(b("cflow-if-1+expr-modeled"), "if-1|modeled");
+    assert_eq!(b("cflow-loop"), "loop|expr");
+    // **THE anti-sharding property.** Undecoded bodies carry a `cf-*` blocker
+    // key and several of those are per-TU sharded (`GAPS.md` §6). Every one of
+    // them is one bucket, so the series can never grow a bucket per input.
+    for k in ["cf-expr-0x59", "cf-scope-depth", "cf-no-body", "cf-tail"] {
+        assert_eq!(b(k), "undecoded|-", "{k} must not shard the series");
+    }
+    // **`ends_with`, not `contains`** — `w-stmt5` mutant M2. `CfBody::key`
+    // appends the suffix, so a `contains` test would also fire on a shape name
+    // that had the string inside it and would silently move the counterfactual
+    // column into the expression one.
+    assert_eq!(b("cflow-+expr-modeled-tail"), "+expr-modeled-tail|expr");
+}
+
+/// **The series partitions the blocked-emitted population exactly**, and the
+/// control is counted at the same site in the same unit as the buckets. A
+/// totality control counted in two different units reads 0 forever and is green
+/// for the wrong reason — `w-tag02`'s rule, and the reason this asserts the
+/// control against the sum rather than against a recomputation.
+#[test]
+fn the_emitted_series_partitions_and_reproduces_the_published_pair() {
+    let rep = mk_report(vec![mk_cflow(
+        &[],
+        &[
+            ("emit-cflow-shape|straight|expr", 70),
+            ("emit-cflow-shape|straight|modeled", 3),
+            ("emit-cflow-shape|if-1|expr", 16),
+            ("emit-cflow-shape|if-1|modeled", 4),
+            ("emit-cflow-shape|switch|modeled", 5),
+            ("emit-cflow-shape|undecoded|-", 2),
+            // the two published keys, from the same site
+            ("emit-cflow-branchy", 25),
+            ("emit-cflow-branchy-modeled", 9),
+        ],
+    )]);
+    let (rows, accounted) = rep.cflow_emitted_series();
+    assert_eq!(accounted, 100, "every blocked emitted function lands in one cell");
+    assert_eq!(rows.first().map(|r| r.0.as_str()), Some("straight|expr"), "sorted by size");
+    // **THE SELF-CHECK the series exists to survive.** The collapsed pair must
+    // be reproducible from the series by addition, or the two are measuring
+    // different sets and the series is a second opinion rather than the same
+    // cross. `-branchy` is everything but `straight` and `undecoded`.
+    let branchy: usize = rows
+        .iter()
+        .filter(|(k, _)| !k.starts_with("straight") && !k.starts_with("undecoded"))
+        .map(|(_, n)| *n)
+        .sum();
+    let modeled: usize = rows
+        .iter()
+        .filter(|(k, _)| k.ends_with("|modeled") && !k.starts_with("straight"))
+        .map(|(_, n)| *n)
+        .sum();
+    assert_eq!((branchy, modeled), rep.cflow_emitted_counterfactual());
+    // …and the cell the collapse throws away is not small.
+    let straight_modeled: usize = rows
+        .iter()
+        .filter(|(k, _)| k == "straight|modeled")
+        .map(|(_, n)| *n)
+        .sum();
+    assert!(straight_modeled > 0, "the cell `-branchy` excludes by name");
+}
+
+/// **`emit_blockers` restricted to what a reader can reach.** The full ranking
+/// is over 113,612 functions and the restricted one over 3,062, and the point of
+/// the method is that the two are not the same order — a lane dispatched off the
+/// first is dispatched off rows the second does not contain.
+#[test]
+fn the_modeled_widening_order_is_a_different_order_from_the_full_one() {
+    let rep = mk_report(vec![mk_cflow(
+        &[],
+        &[
+            ("emit-cflow-modeled-key|call-arg-multi-sym:eof", 801),
+            ("emit-cflow-modeled-key|data-sym-unresolved:eof", 529),
+            ("emit-cflow-modeled-key|expr-brfalse", 3),
+        ],
+    )]);
+    let (rows, accounted) = rep.cflow_emitted_modeled_keys();
+    assert_eq!(accounted, 1333);
+    assert_eq!(rows.first().map(|r| r.0.as_str()), Some("call-arg-multi-sym:eof"));
+    // The row §14.2 step 5 is named after is ABSENT from the reachable order —
+    // which is the finding, expressed as the shape of the data rather than as a
+    // number that could drift.
+    assert!(
+        !rows.iter().any(|(k, _)| k == "body-cflow-label"),
+        "a key absent from the reachable order converts nothing, whatever its rank in the full one"
+    );
+}
+
+/// **The boundary's histogram and its alarm.** The alarm is the only row here
+/// that is an alarm; a large `refuse-back-edge` is the fence working. The alarm
+/// is emitted unconditionally and the cells only when they occur, and this
+/// pins the asymmetry: an alarm that vanished must not read as an alarm that
+/// fired zero times.
+#[test]
+fn the_step5_boundary_publishes_its_cells_and_always_publishes_its_alarm() {
+    let mut t = mk("cflow");
+    for (k, n) in [
+        ("admit-straight|IN-CLASS", 187),
+        ("admit-straight|BLOCKED", 79),
+        ("refuse-back-edge|IN-CLASS", 10),
+        ("refuse-back-edge|BLOCKED", 88),
+    ] {
+        t.fn_cfg_admit.insert(k.into(), n);
+    }
+    // **The boundary axis has its OWN map and this test proves the separation
+    // holds**: a `cflow` row is added beside it and must not be counted here,
+    // and `cflow_residue_control` must not count the boundary's rows either.
+    // That collision is not hypothetical — it shipped for one commit and moved
+    // `cflow-residue-inclass-offclass` from 517,425 to 1,222,684.
+    t.fn_cflow.insert("cflow-straight+expr-modeled|IN-CLASS".into(), 3);
+    t.fn_cflow.insert("cflow-loop|IN-CLASS".into(), 5);
+    let rep = mk_report(vec![t]);
+    let (rows, disagree) = rep.cfg_admit_histogram();
+    assert_eq!(disagree, 0, "the consistency alarm");
+    assert_eq!(rows.iter().map(|r| r.1).sum::<usize>(), 364, "the cflow rows are NOT in it");
+    // …and the separation the other way: the residue control sees only its own
+    // map, so the boundary's 364 rows leave it at the 5 the `cflow` map holds.
+    assert_eq!(rep.cflow_residue_control(), (3, 5));
+    let m: std::collections::BTreeMap<&str, String> = rep.metrics().into_iter().collect();
+    assert_eq!(m.get("step5-consistency-alarms").map(String::as_str), Some("0"));
+    assert_eq!(m.get("step5-accounted").map(String::as_str), Some("364"));
+    // **The two-sided price is a published cell, not a footnote.** Ten bodies
+    // the port already emits byte-exactly are refused by this boundary; a
+    // reading of the fence that quoted only the BLOCKED column would be the
+    // one-sided pricing `CLAUDE.md` bans.
+    assert_eq!(m.get("step5-refuse-back-edge-IN-CLASS").map(String::as_str), Some("10"));
+    // …and a scan with no disagreement still emits the alarm, which is what
+    // distinguishes it from a scan where the key was dropped.
+    let empty = mk_report(vec![mk_cflow(&[], &[])]);
+    let m2: std::collections::BTreeMap<&str, String> = empty.metrics().into_iter().collect();
+    assert_eq!(m2.get("step5-consistency-alarms").map(String::as_str), Some("0"));
 }

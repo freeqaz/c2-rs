@@ -16,7 +16,8 @@ use crate::capture_cache::CaptureCache;
 use crate::provenance::Provenance;
 
 use super::classify::{
-    cflow_needs_block_ir, clip, dtor_callee_class, gate_key, is_compiler_generated, mangling_class,
+    cflow_needs_block_ir, cflow_series_bucket, clip, dtor_callee_class, gate_key,
+    is_compiler_generated, mangling_class,
     normalize_cl_error,
 };
 use super::render::print_factorization;
@@ -49,6 +50,7 @@ fn scan_one(
         fn_frames: BTreeMap::new(),
         fn_cflow: BTreeMap::new(),
         fn_cflow_off: BTreeMap::new(),
+        fn_cfg_admit: BTreeMap::new(),
         fn_eh: BTreeMap::new(),
         fn_dispatch: BTreeMap::new(),
         fn_complete: BTreeMap::new(),
@@ -247,6 +249,32 @@ fn scan_one(
             // shapes are the control group here too, and they must all read
             // `cflow-straight`.
             *res.fn_cflow.entry(f.cflow.clone()).or_insert(0) += 1;
+            // **§14.2 step 5's fail-closed boundary, scored over every body in
+            // the corpus** (lane `w-stmt5`), on the same `|IN-CLASS` /
+            // `|BLOCKED` cross the axes above use.
+            //
+            // **Its OWN map.** It was written into `fn_cflow` first, with a
+            // comment arguing a seventh map was unnecessary because it is the
+            // same walk's verdict over the same population. That was wrong:
+            // `cflow_residue_control` sweeps every `fn_cflow` row ending
+            // `|IN-CLASS` into its off-class total, and the published
+            // `cflow-residue-inclass-offclass` went 517,425 -> 1,222,684. The
+            // field's own doc records it; `TuResult::fn_cflow_off` had already
+            // written the rule down, one field away, in those words.
+            //
+            // The IN-CLASS column is the control and it is the interesting one:
+            // a body the port already ACCEPTS AND EMITS BYTE-EXACTLY, that this
+            // predicate refuses, is a measured unit of the predicate being
+            // narrower than the shipped class — the same two-sided error
+            // `cflow_residue_control` publishes for the residue, asked of the
+            // boundary instead.
+            *res.fn_cfg_admit
+                .entry(format!(
+                    "{}|{}",
+                    f.cfg_admit,
+                    if f.verdict.in_class() { "IN-CLASS" } else { "BLOCKED" }
+                ))
+                .or_insert(0) += 1;
             if f.cflow.starts_with("cflow-") {
                 *res.fn_cflow
                     .entry(format!("{}|{}", f.cflow, f.verdict.key()))
@@ -548,6 +576,85 @@ fn scan_one(
                                             .entry("emit-cflow-branchy-modeled".into())
                                             .or_insert(0) += 1;
                                     }
+                                }
+                                // **THE SAME CROSS, AS A SERIES** (lane
+                                // `w-stmt5`). The two counters above collapse
+                                // seven `CfShape`s into one boolean and then
+                                // throw away the largest of them: the
+                                // `-branchy` predicate is
+                                // [`cflow_needs_block_ir`], which excludes
+                                // `cflow-straight` by name. So the emitted
+                                // column — the population `fnbyte-refused-parse`
+                                // is counted over — has never been able to see
+                                // the shape `IL_STMT_GRAMMAR.md` §14.2 step 5's
+                                // `29 <tok>` production serves most often, and
+                                // a lane pricing that step off `-branchy` is
+                                // pricing it off a bucket its own population is
+                                // not in.
+                                //
+                                // `w-slots` board **#3147** is the rule this
+                                // obeys: a number read off one cell is right
+                                // for that cell and wrong as a law, and only
+                                // varying the structural count separates them.
+                                // The structural count here is the CFG shape,
+                                // so the shape is what varies and the series is
+                                // what is published.
+                                //
+                                // **Bucketed, never sharded.** A body the
+                                // scanner did not decode carries a `cf-*`
+                                // blocker key, and those are per-TU sharded in
+                                // places (`GAPS.md` §6). All of them land in one
+                                // `undecoded` bucket: the series is over shapes,
+                                // and "no shape was determined" is one answer,
+                                // not four hundred.
+                                *res.emit
+                                    .entry(format!(
+                                        "emit-cflow-shape|{}",
+                                        cflow_series_bucket(&f.cflow)
+                                    ))
+                                    .or_insert(0) += 1;
+                                // The partition control, counted in the SAME
+                                // unit and at the SAME site as the buckets it
+                                // controls. `w-tag02`'s rule is why it is
+                                // incremented here and not recomputed from
+                                // `emit_blockers` later: an identity whose two
+                                // sides are counted in different units reads 0
+                                // forever and is green for the wrong reason.
+                                *res.emit
+                                    .entry("emit-cflow-shape-accounted".into())
+                                    .or_insert(0) += 1;
+                                // **THE WIDENING ORDER, RESTRICTED TO THE
+                                // POPULATION A READER STEP CAN ACTUALLY REACH.**
+                                //
+                                // `emit_blockers` ranks all 113,612 and is the
+                                // order every reader lane has been dispatched
+                                // off. But a reader step can only move a body it
+                                // can MODEL, and `CfResidue::Modeled` is this
+                                // tree's own name for that — so the rows that
+                                // rank are not the rows that are reachable, and
+                                // the two lists have never been printed side by
+                                // side. This is `emit_blockers` filtered to
+                                // `+expr-modeled`, and it is small enough to
+                                // read whole.
+                                //
+                                // It is what settles a question no aggregate
+                                // can: `body-cflow-label` is rank 2 of
+                                // `emit_blockers` at 2,832 and is §14.2 step 5's
+                                // headline row. If it does not appear here, then
+                                // every one of those 2,832 is blocked on the
+                                // expression layer as well and step 5 converts
+                                // none of them — measured on the grading unit's
+                                // own population instead of inferred from the
+                                // bodies one (**#3107**'s rule, which exists
+                                // because a published ceiling read off the wrong
+                                // population was wrong by 117x).
+                                if f.cflow.ends_with("+expr-modeled") {
+                                    *res.emit
+                                        .entry(format!(
+                                            "emit-cflow-modeled-key|{}",
+                                            f.verdict.key()
+                                        ))
+                                        .or_insert(0) += 1;
                                 }
                             }
                         }
@@ -1533,6 +1640,12 @@ pub fn gap_scan(
                 .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
                 .collect::<Vec<_>>()
                 .join(",");
+            let cfg_admit = r
+                .fn_cfg_admit
+                .iter()
+                .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
+                .collect::<Vec<_>>()
+                .join(",");
             let cflow = r
                 .fn_cflow
                 .iter()
@@ -1614,7 +1727,7 @@ pub fn gap_scan(
             };
             writeln!(
                 f,
-                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"gate_cause\":{gate_cause},\"gate_causes\":[{gate_causes}],\"gl_body_starts\":{gl_body_starts},\"selective_bind\":{selective_bind},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_cflow\":{{{}}},\"fn_eh\":{{{}}},\"fn_dispatch\":{{{}}},\"fn_complete\":{{{}}},\"fn_prod\":{{{}}},\"fn_gate_refusals\":{{{}}},\"bind_checks\":{{{}}},\"emit\":{{{}}},\"emit_blockers\":{{{}}}}}",
+                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"gate_cause\":{gate_cause},\"gate_causes\":[{gate_causes}],\"gl_body_starts\":{gl_body_starts},\"selective_bind\":{selective_bind},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_cflow\":{{{}}},\"fn_cfg_admit\":{{{}}},\"fn_eh\":{{{}}},\"fn_dispatch\":{{{}}},\"fn_complete\":{{{}}},\"fn_prod\":{{{}}},\"fn_gate_refusals\":{{{}}},\"bind_checks\":{{{}}},\"emit\":{{{}}},\"emit_blockers\":{{{}}}}}",
                 crate::jstr(&r.src),
                 crate::jstr(r.class.label()),
                 crate::jstr(&r.reason),
@@ -1630,6 +1743,7 @@ pub fn gap_scan(
                 blockers,
                 frames,
                 cflow,
+                cfg_admit,
                 eh,
                 dispatch,
                 complete,

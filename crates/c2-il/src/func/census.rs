@@ -125,6 +125,24 @@ pub struct FnCensus {
     /// **Decode-only, and structurally so**: nothing reads it except the
     /// report. First reason wins; see `control_flow::Scan::off_class`.
     pub cflow_off: &'static str,
+    /// **`IL_STMT_GRAMMAR.md` §14.2 step 5's fail-closed boundary, as this body
+    /// scores against it** — `admit-<shape>`, `refuse-<clause>`, `cfg-no-body`,
+    /// or the consistency alarm `DISAGREE-backedge-vs-shape`. See
+    /// [`body::shapes::step5::CfgAdmit`].
+    ///
+    /// A sixth census axis, and a separate field for exactly the reason
+    /// [`FnCensus::cflow`] is one: **the `cflow` key says what SHAPE the body
+    /// has and says nothing about whether that shape may be emitted.** Those are
+    /// different questions and the whole discipline of §14.2 is that they must
+    /// not share a name — *"decoding a production is not licence to emit it"*.
+    /// `cflow-if-1+expr-modeled` and `refuse-back-edge` can be true of the same
+    /// body.
+    ///
+    /// **Decode-only, and structurally so**: nothing reads this field except the
+    /// report. It gates no acceptance, constructs no
+    /// [`BodyShape`](body::BodyShape), and is consulted by no emitter — see
+    /// [`body::shapes::step5`]'s own "what this module is NOT".
+    pub cfg_admit: &'static str,
     /// **The exception-handling axis** — which side of `docs/EH_RECORDS.md` §6's
     /// sub-object boundary this body falls on:
     ///
@@ -342,13 +360,18 @@ impl FnCensus {
 /// traversal and a second traversal would double the census's cost for facts the
 /// first one already collected. The two EH keys are the measured predicate and
 /// the refuted one it replaces; see [`FnCensus::eh`] and [`FnCensus::eh_stmt`].
-fn cflow_key(seg: &[u8]) -> (String, String, String, &'static str) {
+fn cflow_key(seg: &[u8]) -> (String, String, String, &'static str, &'static str) {
     let Some(lo) = crate::func::readers::find_subslice(seg, &crate::func::bundle::LO_MARKER) else {
         return (
             "cf-no-body".to_string(),
             "eh-unknown".to_string(),
             "eh-unknown".to_string(),
             "",
+            // Not `refuse-undecoded`: there is no body to decode, so the first
+            // pass was never run and its verdict has no subject. A separate
+            // string, because folding it into the refusal would put every
+            // bodiless row into a bucket named after a walk that did not happen.
+            "cfg-no-body",
         );
     };
     let scan = body::shapes::control_flow::scan_full(seg, lo);
@@ -356,11 +379,48 @@ fn cflow_key(seg: &[u8]) -> (String, String, String, &'static str) {
         Ok(cf) => cf.key(),
         Err(b) => b.feature(),
     };
+    // **Step 5's fail-closed boundary, evaluated on every body in the corpus.**
+    // One scan, four readings now. The verdict reads only facts `scan_full`
+    // already collected, so this costs a comparison and no second traversal —
+    // and it means the predicate is exercised on ~1.7M bodies rather than on
+    // whatever a hand-written test happens to contain, which is
+    // `CFG_SHAPE.md` §6.3 rule 4's answer to board #283 (16 of 56 shape markers
+    // had zero corpus cases).
+    let admit = if body::shapes::step5::CfgAdmit::label_map_is_empty_on_a_decoded_body(&scan) {
+        "DISAGREE-empty-label-map"
+    } else if body::shapes::step5::CfgAdmit::backedge_disagrees_with_shape(&scan) {
+        // **The consistency control is reported IN the axis, not beside it.** A
+        // control published as its own key can read 0 because nothing reached
+        // it; this one can only read 0 if bodies reached the axis and agreed,
+        // because the same rows carry both.
+        "DISAGREE-backedge-vs-shape"
+    } else {
+        let v = body::shapes::step5::CfgAdmit::of(&scan);
+        // §9's counterexample gets its own axis value — NOT an alarm and NOT a
+        // refusal, see `has_fallthrough_epilogue` — so the three bodies stay
+        // visible instead of merging into `admit-straight` where nobody would
+        // find them again.
+        //
+        // **Gated on `v.admits()`, and that gate is the whole correctness of
+        // this arm.** Written without it, the fallthrough name was reached
+        // BEFORE the residue clause and relabelled one body that
+        // `refuse-unmodeled-operand` had refused into a name beginning
+        // `admit-` — the census reporting an admission for a body the predicate
+        // rejects, which is the exact confusion "decoding a production is not
+        // licence to emit it" is a rule against. Caught by
+        // `step5-refuse-unmodeled-operand-BLOCKED` moving by one.
+        if v.admits() && body::shapes::step5::CfgAdmit::has_fallthrough_epilogue(&scan) {
+            "admit-fallthrough-epilogue"
+        } else {
+            v.name()
+        }
+    };
     (
         cflow,
         scan.eh.state_key(scan.decoded).to_string(),
         scan.eh.key(scan.decoded).to_string(),
         scan.off_reason.unwrap_or(""),
+        admit,
     )
 }
 
@@ -1361,7 +1421,7 @@ impl IlBundle {
                             (seg[start..end].to_vec(), b.off - start)
                         }
                     };
-                    let (cflow, eh, eh_stmt, cflow_off) = cflow_key(seg);
+                    let (cflow, eh, eh_stmt, cflow_off, cfg_admit) = cflow_key(seg);
                     // Board #980. Asked of REFUSED rows only, and asked HERE
                     // rather than in the struct literal so the read happens
                     // before `verdict` moves into it.
@@ -1396,6 +1456,7 @@ impl IlBundle {
                             calls: call_tokens(seg),
                             cflow,
                             cflow_off,
+                            cfg_admit,
                             eh,
                             eh_stmt,
                             dispatch,
