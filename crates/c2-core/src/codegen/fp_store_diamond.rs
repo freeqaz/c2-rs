@@ -84,13 +84,12 @@ use c2_il::FpDiamondConstStore;
 
 use crate::BackendError;
 use crate::codegen::encode::{
-    encode_addis, encode_blr, encode_cmplwi, encode_fdiv, encode_lfs,
+    encode_addis, encode_cmplwi, encode_fdiv, encode_lfs,
     encode_stfs,
 };
 use crate::codegen::leaf::float::FpConstRef;
 use crate::codegen::select::out_of_class;
-use crate::codegen::labels::Form;
-use crate::codegen::reach;
+use crate::codegen::block_ir::{BlockOrder, BodyLayout, Terminator};
 
 /// `bf 26` — branch if condition-register bit 26 (`cr6`'s EQ) is FALSE, i.e.
 /// `bne cr6`. `BO = 4` (branch if the bit is clear, no counter), `BI = 26`.
@@ -111,11 +110,21 @@ const FPR_DEN: u8 = 12;
 /// two different blocks and each is one live range of its own.
 const ADDR_GPR: u8 = 11;
 
-/// The word count of the emitted body, so the branch displacements can be
-/// resolved before the words are laid down. Kept as one arithmetic expression
-/// with the emission below rather than counted twice: a displacement computed
-/// from a different formula than the one the layout obeys is the defect
-/// `docs/CFG_SHAPE.md` §3.3 records.
+/// The word count of each block of the emitted body — **the class's own model of
+/// its shape**.
+///
+/// It used to be the *source* of the two branch displacements: they had to be
+/// resolved before the words below them were laid down, so this function
+/// computed the lengths and the emission obeyed them. Since board **#3124** the
+/// displacements are [`super::labels::LabelMap`]'s, derived from where the
+/// blocks actually landed, and this is no longer on that path.
+///
+/// It is kept, and the assertion in [`fp_store_diamond_text`] that grades it
+/// against the layout is kept with it — because the two are now **independent**.
+/// Before, that assertion could only restate the formula it had just used; now a
+/// disagreement between this prediction and the emission is a real
+/// disagreement, and it is the only place this class states its shape in one
+/// expression. The tests read it for the same reason.
 fn block_lengths(d: &FpStoreDiamond) -> (u32, u32, u32) {
     // entry: lis · cmplwi · lfs · bc
     let entry = 4 * 4;
@@ -184,100 +193,129 @@ pub fn fp_store_diamond_text(
         })
     };
 
-    let (entry_len, then_len, else_len) = block_lengths(d);
-    let mut text: Vec<u8> = Vec::new();
+    // **The body is four blocks in `BodyLayout`** — `CFG_SHAPE.md` §6.2 item A,
+    // board **#3124**. This class is the one where the old shape is most
+    // visible: [`block_lengths`] exists *only* because the two displacements had
+    // to be known before the blocks below them were emitted, and every one of
+    // this class's four published positions (two `REFHI`/`REFLO` pairs) came off
+    // the same running `text.len()`. The layout answers both questions now, and
+    // `block_lengths` keeps exactly one job — the class's own prediction of its
+    // shape, which the assertion below still grades against the emission.
+    let mut l = BodyLayout::new(BlockOrder::IlStatement);
+    let b_entry = l.declare("entry");
+    let b_then = l.declare("then");
+    let b_else = l.declare("else");
+    let b_join = l.declare("join");
     let mut consts: Vec<FpConstRef> = Vec::new();
 
     // ---- the ENTRY block ---------------------------------------------------
-    let a_hi = text.len() as u32;
-    text.extend_from_slice(&encode_addis(ADDR_GPR, 0, 0));
-    text.extend_from_slice(&encode_cmplwi(6, src_reg, 0));
-    let a_lo = text.len() as u32;
-    text.extend_from_slice(&encode_lfs(false, FPR_A, ADDR_GPR, 0));
-    consts.push(FpConstRef { bits: a_bits, double: false, hi_off: a_hi, lo_off: a_lo });
-    // The conditional branch's displacement is self-relative and takes no
-    // relocation: it names the else arm, which starts one whole then-block below
-    // the branch word itself.
-    let to_else = (entry_len - text.len() as u32) + then_len;
-    text.extend_from_slice(&reach::direct(
-        Form::Bc { bo: BO_FALSE, bi: BI_CR6_EQ },
-        to_else as i32,
-        "the fp-store diamond guard branch",
-    )?);
+    const A_HI_IN_ENTRY: u32 = 0;
+    const A_LO_IN_ENTRY: u32 = 8;
+    let mut run: Vec<u8> = Vec::new();
+    run.extend_from_slice(&encode_addis(ADDR_GPR, 0, 0));
+    run.extend_from_slice(&encode_cmplwi(6, src_reg, 0));
+    debug_assert_eq!(run.len() as u32, A_LO_IN_ENTRY);
+    run.extend_from_slice(&encode_lfs(false, FPR_A, ADDR_GPR, 0));
+    // The conditional branch is self-relative and takes no relocation: it names
+    // the else arm, and it now says so by NAME rather than by
+    // `(entry_len - text.len()) + then_len`.
+    l.place(
+        b_entry,
+        run,
+        Terminator::Bc { bo: BO_FALSE, bi: BI_CR6_EQ, taken: b_else },
+    )?;
 
     // ---- the THEN arm ------------------------------------------------------
-    let b_hi = text.len() as u32;
-    text.extend_from_slice(&encode_addis(ADDR_GPR, 0, 0));
+    const B_HI_IN_THEN: u32 = 0;
+    let mut run: Vec<u8> = Vec::new();
+    run.extend_from_slice(&encode_addis(ADDR_GPR, 0, 0));
     let (b_store, a_stores) = d
         .then_stores
         .split_last()
         .expect("checked non-empty above");
     for s in a_stores {
-        text.extend_from_slice(&encode_stfs(
+        run.extend_from_slice(&encode_stfs(
             false,
             FPR_A,
             this_reg,
             disp16(s.off, "a then-arm member offset")?,
         ));
     }
-    let b_lo = text.len() as u32;
-    text.extend_from_slice(&encode_lfs(false, FPR_B, ADDR_GPR, 0));
-    consts.push(FpConstRef { bits: b_bits, double: false, hi_off: b_hi, lo_off: b_lo });
-    text.extend_from_slice(&encode_stfs(
+    // Read off the run rather than written as a constant: the number of
+    // `a_stores` above it is the shape's, not the class's.
+    let b_lo_in_then = run.len() as u32;
+    run.extend_from_slice(&encode_lfs(false, FPR_B, ADDR_GPR, 0));
+    run.extend_from_slice(&encode_stfs(
         false,
         FPR_B,
         this_reg,
         disp16(b_store.off, "the then-arm's block-local member offset")?,
     ));
-    // The join is one whole else-block below this word.
-    let to_join = (entry_len + then_len - text.len() as u32) + else_len;
-    text.extend_from_slice(&reach::direct(
-        Form::B,
-        to_join as i32,
-        "the fp-store diamond join branch",
-    )?);
+    l.place(b_then, run, Terminator::B { target: b_join })?;
 
     // ---- the ELSE arm: the CSE'd division run ------------------------------
     let last = d.divs.len() - 1;
+    let mut run: Vec<u8> = Vec::new();
     for (i, x) in d.divs.iter().enumerate() {
         let num_w = encode_lfs(false, FPR_B, src_reg, disp16(x.num, "a numerator offset")?);
         let den_w = encode_lfs(false, FPR_DEN, src_reg, disp16(x.den, "the divisor offset")?);
         // B′-RULE. Every statement but the last loads the reload FIRST; the last
         // one — the reload's final use — loads in source order.
         if i == last {
-            text.extend_from_slice(&num_w);
-            text.extend_from_slice(&den_w);
+            run.extend_from_slice(&num_w);
+            run.extend_from_slice(&den_w);
         } else {
-            text.extend_from_slice(&den_w);
-            text.extend_from_slice(&num_w);
+            run.extend_from_slice(&den_w);
+            run.extend_from_slice(&num_w);
         }
-        text.extend_from_slice(&encode_fdiv(false, FPR_B, FPR_B, FPR_DEN));
-        text.extend_from_slice(&encode_stfs(
+        run.extend_from_slice(&encode_fdiv(false, FPR_B, FPR_B, FPR_DEN));
+        run.extend_from_slice(&encode_stfs(
             false,
             FPR_B,
             this_reg,
             disp16(x.off, "a division destination offset")?,
         ));
     }
+    l.place(b_else, run, Terminator::FallThrough)?;
 
     // ---- the JOIN ----------------------------------------------------------
-    debug_assert_eq!(
-        text.len() as u32,
-        entry_len + then_len + else_len,
-        "the block lengths and the emission disagree — every displacement above \
-         is computed from the former and obeyed by the latter"
-    );
+    let mut run: Vec<u8> = Vec::new();
     for s in &d.join_stores {
-        text.extend_from_slice(&encode_stfs(
+        run.extend_from_slice(&encode_stfs(
             false,
             FPR_A,
             this_reg,
             disp16(s.off, "a join member offset")?,
         ));
     }
-    text.extend_from_slice(&encode_blr());
+    l.place(b_join, run, Terminator::Blr)?;
 
-    Ok((text, consts))
+    let body = l.finish()?;
+    // **The class's prediction, graded against the layout rather than trusted by
+    // it.** `block_lengths` used to be the *source* of the two displacements, so
+    // this assertion could only ever restate them. Now the two are independent:
+    // the displacements are `LabelMap`'s and this is the class's own model of
+    // its shape, and a disagreement is a real disagreement.
+    let (entry_len, then_len, else_len) = block_lengths(d);
+    debug_assert_eq!(body.start_of(b_then)?, entry_len);
+    debug_assert_eq!(body.start_of(b_else)?, entry_len + then_len);
+    debug_assert_eq!(body.start_of(b_join)?, entry_len + then_len + else_len);
+
+    // ---- the four positions this class publishes, all the layout's ----------
+    consts.push(FpConstRef {
+        bits: a_bits,
+        double: false,
+        hi_off: body.at(b_entry, A_HI_IN_ENTRY)?,
+        lo_off: body.at(b_entry, A_LO_IN_ENTRY)?,
+    });
+    consts.push(FpConstRef {
+        bits: b_bits,
+        double: false,
+        hi_off: body.at(b_then, B_HI_IN_THEN)?,
+        lo_off: body.at(b_then, b_lo_in_then)?,
+    });
+
+    Ok((body.text, consts))
 }
 
 /// The **GPR footprint** of a lowered body of this class: `{r11}`.
