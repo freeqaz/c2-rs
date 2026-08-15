@@ -1,0 +1,27 @@
+w-fencea — the compiler-label symbols of the eight series cells, read straight
+off REAL c2.dll's objs at /O1 /GS- /c.  Board #3152.
+
+THE OBJS THEMSELVES ARE NOT TRACKED.  `CLAUDE.md` bans build artifacts and
+`.gitignore` line 20 is `*.obj`; eight of them were force-added past it in this
+lane's first evidence commit and have been removed from the branch's history.
+What is tracked is `cells_regen.sh`, the eight `.cpp` cells, and this readout —
+`work/w-fencea/cells_regen.sh --verify` reproduces every line below, and all
+eight objs come back BYTE-FOR-BYTE IDENTICAL to the removed ones with the COFF
+TimeDateStamp zeroed (8 of 8, checked before the removal).  The obj is the
+judge; it is not the record.
+
+Each line is one TU's `$M` triple — the framed `?z9@@YAHH@Z`'s.  The ABSOLUTE
+numbers below are not the finding and must not be quoted as one: they carry each
+TU's own `.gl` label counter, which differs with the source text, and
+differencing them ACROSS TUs is exactly the cross-TU artifact #3148 and
+`WLT-c` record.  The seed-cancelled series — each TU's own counter subtracted
+inside the TU — is in `series_o1.txt`, and it is `+0 / +2 / +4 / +6 = 2n`.
+
+  ctl_plain_0            $M2548 $M2549 $M2550
+  ctl_plain_1            $M2557 $M2558 $M2559
+  ctl_plain_2            $M2566 $M2567 $M2568
+  ctl_plain_3            $M2575 $M2576 $M2577
+  loops_0                $M2548 $M2549 $M2550
+  loops_1                $M2564 $M2565 $M2566
+  loops_2                $M2580 $M2581 $M2582
+  loops_3                $M2596 $M2597 $M2598

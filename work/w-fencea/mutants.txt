@@ -1,0 +1,136 @@
+=== MUTANT M1-admission-always-true  (crates/c2-core/src/codegen/labels.rs) ===
+  cell ctl_plain_0 = match
+  cell ctl_plain_1 = match
+  cell ctl_plain_2 = match
+  cell ctl_plain_3 = match
+  cell loops_0 = match
+  cell loops_1 = match
+  cell loops_2 = match
+  cell loops_3 = match
+  fixture whash_ptr_walk_loop = match
+  fixture wvl_chain3 = match
+  fixture whash_loop_then_framed = match
+  fixture wxtea3_encrypt_loop = match
+=== MUTANT M2-unsigned-displacement  (crates/c2-core/src/codegen/labels.rs) ===
+  cell ctl_plain_0 = match
+  cell ctl_plain_1 = match
+  cell ctl_plain_3 = match
+  cell ctl_plain_2 = match
+  cell loops_0 = match
+  cell loops_1 = match
+  cell loops_2 = match
+  cell loops_3 = match
+  fixture whash_ptr_walk_loop = match
+  fixture wvl_chain3 = match
+  fixture whash_loop_then_framed = match
+  fixture wxtea3_encrypt_loop = match
+=== MUTANT M3-back-edge-targets-exit  (crates/c2-core/src/codegen/ptr_walk_loop.rs) ===
+  cell ctl_plain_1 = match
+  cell ctl_plain_2 = match
+  cell ctl_plain_0 = match
+  cell ctl_plain_3 = match
+  cell loops_0 = match
+  cell loops_3 = mismatch  (bytes diverge)
+  cell loops_1 = mismatch  (bytes diverge)
+  cell loops_2 = mismatch  (bytes diverge)
+  fixture wvl_chain3 = match
+  fixture whash_ptr_walk_loop = mismatch  (bytes diverge)
+  fixture whash_loop_then_framed = mismatch  (bytes diverge)
+  fixture wxtea3_encrypt_loop = match
+=== MUTANT M4-guard-targets-body  (crates/c2-core/src/codegen/ptr_walk_loop.rs) ===
+  cell ctl_plain_1 = match
+  cell ctl_plain_2 = match
+  cell ctl_plain_0 = match
+  cell ctl_plain_3 = match
+  cell loops_0 = match
+  cell loops_1 = mismatch  (bytes diverge)
+  cell loops_3 = mismatch  (bytes diverge)
+  cell loops_2 = mismatch  (bytes diverge)
+  fixture wvl_chain3 = match
+  fixture whash_ptr_walk_loop = mismatch  (bytes diverge)
+  fixture whash_loop_then_framed = mismatch  (bytes diverge)
+  fixture wxtea3_encrypt_loop = match
+=== MUTANT M2b-32bit-truncated-displacement  (crates/c2-core/src/codegen/labels.rs) ===
+  cell ctl_plain_1 = match
+  cell ctl_plain_2 = match
+  cell ctl_plain_0 = match
+  cell ctl_plain_3 = match
+  cell loops_0 = match
+  cell loops_1 = codegen-gap  (a label displacement outside a 32-bit .text offset)
+  cell loops_3 = codegen-gap  (a label displacement outside a 32-bit .text offset)
+  cell loops_2 = codegen-gap  (a label displacement outside a 32-bit .text offset)
+  fixture whash_ptr_walk_loop = codegen-gap  (a label displacement outside a 32-bit .text offset)
+  fixture whash_loop_then_framed = codegen-gap  (a label displacement outside a 32-bit .text offset)
+  fixture wvl_chain3 = codegen-gap  (a label displacement outside a 32-bit .text offset)
+  fixture wxtea3_encrypt_loop = codegen-gap  (a label displacement outside a 32-bit .text offset)
+=== MUTANT M5-xtea-bl-site-8  (crates/c2-core/src/codegen/xtea_encrypt_loop.rs) ===
+  cell ctl_plain_0 = match
+  cell ctl_plain_3 = match
+  cell ctl_plain_1 = match
+  cell ctl_plain_2 = match
+  cell loops_3 = match
+  cell loops_0 = match
+  cell loops_1 = match
+  cell loops_2 = match
+  fixture whash_ptr_walk_loop = match
+  fixture whash_loop_then_framed = match
+  fixture wvl_chain3 = match
+  fixture wxtea3_encrypt_loop = mismatch  (bytes diverge)
+=== MUTANT M6-chain-same-split-early  (crates/c2-core/src/codegen/ptr_walk_chain_loop.rs) ===
+  cell ctl_plain_0 = match
+  cell ctl_plain_1 = match
+  cell ctl_plain_3 = match
+  cell ctl_plain_2 = match
+  cell loops_0 = match
+  cell loops_1 = match
+  cell loops_2 = match
+  cell loops_3 = match
+  fixture whash_loop_then_framed = match
+  fixture whash_ptr_walk_loop = match
+  fixture wvl_chain3 = match
+  fixture wxtea3_encrypt_loop = match
+=== MUTANT M6b-chain-same-split-early  (crates/c2-core/src/codegen/ptr_walk_chain_loop.rs) ===
+  cell ctl_plain_0 = match
+  cell ctl_plain_1 = match
+  cell ctl_plain_3 = match
+  cell ctl_plain_2 = match
+  cell loops_1 = match
+  cell loops_2 = match
+  cell loops_3 = match
+  cell loops_0 = match
+  fixture whash_ptr_walk_loop = match
+  fixture whash_loop_then_framed = match
+  fixture wvl_chain3 = match
+  fixture wvl_chain6_same = mismatch  (bytes diverge)
+  fixture wxtea3_encrypt_loop = match
+=== MUTANT M7-ptr-walk-lead-3  (crates/c2-il/src/func/mod.rs) ===
+  cell ctl_plain_0 = match
+  cell ctl_plain_1 = match
+  cell ctl_plain_2 = match
+  cell ctl_plain_3 = match
+  cell loops_0 = match
+  cell loops_1 = mismatch  (bytes diverge)
+  cell loops_2 = mismatch  (bytes diverge)
+  cell loops_3 = mismatch  (bytes diverge)
+  fixture wvl_chain6_same = match
+  fixture whash_ptr_walk_loop = match
+  fixture whash_loop_then_framed = mismatch  (bytes diverge)
+  fixture wvl_chain3 = match
+  fixture wxtea3_encrypt_loop = match
+
+=== MUTANT M8-ALL-is-reordered  (crates/c2-core/src/codegen/labels.rs) ===
+  RED: the_admitted_class_list_is_complete
+  "c2_il::XteaEncryptLoop is out of place in ALL" — test result: FAILED, 16 passed 1 failed
+=== MUTANT M9-a-fourth-class-with-no-evidence  (crates/c2-core/src/codegen/labels.rs) ===
+  BUILD-RED — error[E0004]: non-exhaustive patterns: `labels::ChargedClass::Bogus`
+  not covered, x3 (il_shape, the grading test, the completeness test). The closure
+  is the COMPILER's: a class cannot be admitted without being graded.
+
+--- ROLL-UP ---------------------------------------------------------------
+  9 mutants, 8 red, 6 of them reddening a REAL-OBJ oracle against real c2.dll
+  at /O1, with a separating control green under every one.
+  M1 is GREEN and was REGISTERED GREEN in advance (PREREG P14): deleting the
+  admission reddens nothing today, because no lowering routes a back edge
+  through a DEFAULT map. That is the honest statement of what the admission
+  buys — it is about the classes that do not exist yet, and no obj can see it.
+  M8 and M9 are what CAN see it, and they are the compiler and the list.

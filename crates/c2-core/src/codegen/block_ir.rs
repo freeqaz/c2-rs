@@ -97,6 +97,19 @@
 //! variant and `CFG_SHAPE.md` §6.3 declines the discovery that would justify
 //! one.
 //!
+//! ## ✔ 2026-08-15, lane `w-fencea` — **invariant 4 gained an ADMISSION, and the
+//! loop bodies came in through it**
+//!
+//! Board **#3144**: the fence the paragraph above calls *"right to"* refuse was
+//! measured at zero cost by `#3089`, stayed literally true, and was made binding
+//! by `w-layout`'s own success — it blocked **7 of the 8** residual sites at a
+//! counter benefit of **zero**, because four shipped classes emit their back
+//! edge through `reach::direct` and the map never sees it. [`LabelMap`]'s
+//! `w-fencea` correction has the reading; the mechanism is
+//! [`LabelMap::admitting_back_edges`] and [`BodyLayout::admitting_back_edges`],
+//! and **[`BodyLayout::new`] is unchanged**, so every client that had a refusal
+//! still has one.
+//!
 //! # The one fact this module does not own
 //!
 //! **The fixup list is [`super::labels::LabelMap`]'s, not this module's.** That
@@ -136,7 +149,7 @@
 
 use super::cond::{bc_reads_crf, cond_source, Cond, CondSource};
 use super::encode::{encode_bclr, encode_blr};
-use super::labels::{Form, Label, LabelMap};
+use super::labels::{ChargedClass, Form, Label, LabelMap};
 use super::select::out_of_class;
 use crate::BackendError;
 
@@ -451,12 +464,39 @@ pub struct BodyLayout {
 
 impl BodyLayout {
     /// A new, empty layout claiming `order`.
+    ///
+    /// Its map is [`LabelMap::new`]'s, so **a back edge is refused** — invariant
+    /// 4, unchanged, and what all nine of the pre-`w-fencea` clients get.
     pub fn new(order: BlockOrder) -> Self {
         Self {
             order,
             declared: Vec::new(),
             placed: Vec::new(),
             labels: LabelMap::new(),
+        }
+    }
+
+    /// A layout for a body of `class`, whose **back edge** the map will resolve
+    /// — `LabelMap::admitting_back_edges`, and nothing else.
+    ///
+    /// The admission is the map's, passed through. This module deliberately
+    /// makes **no** decision about it and holds no copy of the rule: a block IR
+    /// is the obvious place to grow a second, friendlier one, and
+    /// [`tests::a_backward_branch_is_refused_by_the_label_maps_own_rule`] reads
+    /// `labels.rs`' own words so that a second copy cannot appear here without
+    /// going red.
+    ///
+    /// The fence is per **body**, not per site: [`Self::finish`] resolves every
+    /// branch through the one map, which is why `ptr_walk_loop`'s *forward*
+    /// entry guard was fenced off by its own body's back edge (board **#3144**).
+    /// That is exactly why the admission belongs on the layout's constructor and
+    /// not on a terminator.
+    pub fn admitting_back_edges(order: BlockOrder, class: ChargedClass) -> Self {
+        Self {
+            order,
+            declared: Vec::new(),
+            placed: Vec::new(),
+            labels: LabelMap::admitting_back_edges(class),
         }
     }
 
