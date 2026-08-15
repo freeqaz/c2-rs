@@ -1483,6 +1483,33 @@ impl GapReport {
         //
         // The control is published, not asserted — `w-tag02`'s rule, and the
         // same one `cflow-offclass-accounted` is printed under.
+        // **§14.2 STEP 5's BOUNDARY, SCORED** (lane `w-stmt5`). One key per
+        // occupied `<verdict>|<population>` cell, plus the consistency alarm.
+        //
+        // The alarm is emitted UNCONDITIONALLY and the cells only when they
+        // occur — the asymmetry is trap 5's: a cell that vanished must be
+        // distinguishable from a cell that read 0, but an alarm that vanished
+        // must NOT be readable as an alarm that fired zero times, so the alarm
+        // is always present and the cells are not.
+        let (admit_rows, admit_disagree) = self.cfg_admit_histogram();
+        m.push((
+            "step5-backedge-shape-disagree",
+            admit_disagree.to_string(),
+        ));
+        // The partition control, printed beside the cells and never folded into
+        // them: every scanned body scores exactly one verdict, so this must
+        // equal the census total. Printed rather than asserted — `w-tag02`'s
+        // rule, and the reason `cflow-offclass-accounted` is printed too.
+        m.push((
+            "step5-accounted",
+            admit_rows.iter().map(|r| r.1).sum::<usize>().to_string(),
+        ));
+        for (cell, n) in admit_rows {
+            m.push((
+                Box::leak(format!("step5-{}", cell.replace('|', "-")).into_boxed_str()),
+                n.to_string(),
+            ));
+        }
         let (series, series_accounted) = self.cflow_emitted_series();
         m.push(("emit-cflow-shape-accounted", series_accounted.to_string()));
         for (cell, n) in series {

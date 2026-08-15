@@ -238,6 +238,33 @@ impl GapReport {
         (rows, accounted)
     }
 
+    /// **§14.2 step 5's boundary, scored over the whole corpus** —
+    /// `(rows, disagreements)`, where a row is
+    /// `("<verdict>|<IN-CLASS|BLOCKED>", count)` sorted by count descending and
+    /// `disagreements` is the consistency alarm's total (lane `w-stmt5`).
+    ///
+    /// **`disagreements` has a target of 0 and is the only row here that is an
+    /// alarm.** Every other row is a measurement: a large `refuse-back-edge` is
+    /// the boundary doing its job, not a defect.
+    pub fn cfg_admit_histogram(&self) -> (Vec<(String, usize)>, usize) {
+        let mut by: std::collections::BTreeMap<String, usize> = Default::default();
+        for r in &self.results {
+            for (k, n) in &r.fn_cflow {
+                if let Some(b) = k.strip_prefix("step5-") {
+                    *by.entry(b.to_string()).or_insert(0) += *n;
+                }
+            }
+        }
+        let disagree = by
+            .iter()
+            .filter(|(k, _)| k.starts_with("DISAGREE-"))
+            .map(|(_, n)| *n)
+            .sum();
+        let mut rows: Vec<(String, usize)> = by.into_iter().collect();
+        rows.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        (rows, disagree)
+    }
+
     /// **The EH axis**, aggregated, most frequent first. Rows are either a bare
     /// class (`eh-…`) or an `"<eh class>|<census key>"` cross-tab; see
     /// [`TuResult::fn_eh`].

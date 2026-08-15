@@ -248,6 +248,30 @@ fn scan_one(
             // shapes are the control group here too, and they must all read
             // `cflow-straight`.
             *res.fn_cflow.entry(f.cflow.clone()).or_insert(0) += 1;
+            // **§14.2 step 5's fail-closed boundary, scored over every body in
+            // the corpus** (lane `w-stmt5`), on the same `|IN-CLASS` /
+            // `|BLOCKED` cross the axes above use.
+            //
+            // It rides in `fn_cflow` rather than acquiring a seventh map
+            // because it is the same walk's verdict and the same population; the
+            // `step5-` prefix keeps it `sed`-able apart from the `cflow-` rows
+            // AND apart from the unrelated `cfg-reach-*` / `cfg-subclass-*` /
+            // `cfg-bounds-*` families this scan already publishes,
+            // and `GapReport::cfg_admit_histogram` is what reads it back.
+            //
+            // The IN-CLASS column is the control and it is the interesting one:
+            // a body the port already ACCEPTS AND EMITS BYTE-EXACTLY, that this
+            // predicate refuses, is a measured unit of the predicate being
+            // narrower than the shipped class — the same two-sided error
+            // `cflow_residue_control` publishes for the residue, asked of the
+            // boundary instead.
+            *res.fn_cflow
+                .entry(format!(
+                    "step5-{}|{}",
+                    f.cfg_admit,
+                    if f.verdict.in_class() { "IN-CLASS" } else { "BLOCKED" }
+                ))
+                .or_insert(0) += 1;
             if f.cflow.starts_with("cflow-") {
                 *res.fn_cflow
                     .entry(format!("{}|{}", f.cflow, f.verdict.key()))
