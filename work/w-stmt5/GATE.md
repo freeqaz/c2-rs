@@ -1,8 +1,13 @@
 # `w-stmt5` — gate evidence at the tip
 
-Branch `wt-w-stmt5`, off master **`5a25656a`**. Every run below is a **single
-writer in the foreground of one job**, with no `crates/` edit in flight
-(**#3075**, **#3117**, **#3128**).
+Branch `wt-w-stmt5`. Built off master `5a25656a`, **rebased onto `bf4f9a09`**
+(the `w-json2` merge, itself on `w-itemf-price` at `c0f129e6`) and **re-gated
+there**. Every number below is the rebased one.
+
+Every run below is a **single writer in the foreground of one job**, with no
+`crates/` edit in flight (**#3075**, **#3117**, **#3128**) — **after the first
+re-gate attempt violated exactly that and was killed and discarded.** See
+"The discarded run" at the foot of this file.
 
 ## `scripts/gate.sh --jobs 4 --require-graded`
 
@@ -14,7 +19,7 @@ sweep:  PASS — 19556 of 19556 selected cases reached, 19460 GRADED, 0 mismatch
 cross:  PASS — 90424 of 90812 selected cells graded, 0 mismatch (product 90812)
 ladder-red  PASS  5/5 arms — 3 red, 2 green controls
 hatch-red   REFUSED — HATCH-STALE (board #1389)
-graded tree: 465ba5481dd9  (731 files: crates fixtures scripts, content-hashed)
+graded tree: 75864f22df31  (731 files) — at the HEADER and at the SUMMARY, identical
 ```
 
 Script exit **0**. Per-lane: **381/381 graded on every one of the 18**,
@@ -42,8 +47,9 @@ crates/c2-il/src/func/census.rs
 
 ### `graded tree`
 
-**`465ba5481dd9` (731 files)** at the summary. Master's is `e6d4bfb38066`
-(730 files); this lane adds exactly one file to the hashed set
+**`75864f22df31` (731 files)** — printed at the **header** and at the
+**summary**, identical. Master gates at `ea1afd2965f8` (730 files); this lane
+adds exactly one file to the hashed set
 (`crates/c2-il/src/func/body/shapes/step5.rs`), so **731 is the expected count
 and the hash MUST differ** — four of the eleven changed files are inside
 `crates`, which is a hashed directory.
@@ -115,3 +121,79 @@ Fixed; mutant **S5** reproduces it on demand.
 of them ran.** Five are graded on real IL at corpus scale. Full table in the
 rung doc §6; runners are `work/w-stmt5/{mutate,scan_mutants}.sh` and both refuse
 to start against a dirty `crates/` tree.
+
+
+---
+
+# The rebase
+
+**No `crates/` conflict.** `w-json` touched
+`c2-core/src/codegen/{if_call_join,json_utf8_copy,labels,reach}.rs`; this lane
+touches eleven files in `c2-harness/src/gap/` and `c2-il/src/func/`. Intersection
+**empty**. `docs/BOARD.md` conflicted — resolved by keeping master's blocks whole
+and appending this lane's at the **bottom**. `docs/rungs/INDEX.md` was
+**regenerated**, never hand-merged.
+
+## The merged base, measured from its own `crates/`
+
+A throwaway `git worktree` at `bf4f9a09` with its own `CARGO_TARGET_DIR`:
+
+```
+match 25 · mismatch 0 · codegen-gap 0 · vocab-gap 845 · frontier 2
+capture-fail 8 · fnbyte-exact 35,734 · fnbyte-denominator 162,049
+fnbyte-refused-parse 113,612 · fnbyte-refused-codegen 949 · 370 gap-metric keys
+```
+
+**Every digit of the pre-rebase base**, so neither peer merge moved the workload
+numbers. Workspace tests at that base: **1,624 / 0 / 42**, measured rather than
+inferred.
+
+## This lane against the tree it will land on
+
+| key | merged base `bf4f9a09` | tip | Δ |
+|---|---:|---:|---:|
+| **`fnbyte-refused-parse`** | **113,612** | **113,612** | **0** |
+| `fnbyte-exact` | 35,734 | 35,734 | 0 |
+| **`match`** (878-TU workload) | **25** | **25** | **0** |
+| `mismatch` | **0** | **0** | **0** |
+| `fnbyte-refused-codegen` | 949 | 949 | 0 |
+| workspace tests | 1,624 / 0 / 42 | **1,643 / 0 / 42** | **+19** |
+
+**Identity diff: 370 → 394 keys — 24 NEW, 0 GONE, 0 MOVED. 879 of 879 verdict
+lines identical.**
+
+**The +19 holds against two different bases** — 1,619 → 1,638 pre-rebase,
+1,624 → 1,643 post-rebase. (`STATUS.md`'s generated block reads 1,619 and
+`w-json`'s merge note quotes 1,629 → 1,634 for a `+5`: the documented **#3076**
+offset. 1,619 + 5 = **1,624**, which is what was measured.)
+
+**All 15 mutants re-run on the merged tree and all 15 reproduce**, including
+S5's 517,425 → 1,222,684.
+
+---
+
+# The discarded run
+
+**The first re-gate attempt was contaminated by this lane and was killed, not
+reported.** `scripts/gate.sh` was in flight when `work/w-stmt5/mutate.sh` was
+started, and that script patches `crates/`, rebuilds and reverts, ten times.
+This lane's own PREREG §6 registers the single-writer rule and this lane broke
+it.
+
+**The precise exposure is the tree identity, not the grading.** `gate.sh` pins a
+run-private binary at startup (**#3128**'s fix), so the rebuilds could not have
+swapped the binary under a lane. What they could corrupt is `graded tree`, which
+is content-hashed over `crates fixtures scripts` **at both ends** — a mutant live
+at either end makes the two disagree, or agree by luck on a tree that was HEAD at
+no point during grading. **A gate whose tree identity is unreliable is not
+evidence, whatever its lane counts say.**
+
+Terminated with `SIGTERM` (exit 144); log discarded; tree confirmed clean. The
+`crates/`-patching mutants were then run **first, to completion**, and the gate
+started only once `git status --porcelain -- crates fixtures scripts` was empty.
+**The discarded run's header hash was `75864f22df31` — and so is the clean
+run's, at both ends.** That is positive evidence that all ten mutants reverted
+exactly, a property `mutate.sh` depends on and nothing else here checks. It does
+**not** rehabilitate the discarded run: its *summary* hash was never taken, and
+that is the end that would have caught a live mutant. **Nothing from it is
+quoted** — not a lane count, not the sweep, not the hash.
