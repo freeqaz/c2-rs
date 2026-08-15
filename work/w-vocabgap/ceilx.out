@@ -1,0 +1,128 @@
+== w-vocabgap :: ceilx ==
+D1  vocab-gap TUs                 852
+D2  emitted fns refused by reader 120456  (== fnbyte-refused-parse 120456)
+D4  distinct emit_blockers keys   70
+
+-- A. PER-TU BLOCKER-SET CARDINALITY |S(t)|, over D1 --
+   min 0  median 10  mean 10.0  max 22
+   |S| =       0      3 TUs of 852    0.4%
+   |S| =       1     32 TUs of 852    3.8%
+   |S| =     2-5    157 TUs of 852   18.4%
+   |S| =    6-10    242 TUs of 852   28.4%
+   |S| =   11-25    418 TUs of 852   49.1%
+   |S| =   26-50      0 TUs of 852    0.0%
+   |S| =  51-100      0 TUs of 852    0.0%
+   |S| =    101+      0 TUs of 852    0.0%
+   DISCRIMINATING CELLS: 23 distinct cardinalities over 852 TUs
+   |S(t)| = 0 : 3 TUs   <- P-J's control, MEASURED not assumed
+        src/system/decomp_pch.cpp
+        src/system/math/vec.cpp
+        src/system/os/NetworkSocket.cpp
+   |S(t)| = 1 : 32 TUs   <- the only TUs a single key can ever cover
+        src/ChecksumData_xbox.cpp  ['expr-chain-noform-0x4F']
+        src/lazer/meta_ham/ChallengeRecord.cpp  ['expr-chain-noform-0x4F']
+        src/lazer/meta_ham/HamMemcardAction.cpp  ['expr-chain-noform-0x4F']
+        src/system/math/SHA1.cpp  ['expr-chain-noform-0x4F']
+        src/system/meta/Achievements_Xbox.cpp  ['expr-chain-noform-0x4F']
+        src/system/meta/MemcardAction.cpp  ['expr-chain-noform-0x4F']
+        src/system/midi/MidiVarLen.cpp  ['expr-chain-noform-0x4F']
+        src/system/net/JsonMemory.cpp  ['expr-chain-noform-0x4F']
+        src/system/os/AsyncTask.cpp  ['expr-chain-noform-0x4F']
+        src/system/os/HolmesUtl.cpp  ['expr-chain-noform-0x4F']
+        src/system/os/SynchronizationEvent.cpp  ['expr-chain-noform-0x4F']
+        src/system/rnddx9/Env.cpp  ['expr-chain-noform-0x4F']
+
+-- C. SINGLE-KEY TU-MARGINAL: TUs key-covered by granting ONE key alone --
+   BASELINE: the EMPTY granted set already key-covers 3 of 852 TUs -- every marginal below is NET of it
+   keys with a NONZERO NET single-key TU-marginal: 2 of 70
+   sum of all 70 NET single-key TU-marginals: 32 of 852
+   (raw, un-netted, for the record: 242 = 70*3 + 32)
+          29  expr-chain-noform-0x4F   (appears in 845 TUs, mass 88806)
+           3  expr-op-0x00   (appears in 489 TUs, mass 2357)
+   the widest keys by TU-APPEARANCE, and their conversion marginal:
+        appears  845/852  covers-alone(net)  29  mass   88806  expr-chain-noform-0x4F
+        appears  680/852  covers-alone(net)   0  mass    8169  expr-op-0x64
+        appears  612/852  covers-alone(net)   0  mass    2764  expr-op-0x9A
+        appears  589/852  covers-alone(net)   0  mass    2832  body-cflow-label
+        appears  579/852  covers-alone(net)   0  mass    2234  expr-op-0x19
+        appears  564/852  covers-alone(net)   0  mass     761  expr-op-0x36
+        appears  562/852  covers-alone(net)   0  mass    1044  body-0x67
+        appears  498/852  covers-alone(net)   0  mass    2213  body-0x9B
+   DISCRIMINATING CELLS: 70 keys appear in >=1 TU; 2 have a nonzero NET marginal
+
+-- D. GREEDY COVERAGE: fewest keys to key-cover K of D1 TUs --
+   cover >=    1 of 852 TUs   needs    0 keys of 70  (0.0%)
+   cover >=    5 of 852 TUs   needs    1 keys of 70  (1.4%)
+   cover >=   50 of 852 TUs   needs    5 keys of 70  (7.1%)
+   cover >=  100 of 852 TUs   needs    9 keys of 70  (12.9%)
+   cover >=  200 of 852 TUs   needs   12 keys of 70  (17.1%)
+   cover >=  400 of 852 TUs   needs   20 keys of 70  (28.6%)
+   cover >=  845 of 852 TUs   needs   59 keys of 70  (84.3%)
+   full cover of all 852: 70 keys of 70
+   DISCRIMINATING CELLS: 67 greedy steps, 67 distinct coverage levels
+
+-- E. THE PUBLISHED MASS ORDER, SCORED IN THE TU QUANTITY --
+   top    5 keys by mass  =   104928 of 120456 fns (87.1%)  ->  key-covers   76 of 852 TUs (8.9%)
+   top   10 keys by mass  =   115416 of 120456 fns (95.8%)  ->  key-covers  114 of 852 TUs (13.4%)
+   top   20 keys by mass  =   119826 of 120456 fns (99.5%)  ->  key-covers  514 of 852 TUs (60.3%)
+   top   50 keys by mass  =   120434 of 120456 fns (100.0%)  ->  key-covers  836 of 852 TUs (98.1%)
+   top  100 keys by mass  =   120456 of 120456 fns (100.0%)  ->  key-covers  852 of 852 TUs (100.0%)
+   top  200 keys by mass  =   120456 of 120456 fns (100.0%)  ->  key-covers  852 of 852 TUs (100.0%)
+   top  400 keys by mass  =   120456 of 120456 fns (100.0%)  ->  key-covers  852 of 852 TUs (100.0%)
+   top   70 keys by mass  =   120456 of 120456 fns (100.0%)  ->  key-covers  852 of 852 TUs (100.0%)
+   EQUAL KEY BUDGET -- three orders, same budget, TUs key-covered:
+    keys  min-union  max-cover   BY MASS       best
+       5         66         82        76  max-cover
+      10        178        203       114  max-cover
+      25        625        715       712  max-cover
+      50        832        836       836  max-cover
+     100        852        852       852  min-union
+     150        852        852       852  min-union
+     200        852        852       852  min-union
+     300        852        852       852  min-union
+     400        852        852       852  min-union
+     500        852        852       852  min-union
+     615        852        852       852  min-union
+   ROWS WHERE THE PUBLISHED MASS ORDER BEATS BOTH PURPOSE-BUILT ORDERS: 0 of 10
+   greedy reaches 10 TUs at 1 keys; the MASS ORDER reaches 10 TUs at 1 keys  --  1.00x
+
+-- F. THE FACTOR CEILING, which binds ABOVE every coverage number --
+   a byte-exact obj needs A and B and C and (D or E); reader work
+   moves the route to D and moves none of A, B, C.
+   A TRUE over D1:   10 of 852 (  1.2%)   FALSE  842   published factor-a 28 over 870 graded, 28 - 10 = 18 outside D1
+   B TRUE over D1:  306 of 852 ( 35.9%)   FALSE  546   published factor-b 324 over 870 graded, 324 - 306 = 18 outside D1
+   C TRUE over D1:  151 of 852 ( 17.7%)   FALSE  701   published factor-c 169 over 870 graded, 169 - 151 = 18 outside D1
+   D TRUE over D1:    2 of 852 (  0.2%)   FALSE  850   published factor-d 19 over 870 graded, 19 - 2 = 17 outside D1
+   E TRUE over D1:    0 of 852 (  0.0%)   FALSE  852   published factor-e 1 over 870 graded, 1 - 0 = 1 outside D1
+   SELF-CHECK A: published 28 - D1 10 = 18 !! MISMATCH
+   SELF-CHECK B: published 324 - D1 306 = 18 !! MISMATCH
+   SELF-CHECK C: published 169 - D1 151 = 18 !! MISMATCH
+   SELF-CHECK D or E: (24-2) + (3-0) = 18 !! MISMATCH   <- the DISJUNCTION, never D alone
+   how many of {A,B,C} each vocab-gap TU fails:
+        fails 0 of 3      9 TUs of 852    1.1%
+        fails 1 of 3    120 TUs of 852   14.1%
+        fails 2 of 3    200 TUs of 852   23.5%
+        fails 3 of 3    523 TUs of 852   61.4%
+   A and B and C, over D1: 9 of 852 TUs (1.1%)   <- and this is `frontier`
+   the factor letter-strings of the 845, by frequency:
+        -----    523 TUs   61.4%
+        -B---    177 TUs   20.8%
+        -BC--    118 TUs   13.8%
+        --C--     22 TUs    2.6%
+        ABC--      9 TUs    1.1%
+        -BCD-      2 TUs    0.2%
+        A----      1 TUs    0.1%
+   DISCRIMINATING CELLS: 7 distinct letter-strings over 852 graded vocab-gap TUs
+   A and B and C AND |S(t)| <= 5 : 9 TUs of 852   <- the intersection a joint COUNT cannot express
+        ABC--  |S|=  2  src/keygen_xbox.cpp
+        ABC--  |S|=  2  src/system/rndobj/wordwrap.cpp
+        ABC--  |S|=  1  src/system/synth/tomcrypt/TomCryptLicense.cpp
+        ABC--  |S|=  1  src/system/synth_xbox/Biquad.cpp
+        ABC--  |S|=  1  src/system/zlib/ZlibLicense.cpp
+        ABC--  |S|=  1  src/xdk/LIBCMT/vsnprnc.cpp
+        ABC--  |S|=  1  src/xdk/nuispeech/mmio.cpp
+        ABC--  |S|=  1  src/xdk/nuispeech/xboxheap.cpp
+        ABC--  |S|=  1  src/xdk/nuispeech/xboxmem.cpp
+
+
+OK  (ceilx: 852 vocab-gap TUs, 70 keys, 120456 refused emitted functions -- all guards passed)

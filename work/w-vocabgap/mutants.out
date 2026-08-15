@@ -1,0 +1,11 @@
+== w-vocabgap mutation controls ==
+M1     coverage S(t)<=G  ->  S(t) intersect G nonempty predicted RED      got RED      OK
+M2     scores all 878 rows, not the 845 vocab-gap   predicted RED      got RED      OK
+M3     S(t) as a mass-weighted multiset, not a set  predicted RED      got RED      OK
+M5     the totality guard: sum != fnbyte-refused-parse predicted REFUSE   got REFUSE   OK
+M4     a comment-only edit inside the analyzer      predicted GREEN    got GREEN    OK
+M6     every vocab-gap row's emit_blockers emptied  predicted REFUSE   got REFUSE   OK
+M7a    a truncated (400-TU) stream, floor ON        predicted REFUSE   got REFUSE   OK
+M7b    the same stream with the floor REMOVED       predicted REFUSE   got REFUSE   OK
+
+mutants: 8 run, 8 as registered, 0 off prereg

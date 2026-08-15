@@ -121,5 +121,36 @@ D4  distinct emit_blockers keys   615
    A and B and C AND |S(t)| <= 5 : 1 TUs of 845   <- the intersection a joint COUNT cannot express
         ABC--  |S|=  2  src/system/rndobj/wordwrap.cpp
 
+-- G. THE LADDER: |S(t)| under the committed sinks --
+   a first-blocker count is not a distance (#3095), and #421 says
+   closing a key SUBSTITUTES a successor rather than removing it.
+             scan   keys  medianS   meanS  maxS  |S|=0  |S|=1   refused
+             base    615       33    35.6   120      3      9    113612
+            ceilx     70       10    10.0    22      3     32    120456
+                   vocab-gap population 852 (base 845) -- the sink DE-ACCEPTS, so this is a COUNTERFACTUAL population, not the base one
+           ceilxs     87       10    10.2    27      3     32    120456
+                   vocab-gap population 852 (base 845) -- the sink DE-ACCEPTS, so this is a COUNTERFACTUAL population, not the base one
+
+   PAIRED, base -> ceilx, over the 845 TUs in both:
+        median |S(t)|   33  ->  10
+        mean   |S(t)|   35.6  ->  10.0
+        max    |S(t)|   120  ->  22
+        TUs whose set GREW       3 of 845  0.4%
+        TUs whose set is SAME   27 of 845  3.2%
+        TUs whose set SHRANK   815 of 845  96.4%
+        TUs reaching |S(t)| = 0    3 of 845   <- P-L
+        SUBSTITUTED keys: 5216 key-slots are NEW on a TU at the ceiling; 26822 are gone.  Net -21606  <- board #421's substitution, in the TU quantity
+        DISCRIMINATING CELLS: 845 TUs compared, 23 distinct cardinalities at the ceiling
+
+   PAIRED, base -> ceilxs, over the 845 TUs in both:
+        median |S(t)|   33  ->  10
+        mean   |S(t)|   35.6  ->  10.3
+        max    |S(t)|   120  ->  27
+        TUs whose set GREW       3 of 845  0.4%
+        TUs whose set is SAME   27 of 845  3.2%
+        TUs whose set SHRANK   815 of 845  96.4%
+        TUs reaching |S(t)| = 0    3 of 845   <- P-L
+        SUBSTITUTED keys: 7510 key-slots are NEW on a TU at the ceiling; 28889 are gone.  Net -21379  <- board #421's substitution, in the TU quantity
+        DISCRIMINATING CELLS: 845 TUs compared, 28 distinct cardinalities at the ceiling
 
 OK  (base: 845 vocab-gap TUs, 615 keys, 113612 refused emitted functions -- all guards passed)

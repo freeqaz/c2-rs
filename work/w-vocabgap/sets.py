@@ -165,7 +165,7 @@ def main():
     for r in base_rows:
         for k, v in r["emit_blockers"].items():
             mass[k] += v
-    allkeys = set(mass)
+    allkeys = sorted(mass)          # SORTED: see the determinism note in mutate.sh
 
     print(f"== w-vocabgap :: {names[0]} ==")
     print(f"D1  vocab-gap TUs                 {N}")
@@ -226,9 +226,9 @@ def main():
           f"{sum(marg.values())} of {N}")
     print(f"   (raw, un-netted, for the record: {sum(len(covered(S,{k})) for k in allkeys)} "
           f"= {len(allkeys)}*{base0} + {sum(marg.values())})")
-    for k, v in sorted(nz.items(), key=lambda kv: -kv[1])[:10]:
+    for k, v in sorted(nz.items(), key=lambda kv: (-kv[1], kv[0]))[:10]:
         print(f"        {v:4d}  {k}   (appears in {appears[k]} TUs, mass {mass[k]})")
-    top = sorted(appears.items(), key=lambda kv: -kv[1])[:8]
+    top = sorted(appears.items(), key=lambda kv: (-kv[1], kv[0]))[:8]
     print("   the widest keys by TU-APPEARANCE, and their conversion marginal:")
     for k, v in top:
         print(f"        appears {v:4d}/{N}  covers-alone(net) {marg[k]:3d}  "
@@ -293,15 +293,15 @@ def main():
             inkey[k].append(t)
     G2, cov2 = set(), sum(1 for t in missing if missing[t] == 0)
     curve2 = [(0, cov2)]
-    remaining = set(allkeys)
+    remaining = sorted(allkeys)     # SORTED: deterministic tie-breaking
     while remaining:
         bk, bg, bt = None, -1, -1
         for k in remaining:
             g = sum(1 for t in inkey[k] if missing[t] == 1)
             tb = sum(1 for t in inkey[k] if missing[t] > 0)
-            if g > bg or (g == bg and tb > bt):
+            if (g, tb) > (bg, bt):   # `remaining` is sorted, so ties resolve on key order
                 bk, bg, bt = k, g, tb
-        remaining.discard(bk)
+        remaining.remove(bk)
         G2.add(bk)
         for t in inkey[bk]:
             missing[t] -= 1
@@ -330,9 +330,13 @@ def main():
     if g10:
         need = next((K for K in range(1, len(massorder) + 1)
                      if len(covered(S, set(massorder[:K]))) >= 10), None)
-        if need:
+        if need and g10[0]:
             print(f"   greedy reaches 10 TUs at {g10[0]} keys; the MASS ORDER "
                   f"reaches 10 TUs at {need} keys  --  {need/g10[0]:.2f}x")
+        elif need:
+            print(f"   greedy reaches 10 TUs at 0 keys -- the EMPTY set already "
+                  f"covers {base0}, so no ratio is defined; the mass order "
+                  f"reaches 10 at {need} keys")
         else:
             print(f"   greedy reaches 10 TUs at {g10[0]} keys; the MASS ORDER "
                   f"NEVER reaches 10 before exhausting all {len(massorder)} keys")
@@ -427,6 +431,46 @@ def main():
             o = sum(1 for c in cc if c == 1)
             print(f"   {nm:>14}  {len(ak):5d} {cc[len(cc)//2]:8d} "
                   f"{sum(cc)/len(cc):7.1f} {cc[-1]:5d} {z:6d} {o:6d} {tt:9d}")
+            print(f"   {'':>14}  vocab-gap population {len(ss)} "
+                  f"(base {N}) -- the sink DE-ACCEPTS, so this is a "
+                  f"COUNTERFACTUAL population, not the base one")
+
+        # THE PAIRED TEST, restricted to the base's own 845 so it is per-TU and
+        # not population-vs-population.  Board #421: closing a key does not
+        # REMOVE it, it SUBSTITUTES a successor.  If that is right, granting a
+        # whole layer of vocabulary should leave many TUs' sets no smaller.
+        for nm in names[1:]:
+            rr, _, _, _ = load(nm)
+            ss = sets_of(rr)
+            common = [t for t in S if t in ss]
+            up = sum(1 for t in common if len(ss[t]) > len(S[t]))
+            same = sum(1 for t in common if len(ss[t]) == len(S[t]))
+            down = sum(1 for t in common if len(ss[t]) < len(S[t]))
+            zeroed = sum(1 for t in common if len(ss[t]) == 0)
+            b = sorted(len(S[t]) for t in common)
+            a = sorted(len(ss[t]) for t in common)
+            # keys that are NEW on this TU at the ceiling: the substitutes.
+            newk = sum(len(set(ss[t]) - set(S[t])) for t in common)
+            gonek = sum(len(set(S[t]) - set(ss[t])) for t in common)
+            print()
+            print(f"   PAIRED, base -> {nm}, over the {len(common)} TUs in both:")
+            print(f"        median |S(t)|   {b[len(b)//2]}  ->  {a[len(a)//2]}")
+            print(f"        mean   |S(t)|   {sum(b)/len(b):.1f}  ->  {sum(a)/len(a):.1f}")
+            print(f"        max    |S(t)|   {b[-1]}  ->  {a[-1]}")
+            print(f"        TUs whose set GREW    {up:4d} of {len(common)}"
+                  f"  {pct(up,len(common))}")
+            print(f"        TUs whose set is SAME {same:4d} of {len(common)}"
+                  f"  {pct(same,len(common))}")
+            print(f"        TUs whose set SHRANK  {down:4d} of {len(common)}"
+                  f"  {pct(down,len(common))}")
+            print(f"        TUs reaching |S(t)| = 0 {zeroed:4d} of {len(common)}"
+                  f"   <- P-L")
+            print(f"        SUBSTITUTED keys: {newk} key-slots are NEW on a TU "
+                  f"at the ceiling; {gonek} are gone.  Net "
+                  f"{newk-gonek:+d}  <- board #421's substitution, in the TU "
+                  f"quantity")
+            print(f"        DISCRIMINATING CELLS: {up+same+down} TUs compared, "
+                  f"{len(set(a))} distinct cardinalities at the ceiling")
     print()
     print(f"OK  ({names[0]}: {N} vocab-gap TUs, {len(allkeys)} keys, "
           f"{total} refused emitted functions -- all guards passed)")
