@@ -1,20 +1,16 @@
 lane gate: preflight on /tmp
-  keep    /tmp/c2rs-gate-2537696       this run
-  keep    /tmp/c2rs-gate-2033445       recent — 1 of 3 finished runs kept for their logs
-  keep    /tmp/c2rs-gate-1850327       recent — 2 of 3 finished runs kept for their logs
-          stripped 19556 regenerable cases; logs, reports and parts/ kept
-  keep    /tmp/c2rs-gate-285758        recent — 3 of 3 finished runs kept for their logs
-          stripped 19556 regenerable cases; logs, reports and parts/ kept
-  reaped  /tmp/c2rs-gate-3826403       stale — no live gate owns it
-  reaped  /tmp/c2rs-gate-3067800       stale — no live gate owns it
-reap:   2 stale run tree(s) removed, 4 kept (0 live, 3 recent, 1 this run)
-strip:  2 kept tree(s) lost 39112 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
-        freed 344.6 MiB and 39,630 inodes (df delta over a SHARED filesystem)
-disk:   /tmp — free 24.9 GiB / 633,131 inodes (floors: 2.0 GiB / 150,000 inodes)
+  keep    /tmp/c2rs-gate-3849395       LIVE — pid 3849395 is a running gate (a concurrent lane)
+  keep    /tmp/c2rs-gate-4019920       this run
+  keep    /tmp/c2rs-gate-3343525       recent — 1 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-2925390       recent — 2 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-2537696       recent — 3 of 3 finished runs kept for their logs
+reap:   0 stale run tree(s) removed, 5 kept (1 live, 3 recent, 1 this run)
+strip:  0 kept tree(s) lost 0 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
+disk:   /tmp — free 24.8 GiB / 613,415 inodes (floors: 2.0 GiB / 150,000 inodes)
 
 lane gate: 18 lanes from /home/free/code/milohax/c2-rs/.claude/worktrees/w-counted/scripts/lanes.txt
-  run dir: /tmp/c2rs-gate-2537696   (per-lane run dirs under /tmp/c2rs-gate-2537696/lanes/)
-  graded tree: 49156f1589c2  (730 files under crates fixtures scripts, content-hashed)
+  run dir: /tmp/c2rs-gate-4019920   (per-lane run dirs under /tmp/c2rs-gate-4019920/lanes/)
+  graded tree: 82707a30436c  (730 files under crates fixtures scripts, content-hashed)
                3 gitignored byproduct file(s) under those directories were NOT hashed (board #3048)
 
 hatch-red:       work/w-hatch/hatch_red.py  (no toolchain; fires hatch.py's refusals)
@@ -26,27 +22,27 @@ building the harness (no-op if current)
    Compiling c2-core v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-counted/crates/c2-core)
    Compiling c2-reference v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-counted/crates/c2-reference)
    Compiling c2-harness v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-counted/crates/c2-harness)
-    Finished `release` profile [optimized] target(s) in 7.69s
-harness: /tmp/c2rs-gate-2537696/c2rs
-  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/w-counted/target/release/c2rs  built 2026-08-15 03:33:50
-  sha b9a5eaab8cde  tree ba030a70
+    Finished `release` profile [optimized] target(s) in 7.78s
+harness: /tmp/c2rs-gate-4019920/c2rs
+  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/w-counted/target/release/c2rs  built 2026-08-15 04:11:20
+  sha dccfdac8bee8  tree bca80b7e
 
-wall clock: 4s for 18 lanes at --jobs 4 (C2RS_JOBS=8)
+wall clock: 3s for 18 lanes at --jobs 4 (C2RS_JOBS=8)
 
-generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-2537696/sweep 0  (jobs 4)
+generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-4019920/sweep 0  (jobs 4)
     62 fragments, 19556 cases total (19556 .cpp on disk)
   sweeping 19556 of 19556 generated cases
     grading at 4 job(s)
   checked=19556 mismatches=0 graded=19460 ungraded=96 unknown=0
-  (267s)
+  (302s)
 
-mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-2537696/cross 0  (jobs 4)
+mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-4019920/cross 0  (jobs 4)
   assigned 19556 cases over 18 lanes = 90812 cells (full cross would be 352008)
   sweeping 90812 of 90812 case-lane cells (cross of 0 cases x /home/free/code/milohax/c2-rs/.claude/worktrees/w-counted/scripts/lanes.txt; the full 12x product is 352008)
   checked=90812 mismatches=0 graded=90424 ungraded=388 unknown=0
-  (37s)
+  (39s)
 
-disk:   /tmp low-water this run — 24.7 GiB and 613,318 inodes free (start: 24.9 GiB / 633,131)
+disk:   /tmp low-water this run — 24.6 GiB and 593,494 inodes free (start: 24.8 GiB / 613,415)
 
 LANE                 VERDICT     graded/total  match  mismatch  flags
 -------------------- ---------- ------------- ------ --------- --------------------
@@ -78,7 +74,7 @@ graded: 6858 fixture-verdicts across all lanes
 sweep:  PASS — 19556 of 19556 selected cases reached, 19460 GRADED by the
         oracle (96 ungraded: no reference obj), 0 mismatch (corpus 19556)
 cross:  PASS — 90424 of 90812 selected cells graded, 0 mismatch (product 90812)
-logs:   /tmp/c2rs-gate-2537696/<lane>.log, /tmp/c2rs-gate-2537696/sweep.log, /tmp/c2rs-gate-2537696/cross.log
+logs:   /tmp/c2rs-gate-4019920/<lane>.log, /tmp/c2rs-gate-4019920/sweep.log, /tmp/c2rs-gate-4019920/cross.log
 
 GATE: PASS (HATCH-RED REFUSED) — 18/18 lanes ran and every one of them graded a corpus,
   the sweep graded 19460 of 19556 generated cases and the cross graded
@@ -92,7 +88,7 @@ GATE: PASS (HATCH-RED REFUSED) — 18/18 lanes ran and every one of them graded 
   run does NOT establish what a full run establishes (board #1406). This is why
   the headline above is qualified: commit or stash crates/ and re-run.
 
-graded tree: 49156f1589c2  (730 files: crates fixtures scripts, content-hashed)
+graded tree: 82707a30436c  (730 files: crates fixtures scripts, content-hashed)
   3 gitignored byproduct file(s) under those directories were NOT hashed
   (board #3048; it was 3 at the start of this run). The subtraction is
   printed at BOTH ends on purpose: a denominator nobody prints on both sides of a
