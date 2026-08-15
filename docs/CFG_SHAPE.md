@@ -1360,6 +1360,75 @@ live at a program point, and every one of the cells above needs one.
 > the spiller (c2 takes four callee-saved registers rather than spill one
 > value), and a callee-saved policy (there is none).
 
+> ### ⚠ 2026-08-15 — **ITEM F IS PRICED: 7 steps, 17 lanes, and a buy of ZERO
+> on every population the goal is written in.** Lane `w-itemf-price`
+> ([`rungs/2026-08-15-itemfprice.md`](rungs/2026-08-15-itemfprice.md);
+> [`whitebox/WB_ITEMF_FINDINGS.md`](whitebox/WB_ITEMF_FINDINGS.md)). A
+> characterization lane — **it did not build item F and changed no byte.**
+>
+> **This item's TITLE and its ENFORCING LINE quantify over different sets, and
+> neither contains the other.** The title says *"values live across block
+> boundaries"*. The mechanism the three cells below are explained by ranges over
+> ***a candidate whose live range spans a physical def or a clobber-set
+> operand*** — which contains **no block**. There is **no rule anywhere in c2's
+> allocator that reads "this value crosses a block boundary"**; the block enters
+> only through the liveness *transfer function*, i.e. how the range is
+> **computed**, never through any **decision**. `WB_LIVE_FINDINGS.md` §6.2 wrote
+> the refutation of this title inside the section written to support it —
+> ***"Nothing is special about the entry block — the copy lands wherever the
+> arrival is"*** — and nobody read it as one. A witness on each side:
+> **mechanism ∖ title** is `wbl_v3`, where `r11` holds three different values
+> inside **one straight-line block** (#3054); **title ∖ mechanism** is
+> `codegen::fp_store_diamond`'s `FPR_A = f0`, a value read by the then-arm *and*
+> the join, held in a **volatile** FPR with no copy and no save, **shipping
+> byte-exact today**.
+>
+> **This item's three cells buy ZERO NEW BYTES.** `?MemFree` ships byte-exact as
+> `codegen::cond_tail` (`mr r11,r4` at offset 0, §4.1's published bytes);
+> `?b_if2`/`?b_ifn`'s shape ships as `codegen::if_call_join` plus three
+> `PARK_REG = 31` classes; and **`?d_join` is OUT OF THE ACCEPTED CLASS by this
+> document's own fence** — §3.4.1 calls it downstream of code motion, §8 and
+> §6.3 put *"a body whose arms end in the same call"* outside everything
+> specified here. **So §6.2 item F and §6.3 bullet 1 are in CONTRADICTION**:
+> item F cannot be built to its own cells without building the *"No code
+> motion"* pass §6.3 declines, and #3099 has since put addresses on both halves
+> of §3.4.1 — `0x10b3b167` is the tail-merge and `0x10b3b41b` is the hoist.
+>
+> **And "the real cost" names the cheap half.** The dominant term is the
+> instruction order the allocator is handed, which is not item F and is not one
+> of §6.2's seven items.
+>
+> **The four stages nobody had composed.** `FUN_10b7e6af` @ `0x10b7e6af` orders
+> `0x10b7dc51` — which *ends* with the register allocator `0x10b31c9a`, its only
+> caller — then the lowering band `0x10b7dd2c`/`0x10b7ddff`/`0x10b7de4a`, then
+> `0x10b7ded5`'s five block mergers, then `0x10b7df57`'s final mode-0 schedule.
+> **The order that decided the registers does not appear in the obj**, so item F
+> cannot be fitted from emitted bytes.
+>
+> **The price: 17 lanes, ceiling, no discount factor** — F0 the order **8**, F1
+> the candidate set **2**, F2 liveness **1**, F4 allowed-set narrowing **2**, F5
+> the colouring *and the candidate order* **2**, F6 arrival copy + save set
+> **1**, F7 the fence **1**. **The scheduler is not the expensive half**: F0 is
+> 8 and the other six total 9. The step quoted at *"~30 lines plus the
+> textbook"* (#3057) is **F5**, and it is not 30 lines — which candidate is
+> coloured first is `0x10b31c9a`'s **unread** worklist order, and
+> `codegen::alloc`'s fitted stand-in for that same unknown has **clause 2
+> refuted** (#836) under a preregistered **52,416**-configuration search.
+>
+> **The buy is 0 on every named population**: the 878-TU scan (`codegen-gap` is
+> **0** — nothing reaches codegen), the 381×18 fixture gate (a construct rung is
+> required-zero *by the grading rule*), `c2rs perf`'s `/Ox` gate, and the
+> frontier (`frontier-codegen-refused` is **0 of 59**; the frontier's emitter
+> refuses nothing because the reader refuses first). The one positive buy —
+> 22 files' transcribed register constants becoming derived — **has no unit in
+> any published metric**.
+>
+> **Not re-priced, per #3057**: the interference graph, the cost function, the
+> spiller, a callee-saved policy. **Eight things are named as UNPRICEABLE** in
+> the findings §9, including `0x10b3b5fd` and M5 `0x10b3ab86` (no firing
+> witness on any grid) and **the non-call physical-register def — this item's
+> flagship mechanism, which has no obj cell in existence.**
+
 **G. A place to record the folds, per accepted shape.**
 §3.5's three bands are not passes to reproduce; they are the reason the accepted
 class must be *stated as a shape*, and the shape must be checkable before
