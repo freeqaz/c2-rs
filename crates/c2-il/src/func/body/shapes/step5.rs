@@ -424,6 +424,69 @@ mod tests {
         }
     }
 
+    /// **The residue clause, on a real diamond with one unmodeled operand.**
+    ///
+    /// `IF_ELSE` with a `30 <TYPE>` indirect load spliced into its condition —
+    /// `control_flow`'s own counter-case, the same splice, so the two files
+    /// cannot come to hold two opinions of what leaves the modeled class. The
+    /// shape is UNCHANGED (`Forward(1)`), which is the point: nothing about the
+    /// CFG moved, and the boundary must still refuse.
+    ///
+    /// **This test exists because mutant M5 was GREEN without it.** The suite
+    /// admitted only modeled bodies, so deleting the residue clause outright
+    /// reddened nothing — the clause was shipped unexercised, which is exactly
+    /// board **#283**'s detection asymmetry inside the fence built to answer it.
+    #[test]
+    fn the_residue_clause_refuses_a_diamond_with_one_indirect_load() {
+        let mut with_deref = IF_ELSE.to_vec();
+        let load = with_deref
+            .windows(3)
+            .position(|w| w == [0xB9, 0xE5, 0x09])
+            .expect("the condition load");
+        with_deref.splice(load + 6..load + 6, [0x30, 0x86, 0x41, 0x74]);
+        let lo = find_subslice(&with_deref, &LO_MARKER).unwrap();
+        let s = scan_full(&with_deref, lo);
+        assert_eq!(s.body.as_ref().map(|c| c.shape), Ok(CfShape::Forward(1)), "shape UNCHANGED");
+        assert_eq!(s.body.as_ref().map(|c| c.residue), Ok(CfResidue::Expression));
+        assert_eq!(CfgAdmit::of(&s), CfgVerdict::UnmodeledOperand);
+    }
+
+    /// **The `switch` clause, and the segment is SYNTHETIC — stated, not
+    /// implied.**
+    ///
+    /// This tree has no pinned real-capture `switch` body; `control_flow.rs`
+    /// decodes `3B`/`3C`/`3D` and no test in it exercises one. So this is a
+    /// minimal constructed body carrying a `3D` case entry, which is enough to
+    /// make `shape_of` return `Switch` and nothing more. It grades the clause,
+    /// **not** the grammar of §11 — a real switch capture is a lane, and its
+    /// absence is this module's own instance of board **#283**.
+    ///
+    /// **This test exists because mutant M4 was GREEN without it.**
+    const SYNTHETIC_SWITCH: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, // LO SS
+        0x3D, 0xEA, 0x09, // one case entry — the shape marker, and all of it
+        0x3A, 0xE6, 0x09, // epilogue jump
+        0x54, 0x02, //
+        0x29, 0xE6, 0x09, //
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    #[test]
+    fn the_switch_clause_refuses_before_any_question_is_read_off_a_partial_map() {
+        let lo = find_subslice(SYNTHETIC_SWITCH, &LO_MARKER).unwrap();
+        let s = scan_full(SYNTHETIC_SWITCH, lo);
+        assert_eq!(s.body.as_ref().map(|c| c.shape), Ok(CfShape::Switch));
+        assert_eq!(CfgAdmit::of(&s), CfgVerdict::Switch);
+        // **The map really IS partial on it**, which is the clause's own
+        // argument rather than a preference: the `3D`'s target token is not in
+        // the table, so `dead_defs`/`unresolved` computed here would be answers
+        // about a body with three fewer edges than this one has.
+        let (defs, refs) = s.labels.sizes();
+        assert_eq!((defs, refs), (1, 1), "the 3D's EA 09 target is NOT recorded");
+        // And the consistency control declines to speak about a switch at all.
+        assert!(!CfgAdmit::backedge_disagrees_with_shape(&s));
+    }
+
     /// **`IL_STMT_GRAMMAR.md` §9's counterexample, pinned to the byte.**
     ///
     /// §9 says every body carries an epilogue `3A` and the `29` it targets. This
