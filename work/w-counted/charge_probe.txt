@@ -1,0 +1,37 @@
+=== BASE — the shipped tree: label_slots returns None for this class
+    O1   SUBJ=vocab-gap  CTRL=match
+    Ox   SUBJ=vocab-gap  CTRL=match
+    O2   SUBJ=vocab-gap  CTRL=match
+    Od   SUBJ=vocab-gap  CTRL=vocab-gap
+
+=== K=0 — label_lead += 0, and the None arm DELETED
+    O1   SUBJ=mismatch  CTRL=match
+    Ox   SUBJ=mismatch  CTRL=match
+    O2   SUBJ=mismatch  CTRL=match
+    Od   SUBJ=vocab-gap  CTRL=vocab-gap
+
+=== K=1 — label_lead += 1, and the None arm DELETED
+    O1   SUBJ=mismatch  CTRL=match
+    Ox   SUBJ=mismatch  CTRL=match
+    O2   SUBJ=mismatch  CTRL=match
+    Od   SUBJ=vocab-gap  CTRL=vocab-gap
+
+=== K=2 — label_lead += 2, and the None arm DELETED
+    O1   SUBJ=match  CTRL=match
+    Ox   SUBJ=mismatch  CTRL=match
+    O2   SUBJ=mismatch  CTRL=match
+    Od   SUBJ=vocab-gap  CTRL=vocab-gap
+
+=== K=3 — label_lead += 3, and the None arm DELETED
+    O1   SUBJ=mismatch  CTRL=match
+    Ox   SUBJ=match  CTRL=match
+    O2   SUBJ=match  CTRL=match
+    Od   SUBJ=vocab-gap  CTRL=vocab-gap
+
+=== K=4 — label_lead += 4, and the None arm DELETED
+    O1   SUBJ=mismatch  CTRL=match
+    Ox   SUBJ=mismatch  CTRL=match
+    O2   SUBJ=mismatch  CTRL=match
+    Od   SUBJ=vocab-gap  CTRL=vocab-gap
+
+=== restored

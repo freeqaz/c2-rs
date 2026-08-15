@@ -1,0 +1,28 @@
+=== O1 : /O1 /GS- /c
+  [1/3] vocab-gap    wbdnz_ctr_then_framed_neg.cpp  (il function decode failed)
+  [2/3] match        wbdnz_ctr.cpp
+  [3/3] vocab-gap    wbdnz_ctr_neg.cpp  (il function decode failed)
+=== Ox : /Ox /GS- /c
+  [1/3] vocab-gap    wbdnz_ctr_then_framed_neg.cpp  (il function decode failed)
+  [2/3] match        wbdnz_ctr.cpp
+  [3/3] vocab-gap    wbdnz_ctr_neg.cpp  (il function decode failed)
+=== O2 : /O2 /GS- /c
+  [1/3] match        wbdnz_ctr.cpp
+  [2/3] vocab-gap    wbdnz_ctr_then_framed_neg.cpp  (il function decode failed)
+  [3/3] vocab-gap    wbdnz_ctr_neg.cpp  (il function decode failed)
+=== Od : /Od /GS- /c
+  [1/3] vocab-gap    wbdnz_ctr_then_framed_neg.cpp  (il function decode failed)
+  [2/3] vocab-gap    wbdnz_ctr_neg.cpp  (il function decode failed)
+  [3/3] vocab-gap    wbdnz_ctr.cpp  (il function decode failed)
+=== OxGy : /Ox /Gy /GS- /c
+  [1/3] vocab-gap    wbdnz_ctr_then_framed_neg.cpp  (il function decode failed)
+  [2/3] match        wbdnz_ctr.cpp
+  [3/3] vocab-gap    wbdnz_ctr_neg.cpp  (il function decode failed)
+=== OxGR : /Ox /EHsc /GR /GS- /c
+  [1/3] vocab-gap    wbdnz_ctr_then_framed_neg.cpp  (il function decode failed)
+  [2/3] match        wbdnz_ctr.cpp
+  [3/3] vocab-gap    wbdnz_ctr_neg.cpp  (il function decode failed)
+=== wl : /O1 /Oi /EHsc /GR /GS- /c
+  [1/3] vocab-gap    wbdnz_ctr_then_framed_neg.cpp  (il function decode failed)
+  [2/3] match        wbdnz_ctr.cpp
+  [3/3] vocab-gap    wbdnz_ctr_neg.cpp  (il function decode failed)

@@ -1,0 +1,50 @@
+mode: /O1 /GS- /c
+
+  lead_ctl.cpp                        LEAD +0   counter 2539  2 segs  base $M2555  real $M2555  framed ?z9@@YAHH@Z
+  lead_straight.cpp                   LEAD +0   counter 2542  2 segs  base $M2558  real $M2558  framed ?z9@@YAHH@Z
+  lead_ctr1.cpp                       LEAD +2   counter 2545  2 segs  base $M2561  real $M2563  framed ?z9@@YAHH@Z
+  lead_ctr1u.cpp                      LEAD +2   counter 2545  2 segs  base $M2561  real $M2563  framed ?z9@@YAHH@Z
+  lead_ctr2.cpp                       LEAD +4   counter 2554  3 segs  base $M2574  real $M2578  framed ?z9@@YAHH@Z
+  lead_ctr3.cpp                       LEAD +6   counter 2563  4 segs  base $M2587  real $M2593  framed ?z9@@YAHH@Z
+  lead_while.cpp                      LEAD +2   counter 2545  2 segs  base $M2561  real $M2563  framed ?z9@@YAHH@Z
+
+mode: /Ox /GS- /c
+
+  lead_ctl.cpp                        LEAD -6   counter 2539  2 segs  base $M2555  real $M2549  framed ?z9@@YAHH@Z
+  lead_straight.cpp                   LEAD -6   counter 2542  2 segs  base $M2558  real $M2552  framed ?z9@@YAHH@Z
+  lead_ctr1.cpp                       LEAD -3   counter 2545  2 segs  base $M2561  real $M2558  framed ?z9@@YAHH@Z
+  lead_ctr1u.cpp                      LEAD -3   counter 2545  2 segs  base $M2561  real $M2558  framed ?z9@@YAHH@Z
+  lead_ctr2.cpp                       LEAD -3   counter 2554  3 segs  base $M2574  real $M2571  framed ?z9@@YAHH@Z
+  lead_ctr3.cpp                       LEAD -3   counter 2563  4 segs  base $M2587  real $M2584  framed ?z9@@YAHH@Z
+  lead_while.cpp                      LEAD -3   counter 2545  2 segs  base $M2561  real $M2558  framed ?z9@@YAHH@Z
+
+mode: /O2 /GS- /c
+
+  lead_ctl.cpp                        LEAD +0   counter 2539  2 segs  base $M2555  real $M2555  framed ?z9@@YAHH@Z
+  lead_straight.cpp                   LEAD +0   counter 2542  2 segs  base $M2558  real $M2558  framed ?z9@@YAHH@Z
+  lead_ctr1.cpp                       LEAD +3   counter 2545  2 segs  base $M2561  real $M2564  framed ?z9@@YAHH@Z
+  lead_ctr1u.cpp                      LEAD +3   counter 2545  2 segs  base $M2561  real $M2564  framed ?z9@@YAHH@Z
+  lead_ctr2.cpp                       LEAD +6   counter 2554  3 segs  base $M2574  real $M2580  framed ?z9@@YAHH@Z
+  lead_ctr3.cpp                       LEAD +9   counter 2563  4 segs  base $M2587  real $M2596  framed ?z9@@YAHH@Z
+  lead_while.cpp                      LEAD +3   counter 2545  2 segs  base $M2561  real $M2564  framed ?z9@@YAHH@Z
+
+mode: /Od /GS- /c
+
+  lead_ctl.cpp                        LEAD -8   counter 2539  2 segs  base $M2555  real $M2547  framed ?z9@@YAHH@Z
+  lead_straight.cpp                   LEAD -8   counter 2542  2 segs  base $M2558  real $M2550  framed ?z9@@YAHH@Z
+  lead_ctr1.cpp                       LEAD -8   counter 2545  2 segs  base $M2561  real $M2553  framed ?z9@@YAHH@Z
+  lead_ctr1u.cpp                      LEAD -8   counter 2545  2 segs  base $M2561  real $M2553  framed ?z9@@YAHH@Z
+  lead_ctr2.cpp                       LEAD -11   counter 2554  3 segs  base $M2574  real $M2563  framed ?z9@@YAHH@Z
+  lead_ctr3.cpp                       LEAD -14   counter 2563  4 segs  base $M2587  real $M2573  framed ?z9@@YAHH@Z
+  lead_while.cpp                      LEAD -8   counter 2545  2 segs  base $M2561  real $M2553  framed ?z9@@YAHH@Z
+
+mode: /O1 /Oi /EHsc /GR /GS- /c
+
+  lead_ctl.cpp                        LEAD +0   counter 2539  2 segs  base $M2555  real $M2555  framed ?z9@@YAHH@Z
+  lead_straight.cpp                   LEAD +0   counter 2542  2 segs  base $M2558  real $M2558  framed ?z9@@YAHH@Z
+  lead_ctr1.cpp                       LEAD +2   counter 2545  2 segs  base $M2561  real $M2563  framed ?z9@@YAHH@Z
+  lead_ctr1u.cpp                      LEAD +2   counter 2545  2 segs  base $M2561  real $M2563  framed ?z9@@YAHH@Z
+  lead_ctr2.cpp                       LEAD +4   counter 2554  3 segs  base $M2574  real $M2578  framed ?z9@@YAHH@Z
+  lead_ctr3.cpp                       LEAD +6   counter 2563  4 segs  base $M2587  real $M2593  framed ?z9@@YAHH@Z
+  lead_while.cpp                      LEAD +2   counter 2545  2 segs  base $M2561  real $M2563  framed ?z9@@YAHH@Z
+

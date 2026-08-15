@@ -1,0 +1,17 @@
+=== BASE — the shipped emitter
+    O1   unsigned: match=10   signed: match=10   +=ctl: vocab-gap=1
+    Ox   unsigned: match=10   signed: match=10   +=ctl: vocab-gap=1
+
+=== G1 — the guard ignores counter_unsigned
+    O1   unsigned: mismatch=10   signed: match=10   +=ctl: vocab-gap=1
+    Ox   unsigned: mismatch=10   signed: match=10   +=ctl: vocab-gap=1
+
+=== G2 — the bdnz latch displacement is one word off (-4 -> -8)
+    O1   unsigned: mismatch=10   signed: mismatch=10   +=ctl: vocab-gap=1
+    Ox   unsigned: mismatch=10   signed: mismatch=10   +=ctl: vocab-gap=1
+
+=== G3 — mtctr takes the wrong source register
+    O1   unsigned: mismatch=10   signed: mismatch=10   +=ctl: vocab-gap=1
+    Ox   unsigned: mismatch=10   signed: mismatch=10   +=ctl: vocab-gap=1
+
+=== restored

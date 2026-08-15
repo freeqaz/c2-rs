@@ -1,0 +1,6 @@
+--- O1  base vs narrow
+--- O1  base vs narrow+2
+--- Ox  base vs narrow
+--- Ox  base vs narrow+2
+--- O2  base vs narrow
+--- O2  base vs narrow+2
