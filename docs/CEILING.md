@@ -50,6 +50,39 @@ from the factor listing rather than present as an all-false row — board **#352
 deliberately, because summing absences as zeros reports every factor tighter than
 it is.
 
+> ### ⚠ 2026-08-16 — **THE TABLE ABOVE READS 7 AND 871; THE SCAN READS 8 AND 870, AND THE ERROR CLASS LIST IS SHORT BY ONE.**
+> *Lane `w-871`, [`rungs/2026-08-16-871.md`](rungs/2026-08-16-871.md) §4.1;
+> board row drafted unnumbered.* Re-measured at master `55933035`:
+> `gap-metric capture-fail 8`, `gap-metric graded 870`. The eighth is
+> **`src/system/utl/BinkIntegration.cpp`** at **`C2065`** —
+> *"`src/system\os/Endian.h(46) : error C2065: 'NULL' : undeclared
+> identifier`"* — a class this row's breakdown does not carry. The full
+> reading is **3 × `C1083`, 2 × `C1189`, 2 × `C2084`, 1 × `C2065`**.
+> `STRATEGY_REVIEW_2026-08-13.md` §1 already recorded `845 / 8` at `08915add`
+> and reconciled it as *"one TU moved buckets"*; **the consequence for the goal
+> number was never carried anywhere.**
+>
+> **The paragraph above is what makes this matter rather than a typo.** *"871
+> is not a target the project chose; it is what is left after the oracle
+> declines"* — so **the goal's cardinality is a measurement of a live dc3 tree,
+> not a constant**, and it has now moved once, unremarked, in the direction
+> that makes "871/878" unreachable as literally written. Read the goal as its
+> definition — *every TU the oracle can compile* — and quote its size **from a
+> scan**, which is `docs/STATUS.md`'s standing instruction for these keys and
+> applies to this one too.
+>
+> **Unmeasured and named:** whether the eighth failure is permanent. `C2065`
+> inside a header reads like tree state rather than an intrinsic oracle limit,
+> `w-871` did not test it, and the denominator may therefore move again in
+> either direction.
+>
+> The banner is here rather than a rewrite because the numbers below this
+> section are a coherent snapshot at their own tree; **the three that moved
+> most are named in `rungs/2026-08-16-871.md` §4.3–§4.5** — the emit-set model
+> ceiling is `324 today / 474 repaired / **396** wall` (not `338 / 421 / 450`),
+> `factor-b` is **324** and `b-and-c` **147**, and the §2.4 section ladder
+> terminates at **870** with a second step of **+213**.
+
 ### 1.2 The factorization, as a partition
 
 `match = A ∧ B ∧ C ∧ (D ∨ E)` over the 871 (ROADMAP §10.19, §10.21; board
