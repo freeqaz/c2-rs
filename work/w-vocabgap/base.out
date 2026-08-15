@@ -1,0 +1,125 @@
+== w-vocabgap :: base ==
+D1  vocab-gap TUs                 845
+D2  emitted fns refused by reader 113612  (== fnbyte-refused-parse 113612)
+D4  distinct emit_blockers keys   615
+
+-- A. PER-TU BLOCKER-SET CARDINALITY |S(t)|, over D1 --
+   min 0  median 33  mean 35.6  max 120
+   |S| =       0      3 TUs of 845    0.4%
+   |S| =       1      9 TUs of 845    1.1%
+   |S| =     2-5     60 TUs of 845    7.1%
+   |S| =    6-10     76 TUs of 845    9.0%
+   |S| =   11-25    181 TUs of 845   21.4%
+   |S| =   26-50    291 TUs of 845   34.4%
+   |S| =  51-100    215 TUs of 845   25.4%
+   |S| =    101+     10 TUs of 845    1.2%
+   DISCRIMINATING CELLS: 100 distinct cardinalities over 845 TUs
+   |S(t)| = 0 : 3 TUs   <- P-J's control, MEASURED not assumed
+        src/system/decomp_pch.cpp
+        src/system/math/vec.cpp
+        src/system/os/NetworkSocket.cpp
+   |S(t)| = 1 : 9 TUs   <- the only TUs a single key can ever cover
+        src/ChecksumData_xbox.cpp  ['data-sym-not-extern:eof']
+        src/system/math/Rand2.cpp  ['expr-op-0x27']
+        src/system/rnddx9/Env.cpp  ['expr-intrinsic-this-adjust']
+        src/system/synth_xbox/FilterCoeffs.cpp  ['expr-load-type-8645']
+        src/system/synth_xbox/FxSendPitchShift.cpp  ['expr-intrinsic-this-adjust']
+        src/system/synth_xbox/GranularSynth.cpp  ['expr-op-0x30']
+        src/system/utl/Crc.cpp  ['expr-cmp-ne']
+        src/system/utl/JsonEncode.cpp  ['expr-intrinsic-strlen']
+        src/xdk/nuiapi/nuidetroit.cpp  ['expr-call-in-expr-recv-object-then-call-nested-call-and-type-real-more']
+
+-- C. SINGLE-KEY TU-MARGINAL: TUs key-covered by granting ONE key alone --
+   BASELINE: the EMPTY granted set already key-covers 3 of 845 TUs -- every marginal below is NET of it
+   keys with a NONZERO NET single-key TU-marginal: 8 of 615
+   sum of all 615 NET single-key TU-marginals: 9 of 845
+   (raw, un-netted, for the record: 1854 = 615*3 + 9)
+           2  expr-intrinsic-this-adjust   (appears in 698 TUs, mass 9273)
+           1  data-sym-not-extern:eof   (appears in 25 TUs, mass 41)
+           1  expr-call-in-expr-recv-object-then-call-nested-call-and-type-real-more   (appears in 1 TUs, mass 1)
+           1  expr-cmp-ne   (appears in 266 TUs, mass 1023)
+           1  expr-intrinsic-strlen   (appears in 101 TUs, mass 110)
+           1  expr-load-type-8645   (appears in 184 TUs, mass 513)
+           1  expr-op-0x27   (appears in 798 TUs, mass 22407)
+           1  expr-op-0x30   (appears in 216 TUs, mass 638)
+   the widest keys by TU-APPEARANCE, and their conversion marginal:
+        appears  798/845  covers-alone(net)   1  mass   22407  expr-op-0x27
+        appears  726/845  covers-alone(net)   0  mass    4742  expr-call-in-expr-recv-object-then-call-recv-object-more
+        appears  710/845  covers-alone(net)   0  mass    4290  expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+        appears  698/845  covers-alone(net)   2  mass    9273  expr-intrinsic-this-adjust
+        appears  673/845  covers-alone(net)   0  mass    6476  expr-intrinsic-base-member-addr
+        appears  589/845  covers-alone(net)   0  mass    2832  body-cflow-label
+        appears  583/845  covers-alone(net)   0  mass    1941  expr-brtrue
+        appears  583/845  covers-alone(net)   0  mass    1456  expr-call-in-expr-recv-object-then-deref-load-more
+   DISCRIMINATING CELLS: 615 keys appear in >=1 TU; 8 have a nonzero NET marginal
+
+-- D. GREEDY COVERAGE: fewest keys to key-cover K of D1 TUs --
+   cover >=    1 of 845 TUs   needs    0 keys of 615  (0.0%)
+   cover >=    5 of 845 TUs   needs    2 keys of 615  (0.3%)
+   cover >=   10 of 845 TUs   needs    5 keys of 615  (0.8%)
+   cover >=   25 of 845 TUs   needs   13 keys of 615  (2.1%)
+   cover >=   50 of 845 TUs   needs   37 keys of 615  (6.0%)
+   cover >=  100 of 845 TUs   needs   67 keys of 615  (10.9%)
+   cover >=  200 of 845 TUs   needs  125 keys of 615  (20.3%)
+   cover >=  400 of 845 TUs   needs  201 keys of 615  (32.7%)
+   cover >=  845 of 845 TUs   needs  615 keys of 615  (100.0%)
+   full cover of all 845: 615 keys of 615
+   DISCRIMINATING CELLS: 498 greedy steps, 498 distinct coverage levels
+
+-- E. THE PUBLISHED MASS ORDER, SCORED IN THE TU QUANTITY --
+   top    5 keys by mass  =    47188 of 113612 fns (41.5%)  ->  key-covers    8 of 845 TUs (0.9%)
+   top   10 keys by mass  =    62105 of 113612 fns (54.7%)  ->  key-covers   14 of 845 TUs (1.7%)
+   top   20 keys by mass  =    79384 of 113612 fns (69.9%)  ->  key-covers   16 of 845 TUs (1.9%)
+   top   50 keys by mass  =    99565 of 113612 fns (87.6%)  ->  key-covers   42 of 845 TUs (5.0%)
+   top  100 keys by mass  =   110066 of 113612 fns (96.9%)  ->  key-covers  195 of 845 TUs (23.1%)
+   top  200 keys by mass  =   112740 of 113612 fns (99.2%)  ->  key-covers  489 of 845 TUs (57.9%)
+   top  400 keys by mass  =   113397 of 113612 fns (99.8%)  ->  key-covers  691 of 845 TUs (81.8%)
+   top  615 keys by mass  =   113612 of 113612 fns (100.0%)  ->  key-covers  845 of 845 TUs (100.0%)
+   EQUAL KEY BUDGET -- three orders, same budget, TUs key-covered:
+    keys  min-union  max-cover   BY MASS       best
+       5         10         11         8  max-cover
+      10         19         22        14  max-cover
+      25         37         45        20  max-cover
+      50         74         92        42  max-cover
+     100        164        187       195    BY MASS
+     150        235        248       387    BY MASS
+     200        384        368       489    BY MASS
+     300        626        645       599  max-cover
+     400        745        745       691  min-union
+     500        809        801       748  min-union
+     615        845        845       845  min-union
+   ROWS WHERE THE PUBLISHED MASS ORDER BEATS BOTH PURPOSE-BUILT ORDERS: 3 of 10
+   greedy reaches 10 TUs at 5 keys; the MASS ORDER reaches 10 TUs at 9 keys  --  1.80x
+
+-- F. THE FACTOR CEILING, which binds ABOVE every coverage number --
+   a byte-exact obj needs A and B and C and (D or E); reader work
+   moves the route to D and moves none of A, B, C.
+   A TRUE over D1:    3 of 845 (  0.4%)   FALSE  842   published factor-a 28 over 870 graded, 28 - 3 = 25 outside D1
+   B TRUE over D1:  299 of 845 ( 35.4%)   FALSE  546   published factor-b 324 over 870 graded, 324 - 299 = 25 outside D1
+   C TRUE over D1:  144 of 845 ( 17.0%)   FALSE  701   published factor-c 169 over 870 graded, 169 - 144 = 25 outside D1
+   D TRUE over D1:    2 of 845 (  0.2%)   FALSE  843   published factor-d 24 over 870 graded, 24 - 2 = 22 outside D1
+   E TRUE over D1:    0 of 845 (  0.0%)   FALSE  845   published factor-e 3 over 870 graded, 3 - 0 = 3 outside D1
+   SELF-CHECK A: published 28 - D1 3 = 25 == 25 matches OK
+   SELF-CHECK B: published 324 - D1 299 = 25 == 25 matches OK
+   SELF-CHECK C: published 169 - D1 144 = 25 == 25 matches OK
+   SELF-CHECK D or E: (24-2) + (3-0) = 25 == 25 matches OK   <- the DISJUNCTION, never D alone
+   how many of {A,B,C} each vocab-gap TU fails:
+        fails 0 of 3      2 TUs of 845    0.2%
+        fails 1 of 3    120 TUs of 845   14.2%
+        fails 2 of 3    200 TUs of 845   23.7%
+        fails 3 of 3    523 TUs of 845   61.9%
+   A and B and C, over D1: 2 of 845 TUs (0.2%)   <- and this is `frontier`
+   the factor letter-strings of the 845, by frequency:
+        -----    523 TUs   61.9%
+        -B---    177 TUs   20.9%
+        -BC--    118 TUs   14.0%
+        --C--     22 TUs    2.6%
+        ABC--      2 TUs    0.2%
+        -BCD-      2 TUs    0.2%
+        A----      1 TUs    0.1%
+   DISCRIMINATING CELLS: 7 distinct letter-strings over 845 graded vocab-gap TUs
+   A and B and C AND |S(t)| <= 5 : 1 TUs of 845   <- the intersection a joint COUNT cannot express
+        ABC--  |S|=  2  src/system/rndobj/wordwrap.cpp
+
+
+OK  (base: 845 vocab-gap TUs, 615 keys, 113612 refused emitted functions -- all guards passed)
