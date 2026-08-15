@@ -3041,3 +3041,41 @@ numbers are minted.
 > already contradicted. **The cheap general fix is `#3125`'s: name the
 > denominator in the same breath as the numerator, in the prereg, before the
 > run.**
+
+---
+
+## `w-loo` — rows drafted, **UNNUMBERED**
+
+The leave-one-out re-score of every token-addressable published ranking
+([`rungs/2026-08-15-loo.md`](rungs/2026-08-15-loo.md)), dispatched off `#3131`'s
+found-and-not-taken. Lettered `LO-a`…`LO-f`; the rung's §8 keeps the letters and
+the mapping goes here when the numbers are minted.
+
+| row | claim | state | evidence |
+|---|---|---|---|
+| **LO-a** | **`LADDER B` — THE CLASS-WIDE GREEDY LADDER THE ROADMAP'S WIDENING ORDER IS BUILT ON — DOES NOT SURVIVE RE-SCORING BY EITHER TEST, AND IT DOES NOT INVERT: IT CORRELATES AT `rho = +0.047`, WHICH IS NO RELATIONSHIP AT ALL** | **DONE — instrument** | **MEASURED, 53 scans.** `readphase` §3's greedy per-round delta vs this lane's leave-one-out margin, over the 13 granted tokens: **`rho = +0.047`**; **13 of 13** outside a 2× magnitude band; greedy #1 **`op:BD`** (+26,051 of 41,762) vs LOO #1 **`op:4C`** (**76,409** of 88,806). **`intrinsic` has a positive greedy delta of +5,023 and a margin of EXACTLY 0**, and **two of the thirteen greedy deltas are NEGATIVE** (`op:55` −3,656, `op:26` −9,373) — `readphase` published a ladder whose reach goes *down* on two rungs and the widening order still ranked those rungs next. Sum of greedy deltas **36,680**; sum of margins **468,571** — **12.8×**. Discriminating cells **13 of 13**. **`#1365` said this about ONE row two weeks ago** (*"a greedy blocker ladder credits whichever key the OTHER sinks have exposed"*) and nothing generalised it |
+| **LO-b** | **THE FOUR MOST VALUABLE TOKENS ON THE EXPRESSION LAYER ARE IN THE LADDER'S SEED, WHICH NO PUBLISHED RANKING SCORES — AND SIX OF THE NINE OUTRANK THE LADDER'S OWN CHAMPION** | **DONE** | **MEASURED.** `readphase` §3 grants a nine-token scaffold free at round 0 and ranks only the thirteen it then chooses. **`op:4F`, `op:54`, `op:29` each read `88,806` of `88,806` — the WHOLE expression-layer reach** — and `op:3A` **88,805**, against a best-of-the-ranked of `op:4C` **76,409**. `op:4B` **67,726** and `op:41` **60,167** also beat greedy #1 `op:BD` **63,967**. Subset cells confirm the seed is load-bearing, not merely first: removing the whole scaffold from the 52-token ceiling → reach **0**; removing just `{op:54, op:3A}` → **0**. **A SECOND, INDEPENDENT MECHANISM for `#3131`'s blindness** — there, *a terminator is never a first blocker*; here, **a ladder never scores what it starts with**. Two mechanisms, same three tokens. `w-one` §2 has subtracted a named `SCAFFOLD` set for two weeks — **the repo knew which tokens were seeds and was subtracting them rather than scoring them** |
+| **LO-c** | **THE EMITTED WIDENING ORDER FAILS UPSTREAM OF ITS CORRELATION — 19.0 % OF ITS HEAD IS NOT TOKEN-ADDRESSABLE AND THE REST COLLAPSES ONTO FOUR TOKENS** | **DONE** | **MEASURED at base, 878 TUs.** Of the top 20 rows of `CEILING` §3.1 / `readphase` §0's 615 keys over 113,612 functions: **8 map to no grantable token** (`expr-call-in-expr-*`, `expr-brfalse`, `expr-cmp-eq`, `expr-brtrue` — **21,583 fns, 19.0 %**), and the **12** that do collapse onto **4** distinct tokens (`op:27`, `intrinsic`, `op:29`, `op:9B`). `rho = +0.000`; 3 of 4 outside the band; discriminating cells 4 of 4. **A ranking whose head names things that cannot be granted is not a plan that ranks badly — it is not a plan.** §3.1 already warns it is *"a driver, never a forecast"*; this measures why |
+| **LO-d** | **THE ONE PUBLISHED RANKING WITH A REAL DENOMINATOR IS UNCORRELATED WITH EVERY REACH RANKING — AND IT WAS ALREADY A LEAVE-ONE-OUT** | **DONE** | **MEASURED.** `w-deaccept` §2 sinks one token from the *accepting reader* and counts **`fnbyte-exact` of 35,734** — the only base-denominated ranking in the 19-item inventory; every other is a counterfactual reach. Against this lane's reach LOO: **`rho = +0.038`**, **39 of 49** outside the band, **5** nonzero vs **37** nonzero, **overlap 3**. `op:33` + `op:B9` = **7,124 REAL functions at 0 reach**; `op:29` + `op:3A` + `op:4F` = **266,417 of reach at 0 real functions**. **Every ladder in `docs/` is denominated the way that correlates with nothing that ships** — and the ceiling that maximises reach reads `match` **18** and `fnbyte-exact` **29,785**, i.e. **it DE-ACCEPTS 5,949** |
+| **LO-e** | **THE REPLACEMENT INSTRUMENT IS BOUNDED BY THE SAME METHOD AS THE INCUMBENT, AND BOUNDED *BEFORE* BEING USED: `op:B9` AND `type` EACH HAVE A LEAVE-ONE-OUT MARGIN OF EXACTLY 0 AND ARE JOINTLY WORTH 7,378** | **DONE** | **MEASURED, 47 scans, and it is a FIXED POINT.** The **15** margin-0 tokens of the 52 are jointly worth **40,917 of 88,806 (46.1 %)** — **LOO's zeros do not compose**. Minimized 15 → 9 → **2**: `op:B9` alone **0**, `type` alone **0**, **both 7,378 (8.3 %)**, and returning either takes the cost straight back to 0. All eight subsets of `{type,convert,intrinsic}` cost 0 (kept as a negative). **The exact mirror of `#3131`** — three worth everything / any two worth nothing (greedy-blind) vs two worth nothing / jointly worth thousands (LOO-blind). **`IL_DECODE_REACH` §5 has had this in miniature for four months** (`67` alone **+0**, `67`+`9A` **+37,639**, 31,608 needing both) and it was never generalised. **Consequence: `IL_STMT_GRAMMAR` §14.2 step 6 stays UNPRICED** — `type`'s 0 is this instrument's blind spot, not a fact about `type` |
+| **LO-f** | (OPEN) **THREE INDEPENDENT RE-SCORES AGREE ON NOTHING — `rho` = +0.047, +0.000, +0.038 — AND THE ONE RANKING THAT SURVIVES DOES SO BECAUSE ITS ITEMS AND ITS DENOMINATOR ARE THE SAME OBJECT** | **OPEN — deliberately not actioned** | **MEASURED.** The only survivor of the 19-item inventory is `w-ladders` §2's **`lb`** column (net **154** → lb **147**, **−4.5 %** unhatched; **183** → **171**, −6.6 % hatched, `#1466`) — a per-TU leave-one-out **within each TU's own granted set**, which by construction can see an inert rung and **cannot** see a seed token or a cross-token conjunction. `w-ladders` §3 prints **"CODEGEN, both = NO COLUMN"** on all sixteen rows. **Three instruments agreeing on nothing is not three noisy measurements of one order — it is evidence there is no order to measure.** The rung's §7 lists the **five** things that would have to be true for any ranking here to forecast a conversion (goal denominator · items that are actions · reach implying emission · robustness to interaction · order stable across instruments) and **none is established**. **No ranking in this repo has ever forecast a conversion** |
+
+> ### **THIS LANE MINTED NO NUMBERS, AND THIS BLOCK HANDS OUT NONE.**
+>
+> `w-loo` was dispatched with *"next free is `#3135`, two peers in flight
+> (`w-layout`, `w-slots`) — do not mint numbers yourself"*, and it did not. The
+> six rows above are lettered and stay lettered until the coordinator allocates.
+>
+> **Do not read this block for the free number.** Per `2026-08-14-irg.md` §8.5,
+> an appended free-range block landing *above* a peer's makes the last block a
+> reader reaches hand out a dead number — a semantic conflict `git`,
+> `board_audit.sh` and the gate are all blind to. This block is appended at the
+> bottom and states no free number **on purpose**.
+>
+> **And this lane is 0-for-0 on dispatches, by design.** Six rows, five of them
+> DONE, and **nothing is dispatched off any of them** — including **LO-d**,
+> which is the one row on the page pointing at something that ships
+> (`op:33` + `op:B9`, **7,124 real `fnbyte-exact` functions**). This repo is
+> **0 for 4** on lanes dispatched off a mass ranking and carries three
+> independent ordinal graveyards. **A better ranking is not a licence to trust
+> it; recording the row and refusing it is the deliverable.**
