@@ -70,6 +70,33 @@
 //! model carries the field on the compare instead of assuming it; see
 //! [`super::cond`]'s header.
 //!
+//! ## ✔ 2026-08-15, lane `w-layout` — **the layout owns the POSITIONS, and that
+//! is board #3124's prerequisite**
+//!
+//! [`BodyLayout`] had exactly **one** production client when `w-item-d` counted
+//! (#3124), and the crate had **23** branch sites in **13** other lowerings that
+//! computed every displacement themselves and patched at a **fixed offset** —
+//! *"the one shape a re-layout cannot serve, because a fixed site has nowhere to
+//! grow"*. This lane moved the ones that can move.
+//!
+//! What made it possible is **one** new fact, and finding that it was one is the
+//! result: [`FinishedBody::start_of`]. The branch sites were never the whole
+//! problem. Every one of those lowerings also *publishes* offsets off the same
+//! running byte vector — a `bl`'s `REL24` site, a float constant's
+//! `REFHI`/`REFLO` pair, the prologue's length — and a lowering cannot hand its
+//! branch positions to a layout while keeping those in a counter of its own,
+//! because both come off the same `t.len()`. Stating them as
+//! `start_of(block) + k` makes `k` a constant of **one block's own run** instead
+//! of a constant of the whole body, and [`FinishedBody::at`] checks that it is.
+//!
+//! **Nothing here relaxes anything and no byte moved** — the criterion was a
+//! required-zero delta and it held. The residue is stated rather than implied:
+//! five lowerings still cannot reach a layout at all, three because
+//! [`LabelMap`]'s invariant 4 refuses their back edge (#746, and it is right to)
+//! and two because their back edge is `bdnz`, for which [`Terminator`] has no
+//! variant and `CFG_SHAPE.md` §6.3 declines the discovery that would justify
+//! one.
+//!
 //! # The one fact this module does not own
 //!
 //! **The fixup list is [`super::labels::LabelMap`]'s, not this module's.** That
@@ -305,7 +332,8 @@ impl BasicBlock {
     }
 }
 
-/// A finished body: the bytes, and the sites the caller still has to fill.
+/// A finished body: the bytes, the sites the caller still has to fill, and
+/// **where every block landed**.
 #[derive(Clone, Debug)]
 pub struct FinishedBody {
     /// The whole body, with a **zero word** at each [`Terminator::TailCall`]
@@ -318,6 +346,88 @@ pub struct FinishedBody {
     /// The order the lowering claimed, travelling with the bytes it produced —
     /// §6.2 item A's "a lowering must be able to state the order it chose".
     pub order: BlockOrder,
+    /// Where each **declared** block's run begins in [`Self::text`], and how
+    /// long that run is (terminator excluded), indexed by [`BlockId`]. Read
+    /// through [`Self::start_of`] / [`Self::at`], never directly: an
+    /// out-of-range id must be a refusal and not a panic.
+    ///
+    /// Every entry is `Some` — [`BodyLayout::finish`] refuses a declared block
+    /// that was never placed — but the `Option` is kept rather than collapsed,
+    /// because the vector is built as the blocks go down and a `0` for "not yet"
+    /// is exactly the legal-looking wrong answer this crate keeps refusing
+    /// elsewhere (block 0 really does start at 0).
+    starts: Vec<Option<(u32, u32)>>,
+}
+
+impl FinishedBody {
+    /// **Where `id`'s straight-line run begins** in [`Self::text`] — board
+    /// **#3124**'s one fact.
+    ///
+    /// This is what makes a lowering's published offsets *the layout's* rather
+    /// than its own. Before this existed, every emitter here recorded a `bl`'s
+    /// `REL24` site, a float constant's `REFHI`/`REFLO` pair and its prologue's
+    /// length by reading `t.len()` off a running byte vector, which pins those
+    /// positions to a body nothing may insert into — *"a fixed site has nowhere
+    /// to grow"*. A position stated as `start_of(block) + k` grows with its
+    /// block, and `k` is a constant of **one block's own run** instead of a
+    /// constant of the whole body.
+    ///
+    /// It performs no relaxation and this crate has none: see the module header
+    /// and [`super::reach`]. What it does is make one possible.
+    pub fn start_of(&self, id: BlockId) -> Result<u32, BackendError> {
+        match self.starts.get(id.0).copied().flatten() {
+            Some((at, _)) => Ok(at),
+            None => Err(out_of_class(
+                "the start of a block this body never placed — a block id from a \
+                 different function's layout",
+            )),
+        }
+    }
+
+    /// A position **inside** `id`'s own run: [`Self::start_of`] plus `k`, with
+    /// `k` checked against the block it claims to be in.
+    ///
+    /// The check is the reason this exists rather than callers writing the
+    /// addition. `k` is a constant of one block's run, so a `k` that reaches
+    /// past that run is a lowering naming a position in a block it is not in —
+    /// which would still be *some* offset in the body, would still produce a
+    /// `REL24` at a plausible word, and would move the moment either block's
+    /// length changed. That is the same failure shape as
+    /// [`BodyLayout::place`]'s ragged-run refusal, one level up.
+    ///
+    /// `k == len` is refused with the rest: the position one past a run's end is
+    /// the *next* block's start, and it has its own name.
+    pub fn at(&self, id: BlockId, k: u32) -> Result<u32, BackendError> {
+        let start = self.start_of(id)?;
+        let len = self.run_len(id)?;
+        if k >= len {
+            return Err(out_of_class(&format!(
+                "a position {k} bytes into a block whose own run is {len} bytes: \
+                 the offset belongs to a different block, and stating it here \
+                 would pin it to a body nothing may insert into (board #3124)"
+            )));
+        }
+        Ok(start + k)
+    }
+
+    /// The length of `id`'s straight-line run, **terminator excluded** — the
+    /// denominator [`Self::at`] checks against.
+    ///
+    /// The terminator is excluded on purpose. A `bl` inside a block's run and
+    /// the block's own `b` to a label are different kinds of site: the first is
+    /// a word the lowering owns and patches, the second is
+    /// [`super::labels::LabelMap`]'s and the lowering must never touch it. An
+    /// `at` that admitted the terminator word would let a lowering name — and
+    /// then overwrite — a site the fixup pass had already patched.
+    pub fn run_len(&self, id: BlockId) -> Result<u32, BackendError> {
+        match self.starts.get(id.0).copied().flatten() {
+            Some((_, len)) => Ok(len),
+            None => Err(out_of_class(
+                "the run length of a block this body never placed — a block id \
+                 from a different function's layout",
+            )),
+        }
+    }
 }
 
 /// The block/terminator IR for **one function body**, with an explicit emission
@@ -499,12 +609,18 @@ impl BodyLayout {
         let last = self.placed.len() - 1;
         let mut text: Vec<u8> = Vec::new();
         let mut tail_sites: Vec<u32> = Vec::new();
+        let mut starts: Vec<Option<(u32, u32)>> = vec![None; self.declared.len()];
 
         for (pos, blk) in self.placed.iter().enumerate() {
             // The label binds to where the block STARTS, so it is defined before
             // the block's own bytes go down.
             let (label, ..) = self.declared[blk.id.0];
             self.labels.define(label, &text)?;
+            // …and so does the answer `FinishedBody::start_of` gives, from the
+            // same number, at the same moment. Board #3124: a lowering's
+            // published offsets are the LAYOUT's, so they can only ever be this
+            // one — not a second count kept beside it.
+            starts[blk.id.0] = Some((text.len() as u32, blk.body.len() as u32));
             text.extend_from_slice(&blk.body);
             match blk.term {
                 Terminator::FallThrough => {
@@ -535,7 +651,7 @@ impl BodyLayout {
         }
 
         self.labels.resolve(&mut text)?;
-        Ok(FinishedBody { text, tail_sites, order: self.order })
+        Ok(FinishedBody { text, tail_sites, order: self.order, starts })
     }
 
     /// The label a terminator's target names, or a refusal if the id is not
@@ -1030,6 +1146,132 @@ mod tests {
             l2.blocks()[0].cond_source(),
             CondSource::InBlock(CondProducer::RecordForm)
         );
+    }
+
+    // ---- board #3124: the layout owns the POSITIONS ----------------------
+
+    /// **The one fact, positively.** `?MemFree`'s three blocks land at 0, 12 and
+    /// 24 — the offsets `CFG_SHAPE.md` §4.1's published bytes put them at — and
+    /// the finished body says so rather than the lowering having counted.
+    ///
+    /// 12 and 24 are not 8 and 16: the `bc` and the two tail placeholders are
+    /// terminator words and they are *in* the text, so a lowering that added up
+    /// its own `body` lengths would be two words low at the third block. That is
+    /// the arithmetic board #3124 is about.
+    #[test]
+    fn a_finished_body_says_where_every_block_landed() {
+        let mut l = BodyLayout::new(BlockOrder::IlStatement);
+        let entry = l.declare("entry");
+        let then = l.declare("then");
+        let els = l.declare("else");
+        l.place(
+            entry,
+            bytes(&[MR_R11_R4, CMPLWI_CR6_R3_0]),
+            Terminator::Bc { bo: BO_FALSE, bi: cr_bi(CR_COMPARE, CR_BIT_EQ), taken: els },
+        )
+        .unwrap();
+        l.place(then, bytes(&[MR_R4_R5, MR_R3_R11]), Terminator::TailCall).unwrap();
+        l.place(els, bytes(&[MR_R5_R11, LI_R4_0]), Terminator::TailCall).unwrap();
+        let b = l.finish().unwrap();
+        assert_eq!(b.start_of(entry).unwrap(), 0);
+        assert_eq!(b.start_of(then).unwrap(), 0x0c);
+        assert_eq!(b.start_of(els).unwrap(), 0x18);
+        // …and each run is its own bytes, terminator excluded.
+        assert_eq!(b.run_len(entry).unwrap(), 8);
+        assert_eq!(b.run_len(els).unwrap(), 8);
+        // The tail placeholders sit at the end of each arm's run.
+        assert_eq!(b.tail_sites, vec![b.start_of(then).unwrap() + 8, b.start_of(els).unwrap() + 8]);
+    }
+
+    /// **A position stated as `start_of(block) + k` follows the block, and a
+    /// constant of the whole body does not.** Board #3124 in one assertion: the
+    /// same lowering, the same `k`, one arm four bytes longer, and the published
+    /// site moves by four without anything being edited.
+    #[test]
+    fn a_block_relative_position_moves_with_its_block_and_a_body_constant_does_not() {
+        let build = |pad: usize| {
+            let mut l = BodyLayout::new(BlockOrder::IlStatement);
+            let entry = l.declare("entry");
+            let arm = l.declare("arm");
+            let out = l.declare("out");
+            let mut run = bytes(&[CMPLWI_CR6_R3_0]);
+            run.extend(std::iter::repeat(MR_R4_R5).take(pad).flatten());
+            l.place(
+                entry,
+                run,
+                Terminator::Bc { bo: BO_FALSE, bi: cr_bi(CR_COMPARE, CR_BIT_EQ), taken: out },
+            )
+            .unwrap();
+            // `k = 4`: the SECOND word of the arm's own run, wherever the arm is.
+            l.place(arm, bytes(&[MR_R3_R11, MR_R5_R11]), Terminator::FallThrough).unwrap();
+            l.place(out, Vec::new(), Terminator::Blr).unwrap();
+            let b = l.finish().unwrap();
+            (b.start_of(arm).unwrap(), b.at(arm, 4).unwrap())
+        };
+        assert_eq!(build(0), (8, 12));
+        assert_eq!(build(1), (12, 16));
+    }
+
+    /// `at` refuses a `k` that reaches out of the block it names — including
+    /// exactly one past the end, which is the *next* block's start and has its
+    /// own name.
+    #[test]
+    fn a_position_past_its_own_blocks_run_is_refused_and_names_both_numbers() {
+        let mut l = BodyLayout::new(BlockOrder::IlStatement);
+        let a = l.declare("entry");
+        let b = l.declare("out");
+        l.place(a, bytes(&[MR_R4_R5, MR_R3_R11]), Terminator::FallThrough).unwrap();
+        l.place(b, bytes(&[MR_R5_R11]), Terminator::Blr).unwrap();
+        let body = l.finish().unwrap();
+        assert_eq!(body.at(a, 0).unwrap(), 0);
+        assert_eq!(body.at(a, 4).unwrap(), 4);
+        let s = format!("{:?}", body.at(a, 8).unwrap_err());
+        assert!(s.contains("8 bytes into a block whose own run is 8 bytes"), "{s}");
+        assert!(s.contains("#3124"), "{s}");
+    }
+
+    /// **The terminator word is not `at`-addressable**, and that is the rule and
+    /// not an off-by-one: the terminator is the fixup pass's site, and a
+    /// lowering that could name it could overwrite a branch `LabelMap` had
+    /// already patched.
+    #[test]
+    fn the_terminator_word_is_outside_the_run_a_lowering_may_name() {
+        let mut l = BodyLayout::new(BlockOrder::IlStatement);
+        let a = l.declare("guard");
+        let b = l.declare("out");
+        l.place(
+            a,
+            bytes(&[CMPLWI_CR6_R3_0]),
+            Terminator::Bc { bo: BO_FALSE, bi: cr_bi(CR_COMPARE, CR_BIT_EQ), taken: b },
+        )
+        .unwrap();
+        l.place(b, Vec::new(), Terminator::Blr).unwrap();
+        let body = l.finish().unwrap();
+        // The `bc` is at 4 and the block starts at 0, so `k = 4` names it…
+        assert_eq!(body.run_len(a).unwrap(), 4);
+        assert!(body.at(a, 4).is_err());
+        // …and the next block starts past it, which is where 8 lives.
+        assert_eq!(body.start_of(b).unwrap(), 8);
+    }
+
+    /// A `BlockId` from another body is a refusal on the position accessors too,
+    /// and never a neighbour's offset.
+    #[test]
+    fn the_position_accessors_refuse_a_block_id_from_another_layout() {
+        let mut other = BodyLayout::new(BlockOrder::IlStatement);
+        let _ = other.declare("o0");
+        let stray = other.declare("o1");
+        let mut l = BodyLayout::new(BlockOrder::IlStatement);
+        let a = l.declare("entry");
+        l.place(a, Vec::new(), Terminator::Blr).unwrap();
+        let body = l.finish().unwrap();
+        for s in [
+            format!("{:?}", body.start_of(stray).unwrap_err()),
+            format!("{:?}", body.at(stray, 0).unwrap_err()),
+            format!("{:?}", body.run_len(stray).unwrap_err()),
+        ] {
+            assert!(s.contains("different function's layout"), "{s}");
+        }
     }
 
     /// A block's accessors report what was placed — the surface a later pass
