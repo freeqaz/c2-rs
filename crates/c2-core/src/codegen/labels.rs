@@ -334,15 +334,29 @@ pub enum ChargedClass {
     /// observed. Admitted by the second arm of the rule, not the first: the
     /// charge is *undetermined*, and the TU-level gate is what makes that safe.
     PtrWalkChainLoop,
+    /// `c2_il::JsonUtf8CopyFn` — `label_lead` **4**, and the class is
+    /// **`is_framed()`** even though its Class C prologue has no `stwu`: it
+    /// carries a `.pdata` record and a `$M`/`$M`/`$T` triple, which is what that
+    /// predicate means. So `label_slots(false)` is `Some(label_lead() + 4)` =
+    /// **`Some(8)`**, arm 1.
+    ///
+    /// **Board `#3155` publishes `Some(5)` for this class and that is the
+    /// non-framed formula.** Recorded here rather than corrected silently,
+    /// because the reason it cost nothing is structural and worth keeping: the
+    /// grading test below reads `label_slots` and `label_lead` off `c2_il`
+    /// rather than off the row, so a wrong number on the board cannot become a
+    /// wrong number in this crate (`#3148`).
+    JsonUtf8Copy,
 }
 
 impl ChargedClass {
     /// Every variant. Kept beside the enum and checked complete by a test — a
     /// list nobody grades is how an admission set silently grows.
-    pub const ALL: [ChargedClass; 3] = [
+    pub const ALL: [ChargedClass; 4] = [
         ChargedClass::PtrWalkModLoop,
         ChargedClass::XteaEncryptLoop,
         ChargedClass::PtrWalkChainLoop,
+        ChargedClass::JsonUtf8Copy,
     ];
 
     /// The `c2_il` shape this class is recognized by. Diagnostic and test text
@@ -352,6 +366,7 @@ impl ChargedClass {
             ChargedClass::PtrWalkModLoop => "c2_il::PtrWalkModLoop",
             ChargedClass::XteaEncryptLoop => "c2_il::XteaEncryptLoop",
             ChargedClass::PtrWalkChainLoop => "c2_il::PtrWalkChainLoop",
+            ChargedClass::JsonUtf8Copy => "c2_il::JsonUtf8CopyFn",
         }
     }
 }
@@ -759,7 +774,10 @@ mod tests {
     /// existed.
     #[test]
     fn every_admitted_class_has_a_registered_control_flow_surcharge() {
-        use c2_il::{ChainOp, ChainOpKind, ChainRhs, PtrWalkChainLoop, PtrWalkModLoop, XteaEncryptLoop};
+        use c2_il::{
+            ChainOp, ChainOpKind, ChainRhs, JsonUtf8CopyFn, PtrWalkChainLoop, PtrWalkModLoop,
+            XteaEncryptLoop,
+        };
         for class in ChargedClass::ALL {
             let mut f = crate::codegen::testutil::func_with(vec![0x09EA, 0x09EB], Vec::new());
             match class {
@@ -784,6 +802,15 @@ mod tests {
                         acc_init: 0,
                         elem_unsigned: false,
                         ops: vec![ChainOp { kind: ChainOpKind::Add, rhs: ChainRhs::Char }],
+                    })
+                }
+                ChargedClass::JsonUtf8Copy => {
+                    f.json_utf8_copy = Some(JsonUtf8CopyFn {
+                        params: vec![0x09f3, 0x09f0, 0x09f1],
+                        off_buffer: 0,
+                        off_size: 4,
+                        k_arg_err: 0x8007_0057u32 as i32,
+                        k_size_err: 0x803F_0005u32 as i32,
                     })
                 }
             }
@@ -816,6 +843,42 @@ mod tests {
         }
     }
 
+    /// **`json_utf8_copy` comes in on arm 1 as a FRAMED class**, and board
+    /// `#3155`'s published `label_slots` `Some(5)` is the **non-framed**
+    /// formula.
+    ///
+    /// The class has no `stwu` — its Class C prologue is two words — and
+    /// `is_framed()` is still true, because what that predicate means is a
+    /// `.pdata` record and a `$M`/`$M`/`$T` triple, both of which this class
+    /// carries. So `coff::plan_labels` advances `label_lead() + 4`, not `+ 1`.
+    ///
+    /// **No number is written down here**, deliberately (`#3148`): the test
+    /// asserts which *arm* the class comes in on and that the `+ 1` reading is
+    /// impossible, so it stays true if `c2_il` re-measures the lead and goes red
+    /// if the class stops being framed — which is the change that would actually
+    /// matter.
+    #[test]
+    fn json_utf8_copy_is_admitted_as_a_framed_class_and_not_at_lead_plus_one() {
+        use c2_il::JsonUtf8CopyFn;
+        let mut f = crate::codegen::testutil::func_with(vec![0x09f3, 0x09f0, 0x09f1], Vec::new());
+        f.json_utf8_copy = Some(JsonUtf8CopyFn {
+            params: vec![0x09f3, 0x09f0, 0x09f1],
+            off_buffer: 0,
+            off_size: 4,
+            k_arg_err: 0x8007_0057u32 as i32,
+            k_size_err: 0x803F_0005u32 as i32,
+        });
+        assert!(f.is_framed(), "a .pdata record and a $M/$M/$T triple, with no stwu");
+        let lead = f.label_lead();
+        assert!(lead >= 1, "arm 1 needs a REAL surcharge; a lead of 0 is the defect");
+        assert_eq!(f.label_slots(false), Some(lead + 4), "the FRAMED constant");
+        assert_ne!(
+            f.label_slots(false),
+            Some(lead + 1),
+            "board #3155 publishes the non-framed formula for this class"
+        );
+    }
+
     /// [`ChargedClass::ALL`] really is all of them. Written as an exhaustive
     /// `match` returning an index, so that a variant added without being listed
     /// fails here rather than quietly leaving the grading test above with a
@@ -827,9 +890,10 @@ mod tests {
                 ChargedClass::PtrWalkModLoop => 0,
                 ChargedClass::XteaEncryptLoop => 1,
                 ChargedClass::PtrWalkChainLoop => 2,
+                ChargedClass::JsonUtf8Copy => 3,
             }
         }
-        assert_eq!(ChargedClass::ALL.len(), 3);
+        assert_eq!(ChargedClass::ALL.len(), 4);
         for (i, c) in ChargedClass::ALL.iter().enumerate() {
             assert_eq!(index(*c), i, "{} is out of place in ALL", c.il_shape());
         }
