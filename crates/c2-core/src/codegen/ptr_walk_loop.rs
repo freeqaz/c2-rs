@@ -39,9 +39,29 @@
 //!
 //! Everything else in the twenty words is a constant of the class, including
 //! both branch displacements: the body has a fixed length, so `+0x38` and
-//! `-0x30` are not computed from a layout, they *are* the layout. They are still
-//! emitted through [`encode_bc`] rather than as literal words, so a future body
-//! of a different length cannot silently keep them.
+//! `-0x30` are not computed from a layout, they *are* the layout.
+//!
+//! ## ✔ 2026-08-15, lane `w-fencea` — **both displacements are the LAYOUT's now**
+//!
+//! The sentence above stays true about the *bytes* and stops being true about
+//! *who computes them*. This body is three [`BasicBlock`]s in a
+//! [`BodyLayout`] and neither displacement is written here: `+0x38` is where the
+//! exit block landed and `-0x30` is where the body block did, both derived by
+//! [`LabelMap`] from the emission order. The **forward** guard could have moved
+//! at `w-layout` and did not, because `finish` resolves every branch through the
+//! one map and this body's back edge closed the map to all of them — board
+//! **#3144**, *"the invariant-4 fence is per-BODY, not per-site"*.
+//!
+//! What opened it is [`ChargedClass::PtrWalkModLoop`], the admission
+//! `labels.rs` grades against `c2_il::IlFunction::label_slots` / `label_lead`:
+//! this class's surcharge is **2**, `coff::plan_labels` already advances it, and
+//! `work/w-fencea/cells/` reads the series over one, two and three loop
+//! functions in a TU as **`2n`** off real `c2.dll` — `+0/+2/+4/+6`, against four
+//! plain-leaf controls at `+0`. Nothing about the counter changed here; what
+//! changed is that this body may say its branches in blocks.
+//!
+//! [`BasicBlock`]: super::block_ir::BasicBlock
+//! [`LabelMap`]: super::labels::LabelMap
 //!
 //! # Why the register assignment is not a rule either
 //!
@@ -65,14 +85,14 @@
 
 use c2_il::PtrWalkModLoop;
 
+use crate::codegen::block_ir::{BlockOrder, BodyLayout, Terminator};
 use crate::codegen::cond::{producer_at, Cond, CR0};
 use crate::codegen::encode::{
-    encode_add, encode_addi, encode_andc, encode_blr, encode_cmplwi, encode_divw,
+    encode_add, encode_addi, encode_andc, encode_cmplwi, encode_divw,
     encode_lbz, encode_lbzu, encode_mr, encode_mr_record, encode_mulli, encode_mullw,
     encode_rlwinm, encode_subf, encode_twi, BO_FALSE, BO_TRUE, CR_BIT_EQ,
 };
-use crate::codegen::labels::Form;
-use crate::codegen::reach;
+use crate::codegen::labels::ChargedClass;
 use crate::codegen::select::{out_of_class, OptMode};
 use crate::BackendError;
 
@@ -154,23 +174,47 @@ pub(crate) fn ptr_walk_loop_text(
     let k = i16::try_from(l.mul_k)
         .map_err(|_| out_of_class("ptr-walk loop multiplier outside simm16"))?;
 
-    let mut t: Vec<u8> = Vec::with_capacity(80);
-    // --- the entry guard, over the PEELED character --------------------------
-    t.extend_from_slice(&encode_lbz(R_CHAR, R_SRC, 0));
-    t.extend_from_slice(&encode_mr(R_PTR, R_SRC));
-    t.extend_from_slice(&encode_addi(R_ACC, 0, k0));
-    t.extend_from_slice(&encode_cmplwi(CR0, R_CHAR, 0));
-    // Filled once the body's length is known; asserted below against the
-    // measured constant rather than trusted.
-    let guard_at = t.len();
-    t.extend_from_slice(&[0; 4]);
+    // **Three blocks, and the two displacements are the LAYOUT's** — lane
+    // `w-fencea`, board **#3144**. Both were computed here until then, because
+    // `LabelMap`'s invariant 4 refused a back edge and `BodyLayout::finish`
+    // resolves *every* branch through the one map, so this body's **forward**
+    // entry guard was fenced off by its own back edge. The admission is
+    // [`ChargedClass::PtrWalkModLoop`], graded in `labels.rs` against
+    // `IlFunction::label_slots` / `label_lead` — this class's `2`, which
+    // `coff::plan_labels` already advances and which the `n = 0,1,2,3` series in
+    // `work/w-fencea/cells/` reads as `2n` off real `c2.dll`.
+    //
+    // The bytes are unchanged, and they have to be: `+0x38` and `-0x30` are
+    // constants of the class either way. What moves is who owns them.
+    let mut l = BodyLayout::admitting_back_edges(BlockOrder::IlStatement, ChargedClass::PtrWalkModLoop);
+    let entry = l.declare("ptr-walk entry guard");
+    let body = l.declare("ptr-walk loop body");
+    let exit = l.declare("ptr-walk exit");
 
-    let loop_top = t.len();
+    // --- the entry guard, over the PEELED character --------------------------
+    let mut entry_run: Vec<u8> = Vec::with_capacity(16);
+    entry_run.extend_from_slice(&encode_lbz(R_CHAR, R_SRC, 0));
+    entry_run.extend_from_slice(&encode_mr(R_PTR, R_SRC));
+    entry_run.extend_from_slice(&encode_addi(R_ACC, 0, k0));
+    entry_run.extend_from_slice(&encode_cmplwi(CR0, R_CHAR, 0));
+    // The guard's producer is the `cmplwi cr0` immediately above its own site —
+    // a COMPARE, and not into cr6. The two branches of this one class are
+    // §3.2's two producers, which is why one constant could never have said
+    // both. Read off this block's OWN run, which is what `BodyLayout::place`
+    // then re-checks against the `BI` (item E).
+    let guard_cond = Cond::new(
+        producer_at(&entry_run, "ptr-walk loop entry guard")?,
+        BO_TRUE,
+        CR_BIT_EQ,
+    );
+    l.place(entry, entry_run, Terminator::bc(guard_cond, exit))?;
+
     // --- the accumulate ------------------------------------------------------
-    t.extend_from_slice(&encode_mulli(R_DIVIDEND, R_ACC, k));
-    t.extend_from_slice(&encode_lbzu(R_ACC, R_PTR, 1));
-    t.extend_from_slice(&encode_add(R_DIVIDEND, R_DIVIDEND, R_CHAR));
-    t.extend_from_slice(&encode_mr_record(R_CHAR, R_ACC));
+    let mut body_run: Vec<u8> = Vec::with_capacity(48);
+    body_run.extend_from_slice(&encode_mulli(R_DIVIDEND, R_ACC, k));
+    body_run.extend_from_slice(&encode_lbzu(R_ACC, R_PTR, 1));
+    body_run.extend_from_slice(&encode_add(R_DIVIDEND, R_DIVIDEND, R_CHAR));
+    body_run.extend_from_slice(&encode_mr_record(R_CHAR, R_ACC));
     // --- the signed `%`, with the trap predicate interleaved -----------------
     //
     // The order is `c2`'s and reproduces in a **straight-line** leaf as well as
@@ -180,48 +224,35 @@ pub(crate) fn ptr_walk_loop_text(
     // loop. It is *not* universal — the same expression with a computed dividend
     // in a straight-line body hoists `twi 6` to the front — so the order is
     // emitted as measured for this class and claimed for no other.
-    t.extend_from_slice(&encode_rlwinm(R_ACC, R_DIVIDEND, 1, 0, 31));
-    t.extend_from_slice(&encode_divw(R_QUOT, R_DIVIDEND, R_DIV));
-    t.extend_from_slice(&encode_addi(R_ACC, R_ACC, -1));
-    t.extend_from_slice(&encode_mullw(R_QUOT, R_QUOT, R_DIV));
-    t.extend_from_slice(&encode_andc(R_OVF, R_DIV, R_ACC));
-    t.extend_from_slice(&encode_twi(6, R_DIV, 0));
-    t.extend_from_slice(&encode_subf(R_ACC, R_QUOT, R_DIVIDEND));
-    t.extend_from_slice(&encode_twi(5, R_OVF, -1));
+    body_run.extend_from_slice(&encode_rlwinm(R_ACC, R_DIVIDEND, 1, 0, 31));
+    body_run.extend_from_slice(&encode_divw(R_QUOT, R_DIVIDEND, R_DIV));
+    body_run.extend_from_slice(&encode_addi(R_ACC, R_ACC, -1));
+    body_run.extend_from_slice(&encode_mullw(R_QUOT, R_QUOT, R_DIV));
+    body_run.extend_from_slice(&encode_andc(R_OVF, R_DIV, R_ACC));
+    body_run.extend_from_slice(&encode_twi(6, R_DIV, 0));
+    body_run.extend_from_slice(&encode_subf(R_ACC, R_QUOT, R_DIVIDEND));
+    body_run.extend_from_slice(&encode_twi(5, R_OVF, -1));
     // --- the BACK EDGE, on cr0 ----------------------------------------------
     //
     // The producer is `mr. CHAR,ACC` nine words above — a RECORD FORM — and the
     // field is read off it rather than named again here (§6.2 item E). The scan
     // walks back over `twi`, `subf`, `andc`, `mullw`, `addi`, `divw`, `rlwinm`
     // and `add`, none of which touches a condition register, and stops at the
-    // first word that does.
-    let back_at = t.len();
-    let back_cond = Cond::new(producer_at(&t[..back_at], "ptr-walk loop back edge")?, BO_FALSE, CR_BIT_EQ);
-    let back = reach::direct(
-        Form::Bc { bo: back_cond.bo(), bi: back_cond.bi() },
-        loop_top as i32 - back_at as i32,
-        "ptr-walk loop back edge",
-    )?;
-    t.extend_from_slice(&back);
+    // first word that does. **The block it branches to is itself**, which is what
+    // makes this a back edge and is the whole of what invariant 4 refused.
+    let back_cond = Cond::new(
+        producer_at(&body_run, "ptr-walk loop back edge")?,
+        BO_FALSE,
+        CR_BIT_EQ,
+    );
+    l.place(body, body_run, Terminator::bc(back_cond, body))?;
+
     // --- the exit ------------------------------------------------------------
-    let exit_at = t.len();
-    t.extend_from_slice(&encode_mr(3, R_ACC));
-    t.extend_from_slice(&encode_blr());
+    l.place(exit, encode_mr(3, R_ACC).to_vec(), Terminator::Blr)?;
 
-    // The guard's producer is the `cmplwi cr0` immediately above its own site —
-    // a COMPARE, and not into cr6. The two branches of this one class are
-    // §3.2's two producers, which is why one constant could never have said
-    // both.
-    let guard_cond = Cond::new(producer_at(&t[..guard_at], "ptr-walk loop entry guard")?, BO_TRUE, CR_BIT_EQ);
-    let guard = reach::direct(
-        Form::Bc { bo: guard_cond.bo(), bi: guard_cond.bi() },
-        exit_at as i32 - guard_at as i32,
-        "ptr-walk loop entry guard",
-    )?;
-    t[guard_at..guard_at + 4].copy_from_slice(&guard);
-
-    debug_assert_eq!(t.len(), 80, "the class's body length is a constant");
-    Ok(t)
+    let finished = l.finish()?;
+    debug_assert_eq!(finished.text.len(), 80, "the class's body length is a constant");
+    Ok(finished.text)
 }
 
 #[cfg(test)]
@@ -354,6 +385,35 @@ mod tests {
     fn ox_refuses_because_c2_emits_a_different_body_there() {
         assert!(ptr_walk_loop_text(&loop_of(0, 127), OptMode::O1).is_ok());
         assert!(ptr_walk_loop_text(&loop_of(0, 127), OptMode::Ox).is_err());
+    }
+
+    /// **The admission is load-bearing, and this is the control that says so.**
+    ///
+    /// The identical three blocks through [`BodyLayout::new`] — the map every
+    /// other client has — refuse, and the refusal is still `labels.rs`' own,
+    /// naming the counter and `plan_labels`. So the class is in through
+    /// [`ChargedClass::PtrWalkModLoop`] and through nothing else, and a lane
+    /// that deleted the admission would not silently keep emitting: it would
+    /// stop.
+    #[test]
+    fn the_same_three_blocks_through_a_default_layout_are_refused() {
+        let mut l = BodyLayout::new(BlockOrder::IlStatement);
+        let entry = l.declare("ptr-walk entry guard");
+        let body = l.declare("ptr-walk loop body");
+        let exit = l.declare("ptr-walk exit");
+        let mut entry_run = Vec::new();
+        entry_run.extend_from_slice(&encode_lbz(R_CHAR, R_SRC, 0));
+        entry_run.extend_from_slice(&encode_cmplwi(CR0, R_CHAR, 0));
+        let g = Cond::new(producer_at(&entry_run, "t").unwrap(), BO_TRUE, CR_BIT_EQ);
+        l.place(entry, entry_run, Terminator::bc(g, exit)).unwrap();
+        let body_run = encode_mr_record(R_CHAR, R_ACC).to_vec();
+        let b = Cond::new(producer_at(&body_run, "t").unwrap(), BO_FALSE, CR_BIT_EQ);
+        l.place(body, body_run, Terminator::bc(b, body)).unwrap();
+        l.place(exit, Vec::new(), Terminator::Blr).unwrap();
+        let s = format!("{:?}", l.finish().unwrap_err());
+        assert!(s.contains("BACKWARD"), "{s}");
+        assert!(s.contains("plan_labels"), "{s}");
+        assert!(s.contains("ptr-walk loop body"), "{s}");
     }
 
     #[test]
