@@ -10,8 +10,10 @@
     Record:    docs/whitebox/WB_ITEMF_FINDINGS.md; prereg frozen in
                docs/whitebox/WB_ITEMF_PREREG.md at `5fe20768`, BEFORE the first
                grep of the export and before the first measurement of anything
-               in this repository. Board rows left **UNNUMBERED** for the
-               coordinator (§9).
+               in this repository. Board rows drafted UNNUMBERED and then
+               **MINTED `#3165`–`#3170`** on the coordinator's instruction;
+               next free **`#3171`**, peers `w-stmt5` and `w-json` still in
+               flight (§9).
 
 **`Outcome: built`.** The lane preregistered a step count, a total ceiling and a
 buy, and landed all three with the bias direction stated in writing and a
@@ -255,23 +257,31 @@ at both ends and not caused by this lane** (`graded tree` is master's own hash;
 the `crates fixtures scripts` diff is empty), and per board **#1406** this run
 does not establish what a full run establishes.
 
-## 9. Proposed board rows — UNNUMBERED
+## 9. Board rows — **MINTED `#3165`–`#3170`**
 
-`docs/BOARD.md` is the coordinator's file and this lane does not edit it. Next
-free number at the time of writing was **#3165** with two peers in flight; the
-coordinator serializes. A merged-but-unallocated block is **invisible** to
-`board_audit.sh`, which counts duplicates and not absences — four rows went
-missing that way this week — so these are enumerated **F-1 … F-6** here and must
-be minted.
+Drafted `F-1`…`F-6` **unnumbered**, then minted on the coordinator's explicit
+instruction after the price was reported: `F-1` → **#3165**, `F-2` → **#3166**,
+`F-3` → **#3167**, `F-4` → **#3168**, `F-5` → **#3169**, `F-6` → **#3170**.
+**The next free number is `#3171`, and TWO LANES ARE IN FLIGHT: `w-stmt5`
+(owner of `crates/c2-il`) and `w-json` (owner of
+`crates/c2-core/src/codegen/`).** The block is appended at the **bottom** of
+`docs/BOARD.md` (`2026-08-14-irg.md` §8.5's ordering hazard), no predecessor
+block is edited, and the free pointer was **re-read from `BOARD.md` in the same
+edit that spends it** (#3117) rather than taken from the hand-off.
+
+**"No lane is in flight" is deliberately NOT written**, because that sentence is
+how four rows ended up on master with no identity this week: `board_audit.sh`
+checks that no two rows claim one number and that every *cited* number has a
+row, so **a row with no number at all is invisible to it by construction**.
 
 | row | title | status | evidence |
 |---|---|---|---|
-| **F-1** | **ITEM F'S TITLE AND ITS MECHANISM QUANTIFY OVER DIFFERENT SETS AND NEITHER CONTAINS THE OTHER — the block boundary enters only through the transfer function, never through a decision; the fourth instance of #3151's disease** | MEASURED | `wbl_v3` (mechanism ∖ title, #3054) and `codegen::fp_store_diamond`'s `FPR_A = f0` (title ∖ mechanism, byte-exact). `WB_LIVE_FINDINGS.md` §6.2's own *"nothing is special about the entry block"*. WB_ITEMF §2 |
-| **F-2** | **FOUR ORDER-CHANGING STAGES SIT BETWEEN THE REGISTER ALLOCATOR AND THE OBJ — the order that decided the registers does not appear in the object file** | READ, address-cited | `FUN_10b7e6af` @ `0x10b7e6af` and `FUN_10b7dc51` @ `0x10b7dc51`, whole; `0x10b31c9a` has exactly one caller. Both halves were published and neither was composed. Carries a **labelled hypothesis** for `codegen::alloc`'s 52,416-config and `codegen::schedule`'s 13,104-config residuals. WB_ITEMF §4 |
-| **F-3** | **§6.2 ITEM F AND §6.3 BULLET 1 ARE IN CONTRADICTION — item F cannot be built to its own cells without the "no code motion" pass §6.3 declines, and item F's evidence base is 2/3 already-shipped and 1/3 out of class** | MEASURED | `codegen::cond_tail` ships `?MemFree`; `codegen::if_call_join` + three `PARK_REG` classes ship `?b_if2`'s shape; `?d_join` is §3.4.1, whose two transforms are `0x10b3b167` and `0x10b3b41b` (#3099). WB_ITEMF §3 |
-| **F-4** | **`codegen::if_call_join`'s PARK RATIONALE IS REFUTED BY ITS OWN LISTING — it parks in r10, and `ARG_REGS = [3..10]`. The bytes are right; the reason is wrong** | FILED, NOT APPLIED — a `crates/` change and this is a docs lane | The comment says *"cannot stay in a volatile argument register"* and emits `mr r10,r3`; both `cmpwi cr6,r10` sit **above** both `bl`s, so the range never straddles a call. L0 gives r10 exactly: r3 clobbered by the next word, r11 taken by the accumulator home. WB_ITEMF §3 box |
-| **F-5** | **THE STEP QUOTED AT "~30 LINES PLUS THE TEXTBOOK" IS THE LARGER HALF: `codegen::alloc`'s FITTED SORT AND `0x10b31c9a`'s UNREAD WORKLIST ORDER ARE THE SAME UNKNOWN FROM TWO SIDES** | MEASURED / OPEN | `WB_LIVE_FINDINGS.md` §10's unexplained `wbl_x2`; `codegen::alloc` clause 2 refuted (#836) under a preregistered 52,416-configuration search. F0 prices at 8 and the allocator half at 9 — a registered **MISS** (P2.4). WB_ITEMF §5, §6.1 |
-| **F-6** | **ITEM F IS PRICED AT 17 LANES (ceiling, no discount) AND BUYS 0 ON EVERY NAMED POPULATION — the one positive buy has no unit in any published metric** | PRICED, and the decline is the deliverable | `codegen-gap` **0** over 878; `frontier-codegen-refused` **0 of 59**; a construct rung is required-zero by the grading rule. 5 independent refusals over 17 sites; 22 files to re-express. WB_ITEMF §6, §7 |
+| **#3165** (`F-1`) | **ITEM F'S TITLE AND ITS MECHANISM QUANTIFY OVER DIFFERENT SETS AND NEITHER CONTAINS THE OTHER — the block boundary enters only through the transfer function, never through a decision; the fourth instance of #3151's disease** | MEASURED | `wbl_v3` (mechanism ∖ title, #3054) and `codegen::fp_store_diamond`'s `FPR_A = f0` (title ∖ mechanism, byte-exact). `WB_LIVE_FINDINGS.md` §6.2's own *"nothing is special about the entry block"*. WB_ITEMF §2 |
+| **#3166** (`F-2`) | **FOUR ORDER-CHANGING STAGES SIT BETWEEN THE REGISTER ALLOCATOR AND THE OBJ — the order that decided the registers does not appear in the object file** | READ, address-cited | `FUN_10b7e6af` @ `0x10b7e6af` and `FUN_10b7dc51` @ `0x10b7dc51`, whole; `0x10b31c9a` has exactly one caller. Both halves were published and neither was composed. Carries a **labelled hypothesis** for `codegen::alloc`'s 52,416-config and `codegen::schedule`'s 13,104-config residuals. WB_ITEMF §4 |
+| **#3167** (`F-3`) | **§6.2 ITEM F AND §6.3 BULLET 1 ARE IN CONTRADICTION — item F cannot be built to its own cells without the "no code motion" pass §6.3 declines, and item F's evidence base is 2/3 already-shipped and 1/3 out of class** | MEASURED | `codegen::cond_tail` ships `?MemFree`; `codegen::if_call_join` + three `PARK_REG` classes ship `?b_if2`'s shape; `?d_join` is §3.4.1, whose two transforms are `0x10b3b167` and `0x10b3b41b` (#3099). WB_ITEMF §3 |
+| **#3168** (`F-4`) | **`codegen::if_call_join`'s PARK RATIONALE IS REFUTED BY ITS OWN LISTING — it parks in r10, and `ARG_REGS = [3..10]`. The bytes are right; the reason is wrong** | FILED, NOT APPLIED — a `crates/` change and this is a docs lane | The comment says *"cannot stay in a volatile argument register"* and emits `mr r10,r3`; both `cmpwi cr6,r10` sit **above** both `bl`s, so the range never straddles a call. L0 gives r10 exactly: r3 clobbered by the next word, r11 taken by the accumulator home. WB_ITEMF §3 box |
+| **#3169** (`F-5`) | **THE STEP QUOTED AT "~30 LINES PLUS THE TEXTBOOK" IS THE LARGER HALF: `codegen::alloc`'s FITTED SORT AND `0x10b31c9a`'s UNREAD WORKLIST ORDER ARE THE SAME UNKNOWN FROM TWO SIDES** | MEASURED / OPEN | `WB_LIVE_FINDINGS.md` §10's unexplained `wbl_x2`; `codegen::alloc` clause 2 refuted (#836) under a preregistered 52,416-configuration search. F0 prices at 8 and the allocator half at 9 — a registered **MISS** (P2.4). WB_ITEMF §5, §6.1 |
+| **#3170** (`F-6`) | **ITEM F IS PRICED AT 17 LANES (ceiling, no discount) AND BUYS 0 ON EVERY NAMED POPULATION — the one positive buy has no unit in any published metric** | PRICED, and the decline is the deliverable | `codegen-gap` **0** over 878; `frontier-codegen-refused` **0 of 59**; a construct rung is required-zero by the grading rule. 5 independent refusals over 17 sites; 22 files to re-express. WB_ITEMF §6, §7 |
 
 ## 10. Found and not taken — and the ranking caveat comes FIRST
 

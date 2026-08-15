@@ -1360,7 +1360,7 @@ live at a program point, and every one of the cells above needs one.
 > the spiller (c2 takes four callee-saved registers rather than spill one
 > value), and a callee-saved policy (there is none).
 
-> ### ⚠ 2026-08-15 — **ITEM F IS PRICED: 7 steps, 17 lanes, and a buy of ZERO
+> ### ✔ 2026-08-15 — **ITEM F IS PRICED: 7 steps, 17 lanes, and a buy of ZERO
 > on every population the goal is written in.** Lane `w-itemf-price`
 > ([`rungs/2026-08-15-itemfprice.md`](rungs/2026-08-15-itemfprice.md);
 > [`whitebox/WB_ITEMF_FINDINGS.md`](whitebox/WB_ITEMF_FINDINGS.md)). A
@@ -1428,6 +1428,24 @@ live at a program point, and every one of the cells above needs one.
 > the findings §9, including `0x10b3b5fd` and M5 `0x10b3ab86` (no firing
 > witness on any grid) and **the non-call physical-register def — this item's
 > flagship mechanism, which has no obj cell in existence.**
+>
+> Board **#3165**–**#3170**. The refusal that goes with the price is recorded
+> too: this lane **declines to recommend `0x10b3b5fd`**, because dispatching off
+> a client that is *reached and never fires* is dispatching off an **absence**,
+> on the exact seam where **#1823 rested on three absences and was refuted**.
+>
+> ---
+>
+> **WHAT THIS ITEM'S OWN TEXT SHOULD BE READ AS SAYING, after the above.** The
+> title is not corrected here, because a dated record stays as written; what is
+> recorded is that **three of the four claims a reader takes from it are false**:
+>
+> | the item says | the measurement says |
+> |---|---|
+> | *"values live **across block boundaries**"* | the mechanism has **no block in it**; the boundary is needed to *compute* a range, never to *decide* anything |
+> | *"— **the real cost**"* | this is the **cheap half**. The dominant term is the order the allocator is handed, which is not item F and is not one of §6.2's seven |
+> | *"the item that makes the restructure a restructure"* | its three cells are **2 shipped by transcription and 1 fenced out**; it makes no byte different on any of them |
+> | *"Today's register model … has no notion of a value being live at a program point, and **every one of the cells above needs one**"* | **this one is TRUE**, and it is the whole of what survives |
 
 **G. A place to record the folds, per accepted shape.**
 §3.5's three bands are not passes to reproduce; they are the reason the accepted

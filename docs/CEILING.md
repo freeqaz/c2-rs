@@ -713,6 +713,93 @@ rung.**
 > tail — the store tuple. A port that models this over source statements will
 > be wrong in both directions.
 
+> ### ✔ 2026-08-15 — **THE PHASE IS PRICED AT 17 LANES AND BUYS 0 IN ALL FOUR
+> POPULATIONS — AND `#3057`'s STANDING IMPLICATION IS CORRECTED IN PLACE: IT
+> NAMED THE WRONG HALF.** Lane `w-itemf-price` (rung
+> [`rungs/2026-08-15-itemfprice.md`](rungs/2026-08-15-itemfprice.md), findings
+> [`whitebox/WB_ITEMF_FINDINGS.md`](whitebox/WB_ITEMF_FINDINGS.md), board
+> **#3165**–**#3170**). A characterization lane — **nothing was built and no
+> byte moved.** The two blocks above stand as written and are not rewritten
+> around; this one adds the price and one correction.
+>
+> **THE BUY IS ZERO IN ALL FOUR NAMED POPULATIONS, and the zero is the
+> deliverable.** 878-TU workload scan **0 conversions** — `codegen-gap` is **0
+> over all 878**, so *nothing reaches the emitter to be bought*; 381×18 fixture
+> gate **0** — a construct rung is required-zero **by the grading rule** (board
+> #290); `c2rs perf`'s `/Ox` gate **0**; and the **frontier 0**, which is the
+> one that closes the argument: **`frontier-codegen-refused` is 0 of 59**
+> (#1475 — *"three of its four stages are zero by construction while acceptance
+> lives in the IL parser"*), and 48 of 59 frontier functions die in the IL
+> parser before any emitter question is asked. **This phase lifts emitter
+> refusals; the frontier's emitter refuses nothing.** Against §6.2's own
+> calibration — the last five conversions at **~17 landed rungs each** — the
+> phase prices at one historical conversion and converts nothing.
+>
+> **THE CORRECTION.** `#3057` moved item F's blocker to the lowering order and
+> left standing the estimate *"~30 lines plus the textbook"* for the allocator
+> half; the first block above killed the *number* and left the *apportionment*
+> intact. **The apportionment is wrong.** Decomposed into seven steps with a
+> fail-closed boundary each and priced as a ceiling with **no discount factor**:
+>
+> | step | lanes |
+> |---|---:|
+> | **F0** the order the allocator is handed, and the four stages after it | **8** |
+> | **F1** the candidate set (globregs `0x10b55732`, promotion policy uncharacterized) | 2 |
+> | **F2** liveness — backward fixpoint ∩ availability | 1 |
+> | **F4** allowed-set narrowing | 2 |
+> | **F5** the colouring **and the candidate order** | 2 |
+> | **F6** arrival copy + save set | 1 |
+> | **F7** the fence that would ship F2/F4/F5/F6 without F0 | 1 |
+> | | **17** |
+>
+> **F0 is 8 and everything else totals 9**, so the scheduler-plus-mergers half
+> this page has been re-pricing upward all week is **not** the larger one. The
+> lane registered the opposite (P2.4, p 0.65) and scored it a **MISS**.
+>
+> **What makes F5 dear is a connection nobody had made.** The *register* order
+> `[r11 … r3, r31 … r14]` is settled and cheap. **Which candidate is coloured
+> first is not**: `WB_LIVE_FINDINGS.md` §10 records the driver's worklist order
+> at **`0x10b31c9a`** as **unread** and `wbl_x2`'s assignment as unexplained —
+> and `crates/c2-core/src/codegen/alloc.rs`'s clauses 1–4 **are a fitted
+> stand-in for that same unknown**, with **clause 2 REFUTED** (#836,
+> `w-alloc2`, 7 of 56 fresh-holdout cells) under a preregistered
+> **52,416**-configuration search. **`codegen::alloc`'s sort key and
+> `0x10b31c9a`'s worklist order are the same unknown from two sides**, one
+> black-box and one whitebox, and until this lane nobody had put them beside
+> each other.
+>
+> **And there is a reason both black-box fits failed that is now on the table.**
+> `FUN_10b7e6af` @ `0x10b7e6af` orders the pipeline and `FUN_10b7dc51` @
+> `0x10b7dc51` **ends at the register allocator `0x10b31c9a`, whose only caller
+> it is**. Downstream of that allocation sit **four** order-changing stages: the
+> third mode-1 schedule, the lowering band
+> `0x10b7dd2c`/`0x10b7ddff`/`0x10b7de4a`, `0x10b7ded5`'s five mergers, and
+> `0x10b7df57`'s final mode-0 schedule. **The order that decided the registers
+> does not appear in the obj.** Both halves of this were published — §1 of
+> `WB_DAGORDER_FINDINGS.md` and §1 of `WB_DAGCLIENTS_FINDINGS.md` — and
+> **neither composed them**. That `codegen::alloc`'s 52,416-configuration
+> residual and `codegen::schedule`'s 13,104-configuration residual both come of
+> fitting against *emitted* bytes is a **HYPOTHESIS, labelled and not banked**:
+> this lane built no cell that could falsify it.
+>
+> **The row that outranks the price.** §6.2 item F's **title** and its
+> **mechanism** quantify over sets where **neither contains the other**
+> (#3165), and **§6.2 item F contradicts §6.3 bullet 1** (#3167) — the item
+> cannot be built to its own cells without the code-motion pass §6.3 declines,
+> whose two halves are `0x10b3b167` and `0x10b3b41b`. **So §6.2 completion is
+> not a route to the goal**, and that is a larger fact about this plan than any
+> number in the table above.
+>
+> **NOT re-priced here, and the list is unchanged**: `w-merger4`'s floor; and
+> #3057's four — the interference graph (there is none), the cost function
+> (inert on all 25 cells), the spiller, a callee-saved policy. **Eight items
+> are named UNPRICEABLE** in the findings §9, of which two matter to this page:
+> **the non-call physical-register def — item F's own flagship mechanism —
+> has no obj cell in existence**, and **`0x10b3b5fd` is deliberately NOT
+> recommended for dispatch**, because a client that is *reached and never fires*
+> is an **absence**, on the seam where **#1823 rested on three absences and was
+> refuted**.
+
 **Five of the seven have never had a rung that BUILT the phase.** Items 2, 4,
 5, 6 and 7 exist as measurements and declines only — stated precisely, because
 the literal "never had a rung" is contradicted by `rungs/INDEX.md`: item 2 has
