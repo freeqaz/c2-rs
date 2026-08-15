@@ -83,7 +83,18 @@ s4() { # REGISTERED GREEN: a comment-only edit inside the predicate
   grade S4 step5-accounted 2410886 GREEN
 }
 
+s5() { # the boundary rows back in `fn_cflow`, where they doubled a published key
+  patch "$HAR/scan.rs" \
+    '*res.fn_cfg_admit
+                .entry(format!(
+                    "{}|{}",' \
+    '*res.fn_cflow
+                .entry(format!(
+                    "cflow-{}|{}",'
+  grade S5 cflow-residue-inclass-offclass 517425 RED
+}
+
 case "${1:-all}" in
-  all) s1; s2; s3; s4 ;;
+  all) s1; s2; s3; s4; s5 ;;
   *) "s$1" ;;
 esac

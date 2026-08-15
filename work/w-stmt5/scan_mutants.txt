@@ -2,3 +2,4 @@ S1   emit-cflow-shape-accounted             base 113612     got 110304     RED  
 S2   step5-refuse-unmodeled-operand-BLOCKED base 1495664    got 1495663    RED    AS REGISTERED
 S3   step5-consistency-alarms               base 0          got 3          RED    AS REGISTERED
 S4   step5-accounted                        base 2410886    got 2410886    GREEN  AS REGISTERED
+S5   cflow-residue-inclass-offclass         base 517425     got 1222684    RED    AS REGISTERED
