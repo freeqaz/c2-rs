@@ -1,0 +1,14 @@
+Each of these 15 tokens has an EXPRESSION LOO margin of EXACTLY 0.
+Sum of their individual margins = 0 of 88806.
+
+spec                                        toks      EXPR joint cost     STMT
+full - the first 1 zero-margin tokens         51     88806         0     5047
+full - the first 2 zero-margin tokens         50     88806         0     5021
+full - the first 3 zero-margin tokens         49     88806         0     4927
+full - the first 5 zero-margin tokens         47     88806         0     4913
+full - the first 8 zero-margin tokens         44     88806         0      313
+full - the first 12 zero-margin tokens        40     88806         0        0
+full - the first 15 zero-margin tokens        37     47889     40917        0
+
+Denominator: 88806, the full-52-token expression reach, of 120,456 blocked
+emitted functions over 878 TUs -- COUNTERFACTUAL (PREREG D1).

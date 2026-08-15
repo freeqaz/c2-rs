@@ -1,0 +1,13 @@
+start: |drop| = 15, joint cost = 40917 of 88806
+  round 0: returned op:02      -> |drop|=14, joint cost still 40917
+  round 1: returned op:03      -> |drop|=13, joint cost still 40917
+  round 2: returned op:04      -> |drop|=12, joint cost still 40917
+  round 3: returned op:09      -> |drop|=11, joint cost still 40917
+  round 4: returned op:0B      -> |drop|=10, joint cost still 40917
+  round 5: returned op:0C      -> |drop|= 9, joint cost still 40917
+
+MINIMAL SET: 9 tokens, each with an individual LOO margin of EXACTLY 0.
+  op:0D,op:33,op:5D,op:5E,op:67,op:B9,type,convert,intrinsic
+  sum of their individual margins = 0
+  JOINT cost of removing them     = 40917 of 88806  (46.1%)
+  scans used: 8

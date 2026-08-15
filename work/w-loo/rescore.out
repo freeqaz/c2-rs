@@ -1,0 +1,174 @@
+
+==============================================================================
+RANKING 1 -- readphase §3 "LADDER B", the class-wide greedy ladder
+   13 granted tokens, expression layer, all 878 TUs.
+   GREEDY number = that round's reach delta, of 41,762 (PREREG D3).
+   LOO number    = margin against the 52-token ceiling, of 88806 (PREREG D1).
+==============================================================================
+
+token        GREEDY d   LOO marg      ratio   note
+op:27             404      34018     84.20x   
+op:30            8836      49417      5.59x   
+intrinsic        5023          0      0.00x   <-- POSITIVE greedy, ZERO margin
+op:66               0      25448         --   
+op:55           -3656      71362         --   <-- greedy delta is NEGATIVE
+op:4C            5589      76409     13.67x   
+op:9B             704      13278     18.86x   
+op:1F            1870       6543      3.50x   
+op:26           -9373      25463         --   <-- greedy delta is NEGATIVE
+op:99               0      61135         --   
+op:BD           26051      63967      2.46x   
+op:32             773      28099     36.35x   
+op:5C             459      13432     29.26x   
+
+sum of greedy deltas = 36680   (= 41,762 - 5,082, the ladder's whole climb)
+sum of LOO margins   = 468571   (12.77x the ladder's climb)
+  ORDER: rho = +0.047  -> DOES NOT SURVIVE
+  MAGNITUDE: 13 of 13 items outside the 2x band -> DOES NOT SURVIVE
+  discriminating cells: 13 of 13 (published nonzero 11, LOO nonzero 12)
+  greedy #1 = op:BD (+26051)   LOO #1 = op:4C (76409)   -> DIFFERENT
+
+==============================================================================
+RANKING 2 -- the SCAFFOLD, which no published ladder ever ranks.
+   readphase §3 grants these 9 free at round 0 and never scores them.
+   LOO margin of 128,456-blocked-function reach, of 88806 (PREREG D1).
+==============================================================================
+
+token        LOO marg   vs best RANKED token (op:4C, 76409)
+op:41           60167   
+op:4F           88806   <-- BEATS every token the ladder chose
+op:53           15727   
+op:54           88806   <-- BEATS every token the ladder chose
+op:4B           67726   
+op:29           88806   <-- BEATS every token the ladder chose
+op:38           19253   
+op:39            3263   
+op:3A           88805   <-- BEATS every token the ladder chose
+
+4 of 9 scaffold tokens outrank every one of the 13 the ladder ranked.
+
+==============================================================================
+RANKING 3 -- CEILING §3.1 / readphase §0, the EMITTED WIDENING ORDER.
+   Head-mass census of emit_blockers keys at base.
+   GREEDY number = key mass, of 113,612 over 615 keys (PREREG D4).
+   LOO number    = margin of the token that key maps to, of 88806.
+==============================================================================
+
+key (top 20 by mass)                                           MASS      token LOO marg
+expr-op-0x27                                                  22407      op:27    34018
+expr-intrinsic-this-adjust                                     9273  intrinsic        0
+expr-intrinsic-base-member-addr                                6476  intrinsic        0
+expr-call-in-expr-recv-object-then-call-recv-object-more       4742         -- NOT TOKEN-ADDRESSABLE
+expr-call-in-expr-recv-load-then-bit-and-and-branch-more       4290         -- NOT TOKEN-ADDRESSABLE
+expr-intrinsic-memset                                          3743  intrinsic        0
+expr-brfalse                                                   3105         -- NOT TOKEN-ADDRESSABLE
+expr-call-in-expr-recv-load-then-intrinsic-call                2863  intrinsic        0
+body-cflow-label                                               2832      op:29    88806
+expr-cmp-eq                                                    2374         -- NOT TOKEN-ADDRESSABLE
+body-0x9B                                                      2213      op:9B    13278
+expr-call-in-expr-recv-load-then-call-recv-load-and-deref-     2182         -- NOT TOKEN-ADDRESSABLE
+expr-intrinsic-0xDF                                            2033  intrinsic        0
+expr-brtrue                                                    1941         -- NOT TOKEN-ADDRESSABLE
+return-scope-close-cflow-label                                 1814      op:29    88806
+expr-op-0x9B                                                   1595      op:9B    13278
+expr-call-in-expr-recv-load-whole                              1493         -- NOT TOKEN-ADDRESSABLE
+expr-call-in-expr-recv-object-then-deref-load-more             1456         -- NOT TOKEN-ADDRESSABLE
+expr-intrinsic-base-downcast                                   1320  intrinsic        0
+expr-intrinsic-dynamic-cast                                    1232  intrinsic        0
+
+12 of the top 20 mass rows map to a grantable token; 8 do NOT (21583 functions, 19.0% of 113,612).
+The 12 mapped rows collapse onto only 4 DISTINCT tokens -- the mass ranking's items
+are not the ladder's items, and the map is many-to-one and lossy.
+  ORDER: rho = +0.000  -> DOES NOT SURVIVE
+  MAGNITUDE: 3 of 4 items outside the 2x band -> DOES NOT SURVIVE
+  discriminating cells: 4 of 4 (published nonzero 4, LOO nonzero 3)
+
+==============================================================================
+RANKING 4 -- CONTROL. read2 §5.4's statement-layer LOO, reproduced here
+   COMPOSED with the chain sink in one scan. If read2 §4's orthogonality
+   claim holds, every margin must match token for token. Of 5184 (PREREG D2).
+==============================================================================
+
+token           read2  this lane   
+op:54            5184       5184   agree
+op:3A            5184       5184   agree
+op:29            5184       5184   agree
+op:26            4875       4875   agree
+op:33            4871       4871   agree
+op:4F            4610       4610   agree
+op:BD            4550       4550   agree
+op:4C            4550       4550   agree
+op:41            1766       1766   agree
+op:27             975        975   agree
+op:0A               2          2   agree
+op:0C               2          2   agree
+op:67               0          0   agree
+op:0D               0          0   agree
+type                0          0   agree
+convert             0          0   agree
+intrinsic           0          0   agree
+
+17 of 17 published statement margins reproduce EXACTLY; 0 differ.
+sum of statement marginals = 98039 against a total of 5184 (18.9x)  [read2 published 98,039 / 5,184 / 18.9x]
+
+==============================================================================
+RANKING 5 -- w-deaccept §2's 48-token de-acceptance census.
+   This is the ONE published ranking in this repo that is ALREADY a
+   leave-one-out: it removes one token from the ACCEPTING reader and
+   reads what the tree loses. Its number is a REAL one (PREREG D5):
+   fnbyte-exact functions, of 35,734 -- not a counterfactual reach.
+==============================================================================
+
+token      DEACC (real)       LOO expr   
+op:33              3712              0
+op:B9              3412              0
+op:55              3255          71362
+op:41              2694          60167
+op:2C               571          61355
+op:05                 0           1214
+op:06                 0             42
+op:0A                 0           2028
+op:0F                 0           1930
+op:1A                 0            704
+op:1F                 0           6543
+op:20                 0           7006
+op:21                 0            898
+op:22                 0           1476
+op:23                 0            700
+op:24                 0           1185
+op:26                 0          25463
+op:27                 0          34018
+op:28                 0            690
+op:29                 0          88806
+op:30                 0          49417
+op:32                 0          28099
+op:35                 0           1216
+op:38                 0          19253
+op:39                 0           3263
+op:3A                 0          88805
+op:40                 0          33453
+op:43                 0           3484
+op:44                 0          11593
+op:4B                 0          67726
+op:4C                 0          76409
+op:4F                 0          88806
+op:53                 0          15727
+op:54                 0          88806
+op:5C                 0          13432
+op:66                 0          25448
+op:99                 0          61135
+op:9B                 0          13278
+op:BD                 0          63967
+
+5 of 49 tokens have a NONZERO de-acceptance margin; 37 have a nonzero LOO reach margin.
+  ORDER: rho = +0.038  -> DOES NOT SURVIVE
+  MAGNITUDE: 39 of 49 items outside the 2x band -> DOES NOT SURVIVE
+  discriminating cells: 39 of 49 (published nonzero 5, LOO nonzero 37)
+
+==============================================================================
+DISCRIMINATING CELLS AND NONZERO COUNTS -- "absence is not success"
+==============================================================================
+  52 tokens re-scored. EXPRESSION: 37 nonzero margins, sum 1118904 of 88806 (12.60x).
+  52 tokens re-scored. STATEMENT : 47 nonzero margins, sum 98039 of 5184 (18.91x).
+  Every ranking above reports its own discriminating-cell count; none is VACUOUS
+  unless printed so.

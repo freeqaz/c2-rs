@@ -1,0 +1,12 @@
+cell                                toks       EXPR      STMT
+A  scaffold alone (9)                  9       5082         0
+B  Ladder B final (22)                22      49870         0
+C  full ceiling (52)                  52      88806      5184
+D  full - {54,3A,29}                  49          0         0
+E  full - {54,3A}                     50          0         0
+G  full - the whole scaffold (43)     43          0         0
+H  Ladder B final + 5D,5E             24      49870         0
+I  Ladder B final + type,convert      24      56634         0
+
+Denominator for every EXPR/STMT number above: 120,456 blocked emitted
+functions over 878 TUs -- a COUNTERFACTUAL population (PREREG D1/D2).
