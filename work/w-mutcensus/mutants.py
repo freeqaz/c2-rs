@@ -26,7 +26,12 @@ SPECS = {
     "C1": [(CALLS, 431, "if syms > 1 && !two_sym_thunk {",
                         "if syms > 2 && !two_sym_thunk {")],
     "C2": [(CORE_CALLS, 1815, ".count() != 1 {", ".count() > 2 {")],
-    "C3": [(BIND, 890, ".contains(&name)", ".contains(&name) | true")],
+    # First spelling `.contains(&name) | true` was INVALID (E0277: `|` binds
+    # looser than the method call, so `true.then_some(name)` parsed first).
+    # This is w-guards' M3 verbatim in effect: the gate's answer becomes
+    # unconditional Some(name).
+    "C3": [(BIND, 891, ".then_some(name)",
+                       ".then_some(name.clone()).or(Some(name))")],
     "C4": [(CENSUS, 1216, "DATA_SYM_UNRESOLVED", "DATA_SYM_LINKAGE"),
            (CENSUS, 1218, "DATA_SYM_LINKAGE", "DATA_SYM_UNRESOLVED")],
     "C5": [(CALLS, 430, "let two_sym_thunk = syms == 2 &&",
