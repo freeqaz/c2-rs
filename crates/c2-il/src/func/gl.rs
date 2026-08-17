@@ -1721,8 +1721,9 @@ pub(crate) const DATA_FLAG_REFERENCED: u8 = 0x01;
 /// The name separator that introduces an **internal-linkage** data symbol, whose
 /// COFF name is the run that follows it **undecorated**.
 ///
-/// [`NAME_SEPARATORS`] lists `00` and `26` and deliberately excludes `25`
-/// (string literals). It never listed `24`, and that omission is precisely why
+/// [`NAME_SEPARATORS`] lists `00`, `26` and — since `w-fence163` (2026-08-17) —
+/// `25` (string literals), each admitted only against a measured population. It
+/// has never listed `24`, and that omission is precisely why
 /// `TomCryptLicense.cpp` reported `data-sym-unresolved` while `ZlibLicense.cpp`
 /// reported `data-sym-not-extern` from **byte-identical `.ex` files**: the only
 /// difference between the two TUs is that one object is `static`.
@@ -1742,11 +1743,15 @@ pub(crate) const DATA_FLAG_REFERENCED: u8 = 0x01;
 /// exactly the byte position `00` and `26` sit in, with the operand token
 /// immediately before it.
 ///
-/// **It is deliberately NOT added to [`NAME_SEPARATORS`].** That constant feeds
+/// **`24` is deliberately NOT added to [`NAME_SEPARATORS`].** That constant feeds
 /// [`gl_symbol_index`], which binds every callee in the corpus; admitting a
-/// fourth separator there would re-bind tokens globally, and this lane's whole
-/// point is that the global data-symbol path must not move. This reader is
-/// separate and its consumers are whole-TU-shaped.
+/// further separator there re-binds tokens globally, and the whole point of the
+/// lane that wrote this reader is that the global data-symbol path must not
+/// move. This reader is separate and its consumers are whole-TU-shaped. (`25`
+/// *was* added there later, by `w-fence163`, and the difference is that it paid
+/// the global re-bind risk first: `w-section` measured the admission over the
+/// whole 878-TU workload and every previously bound population held, `mismatch`
+/// 0. That is the bar for `24`, not an argument that it is safe.)
 const NAME_SEPARATOR_UNDECORATED: u8 = 0x24;
 
 /// Linkage bytes a `.gl` data record can carry, at the fixed offset
@@ -1939,8 +1944,15 @@ pub(crate) fn gl_data_objects_ordered(gl: &[u8]) -> Vec<(u32, GlDataObject)> {
     out.into_iter().filter_map(|(t, o)| o.map(|o| (t, o))).collect()
 }
 
-/// The name separator that introduces a **string-literal** record. Named in
-/// [`NAME_SEPARATORS`]'s doc as the value it deliberately excludes.
+/// The name separator that introduces a **string-literal** record.
+///
+/// It **is** in [`NAME_SEPARATORS`] as of `w-fence163` (2026-08-17); this
+/// constant remains the *named* spelling of the byte for the readers below, so
+/// a `25`-specific clause says which separator it means rather than indexing
+/// [`NAME_SEPARATORS`] positionally. Admitting the record class is not a licence
+/// to emit against it: `bind::Bindings::resolve_data` gates the consumer to the
+/// narrow `??_C@_0` form, and `docs/rungs/2026-08-17-fence163.md` §1 has the
+/// two fences behind that.
 const NAME_SEPARATOR_STRING_LITERAL: u8 = 0x25;
 
 /// Every `??_C@…` string-literal COMDAT name `.gl` carries, as a set.

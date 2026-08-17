@@ -878,8 +878,9 @@ impl<'a> Bindings<'a> {
         self.symbols.map().get(&tok).cloned()
     }
 
-    /// **WR1 — token → the name of an UNDEFINED-EXTERNAL DATA symbol, or (behind
-    /// [`Bindings::strlit_fence_open`]) of a NARROW STRING LITERAL.**
+    /// **WR1 — token → the name of an UNDEFINED-EXTERNAL DATA symbol, or — behind
+    /// the two fences named under "The string-literal admission" below — of a
+    /// NARROW STRING LITERAL.**
     ///
     /// [`Bindings::resolve`] plus the `.gl` linkage gate, as one predicate,
     /// because the two facts are asked at exactly one place and separating them

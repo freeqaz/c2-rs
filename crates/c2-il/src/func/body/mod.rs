@@ -1465,7 +1465,7 @@ pub(crate) const DATA_SYM_LINKAGE: &str = "data-sym-not-extern";
 
 /// **W-FENCE163** — census `ctx` for a NARROW string literal
 /// ([`super::bind::STRLIT_NARROW_PREFIX`]) that resolves through the `25`
-/// separator and is refused by [`super::bind::Bindings::strlit_fence_open`]:
+/// separator and is refused by census clause (c2) (`super::census`):
 /// the TU's defined-name walk bound nothing, so the inline fence (census gate
 /// (c)) is blind here and *"the callee is not defined in this TU"* cannot be
 /// checked. The one measured member is `?ContentPath@XboxContentMgr@@UAAPBDH@Z`
