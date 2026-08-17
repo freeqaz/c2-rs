@@ -30,7 +30,11 @@ for id in "$@"; do
   passed=$(awk '/^test result:/ {p+=$4} END {print p+0}' "$RES/$id.log")
   failed=$(awk '/^test result:/ {f+=$6} END {print f+0}' "$RES/$id.log")
   targets=$(grep -c '^test result:' "$RES/$id.log")
-  if grep -qE '^error(\[E[0-9]+\])?:' "$RES/$id.log"; then
+  # Build failures only: `error[E0xxx]:` or `could not compile`. Cargo also
+  # prints `error: test failed, to rerun ...` for every RED target — that line
+  # is a test failure, not an invalid run (C1's first row was mislabelled
+  # INVALID by matching it; fixed here, recorded in the rung).
+  if grep -qE '^error\[E[0-9]+\]|could not compile' "$RES/$id.log"; then
     colour=INVALID
   elif [ "$targets" -ne 42 ]; then
     colour=INVALID   # a target that failed to run is an absence, not a pass
