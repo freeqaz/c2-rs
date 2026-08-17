@@ -147,15 +147,47 @@ execution environment it uses. A control pinned only by COUNT passes in an
 unprovisioned worktree the moment the count happens to match; one pinned by name
 cannot. That single check would have caught #3219 immediately.
 
-ZERO-DELTA INVARIANT, read correctly: merge-base is 7e541a54 and
-`git diff 7e541a54..HEAD -- crates fixtures scripts` is EMPTY. Master has since
-advanced to 260838d6 (w-npos merged, match 25->26), so a bare `master..HEAD`
-diff now shows w-npos's ADDITIONS as deletions — that is this branch being
-deliberately un-rebased, not a graded change here. Rebase held per coordinator.
-This lane touches only docs/rungs/ and work/.
+REBASED onto master 7b328666 (w-npos merged, match 26; w-gatewire merged with a
+fourth gate row — the debug-profile lane). One conflict, docs/rungs/INDEX.md,
+which is GENERATED: resolved by running scripts/gen_rung_index.sh, never by hand.
 
-GATE AT THE TIP: PASS (HATCH-RED REFUSED), 18/18 lanes each grading a corpus,
-6,858 fixture-verdicts, sweep 19,460 of 19,556, cross 90,424 of 90,812 with 0
-mismatch, graded tree 00aeaabe2b63 over 731 files — digit for digit the figures
-w-guards recorded at its tip. debug_lane 18 ran / 0 failed / 0 panics / 0
-mismatch. Suite 1,648/0/42 exit 0. board_audit all-zero. rung_registry 2/2.
+*** git diff master..HEAD -- crates fixtures scripts IS EMPTY at the rebased
+tip. *** This lane touches only docs/rungs/ and work/.
+
+GRADED TREE AT THE REBASED TIP IS IDENTICAL TO MASTER'S 46ccc7f82479 (737 files),
+GATED BY THE COORDINATOR AT THAT HASH. Not re-run here, deliberately: this lane
+is docs-only, so re-running the gate would have re-measured master rather than
+this lane. Identity follows from the empty diff above — gate.sh content-hashes
+exactly `crates fixtures scripts`, and the diff over precisely those paths is
+empty, so the trees are the same bytes and not merely the same summary.
+
+WHAT THIS LANE ITSELF MEASURED, DATED, WITH ITS BASE ATTACHED — these figures
+describe the PRE-REBASE tree at base 7e541a54, NOT the merged tree:
+  gate.sh --jobs 4 --require-graded  PASS (HATCH-RED REFUSED), 18/18 lanes each
+    grading a corpus, 6,858 fixture-verdicts, sweep 19,460 of 19,556, cross
+    90,424 of 90,812 with 0 mismatch, graded tree 00aeaabe2b63 over 731 files —
+    digit for digit w-guards' recorded tip figures at that base.
+  debug_lane.sh 18 ran / 0 failed / 0 panics / 0 mismatch
+  suite 1,648/0/42 exit 0 · board_audit all-zero · rung_registry 2/2
+  878-TU scan match 25 · mismatch 0 · codegen-gap 0 · vocab-gap 845 ·
+    fnbyte-exact 35,734 · 394 keys, 0 deltas vs base 3835469c
+
+SCOPE NOTE for a reader who will ask: X = 30 of 63 is a statement about the
+RELEASE-profile suite. w-gatewire's new debug-profile gate row catches a
+different slice of the same family (live debug_assert! and overflow checks). The
+two are ORTHOGONAL — a debug row cannot make a key-swap mutation fail, because a
+mis-routed census key violates no assertion and overflows nothing. The gate got
+stronger today and the number is unchanged by it.
+
+BOARD: #3229-#3233 MINTED, allocated explicitly by the coordinator, NOT read off
+the pointer. This lane drafted unnumbered, verified row-by-row (#3218..#3230 vs
+BOARD.md, both peer branches, and every #32NN citation in ROADMAP.md) and
+concluded #3222 — WRONG, and the verification was not at fault: w-fence163 and
+w-gatewire had EACH minted #3218-#3221 after each performing the same check
+against a master where neither had landed. w-gatewire merged holding #3218-#3224;
+w-fence163 renumbers to #3225-#3228. The pointer at this tip reads "NEXT FREE IS
+#3225" and is ALREADY WRONG. Row-by-row verification is the strongest check a
+lane can run and it is still insufficient, because two lanes on separate branches
+are structurally blind to each other's mints — only a coordinator with both
+branches in view can allocate. Leaving rows unnumbered until told was right for
+the second time in this lane and the fourth in this wave.

@@ -49,6 +49,15 @@ runs along is whether a site raises a KEY or decides a GATE.**
 * **Gate-removal sites are much better covered**: 16 GREEN of 36 (44 %).
 * **Threshold widenings are the best covered**: 2 GREEN of 11 (18 %).
 
+**Scope, because a reader will ask.** This is a statement about the
+**release-profile** suite. `w-gatewire` landed a fourth gate row on the day this
+census closed — the **debug-profile** lane, which runs with `debug_assert!` and
+arithmetic-overflow checks live, and makes a debug-profile panic a merge blocker.
+It catches a **different slice of the same family**, and the two are
+**orthogonal**: a debug-profile row cannot make a key-swap mutation fail, because
+a mis-routed census key violates no assertion and overflows nothing. So the gate
+got stronger today and **X = 30 of 63 is unchanged by it**.
+
 And six families are **wholly unguarded at every raise site they have** —
 including the entire 4-site `callee-unresolved` key family, whose default arm
 routes the key `#3209` measured rising to **1,296** bodies on the 878-TU
@@ -547,6 +556,33 @@ environment it uses.** A control pinned only by *count* would have passed in an
 unprovisioned worktree the moment the count happened to match; a control pinned
 by name cannot.
 
+### 7.3 The durable process rule this campaign owes the repo
+
+Written here as a rule rather than a lane note, because it is not about this
+lane:
+
+> **A mutation campaign MUST carry at least one control whose failing set is
+> pinned BY NAME, and MUST re-run that control in every execution environment it
+> uses.**
+>
+> A control pinned only by a **count** passes in an unprovisioned worktree the
+> moment the count happens to match — and §7 shows the count matching *exactly*,
+> `1,648 / 0 / 42`, in a worktree that graded nothing. A control pinned by
+> **name** cannot: reproducing
+> `the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol` and
+> `the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone`, together,
+> requires the captures to have actually run.
+
+Two lanes in one wave hit the failure this rule prevents, which is what makes it
+a property of the worktree workflow rather than an incident. A second rule falls
+out of §7's three classifier corrections and is worth the same status:
+
+> **Derive the results table from the raw logs; never accumulate it.** All three
+> of this campaign's colour-rule corrections reapplied retroactively to every run
+> already on disk, including a previous session's. *A campaign that emits its
+> conclusions incrementally cannot correct its own classifier; one that derives
+> them can.*
+
 ## 8. Gate evidence
 
 All figures measured in this worktree. **This lane lands no `crates/`,
@@ -556,26 +592,36 @@ applies to it in full.
 
 | check | result |
 |---|---|
-| `git diff <merge-base>..HEAD -- crates fixtures scripts` | **EMPTY** — verified after every revert and at the tip. The merge-base is `7e541a54`; the lane touches only `docs/rungs/` and `work/`. **Read against the merge-base, not against `master`**: master has since advanced to `260838d6` (peer `w-npos` merged, workload `match` 25 → 26), so a bare `master..HEAD` now shows `w-npos`'s *additions* as deletions — that is this branch being deliberately un-rebased, not a graded change by this lane. The rebase is held at the coordinator's instruction |
+| `git diff master..HEAD -- crates fixtures scripts` | **EMPTY** at the rebased tip, against master `7b328666`. Verified after every revert, in all eight sidecars, and at the tip. The lane touches only `docs/rungs/` and `work/` |
+| **graded tree at the rebased tip** | **identical to master's `46ccc7f82479` (737 files), gated by the coordinator at that hash** — not re-run here. Identity follows from the row above: `gate.sh` content-hashes exactly `crates fixtures scripts`, and this lane's diff over precisely those paths is empty, so the two trees are the same bytes rather than the same summary |
 | graded tree identical at both ends | **YES** — established by the empty diff above over exactly the paths `gate.sh` content-hashes, and re-verified clean in all **eight** sidecar worktrees after the campaign |
 | 878-TU workload scan | `match` **25** · `mismatch` **0** · `codegen-gap` **0** · `vocab-gap` **845** · `fnbyte-exact` **35,734** |
 | anchored `gap-metric` keys | **394**, **0 deltas** against the briefed base at `3835469c` |
 | `cargo test --workspace --release --no-fail-fast` | **1,648 passed / 0 failed / 42 targets**, exit 0 |
 | `scripts/gate.sh --jobs 4 --require-graded` | **PASS (HATCH-RED REFUSED)** — **18/18** lanes ran and **every one graded a corpus**; **6,858** fixture-verdicts; sweep **19,460 of 19,556** generated cases graded; cross **90,424 of 90,812** cells graded, **0 mismatch** |
 | `scripts/debug_lane.sh` | **18 lanes ran, 0 failed, 0 panics, 0 mismatch** — e.g. `/Ox /EHsc /GR` graded 381/381 match 150 |
-| **graded tree** | **`00aeaabe2b63`**, **731 files** under `crates fixtures scripts` |
+| **graded tree, as measured by this lane pre-rebase** | **`00aeaabe2b63`**, **731 files** — measured **2026-08-17 at base `7e541a54`**, i.e. *before* `w-npos` and `w-gatewire` merged. **This figure describes the tree this lane measured against, NOT the merged tree**; the merged tree is `46ccc7f82479` / 737 files, above |
 | `scripts/board_audit.sh` | all-zero: 0 cited-but-not-on-board · 0 unresolved anchors · 0 raw line anchors · 0 rows-behind-prose · 0 duplicate row numbers |
 | `crates/c2-harness/tests/rung_registry.rs` | **2/2** (inside the suite row above) |
 | `docs/rungs/INDEX.md` | regenerated by `scripts/gen_rung_index.sh`, never hand-edited |
 
-**The graded-tree row is the "identical at both ends" evidence, and it is stronger
-than a re-run would have been.** `gate.sh` content-hashes exactly
-`crates fixtures scripts`; `git diff master..HEAD` over those paths is **empty**,
-so the two ends are provably the same bytes rather than the same summary. And the
-hash **`00aeaabe2b63` over 731 files** is digit-for-digit the tip hash
-`w-guards` recorded, as are **6,858** fixture-verdicts, **19,556** sweep cases and
-**90,424 / 90,812** cross cells — this lane's gate reproduces master's gate
-exactly, which is what a revert-everything lane owes.
+**Every figure in the four gate rows above was measured at base `7e541a54`,
+before `w-npos` and `w-gatewire` merged, and is dated as such.** They are kept
+because they are what this lane actually ran, and at that base they reproduced
+`w-guards`' recorded tip figures digit for digit — `00aeaabe2b63` over 731 files,
+**6,858** fixture-verdicts, **19,556** sweep cases, **90,424 / 90,812** cross
+cells. **They do not describe the merged tree**, which carries `w-npos`'s
+conversion and `w-gatewire`'s fourth gate row (the debug-profile lane, ~85 s,
+making a debug-profile panic a merge blocker) and hashes `46ccc7f82479` over 737
+files.
+
+**The gate was deliberately NOT re-run after the rebase**, at the coordinator's
+instruction and for a reason worth stating: this lane is docs-only, so its graded
+tree at the rebased tip is byte-identical to master's, and master was gated by
+the coordinator at `46ccc7f82479`. **Re-running would have re-measured master,
+not this lane.** The claim being made here is therefore the narrow one the empty
+diff actually supports — *the graded tree is identical to master's* — and not a
+claim that this lane independently re-verified the merged tree.
 
 **The `N0` control is the strongest row here and it is worth reading as
 evidence rather than ceremony.** The registered clean-tree baseline
