@@ -72,6 +72,52 @@ before 2026-08-13 are not backfilled). Exactly one of:
 The merge funnel checks the field is present and matches the headline before
 authoring `work/merge-<lane>.txt`.
 
+## Two rules a probe must satisfy — added 2026-08-17
+
+Both were derived independently by two lanes in one wave (`w-fence163` board
+**#3219**, `w-mutcensus` **#3231**), each catching the defect **in the
+flattering direction** in its own instrument, before publishing an affected
+result. They bind any lane that runs a campaign of measurements.
+
+**1. Carry a control whose failing set is pinned by NAME, and re-run it in
+every environment the campaign uses.** A control pinned by *count* passes in an
+unprovisioned worktree the moment the count matches. The concrete failure: a
+fresh `git worktree add` has no `compilers/` (gitignored by design, and it does
+not follow a new worktree), so every capture-based test **skips**. The
+red-maker then reports *"3 passed"* in 0.00 s, and **cargo swallows the SKIP
+line for a passing test** — so a mutant that should be RED reads GREEN with a
+clean suite, the right target count, and the right exit code. `w-mutcensus`'s
+variant is worse still: its registered baseline was **byte-identical with and
+without a toolchain** (1,648/0/42 either way, differential 84.17 s vs 0.00 s),
+so the prereg's own probe definition *and* its `targets != 42` invalidation
+rule were **both blind**. It surfaced as a **contradiction between two runs of
+one mutant** — never by inspection. Assert the *executed-test count* and the
+differential's *duration*, not the exit code. A colour taken in an unvalidated
+environment is **void, not provisional**: discard it, re-run it, and keep the
+invalid log.
+
+**2. Derive the results table from the logs; never accumulate it.** This is
+what let `w-mutcensus` reapply three classifier corrections retroactively
+across a 159-run campaign. An accumulated table cannot be re-derived when the
+classifier turns out to be wrong, and the classifier **was** wrong three times.
+
+## Board numbers are allocated by the coordinator, not read from the pointer
+
+Added 2026-08-17, on evidence from the same wave: **row-by-row verification is
+the strongest check a lane can run and is still structurally insufficient.**
+`w-fence163` and `w-gatewire` both minted `#3218`–`#3221`, each having verified
+row-by-row against a master where neither had landed. `w-mutcensus` verified
+`#3218`–`#3230` against `BOARD.md`, both peer branches, **and** every `#32NN`
+citation in `ROADMAP.md`, concluded `#3222`, and was still wrong — the
+verification was not at fault. Two lanes on separate branches are blind to each
+other's mints by construction, and `board_audit.sh` counts duplicates only
+*after* both merge.
+
+So: **a lane with peers in flight leaves its rows UNNUMBERED and says so, or
+takes a block the coordinator allocated explicitly.** The next-free pointer in
+`BOARD.md` is a hint, not an authority — it is routinely already wrong at the
+tip that prints it, because unmerged branches hold blocks it cannot see.
+
 ## What is here, and what is not
 
 The historical rungs live in `docs/ROADMAP.md` §6a–§6m and in the per-subject
