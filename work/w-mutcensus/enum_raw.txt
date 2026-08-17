@@ -1,0 +1,54 @@
+E1	crates/c2-il/src/func/body/shapes/calls.rs:432	        return Err(refuse("call-arg-multi-sym"));
+E1	crates/c2-il/src/func/body/shapes/calls.rs:435	        return Err(refuse("call-arg-sym-overflow"));
+E1	crates/c2-il/src/func/body/shapes/calls.rs:443	        return Err(refuse("call-arg-sym-permuted"));
+E1	crates/c2-il/src/func/body/shapes/calls.rs:530	        return Err(refuse("call-arg-lit-over-eight-slots"));
+E1	crates/c2-il/src/func/body/shapes/calls.rs:594	        return Err(refuse("call-arg-lit-permuted"));
+E1	crates/c2-il/src/func/body/shapes/calls.rs:693	                    None => return Err(refuse("call-arg-nonformal")),
+E1	crates/c2-il/src/func/body/shapes/calls.rs:700	                        return Err(refuse("call-arg-lit-wide"));
+E1	crates/c2-il/src/func/body/shapes/calls.rs:710	                _ => return Err(refuse("call-arg-computed")),
+E1	crates/c2-il/src/func/body/shapes/calls.rs:732	                SlotArg::Lit(_) => return Err(refuse("call-arg-lit-classified-twice")),
+E1	crates/c2-il/src/func/body/shapes/calls.rs:736	                SlotArg::SymAddr(_) => return Err(refuse("call-arg-sym-classified-twice")),
+E1	crates/c2-il/src/func/body/shapes/calls.rs:748	            return Err(refuse("call-arg-outer-formal"));
+E1	crates/c2-il/src/func/body/shapes/calls.rs:760	                return Err(refuse("call-arg-duplicated"));
+E1	crates/c2-il/src/func/body/shapes/calls.rs:772	            return Err(refuse("call-arg-source-out-of-slots"));
+E1	crates/c2-il/src/func/body/shapes/calls.rs:775	            return Err(refuse("call-arg-multicycle"));
+E1	crates/c2-il/src/func/body/shapes/calls.rs:781	            return Err(refuse("call-arg-long-cycle"));
+E1	crates/c2-il/src/func/body/shapes/calls.rs:793	        return Err(refuse("call-arg-repeated-leaf"));
+E1	crates/c2-il/src/func/body/shapes/calls.rs:801	        return Err(refuse("call-arg-noncanonical-order"));
+E1	crates/c2-il/src/func/body/shapes/calls.rs:804	        return Err(refuse("call-arg-noncanonical-order"));
+E1	crates/c2-il/src/func/body/shapes/calls.rs:807	        return Err(refuse("call-arg-nonformal"));
+E1	crates/c2-il/src/func/body/shapes/calls.rs:869	        return Err(refuse("mcall-chain-link-arg-overflow"));
+E1	crates/c2-il/src/func/body/shapes/calls.rs:878	                None => return Err(refuse("mcall-chain-link-arg-nonformal")),
+E1	crates/c2-il/src/func/body/shapes/calls.rs:884	                    return Err(refuse("mcall-chain-link-arg-lit-wide"));
+E1	crates/c2-il/src/func/body/shapes/calls.rs:893	            _ => return Err(refuse("mcall-chain-link-arg-computed")),
+E2	crates/c2-il/src/func/body/mod.rs:1603	        if self.ctx == OPT_MODE {
+E2	crates/c2-il/src/func/body/shapes/leaf_store.rs:2254	            return Err(STORE_RUN_BIND_GROUP_SHAPE);
+E2	crates/c2-il/src/func/body/shapes/leaf_store.rs:2257	            return Err(STORE_RUN_BIND_GROUP_SHAPE);
+E2	crates/c2-il/src/func/body/shapes/leaf_store.rs:2285	            _ => return Err(STORE_RUN_BIND_GROUP_SHAPE),
+E2	crates/c2-il/src/func/body/shapes/leaf_store.rs:2371	                return Err(STORE_RUN_BIND_MIXED_KIND);
+E2	crates/c2-il/src/func/body/shapes/leaf_store.rs:2375	            return Err(STORE_RUN_BIND_ADDR_PRODUCER);
+E2	crates/c2-il/src/func/body/shapes/leaf_store.rs:2391	        return Err(STORE_RUN_BIND_MULTI_PRODUCER);
+E2	crates/c2-il/src/func/body/shapes/leaf_store.rs:2400	        return Err(STORE_RUN_BIND_MULTI_PRODUCER);
+E2	crates/c2-il/src/func/body/shapes/leaf_store.rs:2403	        return Err(STORE_RUN_BIND_SYMBOL_CROSSINGS);
+E2	crates/c2-il/src/func/body/shapes/leaf_store.rs:2456	            return Err(STORE_RUN_BIND_GROUP_SHAPE);
+E2	crates/c2-il/src/func/body/shapes/leaf_store.rs:3294	                                Err(STORE_RUN_BIND_CALL_TAIL_RETIRED),
+E2	crates/c2-il/src/func/census.rs:1242	                                        "store-run-call" => STORE_RUN_CALL_NO_CARRIER,
+E2	crates/c2-il/src/func/census.rs:1245	                                        "static-scan-loop" => STATIC_SCAN_LOOP_OBJECT,
+E2	crates/c2-il/src/func/census.rs:1263	                                            bind_key.unwrap_or(STORE_RUN_BIND_NO_CARRIER)
+E2	crates/c2-il/src/func/census.rs:1265	                                        "framed-call" => CALLEE_UNRESOLVED_FRAMED,
+E2	crates/c2-il/src/func/census.rs:1272	                                        _ => CALLEE_UNRESOLVED_TAIL,
+E2	crates/c2-il/src/func/census.rs:1284	                                        ..Block::at_end(seg, OPT_MODE)
+E2	crates/c2-il/src/func/census.rs:1300	                                        ..Block::at_end(seg, PTR_WALK_LOOP_NOT_O1)
+E2	crates/c2-il/src/func/census.rs:1312	                                        ..Block::at_end(seg, PTR_WALK_CHAIN_LOOP_NOT_O1)
+E2	crates/c2-il/src/func/census.rs:1378	                                    FnVerdict::Blocked(Block::at_end(seg, CALLEE_DEFINED_IN_TU))
+E3	crates/c2-il/src/func/census.rs:1230	                                None if sym_fail.is_some() => FnVerdict::Blocked(Block::at_end(
+E3	crates/c2-il/src/func/census.rs:1234	                                None => FnVerdict::Blocked(Block::at_end(
+E3	crates/c2-il/src/func/census.rs:1284	                                        ..Block::at_end(seg, OPT_MODE)
+E3	crates/c2-il/src/func/census.rs:1300	                                        ..Block::at_end(seg, PTR_WALK_LOOP_NOT_O1)
+E3	crates/c2-il/src/func/census.rs:1312	                                        ..Block::at_end(seg, PTR_WALK_CHAIN_LOOP_NOT_O1)
+E3	crates/c2-il/src/func/census.rs:1378	                                    FnVerdict::Blocked(Block::at_end(seg, CALLEE_DEFINED_IN_TU))
+E3	crates/c2-il/src/func/census.rs:1735	        let at_end = Block::at_end(&seg, "call-arg-multi-sym");
+E5-counts (excluded from mutation, grammar fail-closed):
+E5 blk( sites: 1227
+E5 blk_type( sites: 6
+E5 Block::refuse( sites: 106
