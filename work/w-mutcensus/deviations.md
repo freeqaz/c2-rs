@@ -55,6 +55,70 @@ No mutant artifact left `work/w-mutcensus/`; the sidecars' logs were copied into
 the lane checkout's `work/w-mutcensus/results/` and nothing else was taken from
 them. The sidecars are detached, so nothing they contain can reach the branch.
 
+## D8 — A KILLED RUNNER LEAVES ITS MUTANT APPLIED, and the next thing that ran measured it. Both guard layers caught it, on two worktrees, by two different mechanisms
+
+**This is the `w-bind16` stale-state hazard reproduced live, from a cause nobody
+had written down, and it is the campaign's best evidence that the layered guards
+work.**
+
+When D6's fault was found, the two runners were stopped with `pkill`. **`pkill`
+kills the runner between its `apply` and its `revert`, so the mutation stays on
+disk.** The reset then deleted the partial log (`rm results/*.log`), which removed
+the only visible trace, and the relaunched drivers began their `N0` baselines in
+worktrees that still carried a mutant:
+
+| worktree | mutant left applied | site |
+|---|---|---|
+| `w-mutcensus-b` | **`CS4`** | `census.rs:1263`, `bind_key.unwrap_or(...)` dropped |
+| `w-mutcensus-c` | **`L6`** | `leaf_store.rs:2390`, `lits.len() > 1` → `> 9` |
+
+**Both were caught before a single colour was emitted, by two different layers:**
+
+* **`w-mutcensus-b`** — the baseline read **`1,648 / 0 / 42`, differential
+  267.23 s**, i.e. **a perfectly clean-looking baseline on a mutated tree**,
+  because `CS4` happens to be unguarded. The driver's baseline gate passed it and
+  the census pre-flight passed it. What caught it was `run_mutants.sh`'s
+  **dirty-tree invariant**: `ABORT before CS2: tracked tree dirty`, naming
+  ` M crates/c2-il/src/func/census.rs`.
+* **`w-mutcensus-c`** — the baseline read **`1,647 / 1 / 42`**, because `L6` *is*
+  guarded, and the driver's own gate stopped it:
+  `WTC BASELINE MISMATCH — refusing to run mutants`.
+
+**The lesson that generalizes, and it is D6's lesson pointing the other way.**
+D6 showed the registered totals `1,648 / 0 / 42` cannot detect a *missing
+toolchain*. `w-mutcensus-b` shows the same totals cannot detect an *applied
+unguarded mutation* either — a tree carrying a live source mutation reproduced
+the registered baseline **exactly**. So the prereg's probe definition is blind in
+two independent directions at once, and for one reason: **it is a pair of totals,
+and both faults preserve the totals.** The only things that caught either were
+checks on something *other* than the counts — a per-run duration, and a
+`git status`.
+
+**Fixes, and what was discarded.** Both leftover mutants were reverted with
+`git checkout -- crates fixtures scripts` and both worktrees verified clean. Both
+baselines are discarded as `N0wt{B,C}.dirtytree.DISCARDED.log`, with the runner
+transcripts kept as `drive.dirtytree-incident.out`; **neither is a colour and
+neither is used as one.** `CS4` reading `1,648 / 0` on that accidental tree is
+*not* recorded as `CS4`'s colour — it was not a registered mutant run, and D4's
+rule (a colour comes only from a complete, intended run) governs. `CS4` was
+re-run properly.
+
+The driver now **asserts a clean graded tree before it does anything at all**
+(`exit 4` otherwise). `run_mutants.sh` already guarded every mutant; the gap was
+that nothing guarded the *driver's own baseline*, which ran first.
+
+**And the trailing-baseline change, stated as the budget decision it is.** The
+re-launched `b`/`c` drivers run their **mutant list first and the `N0` baseline
+last**, recovering the ~28 minutes of contended baseline the incident cost.
+Justified because the per-run `census_gate` duration check (D6, layer 3)
+validates that **every individual mutant run** graded against real `c2` — which
+is the job `N0` was doing as a proxy — and because `d`/`e` produce clean `N0`
+baselines from untouched worktrees regardless. What the trailing `N0` still adds
+is the assurance that no worktree had a spurious standing failure inflating
+`failed` on every mutant, so it is still run, just last; if a trailing `N0` is
+not `1,648 / 0 / 42`, every colour from that worktree is suspect and this page
+says so.
+
 ## D7 — FOUR runners, not two, and the two extra work the same lists BACKWARDS
 
 The prereg budgeted **~6 min per mutant serial** (§3), which was measured on an
