@@ -222,6 +222,54 @@
 # `REFUSED`s for reasons that have nothing to do with it, which is how a row
 # stops being read.
 #
+# ---- AND EVERY ROW ABOVE RUNS `--release`, WHICH CANNOT SEE AN ASSERTION ------
+#
+# `debug-lane` (board #3074; wired 2026-08-17, lane `w-gatewire`). Every row
+# described above — the 18 mode lanes, the sweep, the cross — grades a `--release`
+# binary, and `hatch-red` / `ladder-red` grade python. In a release build
+# `debug_assert!` is compiled out and integer overflow WRAPS SILENTLY. So the
+# entire apparatus above is **structurally incapable of reporting either fault**,
+# and that is not theoretical: the port's own emitter carried a FALSE assertion
+# for four days and every gate run in the window was green, because no instrument
+# could execute it. There are **75** `debug_assert` sites under `crates/` and,
+# until `scripts/debug_lane.sh` was written, **0 of 75** were reachable by any
+# standing instrument. The dev profile's `overflow-checks` then found a `usize`
+# underflow in `gap/fnbytes.rs` on the instrument's first run.
+#
+# This row runs the fixture corpus through a **DEBUG** `c2rs` at every lane in the
+# registry. Same corpus, same oracle, same byte compare — a different PROFILE,
+# which is the one axis nothing else here varies.
+#
+#   * It runs UNCONDITIONALLY and LAST. Unconditionally for the sweep's reason (an
+#     omittable check is an omitted check); last because a release mismatch must
+#     be on screen first, and because it is the gate's second `cargo build` and
+#     would otherwise serialise on `target/`'s lock with the first.
+#   * It is **toolchain-BOUND**, unlike `hatch-red` / `ladder-red`. It drives
+#     `c2rs gap` against the real `c2.dll`, so it is under the all-skip rule with
+#     the sweep and the cross: absence skips it, `SKIP` is its own verdict, and a
+#     debug row that resolved a toolchain the lanes could not is a fault.
+#     CLAUDE.md requires the toolchain-absent path to degrade cleanly and the
+#     portable lane has no toolchain BY DESIGN; this row does not change that.
+#   * **It counts toward nothing on the `--require-graded` line**, and for the
+#     opposite reason to `hatch-red`'s: it re-grades the very fixtures the lanes
+#     have already counted, so folding it in would double-count the same units
+#     under the one line whose job is an honest total.
+#   * Its per-lane `match` is a **free cross-profile identity check**. A debug run
+#     that grades DIFFERENTLY from the matching release lane is itself a failure.
+#
+# **WHAT THIS ROW CHANGES ABOUT MERGING, stated plainly, because it is a policy
+# change and not a refactor:** a false `debug_assert` or an arithmetic overflow
+# now BLOCKS A MERGE instead of being invisible. That is the trade, it was the
+# user's decision to make and the user made it (2026-08-17), and the direction is
+# this repo's standing rule — a wrong number is worse than a stopped run.
+#
+# COST — and the figure that came with the request was the wrong candidate's.
+# `docs/rungs/2026-08-14-dbgassert.md` §"the blindness" prices TWO things: a
+# debug `cargo test --workspace --lib` unit row at **0.65 s warm**, and
+# `scripts/debug_lane.sh` at **125 s warm**. This row is the second. See
+# `docs/rungs/2026-08-17-gatewire.md` for the re-measurement, warm and cold, and
+# for the gate's total on both sides of the wiring.
+#
 # ---- THE RUN TREE, REAPED, AND THE DISK RED TOLD APART FROM THE RED RED --------
 #
 # This gate writes a ~112 MB run tree per invocation and, until 2026-08-05, **never
@@ -322,7 +370,9 @@
 # ---- usage ---------------------------------------------------------------------
 #
 #   scripts/gate.sh                       run every lane in the registry + the sweep
-#   scripts/gate.sh --lane O1-Oi-EHsc     run named lanes only (repeatable)
+#   scripts/gate.sh --lane O1-Oi-EHsc     run named lanes only (repeatable). Also
+#                                         filters the DEBUG row, which is how you
+#                                         iterate on it without paying for 18.
 #   scripts/gate.sh --jobs 24             lanes in parallel (default 16); also the
 #                                         sweep's grading concurrency
 #   scripts/gate.sh --sweep-cases 400     STRIDED subset — never an unqualified PASS
@@ -393,6 +443,10 @@
 #       C2RS_GATE_MIN_MB      free-space floor, MiB (default 2048)
 #       C2RS_GATE_MIN_INODES  free-inode floor (default 150000 = 3x one run's
 #                             MEASURED PEAK draw of 50,250; see below)
+#
+# The gate SETS two variables for the debug row rather than reading them:
+# `C2RS_DEBUG_LANE_WORK` (into this run's tree, so the reaper bounds it) and
+# `C2RS_LANES` (the run's already-filtered registry, so `--lane` filters it).
 #
 # ---- ACCUMULATION *AND* CONCURRENCY, and the first measurement got it wrong ----
 #
@@ -783,6 +837,161 @@ sweep_verdict() {
         return 0
     fi
     echo "PASS|$_sv_c|$_sv_sel|$_sv_tot|0||$_sv_g|$_sv_u"
+    return 0
+}
+
+# --------------------------------------------------------------------------------
+# Verdict for the DEBUG-PROFILE ROW, derived from its log. Same contract as the
+# two above: a pure function of the log text, so `--selftest` drives it with
+# fabricated logs and no toolchain and no debug build.
+#
+# `scripts/debug_lane.sh` prints one line per lane and one total:
+#
+#     DEBUG-LANE-RESULT PASS lane=Ox flags=[/Ox] graded=381 total=381 \
+#                            match=150 mismatch=0 panics=0 rc=0
+#     DEBUG-LANE-TOTAL lanes=18 ran=18 failed=0
+#
+# and the SKIP line carries no `rc=` at all, which is why the fields are pulled
+# by name and not by position.
+#
+# WHAT THIS ROW ADDS THAT NO OTHER ROW CAN EXPRESS
+# -----------------------------------------------
+# Everything else in this file runs `--release`. In a release build
+# `debug_assert!` is compiled out and integer overflow WRAPS SILENTLY, so the
+# whole apparatus above is **structurally incapable** of reporting either. The
+# port's own emitter carried a FALSE assertion for four days and every gate run
+# in that window was green, because no instrument could execute it (board #3074);
+# the dev profile's `overflow-checks` then found a `usize` underflow in
+# `gap/fnbytes.rs` on the instrument's first run. That is
+# absence-read-as-success reaching the emitter's own assertions, and this row is
+# the forbidding.
+#
+# THE COUNTS ARE ALSO A CROSS-PROFILE IDENTITY CHECK, and that is free. The row
+# grades the SAME fixtures at the SAME lanes as the release rows, so a debug run
+# that grades DIFFERENTLY is itself a fault — see `_d_db*` in `decide`, which
+# prints both sides' `match` so a divergence is on screen rather than latent.
+#
+# THREE RULES IT DOES *NOT* SHARE WITH `hatch-red` / `ladder-red`
+# --------------------------------------------------------------
+# Those two grade `work/` scripts, need no toolchain, and run on the portable
+# lane. This one drives `c2rs gap` against the real `c2.dll`, so:
+#
+#   * it is **toolchain-BOUND** and belongs under the all-skip rule with the
+#     sweep and the cross — CLAUDE.md requires the toolchain-absent path to
+#     degrade cleanly, and a row that FAILED on the portable lane would trade
+#     one silent failure for a noisy one in the only lane entitled to be empty;
+#   * `SKIP` is its own verdict and is never rendered as `PASS`;
+#   * and it can carry a **mismatch**, so it is ruled on beside the sweep and
+#     the cross, above the lane table's own failures.
+#
+# WHAT IT DOES *NOT* COUNT TOWARD, and this one is deliberate: `--require-graded`'s
+# unit sum. Not for `hatch-red`'s reason (that its arms say nothing about the
+# port) but for the opposite one — **it grades the very same fixture-verdicts the
+# lanes have already counted.** Folding it in would double-count the same units
+# under a line whose whole job is to print an honest total, and it would let a
+# future run satisfy the demand from the debug row while the release rows graded
+# nothing. The demand's arithmetic is unchanged by this row, and `--selftest`
+# asserts that.
+#
+# Emits: <verdict>|<ran>|<lanes>|<match>|<mismatch>|<detail>|<graded>|<panics>
+# where verdict is PASS | FAIL | SKIP | NO-RESULT and **every non-PASS detail
+# LEADS WITH ITS OWN WORD**, all of them prefixed `DBG-` so no leading word here
+# can ever satisfy another row's expectation. A shared prefix is how a later
+# refusal comes to answer an earlier case's check, which has silently passed two
+# of six mutations on this project.
+# --------------------------------------------------------------------------------
+debug_verdict() {   # <log> <exit-status>
+    _dv_log="$1"; _dv_st="${2:-}"
+
+    if [ ! -s "$_dv_log" ]; then
+        echo "NO-RESULT|0|0|0|0|DBG-NOLOG the debug row produced no output at all|0|0"
+        return 0
+    fi
+    # The TOTAL line is the script's own positive check, and its ABSENCE is a run
+    # that died — a debug build that failed to compile, a killed process, an
+    # empty registry — never a run that found nothing. Checked before any count
+    # is read, for the reason the whole file exists.
+    _dv_t=$(grep -m1 '^DEBUG-LANE-TOTAL ' "$_dv_log" 2>/dev/null || true)
+    if [ -z "$_dv_t" ]; then
+        echo "NO-RESULT|0|0|0|0|DBG-NOTOTAL log has no DEBUG-LANE-TOTAL line (exit ${_dv_st:-?}) — the debug build or the run died before it could report|0|0"
+        return 0
+    fi
+    _dv_n=$(printf '%s\n' "$_dv_t" | sed -n 's/.* lanes=\([0-9][0-9]*\).*/\1/p')
+    _dv_ran=$(printf '%s\n' "$_dv_t" | sed -n 's/.* ran=\([0-9][0-9]*\).*/\1/p')
+    _dv_f=$(printf '%s\n' "$_dv_t" | sed -n 's/.* failed=\([0-9][0-9]*\).*/\1/p')
+    if [ -z "$_dv_n" ] || [ -z "$_dv_ran" ] || [ -z "$_dv_f" ]; then
+        echo "NO-RESULT|0|0|0|0|DBG-MALFORMED the DEBUG-LANE-TOTAL line carries no lanes=/ran=/failed= — an unparseable total is a row that did not report, not a row reporting zeros|0|0"
+        return 0
+    fi
+
+    # EVERY DECLARED LANE MUST HAVE PRODUCED A LINE, checked independently of
+    # `ran=`. `ran` is the script's own counter, so a loop that never reached a
+    # lane increments nothing and `ran=lanes` can be true over a short table —
+    # exactly the walk-the-registry-not-the-directory rule this gate applies to
+    # its own lane table, applied one level in.
+    _dv_rows=$(grep -c '^DEBUG-LANE-RESULT ' "$_dv_log" 2>/dev/null || true)
+    _dv_rows=${_dv_rows:-0}
+    _dv_sk=$(grep -c '^DEBUG-LANE-RESULT SKIP ' "$_dv_log" 2>/dev/null || true)
+    _dv_sk=${_dv_sk:-0}
+    # Summed by FIELD NAME across the result lines. `awk` over `$i ~ /^name=/`
+    # rather than a fixed column, because the SKIP line is one field shorter.
+    _dv_sum() {  # <field>
+        awk -v f="$1" '/^DEBUG-LANE-RESULT /{
+            for (i = 1; i <= NF; i++) if ($i ~ "^" f "=") { sub("^" f "=", "", $i); s += $i }
+        } END { print s + 0 }' "$_dv_log"
+    }
+    _dv_g=$(_dv_sum graded)
+    _dv_m=$(_dv_sum match)
+    _dv_x=$(_dv_sum mismatch)
+    _dv_p=$(_dv_sum panics)
+
+    if [ "$_dv_rows" -ne "$_dv_n" ]; then
+        echo "FAIL|$_dv_ran|$_dv_n|$_dv_m|$_dv_x|DBG-COUNT declared $_dv_n lanes and printed $_dv_rows result line(s) — a lane the loop never reached is a lane that did not run|$_dv_g|$_dv_p"
+        return 0
+    fi
+    # SKIP is the toolchain-absent path and is the ONLY path allowed to have no
+    # counts. Checked before the count rules below so a skipped run is never read
+    # as short, vacuous or malformed — the sweep's own ordering, for its reason.
+    if [ "$_dv_sk" -eq "$_dv_n" ] && [ "$_dv_ran" -eq 0 ]; then
+        echo "SKIP|0|$_dv_n|0|0|toolchain absent|0|0"
+        return 0
+    fi
+    # A PARTIAL skip is a fault, not a degradation — the gate's own rule about
+    # its lanes, restated for the lanes INSIDE this row. Toolchain absence skips
+    # every lane; some skipping and others not means one declined for a reason of
+    # its own.
+    if [ "$_dv_sk" -gt 0 ]; then
+        echo "FAIL|$_dv_ran|$_dv_n|$_dv_m|$_dv_x|DBG-PARTIALSKIP $_dv_sk of $_dv_n debug lanes skipped while $_dv_ran ran — absence skips every lane, so this is a fault|$_dv_g|$_dv_p"
+        return 0
+    fi
+    if [ "$_dv_ran" -ne "$_dv_n" ]; then
+        echo "FAIL|$_dv_ran|$_dv_n|$_dv_m|$_dv_x|DBG-SHORT declared $_dv_n lanes and only $_dv_ran ran — a short run is not a pass|$_dv_g|$_dv_p"
+        return 0
+    fi
+    # A MISMATCH OUTRANKS EVERYTHING (CLAUDE.md), including the panic this row
+    # was built for — so it is ruled first, and the detail carries the panic
+    # count anyway so the two can never hide each other.
+    if [ "$_dv_x" -ne 0 ]; then
+        echo "FAIL|$_dv_ran|$_dv_n|$_dv_m|$_dv_x|DBG-MISMATCH the DEBUG build emitted wrong bytes on $_dv_x fixture(s) ($_dv_p panic(s) alongside)|$_dv_g|$_dv_p"
+        return 0
+    fi
+    if [ "$_dv_p" -ne 0 ]; then
+        echo "FAIL|$_dv_ran|$_dv_n|$_dv_m|$_dv_x|DBG-PANIC the debug binary PANICKED $_dv_p time(s) — a false debug_assert or an arithmetic overflow, and NO release row can express either|$_dv_g|$_dv_p"
+        return 0
+    fi
+    if [ "$_dv_f" -ne 0 ]; then
+        echo "FAIL|$_dv_ran|$_dv_n|$_dv_m|$_dv_x|DBG-FAILED $_dv_f debug lane(s) reported FAIL with no panic and no mismatch — see the log for which guard fired|$_dv_g|$_dv_p"
+        return 0
+    fi
+    if [ "$_dv_g" -eq 0 ]; then
+        echo "FAIL|$_dv_ran|$_dv_n|$_dv_m|$_dv_x|DBG-VACUOUS $_dv_ran lanes ran and NONE graded a fixture — mismatch=0 over graded=0 is the vacuous green this file forbids|0|$_dv_p"
+        return 0
+    fi
+    if [ "${_dv_st:-0}" != "0" ]; then
+        echo "FAIL|$_dv_ran|$_dv_n|$_dv_m|$_dv_x|DBG-EXIT every lane reported clean and the row then exited $_dv_st|$_dv_g|$_dv_p"
+        return 0
+    fi
+    echo "PASS|$_dv_ran|$_dv_n|$_dv_m|$_dv_x||$_dv_g|$_dv_p"
     return 0
 }
 
@@ -2422,6 +2631,13 @@ decide() {
     _d_hr="${7:-}"
     # The ladder-red tuple (#1406's second half). Same argument, same reason.
     _d_lr="${8:-}"
+    # The DEBUG-PROFILE tuple. Its own argument rather than a third `gen_*` arm,
+    # because the `gen_*` rows are ruled by `sweep_verdict` and this row's log has
+    # neither a `sweeping R of T` line nor a `checked=` one — a third arm would
+    # mean a third log shape inside one classifier, which is how two rows come to
+    # disagree about what a short count means. It IS toolchain-bound, unlike the
+    # two instrument tuples, so the all-skip rule below covers it.
+    _d_db="${9:-}"
     _d_n=$(wc -l < "$_d_reg")
     _d_rows=$(wc -l < "$_d_res")
 
@@ -2488,6 +2704,25 @@ decide() {
             "arms ($_d_lrg green controls)" \
             "$([ -z "$_d_lrd" ] && echo "" || echo "   <- $_d_lrd")"
     fi
+    # THE DEBUG-PROFILE ROW. `graded/total` is LANES here, not fixtures — the unit
+    # is a lane run through a debug binary, and the fixture-verdicts it produced
+    # are in the flags column beside the panic count. `mismatch` is a real number
+    # and not `n/a`: unlike the two instrument rows above, this one grades objs
+    # against real c2 and can therefore raise the alarm.
+    _d_dbv=$(printf '%s\n' "$_d_db" | cut -d'|' -f1)
+    _d_dbran=$(printf '%s\n' "$_d_db" | cut -d'|' -f2)
+    _d_dbn=$(printf '%s\n' "$_d_db" | cut -d'|' -f3)
+    _d_dbm=$(printf '%s\n' "$_d_db" | cut -d'|' -f4)
+    _d_dbx=$(printf '%s\n' "$_d_db" | cut -d'|' -f5)
+    _d_dbd=$(printf '%s\n' "$_d_db" | cut -d'|' -f6)
+    _d_dbg=$(printf '%s\n' "$_d_db" | cut -d'|' -f7)
+    _d_dbp=$(printf '%s\n' "$_d_db" | cut -d'|' -f8)
+    if [ -n "$_d_db" ]; then
+        printf "%-20s %-10s %6s/%-6s %6s %9s  %s%s\n" \
+            "debug-lane" "$_d_dbv" "$_d_dbran" "$_d_dbn" "$_d_dbm" "$_d_dbx" \
+            "DEBUG-profile lanes (${_d_dbg:-?} graded, ${_d_dbp:-?} panic)" \
+            "$([ -z "$_d_dbd" ] && echo "" || echo "   <- $_d_dbd")"
+    fi
     echo
 
     _d_swv=$(printf '%s\n' "$_d_sw" | cut -d'|' -f1)
@@ -2527,7 +2762,13 @@ decide() {
     echo "sweep:  $_d_swv — $_d_swc of $_d_swsel selected cases reached, ${_d_swg:-?} GRADED by the"
     echo "        oracle (${_d_swu:-?} ungraded: no reference obj), $_d_swm mismatch (corpus $_d_swtot)"
     echo "cross:  $_d_cxv — ${_d_cxg:-?} of $_d_cxsel selected cells graded, $(printf '%s\n' "$_d_cx" | cut -d'|' -f5) mismatch (product $_d_cxtot)"
-    if [ -n "$_d_run" ] && [ -d "$_d_run" ]; then echo "logs:   $_d_run/<lane>.log, $_d_run/sweep.log, $_d_run/cross.log"; fi
+    # The debug row's counts, said in full. `panic` is printed even when it is 0,
+    # because the whole reason this row exists is that no OTHER row can print that
+    # number at all — a quantity only visible when it is non-zero is a quantity
+    # nobody is watching (the #1002 denominator rule).
+    echo "debug:  $_d_dbv — $_d_dbran of $_d_dbn lanes through a DEBUG-profile c2rs,"
+    echo "        ${_d_dbg:-?} fixture-verdicts, match $_d_dbm, $_d_dbx mismatch, ${_d_dbp:-?} PANIC"
+    if [ -n "$_d_run" ] && [ -d "$_d_run" ]; then echo "logs:   $_d_run/<lane>.log, $_d_run/sweep.log, $_d_run/cross.log, $_d_run/debuglane.log"; fi
 
     # The generated instruments' failures are ruled on FIRST when they carry a
     # mismatch, because a mismatch outranks every other piece of work (CLAUDE.md)
@@ -2563,6 +2804,75 @@ decide() {
             return 1
         fi
     done
+
+    # ------------------------------------------------------------------------
+    # THE DEBUG-PROFILE ROW, ruled on HERE — beside the sweep and the cross and
+    # above the lane table's own failures, because it grades objs against real c2
+    # and can therefore carry a mismatch, and a mismatch outranks every other
+    # piece of work. Its words are all `DBG-`-prefixed so no message here can be
+    # mistaken for, or satisfy the check on, any other row's.
+    #
+    # ABSENT IS A FAILURE. This is the whole point of the row: `debug_lane.sh`
+    # existed, worked, and was measured for three days while nothing executed it,
+    # which is trap 5 — absence reads as success unless something forbids it —
+    # sitting one level outside the thing that forbids it.
+    # ------------------------------------------------------------------------
+    if [ -z "$_d_db" ]; then
+        echo
+        echo "GATE: FAIL — no debug-lane verdict was produced at all."
+        echo "  \`scripts/debug_lane.sh\` is part of this gate. Every OTHER row here runs"
+        echo "  \`--release\`, where \`debug_assert!\` is compiled out and integer overflow"
+        echo "  wraps silently — so without this row the gate is STRUCTURALLY incapable of"
+        echo "  reporting either fault. The port's emitter carried a FALSE assertion for"
+        echo "  four days and every gate run in that window was green (board #3074)."
+        return 1
+    fi
+    case "$_d_dbv" in
+        FAIL)
+            echo
+            echo "GATE: FAIL — debug-lane: $_d_dbd"
+            if [ "${_d_dbx:-0}" -gt 0 ]; then
+                echo
+                echo "  *** A MISMATCH IS AN ALARM AND OUTRANKS EVERY OTHER PIECE OF WORK. ***"
+                echo "  The real c2.dll under wibo plus a byte-exact obj compare is the sole"
+                echo "  judge; outside its class the port must REFUSE, not mis-emit. That the"
+                echo "  DEBUG build mismatched where the release rows did not is additionally a"
+                echo "  statement that the two profiles do not agree, which is its own fault."
+            elif [ "${_d_dbp:-0}" -gt 0 ]; then
+                echo
+                echo "  *** THE DEBUG BINARY PANICKED. *** This is the fault class no other row"
+                echo "  in this gate can express: a \`debug_assert!\` that is FALSE, or an"
+                echo "  arithmetic overflow the release profile wraps in silence. It is a"
+                echo "  statement about the port's own invariants, not about the box."
+            fi
+            echo "  Per-lane counts are also a cross-profile identity check: a debug run that"
+            echo "  grades DIFFERENTLY from the matching release lane is itself a failure."
+            if [ -n "$_d_run" ] && [ -f "$_d_run/debuglane.log" ]; then
+                echo "  log: $_d_run/debuglane.log"
+                grep -E "^DEBUG-LANE-RESULT (FAIL|SKIP)|panicked at|^DEBUG-LANE-TOTAL " \
+                    "$_d_run/debuglane.log" | head -24 | sed 's/^/    /' || true
+            fi
+            return 1 ;;
+        NO-RESULT)
+            echo
+            echo "GATE: FAIL — debug-lane produced NO RESULT: $_d_dbd"
+            echo "  An instrument that did not run is a failure, not a pass. Nothing in this"
+            echo "  run establishes anything about the port's 75 \`debug_assert\` sites or"
+            echo "  about arithmetic overflow anywhere in it."
+            if [ -n "$_d_run" ] && [ -f "$_d_run/debuglane.log" ]; then
+                echo "  log: $_d_run/debuglane.log"
+                tail -6 "$_d_run/debuglane.log" | sed 's/^/    /' || true
+            fi
+            resource_banner "$_d_run"
+            return 1 ;;
+        PASS|SKIP) : ;;
+        *)
+            echo
+            echo "GATE: FAIL — debug-lane reported an unrecognized verdict '$_d_dbv'."
+            echo "  An unenumerated verdict is the next silence; enumerate it or fix the"
+            echo "  classifier, but do not let it fall through to a PASS."
+            return 1 ;;
+    esac
 
     # ABSENT IS A FAILURE, same rule and same reason as the sweep and the cross:
     # a gate that forgot to run this row must not be able to reach a PASS.
@@ -2738,8 +3048,22 @@ decide() {
                 return 1
             fi
         done
+        # And the debug row, which is toolchain-BOUND like the two above and unlike
+        # the two instrument rows — so absence must skip it too, and a debug row
+        # that resolved a toolchain the lanes could not is the same fault in the
+        # resolution. This is the check that makes CLAUDE.md's degrade-cleanly
+        # requirement hold for the row rather than be hoped for.
+        if [ "$_d_dbv" != "SKIP" ]; then
+            echo
+            echo "GATE: FAIL — all $_d_n lanes skipped but debug-lane reported $_d_dbv."
+            echo "  Toolchain absence skips EVERYTHING that grades an obj. The debug row"
+            echo "  drives \`c2rs gap\` against the real c2.dll, so one part resolving a"
+            echo "  toolchain another could not is a fault in the resolution."
+            return 1
+        fi
         echo
-        echo "GATE: SKIPPED — all $_d_n lanes, the sweep and the cross skipped, NOTHING WAS GRADED."
+        echo "GATE: SKIPPED — all $_d_n lanes, the sweep, the cross and the debug row skipped,"
+        echo "  NOTHING WAS GRADED."
         echo "  (hatch-red is toolchain-free and reported $_d_hrv, ladder-red likewise and"
         echo "  reported $_d_lrv — they grade INSTRUMENTS, not objs, and deliberately count"
         echo "  toward nothing on this line.)"
@@ -2766,6 +3090,18 @@ decide() {
             return 1
         fi
     done
+    # The same rule for the debug row, in its own words. A SKIP here while the
+    # lanes graded is not the portable lane degrading cleanly — it is this row
+    # alone failing to resolve what every other row resolved, which would make it
+    # a row that is present in the table and absent from the run.
+    if [ "$_d_dbv" = "SKIP" ]; then
+        echo
+        echo "GATE: FAIL — $_d_pass lanes graded a corpus and debug-lane skipped."
+        echo "  The lanes found a toolchain, so its absence is not a degradation. A debug"
+        echo "  row that skips on a box where the release rows ran is the row silently"
+        echo "  not running, which is exactly what wiring it in was for."
+        return 1
+    fi
 
     echo
     # A REFUSED hatch-red exits 0 and forfeits the unqualified headline, exactly
@@ -2816,7 +3152,10 @@ decide() {
     echo "GATE: PASS$_d_hrq — $_d_pass/$_d_n lanes ran and every one of them graded a corpus,"
     echo "  the sweep graded ${_d_swg:-?} of $_d_swtot generated cases and the cross graded"
     echo "  ${_d_cxg:-?} of $_d_cxtot case-lane cells, with 0 mismatches anywhere"
-    echo "  (${_d_swu:-?} sweep cases carried ungraded — the reference rejects the source)."
+    echo "  (${_d_swu:-?} sweep cases carried ungraded — the reference rejects the source),"
+    echo "  and $_d_dbran/$_d_dbn lanes ran again through a DEBUG-profile c2rs for"
+    echo "  ${_d_dbg:-?} more fixture-verdicts at ${_d_dbp:-?} panics — the one row here that can"
+    echo "  express a false debug_assert or an arithmetic overflow at all."
     hatch_refusal_note
     ladder_refusal_note
     return 0
@@ -2993,6 +3332,17 @@ if [ "$mode" = selftest ]; then
     # HR_OK: these cases drive the CLASSIFIER and the RULING, never the arms.
     LR_OK='PASS|5|5|3|2|'
     LR_FOR_CASE="$LR_OK"
+    # The debug-profile tuple. Eight fields like the sweep's — the last two are
+    # `graded` and `panics`. Every pre-existing case is driven with a clean one so
+    # its verdict is exactly what it was before this row existed; the row's own
+    # cases override it, and an EMPTY tuple stays a hard failure in `decide`.
+    #
+    # `DB_SKIP` is a separate constant and not `DB_OK` with a word swapped,
+    # because the all-skip cases below need it and a case that reached for the
+    # green tuple there would be asserting the opposite of what it says.
+    DB_OK='PASS|2|2|181|0||762|0'
+    DB_SKIP='SKIP|0|2|0|0|toolchain absent|0|0'
+    DB_FOR_CASE="$DB_OK"
 
     check_that() {  # <label> <ok?0/1>
         if [ "$2" -eq 0 ]; then
@@ -3023,13 +3373,15 @@ if [ "$mode" = selftest ]; then
         collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
         _rc_got=PASS
         if ! decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "" "$SWEEP_FOR_CASE" "" \
-                "$CROSS_FOR_CASE" "$HR_FOR_CASE" "$LR_FOR_CASE" > "$CASE_DIR/out.txt" 2>&1; then
+                "$CROSS_FOR_CASE" "$HR_FOR_CASE" "$LR_FOR_CASE" "$DB_FOR_CASE" \
+                > "$CASE_DIR/out.txt" 2>&1; then
             _rc_got=FAIL
         fi
         SWEEP_FOR_CASE="$SWEEP_OK"
         CROSS_FOR_CASE="$CROSS_OK"
         HR_FOR_CASE="$HR_OK"
         LR_FOR_CASE="$LR_OK"
+        DB_FOR_CASE="$DB_OK"
         _rc_hdl=$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt" || echo 'GATE: <none printed>')
         cases=$((cases + 1))
         if [ "$_rc_got" = "$_rc_want" ]; then
@@ -3072,9 +3424,15 @@ if [ "$mode" = selftest ]; then
 
     SWEEP_FOR_CASE='SKIP|0|0|0|0|toolchain absent'
     CROSS_FOR_CASE='SKIP|0|0|0|0|toolchain absent'
+    # The debug row is toolchain-BOUND, so absence must skip it too — see
+    # `debug_verdict`. A green tuple here would be the very fault the all-skip
+    # rule forbids (one part resolving a toolchain the others could not), and the
+    # case below asserts exactly that separately.
+    DB_FOR_CASE="$DB_SKIP"
     run_case all-skip PASS "A=$S" "B=$S"
     saw    'GATE: SKIPPED' 'all-skip says SKIPPED and that nothing was graded'
     saw_no 'GATE: PASS'    'all-skip never says PASS'
+    saw    'the debug row skipped' 'and the SKIPPED headline names the debug row too'
 
     run_case partial-skip FAIL "A=$P" "B=$S"
 
@@ -3106,7 +3464,7 @@ if [ "$mode" = selftest ]; then
         collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
         _sc_got=PASS
         if ! decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "$_sc_sw" "" \
-                "$_sc_cx" "$HR_OK" "$LR_OK" > "$CASE_DIR/out.txt" 2>&1; then
+                "$_sc_cx" "$HR_OK" "$LR_OK" "$DB_OK" > "$CASE_DIR/out.txt" 2>&1; then
             _sc_got=FAIL
         fi
         _sc_hdl=$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt" || echo 'GATE: <none printed>')
@@ -3235,7 +3593,7 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
     cases=$((cases + 1))
     if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "$SWEEP_OK" "" "" \
-            "$HR_OK" "$LR_OK" > "$CASE_DIR/out.txt" 2>&1; then
+            "$HR_OK" "$LR_OK" "$DB_OK" > "$CASE_DIR/out.txt" 2>&1; then
         printf '  FAIL  %-32s a run with NO cross verdict PASSED\n' cross-absent
         fails=$((fails + 1))
     else
@@ -3251,7 +3609,7 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     cases=$((cases + 1))
     if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" \
             'SKIP|0|0|0|0|toolchain absent' "" "$CROSS_OK" "$HR_OK" "$LR_OK" \
-            > "$CASE_DIR/out.txt" 2>&1; then
+            "$DB_SKIP" > "$CASE_DIR/out.txt" 2>&1; then
         printf '  FAIL  %-32s all lanes skipped, cross ran, and it PASSED\n' allskip-cross-ran
         fails=$((fails + 1))
     else
@@ -3266,7 +3624,7 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
     cases=$((cases + 1))
     if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "" "" "$CROSS_OK" \
-            "$HR_OK" "$LR_OK" > "$CASE_DIR/out.txt" 2>&1; then
+            "$HR_OK" "$LR_OK" "$DB_OK" > "$CASE_DIR/out.txt" 2>&1; then
         printf '  FAIL  %-32s a run with NO sweep verdict PASSED\n' sweep-absent
         fails=$((fails + 1))
     else
@@ -3281,7 +3639,7 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
     cases=$((cases + 1))
     if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "$SWEEP_OK" 12 \
-            "$CROSS_OK" "$HR_OK" "$LR_OK" > "$CASE_DIR/out.txt" 2>&1; then
+            "$CROSS_OK" "$HR_OK" "$LR_OK" "$DB_OK" > "$CASE_DIR/out.txt" 2>&1; then
         if grep -q 'LANES FILTERED' "$CASE_DIR/out.txt" \
            && ! grep -q '^GATE: PASS —' "$CASE_DIR/out.txt"; then
             printf '  ok    %-32s %s\n' lanes-filtered "$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt")"
@@ -3300,7 +3658,7 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     printf 'A\t/O1\tPASS|197|197|91|0|\n' > "$CASE_DIR/results.tsv"
     cases=$((cases + 1))
     if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "" "$SWEEP_OK" "" "$CROSS_OK" \
-            "$HR_OK" "$LR_OK" > "$CASE_DIR/out.txt" 2>&1; then
+            "$HR_OK" "$LR_OK" "$DB_OK" > "$CASE_DIR/out.txt" 2>&1; then
         printf '  FAIL  %-32s a 1-row table for a 2-lane registry PASSED\n' short-table
         fails=$((fails + 1))
     else
@@ -3702,7 +4060,7 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
         echo 1 > "$CASE_DIR/B.status"
         collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
         decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "$SWEEP_OK" "" \
-            "$CROSS_OK" "$HR_OK" "$LR_OK" > "$CASE_DIR/out.txt" 2>&1 || true
+            "$CROSS_OK" "$HR_OK" "$LR_OK" "$DB_OK" > "$CASE_DIR/out.txt" 2>&1 || true
         if grep -q 'RESOURCE FAULT, NOT A MISMATCH' "$CASE_DIR/out.txt"; then _r=0; else _r=1; fi
         [ "$3" -eq 1 ] && { [ "$_r" -eq 0 ] && _r=1 || _r=0; }
         t_case "$1" "$_r" "$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt" || echo '(no headline)')"
@@ -3759,6 +4117,7 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     #    the default path and the demand is not what was tested.
     SWEEP_FOR_CASE='SKIP|0|0|0|0|toolchain absent'
     CROSS_FOR_CASE='SKIP|0|0|0|0|toolchain absent'
+    DB_FOR_CASE="$DB_SKIP"      # toolchain-bound: absence skips it too
     require_graded=0
     run_case demand-off-all-skip-still-exits-0 PASS "A=$S" "B=$S"
     saw    'GATE: SKIPPED' 'without the demand an all-skip run is UNCHANGED: SKIPPED, exit 0'
@@ -3980,7 +4339,7 @@ $(hatch_red_verdict "$_hr_l" 0 11 | cut -d'|' -f6 | cut -d' ' -f1)"
         [ "$#" -ge 5 ] && _hd_lr="$5"
         _hd_got=PASS
         if ! decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "$SWEEP_OK" "" \
-                "$CROSS_OK" "$3" "$_hd_lr" > "$CASE_DIR/out.txt" 2>&1; then
+                "$CROSS_OK" "$3" "$_hd_lr" "$DB_OK" > "$CASE_DIR/out.txt" 2>&1; then
             _hd_got=FAIL
         fi
         _hd_ok=1
@@ -4020,7 +4379,7 @@ $(hatch_red_verdict "$_hr_l" 0 11 | cut -d'|' -f6 | cut -d' ' -f1)"
     require_graded=1
     if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" \
             'SKIP|0|0|0|0|toolchain absent' "" 'SKIP|0|0|0|0|toolchain absent' \
-            "$HR_OK" "$LR_OK" > "$CASE_DIR/out.txt" 2>&1; then _r=1; else _r=0; fi
+            "$HR_OK" "$LR_OK" "$DB_SKIP" > "$CASE_DIR/out.txt" 2>&1; then _r=1; else _r=0; fi
     require_graded=0
     t_case hatchred-does-not-satisfy-require-graded "$_r" \
         "$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt" || echo '(no headline)')"
@@ -4130,11 +4489,253 @@ $(hatch_red_verdict "$_hr_l" 0 11 | cut -d'|' -f6 | cut -d' ' -f1)"
     require_graded=1
     if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" \
             'SKIP|0|0|0|0|toolchain absent' "" 'SKIP|0|0|0|0|toolchain absent' \
-            "$HR_OK" "$LR_OK" > "$CASE_DIR/out.txt" 2>&1; then _r=1; else _r=0; fi
+            "$HR_OK" "$LR_OK" "$DB_SKIP" > "$CASE_DIR/out.txt" 2>&1; then _r=1; else _r=0; fi
     require_graded=0
     t_case ladderred-does-not-satisfy-require-graded "$_r" \
         "$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt" || echo '(no headline)')"
     saw 'NOTHING GRADED' 'an all-skip run with 5 green ladder arms still graded nothing'
+
+    # ---- THE DEBUG-PROFILE ROW (board #3074, lane w-gatewire) -------------------
+    #
+    # Same two halves as the two rows above, checked separately because they fail
+    # separately: the CLASSIFIER (`debug_verdict`, a pure function of a log) and
+    # the RULING (`decide`). Nothing here runs a debug build or a compiler — a
+    # selftest that needed 125 s of grading would not be run.
+    #
+    # THIS BLOCK IS THE ANSWER TO "CAN THIS ROW GO RED?", which is the question
+    # that matters: a gate row that cannot go red is worse than no row, and this
+    # project has ~15 recorded instances of absence-read-as-success. The live
+    # demonstration — a real injected debug-only panic through a real gate run —
+    # is in `docs/rungs/2026-08-17-gatewire.md`; these are the arms that keep it
+    # true afterwards.
+    DB_PASS_LOG="$st/db-pass.log"
+    printf '%s\n' \
+        'debug lane: 2 lanes x 381 fixtures, binary=/tmp/c2rs-debug-lane-1/c2rs' \
+        'DEBUG-LANE-RESULT PASS lane=A flags=[/O1] graded=381 total=381 match=177 mismatch=0 panics=0 rc=0' \
+        'DEBUG-LANE-RESULT PASS lane=B flags=[/O1 /EHsc] graded=381 total=381 match=178 mismatch=0 panics=0 rc=0' \
+        'DEBUG-LANE-TOTAL lanes=2 ran=2 failed=0' > "$DB_PASS_LOG"
+    # THE ROW'S WHOLE REASON. A `debug_assert!` that is false, or an arithmetic
+    # overflow: the fixture still grades, the lane still reports counts, and the
+    # ONLY thing that distinguishes this log from the green one is `panics=`.
+    DB_PANIC_LOG="$st/db-panic.log"
+    printf '%s\n' \
+        'debug lane: 2 lanes x 381 fixtures, binary=/tmp/c2rs-debug-lane-1/c2rs' \
+        'DEBUG-LANE-RESULT PASS lane=A flags=[/O1] graded=381 total=381 match=177 mismatch=0 panics=0 rc=0' \
+        'DEBUG-LANE-RESULT FAIL lane=B flags=[/O1 /EHsc] graded=381 total=381 match=178 mismatch=0 panics=3 rc=1' \
+        "    thread '<unnamed>' panicked at crates/c2-core/src/coff/mod.rs:118:9:" \
+        '    attempt to subtract with overflow' \
+        'DEBUG-LANE-TOTAL lanes=2 ran=2 failed=1' > "$DB_PANIC_LOG"
+    # A mismatch OUTRANKS the panic (CLAUDE.md), and this log carries both so the
+    # ordering is asserted rather than assumed — read the other way round, an
+    # alarm would be reported as an assertion failure.
+    DB_MISM_LOG="$st/db-mism.log"
+    printf '%s\n' \
+        'DEBUG-LANE-RESULT PASS lane=A flags=[/O1] graded=381 total=381 match=177 mismatch=0 panics=0 rc=0' \
+        'DEBUG-LANE-RESULT FAIL lane=B flags=[/O1 /EHsc] graded=381 total=381 match=176 mismatch=2 panics=1 rc=1' \
+        'DEBUG-LANE-TOTAL lanes=2 ran=2 failed=1' > "$DB_MISM_LOG"
+    DB_SKIP_LOG="$st/db-skip.log"
+    printf '%s\n' \
+        'debug lane: 2 lanes x 381 fixtures, binary=/tmp/c2rs-debug-lane-1/c2rs' \
+        'DEBUG-LANE-RESULT SKIP lane=A flags=[/O1] graded=0 total=381 match=0 mismatch=0 panics=0' \
+        'DEBUG-LANE-RESULT SKIP lane=B flags=[/O1 /EHsc] graded=0 total=381 match=0 mismatch=0 panics=0' \
+        'DEBUG-LANE-TOTAL lanes=2 ran=0 failed=0' > "$DB_SKIP_LOG"
+    DB_PARTIAL_LOG="$st/db-partial.log"
+    printf '%s\n' \
+        'DEBUG-LANE-RESULT SKIP lane=A flags=[/O1] graded=0 total=381 match=0 mismatch=0 panics=0' \
+        'DEBUG-LANE-RESULT PASS lane=B flags=[/O1 /EHsc] graded=381 total=381 match=178 mismatch=0 panics=0 rc=0' \
+        'DEBUG-LANE-TOTAL lanes=2 ran=1 failed=0' > "$DB_PARTIAL_LOG"
+    # `ran=` short of `lanes=`: the loop stopped. Two result lines, so the COUNT
+    # rule below cannot be what catches it — this is the `ran` rule on its own.
+    DB_SHORT_LOG="$st/db-short.log"
+    printf '%s\n' \
+        'DEBUG-LANE-RESULT PASS lane=A flags=[/O1] graded=381 total=381 match=177 mismatch=0 panics=0 rc=0' \
+        'DEBUG-LANE-RESULT PASS lane=B flags=[/O1 /EHsc] graded=381 total=381 match=178 mismatch=0 panics=0 rc=0' \
+        'DEBUG-LANE-TOTAL lanes=2 ran=1 failed=0' > "$DB_SHORT_LOG"
+    # And the mirror: `ran=lanes` over a table that is one row short. `ran` is the
+    # script's own counter, so a lane the loop never reached increments nothing and
+    # this shape reads clean on every count the total line carries.
+    DB_COUNT_LOG="$st/db-count.log"
+    printf '%s\n' \
+        'DEBUG-LANE-RESULT PASS lane=A flags=[/O1] graded=381 total=381 match=177 mismatch=0 panics=0 rc=0' \
+        'DEBUG-LANE-TOTAL lanes=2 ran=2 failed=0' > "$DB_COUNT_LOG"
+    # Every lane reached, NONE graded. `mismatch=0` over `graded=0` is the vacuous
+    # green this whole file exists to forbid.
+    DB_VAC_LOG="$st/db-vac.log"
+    printf '%s\n' \
+        'DEBUG-LANE-RESULT PASS lane=A flags=[/O1] graded=0 total=381 match=0 mismatch=0 panics=0 rc=0' \
+        'DEBUG-LANE-RESULT PASS lane=B flags=[/O1 /EHsc] graded=0 total=381 match=0 mismatch=0 panics=0 rc=0' \
+        'DEBUG-LANE-TOTAL lanes=2 ran=2 failed=0' > "$DB_VAC_LOG"
+    # A lane FAILED with no panic and no mismatch — the `graded != total` guard
+    # inside `debug_lane.sh` firing. It must not fall through to a PASS just
+    # because the two headline quantities are zero.
+    DB_FAILED_LOG="$st/db-failed.log"
+    printf '%s\n' \
+        'DEBUG-LANE-RESULT PASS lane=A flags=[/O1] graded=381 total=381 match=177 mismatch=0 panics=0 rc=0' \
+        'DEBUG-LANE-RESULT FAIL lane=B flags=[/O1 /EHsc] graded=190 total=381 match=90 mismatch=0 panics=0 rc=0' \
+        'DEBUG-LANE-TOTAL lanes=2 ran=2 failed=1' > "$DB_FAILED_LOG"
+    # The debug BUILD failed, so the script died before it could report. This is
+    # the shape a `cargo build` error produces, and it must be NO-RESULT: a row
+    # that could not run is not a row that found nothing.
+    DB_NOBUILD_LOG="$st/db-nobuild.log"
+    printf '%s\n' \
+        'FAIL: debug build of c2rs failed; see /tmp/c2rs-debug-lane-1/build.log' > "$DB_NOBUILD_LOG"
+    DB_MALFORMED_LOG="$st/db-malformed.log"
+    printf '%s\n' \
+        'DEBUG-LANE-RESULT PASS lane=A flags=[/O1] graded=381 total=381 match=177 mismatch=0 panics=0 rc=0' \
+        'DEBUG-LANE-TOTAL the run finished' > "$DB_MALFORMED_LOG"
+    DB_EMPTY_LOG="$st/db-empty.log"
+    : > "$DB_EMPTY_LOG"
+
+    db_case() {  # <name> <log> <status> <expect-verdict> <expect-leading-word|-->
+        _dc_got=$(debug_verdict "$2" "$3")
+        _dc_v=$(printf '%s\n' "$_dc_got" | cut -d'|' -f1)
+        _dc_d=$(printf '%s\n' "$_dc_got" | cut -d'|' -f6)
+        _dc_w=$(printf '%s\n' "$_dc_d" | cut -d' ' -f1)
+        if [ "$_dc_v" = "$4" ] && { [ "$5" = "--" ] || [ "$_dc_w" = "$5" ]; }; then
+            t_case "$1" 0 "$_dc_v  ${_dc_d:-(no detail, as required for a clean PASS)}"
+        else
+            t_case "$1" 1 "wanted $4/$5, got $_dc_v/${_dc_w:-none} — $_dc_d"
+        fi
+    }
+    db_case debuglane-clean-log-passes        "$DB_PASS_LOG"      0 PASS      --
+    db_case debuglane-panic-is-a-fail         "$DB_PANIC_LOG"     1 FAIL      DBG-PANIC
+    # THE ORDERING ARM: this log carries a panic AND a mismatch, and the mismatch
+    # must win the word. Read the other way round, an alarm reports as an
+    # assertion failure and the sole-judge rule loses its headline.
+    db_case debuglane-mismatch-outranks-panic "$DB_MISM_LOG"      1 FAIL      DBG-MISMATCH
+    db_case debuglane-all-skip-is-a-skip      "$DB_SKIP_LOG"      0 SKIP      --
+    db_case debuglane-partial-skip-is-a-fail  "$DB_PARTIAL_LOG"   0 FAIL      DBG-PARTIALSKIP
+    db_case debuglane-short-run-is-not-a-pass "$DB_SHORT_LOG"     0 FAIL      DBG-SHORT
+    db_case debuglane-short-table-is-not-a-pass "$DB_COUNT_LOG"   0 FAIL      DBG-COUNT
+    db_case debuglane-none-graded-is-vacuous  "$DB_VAC_LOG"       0 FAIL      DBG-VACUOUS
+    db_case debuglane-failed-lane-is-a-fail   "$DB_FAILED_LOG"    1 FAIL      DBG-FAILED
+    db_case debuglane-green-then-nonzero-exit "$DB_PASS_LOG"      3 FAIL      DBG-EXIT
+    db_case debuglane-no-total-is-no-result    "$DB_NOBUILD_LOG"  1 NO-RESULT DBG-NOTOTAL
+    db_case debuglane-malformed-total-is-no-result "$DB_MALFORMED_LOG" 0 NO-RESULT DBG-MALFORMED
+    db_case debuglane-empty-log-is-no-result   "$DB_EMPTY_LOG"    0 NO-RESULT DBG-NOLOG
+
+    # TRAP B for this row, and it is asserted across ALL THREE instrument-shaped
+    # rows rather than only within this one: every non-PASS leading word here must
+    # be distinct from every other word in this row AND from hatch-red's and
+    # ladder-red's. That is what the `DBG-` prefix is for, and a prefix nobody
+    # checks is a prefix that gets dropped in the next edit.
+    _db_words=""
+    for _db_l in "$DB_PANIC_LOG" "$DB_MISM_LOG" "$DB_PARTIAL_LOG" "$DB_SHORT_LOG" \
+                 "$DB_COUNT_LOG" "$DB_VAC_LOG" "$DB_FAILED_LOG" "$DB_NOBUILD_LOG" \
+                 "$DB_MALFORMED_LOG" "$DB_EMPTY_LOG"; do
+        _db_words="$_db_words
+$(debug_verdict "$_db_l" 0 | cut -d'|' -f6 | cut -d' ' -f1)"
+    done
+    _db_n=$(printf '%s\n' "$_db_words" | grep -c .)
+    _db_u=$(printf '%s\n' "$_db_words" | grep . | sort -u | grep -c .)
+    [ "$_db_n" -eq "$_db_u" ] && _r=0 || _r=1
+    t_case debuglane-every-refusal-leads-with-its-own-word "$_r" \
+        "$_db_u distinct leading words across $_db_n refusal shapes"
+    # And no collision with the other two rows' vocabularies.
+    # `_lr_words` ALREADY carries hatch-red's seven words as well as ladder-red's
+    # own — the ladder block builds the union to make its own cross-row assertion —
+    # so adding `_hr_words` here too would double-count them and the count would
+    # fail for a reason that is not a collision. Union of two lists, not three.
+    _db_all="$_db_words
+$(printf '%s\n' "$_lr_words" | grep .)"
+    _db_an=$(printf '%s\n' "$_db_all" | grep -c .)
+    _db_au=$(printf '%s\n' "$_db_all" | grep . | sort -u | grep -c .)
+    [ "$_db_an" -eq "$_db_au" ] && _r=0 || _r=1
+    t_case debuglane-shares-no-word-with-the-other-rows "$_r" \
+        "$_db_au distinct words across all three instrument rows' $_db_an refusal shapes"
+
+    # ---- and the RULING half, through the real `decide` ------------------------
+    # `db_decide` holds every OTHER row fixed and green, for `hr_decide`'s reason:
+    # three absent-tuple checks in one function is how one case comes to steal
+    # another's headline, and the only defence is that each case varies one row.
+    db_decide() {  # <name> <PASS|FAIL> <debug-tuple> <grep-or--> [<lane-log>]
+        CASE_DIR="$st/$1"; rm -rf "$CASE_DIR"; mkdir -p "$CASE_DIR"
+        _dd_lane="${5:-$P}"
+        printf '%s\n' "$_dd_lane" > "$CASE_DIR/A.log"; echo 0 > "$CASE_DIR/A.status"
+        printf '%s\n' "$_dd_lane" > "$CASE_DIR/B.log"; echo 0 > "$CASE_DIR/B.status"
+        collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
+        _dd_sw="$SWEEP_OK"; _dd_cx="$CROSS_OK"
+        if [ "$_dd_lane" = "$S" ]; then
+            _dd_sw='SKIP|0|0|0|0|toolchain absent'
+            _dd_cx='SKIP|0|0|0|0|toolchain absent'
+        fi
+        _dd_got=PASS
+        if ! decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "$_dd_sw" "" \
+                "$_dd_cx" "$HR_OK" "$LR_OK" "$3" > "$CASE_DIR/out.txt" 2>&1; then
+            _dd_got=FAIL
+        fi
+        _dd_ok=1
+        if [ "$_dd_got" = "$2" ]; then
+            _dd_ok=0
+            if [ "$4" != "--" ] && ! grep -q "$4" "$CASE_DIR/out.txt"; then _dd_ok=1; fi
+        fi
+        t_case "$1" "$_dd_ok" "$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt" || echo '(no headline)')"
+    }
+    db_decide debuglane-pass-is-an-unqualified-pass PASS "$DB_OK" '^GATE: PASS —'
+    CASE_DIR="$st/debuglane-pass-is-an-unqualified-pass"
+    saw 'DEBUG-profile lanes' 'the green run RENDERS the debug row in the table'
+    saw '0 PANIC' 'and prints the panic count even when it is zero (#1002)'
+
+    # THE ONE THIS ROW EXISTS FOR: a panic FAILS THE GATE, and the message names
+    # both the row and the fault class.
+    db_decide debuglane-panic-fails-the-gate FAIL \
+        "$(debug_verdict "$DB_PANIC_LOG" 1)" 'GATE: FAIL — debug-lane: DBG-PANIC'
+    CASE_DIR="$st/debuglane-panic-fails-the-gate"
+    saw 'THE DEBUG BINARY PANICKED' 'and it says so in a banner of its own'
+    saw 'arithmetic overflow the release profile wraps in silence' \
+        'naming what makes the row non-redundant'
+
+    db_decide debuglane-mismatch-fails-the-gate FAIL \
+        "$(debug_verdict "$DB_MISM_LOG" 1)" 'GATE: FAIL — debug-lane: DBG-MISMATCH'
+    CASE_DIR="$st/debuglane-mismatch-fails-the-gate"
+    saw 'ALARM' 'a debug mismatch raises the same alarm banner a release one does'
+    saw_no 'THE DEBUG BINARY PANICKED' 'and does NOT lead with the panic banner'
+
+    db_decide debuglane-no-result-fails-the-gate FAIL \
+        "$(debug_verdict "$DB_NOBUILD_LOG" 1)" 'debug-lane produced NO RESULT'
+    db_decide debuglane-absent-tuple-fails-the-gate FAIL '' 'no debug-lane verdict'
+    CASE_DIR="$st/debuglane-absent-tuple-fails-the-gate"
+    # ANTI-THEFT: this case must fail on ITS OWN check and not on hatch-red's or
+    # ladder-red's, both of which are green here and both of which have an
+    # absent-tuple check of their own three lines away.
+    saw_no 'no hatch-red verdict'  'and not by stealing hatch-red absent headline'
+    saw_no 'no ladder-red verdict' 'and not by stealing ladder-red absent headline'
+    db_decide debuglane-unknown-verdict-fails-the-gate FAIL \
+        'WOBBLY|2|2|181|0|something new|762|0' 'unrecognized verdict'
+
+    # THE DEGRADE-CLEANLY HALF, which CLAUDE.md requires and which a row that
+    # FAILED on the portable lane would break. Both directions:
+    #   * every lane skipped AND the debug row skipped -> GATE: SKIPPED, exit 0;
+    #   * every lane skipped and the debug row RAN -> a fault in the resolution.
+    db_decide debuglane-all-skip-exits-zero PASS "$DB_SKIP" 'GATE: SKIPPED' "$S"
+    CASE_DIR="$st/debuglane-all-skip-exits-zero"
+    saw_no '^GATE: PASS' 'an all-skip run with a skipped debug row never says PASS'
+    db_decide debuglane-ran-while-lanes-skipped FAIL "$DB_OK" \
+        'all 2 lanes skipped but debug-lane reported PASS' "$S"
+    # And the mirror: the lanes found a toolchain and this row alone did not.
+    db_decide debuglane-skipped-while-lanes-ran FAIL "$DB_SKIP" \
+        'lanes graded a corpus and debug-lane skipped'
+
+    # THE DEMAND'S ARITHMETIC IS UNCHANGED BY THIS ROW. It re-grades the fixtures
+    # the lanes already counted, so folding it into `--require-graded`'s unit sum
+    # would double-count them — and would let a green debug row answer a demand a
+    # run whose release rows graded nothing has to fail. Asserted as a COUNT, not
+    # as a status: the printed `fixture-verdicts` line must read the lanes' own
+    # number and not the lanes' plus the debug row's.
+    CASE_DIR="$st/debuglane-does-not-inflate-the-demand"; rm -rf "$CASE_DIR"; mkdir -p "$CASE_DIR"
+    printf '%s\n' "$P" > "$CASE_DIR/A.log"; echo 0 > "$CASE_DIR/A.status"
+    printf '%s\n' "$P" > "$CASE_DIR/B.log"; echo 0 > "$CASE_DIR/B.status"
+    collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
+    require_graded=1
+    decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "$SWEEP_OK" "" \
+        "$CROSS_OK" "$HR_OK" "$LR_OK" "$DB_OK" > "$CASE_DIR/out.txt" 2>&1 || true
+    require_graded=0
+    # Two green lanes at graded=197 each. The debug tuple claims 762 more; the
+    # `graded:` line must still say 394.
+    grep -q '^graded: 394 fixture-verdicts across all lanes' "$CASE_DIR/out.txt" \
+        && _r=0 || _r=1
+    t_case debuglane-does-not-inflate-the-lane-count "$_r" \
+        "$(grep -m1 '^graded:' "$CASE_DIR/out.txt" || echo '(no graded: line)')"
 
     # ---- the demand meets the modes that grade nothing -------------------------
     # Driven as REAL subprocesses: these are argument-parse decisions and the only
@@ -4214,9 +4815,13 @@ $(hatch_red_verdict "$_hr_l" 0 11 | cut -d'|' -f6 | cut -d' ' -f1)"
     # classifier cases, 9 rulings, the cross-row word-distinctness assertion, the
     # absent-tuple mirror with its own anti-theft check, both-suffixes, and the
     # `--require-graded` pair), and **141** after `w-gatefix` added the three
-    # tree-integrity cases above. A truncated selftest is the failure it exists
-    # to catch, so this is a COUNT and not a "some cases ran".
-    if [ "$cases" -lt 141 ]; then
+    # tree-integrity cases above, and **166** after `w-gatewire` wired the
+    # debug-profile row (13 classifier cases, 9 rulings, the within-row and
+    # across-rows word-distinctness assertions, and the count assertion that the
+    # row does not inflate `--require-graded`'s arithmetic). A truncated selftest
+    # is the failure it exists to catch, so this is a COUNT and not a "some cases
+    # ran".
+    if [ "$cases" -lt 166 ]; then
         echo "gate.sh --selftest: FAIL — only $cases cases ran; the selftest itself was"
         echo "  truncated, and a truncated selftest is the failure it exists to catch."
         exit 1
@@ -4443,6 +5048,70 @@ echo "  ($(( $(date +%s) - cx_started ))s)"
 res_sample
 cross_res=$(sweep_verdict "$work/cross.log" "$cx_status")
 
+# --------------------------------------------------------------------------------
+# THE DEBUG-PROFILE ROW (board #3074, lane w-gatewire, 2026-08-17).
+#
+# `scripts/debug_lane.sh` shipped on 2026-08-14 deliberately UNWIRED, and the rung
+# that shipped it said why in the words that matter: *"making a debug panic a
+# merge blocker is the user's decision, not the coordinator's and not this
+# lane's."* **The user has now made that decision.** This is the wiring, and
+# nothing else about the gate's contract moves.
+#
+# WHY IT RUNS LAST
+# ----------------
+# Two independent reasons, and both point the same way:
+#
+#   * **A release mismatch must be on screen first.** The lanes, the sweep and
+#     the cross all grade bytes against real c2; a debug panic is a statement
+#     about the port's own invariants and a mismatch outranks it (CLAUDE.md). The
+#     same ordering argument that put the sweep after the lanes puts this after
+#     the cross.
+#   * **`cargo` holds a lock on `target/`.** This row runs the gate's SECOND
+#     `cargo build` — a debug one — and `pin_harness` above ran the release one.
+#     Started alongside it, the two would serialise on the lock anyway, with the
+#     timing of each attributable to neither. Sequential is what it already is;
+#     this makes it what it says.
+#
+# IT DOES NOT SHARE THE PINNED BINARY, AND THAT IS THE POINT. Every other row
+# grades `$C2RS_BIN`, a pinned RELEASE copy. This row must grade a DEBUG build of
+# the same tree — a release binary here grades nothing the row exists for —
+# so `debug_lane.sh` builds and pins its own, into this run's tree.
+#
+# `C2RS_DEBUG_LANE_WORK` is pointed INTO the run directory rather than left at its
+# own `${TMPDIR}/c2rs-debug-lane-$$` default, so the row's per-lane reports live
+# beside every other log this run's output points at, and the reaper that bounds
+# the run tree bounds them too. Left at the default it would litter a directory
+# nothing in this file reaps — the accumulation defect the reaper block above
+# exists for, re-introduced by a new row.
+#
+# `C2RS_LANES` is handed the run's ALREADY-FILTERED registry, so a `--lane` run
+# filters this row too. Without it the row would run all 18 lanes under a
+# one-lane gate, which is both the expensive direction and a table whose
+# `graded/total` disagreed with the registry the rest of the run walked.
+#
+# IT RUNS UNCONDITIONALLY. There is no `--no-debug-lane` and no sampling knob:
+# an omittable check is an omitted check, this project has fourteen recorded
+# instances of an absence reading as a success, and THIS ROW'S OWN SUBJECT is the
+# fourteenth. `--lane` is the way to run less of it, and it already forfeits the
+# unqualified headline.
+#
+# COST, and it is the largest single line item this gate has ever added — see the
+# lane's rung for the measurement and for the correction to the figure that was
+# handed down with the request.
+# --------------------------------------------------------------------------------
+echo
+echo "debug lane:      scripts/debug_lane.sh  (DEBUG profile — the only row that can"
+echo "                 execute a debug_assert or trap an arithmetic overflow)"
+db_started=$(date +%s)
+db_status=0
+C2RS_DEBUG_LANE_WORK="$work/debuglane" C2RS_LANES="$reg" C2RS_JOBS="$jobs" \
+    sh "$repo_root/scripts/debug_lane.sh" > "$work/debuglane.log" 2>&1 || db_status=$?
+res_sample
+grep -E '^(debug lane:|DEBUG-LANE-TOTAL|FAIL:|SKIP)' "$work/debuglane.log" \
+    | sed 's/^/  /' || true
+echo "  ($(( $(date +%s) - db_started ))s)"
+debug_res=$(debug_verdict "$work/debuglane.log" "$db_status")
+
 echo
 printf 'disk:   %s low-water this run — %s and %s inodes free (start: %s / %s)\n' \
     "$work_parent" "$(human_kb "$RES_KBMIN")" "$(human_n "$RES_INMIN")" \
@@ -4466,7 +5135,7 @@ printf 'disk:   %s low-water this run — %s and %s inodes free (start: %s / %s)
 # --------------------------------------------------------------------------------
 gate_status=0
 decide "$reg" "$work/results.tsv" "$work" "$sweep_res" "$filtered" "$cross_res" "$hr_res" "$lr_res" \
-    || gate_status=$?
+    "$debug_res" || gate_status=$?
 
 GRADED_TREE_1=$(graded_tree_hash "$repo_root")
 echo

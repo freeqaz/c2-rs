@@ -27,12 +27,36 @@
 # Usage:  scripts/debug_lane.sh              # every lane in scripts/lanes.txt
 #         scripts/debug_lane.sh /Ox /Gy      # one lane, flags given literally
 #
+# env:    C2RS_LANES             lane registry to read (default scripts/lanes.txt)
+#         C2RS_DEBUG_LANE_WORK   run directory (default $TMPDIR/c2rs-debug-lane-$$)
+#         C2RS_JOBS              per-lane `c2rs gap` concurrency (default 8)
+#
 # Exit status is non-zero if any lane panicked or reported a mismatch. One
 # `DEBUG-LANE-RESULT` line per lane, plus one `DEBUG-LANE-TOTAL` line.
 #
-# NOT wired into `scripts/gate.sh`. Wiring it in is a shared-gate decision and
-# belongs to whoever owns the gate; the price is measured and recorded in
-# `docs/rungs/2026-08-14-dbgassert.md` §"the blindness".
+# ---- WIRED INTO `scripts/gate.sh` AS OF 2026-08-17 (lane w-gatewire) ----------
+#
+# This header used to read *"NOT wired into `scripts/gate.sh`. Wiring it in is a
+# shared-gate decision and belongs to whoever owns the gate."* It is wired now:
+# **a debug-profile panic fails the gate and therefore blocks a merge.** The
+# reason it waited is on the record and is worth keeping — the rung that shipped
+# this file said *"making a debug panic a merge blocker is the user's decision,
+# not the coordinator's and not this lane's"* — and the user has now made it.
+#
+# Two consequences for anyone editing this file:
+#
+#   * **The output contract is now load-bearing.** `gate.sh`'s `debug_verdict`
+#     re-derives its verdict from the `DEBUG-LANE-RESULT` / `DEBUG-LANE-TOTAL`
+#     lines, by FIELD NAME, and counts the result lines against `lanes=`. Renaming
+#     a field or dropping the total line turns the row `NO-RESULT`, which fails
+#     the gate — deliberately, since a row that reports nothing must not read as
+#     a row that found nothing.
+#   * **The price is real and it is the gate's largest single row.** The figure
+#     quoted in `docs/rungs/2026-08-14-dbgassert.md` §"the blindness" for THIS
+#     script is 125 s warm (18 lanes); the 0.65 s in that same section belongs to
+#     a different candidate — a debug `cargo test --workspace --lib` unit row,
+#     which is NOT what this is. Re-measured in
+#     `docs/rungs/2026-08-17-gatewire.md`.
 set -eu
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -86,7 +110,15 @@ if [ $# -gt 0 ]; then
     printf '%s\t%s\n' "cli" "$*" > "$work/lanes.tsv"
 else
     # `<slug> <flags...>` — comments and blank lines are not lanes.
-    sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$repo_root/scripts/lanes.txt" \
+    #
+    # `C2RS_LANES` is honoured for the reason `scripts/gate.sh` has always
+    # honoured it, and because this script is now a ROW of that gate: a
+    # `gate.sh --lane Ox` run hands its ALREADY-FILTERED registry down here, so
+    # the row grades the lanes the rest of the run walked. Hardcoding
+    # `scripts/lanes.txt` made a one-lane gate run all eighteen lanes in this row
+    # — the expensive direction, and a `graded/total` that disagreed with the
+    # registry every other row was counted against.
+    sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "${C2RS_LANES:-$repo_root/scripts/lanes.txt}" \
         | awk '{ slug=$1; $1=""; sub(/^ /,""); printf "%s\t%s\n", slug, $0 }' \
         > "$work/lanes.tsv"
 fi
