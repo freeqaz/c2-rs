@@ -18,7 +18,7 @@ RES=work/w-mutcensus/results
 mkdir -p "$RES"
 
 dupfile=$(mktemp)
-for w in b c d e; do
+for w in b c d e f g h i; do
   src="$WT/w-mutcensus-$w/work/w-mutcensus/results"
   [ -d "$src" ] || continue
   for log in "$src"/*.log; do
