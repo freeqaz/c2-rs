@@ -10,5 +10,7 @@ L2	GREEN	1648	0	42		76.63
 L3	GREEN	1648	0	42		87.53
 L4.aborted	INVALID	876	1	14	the_census_and_the_port_agree_about_what_is_in_class	absent
 L4.notoolchain.DISCARDED	INVALID	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	0.00
+N0wtB.dirtytree.DISCARDED	GREEN	1648	0	42		267.23
 N0wtB.notoolchain	INVALID	1648	0	42		0.00
+N0wtC.dirtytree.DISCARDED	RED	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	262.37
 N0wtC.notoolchain	INVALID	1648	0	42		0.00

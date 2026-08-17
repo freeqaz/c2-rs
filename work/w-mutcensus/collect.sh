@@ -25,6 +25,14 @@ for w in b c d e; do
     [ -f "$log" ] || continue
     id=$(basename "$log" .log)
     case "$id" in N0*) continue ;; esac      # baselines, not colours
+    # SKIP A RUN STILL IN FLIGHT. Collecting mid-run copies a truncated log,
+    # which lands as a spurious INVALID row (seen: CS2/L4 at 789/0/5 while their
+    # runners were still going). A finished run has all 42 `test result:` lines,
+    # or it failed to build. Anything else is not ready to be read.
+    t=$(grep -c '^test result:' "$log")
+    if [ "$t" -ne 42 ] && ! grep -qE '^error\[E[0-9]+\]|could not compile' "$log"; then
+      continue
+    fi
     if [ -f "$RES/$id.log" ] && ! cmp -s "$log" "$RES/$id.log"; then
       # already collected from another runner — keep both, compare colours
       cp "$log" "$RES/$id.dup-$w.log"
@@ -56,4 +64,5 @@ rm -f "$dupfile"
 
 echo "=== tally ==="
 python3 work/w-mutcensus/publish.py | grep '^\*\*X'
-awk -F'\t' '$1 !~ /aborted|notoolchain|dup-/ {c[$2]++} END {for (k in c) print "  "k": "c[k]}' "$RES/summary.tsv"
+awk -F'\t' '$1 !~ /aborted|notoolchain|dirtytree|dup-/ && $1 !~ /^N0/ {c[$2]++} \
+  END {for (k in c) print "  "k": "c[k]}' "$RES/summary.tsv"
