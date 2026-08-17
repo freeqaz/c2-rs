@@ -92,6 +92,25 @@ CONTROLS = {"C1", "C2", "C3", "C4", "C5"}
 OUT_OF_N = {"C2"}          # the c2-core backstop: a control, not a c2-il fence site
 
 
+# Mutation kinds. The distinction matters for reading a GREEN, and nothing in the
+# flat X/N says it:
+#   swap      — the raise still fires, with the WRONG key. A GREEN means no
+#               ASSERTION anywhere pins which key this site raises.
+#   remove    — `false &&` / `|| true`: the fence stops firing and the port
+#               ADMITS the class it used to refuse. A GREEN means no fixture in
+#               the corpus and no unit test EXERCISES the class — including the
+#               real-c2 differential, which would have graded a wrong emit.
+#   widen     — a threshold moved (+9, `> 1` -> `> 9`, `== i32::MIN`). Same
+#               reading as `remove`, over the population between the two bounds.
+def kind_of(mut):
+    if mut.startswith("key ") or mut.startswith("swap ") or "key " in mut[:12]:
+        return "swap"
+    if "false &&" in mut or "|| true" in mut or "unconditional" in mut \
+       or "keep all" in mut or "drop " in mut:
+        return "remove"
+    return "widen"
+
+
 def load():
     rows = {}
     path = os.path.join(HERE, "results", "summary.tsv")
@@ -133,6 +152,22 @@ def main():
     print(f"\n**X = {greens} GREEN (unguarded) of {greens+reds} of the 63 c2-il "
           f"fence sites run** — {notrun} NOT RUN, {invalid} INVALID. "
           f"Prereg: {hits} hits / {misses} misses over the colours scored.")
+
+    print("\n### Rollup by mutation kind — what a GREEN means differs\n")
+    print("| kind | what a GREEN establishes | sites run | RED | GREEN |")
+    print("|---|---|---:|---:|---:|")
+    blurb = {
+        "swap": "no assertion pins WHICH key this site raises",
+        "remove": "no fixture or unit test exercises the class the fence refuses",
+        "widen": "nothing exercises the population between the old and new bound",
+    }
+    for k in ("swap", "remove", "widen"):
+        mem = [(mid, rows[mid][1]) for (mid, s, mut, reg, p, f) in SITES
+               if kind_of(mut) == k and mid not in OUT_OF_N and mid in rows
+               and rows[mid][1] in ("RED", "GREEN")]
+        r_ = sum(1 for _, o in mem if o == "RED")
+        g_ = sum(1 for _, o in mem if o == "GREEN")
+        print(f"| {k} | {blurb[k]} | {len(mem)} | {r_} | {g_} |")
 
     print("\n### Per-family rollup (guarded raise sites / raise sites in family)\n")
     print("| family | sites | RED (guarded) | GREEN (unguarded) | shape |")
