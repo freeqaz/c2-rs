@@ -1,8 +1,10 @@
+B10	RED	1646	2	42	func::bind::tests::the_varargs_gate_is_one_predicate_on_both_paths;func::census::tests::a_body_the_ladder_never_ran_for_reads_disp_not_run	249.00
 C1	RED	1646	2	42	gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol;gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone	94.81
 C2	RED	1647	1	42	codegen::calls::tests::the_data_address_setup_refuses_the_shapes_it_has_no_capture_for	70.15
 C3	RED	1645	3	42	gap::tests::wr1_census_key_guards::the_census_key_survives_the_round_trip_into_the_reachable_ranking;gap::tests::wr1_census_key_guards::the_data_symbol_linkage_gate_is_the_one_byte_that_moves_the_key;gap::tests::wr1_census_key_guards::the_two_data_symbol_census_keys_are_not_interchangeable	80.09
 C4	RED	1646	2	42	gap::tests::wr1_census_key_guards::the_data_symbol_linkage_gate_is_the_one_byte_that_moves_the_key;gap::tests::wr1_census_key_guards::the_two_data_symbol_census_keys_are_not_interchangeable	74.79
 C5	RED	1642	6	42	func::body::wr1_dyninit::the_dynamic_initializer_thunk_decodes_to_a_three_slot_tail_call;func::body::wr1_dyninit::the_empty_module_scope_is_optional_and_the_module_end_is_not;gap::tests::wr1_census_key_guards::the_census_key_survives_the_round_trip_into_the_reachable_ranking;gap::tests::wr1_census_key_guards::the_data_symbol_linkage_gate_is_the_one_byte_that_moves_the_key;gap::tests::wr1_census_key_guards::the_two_data_symbol_census_keys_are_not_interchangeable;gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone	91.17
+CA23	RED	1647	1	42	func::body::shapes::mcall_chain::tests::a_computed_or_nonformal_link_argument_refuses_by_name	248.97
 CS2.aborted	INVALID	789	0	5		absent
 CS2	GREEN	1648	0	42		642.04
 CS2.notoolchain.DISCARDED	INVALID	1648	0	42		0.00
