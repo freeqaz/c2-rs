@@ -736,6 +736,18 @@ pub fn grade_one(
         shape,
         decline,
     };
+    // ===== w-gatewire RED DEMONSTRATION — SCRATCH COMMIT, TO BE REVERTED =====
+    // A deliberate DEBUG-ONLY fault, of the exact class board #3074 is about: an
+    // arithmetic underflow that the dev profile's `overflow-checks` traps and the
+    // release profile wraps in silence. Every release row in `scripts/gate.sh`
+    // is green over this; the debug row must go RED. Reverted immediately after
+    // the demonstration — if you are reading this on a landed commit, that is a
+    // defect and this block must be deleted.
+    if let Some(bs) = bytes {
+        let _w_gatewire_red: usize = bs.len() - usize::MAX;
+        std::hint::black_box(_w_gatewire_red);
+    }
+    // ===== end w-gatewire RED DEMONSTRATION =====
     let Some(bytes) = bytes else {
         return g(FnByte::NoBytes, "no-bytes", None);
     };
