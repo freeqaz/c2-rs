@@ -515,7 +515,37 @@ worktrees after the campaign. `C1` is the right probe for this because
 `w-guards` pins its failing set exactly, so a runner whose captures were skipping
 cannot reproduce it.
 
-<!-- FILL:REVALIDATE -->
+| runner worktree | colour | passed / failed | differential | failing tests |
+|---|---|---|---:|---|
+| `-b` | **RED** | 1,646 / 2 | 641.75 s | the G1 pair |
+| `-c` | **RED** | 1,646 / 2 | 643.14 s | the G1 pair |
+| `-d` | **RED** | 1,646 / 2 | 632.33 s | the G1 pair |
+| `-e` | **RED** | 1,646 / 2 | 632.37 s | the G1 pair |
+| `-f` | **RED** | 1,646 / 2 | 641.43 s | the G1 pair |
+| `-g` | **RED** | 1,646 / 2 | 642.00 s | the G1 pair |
+| `-h` | **RED** | 1,646 / 2 | 646.10 s | the G1 pair |
+| `-i` | **RED** | 1,646 / 2 | 643.15 s | the G1 pair |
+
+"the G1 pair" is, in every one of the eight,
+`the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol` and
+`the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone` — identical
+sets, identical counts.
+
+**Eight for eight, with the failing set pinned to the test name.** A worktree
+whose captures were skipping could not produce this: `C1` widens the
+call-argument arity fence, and both tests that catch it are capture-driven. So
+**no runner's colours are void, and the GREEN population is not an artifact of a
+narrowed probe.** Note also that the differential ran **632–646 s** in these runs
+against **84.17 s** uncontended — the probe stayed sound under the worst load the
+campaign saw, which is the condition under which a silent narrowing would have
+been most likely.
+
+**This is the check that would have caught #3219 immediately**, and it is worth
+stating as the general lesson: **a mutation campaign should carry at least one
+control whose failing set is pinned by NAME, re-run in every execution
+environment it uses.** A control pinned only by *count* would have passed in an
+unprovisioned worktree the moment the count happened to match; a control pinned
+by name cannot.
 
 ## 8. Gate evidence
 
