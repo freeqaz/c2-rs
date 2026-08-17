@@ -1,0 +1,193 @@
+merge w-mutcensus: 30 of 63 c2-il fence sites have NO test that can fail on them — and the shape, not the ratio, is the result
+
+FINAL (supersedes the PARTIAL note). Characterization lane, Outcome: instrument.
+Docs + work/ only: `git diff master..HEAD -- crates fixtures scripts` is EMPTY.
+Prereg frozen at 58cb6803 BEFORE the first mutant ran and never reopened.
+
+THE NUMBER. X = 30 GREEN (unguarded) of N = 63 enumerated `crates/c2-il`
+refusal/fence sites; 33 guarded. All 63 measured — 0 NOT RUN, 0 INVALID — one
+registered mutation per site against `cargo test --workspace --release
+--no-fail-fast`, every run verified to have actually graded against real c2.
+Registered X = 38, 80% interval [30,46]: observed 30, inside, at the exact lower
+bound. Prereg 50 hits / 14 misses over 64 registered colours. N excludes C2, the
+c2-core backstop control, which is run but is not a c2-il fence.
+
+CONTROLS 5/5 RED, ZERO ANOMALIES — PEER VERIFICATION OF w-guards. Written from
+the site text in a later session, in different worktrees, the four controls
+reproduce w-guards' G1-G4 failing-test SETS AND COUNTS exactly: C1 1,646/2,
+C2 1,647/1, C3 1,645/3, C4 1,646/2, plus C5 1,642/6 (the fourth surface w-guards
+found while building the third, taking down six tests including both data-symbol
+guards — the interaction #3216 predicted in advance). The four guards w-guards
+landed last wave DO hold. Prereg registered P(any control GREEN)=0.05 as a
+campaign-stopping finding; that branch was not taken.
+
+THE SHAPE #3217 ASKED FOR, WHICH IS THE REAL RESULT. "Guarded at one raise site
+of four" reproduces exactly (GROUP_SHAPE: L1 RED at leaf_store.rs:2254; L2, L3,
+L9 GREEN at :2257, :2285, :2456) and generalizes into a rule with a mechanism.
+The guard tests are per-KEY witness tests: every_bind_gate_fires_on_a_named_input
+asserts 8 witnesses over 5 keys, one input per key, and says nothing about WHICH
+raise site produced the key. So a key with k raise sites contributes k-1
+unguarded sites BY CONSTRUCTION, and no per-key witness suite can do better.
+The axis is key-vs-gate, and it is the most reproducible number here:
+  key swap      12 GREEN of 16 (75%) — no assertion pins which key a site raises
+  gate removal  16 GREEN of 36 (44%)
+  threshold     2 GREEN of 11 (18%)
+SIX FAMILIES ARE WHOLLY UNGUARDED AT EVERY RAISE SITE THEY HAVE: callee-unresolved
+(CS5-CS8, 0 of 4), data-def/bss-def mirror (B2/B3/B7/B8, 0 of 4), store-run/
+static-scan pair, classified-twice pair, bind .in totality, dyninit_tu/data_tu.
+
+WORST SINGLE ROW: CS8, census.rs:1272, the DEFAULT arm `_ => CALLEE_UNRESOLVED_TAIL`.
+That key is the one #3209 measured rising to 1,296 bodies on the 878-TU workload
+— the most populous refusal key on the workload — and it can be swapped for a
+sibling with the entire suite staying green. Registered RED 0.80, observed GREEN.
+
+MISSES ARE DIRECTIONAL, NOT NOISY. 11 of 14 are registered-GREEN-observed-RED and
+9 of those are the CA call-argument block, which accounts for essentially the
+whole 38->30 gap: call-argument fences are far better covered by the existing
+fixture corpus than the registration assumed. The 3 in the other direction are
+the ones that matter — CS8, CS9 (census.rs:1280 opt-mode gate), D1 (bundle.rs:2423
+dyninit name clause): fences someone believed were guarded and are not.
+Calibration 50/64 = 78%, error directional.
+
+THE CAMPAIGN'S OWN INSTRUMENT FAILED THREE TIMES AND EVERY FAILURE IS ON THE PAGE
+(work/w-mutcensus/deviations.md, D1-D9). The one that generalizes past this lane:
+THE REGISTERED BASELINE 1,648/0/42 IS BYTE-IDENTICAL WITH AND WITHOUT A TOOLCHAIN
+(differential 84.17s vs 0.00s), because a skipped test is a passed test. GREEN
+means "no test can fail here", so in an unprovisioned worktree every site guarded
+only by the real-c2 differential reads GREEN — one-directional, and it inflates
+the headline. Caught on the third row, before any affected colour was published,
+as a CONTRADICTION between two runs of one mutant (L4 failed
+census_gate::the_census_and_the_port_agree_about_what_is_in_class after 171.58s in
+one worktree and passed it in 0.00s in another). Two colours discarded and re-run;
+all 8 session-1 colours survived re-derivation. And the same totals are blind the
+other way too: a tree with a live unguarded mutation applied (CS4) also reproduced
+1,648/0/42 exactly. A PROBE DEFINED BY A PAIR OF TOTALS CANNOT DETECT A POPULATION
+THAT SILENTLY LEFT THE COUNT. What caught both faults was a per-run duration and a
+git status — checks on something other than the counts.
+
+WHY ALL THREE RULE BUGS WERE RECOVERABLE, as a design point worth copying:
+summary.tsv is DERIVED from the logs by rederive.sh, never accumulated. The colour
+rule is a pure function over the logs, so each correction reapplied retroactively
+to every run on disk including the previous session's. A campaign that emits its
+conclusions incrementally cannot correct its own classifier; one that derives them
+can. (D3 cargo's own `error: test failed` line read as INVALID; D6 the toolchain
+blindness; D9 a fixed grep window that threw away the best-graded RED in the
+campaign — L4 1,646/2, where the differential itself caught the mutation.)
+
+REPRODUCIBILITY, MEASURED: 54 of 63 sites were run TWICE in independently
+provisioned worktrees (the campaign ran 8 sidecars, two of each list working from
+opposite ends). 93 of 94 duplicate pairs agree exactly. The one that does not is
+B10 — RED both times, failing set differing by one test — and it exposed F6: a
+differential test that returns early with "SKIP: capture produced no graded
+function" AND PASSES when its capture yields nothing. It is B9's ONLY guard.
+
+FOUND AND NOT TAKEN, all blocked by the same structural wall. F1: gate.sh has
+--require-graded and grew it for exactly the failure above, while the `cargo test`
+row every rung quotes as evidence has NO equivalent (measured: 8 hits, all in
+gate.sh, none under crates/). The fix is one function. It cannot be landed by this
+lane because a zero-delta rung and a new test are the same commit's two halves —
+WHICH IS #3217's OWN RECORDED CONFLICT A SECOND TIME. Twice in two waves the
+instrument a lane discovered it needed could not be landed by the lane that
+discovered it, and the repo has no unit of work that can. F2 site-level rather
+than key-level witnesses. F3 the 1,227-site grammar class, sampled by stride not
+prefix. F4 nothing re-runs the enumeration. F6 above. F7: THE FRAME WENT STALE
+TWICE INSIDE THIS LANE'S OWN WALL-CLOCK — w-fence163's d28326b4 added a 20th
+fence-key constant, and w-npos converted (match 25->26) touching four of the five
+files this census enumerates. Neither was absorbed and neither may be: the frame
+was frozen at 3835469c. X/N is a fact about a COMMIT, and this one was stale
+before publication. Two instances, not a hypothesis.
+
+NO SILENT CAPS. Dropped classes published with counts in the rung §2.1: grammar
+fail-closed blk( 1,227 / blk_type( 6 / Block::refuse( 106; 18 OptWordMode shape
+gates; 11 of 12 dyninit_tu clauses; 13 of 14 data_tu clauses;
+STORE_RUN_BIND_CALL_TAIL_RETIRED has ZERO live raise sites — a fence key with no
+fence, the inverse question, equally invisible.
+
+GATE EVIDENCE at the tip (revert-everything lane, so graded-tree identity applies
+in full and is recorded):
+  git diff master..HEAD -- crates fixtures scripts   EMPTY, and clean in all 8 sidecars
+  878-TU scan   match 25 · mismatch 0 · codegen-gap 0 · vocab-gap 845 ·
+                fnbyte-exact 35,734 · 394 gap-metric keys, 0 deltas vs base 3835469c
+  cargo test --workspace --release --no-fail-fast   see rung §8
+  scripts/gate.sh --jobs 4 --require-graded          see rung §8
+  scripts/debug_lane.sh                              see rung §8
+  scripts/board_audit.sh   all-zero (0 cited-not-on-board, 0 unresolved anchors,
+                           0 raw line anchors, 0 rows-behind-prose, 0 dup rows)
+  docs/rungs/INDEX.md regenerated by scripts/gen_rung_index.sh, never by hand
+  N0 clean-tree control reproduced 1,648/0/42 SIX times with a live differential,
+  across four independently provisioned worktrees.
+
+BOARD: left UNNUMBERED. The pointer read #3218 at 3835469c, and two peers
+(w-fence163, w-npos) were live throughout with w-npos landing ahead of this lane;
+rows verified row-by-row rather than minted into a moving pointer.
+
+NOT DONE, DELIBERATELY: not merged, not pushed, NOT REBASED — coordinator asked
+to hold the rebase while master moves.
+
+ADDENDUM after the campaign closed.
+
+PROBE SOUNDNESS, re-verified against peer w-fence163's #3219 (same defect, same
+wave, independently hit by both lanes — which makes it a property of the worktree
+workflow, not an incident). Four checks at the tip:
+ (1) compilers/ present in all EIGHT runner worktrees, each re-verified
+     "fixtures/cpp/w5_chain.cpp -> 4/4 functions in class".
+ (2) C1 re-run in ALL EIGHT after the campaign: RED 1,646/2 in every one, with
+     IDENTICAL failing sets — w-guards' G1 pair BY TEST NAME, not by count. A
+     worktree whose captures were skipping cannot produce that. No runner's
+     colours are void. Differentials 632-646s under the worst load the campaign
+     saw, vs 84.17s uncontended.
+ (3) Executed-population check for EVERY run, not a sample: per-worktree MINIMUM
+     census_gate differential b 118.71 · c 53.51 · d 91.38 · e 61.68 · f 250.18 ·
+     g 251.64 · h 142.93 · i 138.20 s. Nothing near the 0.00s a skip gives.
+ (4) The two colours read before provisioning were VOID, not provisional:
+     discarded, re-run from scratch, logs kept (*.notoolchain.DISCARDED.log).
+GENERAL LESSON, worth more than this lane: a mutation campaign must carry at
+least one control whose failing set is pinned BY NAME and re-run in every
+execution environment it uses. A control pinned only by COUNT passes in an
+unprovisioned worktree the moment the count happens to match; one pinned by name
+cannot. That single check would have caught #3219 immediately.
+
+REBASED onto master 7b328666 (w-npos merged, match 26; w-gatewire merged with a
+fourth gate row — the debug-profile lane). One conflict, docs/rungs/INDEX.md,
+which is GENERATED: resolved by running scripts/gen_rung_index.sh, never by hand.
+
+*** git diff master..HEAD -- crates fixtures scripts IS EMPTY at the rebased
+tip. *** This lane touches only docs/rungs/ and work/.
+
+GRADED TREE AT THE REBASED TIP IS IDENTICAL TO MASTER'S 46ccc7f82479 (737 files),
+GATED BY THE COORDINATOR AT THAT HASH. Not re-run here, deliberately: this lane
+is docs-only, so re-running the gate would have re-measured master rather than
+this lane. Identity follows from the empty diff above — gate.sh content-hashes
+exactly `crates fixtures scripts`, and the diff over precisely those paths is
+empty, so the trees are the same bytes and not merely the same summary.
+
+WHAT THIS LANE ITSELF MEASURED, DATED, WITH ITS BASE ATTACHED — these figures
+describe the PRE-REBASE tree at base 7e541a54, NOT the merged tree:
+  gate.sh --jobs 4 --require-graded  PASS (HATCH-RED REFUSED), 18/18 lanes each
+    grading a corpus, 6,858 fixture-verdicts, sweep 19,460 of 19,556, cross
+    90,424 of 90,812 with 0 mismatch, graded tree 00aeaabe2b63 over 731 files —
+    digit for digit w-guards' recorded tip figures at that base.
+  debug_lane.sh 18 ran / 0 failed / 0 panics / 0 mismatch
+  suite 1,648/0/42 exit 0 · board_audit all-zero · rung_registry 2/2
+  878-TU scan match 25 · mismatch 0 · codegen-gap 0 · vocab-gap 845 ·
+    fnbyte-exact 35,734 · 394 keys, 0 deltas vs base 3835469c
+
+SCOPE NOTE for a reader who will ask: X = 30 of 63 is a statement about the
+RELEASE-profile suite. w-gatewire's new debug-profile gate row catches a
+different slice of the same family (live debug_assert! and overflow checks). The
+two are ORTHOGONAL — a debug row cannot make a key-swap mutation fail, because a
+mis-routed census key violates no assertion and overflows nothing. The gate got
+stronger today and the number is unchanged by it.
+
+BOARD: #3229-#3233 MINTED, allocated explicitly by the coordinator, NOT read off
+the pointer. This lane drafted unnumbered, verified row-by-row (#3218..#3230 vs
+BOARD.md, both peer branches, and every #32NN citation in ROADMAP.md) and
+concluded #3222 — WRONG, and the verification was not at fault: w-fence163 and
+w-gatewire had EACH minted #3218-#3221 after each performing the same check
+against a master where neither had landed. w-gatewire merged holding #3218-#3224;
+w-fence163 renumbers to #3225-#3228. The pointer at this tip reads "NEXT FREE IS
+#3225" and is ALREADY WRONG. Row-by-row verification is the strongest check a
+lane can run and it is still insufficient, because two lanes on separate branches
+are structurally blind to each other's mints — only a coordinator with both
+branches in view can allocate. Leaving rows unnumbered until told was right for
+the second time in this lane and the fourth in this wave.
