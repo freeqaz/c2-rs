@@ -513,3 +513,29 @@ Still parked with the user: the lever-7 choice itself, and whether
 `scripts/debug_lane.sh` gets wired into `gate.sh` (built and priced at
 0.65 s warm; unwired because making a debug panic a merge blocker is
 policy).
+
+### 8.1 DECIDED 2026-08-17 — Option A, and the gate row is wired
+
+The user answered both. **Lever 7 closes as OPTION A: reproduce `c2` fully.**
+The goal stands. Two consequences are now doctrine rather than open
+questions:
+
+* **The target number is 870, not 871** — not a retarget, an arithmetic
+  correction. `graded` is 870 because real `c2` fails 8 of the 878 TUs itself
+  (`BinkIntegration.cpp` at `C2065`), and no byte-exact port can match a TU
+  the oracle cannot compile. 870/878 **is** full reproduction; 871 was never
+  reachable by anyone, including `c2`.
+* **Option A is only coherent paired with §4's phase plan**, and this is the
+  operative consequence for dispatch. The review's own arithmetic says no
+  intermediate match count pays (1.03× at 25; value arrives near p≈0.9), and
+  H1 says the TU-shaped lane cannot carry a phase. **So A does not mean more
+  TU lanes — it means levers 1–4 first.** Lever 1 is landed (three lane kinds
+  in `CLAUDE.md` § "Units of work"); levers 2, 3 and 4 are the route.
+  Dispatching TU-conversion lanes at 845 `vocab-gap` TUs under an Option A
+  banner is the local-optimum trap H2 identified, now with the user's goal
+  attached to it.
+
+**Decision 2: wired.** `debug_lane.sh` becomes a `gate.sh` row, so a
+debug-profile panic blocks a merge (lane `w-gatewire`, dispatched at
+`7e541a54`). The row must be demonstrated able to go RED — a gate row that
+cannot fail is this repo's defining defect family, not a safety net.
