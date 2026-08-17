@@ -195,13 +195,14 @@ mod tests {
     /// every `coff/*.rs` that contains the literal `Section {`.
     #[test]
     fn the_writer_vocabulary_is_every_section_name_this_file_emits() {
-        const SECTION_SOURCES: [(&str, &str); 6] = [
+        const SECTION_SOURCES: [(&str, &str); 7] = [
             ("data.rs", include_str!("data.rs")),
             ("shell.rs", include_str!("shell.rs")),
             ("writer.rs", include_str!("writer.rs")),
             ("dyninit.rs", include_str!("dyninit.rs")),
             ("ehscope.rs", include_str!("ehscope.rs")),
             ("function.rs", include_str!("function.rs")),
+            ("provide.rs", include_str!("provide.rs")),
         ];
         // The list above is a transcription too, so it gets the same treatment as
         // the constant it feeds: every `coff/*.rs` that can construct a `Section`
@@ -288,13 +289,14 @@ mod tests {
     /// Portable: source text only, no toolchain.
     #[test]
     fn every_production_emitter_has_a_lib_rs_caller() {
-        const EMITTER_SOURCES: [(&str, &str); 6] = [
+        const EMITTER_SOURCES: [(&str, &str); 7] = [
             ("data.rs", include_str!("data.rs")),
             ("shell.rs", include_str!("shell.rs")),
             ("writer.rs", include_str!("writer.rs")),
             ("dyninit.rs", include_str!("dyninit.rs")),
             ("ehscope.rs", include_str!("ehscope.rs")),
             ("function.rs", include_str!("function.rs")),
+            ("provide.rs", include_str!("provide.rs")),
         ];
         // Same discipline as SECTION_SOURCES above: the list is a transcription,
         // so it is asserted against the directory rather than trusted.
@@ -383,7 +385,7 @@ mod tests {
         // read the same as a run that checked everything.
         assert_eq!(
             production.len(),
-            6,
+            7, // +1 w-npos: emit_provide_data_obj, the provide-always COMDAT data obj
             "production emitters: {production:?} — update this count deliberately"
         );
     }
