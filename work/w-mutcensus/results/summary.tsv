@@ -1,25 +1,165 @@
+B10.dup-b	RED	1645	3	42	func::bind::tests::the_varargs_gate_is_one_predicate_on_both_paths;func::census::tests::a_body_the_ladder_never_ran_for_reads_disp_not_run;the_cells_population_is_three_functions_one_of_which_disagrees	164.10
 B10	RED	1646	2	42	func::bind::tests::the_varargs_gate_is_one_predicate_on_both_paths;func::census::tests::a_body_the_ladder_never_ran_for_reads_disp_not_run	249.00
+B2.dup-d	GREEN	1648	0	42		170.94
+B2.dup-g	GREEN	1648	0	42		251.64
+B2	GREEN	1648	0	42		129.36
+B3.dup-d	GREEN	1648	0	42		164.42
+B3.dup-g	GREEN	1648	0	42		334.36
+B3	GREEN	1648	0	42		138.48
+B4.dup-d	GREEN	1648	0	42		200.42
+B4.dup-g	GREEN	1648	0	42		269.24
+B4	GREEN	1648	0	42		138.66
+B5.dup-d	GREEN	1648	0	42		194.80
+B5.dup-g	GREEN	1648	0	42		296.69
+B5	GREEN	1648	0	42		155.88
+B6.dup-d	GREEN	1648	0	42		195.35
+B6	GREEN	1648	0	42		177.48
+B7.dup-d	GREEN	1648	0	42		91.38
+B7	GREEN	1648	0	42		187.11
+B8.dup-d	GREEN	1648	0	42		105.93
+B8	GREEN	1648	0	42		186.27
+B9	RED	1647	1	42	the_cells_population_is_three_functions_one_of_which_disagrees	156.51
+BU1.dup-d	RED	1645	3	42	func::bundle::tests::fp_contract_off_is_still_the_mode_it_was_compiled_at;func::bundle::tests::opt_words_reports_an_unreadable_prefix_rather_than_guessing;func::bundle::tests::the_optimization_word_is_a_varint_not_a_fixed_escape	181.56
+BU1.dup-f	RED	1645	3	42	func::bundle::tests::fp_contract_off_is_still_the_mode_it_was_compiled_at;func::bundle::tests::opt_words_reports_an_unreadable_prefix_rather_than_guessing;func::bundle::tests::the_optimization_word_is_a_varint_not_a_fixed_escape	250.18
+BU1	RED	1645	3	42	func::bundle::tests::fp_contract_off_is_still_the_mode_it_was_compiled_at;func::bundle::tests::opt_words_reports_an_unreadable_prefix_rather_than_guessing;func::bundle::tests::the_optimization_word_is_a_varint_not_a_fixed_escape	188.86
+BU2.dup-d	RED	1647	1	42	func::bundle::dyninit_tests::a_bundle_without_the_three_streams_refuses	175.69
+BU2.dup-f	RED	1647	1	42	func::bundle::dyninit_tests::a_bundle_without_the_three_streams_refuses	334.72
+BU2	RED	1647	1	42	func::bundle::dyninit_tests::a_bundle_without_the_three_streams_refuses	190.59
+BU3.dup-d	GREEN	1648	0	42		398.12
+BU3.dup-f	GREEN	1648	0	42		273.29
+BU3	GREEN	1648	0	42		159.10
 C1	RED	1646	2	42	gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol;gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone	94.81
 C2	RED	1647	1	42	codegen::calls::tests::the_data_address_setup_refuses_the_shapes_it_has_no_capture_for	70.15
 C3	RED	1645	3	42	gap::tests::wr1_census_key_guards::the_census_key_survives_the_round_trip_into_the_reachable_ranking;gap::tests::wr1_census_key_guards::the_data_symbol_linkage_gate_is_the_one_byte_that_moves_the_key;gap::tests::wr1_census_key_guards::the_two_data_symbol_census_keys_are_not_interchangeable	80.09
 C4	RED	1646	2	42	gap::tests::wr1_census_key_guards::the_data_symbol_linkage_gate_is_the_one_byte_that_moves_the_key;gap::tests::wr1_census_key_guards::the_two_data_symbol_census_keys_are_not_interchangeable	74.79
 C5	RED	1642	6	42	func::body::wr1_dyninit::the_dynamic_initializer_thunk_decodes_to_a_three_slot_tail_call;func::body::wr1_dyninit::the_empty_module_scope_is_optional_and_the_module_end_is_not;gap::tests::wr1_census_key_guards::the_census_key_survives_the_round_trip_into_the_reachable_ranking;gap::tests::wr1_census_key_guards::the_data_symbol_linkage_gate_is_the_one_byte_that_moves_the_key;gap::tests::wr1_census_key_guards::the_two_data_symbol_census_keys_are_not_interchangeable;gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone	91.17
+CA10.dup-e	GREEN	1648	0	42		197.99
+CA10.dup-h	GREEN	1648	0	42		355.59
+CA10	GREEN	1648	0	42		197.57
+CA11.dup-e	RED	1646	2	42	func::body::shapes::calls::tests::a_call_argument_from_a_formal_beyond_the_argument_count_refuses_and_does_not_panic;func::body::shapes::calls::tests::a_call_bound_to_a_local_gets_the_same_argument_gates_as_the_direct_form	202.04
+CA11.dup-h	RED	1646	2	42	func::body::shapes::calls::tests::a_call_argument_from_a_formal_beyond_the_argument_count_refuses_and_does_not_panic;func::body::shapes::calls::tests::a_call_bound_to_a_local_gets_the_same_argument_gates_as_the_direct_form	288.57
+CA11	RED	1646	2	42	func::body::shapes::calls::tests::a_call_argument_from_a_formal_beyond_the_argument_count_refuses_and_does_not_panic;func::body::shapes::calls::tests::a_call_bound_to_a_local_gets_the_same_argument_gates_as_the_direct_form	200.07
+CA12.dup-e	RED	1646	2	42	the_census_and_the_port_agree_about_what_is_in_class;the_census_and_the_port_agree_over_the_generated_corpus	85.90
+CA12.dup-h	RED	1646	2	42	the_census_and_the_port_agree_about_what_is_in_class;the_census_and_the_port_agree_over_the_generated_corpus	165.31
+CA12	RED	1646	2	42	the_census_and_the_port_agree_about_what_is_in_class;the_census_and_the_port_agree_over_the_generated_corpus	68.10
+CA13.dup-e	GREEN	1648	0	42		441.92
+CA13.dup-h	GREEN	1648	0	42		341.36
+CA13	GREEN	1648	0	42		141.56
+CA14.dup-e	RED	1646	2	42	the_census_and_the_port_agree_about_what_is_in_class;the_census_and_the_port_agree_over_the_generated_corpus	139.73
+CA14.dup-h	RED	1646	2	42	the_census_and_the_port_agree_about_what_is_in_class;the_census_and_the_port_agree_over_the_generated_corpus	159.19
+CA14	RED	1646	2	42	the_census_and_the_port_agree_about_what_is_in_class;the_census_and_the_port_agree_over_the_generated_corpus	64.22
+CA15.dup-e	RED	1646	2	42	the_census_and_the_port_agree_about_what_is_in_class;the_census_and_the_port_agree_over_the_generated_corpus	188.81
+CA15.dup-h	RED	1646	2	42	the_census_and_the_port_agree_about_what_is_in_class;the_census_and_the_port_agree_over_the_generated_corpus	142.93
+CA15	RED	1646	2	42	the_census_and_the_port_agree_about_what_is_in_class;the_census_and_the_port_agree_over_the_generated_corpus	53.51
+CA16.dup-e	GREEN	1648	0	42		329.64
+CA16.dup-h	GREEN	1648	0	42		362.34
+CA16	GREEN	1648	0	42		115.81
+CA17.dup-e	RED	1647	1	42	func::body::shapes::calls::tests::a_call_bound_to_a_local_gets_the_same_argument_gates_as_the_direct_form	296.78
+CA17.dup-h	RED	1647	1	42	func::body::shapes::calls::tests::a_call_bound_to_a_local_gets_the_same_argument_gates_as_the_direct_form	314.53
+CA17	RED	1647	1	42	func::body::shapes::calls::tests::a_call_bound_to_a_local_gets_the_same_argument_gates_as_the_direct_form	140.39
+CA18.dup-e	GREEN	1648	0	42		269.14
+CA18	GREEN	1648	0	42		163.32
+CA19.dup-e	RED	1647	1	42	func::body::shapes::calls::tests::a_call_argument_that_is_not_a_formal_refuses_in_the_parser	334.45
+CA19	RED	1647	1	42	func::body::shapes::calls::tests::a_call_argument_that_is_not_a_formal_refuses_in_the_parser	187.20
+CA20.dup-e	RED	1647	1	42	the_census_and_the_port_agree_about_what_is_in_class	254.66
+CA20	RED	1647	1	42	the_census_and_the_port_agree_about_what_is_in_class	198.81
+CA21.dup-e	RED	1647	1	42	func::body::shapes::mcall_chain::tests::a_computed_or_nonformal_link_argument_refuses_by_name	86.98
+CA21	RED	1647	1	42	func::body::shapes::mcall_chain::tests::a_computed_or_nonformal_link_argument_refuses_by_name	195.97
+CA22.dup-e	RED	1646	2	42	the_census_and_the_port_agree_about_what_is_in_class;the_census_and_the_port_agree_over_the_generated_corpus	112.44
+CA22	RED	1646	2	42	the_census_and_the_port_agree_about_what_is_in_class;the_census_and_the_port_agree_over_the_generated_corpus	64.67
+CA23.dup-c	RED	1647	1	42	func::body::shapes::mcall_chain::tests::a_computed_or_nonformal_link_argument_refuses_by_name	190.87
 CA23	RED	1647	1	42	func::body::shapes::mcall_chain::tests::a_computed_or_nonformal_link_argument_refuses_by_name	248.97
+CA2.dup-c	GREEN	1648	0	42		197.61
+CA2.dup-e	GREEN	1648	0	42		180.78
 CA2	GREEN	1648	0	42		387.97
+CA3.dup-e	RED	1646	2	42	the_census_and_the_port_agree_about_what_is_in_class;the_census_and_the_port_agree_over_the_generated_corpus	61.68
+CA3.dup-i	RED	1646	2	42	the_census_and_the_port_agree_about_what_is_in_class;the_census_and_the_port_agree_over_the_generated_corpus	138.20
+CA3	RED	1646	2	42	the_census_and_the_port_agree_about_what_is_in_class;the_census_and_the_port_agree_over_the_generated_corpus	95.79
+CA4.dup-e	RED	1647	1	42	func::body::shapes::calls::tests::arg_site_sequence_still_refuses_the_slot_bound	149.40
+CA4.dup-i	RED	1647	1	42	func::body::shapes::calls::tests::arg_site_sequence_still_refuses_the_slot_bound	294.15
+CA4	RED	1647	1	42	func::body::shapes::calls::tests::arg_site_sequence_still_refuses_the_slot_bound	169.85
+CA5.dup-e	RED	1645	3	42	func::body::shapes::calls::tests::arg_site_decides_the_literal_paths_permutation_clause;the_census_and_the_port_agree_about_what_is_in_class;the_census_and_the_port_agree_over_the_generated_corpus	62.24
+CA5.dup-i	RED	1645	3	42	func::body::shapes::calls::tests::arg_site_decides_the_literal_paths_permutation_clause;the_census_and_the_port_agree_about_what_is_in_class;the_census_and_the_port_agree_over_the_generated_corpus	166.39
+CA5	RED	1645	3	42	func::body::shapes::calls::tests::arg_site_decides_the_literal_paths_permutation_clause;the_census_and_the_port_agree_about_what_is_in_class;the_census_and_the_port_agree_over_the_generated_corpus	102.08
+CA6.dup-e	GREEN	1648	0	42		148.71
+CA6.dup-i	GREEN	1648	0	42		334.83
+CA6	GREEN	1648	0	42		404.96
+CA7.dup-e	RED	1646	2	42	the_census_and_the_port_agree_about_what_is_in_class;the_census_and_the_port_agree_over_the_generated_corpus	63.00
+CA7.dup-i	RED	1646	2	42	the_census_and_the_port_agree_about_what_is_in_class;the_census_and_the_port_agree_over_the_generated_corpus	158.36
+CA7	RED	1646	2	42	the_census_and_the_port_agree_about_what_is_in_class;the_census_and_the_port_agree_over_the_generated_corpus	233.49
+CA8.dup-e	GREEN	1648	0	42		173.04
+CA8.dup-i	GREEN	1648	0	42		316.06
+CA8	GREEN	1648	0	42		190.68
+CA9.dup-c	GREEN	1648	0	42		192.05
+CA9.dup-e	GREEN	1648	0	42		200.55
 CA9	GREEN	1648	0	42		387.67
+CS10.dup-d	RED	1647	1	42	the_census_and_the_port_agree_about_what_is_in_class	129.92
+CS10.dup-g	RED	1647	1	42	the_census_and_the_port_agree_about_what_is_in_class	288.60
+CS10	RED	1647	1	42	the_census_and_the_port_agree_about_what_is_in_class	169.94
+CS11.dup-d	RED	1647	1	42	the_census_and_the_port_agree_about_what_is_in_class	144.56
+CS11.dup-f	RED	1647	1	42	the_census_and_the_port_agree_about_what_is_in_class	414.25
+CS11	RED	1647	1	42	the_census_and_the_port_agree_about_what_is_in_class	175.92
+CS12.dup-d	RED	1645	3	42	a_callee_that_keeps_bytes_stops_the_chain;a_callee_this_tu_defines_is_fenced_and_its_opaque_twin_is_not;the_fence_yields_to_the_empty_callee_mechanism_e_already_models	139.63
+CS12.dup-f	RED	1645	3	42	a_callee_that_keeps_bytes_stops_the_chain;a_callee_this_tu_defines_is_fenced_and_its_opaque_twin_is_not;the_fence_yields_to_the_empty_callee_mechanism_e_already_models	310.31
+CS12	RED	1645	3	42	a_callee_that_keeps_bytes_stops_the_chain;a_callee_this_tu_defines_is_fenced_and_its_opaque_twin_is_not;the_fence_yields_to_the_empty_callee_mechanism_e_already_models	151.71
 CS2.aborted	INVALID	789	0	5		absent
+CS2.dup-d	GREEN	1648	0	42		164.41
 CS2	GREEN	1648	0	42		642.04
 CS2.notoolchain.DISCARDED	INVALID	1648	0	42		0.00
+CS3.dup-d	GREEN	1648	0	42		157.02
 CS3	GREEN	1648	0	42		220.38
+CS4.dup-d	GREEN	1648	0	42		186.06
+CS4	GREEN	1648	0	42		207.97
+CS5.dup-d	GREEN	1648	0	42		187.11
+CS5.dup-g	GREEN	1648	0	42		413.54
+CS5	GREEN	1648	0	42		137.48
+CS6.dup-d	GREEN	1648	0	42		177.58
+CS6.dup-g	GREEN	1648	0	42		307.98
+CS6	GREEN	1648	0	42		193.91
+CS7.dup-d	GREEN	1648	0	42		156.00
+CS7.dup-g	GREEN	1648	0	42		329.53
+CS7	GREEN	1648	0	42		198.41
+CS8.dup-b	GREEN	1648	0	42		197.49
+CS8.dup-d	GREEN	1648	0	42		139.20
 CS8	GREEN	1648	0	42		388.46
+CS9.dup-d	GREEN	1648	0	42		139.99
+CS9.dup-g	GREEN	1648	0	42		338.64
+CS9	GREEN	1648	0	42		161.57
+D1.dup-d	GREEN	1648	0	42		228.80
+D1.dup-f	GREEN	1648	0	42		296.49
+D1	GREEN	1648	0	42		138.09
+D2.dup-d	GREEN	1648	0	42		173.09
+D2.dup-f	GREEN	1648	0	42		329.54
+D2	GREEN	1648	0	42		143.30
+G1.dup-b	RED	1644	4	42	func::gl::data_object_tests::the_new_reader_and_the_extern_gate_admit_disjoint_linkages;gap::tests::wr1_census_key_guards::the_census_key_survives_the_round_trip_into_the_reachable_ranking;gap::tests::wr1_census_key_guards::the_data_symbol_linkage_gate_is_the_one_byte_that_moves_the_key;gap::tests::wr1_census_key_guards::the_two_data_symbol_census_keys_are_not_interchangeable	398.17
+G1.dup-d	RED	1644	4	42	func::gl::data_object_tests::the_new_reader_and_the_extern_gate_admit_disjoint_linkages;gap::tests::wr1_census_key_guards::the_census_key_survives_the_round_trip_into_the_reachable_ranking;gap::tests::wr1_census_key_guards::the_data_symbol_linkage_gate_is_the_one_byte_that_moves_the_key;gap::tests::wr1_census_key_guards::the_two_data_symbol_census_keys_are_not_interchangeable	159.79
 G1	RED	1644	4	42	func::gl::data_object_tests::the_new_reader_and_the_extern_gate_admit_disjoint_linkages;gap::tests::wr1_census_key_guards::the_census_key_survives_the_round_trip_into_the_reachable_ranking;gap::tests::wr1_census_key_guards::the_data_symbol_linkage_gate_is_the_one_byte_that_moves_the_key;gap::tests::wr1_census_key_guards::the_two_data_symbol_census_keys_are_not_interchangeable	388.48
+G2.dup-d	GREEN	1648	0	42		190.15
+G2.dup-f	GREEN	1648	0	42		355.36
+G2	GREEN	1648	0	42		176.35
+G3.dup-d	RED	1594	54	42	a_callee_that_keeps_bytes_stops_the_chain;a_callee_this_tu_defines_is_fenced_and_its_opaque_twin_is_not;a_defined_name_that_is_a_prefix_of_the_callee_fences_nothing;both_pool2_files_bind_their_records_before_any_body_is_looked_at;differential_class_a_many_calls_byte_exact;differential_fp_argument_registers_byte_exact;differential_mvp_add3_port_byte_exact;differential_mvp_argtail_arg_setup_byte_exact;differential_mvp_call_tailcall_byte_exact;differential_mvp_framed_call_byte_exact;differential_mvp_lit_immediates_byte_exact;differential_mvp_plus0_identity_fold_byte_exact;differential_mvp_sub_noncommutative_byte_exact;differential_mvp_tailret_int_passthrough_byte_exact;differential_mvp_two_multifunction_byte_exact;differential_mvp_wide_immediates_byte_exact;differential_w1274_interior_address_producer_byte_exact;differential_wadjust_object_receiver_byte_exact;differential_wbdnz_ctr_ox_accepted;differential_wpark_lit_permuted_pair;differential_wunw_multi_function_framed_byte_exact;every_pool_cell_binds_its_records_before_the_body_is_looked_at;func::bind::tests::a_26_separated_name_binds_and_the_framing_arity_does_not_move;func::bind::tests::a_26_that_introduces_no_plausible_name_yields_no_binding;func::bind::tests::per_record_binds_each_segment_to_the_record_carrying_its_offset;func::bind::tests::record_bytes_before_a_26_are_not_glued_onto_the_next_name;func::bind::tests::selective_is_per_record_when_the_records_are_one_to_one;func::bind::tests::selective_refuses_a_mangled_run_no_record_claims;func::bind::tests::selective_refuses_an_unclaimed_run_that_fits_the_inline_name_field;func::bind::tests::selective_refuses_a_record_offset_that_is_not_a_split_point;func::bind::tests::selective_refuses_even_an_exhausted_name_set_because_records_are_not_the_emit_set;func::bind::tests::selective_refuses_records_that_do_not_advance_through_the_segments;func::bind::tests::the_two_bindings_are_the_open_seam_and_are_pinned_apart;func::bind::tests::the_varargs_gate_is_one_predicate_on_both_paths;func::bundle::dyninit_tests::functions_refuses_when_a_body_c2_may_have_emitted_is_unaccounted_for;func::gl::tests::a_26_introduced_name_is_invisible_to_the_nul_scanner_and_visible_to_the_other;func::gl::tests::a_26_introduced_record_is_SEEN_by_the_scanner_and_REFUSED_by_the_gate;func::gl::tests::an_undecorated_record_name_is_seen_then_refused;func::gl::tests::a_record_name_terminated_by_26_refuses_rather_than_reading_past_it;func::gl::tests::gl_names_bind_to_their_own_record_not_their_position;func::gl::tests::gl_symbol_index_does_not_glue_a_records_own_token_onto_its_name;func::gl::tests::gl_symbol_index_reads_both_separator_forms;func::gl::tests::gl_symbol_runs_ignore_non_symbol_strings;func::gl::tests::only_a_plain_external_defined_record_is_exempt;func::gl::tests::the_fence_walk_never_grows_when_the_binding_walk_widens;func::gl::tests::the_relaxed_framing_reaches_the_binding_and_neither_fence;func::gl::tests::the_widened_walk_refuses_an_unmangled_variadic_record;roundtrip_all_fixtures_byte_identical;the_fence_yields_to_the_empty_callee_mechanism_e_already_models;the_free_list_tu_is_in_class_end_to_end;the_inline_fence_holds_one_all_exact_tu_and_the_counter_says_so;the_parser_hands_on_only_the_linkage_class_the_decline_bound_was_measured_on;the_three_pool_cells_each_move_the_verdict_by_one_construct;the_three_vec_cells_stop_at_three_different_gates	188.52
+G3.dup-f	RED	1594	54	42	a_callee_that_keeps_bytes_stops_the_chain;a_callee_this_tu_defines_is_fenced_and_its_opaque_twin_is_not;a_defined_name_that_is_a_prefix_of_the_callee_fences_nothing;both_pool2_files_bind_their_records_before_any_body_is_looked_at;differential_class_a_many_calls_byte_exact;differential_fp_argument_registers_byte_exact;differential_mvp_add3_port_byte_exact;differential_mvp_argtail_arg_setup_byte_exact;differential_mvp_call_tailcall_byte_exact;differential_mvp_framed_call_byte_exact;differential_mvp_lit_immediates_byte_exact;differential_mvp_plus0_identity_fold_byte_exact;differential_mvp_sub_noncommutative_byte_exact;differential_mvp_tailret_int_passthrough_byte_exact;differential_mvp_two_multifunction_byte_exact;differential_mvp_wide_immediates_byte_exact;differential_w1274_interior_address_producer_byte_exact;differential_wadjust_object_receiver_byte_exact;differential_wbdnz_ctr_ox_accepted;differential_wpark_lit_permuted_pair;differential_wunw_multi_function_framed_byte_exact;every_pool_cell_binds_its_records_before_the_body_is_looked_at;func::bind::tests::a_26_separated_name_binds_and_the_framing_arity_does_not_move;func::bind::tests::a_26_that_introduces_no_plausible_name_yields_no_binding;func::bind::tests::per_record_binds_each_segment_to_the_record_carrying_its_offset;func::bind::tests::record_bytes_before_a_26_are_not_glued_onto_the_next_name;func::bind::tests::selective_is_per_record_when_the_records_are_one_to_one;func::bind::tests::selective_refuses_a_mangled_run_no_record_claims;func::bind::tests::selective_refuses_an_unclaimed_run_that_fits_the_inline_name_field;func::bind::tests::selective_refuses_a_record_offset_that_is_not_a_split_point;func::bind::tests::selective_refuses_even_an_exhausted_name_set_because_records_are_not_the_emit_set;func::bind::tests::selective_refuses_records_that_do_not_advance_through_the_segments;func::bind::tests::the_two_bindings_are_the_open_seam_and_are_pinned_apart;func::bind::tests::the_varargs_gate_is_one_predicate_on_both_paths;func::bundle::dyninit_tests::functions_refuses_when_a_body_c2_may_have_emitted_is_unaccounted_for;func::gl::tests::a_26_introduced_name_is_invisible_to_the_nul_scanner_and_visible_to_the_other;func::gl::tests::a_26_introduced_record_is_SEEN_by_the_scanner_and_REFUSED_by_the_gate;func::gl::tests::an_undecorated_record_name_is_seen_then_refused;func::gl::tests::a_record_name_terminated_by_26_refuses_rather_than_reading_past_it;func::gl::tests::gl_names_bind_to_their_own_record_not_their_position;func::gl::tests::gl_symbol_index_does_not_glue_a_records_own_token_onto_its_name;func::gl::tests::gl_symbol_index_reads_both_separator_forms;func::gl::tests::gl_symbol_runs_ignore_non_symbol_strings;func::gl::tests::only_a_plain_external_defined_record_is_exempt;func::gl::tests::the_fence_walk_never_grows_when_the_binding_walk_widens;func::gl::tests::the_relaxed_framing_reaches_the_binding_and_neither_fence;func::gl::tests::the_widened_walk_refuses_an_unmangled_variadic_record;roundtrip_all_fixtures_byte_identical;the_fence_yields_to_the_empty_callee_mechanism_e_already_models;the_free_list_tu_is_in_class_end_to_end;the_inline_fence_holds_one_all_exact_tu_and_the_counter_says_so;the_parser_hands_on_only_the_linkage_class_the_decline_bound_was_measured_on;the_three_pool_cells_each_move_the_verdict_by_one_construct;the_three_vec_cells_stop_at_three_different_gates	288.84
+G3	RED	1594	54	42	a_callee_that_keeps_bytes_stops_the_chain;a_callee_this_tu_defines_is_fenced_and_its_opaque_twin_is_not;a_defined_name_that_is_a_prefix_of_the_callee_fences_nothing;both_pool2_files_bind_their_records_before_any_body_is_looked_at;differential_class_a_many_calls_byte_exact;differential_fp_argument_registers_byte_exact;differential_mvp_add3_port_byte_exact;differential_mvp_argtail_arg_setup_byte_exact;differential_mvp_call_tailcall_byte_exact;differential_mvp_framed_call_byte_exact;differential_mvp_lit_immediates_byte_exact;differential_mvp_plus0_identity_fold_byte_exact;differential_mvp_sub_noncommutative_byte_exact;differential_mvp_tailret_int_passthrough_byte_exact;differential_mvp_two_multifunction_byte_exact;differential_mvp_wide_immediates_byte_exact;differential_w1274_interior_address_producer_byte_exact;differential_wadjust_object_receiver_byte_exact;differential_wbdnz_ctr_ox_accepted;differential_wpark_lit_permuted_pair;differential_wunw_multi_function_framed_byte_exact;every_pool_cell_binds_its_records_before_the_body_is_looked_at;func::bind::tests::a_26_separated_name_binds_and_the_framing_arity_does_not_move;func::bind::tests::a_26_that_introduces_no_plausible_name_yields_no_binding;func::bind::tests::per_record_binds_each_segment_to_the_record_carrying_its_offset;func::bind::tests::record_bytes_before_a_26_are_not_glued_onto_the_next_name;func::bind::tests::selective_is_per_record_when_the_records_are_one_to_one;func::bind::tests::selective_refuses_a_mangled_run_no_record_claims;func::bind::tests::selective_refuses_an_unclaimed_run_that_fits_the_inline_name_field;func::bind::tests::selective_refuses_a_record_offset_that_is_not_a_split_point;func::bind::tests::selective_refuses_even_an_exhausted_name_set_because_records_are_not_the_emit_set;func::bind::tests::selective_refuses_records_that_do_not_advance_through_the_segments;func::bind::tests::the_two_bindings_are_the_open_seam_and_are_pinned_apart;func::bind::tests::the_varargs_gate_is_one_predicate_on_both_paths;func::bundle::dyninit_tests::functions_refuses_when_a_body_c2_may_have_emitted_is_unaccounted_for;func::gl::tests::a_26_introduced_name_is_invisible_to_the_nul_scanner_and_visible_to_the_other;func::gl::tests::a_26_introduced_record_is_SEEN_by_the_scanner_and_REFUSED_by_the_gate;func::gl::tests::an_undecorated_record_name_is_seen_then_refused;func::gl::tests::a_record_name_terminated_by_26_refuses_rather_than_reading_past_it;func::gl::tests::gl_names_bind_to_their_own_record_not_their_position;func::gl::tests::gl_symbol_index_does_not_glue_a_records_own_token_onto_its_name;func::gl::tests::gl_symbol_index_reads_both_separator_forms;func::gl::tests::gl_symbol_runs_ignore_non_symbol_strings;func::gl::tests::only_a_plain_external_defined_record_is_exempt;func::gl::tests::the_fence_walk_never_grows_when_the_binding_walk_widens;func::gl::tests::the_relaxed_framing_reaches_the_binding_and_neither_fence;func::gl::tests::the_widened_walk_refuses_an_unmangled_variadic_record;roundtrip_all_fixtures_byte_identical;the_fence_yields_to_the_empty_callee_mechanism_e_already_models;the_free_list_tu_is_in_class_end_to_end;the_inline_fence_holds_one_all_exact_tu_and_the_counter_says_so;the_parser_hands_on_only_the_linkage_class_the_decline_bound_was_measured_on;the_three_pool_cells_each_move_the_verdict_by_one_construct;the_three_vec_cells_stop_at_three_different_gates	181.57
 L1	RED	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	76.21
 L2	GREEN	1648	0	42		76.63
 L3	GREEN	1648	0	42		87.53
 L4.aborted	INVALID	876	1	14	the_census_and_the_port_agree_about_what_is_in_class	171.58
+L4.dup-e	RED	1646	2	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input;the_census_and_the_port_agree_about_what_is_in_class	154.27
 L4.notoolchain.DISCARDED	INVALID	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	0.00
 L4	RED	1646	2	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input;the_census_and_the_port_agree_about_what_is_in_class	641.77
+L5.dup-e	RED	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	173.44
 L5	RED	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	220.52
+L6.dup-e	RED	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	166.64
+L6	RED	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	207.95
+L7.dup-e	RED	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	195.76
+L7.dup-i	RED	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	415.65
+L7	RED	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	137.10
+L8.dup-e	RED	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	199.30
+L8.dup-i	RED	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	307.88
+L8	RED	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	193.79
+L9.dup-e	GREEN	1648	0	42		188.51
+L9.dup-i	GREEN	1648	0	42		329.38
+L9	GREEN	1648	0	42		198.45
 N0wtB.dirtytree.DISCARDED	GREEN	1648	0	42		267.23
 N0wtB.notoolchain	INVALID	1648	0	42		0.00
 N0wtC.dirtytree.DISCARDED	RED	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	262.37
