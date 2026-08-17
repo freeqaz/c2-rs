@@ -62,9 +62,16 @@ for id in "$@"; do
   # INVALID by matching it; fixed here, recorded in the rung).
   # Seconds spent in the census_gate target — the real-c2 differential. 0.00s
   # means it SKIPPED and this run graded nothing against the oracle.
-  diffsecs=$(grep -A3 'the_census_and_the_port_agree_over_the_generated_corpus' \
-               "$RES/$id.log" | grep -m1 'test result:' \
-             | sed 's/.*finished in //; s/s$//')
+  # The FIRST `test result:` line at or after the census_gate marker, however far
+  # away it is. A fixed -A window is wrong: when that target's OWN test fails,
+  # cargo prints a `failures:` block in between and the result line moves out of
+  # range, so the duration read `absent` and a genuinely GRADED RED (L4:
+  # 1,646/2, the differential itself catching the mutation) was misclassified
+  # INVALID. Same class of bug as D3 — a rule that mistakes a real colour for an
+  # invalid run. Recorded in deviations.md D9.
+  diffsecs=$(awk '/the_census_and_the_port_agree_over_the_generated_corpus/{m=1}
+                  m && /^test result:/{sub(/.*finished in /,""); sub(/s$/,""); print; exit}' \
+             "$RES/$id.log")
   graded=$(awk -v s="${diffsecs:-0}" 'BEGIN{print (s+0 >= 1.0) ? 1 : 0}')
   if grep -qE '^error\[E[0-9]+\]|could not compile' "$RES/$id.log"; then
     colour=INVALID

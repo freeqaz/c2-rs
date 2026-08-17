@@ -1,0 +1,1 @@
+cargo test --workspace --release --no-fail-fast >  2>&1  934.68s user 550.33s system 664% cpu 3:43.44 total

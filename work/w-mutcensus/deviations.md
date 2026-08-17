@@ -55,6 +55,50 @@ No mutant artifact left `work/w-mutcensus/`; the sidecars' logs were copied into
 the lane checkout's `work/w-mutcensus/results/` and nothing else was taken from
 them. The sidecars are detached, so nothing they contain can reach the branch.
 
+## D9 — The differential-duration probe misread a GRADED RED as INVALID, and the derived table is why all three rule bugs were recoverable
+
+D6's fix reads the `census_gate` target's duration to prove the run graded. The
+first spelling took a fixed `grep -A3` window after the marker test name. **When
+that target's own test FAILS, cargo prints a `failures:` block before the
+`test result:` line, so the line falls outside the window, the duration reads
+`absent`, and the run is classified INVALID.**
+
+The run that exposed it is the most informative in the campaign: `L4` came back
+**1,646 / 2 / 42** with
+
+* `leaf_store::tests::every_bind_gate_fires_on_a_named_input`, and
+* `census_gate::the_census_and_the_port_agree_about_what_is_in_class`
+
+— i.e. **the real-`c2` differential itself caught the mutation.** That is a
+maximally-graded RED, and the rule meant to certify grading threw it away. Fixed
+to take the first `test result:` line at or after the marker however far away it
+is (an `awk` state machine, not a line window).
+
+**This is the same class of bug as D3** (the INVALID predicate matching cargo's
+own `error: test failed, to rerun …` line, which mislabelled `C1`'s genuine RED).
+Twice now, a rule written to *exclude bad runs* excluded a good one, and in both
+cases the direction was the same: **a guarded site read as unmeasurable**, which
+deflates RED and would have been quietly reported as a smaller denominator rather
+than a wrong colour.
+
+**Why all three rule corrections (D3, D6, D9) were recoverable, stated as the
+design decision it was:** `results/summary.tsv` is **derived** from the logs by
+`rederive.sh`, never accumulated as ground truth. The logs are the source of
+truth and the colour rule is a pure function over them, so every rule fix
+reapplies to **every run already on disk** — including runs from a previous
+session. Had the table been the primary record, D3's mislabel, D6's false GREENs
+and D9's discarded RED would each have required re-running the mutant. **A
+campaign that emits its own conclusions incrementally cannot correct its own
+classifier; one that derives them can.**
+
+A corollary worth stating because it was nearly got wrong: the *runner's* copy of
+the colour rule is **advisory**. The published table comes from `rederive.sh` in
+the lane checkout over the collected logs, so the eight in-flight runners did not
+need patching mid-run — and overwriting a script that a running `sh` is still
+reading is a real hazard that was taken for no benefit. It happened not to bite
+(all eight runners verified alive and advancing afterwards) and is recorded so
+the next campaign does not repeat it.
+
 ## D8 — A KILLED RUNNER LEAVES ITS MUTANT APPLIED, and the next thing that ran measured it. Both guard layers caught it, on two worktrees, by two different mechanisms
 
 **This is the `w-bind16` stale-state hazard reproduced live, from a cause nobody

@@ -4,12 +4,14 @@ C3	RED	1645	3	42	gap::tests::wr1_census_key_guards::the_census_key_survives_the_
 C4	RED	1646	2	42	gap::tests::wr1_census_key_guards::the_data_symbol_linkage_gate_is_the_one_byte_that_moves_the_key;gap::tests::wr1_census_key_guards::the_two_data_symbol_census_keys_are_not_interchangeable	74.79
 C5	RED	1642	6	42	func::body::wr1_dyninit::the_dynamic_initializer_thunk_decodes_to_a_three_slot_tail_call;func::body::wr1_dyninit::the_empty_module_scope_is_optional_and_the_module_end_is_not;gap::tests::wr1_census_key_guards::the_census_key_survives_the_round_trip_into_the_reachable_ranking;gap::tests::wr1_census_key_guards::the_data_symbol_linkage_gate_is_the_one_byte_that_moves_the_key;gap::tests::wr1_census_key_guards::the_two_data_symbol_census_keys_are_not_interchangeable;gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone	91.17
 CS2.aborted	INVALID	789	0	5		absent
+CS2	GREEN	1648	0	42		642.04
 CS2.notoolchain.DISCARDED	INVALID	1648	0	42		0.00
 L1	RED	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	76.21
 L2	GREEN	1648	0	42		76.63
 L3	GREEN	1648	0	42		87.53
-L4.aborted	INVALID	876	1	14	the_census_and_the_port_agree_about_what_is_in_class	absent
+L4.aborted	INVALID	876	1	14	the_census_and_the_port_agree_about_what_is_in_class	171.58
 L4.notoolchain.DISCARDED	INVALID	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	0.00
+L4	RED	1646	2	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input;the_census_and_the_port_agree_about_what_is_in_class	641.77
 N0wtB.dirtytree.DISCARDED	GREEN	1648	0	42		267.23
 N0wtB.notoolchain	INVALID	1648	0	42		0.00
 N0wtC.dirtytree.DISCARDED	RED	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	262.37
