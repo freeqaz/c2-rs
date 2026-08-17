@@ -600,6 +600,17 @@ pub(super) fn print_factorization(report: &GapReport) {
             bad[3]
         );
     }
+    if bad[0] > 0 {
+        println!(
+            "\x20   A {} — a whole-TU DATA emitter needs no `.text`, so A's proxy (`.ex` \
+             segments == `.text` COMDATs) is not necessary for a functionless-emit match: \
+             `decomp_pch.cpp` matches with 1,242 segments and 0 `.text` (lane w-npos, the \
+             provide-data-tu recognizer). A still bounds every PER-FUNCTION match and the \
+             A-derived ceilings keep that scope; this count is the record that the scope \
+             narrowed, printed the way D's refutation is, not a defect E hides.",
+            bad[0]
+        );
+    }
     if bad[5] > 0 {
         println!(
             "\x20   ALARM: {} matching TU(s) are outside BOTH D and E. The port emitted \

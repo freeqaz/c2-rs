@@ -3230,6 +3230,15 @@ impl IlBundle {
         if alias.stats().dom_with_body != 0 {
             return None;
         }
+        // **Section order is DECLARATION order, which is token-ascending**
+        // (`DataObject::decl_index`'s measured identity), and it is NOT the
+        // `.gl` record order: probe `x08` declares a u16 then a u8, the
+        // record order and the declaration order coincide there, but the
+        // `/Ox` capture of the three-width fixture spells records s,c,q
+        // against a c,s,q obj — and x08's tokens ascend in declaration
+        // order while its obj follows them. Sorted here, once, so the
+        // emitter's slice order IS the section order.
+        emitted.sort_by_key(|(tok, _)| *tok);
         let mut objects = Vec::with_capacity(emitted.len());
         for (tok, o) in &emitted {
             // Only the scalar cells the grid graded: size == natural width,
