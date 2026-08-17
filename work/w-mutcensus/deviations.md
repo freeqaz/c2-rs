@@ -55,6 +55,85 @@ No mutant artifact left `work/w-mutcensus/`; the sidecars' logs were copied into
 the lane checkout's `work/w-mutcensus/results/` and nothing else was taken from
 them. The sidecars are detached, so nothing they contain can reach the branch.
 
+## D6 — CAUGHT MID-CAMPAIGN: the registered baseline 1,648 / 0 / 42 is IDENTICAL with and without a toolchain, so it cannot detect a differential that grades NOTHING
+
+**This is the campaign's own instrument failure, found on the third mutant row,
+before any affected colour was published. It is the most useful thing this lane
+measured about its own probe, and it would have inflated the headline X.**
+
+The two sidecars of D1 were created by a plain `git worktree add`, so neither had
+`compilers/` — that directory is gitignored (MS binaries are never committed) and
+is provided per-worktree by `scripts/configure_existing_worktree.sh`. By design
+(CLAUDE.md: *"Integration tests + the `c2rs` CLI must degrade cleanly when the
+toolchain is absent"*), every toolchain-driven test then prints
+`SKIP: toolchain absent` **and passes**.
+
+**A skipped test is a passed test, so the suite totals are unchanged.** Measured,
+not reasoned:
+
+| run | worktree | toolchain | passed / failed / targets | `census_gate` target |
+|---|---|---|---|---|
+| baseline, session 1 | `w-mutcensus` | present | **1,648 / 0 / 42** | **84.17s** |
+| `N0wtB` | `w-mutcensus-b` | **absent** | **1,648 / 0 / 42** | **0.00s** |
+| `N0wtC` | `w-mutcensus-c` | **absent** | **1,648 / 0 / 42** | **0.00s** |
+
+The prereg's §2 probe definition — *"42 targets, baseline 1,648 / 0"* — is
+therefore **blind to this fault**, and so is prereg §4.5's `targets -ne 42` rule:
+all 42 targets ran, and 42 of 42 reported `ok`. A worktree that grades nothing
+passes every hygiene invariant the prereg wrote down.
+
+**Why that is a false-GREEN generator, in one line:** GREEN means *no test in the
+suite can fail on this site*. In an unprovisioned worktree the tests that drive
+real `c2.dll` cannot fail on **anything**, so every site guarded *only* by the
+differential reads GREEN — and X, the published headline, is a count of GREENs.
+The error is one-directional: it can only inflate X.
+
+**How it surfaced** — not by inspection, by a contradiction between two runs of
+the same mutant. `L4`'s interrupted session-1 log (worktree with toolchain)
+showed the failing test
+`census_gate::the_census_and_the_port_agree_about_what_is_in_class` after 171.58s;
+`L4`'s sidecar run showed that same test **`ok` in 0.00s** and a different single
+failure. Same mutation, same commit, two different failing sets — which is only
+possible if the two runs were not running the same suite.
+
+**The fix, structural, three layers:**
+
+1. Both sidecars were provisioned with `scripts/configure_existing_worktree.sh`,
+   whose own hard gate is the fixture census verdict; both now report
+   `fixtures/cpp/w5_chain.cpp -> 4/4 functions in class`.
+2. `run_mutants.sh` gained a **pre-flight** on the clean tree — the same census
+   probe — and aborts the whole list rather than emitting a colour if the
+   differential does not grade.
+3. `run_mutants.sh` and `rederive.sh` now record the **`census_gate` target
+   duration per run** as a TSV column and make any run under 1s **INVALID**. This
+   is a per-run check, so it also catches a toolchain that disappears mid-list,
+   and because `rederive.sh` derives the table from the logs it applies
+   **retroactively to every log on disk**.
+
+**What was discarded, and what survived.** Two colours were read in the
+unprovisioned sidecars and are **discarded**, not used: `CS2` (read GREEN) and
+`L4` (read RED). Both were re-run from scratch after provisioning. The faulted
+logs are kept as evidence under names that cannot be mistaken for colours —
+`CS2.notoolchain.DISCARDED.log`, `L4.notoolchain.DISCARDED.log`,
+`N0wtB.notoolchain.log`, `N0wtC.notoolchain.log` — and the new rule classifies
+all four **INVALID** at 42/42 targets, which is the check working.
+
+**All 8 session-1 colours SURVIVE the new rule**, re-derived from their logs:
+`C1` 94.81s · `C2` 70.15s · `C3` 80.09s · `C4` 74.79s · `C5` 91.17s · `L1`
+76.21s · `L2` 76.63s · `L3` 87.53s. Every one graded 70–95s against real `c2`,
+so both published GREENs (`L2`, `L3`) were measured with a live differential and
+the controls' reproduction of `w-guards`' counts stands.
+
+**Generalization worth more than this lane's X:** the repo already knew this
+trap — `scripts/configure_existing_worktree.sh`'s own header says *"`cargo test`
+is green, `c2rs diff` says SKIP, and a change that mis-emits looks exactly like a
+change that is byte-exact"* — and this lane walked into it anyway, because the
+prereg specified its probe as a **pair of totals** and totals are exactly the
+thing the fault preserves. **A probe defined by a count cannot detect a
+population that silently left the count.** That is STATUS trap 5
+(absence-read-as-success) one level up: not a missing target, a present target
+that measured nothing.
+
 ## D2 — C3's recipe was refitted once (E0277), carried from the first session
 
 `C3`'s first spelling was `.contains(&name) | true`, which does not compile:
