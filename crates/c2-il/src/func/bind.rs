@@ -2108,4 +2108,158 @@ mod tests {
         f.tail_call = Some("?g@@YAHH@Z".to_string());
         assert_eq!(callee_defined_here(&f, &none), None);
     }
+
+    // ========================================================================
+    // W-FENCE163 — the narrow string-literal admission, at the token level.
+    //
+    // These are the PORTABLE half of the fence's guards (no toolchain, no
+    // capture): they grade the two token-level decisions — *is this record's
+    // name visible at all* (`gl.rs`' `25` separator) and *may this name be
+    // relocated against* (`resolve_data`'s prefix and linkage gates) — which are
+    // the only parts of the widening that are facts about ONE token.
+    //
+    // The census clause the widening is fenced by is NOT gradeable here and is
+    // not pretended to be: it is a whole-TU decision that needs a `.gl` walk to
+    // be blind, and it is guarded by captures in
+    // `c2-harness/tests/strlit_fence.rs`. Two files, two claims, neither
+    // standing in for the other.
+    // ========================================================================
+
+    /// A real narrow (`char`) literal name, and a real wide (`wchar_t`) one —
+    /// **captured**, not invented: both are the `.gl` names real `c2.dll` emits
+    /// for `d("aa")` / `d(L"aa")` at the workload profile
+    /// (`/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc`, measured at `d28326b4`).
+    /// The mangling's `_0` / `_1` field is the width, and it is the entire
+    /// difference between the admitted population and the refused one.
+    const NARROW_LIT: &str = "??_C@_02DKCKIIND@aa?$AA@";
+    const WIDE_LIT: &str = "??_C@_15KDHKKBLG@a?$AAa?$AA?$AA?$AA@";
+
+    /// One `.gl` **data** record: `<kind 04> <token> <sep> <name> 00 <TYPE>`,
+    /// where the type trailer carries the linkage byte
+    /// [`gl_extern_data_names`] reads.
+    ///
+    /// `sep` is the record's name separator and it is a **parameter** here on
+    /// purpose: `00` introduces an ordinary data symbol and `25` introduces a
+    /// string literal, and whether the second one is visible at all is one of
+    /// this lane's three sites (`gl.rs`' `NAME_SEPARATORS`).
+    fn data_record(tok: [u8; 2], name: &str, sep: u8, linkage: u8) -> Vec<u8> {
+        let mut v = vec![0x04, tok[0], tok[1], sep];
+        v.extend_from_slice(name.as_bytes());
+        v.push(0x00);
+        v.extend_from_slice(&[0x80, 0x00, 0x00, 0x02, linkage]);
+        v
+    }
+
+    /// The token value `read_token_var` decodes from a two-byte operand field —
+    /// big-endian, and its high byte must not have `0x80` set or the reader takes
+    /// the four-byte form instead.
+    fn tok(t: [u8; 2]) -> u32 {
+        ((t[0] as u32) << 8) | t[1] as u32
+    }
+
+    /// **The `25` separator, and the narrow-only prefix, in one four-cell
+    /// grid** — every cell differing from its partner in exactly one fact.
+    ///
+    /// | cell | separator | name | linkage | `resolve` | `resolve_data` |
+    /// |---|---|---|---|---|---|
+    /// | L-narrow | `25` | `??_C@_0…` | `01` | Some | **Some** |
+    /// | L-wide | `25` | `??_C@_1…` | `01` | Some | **None** |
+    /// | D-defined | `00` | `?objA@@3HA` | `01` | Some | **None** |
+    /// | D-extern | `00` | `?objB@@3HA` | `02` | Some | **Some** |
+    ///
+    /// Three separate clauses are pinned and each has its own partner:
+    ///
+    /// * **`gl.rs`' `NAME_SEPARATORS` must contain `25`** — every `resolve` on
+    ///   the first two cells is `Some`, which is only possible if
+    ///   `gl_symbol_index` indexes a `25`-introduced record. Before `d28326b4`
+    ///   it did not, and the whole class read `data-sym-unresolved`. Dropping
+    ///   `25` again fails this test at the `resolve` line, *before* the prefix
+    ///   line, so the two sites cannot be confused for each other.
+    /// * **the prefix gate is `??_C@_0`, not `??_C@`** (MF3) — L-narrow and
+    ///   L-wide are the same record but for the width field. `w-section` §3.3
+    ///   measured wide **0** of 1,458 over the workload: nothing has graded a
+    ///   wide literal's emit, so admitting one is `docs/GAPS.md` §6's forbidden
+    ///   generalization.
+    /// * **the linkage gate still runs for everything else** (MF4, `w-guards`'
+    ///   M3 re-asked with this lane's change in place) — D-defined is refused
+    ///   because it is defined here, D-extern is admitted because it is not.
+    ///   The literal cells carry linkage `01` *deliberately*: a literal IS
+    ///   defined by the real obj, the prefix clause returns before the linkage
+    ///   gate is ever consulted, and that is exactly why
+    ///   [`crate::IlBundle::functions`] has to refuse the whole TU instead.
+    #[test]
+    fn resolve_data_admits_the_narrow_literal_and_nothing_else_new() {
+        let mut gl = Vec::new();
+        gl.extend(data_record([0x11, 0x0A], NARROW_LIT, 0x25, 0x01));
+        gl.extend(data_record([0x12, 0x0A], WIDE_LIT, 0x25, 0x01));
+        gl.extend(data_record([0x13, 0x0A], "?objA@@3HA", 0x00, 0x01));
+        gl.extend(data_record([0x14, 0x0A], "?objB@@3HA", 0x00, 0x02));
+        let segs: Vec<&[u8]> = vec![&[0u8; 4]];
+        let b = Bindings::positional(&gl, &[], None, &segs);
+
+        // ---- the SCANNER half: all four names are visible, `25` included.
+        for (t, want) in [
+            ([0x11, 0x0A], NARROW_LIT),
+            ([0x12, 0x0A], WIDE_LIT),
+            ([0x13, 0x0A], "?objA@@3HA"),
+            ([0x14, 0x0A], "?objB@@3HA"),
+        ] {
+            assert_eq!(
+                b.resolve(tok(t)).as_deref(),
+                Some(want),
+                "`gl_symbol_index` must NAME token {:#06x}. A `None` on either \
+                 literal means `gl.rs`' `NAME_SEPARATORS` no longer admits the \
+                 `25` string-literal separator — the site that moved at \
+                 `d28326b4` — and the whole class reverts to \
+                 `data-sym-unresolved`, which is a silent loss of 163 \
+                 relocation-graded byte-exact functions, not a failure",
+                tok(t)
+            );
+        }
+
+        // ---- the GATE half: exactly two of the four may be relocated against.
+        assert_eq!(
+            b.resolve_data(tok([0x11, 0x0A])).as_deref(),
+            Some(NARROW_LIT),
+            "the NARROW literal is the admitted population (+163 fnbyte-exact, \
+             every one relocation-graded). Refusing it here retires the whole \
+             widening"
+        );
+        assert_eq!(
+            b.resolve_data(tok([0x12, 0x0A])),
+            None,
+            "MF3: the WIDE literal must keep refusing. It resolves to a NAME \
+             (asserted above), so this refusal is the PREFIX gate and not \
+             invisibility — widening `{STRLIT_NARROW_PREFIX}` to `??_C@` admits \
+             a population no capture has ever graded"
+        );
+        assert_eq!(
+            b.resolve_data(tok([0x13, 0x0A])),
+            None,
+            "MF4: a symbol this TU DEFINES (linkage `01`) must still be refused \
+             by the linkage gate — `IL_CALL_IN_EXPR.md` §17.2 item 7's \
+             whole-extra-section cost. The string-literal clause returns EARLY \
+             and must not have short-circuited this one for ordinary names"
+        );
+        assert_eq!(
+            b.resolve_data(tok([0x14, 0x0A])).as_deref(),
+            Some("?objB@@3HA"),
+            "positive control: an undefined-external data symbol (linkage `02`) \
+             is still admitted. Without this cell the refusal above would pass \
+             on a gate that refuses everything"
+        );
+
+        // The prefix is a PREFIX, not the whole name, and the two literals share
+        // it up to the width field — so a test that passed by comparing whole
+        // names would not be grading the gate.
+        assert!(
+            NARROW_LIT.starts_with(STRLIT_NARROW_PREFIX)
+                && !WIDE_LIT.starts_with(STRLIT_NARROW_PREFIX)
+                && WIDE_LIT.starts_with("??_C@"),
+            "the two literal names must straddle `{STRLIT_NARROW_PREFIX}` and \
+             share `??_C@` — if they do not, the widening MF3 registers is not \
+             the thing this pair distinguishes"
+        );
+    }
 }
+

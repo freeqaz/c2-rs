@@ -3969,6 +3969,151 @@ mod wr1_census_key_guards {
 
     const UNRESOLVED: &str = "data-sym-unresolved:eof";
     const NOT_EXTERN: &str = "data-sym-not-extern:eof";
+    /// **W-FENCE163** — the key a string-literal argument takes when the narrow
+    /// prefix does not admit it.
+    const STRLIT_FENCED: &str = "data-sym-strlit-fenced:eof";
+    /// The key the body reports when every symbol argument resolves.
+    const MULTIARG: &str = "multiarg-tail-call";
+
+    /// A real narrow (`char`) literal name and a real wide (`wchar_t`) one,
+    /// **captured** from `c2.dll` at the workload profile for `d("aa")` and
+    /// `d(L"aa")` (measured `d28326b4`). The mangling's `_0`/`_1` field is the
+    /// width and it is the whole difference between the two cells below.
+    const NARROW_LIT: &str = "??_C@_02DKCKIIND@aa?$AA@";
+    const WIDE_LIT: &str = "??_C@_15KDHKKBLG@a?$AAa?$AA?$AA?$AA@";
+
+    /// `.gl` naming the callee and both symbol arguments, with the **first**
+    /// argument's record replaced by a STRING-LITERAL record: separator `25`
+    /// instead of `00`, and `name` in place of `?objA@@3HA`. Everything else is
+    /// `gl_named(0x01)` byte for byte, so this is cell **B** with one record
+    /// substituted.
+    ///
+    /// Linkage stays `01` deliberately — a literal IS defined by the real obj,
+    /// which is exactly why admitting its *name* cannot license emitting its
+    /// *section*.
+    fn gl_strlit(name: &str) -> Vec<u8> {
+        let mut g = sym_rec([0xEA, 0x09], "?ctor@@YAXXZ");
+        let mut lit = data_rec([0xF9, 0x09], name, 0x01);
+        lit[3] = 0x25; // the string-literal name separator
+        g.extend(lit);
+        g.extend(data_rec([0xFC, 0x09], "?strB@@3HA", 0x02));
+        g
+    }
+
+    /// **W-FENCE163's cells, beside cell B — and the recorded response to
+    /// `2026-08-16-guards.md` §8.1.**
+    ///
+    /// §8.1 wrote an interaction row in advance: *"a prefix-gated string-literal
+    /// admission would turn cell B RED"*. It did **not** — measured at
+    /// `d28326b4`, all five guards in this module stayed GREEN — and the reason
+    /// is the row's trigger condition, not its existence: cell B's refused name
+    /// is `?objA@@3HA`, which carries no `??_C@` prefix at all, so no
+    /// prefix-gated admission can reach it. An advance-written interaction row
+    /// was **right to exist and wrong in its trigger**; the response it named is
+    /// executed here regardless, and nothing above was weakened or deleted.
+    ///
+    /// Four cells, each differing from cell B in exactly one substituted `.gl`
+    /// record, and **three** distinct keys — measured at `d28326b4`:
+    ///
+    /// | cell | first argument's record | key |
+    /// |---|---|---|
+    /// | **B** (above, unchanged) | `?objA@@3HA`, sep `00`, linkage `01` | `data-sym-not-extern:eof` |
+    /// | **C** (above, unchanged) | `?objA@@3HA`, sep `00`, linkage `02` | `callee-unresolved-tail-call:eof` |
+    /// | **B-narrow** | `??_C@_0…`, sep `25`, linkage `01` | `callee-unresolved-tail-call:eof` |
+    /// | **B-wide** | `??_C@_1…`, sep `25`, linkage `01` | `data-sym-strlit-fenced:eof` |
+    ///
+    /// **Cell C is the yardstick and that is the whole design of this test.**
+    /// This transcript is the two-symbol `??__E` thunk, so it refuses *downstream*
+    /// of the data-symbol gate whatever happens at the gate — `callee-unresolved-tail-call`
+    /// is not "in class", it is **"past the gate"**, and cell C is what past-the-gate
+    /// looks like when the name is an honest undefined external. So the claim
+    /// *"the narrow literal is admitted"* is stated as `B-narrow == C` rather
+    /// than against a hard-coded in-class key, which would have been a claim
+    /// about the arity fence instead. B-narrow against B is the widening itself
+    /// (the same linkage byte `01`, admitted only because the name is a narrow
+    /// literal); B-narrow against B-wide is the prefix gate (MF3). Every
+    /// assertion is on the published key string, like every guard here, so a
+    /// mutation that renames the constant is still caught.
+    #[test]
+    fn the_string_literal_admission_is_narrow_only_and_leaves_cell_b_alone() {
+        let cell_b = key_of("B (named, linkage 01)", DYNINIT, gl_named(0x01));
+        let cell_c = key_of("C (named, linkage 02)", DYNINIT, gl_named(0x02));
+        let narrow = key_of("B-narrow (`??_C@_0…`, sep 25)", DYNINIT, gl_strlit(NARROW_LIT));
+        let wide = key_of("B-wide (`??_C@_1…`, sep 25)", DYNINIT, gl_strlit(WIDE_LIT));
+
+        assert_eq!(
+            cell_b, NOT_EXTERN,
+            "cell B is UNCHANGED by the string-literal admission and that is \
+             `w-guards` §8.1's advance row scored, not skipped: its refused name \
+             `?objA@@3HA` carries no `??_C@` prefix, so a prefix-gated admission \
+             cannot reach it. Got `{cell_b}` — if this moved, the admission is \
+             not prefix-gated and it is eating the linkage gate whole"
+        );
+        assert_eq!(
+            narrow, cell_c,
+            "the NARROW literal at linkage `01` must reach the SAME key as an \
+             undefined external at linkage `02` (`{cell_c}`) — that is exactly \
+             what `resolve_data`'s prefix clause does: it returns the name \
+             *before* the linkage gate is consulted, so the literal is treated \
+             as relocatable although the real obj defines it. Got `{narrow}`. \
+             A refusal here retires the whole widening; and because this cell's \
+             separator is `25`, it also fails if `gl.rs`' `NAME_SEPARATORS` \
+             stops admitting the string-literal separator"
+        );
+        assert_ne!(
+            narrow, cell_b,
+            "…and the narrow literal must NOT read like cell B, whose linkage \
+             byte is the same `01`. Equal keys mean the prefix clause is not \
+             firing and the +163 is coming from somewhere else"
+        );
+        assert_eq!(
+            wide, STRLIT_FENCED,
+            "MF3: the WIDE literal — the same record but for the mangling's \
+             width field — must keep refusing, under the fence's own key. Got \
+             `{wide}`. `w-section` §3.3 measured wide **0** of 1,458: nothing has \
+             graded a wide literal's emit, and widening the prefix to `??_C@` \
+             admits it in silence"
+        );
+        assert_ne!(
+            wide, cell_c,
+            "…and the wide literal must not reach the past-the-gate key either, \
+             or the prefix gate is admitting both widths"
+        );
+
+        // Four cells, THREE distinct keys, and the partition is named: cell B
+        // alone at `data-sym-not-extern`, cell C and B-narrow together past the
+        // gate, B-wide alone at the fence's key. Asserted as a count because a
+        // collapse anywhere makes the pairs above vacuous.
+        let distinct: std::collections::BTreeSet<&str> =
+            [cell_b.as_str(), cell_c.as_str(), narrow.as_str(), wide.as_str()]
+                .into_iter()
+                .collect();
+        assert_eq!(
+            distinct.len(),
+            3,
+            "4 cells graded, 3 distinct keys expected, got {}: {distinct:?}",
+            distinct.len()
+        );
+        // The in-class key is spelled here so the module's vocabulary stays
+        // complete even though this transcript refuses downstream of the gate:
+        // `MULTIARG` is what a ONE-symbol body reports (the M1 series' n=1 cell),
+        // and no cell in this test may reach it — a literal cell that came back
+        // in class would mean the two-symbol arity fence had also gone.
+        assert!(
+            ![cell_b.as_str(), cell_c.as_str(), narrow.as_str(), wide.as_str()]
+                .contains(&MULTIARG),
+            "no cell in this two-symbol transcript may report `{MULTIARG}`: \
+             {distinct:?}"
+        );
+        // …and the three `.gl` variants must differ ONLY in the substituted
+        // record, or the cells are not isolating it.
+        assert_eq!(
+            gl_strlit(NARROW_LIT).len() - NARROW_LIT.len(),
+            gl_strlit(WIDE_LIT).len() - WIDE_LIT.len(),
+            "the two literal cells' `.gl` must be identical apart from the name \
+             run itself — anything else and the pair varies more than the width"
+        );
+    }
 
     /// **M4 — the two keys #3177's ranking is BUILT FROM are not
     /// interchangeable.**
