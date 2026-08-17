@@ -1463,6 +1463,23 @@ pub(crate) const DATA_SYM_UNRESOLVED: &str = "data-sym-unresolved";
 /// this one needs a section emitter, that one needs a name.
 pub(crate) const DATA_SYM_LINKAGE: &str = "data-sym-not-extern";
 
+/// **W-FENCE163** — census `ctx` for a NARROW string literal
+/// ([`super::bind::STRLIT_NARROW_PREFIX`]) that resolves through the `25`
+/// separator and is refused by [`super::bind::Bindings::strlit_fence_open`]:
+/// the TU's defined-name walk bound nothing, so the inline fence (census gate
+/// (c)) is blind here and *"the callee is not defined in this TU"* cannot be
+/// checked. The one measured member is `?ContentPath@XboxContentMgr@@UAAPBDH@Z`
+/// (c2 inlines the locally-defined `MakeString`; an unfenced admission emits
+/// the un-inlined tail call, 3 words against 14).
+///
+/// Its own key — apart from [`DATA_SYM_LINKAGE`] (needs a section emitter) and
+/// [`DATA_SYM_UNRESOLVED`] (needs a name) — because this population needs a
+/// **third** thing (a usable defined-name walk on its TU), and it is the
+/// standing two-sided price of the fence: every scan counts what the fence is
+/// holding, so the refusal's own cost cannot go quiet (CLAUDE.md's two-sided
+/// pricing rule; `docs/CFG_SHAPE.md` §6.3 rule 2).
+pub(crate) const DATA_SYM_STRLIT_FENCED: &str = "data-sym-strlit-fenced";
+
 /// **The grammar-completeness axis** — `docs/ROADMAP.md` §9.11 / §9.14.
 ///
 /// One closed vocabulary for the one question the roadmap ranks by: *is

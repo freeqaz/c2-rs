@@ -506,6 +506,15 @@ pub(crate) enum SelectiveStop {
 /// [`Bindings::per_record`] and [`Bindings::positional`] — *are* the
 /// distinction, and a field nothing reads would be dead weight pretending to be
 /// a check.
+/// **W-FENCE163 — the NARROW string-literal name prefix, and only the narrow
+/// one.** `??_C@_0` is MSVC's mangling for a `char` literal whose name-hash form
+/// is the short one; it is the entire measured population (`w-section` §3.3:
+/// 1,457 of 1,458 head functions, **wide (`??_C@_1`) 0, other 0**). Widening
+/// this to `??_C@` would admit classes no capture has ever graded — the exact
+/// generalization `docs/GAPS.md` §6 forbids — and a unit test pins the wide
+/// form refused.
+pub(crate) const STRLIT_NARROW_PREFIX: &str = "??_C@_0";
+
 pub(crate) struct Bindings<'a> {
     names: Vec<String>,
     paired: bool,
@@ -869,22 +878,57 @@ impl<'a> Bindings<'a> {
         self.symbols.map().get(&tok).cloned()
     }
 
-    /// **WR1 — token → the name of an UNDEFINED-EXTERNAL DATA symbol.**
+    /// **WR1 — token → the name of an UNDEFINED-EXTERNAL DATA symbol, or (behind
+    /// [`Bindings::strlit_fence_open`]) of a NARROW STRING LITERAL.**
     ///
     /// [`Bindings::resolve`] plus the `.gl` linkage gate, as one predicate,
     /// because the two facts are asked at exactly one place and separating them
     /// is how a caller ends up applying one and not the other. Three populations
     /// it refuses, each for its own measured reason:
     ///
-    /// * **a string literal** — its `.gl` record carries the `25` separator
-    ///   `gl_symbol_index` excludes, so it resolves to nothing at all;
+    /// * **a WIDE or non-`_0` string literal** — only the measured class is
+    ///   admitted. `w-section` split the head by name and found **wide 0, other
+    ///   0** over 1,458; the `??_C@_0` (narrow, short-name) form is the only one
+    ///   any capture has graded, so the others keep refusing until one exists to
+    ///   grade (`docs/rungs/2026-08-16-section.md` §3.3);
     /// * **a defined or static global** — [`gl_extern_data_names`], and the cost
     ///   of admitting one is a whole extra section (`docs/IL_CALL_IN_EXPR.md`
     ///   §17.2 item 7);
     /// * **a function** — its record fails the same frame check, so a callee's
     ///   token can never be read as an object's address.
+    ///
+    /// # The string-literal admission (W-FENCE163), and where its TWO fences live
+    ///
+    /// A `??_C@_0…` name resolves here only because [`super::gl`]'s
+    /// `NAME_SEPARATORS` admits the `25` separator; the admission is what moved
+    /// `fnbyte-exact` **35,734 → 35,897 (+163, every one relocation-graded)**
+    /// on the 878-TU workload — measured by `w-section` at `202bfc3f` behind the
+    /// call-fence lift, and re-measured by `w-fence163` at `3835469c` without it
+    /// (same +163). What a caller gets is a name to **relocate against**, and
+    /// that licence is bounded by two fences this function deliberately does
+    /// NOT own, because neither is a fact about one token:
+    ///
+    /// * **the census refuses a strlit-carrying BODY whose TU could hide a
+    ///   locally-defined callee** — `census.rs` clause (c2),
+    ///   `DATA_SYM_STRLIT_FENCED`, the fence `?ContentPath@…` needs (c2 inlines
+    ///   the locally-defined `MakeString`; the un-inlined tail call is 3 words
+    ///   against 14);
+    /// * **the whole-TU gate refuses to EMIT any obj carrying one** —
+    ///   [`crate::IlBundle::functions`]' `data_syms` accounting, because the
+    ///   real obj *defines* the literal's `.rdata` COMDAT (`w-section` §2
+    ///   R1–R8) and this writer has no emitter for it; accounting it as an
+    ///   undefined external would be `IL_CALL_IN_EXPR.md` §17.2 item 7's
+    ///   5-section-against-6 mis-emit.
+    ///
+    /// So the +163 is per-function byte credit (`FUNCTION_BYTE_MATCH.md`); no
+    /// obj gains a section the writer cannot build, and TU `match` is 25 before
+    /// and after, by arithmetic on the TUs' own body counts
+    /// (`2026-08-16-section.md` §5.1).
     pub(crate) fn resolve_data(&self, tok: u32) -> Option<String> {
         let name = self.resolve(tok)?;
+        if name.starts_with(STRLIT_NARROW_PREFIX) {
+            return Some(name);
+        }
         self.extern_data
             .get_or_init(|| gl_extern_data_names(self.gl))
             .contains(&name)

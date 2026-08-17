@@ -3,12 +3,13 @@ use super::body::{
     CALLEE_DEFINED_IN_TU, CALLEE_UNRESOLVED_DTOR,
     CALLEE_UNRESOLVED_FRAMED, CALLEE_UNRESOLVED_SEQ, CALLEE_UNRESOLVED_TAIL,
     STATIC_SCAN_LOOP_OBJECT, STORE_RUN_BIND_NO_CARRIER, STORE_RUN_CALL_NO_CARRIER,
-    DATA_SYM_LINKAGE, DATA_SYM_UNRESOLVED, OPT_MODE, PTR_WALK_CHAIN_LOOP_NOT_O1,
+    DATA_SYM_LINKAGE, DATA_SYM_STRLIT_FENCED, DATA_SYM_UNRESOLVED, OPT_MODE,
+    PTR_WALK_CHAIN_LOOP_NOT_O1,
     PTR_WALK_LOOP_NOT_O1,
 };
 use super::bind::{
     callee_defined_here, callee_defined_here_unmodelled, defined_name_set, Bindings,
-    EmitBinding,
+    EmitBinding, STRLIT_NARROW_PREFIX,
 };
 use super::bundle::shape_to_function;
 use super::bundle::split_function_bodies_at;
@@ -711,6 +712,35 @@ impl IlBundle {
         // so the two cannot key one function two ways.
         let empty_here: std::cell::OnceCell<std::collections::BTreeSet<String>> =
             std::cell::OnceCell::new();
+        // **W-FENCE163 — the string-literal fence's ground map: emit-binding
+        // name → the segment that DEFINES it, for every name the emit binding
+        // claims on one of this TU's own segments.**
+        //
+        // Clause (c2) below cannot use clause (c)'s `defined` set:
+        // [`defined_name_set`]'s walk is whole-TU fail-closed and binds **0
+        // records on most real TUs** (measured on `ContentMgr_Xbox.cpp`, and
+        // `gl.rs`' own doc records 0-of-36 on `vec.cpp`), which is exactly the
+        // blindness that let `?ContentPath@…` grade `fnbyte-differs` under an
+        // unfenced admission. The [`EmitBinding`] read of the same `.gl` DOES
+        // frame the definition records on those TUs — it is the reader the
+        // emitted census itself runs on — and it names `?MakeString@@YAPBDPBD@Z`
+        // on the TU that shipped the wrong lowering (probed: 1,137 of 2,053
+        // segments named there, the callee among them).
+        //
+        // **The residue is fail-OPEN and is stated rather than hidden**: a
+        // callee whose defining segment the emit binding leaves nameless (916
+        // of 2,053 on that same TU) is invisible here, exactly as clause (c)'s
+        // doc says of its own walk. Requiring completeness instead was BUILT
+        // AND MEASURED first (this lane's F2 rung): it closes the fence on
+        // essentially every real TU and holds back the entire +163 — a fence
+        // whose price is its whole yield. What bounds the open direction is
+        // the grading itself: a call lowered against a callee c2 inlined or
+        // discarded cannot be byte-exact, and `fnbyte-differs` plus the
+        // relocation-target compare (board #984's reader) are the standing
+        // instruments that count it — the tip scan's requirement of
+        // `fnbyte-differs` Δ0 is the fence's own acceptance test.
+        let strlit_ground: std::cell::OnceCell<std::collections::BTreeMap<String, usize>> =
+            std::cell::OnceCell::new();
         // **W-MMIOCLOSE — the `.gl` function attribute byte, once per bundle.**
         // `None` when the reader refused the file; see
         // [`super::gl::gl_function_attrs`] for why that is a whole-file answer
@@ -1212,10 +1242,23 @@ impl IlBundle {
                                     .iter()
                                     .find_map(|a| match a {
                                         body::SlotArg::SymAddr(t) if resolve_data(*t).is_none() => {
-                                            Some(if resolve(*t).is_none() {
-                                                DATA_SYM_UNRESOLVED
-                                            } else {
-                                                DATA_SYM_LINKAGE
+                                            Some(match resolve(*t) {
+                                                None => DATA_SYM_UNRESOLVED,
+                                                // **W-FENCE163** — the name is a
+                                                // string literal that
+                                                // `resolve_data`'s narrow-prefix
+                                                // clause did NOT admit (wide, or
+                                                // an unmeasured form). Filed
+                                                // under the fence's own key, not
+                                                // `DATA_SYM_LINKAGE`: this
+                                                // population needs a *grading*,
+                                                // not a section emitter, and the
+                                                // two rows size two different
+                                                // rungs.
+                                                Some(n) if n.starts_with("??_C@") => {
+                                                    DATA_SYM_STRLIT_FENCED
+                                                }
+                                                Some(_) => DATA_SYM_LINKAGE,
                                             })
                                         }
                                         _ => None,
@@ -1376,6 +1419,96 @@ impl IlBundle {
                                 {
                                     let _ = f;
                                     FnVerdict::Blocked(Block::at_end(seg, CALLEE_DEFINED_IN_TU))
+                                }
+                                // **(c2) W-FENCE163 — the string-literal fence.**
+                                //
+                                // A body that materializes a `??_C@_0…` address
+                                // is newly admitted by `resolve_data`, and the
+                                // one measured wrong lowering in that class is
+                                // `?ContentPath@XboxContentMgr@@UAAPBDH@Z`:
+                                // its callee (`MakeString`, an `inline` header
+                                // function) is DEFINED in the TU, c2 INLINES it
+                                // (14 words against the port's 3), and clause
+                                // (c) above cannot see that because `defined`
+                                // is empty on that TU. The question is re-asked
+                                // here against the emit-binding ground map
+                                // (`strlit_ground`), and a defined-here callee
+                                // is admitted on exactly TWO measured grounds:
+                                //
+                                // * it is **modelled** — mechanism E elides it
+                                //   or the splice lowers it (clause (c)'s own
+                                //   exemption, same set); or
+                                // * its own body decodes **`eh-state1`**
+                                //   (`maxState >= 1`) — **c2's inliner keeps a
+                                //   call to an EH-stateful callee**, measured on
+                                //   a four-cell obj grid at the workload's
+                                //   profile (`rungs/2026-08-17-fence163.md`
+                                //   §2): dtor-temp + throw KEPT, dtor-local
+                                //   without any throw KEPT (the discriminating
+                                //   cell), no-dtor no-throw INLINED (the
+                                //   ContentPath reproduction), and bare throw
+                                //   with no unwindable INLINED — so the
+                                //   categorical fact is the EH STATE, not the
+                                //   throw. On the workload the admitted side is
+                                //   1,047 calls to `?__stl_throw_length_error@…`
+                                //   plus 8 to `?__stl_throw_out_of_range@…`
+                                //   (both `eh-state1`, both kept by c2, 163 of
+                                //   them emitted and every one relocation-graded
+                                //   byte-exact), and the refused side is
+                                //   `MakeString` (`eh-none`, inlined by c2).
+                                //
+                                // Anything else — `eh-none`, `eh-state0`,
+                                // `eh-partial`, `eh-unknown`, or a segment the
+                                // ground map cannot name — refuses, fail-closed:
+                                // only the measured non-inlined class is
+                                // admitted.
+                                //
+                                // Scoped to strlit-carrying bodies on purpose:
+                                // widening this gate to every call-bearing
+                                // body would re-fence populations that are
+                                // byte-exact today, and that widening is a
+                                // separately-priced rung (`GAPS.md` §6's
+                                // two-sided rule, applied in the other
+                                // direction).
+                                Some(f)
+                                    if f.data_syms
+                                        .iter()
+                                        .any(|d| d.starts_with(STRLIT_NARROW_PREFIX))
+                                        && {
+                                            let ground = strlit_ground.get_or_init(|| {
+                                                (0..segs.len())
+                                                    .filter_map(|j| {
+                                                        emit.name(j).map(|n| (n.to_string(), j))
+                                                    })
+                                                    .collect()
+                                            });
+                                            let modelled = empty_here.get_or_init(|| {
+                                                tu_modelled_callees(
+                                                    &segs,
+                                                    &bind,
+                                                    &emit,
+                                                    &src,
+                                                    &resolve,
+                                                    &resolve_data,
+                                                    &resolve_data_def,
+                                                    &resolve_bss_def,
+                                                )
+                                            });
+                                            f.callees().any(|c| {
+                                                let Some(&j) = ground.get(c) else {
+                                                    return false; // not known-defined here
+                                                };
+                                                if modelled.contains(c) {
+                                                    return false; // graded elide/splice model
+                                                }
+                                                // c2 keeps the call ONLY for an
+                                                // EH-stateful callee (grid §2).
+                                                cflow_key(segs[j]).1 != "eh-state1"
+                                            })
+                                        } =>
+                                {
+                                    let _ = f;
+                                    FnVerdict::Blocked(Block::at_end(seg, DATA_SYM_STRLIT_FENCED))
                                 }
                                 Some(mut f) => {
                                     // **W-MMIOCLOSE — the `.gl` inlinability
@@ -1779,3 +1912,4 @@ mod tests {
         assert!(names.iter().all(|n| n.starts_with("complete-")), "{names:?}");
     }
 }
+

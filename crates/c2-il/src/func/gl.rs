@@ -1079,10 +1079,22 @@ const MAX_NAME_TO_OFFSET: usize = 32;
 /// `docs/GAPS.md` §6 ("a guessed name is worse than a hex bucket"). Nothing in
 /// this file branches on the value; both are simply records.
 ///
-/// A third value, `25`, introduces a string-literal (`??_C@…`) record; it is
-/// **not** admitted, because nothing calls a string literal and admitting a record
-/// class is a licence to bind tokens from it.
-const NAME_SEPARATORS: [u8; 2] = [0x00, 0x26];
+/// A third value, `25`, introduces a string-literal (`??_C@…`) record. It was
+/// excluded from 2026-08-04 to 2026-08-17 — *"nothing calls a string literal and
+/// admitting a record class is a licence to bind tokens from it"* — and the
+/// global re-bind risk that sentence names was **EXERCISED before this line
+/// moved**: lane `w-section` (rung `2026-08-16-section.md` §5, at `202bfc3f`)
+/// measured the admission over the whole 878-TU workload and every previously
+/// bound population held to the function (`plain/exact` 29,316, `seq/exact`
+/// 1,236, `fnbyte-reloc-differs` 530, `mismatch` 0), while 163 bodies came back
+/// **relocation-graded byte-exact**. `w-fence163` ships it with the consumer
+/// gated: [`super::bind::Bindings::resolve_data`] admits a `??_C@_0…` name only
+/// behind its own fence (see there), so binding the record class is not a
+/// licence to emit against it.
+///
+/// (`NAME_SEPARATORS[1]` is indexed directly by the `26`-specific clauses above
+/// and in [`symbol_runs`]; `25` is appended so those keep their meaning.)
+const NAME_SEPARATORS: [u8; 3] = [0x00, 0x26, 0x25];
 
 /// The record-kind byte, immediately before the operand token. **MEASURED as
 /// exactly this set** over 32,898 `?`-mangled records in eight real translation
@@ -4060,3 +4072,4 @@ mod tests {
         );
     }
 }
+
