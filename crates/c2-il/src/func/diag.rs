@@ -247,7 +247,9 @@ impl IlBundle {
     pub fn decode_causes(&self) -> DecodeCauses {
         let mut out = DecodeCauses {
             decodes: self.decodes(),
-            whole_tu: self.dyninit_tu().is_some() || self.eh_scope_tu().is_some(),
+            whole_tu: self.dyninit_tu().is_some()
+                || self.eh_scope_tu().is_some()
+                || self.provide_data_tu().is_some(),
             ..DecodeCauses::default()
         };
 

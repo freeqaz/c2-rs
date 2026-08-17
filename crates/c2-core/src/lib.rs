@@ -380,14 +380,46 @@ impl PortC2 {
             ));
         }
 
-        let funcs = il.functions().ok_or_else(|| {
-            BackendError::NotImplemented(
-                "PortC2 only handles straight-line int add-chain functions \
-                 (e.g. add3, or a TU of several such); this bundle is outside \
-                 that class. See c2-core::codegen and the CODEGEN spec."
-                    .to_string(),
-            )
-        })?;
+        let funcs = match il.functions() {
+            Some(f) => f,
+            None => {
+                // **W-NPOS — the provide-always data TU, class B** (the
+                // empty-main-file / pch-creator shape): `.ex` carries function
+                // segments c2 emits none of, and the obj is the shell plus one
+                // COMDAT section per provide-always (`attr 0xE0`) data record.
+                // `functions()` correctly refuses it (its `.gl` walk stops at
+                // a 26-introduced name), so this is tried on the refusal path
+                // — zero cost for every TU the per-function gate accepts.
+                // Every acceptance clause lives in the recognizer; the
+                // emitter's own fences mirror them (`coff::provide`).
+                if let Some(tu) = il.provide_data_tu() {
+                    let objs: Vec<coff::ProvideObj> = tu
+                        .objects
+                        .iter()
+                        .map(|o| coff::ProvideObj {
+                            symbol: &o.coff_name,
+                            ro: o.ro,
+                            bytes: &o.bytes,
+                        })
+                        .collect();
+                    if let Some(obj) = coff::emit_provide_data_obj(obj_name, &objs) {
+                        return Ok(ObjImage::new(obj));
+                    }
+                    return Err(BackendError::NotImplemented(
+                        "a provide-always data TU outside the emitter's \
+                         measured class: an object width, name or section \
+                         shape with no witnessed cell"
+                            .to_string(),
+                    ));
+                }
+                return Err(BackendError::NotImplemented(
+                    "PortC2 only handles straight-line int add-chain functions \
+                     (e.g. add3, or a TU of several such); this bundle is outside \
+                     that class. See c2-core::codegen and the CODEGEN spec."
+                        .to_string(),
+                ));
+            }
+        };
 
         // R1: a TU that defines no functions. Its obj is the fixed four-section
         // shell with no `.text` at all, so it never reaches instruction
@@ -477,6 +509,32 @@ impl PortC2 {
                 if let Some(obj) = coff::emit_data_obj(obj_name, &objs) {
                     return Ok(ObjImage::new(obj));
                 }
+            }
+            // **W-NPOS — the provide-always data TU, class A**: a positively
+            // empty module whose `.gl` carries provide-always (`attr 0xE0`)
+            // COMDAT data records — `__declspec(selectany)` objects and
+            // explicitly-instantiated template statics. `data_tu` refuses
+            // every COMDAT record by design (its writer builds one shared
+            // `.data`/`.bss`); this class is one COMDAT section per object.
+            if let Some(tu) = il.provide_data_tu() {
+                let objs: Vec<coff::ProvideObj> = tu
+                    .objects
+                    .iter()
+                    .map(|o| coff::ProvideObj {
+                        symbol: &o.coff_name,
+                        ro: o.ro,
+                        bytes: &o.bytes,
+                    })
+                    .collect();
+                if let Some(obj) = coff::emit_provide_data_obj(obj_name, &objs) {
+                    return Ok(ObjImage::new(obj));
+                }
+                return Err(BackendError::NotImplemented(
+                    "a provide-always data TU outside the emitter's measured \
+                     class: an object width, name or section shape with no \
+                     witnessed cell"
+                        .to_string(),
+                ));
             }
             return Err(BackendError::NotImplemented(
                 "a TU that defines no functions but whose `.gl` names storage \

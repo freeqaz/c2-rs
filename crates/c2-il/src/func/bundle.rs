@@ -258,6 +258,36 @@ pub struct DataTu {
     pub in_census: (usize, usize, usize, usize),
 }
 
+/// **W-NPOS** — the whole-TU shape [`IlBundle::provide_data_tu`] accepts: the
+/// four-section shell plus one COMDAT `sel=2` data section per provide-always
+/// (`attr 0xE0`) `.gl` data record, and nothing else.
+pub struct ProvideDataTu {
+    /// The provide-always objects, in `.gl` record order — the order the probe
+    /// grid's two-object cell (`x05`) witnessed, unseparated there from
+    /// declaration order (the two coincide on every witness).
+    pub objects: Vec<ProvideDataObject>,
+    /// The source path from `.gl`, for `.debug$S`.
+    pub src: Option<String>,
+}
+
+/// One provide-always COMDAT data object (see [`ProvideDataTu`]).
+pub struct ProvideDataObject {
+    /// The COFF symbol name (EXTERNAL on every witness; internal refuses).
+    pub coff_name: String,
+    /// `sizeof` the object — witnessed widths 1, 2, 4, 8 only.
+    pub size: u32,
+    /// Natural alignment from the `.gl` TYPE tag; `== size` on every witness,
+    /// and the recognizer refuses the aggregate case where they differ.
+    pub natural_align: u32,
+    /// `true` — the record's read-only pair (`00 04`): the section is
+    /// `.rdata`, chars `0x40001040 | nibble`. `false` — `.data`,
+    /// `0xC0001040 | nibble`.
+    pub ro: bool,
+    /// The raw content, from `.in`, already in obj byte order;
+    /// `bytes.len() == size` enforced at decode.
+    pub bytes: Vec<u8>,
+}
+
 /// The `.ex` per-function start marker (`4F 1F`). The module stream is a
 /// sequence of function bodies, each introduced by this marker; the header /
 /// index region before the first one is opaque zero-fill for this class.
@@ -3044,6 +3074,208 @@ impl IlBundle {
         })
     }
 
+    /// **W-NPOS — the PROVIDE-ALWAYS data TU** (`decomp_pch.cpp`, match 26):
+    /// a TU whose obj is the four-section shell plus one COMDAT `sel=2` data
+    /// section per **attr-`0xE0`** `.gl` data record — `.rdata` for a
+    /// read-only record, `.data` otherwise — and **nothing else**: no `.text`,
+    /// no relocations, no undefined externals.
+    ///
+    /// # The licence, measured rather than modeled
+    ///
+    /// `.gl`'s data records carry an attribute byte, and its `0x40` bit — the
+    /// `__declspec(selectany)` bit [`gl::data_object_at` refuses] — is c1xx
+    /// saying *provide this definition unconditionally*. Eleven probe cells
+    /// plus `decomp_pch.cpp`'s own capture (`work/w-npos/`) separate it from
+    /// every rival reading:
+    ///
+    /// * attr `E0` records are emitted with **zero** emitted functions, zero
+    ///   references, and the referenced-flag both set (`decomp_pch`) and
+    ///   clear (`g10`, `x02`);
+    /// * attr `A0` records — same frame, `0x40` clear — are emitted **never**:
+    ///   g03/g05/g06's instantiated-but-not-provided template statics, and
+    ///   all 314 `A0` records of `decomp_pch.cpp` against its 905-byte obj;
+    /// * the `00 04` read-only pair sends the object to `.rdata`
+    ///   (`?npos@…@2IB`, chars `0x40301040`) and `00 02` to `.data`
+    ///   (`?sa@@3HA`, chars `0xC0301040`), COMDAT `sel=2` either way, aux
+    ///   CheckSum = the real CRC of the content.
+    ///
+    /// # The function side, and why it is a FENCE and not a proof
+    ///
+    /// c2's *function* emit set is not derivable from the container by any
+    /// rule this project has (`SELECTIVE_EMIT_SET_UNKNOWN`; probe `g12` — an
+    /// explicit instantiation — emits a function whose `.gl` record is
+    /// byte-identical in every measured field to probe `x01`'s, which emits
+    /// nothing). So this recognizer does not model it; it accepts only two
+    /// shapes on which the answer is **witnessed to be empty**:
+    ///
+    /// * **class A** — `.ex` positively declares an empty module: no body
+    ///   exists, so none can be emitted (probes `x02`, `x04`, `g10`);
+    /// * **class B** — `.ex` carries function segments, and every module-level
+    ///   block intro (`4F 02 20 00 4F 01 <k>`) is followed by another block
+    ///   intro or a bare `4F 1F` segment — the **empty-main-file (pch-creator)
+    ///   shape**, in which the main file contributes no statement and c2 emits
+    ///   none of the header bodies. `decomp_pch.cpp` (1,242 segments, 0
+    ///   emitted) is the witness; every probe whose main file defines or
+    ///   provides anything (`g01`, `g12`, `x01`, `x02`…) carries statement or
+    ///   line-info content in those blocks and is refused. Defence in depth:
+    ///   any function record of the one measured frame whose linkage byte is
+    ///   not COMDAT (`gl::gl_has_root_shaped_fn_record`) also refuses.
+    ///
+    /// Everything else fails closed, clause by clause below. The judge stays
+    /// the byte compare: this predicate was graded over the 878-TU workload
+    /// and the fixture gates before it shipped, and a wrong emit scores
+    /// strictly below the refusal it replaces.
+    pub fn provide_data_tu(&self) -> Option<ProvideDataTu> {
+        let gl = self.get("gl")?;
+        let ex = self.ex()?;
+
+        // 1. The two witnessed function-emit-empty shapes; anything else
+        //    refuses. (`split_functions_at` is the gate's own splitter.)
+        let (_starts, segs) = split_functions_at(ex);
+        if segs.is_empty() {
+            if !is_empty_module(ex) {
+                return None; // an unsplittable module is not a witnessed shape
+            }
+        } else {
+            // class B — the empty-main-file shape, both fences.
+            let mut intros = 0usize;
+            let mut p = 0usize;
+            const INTRO: [u8; 6] = [0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01];
+            while p + INTRO.len() + 3 <= ex.len() {
+                if ex[p..p + INTRO.len()] == INTRO {
+                    intros += 1;
+                    let c = &ex[p + INTRO.len() + 1..];
+                    // After the one-byte block index: another FULL block intro
+                    // or a bare segment start, and nothing else. The full
+                    // six-byte intro is required, not the two-byte `4F 02`
+                    // prefix alone: `src/system/dsp/Common_Xbox.cpp` opens its
+                    // blocks with `4F 02 <token>` module statements — the
+                    // material c2 compiles and emits — and the two-byte test
+                    // accepted it, which was a live wrong emit for exactly one
+                    // scan of this lane's own worktree (925 B against a
+                    // 4,709 B reference; caught by the scan's correctness
+                    // signal, never landed).
+                    if !(c.starts_with(&INTRO) || c.starts_with(&FN_START)) {
+                        return None;
+                    }
+                }
+                p += 1;
+            }
+            if intros == 0 {
+                return None;
+            }
+            if super::gl::gl_has_root_shaped_fn_record(gl) {
+                return None;
+            }
+        }
+        // 2. The `.drectve` the port emits as a constant.
+        if !drectve_is_boilerplate(gl) {
+            return None;
+        }
+        // 3. Every data record, under the widened frame; a conflicted token
+        //    refuses the file (`gl_provide_data_records`' own rule).
+        let records = super::gl::gl_provide_data_records(gl)?;
+        // 4. Classify fail-closed. The three attr values below are the three
+        //    with witnesses; anything else — `0x60` (selectany uninit), plain
+        //    non-COMDAT data (`0x00`/`0x80`, which is `data_tu`'s class, not
+        //    this one), an unmeasured bit — refuses the TU.
+        let mut emitted: Vec<(u32, &super::gl::GlProvideObject)> = Vec::new();
+        for (tok, o) in &records {
+            if o.flags & super::gl::DATA_FLAG_THREAD_LOCAL != 0 {
+                return None;
+            }
+            if o.linkage == super::gl::LINKAGE_UNDEFINED_EXTERN {
+                continue; // a declaration; defines nothing
+            }
+            // The two toolchain watermarks ride in `.gl` as provide-always
+            // records (`__C1_11886`, attr `E0`); their sections are the shell's
+            // own `.XBLD$W` pair, already emitted. Same furniture rule as
+            // `data_tu` clause 6.
+            if o.coff_name == "__C1_11886" || o.coff_name == "__C2_11886" {
+                continue;
+            }
+            if o.coff_name.starts_with('.') {
+                return None; // a section-shaped name is nothing this models
+            }
+            match o.attr {
+                0xE0 => emitted.push((*tok, o)),
+                // Provided-if-used COMDAT data (`A0`: template statics,
+                // string literals, RTTI) — witnessed absent from the obj on
+                // every cell of the grid and on all 314 of decomp_pch's.
+                0xA0 => continue,
+                // COMDAT uninitialized (`20`) — a function-local static of a
+                // never-emitted function; witnessed absent (13 records in
+                // decomp_pch, obj has no `.bss`).
+                0x20 => continue,
+                _ => return None,
+            }
+        }
+        if emitted.is_empty() {
+            return None; // the shell alone is `shell_only_tu`'s question
+        }
+        // 5. A `/GF` string-literal COMDAT in the EMIT set is a shape with its
+        //    own symbol rules (`dyninit`'s `.rdata`); refuse it here.
+        if emitted.iter().any(|(_, o)| o.coff_name.starts_with("??_C@")) {
+            return None;
+        }
+        // 6. The emitted objects' bytes, from `.in`, with `data_tu`'s own
+        //    accounting gate.
+        let inb = self.get("in").unwrap_or(&[]);
+        let init = super::ininit::in_scalar_initializers(inb);
+        if init.accepted + init.residue.len() != init.records {
+            return None;
+        }
+        // 7. The alias fence, `data_tu`'s clause verbatim.
+        let alias = super::glalias::gl_alias_table(gl);
+        if alias.stats().dom_with_body != 0 {
+            return None;
+        }
+        let mut objects = Vec::with_capacity(emitted.len());
+        for (tok, o) in &emitted {
+            // Only the scalar cells the grid graded: size == natural width,
+            // one of the four witnessed widths. An aggregate (size != align)
+            // has no witnessed section-alignment nibble and refuses.
+            if !matches!(o.size, 1 | 2 | 4 | 8) || o.size != o.natural_align {
+                return None;
+            }
+            if o.linkage != super::gl::LINKAGE_DEFINED_EXTERN {
+                return None; // every witnessed provide-always object is EXTERNAL
+            }
+            if !alias.is_empty() && alias.is_alias(&o.coff_name) {
+                return None;
+            }
+            // A provide-always object carrying a reference would need a
+            // relocation this shape has never carried; refuse, do not drop
+            // (#232's direction).
+            if init.refs.get(tok).map_or(false, |r| !r.is_empty()) {
+                return None;
+            }
+            let Some(bytes) = init.values.get(tok) else {
+                return None; // an initialized object with no decoded value
+            };
+            if bytes.len() != o.size as usize {
+                return None;
+            }
+            if objects
+                .iter()
+                .any(|q: &ProvideDataObject| q.coff_name == o.coff_name)
+            {
+                return None;
+            }
+            objects.push(ProvideDataObject {
+                coff_name: o.coff_name.clone(),
+                size: o.size,
+                natural_align: o.natural_align,
+                ro: o.ro,
+                bytes: bytes.clone(),
+            });
+        }
+        Some(ProvideDataTu {
+            objects,
+            src: super::gl::source_path(gl),
+        })
+    }
+
     /// **Does ANY of this crate's acceptance paths decode this bundle?**
     ///
     /// One predicate for the one question `c2-harness`'s `vocab-gap` bucket asks
@@ -3062,7 +3294,10 @@ impl IlBundle {
     /// Adding a third path means adding it here, in one place, rather than
     /// discovering that two crates disagree about what decoded.
     pub fn decodes(&self) -> bool {
-        self.functions().is_some() || self.dyninit_tu().is_some() || self.eh_scope_tu().is_some()
+        self.functions().is_some()
+            || self.dyninit_tu().is_some()
+            || self.eh_scope_tu().is_some()
+            || self.provide_data_tu().is_some()
     }
 
     /// Parse this bundle as a SINGLE MVP function. Convenience wrapper over
