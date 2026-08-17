@@ -1743,7 +1743,7 @@ const NAME_SEPARATOR_UNDECORATED: u8 = 0x24;
 /// `02` (undefined external) is [`gl_extern_data_names`]'s whole population and
 /// is **not** here: an object this TU does not define has no `.bss` to emit.
 /// Anything unseen fails closed with it.
-const LINKAGE_DEFINED_EXTERN: u8 = 0x01;
+pub(crate) const LINKAGE_DEFINED_EXTERN: u8 = 0x01;
 
 /// Tag bit that inserts one extra byte (the *mark*) before the kind.
 ///
@@ -2220,6 +2220,224 @@ impl<'a> GlIndex<'a> {
     pub(crate) fn map(&self) -> &std::collections::BTreeMap<u32, String> {
         self.cell.get_or_init(|| gl_symbol_index(self.gl))
     }
+}
+
+// ---------------------------------------------------------------------------
+// w-npos — the PROVIDE-ALWAYS data walk (attr bit 0x40), and the ro bit
+// ---------------------------------------------------------------------------
+
+/// **W-NPOS** — one `.gl` data record read with the two fields
+/// [`data_object_at`] deliberately fails closed on: the **read-only pair**
+/// (`00 04`, which that reader refuses as "a string-literal record") and the
+/// **attr `0x40` bit** (which turns `20`/`A0` into the `__declspec(selectany)`
+/// forms `60`/`E0` that reader had never been graded on).
+///
+/// Both are graded now, on an eleven-cell probe grid plus `decomp_pch.cpp`'s
+/// own capture (`work/w-npos/`):
+///
+/// * the `00 04` pair marks a **read-only** object — the record for a `const`
+///   COMDAT static (`?npos@…@2IB` in `decomp_pch.cpp`, `?sn@@3IB` in probe
+///   `x02`) spells `00 04` where its non-const twin (`?sa@@3HA`, `?x@…@2IA`)
+///   spells `00 02`, and the objs land in `.rdata` vs `.data` accordingly;
+/// * attr **`0xE0`** (initialized | `0x40` | COMDAT) is the record c2 emits
+///   **unconditionally** — g10/x02/x04/x05/x06/x07 all emit it with nothing
+///   referencing it and zero functions in the obj — while attr **`0xA0`**
+///   (the same record without `0x40`) is emitted **never**: g03/g05/g06's
+///   merely-instantiated template statics and all 314 of `decomp_pch.cpp`'s
+///   `A0` records are absent from their objs. The bit is c1xx saying
+///   *provide this definition always*, and it is the only data-emission
+///   licence any probe has found in the container.
+///
+/// This is a **separate reader, not a widening of [`data_object_at`]**: that
+/// function is the decode bound of `IlBundle::data_tu`, a graded path whose
+/// every acceptance is behaviour; widening it would silently widen `data_tu`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct GlProvideObject {
+    pub(crate) coff_name: String,
+    pub(crate) size: u32,
+    pub(crate) natural_align: u32,
+    /// The `00 04` pair: this object is read-only and lands in `.rdata`.
+    pub(crate) ro: bool,
+    /// The raw attribute byte. The caller classifies it fail-closed
+    /// (`IlBundle::provide_data_tu`); this reader only reports it.
+    pub(crate) attr: u8,
+    /// The flags byte after it ([`DATA_FLAG_THREAD_LOCAL`] lives here).
+    pub(crate) flags: u8,
+    /// The linkage byte: [`LINKAGE_DEFINED_EXTERN`], [`LINKAGE_STATIC`], or
+    /// `0x02` (undefined external — a declaration, not an object).
+    pub(crate) linkage: u8,
+}
+
+/// Undefined external linkage — a declaration this TU does not define.
+pub(crate) const LINKAGE_UNDEFINED_EXTERN: u8 = 0x02;
+
+/// Parse the data record at `name_nul` under the widened frame, or `None`
+/// when it is not a data record at all. Mirrors [`data_object_at`] byte for
+/// byte except for the two graded widenings above; a record that *is* a data
+/// record but carries an unmodeled linkage byte returns the poison marker
+/// (`Err`-like `Some` with `linkage` preserved) so the caller can refuse the
+/// whole TU rather than silently not seeing an object.
+fn provide_object_at(gl: &[u8], name_nul: usize, name: &[u8]) -> Option<GlProvideObject> {
+    const WIDE_MARK: u8 = 0x80;
+    let tag = *gl.get(name_nul + 1)?;
+    if tag & 0x80 == 0 {
+        return None;
+    }
+    let mut i = name_nul + 2;
+    let mut wide_mark = None;
+    if tag & TAG_WIDE != 0 {
+        let m = *gl.get(i)?;
+        if m & WIDE_MARK == 0 {
+            return None;
+        }
+        wide_mark = Some(m);
+        i += 1;
+    }
+    i += 1; // the kind byte
+    if gl.get(i) != Some(&0x00) {
+        return None;
+    }
+    let ro = match gl.get(i + 1) {
+        Some(&0x02) => false,
+        Some(&0x04) => true,
+        _ => return None,
+    };
+    let linkage = *gl.get(i + 2)?;
+    if !matches!(linkage, LINKAGE_DEFINED_EXTERN | LINKAGE_STATIC | LINKAGE_UNDEFINED_EXTERN) {
+        return None;
+    }
+    let mut p = i + 3;
+    let size = super::readers::read_varint(gl, &mut p)?;
+    if size <= 0 {
+        return None;
+    }
+    let attr = *gl.get(p)?;
+    let flags = *gl.get(p + 1)?;
+    let natural_align = align_of_type_tag(tag, wide_mark)?;
+    Some(GlProvideObject {
+        coff_name: ascii_string(name),
+        size: size as u32,
+        natural_align,
+        ro,
+        attr,
+        flags,
+        linkage,
+    })
+}
+
+/// Every data record in `.gl`, in **record order**, under the widened frame —
+/// or `None` when two records disagree about one token, which is
+/// [`gl_data_objects_ordered`]'s poison rule turned from a drop into a
+/// refusal: this walk's consumer is deciding what an obj *must contain*, and
+/// a dropped record there is a missing section, not a missing statistic.
+///
+/// The walk itself is [`gl_data_objects_ordered`]'s, candidate rule and all
+/// (rightmost separator first, token width validated, kind byte in
+/// [`SYMBOL_RECORD_KINDS`]); only the per-record parser differs.
+pub(crate) fn gl_provide_data_records(gl: &[u8]) -> Option<Vec<(u32, GlProvideObject)>> {
+    let mut out: Vec<(u32, GlProvideObject)> = Vec::new();
+    let mut i = 0usize;
+    while i < gl.len() {
+        if !gl[i].is_ascii_graphic() {
+            i += 1;
+            continue;
+        }
+        let start = i;
+        while i < gl.len() && gl[i].is_ascii_graphic() {
+            i += 1;
+        }
+        if i >= gl.len() {
+            break;
+        }
+        let end = i;
+        let mut q = end;
+        while q > start {
+            q -= 1;
+            if q == 0 {
+                break;
+            }
+            let sep = gl[q - 1];
+            if !(NAME_SEPARATORS.contains(&sep) || sep == NAME_SEPARATOR_UNDECORATED) {
+                continue;
+            }
+            if !is_object_name(&gl[q..end]) {
+                continue;
+            }
+            let mut bound = false;
+            for w in [4usize, 2] {
+                if q < w + 2 {
+                    continue;
+                }
+                let p = q - 1 - w;
+                let Some((tok, got)) = read_token_var(gl, p) else {
+                    continue;
+                };
+                if got != w {
+                    continue;
+                }
+                if !SYMBOL_RECORD_KINDS.contains(&gl[p - 1]) {
+                    continue;
+                }
+                let Some(obj) = provide_object_at(gl, end, &gl[q..end]) else {
+                    continue;
+                };
+                match out.iter().position(|(t, _)| *t == tok) {
+                    None => out.push((tok, obj)),
+                    Some(k) if out[k].1 != obj => return None,
+                    _ => {}
+                }
+                bound = true;
+                break;
+            }
+            if bound {
+                break;
+            }
+        }
+    }
+    Some(out)
+}
+
+/// **W-NPOS clause B4** — does any `.gl` function record of the one measured
+/// frame carry a **non-COMDAT linkage byte** (an ordinary root definition)?
+///
+/// The frame is the `<tag&0x80> <kind> 05 04 <linkage>` symbol-type record:
+/// `?f@@YAHH@Z` (an ordinary root, emitted) spells linkage `00` there and
+/// every one of `decomp_pch.cpp`'s 321 such records spells `20`. Only this
+/// frame's linkage position is measured, so only it is read; the caller's
+/// other fences (the module-block shape) carry the rest of the burden, and
+/// this exists as defence in depth, not as a proof.
+pub(crate) fn gl_has_root_shaped_fn_record(gl: &[u8]) -> bool {
+    let mut i = 0usize;
+    while i < gl.len() {
+        if !gl[i].is_ascii_graphic() {
+            i += 1;
+            continue;
+        }
+        let start = i;
+        while i < gl.len() && gl[i].is_ascii_graphic() {
+            i += 1;
+        }
+        if i >= gl.len() {
+            break;
+        }
+        let end = i;
+        if end == start || end + 5 >= gl.len() || gl[end] != 0x00 {
+            continue;
+        }
+        let tag = gl[end + 1];
+        if tag & 0x80 == 0 {
+            continue;
+        }
+        // No wide function record has been observed; one would shift the
+        // linkage position, so it reads as root-shaped (refuse-direction).
+        if tag & TAG_WIDE != 0 && gl[end + 3] == 0x05 && gl[end + 4] == 0x04 {
+            return true;
+        }
+        if gl[end + 3] == 0x05 && gl[end + 4] == 0x04 && gl[end + 5] != 0x20 {
+            return true;
+        }
+    }
+    false
 }
 
 #[cfg(test)]

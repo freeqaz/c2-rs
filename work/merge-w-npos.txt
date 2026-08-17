@@ -1,0 +1,70 @@
+merge-w-npos — lane w-npos, branch wt-w-npos, base master 3835469c
+
+OUTCOME: converted. src/system/decomp_pch.cpp — workload match 25 → 26,
+mismatch 0 everywhere, codegen-gap 0, per-TU rows 877/878 identical (the one
+differing row is decomp_pch), anchored gap-metric keys 394 → 394 with exactly
+the preregistered movers plus one family-clause key
+(bytefrac-control-no-denominator +1). Rung: docs/rungs/2026-08-17-npos.md.
+
+WHAT LANDED
+- crates/c2-il: IlBundle::provide_data_tu (bundle.rs) — the provide-always
+  data TU recognizer; gl.rs: the widened data-record reader
+  (gl_provide_data_records — the 00-04 read-only pair and the attr 0x40 bit
+  data_object_at fails closed on, as a SEPARATE reader so data_tu is
+  untouched) + gl_has_root_shaped_fn_record; decodes() gains the fourth
+  path; diag.rs whole_tu one line. bind.rs / glalias.rs / resolve_data /
+  NAME_SEPARATORS NOT touched (peer w-fence163's seam).
+- crates/c2-core: coff/provide.rs — the sel=2 COMDAT .rdata/.data emitter
+  (shell + N sections, declaration order, witnessed widths 1/2/4/8, real aux
+  CRC, EXTERNAL symbols) + 4 unit tests; lib.rs: two arms in PortC2::build
+  (functions()-refusal path and the empty-module branch). codegen/ NOT
+  touched.
+- crates/c2-harness: gap/mod.rs — WHOLE_TU_RECOGNIZERS entry
+  ("provide-data-tu", same commit as the arm, per the table's own doc);
+  gap/render.rs — the factor-A red-control explanation paragraph (D's
+  precedent). gap/tests.rs NOT touched (peer's file).
+- fixtures/cpp: wnpos_* ×5 (2 Match, 3 NotImplemented refusal fences).
+- work/w-npos/: PREREG (FIRST commit a6ca401f, frozen before any probe),
+  probe grid + hashes, scan logs/keys both ends, tests/gate output.
+
+SEAM NOTE FOR THE FUNNEL: the brief granted coff/ + "the
+gl-stop-26-introduced gate site" in c2-il. The conversion needed the
+recognizer/decodes()/whole_tu wiring in bundle.rs+diag.rs+gl.rs (the
+acceptance complex that produces that gate cause), two arms in
+c2-core/lib.rs, and the registry entry + render paragraph in gap/{mod,render}.rs
+— all outside coff/ in the letter, none in the peer's files, each the
+established same-commit pairing for a new whole-TU path. Flagging rather
+than hiding it.
+
+KNOWN RED, ON PURPOSE: the scan's known-answer factor control reads
+A 1 B 0 C 0 D-or-E 0 over 26 matches — decomp_pch matches with 1,242 .ex
+segments and 0 .text COMDATs, so factor A's proxy is not necessary for a
+whole-TU data match. Left red with a printed explanation, exactly D's #179
+precedent; the model repair is drafted as unnumbered board row (B) in the
+rung, deliberately not done in this lane.
+
+WRONG EMIT THAT DID NOT LAND: the class-B module-block fence's first draft
+accepted src/system/dsp/Common_Xbox.cpp (925 B vs 4,709 B reference) for one
+scan of this worktree; caught by the scan's correctness signal, fence
+tightened to the full six-byte intro, pinned by unit test. On the broken
+fence the recognizer accepted 2 of 878; on the fixed one, decomp_pch alone.
+
+VERIFICATION (tip binary sha256
+ec36d86969d388597f0dfebe51b266a47d845de2039dc5d1b2a8ad05cfab653b):
+- 878-TU scan at base (25/0/0/845, 394 keys — every handed-down figure
+  reproduced) and at tip ×2 (26/0/0/844, 394 keys, identical key sets).
+- cargo test --workspace --release --no-fail-fast and
+  scripts/gate.sh --jobs 4 --require-graded: outputs in
+  work/w-npos/tests.txt and work/w-npos/gate_tip.txt (running at handoff —
+  the funnel re-runs both regardless; #3215's rule applies: this lane lands
+  tests and fixtures, so the checks are the gate-count identity diff over
+  unaffected lanes + the release-binary sha256, not "graded tree identical";
+  the 5 wnpos fixtures move the fixture-gate population by design).
+- rung_registry + gen_rung_index: INDEX.md regenerated.
+
+BOARD: rows drafted UNNUMBERED in the rung (§Board rows A–E); pointer was
+#3218 at 3835469c with two peers in flight — the coordinator serializes.
+
+DO NOT: merge --ff, cherry-pick, or squash; the Common_Xbox wrong-emit
+commit history is the record. Rebase onto master before the funnel if master
+has moved (base was 3835469c at handoff).

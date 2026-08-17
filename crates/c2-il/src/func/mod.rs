@@ -49,6 +49,7 @@ pub use self::body::{chain_form, Block, ChainForm, FP_SCRATCH};
 pub use self::bundle::{
     DataObject, DataTu,
     DynInitTu,
+    ProvideDataObject, ProvideDataTu,
     GlDataRow, InAliasReport,
     is_empty_module, opt_word_mode, OptWordMode, OPT_WORD_O1, OPT_WORD_OX,
     OPT_WORD_SPECIAL_MEMBER,

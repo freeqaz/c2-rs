@@ -552,6 +552,17 @@ pub const WHOLE_TU_RECOGNIZERS: &[(&str, fn(&c2_il::IlBundle) -> bool)] = &[
     // recognizer names the path, not the emitter's every gate — and it errs
     // toward counting a TU the port declines, never toward missing one it takes.
     ("data-only-tu", |b| b.data_tu().is_some()),
+    // **W-NPOS — the provide-always data TU.** Registered in the same commit
+    // that gave `PortC2::build` the arm, per this table's own doc: an
+    // unregistered arm turns the `D∨E` control red the moment it converts
+    // anything. Two shapes behind one recognizer: the positively-empty module
+    // whose `.gl` carries `attr 0xE0` COMDAT data records, and the
+    // empty-main-file (pch-creator) TU whose `.ex` segments c2 emits none of
+    // — `src/system/decomp_pch.cpp`, the conversion this entry rode in with.
+    // Over-approximates in the same direction as the two entries above: the
+    // recognizer names the path, the emitter keeps its own witnessed-width
+    // fences, and the error direction is counting a TU the port declines.
+    ("provide-data-tu", |b| b.provide_data_tu().is_some()),
     // **W-MAIN2, board #2970 — the `/EHsc` scope-object TU.** Registered in the
     // same commit that gave `PortC2::build` the arm, for the reason this table's
     // doc gives: an unregistered arm turns the `D∨E` control red the moment it
