@@ -2157,7 +2157,26 @@ impl IlBundle {
             // accounted by this line, and it is a whole extra section
             // (`docs/IL_CALL_IN_EXPR.md` §17.2 item 7) — which is why the gate is
             // there and not here.
+            //
+            // **W-FENCE163 — a narrow STRING LITERAL is the one name
+            // `resolve_data` now yields that the sentence above is NOT true
+            // of.** Its `.gl` record is not an undefined extern; the real obj
+            // *defines* it — one `.rdata` COMDAT per distinct literal, placed
+            // after the referencing function's `.text`, with the `??_C@`
+            // symbol EXTERNAL in it (`rungs/2026-08-16-section.md` §2 R1–R8) —
+            // and this writer has no emitter for any of that. Accounting it as
+            // an undefined external would emit §17.2 item 7's 5-section obj
+            // against a 6-section reference, which is the enforcing line's
+            // named hazard and the file-offset-2 mismatch this gate cost two
+            // objs to learn. So the TU refuses WHOLE, here, until a
+            // string-COMDAT writer exists (board #1003's reopen condition) —
+            // the admission's whole yield stays per-function byte credit
+            // (`fnbyte-exact` +163), where the `.text` bytes and relocation
+            // targets are graded and no section table is claimed.
             for d in &f.data_syms {
+                if d.starts_with(super::bind::STRLIT_NARROW_PREFIX) {
+                    return None;
+                }
                 accounted.push(d.as_str());
             }
             // **W-EXTDATA — a FUNCTION whose address this body materializes.**
