@@ -28,6 +28,14 @@ BU2	RED	1647	1	42	func::bundle::dyninit_tests::a_bundle_without_the_three_stream
 BU3.dup-d	GREEN	1648	0	42		398.12
 BU3.dup-f	GREEN	1648	0	42		273.29
 BU3	GREEN	1648	0	42		159.10
+C1.dup-b	RED	1646	2	42	gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol;gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone	641.75
+C1.dup-c	RED	1646	2	42	gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol;gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone	643.14
+C1.dup-d	RED	1646	2	42	gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol;gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone	632.33
+C1.dup-e	RED	1646	2	42	gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol;gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone	632.37
+C1.dup-f	RED	1646	2	42	gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol;gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone	641.43
+C1.dup-g	RED	1646	2	42	gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol;gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone	642.00
+C1.dup-h	RED	1646	2	42	gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol;gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone	646.10
+C1.dup-i	RED	1646	2	42	gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol;gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone	643.15
 C1	RED	1646	2	42	gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol;gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone	94.81
 C2	RED	1647	1	42	codegen::calls::tests::the_data_address_setup_refuses_the_shapes_it_has_no_capture_for	70.15
 C3	RED	1645	3	42	gap::tests::wr1_census_key_guards::the_census_key_survives_the_round_trip_into_the_reachable_ranking;gap::tests::wr1_census_key_guards::the_data_symbol_linkage_gate_is_the_one_byte_that_moves_the_key;gap::tests::wr1_census_key_guards::the_two_data_symbol_census_keys_are_not_interchangeable	80.09
