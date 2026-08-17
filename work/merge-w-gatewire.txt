@@ -1,0 +1,189 @@
+MERGE BRIEF — lane w-gatewire
+branch:   wt-w-gatewire
+base:     453975f3   (REBASED onto w-npos; every number below RE-MEASURED)
+outcome:  built            (construct rung; Fixtures: none; Census: +0)
+rung:     docs/rungs/2026-08-17-gatewire.md
+prereg:   work/w-gatewire/PREREG.md  (frozen as the lane's FIRST commit, d8a2f562)
+board:    #3218-#3224 MINTED. NEXT FREE IS #3225 — the row-by-row
+          verification CHANGED the answer. See "Board" below.
+
+WHAT LANDED
+-----------
+scripts/debug_lane.sh is wired into scripts/gate.sh as the `debug-lane` row.
+**A debug-profile panic now fails the gate and therefore blocks a merge.** That
+is a policy change, it was the user's decision to make, and the user made it
+(2026-08-17). The instrument shipped 2026-08-14 deliberately unwired for exactly
+that reason and nothing had run it for three days.
+
+  scripts/gate.sh        +707 / -20   the row: `debug_verdict` (a pure function
+                                      of the log text), its ruling in `decide`,
+                                      its place under the all-skip rule, the
+                                      run-section wiring, and 25 --selftest arms
+  scripts/debug_lane.sh   +40 /  -6   honours C2RS_LANES; header rewritten to say
+                                      it is wired and that its output contract is
+                                      now load-bearing
+  docs/STATUS.md          prose only  (the generated metric block is UNTOUCHED)
+  docs/rungs/2026-08-17-gatewire.md, docs/rungs/INDEX.md (regenerated)
+
+No crates/ change. `git diff 453975f3..HEAD -- crates/` is EMPTY.
+
+THE EVIDENCE THAT MATTERS — the row can go RED
+----------------------------------------------
+A gate row that cannot fire is this repo's defining defect family. So it was
+demonstrated, not asserted. A deliberate debug-only underflow was injected in a
+scratch commit (d22f28aa) and reverted (4dde6627). `gate.sh --jobs 8 --lane Ox
+--sweep-cases 40 --cross-cells 40`, exit 1:
+
+  debug-lane           FAIL            1/1           0         0  DEBUG-profile lanes (0 graded, 9 panic)   <- DBG-PANIC the debug binary PANICKED 9 time(s) ...
+  GATE: FAIL — debug-lane: DBG-PANIC the debug binary PANICKED 9 time(s) — a false
+    debug_assert or an arithmetic overflow, and NO release row can express either
+    DEBUG-LANE-RESULT FAIL lane=Ox flags=[/Ox] graded=0 total=381 match=0 mismatch=0 panics=9 rc=101
+      thread '<unnamed>' panicked at crates/c2-harness/src/gap/fnbytes.rs:747:38
+
+and in the SAME table, over the SAME tree: `Ox PASS 381/381 match=150
+mismatch=0`, sweep 40/40 clean, cross 48/48 clean. Every release row is
+structurally blind to the fault the new row caught. Full text in the rung §3.
+
+  Quoted AS MEASURED: this demonstration was taken PRE-REBASE, on the 381-fixture
+  corpus. It is deliberately not re-run and not renumbered — it is a statement
+  about the ROW'S MECHANISM (does a debug panic reach the verdict), and the
+  rebase changed neither scripts/gate.sh nor crates/. Re-running it to make the
+  corpus size match the rest of the brief would be editing evidence to look tidy.
+
+CLEAN DEGRADATION — verified LIVE, not read off the code
+--------------------------------------------------------
+Toolchain hidden by env override (C2RS_COMPILERS / C2RS_WIBO / C2RS_CL_EXE /
+C2RS_C2_DLL all pointed at /nonexistent):
+
+  no --require-graded : debug-lane SKIP, `GATE: SKIPPED`, **exit 0**
+  --require-graded    : debug-lane SKIP, `GATE: FAIL (NOTHING GRADED)`, exit 1
+
+The documented exit-code contract does not move. Two further rules are asserted
+in --selftest: all-lanes-skip + debug row RAN is a FAIL (a fault in the
+resolution), and lanes-graded + debug row SKIPPED is a FAIL (the row silently not
+running, which is what wiring it in was for).
+
+COST — and the figure in the request was the wrong candidate's
+--------------------------------------------------------------
+docs/rungs/2026-08-14-dbgassert.md prices TWO things. **0.65 s / 6 s is candidate
+(b), a debug `cargo test --workspace --lib` unit row that was never built.**
+scripts/debug_lane.sh is candidate (c), priced there at 125 s warm. This lane
+wired (c), which is what the user named. Board #3220 — a row that corrects the
+coordinator, following #3215's precedent; accepted by the coordinator at merge.
+
+  debug_lane.sh warm, 18 lanes, C2RS_JOBS=16 : 162 s / 142 s / 125 s  (load 59-73)
+  debug build alone, warm / cold             :   0 s / 13 s
+  => warm ~142 s, cold ~ warm + 13 s
+
+Gate total, decomposed INSIDE one green run. BOTH bases quoted, because the PAIR
+is the finding:
+
+                          at 4dde6627 (load 66-86)   REBASED TIP (load 19-24)
+  18 mode lanes                         13 s                  5 s
+  generated sweep                      747 s                300 s
+  mode cross                           496 s                 45 s
+  DEBUG LANE (new)                      96 s                 85 s
+  overhead                              16 s                 11 s
+  TOTAL AFTER                        1,368 s                446 s
+  TOTAL BEFORE (= after - new leg)   1,272 s                361 s
+  DELTA                            +96 s, +7.5 %     +85 s, +23.5 %
+
+QUOTE THE RIGHT-HAND COLUMN: 361 -> 446 s, +85 s, +23.5 %.
+
+The row's ABSOLUTE cost is stable (96 s vs 85 s, 11 % spread); its SHARE more
+than triples, because the DENOMINATOR moved (the sweep alone went 747 -> 300 s).
+On a quiet box it is the SECOND largest leg of four; at load 86 it was third.
+**Report the +85 s, not the percentage.**
+
+VERIFICATION AT THE REBASED TIP
+-------------------------------
+  scripts/gate.sh --jobs 4 --require-graded   GATE: PASS (HATCH-RED REFUSED)
+      18/18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT, 6,948 fixture-verdicts
+      sweep  19556/19556 reached, 19460 graded, 0 mismatch
+      cross  90812/90812 reached, 90424 graded, 0 mismatch
+      debug  PASS 18/18, 6948 graded, match 2423, 0 mismatch, 0 PANIC
+  cargo test --workspace --release --no-fail-fast   1,655 / 0 / 42  (master's figure)
+  scripts/gate.sh --selftest    PASS — 166 cases (floor raised 141 -> 166)
+  scripts/gate.sh --check       PASS; 16 tree-integrity arms, 0 failed
+  scripts/board_audit.sh        all-zero WITH the seven new rows
+  rung_registry                 2 passed / 0 failed
+  878-TU scan                   878 TUs, match 26 (3.0 %), mismatch 0 — w-npos's
+                                conversion, reproduced from this lane's tree
+
+  HATCH-RED REFUSED is PRE-EXISTING (#1389) and is now also reproduced on CLEAN
+  MASTER IN THE MAIN REPO, so it is not a worktree artifact. Board #3219.
+
+NON-PERTURBATION — the discriminating evidence, ALL RE-TAKEN
+------------------------------------------------------------
+  * per-lane counts IDENTICAL on all 18 lanes, 386/386, match digit for digit,
+    mismatch 0. "Before" = a scripts/gate.sh run in the MAIN REPO at clean
+    master 453975f3 (pre-wiring by construction); "after" = this lane's run.
+  * CROSS-PROFILE IDENTITY, exact in aggregate: the release lanes' match sums to
+    2,423 and the debug row reports match 2423 — two runs, two binaries, two
+    optimisation profiles, equal to the digit.
+  * 878-TU scan identity: 394 keys, 0 vanished, 0 appeared, 0 changed — and a
+    genuine CROSS-TREE diff this time: master's binary in the main repo vs this
+    lane's binary in the worktree. Both read match 26 / mismatch 0.
+  * release binary sha256: identical WITHIN a build path (fc492ecf... both ends
+    pre-rebase). ACROSS trees it DIFFERS on identical source because
+    CARGO_MANIFEST_DIR is compiled in — measured three ways (empty crates/ diff;
+    3-vs-0 embedded path strings; a forced rebuild reproducing the sha exactly).
+    **Board #3224: it sharpens #3215's rule to "take the binary hash at both ends
+    IN THE SAME TREE."** A lane's natural before/after spans two trees, which is
+    exactly the comparison that cannot be made — so a funnel applying #3215
+    literally gets a difference on every lane and learns to ignore it.
+  * --require-graded's printed unit sum does NOT move: the row re-grades the
+    fixtures the lanes already counted, so folding it in would double-count. A
+    --selftest case asserts the printed `graded:` line does not change.
+
+  The GRADED TREE HASH MOVES, by construction: scripts/ is in GRADED_DIRS. That
+  is expected here and is NOT claimed as identical (#3215 applies to
+  revert-everything lanes only).
+
+SEAMS
+-----
+Sole owner of scripts/gate.sh and scripts/debug_lane.sh this wave; touched
+neither crates/ nor any peer's files. w-npos (crates/c2-core/src/coff/, c2-il,
+c2-harness/src/gap/{mod,render}.rs) does not overlap. Expect rebase conflicts on
+docs/BOARD.md (keep BOTH blocks) and docs/rungs/INDEX.md (REGENERATE with
+scripts/gen_rung_index.sh, never hand-merge).
+
+  REBASED onto 453975f3 on the coordinator's go-ahead. Mechanical apart from one
+  expected conflict in docs/rungs/INDEX.md, resolved by REGENERATING with
+  scripts/gen_rung_index.sh rather than hand-merging. NOT MERGED, NOT PUSHED.
+
+BOARD — #3218-#3224 MINTED, AND THE VERIFICATION CHANGED THE ANSWER
+-------------------------------------------------------------------
+Drafted UNNUMBERED because the pointer read "#3218 free, AND NO LANE IS IN
+FLIGHT" while three peers were live. Verified row-by-row on 453975f3 under BOTH
+of w-guards' caution patterns: #3218-#3226 free under each, the only #3218 hit
+is the pointer's own sentence, and w-npos merged having minted NOTHING. So the
+number was free the whole time.
+
+  #3218  the debug row is wired, a debug panic blocks a merge, shown going RED
+  #3219  hatch-red REFUSED HATCH-STALE on every run, on TWO independent trees
+         including clean master in the main repo, duration UNMEASURED —
+         worth more than the row this lane built
+  #3220  the brief's 0.65 s was candidate (b)'s; corrects the coordinator
+  #3221  candidate (b) still unbuilt — the only assertion check that works on
+         the portable lane, where this lane's row SKIPs
+  #3222  the profile axis is covered for the FIXTURE CORPUS ONLY
+  #3223  the pointer's in-flight clause is unreliable; its number is not
+  #3224  #3215's binary-sha check is valid only WITHIN one build path
+
+  NEXT FREE NUMBER IS #3225.
+
+PREREG SCORING
+--------------
+23 rows, re-scored at the rebased tip: 5 MISS (P6, P9, P10, P23, plus P12
+recorded as an UNDERSPECIFIED hit). Correctness and non-perturbation rows went
+17 for 17 at BOTH bases. The lane was reliable about what it built and
+unreliable about what it cost — the same direction 2026-08-14-dbgassert.md was
+wrong in, two lanes running.
+
+The rebase re-scored two rows in OPPOSITE directions, which is the argument for
+re-measuring rather than carrying forward. P23 flipped HIT -> MISS (the block was
+free; the caution was right procedure on a wrong premise). P10 turned out to have
+no single answer: the row is second-largest on a quiet box and third on a loaded
+one. A lane that carried its pre-rebase numbers forward would have reported both
+incorrectly and would never have found #3224.

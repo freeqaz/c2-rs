@@ -789,7 +789,8 @@ scripts/status.sh --check         # prove the collector, no toolchain needed
 | fixture gate + speedup | `cargo run --release -p c2-harness --bin c2rs -- perf` |
 | the 878-TU workload scan | `c2rs gap --list work/dc3-workload/files.txt --flags-file work/dc3-workload/flags.txt --cwd ../dc3-decomp --jobs 16` |
 | regenerate the workload inputs | `scripts/gen_dc3_workload.sh <dc3-tree>` |
-| **the merge gate** (18 mode lanes **+ the generated sweep + the mode cross**) | `scripts/gate.sh --require-graded` — the default `--jobs` is **16** since 2026-08-08 (it was 4, unchanged since the file was written; lane `w-throughput`, board #1323), and `--jobs` still overrides. Reads **18/18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT**, 5,184 fixture-verdicts, sweep `19556/19556 reached, 19460 graded, 0 mismatch`, cross `90812/90812 reached, 90424 graded, 0 mismatch` at `f49fe5e1`+`wt-w-throughput` — **quote it from the run, not from this page** |
+| **the merge gate** (18 mode lanes **+ the generated sweep + the mode cross + the DEBUG-profile row**) | `scripts/gate.sh --require-graded` — the default `--jobs` is **16** since 2026-08-08 (it was 4, unchanged since the file was written; lane `w-throughput`, board #1323), and `--jobs` still overrides. Reads **18/18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT**, 5,184 fixture-verdicts, sweep `19556/19556 reached, 19460 graded, 0 mismatch`, cross `90812/90812 reached, 90424 graded, 0 mismatch` at `f49fe5e1`+`wt-w-throughput` — **quote it from the run, not from this page** |
+| **the debug-profile row** (`scripts/debug_lane.sh`, a gate row since 2026-08-17) | The fixture corpus at every registered lane through a **DEBUG** `c2rs`. **It is the only row that can express a false `debug_assert!` or an arithmetic overflow at all** — every other row runs `--release`, where the first is compiled out and the second wraps silently, and board **#3074** is a false emitter assertion that survived four days of green gates for exactly that reason (0 of 75 `debug_assert` sites were reachable by any standing instrument). **A debug panic now blocks a merge**, which was the user's decision and was taken 2026-08-17. Toolchain-bound, so it SKIPs with the sweep and the cross on the portable lane. Its per-lane `match` is a free **cross-profile identity check**: all 18 equal the release lanes' digit for digit at `4dde6627`. **Cost: ~142 s warm** (18 lanes; 125–162 s observed at load 59–73), **+13 s** for a cold debug build — the gate's largest single row. Not the 0.65 s sometimes quoted: that figure belongs to a *different* candidate (a debug `cargo test --workspace --lib` unit row), never built |
 | the sweep alone | `scripts/expr_sweep.sh` (`C2RS_SWEEP_JOBS=8`; ~1 min 26 s, or 9 min 51 s serial). Reads `14817/14817 reached, 14721 graded, 0 mismatch` at `33cbdbe` — **`reached` and `graded` are different numbers and the gap is board #281** |
 | the mode cross alone | `scripts/mode_cross.sh` — the generated corpus × the lane registry, `63,723 selected, 63,335 graded, 0 mismatch`; ~5 m 45 s cold, **13.8 s warm** on the capture cache (board #279) |
 | cross-product lane | `scripts/cross_sweep.sh` |
@@ -801,7 +802,19 @@ those answer *"is this tree safe to land"*, which is a different question from
 *"where is this project"*. **Neither the sweep nor the mode cross is a separate
 thing to remember any more — both are rows of `gate.sh`** (board #232, #279),
 which is why the gate went from ~7 s to minutes and why that is the right price.
+**Nor is the debug-profile lane** — `scripts/debug_lane.sh` shipped 2026-08-14
+standing outside the gate and nothing ran it for three days; it has been a row
+since 2026-08-17 (lane `w-gatewire`), it is the gate's largest single line item
+at ~142 s, and it is the only row in the file that can execute an assertion.
 Run the gate before landing; run `status.sh` to report.
+
+**And note what the gate's own coverage still cannot say.** Every row above
+except the debug one grades a `--release` binary. The debug row closes the
+*profile* axis for the FIXTURE corpus only: the generated sweep, the mode cross
+and the 878-TU workload scan all remain release-only, so a false `debug_assert`
+or an overflow reachable only from a generated case or a workload TU is still
+invisible. That is a bounded, stated gap — not a claim that the assertion
+population is now covered.
 
 **Two open items about the gate's own cost and coverage, so they are not
 rediscovered:** it grades the same `/Ox` case corpus **twice**, once uncached
