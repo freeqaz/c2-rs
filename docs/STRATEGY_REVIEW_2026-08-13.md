@@ -468,3 +468,48 @@ Not edited, and why: `CLAUDE.md` (§5 — user's call), `docs/BOARD.md` and
 `docs/rungs/INDEX.md` (contended seams), `docs/whitebox/` (lane-owned),
 `scripts/gate.sh` and helpers (lane `w-gate3048` pending), anything in
 `crates/` or `fixtures/` (this is a review, not a lane).
+
+---
+
+## 8. Addendum 2026-08-17 — the lever-7 decision, priced by eight waves (coordinator)
+
+Written at master `3835469c` (gate PASS at graded tree `00aeaabe2b63`,
+`match` 25 · `mismatch` 0 · `vocab-gap` 845 · `capture-fail` 8 ·
+`fnbyte-exact` 35,734). §2/§4 left the goal question open; the waves since
+have priced it from four independent directions, and the prices are now the
+input the decision was waiting on:
+
+* **The stated target exceeds the oracle's ceiling.** `graded` is **870, not
+  871** — the 8th capture-fail is `BinkIntegration.cpp` at `C2065`
+  (`w-871`, rung 2026-08-16-871).
+* **No subsystem's completion converts a block.** A perfect reader converts
+  **2** TUs (`w-vocabgap`, #3191); a perfect section emitter converts **0**
+  (`w-section`, #3210); §6.2 item F converts **0** in all four populations
+  (`w-itemF`); **523 of 845** remaining TUs fail factors A, B and C
+  simultaneously (`w-871`).
+* **Implied cost of the goal as written: 3,400–10,400 lanes**, 15–45× the
+  entire rung record, stated as a floor (`w-871`).
+* **Every function-count figure reads ~9× optimistic as bytes** — 811/811
+  ratios > 1, median 9.0× (`w-three`, #3202-area). `fnbyte-exact` 22.05% of
+  functions is **2.29% of bytes**.
+
+Consequences for the §4 options, in the coordinator's reading (a
+recommendation, not a decision — the decision is the commissioning user's):
+
+* **Option D (re-unit the goal in bytes)** is the one the data argues for:
+  bytes-exact is the honest unit (the 9× illusion is gone), and it is the
+  only graded column recent work has actually moved (+163 available at one
+  fence's cost, `w-section` L5).
+* **The single bounded `match`-moving lane** regardless of the decision:
+  `decomp_pch.cpp` (905 B, 0 `.text`, 5 mechanisms, terminal = the `sel=2`
+  `.rdata` COMDAT emitter that is also the terminal for 47.6% of the
+  reachable population, #3196).
+* Wave nine was dispatched at `3835469c` accordingly: `w-fence163` (measure
+  the ContentPath fence, ship L5's +163 behind it), `w-npos` (the COMDAT
+  emitter + decomp_pch attempt), `w-mutcensus` (the fence-without-test
+  census `w-guards` named). None forecloses options A–D.
+
+Still parked with the user: the lever-7 choice itself, and whether
+`scripts/debug_lane.sh` gets wired into `gate.sh` (built and priced at
+0.65 s warm; unwired because making a debug panic a merge blocker is
+policy).
