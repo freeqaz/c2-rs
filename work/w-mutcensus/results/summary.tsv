@@ -10,6 +10,7 @@ CA9	GREEN	1648	0	42		387.67
 CS2.aborted	INVALID	789	0	5		absent
 CS2	GREEN	1648	0	42		642.04
 CS2.notoolchain.DISCARDED	INVALID	1648	0	42		0.00
+CS3	GREEN	1648	0	42		220.38
 CS8	GREEN	1648	0	42		388.46
 G1	RED	1644	4	42	func::gl::data_object_tests::the_new_reader_and_the_extern_gate_admit_disjoint_linkages;gap::tests::wr1_census_key_guards::the_census_key_survives_the_round_trip_into_the_reachable_ranking;gap::tests::wr1_census_key_guards::the_data_symbol_linkage_gate_is_the_one_byte_that_moves_the_key;gap::tests::wr1_census_key_guards::the_two_data_symbol_census_keys_are_not_interchangeable	388.48
 L1	RED	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	76.21
@@ -18,6 +19,7 @@ L3	GREEN	1648	0	42		87.53
 L4.aborted	INVALID	876	1	14	the_census_and_the_port_agree_about_what_is_in_class	171.58
 L4.notoolchain.DISCARDED	INVALID	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	0.00
 L4	RED	1646	2	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input;the_census_and_the_port_agree_about_what_is_in_class	641.77
+L5	RED	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	220.52
 N0wtB.dirtytree.DISCARDED	GREEN	1648	0	42		267.23
 N0wtB.notoolchain	INVALID	1648	0	42		0.00
 N0wtC.dirtytree.DISCARDED	RED	1647	1	42	func::body::shapes::leaf_store::tests::every_bind_gate_fires_on_a_named_input	262.37

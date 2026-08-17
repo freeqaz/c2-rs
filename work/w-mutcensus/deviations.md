@@ -95,9 +95,27 @@ A corollary worth stating because it was nearly got wrong: the *runner's* copy o
 the colour rule is **advisory**. The published table comes from `rederive.sh` in
 the lane checkout over the collected logs, so the eight in-flight runners did not
 need patching mid-run — and overwriting a script that a running `sh` is still
-reading is a real hazard that was taken for no benefit. It happened not to bite
-(all eight runners verified alive and advancing afterwards) and is recorded so
-the next campaign does not repeat it.
+reading is a real hazard that was taken for no benefit.
+
+**IT DID BITE, and this paragraph is the correction.** The first version of this
+entry said *"it happened not to bite (all eight runners verified alive and
+advancing afterwards)"*. That check asked the wrong question: the runners **were**
+alive — the damage was to the run each was in the middle of. **`B9` came back
+`INVALID` at 7 of 42 targets**, with `cargo test` stopping straight after the 6th
+target and **no error line of any kind**. That is the signature of a shell whose
+script changed under it, not of a test failure and not of an OOM (no `dmesg` OOM
+entry; 56 GB still available). `/bin/sh` reads a script incrementally and seeks
+within it, and `cp` truncates and rewrites in place, so the running shell's file
+offset lands in different text than it was parsing.
+
+Damage audit, done properly this time — **every** log in **all eight** sidecars
+checked for its target count: **`B9` is the only completed run affected.** Every
+other short log had an active writer (6/42 or 14/42 and still growing). `B9` is
+recorded `INVALID`, **never as a colour**, and was re-run from scratch.
+
+The ledger on this hazard: **no benefit, one destroyed run, one contended re-run.**
+**Never `cp` over a script a live shell is executing.** If a running runner must
+change behaviour, write a new file and start a new runner.
 
 ## D8 — A KILLED RUNNER LEAVES ITS MUTANT APPLIED, and the next thing that ran measured it. Both guard layers caught it, on two worktrees, by two different mechanisms
 
