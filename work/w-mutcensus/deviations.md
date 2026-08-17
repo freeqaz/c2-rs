@@ -55,6 +55,53 @@ No mutant artifact left `work/w-mutcensus/`; the sidecars' logs were copied into
 the lane checkout's `work/w-mutcensus/results/` and nothing else was taken from
 them. The sidecars are detached, so nothing they contain can reach the branch.
 
+## D7 — FOUR runners, not two, and the two extra work the same lists BACKWARDS
+
+The prereg budgeted **~6 min per mutant serial** (§3), which was measured on an
+otherwise idle box. During this session **two peer sessions were running
+`scripts/gate.sh --jobs 4 --require-graded` concurrently** (`/tmp/c2rs-gate-*`
+work dirs, `w-npos` among them), and load average sat at **69–75 on 32 cores**.
+The effect on this campaign's probe, measured: the `census_gate` target took
+**267.23s** where the uncontended baseline took **84.17s** — 3.2×. At that rate
+28 mutants per runner is ~5 h.
+
+Adding runners was the right response *for this workload specifically*, and the
+measurement is why rather than a guess. Per-target durations sum to **200.11s**
+against a **223s** wall baseline, so `cargo test` runs the 42 targets
+essentially **serially**, and the individual `wibo` processes each held
+**6–9 % of one core**. A suite run here is **latency-bound on serial `wibo`
+invocations, not CPU-bound** — so a second, third and fourth concurrent suite
+buys nearly-linear throughput without adding much pressure to the peers'
+CPU-bound gate runs.
+
+So two more sidecars (`w-mutcensus-d`, `w-mutcensus-e`) were provisioned the
+same way, each verified `4/4 functions in class`, and launched on the **same two
+id lists in REVERSE order**:
+
+| runner | list | order |
+|---|---|---|
+| `w-mutcensus-b` | `CS2`…`B10` | forward |
+| `w-mutcensus-d` | `CS2`…`B10` | **reverse** (`B10` first) |
+| `w-mutcensus-c` | `L4`…`CA23` | forward |
+| `w-mutcensus-e` | `L4`…`CA23` | **reverse** (`CA23` first) |
+
+**Reverse order rather than a fresh split, for two reasons.** It needed no
+restart — `b` and `c` were already 25 minutes into their graded baselines, and
+their lists are fixed in a running process's argv. And where the two ends of a
+list meet, the same mutant gets measured **twice, in two independently
+provisioned worktrees** — a free reproducibility check on the colour itself, at
+the cost of only the duplicated ids at the meeting point.
+`work/w-mutcensus/collect.sh` keeps both logs, reports **AGREE / DISAGREE** per
+duplicated pair, and prints a disagreement loudly rather than letting one run
+overwrite the other. A disagreement would mean a colour is not a property of the
+site, which outranks the census.
+
+**Checked before trusting the contended runs:** no integration test in the
+workspace asserts on wall-clock time (`grep` for `elapsed()` in `crates/*/tests`
+returns nothing), so contention cannot manufacture a false RED via a timeout.
+Every RED's failing-test names are reviewed for plausibility against the mutated
+site regardless.
+
 ## D6 — CAUGHT MID-CAMPAIGN: the registered baseline 1,648 / 0 / 42 is IDENTICAL with and without a toolchain, so it cannot detect a differential that grades NOTHING
 
 **This is the campaign's own instrument failure, found on the third mutant row,
