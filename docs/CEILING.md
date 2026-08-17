@@ -12,6 +12,38 @@ quoted from history**.
 argument for re-scoping. The re-scope decision is the user's; this page exists to
 equip it. Where the arithmetic reads badly it is published as arithmetic.
 
+> ### ✔ 2026-08-17 — **THE DECISION THIS PAGE WAS BUILT TO EQUIP HAS BEEN MADE: OPTION A, AND THE GOAL IS READ AS ITS DEFINITION, NOT AS "871"**
+> *`STRATEGY_REVIEW_2026-08-13.md` §8.1; decided by the user at master
+> `7e541a54`, recorded `4b9eebcf`.*
+>
+> **The goal stands: reproduce `c2` fully.** Two things follow, and both are
+> doctrine now rather than open questions.
+>
+> 1. **Quote the goal as its definition — *every TU the oracle can compile* —
+>    and its cardinality from a scan.** That is **870** as of `55933035`
+>    (§1.1's ⚠ banner), not the 871 in this page's title and first line, and it
+>    may move again in either direction because the eighth `capture-fail`
+>    (`BinkIntegration.cpp`, `C2065`) is **unmeasured for permanence**. This is
+>    not a re-scope: 870/878 **is** full reproduction, because no byte-exact
+>    port can match a TU the oracle itself refuses. The title and §1.1's table
+>    are left reading 871 deliberately — they are dated records with their
+>    corrections attached, per the house rule against rewriting them in place.
+> 2. **Option A is only coherent paired with §4's phase plan, and that governs
+>    dispatch.** The review's arithmetic says no intermediate match count pays
+>    (1.03× at match 25; value arrives near p≈0.9), and H1 says a TU-shaped
+>    lane cannot carry a phase — every phase-named lane ever dispatched
+>    collapsed into shipping one function shape. **So Option A does not
+>    authorise 845 more TU-conversion lanes**; it authorises §6.1's phases,
+>    dispatched as construct rungs and characterization lanes
+>    (`CLAUDE.md` § "Units of work"). Reading Option A as a mandate for more
+>    per-TU work is the local-optimum trap H2 named, now with the user's goal
+>    attached to it.
+>
+> **What this changes about the numbers on this page: nothing.** Every ceiling,
+> rate and factor count below stands as measured. What changed is which of them
+> is a *target* — and the answer is still none of them; they remain drivers
+> (`STATUS.md`'s standing trap).
+
 > **Provenance rule for this page.** Every number below states the instrument
 > that printed it and the tree it was collected at, or it carries the
 > **HAND-COUNT** tag (`BOARD.md` Conventions, board #1476). A number without one
