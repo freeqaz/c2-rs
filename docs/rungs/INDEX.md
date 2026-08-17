@@ -245,3 +245,4 @@ the header block this table is read from.
 | 2026-08-16 | SECTION | [section](2026-08-16-section.md) | 8 | +0 — every `crates/` edit is a reverted ladder rung; the identity |
 | 2026-08-16 | w-three | [three](2026-08-16-three.md) | 10 | **+0**. `match` 25 → 25, `mismatch` 0 → 0, `codegen-gap` 0 → 0, |
 | 2026-08-16 | w-vocabgap | [vocabgap](2026-08-16-vocabgap.md) | 8 | **+0**. `match` 25 → 25, `mismatch` 0 → 0, `codegen-gap` 0 → 0, |
+| 2026-08-17 | w-npos | [npos](2026-08-17-npos.md) | 2 | per-function census +0 on both axes (this TU emits 0 functions); |
