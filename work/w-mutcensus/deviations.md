@@ -96,6 +96,26 @@ duplicated pair, and prints a disagreement loudly rather than letting one run
 overwrite the other. A disagreement would mean a colour is not a property of the
 site, which outranks the census.
 
+**An unplanned benefit of the reverse order, worth stating because it changes
+what a partial campaign is worth.** Under a budget that does not reach all 56,
+forward-only runners would have finished the *front* of both lists and left whole
+families untouched. With each list worked from both ends, a partial campaign
+covers the **front and back of both** — so the `CS` block and the `B`/`D`/`BU`
+block both get rows, and the `L` block and the `CA` block both get rows, instead
+of one list being fully measured and the other not at all. Per-family shape (§4
+of the rung) is what this census was commissioned for, and family coverage is
+worth more to it than depth in any one family.
+
+**Diagnosis that was ruled out, so nobody retries it.** The obvious suspect for
+the slowdown was the **shared capture cache**: `main_repo_root()` resolves to the
+*true* main repo from inside a worktree, so all four sidecars and both peer gates
+share `work/capture-cache`, which had **165–172 live lockfiles** during the run.
+Checked and rejected: the two bottleneck tests spawn `c2rs perf` and
+`c2rs selftest`, and **neither touches `CaptureCache`** (no reference in
+`cli/perf.rs`, and selftest has no cache path) — the lockfiles are the peers' gap
+scans. Giving each sidecar its own `C2RS_GAP_CACHE` root would have bought
+nothing. The contention is raw CPU and `wibo` process throughput.
+
 **Checked before trusting the contended runs:** no integration test in the
 workspace asserts on wall-clock time (`grep` for `elapsed()` in `crates/*/tests`
 returns nothing), so contention cannot manufacture a false RED via a timeout.
