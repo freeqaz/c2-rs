@@ -123,3 +123,39 @@ rows verified row-by-row rather than minted into a moving pointer.
 
 NOT DONE, DELIBERATELY: not merged, not pushed, NOT REBASED — coordinator asked
 to hold the rebase while master moves.
+
+ADDENDUM after the campaign closed.
+
+PROBE SOUNDNESS, re-verified against peer w-fence163's #3219 (same defect, same
+wave, independently hit by both lanes — which makes it a property of the worktree
+workflow, not an incident). Four checks at the tip:
+ (1) compilers/ present in all EIGHT runner worktrees, each re-verified
+     "fixtures/cpp/w5_chain.cpp -> 4/4 functions in class".
+ (2) C1 re-run in ALL EIGHT after the campaign: RED 1,646/2 in every one, with
+     IDENTICAL failing sets — w-guards' G1 pair BY TEST NAME, not by count. A
+     worktree whose captures were skipping cannot produce that. No runner's
+     colours are void. Differentials 632-646s under the worst load the campaign
+     saw, vs 84.17s uncontended.
+ (3) Executed-population check for EVERY run, not a sample: per-worktree MINIMUM
+     census_gate differential b 118.71 · c 53.51 · d 91.38 · e 61.68 · f 250.18 ·
+     g 251.64 · h 142.93 · i 138.20 s. Nothing near the 0.00s a skip gives.
+ (4) The two colours read before provisioning were VOID, not provisional:
+     discarded, re-run from scratch, logs kept (*.notoolchain.DISCARDED.log).
+GENERAL LESSON, worth more than this lane: a mutation campaign must carry at
+least one control whose failing set is pinned BY NAME and re-run in every
+execution environment it uses. A control pinned only by COUNT passes in an
+unprovisioned worktree the moment the count happens to match; one pinned by name
+cannot. That single check would have caught #3219 immediately.
+
+ZERO-DELTA INVARIANT, read correctly: merge-base is 7e541a54 and
+`git diff 7e541a54..HEAD -- crates fixtures scripts` is EMPTY. Master has since
+advanced to 260838d6 (w-npos merged, match 25->26), so a bare `master..HEAD`
+diff now shows w-npos's ADDITIONS as deletions — that is this branch being
+deliberately un-rebased, not a graded change here. Rebase held per coordinator.
+This lane touches only docs/rungs/ and work/.
+
+GATE AT THE TIP: PASS (HATCH-RED REFUSED), 18/18 lanes each grading a corpus,
+6,858 fixture-verdicts, sweep 19,460 of 19,556, cross 90,424 of 90,812 with 0
+mismatch, graded tree 00aeaabe2b63 over 731 files — digit for digit the figures
+w-guards recorded at its tip. debug_lane 18 ran / 0 failed / 0 panics / 0
+mismatch. Suite 1,648/0/42 exit 0. board_audit all-zero. rung_registry 2/2.

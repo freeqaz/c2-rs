@@ -556,7 +556,7 @@ applies to it in full.
 
 | check | result |
 |---|---|
-| `git diff master..HEAD -- crates fixtures scripts` | **EMPTY** — verified after every revert and at the tip |
+| `git diff <merge-base>..HEAD -- crates fixtures scripts` | **EMPTY** — verified after every revert and at the tip. The merge-base is `7e541a54`; the lane touches only `docs/rungs/` and `work/`. **Read against the merge-base, not against `master`**: master has since advanced to `260838d6` (peer `w-npos` merged, workload `match` 25 → 26), so a bare `master..HEAD` now shows `w-npos`'s *additions* as deletions — that is this branch being deliberately un-rebased, not a graded change by this lane. The rebase is held at the coordinator's instruction |
 | graded tree identical at both ends | **YES** — established by the empty diff above over exactly the paths `gate.sh` content-hashes, and re-verified clean in all **eight** sidecar worktrees after the campaign |
 | 878-TU workload scan | `match` **25** · `mismatch` **0** · `codegen-gap` **0** · `vocab-gap` **845** · `fnbyte-exact` **35,734** |
 | anchored `gap-metric` keys | **394**, **0 deltas** against the briefed base at `3835469c` |
