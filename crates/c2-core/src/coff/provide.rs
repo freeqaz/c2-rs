@@ -36,11 +36,12 @@
 //!
 //! # Order
 //!
-//! Sections follow the objects slice, which the reader hands over in `.gl`
-//! record order. The two-object cell (`x05`) cannot separate record order
-//! from declaration order — the permutations coincide on every witness — so
-//! this is recorded as unseparated, the same status `data.rs` gives its
-//! relocation sort.
+//! Sections follow the objects slice, which the reader
+//! (`IlBundle::provide_data_tu`) hands over in **declaration order** —
+//! token-ascending, `DataObject::decl_index`'s measured identity. That is NOT
+//! the `.gl` record order: the `/Ox` capture of the three-width fixture
+//! spells its records s,c,q against a c,s,q obj, and probe `x08` (u16
+//! declared before u8) follows declaration against ascending size.
 
 use super::*;
 
@@ -136,4 +137,90 @@ pub fn emit_provide_data_obj(obj_name: &str, objects: &[ProvideObj<'_>]) -> Opti
 
     b.bytes(&strtab.finish());
     Some(b.0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn u32obj<'a>(symbol: &'a str, bytes: &'a [u8]) -> ProvideObj<'a> {
+        ProvideObj { symbol, ro: true, bytes }
+    }
+
+    /// The measured class check: every `None` is a shape with no witness.
+    #[test]
+    fn refuses_every_unwitnessed_shape() {
+        assert!(emit_provide_data_obj("Z:\\t\\x.obj", &[]).is_none(), "empty = emit_empty_obj's");
+        assert!(
+            emit_provide_data_obj("Z:\\t\\x.obj", &[u32obj("?a@@3IB", &[0, 0, 0])]).is_none(),
+            "size 3 has no witnessed alignment nibble"
+        );
+        assert!(
+            emit_provide_data_obj("Z:\\t\\x.obj", &[u32obj("", &[0, 0, 0, 0])]).is_none(),
+            "an empty symbol name is nothing the linker can hold"
+        );
+        assert!(
+            emit_provide_data_obj("Z:\\t\\x.obj", &[u32obj(".rdata", &[0, 0, 0, 0])]).is_none(),
+            "a section-shaped name is not an object symbol"
+        );
+        let a = u32obj("?a@@3IB", &[1, 2, 3, 4]);
+        let b = u32obj("?a@@3IB", &[5, 6, 7, 8]);
+        assert!(
+            emit_provide_data_obj("Z:\\t\\x.obj", &[a, b]).is_none(),
+            "two records, one linker name"
+        );
+    }
+
+    /// The witnessed nibble table — the u16 cell is the one that separates it
+    /// from the natural-alignment identity (`ALIGN_4`, not `ALIGN_2`).
+    #[test]
+    fn the_alignment_nibble_is_the_measured_table_not_natural_alignment() {
+        assert_eq!(provide_nibble(1), Some(1));
+        assert_eq!(provide_nibble(2), Some(3), "u16 -> ALIGN_4BYTES, measured on x06/qs");
+        assert_eq!(provide_nibble(4), Some(3));
+        assert_eq!(provide_nibble(8), Some(4));
+        assert_eq!(provide_nibble(3), None);
+        assert_eq!(provide_nibble(16), None, "no witnessed cell; refuse");
+    }
+
+    /// The shape constants, checked against `decomp_pch.cpp`'s own obj: 5
+    /// sections, 14 symbols, `.rdata` chars `0x40301040`, aux CheckSum
+    /// `0xdebb20e3` over `ff ff ff ff`, EXTERNAL long-name symbol in the
+    /// string table.
+    #[test]
+    fn the_npos_shape_reproduces() {
+        let name = "?npos@?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@stlpmtx_std@@2IB";
+        let obj = emit_provide_data_obj(
+            "Z:\\t\\decomp_pch.obj",
+            &[ProvideObj { symbol: name, ro: true, bytes: &[0xFF; 4] }],
+        )
+        .unwrap();
+        assert_eq!(u16::from_le_bytes([obj[2], obj[3]]), 5, "section count");
+        let n_syms = u32::from_le_bytes([obj[12], obj[13], obj[14], obj[15]]);
+        assert_eq!(n_syms, 14, "11 shell + section + aux + EXTERNAL");
+        // Section 5's header (index 4): name and characteristics.
+        let h = 20 + 4 * 40;
+        assert_eq!(&obj[h..h + 6], b".rdata");
+        let chars = u32::from_le_bytes([obj[h + 36], obj[h + 37], obj[h + 38], obj[h + 39]]);
+        assert_eq!(chars, 0x4030_1040, "ro COMDAT, ALIGN_4");
+        assert_eq!(coff_checksum(&[0xFF; 4]), 0xDEBB_20E3, "the measured aux CheckSum");
+        // The long name rides in the string table.
+        assert!(obj.windows(name.len()).any(|w| w == name.as_bytes()));
+    }
+
+    /// The rw twin (`g10`/`x07`): `.data`, chars `0xC0301040`, same symbol
+    /// shape — one emitter, one branch, no second copy of the layout.
+    #[test]
+    fn the_rw_twin_lands_in_data() {
+        let obj = emit_provide_data_obj(
+            "Z:\\t\\x.obj",
+            &[ProvideObj { symbol: "?sa@@3HA", ro: false, bytes: &[0, 0, 0, 3] }],
+        )
+        .unwrap();
+        let h = 20 + 4 * 40;
+        assert_eq!(&obj[h..h + 5], b".data");
+        let chars = u32::from_le_bytes([obj[h + 36], obj[h + 37], obj[h + 38], obj[h + 39]]);
+        assert_eq!(chars, 0xC030_1040);
+        assert_eq!(coff_checksum(&[0, 0, 0, 3]), 0x9909_51BA, "g10's measured CheckSum");
+    }
 }

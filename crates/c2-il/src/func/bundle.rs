@@ -3323,6 +3323,68 @@ impl IlBundle {
 }
 
 #[cfg(test)]
+mod provide_tests {
+    use crate::IlBundle;
+
+    fn bundle(ex: Vec<u8>, gl: Vec<u8>) -> IlBundle {
+        let mut b = IlBundle::new("t");
+        b.set("ex", ex);
+        b.set("gl", gl);
+        b.set("in", vec![]);
+        b
+    }
+
+    /// A `.gl` function record of the one measured frame with an ordinary
+    /// (root) linkage byte is exactly what the fence must see; the COMDAT
+    /// byte is what `decomp_pch.cpp`'s 321 records all carry.
+    #[test]
+    fn the_root_record_fence_reads_the_linkage_byte() {
+        let rec = |lk: u8| {
+            let mut v = b"?f@@YAHH@Z".to_vec();
+            v.extend_from_slice(&[0x00, 0x86, 0x01, 0x05, 0x04, lk, 0x00, 0x00, 0x00]);
+            v
+        };
+        assert!(super::super::gl::gl_has_root_shaped_fn_record(&rec(0x00)), "g01's root");
+        assert!(!super::super::gl::gl_has_root_shaped_fn_record(&rec(0x20)), "the COMDAT form");
+    }
+
+    /// **The Common_Xbox regression** — a module block whose content is a
+    /// statement (here the `0x53` list marker; there `4F 02 <token>` material)
+    /// must refuse the whole TU. The first fence draft matched the two-byte
+    /// `4F 02` prefix and graded that TU `mismatch` for one scan of this
+    /// lane's worktree; the fence now requires the full six-byte intro.
+    #[test]
+    fn a_module_block_carrying_statements_refuses_class_b() {
+        let intro = [0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01];
+        let mut ex = Vec::new();
+        ex.extend_from_slice(&intro);
+        ex.push(0x01);
+        ex.push(0x53); // a statement list, not another intro and not a segment
+        ex.extend_from_slice(&[0x4F, 0x1F]); // a segment exists, so class B
+        ex.extend_from_slice(&[0u8; 16]);
+        assert!(bundle(ex, b"junkjunk ".to_vec()).provide_data_tu().is_none());
+
+        // The Common_Xbox shape itself: `4F 02 <token>` right after the index.
+        let mut ex2 = Vec::new();
+        ex2.extend_from_slice(&intro);
+        ex2.push(0x01);
+        ex2.extend_from_slice(&[0x4F, 0x02, 0xAC, 0x0F]);
+        ex2.extend_from_slice(&[0x4F, 0x1F]);
+        ex2.extend_from_slice(&[0u8; 16]);
+        assert!(bundle(ex2, b"junkjunk ".to_vec()).provide_data_tu().is_none());
+    }
+
+    /// A class-B `.ex` with no module block at all is not the witnessed
+    /// pch-creator shape, whatever its `.gl` says.
+    #[test]
+    fn class_b_without_a_module_block_refuses() {
+        let mut ex = vec![0x4F, 0x1F];
+        ex.extend_from_slice(&[0u8; 16]);
+        assert!(bundle(ex, b"junkjunk ".to_vec()).provide_data_tu().is_none());
+    }
+}
+
+#[cfg(test)]
 mod dyninit_tests {
     use super::is_dynamic_initializer_name;
     use crate::IlBundle;
