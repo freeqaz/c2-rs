@@ -62,15 +62,15 @@ cost this project real work more than once.
 > 63,335 graded**.
 
 <!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->
-Collected 2026-08-15 · tree `7517d764` · binary `116fadf7fa50` · workload `02a195ddd`
+Collected 2026-08-17 · tree `453975f3` · binary `5559cc00b62b` · workload `924ab0c5e`
 
 | metric | value |
 |---|---|
-| Workspace tests (cargo test --workspace --release) | 1648 passed, 0 failed, 42 targets |
-| Oracle self-test (c2rs selftest) | 381 PASS, 0 FAIL |
-| Fixture port gate (c2rs perf) | 150 port Match, 0 mismatch, 231 not-implemented (of 381) |
-| Port speedup, geomean over matched fixtures | 451x geomean over matched fixtures |
-| 878-TU dc3 workload scan (c2rs gap) | match 25, mismatch 0, codegen-gap 0, vocab-gap 845, capture-fail 8 |
+| Workspace tests (cargo test --workspace --release) | 1655 passed, 0 failed, 42 targets |
+| Oracle self-test (c2rs selftest) | 386 PASS, 0 FAIL |
+| Fixture port gate (c2rs perf) | 153 port Match, 0 mismatch, 233 not-implemented (of 386) |
+| Port speedup, geomean over matched fixtures | 504x geomean over matched fixtures |
+| 878-TU dc3 workload scan (c2rs gap) | match 26, mismatch 0, codegen-gap 0, vocab-gap 844, capture-fail 8 |
 | Per-function census (driver, not target) | 705259/2410886 functions in class (29.25%) |
 | Emitted-function census | 39181/162049 emitted functions in class (24.18%) |
 | Emitted-census residue | residue 9256: 1945 compiler-generated (no IL body), 7311 unexplained  (5.71% of the denominator) |
@@ -80,7 +80,7 @@ Collected 2026-08-15 · tree `7517d764` · binary `116fadf7fa50` · workload `02
 | Emit-set ceiling, GATE-anchored (4F 1F — what the port consumes) | 28 of 870 graded TUs |
 | Emit-set MODEL ceiling (today / repaired / wall) | 324 today / 474 repaired / 396 wall |
 | .gl binding invariants (records / arity / conflicts) | 1462226 records, 421 nameless, 0 before the first row, 39163 row-conflicts, 590 name-conflicts, 0 accounting breaks, 0 unreadable objs |
-| Phase-7 factors over the graded TUs (A / B / C / D / E) | A 28 (LO 27) · B 324 · C 169 · D 24 · E 3, of 870 graded |
+| Phase-7 factors over the graded TUs (A / B / C / D / E) | A 28 (LO 27) · B 324 · C 169 · D 24 · E 4, of 870 graded |
 | Joint ceilings (B∧C, A∧B∧C) | B∧C 147 · A∧B∧C 27 · A∧B∧C∧D 22 |
 | Pre-Phase-7 FRONTIER (codegen breadth alone / if A were free) | 2 reachable by codegen breadth alone; 120 if factor A were free |
 | Emit-predicate worth, B∧C − A∧B∧C (board #213) | +120 TUs (B∧C − A∧B∧C) |
