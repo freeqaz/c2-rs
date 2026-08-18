@@ -251,6 +251,7 @@ the header block this table is read from.
 | 2026-08-17 | w-npos | [npos](2026-08-17-npos.md) | 2 | per-function census +0 on both axes (this TU emits 0 functions); |
 | 2026-08-18 | W-C2MAP2 | [c2map2](2026-08-18-c2map2.md) | 26 | +0 — nothing admitted, no crates/ file touched |
 | 2026-08-18 | CALLEEGUARD | [calleeguard](2026-08-18-calleeguard.md) | 7 | +0 — required-zero byte delta; **zero bytes land in |
+| 2026-08-18 | w-coldcross | [coldcross](2026-08-18-coldcross.md) | 8 | +0 — `crates/` is byte-identical to base |
 | 2026-08-18 | CORPUSHEALTH | [corpushealth](2026-08-18-corpushealth.md) | 7 | +0 — `crates/`, `fixtures/` and `scripts/` are **byte-identical |
 | 2026-08-18 | W-DAGORDER2 | [dagorder2](2026-08-18-dagorder2.md) | 12 | +0 — nothing admitted, no crates/ file touched |
 | 2026-08-18 | DATASEAM | [dataseam](2026-08-18-dataseam.md) | 10 | +0 — TU `match` 26 → 26 in every one of the 40 counterfactual |
