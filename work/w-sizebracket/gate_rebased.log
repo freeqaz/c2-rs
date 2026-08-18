@@ -1,0 +1,113 @@
+lane gate: preflight on /tmp
+  keep    /tmp/c2rs-gate-2312458       LIVE — pid 2312458 is a running gate (a concurrent lane)
+  keep    /tmp/c2rs-gate-3396253       this run
+  keep    /tmp/c2rs-gate-3233985       recent — 1 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-2803641       recent — 2 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-1729776       recent — 3 of 3 finished runs kept for their logs
+  reaped  /tmp/c2rs-gate-2475907       stale — no live gate owns it
+reap:   1 stale run tree(s) removed, 5 kept (1 live, 3 recent, 1 this run)
+strip:  0 kept tree(s) lost 0 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
+        freed 152.5 MiB and 442 inodes (df delta over a SHARED filesystem)
+disk:   /tmp — free 45.8 GiB / 1,046,840 inodes (floors: 2.0 GiB / 150,000 inodes)
+
+lane gate: 18 lanes from /home/free/code/milohax/c2-rs/.claude/worktrees/w-sizebracket/scripts/lanes.txt
+  run dir: /tmp/c2rs-gate-3396253   (per-lane run dirs under /tmp/c2rs-gate-3396253/lanes/)
+  graded tree: e8a9edfa0947  (740 files under crates fixtures scripts, content-hashed)
+               1 gitignored byproduct file(s) under those directories were NOT hashed (board #3048)
+
+hatch-red:       work/w-hatch/hatch_red.py  (no toolchain; fires hatch.py's refusals)
+  REFUSED  HATCH-STALE `hatch.py apply` cannot hatch this tree, so the arms have no tree to run on (board #1389)
+ladder-red:      work/w-ladders/ladder_red.py  (no toolchain; fires ladder.py's width-table refusal)
+  PASS  
+building the harness (no-op if current)
+   Compiling c2-il v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-sizebracket/crates/c2-il)
+   Compiling c2-core v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-sizebracket/crates/c2-core)
+   Compiling c2-reference v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-sizebracket/crates/c2-reference)
+   Compiling c2-harness v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-sizebracket/crates/c2-harness)
+    Finished `release` profile [optimized] target(s) in 7.64s
+harness: /tmp/c2rs-gate-3396253/c2rs
+  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/w-sizebracket/target/release/c2rs  built 2026-08-18 12:45:23
+  sha adc24b287d40  tree 9eab9c967
+
+wall clock: 2s for 18 lanes at --jobs 16 (C2RS_JOBS=8)
+
+generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-3396253/sweep 0  (jobs 16)
+  sweeping 19556 of 19556 generated cases
+    grading at 16 job(s)
+  checked=19556 mismatches=0 graded=19460 ungraded=96 unknown=0
+  cache: hit=19460 miss=96 validated=190 cache-bad=0 (of 19556 cases)
+  (29s)
+
+mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-3396253/cross 0  (jobs 16)
+  assigned 19556 cases over 18 lanes = 90812 cells (full cross would be 352008)
+  sweeping 90812 of 90812 case-lane cells (cross of 19556 cases x /home/free/code/milohax/c2-rs/.claude/worktrees/w-sizebracket/scripts/lanes.txt; the full 12x product is 352008)
+  checked=90812 mismatches=0 graded=90424 ungraded=388 unknown=0
+  (32s)
+
+debug lane:      scripts/debug_lane.sh  (DEBUG profile — the only row that can
+                 execute a debug_assert or trap an arithmetic overflow)
+  debug lane: 18 lanes x 386 fixtures at 16 lane(s) at once, binary=/tmp/c2rs-gate-3396253/debuglane/c2rs
+  DEBUG-LANE-TOTAL lanes=18 ran=18 failed=0
+  (11s)
+
+disk:   /tmp low-water this run — 45.6 GiB and 1,046,417 inodes free (start: 45.8 GiB / 1,046,840)
+
+LANE                 VERDICT     graded/total  match  mismatch  flags
+-------------------- ---------- ------------- ------ --------- --------------------
+O1                   PASS          386/386       182         0  /O1
+O1-EHsc              PASS          386/386       183         0  /O1 /EHsc
+O1-Oi                PASS          386/386       184         0  /O1 /Oi
+O1-Oi-EHsc           PASS          386/386       185         0  /O1 /Oi /EHsc
+Ox                   PASS          386/386       153         0  /Ox
+Ox-EHsc              PASS          386/386       153         0  /Ox /EHsc
+Ox-Gy                PASS          386/386       153         0  /Ox /Gy
+Ox-Gy-EHsc           PASS          386/386       153         0  /Ox /Gy /EHsc
+O2                   PASS          386/386       159         0  /O2
+O2-EHsc              PASS          386/386       159         0  /O2 /EHsc
+Od                   PASS          386/386        21         0  /Od
+Od-EHsc              PASS          386/386        21         0  /Od /EHsc
+O1-Oi-GR             PASS          386/386       184         0  /O1 /Oi /GR
+O1-Oi-EHsc-GR        PASS          386/386       185         0  /O1 /Oi /EHsc /GR
+Ox-GR                PASS          386/386       153         0  /Ox /GR
+Ox-EHsc-GR           PASS          386/386       153         0  /Ox /EHsc /GR
+Od-GR                PASS          386/386        21         0  /Od /GR
+Od-EHsc-GR           PASS          386/386        21         0  /Od /EHsc /GR
+expr-sweep           PASS        19556/19556   19460         0  generated cases (of 19556)
+mode-cross           PASS        90812/90812   90424         0  case-lane cells (of 90812)
+hatch-red            REFUSED         0/14          0       n/a  arms (0 green controls)   <- HATCH-STALE `hatch.py apply` cannot hatch this tree, so the arms have no tree to run on (board #1389)
+ladder-red           PASS            5/5           3       n/a  arms (2 green controls)
+debug-lane           PASS           18/18       2423         0  DEBUG-profile lanes (6948 graded, 0 panic)
+
+lanes:  18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT
+graded: 6948 fixture-verdicts across all lanes
+sweep:  PASS — 19556 of 19556 selected cases reached, 19460 GRADED by the
+        oracle (96 ungraded: no reference obj), 0 mismatch (corpus 19556)
+cross:  PASS — 90424 of 90812 selected cells graded, 0 mismatch (product 90812)
+debug:  PASS — 18 of 18 lanes through a DEBUG-profile c2rs,
+        6948 fixture-verdicts, match 2423, 0 mismatch, 0 PANIC
+logs:   /tmp/c2rs-gate-3396253/<lane>.log, /tmp/c2rs-gate-3396253/sweep.log, /tmp/c2rs-gate-3396253/cross.log, /tmp/c2rs-gate-3396253/debuglane.log
+
+GATE: PASS (HATCH-RED REFUSED) — 18/18 lanes ran and every one of them graded a corpus,
+  the sweep graded 19460 of 19556 generated cases and the cross graded
+  90424 of 90812 case-lane cells, with 0 mismatches anywhere
+  (96 sweep cases carried ungraded — the reference rejects the source),
+  and 18/18 lanes ran again through a DEBUG-profile c2rs for
+  6948 more fixture-verdicts at 0 panics — the one row here that can
+  express a false debug_assert or an arithmetic overflow at all.
+
+  HATCH-RED REFUSED — HATCH-STALE `hatch.py apply` cannot hatch this tree, so the arms have no tree to run on (board #1389)
+  The arms write into crates/ and restore it, so they will not run over a tree
+  that is not HEAD, and they cannot run at all on a tree the hatch will not
+  apply to. Neither is a statement about `hatch.py`'s eight refusals, so this
+  run does NOT establish what a full run establishes (board #1406). This is why
+  the headline above is qualified: commit or stash crates/ and re-run.
+
+graded tree: e8a9edfa0947  (740 files: crates fixtures scripts, content-hashed)
+  1 gitignored byproduct file(s) under those directories were NOT hashed
+  (board #3048; it was 1 at the start of this run). The subtraction is
+  printed at BOTH ends on purpose: a denominator nobody prints on both sides of a
+  change is a denominator that grows unwatched (#1002). A rise here is not a failure —
+  it is the gate saying which of its own byproducts it declined to grade itself on.
+  This is the identity of what was graded. It is a hash of file CONTENT, not
+  a commit — HEAD is what lied in #2907, and a commit id is silent about
+  uncommitted work, a half-restored tree and a concurrent writer alike.

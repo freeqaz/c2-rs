@@ -10,9 +10,12 @@
     Fixtures:  none — characterization: what UNIT and what VALUE does c2's inline
                size test decide on, and is `w-dataseam` §6.1's `[180, 231]` IL
                segment-byte bracket a rule or a corpus fit?
-    Census:    +0 — TU `match` 26 → 26. `crates/` lands **byte-identical to
-               `1744ced1`** (`git diff --stat 1744ced1 -- crates/ fixtures/ scripts/` is empty); the
-               measurement scaffold was reverted before the gate ran
+    Census:    +0 — TU `match` 26 → 26. `crates/`, `fixtures/` and `scripts/`
+               land **byte-identical to `abc64be3`**
+               (`git diff --stat abc64be3 -- crates/ fixtures/ scripts/` is
+               empty), and the gate's graded tree hash is the SAME VALUE before
+               and after the rebase — `e8a9edfa0947`, 740 files. The measurement
+               scaffold was reverted before the gate ran
     Record:    this file; prereg `docs/rungs/_2026-08-18-w-sizebracket-prereg.md`
                (frozen at `6ecf7b98`, the branch's first commit, before any probe)
 
@@ -510,6 +513,12 @@ three — **P2 HIT**.
 **Key count `394`, with `grep -cE '^ *gap-metric \S+ \S+$'`** — the anchored
 pattern, on all three logs. #3269's artifact was not reached for. **P3 HIT.**
 
+**All three scans were taken at `1744ced1`, and they carry to the rebased tip on
+`abc64be3` — measured, not argued.** `1744ced1..abc64be3` is one commit touching
+`docs/rungs/README.md` only, and the gate's own content hash of
+`crates fixtures scripts` reads **`e8a9edfa0947` at both ends of the rebase**
+(§10). The scan reads none of `docs/`.
+
 **Grids frozen by content hash, and the corpus did NOT move again:**
 
 | input | sha256 | vs `w-dataseam` |
@@ -595,7 +604,7 @@ not exist**, which is the finding rather than a failure of estimation.
 **MS1–MS6: NOT RUN, by the pre-registered condition.** Prereg §6 froze them as
 applying to a *shipped* `crates/` predicate and required that a lane which ships
 nothing report them as not run in those words. The Outcome is `declined` and
-`crates/` is byte-identical to `1744ced1`, so there is no predicate to mutate.
+`crates/` is byte-identical to `abc64be3`, so there is no predicate to mutate.
 **Registered colours observed: none. Registered colours contradicted: none.**
 
 MS6 — registered as a *predicted GREEN* — is worth a sentence anyway: it asked
@@ -607,18 +616,19 @@ correct by 1,610 edges**, which is the question MS6 was a proxy for.
 
 ## 10. Gate evidence
 
-`crates/` is **byte-identical to `1744ced1`** — `git diff --stat 1744ced1 --
-crates/` is empty — so this lane's required-zero byte delta is satisfied by
-construction and the identity control proves the scaffold left nothing behind.
+`crates/`, `fixtures/` and `scripts/` are **byte-identical to `abc64be3`** —
+`git diff --stat abc64be3 -- crates/ fixtures/ scripts/` is empty — so this
+lane's required-zero byte delta is satisfied by construction and the identity
+control proves the scaffold left nothing behind.
 
 | lane | result |
 |---|---|
 | `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **1,666 passed / 0 failed / 45 targets**, 1 ignored, **`SKIP: toolchain absent` count 0** (`work/w-sizebracket/tests.log`) — identical to the dispatch's registered baseline `1,666 / 0 / 45` |
-| `scripts/gate.sh --jobs 16 --require-graded` | **`GATE: PASS (HATCH-RED REFUSED)` — 18/18 lanes ran and every one graded a corpus** (`work/w-sizebracket/gate.log`) |
+| `scripts/gate.sh --jobs 16 --require-graded` | **`GATE: PASS (HATCH-RED REFUSED)` — 18/18 lanes ran and every one graded a corpus.** Run TWICE: at `1744ced1` (`gate.log`, cold `mode_cross`) and at the rebased tip (`gate_rebased.log`, **82 s**, 816 % CPU) |
 | 878-TU workload scan | `match` **26** / `mismatch` **0** / `codegen-gap` **0** on **all three** scans (§8.1) |
 | identity control | **394** anchored keys, all three scans, every value identical |
 | environment control | §8.3 — `C2RS_REQUIRE_TOOLCHAIN=1` on the suite **and** on all 176 probe invocations; 0 SKIP lines over 45 targets |
-| required-zero byte delta | `git diff --stat 1744ced1 -- crates/ fixtures/ scripts/` is **empty** |
+| required-zero byte delta | `git diff --stat abc64be3 -- crates/ fixtures/ scripts/` is **empty**, and the graded tree hash is **`e8a9edfa0947` at both `1744ced1` and the rebased tip** |
 | release-binary sha256 | **not quoted** — board **#3224** voids it across worktrees |
 
 ### 10.1 The gate, quoted as it printed
@@ -638,7 +648,7 @@ Graded tree **`e8a9edfa0947`**, **740** files under `crates fixtures scripts`,
 **`hatch-red` is reported as the gate reported it, not rounded up to PASS.** It
 is `HATCH-STALE` (board **#1389**) — a **pre-existing** state of that arm which
 no change of this lane's could have moved, because `crates/`, `fixtures/` and
-`scripts/` are byte-identical to `1744ced1`. `w-dataseam` recorded the same row
+`scripts/``scripts/` are byte-identical to `abc64be3`. `w-dataseam` recorded the same row
 in the same state at the previous master.
 
 **The debug-profile row is the one that could have indicted a change here**, and
@@ -647,21 +657,21 @@ wrapping overflow can execute, and it reports **0 panics on 18 of 18 lanes**.
 
 ### 10.2 The per-lane gate-count identity diff, with the range length asserted
 
-`crates/`, `fixtures/` and `scripts/` are byte-identical to `1744ced1`, so the
+`crates/`, `fixtures/` and `scripts/` are byte-identical to `abc64be3`, so the
 identity is against **master itself** and every count above is master's own.
-**Range length asserted**: `git rev-list --count 1744ced1..HEAD` = **8**
-(prereg · instruments · whitebox · board · rung · 3 rung corrections), and
-`git diff --name-only 1744ced1..HEAD | grep -vE '^(docs/|work/)'` is **empty** —
-every file this lane touched is under `docs/` or `work/`.
+**Range length asserted**: `git rev-list --count abc64be3..HEAD` = **11**
+(prereg · instruments · whitebox · board · rung · corrections · the rebase
+follow-ups), and `git diff --name-only abc64be3..HEAD | grep -vE '^(docs/|work/)'`
+is **empty** — every file this lane touched is under `docs/` or `work/`.
 
-| figure | `w-dataseam` tip (at `44794fa4`) | this lane (at `1744ced1`) | reading |
+| figure | `w-dataseam` tip (at `44794fa4`) | this lane (at `1744ced1` **and** at the rebased tip on `abc64be3` — the gate was run at both) | reading |
 |---|---|---|---|
 | lanes | 18/18 PASS | **18/18 PASS** | identical |
 | fixture-verdicts | 6,948 | **6,948** | identical |
 | sweep | `checked=19556 mismatches=0 graded=19460 ungraded=96` | **identical** | identical |
 | cross | `checked=90812 mismatches=0 graded=90424 ungraded=388` | **identical** | identical |
 | `debug-lane` | `PASS 18/18 2423 0` | **identical** | identical |
-| graded tree hash | `5b550a38d90b` (738 files) | `e8a9edfa0947` (**740** files) | **DIFFERENT, and expected** |
+| graded tree hash | `5b550a38d90b` (738 files) | `e8a9edfa0947` (**740** files), **the same value at both of this lane's runs** | **DIFFERENT from w-dataseam, and expected** |
 
 **The tree hash differs and it is not a defect** — the two lanes sit on different
 masters. `w-gateperf` merged between them and changed `crates/` and `scripts/`
@@ -703,16 +713,43 @@ the boundary did not). **128 stands.** §3.2 also supplies the reason its
 docstring's `/O1`-only scope is load-bearing in a way the docstring understates:
 at `/Ox` the constant is not merely *"wrong"*, its unit is inverted.
 
-### 11.3 The dispatch's own framing was wrong in one place, and it is recorded
+### 11.3 DISPATCH DEFECT — reported in `docs/rungs/README.md`'s named pattern, not as a preamble
 
-The brief said *"Both ends are already pinned — lower **180** by a witness…
-No size-constant lane in this repo has ever started with both ends pinned."*
-Both ends were pinned **in a unit that does not decide**, which is a stronger
-form of `w-dataseam` §12.6's finding: **a dispatched instruction is a prediction
-and should be scored like one.** The brief's other five instructions each earned
-their keep — measure against real c2, publish a series, measure both profiles,
-extend `ref/` rather than forking it, and decline if the constant is not derived
-— and the last one is the reason this rung exists in the form it does.
+`docs/rungs/README.md`'s *"Standing facts every lane brief must carry"* (landed
+at `abc64be3`, this lane's base) requires that **a lane which finds a briefed
+fact stale reports it as a dispatch defect**, in `w-dagorder`'s pattern.
+
+**The defect.** The brief stated: *"Both ends are already pinned — lower **180**
+by a witness … upper **231** by cost. No size-constant lane in this repo has
+ever started with both ends pinned."* Both ends were pinned **in a unit that
+does not decide**, and **the window they bracket contains no boundary at all**
+(§3.1: the flip is at emitted `(108,116]` / `SIZE (97,103]`, far below 176).
+
+**`w-dataseam` §12.1's handover is WITHDRAWN.** *"A 52-wide bracket with both
+ends measured"* is not a starting point: a lane sent to narrow `[180, 231]`
+would be narrowing a quantity that is wrong at every value in it (§5.2).
+
+**Detection was PARTLY INCIDENTAL, so the defect's true rate is unmeasured** —
+the half of `w-dagorder`'s pattern that matters most and is easiest to omit.
+This lane found the window empty only because its families ladder from `n = 0`,
+spanning `SIZE` 19–403 and emitted 16–516. **A lane that had probed only the
+dispatched `[176, 232]` would have reported "no flip in range" and stopped** —
+a null that reads as a *measurement problem* (wrong generator, wrong cell shape,
+too coarse a step) rather than as a refutation of the axis, and it would have
+been the third lane in a row to hand the bracket on intact.
+
+**Five of the brief's six instructions earned their keep** and are scored HIT in
+the same spirit: measure against real c2 — which is what caught §5.2 and is the
+single reason this lane's answer differs from `w-dataseam`'s; publish a series,
+not a cell; measure both profiles; extend `ref/` rather than forking it; and
+decline if the constant is not derived. The last is why this rung exists in the
+form it does.
+
+**No row of the standing-facts block itself was found stale.** Checked against
+this lane's own practice after the rebase: gate `--jobs 16 --require-graded`
+(82 s, §10), suite under `C2RS_REQUIRE_TOOLCHAIN=1` (§8.3), keys counted
+anchored at **394** (§8.1), #3249's back-to-back re-read discharged at a drift
+of **zero**, #3237's comparator not used (§8.4), #3224's sha256 not quoted.
 
 ### 11.4 `fnbyte-exact Δ = 0` needs a warning label, and this is the second lane to say so
 
