@@ -35,7 +35,7 @@ MEASURED, not asserted:
 New:
     docs/whitebox/ref/PREREG.md        the frozen layout, targets, FAILED criteria
     docs/whitebox/ref/README.md        the front door
-    docs/whitebox/ref/ADDR.tsv         GENERATED, 1,198 rows, the address index
+    docs/whitebox/ref/ADDR.tsv         GENERATED, 1,199 rows, the address index
     docs/whitebox/ref/SUBSYS.md        subsystem -> TU -> page, AND what has no page
     docs/whitebox/ref/P_COFF.md        coff.c + coffemit.c
     docs/whitebox/ref/P_SECTION.md     p2symtab.c + emit.cpp
@@ -65,7 +65,8 @@ THE HEADLINE
 The whitebox record could answer "what did lane X find" and could not answer
 "what is already known about 0x10b2b82d". At base: 19 findings documents, ~13,700
 lines of prose, 428 hand label rows, 474 non-unknown rows in c2_functions.tsv,
-1,126 distinct c2.dll addresses cited across docs/ -- and ZERO documents joining
+1,126 distinct c2.dll addresses cited across docs/ (1,129 at this tip -- the
+index is self-referential, see ref/README.md 4) -- and ZERO documents joining
 those five sources. That is why the alignment nibble cost a lane, why dag.c's
 lowering order took two, and why #1823's "there is no instruction scheduler"
 stood for months IN A DIRECTORY THAT ALSO CONTAINED THE SCHEDULER'S BAND.
@@ -100,11 +101,11 @@ of ADDR.tsv or one named section of one page.
 
 COVERAGE -- with denominators, including the small ones
 --------------------------------------------------------
-  C1a  cited addresses indexed             1,128 / 1,128 = 100%     target >=95%   HIT
-  C1b  resolved to a containing function     906 / 1,128 = 80.3%    target >=70%   HIT
+  C1a  cited addresses indexed             1,129 / 1,129 = 100%     target >=95%   HIT
+  C1b  resolved to a containing function     972 / 1,129 = 81.1%    target >=70%   HIT
   C2   functions of the image named          631 / 4,916 = 12.8%    NO TARGET, by design
   C3   subsystem pages                          6 / 6, 16-33 entries each          HIT
-  C4   WB_*_FINDINGS back-linked                18 / 19 (85 docs total)            HIT
+  C4   WB_*_FINDINGS back-linked                18 / 19 (86 docs total)            HIT
 
   87.2% of the image's functions have no entry. That is the honest number and it
   is in ref/README.md section 4, not buried.
@@ -143,7 +144,7 @@ FIVE FINDINGS THE JOIN PRODUCED (the lane read no new behaviour otherwise)
        different passes, OPPOSITE DIRECTIONS. #3243 and WB_DAGORDER 2 each
        describe one of them as "the tie-break".
 
-#3260  822 OF 1,198 ROWS HAVE NO PAGE -- most cited addresses are outside the
+#3260  823 OF 1,199 ROWS HAVE NO PAGE -- most cited addresses are outside the
        six prioritized subsystems, and the reference says so with a denominator.
        Cheapest next page: P_READER over WB_READER_FINDINGS.md (596 lines, 79
        addresses, no index). EXPLICITLY NOT NEXT: instruction selection -- three

@@ -130,14 +130,14 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10b27fd1	in-func	10b27f3c	400	1	7	-	gap	-	-	high	emit-prune-driver	2	rungs/_2026-08-04-w-skip-findings.md:1,rungs/_2026-08-04-w-skip-prereg.md:1
 10b281af	func-entry	10b281af	34	0	0	-	gap	coff	P_COFF.md	high	coff-writer: sole _time64 caller; TimeDateStamp callback; returns 0 when DAT_10c2ead8 set	2	whitebox/C2_MAP.md:2
 10b281f7	func-entry	10b281f7	32	1	0	-	gap	coff	P_COFF.md	high	comdat: identity map 1..8 for the COMDAT Selection byte	2	whitebox/C2_MAP.md:2
-10b28261	func-entry	10b28261	163	1	0	-	gap	coff	P_COFF.md	high	section-align|section-select: align -> nibble: (log2(a)+1)<<20, 1->0x100000 ... 0x1000->0xD00000	1	whitebox/C2_MAP.md:1
+10b28261	func-entry	10b28261	163	1	0	-	gap	coff	P_COFF.md	high	section-align|section-select: align -> nibble: (log2(a)+1)<<20, 1->0x100000 ... 0x1000->0xD00000	3	rungs/2026-08-18-c2map2.md:2,whitebox/C2_MAP.md:1
 10b28304	func-entry	10b28304	172	1	0	-	gap	coff	P_COFF.md	high	section-select: inverse of 10b28261	1	whitebox/C2_MAP.md:1
 10b283b0	func-entry	10b283b0	74	4	2	-	gap	coff	P_COFF.md	high	section-comdat|comdat: COMDAT spin-off: FUN_10be74cf(base->name+4, base->class+0x3b, newidx, base->kind+0x4d, selection, sym); copies +0x43 and +0x53 from base; stores ".data" into child+4 when base kind==1 (consumer of that store NOT id...	2	whitebox/BOARD_PROPOSED.md:1,whitebox/C2_MAP.md:1
 10b28548	func-entry	10b28548	62	1	1	-	gap	coff	P_COFF.md	high	debug-symbol-gate: writes .debug$S records 0xb/0xc, gated on kind + flags37 0x200 + the emit bit	1	whitebox/C2_MAP.md:1
 10b28586	func-entry	10b28586	548	1	9	coff.c	in-anchor	coff	P_COFF.md	high	coff-writer: _wfopen_s(objpath,"wb"); Machine 0x1f2/0xc13; @comp.id; creates .drectve	9	whitebox/C2_MAP.md:7,whitebox/PREREG.md:2
 10b287b8	func-entry	10b287b8	183	4	10	coff.c	gap	coff	P_COFF.md	high	section-emit|section-select: per-section finalize: kind=FUN_10be7727, align=FUN_10be77a3(kind,sect)->sect+0x43, then FUN_10b982d6; ORs IMAGE_SCN_LNK_COMDAT	3	whitebox/C2_MAP.md:3
 10b2888e	func-entry	10b2888e	48	5	4	coff.c	gap	coff	P_COFF.md	medium	coff-writer: emits section then pads raw data to sect[0x18]	1	whitebox/C2_MAP.md:1
-10b289fd	func-entry	10b289fd	46	0	3	coff.c	gap	coff	P_COFF.md	high	section-align|section-select: ORs FUN_10b28261(sect+0x43) into chars ONLY when (sect[0x53] & 0xF00000)==0; proven by an IL override carrying align nibble 5	1	whitebox/C2_MAP.md:1
+10b289fd	func-entry	10b289fd	46	0	3	coff.c	gap	coff	P_COFF.md	high	section-align|section-select: ORs FUN_10b28261(sect+0x43) into chars ONLY when (sect[0x53] & 0xF00000)==0; proven by an IL override carrying align nibble 5	2	rungs/2026-08-18-c2map2.md:1,whitebox/C2_MAP.md:1
 10b28a9b	func-entry	10b28a9b	724	2	12	coff.c	gap	coff	P_COFF.md	high	coff-symbol-writer: writes COFF symbols; marks alias targets; emits /EXPORT: directives	11	rungs/_2026-08-04-w-db-findings.md:6,rungs/_2026-08-04-w-mark-findings.md:2,BOARD.md:1,rungs/_2026-08-04-w-db-prereg.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
 10b28b02	in-func	10b28a9b	724	2	12	coff.c	gap	coff	P_COFF.md	high	coff-symbol-writer	3	rungs/_2026-08-04-w-mark-prereg.md:2,rungs/_2026-08-04-w-mark-findings.md:1
 10b28bb1	in-func	10b28a9b	724	2	12	coff.c	gap	coff	P_COFF.md	high	coff-symbol-writer	3	rungs/_2026-08-04-w-db-findings.md:2,BOARD.md:1
@@ -157,14 +157,14 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10b29268	func-entry	10b29268	21	1	1	coffemit.c	in-anchor	coff	P_COFF.md	high	coff-writer: ORs alignment bits into descriptor +8 (Characteristics)	1	whitebox/C2_MAP.md:1
 10b2948b	func-entry	10b2948b	104	2	0	coffemit.c	in-anchor	coff	P_COFF.md	high	comdat: 18-byte aux section-definition; Selection/Number only when chars&0x1000	3	whitebox/C2_MAP.md:3
 10b2a265	func-entry	10b2a265	78	2	3	coffemit.c	in-anchor	coff	P_COFF.md	high	coff-writer: symbol Name encoder: <=8 inline zero-padded else {0,strtab-offset}	1	whitebox/C2_MAP.md:1
-10b2a936	func-entry	10b2a936	1050	0	7	coffemit.c	in-anchor	coff	P_COFF.md	high	coff-writer: fwrite 0x12 IMAGE_SYMBOL; ".file" memcpy 8, SectionNumber 0xfffe, StorageClass 0x67	5	whitebox/C2_MAP.md:5
+10b2a936	func-entry	10b2a936	1050	0	7	coffemit.c	in-anchor	coff	P_COFF.md	high	coff-writer: fwrite 0x12 IMAGE_SYMBOL; ".file" memcpy 8, SectionNumber 0xfffe, StorageClass 0x67	7	whitebox/C2_MAP.md:5,BOARD.md:1,rungs/2026-08-18-c2map2.md:1
 10b2ad50	func-entry	10b2ad50	159	1	5	coffemit.c	in-anchor	coff	P_COFF.md	high	coff-writer: 8-byte Name encoder: '/'+decimal, '//'+base64 over the 64-char alphabet	3	whitebox/C2_MAP.md:3
 10b2ae0e	func-entry	10b2ae0e	321	1	4	coffemit.c	in-anchor	coff	P_COFF.md	high	coff-writer: latches Machine/FILE*/alloc/err/time callbacks into 0x10c44bf0..0x10c44c0c	2	whitebox/C2_MAP.md:2
 10b2b02d	func-entry	10b2b02d	176	0	2	coffemit.c	in-anchor	coff	P_COFF.md	high	coff-writer: fwrite(buf,0x28,1) IMAGE_SECTION_HEADER; all 10 fields mapped	3	whitebox/C2_MAP.md:3
 10b2b0dd	func-entry	10b2b0dd	787	0	9	coffemit.c	in-anchor	coff	P_COFF.md	high	coff-writer: fseek n*0x28+0x14; BIGOBJ ClassID GUID at 0x10b01be4; fwrite 0x14/0x38 file header	8	whitebox/C2_MAP.md:5,whitebox/PREREG.md:3
 10b2b270	in-func	10b2b0dd	787	0	9	coffemit.c	in-anchor	coff	P_COFF.md	high	coff-writer	1	whitebox/C2_MAP.md:1
 10b2b3f0	func-entry	10b2b3f0	94	1	3	coffemit.c	gap	coff	P_COFF.md	unknown	-	1	whitebox/WB_LIVE_FINDINGS.md:1
-10b2b82d	func-entry	10b2b82d	126	3	0	coffemit.c	gap	regalloc	P_REGALLOC.md	unknown	-	13	whitebox/WB_DAGORDER2_FINDINGS.md:9,BOARD.md:2,rungs/2026-08-18-dagorder2.md:2
+10b2b82d	func-entry	10b2b82d	126	3	0	coffemit.c	gap	regalloc	P_REGALLOC.md	unknown	-	16	whitebox/WB_DAGORDER2_FINDINGS.md:9,BOARD.md:3,rungs/2026-08-18-c2map2.md:2,rungs/2026-08-18-dagorder2.md:2
 10b2c1f1	func-entry	10b2c1f1	21	2	1	coffemit.c	gap	coff	P_COFF.md	unknown	-	2	whitebox/WB_LIVE_FINDINGS.md:2
 10b2c206	func-entry	10b2c206	23	2	0	coffemit.c	gap	coff	P_COFF.md	unknown	-	2	whitebox/WB_LIVE_FINDINGS.md:2
 10b2c21d	func-entry	10b2c21d	44	15	1	color.c	in-anchor	regalloc	P_REGALLOC.md	unknown	-	6	whitebox/WB_LIVE_FINDINGS.md:3,whitebox/WB_REGALLOC_FINDINGS.md:2,whitebox/WB_LIVE_PREREG.md:1
@@ -194,7 +194,7 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10b3239a	func-entry	10b3239a	49	2	2	dag.c	gap	dag	P_DAG.md	unknown	-	1	whitebox/WB_DAGORDER_FINDINGS.md:1
 10b323cb	func-entry	10b323cb	47	1	2	dag.c	gap	dag	P_DAG.md	unknown	-	1	whitebox/WB_DAGORDER_FINDINGS.md:1
 10b32536	func-entry	10b32536	171	3	2	dag.c	gap	dag	P_DAG.md	unknown	-	6	BOARD.md:2,whitebox/WB_DAGCLIENTS_FINDINGS.md:2,whitebox/WB_DAGCLIENTS_PREREG.md:2
-10b327cd	func-entry	10b327cd	158	1	3	dag.c	gap	dag	P_DAG.md	unknown	-	3	BOARD.md:1,whitebox/WB_DAGCLIENTS_FINDINGS.md:1,whitebox/WB_DAGORDER_FINDINGS.md:1
+10b327cd	func-entry	10b327cd	158	1	3	dag.c	gap	dag	P_DAG.md	unknown	-	5	BOARD.md:2,rungs/2026-08-18-c2map2.md:1,whitebox/WB_DAGCLIENTS_FINDINGS.md:1,whitebox/WB_DAGORDER_FINDINGS.md:1
 10b3286b	func-entry	10b3286b	111	1	4	dag.c	gap	dag	P_DAG.md	unknown	-	1	whitebox/WB_DAGORDER_FINDINGS.md:1
 10b328da	func-entry	10b328da	2231	5	21	dag.c	gap	dag	P_DAG.md	unknown	-	26	BOARD.md:8,whitebox/WB_DAGCLIENTS_FINDINGS.md:5,whitebox/WB_DAGCLIENTS_PREREG.md:2,whitebox/WB_DAGORDER_FINDINGS.md:2,whitebox/WB_ITEMF_FINDINGS.md:2,whitebox/WB_MERGER4_FINDINGS.md:2
 10b33330	in-func	10b3326f	198	1	4	dag.c	gap	dag	P_DAG.md	unknown	-	1	whitebox/WB_DAGORDER_PREREG_R2.md:1
@@ -421,14 +421,14 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10b7e6af	func-entry	10b7e6af	106	1	9	main.c	gap	dag	P_DAG.md	unknown	-	28	whitebox/WB_ITEMF_FINDINGS.md:6,rungs/2026-08-15-itemfprice.md:5,BOARD.md:4,whitebox/WB_DAGORDER_FINDINGS.md:3,CEILING.md:2,CFG_SHAPE.md:2
 10b7e719	func-entry	10b7e719	464	4	15	main.c	gap	-	-	medium	il-body-reader: returns the function body record or 0	0	-
 10b7ef55	func-entry	10b7ef55	171	1	11	main.c	gap	-	-	high	compile-one-function: reads the body from the IL and compiles it; called from the walk loop	3	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1,whitebox/WB_REGALLOC_FINDINGS.md:1
-10b7f021	in-func	10b7f000	34	1	1	main.c	gap	-	-	unknown	-	1	whitebox/C2_MAP.md:1
-10b7f022	func-entry	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	9	rungs/_2026-08-04-w-mark-findings.md:2,rungs/_2026-08-04-w-mark-prereg.md:2,whitebox/C2_MAP.md:2,rungs/_2026-08-04-w-db-findings.md:1,rungs/_2026-08-04-w-skip-findings.md:1,rungs/_2026-08-04-w-skip-prereg.md:1
+10b7f021	in-func	10b7f000	34	1	1	main.c	gap	-	-	unknown	-	2	BOARD.md:1,whitebox/C2_MAP.md:1
+10b7f022	func-entry	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	16	BOARD.md:4,rungs/2026-08-18-c2map2.md:3,rungs/_2026-08-04-w-mark-findings.md:2,rungs/_2026-08-04-w-mark-prereg.md:2,whitebox/C2_MAP.md:2,rungs/_2026-08-04-w-db-findings.md:1
 10b7f026	in-func	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	2	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
 10b7f09d	in-func	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	2	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
 10b7f0a2	in-func	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	2	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
 10b7f0b5	in-func	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	4	rungs/_2026-08-04-w-skip-findings.md:2,BOARD.md:1,rungs/_2026-08-04-w-skip-prereg.md:1
 10b7f0d2	in-func	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	4	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1,rungs/_2026-08-04-w-skip-findings.md:1,rungs/_2026-08-04-w-skip-prereg.md:1
-10b7f15f	in-func	10b7f022	477	0	0	main.c	gap	-	-	high	emit-walk: loop over DAT_10c4630c selecting bodies to compile+emit	17	rungs/_2026-08-04-w-mark-findings.md:3,rungs/_2026-08-04-w-mark-prereg.md:2,rungs/_2026-08-04-w-skip-findings.md:2,rungs/_2026-08-04-w-skip-prereg.md:2,whitebox/C2_MAP.md:2,whitebox/WB_CHOOSER_FINDINGS.md:2
+10b7f15f	in-func	10b7f022	477	0	0	main.c	gap	-	-	high	emit-walk: loop over DAT_10c4630c selecting bodies to compile+emit	19	rungs/_2026-08-04-w-mark-findings.md:3,BOARD.md:2,rungs/_2026-08-04-w-mark-prereg.md:2,rungs/_2026-08-04-w-skip-findings.md:2,rungs/_2026-08-04-w-skip-prereg.md:2,whitebox/C2_MAP.md:2
 10b7f16b	in-func	10b7f022	477	0	0	main.c	gap	-	-	high	emit-predicate: test [sym+0x4c],0x20 && !0x2 — the emit-set predicate	4	rungs/_2026-08-04-w-refs-findings.md:1,rungs/_2026-08-04-w-roots-findings.md:1,rungs/_2026-08-04-w-roots-prereg.md:1,whitebox/C2_MAP.md:1
 10b7f16e	in-func	10b7f022	477	0	0	main.c	gap	-	-	high	gl/emit: test dl,0x20 = EMIT bit; clearing it in the IL removes exactly that function from the obj	1	whitebox/C2_MAP.md:1
 10b7f171	in-func	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	1	whitebox/C2_MAP.md:1
@@ -439,10 +439,11 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10b7f199	in-func	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	8	rungs/_2026-08-04-w-roots-findings.md:2,rungs/_2026-08-04-w-skip-findings.md:2,rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1,rungs/_2026-08-04-w-skip-prereg.md:1,whitebox/C2_MAP.md:1
 10b7f1c5	in-func	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	2	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
 10b7f1e5	in-func	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	8	rungs/_2026-08-04-w-mark-findings.md:3,rungs/_2026-08-04-w-skip-findings.md:2,BOARD.md:1,rungs/_2026-08-04-w-mark-prereg.md:1,rungs/_2026-08-04-w-skip-prereg.md:1
-10b7f1ff	func-entry	10b7f1ff	837	1	30	main.c	gap	-	-	high	obj-driver|il-open: top-level compile-all driver, p2/main.c; from _InvokeCompilerPass@12 via 10b7f3e7/10b7f3b6	6	whitebox/C2_MAP.md:5,whitebox/BOARD_PROPOSED.md:1
+10b7f1fe	in-func	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	1	BOARD.md:1
+10b7f1ff	func-entry	10b7f1ff	837	1	30	main.c	gap	-	-	high	obj-driver|il-open: top-level compile-all driver, p2/main.c; from _InvokeCompilerPass@12 via 10b7f3e7/10b7f3b6	11	whitebox/C2_MAP.md:5,rungs/2026-08-18-c2map2.md:3,BOARD.md:2,whitebox/BOARD_PROPOSED.md:1
 10b7f2e0	in-func	10b7f1ff	837	1	30	main.c	gap	-	-	high	il-open	2	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
 10b7f311	in-func	10b7f1ff	837	1	30	main.c	gap	-	-	high	il-open	2	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
-10b7f362	in-func	10b7f1ff	837	1	30	main.c	gap	-	-	high	il-open	1	whitebox/C2_MAP.md:1
+10b7f362	in-func	10b7f1ff	837	1	30	main.c	gap	-	-	high	il-open	3	BOARD.md:1,rungs/2026-08-18-c2map2.md:1,whitebox/C2_MAP.md:1
 10b7f3b6	func-entry	10b7f3b6	49	1	5	main.c	gap	-	-	high	entry: p2 main: argv latch, phase sequence; returns *0x10c2ea8c	1	whitebox/C2_MAP.md:1
 10b7f3e7	func-entry	10b7f3e7	13	3	1	main.c	gap	-	-	high	entry: p2 main trampoline -> 0x10b7f3b6	1	whitebox/C2_MAP.md:1
 10b7f3f4	func-entry	10b7f3f4	272	1	3	misc.c	in-anchor	-	-	unknown	-	1	whitebox/WB_LOOP_FINDINGS.md:1
@@ -453,7 +454,7 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10b82390	in-func	10b82338	374	1	1	misc.c	in-anchor	-	-	unknown	-	1	whitebox/WB_MEMCPY_FINDINGS.md:1
 10b82392	in-func	10b82338	374	1	1	misc.c	in-anchor	-	-	unknown	-	4	whitebox/WB_MEMCPY_FINDINGS.md:2,BOARD.md:1,rungs/2026-08-08-wb-memcpy.md:1
 10b82429	in-func	10b82338	374	1	1	misc.c	in-anchor	-	-	unknown	-	4	BOARD.md:1,whitebox/WB_DAGCLIENTS_PREREG.md:1,whitebox/WB_DAGORDER_FINDINGS.md:1,whitebox/WB_ITEMF_FINDINGS.md:1
-10b8303c	func-entry	10b8303c	12	1	1	misc.c	in-anchor	-	-	unknown	-	2	whitebox/C2_MAP.md:2
+10b8303c	func-entry	10b8303c	12	1	1	misc.c	in-anchor	-	-	unknown	-	9	rungs/2026-08-18-c2map2.md:4,BOARD.md:3,whitebox/C2_MAP.md:2
 10b84844	func-entry	10b84844	2530	2	28	misc.c	in-anchor	-	-	medium	loop-preinc-pass: p2\misc.c: the per-loop pre-increment/update-form formation (2530 bytes, not read clause by clause). The SELECTION RULE is not claimed — FINDINGS 4.4 elects no rival	3	whitebox/WB_LOOP_FINDINGS.md:3
 10b84869	func-entry	10b84869	45	1	1	misc.c	in-anchor	-	-	high	loop-preinc-driver: p2\misc.c (machine-INDEPENDENT): the lwzu/stwu update-form pass driver. Gated on DAT_10c2ecfc (-QXnopreinc) and DAT_10c2e2fc; walks the same func+0x0c loop list calling 10b84844. Obj-confirmed by /d2QXnopreinc removin...	11	whitebox/WB_LOOP_FINDINGS.md:7,BOARD.md:2,rungs/2026-08-08-wb-loop.md:2
 10b848dc	func-entry	10b848dc	1756	2	10	misc.c	in-anchor	-	-	high	argv-parse: option driver: memset(0x10c40220,0,0xce0), match loop, C1007 at 0x10b84a95, options fold	4	BOARD.md:1,rungs/2026-08-13-dagclients.md:1,whitebox/WB_DAGCLIENTS_FINDINGS.md:1,whitebox/WB_DAGORDER2_FINDINGS.md:1
@@ -559,7 +560,7 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10b9b6a4	func-entry	10b9b6a4	262	4	8	p2symtab.c	in-anchor	section	P_SECTION.md	medium	bss-defer: head-inserts onto DAT_10c2f064 (LIFO); paired with 10b99093	1	whitebox/C2_MAP.md:1
 10b9b7aa	func-entry	10b9b7aa	226	1	5	p2symtab.c	in-anchor	section	P_SECTION.md	high	symtab-intern: same 128-slot cache; creates an external symbol via 10b9b6a4	0	-
 10b9b88d	func-entry	10b9b88d	92	1	2	p2symtab.c	in-anchor	section	P_SECTION.md	high	il-dispatch: drives FUN_10b9ae94 over every TU's .in	0	-
-10b9b8e9	func-entry	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	il-reader|il-symbol-reader: .gl record dispatcher; GetByte tag, dec+cmp 0x1a guard at 10b9b92e, byte-index tbl 10b9c615 (27), jump tbl 10b9c5d5 (16)	4	whitebox/C2_MAP.md:2,rungs/_2026-08-04-w-roots-prereg.md:1,whitebox/BOARD_PROPOSED.md:1
+10b9b8e9	func-entry	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	il-reader|il-symbol-reader: .gl record dispatcher; GetByte tag, dec+cmp 0x1a guard at 10b9b92e, byte-index tbl 10b9c615 (27), jump tbl 10b9c5d5 (16)	6	whitebox/C2_MAP.md:2,BOARD.md:1,rungs/2026-08-18-c2map2.md:1,rungs/_2026-08-04-w-roots-prereg.md:1,whitebox/BOARD_PROPOSED.md:1
 10b9b91f	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	il-symbol-reader	3	rungs/_2026-08-04-w-emitp-findings.md:1,rungs/_2026-08-04-w-emitp-prereg.md:1,whitebox/DISCLOSURE.md:1
 10b9b922	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	gl/dispatch: GetByte -> [ebp-0x78] is THE record tag; dec+cmp 0x1a bounds it to 0x01..0x1b	2	rungs/_2026-08-04-w-skip-findings.md:1,rungs/_2026-08-04-w-skip-prereg.md:1
 10b9b937	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	il-symbol-reader	1	rungs/_2026-08-04-w-skip-prereg.md:1
@@ -681,7 +682,7 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10be4598	func-entry	10be4598	37	1	0	ehexcept.c	gap	eh	P_EH.md	unknown	-	1	whitebox/WB_FRAME_FINDINGS.md:1
 10be4f28	func-entry	10be4f28	1702	1	23	except.c	in-anchor	eh	P_EH.md	unknown	-	1	whitebox/WB_LABEL_PREREG_R2.md:1
 10be5cce	func-entry	10be5cce	28	1	0	(unnamed TU: no ICE site)	no-ice-site	dag	P_DAG.md	unknown	-	4	whitebox/WB_DAGORDER_FINDINGS.md:2,BOARD.md:1,whitebox/WB_REGALLOC_FINDINGS.md:1
-10be5cea	func-entry	10be5cea	28	1	0	(unnamed TU: no ICE site)	no-ice-site	dag	P_DAG.md	unknown	-	8	BOARD.md:3,whitebox/WB_DAGORDER_FINDINGS.md:2,rungs/2026-08-13-dagorder.md:1,whitebox/WB_DAGORDER_PREREG_R2.md:1,whitebox/WB_ITEMF_FINDINGS.md:1
+10be5cea	func-entry	10be5cea	28	1	0	(unnamed TU: no ICE site)	no-ice-site	dag	P_DAG.md	unknown	-	9	BOARD.md:4,whitebox/WB_DAGORDER_FINDINGS.md:2,rungs/2026-08-13-dagorder.md:1,whitebox/WB_DAGORDER_PREREG_R2.md:1,whitebox/WB_ITEMF_FINDINGS.md:1
 10be5d4b	func-entry	10be5d4b	101	1	1	(unnamed TU: no ICE site)	no-ice-site	dag	P_DAG.md	unknown	-	21	BOARD.md:6,whitebox/WB_DAGCLIENTS_PREREG.md:4,whitebox/WB_DAGORDER_FINDINGS.md:4,whitebox/WB_DAGCLIENTS_FINDINGS.md:2,whitebox/WB_ITEMF_FINDINGS.md:2,rungs/2026-08-13-dagclients.md:1
 10be5df6	func-entry	10be5df6	453	1	4	(unnamed TU: no ICE site)	no-ice-site	dag	P_DAG.md	unknown	-	10	BOARD.md:3,whitebox/WB_DAGORDER_FINDINGS.md:3,whitebox/WB_ITEMF_FINDINGS.md:2,rungs/2026-08-13-dagorder.md:1,whitebox/WB_DAGORDER_PREREG_R2.md:1
 10be60c0	func-entry	10be60c0	428	1	7	(unnamed TU: no ICE site)	no-ice-site	dag	P_DAG.md	unknown	-	4	whitebox/WB_DAGORDER_FINDINGS.md:2,rungs/2026-08-13-dagorder.md:1,whitebox/WB_DAGORDER_PREREG_R2.md:1
@@ -700,7 +701,7 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10be7643	func-entry	10be7643	101	2	1	emit.cpp	in-anchor	section	P_SECTION.md	high	section-select: creates the DEBTYP section (default name "$$TYPES", kind 0x14)	0	-
 10be76a8	func-entry	10be76a8	44	4	2	emit.cpp	in-anchor	eh	P_EH.md	high	section-select: creates .pdata (group "PDATA", align 4)	2	whitebox/WB_EH_FINDINGS.md:2
 10be76ac	in-func	10be76a8	44	4	2	emit.cpp	in-anchor	section	P_SECTION.md	high	section-select	1	whitebox/WB_EH_FINDINGS.md:1
-10be76d4	func-entry	10be76d4	19	4	0	emit.cpp	in-anchor	section	P_SECTION.md	high	section-chars|section-select: base-section resolver: COMDAT (sect[0x4c]==7) with selection != 5 -> sect+0x5f, else identity	1	whitebox/C2_MAP.md:1
+10be76d4	func-entry	10be76d4	19	4	0	emit.cpp	in-anchor	section	P_SECTION.md	high	section-chars|section-select: base-section resolver: COMDAT (sect[0x4c]==7) with selection != 5 -> sect+0x5f, else identity	3	BOARD.md:1,rungs/2026-08-18-c2map2.md:1,whitebox/C2_MAP.md:1
 10be76e7	func-entry	10be76e7	64	1	0	emit.cpp	in-anchor	section	P_SECTION.md	high	section-select: $-aware name prefix match: equal, or next char is '$'	0	-
 10be7727	func-entry	10be7727	124	3	2	emit.cpp	in-anchor	section	P_SECTION.md	high	section-chars|section-select: returns sect[0x4d]; only kinds 1 and 0x1d are re-mapped, by $-aware name prefix (.rdata/.xdata/.const->4, .text->0, .drectve->10)	1	whitebox/C2_MAP.md:1
 10be77a3	func-entry	10be77a3	53	2	0	emit.cpp	in-anchor	section	P_SECTION.md	high	section-align|section-select: alignment chooser: kind 0 / 0x1b / 0x20 (and 0x12 when DAT_10c2e310) -> global DAT_10c2e9b4; kind 0xa -> drectve sect; else sect+0x43	0	-
@@ -987,7 +988,7 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10c1bc78	func-entry	10c1bc78	114	3	2	mdmisc.c	gap	-	-	unknown	-	2	BOARD.md:1,whitebox/WB_DAGORDER_FINDINGS.md:1
 10c1bdc0	func-entry	10c1bdc0	1	35	0	mdmisc.c	gap	-	-	unknown	-	1	rungs/_2026-08-04-w-mark-findings.md:1
 10c1bdff	func-entry	10c1bdff	483	1	0	mdmisc.c	gap	dag	P_DAG.md	unknown	-	3	whitebox/WB_DAGORDER_FINDINGS.md:2,rungs/2026-08-13-dagorder.md:1
-10c1bfe2	unmapped	-	-	-	-	mdmisc.c	gap	dag	P_DAG.md	unknown	-	8	whitebox/WB_DAGORDER_FINDINGS.md:5,rungs/2026-08-13-dagorder.md:2,whitebox/WB_ITEMF_FINDINGS.md:1
+10c1bfe2	unmapped	-	-	-	-	mdmisc.c	gap	dag	P_DAG.md	unknown	-	10	whitebox/WB_DAGORDER_FINDINGS.md:5,rungs/2026-08-13-dagorder.md:2,BOARD.md:1,rungs/2026-08-18-c2map2.md:1,whitebox/WB_ITEMF_FINDINGS.md:1
 10c1c0e5	func-entry	10c1c0e5	143	3	0	mdmisc.c	gap	-	-	unknown	-	1	whitebox/WB_DAGORDER_FINDINGS.md:1
 10c1c1d4	func-entry	10c1c1d4	380	1	0	mdmisc.c	gap	dag	P_DAG.md	unknown	-	8	whitebox/WB_DAGORDER_FINDINGS.md:3,BOARD.md:2,whitebox/WB_ITEMF_FINDINGS.md:2,whitebox/WB_DAGORDER_PREREG_R2.md:1
 10c1c25e	in-func	10c1c1d4	380	1	0	mdmisc.c	gap	dag	P_DAG.md	unknown	-	4	whitebox/WB_DAGORDER_FINDINGS.md:3,rungs/2026-08-13-dagorder.md:1
@@ -1071,15 +1072,15 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10c27b56	func-entry	10c27b56	326	7	5	smdmisc.c	in-anchor	section	P_SECTION.md	high	bss-alloc: stores the allocated address to sym+0x18, sets first-touch done-flag 0x800	5	whitebox/C2_MAP.md:3,whitebox/BOARD_PROPOSED.md:1,whitebox/C2_MAP_METHOD.md:1
 10c27ec4	func-entry	10c27ec4	65	3	2	smdmisc.c	in-anchor	-	-	unknown	-	1	whitebox/C2_MAP.md:1
 10c28475	func-entry	10c28475	85	1	0	smdmisc.c	gap	-	-	high	listing-formatter: wraps DIS::CchFormatInstr; sole importer	0	-
-10c2932e	unmapped	-	-	-	-	smdmisc.c	gap	-	-	high	flag-table: 4250-byte store sequence building the 148-record array at 0x10c46bd8; ret at 0x10c2a3b5	2	whitebox/BOARD_PROPOSED.md:1,whitebox/C2_MAP.md:1
+10c2932e	unmapped	-	-	-	-	smdmisc.c	gap	-	-	high	flag-table: 4250-byte store sequence building the 148-record array at 0x10c46bd8; ret at 0x10c2a3b5	3	rungs/2026-08-18-c2map2.md:1,whitebox/BOARD_PROPOSED.md:1,whitebox/C2_MAP.md:1
 10c29860	unmapped	-	-	-	-	smdmisc.c	gap	-	-	unknown	-	4	whitebox/WB_LOOP_FINDINGS.md:2,whitebox/WB_LOOP_PREREG.md:2
 10c2a038	unmapped	-	-	-	-	smdmisc.c	gap	-	-	unknown	-	2	BOARD.md:1,whitebox/WB_REGALLOC_FINDINGS.md:1
 10c2a177	unmapped	-	-	-	-	smdmisc.c	gap	-	-	unknown	-	1	whitebox/WB_LOOP_FINDINGS.md:1
-10c2a3b5	unmapped	-	-	-	-	smdmisc.c	gap	-	-	unknown	-	2	whitebox/BOARD_PROPOSED.md:1,whitebox/C2_MAP.md:1
+10c2a3b5	unmapped	-	-	-	-	smdmisc.c	gap	-	-	unknown	-	3	rungs/2026-08-18-c2map2.md:1,whitebox/BOARD_PROPOSED.md:1,whitebox/C2_MAP.md:1
 10c2dc7c	unmapped	-	-	-	-	smdmisc.c	gap	-	-	unknown	-	1	whitebox/C2_MAP.md:1
 10c2e000	data	10c2e000	4	0	0	n/a	n/a	-	-	unknown	-	2	whitebox/C2_MAP.md:1,whitebox/C2_MAP_METHOD.md:1
 10c2e1f0	data	10c2e1f0	4	0	0	n/a	n/a	-	-	unknown	-	1	whitebox/WB_LIVE_FINDINGS.md:1
-10c2e234	data	10c2e234	4	0	0	n/a	n/a	-	-	unknown	-	2	whitebox/C2_MAP.md:2
+10c2e234	data	10c2e234	4	0	0	n/a	n/a	-	-	unknown	-	6	BOARD.md:2,rungs/2026-08-18-c2map2.md:2,whitebox/C2_MAP.md:2
 10c2e2d2	data	10c2e2d2	1	0	0	n/a	n/a	-	-	unknown	-	4	whitebox/WB_DAGORDER_FINDINGS.md:3,whitebox/WB_DAGORDER_PREREG_R2.md:1
 10c2e2f4	data	10c2e2f4	4	0	0	n/a	n/a	-	-	unknown	-	7	whitebox/WB_SELECT_FINDINGS.md:3,whitebox/WB_SELECT_RECONCILED.md:2,rungs/2026-08-09-wb-selfit.md:1,whitebox/WB_EH_FINDINGS.md:1
 10c2e2fc	data	10c2e2fc	4	0	0	n/a	n/a	-	-	unknown	-	33	BOARD.md:6,whitebox/WB_SELECT_RECONCILED.md:5,whitebox/WB_DAGCLIENTS_FINDINGS.md:4,rungs/2026-08-09-wb-selfit.md:3,whitebox/WB_SELECT_FINDINGS_R2.md:3,whitebox/WB_DAGCLIENTS_PREREG.md:2
@@ -1167,7 +1168,7 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10c434cc	data	10c434cc	4	0	0	n/a	n/a	-	-	unknown	-	2	whitebox/WB_EH_FINDINGS.md:2
 10c435ac	data	10c435ac	4	0	0	n/a	n/a	-	-	unknown	-	1	whitebox/WB_DAGORDER_FINDINGS.md:1
 10c435b4	data	10c435b4	4	0	0	n/a	n/a	-	-	unknown	-	1	whitebox/WB_DAGORDER_FINDINGS.md:1
-10c435cc	data	10c435cc	4	0	0	n/a	n/a	dag	P_DAG.md	unknown	-	1	whitebox/WB_DAGORDER_FINDINGS.md:1
+10c435cc	data	10c435cc	4	0	0	n/a	n/a	dag	P_DAG.md	unknown	-	2	BOARD.md:1,whitebox/WB_DAGORDER_FINDINGS.md:1
 10c435e8	data	-	-	-	-	n/a	n/a	regalloc	P_REGALLOC.md	high	reg-cost-array: the selector's cost array, 0x594 bytes = 357 ints = one per register number (0..356 = noreg..vr127)	4	whitebox/WB_LIVE_FINDINGS.md:2,whitebox/WB_REGALLOC_FINDINGS.md:2
 10c43b7c	data	10c43b7c	4	0	0	n/a	n/a	regalloc	P_REGALLOC.md	unknown	-	8	whitebox/WB_DAGORDER2_FINDINGS.md:6,BOARD.md:1,whitebox/WB_LIVE_FINDINGS.md:1
 10c43b80	data	10c43b80	4	0	0	n/a	n/a	regalloc	P_REGALLOC.md	unknown	-	8	BOARD.md:4,whitebox/WB_DAGORDER2_FINDINGS.md:3,whitebox/WB_LIVE_FINDINGS.md:1
