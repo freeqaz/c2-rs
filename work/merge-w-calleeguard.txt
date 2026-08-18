@@ -1,0 +1,234 @@
+merge w-calleeguard: ALL FOUR RAISE SITES OF THE `callee-unresolved` FAMILY GO GREEN -> RED — and the mechanism they were sent to retire turns out to explain at most 5 of the census's 30, with its own worked example dead code
+
+Outcome: instrument. Kind: construct. Census +0 — ZERO bytes land in
+crates/c2-il; every c2-il edit in this lane is an applied-and-reverted mutant.
+Rung docs/rungs/2026-08-18-calleeguard.md, prereg frozen at 9673841c BEFORE the
+first probe. Board #3244-#3248 (allocated by the coordinator, verified unheld
+under both the strict and the loose pattern before minting).
+
+THE DELIVERABLE, MEASURED. w-mutcensus published the callee-unresolved family
+as 0 of 4 guarded, including the default arm routing board #3209's key over
+1,296 function bodies — "the single most populous refusal key on the 878-TU
+workload can be swapped for a sibling and the entire suite stays green".
+
+  phase R (guards skipped BY NAME)        phase G (guards in)
+  R5 census.rs:1308 "framed-call"   GREEN 1660/0  ->  G5 RED 1662/3
+  R6 census.rs:1310 "call-sequence" GREEN 1660/0  ->  G6 RED 1662/3
+  R7 census.rs:1313 "empty-dtor"    GREEN 1660/0  ->  G7 RED 1662/3
+  R8 census.rs:1315 _ =>  (DEFAULT) GREEN 1660/0  ->  G8 RED 1661/4
+
+Five tests, 1,660 -> 1,665, 43 -> 45 targets. The sites were RE-LOCATED at
+44794fa4 (a uniform +43 on the census's 3835469c figures), not inherited. All
+four are in c2-il, which is w-dataseam's seam this wave, so every guard reaches
+them through the PUBLIC IlBundle::census_functions() and asserts on the key
+STRING FnVerdict::key() publishes — never the constant, for w-guards' reason: a
+guard on the constant passes a mutation that renames the constant and its uses
+while the published key moves.
+
+PHASE R IS NOT CEREMONY — it is w-fence163's rule. Two peers rewrote census.rs
+(+146 lines) between the census's base and this lane's, and w-fence163 found a
+test that stopped catching a mutant when a peer merged an unrelated file. All
+four sites read GREEN at 44794fa4, so CS5-CS8 reproduce exactly and NONE had
+become incidentally guarded. G8 is the sharpest row: four failures where G5-G7
+take three, the fourth being the default-arm catch-all witness, because swapping
+`_ =>` moves BOTH default-arm cells while swapping a named arm's key moves
+neither.
+
+CELL SEPARATION, ASSERTED AND NOT TRUSTED. Every cell is a pair on otherwise
+identical bytes whose two .gl differ in EXACTLY ONE byte (the callee token's
+high byte) — the differing-byte count is computed and asserted, as is the
+length identity. The positive control is the same bytes with the callee named,
+which must report the in-class shape label, so each cell is a discrimination
+rather than a constant. "Exactly one census row" is a NAMED failure through
+key_of's panic path, never an unwrap. The four keys are asserted pairwise
+distinct AS A COUNT.
+
+THE DEFAULT ARM NEEDS TWO WITNESSES AND ONE CANNOT SAY SO. A single cell
+reaching callee-unresolved-tail-call is equally consistent with the arm having
+been rewritten to match that cell's own label. Cells V (void-tail-call) and M
+(multiarg-tail-call) both reach the one key, and the test proves their labels
+differ BY ASKING THE CENSUS rather than asserting it in prose. That is a
+site-level property no key-level assertion can express.
+
+THE MECHANISM — AND THE BRIEF'S PREMISE DOES NOT SURVIVE CONTACT (#3245, #3246).
+The lane was told a guard binding all raise sites of one key is worth far more
+than four witnesses, and that if it cannot be done, why not is the finding. The
+answer is neither: the mechanism is real but rare, and it is not what makes the
+census's population GREEN.
+
+  * It does not apply to this family AT ALL. Each of the four keys has exactly
+    ONE raise site — registered as a frame fact in the prereg §1.1, read out of
+    the source BEFORE the first probe so it could not be discovered afterwards
+    and told as a result. These four were unguarded because nobody wrote a
+    witness, not by construction.
+  * SIZED OVER THE WHOLE CRATE: of the 18 census fence keys in body/mod.rs,
+    15 have k <= 1 (14 at k=1, one at k=0 — F5's key with no fence). Only three
+    have k >= 2. F2's entire predicted contribution is sum(k-1) = 5 SITES
+    against 30 GREEN observed: a 17% ceiling. callee-unresolved is not an
+    exception to F2, it is the MODAL CASE.
+  * THE CENSUS'S OWN TABLE ALREADY REFUTES THE 1/k BOUND. MULTI_PRODUCER is k=2
+    with BOTH sites RED — rows L6 and L7 — because
+    every_bind_gate_fires_on_a_named_input already carries one witness per site
+    at leaf_store.rs:3166 and :3174. The suite F2 characterises as "per-KEY" is
+    in fact a witness TABLE that already does site-level coverage wherever
+    someone bothered. The limit is how many rows were written.
+  * F2'S LEADING WORKED EXAMPLE IS DEAD CODE. leaf_store.rs:2456 (row L9) cannot
+    be reached by any input: both walks of bind_run_ops are over the same
+    immutable ops slice, the second strictly after the first, and the first
+    already establishes that every 3k-th op is a Load — so the second's
+    `if !matches!(b, IlOp::Load(_))` can never be true. Verified by reading, and
+    LABELLED AS A READING. Sixteen lines above it the file records its own prior
+    instance of the same class (w-mrslot §5.1, #1218).
+  * SO THE CONSTRUCTION THAT GENERALIZES NEEDS NOTHING INSIDE c2-il. F2 proposed
+    "a #[cfg(test)]-visible discriminant per raise site, OR a witness table
+    required to cover each site". The second half alone suffices: a table with
+    one row per RAISE SITE, keyed on the input that reaches it, buildable from
+    outside the crate wherever the site is reachable at all — which it must be,
+    or the site is dead. This lane lands that table. #3245 exists so the next
+    lane does not reach for the discriminant.
+
+#3246 IS THE ROW TO READ NEXT AND IT IS BIGGER THAN THE INSTANCE. A mutation
+census CANNOT DISTINGUISH A DEAD SITE FROM AN UNGUARDED ONE — both produce
+GREEN by the same mechanism, no test fails — and w-mutcensus's enumeration is
+textual, so a dead raise site enters N like a live one and inflates X, the
+headline. The discriminator is a SECOND COLOUR, not a second campaign: probe
+each GREEN row once with panic!() instead of a key swap. A panic that never
+fires is a dead site; one that fires is a live unguarded site. That partitions X
+into two very different backlogs which are currently summed, and it matters most
+in the 1,227-site grammar class §2.1 dropped for budget. NOT TAKEN here because
+the experiment is a c2-il edit and c2-il is w-dataseam's seam.
+
+TWO OF w-mutcensus'S "NOT TAKEN" ITEMS ARE CLOSED, AND THE REASON IS THE UNIT OF
+WORK (#3247). F1 (C2RS_REQUIRE_TOOLCHAIN) and F4 (a standing site count) were
+both published NOT TAKEN for the SAME structural reason — "a zero-delta rung and
+a new test under crates/ are the same commit's two halves" — with the note that
+this was twice in two waves that the instrument a lane discovered it needed
+could not be landed by the lane that discovered it. That conflict does not exist
+for a lane whose deliverable IS test code. Both landed here, in
+crates/c2-harness/tests/, with zero bytes in c2-il. The transferable part is
+that the repo's answer to "we have no unit for this" is a guard lane owning
+crates/<x>/tests/.
+
+AND THE DEFECT F1 CLOSES WAS REPRODUCED AT THIS BASE FIRST. N0T (provisioned):
+1,665/0/45, census_gate 79.25s, wall 222s. D6a (C2RS_COMPILERS pointed at
+nothing): 1,665/0/45, census_gate 0.00s, wall 7s. THE TOTALS ARE BYTE-IDENTICAL
+INCLUDING THIS LANE'S OWN FIVE NEW TESTS — which is exactly why a probe defined
+by a count cannot see it. The prereg's rule classified D6a INVALID rather than
+GREEN and its log is KEPT as D6a.INVALID.log (void, not provisional). D6b, same
+environment with the variable set: RED 1,664/1, failing exactly one test by
+name. One environment variable turns the repo's most-recorded defect from
+invisible into a failure. STILL OPEN: nothing sets the variable yet — the
+obvious callers are gate.sh and the merge funnel's suite row, both coordinator
+decisions.
+
+PROBE SOUNDNESS (docs/rungs/README.md rules 1 and 2, boards #3219/#3231).
+Control C1 pinned BY NAME reproduces w-guards' pair exactly — 1,663/2 — run
+before the first mutant of phase G and after the last, identical failing sets
+both times, and both tests in it are capture-driven so a skipping worktree could
+not produce them. Minimum census_gate over the 14 provisioned runs is 65.06s;
+none is near 0.00s. The worktree was provisioned by setup_worktree.sh, whose own
+gate (w5_chain.cpp -> 4/4) passed. Every colour in the rung is DERIVED from the
+logs by rederive.py and never accumulated — which is what let the target-count
+rule be corrected retroactively (43 for phase R's tree, 45 for the tip) across
+every log already on disk. N1 perturbs the guard's own fixture and leaves every
+assertion byte-identical: RED 1,662/3, so what fired is the CONTENT of the cell.
+
+GATE AT BOTH ENDS. scripts/gate.sh --jobs 4 --require-graded PASS (HATCH-RED
+REFUSED) at base 44794fa4 (detached, clean tree) and at the branch tip. 18/18
+lanes PASS / 0 FAIL / 0 SKIP / 0 NO-RESULT, 6,948 fixture-verdicts, sweep
+checked=19556 mismatches=0 graded=19460, cross checked=90812 mismatches=0
+graded=90424, debug-lane 18/18 at 6,948 graded and 0 PANIC. THE PER-LANE
+GATE-COUNT IDENTITY DIFF IS 0 OF 28 ROWS, AND THE RANGE LENGTH IS ASSERTED AT
+BOTH ENDS (28 = 28), because a diff of two empty ranges also returns 0.
+
+Graded tree 5b550a38d90b (738 files) -> 24aad38816d7 (740 files): +2, exactly
+this lane's two new test files. GRADED-TREE IDENTITY IS NOT CLAIMED and cannot
+be by a lane that lands tests (#3215); the count diff is the discriminating
+check. Release-binary sha256 across worktrees NOT compared (#3224 — the manifest
+dir is compiled in, so the comparison is void).
+
+878-TU SCAN, AND #3249 REPORTED RATHER THAN ADJUSTED FOR. Base end and tip end:
+394 gap-metric lines, ZERO differing — every key, line for line. match 26,
+mismatch 0, codegen-gap 0, vocab-gap 844, capture-fail 8, identical at both ends
+and asserted by name. fnbyte-exact 35,899 and fnbyte-refused-parse 113,447 at
+BOTH ends — against the briefed 35,897 / 113,449 at the same commit, sum
+conserved at 149,346. Base and tip agree digit for digit, so nothing this lane
+landed moved anything; what moved is the same commit read at two times, which is
+#3249. NOTHING OUTSIDE THE fnbyte-* FAMILY MOVED. No number was adjusted to make
+the identity claim come out clean.
+
+THE CENSUS RE-MEASURED: 30 GREEN -> 26, AND THE SCOPE IS THE FINDING (#3248).
+Four rows re-run by measurement (CS5-CS8), 26 reasoned still-GREEN and not
+re-run, 33 RED not examined — three counts kept apart rather than summed. And
+15 OF THE 26 ARE UNVERIFIED AT THIS TREE for a reason that is not this lane's:
+CS2, CS3, CS4, CS9, B2-B8, BU3, D1, D2 and G2 all sit in files peers rewrote
+since 3835469c. F7 said the frame goes stale on any landed fence; half the
+surviving GREEN population is now in files that moved underneath it, and a flat
+"26 of 63" that did not say so would be the same over-read the census exists to
+prevent.
+
+PREREG: 33 registered colours, 30 HITS, 3 MISSES. The misses are P9 (a
+registration that was simply wrong about the instrument — every transcript
+produced a census row on the first attempt), P10 (registered 0.30-class: at
+least one site proves unguardable from the harness side — all four were
+guardable; recorded as a miss, not reframed as a bonus) and P13 (the site-witness
+form demonstrated on a family where two sites share one key — not demonstrated;
+the population was measured instead, which is why #3245 exists).
+
+FOUND AND NOT TAKEN, ranked in the rung §8: the panic-probe experiment for
+leaf_store.rs:2456 and its generalization (#3246); DATA_SYM_STRLIT_FENCED's two
+post-census raise sites, which are input-distinguishable and are the single
+cheapest follow-on since w-fence163 already built the cells; the general standing
+site count over all 63 (F4's blockers have both expired); the four transcripts
+now being a THIRD copy of captures that live in c2-il; and the fact that nothing
+sets C2RS_REQUIRE_TOOLCHAIN.
+
+VERIFICATION SUMMARY: tests 1,665/0/45 at the tip (above 1,660 as required) and
+1,660/0/43 at the base · gate PASS at both ends, 0 mismatch in all four places
+it could appear · gate-count identity 0 of 28 · 878-TU scan 394 keys 0 differing
+· debug_lane inside the gate 18/18, 0 panic · board_audit.sh all-zero ·
+rung_registry 2/2 · INDEX.md regenerated by gen_rung_index.sh.
+
+REBASED ONTO MASTER 071d2d47 (w-dagorder ca687d9a, w-dataseam 071d2d47, the
+CLAUDE.md whitebox-authorized section, and board #3249). Two conflicts, NEITHER
+hand-merged: docs/BOARD.md resolved by taking BOTH blocks whole and editing
+neither (master spent #3234-#3243, #3249, #3250; this lane holds #3244-#3248 —
+disjoint, verified under both the strict and the loose pattern), and
+docs/rungs/INDEX.md REGENERATED by scripts/gen_rung_index.sh. board_audit.sh
+re-run AFTER the resolution: all-zero. NOT merged and NOT pushed.
+
+THREE CARRIES THE COORDINATOR ASKED TO SURVIVE THE REBASE, all now in the rung:
+
+  1. #3246 is stated as a CORRECTION TO w-mutcensus'S PUBLISHED HEADLINE, not as
+     a footnote to this lane. X = 30 of 63 is on master and is quoted as "how
+     many of c2-il's refusal sites have no test that can fail on them". It is
+     not that number: it is the SUM OF TWO BACKLOGS THAT NEED DIFFERENT WORK —
+     write a witness, or delete the code — and the two are indistinguishable in
+     it, because both produce GREEN by the same mechanism. L9 is one confirmed
+     instance inside the 63 and the partition has never been taken anywhere.
+  2. The 26 now carries its qualifier IN THE SAME SENTENCE, stated before the
+     table rather than after it: 30 becomes 26, of which 4 were re-run by
+     measurement, 26 are reasoned still-GREEN and NOT re-run, and 15 OF THOSE 26
+     ARE UNVERIFIED AT THIS TREE because peers rewrote their files since
+     3835469c. Quoting "26 of 63" without that clause would be a re-measured
+     census quietly inheriting stale rows.
+  3. The D6 pair is stated in the form a future lane needs: THE PASS/FAIL COUNTS
+     ARE IDENTICAL AND ONLY THE DURATIONS DIFFER. N0T and D6a both read
+     1,665 passed / 0 failed / 45 targets; the differences are census_gate
+     79.25s vs 0.00s and wall 222s vs 7s. No count, no status and no exit code
+     in that pair separates the run that graded against real c2.dll from the run
+     that graded nothing — which is why the fix must be a test asserting the
+     toolchain resolved, not a tighter reading of the totals. It is also an
+     INDEPENDENT PEER VERIFICATION of #3219 and #3231: a third base, a third
+     lane, with this lane's own five new tests inside the identical figure, so
+     it is a property of the worktree workflow rather than of any one campaign.
+
+C2RS_REQUIRE_TOOLCHAIN's wiring is DECIDED AND ASSIGNED, not dangling: the
+coordinator routed it to lane w-gateperf, which owns scripts/gate.sh. This lane
+deliberately does not wire it — the harness tests are its seam and a gate-policy
+change must not ride in on a guard lane. Recorded in the rung §8 F6.
+
+The other three not-taken items were blocked on w-dataseam's seam, which has now
+MERGED, so c2-il is free: the panic!() probe settling leaf_store.rs:2456 and the
+general standing site count over all 63 are both dispatchable, and the
+coordinator is picking them up rather than asking this lane to widen.
