@@ -69,9 +69,19 @@ def gate(tag):
             on = False
         elif on:
             a += 1
-    # B: every line whose second column is a verdict word, anywhere in the log.
+    # B: every line whose second column is a verdict word, anywhere in the log
+    #    — the lane NAME must not end in `:`.
+    #
+    #    **This construction was wrong at its own base and the diff is what
+    #    found it.** Written first as `^\S+ +(PASS|…) ` it read **27** against
+    #    the table's 23, because the four SUMMARY lines (`sweep:  PASS — …`,
+    #    `cross:`, `debug:`, `GATE:`) match it too — a lane name never carries a
+    #    colon. That is board **#3288**'s point in its exact registered form:
+    #    the member that fails is as likely to be an OVER-count as an
+    #    under-count, and the disagreement is resolved by locating the extra
+    #    rows, never by preferring the number that looks right.
     b = len([l for l in lines
-             if re.match(r"^\S+ +(PASS|FAIL|SKIP|REFUSED|NO-RESULT) ", l)])
+             if re.match(r"^[^\s:]+ +(PASS|FAIL|SKIP|REFUSED|NO-RESULT) ", l)])
     row(f"{tag} gate lane rows", "the dashed-header block", a,
         "lines with a verdict in column 2", b)
 

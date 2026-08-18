@@ -103,6 +103,23 @@ pat("M-CS4", CENSUS,
     "bind_key.unwrap_or(STORE_RUN_BIND_NO_CARRIER)",
     "{ let _ = bind_key; STORE_RUN_BIND_NO_CARRIER }")
 
+# `CS4-FALLBACK` — the EAGER half of `CS4`, probed with #3246's named method.
+#
+# `bind_key.unwrap_or(STORE_RUN_BIND_NO_CARRIER)` is TWO sites in one
+# expression. The `Some` half is a real branch and this lane witnesses it with
+# three captures. The ARGUMENT is evaluated on **every** pass, in class or not
+# — `w-grammarscreen`'s eager class exactly, and `CS4` is the row it named. So
+# "the site is reached" is uninformative about the fallback, and the only
+# question that means anything is whether any input in this project's corpus
+# *uses* it. `panic!()` in its place answers that: a run that completes clean
+# says nothing reaches it.
+pat("M-CS4F", CENSUS,
+    "bind_key.unwrap_or(STORE_RUN_BIND_NO_CARRIER)",
+    "match bind_key {\n"
+    "                                                Some(k) => k,\n"
+    '                                                None => panic!("w-witness7 CS4-fallback"),\n'
+    "                                            }")
+
 # `CS9` — `false &&` on the opt-mode gate.
 pat("M-CS9", CENSUS,
     "Some(f) if opt_word_mode(opt_word).is_none() => {",

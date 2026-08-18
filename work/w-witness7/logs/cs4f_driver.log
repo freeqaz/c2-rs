@@ -1,0 +1,9 @@
+applied M-CS4F -> crates/c2-il/src/func/census.rs
+gate exit=4
+scan exit=0
+--- markers, grepped from raw log TEXT (never from an exit code) ---
+work/w-witness7/logs/M-CS4F.suite.log:0
+work/w-witness7/logs/M-CS4F.gate.log:0
+work/w-witness7/logs/M-CS4F.scan.log:0
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+=== CS4F DONE

@@ -1,0 +1,11 @@
+AGREE   N0 suite passed        1671 (sum of `test result:` lines)  |    1671 (count of `test … ok` lines)
+AGREE   N0 suite targets         46 (count of `test result:` lines)  |      46 (count of `Running`/`Doc-tests` headers)
+AGREE   T1 suite passed        1677 (sum of `test result:` lines)  |    1677 (count of `test … ok` lines)
+AGREE   T1 suite targets         48 (count of `test result:` lines)  |      48 (count of `Running`/`Doc-tests` headers)
+AGREE   T2 gate lane rows        23 (the dashed-header block)  |      23 (lines with a verdict in column 2)
+AGREE   T2 gap-metric keys      394 (anchored regex)  |     394 (3-field parse)
+AGREE   new tests                 6 (`#[test]` count in the two files)  |       6 (suite delta T1 - N0)
+AGREE   sites guarded             7 (tip mutant runs failing one of this lane's tests)  |       7 (sites named in the two files' assertions/docs)
+AGREE   refusing population       7 (sites whose key is OBSERVED on a base capture)  |       7 (sites whose key MOVES under the site's own mutation)
+
+9 figures, 0 DIFFER
