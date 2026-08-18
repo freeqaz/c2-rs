@@ -114,33 +114,62 @@ reports the same 8 capture-fail TUs by name and 870 cache hits, and both scans
 took nonzero wall time (9.5 s, 23.7 s) rather than the 0.00 s an unprovisioned
 worktree produces. No reading was taken without it.
 
-GATE, at the tip:
-  cargo test --workspace --release  1,660 passed / 0 failed / 43 targets, with
-    ZERO `SKIP: toolchain absent` lines and a 3m52s wall time — the
-    executed-count-and-duration assertion, not an exit code.
+REBASED onto master 82fa92a0 (w-calleeguard + a STATUS regeneration).
+docs/BOARD.md conflicted; BOTH blocks kept, NEITHER edited; INDEX.md
+regenerated; board_audit.sh re-run, all five checks 0. Graded tree
+fca78efc1922 at 82fa92a0 and at this tip, identical.
+
+The rebase doubled as a control this lane did not have to build:
+w-calleeguard's three files are all test-only (#[cfg(test)] + tests/), so a
+forced rebuild at the rebased tip produces the release c2rs at the SAME binary
+hash f4a1701317115d88 as every pre-rebase run. The 878-TU scan re-run there is
+identical — match 26 / mismatch 0 / codegen-gap 0 / vocab-gap 844 /
+capture-fail 8, fnbyte-exact 35,899, fnbyte-refused-parse 113,447 — and its
+394 keys are byte-identical to the pre-rebase base, 0 deltas ACROSS the rebase.
+Every figure in this rung stands at 82fa92a0 for a stated reason (same binary),
+not because nothing looked different.
+
+GATE, at the rebased tip:
+  cargo test --workspace --release  1,665 passed / 0 failed / 45 targets —
+    RE-READ at the rebased tip, not carried forward from this lane's own
+    pre-rebase 1,660/0/43. ZERO `SKIP: toolchain absent` lines, 3m24s wall —
+    the executed-count-and-duration assertion, not an exit code.
   scripts/gate.sh --jobs 4 --require-graded  PASS. 18/18 lanes, 0 FAIL/SKIP/
     NO-RESULT, 6,948 fixture-verdicts; sweep 19,460 of 19,556 graded, 0
     mismatch; cross 90,424 of 90,812 cells graded, 0 mismatch; debug-lane
-    18/18, 0 PANIC. RUN TWICE, byte-identical counts both times.
-  878-TU scan identity  396 of 396 gap-metric keys byte-identical base vs end,
+    18/18, 0 PANIC. RUN THREE TIMES — pre-rebase mid-edit, pre-rebase clean,
+    and at 82fa92a0 — byte-identical counts every time. Gate's own graded-tree
+    content hash 5b550a38d90b over 738 files before the rebase, 24aad38816d7
+    over 740 after, which is w-calleeguard's two tests/ files and nothing else.
+  878-TU scan identity  394 of 394 gap-metric keys byte-identical base vs end,
     values included, INCLUDING the whole fnbyte-* family. #3249's plus-or-minus
-    2 did not fire on this bracket, so nothing had to be attributed. (The
-    dispatch registered 394 keys; the tip prints 396. Not chased — the identity
-    that matters is base-vs-end at one tip.)
+    2 did not fire on this bracket, so nothing had to be attributed.
+    THIS LANE FIRST PUBLISHED 396 AND THAT WAS WRONG. w-fence163 §3.1 had
+    already settled the count at 394, shown that 396 is a `grep -c` artifact,
+    and written the correction down "because the next lane will reach for the
+    same grep" — this lane was the next lane and reached for the same grep.
+    The two swept-in lines are prose pointing AT machine keys ("see
+    `gap-metric fnbyte-census-disagree-*`" and "Machine keys: `gap-metric
+    fence-*`"), neither a key. Counted as `^\s*gap-metric ` both ends read 394.
+    It is the artifact, not a real addition: w-calleeguard landed three test
+    files and no gap-metric emitters, so a genuine +2 would itself have been a
+    finding and there is none. The IDENTITY was never in doubt — same method at
+    both ends — but the number beside it is what the next lane copies.
   crates/fixtures/scripts vs 071d2d47  EMPTY. git ls-tree | sha256sum reads
     a8adae3aca8adba2 at 071d2d47, at the prereg commit and at the tip; the
     gate's own content hash reads 5b550a38d90b over 738 files at both runs.
   board_audit.sh  all five checks 0.   rung_registry  2/2.
 
-ONE QUALIFICATION, AND THE FIRST EXPLANATION FOR IT WAS WRONG: both gate runs
-report `GATE: PASS (HATCH-RED REFUSED)`. Run 1 happened on a mid-edit tree, so
-the obvious reading was the gate's own advice to commit and re-run. Re-run on a
-clean committed tree, hatch-red REFUSED again, identically: HATCH-STALE, 0 of
-14 arms, 0 green controls. The tree was never the cause — this is board #2511,
-`hatch-red` refusing at master, reproduced there with an older crates/fixtures.
-This branch's crates/ diff is empty so the row would refuse identically at the
-base. Recorded with #1406's caveat attached rather than elided: a run with
-hatch-red refused does not establish what a full run establishes.
+ONE QUALIFICATION, AND THE FIRST EXPLANATION FOR IT WAS WRONG: all three gate
+runs report `GATE: PASS (HATCH-RED REFUSED)`. Run 1 happened on a mid-edit
+tree, so the obvious reading was the gate's own advice to commit and re-run.
+Re-run on a clean committed tree, hatch-red REFUSED again, identically:
+HATCH-STALE, 0 of 14 arms, 0 green controls — and a THIRD time on the rebased
+tree at 82fa92a0 with w-calleeguard's merge in it. Three trees, three
+refusals, one explanation, and it is not this lane's: board #2511, `hatch-red`
+refusing at master, reproduced there with an older crates/fixtures. Recorded
+with #1406's caveat attached rather than elided: a run with hatch-red refused
+does not establish what a full run establishes.
 
 Board: #3251-#3255, allocated by the coordinator; the next-free pointer was not
 consulted. Rung: docs/rungs/2026-08-18-corpushealth.md.

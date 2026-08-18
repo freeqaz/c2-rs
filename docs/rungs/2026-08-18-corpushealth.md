@@ -17,8 +17,36 @@
                `2ecf319b`, this branch's **first** commit, before any predicted
                quantity was measured.
 
-Commits: `2ecf319b` prereg · `925623cc` the three instruments and their output ·
-this file.
+Commits: prereg · the three instruments and their output · the write-up and
+boards · the denominator cross-check · the gate evidence · the merge note.
+(Hashes moved at the rebase onto `82fa92a0`; read them from
+`git log 82fa92a0..HEAD` rather than from this line, which is exactly the kind
+of handed-down identifier #3249 says to re-read.)
+
+---
+
+## THE THING TO READ FIRST — the two prereg MISSES are the answer a shorter lane would have published
+
+Registered before measuring, and both missed:
+
+* **H2** predicted 45–70 % of the refusal mass would sit in units the decomp
+  has not finished. It reads **83.59 %**.
+* **H6** predicted the stub population would be small in rows and units. It is
+  **686 rows over 158 units**.
+
+**Both misses are on the COARSE instruments, and H2's 83.59 % is what a lane
+that stopped at the per-TU join would have shipped as its headline** — a
+plausible, publishable, *true* number that answers the wrong question. It is
+dominated by unit **size**: a 1,700-body TU is refusal-heavy and also nearly
+certain to contain at least one of the decomp's 2,829 unfinished functions, so
+"its unit is not finished" is close to a statement that the TU is big. The
+number that answers the question is **2.95 %** (§2.1), and it is a factor of
+**28** away. H6 is the same shape one level down: 686 stub rows sounds large
+and contributes **147 emitted body instances of 189,371 — 0.078 %**.
+
+The primary hypothesis (H3) was registered as the tight bound **before** either
+coarse number existed, which is the only reason the lane could not talk itself
+into the wrong one. **A prereg is worth what its primary metric is worth.**
 
 ---
 
@@ -204,7 +232,12 @@ If every unmatched-source body were free tomorrow:
 
 ---
 
-## 3. The 71 % nobody can grade — published as a denominator, not folded in
+## 3. The 71 % nobody can grade — and it is a property of `fnbyte-*`'s DENOMINATOR, not a caveat on this lane
+
+**This section outranks §2 for anyone who is not asking this lane's question.**
+It was drafted as a footer — *"found and not taken", item 1* — and it does not
+belong there: the same measurement that bounds this lane's answer also says
+what every `fnbyte-*` figure in this repo is a fraction *of*.
 
 **134,791 of the 189,371 emitted body instances (71.18 %) carry a name that is
 in no objdiff unit at all.** These are `/Gy` COMDATs the linker never selected
@@ -235,6 +268,44 @@ code compiled by every TU that includes it, and its correctness is pinned by the
 `?Str@Symbol@@QBAPBDXZ` were wrong, its matched callers would not match. That
 is a strong prior and it is not a number; §8 prices what turning it into one
 would cost.
+
+### 3.1 The other reading, which has nothing to do with the corpus
+
+The same 134,791 is a statement about **`FUNCTION BYTE MATCH`'s denominator**,
+and it holds whatever the decompilation's state is:
+
+> **`fnbyte-denominator` 162,046 — and the 189,371 `.text` COMDATs c2 actually
+> emits — are dominated by bodies the shipped Dance Central 3 image does not
+> contain.** `??6DebugFailer@@QAAXPBD@Z` is emitted into **732 of 870 objs and
+> ships zero times.** Measured over the emitted-symbol name space, **71.2 % of
+> emitted body instances appear in no objdiff unit at all.**
+
+So **every `fnbyte-*` figure this project quotes is a fraction of a denominator
+that is mostly `/Gy` COMDATs the linker discards** — `fnbyte-exact 35,899`,
+`fnbyte-refused-parse 113,447`, the `+163` that landed this week, and
+`docs/STATUS.md`'s FBM framing alike.
+
+**Three things this is NOT, stated before anyone over-reads it:**
+
+1. **Not corpus immaturity.** The original 2012 build had the identical
+   property — c2 emits a COMDAT per `/Gy` function and the linker keeps one
+   copy of each it needs. Nothing about `dc3-decomp` causes it and nothing
+   about finishing `dc3-decomp` changes it.
+2. **Not a defect in FBM, and not a reason to shrink the denominator.** The
+   judge is the **whole obj**, byte-exact. Those 134,791 bodies are real bytes
+   real `c2.dll` wrote into objs the port must reproduce. A body that the
+   *linker* later discards is still a body the *compiler* has to get right, and
+   dropping it from FBM would make the metric easier and the port no better —
+   the shape `docs/PROGRESS_METRIC.md` exists to forbid.
+3. **Not measured as a shipped-image FBM.** That is a different number over a
+   different denominator and **nobody has computed it**, this lane included.
+   `docs/FUNCTION_BYTE_MATCH.md` would first have to decide whether it wants
+   one. **Sized, not priced** — §8 item 1.
+
+What it *does* change is how a `fnbyte-*` ratio should be read aloud: as
+progress over *what c2 emits*, which is the port's actual job, and **not** as
+progress over *the game*, which is what "22 % of functions" sounds like. Board
+**#3254**.
 
 ---
 
@@ -391,17 +462,16 @@ question.
 
 Ranked. None taken; this is a characterization lane.
 
-1. **The FBM denominator counts 134,791 bodies that are not in the shipped
-   game — 71.2 % of it.** `fnbyte-denominator 162,046` and
-   `fnbyte-refused-parse 113,447` are dominated by `/Gy` COMDATs the linker
-   discards everywhere. This is **not** corpus immaturity — the original build
-   had the identical property, and c2 emits them because `/Gy` says to. But it
-   means FBM's ratio is taken over a population three and a half times larger
-   than the code that ships, and a "shipped-image FBM" is a different number
-   nobody has computed. The lane did **not** compute it, because
-   `docs/FUNCTION_BYTE_MATCH.md` would have to decide whether it wants it, and
-   because the port is judged on whole objs, where those bodies are real bytes
-   c2 wrote and the port must reproduce. **Sized, not priced.**
+1. **PROMOTED OUT OF THIS LIST — it is §3.1 now, and board #3254.** The FBM
+   denominator counts 134,791 bodies that are not in the shipped game, 71.2 %
+   of it. It was drafted here and it outranked the list; the only thing left in
+   this slot is the piece genuinely **not taken**: a **shipped-image FBM** —
+   the same byte test over the bodies that survive to the image — is a
+   different number over a different denominator and **nobody has computed it,
+   this lane included.** It needs `docs/FUNCTION_BYTE_MATCH.md` to decide
+   whether it wants a second ratio at all, and the answer is not obviously yes:
+   the port is judged on whole objs, where a linker-discarded body is still a
+   body the compiler had to get right. **Sized, not priced.**
 2. **The 28.8 % / 71.2 % gradeable split is the honest bound on this lane's own
    answer.** 2.95 % is measured on the part the decomp's ruler can see; 10.24 %
    is the same rate extrapolated. Closing the gap needs a per-body source
@@ -449,21 +519,68 @@ environment produces. Any reading taken without that control would have been
 
 | lane | result |
 |---|---|
-| `cargo test --workspace --release` | **1,660 passed · 0 failed · 1 ignored · 43 targets** — the registered baseline exactly. **`SKIP: toolchain absent` appears 0 times** and the run took **3 m 52 s**, which is the executed-count-and-duration assertion #3219 requires in place of an exit code |
-| `scripts/gate.sh --jobs 4 --require-graded` | **GATE: PASS** — 18/18 lanes PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT, **6,948 fixture-verdicts**; sweep **19,460 of 19,556 graded, 0 mismatch**; cross **90,424 of 90,812 cells graded, 0 mismatch**; `debug-lane` **18/18, 6,948 verdicts, 2,423 match, 0 mismatch, 0 PANIC**. Run **twice** — `gate.log` (tree mid-edit) and `gate2.log` (clean, committed) — with **byte-identical counts and the same `graded tree 5b550a38d90b`**. Both carry `HATCH-RED REFUSED`, which is board **#2511**'s standing master outage and not this branch — §9.1 |
+| `cargo test --workspace --release` | **1,665 passed · 0 failed · 1 ignored · 45 targets** at the rebased tip — **re-read, not carried forward** from this lane's own pre-rebase 1,660/0/43. **`SKIP: toolchain absent` appears 0 times** and the run took **3 m 24 s**, which is the executed-count-and-duration assertion #3219 requires in place of an exit code |
+| `scripts/gate.sh --jobs 4 --require-graded` | **GATE: PASS** at the rebased tip (`gate_rebased.log`) and twice before it — 18/18 lanes PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT, **6,948 fixture-verdicts**; sweep **19,460 of 19,556 graded, 0 mismatch**; cross **90,424 of 90,812 cells graded, 0 mismatch**; `debug-lane` **18/18, 6,948 verdicts, 2,423 match, 0 mismatch, 0 PANIC**. Run **three times** — `gate.log` (tree mid-edit), `gate2.log` (clean, committed) and `gate_rebased.log` (**at `82fa92a0`**) — with **byte-identical counts every time**. `graded tree` **`5b550a38d90b` over 738 files** before the rebase and **`24aad38816d7` over 740** after, which is `w-calleeguard`'s two new `tests/` files and nothing else. **All three carry `HATCH-RED REFUSED`**, which is board **#2511**'s standing master outage and not this branch — §9.1 |
 | 878-TU workload scan, **base** | `match 26 / mismatch 0 / codegen-gap 0 / vocab-gap 844 / capture-fail 8`; `fnbyte-exact 35,899`, `fnbyte-refused-parse 113,447`; cache `870 hit, 8 miss, 0 uncacheable, 0 POISONED`, 0 refused on provenance; 9.5 s |
 | 878-TU workload scan, **`--replay-every 1`** | identical classes; **`replay soundness: 870 checked, 0 diverged`**; 23.7 s |
-| 878-TU workload scan, **end** | identical classes and cache line; **scan identity `396 / 396` `gap-metric` keys byte-identical to the base, values included — 0 deltas, INCLUDING the whole `fnbyte-*` family.** #3249's ±2 did **not** fire on this bracket, so nothing had to be attributed |
+| 878-TU workload scan, **end** | identical classes and cache line; **scan identity `394 / 394` `gap-metric` keys byte-identical to the base, values included — 0 deltas, INCLUDING the whole `fnbyte-*` family.** #3249's ±2 did **not** fire on this bracket, so nothing had to be attributed. **This lane first published `396`; that was the artifact, and §9.1 is the correction** |
 | `crates` / `fixtures` / `scripts` diff vs `071d2d47` | **empty**. `git ls-tree <rev> crates fixtures scripts \| sha256sum` = `a8adae3aca8adba2…` at `071d2d47`, at the prereg commit and at the tip; the gate's own content hash reads **`5b550a38d90b` over 738 files** at both runs |
 | `scripts/board_audit.sh` | **all five checks 0** — cited-but-not-on-the-board 0, unresolved section anchors 0, raw line anchors 0, rows-behind-the-prose 0, duplicate row numbers 0 |
-| `rung_registry`, `scripts/gen_rung_index.sh` | inside the 1,660 — the new rung's header parses, its slug matches its filename, and `INDEX.md` equals what the generator produces (regenerated in the same commit) |
+| `rung_registry`, `scripts/gen_rung_index.sh` | inside the 1,665 — the new rung's header parses, its slug matches its filename, and `INDEX.md` equals what the generator produces (regenerated after the rebase resolution) |
+
+### 9.0 The rebase onto `82fa92a0`, and the one thing it let this lane prove
+
+`w-calleeguard` merged between this lane's base and its landing: **three files,
+all test-only** — `crates/c2-harness/src/gap/tests.rs` (`#[cfg(test)]`),
+`crates/c2-harness/tests/callee_unresolved_sites.rs` and
+`tests/require_toolchain.rs`, `+614` lines, suite **1,660/0/43 → 1,665/0/45**,
+graded tree 738 → 740 files. `docs/BOARD.md` conflicted; **both blocks were
+kept and neither edited**, `INDEX.md` regenerated, `board_audit.sh` re-run
+**all five checks 0**.
+
+**The rebase is also a control this lane did not have to build.** Forcing a
+rebuild at the rebased tip produces the release `c2rs` **at the same binary
+hash `f4a1701317115d88`** as the pre-rebase runs — the three new files are
+`#[cfg(test)]` and `tests/`, so they change the suite and not the compiler. So:
+
+* the 878-TU scan re-run at the rebased tip reads `match 26 / mismatch 0 /
+  codegen-gap 0 / vocab-gap 844 / capture-fail 8`, `fnbyte-exact 35,899`,
+  `fnbyte-refused-parse 113,447`, cache `870 hit / 8 miss`;
+* and its **394 keys are byte-identical to the pre-rebase base — 0 deltas
+  ACROSS the rebase**, values included.
+
+Every measurement in this rung therefore stands at `82fa92a0` unchanged, and it
+stands for a **stated reason** rather than because nothing looked different:
+the binary under test is the same binary. `git ls-tree crates fixtures scripts
+| sha256sum` reads **`fca78efc1922…`** at both `82fa92a0` and this tip.
 
 ### 9.1 Two things about the gate that are worth stating rather than eliding
 
-* **The key count is 396, not the 394 the dispatch registered.** The lane did
-  not chase the difference: the identity that matters is **base vs end at the
-  same tip**, and that is `396/396` with **0** deltas. A brief's handed-down
-  count is exactly the kind of figure #3249 says to re-read rather than trust.
+* **The key count is 394, and this lane published 396 first — it is
+  `w-fence163` §3.1's artifact, recurring in exactly the lane that row
+  predicted.** §3.1 found 394, demonstrated that **396 is a `grep -c`
+  artifact**, and recorded the correction in writing *"because the next lane
+  will reach for the same grep."* **This lane was the next lane, and it reached
+  for the same grep** — `grep -o "gap-metric …"` over the whole scan log, which
+  counts one match per *line containing the string* rather than per metric line.
+
+  The two lines it sweeps in are named, and neither is a key: `base.log:1004`,
+  the `census/gate disagreement on EMITTED fns` paragraph, which points the
+  reader at *"see `gap-metric fnbyte-census-disagree-*`"*; and `base.log:1106`,
+  the `FENCE-BLOCKS-EXACT` paragraph, which ends *"Machine keys:
+  `gap-metric fence-*`, all causes, zeros included."* Both mention the string
+  as a **pointer to** machine keys. Counted correctly —
+  `grep -E '^[[:space:]]*gap-metric '`, and identically
+  `^[[:space:]]*gap-metric \S+ \S+$` — the base reads **394** and so does the
+  end.
+
+  **It is the artifact, not a real key addition.** `w-calleeguard` landed three
+  `c2-harness` test files and no `gap-metric` emitters, so a genuine `+2` would
+  itself have been a finding; there is none. **The identity was never in doubt**
+  — the same method ran at both ends — but the *number published beside it* was
+  wrong, and a published number is what the next lane copies. Re-derived at
+  **394/394, 0 deltas** (`base.keys394` / `end.keys394`, committed beside the
+  original 396-key extraction so both methods are inspectable).
 * **`GATE: PASS (HATCH-RED REFUSED)`, and the first explanation for it was
   WRONG.** Run 1 happened while this file was mid-edit, so the obvious reading
   was the gate's own advice — *"commit or stash `crates/` and re-run"*. The
@@ -476,8 +593,12 @@ environment produces. Any reading taken without that control would have been
   a property of any branch. This lane's `crates/` diff against `071d2d47` is
   empty, so the row would refuse identically at the base.
 
+  **A third run, on the rebased tree at `82fa92a0` with `w-calleeguard`'s
+  merge in it, refuses identically.** Three trees, three refusals, one
+  explanation, and it is not this lane's.
+
   Recorded rather than elided, with board **#1406**'s caveat attached: a run
   with `hatch-red` refused **does not establish what a full run establishes**.
-  Both logs are kept — the same rule `w-fence163` applied to its invalid
+  All three logs are kept — the same rule `w-fence163` applied to its invalid
   mutation run (#3226): **keep the unqualified log too.** The 17 rows that did
   run are unaffected and are the evidence above.
