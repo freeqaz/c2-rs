@@ -1,0 +1,6 @@
+=== T1/suite ===
+T1/suite exit=0 wall=262s distinct-sites=0
+=== T1/gate ===
+T1/gate exit=0 wall=120s distinct-sites=0
+=== T1/scan ===
+T1/scan exit=0 wall=9s distinct-sites=0

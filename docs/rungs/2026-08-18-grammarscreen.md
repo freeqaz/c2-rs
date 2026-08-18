@@ -75,8 +75,9 @@ That is a property this population happens to have, not a property of grep.
 
 > **2. QUIET IS NOT "THE CORPUS NEVER ENTERS THIS PARSER" — IT IS A SPARSE
 > TRAVERSAL OF EVERY PARSER.** **Zero** of the 30 files carry zero reached
-> sites, and in 25 of the 30 the corpus reaches a site **within the last 15 %**
-> of the file's gates while touching only 20–35 % of them. `float_walk_loop.rs`
+> sites; **26 of the 30 are walked to within the last 15 % of their gate
+> depth**, and of the 17 files carrying 40 or more sites, 14 are walked to
+> **≥ 89 %** depth while only **17–47 %** of their gates are ever touched. `float_walk_loop.rs`
 > is 24 of 89 sites reached and the **deepest reached site is the 89th**. The
 > intuitive story that would license deleting quiet sites — *"that shape never
 > occurs, so its parser is dead"* — is **measured false, file by file.**
@@ -465,12 +466,12 @@ be dark. **None is.** Per file, sites reached against the position of the
 | `xtea_round_loop.rs` | 70 | 12 | 69th | 99 % |
 | `ptr_walk_loop.rs` | 70 | 23 | 68th | 97 % |
 | `calls.rs` | 64 | 49 | 64th | 100 % |
-| … 24 more, all ≥ 83 % except one | | | | |
+| … 24 more | | | | |
 | **`xtea_encrypt_loop.rs`** | **57** | **5** | **14th** | **25 %** |
 
-**Files with zero reached sites: 0 of 30.** The corpus enters every parser and
-walks to within 15 % of the end of nearly all of them while touching a fifth to
-a third of the gates on the way. `xtea_encrypt_loop.rs` is the single
+**Files with zero reached sites: 0 of 30. Depth ≥ 85 %: 26 of 30. Depth ≥ 83 %:
+28 of 30.** The corpus enters every parser and walks to within 15 % of the end
+of 26 of them while touching a fifth to a half of the gates on the way. `xtea_encrypt_loop.rs` is the single
 exception — one parser the corpus enters and abandons at gate 14 of 57 — and it
 is the one row on this table a follow-on lane should read first.
 
@@ -554,7 +555,7 @@ its count — §10 **F3**.
 | **H3** | the instrumented run reproduces the clean baseline exactly | **HIT** — suite, gate and all 394 scan keys identical across `N0` / `P1` / `P2` / `Q1` |
 | **H4** | `P1` and `P2` agree on every one of the 1,336 rows | **HIT** — set-identical in all six stages, `P1\P2 = P2\P1 = 0` |
 | **H5** | the `panic!()` run completes with zero markers | **HIT** — `Q1`, all **829** quiet sites armed at once, zero markers in any log or in the gate's run tree, and the instrument shown able to fire (§3.4) |
-| **H6** | control `C1` **RED** with exactly the two named tests, base and tip | <!-- H6 --> |
+| **H6** | control `C1` **RED** with exactly the two named tests, base and tip | **HIT** — `C1a` **RED 1,669 / 2** at the base and `C1b` **RED 1,668 / 3** at the tip, the registered pair **by name** in both. `C1b`'s third row is this lane's own un-regenerated `INDEX.md` (D8), not a property of the control; both tests in the pair are capture-driven, so a worktree whose captures were skipping could not have produced either colour |
 | **H7** | stage attribution informative — ≥1 site reached only by the scan **and** ≥1 only by the suite | **HIT** — 17 scan-only, 20 suite-only |
 | **H8** | DEAD ≤ 27 (2 %), for structural rather than budgetary reasons | **HIT, at the extreme** — DEAD = **0**, and §4.2 gives the structural reason: the only proof that scales is a lint that is already green |
 | **H9** | UNKNOWN is the largest bucket, > 50 % | **HIT** — 829, 62.1 % |
@@ -582,18 +583,18 @@ sequence one has been.
 
 | check | base `N0` (`666fe6eb7`) | **tip** |
 |---|---|---|
-| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **1,671 / 0 / 46** | <!-- TIPSUITE --> |
+| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **1,671 / 0 / 46** | **1,671 / 0 / 46** — unchanged, as a revert-everything lane must be |
 | `census_gate` duration (the differential actually grading) | **66.51 s** | minimum over **every** run in this lane is **66.51 s** — none near the 0.00 s an ungraded run reads (#3231) |
-| `scripts/gate.sh --jobs 16 --require-graded` | **PASS (HATCH-RED REFUSED)**, 124 s, 18/18 lanes, 0 FAIL / 0 SKIP / 0 NO-RESULT · **6,948** fixture-verdicts · sweep `19556 / 19460`, 0 mismatch · cross `90812 / 90424`, 0 mismatch · debug lane 18/18, **0 panic** | <!-- TIPGATE --> |
-| 878-TU workload scan | `match` **26** · `mismatch` **0** · `codegen-gap` **0** · `vocab-gap` **844** · `capture-fail` **8** | <!-- TIPSCAN --> |
-| `gap-metric` keys, `^ *gap-metric \S+ \S+$` | **394** | <!-- TIPKEYS --> |
-| `fnbyte-exact` / `differs` / `refused-parse` | 35,899 / 1,958 / 113,447 | <!-- TIPFNB --> |
-| named control `C1`, pinned **BY NAME** | `C1a` **RED 1,669 / 2**, `the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol` · `the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone`, differential 83.71 s | <!-- TIPC1 --> |
-| `git diff master..HEAD -- crates fixtures scripts` | — | <!-- TIPDIFF --> |
-| **graded tree identical at both ends** | — | <!-- TIPTREE --> |
-| `scripts/debug_lane.sh` | 18 lanes, 0 failed, **0 panic** | <!-- TIPDBG --> |
-| `scripts/board_audit.sh` | — | <!-- TIPBOARD --> |
-| `crates/c2-harness/tests/rung_registry.rs` | 2/2 | <!-- TIPREG --> |
+| `scripts/gate.sh --jobs 16 --require-graded` | **PASS (HATCH-RED REFUSED)**, 124 s, 18/18 lanes, 0 FAIL / 0 SKIP / 0 NO-RESULT · **6,948** fixture-verdicts · sweep `19556 / 19460`, 0 mismatch · cross `90812 / 90424`, 0 mismatch · debug lane 18/18, **0 panic** | **PASS (HATCH-RED REFUSED)**, **120 s**, 18/18 lanes, 0 FAIL / 0 SKIP / 0 NO-RESULT · **6,948** fixture-verdicts · sweep `19556 / 19460`, 0 mismatch · cross `90812 / 90424`, 0 mismatch · debug lane 18/18, **0 panic** — every count identical to `N0` |
+| 878-TU workload scan | `match` **26** · `mismatch` **0** · `codegen-gap` **0** · `vocab-gap` **844** · `capture-fail` **8** | **identical**, and `port-error` **0** |
+| `gap-metric` keys, `^ *gap-metric \S+ \S+$` | **394** | **394**, and `diff` over the sorted key lines against `N0` is **EMPTY — 0 differing lines over all 394** |
+| `fnbyte-exact` / `differs` / `refused-parse` | 35,899 / 1,958 / 113,447 | **35,899 / 1,958 / 113,447**, unmoved — read back-to-back against this lane's own base per **#3249**, never against a briefed figure |
+| named control `C1`, pinned **BY NAME** | `C1a` **RED 1,669 / 2**, `the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol` · `the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone`, differential 83.71 s | `C1b` **RED 1,668 / 3** — the identical pair **by name**, plus `rung_index_is_generated_and_current`, which is this lane's own un-regenerated index and is named rather than filtered (deviations **D8**; `w-deadsites` §6.4 hit the same). Differential **148.21 s** |
+| `git diff master..HEAD -- crates fixtures scripts` | — | **EMPTY.** Verified after every revert and at the tip, in those words. The lane touches only `docs/` and `work/` |
+| **graded tree identical at both ends** | — | **YES — `f78869e1bd48`, 742 files under `crates fixtures scripts`, content-hashed, at BOTH ends.** #3215's exclusion does **not** apply: this lane lands no test and deletes no line, so the identity is a real check and not a tautology, and it is the same bytes rather than the same summary |
+| `scripts/debug_lane.sh` | 18 lanes, 0 failed, **0 panic** | 18 lanes, 0 failed, **0 panic** (inside the gate row above) |
+| `scripts/board_audit.sh` | — | **all-zero** — 0 cited-but-not-on-board · 0 unresolved anchors · 0 raw line anchors · 0 rows-behind-prose · 0 duplicate row numbers, re-run after appending **#3299**–**#3303** |
+| `crates/c2-harness/tests/rung_registry.rs` | 2/2 | **2 / 2**, with `docs/rungs/INDEX.md` regenerated by `scripts/gen_rung_index.sh` (inside the suite row above) |
 | release-binary sha256 across worktrees | **NOT compared** — **#3224**: `CARGO_MANIFEST_DIR` is compiled in, so the comparison is void by construction | |
 
 ---

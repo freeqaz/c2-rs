@@ -1,0 +1,5 @@
+== C1a/suite
+  targets 46 passed 1669 failed 2
+  census_gate 83.71s
+  FAIL     gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol
+  FAIL     gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone

@@ -110,3 +110,21 @@ unfreeze the prereg. `w-mutcensus`' enumeration went stale **twice inside one
 lane's wall-clock**, and §7 of the rung records a third instance
 (`provide_data_tu`, 19 sites, landed after that frame froze). The shelf life of
 a site enumeration in this repo is measured in landed peers.
+
+## D10 — what is tracked under `work/w-grammarscreen/logs/`, and why the raw probe streams are not
+
+The probe writes one line per site **per thread per process**, so a first-hit
+marker over the gate produces a 17 MB stream of duplicates — **66 MB** across
+the campaign. What is tracked is:
+
+* `<tag>.<stage>.sites` — the **deduplicated** hit set, `sort -u` of the raw
+  stream, at most 1,336 lines. The dedup rule is stated so it can be checked:
+  it is exactly the one `rederive.py` applies, and nothing else is removed.
+* `<tag>.summary.txt` — the suite totals, the `census_gate` duration, the
+  failing set **by name**, every `GATE:` / `lanes:` / `graded:` / `checked=` /
+  `graded tree:` line, and **all 394 anchored `gap-metric` keys** verbatim.
+* `<tag>.driver.log` — the per-stage exit codes, wall clocks and site counts.
+
+The multi-megabyte `.hits` and full `.log` files stay on disk in the worktree
+and are not committed. **Per #3287 every `git add -f` in this lane names
+explicit file paths and never a directory.**
