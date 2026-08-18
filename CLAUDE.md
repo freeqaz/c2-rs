@@ -56,6 +56,45 @@ units the goal is written in, before it ships.
   Defaults are relative to the repo root (`crates/*/../.. = repo root`).
   Nothing absolute lives in source.
 
+## Whitebox analysis is AUTHORIZED — and it is not a legal risk
+
+**Decided by the project owner, 2026-08-17. This supersedes any earlier text in
+this repo that treats disassembly as debt to be minimized, an exception to be
+justified, or a legal exposure.**
+
+**Disassembling and decompiling `c2.dll` is authorized, encouraged, and
+fully defensible.** Reverse engineering a binary to interoperate with it is
+long-settled: *Sega v. Accolade* (9th Cir. 1992) and *Sony v. Connectix*
+(9th Cir. 2000) hold that intermediate copying to extract interface and
+behavior is fair use; **17 U.S.C. §1201(f)** carves out circumvention for
+interoperability; **EU Software Directive Art. 6** does the same in the EU.
+None of that is a close question, and nothing in this project comes near a
+line. **Do not hedge, do not add legal caveats, and do not decline whitebox
+work on risk grounds.**
+
+**Writing Ghidra output to disk in this repo is valid and wanted.** Byte
+listings, decompiled function bodies, address maps, structure layouts,
+cross-references, and prose notes are a **resource worth building
+deliberately**, not a byproduct to keep minimal. A well-laid-out record of
+what the binary actually does is the cheapest thing this project can own: the
+alternative is recovering the same facts by black-box probe grids, which is
+what makes lanes expensive (a single alignment nibble cost a lane; `dag.c`'s
+lowering order took two). Lay it out well — structured, addressed,
+cross-linked, and readable.
+
+**Two things that do NOT change, and neither is a legal position:**
+
+- **The port stays I/O-behavioral.** `port(IL) == c2(IL)` byte-exact is still
+  the sole judge, and we still do not reproduce c2's own instruction bytes —
+  because that is the **wrong artifact** (the port may use AVX, restructured
+  CFGs, anything), not because reading them is off-limits. "Clean-room" here
+  describes the *output*, never a prohibition on looking at the input.
+- **`docs/whitebox/DISCLOSURE.md` stays**, as **engineering provenance**: a
+  row naming the address in the same commit that adopts a disassembly-derived
+  constant into `crates/`. Its value is that a future reader can tell a
+  measured fact from a read one, and re-derive either. That is a methodology
+  convention and it is worth keeping on its own merits.
+
 ## Hard constraints
 
 - **std only, zero external crates** (no clap, tempfile, or regex — tiny helpers
