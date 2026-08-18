@@ -1,0 +1,367 @@
+THE `.gl` SIZE FIELD'S `0x80` ESCAPE IS `80 <LE16>` — DECODED AND SHIPPED, UN-REFUSING 56 OF 870 WORKLOAD TUs AT `fnbyte-exact` Δ 0, AND THE `309 EDGES` IT WAS DISPATCHED ON IS **2** UNDER THE FRAMING THE READER ACTUALLY WALKS
+
+Lane:     w-glattrs
+Base:     master 666fe6eb7
+Kind:     construct — a container-reader decode
+Outcome:  built
+Rung:     docs/rungs/2026-08-18-glattrs.md
+Prereg:   docs/rungs/_2026-08-18-w-glattrs-prereg.md (frozen at ba718f7af, the
+          branch's first commit, before any probe)
+Board:    #3289-#3293, allocated by the coordinator. A SIXTH row is drafted
+          UNNUMBERED (rung §9.6) and needs a number at the funnel.
+Seams:    crates/c2-il/src/func/gl.rs · docs/whitebox/ (ref/P_INLINE.md,
+          DISCLOSURE.md) · docs/BOARD.md · docs/rungs/ · work/w-glattrs/
+          Peer seams untouched: crates/c2-harness/tests/, src/gap/tests.rs
+          (w-witness7); crates/c2-core/src/coff/ (unoccupied).
+
+
+WHAT SHIPPED
+------------
+
+One match arm in `gl_function_attrs`, plus the constant it reads and four new
+tests. The `.gl` function record's SIZE field escapes on `0x80` EXACTLY, with a
+TWO-byte little-endian payload — three bytes total — so ATTR sits three past the
+`0x80` and not one. SRCPOS's escape is five bytes because the two adjacent
+fields are read by DIFFERENT readers: il-read-varint32 at 0x10c1f9e9 has a
+four-byte payload where il-read-varint16 at 0x10c1f9a6 has two. The incumbent
+stepped over both as if there were one width and refused the WHOLE FILE.
+
+`0x81..=0xff` is a THIRD form — one sign-extended byte in c2 — and is STILL
+refused. That was prereg decision D1, fixed before the count was taken, and the
+count is ZERO witnesses in 1,461,374 workload records under both `.gl` framings.
+
+
+WHY THE REFUSAL WAS CORRECT, AND WHY THE FIX IS NOT A LOOSENING
+---------------------------------------------------------------
+
+At the wrong width the attribute is an unrelated byte. The new test
+`a_wrong_escape_width_reads_a_different_byte` puts it in the only terms that
+matter: on a record whose ATTR is `noinline`, the width-1 misread hands back a
+byte with bit 6 SET. A wrong width does not fail loudly — it gives `splice` a
+PERMISSION on a body real c2 keeps a call to. The refusal was right while the
+width was unknown. It is now known three ways.
+
+
+THE THREE CONFIRMATIONS, WEAKEST FIRST
+--------------------------------------
+
+(a) THE DISASSEMBLY, and it is the weakest of the three. il-read-varint16 at
+    0x10c1f9a6: one byte, `cmp dl,0x80` / `je`, escape arm reads exactly two
+    further bytes, returns `WORD [ebp-0x4]`. DISCLOSURE row W-GLATTRS-1.
+
+(b) A BLACK-BOX TWIN GRID, no disassembly in the loop. 18 cells, two profiles.
+    Each pair differs only by `__declspec(noinline) ` versus 21 SPACES, so the
+    sources are byte-length-identical and compiled from ONE path. 18 of 18: the
+    first `.gl` byte to differ past the source hash is at the offset the 3-byte
+    decode predicts, and differs by exactly 0x40. The ATTR offset steps by TWO
+    across the SIZE 127 -> 139 boundary. Endianness is black box too: the ladder
+    is 19+12n straight through the escape (103, 127, 139, 163, 211, 259, 379),
+    where big-endian would read 35,584 at the first escaped rung.
+
+(c) THE WORKLOAD'S OWN RECORDS. The 28,739 direct-form records establish a
+    ten-byte ATTR vocabulary independently. On the 99 escaped records width 3
+    scores 99/99 inside it against 3 / 0 / 1 for widths 1 / 2 / 5, at a 5.9%
+    background rate. On the 309-edge population: 309/309 against 1 / 0 / 4.
+
+
+REALIZED DELTAS — back to back, one instrument, two binaries (#3249)
+--------------------------------------------------------------------
+
+Cache 870 hit / 8 miss / 0 uncacheable on both. Workload ccd4c8036 (clean).
+
+                                        base 666fe6eb7      tip        Δ
+  match / mismatch / codegen-gap             26 / 0 / 0   identical     0
+  vocab-gap / capture-fail                       844 / 8   identical     0
+  fnbyte-exact                                    35,899      35,899     0
+  fnbyte-differs                                   1,958       1,958     0
+  fnbyte-reloc-differs                               531         531     0
+  fnbyte-refused-parse                           113,447     113,447     0
+  anchored gap-metric keys                           394         394     0
+  ---- what the change actually moved ----
+  TUs the reader ANSWERS for                         801         857   +56
+  TUs refused                                         69          13   -56
+  records decoded                                 25,311      28,203  +2,892
+  `noinline` records the port can SEE                  2           3    +1
+
+
+THE THREE THINGS TO CARRY OFF THIS LANE
+---------------------------------------
+
+1. THE FIRST-BLOCKER FIGURE WAS INFLATED 150x ON EDGES BY A FRAMING THE READER
+   DOES NOT USE (#3290). #3274's "309 of 7,667 graded call edges (4.0%)" was
+   measured with gl_offset_framed_relaxed (#2783). `gl_function_attrs` walks the
+   INCUMBENT framing and sees TWO. Neither number is wrong; the pair is the
+   finding — a first-blocker count is a statement about the WALK that produced
+   it, not about the clause it names.
+
+     framing      TUs refused   rescued   escaped records   escaped edges
+     incumbent          60/870        56                99               2
+     relaxed           838/870       773            57,466             309
+
+   The consequence points the OTHER way from a caution: this decode is now a
+   PREREQUISITE for #2783 reaching this reader. Under the relaxed framing the
+   SIZE-escape refusal alone fires on 838 of 870 TUs, so widening the framing
+   without this fix would have taken the reader from 801 answered files to 32.
+   With it, 805. That widening is the largest found-and-not-taken and is
+   genuinely unpriced — NameFit/#2622/#2623 measured one walk widening at
+   -1 fnbyte-exact, because a walk widening is a TIGHTENING of the fences that
+   consume it.
+
+2. THE ORACLE TEST HAS ZERO DISCRIMINATING POWER ON THE POPULATION IT WAS
+   DISPATCHED FOR, AND THIS LANE SAYS SO INSTEAD OF BANKING THE ZERO (#3292).
+   The decode is scored against real c2 on ALL 7,667 workload call edges
+   (w-fence2 GRID-W's observable, 0 unknown): `bit 6 clear => c2 kept the call`
+   has 0 counterexamples over 7,660 edges with a record. BUT all 309 escaped
+   edges are `kept` and none is `inlined` — necessarily, because an escaped SIZE
+   is >= 128 and that is above the inline ceiling at BOTH profiles ((97,103] at
+   /O1, (121,127] at /Ox). Every edge satisfies the consequent whatever the
+   decode says. A green oracle test over a one-armed population is STATUS trap 0
+   in its purest form. What actually discriminates is (b) and (c) above — both
+   of which could have come out wrong and did not.
+
+3. WHAT THE REFUSAL COST WAS A LIVE `noinline` SIGNAL ON A DIFFERENT FUNCTION,
+   AND `None` IS NOT CONSERVATIVE FOR `splice` (#3291). Workload witness:
+   src/xdk/nuiapi/headtracker.cpp holds ??$sprintf_s@$0BAE@@@YAHAAY0BAE@DPBDZZ
+   at ATTR 0x88 — bit 6 CLEAR — in a DIRECT-form record of SIZE 46, and the file
+   was refused whole on a DIFFERENT record's escaped SIZE. GRID-D rebuilds that
+   shape from source and grades it against real c2:
+
+     A  small __declspec(noinline) alone            reader ok, c2 KEEPS the call
+     B  the same + one function whose SIZE escapes  REFUSED; bit invisible;
+                                                    inlinable = None; c2 STILL
+                                                    keeps the call
+     C  small INLINABLE + the same escaping fn      REFUSED, and c2 INLINES it,
+                                                    so the refusal costs nothing
+     D  B at /Ox                                    same as B
+
+   `None` means "every consumer behaves exactly as it did before this field
+   existed", and before it existed `splice` EXPANDED the body. So the whole-file
+   refusal is not fail-closed for the one consumer that matters — it is
+   fail-SILENT. C is what makes B a loss rather than a property of the shape.
+   noinline_boundary.rs cell w10 is the record of what that blindness cost once
+   already ("a shipped, demonstrated wrong emit").
+
+
+GATE EVIDENCE — the construct rung's required-zero byte delta
+--------------------------------------------------------------
+
+  scripts/gate.sh --jobs 16 --require-graded
+      GATE: PASS (HATCH-RED REFUSED) at BOTH ends.
+      18/18 lanes PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT; 6,948 fixture-verdicts.
+      expr-sweep 19,556/19,556, 19,460 graded, 0 mismatch.
+      mode-cross 90,812/90,812, 90,424 graded, 0 mismatch.
+      debug-lane 18/18, 2,423 match, 0 mismatch, 0 PANIC.
+      ladder-red 5/5 (2 green controls). hatch-red REFUSED (HATCH-STALE,
+      board #1389) — PRE-EXISTING, and it read the same at the BASE tree,
+      which is the check that no change of this lane's produced it.
+      Graded tree f78869e1bd48 (base) vs 4e8a08f38af9 (tip), 742 files both.
+
+      THE IDENTITY DIFF: the two gate logs diff EMPTY modulo run directory,
+      timings, disk free, binary identity and one scratch-retention note. The
+      base run was taken on a CLEAN checked-out base (git checkout -b at the
+      base ref) — worth knowing: the gate REFUSES a dirty crates/, which is
+      board #2668/#2907's guard, so `git checkout -- crates/` will not do.
+
+  C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast
+      1,675 passed / 0 failed / 46 targets. Baseline 1,671 / 0 / 46; +4 are
+      this lane's. SKIP: toolchain absent count 0; census_gate 82.98 s.
+
+  878-TU scan   match 26 / mismatch 0 / codegen-gap 0 / vocab-gap 844 /
+                capture-fail 8; 394 anchored keys (grep -cE '^ *gap-metric
+                \S+ \S+$', never the naive form -> 396).
+
+  board_audit.sh  0 unresolved anchors / 0 raw line anchors / 0 rows behind the
+                  prose / 0 duplicate row numbers.
+  rung_registry   2/2.
+
+  P15 WAS A PREDICTION ABOUT THE INSTRUMENT AND IT HIT: the standing gate is
+  BLIND to this change in both directions. A lane that reported that green gate
+  as evidence FOR the decode would be committing STATUS trap 1. The evidence is
+  the twin grid and the vocabulary score; the gate's job here is to show that
+  nothing else moved, and it does exactly that and no more.
+
+
+PREREG SCORING — 17 of 17 HIT, and the rung says which were bets
+----------------------------------------------------------------
+
+P1 P2 P3 (baseline reproduction) · P4 P5 (the width, position) · P6 (endianness
+— HIT on the claim, MISS on the method) · P7 (D1's zero count) · P8 P9 (realized
+size 56) · P10 P11 (fnbyte-exact Δ 0) · P12 (mismatch 0) · P13 (0 oracle
+counterexamples) · P14 (a live noinline was being hidden) · P15 (gate blind) ·
+P16 (Outcome `built`) · P17 (framing inflation).
+
+A 17-for-17 prereg is a statement about the prereg, and §8.3 says so:
+
+  * P4's SUBSTANCE WAS ALREADY READ OFF THE IMAGE when the prereg was frozen —
+    that is why it is registered at 0.90 and not 0.5. "Frozen before any probe
+    compiled, any scan ran, and any line of crates/ changed" is true and is NOT
+    the same as "frozen before anything was known". P5 inherits most of P4.
+  * The rows that were real bets: P6 (0.55, and its METHOD failed), P17 (0.40),
+    P14 (0.45), P9 (0.50), P11 (0.60).
+
+GRID-B WAS REGISTERED AND NEVER RUN. It was frozen as the only instrument that
+could decide the payload's endianness from c2's own output; GRID-A's ladder
+continuity decided it instead, from a cell family already frozen for another
+purpose. The deliverable is met and the registered instrument is not, and that
+distinction is recorded rather than smoothed over.
+
+
+MUTANT COLOURS — 3 of 4 observed as registered, 1 CONTRADICTED, 1 INEXPRESSIBLE
+-------------------------------------------------------------------------------
+
+Every colour is a full suite under C2RS_REQUIRE_TOOLCHAIN=1, with the
+executed-test count, target count, SKIP count and the differential's own
+duration asserted rather than the exit code (#3219 / #3231).
+
+  control  GREEN 1,675/0/46  SKIP 0  census_gate 82.98s
+  M1  escape consumes 5 bytes        registered RED    -> RED 1,671/4
+  M2  payload read big-endian        registered GREEN  -> NOT EXPRESSIBLE
+  M3  0x81..0xff as a 3-byte escape  registered GREEN  -> RED 1,672/3  (round 2)
+  M4  escape arm deleted             registered RED    -> RED 1,671/4
+      M4's GATE colour is measured GREEN: the base-tree gate run IS M4.
+
+M3 IS THE ROW TO READ, AND IT IS DRAFTED AS THE UNNUMBERED BOARD ROW.
+It came back GREEN in ROUND 1, exactly as registered — and the registration's
+reason was about the CORPUS ("zero witnesses, so no corpus test can see it")
+while three CONSTRUCTED unit cells should have made it RED. They did not,
+because each cell's record ended two bytes after the SIZE byte, so a reader that
+wrongly consumed three ran off the end and returned None BY TRUNCATION. All
+three cells were passing for a reason unrelated to the clause they name.
+Repaired at c6fb31eb3 (four trailing bytes + a liveness assertion that the same
+carrier with a legal SIZE decodes both records), and M3 is RED in round 2 on
+exactly those three cells.
+
+  A REGISTERED COLOUR THAT *MATCHES* IS THE ONE NOBODY RE-EXAMINES, AND HERE THE
+  MATCH WAS A COINCIDENCE OF TWO ERRORS. This is #3231's pattern from the other
+  direction: there, two runs of one mutant DISAGREED and that exposed a blind
+  prereg; here one run AGREED with a prediction reasoning about a different
+  population, and only re-running after an unrelated repair separated them.
+  one_unreadable_record_refuses_the_whole_file's own comment — "_neg cells have
+  been confounded or inert in five of the last seven lanes" — sits FOUR
+  FUNCTIONS ABOVE the cell this lane broke, in the same file, and was read while
+  writing it. Reading the warning did not prevent the defect; the mutant did.
+  Proposed rule: a negative cell owes a liveness assertion in the same test.
+
+
+THE TWO COORDINATOR FINDINGS, ADDRESSED
+---------------------------------------
+
+* EAGER EVALUATION (w-grammarscreen) — CHECKED AGAINST THE CONSTRUCT, NOT
+  REASONED ABOUT, and it DOES NOT APPLY (rung §7.4). gl_function_attrs has no
+  .ok_or and no refusal whose argument is eagerly evaluated; every refusal is an
+  explicit `return None`, and the two `?` sites are on a plain Option. More to
+  the point, this lane's numbers are the reader's RETURN VALUE on 870 real .gl
+  files, not site-reachedness. Stated as a negative so the next lane in this
+  file does not re-derive it. AND the live neighbour of that finding DID bite:
+  the `?` on gl.get(q) fires on TRUNCATION, which is exactly the confound behind
+  the M3 story above. The refusal-cause histogram separates them —
+  trunc/noname/srcpos are 0 across all 870 files under both framings — so no
+  part of the 60/56 figure is truncation wearing the escape's name.
+
+* #3288, SECOND DERIVATION — DONE, 28 OF 28 AGREE (rung §7.3,
+  work/w-glattrs/{verify2.py,VERIFY2.txt}). verify2.py does NOT import glrec.py:
+  it is a second implementation written from the record spelling, with a forward
+  name-run pass instead of a reverse rposition, framing predicates written out
+  per byte, and one parameterised varint reader instead of per-field inlining.
+  Re-derived and diffed: records (28,838 / 1,461,374), SIZE forms under both
+  framings, whole-file verdicts (801/69 -> 857/13), refusal causes (60 / 9),
+  rescued (56), the relaxed-framing set (32 -> 805, 773), call edges (7,667),
+  escaped edges (309 relaxed / 2 incumbent), vocabulary size (10) and the rival
+  widths (3/0/99/1). THE INHERITED 309 DID NOT MOVE — re-derived from this
+  lane's own oracle edge list and its own second decoder rather than quoted.
+
+
+FOUND AND NOT TAKEN
+-------------------
+
+1. gl_function_attrs ON #2783's RELAXED FRAMING — the biggest item, and this
+   lane is what unblocks it. The reader currently sees 28,838 of 1,461,374
+   records (2.0%), so every consumer of FN_FLAG_INLINABLE reads a 2% sample.
+   Unpriced, and the price is real: a walk widening is a TIGHTENING of the
+   fences that consume it (#2622/#2623 measured -1 fnbyte-exact). A lane taking
+   it must also decide whether this reader follows GATE_BIND_FRAME's policy
+   split or gets its own.
+
+2. THE noinline_boundary.rs CELL GRID-D DESERVES. GRID-D cell B is a four-line
+   source file that turns gl_function_attrs from answering to refusing on a TU
+   whose small callee is noinline and whose call real c2 keeps. That file is
+   w-witness7's seam and was NOT touched. It is the regression test for "a large
+   function anywhere in the file blinds the port to every attribute in it", and
+   it grades against the oracle rather than against a fixture.
+
+3. THE ATTR VARU IS DOCUMENTED AND NOT DECODED (#3293). ATTR is a two-or-four
+   byte value with a continuation flag in bit 15, not a byte.
+   __declspec(noinline) takes it from 0x1068 to 0x801028 — crossing 0x8000 — so
+   the record grows by two bytes, and THAT IS THE MECHANISM BEHIND w-target's
+   long-unexplained nicmp2 observation "only .gl moves, and by 2 bytes". Reading
+   the low byte is correct for bit 6 under both widths and nothing needs the
+   value, so nothing was decoded. Open: the rest of the low byte. Vocabulary is
+   28 48 4c 68 69 6c 88 c8 cc e8; 0x40 is noinline, 0x20 tracks static
+   (0x68 -> 0x48), and 0x80 / 0x08 / 0x04 / 0x01 are undecoded. `c8` is 93% of
+   all records and `68` is 85% of the ESCAPED ones — a distributional difference
+   nobody has explained, and the place to start.
+
+4. THE ESCAPED POPULATION IS ONE-ARMED, so a future inline-decision lane gets
+   ZERO discriminating cells from it at either profile. A bound on a whole class
+   of follow-ons, cheap to state and expensive to rediscover.
+
+5. THE TWIN-GRID TRAP, which cost this lane a full grid run. `.gl` carries the
+   source path and per-record source positions, so ANY .gl diff experiment must
+   hold the source LENGTH and the PATH fixed or it is measuring the container's
+   provenance fields. The first GRID-A run differed in 130 bytes and the one
+   byte the experiment was about was invisible in the noise. Fix: pad the plain
+   twin with 21 spaces, write both to one path.
+
+
+PROVENANCE — THIS LANE WAS INTERRUPTED TWICE
+--------------------------------------------
+
+Two transient API failures terminated the session mid-lane (rung §10). All of
+§2-§6 and §8 — the disassembly, GRID-A, RIVALS, both workload tables, four
+scans, both gate runs, the suite, GRID-C, GRID-D and both mutant rounds — were
+measured BEFORE the first interruption. §7.4's eager check landed between them.
+§7.3's second derivation, the final gate/scan re-run at the tip, §10 and this
+note came AFTER the second. Nothing was re-derived from memory and nothing
+measured before an interruption was edited after one. The one pair that could
+have gone stale is the gate/scan, because the test repair at c6fb31eb3 moved the
+graded tree hash — both were RE-TAKEN at the final tip, and the 394 gap-metric
+lines diff empty against the earlier tip scan.
+
+
+NOTES FOR THE FUNNEL
+--------------------
+
+* NOT rebased. Base is 666fe6eb7; master is at e95543cd7 (w-grammarscreen,
+  docs-only, crates/ byte-identical — so nothing measured here is invalidated).
+  Expect a docs/BOARD.md conflict: KEEP BOTH BLOCKS, EDIT NEITHER, regenerate
+  INDEX with scripts/gen_rung_index.sh, re-run board_audit.sh after resolving.
+* NOT merged, NOT pushed.
+* docs/STATUS.md is NOT regenerated. Its generated block moves in exactly one
+  row — "Workspace tests" 1,671 -> 1,675 — and every other figure in it is
+  unchanged (verified: match, mismatch, all fnbyte-*, all 394 keys). Left for
+  the coordinator's post-merge regeneration rather than hand-edited, per the
+  file's own instruction.
+* A SIXTH BOARD ROW IS DRAFTED UNNUMBERED at the end of the #3289-#3293 block
+  (the M3 story). #3304 is the highest spent per the coordinator; the pointer
+  was not read.
+* Artifacts committed by NAME, never by directory (#3287). No .obj, no .o, no
+  IL, no absolute /home paths (checked), no secrets. The 870 dumped .gl files
+  under work/w-glattrs/gl/ are IL and are NOT committed.
+* The measurement scaffold is reverted: work/w-glattrs/scratch_grids.patch, 329
+  lines over crates/c2-harness/src/gap/{fnbytes,scan}.rs. The deliverable is the
+  grid, not the code that measured it.
+
+
+COMMITS
+-------
+
+  ba718f7af  prereg, frozen before any probe
+  9aed8eab1  GRID-A / RIVALS / the two workload tables
+  4d9c3e78e  THE DECODE + tests + DISCLOSURE W-GLATTRS-1 + ref/P_INLINE.md §2.1d
+  3ebbb6e93  GRID-C / GRID-D and the reverted scaffold
+  c6fb31eb3  the test repair the registered mutant forced
+  e50cb64e6  rung + board #3289-#3293
+  40232d8f0  gate and scan re-taken at the final tip
+  1e0f75c64  #3288 second derivation, 28 of 28
+  a12fc9730  rung §7.3 / §7.4 / §10
+  (this note)
