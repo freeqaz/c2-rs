@@ -140,12 +140,6 @@ pub fn encode_sraw(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
 /// mean the literal 0 (not the contents of r0), so `addi rD, 0, k` is the
 /// canonical `li rD, k`. Used for `reg ± small-constant` and constant loads.
 pub fn encode_addi(rd: u8, ra: u8, si: i16) -> [u8; 4] {
-    // *** W-GATEPERF INJECTED FAULT — REVERTED IN THE NEXT COMMIT ***
-    // si+1 instead of si: the port emits a real, wrong instruction word on every
-    // case that lowers an `addi`. This is the fault class the sweep exists for,
-    // and the question it is here to answer is whether serving the ORACLE side
-    // from work/capture-cache can still see it.
-    let si = si.wrapping_add(1);
     let word: u32 =
         (14 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (si as u16 as u32);
     word.to_be_bytes()
