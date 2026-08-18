@@ -202,9 +202,16 @@ second, differently-built count cannot publish a silent zero.
 **237 of the 1,336 sites pass a `ctx` VARIABLE, not a literal** — `what` at 210
 sites, `ctx` at 13, `key`, `site.badtoken`, `region(ix)`. A further **34 ctx
 literals are shared by 2 or more sites**. So a probe keyed on the census key
-could not have addressed this population at all: it would have merged 305 sites
-into 34 rows and been blind to 237 more. `#[track_caller]` keys on the **call
+could not have addressed this population at all: it would have merged **73
+sites into 34 rows** and been **blind to 237 more**, which between them are
+**23 % of the class**. `#[track_caller]` keys on the **call
 site**, which is the unit the question is asked in.
+
+*(The prereg §4 quotes **38** shared ctx strings over **305** sites. That is
+the same measurement over ALL ctx values, literals **and** variables — `what`
+alone is 210 sites of one "string". The **34 / 73** here is the literals-only
+subset, which is the population a key-to-site map could even attempt. Neither
+figure is wrong; they are different denominators and both are printed.)*
 
 ---
 
