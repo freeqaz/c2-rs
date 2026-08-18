@@ -569,7 +569,7 @@ is wrong for 3 of 4.
 | check | base (`N0`, master `1744ced1`) | **tip** |
 |---|---|---|
 | `cargo test --workspace --release --no-fail-fast`, `C2RS_REQUIRE_TOOLCHAIN=1` | **1,666 / 0 / 45** | **1,671 / 0 / 46** — above 1,666 as required, k = 5 |
-| `census_gate` duration (the differential actually grading) | 63.47 s | 63.55 s — minimum over **every** run in this lane is **62.90 s**, none near 0.00 s |
+| `census_gate` duration (the differential actually grading) | 63.64 s | 63.55 s — minimum over **every** run in this lane is **62.90 s**, none near 0.00 s |
 | `scripts/gate.sh --jobs 16 --require-graded` | **PASS**, 81 s | **PASS (HATCH-RED REFUSED)**, 77 s · 18/18 lanes, 0 FAIL, 0 SKIP, 0 NO-RESULT · **6,948** fixture-verdicts · sweep `checked=19556 graded=19460 mismatches=0` · cross `checked=90812 graded=90424 mismatches=0` · debug lane 18/18, 2,423 match, **0 panic** |
 | per-lane gate-count identity diff | — | **0 of 23 rows differ**, and the **range LENGTH is asserted at both ends** (23 = 23) — a diff of two empty ranges also returns 0. This is the discriminating check for a lane that lands tests (board **#3215**) |
 | 878-TU workload scan | `match` **26** · `mismatch` **0** · `codegen-gap` **0** · `vocab-gap` **844** · `capture-fail` **8** | **identical**, asserted line for line |

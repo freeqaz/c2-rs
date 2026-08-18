@@ -1,0 +1,59 @@
+== suite rows ==
+tag     passed  failed  targets  census_gate  failing
+C1        1669       2       46       63.34s  gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone
+MC2       1670       1       46       63.00s  rung_index_is_generated_and_current
+MC3       1669       2       46       63.21s  every_census_fence_key_has_the_sites_this_repo_last_scored rung_index_is_generated_and_current
+MC4       1669       2       46       63.57s  every_census_fence_key_has_the_sites_this_repo_last_scored rung_index_is_generated_and_current
+MC5       1669       2       46       62.90s  rung_index_is_generated_and_current the_two_textual_fence_populations_are_the_size_this_rule_measured
+MS1       1664       2       45       76.46s  gap::tests::wr1_census_key_guards::the_string_literal_admission_is_narrow_only_and_leaves_cell_b_alone only_the_narrow_string_literal_is_admitted_and_the_wide_twin_still_refuses
+MS1R      1665       2       46       63.64s  each_raise_site_of_the_strlit_fence_has_its_own_witness_and_neither_covers_the_other every_census_fence_key_has_the_sites_this_repo_last_scored
+MS2       1664       2       45       66.96s  the_older_inline_fence_shadows_this_one_on_a_walkable_tu the_strlit_fence_turns_on_the_local_callees_eh_state_and_nothing_else
+MS2R      1665       2       46       63.60s  each_raise_site_of_the_strlit_fence_has_its_own_witness_and_neither_covers_the_other every_census_fence_key_has_the_sites_this_repo_last_scored
+N0        1666       0       45       63.64s  -
+N0R       1667       0       46       63.47s  -
+P1        1666       0       45       84.89s  -
+P2        1666       0       45      151.00s  -
+Q1        1666       0       45       66.12s  -
+T0        1670       1       46       63.47s  each_raise_site_of_the_strlit_fence_has_its_own_witness_and_neither_covers_the_other
+T1        1671       0       46       63.55s  -
+
+== reachability screen (behaviour-preserving first-hit probe) ==
+runs: P1 P2
+id         P1     P2   verdict
+CS5     FIRES  FIRES   ctl 
+CS6     FIRES  FIRES   ctl 
+CS7     FIRES  FIRES   ctl 
+CS8     FIRES  FIRES   ctl 
+X1      FIRES  FIRES   ctl 
+X2      FIRES  FIRES   ctl 
+X3      quiet  quiet   ctl 
+X4      FIRES  FIRES   ctl 
+CS2     quiet  quiet       
+CS3     FIRES  FIRES       
+CS4     FIRES  FIRES       
+CS9     FIRES  FIRES       
+CA2     quiet  quiet       
+CA6     FIRES  FIRES       
+CA8     FIRES  FIRES       
+CA9     quiet  quiet       
+CA10    quiet  quiet       
+CA13    quiet  quiet       
+CA16    quiet  quiet       
+CA18    quiet  quiet       
+B2      FIRES  FIRES       
+B3      quiet  quiet       
+B4      quiet  quiet       
+B5      quiet  quiet       
+B6      quiet  quiet       
+B7      FIRES  FIRES       
+B8      quiet  quiet       
+BU3     quiet  quiet       
+D1      quiet  quiet       
+D2      quiet  quiet       
+G2      quiet  quiet       
+L2      quiet  quiet       
+L3      quiet  quiet       
+L9      quiet  quiet       
+
+== panic!() confirmation ==
+Q1: markers seen = NONE
