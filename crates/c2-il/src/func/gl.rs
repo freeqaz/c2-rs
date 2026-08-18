@@ -4153,6 +4153,10 @@ mod tests {
         // `the_size_escape_decodes_and_the_attribute_moves_by_two`.
         let mut b = good.clone();
         b.extend(fn_record("bad", 0x20, Ok(0x00), 0x81, ATTR_PLAIN));
+        // Padded, so the refusal is the arm's and not truncation's — see
+        // `the_high_byte_size_form_is_still_refused`, where the unpadded form
+        // let a registered mutant read GREEN.
+        b.extend_from_slice(&[0x00, 0x00, 0x00, 0x00]);
         assert!(gl_function_attrs(&b).is_none(), "size: high byte, unwitnessed");
 
         // (c) the record is truncated before its attribute byte.
@@ -4269,10 +4273,39 @@ mod tests {
     /// unwitnessed shape is refused rather than guessed at and because a walk
     /// that has drifted lands on a high byte far more often than on a
     /// well-formed `0x80`.
+    /// **THIS CELL WAS INERT WHEN IT WAS FIRST WRITTEN, AND THE REGISTERED
+    /// MUTANT FOUND IT.** The record ended two bytes after the `SIZE` byte, so
+    /// a reader that wrongly consumed three ran off the end and returned `None`
+    /// **by truncation**. The mutation "decode `0x81..=0xff` as a 3-byte
+    /// escape" therefore came back GREEN against a test that was supposed to
+    /// kill it. The padding below is what makes the refusal attributable to the
+    /// arm: with it, a wrong reader finds a byte to call the attribute and
+    /// answers `Some`.
+    ///
+    /// This is `one_unreadable_record_refuses_the_whole_file`'s own warning —
+    /// *"`_neg` cells have been confounded or inert in five of the last seven
+    /// lanes"* — firing on a cell written in the same file, four functions
+    /// down, by a lane that had just read that sentence.
     #[test]
     fn the_high_byte_size_form_is_still_refused() {
         for b in [0x81u8, 0xC0, 0xFF] {
-            let gl = fn_record("f", 0x10, Ok(0x00), b, ATTR_PLAIN);
+            let good = fn_record("good", 0x10, Ok(0x00), 0x10, ATTR_PLAIN);
+            let mut bad = fn_record("f", 0x20, Ok(0x00), b, ATTR_PLAIN);
+            // Four bytes, so a reader that consumed three lands on a real byte.
+            bad.extend_from_slice(&[0x00, 0x00, 0x00, 0x00]);
+            let mut gl = good.clone();
+            gl.extend(bad);
+            // THE CELL IS PROVED LIVE: the same carrier with a legal `SIZE`
+            // decodes both records, so a refusal below is the mutation's.
+            let mut live = good.clone();
+            let mut ok = fn_record("f", 0x20, Ok(0x00), 0x10, ATTR_PLAIN);
+            ok.extend_from_slice(&[0x00, 0x00, 0x00, 0x00]);
+            live.extend(ok);
+            assert_eq!(
+                gl_function_attrs(&live).expect("the CARRIER decodes").len(),
+                2,
+                "both records, before the SIZE byte is made high"
+            );
             assert!(
                 gl_function_attrs(&gl).is_none(),
                 "SIZE = {b:#04x} is unwitnessed and refused"
@@ -4313,7 +4346,11 @@ mod tests {
     #[test]
     fn a_refused_file_is_not_an_empty_noinline_set() {
         let mut bad = fn_record("bad", 0x20, Ok(0x00), 0x81, ATTR_PLAIN);
-        bad.push(0x00);
+        // Four, not one: a single trailing byte lets a three-byte misread run
+        // off the end, so the refusal would be truncation's rather than the
+        // high-byte arm's. That confound was live in this file until a
+        // registered mutant read GREEN against it.
+        bad.extend_from_slice(&[0x00, 0x00, 0x00, 0x00]);
         assert_eq!(gl_noinline_names(&bad), None);
         let empty: &[u8] = &[];
         assert_eq!(
