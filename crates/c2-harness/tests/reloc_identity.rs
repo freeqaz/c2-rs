@@ -48,6 +48,7 @@
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use c2_harness::gap::fnbytes::{grade_one, tu_empty_callees, FnByte, RelocKind};
 use c2_reference::Toolchain;
@@ -71,10 +72,78 @@ void ext_anchor();
 void anchor() { ext_anchor(); }
 ";
 
+/// Per-CALL scratch counter. See [`work`].
+static WORK_SEQ: AtomicUsize = AtomicUsize::new(0);
+
+/// A scratch directory that is private to **one `grade()` call**, not to the
+/// process.
+///
+/// # The defect this closes (lane `w-gateperf`, 2026-08-18)
+///
+/// This used to be `c2rs-w-relo-{pid}` — one directory for the whole test
+/// binary — and the three tests in this file all call [`grade`], so `cargo test`
+/// ran three concurrent captures **into one directory**. That is a write-write
+/// race on five files, not a slow path:
+///
+/// * `Toolchain::capture_reference_with` sets `TMP` and `TEMP` to the work dir,
+///   so `cl.exe` writes its `_CL_*` IL bundle there — and the bundle's name is
+///   hashed from the source path, which is the same `s12.cpp` for all three, so
+///   **all three compilers write the same five filenames at the same time**;
+/// * that same function opens with *"clear stale bundles so `find_bundle_base`
+///   cannot pick up a previous capture in a reused work dir"* and deletes every
+///   `_CL_*` in the directory — i.e. one test deletes another test's live
+///   bundle;
+/// * and all three compile to the same `/Fo out.obj`, which each of them
+///   `remove_file`s first.
+///
+/// Because every thread compiles identical source at identical flags, most
+/// interleavings produce identical bytes and pass. The ones that do not read
+/// **`Unbound` on all three symbols** — a reference obj paired with someone
+/// else's (or a half-written) IL bundle — and the assertion messages then say
+/// *"RELOC-EQ indicts correct functions"* and *"the fence stopped firing and the
+/// port is emitting a wrong relocation again"*. **A shared temp path presents as
+/// a port defect.**
+///
+/// **MEASURED on this box, one session, same binary:** 0 failures in 18 runs at
+/// load ~6-9; **6 failures in 30 runs** with an uncached `expr_sweep.sh` at 48
+/// jobs running alongside (load 29-33). Peer `w-c2map2` hit 3 of 3 at load ~15
+/// on a docs-only branch whose `crates/` was byte-identical to base, which is
+/// the hour-of-misattribution this comment exists to prevent recurring.
+///
+/// The fix is **this file adopting the convention its eleven siblings already
+/// have** — `differential.rs`, `reference.rs`, `listing.rs`,
+/// `edit_differential.rs`, `search_differential.rs`, `fixture_profiles.rs`,
+/// `il_roundtrip.rs` and `corpus.rs` all key their scratch on
+/// `{tag}-{pid}-{counter}`. This file was the only one in the tree whose work
+/// directory is shared by more than one test in the same process; that is what
+/// makes it a bug rather than a property of the harness.
+///
+/// Nothing about what is graded moves: same source, same flags, same real
+/// `cl.exe`, same `grade_one`, same three assertions.
 fn work() -> PathBuf {
-    let d = std::env::temp_dir().join(format!("c2rs-w-relo-{}", std::process::id()));
+    let n = WORK_SEQ.fetch_add(1, Ordering::Relaxed);
+    let d = std::env::temp_dir().join(format!("c2rs-w-relo-{}-{n}", std::process::id()));
     std::fs::create_dir_all(&d).unwrap();
     d
+}
+
+/// The property above, pinned BY NAME rather than left to the next reader to
+/// re-derive from a race that only shows up under load.
+///
+/// A count-shaped check would not do here: two calls returning one path is
+/// exactly what the old code did, and it "passed" every low-load run for as
+/// long as it existed.
+#[test]
+fn two_grade_calls_never_share_a_scratch_directory() {
+    let a = work();
+    let b = work();
+    assert_ne!(
+        a, b,
+        "two captures in one process must not share a work dir: \
+         `capture_reference_with` points TMP/TEMP at it, deletes every `_CL_*` \
+         in it, and writes a fixed `out.obj` — so a shared path is a write-write \
+         race whose symptom is `Unbound` verdicts that read as a port defect"
+    );
 }
 
 /// Grade every emitted `.text` COMDAT of one cell on the FULL identity — bytes

@@ -820,6 +820,31 @@ sweep_verdict() {
         echo "FAIL|$_sv_c|$_sv_sel|$_sv_tot|$_sv_m|UNRECOGNIZED verdict on $_sv_k case(s) — an unenumerated verdict is the next silence|$_sv_g|$_sv_u"
         return 0
     fi
+    # ---- THE CACHE'S OWN ALARM (lane `w-gateperf`, 2026-08-18) -----------------
+    #
+    # `expr_sweep.sh` is served from `work/capture-cache` since 2026-08-18, so
+    # some of the oracle bytes this row grades against came off a disk rather
+    # than out of `cl.exe` this run. The whole argument for allowing that is
+    # that the cache is CHECKED — every run bypass-and-compares a strided sample
+    # of its own hits through the real toolchain — so a failing check has to be
+    # a red gate and not a line in a log.
+    #
+    # `cache-bad` counts POISONED (served, re-captured, and the two differed)
+    # plus FOREIGN (an entry refused because it records having been captured at
+    # a different path than the one it would be served from — board #1388, the
+    # defect that presented as `mismatch` on six byte-exact TUs). Both are
+    # expected to read 0 forever. There is no baseline and no tolerance.
+    #
+    # Read with `sed -n` and NOT required to be present: `mode_cross.sh` is ruled
+    # on by this same function and prints no cache line, and an older sweep log
+    # has none either. An ABSENT line is not a zero — it is "this instrument does
+    # not report one", which is why the emptiness test comes first. That
+    # distinction is the same one `graded=`/`ungraded=` above are built on.
+    _sv_cb=$(sed -n 's/^cache: .*cache-bad=\([0-9][0-9]*\).*/\1/p' "$_sv_log" | head -1)
+    if [ -n "$_sv_cb" ] && [ "$_sv_cb" -ne 0 ] 2>/dev/null; then
+        echo "FAIL|$_sv_c|$_sv_sel|$_sv_tot|$_sv_m|CACHE POISONED/REFUSED on $_sv_cb case(s) — the capture cache served bytes this toolchain does not produce, or held entries it would not serve; this row's ORACLE side is untrustworthy on this run (C2RS_SWEEP_NO_CACHE=1 grades every case for real)|$_sv_g|$_sv_u"
+        return 0
+    fi
     if [ "$_sv_g" -eq 0 ]; then
         echo "FAIL|$_sv_c|$_sv_sel|$_sv_tot|$_sv_m|vacuous — $_sv_c cases reached and NONE graded|0|$_sv_u"
         return 0
@@ -3558,6 +3583,49 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     sweep_case sweep-unknown-verdict   FAIL "$SW_UNKNOWN"
     saw 'UNRECOGNIZED' 'an unenumerated verdict fails instead of counting as clean'
 
+    # ---- the CAPTURE-CACHE row (lane `w-gateperf`, 2026-08-18) ----------------
+    #
+    # The sweep's oracle side is served from `work/capture-cache` since
+    # 2026-08-18, which is what took this row from 303 s to a fraction of it.
+    # The entire argument for allowing that is that the cache is CHECKED — every
+    # run bypass-and-compares a strided sample of its own hits through the real
+    # toolchain — so the check failing has to be a RED GATE and not a line in a
+    # log. These cases are the proof it is, driven through the real
+    # `sweep_verdict` + `decide` like every case above.
+    #
+    # Three states, because the interesting one is the third: a cache line that
+    # is ABSENT is neither a pass-with-zero nor a failure. `mode_cross.sh` is
+    # ruled by this same function and prints no cache line at all, and so does
+    # every sweep log written before today. Reading an absent count as 0 is
+    # STATUS.md trap 5 exactly, and reading it as a failure would redden the
+    # cross on every run.
+    SW_CACHEOK='sweeping 14635 of 14635 generated cases
+checked=14635 mismatches=0 graded=14539 ungraded=96 unknown=0
+cache: hit=14400 miss=235 validated=146 cache-bad=0 (of 14635 cases)'
+    SW_CACHEBAD='sweeping 14635 of 14635 generated cases
+CACHE-BAD /t/41-int-cmp-0007.cpp  |  ... Port=Match  cache=poisoned
+checked=14635 mismatches=0 graded=14539 ungraded=96 unknown=0
+cache: hit=14400 miss=235 validated=146 cache-bad=1 (of 14635 cases)'
+    SW_CACHECOLD='sweeping 14635 of 14635 generated cases
+checked=14635 mismatches=0 graded=14539 ungraded=96 unknown=0
+cache: hit=0 miss=14635 validated=0 cache-bad=0 (of 14635 cases)'
+
+    sweep_case sweep-cache-clean       PASS "$SW_CACHEOK"
+    saw 'GATE: PASS' 'a clean cache line does not disturb a passing sweep'
+
+    sweep_case sweep-cache-poisoned    FAIL "$SW_CACHEBAD" 1
+    saw 'CACHE POISONED' 'a poisoned or refused cache entry reddens the gate'
+    saw 'ORACLE side is untrustworthy' 'and it says WHICH side of the differential is in doubt'
+
+    sweep_case sweep-cache-cold        PASS "$SW_CACHECOLD"
+    saw 'GATE: PASS' 'a COLD cache (hit=0) is slow and correct, never a failure'
+
+    # The absence case, stated as its own assertion rather than inferred from the
+    # clean cases above: `$SW_FULL` carries no `cache:` line at all and must
+    # still PASS, or every `mode_cross.sh` run reddens.
+    sweep_case sweep-cache-line-absent PASS "$SW_FULL"
+    saw_no 'CACHE POISONED' 'an ABSENT cache line is not a zero and not a failure'
+
     # ---- the MODE-CROSS row (w-order Y-a) -------------------------------------
     # Same rules, same `sweep_verdict`, driven through the second row. The cross
     # is the only instrument that can see a defect needing a shape the fixtures
@@ -4818,10 +4886,14 @@ $(printf '%s\n' "$_lr_words" | grep .)"
     # tree-integrity cases above, and **166** after `w-gatewire` wired the
     # debug-profile row (13 classifier cases, 9 rulings, the within-row and
     # across-rows word-distinctness assertions, and the count assertion that the
-    # row does not inflate `--require-graded`'s arithmetic). A truncated selftest
+    # row does not inflate `--require-graded`'s arithmetic), and **170** after
+    # `w-gateperf` served the sweep from the capture cache (4 cases: a clean
+    # cache line, a poisoned one that must redden, a COLD one that must not, and
+    # an ABSENT one that must not either — the three states a count-shaped check
+    # has to tell apart, plus 5 assertions on the wording). A truncated selftest
     # is the failure it exists to catch, so this is a COUNT and not a "some cases
     # ran".
-    if [ "$cases" -lt 166 ]; then
+    if [ "$cases" -lt 170 ]; then
         echo "gate.sh --selftest: FAIL — only $cases cases ran; the selftest itself was"
         echo "  truncated, and a truncated selftest is the failure it exists to catch."
         exit 1
@@ -4941,6 +5013,124 @@ printf '  %s  %s\n' "$(printf '%s\n' "$lr_res" | cut -d'|' -f1)" \
 pin_harness "$repo_root" "$work"
 export C2RS_BIN="$C2RS_PINNED"
 export C2RS_MODE_LANE_WORK="$work/lanes"
+
+# ---- AN ADVISORY, NOT A CHANGE (lane `w-gateperf`, 2026-08-18) -----------------
+#
+# This file's default has been `jobs=16` since 2026-08-08, measured and argued
+# at length in the block near the top. The standing instruction handed to lanes
+# is `scripts/gate.sh --jobs 4 --require-graded`, which OVERRIDES that default
+# with the untuned constant the tuning replaced — `jobs=4` stood here unexamined
+# from this file's creation commit until `w-throughput` re-measured it.
+#
+# It is not silently corrected, because `--jobs` is the caller's knob and a
+# gate that ignores an explicit argument is worse than a slow one. It is SAID,
+# once, with the number, because the alternative is that every lane pays 1.7x
+# for a figure nobody has re-read in ten days. MEASURED at this lane's tip, one
+# session, warm, `--require-graded`, identical verdict blocks:
+#
+#     --jobs 4    246 s   (lanes 4 · sweep 119 · cross 38 · debug 76)
+#     --jobs 16   142 s   (lanes 2 · sweep  29 · cross 30 · debug 74)
+#
+# — and the debug row was serialised then; it is not now, so the gap is wider.
+if [ "$jobs" -lt 16 ] 2>/dev/null; then
+    echo "note: --jobs $jobs is below this file's measured default of 16. On this"
+    echo "  32-core box a --jobs 4 run uses ~4 cores and takes ~1.7x as long for a"
+    echo "  digit-for-digit identical verdict block (see the concurrency block in"
+    echo "  the header). --jobs is the caller's knob and is honoured as given."
+fi
+
+# --------------------------------------------------------------------------------
+# THE TOOLCHAIN DEMAND — `C2RS_REQUIRE_TOOLCHAIN`, and the PREFLIGHT
+# (lane `w-gateperf`, 2026-08-18; the instrument is `w-calleeguard`'s)
+#
+# `w-calleeguard` landed a workspace test that reads `C2RS_REQUIRE_TOOLCHAIN` and
+# FAILS when the variable is set and `Toolchain::locate()` is `None`. **Nothing
+# set it.** An armed-and-unused instrument is the same defect as an unarmed one,
+# one step further along, and this row is the wiring.
+#
+# The boundary being encoded, stated once so it is not re-derived wrongly:
+#
+#     Skipping is FINE when nobody claimed otherwise.
+#     Skipping is a FAILURE when the run claimed to be graded.
+#
+# So the demand is tied to `--require-graded` / `C2RS_GATE_REQUIRE_GRADED=1` —
+# the caller's own statement that this run is supposed to grade something — and
+# NOT to the default path. `CLAUDE.md` requires the CLI and the integration
+# tests to degrade cleanly with no toolchain, the portable lane is entitled to
+# be empty, and neither moves. Exported (rather than set on one command) so that
+# every child of a graded gate run inherits the caller's demand: today that is
+# the workspace test, and the next instrument to honour the variable gets the
+# wiring for free instead of needing this block edited again.
+#
+# WHY A PREFLIGHT AND NOT ONLY THE END-OF-RUN CHECK. `--require-graded` already
+# catches an unprovisioned run — `GATE: FAIL (NOTHING GRADED)`, exit 1, which
+# `w-gatewire` §4 demonstrated live. But it catches it *after* 18 lanes, a
+# 19,556-case sweep, a 90,812-cell cross and the debug row have each resolved no
+# toolchain, skipped, and reported 0.
+#
+# **The wall-clock argument for this is SMALL and is stated as measured rather
+# than as intuition**: an unprovisioned run skips fast, so the end-of-run check
+# already arrives in 24 s on this box, and the preflight brings that to 11 s.
+# 13 s. That is not why it is here. It is here because the failure now appears
+# at the TOP of the log with the remediation attached, instead of as an
+# inference from eighteen `0/386` rows — and because arming
+# `C2RS_REQUIRE_TOOLCHAIN` needs a place where the caller's demand is known, and
+# this is it.
+#
+# The probe is one `c2rs diff` against one fixture, ~20 ms warm, and it uses the
+# run's ALREADY PINNED binary so it is a statement about the same code every row
+# will grade with.
+#
+# It is deliberately NOT a second implementation of "is the toolchain here": it
+# greps for the same `SKIP: toolchain absent` line that `mode_lane.sh`,
+# `expr_sweep.sh`, `mode_cross.sh` and `debug_lane.sh` each already key on. One
+# rule, one spelling. And it is checked POSITIVELY — the probe must produce a
+# verdict line — never as an enumeration of the ways a probe can come back
+# empty.
+if [ "$require_graded" = 1 ]; then
+    export C2RS_REQUIRE_TOOLCHAIN=1
+    _pf_fixture=$(ls "$repo_root"/fixtures/cpp/*.cpp 2>/dev/null | head -1)
+    if [ -z "$_pf_fixture" ]; then
+        echo "GATE: FAIL (NO CORPUS) — you asked for a graded run and there is not a"
+        echo "  single fixture under $repo_root/fixtures/cpp to probe with. Nothing"
+        echo "  below could have graded anything."
+        exit 1
+    fi
+    "$C2RS_BIN" diff "$_pf_fixture" > "$work/toolchain-probe.log" 2>&1 || true
+    if grep -q '^SKIP: toolchain absent' "$work/toolchain-probe.log"; then
+        echo
+        echo "GATE: FAIL (TOOLCHAIN ABSENT) — you asked for a graded run"
+        echo "  (--require-graded / C2RS_GATE_REQUIRE_GRADED=1) and \`Toolchain::locate()\`"
+        echo "  returned nothing, so EVERY row below would have skipped and reported 0."
+        echo
+        echo "  This is refused UP FRONT rather than after four empty legs, because an"
+        echo "  unprovisioned run is fast, green-looking and vacuous — the defect family"
+        echo "  this whole file is built against, in its cheapest disguise. Measured by"
+        echo "  lane w-calleeguard: a provisioned suite and an unprovisioned one read"
+        echo "  1,665 / 0 / 45 IDENTICALLY, differing only in the differential's"
+        echo "  duration (79.25 s vs 0.00 s) and the wall clock (222 s vs 7 s)."
+        echo
+        echo "  A fresh \`git worktree add\` has NO compilers/ — it is gitignored by"
+        echo "  design and does not follow a new worktree. Run scripts/setup_worktree.sh,"
+        echo "  or scripts/fetch_compilers.sh, and check C2RS_WIBO / C2RS_CL_EXE /"
+        echo "  C2RS_C2_DLL are not pointed somewhere that does not exist."
+        echo
+        echo "  Without --require-graded this same tree SKIPS cleanly and exits 0, which"
+        echo "  is the documented degradation and is unchanged. Skipping is fine when"
+        echo "  nobody claimed otherwise; it is a failure when the run claimed to grade."
+        echo "  probe: $work/toolchain-probe.log"
+        exit 1
+    fi
+    if ! grep -q ' -> ' "$work/toolchain-probe.log"; then
+        echo
+        echo "GATE: FAIL (PROBE PRODUCED NO VERDICT) — the toolchain preflight ran"
+        echo "  \`c2rs diff $_pf_fixture\` and got neither a verdict line nor the"
+        echo "  documented SKIP line. That is a third thing, and a check that cannot"
+        echo "  tell its two outcomes apart is not a check."
+        sed 's/^/    /' "$work/toolchain-probe.log" | head -20
+        exit 1
+    fi
+fi
 # **This one is deliberately NOT raised, and the reason is that it MULTIPLIES.**
 # `C2RS_JOBS` is read only by `mode_lane.sh` (`c2rs gap --jobs`), so it is the
 # per-lane thread count *inside* each of the `$jobs` lanes running at once:
@@ -5009,6 +5199,15 @@ sh "$repo_root/scripts/expr_sweep.sh" "$sweep_out" "$sweep_cases" \
     > "$work/sweep.log" 2>&1 || sw_status=$?
 res_sample
 tail -n 4 "$work/sweep.log" | sed 's/^/  /'
+# Printed even when it is absent, and printed as ABSENT rather than as zero. The
+# sweep's `cache:` line says how much of this row's oracle side came off a disk
+# this run; a run with `hit=0` is a cold worktree (correct, and slow), a run with
+# no line at all is a driver that predates the accounting, and the two must not
+# look alike (board #1002: a denominator nobody prints on both sides of a change
+# is a denominator that grows unwatched).
+if ! grep -q '^cache: ' "$work/sweep.log" 2>/dev/null; then
+    echo "  cache: ABSENT — this sweep driver reports no cache accounting"
+fi
 echo "  ($(( $(date +%s) - sw_started ))s)"
 sweep_res=$(sweep_verdict "$work/sweep.log" "$sw_status")
 
@@ -5104,7 +5303,17 @@ echo "debug lane:      scripts/debug_lane.sh  (DEBUG profile — the only row th
 echo "                 execute a debug_assert or trap an arithmetic overflow)"
 db_started=$(date +%s)
 db_status=0
+# `C2RS_DEBUG_LANE_LANES="$jobs"` — the row's 18 lanes run concurrently as of
+# 2026-08-18 (lane `w-gateperf`), exactly as this file's own lane leg has always
+# run its 18. It is handed `$jobs` for the same reason the sweep and the cross
+# are: one knob, printed in the header line, so a run's output says what
+# concurrency produced it. Note this MULTIPLIES with `C2RS_JOBS` below, which is
+# the same arrangement the lane leg has — `$jobs` lanes each running
+# `C2RS_JOBS`-way inside — and the measurement that justified it is in the rung:
+# the row was 74 s of a 142 s run at `--jobs 16` before, i.e. 52 % of the gate,
+# having been ~9 % of it before the sweep got its cache.
 C2RS_DEBUG_LANE_WORK="$work/debuglane" C2RS_LANES="$reg" C2RS_JOBS="$jobs" \
+    C2RS_DEBUG_LANE_LANES="$jobs" \
     sh "$repo_root/scripts/debug_lane.sh" > "$work/debuglane.log" 2>&1 || db_status=$?
 res_sample
 grep -E '^(debug lane:|DEBUG-LANE-TOTAL|FAIL:|SKIP)' "$work/debuglane.log" \

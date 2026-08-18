@@ -142,7 +142,15 @@ if ! mkdir "$_lock" 2>/dev/null; then
 fi
 [ "$_lock_held" -eq 1 ] && trap 'rmdir "$_lock" 2>/dev/null || true' EXIT INT TERM
 
-rm -f "$cases"/*.cpp 2>/dev/null || true
+# NEVER GLOB THE CASE DIRECTORY. 19,556 paths at ~100 bytes each is ~2 MB of
+# argv, over `ARG_MAX`, and this directory has lived inside a worktree since
+# this file was written. The `ls` below USED to be a glob and it had ALREADY
+# FAILED: every run from a worktree printed `cross of 0 cases x …` in its own
+# header, because `ls` errored and `wc -l` read the empty output as the number 0.
+# Nothing caught it — `total_cases` is only printed, so an absence read as a
+# count sat in a gate row's headline. Found by `scripts/expr_sweep.sh` hitting
+# the hard version of the same limit (lane `w-gateperf`, 2026-08-18).
+find "$cases" -maxdepth 1 -name '*.cpp' -delete 2>/dev/null || true
 
 # Build unconditionally and run a RUN-PRIVATE COPY — never `target/release/c2rs`
 # directly. `scripts/harness_bin.sh` carries the two failures this closes: a
@@ -155,7 +163,14 @@ c2rs="$C2RS_PINNED"
 # The SAME loader `expr_sweep.sh`, `sweep_mode.sh` and `cross_sweep.py` use.
 python3 "$repo_root/scripts/sweep_gen.py" "$cases" "$repo_root/scripts/sweep.d" \
     > "$out/gen.log" 2>&1 || { cat "$out/gen.log" >&2; exit 3; }
-total_cases=$(ls "$cases"/*.cpp | wc -l)
+total_cases=$(find "$cases" -maxdepth 1 -name '*.cpp' | wc -l)
+# Positively checked, because the value this replaced was 0 for months and the
+# only symptom was a wrong number in a sentence. A case directory that just got
+# regenerated and holds nothing is a generator failure, not a small cross.
+if [ "${total_cases:-0}" -eq 0 ]; then
+    echo "FATAL: $cases holds no .cpp after regeneration — the corpus is empty" >&2
+    exit 3
+fi
 
 # Assign every case to the lanes its fragment can actually be distinguished at.
 # One reader for `mode_classes.txt`, in `mode_invariance.py`; this script never

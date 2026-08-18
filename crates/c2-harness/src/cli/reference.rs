@@ -8,8 +8,8 @@ use std::process::ExitCode;
 use c2_core::PortC2;
 use c2_harness::provenance::Provenance;
 use c2_harness::{
-    all_fixtures, c1_replay_check, differential, oracle_selftest, C1ReplayReport, DiffReport,
-    PortStatus, SelfTestOutcome, SelfTestReport,
+    all_fixtures, c1_replay_check, differential_cached, oracle_selftest, C1ReplayReport,
+    DiffReport, PortStatus, SelfTestOutcome, SelfTestReport,
 };
 use c2_il::IL_SUFFIXES;
 use c2_obj::{ObjDiff, ObjImage};
@@ -459,7 +459,29 @@ pub(crate) fn cmd_replay_c1(rest: &[String]) -> ExitCode {
 /// so `c2rs diff <cpp> --flags-file work/dc3-workload/flags.txt` compiled at the
 /// `/Ox` default and said nothing — the documented *"`diff` does not take
 /// `--flags-file`"* meant "accepts and ignores it", which is the class.
-static DIFF_SPEC: Spec = Spec::new("diff", &[]);
+/// # The capture cache on `diff` (lane `w-gateperf`, 2026-08-18)
+///
+/// `--cache DIR` / `--no-cache` / `--validate-cache N`, spelled exactly as
+/// `c2rs gap` spells them and defaulting the same way (`C2RS_GAP_CACHE`, else
+/// `<main-repo>/work/capture-cache`) — one vocabulary for one cache, because
+/// two spellings of one knob is how a gate row ends up with a cache nobody
+/// realised was on.
+///
+/// **Why it is ON by default here.** `scripts/expr_sweep.sh` spawns one of
+/// these per generated case, 19,556 of them per merge gate, and 75 % of each
+/// one is a `cl.exe` process tree re-run over source bytes that have not
+/// changed. `gap` has been served from this cache since 2026-08-04 and defaults
+/// it on; `diff` defaulting it *off* would mean the fast path exists and no
+/// standing instrument takes it. See [`c2_harness::differential_cached`] for
+/// what is and is not cached — the replay and the port are not.
+static DIFF_SPEC: Spec = Spec::new(
+    "diff",
+    &[
+        ("--cache", Arity::Value),
+        ("--no-cache", Arity::Flag),
+        ("--validate-cache", Arity::Value),
+    ],
+);
 
 pub(crate) fn cmd_diff(rest: &[String]) -> ExitCode {
     let args = match Args::parse(&DIFF_SPEC, rest) {
@@ -469,12 +491,84 @@ pub(crate) fn cmd_diff(rest: &[String]) -> ExitCode {
     let Some(cpp) = require_cpp(&args) else {
         return ExitCode::from(2);
     };
+    // Same two refusals `gap` makes, for the same reasons: contradictory knobs
+    // are refused rather than silently ordered, and a validator with nothing to
+    // validate is refused rather than reported as having run.
+    if args.has("--no-cache") && args.get("--cache").is_some() {
+        eprintln!("diff: --cache and --no-cache contradict each other; give one");
+        return ExitCode::from(2);
+    }
+    let validate_cache: usize = match args.num("--validate-cache") {
+        Ok(v) => v.unwrap_or(0),
+        Err(c) => return c,
+    };
+    if args.has("--no-cache") && validate_cache > 0 {
+        eprintln!(
+            "diff: --validate-cache has nothing to validate with --no-cache; refusing rather \
+             than reporting a validation that cannot run"
+        );
+        return ExitCode::from(2);
+    }
     let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
     let w = Scratch::new("diff");
     let port = PortC2::default();
-    let report = differential(&cpp, &tc, &port, &w);
+
+    // Build the cache. A cache that cannot be constructed is a MISSING SPEEDUP,
+    // never a missing grading: fall back to the uncached path, say so in the
+    // outcome word (`cache=off`), and grade exactly what this command has
+    // always graded.
+    let cache_root: Option<std::path::PathBuf> = if args.has("--no-cache") {
+        None
+    } else {
+        Some(args.path("--cache").unwrap_or_else(|| {
+            std::env::var_os("C2RS_GAP_CACHE").map(std::path::PathBuf::from).unwrap_or_else(
+                || c2_harness::provenance::main_repo_root().join("work/capture-cache"),
+            )
+        }))
+    };
+    let cache = match &cache_root {
+        None => None,
+        Some(root) => match c2_harness::capture_cache::CaptureCache::new(
+            root.clone(),
+            &tc,
+            None,
+            validate_cache,
+        ) {
+            Ok(c) => Some(c),
+            Err(e) => {
+                eprintln!("diff: capture cache unavailable ({e}); capturing for real");
+                None
+            }
+        },
+    };
+    let (report, outcome) = differential_cached(&cpp, &tc, &port, &w, cache.as_ref());
+    // `foreign` is a REFUSED entry, not an outcome — the call reports it as a
+    // miss and records the refusal in the stats. Surface it, because "the cache
+    // held entries it would not serve" is exactly the kind of thing that gets
+    // paid for silently in re-captures.
+    let stats = cache.as_ref().map(|c| c.stats());
+    let cache_word = match (&cache, outcome) {
+        (None, _) if cache_root.is_none() => "off",
+        (None, _) => "off",
+        (Some(_), c2_harness::capture_cache::CacheOutcome::Hit) => "hit",
+        (Some(_), c2_harness::capture_cache::CacheOutcome::Miss) => {
+            if stats.as_ref().map(|s| s.foreign).unwrap_or(0) > 0 {
+                "foreign"
+            } else {
+                "miss"
+            }
+        }
+        (Some(_), c2_harness::capture_cache::CacheOutcome::Validated) => "validated",
+        (Some(_), c2_harness::capture_cache::CacheOutcome::Poisoned) => "poisoned",
+        (Some(_), c2_harness::capture_cache::CacheOutcome::Bypassed) => "bypass",
+    };
+    if let Some(s) = &stats {
+        for d in s.poison_detail.iter().chain(s.foreign_detail.iter()) {
+            eprintln!("diff: CACHE {d}");
+        }
+    }
     let line = match &report {
         DiffReport::ToolchainAbsent => "ToolchainAbsent".to_string(),
         DiffReport::Skipped(msg) => format!("SKIP: {}", first_line(msg)),
@@ -503,7 +597,19 @@ pub(crate) fn cmd_diff(rest: &[String]) -> ExitCode {
             )
         }
     };
-    println!("{} -> {}", cpp.display(), line);
+    // The cache word is APPENDED to the verdict line, never printed on its own.
+    // `scripts/expr_sweep.sh` classifies `$(c2rs diff … 2>&1 | tail -1)`, so a
+    // separate line would either be swallowed or would become the line the
+    // classifier reads. A suffix keeps every existing `*"Port=Match"*` arm
+    // matching and gives the driver something to count.
+    println!("{} -> {}  cache={}", cpp.display(), line, cache_word);
+    // A poisoned or refused entry means the cache handed back bytes that are
+    // not what this toolchain produces at this path. That is an instrument
+    // failure in the oracle's own supply line, so it FAILS rather than being
+    // reported and passed over.
+    if cache_word == "poisoned" || cache_word == "foreign" {
+        return ExitCode::FAILURE;
+    }
     // A byte-exact reference replay is the pass condition, and the port may be
     // Match or NotImplemented depending on the TU — both, and clean skips, are
     // success for scripting.

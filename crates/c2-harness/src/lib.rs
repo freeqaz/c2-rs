@@ -89,25 +89,145 @@ pub fn differential(
     port: &dyn Backend,
     work: &Path,
 ) -> DiffReport {
+    differential_cached(cpp, reference, port, work, None).0
+}
+
+/// [`differential`], with the **reference capture** optionally served from the
+/// content-addressed [`capture_cache`].
+///
+/// # Why this seam exists (lane `w-gateperf`, 2026-08-18)
+///
+/// `scripts/expr_sweep.sh` is a merge-gate row that grades 19,556 generated
+/// cases by spawning one `c2rs diff` per case. **Measured on this box**, one
+/// warm case costs 57 ms serial and decomposes as
+///
+/// ```text
+///   capture (strace + wibo + cl.exe -> c1xx.dll -> c2.dll)   43 ms   75 %
+///   replay  (wibo + c2host.exe + c2.dll)                      6 ms   11 %
+///   everything else (c2rs startup, scratch, port, obj diff)   8 ms   14 %
+/// ```
+///
+/// so three quarters of the whole gate row is one `cl.exe` process tree per
+/// case, re-run identically on every gate run for as long as the case's source
+/// bytes, the flags and the toolchain binaries are unchanged. That is precisely
+/// what [`capture_cache`] is for, and `scripts/mode_cross.sh` — the *other*
+/// generated-corpus gate row — has consumed it since 2026-08-04. Its header
+/// even names this gap: *"`expr_sweep.sh` cannot take this path: it drives
+/// `c2rs diff`, which does not consult the cache at all."* This function is the
+/// path.
+///
+/// # What does NOT move, and this is the whole correctness argument
+///
+/// * **The port side is never cached.** `port.compile_to` runs on every call,
+///   against a fresh `PortC2`, exactly as before. A caching bug therefore
+///   cannot hide a wrong emit by skipping the port.
+/// * **The replay is never cached.** Step 2 below re-runs standalone `c2.dll`
+///   under wibo on every call, so the P0.1 oracle self-check
+///   (`ReferenceReplay=ByteExact`) is still executed per case, per run.
+/// * **Only c2's own obj + IL bundle are served from disk**, keyed over the
+///   source bytes, the source argument string, the flags, the cwd, the
+///   `cl.exe`/`c1xx.dll`/`c2.dll` contents, the wibo version and the cache
+///   root. A hit returns *exactly* what `capture_reference_with` would have
+///   returned at the same `-Fo` path (see the module docs).
+/// * **A hit is still compared against a freshly replayed obj.** So the cached
+///   bytes are re-checked against real `c2.dll`'s live output every run, at the
+///   granularity of the whole obj — the replay step is an unintended but real
+///   second validator of the cache, on top of `--validate-cache`.
+///
+/// What this DOES change is that the sweep row now depends on cache integrity.
+/// That is a new dependency **for this row** and not for the project: the mode
+/// cross and the 878-TU workload scan have both depended on it for two weeks.
+/// The dependency is made visible rather than assumed — the returned
+/// [`capture_cache::CacheOutcome`] is printed by `c2rs diff`, counted by
+/// `expr_sweep.sh`, and a `poisoned` or `foreign` outcome is a hard gate
+/// failure there.
+pub fn differential_cached(
+    cpp: &Path,
+    reference: &Toolchain,
+    port: &dyn Backend,
+    work: &Path,
+    cache: Option<&capture_cache::CaptureCache>,
+) -> (DiffReport, capture_cache::CacheOutcome) {
+    let bypassed = capture_cache::CacheOutcome::Bypassed;
     if !reference.has_strace() {
-        return DiffReport::Skipped("strace absent (needed to keep the IL bundle)".into());
+        return (
+            DiffReport::Skipped("strace absent (needed to keep the IL bundle)".into()),
+            bypassed,
+        );
     }
     if !reference.has_mingw() {
-        return DiffReport::Skipped(
-            "i686-w64-mingw32-gcc absent (needed to build the c2host stub)".into(),
+        return (
+            DiffReport::Skipped(
+                "i686-w64-mingw32-gcc absent (needed to build the c2host stub)".into(),
+            ),
+            bypassed,
         );
     }
 
     // 1. Capture the pipeline reference obj + IL bundle + exact c2 argv, at the
     //    profile this fixture declares (or the default — see `fixture_profile`).
-    let captured = match fixture_profile::capture_fixture_reference(
-        reference,
-        cpp,
-        &work.join("cap"),
-    ) {
-        Ok(c) => c,
-        Err(e) => return DiffReport::ReferenceError(format!("capture_reference failed: {e}")),
+    //
+    //    With a cache configured the *same* profile resolution runs first, so
+    //    the key carries this fixture's own flags: a `// c2rs-profile:` marker
+    //    keys differently from the default, which it must, because it is a
+    //    different compiler invocation.
+    let (captured, outcome) = match cache {
+        Some(c) => {
+            let profile = match fixture_profile::resolve_profile(cpp) {
+                Ok(p) => p,
+                Err(e) => {
+                    return (
+                        DiffReport::ReferenceError(format!("capture_reference failed: {e}")),
+                        bypassed,
+                    )
+                }
+            };
+            let src_arg = match cpp.canonicalize() {
+                Ok(abs) => c2_reference::to_wibo_path(&abs),
+                // Unresolvable path: fall through to the uncached call, which
+                // will produce the same error the old code did.
+                Err(e) => {
+                    return (
+                        DiffReport::ReferenceError(format!("capture_reference failed: {e}")),
+                        bypassed,
+                    )
+                }
+            };
+            let (r, o) = c.capture(
+                reference,
+                &src_arg,
+                &profile.flags,
+                None,
+                &work.join("cap"),
+            );
+            (r, o)
+        }
+        None => (
+            fixture_profile::capture_fixture_reference(reference, cpp, &work.join("cap")),
+            bypassed,
+        ),
     };
+    let captured = match captured {
+        Ok(c) => c,
+        Err(e) => {
+            return (
+                DiffReport::ReferenceError(format!("capture_reference failed: {e}")),
+                outcome,
+            )
+        }
+    };
+    (differential_tail(captured, reference, port, work), outcome)
+}
+
+/// Steps 2 and 3 of [`differential`]: the standalone-c2 replay check, then the
+/// port. Split out unchanged so the cached and uncached capture paths above
+/// provably share one implementation of everything that grades bytes.
+fn differential_tail(
+    captured: c2_reference::CapturedReference,
+    reference: &Toolchain,
+    port: &dyn Backend,
+    work: &Path,
+) -> DiffReport {
 
     // 2. Replay the bundle through standalone c2, to the SAME /Fo path as the
     //    reference so the embedded path string matches (ref bytes already read

@@ -30,12 +30,32 @@ blocker-row sizes — `GAPS.md` §6's unstable-attribution rule.>
 
 | lane | result |
 |---|---|
-| `cargo test --workspace --release` | |
+| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | |
 | `c2rs bench` | |
-| `scripts/gate.sh --jobs 4` | <N>/<N> PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT, <n> fixture-verdicts |
+| `scripts/gate.sh --jobs 16 --require-graded` | <N>/<N> PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT, <n> fixture-verdicts |
 | `scripts/expr_sweep.sh` | |
 | 878-TU workload scan | match / mismatch / census / disagreement |
 | fixtures, `c2rs census` | positive N/N, negative 0/N |
+
+> **Two things in the two rows above changed on 2026-08-18 (lane `w-gateperf`)
+> and both are one-word edits with a measurement behind them.**
+>
+> * **`C2RS_REQUIRE_TOOLCHAIN=1` on the suite row.** Without it the suite is
+>   *identical in every printed count* whether or not a toolchain is present —
+>   `w-calleeguard` measured a provisioned and an unprovisioned run both reading
+>   **1,665 / 0 / 45**, differing only in `census_gate` (79.25 s vs 0.00 s) and
+>   wall clock (222 s vs 7 s). A fresh `git worktree add` has no `compilers/`,
+>   so the unprovisioned run is the *easy* one to produce by accident, and it
+>   looks identical and 30× faster. The variable turns that into a hard failure
+>   and changes nothing when a toolchain is there. `scripts/gate.sh` exports it
+>   for its own children under `--require-graded`; the suite row is hand-typed
+>   and has to carry it itself.
+> * **`--jobs 16 --require-graded` on the gate row.** 16 is `gate.sh`'s own
+>   measured default and has been since 2026-08-08; `--jobs 4` is the untuned
+>   constant that default replaced, and it takes ~1.7× as long for a
+>   digit-for-digit identical verdict block (246 s vs 142 s, measured warm at
+>   `w-gateperf`'s tip). `--require-graded` is what makes a run that graded
+>   nothing exit 1 instead of 0.
 
 > **Record the gate as `scripts/gate.sh`, never as a hand-typed list of modes.**
 > This row used to read ``scripts/mode_lane.sh`` `/Ox` / `/O1` / `/O2` /
