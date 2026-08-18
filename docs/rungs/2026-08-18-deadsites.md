@@ -80,7 +80,10 @@ P2 agree on all 34 rows.**
 closed** and this lane measured it rather than assuming it: both raise sites of
 `DATA_SYM_STRLIT_FENCED` are RED, **with disjoint failing sets** (§7).
 
-**Prereg: 43 registered colours, 33 hits, 10 misses** (§8).
+**Prereg: 46 registered colours, 34 hits, 12 misses** (§8) — and the misses
+are not scattered: **8 of the 10 probe misses are one direction**, the
+registration over-estimating how much of `c2-il`'s refusal surface this
+project's corpus touches.
 
 ---
 
@@ -510,7 +513,10 @@ synthetic cell for site 2 is §10 F3.
 
 ---
 
-## 8. Prereg scorecard — 45 registered colours, 34 hits, 11 misses
+## 8. Prereg scorecard — 46 registered colours, 34 hits, 12 misses
+
+34 probe colours (24 / 10) + 11 headline registrations (9 / 2) + the one
+structural prediction of §3.3 (HIT).
 
 ### 8.1 The 34 probe colours: 24 hits, 10 misses, and 8 of the 10 in ONE direction
 
@@ -531,15 +537,15 @@ reach than intuition suggests, not more.
 
 | id | registration | outcome |
 |---|---|---|
-| **H1** | DEAD **4** [3, 7] · UNGUARDED **12** [9, 16] · UNKNOWN **10** | **DEAD 4 — HIT**, on the point estimate. **UNGUARDED 7 — MISS**, below the interval. UNKNOWN **15** |
+| **H1** | DEAD **4** [3, 7] · UNGUARDED **12** [9, 16] · UNKNOWN **10** | **MISS**, scored on its weakest half: **UNGUARDED 7**, below the registered interval. **DEAD 4 is exact**, on the point estimate and inside [3, 7]. UNKNOWN **15** against 10 |
 | **H2** | `leaf_store.rs:2456` confirmed dead; the `panic!()` does not fire | **HIT** |
 | **H3** | all 8 controls fire; a quiet control **voids the run** | **MISS** — `X3` is quiet. The stop rule is answered in §3.4, not waived, and the answer is board **#3281** |
 | **H4** | the instrumented run reproduces the baseline counts exactly | **HIT** — 1,666 / 0 / 45 instrumented and clean |
 | **H5** | both `DATA_SYM_STRLIT_FENCED` sites already guarded; P(both RED) = 0.55 | **HIT** — both RED, disjoint sets (§7) |
 | **H6** | the standing census lands as one test file, keyed on key strings and per-key counts, shown GREEN → RED | **HIT** (§6.1) |
 | **H7** | suite ends at 1,666 + k, 2 ≤ k ≤ 8 | **HIT** — k = **5** |
-| **H8** | 878-TU scan: 0 differing lines over all 394 keys, base vs tip | see §9 |
-| **H9** | gate PASS at both ends; per-lane count identity diff 0 rows, range length asserted | see §9 |
+| **H8** | 878-TU scan: 0 differing lines over all 394 keys, base vs tip | **HIT** — 0 of 394, *including* the `fnbyte-*` family |
+| **H9** | gate PASS at both ends; per-lane count identity diff 0 rows, range length asserted | **HIT** — PASS both ends, **0 of 23** differing, 23 = 23 |
 | **H10** | `git diff master..HEAD -- crates/c2-il` is nothing but proven-dead deletions | **HIT** — one deletion, `leaf_store.rs:2456`, justified by §5 |
 | **H11** | the lane publishes a **non-empty UNKNOWN bucket** rather than resolving the population into two halves | **HIT** — 15 of 26 |
 
@@ -562,16 +568,16 @@ is wrong for 3 of 4.
 
 | check | base (`N0`, master `1744ced1`) | **tip** |
 |---|---|---|
-| `cargo test --workspace --release --no-fail-fast`, `C2RS_REQUIRE_TOOLCHAIN=1` | **1,666 / 0 / 45** | **TIP_SUITE** |
-| `census_gate` duration (the differential actually grading) | 63.47 s | **TIP_GATEDUR** — minimum over **every** run in this lane is **62.90 s**, none near 0.00 s |
-| `scripts/gate.sh --jobs 16 --require-graded` | **PASS**, 81 s | **TIP_GATE** |
-| per-lane gate-count identity diff | — | **TIP_IDENTITY** |
-| 878-TU workload scan | `match` **26** · `mismatch` **0** · `codegen-gap` **0** · `vocab-gap` **844** · `capture-fail` **8** | **TIP_SCAN** |
-| `gap-metric` keys, `^ *gap-metric \S+ \S+$` | **394** | **TIP_KEYS** |
-| `fnbyte-exact` / `differs` / `refused-parse` | 35,899 / 1,958 / 113,447 | **TIP_FNBYTE** |
-| `git diff master..HEAD -- crates/c2-il` | — | **TIP_ILDIFF** |
-| `scripts/board_audit.sh` | — | **TIP_BOARD** |
-| `crates/c2-harness/tests/rung_registry.rs` | 2/2 | **TIP_REGISTRY** |
+| `cargo test --workspace --release --no-fail-fast`, `C2RS_REQUIRE_TOOLCHAIN=1` | **1,666 / 0 / 45** | **1,671 / 0 / 46** — above 1,666 as required, k = 5 |
+| `census_gate` duration (the differential actually grading) | 63.47 s | 63.55 s — minimum over **every** run in this lane is **62.90 s**, none near 0.00 s |
+| `scripts/gate.sh --jobs 16 --require-graded` | **PASS**, 81 s | **PASS (HATCH-RED REFUSED)**, 77 s · 18/18 lanes, 0 FAIL, 0 SKIP, 0 NO-RESULT · **6,948** fixture-verdicts · sweep `checked=19556 graded=19460 mismatches=0` · cross `checked=90812 graded=90424 mismatches=0` · debug lane 18/18, 2,423 match, **0 panic** |
+| per-lane gate-count identity diff | — | **0 of 23 rows differ**, and the **range LENGTH is asserted at both ends** (23 = 23) — a diff of two empty ranges also returns 0. This is the discriminating check for a lane that lands tests (board **#3215**) |
+| 878-TU workload scan | `match` **26** · `mismatch` **0** · `codegen-gap` **0** · `vocab-gap` **844** · `capture-fail` **8** | **identical**, asserted line for line |
+| `gap-metric` keys, `^ *gap-metric \S+ \S+$` | **394** | **394**, and `diff` over the sorted key lines is **EMPTY — 0 differing lines over all 394** |
+| `fnbyte-exact` / `differs` / `refused-parse` | 35,899 / 1,958 / 113,447 | **35,899 / 1,958 / 113,447** — unmoved, per **#3249** read back-to-back with the base rather than against a briefed figure |
+| `git diff master..HEAD -- crates/c2-il` | — | **one file, one hunk** — the `leaf_store.rs:2456` deletion of §5 and its comment. `git diff 1744ced1..HEAD -- crates fixtures scripts` is exactly three files: the two new test files and that deletion |
+| `scripts/board_audit.sh` | — | **all-zero** — 0 cited-but-not-on-board · 0 unresolved anchors · 0 raw line anchors · 0 rows-behind-prose · 0 duplicate row numbers |
+| `crates/c2-harness/tests/rung_registry.rs` | 2/2 | **2 / 2** |
 | release-binary sha256 across worktrees | **NOT compared** — board **#3224**: `CARGO_MANIFEST_DIR` is compiled in, so the comparison is void | |
 | graded-tree identity at both ends | **DOES NOT APPLY** — board **#3215**: this lane lands test code *and* deletes a `c2-il` line, so the content hash moves **by construction** and claiming it did not would be false | |
 

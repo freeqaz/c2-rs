@@ -32,3 +32,24 @@ A full gate at `--jobs 16` runs past this session's 10-minute foreground
 command ceiling (the generated sweep alone is 92 s and the 90,812-cell mode
 cross is the long pole). Runs are therefore launched detached and waited on.
 No figure changes; only the invocation does.
+
+## D4 — master advanced under this lane and it was NOT rebased
+
+Peer `w-coldcross` merged (`5f42e9b27`) while this lane was running, moving
+`scripts/gate.sh`, `scripts/mode_cross.sh`, `scripts/expr_sweep.sh` and deleting
+`scripts/corpus_dir.sh`. **This lane was instructed to rebase only on the
+coordinator's go-ahead and did not.** Consequence for reading its figures:
+`git diff master..HEAD` is misleading and every diff in the rung is quoted
+against the lane's own base `1744ced1`, where it is exactly three files
+(two new tests + the one proven-dead deletion). Both gate runs quoted here graded
+the tree at `1744ced1 + this lane`, not master's.
+
+## D5 — X3 was a control this lane invented and its premise was wrong
+
+The prereg carried four extra controls (`X1`–`X4`), one census-RED site per file
+the probe touches, on the reasoning that a RED colour implies the site is
+reached. That implication holds for `false &&`-style mutations **only if the
+RED itself was sound**. `X3` (= `w-mutcensus` `B9`) is quiet under two screens
+and a `panic!()`, which is incompatible with its published RED. The stop rule
+(prereg H3) is **answered rather than waived** — rung §3.4 — and the
+contradiction is published as board **#3281** rather than resolved.
