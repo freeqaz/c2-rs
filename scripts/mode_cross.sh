@@ -105,6 +105,19 @@ out="$(cd "$out" && pwd)"
 #
 # `expr_sweep.sh` cannot take this path: it drives `c2rs diff`, which does not
 # consult the cache at all.
+#   ^ TRUE UNTIL 2026-08-18. `expr_sweep.sh` takes it now (`w-gateperf`), and it
+#     is the same source-path key that makes both rows cold in a fresh worktree.
+#
+# STABLE IS NOT ENOUGH, AND THIS DIRECTORY IS ONLY HALF THE FIX (w-coldcross).
+# Stable *within a worktree* warms run 2; every lane's run 1 still paid the whole
+# cold cost, because the key contains the source path and this path has the
+# worktree in it. MEASURED on a fresh `setup_worktree.sh` tree at `--jobs 16`:
+# this leg is **347 s cold** against **29 s** warm, 12x. The directory below is
+# still generated per worktree exactly as before — and `resolve_corpus` further
+# down then compares it against a shared, content-addressed, IMMUTABLE
+# generation and grades those paths when all 19,556 files are byte-identical.
+# See `scripts/corpus_dir.sh` for what is shared (only the case sources) and
+# what is not (every verdict, and the port, which is recomputed per run).
 cases="${C2RS_CROSS_CASES:-$repo_root/work/mode-cross/cases}"
 mkdir -p "$cases"
 cases="$(cd "$cases" && pwd)"
@@ -163,6 +176,24 @@ c2rs="$C2RS_PINNED"
 # The SAME loader `expr_sweep.sh`, `sweep_mode.sh` and `cross_sweep.py` use.
 python3 "$repo_root/scripts/sweep_gen.py" "$cases" "$repo_root/scripts/sweep.d" \
     > "$out/gen.log" 2>&1 || { cat "$out/gen.log" >&2; exit 3; }
+
+# ---- the SHARED, CONTENT-ADDRESSED corpus (lane w-coldcross, 2026-08-18) -------
+#
+# Everything above produced this run's own private copy of the corpus, exactly as
+# it always did, and NOTHING BELOW SKIPS THAT — the private generation is what
+# the shared one is verified against. `resolve_corpus` adopts the shared paths
+# only when `diff -rq` finds all 19,556 files byte-identical, and otherwise says
+# so in one line and leaves this run on its own cases, cold and correct.
+#
+# An explicit `C2RS_CROSS_CASES` keeps its documented meaning — a PRIVATE, COLD
+# case set — because that is the A/B control this file's header quotes numbers
+# from, and a control that silently went warm would be no control.
+if [ -z "${C2RS_CROSS_CASES:-}" ]; then
+    . "$repo_root/scripts/corpus_dir.sh"
+    resolve_corpus "$repo_root" "$cases"
+    cases="$C2RS_CORPUS_DIR"
+fi
+
 total_cases=$(find "$cases" -maxdepth 1 -name '*.cpp' | wc -l)
 # Positively checked, because the value this replaced was 0 for months and the
 # only symptom was a wrong number in a sentence. A case directory that just got
