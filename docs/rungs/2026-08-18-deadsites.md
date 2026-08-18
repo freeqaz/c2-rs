@@ -356,31 +356,283 @@ own change is the first thing it caught.
 
 ---
 
-## 6. The two guards, and each one shown GREEN → RED
+## 6. The two guards, and each one shown GREEN → RED **by construction**
 
-*(filled in §6.1–§6.3 from `work/w-deadsites/logs/campaign2.log` and the phase-R
-runs.)*
+**Five new tests, 1,666 → 1,671, 45 → 46 targets.** Every assertion is on the
+**published key string** `FnVerdict::key()` emits, never on the constant —
+`w-guards`' rule, and `MC2` below is the measurement that the rule is actually
+being followed rather than claimed.
+
+### 6.1 `tests/fence_site_census.rs` — `w-mutcensus` F4's standing count, over all 20 keys
+
+F4 asked for *"a gate row that compares that count against a checked-in
+expectation and fails when a fence lands without the census being re-scored"*,
+and could not land it: that lane's success criterion was a required-zero byte
+delta. `w-calleeguard` landed the shape for **one dispatch** and recorded both
+blockers expired. This is the general version — **one row per census fence key,
+carrying `(raise sites, comparison reads)`**, plus the two textual populations
+`w-mutcensus` §2 enumerated separately (`refuse("…")` literal-key sites and
+`Block::at_end(` sites).
+
+**It parses `func/body/mod.rs` rather than grepping it, and that alone recovered
+two keys every prior enumeration dropped.** Both `w-mutcensus` and
+`w-calleeguard` used `pub(crate) const [A-Z_]*: &str`; **that character class
+excludes a digit**, so both silently missed `PTR_WALK_LOOP_NOT_O1` and
+`PTR_WALK_CHAIN_LOOP_NOT_O1` — the `_O1` suffix is the whole of it. This lane
+measures **20 keys over 24 raise sites** at the base where
+`2026-08-18-calleeguard.md` §4.2 reports **18 over 22**, and the two reconcile
+**exactly**: two keys at one raise site each. Board **#3269**'s rule — *a lane
+that finds an unexpected delta owes a measurement before it owes a cause* — is
+why that is a reconciliation and not an accusation.
+
+**Four mutants, each a full workspace suite, each derived from its log:**
+
+| id | mutation | expected | **observed** | failing tests |
+|---|---|---|---|---|
+| `MC3` | `census.rs:1288` `"static-scan-loop"` arm → `STORE_RUN_CALL_NO_CARRIER` — **`w-mutcensus`' own `CS3`, a site that lane measured GREEN.** Moves two rows and leaves the TOTAL at 24 | RED | **RED 1,669 / 2** | **`every_census_fence_key_has_the_sites_this_repo_last_scored`** (+ `rung_index_is_generated_and_current`, this lane's own un-regenerated index — see §6.4) |
+| `MC2` | rename the **constant** `STORE_RUN_BIND_GROUP_SHAPE` and all 9 of its uses; the published key string does not move | **GREEN** | **GREEN 1,670 / 1** | — (only the index row) |
+| `MC4` | move the **key string** to `"store-run-bind-group-shape-v2"`; the constant does not move | RED | **RED 1,669 / 2** | **`every_census_fence_key_has_the_sites_this_repo_last_scored`** |
+| `MC5` | add one `refuse("call-arg-empty-probe")` site — E1's population, invisible to the per-key table by construction | RED | **RED 1,669 / 2** | **`the_two_textual_fence_populations_are_the_size_this_rule_measured`** |
+
+**`MC3` is the sharpest row and it is the argument for this test's existence.**
+`CS3` is a site `w-mutcensus` measured **GREEN** — no test among 1,666 could fail
+on it. With this file in the tree it is **RED, and this file is the only thing in
+the suite that catches it.** The standing census does not merely watch for new
+fences; it converts a whole class of key-routing mutation from invisible to
+named.
+
+**`MC3` is also the argument for the table over the integer.** It moves
+`static-scan-loop-object-out-of-class` 1 → 0 and
+`store-run-call-no-emitter-carrier` 1 → 2. **The total is unchanged at 24** — so
+a census kept as one number, which is the shape F4 literally asked for, is blind
+to it.
+
+**`MC2` is the guard on the guard.** A counting test keyed on the constant's
+*name* would go red here for nothing: nothing observable moved. It stays GREEN,
+and `MC4` — the same tree with the string moved instead — is RED. The pair is
+`w-guards`' rule measured in both directions rather than asserted in a comment.
+
+### 6.2 `tests/strlit_fence.rs` — one row per RAISE SITE, and phase R proves each row catches ALONE
+
+`w-fence163` left `DATA_SYM_STRLIT_FENCED` with **two** raise sites and four
+per-cell tests, none of which says *which* site produced the key. The new test
+is a two-row table; each row varies **one** fact against a control that rules the
+other site out:
+
+| # | site | witness | control that excludes the other site |
+|---|---|---|---|
+| 1 | `census.rs:1259`, the **pre-parse** `sym_fail` probe | `WS` — **wide** literal, callee defined here, `eh-state1` | `S`, the identical TU with a **narrow** literal, is **IN CLASS** — so the post-parse gate is off for this callee |
+| 2 | `census.rs:1511`, the **post-parse** `Some(f)` gate | `N` — **narrow** literal, callee defined here, `eh-none` | `X`, the identical literal with an **external** callee, is **IN CLASS** — so the pre-parse probe admits this literal |
+
+**Phase R — `w-fence163`'s rule, that a guard which catches a mutation
+incidentally is not a guard.** The four incumbent guards of this key were
+skipped **by name** (never deleted — `w-readphase`'s runner defect), and the two
+site mutations re-run against the new table alone:
+
+| run | incumbents | colour | passed/failed | which assertion fired |
+|---|---|---|---:|---|
+| `N0R` | skipped | GREEN | **1,667 / 0** | — (the skip costs exactly the 4 tests) |
+| `MS1R` | skipped | **RED** | **1,665 / 2** | **`strlit_fence.rs:457` — ROW 1**, "the WIDE literal must take … through the PRE-PARSE `sym_fail` probe (`census.rs:1259`)" |
+| `MS2R` | skipped | **RED** | **1,665 / 2** | **`strlit_fence.rs:480` — ROW 2**, "the NARROW literal whose callee is DEFINED HERE … must take … through the POST-PARSE gate (`census.rs:1511`)" |
+
+**Two mutations, two different rows of one table, each naming its own site.**
+That is site-level discrimination *inside a single test*, and it is
+`w-calleeguard`'s **P13** — *"the form demonstrated on a family where ≥2 sites
+share one key"* — which that lane registered at 0.20 and recorded as a MISS.
+It is closed here.
+
+(The second failing test in both `MS*R` rows is
+`every_census_fence_key_has_the_sites_this_repo_last_scored`: `MS1`/`MS2` each
+retarget a raise site from `data-sym-strlit-fenced` to `data-sym-not-extern`, so
+§6.1's table moves too. Two independent guards catching one mutation is the
+opposite of the incidental-catch problem, and both are by construction.)
+
+### 6.3 The named control, at both ends
+
+`docs/rungs/README.md` probe rule 1. `C1` — `calls.rs:431`, `syms > 1` →
+`syms > 2`:
+
+| run | when | colour | passed/failed | failing tests |
+|---|---|---|---:|---|
+| `C1a` | before the first guard landed | **RED** | **1,664 / 2** | `the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol` · `the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone` |
+| `C1b` | after the last | **RED** | **1,669 / 2** | **the identical pair, by name** |
+
+Both tests in that set are capture-driven, so a worktree whose captures were
+skipping could not produce it.
+
+### 6.4 One honest note about the failing sets above
+
+`rung_index_is_generated_and_current` appears in every `campaign2` row because
+this lane added its rung doc before regenerating `docs/rungs/INDEX.md`. It is
+this lane's own bookkeeping, not a property of any mutant — the index was
+regenerated by `scripts/gen_rung_index.sh` before the tip runs — and it is named
+here rather than filtered out of the table, because a results table that
+silently drops a row it finds inconvenient is not derived from its logs.
 
 ---
 
-## 7. `DATA_SYM_STRLIT_FENCED` — `w-calleeguard` F3's "cheapest follow-on" was already closed, and this is the measurement
+## 7. `DATA_SYM_STRLIT_FENCED` — F3's "single cheapest follow-on" was already closed, and this is the measurement rather than the assumption
 
-*(§7 below.)*
+`w-calleeguard` §8 **F3** named these two sites *"the single cheapest follow-on
+here"*, on the reasoning that `w-mutcensus`' frame froze before `w-fence163`
+landed them so **neither has ever been mutated**. Both were mutated here, on the
+base tree, before this lane landed anything:
+
+| id | site | colour | passed/failed | failing tests |
+|---|---|---|---:|---|
+| `MS1` | `census.rs:1259` (pre-parse probe) | **RED** | 1,664 / 2 | `gap::tests::…::the_string_literal_admission_is_narrow_only_and_leaves_cell_b_alone` · `only_the_narrow_string_literal_is_admitted_and_the_wide_twin_still_refuses` |
+| `MS2` | `census.rs:1511` (post-parse gate) | **RED** | 1,664 / 2 | `the_older_inline_fence_shadows_this_one_on_a_walkable_tu` · `the_strlit_fence_turns_on_the_local_callees_eh_state_and_nothing_else` |
+
+**Both RED, and the failing sets are DISJOINT.** So the key was already guarded
+**at site level**, not merely at key level, by `w-fence163`'s own cells — and
+F3's premise, that being unmutated made them likely unguarded, was wrong. It is
+scored as a HIT for this lane's prereg (H5, registered at 0.70 each before the
+runs) and as a **withdrawal of F3's pricing**, not of F3's observation: the sites
+genuinely had never been mutated, and mutating them is how anybody knows.
+
+**This is the second counterexample to `w-mutcensus` F2's `1/k` bound**, after
+`L6`/`L7`. Of the three `k ≥ 2` keys in the crate, **two are now measured with
+every site guarded** and the third (`store-run-bind-group-shape`) is 1 reachable,
+2 unknown and — as of this lane — one fewer site than it had.
+
+**What was actually missing, and what this lane landed instead**, is in §6.2:
+nothing said which site produced the key, and nothing stopped a **third** site
+landing unwatched. The witness table answers the first; §6.1's row
+`("data-sym-strlit-fenced", 2, 0)` answers the second.
+
+**One residual, stated because it is real and not fixed here.** `MS1` is caught
+by one **synthetic** test and one capture test; `MS2` by **two capture tests
+only**, and now by the new table, which is also capture-driven. So site 2 has
+**no toolchain-free guard at all**, and in an unprovisioned worktree its mutation
+reads GREEN — #3219's family exactly. `C2RS_REQUIRE_TOOLCHAIN` makes that loud
+when a caller demands grading, and this lane ran every suite with it armed; a
+synthetic cell for site 2 is §10 F3.
 
 ---
 
-## 8. Prereg scorecard
+## 8. Prereg scorecard — 45 registered colours, 34 hits, 11 misses
 
-*(§8 below.)*
+### 8.1 The 34 probe colours: 24 hits, 10 misses, and 8 of the 10 in ONE direction
+
+| direction | count | rows |
+|---|---:|---|
+| registered **FIRES**, observed **quiet** | **8** | `CA16` `CA18` `B4` `B5` `BU3` `D1` `G2` `X3` |
+| registered **quiet**, observed **FIRES** | **2** | `CS3` `CS4` |
+
+**The registration was systematically optimistic about how much of `c2-il`'s
+refusal surface this project's corpus touches**, and that single bias is the
+whole of the gap between the registered split (UNGUARDED 12) and the observed one
+(UNGUARDED 7). Stated as a number rather than a vibe: **24/34 = 71 %** of probe
+colours correct, error directional rather than noisy. A future lane probing the
+1,227-site grammar class `w-mutcensus` §2.1 dropped should register **less**
+reach than intuition suggests, not more.
+
+### 8.2 The 11 headline registrations
+
+| id | registration | outcome |
+|---|---|---|
+| **H1** | DEAD **4** [3, 7] · UNGUARDED **12** [9, 16] · UNKNOWN **10** | **DEAD 4 — HIT**, on the point estimate. **UNGUARDED 7 — MISS**, below the interval. UNKNOWN **15** |
+| **H2** | `leaf_store.rs:2456` confirmed dead; the `panic!()` does not fire | **HIT** |
+| **H3** | all 8 controls fire; a quiet control **voids the run** | **MISS** — `X3` is quiet. The stop rule is answered in §3.4, not waived, and the answer is board **#3281** |
+| **H4** | the instrumented run reproduces the baseline counts exactly | **HIT** — 1,666 / 0 / 45 instrumented and clean |
+| **H5** | both `DATA_SYM_STRLIT_FENCED` sites already guarded; P(both RED) = 0.55 | **HIT** — both RED, disjoint sets (§7) |
+| **H6** | the standing census lands as one test file, keyed on key strings and per-key counts, shown GREEN → RED | **HIT** (§6.1) |
+| **H7** | suite ends at 1,666 + k, 2 ≤ k ≤ 8 | **HIT** — k = **5** |
+| **H8** | 878-TU scan: 0 differing lines over all 394 keys, base vs tip | see §9 |
+| **H9** | gate PASS at both ends; per-lane count identity diff 0 rows, range length asserted | see §9 |
+| **H10** | `git diff master..HEAD -- crates/c2-il` is nothing but proven-dead deletions | **HIT** — one deletion, `leaf_store.rs:2456`, justified by §5 |
+| **H11** | the lane publishes a **non-empty UNKNOWN bucket** rather than resolving the population into two halves | **HIT** — 15 of 26 |
+
+**H11 was registered because it is the failure this lane was most likely to
+commit**, and it is the one the brief named: *deleting a site because your probe
+did not reach it is exactly the error this project keeps making.* 15 rows are
+published as UNKNOWN and none of them is touched.
+
+### 8.3 The prereg's registered structural prediction, and it is a HIT
+
+Prereg §3.3, frozen before any measurement: *"at least one of `CA9`/`CA10` will
+turn out **not deletable** … P = 0.90 that the 'delete the code' price is wrong
+for at least one row of the dead half."* Observed: **three of the four** sites
+with a proof are not deletions (§4.2, §4.3). `#3246`'s pricing of the dead half
+is wrong for 3 of 4.
 
 ---
 
 ## 9. Gate evidence
 
-*(§9 below.)*
+| check | base (`N0`, master `1744ced1`) | **tip** |
+|---|---|---|
+| `cargo test --workspace --release --no-fail-fast`, `C2RS_REQUIRE_TOOLCHAIN=1` | **1,666 / 0 / 45** | **TIP_SUITE** |
+| `census_gate` duration (the differential actually grading) | 63.47 s | **TIP_GATEDUR** — minimum over **every** run in this lane is **62.90 s**, none near 0.00 s |
+| `scripts/gate.sh --jobs 16 --require-graded` | **PASS**, 81 s | **TIP_GATE** |
+| per-lane gate-count identity diff | — | **TIP_IDENTITY** |
+| 878-TU workload scan | `match` **26** · `mismatch` **0** · `codegen-gap` **0** · `vocab-gap` **844** · `capture-fail` **8** | **TIP_SCAN** |
+| `gap-metric` keys, `^ *gap-metric \S+ \S+$` | **394** | **TIP_KEYS** |
+| `fnbyte-exact` / `differs` / `refused-parse` | 35,899 / 1,958 / 113,447 | **TIP_FNBYTE** |
+| `git diff master..HEAD -- crates/c2-il` | — | **TIP_ILDIFF** |
+| `scripts/board_audit.sh` | — | **TIP_BOARD** |
+| `crates/c2-harness/tests/rung_registry.rs` | 2/2 | **TIP_REGISTRY** |
+| release-binary sha256 across worktrees | **NOT compared** — board **#3224**: `CARGO_MANIFEST_DIR` is compiled in, so the comparison is void | |
+| graded-tree identity at both ends | **DOES NOT APPLY** — board **#3215**: this lane lands test code *and* deletes a `c2-il` line, so the content hash moves **by construction** and claiming it did not would be false | |
 
 ---
 
-## 10. Found and not taken
+## 10. Found and not taken, ranked
 
-*(§10 below.)*
+### F1 — The census's GREEN population is 73 % a fact about the CORPUS, and the same question is open on the 1,227-site grammar class
+
+19 of 26 rows are unreached. `w-mutcensus` §2.1 dropped a **1,227-site** grammar
+class for budget, and `#3246` says the partition *"matters most"* there. This
+lane's screen makes that affordable: it is **one** instrumented corpus run for
+however many sites fit in the bitmask, not one run per site, and the
+behaviour-preserving marker means the run's own totals are the validity check.
+Sizing: 1,227 sites is 20 bitmask words, or ~20 runs of the shape run here —
+against `w-mutcensus`' estimate of **five days serial** for the mutation version.
+
+### F2 — A site's reach should be attributed to a corpus STAGE, and this lane did not do it
+
+The probe records *that* a site fired, not *where*. That distinction is the price
+of a witness: a site reached by the unit suite is a cheap witness, one reached
+only by the 878-TU workload is an expensive one, and this lane reports all seven
+UNGUARDED rows at one price. The fix is one field — the marker already carries an
+id, and the stage is `$C2RS_DEADPROBE_LOG` per stage rather than per run. **NOT
+TAKEN for budget**; it is a ten-minute change to `corpus.sh`.
+
+### F3 — Site 2 of the strlit fence has no toolchain-free guard, and the file explains why building one is hard
+
+§7's residual. `tests/strlit_fence.rs`' header argues the cells must be captures
+because census clause (c) shadows clause (c2) on any TU whose `.gl` defined-name
+walk succeeds. A **synthetic** `.ex`/`.gl` bundle carrying a defined-here,
+non-`eh-state1`, unmodelled callee plus a narrow strlit data symbol would settle
+it from `gap/tests.rs` with no toolchain at all, and would be the first cell in
+that module to exercise the post-parse gate. It is a real lane, not a footnote.
+
+### F4 — `w-mutcensus`' `X = 30 of 63` is on master and its headline sentence is now known to be informative about 7 of 26
+
+Not corrected here, deliberately: a dated rung stays as written
+(`#3117`). But `docs/BOARD.md` **#3276** carries the partition, and any future
+quotation of *"X of `c2-il`'s refusal sites have no test that can fail on them"*
+should carry the clause *"…of which the majority are sites no input reaches"*.
+The same applies to `w-calleeguard` §5's re-measured **26**, which this lane
+re-derived from scratch rather than inheriting.
+
+### F5 — `B9`'s RED and `X3`'s silence cannot both be right, and this lane did not settle it
+
+§3.4, board **#3281**. `w-mutcensus`' `B9` mutation is `false &&` on a branch
+this lane's probe and `panic!()` both say is never taken; that mutation would
+then be a semantic no-op and unkillable. The candidate explanation is already in
+`w-mutcensus` §4.4 — `B9`'s **sole** guard is
+`reloc_identity::the_cells_population_is_three_functions_one_of_which_disagrees`,
+which *"silently PASSES when its capture yields nothing"* and produced that
+campaign's only duplicate disagreement — but a candidate explanation is not a
+measurement, and this lane owes it none. Re-running `B9` at this base is one
+suite run.
+
+### F6 — Two enumerations of one file both dropped the same two keys, and nothing but a parser would have caught it
+
+§6.1. `[A-Z_]` excludes a digit; `PTR_WALK_LOOP_NOT_O1` has one. Two independent
+lanes wrote the same grep and got the same wrong 18. The general item is that
+**every enumeration in this repo that greps Rust identifiers with an explicit
+character class is a candidate for the same defect**, and a five-minute audit
+would find them. NOT TAKEN — it is a `scripts/` and `work/` sweep, and
+`scripts/` is peer `w-coldcross`'s seam this wave.
