@@ -10,7 +10,17 @@ Classification, from the prereg §4.4:
 
   INVALID  if the `census_gate` target ran for < 1 s (a skipping differential is
            0.00 s; a grading one is tens of seconds — w-mutcensus D6 / #3219),
-           or the target count is not 43.
+           or the target count is not the one EXPECTED for that run's tree.
+
+The prereg registered the target rule as `targets != 43`, which was the count of
+the tree phase R ran against. Landing A1 and A2 (deviations.md) adds two
+integration-test targets, so the tip's count is 45. Rather than relax the rule
+to "43 or 45" — which would accept a phase-R run that had silently gained two
+targets and a tip run that had silently lost them — the expectation is stated
+PER RUN, below, and a run whose id is not in the map is INVALID rather than
+assumed. This is the classifier correction rule 2 exists for: it reapplies to
+every log already on disk because the table is derived, never accumulated.
+
   RED      failed > 0.
   GREEN    failed == 0.
 
@@ -22,6 +32,18 @@ import pathlib
 
 LOGDIR = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else
                       pathlib.Path(__file__).parent / "logs")
+
+# The target count each run is expected to report. 43 is the tree phase R ran
+# against; 45 is the tip, after A1 (`callee_unresolved_sites`) and A2
+# (`require_toolchain`) land. The two D6 runs are the deliberate no-toolchain
+# demonstrations: their `census_gate` IS 0.00s, which is the point, so the
+# duration rule is suspended for them and their colour is read from the failures.
+EXPECTED_TARGETS = {
+    "N0": 43, "N0R": 43, "R5": 43, "R6": 43, "R7": 43, "R8": 43,
+    "N0T": 45, "G5": 45, "G6": 45, "G7": 45, "G8": 45,
+    "C1a": 45, "C1b": 45, "N1": 45,
+    "D6a.INVALID": 45, "D6b": 45,
+}
 
 RUNNING = re.compile(r"^\s+Running (\S+) \(")
 DOCTEST = re.compile(r"^\s+Doc-tests (\S+)")
@@ -69,13 +91,16 @@ def parse(path):
         if line.startswith("MUTANT-WALL "):
             wall = int(line.split()[1])
 
+    want = EXPECTED_TARGETS.get(path.stem)
     gate = max((v for k, v in durations.items() if "census_gate" in k), default=None)
-    if gate is None:
+    if want is None:
+        colour = "INVALID(unregistered run id)"
+    elif targets != want:
+        colour = "INVALID(targets=%d != %d)" % (targets, want)
+    elif gate is None:
         colour = "INVALID(no census_gate target)"
-    elif gate < 1.0:
+    elif gate < 1.0 and not path.stem.startswith("D6"):
         colour = "INVALID(census_gate %.2fs < 1s)" % gate
-    elif targets != 43:
-        colour = "INVALID(targets=%d != 43)" % targets
     else:
         colour = "RED" if failed else "GREEN"
     return dict(id=path.stem, passed=passed, failed=failed, targets=targets,
