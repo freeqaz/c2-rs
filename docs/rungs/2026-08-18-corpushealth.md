@@ -127,6 +127,12 @@ instruction, and this lane's subject matter rather than a nuisance:
 | `dc3-decomp` head | **`ccd4c80362f1d947d694fe953d5d77a62caabe56` (clean)** |
 | objdiff report | `4.2.3` / `88b425bc3bad` / `functionRelocDiffs=name_check` |
 
+The scan's provenance block records `c2rs_head 2ecf319b` — the **prereg
+commit**, which is docs-and-`work/` only. Its graded tree is byte-identical to
+the base: `git ls-tree <rev> crates fixtures scripts | sha256sum` reads
+`a8adae3aca8adba2…` at **`071d2d47`, at `2ecf319b` and at this branch's tip**,
+so the reading is a reading of `071d2d47`'s compiler.
+
 `fnbyte-exact` reads **35,899**, not `STATUS.md`'s 35,897 — the same **+2 / −2,
 sum conserved at 149,346** that #3249 measured on an unchanged master and #3238
 hit independently. Attributed to #3249, **not adjusted**, and it is 60× below
@@ -371,9 +377,13 @@ Both are recorded in the scripts, not applied silently.
 | H8 | ≥ 1 nameable corpus-artifact population found anyway | 0.8 | **HIT** — `link_glue.cpp`, the soundtouch x86 cluster, the 8 `capture-fail` |
 | H9 | headline metrics move by 0, `fnbyte-*` by ≤ ±2 | 0.9 | **HIT** — see §9 |
 
-Seven hits, two misses, one measurement voided and re-taken. **The two misses
-are both on the coarse instruments**, and both would have been reported as the
-answer by a lane that stopped at the per-TU join.
+**Eight hits, two misses, two definitions corrected** (§7 — neither was voided
+under the probe-soundness rule; the control executed on every reading). **Both
+misses are on the COARSE instruments**, and both would have been reported as
+the lane's answer by a session that stopped at the per-TU join: H2 would have
+published *"83.6 % of the refusal mass sits in unfinished units"*, which is
+true, size-driven, and off by a factor of 28 from the number that answers the
+question.
 
 ---
 
