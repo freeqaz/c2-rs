@@ -168,8 +168,19 @@ VERIFICATION
       the sorted "key value" lines.
 
   scripts/gate.sh --jobs 4 --require-graded
-      SEE THE RUNG's section 10 -- the gate result is filled in there at the
-      <!-- GATE-RESULT --> marker.
+      GATE: PASS (HATCH-RED REFUSED)
+      graded tree 5b550a38d90b, 738 files under crates fixtures scripts
+      18/18 lanes PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT, 6,948 fixture-verdicts
+      sweep  checked=19556 mismatches=0 graded=19460 ungraded=96
+      cross  checked=90812 mismatches=0 graded=90424 ungraded=388
+      debug-lane PASS 18/18, 2423 match, 0 mismatch, 0 PANIC
+      hatch-red REFUSED (HATCH-STALE, board #1389) -- PRE-EXISTING, quoted as
+      the gate printed it rather than rounded up to PASS; crates/, fixtures/
+      and scripts/ are byte-identical to base so no change here could move it.
+      IDENTITY: every one of these figures, INCLUDING THE GRADED-TREE HASH
+      5b550a38d90b, is identical to w-fence163's TIP gate. That is the
+      required-zero byte delta in its strongest form -- not "the counts agree"
+      but "the content the gate hashed is the same content".
       NOTE: the FIRST gate run returned exit 4, GATE: REFUSED (DIRTY crates/),
       because the scaffold revert was not yet committed. That is the #2668/#2907
       guard working. Recorded rather than routed around; revert committed at
