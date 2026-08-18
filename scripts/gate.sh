@@ -5452,7 +5452,7 @@ cx_started=$(date +%s)
 cx_status=0
 C2RS_JOBS="$jobs" sh "$repo_root/scripts/mode_cross.sh" "$cross_out" "$cross_cells" \
     > "$work/cross.log" 2>&1 || cx_status=$?
-grep -E '^(assigned|sweeping|checked=|SKIP:|FATAL|VACUOUS)' "$work/cross.log" \
+grep -E '^(assigned|sweeping|checked=|cache:|NOTE:|SKIP:|FATAL|VACUOUS)' "$work/cross.log" \
     | sed 's/^/  /' || true
 corpus_line "$work/cross.log"
 echo "  ($(( $(date +%s) - cx_started ))s)"

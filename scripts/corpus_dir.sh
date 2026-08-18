@@ -132,7 +132,16 @@
 # Every file in `sweep.d` counts, not only `*.py`: a stray file that the loader
 # happens to ignore still changes the digest, which costs one cold generation and
 # never costs a wrong corpus. The fail-safe direction is deliberate.
+# The inputs are checked to EXIST before they are hashed, because a pipeline
+# whose first stage dies still runs its last: `( exit 1 ) | sha256sum | cut`
+# prints the digest of the empty string, which is a perfectly stable-looking
+# 16 hex digits for "this tree has no generator". That cannot produce a wrong
+# corpus — publication needs a successful generation and adoption needs a full
+# byte compare — but it would name two unrelated broken trees with one digest,
+# and a digest that means two things is the beginning of a bad afternoon.
 corpus_digest() {
+    [ -f "$1/scripts/sweep_gen.py" ] || return 1
+    [ -d "$1/scripts/sweep.d" ] || return 1
     ( cd "$1/scripts" 2>/dev/null || exit 1
       sha256sum sweep_gen.py 2>/dev/null || exit 1
       find sweep.d -maxdepth 1 -type f | LC_ALL=C sort | xargs sha256sum 2>/dev/null || exit 1
