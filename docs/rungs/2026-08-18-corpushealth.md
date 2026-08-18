@@ -449,10 +449,35 @@ environment produces. Any reading taken without that control would have been
 
 | lane | result |
 |---|---|
-| `cargo test --workspace --release` | see §9.1 |
-| `scripts/gate.sh --jobs 4 --require-graded` | see §9.1 |
-| 878-TU workload scan, **base** | `match 26 / mismatch 0 / codegen-gap 0 / vocab-gap 844 / capture-fail 8`; cache `870 hit, 8 miss, 0 POISONED` |
-| 878-TU workload scan, **`--replay-every 1`** | identical classes; **`replay soundness: 870 checked, 0 diverged`** |
-| scan identity, base vs end | see §9.1 |
-| `crates` / `fixtures` / `scripts` diff vs `071d2d47` | **empty** — revert-everything lane, `graded tree` identical at both ends |
-| `scripts/debug_lane.sh`, `scripts/board_audit.sh`, `rung_registry` | see §9.1 |
+| `cargo test --workspace --release` | **1,660 passed · 0 failed · 1 ignored · 43 targets** — the registered baseline exactly. **`SKIP: toolchain absent` appears 0 times** and the run took **3 m 52 s**, which is the executed-count-and-duration assertion #3219 requires in place of an exit code |
+| `scripts/gate.sh --jobs 4 --require-graded` | **GATE: PASS** — 18/18 lanes PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT, **6,948 fixture-verdicts**; sweep **19,460 of 19,556 graded, 0 mismatch**; cross **90,424 of 90,812 cells graded, 0 mismatch**; `debug-lane` **18/18, 6,948 verdicts, 2,423 match, 0 mismatch, 0 PANIC**. Run **twice** — `gate.log` (tree mid-edit) and `gate2.log` (clean, committed) — with **byte-identical counts and the same `graded tree 5b550a38d90b`**. Both carry `HATCH-RED REFUSED`, which is board **#2511**'s standing master outage and not this branch — §9.1 |
+| 878-TU workload scan, **base** | `match 26 / mismatch 0 / codegen-gap 0 / vocab-gap 844 / capture-fail 8`; `fnbyte-exact 35,899`, `fnbyte-refused-parse 113,447`; cache `870 hit, 8 miss, 0 uncacheable, 0 POISONED`, 0 refused on provenance; 9.5 s |
+| 878-TU workload scan, **`--replay-every 1`** | identical classes; **`replay soundness: 870 checked, 0 diverged`**; 23.7 s |
+| 878-TU workload scan, **end** | identical classes and cache line; **scan identity `396 / 396` `gap-metric` keys byte-identical to the base, values included — 0 deltas, INCLUDING the whole `fnbyte-*` family.** #3249's ±2 did **not** fire on this bracket, so nothing had to be attributed |
+| `crates` / `fixtures` / `scripts` diff vs `071d2d47` | **empty**. `git ls-tree <rev> crates fixtures scripts \| sha256sum` = `a8adae3aca8adba2…` at `071d2d47`, at the prereg commit and at the tip; the gate's own content hash reads **`5b550a38d90b` over 738 files** at both runs |
+| `scripts/board_audit.sh` | **all five checks 0** — cited-but-not-on-the-board 0, unresolved section anchors 0, raw line anchors 0, rows-behind-the-prose 0, duplicate row numbers 0 |
+| `rung_registry`, `scripts/gen_rung_index.sh` | inside the 1,660 — the new rung's header parses, its slug matches its filename, and `INDEX.md` equals what the generator produces (regenerated in the same commit) |
+
+### 9.1 Two things about the gate that are worth stating rather than eliding
+
+* **The key count is 396, not the 394 the dispatch registered.** The lane did
+  not chase the difference: the identity that matters is **base vs end at the
+  same tip**, and that is `396/396` with **0** deltas. A brief's handed-down
+  count is exactly the kind of figure #3249 says to re-read rather than trust.
+* **`GATE: PASS (HATCH-RED REFUSED)`, and the first explanation for it was
+  WRONG.** Run 1 happened while this file was mid-edit, so the obvious reading
+  was the gate's own advice — *"commit or stash `crates/` and re-run"*. The
+  lane re-ran it on a **committed, clean tree** (`gate2.log`) and
+  **`hatch-red` REFUSED again, identically: `HATCH-STALE`, 0 of 14 arms, 0
+  green controls.** The tree was never the cause. This is board **#2511**,
+  already on the board: `hatch-red` refuses at master with `HATCH-STALE`, and
+  that lane reproduced it by checking out an older `crates fixtures` — *"the
+  whole instrument declining to hatch the tree at all"*, a standing outage, not
+  a property of any branch. This lane's `crates/` diff against `071d2d47` is
+  empty, so the row would refuse identically at the base.
+
+  Recorded rather than elided, with board **#1406**'s caveat attached: a run
+  with `hatch-red` refused **does not establish what a full run establishes**.
+  Both logs are kept — the same rule `w-fence163` applied to its invalid
+  mutation run (#3226): **keep the unqualified log too.** The 17 rows that did
+  run are unaffected and are the evidence above.
