@@ -108,4 +108,11 @@ editing a peer's findings is how a record stops being gradeable. Cheapest
 correction available to the next lane in that file.
 
 Board rows #3239–#3243, from the coordinator's allocation; the next-free pointer
-was not consulted. Rebased onto master before finishing. NOT merged, NOT pushed.
+was not consulted.
+
+NOT REBASED, NOT MERGED, NOT PUSHED — the brief gates the rebase on the
+coordinator's go-ahead. Branch wt-w-dagorder2 (the plain `wt-w-dagorder` was
+ALREADY TAKEN by the 2026-08-13 lane, which is finding zero above). The rebase
+is clean when authorized: master is ONE docs-only commit ahead (f092c453,
+STRATEGY_REVIEW §8.2, 22 insertions) and the two file sets are DISJOINT —
+verified with comm, not assumed.
