@@ -42,6 +42,16 @@ controls)
 c1b)
     run C1b  $CALLS 'if syms > 1 && !two_sym_thunk {' 'if syms > 2 && !two_sym_thunk {'
     ;;
+tip)
+    # The tip baseline, then the two D6 demonstrations. D6a is the defect
+    # w-mutcensus D6 records, reproduced at THIS base: a fully green suite with
+    # the right target count and a differential that graded nothing. D6b is the
+    # same environment with the demand set. Both are environment moves; no
+    # `crates/` source is mutated in either.
+    run N0T  none NONE NONE
+    C2RS_COMPILERS=/nonexistent C2RS_WIBO=/nonexistent/wibo         "$R" D6a.INVALID none NONE NONE
+    C2RS_REQUIRE_TOOLCHAIN=1 C2RS_COMPILERS=/nonexistent C2RS_WIBO=/nonexistent/wibo         "$R" D6b none NONE NONE
+    ;;
 *)
     echo "usage: campaign.sh phaseR|phaseG|controls|c1b" >&2; exit 1;;
 esac
