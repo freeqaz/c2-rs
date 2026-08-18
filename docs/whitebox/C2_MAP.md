@@ -457,6 +457,25 @@ reached from the export `_InvokeCompilerPass@12` (`10bebffd`, `dll.cpp`) via
 > immediately below; an earlier revision of this file stated it as the emit
 > predicate outright and that was an over-claim.
 
+> ### ⛔ 2026-08-18 — **"inside `FUN_10b7f1ff`" is WRONG, and the sentence above stands as written.**
+>
+> `0x10b7f15f` is **below** `FUN_10b7f1ff`'s entry address, so it cannot be
+> inside it, and **`decomp_all.c` has no body containing the loop** — anyone
+> grepping the export for `FUN_10b7f1ff` to read the emit predicate finds the
+> wrong function. Found by lane `w-c2map2` when 17 addresses in this very
+> section failed to resolve to any function in the flat export.
+>
+> The loop is inside **`0x10b7f022`**, which is a real function entry Ghidra's
+> auto-analysis never created: `push esi` immediately after the `ret` at
+> `0x10b7f021`, and the target of a **tail jump** from `FUN_10b7f1ff`
+> (`jmp 0x10b7f022` at `0x10b7f362`) — exactly the shape auto-analysis misses.
+> Carried in `scripts/build_ref.py`'s `GHIDRA_MISSED` table; see
+> [`ref/README.md`](ref/README.md) §6.2.
+>
+> **Everything else in §3E — the predicate, the bits, the cascade, the tag-`0x0e`
+> decode — is unaffected. Only the location was wrong**, and "Ghidra found 4 916
+> functions" is a statement about Ghidra.
+
 Bit `0x02` is set by the loop itself, so the load-bearing bit is **`0x20` at
 symbol offset `0x4c`**. `coffemit.c` only *consumes* the same bit later
 (`10b28548`, deciding which `.debug$S` records to write), which is why looking
@@ -711,6 +730,17 @@ primitives table warns about — and it was in this file.
 ---
 
 ## 4. How to look something up
+
+> ### 2026-08-18 — **there is now an address-indexed reference: [`ref/`](ref/).**
+>
+> This section still works and is unchanged. What it did not have is a way to
+> start from an **address** and find out what the record already says about it,
+> or from a **subsystem** and find the functions in it —
+> [`ref/ADDR.tsv`](ref/ADDR.tsv) joins the 313 hand labels, `c2_functions.tsv`,
+> `c2_tus.tsv`, the flat export and the **1 126 addresses cited across
+> `docs/`** into one row per address, and [`ref/SUBSYS.md`](ref/SUBSYS.md)
+> indexes the subsystem pages. Read [`ref/README.md`](ref/README.md) first for
+> the `[R]`/`[O]`/`[I]` provenance legend, which this file predates.
 
 The map is deliberately two flat tables plus a regenerable export. There is no
 database and no tool to learn.
