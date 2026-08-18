@@ -1,14 +1,20 @@
 MERGE BRIEF — lane w-gateperf
 branch:   wt-w-gateperf
-base:     82fa92a0   (REBASED onto w-calleeguard + the STATUS regen; every
-                      number below RE-MEASURED at the rebased tip)
+base:     2f449ee3   (REBASED TWICE: 071d2d47 -> 82fa92a0 -> 2f449ee3. EVERY
+                      number below RE-MEASURED at the final tip, none carried
+                      forward. The two merges since 82fa92a0 —
+                      w-corpushealth 5769763d and w-c2map2 2f449ee3 — touch
+                      NO graded code: `git diff 82fa92a0 2f449ee3 --
+                      crates/ fixtures/ scripts/` is EMPTY, which is why the
+                      readings agree digit for digit at both bases.)
 outcome:  built            (construct rung; Fixtures: none; Census: +0)
 rung:     docs/rungs/2026-08-18-gateperf.md
 prereg:   work/w-gateperf/PREREG.md  (frozen as the lane's FIRST commit, 644fb568,
                       before any measurement; 23 rows, no discount factor)
-board:    #3261-#3266 MINTED from the coordinator's explicit allocation — the
-          pointer was NOT consulted. TWO further rows drafted UNNUMBERED because
-          the block is exhausted; they want numbers at the funnel.
+board:    #3261-#3269 MINTED from TWO coordinator allocations — the pointer
+          was NOT consulted. #3267/#3268 are the rows first drafted unnumbered;
+          #3269 records this lane's own published grep artifact and its wrong
+          attribution (see CORRECTION below).
 
 THE HEADLINE
 ------------
@@ -62,14 +68,14 @@ MEASURED, at the rebased tip, one uninterrupted block, load 5-13
 
   legs                     --jobs 4   --jobs 16
           18 mode lanes         4 s        2 s
-          generated sweep      87 s       29 s
+          generated sweep      86 s       29 s
           mode cross           33 s       29 s
           debug lane           23 s       11 s
-          TOTAL               154 s       79 s
+          TOTAL               153 s       78 s
 
   A pre-lane WARM gate at --jobs 4 is its measured legs summed:
   4 + 296 (sweep uncached) + 33 + 83 (debug sequential) + ~8 = ~424 s.
-  So 2.75x at the same flag and 5.4x at gate.sh's own default.
+  So 2.77x at the same flag and 5.4x at gate.sh's own default.
 
   selftest       PASS — 170 cases, 0 failed (floor 166 -> 170)
   --check        PASS — 16 tree-integrity arms, 0 failed
@@ -97,7 +103,7 @@ MEASURED, at the rebased tip, one uninterrupted block, load 5-13
                  A WRONG COUNT IS CAUGHT BY RE-COUNTING; A WRONG ATTRIBUTION
                  IS NOT. See rung §13.3.
 
-  The scan's base binary was built from `git checkout 82fa92a0 -- crates/` IN
+  The scan's base binary was built from `git checkout 2f449ee3 -- crates/` IN
   THIS WORKTREE, so both binaries share a build path and #3224's precondition
   is met: 933e9fdd28b2 (base) vs 15e371d1e4c3 (tip), genuinely different.
 
@@ -277,7 +283,14 @@ THE MOST USEFUL MISS IS P1/P23: the dispatch, w-gatewire's rung and my own
 prereg all describe a ~450 s gate. A LANE'S FIRST GATE RUN IS 1,755 s, and
 nobody had written that down because everybody measures the second one.
 
+ROUTED TO THE COORDINATOR (recorded so "dispatched" is legible from "dropped")
+-------------------------------------------------------------------------------
+  * the standing dispatch text: C2RS_REQUIRE_TOOLCHAIN and the --jobs 16 default
+    go into every future brief;
+  * mode_cross.sh's `cross of 0 cases` (#3264) and the capture cache's lack of
+    eviction (#3265, ~21.5 M entries / order 150 GB / 170 M inodes) go to the
+    project owner, the second as a DISK-CAPACITY RISK and not merely a defect.
+
 NOT DONE
 --------
-Not merged, not pushed, not rebased beyond 82fa92a0. Master has since moved to
-2f449ee3 (w-c2map2).
+Not merged, not pushed. Rebased to 2f449ee3 and re-gated there.
