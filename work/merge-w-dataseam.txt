@@ -66,8 +66,9 @@ Executed in full. The answer is DECLINE, and the measurement is the deliverable.
 
   4. THE MISSING AXIS IS THE CALLEE'S SIZE, and the bracket has two MEASURED
      ends: [180, 231] IL segment bytes. Inside it the lifted rule costs ZERO
-     fnbyte-exact and removes up to 1,189 wrong bodies (57.9% of the whole wrong
-     population). Lower end pinned by a witness -- at any cut <= 176 the size
+     fnbyte-exact and removes up to 1,189 wrong bodies -- 57.9% of
+     fnbyte-differs (1,133 of 1,958), 47.6% of every wrong body the instrument
+     grades (1,189 of 2,499). Lower end pinned by a witness -- at any cut <= 176 the size
      exemption fires for ?MakeString@@YAPBDPBD@Z and un-fences
      ?ContentPath@XboxContentMgr@@UAAPBDH@Z, the exact body fence163 shipped its
      fence for. Upper end pinned by cost. The zero-cost property replicates
