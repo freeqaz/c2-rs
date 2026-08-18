@@ -1,0 +1,119 @@
+ALL SEVEN OF #3276's UNGUARDED SITES ARE GUARDED — AND `CS3`'s TWO EXISTING CATCHERS BOTH READ SOURCE TEXT, SO ITS BEHAVIOUR WAS NEVER GUARDED AT ALL
+
+Lane:     w-witness7   ·  branch wt-w-witness7
+Base:     dispatched at 666fe6eb7, REBASED onto bb9b1d16c; whole stack re-run
+Kind:     construct    ·  Outcome: built
+Rung:     docs/rungs/2026-08-18-witness7.md
+Prereg:   docs/rungs/_2026-08-18-w-witness7-prereg.md (frozen as the FIRST commit)
+Board:    #3294–#3298, allocated by the coordinator
+
+WHAT LANDED
+  crates/c2-harness/tests/nonformal_sites.rs     — one row per RAISE SITE of
+      `call-arg-nonformal` (k = 5, the largest in the crate) + `CA8`'s pair
+  crates/c2-harness/tests/census_key_routing.rs  — `CS3`/`B2`, `B7`, `CS4`, `CS9`
+  Six tests. ZERO crates/c2-il bytes. Suite 1,675 -> 1,681 across 46 -> 48 targets
+  at the rebased base; every colour reproduces at BOTH bases.
+
+THE SEVEN, EACH GREEN -> RED WITH THE FAILING TEST NAMED
+  CS4 CS9 CA6 CA8 B2 B7  — GREEN 1,675/0 at base, RED 1,680/1 at tip
+  CS3                    — already RED at base, by SOURCE TEXT alone (see below)
+  In SIX of eight mutations this lane's guard is the SOLE catcher in 1,677 tests.
+
+THE FINDINGS
+  1. #3295 — `CS3`'s two catchers (`fence_site_census.rs`,
+     `callee_unresolved_sites.rs`) both read census.rs as TEXT and never run a
+     compiler. `M-CS3B` was registered GREEN at 0.80 and came back RED, which is
+     how that was found. `M-CS3C` moves the label at its PRODUCER, leaving the
+     `match label` block byte-identical: GREEN 1,671/0/46 at base (MEASURED, on a
+     tree with this lane's guards held out in a commit of their own), RED 1,676/1
+     at tip with the new witness the sole catcher.
+  2. #3298 — the eager/reached question, answered PER SITE. Six of seven are
+     structurally incapable of the confusion; `CS4` is two sites in one
+     expression. Its `Some` half refuses and is witnessed; its `unwrap_or`
+     ARGUMENT is eager, and `panic!()` in its place fires NOWHERE in the suite,
+     the 18-lane gate or the 878-TU scan. Population 7, refusing population 7,
+     rows with an eager half 1. This lane REFUSED to manufacture a witness for
+     the dead half.
+     The general form: a first-hit probe measures EVALUATION, a published-key
+     witness measures THE REFUSAL. All eight GREEN->RED demonstrations re-checked
+     against that standard and all eight move a CLASSIFIED body's key.
+  3. #3297 — #3281 settled. `w-mutcensus`' `B9` RED is a FALSE COLOUR: `M-B9` is
+     GREEN at both ends here, and the mutation is invisible to its sole guard by
+     construction (that guard's cell declares no data object, so resolve_bss_def
+     is never invoked). Mechanism: reloc_identity.rs' scratch-directory race,
+     fixed at 71b844fcd 2026-08-18 11:14 UTC, NOT an ancestor of w-mutcensus'
+     rung commit (2a0f54ae7, 2026-08-17 19:07). `X = 30 of 63` reads 31, not 29.
+  4. #3296 — `call-arg-nonformal`'s five raise sites, site->cell map ONE-TO-ONE by
+     experiment (five sentinels in one patch). Rows 3 and 5 share a key AND an
+     in-class control label, so source reading provably could not have separated
+     them.
+
+GATE EVIDENCE (measured at BOTH ends)
+  suite   1,675/0/46 -> 1,681/0/48, C2RS_REQUIRE_TOOLCHAIN=1, census_gate
+          minimum over the rebased campaign 64.11 s
+  gate    scripts/gate.sh --jobs 16 --require-graded: PASS (HATCH-RED REFUSED)
+          both ends, 18/18 lanes, 6,948 fixture-verdicts, sweep 19,556/19,460,
+          cross 90,812/90,424, debug lane 18/18 at 0 panic
+  per-lane count identity diff  0 of 23 rows, RANGE LENGTH ASSERTED (23 = 23)
+  878-TU scan  match 26 · mismatch 0, IDENTICAL both ends
+  gap-metric keys  394 anchored, 0 differing lines over all 394
+  fnbyte  35,886 / 1,958 / 113,429, unmoved -- BUT SEE BELOW
+  control C1 pinned BY NAME: RED 1,673/2 before the first guard, RED 1,679/2
+          after the last, the IDENTICAL pair
+  #3215   graded-tree identity DOES NOT APPLY — this lane lands tests
+  #3224   NO cross-worktree binary sha comparison
+
+  The zero delta is evidence about REACH, not correctness. The correctness claim
+  is the GREEN -> RED demonstration.
+
+THE REBASE FINDING, AND IT IS THE ONE TO READ (drafted UNNUMBERED, asks for a
+number): a lane's two ends are not comparable unless they read the same WORKLOAD
+STAMP. The tip scan read fnbyte-exact 35,886 against the base's 35,900 on a lane
+whose whole diff is two integration-test files, which are not in the c2rs binary
+at all. #3269's rule produced two measurements -- three back-to-back tip scans
+read 35,886/35,886/35,886, and the scan logs' own stamps differ (dc3-decomp
+897d0220fd1d at the base end, 49ad7cfd5d26 45 minutes later at the tip end).
+Re-taking the base at the CURRENT stamp: identical fnbyte, 0 of 394 keys
+differing. Against the STALE-stamp base: 82 of 394 differ. #3249 counsels
+treating sub-10-body effects as unattributable; this is 21 % of the key surface
+and the mitigation is a diff of two strings the scan already prints.
+
+#3288, EVERY PUBLISHED COUNT DERIVED A SECOND WAY: 11 figures, 0 DIFFER — after
+one was fixed. The gate-lane-row check read 27 against 23 and the SECOND
+construction was the wrong one (it matched the four `sweep:`/`cross:`/`debug:`/
+`GATE:` summary lines). An OVER-count, wrong at its own base, exactly as #3288
+registers. `work/w-witness7/crosscount.py`.
+
+PREREG: 24 registered colours, 21 hits, 3 misses. H1 6-of-7 -> 7 of 7. H5
+(M-CS3B GREEN at 0.80) MISS and it is the lane's best finding. H4 (3 of 5 rows)
+MISS above the interval at 5 of 5.
+
+CENSUS RE-MEASURED: of the 26 open GREEN rows, 19 remain GREEN — UNGUARDED 7 -> 0,
+DEAD-with-a-proof 4 and UNKNOWN 15 untouched. The 19 are still GREEN for #3276's
+own reason and nothing here makes them closer to guarded.
+
+WHAT THE COUNT CANNOT SEE: a SIXTH raise site of `call-arg-nonformal` adds no row
+and turns nothing red; all seven guards are capture-driven and read GREEN in an
+unprovisioned worktree; the cells are three-line reproducers, not the workload's
+shapes; and `CS4` counts as one guarded site and is one guarded half.
+
+FOUND AND NOT TAKEN: `w1199_bind_run_neg.cpp` censuses 1 of 4 IN CLASS against
+its own header's "every one must be 0 of N" (fixtures/ is not this seam) · no
+toolchain-free cell for any of the seven, though `wr1_census_key_guards`'
+synthetic-bundle machinery would carry one for `CA6` · the eager screen wants
+re-running with the marker in the ARM, not the guard · `M-CS4F`'s gate leg lost
+one mode-cross cell to a cache refusal on a dirty tree.
+
+REBASED onto bb9b1d16c on your authorization. BOARD.md conflicted twice and was
+resolved by taking master's file WHOLE and re-appending this lane's block
+unedited -- neither w-grammarscreen's #3299-#3303 nor w-glattrs' #3289-#3293/
+#3305 was touched. INDEX.md regenerated, never hand-merged. board_audit.sh
+all-zero including 0 duplicate row numbers.
+
+w-glattrs' gl.rs change (+292/-16) is read by BOTH of this lane's object-gate
+rows, so nothing was carried across: the flipcheck, all 21 mutant suite runs,
+both controls, both gates and both scans were re-run. The cell-level answer is a
+clean negative -- every base cell and all eight flips BYTE-IDENTICAL across the
+rebase.
+
+NOT merged, NOT pushed.

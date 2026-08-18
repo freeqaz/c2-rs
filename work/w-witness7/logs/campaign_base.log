@@ -1,0 +1,95 @@
+applied C1 -> crates/c2-il/src/func/body/shapes/calls.rs
+=== run C1a  patches: C1
+=== started 2026-08-18T14:38:56Z
+=== finished 2026-08-18T14:42:43Z
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+work/w-witness7/logs/C1a.suite.log
+   1669 passed / 2 failed / 46 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 68.76s
+   FAIL  gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol
+   FAIL  gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone
+
+applied M-CS3 -> crates/c2-il/src/func/census.rs
+=== run M-CS3.base  patches: M-CS3
+=== started 2026-08-18T14:42:43Z
+=== finished 2026-08-18T14:46:56Z
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+work/w-witness7/logs/M-CS3.base.suite.log
+   1670 passed / 1 failed / 46 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 98.79s
+   FAIL  every_census_fence_key_has_the_sites_this_repo_last_scored
+
+applied M-CS3B -> crates/c2-il/src/func/census.rs
+=== run M-CS3B.base  patches: M-CS3B
+=== started 2026-08-18T14:46:56Z
+=== finished 2026-08-18T14:50:16Z
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+work/w-witness7/logs/M-CS3B.base.suite.log
+   1670 passed / 1 failed / 46 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.57s
+   FAIL  the_callee_unresolved_family_still_has_exactly_four_raise_sites
+
+applied M-CS4 -> crates/c2-il/src/func/census.rs
+=== run M-CS4.base  patches: M-CS4
+=== started 2026-08-18T14:50:16Z
+=== finished 2026-08-18T14:54:32Z
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+work/w-witness7/logs/M-CS4.base.suite.log
+   1671 passed / 0 failed / 46 targets   EXIT=0
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 114.33s
+
+applied M-CS9 -> crates/c2-il/src/func/census.rs
+=== run M-CS9.base  patches: M-CS9
+=== started 2026-08-18T14:54:33Z
+=== finished 2026-08-18T14:57:58Z
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+work/w-witness7/logs/M-CS9.base.suite.log
+   1671 passed / 0 failed / 46 targets   EXIT=0
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.43s
+
+applied M-CA6 -> crates/c2-il/src/func/body/shapes/calls.rs
+=== run M-CA6.base  patches: M-CA6
+=== started 2026-08-18T14:57:58Z
+=== finished 2026-08-18T15:01:43Z
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+work/w-witness7/logs/M-CA6.base.suite.log
+   1671 passed / 0 failed / 46 targets   EXIT=0
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 82.21s
+
+applied M-CA8 -> crates/c2-il/src/func/body/shapes/calls.rs
+=== run M-CA8.base  patches: M-CA8
+=== started 2026-08-18T15:01:43Z
+=== finished 2026-08-18T15:05:27Z
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+work/w-witness7/logs/M-CA8.base.suite.log
+   1671 passed / 0 failed / 46 targets   EXIT=0
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.47s
+
+applied M-B2 -> crates/c2-il/src/func/bind.rs
+=== run M-B2.base  patches: M-B2
+=== started 2026-08-18T15:05:27Z
+=== finished 2026-08-18T15:08:56Z
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+work/w-witness7/logs/M-B2.base.suite.log
+   1671 passed / 0 failed / 46 targets   EXIT=0
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 68.78s
+
+applied M-B7 -> crates/c2-il/src/func/bind.rs
+=== run M-B7.base  patches: M-B7
+=== started 2026-08-18T15:08:56Z
+=== finished 2026-08-18T15:12:46Z
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+work/w-witness7/logs/M-B7.base.suite.log
+   1671 passed / 0 failed / 46 targets   EXIT=0
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 86.52s
+
+applied M-B9 -> crates/c2-il/src/func/bind.rs
+=== run M-B9.base  patches: M-B9
+=== started 2026-08-18T15:12:46Z
+=== finished 2026-08-18T15:16:33Z
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+work/w-witness7/logs/M-B9.base.suite.log
+   1671 passed / 0 failed / 46 targets   EXIT=0
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.86s
+
+=== BASE CAMPAIGN DONE

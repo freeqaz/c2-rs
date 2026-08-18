@@ -1,0 +1,24 @@
+=== BASE (clean tree)
+BASE           ssl_ns.o1        GAP static-scan-loop-object-out-of-class:eof 
+BASE           ssl_local.o1     ok static-scan-loop 
+BASE           ssl_bss.o1       GAP static-scan-loop-object-out-of-class:eof 
+BASE           gsl_init.o1      GAP callee-unresolved-tail-call:eof 
+BASE           gsl_bss.o1       ok global-store-leaf 
+BASE           gsl_comdat.o1    GAP callee-unresolved-tail-call:eof 
+BASE           ca6_nonformal.o1 GAP call-arg-nonformal:eof 
+BASE           ca6_formal.o1    ok multiarg-tail-call 
+BASE           ca8_computed.o1  GAP call-arg-computed:eof 
+BASE           cs4.o1           ok store-run-bind GAP store-run-bind-address-producer:eof GAP store-run-bind-multi-producer:eof GAP store-run-bind-symbol-crossings:eof 
+BASE           ca6_formal.od    GAP opt-mode-00800005 
+=== MUTANTS
+M-CS3          ssl_ns           GAP store-run-call-no-emitter-carrier:eof 
+M-CS3B         ssl_ns           GAP callee-unresolved-tail-call:eof 
+M-CS4          cs4              ok store-run-bind GAP store-run-bind-no-emitter-carrier:eof GAP store-run-bind-no-emitter-carrier:eof GAP store-run-bind-no-emitter-carrier:eof 
+M-CS9          ca6_formal       ok multiarg-tail-call 
+M-CA6          ca6_nonformal    GAP call-arg-computed:eof 
+M-CA8          ca8_computed     GAP call-arg-nonformal:eof 
+M-B2           ssl_ns           ok static-scan-loop 
+M-B2           ssl_bss          GAP static-scan-loop-object-out-of-class:eof 
+M-B7           gsl_init         ok global-store-leaf 
+M-B7           gsl_comdat       ok global-store-leaf 
+=== FLIPCHECK DONE

@@ -1,0 +1,5 @@
+ca6_nonformal    [  0] GAP wit7-site1:eof           cflow-straight+expr-mod
+nf_s2            [  0] GAP wit7-site2:eof           cflow-straight+expr-mod
+nf_s3            [  0] GAP wit7-site3:eof           cflow-straight+expr-mod
+nf_s4            [  0] GAP wit7-site4:eof           cflow-straight         
+nf_s5            [  0] GAP wit7-site5:eof           cflow-straight         

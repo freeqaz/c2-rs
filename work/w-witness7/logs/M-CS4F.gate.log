@@ -1,0 +1,33 @@
+lane gate: preflight on /tmp
+  keep    /tmp/c2rs-gate-1773751       this run
+  keep    /tmp/c2rs-gate-1105485       recent — 1 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-857437        recent — 2 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-3063443       recent — 3 of 3 finished runs kept for their logs
+  reaped  /tmp/c2rs-gate-2689058       stale — no live gate owns it
+reap:   1 stale run tree(s) removed, 4 kept (0 live, 3 recent, 1 this run)
+strip:  0 kept tree(s) lost 0 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
+        freed 152.4 MiB and 442 inodes (df delta over a SHARED filesystem)
+disk:   /tmp — free 45.8 GiB / 1,047,011 inodes (floors: 2.0 GiB / 150,000 inodes)
+
+lane gate: 18 lanes from /home/free/code/milohax/c2-rs/.claude/worktrees/w-witness7/scripts/lanes.txt
+  run dir: /tmp/c2rs-gate-1773751   (per-lane run dirs under /tmp/c2rs-gate-1773751/lanes/)
+  graded tree: 4534de2cb9f9  (744 files under crates fixtures scripts, content-hashed)
+               1 gitignored byproduct file(s) under those directories were NOT hashed (board #3048)
+
+GATE: REFUSED (DIRTY crates/) — nothing was graded and nothing was touched.
+  These files differ from HEAD:
+    crates/c2-il/src/func/census.rs
+
+  This gate has a row that writes into crates/ and restores it with
+  `git checkout --`. Until 2026-08-10 it ran on trees like this one and
+  the restore ate the edit: board #2668 (a lane re-applied work the gate
+  discarded) and board #2907 (a lane shipped, then retracted, a claim made
+  from a run that graded the pre-edit tree while printing the post-edit
+  commit). The row is fixed; this refusal is the part that does not depend
+  on any row staying fixed.
+
+  Commit or stash, then re-run — a gate run is evidence about the tree it
+  graded, and uncommitted work has no name to put on that evidence.
+  If you truly mean to grade an uncommitted tree, pass
+  --allow-dirty-crates: the run proceeds, says so on every headline, and
+  the row that would rewrite crates/ is refused instead of run.
