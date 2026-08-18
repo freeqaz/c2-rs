@@ -1,14 +1,115 @@
-THE `.gl` SIZE FIELD'S `0x80` ESCAPE IS `80 <LE16>` — DECODED AND SHIPPED, UN-REFUSING 56 OF 870 WORKLOAD TUs AT `fnbyte-exact` Δ 0, AND THE `309 EDGES` IT WAS DISPATCHED ON IS **2** UNDER THE FRAMING THE READER ACTUALLY WALKS
+`bit 6 clear => c2 kept` SCORES 0 COUNTEREXAMPLES ON 7,660 ORACLE-GRADED EDGES AND THE TEST HAS ZERO DISCRIMINATING POWER THERE — ALL 309 ESCAPED EDGES ARE `kept` NECESSARILY, SO THE PERFECT SCORE IS STATUS TRAP 0 AND WHAT CARRIES THE DECODE IS THE TWIN GRID AND THE ATTR VOCABULARY
+
+READ THIS FIRST
+---------------
+
+I was asked to score the decode against the oracle. I did, it came back perfect,
+and the perfect score is worthless. Stating that before the result it qualifies,
+because in the other order it reads as a hedge:
+
+  `bit 6 clear => c2 kept` has 0 counterexamples over 7,660 edges — AND THE TEST
+  HAS ZERO DISCRIMINATING POWER THERE, because all 309 escaped edges are `kept`
+  NECESSARILY: an escaped SIZE >= 128, which is above the inline ceiling at BOTH
+  profiles ((97,103] at /O1, (121,127] at /Ox). Every edge in the sub-population
+  satisfies the consequent whatever the decode says. A GREEN TEST OVER A
+  ONE-ARMED POPULATION IS STATUS TRAP 0.
+
+WHAT ACTUALLY CARRIES THE DECODE, therefore, is not the oracle score:
+
+  (a) a BLACK-BOX TWIN GRID, 18/18, two profiles — and it could have failed; and
+  (b) the ATTR VOCABULARY score, 99/99 against 3/0/1 for the rival widths — and
+      it could have failed.
+
+Both are stated in full below. THE GENERALIZATION IS BOARD #3292 AND IT WAS NOT
+WRITTEN DOWN ANYWHERE: a green differential over a population with ONE ARM is
+indistinguishable, in every artifact this project produces, from a green
+differential over a population with two. GRID-W, GRID-S, GRID-C and every
+per-edge grid built on them report kept/inlined/unknown totals for the
+population AS A WHOLE, and nothing reports the arm counts of the SUB-POPULATION
+a claim is scoped to. The mitigation is one column: print the arm breakdown
+beside the counterexample count, and treat a single-arm sub-population as NOT
+MEASURED rather than as a pass. Same family as the zero-delta rule and #3288's
+count rule — the artifact is green, the number is true, the reassurance is
+unearned.
+
+
+AND TWO MORE THINGS BEFORE THE DECODE
+-------------------------------------
+
+2. A PREREG HIT IS NOT SELF-VALIDATING, AND A HIT FOR THE WRONG REASON IS
+   STRICTLY MORE DANGEROUS THAN A MISS (board #3305). Mutant M3 came back GREEN
+   EXACTLY AS REGISTERED — and the match was a coincidence of two errors. The
+   registration's reason was about the CORPUS ("zero witnesses, so no corpus
+   test can see it"); three CONSTRUCTED unit cells should have made it RED and
+   did not, because each cell's record ended two bytes after the SIZE byte, so a
+   reader that wrongly consumed three ran off the end and returned None BY
+   TRUNCATION. All three were passing for a reason unrelated to the clause they
+   name. A miss gets re-opened; a hit reads clean in the score table and nobody
+   looks again. Repaired at c6fb31eb3 (four trailing bytes + a liveness
+   assertion that the same carrier with a legal SIZE decodes both records); M3
+   is RED in round 2 on exactly those three cells. Proposed rule: a negative
+   cell owes a liveness assertion in the same test.
+
+3. THE 150x CORRECTION IS NOT A RE-COUNT — IT IS ONE NUMBER MEANING TWO THINGS
+   DEPENDING ON WHICH WALKER PRODUCED IT (board #3290). #3274's "309 of 7,667
+   graded call edges (4.0%)" was measured on gl_offset_framed_RELAXED (#2783).
+   `gl_function_attrs` walks the INCUMBENT framing and sees TWO. That is exactly
+   the strengthened #3288 now on master: a published count never diffed against
+   a second, differently-built one is unverified in EITHER direction.
+
+     framing      TUs refused   rescued   escaped records   escaped edges
+     incumbent          60/870        56                99               2
+     relaxed           838/870       773            57,466             309
+
+   REALIZED FIGURES: 60 TUs refused, 56 rescued; reader-answered TUs 801 -> 857;
+   records decoded 25,311 -> 28,203; noinline records the port can SEE 2 -> 3.
+
+   AND `fnbyte-exact` IS FLAT AT 35,899. Per the zero-delta rule that is NEITHER
+   success NOR failure: what moved is FACTOR-A COVERAGE — how much of the
+   container the reader can answer for — and NOT byte credit. Every TU this
+   un-refuses is refused for other reasons downstream, so no additional body
+   reaches an obj and no byte can change. Quoting the flat metric as evidence
+   the decode is right would be w-dataseam's error exactly; quoting it as
+   evidence the lane bought nothing would miss GRID-D entirely.
+
+4. GRID-D IS WHAT JUSTIFIES SHIPPING RATHER THAN FENCING (board #3291), and it
+   is not a footnote to the price. Adding ONE large function to a TU BLINDED THE
+   PORT TO A `__declspec(noinline)` ON A SMALL ONE, and real c2 KEEPS that call.
+   `None` is not conservative for `splice`: it is documented as "every consumer
+   behaves exactly as it did before this field existed", and before the field
+   existed `splice` EXPANDED the body. So the incumbent was not holding a line —
+   it was handing `splice` the permissive answer on every function in 60 TUs,
+   silently. A REFUSAL THAT IS NOT CONSERVATIVE IS THE ONE CASE WHERE WIDENING
+   IS THE SAFE DIRECTION, AND THIS REPO'S DEFAULT ASSUMPTION RUNS THE OTHER WAY.
+   That is why the Outcome is `built` and not `declined`: `declined` would have
+   been the UNSAFE option here, and nothing in the flat columns could have shown
+   it — only a constructed cell graded by real c2.
+
+     A  small __declspec(noinline) alone            reader ok, c2 KEEPS the call
+     B  the same + one function whose SIZE escapes  REFUSED; bit invisible;
+                                                    inlinable = None; c2 STILL
+                                                    keeps the call
+     C  small INLINABLE + the same escaping fn      REFUSED, and c2 INLINES it,
+                                                    so the refusal costs nothing
+     D  B at /Ox                                    same as B
+
+   Workload witness for the same shape: src/xdk/nuiapi/headtracker.cpp holds
+   ??$sprintf_s@$0BAE@@@YAHAAY0BAE@DPBDZZ at ATTR 0x88 — bit 6 CLEAR — in a
+   DIRECT-form record of SIZE 46, refused whole on a DIFFERENT record's escape.
+   C is what makes B a loss rather than a property of the shape.
+
+
+================================ THE DECODE ================================
 
 Lane:     w-glattrs
-Base:     master 666fe6eb7
+Base:     master e95543cd7 (REBASED; was 666fe6eb7)
 Kind:     construct — a container-reader decode
 Outcome:  built
 Rung:     docs/rungs/2026-08-18-glattrs.md
 Prereg:   docs/rungs/_2026-08-18-w-glattrs-prereg.md (frozen at ba718f7af, the
           branch's first commit, before any probe)
-Board:    #3289-#3293, allocated by the coordinator. A SIXTH row is drafted
-          UNNUMBERED (rung §9.6) and needs a number at the funnel.
+Board:    #3289-#3293 plus #3305, all allocated by the coordinator. The
+          pointer was not read.
 Seams:    crates/c2-il/src/func/gl.rs · docs/whitebox/ (ref/P_INLINE.md,
           DISCLOSURE.md) · docs/BOARD.md · docs/rungs/ · work/w-glattrs/
           Peer seams untouched: crates/c2-harness/tests/, src/gap/tests.rs
@@ -84,8 +185,8 @@ Cache 870 hit / 8 miss / 0 uncacheable on both. Workload ccd4c8036 (clean).
   `noinline` records the port can SEE                  2           3    +1
 
 
-THE THREE THINGS TO CARRY OFF THIS LANE
----------------------------------------
+THE THREE THINGS TO CARRY OFF THIS LANE (expanded from the head of this note)
+-----------------------------------------------------------------------------
 
 1. THE FIRST-BLOCKER FIGURE WAS INFLATED 150x ON EDGES BY A FRAMING THE READER
    DOES NOT USE (#3290). #3274's "309 of 7,667 graded call edges (4.0%)" was
@@ -331,19 +432,19 @@ lines diff empty against the earlier tip scan.
 NOTES FOR THE FUNNEL
 --------------------
 
-* NOT rebased. Base is 666fe6eb7; master is at e95543cd7 (w-grammarscreen,
-  docs-only, crates/ byte-identical — so nothing measured here is invalidated).
-  Expect a docs/BOARD.md conflict: KEEP BOTH BLOCKS, EDIT NEITHER, regenerate
-  INDEX with scripts/gen_rung_index.sh, re-run board_audit.sh after resolving.
 * NOT merged, NOT pushed.
 * docs/STATUS.md is NOT regenerated. Its generated block moves in exactly one
   row — "Workspace tests" 1,671 -> 1,675 — and every other figure in it is
   unchanged (verified: match, mismatch, all fnbyte-*, all 394 keys). Left for
   the coordinator's post-merge regeneration rather than hand-edited, per the
   file's own instruction.
-* A SIXTH BOARD ROW IS DRAFTED UNNUMBERED at the end of the #3289-#3293 block
-  (the M3 story). #3304 is the highest spent per the coordinator; the pointer
-  was not read.
+* THE SIXTH BOARD ROW (the M3 story) IS #3305, assigned by the coordinator at
+  the funnel; it was drafted UNNUMBERED. The pointer was not read.
+* REBASED onto e95543cd7. docs/BOARD.md conflicted as predicted and was resolved
+  by KEEPING BOTH BLOCKS AND EDITING NEITHER — w-grammarscreen's #3299-#3304
+  first (it is on master), then w-glattrs' #3289-#3293/#3305. docs/rungs/INDEX.md
+  also conflicted and was REGENERATED rather than merged. board_audit.sh is
+  all-zero after resolving.
 * Artifacts committed by NAME, never by directory (#3287). No .obj, no .o, no
   IL, no absolute /home paths (checked), no secrets. The 870 dumped .gl files
   under work/w-glattrs/gl/ are IL and are NOT committed.
