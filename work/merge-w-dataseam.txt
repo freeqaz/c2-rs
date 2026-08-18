@@ -18,12 +18,14 @@ Documentation only.
     git diff --stat 44794fa4..HEAD -- fixtures/   ->  EMPTY
     git diff --stat 44794fa4..HEAD -- scripts/    ->  EMPTY
 
-Four commits:
+Seven commits:
     682ae2a5  prereg (first commit, before any probe)
     bc79c27e  the C2RS_DATASEAM probe scaffold        <- reverted
     586df41e  the revert
     1a3db636  rung doc + BOARD #3234-#3238 + INDEX.md (generated)
-    (+ this note)
+    876ca047  this note
+    fa8285ee  denominator correction (both denominators stated)
+    42b83a3f  the gate evidence
 
 The scaffold is deliberately kept in history and reverted rather than squashed
 away: the counterfactual ladder is the deliverable and the code that produced it
