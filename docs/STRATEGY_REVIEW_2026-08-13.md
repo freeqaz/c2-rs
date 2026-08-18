@@ -539,3 +539,25 @@ questions:
 debug-profile panic blocks a merge (lane `w-gatewire`, dispatched at
 `7e541a54`). The row must be demonstrated able to go RED — a gate row that
 cannot fail is this repo's defining defect family, not a safety net.
+**Landed `7b328666`**, demonstrated RED on an injected debug-only underflow
+while every release row passed over the same tree; cost re-measured at
+**+85 s** (the briefed 0.65 s was a *different, unbuilt* candidate — board
+**#3220**, filed as a coordinator-brief error).
+
+### 8.2 Wave ten — the first phase-shaped dispatch under Option A
+
+Dispatched at master `44794fa4` (wave nine fully landed: `match` **25 → 26**
+via `w-npos`, `fnbyte-exact` **35,734 → 35,897** via `w-fence163`, `mismatch`
+**0** across four merges). This wave is the doctrine in §8.1 being applied:
+**no TU-conversion lane was dispatched.**
+
+| lane | kind | target |
+|---|---|---|
+| `w-dataseam` | construct | The phase seed `w-fence163` §8.1 specified: lift the `data_syms` scoping into a rule, pay clause (c) with it, price two-sided, do **not** estimate reach from a blocker row. Its own finding was that its predicate is a rule but its *scoping* is the exemption — so that lane was a widening, and this one is the phase. |
+| `w-dagorder` | characterization | §4 lever 3: read `dag.c`'s lowering order (`0x10b3219f`) — named there as the **sole remaining characterization blocker** for `CFG_SHAPE.md` §6.2 **item F**, the last unbuilt item of seven. Predicted reach **0**, registered as such: `w-itemF` measured item F converts 0 TUs in all four populations. Its value is that item F is phase machinery Option A requires. |
+| `w-calleeguard` | instrument | The worst row of `w-mutcensus`'s census: the **`callee-unresolved` family at 0 of 4**, whose default arm routes #3209's key over **1,296 function bodies** and can be swapped with the suite staying green. Asked to retire the *mechanism* (per-key witness tests give *k−1* unguarded sites for *k* raise sites, by construction) rather than add four tests. |
+
+Board blocks **allocated explicitly** (`#3234`–`#3238`, `#3239`–`#3243`,
+`#3244`–`#3248`) rather than read from the next-free pointer — see
+`docs/rungs/README.md`, where wave nine's double-mint made that a standing
+rule.
