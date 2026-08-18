@@ -149,6 +149,17 @@ unmeasured).
   (commit × capture-cache state × untracked workload). Re-read base and tip
   **back to back**; state the cache state and `dc3-decomp` head; treat any
   effect under ~10 bodies as **unattributable rather than reporting it**.
+* **Assert the two ends read the SAME workload stamp** (#3306) — `c2rs gap`
+  prints `workload <sha> (clean) <path>` on every run, so the check is a
+  `diff` of two strings the scan already emits. Measured cost of skipping it:
+  **82 of 394 keys** moved between one lane's two ends, 45 minutes apart, on
+  the same commit pair, binary and machine, because a merge landed in the
+  sibling `dc3-decomp` tree mid-campaign. #3249's "under ~10 bodies is
+  unattributable" is calibrated for **noise** and does not cover this — 21 %
+  of the key surface, from a repository the lane never touched. Re-reading
+  the base at the *current* stamp gave 0 of 394 differing. The failure is
+  silent, arrives with a plausible story attached, and gets **worse the
+  longer the lane runs**.
 * **`fnbyte-*` denominators are 71.2 % bodies the shipped image never
   contains** (#3254) — `/Gy` COMDATs the linker discards. A `fnbyte` ratio is
   progress over *what c2 emits*, which is the port's job; it is never progress
