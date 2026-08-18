@@ -32,3 +32,12 @@ CUT 2 — the same population split by emitted-body verdict
      measured, from the gradeable part alone : 3349 / 113447 = 2.95%
      extrapolated at the gradeable rate to the
      whole emitted population                : 11620 / 113447 = 10.24%
+
+====================================================================================================
+CROSS-CHECK — the same three rates on the port's OWN denominator
+====================================================================================================
+  unit FINISHED                      R  18448  |S|   33006 -> 55.89%   E   28236 -> 65.34%
+  unit NOT finished                  R  94831  |S|  156092 -> 60.75%   E  133558 -> 71.00%
+  the 200-TU clean set               R   7964  |S|   14767 -> 53.93%   E   12510 -> 63.66%
+  whole workload (all classes)       R 113447  |S|  189371 -> 59.91%   E  162046 -> 70.01%
+  ratio not-finished / finished:  on |S| 1.087   on fnbyte-denominator 1.087   — invariant to the choice

@@ -173,6 +173,16 @@ disentangle because it does not need to. What matters is the **floor**:
 > where nothing whatever can be a corpus artifact under the ruler: **7,964
 > refusals over 14,767 bodies, 53.9 %.**
 
+**The rate is quoted on the wrong denominator on purpose, and the cross-check
+says it does not matter.** `|S_i|` is every `.text` function symbol in the obj
+(189,371 in total); `fnbyte-denominator` is the 162,046 the FBM instrument pairs
+to an IL body, and it is the *smaller* one — so quoting `R_i / |S_i|` is the
+**conservative** choice at every row. On the port's own denominator the same
+three figures read **65.34 %** (finished units), **71.00 %** (not finished) and
+**63.66 %** (the 200-TU clean set), with the whole workload at **70.01 %**. The
+ratio is **1.087 on both denominators, to three places** — the group comparison
+is invariant to the choice, and only the absolute level moves.
+
 ### 2.3 In the goal's units
 
 If every unmatched-source body were free tomorrow:

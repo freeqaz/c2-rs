@@ -100,3 +100,31 @@ gr = T("unfin") + T("fin") + T("vendor")
 print(f"     extrapolated at the gradeable rate to the")
 print(f"     whole emitted population                : "
       f"{S*T('unfin')/gr:.0f} / {R} = {100.0*S*T('unfin')/gr/R:.2f}%")
+
+# ---------------------------------------------------------------------------
+# DENOMINATOR CROSS-CHECK, added after the first reading. `|S_i|` (every `.text`
+# function symbol, 189,371) is the LARGER denominator, so every rate above is
+# the conservative one; `fnbyte-denominator` is 162,046. Printed because a rate
+# quoted on one denominator and compared against a number derived from the
+# other is the kind of arithmetic this repo has paid for (STATUS.md trap 0).
+print()
+print("=" * 100)
+print("CROSS-CHECK — the same three rates on the port's OWN denominator")
+print("=" * 100)
+
+
+def two(rs, label):
+    R = sum(r["R"] for r in rs)
+    S = sum(r["S"] for r in rs)
+    E = sum(r["E"] for r in rs)
+    print(f"  {label:34s} R {R:6d}  |S| {S:7d} -> {100.0*R/S:5.2f}%   "
+          f"E {E:7d} -> {100.0*R/E:5.2f}%")
+    return 100.0 * R / S, 100.0 * R / E
+
+
+a2 = two(fin_tu, "unit FINISHED")
+b2 = two(unfin_tu, "unit NOT finished")
+two([r for r in fin_tu if r["unfin"] == 0], "the 200-TU clean set")
+two(rows, "whole workload (all classes)")
+print(f"  ratio not-finished / finished:  on |S| {b2[0]/a2[0]:.3f}   "
+      f"on fnbyte-denominator {b2[1]/a2[1]:.3f}   — invariant to the choice")
