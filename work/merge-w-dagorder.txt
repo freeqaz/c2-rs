@@ -1,0 +1,157 @@
+merge w-dagorder: the allocator's candidate order is a CHOW-HENNESSY PRIORITY LIST downstream of the scheduler — and /Ox INVERTS it on exactly the 6 of 20 cells that carry the signal
+
+Outcome: built. Kind: characterization. Fixtures none, Census +0, reach 0
+predicted and 0 realized. docs/ + docs/whitebox/ + work/w-dagorder/ only;
+`git diff master..HEAD -- crates fixtures scripts` is EMPTY at master 31766e74,
+after the rebase.
+
+HEADLINE, TWO HALVES, BOTH LOAD-BEARING:
+(1) The candidate order is a PRIORITY LIST — Chow-Hennessy priority-based
+    colouring, comparator cand+0x0c DESC / cand+0x44 DESC at 0x10b2b82d — not a
+    traversal order. #3049's "no interference graph" implied it; nobody had
+    stated it.
+(2) /Ox and /O1 DISAGREE ON 6 OF 20 CELLS, and the six are EXACTLY the six
+    carrying the signal; all six are EXACT REVERSALS. The cause is in the bytes:
+    /O1 emits one `mulli` where /Ox strength-reduces to `slwi`+`add`, reading the
+    multiplicand TWICE. This is simultaneously the SECOND INDEPENDENT
+    CONFIRMATION of (1) — a transformation touching only the DAG inverts the
+    order — and a concrete demonstration that a characterization taken at the
+    FIXTURE profile publishes the REVERSED rule on the workload.
+
+FINDING ZERO — A DISPATCH DEFECT, NOT A PREAMBLE. The brief named
+STRATEGY_REVIEW §4 lever 3 (read dag.c's lowering order at 0x10b3219f) as item
+F's "sole remaining characterization blocker". It was discharged five days
+earlier by lane wb-dagorder (2026-08-13, #3067–#3071) and is IN MASTER —
+`git rev-list --count master..wt-w-dagorder` is 0 — at the workload profile,
+over a 15-cell grid, with a committed simulator. Two lanes have since landed on
+top of it (w-dagclients #3099–#3103, w-itemf-price #3166–#3170). The lane
+retargeted to the blocker the record actually names, board #3169's F5, and ran
+the experiment #3166 explicitly declined: "Testing it is the cheapest experiment
+the lane found."
+
+THE MECHANISM IS THE TRANSFERABLE PART, and it is a dispatch defect rather than
+a lane preamble. STRATEGY_REVIEW_2026-08-13.md is a DATED SNAPSHOT, and lever 3
+was discharged THE SAME DAY that review was written. A lever named in a review
+stays named there forever; the board row discharging it lands elsewhere; and
+NOTHING IN THIS REPO RECONCILES THE TWO. So a coordinator reading the review
+faithfully can dispatch a lane at already-landed work — which is what happened.
+The standing note covers ROWS re-entering dispatch after measuring zero; this
+instance came through a REVIEW DOCUMENT and from the coordinator, a route the
+note did not cover. And what surfaced it was THE BRANCH NAME BEING TAKEN, which
+lane discipline requires checking for an unrelated reason: no check anyone ran
+was looking for this, so the defect's true rate is UNMEASURED.
+
+THE ANSWER (#3239). The worklist head is DAT_10c43b7c, doubly linked through
+cand+0x14/+0x18. FUN_10b316b1 @ 0x10b316b1 builds it by walking wb-live's
+1024-bucket candidate hash DAT_10c43b80 (0x10c44b80-0x10c43b80 = 0x1000 = 1024x4,
+an independent confirmation of #3049's bucket count) and accumulating through
+FUN_10b2b82d @ 0x10b2b82d — a SORTED INSERT with a two-key comparator:
+cand+0x0c DESC signed, tie-broken by cand+0x44 DESC unsigned, tie tier `<=`.
+0x10b31c9a consumes it head-first. c2's allocator is PRIORITY-BASED COLOURING
+(Chow-Hennessy), which #3049's "there is no interference graph" implied and
+nobody had stated. The same comparator re-inserts a SPILLED candidate, so a
+spill re-enters by priority and not at the head: a port modelling the worklist
+as a stack or a queue is wrong in both directions.
+
+OBJ-CONFIRMED, AS A SERIES, NOT A CELL (#3240). 20 cells frozen by content hash
+b06a05fc…afeee6 before the first cl.exe; series n=1..8 per #3147. Four of five
+rival readings REFUTED from the obj with no address — source order dies on
+cnd_a2 (b takes r31), reverse source order on cnd_a4 (d b a c, not d c b a),
+arrival order and use-count order on the H pairs. The fifth confirmed by a
+HEIGHT SWAP that holds formals, declarations and the live set fixed and flips
+the assignment. WB_LIVE §10's unexplained wbl_x2 is CLOSED (cnd_x2 reproduces
+it exactly).
+
+THE PROFILE AXIS BECAME EVIDENCE (#3241). /Ox and /O1 disagree on 6 of 20
+cells, and the six are EXACTLY the six that carry the signal; all six are exact
+reversals; the eight-cell A series agrees at both. Mechanism in the bytes: /O1
+lowers *3 as one mulli (multiplicand read once), /Ox strength-reduces to
+slwi+add (read twice). A transformation that changes only the DAG inverts the
+order — so w-section's seven-of-eight finding reproduces in the allocator, and a
+characterization taken at /Ox (the FIXTURE profile) publishes the reversed rule.
+
+TWO CORRECTIONS TO WB_LIVE'S FIELD TABLE (#3243). +0x18 is the list PREV pointer
+at worklist time, not a cost accumulator — the field is PHASE-OVERLOADED (a
+weight during 0x10b2d630, a back-pointer during 0x10b31c9a's loop), which a flat
+field table cannot express. And +0x44 is NOT IN THE ENUMERATION AT ALL though
+the record is 0x48 bytes — and that unenumerated field decides every tie.
+
+ITEM F IS NOT UNBLOCKED, AND F5's PRICE IS WRONG IN KIND (#3243). WB_ITEMF §6.1
+prices F5 at 2 lanes as a SEPARABLE step. It is not separable: its input is
+cand+0x0c, accumulated by 0x10b2d630 over the code the SCHEDULER produced, and
+F0 (8 lanes) is what produces that — #3241's six flips are the measurement.
+F5's question is ANSWERED and F5 is still NOT BUILDABLE; those are different
+facts and both are reported. What remains: F0, F1 (promotion policy, unread),
+F4's non-call physical def (still no obj cell in existence), and F5's cost model
+(weights unread; wb-live records the cost array uniformly zero on all 25 cells,
+so no obj support). AND NONE OF IT BUYS ANYTHING — #3170's 0 in all four
+populations stands untouched. This lane is an argument that F5's price is wrong,
+NOT an argument to build item F.
+
+#3242 IS DELIBERATELY FENCED. The tie tier is a hash-bucket walk over a
+compilation-global counter, so the order is not a source property — the most
+direct available explanation for why codegen::alloc's clause 2 keeps being
+refuted (#836). But pure descending-id predicts n=2 and n=8's head and FAILS on
+n=3 (b a c where it predicts c b a), and this grid cannot separate "the mint
+order is not source order" from "the n=3 keys are not tied". The row says
+"bucket-walk order", not "reverse source order", and DECLINES to be dispatched
+on — #1823 rested on absences and was refuted on that same seam.
+
+GATE (RUN TWICE, PRE- AND POST-REBASE, BOTH PASS): PASS (HATCH-RED REFUSED), exit 0. 18/18 lanes, 6,948 fixture-verdicts,
+match 2,423, 0 mismatch, 0 PANIC; debug-lane row PASS 18/18; sweep
+19,556/19,556, 0 mismatches; cross 90,812/90,812, 0 mismatches. graded tree
+5b550a38d90b identical at both ends of each run AND identical BETWEEN the two
+runs, so the rebase moved no graded byte. cargo test --workspace --release
+--no-fail-fast 1,660/0/43. board_audit all-zero. rung_registry 2/2. 878-TU scan:
+394 anchored keys, match 26, mismatch 0, codegen-gap 0, vocab-gap 844,
+capture-fail 8 — all identical to baseline.
+
+THE fnbyte DRIFT IS NOW BOARD #3249 (the coordinator's row — CITED, NOT
+RE-MINTED). This lane measured fnbyte-exact 35,899 against the registered
+35,897, refused-parse down exactly 2, and established that it is NOT this lane
+three ways: (1) the crates/fixtures/scripts diff vs the base is EMPTY; (2) the
+gate's graded-tree hash is identical at both ends; (3) the scan ran TWICE and
+all 394 keys are BYTE-IDENTICAL between runs, so the +2 is DETERMINISTIC rather
+than noise — which is the useful half, since a flaky +2 and a stable +2 need
+different explanations. The coordinator reproduced it independently at clean
+master with a run-private binary (sum conserved at 149,346) and confirmed the
+structure: cli/gap.rs:116 resolves the cache via main_repo_root() DELIBERATELY
+rather than repo_root(), main.rs:132 documents it as "shared by every worktree",
+and work/dc3-workload is untracked. #3249 names as UNMEASURED the thing this
+lane correctly did not claim — whether the cache is a PURE cache or an
+AUTHORITATIVE one — and notes the +2/-2 direction, refusals becoming parses, is
+what an authoritative cache gaining better IL would look like. A lane, not a
+footnote.
+
+FOUND AND NOT TAKEN (rung §6): the A-series head/tail split (h g f | b a c d e
+at n=8) is measured, not explained; cnd_s2/cnd_s2r are insensitive to written
+operand order and invert the + cells, which is wb-dagorder's own unread
++-reassociation reached from the allocator side; 0x10b2d630 does two jobs and
+wb-live characterized only one; a THIRD field-table correction is likely because
+the table is phase-flat by construction.
+
+TAKEN ON THE REBASE, WITH AUTHORISATION: WB_REGALLOC_FINDINGS.md §1's "There is
+no sched.c, and no instruction scheduler" — #1823, refuted by #3067 on
+2026-08-13 and LIVE ON MASTER in the very file that describes the allocator,
+while this lane's central result is about the allocator. Corrected as a DATED
+AMENDMENT BESIDE THE ORIGINAL SENTENCE, which stands as written — never
+rewritten in place. The amendment names why the claim was made in good faith
+(c2_tus.tsv is built from C1001 ICE sites, so a TU with no ICE site is invisible
+to it BY CONSTRUCTION, and the scheduler band sits in an anchor gap) and adds
+this lane's black-box third-side confirmation: the height flips and the 6-of-20
+profile inversion are results a compiler with no scheduler cannot produce. It
+also flags that every "order" claim in that file is a statement about a
+SCHEDULED tuple list.
+
+Board rows #3239–#3243, from the coordinator's allocation; the next-free pointer
+was not consulted.
+
+REBASED ONTO MASTER 31766e74 on the coordinator's authorisation. NOT MERGED,
+NOT PUSHED. Branch wt-w-dagorder2 (the plain `wt-w-dagorder` was ALREADY TAKEN
+by the 2026-08-13 lane — which is finding zero above, and is what surfaced it).
+One conflict, in docs/BOARD.md, and it was the expected one: the coordinator's
+#3249 block and this lane's #3239–#3243 block both append at end-of-file.
+Resolved by KEEPING BOTH, #3249 first; board_audit re-run after the resolution
+reports 0 duplicate row numbers, which is the check that proves the resolution
+rather than the diff looking plausible. crates/fixtures/scripts remain
+byte-identical to master after the rebase.

@@ -1,0 +1,22 @@
+===== work/w-dagorder/ref/ox/g.asm
+cnd_a1     n_words= 13 saved=[31] map[a=r31] colour_order=a first=a
+cnd_a2     n_words= 16 saved=[31, 30] map[a=r30 b=r31] colour_order=b<a first=b
+cnd_a3     n_words= 12 saved=[] map[a=r30 b=r31 c=r29] colour_order=b<a<c first=b
+cnd_a4     n_words= 14 saved=[] map[a=r29 b=r30 c=r28 d=r31] colour_order=d<b<a<c first=d
+cnd_a5     n_words= 16 saved=[] map[a=r29 b=r30 c=r28 d=r27 e=r31] colour_order=e<b<a<c<d first=e
+cnd_a6     n_words= 18 saved=[] map[a=r28 b=r29 c=r27 d=r26 e=r30 f=r31] colour_order=f<e<b<a<c<d first=f
+cnd_a7     n_words= 20 saved=[] map[a=r28 b=r29 c=r27 d=r26 e=r25 f=r30 g=r31] colour_order=g<f<b<a<c<d<e first=g
+cnd_a8     n_words= 22 saved=[] map[a=r27 b=r28 c=r26 d=r25 e=r24 f=r29 g=r30 h=r31] colour_order=h<g<f<b<a<c<d<e first=h
+cnd_x2     n_words= 16 saved=[31, 30] map[a=r30 b=r31] colour_order=b<a first=b
+cnd_x2r    n_words= 16 saved=[31, 30] map[a=r30 b=r31] colour_order=b<a first=b
+cnd_x3     n_words= 12 saved=[] map[a=r30 b=r31 c=r29] colour_order=b<a<c first=b
+cnd_x3r    n_words= 12 saved=[] map[a=r30 b=r31 c=r29] colour_order=b<a<c first=b
+cnd_s2     n_words= 16 saved=[31, 30] map[a=r31 b=r30] colour_order=a<b first=a
+cnd_s2r    n_words= 16 saved=[31, 30] map[a=r31 b=r30] colour_order=a<b first=a
+cnd_h2     n_words= 19 saved=[31, 30] map[a=r31 b=r30] colour_order=a<b first=a
+cnd_h2r    n_words= 19 saved=[31, 30] map[a=r30 b=r31] colour_order=b<a first=b
+cnd_h3     n_words= 15 saved=[] map[a=r31 b=r29 c=r30] colour_order=a<c<b first=a
+cnd_h3r    n_words= 15 saved=[] map[a=r29 b=r30 c=r31] colour_order=c<b<a first=c
+cnd_u2     n_words= 18 saved=[31, 30] map[a=r30 b=r31] colour_order=b<a first=b
+cnd_u2r    n_words= 18 saved=[31, 30] map[a=r31 b=r30] colour_order=a<b first=a
+cnd_c0     n_words= 10 saved=[] map[] colour_order= first=-
