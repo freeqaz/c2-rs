@@ -137,11 +137,63 @@ to **347**. The exposure window is ~500× the hazard window.
 
 ### 5.2 The naive share, and the fixed share, driven at 2, 3 and 4 lanes
 
-<!-- CONTENDTABLE -->
+Six runs of `scripts/mode_cross.sh` per arm, launched simultaneously, `--jobs 16`,
+a 3,000-cell stride so the arms are affordable. **Every run in both arms printed
+`checked=2939 mismatches=0 graded=2919 ungraded=20 unknown=0`** — identical
+counts are what make the rest of this table a statement about speed.
+
+**arm `naive`** — N concurrent runs against ONE **mutable** shared case
+directory (`C2RS_CROSS_CASES=<main-repo>/work/mode-cross/cases`, already warm).
+This is exactly the arrangement `w-gateperf` §11.1 priced:
+
+| N | outcome | wall |
+|---:|---|---|
+| **2** | 1 lock-holder · **1 FALLBACK-COLD** | 5 s / 13 s |
+| **3** | 1 lock-holder · **2 FALLBACK-COLD** | 6 s / 18 s / 18 s |
+| **4** | 1 lock-holder · **3 FALLBACK-COLD** | 13 s / 25 s / 25 s / 25 s |
+
+**`FALLBACKS: N-1 of N`, every time.** The fallback fires, it fires on the first
+concurrent lane and every one after it, and `w-gateperf`'s decline was right
+about the design it was declining.
+
+**arm `shared`** — the content-addressed immutable corpus this lane ships. Run
+inside **one** worktree, so all N *also* contend on the per-worktree case lock —
+a strictly harder test than N separate lanes, which would not share that lock at
+all:
+
+| N | outcome | wall |
+|---:|---|---|
+| **2** | **2 SHARED-WARM**, 1 of them after losing the lock | 4 s / 4 s |
+| **3** | **3 SHARED-WARM**, 2 of them after losing the lock | 5 s / 4 s / 4 s |
+| **4** | **4 SHARED-WARM**, 3 of them after losing the lock | 4 s / 4 s / 4 s / 4 s |
+
+**`FALLBACKS: 0 of N`, every time.**
 
 ### 5.3 What the numbers say
 
-<!-- CONTENDPROSE -->
+**The fallback does not fire, and the reason is not that the lock was removed.**
+The per-worktree lock is untouched and it still fires — three of the four runs at
+N=4 lost it and say so in their logs. What changed is that **losing it no longer
+costs anything**: the loser generates its own private corpus (0.65 s), the
+resolver verifies it against the shared generation (1.2 s), and it grades the
+shared paths warm like everybody else. The lock went from *deciding whether a run
+is cold* to *deciding which directory a run regenerates into and then discards*.
+
+**So the trade `w-gateperf` described — "a cost paid once per lane for one paid on
+contention" — is real for a mutable corpus and does not exist for an immutable
+one.** Priced out with this lane's own numbers, at 4 concurrent lanes on their
+first gate:
+
+| | cost of the four cross legs |
+|---|---:|
+| per-worktree directories (today) | 4 × 347 s = **1,388 s** |
+| naive shared **mutable** directory | 1 × 29 s + 3 × 347 s = **1,070 s** — better on run 1, and **worse from run 2 on**, where per-worktree costs 4 × 29 s and this costs the same 1,070 s again |
+| **content-addressed immutable corpus** | 4 × ~29 s = **~116 s**, on run 1 *and* every run after |
+
+The middle row is the one that matters: the naive share is not merely a smaller
+win, it is **a permanent tax where the per-worktree arrangement pays once**. That
+is the shape `w-gateperf` identified, and it is why the prerequisite it named —
+"it needs the regeneration made non-destructive first" — was the right one.
 
 ## 6. WHAT SHIPPED — `scripts/corpus_dir.sh`
 
@@ -193,7 +245,56 @@ the **hit rate**, not the trust boundary.
 
 ## 7. PROOF THE GATE STILL GOES RED — and still tells port-wrong from cache-wrong
 
-<!-- INJECTION -->
+A gate that got faster by grading a directory no lane owns is the single change
+in `scripts/`'s history most able to make one lane's gate pass on another lane's
+evidence. So nothing here is asserted.
+
+A deliberate fault was injected in a scratch commit (`60e6fda0` —
+`encode_addi` returning `si.wrapping_add(1)`, so the port emits a real, wrong
+instruction word on every case that lowers an `addi`) and reverted (`1d3cab16`).
+The release binary's sha256 returns to **`ee52fa6f78c4`**, byte-identical to
+before the injection, at the same build path.
+
+`scripts/gate.sh --jobs 16 --require-graded`, **exit 1 in 94 s**:
+
+```
+expr-sweep   FAIL  19556/19556  19460   4891  generated cases   <- MISMATCH — the port emitted wrong bytes on 4891 case(s)
+mode-cross   FAIL  90812/90812  90424  16214  case-lane cells   <- MISMATCH — the port emitted wrong bytes on 16214 case(s)
+debug-lane   FAIL     18/18      1054   1369  DEBUG-profile lanes
+Od           PASS    386/386       21      0  /Od
+GATE: FAIL — expr-sweep failed: MISMATCH — the port emitted wrong bytes on 4891 case(s)
+  *** A MISMATCH IS AN ALARM AND OUTRANKS EVERY OTHER PIECE OF WORK. ***
+```
+
+**Read each row's three lines together, because that triple is the whole
+argument:**
+
+```
+expr-sweep   checked=19556 mismatches=4891  graded=19460 ungraded=96
+             cache: hit=19460 miss=96 validated=190 cache-bad=0 (of 19556 cases)
+             corpus: SHARED /…/work/corpus/gen-169fae960ed84b63
+
+mode-cross   checked=90812 mismatches=16214 graded=90424 ungraded=388
+             cache: hit=90424 miss=388 validated=894 cache-bad=0 (of 90812 cells)
+             corpus: SHARED /…/work/corpus/gen-169fae960ed84b63
+```
+
+1. **Every one of the 4,891 and the 16,214 was found on cases served out of a
+   directory shared with every other lane on this box**, against oracle bytes
+   read off a disk. Sharing the corpus did not blunt either row: the counts are
+   `w-gateperf`'s own injection figures to the digit (4,891 / 16,214), taken
+   before any of this existed.
+2. **`cache-bad=0` sits beside 4,891 and beside 16,214.** The run distinguishes
+   *"the port is wrong"* from *"the cache is wrong"* — and **the cross could not
+   make that distinction before this lane**, because it printed no cache line at
+   all (§10.1).
+3. **894 + 190 = 1,084 entries were re-captured through the real toolchain
+   during this very run and agreed**, while the port was emitting wrong bytes on
+   16,214 cells. The two signals are independent, and that is shown rather than
+   argued.
+4. **The four `/Od` lanes stayed PASS.** At `/Od` the port refuses more, so fewer
+   `addi` lowerings reach an obj. A fault injection that reddens everything
+   proves less than one that reddens the right things.
 
 ### 7.1 The thirteen refusal arms
 
@@ -217,16 +318,212 @@ itself.
 
 ## 8. Gate evidence
 
-<!-- GATEEVIDENCE -->
+**Load on this box ran 0.4 → 86 across the session** — three to four peer lanes
+were gating concurrently for most of it — so **wall clocks below are labelled
+with the load they were taken at and no two runs at different loads are
+subtracted from each other.** The load-independent evidence is the counts, and
+they are identical everywhere.
+
+| lane | result |
+|---|---|
+| `scripts/gate.sh --jobs 16 --require-graded`, **base `abc64be3`, first run in a fresh worktree** | **PASS, exit 0, 510 s**, load 0.4→17. lanes 19 · sweep **92** (`hit=1 miss=19555`) · cross **347** · debug 44 |
+| `scripts/gate.sh --jobs 16 --require-graded`, **tip, first run** (publishes the shared generation at a new path, so still cold) | **PASS, exit 0, 756 s**, load 40→52. Both rows `corpus: SHARED` |
+| `scripts/gate.sh --jobs 16 --require-graded`, **tip, warm** | **PASS, exit 0, 133 s**, load 30→38. sweep 50 (`hit=19460 miss=96 validated=190 cache-bad=0`) · cross 53 (`hit=90424 miss=388 validated=894 cache-bad=0`) · both `corpus: SHARED` |
+| **`scripts/gate.sh --jobs 16 --require-graded` in a BRAND-NEW WORKTREE, its FIRST run** | **PASS, exit 0, 157 s**, load 26→86. sweep **40 s, `hit=19460 miss=96`** · cross **54 s, `hit=90424 miss=388`** — **fully warm on a tree that had never compiled a case** |
+| **verdict block identity** | the **25-row** block is **byte-identical** across all three: base (cold, pre-change) `diff` tip (warm) `diff` brand-new worktree. `18/18 PASS`, 6,948 fixture-verdicts, sweep `19556/19556 · 19460 graded · 0 mismatch`, cross `90812/90812 · 90424 graded · 0 mismatch` |
+| `scripts/gate.sh --selftest` | **PASS — 183 cases, 0 failed** (floor raised 170 → 183) |
+| the injected wrong emit | **exit 1 in 94 s**, §7 |
+| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **1,666 passed / 0 failed / 45 targets**, exit 0 — master `abc64be3`'s own reading, unmoved |
+| `scripts/debug_lane.sh` | `DEBUG-LANE-TOTAL lanes=18 ran=18 failed=0` |
+| `scripts/board_audit.sh` | **all-zero**, exit 0, with the five new rows — 0 unresolved anchors, 0 raw line anchors, 0 rows behind the prose, 0 duplicate row numbers, 0 cited-but-not-on-the-board |
+| `rung_registry` | **2 passed / 0 failed**; `INDEX.md` regenerated by `scripts/gen_rung_index.sh` |
+| 878-TU workload scan | **394 anchored keys** (`grep -cE '^ *gap-metric \S+ \S+$'`) · `match 26 · mismatch 0 · codegen-gap 0 · vocab-gap 844 · capture-fail 8` · `fnbyte-exact 35899 · fnbyte-differs 1958 · fnbyte-denominator 162046` |
+
+**`scripts/` is in `GRADED_DIRS`, so the graded-tree hash moves by construction**
+(board #3215) and is not quoted as evidence in either direction. **No
+cross-worktree binary sha comparison is made** (#3224); the two sha comparisons
+here are of binaries built at the *same* path, which is that board's own stated
+precondition.
+
+### 8.1 The scan identity is stronger than a diff, and it is stated as what it is
+
+`w-gateperf`'s pattern is to build a base binary and diff two scans. **That
+comparison is vacuous here and saying so is more honest than performing it**:
+`git diff abc64be3..HEAD -- crates/ fixtures/` is **empty**, so the base and tip
+binaries are the same program, and the tip binary in this worktree hashes to
+`ee52fa6f78c4` — the value it had when it was built at `bdf23a2f`, this lane's
+first commit, which is base plus a PREREG file. **The binary never moved**, so a
+two-ended scan would have diffed a file against itself. The scan above is run
+once, at the tip, and its 394 keys are compared against the dispatch's
+registered 394. `fnbyte-exact 35899` is `w-dataseam`'s reading rather than
+`STATUS.md`'s 35,897 and is **#3249/#3238's ±2, attributed and not adjusted**.
+
+**The key count is `394` under the anchored pattern.** `grep -c 'gap-metric'`
+reads 396 and two of those lines are prose that *points at* keys rather than
+being keys — `w-fence163` §3.1 settled this, `w-corpushealth` caught itself
+reaching for it, `w-gateperf` reached for it and manufactured a cause (#3269).
+This lane used the anchored pattern from the start, which is the only thing that
+row asks of anybody.
 
 ## 9. THE PER-LANE ARITHMETIC
 
-<!-- ARITHMETIC -->
+The dispatch asked for this in one specific form — *"a 1,261 s cold leg is ~94 %
+of a lane's entire gate cost across its lifetime if the lane gates twice"* — and
+the honest answer moves, because §2's number moves.
+
+**With `w-gateperf`'s warm gate (78 s, `--jobs 16`, low load) as the reference
+and this lane's measured cold gate (510 s):**
+
+| | before this lane | after |
+|---|---:|---:|
+| a lane's **first** gate | **510 s** | **157 s** (measured in a brand-new worktree, under 3–5× the load) |
+| every gate after | ~78–133 s | ~78–133 s |
+| **lifetime, a lane that gates twice** | **588 s** | **~235 s** |
+| the cold excess, as a share of that lifetime | **432 / 588 = 73 %** | — |
+| of which is **shareable** (the two generated rows) | **381 s = 88 % of the excess** | removed |
+| **what the lane removes, as a share of a twice-gating lane's whole gate cost** | — | **381 / 588 = 65 %** |
+
+**So: 73 %, not 94 %** — and the difference is entirely §2's `--jobs 4` / `--jobs
+16` correction, not a disagreement about method. Restated in the dispatch's own
+words with the corrected input: *a fresh worktree's cold legs are ~73 % of a
+twice-gating lane's entire gate cost, and this lane removes 88 % of them.*
+
+**The single fairest before/after in this document is the pair of first-gate
+runs**, because both are "the first gate in a worktree created by
+`scripts/setup_worktree.sh`", nothing else about them differs, and the *after*
+was taken at load 26→86 against the *before*'s 0.4→17:
+
+> **510 s → 157 s, 3.2×**, with a 25-row verdict block that is byte-identical
+> between them, and with the two shareable legs going **439 s → 94 s, 4.7×**.
+
+**And the cost side, stated plainly.** The saving is not free the first time a
+*corpus* is seen: publishing a new generation puts the cases at a new path, so
+that run is cold (measured: 756 s, §8). What the lane changes is the
+**denominator of that cost** — it moves from **once per worktree** to **once per
+distinct corpus content, per box, ever**. On a box that has run tens of
+worktrees against one `sweep.d`, that is the entire difference.
 
 ## 10. Priced and NOT taken
 
-<!-- NOTTAKEN -->
+**1. Sharing `fixtures/cpp/` the same way — 50 s, NOT taken, and the reason is
+not the arithmetic.** §3 leaves 50 s of cold excess on the two fixture-driven
+rows (the 18 mode lanes, 17 s; the debug row, 33 s), cold for exactly the same
+reason: 386 hand-written fixtures at a path with the worktree in it. The
+mechanism would transfer unchanged — a digest over `fixtures/cpp/` would give a
+lane that edits a fixture its own generation, correctly. **It is declined on
+tree integrity, not on safety.** `fixtures` is in `GRADED_DIRS`; the gate's
+identity is a content hash over `crates fixtures scripts`, and pointing a gate
+row at a *copy* of the fixtures outside the tree decouples "what was graded"
+from "the hash that says what was graded". The generated corpus has no such
+problem because it is not in the tree at all — it is a function of `scripts/`,
+which **is** hashed. 50 s does not buy that.
+
+**2. The per-process cache context (`w-gateperf` §11.2 item 2) — PRICED WITH THE
+CORRECTED PROFILE, NOT taken.** `CaptureCache::new` runs `wibo --version` and
+FNV-hashes 3.16 MB of `cl.exe` + `c1xx.dll` + `c2.dll` **once per case** for
+`c2rs diff`, i.e. 19,556 times. `w-gateperf` sized it at ~4 ms of a 17 ms warm
+case — *"~15 % of the warm sweep leg"*. Against **this** lane's numbers that is
+~4.4 s of a 29 s sweep leg and **5.6 % of a 78 s warm gate**, and the change is a
+memoised toolchain digest inside the one file whose module docs are most careful
+about exactly this (*"the key is a hash over **inputs**, never over mtimes"*).
+**Five seconds is not the price of touching the cache key's soundness**, and it
+is outside this lane's `scripts/` seam besides. It wants its own lane with a
+stated invalidation rule, which is what `w-gateperf` said and this lane agrees
+with after re-pricing rather than by deferring to it.
+
+**3. A garbage collector for `work/corpus/` — NOT taken, and the bound is stated
+instead.** One directory per distinct corpus content, 19,556 files, 12 MB
+apparent / 83 MB allocated. A generation appears only when `sweep_gen.py` or
+`sweep.d` changes. **It is safe to `rm -rf` any generation at any time**: the
+resolver re-verifies the whole corpus by byte compare on every run, so the worst
+case is one loud, cold, correct run that regenerates it in 0.65 s — which is a
+property `work/capture-cache` (#3265) does not have and is why that one needs a
+policy and this one does not. `corpus: SHARED` prints how many generations exist,
+so the count is visible rather than discovered.
+
+**4. `hatch-red` still reads `REFUSED HATCH-STALE` on every run of this lane**,
+on both trees, exactly as `w-gatewire` §10 and `w-gateperf` §11.2 item 4 report
+(boards **#1389**/**#3219**). Not caused here, not fixed here, duration still
+unmeasured.
+
+### 10.1 Found on the way, and TAKEN — the cross row had no cache validation
+
+`w-gateperf` gave the sweep a standing bypass-and-compare validator (~190
+re-captures per run) and made `poisoned`/`foreign` a hard red, precisely because
+that row had just acquired a dependency on cache integrity. **The mode cross has
+had that dependency since 2026-08-04 and never acquired the validator**, and it
+prints no `cache:` line at all — which is why `gate.sh`'s selftest carries an
+explicit *"an ABSENT cache line is not a zero and not a failure"* case for it.
+
+That asymmetry was tolerable while a fresh worktree's cross was ~100 % misses. It
+is not tolerable now that this lane takes it to ~100 % hits, which is the
+honest cost of what shipped here. So the cross row now passes
+`--validate-cache` to each of its 18 `c2rs gap` batches and prints a `cache:`
+line **in `expr_sweep.sh`'s exact spelling** — so `gate.sh`'s existing
+`sweep_verdict`, which already rules both rows and already has four selftested
+cases for the clean / poisoned / cold / absent states, reddens the cross on
+`cache-bad > 0` with **no change to `gate.sh`'s decision logic at all**.
+
+Measured at the tip, warm: `cache: hit=90424 miss=388 validated=894
+cache-bad=0 (of 90812 cells)`. **`hit + miss` = `graded + ungraded` exactly**,
+the same identity the sweep's line has, and **894 real re-captures through
+`cl.exe` under wibo** cost nothing readable next to the row's 53 s. The
+`--validate-cache` trap `w-gateperf` documented does **not** apply here and the
+difference is worth stating: `c2rs diff` performs exactly one capture per
+process, so an in-process `--validate-cache N` tests `1 % N` and validates
+nothing for any `N > 1`; each `c2rs gap --list` batch here carries thousands of
+cases in one process, so its counter reaches `N`. **The count is printed for
+that reason** — a validator whose count is not published is one nobody can tell
+apart from a disabled one, and the driver says so in words when the hits exceed
+the stride and the validator re-captured zero.
 
 ## 11. Estimate vs outcome — the PREREG scored
 
-<!-- PREREGSCORE -->
+Frozen at `bdf23a2f`, this lane's first commit, before any contention
+measurement. 23 rows; nine facts were declared KNOWN-at-freeze (K1–K9) so the
+prereg cannot claim to have discovered them — **K8 and K9 are measurements** (the
+0.65 s regeneration and its determinism) and are declared rather than predicted,
+because they were taken before the file was written.
+
+| # | registered | outcome | |
+|---|---|---|---|
+| **P1** | the naive share's fallback fires — **3 of 4** at 4 concurrent lanes, p = 0.88 | **3 of 4**, and **1 of 2** and **2 of 3** besides | **HIT**, exact on the point |
+| **P2** | …and it is a wash or a loss on any lane that gates more than once, p = 0.70 | worse: the naive share is a **permanent** 3 × 347 s tax where per-worktree pays 4 × 347 s **once** | **HIT** |
+| **P3** | the fallback is an artefact of the lock's SCOPE; with the corpus immutable the count at 4 lanes is **0**, p = 0.80 | **0 of 2, 0 of 3, 0 of 4** — and 3 of the 4 lost the lock anyway and were warm | **HIT**, and the "lost-lock=yes, warm" column is the cleanest statement of why |
+| **P4** | the lock-hold window under the fix is < 5 s (point 1.5 s), a ≥ 20× reduction | **no lock is taken at all** on the shared corpus; the per-worktree lock is unchanged and its loss is now free | **HIT on the consequence, WRONG on the mechanism I predicted.** I registered "shrink the window" and shipped "there is no window", which is a better answer than the one I priced |
+| **P5** | the overall answer is that sharing WINS and I ship it, p = 0.70 | shipped | **HIT** |
+| **P6** | a fresh worktree against a warm shared case dir reads 15–150 s, point 35 s | **29 s** | **HIT**, 17 % off the point |
+| **P7** | the same holds for the sweep, point 30 s, interval 15–130 s | **40 s** in the brand-new worktree, `hit=19460 miss=96`, at load 26→86 | **HIT** |
+| **P8** | seeding by copy/reflink saves **0 s**, and I can demonstrate rather than assert it, p = 0.90 | demonstrated, and **by a line the base gate already printed** (`hit=1 miss=19555` on a byte-identical corpus) — no experiment was needed | **HIT**, and cheaper than registered |
+| **P9** | `/home` is btrfs so reflinks exist, and they are nonetheless the wrong tool | btrfs confirmed; wrong tool confirmed | **HIT** |
+| **P10** | I adopt content-addressing rather than a mutable dir with write-if-differs, p = 0.60 | content-addressed | **HIT** |
+| **P11** | content addressing closes #3249's hazard **by construction**, so the shared design is *safer* on that axis, p = 0.85 | two `sweep.d`s cannot address one directory; arm `corpus-digest-separates-corpora` | **HIT** |
+| **P12** | an injected wrong emit still reddens both rows through the shared corpus, with `cache-bad=0` beside a non-zero mismatch, p = 0.95 | 4,891 and 16,214, `cache-bad=0` on both, `corpus: SHARED` on both | **HIT** |
+| **P13** | I introduce no new unbounded cache and I state the bound; the shared paths *reduce* keys minted per lane, p = 0.85 | one directory per corpus content; ~110,000 fewer capture-cache keys and 166 MB fewer corpus copies per worktree | **HIT** |
+| **P14** | everything I ship is coverage-preserving; nothing coverage-reducing, p = 0.90 | and two things are coverage-**increasing**: the corpus byte compare (§6) and the cross's cache validator (§10.1) | **HIT** |
+| **P15** | the cold excess is **88–93 %** (point 90 %) of a twice-gating lane's lifetime gate cost, p = 0.60 | **73 %** | **MISS**, and it is the useful one — I registered the dispatch's framing with my own slightly lower number, and the real cause was that the 1,261 s input is a `--jobs 4` figure (§2). **I predicted the wrong direction of my own doubt** |
+| **P16** | per-lane saving ≥ 1,100 s on a first gate, point 1,250 s, p = 0.75 | **353 s** (510 → 157), or **345 s** on the two shareable legs | **MISS, badly**, and by the same single cause as P15: I priced the saving off the 1,261 s number instead of measuring the cold gate first. The *ratio* I would have predicted (3.2× on a first gate) is intact; the absolute seconds were never mine to predict |
+| **P17** | `Outcome: built`, p = 0.65 | `built` | **HIT** |
+| **P18** | end-state gate PASS with sweep 19,556 / 19,460 / 0 and cross 90,812 / 90,424 / 0, digit-identical to base, p = 0.90 | the whole **25-row** block is byte-identical at three points | **HIT** |
+| **P19** | suite 1,666 / 0 / 45, p = 0.80 | **1,666 / 0 / 45** | **HIT** |
+| **P20** | scan identity over **394** anchored keys, 0 changed, `fnbyte-*` ±2 per #3249, p = 0.85 | **394**; and the identity diff is **vacuous by construction** — `crates/` is byte-identical to base and the binary sha never moved, so §8.1 states that instead of performing it | **HIT on the number, and the method was replaced by a stronger one** |
+| **P21** | I do NOT take the per-process cache context item, p = 0.70 | not taken, and **re-priced** against this lane's profile: 5.6 % of a warm gate, not "~15 % of the sweep leg" of a gate that no longer looks like that | **HIT** |
+| **P22** | I find ≥ 1 further defect or absence-read-as-success nobody filed, p = 0.55 | **three**: the cross row has consulted the cache unchecked since 2026-08-04 (§10.1); neither generated row ever verified its corpus beyond `count > 0` (#3286); and the `1,261 s` figure is a `--jobs 4` number quoted against a `--jobs 16` recommendation (§2) | **HIT**, three times |
+| **P23** | `hatch-red` still reads `REFUSED HATCH-STALE` on every run, p = 0.90 | it did, on every run of this lane | **HIT** |
+
+**Twenty-one hits, two misses, and both misses are the same mistake:
+P15 and P16 are the two rows that took a number out of the dispatch instead of
+measuring it first.** Every row that describes something I went on to *measure*
+(P1–P3, P6–P9, P12, P18, P20) hit, including three interval rows inside their
+points. The one row worth reading twice is **P4**, which is scored a hit on its
+consequence and a miss on its mechanism: I registered "shrink the lock's window"
+and the answer turned out to be "delete the window", which is the same finding
+one step further along and is not something the prereg gets credit for.
+
+**And the shape of the P15/P16 miss is exactly `w-gateperf`'s own P1/P23.** That
+lane recorded *"I predicted a WARM box and measured a COLD worktree"*; this one
+predicted against **that lane's cold number at a flag nobody runs any more**. In
+both cases the prereg was written against a figure inherited from a document
+rather than one taken from the tree, and in both cases the first measurement of
+the lane moved it by 3–4×. **The rule that would have caught both is the same:
+take the base measurement before freezing the prereg, not after.**

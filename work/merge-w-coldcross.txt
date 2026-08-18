@@ -1,0 +1,187 @@
+merge w-coldcross: THE LOCK THAT MADE SHARED CASE DIRECTORIES LOOK EXPENSIVE PROTECTS A 0.65-SECOND REGENERATION AND IS HELD FOR THE WHOLE RUN — a brand-new worktree's FIRST gate is now 157 s against 510 s, with a byte-identical 25-row verdict block
+
+Outcome: built. Kind: construct. Census +0 —
+`git diff abc64be3..HEAD -- crates/ fixtures/` is EMPTY and the release
+binary hashes to `ee52fa6f78c4` at both ends, the value it had at this
+lane's first commit.
+
+THE QUESTION, AND THE MEASUREMENT
+---------------------------------
+`w-gateperf` §11.1 declined worktree-independent case directories and
+said, in its own words, that the decline rested on REASONING about the
+lock's cold fallback and not on a measurement. This lane measured it.
+
+  * `scripts/sweep_gen.py` writes all 19,556 cases in **0.65 s**.
+  * `scripts/mode_cross.sh` takes its case-directory lock before that
+    generation and releases it in an EXIT trap, so it holds it for the
+    **entire run — 29 s warm, 347 s cold**. The exposure window is ~500x
+    the hazard window.
+
+Driven, both arms, N launched simultaneously, 3,000-cell stride, every
+run printing `checked=2939 mismatches=0 graded=2919 ungraded=20`:
+
+  naive  (one MUTABLE shared dir — the arrangement that was declined)
+         N=2 -> FALLBACKS 1 of 2 · N=3 -> 2 of 3 · N=4 -> 3 of 4
+  shared (content-addressed, IMMUTABLE, no lock)
+         N=2/3/4 -> FALLBACKS **0 of N**
+
+and at N=4 three of the four runs LOST the per-worktree lock and were
+warm anyway. The lock is untouched and still fires; what changed is that
+losing it no longer costs anything.
+
+**`w-gateperf`'s inference was correct and its premise was replaceable.**
+It priced a MUTABLE corpus, and on that premise the trade really is bad —
+priced out, the naive share is a PERMANENT 3 x 347 s tax where
+per-worktree pays 4 x 347 s ONCE. The prerequisite it named ("the
+regeneration made non-destructive first") was the right one; the cheaper
+form of it is immutability.
+
+WHAT SHIPPED
+------------
+`scripts/corpus_dir.sh` — the corpus lives at
+`<main-repo>/work/corpus/gen-<digest>`, the digest over `sweep_gen.py`
+and every file in `sweep.d/` with RELATIVE names:
+
+  * content-addressed, so two lanes with different corpora get different
+    directories and cannot overwrite each other — this closes board
+    #3249's hazard by construction rather than avoiding it by not
+    sharing;
+  * published by rename(2), so a reader never sees a half-built corpus
+    and two racing publishers converge (driven, not argued);
+  * immutable after publication, so NO LOCK IS TAKEN OR NEEDED;
+  * VERIFIED ON EVERY RUN — each run still generates its own private
+    corpus and adopts the shared one only if `diff -rq` finds all 19,556
+    files byte-identical. 1.2 s including the generation.
+
+That verification did not exist: both drivers regenerated and graded
+their corpus with no check beyond `count > 0`.
+
+THE HEADLINE, MEASURED IN A BRAND-NEW WORKTREE
+----------------------------------------------
+  base worktree, FIRST gate, load 0.4->17   PASS  510 s
+      lanes 19 · sweep 92 (`hit=1 miss=19555`) · cross 347 · debug 44
+  BRAND-NEW worktree, FIRST gate, load 26->86  PASS  **157 s**
+      lanes 23 · sweep **40 (`hit=19460 miss=96`)** · cross **54
+      (`hit=90424 miss=388`)** · debug 28 · both rows `corpus: SHARED`
+
+**510 s -> 157 s, 3.2x, on a tree that had never compiled a case** — and
+the "after" was taken under 3-5x the load. The two shareable legs go
+439 s -> 94 s, 4.7x. The 25-row verdict block is BYTE-IDENTICAL between
+them and to the warm tip run.
+
+A NUMBER IN THE DISPATCH IS WRONG, AND EVERYTHING DOWNSTREAM MOVES
+-------------------------------------------------------------------
+The dispatch, `w-gateperf` §2 and board #3265 all quote the cold cross as
+**1,261 s** / "~19 minutes per new lane". **That is a `--jobs 4`
+measurement**, and `w-gateperf` itself moved the standing gate flag to
+`--jobs 16` (#3263). Re-measured at 16: cold cross **347 s**, cold sweep
+fill **92 s**, whole cold gate **510 s**. 1,261/347 = 3.6x, the
+concurrency ratio.
+
+So the per-lane arithmetic the dispatch asked for is **73 %, not 94 %**:
+against a 78 s warm gate, a twice-gating lane's lifetime is 588 s, of
+which the cold excess is 432 s (73 %) and 381 s of that (88 %) is
+shareable. **The lane removes 65 % of a twice-gating lane's whole gate
+cost.** Still worth doing; the honest headline is 6 minutes, not 19.
+
+PROOF THE GATE STILL GOES RED, AND STILL TELLS PORT-WRONG FROM CACHE-WRONG
+--------------------------------------------------------------------------
+An injected `encode_addi` off-by-one (scratch commit `60e6fda0`,
+reverted `1d3cab16`, binary sha returns to `ee52fa6f78c4`):
+**exit 1 in 94 s**, sweep **4,891** mismatches and cross **16,214** —
+`w-gateperf`'s own injection figures to the digit — with, on BOTH rows:
+
+    cache: ... cache-bad=0        corpus: SHARED /…/gen-169fae960ed84b63
+
+Every one of them was found on cases served out of a directory shared
+with every other lane on this box, against oracle bytes read off a disk,
+while **1,084 entries were re-captured through the real toolchain during
+that same run and agreed**. The four /Od lanes stayed PASS — the response
+is shape-dependent, not a blanket red.
+
+COVERAGE WENT UP, NOT DOWN — TWO PLACES
+----------------------------------------
+1. The corpus byte compare above, which did not exist.
+2. **The mode cross has consulted `work/capture-cache` since 2026-08-04
+   and never checked it.** `w-gateperf` gave the SWEEP a bypass-and-
+   compare sample the day that row acquired the dependency; the cross
+   never got one, and `gate.sh --selftest` carries an "an ABSENT cache
+   line is not a zero" case that exists precisely because this row printed
+   none. Tolerable at ~100 % misses; not tolerable now that this lane
+   takes it to ~100 % hits. It now runs `--validate-cache` (894
+   re-captures per run) and prints `cache:` in `expr_sweep.sh`'s exact
+   spelling, so `gate.sh`'s existing `sweep_verdict` reddens it on
+   `cache-bad>0` with NO change to the decision logic.
+
+`gate.sh --selftest` 170 -> **183 cases, 0 failed**. Ten of the thirteen
+new arms construct a WRONG shared generation — short by one case, long by
+one, tampered by one byte at the same name and count, unwritable root,
+ungenerable tree — and require a REFUSAL and a cold private fallback.
+
+WHAT BOUNDS THE NEW STATE
+-------------------------
+One directory per distinct corpus content, 12 MB apparent / 83 MB
+allocated — not per lane, per run or per worktree. It is a NET REMOVAL
+against #3265: every worktree currently keeps TWO byte-identical copies
+of this corpus (`work/expr-sweep/cases` and `work/mode-cross/cases`,
+`diff -rq` clean) and mints ~110,000 capture-cache keys of its own,
+order 770 MB. A repeat corpus now mints none of them. A generation is
+safe to `rm -rf` at any time: the worst case is one loud, cold, correct
+run that regenerates it in 0.65 s.
+
+GATE EVIDENCE (loads labelled; 3-4 peer lanes gated concurrently)
+------------------------------------------------------------------
+  gate --jobs 16 --require-graded, warm   PASS exit 0, 133 s
+  gate, brand-new worktree, FIRST run     PASS exit 0, 157 s
+  verdict block, 25 rows                  BYTE-IDENTICAL at all three points
+  gate --selftest                         PASS 183 cases, 0 failed
+  C2RS_REQUIRE_TOOLCHAIN=1 cargo test     1,666 / 0 / 45, exit 0
+  debug_lane.sh                           lanes=18 ran=18 failed=0
+  board_audit.sh                          all-zero, exit 0
+  rung_registry                           2 / 0
+  878-TU scan                             394 anchored keys · match 26 ·
+                                          mismatch 0 · vocab-gap 844 ·
+                                          capture-fail 8 · fnbyte-exact
+                                          35899 (#3249's ±2, attributed)
+
+`scripts/` is in GRADED_DIRS so the graded-tree hash moves by
+construction (#3215) — not claimed as evidence. No cross-worktree binary
+sha comparison (#3224).
+
+PRICED AND NOT TAKEN
+--------------------
+  * sharing `fixtures/cpp/` the same way — 50 s, declined on TREE
+    INTEGRITY: `fixtures` is in GRADED_DIRS and pointing a row at a copy
+    outside the tree decouples what was graded from the hash that says so;
+  * the per-process cache context — re-priced against this lane's profile
+    at **5.6 % of a warm gate**, not "~15 % of the sweep leg"; five
+    seconds is not the price of touching the cache key's soundness;
+  * a garbage collector for `work/corpus/` — the bound is stated instead;
+  * `hatch-red` still REFUSED HATCH-STALE (#1389/#3219), untouched.
+
+PREREG: 21 hits, 2 misses (frozen at `bdf23a2f`, first commit)
+---------------------------------------------------------------
+Both misses are one mistake: **P15 and P16 took the 1,261 s figure out of
+the dispatch instead of measuring the base first.** Every row describing
+something the lane went on to measure hit, three interval rows inside
+their points. **P4 is a hit on its consequence and a miss on its
+mechanism** — it registered "shrink the lock's window" and the answer was
+"delete the window". This is the same shape as `w-gateperf`'s own
+P1/P23 ("I predicted a WARM box and measured a COLD worktree"), one
+document further along: **take the base measurement before freezing the
+prereg, not after.**
+
+A DISCARDED COMMIT, RECORDED
+-----------------------------
+An earlier version of the contention-data commit used
+`git add -f work/w-coldcross/contend` and committed **236,616 files,
+234,672 of them GENERATED .cpp cases** — the exact artifact CLAUDE.md
+forbids, admitted by the `-f` that was there to defeat `.gitignore`'s
+`/work` rule. It was discarded by resetting the branch rather than
+removed in a follow-up, so the blobs are not in this history at all; the
+injection and revert commits were cherry-picked back so the negative
+result survives. `git add -f` on a DIRECTORY defeats the one rule
+standing between a scratch tree and the repository.
+
+Board rows #3282–#3286. Rung docs/rungs/2026-08-18-coldcross.md.
+PREREG work/w-coldcross/PREREG.md.
