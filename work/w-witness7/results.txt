@@ -1,6 +1,18 @@
+work/w-witness7/logs/C1a.r2.suite.log
+   1673 passed / 2 failed / 46 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 65.37s
+   FAIL  gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol
+   FAIL  gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone
+
 work/w-witness7/logs/C1a.suite.log
    1669 passed / 2 failed / 46 targets   EXIT=101
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 68.76s
+   FAIL  gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol
+   FAIL  gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone
+
+work/w-witness7/logs/C1b.r2.suite.log
+   1679 passed / 2 failed / 48 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.95s
    FAIL  gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol
    FAIL  gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone
 
@@ -10,35 +22,71 @@ work/w-witness7/logs/C1b.suite.log
    FAIL  gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol
    FAIL  gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone
 
+work/w-witness7/logs/M-B2.base.r2.suite.log
+   1675 passed / 0 failed / 46 targets   EXIT=0
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 88.61s
+
 work/w-witness7/logs/M-B2.base.suite.log
    1671 passed / 0 failed / 46 targets   EXIT=0
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 68.78s
+
+work/w-witness7/logs/M-B2.tip.r2.suite.log
+   1680 passed / 1 failed / 48 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.11s
+   FAIL  the_static_scan_loop_object_gate_refuses_a_non_comdat_or_uninitialized_array
 
 work/w-witness7/logs/M-B2.tip.suite.log
    1676 passed / 1 failed / 48 targets   EXIT=101
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 80.28s
    FAIL  the_static_scan_loop_object_gate_refuses_a_non_comdat_or_uninitialized_array
 
+work/w-witness7/logs/M-B7.base.r2.suite.log
+   1675 passed / 0 failed / 46 targets   EXIT=0
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.91s
+
 work/w-witness7/logs/M-B7.base.suite.log
    1671 passed / 0 failed / 46 targets   EXIT=0
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 86.52s
+
+work/w-witness7/logs/M-B7.tip.r2.suite.log
+   1680 passed / 1 failed / 48 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.41s
+   FAIL  the_bss_object_gate_refuses_an_initialized_or_comdat_destination
 
 work/w-witness7/logs/M-B7.tip.suite.log
    1676 passed / 1 failed / 48 targets   EXIT=101
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 79.69s
    FAIL  the_bss_object_gate_refuses_an_initialized_or_comdat_destination
 
+work/w-witness7/logs/M-B9.base.r2.suite.log
+   1675 passed / 0 failed / 46 targets   EXIT=0
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.69s
+
 work/w-witness7/logs/M-B9.base.suite.log
    1671 passed / 0 failed / 46 targets   EXIT=0
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.86s
+
+work/w-witness7/logs/M-B9.tip.r2.suite.log
+   1681 passed / 0 failed / 48 targets   EXIT=0
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.32s
 
 work/w-witness7/logs/M-B9.tip.suite.log
    1677 passed / 0 failed / 48 targets   EXIT=0
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 80.90s
 
+work/w-witness7/logs/M-CA6.base.r2.suite.log
+   1675 passed / 0 failed / 46 targets   EXIT=0
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 85.91s
+
 work/w-witness7/logs/M-CA6.base.suite.log
    1671 passed / 0 failed / 46 targets   EXIT=0
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 82.21s
+
+work/w-witness7/logs/M-CA6.tip.r2.suite.log
+   1679 passed / 2 failed / 48 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.39s
+   FAIL  each_of_the_five_raise_sites_of_call_arg_nonformal_has_its_own_witness
+   FAIL  the_slot_paths_two_refusals_are_distinct_keys_and_neither_answers_for_the_other
 
 work/w-witness7/logs/M-CA6.tip.suite.log
    1675 passed / 2 failed / 48 targets   EXIT=101
@@ -46,24 +94,49 @@ work/w-witness7/logs/M-CA6.tip.suite.log
    FAIL  each_of_the_five_raise_sites_of_call_arg_nonformal_has_its_own_witness
    FAIL  the_slot_paths_two_refusals_are_distinct_keys_and_neither_answers_for_the_other
 
+work/w-witness7/logs/M-CA8.base.r2.suite.log
+   1675 passed / 0 failed / 46 targets   EXIT=0
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 94.84s
+
 work/w-witness7/logs/M-CA8.base.suite.log
    1671 passed / 0 failed / 46 targets   EXIT=0
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.47s
+
+work/w-witness7/logs/M-CA8.tip.r2.suite.log
+   1680 passed / 1 failed / 48 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 76.44s
+   FAIL  the_slot_paths_two_refusals_are_distinct_keys_and_neither_answers_for_the_other
 
 work/w-witness7/logs/M-CA8.tip.suite.log
    1676 passed / 1 failed / 48 targets   EXIT=101
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.45s
    FAIL  the_slot_paths_two_refusals_are_distinct_keys_and_neither_answers_for_the_other
 
+work/w-witness7/logs/M-CS3.base.r2.suite.log
+   1674 passed / 1 failed / 46 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 68.06s
+   FAIL  every_census_fence_key_has_the_sites_this_repo_last_scored
+
 work/w-witness7/logs/M-CS3.base.suite.log
    1670 passed / 1 failed / 46 targets   EXIT=101
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 98.79s
    FAIL  every_census_fence_key_has_the_sites_this_repo_last_scored
 
+work/w-witness7/logs/M-CS3B.base.r2.suite.log
+   1674 passed / 1 failed / 46 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 79.66s
+   FAIL  the_callee_unresolved_family_still_has_exactly_four_raise_sites
+
 work/w-witness7/logs/M-CS3B.base.suite.log
    1670 passed / 1 failed / 46 targets   EXIT=101
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.57s
    FAIL  the_callee_unresolved_family_still_has_exactly_four_raise_sites
+
+work/w-witness7/logs/M-CS3B.tip.r2.suite.log
+   1679 passed / 2 failed / 48 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 65.73s
+   FAIL  the_callee_unresolved_family_still_has_exactly_four_raise_sites
+   FAIL  the_static_scan_loop_object_gate_refuses_a_non_comdat_or_uninitialized_array
 
 work/w-witness7/logs/M-CS3B.tip.suite.log
    1675 passed / 2 failed / 48 targets   EXIT=101
@@ -71,13 +144,28 @@ work/w-witness7/logs/M-CS3B.tip.suite.log
    FAIL  the_callee_unresolved_family_still_has_exactly_four_raise_sites
    FAIL  the_static_scan_loop_object_gate_refuses_a_non_comdat_or_uninitialized_array
 
+work/w-witness7/logs/M-CS3C.base.r2.suite.log
+   1675 passed / 0 failed / 46 targets   EXIT=0
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 68.47s
+
 work/w-witness7/logs/M-CS3C.base.suite.log
    1671 passed / 0 failed / 46 targets   EXIT=0
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 86.09s
 
+work/w-witness7/logs/M-CS3C.tip.r2.suite.log
+   1680 passed / 1 failed / 48 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 65.62s
+   FAIL  the_static_scan_loop_object_gate_refuses_a_non_comdat_or_uninitialized_array
+
 work/w-witness7/logs/M-CS3C.tip.suite.log
    1676 passed / 1 failed / 48 targets   EXIT=101
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 73.49s
+   FAIL  the_static_scan_loop_object_gate_refuses_a_non_comdat_or_uninitialized_array
+
+work/w-witness7/logs/M-CS3.tip.r2.suite.log
+   1679 passed / 2 failed / 48 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 65.94s
+   FAIL  every_census_fence_key_has_the_sites_this_repo_last_scored
    FAIL  the_static_scan_loop_object_gate_refuses_a_non_comdat_or_uninitialized_array
 
 work/w-witness7/logs/M-CS3.tip.suite.log
@@ -85,6 +173,10 @@ work/w-witness7/logs/M-CS3.tip.suite.log
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 155.41s
    FAIL  every_census_fence_key_has_the_sites_this_repo_last_scored
    FAIL  the_static_scan_loop_object_gate_refuses_a_non_comdat_or_uninitialized_array
+
+work/w-witness7/logs/M-CS4.base.r2.suite.log
+   1675 passed / 0 failed / 46 targets   EXIT=0
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 91.24s
 
 work/w-witness7/logs/M-CS4.base.suite.log
    1671 passed / 0 failed / 46 targets   EXIT=0
@@ -96,23 +188,45 @@ work/w-witness7/logs/M-CS4F.suite.log
    FAIL  every_census_fence_key_has_the_sites_this_repo_last_scored
    FAIL  the_callee_unresolved_family_still_has_exactly_four_raise_sites
 
+work/w-witness7/logs/M-CS4.tip.r2.suite.log
+   1680 passed / 1 failed / 48 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.36s
+   FAIL  each_bind_run_refusal_reports_its_own_key_and_not_the_no_carrier_fallback
+
 work/w-witness7/logs/M-CS4.tip.suite.log
    1676 passed / 1 failed / 48 targets   EXIT=101
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 67.01s
    FAIL  each_bind_run_refusal_reports_its_own_key_and_not_the_no_carrier_fallback
 
+work/w-witness7/logs/M-CS9.base.r2.suite.log
+   1675 passed / 0 failed / 46 targets   EXIT=0
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 138.49s
+
 work/w-witness7/logs/M-CS9.base.suite.log
    1671 passed / 0 failed / 46 targets   EXIT=0
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.43s
+
+work/w-witness7/logs/M-CS9.tip.r2.suite.log
+   1680 passed / 1 failed / 48 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 65.47s
+   FAIL  a_body_in_class_at_an_unmodelled_optimization_word_reports_the_opt_mode_key
 
 work/w-witness7/logs/M-CS9.tip.suite.log
    1676 passed / 1 failed / 48 targets   EXIT=101
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.55s
    FAIL  a_body_in_class_at_an_unmodelled_optimization_word_reports_the_opt_mode_key
 
+work/w-witness7/logs/N0.r2.suite.log
+   1675 passed / 0 failed / 46 targets   EXIT=0
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.28s
+
 work/w-witness7/logs/N0.suite.log
    1671 passed / 0 failed / 46 targets   EXIT=0
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 67.01s
+
+work/w-witness7/logs/T1.r2.suite.log
+   1681 passed / 0 failed / 48 targets   EXIT=0
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 82.64s
 
 work/w-witness7/logs/T1.suite.log
    1677 passed / 0 failed / 48 targets   EXIT=0

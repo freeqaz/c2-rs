@@ -113,14 +113,14 @@ def guards():
     a_tests = sum(read(os.path.join(tests_dir, f"{m}.rs")).count("#[test]")
                   for m in mine)
     # B: the suite delta, base to tip.
-    t0 = read(os.path.join(LOGS, "N0.suite.log"))
-    t1 = read(os.path.join(LOGS, "T1.suite.log"))
+    t0 = read(os.path.join(LOGS, "N0.r2.suite.log"))
+    t1 = read(os.path.join(LOGS, "T1.r2.suite.log"))
     n0 = sum(int(m.group(1)) for m in
              re.finditer(r"^test result: \w+\. (\d+) passed;", t0, re.M))
     n1 = sum(int(m.group(1)) for m in
              re.finditer(r"^test result: \w+\. (\d+) passed;", t1, re.M))
     row("new tests", "`#[test]` count in the two files", a_tests,
-        "suite delta T1 - N0", n1 - n0)
+        "suite delta T1.r2 - N0.r2", n1 - n0)
 
     # The seven sites, counted two ways.
     sites = ["CS3", "CS4", "CS9", "CA6", "CA8", "B2", "B7"]
@@ -133,7 +133,7 @@ def guards():
         my_tests |= set(re.findall(r"^fn (\w+)\(", read(os.path.join(tests_dir, f"{m}.rs")), re.M))
     a = 0
     for s in sites:
-        p = os.path.join(LOGS, f"{mut_of[s]}.tip.suite.log")
+        p = os.path.join(LOGS, f"{mut_of[s]}.tip.r2.suite.log")
         fails = failing_set(read(p))
         if fails & my_tests:
             a += 1
@@ -149,7 +149,7 @@ def guards():
 
     # The REFUSING population: sites for which a real capture publishes the
     # site's key at base, and sites whose key MOVED under the site's mutation.
-    fc = read(os.path.join(LOGS, "flipcheck.log"))
+    fc = read(os.path.join(LOGS, "flipcheck.r2.log"))
     base_keys = {
         "CS3": "static-scan-loop-object-out-of-class:eof",
         "B2": "static-scan-loop-object-out-of-class:eof",
@@ -187,10 +187,12 @@ def failing_set(t):
 
 
 def main():
-    for tag in ("N0", "T1"):
+    for tag in ("N0.r2", "T1.r2"):
         suite(tag)
-    gate("T2")
-    scan("T2")
+    gate("T2r2")
+    scan("T2r2")
+    gate("N3r2")
+    scan("N3r2")
     guards()
 
     bad = 0

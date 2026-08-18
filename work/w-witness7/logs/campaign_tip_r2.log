@@ -1,0 +1,132 @@
+=== run T1.r2  patches: --clean
+=== started 2026-08-18T19:56:53Z
+=== finished 2026-08-18T20:00:48Z
+work/w-witness7/logs/T1.r2.suite.log
+   1681 passed / 0 failed / 48 targets   EXIT=0
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 82.64s
+
+applied M-CS3 -> crates/c2-il/src/func/census.rs
+=== run M-CS3.tip.r2  patches: M-CS3
+=== started 2026-08-18T20:00:48Z
+=== finished 2026-08-18T20:04:09Z
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+work/w-witness7/logs/M-CS3.tip.r2.suite.log
+   1679 passed / 2 failed / 48 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 65.94s
+   FAIL  every_census_fence_key_has_the_sites_this_repo_last_scored
+   FAIL  the_static_scan_loop_object_gate_refuses_a_non_comdat_or_uninitialized_array
+
+applied M-CS3B -> crates/c2-il/src/func/census.rs
+=== run M-CS3B.tip.r2  patches: M-CS3B
+=== started 2026-08-18T20:04:09Z
+=== finished 2026-08-18T20:07:31Z
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+work/w-witness7/logs/M-CS3B.tip.r2.suite.log
+   1679 passed / 2 failed / 48 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 65.73s
+   FAIL  the_callee_unresolved_family_still_has_exactly_four_raise_sites
+   FAIL  the_static_scan_loop_object_gate_refuses_a_non_comdat_or_uninitialized_array
+
+applied M-CS3C -> crates/c2-il/src/func/census.rs
+=== run M-CS3C.tip.r2  patches: M-CS3C
+=== started 2026-08-18T20:07:31Z
+=== finished 2026-08-18T20:10:52Z
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+work/w-witness7/logs/M-CS3C.tip.r2.suite.log
+   1680 passed / 1 failed / 48 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 65.62s
+   FAIL  the_static_scan_loop_object_gate_refuses_a_non_comdat_or_uninitialized_array
+
+applied M-CS4 -> crates/c2-il/src/func/census.rs
+=== run M-CS4.tip.r2  patches: M-CS4
+=== started 2026-08-18T20:10:52Z
+=== finished 2026-08-18T20:15:03Z
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+work/w-witness7/logs/M-CS4.tip.r2.suite.log
+   1680 passed / 1 failed / 48 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.36s
+   FAIL  each_bind_run_refusal_reports_its_own_key_and_not_the_no_carrier_fallback
+
+applied M-CS9 -> crates/c2-il/src/func/census.rs
+=== run M-CS9.tip.r2  patches: M-CS9
+=== started 2026-08-18T20:15:03Z
+=== finished 2026-08-18T20:18:25Z
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+work/w-witness7/logs/M-CS9.tip.r2.suite.log
+   1680 passed / 1 failed / 48 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 65.47s
+   FAIL  a_body_in_class_at_an_unmodelled_optimization_word_reports_the_opt_mode_key
+
+applied M-CA6 -> crates/c2-il/src/func/body/shapes/calls.rs
+=== run M-CA6.tip.r2  patches: M-CA6
+=== started 2026-08-18T20:18:25Z
+=== finished 2026-08-18T20:21:51Z
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+work/w-witness7/logs/M-CA6.tip.r2.suite.log
+   1679 passed / 2 failed / 48 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.39s
+   FAIL  each_of_the_five_raise_sites_of_call_arg_nonformal_has_its_own_witness
+   FAIL  the_slot_paths_two_refusals_are_distinct_keys_and_neither_answers_for_the_other
+
+applied M-CA8 -> crates/c2-il/src/func/body/shapes/calls.rs
+=== run M-CA8.tip.r2  patches: M-CA8
+=== started 2026-08-18T20:21:51Z
+=== finished 2026-08-18T20:25:41Z
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+work/w-witness7/logs/M-CA8.tip.r2.suite.log
+   1680 passed / 1 failed / 48 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 76.44s
+   FAIL  the_slot_paths_two_refusals_are_distinct_keys_and_neither_answers_for_the_other
+
+applied M-B2 -> crates/c2-il/src/func/bind.rs
+=== run M-B2.tip.r2  patches: M-B2
+=== started 2026-08-18T20:25:41Z
+=== finished 2026-08-18T20:29:01Z
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+work/w-witness7/logs/M-B2.tip.r2.suite.log
+   1680 passed / 1 failed / 48 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.11s
+   FAIL  the_static_scan_loop_object_gate_refuses_a_non_comdat_or_uninitialized_array
+
+applied M-B7 -> crates/c2-il/src/func/bind.rs
+=== run M-B7.tip.r2  patches: M-B7
+=== started 2026-08-18T20:29:01Z
+=== finished 2026-08-18T20:32:21Z
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+work/w-witness7/logs/M-B7.tip.r2.suite.log
+   1680 passed / 1 failed / 48 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.41s
+   FAIL  the_bss_object_gate_refuses_an_initialized_or_comdat_destination
+
+applied M-B9 -> crates/c2-il/src/func/bind.rs
+=== run M-B9.tip.r2  patches: M-B9
+=== started 2026-08-18T20:32:21Z
+=== finished 2026-08-18T20:35:43Z
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+work/w-witness7/logs/M-B9.tip.r2.suite.log
+   1681 passed / 0 failed / 48 targets   EXIT=0
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.32s
+
+applied C1 -> crates/c2-il/src/func/body/shapes/calls.rs
+=== run C1b.r2  patches: C1
+=== started 2026-08-18T20:35:43Z
+=== finished 2026-08-18T20:39:13Z
+reverted: crates/c2-il/src/func/bind.rs crates/c2-il/src/func/body/shapes/calls.rs crates/c2-il/src/func/body/shapes/mcall_cmp.rs crates/c2-il/src/func/body/shapes/mcall_tail.rs crates/c2-il/src/func/census.rs
+work/w-witness7/logs/C1b.r2.suite.log
+   1679 passed / 2 failed / 48 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.95s
+   FAIL  gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol
+   FAIL  gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone
+
+=== T2r2: gate ===
+gate exit=0 wall=91s
+=== T2r2: 878-TU scan ===
+scan exit=0 wall=42s
+gate lane rows: 23
+gap-metric keys (anchored): 394
+  match            26    3.0%
+  mismatch          0    0.0%
+    gap-metric fnbyte-exact 35886
+    gap-metric fnbyte-differs 1958
+    gap-metric fnbyte-refused-parse 113429
+=== TIP r2 DONE

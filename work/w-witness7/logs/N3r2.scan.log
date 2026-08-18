@@ -1,0 +1,1924 @@
+gap scan: 878 TUs, 24 flags, jobs=16, replay-every=0
+  capture cache: /home/free/code/milohax/c2-rs/work/capture-cache
+provenance:
+  c2-rs      ba9c5c6a81fd (clean)  /home/free/code/milohax/c2-rs/.claude/worktrees/w-witness7
+  binary     9fb11fc583acf59f  /home/free/code/milohax/c2-rs/.claude/worktrees/w-witness7/target/release/c2rs
+  workload   49ad7cfd5d26 (clean)  /home/free/code/milohax/dc3-decomp
+  wibo       wibo 1.2.0-c2rs.1 (Linux x86_64)  /home/free/code/milohax/wibo/build/release/wibo
+  cl.exe     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/cl.exe
+  c2.dll     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c2.dll
+  c1xx.dll   /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c1xx.dll
+  strace     /usr/bin/strace
+  mingw      /usr/bin/i686-w64-mingw32-gcc
+  [1/878] vocab-gap    src/keygen_xbox.cpp  (il function decode failed)
+  [2/878] vocab-gap    src/ChecksumData_xbox.cpp  (il function decode failed)
+  [3/878] vocab-gap    src/lazer/meta_ham/AccomplishmentCategory.cpp  (il function decode failed)
+  [4/878] vocab-gap    src/lazer/game/Shuttle.cpp  (il function decode failed)
+  [5/878] vocab-gap    src/lazer/game/SongDB.cpp  (il function decode failed)
+  [6/878] vocab-gap    src/lazer/game/HamUser.cpp  (il function decode failed)
+  [7/878] vocab-gap    src/lazer/meta_ham/AccomplishmentConditional.cpp  (il function decode failed)
+  [8/878] vocab-gap    src/lazer/meta_ham/AccomplishmentGroup.cpp  (il function decode failed)
+  [9/878] vocab-gap    src/lazer/meta_ham/Accomplishment.cpp  (il function decode failed)
+  [10/878] vocab-gap    src/lazer/game/HamUserMgr.cpp  (il function decode failed)
+  [11/878] vocab-gap    src/lazer/meta_ham/AccomplishmentCampaignConditional.cpp  (il function decode failed)
+  [12/878] vocab-gap    src/lazer/meta_ham/AccomplishmentCharacterListConditional.cpp  (il function decode failed)
+  [13/878] vocab-gap    src/lazer/game/LiveInput.cpp  (il function decode failed)
+  [14/878] vocab-gap    src/lazer/meta_ham/AccomplishmentCountConditional.cpp  (il function decode failed)
+  [15/878] vocab-gap    src/lazer/game/PartyModeMgr.cpp  (il function decode failed)
+  [16/878] vocab-gap    src/lazer/game/GameMode.cpp  (il function decode failed)
+  [17/878] vocab-gap    src/lazer/meta_ham/AccomplishmentDiscSongConditional.cpp  (il function decode failed)
+  [18/878] vocab-gap    src/lazer/game/SongSequence.cpp  (il function decode failed)
+  [19/878] vocab-gap    src/lazer/meta_ham/AccomplishmentOneShot.cpp  (il function decode failed)
+  [20/878] vocab-gap    src/lazer/game/PresenceMgr.cpp  (il function decode failed)
+  [21/878] vocab-gap    src/App.cpp  (il function decode failed)
+  [22/878] vocab-gap    src/lazer/game/BustAMovePanel.cpp  (il function decode failed)
+  [23/878] vocab-gap    src/lazer/game/GamePanel.cpp  (il function decode failed)
+  [24/878] vocab-gap    src/lazer/game/Game.cpp  (il function decode failed)
+  [25/878] vocab-gap    src/lazer/meta_ham/CampaignEra.cpp  (il function decode failed)
+  [26/878] vocab-gap    src/lazer/meta_ham/AccomplishmentManager.cpp  (il function decode failed)
+  [27/878] vocab-gap    src/lazer/meta_ham/AccomplishmentSongListConditional.cpp  (il function decode failed)
+  [28/878] vocab-gap    src/lazer/meta_ham/AccomplishmentProgress.cpp  (il function decode failed)
+  [29/878] vocab-gap    src/lazer/meta_ham/AccomplishmentSongConditional.cpp  (il function decode failed)
+  [30/878] vocab-gap    src/lazer/meta_ham/Award.cpp  (il function decode failed)
+  [31/878] vocab-gap    src/lazer/meta_ham/AppNavProvider.cpp  (il function decode failed)
+  [32/878] vocab-gap    src/lazer/meta_ham/AppMiniLeaderboardDisplay.cpp  (il function decode failed)
+  [33/878] vocab-gap    src/lazer/meta_ham/AppLabel.cpp  (il function decode failed)
+  [34/878] vocab-gap    src/lazer/meta_ham/BlacklightPanel.cpp  (il function decode failed)
+  [35/878] vocab-gap    src/lazer/meta_ham/CalibrationPanel.cpp  (il function decode failed)
+  [36/878] vocab-gap    src/lazer/meta_ham/Campaign.cpp  (il function decode failed)
+  [37/878] vocab-gap    src/lazer/meta_ham/CampaignDiffSelectPanel.cpp  (il function decode failed)
+  [38/878] vocab-gap    src/lazer/meta_ham/CampaignProgress.cpp  (il function decode failed)
+  [39/878] vocab-gap    src/lazer/meta_ham/CampaignMasterQuestCrewSelectPanel.cpp  (il function decode failed)
+  [40/878] vocab-gap    src/lazer/meta_ham/CampaignMasterQuestSongSelectPanel.cpp  (il function decode failed)
+  [41/878] vocab-gap    src/lazer/meta_ham/ChallengeRecord.cpp  (il function decode failed)
+  [42/878] vocab-gap    src/lazer/meta_ham/ChooseModeProvider.cpp  (il function decode failed)
+  [43/878] vocab-gap    src/lazer/meta_ham/ContentLoadingPanel.cpp  (il function decode failed)
+  [44/878] vocab-gap    src/lazer/meta_ham/CampaignPerformer.cpp  (il function decode failed)
+  [45/878] vocab-gap    src/lazer/meta_ham/CampaignSongSelectPanel.cpp  (il function decode failed)
+  [46/878] vocab-gap    src/lazer/meta_ham/ChallengeSortByScore.cpp  (il function decode failed)
+  [47/878] vocab-gap    src/lazer/meta_ham/ChallengeResultPanel.cpp  (il function decode failed)
+  [48/878] vocab-gap    src/lazer/meta_ham/ChallengeSortMgr.cpp  (il function decode failed)
+  [49/878] vocab-gap    src/lazer/meta_ham/ChallengeSort.cpp  (il function decode failed)
+  [50/878] vocab-gap    src/lazer/meta_ham/CursorPanel.cpp  (il function decode failed)
+  [51/878] vocab-gap    src/lazer/meta_ham/Challenges.cpp  (il function decode failed)
+  [52/878] vocab-gap    src/lazer/meta_ham/ChooseProfilePanel.cpp  (il function decode failed)
+  [53/878] vocab-gap    src/lazer/meta_ham/HamMemcardAction.cpp  (il function decode failed)
+  [54/878] vocab-gap    src/lazer/meta_ham/FitnessCalorieSortByCalorie.cpp  (il function decode failed)
+  [55/878] vocab-gap    src/lazer/meta_ham/ChallengeSortNode.cpp  (il function decode failed)
+  [56/878] vocab-gap    src/lazer/meta_ham/CharacterProvider.cpp  (il function decode failed)
+  [57/878] vocab-gap    src/lazer/meta_ham/FitnessCalorieSortMgr.cpp  (il function decode failed)
+  [58/878] vocab-gap    src/lazer/meta_ham/CrewProvider.cpp  (il function decode failed)
+  [59/878] vocab-gap    src/lazer/meta_ham/ContextChecker.cpp  (il function decode failed)
+  [60/878] vocab-gap    src/lazer/meta_ham/EventDialogPanel.cpp  (il function decode failed)
+  [61/878] vocab-gap    src/lazer/meta_ham/CorrectIdentityPanel.cpp  (il function decode failed)
+  [62/878] vocab-gap    src/lazer/meta_ham/HamStoreOffer.cpp  (il function decode failed)
+  [63/878] vocab-gap    src/lazer/meta_ham/DifficultyProvider.cpp  (il function decode failed)
+  [64/878] vocab-gap    src/lazer/meta_ham/DepthBuffer.cpp  (il function decode failed)
+  [65/878] vocab-gap    src/lazer/meta_ham/FitnessProvider.cpp  (il function decode failed)
+  [66/878] vocab-gap    src/lazer/meta_ham/FitnessCalorieSort.cpp  (il function decode failed)
+  [67/878] vocab-gap    src/lazer/meta_ham/Instarank.cpp  (il function decode failed)
+  [68/878] vocab-gap    src/lazer/meta_ham/FitnessGoalMgr.cpp  (il function decode failed)
+  [69/878] vocab-gap    src/lazer/meta_ham/FitnessCalorieSortNode.cpp  (il function decode failed)
+  [70/878] vocab-gap    src/lazer/meta_ham/HamStarsDisplay.cpp  (il function decode failed)
+  [71/878] vocab-gap    src/lazer/meta_ham/HamSongMetadata.cpp  (il function decode failed)
+  [72/878] vocab-gap    src/lazer/meta_ham/HamScreen.cpp  (il function decode failed)
+  [73/878] vocab-gap    src/lazer/meta_ham/HamPanel.cpp  (il function decode failed)
+  [74/878] vocab-gap    src/lazer/meta_ham/LoadingPanel.cpp  (il function decode failed)
+  [75/878] vocab-gap    src/lazer/meta_ham/HamProfile.cpp  (il function decode failed)
+  [76/878] vocab-gap    src/lazer/meta_ham/HamStoreFilterProvider.cpp  (il function decode failed)
+  [77/878] vocab-gap    src/lazer/meta_ham/MoveRatingHistory.cpp  (il function decode failed)
+  [78/878] vocab-gap    src/lazer/meta_ham/LetterboxPanel.cpp  (il function decode failed)
+  [79/878] vocab-gap    src/lazer/meta_ham/HamSongMgr.cpp  (il function decode failed)
+  [80/878] vocab-gap    src/lazer/meta_ham/HamStorePanel.cpp  (il function decode failed)
+  [81/878] vocab-gap    src/lazer/meta_ham/HelpBarPanel.cpp  (il function decode failed)
+  [82/878] vocab-gap    src/lazer/meta_ham/HamStoreProvider.cpp  (il function decode failed)
+  [83/878] vocab-gap    src/lazer/meta_ham/Leaderboards.cpp  (il function decode failed)
+  [84/878] vocab-gap    src/lazer/meta_ham/KinectSharePanel.cpp  (il function decode failed)
+  [85/878] vocab-gap    src/lazer/meta_ham/HamUI.cpp  (il function decode failed)
+  [86/878] vocab-gap    src/lazer/meta_ham/LockedContentPanel.cpp  (il function decode failed)
+  [87/878] vocab-gap    src/lazer/meta_ham/MainMenuProvider.cpp  (il function decode failed)
+  [88/878] vocab-gap    src/lazer/meta_ham/NavListSort.cpp  (il function decode failed)
+  [89/878] vocab-gap    src/lazer/meta_ham/MQSongSortByCharacter.cpp  (il function decode failed)
+  [90/878] vocab-gap    src/lazer/meta_ham/MainMenuPanel.cpp  (il function decode failed)
+  [91/878] vocab-gap    src/lazer/meta_ham/NavListNode.cpp  (il function decode failed)
+  [92/878] vocab-gap    src/lazer/meta_ham/MovieProvider.cpp  (il function decode failed)
+  [93/878] vocab-gap    src/lazer/meta_ham/MetagameStats.cpp  (il function decode failed)
+  [94/878] vocab-gap    src/lazer/meta_ham/PassiveMessenger.cpp  (il function decode failed)
+  [95/878] vocab-gap    src/lazer/meta_ham/PassiveMessagesPanel.cpp  (il function decode failed)
+  [96/878] vocab-gap    src/lazer/meta_ham/MetagameRank.cpp  (il function decode failed)
+  [97/878] vocab-gap    src/lazer/meta_ham/MQSongSort.cpp  (il function decode failed)
+  [98/878] vocab-gap    src/lazer/meta_ham/MQSongSortMgr.cpp  (il function decode failed)
+  [99/878] vocab-gap    src/lazer/meta_ham/MetaPanel.cpp  (il function decode failed)
+  [100/878] vocab-gap    src/lazer/meta_ham/MetaPerformer.cpp  (il function decode failed)
+  [101/878] vocab-gap    src/lazer/meta_ham/NavListSortMgr.cpp  (il function decode failed)
+  [102/878] vocab-gap    src/lazer/meta_ham/MultiUserGesturePanel.cpp  (il function decode failed)
+  [103/878] vocab-gap    src/lazer/meta_ham/PlaylistSortByTypeCmp.cpp  (il function decode failed)
+  [104/878] vocab-gap    src/lazer/meta_ham/MQSongSortNode.cpp  (il function decode failed)
+  [105/878] vocab-gap    src/lazer/meta_ham/OptionsPanel.cpp  (il function decode failed)
+  [106/878] vocab-gap    src/lazer/meta_ham/SigninScreen.cpp  (il function decode failed)
+  [107/878] vocab-gap    src/lazer/meta_ham/Playlist.cpp  (il function decode failed)
+  [108/878] vocab-gap    src/lazer/meta_ham/OutfitProvider.cpp  (il function decode failed)
+  [109/878] vocab-gap    src/lazer/meta_ham/Overshell.cpp  (il function decode failed)
+  [110/878] vocab-gap    src/lazer/meta_ham/OverlayPanel.cpp  (il function decode failed)
+  [111/878] vocab-gap    src/lazer/meta_ham/PlaylistSongProvider.cpp  (il function decode failed)
+  [112/878] vocab-gap    src/lazer/meta_ham/PlaylistSort.cpp  (il function decode failed)
+  [113/878] vocab-gap    src/lazer/meta_ham/SongRecord.cpp  (il function decode failed)
+  [114/878] vocab-gap    src/lazer/meta_ham/PlaylistSortNode.cpp  (il function decode failed)
+  [115/878] vocab-gap    src/lazer/meta_ham/PlaylistSortMgr.cpp  (il function decode failed)
+  [116/878] vocab-gap    src/lazer/meta_ham/SaveLoadManager.cpp  (il function decode failed)
+  [117/878] vocab-gap    src/lazer/meta_ham/SkillsAwardList.cpp  (il function decode failed)
+  [118/878] vocab-gap    src/lazer/meta_ham/SkeletonIdentifier.cpp  (il function decode failed)
+  [119/878] vocab-gap    src/lazer/meta_ham/ProfileMgr.cpp  (il function decode failed)
+  [120/878] vocab-gap    src/lazer/meta_ham/SingleUserCrewSelectPanel.cpp  (il function decode failed)
+  [121/878] vocab-gap    src/lazer/meta_ham/SkeletonChooser.cpp  (il function decode failed)
+  [122/878] vocab-gap    src/lazer/meta_ham/Utl.cpp  (il function decode failed)
+  [123/878] vocab-gap    src/lazer/meta_ham/ShellInput.cpp  (il function decode failed)
+  [124/878] vocab-gap    src/lazer/meta_ham/SongSortByDiff.cpp  (il function decode failed)
+  [125/878] vocab-gap    src/lazer/meta_ham/PracticeChoosePanel.cpp  (il function decode failed)
+  [126/878] vocab-gap    src/lazer/meta_ham/SongSortByLocation.cpp  (il function decode failed)
+  [127/878] vocab-gap    src/lazer/meta_ham/SongSelectPlaylistCustomizePanel.cpp  (il function decode failed)
+  [128/878] vocab-gap    src/lazer/meta_ham/TitleProvider.cpp  (il function decode failed)
+  [129/878] vocab-gap    src/lazer/meta_ham/SongSortBySong.cpp  (il function decode failed)
+  [130/878] vocab-gap    src/lazer/meta_ham/SongSelectPanel.cpp  (il function decode failed)
+  [131/878] vocab-gap    src/lazer/meta_ham/SongSelectPlaylistPanel.cpp  (il function decode failed)
+  [132/878] vocab-gap    src/lazer/net_ham/KinectShare.cpp  (il function decode failed)
+  [133/878] vocab-gap    src/lazer/meta_ham/SongStatusMgr.cpp  (il function decode failed)
+  [134/878] vocab-gap    src/lazer/net_ham/KinectShareJobs.cpp  (il function decode failed)
+  [135/878] vocab-gap    src/lazer/meta_ham/SongSortMgr.cpp  (il function decode failed)
+  [136/878] vocab-gap    src/lazer/meta_ham/TexLoadPanel.cpp  (il function decode failed)
+  [137/878] vocab-gap    src/lazer/net_ham/MotdJobs.cpp  (il function decode failed)
+  [138/878] vocab-gap    src/lazer/meta_ham/SongSort.cpp  (il function decode failed)
+  [139/878] vocab-gap    src/lazer/net_ham/RCJobDingo.cpp  (il function decode failed)
+  [140/878] vocab-gap    src/lazer/net_ham/PlaylistJobs.cpp  (il function decode failed)
+  [141/878] vocab-gap    src/lazer/meta_ham/VenueProvider.cpp  (il function decode failed)
+  [142/878] vocab-gap    src/lazer/meta_ham/SongSortNode.cpp  (il function decode failed)
+  [143/878] vocab-gap    src/lazer/net_ham/TokenJobs.cpp  (il function decode failed)
+  [144/878] match        src/Main.cpp
+  [145/878] vocab-gap    src/lazer/net_ham/WebLinkJobs.cpp  (il function decode failed)
+  [146/878] vocab-gap    src/Memory_Xbox.cpp  (il function decode failed)
+  [147/878] vocab-gap    src/lazer/meta_ham/UIEventMgr.cpp  (il function decode failed)
+  [148/878] vocab-gap    src/lazer/net_ham/HamStoreCartJobs.cpp  (il function decode failed)
+  [149/878] vocab-gap    src/lazer/net_ham/FitnessGoalJobs.cpp  (il function decode failed)
+  [150/878] vocab-gap    src/lazer/net_ham/ChallengeSystemJobs.cpp  (il function decode failed)
+  [151/878] vocab-gap    src/system/char/CharBone.cpp  (il function decode failed)
+  [152/878] vocab-gap    src/lazer/meta_ham/VoiceControlPanel.cpp  (il function decode failed)
+  [153/878] vocab-gap    src/system/char/CharBlendBone.cpp  (il function decode failed)
+  [154/878] vocab-gap    src/lazer/meta_ham/VoiceInputPanel.cpp  (il function decode failed)
+  [155/878] vocab-gap    src/lazer/meta_ham/WeightInput.cpp  (il function decode failed)
+  [156/878] vocab-gap    src/system/char/CharBonesBlender.cpp  (il function decode failed)
+  [157/878] vocab-gap    src/lazer/net_ham/DataMinerJobs.cpp  (il function decode failed)
+  [158/878] vocab-gap    src/system/char/CharBoneOffset.cpp  (il function decode failed)
+  [159/878] vocab-gap    src/lazer/net_ham/FriendsListJobs.cpp  (il function decode failed)
+  [160/878] vocab-gap    src/system/char/CharBones.cpp  (il function decode failed)
+  [161/878] vocab-gap    src/system/char/CharacterTest.cpp  (il function decode failed)
+  [162/878] vocab-gap    src/system/char/CharBonesSamples.cpp  (il function decode failed)
+  [163/878] vocab-gap    src/lazer/net_ham/LeaderboardJobs.cpp  (il function decode failed)
+  [164/878] vocab-gap    src/system/char/CharBoneDir.cpp  (il function decode failed)
+  [165/878] vocab-gap    src/system/char/CharBoneTwist.cpp  (il function decode failed)
+  [166/878] vocab-gap    src/lazer/net_ham/PartyModeJobs.cpp  (il function decode failed)
+  [167/878] vocab-gap    src/system/char/CharBonesMeshes.cpp  (il function decode failed)
+  [168/878] vocab-gap    src/system/char/CharClipDriver.cpp  (il function decode failed)
+  [169/878] vocab-gap    src/system/char/CharEyeDartRuleset.cpp  (il function decode failed)
+  [170/878] vocab-gap    src/system/char/Character.cpp  (il function decode failed)
+  [171/878] vocab-gap    src/system/char/CharClipGroup.cpp  (il function decode failed)
+  [172/878] vocab-gap    src/system/char/CharCollide.cpp  (il function decode failed)
+  [173/878] vocab-gap    src/system/char/CharDriverMidi.cpp  (il function decode failed)
+  [174/878] vocab-gap    src/lazer/net_ham/ScoreJobs.cpp  (il function decode failed)
+  [175/878] vocab-gap    src/system/char/CharClipDisplay.cpp  (il function decode failed)
+  [176/878] vocab-gap    src/system/char/CharClipSet.cpp  (il function decode failed)
+  [177/878] vocab-gap    src/system/char/CharFaceServo.cpp  (il function decode failed)
+  [178/878] vocab-gap    src/system/char/CharCuff.cpp  (il function decode failed)
+  [179/878] vocab-gap    src/system/char/CharGuitarString.cpp  (il function decode failed)
+  [180/878] vocab-gap    src/system/char/CharForeTwist.cpp  (il function decode failed)
+  [181/878] vocab-gap    src/lazer/net_ham/RockCentral.cpp  (il function decode failed)
+  [182/878] vocab-gap    src/system/char/CharIKRod.cpp  (il function decode failed)
+  [183/878] vocab-gap    src/system/char/CharClip.cpp  (il function decode failed)
+  [184/878] vocab-gap    src/system/char/CharIKScale.cpp  (il function decode failed)
+  [185/878] vocab-gap    src/system/char/CharDriver.cpp  (il function decode failed)
+  [186/878] vocab-gap    src/system/char/CharIKMidi.cpp  (il function decode failed)
+  [187/878] vocab-gap    src/system/char/CharIKFingers.cpp  (il function decode failed)
+  [188/878] vocab-gap    src/system/char/CharIKFoot.cpp  (il function decode failed)
+  [189/878] vocab-gap    src/system/char/CharInterest.cpp  (il function decode failed)
+  [190/878] vocab-gap    src/system/char/CharIKHead.cpp  (il function decode failed)
+  [191/878] vocab-gap    src/system/char/CharIKHand.cpp  (il function decode failed)
+  [192/878] vocab-gap    src/system/char/CharMeshHide.cpp  (il function decode failed)
+  [193/878] vocab-gap    src/system/char/CharIKSliderMidi.cpp  (il function decode failed)
+  [194/878] vocab-gap    src/system/char/CharMirror.cpp  (il function decode failed)
+  [195/878] vocab-gap    src/system/char/CharNeckTwist.cpp  (il function decode failed)
+  [196/878] vocab-gap    src/system/char/CharPollGroup.cpp  (il function decode failed)
+  [197/878] vocab-gap    src/link_glue.cpp  (il function decode failed)
+  [198/878] vocab-gap    src/system/char/CharPosConstraint.cpp  (il function decode failed)
+  [199/878] vocab-gap    src/system/char/CharSignalApplier.cpp  (il function decode failed)
+  [200/878] vocab-gap    src/system/char/CharLookAt.cpp  (il function decode failed)
+  [201/878] vocab-gap    src/system/char/CharLipSync.cpp  (il function decode failed)
+  [202/878] vocab-gap    src/system/char/CharTaskMgr.cpp  (il function decode failed)
+  [203/878] vocab-gap    src/system/char/CharEyes.cpp  (il function decode failed)
+  [204/878] vocab-gap    src/system/char/CharUpperTwist.cpp  (il function decode failed)
+  [205/878] vocab-gap    src/system/char/CharWeightable.cpp  (il function decode failed)
+  [206/878] vocab-gap    src/system/char/Char.cpp  (il function decode failed)
+  [207/878] vocab-gap    src/system/char/CharHair.cpp  (il function decode failed)
+  [208/878] vocab-gap    src/system/dsp/BitCrushEffect.cpp  (il function decode failed)
+  [209/878] vocab-gap    src/system/dsp/DelayEffect.cpp  (il function decode failed)
+  [210/878] vocab-gap    src/system/char/CharSleeve.cpp  (il function decode failed)
+  [211/878] vocab-gap    src/system/char/CharServoBone.cpp  (il function decode failed)
+  [212/878] vocab-gap    src/system/dsp/Common_Xbox.cpp  (il function decode failed)
+  [213/878] vocab-gap    src/system/char/CharTransDraw.cpp  (il function decode failed)
+  [214/878] vocab-gap    src/system/char/CharWeightSetter.cpp  (il function decode failed)
+  [215/878] vocab-gap    src/system/dsp/EQEffect.cpp  (il function decode failed)
+  [216/878] vocab-gap    src/system/dsp/DistortionEffect.cpp  (il function decode failed)
+  [217/878] vocab-gap    src/system/dsp/WahEffect.cpp  (il function decode failed)
+  [218/878] vocab-gap    src/system/char/ClipGraphGen.cpp  (il function decode failed)
+  [219/878] match        src/system/decomp_pch.cpp
+  [220/878] vocab-gap    src/system/dsp/FlangerEffect.cpp  (il function decode failed)
+  [221/878] vocab-gap    src/system/char/Waypoint.cpp  (il function decode failed)
+  [222/878] vocab-gap    src/system/char/CharUtl.cpp  (il function decode failed)
+  [223/878] vocab-gap    src/system/char/ClipDistMap.cpp  (il function decode failed)
+  [224/878] vocab-gap    src/system/flow/DrivenPropertyEntry.cpp  (il function decode failed)
+  [225/878] vocab-gap    src/system/flow/DrivenPropertyMathOps.cpp  (il function decode failed)
+  [226/878] vocab-gap    src/system/char/ClipCollide.cpp  (il function decode failed)
+  [227/878] vocab-gap    src/system/char/CharLipSyncDriver.cpp  (il function decode failed)
+  [228/878] vocab-gap    src/system/char/FileMerger.cpp  (il function decode failed)
+  [229/878] vocab-gap    src/system/flow/FlowCommand.cpp  (il function decode failed)
+  [230/878] vocab-gap    src/system/flow/FlowEventListener.cpp  (il function decode failed)
+  [231/878] vocab-gap    src/system/flow/FlowIf.cpp  (il function decode failed)
+  [232/878] vocab-gap    src/system/flow/FlowAnimate.cpp  (il function decode failed)
+  [233/878] vocab-gap    src/system/flow/FlowLabel.cpp  (il function decode failed)
+  [234/878] vocab-gap    src/system/flow/FlowDistance.cpp  (il function decode failed)
+  [235/878] vocab-gap    src/system/flow/FlowOnStop.cpp  (il function decode failed)
+  [236/878] vocab-gap    src/system/flow/FlowQueueable.cpp  (il function decode failed)
+  [237/878] vocab-gap    src/system/flow/FlowManager.cpp  (il function decode failed)
+  [238/878] vocab-gap    src/system/flow/FlowOutPort.cpp  (il function decode failed)
+  [239/878] vocab-gap    src/system/flow/FlowPickOne.cpp  (il function decode failed)
+  [240/878] vocab-gap    src/system/flow/Flow.cpp  (il function decode failed)
+  [241/878] vocab-gap    src/system/flow/FlowPtr.cpp  (il function decode failed)
+  [242/878] vocab-gap    src/system/flow/FlowNode.cpp  (il function decode failed)
+  [243/878] vocab-gap    src/system/flow/FlowRun.cpp  (il function decode failed)
+  [244/878] vocab-gap    src/system/flow/FlowSequence.cpp  (il function decode failed)
+  [245/878] vocab-gap    src/system/flow/FlowMultiSetProperty.cpp  (il function decode failed)
+  [246/878] vocab-gap    src/system/gesture/ArchiveSkeleton.cpp  (il function decode failed)
+  [247/878] vocab-gap    src/system/flow/FlowSwitch.cpp  (il function decode failed)
+  [248/878] vocab-gap    src/system/gesture/BaseSkeleton.cpp  (il function decode failed)
+  [249/878] vocab-gap    src/system/flow/FlowValueCase.cpp  (il function decode failed)
+  [250/878] vocab-gap    src/system/flow/FlowSetProperty.cpp  (il function decode failed)
+  [251/878] vocab-gap    src/system/flow/PropertyEventProvider.cpp  (il function decode failed)
+  [252/878] vocab-gap    src/system/flow/FlowSlider.cpp  (il function decode failed)
+  [253/878] vocab-gap    src/system/flow/FlowSound.cpp  (il function decode failed)
+  [254/878] vocab-gap    src/system/flow/FlowTimer.cpp  (il function decode failed)
+  [255/878] vocab-gap    src/system/flow/FlowWhile.cpp  (il function decode failed)
+  [256/878] vocab-gap    src/system/gesture/CameraInput.cpp  (il function decode failed)
+  [257/878] vocab-gap    src/system/flow/FlowTrigger.cpp  (il function decode failed)
+  [258/878] vocab-gap    src/system/flow/PropertyEventListener.cpp  (il function decode failed)
+  [259/878] vocab-gap    src/system/char/FileMergerOrganizer.cpp  (il function decode failed)
+  [260/878] vocab-gap    src/system/gesture/HandHeightGestureFilter.cpp  (il function decode failed)
+  [261/878] vocab-gap    src/system/gesture/HandInvokeGestureFilter.cpp  (il function decode failed)
+  [262/878] vocab-gap    src/system/gesture/FreestyleMotionFilter.cpp  (il function decode failed)
+  [263/878] vocab-gap    src/system/gesture/ArcDetector.cpp  (il function decode failed)
+  [264/878] vocab-gap    src/system/gesture/HighFiveGestureFilter.cpp  (il function decode failed)
+  [265/878] vocab-gap    src/system/gesture/JointUtl.cpp  (il function decode failed)
+  [266/878] vocab-gap    src/system/flow/FlowSwitchCase.cpp  (il function decode failed)
+  [267/878] vocab-gap    src/system/gesture/CameraTilt.cpp  (il function decode failed)
+  [268/878] vocab-gap    src/system/gesture/DirectionGestureFilter.cpp  (il function decode failed)
+  [269/878] vocab-gap    src/system/gesture/HandRaisedGestureFilter.cpp  (il function decode failed)
+  [270/878] vocab-gap    src/system/gesture/DrawUtl.cpp  (il function decode failed)
+  [271/878] vocab-gap    src/system/gesture/HandsUpGestureFilter.cpp  (il function decode failed)
+  [272/878] vocab-gap    src/system/gesture/FitnessFilter.cpp  (il function decode failed)
+  [273/878] vocab-gap    src/system/gesture/SkeletonHistory.cpp  (il function decode failed)
+  [274/878] vocab-gap    src/system/gesture/IdentityInfo.cpp  (il function decode failed)
+  [275/878] vocab-gap    src/system/gesture/GestureMgr.cpp  (il function decode failed)
+  [276/878] vocab-gap    src/system/gesture/LiveCameraInput.cpp  (il function decode failed)
+  [277/878] vocab-gap    src/system/gesture/NavigationSkeletonDir.cpp  (il function decode failed)
+  [278/878] vocab-gap    src/system/gesture/SkeletonExtentTracker.cpp  (il function decode failed)
+  [279/878] vocab-gap    src/system/gesture/DepthBuffer3D.cpp  (il function decode failed)
+  [280/878] vocab-gap    src/system/gesture/Skeleton.cpp  (il function decode failed)
+  [281/878] vocab-gap    src/system/gesture/SpeechMgr.cpp  (il function decode failed)
+  [282/878] vocab-gap    src/system/gesture/SkeletonRecoverer.cpp  (il function decode failed)
+  [283/878] vocab-gap    src/system/gesture/SkeletonQualityFilter.cpp  (il function decode failed)
+  [284/878] vocab-gap    src/system/gesture/Gesture.cpp  (il function decode failed)
+  [285/878] vocab-gap    src/system/gesture/SkeletonDir.cpp  (il function decode failed)
+  [286/878] vocab-gap    src/system/gesture/StandingStillGestureFilter.cpp  (il function decode failed)
+  [287/878] vocab-gap    src/system/gesture/SkeletonUpdate.cpp  (il function decode failed)
+  [288/878] vocab-gap    src/system/hamobj/CamShotCatVO.cpp  (il function decode failed)
+  [289/878] vocab-gap    src/system/gesture/StubCameraInput.cpp  (il function decode failed)
+  [290/878] vocab-gap    src/system/hamobj/BustAMoveData.cpp  (il function decode failed)
+  [291/878] vocab-gap    src/system/hamobj/DancerSkeleton.cpp  (il function decode failed)
+  [292/878] vocab-gap    src/system/gesture/StreamRecorder.cpp  (il function decode failed)
+  [293/878] vocab-gap    src/system/hamobj/CrazeHollaback.cpp  (il function decode failed)
+  [294/878] vocab-gap    src/system/hamobj/Difficulty.cpp  (il function decode failed)
+  [295/878] vocab-gap    src/system/hamobj/FreestyleMove.cpp  (il function decode failed)
+  [296/878] vocab-gap    src/system/hamobj/CharCameraInput.cpp  (il function decode failed)
+  [297/878] vocab-gap    src/system/hamobj/CharFeedback.cpp  (il function decode failed)
+  [298/878] vocab-gap    src/system/gesture/StreamRenderer.cpp  (il function decode failed)
+  [299/878] vocab-gap    src/system/gesture/SkeletonViz.cpp  (il function decode failed)
+  [300/878] vocab-gap    src/system/hamobj/HamAudio.cpp  (il function decode failed)
+  [301/878] vocab-gap    src/system/hamobj/ErrorNode.cpp  (il function decode failed)
+  [302/878] vocab-gap    src/system/hamobj/DetectFrame.cpp  (il function decode failed)
+  [303/878] vocab-gap    src/system/hamobj/FilterQueue.cpp  (il function decode failed)
+  [304/878] vocab-gap    src/system/hamobj/FilterVersion.cpp  (il function decode failed)
+  [305/878] vocab-gap    src/system/hamobj/FreestyleMoveRecorder.cpp  (il function decode failed)
+  [306/878] vocab-gap    src/system/hamobj/DancerSequence.cpp  (il function decode failed)
+  [307/878] vocab-gap    src/system/hamobj/HamBattleData.cpp  (il function decode failed)
+  [308/878] vocab-gap    src/system/hamobj/HamGameData.cpp  (il function decode failed)
+  [309/878] vocab-gap    src/system/hamobj/HamDriver.cpp  (il function decode failed)
+  [310/878] vocab-gap    src/system/gesture/SkeletonClip.cpp  (il function decode failed)
+  [311/878] vocab-gap    src/system/hamobj/HamCamTransform.cpp  (il function decode failed)
+  [312/878] vocab-gap    src/system/gesture/WaveToTurnOnLight.cpp  (il function decode failed)
+  [313/878] vocab-gap    src/system/hamobj/HamMaster.cpp  (il function decode failed)
+  [314/878] vocab-gap    src/system/hamobj/HamList.cpp  (il function decode failed)
+  [315/878] vocab-gap    src/system/hamobj/HamIKSkeleton.cpp  (il function decode failed)
+  [316/878] vocab-gap    src/system/hamobj/HamIKEffector.cpp  (il function decode failed)
+  [317/878] vocab-gap    src/system/hamobj/ClipPlayer.cpp  (il function decode failed)
+  [318/878] vocab-gap    src/system/hamobj/HamCharacter.cpp  (il function decode failed)
+  [319/878] vocab-gap    src/system/hamobj/HamPartyJumpData.cpp  (il function decode failed)
+  [320/878] vocab-gap    src/system/hamobj/HamLabel.cpp  (il function decode failed)
+  [321/878] vocab-gap    src/system/hamobj/HamProviderPrinter.cpp  (il function decode failed)
+  [322/878] vocab-gap    src/system/hamobj/HamPhraseMeter.cpp  (il function decode failed)
+  [323/878] vocab-gap    src/system/hamobj/HamPhotoDisplay.cpp  (il function decode failed)
+  [324/878] vocab-gap    src/system/hamobj/HamCamShot.cpp  (il function decode failed)
+  [325/878] vocab-gap    src/system/hamobj/HamListRibbon.cpp  (il function decode failed)
+  [326/878] vocab-gap    src/system/hamobj/DanceRemixer.cpp  (il function decode failed)
+  [327/878] vocab-gap    src/system/hamobj/HamRegulate.cpp  (il function decode failed)
+  [328/878] vocab-gap    src/system/hamobj/HamRibbon.cpp  (il function decode failed)
+  [329/878] vocab-gap    src/system/hamobj/HamIconMan.cpp  (il function decode failed)
+  [330/878] vocab-gap    src/system/hamobj/HamScrollSpeedIndicator.cpp  (il function decode failed)
+  [331/878] vocab-gap    src/system/hamobj/HamSong.cpp  (il function decode failed)
+  [332/878] vocab-gap    src/system/hamobj/HamMove.cpp  (il function decode failed)
+  [333/878] vocab-gap    src/system/hamobj/HamSongData.cpp  (il function decode failed)
+  [334/878] vocab-gap    src/system/hamobj/HamSupereasyData.cpp  (il function decode failed)
+  [335/878] vocab-gap    src/system/hamobj/HamNavProvider.cpp  (il function decode failed)
+  [336/878] vocab-gap    src/system/hamobj/Ham.cpp  (il function decode failed)
+  [337/878] vocab-gap    src/system/hamobj/HamNavList.cpp  (il function decode failed)
+  [338/878] vocab-gap    src/system/hamobj/MiniLeaderboardDisplay.cpp  (il function decode failed)
+  [339/878] vocab-gap    src/system/hamobj/HamScrollBehavior.cpp  (il function decode failed)
+  [340/878] vocab-gap    src/system/hamobj/MoveGraph.cpp  (il function decode failed)
+  [341/878] vocab-gap    src/system/hamobj/HamDirector.cpp  (il function decode failed)
+  [342/878] vocab-gap    src/system/hamobj/HamSkeletonConverter.cpp  (il function decode failed)
+  [343/878] vocab-gap    src/system/hamobj/HamVisDir.cpp  (il function decode failed)
+  [344/878] vocab-gap    src/system/hamobj/MeterDisplay.cpp  (il function decode failed)
+  [345/878] vocab-gap    src/system/hamobj/Pose.cpp  (il function decode failed)
+  [346/878] vocab-gap    src/system/hamobj/MoveParent.cpp  (il function decode failed)
+  [347/878] vocab-gap    src/system/hamobj/MoveVariant.cpp  (il function decode failed)
+  [348/878] vocab-gap    src/system/hamobj/PhotoSpotlightPositioner.cpp  (il function decode failed)
+  [349/878] vocab-gap    src/system/hamobj/HamWardrobe.cpp  (il function decode failed)
+  [350/878] vocab-gap    src/system/hamobj/HamPlayerData.cpp  (il function decode failed)
+  [351/878] vocab-gap    src/system/hamobj/PracticeOptionsProvider.cpp  (il function decode failed)
+  [352/878] vocab-gap    src/system/hamobj/ScoreUtl.cpp  (il function decode failed)
+  [353/878] vocab-gap    src/system/hamobj/OriginalChoreoRemixer.cpp  (il function decode failed)
+  [354/878] vocab-gap    src/system/hamobj/RhythmDetector.cpp  (il function decode failed)
+  [355/878] vocab-gap    src/system/hamobj/MocapSkeletonIterator.cpp  (il function decode failed)
+  [356/878] vocab-gap    src/system/hamobj/SongUtl.cpp  (il function decode failed)
+  [357/878] vocab-gap    src/system/hamobj/MiniGameMgr.cpp  (il function decode failed)
+  [358/878] vocab-gap    src/system/hamobj/HollaBackMinigame.cpp  (il function decode failed)
+  [359/878] vocab-gap    src/system/hamobj/SongDifficultyDisplay.cpp  (il function decode failed)
+  [360/878] vocab-gap    src/system/hamobj/MoveAsyncDetector.cpp  (il function decode failed)
+  [361/878] vocab-gap    src/system/jpeg/Jpeg.cpp  (il function decode failed)
+  [362/878] vocab-gap    src/system/hamobj/PracticeSection.cpp  (il function decode failed)
+  [363/878] vocab-gap    src/system/math/Decibels.cpp  (il function decode failed)
+  [364/878] vocab-gap    src/system/math/Color.cpp  (il function decode failed)
+  [365/878] vocab-gap    src/system/math/FileChecksum.cpp  (il function decode failed)
+  [366/878] vocab-gap    src/system/math/DoubleExponentialSmoother.cpp  (il function decode failed)
+  [367/878] vocab-gap    src/system/math/Easing.cpp  (il function decode failed)
+  [368/878] match        src/system/math/Primes.cpp
+  [369/878] vocab-gap    src/system/math/Rand2.cpp  (il function decode failed)
+  [370/878] vocab-gap    src/system/math/Interp.cpp  (il function decode failed)
+  [371/878] vocab-gap    src/system/math/Key.cpp  (il function decode failed)
+  [372/878] vocab-gap    src/system/math/mtx.cpp  (il function decode failed)
+  [373/878] match        src/system/math/Sort.cpp
+  [374/878] vocab-gap    src/system/hamobj/RhythmDetectorGroup.cpp  (il function decode failed)
+  [375/878] vocab-gap    src/system/math/SHA1.cpp  (il function decode failed)
+  [376/878] vocab-gap    src/system/math/Rand.cpp  (il function decode failed)
+  [377/878] vocab-gap    src/system/hamobj/TransConstraint.cpp  (il function decode failed)
+  [378/878] vocab-gap    src/system/math/Geo.cpp  (il function decode failed)
+  [379/878] vocab-gap    src/system/math/Rot.cpp  (il function decode failed)
+  [380/878] vocab-gap    src/system/math/vec.cpp  (il function decode failed)
+  [381/878] vocab-gap    src/system/math/Trig.cpp  (il function decode failed)
+  [382/878] vocab-gap    src/system/math/StreamChecksum.cpp  (il function decode failed)
+  [383/878] vocab-gap    src/system/hamobj/MoveMgr.cpp  (il function decode failed)
+  [384/878] vocab-gap    src/system/meta/Achievements.cpp  (il function decode failed)
+  [385/878] vocab-gap    src/system/hamobj/MoveDir.cpp  (il function decode failed)
+  [386/878] vocab-gap    src/system/meta/Achievements_Xbox.cpp  (il function decode failed)
+  [387/878] vocab-gap    src/system/meta/DataArraySongInfo.cpp  (il function decode failed)
+  [388/878] vocab-gap    src/system/meta/ButtonHolder.cpp  (il function decode failed)
+  [389/878] vocab-gap    src/system/hamobj/StarsDisplay.cpp  (il function decode failed)
+  [390/878] vocab-gap    src/system/meta/Jukebox.cpp  (il function decode failed)
+  [391/878] vocab-gap    src/system/meta/ConnectionStatusPanel.cpp  (il function decode failed)
+  [392/878] vocab-gap    src/system/hamobj/PoseFatalities.cpp  (il function decode failed)
+  [393/878] vocab-gap    src/system/meta/FixedSizeSaveableStream.cpp  (il function decode failed)
+  [394/878] vocab-gap    src/system/meta/FixedSizeSaveable.cpp  (il function decode failed)
+  [395/878] vocab-gap    src/system/meta/MemcardAction.cpp  (il function decode failed)
+  [396/878] vocab-gap    src/system/meta/DeJitterPanel.cpp  (il function decode failed)
+  [397/878] vocab-gap    src/system/meta/MetaMusicScene.cpp  (il function decode failed)
+  [398/878] vocab-gap    src/system/hamobj/RhythmBattlePlayer.cpp  (il function decode failed)
+  [399/878] vocab-gap    src/system/meta/HeldButtonPanel.cpp  (il function decode failed)
+  [400/878] vocab-gap    src/system/meta/MetaMusicManager.cpp  (il function decode failed)
+  [401/878] vocab-gap    src/system/hamobj/RhythmBattle.cpp  (il function decode failed)
+  [402/878] vocab-gap    src/system/meta/Sorting.cpp  (il function decode failed)
+  [403/878] vocab-gap    src/system/meta/Profile.cpp  (il function decode failed)
+  [404/878] vocab-gap    src/system/meta/SongMetadata.cpp  (il function decode failed)
+  [405/878] vocab-gap    src/system/meta/StoreEnumeration.cpp  (il function decode failed)
+  [406/878] vocab-gap    src/system/meta/MemcardMgr.cpp  (il function decode failed)
+  [407/878] vocab-gap    src/system/meta/MemcardMgr_Xbox.cpp  (il function decode failed)
+  [408/878] vocab-gap    src/system/meta/Meta.cpp  (il function decode failed)
+  [409/878] vocab-gap    src/system/meta/HAQManager.cpp  (il function decode failed)
+  [410/878] vocab-gap    src/system/meta/CreditsPanel.cpp  (il function decode failed)
+  [411/878] vocab-gap    src/system/meta/PreloadPanel.cpp  (il function decode failed)
+  [412/878] vocab-gap    src/system/hamobj/SongCollision.cpp  (il function decode failed)
+  [413/878] vocab-gap    src/system/hamobj/SongLayout.cpp  (il function decode failed)
+  [414/878] vocab-gap    src/system/midi/DataEventList.cpp  (il function decode failed)
+  [415/878] vocab-gap    src/system/midi/MidiVarLen.cpp  (il function decode failed)
+  [416/878] vocab-gap    src/system/midi/MidiReceiver.cpp  (il function decode failed)
+  [417/878] vocab-gap    src/system/meta/StoreOffer.cpp  (il function decode failed)
+  [418/878] vocab-gap    src/system/meta/SongMgr.cpp  (il function decode failed)
+  [419/878] vocab-gap    src/system/midi/MidiReader.cpp  (il function decode failed)
+  [420/878] vocab-gap    src/system/meta/MoviePanel.cpp  (il function decode failed)
+  [421/878] vocab-gap    src/system/meta/StorePreviewMgr.cpp  (il function decode failed)
+  [422/878] vocab-gap    src/system/meta/StreamPlayer.cpp  (il function decode failed)
+  [423/878] vocab-gap    src/system/midi/DisplayEvents.cpp  (il function decode failed)
+  [424/878] match        src/system/negate_test.cpp
+  [425/878] vocab-gap    src/system/midi/MidiParserMgr.cpp  (il function decode failed)
+  [426/878] vocab-gap    src/system/movie/MovieImpl.cpp  (il function decode failed)
+  [427/878] vocab-gap    src/system/meta/SongPreview.cpp  (il function decode failed)
+  [428/878] vocab-gap    src/system/moviebink/BinkMovieImpl_Xbox.cpp  (il function decode failed)
+  [429/878] vocab-gap    src/system/moviebink/BinkMovieSys.cpp  (il function decode failed)
+  [430/878] vocab-gap    src/system/midi/MidiParser.cpp  (il function decode failed)
+  [431/878] vocab-gap    src/system/hamobj/SuperEasyRemixer.cpp  (il function decode failed)
+  [432/878] vocab-gap    src/system/net/JsonMemory.cpp  (il function decode failed)
+  [433/878] vocab-gap    src/system/meta/StorePurchaser.cpp  (il function decode failed)
+  [434/878] vocab-gap    src/system/net/HttpReq.cpp  (il function decode failed)
+  [435/878] vocab-gap    src/system/moviebink/BinkMovieSys_Xbox.cpp  (il function decode failed)
+  [436/878] vocab-gap    src/system/net/HttpReqCurl.cpp  (il function decode failed)
+  [437/878] vocab-gap    src/system/net/HttpGet.cpp  (il function decode failed)
+  [438/878] vocab-gap    src/system/movie/MovieSys.cpp  (il function decode failed)
+  [439/878] vocab-gap    src/system/net/JsonUtils.cpp  (il function decode failed)
+  [440/878] vocab-gap    src/system/meta/StorePanel.cpp  (il function decode failed)
+  [441/878] vocab-gap    src/system/moviebink/BinkMovieImpl.cpp  (il function decode failed)
+  [442/878] vocab-gap    src/system/net/DingoAuthJob.cpp  (il function decode failed)
+  [443/878] vocab-gap    src/system/net/XLSPConnection.cpp  (il function decode failed)
+  [444/878] vocab-gap    src/system/movie/Movie.cpp  (il function decode failed)
+  [445/878] vocab-gap    src/system/net/WebSvcMgr.cpp  (il function decode failed)
+  [446/878] vocab-gap    src/system/net/DingoJob.cpp  (il function decode failed)
+  [447/878] vocab-gap    src/system/net/DingoSvr.cpp  (il function decode failed)
+  [448/878] vocab-gap    src/system/net/WebSvcReq.cpp  (il function decode failed)
+  [449/878] vocab-gap    src/system/net/WebSvcMgrCurl.cpp  (il function decode failed)
+  [450/878] vocab-gap    src/system/net/DingoSvr_Xbox.cpp  (il function decode failed)
+  [451/878] vocab-gap    src/system/obj/DataArray.cpp  (il function decode failed)
+  [452/878] vocab-gap    src/system/obj/DataFile.cpp  (il function decode failed)
+  [453/878] vocab-gap    src/system/net/SessionJobs_Xbox.cpp  (il function decode failed)
+  [454/878] vocab-gap    src/system/movie/TexMovie.cpp  (il function decode failed)
+  [455/878] vocab-gap    src/system/oggvorbis/VorbisMem.cpp  (il function decode failed)
+  [456/878] vocab-gap    src/system/movie/Splash.cpp  (il function decode failed)
+  [457/878] vocab-gap    src/system/obj/DataNode.cpp  (il function decode failed)
+  [458/878] vocab-gap    src/system/obj/DataFunc.cpp  (il function decode failed)
+  [459/878] vocab-gap    src/system/obj/DirUnloader.cpp  (il function decode failed)
+  [460/878] vocab-gap    src/system/obj/DataUtl.cpp  (il function decode failed)
+  [461/878] vocab-gap    src/system/obj/MessageTimer.cpp  (il function decode failed)
+  [462/878] vocab-gap    src/system/obj/PropSync.cpp  (il function decode failed)
+  [463/878] vocab-gap    src/system/obj/TextFile.cpp  (il function decode failed)
+  [464/878] vocab-gap    src/system/obj/Object.cpp  (il function decode failed)
+  [465/878] vocab-gap    src/system/obj/DirLoader.cpp  (il function decode failed)
+  [466/878] vocab-gap    src/system/obj/Task.cpp  (il function decode failed)
+  [467/878] vocab-gap    src/system/os/CritSec.cpp  (il function decode failed)
+  [468/878] vocab-gap    src/system/os/AppChild.cpp  (il function decode failed)
+  [469/878] vocab-gap    src/system/os/AsyncTask.cpp  (il function decode failed)
+  [470/878] vocab-gap    src/system/os/ArkFile.cpp  (il function decode failed)
+  [471/878] vocab-gap    src/system/obj/Dir.cpp  (il function decode failed)
+  [472/878] vocab-gap    src/system/obj/TypeProps.cpp  (il function decode failed)
+  [473/878] vocab-gap    src/system/obj/Utl.cpp  (il function decode failed)
+  [474/878] vocab-gap    src/system/os/AsyncFile.cpp  (il function decode failed)
+  [475/878] vocab-gap    src/system/os/AsyncFileHolmes.cpp  (il function decode failed)
+  [476/878] vocab-gap    src/system/os/DateTime.cpp  (il function decode failed)
+  [477/878] vocab-gap    src/system/os/Archive.cpp  (il function decode failed)
+  [478/878] vocab-gap    src/system/os/HolmesUtl.cpp  (il function decode failed)
+  [479/878] vocab-gap    src/system/os/BlockMgr.cpp  (il function decode failed)
+  [480/878] vocab-gap    src/system/os/AsyncFile_Win.cpp  (il function decode failed)
+  [481/878] vocab-gap    src/system/os/CDReader.cpp  (il function decode failed)
+  [482/878] vocab-gap    src/system/os/ContentMgr.cpp  (il function decode failed)
+  [483/878] vocab-gap    src/system/os/HDCache.cpp  (il function decode failed)
+  [484/878] vocab-gap    src/system/os/File_Win.cpp  (il function decode failed)
+  [485/878] vocab-gap    src/system/os/HolmesClient_NetSocket.cpp  (il function decode failed)
+  [486/878] vocab-gap    src/system/os/File.cpp  (il function decode failed)
+  [487/878] vocab-gap    src/system/os/HolmesKeyboard.cpp  (il function decode failed)
+  [488/878] vocab-gap    src/system/os/JoypadClient.cpp  (il function decode failed)
+  [489/878] vocab-gap    src/system/os/HolmesClient.cpp  (il function decode failed)
+  [490/878] vocab-gap    src/system/obj/Msg.cpp  (il function decode failed)
+  [491/878] vocab-gap    src/system/os/Joypad_Xbox.cpp  (il function decode failed)
+  [492/878] vocab-gap    src/system/os/Joypad_Xinput.cpp  (il function decode failed)
+  [493/878] vocab-gap    src/system/os/Joypad.cpp  (il function decode failed)
+  [494/878] vocab-gap    src/system/os/JoypadMsgs.cpp  (il function decode failed)
+  [495/878] vocab-gap    src/system/os/NetworkSocket.cpp  (il function decode failed)
+  [496/878] vocab-gap    src/system/os/KeyboardJoypadAdapter.cpp  (il function decode failed)
+  [497/878] vocab-gap    src/system/os/Keyboard.cpp  (il function decode failed)
+  [498/878] vocab-gap    src/system/os/MapFile_Xbox.cpp  (il function decode failed)
+  [499/878] vocab-gap    src/system/os/NetStream.cpp  (il function decode failed)
+  [500/878] vocab-gap    src/system/os/OnlineID.cpp  (il function decode failed)
+  [501/878] vocab-gap    src/system/os/Keyboard_Xbox.cpp  (il function decode failed)
+  [502/878] vocab-gap    src/system/os/NetworkSocket_Win.cpp  (il function decode failed)
+  [503/878] vocab-gap    src/system/os/ContentMgr_Xbox.cpp  (il function decode failed)
+  [504/878] vocab-gap    src/system/os/SynchronizationEvent.cpp  (il function decode failed)
+  [505/878] vocab-gap    src/system/os/ThreadCall_Win.cpp  (il function decode failed)
+  [506/878] vocab-gap    src/system/os/FileCache.cpp  (il function decode failed)
+  [507/878] vocab-gap    src/system/os/Memcard.cpp  (il function decode failed)
+  [508/878] vocab-gap    src/system/os/Memcard_Xbox.cpp  (il function decode failed)
+  [509/878] vocab-gap    src/system/os/System_Xbox.cpp  (il function decode failed)
+  [510/878] vocab-gap    src/system/os/Timer.cpp  (il function decode failed)
+  [511/878] vocab-gap    src/system/os/PlatformMgr.cpp  (il function decode failed)
+  [512/878] vocab-gap    src/system/os/UsbMidiGuitarMsgs.cpp  (il function decode failed)
+  [513/878] vocab-gap    src/system/os/User.cpp  (il function decode failed)
+  [514/878] vocab-gap    src/system/os/UserMgr.cpp  (il function decode failed)
+  [515/878] vocab-gap    src/system/os/UsbMidiKeyboardMsgs.cpp  (il function decode failed)
+  [516/878] vocab-gap    src/system/os/UsbMidiKeyboard.cpp  (il function decode failed)
+  [517/878] vocab-gap    src/system/os/VirtualKeyboard.cpp  (il function decode failed)
+  [518/878] vocab-gap    src/system/os/UsbMidiGuitar.cpp  (il function decode failed)
+  [519/878] vocab-gap    src/system/os/VirtualKeyboard_Xbox.cpp  (il function decode failed)
+  [520/878] vocab-gap    src/system/os/Debug.cpp  (il function decode failed)
+  [521/878] vocab-gap    src/system/os/System.cpp  (il function decode failed)
+  [522/878] vocab-gap    src/system/rnddx9/Mat.cpp  (il function decode failed)
+  [523/878] vocab-gap    src/system/rnddx9/Lit.cpp  (il function decode failed)
+  [524/878] vocab-gap    src/system/rnddx9/Env.cpp  (il function decode failed)
+  [525/878] vocab-gap    src/system/rnddx9/Movie.cpp  (il function decode failed)
+  [526/878] vocab-gap    src/system/rnddx9/Cam.cpp  (il function decode failed)
+  [527/878] vocab-gap    src/system/rnddx9/CubeTex.cpp  (il function decode failed)
+  [528/878] vocab-gap    src/system/rnddx9/RenderState.cpp  (il function decode failed)
+  [529/878] vocab-gap    src/system/rnddx9/Part.cpp  (il function decode failed)
+  [530/878] vocab-gap    src/system/rnddx9/Mesh.cpp  (il function decode failed)
+  [531/878] vocab-gap    src/system/rnddx9/MultiMesh.cpp  (il function decode failed)
+  [532/878] vocab-gap    src/system/rnddx9/Rnd.cpp  (il function decode failed)
+  [533/878] vocab-gap    src/system/rnddx9/ShaderMgr.cpp  (il function decode failed)
+  [534/878] vocab-gap    src/system/rndobj/ColorXfm.cpp  (il function decode failed)
+  [535/878] vocab-gap    src/system/rndobj/Bitmap.cpp  (il function decode failed)
+  [536/878] vocab-gap    src/system/rndobj/Anim.cpp  (il function decode failed)
+  [537/878] vocab-gap    src/system/rnddx9/TexMgr.cpp  (il function decode failed)
+  [538/878] vocab-gap    src/system/rnddx9/Utl.cpp  (il function decode failed)
+  [539/878] vocab-gap    src/system/rnddx9/Tex.cpp  (il function decode failed)
+  [540/878] vocab-gap    src/system/rnddx9/Rnd_Xbox.cpp  (il function decode failed)
+  [541/878] vocab-gap    src/system/rndobj/BoxMap.cpp  (il function decode failed)
+  [542/878] vocab-gap    src/system/rndobj/AnimFilter.cpp  (il function decode failed)
+  [543/878] vocab-gap    src/system/rndobj/CubeTex.cpp  (il function decode failed)
+  [544/878] vocab-gap    src/system/rndobj/BaseMaterial.cpp  (il function decode failed)
+  [545/878] vocab-gap    src/system/rndobj/Enter.cpp  (il function decode failed)
+  [546/878] vocab-gap    src/system/rndobj/DOFProc.cpp  (il function decode failed)
+  [547/878] vocab-gap    src/system/rndobj/Cam.cpp  (il function decode failed)
+  [548/878] vocab-gap    src/system/rndobj/AmbientOcclusion.cpp  (il function decode failed)
+  [549/878] vocab-gap    src/system/rndobj/CamAnim.cpp  (il function decode failed)
+  [550/878] vocab-gap    src/system/rndobj/Console.cpp  (il function decode failed)
+  [551/878] vocab-gap    src/system/rndobj/Env.cpp  (il function decode failed)
+  [552/878] vocab-gap    src/system/rndobj/Env_NG.cpp  (il function decode failed)
+  [553/878] vocab-gap    src/system/rndobj/DOFProc_NG.cpp  (il function decode failed)
+  [554/878] vocab-gap    src/system/rndobj/Draw.cpp  (il function decode failed)
+  [555/878] vocab-gap    src/system/rndobj/FontBase.cpp  (il function decode failed)
+  [556/878] vocab-gap    src/system/rndobj/Font3d.cpp  (il function decode failed)
+  [557/878] vocab-gap    src/system/rndobj/Fur.cpp  (il function decode failed)
+  [558/878] vocab-gap    src/system/rndobj/Flare.cpp  (il function decode failed)
+  [559/878] vocab-gap    src/system/rndobj/Fur_NG.cpp  (il function decode failed)
+  [560/878] vocab-gap    src/system/rndobj/Font.cpp  (il function decode failed)
+  [561/878] vocab-gap    src/system/os/PlatformMgr_Xbox.cpp  (il function decode failed)
+  [562/878] vocab-gap    src/system/rndobj/Dir.cpp  (il function decode failed)
+  [563/878] vocab-gap    src/system/rndobj/HiResScreen.cpp  (il function decode failed)
+  [564/878] vocab-gap    src/system/rndobj/EventTrigger.cpp  (il function decode failed)
+  [565/878] vocab-gap    src/system/rndobj/Lit.cpp  (il function decode failed)
+  [566/878] vocab-gap    src/system/rndobj/Gen.cpp  (il function decode failed)
+  [567/878] vocab-gap    src/system/rndobj/LitAnim.cpp  (il function decode failed)
+  [568/878] vocab-gap    src/system/rndobj/Graph.cpp  (il function decode failed)
+  [569/878] vocab-gap    src/system/rndobj/MatAnim.cpp  (il function decode failed)
+  [570/878] vocab-gap    src/system/rndobj/Group.cpp  (il function decode failed)
+  [571/878] vocab-gap    src/system/rndobj/Line.cpp  (il function decode failed)
+  [572/878] vocab-gap    src/system/rndobj/Lit_NG.cpp  (il function decode failed)
+  [573/878] vocab-gap    src/system/rndobj/Mat_NG.cpp  (il function decode failed)
+  [574/878] vocab-gap    src/system/rndobj/Movie.cpp  (il function decode failed)
+  [575/878] vocab-gap    src/system/rndobj/MetaMaterial.cpp  (il function decode failed)
+  [576/878] vocab-gap    src/system/rndobj/Mat.cpp  (il function decode failed)
+  [577/878] vocab-gap    src/system/rndobj/MeshDeform.cpp  (il function decode failed)
+  [578/878] vocab-gap    src/system/rndobj/MeshAnim.cpp  (il function decode failed)
+  [579/878] vocab-gap    src/system/rndobj/MultiMeshProxy.cpp  (il function decode failed)
+  [580/878] vocab-gap    src/system/rndobj/MotionBlur.cpp  (il function decode failed)
+  [581/878] vocab-gap    src/system/rndobj/Poll.cpp  (il function decode failed)
+  [582/878] vocab-gap    src/system/rndobj/Overlay.cpp  (il function decode failed)
+  [583/878] vocab-gap    src/system/rndobj/PollAnim.cpp  (il function decode failed)
+  [584/878] vocab-gap    src/system/rndobj/MultiMesh.cpp  (il function decode failed)
+  [585/878] vocab-gap    src/system/rndobj/Morph.cpp  (il function decode failed)
+  [586/878] vocab-gap    src/system/rndobj/PostProcMgr.cpp  (il function decode failed)
+  [587/878] vocab-gap    src/system/rndobj/PartLauncher.cpp  (il function decode failed)
+  [588/878] vocab-gap    src/system/rndobj/PartAnim.cpp  (il function decode failed)
+  [589/878] vocab-gap    src/system/rndobj/ShaderOptions.cpp  (il function decode failed)
+  [590/878] vocab-gap    src/system/rndobj/Part.cpp  (il function decode failed)
+  [591/878] vocab-gap    src/system/rndobj/Mesh.cpp  (il function decode failed)
+  [592/878] vocab-gap    src/system/rndobj/Set.cpp  (il function decode failed)
+  [593/878] vocab-gap    src/system/rndobj/SIVideo.cpp  (il function decode failed)
+  [594/878] vocab-gap    src/system/rndobj/PostProc.cpp  (il function decode failed)
+  [595/878] vocab-gap    src/system/rndobj/Ribbon.cpp  (il function decode failed)
+  [596/878] vocab-gap    src/system/rndobj/ScreenMask.cpp  (il function decode failed)
+  [597/878] vocab-gap    src/system/rndobj/ShaderMgr.cpp  (il function decode failed)
+  [598/878] vocab-gap    src/system/rndobj/Rnd_NG.cpp  (il function decode failed)
+  [599/878] vocab-gap    src/system/rndobj/ShadowMap.cpp  (il function decode failed)
+  [600/878] vocab-gap    src/system/rndobj/Shader.cpp  (il function decode failed)
+  [601/878] vocab-gap    src/system/rndobj/PropKeys.cpp  (il function decode failed)
+  [602/878] vocab-gap    src/system/rndobj/ShaderProgram.cpp  (il function decode failed)
+  [603/878] vocab-gap    src/system/rndobj/Shockwave.cpp  (il function decode failed)
+  [604/878] vocab-gap    src/system/rndobj/Spline.cpp  (il function decode failed)
+  [605/878] vocab-gap    src/system/rndobj/SoftParticles.cpp  (il function decode failed)
+  [606/878] vocab-gap    src/system/rndobj/TransProxy.cpp  (il function decode failed)
+  [607/878] vocab-gap    src/system/rndobj/TexBlendController.cpp  (il function decode failed)
+  [608/878] vocab-gap    src/system/rndobj/wordwrap.cpp  (il function decode failed)
+  [609/878] vocab-gap    src/system/rndobj/SoftParticleBuffer.cpp  (il function decode failed)
+  [610/878] vocab-gap    src/system/rndobj/PropAnim.cpp  (il function decode failed)
+  [611/878] vocab-gap    src/system/rndobj/TexProc.cpp  (il function decode failed)
+  [612/878] vocab-gap    src/system/rndobj/Watcher.cpp  (il function decode failed)
+  [613/878] vocab-gap    src/system/rndobj/Tex.cpp  (il function decode failed)
+  [614/878] vocab-gap    src/system/synth/complex.cpp  (il function decode failed)
+  [615/878] vocab-gap    src/system/synth/ADSR.cpp  (il function decode failed)
+  [616/878] vocab-gap    src/system/rndobj/TexBlender.cpp  (il function decode failed)
+  [617/878] vocab-gap    src/system/rndobj/Wind.cpp  (il function decode failed)
+  [618/878] vocab-gap    src/system/synth/CompressionEffect.cpp  (il function decode failed)
+  [619/878] vocab-gap    src/system/rndobj/TransAnim.cpp  (il function decode failed)
+  [620/878] vocab-gap    src/system/rndobj/TexRenderer.cpp  (il function decode failed)
+  [621/878] vocab-gap    src/system/rndobj/Trans.cpp  (il function decode failed)
+  [622/878] vocab-gap    src/system/synth/filterdesign.cpp  (il function decode failed)
+  [623/878] vocab-gap    src/system/synth/AudioDucker.cpp  (il function decode failed)
+  [624/878] vocab-gap    src/system/rndobj/VelocityBuffer.cpp  (il function decode failed)
+  [625/878] vocab-gap    src/system/synth/ByteGrinder.cpp  (il function decode failed)
+  [626/878] vocab-gap    src/system/synth/BinkReader.cpp  (il function decode failed)
+  [627/878] vocab-gap    src/system/synth/FxSendBitCrush.cpp  (il function decode failed)
+  [628/878] vocab-gap    src/system/synth/FxSendChorus.cpp  (il function decode failed)
+  [629/878] vocab-gap    src/system/synth/FxSendCompress.cpp  (il function decode failed)
+  [630/878] vocab-gap    src/system/synth/FxSendDelay.cpp  (il function decode failed)
+  [631/878] vocab-gap    src/system/synth/Faders.cpp  (il function decode failed)
+  [632/878] vocab-gap    src/system/synth/FxSendDistortion.cpp  (il function decode failed)
+  [633/878] vocab-gap    src/system/synth/FxSendEQ.cpp  (il function decode failed)
+  [634/878] vocab-gap    src/system/synth/FxSendFlanger.cpp  (il function decode failed)
+  [635/878] vocab-gap    src/system/rndobj/Rnd.cpp  (il function decode failed)
+  [636/878] vocab-gap    src/system/synth/FxSendPitchShift.cpp  (il function decode failed)
+  [637/878] vocab-gap    src/system/synth/FxSendMeterEffect.cpp  (il function decode failed)
+  [638/878] vocab-gap    src/system/synth/FxSendSynapse.cpp  (il function decode failed)
+  [639/878] vocab-gap    src/system/synth/Mic.cpp  (il function decode failed)
+  [640/878] vocab-gap    src/system/synth/FxSend.cpp  (il function decode failed)
+  [641/878] vocab-gap    src/system/synth/FxSendReverb.cpp  (il function decode failed)
+  [642/878] vocab-gap    src/system/synth/MicNull.cpp  (il function decode failed)
+  [643/878] vocab-gap    src/system/synth/MidiChannel.cpp  (il function decode failed)
+  [644/878] vocab-gap    src/system/synth/FxSendWah.cpp  (il function decode failed)
+  [645/878] vocab-gap    src/system/synth/Pollable.cpp  (il function decode failed)
+  [646/878] vocab-gap    src/system/synth/MidiSynth.cpp  (il function decode failed)
+  [647/878] vocab-gap    src/system/synth/Emitter.cpp  (il function decode failed)
+  [648/878] vocab-gap    src/system/rndobj/Text.cpp  (il function decode failed)
+  [649/878] vocab-gap    src/system/rndobj/Utl.cpp  (il function decode failed)
+  [650/878] vocab-gap    src/system/synth/MeterEffectMonitor.cpp  (il function decode failed)
+  [651/878] vocab-gap    src/system/synth/OggMap.cpp  (il function decode failed)
+  [652/878] vocab-gap    src/system/rndobj/PostProc_NG.cpp  (il function decode failed)
+  [653/878] vocab-gap    src/system/synth/MicClientMapper.cpp  (il function decode failed)
+  [654/878] vocab-gap    src/system/synth/MoggClipMap.cpp  (il function decode failed)
+  [655/878] vocab-gap    src/system/synth/SampleData.cpp  (il function decode failed)
+  [656/878] vocab-gap    src/system/synth/SampleZone.cpp  (il function decode failed)
+  [657/878] vocab-gap    src/system/synth/MetaMusic.cpp  (il function decode failed)
+  [658/878] match        src/system/synth/tomcrypt/TomCryptLicense.cpp
+  [659/878] vocab-gap    src/system/synth/SampleInst.cpp  (il function decode failed)
+  [660/878] vocab-gap    src/system/synth/StreamNull.cpp  (il function decode failed)
+  [661/878] vocab-gap    src/system/synth/MidiInstrument.cpp  (il function decode failed)
+  [662/878] vocab-gap    src/system/synth/SfxMap.cpp  (il function decode failed)
+  [663/878] vocab-gap    src/system/synth/StreamReceiver.cpp  (il function decode failed)
+  [664/878] match        src/system/synth_xbox/Biquad.cpp
+  [665/878] vocab-gap    src/system/synth/MoggClip.cpp  (il function decode failed)
+  [666/878] vocab-gap    src/system/synth/Stream.cpp  (il function decode failed)
+  [667/878] vocab-gap    src/system/synth/StreamReceiverFile.cpp  (il function decode failed)
+  [668/878] vocab-gap    src/system/synth_xbox/FFT.cpp  (il function decode failed)
+  [669/878] vocab-gap    src/system/synth/Sequence.cpp  (il function decode failed)
+  [670/878] vocab-gap    src/system/synth_xbox/FilterCoeffs.cpp  (il function decode failed)
+  [671/878] vocab-gap    src/system/synth_xbox/EnvelopeGenerator.cpp  (il function decode failed)
+  [672/878] vocab-gap    src/system/synth/Sfx.cpp  (il function decode failed)
+  [673/878] vocab-gap    src/system/synth_xbox/ExternalMic.cpp  (il function decode failed)
+  [674/878] vocab-gap    src/system/synth_xbox/FftIpp.cpp  (il function decode failed)
+  [675/878] vocab-gap    src/system/synth/Sound.cpp  (il function decode failed)
+  [676/878] vocab-gap    src/system/synth/Utl.cpp  (il function decode failed)
+  [677/878] vocab-gap    src/system/synth/SynthSample.cpp  (il function decode failed)
+  [678/878] vocab-gap    src/system/synth/StandardStream.cpp  (il function decode failed)
+  [679/878] vocab-gap    src/system/synth/WavMgr.cpp  (il function decode failed)
+  [680/878] vocab-gap    src/system/synth/WavReader.cpp  (il function decode failed)
+  [681/878] vocab-gap    src/system/synth/ThreeDSound.cpp  (il function decode failed)
+  [682/878] vocab-gap    src/system/synth/VorbisReader.cpp  (il function decode failed)
+  [683/878] vocab-gap    src/system/synth_xbox/FxSendCompress.cpp  (il function decode failed)
+  [684/878] vocab-gap    src/system/synth_xbox/FxSendBitCrush.cpp  (il function decode failed)
+  [685/878] match        src/system/synth_xbox/GainEffect.cpp
+  [686/878] match        src/system/synth_xbox/HeadsetPlaybackEffect.cpp
+  [687/878] vocab-gap    src/system/synth_xbox/FxSendChorus.cpp  (il function decode failed)
+  [688/878] match        src/system/synth_xbox/IPP_basicmath_xbox.cpp
+  [689/878] vocab-gap    src/system/synth_xbox/HeadsetXferEffect.cpp  (il function decode failed)
+  [690/878] vocab-gap    src/system/synth_xbox/MeterEffect.cpp  (il function decode failed)
+  [691/878] match        src/system/synth_xbox/PeakDetector.cpp
+  [692/878] vocab-gap    src/system/synth_xbox/PitchCorrectedVoice.cpp  (il function decode failed)
+  [693/878] vocab-gap    src/system/synth_xbox/FxSendDistortion.cpp  (il function decode failed)
+  [694/878] vocab-gap    src/system/synth_xbox/GranularSynth.cpp  (il function decode failed)
+  [695/878] vocab-gap    src/system/synth_xbox/FxSendEQ.cpp  (il function decode failed)
+  [696/878] vocab-gap    src/system/synth_xbox/FxSendDelay.cpp  (il function decode failed)
+  [697/878] vocab-gap    src/system/synth_xbox/FxSendFlanger.cpp  (il function decode failed)
+  [698/878] vocab-gap    src/system/synth_xbox/FxSend.cpp  (il function decode failed)
+  [699/878] vocab-gap    src/system/synth_xbox/PitchDetector.cpp  (il function decode failed)
+  [700/878] vocab-gap    src/system/synth_xbox/PitchShiftEffect.cpp  (il function decode failed)
+  [701/878] vocab-gap    src/system/synth_xbox/FxSendPitchShift.cpp  (il function decode failed)
+  [702/878] vocab-gap    src/system/synth_xbox/FxSendMeterEffect.cpp  (il function decode failed)
+  [703/878] vocab-gap    src/system/synth_xbox/soundtouch/source/SoundStretch/WavFile.cpp  (il function decode failed)
+  [704/878] vocab-gap    src/system/synth_xbox/FxSendReverb.cpp  (il function decode failed)
+  [705/878] vocab-gap    src/system/synth_xbox/soundtouch/source/SoundTouch/cpu_detect_x86_gcc.cpp  (il function decode failed)
+  [706/878] vocab-gap    src/system/synth_xbox/soundtouch/source/SoundTouch/AAFilter.cpp  (il function decode failed)
+  [707/878] match        src/system/synth_xbox/soundtouch/source/SoundTouch/mmx_optimized.cpp
+  [708/878] vocab-gap    src/system/synth_xbox/soundtouch/source/SoundTouch/BPMDetect.cpp  (il function decode failed)
+  [709/878] vocab-gap    src/system/synth_xbox/soundtouch/source/SoundTouch/PeakFinder.cpp  (il function decode failed)
+  [710/878] vocab-gap    src/system/synth_xbox/soundtouch/source/SoundTouch/FIFOSampleBuffer.cpp  (il function decode failed)
+  [711/878] match        src/system/synth_xbox/soundtouch/source/SoundTouch/sse_optimized.cpp
+  [712/878] vocab-gap    src/system/synth/Synth.cpp  (il function decode failed)
+  [713/878] vocab-gap    src/system/synth_xbox/soundtouch/source/SoundTouch/FIRFilter.cpp  (il function decode failed)
+  [714/878] vocab-gap    src/system/synth_xbox/FxSendSynapse.cpp  (il function decode failed)
+  [715/878] vocab-gap    src/system/synth_xbox/soundtouch/source/SoundTouch/RateTransposer.cpp  (il function decode failed)
+  [716/878] vocab-gap    src/system/synth_xbox/soundtouch/source/SoundTouch/SoundTouch.cpp  (il function decode failed)
+  [717/878] vocab-gap    src/system/synth_xbox/SpectralAnalysis.cpp  (il function decode failed)
+  [718/878] vocab-gap    src/system/synth_xbox/FxSendWah.cpp  (il function decode failed)
+  [719/878] vocab-gap    src/system/synth_xbox/SynapseAPO.cpp  (il function decode failed)
+  [720/878] vocab-gap    src/system/synth_xbox/soundtouch/source/SoundTouch/TDStretch.cpp  (il function decode failed)
+  [721/878] vocab-gap    src/system/synth_xbox/SampleInst360.cpp  (il function decode failed)
+  [722/878] vocab-gap    src/system/synth_xbox/Synapse_dsp.cpp  (il function decode failed)
+  [723/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundTouch/3dnow_win.cpp  (C1189)
+  [724/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundTouch/cpu_detect_x86_win.cpp  (C1189)
+  [725/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundTouchDLL/SoundTouchDLL.cpp  (C1083)
+  [726/878] vocab-gap    src/system/synth_xbox/SynthSample.cpp  (il function decode failed)
+  [727/878] vocab-gap    src/system/synth_xbox/StreamReceiver360.cpp  (il function decode failed)
+  [728/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundStretch/main.cpp  (C1083)
+  [729/878] vocab-gap    src/system/synth_xbox/StreamReceiver.cpp  (il function decode failed)
+  [730/878] vocab-gap    src/system/synth_xbox/Mic.cpp  (il function decode failed)
+  [731/878] vocab-gap    src/system/ui/ResourceDirPtr.cpp  (il function decode failed)
+  [732/878] vocab-gap    src/system/synth_xbox/Voice.cpp  (il function decode failed)
+  [733/878] vocab-gap    src/system/synth_xbox/Synth.cpp  (il function decode failed)
+  [734/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundStretch/RunParameters.cpp  (C1083)
+  [735/878] vocab-gap    src/system/ui/UIColor.cpp  (il function decode failed)
+  [736/878] vocab-gap    src/system/ui/UIGuide.cpp  (il function decode failed)
+  [737/878] vocab-gap    src/system/ui/Screenshot.cpp  (il function decode failed)
+  [738/878] vocab-gap    src/system/ui/InlineHelp.cpp  (il function decode failed)
+  [739/878] vocab-gap    src/system/ui/LabelShrinkWrapper.cpp  (il function decode failed)
+  [740/878] vocab-gap    src/system/ui/CheatProvider.cpp  (il function decode failed)
+  [741/878] vocab-gap    src/system/ui/ScrollSelect.cpp  (il function decode failed)
+  [742/878] vocab-gap    src/system/ui/LabelNumberTicker.cpp  (il function decode failed)
+  [743/878] vocab-gap    src/system/ui/UIComponent.cpp  (il function decode failed)
+  [744/878] vocab-gap    src/system/ui/PanelDir.cpp  (il function decode failed)
+  [745/878] vocab-gap    src/system/ui/UIButton.cpp  (il function decode failed)
+  [746/878] vocab-gap    src/system/ui/LocalePanel.cpp  (il function decode failed)
+  [747/878] vocab-gap    src/system/ui/UIFontImporter.cpp  (il function decode failed)
+  [748/878] vocab-gap    src/system/ui/UILabel.cpp  (il function decode failed)
+  [749/878] vocab-gap    src/system/ui/UILabelDir.cpp  (il function decode failed)
+  [750/878] vocab-gap    src/system/ui/UIListHighlight.cpp  (il function decode failed)
+  [751/878] vocab-gap    src/system/ui/UIListArrow.cpp  (il function decode failed)
+  [752/878] vocab-gap    src/system/ui/UI.cpp  (il function decode failed)
+  [753/878] vocab-gap    src/system/ui/UIListDir.cpp  (il function decode failed)
+  [754/878] vocab-gap    src/system/ui/UIListCustom.cpp  (il function decode failed)
+  [755/878] vocab-gap    src/system/ui/UIListLabel.cpp  (il function decode failed)
+  [756/878] vocab-gap    src/system/ui/UIListState.cpp  (il function decode failed)
+  [757/878] vocab-gap    src/system/ui/UIListMesh.cpp  (il function decode failed)
+  [758/878] vocab-gap    src/system/ui/UIListProvider.cpp  (il function decode failed)
+  [759/878] vocab-gap    src/system/ui/UIListSlot.cpp  (il function decode failed)
+  [760/878] vocab-gap    src/system/ui/UIList.cpp  (il function decode failed)
+  [761/878] vocab-gap    src/system/utl/BeatMap.cpp  (il function decode failed)
+  [762/878] vocab-gap    src/system/utl/AllocInfo.cpp  (il function decode failed)
+  [763/878] vocab-gap    src/system/utl/BufStream.cpp  (il function decode failed)
+  [764/878] vocab-gap    src/system/ui/UIListSubList.cpp  (il function decode failed)
+  [765/878] vocab-gap    src/system/ui/UIPanel.cpp  (il function decode failed)
+  [766/878] vocab-gap    src/system/utl/Cache.cpp  (il function decode failed)
+  [767/878] vocab-gap    src/system/utl/BinStream.cpp  (il function decode failed)
+  [768/878] vocab-gap    src/system/ui/UIPicture.cpp  (il function decode failed)
+  [769/878] vocab-gap    src/system/ui/UIListWidget.cpp  (il function decode failed)
+  [770/878] vocab-gap    src/system/ui/UITransitionHandler.cpp  (il function decode failed)
+  [771/878] vocab-gap    src/system/utl/CacheMgr.cpp  (il function decode failed)
+  [772/878] vocab-gap    src/system/utl/ChunkIDs.cpp  (il function decode failed)
+  [773/878] vocab-gap    src/system/utl/CacheMgr_Xbox.cpp  (il function decode failed)
+  [774/878] vocab-gap    src/system/utl/Compress.cpp  (il function decode failed)
+  [775/878] vocab-gap    src/system/ui/Utl.cpp  (il function decode failed)
+  [776/878] vocab-gap    src/system/utl/Crc.cpp  (il function decode failed)
+  [777/878] match        src/system/utl/EncryptXTEA.cpp
+  [778/878] vocab-gap    src/system/utl/Chunks.cpp  (il function decode failed)
+  [779/878] vocab-gap    src/system/utl/DataPointMgr.cpp  (il function decode failed)
+  [780/878] vocab-gap    src/system/utl/FilePath.cpp  (il function decode failed)
+  [781/878] vocab-gap    src/system/utl/DeJitter.cpp  (il function decode failed)
+  [782/878] vocab-gap    src/system/ui/UISlider.cpp  (il function decode failed)
+  [783/878] vocab-gap    src/system/utl/FileStream.cpp  (il function decode failed)
+  [784/878] vocab-gap    src/system/utl/Cache_Xbox.cpp  (il function decode failed)
+  [785/878] vocab-gap    src/system/utl/FakeSongMgr.cpp  (il function decode failed)
+  [786/878] vocab-gap    src/system/ui/UITrigger.cpp  (il function decode failed)
+  [787/878] vocab-gap    src/system/utl/JsonEncode.cpp  (il function decode failed)
+  [788/878] vocab-gap    src/system/utl/HxGuid.cpp  (il function decode failed)
+  [789/878] vocab-gap    src/system/utl/ChunkStream.cpp  (il function decode failed)
+  [790/878] vocab-gap    src/system/utl/Licenses.cpp  (il function decode failed)
+  [791/878] vocab-gap    src/system/utl/Cheats.cpp  (il function decode failed)
+  [792/878] vocab-gap    src/system/ui/UIScreen.cpp  (il function decode failed)
+  [793/878] vocab-gap    src/system/utl/MakeString.cpp  (il function decode failed)
+  [794/878] vocab-gap    src/system/utl/LocaleOrdinal.cpp  (il function decode failed)
+  [795/878] vocab-gap    src/system/utl/MeasureMap.cpp  (il function decode failed)
+  [796/878] vocab-gap    src/system/utl/MBT.cpp  (il function decode failed)
+  [797/878] vocab-gap    src/system/utl/DebugMeter.cpp  (il function decode failed)
+  [798/878] vocab-gap    src/system/utl/JobMgr.cpp  (il function decode failed)
+  [799/878] vocab-gap    src/system/utl/DebugGraph.cpp  (il function decode failed)
+  [800/878] vocab-gap    src/system/utl/Loader.cpp  (il function decode failed)
+  [801/878] vocab-gap    src/system/utl/MemHeap.cpp  (il function decode failed)
+  [802/878] vocab-gap    src/system/utl/GlitchFinder.cpp  (il function decode failed)
+  [803/878] vocab-gap    src/system/utl/Magnu.cpp  (il function decode failed)
+  [804/878] vocab-gap    src/system/utl/MemPoint.cpp  (il function decode failed)
+  [805/878] vocab-gap    src/system/utl/MemStats.cpp  (il function decode failed)
+  [806/878] vocab-gap    src/system/utl/Locale.cpp  (il function decode failed)
+  [807/878] vocab-gap    src/system/utl/MemStream.cpp  (il function decode failed)
+  [808/878] capture-fail src/system/synth_xbox/FxSendPitchShift360.cpp  (C2084)
+  [809/878] match        src/system/utl/Pool.cpp
+  [810/878] vocab-gap    src/system/utl/MultiTempoTempoMap.cpp  (il function decode failed)
+  [811/878] vocab-gap    src/system/utl/MemMgr.cpp  (il function decode failed)
+  [812/878] vocab-gap    src/system/utl/KnownIssues.cpp  (il function decode failed)
+  [813/878] vocab-gap    src/system/utl/MemTrack.cpp  (il function decode failed)
+  [814/878] vocab-gap    src/system/utl/SongInfoAudioType.cpp  (il function decode failed)
+  [815/878] match        src/system/utl/Spew.cpp
+  [816/878] vocab-gap    src/system/utl/PoolAlloc.cpp  (il function decode failed)
+  [817/878] vocab-gap    src/system/utl/Profiler.cpp  (il function decode failed)
+  [818/878] vocab-gap    src/system/utl/NetCacheLoader.cpp  (il function decode failed)
+  [819/878] vocab-gap    src/system/utl/TempoMap.cpp  (il function decode failed)
+  [820/878] vocab-gap    src/system/utl/SongInfoCopy.cpp  (il function decode failed)
+  [821/878] capture-fail src/system/synth_xbox/FxSendSynapse360.cpp  (C2084)
+  [822/878] vocab-gap    src/system/utl/Option.cpp  (il function decode failed)
+  [823/878] vocab-gap    src/system/utl/MemTracker.cpp  (il function decode failed)
+  [824/878] vocab-gap    src/system/utl/NetLoader_Xbox.cpp  (il function decode failed)
+  [825/878] vocab-gap    src/system/utl/OSCMessenger.cpp  (il function decode failed)
+  [826/878] vocab-gap    src/system/utl/NetLoader.cpp  (il function decode failed)
+  [827/878] vocab-gap    src/system/utl/Str.cpp  (il function decode failed)
+  [828/878] vocab-gap    src/system/utl/NetCacheMgr_Xbox.cpp  (il function decode failed)
+  [829/878] vocab-gap    src/system/utl/SuperFormatString.cpp  (il function decode failed)
+  [830/878] vocab-gap    src/system/utl/UrlEncode.cpp  (il function decode failed)
+  [831/878] vocab-gap    src/system/utl/TextFileStream.cpp  (il function decode failed)
+  [832/878] vocab-gap    src/system/utl/NetCacheMgr.cpp  (il function decode failed)
+  [833/878] vocab-gap    src/system/utl/trie.cpp  (il function decode failed)
+  [834/878] vocab-gap    src/system/utl/TextStream.cpp  (il function decode failed)
+  [835/878] vocab-gap    src/system/utl/StringTable.cpp  (il function decode failed)
+  [836/878] vocab-gap    src/system/utl/UTF8.cpp  (il function decode failed)
+  [837/878] vocab-gap    src/system/utl/VarTimer.cpp  (il function decode failed)
+  [838/878] vocab-gap    src/system/utl/Symbol.cpp  (il function decode failed)
+  [839/878] vocab-gap    src/system/utl/TimeConversion.cpp  (il function decode failed)
+  [840/878] vocab-gap    src/system/world/ColorPalette.cpp  (il function decode failed)
+  [841/878] vocab-gap    src/system/utl/WaveFile.cpp  (il function decode failed)
+  [842/878] vocab-gap    src/system/world/BeatClock.cpp  (il function decode failed)
+  [843/878] vocab-gap    src/system/world/LightHue.cpp  (il function decode failed)
+  [844/878] vocab-gap    src/system/world/DefaultPhysicsManager.cpp  (il function decode failed)
+  [845/878] vocab-gap    src/system/world/Crowd3DCharHandle.cpp  (il function decode failed)
+  [846/878] vocab-gap    src/system/world/PostProcer.cpp  (il function decode failed)
+  [847/878] vocab-gap    src/system/world/PhysicsManager.cpp  (il function decode failed)
+  [848/878] vocab-gap    src/system/world/PhysicsVolume.cpp  (il function decode failed)
+  [849/878] vocab-gap    src/system/world/Instance.cpp  (il function decode failed)
+  [850/878] vocab-gap    src/system/world/Reflection.cpp  (il function decode failed)
+  [851/878] match        src/system/zlib/ZlibLicense.cpp
+  [852/878] match        src/xdk/LIBCMT/osfinfo.cpp
+  [853/878] vocab-gap    src/xdk/LIBCMT/rtti.cpp  (il function decode failed)
+  [854/878] match        src/xdk/LIBCMT/undname.cpp
+  [855/878] match        src/xdk/LIBCMT/vsnprnc.cpp
+  [856/878] match        src/xdk/LIBCMT/vswprnc.cpp
+  [857/878] vocab-gap    src/system/utl/Song.cpp  (il function decode failed)
+  [858/878] vocab-gap    src/xdk/nuiapi/nuidetroit.cpp  (il function decode failed)
+  [859/878] vocab-gap    src/system/world/Crowd.cpp  (il function decode failed)
+  [860/878] vocab-gap    src/xdk/nuiapi/headtracker.cpp  (il function decode failed)
+  [861/878] match        src/xdk/nuispeech/xboxheap.cpp
+  [862/878] match        src/xdk/nuispeech/mmio.cpp
+  [863/878] match        src/xdk/nuispeech/xboxmem.cpp
+  [864/878] match        src/xdk/xjson/jsonwriter.cpp
+  [865/878] match        src/xdk/xlrc/xlrcimpl.cpp
+  [866/878] vocab-gap    src/system/world/FreeCamera.cpp  (il function decode failed)
+  [867/878] vocab-gap    src/system/world/SpotlightEnder.cpp  (il function decode failed)
+  [868/878] vocab-gap    src/system/world/CameraManager.cpp  (il function decode failed)
+  [869/878] vocab-gap    src/system/world/LightPresetManager.cpp  (il function decode failed)
+  [870/878] vocab-gap    src/system/world/LightPreset.cpp  (il function decode failed)
+  [871/878] vocab-gap    src/system/world/Dir.cpp  (il function decode failed)
+  [872/878] vocab-gap    src/system/world/SpotlightDrawer.cpp  (il function decode failed)
+  [873/878] vocab-gap    src/system/world/Spotlight.cpp  (il function decode failed)
+  [874/878] vocab-gap    src/system/world/CameraShot.cpp  (il function decode failed)
+  [875/878] vocab-gap    src/system/world/ThreeDSoundManager.cpp  (il function decode failed)
+  [876/878] vocab-gap    src/system/world/World.cpp  (il function decode failed)
+  [877/878] vocab-gap    src/system/world/SpotlightDrawer_NG.cpp  (il function decode failed)
+  [878/878] capture-fail src/system/utl/BinkIntegration.cpp  (C2065)
+
+SPLITTER ANCHORS (ROADMAP §10.11/§10.12) — the census splits `.ex` on `4C 4F 11`, the port on `4F 1F`
+  gate-side segment count KNOWN for 870 of 870 captured TUs; UNKNOWN for 0 (no `.ex` at all). Read through `IlBundle::ex_segment_count`, a PURE reader of the `4F 1F` split — not `functions()`, which is an acceptance decision and returns None for every vocab-gap TU, leaving this knowable for only the 6 that already match.
+  of the 870 known: 187 agree with `fn_total`, 683 disagree (683 where the gate sees MORE segments, 0 where the census does)
+  emit-set ceiling, LO-anchored, over ALL graded TUs: 27
+  emit-set ceiling, GATE-anchored (`4F 1F`, what the port consumes), over the 870 known: 28 (+1 entering, -0 leaving vs the LO-anchored set)
+  gate-anchored control on matching TUs: 1 violations over 26 matching TUs whose gate count is known
+
+PHASE 7 FACTORS (ROADMAP §10.19/§10.21, boards #160/#179) — the model is A and B and C and (D or E), over 870 graded TUs
+  A  emit set reachable   `.ex` segments == obj `.text` COMDATs      28  (gate-anchored `4F 1F`; 27 on the census's `4C 4F 11` anchor)
+  B  binding complete     every emitted symbol binds                324
+  C  section shape        obj sections subset of the writer's 10     169
+  D  per-fn acceptance    every emitted COMDAT in class              24  (6 of them emit nothing at all)
+  E  whole-TU acceptance  a REGISTERED whole-TU recognizer takes it   4  (4 in the registry)
+    D and E are the two readings of ONE question — does the port have an accepted route to this TU's contents. Neither is necessary alone (measured: D fails on the whole-TU matches, E on the per-function ones); the DISJUNCTION is the term.
+  B and C jointly (the near-term ceiling, measured per TU — NOT a product of marginals, §8.6): 148
+  A and B and C: 27   |   A and B and C and D (§10.19's original, refuted): 22   |   A and B and C and (D or E): 25   |   TUs the differential graded `match`: 26
+  section headers: 870 objs read, 0 did not decode (outside C, fail-closed)
+    whole-TU recognizer `dyninit-??__E` accepts 2 graded TU(s)
+    whole-TU recognizer `data-only-tu` accepts 0 graded TU(s)
+    whole-TU recognizer `provide-data-tu` accepts 1 graded TU(s)
+    whole-TU recognizer `ehscope-/EHsc-local` accepts 1 graded TU(s)
+  the fifth term accounts for 3 TU(s) that A and B and C and D misses: ["src/Main.cpp", "src/system/synth/tomcrypt/TomCryptLicense.cpp", "src/system/zlib/ZlibLicense.cpp"]
+  the joint is NOT the match set — 0 in the joint only ([]), 1 matching but outside some factor (["src/system/decomp_pch.cpp"]). The second list is the ALARM: every factor is meant to be NECESSARY, so a matching TU outside one voids the bound it carries.
+  known-answer control — matching TUs failing each NECESSARY term (all must be 0, over 26 matching TUs): A 1 B 0 C 0 D-or-E 0
+    diagnostics, NOT required to be 0 (neither disjunct is necessary alone): D 3 E 22
+    D 3 — the per-function census does not model the whole-TU emit path, so §10.19's A∧B∧C∧D conjunction stays refuted by these TU(s). That is the finding board #179 repairs with E, not a defect E hides.
+    A 1 — a whole-TU DATA emitter needs no `.text`, so A's proxy (`.ex` segments == `.text` COMDATs) is not necessary for a functionless-emit match: `decomp_pch.cpp` matches with 1,242 segments and 0 `.text` (lane w-npos, the provide-data-tu recognizer). A still bounds every PER-FUNCTION match and the A-derived ceilings keep that scope; this count is the record that the scope narrowed, printed the way D's refutation is, not a defect E hides.
+  SECTION VOCABULARY — 13 distinct names across the workload (objs carrying each):
+      870 objs  [writer]  .XBLD$W
+      870 objs  [writer]  .debug$S
+      870 objs  [writer]  .drectve
+      862 objs  [writer]  .text
+      846 objs  [writer]  .pdata
+      846 objs  [writer]  .rdata
+      743 objs  [writer]  .data
+      689 objs  [writer]  .bss
+      676 objs  [  ---]  .rdata$r
+      242 objs  [  ---]  .text$yd
+      125 objs  [writer]  .CRT$XCU
+      125 objs  [writer]  .text$yc
+       67 objs  [  ---]  .xdata$x
+  FRONTIER — 2 graded TUs satisfy A and B and C, are NOT a match, and are outside BOTH acceptance paths (not D, not E), so per-function codegen breadth is the whole remaining distance (blocked emitted | emitted | src):
+       3 |    3 | src/system/rndobj/wordwrap.cpp
+      19 |   20 | src/keygen_xbox.cpp
+  FRONTIER BY `.text` BYTE FRACTION (board #500) — how much of each TU's `.text` the port already produces a body for, BY BYTE. Board #465 counted FUNCTIONS and was refuted by the TU registered to confirm it (mmio: 72.7% by function, 16.8% by byte, DECLINED; xboxmem: 50.0% by function, 54.5% by byte, CONVERTED). n = 2 outcomes — this ranks, it does not license. `exact` is the oracle-graded floor under `accepted`; a TU with no `.text` bytes prints n/a, NEVER 100%. 0 of 2 frontier TUs have NO denominator, and 1 are at EXACTLY 0% — TUs where codegen breadth has not begun:
+     accepted/total bytes    frac   exact  remain | src   (REMAIN = total - accepted = the PowerPC still to write. A FOURTH unit, printed and NOT chosen between: it agrees with `frac` on both outcome cells and DISAGREES with it at this frontier's head.)
+           8/1440     bytes    0.6%      8    1432 | src/keygen_xbox.cpp
+           0/816      bytes    0.0%      0     816 | src/system/rndobj/wordwrap.cpp
+  BYTE-FRACTION CONTROL (board #501) — a `match` TU is byte-identical to c2's obj, so the port produced a body for every `.text` byte in it and its fraction MUST read 100%. 17 of 26 matched TUs do; 3 fall short; 6 have no `.text` denominator (a TU that defines data and no functions — board #276's shape — which is a 100%-free zero, not a failure).
+    SHORTFALL, by name, each classified — 3 explained by factor E (whole-TU emitter, per-function path blind by construction), 0 UNEXPLAINED. **The unexplained count is the one to watch; it must be 0.** Compare the SET across trees, not its size. The FRONTIER is unaffected either way: it is defined as `A and B and C and not (D or E)`, so no factor-E TU can appear in the ranking above.
+      src/Main.cpp (0/124 bytes, 0.0%)  [factor E — a WHOLE-TU recognizer emitted this; the per-function path cannot see it. EXPECTED.]
+      src/system/synth/tomcrypt/TomCryptLicense.cpp (0/24 bytes, 0.0%)  [factor E — a WHOLE-TU recognizer emitted this; the per-function path cannot see it. EXPECTED.]
+      src/system/zlib/ZlibLicense.cpp (0/24 bytes, 0.0%)  [factor E — a WHOLE-TU recognizer emitted this; the per-function path cannot see it. EXPECTED.]
+  FRONTIER BY CFG REACHABILITY (board #720) — CAN THE EMITTER EXPRESS THIS TU AT ALL? `Selected` covers FOUR control-flow shapes: straight-line, ONE two-arm conditional, — since lane `w-hash`, board #761 — ONE loop, the pointer-walk accumulate of `codegen::ptr_walk_loop`, and — since lane `w-cfgclass`, board #1630 — ONE `if`/`else` with a join whose arms are calls, `codegen::if_call_join`. **The last two are each a transcription of a single function class, not a lowering of its CFG class**: twenty words, two immediate fields, `/O1` only. Every other loop shape and every other `cflow-if-n` shape still has no representation at all — the `if`/`else` class takes 2 of the frontier's 11 `cflow-if-n` functions and the loop 1 of its 21 `cflow-loop` ones. This line read `no variant encodes a backward branch, so NO loop of any kind has a representation` until `Sort.cpp` converted, and `THREE ... shapes` until `negate_test.cpp` did; each correction is here rather than beside the old claim. **A shape being in this list does NOT put its class in `PORT_CFG_CLASSES`** — the two converted TUs left the frontier by MATCHING, so neither appears in the count below, which is why that count can stand still while this sentence grows. This is not a quantity of progress like #269/#465/#500 — a TU can be one 8-byte function from matching and be unreachable because those 8 bytes are a loop. INSTRUMENT, never a gate. 0 of 2 frontier TUs are reachable:
+     19 blocked | src/keygen_xbox.cpp                                | labels 15  | needs a CFG class the port lacks: cflow-if-n, cflow-loop
+      3 blocked | src/system/rndobj/wordwrap.cpp                     | labels 3   | needs a CFG class the port lacks: cflow-if-n, cflow-loop
+    LABEL CHANNEL (board #742) — `$M`/`$T` are the ONLY way the value of c2's compiler-label counter reaches an obj, and `coff::plan_labels` mints them for a FRAMED function and nothing else. A leaf loop charges that counter +1..+4 while `plan_labels` charges 0 (17 seed-free cells, docs/LABEL_COUNTER.md §4.2), which is the whole stated justification for `codegen::labels` invariant 4 refusing every BACKWARD branch. On a `label-free` obj that error has nowhere to land — and that is SHIPPED rather than observed: `IlFunction::label_slots` returns `None` for THREE of the five loop shapes the port emits, so a TU pairing one of THOSE with a framed function still refuses. **Two are lifted, both at a charge of 2 and both spelled `for`** (board #746's fence B): the pointer-walk loop, measured against `fixtures/cpp/whash_loop_then_framed.cpp`'s own obj (lane `w-fenceb`, the first time this counter was PAID rather than refused, boards #746/#747/#3091, control `whash_ptr_walk_loop.cpp`), and the float array-walk loop, measured against `fixtures/cpp/wblockir_float_walk_then_framed_neg.cpp`'s (lane `w-slots`, control `wblockir_float_walk.cpp`). Both TUs are `match` at `/O1`. The three that remain are the `while`-spelled chain walk, the `do/while` free-list constructor, and the counted accumulate — whose charge moves across modes on a class accepting BOTH, so it is the one arm that must NOT be taken. 0 of 2 frontier TUs are label-free; of the 2 blocked on `cflow-loop`, 0 are. NOT a licence — every one is still gated on codegen that does not exist, and the counter is only the FIRST of that TU's refusals.
+    CONTROL src/xdk/nuispeech/xboxmem.cpp: PASS — the one TU ever converted from codegen breadth carries only port CFG classes (measured: cflow-if-1 x3 + cflow-straight x1).
+    SUB-CLASS NARROWING (board #778) — the screen can now hold a PARTIAL claim (`CfgClass{class, Whole | Keys(&[..])}`), and this is the bracket that keeps a restriction NARROWER OR EQUAL rather than wider. `admits` is `class == class && <sub>`, so `Keys` only ever CONJOINS: a restriction can remove an admitted (class,key) pair and never add one. That is algebra; these four numbers are the measurement, re-derived from this scan's own frontier. BOTTOM 0 ⊆ ENUMERATED 0 == SHIPPED 0 ⊆ TOP 2, of 2 frontier TUs (5 classes in TOP, 13 (class,key) pairs enumerated).
+      BOTTOM=every entry restricted to NO keys (must be 0 — it is the live exercise of the `Keys` path and the detector for a matcher that ignores its key); ENUMERATED=every entry rewritten as the exact key set this scan observed (must equal SHIPPED); TOP=every class the frontier mentions, wholesale — a HYPOTHETICAL the port has no claim to, printed so the refusal has a size: 2 of the 2 frontier TUs are held back by CFG class alone.
+      SHIPPED reachable: []
+      NESTING: PASS — 0 violations over the 3 checks (BOTTOM⊆SHIPPED⊆TOP, ENUMERATED==SHIPPED), taken as SETS by name.
+      LEDGER — 4 entries, 0 of them RESTRICTED. A restricted entry is a claim about named census keys, and two ways it goes quietly wrong are counted here: a listed key no scan witnesses (a claim doing nothing — trap 5 with the claim still on the page) and a key `admits` accepts that the entry does not list (the matcher and the declaration disagreeing, which is what an exact→prefix slip looks like). unwitnessed 0, intruders 0.
+        cflow-straight                   | WHOLE    |  447 keys observed,  447 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+        cflow-straight+expr-modeled      | WHOLE    |   40 keys observed,   40 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+        cflow-if-1                       | WHOLE    |  187 keys observed,  187 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+        cflow-if-1+expr-modeled          | WHOLE    |    3 keys observed,    3 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+      NOT A LICENCE, and #778 is closed as a MECHANISM only: `cflow-loop` did NOT enter the list in the lane that built this. The list is still a hand-maintained mirror of a `c2-core` enum; what changed is that a lane which has measured part of a class can now write down which part, and the reachability figure it produces is bracketed above.
+  FRONTIER BY CODEGEN (board #1474) — THE COLUMN #1463 PRINTED AS `NO COLUMN`, read off the judge's own per-function predicate (FBM) instead of off a reader ladder. `wrong` is the reader accepting a body, the emitter LOWERING it, and the bytes or relocations DIFFERING: the only positive codegen price this project can measure per function. `cg-ref` is the reader accepting and the emitter DECLINING — read `fnbytes::Decline`'s doc before sizing anything off it, because three of its four stages are ZERO BY CONSTRUCTION while acceptance lives in the IL parser. **`reader` is the hole**: the IL parser refused, so no codegen question was asked and none CAN be — there is no IlFunction to hand to `select_function`. A TU's true codegen distance is `wrong + cg-ref` PLUS an unknown amount hiding in `reader`, so every positive number below is a LOWER BOUND OF UNKNOWN TIGHTNESS and never a price. 2 frontier TUs, 23 emitted functions: 22 behind the reader (95%), 0 measurable, 1 already byte-exact.
+     den exact wrong cg-ref reader ungrade | src
+      20     1     0      0     19       0 | src/keygen_xbox.cpp
+       3     0     0      0      3       0 | src/system/rndobj/wordwrap.cpp
+    TOTAL 23 = exact 1 + wrong 0 + cg-ref 0 + reader 22 + ungraded 0;  partition-broken 0 (target 0).
+    **THE MEASURABLE CODEGEN PRICE OF THIS FRONTIER IS ZERO, AND THAT IS NOT `THE CODEGEN WORK IS DONE`.** Every frontier function the reader accepts, the port already emits correctly; all of the remaining distance is behind a reader refusal, where this instrument cannot follow. Board #1464's finding, in the affirmative: the codegen column exists and on this population it is EMPTY.
+  A PERFECT EMIT PREDICATE (board #213) — reachability, NOT conversions: every TU below is still gated on codegen that does not exist.
+    as REACH:    B and C 148 less A and B and C 27 = +121
+    as FRONTIER: frontier-if-A 121 less FRONTIER 2 = +119
+    THE TWO DISAGREE by 1 — #213's single `+82` is refuted on this tree. The difference is exactly the TU(s) inside B and C that fail A and that the port ALREADY accepts (D or E), so modelling the emit set makes them reachable without adding them to the codegen frontier: ["src/system/math/vec.cpp"]
+  GREEDY LADDER — next section name to teach the writer, and the resulting C (3 steps from 169 to 870):
+    +.rdata$r     C =   590   (+421)
+    +.text$yd     C =   803   (+213)
+    +.xdata$x     C =   870   (+67)
+
+  PROGRESS MASS — a PROGRESS metric, NEVER a correctness signal (docs/PROGRESS_METRIC.md).
+    The byte-exact differential is the SOLE judge; `match` below is the only correctness count.
+    No term rewards emitted bytes: P counts proven preconditions (A, B, C against the reference obj)
+    and honest acceptance (the emitted census). A TU graded `mismatch` contributes 0 to every
+    numerator, so a wrong emit always scores below the refusal it replaced.
+    P = mean(a, b, c, f) over 870 graded TUs = 0.21039
+      a  emit-set reachable (A)          28/870  = 0.03218
+      b  binding complete (B)           324/870  = 0.37241
+      c  section shape (C)              169/870  = 0.19425
+      f  emitted fns in class    39332/162063  = 0.24270
+    mismatch-zeroed TUs: 0
+
+  FUNCTION BYTE MATCH (FBM) — a PROGRESS instrument, NEVER a gate (docs/FUNCTION_BYTE_MATCH.md).
+    The judge's own predicate — byte-identical to real c2 — asked per EMITTED FUNCTION instead of
+    per TU. No partial credit: a wrong body scores exactly what a refusal scores, which is 0.
+    The denominator is counted off c2's obj, so refusing more never shrinks it.
+    FBM = (35886 + 3)/162063 emitted functions byte-exact = 0.22145
+      exact          35886  (22.14%)   CREDITED — per-function route, bytes identical to c2's
+      whole-TU           3  ( 0.00%)   CREDITED — on a TU the differential graded `match`; the judge certified the whole obj
+      differs         1958  ( 1.21%)   complete port body, bytes differ
+      reloc-diff       530  ( 0.33%)   bytes IDENTICAL, RELOCATIONS DIFFER — two bodies branching to two different functions (board #884)
+      reloc-unk          0  ( 0.00%)   bytes identical, reference relocation table did not decode — UNGRADED, never credited
+      partial           10  ( 0.01%)   selected; the PORT's own /Gy composition declined the body (board #322 closed the harness's half)
+      refused       114377  (70.58%)   the port declines the function
+      unbound         9302  ( 5.74%)   no census row claims the symbol
+      no-bytes           0  ( 0.00%)   COMDAT raw data did not decode
+    objs unreadable (contribute NO denominator): 0   partition breaks (known answer 0): 0
+    KNOWN-ANSWER CONTROL — per-function bodies that DIFFER on a TU the oracle graded `match` (must be 0): 0
+    FIVE-ALARM CONTROL — byte-exact bodies whose RELOCATIONS differ on a `match` TU (must be 0): 0
+    census/gate disagreement on EMITTED fns (the error term on the emitted census): 948 TOTAL, of which 0 are PARSER-EXPRESSIBLE (target 0 — board #139) and the rest are the post-lowering stages no parser clause can reach (`gy-shape`, `data-ref`, `inlined-callee`; see `gap-metric fnbyte-census-disagree-*`). The residue is the measured size of the emitted census's OVER-CLAIM, not an accounting convenience
+    NOTE: the buckets partition the denominator by the PER-FUNCTION route alone; on a `match` TU the whole-obj verdict supersedes them.
+    RELOC-EQ (lane w-relo, board #884 — `exact` now means bytes AND relocations):
+      bytes-exact    36416   the OLD `exact`, i.e. what this instrument credited before relocations were graded
+      graded         36416   of those, how many got a relocation verdict; residue (ungraded) 0   reach breaks (known answer 0): 0
+      of the CREDITED, 3983 carry at least one relocation — every one compared by offset, packed type and TARGET SYMBOL NAME.
+    reloc-differ families (shape|kind|where->where|relation), most frequent first:
+         529  tail|target|local->local|blocked
+           1  tail|target|comdat-only->comdat-only|blocked-unbound
+    `blocked` families by the production that blocks the walk: expr-call-in-expr-recv-field-off0-then-chain-bind-whole 348 · expr-call-in-expr-recv-intrinsic-this-adjust-then-chain-bind-whole 104 · expr-ternary 50 · expr-call-in-expr-recv-field-off0-then-plumbing-0x3A 25 · expr-call-in-expr-recv-intrinsic-this-adjust-then-plumbing-0x3A 2
+    reloc-differ signatures: 194 distinct over 530 functions; top rows with one example symbol each:
+           1  tail|target|n1/1|@0|REL24@0 -> ??1?$Keys@VTexPtr@RndMatAnim@@PAVRndTex@@@@QAA@XZ => REL24@0 -> ??1?$vector@V?$Key@VTexPtr@RndMatAnim@@@@V?$StlNodeAlloc@V?$Key@VTexPtr@RndMatAnim@@@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ   e.g. ??1TexKeys@RndMatAnim@@QAA@XZ
+           1  tail|target|n1/1|@0|REL24@0 -> ??1?$_List_base@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@QAA@XZ => REL24@0 -> ?clear@?$_List_base@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@QAAXXZ   e.g. ??1?$list@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+           1  tail|target|n1/1|@0|REL24@0 -> ??1?$_List_base@IV?$StlNodeAlloc@I@stlpmtx_std@@@stlpmtx_std@@QAA@XZ => REL24@0 -> ?clear@?$_List_base@IV?$StlNodeAlloc@I@stlpmtx_std@@@stlpmtx_std@@QAAXXZ   e.g. ??1?$list@IV?$StlNodeAlloc@I@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+           1  tail|target|n1/1|@0|REL24@0 -> ??1?$_List_base@MV?$StlNodeAlloc@M@stlpmtx_std@@@stlpmtx_std@@QAA@XZ => REL24@0 -> ?clear@?$_List_base@MV?$StlNodeAlloc@M@stlpmtx_std@@@stlpmtx_std@@QAAXXZ   e.g. ??1?$list@MV?$StlNodeAlloc@M@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+           1  tail|target|n1/1|@0|REL24@0 -> ??1?$_List_base@P6AXAAVFixedString@@@ZV?$StlNodeAlloc@P6AXAAVFixedString@@@Z@stlpmtx_std@@@stlpmtx_std@@QAA@XZ => REL24@0 -> ?clear@?$_List_base@P6AXAAVFixedString@@@ZV?$StlNodeAlloc@P6AXAAVFixedString@@@Z@stlpmtx_std@@@stlpmtx_std@@QAAXXZ   e.g. ??1?$list@P6AXAAVFixedString@@@ZV?$StlNodeAlloc@P6AXAAVFixedString@@@Z@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+           1  tail|target|n1/1|@0|REL24@0 -> ??1?$_List_base@P6AXXZV?$StlNodeAlloc@P6AXXZ@stlpmtx_std@@@stlpmtx_std@@QAA@XZ => REL24@0 -> ?clear@?$_List_base@P6AXXZV?$StlNodeAlloc@P6AXXZ@stlpmtx_std@@@stlpmtx_std@@QAAXXZ   e.g. ??1?$list@P6AXXZV?$StlNodeAlloc@P6AXXZ@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+           1  tail|target|n1/1|@0|REL24@0 -> ??1?$_List_base@PADV?$StlNodeAlloc@PAD@stlpmtx_std@@@stlpmtx_std@@QAA@XZ => REL24@0 -> ?clear@?$_List_base@PADV?$StlNodeAlloc@PAD@stlpmtx_std@@@stlpmtx_std@@QAAXXZ   e.g. ??1?$list@PADV?$StlNodeAlloc@PAD@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+           1  tail|target|n1/1|@0|REL24@0 -> ??1?$_List_base@PAUCompressTexDesc@Rnd@@V?$StlNodeAlloc@PAUCompressTexDesc@Rnd@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ => REL24@0 -> ?clear@?$_List_base@PAUCompressTexDesc@Rnd@@V?$StlNodeAlloc@PAUCompressTexDesc@Rnd@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ   e.g. ??1?$list@PAUCompressTexDesc@Rnd@@V?$StlNodeAlloc@PAUCompressTexDesc@Rnd@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+           1  tail|target|n1/1|@0|REL24@0 -> ??1?$_List_base@PAUDelayArgs@Sound@@V?$StlNodeAlloc@PAUDelayArgs@Sound@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ => REL24@0 -> ?clear@?$_List_base@PAUDelayArgs@Sound@@V?$StlNodeAlloc@PAUDelayArgs@Sound@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ   e.g. ??1?$list@PAUDelayArgs@Sound@@V?$StlNodeAlloc@PAUDelayArgs@Sound@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+           1  tail|target|n1/1|@0|REL24@0 -> ??1?$_List_base@PAUDep@CharPollableSorter@@V?$StlNodeAlloc@PAUDep@CharPollableSorter@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ => REL24@0 -> ?clear@?$_List_base@PAUDep@CharPollableSorter@@V?$StlNodeAlloc@PAUDep@CharPollableSorter@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ   e.g. ??1?$list@PAUDep@CharPollableSorter@@V?$StlNodeAlloc@PAUDep@CharPollableSorter@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+           1  tail|target|n1/1|@0|REL24@0 -> ??1?$_List_base@PAULayer@HamDriver@@V?$StlNodeAlloc@PAULayer@HamDriver@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ => REL24@0 -> ?clear@?$_List_base@PAULayer@HamDriver@@V?$StlNodeAlloc@PAULayer@HamDriver@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ   e.g. ??1?$list@PAULayer@HamDriver@@V?$StlNodeAlloc@PAULayer@HamDriver@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+           1  tail|target|n1/1|@0|REL24@0 -> ??1?$_List_base@PAUMerger@FileMerger@@V?$StlNodeAlloc@PAUMerger@FileMerger@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ => REL24@0 -> ?clear@?$_List_base@PAUMerger@FileMerger@@V?$StlNodeAlloc@PAUMerger@FileMerger@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ   e.g. ??1?$list@PAUMerger@FileMerger@@V?$StlNodeAlloc@PAUMerger@FileMerger@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+           1  tail|target|n1/1|@0|REL24@0 -> ??1?$_List_base@PAUQueueableCommand@@V?$StlNodeAlloc@PAUQueueableCommand@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ => REL24@0 -> ?clear@?$_List_base@PAUQueueableCommand@@V?$StlNodeAlloc@PAUQueueableCommand@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ   e.g. ??1?$list@PAUQueueableCommand@@V?$StlNodeAlloc@PAUQueueableCommand@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+           1  tail|target|n1/1|@0|REL24@0 -> ??1?$_List_base@PAVBinkMovieImpl@@V?$StlNodeAlloc@PAVBinkMovieImpl@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ => REL24@0 -> ?clear@?$_List_base@PAVBinkMovieImpl@@V?$StlNodeAlloc@PAVBinkMovieImpl@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ   e.g. ??1?$list@PAVBinkMovieImpl@@V?$StlNodeAlloc@PAVBinkMovieImpl@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+           1  tail|target|n1/1|@0|REL24@0 -> ??1?$_List_base@PAVCallback@ContentMgr@@V?$StlNodeAlloc@PAVCallback@ContentMgr@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ => REL24@0 -> ?clear@?$_List_base@PAVCallback@ContentMgr@@V?$StlNodeAlloc@PAVCallback@ContentMgr@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ   e.g. ??1?$list@PAVCallback@ContentMgr@@V?$StlNodeAlloc@PAVCallback@ContentMgr@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+           1  tail|target|n1/1|@0|REL24@0 -> ??1?$_List_base@PAVCharClip@@V?$StlNodeAlloc@PAVCharClip@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ => REL24@0 -> ?clear@?$_List_base@PAVCharClip@@V?$StlNodeAlloc@PAVCharClip@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ   e.g. ??1?$list@PAVCharClip@@V?$StlNodeAlloc@PAVCharClip@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+           1  tail|target|n1/1|@0|REL24@0 -> ??1?$_List_base@PAVContent@@V?$StlNodeAlloc@PAVContent@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ => REL24@0 -> ?clear@?$_List_base@PAVContent@@V?$StlNodeAlloc@PAVContent@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ   e.g. ??1?$list@PAVContent@@V?$StlNodeAlloc@PAVContent@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+           1  tail|target|n1/1|@0|REL24@0 -> ??1?$_List_base@PAVDataArray@@V?$StlNodeAlloc@PAVDataArray@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ => REL24@0 -> ?clear@?$_List_base@PAVDataArray@@V?$StlNodeAlloc@PAVDataArray@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ   e.g. ??1?$list@PAVDataArray@@V?$StlNodeAlloc@PAVDataArray@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+           1  tail|target|n1/1|@0|REL24@0 -> ??1?$_List_base@PAVDxObject@@V?$StlNodeAlloc@PAVDxObject@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ => REL24@0 -> ?clear@?$_List_base@PAVDxObject@@V?$StlNodeAlloc@PAVDxObject@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ   e.g. ??1?$list@PAVDxObject@@V?$StlNodeAlloc@PAVDxObject@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+           1  tail|target|n1/1|@0|REL24@0 -> ??1?$_List_base@PAVEventTrigger@@V?$StlNodeAlloc@PAVEventTrigger@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ => REL24@0 -> ?clear@?$_List_base@PAVEventTrigger@@V?$StlNodeAlloc@PAVEventTrigger@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ   e.g. ??1?$list@PAVEventTrigger@@V?$StlNodeAlloc@PAVEventTrigger@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+    forensic (differs class ONLY, credited nowhere): 1127 of 26350 reference words positionally equal, port wrote 13732 words
+    partial by shape: ctor-forward-call 10
+    graded by shape × verdict: parse-refused/refused 113429 · plain/exact 29302 · unbound/unbound 9302 · tail/exact 5312 · seq/exact 1238 · tail/differs 1091 · seq/differs 867 · tail/reloc-differs 530 · seq/refused 500 · tail/refused 325 · framed/refused 123 · float/exact 15 · ctor-forward-call/partial 10 · cond-pair/exact 4 · guard-chain-shared-tail/exact 2 · guard-ret-chain/exact 2 · if-call-join/exact 2 · alloc-init-or-fail/exact 1 · close-call-chain/exact 1 · ctor-forward-call/exact 1 · fp-store-diamond/exact 1 · json-utf8-copy/exact 1 · memcpy-tail/exact 1 · osf-handle-guard/exact 1 · xlrc-create-guard/exact 1 · xtea-encrypt-loop/exact 1
+    CALL TARGETS (name, not bytes): 38374 graded · 35886 agree · 2488 disagree (530 of them EXACT-and-wrong, 1958 differs) · 1627 by count, 861 by name · 0 ungraded
+      src/lazer/game/BustAMovePanel.cpp|??1?$list@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@QAA@XZ|port=0x0:??1?$_List_base@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@QAA@XZ|ref=0x0:?clear@?$_List_base@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@QAAXXZ
+      src/lazer/game/BustAMovePanel.cpp|??1?$list@PAVObjectDir@@V?$StlNodeAlloc@PAVObjectDir@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ|port=0x0:??1?$_List_base@PAVObjectDir@@V?$StlNodeAlloc@PAVObjectDir@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ|ref=0x0:?clear@?$_List_base@PAVObjectDir@@V?$StlNodeAlloc@PAVObjectDir@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ
+      src/lazer/game/BustAMovePanel.cpp|??1?$list@USample@DebugGraph@@V?$StlNodeAlloc@USample@DebugGraph@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ|port=0x0:??1?$_List_base@USample@DebugGraph@@V?$StlNodeAlloc@USample@DebugGraph@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ|ref=0x0:?clear@?$_List_base@USample@DebugGraph@@V?$StlNodeAlloc@USample@DebugGraph@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ
+      src/lazer/game/BustAMovePanel.cpp|??1?$list@VSymbol@@V?$StlNodeAlloc@VSymbol@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ|port=0x0:??1?$_List_base@VSymbol@@V?$StlNodeAlloc@VSymbol@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ|ref=0x0:?clear@?$_List_base@VSymbol@@V?$StlNodeAlloc@VSymbol@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ
+      src/lazer/game/GamePanel.cpp|??1?$list@PAVObjectDir@@V?$StlNodeAlloc@PAVObjectDir@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ|port=0x0:??1?$_List_base@PAVObjectDir@@V?$StlNodeAlloc@PAVObjectDir@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ|ref=0x0:?clear@?$_List_base@PAVObjectDir@@V?$StlNodeAlloc@PAVObjectDir@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ
+      src/lazer/game/PartyModeMgr.cpp|??1?$list@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@QAA@XZ|port=0x0:??1?$_List_base@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@QAA@XZ|ref=0x0:?clear@?$_List_base@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@QAAXXZ
+      src/lazer/game/PartyModeMgr.cpp|??1?$list@VSongQueueRow@@V?$StlNodeAlloc@VSongQueueRow@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ|port=0x0:??1?$_List_base@VSongQueueRow@@V?$StlNodeAlloc@VSongQueueRow@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ|ref=0x0:?clear@?$_List_base@VSongQueueRow@@V?$StlNodeAlloc@VSongQueueRow@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ
+      src/lazer/game/PartyModeMgr.cpp|??1?$list@VSymbol@@V?$StlNodeAlloc@VSymbol@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ|port=0x0:??1?$_List_base@VSymbol@@V?$StlNodeAlloc@VSymbol@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ|ref=0x0:?clear@?$_List_base@VSymbol@@V?$StlNodeAlloc@VSymbol@@@stlpmtx_std@@@stlpmtx_std@@QAAXXZ
+      … and 488 more witnesses
+    DIFFERS WITNESSES — 677 distinct functions in 58 SIGNATURES (shape | port/ref/equal words | first disagreeing word):
+         132  tail|w1/3/eq0|first@0:port=48000000,ref=81630000   e.g. ??C?$_List_iterator@U?$pair@PAVObject@Hmx@@PAVObjectDir@@@stlpmtx_std@@U?$_Nonconst_traits@U?$pair@PAVObject@Hmx@@PAVObjectDir@@@stlpmtx_std@@@2@@stlpmtx_std@@QBAPAU?$pair@PAVObject@Hmx@@PAVObjectDir@@@1@XZ
+         104  seq|w12/2/eq0|first@0:port=7d8802a6,ref=90830000   e.g. ??0?$_Rb_tree_iterator@GU?$_SetTraitsT@G@priv@stlpmtx_std@@@stlpmtx_std@@QAA@PAU_Rb_tree_node_base@1@@Z
+          60  seq|w19/6/eq0|first@0:port=7d8802a6,ref=81630000   e.g. ??$?8PAU?$pair@HH@stlpmtx_std@@@stlpmtx_std@@YA_NABV?$reverse_iterator@PAU?$pair@HH@stlpmtx_std@@@0@0@Z
+          56  seq|w13/20/eq8|first@8:port=38210060,ref=3d600000   e.g. ??$Obj@VBeatClock@@@DataArray@@QBAPAVBeatClock@@H@Z
+          52  tail|w2/20/eq0|first@0:port=38a00000,ref=7d8802a6   e.g. ??$_Destroy_Moved_Range@PAV?$map@HMU?$less@H@stlpmtx_std@@V?$StlNodeAlloc@U?$pair@$$CBHM@stlpmtx_std@@@2@@stlpmtx_std@@@stlpmtx_std@@YAXPAV?$map@HMU?$less@H@stlpmtx_std@@V?$StlNodeAlloc@U?$pair@$$CBHM@stlpmtx_std@@@2@@0@0@Z
+          36  tail|w1/4/eq0|first@0:port=48000000,ref=3d600000   e.g. ??1?$StackString@$0BAA@@@UAA@XZ
+          36  tail|w1/8/eq0|first@0:port=48000000,ref=2b040000   e.g. ??$__uninitialized_fill_n@PAFIF@stlpmtx_std@@YAPAFPAFIABFABU__true_type@0@@Z
+          34  tail|w2/12/eq0|first@0:port=38a00000,ref=7d8802a6   e.g. ??$_Destroy_Moved_Range@PAUNode@?$ObjPtrVec@VCharClip@@VObjectDir@@@@@stlpmtx_std@@YAXPAUNode@?$ObjPtrVec@VCharClip@@VObjectDir@@@@0@Z
+          22  tail|w1/16/eq0|first@0:port=48000000,ref=3d600000   e.g. ??1?$Key@VObjectStage@@@@QAA@XZ
+          14  tail|w1/7/eq0|first@0:port=48000000,ref=81630008   e.g. ?_S_minimum@?$_Rb_tree@GU?$less@G@stlpmtx_std@@GU?$_Identity@G@2@U?$_SetTraitsT@G@priv@2@V?$StlNodeAlloc@G@2@@stlpmtx_std@@KAPAU_Rb_tree_node_base@2@PAU32@@Z
+          14  tail|w1/7/eq0|first@0:port=48000000,ref=8163000c   e.g. ?_S_maximum@?$_Rb_tree@GU?$less@G@stlpmtx_std@@GU?$_Identity@G@2@U?$_SetTraitsT@G@priv@2@V?$StlNodeAlloc@G@2@@stlpmtx_std@@KAPAU_Rb_tree_node_base@2@PAU32@@Z
+          14  tail|w1/9/eq0|first@0:port=48000000,ref=80830000   e.g. ??1?$Key@V?$vector@VVector2@@V?$StlNodeAlloc@VVector2@@@stlpmtx_std@@@stlpmtx_std@@@@QAA@XZ
+           9  tail|w2/1/eq0|first@0:port=38a00000,ref=4e800020   e.g. ??$_Destroy_Range@PAG@stlpmtx_std@@YAXPAG0@Z
+           8  tail|w2/16/eq0|first@0:port=3863000c,ref=3d600000   e.g. ??1?$FlowPtr@VFlow@@@@QAA@XZ
+           7  tail|w3/17/eq0|first@0:port=7ca62b78,ref=7d8802a6   e.g. ??$__unguarded_insertion_sort@PAPAVFlowNode@@P6A_NPAV1@0@Z@stlpmtx_std@@YAXPAPAVFlowNode@@0P6A_NPAV1@1@Z@Z
+           6  tail|w1/10/eq0|first@0:port=48000000,ref=80830000   e.g. ??1?$Keys@UDircutEntry@HamDirector@@U12@@@QAA@XZ
+           6  tail|w2/10/eq0|first@0:port=38630004,ref=80830004   e.g. ??1?$pair@$$CBVSymbol@@V?$vector@HV?$StlNodeAlloc@H@stlpmtx_std@@@stlpmtx_std@@@stlpmtx_std@@QAA@XZ
+           5  seq|w17/12/eq0|first@0:port=7d8802a6,ref=81630000   e.g. ?at@?$vector@PBVMoveParent@@V?$StlNodeAlloc@PBVMoveParent@@@stlpmtx_std@@@stlpmtx_std@@QBAABQBVMoveParent@@I@Z
+           5  tail|w2/6/eq0|first@0:port=38630004,ref=81630008   e.g. ??1?$pair@$$CBVSymbol@@VDataNode@@@stlpmtx_std@@QAA@XZ
+           5  tail|w3/10/eq0|first@0:port=7ca62b78,ref=81230000   e.g. ??$pop_heap@PAPAVFlowNode@@P6A_NPAV1@0@Z@stlpmtx_std@@YAXPAPAVFlowNode@@0P6A_NPAV1@1@Z@Z
+           4  seq|w17/13/eq0|first@0:port=7d8802a6,ref=81630000   e.g. ?at@?$vector@UNode@?$ObjPtrVec@VCharClip@@VObjectDir@@@@V?$StlNodeAlloc@UNode@?$ObjPtrVec@VCharClip@@VObjectDir@@@@@stlpmtx_std@@@stlpmtx_std@@QAAAAUNode@?$ObjPtrVec@VCharClip@@VObjectDir@@@@I@Z
+           3  tail|w1/1/eq0|first@0:port=48000000,ref=4e800020   e.g. ??1?$_Rb_tree_base@U?$pair@$$CBVSymbol@@VDataNode@@@stlpmtx_std@@V?$StlNodeAlloc@U?$pair@$$CBVSymbol@@VDataNode@@@stlpmtx_std@@@2@@stlpmtx_std@@QAA@XZ
+           3  tail|w2/4/eq0|first@0:port=38630004,ref=3d600000   e.g. ??1?$pair@$$CBVSymbol@@VSongRecord@@@stlpmtx_std@@QAA@XZ
+           2  tail|w1/18/eq0|first@0:port=48000000,ref=7d8802a6   e.g. ??$__uninitialized_fill_n@PADID@stlpmtx_std@@YAPADPADIABDABU__true_type@0@@Z
+           2  tail|w1/7/eq0|first@0:port=48000000,ref=3d600000   e.g. ??1EnvelopeGenerator@@UAA@XZ
+           2  tail|w2/11/eq0|first@0:port=38630008,ref=80830008   e.g. ??1ActionRec@@QAA@XZ
+           2  tail|w2/16/eq0|first@0:port=38630004,ref=3d600000   e.g. ??1?$pair@$$CBW4Difficulty@@VAnimPtr@@@stlpmtx_std@@QAA@XZ
+           2  tail|w2/16/eq0|first@0:port=38630024,ref=3d600000   e.g. ??1CharClipDriver@@QAA@XZ
+           2  tail|w3/12/eq0|first@0:port=7ca62b78,ref=81230000   e.g. ??$pop_heap@PAUCuePoint@?A0x4f079075@@P6A_NABU12@0@Z@stlpmtx_std@@YAXPAUCuePoint@?A0x4f079075@@0P6A_NABU12@1@Z@Z
+           2  tail|w3/4/eq1|first@1:port=386b0000,ref=396b0000   e.g. ?MoveBeat@MoveDir@@QBAHXZ
+           1  seq|w12/7/eq0|first@0:port=7d8802a6,ref=39600000   e.g. ??0?$vector@_NV?$StlNodeAlloc@_N@stlpmtx_std@@@stlpmtx_std@@QAA@ABV?$StlNodeAlloc@_N@1@@Z
+           1  seq|w13/31/eq0|first@0:port=7d8802a6,ref=81630024   e.g. ?SplitMs@Timer@@QAAMXZ
+           1  seq|w13/43/eq5|first@3:port=4bfffff5,ref=38610050   e.g. ?Init@Sequence@@SAXXZ
+           1  seq|w20/6/eq0|first@0:port=7d8802a6,ref=81640000   e.g. ??RMoveDetectorCmp@@QBA_NPAVMoveDetector@@0@Z
+           1  tail|w1/10/eq0|first@0:port=48000000,ref=7c8b2378   e.g. ??Y?$basic_string@DV?$char_traits@D@stlpmtx_std@@V?$allocator@D@2@@stlpmtx_std@@QAAAAV01@PBD@Z
+           1  tail|w1/13/eq0|first@0:port=48000000,ref=3d400000   e.g. ??1CharBonesObject@@UAA@XZ
+           1  tail|w1/2/eq0|first@0:port=48000000,ref=fc200a10   e.g. ?Abs@@YAMM@Z
+           1  tail|w1/20/eq0|first@0:port=48000000,ref=3d400000   e.g. ?Enter@LightPresetManager@@QAAXXZ
+           1  tail|w1/4/eq0|first@0:port=48000000,ref=81630000   e.g. ??C?$reverse_iterator@U?$_List_iterator@UPanelRef@@U?$_Nonconst_traits@UPanelRef@@@stlpmtx_std@@@stlpmtx_std@@@stlpmtx_std@@QBAPAUPanelRef@@XZ
+           1  tail|w1/6/eq0|first@0:port=48000000,ref=7c6b1b78   e.g. ??1TexMgr@@UAA@XZ
+      … and 18 more signatures covering 18 functions
+    DIFF STRUCTURE — 1958 signatures in 8 clusters (shape | length | edit shape | field classes).
+      accounting breaks (equal+sub+del == ref words, known answer 0): 0   LCS-capped rows: 0   pure reorderings (same instruction multiset): 0   first word already wrong: 1815
+        1076 ( 55.0%)  tail|ref-longer|sub+del|opcode
+         435 ( 22.2%)  seq|ref-longer|sub+del|opcode
+         285 ( 14.6%)  seq|port-longer|sub+ins|opcode
+         140 (  7.2%)  seq|ref-longer|del-only|-
+           9 (  0.5%)  tail|port-longer|sub+ins|opcode
+           7 (  0.4%)  seq|port-longer|sub+ins|mixed:reg+disp+opcode
+           3 (  0.2%)  tail|ref-longer|sub+del|opcode+reg
+           3 (  0.2%)  tail|same-len|sub-only|opcode
+      substituted WORDS by decoded field class (7829 words, 0 undecoded = 0.0% — a word is decoded only if its form's field partition re-encodes it bit-exactly):
+        opcode 7819 · mixed:reg+disp 7 · reg 3
+      first divergence, by word index: w0:1815 · w8-15:140 · w1:2 · w3:1
+      relocation-aware: 153 substitutions and 3033 deletions sit under a relocation (0 records not word-aligned, known answer 0)
+    per-TU FBM over 864 TUs with emitted functions — ≥100%: 21, ≥90%: 21, ≥50%: 31, ≥10%: 794
+
+  FENCE-BLOCKS-EXACT (w-fencecount) — TUs held out of `match` per decode-gate fence. `sole` = the TU's ONLY firing cause; `exact` = sole AND every emitted body FnByte-exact (`bodies` counts them); `first` = first blocker of a multi-cause TU. TWO CAVEATS, standing: a first-blocker count is NOT a distance (the port stops at its first refusal, so every held TU names one blocker however many it has); and the `locally-defined-callee` row is `decode_causes`' BROAD re-ask of the inline fence, which can fire where the narrowed gate exempts (see `GapReport::fence_blocks`). Machine keys: `gap-metric fence-*`, all causes, zeros included.
+    bind-record-count-ne-segments      sole    0  exact    0  bodies     0  first-of-multi   11
+    body-out-of-class                  sole    0  exact    0  bodies     0  first-of-multi    2
+    drectve-not-boilerplate            sole    0  exact    0  bodies     0  first-of-multi   13
+    gl-stop-26-introduced              sole    0  exact    0  bodies     0  first-of-multi  818
+    controls: held 844 = attributed 844 + arity-broken 0 (accounting-broken 0); cause-firings 1715 over 844 held TUs (arity); residue-no-cause 0 (known 0); decodes-not-match 0 (codegen-gap/mismatch/port-error — outside the fence family); class-disagree 0 (known 0); match TUs checked 26, 0 carrying a cause (known 0)
+
+  GAP-METRICS — stable `key value` pairs for scripts/status.sh; keys are an interface, do not rename. The projection `emit-predicate-worth` = `b-and-c` − `a-and-b-and-c` is derived HERE on purpose (board #213):
+    gap-metric tu-total 878
+    gap-metric graded 870
+    gap-metric match 26
+    gap-metric mismatch 0
+    gap-metric codegen-gap 0
+    gap-metric vocab-gap 844
+    gap-metric port-error 0
+    gap-metric capture-fail 8
+    gap-metric factor-a 28
+    gap-metric factor-a-lo 27
+    gap-metric factor-b 324
+    gap-metric factor-c 169
+    gap-metric factor-d 24
+    gap-metric factor-e 4
+    gap-metric b-and-c 148
+    gap-metric a-and-b-and-c 27
+    gap-metric a-and-b-and-c-and-d 22
+    gap-metric a-and-b-and-c-and-d-or-e 25
+    gap-metric frontier 2
+    gap-metric frontier-if-a 121
+    gap-metric emit-predicate-worth 121
+    gap-metric writer-sections 10
+    gap-metric cfg-reach-bottom 0
+    gap-metric cfg-reach-enumerated 0
+    gap-metric cfg-reach-shipped 0
+    gap-metric cfg-reach-top 2
+    gap-metric cfg-bounds-violations 0
+    gap-metric cfg-subclass-entries 4
+    gap-metric cfg-subclass-restricted 0
+    gap-metric cfg-subclass-unwitnessed 0
+    gap-metric cfg-subclass-intruders 0
+    gap-metric selbind-one-to-one-tus 22
+    gap-metric selbind-selective-tus 12
+    gap-metric selbind-total-tus 0
+    gap-metric selbind-blocked-mangled-tus 9
+    gap-metric selbind-blocked-inline-fit-tus 8
+    gap-metric selbind-emitted 162063
+    gap-metric selbind-emitted-named-gate 134
+    gap-metric selbind-emitted-named-wide 157791
+    gap-metric selbind-emit-tus 864
+    gap-metric selbind-emit-subset-gate-tus 34
+    gap-metric selbind-emit-subset-wide-tus 464
+    gap-metric selbind-emitted-named-scan-narrow 4044
+    gap-metric selbind-emitted-named-scan-precise 157791
+    gap-metric selbind-emit-subset-scan-narrow-tus 39
+    gap-metric selbind-emit-subset-scan-precise-tus 464
+    gap-metric workload-sections 13
+    gap-metric ladder-steps 3
+    gap-metric cflow-emitted-branchy 35106
+    gap-metric cflow-emitted-modeled 9
+    gap-metric cflow-residue-inclass-modeled 188498
+    gap-metric cflow-residue-inclass-offclass 517993
+    gap-metric cflow-residue-straight-modeled-blocked 78591
+    gap-metric cflow-offclass-accounted 517993
+    gap-metric step5-consistency-alarms 0
+    gap-metric step5-accounted 2411388
+    gap-metric step5-refuse-unmodeled-operand-BLOCKED 1495950
+    gap-metric step5-refuse-unmodeled-operand-IN-CLASS 517983
+    gap-metric step5-admit-straight-IN-CLASS 188498
+    gap-metric step5-refuse-back-edge-BLOCKED 88628
+    gap-metric step5-admit-straight-BLOCKED 78589
+    gap-metric step5-refuse-undecoded-BLOCKED 39934
+    gap-metric step5-cfg-no-body-BLOCKED 747
+    gap-metric step5-admit-forward-BLOCKED 712
+    gap-metric step5-refuse-switch-BLOCKED 335
+    gap-metric step5-refuse-back-edge-IN-CLASS 10
+    gap-metric step5-admit-fallthrough-epilogue-BLOCKED 2
+    gap-metric emit-cflow-shape-accounted 113429
+    gap-metric emit-cflow-shape-straight-expr 72123
+    gap-metric emit-cflow-shape-if-1-expr 16530
+    gap-metric emit-cflow-shape-loop-expr 11944
+    gap-metric emit-cflow-shape-if-n-expr 3414
+    gap-metric emit-cflow-shape-undecoded-- 3308
+    gap-metric emit-cflow-shape-if-2-expr 2941
+    gap-metric emit-cflow-shape-straight-modeled 2892
+    gap-metric emit-cflow-shape-switch-expr 268
+    gap-metric emit-cflow-shape-switch-modeled 5
+    gap-metric emit-cflow-shape-if-1-modeled 4
+    gap-metric cflow-offclass-off-add-inclass 273338
+    gap-metric cflow-offclass-off-add-blocked 432002
+    gap-metric cflow-offclass-load-type-inclass 85210
+    gap-metric cflow-offclass-load-type-blocked 136360
+    gap-metric cflow-offclass-intrinsic-inclass 71221
+    gap-metric cflow-offclass-intrinsic-blocked 391331
+    gap-metric cflow-offclass-bind-inclass 62947
+    gap-metric cflow-offclass-bind-blocked 353588
+    gap-metric cflow-offclass-lit-type-inclass 23631
+    gap-metric cflow-offclass-lit-type-blocked 20947
+    gap-metric cflow-offclass-deref-inclass 1621
+    gap-metric cflow-offclass-deref-blocked 12554
+    gap-metric cflow-offclass-compare-inclass 17
+    gap-metric cflow-offclass-compare-blocked 39020
+    gap-metric cflow-offclass-store-type-inclass 7
+    gap-metric cflow-offclass-store-type-blocked 6490
+    gap-metric cflow-offclass-rmw-inclass 1
+    gap-metric cflow-offclass-rmw-blocked 11303
+    gap-metric cflow-offclass-bitwise-inclass 0
+    gap-metric cflow-offclass-bitwise-blocked 32365
+    gap-metric cflow-offclass-call-cc-inclass 0
+    gap-metric cflow-offclass-call-cc-blocked 15
+    gap-metric cflow-offclass-convert-out-of-class-inclass 0
+    gap-metric cflow-offclass-convert-out-of-class-blocked 8994
+    gap-metric cflow-offclass-div-mod-inclass 0
+    gap-metric cflow-offclass-div-mod-blocked 4047
+    gap-metric cflow-offclass-eh-trailer-inclass 0
+    gap-metric cflow-offclass-eh-trailer-blocked 10
+    gap-metric cflow-offclass-logical-inclass 0
+    gap-metric cflow-offclass-logical-blocked 7672
+    gap-metric cflow-offclass-materialize-64-inclass 0
+    gap-metric cflow-offclass-materialize-64-blocked 24404
+    gap-metric cflow-offclass-shift-inclass 0
+    gap-metric cflow-offclass-shift-blocked 2401
+    gap-metric cflow-offclass-subscript-inclass 0
+    gap-metric cflow-offclass-subscript-blocked 37
+    gap-metric cflow-offclass-temp-inclass 0
+    gap-metric cflow-offclass-temp-blocked 80107
+    gap-metric cflow-offclass-ternary-inclass 0
+    gap-metric cflow-offclass-ternary-blocked 1552
+    gap-metric cflow-offclass-virtual-slot-inclass 0
+    gap-metric cflow-offclass-virtual-slot-blocked 19709
+    gap-metric ladder-head .rdata$r
+    gap-metric ladder-head-c 590
+    gap-metric progress-mass 0.21039
+    gap-metric progress-emitted-in-class 39332
+    gap-metric progress-emitted-total 162063
+    gap-metric progress-mismatch-zeroed 0
+    gap-metric fnbyte-match 0.22145
+    gap-metric fnbyte-exact 35886
+    gap-metric fnbyte-denominator 162063
+    gap-metric fnbyte-differs 1958
+    gap-metric fnbyte-partial 10
+    gap-metric fnbyte-refused 114377
+    gap-metric fnbyte-unbound 9302
+    gap-metric fnbyte-partition-broken 0
+    gap-metric fnbyte-census-disagree 948
+    gap-metric fnbyte-census-disagree-expressible 0
+    gap-metric fnbyte-census-disagree-inlined-callee 948
+    gap-metric fnbyte-exact-relocated 3983
+    gap-metric fnbyte-reloc-differs 530
+    gap-metric fnbyte-reloc-unknown 0
+    gap-metric fnbyte-reloc-graded 36416
+    gap-metric fnbyte-exact-bytes 36416
+    gap-metric fnbyte-reloc-partition-broken 0
+    gap-metric fnbyte-match-tu-reloc-differs 0
+    gap-metric fnbyte-reloc-table-unreadable 0
+    gap-metric fnbyte-reloc-index-desync 0
+    gap-metric fnbyte-reloc-graded-relocated 4513
+    gap-metric fnbyte-reloc-differs-count 0
+    gap-metric fnbyte-reloc-differs-offset 0
+    gap-metric fnbyte-reloc-differs-type 0
+    gap-metric fnbyte-reloc-differs-target 530
+    gap-metric fnbyte-reloc-differs-section-target 0
+    gap-metric fnbyte-reloc-witnesses 194
+    gap-metric fnbyte-match-tu-differs 0
+    gap-metric fnbyte-whole-tu 3
+    gap-metric fnbyte-tus-full 21
+    gap-metric fnbyte-tus 864
+    gap-metric fnbyte-elided 1870
+    gap-metric fnbyte-elided-exact 1870
+    gap-metric fnbyte-elided-ref-reloc 0
+    gap-metric fnbyte-name-disagree 74367
+    gap-metric fnbyte-calltarget-graded 38374
+    gap-metric fnbyte-calltarget-agree 35886
+    gap-metric fnbyte-calltarget-disagree 2488
+    gap-metric fnbyte-calltarget-disagree-exact 530
+    gap-metric fnbyte-calltarget-disagree-differs 1958
+    gap-metric fnbyte-calltarget-disagree-name 861
+    gap-metric fnbyte-calltarget-disagree-count 1627
+    gap-metric fnbyte-calltarget-ungraded 0
+    gap-metric fnbyte-call-targets-unreadable 0
+    gap-metric fnbyte-reloc-vs-calltarget-both 530
+    gap-metric fnbyte-reloc-vs-calltarget-reloc-only 0
+    gap-metric fnbyte-reloc-vs-calltarget-calltarget-only 0
+    gap-metric fnbyte-noeffect-rows 16882
+    gap-metric fnbyte-noeffect-admitted 7333
+    gap-metric fnbyte-noeffect-ref-blr 998
+    gap-metric fnbyte-noeffect-ref-other 0
+    gap-metric fnbyte-noeffect-ref-absent 6335
+    gap-metric fnbyte-noeffect-callee-unbound 52
+    gap-metric fnbyte-noeffect-callee-parsed-live 0
+    gap-metric fnbyte-noeffect-callee-refused 9497
+    gap-metric fnbyte-nothing-rows 4163
+    gap-metric fnbyte-nothing-ref-blr 399
+    gap-metric fnbyte-nothing-ref-other 0
+    gap-metric fnbyte-nothing-ref-absent 3764
+    gap-metric fnbyte-nothing-not-admitted 0
+    gap-metric fnbyte-nothing-unnamed 0
+    gap-metric fnbyte-nothing-key-expr-lit-type-8207 4153
+    gap-metric fnbyte-nothing-key-param-width-undetermined:mid 10
+    gap-metric fnbyte-noeffect-stop-body-0x67 5140
+    gap-metric fnbyte-noeffect-stop-return-scope-close-cflow-label 2520
+    gap-metric fnbyte-noeffect-stop-expr-call-in-expr-recv-load-then-type-void-and-op-more 1750
+    gap-metric fnbyte-noeffect-stop-param-width-undetermined:mid 74
+    gap-metric fnbyte-noeffect-stop-expr-lit-type-8207 10
+    gap-metric fnbyte-noeffect-stop-module-end-0x4D 3
+    gap-metric fnbyte-blr-stop-expr-intrinsic-memset 8
+    gap-metric fnbyte-blr-stop-callee-unbound 4
+    gap-metric fnbyte-blr-stop2-return-scope-close-cflow-label 5
+    gap-metric fnbyte-blr-stop2-module-end-0x4D 2
+    gap-metric fnbyte-blr-stop2-callee-unbound 1
+    gap-metric fnbyte-blr-stop3-expr-lit-type-8207 4
+    gap-metric fnbyte-blr-stop3-expr-call-in-expr-recv-load-then-type-void-and-op-more 1
+    gap-metric fnbyte-shape-parse-refused-refused 113429
+    gap-metric fnbyte-shape-plain-exact 29302
+    gap-metric fnbyte-shape-unbound-unbound 9302
+    gap-metric fnbyte-shape-tail-exact 5312
+    gap-metric fnbyte-shape-seq-exact 1238
+    gap-metric fnbyte-shape-tail-differs 1091
+    gap-metric fnbyte-shape-seq-differs 867
+    gap-metric fnbyte-shape-tail-reloc-differs 530
+    gap-metric fnbyte-shape-seq-refused 500
+    gap-metric fnbyte-shape-tail-refused 325
+    gap-metric fnbyte-shape-framed-refused 123
+    gap-metric fnbyte-shape-float-exact 15
+    gap-metric fnbyte-shape-ctor-forward-call-partial 10
+    gap-metric fnbyte-shape-cond-pair-exact 4
+    gap-metric fnbyte-shape-guard-chain-shared-tail-exact 2
+    gap-metric fnbyte-shape-guard-ret-chain-exact 2
+    gap-metric fnbyte-shape-if-call-join-exact 2
+    gap-metric fnbyte-shape-alloc-init-or-fail-exact 1
+    gap-metric fnbyte-shape-close-call-chain-exact 1
+    gap-metric fnbyte-shape-ctor-forward-call-exact 1
+    gap-metric fnbyte-shape-fp-store-diamond-exact 1
+    gap-metric fnbyte-shape-json-utf8-copy-exact 1
+    gap-metric fnbyte-shape-memcpy-tail-exact 1
+    gap-metric fnbyte-shape-osf-handle-guard-exact 1
+    gap-metric fnbyte-shape-xlrc-create-guard-exact 1
+    gap-metric fnbyte-shape-xtea-encrypt-loop-exact 1
+    gap-metric fnbyte-decline-parse 113429
+    gap-metric fnbyte-decline-opt-mode 0
+    gap-metric fnbyte-decline-selector 0
+    gap-metric fnbyte-decline-gy-shape 10
+    gap-metric fnbyte-decline-data-ref 0
+    gap-metric fnbyte-decline-inlined-callee 948
+    gap-metric fnbyte-refused-parse 113429
+    gap-metric fnbyte-refused-codegen 948
+    gap-metric fnbyte-refused-split-broken 0
+    gap-metric fnbyte-differs-witnesses 677
+    gap-metric frontier-bytefrac-top-tu src/keygen_xbox.cpp
+    gap-metric frontier-bytefrac-top-accepted 8
+    gap-metric frontier-bytefrac-top-denominator 1440
+    gap-metric frontier-bytefrac-zero 1
+    gap-metric frontier-bytefrac-no-denominator 0
+    gap-metric frontier-codegen-denominator 23
+    gap-metric frontier-codegen-exact 1
+    gap-metric frontier-codegen-wrong 0
+    gap-metric frontier-codegen-refused 0
+    gap-metric frontier-codegen-reader 22
+    gap-metric frontier-codegen-ungraded 0
+    gap-metric frontier-codegen-measured 0
+    gap-metric frontier-codegen-partition-broken 0
+    gap-metric bytefrac-control-full 17
+    gap-metric bytefrac-control-no-denominator 6
+    gap-metric bytefrac-control-shortfall-explained 3
+    gap-metric bytefrac-control-unexplained 0
+    gap-metric alias-runs 2903261
+    gap-metric alias-tag10 98584
+    gap-metric alias-head-fail 409
+    gap-metric alias-rt-fail 0
+    gap-metric alias-unbound-target 79
+    gap-metric alias-self 0
+    gap-metric alias-dup 0
+    gap-metric alias-bound 98096
+    gap-metric alias-shape-e-to-g 98091
+    gap-metric alias-dom-with-body 0
+    gap-metric alias-null-m1-bound 1973
+    gap-metric alias-null-m1-shape 0
+    gap-metric alias-null-p1-bound 2172
+    gap-metric alias-null-p1-shape 0
+    gap-metric alias-dom-emitted 0
+    gap-metric alias-dom-emitted-tus 0
+    gap-metric alias-target-emitted 4014
+    gap-metric alias-inref-total 1914371
+    gap-metric alias-inref-unbound 0
+    gap-metric alias-inref-alias 94617
+    gap-metric alias-inref-records 94617
+    gap-metric alias-inref-tus 831
+    gap-metric alias-datatu-relocs 0
+    gap-metric alias-datatu-relocs-alias 0
+    gap-metric alias-emit-names 0
+    gap-metric alias-obj-relocs 1320382
+    gap-metric alias-obj-reloc-alias 4248
+    gap-metric alias-obj-reloc-alias-tus 675
+    gap-metric alias-obj-reloc-target 4013
+    gap-metric alias-obj-reloc-unreadable 0
+    gap-metric alias-weak-records 4013
+    gap-metric alias-weak-predicted 4013
+    gap-metric alias-weak-default-disagree 0
+    gap-metric alias-weak-unpredicted 0
+    gap-metric alias-weak-not-search-library 0
+    gap-metric alias-weak-unreadable 0
+    gap-metric alias-weak-tus 675
+    gap-metric alias-weak-exact-tus 2
+    gap-metric alias-unrealized 94083
+    gap-metric alias-rule-predicted 4014
+    gap-metric alias-rule-miss 1
+    gap-metric alias-rule-extra 0
+    gap-metric alias-rule-exact-tus 869
+    gap-metric alias-weak-needed-tus 675
+    gap-metric alias-weak-needed-in-b-and-c 0
+    gap-metric alias-weak-needed-in-frontier 0
+    gap-metric fence-held-tus 844
+    gap-metric fence-cause-firings 1715
+    gap-metric fence-residue-no-cause 0
+    gap-metric fence-decodes-not-match 0
+    gap-metric fence-class-disagree 0
+    gap-metric fence-on-match-tu 0
+    gap-metric fence-match-tus-checked 26
+    gap-metric fence-arity-broken 0
+    gap-metric fence-accounting-broken 0
+    gap-metric fence-blocks-sole:no-gl 0
+    gap-metric fence-blocks-exact:no-gl 0
+    gap-metric fence-blocks-exact-bodies:no-gl 0
+    gap-metric fence-blocks-first:no-gl 0
+    gap-metric fence-blocks-sole:no-ex 0
+    gap-metric fence-blocks-exact:no-ex 0
+    gap-metric fence-blocks-exact-bodies:no-ex 0
+    gap-metric fence-blocks-first:no-ex 0
+    gap-metric fence-blocks-sole:drectve-not-boilerplate 0
+    gap-metric fence-blocks-exact:drectve-not-boilerplate 0
+    gap-metric fence-blocks-exact-bodies:drectve-not-boilerplate 0
+    gap-metric fence-blocks-first:drectve-not-boilerplate 13
+    gap-metric fence-blocks-sole:split-empty-with-lo 0
+    gap-metric fence-blocks-exact:split-empty-with-lo 0
+    gap-metric fence-blocks-exact-bodies:split-empty-with-lo 0
+    gap-metric fence-blocks-first:split-empty-with-lo 0
+    gap-metric fence-blocks-sole:gl-stop-name-too-far 0
+    gap-metric fence-blocks-exact:gl-stop-name-too-far 0
+    gap-metric fence-blocks-exact-bodies:gl-stop-name-too-far 0
+    gap-metric fence-blocks-first:gl-stop-name-too-far 0
+    gap-metric fence-blocks-sole:gl-stop-name-not-mangled 0
+    gap-metric fence-blocks-exact:gl-stop-name-not-mangled 0
+    gap-metric fence-blocks-exact-bodies:gl-stop-name-not-mangled 0
+    gap-metric fence-blocks-first:gl-stop-name-not-mangled 0
+    gap-metric fence-blocks-sole:gl-stop-run-ends-26 0
+    gap-metric fence-blocks-exact:gl-stop-run-ends-26 0
+    gap-metric fence-blocks-exact-bodies:gl-stop-run-ends-26 0
+    gap-metric fence-blocks-first:gl-stop-run-ends-26 0
+    gap-metric fence-blocks-sole:gl-stop-dllexport 0
+    gap-metric fence-blocks-exact:gl-stop-dllexport 0
+    gap-metric fence-blocks-exact-bodies:gl-stop-dllexport 0
+    gap-metric fence-blocks-first:gl-stop-dllexport 0
+    gap-metric fence-blocks-sole:gl-stop-26-introduced 0
+    gap-metric fence-blocks-exact:gl-stop-26-introduced 0
+    gap-metric fence-blocks-exact-bodies:gl-stop-26-introduced 0
+    gap-metric fence-blocks-first:gl-stop-26-introduced 818
+    gap-metric fence-blocks-sole:gl-stop-varargs-record 0
+    gap-metric fence-blocks-exact:gl-stop-varargs-record 0
+    gap-metric fence-blocks-exact-bodies:gl-stop-varargs-record 0
+    gap-metric fence-blocks-first:gl-stop-varargs-record 0
+    gap-metric fence-blocks-sole:bind-record-count-ne-segments 0
+    gap-metric fence-blocks-exact:bind-record-count-ne-segments 0
+    gap-metric fence-blocks-exact-bodies:bind-record-count-ne-segments 0
+    gap-metric fence-blocks-first:bind-record-count-ne-segments 11
+    gap-metric fence-blocks-sole:bind-offset-ne-segment-start 0
+    gap-metric fence-blocks-exact:bind-offset-ne-segment-start 0
+    gap-metric fence-blocks-exact-bodies:bind-offset-ne-segment-start 0
+    gap-metric fence-blocks-first:bind-offset-ne-segment-start 0
+    gap-metric fence-blocks-sole:selective-unaccounted-emitted-body 0
+    gap-metric fence-blocks-exact:selective-unaccounted-emitted-body 0
+    gap-metric fence-blocks-exact-bodies:selective-unaccounted-emitted-body 0
+    gap-metric fence-blocks-first:selective-unaccounted-emitted-body 0
+    gap-metric fence-blocks-sole:selective-emit-set-unknown 0
+    gap-metric fence-blocks-exact:selective-emit-set-unknown 0
+    gap-metric fence-blocks-exact-bodies:selective-emit-set-unknown 0
+    gap-metric fence-blocks-first:selective-emit-set-unknown 0
+    gap-metric fence-blocks-sole:varargs 0
+    gap-metric fence-blocks-exact:varargs 0
+    gap-metric fence-blocks-exact-bodies:varargs 0
+    gap-metric fence-blocks-first:varargs 0
+    gap-metric fence-blocks-sole:body-out-of-class 0
+    gap-metric fence-blocks-exact:body-out-of-class 0
+    gap-metric fence-blocks-exact-bodies:body-out-of-class 0
+    gap-metric fence-blocks-first:body-out-of-class 2
+    gap-metric fence-blocks-sole:shape-token-unresolved 0
+    gap-metric fence-blocks-exact:shape-token-unresolved 0
+    gap-metric fence-blocks-exact-bodies:shape-token-unresolved 0
+    gap-metric fence-blocks-first:shape-token-unresolved 0
+    gap-metric fence-blocks-sole:label-stride-mismatch 0
+    gap-metric fence-blocks-exact:label-stride-mismatch 0
+    gap-metric fence-blocks-exact-bodies:label-stride-mismatch 0
+    gap-metric fence-blocks-first:label-stride-mismatch 0
+    gap-metric fence-blocks-sole:label-counter-unreadable 0
+    gap-metric fence-blocks-exact:label-counter-unreadable 0
+    gap-metric fence-blocks-exact-bodies:label-counter-unreadable 0
+    gap-metric fence-blocks-first:label-counter-unreadable 0
+    gap-metric fence-blocks-sole:unclaimed-gl-symbol 0
+    gap-metric fence-blocks-exact:unclaimed-gl-symbol 0
+    gap-metric fence-blocks-exact-bodies:unclaimed-gl-symbol 0
+    gap-metric fence-blocks-first:unclaimed-gl-symbol 0
+    gap-metric fence-blocks-sole:locally-defined-callee 0
+    gap-metric fence-blocks-exact:locally-defined-callee 0
+    gap-metric fence-blocks-exact-bodies:locally-defined-callee 0
+    gap-metric fence-blocks-first:locally-defined-callee 0
+  GAP-FACTOR-TUS: NOT REQUESTED — pass `--factors-tsv PATH` for the per-TU A/B/C/D/E membership. The joints above are counts; `|{some per-TU set} and B and C|` cannot be got from one, and multiplying a rate by a joint count is how `B and C` stayed published at 107 after C moved.
+
+GAP REPORT (878 TUs in 5.8s)
+  match            26    3.0%
+  mismatch          0    0.0%
+  codegen-gap       0    0.0%
+  vocab-gap       844   96.1%
+  port-error        0    0.0%
+  capture-fail      8    0.9%
+  capture cache: 870 hit, 8 miss, 0 uncacheable  |  validator: 0 re-captured and agreed (0 of them only after zeroing the COFF TimeDateStamp), 0 POISONED
+  cache entries REFUSED on provenance: 0 (expected 0 — an entry whose recorded capture path is not where it is being served from is re-captured, never served)
+
+  FUNCTION CENSUS (P2b): 706491/2411388 functions in class (29.30%)
+  census/gate disagreement: 0  (the port accepts every function above)
+  .gl binding invariants: 0 violations (every generated destructor resolves to a destructor)
+     162063  selbind-emitted
+     157791  selbind-emitted-named-scan-precise
+     157791  selbind-emitted-named-wide
+      35233  dtor-callee-1
+       4044  selbind-emitted-named-scan-narrow
+       1908  gl-token-ambiguous-dropped
+        864  selbind-emit-tus
+        464  selbind-emit-subset-scan-precise-tus
+
+  EMITTED CENSUS (§8): 39332/162063 emitted functions in class (24.27%)
+    bound 152761  |  residue 9302: 1946 compiler-generated (no IL body), 7356 unexplained  (5.74% of the denominator)
+    ceiling if every residue symbol were in class: 48634 (30.01%)
+    ground truth VIOLATED: 3 emitted symbols on the 26 byte-exact TUs did not bind to an in-class row — the BINDING is wrong, not the port
+    binding: 1462237 records, 421 nameless, 0 before the first row, 39170 row-conflicts, 803 name-conflicts, 0 accounting breaks, 0 unreadable objs
+    binding arity (#144 — residue 0 is not a control): 1462237 record offsets against 1462237 records, 0 arity breaks (known answer 0)
+    .in initializers: 754431 records = 750826 accepted + 3605 residue, 3674575 elements (ARITY), 750826 values (TOKENS, not records), 0 duplicate records, 0 conflicts, 0 accounting breaks (known answer 0)
+    .in symbol addresses (element tag 02, board #931): 1914371 elements over 707693 records
+    .in UNANCHORED (the denominator, board #961): 144757 records whose first element is a tag-03 blob or a tag-08 fill, 3347 `00 02` candidates dropped by the fail-closed arm, 0 anchors with no token — none of these is in `records` OR in the residue
+      .in residue symbol-address              0
+      .in residue floating-point            183
+      .in residue unknown-type             3422
+      .in residue unknown-width               0
+      .in residue value-did-not-frame         0
+      .in residue pointer-width               0
+      .in residue zero-fill                   0
+      .in residue inline-bytes                0
+      .in residue truncated                   0
+      residue ordinary                6352 ( 86.4% of the unexplained)
+      residue dtor                     724 (  9.8% of the unexplained)
+      residue template-operator        210 (  2.9% of the unexplained)
+      residue ctor                      45 (  0.6% of the unexplained)
+      residue operator                  19 (  0.3% of the unexplained)
+      residue special-generated          5 (  0.1% of the unexplained)
+      residue undecorated                1 (  0.0% of the unexplained)
+    TU distance to matching (blocked functions) — ≤0: 17, ≤1: 20, ≤10: 27, ≤100: 34, ≤1000: 282
+    TU distance to matching (blocked EMITTED functions) — ≤0: 18, ≤1: 27, ≤10: 91, ≤100: 458, ≤1000: 858
+    emit-set ceiling: 27 of 870 graded TUs have `.ex` segments == obj `.text` COMDATs — the most TU match can reach before ROADMAP §8.3 Phase 7 (violations among matching TUs, must be 0: 1)
+    emit-set MODEL ceiling: 324 of 870 TUs bind every emitted symbol today; 470 would if `bind.rs` lost none; 400 carry an emitted symbol with NO `.gl` body record and are a wall for any segment-driven model
+      unbound emitted symbols: 5030 have a body record (instrument defect), 4272 have none (wall) — nesting invariant, must hold: today <= repaired (true), repaired + wall == graded (true)
+    the widening order OVER EMITTED CODE (113429 blocked):
+        22404 ( 19.8%)  expr-op-0x27
+         9272 (  8.2%)  expr-intrinsic-this-adjust
+         6467 (  5.7%)  expr-intrinsic-base-member-addr
+         4739 (  4.2%)  expr-call-in-expr-recv-object-then-call-recv-object-more
+         4287 (  3.8%)  expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+         3738 (  3.3%)  expr-intrinsic-memset
+         3093 (  2.7%)  expr-brfalse
+         2867 (  2.5%)  expr-call-in-expr-recv-load-then-intrinsic-call
+         2832 (  2.5%)  body-cflow-label
+         2379 (  2.1%)  expr-cmp-eq
+         2215 (  2.0%)  body-0x9B
+         2182 (  1.9%)  expr-call-in-expr-recv-load-then-call-recv-load-and-deref-load-more
+         2033 (  1.8%)  expr-intrinsic-0xDF
+         1942 (  1.7%)  expr-brtrue
+         1817 (  1.6%)  return-scope-close-cflow-label
+         1592 (  1.4%)  expr-op-0x9B
+         1491 (  1.3%)  expr-call-in-expr-recv-load-whole
+         1454 (  1.3%)  expr-call-in-expr-recv-object-then-deref-load-more
+         1320 (  1.2%)  expr-intrinsic-base-downcast
+         1233 (  1.1%)  expr-intrinsic-dynamic-cast
+      … and 596 more distinct features
+    TUs within 100 blocked functions of matching: 34 (blocked | emitted in-class/emitted | src)
+          0 |    1/1    | src/system/math/Primes.cpp [match]
+          0 |    1/1    | src/system/math/Sort.cpp [match]
+          0 |    2/2    | src/system/negate_test.cpp [match]
+          0 |    2/2    | src/system/synth_xbox/Biquad.cpp [match]
+          0 |    4/4    | src/system/synth_xbox/IPP_basicmath_xbox.cpp [match]
+          0 |    5/5    | src/system/utl/EncryptXTEA.cpp [match]
+          0 |    3/3    | src/system/utl/Pool.cpp [match]
+          0 |    2/2    | src/system/utl/Spew.cpp [match]
+          0 |    1/1    | src/xdk/LIBCMT/osfinfo.cpp [match]
+          0 |    1/1    | src/xdk/LIBCMT/undname.cpp [match]
+          0 |    2/2    | src/xdk/LIBCMT/vsnprnc.cpp [match]
+          0 |    1/1    | src/xdk/LIBCMT/vswprnc.cpp [match]
+          0 |   11/11   | src/xdk/nuispeech/mmio.cpp [match]
+          0 |    1/1    | src/xdk/nuispeech/xboxheap.cpp [match]
+          0 |    4/4    | src/xdk/nuispeech/xboxmem.cpp [match]
+          0 |    1/1    | src/xdk/xjson/jsonwriter.cpp [match]
+          0 |    1/1    | src/xdk/xlrc/xlrcimpl.cpp [match]
+          1 |    0/1    | src/Main.cpp [match]
+          1 |    0/1    | src/system/synth/tomcrypt/TomCryptLicense.cpp [match]
+          1 |    0/1    | src/system/zlib/ZlibLicense.cpp [match]
+          2 |    0/1    | src/ChecksumData_xbox.cpp [vocab-gap]
+          3 |    0/3    | src/system/rndobj/wordwrap.cpp [vocab-gap]
+          3 |    0/1    | src/xdk/nuiapi/nuidetroit.cpp [vocab-gap]
+          7 |    0/3    | src/system/net/JsonMemory.cpp [vocab-gap]
+          8 |    0/2    | src/system/math/Rand2.cpp [vocab-gap]
+          8 |    2/13   | src/system/synth_xbox/MeterEffect.cpp [vocab-gap]
+          9 |    1/7    | src/system/oggvorbis/VorbisMem.cpp [vocab-gap]
+         12 |    1/14   | src/system/synth_xbox/HeadsetXferEffect.cpp [vocab-gap]
+         14 |    0/6    | src/system/os/CritSec.cpp [vocab-gap]
+         19 |    1/20   | src/keygen_xbox.cpp [vocab-gap]
+         21 |    8/24   | src/system/utl/TempoMap.cpp [vocab-gap]
+         22 |    0/14   | src/xdk/LIBCMT/rtti.cpp [vocab-gap]
+         27 |    2/9    | src/xdk/nuiapi/headtracker.cpp [vocab-gap]
+         92 |   11/45   | src/system/synth/Pollable.cpp [vocab-gap]
+  blocking features (the widening order):
+     400817 ( 23.5%)  expr-op-0x27
+     133477 (  7.8%)  expr-intrinsic-this-adjust
+     113178 (  6.6%)  expr-intrinsic-base-member-addr
+     102200 (  6.0%)  expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+      55609 (  3.3%)  expr-load-type-8645
+      46033 (  2.7%)  body-cflow-label
+      46008 (  2.7%)  expr-call-in-expr-op-0x9B
+      40615 (  2.4%)  expr-load-type-8885
+      35444 (  2.1%)  expr-brtrue
+      29236 (  1.7%)  expr-intrinsic-memset
+      27071 (  1.6%)  body-0x9B
+      25810 (  1.5%)  expr-brfalse
+      24384 (  1.4%)  expr-op-0x64
+      23657 (  1.4%)  expr-call-in-expr-recv-object-then-branch-brfalse
+      22535 (  1.3%)  expr-call-in-expr-recv-load-then-off-add-more
+      20184 (  1.2%)  expr-call-in-expr-recv-load-then-intrinsic-call
+      20099 (  1.2%)  expr-op-0x30
+      19971 (  1.2%)  expr-intrinsic-base-downcast
+      19466 (  1.1%)  expr-intrinsic-base-upcast
+      19342 (  1.1%)  call-arg-multi-sym:mid
+    … and 616 more distinct features
+    NOTE: `op-0x64`/`op-0x67` above spell hex because mcall's walk does not decode them; the control-flow axis below does. Do not rank across the two axes on those rows — different vocabularies.
+  frame class (CALL tokens per body — decode-only, §18):
+     854185 ( 35.4%)  calls-0
+     776254 ( 32.2%)  calls-1
+     780949 ( 32.4%)  calls-2plus
+     116274           calls-2plus|expr-op-0x27
+     102200           calls-2plus|expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+      81666           calls-2plus|expr-intrinsic-this-adjust
+      46006           calls-2plus|expr-call-in-expr-op-0x9B
+      40429           calls-2plus|body-cflow-label
+      34937           calls-2plus|expr-intrinsic-base-member-addr
+      23830           calls-2plus|call-sequence-value
+      23657           calls-2plus|expr-call-in-expr-recv-object-then-branch-brfalse
+      21490           calls-2plus|expr-brfalse
+      18920           calls-2plus|expr-call-in-expr-recv-object-then-call-recv-object-more
+  control-flow class (statement layer, decode-only): 2370707 of 2411388 bodies decoded end to end (98.3%)
+    1696397 ( 70.3%)  cflow-straight
+     267089 ( 11.1%)  cflow-straight+expr-modeled
+     241488 ( 10.0%)  cflow-if-1
+      88638 (  3.7%)  cflow-loop
+      42975 (  1.8%)  cflow-if-n
+      33073 (  1.4%)  cflow-if-2
+      20593 (  0.9%)  cf-expr-0x59
+       9652 (  0.4%)  cf-expr-0x60
+       8249 (  0.3%)  cf-expr-0x08
+        747 (  0.0%)  cf-no-body
+        737 (  0.0%)  cf-expr-0xBC
+        712 (  0.0%)  cflow-if-1+expr-modeled
+        699 (  0.0%)  cf-offadd-type-0x86
+        330 (  0.0%)  cflow-switch
+     102196           cflow-if-1|expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+      34813           cflow-loop|body-cflow-label
+      32857           cflow-if-1|expr-brtrue
+      24394           cflow-if-1|expr-op-0x27
+      24333           cflow-if-1|expr-brfalse
+      23626           cflow-if-n|expr-call-in-expr-recv-object-then-branch-brfalse
+      18619           cflow-if-2|expr-op-0x27
+      17129           cflow-if-1|expr-intrinsic-base-member-addr
+      13182           cflow-loop|return-scope-close-cflow-label
+       9206           cflow-if-n|expr-op-0x27
+       7783           cflow-if-1|expr-call-in-expr-recv-field-then-off-add-and-deref-load-more
+       7690           cflow-if-1|expr-intrinsic-this-adjust
+    CONTROL-FLOW COUNTERFACTUAL (board #1343) — what a block IR would convert BY ITSELF: 717 bodies, 9 of the 35106 blocked EMITTED functions a block IR must serve. Neither is a bound — both are a PROXY whose two-sided error the next two lines measure. Never quote one without them.
+    RESIDUE CONTROL (board #1344) — `CfResidue::Modeled` is a hand-written mirror of the port's class and NOTHING checked it against the port. It calls 517993 of the 706491 bodies the port ACCEPTS off-class (73.3%), recognising only 188498. NOT a gate and NOT an error: a residue LOOSER than the emitter would over-claim, which is worse. What it IS is the counterfactual's error term, and it was assumed rather than measured for eight days.
+    …and it errs BOTH WAYS, so `lower bound` is the wrong word for the line above: 78591 straight-line bodies are `+expr-modeled` and the port REFUSES them anyway. `Modeled` neither contains nor is contained in the class — it is a different predicate, and the counterfactual inherits both differences.
+  EH class (maxState, decode-only): 234788 of 2411388 bodies have maxState >= 1 and need the whole EH record (9.7%)
+    2021491 ( 83.8%)  eh-none       blocked 1350240
+     234788 (  9.7%)  eh-state1     blocked  234788
+     114533 (  4.7%)  eh-state0     blocked   79293
+      40573 (  1.7%)  eh-unknown    blocked   40573
+          3 (  0.0%)  eh-partial    blocked       3
+    blocked residue, by census key (accepted shapes excluded):
+      54731           eh-state1|BLOCKED|expr-intrinsic-this-adjust
+      41649           eh-state0|BLOCKED|expr-intrinsic-base-member-addr
+      32368           eh-state1|BLOCKED|expr-brtrue
+      29506           eh-state1|BLOCKED|expr-intrinsic-base-member-addr
+      25581           eh-state1|BLOCKED|expr-op-0x27
+      23606           eh-state1|BLOCKED|expr-call-in-expr-recv-object-then-branch-brfalse
+      16910           eh-state1|BLOCKED|body-0x9B
+      14662           eh-state0|BLOCKED|expr-intrinsic-this-adjust
+      13544           eh-state0|BLOCKED|expr-op-0x27
+      11176           eh-unknown|BLOCKED|body-cflow-label
+       8270           eh-state1|BLOCKED|expr-intrinsic-base-upcast
+       7784           eh-state1|BLOCKED|expr-call-in-expr-recv-field-then-off-add-and-deref-load-more
+       7642           eh-state1|BLOCKED|expr-call-in-expr-recv-intrinsic-this-adjust-then-call-op-0x9B
+       6460           eh-unknown|BLOCKED|expr-load-type-8645
+       5285           eh-unknown|BLOCKED|expr-op-0x27
+       5088           eh-state1|BLOCKED|body-cflow-label
+    in-class control group (ACCEPTED functions, never a rung):
+      26776           eh-state0|INCLASS|empty-dtor-delegation
+       6230           eh-state0|INCLASS|empty-dtor-member
+       2227           eh-state0|INCLASS|empty-dtor-member-adjusted
+          7           eh-state0|INCLASS|empty-ctor-base
+    maxState x statement-count (the refuted predicate, for reconciliation):
+     161602           eh-migrate|eh-state1|eh-plus-stmt
+      64899           eh-migrate|eh-state0|eh-plus-stmt
+      49619           eh-migrate|eh-state0|eh-bare
+      46376           eh-migrate|eh-state1|eh-multi
+      40573           eh-migrate|eh-unknown|eh-unknown
+      26705           eh-migrate|eh-state1|eh-bare
+        105           eh-migrate|eh-state1|eh-partial
+         15           eh-migrate|eh-state0|eh-multi
+          3           eh-migrate|eh-partial|eh-partial
+  grammar completeness (decode-only): 2411388 of 2411388 bodies read
+    1220881 ( 50.6%)  complete-none                   blocked 1220881
+     706491 ( 29.3%)  complete-in-class               blocked       0
+     223801 (  9.3%)  complete-more:grammar           blocked  223801
+     134559 (  5.6%)  complete-unmeasured:grammar     blocked  134559
+      55282 (  2.3%)  complete-whole:grammar          blocked   55282
+      44157 (  1.8%)  complete-partial:segment-end    blocked   44157
+      26217 (  1.1%)  complete-whole:segment-end      blocked   26217
+    grammar-COMPLETE and blocked, both producers summed: 81499
+  body dispatch (which recognizer claimed the body, decode-only): 2411388 of 2411388 bodies tagged on the dispatch axis, 2411388 on the production axis
+     709823 ( 29.4%)  disp-assign                       blocked  709823
+     390535 ( 16.2%)  disp-expr-load                    blocked  390535
+     313557 ( 13.0%)  disp-plain-call                   blocked  287213
+     184823 (  7.7%)  disp-expr-lit                     blocked  184823
+     175147 (  7.3%)  disp-indirect-load-leaf           blocked       0
+     120550 (  5.0%)  disp-empty-body                   blocked   21411
+      91804 (  3.8%)  disp-body-byte                    blocked   91804
+      84155 (  3.5%)  disp-fp-tail-call                 blocked       0
+      60982 (  2.5%)  disp-member-call                  blocked     289
+      56032 (  2.3%)  disp-store-run                    blocked       0
+      53304 (  2.2%)  disp-straight-line                blocked    8407
+      41319 (  1.7%)  disp-addr-leaf                    blocked       0
+      40984 (  1.7%)  disp-ptr-identity-leaf            blocked       0
+      35233 (  1.5%)  disp-empty-dtor-delegation        blocked       0
+      33377 (  1.4%)  disp-store-leaf                   blocked       0
+       8312 (  0.3%)  disp-formals-width                blocked    8312
+       5867 (  0.2%)  disp-empty-ctor-base-delegation   blocked       0
+       2289 (  0.1%)  disp-global-store-leaf            blocked    2280
+       2254 (  0.1%)  disp-ctor-forward-call            blocked       0
+       1002 (  0.0%)  disp-float-leaf                   blocked       0
+          8 (  0.0%)  disp-store-run-call               blocked       0
+          4 (  0.0%)  disp-cond-tail-pair               blocked       0
+          4 (  0.0%)  disp-float-walk-loop              blocked       0
+          2 (  0.0%)  disp-guard-chain-shared-tail      blocked       0
+          2 (  0.0%)  disp-guard-ret-chain              blocked       0
+          2 (  0.0%)  disp-if-call-join                 blocked       0
+          2 (  0.0%)  disp-pool-free-list               blocked       0
+          1 (  0.0%)  disp-alloc-init-or-fail           blocked       0
+          1 (  0.0%)  disp-close-call-chain             blocked       0
+          1 (  0.0%)  disp-cmp-shift-or                 blocked       0
+          1 (  0.0%)  disp-fp-store-diamond             blocked       0
+          1 (  0.0%)  disp-json-utf8-copy               blocked       0
+          1 (  0.0%)  disp-memcpy-tail                  blocked       0
+          1 (  0.0%)  disp-nonce-add-run                blocked       0
+          1 (  0.0%)  disp-osf-handle-guard             blocked       0
+          1 (  0.0%)  disp-pool-ctor-chain              blocked       0
+          1 (  0.0%)  disp-ptr-walk-loop                blocked       0
+          1 (  0.0%)  disp-static-scan-loop             blocked       0
+          1 (  0.0%)  disp-store-run-bind               blocked       0
+          1 (  0.0%)  disp-xlrc-create-guard            blocked       0
+          1 (  0.0%)  disp-xtea-encrypt-loop            blocked       0
+          1 (  0.0%)  disp-xtea-round-loop              blocked       0
+    blocked residue of the arms that never enter a member-call production:
+     277598           disp-expr-load|BLOCKED|expr-op-0x27
+      97214           disp-expr-lit|BLOCKED|expr-intrinsic-base-member-addr
+      46033           disp-body-byte|BLOCKED|body-cflow-label
+      45982           disp-plain-call|BLOCKED|expr-call-in-expr-op-0x9B
+      42017           disp-plain-call|BLOCKED|expr-load-type-8645
+      40612           disp-plain-call|BLOCKED|expr-load-type-8885
+      35441           disp-expr-load|BLOCKED|expr-brtrue
+      27071           disp-body-byte|BLOCKED|body-0x9B
+      24384           disp-plain-call|BLOCKED|expr-op-0x64
+      22061           disp-plain-call|BLOCKED|expr-intrinsic-memset
+      19342           disp-plain-call|BLOCKED|call-arg-multi-sym:mid
+      18690           disp-body-byte|BLOCKED|body-0x67
+      18591           disp-expr-load|BLOCKED|expr-cmp-eq
+      17895           disp-plain-call|BLOCKED|call-arg-multi-sym:eof
+      17305           disp-expr-lit|BLOCKED|expr-intrinsic-base-upcast
+      15620           disp-plain-call|BLOCKED|expr-op-0x27
+      13182           disp-empty-body|BLOCKED|return-scope-close-cflow-label
+      11897           disp-plain-call|BLOCKED|expr-intrinsic-0xDF
+      11565           disp-expr-load|BLOCKED|expr-brfalse
+      10322           disp-plain-call|BLOCKED|call-ref-cflow-jump
+       9551           disp-expr-load|BLOCKED|expr-load-type-8645
+       9159           disp-expr-load|BLOCKED|expr-cmp-ne
+       7783           disp-expr-lit|BLOCKED|expr-call-in-expr-recv-field-then-off-add-and-deref-load-more
+       7642           disp-expr-lit|BLOCKED|expr-call-in-expr-recv-intrinsic-this-adjust-then-call-op-0x9B
+  member-call production first blocker (decode-only): 0 bodies entered a production, declined, and reached NO tagged bail — the tag-coverage residue (target 0)
+    1638285 ( 67.9%)  prod-not-entered                  blocked  992505
+     154511 (  6.4%)  tail-void-body-does-not-end-at-the-call  blocked  154511
+     133459 (  5.5%)  tail-recv-not-a-plain-b9-load/no-b9-this-adjust  blocked  133459
+      96891 (  4.0%)  tail-recv-not-a-plain-b9-load/then-off-add  blocked   96889
+      88670 (  3.7%)  tail-argument-not-in-the-operand-vocabulary  blocked   88670
+      60754 (  2.5%)  prod-accepted                     blocked      61
+      31727 (  1.3%)  framed-result-not-consumed-by-a-literal-post-op  blocked   31727
+      24857 (  1.0%)  tail-object-receiver-is-not-a-tail-call  blocked   24857
+      20732 (  0.9%)  tail-recv-not-a-plain-b9-load/b9-not-a-ptr4  blocked   20725
+      19141 (  0.8%)  chain-innermost-argument-not-in-the-operand-vocabulary  blocked   19141
+      15672 (  0.6%)  tail-recv-not-a-plain-b9-load/then-dynamic-cast  blocked   15672
+      14814 (  0.6%)  tail-recv-not-a-plain-b9-load/no-b9-base-downcast  blocked   14814
+      14509 (  0.6%)  chain-recv-not-a-plain-b9-load/no-b9-plain-call  blocked   14509
+      13194 (  0.5%)  tail-recv-not-a-plain-b9-load/no-b9-base-member-addr  blocked   13194
+      11516 (  0.5%)  tail-recv-not-a-plain-b9-load/then-operand-load  blocked   11516
+       8591 (  0.4%)  tail-recv-not-a-plain-b9-load/no-b9-stmt-end  blocked    8591
+       6805 (  0.3%)  tail-recv-not-a-plain-b9-load/then-store  blocked    6802
+       6734 (  0.3%)  tail-recv-not-a-plain-b9-load/no-b9-literal  blocked    6728
+       6647 (  0.3%)  chain-link-does-not-bind-the-previous-result  blocked    6647
+       6537 (  0.3%)  tail-recv-not-a-plain-b9-load/then-deref-load  blocked    6537
+       6094 (  0.3%)  tail-recv-not-a-plain-b9-load/no-b9-temp-bind  blocked    6094
+       6063 (  0.3%)  chain-recv-not-a-plain-b9-load/no-b9-off-add  blocked    6063
+       5982 (  0.2%)  chain-recv-not-a-plain-b9-load/no-b9-this-adjust  blocked    5982
+       4369 (  0.2%)  tail-recv-not-a-plain-b9-load/no-b9-convert  blocked    4369
+       2391 (  0.1%)  chain-recv-not-a-plain-b9-load/then-off-add  blocked    2391
+       2282 (  0.1%)  chain-link-argument-not-in-the-operand-vocabulary  blocked    2282
+       1470 (  0.1%)  chain-returned-body-does-not-end-at-the-call  blocked    1470
+       1351 (  0.1%)  tail-recv-not-a-plain-b9-load/no-b9-vbase-upcast  blocked    1351
+       1324 (  0.1%)  tail-recv-not-a-plain-b9-load/then-call-in-expr  blocked    1324
+       1242 (  0.1%)  tail-returned-body-does-not-end-at-the-call  blocked    1242
+        884 (  0.0%)  tail-recv-not-a-plain-b9-load/no-b9-off-add  blocked     884
+        834 (  0.0%)  chain-recv-not-a-plain-b9-load/no-b9-convert  blocked     834
+        727 (  0.0%)  chain-void-body-does-not-end-at-the-call  blocked     727
+        715 (  0.0%)  tail-recv-not-a-plain-b9-load/no-b9-intrinsic-other  blocked     715
+        492 (  0.0%)  tail-recv-not-a-plain-b9-load/no-b9-dynamic-cast  blocked     492
+        341 (  0.0%)  chain-recv-not-a-plain-b9-load/no-b9-base-member-addr  blocked     341
+        233 (  0.0%)  tail-recv-not-a-plain-b9-load/no-b9-virtual  blocked     233
+        228 (  0.0%)  prod-committed-refusal            blocked     228
+        219 (  0.0%)  cmp-two-results-not-consumed-by-a-relation  blocked     219
+         17 (  0.0%)  chain-recv-not-a-plain-b9-load/no-b9-chain-bind  blocked      17
+         14 (  0.0%)  chain-recv-not-a-plain-b9-load/no-b9-virtual  blocked      14
+         11 (  0.0%)  chain-recv-not-a-plain-b9-load/no-b9-vbase-upcast  blocked      11
+          9 (  0.0%)  tail-recv-not-a-plain-b9-load/no-b9-base-upcast  blocked       9
+          8 (  0.0%)  chain-recv-not-a-plain-b9-load/no-b9-temp-bind  blocked       8
+          8 (  0.0%)  tail-recv-not-a-plain-b9-load/then-literal  blocked       8
+          6 (  0.0%)  chain-body-does-not-end-at-the-call  blocked       6
+          6 (  0.0%)  chain-recv-not-a-plain-b9-load/b9-not-a-ptr4  blocked       6
+          6 (  0.0%)  chain-recv-not-a-plain-b9-load/no-b9-base-downcast  blocked       6
+          3 (  0.0%)  chain-more-methods-than-the-link-bound  blocked       3
+          3 (  0.0%)  cmp-second-recv-not-a-plain-b9-load/no-b9-call-in-expr  blocked       3
+          2 (  0.0%)  chain-tail-designator-has-no-result-type  blocked       2
+          2 (  0.0%)  cmp-second-recv-not-a-plain-b9-load/then-off-add  blocked       2
+          1 (  0.0%)  chain-recv-not-a-plain-b9-load/no-b9-literal  blocked       1
+          1 (  0.0%)  chain-recv-not-a-plain-b9-load/no-b9-store  blocked       1
+          1 (  0.0%)  cmp-relation-result-not-annotated-bool  blocked       1
+          1 (  0.0%)  cmp-second-recv-not-a-plain-b9-load/no-b9-this-adjust  blocked       1
+          1 (  0.0%)  tail-recv-not-a-plain-b9-load/no-b9-vbase-member-addr  blocked       1
+          1 (  0.0%)  tail-recv-not-a-plain-b9-load/then-intrinsic-other  blocked       1
+     133459           tail-recv-not-a-plain-b9-load/no-b9-this-adjust|BLOCKED|expr-intrinsic-this-adjust
+     102198           tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+      96883           tail-recv-not-a-plain-b9-load/then-off-add|BLOCKED|expr-op-0x27
+      23655           tail-object-receiver-is-not-a-tail-call|BLOCKED|expr-call-in-expr-recv-object-then-branch-brfalse
+      22505           tail-argument-not-in-the-operand-vocabulary|BLOCKED|expr-call-in-expr-recv-load-then-off-add-more
+      18920           tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-object-then-call-recv-object-more
+      17832           tail-argument-not-in-the-operand-vocabulary|BLOCKED|expr-call-in-expr-recv-load-then-call-recv-load-and-deref-load-more
+      17362           tail-argument-not-in-the-operand-vocabulary|BLOCKED|expr-call-in-expr-recv-load-then-intrinsic-call
+      15672           tail-recv-not-a-plain-b9-load/then-dynamic-cast|BLOCKED|expr-intrinsic-dynamic-cast
+      14814           tail-recv-not-a-plain-b9-load/no-b9-base-downcast|BLOCKED|expr-intrinsic-base-downcast
+      14237           tail-recv-not-a-plain-b9-load/b9-not-a-ptr4|BLOCKED|expr-brfalse
+      13194           tail-recv-not-a-plain-b9-load/no-b9-base-member-addr|BLOCKED|expr-intrinsic-base-member-addr
+      11798           tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-whole
+      10550           chain-innermost-argument-not-in-the-operand-vocabulary|BLOCKED|expr-op-0x30
+       9696           tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-call-data-addr-1sym-whole
+       8591           tail-recv-not-a-plain-b9-load/no-b9-stmt-end|BLOCKED|expr-op-0x41
+       7543           framed-result-not-consumed-by-a-literal-post-op|BLOCKED|expr-call-in-expr-recv-load-then-deref-load-more
+       6537           tail-recv-not-a-plain-b9-load/then-deref-load|BLOCKED|expr-op-0x30
+       6193           tail-recv-not-a-plain-b9-load/then-operand-load|BLOCKED|expr-ptr-arith:mid
+       6094           tail-recv-not-a-plain-b9-load/no-b9-temp-bind|BLOCKED|expr-op-0x9B
+
+  top capture-fail reasons:
+        3 x C1083
+        2 x C1189
+        2 x C2084
+        1 x C2065
+
+  top vocab gaps:
+      844 x il function decode failed
+
+  gate FIRST refusal, over the 844 TUs `IlBundle::decodes()` rejects (c2_il::func::diag; a first cause is what a repair is guaranteed to move, the ALSO column is what it would still owe):
+      818 x gl-stop-26-introduced              (also fires on 830 TUs total)
+       13 x drectve-not-boilerplate            (also fires on 13 TUs total)
+       11 x bind-record-count-ne-segments      (also fires on 12 TUs total)
+        2 x body-out-of-class                  (also fires on 844 TUs total)
+
+  `.gl` BODY-START COVERAGE — can `Bindings::per_record` bind this TU at all?
+       29 TUs where `.gl` spells a body-start for EVERY `.ex` segment
+      841 TUs where it does not — 945772 segments across them can bind to NO record, whatever the framing
+        8 TUs with no `.ex` or no `.gl` (the field is null, which is not zero)
+        6254 of 9303   src/lazer/meta_ham/ProfileMgr.cpp
+        6373 of 9410   src/lazer/game/PresenceMgr.cpp
+        6742 of 9759   src/lazer/game/BustAMovePanel.cpp
+        6676 of 9680   src/lazer/meta_ham/HamUI.cpp
+        6738 of 9739   src/lazer/game/Game.cpp
+        6173 of 9131   src/App.cpp
+        6769 of 9685   src/lazer/meta_ham/PracticeChoosePanel.cpp
+        6313 of 9207   src/lazer/meta_ham/MetaPanel.cpp
+        6312 of 9200   src/lazer/game/GamePanel.cpp
+        6277 of 9124   src/lazer/meta_ham/MetagameRank.cpp
+      … and 831 more
+
+  SELECTIVE BINDING (`Bindings::selective`) — how many TUs can bind a SUBSET, and is the subset SOUND?
+       22 TUs whose records are 1:1 with the segments (the incumbent contract; `per_record` is this case)
+       12 TUs where a record NAMES some but not all segments — the selective population
+        0 of those pass the TOTALITY clause (every `.gl` run that could be a COFF symbol name is claimed), i.e. MAY bind today
+        9 blocked by an unclaimed MANGLED run ·     8 blocked by an unclaimed run that FITS the 8-byte inline name field (board #1721's hole, and the shape
+          `work/w-small/probe/l1_counterexample.cpp` measured as `Port=Mismatch @ offset 8`)
+    IS `emitted ⊆ named`?  134 of 162063 emitted symbols carry a `.gl` record the GATE BINDS (157791 named by a walk-free scan at the same framing, 157791 at the window-free one).
+      TUs with any emitted symbol whose emit set is ENTIRELY named, 864 in the denominator — the CEILING on a selective binding, decomposed:
+           39  scan, INCUMBENT framing  (`codec::gl_offset_framed`, no walk)
+          464  scan, SHIPPED framing    (#2783 relaxed + the 16 MB offset bound, no walk)
+          464  scan, window-free framing (board #2783 as filed — includes 551 offsets that are not `.ex` split points)
+           34  the GATE's own binding walk, at the shipped framing — six stop clauses, any one of which empties the whole TU
+      Read the last two rows against each other: what separates the gate from the instrument is the WALK, not the framing (board #2860).
