@@ -103,8 +103,37 @@ printed `checked=19556 mismatches=0 graded=19460 ungraded=96 unknown=0`.
 
 C2RS_SWEEP_NO_CACHE=1 is the control path and grades every case for real.
 
-THE GATE STILL GOES RED — eight fault classes, demonstrated not asserted
-------------------------------------------------------------------------
+THE GATE STILL GOES RED — AND THE CACHE DID NOT BLIND IT
+--------------------------------------------------------
+THE PRIMARY EVIDENCE. A real wrong emit was injected in a scratch commit
+(de909cac: encode_addi returning si+1) and reverted (bdd3af9c; the release
+binary sha256 returns to 15e371d1e4c3, byte-identical, same build path).
+
+  scripts/gate.sh --jobs 16 --require-graded   EXIT 1 in 87 s
+
+  GATE: FAIL — expr-sweep failed: MISMATCH — the port emitted wrong bytes on
+    4891 case(s)
+    *** A MISMATCH IS AN ALARM AND OUTRANKS EVERY OTHER PIECE OF WORK. ***
+
+  14 of 18 lanes FAIL · expr-sweep 4,891 · mode-cross 16,214 · debug-lane
+  1,369 (DEBUG-LANE-TOTAL lanes=18 ran=18 failed=14, counters collected from
+  files — the new concurrency did not eat a failure)
+
+  AND THE LINE THAT MATTERS:
+    checked=19556 mismatches=4891 graded=19460 ungraded=96 unknown=0
+    cache: hit=19460 miss=96 validated=190 cache-bad=0 (of 19556 cases)
+
+  EVERY ONE OF THE 4,891 WAS FOUND AGAINST ORACLE BYTES SERVED OFF A DISK. The
+  cache served the reference for all 19,460 graded cases and the row still
+  found the wrong emits, because the PORT side is recomputed every run and the
+  REPLAY still ran. cache-bad=0 beside 4,891 mismatches is the second half: the
+  run tells "the port is wrong" apart from "the cache is wrong".
+
+  The four /Od lanes stayed PASS — the response is shape-dependent, not a
+  blanket red. An injection that reddens everything proves less.
+
+THE OTHER SEVEN FAULT CLASSES, demonstrated not asserted
+---------------------------------------------------------
   poisoned/refused cache entry   GATE: FAIL — expr-sweep failed: CACHE
                                  POISONED/REFUSED on 1 case(s) — ... this row's
                                  ORACLE side is untrustworthy on this run
