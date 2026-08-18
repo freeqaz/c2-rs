@@ -18,46 +18,6 @@ use super::Block;
 use super::IlFunction;
 use crate::IlBundle;
 
-/// **LANE-PROBE SCAFFOLD — `w-dataseam`. NOT FOR MERGE.**
-///
-/// Comma-separated selectors read once from `C2RS_DATASEAM`, so the variant
-/// ladder of `docs/rungs/2026-08-17-fence163.md` §8.1 can be measured without a
-/// rebuild per rung. Recognized: `lift` (drop the `data_syms` scoping off
-/// census clause (c2)), `inl` (refuse only when the callee's `.gl`
-/// `FN_FLAG_INLINABLE` bit is SET), `pext` (refuse only when the callee's `.gl`
-/// record is NOT a plain external). Every counterfactual build this produces is
-/// a measurement; the scaffold is removed before the branch lands in either
-/// direction.
-fn daseam(flag: &str) -> bool {
-    static SEL: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
-    SEL.get_or_init(|| {
-        std::env::var("C2RS_DATASEAM")
-            .unwrap_or_default()
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect()
-    })
-    .iter()
-    .any(|s| s == flag)
-}
-
-/// **LANE-PROBE SCAFFOLD — `w-dataseam`, the SIZE axis.** `C2RS_DATASEAM`
-/// selector `sz=<N>`: a callee whose `.ex` IL segment is longer than `N` bytes
-/// is EXEMPTED from the fence, on `WB_INLINE_FINDINGS` F2/F9's ground that c2
-/// declines to inline a large callee. The IL segment length is the only size
-/// proxy a PRE-EMISSION predicate can read — `comdat.rs`' fence measures the
-/// LOWERED body, which the census has not got.
-fn daseam_sz() -> Option<usize> {
-    static SZ: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
-    *SZ.get_or_init(|| {
-        std::env::var("C2RS_DATASEAM")
-            .unwrap_or_default()
-            .split(',')
-            .find_map(|s| s.trim().strip_prefix("sz=").and_then(|n| n.parse().ok()))
-    })
-}
-
 /// Split the `.ex` stream into per-function byte segments at each `4F 1F`
 /// function-start marker. Segment `k` runs from marker `k` to marker `k+1`
 /// (the last to end-of-stream).
@@ -781,13 +741,6 @@ impl IlBundle {
         // `fnbyte-differs` Δ0 is the fence's own acceptance test.
         let strlit_ground: std::cell::OnceCell<std::collections::BTreeMap<String, usize>> =
             std::cell::OnceCell::new();
-        // **LANE-PROBE `w-dataseam` (`pext`)** — the ground map's names whose
-        // `.gl` record is a PLAIN EXTERNAL definition, i.e. not an `inline` /
-        // COMDAT one. This is the gate's own W-FENCE2 discriminator
-        // ([`super::gl::plain_external_defined_names`]) asked of the census's
-        // wider ground set. Scaffold; removed with the rest.
-        let plain_ext_here: std::cell::OnceCell<std::collections::BTreeSet<String>> =
-            std::cell::OnceCell::new();
         // **W-MMIOCLOSE — the `.gl` function attribute byte, once per bundle.**
         // `None` when the reader refused the file; see
         // [`super::gl::gl_function_attrs`] for why that is a whole-file answer
@@ -1462,47 +1415,7 @@ impl IlBundle {
                                                 )
                                             }),
                                         )
-                                        .is_some()
-                                        // **LANE-PROBE `w-dataseam` (`payc`)** —
-                                        // §8.1 item 4, the PAYING half: clause
-                                        // (c) yields to the same EH-state
-                                        // exemption clause (c2) grants, so a
-                                        // defined-here callee c2 is measured to
-                                        // KEEP the call to no longer refuses the
-                                        // caller. This is the only half of the
-                                        // lift that can move `fnbyte-exact` UP.
-                                        && !(daseam("payc") && {
-                                            let ground = strlit_ground.get_or_init(|| {
-                                                (0..segs.len())
-                                                    .filter_map(|j| {
-                                                        emit.name(j).map(|n| (n.to_string(), j))
-                                                    })
-                                                    .collect()
-                                            });
-                                            let modelled = empty_here.get_or_init(|| {
-                                                tu_modelled_callees(
-                                                    &segs,
-                                                    &bind,
-                                                    &emit,
-                                                    &src,
-                                                    &resolve,
-                                                    &resolve_data,
-                                                    &resolve_data_def,
-                                                    &resolve_bss_def,
-                                                )
-                                            });
-                                            // Yield only when EVERY offending
-                                            // callee is one c2 keeps the call to.
-                                            f.callees()
-                                                .filter(|c| {
-                                                    defined.contains(*c) && !modelled.contains(*c)
-                                                })
-                                                .all(|c| {
-                                                    ground.get(c).is_some_and(|&j| {
-                                                        cflow_key(segs[j]).1 == "eh-state1"
-                                                    })
-                                                })
-                                        }) =>
+                                        .is_some() =>
                                 {
                                     let _ = f;
                                     FnVerdict::Blocked(Block::at_end(seg, CALLEE_DEFINED_IN_TU))
@@ -1558,10 +1471,9 @@ impl IlBundle {
                                 // two-sided rule, applied in the other
                                 // direction).
                                 Some(f)
-                                    if (daseam("lift")
-                                        || f.data_syms
-                                            .iter()
-                                            .any(|d| d.starts_with(STRLIT_NARROW_PREFIX)))
+                                    if f.data_syms
+                                        .iter()
+                                        .any(|d| d.starts_with(STRLIT_NARROW_PREFIX))
                                         && {
                                             let ground = strlit_ground.get_or_init(|| {
                                                 (0..segs.len())
@@ -1582,12 +1494,6 @@ impl IlBundle {
                                                     &resolve_bss_def,
                                                 )
                                             });
-                                            let plain_ext = plain_ext_here.get_or_init(|| {
-                                                super::gl::plain_external_names_among(
-                                                    gl,
-                                                    ground.keys().map(String::as_str),
-                                                )
-                                            });
                                             f.callees().any(|c| {
                                                 let Some(&j) = ground.get(c) else {
                                                     return false; // not known-defined here
@@ -1597,34 +1503,7 @@ impl IlBundle {
                                                 }
                                                 // c2 keeps the call ONLY for an
                                                 // EH-stateful callee (grid §2).
-                                                if cflow_key(segs[j]).1 == "eh-state1" {
-                                                    return false;
-                                                }
-                                                // LANE-PROBE: `__declspec(noinline)`
-                                                // is a LEGALITY fact c2 cannot
-                                                // override (`comdat.rs`' own fence).
-                                                if daseam("inl")
-                                                    && attrs
-                                                        .as_ref()
-                                                        .and_then(|m| m.get(c))
-                                                        .is_some_and(|a| {
-                                                            a & super::gl::FN_FLAG_INLINABLE == 0
-                                                        })
-                                                {
-                                                    return false;
-                                                }
-                                                // LANE-PROBE: a PLAIN EXTERNAL
-                                                // definition is not an `inline`
-                                                // one — the gate's own W-FENCE2
-                                                // exemption, asked here.
-                                                if daseam("pext") && plain_ext.contains(c) {
-                                                    return false;
-                                                }
-                                                // LANE-PROBE: the size axis.
-                                                if daseam_sz().is_some_and(|n| segs[j].len() > n) {
-                                                    return false;
-                                                }
-                                                true
+                                                cflow_key(segs[j]).1 != "eh-state1"
                                             })
                                         } =>
                                 {
