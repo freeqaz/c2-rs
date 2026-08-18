@@ -329,10 +329,11 @@ arms of 7,667**. Tables in `work/w-sizebracket/GRID-S.txt`, aggregation
 
 | band | kept | inlined |
 |---:|---:|---:|
-| 0–63 | 1 | 5,895 |
+| 0–63 | 1 | 5,829 |
 | 64–79 | 9 | 503 |
 | **80–95** | **137** | **67** |
 | **96+** | **1,121** | **0** |
+| **TOTAL** | **1,268** | **6,399** |
 
 **IL segment length (`w-dataseam`'s unit), 16 B bands** — mixed from 224 all the
 way to 576, with `inlined` edges at every band up to 576:
