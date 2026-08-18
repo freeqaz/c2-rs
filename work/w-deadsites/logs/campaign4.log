@@ -1,0 +1,8 @@
+C1: applied in crates/c2-il/src/func/body/shapes/calls.rs
+C1 suite exit=101 wall=192s
+  passed=1669 failed=2 targets=46
+  census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 63.69s
+  FAIL     gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol
+  FAIL     gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone
+reverted; crates/c2-il status: CLEAN
+campaign done

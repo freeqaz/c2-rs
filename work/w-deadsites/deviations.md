@@ -53,3 +53,30 @@ RED itself was sound**. `X3` (= `w-mutcensus` `B9`) is quiet under two screens
 and a `panic!()`, which is incompatible with its published RED. The stop rule
 (prereg H3) is **answered rather than waived** — rung §3.4 — and the
 contradiction is published as board **#3281** rather than resolved.
+
+## D6 — the runner tags by MUTANT, so three `C1` runs wrote one log and two were lost
+
+`campaign.sh` names each suite log after the mutant id. The named control `C1`
+was run three times — at the pre-rebase base, the pre-rebase tip and the rebased
+tip — and each run overwrote the last, so `logs/C1.suite.log` holds **`C1c`
+only**.
+
+**No colour is lost and none is accumulated**: all three are derived from the
+tracked driver logs `campaign1.log` (C1a, RED 1,664/2), `campaign3.log` (C1b,
+RED 1,669/2) and `campaign4.log` (C1c, RED 1,669/2), each of which records the
+totals, the `census_gate` duration and the failing set **by test name**. But the
+per-run suite logs for C1a and C1b are gone, which is a weaker record than every
+other row in this lane has, and the fix is one line — key the log on the run,
+not on the mutation. Recorded here rather than quietly quoting the driver logs
+as if they were the primary artefact.
+
+## D7 — rebased onto master `5f42e9b27` on the coordinator's authorization
+
+Supersedes D4, which recorded the lane as NOT rebased. The whole stack was
+re-measured at the new base rather than carried forward (rung §9): `N1` is a
+detached clean checkout of master, `T2` the rebased tip. `docs/BOARD.md`
+conflicted and was resolved by taking **both blocks whole and editing neither**;
+`docs/rungs/INDEX.md` was regenerated. One board row — the grep-class
+generalization the coordinator asked for at rebase time — is drafted
+**UNNUMBERED**, because this lane's block `#3276`–`#3281` is spent and `#3287`
+was assigned to `w-coldcross` in the same message.

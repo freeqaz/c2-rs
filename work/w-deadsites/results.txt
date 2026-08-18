@@ -1,6 +1,6 @@
 == suite rows ==
 tag     passed  failed  targets  census_gate  failing
-C1        1669       2       46       63.34s  gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone
+C1        1669       2       46       63.69s  gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone
 MC2       1670       1       46       63.00s  rung_index_is_generated_and_current
 MC3       1669       2       46       63.21s  every_census_fence_key_has_the_sites_this_repo_last_scored rung_index_is_generated_and_current
 MC4       1669       2       46       63.57s  every_census_fence_key_has_the_sites_this_repo_last_scored rung_index_is_generated_and_current
@@ -11,11 +11,13 @@ MS2       1664       2       45       66.96s  the_older_inline_fence_shadows_thi
 MS2R      1665       2       46       63.60s  each_raise_site_of_the_strlit_fence_has_its_own_witness_and_neither_covers_the_other every_census_fence_key_has_the_sites_this_repo_last_scored
 N0        1666       0       45       63.64s  -
 N0R       1667       0       46       63.47s  -
+N1        1666       0       45       63.46s  -
 P1        1666       0       45       84.89s  -
 P2        1666       0       45      151.00s  -
 Q1        1666       0       45       66.12s  -
 T0        1670       1       46       63.47s  each_raise_site_of_the_strlit_fence_has_its_own_witness_and_neither_covers_the_other
 T1        1671       0       46       63.55s  -
+T2        1671       0       46       63.07s  -
 
 == reachability screen (behaviour-preserving first-hit probe) ==
 runs: P1 P2

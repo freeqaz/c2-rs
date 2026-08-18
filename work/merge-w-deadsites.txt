@@ -1,11 +1,13 @@
-THE PARTITION #3246 ASKED FOR IS THREE-WAY, NOT TWO — 19 OF THE 26 GREEN SITES ARE SITES NO INPUT IN THIS PROJECT'S ENTIRE CORPUS REACHES, AND THE "DELETE THE CODE" BACKLOG IS ONE LINE
+FOR 73 % OF ITS OPEN POPULATION `w-mutcensus` MEASURED CORPUS *REACH*, NOT TEST QUALITY — `X` WAS THREE BACKLOGS, NOT TWO, AND THE LARGEST IS NEITHER OF THE TWO #3246 NAMED
 
 Lane:     w-deadsites          Branch: wt-w-deadsites
-Base:     master 1744ced1      Outcome: instrument
+Base:     rebased onto master 5f42e9b27 (dispatched at 1744ced1)
+Outcome:  instrument
 Rung:     docs/rungs/2026-08-18-deadsites.md
-Prereg:   docs/rungs/_2026-08-18-w-deadsites-prereg.md (frozen at 14eeb3ec,
-          committed BEFORE the first probe)
-Board:    #3276-#3281, allocated by the coordinator
+Prereg:   docs/rungs/_2026-08-18-w-deadsites-prereg.md, frozen BEFORE the first
+          probe
+Board:    #3276-#3281, allocated by the coordinator, plus ONE UNNUMBERED row
+          (the grep-class generalization) that needs a number
 Landed:   crates/c2-harness/tests/fence_site_census.rs   (+509, new)
           crates/c2-harness/tests/strlit_fence.rs        (+171)
           crates/c2-il/src/func/body/shapes/leaf_store.rs (+25 / -3 — ONE
@@ -13,74 +15,114 @@ Landed:   crates/c2-harness/tests/fence_site_census.rs   (+509, new)
               this lane is an applied and reverted probe)
           docs/, work/w-deadsites/ (instruments and every raw log, tracked)
 
-WHAT IT SET OUT TO DO
+THE FINDING
 
-Board #3246: "a mutation census cannot tell a DEAD site from an UNGUARDED one.
-Both produce GREEN by the same mechanism. So X is the sum of two backlogs
-needing opposite work — write a witness vs delete the code — and the partition
-has never been taken anywhere."
+  19 of the 26 open GREEN rows are sites the ENTIRE corpus never reaches — the
+  1,666-test workspace suite, the 19,556-case generated sweep, the 90,812-cell
+  mode cross, the 18-lane fixture gate, the debug-profile lane and the 878-TU
+  workload scan. A mutation at a site no input reaches CANNOT BE KILLED by any
+  test, so those rows HAD to read GREEN.
 
-WHAT IT FOUND
+`w-mutcensus`' X = 30 of 63 is on master and is quoted as "how many of c2-il's
+refusal sites have no test that can fail on them". THIS DOES NOT RETRACT IT —
+the measurement stands, and this lane's screen agrees with it row for row. It
+changes WHAT THE MEASUREMENT WAS OF. The sentence is true of all 26 and
+INFORMATIVE ABOUT 7; for the other 19 it is a tautology, because no test can
+fail on a branch no input reaches and the census could not have measured
+anything else there.
 
-The partition, over the 26 open GREEN rows of w-mutcensus' 30:
+It is also the mechanism w-calleeguard went looking for and did not find. That
+lane showed F2's "k-1 unguarded sites by construction" explains at most 5 of 30
+and left the rest unexplained. Corpus reach explains 19. F2 is a statement about
+the witness suite's FORM; this is a statement about the INPUTS, and the inputs
+dominate.
+
+THE PARTITION (26 open GREEN rows, of w-mutcensus' 30)
 
   UNGUARDED (the site FIRES)                 7   CS3 CS4 CS9 CA6 CA8 B2 B7
+      a witness each, and cheap: the probe proves an input exists
   DEAD (quiet + a source-level proof)        4   L9 CA9 CA10 CA13
+      ONE deletion and THREE non-deletions
   UNKNOWN (quiet, no proof)                 15   the rest
+      neither. Not dead.
 
-1. X WAS THREE BACKLOGS, NOT TWO, AND THE BIGGEST SHARE IS NEITHER OF #3246's.
-   19 of 26 are sites the workspace suite, the 19,556-case generated sweep, the
-   90,812-cell mode cross, the 18-lane fixture gate, the debug-profile lane and
-   the 878-TU workload scan never reach. A mutation at a site no input reaches
-   cannot be killed by any test, so those rows HAD to read GREEN. For 73% of its
-   open population the census was measuring CORPUS REACH, not test quality.
-   "No test can fail on them" is true of all 26 and informative about 7.
+THE DELETION BACKLOG IS ONE LINE, NOT A BACKLOG. calls.rs:732/:736 are arms of a
+match over SlotArg whose removal breaks exhaustiveness — the source says so
+itself, "stated positively rather than as an unreachable!, because a panic in
+the CLI is the failure mode this file's header records" — and calls.rs:772 is the
+backstop work/w-front3/hatch.py:334's call-arg-outer-formal hatch needs to lift
+the gate above it WITHOUT PANICKING. Registered at P=0.90 in the prereg BEFORE
+measuring, and HIT. #3246 priced the dead half as "a deletion"; that price is
+right for 1 of 4. Dead code here comes in at least four kinds and only one of
+them is an instruction to delete.
 
-2. THE DELETION BACKLOG IS ONE LINE. Of the four sites with a proof, three
-   cannot be deleted: calls.rs:732/:736 are arms of a match over SlotArg whose
-   removal makes it non-exhaustive (the source says so itself), and calls.rs:772
-   is the backstop work/w-front3/hatch.py's call-arg-outer-formal hatch needs to
-   lift the gate above it WITHOUT PANICKING. Registered at P=0.90 in the prereg
-   before measuring. Dead code here comes in at least four kinds and only one is
-   a deletion.
+leaf_store.rs:2456 IS SETTLED AND DELETED — w-calleeguard's reading upgraded to a
+measurement: panic!() in its place ran suite, gate and scan clean with no marker
+in any log. That closes its open item properly.
 
-3. leaf_store.rs:2456 IS CONFIRMED AND DELETED. w-calleeguard's reading upgraded
-   to a measurement: panic!() in its place ran the whole corpus clean with no
-   marker in any log. The deletion moves store-run-bind-group-shape 4 raise
-   sites -> 3, which is a row in the new fence_site_census — this lane's own
-   change is the first thing that test caught.
+THE METHOD BEAT ITS OWN PRICE — 2 RUNS, NOT 26. #3246 costed this as "a second
+colour per GREEN row" = 26 suite runs. It came in at two: a behaviour-preserving
+first-hit screen over all 34 sites at once (the run's own totals reproduce the
+clean baseline exactly, which is the instrument's validity check), then panic!()
+at ALL 20 quiet sites simultaneously, because a run that completes clean confirms
+all of them together. P1 and P2 agree on all 34 rows.
 
-4. #3246 COSTED THE PARTITION AT 26 RUNS. IT IS TWO. A behaviour-preserving
-   first-hit screen over all 34 sites at once, then panic!() at every quiet site
-   simultaneously — a run that completes clean confirms all of them together.
-   P1 and P2 agree on all 34 rows.
+TWO GUARDS LANDED, FIVE NEW TESTS, BOTH GREEN -> RED BY CONSTRUCTION
 
-5. TWO GUARDS LANDED, FIVE NEW TESTS, BOTH GREEN -> RED BY CONSTRUCTION.
-   fence_site_census.rs is w-mutcensus F4's standing count over all 20 fence
-   keys as a per-key TABLE, not an integer. MC3 — retargeting census.rs:1288's
-   arm, which is w-mutcensus' own CS3, a site that lane measured GREEN — is RED
-   with this file the SOLE catcher in 1,671 tests, and it leaves the TOTAL at 24,
-   so the integer-shaped census F4 asked for is blind to it. MC2 (rename the
-   constant, key string unmoved) stays GREEN; MC4 (move the string) is RED.
-   strlit_fence.rs gains one row per RAISE SITE, and phase R with the four
-   incumbents skipped BY NAME shows MS1 firing ROW 1 at :457 and MS2 firing
-   ROW 2 at :480 — w-calleeguard's P13, closed on a k=2 family.
+  fence_site_census.rs — w-mutcensus F4's standing count, generalized from
+  w-calleeguard's one dispatch to all 20 census fence keys, as a PER-KEY TABLE
+  keyed on the PUBLISHED KEY STRING.
+    MC3 retargets census.rs:1288's arm — w-mutcensus' own CS3, a site that lane
+        measured GREEN — and is RED with this file the SOLE catcher in 1,671
+        tests. IT LEAVES THE TOTAL AT 24, so an integer-shaped census is blind to
+        it. Cross-cite #3286 (w-coldcross, merged hours earlier): "neither
+        generated gate row ever verified its own corpus — count > 0 was the
+        entire check". A COUNT CANNOT SEE ONE BYTE DIFFERENT AT THE SAME NAME AND
+        THE SAME COUNT. Two lanes reached that independently this wave, in
+        different subsystems, both by building the thing the count stood in for.
+    MC2 renames the constant and all 9 uses, key string unmoved -> GREEN.
+    MC4 moves the key string, constant unmoved -> RED.
+    MC5 adds one refuse("...") site -> RED on the E1 population row.
 
-6. THE STANDING CENSUS PARSES INSTEAD OF GREPPING, AND THAT RECOVERED TWO KEYS
-   BOTH PRIOR ENUMERATIONS DROPPED. `pub(crate) const [A-Z_]*: &str` excludes a
-   digit, so w-mutcensus and w-calleeguard both missed PTR_WALK_LOOP_NOT_O1 and
-   PTR_WALK_CHAIN_LOOP_NOT_O1. 20 keys / 24 raises here reconciles to
-   calleeguard §4.2's 18/22 exactly. #3269's family, caught by construction.
+  strlit_fence.rs — one row per RAISE SITE for data-sym-strlit-fenced, each
+  varying one fact against a control that rules the other site out. Phase R with
+  the four incumbents skipped BY NAME: MS1 fires ROW 1 at :457, MS2 fires ROW 2
+  at :480. That is w-calleeguard's P13 — registered at 0.20, recorded a MISS —
+  closed on a family where two sites share one key.
 
-7. w-calleeguard F3's "SINGLE CHEAPEST FOLLOW-ON" WAS ALREADY CLOSED, and this
-   lane measured it rather than assuming it: both DATA_SYM_STRLIT_FENCED raise
-   sites are RED with DISJOINT failing sets. Second counterexample to F2's 1/k
-   bound after L6/L7.
+  And w-calleeguard F3's "single cheapest follow-on" turns out to have been
+  ALREADY CLOSED: both strlit raise sites are RED with DISJOINT failing sets,
+  measured on the base tree before this lane landed anything. Second
+  counterexample to F2's 1/k bound after L6/L7. What was actually missing is
+  that nothing said WHICH site produced the key and nothing stopped a THIRD
+  landing; both are closed now.
 
-8. PUBLISHED, NOT RESOLVED: w-mutcensus' B9 reads RED and its site is unreached
-   under two screens and a panic!(). Those cannot both be right, and B9's sole
-   guard is the test that census itself named as able to pass on an empty
-   capture. #3281 — the delta, with no cause attached to it.
+GREP-WITH-A-CHARACTER-CLASS IS A STANDING DEFECT CLASS — THREE INDEPENDENT
+ENUMERATORS, THREE LANES, THREE SUBSYSTEMS, NONE FOUND BY A CHECK
+
+  this lane   body/mod.rs fence-key constants, `[A-Z_]` drops the digit in _O1
+              -> 18 keys read where there are 20. The standing census PARSES
+              instead, and 20/24 reconciles to calleeguard §4.2's 18/22 exactly.
+  #3269       unanchored `grep -c 'gap-metric'` reads 396 against 394; caught
+              THREE consecutive lanes, the third inventing a cause for the +2.
+  #3257       w-c2map2's address regex, wrong in three directions, whose \b never
+              fires between x and 1.
+
+  The common failure is not the regex — AN ENUMERATOR'S UNDER-COUNT IS SILENT AND
+  FLATTERING. A grep that misses a row returns a smaller, cleaner population and
+  no error, so the miss survives review, is published as a denominator, and the
+  next lane inherits it as a fact. Rule: any enumeration whose output is quoted
+  as a denominator owes a second, independently constructed count.
+  *** This is drafted as an UNNUMBERED BOARD ROW and needs one number. This
+  lane's block #3276-#3281 is spent and #3287 went to w-coldcross in the same
+  message that asked for the row. ***
+
+PUBLISHED, NOT RESOLVED — #3281. w-mutcensus' B9 reads RED and its site is
+unreached under two screens and a panic!(). Those cannot both be true. B9's SOLE
+guard is the reloc_identity test that census itself named as able to pass on an
+empty capture, and which was the source of its only duplicate disagreement. The
+stop rule the prereg set for a quiet control (H3) is ANSWERED, not waived — rung
+§3.4 — and settling it is ONE SUITE RUN at this base, left as a clean dispatch.
 
 WHAT IT DELIBERATELY DID NOT DO
 
@@ -88,25 +130,29 @@ WHAT IT DELIBERATELY DID NOT DO
   input in this corpus is a statement about the corpus (#3254; w-corpushealth),
   and deleting on that basis is the error this project keeps making. Registered
   as H11 precisely because it was this lane's most likely failure.
-- It did not re-run w-mutcensus' key-swap campaign. This is a second COLOUR per
+- It did not re-run w-mutcensus' key-swap campaign; this is a second COLOUR per
   row, not a second campaign.
-- It did not widen the frame past the 63, except for DATA_SYM_STRLIT_FENCED,
-  which #3246's sibling row asked for by name.
-- It did not settle B9 (§10 F5), attribute reach to a corpus STAGE (F2), or
-  build a toolchain-free cell for the strlit fence's second site (F3).
+- It did not settle B9 (F5), attribute reach to a corpus STAGE (F2), build a
+  toolchain-free cell for the strlit fence's second site (F3), or sweep the repo
+  for further members of the grep class (F8).
+- It does NOT offer its zero metric delta as evidence the deletion is safe (F7).
+  docs/rungs/README.md's new rule — "a metric delta of zero is not evidence of
+  correctness", #3270-#3275 — binds the identity rows below: they say the landed
+  change did not move the metric and nothing more. The deletion is priced by the
+  type-level PROOF, with the panic!() run as corroboration.
 
-GATE EVIDENCE — measured at BOTH ends, in this worktree
+GATE EVIDENCE — RE-MEASURED AT THE REBASED BASE, NOTHING CARRIED FORWARD
+(N1 = detached clean checkout of master 5f42e9b27; T2 = this lane's rebased tip)
 
   cargo test --workspace --release --no-fail-fast, C2RS_REQUIRE_TOOLCHAIN=1
       base 1,666 / 0 / 45      tip 1,671 / 0 / 46      (above 1,666; k = 5)
-  census_gate duration          63.64 s  /  63.55 s; minimum over EVERY run in
+  census_gate duration          63.46 s  /  63.07 s; minimum over EVERY run in
       this lane is 62.90 s, none anywhere near the 0.00 s an ungraded run reads
   scripts/gate.sh --jobs 16 --require-graded
-      PASS (HATCH-RED REFUSED) at both ends — 81 s / 77 s, 18/18 lanes,
+      PASS (HATCH-RED REFUSED) at both ends — 80 s / 80 s, 18/18 lanes,
       6,948 fixture-verdicts, sweep 19,556/19,460, cross 90,812/90,424,
       debug lane 18/18 at 0 panic, 0 mismatch anywhere
-      NOTE: hatch-red is REFUSED on MASTER at this base too (HATCH-STALE,
-      #1389) — not caused by this lane
+      NOTE hatch-red is REFUSED on MASTER at this base too (HATCH-STALE, #1389)
   per-lane gate-count identity diff   0 of 23 rows differ, RANGE LENGTH
       ASSERTED at both ends (23 = 23)
   878-TU workload scan   match 26 · mismatch 0 · codegen-gap 0 · vocab-gap 844 ·
@@ -114,28 +160,44 @@ GATE EVIDENCE — measured at BOTH ends, in this worktree
   gap-metric keys        394 (^ *gap-metric \S+ \S+$, never the naive grep —
       #3269), diff over the sorted key lines EMPTY: 0 differing over all 394,
       INCLUDING fnbyte-exact 35,899 / differs 1,958 / refused-parse 113,447
-      (read back-to-back per #3249, not against a briefed figure)
-  named control C1, pinned BY NAME, at both ends
-      C1a RED 1,664/2 · C1b RED 1,669/2 — the identical pair, by name
-  scripts/board_audit.sh        all-zero
-  crates/c2-harness/tests/rung_registry.rs   2/2
-  docs/rungs/INDEX.md           regenerated by scripts/gen_rung_index.sh
-  graded-tree identity          DOES NOT APPLY — #3215: this lane lands test
-      code and deletes a c2-il line, so the content hash moves BY CONSTRUCTION
-  release-binary sha256 across worktrees   NOT compared — #3224
+      (read back-to-back per #3249)
+  named control C1, pinned BY NAME, in THREE environments
+      C1a RED 1,664/2 (pre-rebase base) · C1b RED 1,669/2 (pre-rebase tip) ·
+      C1c RED 1,669/2 (rebased tip) — the identical pair every time
+  git diff 5f42e9b27..HEAD -- crates fixtures scripts   THREE FILES: the two new
+      tests and the one deletion. scripts/ and fixtures/ untouched.
+  scripts/board_audit.sh        all-zero, re-run AFTER the conflict resolution
+  crates/c2-harness/tests/rung_registry.rs   2/2, INDEX regenerated
+  graded-tree identity          DOES NOT APPLY — #3215
+  release-binary sha256         NOT compared — #3224
+
+  PRE-REBASE PAIR, kept: N0/T1 at 1744ced1 read 1,666/0/45 -> 1,671/0/46, gate
+  PASS 81 s -> 77 s, identity 0 of 23, 394 keys 0 differing, same headline. Every
+  figure reproduces at the new base, which is the useful statement: w-coldcross'
+  shared corpus moved none of this lane's numbers, because
+  `git diff 1744ced1..5f42e9b27 -- crates` is EMPTY and this worktree's cross
+  cache was already warm. The 34 probed sites are the same bytes at both bases,
+  so nothing on master invalidated a probe.
 
 PREREG: 46 registered colours, 34 hits, 12 misses. 8 of the 10 probe misses are
 one direction — the registration over-estimated how much of c2-il's refusal
 surface this project's corpus touches, and that single bias is the whole gap
 between the registered UNGUARDED 12 and the observed 7.
 
-SEAMS
+CONFLICTS AND SEAMS
 
-crates/c2-il is peer w-sizebracket's this wave. Its branch's diff over crates is
-EMPTY (a required-zero lane), so the one deletion landed here collides with
-nothing. scripts/ is peer w-coldcross's and this lane touched none of it.
+docs/BOARD.md resolved by taking BOTH blocks whole and editing neither; master
+spent #3270-#3275 and #3282-#3287 in the interval, this lane holds #3276-#3281,
+verified unheld under both the strict and the loose pattern (#3194's false
+absence is why one pattern is not enough). docs/rungs/INDEX.md REGENERATED.
 
-NOT REBASED. Master advanced to 5f42e9b27 (w-coldcross) during the lane and the
-lane was instructed to rebase only on the coordinator's go-ahead. Every diff
-quoted above is against this lane's own base 1744ced1; both gate runs graded
-1744ced1 + this lane, not master's tree.
+crates/c2-il was peer w-sizebracket's seam; that lane merged `declined` with an
+empty crates diff, so the one deletion landed here collides with nothing.
+scripts/ was peer w-coldcross's and this lane touched none of it.
+
+Every `git add -f` in this lane names EXPLICIT FILE PATHS, never a directory
+(#3287). No .obj, no IL, no absolute machine path — the one that existed, in
+work/w-deadsites/corpus.sh, was removed and the dc3 tree is resolved from the
+common git dir instead.
+
+NOT MERGED, NOT PUSHED.

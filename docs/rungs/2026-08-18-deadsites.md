@@ -1,4 +1,4 @@
-# DEADSITES — `X` was the sum of THREE backlogs, not two, and the largest of them is neither: 19 of the 26 GREEN sites are sites no input in this project's entire corpus reaches
+# DEADSITES — for 73 % of its open population `w-mutcensus` measured CORPUS REACH, not test quality: `X` was three backlogs, not two, and the largest is neither of the two `#3246` named
 
     Tag:       DEADSITES
     Slug:      deadsites
@@ -46,16 +46,33 @@ partition has never been taken anywhere.**"* This is the lane that takes it.
 | **DEAD in the shipped configuration, LIVE under an instrument's hatch** | **1** | **neither**; deleting it breaks `hatch.py`'s ladder | `CA13` |
 | **UNKNOWN** — quiet, no proof | **15** | **neither.** Not dead. A statement about this corpus | `CS2` `CA2` `CA16` `CA18` `B3` `B4` `B5` `B6` `B8` `BU3` `D1` `D2` `G2` `L2` `L3` |
 
-**Three things in that table are worth more than the table.**
+**The table is not the finding. This is:**
 
-1. **`X` was not two backlogs. It was three, and the biggest share is neither of
-   `#3246`'s two.** **19 of the 26** rows are sites that this project's *entire*
-   corpus — the 1,666-test workspace suite, the 19,556-case generated sweep, the
-   90,812-cell mode cross, the 18-lane fixture gate, the debug-profile lane and
-   the 878-TU workload scan — **never reaches**. A mutation at a site no input
-   reaches cannot be killed by any test, so those rows **had** to read GREEN.
-   For **73 %** of its open population the census was measuring **corpus reach**,
-   not test quality.
+> **19 of the 26 open GREEN rows are sites the entire corpus never reaches** —
+> the 1,666-test workspace suite, the 19,556-case generated sweep, the
+> 90,812-cell mode cross, the 18-lane fixture gate, the debug-profile lane and
+> the 878-TU workload scan. **A mutation at a site no input reaches cannot be
+> killed by any test, so those rows HAD to read GREEN.** For **73 %** of its
+> open population the census measured **corpus REACH, not test quality.**
+
+That reinterprets a number already on master. `w-mutcensus`' headline is quoted
+as *"how many of `c2-il`'s refusal sites have no test that can fail on them"*,
+and it is **not retracted** — the measurement stands, every one of its 63
+colours reproduces, and this lane's own screen agrees with it row for row. What
+changes is **what the measurement was of**. The sentence is true of all 26 and
+**informative about 7**; for the other 19 it is a tautology, because no test can
+fail on a branch no input reaches and the census could not have measured
+anything else there.
+
+**Three further things follow from the table.**
+
+1. **This is also the mechanism `w-calleeguard` went looking for and did not
+   find.** That lane showed `w-mutcensus` F2's *"a key with k raise sites
+   contributes k − 1 unguarded sites by construction"* explains **at most 5 of
+   30**, and left the rest unexplained. Corpus reach explains **19**. The two are
+   not competing readings of one population — F2 is a statement about the
+   witness suite's *form* and this is a statement about the *inputs*, and the
+   inputs dominate.
 2. **The "delete the code" backlog is ONE LINE.** Of the four sites with a
    proof, `CA9` and `CA10` are arms of a `match` over `SlotArg` and removing
    them makes the match non-exhaustive; `CA13` is the backstop
@@ -89,7 +106,12 @@ project's corpus touches.
 
 ## 1. Populations, every one re-measured at this lane's own base
 
-No figure is inherited. Base is master **`1744ced1`**; run `N0`, a clean tree.
+No figure is inherited. The lane was dispatched at master **`1744ced1`** and
+**rebased onto `5f42e9b27`** on the coordinator's authorization; **every
+population below was measured at BOTH bases** and the rebased pair is §9. Run
+`N0` is the clean tree at `1744ced1`, run `N1` the clean tree at `5f42e9b27`
+(a **detached checkout of master**, not an inherited figure — #3075, #3117,
+#3128).
 
 | tag | population | measured here |
 |---|---|---|
@@ -110,6 +132,26 @@ was read: **`N0`, on a byte-clean master tree, refuses the same row** —
 the probe runs lost nothing master's own gate has. The consequence for `CA13` is
 real anyway and is stated in §4.3: **no configuration in which `CA13` is live is
 exercised by anything this repo runs.**
+
+### 1.2 What moved on master under this lane, and what it did to these figures
+
+`w-sizebracket` merged `declined` (docs-only over the graded paths),
+`w-coldcross` merged a **content-addressed shared generated corpus**
+(`scripts/gate.sh`, `scripts/mode_cross.sh`, `scripts/expr_sweep.sh`, new
+`scripts/corpus_dir.sh`), and `docs/rungs/README.md` grew two standing blocks.
+
+**The gate's figures did not move**, which is the useful thing to record:
+`N0` (old base) and `N1` (new base) both read **PASS, 18/18 lanes, 6,948
+fixture-verdicts, sweep 19,556 / 19,460, cross 90,812 / 90,424, debug lane 18/18
+at 0 panic**, at **81 s** and **80 s**. `w-coldcross`' win is on a **fresh**
+worktree's first gate (510 s → 157 s); this worktree's cross cache was already
+warm, so the change is correctly invisible here and no figure in this rung is
+carried forward across the rebase anyway.
+
+**Nothing on master invalidated a probe.** The screen and the `panic!()`
+confirmation ran against `crates/c2-il` at `1744ced1`, and
+`git diff 1744ced1..5f42e9b27 -- crates` is **empty** — master's interval moved
+`scripts/` and `docs/` only. The 34 sites are the same bytes at both bases.
 
 ---
 
@@ -410,6 +452,16 @@ named.
 a census kept as one number, which is the shape F4 literally asked for, is blind
 to it.
 
+> **Two lanes reached that independently this wave, and the second is on master
+> already.** Board **#3286** (`w-coldcross`, merged hours before this lane
+> rebased): *"neither generated gate row ever verified its own corpus —
+> `count > 0` was the entire check"*, i.e. **a count cannot see one byte
+> different at the same name and the same count**. `MC3` is the same statement
+> in a different subsystem: a retarget leaves the count where it was and moves
+> which key a body reports. **A count-shaped invariant is blind to a retarget,
+> wherever it is used** — and both lanes found it by building the thing the
+> count was standing in for, not by auditing the count.
+
 **`MC2` is the guard on the guard.** A counting test keyed on the constant's
 *name* would go red here for nothing: nothing observable moved. It stays GREEN,
 and `MC4` — the same tree with the string moved instead — is RED. The pair is
@@ -461,7 +513,18 @@ opposite of the incidental-catch problem, and both are by construction.)
 | `C1b` | after the last | **RED** | **1,669 / 2** | **the identical pair, by name** |
 
 Both tests in that set are capture-driven, so a worktree whose captures were
-skipping could not produce it.
+skipping could not produce it. `C1c` re-runs the same control at the **rebased**
+tip — a third environment — and reads **RED 1,669 / 2** with the identical pair.
+
+**A defect in this lane's own runner, named rather than hidden.**
+`work/w-deadsites/campaign.sh` tags each run by its mutant id, so all three `C1`
+runs wrote `logs/C1.suite.log` and **the first two were overwritten**. Only
+`C1c`'s per-run suite log survives. The three colours are still *derived from
+logs* rather than accumulated — they are read out of the tracked driver logs
+`campaign1.log`, `campaign3.log` and `campaign4.log`, which record each run's
+totals, `census_gate` duration and failing set by name — but the runner should
+have keyed on the run rather than on the mutation, and a reader checking
+`logs/C1.suite.log` for `C1a`'s 1,664 / 2 will not find it. Deviations **D6**.
 
 ### 6.4 One honest note about the failing sets above
 
@@ -564,22 +627,60 @@ is wrong for 3 of 4.
 
 ---
 
-## 9. Gate evidence
+## 9. Gate evidence — **re-measured at the rebased base, not carried forward**
 
-| check | base (`N0`, master `1744ced1`) | **tip** |
+The lane rebased from `1744ced1` onto master **`5f42e9b27`** on the
+coordinator's authorization. The whole stack was re-run at both ends of the
+**new** base: `N1` is a **detached clean checkout of `5f42e9b27`**, `T2` this
+lane's rebased tip. Nothing below is a pre-rebase figure.
+
+| check | base `N1` (master `5f42e9b27`) | **tip `T2`** |
 |---|---|---|
 | `cargo test --workspace --release --no-fail-fast`, `C2RS_REQUIRE_TOOLCHAIN=1` | **1,666 / 0 / 45** | **1,671 / 0 / 46** — above 1,666 as required, k = 5 |
-| `census_gate` duration (the differential actually grading) | 63.64 s | 63.55 s — minimum over **every** run in this lane is **62.90 s**, none near 0.00 s |
-| `scripts/gate.sh --jobs 16 --require-graded` | **PASS**, 81 s | **PASS (HATCH-RED REFUSED)**, 77 s · 18/18 lanes, 0 FAIL, 0 SKIP, 0 NO-RESULT · **6,948** fixture-verdicts · sweep `checked=19556 graded=19460 mismatches=0` · cross `checked=90812 graded=90424 mismatches=0` · debug lane 18/18, 2,423 match, **0 panic** |
+| `census_gate` duration (the differential actually grading) | 63.46 s | 63.07 s — minimum over **every** run in this lane is **62.90 s**, none near the 0.00 s an ungraded run reads |
+| `scripts/gate.sh --jobs 16 --require-graded` | **PASS (HATCH-RED REFUSED)**, **80 s** | **PASS (HATCH-RED REFUSED)**, **80 s** · 18/18 lanes, 0 FAIL, 0 SKIP, 0 NO-RESULT · **6,948** fixture-verdicts · sweep `checked=19556 graded=19460 mismatches=0` · cross `checked=90812 graded=90424 mismatches=0` · debug lane 18/18, **0 panic** |
 | per-lane gate-count identity diff | — | **0 of 23 rows differ**, and the **range LENGTH is asserted at both ends** (23 = 23) — a diff of two empty ranges also returns 0. This is the discriminating check for a lane that lands tests (board **#3215**) |
 | 878-TU workload scan | `match` **26** · `mismatch` **0** · `codegen-gap` **0** · `vocab-gap` **844** · `capture-fail` **8** | **identical**, asserted line for line |
 | `gap-metric` keys, `^ *gap-metric \S+ \S+$` | **394** | **394**, and `diff` over the sorted key lines is **EMPTY — 0 differing lines over all 394** |
-| `fnbyte-exact` / `differs` / `refused-parse` | 35,899 / 1,958 / 113,447 | **35,899 / 1,958 / 113,447** — unmoved, per **#3249** read back-to-back with the base rather than against a briefed figure |
-| `git diff master..HEAD -- crates/c2-il` | — | **one file, one hunk** — the `leaf_store.rs:2456` deletion of §5 and its comment. `git diff 1744ced1..HEAD -- crates fixtures scripts` is exactly three files: the two new test files and that deletion |
-| `scripts/board_audit.sh` | — | **all-zero** — 0 cited-but-not-on-board · 0 unresolved anchors · 0 raw line anchors · 0 rows-behind-prose · 0 duplicate row numbers |
-| `crates/c2-harness/tests/rung_registry.rs` | 2/2 | **2 / 2** |
+| `fnbyte-exact` / `differs` / `refused-parse` | 35,899 / 1,958 / 113,447 | **unmoved** — read back-to-back per **#3249**, never against a briefed figure |
+| named control `C1`, pinned **BY NAME** | `C1a` **RED 1,664 / 2** (pre-rebase base) | `C1c` **RED 1,669 / 2** at the rebased tip — the identical pair, by name, in a third environment |
+| `git diff 5f42e9b27..HEAD -- crates fixtures scripts` | — | **three files**: the two new test files and the one proven-dead deletion. `scripts/` and `fixtures/` untouched |
+| `scripts/board_audit.sh` | — | **all-zero**, re-run **after** the `BOARD.md` conflict resolution |
+| `crates/c2-harness/tests/rung_registry.rs` | 2/2 | **2 / 2**, with `docs/rungs/INDEX.md` regenerated by `scripts/gen_rung_index.sh` after the rebase |
 | release-binary sha256 across worktrees | **NOT compared** — board **#3224**: `CARGO_MANIFEST_DIR` is compiled in, so the comparison is void | |
 | graded-tree identity at both ends | **DOES NOT APPLY** — board **#3215**: this lane lands test code *and* deletes a `c2-il` line, so the content hash moves **by construction** and claiming it did not would be false | |
+
+### 9.1 The pre-rebase pair, kept because it is what the lane actually ran against
+
+`N0` / `T1` at base `1744ced1`: **1,666 / 0 / 45 → 1,671 / 0 / 46**, gate PASS
+**81 s → 77 s**, per-lane identity **0 of 23**, scan **394 keys, 0 differing**,
+same headline. Every figure reproduces at the new base, which is the useful
+statement: **`w-coldcross`' shared corpus and `w-sizebracket`'s docs-only merge
+moved none of this lane's numbers**, because `git diff 1744ced1..5f42e9b27 --
+crates` is empty and this worktree's cross cache was already warm (§1.2).
+
+### 9.2 Two conflicts, neither hand-merged
+
+`docs/BOARD.md` was resolved by taking **both blocks whole and editing
+neither** — master spent `#3270`–`#3275` (`w-sizebracket`) and `#3282`–`#3287`
+(`w-coldcross`) in the interval; this lane holds `#3276`–`#3281`, verified
+unheld under **both** the strict `^\| \*\*<N>\*\*<sub>` and the loose
+`^\| \*\*<N>\*\*` pattern (`#3194`'s false absence is why one pattern is not
+enough). `docs/rungs/INDEX.md` was **regenerated**, never hand-edited.
+
+**One row is deliberately UNNUMBERED**: the grep-class row (§10 F6). This lane's
+block is spent and `#3287` went to `w-coldcross` in the same message that asked
+for the row, so it is drafted without a number and asks for one —
+`docs/rungs/README.md`'s rule, and the same call `w-gateperf`, `w-dataseam` and
+`w-coldcross` each made in turn.
+
+**And a note on `#3287` itself, because this lane is in its blast radius:**
+that row is *"`git add -f` on a DIRECTORY defeats the one rule standing between a
+scratch tree and the repository"*. Every `git add -f` in this lane names
+**explicit file paths**, never a directory, and the tracked `work/w-deadsites/`
+contents are the instruments and raw logs the rung quotes — no `.obj`, no IL, no
+absolute machine path (the one that existed, in `corpus.sh`, was removed and the
+dc3 tree is resolved from the common git dir instead).
 
 ---
 
@@ -634,11 +735,58 @@ campaign's only duplicate disagreement — but a candidate explanation is not a
 measurement, and this lane owes it none. Re-running `B9` at this base is one
 suite run.
 
-### F6 — Two enumerations of one file both dropped the same two keys, and nothing but a parser would have caught it
+### F6 — **PROMOTED OUT OF THIS SECTION.** Grep-with-a-character-class is a standing defect class, and it is now three independent enumerators wrong the same way
 
-§6.1. `[A-Z_]` excludes a digit; `PTR_WALK_LOOP_NOT_O1` has one. Two independent
-lanes wrote the same grep and got the same wrong 18. The general item is that
-**every enumeration in this repo that greps Rust identifiers with an explicit
-character class is a candidate for the same defect**, and a five-minute audit
-would find them. NOT TAKEN — it is a `scripts/` and `work/` sweep, and
-`scripts/` is peer `w-coldcross`'s seam this wave.
+This was drafted here and the coordinator asked for it as a **board row of its
+own** at rebase time, having reached the same generalization independently. It
+is `docs/BOARD.md`'s **unnumbered `w-deadsites` row** — drafted without a number
+because this lane's block `#3276`–`#3281` is spent and `#3287` went to
+`w-coldcross` in the same message.
+
+The instance: `pub(crate) const [A-Z_]*: &str` **excludes a digit**, so
+`w-mutcensus` §2 and `w-calleeguard` §4.2 both dropped `PTR_WALK_LOOP_NOT_O1`
+and `PTR_WALK_CHAIN_LOOP_NOT_O1`. The class, with three members found by three
+lanes in three subsystems, none of them looking for it:
+
+| # | enumerator | the class | how it failed |
+|---|---|---|---|
+| this lane | `body/mod.rs`' fence-key constants | `[A-Z_]` | drops `_O1` — 18 keys read where there are 20 |
+| **#3269** | `gap-metric` key count | unanchored `grep -c` | reads **396** against the anchored **394**; caught **three consecutive lanes**, the third inventing a cause for the +2 |
+| **#3257** | `w-c2map2`'s whitebox address regex | `\b10[bc]…` | wrong in three directions; `\b` never fires between `x` and `1` |
+
+**The common failure is not the regex — it is that an enumerator's under-count
+is silent and flattering.** A grep that misses a row returns a smaller, cleaner
+population and no error, so the miss survives review, is published as a
+denominator, and the next lane inherits it as a fact. The mitigations are one
+line each (anchor the pattern; parse instead of grepping; carry a second,
+differently-built count and diff them), and the transferable rule is: **any
+enumeration whose output is quoted as a denominator owes a second, independently
+constructed count.**
+
+### F7 — The zero metric delta this lane reports is evidence about REACH, and it is not offered as evidence the deletion is safe
+
+`docs/rungs/README.md` grew *"a metric delta of zero is not evidence of
+correctness"* (`w-sizebracket`, **#3270**–**#3275**) between this lane's base and
+its rebase, and it binds §9's identity rows. Stated so the table cannot be
+misread: **the 0-of-394 key identity and the unmoved `fnbyte-exact` are evidence
+that this lane's landed change did not move the metric, and nothing more.** The
+argument that deleting `leaf_store.rs:2456` is *safe* is §4.2's type-level proof
+— that no `ops` reaching the second walk can have a non-`Load` at slot 0 — with
+the `panic!()` run as corroboration. **A predicate change priced only by a zero
+delta is exactly what #3270–#3275 refutes**, and this one is not priced that
+way.
+
+### F8 — The `[A-Z_]` audit across the rest of the repo is still not run
+
+F6 states the class; **nobody has swept the repo for further members.** Every
+enumeration under `scripts/` and `work/` that greps Rust identifiers with an
+explicit character class is a candidate, and the sweep is minutes, not a lane.
+**NOT TAKEN here** because `scripts/` was peer `w-coldcross`'s seam for this
+lane's whole wall clock — that lane has since merged, so the seam is free and
+this is the next reader's five minutes.
+
+A second, sharper item falls out of the three known members: **all three were
+found by a lane doing something else.** None was found by a check, and nothing
+in the gate would find a fourth. The cheap standing version is the same shape as
+this lane's own `tests/fence_site_census.rs` — carry a second, differently-built
+count of anything quoted as a denominator and diff the two.
