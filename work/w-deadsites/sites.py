@@ -356,6 +356,39 @@ site("L9", 29, LEAF,
      '            panic!("w-deadsites L9");\n'
      "        }\n")
 
+# --------------------------------------------------------------------------
+# PANIC-MODE OVERRIDES.
+#
+# Three sites share a patch hunk with a site that FIRED (`B2` with `B3`; `B7`
+# with `B8` and `X3`), so the grouped replacement above cannot panic one without
+# panicking the other. These entries locate the quiet member alone, by a longer
+# unique context, and are used in `panic` mode instead of the group.
+#   id -> (path, old, new)
+PANIC_OVERRIDE = {
+    "B3": (BIND,
+           "        if o.flags & super::gl::DATA_FLAG_THREAD_LOCAL != 0 {\n"
+           "            return None;\n"
+           "        }\n"
+           "        let init = super::ininit::in_scalar_initializers(self.inb);\n",
+           "        if o.flags & super::gl::DATA_FLAG_THREAD_LOCAL != 0 {\n"
+           '            panic!("w-deadsites B3");\n'
+           "        }\n"
+           "        let init = super::ininit::in_scalar_initializers(self.inb);\n"),
+    "B8X3": (BIND,
+             "        if o.flags & super::gl::DATA_FLAG_THREAD_LOCAL != 0 {\n"
+             "            return None;\n"
+             "        }\n"
+             "        if o.size == 0 {\n"
+             "            return None;\n"
+             "        }\n",
+             "        if o.flags & super::gl::DATA_FLAG_THREAD_LOCAL != 0 {\n"
+             '            panic!("w-deadsites B8");\n'
+             "        }\n"
+             "        if o.size == 0 {\n"
+             '            panic!("w-deadsites X3");\n'
+             "        }\n"),
+}
+
 # The named control (`docs/rungs/README.md` probe rule 1) — NOT a probe site.
 # `w-guards` pins its failing set to the test name and this lane reproduces it
 # before the first probe and after the last.
@@ -404,10 +437,17 @@ def apply(mode, only=None):
         install_module(True)
     texts = {p: read(p) for p in FILES}
     applied = []
+    todo = []
     for sid, ix, path, old, new, panic in SITES:
         if only is not None and sid not in only:
             continue
-        repl = new if mode == "probe" else panic
+        todo.append((sid, path, old, new if mode == "probe" else panic))
+    if mode == "panic" and only is not None:
+        for sid in sorted(only):
+            if sid in PANIC_OVERRIDE:
+                path, old, new = PANIC_OVERRIDE[sid]
+                todo.append((sid, path, old, new))
+    for sid, path, old, repl in todo:
         t = texts[path]
         n = t.count(old)
         if n != 1:
