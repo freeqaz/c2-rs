@@ -1,0 +1,116 @@
+merge w-sizebracket: THE INLINE SIZE AXIS IS THE `.gl` `SIZE` FIELD, THE PORT ALREADY WALKS PAST IT, AND IT IS AN UPPER BOUND RATHER THAN THE TESTED VALUE — so `w-dataseam`'s IL-byte cut is 39.6% wrong about real c2 at a `fnbyte-exact` cost of exactly ZERO, and the lane DECLINES
+
+Outcome: declined. Kind: characterization. Census +0. TU match 26 -> 26.
+`crates/`, `fixtures/` and `scripts/` are BYTE-IDENTICAL to `1744ced1`
+(`git diff --stat 1744ced1 -- crates/ fixtures/ scripts/` is empty).
+
+WHAT IT WAS SENT TO DO
+  `w-dataseam` lifted a genuine rule that refuses a population 64.6% wrong
+  against a 6.5% base rate and removes 91.7% of every remaining wrong body in
+  the port — then declined it, because it is missing c2's size axis and
+  shipping it un-sized costs 992 byte-exact bodies. It found a zero-cost
+  bracket of [180, 231] IL SEGMENT BYTES by sweeping the grader, and refused
+  that too, because the constant was FITTED. This lane was sent to measure the
+  axis against real `c2.dll` so the constant would be DERIVED.
+
+WHAT IT FOUND — the axis is located, and then refuted
+
+1. `[sym+0x50]`, the operand of c2's inline size test, is the `.gl` FUNCTION
+   RECORD'S `SIZE` FIELD, read verbatim. There is exactly ONE 16-bit store to
+   `[reg+0x50]` in the whole image (`0x10b9bf6c`), inside `FUN_10b9b8e9`, which
+   `ADDR.tsv` ALREADY labelled "p2symtab .gl record reader; reads the emit flag
+   word +0x4c at 0x10b9bf70" — the same three instructions, written down from
+   the other side before anyone looked for this one. Source: `0x10c1f9a6`,
+   `il-read-varint16`. The field order matches `gl_function_attrs`' own record
+   comment exactly. THE PORT HAS BEEN STEPPING OVER THE INPUT TO c2'S INLINE
+   SIZE TEST IN ORDER TO REACH THE BYTE ONE FIELD LATER.
+
+2. AND THE FIELD IS NOT THE VALUE THE DECISION COMPARES. Matched pair at the
+   workload profile: `arith_012_O1` and `mix_008_O1` have IDENTICAL `.gl SIZE`
+   = 115 and `.ex` totals 12 bytes apart, and c2 INLINES the first and KEEPS
+   the second — with the LARGER IL body the one it inlined. `[sym+0x50]` is
+   initialized from `SIZE` and then reduced by whatever runs before the
+   inliner. So `SIZE` is an UPPER BOUND, the sound implication is
+   `SIZE < T => c2 inlined it` (0 counterexamples over 100 cells), and THAT IS
+   THE OPPOSITE DIRECTION FROM THE ONE A SIZE EXEMPTION NEEDS.
+
+3. THE PRICE, MEASURED AGAINST THE ORACLE INSTEAD OF THE GRADER. GRID-S — 7,667
+   workload call edges, 0 `unknown`, GRID-W's observable. `w-dataseam`'s cut at
+   180: WRONG ON 3,037 = 39.6%, of which 3,036 assert "c2 kept it" where c2
+   INLINED it. At 231: 1,610 = 21.0%. AND IT COSTS ZERO `fnbyte-exact`.
+   Meanwhile the EMITTED-byte axis has ZERO `inlined` edges above 95 B against
+   1,268 `kept`. The joint cell says why: a callee emitting under 32 bytes
+   routinely carries 224-319 bytes of IL — 750 such edges — and 3,036 named
+   witnesses are printed, e.g. `??1?$_List_base@…` at il=223 ref=4.
+
+4. `/Ox` DOES NOT MOVE THE BOUNDARY, IT CHANGES WHICH UNIT SEPARATES. At `/O1`
+   the emitted `.text` separates at (108, 116] — inside `WB_INLINE_FINDINGS`
+   F2's (100,116] and sharing its top, an independent reproduction. At `/Ox` a
+   320-byte callee is INLINED beside a 196-byte one that is KEPT. Third
+   profile-scope finding of the wave (`w-section` 7 of 8 fields, `w-dagorder`
+   an inverted order) and the strongest form of it.
+
+5. THE BEST AXIS THE LANE FOUND IS 0-FOR-330 ON THE WORKLOAD AND KILLED BY A
+   THREE-LINE `.cpp`. `.gl SIZE >= 96` has ZERO `inlined` edges over 7,667 —
+   three orders of magnitude better than the IL axis on the same edges — and 34
+   counterexamples, written in the same lane, before the rule was proposed.
+
+THE HEADLINE, AND IT GENERALIZES PAST THIS FENCE
+  A predicate can be 39.6% wrong about c2 and FREE in the metric used to choose
+  it. `fnbyte-exact Δ = 0` is evidence about a predicate's REACH, never its
+  CORRECTNESS: the population where it errs is refused for other reasons today,
+  which is #876-#879's latent hazard rather than its absence. `w-dataseam`'s
+  split-half replication (two halves, zero cost, effect sizes agreeing to one
+  body) cannot detect this — both halves share the blind spot.
+
+THE DECLINE, PRICED TWO-SIDED
+  Cost of declining: `w-dataseam`'s 1,807 latent-wrong bodies stay in the
+  census's accepted set; the 1,189-body removal (47.6% of every wrong body the
+  instrument grades) is foregone. Paid a second time, knowingly.
+  Cost of shipping: a predicate 21-40% wrong about c2 whose error is
+  structurally invisible to the acceptance test, over exactly the population the
+  next `functions()` widening would ship.
+  The lane did not merely fail to derive the constant — it measured that the
+  constant's UNIT cannot carry the rule. `w-dataseam` §12.1's handover of "a
+  52-wide bracket with both ends measured" is WITHDRAWN.
+
+EVIDENCE
+  Three full 878-TU scans on three binaries in one session, IDENTICAL in every
+  column: `fnbyte-exact` 35,899 / `differs` 1,958 / `reloc-differs` 531 /
+  `refused-parse` 113,447 / `match` 26 / `mismatch` 0 / `codegen-gap` 0 /
+  `vocab-gap` 844 / `capture-fail` 8 / 394 anchored keys. Drift across the
+  block: ZERO. Cache 870 hit / 8 miss / 0 uncacheable, workload `ccd4c80362f1`
+  (clean) — and the `files.txt`/`flags.txt` hashes are IDENTICAL to
+  `w-dataseam`'s, so every figure quoted from that rung is quoted against the
+  corpus it was measured on.
+  168 distinct probe cells, 0 errored, 10 series (5 families x 2 profiles), all
+  compiled against real `c2.dll` under wibo at `C2RS_REQUIRE_TOOLCHAIN=1`.
+  Suite 1,666 / 0 / 45, 0 SKIP lines. `board_audit.sh` all-zero.
+  `rung_registry` 2/2. Gate row in the rung §10.
+
+PREREG
+  Frozen at `6ecf7b98`, the branch's FIRST commit, before any probe, with the
+  admissible container facts registered BROADLY up front (A1-A8) so that neither
+  admitting nor refusing a fact mid-lane could be a goalpost move — the failure
+  `w-dataseam` declined over, closed in both directions.
+  5 HIT, 6 MISS, 1 not decidable. The two most consequential misses (P4, P6)
+  are misses because THE AXIS THE PREDICTION PRESUPPOSED DOES NOT EXIST.
+  P8 (p = 0.35) HIT: the IL does carry the count.
+  Mutants MS1-MS6: NOT RUN, by the pre-registered condition — nothing shipped,
+  so there is no predicate to mutate. Registered colours observed: none.
+  Registered colours contradicted: none.
+
+ONE INSTRUMENT DEFECT, CAUGHT BY ITS OWN DENOMINATOR
+  The first `.gl SIZE` scan resolved 74 of 7,667 edges and would have refuted
+  the headline. Cause: `codec::gl_offset_framed` pins `gl[o-5] == 0x10`, which
+  board #2783 measured as a VALUE WINDOW on a rising counter. Re-run relaxed:
+  74 -> 7,667, `absent` 0. It was caught because `absent: 7593` was printed
+  beside `no: 72` — STATUS trap 0 in the smallest possible instance. The
+  framing control is pinned by NAME over 8 cells whose SIZE is independently
+  known: 0 disagreements.
+
+BOARD #3270-#3275 (allocated by the coordinator).
+NOT TAKEN, handed on: `gl_function_attrs` refuses the whole file on `SIZE`'s
+`0x80` escape, which fires on 4.0% of graded workload call edges. Two-line
+decode, no measurement problem in front of it, and deliberately not shipped by
+a lane whose Outcome is `declined`.
