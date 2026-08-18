@@ -243,8 +243,36 @@ THE THREE THINGS TO CARRY OFF THIS LANE (expanded from the head of this note)
    already ("a shipped, demonstrated wrong emit").
 
 
-GATE EVIDENCE — the construct rung's required-zero byte delta
---------------------------------------------------------------
+END STATE AT THE REBASED TIP (e95543cd7)
+----------------------------------------
+
+  gate.sh --jobs 16 --require-graded   PASS (HATCH-RED REFUSED)
+                                       18/18 lanes, 0 FAIL / 0 SKIP / 0 NO-RESULT
+                                       6,948 fixture-verdicts
+                                       sweep 19,556 / 19,460 graded / 0 mismatch
+                                       cross 90,812 / 90,424 graded / 0 mismatch
+                                       debug-lane 18/18, 2,423, 0 mismatch, 0 PANIC
+                                       graded tree 4e8a08f38af9
+  cargo test --workspace --release     1,675 passed / 0 failed / 46 targets
+    (C2RS_REQUIRE_TOOLCHAIN=1)         SKIP 0, census_gate 89.83 s
+  debug_lane.sh                        18 ran / 0 failed; mismatch=0 and panics=0
+                                       on 18 of 18
+  878-TU scan                          match 26 / mismatch 0 / codegen-gap 0 /
+                                       vocab-gap 844 / capture-fail 8
+                                       394 anchored keys (naive 396)
+                                       all 394 lines diff EMPTY vs pre-rebase
+  board_audit.sh                       0 / 0 / 0 / 0
+  rung_registry                        2 / 2
+
+  THE LOAD-BEARING LINE: the graded tree hash is 4e8a08f38af9 at BOTH the
+  pre-rebase and the post-rebase tip — the same content hash over the same 742
+  files under crates/fixtures/scripts, ACROSS A MASTER CHANGE. That is proof
+  rather than trust that w-grammarscreen was docs-only and that nothing measured
+  here was invalidated.
+
+
+GATE EVIDENCE AT THE ORIGINAL BASE — the construct rung's required-zero byte delta
+-----------------------------------------------------------------------------------
 
   scripts/gate.sh --jobs 16 --require-graded
       GATE: PASS (HATCH-RED REFUSED) at BOTH ends.
