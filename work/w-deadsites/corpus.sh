@@ -23,7 +23,12 @@ PROBE="$OUT/$TAG.hits"
 : > "$PROBE"
 export C2RS_DEADPROBE_LOG="$PROBE"
 export C2RS_REQUIRE_TOOLCHAIN=1
-export C2RS_DC3="${C2RS_DC3:-/home/free/code/milohax/dc3-decomp}"
+# The dc3 tree is resolved RELATIVE TO THE MAIN REPO, never absolutely
+# (CLAUDE.md: no absolute machine paths in the tree). `scripts/status.sh`
+# resolves it as `$repo_root/../dc3-decomp`, and in a worktree `repo_root` is
+# the worktree — so the sibling lookup has to start from the COMMON git dir.
+MAIN_REPO="$(cd "$(git -C "$ROOT" rev-parse --git-common-dir)/.." && pwd)"
+export C2RS_DC3="${C2RS_DC3:-$MAIN_REPO/../dc3-decomp}"
 
 echo "=== $TAG: suite ==="
 t0=$SECONDS
