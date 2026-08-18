@@ -1,0 +1,38 @@
+NOTE: another cross holds /home/free/code/milohax/c2-rs/work/mode-cross/cases (lock: /home/free/code/milohax/c2-rs/work/mode-cross/cases/../.cross.lock).
+  Falling back to a PRIVATE case set for this run, which starts COLD
+  (~5-6 min instead of ~15 s). The result is exactly as valid; only the
+  capture cache misses. If no cross is running, the previous one was
+  killed and the lock is stale: rmdir '/home/free/code/milohax/c2-rs/work/mode-cross/cases/../.cross.lock'
+building the harness (no-op if current)
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on shared package cache
+    Blocking waiting for file lock on build directory
+    Finished `release` profile [optimized] target(s) in 0.00s
+harness: /home/free/code/milohax/c2-rs/.claude/worktrees/w-coldcross/work/w-coldcross/contend/naive-4-3000/out1/c2rs
+  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/w-coldcross/target/release/c2rs  built 2026-08-18 12:36:04
+  sha ee52fa6f78c4  tree 7458f103-dirty
+assigned 19556 cases over 18 lanes = 90812 cells (full cross would be 352008)
+  O1              19556 cases
+  O1-EHsc          1779 cases
+  O1-Oi               0 cases
+  O1-Oi-EHsc          0 cases
+  Ox              19556 cases
+  Ox-EHsc          1779 cases
+  Ox-Gy             473 cases
+  Ox-Gy-EHsc        148 cases
+  O2              19556 cases
+  O2-EHsc          1779 cases
+  Od              19556 cases
+  Od-EHsc          1779 cases
+  O1-Oi-GR          748 cases
+  O1-Oi-EHsc-GR     869 cases
+  Ox-GR             748 cases
+  Ox-EHsc-GR        869 cases
+  Od-GR             748 cases
+  Od-EHsc-GR        869 cases
+sweeping 2939 of 90812 case-lane cells (STRIDE 31 — a SAMPLE, not the product)
+  grading at 16 job(s)
+checked=2939 mismatches=0 graded=2919 ungraded=20 unknown=0
+cache: hit=1 miss=2938 validated=0 cache-bad=0 (of 2939 cells)

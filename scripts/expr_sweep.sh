@@ -181,6 +181,23 @@ trap 'rmdir "$_lock" 2>/dev/null || true' EXIT INT TERM
 # lanes with different `scripts/sweep.d` overwrite each other's corpus between
 # runs — board #3249's hazard, taken deliberately for a cold-start saving that
 # only ever costs one run per worktree. Not worth it.
+#
+# REVISED 2026-08-18, lane w-coldcross. The paragraph above is right about the
+# HAZARD and wrong about the CONCLUSION, and the reason is worth keeping: it
+# priced *pointing this directory at the main repo*, which really would put
+# several lanes on one MUTABLE corpus that any of them may `rm -f` and rewrite.
+# The directory below is therefore still generated per worktree, unchanged — and
+# `resolve_corpus` (`scripts/corpus_dir.sh`) then compares it against a
+# CONTENT-ADDRESSED, IMMUTABLE shared generation and grades those paths instead
+# when every file is byte-identical. Two lanes with different `sweep.d` get
+# different generations *by construction*, so the hazard this paragraph names is
+# not merely avoided, it is unrepresentable.
+#
+# The saving is not "one run per worktree" in the sense of "small": MEASURED on a
+# fresh `setup_worktree.sh` tree at `--jobs 16`, this leg's cold fill is **92 s**
+# (`cache: hit=1 miss=19555`) against **29 s** warm, and the mode cross beside it
+# is **347 s cold** against 29 s. That is ~380 s per lane, on a gate whose warm
+# total is ~80 s.
 cases="${C2RS_SWEEP_CASES:-$repo_root/work/expr-sweep/cases}"
 mkdir -p "$cases"
 cases="$(cd "$cases" && pwd)"
@@ -240,6 +257,16 @@ pin_harness "$repo_root" "$out"
 c2rs="$C2RS_PINNED"
 
 python3 "$repo_root/scripts/sweep_gen.py" "$cases" "$repo_root/scripts/sweep.d"
+
+# ---- the SHARED, CONTENT-ADDRESSED corpus (lane w-coldcross, 2026-08-18) -------
+# The private generation above still happens and is what the shared one is
+# verified against; see `scripts/corpus_dir.sh` and the block at `cases=` above.
+# An explicit `C2RS_SWEEP_CASES` keeps its documented meaning — private and cold.
+if [ -z "${C2RS_SWEEP_CASES:-}" ]; then
+    . "$repo_root/scripts/corpus_dir.sh"
+    resolve_corpus "$repo_root" "$cases"
+    cases="$C2RS_CORPUS_DIR"
+fi
 
 find "$cases" -maxdepth 1 -name '*.cpp' | sort > "$out/cases.txt"
 total=$(wc -l < "$out/cases.txt")

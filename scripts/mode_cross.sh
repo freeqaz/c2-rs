@@ -105,6 +105,19 @@ out="$(cd "$out" && pwd)"
 #
 # `expr_sweep.sh` cannot take this path: it drives `c2rs diff`, which does not
 # consult the cache at all.
+#   ^ TRUE UNTIL 2026-08-18. `expr_sweep.sh` takes it now (`w-gateperf`), and it
+#     is the same source-path key that makes both rows cold in a fresh worktree.
+#
+# STABLE IS NOT ENOUGH, AND THIS DIRECTORY IS ONLY HALF THE FIX (w-coldcross).
+# Stable *within a worktree* warms run 2; every lane's run 1 still paid the whole
+# cold cost, because the key contains the source path and this path has the
+# worktree in it. MEASURED on a fresh `setup_worktree.sh` tree at `--jobs 16`:
+# this leg is **347 s cold** against **29 s** warm, 12x. The directory below is
+# still generated per worktree exactly as before — and `resolve_corpus` further
+# down then compares it against a shared, content-addressed, IMMUTABLE
+# generation and grades those paths when all 19,556 files are byte-identical.
+# See `scripts/corpus_dir.sh` for what is shared (only the case sources) and
+# what is not (every verdict, and the port, which is recomputed per run).
 cases="${C2RS_CROSS_CASES:-$repo_root/work/mode-cross/cases}"
 mkdir -p "$cases"
 cases="$(cd "$cases" && pwd)"
@@ -163,6 +176,24 @@ c2rs="$C2RS_PINNED"
 # The SAME loader `expr_sweep.sh`, `sweep_mode.sh` and `cross_sweep.py` use.
 python3 "$repo_root/scripts/sweep_gen.py" "$cases" "$repo_root/scripts/sweep.d" \
     > "$out/gen.log" 2>&1 || { cat "$out/gen.log" >&2; exit 3; }
+
+# ---- the SHARED, CONTENT-ADDRESSED corpus (lane w-coldcross, 2026-08-18) -------
+#
+# Everything above produced this run's own private copy of the corpus, exactly as
+# it always did, and NOTHING BELOW SKIPS THAT — the private generation is what
+# the shared one is verified against. `resolve_corpus` adopts the shared paths
+# only when `diff -rq` finds all 19,556 files byte-identical, and otherwise says
+# so in one line and leaves this run on its own cases, cold and correct.
+#
+# An explicit `C2RS_CROSS_CASES` keeps its documented meaning — a PRIVATE, COLD
+# case set — because that is the A/B control this file's header quotes numbers
+# from, and a control that silently went warm would be no control.
+if [ -z "${C2RS_CROSS_CASES:-}" ]; then
+    . "$repo_root/scripts/corpus_dir.sh"
+    resolve_corpus "$repo_root" "$cases"
+    cases="$C2RS_CORPUS_DIR"
+fi
+
 total_cases=$(find "$cases" -maxdepth 1 -name '*.cpp' | wc -l)
 # Positively checked, because the value this replaced was 0 for months and the
 # only symptom was a wrong number in a sentence. A case directory that just got
@@ -233,6 +264,31 @@ else
 fi
 echo "  grading at $jobs job(s)"
 
+# ---- THE CACHE VALIDATOR THIS ROW NEVER HAD (lane w-coldcross, 2026-08-18) -----
+#
+# This row has consulted `work/capture-cache` since 2026-08-04 and has never
+# checked it. `w-gateperf` gave the sweep a standing bypass-and-compare sample
+# the day IT acquired the same dependency, and made `poisoned`/`foreign` a hard
+# red — and `gate.sh --selftest` carries an explicit case saying an ABSENT cache
+# line must not redden, which exists *because this row prints none*.
+#
+# That asymmetry was survivable while a fresh worktree's cross was ~100 % misses.
+# `w-coldcross` takes it to ~100 % hits, so the check is the price of the speed:
+# `--validate-cache N` re-captures every Nth HIT through the real toolchain and
+# byte-compares the bundle, the obj and c2's own argv against what came off disk.
+#
+# 0 disables. The default is the sweep's, deliberately — one number, one meaning.
+# The cost is small because it rides on `gap`'s own `--jobs`: ~900 re-captures
+# over 90,424 graded cells.
+#
+# `c2rs diff`'s trap does NOT apply here and the difference is worth stating:
+# that command performs exactly ONE capture per process, so an in-process
+# `--validate-cache N` tests `1 % N` and validates nothing for any N > 1. Each
+# `c2rs gap --list` below carries thousands of cases in one process, so its
+# counter reaches N. The run PRINTS `validated=` for that reason: a validator
+# whose count is not published is a validator nobody can tell from a disabled one.
+validate="${C2RS_CROSS_VALIDATE:-100}"
+
 # ---- grade, one `c2rs gap` batch per lane --------------------------------------
 #
 # Each lane writes its OWN bucket counts and the driver SUMS THEM, exactly as
@@ -248,7 +304,7 @@ sed 's/#.*//' "$registry" | awk 'NF >= 2 {print $1}' | while read -r slug; do
     echo "$flags /GS- /c" > "$out/$slug.flags"
     rep="$out/$slug.report"
     "$c2rs" gap --list "$lf" --flags-file "$out/$slug.flags" --jobs "$jobs" \
-        > "$rep" 2>&1 || true
+        --validate-cache "$validate" > "$rep" 2>&1 || true
     b() { sed -n "s|^  $1  *\([0-9]*\) .*|\1|p" "$rep" | head -1; }
     _mm=$(b mismatch);     _mm=${_mm:-0}
     _ma=$(b match);        _ma=${_ma:-0}
@@ -266,6 +322,16 @@ sed 's/#.*//' "$registry" | awk 'NF >= 2 {print $1}' | while read -r slug; do
         continue
     fi
     echo "$_n $_g $_mm $_cf" > "$res/$slug"
+    # The cache accounting, written to a FILE for the same reason the counts are:
+    # this loop is the right-hand side of a pipe, so it is a subshell and every
+    # variable it increments is discarded at `done`. A `_bad=$((_bad+1))` here
+    # would read 0 on every run, forever, and look exactly like a clean cache.
+    _ch=$(sed -n 's|^  capture cache: \([0-9]*\) hit, .*|\1|p' "$rep" | head -1)
+    _cm=$(sed -n 's|^  capture cache: [0-9]* hit, \([0-9]*\) miss, .*|\1|p' "$rep" | head -1)
+    _cv=$(sed -n 's|.*validator: \([0-9]*\) re-captured.*|\1|p' "$rep" | head -1)
+    _cp=$(sed -n 's|.*re-captured and agreed (.*), \([0-9]*\) POISONED.*|\1|p' "$rep" | head -1)
+    _cx=$(sed -n 's|^  cache entries REFUSED on provenance: \([0-9]*\) .*|\1|p' "$rep" | head -1)
+    echo "${_ch:-0} ${_cm:-0} ${_cv:-0} $(( ${_cp:-0} + ${_cx:-0} ))" > "$res/$slug.cache"
     if [ "$_mm" -ne 0 ]; then
         grep -F "mismatch" "$rep" | grep -v "^  mismatch" \
             | sed "s|^|MISMATCH  [$flags]  |" >> "$out/mismatches.txt" || true
@@ -273,6 +339,7 @@ sed 's/#.*//' "$registry" | awk 'NF >= 2 {print $1}' | while read -r slug; do
 done
 
 checked=0; graded=0; mismatch=0; ungraded=0; reported=0; lanes_n=0
+c_hit=0; c_miss=0; c_val=0; c_bad=0
 for slug in $(sed 's/#.*//' "$registry" | awk 'NF >= 2 {print $1}'); do
     lanes_n=$((lanes_n + 1))
     [ -f "$res/$slug" ] || continue
@@ -280,10 +347,36 @@ for slug in $(sed 's/#.*//' "$registry" | awk 'NF >= 2 {print $1}'); do
     set -- $(cat "$res/$slug")
     checked=$((checked + $1)); graded=$((graded + $2))
     mismatch=$((mismatch + $3)); ungraded=$((ungraded + $4))
+    if [ -f "$res/$slug.cache" ]; then
+        set -- $(cat "$res/$slug.cache")
+        c_hit=$((c_hit + $1)); c_miss=$((c_miss + $2))
+        c_val=$((c_val + $3)); c_bad=$((c_bad + $4))
+    fi
 done
 [ -f "$out/mismatches.txt" ] && cat "$out/mismatches.txt"
 
 echo "checked=$checked mismatches=$mismatch graded=$graded ungraded=$ungraded unknown=0"
+
+# THE SAME SPELLING `expr_sweep.sh` USES, ON PURPOSE. `gate.sh`'s `sweep_verdict`
+# rules both rows, already parses `^cache: .*cache-bad=N`, and already has four
+# selftested cases for the clean / poisoned / cold / ABSENT states. Printing this
+# line in that exact shape makes a poisoned cross a HARD RED with no change to
+# `gate.sh`'s decision logic at all — and it retires the absent case for this row,
+# which existed only because this row printed nothing.
+#
+# `cache-bad` sums POISONED (the validator re-captured and the bytes disagreed)
+# and REFUSED-on-provenance (an entry whose recorded capture path is not where it
+# is being served from). Both are expected to be 0 forever; a non-zero says this
+# row's ORACLE side is untrustworthy on this run, which is a different statement
+# from a mismatch and has to stay distinguishable from one.
+echo "cache: hit=$c_hit miss=$c_miss validated=$c_val cache-bad=$c_bad (of $checked cells)"
+# A validator that never fires is a validator nobody can tell from a disabled
+# one, so the case is NAMED rather than inferred from a 0 sitting next to a 0.
+if [ "$validate" -gt 0 ] 2>/dev/null && [ "$c_hit" -ge "$validate" ] && [ "$c_val" -eq 0 ]; then
+    echo "NOTE: $c_hit cache hits at --validate-cache $validate re-captured NOTHING."
+    echo "  Every hit above was served unchecked. This is not a wrong answer and it"
+    echo "  is not a pass either — it means the sampling did not run."
+fi
 
 if [ "$checked" -ne "$run" ]; then
     echo "FATAL: selected $run cells and only $checked were reached" >&2

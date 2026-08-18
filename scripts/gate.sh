@@ -3842,6 +3842,182 @@ cache: hit=0 miss=14635 validated=0 cache-bad=0 (of 14635 cases)'
     _shd3="$st/frag-none"; rm -rf "$_shd3"; mkdir -p "$_shd3"
     _sh_run corpus-degenerate-fails 1 "$_shd3"
 
+    # ---- THE SHARED, CONTENT-ADDRESSED CORPUS (lane w-coldcross, 2026-08-18) --
+    #
+    # Both generated gate rows now grade a corpus that lives OUTSIDE the worktree
+    # and is shared with every other lane on this box. That is what removed ~380 s
+    # from a fresh worktree's first gate, and it is also the single change in this
+    # file's history most able to make one lane's gate pass on another lane's
+    # evidence. So the arms below are not "does it go faster" — every one of them
+    # constructs a corpus that is WRONG and requires the resolver to refuse it.
+    #
+    # They drive the REAL `resolve_corpus` from `scripts/corpus_dir.sh`, against
+    # fabricated trees, with `C2RS_CORPUS_ROOT` pointing into this selftest's own
+    # scratch. No toolchain, no compiler, no network — and no reimplementation,
+    # which would only prove the copy agrees with itself.
+    _cs_ok=1
+    if [ -z "$_sh_py" ]; then
+        _cs_ok=0
+    else
+        # shellcheck disable=SC1090
+        . "$repo_root/scripts/corpus_dir.sh" 2>/dev/null || _cs_ok=0
+    fi
+    if [ "$_cs_ok" = 0 ]; then
+        cases=$((cases + 1)); fails=$((fails + 1))
+        printf '  FAIL  %-32s %s\n' corpus-shared-arms \
+            'scripts/corpus_dir.sh could not be sourced (or no python3)'
+    else
+        _cs="$st/corpus"; rm -rf "$_cs"; mkdir -p "$_cs"
+        # `t_case` is defined further down this selftest, after these arms run,
+        # so these use their own tally helper rather than a forward reference —
+        # a `command not found` here would print nothing and increment nothing,
+        # i.e. thirteen checks would silently not exist.
+        _cs_case() {   # <name> <ok?0/1> [detail]
+            cases=$((cases + 1))
+            if [ "$2" -eq 0 ]; then printf '  ok    %-32s %s\n' "$1" "${3:-}"
+            else printf '  FAIL  %-32s %s\n' "$1" "${3:-}"; fails=$((fails + 1)); fi
+        }
+        # A fake tree: `resolve_corpus` reads `scripts/sweep_gen.py` and
+        # `scripts/sweep.d/` and nothing else.
+        _cs_mk() {   # <dir> <marker>
+            mkdir -p "$1/scripts/sweep.d"
+            cat > "$1/scripts/sweep_gen.py" <<'CORPUSPY'
+import os, sys
+out, frag = sys.argv[1], sys.argv[2]
+for f in sorted(os.listdir(frag)):
+    body = open(os.path.join(frag, f)).read()
+    for i in range(3):
+        open(os.path.join(out, "%s-%04d.cpp" % (f[:-3], i)), "w").write(body + "// %d\n" % i)
+CORPUSPY
+            printf 'int f%s(int a){return a+1;}\n' "$2" > "$1/scripts/sweep.d/10-x.py"
+        }
+        _cs_gen() {  # <tree> <privdir>
+            rm -rf "$2"; mkdir -p "$2"
+            "$_sh_py" "$1/scripts/sweep_gen.py" "$2" "$1/scripts/sweep.d" >/dev/null 2>&1
+        }
+        _cs_mk "$_cs/wtA" A
+        _cs_mk "$_cs/wtB" A
+        _cs_mk "$_cs/wtC" C
+
+        # 1. THE MECHANISM: two trees at DIFFERENT paths with identical
+        #    generators must digest the same, or nothing is ever shared.
+        _cs_da=$(corpus_digest "$_cs/wtA")
+        _cs_db=$(corpus_digest "$_cs/wtB")
+        [ -n "$_cs_da" ] && [ "$_cs_da" = "$_cs_db" ] && _r=0 || _r=1
+        _cs_case corpus-digest-path-independent "$_r" "two trees, one digest ($_cs_da)"
+
+        # 2. …and a different `sweep.d` must digest DIFFERENTLY, which is what
+        #    makes board #3249's overwrite hazard unrepresentable rather than
+        #    merely unlikely: those two lanes cannot address one directory.
+        _cs_dc=$(corpus_digest "$_cs/wtC")
+        [ -n "$_cs_dc" ] && [ "$_cs_dc" != "$_cs_da" ] && _r=0 || _r=1
+        _cs_case corpus-digest-separates-corpora "$_r" "a one-byte sweep.d edit is a new generation"
+
+        C2RS_CORPUS_ROOT="$_cs/root"; export C2RS_CORPUS_ROOT
+        _cs_gen "$_cs/wtA" "$_cs/privA"
+        resolve_corpus "$_cs/wtA" "$_cs/privA" > "$_cs/outA" 2>&1
+        [ "$C2RS_CORPUS_KIND" = shared ] && _r=0 || _r=1
+        _cs_case corpus-first-run-publishes "$_r" "kind=$C2RS_CORPUS_KIND"
+
+        _cs_gen "$_cs/wtB" "$_cs/privB"
+        resolve_corpus "$_cs/wtB" "$_cs/privB" > "$_cs/outB" 2>&1
+        [ "$C2RS_CORPUS_KIND" = shared ] \
+            && [ "$C2RS_CORPUS_DIR" = "$_cs/root/gen-$_cs_da" ] && _r=0 || _r=1
+        _cs_case corpus-second-tree-adopts "$_r" "a DIFFERENT tree resolved to the SAME directory"
+
+        # 3. A SHORT generation is REFUSED. This is the arm that matters: the
+        #    defect family this repo keeps recording is an absence read as a
+        #    success, and a corpus missing cases is precisely that shape.
+        _cs_one=$(find "$_cs/root/gen-$_cs_da" -maxdepth 1 -name '*.cpp' | head -1)
+        mv "$_cs_one" "$_cs/stash.cpp"
+        resolve_corpus "$_cs/wtA" "$_cs/privA" > "$_cs/outShort" 2>&1
+        [ "$C2RS_CORPUS_KIND" = private ] \
+            && grep -q 'REFUSED the shared generation' "$_cs/outShort" && _r=0 || _r=1
+        _cs_case corpus-short-generation-refused "$_r" "one case removed -> kind=$C2RS_CORPUS_KIND"
+        mv "$_cs/stash.cpp" "$_cs_one"
+
+        # 4. An EXTRA case is refused too — a superset is not the same defect as
+        #    a subset, and a count-shaped check passes a swap of the two.
+        printf 'int extra(){return 0;}\n' > "$_cs/root/gen-$_cs_da/zz-extra-9999.cpp"
+        resolve_corpus "$_cs/wtA" "$_cs/privA" > "$_cs/outExtra" 2>&1
+        [ "$C2RS_CORPUS_KIND" = private ] && _r=0 || _r=1
+        _cs_case corpus-extra-case-refused "$_r" "kind=$C2RS_CORPUS_KIND"
+        rm -f "$_cs/root/gen-$_cs_da/zz-extra-9999.cpp"
+
+        # 5. ONE BYTE of one case, same names and same count — the only tamper a
+        #    name/count check cannot see, and the only one that would silently
+        #    change what the gate grades.
+        _cs_one=$(find "$_cs/root/gen-$_cs_da" -maxdepth 1 -name '*.cpp' | head -1)
+        cp "$_cs_one" "$_cs/orig.cpp"
+        printf '// tampered\n' >> "$_cs_one"
+        resolve_corpus "$_cs/wtA" "$_cs/privA" > "$_cs/outTamper" 2>&1
+        [ "$C2RS_CORPUS_KIND" = private ] && _r=0 || _r=1
+        _cs_case corpus-tampered-case-refused "$_r" "same names, same count, one byte"
+        cp "$_cs/orig.cpp" "$_cs_one"
+
+        # 6. …and it RECOVERS. A refusal that latches is a refusal nobody can
+        #    clear, and it would turn one bad generation into a permanently cold
+        #    box that nothing explains.
+        resolve_corpus "$_cs/wtA" "$_cs/privA" > "$_cs/outBack" 2>&1
+        [ "$C2RS_CORPUS_KIND" = shared ] && _r=0 || _r=1
+        _cs_case corpus-recovers-after-repair "$_r" "kind=$C2RS_CORPUS_KIND"
+
+        # 7. The off switch, which is the cold control every A/B in the rung was
+        #    measured with. A control that silently went warm would be no control.
+        C2RS_NO_SHARED_CORPUS=1 resolve_corpus "$_cs/wtA" "$_cs/privA" > "$_cs/outOff" 2>&1
+        grep -q 'C2RS_NO_SHARED_CORPUS=1' "$_cs/outOff" && _r=0 || _r=1
+        _cs_case corpus-off-switch-stays-private "$_r" ""
+
+        # 8. + 9. Every error path DEGRADES to the pre-existing behaviour and
+        #    returns 0. This helper may never be the reason a gate row dies.
+        ( C2RS_CORPUS_ROOT=/proc/nonexistent/corpus \
+              resolve_corpus "$_cs/wtA" "$_cs/privA" >/dev/null 2>&1 ) && _r=0 || _r=1
+        C2RS_CORPUS_ROOT=/proc/nonexistent/corpus \
+            resolve_corpus "$_cs/wtA" "$_cs/privA" > "$_cs/outRO" 2>&1
+        [ "$_r" = 0 ] && [ "$C2RS_CORPUS_KIND" = private ] && _r=0 || _r=1
+        C2RS_CORPUS_ROOT="$_cs/root"
+        _cs_case corpus-unwritable-root-degrades "$_r" "rc=0 kind=$C2RS_CORPUS_KIND"
+
+        mkdir -p "$_cs/wtBad/scripts/sweep.d"
+        printf 'import sys; sys.exit(3)\n' > "$_cs/wtBad/scripts/sweep_gen.py"
+        printf 'x\n' > "$_cs/wtBad/scripts/sweep.d/10-x.py"
+        resolve_corpus "$_cs/wtBad" "$_cs/privA" > "$_cs/outBad" 2>&1 && _r=0 || _r=1
+        [ "$_r" = 0 ] && [ "$C2RS_CORPUS_KIND" = private ] && _r=0 || _r=1
+        _cs_case corpus-broken-generator-degrades "$_r" "kind=$C2RS_CORPUS_KIND"
+
+        # 10. TWO PUBLISHERS AT ONCE. This is the race the design replaces a lock
+        #     with — `w-gateperf` §11.1 declined shared case directories because
+        #     the old lock's cold fallback fires on contention — so it is DRIVEN
+        #     rather than argued. The loser must discard, never clobber, both must
+        #     land on one directory, and no `.tmp-*` may survive.
+        rm -rf "$_cs/root2"; C2RS_CORPUS_ROOT="$_cs/root2"
+        _cs_gen "$_cs/wtA" "$_cs/privR1"; _cs_gen "$_cs/wtB" "$_cs/privR2"
+        ( resolve_corpus "$_cs/wtA" "$_cs/privR1" >/dev/null 2>&1
+          echo "$C2RS_CORPUS_KIND $C2RS_CORPUS_DIR" > "$_cs/r1" ) &
+        ( resolve_corpus "$_cs/wtB" "$_cs/privR2" >/dev/null 2>&1
+          echo "$C2RS_CORPUS_KIND $C2RS_CORPUS_DIR" > "$_cs/r2" ) &
+        wait
+        _cs_k1=$(cut -d' ' -f1 < "$_cs/r1"); _cs_k2=$(cut -d' ' -f1 < "$_cs/r2")
+        _cs_p1=$(cut -d' ' -f2 < "$_cs/r1"); _cs_p2=$(cut -d' ' -f2 < "$_cs/r2")
+        _cs_tmp=$(find "$_cs/root2" -maxdepth 1 -name '.tmp-*' | wc -l)
+        _cs_gens=$(find "$_cs/root2" -maxdepth 1 -type d -name 'gen-*' | wc -l)
+        [ "$_cs_k1" = shared ] && [ "$_cs_k2" = shared ] && [ "$_cs_p1" = "$_cs_p2" ] \
+            && [ "$_cs_tmp" -eq 0 ] && [ "$_cs_gens" -eq 1 ] && _r=0 || _r=1
+        _cs_case corpus-concurrent-publish-converges "$_r" \
+            "kinds=$_cs_k1/$_cs_k2 generations=$_cs_gens tmp-left=$_cs_tmp"
+
+        # 11. IMMUTABILITY, asserted rather than assumed — it is the property
+        #     that removes the lock, so a resolve that rewrote a published
+        #     generation would put the contention back without saying so.
+        _cs_m0=$(find "$_cs/root2" -maxdepth 1 -type d -name 'gen-*' -printf '%T@\n' 2>/dev/null)
+        resolve_corpus "$_cs/wtA" "$_cs/privR1" >/dev/null 2>&1
+        _cs_m1=$(find "$_cs/root2" -maxdepth 1 -type d -name 'gen-*' -printf '%T@\n' 2>/dev/null)
+        [ -n "$_cs_m0" ] && [ "$_cs_m0" = "$_cs_m1" ] && _r=0 || _r=1
+        _cs_case corpus-published-generation-immutable "$_r" "mtime unmoved across a second resolve"
+
+        unset C2RS_CORPUS_ROOT
+    fi
+
     # ---- THE GROUND-TRUTH OBJ READER (lanes w-llvm / w-gr) --------------------
     #
     # `scripts/gt_dump.py` is the reader every hand-measurement on this project
@@ -4890,10 +5066,19 @@ $(printf '%s\n' "$_lr_words" | grep .)"
     # `w-gateperf` served the sweep from the capture cache (4 cases: a clean
     # cache line, a poisoned one that must redden, a COLD one that must not, and
     # an ABSENT one that must not either — the three states a count-shaped check
-    # has to tell apart, plus 5 assertions on the wording). A truncated selftest
-    # is the failure it exists to catch, so this is a COUNT and not a "some cases
-    # ran".
-    if [ "$cases" -lt 170 ]; then
+    # has to tell apart, plus 5 assertions on the wording), and **183** after
+    # `w-coldcross` made the generated corpus shared and content-addressed (13
+    # cases: the digest's path-independence and its separation of two corpora,
+    # publish and adopt, and then FIVE ways a shared generation can be wrong —
+    # short, long, tampered by one byte, unwritable, ungenerable — each of which
+    # must REFUSE and fall back rather than grade it, plus recovery, the off
+    # switch, the two-publisher race, and immutability). **Those arms are the
+    # price of sharing state between lanes at all**: the row got faster by
+    # grading a directory no lane owns, and the only thing standing between that
+    # and one lane passing on another's corpus is that every one of them refuses.
+    # A truncated selftest is the failure it exists to catch, so this is a COUNT
+    # and not a "some cases ran".
+    if [ "$cases" -lt 183 ]; then
         echo "gate.sh --selftest: FAIL — only $cases cases ran; the selftest itself was"
         echo "  truncated, and a truncated selftest is the failure it exists to catch."
         exit 1
@@ -5188,6 +5373,31 @@ echo "wall clock: ${elapsed}s for $nlanes lanes at --jobs $jobs (C2RS_JOBS=$C2RS
 # `C2RS_BIN` is already exported, so `pin_harness` inside the sweep takes the
 # gate's pinned copy and the two halves provably grade one binary.
 # --------------------------------------------------------------------------------
+# WHICH CASE DIRECTORY A GENERATED ROW ACTUALLY GRADED (lane w-coldcross).
+#
+# Both generated rows resolve a shared, content-addressed corpus since
+# 2026-08-18 (`scripts/corpus_dir.sh`), and this surfaces the one line that says
+# whether they got it. It is printed for the same reason the `cache:` line is:
+# **an absent count must not read as a zero**, and the three states here are
+# genuinely different — SHARED (the shared generation was verified byte-identical
+# to this tree's own and graded), PRIVATE (this run graded its own cases, cold
+# and correct), and ABSENT (a driver that predates the accounting).
+#
+# NONE of the three is a failure, deliberately. A REFUSED shared generation means
+# the run fell back to its own corpus, which is exactly what every run did before
+# this existed; reddening on it would be a RED GATE FROM AN ABSENCE, the failure
+# this file's rules exist to forbid. It is loud, and it is not a verdict.
+corpus_line() {   # <driver log>
+    if grep -q '^corpus: ' "$1" 2>/dev/null; then
+        grep -m1 '^corpus: ' "$1" | sed 's/^/  /'
+        if grep -q '^corpus: PRIVATE.*REFUSED' "$1" 2>/dev/null; then
+            sed -n '/^corpus: PRIVATE.*REFUSED/,+4p' "$1" | sed '1d;s/^/  /'
+        fi
+    else
+        echo "  corpus: ABSENT — this driver reports no corpus accounting"
+    fi
+}
+
 unset C2RS_SWEEP_ONLY          # a filtered corpus is not a gate; see the header
 export C2RS_SWEEP_JOBS="$jobs"
 sweep_out="$work/sweep"
@@ -5208,6 +5418,7 @@ tail -n 4 "$work/sweep.log" | sed 's/^/  /'
 if ! grep -q '^cache: ' "$work/sweep.log" 2>/dev/null; then
     echo "  cache: ABSENT — this sweep driver reports no cache accounting"
 fi
+corpus_line "$work/sweep.log"
 echo "  ($(( $(date +%s) - sw_started ))s)"
 sweep_res=$(sweep_verdict "$work/sweep.log" "$sw_status")
 
@@ -5241,8 +5452,9 @@ cx_started=$(date +%s)
 cx_status=0
 C2RS_JOBS="$jobs" sh "$repo_root/scripts/mode_cross.sh" "$cross_out" "$cross_cells" \
     > "$work/cross.log" 2>&1 || cx_status=$?
-grep -E '^(assigned|sweeping|checked=|SKIP:|FATAL|VACUOUS)' "$work/cross.log" \
+grep -E '^(assigned|sweeping|checked=|cache:|NOTE:|SKIP:|FATAL|VACUOUS)' "$work/cross.log" \
     | sed 's/^/  /' || true
+corpus_line "$work/cross.log"
 echo "  ($(( $(date +%s) - cx_started ))s)"
 res_sample
 cross_res=$(sweep_verdict "$work/cross.log" "$cx_status")
