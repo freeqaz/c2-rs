@@ -1,5 +1,3 @@
-census/gate disagreement on EMITTED fns (the error term on the emitted census): 949 TOTAL, of which 0 are PARSER-EXPRESSIBLE (target 0 — board #139) and the rest are the post-lowering stages no parser clause can reach (`gy-shape`, `data-ref`, `inlined-callee`; see `gap-metric fnbyte-census-disagree-*`). The residue is the measured size of the emitted census's OVER-CLAIM, not an accounting convenience
-FENCE-BLOCKS-EXACT (w-fencecount) — TUs held out of `match` per decode-gate fence. `sole` = the TU's ONLY firing cause; `exact` = sole AND every emitted body FnByte-exact (`bodies` counts them); `first` = first blocker of a multi-cause TU. TWO CAVEATS, standing: a first-blocker count is NOT a distance (the port stops at its first refusal, so every held TU names one blocker however many it has); and the `locally-defined-callee` row is `decode_causes`' BROAD re-ask of the inline fence, which can fire where the narrowed gate exempts (see `GapReport::fence_blocks`). Machine keys: `gap-metric fence-*`, all causes, zeros included.
 gap-metric a-and-b-and-c 27
 gap-metric a-and-b-and-c-and-d 22
 gap-metric a-and-b-and-c-and-d-or-e 25

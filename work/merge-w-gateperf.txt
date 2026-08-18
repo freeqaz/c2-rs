@@ -75,12 +75,27 @@ MEASURED, at the rebased tip, one uninterrupted block, load 5-13
   --check        PASS — 16 tree-integrity arms, 0 failed
   board_audit    all-zero, including 0 cited-but-not-on-the-board
   rung_registry  2 passed / 0 failed
-  878-TU scan    396 keys at BOTH ends, diff EMPTY: 0 vanished, 0 appeared,
+  878-TU scan    394 keys at BOTH ends, diff EMPTY: 0 vanished, 0 appeared,
                  0 changed. match 26 / mismatch 0 / codegen-gap 0 /
                  vocab-gap 844 / capture-fail 8 at both ends.
                  fnbyte-exact 35899 · differs 1958 · denominator 162046,
-                 identical to the digit. (The dispatch said 394 keys; 394 was
-                 the count at 071d2d47 and w-calleeguard added two.)
+                 identical to the digit.
+
+                 CORRECTION, carried here because it must not be lost: an
+                 earlier revision published 396 and attributed the +2 to
+                 w-calleeguard's merge. BOTH HALVES WRONG. 396 is the NAIVE
+                 grep; anchored on `^ *gap-metric <key> <value>` it is 394 at
+                 both ends, and the two extras are prose lines that POINT AT
+                 keys (the census/gate paragraph's "see gap-metric
+                 fnbyte-census-disagree-*", the FENCE-BLOCKS-EXACT paragraph's
+                 "Machine keys: gap-metric fence-*"). w-fence163 §3.1 settled
+                 394 on 2026-08-17 and wrote down that the next lane would
+                 reach for the same grep; w-corpushealth reached and caught
+                 itself; THIS LANE REACHED AND MANUFACTURED A CAUSE. The
+                 identity result is unaffected (same method both ends, diff
+                 empty) — only the number and its attribution were wrong.
+                 A WRONG COUNT IS CAUGHT BY RE-COUNTING; A WRONG ATTRIBUTION
+                 IS NOT. See rung §13.3.
 
   The scan's base binary was built from `git checkout 82fa92a0 -- crates/` IN
   THIS WORKTREE, so both binaries share a build path and #3224's precondition

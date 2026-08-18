@@ -1,4 +1,6 @@
-DRAFT — to be appended to docs/BOARD.md
+DRAFT — APPLIED to docs/BOARD.md. Superseded by the live file: the two
+rows drafted here as *(unnumbered)* are #3267 and #3268, and a ninth row #3269
+(this lane's published grep artifact and its wrong attribution) was added there.
 
 ## `w-gateperf` — 2026-08-18, **`#3261`–`#3266` MINTED HERE, FROM AN EXPLICIT COORDINATOR ALLOCATION. THE POINTER WAS NOT CONSULTED. TWO FURTHER ROWS ARE LEFT UNNUMBERED ON PURPOSE.**
 
