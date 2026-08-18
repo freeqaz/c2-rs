@@ -1,0 +1,112 @@
+==============================================================================
+W-CORPUSHEALTH — corpus-immaturity vs refusal, joined per TU
+==============================================================================
+c2rs head      2ecf319b  binary f4a170131711
+workload head  ccd4c8036  dirty=False
+cache          870 hit / 8 miss (context 1413a6bf)
+objdiff        4.2.3 commit 88b425bc3bad  ['functionRelocDiffs=name_check']
+
+H1 JOIN        860/878 TUs resolve to a report.json unit  (97.95%)
+               18 do not; duplicate source_paths: 0
+               refusal mass in joined TUs: 113281 of 113447  (99.85%)
+
+TOTALS         fnbyte-refused-parse 113447   -codegen 949   exact 35899   differs 1958   denominator 162046
+               objdiff fns in joined units 31578, unfinished (norm<100) 3002
+
+H2 UNIT-LEVEL (coarse upper bound — 'this TU's unit is not finished')
+   [scored] unit FINISHED (all fns norm==100)  315 TUs, refusal mass 18450
+   [scored] unit NOT finished                  544 TUs, refusal mass 94831  -> 83.59% of all refusals
+   [axis]   metadata.complete true (authorable, built from source): 848 TUs, refusal mass 113259
+   [axis]   metadata.complete false (vendor/xdk, linked from lib):  12 TUs, refusal mass 22
+
+H3 FUNCTION-LEVEL (Frechet bounds on refused AND unfinished, per TU)
+   tight UPPER  sum min(R_i,U_i) = 2711  -> 2.39% of refusals
+   LOWER        sum max(0,R+U-max(E,F)) = 99  -> 0.09%
+   (denominator: fnbyte-refused-parse 113447)
+
+H4 VOCAB-GAP TUs (844)
+   joined 839; unit COMPLETE 836; unit INCOMPLETE 3; unjoined 5
+   TUs with ZERO unfinished functions in their unit: 310  (36.73% of vocab-gap) — refusal there cannot be corpus artifact
+
+H6 STUBS (decomp.db is_stub=1): 686 rows over 158 units; 460 not excluded
+   of which inside the 878-TU workload: 498 rows over 138 units  (joined through report.json's unit-name -> source_path; the schema comment on `functions.unit` is wrong)
+
+MATCHED TUs (26) — the decomp's own verdict on them
+   C U=   0/F=   1  R=    1  src/Main.cpp
+   ? U=   0/F=   0  R=    0  src/system/decomp_pch.cpp
+   C U=   0/F=   1  R=    0  src/system/math/Primes.cpp
+   C U=   0/F=   1  R=    0  src/system/math/Sort.cpp
+   ? U=   0/F=   0  R=    0  src/system/negate_test.cpp
+   C U=   0/F=   1  R=    1  src/system/synth/tomcrypt/TomCryptLicense.cpp
+   C U=   0/F=   2  R=    0  src/system/synth_xbox/Biquad.cpp
+   C U=   7/F=   7  R=    0  src/system/synth_xbox/GainEffect.cpp
+   C U=   8/F=   8  R=    0  src/system/synth_xbox/HeadsetPlaybackEffect.cpp
+   C U=   2/F=   4  R=    0  src/system/synth_xbox/IPP_basicmath_xbox.cpp
+   C U=   3/F=   3  R=    0  src/system/synth_xbox/PeakDetector.cpp
+   ? U=   0/F=   0  R=    0  src/system/synth_xbox/soundtouch/source/SoundTouch/mmx_optimized.cpp
+   ? U=   0/F=   0  R=    0  src/system/synth_xbox/soundtouch/source/SoundTouch/sse_optimized.cpp
+   C U=   1/F=   5  R=    0  src/system/utl/EncryptXTEA.cpp
+   C U=   0/F=   3  R=    0  src/system/utl/Pool.cpp
+   ? U=   0/F=   0  R=    0  src/system/utl/Spew.cpp
+   ? U=   0/F=   0  R=    1  src/system/zlib/ZlibLicense.cpp
+   i U=   8/F=   9  R=    0  src/xdk/LIBCMT/osfinfo.cpp
+   i U=  79/F=  79  R=    0  src/xdk/LIBCMT/undname.cpp
+   i U=   2/F=   3  R=    0  src/xdk/LIBCMT/vsnprnc.cpp
+   i U=   3/F=   3  R=    0  src/xdk/LIBCMT/vswprnc.cpp
+   i U=  15/F=  17  R=    0  src/xdk/nuispeech/mmio.cpp
+   i U=   6/F=   7  R=    0  src/xdk/nuispeech/xboxheap.cpp
+   i U=   1/F=   5  R=    0  src/xdk/nuispeech/xboxmem.cpp
+   i U=  15/F=  15  R=    0  src/xdk/xjson/jsonwriter.cpp
+   i U=  29/F=  29  R=    0  src/xdk/xlrc/xlrcimpl.cpp
+
+CAPTURE-FAIL (8) — the one place real c2 itself refuses
+   joined=False  in_db=False  src/system/synth_xbox/FxSendPitchShift360.cpp
+   joined=False  in_db=False  src/system/synth_xbox/FxSendSynapse360.cpp
+   joined=False  in_db=False  src/system/synth_xbox/soundtouch/source/SoundStretch/RunParameters.cpp
+   joined=False  in_db=False  src/system/synth_xbox/soundtouch/source/SoundStretch/main.cpp
+   joined=False  in_db=False  src/system/synth_xbox/soundtouch/source/SoundTouch/3dnow_win.cpp
+   joined=False  in_db=False  src/system/synth_xbox/soundtouch/source/SoundTouch/cpu_detect_x86_win.cpp
+   joined=False  in_db=False  src/system/synth_xbox/soundtouch/source/SoundTouchDLL/SoundTouchDLL.cpp
+   joined=True  in_db=False  src/system/utl/BinkIntegration.cpp
+
+TOP 20 TUs BY REFUSAL MASS, with the decomp's verdict on the same unit
+   R=  1336 E=  1731  U=  40/F= 331  COMPLETE    src/system/world/LightPreset.cpp
+   R=  1079 E=  1474  U=  48/F= 287  COMPLETE    src/system/hamobj/HamDirector.cpp
+   R=   998 E=  1404  U=  56/F= 216  COMPLETE    src/system/rndobj/Utl.cpp
+   R=   984 E=  1321  U=  12/F= 172  COMPLETE    src/system/world/Crowd.cpp
+   R=   958 E=  1258  U=  15/F= 242  COMPLETE    src/system/rndobj/PropAnim.cpp
+   R=   947 E=  1267  U=  26/F= 196  COMPLETE    src/system/rndobj/Mesh.cpp
+   R=   922 E=  1304  U=  30/F= 330  COMPLETE    src/system/char/Character.cpp
+   R=   897 E=  1246  U=  38/F= 227  COMPLETE    src/system/rndobj/Text.cpp
+   R=   864 E=  1033  U=  13/F= 117  COMPLETE    src/system/rndobj/PropKeys.cpp
+   R=   861 E=  1136  U=  13/F= 176  COMPLETE    src/system/world/CameraShot.cpp
+   R=   768 E=  1032  U=  24/F= 112  COMPLETE    src/system/rndobj/AmbientOcclusion.cpp
+   R=   761 E=  1100  U=  23/F= 197  COMPLETE    src/system/hamobj/MoveDir.cpp
+   R=   729 E=   942  U=   8/F= 200  COMPLETE    src/system/rndobj/EventTrigger.cpp
+   R=   700 E=   953  U=  18/F= 195  COMPLETE    src/system/obj/Dir.cpp
+   R=   687 E=   947  U=   8/F= 145  COMPLETE    src/lazer/meta_ham/MetaPerformer.cpp
+   R=   684 E=   912  U=   5/F= 150  COMPLETE    src/system/world/Dir.cpp
+   R=   675 E=   941  U=   3/F= 158  COMPLETE    src/lazer/meta_ham/AccomplishmentManager.cpp
+   R=   650 E=   828  U=  12/F= 289  COMPLETE    src/system/rndobj/Rnd.cpp
+   R=   627 E=   839  U=  13/F= 135  COMPLETE    src/system/hamobj/HamMove.cpp
+   R=   612 E=   888  U=   1/F=  95  COMPLETE    src/lazer/meta_ham/HamSongMgr.cpp
+
+UNJOINED TUs (no report.json unit) — named, not dropped
+   R=     0  match        in_db=False  src/system/decomp_pch.cpp
+   R=     0  match        in_db=False  src/system/negate_test.cpp
+   R=     0  capture-fail in_db=False  src/system/synth_xbox/FxSendPitchShift360.cpp
+   R=     0  capture-fail in_db=False  src/system/synth_xbox/FxSendSynapse360.cpp
+   R=    51  vocab-gap    in_db=False  src/system/synth_xbox/StreamReceiver360.cpp
+   R=     0  capture-fail in_db=False  src/system/synth_xbox/soundtouch/source/SoundStretch/RunParameters.cpp
+   R=    97  vocab-gap    in_db=False  src/system/synth_xbox/soundtouch/source/SoundStretch/WavFile.cpp
+   R=     0  capture-fail in_db=False  src/system/synth_xbox/soundtouch/source/SoundStretch/main.cpp
+   R=     0  capture-fail in_db=False  src/system/synth_xbox/soundtouch/source/SoundTouch/3dnow_win.cpp
+   R=     9  vocab-gap    in_db=False  src/system/synth_xbox/soundtouch/source/SoundTouch/BPMDetect.cpp
+   R=     6  vocab-gap    in_db=False  src/system/synth_xbox/soundtouch/source/SoundTouch/PeakFinder.cpp
+   R=     2  vocab-gap    in_db=False  src/system/synth_xbox/soundtouch/source/SoundTouch/cpu_detect_x86_gcc.cpp
+   R=     0  capture-fail in_db=False  src/system/synth_xbox/soundtouch/source/SoundTouch/cpu_detect_x86_win.cpp
+   R=     0  match        in_db=False  src/system/synth_xbox/soundtouch/source/SoundTouch/mmx_optimized.cpp
+   R=     0  match        in_db=False  src/system/synth_xbox/soundtouch/source/SoundTouch/sse_optimized.cpp
+   R=     0  capture-fail in_db=False  src/system/synth_xbox/soundtouch/source/SoundTouchDLL/SoundTouchDLL.cpp
+   R=     0  match        in_db=False  src/system/utl/Spew.cpp
+   R=     1  match        in_db=False  src/system/zlib/ZlibLicense.cpp
