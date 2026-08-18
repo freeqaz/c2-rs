@@ -1,10 +1,23 @@
-merge w-dagorder: the allocator's candidate order is a PRIORITY LIST downstream of the scheduler — and the lane's dispatched target was already in master
+merge w-dagorder: the allocator's candidate order is a CHOW-HENNESSY PRIORITY LIST downstream of the scheduler — and /Ox INVERTS it on exactly the 6 of 20 cells that carry the signal
 
 Outcome: built. Kind: characterization. Fixtures none, Census +0, reach 0
 predicted and 0 realized. docs/ + docs/whitebox/ + work/w-dagorder/ only;
 `git diff 44794fa4..HEAD -- crates fixtures scripts` is EMPTY.
 
-FINDING ZERO — THE LANE WAS RETARGETED BEFORE ITS FIRST PROBE. The brief named
+HEADLINE, TWO HALVES, BOTH LOAD-BEARING:
+(1) The candidate order is a PRIORITY LIST — Chow-Hennessy priority-based
+    colouring, comparator cand+0x0c DESC / cand+0x44 DESC at 0x10b2b82d — not a
+    traversal order. #3049's "no interference graph" implied it; nobody had
+    stated it.
+(2) /Ox and /O1 DISAGREE ON 6 OF 20 CELLS, and the six are EXACTLY the six
+    carrying the signal; all six are EXACT REVERSALS. The cause is in the bytes:
+    /O1 emits one `mulli` where /Ox strength-reduces to `slwi`+`add`, reading the
+    multiplicand TWICE. This is simultaneously the SECOND INDEPENDENT
+    CONFIRMATION of (1) — a transformation touching only the DAG inverts the
+    order — and a concrete demonstration that a characterization taken at the
+    FIXTURE profile publishes the REVERSED rule on the workload.
+
+FINDING ZERO — A DISPATCH DEFECT, NOT A PREAMBLE. The brief named
 STRATEGY_REVIEW §4 lever 3 (read dag.c's lowering order at 0x10b3219f) as item
 F's "sole remaining characterization blocker". It was discharged five days
 earlier by lane wb-dagorder (2026-08-13, #3067–#3071) and is IN MASTER —
@@ -80,39 +93,52 @@ match 2,423, 0 mismatch, 0 PANIC; debug-lane row PASS 18/18; sweep
 394 anchored keys, match 26, mismatch 0, codegen-gap 0, vocab-gap 844,
 capture-fail 8 — all identical to baseline.
 
->>> ONE THING FOR THE COORDINATOR, AND IT IS NOT THIS LANE <<<
-fnbyte-exact reads 35,899 against the registered 35,897, with refused-parse down
-exactly 2 (a consistent pair). Checked three ways that it is not this lane:
-(1) the crates/fixtures/scripts diff vs the base is EMPTY; (2) the gate's
-graded-tree hash is identical at both ends; (3) the scan was run TWICE and all
-394 keys are BYTE-IDENTICAL between runs, so the +2 is DETERMINISTIC, not noise.
-Labelled hypothesis, not banked: cli/gap.rs resolves the capture cache to
-main_repo_root()/work/capture-cache — SHARED by every worktree and written by
-whichever lane scans — while work/dc3-workload is ENTIRELY UNTRACKED
-(git ls-files returns 0) though its newest input predates the baseline by two
-weeks. If that is the cause, fnbyte-exact is not a pure function of the commit
-and a figure quoted as "at <sha>" is partly a statement about the box.
-Confirming it needs a controlled cache = a scripts/ change, outside this lane's
-seam. Raised rather than smoothed over.
+THE fnbyte DRIFT IS NOW BOARD #3249 (the coordinator's row — CITED, NOT
+RE-MINTED). This lane measured fnbyte-exact 35,899 against the registered
+35,897, refused-parse down exactly 2, and established that it is NOT this lane
+three ways: (1) the crates/fixtures/scripts diff vs the base is EMPTY; (2) the
+gate's graded-tree hash is identical at both ends; (3) the scan ran TWICE and
+all 394 keys are BYTE-IDENTICAL between runs, so the +2 is DETERMINISTIC rather
+than noise — which is the useful half, since a flaky +2 and a stable +2 need
+different explanations. The coordinator reproduced it independently at clean
+master with a run-private binary (sum conserved at 149,346) and confirmed the
+structure: cli/gap.rs:116 resolves the cache via main_repo_root() DELIBERATELY
+rather than repo_root(), main.rs:132 documents it as "shared by every worktree",
+and work/dc3-workload is untracked. #3249 names as UNMEASURED the thing this
+lane correctly did not claim — whether the cache is a PURE cache or an
+AUTHORITATIVE one — and notes the +2/-2 direction, refusals becoming parses, is
+what an authoritative cache gaining better IL would look like. A lane, not a
+footnote.
 
 FOUND AND NOT TAKEN (rung §6): the A-series head/tail split (h g f | b a c d e
 at n=8) is measured, not explained; cnd_s2/cnd_s2r are insensitive to written
 operand order and invert the + cells, which is wb-dagorder's own unread
 +-reassociation reached from the allocator side; 0x10b2d630 does two jobs and
 wb-live characterized only one; a THIRD field-table correction is likely because
-the table is phase-flat by construction. And: WB_REGALLOC_FINDINGS.md §1 still
-says "There is no sched.c, and no instruction scheduler" — that is #1823,
-refuted by #3067 on 2026-08-13, LIVE ON MASTER in a whitebox findings doc.
-NOT corrected here on purpose: that file is another lane's record and silently
-editing a peer's findings is how a record stops being gradeable. Cheapest
-correction available to the next lane in that file.
+the table is phase-flat by construction.
+
+TAKEN ON THE REBASE, WITH AUTHORISATION: WB_REGALLOC_FINDINGS.md §1's "There is
+no sched.c, and no instruction scheduler" — #1823, refuted by #3067 on
+2026-08-13 and LIVE ON MASTER in the very file that describes the allocator,
+while this lane's central result is about the allocator. Corrected as a DATED
+AMENDMENT BESIDE THE ORIGINAL SENTENCE, which stands as written — never
+rewritten in place. The amendment names why the claim was made in good faith
+(c2_tus.tsv is built from C1001 ICE sites, so a TU with no ICE site is invisible
+to it BY CONSTRUCTION, and the scheduler band sits in an anchor gap) and adds
+this lane's black-box third-side confirmation: the height flips and the 6-of-20
+profile inversion are results a compiler with no scheduler cannot produce. It
+also flags that every "order" claim in that file is a statement about a
+SCHEDULED tuple list.
 
 Board rows #3239–#3243, from the coordinator's allocation; the next-free pointer
 was not consulted.
 
-NOT REBASED, NOT MERGED, NOT PUSHED — the brief gates the rebase on the
-coordinator's go-ahead. Branch wt-w-dagorder2 (the plain `wt-w-dagorder` was
-ALREADY TAKEN by the 2026-08-13 lane, which is finding zero above). The rebase
-is clean when authorized: master is ONE docs-only commit ahead (f092c453,
-STRATEGY_REVIEW §8.2, 22 insertions) and the two file sets are DISJOINT —
-verified with comm, not assumed.
+REBASED ONTO MASTER 31766e74 on the coordinator's authorisation. NOT MERGED,
+NOT PUSHED. Branch wt-w-dagorder2 (the plain `wt-w-dagorder` was ALREADY TAKEN
+by the 2026-08-13 lane — which is finding zero above, and is what surfaced it).
+One conflict, in docs/BOARD.md, and it was the expected one: the coordinator's
+#3249 block and this lane's #3239–#3243 block both append at end-of-file.
+Resolved by KEEPING BOTH, #3249 first; board_audit re-run after the resolution
+reports 0 duplicate row numbers, which is the check that proves the resolution
+rather than the diff looking plausible. crates/fixtures/scripts remain
+byte-identical to master after the rebase.

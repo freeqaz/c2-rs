@@ -40,6 +40,44 @@ and `0x10b71d8f`, which are the **`/QXSTALLS` listing-comment writers**. The
 `-schdat#` option (`0x10b139d0`) writes `0x10c2eb40`, and **`0x10c2eb40` has
 zero readers in the image** — it is a dead switch in this build.
 
+> ### ⛔ 2026-08-18 — **THE BOLD SENTENCE ABOVE IS REFUTED. THERE IS AN INSTRUCTION SCHEDULER.**
+>
+> Amended beside the original rather than rewritten in place, because a document
+> that silently absorbs its own corrections is one nobody can grade — the same
+> rule `WB_DAGORDER_FINDINGS.md`'s revision box states. **The paragraph above
+> stands as written; it is wrong.**
+>
+> Board **#1823** — the row this paragraph is the primary evidence for — was
+> **REFUTED on 2026-08-13** by lane `wb-dagorder` (board **#3067**,
+> [`WB_DAGORDER_FINDINGS.md`](WB_DAGORDER_FINDINGS.md) §1). There is a
+> cycle-driven dependence-DAG **list scheduler**: driver `FUN_10be6382` @
+> `0x10be6382`, run **four times** per function — three in mode 1 from
+> `0x10b7dc51` and once in mode 0 from `0x10b7df57` — gated only by the
+> optimizer-on flag `DAT_10c2e2fc`. It is obj-confirmed on 15 cells.
+>
+> **Why this paragraph could be written in good faith, which is the transferable
+> part**: #1823's three "independent ways" were **three absences**, and the
+> load-bearing one is the TU table two tables up. `c2_tus.tsv` is built from
+> **C1001 ICE sites**, so a TU with no ICE site is **invisible to it by
+> construction** — and the scheduler band `0x10be5cce`–`0x10be663e` sits in an
+> anchor gap between `except.c` and `emit.cpp`. *"There is no `sched.c`"* is a
+> true statement about the **instrument** and was read as a statement about the
+> **image**. The other two absences (a dead flag, stall strings owned by the
+> listing writers) are consistent with a scheduler that simply does not use
+> them.
+>
+> **This lane confirmed it from a third side, black-box.** `w-dagorder`
+> (2026-08-18, boards **#3239**–**#3243**,
+> [`WB_DAGORDER2_FINDINGS.md`](WB_DAGORDER2_FINDINGS.md)) measured that the
+> **register allocator's candidate order is moved by dependence height alone** —
+> `cnd_h2`/`cnd_h2r` hold the formal list, the declaration order and the live
+> set fixed, move only which formal carries the taller producer, and the
+> assignment **flips**; and `/Ox` vs `/O1` inverts the order on **6 of 20 cells**
+> purely because `/Ox` strength-reduces `*3` into a taller two-use sequence.
+> **A compiler with no scheduler cannot produce either result.** So §3.4's
+> instruction-order policy below, and every "order" claim in this file, are
+> statements about a **scheduled** tuple list.
+
 The per-function phase pipeline is `FUN_10b7d85e` @ `0x10b7d85e` (each phase
 bracketed by the timer `FUN_10bec297`), driven from `compile-one-function`
 `0x10b7ef55`.
