@@ -4383,4 +4383,340 @@ mod wr1_census_key_guards {
              names: {got:?}"
         );
     }
+
+    /// **W-CALLEEGUARD — one witness per RAISE SITE for the whole
+    /// `callee-unresolved` key family.**
+    ///
+    /// `w-mutcensus` (`docs/rungs/2026-08-17-mutcensus.md` §3, §4.3) measured all
+    /// four sites of this family GREEN: **nothing in the 1,660-test suite could
+    /// fail on any of them**, including the **default** arm that routes
+    /// `callee-unresolved-tail-call` — board **#3209**'s key over **1,296**
+    /// function bodies on the 878-TU workload, the single most populous refusal
+    /// key there. It could be exchanged for a sibling with the suite staying
+    /// green.
+    ///
+    /// The four sites are the arms of one `match label` in
+    /// `c2-il/src/func/census.rs` (`:1308`, `:1310`, `:1313`, `:1315` at
+    /// `44794fa4` — **re-located at this base**, not inherited from the census's
+    /// `3835469c`, because two peers landed in `c2-il` in between). They fire
+    /// when the body **parsed** but `shape_to_function` returned `None` with no
+    /// data-symbol `sym_fail` pending — i.e. the call's callee token has no `.gl`
+    /// name.
+    ///
+    /// ## Why this is one witness per SITE and not one per KEY
+    ///
+    /// `w-mutcensus` F2 states the mechanism behind its whole GREEN population:
+    /// *"guard tests are per-KEY witness tests, so a key with k raise sites
+    /// contributes k − 1 unguarded sites by construction"*. **That mechanism does
+    /// not apply to this family**: `grep -rn CALLEE_UNRESOLVED_ crates/` finds
+    /// **exactly one raise site per key**, so k = 1 four times over and a per-key
+    /// witness *is* a per-site witness here. These four were unguarded because
+    /// nobody wrote a witness, not by construction.
+    ///
+    /// What generalizes is the **form**, and it is deliberately a table: one row
+    /// per raise site, keyed on the input that reaches *that* site. A table of
+    /// site-witnesses catches a key swap at any site even when several sites
+    /// share one key — which is the shape F2 says no per-key suite can reach.
+    ///
+    /// ## The cells
+    ///
+    /// Every assertion is on the **key string** (`FnVerdict::key()`), never on a
+    /// constant — `2026-08-16-guards.md` §2's reason unchanged: a guard on the
+    /// constant passes a mutation that renames the constant *and* its uses while
+    /// the published key moves.
+    ///
+    /// | cell | transcript | in-class label | family key it must take |
+    /// |---|---|---|---|
+    /// | **F** | `int f(int a){ return g(a)+1; }` | `framed-call` | `callee-unresolved-framed-call:eof` |
+    /// | **Q** | `void f(int a){ g1(a); g2(); }` | `call-sequence` | `callee-unresolved-call-sequence:eof` |
+    /// | **E** | `Der::~Der() {}` | `empty-dtor-delegation` | `callee-unresolved-dtor-delegation:eof` |
+    /// | **V** | `void f(){ g(); }` | `void-tail-call` | `callee-unresolved-tail-call:eof` (**default** arm) |
+    /// | **M** | [`DYNINIT`] + `gl_named(0x02)` | `multiarg-tail-call` | `callee-unresolved-tail-call:eof` (**default** arm, second label) |
+    mod callee_unresolved_arms {
+        use super::*;
+
+        /// The `4F 1F` segment header, byte-for-byte the one [`DYNINIT`] carries
+        /// — same capture, same toolchain, same flags. The four body transcripts
+        /// below begin at the `53 53 26 <fn>` statement start and need it: a body
+        /// without the header still yields a census row, but it keys
+        /// `formals-marker:mid` (measured), which is a *parse* refusal upstream of
+        /// the arms this module exists to pin.
+        const HDR: &[u8] = &[
+            0x4F, 0x1F, 0x80, 0x05, 0x00, 0x20, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00,
+            0x4F, 0x33, 0x0D, 0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01,
+            0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18, 0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38,
+            0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D, 0x08, 0x00, 0x0F,
+            0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x03,
+        ];
+
+        fn wrap(body: &[u8]) -> Vec<u8> {
+            let mut v = HDR.to_vec();
+            v.extend_from_slice(body);
+            v
+        }
+
+        // The four transcripts are **transcribed** from `c2-il`'s own
+        // `func::test_fixtures` (`MVP_FRAMED`, `SEQ_TWO_VOID`, `DTOR_DELEGATE`,
+        // `MVP_CALL`) rather than referenced, for the reason [`DYNINIT`] is: that
+        // module is `#[cfg(test)]` inside a crate this lane does not own and is
+        // unreachable across the crate boundary. **They are copies of captures,
+        // not second sources of truth** — if `c2-il`'s readers change under them
+        // these guards break, and that is the guard working. The response is to
+        // re-derive from the capture, never to delete the test.
+
+        /// `int f(int a){ return g(a) + 1; }` — the framed call, callee `0xE409`.
+        const FRAMED: &[u8] = &[
+            0x53, 0x53, 0x26, 0xE6, 0x09, 0x46, 0x2D, 0xE5, 0x09,
+            0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE4, 0x09, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x01,
+            0x10, 0x00, 0x00, 0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74, 0x55, 0x86, 0x41, 0x74, 0x4C,
+            0x33, 0x86, 0x41, 0x74, 0x01, 0x02, 0x41, 0x86, 0x41, 0x74, 0x3A, 0xE7, 0x09, 0x54,
+            0x02, 0x29, 0xE7, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20,
+            0x00, 0x4F, 0x01, 0x08, 0x4D,
+        ];
+        /// `void f(int a){ g1(a); g2(); }` — two statement calls, `0xE409` first.
+        const SEQ: &[u8] = &[
+            0x53, 0x53, 0x26, 0xE7, 0x09, 0x46, 0x2D, 0xE6, 0x09, 0x4C, 0x4F, 0x11, 0x53,
+            0x26, 0xE4, 0x09, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00,
+            0xB9, 0xE6, 0x09, 0x86, 0x41, 0x74, 0x55, 0x86, 0x41, 0x74, 0x4C, 0x4B,
+            0x26, 0xE5, 0x09, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x03, 0x10, 0x00, 0x00,
+            0x4C, 0x4B, 0x3A, 0xE8, 0x09, 0x54, 0x02, 0x29, 0xE8, 0x09,
+            0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x03,
+            0x4D,
+        ];
+        /// `Der::~Der() {}` at the workload's own flags — the empty destructor
+        /// that delegates to `??1Base`, `0xE409`.
+        const DTOR: &[u8] = &[
+            0x53, 0x53, 0x26, 0xF0, 0x09, 0xB9, 0xFC, 0x09, 0xA6, 0x43, 0x81, 0x20,
+            0x99, 0x86, 0x43, 0x8A, 0x20, 0x00, 0x46, 0x4C, 0x4F, 0x11, 0x53,
+            0x33, 0x86, 0x41, 0x74, 0x00, 0x26, 0xE4, 0x09,
+            0x33, 0x86, 0x41, 0x74, 0x80, 0x41, 0x08, 0x00, 0x00,
+            0x40, 0x86, 0x43, 0x8E, 0x20, 0x66, 0x02, 0x80, 0x20, 0x82, 0x20,
+            0x55, 0x86, 0x41, 0x74, 0x33, 0x86, 0x41, 0x74, 0x00, 0x55, 0x86, 0x41, 0x74,
+            0xB9, 0xFC, 0x09, 0xA6, 0x43, 0x81, 0x20, 0x55, 0xA6, 0x43, 0x81, 0x20, 0x4C,
+            0x2C, 0xA6, 0x43, 0x84, 0x20, 0x00, 0x99, 0x86, 0x43, 0x85, 0x20, 0x00,
+            0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x05, 0x10, 0x00, 0x00, 0x4C,
+            0x5C, 0x86, 0x41, 0x74, 0x01, 0x4B,
+            0x3A, 0xFD, 0x09, 0x54, 0x02, 0x29, 0xFD, 0x09, 0x5E, 0x01, 0x21, 0x4B,
+            0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+        ];
+        /// `void f(){ g(); }` — the bare void tail call, callee `0xE309`.
+        const VOIDCALL: &[u8] = &[
+            0x53, 0x53, 0x26, 0xE4, 0x09, 0x46, 0x4C, 0x4F, 0x11, 0x53,
+            0x26, 0xE3, 0x09, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00,
+            0x4C, 0x4B, 0x3A, 0xE5, 0x09, 0x54, 0x02, 0x29, 0xE5, 0x09,
+            0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x07,
+            0x4D,
+        ];
+
+        const K_FRAMED: &str = "callee-unresolved-framed-call:eof";
+        const K_SEQ: &str = "callee-unresolved-call-sequence:eof";
+        const K_DTOR: &str = "callee-unresolved-dtor-delegation:eof";
+        const K_TAIL: &str = "callee-unresolved-tail-call:eof";
+
+        /// One row per **raise site**: the transcript that reaches it, a `.gl`
+        /// that names every callee it pushes, the index of the ONE byte that
+        /// un-names the first callee, the in-class label the resolved cell
+        /// reports, and the family key the unresolved cell must take.
+        struct Arm {
+            cell: &'static str,
+            site: &'static str,
+            seg: &'static [u8],
+            gl_resolved: fn() -> Vec<u8>,
+            /// Index into `gl_resolved()` of the callee token's high byte.
+            token_byte: usize,
+            in_class: &'static str,
+            family_key: &'static str,
+        }
+
+        fn gl_framed() -> Vec<u8> {
+            sym_rec([0xE4, 0x09], "?g@@YAHH@Z")
+        }
+        fn gl_seq() -> Vec<u8> {
+            let mut g = sym_rec([0xE4, 0x09], "?g1@@YAXH@Z");
+            g.extend(sym_rec([0xE5, 0x09], "?g2@@YAXXZ"));
+            g
+        }
+        fn gl_dtor() -> Vec<u8> {
+            sym_rec([0xE4, 0x09], "??1Base@@QAA@XZ")
+        }
+        fn gl_voidcall() -> Vec<u8> {
+            sym_rec([0xE3, 0x09], "?g0@@YAXXZ")
+        }
+
+        /// The four sites, in the source order of the arms they pin.
+        const ARMS: &[Arm] = &[
+            Arm { cell: "F", site: "census.rs:1308 `\"framed-call\" =>`",
+                  seg: FRAMED, gl_resolved: gl_framed, token_byte: 1,
+                  in_class: "framed-call", family_key: K_FRAMED },
+            Arm { cell: "Q", site: "census.rs:1310 `l if l.starts_with(\"call-sequence\") =>`",
+                  seg: SEQ, gl_resolved: gl_seq, token_byte: 1,
+                  in_class: "call-sequence", family_key: K_SEQ },
+            Arm { cell: "E", site: "census.rs:1313 `l if l.starts_with(\"empty-dtor\") =>`",
+                  seg: DTOR, gl_resolved: gl_dtor, token_byte: 1,
+                  in_class: "empty-dtor-delegation", family_key: K_DTOR },
+            Arm { cell: "V", site: "census.rs:1315 `_ =>` (the DEFAULT arm)",
+                  seg: VOIDCALL, gl_resolved: gl_voidcall, token_byte: 1,
+                  in_class: "void-tail-call", family_key: K_TAIL },
+        ];
+
+        /// The `.gl` of `arm`, with the first callee's token changed in **exactly
+        /// one byte**, so a record of the same length still exists and binds a
+        /// token the body never pushes.
+        fn gl_unresolved(arm: &Arm) -> Vec<u8> {
+            let mut g = (arm.gl_resolved)();
+            g[arm.token_byte] ^= 0x05;
+            g
+        }
+
+        /// **The site-witness table: every raise site of the family, by the input
+        /// that reaches it, asserted on the published key string.**
+        ///
+        /// This is the test the census's `CS5`–`CS8` mutations have to fail. Each
+        /// row swaps *one* arm's key; each row of this table pins *one* arm; so a
+        /// swap anywhere in the `match` fails here by construction rather than
+        /// incidentally.
+        #[test]
+        fn every_raise_site_of_the_callee_unresolved_family_has_its_own_witness() {
+            let mut seen: Vec<String> = Vec::new();
+            for arm in ARMS {
+                let got = key_of(
+                    &format!("{} (unresolved callee)", arm.cell),
+                    &wrap(arm.seg),
+                    gl_unresolved(arm),
+                );
+                assert_eq!(
+                    got, arm.family_key,
+                    "cell {}: the body parses as `{}` and its callee has no `.gl` \
+                     name, so the census must file it under `{}` — the key raised \
+                     at {}. Got `{got}`. A different key here means that arm now \
+                     publishes a sibling's key, which is exactly the swap \
+                     `w-mutcensus` measured GREEN on all four of these sites",
+                    arm.cell, arm.in_class, arm.family_key, arm.site
+                );
+                seen.push(got);
+            }
+            assert_eq!(
+                seen.len(),
+                4,
+                "4 raise sites enumerated, {} witnessed — a table that shrank \
+                 stops guarding the sites it dropped",
+                seen.len()
+            );
+            let distinct: std::collections::BTreeSet<&str> =
+                seen.iter().map(String::as_str).collect();
+            assert_eq!(
+                distinct.len(),
+                4,
+                "the four arms must publish four DISTINCT keys; got {} — \
+                 {distinct:?}. A collapse makes every equality above satisfiable \
+                 by one key and the table vacuous",
+                distinct.len()
+            );
+        }
+
+        /// **Each cell is a discrimination the callee's name alone moves, and the
+        /// two `.gl` differ in exactly ONE byte.**
+        ///
+        /// `w-guards`' standard: state the minimal difference between adjacent
+        /// cells and *assert* it rather than trusting it. Without the resolved
+        /// half, a refusal is consistent with the arm refusing its whole input and
+        /// the table above would be a constant rather than a discrimination.
+        #[test]
+        fn each_callee_unresolved_cell_is_moved_by_one_gl_byte_and_nothing_else() {
+            for arm in ARMS {
+                let resolved = (arm.gl_resolved)();
+                let unresolved = gl_unresolved(arm);
+                assert_eq!(
+                    resolved.len(),
+                    unresolved.len(),
+                    "cell {}: the two `.gl` must be the same LENGTH or something \
+                     other than the callee's token differs",
+                    arm.cell
+                );
+                let diffs = resolved
+                    .iter()
+                    .zip(unresolved.iter())
+                    .filter(|(a, b)| a != b)
+                    .count();
+                assert_eq!(
+                    diffs, 1,
+                    "cell {}: the two `.gl` must differ in exactly ONE byte (the \
+                     callee token's high byte); they differ in {diffs}. A pair \
+                     that varies more than the thing under test does not locate \
+                     the clause",
+                    arm.cell
+                );
+
+                let in_class = key_of(
+                    &format!("{} (callee NAMED)", arm.cell),
+                    &wrap(arm.seg),
+                    resolved,
+                );
+                assert_eq!(
+                    in_class, arm.in_class,
+                    "cell {} positive control: with the callee named, the SAME \
+                     bytes must report the in-class shape label `{}`. Got \
+                     `{in_class}`. If this is not in class the cell is refusing \
+                     its whole input and its refusal above proves nothing about \
+                     {}",
+                    arm.cell, arm.in_class, arm.site
+                );
+                let refused = key_of(
+                    &format!("{} (callee UNRESOLVED)", arm.cell),
+                    &wrap(arm.seg),
+                    gl_unresolved(arm),
+                );
+                assert_eq!(
+                    refused, arm.family_key,
+                    "cell {}: one `.gl` byte later, the same bytes must key \
+                     `{}`. Got `{refused}`",
+                    arm.cell, arm.family_key
+                );
+            }
+        }
+
+        /// **The default arm is a CATCH-ALL, and one witness cannot say so.**
+        ///
+        /// `census.rs:1315` is `_ =>`. A single cell reaching
+        /// `callee-unresolved-tail-call` is equally consistent with the arm having
+        /// been rewritten to match that cell's own label. Two cells whose
+        /// **in-class labels differ** — `void-tail-call` and `multiarg-tail-call`
+        /// — reaching one key is the statement that the arm is the fallthrough.
+        ///
+        /// This is the site `w-mutcensus` §4.3 singles out: board **#3209**'s
+        /// `callee-unresolved-tail-call` over **1,296** bodies, *"the single most
+        /// populous refusal key on the 878-TU workload"*, swappable with the
+        /// entire suite staying green.
+        #[test]
+        fn the_default_arm_is_the_catch_all_reached_by_more_than_one_label() {
+            let void_arm = &ARMS[3];
+            let by_void = key_of("V (void tail call)", &wrap(VOIDCALL), gl_unresolved(void_arm));
+            let by_multiarg = key_of("M (`w-guards`' cell C)", DYNINIT, gl_named(0x02));
+
+            assert_eq!(
+                by_void, K_TAIL,
+                "the void-tail-call label falls through to `census.rs:1315`'s \
+                 `_ =>` and must key `{K_TAIL}`. Got `{by_void}`"
+            );
+            assert_eq!(
+                by_multiarg, K_TAIL,
+                "and so must a SECOND, differently-labelled body — `w-guards`' \
+                 cell C, a `multiarg-tail-call`. Got `{by_multiarg}`. Two labels \
+                 reaching one key is what makes `_ =>` a catch-all rather than an \
+                 arm keyed on one label"
+            );
+
+            // …and the two really are different labels, checked from the census
+            // itself rather than asserted in prose: naming each cell's callee
+            // moves it to its own in-class label.
+            let void_label = key_of("V (callee NAMED)", &wrap(VOIDCALL), gl_voidcall());
+            assert_eq!(void_label, "void-tail-call");
+            assert_ne!(
+                void_label, "multiarg-tail-call",
+                "the two default-arm witnesses must carry DIFFERENT labels, or \
+                 they are one witness written twice"
+            );
+        }
+    }
+
 }
