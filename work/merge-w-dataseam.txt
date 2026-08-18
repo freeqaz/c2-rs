@@ -2,34 +2,111 @@ merge note — w-dataseam
 =======================
 
 Branch:   w-dataseam  (worktree .claude/worktrees/wt-w-dataseam)
-Base:     master 44794fa4
+Base:     master 31766e74 (REBASED; branch cut at 44794fa4)
 Kind:     construct
 Outcome:  DECLINED
 Rung:     docs/rungs/2026-08-18-dataseam.md
 Prereg:   docs/rungs/_2026-08-18-w-dataseam-prereg.md  (frozen at 682ae2a5,
           the branch's FIRST commit, before any probe)
-Board:    #3234-#3238, by coordinator allocation (the pointer was not consulted)
+Board:    #3234-#3238, by coordinator allocation (the pointer was not consulted),
+          PLUS one row drafted UNNUMBERED -- the block is exhausted and the
+          next-free pointer may not be read. Assign it at the funnel.
 
 WHAT LANDS
 ----------
 Documentation only.
 
-    git diff --stat 44794fa4..HEAD -- crates/     ->  EMPTY
-    git diff --stat 44794fa4..HEAD -- fixtures/   ->  EMPTY
-    git diff --stat 44794fa4..HEAD -- scripts/    ->  EMPTY
+    git diff --stat 31766e74..HEAD -- crates/     ->  EMPTY
+    git diff --stat 31766e74..HEAD -- fixtures/   ->  EMPTY
+    git diff --stat 31766e74..HEAD -- scripts/    ->  EMPTY
 
-Seven commits:
-    682ae2a5  prereg (first commit, before any probe)
-    bc79c27e  the C2RS_DATASEAM probe scaffold        <- reverted
-    586df41e  the revert
-    1a3db636  rung doc + BOARD #3234-#3238 + INDEX.md (generated)
-    876ca047  this note
-    fa8285ee  denominator correction (both denominators stated)
-    42b83a3f  the gate evidence
+Nine commits (post-rebase ids):
+    a8251c0d  prereg (first commit, before any probe)
+    28b7430e  the C2RS_DATASEAM probe scaffold        <- reverted
+    7c044513  the revert
+    f713ba1d  rung doc + BOARD #3234-#3238 + INDEX.md (generated)
+    cf2e8f78  this note
+    7da614fe  denominator correction (both denominators stated)
+    bce8290a  the gate evidence
+    842ac5c5  merge-note commit-list fix
+    0b016a39  board #3249 -- bracketed re-measurement, attribution withdrawn
+    (+ the final rebase/coordinator-response commit)
+
+REBASE: onto 31766e74, one conflict, in docs/BOARD.md only -- master's #3249
+row and this lane's block both append at the end of the file. Resolved by
+keeping BOTH, #3249 first (it landed first). docs/rungs/INDEX.md did NOT
+conflict and `scripts/gen_rung_index.sh` produces no diff, so it is generated
+and current rather than hand-merged.
 
 The scaffold is deliberately kept in history and reverted rather than squashed
 away: the counterfactual ladder is the deliverable and the code that produced it
 is how anyone re-runs it.
+
+THE FOUR THINGS TO CARRY, IN ORDER
+----------------------------------
+
+1. THE RULE'S POWER IS THE HEADLINE, NOT THE DECLINE.
+   The lifted predicate refuses a population that is 64.6% WRONG against a 6.5%
+   corpus base rate -- ~10x enrichment -- and removes 91.7% OF EVERY REMAINING
+   WRONG BODY IN THE PORT (fnbyte-differs 1,958 -> 162). No predicate measured
+   in this repo has ever accounted for that share. THAT is the phase Option A
+   needs.
+   THE FINDING IS THAT THE RULE IS TWO-TERM AND THE REPO OWNS ONE TERM.
+   THE MISSING TERM IS THE DELIVERABLE: c2's inline SIZE axis, read
+   pre-emission off the callee's .ex IL segment length. Measured shape: a
+   zero-cost region whose lower end is pinned by a WITNESS (cuts <= 176 exempt
+   ?MakeString@@YAPBDPBD@Z and un-fence ?ContentPath@XboxContentMgr@@UAAPBDH@Z,
+   the exact body w-fence163 exists for, so MakeString's segment is in
+   (176,180]), and inside which cost is EXACTLY 0 through cut 228 while up to
+   1,189 wrong bodies leave the accepted set. What the repo has for the other
+   term -- INLINE_DECLINE_BYTES 128, INLINE_DECLINE_LOOP_BYTES 80 -- are tops of
+   MEASURED obj-grid brackets in EMITTED bytes. This one is in IL bytes and is
+   NOT measured. That gap is the next lane.
+
+2. REALIZED REACH 2,875 BODIES AGAINST A BLOCKER ROW READING 1 -- OFF BY 2,875x,
+   AND IN THE OPPOSITE DIRECTION FROM THIS REPO'S STANDING RESULT.
+   The standing result is that first-blocker rows run ~9x OPTIMISTIC
+   (w-section's 1,457-bound realized 163). callee-defined-in-tu:eof reads 1 and
+   the lift's realized reach is 2,875 -- 2,875x PESSIMISTIC.
+   THE MECHANISM GENERALIZES AND IS THE POINT: a first-blocker histogram counts
+   a clause only where nothing EARLIER fired, so a clause placed LAST in the
+   chain is structurally invisible in it. Clause (c) is the last post-parse
+   gate; its row reads 1 out of 2.4 million.
+   STANDING CONSEQUENCE: nobody should price a TERMINAL clause from its blocker
+   row IN EITHER DIRECTION. "Do not estimate reach from a blocker row" is not
+   only about over-optimism.
+
+3. SECTION 8.1 ITEM 4 IS WORTH MINUS ONE, AND THE SPECIFICATION WAS IN MY BRIEF.
+   Clause (c)'s entire workload-wide reach is ONE body and that body is WRONG.
+   The liveness control paycall (clause (c) retired outright) moves
+   fnbyte-exact by 0 and fnbyte-differs 1,958 -> 1,959. There is NO
+   configuration of clause (c) that adds a byte-exact body to the census.
+   Item 4 was handed to this lane VERBATIM in its dispatch ("pay it together
+   with clause (c)"), so a lane that had simply executed the brief would have
+   spent a rung paying a co-payment worth minus one.
+   RECORDED AGAINST THE DISPATCH, in the w-guards/#3215 pattern pointed the
+   other way: A DISPATCHED INSTRUCTION IS A PREDICTION AND SHOULD BE SCORED LIKE
+   ONE, INCLUDING WHEN THE COORDINATOR WROTE IT. (rung 12.6, board #3235)
+
+4. #3237 BEARS ON A CLAIM ALREADY MERGED -- AND DOES NOT OVERTURN THE +163.
+   w-fence163's acceptance evidence is "fnbyte-differs 1,958 -> 1,958, identical
+   PER SYMBOL, 0 new / 0 gone". That comparator reports 3-5 NEW wrong bodies
+   from a change that ONLY REFUSES -- Bindings::positional relabellings (#918;
+   the scan prints fnbyte-name-disagree 74,457 and nobody read it). Name-stable
+   key: 0 new, for every variant.
+   THE +163 STILL STANDS, on two independent grounds: its attribution was
+   LADDERED across four rungs of which TWO moved the graded column by exactly
+   zero, which is evidence the comparator plays no part in; and its admitted set
+   moved by 163 of 162,046, so the population was nearly fixed, which is when a
+   population-unstable comparator is least likely to mislead.
+   WHAT IS NOT SOUND IS THE COMPARATOR AS A STANDING ACCEPTANCE TEST. HERE IT
+   FAILED LOUD; THE SAME INSTABILITY IS SILENT IN THE OTHER DIRECTION -- a
+   genuinely new wrong body relabelled onto a name already in the base set reads
+   as "0 new" and is invisible. It should not be used again, by any lane or by
+   STATUS's warranty prose, until it is keyed name-stably (per-TU multiset of
+   (shape, port_words, ref_words, sub, ins, del), or a .gl per-record name
+   instead of Bindings::positional). A standing test that can be silently wrong
+   is worse than no test, because it is quoted as warranty. (rung 9, 9.1)
 
 THE BINARY QUESTION, IN ONE SENTENCE
 -----------------------------------
@@ -266,8 +343,12 @@ VERIFICATION
     rebased onto 31766e74 and needs no edit. board_audit.sh returned 0 for
     "CITED BUT NOT ON THE BOARD" anyway, because it scans ROADMAP.md for
     citations and not BOARD.md's own prose or docs/rungs/ -- so this is a real
-    blind spot in the audit, reported here and NOT worked around. RE-RUN
-    board_audit.sh AFTER THE REBASE to confirm it resolves.
+    blind spot in the audit, reported here and NOT worked around.
+    RE-RUN AFTER THE REBASE: DONE -- see the audit line below, re-run on
+    31766e74 where #3249 has a row. It is now its own DRAFTED, UNNUMBERED board
+    row in this lane's block (the block #3234-#3238 is exhausted, and
+    docs/rungs/README.md forbids reading the next-free pointer while peers are
+    in flight) plus rung 12.5. ASSIGN IT A NUMBER AT THE FUNNEL.
   rung_registry                   2 passed / 0 failed
   878-TU workload scan            match 26 / mismatch 0 / codegen-gap 0 in ALL
                                   40 counterfactual builds
