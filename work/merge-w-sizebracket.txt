@@ -43,6 +43,16 @@ WHAT IT FOUND — the axis is located, and then refuted
    routinely carries 224-319 bytes of IL — 750 such edges — and 3,036 named
    witnesses are printed, e.g. `??1?$_List_base@…` at il=223 ref=4.
 
+   SCOPING, STATED RATHER THAN SMUGGLED: GRID-S grades every IL call edge to a
+   defined-here callee — GRID-W's population. `w-dataseam`'s rule fires on a
+   SUBSET (it also requires `∉ tu_modelled_callees` and `≠ eh-state1`; realized
+   reach 2,875 bodies). So 39.6% is the cut's error rate AS A SIZE AXIS, not
+   necessarily inside the fence's own conjunction. Unaffected by that: the
+   mechanism (IL that folds away) is unconditional and demonstrated on
+   constructed source; the DIRECTION is 3,036 of 3,037 and a conjunction can
+   only remove edges, never flip a verdict; and the two units are compared on
+   IDENTICAL edges.
+
 4. `/Ox` DOES NOT MOVE THE BOUNDARY, IT CHANGES WHICH UNIT SEPARATES. At `/O1`
    the emitted `.text` separates at (108, 116] — inside `WB_INLINE_FINDINGS`
    F2's (100,116] and sharing its top, an independent reproduction. At `/Ox` a

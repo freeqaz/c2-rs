@@ -328,6 +328,29 @@ against c2's own verdict:
 fifths of the call edges c2 graded, and 99.9 % of the errors are in the unsound
 direction** — asserting that c2 kept a call it in fact inlined. Board **#3271**.
 
+> ### ⚠ The POPULATION is a SUPERSET of the rule's own reach, and the rate is stated against it rather than smuggled
+>
+> GRID-S grades **every IL call edge to a callee this TU defines** — GRID-W's
+> population, `TuContext::mentions`. `w-dataseam`'s rule fires on a **subset**:
+> it also requires `∉ tu_modelled_callees` and `cflow_key ≠ eh-state1`, and its
+> realized reach was **2,875 bodies**. So **39.6 % is the error rate of the cut
+> as a size axis, not necessarily its error rate inside the fence's own
+> conjunction.** Measuring the latter needs the conjunction re-expressed
+> per-edge, which this lane did not build.
+>
+> **Three things are unaffected by the scoping and they are the load-bearing
+> ones.** (a) The *mechanism* — IL that folds away — is unconditional, and §4.1's
+> matched pair and §4.2's 34 counterexamples are constructed source files that no
+> population argument can reach. (b) The *direction*: 3,036 of 3,037 errors at
+> cut 180 are the unsound one, and a conjunction can only remove edges, never
+> flip a verdict. (c) The comparison between the two units is on **identical**
+> edges, so *"the emitted axis has 0 `inlined` above 95 B and the IL axis has
+> 1,607 errors at its best cut"* is a like-for-like statement whatever the
+> denominator.
+>
+> Registered bias #3 (*"reading a null as a negative result"*) pointed at the
+> other direction; this is the same discipline applied to a positive one.
+
 ### 5.3 Why the IL unit fails, in one cell of the joint table
 
 The joint `(emitted band, IL band)` cell says it without interpretation:
