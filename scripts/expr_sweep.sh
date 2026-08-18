@@ -205,7 +205,25 @@ if ! mkdir "$_clock" 2>/dev/null; then
 fi
 [ "$_clock_held" -eq 1 ] && trap 'rmdir "$_lock" 2>/dev/null || true; rmdir "$_clock" 2>/dev/null || true' EXIT INT TERM
 
-rm -f "$cases"/*.cpp "$out"/*.cpp "$out"/cases.txt 2>/dev/null || true
+# ---- NEVER GLOB THE CASE DIRECTORY --------------------------------------------
+#
+# `rm -f "$cases"/*.cpp` and `ls "$cases"/*.cpp` expand to 19,556 arguments. Under
+# the gate's old per-run `/tmp/c2rs-gate-$$/sweep` that is ~665 KB of argv and
+# fits; from a worktree's `.claude/worktrees/<lane>/work/expr-sweep/cases` each
+# path is ~90 bytes and the same expansion is ~1.8 MB, which is over `ARG_MAX`.
+# **This is not hypothetical and it is not only this file's problem**: on the
+# very first run of this lane's stable case dir the glob produced
+# `/usr/bin/ls: Argument list too long`, and `scripts/mode_cross.sh` — whose case
+# dir has been in a worktree since it was written — has been silently reporting
+# `cross of 0 cases` in its own header line for exactly this reason, an `ls` that
+# failed with `wc -l` reading the empty output as a number. The vacuity guard
+# caught it here; nothing caught it there, because the number was only printed.
+#
+# So: `find -maxdepth 1` for both, never a glob. (`-maxdepth` is mandatory in
+# this repo near anything cache-shaped; here it is also what keeps the walk to
+# the one directory that was asked about.)
+find "$cases" -maxdepth 1 -name '*.cpp' -delete 2>/dev/null || true
+rm -f "$out"/cases.txt 2>/dev/null || true
 
 # Build unconditionally and run a RUN-PRIVATE COPY of the binary — never
 # `target/release/c2rs` directly. `scripts/harness_bin.sh` has the two failures
@@ -223,7 +241,7 @@ c2rs="$C2RS_PINNED"
 
 python3 "$repo_root/scripts/sweep_gen.py" "$cases" "$repo_root/scripts/sweep.d"
 
-ls "$cases"/*.cpp | sort > "$out/cases.txt"
+find "$cases" -maxdepth 1 -name '*.cpp' | sort > "$out/cases.txt"
 total=$(wc -l < "$out/cases.txt")
 stride=1
 if [ "$limit" -gt 0 ] 2>/dev/null && [ "$limit" -lt "$total" ]; then
