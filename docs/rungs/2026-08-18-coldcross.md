@@ -331,6 +331,7 @@ they are identical everywhere.
 | `scripts/gate.sh --jobs 16 --require-graded`, **tip, warm** | **PASS, exit 0, 133 s**, load 30→38. sweep 50 (`hit=19460 miss=96 validated=190 cache-bad=0`) · cross 53 (`hit=90424 miss=388 validated=894 cache-bad=0`) · both `corpus: SHARED` |
 | **`scripts/gate.sh --jobs 16 --require-graded` in a BRAND-NEW WORKTREE, its FIRST run** | **PASS, exit 0, 157 s**, load 26→86. sweep **40 s, `hit=19460 miss=96`** · cross **54 s, `hit=90424 miss=388`** — **fully warm on a tree that had never compiled a case** |
 | **verdict block identity** | the **25-row** block is **byte-identical** across all three: base (cold, pre-change) `diff` tip (warm) `diff` brand-new worktree. `18/18 PASS`, 6,948 fixture-verdicts, sweep `19556/19556 · 19460 graded · 0 mismatch`, cross `90812/90812 · 90424 graded · 0 mismatch` |
+| `scripts/gate.sh --jobs 16 --require-graded`, **at the final tip `d6ea788b`** | **PASS, exit 0, 96 s**, load 7→22 — same 25-row block, `cache-bad=0` on both rows, both `corpus: SHARED` |
 | `scripts/gate.sh --selftest` | **PASS — 183 cases, 0 failed** (floor raised 170 → 183) |
 | the injected wrong emit | **exit 1 in 94 s**, §7 |
 | `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **1,666 passed / 0 failed / 45 targets**, exit 0 — master `abc64be3`'s own reading, unmoved |
@@ -466,8 +467,23 @@ cases for the clean / poisoned / cold / absent states, reddens the cross on
 
 Measured at the tip, warm: `cache: hit=90424 miss=388 validated=894
 cache-bad=0 (of 90812 cells)`. **`hit + miss` = `graded + ungraded` exactly**,
-the same identity the sweep's line has, and **894 real re-captures through
-`cl.exe` under wibo** cost nothing readable next to the row's 53 s. The
+the same identity the sweep's line has.
+
+**And it is nearly free, A/B'd back to back in one session at one load rather
+than across runs**, `--jobs 16`, four runs alternating, every one printing
+`hit=90424 miss=388 cache-bad=0`:
+
+| `C2RS_CROSS_VALIDATE` | wall | validated |
+|---:|---:|---:|
+| 0 | **29 s** | 0 |
+| 100 | **32 s** | **894** |
+| 0 | **29 s** | 0 |
+| 100 | **31 s** | **894** |
+
+**894 real `cl.exe`-under-wibo re-captures for 2–3 s**, ~9 % of the leg, because
+they ride on `gap`'s own `--jobs`. (The 29 s here also reproduces
+`w-gateperf` §13.1's warm cross to the second, which is the check that this
+lane's own warm figures are comparable to that lane's at all.) The
 `--validate-cache` trap `w-gateperf` documented does **not** apply here and the
 difference is worth stating: `c2rs diff` performs exactly one capture per
 process, so an in-process `--validate-cache N` tests `1 % N` and validates
