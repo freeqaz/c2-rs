@@ -1,0 +1,11 @@
+=== T2: gate ===
+gate exit=0 wall=116s
+=== T2: 878-TU scan ===
+scan exit=0 wall=6s
+gate lane rows: 23
+gap-metric keys (anchored): 394
+  match            26    3.0%
+  mismatch          0    0.0%
+    gap-metric fnbyte-exact 35899
+    gap-metric fnbyte-differs 1958
+    gap-metric fnbyte-refused-parse 113447
