@@ -659,10 +659,20 @@ wrapping overflow can execute, and it reports **0 panics on 18 of 18 lanes**.
 
 `crates/`, `fixtures/` and `scripts/` are byte-identical to `abc64be3`, so the
 identity is against **master itself** and every count above is master's own.
-**Range length asserted**: `git rev-list --count abc64be3..HEAD` = **11**
-(prereg · instruments · whitebox · board · rung · corrections · the rebase
-follow-ups), and `git diff --name-only abc64be3..HEAD | grep -vE '^(docs/|work/)'`
-is **empty** — every file this lane touched is under `docs/` or `work/`.
+**Range asserted, and the literal count deliberately is NOT.** The checkable
+statement is `git diff --name-only abc64be3..HEAD | grep -vE '^(docs/|work/)'`
+→ **empty**: every commit in `abc64be3..HEAD` is this lane's, and every file any
+of them touches is under `docs/` or `work/`. That is the property the identity
+diff needs, and it is stable.
+
+`git rev-list --count abc64be3..HEAD` is **self-referential** — the commit that
+records the number changes it — and this rung published it wrong **twice**
+before saying so. A quoted commit count is only meaningful pinned to a named
+sha, which the funnel has and a branch tip does not. Recorded rather than
+patched a third time, because it is the same shape as `ref/README.md` §4's
+*"writing prose that names an address adds a row"*: **an instrument that counts
+a set its own output belongs to has no fixed point**, and the fix is to assert
+the invariant instead of the cardinal.
 
 | figure | `w-dataseam` tip (at `44794fa4`) | this lane (at `1744ced1` **and** at the rebased tip on `abc64be3` — the gate was run at both) | reading |
 |---|---|---|---|
