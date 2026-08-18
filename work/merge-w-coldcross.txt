@@ -1,9 +1,52 @@
-merge w-coldcross: THE LOCK THAT MADE SHARED CASE DIRECTORIES LOOK EXPENSIVE PROTECTS A 0.65-SECOND REGENERATION AND IS HELD FOR THE WHOLE RUN — a brand-new worktree's FIRST gate is now 157 s against 510 s, with a byte-identical 25-row verdict block
+merge w-coldcross: THE MODE CROSS HAS READ THE CAPTURE CACHE UNCHECKED SINCE 2026-08-04 AND NEITHER GENERATED ROW EVER VERIFIED ITS CORPUS — both closed, and the shared corpus that forced the question takes a brand-new worktree's FIRST gate from 510 s to 157 s
 
 Outcome: built. Kind: construct. Census +0 —
-`git diff abc64be3..HEAD -- crates/ fixtures/` is EMPTY and the release
+`git diff de269b644..HEAD -- crates/ fixtures/` is EMPTY and the release
 binary hashes to `ee52fa6f78c4` at both ends, the value it had at this
 lane's first commit.
+
+TWO GATE-VOIDS, AHEAD OF THE SPEEDUP, BECAUSE THEY OUTRANK IT
+--------------------------------------------------------------
+**1. The mode cross has consulted `work/capture-cache` since 2026-08-04
+and has never checked it.** `w-gateperf` gave the SWEEP a bypass-and-
+compare validator the day that row acquired the same dependency, and made
+poisoned/foreign a hard red; the cross never got one, and
+`gate.sh --selftest` carries an explicit *"an ABSENT cache line is not a
+zero and not a failure"* case that exists **precisely because this row
+printed none**. That was survivable while a fresh worktree's cross was
+~100 % misses. **It is not survivable at the ~100 % hits this lane
+creates** — so the hazard this lane's own optimization would have
+introduced is closed in the same lane. Each of the 18 `c2rs gap` batches
+now runs `--validate-cache` (**894 real re-captures per run**) and the
+driver prints `cache:` in `expr_sweep.sh`'s **exact spelling**, so
+`gate.sh`'s existing `sweep_verdict` reddens the cross on `cache-bad>0`
+**with no change to the decision path at all**. A/B'd back to back in one
+session, four alternating runs, all printing `hit=90424 miss=388
+cache-bad=0`: **validate=0 reads 29 s twice, validate=100 reads 32 s and
+31 s** — 894 re-captures for 2-3 s, ~9 % of the leg.
+
+**2. Neither generated row has ever verified its corpus.** Both
+regenerate 19,556 cases every run and grade them with no check beyond
+`count > 0`. Each run now still generates its own private corpus and
+adopts a shared generation **only if `diff -rq` finds all 19,556 files
+byte-identical** — 1.2 s including the generation.
+
+**And that is the second instance in two days, in the same two files, of
+a CORPUS-SIZED QUANTITY TRUSTED ON A COUNT — where the first fix is what
+made the second visible.** #3264 found `ls | wc -l` blowing ARG_MAX and
+`cross of 0 cases` sitting in a gate row's headline; `w-gateperf`
+replaced it with a *positively checked* `total_cases -eq 0`, which is
+strictly better and **is still a count**. A count cannot see a corpus
+short by one case, long by one, or **one byte different at the same name
+and the same count** — and the third is the only one that would silently
+change what the gate grades. **When the thing being checked is a corpus,
+the check has to be corpus-shaped.** It costs 1.2 s, which is the whole
+reason the weaker check survived: nobody had priced the stronger one.
+
+`gate.sh --selftest` 170 -> **183 cases, 0 failed**. Ten of the thirteen
+new arms construct a WRONG shared generation — short, long, one byte
+tampered at the same name and count, unwritable root, ungenerable tree —
+and require a REFUSAL and a cold private fallback.
 
 THE QUESTION, AND THE MEASUREMENT
 ---------------------------------
@@ -99,25 +142,6 @@ while **1,084 entries were re-captured through the real toolchain during
 that same run and agreed**. The four /Od lanes stayed PASS — the response
 is shape-dependent, not a blanket red.
 
-COVERAGE WENT UP, NOT DOWN — TWO PLACES
-----------------------------------------
-1. The corpus byte compare above, which did not exist.
-2. **The mode cross has consulted `work/capture-cache` since 2026-08-04
-   and never checked it.** `w-gateperf` gave the SWEEP a bypass-and-
-   compare sample the day that row acquired the dependency; the cross
-   never got one, and `gate.sh --selftest` carries an "an ABSENT cache
-   line is not a zero" case that exists precisely because this row printed
-   none. Tolerable at ~100 % misses; not tolerable now that this lane
-   takes it to ~100 % hits. It now runs `--validate-cache` (894
-   re-captures per run) and prints `cache:` in `expr_sweep.sh`'s exact
-   spelling, so `gate.sh`'s existing `sweep_verdict` reddens it on
-   `cache-bad>0` with NO change to the decision logic.
-
-`gate.sh --selftest` 170 -> **183 cases, 0 failed**. Ten of the thirteen
-new arms construct a WRONG shared generation — short by one case, long by
-one, tampered by one byte at the same name and count, unwritable root,
-ungenerable tree — and require a REFUSAL and a cold private fallback.
-
 WHAT BOUNDS THE NEW STATE
 -------------------------
 One directory per distinct corpus content, 12 MB apparent / 83 MB
@@ -129,11 +153,30 @@ order 770 MB. A repeat corpus now mints none of them. A generation is
 safe to `rm -rf` at any time: the worst case is one loud, cold, correct
 run that regenerates it in 0.65 s.
 
+WHAT THE IDENTITY DIFF ESTABLISHES, AND WHAT IT DOES NOT
+---------------------------------------------------------
+`docs/rungs/README.md` gained a section mid-lane (de269b644) naming the
+exact evidence this rung leans on: *"a required-zero identity diff [is]
+compatible with a rule that is wrong about c2 four times in ten."* It
+applies. The 25-row byte-identical block establishes **reach** — the same
+19,556 cases reached the same 18 lanes for the same 90,424 graded cells —
+and reach is what a faster gate has to hold constant. It establishes
+**nothing** about whether the gate can still SEE a wrong emit through a
+shared, cached oracle: a run that had quietly stopped grading would print
+an identical block if it also stopped counting. **That question is
+answered by the injection and only by the injection.** The identity diff
+is the coverage claim; the injection is the correctness claim; this lane
+would have been unsound with either alone.
+
 GATE EVIDENCE (loads labelled; 3-4 peer lanes gated concurrently)
 ------------------------------------------------------------------
+  gate --jobs 16 --require-graded, REBASED onto de269b644
+                                          PASS exit 0, **86 s**, load 11->22
   gate --jobs 16 --require-graded, warm   PASS exit 0, 133 s
   gate, brand-new worktree, FIRST run     PASS exit 0, 157 s
-  verdict block, 25 rows                  BYTE-IDENTICAL at all three points
+  verdict block, 25 rows                  BYTE-IDENTICAL at all FOUR points
+                                          (base cold / tip warm / brand-new
+                                          worktree / rebased tip)
   gate --selftest                         PASS 183 cases, 0 failed
   C2RS_REQUIRE_TOOLCHAIN=1 cargo test     1,666 / 0 / 45, exit 0
   debug_lane.sh                           lanes=18 ran=18 failed=0
@@ -183,5 +226,9 @@ injection and revert commits were cherry-picked back so the negative
 result survives. `git add -f` on a DIRECTORY defeats the one rule
 standing between a scratch tree and the repository.
 
-Board rows #3282–#3286. Rung docs/rungs/2026-08-18-coldcross.md.
-PREREG work/w-coldcross/PREREG.md.
+Board rows #3282–#3286, plus a SIXTH row drafted **UNNUMBERED** — the
+block was exhausted at five and the `git add -f` finding above needs one
+number. Same call `w-gateperf` and `w-dataseam` made one wave earlier.
+
+Rung docs/rungs/2026-08-18-coldcross.md.
+PREREG work/w-coldcross/PREREG.md (frozen at the first commit).

@@ -15,8 +15,11 @@
                EMPTY
     Census:    +0 — `crates/` is byte-identical to base
     Record:    this file; PREREG `work/w-coldcross/PREREG.md` (frozen at
-               `bdf23a2f`, this lane's first commit, before any contention
-               measurement); board rows **`#3282`**–**`#3286`**
+               this lane's first commit, before any contention measurement);
+               board rows **`#3282`**–**`#3286`**, plus a sixth drafted
+               UNNUMBERED (the block was exhausted at five) — see BOARD.md.
+               Rebased onto master `de269b644`; `w-sizebracket` merged mid-lane
+               and moved no graded byte
 
 ## 1. The question, and the answer in one line
 
@@ -316,6 +319,26 @@ The arms drive the **real** `resolve_corpus` against fabricated trees with
 compiler, and no reimplementation, which would only prove the copy agrees with
 itself.
 
+### 7.2 THE PATTERN BEHIND IT — a corpus-sized quantity trusted on a count
+
+This is the **second** instance in two days, in the same two files, and it is
+worth stating as a pattern rather than as two fixes:
+
+| | the quantity | what stood in for checking it | how it failed |
+|---|---|---|---|
+| **#3264** (`w-gateperf`, 2026-08-18) | how many cases the cross is about to grade | `ls "$cases"/*.cpp \| wc -l` | `ls` blew `ARG_MAX`, `wc -l` read the empty output as **0**, and `cross of 0 cases` sat in a gate row's own headline for months |
+| **#3286** (this lane) | **what those cases are** | `[ "$total_cases" -eq 0 ]` — the *positive* check `w-gateperf` added in response to the first | a count cannot see a corpus that is short by one case, long by one, or one byte different at the same name — and the third is the one that would silently change what the gate grades |
+
+**The first fix is what made the second one visible.** `w-gateperf` replaced a
+number-that-could-be-a-failure with a number that is positively checked, which is
+strictly better and is still a *count* — and a count is the wrong shape of
+evidence for a 19,556-file object. Both drivers have regenerated their corpus on
+every run since they were written and neither has ever compared it to anything.
+
+The rule this generalises to: **when the thing being checked is a corpus, the
+check has to be corpus-shaped.** It cost 1.2 s here, which is the whole reason
+the weaker check survived — nobody had priced the stronger one.
+
 ## 8. Gate evidence
 
 **Load on this box ran 0.4 → 86 across the session** — three to four peer lanes
@@ -332,6 +355,7 @@ they are identical everywhere.
 | **`scripts/gate.sh --jobs 16 --require-graded` in a BRAND-NEW WORKTREE, its FIRST run** | **PASS, exit 0, 157 s**, load 26→86. sweep **40 s, `hit=19460 miss=96`** · cross **54 s, `hit=90424 miss=388`** — **fully warm on a tree that had never compiled a case** |
 | **verdict block identity** | the **25-row** block is **byte-identical** across all three: base (cold, pre-change) `diff` tip (warm) `diff` brand-new worktree. `18/18 PASS`, 6,948 fixture-verdicts, sweep `19556/19556 · 19460 graded · 0 mismatch`, cross `90812/90812 · 90424 graded · 0 mismatch` |
 | `scripts/gate.sh --jobs 16 --require-graded`, **at the final tip `d6ea788b`** | **PASS, exit 0, 96 s**, load 7→22 — same 25-row block, `cache-bad=0` on both rows, both `corpus: SHARED` |
+| `scripts/gate.sh --jobs 16 --require-graded`, **REBASED onto master `de269b644`** | **PASS, exit 0, 86 s**, load 11→22 — the 25-row block **byte-identical to the pre-change base** for the fourth time, `cache: hit=19460 miss=96 validated=190 cache-bad=0` and `hit=90424 miss=388 validated=894 cache-bad=0`, both rows `corpus: SHARED`. `git diff abc64be3 de269b644 -- crates/ fixtures/ scripts/` is **empty**, so the rebase moved no graded byte and the figures above carry |
 | `scripts/gate.sh --selftest` | **PASS — 183 cases, 0 failed** (floor raised 170 → 183) |
 | the injected wrong emit | **exit 1 in 94 s**, §7 |
 | `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **1,666 passed / 0 failed / 45 targets**, exit 0 — master `abc64be3`'s own reading, unmoved |
@@ -345,6 +369,41 @@ they are identical everywhere.
 cross-worktree binary sha comparison is made** (#3224); the two sha comparisons
 here are of binaries built at the *same* path, which is that board's own stated
 precondition.
+
+### 8.0 WHAT THE IDENTITY DIFF ESTABLISHES, AND WHAT IT DOES NOT
+
+`docs/rungs/README.md` gained a section on 2026-08-18, after this lane's base and
+while it was running, that names the exact evidence this rung leans on:
+
+> *"A zero-cost sweep, a split-half agreement, and **a required-zero identity
+> diff** are all compatible with a rule that is wrong about c2 four times in
+> ten."*
+
+It applies here and the honest reading is worth writing down, because a
+25-row byte-identical verdict block is a persuasive-looking artefact.
+
+**What the identity diff establishes:** the shared corpus is the *same corpus* —
+the same 19,556 cases reached the same 18 lanes and produced the same 90,424
+graded cells and the same 6,948 fixture-verdicts. That is a statement about
+**reach**, and reach is precisely what this lane had to hold constant, because a
+faster gate that grades *less* is the failure the dispatch names first.
+
+**What it does not establish:** that the gate can still *see* a wrong emit
+through a shared, cached oracle. **Nothing in the identity diff could tell those
+apart** — a run that had quietly stopped grading would produce an identical block
+if it also stopped counting. That question is answered by §7 and only by §7:
+a real fault, injected, reddening both rows through the shared corpus at
+`cache-bad=0`, with 1,084 entries re-captured through the real toolchain agreeing
+in the same run. **The identity diff is the coverage claim; the injection is the
+correctness claim; neither substitutes for the other**, and this lane would have
+been unsound with either one alone.
+
+**And the residue, stated rather than left implicit:** the shared generation is
+verified byte-for-byte against a generation from the reading lane's own tree, so
+the only way both can be wrong together is if `sweep_gen.py` itself is wrong.
+That is out of this lane's scope and unchanged by it — `gate.sh --selftest`'s
+four pre-existing `corpus-*` shape arms are what grade the generator, and they
+are untouched here.
 
 ### 8.1 The scan identity is stronger than a diff, and it is stated as what it is
 
