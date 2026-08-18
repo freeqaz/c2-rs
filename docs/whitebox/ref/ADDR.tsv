@@ -421,13 +421,14 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10b7e6af	func-entry	10b7e6af	106	1	9	main.c	gap	dag	P_DAG.md	unknown	-	28	whitebox/WB_ITEMF_FINDINGS.md:6,rungs/2026-08-15-itemfprice.md:5,BOARD.md:4,whitebox/WB_DAGORDER_FINDINGS.md:3,CEILING.md:2,CFG_SHAPE.md:2
 10b7e719	func-entry	10b7e719	464	4	15	main.c	gap	-	-	medium	il-body-reader: returns the function body record or 0	0	-
 10b7ef55	func-entry	10b7ef55	171	1	11	main.c	gap	-	-	high	compile-one-function: reads the body from the IL and compiles it; called from the walk loop	3	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1,whitebox/WB_REGALLOC_FINDINGS.md:1
-10b7f022	func-entry	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	7	rungs/_2026-08-04-w-mark-findings.md:2,rungs/_2026-08-04-w-mark-prereg.md:2,rungs/_2026-08-04-w-db-findings.md:1,rungs/_2026-08-04-w-skip-findings.md:1,rungs/_2026-08-04-w-skip-prereg.md:1
+10b7f021	in-func	10b7f000	34	1	1	main.c	gap	-	-	unknown	-	1	whitebox/C2_MAP.md:1
+10b7f022	func-entry	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	9	rungs/_2026-08-04-w-mark-findings.md:2,rungs/_2026-08-04-w-mark-prereg.md:2,whitebox/C2_MAP.md:2,rungs/_2026-08-04-w-db-findings.md:1,rungs/_2026-08-04-w-skip-findings.md:1,rungs/_2026-08-04-w-skip-prereg.md:1
 10b7f026	in-func	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	2	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
 10b7f09d	in-func	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	2	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
 10b7f0a2	in-func	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	2	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
 10b7f0b5	in-func	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	4	rungs/_2026-08-04-w-skip-findings.md:2,BOARD.md:1,rungs/_2026-08-04-w-skip-prereg.md:1
 10b7f0d2	in-func	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	4	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1,rungs/_2026-08-04-w-skip-findings.md:1,rungs/_2026-08-04-w-skip-prereg.md:1
-10b7f15f	in-func	10b7f022	477	0	0	main.c	gap	-	-	high	emit-walk: loop over DAT_10c4630c selecting bodies to compile+emit	16	rungs/_2026-08-04-w-mark-findings.md:3,rungs/_2026-08-04-w-mark-prereg.md:2,rungs/_2026-08-04-w-skip-findings.md:2,rungs/_2026-08-04-w-skip-prereg.md:2,whitebox/WB_CHOOSER_FINDINGS.md:2,BOARD.md:1
+10b7f15f	in-func	10b7f022	477	0	0	main.c	gap	-	-	high	emit-walk: loop over DAT_10c4630c selecting bodies to compile+emit	17	rungs/_2026-08-04-w-mark-findings.md:3,rungs/_2026-08-04-w-mark-prereg.md:2,rungs/_2026-08-04-w-skip-findings.md:2,rungs/_2026-08-04-w-skip-prereg.md:2,whitebox/C2_MAP.md:2,whitebox/WB_CHOOSER_FINDINGS.md:2
 10b7f16b	in-func	10b7f022	477	0	0	main.c	gap	-	-	high	emit-predicate: test [sym+0x4c],0x20 && !0x2 — the emit-set predicate	4	rungs/_2026-08-04-w-refs-findings.md:1,rungs/_2026-08-04-w-roots-findings.md:1,rungs/_2026-08-04-w-roots-prereg.md:1,whitebox/C2_MAP.md:1
 10b7f16e	in-func	10b7f022	477	0	0	main.c	gap	-	-	high	gl/emit: test dl,0x20 = EMIT bit; clearing it in the IL removes exactly that function from the obj	1	whitebox/C2_MAP.md:1
 10b7f171	in-func	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	1	whitebox/C2_MAP.md:1
@@ -438,9 +439,10 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10b7f199	in-func	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	8	rungs/_2026-08-04-w-roots-findings.md:2,rungs/_2026-08-04-w-skip-findings.md:2,rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1,rungs/_2026-08-04-w-skip-prereg.md:1,whitebox/C2_MAP.md:1
 10b7f1c5	in-func	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	2	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
 10b7f1e5	in-func	10b7f022	477	0	0	main.c	gap	-	-	unknown	-	8	rungs/_2026-08-04-w-mark-findings.md:3,rungs/_2026-08-04-w-skip-findings.md:2,BOARD.md:1,rungs/_2026-08-04-w-mark-prereg.md:1,rungs/_2026-08-04-w-skip-prereg.md:1
-10b7f1ff	func-entry	10b7f1ff	837	1	30	main.c	gap	-	-	high	obj-driver|il-open: top-level compile-all driver, p2/main.c; from _InvokeCompilerPass@12 via 10b7f3e7/10b7f3b6	2	whitebox/BOARD_PROPOSED.md:1,whitebox/C2_MAP.md:1
+10b7f1ff	func-entry	10b7f1ff	837	1	30	main.c	gap	-	-	high	obj-driver|il-open: top-level compile-all driver, p2/main.c; from _InvokeCompilerPass@12 via 10b7f3e7/10b7f3b6	6	whitebox/C2_MAP.md:5,whitebox/BOARD_PROPOSED.md:1
 10b7f2e0	in-func	10b7f1ff	837	1	30	main.c	gap	-	-	high	il-open	2	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
 10b7f311	in-func	10b7f1ff	837	1	30	main.c	gap	-	-	high	il-open	2	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
+10b7f362	in-func	10b7f1ff	837	1	30	main.c	gap	-	-	high	il-open	1	whitebox/C2_MAP.md:1
 10b7f3b6	func-entry	10b7f3b6	49	1	5	main.c	gap	-	-	high	entry: p2 main: argv latch, phase sequence; returns *0x10c2ea8c	1	whitebox/C2_MAP.md:1
 10b7f3e7	func-entry	10b7f3e7	13	3	1	main.c	gap	-	-	high	entry: p2 main trampoline -> 0x10b7f3b6	1	whitebox/C2_MAP.md:1
 10b7f3f4	func-entry	10b7f3f4	272	1	3	misc.c	in-anchor	-	-	unknown	-	1	whitebox/WB_LOOP_FINDINGS.md:1

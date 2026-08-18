@@ -84,6 +84,17 @@ RANGE_PAGE = [
     (0x10BE5CCE, 0x10BE663F, "dag", "P_DAG.md"),   # the scheduler band, no TU
 ]
 
+# TU-name overrides.  c2_tus.tsv is built from C1001 sites, so a translation
+# unit with NO ICE site is invisible to it and its code is silently absorbed
+# into the preceding file's gap (C2_MAP.md 7.1).  That is not hypothetical: the
+# instruction scheduler is such a TU, and "there is no sched.c" -- a true
+# statement about the INSTRUMENT -- stood as board #1823 for months as a claim
+# about the IMAGE (WB_DAGORDER_FINDINGS.md 1).  Naming the known ones stops the
+# index from repeating it.
+RANGE_TU = [
+    (0x10BE5CCE, 0x10BE663F, "(unnamed TU: no ICE site)"),
+]
+
 # Subsystem name for each page, for the `subsys` column.
 PAGE_SUBSYS = {
     "P_COFF.md": "coff", "P_SECTION.md": "section", "P_REGALLOC.md": "regalloc",
@@ -263,6 +274,13 @@ def containing(sorted_fns, addr):
 
 def tu_for(tus, addr):
     """(file, 'in-anchor') if inside an anchor range, else (prev-file, 'gap')."""
+    for lo, hi, name in RANGE_TU:
+        if lo <= addr < hi:
+            return name, "no-ice-site"
+    if not (TEXT_CODE_LO <= addr < DATA_LO):
+        # data, or the pooled read-only block below the first function: the
+        # TU partition is about CODE and says nothing here
+        return "n/a", "n/a"
     prev = None
     for start, end, name in tus:
         if start <= addr <= end:
@@ -352,7 +370,8 @@ def main():
                  "# NAVIGATION ONLY.  Nothing here may enter crates/ without a\n"
                  "# docs/whitebox/DISCLOSURE.md row naming the address.\n"
                  "# kind: func-entry | in-func | data | unmapped\n"
-                 "# tu_conf: in-anchor (a fact) | gap (a hypothesis) -- C2_MAP.md 3.1\n"
+                 "# tu_conf: in-anchor (a fact) | gap (a hypothesis, C2_MAP.md 3.1)\n"
+                 "#          no-ice-site (a TU the partition cannot see) | n/a (not code)\n"
                  % C2_SHA256)
         fh.write("\t".join(["addr", "kind", "func", "func_size", "ncallers",
                             "ncallees", "tu", "tu_conf", "subsys", "page",
