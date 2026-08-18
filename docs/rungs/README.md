@@ -162,6 +162,39 @@ unmeasured).
   is compiled in, so that comparison is void by construction.
 * **Board blocks are allocated by the coordinator** — see the section above.
 
+## A metric delta of zero is not evidence of correctness — added 2026-08-18
+
+`w-sizebracket` (board **#3270**–**#3275**), and it is the sharpest instrument
+finding this project has:
+
+> **A predicate can be 39.6 % wrong about c2 and *free* in the metric used to
+> choose it.** `fnbyte-exact Δ = 0` is evidence about **reach** — how much the
+> predicate touches — and **never about correctness**.
+
+`w-dataseam` found a size constant by sweeping and validated it out-of-sample
+on a deterministic odd/even split: **both halves at zero cost, effect sizes
+agreeing to one body.** That reads as strong replication and **it is blind by
+construction — both halves share the blind spot**, because the split
+resamples the *population* while the error lives in the *predicate*. Scoring
+the same constant against real `c2` on **7,667 workload call edges** found it
+wrong on **3,037**, of which **3,036 were in the unsound direction**, at a
+metric delta of exactly **0**.
+
+**So: a predicate is priced against the oracle, on the population it will
+apply to, or it is not priced.** A zero-cost sweep, a split-half agreement,
+and a required-zero identity diff are all compatible with a rule that is
+wrong about c2 four times in ten. This is the same family as the wrong emit
+that survived 255 commits of green gates — the instrument could not generate
+the shape that would expose it — and it is why `mismatch 0` is never
+evidence of correctness (`STATUS.md`'s standing trap).
+
+Corollary, from the same lane: **a null result inside a dispatched window is
+not a refutation of the window.** It found `[176, 232]` empty only because its
+probe families ladder from `n = 0`; a lane probing only the window it was
+handed would have reported *"no flip in range"* — a null that reads as a
+measurement problem rather than as the window being in the wrong unit
+entirely.
+
 ## What is here, and what is not
 
 The historical rungs live in `docs/ROADMAP.md` §6a–§6m and in the per-subject
