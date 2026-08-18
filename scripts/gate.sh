@@ -820,6 +820,31 @@ sweep_verdict() {
         echo "FAIL|$_sv_c|$_sv_sel|$_sv_tot|$_sv_m|UNRECOGNIZED verdict on $_sv_k case(s) — an unenumerated verdict is the next silence|$_sv_g|$_sv_u"
         return 0
     fi
+    # ---- THE CACHE'S OWN ALARM (lane `w-gateperf`, 2026-08-18) -----------------
+    #
+    # `expr_sweep.sh` is served from `work/capture-cache` since 2026-08-18, so
+    # some of the oracle bytes this row grades against came off a disk rather
+    # than out of `cl.exe` this run. The whole argument for allowing that is
+    # that the cache is CHECKED — every run bypass-and-compares a strided sample
+    # of its own hits through the real toolchain — so a failing check has to be
+    # a red gate and not a line in a log.
+    #
+    # `cache-bad` counts POISONED (served, re-captured, and the two differed)
+    # plus FOREIGN (an entry refused because it records having been captured at
+    # a different path than the one it would be served from — board #1388, the
+    # defect that presented as `mismatch` on six byte-exact TUs). Both are
+    # expected to read 0 forever. There is no baseline and no tolerance.
+    #
+    # Read with `sed -n` and NOT required to be present: `mode_cross.sh` is ruled
+    # on by this same function and prints no cache line, and an older sweep log
+    # has none either. An ABSENT line is not a zero — it is "this instrument does
+    # not report one", which is why the emptiness test comes first. That
+    # distinction is the same one `graded=`/`ungraded=` above are built on.
+    _sv_cb=$(sed -n 's/^cache: .*cache-bad=\([0-9][0-9]*\).*/\1/p' "$_sv_log" | head -1)
+    if [ -n "$_sv_cb" ] && [ "$_sv_cb" -ne 0 ] 2>/dev/null; then
+        echo "FAIL|$_sv_c|$_sv_sel|$_sv_tot|$_sv_m|CACHE POISONED/REFUSED on $_sv_cb case(s) — the capture cache served bytes this toolchain does not produce, or held entries it would not serve; this row's ORACLE side is untrustworthy on this run (C2RS_SWEEP_NO_CACHE=1 grades every case for real)|$_sv_g|$_sv_u"
+        return 0
+    fi
     if [ "$_sv_g" -eq 0 ]; then
         echo "FAIL|$_sv_c|$_sv_sel|$_sv_tot|$_sv_m|vacuous — $_sv_c cases reached and NONE graded|0|$_sv_u"
         return 0
@@ -5009,6 +5034,15 @@ sh "$repo_root/scripts/expr_sweep.sh" "$sweep_out" "$sweep_cases" \
     > "$work/sweep.log" 2>&1 || sw_status=$?
 res_sample
 tail -n 4 "$work/sweep.log" | sed 's/^/  /'
+# Printed even when it is absent, and printed as ABSENT rather than as zero. The
+# sweep's `cache:` line says how much of this row's oracle side came off a disk
+# this run; a run with `hit=0` is a cold worktree (correct, and slow), a run with
+# no line at all is a driver that predates the accounting, and the two must not
+# look alike (board #1002: a denominator nobody prints on both sides of a change
+# is a denominator that grows unwatched).
+if ! grep -q '^cache: ' "$work/sweep.log" 2>/dev/null; then
+    echo "  cache: ABSENT — this sweep driver reports no cache accounting"
+fi
 echo "  ($(( $(date +%s) - sw_started ))s)"
 sweep_res=$(sweep_verdict "$work/sweep.log" "$sw_status")
 

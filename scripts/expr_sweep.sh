@@ -85,12 +85,64 @@
 #
 # Needs the toolchain (see CLAUDE.md); without it every case reports SKIP and the
 # sweep is vacuous, so it checks for that up front.
+#
+# ---- the CAPTURE CACHE, and why the case directory is now STABLE ---------------
+# (lane `w-gateperf`, 2026-08-18)
+#
+# This row was the dominant leg of `scripts/gate.sh` — 300 s of a 446 s run on a
+# quiet box, 747 s of 1,368 s on a loaded one — and PROFILED, its cost is one
+# `cl.exe` process tree per case:
+#
+#     one warm `c2rs diff` on a generated case, serial, load 12-16, MEASURED
+#       capture (strace + wibo + cl.exe -> c1xx.dll -> c2.dll)   43 ms   75 %
+#       replay  (wibo + c2host.exe + c2.dll)                      6 ms   11 %
+#       everything else (c2rs start, scratch, port, obj diff)     8 ms   14 %
+#       TOTAL                                                    57 ms
+#
+# `c2rs` process startup is **under 1 ms**, so batching cases into one process —
+# the obvious guess — is worth under 2 %. The 43 ms is the whole story, and it is
+# spent recomputing bytes that are a pure function of the case's source, the
+# flags and the toolchain binaries. `scripts/mode_cross.sh` has consumed
+# `work/capture-cache` for exactly this since 2026-08-04 (its header: cold
+# 5 min 45 s, warm 13.8 s over 61,539 cells) and its header also names why this
+# file could not: *"`expr_sweep.sh` cannot take this path: it drives `c2rs
+# diff`, which does not consult the cache at all."* `c2rs diff` consults it now.
+#
+# **Two things had to change together, and only one of them is the cache.** The
+# key includes the SOURCE PATH (it is baked verbatim into `.gl` and `.debug$S`),
+# so with the corpus regenerated into a per-run `$out` — which is
+# `/tmp/c2rs-gate-$$/sweep` under the gate — every key would be new on every run
+# and the cache would serve nothing while costing an extra write. The case
+# directory is therefore stable and lives outside `$out`, exactly as
+# `mode_cross.sh` does it, with the run artifacts (lists, parts, reports) still
+# in the caller's outdir so two runs never read each other's numbers.
+#
+# **What is graded does not move.** The port is recomputed per case per run; the
+# standalone-c2 replay check runs per case per run; only c2's own obj and IL
+# bundle are served from disk, keyed over the source bytes, the source argument,
+# the flags, the cwd, the `cl.exe`/`c1xx.dll`/`c2.dll` contents, the wibo version
+# and the cache root. What DOES move is that this row now depends on cache
+# integrity, and that dependency is not left implicit:
+#
+#   * every case's outcome word (`cache=hit|miss|validated|poisoned|foreign|
+#     bypass|off`) is counted and PRINTED in the count line, so an all-miss run
+#     or a cold worktree is legible instead of being a mystery in the wall clock;
+#   * `poisoned` and `foreign` are HARD FAILURES, never tolerances;
+#   * **every run bypass-and-compares a strided sample of its own hits**
+#     (`C2RS_SWEEP_VALIDATE`, default every 100th case): the entry is
+#     re-captured through the real toolchain and byte-compared against what the
+#     cache served. Nothing in this repo ran that validator on a schedule before.
+#     At ~196 re-captures it costs ~8 s serial, ~2 s at 4 jobs.
+#
+# Set `C2RS_SWEEP_NO_CACHE=1` to grade the old way (every case captured for
+# real). That is the control, and it is what the A/B in the rung was taken with.
 set -eu
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 out="${1:-/tmp/c2rs-expr-sweep}"
 limit="${2:-0}"
 mkdir -p "$out"
+out="$(cd "$out" && pwd)"
 
 # Refuse to share an output directory with another live sweep. This driver
 # `rm -f`s the whole case set before regenerating it, so two concurrent runs
@@ -115,7 +167,45 @@ if ! mkdir "$_lock" 2>/dev/null; then
 fi
 trap 'rmdir "$_lock" 2>/dev/null || true' EXIT INT TERM
 
-rm -f "$out"/*.cpp "$out"/cases.txt 2>/dev/null || true
+# ---- the STABLE case directory -------------------------------------------------
+#
+# See the block at the top. `mode_cross.sh` establishes the pattern and its
+# reasoning applies here unchanged, including the ABSOLUTE requirement: `cl.exe`
+# runs under wibo and is handed `Z:<path>`, so a relative case dir yields
+# `Z:work\…`, which it cannot open, and the whole run comes back capture-fail
+# while every check reads green.
+#
+# It stays PER WORKTREE (`$repo_root/work/…`, like `mode_cross.sh`'s) rather
+# than being pointed at the main repo. Sharing one case directory across
+# worktrees would warm a fresh worktree's first run, and it would also make two
+# lanes with different `scripts/sweep.d` overwrite each other's corpus between
+# runs — board #3249's hazard, taken deliberately for a cold-start saving that
+# only ever costs one run per worktree. Not worth it.
+cases="${C2RS_SWEEP_CASES:-$repo_root/work/expr-sweep/cases}"
+mkdir -p "$cases"
+cases="$(cd "$cases" && pwd)"
+
+# On contention FALL BACK to a private (cold) case set rather than refusing —
+# `mode_cross.sh`'s rule, and its argument is the one that matters here too: a
+# gate row that reports NO-RESULT because a sibling was running is a RED GATE
+# FROM AN ABSENCE, which is the failure this file's rules exist to forbid,
+# arriving from the other direction. A private set is genuinely private; its
+# only cost is a cold cache.
+_clock="$cases/../.cases.lock"
+_clock_held=1
+if ! mkdir "$_clock" 2>/dev/null; then
+    echo "NOTE: another sweep holds $cases (lock: $_clock)."
+    echo "  Falling back to a PRIVATE case set for this run, which starts COLD."
+    echo "  The result is exactly as valid; only the capture cache misses. If no"
+    echo "  sweep is running, the previous one was killed: rmdir '$_clock'"
+    cases="$out/cases"
+    mkdir -p "$cases"
+    cases="$(cd "$cases" && pwd)"
+    _clock_held=0
+fi
+[ "$_clock_held" -eq 1 ] && trap 'rmdir "$_lock" 2>/dev/null || true; rmdir "$_clock" 2>/dev/null || true' EXIT INT TERM
+
+rm -f "$cases"/*.cpp "$out"/*.cpp "$out"/cases.txt 2>/dev/null || true
 
 # Build unconditionally and run a RUN-PRIVATE COPY of the binary — never
 # `target/release/c2rs` directly. `scripts/harness_bin.sh` has the two failures
@@ -131,9 +221,9 @@ rm -f "$out"/*.cpp "$out"/cases.txt 2>/dev/null || true
 pin_harness "$repo_root" "$out"
 c2rs="$C2RS_PINNED"
 
-python3 "$repo_root/scripts/sweep_gen.py" "$out" "$repo_root/scripts/sweep.d"
+python3 "$repo_root/scripts/sweep_gen.py" "$cases" "$repo_root/scripts/sweep.d"
 
-ls "$out"/*.cpp | sort > "$out/cases.txt"
+ls "$cases"/*.cpp | sort > "$out/cases.txt"
 total=$(wc -l < "$out/cases.txt")
 stride=1
 if [ "$limit" -gt 0 ] 2>/dev/null && [ "$limit" -lt "$total" ]; then
@@ -155,6 +245,25 @@ jobs="${C2RS_SWEEP_JOBS:-4}"
 case "$jobs" in ''|*[!0-9]*) jobs=4 ;; esac
 [ "$jobs" -ge 1 ] || jobs=1
 
+# ---- the cache knobs, resolved here so the run's own output states them --------
+#
+# `C2RS_SWEEP_NO_CACHE=1` is the control path: every case captured for real,
+# which is exactly what this driver did before 2026-08-18. Compared against the
+# exact string `1` — a half-set variable (`=`, `=no`, `=0`) must not silently
+# disarm a speedup NOR silently arm one, the rule `gate.sh` already applies to
+# `C2RS_GATE_REQUIRE_GRADED`.
+nocache=""
+if [ "${C2RS_SWEEP_NO_CACHE:-0}" = 1 ]; then nocache="--no-cache"; fi
+# Every Nth case in each worker's chunk is re-captured through the real
+# toolchain and byte-compared against what the cache served. Chunks are assigned
+# round-robin by line number, so "every Nth of each chunk" is a stride across the
+# whole corpus, never a prefix — the same property `max-cases` was rewritten for.
+# 0 disables. NOT disabled by default: a cache trusted without a sampling check
+# is the instrument failure `capture_cache`'s own module docs are about.
+validate="${C2RS_SWEEP_VALIDATE:-100}"
+case "$validate" in ''|*[!0-9]*) validate=100 ;; esac
+[ -z "$nocache" ] || validate=0
+
 if [ "$stride" -eq 1 ]; then
     echo "sweeping $run of $total generated cases"
 else
@@ -172,10 +281,37 @@ w=0
 while [ "$w" -lt "$jobs" ]; do
     (
         _n=0; _m=0; _u=0; _x=0
+        _hit=0; _miss=0; _val=0; _bad=0
         if [ -f "$part/chunk.$w" ]; then
             while read -r f; do
                 _n=$((_n + 1))
-                verdict=$("$c2rs" diff "$f" 2>&1 | tail -1)
+                # The strided bypass-and-compare sample. `--validate-cache 1`
+                # makes THIS invocation re-capture its hit and byte-compare;
+                # `c2rs diff` runs one capture per process, so the sampling has
+                # to be done out here — an in-process `--validate-cache N` would
+                # test `1 % N`, which is never 0 for N > 1 and would validate
+                # exactly nothing while printing that it was validating.
+                if [ "$validate" -gt 0 ] && [ $((_n % validate)) -eq 0 ]; then
+                    verdict=$("$c2rs" diff --validate-cache 1 "$f" 2>&1 | tail -1)
+                else
+                    # shellcheck disable=SC2086
+                    verdict=$("$c2rs" diff $nocache "$f" 2>&1 | tail -1)
+                fi
+                # ---- the CACHE outcome, counted positively ------------------
+                # Same discipline as the verdict classifier below: enumerate the
+                # words that are OK and name everything else, so the next word
+                # nobody foresaw is not the next silence.
+                case "$verdict" in
+                    *"cache=hit"*)       _hit=$((_hit + 1)) ;;
+                    *"cache=validated"*) _val=$((_val + 1)); _hit=$((_hit + 1)) ;;
+                    *"cache=miss"*)      _miss=$((_miss + 1)) ;;
+                    *"cache=off"*|*"cache=bypass"*) : ;;
+                    *"cache=poisoned"*|*"cache=foreign"*)
+                        _bad=$((_bad + 1))
+                        echo "CACHE-BAD $f  |  $verdict" >> "$part/cachebad.$w"
+                        ;;
+                    *) : ;;
+                esac
                 # ---- classify POSITIVELY. ------------------------------------
                 # This used to be one arm, `*Mismatch*)`, and `case` in `sh` is
                 # case-SENSITIVE, so it recognized exactly ONE of the four
@@ -222,6 +358,7 @@ while [ "$w" -lt "$jobs" ]; do
         echo "$_m" > "$part/mism.$w"
         echo "$_u" > "$part/ungr.$w"
         echo "$_x" > "$part/unk.$w"
+        echo "$_hit $_miss $_val $_bad" > "$part/cache.$w"
     ) &
     w=$((w + 1))
 done
@@ -231,6 +368,7 @@ wait
 # all, so the sum comes up short and the reconciliation below fails — the count
 # is the evidence the work happened, never the exit status (STATUS.md trap 5).
 checked=0; mismatch=0; ungraded=0; unknown=0; reported=0
+c_hit=0; c_miss=0; c_val=0; c_bad=0
 w=0
 while [ "$w" -lt "$jobs" ]; do
     if [ -f "$part/checked.$w" ]; then
@@ -240,10 +378,16 @@ while [ "$w" -lt "$jobs" ]; do
     [ -f "$part/mism.$w" ] && mismatch=$((mismatch + $(cat "$part/mism.$w")))
     [ -f "$part/ungr.$w" ] && ungraded=$((ungraded + $(cat "$part/ungr.$w")))
     [ -f "$part/unk.$w" ]  && unknown=$((unknown + $(cat "$part/unk.$w")))
+    if [ -f "$part/cache.$w" ]; then
+        set -- $(cat "$part/cache.$w")
+        c_hit=$((c_hit + $1)); c_miss=$((c_miss + $2))
+        c_val=$((c_val + $3)); c_bad=$((c_bad + $4))
+    fi
     w=$((w + 1))
 done
 cat "$part"/mismatch.* 2>/dev/null || true
 cat "$part"/unknown.* 2>/dev/null || true
+cat "$part"/cachebad.* 2>/dev/null || true
 
 # `graded` is the count that carries evidence: cases the oracle actually ruled
 # on. `checked` is only "cases the loop reached". They were the same number for
@@ -254,8 +398,20 @@ count_line() {
     echo "checked=$checked mismatches=$mismatch graded=$graded ungraded=$ungraded unknown=$unknown"
 }
 
+# The cache's own accounting, on EVERY run, whether or not it did anything. A
+# denominator nobody prints on both sides of a change is a denominator that
+# grows unwatched (board #1002), and the thing being watched here is *how much
+# of this row's evidence came off a disk this run*. `cache-bad` is the poisoned
+# + refused population and is expected to be 0 forever; `validated` is the part
+# of the hits that was bypass-and-compared against the real toolchain in THIS
+# run, which is the number that says the speedup is still checking itself.
+cache_line() {
+    echo "cache: hit=$c_hit miss=$c_miss validated=$c_val cache-bad=$c_bad (of $checked cases)"
+}
+
 if [ "$checked" -ne "$run" ]; then
     count_line
+    cache_line
     echo "FATAL: selected $run cases and only $checked were graded" >&2
     echo "  $reported of $jobs workers reported a count. A short count is a worker" >&2
     echo "  that died; the cases it held were never graded and this run establishes" >&2
@@ -264,6 +420,7 @@ if [ "$checked" -ne "$run" ]; then
 fi
 
 count_line
+cache_line
 
 # ---- the UNGRADED baseline -----------------------------------------------------
 #
@@ -303,6 +460,26 @@ fi
 if [ "$graded" -eq 0 ]; then
     echo
     echo "VACUOUS: $checked cases reached and NONE graded."
+    exit 1
+fi
+
+# ---- the cache's own alarm -----------------------------------------------------
+#
+# `poisoned` = an entry was served, re-captured through the real toolchain, and
+# the two DIFFERED. `foreign` = an entry was refused because the path it records
+# having been captured at is not the path it was about to be served from. Both
+# are expected to read 0 forever (`crates/c2-harness/src/capture_cache.rs`, board
+# #1388), and both mean this row's oracle bytes did not come from this toolchain
+# at this path. There is no tolerance and no baseline: the whole argument for
+# serving this row from a cache is that the cache is checked, so an unchecked
+# cache failing its check is a hard red.
+if [ "$c_bad" -ne 0 ]; then
+    echo
+    echo "CACHE POISONED/REFUSED on $c_bad case(s) — listed above."
+    echo "  The capture cache served bytes that are not what this toolchain"
+    echo "  produces for this source at this path, or held entries it would not"
+    echo "  serve. This row's oracle side is not trustworthy on this run."
+    echo "  Re-run with C2RS_SWEEP_NO_CACHE=1 to grade every case for real."
     exit 1
 fi
 [ "$mismatch" -eq 0 ] || exit 1
