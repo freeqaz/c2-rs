@@ -6,12 +6,13 @@
 #   suite.sh <tag>
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-TAG="${1:?usage: suite.sh <tag>}"
+TAG="${1:?usage: suite.sh <tag> [-- extra cargo-test args]}"
+shift
 OUT="$ROOT/work/w-deadsites/logs"
 mkdir -p "$OUT"
 export C2RS_REQUIRE_TOOLCHAIN=1
 t0=$SECONDS
-cargo test --workspace --release --no-fail-fast > "$OUT/$TAG.suite.log" 2>&1
+cargo test --workspace --release --no-fail-fast "$@" > "$OUT/$TAG.suite.log" 2>&1
 rc=$?
 echo "$TAG suite exit=$rc wall=$((SECONDS - t0))s"
 awk '/^test result/{p+=$4; f+=$6; n++} END{print "  passed="p" failed="f" targets="n}' "$OUT/$TAG.suite.log"

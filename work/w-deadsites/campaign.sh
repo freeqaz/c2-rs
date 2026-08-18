@@ -9,7 +9,7 @@ for m in "$@"; do
     [ -n "$d" ] && { echo "ABORT: dirty before $m"; exit 1; }
     python3 work/w-deadsites/mutants.py apply "$m" || exit 1
     cargo build --release -p c2-harness > /dev/null 2>&1 || echo "  (build failed for $m)"
-    ./work/w-deadsites/suite.sh "$m"
+    ./work/w-deadsites/suite.sh "$m" ${SUITE_ARGS:-}
     python3 work/w-deadsites/mutants.py revert
 done
 echo "campaign done"

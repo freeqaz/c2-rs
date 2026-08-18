@@ -45,6 +45,15 @@ MUTANTS = {
             "        return Err(STORE_RUN_BIND_MULTI_PRODUCER);\n",
             "    if (!lits.is_empty() || !addrs.is_empty()) && 3 + params.len() > POOL_TOP {\n"
             "        return Err(STORE_RUN_BIND_MIXED_KIND);\n"),
+    # MC3 SWAPS ONE KEY AT ONE ARM — `w-mutcensus`' own `CS3`, a site that lane
+    # measured GREEN, i.e. one the entire 1,666-test suite cannot fail on. It
+    # moves `static-scan-loop-object-out-of-class` 1 -> 0 and
+    # `store-run-call-no-emitter-carrier` 1 -> 2 while the TOTAL stays at 24, so
+    # a census kept as one integer — the shape F4 literally asked for — is blind
+    # to it, and the per-key table is the SOLE thing in the suite that can fail.
+    "MC3": (CENSUS,
+            '"static-scan-loop" => STATIC_SCAN_LOOP_OBJECT,',
+            '"static-scan-loop" => STORE_RUN_CALL_NO_CARRIER,'),
     # MC2 renames the CONSTANT and every use of it, leaving the published key
     # string alone. Nothing observable moved, so the census must stay GREEN —
     # this is the half of `w-guards`' rule that a counting test can get wrong in
