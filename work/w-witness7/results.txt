@@ -90,6 +90,12 @@ work/w-witness7/logs/M-CS4.base.suite.log
    1671 passed / 0 failed / 46 targets   EXIT=0
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 114.33s
 
+work/w-witness7/logs/M-CS4F.suite.log
+   1675 passed / 2 failed / 48 targets   EXIT=101
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 67.81s
+   FAIL  every_census_fence_key_has_the_sites_this_repo_last_scored
+   FAIL  the_callee_unresolved_family_still_has_exactly_four_raise_sites
+
 work/w-witness7/logs/M-CS4.tip.suite.log
    1676 passed / 1 failed / 48 targets   EXIT=101
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 67.01s
@@ -111,4 +117,8 @@ work/w-witness7/logs/N0.suite.log
 work/w-witness7/logs/T1.suite.log
    1677 passed / 0 failed / 48 targets   EXIT=0
    census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 93.18s
+
+work/w-witness7/logs/T3.suite.log
+   1677 passed / 0 failed / 48 targets   EXIT=0
+   census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 68.95s
 
