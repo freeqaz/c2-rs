@@ -264,6 +264,20 @@ And then the failure mode itself was reproduced **at this base**, deliberately:
 failing exactly one test by name. **One environment variable turns the repo's
 most-recorded defect from invisible into a failure.**
 
+> **The sentence a future lane needs, stated plainly: the pass/fail counts are
+> IDENTICAL and only the DURATIONS differ.** `N0T` and `D6a` both read
+> **1,665 passed / 0 failed / 45 targets**. The differences are `census_gate`
+> **79.25 s vs 0.00 s** and wall **222 s vs 7 s**. There is no count, no status
+> and no exit code anywhere in that pair that separates the run which graded
+> against real `c2.dll` from the run which graded nothing — **which is why the
+> fix has to be a test that asserts the toolchain resolved, and not a tighter
+> reading of the totals.** This is also an independent **peer verification** of
+> boards **#3219** and **#3231**: `w-fence163` and `w-mutcensus` each found this
+> in their own instruments last wave, and it reproduces here at a third base, in
+> a third lane, with this lane's own five new tests inside the identical
+> figure — so it is a property of the worktree workflow and not of any one
+> campaign. `D6b` is the correct fix SHAPE for the whole family.
+
 ---
 
 ## 4. The mechanism — and why F2 is not it
@@ -392,11 +406,19 @@ can reach", and the response to that is deletion, not a guard.**
 
 Only the affected rows were re-run, as instructed.
 
+**The number and its qualifier are one sentence, deliberately:
+`w-mutcensus`' 30 GREEN becomes 26 — of which 4 were re-run by measurement, 26
+are reasoned still-GREEN and NOT re-run, and 15 of those 26 are UNVERIFIED at
+this tree because peers rewrote their files since `3835469c`.** Quoting "26 of
+63" without that clause would be a re-measured census quietly inheriting stale
+rows, which is the shape this repo keeps getting caught by; it is stated here
+before the table rather than after it.
+
 | | count | how |
 |---|---:|---|
 | GREEN at `3835469c` (`w-mutcensus` §0) | **30** | published |
 | **measured RED here** | **4** | `CS5`–`CS8` = `R5`–`R8` GREEN → `G5`–`G8` RED, full-suite runs, logs tracked |
-| **re-measured GREEN** | **26** | 30 − 4 |
+| **re-measured GREEN** | **26** | 30 − 4 — **15 of them unverified at this tree** (caveat 2 below) |
 
 **Three caveats, because the flat number is the least interesting part:**
 
@@ -494,6 +516,14 @@ board #1218), so this would be the file's second.
 
 ### F2 — a mutation census cannot distinguish a DEAD site from an UNGUARDED one, and nothing in `w-mutcensus`' frame notices
 
+**Read as a correction to `w-mutcensus`' published headline, not as a footnote to
+this lane.** `X = 30 of 63` is on master and is quoted as *"how many of `c2-il`'s
+refusal sites have no test that can fail on them"*. It is not that number. **It
+is the SUM OF TWO BACKLOGS THAT NEED DIFFERENT WORK** — sites where somebody must
+write a witness, and sites where somebody must delete the code — and the two are
+indistinguishable in it. `L9` is one confirmed instance inside the 63; the
+partition has never been taken anywhere.
+
 This is the generalization of F1 and it is worth more than the instance.
 **Both a dead site and an unguarded site produce GREEN, by the same mechanism:
 no test fails.** `w-mutcensus`' §2 enumeration is textual (`refuse(`,
@@ -541,7 +571,14 @@ edit and therefore not this lane's. **The mitigation that IS in place**: every
 transcript's doc comment says it is a copy of a capture and that breaking it
 means re-deriving from the capture, never deleting the test.
 
-### F6 — `require_toolchain` is landed but nothing SETS the variable
+### F6 — `require_toolchain` is landed but nothing SETS the variable — **DECIDED, and routed to `w-gateperf`**
+
+> **CLOSED as an open question on 2026-08-18: the coordinator took it and routed
+> the wiring to lane `w-gateperf`, which owns `scripts/gate.sh` and is profiling
+> the gate.** This lane does **not** wire it: the harness tests are this lane's
+> seam, and a gate-policy change must not ride in on a guard lane. The item is
+> recorded here as decided-and-assigned rather than left dangling; the paragraph
+> below is kept as the statement of what was handed over.
 
 `C2RS_REQUIRE_TOOLCHAIN` is inert by default, which is the correct contract — the
 demand belongs to the caller. But **no caller sets it today**, so the instrument
