@@ -1,0 +1,239 @@
+MERGE BRIEF — lane w-gateperf
+branch:   wt-w-gateperf
+base:     82fa92a0   (REBASED onto w-calleeguard + the STATUS regen; every
+                      number below RE-MEASURED at the rebased tip)
+outcome:  built            (construct rung; Fixtures: none; Census: +0)
+rung:     docs/rungs/2026-08-18-gateperf.md
+prereg:   work/w-gateperf/PREREG.md  (frozen as the lane's FIRST commit, 644fb568,
+                      before any measurement; 23 rows, no discount factor)
+board:    #3261-#3266 MINTED from the coordinator's explicit allocation — the
+          pointer was NOT consulted. TWO further rows drafted UNNUMBERED because
+          the block is exhausted; they want numbers at the funnel.
+
+THE HEADLINE
+------------
+The merge gate's dominant leg was ONE `cl.exe` PROCESS TREE PER GENERATED CASE,
+recomputing bytes the other two gate rows have read off `work/capture-cache`
+since 2026-08-04. `scripts/mode_cross.sh`'s own header has carried the sentence
+for two weeks: "expr_sweep.sh cannot take this path: it drives `c2rs diff`,
+which does not consult the cache at all."  19,556 identical cl.exe invocations
+per gate run, every gate run.
+
+AND THE SPAWN COUNT WAS NEVER THE LEVER. The dispatch's hypothesis — and
+STRATEGY_REVIEW §4's "lane worth commissioning" — was a fork-server. Measured:
+`c2rs` process startup is UNDER 1 ms (same number as /bin/true), so batching
+cases into one process is worth under 2 %. The fix removes ONE SPAWN IN SIX and
+75 % OF THE COST, because the expensive spawn is cl.exe under wibo mapping
+c1xx.dll + c2.dll (3.06 MB of PE) inside one of the six.
+
+WHAT LANDED, AND WHAT IT COST
+-----------------------------
+  scripts/expr_sweep.sh   +203 / -...  stable case dir + cache accounting +
+                                       per-run bypass-and-compare sample +
+                                       poisoned/foreign hard alarm
+  scripts/gate.sh         +213         sweep_verdict's cache rule, 4 selftest
+                                       cases, the --require-graded toolchain
+                                       preflight + C2RS_REQUIRE_TOOLCHAIN export,
+                                       the --jobs advisory, debug lane concurrency
+  scripts/debug_lane.sh   +139         18 lanes concurrent, counters from files
+  scripts/mode_cross.sh   +19          the ARG_MAX repair and a positive check
+  crates/c2-harness/src/lib.rs         `differential_cached` (the None arm is the
+                                       old `differential` verbatim)
+  crates/c2-harness/src/cli/reference.rs  `diff --cache/--no-cache/--validate-cache`
+  crates/c2-harness/tests/reloc_identity.rs  per-call scratch dir + 1 new test
+  docs/rungs/_TEMPLATE.md              suite row armed, gate row --jobs 16
+  docs/BOARD.md, docs/rungs/{2026-08-18-gateperf.md,INDEX.md}
+
+`git diff 82fa92a0..HEAD -- crates/c2-core crates/c2-il crates/c2-obj
+crates/c2-reference` is EMPTY. The port is untouched.
+
+MEASURED, at the rebased tip, one uninterrupted block, load 5-13
+------------------------------------------------------------------
+  suite   C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast
+          1,666 passed / 0 failed / 45 targets
+          (master's 1,665/0/45 + the one test the reloc_identity fix adds)
+
+  gate    scripts/gate.sh --jobs 4  --require-graded   PASS, exit 0,  154 s, 365 % CPU
+          scripts/gate.sh --jobs 16 --require-graded   PASS, exit 0,   79 s, 856 % CPU
+          both: 18/18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT, 6,948 fixture-verdicts,
+          sweep 19556/19460 graded/0 mismatch, cross 90812/90424 graded/0 mismatch,
+          debug 18/18 6948 graded 0 PANIC,
+          cache: hit=19460 miss=96 validated=192 cache-bad=0
+
+  legs                     --jobs 4   --jobs 16
+          18 mode lanes         4 s        2 s
+          generated sweep      87 s       29 s
+          mode cross           33 s       29 s
+          debug lane           23 s       11 s
+          TOTAL               154 s       79 s
+
+  A pre-lane WARM gate at --jobs 4 is its measured legs summed:
+  4 + 296 (sweep uncached) + 33 + 83 (debug sequential) + ~8 = ~424 s.
+  So 2.75x at the same flag and 5.4x at gate.sh's own default.
+
+  selftest       PASS — 170 cases, 0 failed (floor 166 -> 170)
+  --check        PASS — 16 tree-integrity arms, 0 failed
+  board_audit    all-zero, including 0 cited-but-not-on-the-board
+  rung_registry  2 passed / 0 failed
+  878-TU scan    396 keys at BOTH ends, diff EMPTY: 0 vanished, 0 appeared,
+                 0 changed. match 26 / mismatch 0 / codegen-gap 0 /
+                 vocab-gap 844 / capture-fail 8 at both ends.
+                 fnbyte-exact 35899 · differs 1958 · denominator 162046,
+                 identical to the digit. (The dispatch said 394 keys; 394 was
+                 the count at 071d2d47 and w-calleeguard added two.)
+
+  The scan's base binary was built from `git checkout 82fa92a0 -- crates/` IN
+  THIS WORKTREE, so both binaries share a build path and #3224's precondition
+  is met: 933e9fdd28b2 (base) vs 15e371d1e4c3 (tip), genuinely different.
+
+  scripts/ and crates/ are both in GRADED_DIRS so the graded-tree hash MOVES by
+  construction (#3215). It is not quoted as evidence in either direction.
+
+THE A/B THAT MATTERS — identical counts on every run
+----------------------------------------------------
+Sweep leg alone, 19,556 cases, one session, load 20-26, back to back. EVERY run
+printed `checked=19556 mismatches=0 graded=19460 ungraded=96 unknown=0`.
+
+  C2RS_SWEEP_JOBS   uncached (control)   cached warm   ratio
+       4                296 s               110 s      2.69x
+      16                 98 s                32 s      3.06x
+      32                  -                  32 s
+  cold fill at 16 jobs: 117 s (paid once per worktree)
+  validate=100 (190 re-captures): 32 s.  validate=0: 32 s.  THE VALIDATOR IS FREE.
+
+C2RS_SWEEP_NO_CACHE=1 is the control path and grades every case for real.
+
+THE GATE STILL GOES RED — eight fault classes, demonstrated not asserted
+------------------------------------------------------------------------
+  poisoned/refused cache entry   GATE: FAIL — expr-sweep failed: CACHE
+                                 POISONED/REFUSED on 1 case(s) — ... this row's
+                                 ORACLE side is untrustworthy on this run
+  COLD cache (hit=0)             GATE: PASS  (slow and correct is not a failure)
+  ABSENT cache line              GATE: PASS  (mode_cross prints none; an absent
+                                 count is not a zero — this is the case that
+                                 matters, and it has its own selftest arm)
+  empty case directory           FATAL: ... holds no .cpp after regeneration
+  ARG_MAX glob                   VACUOUS: 0 cases reached and NONE graded, exit 1
+                                 (this HAPPENED, unplanned — see #3264)
+  absent toolchain + demand      GATE: FAIL (TOOLCHAIN ABSENT), exit 1 in 11 s
+  graded tree moved mid-run      *** THE TREE MOVED UNDER THIS RUN ***, exit 1
+                                 (this HAPPENED, unplanned — the lane edited
+                                 crates/ while its own base run was in flight,
+                                 over a run whose four rows all reported clean)
+  debug lane with no result      DEBUG-LANE-RESULT FAIL ... rc=NO-RESULT plus
+                                 FAIL: N of 18 lanes reported a result
+
+THE THREE ITEMS THE COORDINATOR ROUTED IN MID-LANE — all three done
+-------------------------------------------------------------------
+1. C2RS_REQUIRE_TOOLCHAIN is ARMED. gate.sh exports it under --require-graded
+   and preflights the toolchain. Demonstrated BOTH directions:
+     hidden + --require-graded  -> exit 1 in 11 s, GATE: FAIL (TOOLCHAIN ABSENT),
+                                   naming cause, remediation and probe log
+     hidden, no demand          -> exit 0 in 24 s, GATE: SKIPPED, 18 lanes 0/386
+   The instrument verified in all three states (var+tc pass / var+no-tc FAILED /
+   no-var+no-tc pass). THE BOUNDARY: skipping is fine when nobody claimed
+   otherwise; skipping is a failure when the run claimed to be graded.
+   NOTE FOR THE COORDINATOR: gate.sh never runs `cargo test`, so the export
+   reaches nothing today. The variable bites on the SUITE row, which is
+   hand-typed. _TEMPLATE.md now carries it; THE STANDING DISPATCH TEXT SHOULD TOO
+   and only you can make that edit.
+
+2. reloc_identity is FIXED, and it was never flakiness. work() was
+   c2rs-w-relo-{pid} — ONE directory for the whole test binary — and all three
+   tests call grade(). capture_reference_with points TMP/TEMP at that dir (so
+   cl.exe writes its _CL_* bundle there, under a name hashed from the source
+   path, IDENTICAL for all three), deletes every _CL_* in it, and writes a fixed
+   out.obj. Three concurrent captures, five shared filenames.
+     before   0 fail / 18 runs at load 6-9
+              6 fail / 30 runs with an uncached sweep at 48 jobs (load 29-33)
+     after    0 fail / 40 runs under the SAME aggressor (load 32-35)
+   NOT A CLASS: all 24 files in the tree that build a temp dir from the pid were
+   checked. reloc_identity.rs was the only one whose capture work dir is shared
+   by more than one concurrently-running test.
+   Entering crates/c2-harness/tests/ was w-calleeguard's seam; that lane merged.
+
+3. Multi-lane coordination — the recommendation is in the rung §11.1 and is
+   summarised under RECOMMENDATIONS below.
+
+FOR THE COORDINATOR — three things only you can do
+---------------------------------------------------
+A. CHANGE THE STANDING DISPATCH from `scripts/gate.sh --jobs 4 --require-graded`
+   to `--jobs 16`. gate.sh's own default has been 16 since 2026-08-08 with a
+   60-line measured justification; --jobs 4 is the untuned constant that tuning
+   replaced (it stood from the file's creation commit with one git log -L entry
+   and no board row). Measured 1.73x, digit-for-digit identical verdict blocks.
+   The gate now PRINTS an advisory when --jobs < 16; it does NOT silently
+   override, because --jobs is the caller's knob.
+B. ADD C2RS_REQUIRE_TOOLCHAIN=1 to the standing suite command.
+C. NUMBER THE TWO UNNUMBERED BOARD ROWS (the toolchain preflight; the debug row
+   going from 9 % to 52 % of the gate without changing).
+
+RECOMMENDATIONS — the multi-lane case
+--------------------------------------
+1. Stop specifying --jobs 4 (item A).
+2. Do NOT add a global lock or a shared job budget. A --jobs 4 gate uses
+   283-382 % of an available 3200 %; four of them is under 40 % of the box. The
+   box was never CPU-starved by gates — it was doing 78,000 redundant cl.exe
+   compilations of 19,556 distinct sources across four lanes. That is now ~384.
+   A lock would serialise lanes that are each 2.75x cheaper.
+3. Do not treat load-sensitive test failures as flakiness. The only honest
+   mechanisms here are shared mutable paths and shared work dirs; the tree has
+   been swept for both and the one instance is fixed.
+4. The shared capture cache HELPS between lanes; what it is not is shared,
+   because case paths are per-worktree (see NOT TAKEN item 1).
+
+PRICED AND NOT TAKEN — coverage-preserving
+-------------------------------------------
+1. WORKTREE-INDEPENDENT CASE DIRECTORIES — worth ~19 min per new lane, NOT TAKEN.
+   A worktree's FIRST gate pays a cold mode cross (1,261 s of a 1,755 s run at
+   --jobs 4) and now a cold sweep fill, because the cache key contains the source
+   path and both case dirs live under $repo_root/work/. Pointing them at
+   main_repo_root() would warm run 1 — and would put 3-4 concurrent lanes on one
+   mutable corpus directory, where the lock's private-cold fallback fires under
+   exactly the multi-lane condition that is normal here. It needs the corpus
+   regeneration made non-destructive (write-if-differs) first. Board #3265.
+   THIS IS THE LARGEST NUMBER IN THE DOCUMENT AND IT IS LEFT ON THE TABLE.
+2. The per-process cache context — ~15 % of the warm sweep leg. CaptureCache::new
+   runs `wibo --version` and FNV-hashes 3.16 MB of DLLs once per `c2rs diff`,
+   i.e. 19,556 times. Memoising it touches the one thing capture_cache's docs are
+   most careful about; wants its own lane and a stated invalidation rule.
+3. The capture cache has NO EVICTION: ~21.5 M entries behind a 1.37 GB directory
+   inode, order 150 GB / 170 M inodes. Not in this seam; interacts with #3249.
+4. hatch-red still reads REFUSED HATCH-STALE on every run, both trees (#1389 /
+   #3219). Not caused here, not fixed here, duration still unmeasured.
+
+PRICED AND NOT TAKEN — coverage-REDUCING, FOR THE USER TO RULE ON
+------------------------------------------------------------------
+None adopted. All four are in the rung §11.3 with prices.
+  R1 the sweep overlaps the cross's Ox lane (same profile, same 19,556 cases;
+     the sweep uniquely adds the P0.1 replay per case, and the two rows compile
+     `z:\` vs `Z:\` so the graded bytes genuinely differ). Saves ~0 s now that
+     captures are cached, and loses the row that found #232.  DO NOT.
+  R2 drop --validate-cache sampling. Saves 0 s (measured).  DO NOT.
+  R3 sample the sweep/cross with the existing stride knobs. Buys seconds, costs
+     the enumeration's only property.  DO NOT.
+  R4 skip the debug row on lanes touching no crates/. Saves 10 s; w-gatewire
+     shipped it with no opt-out on purpose.  DO NOT.
+The real reading: after this lane there is no coverage-reducing change left
+that is worth anything. The gate is 79 s at --jobs 16.
+
+PREREG — six misses, and five of the six are ONE mistake
+---------------------------------------------------------
+The measurement rows went 10 for 10 (P2-P7, P10-P12). P13 is recorded as NOT
+ESTABLISHED rather than claimed. The misses:
+  P1  "the sweep is the dominant leg, >55 %"  -> it is 17.3 %; the COLD CROSS is
+      71.9 %. I priced a warm worktree and measured a fresh one.
+  P23 "gate total 380-600 s at base"          -> 1,755 s. Same error.
+  P8  ">=2.2x from --jobs 16"                 -> 1.73x. Over-priced.
+  P17 "the multi-lane answer is a global bound" -> the opposite; raise per-lane
+      concurrency and add no lock.
+  P22 "suite unmoved at 1,660/0/43"           -> miss by construction;
+      w-calleeguard merged mid-lane.
+THE MOST USEFUL MISS IS P1/P23: the dispatch, w-gatewire's rung and my own
+prereg all describe a ~450 s gate. A LANE'S FIRST GATE RUN IS 1,755 s, and
+nobody had written that down because everybody measures the second one.
+
+NOT DONE
+--------
+Not merged, not pushed, not rebased beyond 82fa92a0. Master has since moved to
+2f449ee3 (w-c2map2).
