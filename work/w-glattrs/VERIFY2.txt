@@ -1,0 +1,31 @@
+                            figure   published  re-derived  verdict
+                 records_incumbent       28838       28838  ok
+                   records_relaxed     1461374     1461374  ok
+            forms_incumbent_direct       28739       28739  ok
+            forms_incumbent_escape          99          99  ok
+              forms_incumbent_high           0           0  ok
+              forms_relaxed_direct     1403908     1403908  ok
+              forms_relaxed_escape       57466       57466  ok
+                forms_relaxed_high           0           0  ok
+                             files         870         870  ok
+                      incumbent_ok         801         801  ok
+                 incumbent_refused          69          69  ok
+     incumbent_refused_size_escape          60          60  ok
+   incumbent_refused_attr_conflict           9           9  ok
+                            new_ok         857         857  ok
+                       new_refused          13          13  ok
+                           rescued          56          56  ok
+              relaxed_incumbent_ok          32          32  ok
+       relaxed_refused_size_escape         838         838  ok
+                    relaxed_new_ok         805         805  ok
+                   relaxed_rescued         773         773  ok
+                       edges_total        7667        7667  ok
+             edges_escaped_relaxed         309         309  ok
+           edges_escaped_incumbent           2           2  ok
+                        vocab_size          10          10  ok
+                          rival_w1           3           3  ok
+                          rival_w2           0           0  ok
+                          rival_w3          99          99  ok
+                          rival_w5           1           1  ok
+
+28 of 28 agree; 0 differ
