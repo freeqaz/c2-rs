@@ -5278,7 +5278,17 @@ echo "debug lane:      scripts/debug_lane.sh  (DEBUG profile — the only row th
 echo "                 execute a debug_assert or trap an arithmetic overflow)"
 db_started=$(date +%s)
 db_status=0
+# `C2RS_DEBUG_LANE_LANES="$jobs"` — the row's 18 lanes run concurrently as of
+# 2026-08-18 (lane `w-gateperf`), exactly as this file's own lane leg has always
+# run its 18. It is handed `$jobs` for the same reason the sweep and the cross
+# are: one knob, printed in the header line, so a run's output says what
+# concurrency produced it. Note this MULTIPLIES with `C2RS_JOBS` below, which is
+# the same arrangement the lane leg has — `$jobs` lanes each running
+# `C2RS_JOBS`-way inside — and the measurement that justified it is in the rung:
+# the row was 74 s of a 142 s run at `--jobs 16` before, i.e. 52 % of the gate,
+# having been ~9 % of it before the sweep got its cache.
 C2RS_DEBUG_LANE_WORK="$work/debuglane" C2RS_LANES="$reg" C2RS_JOBS="$jobs" \
+    C2RS_DEBUG_LANE_LANES="$jobs" \
     sh "$repo_root/scripts/debug_lane.sh" > "$work/debuglane.log" 2>&1 || db_status=$?
 res_sample
 grep -E '^(debug lane:|DEBUG-LANE-TOTAL|FAIL:|SKIP)' "$work/debuglane.log" \

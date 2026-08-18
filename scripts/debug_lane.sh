@@ -30,6 +30,32 @@
 # env:    C2RS_LANES             lane registry to read (default scripts/lanes.txt)
 #         C2RS_DEBUG_LANE_WORK   run directory (default $TMPDIR/c2rs-debug-lane-$$)
 #         C2RS_JOBS              per-lane `c2rs gap` concurrency (default 8)
+#         C2RS_DEBUG_LANE_LANES  how many LANES run at once (default 4)
+#
+# ---- THE LANES RUN CONCURRENTLY (lane `w-gateperf`, 2026-08-18) ----------------
+#
+# They used to run one after another, and MEASURED at the tip of that lane this
+# row was **74 s of a 142 s `gate.sh --jobs 16 --require-graded` run — 52 % of
+# the whole gate**, having been ~9 % of it before the sweep was served from the
+# capture cache. `scripts/gate.sh`'s own lane leg has always run its 18 lanes
+# `$jobs` at a time; this row is the same 18 lanes over the same corpus and had
+# no reason to be the sequential one.
+#
+# **The counters are collected from FILES, not accumulated across a `&`.** A
+# `fails=$((fails + 1))` inside a backgrounded subshell is discarded, which
+# would turn every failing lane into a silent pass — the exact shape
+# `gate.sh --selftest`'s own header warns about ("a `fails` counter incremented
+# inside `$(...)` lives in a subshell and is discarded, which would make this
+# selftest itself an instrument that reports green from an absence"). So each
+# lane writes its own result line to its own file, the reader walks the registry
+# afterwards in registry order, and **a lane with no result file is a hard
+# failure** rather than a lane that contributed nothing. That is `expr_sweep.sh`'s
+# short-count rule, and it makes a killed worker impossible to mistake for a
+# clean one.
+#
+# Output is UNCHANGED: the same `DEBUG-LANE-RESULT` lines in the same registry
+# order, and the same `DEBUG-LANE-TOTAL`. `gate.sh`'s `debug_verdict` sees
+# exactly what it saw before.
 #
 # Exit status is non-zero if any lane panicked or reported a mismatch. One
 # `DEBUG-LANE-RESULT` line per lane, plus one `DEBUG-LANE-TOTAL` line.
@@ -125,45 +151,98 @@ fi
 n_lanes=$(wc -l < "$work/lanes.tsv" | tr -d ' ')
 [ "$n_lanes" -gt 0 ] || { echo "FAIL: no lanes — an empty registry grades nothing"; exit 1; }
 
-echo "debug lane: $n_lanes lanes x $total fixtures, binary=$c2rs"
+lane_jobs="${C2RS_DEBUG_LANE_LANES:-4}"
+case "$lane_jobs" in ''|*[!0-9]*) lane_jobs=4 ;; esac
+[ "$lane_jobs" -ge 1 ] || lane_jobs=1
+echo "debug lane: $n_lanes lanes x $total fixtures at $lane_jobs lane(s) at once, binary=$c2rs"
+
+# ---- PHASE 1: grade, `$lane_jobs` lanes at a time ------------------------------
+#
+# Each lane writes its OWN `result` file and nothing else is shared. Clear them
+# FIRST, as their own pass, so a result file that EXISTS is necessarily from this
+# run — `gate.sh` does exactly this for its lane logs, and for the same reason: a
+# lane the loop never launches must not be graded from a previous run's leavings.
+while IFS="$(printf '\t')" read -r slug flags; do
+    [ -n "$slug" ] || continue
+    rm -f "$work/$slug/result"
+done < "$work/lanes.tsv"
+
+running=0
+while IFS="$(printf '\t')" read -r slug flags; do
+    [ -n "$slug" ] || continue
+    (
+        d="$work/$slug"
+        mkdir -p "$d"
+        echo "$flags /GS- /c" > "$d/flags.txt"
+
+        if "$c2rs" gap --list "$list" --flags-file "$d/flags.txt" --limit 1 --jobs 1 2>&1 \
+                | grep -q "SKIP"; then
+            echo "SKIP DEBUG-LANE-RESULT SKIP lane=$slug flags=[$flags] graded=0 total=$total match=0 mismatch=0 panics=0" > "$d/result"
+            exit 0
+        fi
+
+        set +e
+        "$c2rs" gap --list "$list" --flags-file "$d/flags.txt" --jobs "${C2RS_JOBS:-8}" \
+            > "$d/report.txt" 2>&1
+        rc=$?
+        set -e
+        panics=$(grep -ci 'panicked at' "$d/report.txt" || true)
+        graded=$(sed -n 's|^GAP REPORT (\([0-9]*\) TUs.*|\1|p' "$d/report.txt" | head -1)
+        match=$(sed -n 's|^  match  *\([0-9]*\) .*|\1|p' "$d/report.txt" | head -1)
+        mm=$(sed -n 's|^  mismatch  *\([0-9]*\) .*|\1|p' "$d/report.txt" | head -1)
+        graded=${graded:-0}; match=${match:-0}; mm=${mm:-0}
+
+        verdict=PASS
+        # A lane that graded nothing is a failure, not a pass — `lanes.txt`'s own
+        # vacuity rule, restated here because this script does not go through
+        # `mode_lane.sh`.
+        [ "$graded" -eq "$total" ] || verdict=FAIL
+        [ "$panics" -eq 0 ] || verdict=FAIL
+        [ "$mm" -eq 0 ] || verdict=FAIL
+        [ "$rc" -eq 0 ] || verdict=FAIL
+        echo "$verdict DEBUG-LANE-RESULT $verdict lane=$slug flags=[$flags] graded=$graded total=$total match=$match mismatch=$mm panics=$panics rc=$rc" > "$d/result"
+    ) &
+    running=$((running + 1))
+    if [ "$running" -ge "$lane_jobs" ]; then wait; running=0; fi
+done < "$work/lanes.tsv"
+wait
+
+# ---- PHASE 2: read the results, IN REGISTRY ORDER, in THIS shell ---------------
+#
+# In this shell, so `fails` and `lanes_run` survive. In registry order, so the
+# output is byte-identical to what the sequential version printed and
+# `gate.sh`'s `debug_verdict` sees no change. And counted POSITIVELY: a lane
+# whose result file is missing is a lane that died, which is a hard failure and
+# not an absent contribution.
 fails=0
 lanes_run=0
+seen=0
 while IFS="$(printf '\t')" read -r slug flags; do
+    [ -n "$slug" ] || continue
     d="$work/$slug"
-    mkdir -p "$d"
-    echo "$flags /GS- /c" > "$d/flags.txt"
-
-    if "$c2rs" gap --list "$list" --flags-file "$d/flags.txt" --limit 1 --jobs 1 2>&1 | grep -q "SKIP"; then
-        echo "DEBUG-LANE-RESULT SKIP lane=$slug flags=[$flags] graded=0 total=$total match=0 mismatch=0 panics=0"
+    if [ ! -f "$d/result" ]; then
+        echo "DEBUG-LANE-RESULT FAIL lane=$slug flags=[$flags] graded=0 total=$total match=0 mismatch=0 panics=0 rc=NO-RESULT"
+        echo "    the lane produced no result file at all — it was killed, or its"
+        echo "    subshell died before writing one. Its fixtures were never graded."
+        fails=$((fails + 1))
         continue
     fi
-
-    set +e
-    "$c2rs" gap --list "$list" --flags-file "$d/flags.txt" --jobs "${C2RS_JOBS:-8}" \
-        > "$d/report.txt" 2>&1
-    rc=$?
-    set -e
-    lanes_run=$((lanes_run + 1))
-    panics=$(grep -ci 'panicked at' "$d/report.txt" || true)
-    graded=$(sed -n 's|^GAP REPORT (\([0-9]*\) TUs.*|\1|p' "$d/report.txt" | head -1)
-    match=$(sed -n 's|^  match  *\([0-9]*\) .*|\1|p' "$d/report.txt" | head -1)
-    mm=$(sed -n 's|^  mismatch  *\([0-9]*\) .*|\1|p' "$d/report.txt" | head -1)
-    graded=${graded:-0}; match=${match:-0}; mm=${mm:-0}
-
-    verdict=PASS
-    # A lane that graded nothing is a failure, not a pass — `lanes.txt`'s own
-    # vacuity rule, restated here because this script does not go through
-    # `mode_lane.sh`.
-    [ "$graded" -eq "$total" ] || verdict=FAIL
-    [ "$panics" -eq 0 ] || verdict=FAIL
-    [ "$mm" -eq 0 ] || verdict=FAIL
-    [ "$rc" -eq 0 ] || verdict=FAIL
-    [ "$verdict" = PASS ] || fails=$((fails + 1))
-    echo "DEBUG-LANE-RESULT $verdict lane=$slug flags=[$flags] graded=$graded total=$total match=$match mismatch=$mm panics=$panics rc=$rc"
-    if [ "$panics" -gt 0 ]; then
+    seen=$((seen + 1))
+    _dl_v=$(cut -d' ' -f1 < "$d/result")
+    cut -d' ' -f2- < "$d/result"
+    [ "$_dl_v" = SKIP ] || lanes_run=$((lanes_run + 1))
+    [ "$_dl_v" = FAIL ] && fails=$((fails + 1)) || true
+    if [ -f "$d/report.txt" ] && grep -qi 'panicked at' "$d/report.txt"; then
         grep -A2 -i 'panicked at' "$d/report.txt" | head -12 | sed 's/^/    /'
     fi
 done < "$work/lanes.tsv"
+
+# The short-count reconciliation, stated as a count and never as a status.
+if [ "$seen" -ne "$n_lanes" ]; then
+    echo "FAIL: $seen of $n_lanes lanes reported a result. The rest were never graded"
+    echo "  and this run establishes nothing about them."
+    fails=$((fails + 1))
+fi
 
 echo "DEBUG-LANE-TOTAL lanes=$n_lanes ran=$lanes_run failed=$fails"
 [ "$fails" -eq 0 ] || exit 1
