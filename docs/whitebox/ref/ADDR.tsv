@@ -348,8 +348,16 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10b5e4e8	in-func	10b5e4cc	101	1	3	inline.c	in-anchor	inline	P_INLINE.md	unknown	-	1	whitebox/WB_INLINE_FINDINGS.md:1
 10b5e6a5	func-entry	10b5e6a5	768	3	8	inline.c	in-anchor	inline	P_INLINE.md	unknown	-	2	BOARD.md:1,whitebox/WB_INLINE_FINDINGS.md:1
 10b5f048	func-entry	10b5f048	633	1	15	inline.c	in-anchor	inline	P_INLINE.md	unknown	-	1	whitebox/WB_INLINE_FINDINGS.md:1
-10b5fb5f	func-entry	10b5fb5f	377	3	5	inline.c	gap	inline	P_INLINE.md	unknown	-	3	whitebox/WB_INLINE_FINDINGS.md:3
-10b5fcd8	func-entry	10b5fcd8	1038	1	6	inline.c	gap	inline	P_INLINE.md	unknown	-	7	whitebox/WB_INLINE_FINDINGS.md:5,BOARD.md:1,rungs/2026-08-08-wb-inline.md:1
+10b5fb5f	func-entry	10b5fb5f	377	3	5	inline.c	gap	inline	P_INLINE.md	unknown	-	7	whitebox/WB_INLINE_FINDINGS.md:3,BOARD.md:2,rungs/2026-08-18-sizebracket.md:2
+10b5fc7e	in-func	10b5fb5f	377	3	5	inline.c	gap	inline	P_INLINE.md	unknown	-	2	BOARD.md:1,rungs/2026-08-18-sizebracket.md:1
+10b5fc84	in-func	10b5fb5f	377	3	5	inline.c	gap	inline	P_INLINE.md	unknown	-	1	rungs/2026-08-18-sizebracket.md:1
+10b5fc86	in-func	10b5fb5f	377	3	5	inline.c	gap	inline	P_INLINE.md	unknown	-	1	rungs/2026-08-18-sizebracket.md:1
+10b5fc8a	in-func	10b5fb5f	377	3	5	inline.c	gap	inline	P_INLINE.md	unknown	-	1	rungs/2026-08-18-sizebracket.md:1
+10b5fc90	in-func	10b5fb5f	377	3	5	inline.c	gap	inline	P_INLINE.md	unknown	-	2	BOARD.md:1,rungs/2026-08-18-sizebracket.md:1
+10b5fcb9	in-func	10b5fb5f	377	3	5	inline.c	gap	inline	P_INLINE.md	unknown	-	2	rungs/2026-08-18-sizebracket.md:2
+10b5fcc1	in-func	10b5fb5f	377	3	5	inline.c	gap	inline	P_INLINE.md	unknown	-	2	BOARD.md:1,rungs/2026-08-18-sizebracket.md:1
+10b5fcd7	in-func	10b5fb5f	377	3	5	inline.c	gap	inline	P_INLINE.md	unknown	-	2	BOARD.md:1,rungs/2026-08-18-sizebracket.md:1
+10b5fcd8	func-entry	10b5fcd8	1038	1	6	inline.c	gap	inline	P_INLINE.md	unknown	-	9	whitebox/WB_INLINE_FINDINGS.md:5,BOARD.md:2,rungs/2026-08-08-wb-inline.md:1,rungs/2026-08-18-sizebracket.md:1
 10b5fdfd	in-func	10b5fcd8	1038	1	6	inline.c	gap	inline	P_INLINE.md	unknown	-	5	whitebox/WB_INLINE_FINDINGS.md:3,BOARD.md:1,rungs/2026-08-08-wb-inline.md:1
 10b5fe0c	in-func	10b5fcd8	1038	1	6	inline.c	gap	inline	P_INLINE.md	unknown	-	3	whitebox/WB_INLINE_FINDINGS.md:3
 10b5fe14	in-func	10b5fcd8	1038	1	6	inline.c	gap	inline	P_INLINE.md	unknown	-	6	whitebox/WB_INLINE_FINDINGS.md:4,BOARD.md:2
@@ -560,7 +568,7 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10b9b6a4	func-entry	10b9b6a4	262	4	8	p2symtab.c	in-anchor	section	P_SECTION.md	medium	bss-defer: head-inserts onto DAT_10c2f064 (LIFO); paired with 10b99093	1	whitebox/C2_MAP.md:1
 10b9b7aa	func-entry	10b9b7aa	226	1	5	p2symtab.c	in-anchor	section	P_SECTION.md	high	symtab-intern: same 128-slot cache; creates an external symbol via 10b9b6a4	0	-
 10b9b88d	func-entry	10b9b88d	92	1	2	p2symtab.c	in-anchor	section	P_SECTION.md	high	il-dispatch: drives FUN_10b9ae94 over every TU's .in	0	-
-10b9b8e9	func-entry	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	il-reader|il-symbol-reader: .gl record dispatcher; GetByte tag, dec+cmp 0x1a guard at 10b9b92e, byte-index tbl 10b9c615 (27), jump tbl 10b9c5d5 (16)	6	whitebox/C2_MAP.md:2,BOARD.md:1,rungs/2026-08-18-c2map2.md:1,rungs/_2026-08-04-w-roots-prereg.md:1,whitebox/BOARD_PROPOSED.md:1
+10b9b8e9	func-entry	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	il-reader|il-symbol-reader: .gl record dispatcher; GetByte tag, dec+cmp 0x1a guard at 10b9b92e, byte-index tbl 10b9c615 (27), jump tbl 10b9c5d5 (16)	8	BOARD.md:2,whitebox/C2_MAP.md:2,rungs/2026-08-18-c2map2.md:1,rungs/2026-08-18-sizebracket.md:1,rungs/_2026-08-04-w-roots-prereg.md:1,whitebox/BOARD_PROPOSED.md:1
 10b9b91f	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	il-symbol-reader	3	rungs/_2026-08-04-w-emitp-findings.md:1,rungs/_2026-08-04-w-emitp-prereg.md:1,whitebox/DISCLOSURE.md:1
 10b9b922	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	gl/dispatch: GetByte -> [ebp-0x78] is THE record tag; dec+cmp 0x1a bounds it to 0x01..0x1b	2	rungs/_2026-08-04-w-skip-findings.md:1,rungs/_2026-08-04-w-skip-prereg.md:1
 10b9b937	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	il-symbol-reader	1	rungs/_2026-08-04-w-skip-prereg.md:1
@@ -591,13 +599,14 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10b9bf46	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	gl/symrec: cmp [ebp-0x78],0x0e IS the tag compare, discriminating inside the shared handler	8	rungs/_2026-08-04-w-refs-findings.md:4,rungs/_2026-08-04-w-emitp-findings.md:2,rungs/_2026-08-04-w-emitp-prereg.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
 10b9bf4a	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	il-symbol-reader	2	rungs/_2026-08-04-w-emitp-findings.md:1,rungs/_2026-08-04-w-emitp-prereg.md:1
 10b9bf50	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	gl/symrec: tag 0x0e -> +0x37 |= 0x200000 (has body)	4	rungs/_2026-08-04-w-emitp-findings.md:1,rungs/_2026-08-04-w-emitp-prereg.md:1,rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-refs-findings.md:1
-10b9bf57	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	gl/symrec: i32c -> +0x54 = .ex stream offset; decoded 2644..3194 step 110 over a 3312-byte .ex	3	rungs/_2026-08-04-w-emitp-findings.md:1,rungs/_2026-08-04-w-emitp-prereg.md:1,rungs/_2026-08-04-w-roots-prereg.md:1
+10b9bf57	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	gl/symrec: i32c -> +0x54 = .ex stream offset; decoded 2644..3194 step 110 over a 3312-byte .ex	4	rungs/2026-08-18-sizebracket.md:1,rungs/_2026-08-04-w-emitp-findings.md:1,rungs/_2026-08-04-w-emitp-prereg.md:1,rungs/_2026-08-04-w-roots-prereg.md:1
 10b9bf5c	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	il-symbol-reader	1	rungs/_2026-08-04-w-roots-findings.md:1
-10b9bf5f	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	gl/symrec: i32c -> +0x58 = .sy stream offset; decoded 0,30,...,150 over a 180-byte .sy (6*30 exact)	0	-
-10b9bf67	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	gl/symrec: i16c -> +0x50; 0x80-escape probe at that byte desyncs to C1001:1978	0	-
-10b9bf70	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	gl/emit: varU -> +0x4c THE FLAG WORD; file offset 0xd5 in _CL_5a0312b9.gl; escape probe on the hi byte desyncs	5	rungs/_2026-08-04-w-emitp-findings.md:1,rungs/_2026-08-04-w-emitp-prereg.md:1,rungs/_2026-08-04-w-roots-findings.md:1,rungs/_2026-08-04-w-roots-prereg.md:1,whitebox/C2_MAP.md:1
+10b9bf5f	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	gl/symrec: i32c -> +0x58 = .sy stream offset; decoded 0,30,...,150 over a 180-byte .sy (6*30 exact)	1	rungs/2026-08-18-sizebracket.md:1
+10b9bf67	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	gl/symrec: i16c -> +0x50; 0x80-escape probe at that byte desyncs to C1001:1978	1	rungs/2026-08-18-sizebracket.md:1
+10b9bf6c	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	il-symbol-reader	2	BOARD.md:1,rungs/2026-08-18-sizebracket.md:1
+10b9bf70	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	gl/emit: varU -> +0x4c THE FLAG WORD; file offset 0xd5 in _CL_5a0312b9.gl; escape probe on the hi byte desyncs	8	rungs/2026-08-18-sizebracket.md:2,BOARD.md:1,rungs/_2026-08-04-w-emitp-findings.md:1,rungs/_2026-08-04-w-emitp-prereg.md:1,rungs/_2026-08-04-w-roots-findings.md:1,rungs/_2026-08-04-w-roots-prereg.md:1
 10b9bf75	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	gl/emit: and eax,0xfffffffb force-clears bit 0x4; setting 0x4 in the IL yields a byte-identical obj	1	whitebox/C2_MAP.md:1
-10b9bf78	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	il-symbol-reader	4	BOARD.md:1,ROADMAP.md:1,whitebox/BOARD_PROPOSED.md:1,whitebox/C2_MAP.md:1
+10b9bf78	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	il-symbol-reader	5	BOARD.md:1,ROADMAP.md:1,rungs/2026-08-18-sizebracket.md:1,whitebox/BOARD_PROPOSED.md:1,whitebox/C2_MAP.md:1
 10b9bf80	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	il-symbol-reader	1	rungs/_2026-08-04-w-roots-prereg.md:1
 10b9bf99	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	gl/emit: test +0x4c,0x1000 gates a trailing inline list; clearing 0x1000 without dropping the count byte -> C1001:1978	12	rungs/_2026-08-04-w-refs-findings.md:3,whitebox/C2_MAP.md:2,BOARD.md:1,rungs/2026-08-08-w-phase7.md:1,rungs/_2026-08-04-w-emitp-findings.md:1,rungs/_2026-08-04-w-emitp-prereg.md:1
 10b9bfa9	in-func	10b9b8e9	3307	3	47	p2symtab.c	in-anchor	section	P_SECTION.md	high	il-symbol-reader	1	rungs/_2026-08-04-w-refs-findings.md:1
@@ -1013,10 +1022,10 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10c1f746	func-entry	10c1f746	188	1	2	getflags.c	gap	-	-	high	flag-table: matcher: 12-byte stride, terminator on byte +9, '-'/'#'/'*' rules, returns byte +8	2	whitebox/C2_MAP.md:1,whitebox/PREREG.md:1
 10c1f8fc	func-entry	10c1f8fc	14	11	0	getflags.c	gap	-	-	high	il-primitive|il-read: GetByte raw 1; carries the tag-9 kind	5	rungs/_2026-08-04-w-roots-findings.md:1,rungs/_2026-08-04-w-roots-prereg.md:1,whitebox/C2_MAP.md:1,whitebox/DISCLOSURE.md:1,whitebox/WB_READER_FINDINGS.md:1
 10c1f90a	func-entry	10c1f90a	17	4	0	getflags.c	gap	-	-	high	il-read: skip a high-bit-continuation value	4	whitebox/WB_READER_FINDINGS.md:2,rungs/_2026-08-04-w-roots-findings.md:1,whitebox/DISCLOSURE.md:1
-10c1f91b	func-entry	10c1f91b	95	6	0	getflags.c	gap	-	-	high	il-primitive|il-read-packed15|il/ioin|il-read: varU: 2 bytes LE; bit15 set -> clear and OR (next u16)<<15; carries the tag-9 section id	19	whitebox/WB_LABEL_FINDINGS.md:4,whitebox/WB_READER_FINDINGS.md:3,rungs/_2026-08-04-w-emitp-findings.md:2,rungs/_2026-08-04-w-emitp-prereg.md:2,rungs/_2026-08-04-w-roots-findings.md:2,whitebox/C2_MAP.md:2
+10c1f91b	func-entry	10c1f91b	95	6	0	getflags.c	gap	-	-	high	il-primitive|il-read-packed15|il/ioin|il-read: varU: 2 bytes LE; bit15 set -> clear and OR (next u16)<<15; carries the tag-9 section id	21	whitebox/WB_LABEL_FINDINGS.md:4,whitebox/WB_READER_FINDINGS.md:3,rungs/2026-08-18-sizebracket.md:2,rungs/_2026-08-04-w-emitp-findings.md:2,rungs/_2026-08-04-w-emitp-prereg.md:2,rungs/_2026-08-04-w-roots-findings.md:2
 10c1f97a	func-entry	10c1f97a	44	1	0	getflags.c	gap	-	-	high	il-read: GetU16 raw LE	0	-
-10c1f9a6	func-entry	10c1f9a6	67	9	0	getflags.c	gap	-	-	high	il-read-varint16|il/ioin|il-read: 1-or-3-byte reader	4	rungs/_2026-08-04-w-roots-findings.md:1,rungs/_2026-08-04-w-roots-prereg.md:1,whitebox/DISCLOSURE.md:1,whitebox/WB_READER_FINDINGS.md:1
-10c1f9e9	func-entry	10c1f9e9	95	7	0	getflags.c	gap	-	-	high	il-read-varint32|il/ioin|il-read: 1-or-5-byte signed reader	7	rungs/2026-08-08-w-emitp2.md:1,rungs/_2026-08-04-w-emitp-findings.md:1,rungs/_2026-08-04-w-emitp-prereg.md:1,rungs/_2026-08-04-w-roots-findings.md:1,rungs/_2026-08-04-w-roots-prereg.md:1,whitebox/DISCLOSURE.md:1
+10c1f9a6	func-entry	10c1f9a6	67	9	0	getflags.c	gap	-	-	high	il-read-varint16|il/ioin|il-read: 1-or-3-byte reader	6	BOARD.md:1,rungs/2026-08-18-sizebracket.md:1,rungs/_2026-08-04-w-roots-findings.md:1,rungs/_2026-08-04-w-roots-prereg.md:1,whitebox/DISCLOSURE.md:1,whitebox/WB_READER_FINDINGS.md:1
+10c1f9e9	func-entry	10c1f9e9	95	7	0	getflags.c	gap	-	-	high	il-read-varint32|il/ioin|il-read: 1-or-5-byte signed reader	9	rungs/2026-08-18-sizebracket.md:2,rungs/2026-08-08-w-emitp2.md:1,rungs/_2026-08-04-w-emitp-findings.md:1,rungs/_2026-08-04-w-emitp-prereg.md:1,rungs/_2026-08-04-w-roots-findings.md:1,rungs/_2026-08-04-w-roots-prereg.md:1
 10c1fae7	func-entry	10c1fae7	164	2	0	getflags.c	gap	-	-	high	il-read: i64c, 0x80 escape	3	rungs/_2026-08-04-w-roots-findings.md:1,whitebox/DISCLOSURE.md:1,whitebox/WB_READER_FINDINGS.md:1
 10c1fb8b	func-entry	10c1fb8b	73	3	0	getflags.c	gap	-	-	high	il-primitive|il-read: GetU32 raw 4 LE; carries the tag-9 Characteristics override	2	whitebox/C2_MAP.md:1,whitebox/WB_LABEL_FINDINGS.md:1
 10c1fbd4	func-entry	10c1fbd4	134	2	4	ioin.c	in-anchor	-	-	high	il-read: NUL string + MultiByteToWideChar(CP_UTF8)	0	-
@@ -1084,7 +1093,7 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10c2e2d2	data	10c2e2d2	1	0	0	n/a	n/a	-	-	unknown	-	4	whitebox/WB_DAGORDER_FINDINGS.md:3,whitebox/WB_DAGORDER_PREREG_R2.md:1
 10c2e2f4	data	10c2e2f4	4	0	0	n/a	n/a	-	-	unknown	-	7	whitebox/WB_SELECT_FINDINGS.md:3,whitebox/WB_SELECT_RECONCILED.md:2,rungs/2026-08-09-wb-selfit.md:1,whitebox/WB_EH_FINDINGS.md:1
 10c2e2fc	data	10c2e2fc	4	0	0	n/a	n/a	-	-	unknown	-	33	BOARD.md:6,whitebox/WB_SELECT_RECONCILED.md:5,whitebox/WB_DAGCLIENTS_FINDINGS.md:4,rungs/2026-08-09-wb-selfit.md:3,whitebox/WB_SELECT_FINDINGS_R2.md:3,whitebox/WB_DAGCLIENTS_PREREG.md:2
-10c2e310	data	10c2e310	4	0	0	n/a	n/a	-	-	unknown	-	46	whitebox/WB_DAGCLIENTS_FINDINGS.md:7,whitebox/WB_INLINE_FINDINGS.md:6,BOARD.md:5,whitebox/WB_MEMCPY_FINDINGS.md:5,whitebox/WB_DAGCLIENTS_PREREG_R2.md:3,whitebox/WB_MERGER4_FINDINGS.md:3
+10c2e310	data	10c2e310	4	0	0	n/a	n/a	-	-	unknown	-	48	whitebox/WB_DAGCLIENTS_FINDINGS.md:7,BOARD.md:6,whitebox/WB_INLINE_FINDINGS.md:6,whitebox/WB_MEMCPY_FINDINGS.md:5,whitebox/WB_DAGCLIENTS_PREREG_R2.md:3,whitebox/WB_MERGER4_FINDINGS.md:3
 10c2e918	data	10c2e918	4	0	0	n/a	n/a	-	-	unknown	-	7	whitebox/WB_LABEL_FINDINGS.md:4,BOARD.md:1,LABEL_COUNTER.md:1,whitebox/WB_LABEL_PREREG_R2.md:1
 10c2e978	data	10c2e978	4	0	0	n/a	n/a	-	-	unknown	-	14	whitebox/WB_SELECT_FINDINGS.md:3,BOARD.md:2,rungs/2026-08-09-wb-selfit.md:2,whitebox/WB_SELECT_RECONCILED.md:2,whitebox/WB_TABLES_FINDINGS.md:2,rungs/2026-08-09-wb-tables.md:1
 10c2e97c	data	10c2e97c	4	0	0	n/a	n/a	-	-	unknown	-	1	whitebox/WB_REGALLOC_FINDINGS.md:1
@@ -1158,6 +1167,7 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10c3de20	data	10c3de20	4	0	0	n/a	n/a	-	-	unknown	-	24	whitebox/WB_DAGCLIENTS_FINDINGS.md:6,whitebox/WB_MERGER4_FINDINGS.md:5,BOARD.md:2,whitebox/WB_DAGORDER2_FINDINGS.md:2,rungs/2026-08-13-dagclients.md:1,rungs/2026-08-18-dagorder2.md:1
 10c3f50c	data	10c3f50c	4	0	0	n/a	n/a	-	-	unknown	-	1	whitebox/WB_INLINE_FINDINGS.md:1
 10c3f510	data	10c3f510	4	0	0	n/a	n/a	-	-	unknown	-	2	BOARD.md:1,whitebox/WB_INLINE_FINDINGS.md:1
+10c3f58c	data	10c3f58c	4	0	0	n/a	n/a	-	-	unknown	-	1	rungs/2026-08-18-sizebracket.md:1
 10c3f5cc	data	10c3f5cc	4	0	0	n/a	n/a	-	-	unknown	-	6	whitebox/WB_INLINE_FINDINGS.md:6
 10c400d4	data	10c400d4	4	0	0	n/a	n/a	regalloc	P_REGALLOC.md	unknown	-	5	BOARD.md:2,whitebox/WB_LIVE_FINDINGS.md:2,whitebox/WB_DAGORDER2_FINDINGS.md:1
 10c400d8	data	10c400d8	4	0	0	n/a	n/a	regalloc	P_REGALLOC.md	unknown	-	3	whitebox/WB_DAGORDER2_FINDINGS.md:1,whitebox/WB_DAGORDER2_PREREG.md:1,whitebox/WB_LIVE_FINDINGS.md:1
@@ -1181,7 +1191,7 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10c462c4	data	10c462c4	4	0	0	n/a	n/a	-	-	unknown	-	10	rungs/_2026-08-04-w-mark-findings.md:4,rungs/_2026-08-04-w-mark-prereg.md:3,rungs/_2026-08-04-w-refs-findings.md:1,rungs/_2026-08-04-w-skip-findings.md:1,rungs/_2026-08-04-w-skip-prereg.md:1
 10c4630c	data	10c4630c	4	0	0	n/a	n/a	-	-	unknown	-	11	rungs/_2026-08-04-w-mark-findings.md:3,whitebox/C2_MAP.md:3,whitebox/WB_CHOOSER_FINDINGS.md:2,rungs/_2026-08-04-w-mark-prereg.md:1,rungs/_2026-08-04-w-skip-findings.md:1,rungs/_2026-08-04-w-skip-prereg.md:1
 10c46310	data	10c46310	4	0	0	n/a	n/a	-	-	unknown	-	2	rungs/_2026-08-04-w-roots-findings.md:1,rungs/_2026-08-04-w-roots-prereg.md:1
-10c46318	data	10c46318	4	0	0	n/a	n/a	-	-	unknown	-	5	whitebox/WB_INLINE_FINDINGS.md:5
+10c46318	data	10c46318	4	0	0	n/a	n/a	-	-	unknown	-	6	whitebox/WB_INLINE_FINDINGS.md:5,rungs/2026-08-18-sizebracket.md:1
 10c472e8	data	10c472e8	4	0	0	n/a	n/a	-	-	unknown	-	7	whitebox/WB_READER_FINDINGS.md:3,BOARD.md:1,rungs/_2026-08-04-w-skip-findings.md:1,rungs/_2026-08-04-w-skip-prereg.md:1,whitebox/WB_LOOP_FINDINGS.md:1
 10c67db4	data	10c67db4	4	0	0	n/a	n/a	-	-	unknown	-	4	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1,rungs/_2026-08-04-w-skip-findings.md:1,rungs/_2026-08-04-w-skip-prereg.md:1
 10c67db8	data	10c67db8	4	0	0	n/a	n/a	-	-	unknown	-	2	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1

@@ -72,6 +72,155 @@ codegen, not a byte count** `[R]`.
 This is why no grid compiled at a single flag set could ever see the ceiling
 move.
 
+> ### ⛔ CORRECTION 2026-08-18 (lane `w-sizebracket`) — the SEQUENCE above is right and ALL FOUR ADDRESSES ARE WRONG. They are in a different function.
+>
+> `FUN_10b5fb5f` has size **377**, so it spans `0x10b5fb5f`–`0x10b5fcd7`.
+> **Every address in the block above is past its end** and lands in
+> `FUN_10b5fcd8` — §1's *"profitability model — POGO ONLY"*. The bytes actually
+> at those addresses are a different computation:
+>
+> ```
+> 10b5fdfd:  0f b6 c9              movzx  ecx,cl
+> 10b5fe0e:  0f af 15 8c f5 c3 10  imul   edx,DWORD PTR ds:0x10c3f58c
+> 10b5fe15:  0f af 05 7c f5 c3 10  imul   eax,DWORD PTR ds:0x10c3f57c
+> ```
+>
+> The **real** candidacy test, inside `FUN_10b5fb5f` and reading the same two
+> operands the block above names, is at `0x10b5fc7e`:
+>
+> ```
+> 10b5fc7e:  39 1d 10 e3 c2 10     cmp    DWORD PTR ds:0x10c2e310,ebx   <- FAVOUR-SPEED (ebx = 0)
+> 10b5fc84:  75 33                 jne    0x10b5fcb9                    <- set => size test SKIPPED
+> 10b5fc86:  0f b7 46 50           movzx  eax,WORD PTR [esi+0x50]       <- the callee's count
+> 10b5fc8a:  3b 05 18 63 c4 10     cmp    eax,DWORD PTR ds:0x10c46318   <- the ceiling
+> 10b5fc90:  7c 27                 jl     0x10b5fcb9                    <- below it => candidate
+> 10b5fc92:  8b 46 4c              mov    eax,DWORD PTR [esi+0x4c]
+> 10b5fcc1:  f7 46 4c 80 20 00 00  test   DWORD PTR [esi+0x4c],0x2080
+> ```
+>
+> Two things carry forward and one does not. **The reading carries**: the
+> favour-speed bit does gate the size test, the tested operand is
+> `WORD [sym+0x50]`, and the ceiling is `DAT_10c46318`. **The `0x2000`
+> `__forceinline` mask does not carry as written** — the mask at `0x10b5fcc1` is
+> `0x2080`, and the test at `0x10b5fc92` is against a mask held in `edi` rather
+> than an immediate. §2.3's `0x10b609d3` is a separate, genuine `0x2000` test and
+> is unaffected.
+>
+> This is `README.md` §6.2's lesson in a second place: *"address A is inside
+> function F"* is a claim to check against `F`'s entry **and size**, which
+> `ADDR.tsv` prints. Amended beside, per §2.1 of the front door; the original
+> block is left exactly as it was written.
+
+### 2.1a Where `[sym+0x50]` COMES FROM — it is the `.gl` record's `SIZE` field, read verbatim `[O]`
+
+Lane `w-sizebracket`, 2026-08-18. §1 read the quantity as *"an instruction count
+c2 holds before codegen"* from the `INL:\t...(%d instrs)` diagnostic. Its
+**origin** is now located, and it is a field of the IL.
+
+**There is exactly ONE 16-bit store to `[reg+0x50]` in the whole image:**
+
+```
+10b9bf57:  e8 8d 3a 08 00        call   0x10c1f9e9      (i32c)  -> [esi+0x54]
+10b9bf5f:  e8 85 3a 08 00        call   0x10c1f9e9      (i32c)  -> [esi+0x58]
+10b9bf67:  e8 3a 3a 08 00        call   0x10c1f9a6      (i16c)
+10b9bf6c:  66 89 46 50           mov    WORD PTR [esi+0x50],ax   <-- THE ONLY ONE
+10b9bf70:  e8 a6 39 08 00        call   0x10c1f91b
+10b9bf78:  89 46 4c              mov    DWORD PTR [esi+0x4c],eax
+10b9bf7b:  e8 26 3a 08 00        call   0x10c1f9a6      (i16c)  -> WORD [esi+0x52]
+```
+
+It is inside `FUN_10b9b8e9`, which [`ADDR.tsv`](ADDR.tsv) already labels
+*"p2symtab `.gl` record reader; reads the emit flag word `+0x4c` at
+`0x10b9bf70`"* — the same three instructions, from the other side. `0x10c1f9a6`
+is `il-read-varint16` (*"i16c, `0x80` escape"*, 1-or-3 byte) and `0x10c1f9e9` is
+`il-read-varint32`.
+
+**And the field order matches the port's own `.gl` reader exactly.**
+`c2_il::func::gl::gl_function_attrs`' record comment reads
+
+```text
+  00 <name> 00 <TYPE> 80 01 10 00 00 00 00 80 <LE32 offset> <SRCPOS> <SIZE> <ATTR>
+```
+
+with `SRCPOS` *"a byte under 0x80, or the escape `80 <LE32>`"* and `SIZE` *"a
+byte under 0x80"*. Lined up against the reader above:
+
+| `.gl` field | reader | destination |
+|---|---|---|
+| `80 <LE32 offset>` | `i32c` `0x10b9bf57` | `[sym+0x54]` |
+| `SRCPOS` | `i32c` `0x10b9bf5f` | `[sym+0x58]` |
+| **`SIZE`** | **`i16c` `0x10b9bf67`** | **`WORD [sym+0x50]`** |
+| `ATTR` | `0x10b9bf70` | `[sym+0x4c]` |
+
+> **So `[sym+0x50]` is the `.gl` function record's `SIZE` field, arriving
+> verbatim from the IL — the field the port already walks past to reach the
+> attribute byte, and throws away.** `[sym+0x4c]`, the field one step later in
+> the same decode, is the one the port reads as `FN_FLAG_INLINABLE` and the one
+> §1's legality check `0x10b5c06b` tests. The two are neighbours in one record.
+
+`[O]`: decoded out of real `.gl` bytes by `work/w-sizebracket/glsize.py` and
+confirmed **linear in source content** — an empty `int f(int)` is 19, and each
+added statement is a fixed increment (`s ^= a;` +4, `s = -s;` +5, `s = s << 3;`
++6, `s = s*3+1;` +8, `if (s>3) s=1;` +13). 105 cells, `/O1` and `/Ox`.
+
+**The `0x80` escape is live on real code and the port refuses it.**
+`gl_function_attrs` returns `None` for the **whole file** when the `SIZE` byte is
+`>= 0x80`, and `SIZE` crosses 128 at ~14 statements — cell `arith_016` reaches
+147. Whatever else follows from this section, that refusal is a measured, live
+limit of the port's attribute map rather than a theoretical one.
+
+### 2.1b …and the `.gl` `SIZE` field is NOT the value the decision tests `[O]`
+
+Same lane, and it is the finding that matters most. `[sym+0x50]` is
+**initialized** from `SIZE` and is then **reduced by whatever runs before the
+inliner**, so `SIZE` is an *upper bound* on the tested quantity and not the
+quantity.
+
+The witness is a matched pair at the workload profile
+(`/nologo /c /GR /O1 /Oi /EHsc`), graded by whether the caller's `.text` COMDAT
+carries a `REL24` naming the callee:
+
+| cell | `.gl` `SIZE` | `.ex` bytes | emitted `.text` | real c2 |
+|---|---:|---:|---:|---|
+| `arith_012_O1` — 12 × `s = s*K+C;` | **115** | 3,233 | **28** | **inlined** |
+| `mix_008_O1` — 8 × `s = (s*K+C)^(s>>j);` | **115** | 3,221 | **132** | **kept** |
+
+**Identical `SIZE`, opposite verdicts.** The `arith` chain composes to a single
+affine function, so c2 folds it before the inliner looks; the `mix` chain does
+not. Extended: `arith` is **inlined at every rung to `SIZE = 211`** at both
+`/O1` and `/Ox`, while `mix` is kept from `SIZE = 103` at `/O1`.
+
+**The one-sided implication survives and is the usable form:** folding only
+*reduces* the count, so
+
+> `.gl SIZE < T` ⇒ the tested count `< T` ⇒ **c2 inlined it**
+
+holds with **zero counterexamples in 105 probe cells** at `T = 98` (`/O1`) and
+`T = 122` (`/Ox`). The converse — *"`SIZE` large ⇒ c2 kept it"* — is false, and
+`arith` is 32 cells of it.
+
+### 2.1c The brackets, this lane's, beside §3's `[O]`
+
+Straight-line EXTERNAL callee, one call site, callee non-`inline`:
+
+| profile | bracket in emitted `.text` | bracket in `.gl` `SIZE` | families |
+|---|---|---|---|
+| `/O1` (the workload's) | **(108, 116]** | (97, 103] on non-folding bodies | `mix`, `fine` |
+| `/Ox` | **not separating** — 320 B inlined beside 196 B kept | (121, 127] on non-folding bodies | `mix`, `fine` |
+
+**`/O1`'s (108, 116] sits inside §3's F2 `(100, 116]` and shares its top**, which
+is an independent reproduction of that row on new cells four months of lanes
+later.
+
+**`/Ox` is where the units swap and it is the reason this section exists.** At
+`/O1` the emitted `.text` separates and `SIZE` does not; at `/Ox` neither does,
+and the emitted size is *anti*-correlated at the crossing — `fine_005_Ox` emits
+**320 B** and is inlined, `fine_006_Ox` emits **196 B** and is kept. Consistent
+with §2.1's favour-speed bit turning this very test off, and with `/Ox`'s growth
+transforms running *after* the decision, so the emitted body is no longer a
+witness to what the inliner saw. **No single-profile size claim from this page
+may be quoted at the other profile.**
+
 ### 2.2 The budget — `B = clamp(2 × caller_instrs, 1000, 35000)`
 
 ```
