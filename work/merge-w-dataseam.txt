@@ -31,6 +31,65 @@ The scaffold is deliberately kept in history and reverted rather than squashed
 away: the counterfactual ladder is the deliverable and the code that produced it
 is how anyone re-runs it.
 
+THE BINARY QUESTION, IN ONE SENTENCE
+-----------------------------------
+The lifted predicate is a GENUINE RULE, not another named exemption -- it is
+stated entirely over container facts (callee defined-here by the emit binding,
+not in tu_modelled_callees, cflow_key != eh-state1), with no name list, no
+population list and no string-literal term -- and lifting it is nonetheless
+DECLINED because the rule is INCOMPLETE: it is missing c2's size axis, and
+shipping it incomplete costs 992 byte-exact bodies.
+
+w-fence163 was a widening because its SCOPING was the exemption. Remove the
+scoping and a real rule is what remains; this lane confirms that half of 8.1 in
+the strongest units the repo has (the lifted rule accounts for 91.7% of every
+remaining wrong body). What it adds is that the rule is TWO-TERM and the repo
+owns only one term. The phase is real and BIGGER than 8.1 thought; the next step
+is a characterization lane that measures the second term, not a lane that ships
+the first alone. NOT stretched to `built` -- nothing shipped.
+
+BOARD #3249 -- THE BASELINE IS NOT COMMIT-PURE, AND HOW THIS LANE HANDLED IT
+----------------------------------------------------------------------------
+The coordinator's #3249 (on master, cited not re-minted) measured fnbyte-exact
+35,897 -> 35,899 with NO commit and NO workload change. This lane hit the same
++2 independently and its FIRST write-up ATTRIBUTED IT TO WORKLOAD DRIFT -- that
+attribution was wrong and is corrected in the rung 3 and in board #3238. The
+workload had indeed moved 61 commits, but that was never shown to be the cause;
+the inputs are (commit x cache state x untracked workload) and this lane
+separated none of the three.
+
+The control that makes it harmless, and it is discharged:
+  Re-ran the ENTIRE headline ladder as ONE uninterrupted block, ONE binary, with
+  a base reading at EACH END. Both base readings identical in every column ->
+  measured drift across the block is ZERO. Cache state, as required: the shared
+  work/capture-cache under main_repo_root(), fully warm, 870 hit on all eight
+  readings (870 = 878 - the 8 capture-fail TUs).
+
+  base     exact=35899 differs=1958 relocD=531 refparse=113447
+  lift     exact=34907 differs= 162 relocD=521 refparse=116322
+  sz=180   exact=35899 differs=1403 relocD=508 refparse=114027
+  sz=228   exact=35899 differs= 825 relocD=475 refparse=114639
+  sz=232   exact=35895 differs= 781 relocD=456 refparse=114706
+  payc     exact=35899 differs=1958 relocD=531 refparse=113447
+  paycall  exact=35899 differs=1959 relocD=531 refparse=113446
+  base2    exact=35899 differs=1958 relocD=531 refparse=113447
+
+  match 26 / mismatch 0 / codegen-gap 0 / vocab-gap 844 / capture-fail 8 on all
+  eight readings and on all 40 builds -- CHECKED, not assumed.
+
+WHICH NUMBERS SURVIVE THE +/-2 FLOOR, AND WHICH DO NOT
+  SAFE:  -992 (496x the floor), -1,796 (898x), reach 2,875, the zero-cost
+         property (an EQUALITY at 8 ladder points and 6 base readings), and the
+         split-half deltas -414 / -415.
+  NOT:   the bracket's UPPER end at 231 rests on a 4-body step -> reported as
+         unattributable at repo scale; what is safe is "cost is exactly 0
+         through cut 228, and unambiguously large by 256 (-26) and 288 (-121)".
+         And pext's "+2 wrong" is AT the floor -> reported as unmeasured, not
+         as a cost.
+  Attributable despite being size 1: paycall's +1 differs / -1 refused-parse,
+         because it is a LIVENESS control with a NAMED key
+         (callee-defined-in-tu:eof goes 1 -> 0 in the same run).
+
 THE MISSION, AND THE ANSWER
 ---------------------------
 Dispatched to execute fence163 (2026-08-17-fence163.md) section 8.1's phase
@@ -58,11 +117,13 @@ Executed in full. The answer is DECLINE, and the measurement is the deliverable.
      -- no name list, no population list, no string-literal term. That was the
      dispatch's discriminating question and the answer is: genuine rule.
 
-  3. SECTION 8.1 ITEM 4 IS WRONG AT 44794fa4.  "It must be paid together with
-     clause (c)" is worth EXACTLY ZERO. payc moves no column. The liveness
-     control paycall -- clause (c) yields UNCONDITIONALLY, i.e. retired -- moves
-     callee-defined-in-tu:eof 1 -> 0 and fnbyte-exact by 0. Clause (c)'s entire
-     workload-wide reach is ONE body and it does not grade exact. The control
+  3. SECTION 8.1 ITEM 4 IS WRONG AT 44794fa4, AND IT IS WORSE THAN ZERO.
+     "It must be paid together with clause (c)" -- payc moves no column at all.
+     The liveness control paycall (clause (c) yields UNCONDITIONALLY, i.e.
+     retired) moves callee-defined-in-tu:eof 1 -> 0, fnbyte-exact by 0, and
+     fnbyte-differs 1,958 -> 1,959. Clause (c)'s entire workload-wide reach is
+     ONE body and that body is WRONG, so item 4 is worth MINUS ONE. There is no
+     configuration of clause (c) that adds a byte-exact body to the census. The control
      was built before the null was reported, because a null from a clause nobody
      can prove reachable is void.
 
@@ -70,7 +131,10 @@ Executed in full. The answer is DECLINE, and the measurement is the deliverable.
      ends: [180, 231] IL segment bytes. Inside it the lifted rule costs ZERO
      fnbyte-exact and removes up to 1,189 wrong bodies -- 57.9% of
      fnbyte-differs (1,133 of 1,958), 47.6% of every wrong body the instrument
-     grades (1,189 of 2,499). Lower end pinned by a witness -- at any cut <= 176 the size
+     grades (1,189 of 2,499). NOTE the upper end 231 rests on a 4-body step and
+     is NOT quoted as precise under #3249; the safe statements are "cost is
+     exactly 0 through cut 228" and "unambiguously large by 256".
+     Lower end pinned by a witness -- at any cut <= 176 the size
      exemption fires for ?MakeString@@YAPBDPBD@Z and un-fences
      ?ContentPath@XboxContentMgr@@UAAPBDH@Z, the exact body fence163 shipped its
      fence for. Upper end pinned by cost. The zero-cost property replicates
@@ -194,6 +258,16 @@ VERIFICATION
   scripts/board_audit.sh          all-zero (0 cited-not-on-board, 0 unresolved
                                   section anchors, 0 raw line-number anchors,
                                   0 rows-behind-the-prose, 0 duplicate rows)
+
+    ONE THING THE AUDIT CANNOT SEE, FLAGGED FOR THE FUNNEL RATHER THAN LEFT
+    TO BE FOUND: this branch CITES #3249 (in BOARD.md's #3238 row, in the rung,
+    and here) and #3249 has NO ROW on this branch -- it landed on master AFTER
+    this branch's base 44794fa4. The citation resolves the moment the branch is
+    rebased onto 31766e74 and needs no edit. board_audit.sh returned 0 for
+    "CITED BUT NOT ON THE BOARD" anyway, because it scans ROADMAP.md for
+    citations and not BOARD.md's own prose or docs/rungs/ -- so this is a real
+    blind spot in the audit, reported here and NOT worked around. RE-RUN
+    board_audit.sh AFTER THE REBASE to confirm it resolves.
   rung_registry                   2 passed / 0 failed
   878-TU workload scan            match 26 / mismatch 0 / codegen-gap 0 in ALL
                                   40 counterfactual builds
@@ -264,4 +338,6 @@ Also recorded in the rung's section 12 and not taken here:
     #2155 named as this fence's missing input.
 
 DO NOT MERGE OR PUSH WITHOUT THE COORDINATOR'S GO-AHEAD. This branch has NOT
-been rebased onto master (waiting for the go-ahead; master may have moved).
+been rebased. Master was 44794fa4 at branch time and is 31766e74 now -- three
+docs-only commits ahead, so the rebase should be trivial and this branch touches
+only docs/ + work/, but it is NOT done without the go-ahead.
