@@ -1,0 +1,41 @@
+edges 7667  arms Counter({'inlined': 6399, 'kept': 1268})
+
+================ framing: incumbent
+        form      kept  inlined  unknown    total
+      absent      1195     6398        0     7593
+      direct        71        1        0       72
+      escape         2        0        0        2
+
+        form        bit      kept  inlined  unknown
+      direct  inlinable        70        1        0
+      direct   noinline         1        0        0
+      escape  inlinable         2        0        0
+
+  ESCAPED-SIZE EDGES: 2
+  COUNTEREXAMPLES to `bit 6 clear => c2 kept`: 0
+
+  RIVAL ESCAPE WIDTHS on the same edges (ATTR in the 10-byte vocabulary the direct records establish):
+    width 1:      0 / 2      in the vocabulary
+    width 2:      0 / 2      in the vocabulary
+    width 3:      2 / 2      in the vocabulary
+    width 5:      0 / 2      in the vocabulary
+
+================ framing: relaxed
+        form      kept  inlined  unknown    total
+      absent         0        7        0        7
+      direct       959     6392        0     7351
+      escape       309        0        0      309
+
+        form        bit      kept  inlined  unknown
+      direct  inlinable       958     6392        0
+      direct   noinline         1        0        0
+      escape  inlinable       309        0        0
+
+  ESCAPED-SIZE EDGES: 309
+  COUNTEREXAMPLES to `bit 6 clear => c2 kept`: 0
+
+  RIVAL ESCAPE WIDTHS on the same edges (ATTR in the 10-byte vocabulary the direct records establish):
+    width 1:      1 / 309    in the vocabulary
+    width 2:      0 / 309    in the vocabulary
+    width 3:    309 / 309    in the vocabulary
+    width 5:      4 / 309    in the vocabulary

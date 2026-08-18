@@ -1,0 +1,36 @@
+== the shipped reader's whole-file verdict, over 870 captured TUs
+  ga-real-noinline                    2
+  ga-real-records                 25311
+  ga-real|none                       69
+  ga-real|some                      801
+
+== the modelled verdict under each reader (inc = incumbent)
+  ga-tu|inc=no|new=yes               60
+  ga-tu|inc=yes|new=yes             810
+
+== SIZE forms, over records the incumbent framing reaches
+  ga-rec|direct                   28739
+  ga-rec|escape                      99
+
+== ATTR byte on ESCAPED records
+  ga-esc-attr|68                     84
+  ga-esc-attr|c8                      8
+  ga-esc-attr|48                      4
+  ga-esc-attr|4c                      3
+
+== GRID-C: real c2's verdict per call edge, by the callee's SIZE form
+          form       kept   inlined   unknown     total
+        absent       1195      6398         0      7593
+        direct         71         1         0        72
+        escape          2         0         0         2
+         TOTAL       1268      6399         0      7667
+
+== THE ORACLE SCORE. `bit=noinline` asserts c2 KEPT the call.
+   A `noinline` edge in the `inlined` column is a decode that is WRONG
+   about c2, in the direction that emits bytes.
+          form         bit       kept   inlined   unknown
+        direct   inlinable         70         1         0
+        direct    noinline          1         0         0
+        escape   inlinable          2         0         0
+
+  COUNTEREXAMPLES (noinline asserted, c2 inlined): 0

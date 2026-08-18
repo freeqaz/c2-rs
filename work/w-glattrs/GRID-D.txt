@@ -1,0 +1,5 @@
+                        cell  incumbent         cause      new  smallATTR  bigSIZE  bigForm  c2 keeps small  c2 keeps big
+          A_noinline_only_O1         ok          None       ok         28     None     None            True         False
+   B_noinline_plus_escape_O1    REFUSED   size-escape       ok         28      187   escape            True          True
+  C_inlinable_plus_escape_O1    REFUSED   size-escape       ok         68      187   escape           False          True
+   D_noinline_plus_escape_Ox    REFUSED   size-escape       ok         28      187   escape            True          True

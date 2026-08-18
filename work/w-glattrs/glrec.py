@@ -86,7 +86,22 @@ def framed_relaxed(gl, o):
     )
 
 
+def walk_w(gl, framed, width=3):
+    """[`walk`] with the escape's payload width as a parameter.
+
+    `width` is the TOTAL field width of an escaped `SIZE`: 3 is the shipped
+    decode (`80 <LE16>`), and 1/2/5 are the rivals `work/w-glattrs/RIVALS.txt`
+    scores. Parameterised so the rivals are run through the SAME walk as the
+    shipped decode rather than through a second implementation.
+    """
+    return _walk(gl, framed, width)
+
+
 def walk(gl, framed):
+    return _walk(gl, framed, 3)
+
+
+def _walk(gl, framed, esc_width):
     """Yield (verdict, record) exactly as `gl_function_attrs` walks.
 
     verdict is one of:
@@ -100,15 +115,22 @@ def walk(gl, framed):
     runs = symbol_runs(gl)
     n = len(gl)
     p = 0
+    # `p` only ever increases, and `runs` is sorted by end, so the "last run to
+    # END at or before p" is found with a monotone cursor rather than a reverse
+    # scan. Same answer as gl.rs's `rposition`; O(n) instead of O(n^2), which
+    # matters at 1.46M records under the relaxed framing.
+    cur = -1
     while p + 5 <= n:
         if not framed(gl, p):
-            p += 1
+            # Every framing requires `gl[o] == 0x80`, so skip straight to the
+            # next one instead of testing every byte. Pure speed; the visited
+            # set is identical, which `WORKLOAD-INCUMBENT.txt` pins by diff.
+            nxt = gl.find(0x80, p + 1)
+            p = n if nxt < 0 else nxt
             continue
-        k = None
-        for idx in range(len(runs) - 1, -1, -1):
-            if runs[idx][1] <= p:
-                k = idx
-                break
+        while cur + 1 < len(runs) and runs[cur + 1][1] <= p:
+            cur += 1
+        k = cur if cur >= 0 else None
         if k is None or p - runs[k][1] > MAX_NAME_TO_OFFSET:
             yield ("noname", {"p": p})
             return
@@ -134,12 +156,12 @@ def walk(gl, framed):
             return
         sb = gl[q]
         if sb == 0x80:
-            if q + 3 > n:
+            if q + esc_width > n:
                 yield ("trunc", {"p": p})
                 return
             size = gl[q + 1] | (gl[q + 2] << 8)
             form = "escape"
-            q += 3
+            q += esc_width
         elif sb < 0x80:
             size = sb
             form = "direct"
