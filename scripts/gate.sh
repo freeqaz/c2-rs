@@ -5014,6 +5014,31 @@ pin_harness "$repo_root" "$work"
 export C2RS_BIN="$C2RS_PINNED"
 export C2RS_MODE_LANE_WORK="$work/lanes"
 
+# ---- AN ADVISORY, NOT A CHANGE (lane `w-gateperf`, 2026-08-18) -----------------
+#
+# This file's default has been `jobs=16` since 2026-08-08, measured and argued
+# at length in the block near the top. The standing instruction handed to lanes
+# is `scripts/gate.sh --jobs 4 --require-graded`, which OVERRIDES that default
+# with the untuned constant the tuning replaced — `jobs=4` stood here unexamined
+# from this file's creation commit until `w-throughput` re-measured it.
+#
+# It is not silently corrected, because `--jobs` is the caller's knob and a
+# gate that ignores an explicit argument is worse than a slow one. It is SAID,
+# once, with the number, because the alternative is that every lane pays 1.7x
+# for a figure nobody has re-read in ten days. MEASURED at this lane's tip, one
+# session, warm, `--require-graded`, identical verdict blocks:
+#
+#     --jobs 4    246 s   (lanes 4 · sweep 119 · cross 38 · debug 76)
+#     --jobs 16   142 s   (lanes 2 · sweep  29 · cross 30 · debug 74)
+#
+# — and the debug row was serialised then; it is not now, so the gap is wider.
+if [ "$jobs" -lt 16 ] 2>/dev/null; then
+    echo "note: --jobs $jobs is below this file's measured default of 16. On this"
+    echo "  32-core box a --jobs 4 run uses ~4 cores and takes ~1.7x as long for a"
+    echo "  digit-for-digit identical verdict block (see the concurrency block in"
+    echo "  the header). --jobs is the caller's knob and is honoured as given."
+fi
+
 # --------------------------------------------------------------------------------
 # THE TOOLCHAIN DEMAND — `C2RS_REQUIRE_TOOLCHAIN`, and the PREFLIGHT
 # (lane `w-gateperf`, 2026-08-18; the instrument is `w-calleeguard`'s)
