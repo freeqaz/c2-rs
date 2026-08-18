@@ -11,7 +11,7 @@
                size test decide on, and is `w-dataseam` §6.1's `[180, 231]` IL
                segment-byte bracket a rule or a corpus fit?
     Census:    +0 — TU `match` 26 → 26. `crates/` lands **byte-identical to
-               `1744ced1`** (`git diff --stat 1744ced1 -- crates/` is empty); the
+               `1744ced1`** (`git diff --stat 1744ced1 -- crates/ fixtures/ scripts/` is empty); the
                measurement scaffold was reverted before the gate ran
     Record:    this file; prereg `docs/rungs/_2026-08-18-w-sizebracket-prereg.md`
                (frozen at `6ecf7b98`, the branch's first commit, before any probe)
