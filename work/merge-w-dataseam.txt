@@ -1,0 +1,253 @@
+merge note — w-dataseam
+=======================
+
+Branch:   w-dataseam  (worktree .claude/worktrees/wt-w-dataseam)
+Base:     master 44794fa4
+Kind:     construct
+Outcome:  DECLINED
+Rung:     docs/rungs/2026-08-18-dataseam.md
+Prereg:   docs/rungs/_2026-08-18-w-dataseam-prereg.md  (frozen at 682ae2a5,
+          the branch's FIRST commit, before any probe)
+Board:    #3234-#3238, by coordinator allocation (the pointer was not consulted)
+
+WHAT LANDS
+----------
+Documentation only.
+
+    git diff --stat 44794fa4..HEAD -- crates/     ->  EMPTY
+    git diff --stat 44794fa4..HEAD -- fixtures/   ->  EMPTY
+    git diff --stat 44794fa4..HEAD -- scripts/    ->  EMPTY
+
+Four commits:
+    682ae2a5  prereg (first commit, before any probe)
+    bc79c27e  the C2RS_DATASEAM probe scaffold        <- reverted
+    586df41e  the revert
+    1a3db636  rung doc + BOARD #3234-#3238 + INDEX.md (generated)
+    (+ this note)
+
+The scaffold is deliberately kept in history and reverted rather than squashed
+away: the counterfactual ladder is the deliverable and the code that produced it
+is how anyone re-runs it.
+
+THE MISSION, AND THE ANSWER
+---------------------------
+Dispatched to execute fence163 (2026-08-17-fence163.md) section 8.1's phase
+seed: lift the data_syms scoping off the EH-state inline fence, price it
+two-sided, do not estimate reach from a blocker row, pay it together with
+clause (c).
+
+Executed in full. The answer is DECLINE, and the measurement is the deliverable.
+
+  1. THE LIFT IS REAL AND IT IS A NET LOSS.  Dropping the data_syms conjunct
+     from census clause (c2) refuses 2,875 bodies:
+       fnbyte-exact          35,899 -> 34,907   (-992)      <- the cost
+       fnbyte-differs         1,958 ->    162   (-1,796)    <- the gain
+       fnbyte-reloc-differs     531 ->    521
+       fnbyte-refused-parse 113,447 -> 116,322  (+2,875)
+       match 26 / mismatch 0 / codegen-gap 0 in ALL 40 builds
+     Of the 2,799 GRADED bodies it refuses, 1,807 were WRONG and 992 right --
+     a 64.6% wrong rate against a 6.5% corpus base rate (~10x enrichment), and
+     it removes 91.7% of every remaining fnbyte-differs body in the port.
+     No predicate measured in this repo has ever accounted for that share.
+     But the goal metric goes DOWN 992, so the frozen decision rule says no.
+
+  2. IT IS A GENUINE RULE, NOT ANOTHER NAMED EXEMPTION.  The lifted predicate
+     is "callee defined here (emit binding) AND not modelled AND not eh-state1"
+     -- no name list, no population list, no string-literal term. That was the
+     dispatch's discriminating question and the answer is: genuine rule.
+
+  3. SECTION 8.1 ITEM 4 IS WRONG AT 44794fa4.  "It must be paid together with
+     clause (c)" is worth EXACTLY ZERO. payc moves no column. The liveness
+     control paycall -- clause (c) yields UNCONDITIONALLY, i.e. retired -- moves
+     callee-defined-in-tu:eof 1 -> 0 and fnbyte-exact by 0. Clause (c)'s entire
+     workload-wide reach is ONE body and it does not grade exact. The control
+     was built before the null was reported, because a null from a clause nobody
+     can prove reachable is void.
+
+  4. THE MISSING AXIS IS THE CALLEE'S SIZE, and the bracket has two MEASURED
+     ends: [180, 231] IL segment bytes. Inside it the lifted rule costs ZERO
+     fnbyte-exact and removes up to 1,189 wrong bodies (57.9% of the whole wrong
+     population). Lower end pinned by a witness -- at any cut <= 176 the size
+     exemption fires for ?MakeString@@YAPBDPBD@Z and un-fences
+     ?ContentPath@XboxContentMgr@@UAAPBDH@Z, the exact body fence163 shipped its
+     fence for. Upper end pinned by cost. The zero-cost property replicates
+     independently on two disjoint corpus halves (-414 vs -415 differs).
+     NOT SHIPPED -- see "why not" below.
+
+REALIZED REACH (measured, not estimated)
+----------------------------------------
+    blocker row callee-defined-in-tu:eof   1 body
+    realized reach of the lift             2,875 bodies
+
+2,875x apart. Section 8.1's "do not estimate reach from a blocker row" is
+vindicated in the OPPOSITE direction from the repo's usual finding: first-blocker
+counts normally run ~9x optimistic; a LAST-in-chain clause's blocker row runs
+2,875x pessimistic. (prereg P15, HIT)
+
+WHY THE SIZE VARIANT WAS NOT SHIPPED
+------------------------------------
+Two reasons, first decisive:
+
+  (a) The prereg's frozen decision rule ENUMERATED the admissible container
+      facts -- "emit binding, cflow_key, .gl attribute byte, the modelled set".
+      Segment length is not among them. It was frozen at 682ae2a5 before any
+      probe precisely so a fact discovered mid-lane could not be admitted after
+      seeing that it flatters the number. Admitting it now is the goalpost move
+      the freeze exists to prevent, and it is the lane's own registered bias #2
+      verbatim ("keeping a small residual term to make the price come out flat,
+      and calling the result a rule").
+
+  (b) INLINE_DECLINE_BYTES (128) and INLINE_DECLINE_LOOP_BYTES (80) are tops of
+      MEASURED obj-grid brackets in EMITTED bytes. This one is in IL bytes from
+      sweeping the grader. It would be the first fitted constant in the tree
+      wearing the same clothes as the measured ones -- on a corpus that moved 61
+      commits DURING this lane.
+
+THE DECLINE'S OWN COST, COUNTED (CLAUDE.md #1042 / NC-5)
+--------------------------------------------------------
+    shipping lift              -992 fnbyte-exact
+    shipping lift,sz in range  0 measured, unwarranted out of corpus
+    DECLINING (what this does) 0 today, 1,807 latent-wrong bodies left in the
+                               census's accepted set -- the #876-#879 hazard,
+                               bodies the per-function gate already accepts that
+                               the next IlBundle::functions widening would ship
+
+The decline's cost is real. What makes it right anyway is that it is not the end
+state: it hands the follow-on a 52-wide bracket with BOTH ends measured, which
+is a better starting point than any size-constant lane in this repo has had.
+Declining costs a wave; shipping a fitted constant costs the record.
+
+TWO INSTRUMENT FINDINGS THE FUNNEL SHOULD PROPAGATE
+---------------------------------------------------
+  #3237  THE PER-SYMBOL fnbyte-differs SET COMPARE IS VOID for any lane that
+         changes the admitted population. Applied literally it reported 3-5 NEW
+         wrong bodies from a change that only REFUSES. They are
+         Bindings::positional relabellings (board #918; the scan prints
+         fnbyte-name-disagree 74,457 and nobody read it). Under a name-stable
+         per-TU shape multiset the count is 0 for every variant.
+         THIS MATTERS BEYOND THIS LANE: w-fence163 section 3/section 9 and
+         STATUS's warranty prose both quote "0 new, 0 gone per symbol" as the
+         evidence that a widening bought no wrong emit. Here the key failed
+         LOUD; the same instability is SILENT in the other direction (a real new
+         wrong body relabelled onto an existing name reads as 0 new).
+         The lane's own frozen P11 is scored MISS and NOT retroactively
+         rewritten.
+
+  #3238  THE DISPATCHED BASELINE IS NOT REPRODUCIBLE AT ITS OWN COMMIT. At
+         44794fa4 in a fresh worktree, fnbyte-exact reads 35,899 not 35,897 and
+         fnbyte-denominator 162,046 not 162,049. STATUS records workload
+         924ab0c5e; dc3-decomp is at ccd4c8036 -- 61 commits, 56 source files,
+         +324/-260. The same drift took fence163's own data-sym-strlit-fenced:eof
+         from 8 to 1, one day after it shipped. fence163 section 7.2 predicted
+         this about itself in writing.
+         CONSEQUENCE FOR EVERY LANE: a fnbyte-* figure carried from a dispatch,
+         a STATUS block or a landed rung is workload-DATED. Re-measure the base
+         in-session or you are reporting corpus drift as your own yield.
+         docs/STATUS.md's generated block is stale in this respect; regenerating
+         it is NOT done here (it needs a decision about which workload head is
+         canonical, which is above this lane's pay grade).
+
+VERIFICATION
+------------
+  cargo test --workspace --release --no-fail-fast
+      1,660 passed / 0 failed / 43 targets, wall 248s, "SKIP: toolchain absent"
+      count 0.  (base's own count; this lane adds no test)
+
+  environment control, PINNED BY NAME (probe rule 1 / #3219 / #3231)
+      crates/c2-harness/tests/strlit_fence.rs, both configurations, same binary:
+        provisioned   "ok. 3 passed; 0 failed"  0.27s   0 SKIP lines
+        toolchain hidden (C2RS_COMPILERS/C2RS_CL_EXE/C2RS_WIBO -> nonexistent)
+                      "ok. 3 passed; 0 failed"  0.00s   3 SKIP lines
+      Identical result line, count and exit code. #3219 REPRODUCED ON DEMAND
+      rather than taken on trust. 0.27s cross-checked against the scan's own
+      per-TU capture cost (878 TUs in 42.7s ~ 0.05s/TU).
+
+  identity control (prereg P12)
+      reverted tree vs base: 394 gap-metric keys at both ends, `diff` EMPTY over
+      the sorted "key value" lines.
+
+  scripts/gate.sh --jobs 4 --require-graded
+      SEE THE RUNG's section 10 -- the gate result is filled in there at the
+      <!-- GATE-RESULT --> marker.
+      NOTE: the FIRST gate run returned exit 4, GATE: REFUSED (DIRTY crates/),
+      because the scaffold revert was not yet committed. That is the #2668/#2907
+      guard working. Recorded rather than routed around; revert committed at
+      586df41e and the gate re-run against a named tree.
+      The docs commit 1a3db636 touches only docs/, which is OUTSIDE the gate's
+      hashed set (crates fixtures scripts), so the graded tree hash 5b550a38d90b
+      is unchanged by it.
+
+  scripts/board_audit.sh          all-zero (0 cited-not-on-board, 0 unresolved
+                                  section anchors, 0 raw line-number anchors,
+                                  0 rows-behind-the-prose, 0 duplicate rows)
+  rung_registry                   2 passed / 0 failed
+  878-TU workload scan            match 26 / mismatch 0 / codegen-gap 0 in ALL
+                                  40 counterfactual builds
+  release-binary sha256           NOT QUOTED -- board #3224 voids it across
+                                  worktrees
+
+  DETERMINISM CONTROL: three ladder points were run twice from separate
+  invocations (sz=128, sz=192, sz=224) and reproduced every column exactly.
+
+MUTANTS
+-------
+MD1-MD5: NOT RUN, BY THE PRE-REGISTERED CONDITION. Prereg section 6 froze them
+as applying to a SHIPPED lifted predicate and required a decline to say so in
+those words rather than omit them or substitute mutants of an unchanged tree.
+Nothing shipped, so there is no predicate to mutate.
+Registered colours observed: none. Registered colours contradicted: none.
+
+PREREG SCORING
+--------------
+HIT:  P2 P3 P4 P5 P9 P10 P12 P14 P15   MISS: P1 P6 P7 P8 P11
+P13 (gate) is scored in the rung's section 10.
+P9 -- "the whole lift is net-negative and the honest outcome is declined" -- was
+registered at 0.55 BEFORE any probe, as the lane's own most-likely outcome,
+specifically so a decline could not be presented afterwards as a disappointment
+that needed softening. It HIT.
+
+SEAM DISCIPLINE
+---------------
+  crates/c2-harness/src/gap/tests.rs   NOT TOUCHED (peer w-calleeguard)
+  crates/c2-harness/tests/             NOT TOUCHED (peer w-calleeguard)
+  docs/whitebox/                       NOT TOUCHED (peer w-dagorder)
+  crates/c2-core/src/coff/             NOT ENTERED
+  crates/ overall                      byte-identical to base
+
+GUARDS THIS LANE WOULD HAVE WRITTEN, ROUTED RATHER THAN WRITTEN
+---------------------------------------------------------------
+Both live in crates/c2-harness/, which is w-calleeguard's seam this wave:
+
+  G1  A cell asserting that clause (c2) is asked ONLY of data_syms-carrying
+      bodies -- i.e. that the scoping is still in place. Today nothing fails if
+      someone lifts it, and lifting it costs 992 byte-exact bodies. This is the
+      MD5-shaped guard the prereg registered and could not place.
+
+  G2  A cell on the name-stability of the fnbyte-differs key: two scans whose
+      admitted population differs must be compared on a name-stable key. #3237
+      is currently a finding with no test behind it.
+
+FOR THE NEXT LANE
+-----------------
+Named, small, and NOT a TU lane: a CHARACTERIZATION lane on fence163 section 2's
+pattern -- obj/listing cells at the workload profile (/nologo /c /GR /O1 /Oi
+/EHsc) varying callee IL segment length across [176, 232], reading whether c2
+inlines. It starts with BOTH ends already pinned (a witness at (176,180] and a
+cost ceiling at 231). If it lands, the rule
+
+    defined-here AND not-modelled AND not-eh-state1 AND size <= B
+
+ships and takes ~1,189 wrong bodies out of the census's accepted set for ZERO
+fnbyte-exact.
+
+Also recorded in the rung's section 12 and not taken here:
+  - fnbyte-reloc-differs is NOT monotone under a refusal (531 -> 454 -> 521
+    across the sweep). Do not use it as a monotone control for a fence.
+  - the plain-external axis recovers 36 of the 992 and re-admits 2 wrong. Live
+    but tiny, and dominated by size on every count. Recorded so nobody
+    re-measures it.
+  - .gl FN_FLAG_INLINABLE recovers 0 of 992 -- a clean negative on the one bit
+    #2155 named as this fence's missing input.
+
+DO NOT MERGE OR PUSH WITHOUT THE COORDINATOR'S GO-AHEAD. This branch has NOT
+been rebased onto master (waiting for the go-ahead; master may have moved).
