@@ -1,0 +1,43 @@
+==============================================================================
+W-CORPUSHEALTH — NAME-SPACE bound: emitted bodies vs the decomp's verdict
+==============================================================================
+objs read 870 of 878 (8 COMPILE-FAIL) · STRUCTURALLY MALFORMED: 0
+workload head ccd4c8036  cache 870/8  binary f4a170131711
+
+decomp name space: UNFINISHED 2814  FINISHED 29383  VENDOR 16128
+
+EMITTED BODY INSTANCES over 870 objs: sum|S_i| = 189371
+  (c2rs fnbyte-denominator = 162046, fnbyte-refused-parse = 113447)
+   UNFINISHED    3349    1.77%
+   FINISHED     51173   27.02%
+   VENDOR          58    0.03%
+   ABSENT      134791   71.18%   (in NO objdiff unit — not in the shipped image under this name)
+
+THE ANSWER — refusals attributable to source the decomp has NOT matched
+   ABSOLUTE CEILING  sum |S_i n UNFINISHED| = 3349  ->   2.95% of the 113447 refusals
+   tight UPPER       sum min(R_i, unfin_i)  = 3313  ->   2.92%
+   LOWER             sum max(0,R+unfin-|S|) = 37  ->   0.03%
+
+CONTROL — the same bound taken against FINISHED source (must be large,
+          or the ruler is not measuring what it claims)
+   sum |S_i n FINISHED| = 51173  ->  45.11% of refusals; sum min(R_i,fin_i) = 50964 ->  44.92%
+
+BY CLASS match        TUs   26  R       3  |S|      47  unfin      3  fin      16  absent       8
+BY CLASS vocab-gap    TUs  844  R  113444  |S|  189324  unfin   3346  fin   51157  absent  134783
+
+TOP 15 TUs BY |S_i n UNFINISHED| (where the hypothesis has the most room)
+   unfin=  49/|S|= 1489  R=   998  min=  49  vocab-gap  src/system/rndobj/Utl.cpp
+   unfin=  45/|S|= 1991  R=  1079  min=  45  vocab-gap  src/system/hamobj/HamDirector.cpp
+   unfin=  44/|S|=   55  R=    11  min=  11  vocab-gap  src/link_glue.cpp
+   unfin=  44/|S|= 1385  R=   897  min=  44  vocab-gap  src/system/rndobj/Text.cpp
+   unfin=  42/|S|= 1965  R=  1336  min=  42  vocab-gap  src/system/world/LightPreset.cpp
+   unfin=  39/|S|= 1436  R=   947  min=  39  vocab-gap  src/system/rndobj/Mesh.cpp
+   unfin=  38/|S|= 1126  R=   768  min=  38  vocab-gap  src/system/rndobj/AmbientOcclusion.cpp
+   unfin=  36/|S|=  777  R=   510  min=  36  vocab-gap  src/system/rndobj/MeshAnim.cpp
+   unfin=  32/|S|= 1475  R=   922  min=  32  vocab-gap  src/system/char/Character.cpp
+   unfin=  31/|S|= 1277  R=   761  min=  31  vocab-gap  src/system/hamobj/MoveDir.cpp
+   unfin=  30/|S|= 1099  R=   864  min=  30  vocab-gap  src/system/rndobj/PropKeys.cpp
+   unfin=  28/|S|= 1370  R=   861  min=  28  vocab-gap  src/system/world/CameraShot.cpp
+   unfin=  27/|S|=  994  R=   512  min=  27  vocab-gap  src/system/hamobj/HamNavList.cpp
+   unfin=  26/|S|=  352  R=   264  min=  26  vocab-gap  src/system/math/Geo.cpp
+   unfin=  25/|S|= 1460  R=   958  min=  25  vocab-gap  src/system/rndobj/PropAnim.cpp
