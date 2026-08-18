@@ -2451,10 +2451,32 @@ pub(crate) fn bind_run_ops(
     };
     let mut out = Vec::with_capacity(ops.len());
     let mut walk = ops;
+    // **THIS WALK HAS NO BASE-SHAPE CHECK, AND ITS ABSENCE IS A DELETION WITH A
+    // PROOF BEHIND IT — lane `w-deadsites`, board #3277, rung
+    // `docs/rungs/2026-08-18-deadsites.md` §5.**
+    //
+    // It used to re-ask `if !matches!(b, IlOp::Load(_)) { return
+    // Err(STORE_RUN_BIND_GROUP_SHAPE) }`, and **no input could ever take that
+    // branch**: the first walk above consumes the SAME immutable `ops` slice in
+    // threes and returns `Err` unless slot 0 of every group is `IlOp::Load`, so
+    // reaching this point implies `ops.len() % 3 == 0` **and** every 3k-th op a
+    // `Load`. The condition was unsatisfiable by construction, which is also why
+    // `w-mutcensus`' mutation of it (row `L9`) read GREEN — a dead site and an
+    // unguarded one produce GREEN by the same mechanism, and that is board
+    // **#3246**.
+    //
+    // Confirmed as well as read. With `panic!()` standing in for the refusal,
+    // the whole workspace suite, `scripts/gate.sh --jobs 16 --require-graded`
+    // (18 lanes, the 19,556-case generated sweep, the 90,812-cell mode cross and
+    // the debug-profile lane) and the 878-TU workload scan all ran clean, and
+    // the site's own marker appears in no log. That is not a proof — it is a
+    // statement about this corpus — but the reading above is, and the two agree.
+    //
+    // **This is the file's SECOND recorded dead backstop.** The first is sixteen
+    // lines above (`codegen::leaf::store`'s `value_bound`, `w-mrslot` §5.1,
+    // board #1218), and the pair is the reason `tests/fence_site_census.rs`
+    // exists: nothing else counts these.
     while let [b, v, st, tail @ ..] = walk {
-        if !matches!(b, IlOp::Load(_)) {
-            return Err(STORE_RUN_BIND_GROUP_SHAPE);
-        }
         out.push(discharge(b));
         out.push(discharge(v));
         out.push(*st);

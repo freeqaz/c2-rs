@@ -1,0 +1,28 @@
+MC3: applied in crates/c2-il/src/func/census.rs
+MC3 suite exit=101 wall=190s
+  passed=1669 failed=2 targets=46
+  census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 63.21s
+  FAIL     every_census_fence_key_has_the_sites_this_repo_last_scored
+  FAIL     rung_index_is_generated_and_current
+reverted; crates/c2-il status: CLEAN
+MC2: renamed STORE_RUN_BIND_GROUP_SHAPE -> STORE_RUN_BIND_GROUP_SHAPE_RENAMED at 9 occurrences
+MC2 suite exit=101 wall=190s
+  passed=1670 failed=1 targets=46
+  census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 63.00s
+  FAIL     rung_index_is_generated_and_current
+reverted; crates/c2-il status: CLEAN
+MC4: applied in crates/c2-il/src/func/body/mod.rs
+MC4 suite exit=101 wall=191s
+  passed=1669 failed=2 targets=46
+  census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 63.57s
+  FAIL     every_census_fence_key_has_the_sites_this_repo_last_scored
+  FAIL     rung_index_is_generated_and_current
+reverted; crates/c2-il status: CLEAN
+MC5: applied in crates/c2-il/src/func/body/shapes/calls.rs
+MC5 suite exit=101 wall=190s
+  passed=1669 failed=2 targets=46
+  census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 62.90s
+  FAIL     rung_index_is_generated_and_current
+  FAIL     the_two_textual_fence_populations_are_the_size_this_rule_measured
+reverted; crates/c2-il status: CLEAN
+campaign done

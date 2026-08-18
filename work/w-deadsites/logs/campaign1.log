@@ -1,0 +1,22 @@
+MS1: applied in crates/c2-il/src/func/census.rs
+MS1 suite exit=101 wall=211s
+  passed=1664 failed=2 targets=45
+  census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 76.46s
+  FAIL     gap::tests::wr1_census_key_guards::the_string_literal_admission_is_narrow_only_and_leaves_cell_b_alone
+  FAIL     only_the_narrow_string_literal_is_admitted_and_the_wide_twin_still_refuses
+reverted; crates/c2-il status: CLEAN
+MS2: applied in crates/c2-il/src/func/census.rs
+MS2 suite exit=101 wall=208s
+  passed=1664 failed=2 targets=45
+  census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.96s
+  FAIL     the_older_inline_fence_shadows_this_one_on_a_walkable_tu
+  FAIL     the_strlit_fence_turns_on_the_local_callees_eh_state_and_nothing_else
+reverted; crates/c2-il status: CLEAN
+C1: applied in crates/c2-il/src/func/body/shapes/calls.rs
+C1 suite exit=101 wall=190s
+  passed=1664 failed=2 targets=45
+  census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 63.42s
+  FAIL     gap::tests::wr1_census_key_guards::the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol
+  FAIL     gap::tests::wr1_census_key_guards::the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone
+reverted; crates/c2-il status: CLEAN
+campaign done

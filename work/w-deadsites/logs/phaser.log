@@ -1,0 +1,18 @@
+N0R suite exit=0 wall=193s
+  passed=1667 failed=0 targets=46
+  census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 63.47s
+MS1: applied in crates/c2-il/src/func/census.rs
+MS1R suite exit=101 wall=191s
+  passed=1665 failed=2 targets=46
+  census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 63.64s
+  FAIL     each_raise_site_of_the_strlit_fence_has_its_own_witness_and_neither_covers_the_other
+  FAIL     every_census_fence_key_has_the_sites_this_repo_last_scored
+reverted; crates/c2-il status: CLEAN
+MS2: applied in crates/c2-il/src/func/census.rs
+MS2R suite exit=101 wall=191s
+  passed=1665 failed=2 targets=46
+  census_gate: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 63.60s
+  FAIL     each_raise_site_of_the_strlit_fence_has_its_own_witness_and_neither_covers_the_other
+  FAIL     every_census_fence_key_has_the_sites_this_repo_last_scored
+reverted; crates/c2-il status: CLEAN
+phaser done

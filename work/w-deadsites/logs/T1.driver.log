@@ -1,0 +1,8 @@
+=== T1: suite ===
+suite exit=0 wall=191s
+=== T1: gate ===
+gate exit=0 wall=77s
+=== T1: 878-TU scan ===
+scan exit=0 wall=6s
+=== T1: hits ===
+

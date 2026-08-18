@@ -1,0 +1,3 @@
+suite exit=0 wall=190s
+gate exit=0 wall=80s
+scan exit=0 wall=5s
