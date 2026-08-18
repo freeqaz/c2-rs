@@ -114,5 +114,33 @@ reports the same 8 capture-fail TUs by name and 870 cache hits, and both scans
 took nonzero wall time (9.5 s, 23.7 s) rather than the 0.00 s an unprovisioned
 worktree produces. No reading was taken without it.
 
+GATE, at the tip:
+  cargo test --workspace --release  1,660 passed / 0 failed / 43 targets, with
+    ZERO `SKIP: toolchain absent` lines and a 3m52s wall time — the
+    executed-count-and-duration assertion, not an exit code.
+  scripts/gate.sh --jobs 4 --require-graded  PASS. 18/18 lanes, 0 FAIL/SKIP/
+    NO-RESULT, 6,948 fixture-verdicts; sweep 19,460 of 19,556 graded, 0
+    mismatch; cross 90,424 of 90,812 cells graded, 0 mismatch; debug-lane
+    18/18, 0 PANIC. RUN TWICE, byte-identical counts both times.
+  878-TU scan identity  396 of 396 gap-metric keys byte-identical base vs end,
+    values included, INCLUDING the whole fnbyte-* family. #3249's plus-or-minus
+    2 did not fire on this bracket, so nothing had to be attributed. (The
+    dispatch registered 394 keys; the tip prints 396. Not chased — the identity
+    that matters is base-vs-end at one tip.)
+  crates/fixtures/scripts vs 071d2d47  EMPTY. git ls-tree | sha256sum reads
+    a8adae3aca8adba2 at 071d2d47, at the prereg commit and at the tip; the
+    gate's own content hash reads 5b550a38d90b over 738 files at both runs.
+  board_audit.sh  all five checks 0.   rung_registry  2/2.
+
+ONE QUALIFICATION, AND THE FIRST EXPLANATION FOR IT WAS WRONG: both gate runs
+report `GATE: PASS (HATCH-RED REFUSED)`. Run 1 happened on a mid-edit tree, so
+the obvious reading was the gate's own advice to commit and re-run. Re-run on a
+clean committed tree, hatch-red REFUSED again, identically: HATCH-STALE, 0 of
+14 arms, 0 green controls. The tree was never the cause — this is board #2511,
+`hatch-red` refusing at master, reproduced there with an older crates/fixtures.
+This branch's crates/ diff is empty so the row would refuse identically at the
+base. Recorded with #1406's caveat attached rather than elided: a run with
+hatch-red refused does not establish what a full run establishes.
+
 Board: #3251-#3255, allocated by the coordinator; the next-free pointer was not
 consulted. Rung: docs/rungs/2026-08-18-corpushealth.md.
