@@ -97,7 +97,11 @@ const EXPECTED: &[(&str, usize, usize)] = &[
     ("static-scan-loop-object-out-of-class", 1, 0),
     ("store-run-bind-address-producer", 1, 0),
     ("store-run-bind-call-tail-mr-slot", 0, 0),
-    ("store-run-bind-group-shape", 4, 0),
+    // 4 -> 3: `leaf_store.rs:2456` was PROVED DEAD and DELETED by lane
+    // `w-deadsites` (board #3277). Updating this row in the same commit as the
+    // deletion is exactly the workflow this file's failure message prescribes,
+    // and that deletion is the first thing it caught.
+    ("store-run-bind-group-shape", 3, 0),
     ("store-run-bind-mixed-kind-alloc", 1, 0),
     ("store-run-bind-multi-producer", 2, 0),
     ("store-run-bind-no-emitter-carrier", 1, 0),
@@ -376,11 +380,12 @@ fn every_census_fence_key_has_the_sites_this_repo_last_scored() {
     let raises: usize = declared.iter().map(|(_, r, _)| r).sum();
     assert_eq!(
         (declared.len(), raises),
-        (20, 24),
-        "20 census fence keys over 24 raise sites is what `w-deadsites` measured \
-         at 1744ced1; got {} keys over {raises} raises. \
-         `2026-08-18-calleeguard.md` §4.2's 18/22 is the same tree read with a \
-         `[A-Z_]`-classed grep, which drops the two `_O1` keys",
+        (20, 23),
+        "20 census fence keys over 23 raise sites is what `w-deadsites` leaves \
+         at its tip — it MEASURED 24 at base 1744ced1 and deleted one, \
+         `leaf_store.rs:2456`, as provably dead (board #3277). Got {} keys over \
+         {raises} raises. `2026-08-18-calleeguard.md` §4.2's 18/22 is the same \
+         base tree read with a `[A-Z_]`-classed grep, which drops the two `_O1` keys",
         declared.len()
     );
 }
