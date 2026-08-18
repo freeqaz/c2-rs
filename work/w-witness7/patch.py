@@ -83,6 +83,21 @@ pat("M-CS3B", CENSUS,
     '"static-scan-loop" => STATIC_SCAN_LOOP_OBJECT,',
     '"static-scan-loop-x" => STATIC_SCAN_LOOP_OBJECT,')
 
+# `CS3C` — THE MUTATION NEITHER SOURCE-TEXT TEST CAN SEE.
+#
+# `M-CS3B` was registered GREEN at base and is RED — caught by
+# `callee_unresolved_sites.rs`' `ARM_PATTERNS`, which counts the literal
+# `"static-scan-loop" =>` in the `match label` block. So the arm's TEXT is
+# guarded twice over (that test and `fence_site_census.rs`) and **neither runs a
+# compiler**. This mutation moves the label at its PRODUCER instead
+# (`census.rs:951`, `FnVerdict::InClass("static-scan-loop")`), leaving the
+# `match label` block byte-identical and every constant at its one raise site.
+# Both source-text tests stay green; the arm is simply never selected and every
+# static-scan-loop body falls to `_ => CALLEE_UNRESOLVED_TAIL`.
+pat("M-CS3C", CENSUS,
+    'FnVerdict::InClass("static-scan-loop")',
+    'FnVerdict::InClass("static-scan-loop2")')
+
 # `CS4` — drop the bind-refusal routing; every bind body reports the fallback.
 pat("M-CS4", CENSUS,
     "bind_key.unwrap_or(STORE_RUN_BIND_NO_CARRIER)",
