@@ -97,7 +97,7 @@ Three of these are the usability test this lane registered in advance
 | # | denominator | measured | target | verdict |
 |---|---|---|---|---|
 | **C1a** | `c2.dll` addresses cited anywhere under `docs/` — **1 126 at base `071d2d47`, 1 129 at this tip** (the lane's own amendments added three) | **1 129 of 1 129 = 100%** have a row in `ADDR.tsv` | ≥ 95% | **HIT** |
-| **C1b** | the same 1 129 | **972 = 81.1%** resolve to a containing function with a size | ≥ 70% | **HIT** |
+| **C1b** | the same 1 129 | **907 = 80.3%** resolve to a containing function with a size (over all 1 199 rows including the label-only ones: 972 = 81.1%) | ≥ 70% | **HIT** |
 | **C2** | **4 916** functions Ghidra found in the image | **631 distinct functions** are named by at least one row = **12.8%** | *no target, by design* | reported |
 | **C3** | **6** prioritized subsystems | **6 of 6** have a page; entry counts 21 / 24 / 33 / 32 / 16 / 19 | 6 of 6, ≥ 8 entries each | **HIT** |
 | **C4** | **19** `WB_*_FINDINGS.md` documents | **18** are back-linked from at least one row (86 distinct docs in total) | ≥ 15 | **HIT** |

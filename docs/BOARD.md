@@ -3884,7 +3884,10 @@ else yet.
 Lane `w-c2map2`, the first lane dispatched under `CLAUDE.md`'s 2026-08-17
 *"Whitebox analysis is AUTHORIZED"* section. **Kind `characterization`,
 predicted reach 0, realized 0.** `crates/`, `fixtures/` and `scripts/` are
-byte-identical at both ends (`graded tree 5b550a38d90b`, 738 files). Record:
+byte-identical at both ends (`graded tree 24aad38816d7`, **740 files** at the
+rebased base `82fa92a0`; it was `5b550a38d90b`/738 at the branch's original base
+`071d2d47`, and `w-calleeguard`'s two new `c2-harness` test files are the
+difference). Record:
 [`whitebox/ref/README.md`](whitebox/ref/README.md); rung
 [`rungs/2026-08-18-c2map2.md`](rungs/2026-08-18-c2map2.md).
 
