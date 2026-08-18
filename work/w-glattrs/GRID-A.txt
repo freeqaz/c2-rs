@@ -1,0 +1,43 @@
+prof   n  SIZE    form  attrOff  Δoff  attrPl  attrNi  xor  Δlen  firstDiffPastHash  HIT
+  O1   3    55  direct      236     2      68      28   40     2                236 True
+  O1   5    79  direct      236     2      68      28   40     2                236 True
+  O1   7   103  direct      236     2      68      28   40     2                236 True
+  O1   9   127  direct      236     2      68      28   40     2                236 True
+  O1  10   139  escape      238     4      68      28   40     2                238 True
+  O1  12   163  escape      238     4      68      28   40     2                238 True
+  O1  16   211  escape      238     4      68      28   40     2                238 True
+  O1  20   259  escape      238     4      68      28   40     2                238 True
+  O1  30   379  escape      238     4      68      28   40     2                238 True
+  Ox   3    55  direct      236     2      68      28   40     2                236 True
+  Ox   5    79  direct      236     2      68      28   40     2                236 True
+  Ox   7   103  direct      236     2      68      28   40     2                236 True
+  Ox   9   127  direct      236     2      68      28   40     2                236 True
+  Ox  10   139  escape      238     4      68      28   40     2                238 True
+  Ox  12   163  escape      238     4      68      28   40     2                238 True
+  Ox  16   211  escape      238     4      68      28   40     2                238 True
+  Ox  20   259  escape      238     4      68      28   40     2                238 True
+  Ox  30   379  escape      238     4      68      28   40     2                238 True
+
+diff-at-predicted-offset AND xor==0x40: 18/18
+
+The SIZE ladder across the direct/escape boundary (endianness):
+  O1:
+     n=  3 SIZE=   55 ( direct)  19+12n=   55 OK
+     n=  5 SIZE=   79 ( direct)  19+12n=   79 OK
+     n=  7 SIZE=  103 ( direct)  19+12n=  103 OK
+     n=  9 SIZE=  127 ( direct)  19+12n=  127 OK
+     n= 10 SIZE=  139 ( escape)  19+12n=  139 OK   big-endian would read 35584
+     n= 12 SIZE=  163 ( escape)  19+12n=  163 OK   big-endian would read 41728
+     n= 16 SIZE=  211 ( escape)  19+12n=  211 OK   big-endian would read 54016
+     n= 20 SIZE=  259 ( escape)  19+12n=  259 OK   big-endian would read 769
+     n= 30 SIZE=  379 ( escape)  19+12n=  379 OK   big-endian would read 31489
+  Ox:
+     n=  3 SIZE=   55 ( direct)  19+12n=   55 OK
+     n=  5 SIZE=   79 ( direct)  19+12n=   79 OK
+     n=  7 SIZE=  103 ( direct)  19+12n=  103 OK
+     n=  9 SIZE=  127 ( direct)  19+12n=  127 OK
+     n= 10 SIZE=  139 ( escape)  19+12n=  139 OK   big-endian would read 35584
+     n= 12 SIZE=  163 ( escape)  19+12n=  163 OK   big-endian would read 41728
+     n= 16 SIZE=  211 ( escape)  19+12n=  211 OK   big-endian would read 54016
+     n= 20 SIZE=  259 ( escape)  19+12n=  259 OK   big-endian would read 769
+     n= 30 SIZE=  379 ( escape)  19+12n=  379 OK   big-endian would read 31489
