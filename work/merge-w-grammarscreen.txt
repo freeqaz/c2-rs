@@ -1,0 +1,251 @@
+A THIRD OF ANY REACHABILITY SCREEN'S "REACHED" BUCKET IS EVALUATED AND NOT REFUSED, AND IT READS BACK ONTO A ROW ALREADY ON MASTER — PLUS: THE 1,227-SITE GRAMMAR CLASS IS 1,336 SITES, THE CORPUS REACHES 507, AND THE DEAD BUCKET IS EMPTY
+
+Lane:     w-grammarscreen
+Kind:     characterization
+Outcome:  instrument
+Base:     master 666fe6eb7
+Record:   docs/rungs/2026-08-18-grammarscreen.md
+Prereg:   docs/rungs/_2026-08-18-w-grammarscreen-prereg.md (frozen at f40c4b1f6,
+          committed BEFORE the first probe)
+Board:    #3299–#3303, allocated by the coordinator; plus ONE UNNUMBERED row
+          (F4, the 685-of-1,060 census-key finding) drafted per README's rule
+          because the block is spent — it asks for a number
+Rebase:   authorized and performed. Master had NOT moved (666fe6eb7 is the
+          merge-base), so the rebase was a no-op and the tip is unchanged at
+          75327a7ca + the post-report edits. No BOARD.md conflict arose.
+Fixtures: none — characterization.  Census: +0.  Predicted reach 0, realised 0.
+
+WHAT THIS LANE WAS SENT TO DO
+-----------------------------
+`w-deadsites` F1: "the same screen makes the dropped 1,227-site grammar class
+affordable — ~20 runs vs 5 days".  Run it; re-derive the 1,227 by PARSING
+rather than grepping (#3288); and take the THREE-bucket partition
+(unguarded / dead / unknown) on the result rather than the two `#3246` named.
+
+THE ANSWER
+----------
+1,227 MOVES, to 1,225, and both differences are named: a doc comment quoting
+`blk(seg, p, "body")` and the `fn blk(` definition.  With `blk_type(` (6 -> 5,
+the definition) and `Block::refuse(` (106 -> 106, exact), the class is
+1,336 CALL SITES, 1,335 production + 1 in a test.  No line carries two sites,
+so the line-vs-site gap that makes a line grep an under-count is zero here.
+
+    REACHED   507 / 1,336   37.9 %     of which  321 proven to REFUSE
+                                                 186 evaluated only
+    QUIET     829 / 1,336   62.1 %     of which  737 in a function the corpus
+                                                     demonstrably ENTERS
+                                                  92 in a function no site of
+                                                     which ever fired
+    DEAD        0 / 1,336    0.0 %
+    UNKNOWN   829 / 1,336   62.1 %
+
+FOUR FINDINGS, IN THE ORDER A READER SHOULD TAKE THEM
+-----------------------------------------------------
+1  A THIRD OF ANY SCREEN'S "REACHED" BUCKET IS EVALUATED AND NOT REFUSED.
+   `.ok_or(X)` runs X on every pass, refusing or not, and a trailing `?` does
+   NOT change that — the classifier must test the eager forms FIRST or it reads
+   177 sites as diverging that are not.  186 of the 507 are eager, so a screen
+   that does not separate them overstates its actionable half by 58 %.
+   THIS READS BACK ONTO A LANDED ROW: #3276 prices all seven of w-deadsites'
+   UNGUARDED sites as "a witness each, and cheap: the probe proves an input
+   exists", which needs the site to diverge.  Six of the seven do.  CS4
+   (census.rs's `bind_key.unwrap_or(STORE_RUN_BIND_NO_CARRIER)`) is EAGER, and
+   that lane's own table records it firing "with `bind_key` Some" — i.e. with
+   the default arm NOT taken.
+   ROUTED, NOT DANGLING: flagged and not corrected here (#3117), and the
+   coordinator has forwarded it to peer w-witness7 — mid-lane writing witnesses
+   for exactly those seven sites — with the instruction to distinguish "the
+   refusal fires" from "the expression is evaluated" before manufacturing a
+   witness for any of them.  The correction happens in the lane that owns the
+   consequence.  Settling CS4 is one probe placement inside a lane already there.
+
+2  THE PARTITION DEGENERATES, STRUCTURALLY AND NOT BUDGETARILY.  w-deadsites
+   split 26 rows by READING each quiet site.  That does not scale to 829, and
+   the one unreachability proof that does — rustc's `dead_code` lint — runs on
+   every build of this repo and is GREEN.  1 of 191 enclosing functions has no
+   non-test caller and that one IS a `#[test]`.  A declared reading of the 11
+   quiet sites sharing a ctx with a reached one (the exact shape L9/CA9/CA10
+   came from) found 0 proofs.  So DEAD is not small; it is EMPTY.
+   0 DEAD, NOTHING DELETED, NOTHING PROPOSED FOR DELETION, 829 UNKNOWN rows
+   published untouched.  Returning zero here is the correct outcome and is what
+   the "quiet is not dead" constraint was for.
+
+3  QUIET IS A SPARSE TRAVERSAL OF EVERY PARSER, NOT AN UNVISITED ONE.  0 of 30
+   files have zero reached sites; 26 of 30 are walked to within 15 % of their
+   gate depth (28 of 30 to >= 83 %) while 17-47 % of their gates are ever
+   touched.  float_walk_loop.rs: 24 of 89 reached, DEEPEST reached site the
+   89th.  The story that would license deleting quiet sites is measured false
+   file by file.
+
+4  THE SCREEN COSTS THREE SOURCE LINES AND FOUR CORPUS RUNS, AND WHAT IT BUYS
+   IS A PRICE.  `blk`, `blk_type` and `Block::refuse` marked `#[track_caller]`:
+   one `&'static Location` per call site, so its ADDRESS is the site key and
+   there is NO per-site edit.
+   STATED PLAINLY: three #[track_caller] lines, no per-site edit, four corpus
+   runs — against F1's costed ~20 runs and the original five-day estimate.
+   Reach is a NECESSARY condition for a mutation to be killable, so the campaign
+   w-mutcensus declined is now 507 runs (~34 h serial, ~2 h across 16
+   worktrees), or 321 restricted to sites where a key-swap is observable at all
+   — against 1,336 and five days.
+
+DOES `w-deadsites`' 73 % HOLD?  NO — 62.1 %, AND THE DENOMINATORS DIFFER
+------------------------------------------------------------------------
+That lane measured 19 of 26 OPEN GREEN rows — sites a census had already found
+unguarded.  This measures 829 of 1,336 SITES, none of which has ever been
+mutated.  The honest reading is the stronger one: on this class a mutation
+census could not have measured test quality EVEN IN PRINCIPLE for 62 % of its
+runs, and that 62 % is retired by four corpus runs.
+
+REACH ATTRIBUTED TO A CORPUS STAGE (`w-deadsites` F2, TAKEN)
+------------------------------------------------------------
+  suite  280 (20 exclusive) | sweep 133 (0) | cross 232 (1)
+  fixture lanes 446 (70)    | 878-TU scan 339 (17) | gate 469
+  gate \ (sweep u cross u debug) = 0
+  cheapest witness per site: 280 unit test | 0 sweep | 46 cross |
+                             164 fixture lanes | 17 the whole 878-TU workload
+The 19,556-case generated sweep adds ZERO exclusive reach, and the 18 RELEASE
+fixture lanes add zero over the debug lane.
+
+THE OTHER DROPPED CLASSES, RE-DERIVED (3 of 4 FIGURES MOVE)
+-----------------------------------------------------------
+  dyninit_tu `return None`   published 12 -> 11 at 666fe6eb7 AND at 3835469c
+                             (the census's OWN base, via `git show`), so head
+                             drift is excluded: wrong at the base it was
+                             measured on, in the OVER-count direction
+  data_tu `return None`      14, exact
+  provide_data_tu            19 more clauses of the same class, missing from
+                             the drop table entirely — the function did not
+                             EXIST when that frame froze
+  OptWordMode gates          18 -> 19
+Plus 15 `?` operators the "return None" framing does not name at all, so a
+consistent reading of that class is 59, not the published 26.
+
+AND THIS WIDENS #3288 TO A DIFFERENT AND WORSE CLAIM.  That row reads "an
+enumerator's UNDER-count is silent and flattering" and its three members are all
+under-counts, each with a STORY — a character class that drops a digit, a `\b`
+that never fires between `x` and `1` — and a story is something a reviewer can
+look for.  The dyninit_tu 12-for-11 and the OptWordMode 18-for-19 have NO story:
+they were simply never reconciled against anything.  So the class is not
+"enumerators under-count" but "A PUBLISHED COUNT THAT WAS NEVER DIFFED AGAINST A
+SECOND, DIFFERENTLY-BUILT ONE IS UNVERIFIED IN EITHER DIRECTION" — worse, because
+it removes the last cue a reviewer had.  All three known members were found by a
+lane doing something else; these two were found by the only lane that has ever
+re-derived that table.
+ALL FOUR ARE OUT OF FRAME and stay out; the conditional secondary frame was
+NOT RUN and is reported as not run, with its count.
+
+METHOD, AND THE CHECKS THAT EARNED THEIR KEEP
+---------------------------------------------
+* P1 and P2 agree SET-FOR-SET on all 1,336 rows in all six stages
+  (P1\P2 = P2\P1 = 0).  Sets, not counts — #3286.
+* Q1 armed `panic!()` at ALL 829 quiet sites at once and completed clean: zero
+  markers in the raw text of every log AND of the gate's whole run tree, at
+  `port-error 0`.  With a POSITIVE CONTROL first — one reached address deleted
+  from the allowlist makes it fire and name itself — because a panic that never
+  fires is otherwise indistinguishable from one that cannot.
+* The instrumented runs reproduce the clean baseline exactly, which is the
+  instrument's own validity check: suite 1,671/0/46 in every one of N0, P1, P2,
+  Q1, T1; gate PASS 18/18 at every count; 878-TU scan 0 differing lines over
+  all 394 anchored keys.
+* Independent cross-check against the census's OWN vocabulary (production code,
+  no probe): 20/20 scan features and 194/231 fixture-lane blocker features
+  resolve to a reached site.  THE ONE CONTRADICTION RESOLVED INTO A FINDING:
+  `mcall-chain-tail-load-class` is raised by two sites, and the one the probe
+  calls quiet is the literal while the REACHED one passes the key through a
+  variable — `w-mutcensus` F2's k-1 mechanism, surfacing in the grammar class,
+  detected by a completely independent instrument.
+* THE LANE'S OWN ENUMERATOR REPRODUCED #3288's FAILURE MODE ON ITS FIRST RUN:
+  it printed "sites parsed: 0" with exit 0.  Caught by the registered
+  reconciliation against the raw grep and by nothing else.  #3288's mitigation
+  works and costs ten lines.
+
+PREREG: 14 REGISTERED COLOURS, 11 HITS, 3 MISSES
+-------------------------------------------------
+H1 REACHED 534 (40 %), 80 % interval [400, 735]      HIT — observed 507 (37.9 %)
+H2 QUIET 802, ratio higher than 73 %                 HIT on the count (829),
+                                                     MISS on the framing
+H3 instrumented run reproduces the baseline exactly  HIT
+H4 P1 and P2 agree on all 1,336 rows                 HIT (set-identical)
+H5 panic run completes with zero markers             HIT
+H6 control C1 RED with the two named tests           HIT (C1a 1,669/2, C1b 1,668/3)
+H7 stage attribution informative                     HIT (17 scan-only, 20 suite-only)
+H8 DEAD <= 27, structurally                          HIT at the extreme — DEAD 0
+H9 UNKNOWN the largest bucket, > 50 %                HIT — 829, 62.1 %
+H10 the partition DEGENERATES                        HIT
+H11 nothing deleted, UNKNOWN published untouched     HIT
+H12 empty crates/fixtures/scripts diff               HIT
+H13 P(probe/census contradiction) = 0.15             MISS — one, and it resolved
+H14 >= 1 shape file with zero reach, P = 0.35        MISS — 0 of 30
+
+`w-deadsites` §8.1 told the next lane to "register LESS reach than intuition
+suggests".  Intuition said ~55 %, the registration said 40 %, the measurement
+said 37.9 %.  A calibration note handed forward between lanes was worth 15
+percentage points, and it is the first time in this sequence one has been.
+
+GATE EVIDENCE — BASE N0 AND TIP T1, BOTH MEASURED IN THIS WORKTREE
+-------------------------------------------------------------------
+  suite  C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release
+         1,671 / 0 / 46 at BOTH ends; census_gate 66.51 s / 86.83 s
+         (minimum over EVERY run in this lane: 66.51 s — none near 0.00 s)
+  gate   scripts/gate.sh --jobs 16 --require-graded
+         PASS (HATCH-RED REFUSED), 18/18 lanes, 0 FAIL/SKIP/NO-RESULT,
+         6,948 fixture-verdicts, sweep 19,556/19,460, cross 90,812/90,424,
+         debug lane 18/18 at 0 panic — every count identical at both ends
+  scan   878-TU: match 26 · mismatch 0 · codegen-gap 0 · vocab-gap 844 ·
+         capture-fail 8 · port-error 0; fnbyte 35,899 / 1,958 / 113,447
+         394 anchored keys, 0 differing lines base vs tip
+  GRADED TREE IDENTICAL AT BOTH ENDS: f78869e1bd48, 742 files under
+         crates fixtures scripts, content-hashed.  This is a revert-everything
+         lane, so #3215's exclusion does NOT apply and the row is a real check.
+  git diff master..HEAD -- crates fixtures scripts   ==  EMPTY
+  scripts/board_audit.sh  all-zero, re-run after appending #3299–#3303
+  crates/c2-harness/tests/rung_registry.rs  2/2, INDEX.md regenerated
+  release-binary sha256 across worktrees: NOT compared (#3224, void by
+         construction — CARGO_MANIFEST_DIR is compiled in)
+
+CORPUS PROBED AGAINST
+---------------------
+c2-rs 666fe6eb7 · dc3-decomp ccd4c8036 (clean) · work/capture-cache SHARED with
+the main repo · generated corpus shared and content-addressed
+(gen-169fae960ed84b63), so the cross/sweep legs were WARM and #3266's cold leg
+was not paid · wibo 1.2.0-c2rs.1 · XDK 16.00.11886.00.
+Stages covered: the 1,671-test suite, the 19,556-case sweep, the 90,812-cell
+cross, the 18-lane release fixture gate, the 18-lane debug lane, the 878-TU
+workload scan.  `hatch-red` is REFUSED here on the byte-clean base as well
+(#1389), exactly as w-deadsites §1.1 recorded for master.
+#3254 binds every QUIET row: 71.2 % of the fnbyte denominator is bodies the
+shipped image never contains, and the workload is one head of a tree moving
+~284 commits a fortnight.  A QUIET row is a statement about THAT corpus on THAT
+day and nothing else.
+
+FOUND AND NOT TAKEN (full list in §10)
+---------------------------------------
+F1  the 507-run mutation campaign is priced and nobody has run it
+F2  xtea_encrypt_loop.rs stops at gate 14 of 57 — alone among the 30 files
+F3  the conditional secondary frame (44 `return None` + 15 `?` + 19 OptWordMode)
+    was NOT RUN; the counts are published so nobody re-derives them
+F4  685 of 1,060 distinct census keys (64.6 %) in this class have NEVER been
+    produced by anything this repo runs — the largest number this lane found.
+    Given its own board row, drafted UNNUMBERED because the block is spent.
+    Sized, UNPRICED, and explicitly NOT a claim that the 685 are dead
+F5  the sweep is the gate's LARGEST generated leg and buys ZERO exclusive reach
+    for this class: 133 sites reached, 0 of them by nothing else, while
+    gate \ (sweep u cross u debug) = 0 and 0 of the 507 have the sweep as their
+    cheapest witness.  Posed as a question about what those 19,556 cases buy
+    HERE, with both limits binding: #3270–#3275 says a zero on the reach axis is
+    not evidence on the byte axis, and this is a claim about ONE class.  NOT a
+    case for retiring the sweep, and must not be quoted as one
+F6  `#[track_caller]` is a general site-level probe for this repo; first use
+F7  a standing version needs a crates/ change a zero-delta lane cannot land —
+    #3233's structural conflict, fourth wave running
+F8  at least one of w-deadsites' seven UNGUARDED rows is in eager position
+F9  this lane measured REACH and not test quality, on purpose
+
+DELIBERATELY NOT DONE
+---------------------
+Nothing deleted.  Nothing proposed for deletion.  829 UNKNOWN rows published
+untouched.  No mutation run on any of the 1,336 sites.  No `crates/`,
+`fixtures/` or `scripts/` byte landed.  The frame was NOT re-enumerated to
+absorb anything a peer landed mid-lane (that would unfreeze the prereg); it is
+recorded as a site the frame necessarily misses, and as more evidence that a
+site enumeration in this repo has a shelf life measured in landed peers.

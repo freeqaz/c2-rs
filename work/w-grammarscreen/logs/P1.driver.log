@@ -1,0 +1,14 @@
+=== P1/suite ===
+P1/suite exit=0 wall=256s distinct-sites=280
+=== P1/bench ===
+P1/bench exit=0 wall=89s distinct-sites=0
+=== P1/sweep ===
+P1/sweep exit=0 wall=96s distinct-sites=133
+=== P1/cross ===
+P1/cross exit=0 wall=44s distinct-sites=232
+=== P1/debug ===
+P1/debug exit=0 wall=30s distinct-sites=446
+=== P1/gate ===
+P1/gate exit=0 wall=95s distinct-sites=469
+=== P1/scan ===
+P1/scan exit=0 wall=6s distinct-sites=339

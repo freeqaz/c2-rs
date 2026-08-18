@@ -1,0 +1,12 @@
+=== P2/suite ===
+P2/suite exit=0 wall=228s distinct-sites=280
+=== P2/sweep ===
+P2/sweep exit=0 wall=91s distinct-sites=133
+=== P2/cross ===
+P2/cross exit=0 wall=44s distinct-sites=232
+=== P2/debug ===
+P2/debug exit=0 wall=29s distinct-sites=446
+=== P2/gate ===
+P2/gate exit=0 wall=99s distinct-sites=469
+=== P2/scan ===
+P2/scan exit=0 wall=6s distinct-sites=339

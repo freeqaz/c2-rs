@@ -1,0 +1,6 @@
+=== N0/suite ===
+N0/suite exit=0 wall=220s distinct-sites=0
+=== N0/gate ===
+N0/gate exit=0 wall=124s distinct-sites=0
+=== N0/scan ===
+N0/scan exit=0 wall=9s distinct-sites=0
