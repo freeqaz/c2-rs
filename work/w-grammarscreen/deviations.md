@@ -86,3 +86,27 @@ warning-clean**, so no function in this crate is uncalled.
 §1.1 established that master's own clean-tree gate refuses that same row for
 `HATCH-STALE` (#1389), and **this lane's `N0`, on a byte-clean tree, reproduces
 `PASS (HATCH-RED REFUSED)`** — so the probe runs lose nothing the base run has.
+
+## D8 — `C1b` reads 1,668 / 3, and the third failing test is this lane's own bookkeeping
+
+The named control at the tip is **RED 1,668 / 3**, not 1,669 / 2. The failing
+set is the registered pair by name —
+`the_call_argument_arity_fence_is_a_series_and_admits_exactly_one_symbol` and
+`the_two_symbol_thunk_exemption_turns_on_the_bare_body_marker_alone` — **plus
+`rung_index_is_generated_and_current`**, because this lane added its rung doc
+before regenerating `docs/rungs/INDEX.md`. It is not a property of the control:
+the index was regenerated with `scripts/gen_rung_index.sh` immediately
+afterwards and `T1` reads clean. Named here rather than filtered out of the
+table, because a results table that silently drops a row it finds inconvenient
+is not derived from its logs. (`w-deadsites` §6.4 hit the identical thing.)
+
+## D9 — the probe frame necessarily misses anything a peer lands mid-lane
+
+Peers `w-glattrs` (`crates/c2-il`'s `gl.rs` region) and `w-witness7`
+(`crates/c2-harness/tests/`) are in flight. The frozen enumeration is the
+1,336 sites present at **`666fe6eb7`**; a site landed after that is one this
+frame **necessarily misses**, and it is not absorbed — absorbing it would
+unfreeze the prereg. `w-mutcensus`' enumeration went stale **twice inside one
+lane's wall-clock**, and §7 of the rung records a third instance
+(`provide_data_tu`, 19 sites, landed after that frame froze). The shelf life of
+a site enumeration in this repo is measured in landed peers.

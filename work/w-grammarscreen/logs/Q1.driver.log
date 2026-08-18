@@ -1,0 +1,12 @@
+=== Q1/suite ===
+Q1/suite exit=0 wall=205s distinct-sites=0
+=== Q1/sweep ===
+Q1/sweep exit=0 wall=95s distinct-sites=0
+=== Q1/cross ===
+Q1/cross exit=0 wall=40s distinct-sites=0
+=== Q1/debug ===
+Q1/debug exit=0 wall=27s distinct-sites=0
+=== Q1/gate ===
+Q1/gate exit=0 wall=108s distinct-sites=0
+=== Q1/scan ===
+Q1/scan exit=0 wall=6s distinct-sites=0

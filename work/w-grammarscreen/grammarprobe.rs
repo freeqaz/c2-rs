@@ -72,7 +72,13 @@ fn reached() -> &'static Option<HashSet<(String, u32, u32)>> {
 #[inline]
 pub(crate) fn hit(loc: &'static Location<'static>) {
     let key = loc as *const Location<'static> as usize;
-    let first = SEEN.with(|s| s.borrow_mut().insert(key));
+    // `try_with`, never `with`: a `thread_local!` access during thread
+    // destruction PANICS, and a probe that can panic is a probe that can
+    // invalidate the run it is measuring. On failure the dedup is skipped and
+    // the hit is recorded anyway — duplicate lines cost a `sort -u`, whereas a
+    // dropped hit is an UNDER-count, which is the flattering direction and the
+    // one #3288 says survives review.
+    let first = SEEN.try_with(|s| s.borrow_mut().insert(key)).unwrap_or(true);
     if first {
         record(loc);
     }
