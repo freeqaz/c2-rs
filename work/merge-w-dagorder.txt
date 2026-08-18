@@ -2,7 +2,8 @@ merge w-dagorder: the allocator's candidate order is a CHOW-HENNESSY PRIORITY LI
 
 Outcome: built. Kind: characterization. Fixtures none, Census +0, reach 0
 predicted and 0 realized. docs/ + docs/whitebox/ + work/w-dagorder/ only;
-`git diff 44794fa4..HEAD -- crates fixtures scripts` is EMPTY.
+`git diff master..HEAD -- crates fixtures scripts` is EMPTY at master 31766e74,
+after the rebase.
 
 HEADLINE, TWO HALVES, BOTH LOAD-BEARING:
 (1) The candidate order is a PRIORITY LIST — Chow-Hennessy priority-based
@@ -26,8 +27,19 @@ over a 15-cell grid, with a committed simulator. Two lanes have since landed on
 top of it (w-dagclients #3099–#3103, w-itemf-price #3166–#3170). The lane
 retargeted to the blocker the record actually names, board #3169's F5, and ran
 the experiment #3166 explicitly declined: "Testing it is the cheapest experiment
-the lane found." This is the fifth-plus instance of the check-the-board pattern
-and the brief itself carried the stale claim.
+the lane found."
+
+THE MECHANISM IS THE TRANSFERABLE PART, and it is a dispatch defect rather than
+a lane preamble. STRATEGY_REVIEW_2026-08-13.md is a DATED SNAPSHOT, and lever 3
+was discharged THE SAME DAY that review was written. A lever named in a review
+stays named there forever; the board row discharging it lands elsewhere; and
+NOTHING IN THIS REPO RECONCILES THE TWO. So a coordinator reading the review
+faithfully can dispatch a lane at already-landed work — which is what happened.
+The standing note covers ROWS re-entering dispatch after measuring zero; this
+instance came through a REVIEW DOCUMENT and from the coordinator, a route the
+note did not cover. And what surfaced it was THE BRANCH NAME BEING TAKEN, which
+lane discipline requires checking for an unrelated reason: no check anyone ran
+was looking for this, so the defect's true rate is UNMEASURED.
 
 THE ANSWER (#3239). The worklist head is DAT_10c43b7c, doubly linked through
 cand+0x14/+0x18. FUN_10b316b1 @ 0x10b316b1 builds it by walking wb-live's
@@ -85,10 +97,11 @@ order is not source order" from "the n=3 keys are not tied". The row says
 "bucket-walk order", not "reverse source order", and DECLINES to be dispatched
 on — #1823 rested on absences and was refuted on that same seam.
 
-GATE: PASS (HATCH-RED REFUSED), exit 0. 18/18 lanes, 6,948 fixture-verdicts,
+GATE (RUN TWICE, PRE- AND POST-REBASE, BOTH PASS): PASS (HATCH-RED REFUSED), exit 0. 18/18 lanes, 6,948 fixture-verdicts,
 match 2,423, 0 mismatch, 0 PANIC; debug-lane row PASS 18/18; sweep
 19,556/19,556, 0 mismatches; cross 90,812/90,812, 0 mismatches. graded tree
-5b550a38d90b IDENTICAL AT BOTH ENDS. cargo test --workspace --release
+5b550a38d90b identical at both ends of each run AND identical BETWEEN the two
+runs, so the rebase moved no graded byte. cargo test --workspace --release
 --no-fail-fast 1,660/0/43. board_audit all-zero. rung_registry 2/2. 878-TU scan:
 394 anchored keys, match 26, mismatch 0, codegen-gap 0, vocab-gap 844,
 capture-fail 8 — all identical to baseline.
