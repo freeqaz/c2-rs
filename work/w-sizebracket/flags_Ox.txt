@@ -1,0 +1,1 @@
+/nologo /c /GR /Ox /Oi /EHsc

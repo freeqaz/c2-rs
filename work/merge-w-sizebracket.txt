@@ -1,0 +1,276 @@
+merge w-sizebracket: A PREDICATE CAN BE 39.6% WRONG ABOUT c2 AND *FREE* IN THE METRIC USED TO CHOOSE IT — `fnbyte-exact Δ = 0` is evidence about REACH, never CORRECTNESS, and split-half replication cannot see the difference because both halves share the blind spot
+
+Outcome: declined. Kind: characterization. Census +0. TU match 26 -> 26.
+Base: master `abc64be3`. `crates/`, `fixtures/` and `scripts/` are
+BYTE-IDENTICAL to it (`git diff --stat abc64be3 -- crates/ fixtures/ scripts/`
+is empty), and the gate's graded tree hash is the SAME VALUE before and after
+the rebase — `e8a9edfa0947`, 740 files.
+
+================================================================================
+1. THE FINDING THAT OUTLIVES THIS FENCE — put where it cannot be missed
+================================================================================
+
+  **A predicate can be 39.6% wrong about c2 and FREE in the metric used to
+  choose it.** `fnbyte-exact Δ = 0` is evidence about a predicate's REACH,
+  never its CORRECTNESS — the population where it errs is refused for other
+  reasons today, which is #876-#879's latent hazard rather than its absence.
+  **And split-half replication CANNOT detect this, because both halves share
+  the blind spot.**
+
+That sentence indicts a validation this project has been treating as strong.
+`w-dataseam` §6.2 split the 878-TU workload odd/even, held each half out for the
+other, and got ZERO `fnbyte-exact` cost on both with effect sizes agreeing to
+ONE body (-414 vs -415). It reads as out-of-sample confirmation. It is blind by
+construction: the edges where the predicate is wrong are refused for unrelated
+reasons in *both* halves, so no partition of the corpus can surface them.
+
+WHAT CAUGHT IT was scoring the predicate against real `c2.dll` instead — GRID-S,
+`w-fence2` GRID-W's observable (does the reference caller's REL24 name the
+callee?) over **7,667 workload call edges, 0 `unknown`**:
+
+    cut 128   wrong 4,987 / 7,667 = 65.0%
+    cut 180   wrong 3,037 / 7,667 = 39.6%   <- w-dataseam's lower end
+    cut 192   wrong 2,892 / 7,667 = 37.7%
+    cut 224   wrong 2,091 / 7,667 = 27.3%
+    cut 231   wrong 1,610 / 7,667 = 21.0%   <- w-dataseam's upper end
+
+**3,036 of the 3,037 errors at cut 180 are in the UNSOUND direction** —
+asserting c2 kept a call it in fact inlined, which is the wrong-obj direction.
+At a metric delta of exactly zero.
+
+The instrument that does this is cheap and already existed: GRID-W built it in
+68 lines, this lane re-used it in 274. **Every lane pricing a predicate should
+score it against the oracle's own per-edge verdict before quoting a zero-cost
+result as validation.**
+
+SCOPING, STATED RATHER THAN SMUGGLED: GRID-S grades every IL call edge to a
+defined-here callee. `w-dataseam`'s rule fires on a SUBSET (it also requires
+`∉ tu_modelled_callees` and `cflow_key ≠ eh-state1`; realized reach 2,875
+bodies), so 39.6% is the cut's error rate AS A SIZE AXIS, not necessarily inside
+the fence's conjunction. Unaffected by that: the mechanism is unconditional and
+demonstrated on constructed source; the DIRECTION is 3,036 of 3,037 and a
+conjunction can only remove edges, never flip a verdict; and the two units are
+compared on IDENTICAL edges.
+
+================================================================================
+2. THE UNIT REFUTATION — and it vindicates `w-dataseam` twice over
+================================================================================
+
+That lane declined because its constant was FITTED. It was also **in the wrong
+unit**, and **wrong at every value in its window**: the dispatched range
+`[176, 232]` IL segment bytes CONTAINS NO BOUNDARY AT ALL.
+
+The real separator at the workload profile is **(108, 116] EMITTED `.text`
+bytes** — which sits inside `WB_INLINE_FINDINGS` F2's (100,116] and SHARES ITS
+TOP. That is independent corroboration of a prior lane's row on new cells and a
+new generator, not a fresh claim.
+
+WHY THE IL UNIT CANNOT WORK, in one cell of the joint table: a callee that emits
+under 32 bytes of `.text` routinely carries 224-319 bytes of IL — 750 such edges
+— because the IL folds. 3,036 named witnesses are printed by the scan, e.g.
+`??1?$_List_base@…` at il=223 ref=4: **223 bytes of IL that emit four bytes of
+code.** `[180, 231]` sits directly on top of that population.
+
+================================================================================
+3. `[sym+0x50]` — THE RESULT A FUTURE LANE WILL MOST NEED, STATED AS THE REASON
+   THE AXIS CANNOT CARRY THE RULE
+================================================================================
+
+The operand of c2's inline size test is the **`.gl` FUNCTION RECORD'S `SIZE`
+FIELD, read verbatim** — the field the port **already walks past** to reach
+`FN_FLAG_INLINABLE`. There is exactly ONE 16-bit store to `[reg+0x50]` in the
+whole image, `0x10b9bf6c`, inside `FUN_10b9b8e9`, which `ADDR.tsv` ALREADY
+labelled "p2symtab .gl record reader; reads the emit flag word +0x4c at
+0x10b9bf70" — the same three instructions, written down from the other side
+before anyone looked for this one. Source: `0x10c1f9a6`, `il-read-varint16`.
+Field order matches `gl_function_attrs`' own record comment exactly.
+
+**AND IT IS AN UPPER BOUND, NOT THE TESTED VALUE. That is the reason the axis
+cannot carry the rule — not a caveat on it.**
+
+`arith_012_O1` and `mix_008_O1` share `.gl SIZE = 115`, differ by 12 bytes of
+`.ex`, and c2 **INLINES THE LARGER IL BODY AND KEEPS THE SMALLER** — narrating
+both from the identical source line `int caller(int a) { return callee(a) + 7; }`
+in its own `/FAsc` listing:
+
+    arith_012_O1   lis/lis/ori/ori/mullw/subf/blr    -- twelve statements
+                   no bl, no relocation, no .pdata      collapsed to two
+                                                        constants and a mullw
+    mix_008_O1     mflr/stw/stwu/.endprolog
+                   bl ?callee@@YAHH@Z               -- KEPT, plus a COMDAT
+                   ...                                 .pdata record
+
+Confirmed independently in the obj: nrel=0 against nrel=1 REL24 -> ?callee.
+
+Folding reduces the count before the inliner looks. So the ONLY sound
+implication is
+
+    .gl SIZE < T  =>  c2 INLINED it        (0 counterexamples over 100 cells;
+                                            /O1 T=98, /Ox T=122)
+
+which is **the OPPOSITE direction from the exemption a size fence needs**. The
+converse — "SIZE large => c2 kept it" — has 14 counterexamples at /O1 and 20 at
+/Ox. The axis is closed, not narrowed.
+
+Corollary worth keeping: the best axis this lane found, `.gl SIZE >= 96`, is
+**0-for-330 on the workload** (three orders of magnitude better than the IL axis
+on the same edges) and is killed by a three-line `.cpp` written IN THE SAME
+LANE, BEFORE THE RULE WAS PROPOSED. #1148's lesson, one step earlier than #1148
+got to it.
+
+================================================================================
+4. PROFILE SCOPE — third finding of the month and the strongest form
+================================================================================
+
+**`/Ox` does not move the boundary. It changes WHICH UNIT SEPARATES.**
+
+    /O1   emitted .text separates at (108, 116];  .gl SIZE does not
+    /Ox   emitted .text does not separate AT ALL and is ANTI-CORRELATED at the
+          crossing: fine_005_Ox emits 320 B and is INLINED, fine_006_Ox emits
+          196 B and is KEPT
+
+`w-section` found 7-of-8 field disagreement; `w-dagorder` found exact inversion
+on the 6 cells carrying signal; this lane finds the AXIS ITSELF is
+profile-dependent. Consistent with the favour-speed bit `0x10c2e310` turning
+this very test off (`P_INLINE` §2.1) and /Ox's growth transforms running AFTER
+the decision. `INLINE_DECLINE_BYTES`' /O1-only scope is load-bearing in a way
+its docstring understates.
+
+================================================================================
+5. THE DECLINE, PRICED TWO-SIDED
+================================================================================
+
+  declining   `w-dataseam`'s 1,807 latent-wrong bodies stay in the census's
+              accepted set; the 1,189-body removal (47.6% of every wrong body
+              the instrument grades) is foregone. Paid a second time, knowingly.
+  shipping    a predicate 21-40% wrong about c2 whose error is STRUCTURALLY
+              INVISIBLE to the acceptance test, over exactly the population the
+              next `functions()` widening would ship.
+
+The lane did not merely fail to derive the constant — it measured that the
+constant's UNIT cannot carry the rule.
+
+================================================================================
+6. DISPATCH DEFECT AGAINST THE BRIEF (docs/rungs/README.md's named pattern)
+================================================================================
+
+The brief stated: *"Both ends are already pinned — lower 180 by a witness…
+upper 231 by cost. No size-constant lane in this repo has ever started with both
+ends pinned."* Both ends were pinned IN A UNIT THAT DOES NOT DECIDE, and the
+window they bracket contains no boundary.
+
+`w-dataseam` §12.1's handover — "a 52-wide bracket with both ends measured" — is
+**WITHDRAWN**. A lane sent to narrow `[180, 231]` would be narrowing a quantity
+that is wrong at every value in it.
+
+**Detection was PARTLY INCIDENTAL and the rate is therefore unmeasured**, in
+`w-dagorder`'s pattern. This lane found the window empty only because its
+families ladder from n=0 (spanning SIZE 19-403 and emitted 16-516) rather than
+starting at the dispatched `[176, 232]`. **A lane that had probed only the
+dispatched window would have reported "no flip in range" and stopped** — a null
+that reads as a measurement problem, not as a refutation of the axis.
+
+The brief's other five instructions each earned their keep and are scored HIT in
+the same spirit: measure against real c2 (which is what caught §1), publish a
+series not a cell, measure both profiles, extend `ref/` rather than fork it, and
+decline if the constant is not derived.
+
+The standing-facts block landed at `abc64be3` was checked against this lane's
+own practice after the rebase: gate `--jobs 16 --require-graded`, suite under
+`C2RS_REQUIRE_TOOLCHAIN=1`, keys counted anchored (394), #3249's back-to-back
+re-read, #3237's void comparator avoided, #3224's sha256 not quoted. **No row of
+it was found stale.**
+
+================================================================================
+7. ONE INSTRUMENT DEFECT, CAUGHT BY ITS OWN DENOMINATOR — #3269 in its hardest
+   direction
+================================================================================
+
+The first `.gl SIZE` scan resolved **74 of 7,667** edges and reported `absent`
+for 7,593 — and the 74 it did resolve said 69 `kept` under `SIZE < 96`, which
+**WOULD HAVE REFUTED THIS LANE'S OWN HEADLINE**. A false negative that flattered
+nothing and would have ended the lane early.
+
+Cause: `codec::gl_offset_framed` pins `gl[o-5] == 0x10`, which board #2783
+measured as a VALUE WINDOW on a rising per-record counter — "5 of 5 on a 2.5 KB
+.gl and 36 of 811 on a 65 KB one". Re-run with the relaxed framing: **74 ->
+7,667, `absent` 0.**
+
+It was caught because the denominator was PRINTED — `absent: 7593` beside
+`no: 72` is not a result anyone reads as success. STATUS trap 0 in the smallest
+possible instance. **This is #3269's rule working in its hardest direction: the
+lane owed a measurement before a cause, and the cause it would have reached for
+was its own result.** Control pinned by NAME over 8 cells whose SIZE is
+independently known from the field's linearity: 0 disagreements.
+
+================================================================================
+8. WHITEBOX — and the reference doing its job
+================================================================================
+
+`P_INLINE.md` §2.1's FOUR ADDRESSES ARE IN THE WRONG FUNCTION. `FUN_10b5fb5f`
+is 377 B (0x10b5fb5f-0x10b5fcd7); all four land in `FUN_10b5fcd8`, the page's
+own POGO model, where the bytes are a different computation. The real test is
+`0x10b5fc7e`-`0x10b5fc90`. The `__forceinline` mask does not carry either
+(0x2080 at 0x10b5fcc1, not 0x2000). **Corrected BESIDE, not over**, per
+`ref/README.md` §2.1 — and it is the second defect found in `docs/whitebox/ref/`
+within a day of it landing, which is the reference working rather than failing.
+
+Adopted into `crates/`: NOTHING. No `DISCLOSURE.md` row is owed.
+
+================================================================================
+9. EVIDENCE
+================================================================================
+
+Three full 878-TU scans on three binaries in one session, IDENTICAL in every
+column: `fnbyte-exact` 35,899 / `differs` 1,958 / `reloc-differs` 531 /
+`refused-parse` 113,447 / `match` 26 / `mismatch` 0 / `codegen-gap` 0 /
+`vocab-gap` 844 / `capture-fail` 8 / **394** anchored keys
+(`grep -cE '^ *gap-metric \S+ \S+$'`, never the naive grep). Drift across the
+block: ZERO — the #3249 bracket closed at 0, not merely under the floor.
+Cache 870 hit / 8 miss / 0 uncacheable; workload `ccd4c80362f1` (clean); and
+`files.txt`/`flags.txt` hashes are IDENTICAL to `w-dataseam`'s, so every figure
+quoted from that rung is quoted against the corpus it was measured on.
+
+168 distinct probe cells, 0 errored, 10 series (5 families x 2 profiles), all
+against real `c2.dll` under wibo at `C2RS_REQUIRE_TOOLCHAIN=1`.
+
+Suite **1,666 / 0 / 45**, 0 SKIP lines. `GATE: PASS (HATCH-RED REFUSED)` at
+`--jobs 16 --require-graded`, **82 s** at the rebased tip (816% CPU), 18/18
+lanes, sweep `19556/0/19460/96`, cross `90812/0/90424/388`, debug-lane 18/18
+with 0 PANIC — every graded count identical to `w-dataseam`'s tip.
+`board_audit.sh` all-zero. `rung_registry` 2/2.
+
+**The gate was run twice: once at `1744ced1` and again at the rebased tip, and
+the graded tree hash is the same value both times — `e8a9edfa0947`, 740 files.**
+That is a measurement rather than the argument that `1744ced1..abc64be3` only
+touches `docs/rungs/README.md` (which it does). The three scans were taken at
+`1744ced1` and carry for the same reason.
+
+================================================================================
+10. PREREG
+================================================================================
+
+Frozen at the branch's FIRST commit, before any probe, with the admissible
+container facts registered BROADLY up front (A1-A8) — closing `w-dataseam`'s
+goalpost hazard in BOTH directions — and with decision rule D1 requiring the cut
+be selected from an ORACLE cross-tab and the `fnbyte-*` price measured only
+afterwards. **D1 is what flipped the answer**: had the selection statistic been
+`fnbyte-exact`, `[180,231]` reads free.
+
+5 HIT, 6 MISS, 1 not decidable. The two consequential misses (P4, P6) are misses
+because THE AXIS THE PREDICTION PRESUPPOSED DOES NOT EXIST. P8 (p = 0.35) HIT:
+the IL does carry the count.
+
+Mutants MS1-MS6: **NOT RUN, by the pre-registered condition** — nothing shipped,
+so there is no predicate to mutate. Registered colours observed: none.
+Registered colours contradicted: none.
+
+================================================================================
+BOARD #3270-#3275 (allocated by the coordinator; peers `w-deadsites` #3276-#3281
+and `w-coldcross` #3282-#3286 are untouched, and both `BOARD.md` allocation
+blocks that were already there survived the rebase unedited).
+
+NOT TAKEN, handed on as a clean dispatch: `gl_function_attrs` refuses the WHOLE
+FILE on the `.gl SIZE` field's `0x80` escape, which fires on 309 of 7,667 graded
+call edges (4.0%). Two-line decode, no measurement problem in front of it, and
+deliberately not shipped by a lane whose Outcome is `declined`.

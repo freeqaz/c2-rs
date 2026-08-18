@@ -84,7 +84,8 @@ Three of these are the usability test this lane registered in advance
 | **U3** | When two colouring candidates tie on priority, what decides? | [`P_REGALLOC.md`](P_REGALLOC.md) **§4** | `cand+0x44`, **descending, unsigned**, compared `<=` so an exact tie in both keys puts the newest candidate first (`0x10b2b82d`). **That field is not in `WB_LIVE_FINDINGS.md`'s enumeration at all**, and at `/O1` most cells are ties |
 | | Is there an instruction scheduler? | [`P_DAG.md`](P_DAG.md) **§1** | **Yes**, run four times per function at `/O1`. `#1823`'s "there is no scheduler" is refuted; its band is a TU with no ICE site, so `c2_tus.tsv` cannot see it |
 | | What decides whether a function body is emitted? | `C2_MAP.md` §3E, and §6.2 below | the `0x20` bit at `sym+0x4c`, arriving **verbatim from the IL**, closed under "referenced by an already-emitted function". Outside `-optref` c2 never subtracts |
-| | Where does the inline decision live and what are its numbers? | [`P_INLINE.md`](P_INLINE.md) **§2–§3** | `0x10b5fb5f` candidacy, `0x10b60930` accept/decline; the size test is **skipped entirely** when the favor-speed bit `0x10c2e310` is set |
+| | Where does the inline decision live and what are its numbers? | [`P_INLINE.md`](P_INLINE.md) **§2–§3** | `0x10b5fb5f` candidacy, `0x10b60930` accept/decline; the size test is **skipped entirely** when the favor-speed bit `0x10c2e310` is set. **§2.1's four addresses are CORRECTED** — they were in `FUN_10b5fcd8`; the real test is `0x10b5fc7e`–`0x10b5fc90` |
+| | **What size does the inliner actually measure, and can the port read it?** | [`P_INLINE.md`](P_INLINE.md) **§2.1a–§2.1c** | `[sym+0x50]` is the **`.gl` function record's `SIZE` field**, read verbatim by `il-read-varint16` at `0x10b9bf6c` — the field `gl_function_attrs` already walks past to reach `ATTR`. **It is an upper bound, not the tested value**: two callees with `SIZE = 115` get opposite verdicts, because folding reduces it before the inliner looks. Sound one-sided form: `SIZE < T ⇒ c2 inlined it`. `/O1` `T = 98`, `/Ox` `T = 122` |
 | | How is the `.pdata` unwind word computed? | [`P_EH.md`](P_EH.md) **§2.2** | `(hasHandler<<31) \| (1<<30) \| ((len_words & 0x3FFFFF)<<8) \| (prolog_words & 0xFF)` at `0x10bff811`, patched in a deferred pass |
 
 ---
@@ -123,6 +124,14 @@ Per-page coverage against its own band (Ghidra function entries in the span):
 | [`P_REGALLOC.md`](P_REGALLOC.md) | 18 + 15 data | `0x10b2c21d`–`0x10b3219f` | 70 |
 | [`P_DAG.md`](P_DAG.md) | 24 + 8 tables | `dag.c` + the scheduler band | 61 |
 | [`P_INLINE.md`](P_INLINE.md) | 16 | `0x10b5b86d`–`0x10b62b00` | 93 |
+
+> **2026-08-18, lane `w-sizebracket`** — `P_INLINE.md` gained §2.1a/§2.1b/§2.1c
+> and a ⛔ correction box, and `ADDR.tsv` was regenerated: **1,209 rows, 1,141
+> cited in `docs/`**, resolved-to-a-containing-function **981/1,209 = 81.1 %**,
+> at tip `dd127956`. The +12 cited addresses are that lane's own amendments —
+> §4's self-referential drift note, firing exactly as written. The C1a/C1b
+> targets are unaffected and are not restated: **the row above is
+> `w-c2map2`'s measurement and stays as it was taken.**
 | [`P_EH.md`](P_EH.md) | 19 | `0x10be04e7`–`0x10be3800` | 47 |
 
 **Deliberately NOT covered, stated so absence does not read as coverage:**

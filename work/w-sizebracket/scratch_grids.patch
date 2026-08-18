@@ -1,0 +1,274 @@
+diff --git a/crates/c2-harness/src/gap/fnbytes.rs b/crates/c2-harness/src/gap/fnbytes.rs
+index 47ec5181..86de20a2 100644
+--- a/crates/c2-harness/src/gap/fnbytes.rs
++++ b/crates/c2-harness/src/gap/fnbytes.rs
+@@ -1169,6 +1169,8 @@ pub(super) fn measure(
+     res: &mut TuResult,
+     census: &[(FnCensus, Result<IlFunction, &'static str>)],
+     ref_obj: &ObjImage,
++    // ==== SCRATCH — lane w-sizebracket: the raw `.gl`, for the SIZE field ====
++    scratch_gl: Option<&[u8]>,
+ ) {
+     // Denominator-driven, off the REFERENCE obj. `None` here is the whole-obj
+     // decode failure the emitted census already reports as `emit-obj-unreadable`;
+@@ -1435,6 +1437,8 @@ pub(super) fn measure(
+             None
+         }
+     };
++    // ==== SCRATCH — w-sizebracket: the `.gl` SIZE map, once per TU ====
++    let scratch_glsz = scratch_gl.map(scratch_gl_sizes);
+     let mut accounted = 0usize;
+     // **The byte-fraction ranker's accumulators** (lane w-tu3, board #500). Same
+     // walk, same denominator source, one extra unit: `.text` COMDAT *bytes*
+@@ -1469,6 +1473,128 @@ pub(super) fn measure(
+             }
+         };
+         let graded = grade_one(row, Some(bytes.as_slice()), &tu, refrel);
++        // ==== SCRATCH — lane w-sizebracket, MEASUREMENT ONLY, never shipped ====
++        // **`w-fence2`'s GRID-W, re-banded on the unit `w-dataseam` swept.**
++        //
++        // GRID-W asked, per IL call edge to a callee THIS TU defines, whether
++        // real c2 kept the call — banded by the callee's own EMITTED `.text`.
++        // `w-dataseam` §6.1 then swept a cut on the callee's `.ex` **IL segment
++        // length** and fitted `[180, 231]` to `fnbyte-exact`.  Those are two
++        // different units and this block puts BOTH on the oracle's own axis, so
++        // the IL-byte cut can be scored against c2 instead of against the
++        // grader (this lane's prereg §2, decision rule D1).
++        //
++        //   kept    the reference caller's REL24 target set names the callee
++        //   inlined it does not — c2 expanded the body
++        //   unknown the reference obj carries no target list for this caller
++        //
++        // Units crossed:
++        //   ref  — the callee's own `.text` COMDAT in c2's obj (GRID-W's)
++        //   il   — the callee's `.ex` segment length, `FnCensus::seg_len`
++        //          (EXACTLY `w-dataseam`'s `segs[j].len()`)
++        {
++            if let Some(f) = row.and_then(|(_, gate)| gate.as_ref().ok()) {
++                let mut seen: Vec<&str> = Vec::new();
++                for callee in f.callees().filter(|c| tu.mentions(c)) {
++                    if seen.contains(&callee) {
++                        continue;
++                    }
++                    seen.push(callee);
++                    let arm = match call_targets.get(name.as_str()) {
++                        None => "unknown",
++                        Some(v) if v.iter().any(|(_, t)| t == callee) => "kept",
++                        Some(_) => "inlined",
++                    };
++                    let rsz = entries
++                        .iter()
++                        .find(|(n, _)| n == callee)
++                        .map(|(_, by)| by.len());
++                    let ilsz = census
++                        .iter()
++                        .find(|(c, _)| c.emit_name.as_deref() == Some(callee))
++                        .map(|(c, _)| c.seg_len);
++                    let glsz = scratch_glsz.as_ref().and_then(|m| m.get(callee)).copied();
++                    let band = |s: Option<usize>, step: usize, cap: usize| -> String {
++                        match s {
++                            None => "none".to_string(),
++                            Some(n) if n >= cap => format!("z{cap}+"),
++                            Some(n) => format!("{:04}", (n / step) * step),
++                        }
++                    };
++                    *res.emit
++                        .entry(format!("xs-{}|ref={}", arm, band(rsz, 16, 512)))
++                        .or_insert(0) += 1;
++                    *res.emit
++                        .entry(format!(
++                            "xs-{}|gl={}",
++                            arm,
++                            band(glsz.map(|(n, _)| n), 8, 512)
++                        ))
++                        .or_insert(0) += 1;
++                    if let Some((_, esc)) = glsz {
++                        *res.emit
++                            .entry(format!("xs-glescape|{}", if esc { "yes" } else { "no" }))
++                            .or_insert(0) += 1;
++                    } else {
++                        *res.emit.entry("xs-glescape|absent".into()).or_insert(0) += 1;
++                    }
++                    // The one-sided implication this lane's probe cells derive:
++                    //   `.gl` SIZE < T  =>  c2 INLINED it.
++                    // A `kept` edge under the cut is a COUNTEREXAMPLE to it.
++                    for t in [96usize, 104, 112, 122, 128, 160, 192, 256] {
++                        if let Some((n, _)) = glsz {
++                            *res.emit
++                                .entry(format!(
++                                    "xs-glcut{t}|{arm}|{}",
++                                    if n < t { "lt" } else { "ge" }
++                                ))
++                                .or_insert(0) += 1;
++                        }
++                    }
++                    *res.emit
++                        .entry(format!("xs-{}|il={}", arm, band(ilsz, 16, 1024)))
++                        .or_insert(0) += 1;
++                    // The joint cell: this is what says whether the IL unit is a
++                    // faithful proxy for the emitted one or only a correlated one.
++                    *res.emit
++                        .entry(format!(
++                            "xs-{}|j={}_{}",
++                            arm,
++                            band(rsz, 32, 512),
++                            band(ilsz, 32, 1024)
++                        ))
++                        .or_insert(0) += 1;
++                    // `w-dataseam`'s own bracket, scored directly against c2.
++                    for cut in [128usize, 180, 192, 224, 231, 256] {
++                        let side = match ilsz {
++                            None => "noil",
++                            Some(n) if n <= cut => "le",
++                            Some(_) => "gt",
++                        };
++                        *res.emit
++                            .entry(format!("xs-cut{cut}|{arm}|{side}"))
++                            .or_insert(0) += 1;
++                    }
++                    // Name the witnesses in the region the fitted cut calls
++                    // "small enough to keep the call": an INLINED edge whose IL
++                    // segment is over 180 bytes is a body the shipped rule would
++                    // have refused for nothing.
++                    if arm == "inlined" && ilsz.is_some_and(|n| n > 180) {
++                        eprintln!(
++                            "XS-INLINED-BIG-IL {} :: {} -> {} il={:?} ref={:?}",
++                            tu_label, name, callee, ilsz, rsz
++                        );
++                    }
++                    if arm == "kept" && ilsz.is_some_and(|n| n <= 180) {
++                        eprintln!(
++                            "XS-KEPT-SMALL-IL {} :: {} -> {} il={:?} ref={:?}",
++                            tu_label, name, callee, ilsz, rsz
++                        );
++                    }
++                }
++            }
++        }
++        // ==== END SCRATCH ====
+         let v = graded.verdict;
+         *res.emit.entry(v.key()).or_insert(0) += 1;
+         if v.bare() != v.key() {
+@@ -2689,3 +2815,109 @@ pub fn byte_fraction(res: &TuResult) -> Option<(usize, usize)> {
+ pub fn byte_fraction_exact(res: &TuResult) -> usize {
+     res.emit.get("bytefrac-exact").copied().unwrap_or(0)
+ }
++
++// ==== SCRATCH — lane w-sizebracket, MEASUREMENT ONLY, never shipped ====
++/// The `.gl` **function** record's `SIZE` field, per defined function.
++///
++/// This is `[sym+0x50]` — the 16-bit quantity c2's inline candidacy test reads
++/// at `0x10b5fc86` and compares against `DAT_10c46318` at `0x10b5fc8a`.  It is
++/// written by the `.gl` record reader `FUN_10b9b8e9` at `0x10b9bf6c`
++/// (`66 89 46 50`, the ONLY 16-bit store to `+0x50` in the whole image), from
++/// `0x10c1f9a6` — the `il-read-varint16` reader — three fields before the emit
++/// flag word `[sym+0x4c]` the same pass writes at `0x10b9bf78`.
++///
++/// It is the field `c2_il::func::gl::gl_function_attrs`' own record comment
++/// already calls `SIZE` and steps over to reach `ATTR`.  That reader **refuses
++/// the whole file** when the byte is `>= 0x80`; this one decodes the `0x80`
++/// escape instead, because how often the refusal fires is one of the things
++/// this lane measures.
++fn scratch_gl_sizes(gl: &[u8]) -> std::collections::BTreeMap<String, (usize, bool)> {
++    // `c2_il`'s `symbol_runs` and `gl_offset_framed` are private to that crate;
++    // re-expressed here rather than widened, because this block is reverted.
++    let is_sep = |b: u8| b == 0 || b == 0x26;
++    let mut runs: Vec<(usize, usize, String)> = Vec::new();
++    let mut i = 0usize;
++    while i < gl.len() {
++        if !is_sep(gl[i]) {
++            i += 1;
++            continue;
++        }
++        let start = i + 1;
++        let mut end = start;
++        while end < gl.len() && !is_sep(gl[end]) {
++            end += 1;
++        }
++        if end >= gl.len() || end == start {
++            i += 1;
++            continue;
++        }
++        let b = &gl[start..end];
++        if b.iter().all(|c| c.is_ascii_graphic())
++            && (b[0] == b'?' || b[0].is_ascii_alphabetic() || b[0] == b'_')
++        {
++            runs.push((start, end, String::from_utf8_lossy(b).into_owned()));
++        }
++        i = end;
++    }
++    // `codec::gl_offset_framed_RELAXED` — board **#2783**'s framing, not the
++    // incumbent one.  The incumbent pins `gl[o-5] == 0x10`, which is a VALUE
++    // window on PREV (a rising per-record counter), so it truncates the record
++    // list at whatever point PREV leaves its first 256 values: 5 of 5 records on
++    // a 2.5 KB `.gl` and 36 of 811 on a 65 KB one.  This lane's first run used
++    // the incumbent and resolved a SIZE for **74 of 7,667** call edges; the
++    // relaxed framing is the one that reads a real workload `.gl`.
++    let framed = |o: usize| -> bool {
++        o >= 7
++            && o + 4 < gl.len()
++            && gl[o] == 0x80
++            && gl[o - 7] == 0x80
++            && gl[o - 4] == 0x00
++            && gl[o - 3] == 0x00
++            && gl[o - 2] == 0x00
++            && gl[o - 1] == 0x00
++            && u32::from_le_bytes([gl[o + 1], gl[o + 2], gl[o + 3], gl[o + 4]]) < 0x0100_0000
++    };
++    let mut out = std::collections::BTreeMap::new();
++    let mut p = 0usize;
++    while p + 5 <= gl.len() {
++        if !framed(p) {
++            p += 1;
++            continue;
++        }
++        let Some(k) = runs.iter().rposition(|&(_, e, _)| e <= p) else {
++            p += 5;
++            continue;
++        };
++        if p - runs[k].1 > 64 {
++            p += 5;
++            continue;
++        }
++        let mut q = p + 5;
++        // SRCPOS: a byte under 0x80, or the escape `80 <LE32>`.
++        match gl.get(q) {
++            Some(&b) if b < 0x80 => q += 1,
++            Some(&0x80) => q += 5,
++            _ => {
++                p += 5;
++                continue;
++            }
++        }
++        // SIZE, by `0x10c1f9a6`: one byte, or `80` then a little-endian u16.
++        let (size, escaped) = match gl.get(q) {
++            Some(&0x80) => match (gl.get(q + 1), gl.get(q + 2)) {
++                (Some(&lo), Some(&hi)) => (lo as usize | ((hi as usize) << 8), true),
++                _ => break,
++            },
++            Some(&b) if b < 0x80 => (b as usize, false),
++            // c2 reads this as a SIGNED char; the port refuses the file here.
++            _ => {
++                p += 5;
++                continue;
++            }
++        };
++        out.entry(runs[k].2.clone()).or_insert((size, escaped));
++        p += 5;
++    }
++    out
++}
++// ==== END SCRATCH ====
+diff --git a/crates/c2-harness/src/gap/scan.rs b/crates/c2-harness/src/gap/scan.rs
+index 0d72faf8..b9d11451 100644
+--- a/crates/c2-harness/src/gap/scan.rs
++++ b/crates/c2-harness/src/gap/scan.rs
+@@ -748,7 +748,7 @@ fn scan_one(
+         //         a parse-time claim the oracle has never graded on a TU that
+         //         does not match; `fnbyte-exact` is the oracle's own predicate,
+         //         applied to a unit the port can actually answer for.
+-        super::fnbytes::measure(&mut res, &census, &captured.ref_obj);
++        super::fnbytes::measure(&mut res, &census, &captured.ref_obj, captured.bundle.get("gl"));
+         // 1e'. SCRATCH INSTRUMENT (W-ADJUST, boards #127/#128) — see [`row_dump`].
+         //      Off unless `C2RS_ROW_DUMP` is set; changes no count either way.
+         row_dump(
