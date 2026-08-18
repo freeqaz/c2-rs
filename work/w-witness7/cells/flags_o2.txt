@@ -1,0 +1,1 @@
+/nologo /wd4355 /wd4164 /c /GR /O2 /Oi /EHsc
