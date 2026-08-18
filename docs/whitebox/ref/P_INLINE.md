@@ -221,6 +221,88 @@ transforms running *after* the decision, so the emitted body is no longer a
 witness to what the inliner saw. **No single-profile size claim from this page
 may be quoted at the other profile.**
 
+### 2.1d The `SIZE` field's `0x80` escape, DECODED and shipped `[O] port`
+
+Lane `w-glattrs`, 2026-08-18, board **#3289**–**#3293**. §2.1a's closing
+paragraph — *"the `0x80` escape is live on real code and the port refuses it"* —
+is **discharged**. The escape is a **length escape with a two-byte
+little-endian payload**: the byte `0x80` *exactly* introduces two further
+bytes, so an escaped `SIZE` field is three bytes wide and `ATTR` sits three past
+the `0x80`, not one.
+
+**The reader, `[R]`, and it is why the two neighbouring fields escape at
+different widths.** `il-read-varint16` at `0x10c1f9a6` — the one §2.1a already
+names — reads one byte, compares it against `0x80`, and on equality reads
+**exactly two** further bytes:
+
+```
+10c1f9b1:  8a 11              mov    dl,BYTE PTR [ecx]     ; the byte
+10c1f9ba:  80 fa 80           cmp    dl,0x80
+10c1f9bd:  74 06              je     0x10c1f9c5            ; escape
+10c1f9bf:  66 0f be c2        movsx  ax,dl                 ; else ONE SIGNED byte
+10c1f9c5:  ...                                             ; two more bytes ->
+10c1f9d8:  88 55 fc           mov    BYTE PTR [ebp-0x4],dl  ;   low
+10c1f9e0:  88 55 fd           mov    BYTE PTR [ebp-0x3],dl  ;   high
+10c1f9e3:  66 8b 45 fc        mov    ax,WORD PTR [ebp-0x4]  ; LE16
+```
+
+`il-read-varint32` at `0x10c1f9e9` is the **identical shape with a four-byte
+payload** (`0x10c1fa07`…`0x10c1fa43`). So `SRCPOS`, read by the 32-bit reader,
+escapes to five bytes, and `SIZE`, read by the 16-bit one, escapes to three.
+**The port's incumbent code stepped over both as if there were one width**, and
+refused rather than guess — correctly, because at the wrong displacement the
+attribute is an unrelated byte, and an unrelated byte with bit 6 set is a
+*permission* the splice acts on.
+
+**And `0x81..=0xff` is a THIRD form, not part of the escape**: `movsx ax,dl` —
+one byte, sign-extended, so `0xff` reaches the consumer's `movzx` as 65,535.
+The port still refuses it (zero witnesses in 28,838 workload records).
+
+**The black-box confirmation, `[O]`, which is the half that decides.** A
+twin grid of 18 cells over two profiles: each pair is two sources differing only
+by `__declspec(noinline) ` versus 21 spaces, so byte-length-identical and
+compiled from one path. `__declspec(noinline)` clears exactly this record's
+`FN_FLAG_INLINABLE`, so the twins' `.gl` must differ at `ATTR` and nowhere else
+structural.
+
+| `SIZE` | form | `ATTR` offset | offset − (`p` + 5) | first differing byte past the source hash | XOR |
+|---:|---|---:|---:|---:|---:|
+| 55, 79, 103, 127 | direct | 236 | **2** | 236 | `0x40` |
+| 139, 163, 211, 259, 379 | **escape** | 238 | **4** | 238 | `0x40` |
+
+**18 of 18**, at `/O1` and `/Ox` alike. The escape moves `ATTR` by exactly two,
+measured with no disassembly in the loop.
+
+**The payload's endianness, also black box.** The probe family steps `SIZE` by
+12 per statement and the ladder does not break at the boundary:
+103 → 127 → **139** → 163 → 211 → 259 → 379, every rung equal to `19 + 12n`.
+Read big-endian the first escaped rung would be **35,584**.
+
+**And the workload's own records agree.** The 28,739 direct-form records
+establish an `ATTR` vocabulary of ten bytes independently
+(`c8 4c cc 68 48 e8 28 6c 69 88`). Scored on the 99 escaped records:
+
+| assumed escape width | `ATTR` lands in the vocabulary |
+|---:|---:|
+| 1 | 3 / 99 |
+| 2 | 0 / 99 |
+| **3 — shipped** | **99 / 99** |
+| 5 (`SRCPOS`'s width) | 1 / 99 |
+
+Background rate for a `.gl` byte to fall in that vocabulary: **5.9 %**.
+
+**One field further on, and this is new here: `ATTR` is not a byte.** It is a
+two-or-four-byte little-endian value with a continuation flag in bit 15, read by
+`0x10c1f91b`. `__declspec(noinline)` takes it from `0x1068` to `0x801028`, which
+crosses `0x8000` — so the record grows from two bytes to four, and **that is the
+mechanism behind `w-target`'s nicmp2 observation that "only `.gl` moves, and by
+2 bytes"**. The port reads the low byte, which is correct for bit 6 under both
+widths and is documented as such in `gl_function_attrs`.
+
+`[O] port`: shipped in `crates/c2-il/src/func/gl.rs`
+(`GL_SIZE_ESCAPE_PAYLOAD`), `DISCLOSURE.md` row **W-GLATTRS-1**, at
+`mismatch 0`.
+
 ### 2.2 The budget — `B = clamp(2 × caller_instrs, 1000, 35000)`
 
 ```
