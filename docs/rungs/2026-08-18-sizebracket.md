@@ -613,12 +613,62 @@ construction and the identity control proves the scaffold left nothing behind.
 
 | lane | result |
 |---|---|
-| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **PENDING — filled from `work/w-sizebracket/tests.log`** |
-| `scripts/gate.sh --jobs 16 --require-graded` | **PENDING — filled below** |
-| 878-TU workload scan | `match` **26** / `mismatch` **0** / `codegen-gap` **0** on all three scans (§8.1) |
-| identity control | 394 keys, all three scans, every value identical |
-| environment control | §8.3 |
+| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **1,666 passed / 0 failed / 45 targets**, 1 ignored, **`SKIP: toolchain absent` count 0** (`work/w-sizebracket/tests.log`) — identical to the dispatch's registered baseline `1,666 / 0 / 45` |
+| `scripts/gate.sh --jobs 16 --require-graded` | **`GATE: PASS (HATCH-RED REFUSED)` — 18/18 lanes ran and every one graded a corpus** (`work/w-sizebracket/gate.log`) |
+| 878-TU workload scan | `match` **26** / `mismatch` **0** / `codegen-gap` **0** on **all three** scans (§8.1) |
+| identity control | **394** anchored keys, all three scans, every value identical |
+| environment control | §8.3 — `C2RS_REQUIRE_TOOLCHAIN=1` on the suite **and** on all 176 probe invocations; 0 SKIP lines over 45 targets |
+| required-zero byte delta | `git diff --stat 1744ced1 -- crates/ fixtures/ scripts/` is **empty** |
 | release-binary sha256 | **not quoted** — board **#3224** voids it across worktrees |
+
+### 10.1 The gate, quoted as it printed
+
+| row | verdict | graded/total | match | mismatch |
+|---|---|---|---:|---:|
+| the 18 mode lanes | **18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT** | 386/386 each, **6,948** fixture-verdicts | — | **0 on all 18** |
+| `expr-sweep` | **PASS** | 19,556 / 19,556 | 19,460 graded | **0** |
+| `mode-cross` | **PASS** | 90,812 / 90,812 | 90,424 graded | **0** |
+| **`debug-lane`** (DEBUG profile) | **PASS** | 18 / 18 lanes, 6,948 verdicts | 2,423 | **0 mismatch, 0 PANIC** |
+| `ladder-red` | PASS | 5/5 arms (2 green controls) | 3 | n/a |
+| `hatch-red` | **REFUSED — `HATCH-STALE`** | 0/14 arms | 0 | n/a |
+
+Graded tree **`e8a9edfa0947`**, **740** files under `crates fixtures scripts`,
+0 gitignored byproducts unhashed.
+
+**`hatch-red` is reported as the gate reported it, not rounded up to PASS.** It
+is `HATCH-STALE` (board **#1389**) — a **pre-existing** state of that arm which
+no change of this lane's could have moved, because `crates/`, `fixtures/` and
+`scripts/` are byte-identical to `1744ced1`. `w-dataseam` recorded the same row
+in the same state at the previous master.
+
+**The debug-profile row is the one that could have indicted a change here**, and
+it is a pass on the merits: it is the only row where a false `debug_assert!` or a
+wrapping overflow can execute, and it reports **0 panics on 18 of 18 lanes**.
+
+### 10.2 The per-lane gate-count identity diff, with the range length asserted
+
+`crates/`, `fixtures/` and `scripts/` are byte-identical to `1744ced1`, so the
+identity is against **master itself** and every count above is master's own.
+**Range length asserted**: `git rev-list --count 1744ced1..HEAD` = **8**
+(prereg · instruments · whitebox · board · rung · 3 rung corrections), and
+`git diff --name-only 1744ced1..HEAD | grep -vE '^(docs/|work/)'` is **empty** —
+every file this lane touched is under `docs/` or `work/`.
+
+| figure | `w-dataseam` tip (at `44794fa4`) | this lane (at `1744ced1`) | reading |
+|---|---|---|---|
+| lanes | 18/18 PASS | **18/18 PASS** | identical |
+| fixture-verdicts | 6,948 | **6,948** | identical |
+| sweep | `checked=19556 mismatches=0 graded=19460 ungraded=96` | **identical** | identical |
+| cross | `checked=90812 mismatches=0 graded=90424 ungraded=388` | **identical** | identical |
+| `debug-lane` | `PASS 18/18 2423 0` | **identical** | identical |
+| graded tree hash | `5b550a38d90b` (738 files) | `e8a9edfa0947` (**740** files) | **DIFFERENT, and expected** |
+
+**The tree hash differs and it is not a defect** — the two lanes sit on different
+masters. `w-gateperf` merged between them and changed `crates/` and `scripts/`
+(+2 files). The discriminating check here is that **every graded count is
+identical across a master change that moved the hash**, plus the empty
+`git diff` above. Quoting the hash as if it were comparable across bases is the
+`#3224` error one level up, and it is named rather than committed.
 
 ---
 
