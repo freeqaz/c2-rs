@@ -257,5 +257,6 @@ the header block this table is read from.
 | 2026-08-18 | DATASEAM | [dataseam](2026-08-18-dataseam.md) | 10 | +0 — TU `match` 26 → 26 in every one of the 40 counterfactual |
 | 2026-08-18 | DEADSITES | [deadsites](2026-08-18-deadsites.md) | 6 | +0 — the 878-TU scan is identical on all 394 prefix-anchored |
 | 2026-08-18 | w-gateperf | [gateperf](2026-08-18-gateperf.md) | 9 | +0 — the port is untouched. `git diff 82fa92a0..HEAD -- crates/c2-core |
+| 2026-08-18 | GLATTRS | [glattrs](2026-08-18-glattrs.md) | 10 | +0 — TU `match` 26 → 26, `mismatch` 0 → 0, `fnbyte-exact` |
 | 2026-08-18 | GRAMMARSCREEN | [grammarscreen](2026-08-18-grammarscreen.md) | 3 | +0 — the 878-TU scan is identical on all **394** prefix-anchored |
 | 2026-08-18 | SIZEBRACKET | [sizebracket](2026-08-18-sizebracket.md) | 11 | +0 — TU `match` 26 → 26. `crates/`, `fixtures/` and `scripts/` |

@@ -1,0 +1,329 @@
+diff --git a/crates/c2-harness/src/gap/fnbytes.rs b/crates/c2-harness/src/gap/fnbytes.rs
+index 47ec51814..87f8e5e6f 100644
+--- a/crates/c2-harness/src/gap/fnbytes.rs
++++ b/crates/c2-harness/src/gap/fnbytes.rs
+@@ -1169,6 +1169,8 @@ pub(super) fn measure(
+     res: &mut TuResult,
+     census: &[(FnCensus, Result<IlFunction, &'static str>)],
+     ref_obj: &ObjImage,
++    // ==== SCRATCH — lane w-glattrs: the raw `.gl`, for the SIZE/ATTR decode ====
++    scratch_gl: Option<&[u8]>,
+ ) {
+     // Denominator-driven, off the REFERENCE obj. `None` here is the whole-obj
+     // decode failure the emitted census already reports as `emit-obj-unreadable`;
+@@ -1435,6 +1437,64 @@ pub(super) fn measure(
+             None
+         }
+     };
++    // ==== SCRATCH — w-glattrs: the `.gl` ATTR map under BOTH decodes, per TU ====
++    let scratch_gm = scratch_gl.map(scratch_gl_records);
++    // The SHIPPED reader's own whole-file verdict, so the model above is graded
++    // against the thing it models rather than trusted.
++    if let Some(gl) = scratch_gl {
++        let real = c2_il::func::gl_function_attrs(gl);
++        *res.emit
++            .entry(format!(
++                "ga-real|{}",
++                if real.is_some() { "some" } else { "none" }
++            ))
++            .or_insert(0) += 1;
++        if let Some(map) = &real {
++            *res.emit
++                .entry("ga-real-records".into())
++                .or_insert(0) += map.len();
++            for a in map.values() {
++                if a & c2_il::func::FN_FLAG_INLINABLE == 0 {
++                    *res.emit.entry("ga-real-noinline".into()).or_insert(0) += 1;
++                }
++            }
++        }
++    }
++    if let Some(m) = &scratch_gm {
++        // Per-TU whole-file verdicts, the unit the refusal actually has.
++        let inc_refuses = m.iter().any(|r| r.blocked_incumbent);
++        let new_refuses = m.iter().any(|r| r.blocked_new);
++        *res.emit
++            .entry(format!(
++                "ga-tu|inc={}|new={}",
++                if inc_refuses { "no" } else { "yes" },
++                if new_refuses { "no" } else { "yes" }
++            ))
++            .or_insert(0) += 1;
++        for r in m.iter() {
++            *res.emit
++                .entry(format!("ga-rec|{}", r.size_form))
++                .or_insert(0) += 1;
++            if r.size_form == "escape" {
++                *res.emit
++                    .entry(format!(
++                        "ga-esc-attr|{}",
++                        match r.attr_new {
++                            None => "none".to_string(),
++                            Some(a) => format!("{a:02x}"),
++                        }
++                    ))
++                    .or_insert(0) += 1;
++                if r.attr_new.is_some_and(|a| a & 0x40 == 0) {
++                    eprintln!(
++                        "GA-NOINLINE-BEHIND-ESCAPE {} :: {} attr={:02x?}",
++                        src_name, r.name, r.attr_new
++                    );
++                }
++            }
++        }
++    }
++    // ==== END SCRATCH ====
+     let mut accounted = 0usize;
+     // **The byte-fraction ranker's accumulators** (lane w-tu3, board #500). Same
+     // walk, same denominator source, one extra unit: `.text` COMDAT *bytes*
+@@ -1468,6 +1528,71 @@ pub(super) fn measure(
+                 None
+             }
+         };
++        // ==== SCRATCH — lane w-glattrs, GRID-C. MEASUREMENT ONLY, never shipped.
++        //
++        // `w-fence2` GRID-W's observable, per IL call edge to a callee THIS TU
++        // defines: does the reference caller's `.text` COMDAT carry a `REL24`
++        // naming the callee?  That is real `c2.dll`'s own verdict on whether it
++        // kept the call.  Crossed with the callee's `.gl` SIZE form and the
++        // ATTR byte the NEW decode reads, so the decode is scored against the
++        // oracle on the population it applies to (prereg §2 S2).
++        {
++            if let Some(f) = row.and_then(|(_, gate)| gate.as_ref().ok()) {
++                let mut seen: Vec<&str> = Vec::new();
++                for callee in f.callees().filter(|c| tu.mentions(c)) {
++                    if seen.contains(&callee) {
++                        continue;
++                    }
++                    seen.push(callee);
++                    let arm = match call_targets.get(name.as_str()) {
++                        None => "unknown",
++                        Some(v) if v.iter().any(|(_, t)| t == callee) => "kept",
++                        Some(_) => "inlined",
++                    };
++                    // EVERY edge, named, so the decode can be scored offline
++                    // against the SAME population `w-sizebracket` used —
++                    // 7,667 edges — under either `.gl` framing. The keys below
++                    // are the incumbent framing's, which is what the shipped
++                    // reader walks; this line is what lets #2783's relaxed
++                    // framing be scored on the same edges without a second scan.
++                    eprintln!("GC-EDGE\t{tu_label}\t{name}\t{callee}\t{arm}");
++                    let rec = scratch_gm
++                        .as_ref()
++                        .and_then(|m| m.iter().find(|r| r.name == callee));
++                    let form = rec.map(|r| r.size_form).unwrap_or("absent");
++                    *res.emit
++                        .entry(format!("gc-{arm}|form={form}"))
++                        .or_insert(0) += 1;
++                    if let Some(r) = rec {
++                        let bit = match r.attr_new {
++                            None => "noattr",
++                            Some(a) if a & 0x40 != 0 => "inlinable",
++                            Some(_) => "noinline",
++                        };
++                        *res.emit
++                            .entry(format!("gc-{arm}|form={form}|bit={bit}"))
++                            .or_insert(0) += 1;
++                        // THE ORACLE TEST for the decode's soundness at the
++                        // point of use: `bit 6 clear` is read by
++                        // `splice`/`comdat` as "c2 keeps this call". An
++                        // `inlined` edge under `noinline` is a counterexample.
++                        if bit == "noinline" && arm == "inlined" {
++                            eprintln!(
++                                "GC-VIOLATION {} :: {} -> {} form={} attr={:02x?}",
++                                tu_label, name, callee, form, r.attr_new
++                            );
++                        }
++                        if form == "escape" {
++                            eprintln!(
++                                "GC-ESCAPE-EDGE {} :: {} -> {} arm={} attr={:02x?} size={}",
++                                tu_label, name, callee, arm, r.attr_new, r.size
++                            );
++                        }
++                    }
++                }
++            }
++        }
++        // ==== END SCRATCH ====
+         let graded = grade_one(row, Some(bytes.as_slice()), &tu, refrel);
+         let v = graded.verdict;
+         *res.emit.entry(v.key()).or_insert(0) += 1;
+@@ -2689,3 +2814,152 @@ pub fn byte_fraction(res: &TuResult) -> Option<(usize, usize)> {
+ pub fn byte_fraction_exact(res: &TuResult) -> usize {
+     res.emit.get("bytefrac-exact").copied().unwrap_or(0)
+ }
++
++// ==== SCRATCH — lane w-glattrs, MEASUREMENT ONLY, never shipped ====
++/// One `.gl` function record, decoded by `gl_function_attrs`' OWN walk (the
++/// incumbent `gl_offset_framed`, so the population is exactly the one the
++/// shipped reader sees), with the `SIZE` field decoded per `il-read-varint16`
++/// (`0x10c1f9a6`) instead of refused.
++pub(super) struct ScratchGlRec {
++    pub name: String,
++    pub size: usize,
++    /// `direct` (< 0x80, one byte) · `escape` (`80 <LE16>`, three bytes) ·
++    /// `high` (0x81..=0xff, one signed byte — what c2 does, what the port
++    /// refuses).
++    pub size_form: &'static str,
++    /// The ATTR byte the NEW decode reads.
++    pub attr_new: Option<u8>,
++    /// The incumbent reader refuses the whole file on this record.
++    pub blocked_incumbent: bool,
++    /// The NEW reader still refuses the whole file on this record.
++    pub blocked_new: bool,
++}
++
++/// Re-expressed here rather than widening `c2-il`'s API, because this block is
++/// reverted before the gate. Mirrors `gl_function_attrs` byte for byte except
++/// that the `SIZE` arm decodes instead of returning `None`.
++pub(super) fn scratch_gl_records(gl: &[u8]) -> Vec<ScratchGlRec> {
++    let is_sep = |b: u8| b == 0 || b == 0x26;
++    let mut runs: Vec<(usize, usize, String)> = Vec::new();
++    let mut i = 0usize;
++    while i < gl.len() {
++        if !is_sep(gl[i]) {
++            i += 1;
++            continue;
++        }
++        let start = i + 1;
++        let mut end = start;
++        while end < gl.len() && !is_sep(gl[end]) {
++            end += 1;
++        }
++        if end >= gl.len() || end == start {
++            i += 1;
++            continue;
++        }
++        let b = &gl[start..end];
++        if b.iter().all(|c| c.is_ascii_graphic())
++            && (b[0] == b'?' || b[0].is_ascii_alphabetic() || b[0] == b'_')
++        {
++            runs.push((start, end, String::from_utf8_lossy(b).into_owned()));
++        }
++        i = end;
++    }
++    // THE INCUMBENT framing, deliberately: this measures the population the
++    // shipped reader walks, not the one #2783's relaxed framing would.
++    let framed = |o: usize| -> bool {
++        o >= 7
++            && o < gl.len()
++            && gl[o] == 0x80
++            && gl[o - 7] == 0x80
++            && gl[o - 5] == 0x10
++            && gl[o - 4] == 0x00
++            && gl[o - 3] == 0x00
++            && gl[o - 2] == 0x00
++            && gl[o - 1] == 0x00
++    };
++    let mut out: Vec<ScratchGlRec> = Vec::new();
++    let mut p = 0usize;
++    while p + 5 <= gl.len() {
++        if !framed(p) {
++            p += 1;
++            continue;
++        }
++        let Some(k) = runs.iter().rposition(|&(_, e, _)| e <= p) else {
++            // `gl_function_attrs` refuses the FILE here. Recorded as such.
++            out.push(ScratchGlRec {
++                name: String::new(),
++                size: 0,
++                size_form: "noname",
++                attr_new: None,
++                blocked_incumbent: true,
++                blocked_new: true,
++            });
++            p += 5;
++            continue;
++        };
++        if p - runs[k].1 > 64 {
++            out.push(ScratchGlRec {
++                name: String::new(),
++                size: 0,
++                size_form: "noname",
++                attr_new: None,
++                blocked_incumbent: true,
++                blocked_new: true,
++            });
++            p += 5;
++            continue;
++        }
++        let mut q = p + 5;
++        // SRCPOS: a byte under 0x80, or the escape `80 <LE32>`. Unchanged.
++        match gl.get(q) {
++            Some(&b) if b < 0x80 => q += 1,
++            Some(&0x80) => q += 5,
++            _ => {
++                out.push(ScratchGlRec {
++                    name: runs[k].2.clone(),
++                    size: 0,
++                    size_form: "srcpos-high",
++                    attr_new: None,
++                    blocked_incumbent: true,
++                    blocked_new: true,
++                });
++                p += 5;
++                continue;
++            }
++        }
++        // SIZE, by `0x10c1f9a6`: exactly `0x80` escapes to a little-endian u16;
++        // everything else is ONE byte, read by c2 as a signed char.
++        let (size, form, blocked_inc, blocked_new) = match gl.get(q) {
++            Some(&0x80) => match (gl.get(q + 1), gl.get(q + 2)) {
++                (Some(&lo), Some(&hi)) => {
++                    q += 3;
++                    (lo as usize | ((hi as usize) << 8), "escape", true, false)
++                }
++                _ => {
++                    p += 5;
++                    continue;
++                }
++            },
++            Some(&b) if b < 0x80 => {
++                q += 1;
++                (b as usize, "direct", false, false)
++            }
++            Some(&b) => {
++                q += 1;
++                (b as usize, "high", true, true)
++            }
++            None => break,
++        };
++        out.push(ScratchGlRec {
++            name: runs[k].2.clone(),
++            size,
++            size_form: form,
++            attr_new: gl.get(q).copied(),
++            blocked_incumbent: blocked_inc || gl.get(q).is_none(),
++            blocked_new: blocked_new || gl.get(q).is_none(),
++        });
++        p += 5;
++    }
++    out
++}
++// ==== END SCRATCH ====
+diff --git a/crates/c2-harness/src/gap/scan.rs b/crates/c2-harness/src/gap/scan.rs
+index 0d72faf82..68200a4da 100644
+--- a/crates/c2-harness/src/gap/scan.rs
++++ b/crates/c2-harness/src/gap/scan.rs
+@@ -748,7 +748,20 @@ fn scan_one(
+         //         a parse-time claim the oracle has never graded on a TU that
+         //         does not match; `fnbyte-exact` is the oracle's own predicate,
+         //         applied to a unit the port can actually answer for.
+-        super::fnbytes::measure(&mut res, &census, &captured.ref_obj);
++        super::fnbytes::measure(&mut res, &census, &captured.ref_obj, captured.bundle.get("gl"));
++        // ==== SCRATCH — lane w-glattrs: dump the raw `.gl` for offline decode ====
++        // Off unless `C2RS_GLATTRS_DUMP=DIR` is set. Reverted before the gate.
++        if let Ok(dir) = std::env::var("C2RS_GLATTRS_DUMP") {
++            if let Some(gl) = captured.bundle.get("gl") {
++                let _ = std::fs::create_dir_all(&dir);
++                let safe: String = src
++                    .chars()
++                    .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
++                    .collect();
++                let _ = std::fs::write(std::path::Path::new(&dir).join(format!("{safe}.gl")), gl);
++            }
++        }
++        // ==== END SCRATCH ====
+         // 1e'. SCRATCH INSTRUMENT (W-ADJUST, boards #127/#128) — see [`row_dump`].
+         //      Off unless `C2RS_ROW_DUMP` is set; changes no count either way.
+         row_dump(

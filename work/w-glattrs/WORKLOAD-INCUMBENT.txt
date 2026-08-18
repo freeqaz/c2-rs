@@ -1,0 +1,76 @@
+files 870  records 28838  framing incumbent
+
+INCUMBENT whole-file verdict:
+                OK   801
+       size-escape    60
+     attr-conflict     9
+
+NEW (0x80 escape decoded, 0x81..0xff still refused) whole-file verdict:
+                OK   857
+     attr-conflict    13
+
+RESCUED (None -> Some): 56
+    src_keygen_xbox_cpp.gl
+    src_lazer_game_Game_cpp.gl
+    src_lazer_meta_ham_ContextChecker_cpp.gl
+    src_lazer_meta_ham_LoadingPanel_cpp.gl
+    src_system_char_Char_cpp.gl
+    src_system_flow_Flow_cpp.gl
+    src_system_gesture_Gesture_cpp.gl
+    src_system_hamobj_Difficulty_cpp.gl
+    src_system_hamobj_Ham_cpp.gl
+    src_system_math_Easing_cpp.gl
+    src_system_math_Geo_cpp.gl
+    src_system_math_Trig_cpp.gl
+    src_system_obj_DataFunc_cpp.gl
+    src_system_obj_Dir_cpp.gl
+    src_system_obj_Object_cpp.gl
+    src_system_os_Archive_cpp.gl
+    src_system_os_File_cpp.gl
+    src_system_os_HolmesClient_cpp.gl
+    src_system_os_Joypad_cpp.gl
+    src_system_os_Keyboard_Xbox_cpp.gl
+    src_system_os_ThreadCall_Win_cpp.gl
+    src_system_rndobj_AnimFilter_cpp.gl
+    src_system_rndobj_CamAnim_cpp.gl
+    src_system_rndobj_Env_NG_cpp.gl
+    src_system_rndobj_MetaMaterial_cpp.gl
+    src_system_rndobj_PollAnim_cpp.gl
+    src_system_rndobj_PropKeys_cpp.gl
+    src_system_rndobj_ShaderOptions_cpp.gl
+    src_system_rndobj_Utl_cpp.gl
+    src_system_rndobj_wordwrap_cpp.gl
+    src_system_synth_ByteGrinder_cpp.gl
+    src_system_synth_CompressionEffect_cpp.gl
+    src_system_synth_Faders_cpp.gl
+    src_system_synth_Mic_cpp.gl
+    src_system_synth_Synth_cpp.gl
+    src_system_synth_ThreeDSound_cpp.gl
+    src_system_synth_filterdesign_cpp.gl
+    src_system_synth_xbox_Biquad_cpp.gl
+    src_system_synth_xbox_FFT_cpp.gl
+    src_system_synth_xbox_FilterCoeffs_cpp.gl
+
+files containing >=1 escaped SIZE record: 60
+
+SIZE forms over decoded records:
+      direct    28739
+      escape       99
+
+ATTR byte distribution, ALL records:
+      c8    26885
+      4c      898
+      cc      701
+      68      338
+      48        9
+      e8        2
+      28        2
+      6c        1
+      69        1
+      88        1
+
+ATTR byte distribution, ESCAPED-SIZE records only:
+      68       84
+      c8        8
+      48        4
+      4c        3

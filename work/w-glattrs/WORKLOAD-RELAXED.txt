@@ -1,0 +1,79 @@
+files 870  records 1461374  framing relaxed
+
+INCUMBENT whole-file verdict:
+       size-escape   838
+                OK    32
+
+NEW (0x80 escape decoded, 0x81..0xff still refused) whole-file verdict:
+                OK   805
+     attr-conflict    64
+            noname     1
+
+RESCUED (None -> Some): 773
+    src_App_cpp.gl
+    src_Memory_Xbox_cpp.gl
+    src_keygen_xbox_cpp.gl
+    src_lazer_game_BustAMovePanel_cpp.gl
+    src_lazer_game_GameMode_cpp.gl
+    src_lazer_game_GamePanel_cpp.gl
+    src_lazer_game_Game_cpp.gl
+    src_lazer_game_HamUserMgr_cpp.gl
+    src_lazer_game_HamUser_cpp.gl
+    src_lazer_game_LiveInput_cpp.gl
+    src_lazer_game_PresenceMgr_cpp.gl
+    src_lazer_game_Shuttle_cpp.gl
+    src_lazer_game_SongDB_cpp.gl
+    src_lazer_game_SongSequence_cpp.gl
+    src_lazer_meta_ham_AccomplishmentCampaignConditional_cpp.gl
+    src_lazer_meta_ham_AccomplishmentCategory_cpp.gl
+    src_lazer_meta_ham_AccomplishmentCharacterListConditional_cpp.gl
+    src_lazer_meta_ham_AccomplishmentConditional_cpp.gl
+    src_lazer_meta_ham_AccomplishmentDiscSongConditional_cpp.gl
+    src_lazer_meta_ham_AccomplishmentGroup_cpp.gl
+    src_lazer_meta_ham_AccomplishmentManager_cpp.gl
+    src_lazer_meta_ham_AccomplishmentOneShot_cpp.gl
+    src_lazer_meta_ham_AccomplishmentSongConditional_cpp.gl
+    src_lazer_meta_ham_AccomplishmentSongListConditional_cpp.gl
+    src_lazer_meta_ham_Accomplishment_cpp.gl
+    src_lazer_meta_ham_AppLabel_cpp.gl
+    src_lazer_meta_ham_AppNavProvider_cpp.gl
+    src_lazer_meta_ham_Award_cpp.gl
+    src_lazer_meta_ham_CalibrationPanel_cpp.gl
+    src_lazer_meta_ham_CampaignDiffSelectPanel_cpp.gl
+    src_lazer_meta_ham_CampaignEra_cpp.gl
+    src_lazer_meta_ham_CampaignMasterQuestCrewSelectPanel_cpp.gl
+    src_lazer_meta_ham_CampaignMasterQuestSongSelectPanel_cpp.gl
+    src_lazer_meta_ham_CampaignSongSelectPanel_cpp.gl
+    src_lazer_meta_ham_Campaign_cpp.gl
+    src_lazer_meta_ham_ChallengeSortByScore_cpp.gl
+    src_lazer_meta_ham_ChallengeSortMgr_cpp.gl
+    src_lazer_meta_ham_ChallengeSortNode_cpp.gl
+    src_lazer_meta_ham_CharacterProvider_cpp.gl
+    src_lazer_meta_ham_ChooseModeProvider_cpp.gl
+
+files containing >=1 escaped SIZE record: 838
+
+SIZE forms over decoded records:
+      direct  1403908
+      escape    57466
+
+ATTR byte distribution, ALL records:
+      c8  1265198
+      48   176026
+      68    11812
+      88     3056
+      08     2180
+      28     1230
+      4c      897
+      cc      702
+      e8      268
+      a8        4
+      6c        1
+
+ATTR byte distribution, ESCAPED-SIZE records only:
+      48    28816
+      c8    22845
+      68     5194
+      28      581
+      e8       27
+      4c        3

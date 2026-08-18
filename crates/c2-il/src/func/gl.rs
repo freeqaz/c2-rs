@@ -1402,6 +1402,50 @@ pub fn label_counter(gl: &[u8]) -> Option<u32> {
 /// before this byte was located. The two derivations agree.
 pub const FN_FLAG_INLINABLE: u8 = 0x40;
 
+/// **The `.gl` function record's `SIZE` field escapes on `0x80` with a TWO-byte
+/// little-endian payload** — so the escaped field is three bytes wide, and the
+/// attribute byte is three past the `0x80` rather than one.
+///
+/// This is the number in board **#3274**, and it is the only quantity lane
+/// `w-glattrs` adopted. Three independent sources agree and each could have
+/// refuted the other two:
+///
+/// 1. **The reader, read off the image** — `il-read-varint16` at `0x10c1f9a6`
+///    (`DISCLOSURE.md` row **W-GLATTRS-1**): one byte; `cmp dl,0x80` / `je`;
+///    the escape arm reads exactly **two** further bytes into `[ebp-0x4]` and
+///    `[ebp-0x3]` and returns `WORD [ebp-0x4]`. Its 32-bit twin
+///    `il-read-varint32` at `0x10c1f9e9` is the identical shape with a
+///    **four**-byte payload, which is why `SRCPOS`'s escape is five bytes and
+///    `SIZE`'s is three: they are read by *different* readers, and the port's
+///    incumbent code stepped over the field as if there were only one.
+/// 2. **A black-box twin grid, no disassembly involved** — 18 cells, two
+///    profiles, each a pair of sources differing only by
+///    `__declspec(noinline) ` versus 21 spaces (so byte-length-identical, from
+///    one path). `__declspec(noinline)` clears exactly this record's
+///    [`FN_FLAG_INLINABLE`], so the twins' `.gl` files must differ at the ATTR
+///    byte and nowhere else structural. **18 of 18**: the first differing byte
+///    past the source-hash block is at the offset this width predicts, and it
+///    differs by exactly `0x40`. Across the `SIZE = 127 → 139` boundary the ATTR
+///    offset steps by **two**, which is the escape's extra width measured
+///    directly.
+/// 3. **The workload's own records.** The 28,739 records whose `SIZE` is direct
+///    establish an ATTR vocabulary of ten bytes independently. Scored on the 99
+///    records whose `SIZE` escapes, this width puts **99 of 99** inside that
+///    vocabulary; the rival widths 1, 2 and 5 put **3, 0 and 1**. The
+///    background rate of a `.gl` byte falling in that vocabulary is 5.9 %.
+///
+/// The payload is **little-endian**, and that too is black box rather than
+/// read: the probe family steps `SIZE` by 12 per statement, and the ladder
+/// continues 103 → 127 → **139** → 163 → 211 → 259 → 379 straight through the
+/// escape boundary. Read big-endian the same three bytes would give 35,584 at
+/// the first escaped rung.
+///
+/// **Nothing here uses the field's VALUE.** `w-sizebracket` §4 measured that
+/// value to be an upper bound on a post-fold count the container does not
+/// carry, and board **#3275** refused a rule keyed on it. This constant is a
+/// *field width* and the reader steps over it.
+const GL_SIZE_ESCAPE_PAYLOAD: usize = 2;
+
 /// The `.gl` **function** record's attribute byte, per defined function, or
 /// `None` when any record in the file fails to decode.
 ///
@@ -1417,8 +1461,19 @@ pub const FN_FLAG_INLINABLE: u8 = 0x40;
 ///
 /// `SRCPOS` is a byte under `0x80`, or the escape `80 <LE32>` — **the same
 /// `80`-plus-fixed-width-`u32` shape as the offset field itself**, which is
-/// what makes it a record encoding rather than a guess. `SIZE` is a byte under
-/// `0x80`.
+/// what makes it a record encoding rather than a guess. **`SIZE` is a byte
+/// under `0x80`, or the escape `80 <LE16>`** — the same shape one width down,
+/// because it is read by a *different* reader
+/// ([`GL_SIZE_ESCAPE_PAYLOAD`]). `ATTR` is the low byte of a two-or-four-byte
+/// field and only its bit 6 is read here (see below).
+///
+/// > **The `SIZE` escape was REFUSED, whole-file, until lane `w-glattrs`
+/// > (board #3274).** It is not exotic — `SIZE` crosses 128 at about fourteen
+/// > statements — and the refusal fired on **60 of 870** workload TUs. The
+/// > reason it had to be a refusal until the width was known is exactly the
+/// > paragraph below: at the wrong displacement the attribute reads as an
+/// > unrelated byte, and an unrelated byte with bit 6 clear is a *permission*
+/// > the port would act on.
 ///
 /// Measured on `work/w-mmioclose/probe/glgrid.cpp` (nine one-line functions,
 /// `SRCPOS` stepping 0, 30, 60, 90, 120, then `80 96 00 00 00` = 150,
@@ -1435,6 +1490,23 @@ pub const FN_FLAG_INLINABLE: u8 = 0x40;
 /// the whole-file `None` above exists for, and it is recorded rather than
 /// tidied away — a mis-decoded displacement does not look like an error, it
 /// looks like a fact.
+///
+/// # `ATTR` is not a byte, and reading its low byte is nonetheless right
+///
+/// The field is a **two-or-four-byte little-endian value** whose bit 15 is a
+/// continuation flag (`w-glattrs`, from the twin grid rather than from the
+/// map): `__declspec(noinline)` on a plain function takes `ATTR` from `0x1068`
+/// to `0x801028`, which crosses `0x8000`, so the record grows from two bytes to
+/// four — and that is the mechanism behind `w-target`'s nicmp2 observation that
+/// *"only `.gl` moves, and by 2 bytes"*.
+///
+/// This reader takes the **low byte** and that is sufficient *and* correct for
+/// its one consumer: [`FN_FLAG_INLINABLE`] is bit 6, which lives in the low
+/// byte under both widths, and the walk re-locates every record by its own
+/// framing rather than by stepping past this field. A reader that ever needs
+/// `ATTR`'s **value** — not its bit 6 — must decode the continuation; nothing
+/// does today, and this paragraph is here so that the next one does not
+/// discover it the way this field's `SIZE` neighbour was discovered.
 ///
 /// # Why it returns `None` for the whole file rather than skipping a record
 ///
@@ -1476,14 +1548,24 @@ pub fn gl_function_attrs(gl: &[u8]) -> Option<std::collections::BTreeMap<String,
             0x80 => q += 5,
             _ => return None,
         }
-        // SIZE — one byte, and required to be one byte. If it ever escapes the
-        // way SRCPOS does, the attribute is one byte further along and this
-        // reader would hand back an unrelated value; refusing is the only
-        // reading that cannot do that quietly.
-        if *gl.get(q)? >= 0x80 {
-            return None;
+        // SIZE — **one byte, or the `80 <LE16>` escape**. See
+        // [`GL_SIZE_ESCAPE`]: `0x80` exactly introduces a two-byte
+        // little-endian payload, so the field is three bytes wide and the
+        // attribute sits three past the `0x80`, not one.
+        //
+        // `0x81..=0xff` is a THIRD form and it is REFUSED. It is a single
+        // sign-extended byte in c2, so admitting it would be a one-line change
+        // — and it has **zero witnesses** in 28,838 workload records
+        // (`work/w-glattrs/WORKLOAD-INCUMBENT.txt`). An unwitnessed shape is
+        // refused rather than guessed at, which is `label_counter`'s rule one
+        // field over, and it keeps the byte as a desync canary: a walk that has
+        // drifted off a record boundary is far more likely to land on a high
+        // byte than on a well-formed escape.
+        match *gl.get(q)? {
+            0x80 => q += 1 + GL_SIZE_ESCAPE_PAYLOAD,
+            b if b < 0x80 => q += 1,
+            _ => return None,
         }
-        q += 1;
         let attr = *gl.get(q)?;
         // A name that occurs twice with two different attribute bytes is a file
         // this reader has no answer for. Refused rather than resolved to either,
@@ -3909,6 +3991,23 @@ mod tests {
     /// `srcpos` is `Ok(b)` for the one-byte form and `Err(v)` for the
     /// `80 <LE32>` escape, which is the same shape as the offset field.
     fn fn_record(name: &str, off: u32, srcpos: Result<u8, u32>, size: u8, attr: u8) -> Vec<u8> {
+        fn_record_sz(name, off, srcpos, Ok(size), attr)
+    }
+
+    /// [`fn_record`] with the `SIZE` field spelled out: `Ok(b)` is the one-byte
+    /// form and `Err(w)` the `80 <LE16>` escape.
+    ///
+    /// The escaped bytes are `work/w-glattrs/gridA`'s own — cell `mix010_O1`'s
+    /// callee record reads `… 80 54 0a 00 00 | 00 | 80 8b 00 | 68 10 …`, i.e.
+    /// `SIZE = 0x008b = 139` and `ATTR` three bytes past the `0x80`. So this is
+    /// a transcription of a real record, like the one-byte form above it.
+    fn fn_record_sz(
+        name: &str,
+        off: u32,
+        srcpos: Result<u8, u32>,
+        size: Result<u8, u16>,
+        attr: u8,
+    ) -> Vec<u8> {
         let mut v = vec![0x00];
         v.extend_from_slice(name.as_bytes());
         v.push(0x00);
@@ -3924,7 +4023,13 @@ mod tests {
                 v.extend_from_slice(&w.to_le_bytes());
             }
         }
-        v.push(size);
+        match size {
+            Ok(b) => v.push(b),
+            Err(w) => {
+                v.push(0x80);
+                v.extend_from_slice(&w.to_le_bytes());
+            }
+        }
         v.push(attr);
         v
     }
@@ -4040,11 +4145,19 @@ mod tests {
         a[n - 3] = 0x81;
         assert!(gl_function_attrs(&a).is_none(), "srcpos: unknown encoding");
 
-        // (b) SIZE is >= 0x80 — the attribute would be one byte further along
-        // and this reader would hand back an unrelated value.
+        // (b) SIZE is in 0x81..=0xff — the THIRD form. c2 reads it as one
+        // sign-extended byte; this reader refuses it, because it has zero
+        // witnesses in the workload and because a walk that has drifted off a
+        // record boundary lands on a high byte far more often than on a
+        // well-formed escape. **`0x80` itself is NOT this cell any more** — see
+        // `the_size_escape_decodes_and_the_attribute_moves_by_two`.
         let mut b = good.clone();
-        b.extend(fn_record("bad", 0x20, Ok(0x00), 0x80, ATTR_PLAIN));
-        assert!(gl_function_attrs(&b).is_none(), "size: escaped");
+        b.extend(fn_record("bad", 0x20, Ok(0x00), 0x81, ATTR_PLAIN));
+        // Padded, so the refusal is the arm's and not truncation's — see
+        // `the_high_byte_size_form_is_still_refused`, where the unpadded form
+        // let a registered mutant read GREEN.
+        b.extend_from_slice(&[0x00, 0x00, 0x00, 0x00]);
+        assert!(gl_function_attrs(&b).is_none(), "size: high byte, unwitnessed");
 
         // (c) the record is truncated before its attribute byte.
         let mut c = good.clone();
@@ -4068,13 +4181,176 @@ mod tests {
         assert!(gl_function_attrs(&e).is_none(), "one name, two answers");
     }
 
+    // ---------------------------------------------------------------- w-glattrs
+    //
+    // The `SIZE` field's `80 <LE16>` escape — board **#3274**. Before this lane
+    // the reader refused the whole file at `SIZE >= 0x80`, on **60 of 870**
+    // workload TUs.
+
+    /// **The escape decodes, and the attribute moves by exactly two.**
+    ///
+    /// The pair is the point: two records identical in every field *except*
+    /// that one spells `SIZE = 0x10` directly and the other spells `SIZE = 139`
+    /// escaped. Both must yield the SAME attribute byte, and the escaped one's
+    /// record must be exactly two bytes longer. A reader that took the escape
+    /// for `80 <LE32>` (`SRCPOS`'s width, the one wrong guess with a real
+    /// precedent in this file) reads the escaped record's attribute from two
+    /// bytes past the end of the field.
+    #[test]
+    fn the_size_escape_decodes_and_the_attribute_moves_by_two() {
+        let direct = fn_record_sz("f", 0x10, Ok(0x00), Ok(0x10), ATTR_PLAIN);
+        let escaped = fn_record_sz("f", 0x10, Ok(0x00), Err(139), ATTR_PLAIN);
+        assert_eq!(
+            escaped.len(),
+            direct.len() + 2,
+            "the escape is three bytes where the direct form is one"
+        );
+        assert_eq!(
+            gl_function_attrs(&escaped).expect("the escape decodes").get("f"),
+            Some(&ATTR_PLAIN),
+            "the same attribute byte the direct-form twin yields"
+        );
+        // …and the bit the consumers read survives the escape. This is the cell
+        // that would go GREEN on a wrong width if the attribute happened to
+        // land on a byte with bit 6 set, so it is paired with the negative
+        // below rather than trusted alone.
+        assert!(gl_noinline_names(&escaped).expect("decodes").is_empty());
+        let ni = fn_record_sz("f", 0x10, Ok(0x00), Err(139), ATTR_NOINLINE);
+        assert_eq!(
+            gl_noinline_names(&ni).expect("decodes"),
+            ["f".to_string()].into_iter().collect(),
+            "`__declspec(noinline)` is still visible behind an escaped SIZE"
+        );
+    }
+
+    /// **The rival widths, each killed by the byte it would read instead.**
+    ///
+    /// `work/w-glattrs/RIVALS.txt` scores these on 99 real escaped records
+    /// against the 10-byte ATTR vocabulary the 28,739 direct records establish:
+    /// width 3 is 99/99, widths 1/2/5 are 3/0/1. This test is the same
+    /// discrimination in one constructed record, so it runs in the portable
+    /// lane with no toolchain.
+    #[test]
+    fn a_wrong_escape_width_reads_a_different_byte() {
+        // `SIZE = 320` escaped: the payload bytes are `40 01`. The record's own
+        // attribute is `__declspec(noinline)` — bit 6 CLEAR — so:
+        //
+        //   width 1 reads `0x40`, bit 6 SET   -> "c2 may inline this"
+        //   width 2 reads `0x01`, bit 6 clear -> agrees by accident
+        //   width 3 reads the attribute       -> correct
+        //   width 5 reads past the record
+        //
+        // The width-1 row is the whole reason the incumbent refused rather than
+        // guessed: a wrong width does not fail loudly, it hands `splice` a
+        // PERMISSION on a body real c2 keeps a call to. That is a wrong emit,
+        // and it scores strictly below the refusal it would replace.
+        let gl = fn_record_sz("f", 0x10, Ok(0x00), Err(320), ATTR_NOINLINE);
+        let q = gl.len() - 4; // the `0x80` that opens the escape
+        assert_eq!(gl[q], 0x80);
+        assert_eq!(&gl[q + 1..q + 3], &[0x40, 0x01], "little-endian payload");
+        assert_eq!(gl[q + 3], ATTR_NOINLINE, "the attribute, three past the 0x80");
+        assert_eq!(
+            gl_noinline_names(&gl).expect("decodes"),
+            ["f".to_string()].into_iter().collect(),
+            "width 3: the record's own answer"
+        );
+        assert_ne!(gl[q + 1], ATTR_NOINLINE, "width 1 reads a different byte");
+        assert_ne!(gl[q + 2], ATTR_NOINLINE, "width 2 reads a different byte");
+        assert_ne!(
+            gl[q + 1] & FN_FLAG_INLINABLE,
+            0,
+            "and width 1's byte reads INLINABLE on a record that is noinline — \
+             the wrong answer in the direction that emits bytes"
+        );
+    }
+
+    /// **`0x81..=0xff` is a third form and it is still refused** — the D1
+    /// decision, taken on a count and recorded as one: **zero** witnesses in
+    /// 28,838 workload records under the framing this reader walks.
+    ///
+    /// c2's own `il-read-varint16` takes it as one sign-extended byte, so
+    /// admitting it is a one-line change. It is not made, because an
+    /// unwitnessed shape is refused rather than guessed at and because a walk
+    /// that has drifted lands on a high byte far more often than on a
+    /// well-formed `0x80`.
+    /// **THIS CELL WAS INERT WHEN IT WAS FIRST WRITTEN, AND THE REGISTERED
+    /// MUTANT FOUND IT.** The record ended two bytes after the `SIZE` byte, so
+    /// a reader that wrongly consumed three ran off the end and returned `None`
+    /// **by truncation**. The mutation "decode `0x81..=0xff` as a 3-byte
+    /// escape" therefore came back GREEN against a test that was supposed to
+    /// kill it. The padding below is what makes the refusal attributable to the
+    /// arm: with it, a wrong reader finds a byte to call the attribute and
+    /// answers `Some`.
+    ///
+    /// This is `one_unreadable_record_refuses_the_whole_file`'s own warning —
+    /// *"`_neg` cells have been confounded or inert in five of the last seven
+    /// lanes"* — firing on a cell written in the same file, four functions
+    /// down, by a lane that had just read that sentence.
+    #[test]
+    fn the_high_byte_size_form_is_still_refused() {
+        for b in [0x81u8, 0xC0, 0xFF] {
+            let good = fn_record("good", 0x10, Ok(0x00), 0x10, ATTR_PLAIN);
+            let mut bad = fn_record("f", 0x20, Ok(0x00), b, ATTR_PLAIN);
+            // Four bytes, so a reader that consumed three lands on a real byte.
+            bad.extend_from_slice(&[0x00, 0x00, 0x00, 0x00]);
+            let mut gl = good.clone();
+            gl.extend(bad);
+            // THE CELL IS PROVED LIVE: the same carrier with a legal `SIZE`
+            // decodes both records, so a refusal below is the mutation's.
+            let mut live = good.clone();
+            let mut ok = fn_record("f", 0x20, Ok(0x00), 0x10, ATTR_PLAIN);
+            ok.extend_from_slice(&[0x00, 0x00, 0x00, 0x00]);
+            live.extend(ok);
+            assert_eq!(
+                gl_function_attrs(&live).expect("the CARRIER decodes").len(),
+                2,
+                "both records, before the SIZE byte is made high"
+            );
+            assert!(
+                gl_function_attrs(&gl).is_none(),
+                "SIZE = {b:#04x} is unwitnessed and refused"
+            );
+        }
+        // …and `0x80` is NOT in that class, which is the whole of this lane.
+        let gl = fn_record_sz("f", 0x10, Ok(0x00), Err(0x0080), ATTR_PLAIN);
+        assert!(gl_function_attrs(&gl).is_some(), "0x80 escapes, it does not refuse");
+    }
+
+    /// **`SIZE` and `SRCPOS` escape at DIFFERENT widths, in one record.**
+    ///
+    /// They are read by two different readers — `il-read-varint32` at
+    /// `0x10c1f9e9` (4-byte payload) and `il-read-varint16` at `0x10c1f9a6`
+    /// (2-byte payload) — and the incumbent code stepped over both as if there
+    /// were one. A record that escapes on both is the cell where a single-width
+    /// assumption cannot hide.
+    #[test]
+    fn both_fields_escape_in_one_record_at_their_own_widths() {
+        let gl = fn_record_sz("f", 0x10, Err(333), Err(139), ATTR_NOINLINE);
+        assert_eq!(
+            gl_noinline_names(&gl).expect("decodes"),
+            ["f".to_string()].into_iter().collect()
+        );
+        // The direct-form twin of each field, to pin that the two widths are 5
+        // and 3 and not 5 and 5 or 3 and 3.
+        let both_direct = fn_record_sz("f", 0x10, Ok(0x00), Ok(0x10), ATTR_NOINLINE);
+        let srcpos_only = fn_record_sz("f", 0x10, Err(333), Ok(0x10), ATTR_NOINLINE);
+        let size_only = fn_record_sz("f", 0x10, Ok(0x00), Err(139), ATTR_NOINLINE);
+        assert_eq!(srcpos_only.len(), both_direct.len() + 4, "SRCPOS escape: +4");
+        assert_eq!(size_only.len(), both_direct.len() + 2, "SIZE escape: +2");
+        assert_eq!(gl.len(), both_direct.len() + 6, "and they compose");
+    }
+
     /// **`None` and the empty set are different facts**, and a consumer that
     /// collapsed them would read "this reader has nothing to say" as "nothing
     /// here is `noinline`" — which is the permissive direction.
     #[test]
     fn a_refused_file_is_not_an_empty_noinline_set() {
-        let mut bad = fn_record("bad", 0x20, Ok(0x00), 0x80, ATTR_PLAIN);
-        bad.push(0x00);
+        let mut bad = fn_record("bad", 0x20, Ok(0x00), 0x81, ATTR_PLAIN);
+        // Four, not one: a single trailing byte lets a three-byte misread run
+        // off the end, so the refusal would be truncation's rather than the
+        // high-byte arm's. That confound was live in this file until a
+        // registered mutant read GREEN against it.
+        bad.extend_from_slice(&[0x00, 0x00, 0x00, 0x00]);
         assert_eq!(gl_noinline_names(&bad), None);
         let empty: &[u8] = &[];
         assert_eq!(
