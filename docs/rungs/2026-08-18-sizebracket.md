@@ -246,6 +246,43 @@ the LARGER IL body the one c2 inlined.** The `arith` chain composes to a single
 affine function so c2 folds it before the inliner looks; `mix` does not. `arith`
 is inlined at **every** rung to `SIZE = 211` at both profiles.
 
+**And it is not an inference from a relocation count — c2 narrates both, in its
+own `/FAsc` listing, from the same source line.** Both callers are the identical
+string `int caller(int a) { return callee(a) + 7; }`:
+
+```
+;; arith_012_O1.cod   -- callee's .gl SIZE = 115
+?caller@@YAHH@Z PROC NEAR                      ; caller, COMDAT
+; 17   : int caller(int a) { return callee(a) + 7; }
+  00000  3d604667   lis    r11,18023
+  00004  3d405ccc   lis    r10,23756
+  00008  616bdaaf   ori    r11,r11,55983
+  0000c  614a12af   ori    r10,r10,4783
+  00010  7d6359d6   mullw  r11,r3,r11
+  00014  7c6b5050   subf   r3,r11,r10
+  00018  4e800020   blr
+?caller@@YAHH@Z ENDP                           ; no `bl`, no relocation, no .pdata
+
+;; mix_008_O1.cod     -- callee's .gl SIZE = 115
+;       COMDAT .pdata
+$T2556  DD  ?caller@@YAHH@Z
+        DD  040000903H
+?caller@@YAHH@Z PROC NEAR                      ; caller, COMDAT
+; 13   : int caller(int a) { return callee(a) + 7; }
+  00000  7d8802a6   mflr   r12
+  00004  9181fff8   stw    r12,-8(r1)
+  00008  9421ffa0   stwu   r1,-60h(r1)
+.endprolog
+  0000c  48000001   bl     ?callee@@YAHH@Z     <-- KEPT
+  00010  38630007   addi   r3,r3,7
+  ...
+```
+
+Twelve statements collapsed into **two constants and a `mullw`** on one side; a
+framed call with a `REL24`, a `.pdata` record and two `$M` labels on the other.
+Confirmed independently in the obj (`gt_dump.py`: `nrel=0` vs
+`nrel=1  REL24 -> ?callee@@YAHH@Z`). Listings in `work/w-sizebracket/lst/`.
+
 So `[sym+0x50]` is **initialized** from `SIZE` and then **reduced** by whatever
 runs before the inliner. `SIZE` is an *upper bound* on the tested quantity.
 
