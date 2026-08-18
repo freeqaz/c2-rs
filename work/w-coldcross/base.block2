@@ -1,0 +1,25 @@
+LANE                 VERDICT     graded/total  match  mismatch  flags
+-------------------- ---------- ------------- ------ --------- --------------------
+O1                   PASS          386/386       182         0  /O1
+O1-EHsc              PASS          386/386       183         0  /O1 /EHsc
+O1-Oi                PASS          386/386       184         0  /O1 /Oi
+O1-Oi-EHsc           PASS          386/386       185         0  /O1 /Oi /EHsc
+Ox                   PASS          386/386       153         0  /Ox
+Ox-EHsc              PASS          386/386       153         0  /Ox /EHsc
+Ox-Gy                PASS          386/386       153         0  /Ox /Gy
+Ox-Gy-EHsc           PASS          386/386       153         0  /Ox /Gy /EHsc
+O2                   PASS          386/386       159         0  /O2
+O2-EHsc              PASS          386/386       159         0  /O2 /EHsc
+Od                   PASS          386/386        21         0  /Od
+Od-EHsc              PASS          386/386        21         0  /Od /EHsc
+O1-Oi-GR             PASS          386/386       184         0  /O1 /Oi /GR
+O1-Oi-EHsc-GR        PASS          386/386       185         0  /O1 /Oi /EHsc /GR
+Ox-GR                PASS          386/386       153         0  /Ox /GR
+Ox-EHsc-GR           PASS          386/386       153         0  /Ox /EHsc /GR
+Od-GR                PASS          386/386        21         0  /Od /GR
+Od-EHsc-GR           PASS          386/386        21         0  /Od /EHsc /GR
+expr-sweep           PASS        19556/19556   19460         0  generated cases (of 19556)
+mode-cross           PASS        90812/90812   90424         0  case-lane cells (of 90812)
+hatch-red            REFUSED         0/14          0       n/a  arms (0 green controls)   <- HATCH-STALE `hatch.py apply` cannot hatch this tree, so the arms have no tree to run on (board #1389)
+ladder-red           PASS            5/5           3       n/a  arms (2 green controls)
+debug-lane           PASS           18/18       2423         0  DEBUG-profile lanes (6948 graded, 0 panic)
