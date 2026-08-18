@@ -1,13 +1,18 @@
-THE 1,227-SITE GRAMMAR CLASS IS 1,336 SITES, THE ENTIRE CORPUS REACHES 507, AND THE THREE-BUCKET PARTITION DEGENERATES TO TWO — THE DEAD BUCKET IS EMPTY BECAUSE THE ONLY UNREACHABILITY PROOF THAT SCALES IS A COMPILER LINT THAT IS ALREADY GREEN
+A THIRD OF ANY REACHABILITY SCREEN'S "REACHED" BUCKET IS EVALUATED AND NOT REFUSED, AND IT READS BACK ONTO A ROW ALREADY ON MASTER — PLUS: THE 1,227-SITE GRAMMAR CLASS IS 1,336 SITES, THE CORPUS REACHES 507, AND THE DEAD BUCKET IS EMPTY
 
 Lane:     w-grammarscreen
 Kind:     characterization
 Outcome:  instrument
-Base:     master 666fe6eb7 (no rebase)
+Base:     master 666fe6eb7
 Record:   docs/rungs/2026-08-18-grammarscreen.md
 Prereg:   docs/rungs/_2026-08-18-w-grammarscreen-prereg.md (frozen at f40c4b1f6,
           committed BEFORE the first probe)
-Board:    #3299–#3303, allocated by the coordinator
+Board:    #3299–#3303, allocated by the coordinator; plus ONE UNNUMBERED row
+          (F4, the 685-of-1,060 census-key finding) drafted per README's rule
+          because the block is spent — it asks for a number
+Rebase:   authorized and performed. Master had NOT moved (666fe6eb7 is the
+          merge-base), so the rebase was a no-op and the tip is unchanged at
+          75327a7ca + the post-report edits. No BOARD.md conflict arose.
 Fixtures: none — characterization.  Census: +0.  Predicted reach 0, realised 0.
 
 WHAT THIS LANE WAS SENT TO DO
@@ -36,36 +41,52 @@ so the line-vs-site gap that makes a line grep an under-count is zero here.
 
 FOUR FINDINGS, IN THE ORDER A READER SHOULD TAKE THEM
 -----------------------------------------------------
-1  THE PARTITION DEGENERATES, STRUCTURALLY AND NOT BUDGETARILY.  `w-deadsites`
+1  A THIRD OF ANY SCREEN'S "REACHED" BUCKET IS EVALUATED AND NOT REFUSED.
+   `.ok_or(X)` runs X on every pass, refusing or not, and a trailing `?` does
+   NOT change that — the classifier must test the eager forms FIRST or it reads
+   177 sites as diverging that are not.  186 of the 507 are eager, so a screen
+   that does not separate them overstates its actionable half by 58 %.
+   THIS READS BACK ONTO A LANDED ROW: #3276 prices all seven of w-deadsites'
+   UNGUARDED sites as "a witness each, and cheap: the probe proves an input
+   exists", which needs the site to diverge.  Six of the seven do.  CS4
+   (census.rs's `bind_key.unwrap_or(STORE_RUN_BIND_NO_CARRIER)`) is EAGER, and
+   that lane's own table records it firing "with `bind_key` Some" — i.e. with
+   the default arm NOT taken.
+   ROUTED, NOT DANGLING: flagged and not corrected here (#3117), and the
+   coordinator has forwarded it to peer w-witness7 — mid-lane writing witnesses
+   for exactly those seven sites — with the instruction to distinguish "the
+   refusal fires" from "the expression is evaluated" before manufacturing a
+   witness for any of them.  The correction happens in the lane that owns the
+   consequence.  Settling CS4 is one probe placement inside a lane already there.
+
+2  THE PARTITION DEGENERATES, STRUCTURALLY AND NOT BUDGETARILY.  w-deadsites
    split 26 rows by READING each quiet site.  That does not scale to 829, and
    the one unreachability proof that does — rustc's `dead_code` lint — runs on
    every build of this repo and is GREEN.  1 of 191 enclosing functions has no
    non-test caller and that one IS a `#[test]`.  A declared reading of the 11
    quiet sites sharing a ctx with a reached one (the exact shape L9/CA9/CA10
    came from) found 0 proofs.  So DEAD is not small; it is EMPTY.
+   0 DEAD, NOTHING DELETED, NOTHING PROPOSED FOR DELETION, 829 UNKNOWN rows
+   published untouched.  Returning zero here is the correct outcome and is what
+   the "quiet is not dead" constraint was for.
 
-2  QUIET IS A SPARSE TRAVERSAL OF EVERY PARSER, NOT AN UNVISITED ONE.  0 of 30
+3  QUIET IS A SPARSE TRAVERSAL OF EVERY PARSER, NOT AN UNVISITED ONE.  0 of 30
    files have zero reached sites; 26 of 30 are walked to within 15 % of their
-   gate depth while 17–47 % of their gates are ever touched.
-   `float_walk_loop.rs`: 24 of 89 reached, DEEPEST reached site the 89th.  The
-   story that would license deleting quiet sites is measured false file by file.
-
-3  A THIRD OF ANY SCREEN'S "REACHED" BUCKET IS EVALUATED AND NOT REFUSED.
-   `.ok_or(X)` runs X on every pass and `?` after it does not change that:
-   186 of the 507 are eager.  This reaches back into a row on master — `#3276`
-   prices all seven of `w-deadsites`' UNGUARDED rows as "a witness each, and
-   cheap: the probe proves an input exists", and `CS4`
-   (`bind_key.unwrap_or(STORE_RUN_BIND_NO_CARRIER)`) is EAGER, with that lane's
-   own table recording it firing "with `bind_key` Some".  FLAGGED, NOT
-   CORRECTED (#3117).
+   gate depth (28 of 30 to >= 83 %) while 17-47 % of their gates are ever
+   touched.  float_walk_loop.rs: 24 of 89 reached, DEEPEST reached site the
+   89th.  The story that would license deleting quiet sites is measured false
+   file by file.
 
 4  THE SCREEN COSTS THREE SOURCE LINES AND FOUR CORPUS RUNS, AND WHAT IT BUYS
    IS A PRICE.  `blk`, `blk_type` and `Block::refuse` marked `#[track_caller]`:
    one `&'static Location` per call site, so its ADDRESS is the site key and
-   there is NO per-site edit.  Reach is a NECESSARY condition for a mutation to
-   be killable, so the campaign `w-mutcensus` declined is now 507 runs (~34 h
-   serial, ~2 h across 16 worktrees), or 321 restricted to sites where a
-   key-swap is observable at all — against 1,336 and five days.
+   there is NO per-site edit.
+   STATED PLAINLY: three #[track_caller] lines, no per-site edit, four corpus
+   runs — against F1's costed ~20 runs and the original five-day estimate.
+   Reach is a NECESSARY condition for a mutation to be killable, so the campaign
+   w-mutcensus declined is now 507 runs (~34 h serial, ~2 h across 16
+   worktrees), or 321 restricted to sites where a key-swap is observable at all
+   — against 1,336 and five days.
 
 DOES `w-deadsites`' 73 % HOLD?  NO — 62.1 %, AND THE DENOMINATORS DIFFER
 ------------------------------------------------------------------------
@@ -98,6 +119,18 @@ THE OTHER DROPPED CLASSES, RE-DERIVED (3 of 4 FIGURES MOVE)
   OptWordMode gates          18 -> 19
 Plus 15 `?` operators the "return None" framing does not name at all, so a
 consistent reading of that class is 59, not the published 26.
+
+AND THIS WIDENS #3288 TO A DIFFERENT AND WORSE CLAIM.  That row reads "an
+enumerator's UNDER-count is silent and flattering" and its three members are all
+under-counts, each with a STORY — a character class that drops a digit, a `\b`
+that never fires between `x` and `1` — and a story is something a reviewer can
+look for.  The dyninit_tu 12-for-11 and the OptWordMode 18-for-19 have NO story:
+they were simply never reconciled against anything.  So the class is not
+"enumerators under-count" but "A PUBLISHED COUNT THAT WAS NEVER DIFFED AGAINST A
+SECOND, DIFFERENTLY-BUILT ONE IS UNVERIFIED IN EITHER DIRECTION" — worse, because
+it removes the last cue a reviewer had.  All three known members were found by a
+lane doing something else; these two were found by the only lane that has ever
+re-derived that table.
 ALL FOUR ARE OUT OF FRAME and stay out; the conditional secondary frame was
 NOT RUN and is reported as not run, with its count.
 
@@ -191,10 +224,17 @@ F1  the 507-run mutation campaign is priced and nobody has run it
 F2  xtea_encrypt_loop.rs stops at gate 14 of 57 — alone among the 30 files
 F3  the conditional secondary frame (44 `return None` + 15 `?` + 19 OptWordMode)
     was NOT RUN; the counts are published so nobody re-derives them
-F4  685 of 1,060 distinct census keys in this class have NEVER been produced by
-    anything this repo runs
-F5  the generated sweep contributes zero exclusive reach OVER THIS CLASS — read
-    with #3270–#3275's discipline, it is not a case for retiring the sweep
+F4  685 of 1,060 distinct census keys (64.6 %) in this class have NEVER been
+    produced by anything this repo runs — the largest number this lane found.
+    Given its own board row, drafted UNNUMBERED because the block is spent.
+    Sized, UNPRICED, and explicitly NOT a claim that the 685 are dead
+F5  the sweep is the gate's LARGEST generated leg and buys ZERO exclusive reach
+    for this class: 133 sites reached, 0 of them by nothing else, while
+    gate \ (sweep u cross u debug) = 0 and 0 of the 507 have the sweep as their
+    cheapest witness.  Posed as a question about what those 19,556 cases buy
+    HERE, with both limits binding: #3270–#3275 says a zero on the reach axis is
+    not evidence on the byte axis, and this is a claim about ONE class.  NOT a
+    case for retiring the sweep, and must not be quoted as one
 F6  `#[track_caller]` is a general site-level probe for this repo; first use
 F7  a standing version needs a crates/ change a zero-delta lane cannot land —
     #3233's structural conflict, fourth wave running

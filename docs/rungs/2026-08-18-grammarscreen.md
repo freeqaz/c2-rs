@@ -1,4 +1,4 @@
-# GRAMMARSCREEN — the 1,227-site grammar class `w-mutcensus` dropped is 1,225 sites, the corpus reaches 507 of 1,336, and the three-bucket partition DEGENERATES: the dead bucket is EMPTY and the only unreachability proof that scales is a compiler lint that is already green
+# GRAMMARSCREEN — A THIRD OF ANY REACHABILITY SCREEN'S "REACHED" BUCKET IS EVALUATED AND NOT REFUSED, AND IT READS BACK ONTO A ROW ALREADY ON MASTER — plus: the 1,227-site grammar class is 1,336 sites, the corpus reaches 507, and the three-bucket partition DEGENERATES because the dead bucket is EMPTY
 
     Tag:       GRAMMARSCREEN
     Slug:      grammarscreen
@@ -62,7 +62,29 @@ That is a property this population happens to have, not a property of grep.
 
 **The table is not the finding. These four are.**
 
-> **1. THE THREE-BUCKET PARTITION DEGENERATES ON THIS CLASS, AND IT DEGENERATES
+> **1. A THIRD OF THE REACHED BUCKET IS EVALUATED AND NOT REFUSED — AND THAT
+> READS BACK ONTO A ROW ALREADY ON MASTER.** `.ok_or(X)`
+> evaluates `X` on every pass, refusing or not — and `?` after it does not
+> change that. **186 of the 507** reached sites are in eager position, so the
+> probe proves control ran the expression and proves **nothing** about a witness
+> existing. `w-deadsites` priced its UNGUARDED bucket as *"a witness each, and
+> cheap: the probe proves an input exists"*; on this class that claim is sound
+> for **321 sites, not 507**. A screen that does not separate the two overstates
+> its own actionable half by **58 %**.
+
+> **Routed, not left dangling.** `#3276` prices all seven of `w-deadsites`'
+> UNGUARDED sites identically, and **`CS4` — `census.rs`'s
+> `bind_key.unwrap_or(STORE_RUN_BIND_NO_CARRIER)` — is EAGER**, with that lane's
+> own table recording it firing *"with `bind_key` **`Some`**"*, i.e. **with the
+> default arm NOT taken** (§10 **F8**). It is **flagged and not corrected here**
+> — a dated rung stays as written (**#3117**) — and the coordinator has
+> **forwarded it to peer `w-witness7`**, which is mid-lane writing witnesses for
+> exactly those seven sites and has been told to distinguish *the refusal
+> fires* from *the expression is evaluated* before manufacturing a witness for
+> any of them. **The correction happens in the lane that owns the
+> consequence**, which is why this item closes rather than dangles.
+
+> **2. THE THREE-BUCKET PARTITION DEGENERATES ON THIS CLASS, AND IT DEGENERATES
 > FOR A STRUCTURAL REASON RATHER THAN A BUDGETARY ONE.** `w-deadsites` split 26
 > rows into 7 unguarded / 4 dead-with-a-proof / 15 unknown by **reading each
 > quiet site**. That does not scale to 829, and the one unreachability proof
@@ -73,7 +95,7 @@ That is a property this population happens to have, not a property of grep.
 > bucket is not small here; it is **empty**, and the partition on this class is
 > **reached / unknown**, two buckets, with everything actionable in the first.
 
-> **2. QUIET IS NOT "THE CORPUS NEVER ENTERS THIS PARSER" — IT IS A SPARSE
+> **3. QUIET IS NOT "THE CORPUS NEVER ENTERS THIS PARSER" — IT IS A SPARSE
 > TRAVERSAL OF EVERY PARSER.** **Zero** of the 30 files carry zero reached
 > sites; **26 of the 30 are walked to within the last 15 % of their gate
 > depth**, and of the 17 files carrying 40 or more sites, 14 are walked to
@@ -82,24 +104,19 @@ That is a property this population happens to have, not a property of grep.
 > intuitive story that would license deleting quiet sites — *"that shape never
 > occurs, so its parser is dead"* — is **measured false, file by file.**
 
-> **3. A THIRD OF THE REACHED BUCKET IS EVALUATED AND NOT REFUSED.** `.ok_or(X)`
-> evaluates `X` on every pass, refusing or not — and `?` after it does not
-> change that. **186 of the 507** reached sites are in eager position, so the
-> probe proves control ran the expression and proves **nothing** about a witness
-> existing. `w-deadsites` priced its UNGUARDED bucket as *"a witness each, and
-> cheap: the probe proves an input exists"*; on this class that claim is sound
-> for **321 sites, not 507**. A screen that does not separate the two overstates
-> its own actionable half by **58 %**.
-
 > **4. THE SCREEN IS CHEAPER THAN F1 COSTED IT BY AN ORDER OF MAGNITUDE, AND
 > WHAT IT BUYS IS A PRICE.** F1 sized this at *"20 bitmask words, or ~20 runs"*
 > against `w-mutcensus`' **five days serial**. It is **three source lines and
 > four corpus runs** — `blk`, `blk_type` and `Block::refuse` marked
 > `#[track_caller]`, because one `&'static Location` exists per call site and
-> its ADDRESS is the site key. And the deliverable is not the count: a mutation
-> campaign over this class now has a **necessary condition** to test against, so
-> it is **507 runs, not 1,336** — the screen retires **62 %** of it before the
-> first mutant.
+> its ADDRESS is the site key.
+>
+> **Stated plainly: three `#[track_caller]` lines, no per-site edit, four corpus
+> runs — against F1's costed ~20 runs and `w-mutcensus`' original five-day
+> estimate.** And the deliverable is not the count: a mutation campaign over
+> this class now has a **necessary condition** to test against, so it is
+> **507 runs, not 1,336** — the screen retires **62 %** of it before the first
+> mutant.
 
 **Method checks, all four green.** `P1` and `P2` — two full corpus passes —
 agree **SET-for-SET on all 1,336 rows in every one of the six stages**, not
@@ -531,10 +548,21 @@ count. It gets one, and **three of its four figures move**:
    **11** at `3835469c` *and* at `666fe6eb7`, read with `git show`, so head drift
    is excluded — #3269's rule (*a lane that finds an unexpected delta owes a
    measurement before it owes a cause*) is why that is a statement and not a
-   guess. **And the error is an OVER-count**, which is the direction #3288 says
-   is *not* the dangerous one — so this is a fourth member of that defect class
-   pointing the other way, and the generalization needs widening: an
-   enumerator's count is unverifiable, not merely under-stated.
+   guess.
+
+   > **AND #3288 NEEDS WIDENING, TO A DIFFERENT AND WORSE CLAIM.** That row
+   > reads *"an enumerator's UNDER-count is silent and flattering"*, and its
+   > three members are all under-counts. **This one is an OVER-count**, and the
+   > `OptWordMode` figure (18 against a measured 19) is a second. An under-count
+   > at least has a story — a character class that drops a digit, a `\b` that
+   > never fires — and a story can be looked for. **These have none: the figures
+   > were simply never reconciled against anything.** So the class is not
+   > *"enumerators under-count"* but **"a published count that was never diffed
+   > against a second, differently-built one is unverified in EITHER
+   > direction"** — which is worse, because it removes the last cue a reviewer
+   > had. Every one of the three known members was found by a lane doing
+   > something else; **these two were found by the only lane that has ever
+   > re-derived that table.**
 2. **`provide_data_tu` is a whole function of the same class the drop table has
    never contained** — 19 more `return None` clauses, and it **did not exist**
    when the frame froze. That is `w-mutcensus` F7's staleness, third instance,
@@ -645,26 +673,66 @@ helper and 44 mechanical edits — **one build and one corpus pass**, the same
 shape as this lane's screen. The `OptWordMode` and `?` halves need a per-site
 boolean wrapper and are a different instrument.
 
-### F4 — 685 of the 1,060 distinct census keys in this class have NEVER been produced by anything this repo runs
+### F4 — **685 of 1,060 distinct census keys in this class have NEVER been produced by anything this repo runs** — the largest number this lane found, and it has its own board row
 
-Wholly-quiet `ctx` literals: **685**. Those are named buckets in the census's
-own vocabulary — the thing `docs/GAPS.md` and every widening-order table are
-written in — that no input in the suite, the sweep, the cross, the fixture
-lanes, the debug lane or the 878-TU workload has ever caused to be reported.
-**Whether that is a corpus gap or a vocabulary that outran its evidence is a
-real question and this lane does not answer it.** It is a different question
-from *"is this site guarded"* and it may be the more useful one: a census key
-with no witness anywhere is a bucket nobody can check the spelling of.
+**With its denominator, and the denominator is the point:**
 
-### F5 — The 19,556-case generated sweep contributes ZERO exclusive reach over this class
+| | n | of | share |
+|---|---:|---:|---|
+| distinct `ctx` **literals** in the class | **1,060** | over 1,099 literal-ctx sites | — |
+| ├─ **wholly quiet** — no site raising this key is reached by anything | **685** | 1,060 | **64.6 %** |
+| ├─ wholly reached | 364 | 1,060 | 34.3 % |
+| └─ mixed (a reached site **and** a quiet sibling) | 11 | 1,060 | 1.0 % |
 
-133 sites reached, **0** of them reached by nothing else (§5). Stated with its
-limit, because **#3270**–**#3275** is exactly about over-reading a zero: the
-sweep grades **bytes** and this lane measured **reach**, which is a different
-axis, and a zero on one is not evidence on the other. What it does support is
-narrow and useful: **a lane trying to buy grammar-site reach should not buy it
-from the sweep.** The fixture lanes (70 exclusive) and the 878-TU workload (17)
-are where the unique reach is.
+These are **named buckets in the census's own vocabulary** — the units
+`docs/GAPS.md`, every widening-order table and every `blocking features`
+histogram are written in. **Two-thirds of that vocabulary has never been
+observed**, by the 1,671-test suite, the 19,556-case sweep, the 90,812-cell
+cross, the 18-lane fixture gate, the debug lane or the 878-TU workload.
+
+**Cross-check, and it is consistent rather than contradictory**: the workload
+scan reports **636** distinct blocking *features* and the fixture lanes **231**,
+against **375** ctx literals with a reached site here. A feature is a ctx plus a
+rendered suffix (`:eof`, `:mid`, `-0xNN`), so 375 stems producing 636 features
+is the expected direction, and the two counts do not disagree.
+
+**Three things this is NOT, stated so the row cannot be over-read.** It is
+**not** a claim that 685 keys are dead — the same "quiet is not dead" rule binds
+here and this lane deletes nothing. It is **not** a defect in the census — a key
+minted for a byte the corpus has not yet carried is exactly what a *vocabulary*
+instrument is for. And it is **not priced**: nobody has asked what a key with no
+witness anywhere costs.
+
+**But it is a different question from *"is this site guarded"* and it may be the
+more useful one.** A census key nobody has ever seen produced is a bucket whose
+**spelling, suffix rendering and routing have never been exercised** —
+`#3279`'s `MC3` is precisely a key-routing mutation that only a table could
+catch, and 685 keys here have no witness of any kind to route against.
+**UNPRICED, SIZED, and given a row of its own** (unnumbered, below).
+
+### F5 — What do the sweep's 19,556 cases buy for this class? Measured: ZERO exclusive reach — and it is the gate's largest generated leg
+
+The sweep reaches **133** sites and **0** of them are reached by nothing else
+(§5), while **`gate \ (sweep ∪ cross ∪ debug) = 0`** — so the sweep is not
+merely redundant against one other stage, it is redundant against the rest of
+the gate taken together. Set beside the fact that it is **the largest generated
+corpus the gate runs**, that is a real question about what those 19,556 cases
+buy *for this class*, and it is posed here as a question rather than answered.
+
+**Two limits, both binding, and the question survives them.**
+
+* **#3270–#3275 is exactly about over-reading a zero.** The sweep grades
+  **bytes** against real `c2`; this lane measured **reach**. Those are different
+  axes and a zero on one is not evidence on the other, so **this is NOT a case
+  for retiring the sweep** and must not be quoted as one.
+* **It is a claim about ONE class.** The sweep may carry unique reach over the
+  census fences, the `.gl` readers or the emit path; none of those was probed.
+
+What it does support is narrow, useful and unhedged: **a lane trying to buy
+grammar-site reach should not buy it from the sweep.** The unique reach lives in
+the fixture lanes (**70** exclusive sites) and the 878-TU workload (**17**), and
+the cheapest-witness ladder in §5 says the same thing per site: **0** of the 507
+have the sweep as their cheapest witness.
 
 ### F6 — `#[track_caller]` is a general site-level probe for this repo and this is its first use
 
@@ -706,9 +774,16 @@ Checked against that lane's own row text, at this base:
 **So `CS4` looks like a row that records evaluation and not refusal**, and if so
 its witness is not the cheap one the bucket is priced at. **NOT CORRECTED
 HERE**, deliberately and twice over: a dated rung stays as written (**#3117**),
-and this is a reading of that lane's text rather than a re-run of its probe. It
-is offered as a question for the next reader of **#3276**, and settling it is
-one probe placement.
+and this is a reading of that lane's text rather than a re-run of its probe.
+
+**ROUTED, so this item closes rather than dangles.** The coordinator has
+forwarded it to peer **`w-witness7`**, which is mid-lane writing witnesses for
+exactly these seven sites, with the instruction to **distinguish *the refusal
+fires* from *the expression is evaluated* before manufacturing a witness for any
+of them.** That is the right destination twice over: it owns
+`crates/c2-harness/tests/`, and it owns the consequence — a witness written
+against an eager site would assert something the site does not do. Settling
+`CS4` is one probe placement inside a lane that is already there.
 
 ### F9 — This lane measured REACH and not test quality, on purpose, and the distinction is the whole point
 
