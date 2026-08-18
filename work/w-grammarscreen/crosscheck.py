@@ -80,3 +80,36 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+def from_lane_jsonl(rundir):
+    """The BROAD arm of the cross-check: `gate.sh`'s per-lane `scan.jsonl`
+    carries `fn_blockers` / `emit_blockers` / `fn_gate_refusals` — the census
+    key each fixture body actually blocked on, one row per fixture per lane,
+    written by PRODUCTION code with no probe involved. That is 458 distinct
+    feature strings against the 20 the scan's own histogram prints."""
+    import glob
+    feats = {}
+    for p in glob.glob(os.path.join(rundir, "lanes", "*", "scan.jsonl")):
+        for line in open(p):
+            try:
+                o = json.loads(line)
+            except Exception:
+                continue
+            if o.get("record") == "provenance":
+                continue
+            for f in ("fn_blockers", "emit_blockers", "fn_gate_refusals"):
+                v = o.get(f)
+                items = []
+                if isinstance(v, list):
+                    for x in v:
+                        if isinstance(x, str):
+                            items.append(x)
+                        elif isinstance(x, dict):
+                            items += [k for k in x if isinstance(k, str)]
+                            items += [w for w in x.values() if isinstance(w, str)]
+                elif isinstance(v, dict):
+                    items = list(v)
+                for it in items:
+                    feats[it] = feats.get(it, 0) + 1
+    return sorted(feats.items(), key=lambda kv: -kv[1])

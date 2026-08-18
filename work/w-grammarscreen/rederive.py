@@ -24,7 +24,18 @@ STAGES = ["suite", "bench", "sweep", "cross", "debug", "gate", "scan"]
 
 
 def load_sites():
-    return [json.loads(l) for l in open(os.path.join(LANE, "sites.jsonl"))]
+    """The FROZEN site set. `sites_annotated.jsonl` is the same rows with a
+    derived `fn` field added by `annotate.py`; it is preferred when present and
+    is asserted to be the same population, never a different one."""
+    frozen = [json.loads(l) for l in open(os.path.join(LANE, "sites.jsonl"))]
+    ann = os.path.join(LANE, "sites_annotated.jsonl")
+    if not os.path.exists(ann):
+        return frozen
+    rows = [json.loads(l) for l in open(ann)]
+    a = sorted((r["file"], r["line"], r["col"]) for r in rows)
+    b = sorted((r["file"], r["line"], r["col"]) for r in frozen)
+    assert a == b, "sites_annotated.jsonl is not the frozen population"
+    return rows
 
 
 def key(s):
@@ -53,6 +64,23 @@ def load_hits(tag, stage):
 def main():
     sites = load_sites()
     index = {key(s): s for s in sites}
+    # `Location::column()` for `Block::refuse(..)` may report the PATH START
+    # rather than the method ident. Both keys are admitted; which one rustc
+    # actually emits is read off the log, never assumed.
+    alias = {}
+    for s in sites:
+        if s.get("col_alt") not in (None, s["col"]):
+            alias[(s["file"], s["line"], s["col_alt"])] = key(s)
+    # `sitemap.json` (written by `sitemap.py` against the PATCHED tree) is the
+    # authoritative translation: the probe patch shifts line numbers in
+    # `func/body/mod.rs`, and `Location::column()` reports the PATH START of a
+    # qualified call. It supersedes the `col_alt` alias above where both apply.
+    smp = os.path.join(LANE, "sitemap.json")
+    if os.path.exists(smp):
+        for src, dst in json.load(open(smp)).items():
+            a = src.rsplit(":", 2)
+            b = dst.rsplit(":", 2)
+            alias[(a[0], int(a[1]), int(a[2]))] = (b[0], int(b[1]), int(b[2]))
     print("population: %d parsed sites (%d distinct file:line:col)"
           % (len(sites), len(index)))
     for tag in sys.argv[1:]:
@@ -63,6 +91,9 @@ def main():
             if h is None:
                 continue
             per_stage[st] = h
+        # canonicalise every hit through the path-start alias BEFORE any set
+        # algebra, so a `Block::refuse` hit lands on its own row.
+        per_stage = {st: {alias.get(k, k) for k in h} for st, h in per_stage.items()}
         union = set()
         for h in per_stage.values():
             union |= h
@@ -123,6 +154,33 @@ def main():
         print("    reached by the suite (CHEAP witness)          : %d" % len(cheap))
         print("    reached only outside the suite (dearer)       : %d" % (len(inframe) - len(cheap)))
         print("    reached by the 878-TU scan but not the suite  : %d" % len(scanonly))
+
+        # ---- the split that sharpens QUIET without over-claiming -------------
+        if any("fn" in s for s in sites):
+            byfn = collections.defaultdict(list)
+            for s in sites:
+                byfn[(s["file"], s["fn"])].append(s)
+            fn_entered = {
+                k: any(key(s) in inframe for s in v) for k, v in byfn.items()
+            }
+            q_in_entered = sum(
+                1 for s in sites
+                if key(s) in quiet and fn_entered[(s["file"], s["fn"])]
+            )
+            q_in_cold = len(quiet) - q_in_entered
+            cold_fns = [k for k, v in fn_entered.items() if not v]
+            print("\n  QUIET, split by whether the ENCLOSING FUNCTION was entered at all:")
+            print("    quiet in a function the corpus DEMONSTRABLY REACHES : %5d"
+                  " (a statement about the BRANCH; a witness starts inside)" % q_in_entered)
+            print("    quiet in a function NO site of which ever fired     : %5d"
+                  " (a statement about DISPATCH)" % q_in_cold)
+            print("    functions with zero sites reached: %d of %d"
+                  % (len(cold_fns), len(byfn)))
+            for k in sorted(cold_fns)[:40]:
+                print("      %-30s %s  (%d sites)"
+                      % (k[0].split("/")[-1], k[1], len(byfn[k])))
+            if len(cold_fns) > 40:
+                print("      ... %d more" % (len(cold_fns) - 40))
 
         out = os.path.join(LANE, "reached.%s.txt" % tag)
         with open(out, "w") as f:
