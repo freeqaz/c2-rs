@@ -249,3 +249,4 @@ the header block this table is read from.
 | 2026-08-17 | w-gatewire | [gatewire](2026-08-17-gatewire.md) | 10 | +0 — required-zero byte delta. `crates/` is byte-identical to the |
 | 2026-08-17 | w-mutcensus | [mutcensus](2026-08-17-mutcensus.md) | 3 | +0 — required-zero byte delta; every `crates/` edit in this lane |
 | 2026-08-17 | w-npos | [npos](2026-08-17-npos.md) | 2 | per-function census +0 on both axes (this TU emits 0 functions); |
+| 2026-08-18 | W-DAGORDER2 | [dagorder2](2026-08-18-dagorder2.md) | 12 | +0 — nothing admitted, no crates/ file touched |
