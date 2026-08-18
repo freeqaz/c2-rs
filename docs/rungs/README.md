@@ -118,6 +118,50 @@ takes a block the coordinator allocated explicitly.** The next-free pointer in
 `BOARD.md` is a hint, not an authority — it is routinely already wrong at the
 tip that prints it, because unmerged branches hold blocks it cannot see.
 
+## Standing facts every lane brief must carry — updated 2026-08-18
+
+These are the things lanes have most often been briefed *wrongly* about. A
+coordinator dispatching a lane copies this block; a lane that finds one of
+them stale reports it as a **dispatch defect**, not a preamble (`w-dagorder`'s
+pattern — it was sent at a lever discharged the same day the review naming it
+was written, and **detection was incidental**, so the defect's true rate is
+unmeasured).
+
+* **Run the gate as `scripts/gate.sh --jobs 16 --require-graded` — ~80 s.**
+  `--jobs 4` is ~153 s and is not the safer choice; the box was never
+  CPU-starved. A lane's **first** gate in a fresh worktree still pays a
+  ~1,261 s cold `mode_cross` leg (`w-gateperf` §11.1, board **#3266**) — that
+  is a property of the worktree, not of the change.
+* **Run suites as `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release
+  --no-fail-fast`.** Armed 2026-08-18. Without it, a fresh worktree with no
+  `compilers/` skips every capture-based test **silently** — cargo swallows
+  the `SKIP` line for a passing test — so a registered RED reads GREEN with a
+  clean suite, the right target count and the right exit code (#3219, #3231).
+  The two runs are otherwise **byte-identical**; only the durations differ.
+* **Count `gap-metric` keys with `grep -cE '^ *gap-metric \S+ \S+$'` → 394.**
+  Never `grep -c 'gap-metric'` → **396**: two prose lines merely *mention*
+  keys. **Three consecutive lanes hit this**, and the third *explained* the
+  +2 by attributing it to a peer's merge (#3269). Hence the general rule:
+  **a lane that finds an unexpected delta owes a measurement before it owes a
+  cause** — a wrong count invites re-counting, a wrong cause removes the
+  reason to check.
+* **`fnbyte-*` is not a pure function of the commit** (#3249). It reads
+  (commit × capture-cache state × untracked workload). Re-read base and tip
+  **back to back**; state the cache state and `dc3-decomp` head; treat any
+  effect under ~10 bodies as **unattributable rather than reporting it**.
+* **`fnbyte-*` denominators are 71.2 % bodies the shipped image never
+  contains** (#3254) — `/Gy` COMDATs the linker discards. A `fnbyte` ratio is
+  progress over *what c2 emits*, which is the port's job; it is never progress
+  over *the game*.
+* **The per-symbol `fnbyte-differs` set compare is void** for any lane that
+  changes the admitted population (#3237). Use a name-stable per-TU shape
+  multiset.
+* **"Graded tree identical at both ends" applies only to revert-everything
+  lanes** (#3215) — any lane landing a test moves it by construction. **Do not
+  compare release-binary sha256 across worktrees** (#3224): `CARGO_MANIFEST_DIR`
+  is compiled in, so that comparison is void by construction.
+* **Board blocks are allocated by the coordinator** — see the section above.
+
 ## What is here, and what is not
 
 The historical rungs live in `docs/ROADMAP.md` §6a–§6m and in the per-subject
