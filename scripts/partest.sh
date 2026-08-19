@@ -218,6 +218,17 @@ WALL=$(awk -v a="$WALL0" -v b="$WALL1" 'BEGIN{printf "%.1f", b-a}')
 : >"$OUT/summary.txt"
 : >"$OUT/durations.tsv.new"
 
+# `suite.log` is a CARGO-SHAPED concatenation, and it exists because there is
+# already a consumer of the workspace suite in `scripts/`: `status.sh`'s
+# `collect_tests` runs the serial `cargo test --workspace --release` for
+# STATUS.md's `tests` row, and `status.sh --tests-log <file>` will accept a log
+# instead — subject to four checks, of which two are structural (every target
+# cargo LAUNCHED must have REPORTED, and the log must END on a `test result:`
+# line). Emitting the banner cargo emits, verbatim in shape, means the fast
+# runner can feed that row without a second parsing vocabulary. See this rung's
+# §8 item 5 for why the wiring itself is not done here.
+: >"$OUT/suite.log"
+
 TOT_P=0; TOT_F=0; TOT_I=0; TOT_T=0; SUM_SECS=0; WORST_RC=0
 for f in "$OUT"/*.rc; do
     label="$(basename "$f" .rc)"
@@ -225,6 +236,18 @@ for f in "$OUT"/*.rc; do
     secs="$(cat "$OUT/$label.secs" 2>/dev/null || echo 0)"
     [ "$rc" -ne 0 ] && WORST_RC=1
     printf '%s\t%s\n' "$label" "$secs" >>"$OUT/durations.tsv.new"
+
+    # `DOC.log` already carries its own `Doc-tests <crate>` banners, one per
+    # crate, so it is copied through unbannered; a binary gets the one cargo
+    # would have printed for it.
+    if [ "$label" != "DOC" ]; then
+        exepath="$label"
+        for e in "${EXES[@]}"; do
+            [ "$(label_of "$e")" = "$label" ] && { exepath="$e"; break; }
+        done
+        printf '     Running %s (%s)\n' "$label" "$exepath" >>"$OUT/suite.log"
+    fi
+    cat "$OUT/$label.log" >>"$OUT/suite.log"
 
     # Doc-test output carries a `Doc-tests <crate>` banner per crate; give each
     # its own label so a doc test cannot be confused with a unit test of the
