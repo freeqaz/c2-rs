@@ -143,7 +143,7 @@ for `cflow-loop` was *"a twenty-word transcription of one function class at
 `ADDR.tsv` is **bounded by prose**: `build_ref.py` writes a row only for an
 address already cited under `docs/` or already hand-labelled. That is the right
 shape for *"what is known about this address"* and the wrong shape for *"I am
-holding an address nobody has written about"* — which at this tip is **4,390 of
+holding an address nobody has written about"* — which at this tip is **4,389 of
 4,917 functions**.
 
 [`FUNCS.tsv`](FUNCS.tsv) is the complement: one row per function in the image,
