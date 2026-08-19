@@ -98,6 +98,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use c2_core::codegen;
+use c2_core::codegen::cfg_class::{self, CflowClass};
 use c2_reference::Toolchain;
 
 // ---------------------------------------------------------------------------
@@ -705,4 +706,354 @@ fn the_census_and_the_port_agree_over_the_generated_corpus() {
         );
     }
     let _ = std::fs::remove_dir_all(&out);
+}
+
+// ===========================================================================
+// W-CFGCLASS — the emitter CFG-class registry, graded (CEILING §6.1 phase 1)
+// ===========================================================================
+
+/// **The floor for the registry grading.** Below its measured value with
+/// headroom, for `FLOOR_FIXTURE_CELLS`' reason: a floor's job is to fail a run
+/// that collapsed, not to pin a number that moves whenever a fixture lands.
+const FLOOR_REGISTRY_CELLS: usize = 1_200;
+/// How many distinct `Lowering` arms the fixtures must exercise. A registry
+/// graded on two arms says nothing about the other thirty-three.
+const FLOOR_REGISTRY_LOWERINGS: usize = 10;
+
+/// One run of the CFG-class registry against `select_function` and the census.
+#[derive(Default)]
+struct RegistryScan {
+    /// Rows where the census produced an `IlFunction` at all — the population
+    /// in which either direction of disagreement can appear.
+    cells: usize,
+    /// Cells where `select_function` accepted **and** `lowering_of` named an
+    /// arm: the ones on which a CFG class is graded.
+    graded: usize,
+    /// `lowering_of` named an arm where `select_function` REFUSED — the
+    /// **over-claiming** direction, board #3270's.
+    over: BTreeMap<String, usize>,
+    /// `select_function` accepted where `lowering_of` named nothing — the
+    /// under-claiming direction.
+    under: BTreeMap<String, usize>,
+    /// `class_of(lowering)` disagreed with the census's own `cflow` string.
+    wrong_class: BTreeMap<String, usize>,
+    /// Cells the census never gave a control-flow class (the `cf-expr-…` bail).
+    /// Not a disagreement — the census did not answer.
+    unclassified: usize,
+    /// The observed `(lowering, census cflow)` cross-tab. **The table the
+    /// registry's declarations were derived from**, printed on every run so a
+    /// declaration can never quietly stop matching what is measured.
+    cross: BTreeMap<String, usize>,
+    /// `"<lowering> <class>"` for every declared pair a capture actually
+    /// produced — the input to the over-claim check. `classes_of` asserts
+    /// *observed ⊆ declared*; this set is what makes *declared ⊆ observed*
+    /// askable, and without it listing all seven classes everywhere would pass.
+    observed: BTreeSet<String>,
+}
+
+impl RegistryScan {
+    fn merge(&mut self, o: RegistryScan) {
+        self.cells += o.cells;
+        self.graded += o.graded;
+        self.unclassified += o.unclassified;
+        for (m, src) in [
+            (&mut self.over, o.over),
+            (&mut self.under, o.under),
+            (&mut self.wrong_class, o.wrong_class),
+            (&mut self.cross, o.cross),
+        ] {
+            for (k, n) in src {
+                *m.entry(k).or_insert(0) += n;
+            }
+        }
+        self.observed.extend(o.observed);
+    }
+    fn lowerings_seen(&self) -> usize {
+        self.cross
+            .keys()
+            .filter_map(|k| k.split_once(" -> ").map(|(l, _)| l))
+            .collect::<BTreeSet<_>>()
+            .len()
+    }
+}
+
+/// A census row's symbol name, or its index when the binding gave it none —
+/// the row is still a cell and dropping it would shrink the population that can
+/// fail, which is this file's own recorded defect.
+fn fname(f: &c2_il::FnCensus) -> String {
+    f.name.clone().unwrap_or_else(|| format!("#{}", f.index))
+}
+
+/// One capture profile. **Two of them are run**, and that is not thoroughness
+/// for its own sake: the first version of this test ran the default profile
+/// alone and exercised **15 of 35** `Lowering` arms, because most of the
+/// branchy transcriptions (`if_call_join`, `guard_ret_chain`, every loop) are
+/// admitted by their readers at `/O1` **only** — which is the mode the entire
+/// dc3 workload compiles in and the mode the fixtures do *not* capture in by
+/// default. A registry graded at `/Ox` alone would have declared twenty arms
+/// and measured none of them.
+const PROFILES: &[(&str, &[&str])] = &[
+    ("Ox", &["/Ox", "/GS-", "/c"]),
+    ("O1", &["/O1", "/GS-", "/c"]),
+];
+
+fn registry_scan(
+    tc: &Toolchain,
+    sources: &[PathBuf],
+    work_root: &Path,
+    flags: &[&str],
+) -> RegistryScan {
+    let flags: Vec<String> = flags.iter().map(|f| (*f).to_string()).collect();
+    let mut s = RegistryScan::default();
+    for (i, cpp) in sources.iter().enumerate() {
+        let dir = work_root.join(format!("r{i:05}"));
+        let _ = std::fs::create_dir_all(&dir);
+        let Ok(bundle) = tc.capture_il_flags(cpp, &dir, &flags, None) else {
+            let _ = std::fs::remove_dir_all(&dir);
+            continue;
+        };
+        let name = cpp.file_name().unwrap_or_default().to_string_lossy().to_string();
+        if let Some(rows) = bundle.census_functions() {
+            for (f, gate) in &rows {
+                let Ok(func) = gate else { continue };
+                let Ok(mode) = codegen::opt_mode_of_word(f.opt_word) else {
+                    continue;
+                };
+                s.cells += 1;
+                let accepted = codegen::select_function(func, mode).is_ok();
+                let low = cfg_class::lowering_of(func, mode);
+                match (accepted, low) {
+                    (false, Some(l)) => {
+                        *s.over
+                            .entry(format!("{name} :: {} :: {}", fname(f), l.name()))
+                            .or_insert(0) += 1;
+                    }
+                    (true, None) => {
+                        *s.under
+                            .entry(format!("{name} :: {}", fname(f)))
+                            .or_insert(0) += 1;
+                    }
+                    (true, Some(l)) => {
+                        s.graded += 1;
+                        *s.cross
+                            .entry(format!("{} -> {}", l.name(), f.cflow))
+                            .or_insert(0) += 1;
+                        match CflowClass::from_census_str(&f.cflow) {
+                            None => s.unclassified += 1,
+                            Some(c) if !cfg_class::emits(l, c) => {
+                                *s.wrong_class
+                                    .entry(format!(
+                                        "{name} :: {} :: {} declares [{}], census says {}",
+                                        fname(f),
+                                        l.name(),
+                                        cfg_class::classes_of(l)
+                                            .iter()
+                                            .map(|c| c.short())
+                                            .collect::<Vec<_>>()
+                                            .join(" "),
+                                        f.cflow
+                                    ))
+                                    .or_insert(0) += 1;
+                            }
+                            Some(c) => {
+                                s.observed.insert(format!("{} {}", l.name(), c.short()));
+                            }
+                        }
+                    }
+                    (false, None) => {}
+                }
+            }
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+    s
+}
+
+/// **CEILING §6.1 phase 1 — the emitter's CFG-class registry, graded in three
+/// directions at once.**
+///
+/// `c2_core::codegen::cfg_class` declares, per dispatch arm of
+/// `select_function`, which `cflow-*` class that arm emits. Three things can be
+/// wrong with such a declaration and this test asks about all three, because
+/// the mirror it replaces was wrong in the first two and nothing asked:
+///
+/// 1. **Over-claim** — `lowering_of` names an arm for a function
+///    `select_function` refuses. Board **#3270**: the unsound direction is the
+///    one that can be free in the metric used to choose a predicate.
+/// 2. **Under-claim** — `select_function` accepts and `lowering_of` names
+///    nothing.
+/// 3. **Wrong class** — the arm is right and `class_of` disagrees with the
+///    census's own `cflow` string for that body.
+///
+/// The observed `(lowering -> census class)` cross-tab is **printed on every
+/// run**. The declarations in `class_of` were derived from it; printing it is
+/// what makes a silently-drifting declaration visible rather than a comment
+/// nobody re-checks — which is the failure this whole module exists to fix.
+///
+/// **Positive floors, in the order the other tests here use**: emptiness, then
+/// cell floor, then breadth, then the three disagreement counts. A run that
+/// captured nothing must fail on the first, not read green on the last.
+#[test]
+fn the_emitter_cfg_class_registry_agrees_with_select_function_and_the_census() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    let sources = sources_in(&fixtures_dir());
+    assert!(!sources.is_empty(), "no fixtures found");
+    let mut s = RegistryScan::default();
+    for (tag, flags) in PROFILES {
+        let root = work(&format!("cfgclass-{tag}"));
+        let one = registry_scan(&tc, &sources, &root, flags);
+        eprintln!(
+            "  profile {tag:3} : {} cells, {} graded, {} arms",
+            one.cells,
+            one.graded,
+            one.lowerings_seen()
+        );
+        s.merge(one);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    eprintln!("\ncfg-class registry — fixtures, both capture profiles");
+    eprintln!("  cells (census produced an IlFunction) : {}", s.cells);
+    eprintln!("  graded (accepted AND named)           : {}", s.graded);
+    eprintln!("  distinct Lowering arms exercised      : {}", s.lowerings_seen());
+    eprintln!("  census gave no cflow class            : {}", s.unclassified);
+    eprintln!("  OVER-claim  (named, gate refused)     : {}", s.over.len());
+    eprintln!("  UNDER-claim (gate accepted, unnamed)  : {}", s.under.len());
+    eprintln!("  WRONG-class (declaration vs census)   : {}", s.wrong_class.len());
+    eprintln!("  observed lowering -> census class cross-tab:");
+    for (k, n) in &s.cross {
+        eprintln!("    {n:6}  {k}");
+    }
+
+    // 1. emptiness — before any count is trusted.
+    assert!(
+        s.cells > 0,
+        "the registry grading captured nothing: 0 cells. A green run over an \
+         empty population is the failure mode this file's header names."
+    );
+    // 2. the cell floor.
+    assert!(
+        s.cells >= FLOOR_REGISTRY_CELLS,
+        "registry grading ran on {} cells, floor {FLOOR_REGISTRY_CELLS} — the \
+         population collapsed",
+        s.cells
+    );
+    // 3. breadth — a registry graded on a handful of arms grades nothing.
+    assert!(
+        s.lowerings_seen() >= FLOOR_REGISTRY_LOWERINGS,
+        "only {} distinct Lowering arms were exercised, floor \
+         {FLOOR_REGISTRY_LOWERINGS}",
+        s.lowerings_seen()
+    );
+    // 4a. the OVER-claiming direction, first, because it is the unsound one.
+    assert_eq!(
+        s.over.len(),
+        0,
+        "cfg_class::lowering_of named an arm for {} function(s) \
+         select_function REFUSES — the over-claiming direction:\n{}",
+        s.over.len(),
+        s.over.keys().cloned().collect::<Vec<_>>().join("\n")
+    );
+    // 4b. the under-claiming direction.
+    assert_eq!(
+        s.under.len(),
+        0,
+        "select_function accepted {} function(s) cfg_class::lowering_of names \
+         no arm for:\n{}",
+        s.under.len(),
+        s.under.keys().cloned().collect::<Vec<_>>().join("\n")
+    );
+    // 4c. the declarations themselves — observed ⊆ declared.
+    assert_eq!(
+        s.wrong_class.len(),
+        0,
+        "{} body/bodies whose census CFG class is not in the arm's declared \
+         set:\n{}",
+        s.wrong_class.len(),
+        s.wrong_class.keys().cloned().collect::<Vec<_>>().join("\n")
+    );
+    // 4d. **declared ⊆ observed, for every arm the fixtures exercise.** Without
+    // this the safe move is to declare all seven classes on every arm, which
+    // passes 4c and says nothing. Restricted to exercised arms on purpose: an
+    // arm no fixture reaches is UNMEASURED, and reporting it as an over-claim
+    // would be absence read as failure — the mirror image of this repo's most
+    // repeated defect.
+    let exercised: BTreeSet<&str> = s
+        .cross
+        .keys()
+        .filter_map(|k| k.split_once(" -> ").map(|(l, _)| l))
+        .collect();
+    let mut unobserved: Vec<String> = Vec::new();
+    for l in cfg_class::Lowering::ALL {
+        if !exercised.contains(l.name()) {
+            continue;
+        }
+        for c in cfg_class::classes_of(l) {
+            if !s.observed.contains(&format!("{} {}", l.name(), c.short())) {
+                unobserved.push(format!("{} declares {} and never emitted one", l.name(), c.short()));
+            }
+        }
+    }
+    assert!(
+        unobserved.is_empty(),
+        "{} declared (lowering, class) pair(s) on EXERCISED arms that no \
+         capture produced — the over-claiming direction of a set-valued \
+         declaration:\n{}",
+        unobserved.len(),
+        unobserved.join("\n")
+    );
+    // 5. and the arms no fixture reaches at all, named rather than counted, so
+    // the registry's measured fraction is on the record every run.
+    let unmeasured: Vec<&str> = cfg_class::Lowering::ALL
+        .iter()
+        .map(|l| l.name())
+        .filter(|n| !exercised.contains(n))
+        .collect();
+    eprintln!(
+        "  UNMEASURED arms ({} of {}): {}",
+        unmeasured.len(),
+        cfg_class::Lowering::ALL.len(),
+        unmeasured.join(" ")
+    );
+}
+
+/// **The screen's list is the registry's `Whole` claims and nothing else.**
+///
+/// `c2_harness::gap::factors::PORT_CFG_CLASSES` is built from
+/// `cfg_class::CflowClass::census_str`, so the census spellings are typed once.
+/// What a shared spelling cannot check is *which classes* are on the list, and
+/// that is this test: the screen's class set must equal the registry's `Whole`
+/// claims, in order.
+///
+/// This is the construct rung's identity. It is what makes the registry's
+/// arrival a **re-expression** — `cfg-reach-shipped` cannot move unless a lane
+/// deliberately promotes a `Partial` claim to `Whole`, at which point this test
+/// and the screen move together instead of drifting apart.
+///
+/// Portable: no toolchain, no capture.
+#[test]
+fn port_cfg_classes_is_exactly_the_registrys_whole_claims() {
+    let shipped: Vec<&str> = c2_harness::gap::port_cfg_classes()
+        .iter()
+        .map(|e| e.class)
+        .collect();
+    assert_eq!(
+        shipped,
+        cfg_class::whole_claim_census_strings(),
+        "PORT_CFG_CLASSES and cfg_class::SHIPPED_CFG_CLAIMS disagree about \
+         which CFG classes the port claims wholesale"
+    );
+    // And every shipped entry is unrestricted — the `CfgSub::Whole` end of
+    // board #778. A `Keys` entry reaching the screen through a `Whole` claim
+    // would be a partial claim published as a total one.
+    for e in c2_harness::gap::port_cfg_classes() {
+        assert!(
+            !e.is_restricted(),
+            "{} is shipped restricted; a Whole claim cannot produce one",
+            e.class
+        );
+    }
 }

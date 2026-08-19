@@ -648,6 +648,58 @@ rung.**
 | # | phase | what the instruments say about its size |
 |---|---|---|
 | 1 | **Emitter CFG classes** — `cflow-loop`, `cflow-if-n`, `cflow-if-2` | covers **33 of the frontier's 48** reader-blocked functions (`wb-reader`). Today `gap-metric cfg-reach-shipped` is **2** of `cfg-reach-top` **16**: 14 of 16 frontier TUs are held by CFG class alone. What shipped for `cflow-loop` is *"a twenty-word transcription of one function class at `/O1`"* — `PORT_CFG_CLASSES` deliberately does not list it (board **#761**) |
+
+> ### ⚠ 2026-08-19 — **ROW 1's TWO NUMBERS ARE STALE BY A FACTOR OF EIGHT AND ITS ARGUMENT INVERTS. THE FRONTIER IS `2`, `cfg-reach-shipped` IS `0` OF `cfg-reach-top` `2`, AND THE FRONTIER'S EMITTER REFUSES NOTHING.**
+> *Lane `cfgclass`, [`rungs/2026-08-19-cfgclass.md`](rungs/2026-08-19-cfgclass.md)
+> §0; board **#3317**, **#3318**. Measured at `e82c9ede6` **and** at that lane's
+> tip, back to back, same workload stamp `eda64e956c87 (clean)`, the two
+> `gap-metric` blocks **sha256-identical**.*
+>
+> | key | this row says | measured |
+> |---|---:|---:|
+> | `frontier` | 16 | **2** |
+> | `cfg-reach-top` | 16 | **2** |
+> | `cfg-reach-shipped` | 2 | **0** |
+> | frontier reader-blocked functions | 48 | **22** |
+>
+> **The numbers moved because the frontier CONVERTED.** `match` was 11 when
+> §1.2's cells were collected and is **26**; the frontier is `A∧B∧C` minus the
+> matched, so fourteen of the sixteen left it by matching. So the row's
+> dispatch argument — *"14 of 16 frontier TUs are held by CFG class alone"* —
+> now reads **2 of 2**, and **both survivors need `cflow-if-n` AND
+> `cflow-loop` together**: no single class in this row moves either one. The
+> two are `src/keygen_xbox.cpp` (19 blocked) and
+> `src/system/rndobj/wordwrap.cpp` (3 blocked).
+>
+> **AND THE PHASE'S MEASURABLE BUY ON THE FRONTIER IS ZERO, for §6.2's own
+> reason one phase over.** `frontier-codegen-*` reads `denominator 23 · exact 1
+> · wrong 0 · refused 0 · **reader 22** · measured 0`. The scan's own sentence:
+> *"Every frontier function the reader accepts, the port already emits
+> correctly; all of the remaining distance is behind a reader refusal."*
+> `w-itemf-price` (**#3170**) closed phase **7** with the identical finding —
+> *"this phase lifts emitter refusals; the frontier's emitter refuses nothing"*
+> — and this row is titled *"**Emitter** CFG classes"*. **Nothing in the plan
+> carried the observation across**, which is a fact about this page rather than
+> about either phase.
+>
+> **What this does NOT say: that phase 1 is small.** `gap-metric
+> emit-cflow-shape-*` puts `cflow-loop` + `cflow-if-n` + `cflow-if-2` at
+> **18,320 of 113,688** emitted functions across the 878-TU workload —
+> **16.1 %** of what c2 emits. Real mass, zero frontier reach, and the distance
+> in front of it is the **IL reader's**.
+>
+> **Two corrections to the row's prose, both measured** (board **#3319**):
+> `PORT_CFG_CLASSES`' *"`Selected` has seven variants"* names seven, lists six,
+> and the enum has **eighteen**; and a lowering is **not** a function of one CFG
+> class — `Selected::Seq` alone emits `cflow-straight`, `if-1`, `if-2`, `if-n`
+> **and** `multi-exit` byte-exactly. **8** lowerings emit `cflow-if-n` and **9**
+> emit `cflow-loop` today. Promoting either class into the screen's list is
+> priced two-sided and **declined** (**#3320**): it is inert, or it is wrong
+> about **22 of 22** functions, with nothing in between.
+>
+> The banner is here rather than a rewrite because this page's rows are dated
+> records; §9 says how to re-run the scan.
+
 | 2 | **An inliner** | `keygen_xbox.cpp` is the one frontier TU whose gap is neither reader nor emit-set. `wb-frame` retracted board #1477 and found the real `?supershuffle` gap is **14 words of uninlined `?shuffle2`** (**HAND-COUNT**, disassembly-derived). `INLINE_PREDICATE.md`'s mechanism I holds at **0.9716** on a 100-TU hold-out and is **not shipped**. ⚠ **See the correction block below — the 14 words are `SPLICE-0`, and the decision rule is not the expensive half.** |
 
 > ### ⚠ 2026-08-13 — **ROW 2 IS AMENDED IN THREE PLACES, and the phase is smaller in mechanism and exactly as large in conversions.** Lane `w-keygen`, [`rungs/2026-08-13-w-keygen.md`](rungs/2026-08-13-w-keygen.md), boards **#3042**–**#3046**.

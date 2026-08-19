@@ -1,0 +1,143 @@
+MERGE NOTE — lane w-cfgclass (2026-08-19), branch wt-w-cfgclass2
+================================================================
+
+Kind:     CONSTRUCT RUNG (docs/rungs/README.md lane kind 2)
+Phase:    docs/CEILING.md §6.1 row 1 — Emitter CFG classes
+Outcome:  built
+Base:     master e82c9ede6
+Tip:      `git log -1 wt-w-cfgclass2` (this note is the last commit)
+          last commit touching crates/ : 5f37a27bc
+          last commit touching docs/   : 5b9711696
+Rung:     docs/rungs/2026-08-19-cfgclass.md
+Prereg:   work/w-cfgclass/PREREG-2026-08-19.md  (the lane's FIRST commit,
+          6540c958d, before any build / gate / suite / scan / cl.exe)
+Board:    #3317–#3321, from the coordinator's allocated block. Audit clean
+          (0 duplicates, 0 unresolved anchors, 0 cited-but-absent).
+
+DISPATCH DEFECT — the brief's branch name was taken
+---------------------------------------------------
+`wt-w-cfgclass` already exists (bd881e702, the 2026-08-08 lane of the same
+name, still checked out at .claude/worktrees/w-cfgclass), so `git worktree add
+-b wt-w-cfgclass` fails outright. **This lane is on `wt-w-cfgclass2`.**
+`work/w-cfgclass/PREREG.md` was likewise that lane's; this one wrote
+`PREREG-2026-08-19.md` beside it rather than over it.
+
+WHAT LANDED
+-----------
+crates/c2-core/src/codegen/cfg_class.rs        (new) the registry
+crates/c2-core/src/codegen/mod.rs              one pub mod, out of the glob
+crates/c2-harness/src/gap/factors.rs           PORT_CFG_CLASSES derived from
+                                               CflowClass + port_cfg_classes()
+crates/c2-harness/src/gap/mod.rs               one re-export
+crates/c2-harness/tests/census_gate.rs         2 tests, NO new test target
+docs/rungs/2026-08-19-cfgclass.md              the rung
+docs/rungs/INDEX.md                            regenerated (gen_rung_index.sh)
+docs/BOARD.md                                  #3317–#3321
+docs/CEILING.md                                §6.1 row 1 banner (D-1, D-2)
+work/w-cfgclass/*                              prereg, logs, scans, lane counts
+
+REQUIRED-ZERO BYTE DELTA — HELD
+--------------------------------
+per-lane gate counts, base vs tip, line for line:
+    diff work/w-cfgclass/gate_base_lanes.txt work/w-cfgclass/gate_tip_lanes.txt
+    -> EMPTY. 0 lines differ.
+
+878-TU workload scan, base e82c9ede6 vs tip, back to back, same worktree:
+    workload stamp    eda64e956c87 (clean)   BOTH ENDS (#3306 check: diff of
+                      two strings, equal)
+    gap-metric block  sha256 8a9c7b5dac0bd0c4f47458211125fc1f580d06df64cbf22
+                      56678cb19cc37f28f  -- IDENTICAL BOTH ENDS
+    395 anchored keys both ends, 0 differing
+
+GATE / SUITE
+------------
+                          base e82c9ede6            tip
+gate.sh --jobs 16 --require-graded
+  lanes                   18/18 PASS 0 FAIL 0 SKIP  identical
+  fixture-verdicts        6948                      6948
+  expr-sweep              19556/19556, 19460 graded identical
+  mode-cross              90812/90812, 90424 graded identical
+  debug lane              18/18, match 2423, 0 panic identical
+  mismatch                0                         0
+  hatch-red               REFUSED (HATCH-STALE)     REFUSED (HATCH-STALE)
+                          ^ standing at this base, board #1389; verified on a
+                            byte-clean tree, NOT introduced by this lane
+suite (C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast)
+  passed / failed         1681 / 0                  1690 / 0
+  targets                 48                        48   (+9 tests, no target)
+
+ENVIRONMENT CONTROL, PINNED BY NAME
+------------------------------------
+test binary `tests/census_gate.rs`:  base 2 passed / 69.54 s
+                                     tip  4 passed / 152.53 s
+Non-zero executed count AND non-zero duration at both ends. A 0.00 s reading
+there is the unprovisioned-worktree signature and would have voided the pair.
+`compilers` is symlinked into this worktree (X360 present).
+
+VOIDED AND KEPT
+---------------
+work/w-cfgclass/gate_base.INVALID-untracked-file-present.log — the first base
+gate, taken while an untracked cfg_class.rs was on disk. Discarded and re-run
+rather than reasoned about. It happened to read identically, which is why it is
+kept rather than cited.
+
+THE FOUR DISPATCH DEFECTS THE COORDINATOR NEEDS
+------------------------------------------------
+D-1  cfg-reach-shipped is 0 of cfg-reach-top 2. The brief and CEILING §6.1 say
+     2 of 16. frontier is 2, not 16; reader-blocked frontier functions 22, not
+     48. The frontier CONVERTED (match 11 -> 26). The row's dispatch argument
+     ("14 of 16 held by CFG class ALONE") reads "2 of 2", and both survivors
+     need cflow-if-n AND cflow-loop together.
+D-2  frontier-codegen: reader 22, exact 1, wrong 0, refused 0, measured 0. The
+     frontier's EMITTER refuses nothing, so an emitter CFG-class phase converts
+     zero — w-itemf-price's #3170 finding arriving on phase 1, uncarried.
+D-3  the anchored gap-metric key count is 395, not 394, at the base the brief
+     names. Derived three ways. No cause offered (measurement before cause).
+D-4  the workload stamp is eda64e956c87, not 49ad7cfd5; every fnbyte figure in
+     the brief was taken against a different dc3 tree (brief 35,886, measured
+     35,956 at both ends). The pair is still valid because the two ends agree.
+
+DECLINED, PRICED TWO-SIDED
+--------------------------
+Promoting cflow-if-n / cflow-loop into PORT_CFG_CLASSES, Whole or Keys-
+restricted, is NOT taken. Side A: the whole reach at stake is 2 TUs of
+reachability and 0 conversions (cfg-reach-* is an instrument, never a gate).
+Side B: the population it applies to is the 22 blocked frontier functions and
+all 22 are IL-parser refusals, so a promotion is wrong about 22 of 22 at a
+match/fnbyte-exact delta of exactly 0. The restricted variant is decided by
+structure: a Keys(K) entry moves the number only if K names a blocked
+function's key, and every one of those is a reader refusal — so it is inert or
+it is wrong, with nothing in between.
+
+DO NOT MERGE / DO NOT PUSH was the instruction; nothing was merged or pushed.
+Landing convention if it is taken: `git merge --no-ff wt-w-cfgclass2` after a
+rebase onto the default branch — the intermediate commits are the point.
+
+HANDED BACK, RANKED
+-------------------
+1. Tag select_function's 39 `return Ok(Selected::…)` sites with their Lowering
+   and delete lowering_of. The only way to remove the mirror rather than grade
+   it. NOT taken: select.rs is "every rung, one line" and a 39-site edit
+   conflicts with every peer in flight. Price: one construct rung, serialized
+   on crates/c2-core/src/codegen/select.rs.
+2. guard_ret_chain and memcpy_tail are UNMEASURED — 2 of 35 arms no fixture
+   reaches at either profile, and theirs are the only two declarations taken
+   from a module header rather than the census. Three of three such readings
+   were WRONG. Price: one fixture apiece.
+3. cflow-multi-exit is named in no phase of CEILING §6.1, and the port already
+   emits it. A gap in the plan's vocabulary, not in the port.
+4. emit-cflow-shape-undecoded-- is 3,328 (2.9 %) of the emitted-shape
+   denominator. Any phase-1 sizing quoting 16.1 % should say the denominator
+   has a 2.9 % hole.
+5. STATUS.md was RIGHT and CEILING §6.1 was not — checked, and the check
+   reversed what this note was about to claim. STATUS.md's generated block
+   already reads "Pre-Phase-7 FRONTIER ... 2 reachable by codegen breadth
+   alone; 121 if factor A were free", and its prose names wordwrap.cpp and
+   keygen_xbox.cpp as the last two, declined at rungs/2026-08-13-w-keygen.md
+   §7. The live number was on the one-page orientation doc for six days and
+   the phase-1 dispatch was made off CEILING §6.1 anyway. STATUS.md is correct
+   and was NOT touched.
+6. This lane's decline is the second on those same two TUs. w-keygen §7
+   declined them on ~20 live refusals each; this lane declines the screen
+   promotion that would have reported them reachable, on a different argument
+   reaching the same two TUs.

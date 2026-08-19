@@ -6,6 +6,11 @@
 
 use std::collections::BTreeSet;
 
+// **The census spellings come from the emitter's own registry** (lane
+// `w-cfgclass`, `docs/CEILING.md` §6.1 phase 1): `PORT_CFG_CLASSES` used to
+// type them a second time, which is half of what made it a mirror.
+use c2_core::codegen::cfg_class::CflowClass;
+
 use super::fnbytes::MAX_BLR_STOP_LEVELS;
 use super::{GapReport, TuClass, TuResult, PORT_WRITER_SECTIONS, WHOLE_TU_RECOGNIZERS};
 
@@ -61,12 +66,56 @@ use super::{GapReport, TuClass, TuResult, PORT_WRITER_SECTIONS, WHOLE_TU_RECOGNI
 /// exactly what a bare string meant, so this list is behaviourally the list it
 /// replaced — measured, not asserted: `reach` over the 878-TU workload reads
 /// **2 of 17** on both sides, the same two TUs by name.
+///
+/// # ✔ 2026-08-19, lane `w-cfgclass` — **the "hand-maintained mirror" above is
+/// now TIED, and the sentence it sat beside was false**
+///
+/// `docs/CEILING.md` §6.1 phase 1, as a construct rung at a required-zero byte
+/// delta (`rungs/2026-08-19-cfgclass.md`). Two things changed and neither is a
+/// widening:
+///
+/// 1. **The census spellings are no longer typed here.** Every `class` below is
+///    [`c2_core::codegen::cfg_class::CflowClass`]'s own `census_str` /
+///    `census_str_modeled`, which are the strings `c2_il`'s `CfShape::name`
+///    produces. A class renamed in the census can no longer be right in one
+///    crate and stale in the other.
+/// 2. **Which classes appear is asserted against the registry**, by
+///    `census_gate.rs::port_cfg_classes_is_exactly_the_registrys_whole_claims`:
+///    this list must equal `cfg_class::whole_claim_census_strings()`, the
+///    `Claim::Whole` rows of `cfg_class::SHIPPED_CFG_CLAIMS`. **Adding a
+///    `Whole` claim in `c2-core` now reds the harness until this list follows,
+///    and the reverse.** That is the tie the paragraph above says does not
+///    exist, and it is a test rather than a comment because *"re-check when a
+///    variant is added"* was an instruction to a human and twelve `Selected`
+///    variants were added without it happening.
+///
+/// **And the doc above is wrong about the enum it mirrors.** *"`Selected` has
+/// seven variants"* names seven and lists six; the enum has **eighteen**. The
+/// sentence is left as written (dated records are not rewritten in place) with
+/// its correction attached here, which is the same treatment `CEILING.md`'s
+/// banners get.
+///
+/// **`cfg-reach-shipped` is unmoved**: the registry's other claims are
+/// `Claim::Partial` and a partial claim deliberately does not reach this list.
+/// See `cfg_class::SHIPPED_CFG_CLAIMS`, and `rungs/2026-08-19-cfgclass.md` §5
+/// for the two-sided price of promoting one.
 const PORT_CFG_CLASSES: &[CfgClass<'static>] = &[
-    CfgClass { class: "cflow-straight", sub: CfgSub::Whole },
-    CfgClass { class: "cflow-straight+expr-modeled", sub: CfgSub::Whole },
-    CfgClass { class: "cflow-if-1", sub: CfgSub::Whole },
-    CfgClass { class: "cflow-if-1+expr-modeled", sub: CfgSub::Whole },
+    CfgClass { class: CflowClass::Straight.census_str(), sub: CfgSub::Whole },
+    CfgClass { class: CflowClass::Straight.census_str_modeled(), sub: CfgSub::Whole },
+    CfgClass { class: CflowClass::If1.census_str(), sub: CfgSub::Whole },
+    CfgClass { class: CflowClass::If1.census_str_modeled(), sub: CfgSub::Whole },
 ];
+
+/// [`PORT_CFG_CLASSES`], for the one test that grades it against
+/// `c2_core::codegen::cfg_class::SHIPPED_CFG_CLAIMS`.
+///
+/// The constant itself stays private: it is the screen's single assumption and
+/// exactly one reader (`cfg_reach`) is meant to act on it. This accessor exists
+/// so the **identity** can be asserted from outside the crate without the list
+/// becoming something a caller can pass around.
+pub fn port_cfg_classes() -> &'static [CfgClass<'static>] {
+    PORT_CFG_CLASSES
+}
 
 /// **One entry of [`PORT_CFG_CLASSES`]: a CFG class, optionally restricted to a
 /// named sub-class** (lane `w-subclass`, board **#778**).

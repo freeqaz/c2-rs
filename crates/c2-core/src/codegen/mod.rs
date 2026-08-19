@@ -37,6 +37,19 @@ pub mod alloc;
 /// hypothetical one. Callers spell `codegen::block_ir::BasicBlock`.
 pub mod block_ir;
 pub mod calls;
+/// **The emitter's CFG-class registry** (`docs/CEILING.md` §6.1 phase 1) — which
+/// `cflow-*` class each dispatch arm of [`select::select_function`] emits, and
+/// which of those classes the port claims wholesale.
+///
+/// **Deliberately NOT in the glob re-export list below**, for the same reason
+/// [`block_ir`] and [`cond`] are not: `Lowering`, `Claim` and `CflowClass` are
+/// generic enough that arriving in a module's ambient scope by accident is a
+/// real hazard — `Claim` in particular reads like a `c2_il` verdict and is not
+/// one. Callers spell `codegen::cfg_class::Lowering`.
+///
+/// A DECLARATION, never a gate: `select_function` does not consult it, it
+/// appears in no accept/refuse path, and it moves no numerator.
+pub mod cfg_class;
 /// The condition-code model with two producers (`docs/CFG_SHAPE.md` §6.2
 /// item **E**), the producer side.
 ///
