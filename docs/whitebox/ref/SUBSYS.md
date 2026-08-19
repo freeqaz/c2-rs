@@ -1,7 +1,15 @@
 # `SUBSYS` — subsystem → translation unit → page
 
 Which page do you want? Start here. Front door: [`README.md`](README.md) ·
-index: [`ADDR.tsv`](ADDR.tsv).
+index: [`ADDR.tsv`](ADDR.tsv) · **whole-image index:
+[`FUNCS.tsv`](FUNCS.tsv)**.
+
+> **If your subsystem is not in §1, go to `FUNCS.tsv` and not to a probe grid.**
+> §1 is six pages over roughly a quarter of the record's addresses; `FUNCS.tsv`
+> has a row for **every one of the image's 4,917 functions**, with the TU, the
+> degree, the coverage state, and the string literals and imports each one
+> references. It answers *"is anyone home at this address"* for the 89 % of
+> functions no document has ever named. See §5.
 
 The **translation-unit** column is c2's own bookkeeping: its C1001 path prints
 `compiler file '%s', line %d`, so the binary carries its original source file
@@ -33,6 +41,7 @@ white-box debt.** The *addresses* are Tier 2.
 | **DAG build + scheduler** | `dag.c`, **and an unnamed TU with no ICE site** | `0x10b3219f`–`0x10b3433f`, `0x10be5cce`–`0x10be663f` | [`P_DAG.md`](P_DAG.md) | 32 / 61 |
 | **inliner** | `inline.c` | `0x10b5b86d`–`0x10b62b00` | [`P_INLINE.md`](P_INLINE.md) | 16 / 93 |
 | **EH state synthesis** | `ehexcept.c`, `except.c` (+ the `.pdata` drivers) | `0x10be04e7`–`0x10be3800` | [`P_EH.md`](P_EH.md) | 19 / 47 |
+| **symbol records: storage class, section number, WEAK EXTERNALS** | `coff.c` (`FUN_10b28a9b`) + `coffemit.c`'s three appenders | `0x10b28a9b`–`0x10b28d6f`, `0x10b2a757` / `0x10b2a8da` / `0x10b2af4f`, `0x10b2823b` | [`P_SYMBOL.md`](P_SYMBOL.md) | 27 / 5 |
 
 ---
 
@@ -79,3 +88,73 @@ were never used to build the partition, so they are an independent test of it.
 anchor (a single function), and the call-graph cross-validation **did not
 confirm** the partition — it lacks discriminating power, which is a different
 statement and is recorded as such in `C2_MAP.md` §7.1.
+
+> **Measured at function granularity, 2026-08-19 (`FUNCS.tsv`, lane
+> `w-c2map3`):** of the image's 4,917 functions, **1,435 (29.2 %) sit inside an
+> anchor** — the attributions that are *facts* — **3,469 (70.6 %) are in a
+> gap**, i.e. hypotheses, and 104 sit below the first anchor with no attribution
+> at all. That is the same 72.8 % seen through a different denominator, and it
+> is the number to quote when a claim rests on "function *F* is in `globopt.c`".
+
+---
+
+## 4. `CEILING.md` §6.1's seven phases → what the whitebox record has
+
+Measured at base `e82c9ede6` and re-measured at this tip. **This table is the
+answer to "which phase would I be starting from zero on".** `ref` means a
+reference page here; `findings` means a dated `WB_*_FINDINGS.md`.
+
+| # | phase | `ref` page | findings | verdict |
+|---:|---|---|---|---|
+| 1 | **Emitter CFG classes** (`cflow-loop`, `cflow-if-n`, `cflow-if-2`) | — | the **label counter** only (`WB_LABEL_FINDINGS.md`) | **UNSERVED.** The label *numbering* is settled; **block order and branch selection are not read anywhere**. §4.1 names the next read |
+| 2 | **An inliner** | [`P_INLINE.md`](P_INLINE.md) | `WB_INLINE_FINDINGS.md` | served |
+| 3 | **`memset` / selector lowering** | — | `WB_SELECT_RECONCILED.md`, `WB_TABLES_FINDINGS.md`, `WB_MEMCPY_FINDINGS.md` | served by findings; §2's row is the entry |
+| 4 | **Exception handling** | [`P_EH.md`](P_EH.md) | `WB_EH_FINDINGS.md` | served |
+| 5 | **Weak externals at scale** (`alias-weak-needed-tus` **675/871**) | **[`P_SYMBOL.md`](P_SYMBOL.md) §2** | — | **served 2026-08-19.** Before that: searching `docs/whitebox/` for `weak.?extern` returned **one** hit, `DISCLOSURE.md`, mentioning the word in passing |
+| 6 | **COMDAT synthesis** (§2.3's **450**) | **[`P_SYMBOL.md`](P_SYMBOL.md) §3** | — | **decision site named 2026-08-19** (`0x10b28be6`). Which arm the 450 take is **not** measured, and the page says so |
+| 7 | **Regalloc + scheduling across a back edge** | [`P_REGALLOC.md`](P_REGALLOC.md), [`P_DAG.md`](P_DAG.md) | `WB_DAGORDER*`, `WB_DAGCLIENTS`, `WB_LIVE` | served, and re-priced upward twice |
+
+**4 of 7 → 6 of 7.**
+
+### 4.1 Phase 1 is the one still open, and here is the next read
+
+Lane `w-c2map3` did **not** reach it and says so rather than thinning a claim
+across it. What a lane opening phase 1 should read first, in this order:
+
+1. `fg.c` at `0x10b36133` — the flow graph. `FUNCS.tsv` gives it **1 function
+   with a string hook** in the whole TU (`0x10b3d0f6`, `"Precisions don't
+   match"`), so the strings route is nearly dead here and the call graph is the
+   handle.
+2. `factor.c` at `0x10b34a89` — tail merging, **41 functions, 40 of them
+   `cover = none`**. `WB_DAGCLIENTS_FINDINGS.md` already proves two of its
+   routines (`0x10b3b167`, `0x10b3b41b`) **reorder tuples**, which makes it a
+   block-order author as well as a merger.
+3. `0x10b968b0` in `optimize.c` — the only unpaged function in the record
+   holding the label format strings `"%s$%s$%d%s"` / `"$%s$%d%s"`.
+
+**Do not start from a probe grid.** `#761`'s cost is on the board: what shipped
+for `cflow-loop` was *"a twenty-word transcription of one function class at
+`/O1`"*, and `gap-metric cfg-reach-shipped` has been **2 of 16** since.
+
+---
+
+## 5. `FUNCS.tsv` — the whole-image index, and what it is not
+
+`ADDR.tsv` is **bounded by prose**: `build_ref.py` writes a row only for an
+address already cited under `docs/` or already hand-labelled. That is the right
+shape for *"what is known about this address"* and the wrong shape for *"I am
+holding an address nobody has written about"* — which at this tip is **4,390 of
+4,917 functions**.
+
+[`FUNCS.tsv`](FUNCS.tsv) is the complement: one row per function in the image,
+with TU + confidence, `paged`/`labelled`/`cited`/`none`, degree, hop distance to
+the nearest covered function, and the string literals and imports it references.
+
+**Read the honest limits before you rely on it:**
+
+| column | how far it gets you |
+|---|---|
+| `tu` | a **fact** for 29.2 %, a **hypothesis** for 70.6 % (§3) |
+| `strings` / `imports` | present on only **520 of 4,917 = 10.6 %**. It is a *triage* instrument and it triages one function in ten |
+| `hop` | **nearly useless in the middle of its range, and this was measured**: 2,196 functions (44.7 %) are at hop 2 and 1,427 at hop 1, so *"two calls from the register allocator"* describes almost half the image. Only the extremes carry signal — `0` (covered), and `-`/`5`/`6+` (**134 functions**, genuinely isolated). Reported rather than dropped, because a future lane will otherwise re-derive the same ranking and believe it. Fifth entry in this repo's *"ranking instruments measure themselves"* pattern |
+| `conf = mech` | **weaker than `[R]`.** `[R]` asserts the instructions were read correctly; `mech` asserts only that these tables join here |

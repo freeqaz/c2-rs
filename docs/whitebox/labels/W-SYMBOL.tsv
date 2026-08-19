@@ -1,0 +1,36 @@
+addr	label	confidence	note
+# W-SYMBOL — the `.gl` symbol record -> COFF symbol record emitter: storage
+# class, section number, the `/EXPORT:` .drectve, and the WEAK EXTERNAL pair.
+# Lane w-c2map3, campaign 2026-08-19.
+# Image c2.dll sha256 c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258.
+# `high` means "the instructions were read correctly", NOT "this is what c2 does"
+# (C2_MAP_METHOD.md §7 — a rule read correctly out of a small clean function was
+# still WRONG ABOUT C2). Rows carrying an obj confirmation say so and name the
+# witness. Page: ref/P_SYMBOL.md.
+10b28a9b	sym-emit-driver	high	THE `.gl` symbol -> COFF symbol emitter, coff.c band, 724 bytes. Idempotent on [sym+0x32]&1 (read 10b28aa3, set 10b28ab3). Dispatches on the record KIND at [sym+0x30]: 4 (extern/alias) at 10b28ad8, 1 (data) at 10b28ba3, 3 at 10b28b4c; every other kind returns without writing a symbol
+10b28aa3	sym-emit-once	high	`mov al,[esi+0x32]` — bit 0 is "this symbol already has a COFF record"; set at 10b28ab3 BEFORE any emission, so the recursion at 10b28cb9 terminates
+10b28ad8	sym-export-fn	high	kind-4 `/EXPORT:` gate: [sym+0x37]&0x200 (dllexport) AND [sym+0x4c]&0x20 (10b28ae4 — THE EMIT BIT, C2_MAP.md §3E) -> FUN_10b288be("/EXPORT:", name, NULL) at 10b28afa. Literals: 0x10b01b38 "/EXPORT:", 0x10b01b44 ",DATA" (tier 1)
+10b28ae4	emit-bit-read	high	`test [esi+0x4c],0x20` — the emit predicate's own bit, re-read by the .drectve writer. SEE ref/P_SYMBOL.md §5: [sym+0x4c] is OVERLOADED and W-ALIAS-1 adopted the OTHER reading of it on the same kind. This row is a reading, and the overload is an OPEN QUESTION, not a resolved one
+10b28b02	alias-bit-test	high	`test eax,0x400000` on [sym+0x37] — the ALIAS bit W-ALIAS-1 adopted (set at 0x10b9c024). When set, [sym+0x4c] is loaded WHOLE as the alias token at 10b28b09 and control jumps to the weak-external path at 10b28c88. This is the CONSUMER side of W-ALIAS-1, which that row named and did not decode
+10b28b11	sym-storage-kind4	high	`and eax,0x1e0` / `cmp eax,0x80` — a NON-alias kind-4 symbol is written only when the storage-kind field (bits 5..8) is 4; it then gets SectionNumber 0 (DAT_10c2e218, value 0), StorageClass 2 (EXTERNAL), Value 0 — an UNDEFINED EXTERNAL
+10b28ba8	sym-linkage-suppress	high	`(([sym+0x37]>>0x15)&7)` — a 3-bit linkage field at bits 21..23. Values 1 and 3 RETURN WITHOUT WRITING ANY COFF SYMBOL (10b28bb4 / 10b28bbd). Bit 21 alone (0x200000) is separately the emit-marker guard read at 10b28c96
+10b28be6	sym-storage-kind	high	`(([sym+0x37]>>5)&0xf)` — THE STORAGE-KIND FIELD, and the site that decides whether a symbol gets a section at all. dec-chain: 1 -> 10b28d1d, 2 -> 10b28c7d, 3 -> 10b28c6e, else -> 10b28c00 (StorageClass 3 = STATIC). This is CEILING.md §6.1 phase 6's decision site
+10b28c7d	sym-common-or-weak	high	storage-kind 2: `[sym+0x3f] != 0` -> the WEAK EXTERNAL path at 10b28c88; zero -> 10b28d16, an undefined external. So a kind-1 DATA symbol reaches the weak path by a SECOND route the alias bit never touches
+10b28c88	weak-extern-join	high	the weak-external join point, reached from kind-4+alias-bit (10b28b0c) and from kind-1 storage-kind-2 with [sym+0x3f]!=0 (10b28c82). `mov edx,[esi+0x8]` then resolve the token
+10b28c8b	weak-target-resolve	high	`call 0x10b9860d` — resolve the alias token to the TARGET symbol (p2symtab.c, 31 callers)
+10b28c92	alias-target-mark	high	`or [target+0x32],0x4` — bit 2 of the target's per-symbol flags is "an alias names me"
+10b28c96	emit-marker-guard	high	`test [target+0x37],0x200000` — the guard on the emit-marker call below
+10b28ca3	emit-marker-call	high	`call 0x10b276e4` — THE SITE `W-ALIAS-2` NAMES AND EXPLICITLY DOES NOT DECODE ("the instruction that turns +0x20&0x2000 into the COFF Mark bit is named and NOT decoded"). Decoded here: it is a guarded call to the emit-marker from the COFF symbol writer, so resolving an alias can ADD ITS TARGET TO THE EMIT SET during obj writing
+10b28ca8	alias-hop	high	`cmp [alias+0x30],1` && `cmp [target+0x30],4` -> `target = [target+0x3c]` (10b28cb4): one further hop when a DATA alias names an EXTERN record
+10b28cb9	weak-default-recurse	high	`call 0x10b28a9b` on the TARGET before the alias's own record is written. This is WHY the default symbol precedes the weak record in the symbol table — an ORDERING RULE, and the property no obj grid can distinguish from adjacency
+10b28cbe	weak-default-index	high	`cmp [target+0x24],0` — [sym+0x24] is the assigned COFF symbol index, 0 = unassigned. Only then is a default created at 10b28ce1 with StorageClass 2 (push 0x2 at 10b28cd2) and Value 0, and the index latched at 10b28ce6
+10b28cea	weak-aux-characteristics	high	`push 0x2` — the weak-external aux `Characteristics`. 2 = IMAGE_WEAK_EXTERN_SEARCH_LIBRARY. **[O] CONFIRMED ON THE WHOLE WORKLOAD**: gap key `alias-weak-not-search-library` is a KNOWN ANSWER 0 over the 878-TU scan (crates/c2-harness/src/gap/scan.rs), i.e. every weak external real c2 wrote carries exactly 2
+10b28cec	weak-aux-tagindex	high	`push [target+0x24]` — the weak-external aux `TagIndex` is the DEFAULT symbol's index. **[O] CONFIRMED**: gap key `alias-weak-default-disagree` is a KNOWN ANSWER 0 over the workload
+10b28cfd	weak-storage-class	high	`push 0x69` — StorageClass = IMAGE_SYM_CLASS_WEAK_EXTERNAL (105). Value is [sym+0x18] (10b28cfa), Type from 10b2823b. **[O]**: crates/c2-obj ObjImage::weak_externals reads exactly this class on real c2 objs
+10b28d0c	weak-emit-call	high	`call 0x10b2af4f` — emit the class-0x69 record plus its one aux slot
+10b28d1d	sym-comdat-value	high	storage-kind 1: `test [sym+0x20],0x80000` -> Value = 4 (10b28d2e) else Value = [sym+0x18]; StorageClass 2 (EXTERNAL); SectionNumber = FUN_10b287b8([sym+0xc]), the per-section finalize that ORs IMAGE_SCN_LNK_COMDAT
+10b2af4f	weak-aux-writer	high	43 bytes: FUN_10b2a8da(name, sect, class, value, type, &aux, sym) then `aux[0] = TagIndex`, `aux[1] = Characteristics`. That IS the 18-byte weak-external aux record, COFF spec layout
+10b2a8da	sym-add-aux	high	92 bytes, coffemit.c anchor: append a COFF symbol AND hand back a pointer to its one aux slot. Also the target of the kind-4 `[sym+0x20]&0x20000000` path at 10b28c48
+10b2a757	sym-add	high	164 bytes, coffemit.c anchor: append a COFF symbol with no aux. SectionNumber comes in EDX; DAT_10c2e218 (value 0) is the UNDEFINED section number
+10b2823b	coff-sym-type	high	38 bytes: THE COFF `Type` word. Returns 0x20 (IMAGE_SYM_DTYPE_FUNCTION<<4) iff ([sym+0x30]==3 AND (byte)([sym+0x31]+0xac) <= 2, i.e. +0x31 in {0x54,0x55,0x56}) OR ([sym+0x30]==4 AND [sym+0x37]&0x400); otherwise 0. Called at 10b28b4e, 10b28cf1, 10b28d44
+10c2e218	undef-section-number	high	the constant SectionNumber used for every symbol c2 declares UNDEFINED. data.tsv gives its value as 0x0; five readers, all in 10b28a9b and 10b2a757

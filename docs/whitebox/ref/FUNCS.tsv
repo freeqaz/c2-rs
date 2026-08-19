@@ -113,7 +113,7 @@ addr	size	kind	tu	tu_conf	subsys	page	cover	conf	label	ncallers	ncallees	hop	nst
 10b281af	34	ghidra	-	gap	coff	P_COFF.md	paged	high	coff-writer: sole _time64 caller; TimeDateStamp callback; returns 0 when DAT_10c2ead8 set	0	0	0	0	-	1	_time64
 10b281d1	38	ghidra	-	gap	-	-	none	mech	-	1	1	1	0	-	0	-
 10b281f7	32	ghidra	-	gap	coff	P_COFF.md	paged	high	comdat: identity map 1..8 for the COMDAT Selection byte	1	0	0	0	-	0	-
-10b2823b	38	ghidra	-	gap	-	-	none	mech	-	2	0	1	0	-	0	-
+10b2823b	38	ghidra	-	gap	symbol	P_SYMBOL.md	paged	high	coff-sym-type: 38 bytes: THE COFF `Type` word. Returns 0x20 (IMAGE_SYM_DTYPE_FUNCTION<<4) iff ([sym+0x30]==3 AND (byte)([sym+0x31]+0xac) <= 2, i.e. +0x31 in {0x54,0x55,0x56}) OR ([sym+0x30]==4 AND [s…	2	0	0	0	-	0	-
 10b28261	163	ghidra	-	gap	coff	P_COFF.md	paged	high	section-align|section-select: align -> nibble: (log2(a)+1)<<20, 1->0x100000 ... 0x1000->0xD00000	1	0	0	0	-	0	-
 10b28304	172	ghidra	-	gap	coff	P_COFF.md	paged	high	section-select: inverse of 10b28261	1	0	0	0	-	0	-
 10b283b0	74	ghidra	-	gap	coff	P_COFF.md	paged	high	section-comdat|comdat: COMDAT spin-off: FUN_10be74cf(base->name+4, base->class+0x3b, newidx, base->kind+0x4d, selection, sym); copies +0x43 and +0x53 from base; stores ".data" into child+4 when base …	4	2	0	1	.data	0	-
@@ -126,7 +126,7 @@ addr	size	kind	tu	tu_conf	subsys	page	cover	conf	label	ncallers	ncallees	hop	nst
 10b288be	289	ghidra	coff.c	gap	coff	P_COFF.md	none	mech	-	2	5	1	0	-	0	-
 10b289df	30	ghidra	coff.c	gap	coff	P_COFF.md	none	mech	-	1	2	1	0	-	0	-
 10b289fd	46	ghidra	coff.c	gap	coff	P_COFF.md	paged	high	section-align|section-select: ORs FUN_10b28261(sect+0x43) into chars ONLY when (sect[0x53] & 0xF00000)==0; proven by an IL override carrying align nibble 5	0	3	0	0	-	0	-
-10b28a9b	724	ghidra	coff.c	gap	coff	P_COFF.md	labelled	high	coff-symbol-writer: writes COFF symbols; marks alias targets; emits /EXPORT: directives	2	12	0	2	/EXPORT: | ,DATA	0	-
+10b28a9b	724	ghidra	coff.c	gap	symbol	P_SYMBOL.md	paged	high	coff-symbol-writer|sym-emit-driver: writes COFF symbols; marks alias targets; emits /EXPORT: directives	2	12	0	2	/EXPORT: | ,DATA	0	-
 10b29050	140	ghidra	coff.c	gap	coff	P_COFF.md	cited	mech	-	0	6	1	0	-	0	-
 10b290dc	207	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	cited	mech	-	1	2	1	1	e:\\bt\\278379\\vctools\\compiler\\be\\p2\\co…	1	fseek
 10b291ab	6	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	1	0	-	0	-	0	-
@@ -142,7 +142,7 @@ addr	size	kind	tu	tu_conf	subsys	page	cover	conf	label	ncallers	ncallees	hop	nst
 10b29318	88	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	1	0	4	0	-	0	-
 10b293b3	57	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	high	pdb-client	6	1	2	1	e:\\bt\\278379\\vctools\\compiler\\be\\p2\\co…	1	SigForPbCb
 10b293ec	80	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	1	0	4	0	-	0	-
-10b2943c	79	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	2	0	2	0	-	0	-
+10b2943c	79	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	2	0	1	0	-	0	-
 10b2948b	104	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	paged	high	comdat: 18-byte aux section-definition; Selection/Number only when chars&0x1000	2	0	0	0	-	0	-
 10b294f3	83	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	1	0	2	0	-	0	-
 10b29546	29	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	2	0	2	0	-	0	-
@@ -157,7 +157,7 @@ addr	size	kind	tu	tu_conf	subsys	page	cover	conf	label	ncallers	ncallees	hop	nst
 10b29c63	23	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	4	0	2	0	-	0	-
 10b29c7a	275	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	2	2	2	1	e:\\bt\\278379\\vctools\\compiler\\be\\p2\\co…	1	fwrite
 10b29d8d	13	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	1	1	2	0	-	0	-
-10b29d9a	13	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	3	1	2	0	-	0	-
+10b29d9a	13	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	3	1	1	0	-	0	-
 10b29da7	75	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	1	3	2	0	-	0	-
 10b29df2	32	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	3	1	1	0	-	0	-
 10b29e12	13	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	3	1	2	0	-	0	-
@@ -214,16 +214,16 @@ addr	size	kind	tu	tu_conf	subsys	page	cover	conf	label	ncallers	ncallees	hop	nst
 10b2a5f5	71	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	1	2	2	0	-	0	-
 10b2a63c	35	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	1	1	2	0	-	0	-
 10b2a65f	248	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	1	5	1	0	-	0	-
-10b2a757	164	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	4	4	1	0	-	0	-
-10b2a7fb	60	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	1	3	2	0	-	0	-
+10b2a757	164	ghidra	coffemit.c	in-anchor	symbol	P_SYMBOL.md	paged	high	sym-add: 164 bytes, coffemit.c anchor: append a COFF symbol with no aux. SectionNumber comes in EDX; DAT_10c2e218 (value 0) is the UNDEFINED section number	4	4	0	0	-	0	-
+10b2a7fb	60	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	1	3	1	0	-	0	-
 10b2a870	43	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	2	1	2	0	-	0	-
 10b2a89b	63	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	0	2	2	0	-	0	-
-10b2a8da	92	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	2	3	1	0	-	0	-
+10b2a8da	92	ghidra	coffemit.c	in-anchor	symbol	P_SYMBOL.md	paged	high	sym-add-aux: 92 bytes, coffemit.c anchor: append a COFF symbol AND hand back a pointer to its one aux slot. Also the target of the kind-4 `[sym+0x20]&0x20000000` path at 10b28c48	2	3	0	0	-	0	-
 10b2a936	1050	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	paged	high	coff-writer: fwrite 0x12 IMAGE_SYMBOL; ".file" memcpy 8, SectionNumber 0xfffe, StorageClass 0x67	0	7	0	2	e:\\bt\\278379\\vctools\\compiler\\be\\p2\\co… | .file	2	fputc,fwrite
 10b2ad50	159	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	paged	high	coff-writer: 8-byte Name encoder: '/'+decimal, '//'+base64 over the 64-char alphabet	1	5	0	1	ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrs…	0	-
 10b2adef	31	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	0	2	3	0	-	0	-
 10b2ae0e	321	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	paged	high	coff-writer: latches Machine/FILE*/alloc/err/time callbacks into 0x10c44bf0..0x10c44c0c	1	4	0	1	@comp.id	0	-
-10b2af4f	43	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	1	1	1	0	-	0	-
+10b2af4f	43	ghidra	coffemit.c	in-anchor	symbol	P_SYMBOL.md	paged	high	weak-aux-writer: 43 bytes: FUN_10b2a8da(name, sect, class, value, type, &aux, sym) then `aux[0] = TagIndex`, `aux[1] = Characteristics`. That IS the 18-byte weak-external aux record, COFF spec layout	1	1	0	0	-	0	-
 10b2af7a	40	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	2	2	1	0	-	0	-
 10b2afa2	56	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	0	2	3	0	-	0	-
 10b2afda	78	ghidra	coffemit.c	in-anchor	coff	P_COFF.md	none	mech	-	0	2	3	0	-	0	-
