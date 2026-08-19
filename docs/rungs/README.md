@@ -154,8 +154,10 @@ unmeasured).
   effect under ~10 bodies as **unattributable rather than reporting it**.
 * **Assert the two ends read the SAME workload stamp** (#3306) — `c2rs gap`
   prints `workload <sha> (clean) <path>` on every run, so the check is a
-  `diff` of two strings the scan already emits. **Assert EQUALITY between your
-  own two ends; never carry a stamp VALUE from a brief.** On 2026-08-19 alone
+  `diff` of two strings the scan already emits. **RE-READ THE STAMP AT LANE
+  START, assert EQUALITY between your own two ends, and never carry a stamp
+  VALUE from a brief** — a pinned stamp pins a fact with a half-life of hours
+  (#3311, the third instance). On 2026-08-19 alone
   the sibling `dc3-decomp` tree passed through **three** stamps —
   `897d0220fd1d` → `49ad7cfd5d26` → `eda64e956c87` — and a coordinator handed
   the middle one to a lane that measured the third. Anything derived from it
