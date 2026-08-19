@@ -129,5 +129,15 @@ HANDED BACK, RANKED
 4. emit-cflow-shape-undecoded-- is 3,328 (2.9 %) of the emitted-shape
    denominator. Any phase-1 sizing quoting 16.1 % should say the denominator
    has a 2.9 % hole.
-5. STATUS.md's phase-1 sentence carries the same stale 2-of-16 as CEILING's
-   row. Its metric block is generated and was not touched by this lane.
+5. STATUS.md was RIGHT and CEILING §6.1 was not — checked, and the check
+   reversed what this note was about to claim. STATUS.md's generated block
+   already reads "Pre-Phase-7 FRONTIER ... 2 reachable by codegen breadth
+   alone; 121 if factor A were free", and its prose names wordwrap.cpp and
+   keygen_xbox.cpp as the last two, declined at rungs/2026-08-13-w-keygen.md
+   §7. The live number was on the one-page orientation doc for six days and
+   the phase-1 dispatch was made off CEILING §6.1 anyway. STATUS.md is correct
+   and was NOT touched.
+6. This lane's decline is the second on those same two TUs. w-keygen §7
+   declined them on ~20 live refusals each; this lane declines the screen
+   promotion that would have reported them reachable, on a different argument
+   reaching the same two TUs.
