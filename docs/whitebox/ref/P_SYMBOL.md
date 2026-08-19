@@ -185,6 +185,45 @@ workload `.gl` symbols with both bits set.
 
 ---
 
+## 5.1 ⛔ `W-ALIAS-2` names `0x10b28ca3` and describes it as something else — the address is right, the sentence is not
+
+`DISCLOSURE.md`'s `W-ALIAS-2` row ends:
+
+> *"The instruction that turns `+0x20 & 0x2000` into the COFF Mark bit is
+> **named (`0x10b28ca3`) and NOT decoded**."*
+
+Decoded, `0x10b28ca3` is `e8 3c ea ff ff` — **`call 0x10b276e4`**, guarded by
+`test DWORD PTR [edi+0x37], 0x200000` at `0x10b28c96`. `FUN_10b276e4` is the
+**emit-marker**, and it touches **`[sym+0x4c]`, not `[sym+0x20]`**:
+
+```
+10b276ea:  test al,0x20                 ; already marked -> return
+10b276fb:  or   eax,0x20                ; <- the emit bit
+10b276fe:  mov  [ecx+0x4c],eax
+10b2770a:  mov  ecx,[ecx+0x80]          ; the reference list
+10b27720:  test [ref+0x37],0x400        ; skip
+10b27729:  test [ref+0x4c],0x20         ; skip if already marked
+10b27731:  call 0x10b276e4              ; RECURSE  <- the reachability closure
+```
+
+That is `C2_MAP.md` §3E's emit predicate and its closure, and it agrees with
+`labels/W-EMIT.tsv`'s existing row for `0x10b276e4` verbatim `[R]`.
+
+**And `or DWORD PTR [eax+0x20], 0x2000` occurs exactly once in the image: at
+`0x10b663b9`, inside `FUN_10b6633d` (1,181 bytes) — in the `inline.c` band, not
+in `coff.c`.** So the two halves of that sentence name **two different
+mechanisms in two different translation units**.
+
+**Amended beside, per §2.1 — the original stands.** Nothing about `W-ALIAS-2`'s
+*adopted content* changes: it is a `route:` row, it copies no value into
+`crates/`, and its two load-bearing addresses (`0x10b99621`, `0x10b99635`) are
+untouched by this. What changes is that a reader who greps
+`0x10b28ca3` expecting the Mark bit will find the emit-marker, and a reader
+who wants the Mark bit should go to `0x10b663b9`. **Neither this lane nor
+`W-ALIAS-2` has decoded `0x10b663b9`, and this page does not claim to.**
+
+---
+
 ## 6. Entries
 
 `size` and the caller/callee counts are Ghidra's, from the flat export.
@@ -207,7 +246,7 @@ workload `.gl` symbols with both bits set.
 | `0x10b28c8b` | — | — | — | — | `call 0x10b9860d`, resolve token → target `[R]` |
 | `0x10b28c92` | — | — | — | — | `or [target+0x32],4` `[R]` |
 | `0x10b28c96` | — | — | — | — | `test [target+0x37],0x200000`, the emit-marker guard `[R]` |
-| `0x10b28ca3` | — | — | — | — | **`call 0x10b276e4`** — the site `W-ALIAS-2` names as *"named and NOT decoded"*. Decoded: a guarded emit-marker call **from the COFF symbol writer** `[R]` |
+| `0x10b28ca3` | — | — | — | — | **`call 0x10b276e4`** — the site `W-ALIAS-2` names as *"named and NOT decoded"*. Decoded: a guarded emit-marker call **from the COFF symbol writer**, so resolving an alias can add its target to the emit set during obj writing. **`W-ALIAS-2`'s sentence about it is imprecise — see §5.1** `[R]` |
 | `0x10b28ca8` | — | — | — | — | the kind-1→kind-4 hop through `[target+0x3c]` `[R]` |
 | `0x10b28cb9` | — | — | — | — | **`call 0x10b28a9b`** — recurse on the target. The ordering rule `[R]`/`[I]` |
 | `0x10b28cbe` | — | — | — | — | `cmp [target+0x24],0` — mint the default on demand `[R]` |

@@ -105,16 +105,16 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10b2733d	func-entry	10b2733d	63	11	1	-	gap	-	-	unknown	-	1	whitebox/WB_LIVE_FINDINGS.md:1
 10b27474	func-entry	10b27474	132	92	2	-	gap	-	-	unknown	-	1	whitebox/WB_LIVE_FINDINGS.md:1
 10b275d8	func-entry	10b275d8	27	6	2	-	gap	-	-	unknown	-	8	whitebox/WB_LIVE_FINDINGS.md:5,BOARD.md:3
-10b276e4	func-entry	10b276e4	91	6	1	-	gap	-	-	high	emit-marker: sets +0x4c|=0x20, recurses over the func record reference list	19	rungs/_2026-08-04-w-mark-findings.md:5,rungs/_2026-08-04-w-mark-prereg.md:3,rungs/_2026-08-04-w-refs-findings.md:3,BOARD.md:1,rungs/2026-08-08-w-phase7.md:1,rungs/2026-08-19-c2map3.md:1
+10b276e4	func-entry	10b276e4	91	6	1	-	gap	-	-	high	emit-marker: sets +0x4c|=0x20, recurses over the func record reference list	21	rungs/_2026-08-04-w-mark-findings.md:5,rungs/_2026-08-04-w-mark-prereg.md:3,rungs/_2026-08-04-w-refs-findings.md:3,BOARD.md:2,rungs/2026-08-19-c2map3.md:2,rungs/2026-08-08-w-phase7.md:1
 10b276ea	in-func	10b276e4	91	6	1	-	gap	-	-	high	emit-marker	2	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
 10b276ee	in-func	10b276e4	91	6	1	-	gap	-	-	high	emit-marker	2	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
-10b276fb	in-func	10b276e4	91	6	1	-	gap	-	-	high	emit-marker	2	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
+10b276fb	in-func	10b276e4	91	6	1	-	gap	-	-	high	emit-marker	4	BOARD.md:1,rungs/2026-08-19-c2map3.md:1,rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
 10b27701	in-func	10b276e4	91	6	1	-	gap	-	-	high	emit-marker	3	rungs/_2026-08-04-w-mark-findings.md:2,rungs/_2026-08-04-w-mark-prereg.md:1
 10b2770a	in-func	10b276e4	91	6	1	-	gap	-	-	high	emit-marker	2	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
 10b27715	in-func	10b276e4	91	6	1	-	gap	-	-	high	emit-marker	6	rungs/_2026-08-04-w-skip-findings.md:2,BOARD.md:1,rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1,rungs/_2026-08-04-w-skip-prereg.md:1
 10b27720	in-func	10b276e4	91	6	1	-	gap	-	-	high	emit-marker	2	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
 10b27729	in-func	10b276e4	91	6	1	-	gap	-	-	high	emit-marker	2	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
-10b27731	in-func	10b276e4	91	6	1	-	gap	-	-	high	emit-marker	6	rungs/_2026-08-04-w-mark-findings.md:3,rungs/_2026-08-04-w-mark-prereg.md:2,rungs/_2026-08-04-w-refs-findings.md:1
+10b27731	in-func	10b276e4	91	6	1	-	gap	-	-	high	emit-marker	8	rungs/_2026-08-04-w-mark-findings.md:3,rungs/_2026-08-04-w-mark-prereg.md:2,BOARD.md:1,rungs/2026-08-19-c2map3.md:1,rungs/_2026-08-04-w-refs-findings.md:1
 10b2773e	in-func	10b276e4	91	6	1	-	gap	-	-	high	emit-marker	2	rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1
 10b2773f	func-entry	10b2773f	79	1	0	-	gap	-	-	high	emit-closure: additive fixpoint over the inline-candidate list; non-LTCG path	6	whitebox/C2_MAP.md:3,rungs/_2026-08-04-w-mark-findings.md:1,rungs/_2026-08-04-w-mark-prereg.md:1,whitebox/BOARD_PROPOSED.md:1
 10b2778e	func-entry	10b2778e	354	4	1	-	gap	-	-	high	emit-order: topological sort (callee before caller) of DAT_10c4630c	14	whitebox/WB_CHOOSER_FINDINGS.md:5,BOARD.md:3,rungs/2026-08-08-wb-chooser.md:3,rungs/2026-08-08-wb-frame.md:1,whitebox/C2_MAP.md:1,whitebox/WB_FRAME_FINDINGS.md:1
@@ -413,6 +413,8 @@ addr	kind	func	func_size	ncallers	ncallees	tu	tu_conf	subsys	page	conf	label	n_c
 10b6276a	in-func	10b62675	464	1	11	inline.c	gap	inline	P_INLINE.md	unknown	-	1	whitebox/WB_INLINE_FINDINGS.md:1
 10b62845	func-entry	10b62845	26	4	0	inline.c	gap	inline	P_INLINE.md	unknown	-	1	whitebox/WB_INLINE_FINDINGS.md:1
 10b629af	func-entry	10b629af	187	2	0	inline.c	gap	inline	P_INLINE.md	unknown	-	1	whitebox/WB_DAGORDER_FINDINGS.md:1
+10b6633d	func-entry	10b6633d	1181	1	9	inline.c	gap	inline	P_INLINE.md	unknown	-	1	rungs/2026-08-19-c2map3.md:1
+10b663b9	in-func	10b6633d	1181	1	9	inline.c	gap	inline	P_INLINE.md	unknown	-	2	BOARD.md:1,rungs/2026-08-19-c2map3.md:1
 10b699a8	func-entry	10b699a8	369	43	6	inline.c	gap	inline	P_INLINE.md	unknown	-	1	whitebox/WB_MEMCPY_FINDINGS.md:1
 10b6fedd	func-entry	10b6fedd	181	2	1	inline.c	gap	inline	P_INLINE.md	high	stall-listing: the /QXSTALLS stall-summary writer; with 10b71d8f it is the ONLY consumer of the stall-reason table at 10b12af8..10b12bd4, so the stall model is listing-only and does not reorder anything	2	BOARD.md:1,whitebox/WB_REGALLOC_FINDINGS.md:1
 10b709b8	func-entry	10b709b8	421	1	5	list.c	in-anchor	-	-	unknown	-	2	whitebox/PREREG.md:1,whitebox/WB_REGALLOC_FINDINGS.md:1

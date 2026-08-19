@@ -169,7 +169,7 @@ Measured at this tip:
 | | value | note |
 |---|---:|---|
 | rows | **4,917** | the denominator is the image, which is the whole point |
-| `cover` paged / labelled / cited / **none** | 122 / 164 / 242 / **4,389** | **528 = 10.7 % of functions** are covered at all |
+| `cover` paged / labelled / cited / **none** | 122 / 164 / 243 / **4,388** | **529 = 10.8 % of functions** are covered at all |
 | TU attribution that is a **fact** (`in-anchor`) | **1,435 = 29.2 %** | the other 70.6 % are `gap` hypotheses; 104 sit below the first anchor |
 | a **strong hook** (a string literal or an import) | **520 = 10.6 %** | string 331, import 271 |
 | within 6 call hops of a covered function | 4,803 = 97.7 % | **and this is the column that does not work — see below** |
@@ -186,7 +186,7 @@ Measured at this tip:
 Note the two indices count different things and **both counts are right**:
 `ADDR.tsv`'s C2 row says *632 distinct functions are **named by a row***, which
 includes data addresses whose `func` cell is the datum itself; `FUNCS.tsv` says
-**528 code functions are covered**, rolled up per function. Quote the one you
+**529 code functions are covered**, rolled up per function. Quote the one you
 mean.
 
 ---
