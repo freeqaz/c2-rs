@@ -327,10 +327,10 @@ outcome of 0.96×.
 
 | lane | result |
 |---|---|
-| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **1,681 passed, 0 failed, 1 ignored, 48 targets** (`SQ`, 207.6 s, load 15.2) |
+| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **1,681 passed, 0 failed, 1 ignored, 48 targets** — at the tip (`SFINAL`, 225.3 s, load 4.1), and its 1,682-name list is byte-identical to `SQ`'s |
 | `scripts/partest.sh --jobs 16` | **1,681 passed, 0 failed, 1 ignored, 48 targets, 1,682 named results** (`PQ`, 122.9 s, load 3.1) |
 | by-name identity, serial vs parallel | **10 pairs, 1,682 results, 0 added, 0 removed, 0 verdict changes** |
-| `scripts/gate.sh --jobs 16 --require-graded` | **PASS** — 18/18 lanes, sweep **19,460 / 19,556**, cross **90,424 / 90,812**, **0 mismatch**, debug 18/18 at **6,948** fixture-verdicts, 0 panics, 89.5 s warm |
+| `scripts/gate.sh --jobs 16 --require-graded` | **PASS** at the clean tip — 18/18 lanes, sweep **19,460 / 19,556**, cross **90,424 / 90,812**, **0 mismatch**, debug 18/18 at **6,948** fixture-verdicts, 0 panics; graded tree `ba1c880c30e4`; 147 s at load 15.6 (89.5 s at load 3.9 on the run before) |
 | `status.sh --tests-log <parallel suite.log>` | `1681 passed, 0 failed, 48 targets` — the same row a serial run produces |
 
 Identical to the dispatched baseline on every count.
@@ -340,10 +340,14 @@ the required-zero byte delta is satisfied by construction rather than by
 measurement. The graded tree moves only by `scripts/` (#3215: graded-tree
 identity binds revert-everything lanes; this one lands two scripts).
 
-**`hatch-red` reads `REFUSED HATCH-STALE` in both gate runs.** It is not this
-lane: `crates/` is byte-identical to `e82c9ede6`, and `hatch.py apply` operates
-on `crates/`, so whatever verdict it produces here it produces on master. Worth
-someone's five minutes, and it is not mine to claim.
+**`hatch-red` reads `REFUSED HATCH-STALE` in all three gate runs, including one
+on a fully clean tip.** It is not this lane, and that is checkable rather than
+asserted: `work/w-front3/hatch.py`'s `EDITS`/`RETIRED` tables name **only files
+under `crates/c2-il/`** (`lib.rs`, `func/sy.rs`, `func/body/shapes/{assign,
+calls,leaf_store}.rs`, `func/body/expr.rs`), and `git diff e82c9ede6 HEAD --
+crates/` is empty, so `hatch.py apply` sees exactly the tree it sees on master.
+Whatever verdict it produces here it produces there. Worth someone's five
+minutes; it is not mine to claim.
 
 ## 8. Found and not taken
 
