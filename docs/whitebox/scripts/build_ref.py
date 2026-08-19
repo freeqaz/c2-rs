@@ -96,9 +96,14 @@ RANGE_TU = [
 ]
 
 # Subsystem name for each page, for the `subsys` column.
+# `P_SYMBOL.md` (2026-08-19, lane w-c2map3) deliberately has NO TU_PAGE entry:
+# it lives inside `coff.c`, and giving it one would move every unread function
+# in `coff.c`'s gap off `P_COFF.md`.  Ownership is per-address, so the page
+# still claims exactly the rows it tabulates.
 PAGE_SUBSYS = {
     "P_COFF.md": "coff", "P_SECTION.md": "section", "P_REGALLOC.md": "regalloc",
     "P_DAG.md": "dag", "P_INLINE.md": "inline", "P_EH.md": "eh",
+    "P_SYMBOL.md": "symbol",
 }
 
 # Functions Ghidra's auto-analysis did NOT create, verified by hand in
