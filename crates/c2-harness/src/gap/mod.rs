@@ -50,7 +50,7 @@ mod splitter_predicate_guard;
 mod tests;
 
 pub use classify::{cflow_needs_block_ir, dtor_callee_class};
-pub use factors::{CfgBounds, CfgClass, CfgLedgerRow, CfgReach, CfgSub};
+pub use factors::{port_cfg_classes, CfgBounds, CfgClass, CfgLedgerRow, CfgReach, CfgSub};
 pub use scan::gap_scan;
 pub use witness::{witness_buckets, WitnessBucket, WitnessRow};
 
