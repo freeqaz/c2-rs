@@ -5,7 +5,9 @@ Kind:     CONSTRUCT RUNG (docs/rungs/README.md lane kind 2)
 Phase:    docs/CEILING.md §6.1 row 1 — Emitter CFG classes
 Outcome:  built
 Base:     master e82c9ede6
-Tip:      <see `git log -1 wt-w-cfgclass2`>
+Tip:      `git log -1 wt-w-cfgclass2` (this note is the last commit)
+          last commit touching crates/ : 5f37a27bc
+          last commit touching docs/   : 5b9711696
 Rung:     docs/rungs/2026-08-19-cfgclass.md
 Prereg:   work/w-cfgclass/PREREG-2026-08-19.md  (the lane's FIRST commit,
           6540c958d, before any build / gate / suite / scan / cl.exe)
