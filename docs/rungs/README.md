@@ -138,20 +138,29 @@ unmeasured).
   the `SKIP` line for a passing test — so a registered RED reads GREEN with a
   clean suite, the right target count and the right exit code (#3219, #3231).
   The two runs are otherwise **byte-identical**; only the durations differ.
-* **Count `gap-metric` keys with `grep -cE '^ *gap-metric \S+ \S+$'` → 394.**
-  Never `grep -c 'gap-metric'` → **396**: two prose lines merely *mention*
-  keys. **Three consecutive lanes hit this**, and the third *explained* the
-  +2 by attributing it to a peer's merge (#3269). Hence the general rule:
-  **a lane that finds an unexpected delta owes a measurement before it owes a
-  cause** — a wrong count invites re-counting, a wrong cause removes the
-  reason to check.
+* **Count `gap-metric` keys with `grep -cE '^ *gap-metric \S+ \S+$'`.** Never
+  `grep -c 'gap-metric'`, which over-counts: prose lines merely *mention* keys.
+  **Three consecutive lanes hit this**, and the third *explained* the +2 by
+  attributing it to a peer's merge (#3269). Hence the general rule: **a lane
+  that finds an unexpected delta owes a measurement before it owes a cause** —
+  a wrong count invites re-counting, a wrong cause removes the reason to check.
+  **Measure the count yourself at your own base; do NOT carry it from a
+  brief.** It read **394** on 2026-08-18 and **395** on 2026-08-19 at master
+  `1165839fe`, with no commit in between able to add a key — a *measurement*,
+  offered with **no cause**, and the workload moved in the same interval.
 * **`fnbyte-*` is not a pure function of the commit** (#3249). It reads
   (commit × capture-cache state × untracked workload). Re-read base and tip
   **back to back**; state the cache state and `dc3-decomp` head; treat any
   effect under ~10 bodies as **unattributable rather than reporting it**.
 * **Assert the two ends read the SAME workload stamp** (#3306) — `c2rs gap`
   prints `workload <sha> (clean) <path>` on every run, so the check is a
-  `diff` of two strings the scan already emits. Measured cost of skipping it:
+  `diff` of two strings the scan already emits. **Assert EQUALITY between your
+  own two ends; never carry a stamp VALUE from a brief.** On 2026-08-19 alone
+  the sibling `dc3-decomp` tree passed through **three** stamps —
+  `897d0220fd1d` → `49ad7cfd5d26` → `eda64e956c87` — and a coordinator handed
+  the middle one to a lane that measured the third. Anything derived from it
+  moves with it: `fnbyte-exact` read 35,886 and 35,956 across that last step.
+  Measured cost of skipping it:
   **82 of 394 keys** moved between one lane's two ends, 45 minutes apart, on
   the same commit pair, binary and machine, because a merge landed in the
   sibling `dc3-decomp` tree mid-campaign. #3249's "under ~10 bodies is
@@ -171,6 +180,25 @@ unmeasured).
   lanes** (#3215) — any lane landing a test moves it by construction. **Do not
   compare release-binary sha256 across worktrees** (#3224): `CARGO_MANIFEST_DIR`
   is compiled in, so that comparison is void by construction.
+* **A phase's size comes from a SCAN, never from `CEILING.md` §6.1's prose.**
+  Added 2026-08-19 after a coordinator dispatched phase 1 on that table's
+  *"`cfg-reach-shipped` 2 of `cfg-reach-top` 16 — 14 of 16 frontier TUs held
+  by CFG class alone"*. A scan reads **0 of 2**, `frontier` **2**, and
+  `frontier-codegen-reader` **22** with `-refused` **0** — so the phase
+  converts **zero** and the distance is the *reader's*, not the emitter's.
+  The row was not wrong when written; **the frontier converted underneath it**
+  (`match` 11 → 26). `CLAUDE.md` already says to read `STATUS.md` before
+  quoting `ROADMAP.md`; the same applies to **every** long-form doc, `CEILING.md`
+  included — `STATUS.md`'s *generated* block already read `FRONTIER 2`.
+  Before dispatching phase work: run the scan, quote its keys, and give the
+  lane the key NAMES so it can re-derive them.
+* **"Unserved in `docs/`" is not "unserved in the repo"** (#3314). A capability
+  a lane was dispatched to characterize as missing was already shipping in
+  `crates/` as KNOWN-ANSWER-0 gap keys on every gate invocation, invisible to
+  any `docs/` grep. A coverage check reads `crates/` too.
+* **Check the branch name is free** before briefing one: `git branch --list`.
+  A 2026-08-08 lane still held `wt-w-cfgclass`, so the 2026-08-19 lane of that
+  name could not create its worktree and landed on `wt-w-cfgclass2`.
 * **Board blocks are allocated by the coordinator** — see the section above.
 
 ## A metric delta of zero is not evidence of correctness — added 2026-08-18
