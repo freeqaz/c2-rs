@@ -1,0 +1,95 @@
+merge note — lane w-suitecost
+branch wt-w-suitecost, off master e82c9ede6
+kind: construct rung — parallel test execution
+outcome: built
+
+WHAT LANDS
+  scripts/partest.sh   run the workspace suite with the test BINARIES in
+                       parallel, and emit <target> :: <test> :: <verdict>
+                       sorted so the executed set can be proved identical BY
+                       NAME. Also emits a cargo-shaped suite.log that
+                       `status.sh --tests-log` reads (verified).
+  scripts/mutpool.sh   run a registered mutant campaign N at a time across
+                       reflinked worktree slots. Schedules and records; it
+                       classifies nothing.
+  docs/rungs/2026-08-19-suitecost.md          the rung
+  docs/rungs/_2026-08-19-suitecost-prereg.md  the prereg, first commit
+  docs/BOARD.md                               rows #3307-#3311
+  docs/rungs/INDEX.md                         regenerated
+  work/w-suitecost/{ab.sh,cosched.sh,mutants.tsv}   lane drivers, named files
+
+  crates/ IS UNTOUCHED. `git diff e82c9ede6 HEAD -- crates/` is empty, so the
+  construct rung's required-zero byte delta is satisfied by construction.
+
+THE RESULT
+  1.80x median wall (211.0 s -> 117.0 s over six serial and four j16 runs),
+  2.04x on effective parallelism (CPU-s per wall-s, 6.54 -> 13.34 of 32 cores).
+  Quiet adjacent pair 207.6 -> 122.9 s.
+
+  Executed-test set IDENTICAL BY NAME in TEN serial/parallel pairs: 1,682
+  results each, 0 added, 0 removed, 0 verdict changes. Two of those pairs carry
+  a RED test -- same name, same FAILED verdict, both arms. That red was an
+  accident (a rung placeholder written before INDEX.md was regenerated) and it
+  is the strongest row in the table, because ten green pairs cannot show that
+  the runner carries a red at all -- the #3219/#3231 shape.
+
+  The runner is SATURATED. In all nine parallel configurations the run's wall
+  equals its largest single binary's wall to within 0.8-15.2 s. Nothing is left
+  in binary-level scheduling.
+
+WHAT THE COST ACTUALLY IS (deliverable 3)
+  Six SERIAL passes over the same 386-fixture corpus per suite run. cli_flags
+  is 99.1 % three tests -- `c2rs selftest` 77.7 s, `c2rs bench` 77.7 s, `c2rs
+  perf` 41.1 s -- each run to completion as a subprocess to assert that its argv
+  parses; selftest and bench are the SAME loop over the SAME corpus. The other
+  fifteen tests, which are all the actual argument parsing, cost 0.72 s
+  together. fixture_profiles is 99.98 % one single-threaded compile loop
+  (cpu/wall 0.97). Two apparent levers died on the measurement: census_gate's
+  literal jobs=1 is worth zero, and "37 % of the suite for flag parsing" is
+  arithmetic, not diagnosis.
+
+WHAT WAS REFUTED
+  * The dispatched co-scheduling finding. The suite's ENTIRE exposure to the
+    shared capture cache is one `c2rs gap --limit 1 --jobs 1` inside a test
+    whose eight invocations total 0.461 s; pointing C2RS_GAP_CACHE at a fresh
+    empty dir changes nothing measurable; a live gate beside the probe costs
+    1.32x in wall AND in CPU-seconds. Co-scheduling is a confound, not a lever.
+  * H4, mutant slot concurrency. Registered 5x with P(>=3x)=0.85; measured
+    0.96x at 4 slots and 0.80x at 4 slots with a serial inner suite. A mutant
+    is 88-92 % suite and 8-12 % rebuild, so slot-level and suite-level
+    parallelism are ONE core budget. Rule: N x eff-par(inner) <~ free cores.
+    NOT confounded: the by-name result set is identical between the N=1 and
+    N=4 campaigns for all five items INCLUDING which tests are red.
+
+RE-MEASURED AT THE TIP
+  suite  1,681 passed / 0 failed / 1 ignored / 48 targets  (225.3 s, load 4.1;
+         its 1,682-name list byte-identical to the pre-change serial run)
+  gate   PASS -- 18/18 lanes, sweep 19,460/19,556, cross 90,424/90,812,
+         0 mismatch, debug 18/18 at 6,948 fixture-verdicts, 0 panics,
+         graded tree ba1c880c30e4
+  partest --jobs 16  1,681/0/1, 48 targets, 1,682 named results
+  status.sh --tests-log <parallel suite.log> -> "1681 passed, 0 failed,
+         48 targets", the same row a serial run produces
+
+TWO THINGS FOR THE FUNNEL
+  1. DISPATCH DEFECT, and it is #3306's third instance. The brief pinned the
+     workload stamp at 49ad7cfd5 clean; status.sh read eda64e956 four hours
+     later. This lane changes zero bytes under crates/ and the crates-derived
+     block still moved: fnbyte-exact 35,886 -> 35,956, denominator
+     162,063 -> 162,397, .gl records 1,462,237 -> 1,468,155, name-conflicts
+     803 -> 715. A brief that PINS a stamp is pinning a fact with a half-life
+     of hours; the standing-facts block should say RE-READ it at lane start.
+     Board row #3311.
+  2. `hatch-red` reads REFUSED HATCH-STALE in all three gate runs, including
+     one on a fully clean tip. NOT this lane: hatch.py's tables name only files
+     under crates/c2-il/, and crates/ here is byte-identical to e82c9ede6.
+     Pre-existing at master; someone should look.
+
+NOT DONE, ON PURPOSE
+  No test-impact narrowing of any kind. The six levers that would actually move
+  the floor are ranked and priced in the rung's section 8 and NONE is taken
+  here -- the largest (make oracle_selftest's corpus loop concurrent inside
+  cmd_selftest/cmd_bench, byte-identical stdout, ~78 s -> ~41 s on the floor)
+  is a construct rung of its own.
+
+NOT merged, NOT pushed. Tip commit reported separately.

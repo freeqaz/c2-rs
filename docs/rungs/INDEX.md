@@ -263,3 +263,4 @@ the header block this table is read from.
 | 2026-08-18 | WITNESS7 | [witness7](2026-08-18-witness7.md) | 8 | +0 — the 878-TU scan is identical on all 394 prefix-anchored |
 | 2026-08-19 | c2map3 | [c2map3](2026-08-19-c2map3.md) | 10 | +0 — no crates/, fixtures/ or scripts/ file is touched |
 | 2026-08-19 | cfgclass | [cfgclass](2026-08-19-cfgclass.md) | 19 | unchanged → unchanged, +0 |
+| 2026-08-19 | w-suitecost | [suitecost](2026-08-19-suitecost.md) | 7 | +0 |
