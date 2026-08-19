@@ -261,3 +261,4 @@ the header block this table is read from.
 | 2026-08-18 | GRAMMARSCREEN | [grammarscreen](2026-08-18-grammarscreen.md) | 3 | +0 — the 878-TU scan is identical on all **394** prefix-anchored |
 | 2026-08-18 | SIZEBRACKET | [sizebracket](2026-08-18-sizebracket.md) | 11 | +0 — TU `match` 26 → 26. `crates/`, `fixtures/` and `scripts/` |
 | 2026-08-18 | WITNESS7 | [witness7](2026-08-18-witness7.md) | 8 | +0 — the 878-TU scan is identical on all 394 prefix-anchored |
+| 2026-08-19 | w-suitecost | [suitecost](2026-08-19-suitecost.md) | 7 | +0 |
