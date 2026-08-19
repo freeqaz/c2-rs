@@ -4119,3 +4119,34 @@ which is where the row says it was missing.
 | row | claim | state | evidence | consequence |
 |---|---|---|---|---|
 | **3306**<sub>w-witness7</sub> | **A LANE'S TWO ENDS ARE NOT COMPARABLE UNLESS THEY READ THE SAME WORKLOAD STAMP — MEASURED AT **82 OF 394 KEYS OVER 45 MINUTES**, ON THE SAME COMMIT PAIR, THE SAME BINARY AND THE SAME MACHINE** | **MEASURED, and the delta was chased rather than explained.** The tip scan read `fnbyte-exact` **35,886** against the base scan's **35,900** on a lane whose entire diff is two integration-test files — which are not in the `c2rs` binary at all and cannot move it. **#3269**'s rule (*a measurement before a cause*) produced two: three back-to-back scans on the tip tree read **35,886 / 35,886 / 35,886**, so not run-to-run noise; and the scan logs' own **workload stamps** differ — `N1r2` read `dc3-decomp` at **`897d0220fd1d`**, `T2r2` at **`49ad7cfd5d26`**, a merge having landed in the sibling decomp tree between the two ends of one campaign | re-taking the base end at the CURRENT stamp gives **`fnbyte-exact` / `differs` / `refused-parse` IDENTICAL** and **0 of 394** key lines differing · against the stale-stamp base, **82 of 394 differ** · gate PASS both ends, per-lane identity **0 of 23** with the range LENGTH asserted | rungs/2026-08-18-witness7.md §10.3 · `work/w-witness7/logs/{N1r2,N3r2,T2r2,stab1,stab2,stab3}.scan.log` · **#3249** · **#3269** · `w-corpushealth` | **#3249 SAYS `fnbyte-*` READS (commit × capture-cache × untracked workload); THIS IS THE FIRST MEASUREMENT OF WHAT THAT COSTS, AND IT IS NOT THE REGIME THAT ROW'S ADVICE IS CALIBRATED FOR.** #3249 counsels treating any effect under ~10 bodies as *unattributable rather than reporting it* — sound for noise, and useless here: **21 % of the published key surface moved**, from a repository nobody in this lane touched, inside one campaign's wall clock. **The mitigation is one line and it is not in the standing block: read both ends back to back AND ASSERT THE WORKLOAD STAMP IS EQUAL** — `c2rs gap` already prints it on every run (`workload <sha> (clean) <path>`), so the check costs a `diff` of two strings. Without it, a lane that compares its two ends as originally run publishes **82 moved keys** and owes a cause for every one of them; the failure is silent, arrives with a plausible story attached, and is **worse the longer the lane takes** |
+
+**CONFIRMED AT THE FUNNEL, ON A SECOND INSTANCE, BY THE COORDINATOR — AND THE
+STORY THAT NEARLY SHIPPED WAS A CORRECTNESS ONE.** Regenerating `STATUS.md` at
+`977827d78` moved four rows against the block collected at `571a8d4c3`: `.gl`
+name-conflicts **573 → 803 (+230)** while total records moved only **+16**,
+row-conflicts +10, nameless flat at 421. `bind.rs:313`'s totality identity
+(`records == bound + outside + nameless + row-conflicts + name-conflicts`) then
+says **~224 records that used to bind no longer do** — a reach regression in
+`w-glattrs`' just-landed `gl.rs` reader (+292/−16), which is the file that
+decodes the very field involved. The coordinator registered **0.7 on the
+reader** before measuring, on the argument that a workload change moves the
+population and the buckets *together* whereas this moved the classification
+almost alone.
+
+**REFUTED.** A worktree at the pre-`w-glattrs` commit `e95543cd7`, scanned
+against the **same asserted stamp** `49ad7cfd5` (verified clean at both ends,
+per this row's own mitigation), reads `1462237` records · `421` nameless ·
+`39170` row-conflicts · **`803`** name-conflicts · `fnbyte-exact` **35,886** ·
+denominator `162063` · match 26 · mismatch 0 — **identical to master on every
+counter**. `w-glattrs` moved the binding accounting by **exactly zero**; all
+four rows are the sibling repo.
+
+Two things this adds to the row. **The reasoning was internally valid and still
+worthless**: the identity is real, the arithmetic is right, and it was applied
+to a delta whose cause was outside the repo — so *soundness of the inference is
+not evidence about the premise*, and the stamp check dissolves in five minutes
+what an identity argument cannot settle at all. And **the cost is now measured
+on a second axis**: the first instance moved a *driver* metric (`fnbyte`), this
+one pointed at a **named file and a named regression** in a lane that had
+already been merged. A dispatch on that story would have sent a lane to bisect
+a reader that never changed a byte of the number it was accused of moving.
