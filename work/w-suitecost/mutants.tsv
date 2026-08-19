@@ -1,0 +1,11 @@
+# w-suitecost: a SCHEDULING benchmark, not a mutation study.
+# Four mutants re-used verbatim from w-calleeguard`s registered campaign
+# (work/w-calleeguard/campaign.sh) plus one unmutated baseline. Their COLOURS
+# are already on record and are not re-derived here; what is measured is the
+# wall clock of running M of them at N slots. Each anchor was checked to
+# resolve to exactly one site at e82c9ede6 before the list was frozen.
+N0	none	NONE	NONE
+M1	crates/c2-il/src/func/census.rs	"framed-call" => CALLEE_UNRESOLVED_FRAMED,	"framed-call" => CALLEE_UNRESOLVED_TAIL,
+M2	crates/c2-il/src/func/census.rs	_ => CALLEE_UNRESOLVED_TAIL,	_ => CALLEE_UNRESOLVED_FRAMED,
+M3	crates/c2-il/src/func/body/shapes/calls.rs	if syms > 1 && !two_sym_thunk {	if syms > 2 && !two_sym_thunk {
+M4	crates/c2-harness/src/gap/tests.rs	g[arm.token_byte] ^= 0x05;	g[arm.token_byte] ^= 0x00;
