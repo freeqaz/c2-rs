@@ -78,6 +78,7 @@ fn the_inline_fence_holds_one_all_exact_tu_and_the_counter_says_so() {
         jsonl: None,
         fndiff_jsonl: None,
         factors_tsv: None,
+        plan_tsv: None,
         work: work.clone(),
         // No cache: this cell must grade a capture it made, not one a previous
         // run left behind under a key it cannot see.
