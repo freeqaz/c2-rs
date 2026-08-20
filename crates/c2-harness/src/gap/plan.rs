@@ -184,6 +184,14 @@ pub const PLAN_OBSERVED_KEYS: &[&str] = &[
     "plan-obs-sections",
     "plan-obs-drectve-tus",
     "plan-obs-reloc-records",
+    // The DECIDING PROBE on the seed bit — see `PredictedPlan::attr_census`.
+    // These three describe the predictor's own INPUT, which is why they are
+    // observe-side counters rather than a component: they say whether the byte
+    // the seed is read out of is the right byte at all.
+    "plan-glattr-names",
+    "plan-glattr-bit6",
+    "plan-glattr-zero",
+    "plan-glattr-seed",
 ];
 
 /// One TU's plan grade.
@@ -377,6 +385,11 @@ pub fn grade(observed: Option<&ObjPlan>, predicted: &PredictedPlan) -> TuPlan {
             assoc_here += 1;
         }
     }
+    if let Some((names, bit6, zero)) = predicted.attr_census {
+        bump(&mut t, "plan-glattr-names", names);
+        bump(&mut t, "plan-glattr-bit6", bit6);
+        bump(&mut t, "plan-glattr-zero", zero);
+    }
     bump(&mut t, "plan-obs-comdat-assoc-sections", assoc_here);
     if assoc_here > 0 {
         bump(&mut t, "plan-obs-comdat-assoc-tus", 1);
@@ -438,6 +451,7 @@ pub fn grade(observed: Option<&ObjPlan>, predicted: &PredictedPlan) -> TuPlan {
             t.emitset_subset = Some(extra == 0);
             // The claimant's own size, beside the containment claim.
             t.emitset_pred_size = Some(pred.len());
+            bump(&mut t, "plan-glattr-seed", pred.len());
             t.emitset_obs_size = Some(observed_set.len());
             t.emitset_missing_witness =
                 observed_set.difference(&pred).next().map(|s| (*s).to_string());
@@ -786,6 +800,7 @@ mod tests {
             sections: Predicted::Unknown("plan-sections-unmodelled"),
             weak: Predicted::Unknown("plan-weak-unmodelled"),
             undef: Predicted::Unknown("plan-undef-unmodelled"),
+            attr_census: None,
         }
     }
 

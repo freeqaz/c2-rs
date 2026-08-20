@@ -139,6 +139,36 @@ pub struct PredictedPlan {
     pub weak: Predicted<Vec<(String, String)>>,
     /// Undefined externals, in order. Not modelled yet.
     pub undef: Predicted<Vec<String>>,
+    /// **A census of the `.gl` attribute byte itself** — `(names, bit-6 set,
+    /// byte == 0)` over [`c2_il::func::gl_function_attrs`]'s map, or `None`
+    /// when the reader refused the file.
+    ///
+    /// # Why a predictor carries a census of its own input
+    ///
+    /// This is the **deciding probe** for a measurement that would otherwise
+    /// have two incompatible explanations. On the 870-TU workload the
+    /// [`FN_FLAG_EMIT_SEED`] bit is set on **331** names against **158,802**
+    /// emitted functions, and the seed is EMPTY on 739 of the 854 TUs where the
+    /// reader answers. Two readings fit that equally well:
+    ///
+    /// * the bit is genuinely rare in the file and c2 sets it at IL-load time
+    ///   from something else — in which case the byte is decoded correctly and
+    ///   `docs/whitebox/C2_MAP.md` §3E's seed-plus-closure model simply cannot
+    ///   be built from `.gl`;
+    /// * or the walk is landing on the wrong field on most records and
+    ///   returning a plausible byte — which is **the exact failure this
+    ///   reader's own doc records having already made once**: *"nine of eleven
+    ///   records decoded as attribute `0x00` … a uniform answer where the grid
+    ///   predicts a split … a mis-decoded displacement does not look like an
+    ///   error, it looks like a fact."*
+    ///
+    /// Bit 6 (`FN_FLAG_INLINABLE`) is the discriminator, because it has a
+    /// SHIPPED consumer that is graded elsewhere: if bit 6 is present at a
+    /// plausible rate then the byte is the right byte and the first reading
+    /// holds; if bit 6 is near-zero too, the walk is off and the whole map is
+    /// suspect. **A count with no discriminator would have left this lane
+    /// publishing a number with two stories and no way to choose.**
+    pub attr_census: Option<(usize, usize, usize)>,
 }
 
 /// **The emit bit.** `docs/whitebox/C2_MAP.md` §3E: the per-function flag word
@@ -165,6 +195,40 @@ pub struct PredictedPlan {
 /// TUs"*. So this component is deliberately split: the seed is published now
 /// and the closure is a lane of its own, with the gap between them measured
 /// rather than argued.
+///
+/// # MEASURED ON THE 870-TU WORKLOAD, AND THE ANSWER REFUTES BUILDING AN EMIT-SET MODEL ON THIS BIT
+///
+/// The gap is not a gap. At workload stamp `b25928dfb2a6`:
+///
+/// | figure | value |
+/// |---|---|
+/// | `.gl` function records the reader names | **28,107** |
+/// | of those, bit 6 (`FN_FLAG_INLINABLE`) set | **28,104** — 99.99 % |
+/// | of those, byte == `0x00` | **0** |
+/// | of those, this bit set — the SEED | **331** — 1.18 % |
+/// | functions real c2 actually emitted | **158,802** |
+/// | TUs where the seed is EMPTY, of 854 answered | **739** |
+///
+/// **The byte is decoded correctly and the bit is simply rare.** Bit 6 at
+/// 99.99 % and *zero* records reading `0x00` rule out the mis-decode signature
+/// [`c2_il::func::gl_function_attrs`]'s own doc records having produced once
+/// (*"nine of eleven records decoded as attribute `0x00` … a uniform answer
+/// where the grid predicts a split"*). So this is a fact about `.gl`, not about
+/// the walk.
+///
+/// **Consequently §3E's seed-plus-closure model cannot be built out of `.gl`.**
+/// A closure over an empty seed is empty, and 739 of 854 TUs have an empty
+/// seed; on top of that the reader's map covers only 28,107 of the 158,802
+/// emitted functions — a 17.7 % ceiling on *anything* keyed off it, whichever
+/// bit is chosen. c2 must be setting `0x20` during IL load from a source that
+/// is not this field.
+///
+/// The constant is **kept**, in `crates/`, feeding **one instrument**, because
+/// the refutation is the deliverable: where the seed IS non-empty it is
+/// startlingly good — exact against c2's own emitted set on **27** TUs, **9** of
+/// them TUs the port does not convert — and it over-claims exactly **once** in
+/// the whole workload. See `docs/rungs/2026-08-20-objplan.md` and the
+/// `W-OBJPLAN-1` row in `docs/whitebox/DISCLOSURE.md`.
 pub const FN_FLAG_EMIT_SEED: u8 = 0x20;
 
 /// Predict the object plan from the IL bundle, **without emitting**.
@@ -229,6 +293,13 @@ pub fn predict(bundle: &IlBundle, _inputs: &PlanInputs) -> PredictedPlan {
         // number that prices #259's `plan_text_order` stays measurable.
         emit_set_order: Predicted::Unknown("plan-order-unmodelled"),
         gl_record_order: order,
+        attr_census: attrs.as_ref().map(|a| {
+            (
+                a.len(),
+                a.values().filter(|v| **v & 0x40 != 0).count(),
+                a.values().filter(|v| **v == 0).count(),
+            )
+        }),
         // Nothing below is modelled yet. Each names the stage that owes it, and
         // each is `Unknown` rather than an empty `Known` — see [`Predicted`].
         sections: Predicted::Unknown("plan-sections-unmodelled"),
