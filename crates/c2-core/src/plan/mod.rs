@@ -141,7 +141,7 @@ pub struct PredictedPlan {
     /// **Every name [`c2_il::func::gl_function_attrs`] NAMED**, seed or not.
     ///
     /// The deciding probe for the alternative explanation of `28,107` vs
-    /// `158,802` — see [`Self::attr_census`]. The seed's own size cannot tell
+    /// `162,146` — see [`Self::attr_census`]. The seed's own size cannot tell
     /// *"the bit is rare"* apart from *"the scanner found one record in six"*;
     /// the intersection of THIS set with the reference obj's emitted set can.
     pub gl_attr_names: Predicted<BTreeSet<String>>,
@@ -197,7 +197,7 @@ pub struct PredictedPlan {
     ///
     /// This is the **deciding probe** for a measurement that would otherwise
     /// have two incompatible explanations. On the 870-TU workload the
-    /// [`FN_FLAG_EMIT_SEED`] bit is set on **331** names against **158,802**
+    /// [`FN_FLAG_EMIT_SEED`] bit is set on **331** names against **162,146**
     /// emitted functions, and the seed is EMPTY on 739 of the 854 TUs where the
     /// reader answers. Two readings fit that equally well:
     ///
@@ -235,6 +235,11 @@ pub struct PredictedPlan {
     /// in hand: [`Self::gl_run_names`] (an orthogonal reader that does not use
     /// the framing) and [`AttrCensus::bits`] (a genuinely decoded field is
     /// structured across its other six bits; a mis-landed one is near-constant).
+    ///
+    /// **AND THE ANSWER IS THE COVERAGE ONE.** Of the 28,107 records this reader
+    /// names, **3,933** are functions c2 emitted — **2.4 %** — while the
+    /// framing-blind reader names **70,114** of them, **43.2 %**. See
+    /// [`FN_FLAG_EMIT_SEED`].
     pub attr_census: Option<AttrCensus>,
 }
 
@@ -288,7 +293,8 @@ pub struct AttrCensus {
 ///
 /// # MEASURED ON THE 870-TU WORKLOAD, AND THE ANSWER REFUTES BUILDING AN EMIT-SET MODEL ON THIS BIT
 ///
-/// The gap is not a gap. At workload stamp `b25928dfb2a6`:
+/// The gap is not a gap. At workload stamp `6f3a818e9893`, measured twice with
+/// byte-identical results:
 ///
 /// | figure | value |
 /// |---|---|
@@ -296,22 +302,41 @@ pub struct AttrCensus {
 /// | of those, bit 6 (`FN_FLAG_INLINABLE`) set | **28,104** — 99.99 % |
 /// | of those, byte == `0x00` | **0** |
 /// | of those, this bit set — the SEED | **331** — 1.18 % |
-/// | functions real c2 actually emitted | **158,802** |
+/// | functions real c2 actually emitted | **162,146** |
 /// | TUs where the seed is EMPTY, of 854 answered | **739** |
 ///
-/// **The byte is decoded correctly and the bit is simply rare.** Bit 6 at
-/// 99.99 % and *zero* records reading `0x00` rule out the mis-decode signature
+/// **The byte is not mis-decoded in the UNIFORM-ZERO way, and that is all bit 6
+/// establishes.** 99.99 % with zero `0x00` bytes rules out the signature
 /// [`c2_il::func::gl_function_attrs`]'s own doc records having produced once
 /// (*"nine of eleven records decoded as attribute `0x00` … a uniform answer
-/// where the grid predicts a split"*). So this is a fact about `.gl`, not about
-/// the walk.
+/// where the grid predicts a split"*) and nothing else. The full bit histogram
+/// ([`AttrCensus::bits`]) shows three varying bits (5.3 %, 1.2 %, 95.9 %) and
+/// four constant ones — structure, hence consistent with a decoded field on the
+/// records the walk reaches. Corroboration, not proof, and said as such.
 ///
-/// **Consequently §3E's seed-plus-closure model cannot be built out of `.gl`.**
-/// A closure over an empty seed is empty, and 739 of 854 TUs have an empty
-/// seed; on top of that the reader's map covers only 28,107 of the 158,802
-/// emitted functions — a 17.7 % ceiling on *anything* keyed off it, whichever
-/// bit is chosen. c2 must be setting `0x20` during IL load from a source that
-/// is not this field.
+/// **§3E's seed-plus-closure model cannot be built out of THIS READER'S
+/// OUTPUT.** A closure over an empty seed is empty, and 739 of 854 TUs have an
+/// empty seed. That part stands.
+///
+/// # WHAT DOES NOT STAND: "a 17.7 % ceiling on `.gl`, whichever bit is chosen"
+///
+/// This doc first read *"the reader's map covers only 28,107 of the 158,802
+/// emitted functions — a 17.7 % ceiling on anything keyed off it"*. **That was
+/// `|names| / |emitted|` with no intersection taken, and it attributed to `.gl`
+/// what belongs to the walk.** Measured, with both sets already in the grader's
+/// hands:
+///
+/// | | |
+/// |---|---|
+/// | of the 28,107 records this reader names, functions c2 EMITTED | **3,933** — **2.4 %** of 162,146 |
+/// | emitted functions named by [`c2_il::mangled_names`], which does **not** use the record framing | **70,114** — **43.2 %** |
+///
+/// **Eighteen times the reach, over the same `.gl` bytes.** So `.gl` carries the
+/// name of at least 43.2 % of the emitted set and this walk reaches 2.4 % of it:
+/// the shortfall is in the SCAN, whose loop steps `p += 1` past any unframed
+/// offset with no refusal and no counter, so its hit rate reads as a container
+/// fact. That is board #3237, and the first deliverable of an emit-set lane is
+/// now that skip path rather than the search for another field.
 ///
 /// The constant is **kept**, in `crates/`, feeding **one instrument**, because
 /// the refutation is the deliverable: where the seed IS non-empty it is

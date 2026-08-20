@@ -237,7 +237,7 @@ fn render_plan(report: &GapReport) {
 
     // --- the coverage probe on the reader the seed is read out of -----------
     //
-    // MAJOR 3 of the review: `plan-glattr-names 28,107` against 158,802 emitted
+    // MAJOR 3 of the review: `plan-glattr-names 28,107` against 162,146 emitted
     // has two stories, and the first version of this probe tested exactly one of
     // them (the uniform-zero mis-decode). These lines test the other.
     let obs = report.plan_observed();
@@ -250,7 +250,7 @@ fn render_plan(report: &GapReport) {
          `c2_il::mangled_names` — which does not use the framing at all — names {} symbol \
          run(s), of which {} are emitted functions, against {} emitted in total. **READ THE \
          TWO INTERSECTIONS TOGETHER:** if the run-based one reaches the emitted set and the \
-         attr-based one does not, the 17.7 % is a fact about THIS SCANNER and not about `.gl`, \
+         attr-based one does not, the shortfall is a fact about THIS SCANNER and not about `.gl`, \
          and every ceiling keyed off it has to be restated.",
         g("plan-glattr-names"),
         g("plan-glattr-in-emitset"),

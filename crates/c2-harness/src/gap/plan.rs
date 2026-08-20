@@ -231,7 +231,7 @@ pub const PLAN_OBSERVED_KEYS: &[&str] = &[
     "plan-glattr-zero",
     "plan-glattr-seed",
     // **THE ALTERNATIVE EXPLANATION, MEASURED.** `plan-glattr-names 28,107`
-    // against `158,802` emitted has two stories and the first version of the
+    // against `162,146` emitted has two stories and the first version of the
     // probe tested one: *the bit is rare* versus *the scanner finds one record
     // in six*. `gl_function_attrs` steps `p += 1` past an unframed offset with
     // no refusal and no counter, so under-coverage looks exactly like a fact
@@ -662,7 +662,7 @@ pub fn grade(observed: Option<&ObjPlan>, predicted: &PredictedPlan) -> TuPlan {
             pred.difference(&observed_set).next().map(|s| (*s).to_string());
     }
 
-    // ---- THE ALTERNATIVE EXPLANATION FOR 28,107 vs 158,802 ------------------
+    // ---- THE ALTERNATIVE EXPLANATION FOR 28,107 vs 162,146 ------------------
     //
     // Both intersections against the reference obj's own emitted set, per TU.
     // See [`PLAN_OBSERVED_KEYS`]: this is the measurement that separates *"the
@@ -988,7 +988,7 @@ pub fn derive_metrics(rows: &[PlanRow]) -> BTreeMap<String, usize> {
     // The same sum restricted to the TUs where the SEED also answered — the
     // population every seed-coverage ratio has to be taken over. Publishing only
     // the restricted sum under a whole-workload caption is what made the
-    // 158,802-vs-162,136 discrepancy invisible.
+    // 158,812-vs-162,146 discrepancy invisible.
     m.insert(
         "plan-emitset-observed-size-known".to_string(),
         rows.iter()
