@@ -957,6 +957,58 @@ fn the_parser_refuses_what_a_scan_could_not_see() {
 // roster's size and its group counts, and every group asserts it ran a non-zero
 // number of invocations rather than passing vacuously on an empty filter.
 
+// ---- AND WHAT THE THREE EXPENSIVE ONES WERE NOT ASSERTING (board #3337) -------
+//
+// Everything above is true and remained true, and it left the file paying ~155 s
+// per suite run for three whole-corpus differential runs whose **verdicts reached
+// no assertion at all**. `assert_ne!(code, Some(2))` is "the parser did not refuse
+// this argv"; `cmd_bench` signals a corpus failure with `ExitCode::FAILURE` (= 1),
+// and **1 != 2**, so the assertion passes over it. Named by
+// `docs/REFACTOR_REVIEW_2026-08-20.md` §0.1 as one of three live instances of
+// this repo's defining defect family — absence read as success — sitting inside
+// the warranty layer itself.
+//
+// [`assert_corpus_verdict`] is the second assertion, on the **same** executions:
+// zero added wall time, because the work is already being paid for.
+//
+// **THE REVIEW'S PROPOSED FIX WOULD NOT HAVE CAUGHT A WRONG EMIT, AND THIS IS THE
+// PART WORTH READING.** §0.1 proposes `assert_eq!(code, Some(0))` on all three.
+// Two facts, both read out of the source and then confirmed by planting a wrong
+// emit and watching what happened (lane `w-warranty`, mutation M1):
+//
+//   1. **`c2rs perf` exits 0 on a port `Mismatch` DELIBERATELY.**
+//      `cli/perf.rs`: *"the reference is the sole judge, so a port
+//      Match/Mismatch/NotImplemented is per-TU reporting, not a harness failure.
+//      Only a capture/replay error or a broken P0.1 replay is a hard failure of
+//      the benchmark itself."* The `Port=Mismatch -> FAILURE` the review cites
+//      lives in **`cmd_diff`**, the per-fixture command — not in `cmd_bench`.
+//   2. **`bench` and `selftest` never invoke the port.** Both loop
+//      `oracle_selftest`, which is *reference* determinism plus *reference*
+//      capture stability. `cmd_bench`'s `fail == 0 && err == 0` is a statement
+//      about `c2.dll`'s own reproducibility.
+//
+// So an exit-code-only guard would have caught reference instability and **read
+// as though it caught wrong emits** — the same defect family one level up, and
+// the reason this lane's rule was "every guard is PROVEN to fire, by mutation,
+// before it is claimed". The corpus-wide port compare *is* computed, by `perf`,
+// and printed on its `summary:` line, and then dropped on the floor. So the
+// wrong-emit guard reads **stdout**, and `perf`'s exit-code contract is left
+// exactly as it was.
+//
+// Three properties each guard has, because each is a recorded lesson:
+//
+//   * **Absence is keyed to a positive fact, never sniffed out of a string.**
+//     The guard asks `Toolchain::locate()`, `has_strace()` and `has_mingw()`
+//     directly and computes what the command was *obliged* to do, rather than
+//     grepping stdout for the word `SKIP` — which would let any silent early
+//     return read as a clean skip.
+//   * **A short run is not a pass.** Every row count is compared against
+//     `c2_harness::all_fixtures().len()`, read from the same source the command
+//     reads, so a corpus that half-ran fails instead of reporting zero failures.
+//   * **Two derivations, diffed** (board #3288). The mismatch count is taken
+//     from the summary line *and* by counting per-fixture rows, and the two must
+//     agree; ditto `bench`'s failure count.
+
 /// Which of the four `#[test]`s below runs a given invocation. The three
 /// whole-corpus commands get one each because each is ~30-45 s; everything else
 /// is together because the eight of them together are seconds.
@@ -994,6 +1046,331 @@ fn scripts_invocation_roster<'a>(
     ]
 }
 
+// ---------------------------------------------------------------------------
+// The corpus-verdict guard (board #3337)
+// ---------------------------------------------------------------------------
+
+/// The three roster rows that run a whole-corpus differential and therefore
+/// carry a verdict this file is entitled to assert on.
+///
+/// **Deliberately small, and deliberately a `match` on the WHOLE argv.** The
+/// brief's caution is the right one: the roster is mixed, and a blanket
+/// `exit == 0` over eleven rows would have to be softened until it fitted the
+/// weakest of them. `c2rs diff` exits 1 on `Port=Mismatch` *on purpose*;
+/// `census`, `capture`, `compile`, `gap` and `prefilter --schema` each have
+/// their own contract, and none of them was read line-by-line by this lane. A
+/// narrow assertion that fires beats a broad one that had to be weakened, so
+/// the other eight rows keep the roster assertion and nothing more — stated
+/// here rather than left as an accident of the `match` arms.
+///
+/// [`the_corpus_verdict_guard_covers_exactly_the_three_whole_corpus_rows`] pins
+/// this set BY NAME, so a row that is renamed or given an argument silently
+/// leaves coverage with something going red.
+fn corpus_verdict_kind(argv: &[&str]) -> Option<CorpusVerdict> {
+    match argv {
+        ["selftest"] => Some(CorpusVerdict::Selftest),
+        ["bench"] => Some(CorpusVerdict::Bench),
+        ["perf"] => Some(CorpusVerdict::Perf),
+        _ => None,
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum CorpusVerdict {
+    Selftest,
+    Bench,
+    Perf,
+}
+
+/// The whitespace-separated token immediately BEFORE `word`, parsed as a
+/// number. Returns `None` when `word` does not appear or what precedes it is
+/// not a number — and every caller treats that `None` as a FAILURE, never as a
+/// pass, so a summary-line format change breaks loudly here instead of quietly
+/// disarming the guard.
+fn num_before(line: &str, word: &str) -> Option<u64> {
+    let toks: Vec<&str> = line.split_whitespace().collect();
+    let i = toks.iter().position(|t| *t == word)?;
+    if i == 0 {
+        return None;
+    }
+    toks[i - 1].parse().ok()
+}
+
+/// The `N` of a trailing `(of N)`.
+fn num_after_of(line: &str) -> Option<usize> {
+    let toks: Vec<&str> = line.split_whitespace().collect();
+    let i = toks.iter().position(|t| *t == "(of")?;
+    toks.get(i + 1)?.trim_end_matches(')').parse().ok()
+}
+
+/// The one `summary:` line, or `None`. More than one is itself a failure —
+/// two summaries mean the caller is looking at output it does not understand.
+fn the_summary_line(stdout: &str) -> Option<&str> {
+    let mut hits = stdout.lines().filter(|l| l.trim_start().starts_with("summary:"));
+    let first = hits.next()?;
+    if hits.next().is_some() {
+        return None;
+    }
+    Some(first)
+}
+
+/// Per-fixture report rows: a line whose first token is a `.cpp` file name.
+/// `selftest`/`bench` (`selftest_row`) and `perf` all lead their rows with the
+/// fixture's file name, and nothing else either command prints does — the
+/// provenance header's first tokens are `c2-rs`, `binary`, `workload`, `wibo`,
+/// `cl.exe`, `c2.dll`, `c1xx.dll`.
+fn fixture_rows(stdout: &str) -> Vec<&str> {
+    stdout
+        .lines()
+        .filter(|l| {
+            l.split_whitespace()
+                .next()
+                .map(|t| t.ends_with(".cpp"))
+                .unwrap_or(false)
+        })
+        .collect()
+}
+
+/// The last whitespace-separated token of a row — `perf`'s port status column.
+fn last_tok(line: &str) -> &str {
+    line.split_whitespace().next_back().unwrap_or("")
+}
+
+/// **The second assertion.** Called on the same `Output` the roster assertion
+/// just looked at, for the three rows [`corpus_verdict_kind`] admits. Returns
+/// `true` if it asserted a graded verdict, `false` if it recorded a legitimate
+/// absence — the caller counts both, so "the guard ran" and "the guard graded"
+/// are separate facts and neither can stand in for the other.
+fn assert_corpus_verdict(kind: CorpusVerdict, argv: &[&str], out: &Output) -> bool {
+    let cmd = argv.join(" ");
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    let code = out.status.code();
+    let ctx = || {
+        format!(
+            "\ncommand: `c2rs {cmd}`\nexit: {code:?}\n\
+             --- last 40 lines of stdout ---\n{}\n--- stderr ---\n{}",
+            stdout
+                .lines()
+                .rev()
+                .take(40)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect::<Vec<_>>()
+                .join("\n"),
+            stderr,
+        )
+    };
+
+    // ---- ABSENCE, DECIDED POSITIVELY -------------------------------------
+    // Not by looking for the word SKIP in stdout. `Toolchain::locate()` is the
+    // same call the CLI makes, so this branch is taken exactly when the CLI's
+    // own `args.toolchain()` returned None. A run that reaches here graded
+    // nothing and says so; `require_toolchain::a_run_that_claims_to_grade_must_
+    // have_a_toolchain_to_grade_with` is what turns that into a failure when
+    // the caller set `C2RS_REQUIRE_TOOLCHAIN`.
+    let Some(tc) = Toolchain::locate() else {
+        println!(
+            "SKIP: toolchain absent — the corpus-verdict guard for `c2rs {cmd}` graded \
+             NOTHING. Set C2RS_REQUIRE_TOOLCHAIN=1 to make this run FAIL instead."
+        );
+        return false;
+    };
+    // `perf` additionally needs strace + mingw for the standalone-c2 replay and
+    // prints its own SKIP when they are missing. Same rule: computed from the
+    // toolchain, not read off stdout.
+    if kind == CorpusVerdict::Perf && (!tc.has_strace() || !tc.has_mingw()) {
+        assert_eq!(
+            code,
+            Some(0),
+            "CORPUS VERDICT GUARD: `c2rs perf` had no strace/mingw and so must have \
+             skipped cleanly, and it exited {code:?} instead.{}",
+            ctx()
+        );
+        println!(
+            "SKIP: strace/mingw absent — the corpus-verdict guard for `c2rs {cmd}` graded NOTHING."
+        );
+        return false;
+    }
+
+    let want_rows = c2_harness::all_fixtures().len();
+    assert!(
+        want_rows > 0,
+        "CORPUS VERDICT GUARD: `all_fixtures()` is EMPTY, so every row count below \
+         would have a floor of zero and this guard would assert nothing. That is the \
+         vacuous-pass shape, and it is a failure here.{}",
+        ctx()
+    );
+    let rows = fixture_rows(&stdout);
+    assert_eq!(
+        rows.len(),
+        want_rows,
+        "CORPUS VERDICT GUARD: `c2rs {cmd}` reported {} per-fixture rows and the corpus \
+         holds {want_rows}. A SHORT RUN IS NOT A PASS — this is the truncation floor, and \
+         it is derived from `c2_harness::all_fixtures()`, the same source the command \
+         itself reads.{}",
+        rows.len(),
+        ctx()
+    );
+
+    match kind {
+        // ---- selftest: reference determinism + capture stability ----------
+        // NOTE what this does NOT cover: `selftest` never invokes the port, so
+        // no assertion here can see a wrong emit. That is `perf`'s row below.
+        CorpusVerdict::Selftest => {
+            let bad: Vec<&&str> = rows
+                .iter()
+                .filter(|l| !l.split_whitespace().any(|t| t == "PASS"))
+                .collect();
+            assert!(
+                bad.is_empty(),
+                "CORPUS VERDICT GUARD: `c2rs selftest` reported {} non-PASS fixture(s) — the \
+                 ORACLE's own determinism or capture stability is broken, which invalidates \
+                 every differential verdict taken against it. Rows:\n{}{}",
+                bad.len(),
+                bad.iter().take(20).map(|l| l.to_string()).collect::<Vec<_>>().join("\n"),
+                ctx()
+            );
+            // Second derivation of the same fact (#3288): the exit code, which
+            // `cmd_selftest` sets from `all_pass`. Disagreement is itself a bug.
+            assert_eq!(
+                code,
+                Some(0),
+                "CORPUS VERDICT GUARD: `c2rs selftest` printed {} PASS rows and then exited \
+                 {code:?}. The row scan and the exit code are two derivations of one fact and \
+                 they DISAGREE, so one of them is lying.{}",
+                rows.len(),
+                ctx()
+            );
+        }
+        // ---- bench: same engine, summary-line renderer --------------------
+        CorpusVerdict::Bench => {
+            let sum = the_summary_line(&stdout).unwrap_or_else(|| {
+                panic!(
+                    "CORPUS VERDICT GUARD: `c2rs bench` printed no single `summary:` line. The \
+                     line is this guard's whole subject; its absence is a FAILURE and never a \
+                     pass.{}",
+                    ctx()
+                )
+            });
+            let fail = num_before(sum, "fail,").unwrap_or_else(|| {
+                panic!(
+                    "CORPUS VERDICT GUARD: could not read the fail count out of `{sum}`. The \
+                     summary-line format moved and this guard can no longer grade it — which \
+                     is a FAILURE, not a pass.{}",
+                    ctx()
+                )
+            });
+            let err = num_before(sum, "error").unwrap_or_else(|| {
+                panic!(
+                    "CORPUS VERDICT GUARD: could not read the error count out of `{sum}`.{}",
+                    ctx()
+                )
+            });
+            assert_eq!(
+                (fail, err),
+                (0, 0),
+                "CORPUS VERDICT GUARD: `c2rs bench` ran the whole-corpus oracle self-test and \
+                 reported {fail} fail, {err} error. The oracle is the sole judge of this port; \
+                 if IT is not reproducible, nothing graded against it means anything. Summary \
+                 line: `{sum}`{}",
+                ctx()
+            );
+            assert_eq!(
+                num_after_of(sum),
+                Some(want_rows),
+                "CORPUS VERDICT GUARD: `c2rs bench`'s summary says `{sum}` but the corpus holds \
+                 {want_rows} fixtures.{}",
+                ctx()
+            );
+            assert_eq!(
+                code,
+                Some(0),
+                "CORPUS VERDICT GUARD: `c2rs bench` summarised {fail} fail / {err} error and \
+                 then exited {code:?}. Summary line and exit code are two derivations of one \
+                 fact and they DISAGREE.{}",
+                ctx()
+            );
+        }
+        // ---- perf: THE ONE THAT SEES A WRONG EMIT -------------------------
+        //
+        // `perf::bench_fixture` runs the port over every fixture and compares
+        // its obj against the reference byte for byte. Until board #3337 the
+        // resulting per-fixture `Mismatch` was printed and dropped: `cmd_perf`
+        // returns SUCCESS on a port mismatch by design, and nothing read the
+        // line. This is the corpus-wide byte gate finally reaching an assertion
+        // inside `cargo test`.
+        CorpusVerdict::Perf => {
+            let sum = the_summary_line(&stdout).unwrap_or_else(|| {
+                panic!(
+                    "CORPUS VERDICT GUARD: `c2rs perf` printed no single `summary:` line. That \
+                     line carries the corpus-wide port mismatch count and its absence is a \
+                     FAILURE, not a pass.{}",
+                    ctx()
+                )
+            });
+            let summary_mismatch = num_before(sum, "mismatch,").unwrap_or_else(|| {
+                panic!(
+                    "CORPUS VERDICT GUARD: could not read the port mismatch count out of \
+                     `{sum}`. The summary-line format moved and this guard can no longer see a \
+                     wrong emit — which is a FAILURE, not a pass.{}",
+                    ctx()
+                )
+            });
+            // Second, differently-built derivation (#3288): count the rows
+            // whose status column is a Mismatch. The summary and the rows are
+            // produced by different code paths (`PerfReport::tally` vs the
+            // per-row printer) and must agree.
+            let row_mismatch: Vec<&&str> = rows
+                .iter()
+                .filter(|l| last_tok(l).starts_with("Mismatch"))
+                .collect();
+            assert_eq!(
+                summary_mismatch as usize,
+                row_mismatch.len(),
+                "CORPUS VERDICT GUARD: `c2rs perf`'s summary says {summary_mismatch} mismatch \
+                 and its own per-fixture rows show {}. Two derivations of one number, and they \
+                 DISAGREE — the instrument is broken before the port is even judged.{}",
+                row_mismatch.len(),
+                ctx()
+            );
+            assert_eq!(
+                summary_mismatch,
+                0,
+                "CORPUS VERDICT GUARD: **A WRONG EMIT.** `c2rs perf` compared the port's obj \
+                 against real c2's, byte for byte, over all {want_rows} fixtures, and \
+                 {summary_mismatch} of them DIFFER. A wrong emit scores strictly below the \
+                 refusal it replaced (docs/PROGRESS_METRIC.md) — this is an alarm, not a gap. \
+                 `NotImplemented` is not counted here and never should be. Mismatching \
+                 fixtures:\n{}{}",
+                row_mismatch
+                    .iter()
+                    .take(20)
+                    .map(|l| l.to_string())
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+                ctx()
+            );
+            // `perf` returns FAILURE only for a capture/replay error or a broken
+            // P0.1 replay (`ref-replay-inexact`) — NOT for a port mismatch,
+            // which is why the assertion above reads stdout. Both of those are
+            // real failures of the benchmark, so the exit code is worth having
+            // too; it is simply not the wrong-emit catch.
+            assert_eq!(
+                code,
+                Some(0),
+                "CORPUS VERDICT GUARD: `c2rs perf` exited {code:?}. It returns FAILURE for a \
+                 capture/replay ERROR row or a broken P0.1 reference replay \
+                 (`[!ref-replay-inexact]`) — never for a port mismatch — so this is the oracle \
+                 supply line, not the port.{}",
+                ctx()
+            );
+        }
+    }
+    true
+}
+
 /// Run one group of the roster. The assertion is transcribed verbatim from the
 /// single test this replaces, and it names its own command line, so a failure in
 /// any group says which invocation the parser refused.
@@ -1005,6 +1382,8 @@ fn accepted_group(group: Accepted, tag: &str) {
     std::fs::write(&list, "fixtures/cpp/add3.cpp\n").unwrap();
     let l = s(&list);
     let mut ran = 0usize;
+    let mut guarded = 0usize;
+    let mut graded = 0usize;
     for (g, argv) in scripts_invocation_roster(&cpp, &ff, &l) {
         if g != group {
             continue;
@@ -1019,6 +1398,16 @@ fn accepted_group(group: Accepted, tag: &str) {
             argv.join(" "),
             String::from_utf8_lossy(&out.stderr),
         );
+        // THE SECOND ASSERTION, on the same execution (board #3337). Separately
+        // named from the roster assertion above so a failure says which of the
+        // two fired: the roster assertion is about argv, this one is about the
+        // corpus verdict the run just produced and used to discard.
+        if let Some(kind) = corpus_verdict_kind(&argv) {
+            guarded += 1;
+            if assert_corpus_verdict(kind, &argv, &out) {
+                graded += 1;
+            }
+        }
         ran += 1;
     }
     // A group whose filter matches nothing would pass having checked nothing —
@@ -1028,6 +1417,25 @@ fn accepted_group(group: Accepted, tag: &str) {
         ran > 0,
         "group {group:?} ran ZERO invocations. The roster no longer tags any row \
          with it, so this test passed without executing a single command line."
+    );
+    // The same shape one level down, for the guard rather than for the roster: a
+    // heavy group whose expensive invocation stopped being *guarded* would still
+    // run the corpus for 40 s and still assert only its argv, which is exactly
+    // the state #3337 exists to end. Pinned per group, so a re-tagged row cannot
+    // move the coverage without a named failure.
+    let want_guarded = match group {
+        Accepted::Selftest | Accepted::Bench | Accepted::Perf => 1,
+        Accepted::Rest => 0,
+    };
+    assert_eq!(
+        guarded, want_guarded,
+        "group {group:?} applied the corpus-verdict guard to {guarded} invocation(s), \
+         expected {want_guarded}. The three whole-corpus rows carry a verdict and the \
+         other eight deliberately do not (see `corpus_verdict_kind`)."
+    );
+    println!(
+        "group {group:?}: {ran} invocation(s) run, {guarded} carrying a corpus verdict, \
+         {graded} of those actually GRADED (the rest recorded a toolchain absence)."
     );
     let _ = std::fs::remove_dir_all(&w);
 }
@@ -1085,4 +1493,51 @@ fn the_split_is_a_partition_of_the_roster() {
              dropped row changes what runs without changing any test's name."
         );
     }
+}
+
+/// **The corpus-verdict guard's own control** (board #3337). Pins WHICH roster
+/// rows are guarded, **by name and not by count**, for the reason
+/// `docs/rungs/README.md` gives: a control pinned by count passes the moment the
+/// count matches, whoever is in it. Needs no toolchain and spawns nothing, so it
+/// is also the "did this binary build" control for the mutation campaign.
+///
+/// If a row is renamed, given an argument, or dropped, its guard silently stops
+/// applying and the three expensive tests go back to asserting only their argv —
+/// which is the exact state #3337 closes. That regression fails HERE, in a test
+/// that takes microseconds, rather than nowhere.
+#[test]
+fn the_corpus_verdict_guard_covers_exactly_the_three_whole_corpus_rows() {
+    let roster = scripts_invocation_roster("CPP", "FF", "L");
+    let covered: Vec<(String, CorpusVerdict)> = roster
+        .iter()
+        .filter_map(|(_, argv)| corpus_verdict_kind(argv).map(|k| (argv.join(" "), k)))
+        .collect();
+    assert_eq!(
+        covered,
+        vec![
+            ("selftest".to_string(), CorpusVerdict::Selftest),
+            ("bench".to_string(), CorpusVerdict::Bench),
+            ("perf".to_string(), CorpusVerdict::Perf),
+        ],
+        "the corpus-verdict guard covers {covered:?}. It must cover exactly the three \
+         bare whole-corpus invocations — those are the ones that run the differential \
+         over every fixture and used to discard the result."
+    );
+    // And the negative half, also by name: the eight rows that deliberately are
+    // NOT guarded. Written out so that adding a row without deciding about it is
+    // a failure rather than a default.
+    let unguarded: Vec<String> = roster
+        .iter()
+        .filter(|(_, argv)| corpus_verdict_kind(argv).is_none())
+        .map(|(_, argv)| argv[0].to_string())
+        .collect();
+    assert_eq!(
+        unguarded,
+        vec!["selftest", "diff", "census", "census", "capture", "compile", "gap", "prefilter"],
+        "the UNGUARDED rows moved. Each of these was left with the roster assertion \
+         alone on purpose (`c2rs diff` exits 1 on Port=Mismatch by design; the others' \
+         exit contracts were not read line-by-line by the lane that added this guard). \
+         Adding a row here is a decision, not a default: either extend \
+         `corpus_verdict_kind` or extend this list and say why."
+    );
 }
