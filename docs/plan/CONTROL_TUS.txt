@@ -18,6 +18,24 @@
 # prints it; a difference is reported before any other number, because it means
 # the tree or the workload stamp moved under the lane.
 #
+# AND A SET OF NAMES IS STILL NOT A CONTROL WITHOUT ITS OWN SIZE. Measured at
+# stamp 6f3a818e9893: of these 26 TUs, SIX have an EMPTY observed emit set
+# (decomp_pch, GainEffect, HeadsetPlaybackEffect, PeakDetector, mmx_optimized,
+# sse_optimized — also the only empty-observed TUs in the whole 870), ELEVEN
+# are 1-vs-1, and only NINE compare a set of >= 2 names; 46 emitted names over
+# all 26. So "N of 26 exact" and "N comparisons of nothing" print identically
+# unless the size prints too, which is why `plan-control-obs-size`,
+# `-obs-empty-tus` and `-substantive-tus` exist. The most likely wrong way is
+# the EXTRACTOR collapsing to Some(empty): that makes the exact count go UP and
+# the size go to zero. See rungs/2026-08-20-objplan.md §2.5.
+#
+# NOTE ON THE PARAGRAPH ABOVE ABOUT SKIPPING: it states a real mechanism and it
+# is NOT a licence to grep a suite log for `SKIP: toolchain absent`. libtest
+# swallows a passing test's stdout, so that count reads 0 in exactly the
+# unprovisioned worktree it would be there to detect (board #3341). The
+# non-vacuous forms are `C2RS_REQUIRE_TOOLCHAIN=1` with `require_toolchain`
+# passing BY NAME, and a non-zero `census_gate` duration.
+#
 # One path per line. Blank lines and #-comments ignored.
 src/Main.cpp
 src/system/decomp_pch.cpp
