@@ -362,6 +362,14 @@ pub fn predict(bundle: &IlBundle, inputs: &PlanInputs) -> PredictedPlan {
     // is this component's `Unknown` and its rate is P1's ceiling — measured,
     // never assumed.
     let attrs: Option<BTreeMap<String, u8>> = gl.and_then(c2_il::func::gl_function_attrs);
+    // **The ORTHOGONAL reader, walked ONCE.** `mangled_names` returns the `.gl`
+    // symbol runs in file order and is the substrate of two different things
+    // here — the record-order characterization below, and `gl_run_names`, which
+    // is the coverage control on `gl_function_attrs`. It is a whole-`.gl` walk;
+    // calling it twice for two views of one answer is the kind of cost that
+    // shows up in `mode_cross`'s ~90,000 generated cases and nowhere a lane
+    // would look for it.
+    let run_names: Option<Vec<String>> = gl.map(c2_il::mangled_names);
     // **`/Gy` IS THE DECISION, AND IT IS NOW MADE HERE.** The emit set this
     // component is about is the set of COMDAT `.text` leaders. Without
     // function-level linking there are no per-function COMDATs at all, so a seed
@@ -388,7 +396,7 @@ pub fn predict(bundle: &IlBundle, inputs: &PlanInputs) -> PredictedPlan {
             Predicted::Unknown("gl-attrs-refused"),
             Predicted::Unknown("gl-attrs-refused"),
         ),
-        (Some(a), Some(gl), true) => {
+        (Some(a), Some(_), true) => {
             let seed: BTreeSet<String> = a
                 .iter()
                 .filter(|(_, &v)| v & FN_FLAG_EMIT_SEED != 0)
@@ -403,7 +411,7 @@ pub fn predict(bundle: &IlBundle, inputs: &PlanInputs) -> PredictedPlan {
             // `coff::order::plan_text_order` is the whole component.
             let mut ordered: Vec<String> = Vec::new();
             let mut seen: BTreeSet<String> = BTreeSet::new();
-            for n in c2_il::mangled_names(gl) {
+            for n in run_names.iter().flatten().cloned() {
                 // A name that occurs twice among the `.gl` symbol runs is
                 // emitted once; the FIRST occurrence fixes its position.
                 // Deduplicated here rather than left to the grader, because a
@@ -434,9 +442,7 @@ pub fn predict(bundle: &IlBundle, inputs: &PlanInputs) -> PredictedPlan {
             (None, None) => Predicted::Unknown("plan-no-gl"),
             (None, Some(_)) => Predicted::Unknown("gl-attrs-refused"),
         },
-        gl_run_names: gl
-            .map(|g| c2_il::mangled_names(g).into_iter().collect())
-            .unwrap_or_default(),
+        gl_run_names: run_names.map(|v| v.into_iter().collect()).unwrap_or_default(),
         attr_census: attrs.as_ref().map(|a| {
             let mut bits = [0usize; 8];
             for v in a.values() {
