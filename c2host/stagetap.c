@@ -111,6 +111,12 @@ static unsigned int g_hits[MAX_SITES];
 static int          g_any_armed = 0;
 static unsigned int g_slide = 0;
 static int          g_slide_known = 0;
+/* Payload on/off. Counts-only is the default; C2RS_STAGE_PAYLOAD=1 turns on
+ * the bounded tuple walk. Kept separate from arming so the CHEAP neutrality
+ * sweep and the EXPENSIVE content run are the same mechanism at two settings,
+ * and so G1 can be re-run at the full table WITH the payload rather than
+ * extrapolated from the counts-only run. */
+static int          g_payload = 0;
 
 /* Written by tap_enter, read by the thunk's final indirect jump. Safe with a
  * single global because the window between the write and the jump contains no
@@ -171,6 +177,127 @@ __asm__(
 
 extern void c2rs_stage_thunk(void);
 
+/* ---------------------------------------------------------------------------
+ * THE PAYLOAD ARENA
+ *
+ * Appended to from inside a c2 call frame, so it uses NO CRT function at all
+ * (not even sprintf, whose mingw implementation is not obviously safe to call
+ * reentrantly under wibo). Hex is hand-rolled. Flushed by tap_report() after
+ * InvokeCompilerPass has returned.
+ *
+ * Bounded and FAIL-LOUD: when the arena fills, a REFUSE line is emitted and
+ * the payload stops. It must never degrade into a silently short — or empty —
+ * block: "deterministic and vacuous" passes every other criterion in this
+ * lane trivially, and absence-read-as-success is this project's own signature
+ * defect (twelve recorded instances).
+ * ------------------------------------------------------------------------- */
+#define ARENA_BYTES (4u * 1024u * 1024u)
+static char         g_arena[ARENA_BYTES];
+static unsigned int g_arena_len = 0;
+static int          g_arena_full = 0;
+
+static void ap(const char *s)
+{
+    while (*s) {
+        if (g_arena_len >= ARENA_BYTES - 1) { g_arena_full = 1; return; }
+        g_arena[g_arena_len++] = *s++;
+    }
+}
+
+static void ap_hex(unsigned int v, int digits)
+{
+    static const char H[] = "0123456789abcdef";
+    char buf[9];
+    int i;
+    if (digits > 8) digits = 8;
+    for (i = digits - 1; i >= 0; i--) { buf[i] = H[v & 0xf]; v >>= 4; }
+    buf[digits] = 0;
+    ap(buf);
+}
+
+static void ap_dec(unsigned int v)
+{
+    char buf[12];
+    int i = 11;
+    buf[i] = 0;
+    if (v == 0) { ap("0"); return; }
+    while (v && i > 0) { buf[--i] = (char)('0' + (v % 10u)); v /= 10u; }
+    ap(&buf[i]);
+}
+
+/* Is `p` plausibly a readable heap pointer in this 32-bit process?
+ *
+ * A foreign linked list under a foreign allocator, reached from a
+ * [R]-confidence field reading, is not trusted. This is a cheap structural
+ * filter, not a guarantee: 4-byte aligned, inside the user address range, and
+ * (for a walk) within a bounded span of where the walk started. */
+static int plausible(unsigned int p)
+{
+    if (p == 0) return 0;
+    if (p & 3u) return 0;
+    if (p < 0x00010000u) return 0;
+    if (p >= 0x7ff00000u) return 0;
+    return 1;
+}
+
+/* Walk one scheduling region's tuple list and append it to the arena.
+ *
+ * `t` is the pointer c2 passed in ecx at 0x10be643e, which the region finder
+ * 0x10be5d4b immediately dereferences as a tuple: it reads [ecx+0x4] (opcode,
+ * compared to 0x30f), walks [ecx] (next) and reads [esi+0x8] (category byte).
+ * So the tuple layout used here is read from the callee's own code, not
+ * assumed:
+ *
+ *     +0x0  next          (0x10be5d5c `mov ecx,[ecx]`, 0x10be5d92 `mov esi,[esi]`)
+ *     +0x4  opcode        (0x10be5d55 `cmp [ecx+0x4],ebx` with ebx = 0x30f)
+ *     +0x8  category byte (0x10be5d6b `movzx edi,BYTE PTR [esi+0x8]`)
+ *     +0x9  flags         WB_DAGORDER_FINDINGS.md §2, bit 0 = real-instruction
+ *     +0xa  condition code (& 0x1f), same source
+ *
+ * The first three are [R] from the code path this tap sits on; +0x9 and +0xa
+ * are [R] from the whitebox record and are NOT confirmed by anything this tap
+ * reads. DISCLOSURE.md carries a row for each.
+ *
+ * BOUNDED FOREIGN WALK: at most WALK_MAX nodes, all within WALK_SPAN of the
+ * first, all 4-byte aligned. An overrun emits REFUSE and never an empty block.
+ */
+#define WALK_MAX  4096u
+#define WALK_SPAN (64u * 1024u * 1024u)
+
+static void tap_walk_tuples(unsigned int t)
+{
+    unsigned int i = 0;
+    unsigned int first = t;
+    if (!plausible(t)) {
+        ap("REFUSE region walk-implausible-head\n");
+        return;
+    }
+    while (i < WALK_MAX) {
+        const unsigned char *b = (const unsigned char *)(uintptr_t)t;
+        unsigned int opcode;
+        unsigned int next;
+        unsigned int d = (t > first) ? (t - first) : (first - t);
+        if (d > WALK_SPAN) { ap("REFUSE region walk-span\n"); return; }
+
+        memcpy(&opcode, b + 4, 4);
+        memcpy(&next, b + 0, 4);
+
+        ap("TU ");    ap_dec(i);
+        ap(" ");      ap_hex(opcode, 8);
+        ap(" ");      ap_hex(b[8], 2);
+        ap(" ");      ap_hex(b[9], 2);
+        ap(" ");      ap_hex((unsigned int)(b[10] & 0x1fu), 2);
+        ap("\n");
+        if (g_arena_full) { ap("REFUSE region arena-full\n"); return; }
+
+        i++;
+        if (next == 0) return;               /* end of list: a real terminus */
+        if (!plausible(next)) { ap("REFUSE region walk-implausible-next\n"); return; }
+        t = next;
+    }
+    ap("REFUSE region walk-overrun\n");
+}
+
 /* Called from the thunk. Returns the real call target for this site.
  *
  * MUST NOT call back into c2 and MUST NOT do I/O (see the header comment on
@@ -179,12 +306,24 @@ unsigned int tap_enter(unsigned int retaddr, unsigned int ecx,
                        unsigned int edx, unsigned int callee_esp)
 {
     int i;
-    (void)ecx;
     (void)edx;
     (void)callee_esp;
     for (i = 0; i < N_SITES; i++) {
         if (g_armed[i] && g_retaddr[i] == retaddr) {
             g_hits[i]++;
+            /* PAYLOAD. Only the region site has a live TUPLE pointer in ecx —
+             * at the six per-function phase sites ecx is the FUNCTION record
+             * (0x10b7dc59 `mov esi,ecx`, then `mov ecx,esi` before each call),
+             * and the function-record -> tuple-list-head offset is not known.
+             * Taking the tuple pointer from the region finder's own argument
+             * sidesteps that unknown entirely, which is why this site exists. */
+            if (g_payload && strcmp(g_sites[i].name, "region") == 0) {
+                ap("SITE region ENTER ");
+                ap_dec(g_hits[i]);
+                ap("\n");
+                tap_walk_tuples(ecx);
+                ap("END-REGION\n");
+            }
             return g_realtgt[i];
         }
     }
@@ -246,6 +385,10 @@ int tap_arm(HMODULE h, void *invoke_fn)
         vq_ok = 1;
     }
 
+    {
+        const char *pl = getenv("C2RS_STAGE_PAYLOAD");
+        g_payload = (pl && *pl && *pl != '0');
+    }
     g_slide = slide_export;
     g_slide_known = 1;
     fprintf(stderr, "[stagetap] hmodule=%08x invoke=%08x slide=%08x "
@@ -336,6 +479,20 @@ void tap_report(void)
         if (!g_armed[i]) continue;
         fprintf(stderr, "[stagetap] END %s hits=%u\n",
                 g_sites[i].name, g_hits[i]);
+    }
+    if (g_payload) {
+        /* One `[stagetap] ` prefix per arena line, so the payload cannot be
+         * confused with c2's own chatter on the same stream. */
+        unsigned int i2 = 0, start = 0;
+        for (i2 = 0; i2 < g_arena_len; i2++) {
+            if (g_arena[i2] == '\n') {
+                fputs("[stagetap] ", stderr);
+                fwrite(&g_arena[start], 1, (size_t)(i2 - start + 1), stderr);
+                start = i2 + 1;
+            }
+        }
+        fprintf(stderr, "[stagetap] ARENA bytes=%u full=%d\n",
+                g_arena_len, g_arena_full);
     }
     fflush(stderr);
 }

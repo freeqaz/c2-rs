@@ -88,6 +88,15 @@ pub struct TapReport {
     /// Every `[stagetap]` line, verbatim, so a result table can be re-derived
     /// from the log rather than accumulated (#3231 F2).
     pub lines: Vec<String>,
+    /// The payload's `TU <idx> <opcode> <cat> <flags> <cc>` rows, in order,
+    /// with the leading `TU ` stripped. Empty on a counts-only run.
+    pub tuples: Vec<String>,
+    /// `REFUSE …` lines emitted by the bounded walk (overrun, span, arena
+    /// full, implausible pointer). A non-empty list means the payload is
+    /// TRUNCATED and the caller must not read absence as a terminus.
+    pub walk_refusals: Vec<String>,
+    /// Number of `SITE region ENTER` blocks in the payload.
+    pub regions: usize,
 }
 
 impl TapReport {
@@ -104,6 +113,52 @@ impl TapReport {
     /// Total hits over all armed sites.
     pub fn total_hits(&self) -> u64 {
         self.hits.values().copied().sum()
+    }
+
+    /// The payload's canonical bytes: the exact stream a digest is taken over.
+    ///
+    /// **SCHEMA RULE, and it is the whole of G2b:** no address, no pointer, no
+    /// path, no PID, no timestamp and no allocation count may appear. Only
+    /// walk indices and values read out of c2's own records. Without this a
+    /// digest is stable only because the environment was.
+    pub fn canonical_bytes(&self) -> String {
+        let mut out = String::new();
+        out.push_str("SCHEMA 1\n");
+        out.push_str(if self.slide_zero { "SLIDE 0\n" } else { "SLIDE nonzero\n" });
+        for s in &self.armed {
+            out.push_str("ARMED ");
+            out.push_str(s);
+            out.push('\n');
+        }
+        for (k, v) in &self.hits {
+            out.push_str("HITS ");
+            out.push_str(k);
+            out.push(' ');
+            out.push_str(&v.to_string());
+            out.push('\n');
+        }
+        for t in &self.tuples {
+            out.push_str("TU ");
+            out.push_str(t);
+            out.push('\n');
+        }
+        for w in &self.walk_refusals {
+            out.push_str(w);
+            out.push('\n');
+        }
+        out
+    }
+
+    /// FNV-1a over [`TapReport::canonical_bytes`]. Hand-rolled: std-only, zero
+    /// external crates, and nothing here needs a cryptographic digest — this
+    /// compares a stream against itself across runs.
+    pub fn digest(&self) -> u64 {
+        let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+        for b in self.canonical_bytes().as_bytes() {
+            h ^= *b as u64;
+            h = h.wrapping_mul(0x1000_0000_01b3);
+        }
+        h
     }
 
     /// Hits at one site (0 when unarmed or never reached — the caller is
@@ -129,8 +184,17 @@ impl TapReport {
                     }
                 }
                 Some("REFUSE") => {
-                    let name = it.next().unwrap_or("?").to_string();
-                    r.refused.push((name, rest.to_string()));
+                    // Two different refusals share the word. An ARMING refusal
+                    // names a site and means nothing was patched; a WALK
+                    // refusal means the payload is truncated. Conflating them
+                    // would let a truncated payload read as a failed arm (or,
+                    // worse, the reverse).
+                    if rest.contains("walk-") || rest.contains("arena-full") {
+                        r.walk_refusals.push(rest.to_string());
+                    } else {
+                        let name = it.next().unwrap_or("?").to_string();
+                        r.refused.push((name, rest.to_string()));
+                    }
                 }
                 Some("END") => {
                     let name = it.next().unwrap_or("?").to_string();
@@ -142,6 +206,12 @@ impl TapReport {
                 }
                 Some("TAP") => {
                     r.slide_zero = rest.contains("slide=0");
+                }
+                Some("TU") => {
+                    r.tuples.push(rest["TU ".len()..].to_string());
+                }
+                Some("SITE") => {
+                    r.regions += 1;
                 }
                 _ => {}
             }
@@ -169,7 +239,33 @@ impl Toolchain {
         out_obj: &Path,
         taps: &[&str],
     ) -> io::Result<(ObjImage, TapReport)> {
+        self.replay_tapped_with(captured, bundle_dir, out_obj, taps, false)
+    }
+
+    /// [`Toolchain::replay_tapped`] with the bounded tuple-walk payload
+    /// switchable.
+    ///
+    /// Counts and payload are the SAME mechanism at two settings, deliberately:
+    /// it means the expensive content run and the cheap neutrality sweep are
+    /// not two different instruments whose agreement would have to be argued.
+    /// It also means **G1 can be re-run at the full table WITH the payload**
+    /// rather than extrapolated from a counts-only run — the payload is the
+    /// half that touches c2's own memory, so extrapolating would be assuming
+    /// the answer.
+    pub fn replay_tapped_with(
+        &self,
+        captured: &CapturedReference,
+        bundle_dir: &Path,
+        out_obj: &Path,
+        taps: &[&str],
+        payload: bool,
+    ) -> io::Result<(ObjImage, TapReport)> {
         let (mut cmd, out_abs) = self.build_replay_command(captured, bundle_dir, out_obj)?;
+        if payload {
+            cmd.env("C2RS_STAGE_PAYLOAD", "1");
+        } else {
+            cmd.env_remove("C2RS_STAGE_PAYLOAD");
+        }
         if taps.is_empty() {
             // Inertness, asserted at the seam and not only in C: with nothing
             // requested the variable is REMOVED, so an ambient value in the
