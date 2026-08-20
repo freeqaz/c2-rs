@@ -106,9 +106,33 @@ pub struct PlanInputs {
 pub struct PredictedPlan {
     /// **Which functions c2 emits**, as a set. The order-free claim.
     pub emit_set_members: Predicted<BTreeSet<String>>,
-    /// The same names in the order the port would lay their COMDATs out. A
-    /// strictly stronger claim than `emit_set_members`.
+    /// The order the port would lay the emitted COMDATs out in.
+    ///
+    /// **`Unknown` on every TU, and that is a MEASURED result rather than an
+    /// omission.** The only ordered `.gl` reader available is
+    /// [`c2_il::mangled_names`], and `.gl` record order **is not COMDAT section
+    /// order**: over the 870-TU workload it agreed on **18 of 854** TUs where
+    /// both sides answered, and it **differed on 12 of the 26 TUs the port
+    /// already reproduces byte-exactly** — the lane's own named control, which
+    /// is what caught it. The extractor is not at fault (it agrees with
+    /// `ObjImage::text_comdat_functions` by an integration test on real objs),
+    /// so it is the *predictor* that is refuted, and under this lane's prereg a
+    /// component whose control is red **ships as `Unknown`, never as
+    /// `Differs`**.
+    ///
+    /// The refuted rule is still MEASURED and published — as
+    /// `gap-metric plan-emitset-glorder-agrees`, a characterization number and
+    /// not a port curve — because it is the price of board **#259**'s
+    /// `coff::order::plan_text_order`: whatever builds this component has to
+    /// beat 18 of 854, and that figure did not exist before.
     pub emit_set_order: Predicted<Vec<String>>,
+    /// **The `.gl`-record-order hypothesis, kept as a CHARACTERIZATION value.**
+    ///
+    /// Not a component and never graded as one: this is the refuted rule above,
+    /// retained so its agreement rate stays measurable at zero cost. A consumer
+    /// that treated it as a prediction would be re-publishing a rule the named
+    /// control has already killed.
+    pub gl_record_order: Predicted<Vec<String>>,
     /// The ordered section-name sequence. Not modelled yet.
     pub sections: Predicted<Vec<String>>,
     /// Weak externals — `(weak, default)`. Not modelled yet.
@@ -200,7 +224,11 @@ pub fn predict(bundle: &IlBundle, _inputs: &PlanInputs) -> PredictedPlan {
 
     PredictedPlan {
         emit_set_members: members,
-        emit_set_order: order,
+        // REFUTED BY THE NAMED CONTROL — see the field's doc. The `.gl`-order
+        // hypothesis survives beside it as a characterization value, so the
+        // number that prices #259's `plan_text_order` stays measurable.
+        emit_set_order: Predicted::Unknown("plan-order-unmodelled"),
+        gl_record_order: order,
         // Nothing below is modelled yet. Each names the stage that owes it, and
         // each is `Unknown` rather than an empty `Known` — see [`Predicted`].
         sections: Predicted::Unknown("plan-sections-unmodelled"),
@@ -295,7 +323,11 @@ mod tests {
         let b = IlBundle::new("_CL_test");
         let p = predict(&b, &PlanInputs { function_level_linking: true });
         assert_eq!(p.emit_set_members.reason(), Some("plan-no-gl"));
-        assert_eq!(p.emit_set_order.reason(), Some("plan-no-gl"));
+        // The ORDER component is `Unknown` unconditionally (its rule was refuted
+        // by the named control), so the no-`.gl` reason surfaces on the
+        // characterization value instead.
+        assert_eq!(p.emit_set_order.reason(), Some("plan-order-unmodelled"));
+        assert_eq!(p.gl_record_order.reason(), Some("plan-no-gl"));
     }
 
     /// The unmodelled components publish a NAMED reason apiece — never a

@@ -64,14 +64,17 @@ fn render_plan(report: &GapReport) {
         }
     }
     println!(
-        "\x20     {} of {} pinned TUs are `exact` on EVERY shipped component; {} shortfall \
-         row(s). On a `match` TU the port reproduced c2's obj byte-for-byte, so it demonstrably \
-         had the information: `unknown` there is a FAILURE, not a neutral, and `differs` there \
-         means the EXTRACTOR or the PREDICTOR is wrong. (A count, not a status; `0 of 0` would \
-         say so rather than printing nothing.)",
+        "\x20     {} of {} pinned TUs are `exact` on every shipped component; {} shortfall \
+         cell(s) — {} `differs` and {} `unknown`. **THE TWO ARE DIFFERENT FINDINGS AND ONLY \
+         `differs` REDS THE LANE.** On a `match` TU the port reproduced c2's obj byte-for-byte, \
+         so a component the port's EMIT PATH uses demonstrably had the information; a component \
+         it does not use is honestly `unknown` there. (A count, not a status; `0 of 0` would say \
+         so rather than printing nothing.)",
         ctl.exact_rows,
         ctl.present,
-        ctl.shortfall.len()
+        ctl.shortfall.len(),
+        ctl.differ_cells,
+        ctl.unknown_cells
     );
     for (src, component, v) in &ctl.shortfall {
         println!("\x20       {src}  {component} = {}", v.label());
@@ -151,6 +154,11 @@ fn render_plan(report: &GapReport) {
     let with_both = rows.iter().filter(|r| r.subset.is_some()).count();
     let extra: usize = rows.iter().filter_map(|r| r.extra).sum();
     let missing: usize = rows.iter().filter_map(|r| r.missing).sum();
+    let pred_size: usize = rows.iter().filter_map(|r| r.pred_size).sum();
+    let obs_size: usize = rows.iter().filter_map(|r| r.obs_size).sum();
+    let seed_empty = rows.iter().filter(|r| r.pred_size == Some(0)).count();
+    let glorder_known = rows.iter().filter(|r| r.glorder.is_some()).count();
+    let glorder_agrees = rows.iter().filter(|r| r.glorder == Some(true)).count();
     println!(
         "\x20   EMIT-SET SEED (`docs/whitebox/C2_MAP.md` §3E, flag word `sym+0x4c` bit 0x20, \
          `test dl,0x20` at 0x10b7f16e) — the emitted set is the SEEDED set CLOSED under \
@@ -159,7 +167,19 @@ fn render_plan(report: &GapReport) {
          SUBSET and the gap is the closure's size, measured rather than argued: {subset} of \
          {with_both} TUs where both sides answered have seed ⊆ emitted; {extra} over-claimed \
          name(s) in total (a nonzero here is a finding about the BIT, not about the port); \
-         {missing} emitted name(s) the seed does not carry (that is the CLOSURE's work)."
+         {missing} emitted name(s) the seed does not carry (that is the CLOSURE's work). \
+         **THE CLAIMANT'S OWN SIZE, because a containment claim without it is unfalsifiable in \
+         the flattering direction — the empty set is a subset of everything:** the seed names \
+         {pred_size} function(s) against c2's {obs_size} emitted, and is EMPTY on {seed_empty} \
+         of the {with_both} TUs."
+    );
+    println!(
+        "\x20   `.gl` RECORD ORDER IS NOT COMDAT ORDER — REFUTED BY THE NAMED CONTROL, and kept \
+         as a CHARACTERIZATION number rather than as a component: it agrees on {glorder_agrees} \
+         of {glorder_known} TUs where both sides answered. This is the figure board #259's \
+         `coff::order::plan_text_order` has to beat, and it did not exist before. It is NOT a \
+         port curve and must not be read as one — `emitset-order` publishes `unknown` \
+         everywhere, which is the honest state of a rule its own control killed."
     );
 
     // --- the observe-side inventory -----------------------------------------

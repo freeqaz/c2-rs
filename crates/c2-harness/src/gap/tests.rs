@@ -4736,10 +4736,12 @@ fn mk_plan_report() -> GapReport {
     exact.class = TuClass::Match;
     exact.plan.observable = true;
     exact.plan.verdicts.insert("emitset-members".into(), objplan::PlanVerdict::Exact);
-    exact.plan.verdicts.insert("emitset-order".into(), objplan::PlanVerdict::Exact);
     exact.plan.emitset_subset = Some(true);
     exact.plan.emitset_extra = Some(0);
     exact.plan.emitset_missing = Some(0);
+    exact.plan.emitset_pred_size = Some(1);
+    exact.plan.emitset_obs_size = Some(1);
+    exact.plan.glorder = Some(true);
     exact.plan.sigs.insert("emitset-members".into(), "1:?a@@YAXXZ".into());
 
     let mut differs = mk("differs.cpp");
@@ -4747,10 +4749,12 @@ fn mk_plan_report() -> GapReport {
     differs.class = TuClass::VocabGap;
     differs.plan.observable = true;
     differs.plan.verdicts.insert("emitset-members".into(), objplan::PlanVerdict::Differs);
-    differs.plan.verdicts.insert("emitset-order".into(), objplan::PlanVerdict::Differs);
     differs.plan.emitset_subset = Some(true);
     differs.plan.emitset_extra = Some(0);
     differs.plan.emitset_missing = Some(4);
+    differs.plan.emitset_pred_size = Some(1);
+    differs.plan.emitset_obs_size = Some(5);
+    differs.plan.glorder = Some(false);
     differs.plan.sigs.insert("emitset-members".into(), "5:?b@@YAXXZ".into());
 
     let mut unknown = mk("unknown.cpp");
@@ -4758,9 +4762,7 @@ fn mk_plan_report() -> GapReport {
     unknown.class = TuClass::VocabGap;
     unknown.plan.observable = true;
     unknown.plan.verdicts.insert("emitset-members".into(), objplan::PlanVerdict::Unknown);
-    unknown.plan.verdicts.insert("emitset-order".into(), objplan::PlanVerdict::Unknown);
     unknown.plan.reasons.insert("emitset-members".into(), "gl-attrs-refused".into());
-    unknown.plan.reasons.insert("emitset-order".into(), "gl-attrs-refused".into());
     unknown.plan.sigs.insert("emitset-members".into(), "5:?b@@YAXXZ".into());
 
     let mut unobs = mk("unobs.cpp");
@@ -4768,7 +4770,6 @@ fn mk_plan_report() -> GapReport {
     unobs.class = TuClass::VocabGap;
     unobs.plan.observable = false;
     unobs.plan.verdicts.insert("emitset-members".into(), objplan::PlanVerdict::Unobservable);
-    unobs.plan.verdicts.insert("emitset-order".into(), objplan::PlanVerdict::Unobservable);
 
     let mut gone = mk("gone.cpp");
     gone.src = "src/gone.cpp".into();
@@ -4928,17 +4929,22 @@ fn the_named_control_reports_its_shortfall_by_name_and_component() {
         .to_string();
     r.class = TuClass::Match;
     r.plan.observable = true;
-    r.plan.verdicts.insert("emitset-members".into(), objplan::PlanVerdict::Exact);
-    r.plan.verdicts.insert("emitset-order".into(), objplan::PlanVerdict::Differs);
+    r.plan.verdicts.insert("emitset-members".into(), objplan::PlanVerdict::Differs);
     r.plan.emitset_subset = Some(true);
     let src = r.src.clone();
     let rep = mk_report(vec![r]);
     let ctl = rep.plan_control();
-    assert_eq!(ctl.exact_rows, 0, "one component differs, so the TU is not exact");
+    assert_eq!(ctl.exact_rows, 0, "the one shipped component differs, so the TU is not exact");
     assert_eq!(ctl.shortfall.len(), 1);
     assert_eq!(ctl.shortfall[0].0, src);
-    assert_eq!(ctl.shortfall[0].1, "emitset-order");
+    assert_eq!(ctl.shortfall[0].1, "emitset-members");
     assert_eq!(ctl.shortfall[0].2, objplan::PlanVerdict::Differs);
+    // **The two shortfall kinds are counted apart**: only `differs` reds the
+    // lane, and a control that folded them would go unreadable the moment a
+    // component was demoted to `unknown` — which is what this lane's own first
+    // workload run caused.
+    assert_eq!(ctl.differ_cells, 1);
+    assert_eq!(ctl.unknown_cells, 0);
     // …and the identity diff reports the 25 pinned TUs this one-row report does
     // not carry, in the `left` direction. A control that quietly ignored them
     // would pass on a `--limit 1` scan.

@@ -139,6 +139,9 @@ progress-mass    yes  PROGRESS MASS (driver, not target — docs/PROGRESS_METRIC
 fnbyte-match     yes  FUNCTION BYTE MATCH (driver, not target — docs/FUNCTION_BYTE_MATCH.md)
 fnbyte-partition yes  FBM partition (the under-report, and the controls)
 fnbyte-per-tu    yes  Per-TU FBM (how close is the other 870)
+plan-emitset     yes  OBJECT PLAN — emit set (predicted from IL vs the reference obj)
+plan-control     yes  OBJECT PLAN — the NAMED control on the byte-exact TUs
+plan-inventory   yes  OBJECT PLAN — reference-side inventory (weak / COMDAT / undef)
 '
 # --- the five rows above, added 2026-08-04 by lane w-gr on lane w-bc's spec ----
 #
@@ -166,7 +169,8 @@ fnbyte-per-tu    yes  Per-TU FBM (how close is the other 870)
 GAP_KEYS='workload census emitted-census residue distance-bodies
           distance-emitted emit-ceiling emit-ceiling-gate emit-model binding
           factors joint-ceilings frontier emit-predicate-worth section-ladder
-          progress-mass fnbyte-match fnbyte-partition fnbyte-per-tu'
+          progress-mass fnbyte-match fnbyte-partition fnbyte-per-tu
+          plan-emitset plan-control plan-inventory'
 
 results_file=""
 
@@ -544,6 +548,44 @@ collect_gap() {
     emit fnbyte-per-tu "$(val_or_missing "$(_metric_row "$_log" \
         '@ of @ TUs with emitted functions are 100% byte-exact per function' \
         fnbyte-tus-full fnbyte-tus)")"
+    # ---- THE OBJECT PLAN (lane w-objplan) -----------------------------------
+    #
+    # The structural manifest curve. THREE denominators and never a bare ratio:
+    # `observable` (the reference obj decoded) ⊇ `known` (the port also
+    # answered) ⊇ `exact`. `distinct` is the FREE-component detector — a
+    # component that takes one value across the whole workload gives a 100% that
+    # measures nothing.
+    #
+    # **NECESSARY BUT NOT SUFFICIENT for `match`.** This row is a progress
+    # instrument; the byte judge is unchanged and `plan-*` gates nothing.
+    emit plan-emitset "$(val_or_missing "$(_metric_row "$_log" \
+        'members: observable @ | known @ | exact @ | differs @ | distinct @ ;; seed names @ of the reference obj @ emitted, empty on @ TUs, subset on @ (@ over-claimed, @ the closure still owes) ;; .gl-record order agrees @ of @ (REFUTED as a predictor; characterization only) ;; bounds-violations @' \
+        plan-emitset-members-observable plan-emitset-members-known \
+        plan-emitset-members-exact plan-emitset-members-differs \
+        plan-emitset-members-distinct \
+        plan-emitset-seed-size plan-emitset-observed-size \
+        plan-emitset-seed-empty-tus plan-emitset-seed-subset \
+        plan-emitset-seed-extra plan-emitset-seed-missing \
+        plan-emitset-glorder-agrees plan-emitset-glorder-known \
+        plan-bounds-violations)")"
+    # The control is pinned BY NAME in docs/plan/CONTROL_TUS.txt. `diff` is the
+    # identity diff against that file and a NONZERO value is a finding about the
+    # tree or the workload stamp, reported before any number above it.
+    emit plan-control "$(val_or_missing "$(_metric_row "$_log" \
+        '@ pinned | @ found | set-diff @ | @ exact on every shipped component | @ shortfall cell(s) = @ differs + @ unknown (only differs reds)' \
+        plan-control-pinned plan-control-found plan-control-diff \
+        plan-control-exact plan-control-shortfall \
+        plan-control-differs plan-control-unknown)")"
+    # NOT a curve: read off real c2's objs, describing the population the
+    # un-conjuncted lanes must serve. Re-derives figures this project has only
+    # ever carried.
+    emit plan-inventory "$(val_or_missing "$(_metric_row "$_log" \
+        'weak @ records over @ TUs | COMDAT sections @ (@ associative over @ TUs; @ of UNKNOWN selection) | undefined externals @ over @ TUs | sections @ (@ distinct attribute sequences) | relocation records @' \
+        plan-obs-weak-records plan-obs-weak-tus plan-obs-comdat-sections \
+        plan-obs-comdat-assoc-sections plan-obs-comdat-assoc-tus \
+        plan-obs-comdat-sel-unknown \
+        plan-obs-undef-records plan-obs-undef-tus plan-obs-sections \
+        plan-obs-sections-attrs-distinct plan-obs-reloc-records)")"
 }
 
 # ---- --check : prove the parsers and the registry, with no toolchain ------------
@@ -638,6 +680,41 @@ summary: 100 port Match, 0 mismatch, 110 not-implemented (of 210)
     gap-metric fnbyte-reloc-graded 29084
     gap-metric fnbyte-reloc-partition-broken 0
     gap-metric fnbyte-match-tu-reloc-differs 0
+    gap-metric plan-observable 869
+    gap-metric plan-emitset-members-observable 869
+    gap-metric plan-emitset-members-known 700
+    gap-metric plan-emitset-members-exact 61
+    gap-metric plan-emitset-members-differs 639
+    gap-metric plan-emitset-members-distinct 820
+    gap-metric plan-emitset-seed-subset 655
+    gap-metric plan-emitset-seed-extra 12
+    gap-metric plan-emitset-seed-missing 3456
+    gap-metric plan-emitset-seed-size 777
+    gap-metric plan-emitset-observed-size 4233
+    gap-metric plan-emitset-seed-empty-tus 9
+    gap-metric plan-emitset-observed-empty-tus 5
+    gap-metric plan-emitset-glorder-known 700
+    gap-metric plan-emitset-glorder-agrees 44
+    gap-metric plan-obs-emitset-order-distinct 1
+    gap-metric plan-bounds-violations 0
+    gap-metric plan-control-pinned 26
+    gap-metric plan-control-found 26
+    gap-metric plan-control-diff 0
+    gap-metric plan-control-exact 26
+    gap-metric plan-control-shortfall 0
+    gap-metric plan-control-unknown 0
+    gap-metric plan-control-differs 0
+    gap-metric plan-obs-weak-records 1234
+    gap-metric plan-obs-weak-tus 675
+    gap-metric plan-obs-comdat-sections 98765
+    gap-metric plan-obs-comdat-assoc-sections 4321
+    gap-metric plan-obs-comdat-assoc-tus 450
+    gap-metric plan-obs-comdat-sel-unknown 0
+    gap-metric plan-obs-undef-records 54321
+    gap-metric plan-obs-undef-tus 860
+    gap-metric plan-obs-sections 123456
+    gap-metric plan-obs-sections-attrs-distinct 812
+    gap-metric plan-obs-reloc-records 234567
 EOF
     # Known answers against the captured report above. These call the SAME
     # functions the collectors call — corrupt a parser and this goes red.
@@ -695,6 +772,44 @@ EOF
     # `factor-a-lo` differ by 1 in the probe, so a loose pattern goes red here.
     check_metric factor-a            '28'       || fails=$((fails+1))
     check_metric factor-a-lo         '27'       || fails=$((fails+1))
+
+    # ---- the OBJECT PLAN rows (lane w-objplan) -------------------------------
+    #
+    # Same discipline as the block above and for the same reason: a renamed key
+    # returns NO-RESULT, which is trap 5 (absence read as success) with the mask
+    # on, and nothing else in the pipeline would notice.
+    #
+    # The prefix trap is live here too and sharper than `factor-a`'s:
+    # `plan-emitset-seed-size` and `plan-emitset-seed-subset` share the prefix
+    # `plan-emitset-seed-s`, and `plan-observable` is a prefix of
+    # `plan-observable-…` shaped keys. The probe log deliberately gives them
+    # DIFFERENT values (777 vs 655), so a loose pattern reads the wrong one and
+    # this check goes red rather than agreeing by coincidence.
+    check_metric plan-observable                    '869' || fails=$((fails+1))
+    check_metric plan-emitset-members-exact         '61'  || fails=$((fails+1))
+    check_metric plan-emitset-glorder-agrees        '44'  || fails=$((fails+1))
+    check_metric plan-emitset-members-distinct      '820' || fails=$((fails+1))
+    check_metric plan-obs-emitset-order-distinct    '1'   || fails=$((fails+1))
+    # THE CLAIMANT'"'"'S OWN SIZE, beside the containment claim. Without these two,
+    # `seed-subset` is unfalsifiable in the flattering direction -- the empty set
+    # is a subset of everything -- and this lane'"'"'s first workload run printed
+    # exactly that and could not tell the two readings apart.
+    check_metric plan-emitset-seed-size             '777' || fails=$((fails+1))
+    check_metric plan-emitset-observed-size         '4233' || fails=$((fails+1))
+    check_metric plan-emitset-seed-empty-tus        '9'   || fails=$((fails+1))
+    check_metric plan-bounds-violations             '0'   || fails=$((fails+1))
+    check_metric plan-control-diff                  '0'   || fails=$((fails+1))
+    check_metric plan-obs-weak-tus                  '675' || fails=$((fails+1))
+    # A `plan-*` key that is NOT in the block must read EMPTY so `val_or_missing`
+    # can turn it into NO-RESULT. If it read `0` the whole object-plan row would
+    # render a plausible sentence full of zeros — a curve that says "no progress"
+    # where the truth is "this key was renamed".
+    _got=$(p_metric "$probe_log" plan-emitset-members-exactly)
+    [ -z "$_got" ] || { echo "CHECK FAIL: absent plan key gave '$_got', expected empty"; fails=$((fails+1)); }
+    # …and a whole composed row with one missing part must be EMPTY, never a
+    # sentence with a hole in it.
+    _got=$(_metric_row "$probe_log" 'exact @ of @' plan-emitset-members-exact no-such-plan-key)
+    [ -z "$_got" ] || { echo "CHECK FAIL: incomplete plan row gave '$_got'"; fails=$((fails+1)); }
 
     # The composed rows. A row whose parts are all present renders fully; a row
     # with ANY part missing must be empty, never a sentence with a hole in it.

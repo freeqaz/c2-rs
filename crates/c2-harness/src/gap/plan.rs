@@ -101,7 +101,24 @@ impl PlanVerdict {
 /// reference supplies. The key order here is the printed order and the TSV
 /// column order, and the names are the `gap-metric` key stems, so a rename is
 /// a visible interface change rather than a silent `NO-RESULT` (STATUS trap 5).
-pub const PLAN_COMPONENTS: &[&str] = &["emitset-members", "emitset-order"];
+pub const PLAN_COMPONENTS: &[&str] = &["emitset-members"];
+
+/// **Why `emitset-order` is NOT in the list above** — it was, on this lane's
+/// first workload run, and the **named control removed it**.
+///
+/// The predictor was `.gl` record order (`c2_il::mangled_names`, the only
+/// ordered `.gl` reader). It agreed with COMDAT section order on **18 of 854**
+/// TUs and **differed on 12 of the 26 TUs the port already reproduces
+/// byte-exactly**. The extractor is not at fault — `ObjPlan::observe`'s emit set
+/// is asserted equal to `text_comdat_functions` on real objs by
+/// `tests/plan_agreement.rs` — so the *predictor* is refuted, and this lane's
+/// prereg says a component whose control is red **ships as `Unknown`, never as
+/// `Differs`**: the instrument must not publish 836 disagreements produced by a
+/// rule its own control has already killed.
+///
+/// The measurement survives as `plan-emitset-glorder-agrees`, a
+/// **characterization** key. It is the number that prices board #259's
+/// `coff::order::plan_text_order`, and it did not exist before this lane.
 
 /// One component's four `gap-metric` key names, spelled out as `&'static str`.
 ///
@@ -139,14 +156,6 @@ pub const PLAN_KEYS: &[PlanKeys] = &[
         differs: "plan-emitset-members-differs",
         distinct: "plan-emitset-members-distinct",
     },
-    PlanKeys {
-        component: "emitset-order",
-        observable: "plan-emitset-order-observable",
-        known: "plan-emitset-order-known",
-        exact: "plan-emitset-order-exact",
-        differs: "plan-emitset-order-differs",
-        distinct: "plan-emitset-order-distinct",
-    },
 ];
 
 /// **Observe-side inventory keys** — facts read off the reference obj that the
@@ -163,9 +172,13 @@ pub const PLAN_OBSERVED_KEYS: &[&str] = &[
     "plan-obs-comdat-sections",
     "plan-obs-comdat-assoc-sections",
     "plan-obs-comdat-assoc-tus",
-    "plan-obs-comdat-sel-nonduplicates",
+    "plan-obs-comdat-sel-nodups",
     "plan-obs-comdat-sel-any",
-    "plan-obs-comdat-sel-other",
+    "plan-obs-comdat-sel-samesize",
+    "plan-obs-comdat-sel-exact",
+    "plan-obs-comdat-sel-assoc",
+    "plan-obs-comdat-sel-largest",
+    "plan-obs-comdat-sel-unknown",
     "plan-obs-undef-records",
     "plan-obs-undef-tus",
     "plan-obs-sections",
@@ -197,6 +210,19 @@ pub struct TuPlan {
     /// Did the seed avoid over-claiming — is `predicted ⊆ observed`? `None`
     /// when either side did not answer.
     pub emitset_subset: Option<bool>,
+    /// **`|predicted|` and `|observed|` for the emit set.**
+    ///
+    /// Published because the first workload run printed *"seed ⊆ emitted on 853
+    /// of 854 TUs"* **and could not rule out that 853 of those seeds were
+    /// EMPTY** — the empty set is a subset of everything. A containment claim
+    /// without the claimant's size is unfalsifiable in the flattering
+    /// direction, which is #3237 inside the instrument built to prevent it.
+    pub emitset_pred_size: Option<usize>,
+    pub emitset_obs_size: Option<usize>,
+    /// The **refuted** `.gl`-record-order rule's verdict, kept as a
+    /// characterization value and never as a component. See
+    /// [`PLAN_COMPONENTS`].
+    pub glorder: Option<bool>,
     /// Containment violations found on this TU (see
     /// [`TuPlan::bounds_violations`]). MUST be empty.
     pub violations: Vec<String>,
@@ -323,10 +349,20 @@ pub fn grade(observed: Option<&ObjPlan>, predicted: &PredictedPlan) -> TuPlan {
     for s in &obs.sections {
         let Some(c) = &s.comdat else { continue };
         bump(&mut t, "plan-obs-comdat-sections", 1);
+        // Broken out per `IMAGE_COMDAT_SELECT_*` value rather than into an
+        // `other` bucket. The first run put 106,333 sections in `other` and
+        // 101,119 of them were ASSOCIATIVE — a bucket that large hides exactly
+        // the distinction a COMDAT-synthesis lane needs, and `unknown` (a
+        // selection outside 1..=6) must be visible on its own or an undecoded
+        // value reads as a known one.
         match c.selection {
-            1 => bump(&mut t, "plan-obs-comdat-sel-nonduplicates", 1),
+            1 => bump(&mut t, "plan-obs-comdat-sel-nodups", 1),
             2 => bump(&mut t, "plan-obs-comdat-sel-any", 1),
-            _ => bump(&mut t, "plan-obs-comdat-sel-other", 1),
+            3 => bump(&mut t, "plan-obs-comdat-sel-samesize", 1),
+            4 => bump(&mut t, "plan-obs-comdat-sel-exact", 1),
+            5 => bump(&mut t, "plan-obs-comdat-sel-assoc", 1),
+            6 => bump(&mut t, "plan-obs-comdat-sel-largest", 1),
+            _ => bump(&mut t, "plan-obs-comdat-sel-unknown", 1),
         }
         if c.assoc.is_some() {
             assoc_here += 1;
@@ -364,6 +400,21 @@ pub fn grade(observed: Option<&ObjPlan>, predicted: &PredictedPlan) -> TuPlan {
         "emitset-members".to_string(),
         sig_of(obs.emit_set.iter().map(String::as_str)),
     );
+    // **Every key that is published must have a producer here.** On the first
+    // workload run `plan-emitset-order-distinct` read **0** because nothing
+    // inserted its signature — a key reading zero for *"did not look"*, which is
+    // the exact failure this whole instrument exists to make impossible. The
+    // component is gone now, but the rule stays: `plan_distinct` reports only
+    // keys present in this map, and a missing one must be an absent ROW rather
+    // than a zero.
+    t.sigs.insert(
+        "emitset-order".to_string(),
+        format!(
+            "{}|{}",
+            obs.emit_set.len(),
+            sig_of(obs.emit_set.iter().map(String::as_str))
+        ),
+    );
 
     // ---- emit set, members -------------------------------------------------
     let observed_set: BTreeSet<&str> = obs.emit_set.iter().map(String::as_str).collect();
@@ -376,6 +427,9 @@ pub fn grade(observed: Option<&ObjPlan>, predicted: &PredictedPlan) -> TuPlan {
             t.emitset_extra = Some(extra);
             t.emitset_missing = Some(missing);
             t.emitset_subset = Some(extra == 0);
+            // The claimant's own size, beside the containment claim.
+            t.emitset_pred_size = Some(pred.len());
+            t.emitset_obs_size = Some(observed_set.len());
             record(
                 &mut t,
                 "emitset-members",
@@ -389,23 +443,15 @@ pub fn grade(observed: Option<&ObjPlan>, predicted: &PredictedPlan) -> TuPlan {
         }
     }
 
-    // ---- emit set, order ---------------------------------------------------
-    match &predicted.emit_set_order {
-        Predicted::Unknown(r) => record(&mut t, "emitset-order", PlanVerdict::Unknown, Some(r)),
-        Predicted::Known(p) => {
-            let same = p.len() == obs.emit_set.len()
-                && p.iter().zip(&obs.emit_set).all(|(a, b)| a == b);
-            record(
-                &mut t,
-                "emitset-order",
-                if same {
-                    PlanVerdict::Exact
-                } else {
-                    PlanVerdict::Differs
-                },
-                None,
-            );
-        }
+    // ---- the REFUTED `.gl`-record-order rule, as a characterization value ---
+    //
+    // NOT a component (see [`PLAN_COMPONENTS`]). Kept because it is the number
+    // that prices board #259's `coff::order::plan_text_order`: whatever builds
+    // an order model has to beat this.
+    if let Predicted::Known(p) = &predicted.gl_record_order {
+        t.glorder = Some(
+            p.len() == obs.emit_set.len() && p.iter().zip(&obs.emit_set).all(|(a, b)| a == b),
+        );
     }
 
     t.violations = t.bounds_violations();
@@ -432,6 +478,11 @@ pub struct PlanRow {
     pub subset: Option<bool>,
     pub extra: Option<usize>,
     pub missing: Option<usize>,
+    /// `|predicted|` / `|observed|` — the containment claim's own denominators.
+    pub pred_size: Option<usize>,
+    pub obs_size: Option<usize>,
+    /// The refuted `.gl`-record-order rule's verdict. A characterization value.
+    pub glorder: Option<bool>,
     pub violations: usize,
 }
 
@@ -469,7 +520,7 @@ pub fn plan_tsv(rows: &[PlanRow]) -> String {
         s.push('\t');
         s.push_str(c);
     }
-    s.push_str("\tsubset\textra\tmissing\tviolations\n");
+    s.push_str("\tsubset\textra\tmissing\tpred-size\tobs-size\tglorder\tviolations\n");
     s.push_str(&format!("# plan-rows {}\n", rows.len()));
     let opt = |o: Option<usize>| match o {
         Some(n) => n.to_string(),
@@ -496,6 +547,16 @@ pub fn plan_tsv(rows: &[PlanRow]) -> String {
         s.push('\t');
         s.push_str(&opt(r.missing));
         s.push('\t');
+        s.push_str(&opt(r.pred_size));
+        s.push('\t');
+        s.push_str(&opt(r.obs_size));
+        s.push('\t');
+        s.push_str(match r.glorder {
+            Some(true) => "1",
+            Some(false) => "0",
+            None => "-",
+        });
+        s.push('\t');
         s.push_str(&r.violations.to_string());
         s.push('\n');
     }
@@ -516,7 +577,7 @@ pub fn parse_plan_tsv(text: &str) -> Option<Vec<PlanRow>> {
             continue;
         }
         let f: Vec<&str> = line.split('\t').collect();
-        if f.len() != 3 + n + 4 {
+        if f.len() != 3 + n + 7 {
             return None;
         }
         let verdicts: Option<Vec<PlanVerdict>> =
@@ -545,7 +606,15 @@ pub fn parse_plan_tsv(text: &str) -> Option<Vec<PlanRow>> {
             },
             extra: num(f[4 + n])?,
             missing: num(f[5 + n])?,
-            violations: f[6 + n].parse().ok()?,
+            pred_size: num(f[6 + n])?,
+            obs_size: num(f[7 + n])?,
+            glorder: match f[8 + n] {
+                "1" => Some(true),
+                "0" => Some(false),
+                "-" => None,
+                _ => return None,
+            },
+            violations: f[9 + n].parse().ok()?,
         });
     }
     Some(out)
@@ -585,6 +654,34 @@ pub fn derive_metrics(rows: &[PlanRow]) -> BTreeMap<String, usize> {
     m.insert(
         "plan-emitset-seed-subset".into(),
         rows.iter().filter(|r| r.subset == Some(true)).count(),
+    );
+    // **The containment claim's own denominators**, without which "seed ⊆
+    // emitted on N TUs" cannot be told apart from "N empty seeds".
+    m.insert(
+        "plan-emitset-seed-size".to_string(),
+        rows.iter().filter_map(|r| r.pred_size).sum(),
+    );
+    m.insert(
+        "plan-emitset-observed-size".to_string(),
+        rows.iter().filter_map(|r| r.obs_size).sum(),
+    );
+    m.insert(
+        "plan-emitset-seed-empty-tus".to_string(),
+        rows.iter().filter(|r| r.pred_size == Some(0)).count(),
+    );
+    m.insert(
+        "plan-emitset-observed-empty-tus".to_string(),
+        rows.iter().filter(|r| r.obs_size == Some(0)).count(),
+    );
+    // The REFUTED `.gl`-order rule, published as characterization and never as
+    // a component. See [`PLAN_COMPONENTS`].
+    m.insert(
+        "plan-emitset-glorder-known".to_string(),
+        rows.iter().filter(|r| r.glorder.is_some()).count(),
+    );
+    m.insert(
+        "plan-emitset-glorder-agrees".to_string(),
+        rows.iter().filter(|r| r.glorder == Some(true)).count(),
     );
     m.insert(
         "plan-bounds-violations".into(),
@@ -671,7 +768,8 @@ mod tests {
     fn unknown_plan() -> PredictedPlan {
         PredictedPlan {
             emit_set_members: Predicted::Unknown("gl-attrs-refused"),
-            emit_set_order: Predicted::Unknown("gl-attrs-refused"),
+            emit_set_order: Predicted::Unknown("plan-order-unmodelled"),
+            gl_record_order: Predicted::Unknown("gl-attrs-refused"),
             sections: Predicted::Unknown("plan-sections-unmodelled"),
             weak: Predicted::Unknown("plan-weak-unmodelled"),
             undef: Predicted::Unknown("plan-undef-unmodelled"),
@@ -709,23 +807,35 @@ mod tests {
                 src: "src/App.cpp".into(),
                 class: "vocab-gap".into(),
                 observable: true,
-                verdicts: vec![PlanVerdict::Differs, PlanVerdict::Differs],
+                verdicts: vec![PlanVerdict::Differs],
                 subset: Some(false),
                 extra: Some(3),
                 missing: Some(7),
+                pred_size: Some(9),
+                obs_size: Some(13),
+                glorder: Some(false),
                 violations: 0,
             },
             PlanRow {
                 src: "src/b.cpp".into(),
                 class: "match".into(),
                 observable: false,
-                verdicts: vec![PlanVerdict::Unobservable, PlanVerdict::Unobservable],
+                verdicts: vec![PlanVerdict::Unobservable],
                 subset: None,
                 extra: None,
                 missing: None,
+                pred_size: None,
+                obs_size: None,
+                glorder: None,
                 violations: 0,
             },
         ];
+        // The fixture's verdict width must FOLLOW the component list, or a
+        // component added or demoted turns this into a width mismatch that
+        // reads as a parser bug.
+        for r in &rows {
+            assert_eq!(r.verdicts.len(), PLAN_COMPONENTS.len());
+        }
         let back = parse_plan_tsv(&plan_tsv(&rows)).expect("our own file must parse");
         assert_eq!(rows, back);
     }
@@ -736,7 +846,8 @@ mod tests {
     #[test]
     fn a_malformed_row_refuses_the_whole_file() {
         assert!(parse_plan_tsv("a\tb\tc\n").is_none());
-        assert!(parse_plan_tsv("a\tmatch\t1\texact\tNOPE\t1\t0\t0\t0\n").is_none());
+        // Right column count, one unreadable verdict token.
+        assert!(parse_plan_tsv("a\tmatch\t1\tNOPE\t1\t0\t0\t1\t1\t1\t0\n").is_none());
     }
 
     /// The key table and the component list are one table in two places, so

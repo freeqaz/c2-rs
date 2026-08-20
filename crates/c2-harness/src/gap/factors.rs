@@ -446,6 +446,12 @@ pub struct PlanControlReport<'a> {
     pub present: usize,
     /// Pinned TUs `exact` on EVERY shipped component.
     pub exact_rows: usize,
+    /// Component-cells on pinned TUs that read `Unknown` — the port did not
+    /// look at a TU it reproduced byte-for-byte.
+    pub unknown_cells: usize,
+    /// Component-cells on pinned TUs that read `Differs` or `Unobservable`.
+    /// **This is the count that reds the lane.**
+    pub differ_cells: usize,
     /// `(src, component, verdict)` for every pinned TU that is not `exact`.
     pub shortfall: Vec<(&'a str, &'static str, super::plan::PlanVerdict)>,
 }
@@ -1374,6 +1380,9 @@ impl GapReport {
                 subset: r.plan.emitset_subset,
                 extra: r.plan.emitset_extra,
                 missing: r.plan.emitset_missing,
+                pred_size: r.plan.emitset_pred_size,
+                obs_size: r.plan.emitset_obs_size,
+                glorder: r.plan.glorder,
                 violations: r.plan.violations.len(),
             })
             .collect()
@@ -1435,7 +1444,7 @@ impl GapReport {
         let diff = super::plan::control_diff(found.iter().copied());
         let pinned = super::plan::control_tus();
         let mut shortfall: Vec<(&str, &'static str, super::plan::PlanVerdict)> = Vec::new();
-        let mut exact_rows = 0usize;
+        let (mut exact_rows, mut unknown_cells, mut differ_cells) = (0usize, 0usize, 0usize);
         for r in self.results.iter().filter(|r| pinned.contains(r.src.as_str())) {
             let mut ok = true;
             for c in super::plan::PLAN_COMPONENTS {
@@ -1445,9 +1454,25 @@ impl GapReport {
                     .get(*c)
                     .copied()
                     .unwrap_or(super::plan::PlanVerdict::Unobservable);
-                if v != super::plan::PlanVerdict::Exact {
-                    shortfall.push((r.src.as_str(), c, v));
-                    ok = false;
+                // **The three shortfall kinds are counted apart, and only one of
+                // them is a red.** The lane's prereg says `Unknown` on a control
+                // TU is a failure because the port demonstrably had the
+                // information — TRUE of a component the port's emit path uses,
+                // and NOT true of one it does not. Collapsing them would have
+                // made this control unreadable the moment a component was
+                // demoted, which is exactly what its first run caused.
+                match v {
+                    super::plan::PlanVerdict::Exact => {}
+                    super::plan::PlanVerdict::Unknown => {
+                        unknown_cells += 1;
+                        shortfall.push((r.src.as_str(), c, v));
+                        ok = false;
+                    }
+                    _ => {
+                        differ_cells += 1;
+                        shortfall.push((r.src.as_str(), c, v));
+                        ok = false;
+                    }
                 }
             }
             if ok {
@@ -1465,6 +1490,8 @@ impl GapReport {
                 .filter(|r| pinned.contains(r.src.as_str()))
                 .count(),
             exact_rows,
+            unknown_cells,
+            differ_cells,
             shortfall,
         }
     }
@@ -1525,6 +1552,50 @@ impl GapReport {
             "plan-emitset-seed-missing",
             rows.iter().filter_map(|r| r.missing).sum::<usize>().to_string(),
         ));
+        // **The claimant's own size, beside the containment claim.** Without
+        // these two, `plan-emitset-seed-subset` is unfalsifiable in the
+        // flattering direction: the empty set is a subset of everything, so
+        // "seed ⊆ emitted on 853 TUs" and "853 empty seeds" print identically.
+        // The first run of this instrument printed exactly that and could not
+        // tell them apart.
+        m.push((
+            "plan-emitset-seed-size",
+            rows.iter().filter_map(|r| r.pred_size).sum::<usize>().to_string(),
+        ));
+        m.push((
+            "plan-emitset-observed-size",
+            rows.iter().filter_map(|r| r.obs_size).sum::<usize>().to_string(),
+        ));
+        m.push((
+            "plan-emitset-seed-empty-tus",
+            rows.iter().filter(|r| r.pred_size == Some(0)).count().to_string(),
+        ));
+        m.push((
+            "plan-emitset-observed-empty-tus",
+            rows.iter().filter(|r| r.obs_size == Some(0)).count().to_string(),
+        ));
+        // The REFUTED `.gl`-record-order rule — CHARACTERIZATION, never a
+        // component. It prices board #259's `plan_text_order`.
+        m.push((
+            "plan-emitset-glorder-known",
+            rows.iter().filter(|r| r.glorder.is_some()).count().to_string(),
+        ));
+        m.push((
+            "plan-emitset-glorder-agrees",
+            rows.iter().filter(|r| r.glorder == Some(true)).count().to_string(),
+        ));
+        // **The FREE-component detector on the REFERENCE side** — how many
+        // distinct values each observable takes across the workload. A
+        // component whose reference side is constant would publish a 100% that
+        // measures nothing, and `.drectve` was this lane's prime suspect.
+        for (key, sig) in [
+            ("plan-obs-sections-names-distinct", "sections-names"),
+            ("plan-obs-sections-attrs-distinct", "sections-attrs"),
+            ("plan-obs-drectve-distinct", "drectve"),
+            ("plan-obs-emitset-order-distinct", "emitset-order"),
+        ] {
+            m.push((key, distinct.get(sig).copied().unwrap_or(0).to_string()));
+        }
         // A COUNT and not a status (STATUS trap 5). Known answer 0.
         m.push((
             "plan-bounds-violations",
@@ -1541,6 +1612,11 @@ impl GapReport {
         ));
         m.push(("plan-control-exact", ctl.exact_rows.to_string()));
         m.push(("plan-control-shortfall", ctl.shortfall.len().to_string()));
+        // The two shortfall kinds apart. `plan-control-differs` is the one that
+        // reds the lane; `plan-control-unknown` is a component the port does not
+        // model, which is a different fact and ranks differently.
+        m.push(("plan-control-unknown", ctl.unknown_cells.to_string()));
+        m.push(("plan-control-differs", ctl.differ_cells.to_string()));
         for (k, n) in self.plan_observed() {
             m.push((k, n.to_string()));
         }
