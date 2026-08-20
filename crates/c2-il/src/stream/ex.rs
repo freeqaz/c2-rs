@@ -26,19 +26,36 @@ pub struct FileFraming<'a> {
     pub bytes: &'a [u8],
     /// The framing. Tiles `[0, bytes.len())` exactly — see [`Ir0Framing`].
     pub records: Vec<Record>,
-    /// **`.ex` only: the shared marker index.** Every `4C 4F 11` body marker,
-    /// ascending. Empty for every other suffix.
-    ///
-    /// This is the one substantive thing IR0 buys the two splitters beyond a
-    /// common locator: today each of them runs its own byte walk over the whole
-    /// stream, and `split_function_bodies_at` runs *both* walks. Held here, one
-    /// index serves both views.
-    pub(crate) los: Vec<usize>,
     /// **`.ex` only:** every `4F 1F` function-start marker, ascending — the
     /// offsets the `ExFnSegment` records were built from, kept beside them so a
     /// view is a pure function of the index rather than a re-scan.
     pub(crate) starts: Vec<usize>,
 }
+
+// **WHY THERE IS NO `los` FIELD HERE, and why the obvious design was WRONG.**
+//
+// The first version of this type held the `4C 4F 11` body-marker index beside
+// `starts`, framed eagerly, on the argument that "one index serves both views"
+// — today `split_functions_at` and `split_function_bodies_at` each run their
+// own byte walk, and the latter runs *both*.
+//
+// **That is a performance REGRESSION at seven of the nine gate call sites, and
+// it was measured, not reasoned about.** Every gate-side reader
+// (`ex_segment_count`, `gl_body_start_coverage`, `selective_bind_coverage`,
+// `opt_words`, `functions`, `dyninit_tu`, `provide_data_tu`) wants the `4F 1F`
+// split and nothing else, and does exactly ONE scan for it today. An eager
+// `los` makes each of them do TWO. `functions()` is on `PortC2::build`'s path
+// and the port's whole thesis is throughput.
+//
+// So `los` is computed inside [`FileFraming::body_segments`], where it is
+// needed and where the incumbent already computes it. Each view then costs
+// exactly what its incumbent costs — one scan for the gate, two for the census
+// — and the sharing that looked free was buying nothing, because **no call
+// site wants both segmentations.**
+//
+// The lane's plan flagged framing cost as risk F5 and predicted it as "the same
+// scans that already happen". It is not: the gate sites do one scan and the
+// eager framing does two. Recorded as a plan defect rather than silently fixed.
 
 /// The whole bundle, framed. One [`FileFraming`] per present file, in the
 /// bundle's own suffix order.
@@ -66,7 +83,6 @@ impl<'a> Ir0<'a> {
                     suffix,
                     bytes,
                     records: whole_file_opaque(bytes),
-                    los: Vec::new(),
                     starts: Vec::new(),
                 },
             });
@@ -95,7 +111,6 @@ impl<'a> Ir0<'a> {
     /// a scan into a framing.
     pub fn frame_ex(ex: &'a [u8]) -> FileFraming<'a> {
         let starts = fn_start_offsets(ex);
-        let los = lo_marker_offsets(ex);
 
         let mut records = Vec::with_capacity(starts.len() + 1);
         match starts.first() {
@@ -127,7 +142,6 @@ impl<'a> Ir0<'a> {
             suffix: "ex",
             bytes: ex,
             records,
-            los,
             starts,
         }
     }
@@ -221,7 +235,9 @@ impl<'a> FileFraming<'a> {
     /// segmentation in terms of the other.
     pub fn body_segments(&self) -> (Vec<usize>, Vec<&'a [u8]>) {
         let ex = self.bytes;
-        let mut los = self.los.clone();
+        // Scanned HERE, not in `frame_ex`: see the note beside `FileFraming`.
+        // The gate view must not pay for an index only the census view reads.
+        let mut los = lo_marker_offsets(ex);
         let starts = &self.starts;
 
         // The strictly-additive bare-`4C` pass, per `4F 1F` region that holds
