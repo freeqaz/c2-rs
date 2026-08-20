@@ -179,9 +179,15 @@ fn run_cell_in_dir(
     let out = captured.ref_obj_path.clone();
     let il = w.path().join("il");
 
+    // Both arms yield `(Option<ObjImage>, TapReport)`: a forced-slide run can
+    // legitimately produce NO obj (a wrong slide that patched something can
+    // crash c2), and that has to reach the caller as data rather than as an
+    // error, or the arming evidence is lost behind an early failure.
     let armed_replay = |il: &Path, out: &Path| match force_slide {
         Some(v) => tc.replay_tapped_forced_slide(&captured, il, out, STAGE_SITES, v),
-        None => tc.replay_tapped_raw(&captured, il, out, STAGE_SITES, payload, raw),
+        None => tc
+            .replay_tapped_raw(&captured, il, out, STAGE_SITES, payload, raw)
+            .map(|(obj, rep)| (Some(obj), rep)),
     };
 
     let mut neutral = None;
@@ -197,9 +203,20 @@ fn run_cell_in_dir(
                     };
                 }
                 match armed_replay(&il, &out) {
-                    Ok((armed_obj, rep)) => {
+                    Ok((Some(armed_obj), rep)) => {
                         neutral = Some(ObjImage::diff(&disarmed, &armed_obj) == ObjDiff::Identical);
                         return Cell { name, armed: rep, neutral, err: None };
+                    }
+                    Ok((None, rep)) => {
+                        // No obj at all: the armed leg crashed or aborted. It
+                        // is NOT neutral and it is NOT graded — and the report
+                        // is kept, because what armed is the interesting half.
+                        return Cell {
+                            name,
+                            armed: rep,
+                            neutral: None,
+                            err: Some("the ARMED leg produced no obj".into()),
+                        };
                     }
                     Err(e) => {
                         return Cell { name, armed: TapReport::default(), neutral: None, err: Some(format!("armed replay: {e}")) }
@@ -215,6 +232,7 @@ fn run_cell_in_dir(
         Ok((_obj, rep)) => Cell { name, armed: rep, neutral, err: None },
         Err(e) => Cell { name, armed: TapReport::default(), neutral: None, err: Some(format!("armed replay: {e}")) },
     }
+
 }
 
 pub(crate) fn cmd_stage(rest: &[String]) -> ExitCode {
