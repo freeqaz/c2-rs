@@ -30,7 +30,7 @@
 
 mod bind;
 mod body;
-mod bundle;
+pub(crate) mod bundle;
 mod census;
 mod diag;
 mod ehscope;
@@ -38,7 +38,7 @@ mod gl;
 mod glalias;
 mod ininit;
 mod inlit;
-mod readers;
+pub(crate) mod readers;
 mod sy;
 
 pub use self::bind::{
@@ -51,6 +51,7 @@ pub use self::bundle::{
     DynInitTu,
     ProvideDataObject, ProvideDataTu,
     GlDataRow, InAliasReport,
+    ex_segments_body, ex_segments_gate,
     is_empty_module, opt_word_mode, OptWordMode, OPT_WORD_O1, OPT_WORD_OX,
     OPT_WORD_SPECIAL_MEMBER,
 };

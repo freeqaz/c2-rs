@@ -64,7 +64,13 @@ Measured at this tree before anything below was written:
 ### 1.2 What is wrong, in order of what it costs
 
 1. **Parse == accept: there is no lossless decode layer.**
-   `IlBundle::functions()` (`crates/c2-il/src/func/bundle.rs:1939`) couples
+   `IlBundle::functions()` (`crates/c2-il/src/func/bundle.rs:1961` — this read
+   `:699` in the first draft, which is inside the `OPT_WORD_*` constant block;
+   lane `ir0` measured `:1939`, and its own `ex_segments_*` seams then pushed
+   the function down 22 lines to `:1961`, so **the correction was stale in the
+   very tree that carried it** — a raw line number into a live file is a
+   drift-prone anchor and `board_audit.sh` exempts these only inside frozen
+   rung files) couples
    framing, name binding, semantic understanding and *admission* into one
    verdict. Consequences: (a) the whole recognized function is the only unit
    that can exist downstream, so every new capability is a new whole-function
@@ -78,7 +84,8 @@ Measured at this tree before anything below was written:
    per-body denominator quoted downstream must come from a census run, cited
    with its workload stamp, never from this key; (c) the
    refusal boundary is structurally pinned in the parser —
-   `frontier-codegen-refused` is 0 *by construction* (#1475). Cost evidence:
+   `frontier-codegen-refused` is 0 *by construction* (#1475), and that is fixed
+   by the claims ledger (§3.3), not by step 1. Cost evidence:
    113,612 of the 126,315 additionally-needed emitted functions are blocked at
    the reader (CEILING §6, #3092).
 2. **The middle is point-rules, not a pipeline, and `passes/mod.rs` is a
@@ -280,7 +287,7 @@ non-decreasing — byte-identical or explicitly accounted, per step.
 | # | step | kind | graded by | what it unblocks |
 |---|---|---|---|---|
 | 0 | **Stage oracle** (§4) | characterization lanes | snapshot determinism + one end-to-end instrumented TU per family | everything in step 5; divergence localization forever after |
-| 1 | **IR0 under the current reader**: build the lossless framer; re-express `IlBundle::functions()` and the census splitters as *views* over it | construct | identity protocol + new totality/opaque denominators printed both sides of the change (trap-0/#961 discipline) | the substrate; makes a body decodable without its TU being admitted (§1.2.1b), so a middle stage has real data to build against; makes every later reader claim checkable |
+| 1 | **IR0 under the current reader**: build the lossless framer; ~~re-express `IlBundle::functions()` and the census splitters as *views* over it~~ | construct | identity protocol + new totality/opaque denominators printed both sides of the change (trap-0/#961 discipline) | **DONE IN PART — lane `ir0`, 2026-08-20, outcome `built`.** The framer, its totality controls and the opaque denominators shipped at a required-zero byte delta (14 `ir0-*` keys; `.ex` **99.61 %** framed on the workload, **31.35 %** on the fixtures). The K1 codec's round-trip — the step's stated spine — ran on dc3 for the first time: **870 of 870**, 0 broken (**#3332**). **The re-expression half was BUILT, MEASURED AND REVERTED**: all eleven production call sites switched, byte-identical by construction, at a cost of **+2.03 % port time per obj** (95 % CI [+1.72, +2.34]; **#3335**). ~~8–14 % of the port's geomean; the price is the `Vec<Record>` the gate view never reads~~ — **both figures WITHDRAWN by the lane's fix round.** The first reading was the measurement's own null (the same protocol reads −13.7 % on the *reference* side, where the effect is zero by construction), and the records-suppressed probe measures **slower**, not faster, so the cause is **unattributed**. **The scheduling answer is unchanged and did not depend on the wrong number: do it inside step 4**, where a record carries a binding, not here — 2 % of the port's throughput for a layer with no reader yet is still the wrong trade at step 1. And the "kills 97% no IR" claim was **false as written** (#3332's rung, DD2) |
 | 2 | **The W8 sum type**: `IlFunction.body: BodyShape`; delete the parallel `Option`s and `select_function`'s re-derivation | construct (the long-deferred SEAMS step 5; needs its quiesce window) | identity protocol; census/gate disagreement stays 0 | new classes stop costing a field + an arm + a pair of files |
 | 3 | **IR2 ObjPlan + the manifest instrument**: consolidate `plan/`; add the structural-manifest grade over all 870 TUs as a gap-metric family (`plan-exact`, per-component) | construct + instrument | manifest identity on the 26 matched TUs (required-exact); the other 844 become a *measured curve* | un-conjuncts A∧B∧C: emit-set closure, weak externals (675), COMDAT synthesis (450), the 3-name section ladder each become independently gradeable lanes with an honest denominator |
 | 4 | **IR1 consolidation**: one binding, `bind.rs`'s pinned-apart seam closed on purpose (the numerator move recorded, not absorbed) | construct | binding counters + JSONL identity; the numerator move published as its own row | claim 2 of the ledger |

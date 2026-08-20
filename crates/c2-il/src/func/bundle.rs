@@ -432,7 +432,7 @@ pub(crate) fn body_start_is_bare(seg: &[u8]) -> bool {
 /// TU with two functions, which is the same defect (§10.11) one level down: a
 /// count that is only evidence about the predicate that produced it. The
 /// fixture exists because that was invisible on the single-thunk one.
-fn bare_body_start(seg: &[u8]) -> Option<usize> {
+pub(crate) fn bare_body_start(seg: &[u8]) -> Option<usize> {
     let mut i = 0;
     while i + 1 < seg.len() {
         if seg[i] == 0x53 && seg[i + 1] == 0x53 {
@@ -630,6 +630,28 @@ pub(crate) fn split_functions_at(ex: &[u8]) -> (Vec<usize>, Vec<&[u8]>) {
         segs.push(&ex[starts[k]..end]);
     }
     (starts, segs)
+}
+
+/// **The GATE segmentation, exposed for grading only** (lane `ir0`).
+///
+/// A thin public wrapper over [`split_functions_at`], which is `pub(crate)` and
+/// therefore invisible to an integration test. It exists so
+/// `crates/c2-harness/tests/ir0_framing.rs` can compare the incumbent against
+/// IR0's view **and** against an independently hand-written reference — three
+/// implementations, because two would become a tautology the moment the
+/// incumbent is folded into the view (#3288).
+///
+/// It is a *grading seam*, not a new reader: it adds no decision, and every
+/// production caller keeps calling `split_functions_at` directly.
+pub fn ex_segments_gate(ex: &[u8]) -> (Vec<usize>, Vec<&[u8]>) {
+    split_functions_at(ex)
+}
+
+/// **The CENSUS segmentation, exposed for grading only** (lane `ir0`) — the
+/// `LO`-anchored split with the additive bare-`4C` pass. Same rationale as
+/// [`ex_segments_gate`]; see [`split_function_bodies_at`] for the rule.
+pub fn ex_segments_body(ex: &[u8]) -> (Vec<usize>, Vec<&[u8]>) {
+    split_function_bodies_at(ex)
 }
 
 /// The per-function optimization-settings word for the mode the port's codegen

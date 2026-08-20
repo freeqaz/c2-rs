@@ -96,6 +96,146 @@ fn scan_one(
     // the same flag the emitter gets.
     let gy = PortC2::flags_imply_function_level_linking(&cfg.flags);
     res.ex_len = captured.bundle.ex().map(|b| b.len()).unwrap_or(0);
+
+    // 1a''. **IR0 / K1 — THE LOSSLESS CONTAINER CODEC, RUN ON THE WORKLOAD FOR
+    //       THE FIRST TIME** (lane `ir0`, `docs/rungs/2026-08-20-ir0.md`).
+    //
+    //       `IlModel::parse` is a **total, fail-closed** container codec: it
+    //       frames every byte of `.ex` and `.gl` into typed spans with
+    //       unrecognized runs coalesced into `Span::Opaque`, re-encodes the
+    //       result, and returns `CodecError::CannotRoundTrip` rather than a
+    //       model it cannot serialize back byte-for-byte
+    //       (`crates/c2-il/src/codec.rs`). That is exactly the invariant the
+    //       architecture proposal's IR0 asks for — **and until this line it had
+    //       only ever been run on the 386 fixtures**
+    //       (`crates/c2-harness/tests/il_roundtrip.rs`) and on the generated
+    //       corpus. Never on dc3.
+    //
+    //       The distinction that makes this worth a key rather than a test:
+    //       `parse_ex`/`parse_gl` are total **by construction**, so a failure
+    //       cannot come from an unrecognized construct — it can only come from
+    //       an `ExToken::encode_into` disagreeing with the bytes it consumed,
+    //       i.e. a **decoding bug**, on a stream shape the fixture spread has
+    //       no instance of. So `ir0-roundtrip-broken` is not a coverage number;
+    //       it is a defect count with a known answer of 0.
+    //
+    //       Both halves are emitted, including the zero, because a residue key
+    //       that stops occurring must read `0` rather than vanish
+    //       (`docs/STATUS.md` trap 5). `-tus` is their denominator, published
+    //       beside them for the reason `emit_set_violations_gate` publishes
+    //       its population: a green control whose denominator is unstated is
+    //       indistinguishable from a control that checked nothing.
+    // 1a'''. **IR0 — the framing, its totality control, and the opaque
+    //        denominators** (lane `ir0`).
+    //
+    //        `Ir0::frame` is infallible: there is no refusal predicate at this
+    //        layer, and bytes no marker opens are `RecordKind::Opaque`, which
+    //        is a description of the INPUT rather than a verdict by the reader.
+    //        So the two `-broken` keys below are **IR0 defect counts with a
+    //        known answer of 0**, in the trap-5 style of
+    //        `in-init-accounting-broken`, and the byte counts are the thing the
+    //        lane was commissioned for.
+    //
+    //        **`ir0-bytes-opaque` is not a reader deficiency and must not be
+    //        read as one.** `.db` is one opaque record by design (`.gl`
+    //        framing is IR1, `.sy`/`.in`/`.db` are further out still), and `.db`
+    //        dominates a real bundle. The `.ex`-only pair is the number about
+    //        the reader's own stream; the whole-bundle pair is the number about
+    //        the scope IR0 v1 declared.
+    {
+        let ir0 = c2_il::Ir0::frame(&captured.bundle);
+        if <c2_il::Ir0 as c2_il::Ir0Framing>::verify(&ir0).is_err() {
+            *res.emit.entry("ir0-verify-broken".into()).or_insert(0) += 1;
+        }
+        *res.emit.entry("ir0-tus-framed".into()).or_insert(0) += 1;
+        let mut bytes = 0usize;
+        let mut framed = 0usize;
+        let mut opaque = 0usize;
+        for ff in &ir0.files {
+            *res.emit.entry("ir0-records".into()).or_insert(0) += ff.records.len();
+            let (f, o) = ff.byte_split();
+            bytes += ff.bytes.len();
+            framed += f;
+            opaque += o;
+            if ff.suffix == "ex" {
+                *res.emit.entry("ir0-ex-bytes".into()).or_insert(0) += ff.bytes.len();
+                *res.emit.entry("ir0-ex-bytes-framed".into()).or_insert(0) += f;
+                *res.emit.entry("ir0-ex-bytes-opaque".into()).or_insert(0) += o;
+            }
+        }
+        *res.emit.entry("ir0-bytes".into()).or_insert(0) += bytes;
+        *res.emit.entry("ir0-bytes-framed".into()).or_insert(0) += framed;
+        *res.emit.entry("ir0-bytes-opaque".into()).or_insert(0) += opaque;
+        // Totality as a printed control, not an assertion — the shape
+        // `in-init-accounting-broken` uses.
+        //
+        // **THIS KEY IS STRICTLY IMPLIED BY `ir0-verify-broken` AND CANNOT
+        // FIRE ALONE** (review of lane `ir0`): if I1 holds, the extents tile
+        // `[0, len)`, so `framed + opaque == len` follows. It is kept because
+        // a control that restates its neighbour by a different route is the
+        // cheap half of #3288 — but it is NOT a second independent check, and
+        // reading its 0 as one is the over-claim the review caught.
+        if framed + opaque != bytes {
+            *res.emit.entry("ir0-accounting-broken".into()).or_insert(0) += 1;
+        }
+        // **C4 — the free cross-check, and it costs one comparison.** IR0's two
+        // views must reproduce the incumbent splitters exactly. The
+        // `emit-splitter-*` counters above are read off `ex_segment_count` and
+        // `census_functions`; if the IR0 view disagrees with either, the views
+        // are not views. NO NEW `ir0-seg-*` KEY IS MINTED for the disagreement
+        // itself — `SPLITTER ANCHORS` already prints it (#3314's shape) — only
+        // this alarm, whose known answer is 0.
+        if let Some(ex) = captured.bundle.ex() {
+            let f = c2_il::Ir0::frame_ex(ex);
+            // `None` is a view refusing a non-`.ex` file; on an `.ex` it is a
+            // defect, so it counts as broken rather than being unwrapped or
+            // silently skipped.
+            let gate_ok = f.gate_segments().map(|v| v.0) == Some(c2_il::ex_segments_gate(ex).0);
+            let body_ok = f.body_segments().map(|v| v.0) == Some(c2_il::ex_segments_body(ex).0);
+            if !(gate_ok && body_ok) {
+                *res.emit
+                    .entry("ir0-splitter-crosscheck-broken".into())
+                    .or_insert(0) += 1;
+            }
+        }
+    }
+
+    {
+        *res.emit.entry("ir0-roundtrip-tus".into()).or_insert(0) += 1;
+        match c2_il::IlModel::parse(&captured.bundle) {
+            Ok(model) => {
+                // `parse` already verified the re-encode file by file and fails
+                // closed. **What this adds over `parse`'s `Ok` is a FILE-SET
+                // AND ORDER check and nothing more** — it re-runs the same
+                // `FileModel::encode` on the same bytes, so it is a
+                // restatement of the per-file claim plus a `BTreeMap`
+                // comparison that also catches a file dropped or duplicated
+                // between `parse` and `encode`. An earlier comment here called
+                // it "a second, differently-built derivation (#3288)"; that was
+                // an over-claim and the review of lane `ir0` caught it. The
+                // genuinely differently-built derivation of this lane's
+                // published figures is `ir0-ex-bytes` against Σ `ex_len` in the
+                // scan JSONL.
+                if model.encode().files == captured.bundle.files {
+                    *res.emit.entry("ir0-roundtrip-ok".into()).or_insert(0) += 1;
+                } else {
+                    *res.emit.entry("ir0-roundtrip-broken".into()).or_insert(0) += 1;
+                    *res.emit
+                        .entry("ir0-roundtrip-broken-reencode".into())
+                        .or_insert(0) += 1;
+                }
+            }
+            Err(e) => {
+                *res.emit.entry("ir0-roundtrip-broken".into()).or_insert(0) += 1;
+                // The suffix that refused, so the residue is actionable rather
+                // than a bare count. `CodecError` has one variant today.
+                let c2_il::CodecError::CannotRoundTrip { suffix, .. } = &e;
+                *res.emit
+                    .entry(format!("ir0-roundtrip-broken-suffix|{suffix}"))
+                    .or_insert(0) += 1;
+            }
+        }
+    }
     res.fn_names = captured
         .bundle
         .get("gl")
@@ -1843,6 +1983,88 @@ pub fn gap_scan(
     let (known, unknown, agree, disagree, gate_more, census_more, gate_ceil, enter, leave) =
         report.splitter_disagreement();
     let (viol, viol_pop) = report.emit_set_violations_gate();
+    // **IR0 — the container codec's round-trip over the workload** (lane `ir0`).
+    // Printed as well as keyed, and printed ALWAYS, for the reason the block
+    // below is: a defect count nobody prints is the absence-reads-as-success
+    // shape. `broken` has a known answer of **0**; anything else is a decoding
+    // bug in `ExToken::encode_into` on a stream shape the 386-fixture spread
+    // has no instance of, and the per-suffix residue names which stream.
+    {
+        let rt_tus = report.emit_total("ir0-roundtrip-tus");
+        let rt_ok = report.emit_total("ir0-roundtrip-ok");
+        let rt_bad = report.emit_total("ir0-roundtrip-broken");
+        println!(
+            "\nIR0 CONTAINER ROUND-TRIP (K1, `IlModel::parse`/`encode`) — LOSSLESS or it \
+             refuses; run on the workload for the first time 2026-08-20\n\
+             \x20 {rt_ok} of {rt_tus} captured bundles re-encode BYTE-IDENTICALLY; {rt_bad} \
+             broken (known answer 0)\n\
+             \x20 totality is BY CONSTRUCTION — unrecognized bytes coalesce into \
+             `Span::Opaque`, so a break is never an unmodelled construct, only an \
+             `ExToken::encode_into` disagreeing with the bytes it consumed"
+        );
+        let residue: Vec<(String, usize)> = report
+            .emit_histogram()
+            .into_iter()
+            .filter_map(|(k, n)| Some((k.strip_prefix("ir0-roundtrip-broken-")?.to_string(), n)))
+            .collect();
+        if residue.is_empty() {
+            println!("\x20 residue by reason: none");
+        } else {
+            for (r, n) in residue {
+                println!("\x20 residue {r}: {n}");
+            }
+        }
+    }
+    // **IR0 FRAMING — the totality controls and the opaque denominators.**
+    //
+    // The three `broken` counts are IR0 DEFECT counts with a known answer of 0,
+    // not coverage numbers: `Ir0::frame` is infallible, so a non-zero value
+    // means the framer is wrong and never that the input was.
+    //
+    // The percentages are stated with what they are ABOUT attached, because the
+    // whole-bundle one looks bad and is the honest number: `.gl`, `.sy`, `.in`
+    // and `.db` are one opaque record each **by declared scope** — `.gl` record
+    // framing is IR1 — and `.db` dominates a real bundle. Reading
+    // `ir0-bytes-opaque` as a reader deficiency is the mistake this line exists
+    // to prevent.
+    {
+        let t = |k: &str| report.emit_total(k);
+        let (tus, recs) = (t("ir0-tus-framed"), t("ir0-records"));
+        let (b, bf, bo) = (t("ir0-bytes"), t("ir0-bytes-framed"), t("ir0-bytes-opaque"));
+        let (e, ef, eo) = (
+            t("ir0-ex-bytes"),
+            t("ir0-ex-bytes-framed"),
+            t("ir0-ex-bytes-opaque"),
+        );
+        let pct = |n: usize, d: usize| {
+            if d == 0 {
+                "n/a".to_string()
+            } else {
+                format!("{:.2}%", 100.0 * n as f64 / d as f64)
+            }
+        };
+        println!(
+            "\nIR0 FRAMING (`c2_il::stream`) — totality holds or the framer is wrong; the framer \
+             NEVER refuses\n\
+             \x20 {recs} records over {tus} bundles; controls: verify-broken {}, \
+             accounting-broken {}, splitter-crosscheck-broken {} (each a DEFECT count, known \
+             answer 0)\n\
+             \x20 `.ex` ONLY — the stream IR0 v1 frames: {e} B, {ef} inside a `4F 1F` segment \
+             ({}), {eo} opaque ({}). The opaque part is the header/index region before the first \
+             marker, which NEITHER incumbent splitter has ever covered.\n\
+             \x20 WHOLE BUNDLE — {b} B, {bf} framed ({}), {bo} opaque ({}). **This is a fact \
+             about IR0 v1's declared SCOPE, not about the reader**: `.gl`/`.sy`/`.in`/`.db` are \
+             one opaque record each on purpose (`.gl` record framing is IR1) and `.db` dominates \
+             a real bundle.",
+            t("ir0-verify-broken"),
+            t("ir0-accounting-broken"),
+            t("ir0-splitter-crosscheck-broken"),
+            pct(ef, e),
+            pct(eo, e),
+            pct(bf, b),
+            pct(bo, b),
+        );
+    }
     println!(
         "\nSPLITTER ANCHORS (ROADMAP §10.11/§10.12) — the census splits `.ex` on `4C 4F 11`, \
          the port on `4F 1F`\n\

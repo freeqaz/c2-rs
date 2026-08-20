@@ -34,12 +34,15 @@ use std::path::Path;
 
 pub mod codec;
 pub mod func;
+pub mod stream;
 pub use codec::{CodecError, EditError, EditReport, ExToken, FileModel, IlModel, Span};
+pub use stream::{Extent, Ir0, Ir0Broken, Ir0Framing, Record, RecordKind};
 pub use func::{
     chain_form, gl_body_record_names, gl_gate_record_names, gl_narrow_record_names,
     gl_precise_record_names, slot_sources, ChainForm,
     EmitBinding, FP_SCRATCH,
     detect_token_width, gl_alias_table, gl_alias_table_shifted, gl_symbol_conflicts,
+    ex_segments_body, ex_segments_gate,
     gl_symbol_index, GlAliasStats, GlAliasTable, is_empty_module, label_counter,
     mangled_name, mangled_names, opt_word_mode, source_path, Block, FnCensus, OptWordMode,
     OPT_WORD_O1, OPT_WORD_OX, OPT_WORD_SPECIAL_MEMBER,
