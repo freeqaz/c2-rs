@@ -1,0 +1,352 @@
+//! **The stage oracle's named controls** — `c2-reference::stage`.
+//!
+//! Four tests, and each is pinned to a NAMED fixture rather than to a count,
+//! because a control pinned by count passes in an unprovisioned worktree the
+//! moment the count matches (`docs/rungs/README.md`, boards #3219/#3231).
+//!
+//! | test | grades |
+//! |---|---|
+//! | [`the_tapped_run_actually_armed`] | the ENVIRONMENT. Fails, never skips, under `C2RS_REQUIRE_TOOLCHAIN` |
+//! | [`taps_are_inert_unarmed_and_never_move_the_obj`] | **G1 neutrality** — the sole judge's own criterion |
+//! | [`scheduler_taps_are_silent_at_od_and_loud_at_o1`] | **G3 discrimination** — the null control |
+//! | [`the_two_site_tables_are_one_table`] | the C table and the Rust table cannot drift |
+//!
+//! # Why `il_call_perm.cpp` and why `add3.cpp` is BANNED here
+//!
+//! `crates/c2-reference/src/cod.rs`'s module doc records `add3` as the control
+//! that **cannot detect the property it was run against** — `mullw`/`add`/`blr`,
+//! no relocated branch — and that is the twelfth recorded instance of
+//! absence-read-as-success in this project. The same trap is live here in a
+//! sharper form: the region tap fires on *scheduling regions*, and
+//! `P_DAG.md` §4.5 records (15/15 cells) that **a call ends a region**. A
+//! single-region, call-free fixture would make a zero region count look like a
+//! property of the mechanism when it is a property of the fixture.
+//!
+//! `il_call_perm.cpp` has multiple functions, relocated branches of both kinds,
+//! and calls. If a future lane changes the fixture here, it owes the same
+//! argument.
+
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use c2_obj::{ObjDiff, ObjImage};
+use c2_reference::stage::{OPT_GATED_SITES, STAGE_SITES};
+use c2_reference::Toolchain;
+
+static COUNTER: AtomicU64 = AtomicU64::new(0);
+
+/// The fixture every capture-based test in this file runs on. See the module
+/// doc: it is chosen for calls and relocated branches, not for convenience.
+const STAGE_FIXTURE: &str = "il_call_perm.cpp";
+
+/// The fixture that MUST NOT be used as the positive control here, named so a
+/// future edit trips over the reason rather than rediscovering it.
+const BANNED_CONTROL: &str = "add3.cpp";
+
+fn repo_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+fn fixture(name: &str) -> PathBuf {
+    repo_root().join("fixtures/cpp").join(name)
+}
+
+fn work(tag: &str) -> PathBuf {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let d = std::env::temp_dir().join(format!(
+        "c2rs-stage-{tag}-{}-{}-{}",
+        std::process::id(),
+        nanos,
+        n
+    ));
+    std::fs::create_dir_all(&d).unwrap();
+    d
+}
+
+/// `C2RS_REQUIRE_TOOLCHAIN=1` turns every skip in this file into a failure.
+/// Armed 2026-08-18 across the suite; here it is load-bearing twice over,
+/// because a skipped stage test produces exactly the same output as a stage
+/// test whose taps silently refused.
+fn require() -> bool {
+    std::env::var_os("C2RS_REQUIRE_TOOLCHAIN").is_some()
+}
+
+fn guards(what: &str) -> Option<Toolchain> {
+    let missing = |why: &str| -> Option<Toolchain> {
+        if require() {
+            panic!("{what}: {why} — and C2RS_REQUIRE_TOOLCHAIN is set, so this is a FAILURE, not a skip");
+        }
+        eprintln!("SKIP: {why}");
+        None
+    };
+    let Some(tc) = Toolchain::locate() else {
+        return missing("toolchain absent");
+    };
+    if !tc.has_strace() {
+        return missing("strace absent (needed to keep the IL bundle)");
+    }
+    if !tc.has_mingw() {
+        return missing("i686-w64-mingw32-gcc absent (needed to build c2host)");
+    }
+    Some(tc)
+}
+
+/// The workload's own optimization profile.
+fn o1() -> Vec<String> {
+    ["/O1", "/Oi", "/EHsc", "/GS-", "/c"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
+}
+
+/// The same profile with the optimizer OFF. `/Od` is the whole point: the four
+/// scheduler runs are gated on `DAT_10c2e2fc` alone (`P_DAG.md` §1), so at
+/// `/Od` none of them happens.
+fn od() -> Vec<String> {
+    ["/Od", "/Oi", "/EHsc", "/GS-", "/c"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
+}
+
+/// **THE ENVIRONMENT CONTROL.**
+///
+/// Everything else in this file is a statement about c2. This one is a
+/// statement about the box the measurement was taken on, and without it every
+/// other result in the lane is void rather than provisional.
+///
+/// The failure it exists to catch: a fresh `git worktree add` has no
+/// `compilers/` (gitignored, and it does not follow a worktree), so every
+/// capture test **skips**, cargo swallows the SKIP line for a passing test, and
+/// a registered RED reads GREEN with a clean suite and the right exit code
+/// (#3219, #3231). The stage-tap version is worse, because "armed 0 sites" and
+/// "the pass never ran" are the same observation: zero.
+#[test]
+fn the_tapped_run_actually_armed() {
+    let Some(tc) = guards("the_tapped_run_actually_armed") else {
+        return;
+    };
+    let w = work("armed");
+    let captured = tc
+        .capture_reference_with(
+            &c2_reference::to_wibo_path(&fixture(STAGE_FIXTURE).canonicalize().unwrap()),
+            &w.join("cap"),
+            &o1(),
+            None,
+        )
+        .expect("capture_reference_with failed");
+    let (_obj, rep) = tc
+        .replay_tapped(
+            &captured,
+            &w.join("il"),
+            &captured.ref_obj_path.clone(),
+            STAGE_SITES,
+        )
+        .expect("tapped replay failed");
+
+    assert!(
+        rep.armed_ok(),
+        "the stage tap did NOT arm — every other measurement in this lane is \
+         VOID, not provisional.\n  armed:   {:?}\n  refused: {:?}\n  lines:\n{}",
+        rep.armed,
+        rep.refused,
+        rep.lines.join("\n")
+    );
+    assert_eq!(
+        rep.armed.len(),
+        STAGE_SITES.len(),
+        "armed {} of {} sites — a partial arm is a refusal in disguise",
+        rep.armed.len(),
+        STAGE_SITES.len()
+    );
+    std::fs::remove_dir_all(&w).ok();
+}
+
+/// **G1 — NEUTRALITY. The sole judge's own criterion, and the lane's go/no-go.**
+///
+/// An oracle that changes the compiler is not an oracle; it is a fifth
+/// wrong-emit family with a friendly interface. The comparison is made through
+/// **one** function ([`Toolchain::replay_tapped`] with an empty tap list is the
+/// disarmed leg) so that the two legs cannot differ in anything but the arming.
+///
+/// Same shape as the listing seam's `the_listing_does_not_perturb_the_obj`.
+#[test]
+fn taps_are_inert_unarmed_and_never_move_the_obj() {
+    let Some(tc) = guards("taps_are_inert_unarmed_and_never_move_the_obj") else {
+        return;
+    };
+    for name in [STAGE_FIXTURE, "il_call_return.cpp", "add3.cpp"] {
+        let w = work("neutral");
+        let captured = tc
+            .capture_reference_with(
+                &c2_reference::to_wibo_path(&fixture(name).canonicalize().unwrap()),
+                &w.join("cap"),
+                &o1(),
+                None,
+            )
+            .unwrap_or_else(|e| panic!("{name}: capture failed: {e}"));
+
+        // BOTH legs write to the reference's OWN /Fo path, and that is not
+        // tidiness: c2 embeds the output path in the obj, so replaying to a
+        // different path changes the obj's LENGTH. Writing to `w/out.obj`
+        // here made the third assertion below read
+        // `Differs { first_offset: 8, a_len: 1725, b_len: 1721 }` — offset 8
+        // is PointerToSymbolTable, and the 4-byte delta was the path string,
+        // not c2. A "stronger" check that is actually comparing two different
+        // commands is worth less than no check; `captured.ref_obj` is already
+        // in memory, so overwriting the file is safe.
+        let out = captured.ref_obj_path.clone();
+        let (disarmed, rep0) = tc
+            .replay_tapped(&captured, &w.join("il"), &out, &[])
+            .unwrap_or_else(|e| panic!("{name}: disarmed replay failed: {e}"));
+        let (armed, rep1) = tc
+            .replay_tapped(&captured, &w.join("il"), &out, STAGE_SITES)
+            .unwrap_or_else(|e| panic!("{name}: armed replay failed: {e}"));
+
+        // The disarmed leg must really be disarmed, and the armed leg must
+        // really be armed. Without both, "identical" is trivially true.
+        assert!(
+            rep0.lines.is_empty(),
+            "{name}: the DISARMED leg printed stage-tap output — it was not \
+             inert:\n{}",
+            rep0.lines.join("\n")
+        );
+        assert!(
+            rep1.armed_ok(),
+            "{name}: the ARMED leg did not arm, so this comparison grades \
+             nothing:\n{}",
+            rep1.lines.join("\n")
+        );
+
+        assert_eq!(
+            ObjImage::diff(&disarmed, &armed),
+            ObjDiff::Identical,
+            "{name}: THE STAGE TAP MOVED THE OBJ. The oracle is grading a \
+             different compiler than the judge does; this is a DECLINE, not a \
+             tuning problem. disarmed={}B armed={}B",
+            disarmed.len(),
+            armed.len()
+        );
+        // And the untapped path's own product, for a third point of contact.
+        assert_eq!(
+            ObjImage::diff(&captured.ref_obj, &armed),
+            ObjDiff::Identical,
+            "{name}: the armed replay does not reproduce the PIPELINE obj"
+        );
+        std::fs::remove_dir_all(&w).ok();
+    }
+}
+
+/// **G3 — DISCRIMINATION. The null control, and it is free.**
+///
+/// `P_DAG.md` §1: the four scheduler runs are gated **only** by the optimizer
+/// flag `DAT_10c2e2fc` (bit 21, set at `0x10b82429`), and the bytes at
+/// `0x10b7dc83`/`0x10b7dcc2`/`0x10b7dd01` are `cmp DWORD PTR ds:0x10c2e2fc,edi`
+/// with `edi == 0`. So at `/Od` none of them is reached.
+///
+/// If the two counts come out equal, **the instrument is measuring itself** —
+/// the fifth entry in this repo's "ranking instruments measure themselves"
+/// family, four for four so far. That would be a decline of the SITE TABLE,
+/// not of the mechanism.
+#[test]
+fn scheduler_taps_are_silent_at_od_and_loud_at_o1() {
+    let Some(tc) = guards("scheduler_taps_are_silent_at_od_and_loud_at_o1") else {
+        return;
+    };
+    assert_ne!(
+        STAGE_FIXTURE, BANNED_CONTROL,
+        "add3.cpp is BANNED as this test's fixture: it is the recorded control \
+         that cannot detect the property it is run against (cod.rs module doc)"
+    );
+
+    let mut counts = Vec::new();
+    for (label, flags) in [("Od", od()), ("O1", o1())] {
+        let w = work(&format!("disc{label}"));
+        let captured = tc
+            .capture_reference_with(
+                &c2_reference::to_wibo_path(&fixture(STAGE_FIXTURE).canonicalize().unwrap()),
+                &w.join("cap"),
+                &flags,
+                None,
+            )
+            .unwrap_or_else(|e| panic!("/{label}: capture failed: {e}"));
+        let (_obj, rep) = tc
+            .replay_tapped(
+                &captured,
+                &w.join("il"),
+                &captured.ref_obj_path.clone(),
+                STAGE_SITES,
+            )
+            .unwrap_or_else(|e| panic!("/{label}: tapped replay failed: {e}"));
+        assert!(
+            rep.armed_ok(),
+            "/{label}: taps did not arm — the comparison below would be void"
+        );
+        let sched: u64 = OPT_GATED_SITES.iter().map(|s| rep.hits_at(s)).sum();
+        counts.push((label, sched, rep));
+        std::fs::remove_dir_all(&w).ok();
+    }
+
+    let (_, od_hits, od_rep) = &counts[0];
+    let (_, o1_hits, o1_rep) = &counts[1];
+    assert_eq!(
+        *od_hits, 0,
+        "/Od fired {od_hits} optimizer-gated taps and P_DAG.md §1 says it \
+         cannot: the site table is wrong, or the gate is not the one recorded.\n\
+         {}",
+        od_rep.lines.join("\n")
+    );
+    assert!(
+        *o1_hits > 0,
+        "/O1 fired ZERO optimizer-gated taps: the instrument cannot see the \
+         thing it was built to see, and a zero payload would have read as a \
+         clean result.\n{}",
+        o1_rep.lines.join("\n")
+    );
+}
+
+/// The C site table and the Rust site list are two readers of one definition,
+/// and nothing in the build makes them agree — `c2host/` is not in the Rust
+/// workspace and never will be (std-only, zero external crates). So a test
+/// stands where a shared header cannot.
+///
+/// This is the pattern `docs/ARCHITECTURE_SEAMS.md` §0 used for the `..base`
+/// and `bind.rs` moves. Needs no toolchain: it reads the repo.
+#[test]
+fn the_two_site_tables_are_one_table() {
+    let src = repo_root().join("c2host/stagetap.c");
+    let text = std::fs::read_to_string(&src)
+        .unwrap_or_else(|e| panic!("cannot read {}: {e}", src.display()));
+    let body = text
+        .split_once("static const TapSite g_sites[] = {")
+        .expect("c2host/stagetap.c no longer declares `g_sites` the way this test reads it")
+        .1
+        .split_once("};")
+        .expect("unterminated g_sites table")
+        .0;
+    let names: Vec<String> = body
+        .lines()
+        .filter_map(|l| {
+            let l = l.trim();
+            let rest = l.strip_prefix("{ \"")?;
+            let (n, _) = rest.split_once('"')?;
+            Some(n.to_string())
+        })
+        .collect();
+    assert!(
+        !names.is_empty(),
+        "parsed ZERO site names out of c2host/stagetap.c — an empty parse is \
+         not agreement, it is a broken test reading as a green"
+    );
+    assert_eq!(
+        names,
+        STAGE_SITES.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+        "c2host/stagetap.c's table and c2-reference::stage::STAGE_SITES have \
+         drifted — order included, because the C side indexes by position"
+    );
+}
