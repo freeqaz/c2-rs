@@ -1,0 +1,132 @@
+   Compiling c2-core v0.1.0 (/home/free/code/milohax/c2-rs-wt-w-warranty/crates/c2-core)
+   Compiling c2-reference v0.1.0 (/home/free/code/milohax/c2-rs-wt-w-warranty/crates/c2-reference)
+   Compiling c2-harness v0.1.0 (/home/free/code/milohax/c2-rs-wt-w-warranty/crates/c2-harness)
+    Finished `release` profile [optimized] target(s) in 10.45s
+     Running tests/cli_flags.rs (target/release/deps/cli_flags-3325071abf144b04)
+
+running 6 tests
+test every_invocation_the_scripts_make_is_still_accepted_rest ... ok
+test the_corpus_verdict_guard_covers_exactly_the_three_whole_corpus_rows ... ok
+test the_split_is_a_partition_of_the_roster ... ok
+test every_invocation_the_scripts_make_is_still_accepted_bench has been running for over 60 seconds
+test every_invocation_the_scripts_make_is_still_accepted_perf has been running for over 60 seconds
+test every_invocation_the_scripts_make_is_still_accepted_selftest has been running for over 60 seconds
+test every_invocation_the_scripts_make_is_still_accepted_perf ... ok
+test every_invocation_the_scripts_make_is_still_accepted_bench ... FAILED
+test every_invocation_the_scripts_make_is_still_accepted_selftest ... FAILED
+
+failures:
+
+---- every_invocation_the_scripts_make_is_still_accepted_bench stdout ----
+
+thread 'every_invocation_the_scripts_make_is_still_accepted_bench' (1636598) panicked at crates/c2-harness/tests/cli_flags.rs:1271:13:
+assertion `left == right` failed: CORPUS VERDICT GUARD: `c2rs bench` ran the whole-corpus oracle self-test and reported 1 fail, 0 error. The oracle is the sole judge of this port; if IT is not reproducible, nothing graded against it means anything. Summary line: `summary: 385 pass, 1 fail, 0 error (of 386)`
+command: `c2rs bench`
+exit: Some(1)
+--- last 40 lines of stdout ---
+  wvec_float_store_leaf_data_bss_neg.cpp PASS   obj=1103B ex=2837B
+  wvec_inclass_ctor_folded_statics_neg.cpp PASS   obj=1108B ex=3284B
+  wvl_chain3.cpp                     PASS   obj=883B ex=2918B
+  wvl_chain6_same.cpp                PASS   obj=895B ex=2987B
+  wvl_chain_neg.cpp                  PASS   obj=1128B ex=3564B
+  wvl_chain_two_lengths.cpp          PASS   obj=982B ex=3230B
+  wvsnprnc_guard_chain_arity_store.cpp PASS   obj=1981B ex=3773B
+  wvsnprnc_guard_chain_arity_store_neg.cpp PASS   obj=3144B ex=4981B
+  wvsnprnc_lit_insert_tail.cpp       PASS   obj=1446B ex=3409B
+  wvsnprnc_lit_insert_tail_neg.cpp   PASS   obj=1577B ex=3712B
+  wwbss_static_neg.cpp               PASS   obj=1080B ex=2846B
+  wwbss_three_neg.cpp                PASS   obj=1180B ex=2943B
+  wwbss_tls_neg.cpp                  PASS   obj=1102B ex=2749B
+  wwbss_two.cpp                      PASS   obj=1104B ex=2846B
+  wwrap_gstore.cpp                   PASS   obj=1004B ex=2749B
+  wwrap_gstore_conv_neg.cpp          PASS   obj=990B ex=2754B
+  wwrap_gstore_float_neg.cpp         PASS   obj=1006B ex=2749B
+  wwrap_gstore_gg_neg.cpp            PASS   obj=1069B ex=2749B
+  wwrap_gstore_lit_neg.cpp           PASS   obj=989B ex=2745B
+  wwrap_gstore_second_neg.cpp        PASS   obj=990B ex=2752B
+  wwrap_gstore_sub_neg.cpp           PASS   obj=995B ex=2757B
+  wwrap_gstore_two_neg.cpp           PASS   obj=1063B ex=2771B
+  wwrap_gstore_widths.cpp            PASS   obj=1226B ex=2943B
+  wxlr_create_guard.cpp              PASS   obj=1381B ex=3163B
+  wxlr_create_guard_neg.cpp          PASS   obj=4530B ex=8461B
+  wxtea2_mcpy_rev_neg.cpp            PASS   obj=1154B ex=2934B
+  wxtea2_mcpy_short_neg.cpp          PASS   obj=1150B ex=2950B
+  wxtea2_mcpy_srcoff_neg.cpp         PASS   obj=1154B ex=2966B
+  wxtea2_mcpy_stmt_neg.cpp           PASS   obj=1279B ex=2994B
+  wxtea2_memcpy_tail.cpp             PASS   obj=1280B ex=3322B
+  wxtea3_encrypt_loop.cpp            PASS   obj=2358B ex=4042B
+  wxtea3_nobump_neg.cpp              PASS   obj=2190B ex=3569B
+  wxtea3_nonce1_neg.cpp              PASS   obj=866B ex=2825B
+  wxtea3_nonce_run.cpp               PASS   obj=878B ex=2896B
+  wxtea3_nonce_u64_neg.cpp           PASS   obj=875B ex=2884B
+  wxtea3_nosum_neg.cpp               PASS   obj=1067B ex=3124B
+  wxtea3_round_loop.cpp              PASS   obj=1373B ex=3144B
+  wxtea3_shift6_neg.cpp              PASS   obj=1373B ex=3144B
+
+summary: 385 pass, 1 fail, 0 error (of 386)
+--- stderr ---
+
+  left: (1, 0)
+ right: (0, 0)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- every_invocation_the_scripts_make_is_still_accepted_selftest stdout ----
+
+thread 'every_invocation_the_scripts_make_is_still_accepted_selftest' (1636601) panicked at crates/c2-harness/tests/cli_flags.rs:1226:13:
+CORPUS VERDICT GUARD: `c2rs selftest` reported 1 non-PASS fixture(s) — the ORACLE's own determinism or capture stability is broken, which invalidates every differential verdict taken against it. Rows:
+  add3.cpp                           FAIL   determinism @off 999 (len 1 vs 2)
+command: `c2rs selftest`
+exit: Some(1)
+--- last 40 lines of stdout ---
+  wvalue_call_value_neg.cpp          PASS   obj=2390B ex=3515B
+  wvec_float_store_leaf.cpp          PASS   obj=874B ex=2834B
+  wvec_float_store_leaf_data_bss_neg.cpp PASS   obj=1103B ex=2837B
+  wvec_inclass_ctor_folded_statics_neg.cpp PASS   obj=1108B ex=3284B
+  wvl_chain3.cpp                     PASS   obj=883B ex=2918B
+  wvl_chain6_same.cpp                PASS   obj=895B ex=2987B
+  wvl_chain_neg.cpp                  PASS   obj=1128B ex=3564B
+  wvl_chain_two_lengths.cpp          PASS   obj=982B ex=3230B
+  wvsnprnc_guard_chain_arity_store.cpp PASS   obj=1981B ex=3773B
+  wvsnprnc_guard_chain_arity_store_neg.cpp PASS   obj=3144B ex=4981B
+  wvsnprnc_lit_insert_tail.cpp       PASS   obj=1446B ex=3409B
+  wvsnprnc_lit_insert_tail_neg.cpp   PASS   obj=1577B ex=3712B
+  wwbss_static_neg.cpp               PASS   obj=1080B ex=2846B
+  wwbss_three_neg.cpp                PASS   obj=1180B ex=2943B
+  wwbss_tls_neg.cpp                  PASS   obj=1102B ex=2749B
+  wwbss_two.cpp                      PASS   obj=1104B ex=2846B
+  wwrap_gstore.cpp                   PASS   obj=1004B ex=2749B
+  wwrap_gstore_conv_neg.cpp          PASS   obj=990B ex=2754B
+  wwrap_gstore_float_neg.cpp         PASS   obj=1006B ex=2749B
+  wwrap_gstore_gg_neg.cpp            PASS   obj=1069B ex=2749B
+  wwrap_gstore_lit_neg.cpp           PASS   obj=989B ex=2745B
+  wwrap_gstore_second_neg.cpp        PASS   obj=990B ex=2752B
+  wwrap_gstore_sub_neg.cpp           PASS   obj=995B ex=2757B
+  wwrap_gstore_two_neg.cpp           PASS   obj=1063B ex=2771B
+  wwrap_gstore_widths.cpp            PASS   obj=1226B ex=2943B
+  wxlr_create_guard.cpp              PASS   obj=1381B ex=3163B
+  wxlr_create_guard_neg.cpp          PASS   obj=4530B ex=8461B
+  wxtea2_mcpy_rev_neg.cpp            PASS   obj=1154B ex=2934B
+  wxtea2_mcpy_short_neg.cpp          PASS   obj=1150B ex=2950B
+  wxtea2_mcpy_srcoff_neg.cpp         PASS   obj=1154B ex=2966B
+  wxtea2_mcpy_stmt_neg.cpp           PASS   obj=1279B ex=2994B
+  wxtea2_memcpy_tail.cpp             PASS   obj=1280B ex=3322B
+  wxtea3_encrypt_loop.cpp            PASS   obj=2358B ex=4042B
+  wxtea3_nobump_neg.cpp              PASS   obj=2190B ex=3569B
+  wxtea3_nonce1_neg.cpp              PASS   obj=866B ex=2825B
+  wxtea3_nonce_run.cpp               PASS   obj=878B ex=2896B
+  wxtea3_nonce_u64_neg.cpp           PASS   obj=875B ex=2884B
+  wxtea3_nosum_neg.cpp               PASS   obj=1067B ex=3124B
+  wxtea3_round_loop.cpp              PASS   obj=1373B ex=3144B
+  wxtea3_shift6_neg.cpp              PASS   obj=1373B ex=3144B
+--- stderr ---
+
+
+
+failures:
+    every_invocation_the_scripts_make_is_still_accepted_bench
+    every_invocation_the_scripts_make_is_still_accepted_selftest
+
+test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 13 filtered out; finished in 565.44s
+
+error: test failed, to rerun pass `-p c2-harness --test cli_flags`
+cargo exit 101
