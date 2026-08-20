@@ -39,6 +39,24 @@
 //! with a clean suite and the right exit code. So this file **asserts a
 //! non-zero checked count** and prints it, and the skip path is the only way
 //! out.
+//!
+//! **AND THAT ASSERT CANNOT FIRE IN THE ENVIRONMENT THIS PARAGRAPH NAMES.**
+//! `Toolchain::locate()` returning `None` `return`s at the top of the test, so
+//! `assert!(checked > 0)` is never reached and an unprovisioned worktree still
+//! passes green. The assert catches an environment that *has* a toolchain and
+//! nonetheless checks nothing (an empty fixture list, a capture loop that
+//! never enters); it is **not** the mitigation for the unprovisioned
+//! worktree. The mitigation for that is the whole-suite sentinel
+//! `C2RS_REQUIRE_TOOLCHAIN` (`require_toolchain.rs`, demanded by default in
+//! `scripts/partest.sh` since #3338) — which is a WHOLE-SUITE guard, so
+//! `cargo test --test ir0_framing` on its own is not protected by it however
+//! it is set. Stated here because the earlier version of this block presented
+//! the assert as covering a failure mode it structurally cannot see (review of
+//! lane `ir0`).
+//!
+//! The `checked` line below prints to stderr and libtest swallows it for a
+//! passing test: it is visible under `--nocapture`, and is a witness for a
+//! human reading one target, never evidence in a suite log.
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -220,7 +238,9 @@ fn three_way(name: &str, ex: &[u8]) -> (usize, usize) {
     );
 
     // --- gate, three ways
-    let (v_off, v_seg) = f.gate_segments();
+    let (v_off, v_seg) = f
+        .gate_segments()
+        .unwrap_or_else(|| panic!("{name}: the gate view refused an .ex framing"));
     let (i_off, i_seg) = c2_il::ex_segments_gate(ex);
     let r_off = ref_gate_offsets(ex);
     let r_seg = spans(ex, &r_off);
@@ -230,7 +250,9 @@ fn three_way(name: &str, ex: &[u8]) -> (usize, usize) {
     assert_eq!(v_seg, r_seg, "{name}: gate segments, IR0 view vs REFERENCE");
 
     // --- body, three ways
-    let (bv_off, bv_seg) = f.body_segments();
+    let (bv_off, bv_seg) = f
+        .body_segments()
+        .unwrap_or_else(|| panic!("{name}: the body view refused an .ex framing"));
     let (bi_off, bi_seg) = c2_il::ex_segments_body(ex);
     let br_off = ref_body_offsets(ex);
     let br_seg = spans(ex, &br_off);

@@ -206,25 +206,56 @@ fn lo_marker_offsets(ex: &[u8]) -> Vec<usize> {
 }
 
 impl<'a> FileFraming<'a> {
-    /// **The GATE segmentation** — `(offsets, segments)`, byte-identical to
-    /// `func::bundle::split_functions_at`.
+    /// Whether this framing is of an `.ex` stream, and therefore whether the
+    /// two segmentation views mean anything on it.
+    ///
+    /// **The views are `Option` because of this predicate, not for tidiness.**
+    /// See [`Self::gate_segments`].
+    pub fn is_ex(&self) -> bool {
+        self.suffix == "ex"
+    }
+
+    /// **The GATE segmentation** — `Some((offsets, segments))`, byte-identical
+    /// to `func::bundle::split_functions_at`. **`None` on any file that is not
+    /// `.ex`.**
     ///
     /// One entry per `4F 1F`. The head `Opaque` record is deliberately NOT
     /// included: this view reproduces the incumbent exactly, and the incumbent
     /// has never covered the head. The head is visible in `records` and in the
     /// opaque denominators, which is where a fact about the input belongs.
-    pub fn gate_segments(&self) -> (Vec<usize>, Vec<&'a [u8]>) {
+    ///
+    /// # Why this returns `Option` and not a tuple
+    ///
+    /// [`Ir0::frame`] frames `.gl`/`.sy`/`.in`/`.db` as a single
+    /// [`RecordKind::Opaque`] record with an empty `starts` (IR0 v1's scope).
+    /// A view that read only `records`/`starts` would hand such a file back
+    /// `(vec![], vec![])` — a well-typed, silent **"this file has no
+    /// functions"**, indistinguishable from a genuinely function-free `.ex`.
+    ///
+    /// That is this repo's signature *absence-reads-as-success* shape
+    /// (#3219/#3231's family), and the first IR1 caller that iterates
+    /// `ir0.files` and asks each one for segments would have got a correct
+    /// answer for one file in five and a silent zero for the other four. The
+    /// totality controls cannot see it — they check extents, not view
+    /// semantics — so the type carries it instead. Found by review of lane
+    /// `ir0`, fixed in its fix round.
+    pub fn gate_segments(&self) -> Option<(Vec<usize>, Vec<&'a [u8]>)> {
+        if !self.is_ex() {
+            return None;
+        }
         let mut segs = Vec::with_capacity(self.starts.len());
         for r in &self.records {
             if r.kind == RecordKind::ExFnSegment {
                 segs.push(&self.bytes[r.extent.start..r.extent.end]);
             }
         }
-        (self.starts.clone(), segs)
+        Some((self.starts.clone(), segs))
     }
 
-    /// **The CENSUS segmentation** — `(offsets, segments)`, byte-identical to
-    /// `func::bundle::split_function_bodies_at`.
+    /// **The CENSUS segmentation** — `Some((offsets, segments))`,
+    /// byte-identical to `func::bundle::split_function_bodies_at`. **`None` on
+    /// any file that is not `.ex`**, for the reason spelled out on
+    /// [`Self::gate_segments`].
     ///
     /// Anchored on the `LO` body marker, not on `4F 1F`, plus the strictly
     /// additive bare-`4C` second pass. **It is not a refinement of
@@ -233,7 +264,10 @@ impl<'a> FileFraming<'a> {
     /// later body starts at its own `LO`. That is why the two views are two,
     /// and why IR0 holds a marker index rather than trying to express one
     /// segmentation in terms of the other.
-    pub fn body_segments(&self) -> (Vec<usize>, Vec<&'a [u8]>) {
+    pub fn body_segments(&self) -> Option<(Vec<usize>, Vec<&'a [u8]>)> {
+        if !self.is_ex() {
+            return None;
+        }
         let ex = self.bytes;
         // Scanned HERE, not in `frame_ex`: see the note beside `FileFraming`.
         // The gate view must not pay for an index only the census view reads.
@@ -260,7 +294,10 @@ impl<'a> FileFraming<'a> {
         }
 
         if los.is_empty() {
-            return (Vec::new(), Vec::new());
+            // An `.ex` with no body marker genuinely has no census segments.
+            // This empty is a MEASURED zero about an `.ex`, which is exactly
+            // what `None` above is reserved to distinguish it from.
+            return Some((Vec::new(), Vec::new()));
         }
 
         let mut segs_start: Vec<usize> = Vec::with_capacity(los.len());
@@ -281,7 +318,7 @@ impl<'a> FileFraming<'a> {
                 &ex[start..end.max(start)]
             })
             .collect();
-        (segs_start, segs)
+        Some((segs_start, segs))
     }
 
     /// `(framed, opaque)` byte counts. `framed + opaque == bytes.len()` in a
@@ -411,11 +448,11 @@ mod tests {
     fn check(ex: &[u8]) -> FileFraming<'_> {
         let f = Ir0::frame_ex(ex);
         f.verify().expect("IR0 framing must be total");
-        let (gs, gsegs) = f.gate_segments();
+        let (gs, gsegs) = f.gate_segments().expect("an .ex framing has a gate view");
         let (is, isegs) = split_functions_at(ex);
         assert_eq!(gs, is, "gate offsets differ");
         assert_eq!(gsegs, isegs, "gate segments differ");
-        let (bs, bsegs) = f.body_segments();
+        let (bs, bsegs) = f.body_segments().expect("an .ex framing has a body view");
         let (ibs, ibsegs) = split_function_bodies_at(ex);
         assert_eq!(bs, ibs, "body offsets differ");
         assert_eq!(bsegs, ibsegs, "body segments differ");
@@ -439,7 +476,7 @@ mod tests {
         // Every byte is opaque, and NOT ONE of them is a refusal: the incumbent
         // splitter returns an empty vec here and never says so.
         assert_eq!(f.byte_split(), (0, 8));
-        assert!(f.gate_segments().1.is_empty());
+        assert!(f.gate_segments().expect(".ex").1.is_empty());
     }
 
     #[test]
@@ -482,6 +519,28 @@ mod tests {
         assert_eq!(f.records[1].extent, Extent { start: 1, end: 3 });
     }
 
+    /// **Two `4F 1F` markers — the only portable case with an ADJACENCY to
+    /// check.** Found by the fix round's mutation run: every other case here
+    /// frames to at most two records, so `Ir0Broken::NotContiguous` — the I1
+    /// clause about the seam BETWEEN two records — was unreachable by the
+    /// portable set, and a mutant that corrupts a span could only ever be
+    /// caught as `TailShort`. A clause no case can reach is a clause nobody
+    /// has tested.
+    #[test]
+    fn two_markers_put_a_seam_between_two_framed_records() {
+        let ex = [0x11, 0x4F, 0x1F, 0xAA, 0xBB, 0x4F, 0x1F, 0xCC];
+        let f = check(&ex);
+        assert_eq!(f.records.len(), 3, "opaque head + two segments");
+        assert_eq!(f.records[0].extent, Extent { start: 0, end: 1 });
+        assert_eq!(f.records[1].extent, Extent { start: 1, end: 5 });
+        assert_eq!(f.records[2].extent, Extent { start: 5, end: 8 });
+        // The seam itself: record 1 ends exactly where record 2 begins. This is
+        // what `NotContiguous` guards and what nothing else here exercises.
+        assert_eq!(f.records[1].extent.end, f.records[2].extent.start);
+        assert_eq!(f.byte_split(), (7, 1));
+        assert_eq!(f.gate_segments().expect(".ex").0, vec![1, 5]);
+    }
+
     /// Overlapping candidates: `4F 4F 1F`. The incumbent walk consumes 1 byte
     /// on a miss, so the marker at offset 1 is found. The framing must agree,
     /// because which of the two is the marker changes every downstream offset.
@@ -505,14 +564,14 @@ mod tests {
         ex.extend_from_slice(&LO_MARKER);
         ex.extend_from_slice(&[0x00]);
         let f = check(&ex);
-        let (bs, _) = f.body_segments();
+        let (bs, _) = f.body_segments().expect(".ex");
         assert_eq!(bs.len(), 2, "two bodies");
         assert_eq!(bs[0], 0, "first body keeps the 4F 1F start");
         assert_eq!(bs[1], 9, "second body starts at its own LO, not at 0");
         // And the GATE view still sees exactly one segment. This is the
         // disagreement the two splitters are pinned apart on; a refactor that
         // made these agree would be the flattering failure.
-        assert_eq!(f.gate_segments().0.len(), 1);
+        assert_eq!(f.gate_segments().expect(".ex").0.len(), 1);
     }
 
     /// The two views disagreeing is a PROPERTY, asserted here so a future
@@ -526,8 +585,8 @@ mod tests {
         ex.extend_from_slice(&[0x00]);
         let f = Ir0::frame_ex(&ex);
         assert_ne!(
-            f.gate_segments().0.len(),
-            f.body_segments().0.len(),
+            f.gate_segments().expect(".ex").0.len(),
+            f.body_segments().expect(".ex").0.len(),
             "IR0's two views must remain two segmentations"
         );
     }
@@ -541,11 +600,57 @@ mod tests {
         // `bare_lo_after_prefix` walks.
         let ex = vec![0x4F, 0x1F, 0x53, 0x53, 0x46, 0x4C, 0x53, 0x00];
         let f = check(&ex);
-        let (bs, _) = f.body_segments();
+        let (bs, _) = f.body_segments().expect(".ex");
         assert_eq!(bs, vec![0], "the thunk's segment starts at its 4F 1F");
         // The incumbent sees it too — `check` already asserted equality, so
         // this pins that the case is NOT vacuous.
         assert_eq!(split_function_bodies_at(&ex).0.len(), 1);
+    }
+
+    /// **A view on a non-`.ex` file must be `None`, not an empty answer.**
+    ///
+    /// The bytes below are a `.gl` that CONTAINS a `4F 1F` and a `4C 4F 11`,
+    /// so the failure this pins is not "there was nothing to find": IR0 v1
+    /// frames `.gl` as one `Opaque` record on purpose, and a view that read
+    /// only `records`/`starts` would answer `(vec![], vec![])` — the silent
+    /// zero. `None` is the only answer that a caller cannot mistake for a
+    /// measurement.
+    ///
+    /// Review finding of lane `ir0`; this test is the criterion, and it is red
+    /// against the pre-fix views.
+    #[test]
+    fn the_views_refuse_a_file_that_is_not_ex() {
+        let mut bundle = crate::IlBundle::new("_CL_test");
+        let gl = vec![0x4F, 0x1F, 0x00, 0x4C, 0x4F, 0x11, 0x00];
+        bundle.files.insert("gl".to_string(), gl.clone());
+        bundle.files.insert("ex".to_string(), gl.clone());
+
+        let ir0 = Ir0::frame(&bundle);
+        assert_eq!(ir0.files.len(), 2);
+        for f in &ir0.files {
+            // Totality holds on BOTH files — this is not a framing failure.
+            f.verify().expect("every file is framed totally");
+            if f.suffix == "ex" {
+                assert!(f.is_ex());
+                assert_eq!(
+                    f.gate_segments().expect("the .ex has a gate view").0,
+                    vec![0],
+                    "the same bytes DO segment when they are the .ex"
+                );
+                assert!(f.body_segments().is_some());
+            } else {
+                assert!(!f.is_ex());
+                assert_eq!(f.records.len(), 1, ".gl is one opaque record in IR0 v1");
+                assert!(
+                    f.gate_segments().is_none(),
+                    "a .gl must not answer the gate view with a silent empty"
+                );
+                assert!(
+                    f.body_segments().is_none(),
+                    "a .gl must not answer the body view with a silent empty"
+                );
+            }
+        }
     }
 
     /// A file whose only `LO` precedes every `4F 1F`: `partition_point == 0`,
@@ -556,7 +661,7 @@ mod tests {
         ex.extend_from_slice(&LO_MARKER);
         ex.extend_from_slice(&[0x00, 0x4F, 0x1F, 0x00]);
         let f = check(&ex);
-        assert_eq!(f.body_segments().0, vec![0]);
-        assert_eq!(f.gate_segments().0, vec![4]);
+        assert_eq!(f.body_segments().expect(".ex").0, vec![0]);
+        assert_eq!(f.gate_segments().expect(".ex").0, vec![4]);
     }
 }

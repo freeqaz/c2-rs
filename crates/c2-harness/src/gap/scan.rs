@@ -168,6 +168,13 @@ fn scan_one(
         *res.emit.entry("ir0-bytes-opaque".into()).or_insert(0) += opaque;
         // Totality as a printed control, not an assertion — the shape
         // `in-init-accounting-broken` uses.
+        //
+        // **THIS KEY IS STRICTLY IMPLIED BY `ir0-verify-broken` AND CANNOT
+        // FIRE ALONE** (review of lane `ir0`): if I1 holds, the extents tile
+        // `[0, len)`, so `framed + opaque == len` follows. It is kept because
+        // a control that restates its neighbour by a different route is the
+        // cheap half of #3288 — but it is NOT a second independent check, and
+        // reading its 0 as one is the over-claim the review caught.
         if framed + opaque != bytes {
             *res.emit.entry("ir0-accounting-broken".into()).or_insert(0) += 1;
         }
@@ -180,8 +187,11 @@ fn scan_one(
         // this alarm, whose known answer is 0.
         if let Some(ex) = captured.bundle.ex() {
             let f = c2_il::Ir0::frame_ex(ex);
-            let gate_ok = f.gate_segments().0 == c2_il::ex_segments_gate(ex).0;
-            let body_ok = f.body_segments().0 == c2_il::ex_segments_body(ex).0;
+            // `None` is a view refusing a non-`.ex` file; on an `.ex` it is a
+            // defect, so it counts as broken rather than being unwrapped or
+            // silently skipped.
+            let gate_ok = f.gate_segments().map(|v| v.0) == Some(c2_il::ex_segments_gate(ex).0);
+            let body_ok = f.body_segments().map(|v| v.0) == Some(c2_il::ex_segments_body(ex).0);
             if !(gate_ok && body_ok) {
                 *res.emit
                     .entry("ir0-splitter-crosscheck-broken".into())
@@ -195,9 +205,17 @@ fn scan_one(
         match c2_il::IlModel::parse(&captured.bundle) {
             Ok(model) => {
                 // `parse` already verified the re-encode file by file and fails
-                // closed; re-assert it here over the WHOLE bundle so the key is
-                // a second, differently-built derivation of the same claim
-                // (#3288) rather than a restatement of `parse`'s Ok.
+                // closed. **What this adds over `parse`'s `Ok` is a FILE-SET
+                // AND ORDER check and nothing more** — it re-runs the same
+                // `FileModel::encode` on the same bytes, so it is a
+                // restatement of the per-file claim plus a `BTreeMap`
+                // comparison that also catches a file dropped or duplicated
+                // between `parse` and `encode`. An earlier comment here called
+                // it "a second, differently-built derivation (#3288)"; that was
+                // an over-claim and the review of lane `ir0` caught it. The
+                // genuinely differently-built derivation of this lane's
+                // published figures is `ir0-ex-bytes` against Σ `ex_len` in the
+                // scan JSONL.
                 if model.encode().files == captured.bundle.files {
                     *res.emit.entry("ir0-roundtrip-ok".into()).or_insert(0) += 1;
                 } else {
