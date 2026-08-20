@@ -266,4 +266,5 @@ the header block this table is read from.
 | 2026-08-19 | w-suitecost | [suitecost](2026-08-19-suitecost.md) | 7 | +0 |
 | 2026-08-20 | w-objplan | [objplan](2026-08-20-objplan.md) | 8 | +0 |
 | 2026-08-20 | w-refrev | [refrev](2026-08-20-refrev.md) | 10 | unchanged, +0 |
+| 2026-08-20 | stageoracle | [stageoracle](2026-08-20-stageoracle.md) | 8 | +0 — no crates/ behaviour, no fixture, no emit rule changes |
 | 2026-08-20 | w-warranty | [warranty](2026-08-20-warranty.md) | 9 | unchanged, +0 |
