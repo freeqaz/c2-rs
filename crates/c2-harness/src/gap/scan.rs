@@ -65,6 +65,7 @@ fn scan_one(
         emit_blockers: BTreeMap::new(),
         emit_witness: Vec::new(),
         fndiff: Vec::new(),
+        plan: Default::default(),
     };
 
     // 1. Capture: real flags, real cwd, strace keeps bundle + obj. Served from
@@ -104,6 +105,39 @@ fn scan_one(
     // matching TUs are the control: if a TU the port already emits byte-exact
     // could read `present < total`, the field would be measuring the reader and
     // not the input, which is the one thing it claims not to do.
+    // **THE OBJECT PLAN** (lane `w-objplan`) — graded for EVERY TU, before the
+    // class is decided and independently of it.
+    //
+    // Two independent producers, and the independence is the design: `observe`
+    // reads the **reference** obj (ground truth, available on every TU that
+    // captured) and `c2_core::plan::predict` computes the port's plan **from the
+    // IL bundle without emitting**. A grade taken over `observe(port_obj)`
+    // instead would be VACUOUS on the matched TUs — there the port's bytes ARE
+    // the reference's — and UNDEFINED on the 844 the port refuses, which is
+    // exactly the population the curve is for.
+    //
+    // Diagnostic only. Nothing below branches on it and no verdict anywhere
+    // depends on it; `plan-*` is an instrument and the byte judge is unchanged.
+    let observed_plan = captured.ref_obj.observe();
+    res.plan = super::plan::grade(
+        observed_plan.as_ref(),
+        &c2_core::plan::predict(
+            &captured.bundle,
+            &c2_core::plan::PlanInputs {
+                function_level_linking: gy,
+            },
+        ),
+    );
+    // **R2 AT WORKLOAD SCALE**, not on three synthetic objs. The prereg's
+    // tertiary criterion says `observe` must agree with each existing `c2-obj`
+    // accessor "over the whole workload, TU by TU", and what shipped was three
+    // hand-written cells. This carries the emit-set half — the one whose sum is
+    // published as a denominator — over every TU that captured. Known answer 0.
+    super::plan::record_accessor_agreement(
+        &mut res.plan,
+        observed_plan.as_ref(),
+        captured.ref_obj.text_comdat_functions(),
+    );
     res.gl_body_starts = captured.bundle.gl_body_start_coverage();
     // **W-SELBIND — the same question one instrument tighter, and read for every
     // class for the same reason.** `gl_body_starts` asks whether a segment's
@@ -1595,6 +1629,17 @@ pub fn gap_scan(
         .map(|c| c.stats())
         .unwrap_or_default();
 
+    if let Some(path) = &cfg.plan_tsv {
+        // The membership the `plan-*` counts are counts OF. Written from the
+        // same `GapReport` the counts come from, so the offline re-derivation
+        // (#3288) is a re-derivation of THIS scan and not of a lookalike.
+        let report = GapReport {
+            results: results.clone(),
+            provenance: None,
+            cache: cache_stats.clone(),
+        };
+        std::fs::write(path, super::plan::plan_tsv(&report.plan_rows()))?;
+    }
     if let Some(path) = &cfg.jsonl {
         let mut f = std::fs::File::create(path)?;
         // Record 0 is the provenance header (roadmap #46). Per-TU rows below are

@@ -428,6 +428,72 @@ pub struct CfgLedgerRow {
     pub intruders: Option<Vec<String>>,
 }
 
+/// The NAMED control's result — see [`GapReport::plan_control`].
+///
+/// A struct and not a tuple: the difference between *"entered"* and *"left"* is
+/// the whole content of the check, and a caller that had to remember which
+/// element was which would eventually get it backwards.
+pub struct PlanControlReport<'a> {
+    /// In the scan's `match` set and not in the pinned file.
+    pub diff_entered: Vec<&'a str>,
+    /// In the pinned file and not in the scan's `match` set.
+    pub diff_left: Vec<&'static str>,
+    pub pinned: usize,
+    pub found: usize,
+    /// How many pinned TUs this scan measured at all (a `--limit`ed scan
+    /// measures fewer, and a control over TUs that were not scanned would pass
+    /// by not looking).
+    pub present: usize,
+    /// Pinned TUs `exact` on EVERY shipped component.
+    pub exact_rows: usize,
+    /// Component-cells on pinned TUs that read `Unknown` — the port did not
+    /// look at a TU it reproduced byte-for-byte.
+    pub unknown_cells: usize,
+    /// Component-cells on pinned TUs that read `Differs` or `Unobservable`.
+    /// **This is the count that reds the lane.**
+    pub differ_cells: usize,
+    /// `(src, component, verdict, why)` for every pinned TU that is not
+    /// `exact` — with a NAMED witness, because a shortfall that is only a count
+    /// produces work nobody can start.
+    pub shortfall: Vec<(&'a str, &'static str, super::plan::PlanVerdict, String)>,
+    /// **THE CONTROL'S OWN SIZE.** Σ `|observed emit set|` over the pinned TUs
+    /// this scan measured.
+    ///
+    /// # Why a control needs a size, which is this instrument's own §2.3 finding
+    /// # arriving on the control instead of on the curve
+    ///
+    /// The first version printed *"24 of 26 pinned TUs are `exact`"* and nothing
+    /// beside it could tell that from **24 empty comparisons**. Measured at
+    /// stamp `6f3a818e9893`, two ways — these keys, and a standalone `awk` join
+    /// of `docs/plan/CONTROL_TUS.txt` against a `--plan-tsv` file: **6** of the
+    /// 26 have an EMPTY observed emit set (the empty set compared to the empty
+    /// set), **11** are 1-vs-1, and only **9** compare a set of ≥ 2 elements;
+    /// **46** emitted names over all 26. A containment or equality claim without
+    /// the claimant's size is unfalsifiable in the flattering direction, and that
+    /// is exactly what §2.3 says about the curve.
+    ///
+    /// # What this control CAN and CANNOT detect, stated
+    ///
+    /// **Can:** a component that claims to disagree with the reference on a TU
+    /// the byte judge has already called equal (its whole job); a predictor that
+    /// names a function c2 did not emit; the pinned set moving under the reader
+    /// (the identity diff).
+    ///
+    /// **Cannot:** anything on the 6 empty-vs-empty TUs, where every pure
+    /// manifest agrees; anything about ORDER on the 15 cells of size ≤ 1;
+    /// anything about the extractor collapsing to `Some(empty)` — which is why
+    /// `obs_size` is published rather than inferred, so a walk that started
+    /// returning empty sets shows up as this number falling instead of as the
+    /// exact count rising.
+    pub obs_size: usize,
+    /// Pinned TUs whose observed emit set is EMPTY — the cells where the
+    /// comparison cannot fail.
+    pub obs_empty_tus: usize,
+    /// Pinned TUs whose observed emit set has ≥ 2 names — the cells where a
+    /// membership *or* an ordering error could show.
+    pub substantive_tus: usize,
+}
+
 impl GapReport {
     /// **The five Phase 7 factors for one TU** (`docs/ROADMAP.md` §10.19 and
     /// §10.21, boards #160 and #179), in `[A, B, C, D, E]` order:
@@ -1316,6 +1382,393 @@ impl GapReport {
     ///   is precisely how `+82` survived both of its inputs moving.
     ///
     /// Pure over `results`, so the unit test below grades it with no toolchain.
+    // ======================================================================
+    // THE OBJECT PLAN (lane `w-objplan`) — the manifest curve
+    // ======================================================================
+
+    /// **The per-TU object-plan membership**, as the row type the offline
+    /// parser also produces.
+    ///
+    /// Two producers, one definition, in [`super::sets`]' shape: this is the
+    /// live one, `super::plan::parse_plan_tsv` is the offline one, and
+    /// `the_plan_tsv_view_and_the_live_report_are_the_same_rows` grades the
+    /// pair. A count re-derived from the file is therefore a count re-derived
+    /// from *this scan*.
+    ///
+    /// **Rows are the graded TUs only.** A `capture-fail` TU has no reference
+    /// obj — it was never measured, which is a different fact from every
+    /// component being wrong, and folding it in would make every denominator
+    /// look tighter (`docs/STATUS.md` trap 5).
+    pub fn plan_rows(&self) -> Vec<super::plan::PlanRow> {
+        self.graded()
+            .map(|r| super::plan::PlanRow {
+                src: r.src.clone(),
+                class: r.class.label().to_string(),
+                observable: r.plan.observable,
+                verdicts: super::plan::PLAN_COMPONENTS
+                    .iter()
+                    .map(|c| {
+                        r.plan
+                            .verdicts
+                            .get(*c)
+                            .copied()
+                            .unwrap_or(super::plan::PlanVerdict::Unobservable)
+                    })
+                    .collect(),
+                subset: r.plan.emitset_subset,
+                extra: r.plan.emitset_extra,
+                missing: r.plan.emitset_missing,
+                pred_size: r.plan.emitset_pred_size,
+                obs_size: r.plan.emitset_obs_size,
+                glorder: r.plan.glorder,
+                violations: r.plan.violations.len(),
+                checks: r.plan.checks_reached,
+            })
+            .collect()
+    }
+
+    /// **How many DISTINCT values each component's OBSERVED side takes across
+    /// the graded TUs** — the free-component detector.
+    ///
+    /// `.drectve` is boilerplate on nearly every workload TU
+    /// (`IlBundle`'s own `drectve_is_boilerplate` screen exists because of it),
+    /// and a component with one distinct reference value across 870 TUs is a
+    /// **free 100 %** that makes any headline look strong and measures nothing.
+    /// So the count is published beside every component and a component at
+    /// `distinct == 1` is labelled free in the printed block.
+    pub fn plan_distinct(&self) -> std::collections::BTreeMap<&str, usize> {
+        let mut sets: std::collections::BTreeMap<&str, BTreeSet<&str>> = Default::default();
+        for r in self.graded() {
+            for (k, v) in &r.plan.sigs {
+                sets.entry(k.as_str()).or_default().insert(v.as_str());
+            }
+        }
+        sets.into_iter().map(|(k, v)| (k, v.len())).collect()
+    }
+
+    /// The observe-side inventory, summed over the graded TUs.
+    pub fn plan_observed(&self) -> std::collections::BTreeMap<&'static str, usize> {
+        let mut m: std::collections::BTreeMap<&'static str, usize> = super::plan::PLAN_OBSERVED_KEYS
+            .iter()
+            .map(|k| (*k, 0usize))
+            .collect();
+        for r in self.graded() {
+            for (k, n) in &r.plan.obs {
+                if let Some(slot) = super::plan::PLAN_OBSERVED_KEYS
+                    .iter()
+                    .find(|s| **s == k.as_str())
+                {
+                    *m.get_mut(slot).expect("seeded above") += n;
+                }
+            }
+        }
+        m
+    }
+
+    /// **The NAMED control** (deliverable 3): the identity diff against
+    /// `docs/plan/CONTROL_TUS.txt`, plus the per-control-TU verdicts.
+    ///
+    /// On a `match` TU the port reproduced c2's obj byte-for-byte, so it
+    /// demonstrably had every fact the plan describes. A component that reads
+    /// `Unknown` there is a **failure**, not a neutral; a component that reads
+    /// `Differs` there means the extractor or the predictor is wrong and the
+    /// component must not ship as a claim of disagreement.
+    pub fn plan_control(&self) -> PlanControlReport<'_> {
+        // **Over `graded()` and not over `results`**, so the live control and
+        // the offline re-derivation from `--plan-tsv` (whose rows ARE the graded
+        // TUs) are two producers of one number rather than two populations. A
+        // `capture-fail` TU cannot be `match`, so `found` is unchanged; `present`
+        // would have counted a pinned TU that stopped capturing, which is the
+        // one case where the two could have disagreed.
+        let found: Vec<&str> = self
+            .graded()
+            .filter(|r| r.class == TuClass::Match)
+            .map(|r| r.src.as_str())
+            .collect();
+        let diff = super::plan::control_diff(found.iter().copied());
+        let pinned = super::plan::control_tus();
+        let mut shortfall: Vec<(&str, &'static str, super::plan::PlanVerdict, String)> =
+            Vec::new();
+        let (mut exact_rows, mut unknown_cells, mut differ_cells) = (0usize, 0usize, 0usize);
+        let (mut obs_size, mut obs_empty_tus, mut substantive_tus) = (0usize, 0usize, 0usize);
+        for r in self.graded().filter(|r| pinned.contains(r.src.as_str())) {
+            // THE CONTROL'S OWN SIZE, taken before any verdict is read — see the
+            // field docs. `None` (the reference obj did not decode) counts as
+            // empty here on purpose: a cell with no ground truth is a cell where
+            // nothing can be detected, which is the question this counter asks.
+            let n = r.plan.emitset_obs_size.unwrap_or(0);
+            obs_size += n;
+            if n == 0 {
+                obs_empty_tus += 1;
+            }
+            if n >= 2 {
+                substantive_tus += 1;
+            }
+        }
+        for r in self.graded().filter(|r| pinned.contains(r.src.as_str())) {
+            let mut ok = true;
+            for c in super::plan::PLAN_COMPONENTS {
+                let v = r
+                    .plan
+                    .verdicts
+                    .get(*c)
+                    .copied()
+                    .unwrap_or(super::plan::PlanVerdict::Unobservable);
+                // **The three shortfall kinds are counted apart, and only one of
+                // them is a red.** The lane's prereg says `Unknown` on a control
+                // TU is a failure because the port demonstrably had the
+                // information — TRUE of a component the port's emit path uses,
+                // and NOT true of one it does not. Collapsing them would have
+                // made this control unreadable the moment a component was
+                // demoted, which is exactly what its first run caused.
+                match v {
+                    super::plan::PlanVerdict::Exact => {}
+                    super::plan::PlanVerdict::Unknown => {
+                        unknown_cells += 1;
+                        let why = r
+                            .plan
+                            .reasons
+                            .get(*c)
+                            .cloned()
+                            .unwrap_or_else(|| "(no reason recorded)".to_string());
+                        shortfall.push((r.src.as_str(), c, v, why));
+                        ok = false;
+                    }
+                    _ => {
+                        differ_cells += 1;
+                        // **A SHORTFALL HAS TO BE ACTIONABLE.** A count says a
+                        // component differs; it cannot say WHAT BY, and a
+                        // control that only counts produces work nobody can
+                        // start. The witness is the first name in sort order on
+                        // each side, so it is deterministic across runs.
+                        let why = match (
+                            r.plan.emitset_missing_witness.as_deref(),
+                            r.plan.emitset_extra_witness.as_deref(),
+                        ) {
+                            (Some(m), Some(e)) => {
+                                format!("c2 emits `{m}`; the seed claims `{e}`")
+                            }
+                            (Some(m), None) => format!(
+                                "the seed does not carry `{m}` ({} name(s) missing here)",
+                                r.plan.emitset_missing.unwrap_or(0)
+                            ),
+                            (None, Some(e)) => format!("the seed OVER-CLAIMS `{e}`"),
+                            (None, None) => "(no witness recorded)".to_string(),
+                        };
+                        shortfall.push((r.src.as_str(), c, v, why));
+                        ok = false;
+                    }
+                }
+            }
+            if ok {
+                exact_rows += 1;
+            }
+        }
+        PlanControlReport {
+            diff_entered: diff.entered,
+            diff_left: diff.left,
+            pinned: diff.pinned,
+            found: diff.found,
+            present: self
+                .graded()
+                .filter(|r| pinned.contains(r.src.as_str()))
+                .count(),
+            exact_rows,
+            unknown_cells,
+            differ_cells,
+            shortfall,
+            obs_size,
+            obs_empty_tus,
+            substantive_tus,
+        }
+    }
+
+    /// The `plan-*` `gap-metric` rows. Derived here, never by the reader —
+    /// `differs = known − exact` is computed in this function for the same
+    /// reason `emit-predicate-worth` is (board #213).
+    fn plan_metrics(&self) -> Vec<(&'static str, String)> {
+        let rows = self.plan_rows();
+        let distinct = self.plan_distinct();
+        let ctl = self.plan_control();
+        let mut m: Vec<(&'static str, String)> = vec![(
+            "plan-observable",
+            rows.iter().filter(|r| r.observable).count().to_string(),
+        )];
+        for (i, k) in super::plan::PLAN_KEYS.iter().enumerate() {
+            let v = |r: &super::plan::PlanRow| r.verdicts[i];
+            let observable = rows
+                .iter()
+                .filter(|r| v(r) != super::plan::PlanVerdict::Unobservable)
+                .count();
+            let exact = rows
+                .iter()
+                .filter(|r| v(r) == super::plan::PlanVerdict::Exact)
+                .count();
+            let known = rows
+                .iter()
+                .filter(|r| {
+                    matches!(
+                        v(r),
+                        super::plan::PlanVerdict::Exact | super::plan::PlanVerdict::Differs
+                    )
+                })
+                .count();
+            m.push((k.observable, observable.to_string()));
+            m.push((k.known, known.to_string()));
+            m.push((k.exact, exact.to_string()));
+            m.push((k.differs, known.saturating_sub(exact).to_string()));
+            m.push((
+                k.distinct,
+                distinct.get(k.component).copied().unwrap_or(0).to_string(),
+            ));
+        }
+        // Does the `0x20` seed ever OVER-claim? `docs/whitebox/C2_MAP.md` §3E's
+        // rule is that the emitted set is the seeded set CLOSED under
+        // "referenced by an already-emitted function", so the seed should be a
+        // SUBSET of what c2 emitted and the closure supplies the rest. A seed
+        // that over-claims would be a finding about the BIT, not about the port.
+        m.push((
+            "plan-emitset-seed-subset",
+            rows.iter().filter(|r| r.subset == Some(true)).count().to_string(),
+        ));
+        m.push((
+            "plan-emitset-seed-known",
+            rows.iter().filter(|r| r.pred_size.is_some()).count().to_string(),
+        ));
+        m.push((
+            "plan-emitset-seed-extra",
+            rows.iter().filter_map(|r| r.extra).sum::<usize>().to_string(),
+        ));
+        m.push((
+            "plan-emitset-seed-missing",
+            rows.iter().filter_map(|r| r.missing).sum::<usize>().to_string(),
+        ));
+        // The seed's own agreement rate, and the SAME NUMBER WITH THE VACUOUS
+        // CELLS REMOVED. `seed-exact` counts TUs where the seed set equals c2's
+        // emitted set — including the ones where BOTH ARE EMPTY, which every
+        // pure predictor gets right. Publishing only the first is §2.3's own
+        // finding (a claim without its claimant's size) on the headline figure
+        // rather than on the containment claim.
+        m.push((
+            "plan-emitset-seed-exact",
+            rows.iter()
+                .filter(|r| r.extra == Some(0) && r.missing == Some(0))
+                .count()
+                .to_string(),
+        ));
+        m.push((
+            "plan-emitset-seed-exact-substantive",
+            rows.iter()
+                .filter(|r| {
+                    r.extra == Some(0) && r.missing == Some(0) && r.obs_size.unwrap_or(0) > 0
+                })
+                .count()
+                .to_string(),
+        ));
+        // **The claimant's own size, beside the containment claim.** Without
+        // these two, `plan-emitset-seed-subset` is unfalsifiable in the
+        // flattering direction: the empty set is a subset of everything, so
+        // "seed ⊆ emitted on 853 TUs" and "853 empty seeds" print identically.
+        // The first run of this instrument printed exactly that and could not
+        // tell them apart.
+        m.push((
+            "plan-emitset-seed-size",
+            rows.iter().filter_map(|r| r.pred_size).sum::<usize>().to_string(),
+        ));
+        m.push((
+            "plan-emitset-observed-size",
+            rows.iter().filter_map(|r| r.obs_size).sum::<usize>().to_string(),
+        ));
+        // …and the same sum restricted to the TUs where the SEED also answered.
+        // Every seed-coverage ratio has to be taken over THIS population; the
+        // unrestricted sum is the one that reconciles with `fnbyte-denominator`.
+        m.push((
+            "plan-emitset-observed-size-known",
+            rows.iter()
+                .filter(|r| r.pred_size.is_some())
+                .filter_map(|r| r.obs_size)
+                .sum::<usize>()
+                .to_string(),
+        ));
+        m.push((
+            "plan-emitset-seed-empty-tus",
+            rows.iter().filter(|r| r.pred_size == Some(0)).count().to_string(),
+        ));
+        m.push((
+            "plan-emitset-observed-empty-tus",
+            rows.iter().filter(|r| r.obs_size == Some(0)).count().to_string(),
+        ));
+        // The REFUTED `.gl`-record-order rule — CHARACTERIZATION, never a
+        // component. It prices board #259's `plan_text_order`.
+        m.push((
+            "plan-emitset-glorder-known",
+            rows.iter().filter(|r| r.glorder.is_some()).count().to_string(),
+        ));
+        m.push((
+            "plan-emitset-glorder-agrees",
+            rows.iter().filter(|r| r.glorder == Some(true)).count().to_string(),
+        ));
+        // **The FREE-component detector on the REFERENCE side** — how many
+        // distinct values each observable takes across the workload. A
+        // component whose reference side is constant would publish a 100% that
+        // measures nothing, and `.drectve` was this lane's prime suspect.
+        for (key, sig) in [
+            ("plan-obs-sections-names-distinct", "sections-names"),
+            ("plan-obs-sections-attrs-distinct", "sections-attrs"),
+            ("plan-obs-drectve-distinct", "drectve"),
+        ] {
+            m.push((key, distinct.get(sig).copied().unwrap_or(0).to_string()));
+        }
+        // A COUNT and not a status (STATUS trap 5). Known answer 0 — **beside
+        // the number of checks that were actually EVALUATED**, without which a
+        // zero cannot be told apart from not looking, which is the property the
+        // key's own doc claims it was published as a count to avoid. Three of
+        // its four checks are dormant while both components ship `Unknown` and
+        // the counter is what says so.
+        m.push((
+            "plan-bounds-violations",
+            rows.iter().map(|r| r.violations).sum::<usize>().to_string(),
+        ));
+        m.push((
+            "plan-bounds-checks-reached",
+            rows.iter().map(|r| r.checks).sum::<usize>().to_string(),
+        ));
+        // The named control, as counts. `plan-control-diff` is 0 iff the set the
+        // scan found IS the pinned set; a nonzero value is a finding about the
+        // tree or the workload stamp and is reported before any other number.
+        m.push(("plan-control-pinned", ctl.pinned.to_string()));
+        m.push(("plan-control-found", ctl.found.to_string()));
+        m.push((
+            "plan-control-diff",
+            (ctl.diff_entered.len() + ctl.diff_left.len()).to_string(),
+        ));
+        m.push(("plan-control-present", ctl.present.to_string()));
+        m.push(("plan-control-exact", ctl.exact_rows.to_string()));
+        m.push(("plan-control-shortfall", ctl.shortfall.len().to_string()));
+        // **THE CONTROL'S OWN SIZE.** `plan-control-exact 24 of 26` and
+        // `24 empty comparisons` are the same sentence without these three; 6 of
+        // the 26 pinned cells compare the empty set to the empty set and 11 more
+        // are 1-vs-1, so only `substantive-tus` — measured 9 — can carry an
+        // ordering or a membership error at all. See
+        // `PlanControlReport::obs_size` for what the control can and cannot
+        // detect.
+        m.push(("plan-control-obs-size", ctl.obs_size.to_string()));
+        m.push(("plan-control-obs-empty-tus", ctl.obs_empty_tus.to_string()));
+        m.push((
+            "plan-control-substantive-tus",
+            ctl.substantive_tus.to_string(),
+        ));
+        // The two shortfall kinds apart. `plan-control-differs` is the one that
+        // reds the lane; `plan-control-unknown` is a component the port does not
+        // model, which is a different fact and ranks differently.
+        m.push(("plan-control-unknown", ctl.unknown_cells.to_string()));
+        m.push(("plan-control-differs", ctl.differ_cells.to_string()));
+        for (k, n) in self.plan_observed() {
+            m.push((k, n.to_string()));
+        }
+        m
+    }
+
     pub fn metrics(&self) -> Vec<(&'static str, String)> {
         let [a, b, c, d, e, a_lo, bc, abc, abcd, joint] = self.factor_counts();
         let graded = self.graded().count();
@@ -2172,6 +2625,12 @@ impl GapReport {
                 ));
             }
         }
+        // **THE OBJECT PLAN, appended LAST and adding no key above it.** The
+        // required-zero half of this lane is that every pre-existing key reads
+        // byte-identical before and after, key-for-key; appending keeps that
+        // checkable by a plain `diff` of the two metric blocks rather than by a
+        // sort. See `plan_metrics` and `crates/c2-harness/src/gap/plan.rs`.
+        m.extend(self.plan_metrics());
         m
     }
 

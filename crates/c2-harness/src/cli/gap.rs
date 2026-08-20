@@ -33,6 +33,7 @@ static GAP_SPEC: Spec = Spec {
         ("--jsonl", Arity::Value),
         ("--fnbyte-diff-jsonl", Arity::Value),
         ("--factors-tsv", Arity::Value),
+        ("--plan-tsv", Arity::Value),
         ("--work", Arity::Value),
         ("--cache", Arity::Value),
         ("--no-cache", Arity::Flag),
@@ -57,6 +58,10 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
     // The per-TU factor membership. Opt-in and a file, not stdout: see
     // `GapReport::factor_membership`.
     let factors_tsv = args.path("--factors-tsv");
+    // The per-TU OBJECT PLAN grade. Opt-in and a file for `--factors-tsv`'s
+    // reason; the `plan-*` counts print on every scan regardless, so the curve
+    // is never conditional on somebody having passed a flag.
+    let plan_tsv = args.path("--plan-tsv");
     let work = args.path("--work");
     // `--limit`/`--jobs`/`--replay-every`/`--validate-cache` used to exit 2 with
     // NO message when the value did not parse. `num` names the option and echoes
@@ -122,7 +127,7 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
         eprintln!(
             "usage: c2rs gap --list FILE --flags-file FILE [--cwd DIR] [--limit N] \
              [--jobs N] [--replay-every N] [--jsonl PATH] [--fnbyte-diff-jsonl PATH] \
-             [--factors-tsv PATH] \
+             [--factors-tsv PATH] [--plan-tsv PATH] \
              [--work DIR]\n\
              (generate the dc3 workload inputs with scripts/gen_dc3_workload.sh)"
         );
@@ -191,6 +196,7 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
         jsonl,
         fndiff_jsonl,
         factors_tsv,
+        plan_tsv,
         work: work.path().to_path_buf(),
         cache,
         validate_cache,

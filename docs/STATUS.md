@@ -560,6 +560,54 @@ misleading without them.
    > until it has been printed on both sides of a change.** #996–#1005,
    > [`rungs/2026-08-08-w-inread.md`](rungs/2026-08-08-w-inread.md) §3.
 
+0b. **`plan-*` IS NECESSARY BUT NOT SUFFICIENT FOR `match`, AND `mismatch 0`'s
+   hazard now has a sibling.** Added 2026-08-20 by lane `w-objplan`, which built
+   the family. The object-plan manifest grades everything about the output obj
+   that is *independent of the instruction bytes* — the emit set, the section
+   table, COMDAT selection, weak externals, the relocation inventory — against
+   real `c2` on **all 870 graded TUs**, including the 844 that produce no IR at
+   all. That is exactly what the project needed: `a-and-b-and-c` is 27 and
+   `match` is 26, so the remaining distance is a **conjunction** and every
+   single-stage fix scores zero. `plan-*` is the continuous curve underneath it.
+
+   **A TU can be plan-exact on every component and mismatch on every
+   instruction byte.** The manifest is a PROGRESS INSTRUMENT; the byte judge —
+   real `c2.dll` under wibo, timestamp-normalized — is unchanged and remains the
+   sole judge. No `plan-*` key gates an emit, fails `scripts/gate.sh`, or
+   appears in a refusal predicate. The only two allowed to be a hard red are
+   `plan-bounds-violations` (a containment invariant of the instrument itself)
+   and the control on `docs/plan/CONTROL_TUS.txt`.
+
+   **Read the three denominators, never the ratio.** Every component publishes
+   `observable` ⊇ `known` ⊇ `exact`, with `differs` derived in `metrics()`.
+   `known` is the one that says whether the port *looked*: the lane's own first
+   run published a containment claim (*"seed ⊆ emitted on 853 of 854 TUs"*) that
+   turned out to be **739 empty seeds**, and it was undetectable until the
+   claimant's own size was printed beside it. `plan-<c>-distinct` is the
+   free-component detector — a component whose reference side takes one value
+   across the workload would publish a 100 % that measures nothing. (On this
+   workload none does; `.drectve`, the prime suspect, takes 8 values.)
+
+   **AND TODAY BOTH COMPONENTS READ `known 0`, WHICH IS THE SHIP RULE AND NOT A
+   REGRESSION.** `emitset-members` and `emitset-order` both fail the lane's
+   named control on `docs/plan/CONTROL_TUS.txt`, and the registered rule is that
+   a component whose control is red ships as `Unknown`, never as `Differs`. The
+   numbers that carry information are therefore the **characterization** keys —
+   `plan-emitset-seed-*`, `plan-emitset-glorder-*`, `plan-obs-*`,
+   `plan-glattr-*` — and not the component ladder. **A `plan-<c>-exact` that
+   starts reading non-zero means a component was made green and shipped; check
+   its control before quoting it.**
+
+   **A COUNT WITH NO SIZE BESIDE IT IS THE HAZARD IN THIS FAMILY, AND IT
+   RECURRED THREE TIMES IN ONE LANE.** On the curve (the containment claim
+   above), on the *control* (24 of 26 `exact`, where 6 of the 26 compare the
+   empty set to the empty set), and on a *containment invariant*
+   (`plan-bounds-violations 0`, whose three checks were all unreachable in
+   production). Each is now published with its denominator —
+   `plan-emitset-seed-size`, `plan-control-obs-size` / `-substantive-tus`,
+   `plan-bounds-checks-reached`. **When you read a `plan-*` zero or a `plan-*`
+   ratio, find its size key first.**
+
 1. **`mismatch 0` is not evidence of correctness.** 863 of 878 TUs refuse before
    the emitter is consulted, so the scan *cannot see* a codegen or binding defect
    in them. Zero mismatches means "nothing the scan could grade came out wrong",

@@ -19,6 +19,9 @@ pub mod coff;
 pub mod comdat;
 pub mod elide;
 pub mod passes;
+/// IR2 — the port's PREDICTED object plan, computed from IL without emitting.
+/// An INSTRUMENT, never a gate; see the module doc.
+pub mod plan;
 pub mod splice;
 
 use std::fmt;

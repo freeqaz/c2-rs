@@ -28,6 +28,7 @@ static FACTORS_SPEC: Spec = Spec {
         ("--set", Arity::Repeated),
         ("--check-metrics", Arity::Value),
         ("--list", Arity::Value),
+        ("--plan-tsv", Arity::Value),
     ],
     requires: &[],
     max_positionals: 0,
@@ -42,6 +43,10 @@ fn usage() {
          \x20 --check-metrics PATH  a gap scan log; compares every re-derived count against\n\
          \x20                       the `gap-metric` line the scan published (known-answer)\n\
          \x20 --list SETNAME        print the members of one set, one per line\n\
+         \x20 --plan-tsv PATH       a `c2rs gap --plan-tsv` file: the OBJECT PLAN grade per\n\
+         \x20                       TU. With --check-metrics, re-derives every `plan-*`\n\
+         \x20                       count from the rows and diffs it against the scan's\n\
+         \x20                       own published figure (#3288, the second derivation)\n\
          \x20 --set NAME=PATH       intersect a candidate per-TU set (one TU name per line,\n\
          \x20                       `#` comments) against every set below. Repeatable.\n\
          \n\
@@ -99,6 +104,116 @@ pub(crate) fn cmd_factors(rest: &[String]) -> ExitCode {
     }
 
     let mut bad = false;
+
+    // ---- THE OBJECT PLAN's second derivation (#3288, lane `w-objplan`) -------
+    //
+    // `plan-*` is published by `GapReport::metrics()` over the live results.
+    // This is the other producer: the same counts re-derived from the
+    // `--plan-tsv` ROWS, offline, by `gap::plan::derive_metrics`. A published
+    // figure and its own listing must not be able to disagree.
+    if let Some(ptsv) = args.path("--plan-tsv") {
+        match std::fs::read_to_string(&ptsv) {
+            Err(e) => {
+                eprintln!("factors: cannot read --plan-tsv {}: {e}", ptsv.display());
+                return ExitCode::FAILURE;
+            }
+            Ok(t) => match c2_harness::gap::plan::parse_plan_tsv(&t) {
+                None => {
+                    // Fail-closed, like the writer: a parser that SKIPPED a
+                    // malformed row would re-derive a smaller count than the
+                    // scan published, and the disagreement would then be
+                    // unattributable.
+                    eprintln!(
+                        "factors: {} is not a usable object-plan listing (a malformed row \
+                         refuses the whole file rather than being skipped)",
+                        ptsv.display()
+                    );
+                    return ExitCode::FAILURE;
+                }
+                Some(prows) => {
+                    let derived = c2_harness::gap::plan::derive_metrics(&prows);
+                    println!(
+                        "\nOBJECT PLAN — {} graded TU rows from {}",
+                        prows.len(),
+                        ptsv.display()
+                    );
+                    match args.path("--check-metrics") {
+                        None => {
+                            for (k, v) in &derived {
+                                println!("\x20 {k:<40} {v:>7}");
+                            }
+                            println!(
+                                "\x20 (counts only — pass --check-metrics <gap log> to diff \
+                                 them against what the scan PUBLISHED)"
+                            );
+                        }
+                        Some(log) => {
+                            let pub_text = std::fs::read_to_string(&log).unwrap_or_default();
+                            let published = scrape_metrics(&pub_text);
+                            println!(
+                                "\x20 SECOND DERIVATION (#3288) — every `plan-*` count \
+                                 re-derived from the rows, against the `gap-metric` line the \
+                                 scan published:"
+                            );
+                            let (mut ok, mut dis, mut abs) = (0usize, 0usize, 0usize);
+                            for (k, d) in &derived {
+                                let p = published.get(k).copied();
+                                let verdict = match p {
+                                    None => {
+                                        abs += 1;
+                                        "ABSENT"
+                                    }
+                                    Some(v) if v == *d => {
+                                        ok += 1;
+                                        "OK"
+                                    }
+                                    Some(_) => {
+                                        dis += 1;
+                                        "DISAGREE"
+                                    }
+                                };
+                                println!(
+                                    "\x20 {k:<40} published {:>7}  derived {d:>7}  {verdict}",
+                                    match p {
+                                        Some(v) => v.to_string(),
+                                        None => "-".to_string(),
+                                    }
+                                );
+                            }
+                            // **THE COVERAGE, AND ITS COMPLEMENT.** "13 OK"
+                            // reads as done; the first version of this check
+                            // covered 13 of 48 published keys and the omissions
+                            // included the PRIMARY GRADING CRITERION. So the
+                            // uncovered keys are NAMED, and a unit test asserts
+                            // the list is exactly the uncovered set.
+                            let uncovered = c2_harness::gap::plan::uncovered_metric_keys();
+                            let published_plan = published
+                                .keys()
+                                .filter(|k| k.starts_with("plan-"))
+                                .count();
+                            println!(
+                                "\x20 {ok} OK, {dis} DISAGREE, {abs} ABSENT. An ABSENT is its \
+                                 own verdict and not a pass: a control that checks nothing and \
+                                 a control that passes look identical in a summary line."
+                            );
+                            println!(
+                                "\x20 COVERAGE — {} of the {published_plan} `plan-*` keys in \
+                                 this log are re-derived here. The rest are NOT a silence: \
+                                 they are the observe-side inventory, which is a sum over the \
+                                 reference obj and is not a column in the TSV, so no parser \
+                                 over it can reach them. Named: {}",
+                                derived.len(),
+                                uncovered.join(" ")
+                            );
+                            if dis > 0 || ok == 0 {
+                                bad = true;
+                            }
+                        }
+                    }
+                }
+            },
+        }
+    }
 
     // ---- the known-answer control -------------------------------------
     if let Some(log) = args.path("--check-metrics") {
