@@ -1,0 +1,11 @@
+stage determinism: 4 fixtures x 5 same-config runs + 5 different-cwd runs, payload=on
+  add3.cpp  runs=10 distinct=1 tuples=309 STABLE
+  il_call_perm.cpp  runs=10 distinct=1 tuples=329 STABLE
+  il_call_return.cpp  runs=10 distinct=1 tuples=662 STABLE
+  mvp_add3.cpp  runs=10 distinct=1 tuples=36 STABLE
+
+  gap-metric stage-snap-runs 10
+  gap-metric stage-snap-distinct-max 1
+  gap-metric stage-snap-unstable-tus 0
+  gap-metric stage-snap-graded 4
+  gap-metric stage-snap-empty-payload 0

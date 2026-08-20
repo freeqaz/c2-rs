@@ -42,9 +42,13 @@ static STAGE_SPEC: Spec = Spec::new(
         ("--limit", Arity::Value),
         ("--payload", Arity::Flag),
         ("--raw", Arity::Value),
+        ("--list", Arity::Value),
+        ("--flags-file", Arity::Value),
+        ("--cwd", Arity::Value),
         ("--flag", Arity::Repeated),
     ],
 )
+.requires(&[("--cwd", "--flags-file")])
 .positionals(1);
 
 /// The workload's own optimization profile — the one the 878 TUs compile at.
@@ -56,6 +60,24 @@ fn default_flags() -> Vec<String> {
 }
 
 fn fixture_list(args: &Args, limit: Option<usize>) -> Vec<PathBuf> {
+    // `--list FILE` is how the 26 MATCHED WORKLOAD TUs get graded by the same
+    // instrument as the fixtures. Without it the neutrality claim would be a
+    // claim about `fixtures/cpp` only, and the workload's TUs are an order of
+    // magnitude larger and are the population the goal is written in.
+    if let Some(list) = args.get("--list") {
+        let base = args.path("--cwd").unwrap_or_else(|| PathBuf::from("."));
+        let text = std::fs::read_to_string(list).unwrap_or_default();
+        let mut v: Vec<PathBuf> = text
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .map(|l| base.join(l))
+            .collect();
+        if let Some(n) = limit {
+            v.truncate(n);
+        }
+        return v;
+    }
     let mut v: Vec<PathBuf> = match args.get("--fixtures") {
         Some(csv) => csv
             .split(',')
@@ -88,23 +110,14 @@ struct Cell {
     err: Option<String>,
 }
 
-fn run_cell(
-    tc: &Toolchain,
-    cpp: &Path,
-    flags: &[String],
-    payload: bool,
-    grade_neutrality: bool,
-) -> Cell {
-    run_cell_raw(tc, cpp, flags, payload, grade_neutrality, 0)
-}
-
-fn run_cell_raw(
+fn run_cell_in(
     tc: &Toolchain,
     cpp: &Path,
     flags: &[String],
     payload: bool,
     grade_neutrality: bool,
     raw: u32,
+    cwd: Option<&Path>,
 ) -> Cell {
     let name = cpp
         .file_name()
@@ -121,7 +134,7 @@ fn run_cell_raw(
         &c2_reference::to_wibo_path(&abs),
         &w.path().join("cap"),
         flags,
-        None,
+        cwd,
     ) {
         Ok(c) => c,
         Err(e) => {
@@ -190,6 +203,15 @@ pub(crate) fn cmd_stage(rest: &[String]) -> ExitCode {
         Err(c) => return c,
     };
     let mut flags: Vec<String> = args.all("--flag").into_iter().map(String::from).collect();
+    if let Some(ff) = args.path("--flags-file") {
+        match std::fs::read_to_string(&ff) {
+            Ok(t) => flags = t.split_whitespace().map(String::from).collect(),
+            Err(e) => {
+                eprintln!("stage: cannot read --flags-file {}: {e}", ff.display());
+                return ExitCode::from(2);
+            }
+        }
+    }
     if flags.is_empty() {
         flags = default_flags();
     }
@@ -210,17 +232,22 @@ pub(crate) fn cmd_stage(rest: &[String]) -> ExitCode {
         return ExitCode::SUCCESS;
     }
     let fixtures = fixture_list(&args, limit);
+    // The workload's `/I src/...` roots are RELATIVE, so a --list run without
+    // its --cwd silently compiles 14 of 26 matched TUs into `fatal error
+    // C1083` and reports them as errors. Measured, not anticipated.
+    let cwd = args.path("--cwd");
+    let cwd = cwd.as_deref();
     match sub.as_str() {
-        "neutrality" => cmd_neutrality(&tc, &fixtures, &flags, payload),
-        "counts" => cmd_counts(&tc, &fixtures, &flags),
-        "snap" => cmd_snap(&tc, &fixtures, &flags, raw),
-        "determinism" => cmd_determinism(&tc, &fixtures, &flags, payload, runs),
+        "neutrality" => cmd_neutrality(&tc, &fixtures, &flags, payload, cwd),
+        "counts" => cmd_counts(&tc, &fixtures, &flags, cwd),
+        "snap" => cmd_snap(&tc, &fixtures, &flags, raw, cwd),
+        "determinism" => cmd_determinism(&tc, &fixtures, &flags, payload, runs, cwd),
         _ => unreachable!(),
     }
 }
 
 /// **G1 at scale.** The required-zero.
-fn cmd_neutrality(tc: &Toolchain, fixtures: &[PathBuf], flags: &[String], payload: bool) -> ExitCode {
+fn cmd_neutrality(tc: &Toolchain, fixtures: &[PathBuf], flags: &[String], payload: bool, cwd: Option<&Path>) -> ExitCode {
     let mut graded = 0usize;
     let mut differs = 0usize;
     let mut errs = 0usize;
@@ -233,7 +260,7 @@ fn cmd_neutrality(tc: &Toolchain, fixtures: &[PathBuf], flags: &[String], payloa
         flags.join(" ")
     );
     for (i, f) in fixtures.iter().enumerate() {
-        let c = run_cell(tc, f, flags, payload, true);
+        let c = run_cell_in(tc, f, flags, payload, true, 0, cwd);
         match (&c.err, c.neutral) {
             (Some(e), _) => {
                 errs += 1;
@@ -293,12 +320,12 @@ fn cmd_neutrality(tc: &Toolchain, fixtures: &[PathBuf], flags: &[String], payloa
 
 /// Per-site hit histogram — and the second derivation of P_DAG §1's
 /// "four scheduler runs per function".
-fn cmd_counts(tc: &Toolchain, fixtures: &[PathBuf], flags: &[String]) -> ExitCode {
+fn cmd_counts(tc: &Toolchain, fixtures: &[PathBuf], flags: &[String], cwd: Option<&Path>) -> ExitCode {
     let mut hist: BTreeMap<String, u64> = BTreeMap::new();
     let mut ok = 0usize;
     println!("stage counts: {} fixtures, flags {}", fixtures.len(), flags.join(" "));
     for f in fixtures {
-        let c = run_cell(tc, f, flags, false, false);
+        let c = run_cell_in(tc, f, flags, false, false, 0, cwd);
         if let Some(e) = &c.err {
             println!("  ERR  {}  {}", c.name, e);
             continue;
@@ -344,9 +371,9 @@ fn cmd_counts(tc: &Toolchain, fixtures: &[PathBuf], flags: &[String]) -> ExitCod
 }
 
 /// Dump one fixture's canonical snapshot, with the payload on.
-fn cmd_snap(tc: &Toolchain, fixtures: &[PathBuf], flags: &[String], raw: u32) -> ExitCode {
+fn cmd_snap(tc: &Toolchain, fixtures: &[PathBuf], flags: &[String], raw: u32, cwd: Option<&Path>) -> ExitCode {
     for f in fixtures {
-        let c = run_cell_raw(tc, f, flags, true, false, raw);
+        let c = run_cell_in(tc, f, flags, true, false, raw, cwd);
         if let Some(e) = &c.err {
             println!("ERR {} {}", c.name, e);
             continue;
@@ -459,6 +486,7 @@ fn cmd_determinism(
     flags: &[String],
     payload: bool,
     runs: usize,
+    cwd: Option<&Path>,
 ) -> ExitCode {
     let mut unstable = 0usize;
     let mut distinct_max = 1usize;
@@ -475,7 +503,7 @@ fn cmd_determinism(
         let mut tuples = 0usize;
         let mut err: Option<String> = None;
         for _ in 0..runs {
-            let c = run_cell(tc, f, flags, payload, false);
+            let c = run_cell_in(tc, f, flags, payload, false, 0, cwd);
             if let Some(e) = c.err {
                 err = Some(e);
                 break;
@@ -493,7 +521,7 @@ fn cmd_determinism(
         // up here and nowhere else.
         if err.is_none() {
             for _ in 0..runs {
-                let c = run_cell(tc, f, flags, payload, false);
+                let c = run_cell_in(tc, f, flags, payload, false, 0, cwd);
                 if let Some(e) = c.err {
                     err = Some(e);
                     break;

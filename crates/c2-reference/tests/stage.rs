@@ -350,3 +350,168 @@ fn the_two_site_tables_are_one_table() {
          drifted — order included, because the C side indexes by position"
     );
 }
+
+/// **G5 — CONTENT. A positive, cross-derived check, never an inspected green.**
+///
+/// A structurally deterministic **empty** snapshot passes G1, G2, G2b and G3
+/// trivially, and absence-read-as-success is this project's own signature
+/// defect (twelve recorded instances; `add3` is the twelfth). So content is a
+/// named criterion with a second derivation attached, not something a human
+/// notices while reading output.
+///
+/// The second derivation (#3288) is genuinely differently-built: the tap's
+/// per-function hit count is produced by **patched call sites inside c2's own
+/// code**, counted in `c2host`; the `PROC` count is produced by **c2's own
+/// `/FAsc` listing writer**; the `.text` COMDAT count is produced by the
+/// **COFF section table** in the obj. Three paths, no shared step after c2's
+/// front end.
+#[test]
+fn the_snapshot_is_nonempty_and_agrees_with_a_second_derivation() {
+    let Some(tc) = guards("the_snapshot_is_nonempty_and_agrees_with_a_second_derivation") else {
+        return;
+    };
+    let w = work("content");
+    let src = c2_reference::to_wibo_path(&fixture(STAGE_FIXTURE).canonicalize().unwrap());
+
+    // Derivation A — the tap.
+    let captured = tc
+        .capture_reference_with(&src, &w.join("cap"), &o1(), None)
+        .expect("capture failed");
+    let (_obj, rep) = tc
+        .replay_tapped_with(
+            &captured,
+            &w.join("il"),
+            &captured.ref_obj_path.clone(),
+            STAGE_SITES,
+            true,
+        )
+        .expect("tapped replay failed");
+    assert!(rep.armed_ok(), "taps did not arm: {:?}", rep.refused);
+    assert!(
+        !rep.tuples.is_empty(),
+        "THE PAYLOAD IS EMPTY. Deterministic and vacuous passes G1/G2/G3 \
+         trivially and is not a green.\n{}",
+        rep.lines.join("\n")
+    );
+    assert!(
+        rep.walk_refusals.is_empty(),
+        "the bounded walk was TRUNCATED, so the tuple count below is a floor \
+         and not a measurement: {:?}",
+        rep.walk_refusals
+    );
+    assert!(rep.regions > 0, "no scheduling region was observed at all");
+
+    // Derivation B — c2's own /FAsc listing writer.
+    let (listing_cap, cod) = tc
+        .capture_listing_with(&src, &w.join("cod"), &o1(), None, false)
+        .expect("listing capture failed");
+    let procs = c2_reference::cod::CodListing::parse(&cod).functions.len();
+
+    // Derivation C — the COFF section table of the obj.
+    let comdats = listing_cap
+        .ref_obj
+        .text_comdat_functions()
+        .map(|v| v.len())
+        .unwrap_or(0);
+
+    // Every per-function site fires exactly once per function, so all six must
+    // equal the function count. `region` is per REGION and is excluded.
+    for site in STAGE_SITES.iter().filter(|s| **s != "region") {
+        assert_eq!(
+            rep.hits_at(site) as usize,
+            procs,
+            "site {site} fired {} times but c2's own listing prints {procs} PROC \
+             — the tap and c2's narration disagree about how many functions c2 \
+             compiled",
+            rep.hits_at(site)
+        );
+    }
+    assert_eq!(
+        procs, comdats,
+        "the listing and the obj disagree about the function count, so the \
+         cross-check above has no fixed point"
+    );
+    assert!(
+        procs > 1,
+        "{STAGE_FIXTURE} has {procs} function(s): a single-function fixture \
+         cannot detect a per-function count that is wrong by a constant"
+    );
+
+    // And P_DAG.md §1's "four scheduler runs per function", re-derived as an
+    // EQUALITY BETWEEN FOUR SEPARATELY PATCHED SITES rather than as a reading.
+    let s1 = rep.hits_at("sched1");
+    assert!(
+        s1 == rep.hits_at("sched2")
+            && s1 == rep.hits_at("sched3")
+            && s1 == rep.hits_at("sched0"),
+        "the four scheduler sites disagree ({} {} {} {}) — P_DAG.md §1 says \
+         four runs per function",
+        s1,
+        rep.hits_at("sched2"),
+        rep.hits_at("sched3"),
+        rep.hits_at("sched0")
+    );
+    std::fs::remove_dir_all(&w).ok();
+}
+
+/// **The observable is LIVE, and the COLOR null is about COLOR.**
+///
+/// This is the control that stops [`the_snapshot_is_nonempty_and_agrees_with_a_second_derivation`]
+/// from being satisfied by a frozen structure. Measured on this fixture: the
+/// tuple rows read at `sched1` differ from those at `sched2` (a scheduler run
+/// plus globregs happened in between) and those at `sched3` differ from
+/// `sched0` (the lowering band) — while `sched2` vs `sched3`, which brackets
+/// the register allocator, is IDENTICAL on every function, and a 128-byte raw
+/// window says COLOR wrote nothing in the tuple record at all.
+///
+/// So a ported COLOR **cannot** be graded against this observable, and that is
+/// a finding about where the allocator's output lives — not a defect in the
+/// tap. If this test ever fails at the `sched1`/`sched2` end, the walk has gone
+/// blind and every COLOR conclusion drawn from it is void.
+#[test]
+fn the_tuple_walk_sees_the_scheduler_move_the_list() {
+    let Some(tc) = guards("the_tuple_walk_sees_the_scheduler_move_the_list") else {
+        return;
+    };
+    let w = work("live");
+    let captured = tc
+        .capture_reference_with(
+            &c2_reference::to_wibo_path(&fixture(STAGE_FIXTURE).canonicalize().unwrap()),
+            &w.join("cap"),
+            &o1(),
+            None,
+        )
+        .expect("capture failed");
+    let (_obj, rep) = tc
+        .replay_tapped_with(
+            &captured,
+            &w.join("il"),
+            &captured.ref_obj_path.clone(),
+            STAGE_SITES,
+            true,
+        )
+        .expect("tapped replay failed");
+    assert!(rep.armed_ok());
+
+    let funcs = rep.blocks.iter().map(|b| b.func).max().unwrap_or(0);
+    assert!(funcs > 0, "no phase-tagged region blocks at all");
+    let cat = |phase: &str, f: u32| -> Vec<String> {
+        rep.blocks_at(phase, f)
+            .into_iter()
+            .flat_map(|b| b.tuples.iter().cloned())
+            .collect()
+    };
+    let mut sched_moved = 0;
+    for f in 1..=funcs {
+        if cat("sched1", f) != cat("sched2", f) {
+            sched_moved += 1;
+        }
+    }
+    assert!(
+        sched_moved > 0,
+        "the tuple rows are IDENTICAL across the first scheduler run on all \
+         {funcs} functions. The walk is reading a frozen structure and every \
+         phase conclusion drawn from it — including the COLOR null — is void."
+    );
+    std::fs::remove_dir_all(&w).ok();
+}
