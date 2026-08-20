@@ -71,6 +71,17 @@ worktree, and none is carried from the dispatching brief.
 | mingw | `/usr/bin/i686-w64-mingw32-gcc` |
 | box load at lane start (`uptime`) | 32.3 at lane start, 150.4 twenty minutes later (32 cores, unrelated external jobs) — wall-clock seconds are NOT published by this lane |
 
+> **⚠ 2026-08-20, ADDENDUM WRITTEN AT THE TIP — THE STAMP MOVED, AND THIS
+> RULE FIRED ON THE LANE THAT WROTE IT.** The tip reads
+> `workload   b25928dfb2a6 (clean)`, a **FIFTH** value; the base above read
+> `3df8fd5412c2`. `dc3-decomp` took a merge
+> (`b25928dfb Merge fix/string-literals-20260820`) while this lane ran. Per
+> invalidation rule 1 below, the base is **re-read at the current stamp** and
+> the workload-derived numbers are re-taken there; the base log is kept, not
+> deleted. The fixture-derived results (G1 over `fixtures/cpp`, G2, G2b, G3,
+> G5) do not touch the workload and are unaffected. See the rung doc §7.1 for
+> the re-read.
+
 **The workload stamp is re-read at this lane's TIP and asserted EQUAL to the
 line above** (#3306/#3311 — it moved three times on 2026-08-19 and
 `fnbyte-exact` moved with it). A stamp inequality VOIDS every count in this
