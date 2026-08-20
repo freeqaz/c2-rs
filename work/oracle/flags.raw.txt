@@ -1,0 +1,1 @@
+/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I e:\lazer_build_gmc1\system\src\stlport /I src/xdk/LIBCMT /I e:\lazer_build_gmc1\system\src /I e:\lazer_build_gmc1\lazer\src /I e:\lazer_build_gmc1\system\src\oggvorbis /I e:\lazer_build_gmc1\system\src\synth\tomcrypt /I e:\lazer_build_gmc1\system\src\net\curl\include /I src
