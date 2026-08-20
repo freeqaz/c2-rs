@@ -4736,6 +4736,8 @@ fn mk_plan_report() -> GapReport {
     exact.class = TuClass::Match;
     exact.plan.observable = true;
     exact.plan.verdicts.insert("emitset-members".into(), objplan::PlanVerdict::Exact);
+    exact.plan.verdicts.insert("emitset-order".into(), objplan::PlanVerdict::Exact);
+    exact.plan.checks_reached = 3;
     exact.plan.emitset_subset = Some(true);
     exact.plan.emitset_extra = Some(0);
     exact.plan.emitset_missing = Some(0);
@@ -4743,12 +4745,15 @@ fn mk_plan_report() -> GapReport {
     exact.plan.emitset_obs_size = Some(1);
     exact.plan.glorder = Some(true);
     exact.plan.sigs.insert("emitset-members".into(), "1:?a@@YAXXZ".into());
+    exact.plan.sigs.insert("emitset-order".into(), "1|1:?a@@YAXXZ".into());
 
     let mut differs = mk("differs.cpp");
     differs.src = "src/differs.cpp".into();
     differs.class = TuClass::VocabGap;
     differs.plan.observable = true;
     differs.plan.verdicts.insert("emitset-members".into(), objplan::PlanVerdict::Differs);
+    differs.plan.verdicts.insert("emitset-order".into(), objplan::PlanVerdict::Differs);
+    differs.plan.checks_reached = 3;
     differs.plan.emitset_subset = Some(true);
     differs.plan.emitset_extra = Some(0);
     differs.plan.emitset_missing = Some(4);
@@ -4756,20 +4761,25 @@ fn mk_plan_report() -> GapReport {
     differs.plan.emitset_obs_size = Some(5);
     differs.plan.glorder = Some(false);
     differs.plan.sigs.insert("emitset-members".into(), "5:?b@@YAXXZ".into());
+    differs.plan.sigs.insert("emitset-order".into(), "5|5:?b@@YAXXZ".into());
 
     let mut unknown = mk("unknown.cpp");
     unknown.src = "src/unknown.cpp".into();
     unknown.class = TuClass::VocabGap;
     unknown.plan.observable = true;
     unknown.plan.verdicts.insert("emitset-members".into(), objplan::PlanVerdict::Unknown);
+    unknown.plan.verdicts.insert("emitset-order".into(), objplan::PlanVerdict::Unknown);
     unknown.plan.reasons.insert("emitset-members".into(), "gl-attrs-refused".into());
     unknown.plan.sigs.insert("emitset-members".into(), "5:?b@@YAXXZ".into());
+    unknown.plan.sigs.insert("emitset-order".into(), "5|5:?b@@YAXXZ".into());
 
     let mut unobs = mk("unobs.cpp");
     unobs.src = "src/unobs.cpp".into();
     unobs.class = TuClass::VocabGap;
     unobs.plan.observable = false;
     unobs.plan.verdicts.insert("emitset-members".into(), objplan::PlanVerdict::Unobservable);
+    unobs.plan.verdicts.insert("emitset-order".into(), objplan::PlanVerdict::Unobservable);
+    unobs.plan.checks_reached = 1;
 
     let mut gone = mk("gone.cpp");
     gone.src = "src/gone.cpp".into();
@@ -4826,6 +4836,45 @@ fn every_plan_metric_is_re_derived_from_the_rows_and_agrees() {
         checked >= 10,
         "the second derivation must actually check something — a control that \
          checks 0 keys and one that passes look identical ({checked} checked)"
+    );
+
+    // **AND ITS COVERAGE IS ASSERTED, NOT ASSUMED.** The first version derived
+    // 13 of the 48 published keys and the omissions included the PRIMARY GRADING
+    // CRITERION (every `plan-control-*`) and the deciding probe. "13 OK" reads
+    // as done; it was a third of the block. Every published `plan-*` key must
+    // now be either re-derived here or NAMED in `uncovered_metric_keys` — a
+    // coverage claim without its complement enumerated is #3237 one level up.
+    let uncovered: std::collections::BTreeSet<&str> =
+        objplan::uncovered_metric_keys().into_iter().collect();
+    let published_plan: Vec<&str> = rep
+        .metrics()
+        .into_iter()
+        .map(|(k, _)| k)
+        .filter(|k| k.starts_with("plan-"))
+        .collect();
+    let mut unaccounted: Vec<&str> = Vec::new();
+    for k in &published_plan {
+        if derived.contains_key(*k) || uncovered.contains(k) {
+            continue;
+        }
+        // The `-distinct` keys come from the signature map, not from a TSV
+        // column, and are listed in `uncovered_metric_keys` by their `plan-obs-`
+        // spelling; the per-component ones are named here for the same reason.
+        if k.ends_with("-distinct") {
+            continue;
+        }
+        unaccounted.push(k);
+    }
+    assert!(
+        unaccounted.is_empty(),
+        "these published `plan-*` keys are neither re-derived by the second \
+         derivation nor named as unreachable by it: {unaccounted:?}. Add the \
+         derivation, or add the key to `uncovered_metric_keys` with the reason."
+    );
+    assert!(
+        published_plan.len() >= 40,
+        "the coverage check must run against the real key block ({} keys)",
+        published_plan.len()
     );
 }
 
@@ -4930,14 +4979,21 @@ fn the_named_control_reports_its_shortfall_by_name_and_component() {
     r.class = TuClass::Match;
     r.plan.observable = true;
     r.plan.verdicts.insert("emitset-members".into(), objplan::PlanVerdict::Differs);
+    r.plan.verdicts.insert("emitset-order".into(), objplan::PlanVerdict::Unknown);
+    r.plan.reasons.insert("emitset-order".into(), "emitset-glorder-control-red".into());
     r.plan.emitset_subset = Some(true);
     r.plan.emitset_missing = Some(1);
     r.plan.emitset_missing_witness = Some("?onlyc2@@YAXXZ".into());
+    // **THE CONTROL'S OWN SIZE.** The reference obj emits 4 names here, so this
+    // cell is SUBSTANTIVE — a cell where a membership error could actually show.
+    // Without this the row would be a 0-vs-0 comparison and the shortfall test
+    // would be asserting on a cell that cannot discriminate.
+    r.plan.emitset_obs_size = Some(4);
     let src = r.src.clone();
     let rep = mk_report(vec![r]);
     let ctl = rep.plan_control();
-    assert_eq!(ctl.exact_rows, 0, "the one shipped component differs, so the TU is not exact");
-    assert_eq!(ctl.shortfall.len(), 1);
+    assert_eq!(ctl.exact_rows, 0, "a component differs, so the TU is not exact");
+    assert_eq!(ctl.shortfall.len(), 2, "one `differs` cell and one `unknown` cell");
     assert_eq!(ctl.shortfall[0].0, src);
     assert_eq!(ctl.shortfall[0].1, "emitset-members");
     assert_eq!(ctl.shortfall[0].2, objplan::PlanVerdict::Differs);
@@ -4950,12 +5006,65 @@ fn the_named_control_reports_its_shortfall_by_name_and_component() {
     // **The two shortfall kinds are counted apart**: only `differs` reds the
     // lane, and a control that folded them would go unreadable the moment a
     // component was demoted to `unknown` — which is what this lane's own first
-    // workload run caused.
+    // workload run caused, and what the registered §3 rule now does to BOTH.
     assert_eq!(ctl.differ_cells, 1);
-    assert_eq!(ctl.unknown_cells, 0);
+    assert_eq!(ctl.unknown_cells, 1);
     // …and the identity diff reports the 25 pinned TUs this one-row report does
     // not carry, in the `left` direction. A control that quietly ignored them
     // would pass on a `--limit 1` scan.
     assert_eq!(ctl.diff_left.len(), ctl.pinned - 1);
     assert!(ctl.diff_entered.is_empty());
+    // **THE CONTROL'S OWN SIZE, ASSERTED.** `exact 0 of 1` says nothing about
+    // whether the comparison could have failed; these three do.
+    assert_eq!(ctl.obs_size, 4);
+    assert_eq!(ctl.obs_empty_tus, 0);
+    assert_eq!(ctl.substantive_tus, 1);
+}
+
+/// **A CONTROL WHOSE CELLS ARE ALL EMPTY-vs-EMPTY REPORTS ITS OWN VACUITY.**
+///
+/// This is the review's second major, as an assertion. Six of the 26 real pinned
+/// TUs read `exact` with `pred_size = 0, obs_size = 0` — the empty set compared
+/// to the empty set, which every pure manifest gets right — and nine more are
+/// 1-vs-1, so *"24 of 26 exact"* could not be told apart from 24 comparisons
+/// that cannot fail. The most likely wrong-way is the extractor collapsing to
+/// `Some(empty)`: that would make the exact count go UP while the control's own
+/// size went to zero, so the size is what has to be published.
+#[test]
+fn a_control_of_empty_cells_reports_its_own_vacuity() {
+    let pinned: Vec<String> = objplan::control_tus()
+        .into_iter()
+        .map(str::to_string)
+        .collect();
+    let rows: Vec<TuResult> = pinned
+        .iter()
+        .map(|src| {
+            let mut r = mk("ctl");
+            r.src = src.clone();
+            r.class = TuClass::Match;
+            r.plan.observable = true;
+            for c in objplan::PLAN_COMPONENTS {
+                r.plan.verdicts.insert((*c).into(), objplan::PlanVerdict::Exact);
+            }
+            r.plan.emitset_subset = Some(true);
+            // THE EXTRACTOR HAS COLLAPSED: every reference emit set is empty.
+            r.plan.emitset_obs_size = Some(0);
+            r.plan.emitset_pred_size = Some(0);
+            r
+        })
+        .collect();
+    let rep = mk_report(rows);
+    let ctl = rep.plan_control();
+    // The headline reads PERFECT…
+    assert_eq!(ctl.exact_rows, ctl.present);
+    assert_eq!(ctl.differ_cells, 0);
+    // …and the size says the perfect score is 26 comparisons of nothing.
+    assert_eq!(ctl.obs_size, 0);
+    assert_eq!(ctl.obs_empty_tus, ctl.present);
+    assert_eq!(
+        ctl.substantive_tus, 0,
+        "not one pinned cell compares a set of >= 2 names, so `exact on every \
+         pinned TU` is a statement about the empty set and the printed block must \
+         be able to say so"
+    );
 }

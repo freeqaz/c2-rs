@@ -118,14 +118,25 @@ fn scan_one(
     //
     // Diagnostic only. Nothing below branches on it and no verdict anywhere
     // depends on it; `plan-*` is an instrument and the byte judge is unchanged.
+    let observed_plan = captured.ref_obj.observe();
     res.plan = super::plan::grade(
-        captured.ref_obj.observe().as_ref(),
+        observed_plan.as_ref(),
         &c2_core::plan::predict(
             &captured.bundle,
             &c2_core::plan::PlanInputs {
                 function_level_linking: gy,
             },
         ),
+    );
+    // **R2 AT WORKLOAD SCALE**, not on three synthetic objs. The prereg's
+    // tertiary criterion says `observe` must agree with each existing `c2-obj`
+    // accessor "over the whole workload, TU by TU", and what shipped was three
+    // hand-written cells. This carries the emit-set half — the one whose sum is
+    // published as a denominator — over every TU that captured. Known answer 0.
+    super::plan::record_accessor_agreement(
+        &mut res.plan,
+        observed_plan.as_ref(),
+        captured.ref_obj.text_comdat_functions(),
     );
     res.gl_body_starts = captured.bundle.gl_body_start_coverage();
     // **W-SELBIND — the same question one instrument tighter, and read for every

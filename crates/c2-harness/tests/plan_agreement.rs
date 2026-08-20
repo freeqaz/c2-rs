@@ -232,16 +232,35 @@ fn observe_agrees_with_every_existing_accessor_on_real_objs() {
 /// above is three comparisons of empty lists, which passes and measures
 /// nothing. This is board #1140's caution: a marker count is only as good as
 /// what it counts.
+/// **The three cells must ALL be graded, and the counter is why.**
+///
+/// The first version of this test `return`ed on any per-cell capture failure
+/// with no counter at all, so a run where every capture failed passed — unlike
+/// its sibling above, which asserts 3 of 3 for exactly this reason and says so.
+/// A test whose skip path and success path are the same exit is a test that
+/// cannot distinguish them.
+fn graded_all(n: usize, what: &str) {
+    assert_eq!(
+        n, 3,
+        "{what} graded {n} of 3 cells; the per-cell SKIP branches are individually \
+         legitimate and collectively vacuous — a control that ran over an empty \
+         population reports absence as success"
+    );
+}
+
 #[test]
 fn each_cell_exhibits_the_shape_it_was_chosen_for() {
     let Some(tc) = Toolchain::locate() else {
         println!("SKIP: toolchain absent");
         return;
     };
+    let mut graded = 0usize;
     let Some(gy) = compile(&tc, "gy2", GY) else {
         println!("SKIP: cell gy did not capture");
+        graded_all(graded, "each_cell_exhibits_the_shape_it_was_chosen_for");
         return;
     };
+    graded += 1;
     let p = plan_of(&gy, "gy");
     assert!(
         p.emit_set.len() >= 3,
@@ -259,8 +278,10 @@ fn each_cell_exhibits_the_shape_it_was_chosen_for() {
 
     let Some(weak) = compile(&tc, "weak2", WEAK) else {
         println!("SKIP: cell weak did not capture");
+        graded_all(graded, "each_cell_exhibits_the_shape_it_was_chosen_for");
         return;
     };
+    graded += 1;
     let pw = plan_of(&weak, "weak");
     assert!(
         !pw.weak.is_empty(),
@@ -270,8 +291,10 @@ fn each_cell_exhibits_the_shape_it_was_chosen_for() {
 
     let Some(relo) = compile(&tc, "relo2", RELO) else {
         println!("SKIP: cell relo did not capture");
+        graded_all(graded, "each_cell_exhibits_the_shape_it_was_chosen_for");
         return;
     };
+    graded += 1;
     let pr = plan_of(&relo, "relo");
     assert!(
         pr.relocs.iter().any(|r| !r.entries.is_empty()),
@@ -281,6 +304,58 @@ fn each_cell_exhibits_the_shape_it_was_chosen_for() {
         !pr.undef.is_empty(),
         "cell RELO must reference undefined externals — that is the component the \
          `undef` list is for"
+    );
+    graded_all(graded, "each_cell_exhibits_the_shape_it_was_chosen_for");
+}
+
+/// **THE ORDERING DIVERGENCE, STATED AND FENCED.**
+///
+/// `ObjPlan::observe` builds its emit set in SECTION-table order;
+/// `text_comdat_entries` walks the SYMBOL table. On these three objs the two
+/// coincide, which is why the ordered `assert_eq!` in [`agree`] holds — and the
+/// review is right that nothing else ever tested it. The two orders are NOT
+/// guaranteed equal on a real TU, so the workload-scale agreement wired into
+/// `gap::scan` compares them as SETS and says so.
+///
+/// This test pins the fact rather than leaving the ordered assertion to imply a
+/// guarantee it does not have: on the `GY` cell (three COMDATs, so an order
+/// exists to be wrong about) the two walks are asserted equal AS SETS
+/// unconditionally, and the ordered equality is reported as a property of THIS
+/// cell rather than of the walks.
+#[test]
+fn the_two_emit_set_walks_agree_as_sets_and_the_order_is_a_property_of_the_cell() {
+    let Some(tc) = Toolchain::locate() else {
+        println!("SKIP: toolchain absent");
+        return;
+    };
+    let Some(img) = compile(&tc, "gy4", GY) else {
+        println!("SKIP: cell gy did not capture");
+        panic!("the ordering fence graded 0 cells — see graded_all");
+    };
+    let p = plan_of(&img, "gy");
+    let incumbent = img.text_comdat_functions().expect("the emit-set walk decodes");
+    assert!(
+        p.emit_set.len() >= 3,
+        "the cell must carry several COMDATs or there is no order to be wrong \
+         about; it carried {:?}",
+        p.emit_set
+    );
+    let ours: std::collections::BTreeSet<&str> =
+        p.emit_set.iter().map(String::as_str).collect();
+    let theirs: std::collections::BTreeSet<&str> =
+        incumbent.iter().map(String::as_str).collect();
+    assert_eq!(
+        ours, theirs,
+        "the two emit-set walks disagree AS SETS — that is a membership defect in \
+         one of them and it is what the workload-scale `plan-agree-emitset-disagree` \
+         counter grades on every TU"
+    );
+    // The ORDER: reported, not asserted as a guarantee. Section order and symbol
+    // order coincide here; a lane that needs the ordered form must establish it
+    // for its own population.
+    println!(
+        "note: section-order vs symbol-order emit sets are {} on this cell",
+        if p.emit_set == incumbent { "IDENTICAL" } else { "DIFFERENT" }
     );
 }
 
@@ -300,7 +375,10 @@ fn the_plan_does_not_move_when_a_real_objs_text_bytes_are_rewritten() {
     };
     let Some(img) = compile(&tc, "gy3", GY) else {
         println!("SKIP: cell gy did not capture");
-        return;
+        // A capture failure here is NOT a pass: the test's whole content is the
+        // mutation, and a run that mutated nothing proves nothing. `graded_all`
+        // says so in one place for all three tests in this file.
+        panic!("body-independence graded 0 of 1 cells — see graded_all");
     };
     let before = plan_of(&img, "gy");
     // Find each `.text` COMDAT's raw data by the accessor that already knows
@@ -310,26 +388,40 @@ fn the_plan_does_not_move_when_a_real_objs_text_bytes_are_rewritten() {
         .expect("the byte walk decodes");
     let mut bytes = img.as_bytes().to_vec();
     let mut rewritten = 0usize;
+    let mut ambiguous = 0usize;
     for (_, body) in &entries {
         if body.is_empty() {
             continue;
         }
-        // The body's bytes are unique enough in practice; if they are not, the
-        // first occurrence is still inside some section's raw data and the
-        // property under test is unchanged.
-        if let Some(at) = bytes
+        // **EXACTLY ONE OCCURRENCE, OR SKIP THIS BODY.** The first version took
+        // `position(..)` — the FIRST match — and reasoned that a look-alike run
+        // is "still inside some section's raw data". That is not good enough: a
+        // look-alike could sit in `.debug$S` or in a relocation table, and then
+        // the test would XOR a region that is not the body it means to mutate
+        // and still satisfy `rewritten > 0`. So an ambiguous body is skipped and
+        // COUNTED, and the assertion below is on the unambiguous ones.
+        let hits: Vec<usize> = bytes
             .windows(body.len())
-            .position(|w| w == body.as_slice())
-        {
-            for b in &mut bytes[at..at + body.len()] {
-                *b ^= 0xFF;
-            }
-            rewritten += 1;
+            .enumerate()
+            .filter(|(_, w)| *w == body.as_slice())
+            .map(|(i, _)| i)
+            .collect();
+        if hits.len() != 1 {
+            ambiguous += 1;
+            continue;
         }
+        let at = hits[0];
+        for b in &mut bytes[at..at + body.len()] {
+            *b ^= 0xFF;
+        }
+        rewritten += 1;
     }
     assert!(
         rewritten > 0,
-        "the test must actually have rewritten a body, or it proves nothing"
+        "the test must actually have rewritten a body, or it proves nothing \
+         ({ambiguous} body/bodies were skipped as ambiguous — they occur more \
+         than once in the file and XOR-ing the first hit could have mutated \
+         something other than the body)"
     );
     let mutated = ObjImage::new(bytes);
     assert_ne!(img.as_bytes(), mutated.as_bytes());

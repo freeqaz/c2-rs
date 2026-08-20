@@ -101,24 +101,53 @@ impl PlanVerdict {
 /// reference supplies. The key order here is the printed order and the TSV
 /// column order, and the names are the `gap-metric` key stems, so a rename is
 /// a visible interface change rather than a silent `NO-RESULT` (STATUS trap 5).
-pub const PLAN_COMPONENTS: &[&str] = &["emitset-members"];
+pub const PLAN_COMPONENTS: &[&str] = &["emitset-members", "emitset-order"];
 
-/// **Why `emitset-order` is NOT in the list above** — it was, on this lane's
-/// first workload run, and the **named control removed it**.
+/// **BOTH COMPONENTS SHIP `Unknown`, AND THAT IS THE REGISTERED RULE APPLIED TO
+/// THE LANE THAT REGISTERED IT.**
 ///
-/// The predictor was `.gl` record order (`c2_il::mangled_names`, the only
-/// ordered `.gl` reader). It agreed with COMDAT section order on **18 of 854**
-/// TUs and **differed on 12 of the 26 TUs the port already reproduces
-/// byte-exactly**. The extractor is not at fault — `ObjPlan::observe`'s emit set
-/// is asserted equal to `text_comdat_functions` on real objs by
-/// `tests/plan_agreement.rs` — so the *predictor* is refuted, and this lane's
-/// prereg says a component whose control is red **ships as `Unknown`, never as
-/// `Differs`**: the instrument must not publish 836 disagreements produced by a
-/// rule its own control has already killed.
+/// This lane's prereg (`docs/rungs/_2026-08-20-objplan-prereg.md` §3) reads, in
+/// full:
 ///
-/// The measurement survives as `plan-emitset-glorder-agrees`, a
-/// **characterization** key. It is the number that prices board #259's
-/// `coff::order::plan_text_order`, and it did not exist before this lane.
+/// > `Differs` on a control TU means the extractor or the predictor is wrong
+/// > and the component **does not ship**. A component whose control is red
+/// > ships as `Unknown`, never as `Differs`: the manifest must not claim to
+/// > disagree with the reference on a TU the byte judge has already called
+/// > equal.
+///
+/// | component | predictor | control | verdict |
+/// |---|---|---|---|
+/// | `emitset-order` | `.gl` record order (`c2_il::mangled_names`) | **12 of 26 differ** | red → ships `Unknown` |
+/// | `emitset-members` | the `0x20` seed (`FN_FLAG_EMIT_SEED`) | **2 of 26 differ** | red → ships `Unknown` |
+///
+/// # The asymmetry the review caught, recorded because it is the interesting part
+///
+/// The first version of this lane withdrew `emitset-order` under exactly that
+/// sentence and **shipped `emitset-members` as its headline**, on the strength
+/// of a post-hoc reading — *"the port's emit path does not consult the `0x20`
+/// bit, so `Differs` there is not automatically a bug"*. That reading applies
+/// **verbatim** to `emitset-order` (the emit path does not consult `.gl` record
+/// order either), so the rule that actually separated them was *"12 of 26 is too
+/// many, 2 of 26 is fine"* — **a threshold invented after seeing the data and
+/// registered nowhere.** The instrument then printed `2 differs` on the same
+/// screen as its own *"ONLY `differs` REDS THE LANE"*, every run, while the lane
+/// reported outcome `instrument`.
+///
+/// The repair is the registered rule applied **uniformly**, and it is
+/// deliberately the option that costs this lane its headline. Amending a prereg
+/// after the measurement, to a threshold the measurement itself suggested, is
+/// the failure the prereg exists to prevent; a lane that does it once has no
+/// prereg at all.
+///
+/// # Nothing measured is lost
+///
+/// Both predictors are still computed and both are still published — as
+/// `plan-emitset-seed-*` and `plan-emitset-glorder-agrees`, **characterization
+/// keys** and never a curve. What the rule forbids is the *claim of
+/// disagreement*: publishing `members-differs 821` would be publishing 821
+/// disagreements produced by a rule this lane's own §2.4 declares refuted at
+/// workload scale, which is #3329's own transferable finding turned on the
+/// component #3329 spared.
 
 /// One component's four `gap-metric` key names, spelled out as `&'static str`.
 ///
@@ -156,6 +185,14 @@ pub const PLAN_KEYS: &[PlanKeys] = &[
         differs: "plan-emitset-members-differs",
         distinct: "plan-emitset-members-distinct",
     },
+    PlanKeys {
+        component: "emitset-order",
+        observable: "plan-emitset-order-observable",
+        known: "plan-emitset-order-known",
+        exact: "plan-emitset-order-exact",
+        differs: "plan-emitset-order-differs",
+        distinct: "plan-emitset-order-distinct",
+    },
 ];
 
 /// **Observe-side inventory keys** — facts read off the reference obj that the
@@ -185,13 +222,55 @@ pub const PLAN_OBSERVED_KEYS: &[&str] = &[
     "plan-obs-drectve-tus",
     "plan-obs-reloc-records",
     // The DECIDING PROBE on the seed bit — see `PredictedPlan::attr_census`.
-    // These three describe the predictor's own INPUT, which is why they are
+    // These describe the predictor's own INPUT, which is why they are
     // observe-side counters rather than a component: they say whether the byte
-    // the seed is read out of is the right byte at all.
+    // the seed is read out of is the right byte at all, and whether the reader
+    // reaches the records it claims to describe.
     "plan-glattr-names",
     "plan-glattr-bit6",
     "plan-glattr-zero",
     "plan-glattr-seed",
+    // **THE ALTERNATIVE EXPLANATION, MEASURED.** `plan-glattr-names 28,107`
+    // against `158,802` emitted has two stories and the first version of the
+    // probe tested one: *the bit is rare* versus *the scanner finds one record
+    // in six*. `gl_function_attrs` steps `p += 1` past an unframed offset with
+    // no refusal and no counter, so under-coverage looks exactly like a fact
+    // about `.gl`.
+    //
+    // `glruns-*` is the ORTHOGONAL reader (`c2_il::mangled_names`, which does
+    // not use `gl_offset_framed` at all) and the two intersections against the
+    // reference obj's own emitted set are what separate the stories:
+    //   * runs∩emitted ≈ emitted while attr∩emitted ≈ 28k  → it is the SCANNER
+    //   * runs∩emitted ≈ attr∩emitted ≈ 28k                → it is `.gl`
+    "plan-glruns-names",
+    "plan-glruns-in-emitset",
+    "plan-glattr-in-emitset",
+    // The other six bits of the byte. A genuinely decoded field is structured
+    // across them; a walk that landed on an unrelated byte at a fixed
+    // displacement tends to a near-constant value. (`bit5` is the seed and
+    // `bit6` is `FN_FLAG_INLINABLE`; both are published under their own names
+    // above and repeated here so the histogram is complete and readable as one.)
+    "plan-glattr-bit0",
+    "plan-glattr-bit1",
+    "plan-glattr-bit2",
+    "plan-glattr-bit3",
+    "plan-glattr-bit4",
+    "plan-glattr-bit5",
+    "plan-glattr-bit7",
+    // **R2 AT WORKLOAD SCALE.** The prereg's tertiary criterion is that
+    // `observe` agrees with each existing `c2-obj` accessor *"over the whole
+    // workload, TU by TU"*; what shipped was three hand-written synthetic cells
+    // in `tests/plan_agreement.rs`. These two carry the emit-set half over every
+    // TU that captured: `-tus` is the population (a control on the control — it
+    // must not be 0) and `-disagree` has known answer **0**.
+    //
+    // Note the two walks are ordered differently by construction — `observe`
+    // builds the emit set in SECTION-table order, `text_comdat_entries` in
+    // SYMBOL-table order — so the workload-wide comparison is a SET comparison
+    // and says so; the ordered `assert_eq!` in `plan_agreement.rs` only ever
+    // held because its three objs are ones where the two coincide.
+    "plan-agree-emitset-tus",
+    "plan-agree-emitset-disagree",
 ];
 
 /// One TU's plan grade.
@@ -226,6 +305,20 @@ pub struct TuPlan {
     /// without the claimant's size is unfalsifiable in the flattering
     /// direction, which is #3237 inside the instrument built to prevent it.
     pub emitset_pred_size: Option<usize>,
+    /// **`|observed emit set|`, set on EVERY observable TU** — independently of
+    /// whether the port answered.
+    ///
+    /// It used to be set only inside the `Known` arm, so `plan-emitset-observed-size`
+    /// summed over the **854** TUs the seed answered on and was captioned as
+    /// *"functions real c2 actually emitted"* — a whole-workload phrasing for an
+    /// 854-TU figure, published beside `fnbyte-denominator` **162,136**, which is
+    /// the same quantity over 870, with no reconciliation. The 3,334 gap is
+    /// exactly the 16 `gl-attrs-refused` TUs. It is a fact about the REFERENCE
+    /// obj and it does not belong behind a gate on the PORT's silence.
+    ///
+    /// The 854-TU restriction is still published, as
+    /// `plan-emitset-observed-size-known`, because the seed-coverage ratios have
+    /// to be taken over a population where both sides answered.
     pub emitset_obs_size: Option<usize>,
     /// The **refuted** `.gl`-record-order rule's verdict, kept as a
     /// characterization value and never as a component. See
@@ -243,6 +336,24 @@ pub struct TuPlan {
     /// Containment violations found on this TU (see
     /// [`TuPlan::bounds_violations`]). MUST be empty.
     pub violations: Vec<String>,
+    /// **How many of the containment checks were actually EVALUATED on this
+    /// TU** — the denominator `plan-bounds-violations` was published without.
+    ///
+    /// I4 registers `plan-bounds-violations == 0` as a REQUIRED-ZERO and the
+    /// key's own doc says it is published as a *count* rather than a status so
+    /// that a control which checked nothing is distinguishable from one that
+    /// passed. The review then showed the count itself had the property: with
+    /// `emitset-order` out of `PLAN_COMPONENTS` the ladder check's lookup was
+    /// permanently `None`, the subset check followed from its own antecedent by
+    /// construction, and the unobservable check sat behind an early return that
+    /// writes `Unobservable` for every component — **all three unreachable in
+    /// production, so the zero could not be told apart from not looking.**
+    ///
+    /// That is the same defect one level up, so the same repair applies one
+    /// level up: publish the number of checks REACHED beside the number that
+    /// fired. `0 violations of 1,740 checks reached` is a measurement;
+    /// `0 violations` is not.
+    pub checks_reached: usize,
 }
 
 impl TuPlan {
@@ -257,25 +368,64 @@ impl TuPlan {
     ///    a grader bug.
     /// 2. `members-exact ⇒ seed ⊆ observed` — equality implies containment.
     /// 3. No component may read `Exact` or `Differs` on an unobservable TU.
-    fn bounds_violations(&self) -> Vec<String> {
+    ///
+    /// Returns `(violations, checks reached)`. **The second half is not
+    /// decoration** — see [`TuPlan::checks_reached`]. A check counts as reached
+    /// when both of its operands are defined on this TU, which is the only
+    /// state in which it could have fired.
+    fn bounds_violations(&self) -> (Vec<String>, usize) {
         let mut v = Vec::new();
+        let mut reached = 0usize;
         let g = |k: &str| self.verdicts.get(k).copied();
-        if g("emitset-order") == Some(PlanVerdict::Exact)
-            && g("emitset-members") != Some(PlanVerdict::Exact)
-        {
-            v.push("order-exact-without-members-exact".to_string());
+        // 1. The ladder. Reached only when BOTH components answered on this TU;
+        //    while either ships `Unknown` it is dormant, and the counter is what
+        //    says so instead of a silent zero.
+        if let (Some(o), Some(m)) = (g("emitset-order"), g("emitset-members")) {
+            if matches!(o, PlanVerdict::Exact | PlanVerdict::Differs)
+                && matches!(m, PlanVerdict::Exact | PlanVerdict::Differs)
+            {
+                reached += 1;
+                if o == PlanVerdict::Exact && m != PlanVerdict::Exact {
+                    v.push("order-exact-without-members-exact".to_string());
+                }
+            }
         }
-        if g("emitset-members") == Some(PlanVerdict::Exact) && self.emitset_subset != Some(true) {
-            v.push("members-exact-without-subset".to_string());
+        // 2. Equality implies containment. **True by construction at this tree**
+        //    (`Exact` is recorded iff `extra == 0 && missing == 0`, and
+        //    `emitset_subset = Some(extra == 0)`), and retained as a regression
+        //    fence for the day the two assignments are decoupled — which the
+        //    seed/component split in this very fix round moved one step closer.
+        //    Counted as reached only when the component answered.
+        if let Some(m) = g("emitset-members") {
+            if matches!(m, PlanVerdict::Exact | PlanVerdict::Differs) {
+                reached += 1;
+                if m == PlanVerdict::Exact && self.emitset_subset != Some(true) {
+                    v.push("members-exact-without-subset".to_string());
+                }
+            }
         }
+        // 2b. The same invariant on the CHARACTERIZATION seed, where it is NOT
+        //     true by construction: `seed_exact` is derived from the sizes in
+        //     the TSV and `emitset_subset` from the set difference, so a walk
+        //     that lost a name in one and not the other fires here. This is the
+        //     one of the four that is reachable on a real TU today, and it is
+        //     reached on all 854 the seed answers on.
+        if let (Some(extra), Some(missing)) = (self.emitset_extra, self.emitset_missing) {
+            reached += 1;
+            if extra == 0 && missing == 0 && self.emitset_subset != Some(true) {
+                v.push("seed-exact-without-subset".to_string());
+            }
+        }
+        // 3. No component may grade a TU with no ground truth.
         if !self.observable {
+            reached += 1;
             for (k, verdict) in &self.verdicts {
                 if matches!(verdict, PlanVerdict::Exact | PlanVerdict::Differs) {
                     v.push(format!("graded-without-ground-truth:{k}"));
                 }
             }
         }
-        v
+        (v, reached)
     }
 }
 
@@ -334,7 +484,7 @@ pub fn grade(observed: Option<&ObjPlan>, predicted: &PredictedPlan) -> TuPlan {
         for k in PLAN_COMPONENTS {
             record(&mut t, k, PlanVerdict::Unobservable, None);
         }
-        t.violations = t.bounds_violations();
+        (t.violations, t.checks_reached) = t.bounds_violations();
         return t;
     };
 
@@ -385,10 +535,21 @@ pub fn grade(observed: Option<&ObjPlan>, predicted: &PredictedPlan) -> TuPlan {
             assoc_here += 1;
         }
     }
-    if let Some((names, bit6, zero)) = predicted.attr_census {
-        bump(&mut t, "plan-glattr-names", names);
-        bump(&mut t, "plan-glattr-bit6", bit6);
-        bump(&mut t, "plan-glattr-zero", zero);
+    if let Some(c) = predicted.attr_census {
+        bump(&mut t, "plan-glattr-names", c.names);
+        bump(&mut t, "plan-glattr-bit6", c.bit6);
+        bump(&mut t, "plan-glattr-zero", c.zero);
+        for (b, key) in [
+            (0, "plan-glattr-bit0"),
+            (1, "plan-glattr-bit1"),
+            (2, "plan-glattr-bit2"),
+            (3, "plan-glattr-bit3"),
+            (4, "plan-glattr-bit4"),
+            (5, "plan-glattr-bit5"),
+            (7, "plan-glattr-bit7"),
+        ] {
+            bump(&mut t, key, c.bits[b]);
+        }
     }
     bump(&mut t, "plan-obs-comdat-assoc-sections", assoc_here);
     if assoc_here > 0 {
@@ -438,37 +599,89 @@ pub fn grade(observed: Option<&ObjPlan>, predicted: &PredictedPlan) -> TuPlan {
         ),
     );
 
-    // ---- emit set, members -------------------------------------------------
+    // ---- the two COMPONENTS ------------------------------------------------
+    //
+    // Both ship `Unknown`, under the lane's own registered §3 rule applied
+    // uniformly — see [`PLAN_COMPONENTS`] for why, and for the asymmetry that
+    // made this a fix round rather than the original design. The grading arm for
+    // a `Known` component is kept live and exercised by the unit fixtures,
+    // because a component that goes green is expected to ship and the arm it
+    // ships through must not be dead code that has never run.
     let observed_set: BTreeSet<&str> = obs.emit_set.iter().map(String::as_str).collect();
-    match &predicted.emit_set_members {
-        Predicted::Unknown(r) => record(&mut t, "emitset-members", PlanVerdict::Unknown, Some(r)),
-        Predicted::Known(p) => {
-            let pred: BTreeSet<&str> = p.iter().map(String::as_str).collect();
-            let extra = pred.difference(&observed_set).count();
-            let missing = observed_set.difference(&pred).count();
-            t.emitset_extra = Some(extra);
-            t.emitset_missing = Some(missing);
-            t.emitset_subset = Some(extra == 0);
-            // The claimant's own size, beside the containment claim.
-            t.emitset_pred_size = Some(pred.len());
-            bump(&mut t, "plan-glattr-seed", pred.len());
-            t.emitset_obs_size = Some(observed_set.len());
-            t.emitset_missing_witness =
-                observed_set.difference(&pred).next().map(|s| (*s).to_string());
-            t.emitset_extra_witness =
-                pred.difference(&observed_set).next().map(|s| (*s).to_string());
-            record(
-                &mut t,
-                "emitset-members",
-                if extra == 0 && missing == 0 {
-                    PlanVerdict::Exact
-                } else {
-                    PlanVerdict::Differs
-                },
-                None,
-            );
+    let grade_component = |t: &mut TuPlan, key: &str, p: &Predicted<BTreeSet<String>>| {
+        match p {
+            Predicted::Unknown(r) => record(t, key, PlanVerdict::Unknown, Some(r)),
+            Predicted::Known(names) => {
+                let pred: BTreeSet<&str> = names.iter().map(String::as_str).collect();
+                let exact = pred == observed_set;
+                record(
+                    t,
+                    key,
+                    if exact { PlanVerdict::Exact } else { PlanVerdict::Differs },
+                    None,
+                );
+            }
         }
+    };
+    grade_component(&mut t, "emitset-members", &predicted.emit_set_members);
+    match &predicted.emit_set_order {
+        Predicted::Unknown(r) => record(&mut t, "emitset-order", PlanVerdict::Unknown, Some(r)),
+        Predicted::Known(p) => record(
+            &mut t,
+            "emitset-order",
+            if *p == obs.emit_set { PlanVerdict::Exact } else { PlanVerdict::Differs },
+            None,
+        ),
     }
+
+    // ---- `|observed emit set|` — a fact about the REFERENCE obj -------------
+    //
+    // Recorded for every observable TU and NOT behind the port's silence. See
+    // [`TuPlan::emitset_obs_size`]: gating it on the `Known` arm turned a
+    // 870-TU quantity into an 854-TU one under a whole-workload caption.
+    t.emitset_obs_size = Some(observed_set.len());
+
+    // ---- the `0x20` SEED, as a characterization value -----------------------
+    //
+    // NOT a component (see [`PLAN_COMPONENTS`]). Measured on every TU where the
+    // reader answers, published as `plan-emitset-seed-*`, and never as a claim
+    // that the port disagrees with c2.
+    if let Predicted::Known(p) = &predicted.gl_seed_members {
+        let pred: BTreeSet<&str> = p.iter().map(String::as_str).collect();
+        let extra = pred.difference(&observed_set).count();
+        let missing = observed_set.difference(&pred).count();
+        t.emitset_extra = Some(extra);
+        t.emitset_missing = Some(missing);
+        t.emitset_subset = Some(extra == 0);
+        // The claimant's own size, beside the containment claim.
+        t.emitset_pred_size = Some(pred.len());
+        bump(&mut t, "plan-glattr-seed", pred.len());
+        t.emitset_missing_witness =
+            observed_set.difference(&pred).next().map(|s| (*s).to_string());
+        t.emitset_extra_witness =
+            pred.difference(&observed_set).next().map(|s| (*s).to_string());
+    }
+
+    // ---- THE ALTERNATIVE EXPLANATION FOR 28,107 vs 158,802 ------------------
+    //
+    // Both intersections against the reference obj's own emitted set, per TU.
+    // See [`PLAN_OBSERVED_KEYS`]: this is the measurement that separates *"the
+    // bit is rare in `.gl`"* from *"the scanner reaches one record in six"*,
+    // and the first version of the probe took neither.
+    if let Predicted::Known(names) = &predicted.gl_attr_names {
+        let n = names.iter().filter(|s| observed_set.contains(s.as_str())).count();
+        bump(&mut t, "plan-glattr-in-emitset", n);
+    }
+    bump(&mut t, "plan-glruns-names", predicted.gl_run_names.len());
+    bump(
+        &mut t,
+        "plan-glruns-in-emitset",
+        predicted
+            .gl_run_names
+            .iter()
+            .filter(|s| observed_set.contains(s.as_str()))
+            .count(),
+    );
 
     // ---- the REFUTED `.gl`-record-order rule, as a characterization value ---
     //
@@ -481,8 +694,44 @@ pub fn grade(observed: Option<&ObjPlan>, predicted: &PredictedPlan) -> TuPlan {
         );
     }
 
-    t.violations = t.bounds_violations();
+    (t.violations, t.checks_reached) = t.bounds_violations();
     t
+}
+
+/// **R2 AT WORKLOAD SCALE** — `observe`'s emit set against the incumbent
+/// `text_comdat_functions` walk, on every TU that captured.
+///
+/// The prereg's tertiary criterion asks for agreement with each existing
+/// accessor *"over the whole workload, TU by TU"*; what shipped was three
+/// synthetic cells. This carries the emit-set half over the real population.
+/// The other three accessors (`section_names`, `weak_externals`,
+/// `text_comdat_relocs_named`) are still agreed on those three objs only, and
+/// that shortfall is stated in the rung rather than papered over — this is the
+/// one that mattered, because `plan-emitset-observed-size` is published off the
+/// new walk and read as a denominator.
+///
+/// **Compared as SETS, deliberately.** `observe` builds the emit set in
+/// SECTION-table order and `text_comdat_entries` in SYMBOL-table order; they
+/// coincide on the three synthetic objs and are not guaranteed to on a real one,
+/// so an ordered comparison here would report an ordering fact as a membership
+/// disagreement. Known answer for the set comparison: **0**.
+pub fn record_accessor_agreement(
+    t: &mut TuPlan,
+    observed: Option<&ObjPlan>,
+    incumbent: Option<Vec<String>>,
+) {
+    let (Some(obs), Some(inc)) = (observed, incumbent) else { return };
+    // Only bump keys the observable branch pre-seeded, or the counter would be
+    // an insert on a TU `grade` decided not to describe.
+    if !t.obs.contains_key("plan-agree-emitset-tus") {
+        return;
+    }
+    *t.obs.get_mut("plan-agree-emitset-tus").expect("pre-seeded") += 1;
+    let ours: BTreeSet<&str> = obs.emit_set.iter().map(String::as_str).collect();
+    let theirs: BTreeSet<&str> = inc.iter().map(String::as_str).collect();
+    if ours != theirs {
+        *t.obs.get_mut("plan-agree-emitset-disagree").expect("pre-seeded") += 1;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -511,6 +760,10 @@ pub struct PlanRow {
     /// The refuted `.gl`-record-order rule's verdict. A characterization value.
     pub glorder: Option<bool>,
     pub violations: usize,
+    /// Containment checks EVALUATED on this TU — the denominator
+    /// `plan-bounds-violations` was published without. See
+    /// [`TuPlan::checks_reached`].
+    pub checks: usize,
 }
 
 impl PlanRow {
@@ -547,7 +800,9 @@ pub fn plan_tsv(rows: &[PlanRow]) -> String {
         s.push('\t');
         s.push_str(c);
     }
-    s.push_str("\tsubset\textra\tmissing\tpred-size\tobs-size\tglorder\tviolations\n");
+    s.push_str(
+        "\tsubset\textra\tmissing\tpred-size\tobs-size\tglorder\tviolations\tchecks\n",
+    );
     s.push_str(&format!("# plan-rows {}\n", rows.len()));
     let opt = |o: Option<usize>| match o {
         Some(n) => n.to_string(),
@@ -585,6 +840,8 @@ pub fn plan_tsv(rows: &[PlanRow]) -> String {
         });
         s.push('\t');
         s.push_str(&r.violations.to_string());
+        s.push('\t');
+        s.push_str(&r.checks.to_string());
         s.push('\n');
     }
     s
@@ -604,7 +861,7 @@ pub fn parse_plan_tsv(text: &str) -> Option<Vec<PlanRow>> {
             continue;
         }
         let f: Vec<&str> = line.split('\t').collect();
-        if f.len() != 3 + n + 7 {
+        if f.len() != 3 + n + 8 {
             return None;
         }
         let verdicts: Option<Vec<PlanVerdict>> =
@@ -642,6 +899,7 @@ pub fn parse_plan_tsv(text: &str) -> Option<Vec<PlanRow>> {
                 _ => return None,
             },
             violations: f[9 + n].parse().ok()?,
+            checks: f[10 + n].parse().ok()?,
         });
     }
     Some(out)
@@ -682,6 +940,41 @@ pub fn derive_metrics(rows: &[PlanRow]) -> BTreeMap<String, usize> {
         "plan-emitset-seed-subset".into(),
         rows.iter().filter(|r| r.subset == Some(true)).count(),
     );
+    m.insert(
+        "plan-emitset-seed-known".to_string(),
+        rows.iter().filter(|r| r.pred_size.is_some()).count(),
+    );
+    m.insert(
+        "plan-emitset-seed-extra".to_string(),
+        rows.iter().filter_map(|r| r.extra).sum(),
+    );
+    m.insert(
+        "plan-emitset-seed-missing".to_string(),
+        rows.iter().filter_map(|r| r.missing).sum(),
+    );
+    // The seed's own agreement rate — the number `plan-emitset-members-exact`
+    // used to carry before the component was withdrawn under §3. Published as
+    // CHARACTERIZATION, never as a curve.
+    m.insert(
+        "plan-emitset-seed-exact".to_string(),
+        rows.iter()
+            .filter(|r| r.extra == Some(0) && r.missing == Some(0))
+            .count(),
+    );
+    // **AND THE SAME NUMBER WITH THE VACUOUS CELLS REMOVED.** 6 of the seed's
+    // `exact` TUs compare the EMPTY SET to the EMPTY SET — the reference obj
+    // emits nothing there — so "the seed is exact on 33 TUs" and "27 substantive
+    // agreements plus 6 empty comparisons" print identically. The review found
+    // this on the control and it is the same defect on the workload figure; the
+    // repair is the same one §2.3 already applied to the containment claim.
+    m.insert(
+        "plan-emitset-seed-exact-substantive".to_string(),
+        rows.iter()
+            .filter(|r| {
+                r.extra == Some(0) && r.missing == Some(0) && r.obs_size.unwrap_or(0) > 0
+            })
+            .count(),
+    );
     // **The containment claim's own denominators**, without which "seed ⊆
     // emitted on N TUs" cannot be told apart from "N empty seeds".
     m.insert(
@@ -691,6 +984,17 @@ pub fn derive_metrics(rows: &[PlanRow]) -> BTreeMap<String, usize> {
     m.insert(
         "plan-emitset-observed-size".to_string(),
         rows.iter().filter_map(|r| r.obs_size).sum(),
+    );
+    // The same sum restricted to the TUs where the SEED also answered — the
+    // population every seed-coverage ratio has to be taken over. Publishing only
+    // the restricted sum under a whole-workload caption is what made the
+    // 158,802-vs-162,136 discrepancy invisible.
+    m.insert(
+        "plan-emitset-observed-size-known".to_string(),
+        rows.iter()
+            .filter(|r| r.pred_size.is_some())
+            .filter_map(|r| r.obs_size)
+            .sum(),
     );
     m.insert(
         "plan-emitset-seed-empty-tus".to_string(),
@@ -714,7 +1018,108 @@ pub fn derive_metrics(rows: &[PlanRow]) -> BTreeMap<String, usize> {
         "plan-bounds-violations".into(),
         rows.iter().map(|r| r.violations).sum(),
     );
+    m.insert(
+        "plan-bounds-checks-reached".into(),
+        rows.iter().map(|r| r.checks).sum(),
+    );
+    m.extend(derive_control_metrics(rows));
     m
+}
+
+/// **The NAMED control, re-derived from the rows** — the half of #3288 the first
+/// version left out.
+///
+/// `derive_metrics` covered 13 of the 48 published keys and the omissions
+/// included **the primary grading criterion**. Every `plan-control-*` figure is
+/// a join of the rows against `docs/plan/CONTROL_TUS.txt`, which is compiled in;
+/// the review re-derived it in four lines of `awk`, which is the definition of
+/// cheap. Kept a separate function so a caller can say which half it is
+/// checking.
+///
+/// What is still NOT second-derived, stated rather than left to be discovered:
+/// the 24 `plan-obs-*` / `plan-glattr-*` / `plan-glruns-*` inventory keys are
+/// not columns in the TSV at all, so no parser over it can reach them.
+/// [`uncovered_metric_keys`] names them and a unit test asserts the list is
+/// exactly the uncovered set, so the gap is a printed number rather than a
+/// silence.
+pub fn derive_control_metrics(rows: &[PlanRow]) -> BTreeMap<String, usize> {
+    let pinned = control_tus();
+    let mut m: BTreeMap<String, usize> = BTreeMap::new();
+    let found: BTreeSet<&str> = rows
+        .iter()
+        .filter(|r| r.class == "match")
+        .map(|r| r.src.as_str())
+        .collect();
+    let present: Vec<&PlanRow> = rows
+        .iter()
+        .filter(|r| pinned.contains(r.src.as_str()))
+        .collect();
+    let entered = found.iter().filter(|s| !pinned.contains(*s)).count();
+    let left = pinned.iter().filter(|s| !found.contains(*s)).count();
+    m.insert("plan-control-pinned".into(), pinned.len());
+    m.insert("plan-control-found".into(), found.len());
+    m.insert("plan-control-diff".into(), entered + left);
+    m.insert("plan-control-present".into(), present.len());
+    let (mut exact_rows, mut unknown_cells, mut differ_cells) = (0, 0, 0);
+    for r in &present {
+        let mut ok = true;
+        for v in &r.verdicts {
+            match v {
+                PlanVerdict::Exact => {}
+                PlanVerdict::Unknown => {
+                    unknown_cells += 1;
+                    ok = false;
+                }
+                _ => {
+                    differ_cells += 1;
+                    ok = false;
+                }
+            }
+        }
+        if ok {
+            exact_rows += 1;
+        }
+    }
+    m.insert("plan-control-exact".into(), exact_rows);
+    m.insert("plan-control-unknown".into(), unknown_cells);
+    m.insert("plan-control-differs".into(), differ_cells);
+    m.insert("plan-control-shortfall".into(), unknown_cells + differ_cells);
+    // **THE CONTROL'S OWN SIZES** — see `GapReport::plan_control`. Without these
+    // "24 of 26 exact" cannot be told apart from 24 empty comparisons.
+    m.insert(
+        "plan-control-obs-size".into(),
+        present.iter().filter_map(|r| r.obs_size).sum(),
+    );
+    m.insert(
+        "plan-control-obs-empty-tus".into(),
+        present.iter().filter(|r| r.obs_size == Some(0)).count(),
+    );
+    m.insert(
+        "plan-control-substantive-tus".into(),
+        present
+            .iter()
+            .filter(|r| r.obs_size.unwrap_or(0) >= 2)
+            .count(),
+    );
+    m
+}
+
+/// **The published `plan-*` keys the second derivation CANNOT reach**, named.
+///
+/// A coverage claim without its complement is #3237 one level up: "13 OK" reads
+/// as done. These are the observe-side inventory counters, which are sums over
+/// the reference obj and are not columns in `--plan-tsv`. Reaching them would
+/// mean widening the TSV to one row per COMDAT section — 350,520 rows — which is
+/// priced in the rung and declined.
+pub fn uncovered_metric_keys() -> Vec<&'static str> {
+    let mut v: Vec<&'static str> = PLAN_OBSERVED_KEYS.to_vec();
+    v.extend([
+        "plan-obs-sections-names-distinct",
+        "plan-obs-sections-attrs-distinct",
+        "plan-obs-drectve-distinct",
+    ]);
+    v.sort_unstable();
+    v
 }
 
 // ---------------------------------------------------------------------------
@@ -796,6 +1201,9 @@ mod tests {
         PredictedPlan {
             emit_set_members: Predicted::Unknown("gl-attrs-refused"),
             emit_set_order: Predicted::Unknown("plan-order-unmodelled"),
+            gl_seed_members: Predicted::Unknown("gl-attrs-refused"),
+            gl_attr_names: Predicted::Unknown("gl-attrs-refused"),
+            gl_run_names: BTreeSet::new(),
             gl_record_order: Predicted::Unknown("gl-attrs-refused"),
             sections: Predicted::Unknown("plan-sections-unmodelled"),
             weak: Predicted::Unknown("plan-weak-unmodelled"),
@@ -835,7 +1243,7 @@ mod tests {
                 src: "src/App.cpp".into(),
                 class: "vocab-gap".into(),
                 observable: true,
-                verdicts: vec![PlanVerdict::Differs],
+                verdicts: vec![PlanVerdict::Differs, PlanVerdict::Unknown],
                 subset: Some(false),
                 extra: Some(3),
                 missing: Some(7),
@@ -843,12 +1251,13 @@ mod tests {
                 obs_size: Some(13),
                 glorder: Some(false),
                 violations: 0,
+                checks: 2,
             },
             PlanRow {
                 src: "src/b.cpp".into(),
                 class: "match".into(),
                 observable: false,
-                verdicts: vec![PlanVerdict::Unobservable],
+                verdicts: vec![PlanVerdict::Unobservable, PlanVerdict::Unobservable],
                 subset: None,
                 extra: None,
                 missing: None,
@@ -856,6 +1265,7 @@ mod tests {
                 obs_size: None,
                 glorder: None,
                 violations: 0,
+                checks: 1,
             },
         ];
         // The fixture's verdict width must FOLLOW the component list, or a
@@ -875,7 +1285,15 @@ mod tests {
     fn a_malformed_row_refuses_the_whole_file() {
         assert!(parse_plan_tsv("a\tb\tc\n").is_none());
         // Right column count, one unreadable verdict token.
-        assert!(parse_plan_tsv("a\tmatch\t1\tNOPE\t1\t0\t0\t1\t1\t1\t0\n").is_none());
+        assert!(
+            parse_plan_tsv("a\tmatch\t1\tNOPE\texact\t1\t0\t0\t1\t1\t1\t0\t1\n").is_none()
+        );
+        // …and the WIDTH is checked in the positive direction too: the same row
+        // with every token readable must parse, or the negative case above could
+        // be passing on the column count rather than on the token.
+        assert!(
+            parse_plan_tsv("a\tmatch\t1\texact\texact\t1\t0\t0\t1\t1\t1\t0\t1\n").is_some()
+        );
     }
 
     /// The key table and the component list are one table in two places, so
@@ -923,7 +1341,9 @@ mod tests {
         assert!(d.entered.is_empty());
     }
 
-    /// The containment control fires on the shape it is there to catch.
+    /// The containment control fires on the shape it is there to catch — **and
+    /// reports how many checks it REACHED**, which is the repair for a zero that
+    /// could not be told apart from not looking.
     #[test]
     fn bounds_violations_catch_an_impossible_ladder() {
         let mut t = TuPlan {
@@ -933,9 +1353,103 @@ mod tests {
         t.verdicts.insert("emitset-order".into(), PlanVerdict::Exact);
         t.verdicts.insert("emitset-members".into(), PlanVerdict::Differs);
         t.emitset_subset = Some(true);
-        assert!(t
-            .bounds_violations()
-            .contains(&"order-exact-without-members-exact".to_string()));
+        let (v, reached) = t.bounds_violations();
+        assert!(v.contains(&"order-exact-without-members-exact".to_string()));
+        // The ladder check and the members-exact check both answered; the seed
+        // check did not (no sizes) and neither did the ground-truth one.
+        assert_eq!(reached, 2, "reached: {v:?}");
+    }
+
+    /// **A DORMANT CHECK IS VISIBLY DORMANT.** With both components shipping
+    /// `Unknown` — the state the registered §3 rule puts them in — the ladder
+    /// check cannot fire, and the reached counter is what says so instead of a
+    /// bare `0 violations`.
+    #[test]
+    fn a_check_that_cannot_fire_is_counted_as_not_reached() {
+        let mut t = TuPlan {
+            observable: true,
+            ..Default::default()
+        };
+        t.verdicts.insert("emitset-order".into(), PlanVerdict::Unknown);
+        t.verdicts.insert("emitset-members".into(), PlanVerdict::Unknown);
+        let (v, reached) = t.bounds_violations();
+        assert!(v.is_empty());
+        assert_eq!(
+            reached, 0,
+            "neither component answered, so no containment check could fire — a \
+             `0 violations` here must NOT be reported as a check that passed"
+        );
+        // …and the seed check IS reached once the characterization sizes exist,
+        // which is the one of the four that runs on a real TU today.
+        t.emitset_extra = Some(0);
+        t.emitset_missing = Some(0);
+        let (v, reached) = t.bounds_violations();
+        assert_eq!(reached, 1);
+        assert_eq!(
+            v,
+            vec!["seed-exact-without-subset".to_string()],
+            "an exact seed whose subset flag is unset is a grader bug and must fire"
+        );
+    }
+
+    /// **The published control keys and the offline re-derivation of them are
+    /// two producers of one number** — #3288 applied to the primary grading
+    /// criterion, which the first version of `derive_metrics` did not cover.
+    #[test]
+    fn the_control_is_re_derivable_from_the_rows() {
+        let pinned: Vec<&str> = control_tus().into_iter().collect();
+        let rows: Vec<PlanRow> = pinned
+            .iter()
+            .enumerate()
+            .map(|(i, src)| PlanRow {
+                src: (*src).to_string(),
+                class: "match".into(),
+                observable: true,
+                verdicts: vec![PlanVerdict::Unknown, PlanVerdict::Unknown],
+                subset: Some(true),
+                extra: Some(0),
+                missing: Some(0),
+                pred_size: Some(0),
+                // Half the cells empty, half substantive — so the size keys
+                // below are checked against a population that has both.
+                obs_size: Some(if i % 2 == 0 { 0 } else { 4 }),
+                glorder: Some(false),
+                violations: 0,
+                checks: 1,
+            })
+            .collect();
+        let m = derive_control_metrics(&rows);
+        assert_eq!(m["plan-control-pinned"], pinned.len());
+        assert_eq!(m["plan-control-present"], pinned.len());
+        assert_eq!(m["plan-control-diff"], 0);
+        assert_eq!(m["plan-control-exact"], 0);
+        assert_eq!(m["plan-control-unknown"], pinned.len() * 2);
+        assert_eq!(m["plan-control-differs"], 0);
+        // **THE SIZES.** `exact 0 of 26` and `26 empty comparisons` would print
+        // identically without these.
+        assert_eq!(m["plan-control-obs-empty-tus"], pinned.len().div_ceil(2));
+        assert_eq!(m["plan-control-substantive-tus"], pinned.len() / 2);
+        assert_eq!(m["plan-control-obs-size"], 4 * (pinned.len() / 2));
+    }
+
+    /// The keys the second derivation cannot reach are NAMED, and the name list
+    /// is exactly the uncovered set — a coverage claim whose complement is not
+    /// enumerated is #3237 one level up.
+    #[test]
+    fn the_uncovered_key_list_is_exactly_the_keys_the_tsv_cannot_reach() {
+        let uncovered: BTreeSet<&str> = uncovered_metric_keys().into_iter().collect();
+        let derived = derive_metrics(&[]);
+        for k in &uncovered {
+            assert!(
+                !derived.contains_key(*k),
+                "`{k}` is listed as unreachable by the second derivation and the \
+                 second derivation derives it"
+            );
+        }
+        assert!(
+            uncovered.contains("plan-glattr-names") && uncovered.contains("plan-obs-sections"),
+            "the list must actually name the inventory keys"
+        );
     }
 }
 

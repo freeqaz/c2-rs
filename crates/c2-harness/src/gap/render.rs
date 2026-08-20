@@ -65,16 +65,38 @@ fn render_plan(report: &GapReport) {
     }
     println!(
         "\x20     {} of {} pinned TUs are `exact` on every shipped component; {} shortfall \
-         cell(s) — {} `differs` and {} `unknown`. **THE TWO ARE DIFFERENT FINDINGS AND ONLY \
-         `differs` REDS THE LANE.** On a `match` TU the port reproduced c2's obj byte-for-byte, \
-         so a component the port's EMIT PATH uses demonstrably had the information; a component \
-         it does not use is honestly `unknown` there. (A count, not a status; `0 of 0` would say \
-         so rather than printing nothing.)",
+         cell(s) — {} `differs` and {} `unknown`. **THE REGISTERED RULE (prereg §3) IS THAT A \
+         COMPONENT WHOSE CONTROL IS RED SHIPS AS `unknown`, NEVER AS `differs`, AND IT IS \
+         APPLIED UNIFORMLY**: `emitset-order` differed on 12 of 26 and `emitset-members` on 2 \
+         of 26, so BOTH are withdrawn and both predictors are published as characterization \
+         instead. The first version of this instrument shipped the second one on an \
+         unregistered \"12 is too many, 2 is fine\" and then printed its own `2 differs` on \
+         every scan. (A count, not a status; `0 of 0` would say so rather than printing \
+         nothing.)",
         ctl.exact_rows,
         ctl.present,
         ctl.shortfall.len(),
         ctl.differ_cells,
         ctl.unknown_cells
+    );
+    // **THE CONTROL'S OWN SIZE.** Printed on the line after the headline and
+    // never further away: "24 of 26 exact" and "24 empty comparisons" are the
+    // same sentence without it, which is this instrument's own §2.3 finding
+    // arriving on its control instead of on its curve.
+    println!(
+        "\x20     CONTROL SIZE — the pinned TUs carry {} emitted name(s) between them; {} of \
+         {} compare an EMPTY reference set (where every pure manifest agrees and nothing can \
+         be detected) and {} compare a set of >= 2 names (the only cells where a membership \
+         OR an ordering error can show). WHAT THIS CONTROL CAN DETECT: a component claiming to \
+         disagree on a TU the byte judge called equal; a predictor naming a function c2 did \
+         not emit; the pinned set moving under the reader. WHAT IT CANNOT: anything on the \
+         empty cells; anything about ORDER where the set has <= 1 name; an extractor that \
+         collapsed to the empty set — which is why the SIZE is published rather than inferred, \
+         so that failure reads as this number falling and not as the exact count rising.",
+        ctl.obs_size,
+        ctl.obs_empty_tus,
+        ctl.present,
+        ctl.substantive_tus
     );
     for (src, component, v, why) in &ctl.shortfall {
         println!("\x20       {src}  {component} = {}  — {why}", v.label());
@@ -157,6 +179,19 @@ fn render_plan(report: &GapReport) {
     let pred_size: usize = rows.iter().filter_map(|r| r.pred_size).sum();
     let obs_size: usize = rows.iter().filter_map(|r| r.obs_size).sum();
     let seed_empty = rows.iter().filter(|r| r.pred_size == Some(0)).count();
+    let obs_size_known: usize = rows
+        .iter()
+        .filter(|r| r.pred_size.is_some())
+        .filter_map(|r| r.obs_size)
+        .sum();
+    let seed_exact = rows
+        .iter()
+        .filter(|r| r.extra == Some(0) && r.missing == Some(0))
+        .count();
+    let seed_exact_sub = rows
+        .iter()
+        .filter(|r| r.extra == Some(0) && r.missing == Some(0) && r.obs_size.unwrap_or(0) > 0)
+        .count();
     let glorder_known = rows.iter().filter(|r| r.glorder.is_some()).count();
     let glorder_agrees = rows.iter().filter(|r| r.glorder == Some(true)).count();
     println!(
@@ -170,8 +205,15 @@ fn render_plan(report: &GapReport) {
          {missing} emitted name(s) the seed does not carry (that is the CLOSURE's work). \
          **THE CLAIMANT'S OWN SIZE, because a containment claim without it is unfalsifiable in \
          the flattering direction — the empty set is a subset of everything:** the seed names \
-         {pred_size} function(s) against c2's {obs_size} emitted, and is EMPTY on {seed_empty} \
-         of the {with_both} TUs."
+         {pred_size} function(s) against c2's {obs_size_known} emitted over the SAME \
+         {with_both} TUs ({obs_size} over all {} graded, which is the figure that reconciles \
+         with `fnbyte-denominator`), and is EMPTY on {seed_empty} of the {with_both}. \
+         **THE SEED IS NOT A COMPONENT** — its control differs on 2 of the 26 pinned TUs, so \
+         under prereg §3 it does not ship and every figure on this line is CHARACTERIZATION. \
+         It equals c2's emitted set on {seed_exact} TUs, of which only \
+         **{seed_exact_sub} are substantive** — the rest compare the empty set to the empty \
+         set, which every pure predictor gets right.",
+        rows.len()
     );
     println!(
         "\x20   `.gl` RECORD ORDER IS NOT COMDAT ORDER — REFUTED BY THE NAMED CONTROL, and kept \
@@ -193,12 +235,69 @@ fn render_plan(report: &GapReport) {
         println!("\x20     {k:<36} {n:>8}");
     }
 
-    let viol: usize = rows.iter().map(|r| r.violations).sum();
+    // --- the coverage probe on the reader the seed is read out of -----------
+    //
+    // MAJOR 3 of the review: `plan-glattr-names 28,107` against 158,802 emitted
+    // has two stories, and the first version of this probe tested exactly one of
+    // them (the uniform-zero mis-decode). These lines test the other.
+    let obs = report.plan_observed();
+    let g = |k: &str| obs.get(k).copied().unwrap_or(0);
     println!(
-        "\x20   CONTAINMENT CONTROL — `plan-bounds-violations` {viol}. A COUNT and not a status \
-         (STATUS trap 5). Its known answer is 0: an ordered sequence cannot be right while the \
-         set it orders is wrong, set equality implies containment, and no component may grade a \
-         TU whose reference obj did not decode."
+        "\x20   THE READER'S OWN COVERAGE — `gl_function_attrs` advances `p += 1` past any \
+         position whose offset field is not framed, with NO refusal and NO counter, so a \
+         systematically low hit rate looks exactly like a fact about `.gl` (#3237). It names \
+         {} record(s), of which {} are functions c2 actually emitted. The ORTHOGONAL reader \
+         `c2_il::mangled_names` — which does not use the framing at all — names {} symbol \
+         run(s), of which {} are emitted functions, against {} emitted in total. **READ THE \
+         TWO INTERSECTIONS TOGETHER:** if the run-based one reaches the emitted set and the \
+         attr-based one does not, the 17.7 % is a fact about THIS SCANNER and not about `.gl`, \
+         and every ceiling keyed off it has to be restated.",
+        g("plan-glattr-names"),
+        g("plan-glattr-in-emitset"),
+        g("plan-glruns-names"),
+        g("plan-glruns-in-emitset"),
+        obs_size
+    );
+    println!(
+        "\x20   THE ATTRIBUTE BYTE, BIT BY BIT — bit0 {} · bit1 {} · bit2 {} · bit3 {} · \
+         bit4 {} · bit5 {} (the SEED) · bit6 {} (FN_FLAG_INLINABLE) · bit7 {} · byte==0x00 {}. \
+         The second discriminator, and the one the first version of the probe did not take: \
+         bit 6 at 99.99 % with zero `0x00` bytes rules out the UNIFORM-ZERO mis-decode and \
+         nothing else — it cannot rule out a walk that landed on some other byte whose bit 6 \
+         is usually set. A genuinely decoded field carries structure across its other six \
+         bits; a mis-landed one tends to a near-constant value.",
+        g("plan-glattr-bit0"),
+        g("plan-glattr-bit1"),
+        g("plan-glattr-bit2"),
+        g("plan-glattr-bit3"),
+        g("plan-glattr-bit4"),
+        g("plan-glattr-bit5"),
+        g("plan-glattr-bit6"),
+        g("plan-glattr-bit7"),
+        g("plan-glattr-zero")
+    );
+    println!(
+        "\x20   AGREEMENT WITH THE INCUMBENT WALK, AT WORKLOAD SCALE (prereg tertiary, R2) — \
+         `observe`'s emit set vs `text_comdat_functions` on {} TU(s): {} disagreement(s). \
+         Known answer 0, and the POPULATION is printed beside it because an agreement over \
+         zero TUs and a clean one look identical. Compared as SETS: the two walks are ordered \
+         differently by construction (section table vs symbol table). The other three \
+         accessors are still agreed on `tests/plan_agreement.rs`' three synthetic objs ONLY.",
+        g("plan-agree-emitset-tus"),
+        g("plan-agree-emitset-disagree")
+    );
+
+    let viol: usize = rows.iter().map(|r| r.violations).sum();
+    let reached: usize = rows.iter().map(|r| r.checks).sum();
+    println!(
+        "\x20   CONTAINMENT CONTROL — `plan-bounds-violations` {viol} of {reached} check(s) \
+         REACHED. A COUNT and not a status (STATUS trap 5) — **and the denominator is there \
+         because the count itself had the defect the count exists to prevent**: three of its \
+         four checks are unreachable while both components ship `unknown`, so a bare 0 could \
+         not be told apart from not looking. Known answer 0: an ordered sequence cannot be \
+         right while the set it orders is wrong, set equality implies containment (checked on \
+         the characterization seed, where it is NOT true by construction), and no component \
+         may grade a TU whose reference obj did not decode."
     );
 }
 

@@ -139,9 +139,10 @@ progress-mass    yes  PROGRESS MASS (driver, not target — docs/PROGRESS_METRIC
 fnbyte-match     yes  FUNCTION BYTE MATCH (driver, not target — docs/FUNCTION_BYTE_MATCH.md)
 fnbyte-partition yes  FBM partition (the under-report, and the controls)
 fnbyte-per-tu    yes  Per-TU FBM (how close is the other 870)
-plan-emitset     yes  OBJECT PLAN — emit set (predicted from IL vs the reference obj)
-plan-control     yes  OBJECT PLAN — the NAMED control on the byte-exact TUs
+plan-emitset     yes  OBJECT PLAN — emit set (both components WITHDRAWN; the seed is characterization)
+plan-control     yes  OBJECT PLAN — the NAMED control on the byte-exact TUs, WITH ITS OWN SIZE
 plan-inventory   yes  OBJECT PLAN — reference-side inventory (weak / COMDAT / undef)
+plan-glattr      yes  OBJECT PLAN — coverage and bit histogram of the .gl attribute reader
 '
 # --- the five rows above, added 2026-08-04 by lane w-gr on lane w-bc's spec ----
 #
@@ -170,7 +171,7 @@ GAP_KEYS='workload census emitted-census residue distance-bodies
           distance-emitted emit-ceiling emit-ceiling-gate emit-model binding
           factors joint-ceilings frontier emit-predicate-worth section-ladder
           progress-mass fnbyte-match fnbyte-partition fnbyte-per-tu
-          plan-emitset plan-control plan-inventory'
+          plan-emitset plan-control plan-inventory plan-glattr'
 
 results_file=""
 
@@ -558,24 +559,41 @@ collect_gap() {
     #
     # **NECESSARY BUT NOT SUFFICIENT for `match`.** This row is a progress
     # instrument; the byte judge is unchanged and `plan-*` gates nothing.
+    #
+    # **BOTH COMPONENTS CURRENTLY SHIP `unknown`** — their controls are red and
+    # the lane's registered §3 rule says a component whose control is red does
+    # not ship. So `members-known`/`exact` read 0 by DESIGN and the numbers that
+    # carry information are the CHARACTERIZATION halves (`seed-*`, `glorder-*`).
+    # The row prints both, in that order, so a future green cannot be confused
+    # with the withdrawal.
     emit plan-emitset "$(val_or_missing "$(_metric_row "$_log" \
-        'members: observable @ | known @ | exact @ | differs @ | distinct @ ;; seed names @ of the reference obj @ emitted, empty on @ TUs, subset on @ (@ over-claimed, @ the closure still owes) ;; .gl-record order agrees @ of @ (REFUTED as a predictor; characterization only) ;; bounds-violations @' \
+        'components (BOTH WITHDRAWN — control red, prereg §3): members observable @ | known @ | exact @ ;; order observable @ | known @ | exact @ ;; CHARACTERIZATION — the 0x20 seed names @ against @ emitted over the same @ TUs (@ over all graded), empty on @ TUs, subset on @, over-claims @, closure owes @, equals c2 on @ TUs of which @ are substantive (the rest compare the empty set to the empty set) ;; .gl-record order agrees @ of @ ;; bounds-violations @ of @ checks reached' \
         plan-emitset-members-observable plan-emitset-members-known \
-        plan-emitset-members-exact plan-emitset-members-differs \
-        plan-emitset-members-distinct \
-        plan-emitset-seed-size plan-emitset-observed-size \
+        plan-emitset-members-exact \
+        plan-emitset-order-observable plan-emitset-order-known \
+        plan-emitset-order-exact \
+        plan-emitset-seed-size plan-emitset-observed-size-known \
+        plan-emitset-seed-known plan-emitset-observed-size \
         plan-emitset-seed-empty-tus plan-emitset-seed-subset \
         plan-emitset-seed-extra plan-emitset-seed-missing \
+        plan-emitset-seed-exact plan-emitset-seed-exact-substantive \
         plan-emitset-glorder-agrees plan-emitset-glorder-known \
-        plan-bounds-violations)")"
+        plan-bounds-violations plan-bounds-checks-reached)")"
     # The control is pinned BY NAME in docs/plan/CONTROL_TUS.txt. `diff` is the
     # identity diff against that file and a NONZERO value is a finding about the
     # tree or the workload stamp, reported before any number above it.
+    #
+    # **THE CONTROL'S OWN SIZE IS ON THE SAME ROW.** "N of 26 exact" and "N empty
+    # comparisons" are the same sentence without it: 6 of the 26 pinned cells
+    # compare the empty set to the empty set. `substantive` is the only count
+    # that says how many cells could have gone red at all.
     emit plan-control "$(val_or_missing "$(_metric_row "$_log" \
-        '@ pinned | @ found | set-diff @ | @ exact on every shipped component | @ shortfall cell(s) = @ differs + @ unknown (only differs reds)' \
+        '@ pinned | @ found | set-diff @ | @ present | @ exact on every shipped component | @ shortfall cell(s) = @ differs + @ unknown (only differs reds) | SIZE: @ emitted name(s) over the pinned TUs, @ of them comparing an EMPTY set, @ comparing >= 2 names' \
         plan-control-pinned plan-control-found plan-control-diff \
-        plan-control-exact plan-control-shortfall \
-        plan-control-differs plan-control-unknown)")"
+        plan-control-present plan-control-exact plan-control-shortfall \
+        plan-control-differs plan-control-unknown \
+        plan-control-obs-size plan-control-obs-empty-tus \
+        plan-control-substantive-tus)")"
     # NOT a curve: read off real c2's objs, describing the population the
     # un-conjuncted lanes must serve. Re-derives figures this project has only
     # ever carried.
@@ -586,6 +604,20 @@ collect_gap() {
         plan-obs-comdat-sel-unknown \
         plan-obs-undef-records plan-obs-undef-tus plan-obs-sections \
         plan-obs-sections-attrs-distinct plan-obs-reloc-records)")"
+    # **THE READER'S OWN COVERAGE.** `gl_function_attrs` steps past an unframed
+    # offset with no refusal and no counter, so "the map reaches 17.7% of the
+    # emitted set" has two readings — the bit is rare, or the scanner finds one
+    # record in six — and the first version of the probe tested only the first.
+    # `glruns-*` is the ORTHOGONAL reader (`mangled_names`, which does not use
+    # the framing); read the two intersections against the emitted set together.
+    emit plan-glattr "$(val_or_missing "$(_metric_row "$_log" \
+        'gl_function_attrs names @ record(s), @ of which c2 emitted; the framing-free reader names @ run(s), @ of which c2 emitted | bit histogram 0:@ 1:@ 2:@ 3:@ 4:@ 5:@(SEED) 6:@(INLINABLE) 7:@, byte==0x00 @ | observe vs text_comdat_functions over @ TUs: @ disagreement(s)' \
+        plan-glattr-names plan-glattr-in-emitset \
+        plan-glruns-names plan-glruns-in-emitset \
+        plan-glattr-bit0 plan-glattr-bit1 plan-glattr-bit2 plan-glattr-bit3 \
+        plan-glattr-bit4 plan-glattr-bit5 plan-glattr-bit6 plan-glattr-bit7 \
+        plan-glattr-zero \
+        plan-agree-emitset-tus plan-agree-emitset-disagree)")"
 }
 
 # ---- --check : prove the parsers and the registry, with no toolchain ------------
@@ -686,24 +718,52 @@ summary: 100 port Match, 0 mismatch, 110 not-implemented (of 210)
     gap-metric plan-emitset-members-exact 61
     gap-metric plan-emitset-members-differs 639
     gap-metric plan-emitset-members-distinct 820
+    gap-metric plan-emitset-order-observable 869
+    gap-metric plan-emitset-order-known 0
+    gap-metric plan-emitset-order-exact 0
+    gap-metric plan-emitset-order-differs 0
+    gap-metric plan-emitset-order-distinct 818
     gap-metric plan-emitset-seed-subset 655
+    gap-metric plan-emitset-seed-known 701
     gap-metric plan-emitset-seed-extra 12
     gap-metric plan-emitset-seed-missing 3456
+    gap-metric plan-emitset-seed-exact 62
+    gap-metric plan-emitset-seed-exact-substantive 57
     gap-metric plan-emitset-seed-size 777
     gap-metric plan-emitset-observed-size 4233
+    gap-metric plan-emitset-observed-size-known 4200
     gap-metric plan-emitset-seed-empty-tus 9
     gap-metric plan-emitset-observed-empty-tus 5
     gap-metric plan-emitset-glorder-known 700
     gap-metric plan-emitset-glorder-agrees 44
-    gap-metric plan-obs-emitset-order-distinct 1
     gap-metric plan-bounds-violations 0
+    gap-metric plan-bounds-checks-reached 1738
     gap-metric plan-control-pinned 26
     gap-metric plan-control-found 26
     gap-metric plan-control-diff 0
+    gap-metric plan-control-present 26
     gap-metric plan-control-exact 26
     gap-metric plan-control-shortfall 0
     gap-metric plan-control-unknown 0
     gap-metric plan-control-differs 0
+    gap-metric plan-control-obs-size 214
+    gap-metric plan-control-obs-empty-tus 6
+    gap-metric plan-control-substantive-tus 11
+    gap-metric plan-glattr-names 28107
+    gap-metric plan-glattr-in-emitset 27001
+    gap-metric plan-glruns-names 190000
+    gap-metric plan-glruns-in-emitset 150000
+    gap-metric plan-glattr-bit0 1
+    gap-metric plan-glattr-bit1 2
+    gap-metric plan-glattr-bit2 3
+    gap-metric plan-glattr-bit3 4
+    gap-metric plan-glattr-bit4 5
+    gap-metric plan-glattr-bit5 331
+    gap-metric plan-glattr-bit6 28104
+    gap-metric plan-glattr-bit7 7
+    gap-metric plan-glattr-zero 0
+    gap-metric plan-agree-emitset-tus 869
+    gap-metric plan-agree-emitset-disagree 0
     gap-metric plan-obs-weak-records 1234
     gap-metric plan-obs-weak-tus 675
     gap-metric plan-obs-comdat-sections 98765
@@ -789,7 +849,29 @@ EOF
     check_metric plan-emitset-members-exact         '61'  || fails=$((fails+1))
     check_metric plan-emitset-glorder-agrees        '44'  || fails=$((fails+1))
     check_metric plan-emitset-members-distinct      '820' || fails=$((fails+1))
-    check_metric plan-obs-emitset-order-distinct    '1'   || fails=$((fails+1))
+    check_metric plan-emitset-order-distinct        '818' || fails=$((fails+1))
+    # THE SEED IS CHARACTERIZATION and its two forms differ: `seed-exact` counts
+    # the empty-vs-empty cells and `-substantive` does not. They are given
+    # DIFFERENT values in the probe log for the same reason `seed-size` and
+    # `seed-subset` are -- a loose pattern would otherwise agree by coincidence.
+    check_metric plan-emitset-seed-exact            '62'  || fails=$((fails+1))
+    check_metric plan-emitset-seed-exact-substantive '57' || fails=$((fails+1))
+    check_metric plan-emitset-observed-size-known   '4200' || fails=$((fails+1))
+    # A ZERO WITH A DENOMINATOR. `plan-bounds-violations 0` alone cannot be told
+    # apart from a control that evaluated nothing.
+    check_metric plan-bounds-checks-reached         '1738' || fails=$((fails+1))
+    # THE CONTROL OWN SIZE -- see the collector above.
+    check_metric plan-control-obs-size              '214' || fails=$((fails+1))
+    check_metric plan-control-obs-empty-tus         '6'   || fails=$((fails+1))
+    check_metric plan-control-substantive-tus       '11'  || fails=$((fails+1))
+    # THE COVERAGE PROBE. `plan-glattr-names` and `plan-glruns-names` are the two
+    # readers whose intersections with the emitted set decide whether 17.7 % is a
+    # fact about `.gl` or a fact about the scanner.
+    check_metric plan-glattr-in-emitset             '27001' || fails=$((fails+1))
+    check_metric plan-glruns-in-emitset             '150000' || fails=$((fails+1))
+    check_metric plan-glattr-bit5                   '331' || fails=$((fails+1))
+    check_metric plan-agree-emitset-disagree        '0'   || fails=$((fails+1))
+    check_metric plan-agree-emitset-tus             '869' || fails=$((fails+1))
     # THE CLAIMANT'"'"'S OWN SIZE, beside the containment claim. Without these two,
     # `seed-subset` is unfalsifiable in the flattering direction -- the empty set
     # is a subset of everything -- and this lane'"'"'s first workload run printed
