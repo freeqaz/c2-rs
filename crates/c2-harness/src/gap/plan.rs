@@ -223,6 +223,15 @@ pub struct TuPlan {
     /// characterization value and never as a component. See
     /// [`PLAN_COMPONENTS`].
     pub glorder: Option<bool>,
+    /// **One NAME from each side of an emit-set disagreement**, first in sort
+    /// order so it is deterministic.
+    ///
+    /// A count says a component differs; it cannot say *what by*, and a
+    /// shortfall on a control TU has to be actionable or the control produces
+    /// work nobody can start. Two names turn "TomCryptLicense.cpp differs by 1"
+    /// into a mechanism.
+    pub emitset_missing_witness: Option<String>,
+    pub emitset_extra_witness: Option<String>,
     /// Containment violations found on this TU (see
     /// [`TuPlan::bounds_violations`]). MUST be empty.
     pub violations: Vec<String>,
@@ -430,6 +439,10 @@ pub fn grade(observed: Option<&ObjPlan>, predicted: &PredictedPlan) -> TuPlan {
             // The claimant's own size, beside the containment claim.
             t.emitset_pred_size = Some(pred.len());
             t.emitset_obs_size = Some(observed_set.len());
+            t.emitset_missing_witness =
+                observed_set.difference(&pred).next().map(|s| (*s).to_string());
+            t.emitset_extra_witness =
+                pred.difference(&observed_set).next().map(|s| (*s).to_string());
             record(
                 &mut t,
                 "emitset-members",

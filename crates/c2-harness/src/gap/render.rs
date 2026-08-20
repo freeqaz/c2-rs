@@ -76,8 +76,8 @@ fn render_plan(report: &GapReport) {
         ctl.differ_cells,
         ctl.unknown_cells
     );
-    for (src, component, v) in &ctl.shortfall {
-        println!("\x20       {src}  {component} = {}", v.label());
+    for (src, component, v, why) in &ctl.shortfall {
+        println!("\x20       {src}  {component} = {}  — {why}", v.label());
     }
 
     // --- the curve ---------------------------------------------------------

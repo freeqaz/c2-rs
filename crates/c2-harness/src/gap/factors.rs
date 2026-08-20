@@ -452,8 +452,10 @@ pub struct PlanControlReport<'a> {
     /// Component-cells on pinned TUs that read `Differs` or `Unobservable`.
     /// **This is the count that reds the lane.**
     pub differ_cells: usize,
-    /// `(src, component, verdict)` for every pinned TU that is not `exact`.
-    pub shortfall: Vec<(&'a str, &'static str, super::plan::PlanVerdict)>,
+    /// `(src, component, verdict, why)` for every pinned TU that is not
+    /// `exact` — with a NAMED witness, because a shortfall that is only a count
+    /// produces work nobody can start.
+    pub shortfall: Vec<(&'a str, &'static str, super::plan::PlanVerdict, String)>,
 }
 
 impl GapReport {
@@ -1443,7 +1445,8 @@ impl GapReport {
             .collect();
         let diff = super::plan::control_diff(found.iter().copied());
         let pinned = super::plan::control_tus();
-        let mut shortfall: Vec<(&str, &'static str, super::plan::PlanVerdict)> = Vec::new();
+        let mut shortfall: Vec<(&str, &'static str, super::plan::PlanVerdict, String)> =
+            Vec::new();
         let (mut exact_rows, mut unknown_cells, mut differ_cells) = (0usize, 0usize, 0usize);
         for r in self.results.iter().filter(|r| pinned.contains(r.src.as_str())) {
             let mut ok = true;
@@ -1465,12 +1468,37 @@ impl GapReport {
                     super::plan::PlanVerdict::Exact => {}
                     super::plan::PlanVerdict::Unknown => {
                         unknown_cells += 1;
-                        shortfall.push((r.src.as_str(), c, v));
+                        let why = r
+                            .plan
+                            .reasons
+                            .get(*c)
+                            .cloned()
+                            .unwrap_or_else(|| "(no reason recorded)".to_string());
+                        shortfall.push((r.src.as_str(), c, v, why));
                         ok = false;
                     }
                     _ => {
                         differ_cells += 1;
-                        shortfall.push((r.src.as_str(), c, v));
+                        // **A SHORTFALL HAS TO BE ACTIONABLE.** A count says a
+                        // component differs; it cannot say WHAT BY, and a
+                        // control that only counts produces work nobody can
+                        // start. The witness is the first name in sort order on
+                        // each side, so it is deterministic across runs.
+                        let why = match (
+                            r.plan.emitset_missing_witness.as_deref(),
+                            r.plan.emitset_extra_witness.as_deref(),
+                        ) {
+                            (Some(m), Some(e)) => {
+                                format!("c2 emits `{m}`; the seed claims `{e}`")
+                            }
+                            (Some(m), None) => format!(
+                                "the seed does not carry `{m}` ({} name(s) missing here)",
+                                r.plan.emitset_missing.unwrap_or(0)
+                            ),
+                            (None, Some(e)) => format!("the seed OVER-CLAIMS `{e}`"),
+                            (None, None) => "(no witness recorded)".to_string(),
+                        };
+                        shortfall.push((r.src.as_str(), c, v, why));
                         ok = false;
                     }
                 }

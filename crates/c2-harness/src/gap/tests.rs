@@ -4931,6 +4931,8 @@ fn the_named_control_reports_its_shortfall_by_name_and_component() {
     r.plan.observable = true;
     r.plan.verdicts.insert("emitset-members".into(), objplan::PlanVerdict::Differs);
     r.plan.emitset_subset = Some(true);
+    r.plan.emitset_missing = Some(1);
+    r.plan.emitset_missing_witness = Some("?onlyc2@@YAXXZ".into());
     let src = r.src.clone();
     let rep = mk_report(vec![r]);
     let ctl = rep.plan_control();
@@ -4939,6 +4941,12 @@ fn the_named_control_reports_its_shortfall_by_name_and_component() {
     assert_eq!(ctl.shortfall[0].0, src);
     assert_eq!(ctl.shortfall[0].1, "emitset-members");
     assert_eq!(ctl.shortfall[0].2, objplan::PlanVerdict::Differs);
+    // The witness makes the shortfall actionable rather than merely counted.
+    assert!(
+        ctl.shortfall[0].3.contains("?onlyc2@@YAXXZ"),
+        "the shortfall must NAME what differs: {}",
+        ctl.shortfall[0].3
+    );
     // **The two shortfall kinds are counted apart**: only `differs` reds the
     // lane, and a control that folded them would go unreadable the moment a
     // component was demoted to `unknown` — which is what this lane's own first
