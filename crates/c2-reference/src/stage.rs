@@ -97,9 +97,59 @@ pub struct TapReport {
     pub walk_refusals: Vec<String>,
     /// Number of `SITE region ENTER` blocks in the payload.
     pub regions: usize,
+    /// Raw tuple windows, when requested: same order as [`TapReport::tuples`].
+    /// **Never** part of [`TapReport::canonical_bytes`].
+    pub raw: Vec<String>,
+    /// One entry per region block: `(phase, function-ordinal, tuple rows)`.
+    ///
+    /// The phase is the per-function site that was last entered before this
+    /// region — `sched2` is immediately BEFORE the register allocator and
+    /// `sched3` immediately after (`P_DAG.md` §1's order
+    /// `sched1 -> globregs -> sched2 -> COLOR -> sched3`), so a pre/post-COLOR
+    /// pair falls out of the region tap without ever needing the
+    /// function-record → tuple-list-head offset.
+    pub blocks: Vec<StageBlock>,
+}
+
+/// One scheduling region as observed at one phase.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct StageBlock {
+    /// The per-function site last entered: `sched1`/`globregs`/`sched2`/
+    /// `color`/`sched3`/`sched0`.
+    pub phase: String,
+    /// Function ordinal within the TU (counts `sched1` entries).
+    pub func: u32,
+    /// `<idx> <opcode> <cat> <flags> <cc>` rows, in walk order.
+    pub tuples: Vec<String>,
+    /// Raw hex windows, same order, when a raw window was requested.
+    pub raw: Vec<String>,
 }
 
 impl TapReport {
+    /// The region blocks observed at one phase, for one function.
+    pub fn blocks_at(&self, phase: &str, func: u32) -> Vec<&StageBlock> {
+        self.blocks
+            .iter()
+            .filter(|b| b.phase == phase && b.func == func)
+            .collect()
+    }
+
+    /// **The pre/post-COLOR pair.** Returns `(before, after)` as the
+    /// concatenated tuple rows of every region observed at `sched2` and at
+    /// `sched3` for one function.
+    ///
+    /// An EMPTY difference is a finding, not a green: it means the walk is
+    /// reading a list COLOR does not write, and it is reported in those words.
+    pub fn color_pair(&self, func: u32) -> (Vec<String>, Vec<String>) {
+        let cat = |phase: &str| -> Vec<String> {
+            self.blocks_at(phase, func)
+                .into_iter()
+                .flat_map(|b| b.tuples.iter().cloned())
+                .collect()
+        };
+        (cat("sched2"), cat("sched3"))
+    }
+
     /// Did the tap actually arm? **The environment control's predicate.**
     ///
     /// A run where nothing armed produces zero hits, and zero hits is
@@ -207,11 +257,32 @@ impl TapReport {
                 Some("TAP") => {
                     r.slide_zero = rest.contains("slide=0");
                 }
+                Some("RAW") => {
+                    let t: Vec<&str> = rest.split_whitespace().collect();
+                    if let Some(h) = t.get(2) {
+                        r.raw.push((*h).to_string());
+                        if let Some(b) = r.blocks.last_mut() {
+                            b.raw.push((*h).to_string());
+                        }
+                    }
+                }
                 Some("TU") => {
-                    r.tuples.push(rest["TU ".len()..].to_string());
+                    let row = rest["TU ".len()..].to_string();
+                    if let Some(b) = r.blocks.last_mut() {
+                        b.tuples.push(row.clone());
+                    }
+                    r.tuples.push(row);
                 }
                 Some("SITE") => {
                     r.regions += 1;
+                    // SITE region ENTER <phase> fn <n> r <n>
+                    let t: Vec<&str> = rest.split_whitespace().collect();
+                    let phase = t.get(3).copied().unwrap_or("?").to_string();
+                    let func = t
+                        .get(5)
+                        .and_then(|v| v.parse::<u32>().ok())
+                        .unwrap_or(0);
+                    r.blocks.push(StageBlock { phase, func, tuples: Vec::new(), raw: Vec::new() });
                 }
                 _ => {}
             }
@@ -260,7 +331,33 @@ impl Toolchain {
         taps: &[&str],
         payload: bool,
     ) -> io::Result<(ObjImage, TapReport)> {
+        self.replay_tapped_raw(captured, bundle_dir, out_obj, taps, payload, 0)
+    }
+
+    /// [`Toolchain::replay_tapped_with`] plus a **raw window**: `raw` bytes of
+    /// every tuple, dumped as hex beside the decoded row.
+    ///
+    /// This is how "which fields does COLOR write?" gets ANSWERED instead of
+    /// guessed — diff the `sched2` and `sched3` dumps and the offsets the
+    /// register allocator touches name themselves. It is **excluded from
+    /// [`TapReport::canonical_bytes`] by construction**: a raw window can
+    /// contain pointers, and a digest over pointers is stable only because the
+    /// allocator happened to be.
+    pub fn replay_tapped_raw(
+        &self,
+        captured: &CapturedReference,
+        bundle_dir: &Path,
+        out_obj: &Path,
+        taps: &[&str],
+        payload: bool,
+        raw: u32,
+    ) -> io::Result<(ObjImage, TapReport)> {
         let (mut cmd, out_abs) = self.build_replay_command(captured, bundle_dir, out_obj)?;
+        if raw > 0 {
+            cmd.env("C2RS_STAGE_RAW", raw.to_string());
+        } else {
+            cmd.env_remove("C2RS_STAGE_RAW");
+        }
         if payload {
             cmd.env("C2RS_STAGE_PAYLOAD", "1");
         } else {

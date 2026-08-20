@@ -118,6 +118,29 @@ static int          g_slide_known = 0;
  * extrapolated from the counts-only run. */
 static int          g_payload = 0;
 
+/* PHASE TRACKING — how a pre/post-COLOR pair is obtained WITHOUT knowing the
+ * function-record -> tuple-list-head offset.
+ *
+ * The region tap fires from inside the scheduler driver 0x10be6382, which is
+ * itself reached from sched1/sched2/sched3/sched0. c2's per-function order is
+ *   sched1 -> globregs -> sched2 -> COLOR -> sched3   (P_DAG.md §1)
+ * so a region block tagged `sched2` is the tuple list immediately BEFORE the
+ * register allocator ran, and one tagged `sched3` is the same list
+ * immediately AFTER. The pre/post-COLOR pair is therefore a by-product of the
+ * region tap; no second mechanism is needed and no struct offset is guessed.
+ *
+ * g_fn counts sched1 entries, which is one per function. */
+/* RAW WINDOW — how the "which fields does COLOR write?" question is ANSWERED
+ * rather than guessed. C2RS_STAGE_RAW=<n> dumps the first n bytes of every
+ * tuple as hex beside the decoded row; diffing the sched2 and sched3 dumps
+ * names the offsets the register allocator writes. Off by default and NEVER
+ * part of the canonical stream: a raw window can contain pointers, which would
+ * make a digest stable only because the allocator happened to be. */
+static unsigned int g_raw = 0;
+
+static const char  *g_phase = "none";
+static unsigned int g_fn = 0;
+
 /* Written by tap_enter, read by the thunk's final indirect jump. Safe with a
  * single global because the window between the write and the jump contains no
  * c2 code at all — the thunk cannot nest inside itself. c2 is single-threaded
@@ -288,6 +311,12 @@ static void tap_walk_tuples(unsigned int t)
         ap(" ");      ap_hex(b[9], 2);
         ap(" ");      ap_hex((unsigned int)(b[10] & 0x1fu), 2);
         ap("\n");
+        if (g_raw) {
+            unsigned int k;
+            ap("RAW ");  ap_dec(i);  ap(" ");
+            for (k = 0; k < g_raw; k++) ap_hex(b[k], 2);
+            ap("\n");
+        }
         if (g_arena_full) { ap("REFUSE region arena-full\n"); return; }
 
         i++;
@@ -317,8 +346,15 @@ unsigned int tap_enter(unsigned int retaddr, unsigned int ecx,
              * and the function-record -> tuple-list-head offset is not known.
              * Taking the tuple pointer from the region finder's own argument
              * sidesteps that unknown entirely, which is why this site exists. */
-            if (g_payload && strcmp(g_sites[i].name, "region") == 0) {
+            if (strcmp(g_sites[i].name, "region") != 0) {
+                g_phase = g_sites[i].name;
+                if (strcmp(g_phase, "sched1") == 0) g_fn++;
+            } else if (g_payload) {
                 ap("SITE region ENTER ");
+                ap(g_phase);
+                ap(" fn ");
+                ap_dec(g_fn);
+                ap(" r ");
                 ap_dec(g_hits[i]);
                 ap("\n");
                 tap_walk_tuples(ecx);
@@ -387,7 +423,15 @@ int tap_arm(HMODULE h, void *invoke_fn)
 
     {
         const char *pl = getenv("C2RS_STAGE_PAYLOAD");
+        const char *rw = getenv("C2RS_STAGE_RAW");
         g_payload = (pl && *pl && *pl != '0');
+        g_raw = 0;
+        if (rw && *rw) {
+            unsigned int v = 0;
+            while (*rw >= '0' && *rw <= '9') { v = v * 10u + (unsigned int)(*rw++ - '0'); }
+            if (v > 256u) v = 256u;
+            g_raw = v;
+        }
     }
     g_slide = slide_export;
     g_slide_known = 1;

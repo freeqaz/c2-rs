@@ -41,6 +41,7 @@ static STAGE_SPEC: Spec = Spec::new(
         ("--runs", Arity::Value),
         ("--limit", Arity::Value),
         ("--payload", Arity::Flag),
+        ("--raw", Arity::Value),
         ("--flag", Arity::Repeated),
     ],
 )
@@ -94,6 +95,17 @@ fn run_cell(
     payload: bool,
     grade_neutrality: bool,
 ) -> Cell {
+    run_cell_raw(tc, cpp, flags, payload, grade_neutrality, 0)
+}
+
+fn run_cell_raw(
+    tc: &Toolchain,
+    cpp: &Path,
+    flags: &[String],
+    payload: bool,
+    grade_neutrality: bool,
+    raw: u32,
+) -> Cell {
     let name = cpp
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())
@@ -124,7 +136,7 @@ fn run_cell(
 
     let mut neutral = None;
     if grade_neutrality {
-        match tc.replay_tapped_with(&captured, &il, &out, &[], payload) {
+        match tc.replay_tapped_raw(&captured, &il, &out, &[], payload, raw) {
             Ok((disarmed, rep0)) => {
                 if !rep0.lines.is_empty() {
                     return Cell {
@@ -134,7 +146,7 @@ fn run_cell(
                         err: Some("the DISARMED leg printed stage-tap output".into()),
                     };
                 }
-                match tc.replay_tapped_with(&captured, &il, &out, STAGE_SITES, payload) {
+                match tc.replay_tapped_raw(&captured, &il, &out, STAGE_SITES, payload, raw) {
                     Ok((armed_obj, rep)) => {
                         neutral = Some(ObjImage::diff(&disarmed, &armed_obj) == ObjDiff::Identical);
                         return Cell { name, armed: rep, neutral, err: None };
@@ -149,7 +161,7 @@ fn run_cell(
             }
         }
     }
-    match tc.replay_tapped_with(&captured, &il, &out, STAGE_SITES, payload) {
+    match tc.replay_tapped_raw(&captured, &il, &out, STAGE_SITES, payload, raw) {
         Ok((_obj, rep)) => Cell { name, armed: rep, neutral, err: None },
         Err(e) => Cell { name, armed: TapReport::default(), neutral: None, err: Some(format!("armed replay: {e}")) },
     }
@@ -182,6 +194,10 @@ pub(crate) fn cmd_stage(rest: &[String]) -> ExitCode {
         flags = default_flags();
     }
     let payload = args.has("--payload");
+    let raw = match args.num::<u32>("--raw") {
+        Ok(v) => v.unwrap_or(0),
+        Err(c) => return c,
+    };
     let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
@@ -197,7 +213,7 @@ pub(crate) fn cmd_stage(rest: &[String]) -> ExitCode {
     match sub.as_str() {
         "neutrality" => cmd_neutrality(&tc, &fixtures, &flags, payload),
         "counts" => cmd_counts(&tc, &fixtures, &flags),
-        "snap" => cmd_snap(&tc, &fixtures, &flags),
+        "snap" => cmd_snap(&tc, &fixtures, &flags, raw),
         "determinism" => cmd_determinism(&tc, &fixtures, &flags, payload, runs),
         _ => unreachable!(),
     }
@@ -328,22 +344,106 @@ fn cmd_counts(tc: &Toolchain, fixtures: &[PathBuf], flags: &[String]) -> ExitCod
 }
 
 /// Dump one fixture's canonical snapshot, with the payload on.
-fn cmd_snap(tc: &Toolchain, fixtures: &[PathBuf], flags: &[String]) -> ExitCode {
+fn cmd_snap(tc: &Toolchain, fixtures: &[PathBuf], flags: &[String], raw: u32) -> ExitCode {
     for f in fixtures {
-        let c = run_cell(tc, f, flags, true, false);
+        let c = run_cell_raw(tc, f, flags, true, false, raw);
         if let Some(e) = &c.err {
             println!("ERR {} {}", c.name, e);
             continue;
         }
         println!("== {} digest={:016x}", c.name, c.armed.digest());
         print!("{}", c.armed.canonical_bytes());
+        // The PRE/POST-COLOR pair, per function. `sched2` is the last
+        // scheduler run before the register allocator and `sched3` the first
+        // after it (P_DAG.md §1), so this pair costs nothing extra: it is the
+        // region tap read at two phases.
+        //
+        // An EMPTY difference is a FINDING and is printed in those words: it
+        // would mean the walk is reading a list COLOR does not write.
+        let funcs = c.armed.blocks.iter().map(|b| b.func).max().unwrap_or(0);
+        let mut differing = 0usize;
+        let mut paired = 0usize;
+        // Every adjacent phase pair, not only the COLOR one. Reporting only
+        // the pair a lane hoped would move is how an instrument gets graded on
+        // the answer it wanted: `sched1`->`sched2` brackets a SCHEDULER run and
+        // `sched2`->`sched3` brackets the ALLOCATOR, so printing both says
+        // which passes this observable can and cannot see.
+        for (a, b, what) in [
+            ("sched1", "sched2", "SCHED+GLOBREGS"),
+            ("sched2", "sched3", "COLOR"),
+            ("sched3", "sched0", "LOWERING"),
+        ] {
+            for f in 1..=funcs {
+                let cat = |phase: &str| -> Vec<String> {
+                    c.armed
+                        .blocks_at(phase, f)
+                        .into_iter()
+                        .flat_map(|x| x.tuples.iter().cloned())
+                        .collect()
+                };
+                let (before, after) = (cat(a), cat(b));
+                if before.is_empty() && after.is_empty() {
+                    continue;
+                }
+                if what == "COLOR" {
+                    paired += 1;
+                    if before != after {
+                        differing += 1;
+                    }
+                }
+                println!(
+                    "  {what} fn{f}: {a}={} {b}={} {}",
+                    before.len(),
+                    after.len(),
+                    if before == after { "IDENTICAL" } else { "DIFFERS" }
+                );
+            }
+        }
         println!(
             "  gap-metric stage-snap-tuples {}\n  gap-metric stage-snap-regions {}\n  \
-             gap-metric stage-snap-walk-refusals {}",
+             gap-metric stage-snap-walk-refusals {}\n  \
+             gap-metric stage-color-pairs {paired}\n  \
+             gap-metric stage-color-pairs-differing {differing}",
             c.armed.tuples.len(),
             c.armed.regions,
             c.armed.walk_refusals.len()
         );
+        if raw > 0 {
+            // WHICH BYTE OFFSETS DOES COLOR WRITE? Answered, not guessed:
+            // align the sched2 and sched3 raw windows row-for-row and report
+            // every offset that differs. Offsets that differ on EVERY function
+            // are structural; offsets that differ on some are data.
+            let mut differ_count = vec![0usize; (raw as usize) * 2];
+            let mut compared = 0usize;
+            for f in 1..=funcs {
+                let b2: Vec<String> = c.armed.blocks_at("sched2", f).into_iter()
+                    .flat_map(|b| b.raw.iter().cloned()).collect();
+                let b3: Vec<String> = c.armed.blocks_at("sched3", f).into_iter()
+                    .flat_map(|b| b.raw.iter().cloned()).collect();
+                if b2.len() != b3.len() { continue; }
+                for (x, y) in b2.iter().zip(b3.iter()) {
+                    compared += 1;
+                    let (xb, yb) = (x.as_bytes(), y.as_bytes());
+                    for i in 0..xb.len().min(yb.len()).min(differ_count.len()) {
+                        if xb[i] != yb[i] { differ_count[i] += 1; }
+                    }
+                }
+            }
+            let mut hot: Vec<String> = Vec::new();
+            for byte_off in 0..(raw as usize) {
+                let n = differ_count[byte_off * 2] + differ_count[byte_off * 2 + 1];
+                if n > 0 { hot.push(format!("+0x{byte_off:x}({n})")); }
+            }
+            println!(
+                "  RAW WINDOW {raw}B, {compared} tuple pairs aligned across sched2/sched3.\n                   offsets COLOR writes: {}",
+                if hot.is_empty() { "NONE — the allocator wrote nothing in this window".to_string() } else { hot.join(" ") }
+            );
+        }
+        if paired > 0 && differing == 0 {
+            println!(
+                "  FINDING, not a green: the pre/post-COLOR snapshots are IDENTICAL on every\n                   function here. The walk is reading fields COLOR does not write — it shows THAT\n                   the allocator ran, not WHAT it did."
+            );
+        }
     }
     ExitCode::SUCCESS
 }
