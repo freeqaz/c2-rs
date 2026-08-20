@@ -1,6 +1,3 @@
-=== SAME MUTATION, AFTER the fix: the tip binary, --force-slide 18.
-=== The verdict word changes from 'G1 HOLDS' to 'G1 IS VACUOUS' and names the reason.
-
 stage neutrality: 1 fixtures, payload=on, flags /O1 /Oi /EHsc /GS- /c
   --force-slide 18: THE SITE ADDRESSES ARE DELIBERATELY WRONG. Every site must refuse
   and the verdict must read VACUOUS — this is the mutation, not a measurement.

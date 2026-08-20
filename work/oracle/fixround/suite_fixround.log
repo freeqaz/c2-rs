@@ -1,0 +1,10 @@
+partest.sh: C2RS_REQUIRE_TOOLCHAIN=1 from partest.sh's default (board #3247) —
+            a run with no toolchain will FAIL on
+            require_toolchain::a_run_that_claims_to_grade_must_have_a_toolchain_to_grade_with
+            rather than passing green having graded nothing. Use --portable to opt out.
+
+partest: jobs=14 test-threads=libtest-default doc=1
+partest: wall 164.7s   sum-of-target-walls 414.71s   overlap 2.52x
+partest: 1703 passed; 0 failed; 1 ignored; 49 targets; 1704 named results
+partest: load 42.11, 36.68, 42.34
+SUITE_EXIT=0

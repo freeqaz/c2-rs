@@ -1,7 +1,3 @@
-=== THE DENOMINATOR FIX (review major 3), shown on the population it is about.
-=== mvp_empty.cpp emits no function body, so c2 runs no per-function phase: the seven sites
-=== ARM and never fire, and armed-vs-disarmed byte-identity on that obj is free.
-
 stage neutrality: 2 fixtures, payload=on, flags /O1 /Oi /EHsc /GS- /c
   [1/2] SAME     il_call_perm.cpp  hits=98 regions=56 tuples=329
   [2/2] NOFIRE   mvp_empty.cpp  hits=0 regions=0 tuples=0

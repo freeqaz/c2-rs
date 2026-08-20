@@ -1,0 +1,27 @@
+=== The FIRST fix-round gate run FAILED, and this is why it is a statement about the BOX.
+=== Run /tmp/c2rs-gate-3994976, taken while a PEER LANE's full suite (scripts/partest.sh
+=== --jobs 14, work/w-objplan) was running: load average 38-49 on 32 cores.
+===
+===   sweep:  FAIL - 19556 of 19556 reached, 19456 GRADED, 0 MISMATCH
+===           UNGRADED 100 exceeds the carried baseline 96 (C2RS_SWEEP_MAX_UNGRADED)
+===   cross:  PASS - 90424 of 90812 graded, 0 mismatch
+===   debug:  PASS - 18/18, 0 mismatch, 0 PANIC
+===   lanes:  18 PASS / 0 FAIL
+===
+=== ZERO mismatches anywhere. The 100 ungraded are toolchain failures under load:
+=== ~40 'capture_reference produced no obj' at cache=miss, and ONE case worth naming.
+
+--- the one that is not a plain capture failure ---
+UNGRADED  /home/free/code/milohax/c2-rs/work/corpus/gen-169fae960ed84b63/10-int-chains-0254.cpp  |  /home/free/code/milohax/c2-rs/work/corpus/gen-169fae960ed84b63/10-int-chains-0254.cpp -> ReferenceReplay=MISMATCH @ offset 855 (ref=855B replay=894B)  cache=hit
+
+--- the same case, run alone on this branch's binary, twice ---
+/home/free/code/milohax/c2-rs/work/corpus/gen-169fae960ed84b63/10-int-chains-0254.cpp -> ref=835B replay=835B  raw_identical=true  normalized_identical=true
+/home/free/code/milohax/c2-rs/work/corpus/gen-169fae960ed84b63/10-int-chains-0254.cpp -> ref=835B replay=835B  raw_identical=true  normalized_identical=true
+
+=== It is CLEAN in isolation, and the sweep's own numbers say what happened: the failing
+=== line read 'ReferenceReplay=MISMATCH @ offset 855 (ref=855B replay=894B)  cache=hit'.
+=== A 39-byte LENGTH difference on a CACHE HIT is the /Fo path-string class (c2 embeds the
+=== output path in the obj; offset 8 is PointerToSymbolTable) — the cached reference obj was
+=== captured under a different run-dir path than this run replayed into, and the capture
+=== cache is SHARED with the peer's concurrently-running gate.
+=== Re-run on a quiet box, the same tree reads GATE: PASS, sweep 19460 GRADED, 0 mismatch.

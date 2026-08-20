@@ -105,12 +105,13 @@ digit for digit). The originals stay at `work/oracle/neutrality_all.log` and
 the review's major 1 is about, and deleting them would delete the evidence.
 
 **The matched-26 population is the same population**, and that is checked
-rather than assumed: `dc3-decomp` moved AGAIN between the lane and its fix
-round (`b25928dfb2a6` → `6f3a818e9893`, **a sixth stamp value**, 107 commits),
-so all 26 source blobs plus `config/373307D9/config.json` and
-`tools/defines_common.py` were compared per file across the two stamps —
-**0 of 26 moved, and neither flag input moved**. The flags file is
-byte-identical to the one in the original run's header.
+rather than assumed: `dc3-decomp` moved **twice more** during the fix round
+itself (`b25928dfb2a6` → `6f3a818e9893` → `2f35703d0241` — the **sixth and
+seventh** stamp values this record knows, in a few hours), so all 26 source
+blobs plus `config/373307D9/config.json` and `tools/defines_common.py` were
+compared per file across the stamps — **0 of 26 moved, and neither flag input
+moved**. The flags file is byte-identical to the one in the original run's
+header.
 
 The comparison is made through **one function**: `replay_tapped` with an empty
 tap list *is* the disarmed leg. Each leg asserts its own state first — the
@@ -299,7 +300,7 @@ hand-off summary; review minor, fixed here and in `work/merge-oracle.txt`.
 | P15 | armed + deterministic + obj-neutral tuple snapshot **with a pre/post-COLOR diff** | 0.45 | **PARTIAL** — everything but the COLOR diff, and the COLOR diff is refuted rather than missing |
 | P16 | counts-only, neutral and deterministic, payload empty/unverifiable | 0.25 | **NO** — 329 tuples on the control fixture, cross-derived three ways |
 | P17 | cost within 1.5–3× a construct rung | 0.5 | **roughly**; not published in seconds (§7) |
-| **G4** | *(a registered gate, not a P-number: every pre-existing `gap-metric` key byte-identical between base and tip)* | required | **MEASURED AND HELD, at the fix round — and it had no row here at all, which was the review's minor.** As first run it read **105 of 395 keys moved** and was confounded: the two scans were at *different workload stamps* (`3df8fd5412c2` vs `b25928dfb2a6`), so nothing separated the lane's code from `dc3-decomp`'s merge. Re-run properly — **master's code and this branch's code, both at one stamp `6f3a818e9893`** — the two 878-TU scans agree on **all 395 keys, every value, byte for byte** (`diff` of the key lines is empty). The lane moves nothing. Logs `work/oracle/fixround/g4_{master,tip}_code.log`; the binaries differ (`8cf63d0d1c9c6458` vs `11d148626c3c10b2`), which is the evidence that two builds really ran, because both trees resolve their `c2-rs` provenance line through this worktree's `.git`. **Bound:** a gap scan runs at `replay-every=0`, so it never executes `c2host` — G4's identity is about the harness's analysis code and says nothing about the tap binary. The control for *that* is below |
+| **G4** | *(a registered gate, not a P-number: every pre-existing `gap-metric` key byte-identical between base and tip)* | required | **MEASURED AND HELD, at the fix round — and it had no row here at all, which was the review's minor.** As first run it read **105 of 395 keys moved** and was confounded: the two scans were at *different workload stamps* (`3df8fd5412c2` vs `b25928dfb2a6`), so nothing separated the lane's code from `dc3-decomp`'s merge. Re-run properly — **master's code and this branch's code, both at one stamp `2f35703d0241`** — the two 878-TU scans agree on **all 395 keys, every value, byte for byte** (`diff` of the key lines is empty). The lane moves nothing. Logs `work/oracle/fixround/g4_{master,tip}_code.log`; the binaries hash `8cf63d0d1c9c6458` and `066b5b722b755e9d`, which is the evidence that two builds really ran, because both trees resolve their `c2-rs` provenance line through this worktree's `.git`. **Bound:** a gap scan runs at `replay-every=0`, so it never executes `c2host` — G4's identity is about the harness's analysis code and says nothing about the tap binary. The control for *that* is below |
 
 **Calibration note.** Seven mechanism/determinism predictions in [0.70, 0.93]
 all hit, which is consistent but is only seven draws. The two refutations
@@ -523,18 +524,21 @@ measurement. Logs: `work/oracle/base_gap.log`, `work/oracle/tip_gap.log`.
 > then argued the confound away (*"the `crates/` diff is instrument-only"*),
 > which is precisely the substitution rule 1 exists to forbid.
 >
-> **Measured instead.** Two 878-TU scans at ONE stamp (`6f3a818e9893`, the
-> sixth value — `dc3-decomp` moved a further 107 commits between the lane and
-> its fix round), one with **master's** code and one with **this branch's**:
-> all **395 keys identical, every value** (`diff` empty), `match 26 ·
-> mismatch 0 · vocab-gap 844 · capture-fail 8` on both, `fnbyte-exact 35,894`
-> and `factor-c 170` on both. **G4 HOLDS; the lane moves nothing**, and the 105
-> was the workload, entirely. Logs `work/oracle/fixround/g4_master_code.log`
-> and `work/oracle/fixround/g4_tip_code.log`.
+> **Measured instead.** Two 878-TU scans at ONE stamp — `2f35703d0241`, read
+> **before and after each scan** and equal at all four readings — one with
+> **master's** code and one with **this branch's**: all **395 keys identical,
+> every value** (`diff` of the key lines is empty), `match 26 · mismatch 0 ·
+> codegen-gap 0 · vocab-gap 844 · capture-fail 8` on both, and `fnbyte-exact
+> 35,894` / `factor-c 170` on both. **G4 HOLDS; the lane moves nothing**, and
+> the 105 was the workload, entirely. Logs
+> `work/oracle/fixround/g4_master_code.log` and `.../g4_tip_code.log`; the two
+> binaries hash `8cf63d0d1c9c6458` and `066b5b722b755e9d`, which is how you can
+> tell two builds ran — both trees resolve their `c2-rs` provenance line
+> through this worktree's `.git`, so that line is NOT the discriminator.
 >
 > A further **43 keys** moved between the lane's own tip scan and this one
 > (`fnbyte-exact 35,893 → 35,894`), which is #3306/#3311 taking another
-> instance in the four hours between a lane and its fix round.
+> instance in the hours between a lane and its fix round.
 
 **And the re-read is what licenses §3's matched-TU row rather than voiding it.**
 The 26 matched TUs are identical **by name** at both stamps, and — checked per

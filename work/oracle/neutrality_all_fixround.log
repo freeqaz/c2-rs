@@ -283,14 +283,14 @@ stage neutrality: 386 fixtures, payload=on, flags /O1 /Oi /EHsc /GS- /c
   [282/386] SAME     wlr_lit_run_neg.cpp  hits=154 regions=88 tuples=603
   [283/386] SAME     wmain2_eh_scope.cpp  hits=14 regions=8 tuples=89
   [284/386] SAME     wmain2_eh_scope_neg.cpp  hits=14 regions=8 tuples=89
-  [285/386] ERR    wmain_no_return.cpp  disarmed replay: tapped replay produced no (or an empty) obj at /home/free/tmp/c2rs-cli-stage-2470468-1787264069236287074-284/cap/out.obj — c2 crashed or aborted mid-pass.
+  [285/386] ERR    wmain_no_return.cpp  disarmed replay: tapped replay produced no (or an empty) obj at /home/free/tmp/c2rs-cli-stage-3980093-1787265901283310487-284/cap/out.obj — c2 crashed or aborted mid-pass.
 stderr:
 [c2host] InvokeCompilerPass @10BEBFFD argc=20 argv0=/home/free/code/milohax/c2-rs-wt-w-stageoracle/crates/c2-reference/../../compilers/X360/16.00.11886.00/c2.dll
 z:\home\free\code\milohax\c2-rs-wt-w-stageoracle\fixtures\cpp\wmain_no_return.cpp(47) : error C4716: 'no_return_call' : must return a value
 z:\home\free\code\milohax\c2-rs-wt-w-stageoracle\fixtures\cpp\wmain_no_return.cpp(50) : error C4716: 'no_return_tail' : must return a value
 [c2host] returned 1
 
-  [286/386] ERR    wmain_no_return_neg.cpp  disarmed replay: tapped replay produced no (or an empty) obj at /home/free/tmp/c2rs-cli-stage-2470468-1787264069463149736-285/cap/out.obj — c2 crashed or aborted mid-pass.
+  [286/386] ERR    wmain_no_return_neg.cpp  disarmed replay: tapped replay produced no (or an empty) obj at /home/free/tmp/c2rs-cli-stage-3980093-1787265901834463317-285/cap/out.obj — c2 crashed or aborted mid-pass.
 stderr:
 [c2host] InvokeCompilerPass @10BEBFFD argc=20 argv0=/home/free/code/milohax/c2-rs-wt-w-stageoracle/crates/c2-reference/../../compilers/X360/16.00.11886.00/c2.dll
 z:\home\free\code\milohax\c2-rs-wt-w-stageoracle\fixtures\cpp\wmain_no_return_neg.cpp(45) : error C4716: 'neg_multi_reg' : must return a value
