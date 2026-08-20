@@ -12,7 +12,7 @@ use c2_core::{Backend, BackendError, PortC2};
 use c2_obj::{ObjDiff, ObjImage};
 use c2_reference::Toolchain;
 
-use crate::capture_cache::CaptureCache;
+use crate::capture_cache::{capture_via, CaptureCache};
 use crate::provenance::Provenance;
 
 use super::classify::{
@@ -72,10 +72,13 @@ fn scan_one(
     //    the capture dir, so the `-Fo` path c2 bakes into the obj is a function
     //    of the key and a hit is byte-identical to the capture that filled it
     //    (`crate::capture_cache`).
-    let capture_result = match cache {
-        Some(c) => c.capture(tc, src, &cfg.flags, cfg.cwd.as_deref(), work).0,
-        None => tc.capture_reference_with(src, work, &cfg.flags, cfg.cwd.as_deref()),
-    };
+    //    The cache-or-not decision itself is `capture_cache::capture_via` — one
+    //    implementation, shared with the fixture gate in `lib.rs`. The outcome
+    //    word is dropped HERE, visibly, because the scan reports the cache in
+    //    aggregate from `CacheStats` and deliberately keeps it out of the
+    //    per-TU JSONL row (see `CacheOutcome`'s own doc).
+    let capture_result =
+        capture_via(cache, tc, src, &cfg.flags, cfg.cwd.as_deref(), work).0;
     let captured =
         match capture_result {
             Ok(c) => c,
