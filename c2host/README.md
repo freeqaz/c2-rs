@@ -37,10 +37,18 @@ overridable via `C2RS_C2HOST`) by `Toolchain::ensure_c2host()`. The exact
 command:
 
 ```sh
-i686-w64-mingw32-gcc -static -static-libgcc -O2 -o <cache>/c2host.exe c2host/c2host.c
+i686-w64-mingw32-gcc -static -static-libgcc -O2 -o <cache>/c2host.exe \
+    c2host/c2host.c c2host/stagetap.c
 ```
 
 `i686-w64-mingw32-gcc` (mingw-w64, x86) must be on `PATH`.
+
+**Both sources, and the list is `Toolchain::c2host_sources()`.** The stub grew a
+second translation unit when the stage tap landed; `ensure_c2host` rebuilds when
+**any** of them is newer than the cached `.exe`, because a single-source
+staleness check keeps serving an instrument built from a previous revision's
+tap. If you add a third source, add it there — this section is documentation and
+the function is the definition.
 
 ## What is / isn't tracked
 

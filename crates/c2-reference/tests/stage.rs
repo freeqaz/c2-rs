@@ -1,6 +1,6 @@
 //! **The stage oracle's named controls** — `c2-reference::stage`.
 //!
-//! Four tests, and each is pinned to a NAMED fixture rather than to a count,
+//! Seven tests, and each is pinned to a NAMED fixture rather than to a count,
 //! because a control pinned by count passes in an unprovisioned worktree the
 //! moment the count matches (`docs/rungs/README.md`, boards #3219/#3231).
 //!
@@ -8,7 +8,10 @@
 //! |---|---|
 //! | [`the_tapped_run_actually_armed`] | the ENVIRONMENT. Fails, never skips, under `C2RS_REQUIRE_TOOLCHAIN` |
 //! | [`taps_are_inert_unarmed_and_never_move_the_obj`] | **G1 neutrality** — the sole judge's own criterion |
+//! | [`a_wrong_slide_arms_nothing_and_never_moves_the_obj`] | **the FAIL-CLOSED check at a nonzero slide**, against a live image |
 //! | [`scheduler_taps_are_silent_at_od_and_loud_at_o1`] | **G3 discrimination** — the null control |
+//! | [`the_snapshot_is_nonempty_and_agrees_with_a_second_derivation`] | **G5 content**, cross-derived three ways |
+//! | [`the_tuple_walk_sees_the_scheduler_move_the_list`] | the LIVENESS control that makes the COLOR null interpretable |
 //! | [`the_two_site_tables_are_one_table`] | the C table and the Rust table cannot drift |
 //!
 //! # Why `il_call_perm.cpp` and why `add3.cpp` is BANNED here
@@ -532,8 +535,17 @@ fn the_snapshot_is_nonempty_and_agrees_with_a_second_derivation() {
         .map(|v| v.len())
         .unwrap_or(0);
 
-    // Every per-function site fires exactly once per function, so all six must
-    // equal the function count. `region` is per REGION and is excluded.
+    // Every per-function site fires once per function ON THIS FIXTURE, so all
+    // six must equal the function count. `region` is per REGION and is
+    // excluded.
+    //
+    // FIX-ROUND CORRECTION: this equality is EMPIRICAL, not structural. The
+    // rung once justified it from "the scheduler runs are gated only by the
+    // optimizer flag"; three of the four scheduler sites also test
+    // `[esi+0x1c] & 1` per function (`OPT_GATED_SITES`' doc), so a function
+    // with that bit clear would break the equality without anything being
+    // wrong with the tap. If this fires, read it as a fact about the fixture
+    // first.
     for site in STAGE_SITES.iter().filter(|s| **s != "region") {
         assert_eq!(
             rep.hits_at(site) as usize,

@@ -37,9 +37,42 @@ mid-level (pre-lowering) pass's differences from the machine-level one, and
 
 ## 1. The four scheduler runs
 
-Driver `0x10be6382`, gated **only** by the optimizer-on flag `DAT_10c2e2fc`
-(bit 21 of the option word, set at `0x10b82429` — i.e. `/Og` vs `/Od`: at `/Od`
-**none** of the four runs happen) `[R]`.
+Driver `0x10be6382`. The optimizer-on flag `DAT_10c2e2fc` (bit 21 of the option
+word, set at `0x10b82429` — i.e. `/Og` vs `/Od`) is tested **first** at every
+one of the four sites, so at `/Od` **none** of the four runs happen `[R]`.
+
+> ### ⛔ CORRECTION 2026-08-20 (lane `w-stageoracle`, fix round) — **the flag is NECESSARY, NOT SUFFICIENT**
+>
+> This section said the runs are gated *"only"* by `DAT_10c2e2fc`, and
+> `WB_DAGORDER_FINDINGS.md` §1 and board **#3067** say the same. The
+> disassembly refutes it, and the refutation matters because a lane read
+> *"only"* as a licence to treat *"every site fires once per function"* as a
+> **structural** fact rather than an empirical one:
+>
+> ```
+> 10b7dc53: 33 db          xor ebx,ebx          ; ...
+> 10b7dc58: 43             inc ebx              ; bl == 1 from here on
+> 10b7dc83: 39 3d fc e2 c2 10   cmp DWORD PTR ds:0x10c2e2fc,edi   ; the optimizer gate
+> 10b7dc89: 74 1f          je  0x10b7dcaa
+> 10b7dc8b: 84 5e 1c       test BYTE PTR [esi+0x1c],bl            ; A SECOND GATE
+> 10b7dc8e: 74 1a          je  0x10b7dcaa
+> ```
+>
+> The same pair sits ahead of run 2 (`0x10b7dcc2` / `0x10b7dcca`) and run 3
+> (`0x10b7dd01` / `0x10b7dd09`): **bit 0 of the function record's `+0x1c`**.
+> Run 4 (`sched0`, site `0x10b7e00c`) carries three more beyond its optimizer
+> gate at `0x10b7dfd9` — `test DWORD PTR [eax+0x20],0x1000` (`0x10b7dfe3`,
+> taken ⇒ skip, over `[esi]`), `test eax,0x400000` (`0x10b7dff2`) and
+> `test al,0x8` (`0x10b7dff9`), both over `[esi+0x94]`.
+>
+> **What survives unchanged:** `/Od` ⇒ zero, because the optimizer `je` is
+> reached first. That is the direction the `/Od`-vs-`/O1` null control asserts,
+> and it is as grounded as it ever was. **What does not survive:** the converse.
+> `hits == functions` at `/O1` is a property of the fixtures measured so far,
+> not of the code; a function with `[esi+0x1c] & 1` clear is skipped by three of
+> the four sites. `globregs` (`0x10b7dcb7`) and `color` (`0x10b7dcf6`) are not
+> optimizer-gated at all — control reaches them at `0x10b7dcaa` / `0x10b7dce9`
+> unconditionally.
 
 | # | mode | from | when |
 |---|---|---|---|

@@ -56,7 +56,16 @@ block's instruction tuples.
    lowering band — `FUN_10b7e6af` orders them `0x10b7dc51` … `0x10b7df57`;
    gated only by the optimizer-on flag `DAT_10c2e2fc` (bit 21 of the option
    word, set at `0x10b82429`, i.e. `/Og` vs `/Od`: at `/Od` **none** of the
-   four runs). #1823's three "independent ways" were
+   four runs).
+   **⛔ CORRECTED 2026-08-20 (`w-stageoracle`, fix round): "only" is wrong.**
+   The optimizer flag is tested *first* at all four sites, so the `/Od` ⇒ none
+   direction stands — but three of the four also test `[esi+0x1c] & 1` per
+   function (`0x10b7dc8b`, `0x10b7dcca`, `0x10b7dd09`) and the mode-0 run
+   carries three further tests (`0x10b7dfe3`, `0x10b7dff2`, `0x10b7dff9`).
+   `P_DAG.md` §1 carries the bytes. The consequence is not academic: *"gated
+   only by"* was quoted as licence to treat "one run per function" as
+   structural, and it is empirical.
+   #1823's three "independent ways" were
    three *absences* — no `sched.c` in the ICE-derived TU table (the scheduler
    band `0x10be5cce`–`0x10be663e` sits in an anchor gap between `except.c` and
    `emit.cpp`: a TU with **no ICE site is invisible to that table by
