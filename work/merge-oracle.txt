@@ -1,0 +1,143 @@
+THE STAGE ORACLE IS GO — 0 of 410 objs move when it is armed, one digest over
+ten runs, and c2's REGISTER ALLOCATOR turns out to write nothing in the tuple
+
+    Branch:   wt-w-stageoracle
+    Base:     c277d3bb0
+    Kind:     characterization lane
+    Outcome:  instrument
+    Rung:     docs/rungs/2026-08-20-stageoracle.md
+    Prereg:   work/oracle/PREREG.md (frozen as the lane's first commit)
+    Board:    #3322-#3326 allocated; see "BOARD ROWS" below
+    DO NOT PUSH.
+
+---------------------------------------------------------------------------
+WHAT THIS ANSWERS
+
+§4 of docs/ARCHITECTURE_PROPOSAL_2026-08-20.md makes the stage oracle step 0
+and the go/no-go for the entire back half of the migration: if c2's
+intermediate state cannot be observed, porting its register allocator and
+scheduler is unguided guessing and the honest answer is to say so and stop.
+
+IT CAN BE OBSERVED. Neutrally, deterministically, canonically, with a
+non-empty payload that cross-derives three ways.
+
+AND THE BOUNDARY IS WORTH MORE THAN THE GREEN: the observable is BLIND TO
+COLOR. It moves across the scheduler and across lowering on every function and
+is byte-identical across the register allocator on every function, with a
+128-byte raw window per tuple saying COLOR writes NOTHING in the tuple record.
+A ported COLOR cannot be graded against this snapshot. The allocator's output
+lives in the operand records the tuple points to, or in its own candidate
+records (P_REGALLOC.md §5's cand+0x28 / +0x3c). That is a concrete direction
+for the next lane and it REPLACES the plan's "read P_REGALLOC once the
+mechanism is green" with a measurement that rules the tuple out.
+
+---------------------------------------------------------------------------
+EVIDENCE
+
+G1 NEUTRALITY (required zero; the sole judge's own criterion), payload ON:
+    fixtures/cpp        graded 384   stage-tap-obj-differs 0   errors 2
+    26 matched TUs      graded  26   stage-tap-obj-differs 0   errors 0
+    sites armed 2688 + 182, refused 0
+  Second derivation: re-counting the log's own verdict lines gives
+  SAME 384 / DIFFERS 0 / ERR 2 — equal to the accumulated counters.
+  The 2 errors are wmain_no_return{,_neg}.cpp failing on the DISARMED leg
+  (the untapped replay itself makes no obj). Pre-existing; classified as
+  errors, never folded into either side of the required zero.
+
+G2/G2b DETERMINISM + CANONICALITY, payload ON, 4 fixtures x (5 same-config +
+5 different-cwd/different-/Fo) runs:
+    stage-snap-distinct-max 1 · stage-snap-unstable-tus 0 · empty payloads 0
+  One digest per fixture over all ten runs, AT THE FIRST SCHEMA.
+
+G3 DISCRIMINATION: the four optimizer-gated sites fire 0 times at /Od and >0
+  at /O1 on il_call_perm.cpp. Grounded in the bytes (0x10b7dc83 / 0x10b7dcc2 /
+  0x10b7dd01 are each `cmp ds:0x10c2e2fc,edi` with edi==0), not hoped for.
+
+G5 CONTENT, three independently-built derivations agreeing on 7 for
+  il_call_perm.cpp: the tap (patched sites INSIDE c2), c2's own /FAsc writer
+  (7 PROC), and the COFF section table (7 .text COMDAT). 329 tuple rows, 56
+  regions, 0 walk refusals. Re-derives P_DAG §1's "four scheduler runs per
+  function" as an equality between four separately-patched sites.
+
+SUITE + GATE at the tip: see the rung doc §7.1. census_gate ran 129 s (a
+  provisioned run, not the 0.00 s an unprovisioned worktree gives), and the
+  suite reports 0 "SKIP: toolchain absent".
+
+WORKLOAD STAMP asserted EQUAL at both ends — see §7.1. It read
+  3df8fd5412c2, a FOURTH stamp, none of the three named for 2026-08-19: the
+  standing instruction to re-read rather than carry is doing work.
+
+---------------------------------------------------------------------------
+FOUR PLAN DEFECTS AND ONE ENVIRONMENT DEFECT
+
+1. "The HMODULE LoadLibraryA returns IS the load base" is FALSE UNDER WIBO —
+   it returns 0x00000018. The first armed run computed slide=ef500018, every
+   site failed the fail-closed opcode check, and NOTHING WAS PATCHED. The
+   invariant did its job on its first outing. Slide now = GetProcAddress
+   ("_InvokeCompilerPass@12") - 0x10bebffd, cross-derived against
+   VirtualQuery's AllocationBase.
+2. Per-site __declspec(naked) thunks DO NOT BUILD — GCC does not implement the
+   naked attribute on i686, and i686-w64-mingw32-gcc is the only compiler
+   ensure_c2host uses. Replaced by ONE top-level __asm__ thunk that recovers
+   the site from the return address the `call` already pushed. Smaller, and it
+   removes the compile-time cap on site count.
+3. FlushInstructionCache is a missing import in wibo and SIGABRTs the process.
+   Dropped: x86's icache is coherent, one thread, bytes written before c2
+   executes them.
+4. This lane's own first neutrality test added a "stronger" third assertion
+   and it FAILED with Differs{first_offset:8, a_len:1725, b_len:1721}. Offset
+   8 is PointerToSymbolTable and the delta was the embedded /Fo PATH STRING,
+   because the leg wrote to a scratch path. c2 was neutral all along. A
+   stronger check that silently changes the command is worth less than none.
+
+ENVIRONMENT: scripts/gen_dc3_workload.sh maps only the FORWARD-SLASH spelling
+of the e:/lazer_build_gmc1 roots; dc3-decomp 3df8fd5412c2 emits them with
+BACKSLASHES. Six of eight /I roots pass through unmapped and the scan reads
+match 17 / capture-fail 851 / 343 gap-metric keys — every digit plausible,
+nothing saying the include roots are wrong. A landable one-line fix, NOT this
+lane's deliverable, reported so the next fresh worktree does not call that a
+base. Invalid log kept at work/oracle/base_gap_BROKEN_FLAGS.log.
+
+---------------------------------------------------------------------------
+WHAT WAS DELIBERATELY NOT DONE
+
+* Residency (the peer proposal's M1 fork server) is NOT built, and that is a
+  disagreement with the brief rather than an omission: one process per compile
+  is exactly what makes snapshot determinism testable. What M1 reuses: tap_arm's
+  slide derivation and fail-closed self-check, the multi-source
+  build_host_stub, replay_tapped's command construction (build_replay_command
+  UNCHANGED), and the fact that c2 runs in a host process we own. M1 adds a
+  loop and a socket, and should be graded against these snapshots.
+* P11 (do the 57 phase-beacon sites map to the 35 pass names?) NOT measured —
+  registered at 0.15, adds nothing to the go/no-go, and the site table is built
+  to take them. The record correction stands regardless: P_DAG.md §2 calls
+  0x10bec297 "the timer" and it is the ABORT/CANCELLATION POLL.
+* P13 REFUTED before the site table was finalized, as registered: -off# is not
+  a per-pass ablation switch (/d2off0/1/2/14 all give a timestamp-zeroed obj
+  byte-identical to the flagless baseline). No free channel exists.
+* NO crates/ BEHAVIOUR CHANGED. No emit, refusal predicate or census rule
+  reads a stage-* key. The obj byte compare against real c2.dll remains the
+  sole judge, and G1's zero is evidence about REACH, never about correctness.
+
+---------------------------------------------------------------------------
+BOARD ROWS (block #3322-#3326 allocated by the coordinator)
+
+#3322  The stage oracle is GO. Call-site detours at c2's seven per-function
+       phase boundaries are obj-neutral over 410 graded objs with the payload
+       armed, and snapshot-deterministic at the first schema (distinct 1 over
+       10 runs including 5 from a different cwd and /Fo).
+#3323  COLOR WRITES NOTHING IN THE TUPLE RECORD. sched2 -> sched3 is
+       byte-identical on 7 of 7 functions and a 128-byte raw window over 83
+       aligned pairs names no differing offset, while sched1 -> sched2 and
+       sched3 -> sched0 differ on 7 of 7. A ported COLOR cannot be graded
+       against the tuple spine; look in the operand/candidate records.
+#3324  Under wibo, LoadLibraryA's HMODULE is NOT the load base (0x18). Derive
+       a module slide from a known export, never from the handle. Also: GCC
+       has no naked attribute on i686, and wibo has no FlushInstructionCache.
+#3325  -off# is not a per-pass ablation switch (P13 refuted, 5 cells,
+       timestamp-zeroed obj identical). There is no code-patch-free channel
+       into c2's intermediate state; the hook table is justified.
+#3326  scripts/gen_dc3_workload.sh maps only the forward-slash spelling of the
+       e:/lazer_build_gmc1 include roots. At dc3-decomp 3df8fd5412c2 the
+       generator emits backslashes and the scan silently reads match 17 /
+       capture-fail 851 / 343 keys.
