@@ -129,6 +129,13 @@ family.
     sched1 7 · globregs 7 · sched2 7 · color 7 · sched3 7 · sched0 7
     region 56 · tuples 329 · walk refusals 0
 
+**And zero walk refusals over the whole campaign** — no `walk-overrun`,
+`walk-span`, `walk-implausible-*` or `arena-full` line appears in either
+neutrality log, over 410 objs including `jsonwriter.cpp` at 5,491 tuple rows.
+That matters because a truncated payload would make every tuple count a floor
+rather than a measurement, and the refusal lines are kept in a list of their
+own precisely so truncation can never be read as a terminus.
+
 | derivation | how it is built | answer |
 |---|---|---|
 | the tap | patched call sites **inside c2's code**, counted in `c2host` | 7 |
@@ -297,6 +304,63 @@ lane in a fresh worktree does not measure `capture-fail 851` and call it a base.
 | workload stamp, both ends | see §7.1 — asserted EQUAL |
 | `c2rs stage neutrality --payload` | `stage-tap-obj-differs 0` over 384 fixtures + 26 matched TUs |
 | `c2rs stage determinism --payload` | `distinct-max 1 · unstable 0` over 10 runs × 4 fixtures |
+
+### 7.1 The tip, measured — and the environment ASSERTED, not the exit code
+
+**Suite**, `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release
+--no-fail-fast`, at tip `098c6b28e`:
+
+    49 targets · 1699 passed · 0 failed
+    "SKIP: toolchain absent" occurrences: 0
+    census_gate: 4 passed, finished in 145.65 s
+
+The **environment** is what is asserted, not the exit code. `census_gate`'s
+145.65 s is a provisioned run; the unprovisioned one is 0.00 s and prints the
+same counts (#3219/#3231), and an unprovisioned worktree here would additionally
+have made every stage measurement in §3 void rather than provisional.
+
+Second derivation of 1699 (#3288): `grep -c '^test .* \.\.\. ok'` over the same
+log reads **1699**, equal to the sum of the per-target `test result` lines.
+And the delta against the base's **1,690 / 0 / 48** is accounted exactly:
+`crates/c2-reference/tests/stage.rs` adds 6 integration tests and
+`stage.rs`'s `mod tests` adds 3, for **+9 tests and +1 target** —
+`1699 − 9 = 1690`, `49 − 1 = 48`.
+
+**Gate**, `scripts/gate.sh --jobs 16 --require-graded`: GATE_RESULT_PLACEHOLDER
+
+### 7.2 THE WORKLOAD STAMP MOVED MID-LANE, AND THIS LANE'S OWN INVALIDATION RULE FIRED
+
+| end | stamp |
+|---|---|
+| base | `workload   3df8fd5412c2 (clean)  /home/free/code/milohax/dc3-decomp` |
+| tip | `workload   b25928dfb2a6 (clean)  /home/free/code/milohax/dc3-decomp` |
+
+`dc3-decomp` took `b25928dfb Merge fix/string-literals-20260820` while the lane
+ran — a **fifth** stamp value, after the four this record already knows.
+Prereg invalidation rule 1 says a stamp inequality **voids the results table**
+and the response is to **re-read the base at the current stamp**, not to explain
+the delta. Done:
+
+| | base scan (`3df8fd5412c2`) | re-read at tip (`b25928dfb2a6`) |
+|---|---|---|
+| `match` / `mismatch` | 26 / 0 | **26 / 0** |
+| `codegen-gap` / `vocab-gap` / `capture-fail` | 0 / 844 / 8 | **0 / 844 / 8** |
+| `gap-metric` keys | 395 | **395**, same key names, none added or removed |
+| **keys whose VALUE moved** | — | **105 of 395** |
+| `fnbyte-exact` | 35,912 | **35,893** |
+| `factor-c` | 169 | **170** |
+
+**105 of 395 keys moved on a lane that changed no `crates/` behaviour** — the
+sharpest instance of #3306/#3311 on record (the previous was 82 of 394), and
+this time it happened *inside* one lane rather than between a dispatch and a
+measurement. Logs: `work/oracle/base_gap.log`, `work/oracle/tip_gap.log`.
+
+**And the re-read is what licenses §3's matched-TU row rather than voiding it.**
+The 26 matched TUs are identical **by name** at both stamps, and — checked per
+file, which is the part a name compare does not give — **all 26 source blobs are
+byte-identical across the merge** (`git rev-parse <stamp>:<path>` per file; 79
+other files changed). So `stage-tap-obj-differs 0 / graded 26` stands at both
+ends. Had one of the 26 moved, that row would have been re-run, not annotated.
 
 **Wall-clock seconds are not published.** The box carried an unrelated external
 load of 32 → 150 on 32 cores across this lane; a timing taken there is a

@@ -59,13 +59,28 @@ G5 CONTENT, three independently-built derivations agreeing on 7 for
   regions, 0 walk refusals. Re-derives P_DAG §1's "four scheduler runs per
   function" as an equality between four separately-patched sites.
 
-SUITE + GATE at the tip: see the rung doc §7.1. census_gate ran 129 s (a
-  provisioned run, not the 0.00 s an unprovisioned worktree gives), and the
-  suite reports 0 "SKIP: toolchain absent".
+SUITE at the tip: 49 targets, 1699 passed, 0 failed, 0 "SKIP: toolchain
+  absent". census_gate ran 145.65 s (a
+  provisioned run, not the 0.00 s an unprovisioned worktree gives). The delta
+  against the base 1,690/0/48 is accounted exactly: +6 integration tests in
+  tests/stage.rs and +3 unit tests in stage.rs = +9 tests, +1 target. Second
+  derivation: grep -c "^test .* ... ok" reads 1699 too. GATE at the tip: see
+  the rung doc §7.1.
 
-WORKLOAD STAMP asserted EQUAL at both ends — see §7.1. It read
-  3df8fd5412c2, a FOURTH stamp, none of the three named for 2026-08-19: the
-  standing instruction to re-read rather than carry is doing work.
+WORKLOAD STAMP: NOT EQUAL AT THE TWO ENDS, AND THE LANE'S OWN INVALIDATION
+  RULE FIRED ON ITSELF. base 3df8fd5412c2 -> tip b25928dfb2a6 (dc3-decomp took
+  `b25928dfb Merge fix/string-literals-20260820` mid-lane). A FIFTH stamp
+  value. Prereg rule 1 says re-read the base at the current stamp rather than
+  explain the delta, and that was done:
+      match/mismatch 26/0 at both · vocab-gap 844 · capture-fail 8 · 395 keys
+      at both, same key names
+      105 OF 395 KEY VALUES MOVED — the sharpest #3306/#3311 instance on
+      record (previous: 82 of 394), and the first to happen INSIDE one lane
+      fnbyte-exact 35,912 -> 35,893 · factor-c 169 -> 170, on a lane that
+      changes no crates/ behaviour
+  The matched-26 neutrality row STANDS rather than being annotated: the 26 TUs
+  are identical by name at both stamps AND all 26 source blobs are
+  byte-identical across the merge (checked per file; 79 other files changed).
 
 ---------------------------------------------------------------------------
 FOUR PLAN DEFECTS AND ONE ENVIRONMENT DEFECT
