@@ -42,17 +42,21 @@
 //! integration test here — and `C2RS_REQUIRE_TOOLCHAIN=1` is what turns that
 //! SKIP into a failure for a caller who needs the grade (`require_toolchain.rs`).
 
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering};
-
+use c2_harness::testsupport::{unique_scratch_dir, WORKLOAD_FLAGS};
 use c2_obj::{ObjImage, ObjPlan};
 use c2_reference::Toolchain;
 
 /// The workload's own profile, minus the `/I` paths a standalone cell cannot
-/// use. `/O1` implies `/Gy`, which is the regime the whole plan lives in.
-const FLAGS: [&str; 8] = [
-    "/nologo", "/wd4355", "/wd4164", "/c", "/GR", "/O1", "/Oi", "/EHsc",
-];
+/// use. `/O1` implies `/Gy`, which is the regime the whole plan lives in — and
+/// it is the ONLY mode in which the emit set exists at all, because `/Gy` is
+/// what puts each function in its own COMDAT `.text`. At `/Ox` every assertion
+/// in this file would compare two empty lists and pass.
+///
+/// **One spelling, from `c2_harness::testsupport`** (lane `w-refrev`): this file
+/// carried the fifteenth copy of the literal until the fix round adopted the
+/// funnel. A missed copy keeps grading the old profile and reads green, which is
+/// the absence family wearing a flags list.
+const FLAGS: [&str; 8] = WORKLOAD_FLAGS;
 
 const GY: &str = "\
 int a(int x) { return x + 1; }
@@ -80,17 +84,13 @@ int take() { return g; }
 /// `TMP`/`TEMP` at the work dir, deletes every `_CL_*` in it and writes a fixed
 /// `out.obj`, so a shared path is a write-write race whose symptom reads as a
 /// port defect (`reloc_identity.rs`'s `work()`, board `w-gateperf`).
-static WORK_SEQ: AtomicUsize = AtomicUsize::new(0);
-
-fn work() -> PathBuf {
-    let n = WORK_SEQ.fetch_add(1, Ordering::Relaxed);
-    let d = std::env::temp_dir().join(format!("c2rs-w-objplan-{}-{n}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
-}
-
+///
+/// [`unique_scratch_dir`] is the funnel `w-refrev` built for exactly that — a
+/// fresh directory per CALL, so two cells cannot alias even inside one test.
+/// The per-file `static COUNTER` + `temp_dir()` pair this file used to carry was
+/// the 22nd copy of it.
 fn compile(tc: &Toolchain, name: &str, src: &str) -> Option<ObjImage> {
-    let dir = work();
+    let dir = unique_scratch_dir("w-objplan", name);
     let cpp = dir.join(format!("{name}.cpp"));
     std::fs::write(&cpp, src).unwrap();
     let flags: Vec<String> = FLAGS.iter().map(|s| s.to_string()).collect();
