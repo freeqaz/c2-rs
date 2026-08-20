@@ -311,9 +311,10 @@ pub struct TuPlan {
     /// It used to be set only inside the `Known` arm, so `plan-emitset-observed-size`
     /// summed over the **854** TUs the seed answered on and was captioned as
     /// *"functions real c2 actually emitted"* — a whole-workload phrasing for an
-    /// 854-TU figure, published beside `fnbyte-denominator` **162,136**, which is
-    /// the same quantity over 870, with no reconciliation. The 3,334 gap is
-    /// exactly the 16 `gl-attrs-refused` TUs. It is a fact about the REFERENCE
+    /// 854-TU figure, published beside `fnbyte-denominator` — the same quantity
+    /// over 870 — with no reconciliation. The gap is exactly the 16
+    /// `gl-attrs-refused` TUs; at the fix-round stamp `6f3a818e9893` the two now
+    /// read **162,146** and **162,146**, and the restricted sum is **158,812**. It is a fact about the REFERENCE
     /// obj and it does not belong behind a gate on the PORT's silence.
     ///
     /// The 854-TU restriction is still published, as

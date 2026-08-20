@@ -5030,10 +5030,11 @@ fn the_named_control_reports_its_shortfall_by_name_and_component() {
 /// **A CONTROL WHOSE CELLS ARE ALL EMPTY-vs-EMPTY REPORTS ITS OWN VACUITY.**
 ///
 /// This is the review's second major, as an assertion. Six of the 26 real pinned
-/// TUs read `exact` with `pred_size = 0, obs_size = 0` — the empty set compared
-/// to the empty set, which every pure manifest gets right — and nine more are
-/// 1-vs-1, so *"24 of 26 exact"* could not be told apart from 24 comparisons
-/// that cannot fail. The most likely wrong-way is the extractor collapsing to
+/// TUs have an EMPTY observed emit set — the empty set compared to the empty
+/// set, which every pure manifest gets right — and eleven more are 1-vs-1, so
+/// only NINE can carry a membership or an ordering error at all, and
+/// *"24 of 26 exact"* could not be told apart from 24 comparisons that cannot
+/// fail. The most likely wrong-way is the extractor collapsing to
 /// `Some(empty)`: that would make the exact count go UP while the control's own
 /// size went to zero, so the size is what has to be published.
 #[test]

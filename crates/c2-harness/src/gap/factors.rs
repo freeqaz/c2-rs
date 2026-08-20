@@ -463,12 +463,14 @@ pub struct PlanControlReport<'a> {
     /// # arriving on the control instead of on the curve
     ///
     /// The first version printed *"24 of 26 pinned TUs are `exact`"* and nothing
-    /// beside it could tell that from **24 empty comparisons**. Measured: **6**
-    /// of the 26 read `exact` with `pred_size = 0, obs_size = 0` — the empty set
-    /// compared to the empty set — and **9** more are 1-vs-1, so only **11** of
-    /// 26 cells compare a set of ≥ 2 elements. A containment or equality claim
-    /// without the claimant's size is unfalsifiable in the flattering direction,
-    /// and that is exactly what §2.3 says about the curve.
+    /// beside it could tell that from **24 empty comparisons**. Measured at
+    /// stamp `6f3a818e9893`, two ways — these keys, and a standalone `awk` join
+    /// of `docs/plan/CONTROL_TUS.txt` against a `--plan-tsv` file: **6** of the
+    /// 26 have an EMPTY observed emit set (the empty set compared to the empty
+    /// set), **11** are 1-vs-1, and only **9** compare a set of ≥ 2 elements;
+    /// **46** emitted names over all 26. A containment or equality claim without
+    /// the claimant's size is unfalsifiable in the flattering direction, and that
+    /// is exactly what §2.3 says about the curve.
     ///
     /// # What this control CAN and CANNOT detect, stated
     ///
@@ -1745,10 +1747,11 @@ impl GapReport {
         m.push(("plan-control-shortfall", ctl.shortfall.len().to_string()));
         // **THE CONTROL'S OWN SIZE.** `plan-control-exact 24 of 26` and
         // `24 empty comparisons` are the same sentence without these three; 6 of
-        // the 26 pinned cells compare the empty set to the empty set and 9 more
-        // are 1-vs-1, so only `substantive-tus` of them can carry an ordering or
-        // a membership error at all. See `PlanControlReport::obs_size` for what
-        // the control can and cannot detect.
+        // the 26 pinned cells compare the empty set to the empty set and 11 more
+        // are 1-vs-1, so only `substantive-tus` — measured 9 — can carry an
+        // ordering or a membership error at all. See
+        // `PlanControlReport::obs_size` for what the control can and cannot
+        // detect.
         m.push(("plan-control-obs-size", ctl.obs_size.to_string()));
         m.push(("plan-control-obs-empty-tus", ctl.obs_empty_tus.to_string()));
         m.push((
