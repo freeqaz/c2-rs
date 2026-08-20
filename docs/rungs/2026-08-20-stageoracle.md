@@ -387,6 +387,15 @@ identity — the tree hash moves by construction. What it claims is identity of
 the **counts**, which is the criterion #290 actually uses, and every count
 above matches.
 
+**Both were taken at `098c6b28e`, and the lane's tip is three commits later.**
+The three are `docs/`, `work/` and `docs/rungs/INDEX.md` only — nothing under
+`crates fixtures scripts`, which is exactly the set `graded tree
+90df6918eff3` hashes, so the gate's verdict is unchanged by them by
+construction rather than by assumption. The one test that *can* see a `docs/`
+edit, `c2-harness::rung_registry` (it asserts `INDEX.md` equals what
+`scripts/gen_rung_index.sh` generates), was re-run at the real tip: 2 passed,
+0 failed.
+
 ### 7.2 THE WORKLOAD STAMP MOVED MID-LANE, AND THIS LANE'S OWN INVALIDATION RULE FIRED
 
 | end | stamp |
