@@ -1,0 +1,47 @@
+# docs/plan/CONTROL_TUS.txt — the NAMED control for the ObjPlan manifest lane
+#
+# The 26 TUs whose obj the port reproduces BYTE-EXACTLY at the lane's base
+# (tree c277d3bb0, workload 3df8fd5412c2, measured 2026-08-20 by
+# `c2rs gap --list work/dc3-workload/files.txt --flags-file .../flags.txt
+#  --cwd ../dc3-decomp --jobs 16`, log work/manifest/gap-base.log).
+#
+# WHY A FILE OF NAMES AND NOT A COUNT. A control pinned by COUNT passes in an
+# unprovisioned worktree the moment the count matches (rungs/README rule 1): a
+# fresh `git worktree add` has no compilers/, every capture SKIPs, and a
+# registered RED reads GREEN. A count match with a SET difference is a finding.
+#
+# THE JOIN KEY IS THE PATH AS `cl` SEES IT — `src/App.cpp`, never
+# `src__App.cpp`, never absolute (gap/sets.rs:19-33). Do not canonicalize.
+#
+# This set is EXPECTED TO MOVE as the port converts TUs. The lane asserts an
+# IDENTITY DIFF (entered / left, BY NAME) against this file on every run and
+# prints it; a difference is reported before any other number, because it means
+# the tree or the workload stamp moved under the lane.
+#
+# One path per line. Blank lines and #-comments ignored.
+src/Main.cpp
+src/system/decomp_pch.cpp
+src/system/math/Primes.cpp
+src/system/math/Sort.cpp
+src/system/negate_test.cpp
+src/system/synth/tomcrypt/TomCryptLicense.cpp
+src/system/synth_xbox/Biquad.cpp
+src/system/synth_xbox/GainEffect.cpp
+src/system/synth_xbox/HeadsetPlaybackEffect.cpp
+src/system/synth_xbox/IPP_basicmath_xbox.cpp
+src/system/synth_xbox/PeakDetector.cpp
+src/system/synth_xbox/soundtouch/source/SoundTouch/mmx_optimized.cpp
+src/system/synth_xbox/soundtouch/source/SoundTouch/sse_optimized.cpp
+src/system/utl/EncryptXTEA.cpp
+src/system/utl/Pool.cpp
+src/system/utl/Spew.cpp
+src/system/zlib/ZlibLicense.cpp
+src/xdk/LIBCMT/osfinfo.cpp
+src/xdk/LIBCMT/undname.cpp
+src/xdk/LIBCMT/vsnprnc.cpp
+src/xdk/LIBCMT/vswprnc.cpp
+src/xdk/nuispeech/mmio.cpp
+src/xdk/nuispeech/xboxheap.cpp
+src/xdk/nuispeech/xboxmem.cpp
+src/xdk/xjson/jsonwriter.cpp
+src/xdk/xlrc/xlrcimpl.cpp
