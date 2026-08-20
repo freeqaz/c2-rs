@@ -432,7 +432,7 @@ pub(crate) fn body_start_is_bare(seg: &[u8]) -> bool {
 /// TU with two functions, which is the same defect (§10.11) one level down: a
 /// count that is only evidence about the predicate that produced it. The
 /// fixture exists because that was invisible on the single-thunk one.
-fn bare_body_start(seg: &[u8]) -> Option<usize> {
+pub(crate) fn bare_body_start(seg: &[u8]) -> Option<usize> {
     let mut i = 0;
     while i + 1 < seg.len() {
         if seg[i] == 0x53 && seg[i + 1] == 0x53 {

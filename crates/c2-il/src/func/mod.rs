@@ -30,7 +30,7 @@
 
 mod bind;
 mod body;
-mod bundle;
+pub(crate) mod bundle;
 mod census;
 mod diag;
 mod ehscope;
@@ -38,7 +38,7 @@ mod gl;
 mod glalias;
 mod ininit;
 mod inlit;
-mod readers;
+pub(crate) mod readers;
 mod sy;
 
 pub use self::bind::{

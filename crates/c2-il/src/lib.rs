@@ -34,7 +34,9 @@ use std::path::Path;
 
 pub mod codec;
 pub mod func;
+pub mod stream;
 pub use codec::{CodecError, EditError, EditReport, ExToken, FileModel, IlModel, Span};
+pub use stream::{Extent, Ir0, Ir0Broken, Ir0Framing, Record, RecordKind};
 pub use func::{
     chain_form, gl_body_record_names, gl_gate_record_names, gl_narrow_record_names,
     gl_precise_record_names, slot_sources, ChainForm,
