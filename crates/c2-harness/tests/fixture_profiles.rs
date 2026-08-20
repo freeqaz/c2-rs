@@ -34,26 +34,13 @@
 //! this defect invisible instead of merely red, which is strictly worse.
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use c2_harness::all_fixtures;
 use c2_harness::fixture_profile::{resolve_profile, FixtureProfile, PROFILE_MARKER};
 use c2_reference::{Toolchain, CAPTURE_IL_DEFAULT_FLAGS};
 
-static COUNTER: AtomicU64 = AtomicU64::new(0);
-
 fn work(tag: &str) -> PathBuf {
-    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-    let d = std::env::temp_dir().join(format!(
-        "c2rs-fxprof-{tag}-{}-{}-{}",
-        std::process::id(),
-        nanos,
-        n
-    ));
-    std::fs::create_dir_all(&d).unwrap();
-    d
+    c2_harness::testsupport::unique_scratch_dir("fxprof", tag)
 }
 
 fn name_of(p: &std::path::Path) -> String {

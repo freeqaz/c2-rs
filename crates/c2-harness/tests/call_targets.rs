@@ -39,9 +39,7 @@ use c2_reference::Toolchain;
 /// use. **`/O1` implies `/Gy`; `/Ox` does not** — a cell compiled at the
 /// fixture default would produce a packed obj with no `.text` COMDAT at all and
 /// every assertion below would pass vacuously.
-const FLAGS: [&str; 8] = [
-    "/nologo", "/wd4355", "/wd4164", "/c", "/GR", "/O1", "/Oi", "/EHsc",
-];
+const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 /// The cell. Three one-word bodies fall out of it at `/O1`:
 ///
@@ -66,9 +64,7 @@ void keep(D *p) { delete p; }
 "#;
 
 fn work(tag: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("c2rs-w-drop3-{tag}-{}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
+    c2_harness::testsupport::scratch_dir("w-drop3", tag)
 }
 
 /// `(call targets by symbol, the capture)`. `None` when the capture or the

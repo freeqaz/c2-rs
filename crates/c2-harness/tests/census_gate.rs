@@ -193,9 +193,7 @@ fn repo_root() -> PathBuf {
 }
 
 fn work(tag: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("c2rs-census-gate-{tag}-{}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
+    c2_harness::testsupport::scratch_dir("census-gate", tag)
 }
 
 fn sources_in(dir: &Path) -> Vec<PathBuf> {

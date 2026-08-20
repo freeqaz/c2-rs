@@ -62,18 +62,14 @@ use c2_reference::Toolchain;
 /// use. **`/O1`, deliberately**: it implies `/Gy`, which is the regime the
 /// 878-TU scan lives in and the one `Pool.obj`'s three COMDAT `.text` sections
 /// belong to.
-const FLAGS: [&str; 8] = [
-    "/nologo", "/wd4355", "/wd4164", "/c", "/GR", "/O1", "/Oi", "/EHsc",
-];
+const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 const CELL_A: &str = include_str!("../../../fixtures/cpp/wpool_store_leaf_member_value.cpp");
 const CELL_B: &str = include_str!("../../../fixtures/cpp/wpool_store_run_member_value_neg.cpp");
 const CELL_C: &str = include_str!("../../../fixtures/cpp/wpool_guard_bclr_fold_neg.cpp");
 
 fn work(tag: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("c2rs-poolcell-{tag}-{}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
+    c2_harness::testsupport::scratch_dir("poolcell", tag)
 }
 
 /// Capture one source at [`FLAGS`] and return `(its per-function census, its

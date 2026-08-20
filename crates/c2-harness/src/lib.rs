@@ -30,6 +30,7 @@ pub mod prefilter;
 pub mod provenance;
 pub mod retrieval;
 pub mod search;
+pub mod testsupport;
 pub mod toolchain_gate;
 
 pub(crate) use corpus::jstr;

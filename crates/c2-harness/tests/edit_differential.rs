@@ -24,8 +24,7 @@
 //! skips cleanly (never fails) when the toolchain / strace / mingw are absent.
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use c2_il::{ExToken, IlModel};
 use c2_obj::{ObjDiff, ObjImage};
@@ -35,8 +34,6 @@ use c2_reference::{CapturedReference, Toolchain};
 /// function-set-mismatch hang (P0.6a G) into a prompt failure.
 const TIMEOUT: Duration = Duration::from_secs(60);
 
-static COUNTER: AtomicU64 = AtomicU64::new(0);
-
 fn fixture(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
@@ -45,19 +42,7 @@ fn fixture(name: &str) -> PathBuf {
 }
 
 fn work(tag: &str) -> PathBuf {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-    let d = std::env::temp_dir().join(format!(
-        "c2rs-edit-{tag}-{}-{}-{}",
-        std::process::id(),
-        nanos,
-        n
-    ));
-    std::fs::create_dir_all(&d).unwrap();
-    d
+    c2_harness::testsupport::unique_scratch_dir("edit", tag)
 }
 
 /// The toolchain + replay prerequisites, or `None` to skip cleanly.

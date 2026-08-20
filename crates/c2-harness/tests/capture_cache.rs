@@ -23,17 +23,7 @@ fn fixture() -> PathBuf {
 }
 
 fn work(tag: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!(
-        "c2rs-cachetest-{tag}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0)
-    ));
-    let _ = std::fs::remove_dir_all(&d);
-    std::fs::create_dir_all(&d).unwrap();
-    d
+    c2_harness::testsupport::clean_scratch_dir("cachetest", tag)
 }
 
 /// The single cache entry directory under `root` (there is exactly one).

@@ -60,9 +60,7 @@ use c2_reference::Toolchain;
 /// transcription, and at the `census` CLI's default `/Ox /GS- /c` the very same
 /// source reports `expr-jump` — it never reaches the object gate at all, and
 /// every assertion about that gate would be vacuous.
-const FLAGS: [&str; 8] = [
-    "/nologo", "/wd4355", "/wd4164", "/c", "/GR", "/O1", "/Oi", "/EHsc",
-];
+const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 /// `/Od`, for the one row whose subject is the optimization word itself.
 const FLAGS_OD: [&str; 8] = [
@@ -72,9 +70,7 @@ const FLAGS_OD: [&str; 8] = [
 /// A scratch directory keyed on the tag **and** the pid — board #1045, and
 /// `w-gateperf`'s `reloc_identity` race, which presented as a port defect.
 fn work(tag: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("c2rs-wit7ck-{tag}-{}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
+    c2_harness::testsupport::scratch_dir("wit7ck", tag)
 }
 
 /// Capture one source at `flags` and return the census keys in `.ex` order.

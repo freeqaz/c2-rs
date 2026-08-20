@@ -68,9 +68,7 @@ fn fixtures_dir() -> PathBuf {
 }
 
 fn work(tag: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("c2rs-fnbyte-gy-{tag}-{}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
+    c2_harness::testsupport::scratch_dir("fnbyte-gy", tag)
 }
 
 /// Grade every emitted function of one fixture at the `/Gy` profile.
