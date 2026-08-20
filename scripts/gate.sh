@@ -2646,6 +2646,99 @@ ladder_refusal_note() {
     echo "  commit or stash that file and re-run."
 }
 
+# ================================================================================
+# ROW LIVENESS — how many CONSECUTIVE runs has a row failed to EXECUTE?
+# Board #3339, closing the generalizing half of board **#3219**.
+#
+# `--selftest` proves every row CAN go red. Nothing proved any row HAD RUN. The
+# concrete case: `hatch-red` has read `REFUSED HATCH-STALE 0/14 arms` in every
+# observed run, in every tree, including clean master — 14 arms of a standing row
+# not executing — and the table could not tell "REFUSED this run for a local
+# reason" from "REFUSED for a month". **An arm that never executes is
+# indistinguishable from an arm that passes**, which is this repo's defining
+# defect family (absence read as success) wearing a gate row.
+#
+# The rule, and it is deliberately the narrow one:
+#
+#   * EXECUTED = the verdict word is `PASS` or `FAIL`. The row ran and was
+#     judged. Anything else — `REFUSED`, `NO-RESULT`, `SKIP`, an absent tuple —
+#     is NOT an execution, whatever its reason. A refusal may be entirely
+#     legitimate on the day (a dirty `crates/` is a Tuesday, as `hatch_red_run`
+#     says); what is not legitimate is nobody being able to see that it has been
+#     legitimate ninety times running.
+#   * The counter RESETS to 0 on an execution, so it answers "consecutive", not
+#     "ever".
+#   * **IT PRINTS. IT NEVER FAILS THE GATE.** A threshold here would be a new
+#     fence, and a fence is priced two-sided before it ships (CLAUDE.md, #1042,
+#     NC-5/#2691). This lane did not price one, so it did not ship one. The
+#     instrument that makes the fence *priceable* is the deliverable.
+#
+# What it CANNOT do, said here so nobody reads more into the number: it cannot
+# say how long `hatch-red` was already stale — the history starts empty at the
+# commit that adds it, so its first run prints `1 consecutive`, not the true
+# figure. It is per-worktree (the file lives under this tree's `work/`), so a
+# fresh worktree starts over; and two gates running concurrently in ONE worktree
+# can interleave their rewrites. All three are properties of a cheap
+# instrument, and all three are visible rather than silent.
+#
+# Format, one row per line: <row>\t<consecutive>\t<first-seen>\t<last-verdict>
+# ================================================================================
+
+# EXECUTED, for this purpose. A positive check on two names, never an
+# enumeration of the ways a row can fail to run — the same design rule
+# `require_toolchain.rs` and the `--require-graded` header state, and for the
+# same reason: an unenumerated outcome must land on the safe side, and here the
+# safe side is "did not execute".
+row_liveness_executed() {   # <verdict-word>
+    case "$1" in
+        PASS|FAIL) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# Update one row's history and echo a note when the row did not execute.
+# A pure function of (file, row, verdict, date) plus the file it rewrites, so
+# `--selftest` drives it with a scratch file and never runs a gate.
+row_liveness_update() {   # <history-file> <row> <verdict> <today>
+    _rl_f="$1"; _rl_row="$2"; _rl_v="$3"; _rl_today="$4"
+    [ -n "$_rl_f" ] || return 0
+    [ -n "$_rl_row" ] || return 0
+    # An ABSENT tuple is not an execution either. It arrives here as an empty
+    # verdict and is named rather than skipped: a row that stopped producing a
+    # tuple at all is the loudest version of what this counter measures.
+    [ -n "$_rl_v" ] || _rl_v="ABSENT"
+    _rl_prev=0
+    _rl_first=""
+    if [ -f "$_rl_f" ]; then
+        _rl_line=$(awk -F'\t' -v r="$_rl_row" '$1==r{print; exit}' "$_rl_f" 2>/dev/null)
+        if [ -n "$_rl_line" ]; then
+            _rl_prev=$(printf '%s' "$_rl_line" | cut -f2)
+            _rl_first=$(printf '%s' "$_rl_line" | cut -f3)
+        fi
+    fi
+    # A corrupt or hand-edited counter reads as 0 rather than propagating into
+    # arithmetic — the file is a cache of an observation, never an authority.
+    case "$_rl_prev" in ''|*[!0-9]*) _rl_prev=0 ;; esac
+    if row_liveness_executed "$_rl_v"; then
+        _rl_n=0
+        _rl_first="-"
+    else
+        _rl_n=$((_rl_prev + 1))
+        if [ "$_rl_prev" -eq 0 ] || [ -z "$_rl_first" ] || [ "$_rl_first" = "-" ]; then
+            _rl_first="$_rl_today"
+        fi
+    fi
+    _rl_tmp="$_rl_f.$$.tmp"
+    { [ -f "$_rl_f" ] && awk -F'\t' -v r="$_rl_row" '$1!=r' "$_rl_f" 2>/dev/null
+      printf '%s\t%s\t%s\t%s\n' "$_rl_row" "$_rl_n" "$_rl_first" "$_rl_v"
+    } > "$_rl_tmp" 2>/dev/null || { rm -f "$_rl_tmp"; return 0; }
+    sort -o "$_rl_tmp" "$_rl_tmp" 2>/dev/null || true
+    mv -f "$_rl_tmp" "$_rl_f" 2>/dev/null || rm -f "$_rl_tmp"
+    if [ "$_rl_n" -gt 0 ]; then
+        echo "$_rl_row: $_rl_v for $_rl_n consecutive run(s) (first seen $_rl_first)"
+    fi
+}
+
 decide() {
     _d_reg="$1"; _d_res="$2"; _d_run="${3:-}"; _d_sw="${4:-}"; _d_filt="${5:-}"
     _d_cx="${6:-}"
@@ -2747,6 +2840,53 @@ decide() {
             "debug-lane" "$_d_dbv" "$_d_dbran" "$_d_dbn" "$_d_dbm" "$_d_dbx" \
             "DEBUG-profile lanes (${_d_dbg:-?} graded, ${_d_dbp:-?} panic)" \
             "$([ -z "$_d_dbd" ] && echo "" || echo "   <- $_d_dbd")"
+    fi
+
+    # ---- ROW LIVENESS (board #3339) -------------------------------------------
+    # BELOW the table and never inside it: several scripts and every rung doc
+    # read that table's columns, and a counter is a note about history rather
+    # than a verdict about this run. `row_history` is empty under `--selftest`
+    # (which drives `decide` with fabricated tuples and must not write a real
+    # history), so this whole block is a no-op there and the selftest's own
+    # cases drive `row_liveness_update` directly.
+    if [ -n "${row_history:-}" ]; then
+        _d_today=$(date -u +%Y-%m-%d)
+        _d_notes=""
+        # Every row that produces a verdict word, lanes included. The lane rows
+        # come out of the results table; the five standing rows come out of the
+        # tuples this function was handed. An ABSENT tuple reaches the counter as
+        # an empty verdict and is recorded as `ABSENT`, which is not an execution.
+        while IFS="$TAB" read -r _d_lname _d_lflags _d_ltuple; do
+            [ -n "$_d_lname" ] || continue
+            _d_note=$(row_liveness_update "$row_history" "$_d_lname" \
+                "$(printf '%s\n' "$_d_ltuple" | cut -d'|' -f1)" "$_d_today")
+            [ -n "$_d_note" ] && _d_notes="$_d_notes$_d_note
+"
+        done < "$_d_res"
+        for _d_pair in \
+            "sweep=$(printf '%s\n' "$_d_sw" | cut -d'|' -f1)" \
+            "mode-cross=$(printf '%s\n' "$_d_cx" | cut -d'|' -f1)" \
+            "hatch-red=$_d_hrv" \
+            "ladder-red=$_d_lrv" \
+            "debug-lane=$_d_dbv"
+        do
+            _d_note=$(row_liveness_update "$row_history" "${_d_pair%%=*}" \
+                "${_d_pair#*=}" "$_d_today")
+            [ -n "$_d_note" ] && _d_notes="$_d_notes$_d_note
+"
+        done
+        if [ -n "$_d_notes" ]; then
+            echo
+            echo "ROW LIVENESS — rows that did NOT execute (verdict was neither PASS nor FAIL):"
+            printf '%s' "$_d_notes" | sed 's/^/  /'
+            echo "  A refusal may be right on the day; a row refusing for N runs is a row"
+            echo "  nobody is reading (board #3219). This PRINTS and never fails the gate."
+            echo "  History: $row_history — delete it to reset. It starts at the commit that"
+            echo "  added this counter, so an N here is a FLOOR on the true age, never the age."
+        else
+            echo
+            echo "ROW LIVENESS: every row executed this run (board #3339)."
+        fi
     fi
     echo
 
@@ -5054,6 +5194,109 @@ $(printf '%s\n' "$_lr_words" | grep .)"
     t_case tree-integrity-counterfactual-ran "$_r" \
         "all four pre-lane counterfactuals resolved and failed as required"
 
+    # ============================================================================
+    # ROW LIVENESS — the consecutive-non-executing counter (board #3339 / #3219)
+    #
+    # `row_liveness_update` is a function of (history file, row, verdict, date),
+    # so these cases drive it with a scratch file and never run a gate. The
+    # sequence matters as much as any single call: the defect the counter exists
+    # to catch is a row REFUSING run after run, so the cases walk a history
+    # forward and read the number at each step.
+    # ============================================================================
+    _rlf="$st/rowhist.tsv"
+    rm -f "$_rlf"
+
+    # 1. A row that EXECUTES prints nothing and is recorded at 0. The silence is
+    #    the point: a note on every row every run is a note nobody reads.
+    _rl_out=$(row_liveness_update "$_rlf" "lane-A" PASS 2026-08-20)
+    [ -z "$_rl_out" ] && _r=0 || _r=1
+    t_case rowliveness-pass-is-silent "$_r" "an executing row prints no note"
+    [ "$(awk -F'\t' '$1=="lane-A"{print $2}' "$_rlf")" = "0" ] && _r=0 || _r=1
+    t_case rowliveness-pass-records-zero "$_r" "and is recorded at 0"
+
+    # 2. FAIL is an EXECUTION too, and this is the case most likely to be got
+    #    wrong. The counter measures whether the row RAN, not whether it was
+    #    happy; folding FAIL in with REFUSED would make a row that goes red every
+    #    run look like a row that never runs.
+    _rl_out=$(row_liveness_update "$_rlf" "lane-B" FAIL 2026-08-20)
+    [ -z "$_rl_out" ] && _r=0 || _r=1
+    t_case rowliveness-fail-counts-as-executed "$_r" "a red row RAN — it is not a stale row"
+
+    # 3. REFUSED does not execute: first run counts 1 and dates itself.
+    _rl_out=$(row_liveness_update "$_rlf" "hatch-red" REFUSED 2026-08-18)
+    case "$_rl_out" in *"hatch-red: REFUSED for 1 consecutive run(s) (first seen 2026-08-18)"*) _r=0 ;; *) _r=1 ;; esac
+    t_case rowliveness-refused-counts-one "$_r" "$_rl_out"
+
+    # 4. …and it ACCUMULATES across runs, keeping the ORIGINAL first-seen date.
+    #    A counter that reset its date each run would report "first seen today"
+    #    forever, which is the same silence in a different font.
+    _rl_out=$(row_liveness_update "$_rlf" "hatch-red" REFUSED 2026-08-19)
+    _rl_out=$(row_liveness_update "$_rlf" "hatch-red" REFUSED 2026-08-20)
+    case "$_rl_out" in *"REFUSED for 3 consecutive run(s) (first seen 2026-08-18)"*) _r=0 ;; *) _r=1 ;; esac
+    t_case rowliveness-refused-accumulates "$_r" "$_rl_out"
+    case "$_rl_out" in *"first seen 2026-08-20"*) _r=1 ;; *) _r=0 ;; esac
+    t_case rowliveness-first-seen-is-not-today "$_r" "the date is the FIRST refusal's, not this run's"
+
+    # 5. An EXECUTION resets it to 0 — "consecutive", not "ever".
+    _rl_out=$(row_liveness_update "$_rlf" "hatch-red" PASS 2026-08-21)
+    [ -z "$_rl_out" ] && _r=0 || _r=1
+    t_case rowliveness-execution-resets "$_r" "a run that executed clears the counter"
+    [ "$(awk -F'\t' '$1=="hatch-red"{print $2}' "$_rlf")" = "0" ] && _r=0 || _r=1
+    t_case rowliveness-reset-is-persisted "$_r" "and the reset reaches the file"
+    _rl_out=$(row_liveness_update "$_rlf" "hatch-red" REFUSED 2026-08-22)
+    case "$_rl_out" in *"for 1 consecutive run(s) (first seen 2026-08-22)"*) _r=0 ;; *) _r=1 ;; esac
+    t_case rowliveness-restarts-after-reset "$_r" "$_rl_out"
+
+    # 6. NO-RESULT and an ABSENT tuple are NOT executions either, and each keeps
+    #    its own word. An absent tuple is the loudest version of what this
+    #    measures, and it must not arrive as a blank line.
+    _rl_out=$(row_liveness_update "$_rlf" "ladder-red" NO-RESULT 2026-08-20)
+    case "$_rl_out" in *"ladder-red: NO-RESULT for 1 consecutive"*) _r=0 ;; *) _r=1 ;; esac
+    t_case rowliveness-noresult-does-not-execute "$_r" "$_rl_out"
+    _rl_out=$(row_liveness_update "$_rlf" "debug-lane" "" 2026-08-20)
+    case "$_rl_out" in *"debug-lane: ABSENT for 1 consecutive"*) _r=0 ;; *) _r=1 ;; esac
+    t_case rowliveness-absent-tuple-is-named "$_r" "$_rl_out"
+    _rl_out=$(row_liveness_update "$_rlf" "mode-cross" SKIP 2026-08-20)
+    case "$_rl_out" in *"mode-cross: SKIP for 1 consecutive"*) _r=0 ;; *) _r=1 ;; esac
+    t_case rowliveness-skip-does-not-execute "$_r" "a skipped row did not run either"
+
+    # 7. Rows are INDEPENDENT. One row's history must not be another's — the
+    #    whole table is written back on every update, and a rewrite that dropped
+    #    or merged rows would read as a reset nobody asked for.
+    [ "$(awk -F'\t' '$1=="lane-A"{print $2}' "$_rlf")" = "0" ] \
+        && [ "$(awk -F'\t' '$1=="ladder-red"{print $2}' "$_rlf")" = "1" ] \
+        && [ "$(awk -F'\t' '$1=="hatch-red"{print $2}' "$_rlf")" = "1" ] \
+        && [ "$(wc -l < "$_rlf")" -eq 6 ] && _r=0 || _r=1
+    t_case rowliveness-rows-are-independent "$_r" \
+        "6 rows survive the rewrites, each with its own count"
+
+    # 8. A CORRUPT counter reads as 0 rather than propagating into arithmetic.
+    #    The file is a cache of an observation and never an authority; a
+    #    hand-edited or truncated line must not be able to print a wrong age.
+    printf 'lane-Z\tbanana\t2026-01-01\tREFUSED\n' >> "$_rlf"
+    _rl_out=$(row_liveness_update "$_rlf" "lane-Z" REFUSED 2026-08-20)
+    case "$_rl_out" in *"lane-Z: REFUSED for 1 consecutive"*) _r=0 ;; *) _r=1 ;; esac
+    t_case rowliveness-corrupt-count-reads-zero "$_r" "$_rl_out"
+
+    # 9. THE OFF SWITCH, and the reason it is a case: `--selftest` itself relies
+    #    on an empty `row_history` making `decide` write nothing, so "empty means
+    #    off" is load-bearing for every case above this one.
+    _rl_out=$(row_liveness_update "" "lane-A" REFUSED 2026-08-20)
+    [ -z "$_rl_out" ] && _r=0 || _r=1
+    t_case rowliveness-empty-file-is-off "$_r" "an empty history path disables the counter"
+
+    # 10. ANTI-VACUITY. Everything above would also pass against a
+    #     `row_liveness_update` that had been deleted and replaced by `:` —
+    #     except the assertions that read a NUMBER out of the file, and except
+    #     this one, which requires the classifier to actually discriminate.
+    row_liveness_executed PASS && row_liveness_executed FAIL \
+        && ! row_liveness_executed REFUSED && ! row_liveness_executed NO-RESULT \
+        && ! row_liveness_executed SKIP && ! row_liveness_executed "" \
+        && _r=0 || _r=1
+    t_case rowliveness-classifier-discriminates "$_r" \
+        "PASS/FAIL executed; REFUSED/NO-RESULT/SKIP/absent did not"
+    rm -f "$_rlf"
+
     # The floor moves with the file: 102 before board #1406's hatch-red row, 120
     # after it, **138** after `w-hatchroot` added the ladder-red row (7
     # classifier cases, 9 rulings, the cross-row word-distinctness assertion, the
@@ -5078,7 +5321,17 @@ $(printf '%s\n' "$_lr_words" | grep .)"
     # and one lane passing on another's corpus is that every one of them refuses.
     # A truncated selftest is the failure it exists to catch, so this is a COUNT
     # and not a "some cases ran".
-    if [ "$cases" -lt 183 ]; then
+    # …and **199** after `w-warranty` added the row-liveness counter (board
+    # #3339, closing #3219's generalizing half): 16 cases walking a history
+    # forward across runs — that FAIL is an EXECUTION and not a stale row, that
+    # REFUSED accumulates while keeping the ORIGINAL first-seen date, that an
+    # execution resets to 0 and the reset reaches the file, that NO-RESULT / SKIP
+    # / an ABSENT tuple each fail to execute under their own word, that rows do
+    # not contaminate each other across the whole-file rewrite, that a corrupt
+    # count reads 0 rather than printing a wrong age, that an empty path is the
+    # off switch `--selftest` itself depends on, and one anti-vacuity case that a
+    # deleted classifier could not satisfy.
+    if [ "$cases" -lt 199 ]; then
         echo "gate.sh --selftest: FAIL — only $cases cases ran; the selftest itself was"
         echo "  truncated, and a truncated selftest is the failure it exists to catch."
         exit 1
@@ -5097,6 +5350,22 @@ fi
 echo
 echo "lane gate: $nlanes lanes from $registry"
 echo "  run dir: $work   (per-lane run dirs under $work/lanes/)"
+
+# The row-liveness history (board #3339). NOT under `$work` — that tree is named
+# for this run's pid and the reaper deletes it, and a history that dies with the
+# run it recorded measures nothing. It lives under the checkout's own `work/`,
+# which is gitignored, so the file is never committed and each worktree keeps its
+# own. `C2RS_GATE_ROW_HISTORY` repoints it (the `--selftest` cases use that), and
+# setting it EMPTY switches the counter off entirely.
+if [ -n "${C2RS_GATE_ROW_HISTORY+set}" ]; then
+    row_history="$C2RS_GATE_ROW_HISTORY"
+else
+    row_history="$repo_root/work/gate_row_history.tsv"
+fi
+if [ -n "$row_history" ]; then
+    mkdir -p "$(dirname "$row_history")" 2>/dev/null || row_history=""
+fi
+[ -n "$row_history" ] && echo "  row history: $row_history   (board #3339)"
 
 # ================================================================================
 # THE TREE PREFLIGHT — FIRST, BEFORE ANY ROW CAN WRITE INTO IT (#2668 / #2907).

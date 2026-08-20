@@ -1,0 +1,115 @@
+w-warranty — THE FIX THE REVIEW, THE BRIEF AND THE COORDINATOR ALL AGREED ON
+WOULD NOT HAVE CAUGHT A WRONG EMIT, AND ONE MUTATION SAYS SO IN ONE RUN
+
+    Branch:   wt-w-warranty
+    Base:     c98803beb          Tip: 57587c3c3
+    Kind:     construct rung + instrument.  Fixtures: none.  Census: +0.
+    Outcome:  instrument
+    Board:    #3337-#3341, the coordinator's block, all five spent.
+    Rung:     docs/rungs/2026-08-20-warranty.md
+    PREREG:   work/w-warranty/PREREG.md, frozen as commit 4ef784942 —
+              the branch's FIRST commit, before any edit and any probe.
+
+WHAT LANDED
+
+Three recorded instances of "absence read as success", all of them inside the
+warranty layer itself, closed — and every guard PROVEN TO FIRE BY MUTATION
+before it was claimed.
+
+  1. cli_flags' three most expensive tests now assert the corpus verdict they
+     were already computing and discarding. Second assertion on the SAME
+     executions, so the added wall clock is ZERO.
+  2. partest.sh demands C2RS_REQUIRE_TOOLCHAIN=1 by default (--portable opts
+     out). Board #3247's "STILL OPEN ... NOTHING SETS THE VARIABLE" is closed.
+  3. gate.sh counts, per row, how many CONSECUTIVE runs it has failed to
+     EXECUTE. Board #3219's named missing instrument. It prints; it never
+     fails the gate.
+
+THE HEADLINE, WHICH IS THE NEAR-MISS AND NOT THE FIX
+
+REFACTOR_REVIEW §0.1 prescribed `assert_eq!(code, Some(0))` on selftest/bench/
+perf. The coordinator's brief repeated it. It is wrong, and mutation M1 shows
+it in one run: plant a wrong emit in PortC2::compile_to and `c2rs perf` reports
+153 mismatch of 386 and EXITS 0. The RED log carries `exit: Some(0)` on the
+same screen as the 153 mismatching fixtures. cli/perf.rs does this deliberately
+("a port Match/Mismatch/NotImplemented is per-TU reporting, not a harness
+failure"); the Port=Mismatch->FAILURE the review cites is in cmd_diff. And
+bench/selftest never invoke the port at all — they grade the ORACLE.
+
+An exit-code-only guard would have caught reference instability and READ AS
+THOUGH it caught wrong emits: the defect family one level up, added while
+fixing three instances of it. So the wrong-emit guard reads perf's stdout
+summary and leaves perf's exit-code contract alone.
+
+MUTATIONS — all four registered in the PREREG before the first probe
+
+  M1  wrong emit in the port
+      RED   accepted_perf   "CORPUS VERDICT GUARD: **A WRONG EMIT.**" 153/0
+      GREEN accepted_bench, accepted_selftest   (they cannot see it — this is
+            the EVIDENCE for the correction, not a gap)
+  M2  planted oracle determinism failure
+      RED   accepted_bench and accepted_selftest, each on its own message
+      GREEN accepted_perf
+  M3  unresolvable toolchain, demand ON
+      RED   exactly require_toolchain::a_run_that_claims_to_grade_...
+      GREEN the same environment with --portable
+  M4  fabricated run history walked forward
+      16 --selftest cases, all ok; gate.sh --selftest PASS - 199 cases
+
+Anti-theft held: no mutation reddened the roster assertion, and neither guard
+reddened on the other's mutation. Both judge-crate mutations reverted in
+session; `git diff -- crates/{c2-il,c2-core,c2-obj,c2-reference}` is EMPTY at
+the tip.
+
+MEASURED AT THE TIP
+
+  gate.sh --jobs 16 --require-graded   GATE: PASS (HATCH-RED REFUSED)
+      18/18 lanes, 6,948 fixture-verdicts, sweep 19,556/19,460,
+      cross 90,812/90,424, 0 mismatch anywhere, debug-lane 18/18 at 0 panics
+  suite  1,691 / 0 failed / 1 ignored / 48 targets   (baseline 1,690; +1 is
+      exactly the one #[test] added; derived THREE differently-built ways —
+      cargo's `test result:` sums, a count of `... ok` lines, partest by name)
+  gate.sh --selftest   PASS - 199 cases   (floor 183 -> 199)
+  census_gate  97.47 s  (0.00 s in a toolchain-less run — the environment is
+      asserted, not the exit code)
+  require_toolchain passed BY NAME, printing the cl.exe/c2.dll it resolved
+  workload stamp equal at this lane's own two ends: 5d251aa85ce3 clean
+  crates/ diff: ONE file, tests/cli_flags.rs, 455 insertions 0 deletions
+
+hatch-red reads REFUSED HATCH-STALE at this lane's base AND tip — master's
+pre-existing state, board #1389, not this lane's. The counter's first live run
+prints `hatch-red: REFUSED for 1 consecutive run(s) (first seen 2026-08-20)`
+beside 22 rows at 0.
+
+TWO THINGS THE FUNNEL SHOULD KNOW
+
+  #3341 — "assert 0 `SKIP: toolchain absent` in the suite log" is VACUOUS and
+  it was in this lane's own brief. libtest swallows stdout for a passing test
+  and a skipping test passes, so the count is 0 in an unprovisioned worktree
+  too. Measured: 2 tests skip, 0 SKIP lines captured, 2 lines with
+  --nocapture. Strike that phrasing from briefs; keep "assert the environment
+  rather than the exit code", which the same brief also carried and which is
+  right.
+
+  #3340 — gate.sh --selftest has a load-sensitive cluster (pid-liveness,
+  reaper, concurrent-publish). Four runs, three distinct failure sets, none
+  reproducing, two consecutive PASSes at the end. It produced TWO wrong
+  attributions in one afternoon, including a base-comparison run that appeared
+  to confirm a difference while failing four cases because the base copy had a
+  filename gate_pid_live's `grep 'gate\.sh'` does not match. On a
+  pid-*/reaper-*/corpus-* failure: re-run before believing it.
+
+NOT DONE, NAMED
+
+  * The review's steps 4-6 (dead fn, capture-arm funnel, ~15 skip sites,
+    WORKLOAD_FLAGS' 14 copies, bench/selftest engine merge). The skip funnel is
+    the one with a warranty edge: it is what would make the toolchain demand
+    total over PARTIALLY provisioned runs (compilers present, strace absent),
+    which #3338 explicitly does NOT close.
+  * A threshold on the liveness counter. Available, obvious, NOT shipped
+    because it was not priced two-sided. The price a future lane owes is
+    written into the rung's "Found and not taken".
+  * hatch.py's needles (#1389). The counter measures that hole; it does not
+    fix it.
+
+MERGE: git merge --no-ff wt-w-warranty. NOT pushed. NOT merged by this lane.

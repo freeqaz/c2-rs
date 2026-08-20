@@ -1,0 +1,90 @@
+    Finished `release` profile [optimized] target(s) in 0.00s
+     Running tests/cli_flags.rs (target/release/deps/cli_flags-3325071abf144b04)
+
+running 1 test
+test every_invocation_the_scripts_make_is_still_accepted_perf has been running for over 60 seconds
+test every_invocation_the_scripts_make_is_still_accepted_perf ... FAILED
+
+failures:
+
+---- every_invocation_the_scripts_make_is_still_accepted_perf stdout ----
+
+thread 'every_invocation_the_scripts_make_is_still_accepted_perf' (1515795) panicked at crates/c2-harness/tests/cli_flags.rs:1338:13:
+assertion `left == right` failed: CORPUS VERDICT GUARD: **A WRONG EMIT.** `c2rs perf` compared the port's obj against real c2's, byte for byte, over all 386 fixtures, and 153 of them DIFFER. A wrong emit scores strictly below the refusal it replaced (docs/PROGRESS_METRIC.md) — this is an alarm, not a gap. `NotImplemented` is not counted here and never should be. Mismatching fixtures:
+  il_accum4.cpp                  1285B      11.201 ms              -            -  Mismatch@1284
+  il_base_member.cpp             1150B      10.940 ms              -            -  Mismatch@1149
+  il_bool_materialization.cpp    1160B      11.326 ms              -            -  Mismatch@1159
+  il_call_args2.cpp              1226B      11.088 ms              -            -  Mismatch@1225
+  il_call_perm.cpp               1277B      10.660 ms              -            -  Mismatch@1276
+  il_call_value.cpp              1178B      11.427 ms              -            -  Mismatch@1177
+  il_expr_deref.cpp              1511B      11.253 ms              -            -  Mismatch@1510
+  il_expr_member.cpp             1056B      10.453 ms              -            -  Mismatch@1055
+  il_extern_c_name.cpp            867B       9.254 ms              -            -  Mismatch@866
+  il_line_marker.cpp              847B      17.806 ms              -            -  Mismatch@846
+  il_param_aggr.cpp              1220B      19.707 ms              -            -  Mismatch@1219
+  il_param_poly.cpp               947B      10.776 ms              -            -  Mismatch@946
+  il_reassoc.cpp                 1672B      11.003 ms              -            -  Mismatch@1671
+  il_stmt_local_decl.cpp          942B      12.400 ms              -            -  Mismatch@941
+  il_stmt_param_assign.cpp        959B       9.596 ms              -            -  Mismatch@958
+  il_stmt_scope.cpp              1120B      10.675 ms              -            -  Mismatch@1119
+  il_stmt_seq.cpp                1344B      10.989 ms              -            -  Mismatch@1343
+  il_sy_locals_clean.cpp         1273B      17.451 ms              -            -  Mismatch@1272
+  il_sy_size_extent.cpp           985B      12.253 ms              -            -  Mismatch@984
+  il_this_line70.cpp              883B      12.558 ms              -            -  Mismatch@882
+command: `c2rs perf`
+exit: Some(0)
+--- last 40 lines of stdout ---
+  wvec_inclass_ctor_folded_statics_neg.cpp   1108B      10.175 ms              -            -  NotImplemented
+  wvl_chain3.cpp                  883B       9.933 ms              -            -  NotImplemented
+  wvl_chain6_same.cpp             895B      10.479 ms              -            -  NotImplemented
+  wvl_chain_neg.cpp              1128B       9.829 ms              -            -  NotImplemented
+  wvl_chain_two_lengths.cpp       982B       9.741 ms              -            -  NotImplemented
+  wvsnprnc_guard_chain_arity_store.cpp   1981B      12.358 ms              -            -  NotImplemented
+  wvsnprnc_guard_chain_arity_store_neg.cpp   3144B      10.986 ms              -            -  NotImplemented
+  wvsnprnc_lit_insert_tail.cpp   1446B       9.633 ms              -            -  Mismatch@1445
+  wvsnprnc_lit_insert_tail_neg.cpp   1577B      11.150 ms              -            -  NotImplemented
+  wwbss_static_neg.cpp           1080B       9.966 ms              -            -  NotImplemented
+  wwbss_three_neg.cpp            1180B       8.053 ms              -            -  NotImplemented
+  wwbss_tls_neg.cpp              1102B       8.546 ms              -            -  NotImplemented
+  wwbss_two.cpp                  1104B      11.182 ms              -            -  NotImplemented
+  wwrap_gstore.cpp               1004B       9.141 ms              -            -  NotImplemented
+  wwrap_gstore_conv_neg.cpp       990B       8.608 ms              -            -  NotImplemented
+  wwrap_gstore_float_neg.cpp     1006B       9.127 ms              -            -  NotImplemented
+  wwrap_gstore_gg_neg.cpp        1069B       8.424 ms              -            -  NotImplemented
+  wwrap_gstore_lit_neg.cpp        989B       9.123 ms              -            -  NotImplemented
+  wwrap_gstore_second_neg.cpp     990B      11.775 ms              -            -  NotImplemented
+  wwrap_gstore_sub_neg.cpp        995B       8.315 ms              -            -  NotImplemented
+  wwrap_gstore_two_neg.cpp       1063B       9.674 ms              -            -  NotImplemented
+  wwrap_gstore_widths.cpp        1226B      11.477 ms              -            -  NotImplemented
+  wxlr_create_guard.cpp          1381B      10.458 ms              -            -  NotImplemented
+  wxlr_create_guard_neg.cpp      4530B      13.973 ms              -            -  NotImplemented
+  wxtea2_mcpy_rev_neg.cpp        1154B       9.785 ms              -            -  NotImplemented
+  wxtea2_mcpy_short_neg.cpp      1150B      10.047 ms              -            -  NotImplemented
+  wxtea2_mcpy_srcoff_neg.cpp     1154B      10.870 ms              -            -  NotImplemented
+  wxtea2_mcpy_stmt_neg.cpp       1279B       9.432 ms              -            -  NotImplemented
+  wxtea2_memcpy_tail.cpp         1280B       9.745 ms              -            -  NotImplemented
+  wxtea3_encrypt_loop.cpp        2358B      14.768 ms              -            -  NotImplemented
+  wxtea3_nobump_neg.cpp          2190B      12.214 ms              -            -  NotImplemented
+  wxtea3_nonce1_neg.cpp           866B       8.763 ms              -            -  NotImplemented
+  wxtea3_nonce_run.cpp            878B       9.849 ms              -            -  NotImplemented
+  wxtea3_nonce_u64_neg.cpp        875B      10.536 ms              -            -  NotImplemented
+  wxtea3_nosum_neg.cpp           1067B      11.405 ms              -            -  NotImplemented
+  wxtea3_round_loop.cpp          1373B      11.596 ms              -            -  NotImplemented
+  wxtea3_shift6_neg.cpp          1373B      16.445 ms              -            -  NotImplemented
+
+summary: 0 port Match, 153 mismatch, 233 not-implemented (of 386)
+  no matched fixtures — no speedup to report
+--- stderr ---
+
+  left: 153
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    every_invocation_the_scripts_make_is_still_accepted_perf
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 18 filtered out; finished in 61.37s
+
+error: test failed, to rerun pass `-p c2-harness --test cli_flags`
+cargo exit 101

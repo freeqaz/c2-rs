@@ -1,0 +1,47 @@
+### M3a: bogus toolchain, demand ON (default) ###
+partest.sh: C2RS_REQUIRE_TOOLCHAIN=1 from partest.sh's default (board #3247) —
+            a run with no toolchain will FAIL on
+            require_toolchain::a_run_that_claims_to_grade_must_have_a_toolchain_to_grade_with
+            rather than passing green having graded nothing. Use --portable to opt out.
+
+partest: jobs=16 test-threads=libtest-default doc=0
+awk: cmd. line:1: fatal: division by zero attempted
+partest: wall 0.0s   sum-of-target-walls 0.00s   overlap 
+partest: 0 passed; 1 failed; 0 ignored; 43 targets; 1 named results
+partest: load 15.37, 66.10, 77.43
+partest: FAILED (1 failing test(s))
+M3a EXIT=1
+### M3b: same, --portable ###
+partest.sh: C2RS_REQUIRE_TOOLCHAIN=0 from --portable —
+            this run makes NO CLAIM to have graded anything against real c2.dll.
+            A green suite here is compatible with 132 integration tests having
+            printed 'SKIP: toolchain absent' and passed.
+
+partest: jobs=16 test-threads=libtest-default doc=0
+awk: cmd. line:1: fatal: division by zero attempted
+partest: wall 0.0s   sum-of-target-walls 0.00s   overlap 
+partest: 1 passed; 0 failed; 0 ignored; 43 targets; 1 named results
+partest: load 14.46, 65.07, 77.03
+M3b EXIT=0
+### M3c: a capture-based test under the SAME bogus toolchain, --portable ###
+partest.sh: C2RS_REQUIRE_TOOLCHAIN=0 from --portable —
+            this run makes NO CLAIM to have graded anything against real c2.dll.
+            A green suite here is compatible with 132 integration tests having
+            printed 'SKIP: toolchain absent' and passed.
+
+partest: jobs=16 test-threads=libtest-default doc=0
+awk: cmd. line:1: fatal: division by zero attempted
+partest: wall 0.0s   sum-of-target-walls 0.00s   overlap 
+partest: 2 passed; 0 failed; 0 ignored; 43 targets; 2 named results
+partest: load 13.70, 62.42, 75.97
+M3c EXIT=0
+### M3d: the same two tests with --nocapture, to show what the log did NOT contain ###
+
+running 2 tests
+SKIP: toolchain absent
+SKIP: toolchain absent
+test two_profiles_must_not_produce_one_bundle ... ok
+test two_profiles_must_not_produce_one_obj ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.00s
+
