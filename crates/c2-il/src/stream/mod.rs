@@ -68,6 +68,53 @@
 //! `vocab-gap` to `codegen-gap` while `mismatch 0 / match 6 / 0 failed` all read
 //! green (`c2-harness`'s `splitter_predicate_guard`). If the two views ever
 //! agree on ≥ 850 of 878 TUs, that is the defect and not a result.
+//!
+//! # NOTHING IN `crates/` PRODUCTION CODE CALLS THIS YET, AND THAT IS MEASURED
+//!
+//! Lane `ir0` was commissioned to *"re-express `IlBundle::functions()` and the
+//! census splitters as views over IR0"*. **It did, measured the price, and
+//! reverted.** The switch is a real branch in the history, not a thing nobody
+//! tried; read this before re-attempting it.
+//!
+//! All eleven production call sites were switched (seven `split_functions_at`
+//! sites in `func/bundle.rs`, plus `func/diag.rs`, `func/ehscope.rs`, and both
+//! `split_function_bodies_at` sites in `func/census.rs`). It compiles, and by
+//! construction it cannot change a byte — the three-way differential in
+//! `c2-harness/tests/ir0_framing.rs` proves the views identical to the
+//! incumbents on 386 fixtures, and `ir0-splitter-crosscheck-broken` proves it
+//! on all 870 workload TUs on every scan.
+//!
+//! **It costs 8–14 % of `c2rs perf`'s geomean speedup**, and the cause is
+//! isolated. Five paired interleaved trials, every one in the same direction:
+//!
+//! | trial | incumbent | via IR0 | via IR0, `records` not built |
+//! |---|---|---|---|
+//! | A1 | 526× | 503× | — |
+//! | A2 | 645× | 558× | — |
+//! | A3 | 580× | 547× | — |
+//! | B1 | 606× | 520× | **700×** |
+//! | B2 | 559× | 510× | **536×** |
+//!
+//! The B column is the isolation: suppress the `Vec<Record>` allocation and
+//! serve `gate_segments` from `starts` alone, and the cost disappears. So the
+//! price is **the framing's own records** — 24 bytes × (functions + 1) per
+//! call, at seven `bundle.rs` sites, several of them on `PortC2::build`'s path,
+//! on a 1.5 MB `.ex` with ~5,340 functions. (Box load ranged 45–112 on 32
+//! cores throughout; the absolute ratios are noisy and only the paired
+//! direction is claimed.)
+//!
+//! **And the reason is structural, not an implementation slip: IR0 v1's
+//! records carry no information the gate view reads.** `gate_segments` needs
+//! `starts`; it uses `records` only because routing through the framing is the
+//! point. So the production path pays to build a description it then ignores.
+//!
+//! The conclusion is about the migration order, not about IR0: **the readers
+//! should be re-expressed as views when the records become load-bearing —
+//! i.e. folded into IR1 (`ARCHITECTURE_PROPOSAL_2026-08-20.md` §5 step 4),
+//! where a record carries a binding — and not landed alone as step 1.** Until
+//! then IR0's value is the layer it already is: a totality control, an opaque
+//! denominator about the input, and a fence that makes a silent unification of
+//! the two splitters impossible.
 
 mod ex;
 
