@@ -432,6 +432,12 @@ next measurement, so nobody has to rediscover the question.
 
 ### 7.1 The tip, measured — and the environment ASSERTED, not the exit code
 
+> **THE NUMBERS BELOW ARE THE LANE'S ORIGINAL RUN, AT `098c6b28e`, AND THEY ARE
+> SUPERSEDED BY §9.5** — the fix round rebased twice (master moved under the
+> lane a second time, taking `w-refrev`) and re-ran both. Kept because a rung
+> that overwrites its own measurements cannot be graded.
+
+
 **Suite**, `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release
 --no-fail-fast`, at tip `098c6b28e`:
 
@@ -697,3 +703,73 @@ ported pass must not be graded against a stage snapshot until that probe lands.
 The verdict. **GO** stands, on a denominator that is now 375 rather than 410,
 with the same zero, the same seven armed sites, the same 49,231 detour hits,
 and the COLOR null intact at 7 of 7 with `offsets COLOR writes: NONE`.
+
+### 9.5 THE FIX ROUND'S OWN GATE AND SUITE, at the rebased tip
+
+Rebased **twice**: onto `826ba1e41` as dispatched, then onto `5f9ae0829` when
+the coordinator merged `w-refrev` mid-round. Both conflicts were
+`docs/rungs/INDEX.md` and both were resolved by **regenerating** it
+(`scripts/gen_rung_index.sh`), never by hand — a hand-resolved INDEX has failed
+`rung_registry` before. The `docs/BOARD.md` conflict on the first rebase was
+resolved by keeping master's reservation block and amending **only** the
+`#3322`–`#3326` row, which is this lane's.
+
+**Gate**, `scripts/gate.sh --jobs 16 --require-graded`:
+
+    GATE: PASS (HATCH-RED REFUSED)
+    lanes:  18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT
+    graded: 6948 fixture-verdicts across all lanes
+    sweep:  PASS — 19556 of 19556 reached, 19460 GRADED, 0 mismatch
+    cross:  PASS — 90424 of 90812 cells graded, 0 mismatch
+    debug:  PASS — 18 of 18 lanes through a DEBUG-profile c2rs,
+            6948 verdicts, match 2423, 0 mismatch, 0 PANIC
+    graded tree: b41e1158e6d7 (752 files under crates fixtures scripts)
+    GATE_EXIT=0
+
+Every count equals the lane's dispatched values digit for digit. `HATCH-RED
+REFUSED` is pre-existing (§7.1).
+
+**Suite**, `scripts/partest.sh --jobs 14` — which sets `C2RS_REQUIRE_TOOLCHAIN=1`
+by default (board #3247, landed by `w-warranty` after this lane's first run):
+
+    49 targets · 1707 passed · 0 failed · 1 ignored · 1708 named results
+    "SKIP: toolchain absent" occurrences: 0
+    SUITE_EXIT=0
+
+**Two derivations of the target count, because `cargo test` can silently run a
+fraction of the targets:** summing `^test result` lines over the aggregate log
+gives `49 targets / 1707 passed / 0 failed / 1 ignored`, and summing them over
+the 48 per-target logs plus the doc-test log gives **the same 49 / 1707**.
+`#[test]` occurrences under `crates/`: master `5f9ae0829` **1705**, this tip
+**1717** — **+12**, all of them in the two files this lane adds
+(`crates/c2-reference/src/stage.rs` +5, `crates/c2-reference/tests/stage.rs`
++7). Of those twelve, **three** are the fix round's: the two new parse tests
+and `a_wrong_slide_arms_nothing_and_never_moves_the_obj`.
+
+**One integration finding from the second rebase, fixed rather than reported:**
+`w-refrev` funnelled fifteen hand-rolled `SKIP:` blocks into
+`toolchain_gate::toolchain_ready`, and `c2rs stage` — written on this branch in
+parallel — carried a sixteenth. Merged as-was, the funnel would have had
+exactly one hole, and under `C2RS_REQUIRE_TOOLCHAIN` that command would have
+printed SKIP and exited 0 where every other command refuses. Converted, and
+demonstrated both ways with `C2RS_MINGW` pointed at a nonexistent binary:
+`work/oracle/fixround/demand_honoured.log`.
+
+**And one gate run is kept BECAUSE it failed.** The first fix-round gate ran
+while a peer lane's full suite held the box at load 38–49 and read `sweep: FAIL
+— UNGRADED 100 exceeds the carried baseline 96`, with **0 mismatch anywhere**:
+~40 `capture_reference produced no obj`, plus one
+`ReferenceReplay=MISMATCH @ offset 855 (ref=855B replay=894B) cache=hit` — a
+39-byte **length** difference on a cache HIT, i.e. the `/Fo` path-string class
+(§5's fourth plan defect), out of a capture cache **shared** with the peer's
+concurrent gate. The case is clean twice in isolation. Excerpt and both
+isolated runs: `work/oracle/fixround/gate_LOADED_sweep_excerpt.log`.
+
+**A gate row also caught this fix round's own worst moment**, and it is the
+same lesson from the other side: `FATAL: cargo build failed — refusing to grade
+with whatever binary happens to be on disk`. The tip did not compile for about
+forty minutes, because a signature change was verified with
+`cargo test -p c2-reference`, which does not build `c2-harness`. Every
+`c2rs` invocation in that window ran a **stale binary**; every number taken in
+it was re-taken against a binary built from a committed tree, and all of them
+reproduced. A number is evidence about the binary that produced it.

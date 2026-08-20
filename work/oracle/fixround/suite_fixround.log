@@ -4,7 +4,7 @@ partest.sh: C2RS_REQUIRE_TOOLCHAIN=1 from partest.sh's default (board #3247) —
             rather than passing green having graded nothing. Use --portable to opt out.
 
 partest: jobs=14 test-threads=libtest-default doc=1
-partest: wall 164.7s   sum-of-target-walls 414.71s   overlap 2.52x
-partest: 1703 passed; 0 failed; 1 ignored; 49 targets; 1704 named results
-partest: load 42.11, 36.68, 42.34
+partest: wall 393.0s   sum-of-target-walls 1239.08s   overlap 3.15x
+partest: 1707 passed; 0 failed; 1 ignored; 49 targets; 1708 named results
+partest: load 64.45, 67.47, 63.92
 SUITE_EXIT=0
