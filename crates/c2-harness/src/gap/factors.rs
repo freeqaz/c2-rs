@@ -2513,6 +2513,19 @@ impl GapReport {
             "alias-rule-miss",
             "alias-rule-extra",
             "alias-rule-exact-tus",
+            // **IR0 / K1 — the container codec's round-trip, over the WORKLOAD**
+            // (lane `ir0`). `IlModel::parse` is total by construction and fails
+            // closed on a re-encode mismatch; until 2026-08-20 it had only ever
+            // been run on the 386 fixtures. `-broken` is a DEFECT count with a
+            // known answer of 0, not a coverage number: a failure cannot come
+            // from an unrecognized construct (the parser coalesces those into
+            // `Span::Opaque`), only from an `ExToken::encode_into` disagreeing
+            // with the bytes it consumed. `-tus` is the denominator, published
+            // beside them so a green control cannot be confused with a control
+            // that ran on nothing (`docs/STATUS.md` trap 5).
+            "ir0-roundtrip-tus",
+            "ir0-roundtrip-ok",
+            "ir0-roundtrip-broken",
         ] {
             m.push((k, self.emit_total(k).to_string()));
         }

@@ -96,6 +96,63 @@ fn scan_one(
     // the same flag the emitter gets.
     let gy = PortC2::flags_imply_function_level_linking(&cfg.flags);
     res.ex_len = captured.bundle.ex().map(|b| b.len()).unwrap_or(0);
+
+    // 1a''. **IR0 / K1 — THE LOSSLESS CONTAINER CODEC, RUN ON THE WORKLOAD FOR
+    //       THE FIRST TIME** (lane `ir0`, `docs/rungs/2026-08-20-ir0.md`).
+    //
+    //       `IlModel::parse` is a **total, fail-closed** container codec: it
+    //       frames every byte of `.ex` and `.gl` into typed spans with
+    //       unrecognized runs coalesced into `Span::Opaque`, re-encodes the
+    //       result, and returns `CodecError::CannotRoundTrip` rather than a
+    //       model it cannot serialize back byte-for-byte
+    //       (`crates/c2-il/src/codec.rs`). That is exactly the invariant the
+    //       architecture proposal's IR0 asks for — **and until this line it had
+    //       only ever been run on the 386 fixtures**
+    //       (`crates/c2-harness/tests/il_roundtrip.rs`) and on the generated
+    //       corpus. Never on dc3.
+    //
+    //       The distinction that makes this worth a key rather than a test:
+    //       `parse_ex`/`parse_gl` are total **by construction**, so a failure
+    //       cannot come from an unrecognized construct — it can only come from
+    //       an `ExToken::encode_into` disagreeing with the bytes it consumed,
+    //       i.e. a **decoding bug**, on a stream shape the fixture spread has
+    //       no instance of. So `ir0-roundtrip-broken` is not a coverage number;
+    //       it is a defect count with a known answer of 0.
+    //
+    //       Both halves are emitted, including the zero, because a residue key
+    //       that stops occurring must read `0` rather than vanish
+    //       (`docs/STATUS.md` trap 5). `-tus` is their denominator, published
+    //       beside them for the reason `emit_set_violations_gate` publishes
+    //       its population: a green control whose denominator is unstated is
+    //       indistinguishable from a control that checked nothing.
+    {
+        *res.emit.entry("ir0-roundtrip-tus".into()).or_insert(0) += 1;
+        match c2_il::IlModel::parse(&captured.bundle) {
+            Ok(model) => {
+                // `parse` already verified the re-encode file by file and fails
+                // closed; re-assert it here over the WHOLE bundle so the key is
+                // a second, differently-built derivation of the same claim
+                // (#3288) rather than a restatement of `parse`'s Ok.
+                if model.encode().files == captured.bundle.files {
+                    *res.emit.entry("ir0-roundtrip-ok".into()).or_insert(0) += 1;
+                } else {
+                    *res.emit.entry("ir0-roundtrip-broken".into()).or_insert(0) += 1;
+                    *res.emit
+                        .entry("ir0-roundtrip-broken-reencode".into())
+                        .or_insert(0) += 1;
+                }
+            }
+            Err(e) => {
+                *res.emit.entry("ir0-roundtrip-broken".into()).or_insert(0) += 1;
+                // The suffix that refused, so the residue is actionable rather
+                // than a bare count. `CodecError` has one variant today.
+                let c2_il::CodecError::CannotRoundTrip { suffix, .. } = &e;
+                *res.emit
+                    .entry(format!("ir0-roundtrip-broken-suffix|{suffix}"))
+                    .or_insert(0) += 1;
+            }
+        }
+    }
     res.fn_names = captured
         .bundle
         .get("gl")
@@ -1843,6 +1900,38 @@ pub fn gap_scan(
     let (known, unknown, agree, disagree, gate_more, census_more, gate_ceil, enter, leave) =
         report.splitter_disagreement();
     let (viol, viol_pop) = report.emit_set_violations_gate();
+    // **IR0 — the container codec's round-trip over the workload** (lane `ir0`).
+    // Printed as well as keyed, and printed ALWAYS, for the reason the block
+    // below is: a defect count nobody prints is the absence-reads-as-success
+    // shape. `broken` has a known answer of **0**; anything else is a decoding
+    // bug in `ExToken::encode_into` on a stream shape the 386-fixture spread
+    // has no instance of, and the per-suffix residue names which stream.
+    {
+        let rt_tus = report.emit_total("ir0-roundtrip-tus");
+        let rt_ok = report.emit_total("ir0-roundtrip-ok");
+        let rt_bad = report.emit_total("ir0-roundtrip-broken");
+        println!(
+            "\nIR0 CONTAINER ROUND-TRIP (K1, `IlModel::parse`/`encode`) — LOSSLESS or it \
+             refuses; run on the workload for the first time 2026-08-20\n\
+             \x20 {rt_ok} of {rt_tus} captured bundles re-encode BYTE-IDENTICALLY; {rt_bad} \
+             broken (known answer 0)\n\
+             \x20 totality is BY CONSTRUCTION — unrecognized bytes coalesce into \
+             `Span::Opaque`, so a break is never an unmodelled construct, only an \
+             `ExToken::encode_into` disagreeing with the bytes it consumed"
+        );
+        let residue: Vec<(String, usize)> = report
+            .emit_histogram()
+            .into_iter()
+            .filter_map(|(k, n)| Some((k.strip_prefix("ir0-roundtrip-broken-")?.to_string(), n)))
+            .collect();
+        if residue.is_empty() {
+            println!("\x20 residue by reason: none");
+        } else {
+            for (r, n) in residue {
+                println!("\x20 residue {r}: {n}");
+            }
+        }
+    }
     println!(
         "\nSPLITTER ANCHORS (ROADMAP §10.11/§10.12) — the census splits `.ex` on `4C 4F 11`, \
          the port on `4F 1F`\n\
