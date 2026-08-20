@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use c2_core::PortC2;
+use c2_harness::toolchain_gate::{toolchain_ready, Cap};
 use c2_harness::provenance::Provenance;
 use c2_harness::{
     all_fixtures, c1_replay_check, differential_cached, oracle_selftest, C1ReplayReport,
@@ -338,13 +339,11 @@ pub(crate) fn cmd_replay(rest: &[String]) -> ExitCode {
     let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
-    if !tc.has_strace() {
-        println!("SKIP: strace absent (needed to keep the IL bundle)");
-        return ExitCode::SUCCESS;
+    if let Some(code) = toolchain_ready(&tc, &[Cap::Strace], "needed to keep the IL bundle") {
+        return code;
     }
-    if !tc.has_mingw() {
-        println!("SKIP: i686-w64-mingw32-gcc absent (needed to build c2host)");
-        return ExitCode::SUCCESS;
+    if let Some(code) = toolchain_ready(&tc, &[Cap::Mingw], "needed to build c2host") {
+        return code;
     }
     let w = Scratch::new("replay");
     let out = (|| {
@@ -402,13 +401,11 @@ pub(crate) fn cmd_replay_c1(rest: &[String]) -> ExitCode {
     let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
-    if !tc.has_mingw() {
-        println!("SKIP: i686-w64-mingw32-gcc absent (needed to build the c1host stub)");
-        return ExitCode::SUCCESS;
+    if let Some(code) = toolchain_ready(&tc, &[Cap::Mingw], "needed to build the c1host stub") {
+        return code;
     }
-    if !tc.has_c1xx() {
-        println!("SKIP: c1xx.dll absent (front end not located)");
-        return ExitCode::SUCCESS;
+    if let Some(code) = toolchain_ready(&tc, &[Cap::C1xx], "front end not located") {
+        return code;
     }
     let w = Scratch::new("replay-c1");
     let report = c1_replay_check(&cpp, &tc, &w);

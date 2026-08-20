@@ -7,6 +7,7 @@ use std::process::ExitCode;
 use std::time::Duration;
 
 use c2_harness::corpus::{self, CorpusConfig};
+use c2_harness::toolchain_gate::{toolchain_ready, Cap};
 
 use crate::{Args, Arity, Spec};
 
@@ -50,9 +51,8 @@ pub(crate) fn cmd_corpus_gen(rest: &[String]) -> ExitCode {
     let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
-    if !tc.has_strace() {
-        println!("SKIP: strace absent (needed to keep the IL bundle)");
-        return ExitCode::SUCCESS;
+    if let Some(code) = toolchain_ready(&tc, &[Cap::Strace], "needed to keep the IL bundle") {
+        return code;
     }
     println!(
         "corpus gen: seed={} count={} timeout={}s -> {}",
