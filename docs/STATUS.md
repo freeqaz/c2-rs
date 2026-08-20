@@ -588,6 +588,26 @@ misleading without them.
    across the workload would publish a 100 % that measures nothing. (On this
    workload none does; `.drectve`, the prime suspect, takes 8 values.)
 
+   **AND TODAY BOTH COMPONENTS READ `known 0`, WHICH IS THE SHIP RULE AND NOT A
+   REGRESSION.** `emitset-members` and `emitset-order` both fail the lane's
+   named control on `docs/plan/CONTROL_TUS.txt`, and the registered rule is that
+   a component whose control is red ships as `Unknown`, never as `Differs`. The
+   numbers that carry information are therefore the **characterization** keys —
+   `plan-emitset-seed-*`, `plan-emitset-glorder-*`, `plan-obs-*`,
+   `plan-glattr-*` — and not the component ladder. **A `plan-<c>-exact` that
+   starts reading non-zero means a component was made green and shipped; check
+   its control before quoting it.**
+
+   **A COUNT WITH NO SIZE BESIDE IT IS THE HAZARD IN THIS FAMILY, AND IT
+   RECURRED THREE TIMES IN ONE LANE.** On the curve (the containment claim
+   above), on the *control* (24 of 26 `exact`, where 6 of the 26 compare the
+   empty set to the empty set), and on a *containment invariant*
+   (`plan-bounds-violations 0`, whose three checks were all unreachable in
+   production). Each is now published with its denominator —
+   `plan-emitset-seed-size`, `plan-control-obs-size` / `-substantive-tus`,
+   `plan-bounds-checks-reached`. **When you read a `plan-*` zero or a `plan-*`
+   ratio, find its size key first.**
+
 1. **`mismatch 0` is not evidence of correctness.** 863 of 878 TUs refuse before
    the emitter is consulted, so the scan *cannot see* a codegen or binding defect
    in them. Zero mismatches means "nothing the scan could grade came out wrong",
