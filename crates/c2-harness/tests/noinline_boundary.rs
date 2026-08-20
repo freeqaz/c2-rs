@@ -80,9 +80,7 @@ use c2_reference::Toolchain;
 
 /// The workload's own profile, minus the `/I` paths a standalone cell cannot
 /// use. `/O1` implies `/Gy`, which is the regime FBM's denominator lives in.
-const FLAGS: [&str; 8] = [
-    "/nologo", "/wd4355", "/wd4164", "/c", "/GR", "/O1", "/Oi", "/EHsc",
-];
+const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 /// **GRID-W cell `w04a`** — `work/w-target/cells/w04a_noinline.cpp`. Kept as a
 /// literal rather than read from `work/`, which is gitignored: a test that

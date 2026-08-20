@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use c2_harness::all_fixtures;
+use c2_harness::toolchain_gate::{toolchain_ready, Cap};
 
 use crate::{Args, Arity, Spec};
 use crate::cli::util::{first_line, Scratch};
@@ -50,9 +51,12 @@ pub(crate) fn cmd_perf(rest: &[String]) -> ExitCode {
     let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
-    if !tc.has_strace() || !tc.has_mingw() {
-        println!("SKIP: strace / i686-w64-mingw32-gcc absent (needed for standalone-c2 replay)");
-        return ExitCode::SUCCESS;
+    if let Some(code) = toolchain_ready(
+        &tc,
+        &[Cap::Strace, Cap::Mingw],
+        "needed for standalone-c2 replay",
+    ) {
+        return code;
     }
     let targets: Vec<PathBuf> = match args.get("--fixtures") {
         Some(list) => list
@@ -245,9 +249,12 @@ pub(crate) fn cmd_perf_scale(rest: &[String]) -> ExitCode {
     let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
-    if !tc.has_strace() || !tc.has_mingw() {
-        println!("SKIP: strace / i686-w64-mingw32-gcc absent (needed for standalone-c2 replay)");
-        return ExitCode::SUCCESS;
+    if let Some(code) = toolchain_ready(
+        &tc,
+        &[Cap::Strace, Cap::Mingw],
+        "needed for standalone-c2 replay",
+    ) {
+        return code;
     }
 
     let name = fixture

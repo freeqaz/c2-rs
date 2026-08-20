@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 use std::time::Duration;
 
+use c2_harness::toolchain_gate::{toolchain_ready, Cap};
 use crate::{Args, Arity, Spec};
 use crate::cli::util::{first_line, Scratch};
 
@@ -126,9 +127,8 @@ pub(crate) fn cmd_search_solve(rest: &[String]) -> ExitCode {
     let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
-    if !tc.has_strace() || !tc.has_mingw() {
-        println!("SKIP: strace / i686-w64-mingw32-gcc absent (needed for replay)");
-        return ExitCode::SUCCESS;
+    if let Some(code) = toolchain_ready(&tc, &[Cap::Strace, Cap::Mingw], "needed for replay") {
+        return code;
     }
     let w = Scratch::new("search-solve");
     // An inserted redundant term is the cleanest obj-changing single demo.
@@ -200,9 +200,8 @@ pub(crate) fn cmd_search_eval(rest: &[String]) -> ExitCode {
     let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
-    if !tc.has_strace() || !tc.has_mingw() {
-        println!("SKIP: strace / i686-w64-mingw32-gcc absent (needed for replay)");
-        return ExitCode::SUCCESS;
+    if let Some(code) = toolchain_ready(&tc, &[Cap::Strace, Cap::Mingw], "needed for replay") {
+        return code;
     }
     let fixtures: Vec<PathBuf> = SEARCH_FIXTURES
         .iter()
@@ -330,9 +329,8 @@ pub(crate) fn cmd_search_from_retrieval(rest: &[String]) -> ExitCode {
     let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
-    if !tc.has_strace() || !tc.has_mingw() {
-        println!("SKIP: strace / i686-w64-mingw32-gcc absent (needed for replay)");
-        return ExitCode::SUCCESS;
+    if let Some(code) = toolchain_ready(&tc, &[Cap::Strace, Cap::Mingw], "needed for replay") {
+        return code;
     }
 
     let w = Scratch::new("search-from-retrieval");
@@ -467,9 +465,8 @@ pub(crate) fn cmd_search_from_lifter(rest: &[String]) -> ExitCode {
     let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
-    if !tc.has_strace() || !tc.has_mingw() {
-        println!("SKIP: strace / i686-w64-mingw32-gcc absent (needed for replay)");
-        return ExitCode::SUCCESS;
+    if let Some(code) = toolchain_ready(&tc, &[Cap::Strace, Cap::Mingw], "needed for replay") {
+        return code;
     }
 
     let gens = match search::load_lifter_gens(&gens_path) {

@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use c2_harness::provenance::Provenance;
+use c2_harness::toolchain_gate::{toolchain_ready, Cap};
 
 use crate::{Args, Arity, Spec};
 use crate::cli::util::Scratch;
@@ -162,13 +163,15 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
     let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
-    if !tc.has_strace() {
-        println!("SKIP: strace absent (needed to keep IL bundles during capture)");
-        return ExitCode::SUCCESS;
+    if let Some(code) =
+        toolchain_ready(&tc, &[Cap::Strace], "needed to keep IL bundles during capture")
+    {
+        return code;
     }
-    if replay_every > 0 && !tc.has_mingw() {
-        println!("SKIP: i686-w64-mingw32-gcc absent (needed for --replay-every)");
-        return ExitCode::SUCCESS;
+    if replay_every > 0 {
+        if let Some(code) = toolchain_ready(&tc, &[Cap::Mingw], "needed for --replay-every") {
+            return code;
+        }
     }
 
     // `gap_scan` mints and deletes a `tuNNNNN` subdir per TU inside this one, so

@@ -4,6 +4,7 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use c2_harness::toolchain_gate::{toolchain_ready, Cap};
 use crate::{Args, Arity, Spec};
 use crate::cli::util::Scratch;
 
@@ -40,9 +41,8 @@ pub(crate) fn cmd_listing(rest: &[String]) -> ExitCode {
     let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
-    if !tc.has_strace() {
-        println!("SKIP: strace absent (needed to keep the IL bundle)");
-        return ExitCode::SUCCESS;
+    if let Some(code) = toolchain_ready(&tc, &[Cap::Strace], "needed to keep the IL bundle") {
+        return code;
     }
     if flags.is_empty() {
         flags = ["/O1", "/Oi", "/EHsc", "/GS-", "/c"]
@@ -174,9 +174,8 @@ pub(crate) fn cmd_listing_scan(rest: &[String]) -> ExitCode {
     let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
-    if !tc.has_strace() {
-        println!("SKIP: strace absent (needed to keep the IL bundle)");
-        return ExitCode::SUCCESS;
+    if let Some(code) = toolchain_ready(&tc, &[Cap::Strace], "needed to keep the IL bundle") {
+        return code;
     }
 
     // As in `gap`: `listing_scan` owns a per-TU subdir inside this container and

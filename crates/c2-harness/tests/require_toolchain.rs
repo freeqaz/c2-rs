@@ -49,16 +49,21 @@
 //!   can be empty — `gate.sh`'s own design rule, quoted because the same design
 //!   applies.
 
+use c2_harness::toolchain_gate::{toolchain_demand, Demand, REQUIRE_TOOLCHAIN_VAR as VAR};
 use c2_reference::Toolchain;
 
-/// The variable a caller sets to say *"this run is expected to grade against
-/// real `c2.dll`"*. Any value but `0` (and the empty string) means yes.
-const VAR: &str = "C2RS_REQUIRE_TOOLCHAIN";
+// The variable's name and the rule for reading it (`0` and empty mean no)
+// are imported, not re-typed. They used to live here as a `const` and a
+// `match`; `crates/c2-harness/src/toolchain_gate.rs` now honours the same
+// demand at the fifteen CLI capability gates (review §2.2), and two
+// implementations of "is the demand set" is precisely the shape that funnel
+// exists to remove. This test's behaviour, and every line it prints, are
+// unchanged.
 
 #[test]
 fn a_run_that_claims_to_grade_must_have_a_toolchain_to_grade_with() {
-    let demand = match std::env::var(VAR) {
-        Err(_) => {
+    let demand = match toolchain_demand() {
+        Demand::Unset => {
             println!(
                 "{VAR} unset: this run makes no claim to have graded anything. \
                  That is the default and the portable lane's entitlement — set \
@@ -67,12 +72,12 @@ fn a_run_that_claims_to_grade_must_have_a_toolchain_to_grade_with() {
             );
             return;
         }
-        Ok(v) => v,
+        Demand::Disabled(v) => {
+            println!("{VAR}={v:?}: demand explicitly disabled.");
+            return;
+        }
+        Demand::Demanded(v) => v,
     };
-    if demand.is_empty() || demand == "0" {
-        println!("{VAR}={demand:?}: demand explicitly disabled.");
-        return;
-    }
 
     let located = Toolchain::locate();
     assert!(

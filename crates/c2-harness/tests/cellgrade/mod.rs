@@ -49,9 +49,7 @@ use c2_reference::Toolchain;
 
 /// The workload's own profile, minus the `/I` paths a standalone cell cannot
 /// use. `/O1` implies `/Gy`; `/Ox` does not.
-pub const FLAGS: [&str; 8] = [
-    "/nologo", "/wd4355", "/wd4164", "/c", "/GR", "/O1", "/Oi", "/EHsc",
-];
+pub const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 /// `w-empty`'s ANCHOR, **prepended** — a callee this TU does not define, whose
 /// relocation must survive.
@@ -95,9 +93,7 @@ pub type Rows = Vec<(&'static str, FnByte, String, Vec<u8>, usize)>;
 /// a finding that would have reversed its conclusion**. `cargo test` runs the
 /// tests in a target concurrently by default, so the tag is not optional.
 pub fn work(tag: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("c2rs-cell-{tag}-{}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
+    c2_harness::testsupport::scratch_dir("cell", tag)
 }
 
 /// Grade one frozen cell through **`grade_one`** — the same function the 878-TU

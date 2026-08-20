@@ -45,9 +45,7 @@ use c2_reference::Toolchain;
 /// the only mode where the fence's exemption is live at all (board #1638). At
 /// `/Ox` this fixture is `NotImplemented` and the cell would grade a different
 /// question.
-const FLAGS: [&str; 8] = [
-    "/nologo", "/wd4355", "/wd4164", "/c", "/GR", "/O1", "/Oi", "/EHsc",
-];
+const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 /// The fixture, relative to the repo root — which is also the scan's `cwd`, so
 /// the string below is both the source argument and the `src` the report keys

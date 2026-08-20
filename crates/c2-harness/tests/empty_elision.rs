@@ -33,9 +33,7 @@ use c2_reference::Toolchain;
 
 /// The workload's own profile, minus the `/I` paths a standalone cell cannot
 /// use. `/O1` implies `/Gy`; `/Ox` does not.
-const FLAGS: [&str; 8] = [
-    "/nologo", "/wd4355", "/wd4164", "/c", "/GR", "/O1", "/Oi", "/EHsc",
-];
+const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 /// Every cell carries this, and its relocation must survive: a callee this TU
 /// does not define. Without it "the port emitted no branch" is indistinguishable
@@ -44,9 +42,7 @@ const FLAGS: [&str; 8] = [
 const ANCHOR: &str = "\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n";
 
 fn work(tag: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("c2rs-w-empty-{tag}-{}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
+    c2_harness::testsupport::scratch_dir("w-empty", tag)
 }
 
 /// Grade one source cell at the workload profile.

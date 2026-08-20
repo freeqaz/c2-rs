@@ -30,6 +30,8 @@ pub mod prefilter;
 pub mod provenance;
 pub mod retrieval;
 pub mod search;
+pub mod testsupport;
+pub mod toolchain_gate;
 
 pub(crate) use corpus::jstr;
 
@@ -167,46 +169,48 @@ pub fn differential_cached(
     // 1. Capture the pipeline reference obj + IL bundle + exact c2 argv, at the
     //    profile this fixture declares (or the default — see `fixture_profile`).
     //
-    //    With a cache configured the *same* profile resolution runs first, so
-    //    the key carries this fixture's own flags: a `// c2rs-profile:` marker
-    //    keys differently from the default, which it must, because it is a
-    //    different compiler invocation.
-    let (captured, outcome) = match cache {
-        Some(c) => {
-            let profile = match fixture_profile::resolve_profile(cpp) {
-                Ok(p) => p,
-                Err(e) => {
-                    return (
-                        DiffReport::ReferenceError(format!("capture_reference failed: {e}")),
-                        bypassed,
-                    )
-                }
-            };
-            let src_arg = match cpp.canonicalize() {
-                Ok(abs) => c2_reference::to_wibo_path(&abs),
-                // Unresolvable path: fall through to the uncached call, which
-                // will produce the same error the old code did.
-                Err(e) => {
-                    return (
-                        DiffReport::ReferenceError(format!("capture_reference failed: {e}")),
-                        bypassed,
-                    )
-                }
-            };
-            let (r, o) = c.capture(
-                reference,
-                &src_arg,
-                &profile.flags,
-                None,
-                &work.join("cap"),
-            );
-            (r, o)
+    //    The profile resolution runs FIRST and for BOTH arms, so the key carries
+    //    this fixture's own flags: a `// c2rs-profile:` marker keys differently
+    //    from the default, which it must, because it is a different compiler
+    //    invocation. The cache-or-not decision itself is one function —
+    //    [`capture_cache::capture_via`], shared with the workload scan
+    //    (`gap/scan.rs`), review §2.1.
+    //
+    //    Resolving the profile and the source argument here, rather than inside
+    //    the uncached arm's `capture_fixture_reference`, is the only thing that
+    //    moved: that helper does `resolve_profile` then
+    //    `capture_reference_flags`, which is `to_wibo_path(absolute(cpp))`, and
+    //    `absolute()` on an existing path IS `canonicalize()`
+    //    (`c2-reference/src/lib.rs`). Same order, same string, same error text
+    //    for an unreadable `cpp` — the profile error is what both arms report
+    //    first, and `io::Error::new(InvalidData, e.to_string())` displays as
+    //    `e.to_string()`.
+    let profile = match fixture_profile::resolve_profile(cpp) {
+        Ok(p) => p,
+        Err(e) => {
+            return (
+                DiffReport::ReferenceError(format!("capture_reference failed: {e}")),
+                bypassed,
+            )
         }
-        None => (
-            fixture_profile::capture_fixture_reference(reference, cpp, &work.join("cap")),
-            bypassed,
-        ),
     };
+    let src_arg = match cpp.canonicalize() {
+        Ok(abs) => c2_reference::to_wibo_path(&abs),
+        Err(e) => {
+            return (
+                DiffReport::ReferenceError(format!("capture_reference failed: {e}")),
+                bypassed,
+            )
+        }
+    };
+    let (captured, outcome) = capture_cache::capture_via(
+        cache,
+        reference,
+        &src_arg,
+        &profile.flags,
+        None,
+        &work.join("cap"),
+    );
     let captured = match captured {
         Ok(c) => c,
         Err(e) => {

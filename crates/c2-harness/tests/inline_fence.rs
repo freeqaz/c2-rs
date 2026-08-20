@@ -38,9 +38,7 @@ use c2_reference::Toolchain;
 
 /// The workload's own profile, minus the `/I` paths a standalone cell cannot
 /// use. `/O1` implies `/Gy`, which is the regime the whole 878-TU scan lives in.
-const FLAGS: [&str; 8] = [
-    "/nologo", "/wd4355", "/wd4164", "/c", "/GR", "/O1", "/Oi", "/EHsc",
-];
+const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 /// The census key the fence mints. Spelled once: a test that re-types the string
 /// its subject produces is a test of two spellings.
@@ -50,9 +48,7 @@ const FENCE: &str = "callee-defined-in-tu";
 /// parallel tests sharing one PID-keyed directory raced their captures and
 /// fabricated a finding.
 fn work(tag: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("c2rs-inlfence-{tag}-{}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
+    c2_harness::testsupport::scratch_dir("inlfence", tag)
 }
 
 /// Capture one source and return `(mangled name, census key)` per `.ex` body,

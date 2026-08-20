@@ -63,9 +63,7 @@ use c2_reference::Toolchain;
 /// the literal's `.gl` record does not bind at all and cell `X` reports
 /// `data-sym-unresolved:eof` — measured at `d28326b4`. A cell captured at the
 /// wrong profile grades a different question and would pass with the fence gone.
-const FLAGS: [&str; 8] = [
-    "/nologo", "/wd4355", "/wd4164", "/c", "/GR", "/O1", "/Oi", "/EHsc",
-];
+const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 /// The key the fence mints, and the key a body in class reports. Spelled once
 /// each: a test that re-types the string its subject produces is a test of two
@@ -90,9 +88,7 @@ const BLIND: &str = "struct Bd { Bd(); ~Bd(); int b0; };\n\
 /// parallel tests sharing one PID-keyed directory raced their captures and
 /// fabricated a finding.
 fn work(tag: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("c2rs-strlit-{tag}-{}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
+    c2_harness::testsupport::scratch_dir("strlit", tag)
 }
 
 /// Capture one source and return `(census keys in `.ex` order, whether

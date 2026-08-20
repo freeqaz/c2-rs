@@ -8,14 +8,10 @@
 //!     (P0.1 proven) AND the port is still `NotImplemented` (open T-E gate).
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use c2_core::PortC2;
 use c2_harness::{differential, oracle_selftest, DiffReport, PortStatus, SelfTestOutcome};
 use c2_reference::Toolchain;
-
-static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 fn fixture(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -25,19 +21,7 @@ fn fixture(name: &str) -> PathBuf {
 }
 
 fn work(tag: &str) -> PathBuf {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-    let d = std::env::temp_dir().join(format!(
-        "c2rs-harness-{tag}-{}-{}-{}",
-        std::process::id(),
-        nanos,
-        n
-    ));
-    std::fs::create_dir_all(&d).unwrap();
-    d
+    c2_harness::testsupport::unique_scratch_dir("harness", tag)
 }
 
 #[test]

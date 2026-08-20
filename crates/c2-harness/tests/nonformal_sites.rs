@@ -82,9 +82,7 @@ use c2_reference::Toolchain;
 /// every cell here reports `opt-mode-00800005` instead of its own key — which is
 /// the neighbouring gate this lane also guards
 /// (`tests/census_key_routing.rs`).
-const FLAGS: [&str; 8] = [
-    "/nologo", "/wd4355", "/wd4164", "/c", "/GR", "/O1", "/Oi", "/EHsc",
-];
+const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 /// The one key all five raise sites publish. Spelled once: a test that re-types
 /// the string its subject produces is a test of two spellings.
@@ -99,9 +97,7 @@ const COMPUTED: &str = "call-arg-computed:eof";
 /// fabricated a finding) and `w-gateperf`'s `reloc_identity` race, which
 /// presented as a port defect for an hour.
 fn work(tag: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("c2rs-wit7nf-{tag}-{}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
+    c2_harness::testsupport::scratch_dir("wit7nf", tag)
 }
 
 /// Capture one source and return the census keys in `.ex` order.

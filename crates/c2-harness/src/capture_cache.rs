@@ -31,10 +31,23 @@
 //! is supposed to be immune to. The key therefore includes the workload tree's
 //! `git rev-parse HEAD` **and** a digest of `git status --porcelain` plus the
 //! contents of every path it lists, so any tracked edit anywhere in the tree —
-//! header or not — changes every key. When the tree is not a checkout the token
-//! is `no-git` and [`CaptureCache::header_closure_warning`] says so out loud;
-//! the cache still works, but the report admits which guard is missing rather
-//! than implying one.
+//! header or not — changes every key. When there is no workload tree to probe —
+//! either the caller passed `None`, or the directory is not a checkout — the
+//! token is `no-git` and the key falls back to the source file's own bytes.
+//!
+//! **Nothing prints a warning about that, and this file used to claim
+//! otherwise.** A `header_closure_warning()` accessor sat here from the cache's
+//! first commit with **no caller in `src/` or `tests/`**, and this paragraph
+//! advertised it as *"says so out loud"* — a guarantee no run has ever made.
+//! Deleted rather than wired (review §2.4, lane `w-refrev`), because wiring it
+//! would have fired on the wrong caller: `c2rs diff` passes `workload_dir =
+//! None` **deliberately** (its inputs are the self-contained `fixtures/cpp/*.cpp`,
+//! which include no project headers, so their own bytes ARE the closure), and it
+//! would therefore have printed a staleness warning on every fixture diff. The
+//! caller for which the closure is load-bearing is `c2rs gap`, which passes the
+//! workload `--cwd` and gets the full `tree`/`tree-dirty` binding above. A run
+//! over a workload that is genuinely not a checkout is a run whose key cannot
+//! see header edits: use `--no-cache`, or `--validate-cache N`.
 //!
 //! Hash collisions are closed the same way — by construction rather than by
 //! arithmetic. The key is 128 bits (two independent FNV-1a-64 passes), which
@@ -187,6 +200,45 @@ pub enum CacheOutcome {
     Poisoned,
 }
 
+/// **The one place that decides "cache or straight to the toolchain".**
+///
+/// The rule is two lines long and it was written twice — `lib.rs`'s
+/// `differential_cached` (the fixture gate) and `gap/scan.rs`'s `scan_one` (the
+/// workload scan) each had their own `match cache { Some(c) => c.capture(…),
+/// None => tc.capture_reference_with(…) }`. Both sit on the capture path the
+/// judge runs through, and "one rule, two implementations" on that path is the
+/// shape `docs/GAPS.md` §6 keeps recording (mis-emit #11's class): the two arms
+/// drift, and the drift is invisible because each arm is separately green.
+/// Review §2.4/§2.1, lane `w-refrev`.
+///
+/// Semantics are exactly what both call sites had:
+///
+/// * with a cache, [`CaptureCache::capture`] owns the key, the lock, the
+///   validator and the counters, and `work` is its *fallback* capture dir (an
+///   unkeyable TU is captured there and counted `bypassed`);
+/// * without one, the capture goes straight to `work` and the outcome word is
+///   [`CacheOutcome::Bypassed`] — which is what `differential_cached` already
+///   reported for a cache-less run and what `scan_one` discarded.
+///
+/// The outcome is returned in both arms rather than only in the cached one, so
+/// a caller that ignores it (the scan) does so *visibly*, at its own call site.
+pub fn capture_via(
+    cache: Option<&CaptureCache>,
+    tc: &Toolchain,
+    src_arg: &str,
+    flags: &[String],
+    cwd: Option<&Path>,
+    work: &Path,
+) -> (io::Result<CapturedReference>, CacheOutcome) {
+    match cache {
+        Some(c) => c.capture(tc, src_arg, flags, cwd, work),
+        None => (
+            tc.capture_reference_with(src_arg, work, flags, cwd),
+            CacheOutcome::Bypassed,
+        ),
+    }
+}
+
 /// Aggregate cache statistics for one scan.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CacheStats {
@@ -215,10 +267,12 @@ pub struct CacheStats {
 pub struct CaptureCache {
     root: PathBuf,
     /// Identity of everything that is not the source file: toolchain + tree.
+    ///
+    /// Whether the header closure is live is readable *here* — `context` carries
+    /// `tree <token>`, and `no-git` is the token for "no checkout to bind to".
+    /// It is deliberately not also a `bool` field: the one accessor that read
+    /// such a field had no caller and is gone (module docs above).
     context: String,
-    /// True iff the workload tree's git identity is part of `context` (the
-    /// header-closure guard). False = the tree is not a checkout.
-    header_closure: bool,
     validate_every: usize,
     seq: AtomicUsize,
     stats: Mutex<CacheStats>,
@@ -344,7 +398,6 @@ impl CaptureCache {
         // fail-open rather than turning an unreadable directory into a panic.
         let root = root.canonicalize().unwrap_or(root);
         let tree = workload_dir.map(GitInfo::probe).unwrap_or_else(GitInfo::unknown);
-        let header_closure = tree.head != "unknown";
         let mut context = String::new();
         context.push_str(CACHE_FORMAT);
         context.push('\n');
@@ -390,7 +443,6 @@ impl CaptureCache {
         Ok(CaptureCache {
             root,
             context,
-            header_closure,
             validate_every,
             seq: AtomicUsize::new(0),
             stats: Mutex::new(CacheStats::default()),
@@ -406,21 +458,6 @@ impl CaptureCache {
     /// compared on whether they even shared a toolchain.
     pub fn context_digest(&self) -> String {
         digest128(self.context.as_bytes())
-    }
-
-    /// A warning when the header-closure guard is unavailable (the workload is
-    /// not a git checkout), so the report never *implies* a guard it lacks.
-    pub fn header_closure_warning(&self) -> Option<String> {
-        if self.header_closure {
-            None
-        } else {
-            Some(
-                "WARNING: the workload tree is not a git checkout, so the capture cache \
-                 key cannot see header edits (only the .cpp's own bytes). Re-run with \
-                 --no-cache, or --validate-cache N, before trusting a warm scan."
-                    .to_string(),
-            )
-        }
     }
 
     /// Snapshot of the counters.
@@ -920,7 +957,6 @@ mod tests {
         let mk = |context: &str| CaptureCache {
             root: dir.clone(),
             context: context.to_string(),
-            header_closure: true,
             validate_every: 0,
             seq: AtomicUsize::new(0),
             stats: Mutex::new(CacheStats::default()),
@@ -984,7 +1020,6 @@ mod tests {
         let c = CaptureCache {
             root: base.clone(),
             context: "ctx".to_string(),
-            header_closure: true,
             validate_every: 0,
             seq: AtomicUsize::new(0),
             stats: Mutex::new(CacheStats::default()),

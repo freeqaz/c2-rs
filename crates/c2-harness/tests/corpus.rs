@@ -11,29 +11,14 @@
 //!     the obj is reproducible, and the manifest indexes them.
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use c2_harness::corpus::{self, sha256_hex, CorpusConfig};
 use c2_il::IlModel;
 use c2_reference::Toolchain;
 
-static COUNTER: AtomicU64 = AtomicU64::new(0);
-
 fn work(tag: &str) -> PathBuf {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-    let d = std::env::temp_dir().join(format!(
-        "c2rs-corpus-test-{tag}-{}-{}-{}",
-        std::process::id(),
-        nanos,
-        n
-    ));
-    std::fs::create_dir_all(&d).unwrap();
-    d
+    c2_harness::testsupport::unique_scratch_dir("corpus-test", tag)
 }
 
 fn sample_dir() -> PathBuf {

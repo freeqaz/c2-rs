@@ -264,4 +264,5 @@ the header block this table is read from.
 | 2026-08-19 | c2map3 | [c2map3](2026-08-19-c2map3.md) | 10 | +0 — no crates/, fixtures/ or scripts/ file is touched |
 | 2026-08-19 | cfgclass | [cfgclass](2026-08-19-cfgclass.md) | 19 | unchanged → unchanged, +0 |
 | 2026-08-19 | w-suitecost | [suitecost](2026-08-19-suitecost.md) | 7 | +0 |
+| 2026-08-20 | w-refrev | [refrev](2026-08-20-refrev.md) | 10 | unchanged, +0 |
 | 2026-08-20 | w-warranty | [warranty](2026-08-20-warranty.md) | 9 | unchanged, +0 |

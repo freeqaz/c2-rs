@@ -34,14 +34,10 @@ use c2_reference::Toolchain;
 /// At `/Ox` these same three sources produce a different section order and a
 /// different `.ex`, so a cell graded there would not be grading `vec.cpp`'s
 /// question.
-const FLAGS: [&str; 8] = [
-    "/nologo", "/wd4355", "/wd4164", "/c", "/GR", "/O1", "/Oi", "/EHsc",
-];
+const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 fn work(tag: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("c2rs-gatecause-{tag}-{}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
+    c2_harness::testsupport::scratch_dir("gatecause", tag)
 }
 
 /// Capture one source at [`FLAGS`] and return its `DecodeCauses`.
