@@ -1118,6 +1118,12 @@ pub fn uncovered_metric_keys() -> Vec<&'static str> {
         "plan-obs-sections-attrs-distinct",
         "plan-obs-drectve-distinct",
     ]);
+    // The per-component `distinct` keys count DISTINCT OBSERVED SIGNATURES, and
+    // the signature is an FNV hash of the reference obj's own value — it is not
+    // a TSV column either, for the reason the signature is hashed at all (one
+    // TU's emit set is 158 mangled names). Named here so `derived + uncovered`
+    // is exactly the published block and the arithmetic closes.
+    v.extend(PLAN_KEYS.iter().map(|k| k.distinct));
     v.sort_unstable();
     v
 }

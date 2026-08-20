@@ -4857,13 +4857,19 @@ fn every_plan_metric_is_re_derived_from_the_rows_and_agrees() {
         if derived.contains_key(*k) || uncovered.contains(k) {
             continue;
         }
-        // The `-distinct` keys come from the signature map, not from a TSV
-        // column, and are listed in `uncovered_metric_keys` by their `plan-obs-`
-        // spelling; the per-component ones are named here for the same reason.
-        if k.ends_with("-distinct") {
-            continue;
-        }
         unaccounted.push(k);
+    }
+    // …and the accounting CLOSES: derived + uncovered is exactly the published
+    // block, with no key in both. A coverage line whose two halves do not sum to
+    // the whole is a coverage line nobody can check.
+    let derived_plan: std::collections::BTreeSet<&str> =
+        derived.keys().map(String::as_str).collect();
+    for k in &uncovered {
+        assert!(
+            !derived_plan.contains(k),
+            "`{k}` is listed as unreachable AND re-derived — the two halves of the \
+             coverage line must be disjoint"
+        );
     }
     assert!(
         unaccounted.is_empty(),

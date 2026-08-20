@@ -180,10 +180,30 @@ pub(crate) fn cmd_factors(rest: &[String]) -> ExitCode {
                                     }
                                 );
                             }
+                            // **THE COVERAGE, AND ITS COMPLEMENT.** "13 OK"
+                            // reads as done; the first version of this check
+                            // covered 13 of 48 published keys and the omissions
+                            // included the PRIMARY GRADING CRITERION. So the
+                            // uncovered keys are NAMED, and a unit test asserts
+                            // the list is exactly the uncovered set.
+                            let uncovered = c2_harness::gap::plan::uncovered_metric_keys();
+                            let published_plan = published
+                                .keys()
+                                .filter(|k| k.starts_with("plan-"))
+                                .count();
                             println!(
                                 "\x20 {ok} OK, {dis} DISAGREE, {abs} ABSENT. An ABSENT is its \
                                  own verdict and not a pass: a control that checks nothing and \
                                  a control that passes look identical in a summary line."
+                            );
+                            println!(
+                                "\x20 COVERAGE — {} of the {published_plan} `plan-*` keys in \
+                                 this log are re-derived here. The rest are NOT a silence: \
+                                 they are the observe-side inventory, which is a sum over the \
+                                 reference obj and is not a column in the TSV, so no parser \
+                                 over it can reach them. Named: {}",
+                                derived.len(),
+                                uncovered.join(" ")
                             );
                             if dis > 0 || ok == 0 {
                                 bad = true;
