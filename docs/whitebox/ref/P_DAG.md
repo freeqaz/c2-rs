@@ -89,7 +89,7 @@ moves `[O]`.
 | `0x10b7dc51` | 219 | 1 | 5 | *(gap)* | 33 | the phase driver that runs the three mode-1 schedules and the allocator `[R]` |
 | `0x10b7df57` | 219 | 1 | 7 | *(gap)* | 21 | the mode-0 (final) schedule `[R]` |
 | `0x10b7e6af` | 106 | 1 | 9 | `main.c` gap | 28 | orders the two `[R]` |
-| `0x10b7d85e` | 920 | 1 | 28 | *(gap)* | 2 | the per-function phase pipeline, each phase bracketed by the timer `0x10bec297` `[R]` |
+| `0x10b7d85e` | 920 | 1 | 28 | *(gap)* | 2 | the per-function phase pipeline, each phase preceded by a call to **`0x10bec297`** `[R]` — see the correction below; it is **not** a timer |
 
 ### 2.1 Tables
 
@@ -103,6 +103,46 @@ moves `[O]`.
 | `0x10c3bfb0` | the microcoded-opcode list (+15 cycles) `[R]` |
 | `0x10c435cc` | the monotonic tuple-index counter, source of `node+0x44` `[R]` |
 | `0x10c435ac` / `0x10c435b4` | last-writer / last-reader lists `[R]` |
+
+
+> ### ⛔ CORRECTION 2026-08-20 (lane `w-stageoracle`) — **`0x10bec297` IS NOT "THE TIMER"**
+>
+> §2's `0x10b7d85e` row and `WB_REGALLOC_FINDINGS.md`'s §3 both called it one.
+> It is the **abort / cancellation poll**:
+>
+> ```
+> 10bec297: 83 3d 28 7d c3 10 00   cmp DWORD PTR ds:0x10c37d28,0x0
+> 10bec29e: 74 05                  je  0x10bec2a5
+> 10bec2a0: e9 97 ff ff ff         jmp 0x10bec23c
+> 10bec2a5: c3                     ret
+> ```
+>
+> `DAT_10c37d28` is the same global `_AbortCompilerPass@4` (`0x10bec2ac`) sets;
+> when it is set the function tail-jumps into the unwind path and **does not
+> return**. Nothing is timed.
+>
+> It remains a perfectly good **phase beacon** — 143 occurrences of the literal
+> in the flat export, in the stereotyped shape
+> `call 0x10bec297; mov ecx,esi; mov ds:0x10c2e2ec,edi; call <PHASE>` — and
+> that is what a stage tap would use it for. **Whether those sites correspond
+> 1:1 to the 35-entry pass-name array at `0x10c2e9e4` is NOT established**:
+> `w-stageoracle` registered it at 0.15 against and did not measure it, and the
+> name array has **zero code xrefs in the flat export**, so *"COLOR is index
+> 14"* is a data fact while *"the pipeline dispatches through that table"* is a
+> hypothesis.
+>
+> The four scheduler-run rows in §1 are **re-derived by measurement** in that
+> lane: four separately-patched call sites (`0x10b7dc9f`, `0x10b7dcde`,
+> `0x10b7dd1d`, `0x10b7e00c`) each fire exactly once per function, and the
+> count equals c2's own `/FAsc` `PROC` count and the obj's `.text` COMDAT count
+> (7/7/7 on `fixtures/cpp/il_call_perm.cpp`). Promotes §1's *four runs per
+> function* from `[R]` to `[O]`.
+>
+> **And one thing §1 does not say, now measured**: the register allocator
+> writes **nothing** in the tuple record. Over 83 tuples aligned across
+> `sched2`→COLOR→`sched3`, a 128-byte window per tuple is byte-identical, while
+> the same window moves across the scheduler and across lowering. The assigned
+> register is not in the tuple; see `docs/rungs/2026-08-20-stageoracle.md` §3.
 
 ---
 
