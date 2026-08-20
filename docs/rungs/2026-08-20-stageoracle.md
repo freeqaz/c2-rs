@@ -294,6 +294,39 @@ lane in a fresh worktree does not measure `capture-fail 851` and call it a base.
 * **No `crates/` behaviour changed.** No emit, no refusal predicate, no census
   rule reads a `stage-*` key. `mismatch 0` remains the judge's alarm.
 
+### 6.1 Open questions handed forward, each with the deciding probe named
+
+These are **not** loose ends the lane forgot; they are bounded and each has a
+next measurement, so nobody has to rediscover the question.
+
+1. **Where does COLOR's output live?** Not in the tuple's first 128 bytes
+   (§3). The deciding probe is a raw window on the **operand records the tuple
+   points to** (the tuple's pointer fields are inside the window this lane
+   already dumps, so the next lane can follow them), and on the allocator's own
+   candidate records around `P_REGALLOC.md` §5's `cand+0x28` / `+0x3c`. Until
+   that lands, **a ported COLOR has no per-stage grade** and step 5's pricing
+   for the allocator is unchanged from black box.
+2. **Does the region tap see every mutation of the tuple order?** Unmeasured,
+   and `P_DAG.md` §6 is the standing reason to doubt it: **tuple order has a
+   second author**, the `factor.c` block merger (`0x10b3baa8` → `0x10b3a790`),
+   which is *not* a DAG client. A snapshot taken only at scheduler boundaries
+   can therefore miss a mutation entirely and look stable. The deciding probe
+   is cheap and named: check whether the `sched0` region walk equals the code
+   the `.cod` finally prints, and **name the residue rather than absorbing
+   it**. `crates/c2-reference/src/cod.rs` already reads the `.cod`.
+3. **Do the 57 `call 0x10bec297` beacon sites map to the 35 pass names?** P11,
+   registered 0.15 against, not measured. The deciding probe is to arm them all
+   count-only on one fixture and compare the shape to the name array at
+   `0x10c2e9e4` — which has **zero code xrefs in the flat export**, so
+   *"COLOR is index 14"* is a data fact while *"the pipeline dispatches through
+   that table"* is a hypothesis.
+4. **How many armed sites does the mechanism tolerate?** Measured only to 7.
+   The one-thunk design has no compile-time cap and the arming loop is linear,
+   but the per-call overhead at 60+ sites and whether a heavier payload
+   perturbs c2's own memory behaviour enough to threaten G1 are **not**
+   measured. G1 must be re-run at whatever table a later lane arms — this
+   lane's zero is a statement about seven sites.
+
 ## 7. Gate evidence
 
 | lane | result |

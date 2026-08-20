@@ -135,6 +135,24 @@ WHAT WAS DELIBERATELY NOT DONE
   sole judge, and G1's zero is evidence about REACH, never about correctness.
 
 ---------------------------------------------------------------------------
+OPEN QUESTIONS HANDED FORWARD, each with its deciding probe named (rung §6.1)
+
+1. WHERE COLOR'S OUTPUT LIVES. Not in the tuple's first 128 bytes. Probe: a
+   raw window on the operand records the tuple points to, and on the
+   allocator's candidate records around cand+0x28 / +0x3c. Until that lands a
+   ported COLOR has no per-stage grade and step 5's allocator pricing is
+   unchanged from black box.
+2. WHETHER THE REGION TAP SEES EVERY MUTATION. Unmeasured, and P_DAG §6 is the
+   standing reason to doubt it: tuple order has a SECOND AUTHOR, factor.c's
+   block merger (0x10b3baa8 -> 0x10b3a790), which is not a DAG client. Probe:
+   does the sched0 region walk equal the code the .cod finally prints? Name the
+   residue, do not absorb it. cod.rs already reads the .cod.
+3. THE 57 BEACON SITES vs THE 35 PASS NAMES (P11, 0.15 against, not measured).
+4. HOW MANY ARMED SITES THE MECHANISM TOLERATES. Measured only to 7. G1 must be
+   RE-RUN at whatever table a later lane arms; this lane's zero is a statement
+   about seven sites, not about the mechanism at any size.
+
+---------------------------------------------------------------------------
 BOARD ROWS (block #3322-#3326 allocated by the coordinator)
 
 #3322  The stage oracle is GO. Call-site detours at c2's seven per-function
