@@ -632,6 +632,28 @@ pub(crate) fn split_functions_at(ex: &[u8]) -> (Vec<usize>, Vec<&[u8]>) {
     (starts, segs)
 }
 
+/// **The GATE segmentation, exposed for grading only** (lane `ir0`).
+///
+/// A thin public wrapper over [`split_functions_at`], which is `pub(crate)` and
+/// therefore invisible to an integration test. It exists so
+/// `crates/c2-harness/tests/ir0_framing.rs` can compare the incumbent against
+/// IR0's view **and** against an independently hand-written reference — three
+/// implementations, because two would become a tautology the moment the
+/// incumbent is folded into the view (#3288).
+///
+/// It is a *grading seam*, not a new reader: it adds no decision, and every
+/// production caller keeps calling `split_functions_at` directly.
+pub fn ex_segments_gate(ex: &[u8]) -> (Vec<usize>, Vec<&[u8]>) {
+    split_functions_at(ex)
+}
+
+/// **The CENSUS segmentation, exposed for grading only** (lane `ir0`) — the
+/// `LO`-anchored split with the additive bare-`4C` pass. Same rationale as
+/// [`ex_segments_gate`]; see [`split_function_bodies_at`] for the rule.
+pub fn ex_segments_body(ex: &[u8]) -> (Vec<usize>, Vec<&[u8]>) {
+    split_function_bodies_at(ex)
+}
+
 /// The per-function optimization-settings word for the mode the port's codegen
 /// was verified against: `/Ox` (equivalently `/O2`) — optimize, favour speed.
 ///

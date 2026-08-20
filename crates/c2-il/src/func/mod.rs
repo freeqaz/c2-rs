@@ -51,6 +51,7 @@ pub use self::bundle::{
     DynInitTu,
     ProvideDataObject, ProvideDataTu,
     GlDataRow, InAliasReport,
+    ex_segments_body, ex_segments_gate,
     is_empty_module, opt_word_mode, OptWordMode, OPT_WORD_O1, OPT_WORD_OX,
     OPT_WORD_SPECIAL_MEMBER,
 };
