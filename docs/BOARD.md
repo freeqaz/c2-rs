@@ -4207,3 +4207,30 @@ Nothing is minted beyond the block; two further findings are recorded inside
 | **3341**<sub>w-warranty</sub> | **"ASSERT **0** `SKIP: toolchain absent` IN THE SUITE LOG" IS A VACUOUS CHECK — libtest SWALLOWS STDOUT FOR A PASSING TEST, SO THE COUNT IS ZERO WHETHER OR NOT ANYTHING SKIPPED** | **MEASURED, and it is this lane's own dispatch instruction.** Under a deliberately unresolvable toolchain, `cli_flags::two_profiles_must_not_produce_one_{bundle,obj}` both **pass in 0.00 s having graded nothing**, and `grep -c 'SKIP: toolchain absent'` over the run log returns **0**. The same two tests run with `--nocapture` print the line **twice**. The check is satisfied by the failure it is supposed to detect | 0 SKIP lines in the captured log · 2 SKIP lines with `--nocapture` · both tests `ok` in both runs · at this lane's tip the non-vacuous form (full suite under `-- --nocapture`) also reads **0**, alongside `census_gate` at **97.47 s** and `require_toolchain` passing **by name** · that run also surfaced **2 pre-existing non-toolchain silent early-returns** (`C2RS_ALIAS_CACHEIDX`, `C2RS_IN_PROBE`) that no toolchain demand can cover | rungs/2026-08-20-warranty.md §3.1 · `work/w-warranty/logs/M3.log` · `docs/rungs/README.md` § "Two rules a probe must satisfy" | **THE NON-VACUOUS FORMS ARE A POSITIVE CHECK ON A NAME AND A DURATION**, which is what the README already says and what a natural-language paraphrase of it silently loses: `C2RS_REQUIRE_TOOLCHAIN=1` (asserted by name), `census_gate`'s duration being non-zero, and — if a SKIP count is genuinely wanted — `-- --nocapture`. **A coordinator brief carried the vacuous form to this lane**, so it is not a hypothetical drafting risk; the phrasing to strike is *"assert 0 SKIP lines"* and the phrasing to keep is *"assert the environment rather than the exit code"*, which the same brief also carried and which is correct |
 
 ### `#3337`–`#3341` are `w-warranty`'s, allocated by the coordinator at dispatch. All five are spent above.
+
+---
+
+## RESERVED — `#3322`–`#3336` are minted on branches that are NOT merged
+
+**Do not re-allocate these numbers.** They exist only on the three parked
+branches below. `board_audit.sh` cannot see them: it reads this file and the
+prose in this repo, and a row on an unmerged branch is invisible to both. The
+audit passing is therefore **not** evidence that these numbers are free — the
+audit's own blind spot, recorded here rather than left to be rediscovered.
+
+| block | branch | tip | step in ARCHITECTURE_PROPOSAL_2026-08-20 §5 | review |
+|---|---|---|---|---|
+| `#3322`–`#3326` | `wt-w-stageoracle` | `8b338b39e` | step 0 — stage oracle | `land-with-fixes`, 5 major |
+| `#3327`–`#3331` | `wt-w-objplan` | `2350c118c` | step 3 — IR2 ObjPlan | `land-with-fixes`, 3 major |
+| `#3332`–`#3336` | `wt-w-ir0` | `a0066b692` | step 1 — IR0 RecordStream | `land-with-fixes`, 3 major |
+
+Why each is held, and the findings that hold it: `docs/PARKED_LANES.md`.
+Raw findings: `work/reviews/{oracle,objplan,ir0}-{review,impl}.json`.
+
+### **THE NEXT FREE NUMBER IS `#3342`.**
+
+`#3312`–`#3321` (`w-c2map3`, `w-cfgclass`) and `#3337`–`#3341` (`w-warranty`)
+are merged and spent above. The line at the `w-suitecost` block still reading
+*"THE NEXT FREE NUMBER IS `#3312`"* is that lane's own end-of-block pointer,
+correct when written and superseded by this one — the pointer is per-block and
+the LAST one in the file is the live one.
