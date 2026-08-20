@@ -64,6 +64,7 @@
 //! [wibo]: https://github.com/decompals/wibo
 
 pub mod cod;
+pub mod stage;
 
 use std::io;
 use std::path::{Path, PathBuf};
@@ -293,12 +294,28 @@ impl Toolchain {
         self.c1xx_dll.exists()
     }
 
-    /// Build `c2host.exe` from `c2host/c2host.c` into the gitignored cache if it
-    /// is missing or older than the source. Returns the exe path.
+    /// The full source set `c2host.exe` is linked from: `c2host/c2host.c` plus
+    /// `c2host/stagetap.c` (the stage tap — see `c2host/stagetap.h`).
+    ///
+    /// It is a **list** and not one file because the staleness check below has
+    /// to see every one of them. A single-source check that ignored
+    /// `stagetap.c` would happily keep serving an exe built from an older tap
+    /// after the tap changed, which is a measuring instrument silently
+    /// reporting a previous revision's answer — the exact class of defect this
+    /// repo keeps paying for.
+    pub fn c2host_sources(&self) -> Vec<PathBuf> {
+        vec![
+            self.c2host_src.clone(),
+            self.c2host_src.with_file_name("stagetap.c"),
+        ]
+    }
+
+    /// Build `c2host.exe` from [`Toolchain::c2host_sources`] into the gitignored
+    /// cache if it is missing or older than **any** of them. Returns the exe path.
     ///
     /// Build command (x86 Windows PE, runs under wibo):
-    /// `i686-w64-mingw32-gcc -static -static-libgcc -O2 -o <exe> <src>`.
-    /// Errors clearly if mingw is absent or the source is missing.
+    /// `i686-w64-mingw32-gcc -static -static-libgcc -O2 -o <exe> <src…>`.
+    /// Errors clearly if mingw is absent or a source is missing.
     pub fn ensure_c2host(&self) -> io::Result<PathBuf> {
         let mingw = self.mingw.clone().ok_or_else(|| {
             io::Error::new(
@@ -307,21 +324,27 @@ impl Toolchain {
                  build the c2host x86 stub required for standalone-c2 replay",
             )
         })?;
-        if !self.c2host_src.exists() {
-            return Err(io::Error::new(
-                io::ErrorKind::NotFound,
-                format!("c2host source missing: {}", self.c2host_src.display()),
-            ));
+        let srcs = self.c2host_sources();
+        for s in &srcs {
+            if !s.exists() {
+                return Err(io::Error::new(
+                    io::ErrorKind::NotFound,
+                    format!("c2host source missing: {}", s.display()),
+                ));
+            }
         }
-        let needs_build = match (
-            std::fs::metadata(&self.c2host_exe).and_then(|m| m.modified()),
-            std::fs::metadata(&self.c2host_src).and_then(|m| m.modified()),
-        ) {
-            (Ok(exe_t), Ok(src_t)) => exe_t < src_t, // rebuild if stale
-            _ => true,                               // exe missing → build
+        let needs_build = match std::fs::metadata(&self.c2host_exe).and_then(|m| m.modified()) {
+            Ok(exe_t) => srcs.iter().any(|s| {
+                match std::fs::metadata(s).and_then(|m| m.modified()) {
+                    Ok(src_t) => exe_t < src_t, // rebuild if ANY source is newer
+                    Err(_) => true,
+                }
+            }),
+            Err(_) => true, // exe missing → build
         };
         if needs_build {
-            build_host_stub(&mingw, &self.c2host_src, &self.c2host_exe, "c2host")?;
+            let refs: Vec<&Path> = srcs.iter().map(|p| p.as_path()).collect();
+            build_host_stub(&mingw, &refs, &self.c2host_exe, "c2host")?;
         }
         // c2 resolves `<host-exe-dir>/1033/clui.dll` for diagnostics; without
         // it, any TU that triggers a warning dies with `fatal error C1510`.
@@ -359,7 +382,7 @@ impl Toolchain {
             _ => true,
         };
         if needs_build {
-            build_host_stub(&mingw, &self.c1host_src, &self.c1host_exe, "c1host")?;
+            build_host_stub(&mingw, &[self.c1host_src.as_path()], &self.c1host_exe, "c1host")?;
         }
         self.ensure_c1_resources()?;
         Ok(self.c1host_exe.clone())
@@ -1663,7 +1686,7 @@ impl<'a> Backend for ReferenceC2<'a> {
 /// publication atomic: a concurrent reader opens either the old inode or the
 /// new one, never a partial. It also sidesteps `ETXTBSY` from writing an
 /// executable that another process is running.
-fn build_host_stub(mingw: &Path, src: &Path, exe: &Path, what: &str) -> io::Result<()> {
+fn build_host_stub(mingw: &Path, srcs: &[&Path], exe: &Path, what: &str) -> io::Result<()> {
     let parent = exe
         .parent()
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "host exe has no parent"))?;
@@ -1673,14 +1696,16 @@ fn build_host_stub(mingw: &Path, src: &Path, exe: &Path, what: &str) -> io::Resu
         std::process::id(),
         SCRATCH_COUNTER.fetch_add(1, Ordering::Relaxed)
     ));
-    let output = Command::new(mingw)
-        .arg("-static")
+    let mut cmd = Command::new(mingw);
+    cmd.arg("-static")
         .arg("-static-libgcc")
         .arg("-O2")
         .arg("-o")
-        .arg(&tmp)
-        .arg(src)
-        .output()?;
+        .arg(&tmp);
+    for src in srcs {
+        cmd.arg(src);
+    }
+    let output = cmd.output()?;
     if !output.status.success() || !tmp.exists() {
         let _ = std::fs::remove_file(&tmp);
         return Err(io::Error::new(
