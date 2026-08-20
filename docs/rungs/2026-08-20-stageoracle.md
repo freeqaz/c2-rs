@@ -359,7 +359,33 @@ And the delta against the base's **1,690 / 0 / 48** is accounted exactly:
 `stage.rs`'s `mod tests` adds 3, for **+9 tests and +1 target** —
 `1699 − 9 = 1690`, `49 − 1 = 48`.
 
-**Gate**, `scripts/gate.sh --jobs 16 --require-graded`: GATE_RESULT_PLACEHOLDER
+**Gate**, `scripts/gate.sh --jobs 16 --require-graded`, at the same tip:
+
+    GATE: PASS (HATCH-RED REFUSED)
+    lanes:  18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT
+    graded: 6948 fixture-verdicts across all lanes
+    sweep:  19556 of 19556 reached, 19460 GRADED, 0 mismatch
+    cross:  90424 of 90812 cells graded, 0 mismatch
+    debug:  18 of 18 lanes through a DEBUG-profile c2rs,
+            6948 verdicts, match 2423, 0 mismatch, 0 PANIC
+    graded tree: 90df6918eff3 (750 files under crates fixtures scripts)
+
+Every lane reads `386/386`. The sweep and cross figures equal the ones this
+lane was dispatched against, digit for digit.
+
+**`HATCH-RED REFUSED` is PRE-EXISTING and is not this lane's**, and that is
+asserted rather than assumed: the two most recently merged lanes' own gate logs
+(`work/merge-c2map3-gate.log:79,92`, `work/merge-witness7-gate.log:74`) carry
+the identical `REFUSED 0/14 … HATCH-STALE` row and the identical
+`GATE: PASS (HATCH-RED REFUSED)` headline. `hatch.py`'s needles have drifted
+out of the tree (board **#1389**); the refusal is a property of the tree, not
+of this branch, and `gate.sh` qualifies its own headline for exactly that
+reason.
+
+Per #3215, this lane lands tests, so it may **not** claim a graded-tree
+identity — the tree hash moves by construction. What it claims is identity of
+the **counts**, which is the criterion #290 actually uses, and every count
+above matches.
 
 ### 7.2 THE WORKLOAD STAMP MOVED MID-LANE, AND THIS LANE'S OWN INVALIDATION RULE FIRED
 

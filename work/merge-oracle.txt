@@ -65,7 +65,19 @@ SUITE at the tip: 49 targets, 1699 passed, 0 failed, 0 "SKIP: toolchain
   against the base 1,690/0/48 is accounted exactly: +6 integration tests in
   tests/stage.rs and +3 unit tests in stage.rs = +9 tests, +1 target. Second
   derivation: grep -c "^test .* ... ok" reads 1699 too. GATE at the tip: see
-  the rung doc §7.1.
+  the rung doc §7.1:
+      GATE: PASS (HATCH-RED REFUSED)
+      18 lanes — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT · 6948 fixture-verdicts
+      sweep 19556/19556 reached, 19460 graded, 0 mismatch
+      cross 90424 of 90812 cells graded, 0 mismatch
+      debug 18/18 lanes, 6948 verdicts, match 2423, 0 mismatch, 0 PANIC
+  HATCH-RED REFUSED IS PRE-EXISTING AND ASSERTED, NOT ASSUMED: the two most
+  recently merged lanes' own gate logs (work/merge-c2map3-gate.log:79,92 and
+  work/merge-witness7-gate.log:74) carry the identical REFUSED 0/14 HATCH-STALE
+  row and the identical qualified headline. hatch.py's needles have drifted out
+  of the tree (#1389) — a property of the tree, not of this branch.
+  Per #3215 this lane lands tests, so it claims identity of the COUNTS and not
+  a graded-tree identity; the tree hash moves by construction.
 
 WORKLOAD STAMP: NOT EQUAL AT THE TWO ENDS, AND THE LANE'S OWN INVALIDATION
   RULE FIRED ON ITSELF. base 3df8fd5412c2 -> tip b25928dfb2a6 (dc3-decomp took
