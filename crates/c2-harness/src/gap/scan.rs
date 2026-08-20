@@ -125,6 +125,71 @@ fn scan_one(
     //       beside them for the reason `emit_set_violations_gate` publishes
     //       its population: a green control whose denominator is unstated is
     //       indistinguishable from a control that checked nothing.
+    // 1a'''. **IR0 — the framing, its totality control, and the opaque
+    //        denominators** (lane `ir0`).
+    //
+    //        `Ir0::frame` is infallible: there is no refusal predicate at this
+    //        layer, and bytes no marker opens are `RecordKind::Opaque`, which
+    //        is a description of the INPUT rather than a verdict by the reader.
+    //        So the two `-broken` keys below are **IR0 defect counts with a
+    //        known answer of 0**, in the trap-5 style of
+    //        `in-init-accounting-broken`, and the byte counts are the thing the
+    //        lane was commissioned for.
+    //
+    //        **`ir0-bytes-opaque` is not a reader deficiency and must not be
+    //        read as one.** `.db` is one opaque record by design (`.gl`
+    //        framing is IR1, `.sy`/`.in`/`.db` are further out still), and `.db`
+    //        dominates a real bundle. The `.ex`-only pair is the number about
+    //        the reader's own stream; the whole-bundle pair is the number about
+    //        the scope IR0 v1 declared.
+    {
+        let ir0 = c2_il::Ir0::frame(&captured.bundle);
+        if <c2_il::Ir0 as c2_il::Ir0Framing>::verify(&ir0).is_err() {
+            *res.emit.entry("ir0-verify-broken".into()).or_insert(0) += 1;
+        }
+        *res.emit.entry("ir0-tus-framed".into()).or_insert(0) += 1;
+        let mut bytes = 0usize;
+        let mut framed = 0usize;
+        let mut opaque = 0usize;
+        for ff in &ir0.files {
+            *res.emit.entry("ir0-records".into()).or_insert(0) += ff.records.len();
+            let (f, o) = ff.byte_split();
+            bytes += ff.bytes.len();
+            framed += f;
+            opaque += o;
+            if ff.suffix == "ex" {
+                *res.emit.entry("ir0-ex-bytes".into()).or_insert(0) += ff.bytes.len();
+                *res.emit.entry("ir0-ex-bytes-framed".into()).or_insert(0) += f;
+                *res.emit.entry("ir0-ex-bytes-opaque".into()).or_insert(0) += o;
+            }
+        }
+        *res.emit.entry("ir0-bytes".into()).or_insert(0) += bytes;
+        *res.emit.entry("ir0-bytes-framed".into()).or_insert(0) += framed;
+        *res.emit.entry("ir0-bytes-opaque".into()).or_insert(0) += opaque;
+        // Totality as a printed control, not an assertion — the shape
+        // `in-init-accounting-broken` uses.
+        if framed + opaque != bytes {
+            *res.emit.entry("ir0-accounting-broken".into()).or_insert(0) += 1;
+        }
+        // **C4 — the free cross-check, and it costs one comparison.** IR0's two
+        // views must reproduce the incumbent splitters exactly. The
+        // `emit-splitter-*` counters above are read off `ex_segment_count` and
+        // `census_functions`; if the IR0 view disagrees with either, the views
+        // are not views. NO NEW `ir0-seg-*` KEY IS MINTED for the disagreement
+        // itself — `SPLITTER ANCHORS` already prints it (#3314's shape) — only
+        // this alarm, whose known answer is 0.
+        if let Some(ex) = captured.bundle.ex() {
+            let f = c2_il::Ir0::frame_ex(ex);
+            let gate_ok = f.gate_segments().0 == c2_il::ex_segments_gate(ex).0;
+            let body_ok = f.body_segments().0 == c2_il::ex_segments_body(ex).0;
+            if !(gate_ok && body_ok) {
+                *res.emit
+                    .entry("ir0-splitter-crosscheck-broken".into())
+                    .or_insert(0) += 1;
+            }
+        }
+    }
+
     {
         *res.emit.entry("ir0-roundtrip-tus".into()).or_insert(0) += 1;
         match c2_il::IlModel::parse(&captured.bundle) {
@@ -1931,6 +1996,56 @@ pub fn gap_scan(
                 println!("\x20 residue {r}: {n}");
             }
         }
+    }
+    // **IR0 FRAMING — the totality controls and the opaque denominators.**
+    //
+    // The three `broken` counts are IR0 DEFECT counts with a known answer of 0,
+    // not coverage numbers: `Ir0::frame` is infallible, so a non-zero value
+    // means the framer is wrong and never that the input was.
+    //
+    // The percentages are stated with what they are ABOUT attached, because the
+    // whole-bundle one looks bad and is the honest number: `.gl`, `.sy`, `.in`
+    // and `.db` are one opaque record each **by declared scope** — `.gl` record
+    // framing is IR1 — and `.db` dominates a real bundle. Reading
+    // `ir0-bytes-opaque` as a reader deficiency is the mistake this line exists
+    // to prevent.
+    {
+        let t = |k: &str| report.emit_total(k);
+        let (tus, recs) = (t("ir0-tus-framed"), t("ir0-records"));
+        let (b, bf, bo) = (t("ir0-bytes"), t("ir0-bytes-framed"), t("ir0-bytes-opaque"));
+        let (e, ef, eo) = (
+            t("ir0-ex-bytes"),
+            t("ir0-ex-bytes-framed"),
+            t("ir0-ex-bytes-opaque"),
+        );
+        let pct = |n: usize, d: usize| {
+            if d == 0 {
+                "n/a".to_string()
+            } else {
+                format!("{:.2}%", 100.0 * n as f64 / d as f64)
+            }
+        };
+        println!(
+            "\nIR0 FRAMING (`c2_il::stream`) — totality holds or the framer is wrong; the framer \
+             NEVER refuses\n\
+             \x20 {recs} records over {tus} bundles; controls: verify-broken {}, \
+             accounting-broken {}, splitter-crosscheck-broken {} (each a DEFECT count, known \
+             answer 0)\n\
+             \x20 `.ex` ONLY — the stream IR0 v1 frames: {e} B, {ef} inside a `4F 1F` segment \
+             ({}), {eo} opaque ({}). The opaque part is the header/index region before the first \
+             marker, which NEITHER incumbent splitter has ever covered.\n\
+             \x20 WHOLE BUNDLE — {b} B, {bf} framed ({}), {bo} opaque ({}). **This is a fact \
+             about IR0 v1's declared SCOPE, not about the reader**: `.gl`/`.sy`/`.in`/`.db` are \
+             one opaque record each on purpose (`.gl` record framing is IR1) and `.db` dominates \
+             a real bundle.",
+            t("ir0-verify-broken"),
+            t("ir0-accounting-broken"),
+            t("ir0-splitter-crosscheck-broken"),
+            pct(ef, e),
+            pct(eo, e),
+            pct(bf, b),
+            pct(bo, b),
+        );
     }
     println!(
         "\nSPLITTER ANCHORS (ROADMAP §10.11/§10.12) — the census splits `.ex` on `4C 4F 11`, \
