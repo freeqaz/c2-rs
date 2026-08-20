@@ -1,0 +1,278 @@
+THE STAGE ORACLE IS GO — 0 of 375 objs ON WHICH THE TAP ARMED AND FIRED move
+when it is armed, one digest over ten runs, and c2's REGISTER ALLOCATOR turns
+out to write nothing in the tuple
+
+    ** READ THE FIX-ROUND BLOCK AT THE END OF THIS FILE FIRST. **
+    The review returned land-with-fixes (5 major / 14 findings); every major is
+    fixed, every minor is fixed or priced, and THREE numbers in the body below
+    are superseded there — the G1 denominator (410 -> 375), the gate/suite run
+    (rebased twice), and the workload stamp (fifth value -> seventh).
+
+    Branch:   wt-w-stageoracle
+    Base:     5f9ae0829 (rebased twice: 826ba1e41 as dispatched, then 5f9ae0829
+              when the coordinator merged w-refrev mid-fix-round)
+    Kind:     characterization lane
+    Outcome:  instrument
+    Rung:     docs/rungs/2026-08-20-stageoracle.md
+    Prereg:   work/oracle/PREREG.md (frozen as the lane's first commit)
+    Board:    #3322-#3326 allocated; see "BOARD ROWS" below
+    DO NOT PUSH.
+
+---------------------------------------------------------------------------
+WHAT THIS ANSWERS
+
+§4 of docs/ARCHITECTURE_PROPOSAL_2026-08-20.md makes the stage oracle step 0
+and the go/no-go for the entire back half of the migration: if c2's
+intermediate state cannot be observed, porting its register allocator and
+scheduler is unguided guessing and the honest answer is to say so and stop.
+
+IT CAN BE OBSERVED. Neutrally, deterministically, canonically, with a
+non-empty payload that cross-derives three ways.
+
+AND THE BOUNDARY IS WORTH MORE THAN THE GREEN: the observable is BLIND TO
+COLOR. It moves across the scheduler and across lowering on every function and
+is byte-identical across the register allocator on every function, with a
+128-byte raw window per tuple saying COLOR writes NOTHING in the tuple record.
+A ported COLOR cannot be graded against this snapshot. The allocator's output
+lives in the operand records the tuple points to, or in its own candidate
+records (P_REGALLOC.md §5's cand+0x28 / +0x3c). That is a concrete direction
+for the next lane and it REPLACES the plan's "read P_REGALLOC once the
+mechanism is green" with a measurement that rules the tuple out.
+
+---------------------------------------------------------------------------
+EVIDENCE
+
+G1 NEUTRALITY (required zero; the sole judge's own criterion), payload ON:
+    fixtures/cpp        graded 384   stage-tap-obj-differs 0   errors 2
+    26 matched TUs      graded  26   stage-tap-obj-differs 0   errors 0
+    sites armed 2688 + 182, refused 0
+  Second derivation: re-counting the log's own verdict lines gives
+  SAME 384 / DIFFERS 0 / ERR 2 — equal to the accumulated counters.
+  The 2 errors are wmain_no_return{,_neg}.cpp failing on the DISARMED leg
+  (the untapped replay itself makes no obj). Pre-existing; classified as
+  errors, never folded into either side of the required zero.
+
+G2/G2b DETERMINISM + CANONICALITY, payload ON, 4 fixtures x (5 same-config +
+5 different-cwd/different-/Fo) runs:
+    stage-snap-distinct-max 1 · stage-snap-unstable-tus 0 · empty payloads 0
+  One digest per fixture over all ten runs, AT THE FIRST SCHEMA.
+
+G3 DISCRIMINATION: the four optimizer-gated sites fire 0 times at /Od and >0
+  at /O1 on il_call_perm.cpp. Grounded in the bytes (0x10b7dc83 / 0x10b7dcc2 /
+  0x10b7dd01 are each `cmp ds:0x10c2e2fc,edi` with edi==0), not hoped for.
+
+G5 CONTENT, three independently-built derivations agreeing on 7 for
+  il_call_perm.cpp: the tap (patched sites INSIDE c2), c2's own /FAsc writer
+  (7 PROC), and the COFF section table (7 .text COMDAT). 329 tuple rows, 56
+  regions, 0 walk refusals. Re-derives P_DAG §1's "four scheduler runs per
+  function" as an equality between four separately-patched sites.
+
+SUITE at the tip: 49 targets, 1699 passed, 0 failed, 0 "SKIP: toolchain
+  absent". census_gate ran 145.65 s (a
+  provisioned run, not the 0.00 s an unprovisioned worktree gives). The delta
+  against the base 1,690/0/48 is accounted exactly: +6 integration tests in
+  tests/stage.rs and +3 unit tests in stage.rs = +9 tests, +1 target. Second
+  derivation: grep -c "^test .* ... ok" reads 1699 too. GATE at the tip: see
+  the rung doc §7.1:
+      GATE: PASS (HATCH-RED REFUSED)
+      18 lanes — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT · 6948 fixture-verdicts
+      sweep 19556/19556 reached, 19460 graded, 0 mismatch
+      cross 90424 of 90812 cells graded, 0 mismatch
+      debug 18/18 lanes, 6948 verdicts, match 2423, 0 mismatch, 0 PANIC
+  HATCH-RED REFUSED IS PRE-EXISTING AND ASSERTED, NOT ASSUMED: the two most
+  recently merged lanes' own gate logs (work/merge-c2map3-gate.log:79,92 and
+  work/merge-witness7-gate.log:74) carry the identical REFUSED 0/14 HATCH-STALE
+  row and the identical qualified headline. hatch.py's needles have drifted out
+  of the tree (#1389) — a property of the tree, not of this branch.
+  Per #3215 this lane lands tests, so it claims identity of the COUNTS and not
+  a graded-tree identity; the tree hash moves by construction.
+
+WORKLOAD STAMP: NOT EQUAL AT THE TWO ENDS, AND THE LANE'S OWN INVALIDATION
+  RULE FIRED ON ITSELF. base 3df8fd5412c2 -> tip b25928dfb2a6 (dc3-decomp took
+  `b25928dfb Merge fix/string-literals-20260820` mid-lane). A FIFTH stamp
+  value. Prereg rule 1 says re-read the base at the current stamp rather than
+  explain the delta, and that was done:
+      match/mismatch 26/0 at both · vocab-gap 844 · capture-fail 8 · 395 keys
+      at both, same key names
+      105 OF 395 KEY VALUES MOVED — the sharpest #3306/#3311 instance on
+      record (previous: 82 of 394), and the first to happen INSIDE one lane
+      fnbyte-exact 35,912 -> 35,893 · factor-c 169 -> 170, on a lane that
+      changes no crates/ behaviour
+  The matched-26 neutrality row STANDS rather than being annotated: the 26 TUs
+  are identical by name at both stamps AND all 26 source blobs are
+  byte-identical across the merge (checked per file; 79 other files changed).
+
+---------------------------------------------------------------------------
+FOUR PLAN DEFECTS AND ONE ENVIRONMENT DEFECT
+
+1. "The HMODULE LoadLibraryA returns IS the load base" is FALSE UNDER WIBO —
+   it returns 0x00000018. The first armed run computed slide=ef500018, every
+   site failed the fail-closed opcode check, and NOTHING WAS PATCHED. The
+   invariant did its job on its first outing. Slide now = GetProcAddress
+   ("_InvokeCompilerPass@12") - 0x10bebffd, cross-derived against
+   VirtualQuery's AllocationBase.
+2. Per-site __declspec(naked) thunks DO NOT BUILD — GCC does not implement the
+   naked attribute on i686, and i686-w64-mingw32-gcc is the only compiler
+   ensure_c2host uses. Replaced by ONE top-level __asm__ thunk that recovers
+   the site from the return address the `call` already pushed. Smaller, and it
+   removes the compile-time cap on site count.
+3. FlushInstructionCache is a missing import in wibo and SIGABRTs the process.
+   Dropped: x86's icache is coherent, one thread, bytes written before c2
+   executes them.
+4. This lane's own first neutrality test added a "stronger" third assertion
+   and it FAILED with Differs{first_offset:8, a_len:1725, b_len:1721}. Offset
+   8 is PointerToSymbolTable and the delta was the embedded /Fo PATH STRING,
+   because the leg wrote to a scratch path. c2 was neutral all along. A
+   stronger check that silently changes the command is worth less than none.
+
+ENVIRONMENT: scripts/gen_dc3_workload.sh maps only the FORWARD-SLASH spelling
+of the e:/lazer_build_gmc1 roots; dc3-decomp 3df8fd5412c2 emits them with
+BACKSLASHES. Six of eight /I roots pass through unmapped and the scan reads
+match 17 / capture-fail 851 / 343 gap-metric keys — every digit plausible,
+nothing saying the include roots are wrong. A landable one-line fix, NOT this
+lane's deliverable, reported so the next fresh worktree does not call that a
+base. Invalid log kept at work/oracle/base_gap_BROKEN_FLAGS.log.
+
+---------------------------------------------------------------------------
+WHAT WAS DELIBERATELY NOT DONE
+
+* Residency (the peer proposal's M1 fork server) is NOT built, and that is a
+  disagreement with the brief rather than an omission: one process per compile
+  is exactly what makes snapshot determinism testable. What M1 reuses: tap_arm's
+  slide derivation and fail-closed self-check, the multi-source
+  build_host_stub, replay_tapped's command construction (build_replay_command
+  UNCHANGED), and the fact that c2 runs in a host process we own. M1 adds a
+  loop and a socket, and should be graded against these snapshots.
+* P11 (do the 57 phase-beacon sites map to the 35 pass names?) NOT measured —
+  registered at 0.15, adds nothing to the go/no-go, and the site table is built
+  to take them. The record correction stands regardless: P_DAG.md §2 calls
+  0x10bec297 "the timer" and it is the ABORT/CANCELLATION POLL.
+* P13 REFUTED before the site table was finalized, as registered: -off# is not
+  a per-pass ablation switch (/d2off0/1/2/14 all give a timestamp-zeroed obj
+  byte-identical to the flagless baseline). No free channel exists.
+* NO crates/ BEHAVIOUR CHANGED. No emit, refusal predicate or census rule
+  reads a stage-* key. The obj byte compare against real c2.dll remains the
+  sole judge, and G1's zero is evidence about REACH, never about correctness.
+
+---------------------------------------------------------------------------
+OPEN QUESTIONS HANDED FORWARD, each with its deciding probe named (rung §6.1)
+
+1. WHERE COLOR'S OUTPUT LIVES. Not in the tuple's first 128 bytes. Probe: a
+   raw window on the operand records the tuple points to, and on the
+   allocator's candidate records around cand+0x28 / +0x3c. Until that lands a
+   ported COLOR has no per-stage grade and step 5's allocator pricing is
+   unchanged from black box.
+2. WHETHER THE REGION TAP SEES EVERY MUTATION. Unmeasured, and P_DAG §6 is the
+   standing reason to doubt it: tuple order has a SECOND AUTHOR, factor.c's
+   block merger (0x10b3baa8 -> 0x10b3a790), which is not a DAG client. Probe:
+   does the sched0 region walk equal the code the .cod finally prints? Name the
+   residue, do not absorb it. cod.rs already reads the .cod.
+3. THE 57 BEACON SITES vs THE 35 PASS NAMES (P11, 0.15 against, not measured).
+4. HOW MANY ARMED SITES THE MECHANISM TOLERATES. Measured only to 7. G1 must be
+   RE-RUN at whatever table a later lane arms; this lane's zero is a statement
+   about seven sites, not about the mechanism at any size.
+
+---------------------------------------------------------------------------
+BOARD ROWS (block #3322-#3326 allocated by the coordinator)
+
+#3322  The stage oracle is GO. Call-site detours at c2's seven per-function
+       phase boundaries are obj-neutral over 410 graded objs with the payload
+       armed, and snapshot-deterministic at the first schema (distinct 1 over
+       10 runs including 5 from a different cwd and /Fo).
+#3323  COLOR WRITES NOTHING IN THE TUPLE RECORD. sched2 -> sched3 is
+       byte-identical on 7 of 7 functions and a 128-byte raw window over 83
+       aligned pairs names no differing offset, while sched1 -> sched2 and
+       sched3 -> sched0 differ on 7 of 7. A ported COLOR cannot be graded
+       against the tuple spine; look in the operand/candidate records.
+#3324  Under wibo, LoadLibraryA's HMODULE is NOT the load base (0x18). Derive
+       a module slide from a known export, never from the handle. Also: GCC
+       has no naked attribute on i686, and wibo has no FlushInstructionCache.
+#3325  -off# is not a per-pass ablation switch (P13 refuted, 5 cells,
+       timestamp-zeroed obj identical). There is no code-patch-free channel
+       into c2's intermediate state; the hook table is justified.
+#3326  scripts/gen_dc3_workload.sh maps only the forward-slash spelling of the
+       e:/lazer_build_gmc1 include roots. At dc3-decomp 3df8fd5412c2 the
+       generator emits backslashes and the scan silently reads match 17 /
+       capture-fail 851 / 343 keys.
+
+
+===========================================================================
+FIX ROUND — 2026-08-20, after review verdict `land-with-fixes`
+===========================================================================
+
+Outcome word UNCHANGED: instrument. Verdict UNCHANGED: GO. Full disposition
+table, mutations and priced declines: docs/rungs/2026-08-20-stageoracle.md §9.
+
+WHAT MOVED IN THE PUBLISHED NUMBERS
+
+  G1's denominator. 410 graded -> 375 ARMED AND FIRED (355 fixtures + 20
+  workload TUs). The other 35 armed and never fired: a TU with no function
+  body runs no per-function phase, so its byte-identity is free. The command
+  now conditions its verdict on a POSITIVE armed-and-fired check and prints
+  "G1 IS VACUOUS" otherwise — demonstrated by displacing every site address,
+  which makes the PRE-FIX binary print "G1 HOLDS over 1 graded fixtures" over
+  a run that patched nothing while printing "stage-sites-refused 7" two lines
+  above it.
+
+  The campaign was RE-RUN so the walk-refusal zero comes from a log that
+  prints the key: 0 refusals over 410 objs, 49,231 detour hits, 2,870 sites
+  armed, 0 refused. Every per-fixture count reproduces the original.
+
+  G4 (the registered gap-key identity) was measured FAILING at 105 of 395 and
+  never scored; worse, it was confounded — the two scans were at different
+  workload stamps. Re-run at ONE stamp, master's binary against this branch's:
+  ALL 395 KEYS IDENTICAL, every value. The lane moves nothing.
+
+  Five whitebox/record corrections, of which one is new and inherited:
+  "the four scheduler runs are gated ONLY by DAT_10c2e2fc" is refuted by the
+  bytes (a second per-function gate at [esi+0x1c] on three of four sites,
+  three more on sched0). /Od => 0 stands; "one run per function" is EMPIRICAL.
+
+  The observed-category cross-derivation is RETRACTED (region bodies vs region
+  terminators — a category error); the 0x30f <-> category 0x17 half is kept
+  and re-derived.
+
+NOT IN THE REVIEW, found while fixing it: the payload's fail-loud path was
+UNREACHABLE — a full arena could not announce itself, and at 8 KiB the pre-fix
+instrument reports a COLOR pair DIFFERING 1 of 6 on the fixture whose entire
+finding is IDENTICAL 7 of 7. Fixed and mutation-demonstrated.
+
+DECLINED, PRICED: the two DISCLOSURE rows land four commits after the
+adoptions they cover; rewriting 15 commits of reviewed history costs more than
+the hole is worth (the rule's letter scopes to crates/, which holds names
+only). Partial fix: each row now names its adopting commit.
+
+GATE AND SUITE AT THE TIP (rebased onto 5f9ae0829)
+
+    GATE: PASS (HATCH-RED REFUSED)
+    18 lanes — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT · 6948 fixture-verdicts
+    sweep 19556/19556 reached, 19460 graded, 0 mismatch
+    cross 90424 of 90812 cells graded, 0 mismatch
+    debug 18/18 lanes, 6948 verdicts, match 2423, 0 mismatch, 0 PANIC
+    graded tree b41e1158e6d7 (752 files)      GATE_EXIT=0
+
+    SUITE (scripts/partest.sh --jobs 14): 49 targets · 1707 passed · 0 failed
+    · 1 ignored · 1708 named results · 0 "SKIP: toolchain absent"
+    Target count derived twice (aggregate log and per-target logs) — cargo can
+    silently run a fraction of the targets. #[test] under crates/: master 1705,
+    tip 1717 (+12, all in this lane's two files).
+
+TWO THINGS THE COORDINATOR SHOULD KNOW BEFORE MERGING
+
+  1. The second rebase exposed a real integration hole and it is FIXED here:
+     w-refrev funnelled fifteen hand-rolled SKIP blocks into
+     toolchain_gate::toolchain_ready, and `c2rs stage` carried a sixteenth
+     written in parallel. Under C2RS_REQUIRE_TOOLCHAIN it would have printed
+     SKIP and exited 0 where every other command refuses.
+
+  2. The first fix-round gate run FAILED and the log is kept as evidence:
+     under a peer lane's concurrent full suite (load 38-49) the sweep read 100
+     ungraded against a carried baseline of 96, with ZERO mismatch anywhere.
+     One line in it is worth naming — ReferenceReplay=MISMATCH ... cache=hit,
+     a 39-byte LENGTH difference, i.e. the /Fo path-string class out of a
+     capture cache SHARED with the peer's gate. Clean twice in isolation, and
+     the same tree reads GATE: PASS on a quiet box. If a merge-time gate run
+     shows this shape, check what else is running before reading it as a
+     regression.
+
+DO NOT PUSH. Still not pushed. Nothing merged.

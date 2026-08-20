@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <stdio.h>
+#include "stagetap.h"
 typedef int (__stdcall *InvokeFn)(int argc, char **argv, int unk);
 int main(int argc, char **argv){
     if (argc < 3){ fprintf(stderr,"usage: c2host <c2.dll> <arg0> [args...]\n"); return 2; }
@@ -12,7 +13,13 @@ int main(int argc, char **argv){
     int cargc = argc - 2;
     char **cargv = &argv[2];
     fprintf(stderr,"[c2host] InvokeCompilerPass @%p argc=%d argv0=%s\n", (void*)fn, cargc, cargv[0]);
+    /* INERTNESS: with C2RS_STAGE_TAPS unset this returns 0 having written
+     * nothing — not one byte of c2.dll is touched and the process is exactly
+     * what it was before stagetap existed. See c2host/stagetap.h. */
+    tap_arm(h, (void*)fn);
     int rc = fn(cargc, cargv, 0);
+    /* Report AFTER the pass returns: no I/O ever happens inside a c2 frame. */
+    tap_report();
     fprintf(stderr,"[c2host] returned %d\n", rc);
     return rc;
 }

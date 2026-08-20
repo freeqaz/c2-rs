@@ -1,0 +1,20 @@
+stage neutrality: 2 fixtures, payload=on, flags /O1 /Oi /EHsc /GS- /c
+  [1/2] SAME     il_call_perm.cpp  hits=98 regions=56 tuples=329
+  [2/2] NOFIRE   mvp_empty.cpp  hits=0 regions=0 tuples=0
+
+  gap-metric stage-tap-obj-differs 0
+  gap-metric stage-tap-armed-and-fired 1
+  gap-metric stage-tap-armed-nofire 1
+  gap-metric stage-tap-unarmed 0
+  gap-metric stage-tap-graded 2
+  gap-metric stage-tap-errors 0
+  gap-metric stage-tap-hits 98
+  gap-metric stage-sites-armed 14
+  gap-metric stage-sites-refused 0
+  gap-metric stage-tap-walk-refusals 0
+
+  G1 HOLDS over 1 objs ON WHICH THE TAP ARMED AND FIRED (14 sites
+  armed, 0 refused, 98 detour hits inside c2's own code): the armed obj is
+  byte-identical to the disarmed one. 1 further objs armed but never fired —
+  c2 ran no per-function phase on them — and are EXCLUDED from that denominator,
+  because byte-identity is free where no detour executed.

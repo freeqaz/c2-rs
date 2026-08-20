@@ -25,7 +25,6 @@ All three were dispatched as wave 1 of the migration in
 
 | branch | tip | base | ahead | step | outcome | review | findings |
 |---|---|---|---|---|---|---|---|
-| `wt-w-stageoracle` | `8b338b39e` | `c277d3bb0` | 15 | §5 step 0 | `instrument` | `land-with-fixes` | 5 major / 14 |
 | `wt-w-ir0` | `a0066b692` | `c277d3bb0` | 10 | §5 step 1 | `built` | `land-with-fixes` | 3 major / 12 |
 
 `wt-w-objplan` left this file 2026-08-20: fix round completed all 3 majors
@@ -35,40 +34,20 @@ alternative explanation true — `gl_function_attrs` skips records), rebased,
 and merged to master. See the merge commit and
 `docs/rungs/` (w-objplan) for the fix-round record.
 
-**`wt-w-stageoracle` is on the critical path.** Proposal §5 puts step 5 —
-porting the middle: COLOR, the DAG scheduler, item F liveness — *strictly*
-behind step 0. Steps 1 and 2 are not, and can proceed while it is parked.
+`wt-w-stageoracle` left this file 2026-08-20: fix round completed all 5
+majors (the neutrality CLI now asserts armed-and-fired or prints `G1 IS
+VACUOUS`; the walk-refusal zero is re-derived from a log that can contain
+it; the denominator is 375 armed-and-fired of 410; the `DAT_10c2e2fc`-only
+claim corrected in five whitebox places; the category cross-derivation
+retracted and re-derived), rebased, and merged to master. Step 0 is GO —
+step 5 (COLOR, the DAG scheduler, item F liveness) is unblocked, with the
+fix round's own measurement that a ported COLOR cannot be graded against
+the tuple spine (board #3323). See the merge commit and `docs/rungs/`
+(w-stageoracle) for the fix-round record.
 
 ---
 
 ## Why each is held
-
-### `wt-w-stageoracle` — the go/no-go number is not yet trustworthy
-
-The lane built the call-site detour taps at c2's seven per-function phase
-boundaries and reported **GO**. The review found the number backing that GO is
-not guarded:
-
-* **`c2rs stage neutrality` never asserts the tap armed.** Its required-zero
-  can print `G1 HOLDS over N graded fixtures` over a population where not one
-  byte of `c2.dll` was patched — armed-vs-disarmed objs are trivially identical
-  when nothing armed. This is **the repo's signature defect inside the lane's
-  own required-zero**. `cmd_counts` and `cmd_determinism`, in the same file,
-  both *do* check; the integration test checks; the CLI whose output the rung
-  quotes does not.
-* **A zero was read from a log that structurally cannot contain the line.**
-  "Zero walk refusals over the whole campaign" — no `walk-overrun`,
-  `walk-span`, `walk-implausible-*`, `arena-full` — over 410 objs.
-* **G1's denominator counts 35 of 410 objs on which the tap fired zero times.**
-  The byte-identity is free on those. Board `#3322`'s headline says "OVER 410
-  GRADED OBJS WITH THE PAYLOAD ARMED".
-* **A disassembly-derived justification is refuted by the disassembly.** "The
-  four scheduler runs are gated *only* by `DAT_10c2e2fc`" is false — three of
-  the four sites carry a second per-function gate and `sched0` carries three
-  more. The `/Od`→0 direction still holds.
-* **A cross-derivation is a category error.** The observed tuple categories are
-  every category in a region *body*; the finder branches on region
-  *terminators*.
 
 ### `wt-w-ir0` — the number that justifies the deferral does not cover its data
 
@@ -88,6 +67,7 @@ caller. Held on:
 
 ## Board numbers held by these branches
 
-`#3322`–`#3326` and `#3332`–`#3336` are minted on the branches above and **do
-not exist on `master`**. See `BOARD.md`'s reservation block. Do not
-re-allocate them. (`#3327`–`#3331` landed with `wt-w-objplan`.)
+`#3332`–`#3336` are minted on the branch above and **do not exist on
+`master`**. See `BOARD.md`'s reservation block. Do not re-allocate them.
+(`#3327`–`#3331` landed with `wt-w-objplan`; `#3322`–`#3326` landed with
+`wt-w-stageoracle`.)

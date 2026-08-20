@@ -37,6 +37,7 @@ use cli::reference::{
     cmd_bench, cmd_capture, cmd_compile, cmd_diff, cmd_replay, cmd_replay_c1, cmd_selftest,
 };
 use cli::retrieve::{cmd_retrieve_eval, cmd_retrieve_index};
+use cli::stage::cmd_stage;
 use cli::search::{
     cmd_search_eval, cmd_search_from_lifter, cmd_search_from_retrieval, cmd_search_solve,
 };
@@ -65,6 +66,7 @@ fn main() -> ExitCode {
         "prefilter" => cmd_prefilter(rest),
         "retrieve" => cmd_retrieve(rest),
         "search" => cmd_search(rest),
+        "stage" => cmd_stage(rest),
         "help" | "-h" | "--help" => {
             print_usage();
             ExitCode::SUCCESS

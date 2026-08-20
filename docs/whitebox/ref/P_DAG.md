@@ -37,9 +37,42 @@ mid-level (pre-lowering) pass's differences from the machine-level one, and
 
 ## 1. The four scheduler runs
 
-Driver `0x10be6382`, gated **only** by the optimizer-on flag `DAT_10c2e2fc`
-(bit 21 of the option word, set at `0x10b82429` — i.e. `/Og` vs `/Od`: at `/Od`
-**none** of the four runs happen) `[R]`.
+Driver `0x10be6382`. The optimizer-on flag `DAT_10c2e2fc` (bit 21 of the option
+word, set at `0x10b82429` — i.e. `/Og` vs `/Od`) is tested **first** at every
+one of the four sites, so at `/Od` **none** of the four runs happen `[R]`.
+
+> ### ⛔ CORRECTION 2026-08-20 (lane `w-stageoracle`, fix round) — **the flag is NECESSARY, NOT SUFFICIENT**
+>
+> This section said the runs are gated *"only"* by `DAT_10c2e2fc`, and
+> `WB_DAGORDER_FINDINGS.md` §1 and board **#3067** say the same. The
+> disassembly refutes it, and the refutation matters because a lane read
+> *"only"* as a licence to treat *"every site fires once per function"* as a
+> **structural** fact rather than an empirical one:
+>
+> ```
+> 10b7dc53: 33 db          xor ebx,ebx          ; ...
+> 10b7dc58: 43             inc ebx              ; bl == 1 from here on
+> 10b7dc83: 39 3d fc e2 c2 10   cmp DWORD PTR ds:0x10c2e2fc,edi   ; the optimizer gate
+> 10b7dc89: 74 1f          je  0x10b7dcaa
+> 10b7dc8b: 84 5e 1c       test BYTE PTR [esi+0x1c],bl            ; A SECOND GATE
+> 10b7dc8e: 74 1a          je  0x10b7dcaa
+> ```
+>
+> The same pair sits ahead of run 2 (`0x10b7dcc2` / `0x10b7dcca`) and run 3
+> (`0x10b7dd01` / `0x10b7dd09`): **bit 0 of the function record's `+0x1c`**.
+> Run 4 (`sched0`, site `0x10b7e00c`) carries three more beyond its optimizer
+> gate at `0x10b7dfd9` — `test DWORD PTR [eax+0x20],0x1000` (`0x10b7dfe3`,
+> taken ⇒ skip, over `[esi]`), `test eax,0x400000` (`0x10b7dff2`) and
+> `test al,0x8` (`0x10b7dff9`), both over `[esi+0x94]`.
+>
+> **What survives unchanged:** `/Od` ⇒ zero, because the optimizer `je` is
+> reached first. That is the direction the `/Od`-vs-`/O1` null control asserts,
+> and it is as grounded as it ever was. **What does not survive:** the converse.
+> `hits == functions` at `/O1` is a property of the fixtures measured so far,
+> not of the code; a function with `[esi+0x1c] & 1` clear is skipped by three of
+> the four sites. `globregs` (`0x10b7dcb7`) and `color` (`0x10b7dcf6`) are not
+> optimizer-gated at all — control reaches them at `0x10b7dcaa` / `0x10b7dce9`
+> unconditionally.
 
 | # | mode | from | when |
 |---|---|---|---|
@@ -89,7 +122,7 @@ moves `[O]`.
 | `0x10b7dc51` | 219 | 1 | 5 | *(gap)* | 33 | the phase driver that runs the three mode-1 schedules and the allocator `[R]` |
 | `0x10b7df57` | 219 | 1 | 7 | *(gap)* | 21 | the mode-0 (final) schedule `[R]` |
 | `0x10b7e6af` | 106 | 1 | 9 | `main.c` gap | 28 | orders the two `[R]` |
-| `0x10b7d85e` | 920 | 1 | 28 | *(gap)* | 2 | the per-function phase pipeline, each phase bracketed by the timer `0x10bec297` `[R]` |
+| `0x10b7d85e` | 920 | 1 | 28 | *(gap)* | 2 | the per-function phase pipeline, each phase preceded by a call to **`0x10bec297`** `[R]` — see the correction below; it is **not** a timer |
 
 ### 2.1 Tables
 
@@ -103,6 +136,46 @@ moves `[O]`.
 | `0x10c3bfb0` | the microcoded-opcode list (+15 cycles) `[R]` |
 | `0x10c435cc` | the monotonic tuple-index counter, source of `node+0x44` `[R]` |
 | `0x10c435ac` / `0x10c435b4` | last-writer / last-reader lists `[R]` |
+
+
+> ### ⛔ CORRECTION 2026-08-20 (lane `w-stageoracle`) — **`0x10bec297` IS NOT "THE TIMER"**
+>
+> §2's `0x10b7d85e` row and `WB_REGALLOC_FINDINGS.md`'s §3 both called it one.
+> It is the **abort / cancellation poll**:
+>
+> ```
+> 10bec297: 83 3d 28 7d c3 10 00   cmp DWORD PTR ds:0x10c37d28,0x0
+> 10bec29e: 74 05                  je  0x10bec2a5
+> 10bec2a0: e9 97 ff ff ff         jmp 0x10bec23c
+> 10bec2a5: c3                     ret
+> ```
+>
+> `DAT_10c37d28` is the same global `_AbortCompilerPass@4` (`0x10bec2ac`) sets;
+> when it is set the function tail-jumps into the unwind path and **does not
+> return**. Nothing is timed.
+>
+> It remains a perfectly good **phase beacon** — 143 occurrences of the literal
+> in the flat export, in the stereotyped shape
+> `call 0x10bec297; mov ecx,esi; mov ds:0x10c2e2ec,edi; call <PHASE>` — and
+> that is what a stage tap would use it for. **Whether those sites correspond
+> 1:1 to the 35-entry pass-name array at `0x10c2e9e4` is NOT established**:
+> `w-stageoracle` registered it at 0.15 against and did not measure it, and the
+> name array has **zero code xrefs in the flat export**, so *"COLOR is index
+> 14"* is a data fact while *"the pipeline dispatches through that table"* is a
+> hypothesis.
+>
+> The four scheduler-run rows in §1 are **re-derived by measurement** in that
+> lane: four separately-patched call sites (`0x10b7dc9f`, `0x10b7dcde`,
+> `0x10b7dd1d`, `0x10b7e00c`) each fire exactly once per function, and the
+> count equals c2's own `/FAsc` `PROC` count and the obj's `.text` COMDAT count
+> (7/7/7 on `fixtures/cpp/il_call_perm.cpp`). Promotes §1's *four runs per
+> function* from `[R]` to `[O]`.
+>
+> **And one thing §1 does not say, now measured**: the register allocator
+> writes **nothing** in the tuple record. Over 83 tuples aligned across
+> `sched2`→COLOR→`sched3`, a 128-byte window per tuple is byte-identical, while
+> the same window moves across the scheduler and across lowering. The assigned
+> register is not in the tuple; see `docs/rungs/2026-08-20-stageoracle.md` §3.
 
 ---
 

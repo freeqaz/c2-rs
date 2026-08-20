@@ -1,0 +1,1668 @@
+gap scan: 878 TUs, 24 flags, jobs=12, replay-every=0
+  capture cache: /home/free/code/milohax/c2-rs/work/capture-cache
+provenance:
+  c2-rs      c277d3bb09ae (clean)  /home/free/code/milohax/c2-rs-wt-w-stageoracle
+  binary     7977250965db97fd  /home/free/code/milohax/c2-rs-wt-w-stageoracle/target/release/c2rs
+  workload   3df8fd5412c2 (clean)  /home/free/code/milohax/dc3-decomp
+  wibo       wibo 1.2.0-c2rs.1 (Linux x86_64)  /home/free/code/milohax/wibo/build/release/wibo
+  cl.exe     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/cl.exe
+  c2.dll     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c2.dll
+  c1xx.dll   /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c1xx.dll
+  strace     /usr/bin/strace
+  mingw      /usr/bin/i686-w64-mingw32-gcc
+  [1/878] capture-fail src/lazer/game/PresenceMgr.cpp  (C1083)
+  [2/878] capture-fail src/lazer/game/GameMode.cpp  (C1083)
+  [3/878] capture-fail src/lazer/game/HamUser.cpp  (C1083)
+  [4/878] vocab-gap    src/keygen_xbox.cpp  (il function decode failed)
+  [5/878] capture-fail src/App.cpp  (C1083)
+  [6/878] capture-fail src/ChecksumData_xbox.cpp  (C1083)
+  [7/878] capture-fail src/lazer/game/Game.cpp  (C1083)
+  [8/878] capture-fail src/lazer/game/HamUserMgr.cpp  (C1083)
+  [9/878] capture-fail src/lazer/game/LiveInput.cpp  (C1083)
+  [10/878] capture-fail src/lazer/game/PartyModeMgr.cpp  (C1083)
+  [11/878] capture-fail src/lazer/game/GamePanel.cpp  (C1083)
+  [12/878] capture-fail src/lazer/game/BustAMovePanel.cpp  (C1083)
+  [13/878] capture-fail src/lazer/game/Shuttle.cpp  (C1083)
+  [14/878] capture-fail src/lazer/meta_ham/AccomplishmentConditional.cpp  (C1083)
+  [15/878] capture-fail src/lazer/meta_ham/AccomplishmentCountConditional.cpp  (C1083)
+  [16/878] capture-fail src/lazer/meta_ham/AccomplishmentOneShot.cpp  (C1083)
+  [17/878] capture-fail src/lazer/meta_ham/AccomplishmentCharacterListConditional.cpp  (C1083)
+  [18/878] capture-fail src/lazer/meta_ham/AccomplishmentDiscSongConditional.cpp  (C1083)
+  [19/878] capture-fail src/lazer/game/SongDB.cpp  (C1083)
+  [20/878] capture-fail src/lazer/meta_ham/AccomplishmentGroup.cpp  (C1083)
+  [21/878] capture-fail src/lazer/game/SongSequence.cpp  (C1083)
+  [22/878] capture-fail src/lazer/meta_ham/AccomplishmentCampaignConditional.cpp  (C1083)
+  [23/878] capture-fail src/lazer/meta_ham/Accomplishment.cpp  (C1083)
+  [24/878] capture-fail src/lazer/meta_ham/AccomplishmentProgress.cpp  (C1083)
+  [25/878] capture-fail src/lazer/meta_ham/AccomplishmentCategory.cpp  (C1083)
+  [26/878] capture-fail src/lazer/meta_ham/AccomplishmentManager.cpp  (C1083)
+  [27/878] capture-fail src/lazer/meta_ham/AccomplishmentSongConditional.cpp  (C1083)
+  [28/878] capture-fail src/lazer/meta_ham/AppMiniLeaderboardDisplay.cpp  (C1083)
+  [29/878] capture-fail src/lazer/meta_ham/Campaign.cpp  (C1083)
+  [30/878] capture-fail src/lazer/meta_ham/Award.cpp  (C1083)
+  [31/878] capture-fail src/lazer/meta_ham/AppNavProvider.cpp  (C1083)
+  [32/878] capture-fail src/lazer/meta_ham/AppLabel.cpp  (C1083)
+  [33/878] capture-fail src/lazer/meta_ham/AccomplishmentSongListConditional.cpp  (C1083)
+  [34/878] capture-fail src/lazer/meta_ham/BlacklightPanel.cpp  (C1083)
+  [35/878] capture-fail src/lazer/meta_ham/CampaignMasterQuestCrewSelectPanel.cpp  (C1083)
+  [36/878] capture-fail src/lazer/meta_ham/CampaignMasterQuestSongSelectPanel.cpp  (C1083)
+  [37/878] capture-fail src/lazer/meta_ham/CalibrationPanel.cpp  (C1083)
+  [38/878] capture-fail src/lazer/meta_ham/CampaignDiffSelectPanel.cpp  (C1083)
+  [39/878] capture-fail src/lazer/meta_ham/CampaignPerformer.cpp  (C1083)
+  [40/878] capture-fail src/lazer/meta_ham/CampaignProgress.cpp  (C1083)
+  [41/878] capture-fail src/lazer/meta_ham/CampaignEra.cpp  (C1083)
+  [42/878] capture-fail src/lazer/meta_ham/CampaignSongSelectPanel.cpp  (C1083)
+  [43/878] capture-fail src/lazer/meta_ham/ChallengeResultPanel.cpp  (C1083)
+  [44/878] capture-fail src/lazer/meta_ham/CharacterProvider.cpp  (C1083)
+  [45/878] capture-fail src/lazer/meta_ham/ChallengeRecord.cpp  (C1083)
+  [46/878] capture-fail src/lazer/meta_ham/ChallengeSortNode.cpp  (C1083)
+  [47/878] capture-fail src/lazer/meta_ham/ChallengeSortByScore.cpp  (C1083)
+  [48/878] capture-fail src/lazer/meta_ham/ChallengeSort.cpp  (C1083)
+  [49/878] capture-fail src/lazer/meta_ham/Challenges.cpp  (C1083)
+  [50/878] capture-fail src/lazer/meta_ham/ChallengeSortMgr.cpp  (C1083)
+  [51/878] capture-fail src/lazer/meta_ham/ChooseProfilePanel.cpp  (C1083)
+  [52/878] capture-fail src/lazer/meta_ham/ChooseModeProvider.cpp  (C1083)
+  [53/878] capture-fail src/lazer/meta_ham/ContentLoadingPanel.cpp  (C1083)
+  [54/878] capture-fail src/lazer/meta_ham/CrewProvider.cpp  (C1083)
+  [55/878] capture-fail src/lazer/meta_ham/CorrectIdentityPanel.cpp  (C1083)
+  [56/878] capture-fail src/lazer/meta_ham/CursorPanel.cpp  (C1083)
+  [57/878] capture-fail src/lazer/meta_ham/ContextChecker.cpp  (C1083)
+  [58/878] capture-fail src/lazer/meta_ham/DepthBuffer.cpp  (C1083)
+  [59/878] capture-fail src/lazer/meta_ham/FitnessCalorieSort.cpp  (C1083)
+  [60/878] capture-fail src/lazer/meta_ham/FitnessCalorieSortByCalorie.cpp  (C1083)
+  [61/878] capture-fail src/lazer/meta_ham/DifficultyProvider.cpp  (C1083)
+  [62/878] capture-fail src/lazer/meta_ham/EventDialogPanel.cpp  (C1083)
+  [63/878] capture-fail src/lazer/meta_ham/FitnessCalorieSortMgr.cpp  (C1083)
+  [64/878] capture-fail src/lazer/meta_ham/FitnessGoalMgr.cpp  (C1083)
+  [65/878] capture-fail src/lazer/meta_ham/FitnessCalorieSortNode.cpp  (C1083)
+  [66/878] capture-fail src/lazer/meta_ham/HamMemcardAction.cpp  (C1083)
+  [67/878] capture-fail src/lazer/meta_ham/FitnessProvider.cpp  (C1083)
+  [68/878] capture-fail src/lazer/meta_ham/HamProfile.cpp  (C1083)
+  [69/878] capture-fail src/lazer/meta_ham/HamScreen.cpp  (C1083)
+  [70/878] capture-fail src/lazer/meta_ham/HamPanel.cpp  (C1083)
+  [71/878] capture-fail src/lazer/meta_ham/HamSongMgr.cpp  (C1083)
+  [72/878] capture-fail src/lazer/meta_ham/HamStoreProvider.cpp  (C1083)
+  [73/878] capture-fail src/lazer/meta_ham/HamStoreFilterProvider.cpp  (C1083)
+  [74/878] capture-fail src/lazer/meta_ham/HamStoreOffer.cpp  (C1083)
+  [75/878] capture-fail src/lazer/meta_ham/HamStorePanel.cpp  (C1083)
+  [76/878] capture-fail src/lazer/meta_ham/HamSongMetadata.cpp  (C1083)
+  [77/878] capture-fail src/lazer/meta_ham/HamStarsDisplay.cpp  (C1083)
+  [78/878] capture-fail src/lazer/meta_ham/HamUI.cpp  (C1083)
+  [79/878] capture-fail src/lazer/meta_ham/Leaderboards.cpp  (C1083)
+  [80/878] capture-fail src/lazer/meta_ham/HelpBarPanel.cpp  (C1083)
+  [81/878] capture-fail src/lazer/meta_ham/Instarank.cpp  (C1083)
+  [82/878] capture-fail src/lazer/meta_ham/KinectSharePanel.cpp  (C1083)
+  [83/878] capture-fail src/lazer/meta_ham/LockedContentPanel.cpp  (C1083)
+  [84/878] capture-fail src/lazer/meta_ham/LoadingPanel.cpp  (C1083)
+  [85/878] capture-fail src/lazer/meta_ham/MainMenuPanel.cpp  (C1083)
+  [86/878] capture-fail src/lazer/meta_ham/MetagameRank.cpp  (C1083)
+  [87/878] capture-fail src/lazer/meta_ham/LetterboxPanel.cpp  (C1083)
+  [88/878] capture-fail src/lazer/meta_ham/MainMenuProvider.cpp  (C1083)
+  [89/878] capture-fail src/lazer/meta_ham/MetagameStats.cpp  (C1083)
+  [90/878] capture-fail src/lazer/meta_ham/MetaPanel.cpp  (C1083)
+  [91/878] capture-fail src/lazer/meta_ham/MovieProvider.cpp  (C1083)
+  [92/878] capture-fail src/lazer/meta_ham/MetaPerformer.cpp  (C1083)
+  [93/878] capture-fail src/lazer/meta_ham/MQSongSortByCharacter.cpp  (C1083)
+  [94/878] capture-fail src/lazer/meta_ham/MoveRatingHistory.cpp  (C1083)
+  [95/878] capture-fail src/lazer/meta_ham/MultiUserGesturePanel.cpp  (C1083)
+  [96/878] capture-fail src/lazer/meta_ham/MQSongSortNode.cpp  (C1083)
+  [97/878] capture-fail src/lazer/meta_ham/NavListSort.cpp  (C1083)
+  [98/878] capture-fail src/lazer/meta_ham/OptionsPanel.cpp  (C1083)
+  [99/878] capture-fail src/lazer/meta_ham/NavListSortMgr.cpp  (C1083)
+  [100/878] capture-fail src/lazer/meta_ham/MQSongSort.cpp  (C1083)
+  [101/878] capture-fail src/lazer/meta_ham/MQSongSortMgr.cpp  (C1083)
+  [102/878] capture-fail src/lazer/meta_ham/NavListNode.cpp  (C1083)
+  [103/878] capture-fail src/lazer/meta_ham/OutfitProvider.cpp  (C1083)
+  [104/878] capture-fail src/lazer/meta_ham/Overshell.cpp  (C1083)
+  [105/878] capture-fail src/lazer/meta_ham/OverlayPanel.cpp  (C1083)
+  [106/878] capture-fail src/lazer/meta_ham/PassiveMessagesPanel.cpp  (C1083)
+  [107/878] capture-fail src/lazer/meta_ham/PassiveMessenger.cpp  (C1083)
+  [108/878] capture-fail src/lazer/meta_ham/PlaylistSortMgr.cpp  (C1083)
+  [109/878] capture-fail src/lazer/meta_ham/Playlist.cpp  (C1083)
+  [110/878] capture-fail src/lazer/meta_ham/PlaylistSongProvider.cpp  (C1083)
+  [111/878] capture-fail src/lazer/meta_ham/PlaylistSortNode.cpp  (C1083)
+  [112/878] capture-fail src/lazer/meta_ham/PlaylistSort.cpp  (C1083)
+  [113/878] capture-fail src/lazer/meta_ham/PlaylistSortByTypeCmp.cpp  (C1083)
+  [114/878] capture-fail src/lazer/meta_ham/PracticeChoosePanel.cpp  (C1083)
+  [115/878] capture-fail src/lazer/meta_ham/SaveLoadManager.cpp  (C1083)
+  [116/878] capture-fail src/lazer/meta_ham/ShellInput.cpp  (C1083)
+  [117/878] capture-fail src/lazer/meta_ham/ProfileMgr.cpp  (C1083)
+  [118/878] capture-fail src/lazer/meta_ham/SkeletonChooser.cpp  (C1083)
+  [119/878] capture-fail src/lazer/meta_ham/SigninScreen.cpp  (C1083)
+  [120/878] capture-fail src/lazer/meta_ham/SingleUserCrewSelectPanel.cpp  (C1083)
+  [121/878] capture-fail src/lazer/meta_ham/SkillsAwardList.cpp  (C1083)
+  [122/878] capture-fail src/lazer/meta_ham/SongRecord.cpp  (C1083)
+  [123/878] capture-fail src/lazer/meta_ham/SongSelectPlaylistCustomizePanel.cpp  (C1083)
+  [124/878] capture-fail src/lazer/meta_ham/SongSelectPanel.cpp  (C1083)
+  [125/878] capture-fail src/lazer/meta_ham/SongSortByLocation.cpp  (C1083)
+  [126/878] capture-fail src/lazer/meta_ham/SkeletonIdentifier.cpp  (C1083)
+  [127/878] capture-fail src/lazer/meta_ham/SongSelectPlaylistPanel.cpp  (C1083)
+  [128/878] capture-fail src/lazer/meta_ham/SongSortBySong.cpp  (C1083)
+  [129/878] capture-fail src/lazer/meta_ham/SongSortByDiff.cpp  (C1083)
+  [130/878] capture-fail src/lazer/meta_ham/SongSort.cpp  (C1083)
+  [131/878] capture-fail src/lazer/meta_ham/SongSortNode.cpp  (C1083)
+  [132/878] capture-fail src/lazer/meta_ham/SongSortMgr.cpp  (C1083)
+  [133/878] capture-fail src/lazer/meta_ham/TexLoadPanel.cpp  (C1083)
+  [134/878] capture-fail src/lazer/meta_ham/TitleProvider.cpp  (C1083)
+  [135/878] capture-fail src/lazer/meta_ham/SongStatusMgr.cpp  (C1083)
+  [136/878] capture-fail src/lazer/meta_ham/UIEventMgr.cpp  (C1083)
+  [137/878] capture-fail src/lazer/meta_ham/Utl.cpp  (C1083)
+  [138/878] capture-fail src/lazer/meta_ham/VoiceControlPanel.cpp  (C1083)
+  [139/878] capture-fail src/lazer/meta_ham/VenueProvider.cpp  (C1083)
+  [140/878] capture-fail src/lazer/meta_ham/VoiceInputPanel.cpp  (C1083)
+  [141/878] capture-fail src/lazer/meta_ham/WeightInput.cpp  (C1083)
+  [142/878] capture-fail src/lazer/net_ham/ChallengeSystemJobs.cpp  (C1083)
+  [143/878] capture-fail src/lazer/net_ham/FriendsListJobs.cpp  (C1083)
+  [144/878] capture-fail src/lazer/net_ham/DataMinerJobs.cpp  (C1083)
+  [145/878] capture-fail src/lazer/net_ham/FitnessGoalJobs.cpp  (C1083)
+  [146/878] capture-fail src/lazer/net_ham/HamStoreCartJobs.cpp  (C1083)
+  [147/878] capture-fail src/lazer/net_ham/KinectShareJobs.cpp  (C1083)
+  [148/878] capture-fail src/lazer/net_ham/KinectShare.cpp  (C1083)
+  [149/878] capture-fail src/lazer/net_ham/PartyModeJobs.cpp  (C1083)
+  [150/878] capture-fail src/lazer/net_ham/LeaderboardJobs.cpp  (C1083)
+  [151/878] capture-fail src/lazer/net_ham/TokenJobs.cpp  (C1083)
+  [152/878] capture-fail src/lazer/net_ham/MotdJobs.cpp  (C1083)
+  [153/878] capture-fail src/lazer/net_ham/PlaylistJobs.cpp  (C1083)
+  [154/878] capture-fail src/lazer/net_ham/RockCentral.cpp  (C1083)
+  [155/878] capture-fail src/lazer/net_ham/RCJobDingo.cpp  (C1083)
+  [156/878] capture-fail src/lazer/net_ham/ScoreJobs.cpp  (C1083)
+  [157/878] capture-fail src/lazer/net_ham/WebLinkJobs.cpp  (C1083)
+  [158/878] capture-fail src/Memory_Xbox.cpp  (C1083)
+  [159/878] match        src/Main.cpp
+  [160/878] capture-fail src/link_glue.cpp  (C1083)
+  [161/878] capture-fail src/system/char/Character.cpp  (C1083)
+  [162/878] capture-fail src/system/char/CharBlendBone.cpp  (C1083)
+  [163/878] capture-fail src/system/char/CharacterTest.cpp  (C1083)
+  [164/878] capture-fail src/system/char/CharBoneDir.cpp  (C1083)
+  [165/878] capture-fail src/system/char/CharBonesBlender.cpp  (C1083)
+  [166/878] capture-fail src/system/char/CharBone.cpp  (C1083)
+  [167/878] capture-fail src/system/char/CharBonesSamples.cpp  (C1083)
+  [168/878] capture-fail src/system/char/CharBonesMeshes.cpp  (C1083)
+  [169/878] capture-fail src/system/char/CharBoneOffset.cpp  (C1083)
+  [170/878] capture-fail src/system/char/CharBoneTwist.cpp  (C1083)
+  [171/878] capture-fail src/system/char/CharClip.cpp  (C1083)
+  [172/878] capture-fail src/system/char/CharBones.cpp  (C1083)
+  [173/878] capture-fail src/system/char/CharClipDisplay.cpp  (C1083)
+  [174/878] capture-fail src/system/char/CharClipSet.cpp  (C1083)
+  [175/878] capture-fail src/system/char/CharCollide.cpp  (C1083)
+  [176/878] capture-fail src/system/char/CharClipGroup.cpp  (C1083)
+  [177/878] capture-fail src/system/char/CharClipDriver.cpp  (C1083)
+  [178/878] capture-fail src/system/char/Char.cpp  (C1083)
+  [179/878] capture-fail src/system/char/CharDriver.cpp  (C1083)
+  [180/878] capture-fail src/system/char/CharCuff.cpp  (C1083)
+  [181/878] capture-fail src/system/char/CharDriverMidi.cpp  (C1083)
+  [182/878] capture-fail src/system/char/CharEyeDartRuleset.cpp  (C1083)
+  [183/878] capture-fail src/system/char/CharFaceServo.cpp  (C1083)
+  [184/878] capture-fail src/system/char/CharEyes.cpp  (C1083)
+  [185/878] capture-fail src/system/char/CharForeTwist.cpp  (C1083)
+  [186/878] capture-fail src/system/char/CharIKHand.cpp  (C1083)
+  [187/878] capture-fail src/system/char/CharGuitarString.cpp  (C1083)
+  [188/878] capture-fail src/system/char/CharIKFoot.cpp  (C1083)
+  [189/878] capture-fail src/system/char/CharIKFingers.cpp  (C1083)
+  [190/878] capture-fail src/system/char/CharHair.cpp  (C1083)
+  [191/878] capture-fail src/system/char/CharIKHead.cpp  (C1083)
+  [192/878] capture-fail src/system/char/CharIKMidi.cpp  (C1083)
+  [193/878] capture-fail src/system/char/CharIKScale.cpp  (C1083)
+  [194/878] capture-fail src/system/char/CharIKRod.cpp  (C1083)
+  [195/878] capture-fail src/system/char/CharIKSliderMidi.cpp  (C1083)
+  [196/878] capture-fail src/system/char/CharLipSyncDriver.cpp  (C1083)
+  [197/878] capture-fail src/system/char/CharInterest.cpp  (C1083)
+  [198/878] capture-fail src/system/char/CharLipSync.cpp  (C1083)
+  [199/878] capture-fail src/system/char/CharMeshHide.cpp  (C1083)
+  [200/878] capture-fail src/system/char/CharMirror.cpp  (C1083)
+  [201/878] capture-fail src/system/char/CharLookAt.cpp  (C1083)
+  [202/878] capture-fail src/system/char/CharPollGroup.cpp  (C1083)
+  [203/878] capture-fail src/system/char/CharPosConstraint.cpp  (C1083)
+  [204/878] capture-fail src/system/char/CharServoBone.cpp  (C1083)
+  [205/878] capture-fail src/system/char/CharNeckTwist.cpp  (C1083)
+  [206/878] capture-fail src/system/char/CharTaskMgr.cpp  (C1083)
+  [207/878] capture-fail src/system/char/CharTransDraw.cpp  (C1083)
+  [208/878] capture-fail src/system/char/CharUpperTwist.cpp  (C1083)
+  [209/878] capture-fail src/system/char/CharSleeve.cpp  (C1083)
+  [210/878] capture-fail src/system/char/CharUtl.cpp  (C1083)
+  [211/878] capture-fail src/system/char/CharSignalApplier.cpp  (C1083)
+  [212/878] capture-fail src/system/char/CharWeightSetter.cpp  (C1083)
+  [213/878] capture-fail src/system/char/CharWeightable.cpp  (C1083)
+  [214/878] capture-fail src/system/dsp/BitCrushEffect.cpp  (C1083)
+  [215/878] capture-fail src/system/dsp/Common_Xbox.cpp  (C1083)
+  [216/878] capture-fail src/system/char/FileMerger.cpp  (C1083)
+  [217/878] capture-fail src/system/char/ClipCollide.cpp  (C1083)
+  [218/878] capture-fail src/system/char/ClipGraphGen.cpp  (C1083)
+  [219/878] capture-fail src/system/dsp/DistortionEffect.cpp  (C1083)
+  [220/878] capture-fail src/system/dsp/DelayEffect.cpp  (C1083)
+  [221/878] capture-fail src/system/char/ClipDistMap.cpp  (C1083)
+  [222/878] capture-fail src/system/char/Waypoint.cpp  (C1083)
+  [223/878] capture-fail src/system/decomp_pch.cpp  (C1083)
+  [224/878] capture-fail src/system/char/FileMergerOrganizer.cpp  (C1083)
+  [225/878] capture-fail src/system/dsp/EQEffect.cpp  (C1083)
+  [226/878] capture-fail src/system/dsp/FlangerEffect.cpp  (C1083)
+  [227/878] capture-fail src/system/dsp/WahEffect.cpp  (C1083)
+  [228/878] capture-fail src/system/flow/FlowIf.cpp  (C1083)
+  [229/878] capture-fail src/system/flow/FlowAnimate.cpp  (C1083)
+  [230/878] capture-fail src/system/flow/FlowEventListener.cpp  (C1083)
+  [231/878] capture-fail src/system/flow/Flow.cpp  (C1083)
+  [232/878] capture-fail src/system/flow/FlowCommand.cpp  (C1083)
+  [233/878] capture-fail src/system/flow/DrivenPropertyEntry.cpp  (C1083)
+  [234/878] capture-fail src/system/flow/FlowLabel.cpp  (C1083)
+  [235/878] capture-fail src/system/flow/DrivenPropertyMathOps.cpp  (C1083)
+  [236/878] capture-fail src/system/flow/FlowDistance.cpp  (C1083)
+  [237/878] capture-fail src/system/flow/FlowManager.cpp  (C1083)
+  [238/878] capture-fail src/system/flow/FlowNode.cpp  (C1083)
+  [239/878] capture-fail src/system/flow/FlowOnStop.cpp  (C1083)
+  [240/878] capture-fail src/system/flow/FlowMultiSetProperty.cpp  (C1083)
+  [241/878] capture-fail src/system/flow/FlowRun.cpp  (C1083)
+  [242/878] capture-fail src/system/flow/FlowSetProperty.cpp  (C1083)
+  [243/878] capture-fail src/system/flow/FlowOutPort.cpp  (C1083)
+  [244/878] capture-fail src/system/flow/FlowSequence.cpp  (C1083)
+  [245/878] capture-fail src/system/flow/FlowQueueable.cpp  (C1083)
+  [246/878] capture-fail src/system/flow/FlowPtr.cpp  (C1083)
+  [247/878] capture-fail src/system/flow/FlowSound.cpp  (C1083)
+  [248/878] capture-fail src/system/flow/FlowSlider.cpp  (C1083)
+  [249/878] capture-fail src/system/flow/FlowPickOne.cpp  (C1083)
+  [250/878] capture-fail src/system/flow/FlowSwitch.cpp  (C1083)
+  [251/878] capture-fail src/system/flow/FlowSwitchCase.cpp  (C1083)
+  [252/878] capture-fail src/system/flow/FlowTimer.cpp  (C1083)
+  [253/878] capture-fail src/system/gesture/BaseSkeleton.cpp  (C1083)
+  [254/878] capture-fail src/system/gesture/ArchiveSkeleton.cpp  (C1083)
+  [255/878] capture-fail src/system/flow/FlowTrigger.cpp  (C1083)
+  [256/878] capture-fail src/system/flow/FlowValueCase.cpp  (C1083)
+  [257/878] capture-fail src/system/flow/FlowWhile.cpp  (C1083)
+  [258/878] capture-fail src/system/gesture/CameraInput.cpp  (C1083)
+  [259/878] capture-fail src/system/flow/PropertyEventListener.cpp  (C1083)
+  [260/878] capture-fail src/system/gesture/ArcDetector.cpp  (C1083)
+  [261/878] capture-fail src/system/flow/PropertyEventProvider.cpp  (C1083)
+  [262/878] capture-fail src/system/gesture/DepthBuffer3D.cpp  (C1083)
+  [263/878] capture-fail src/system/gesture/CameraTilt.cpp  (C1083)
+  [264/878] capture-fail src/system/gesture/DirectionGestureFilter.cpp  (C1083)
+  [265/878] capture-fail src/system/gesture/FitnessFilter.cpp  (C1083)
+  [266/878] capture-fail src/system/gesture/GestureMgr.cpp  (C1083)
+  [267/878] capture-fail src/system/gesture/FreestyleMotionFilter.cpp  (C1083)
+  [268/878] capture-fail src/system/gesture/Gesture.cpp  (C1083)
+  [269/878] capture-fail src/system/gesture/DrawUtl.cpp  (C1083)
+  [270/878] capture-fail src/system/gesture/HandHeightGestureFilter.cpp  (C1083)
+  [271/878] capture-fail src/system/gesture/HandInvokeGestureFilter.cpp  (C1083)
+  [272/878] capture-fail src/system/gesture/HandRaisedGestureFilter.cpp  (C1083)
+  [273/878] capture-fail src/system/gesture/HandsUpGestureFilter.cpp  (C1083)
+  [274/878] capture-fail src/system/gesture/IdentityInfo.cpp  (C1083)
+  [275/878] capture-fail src/system/gesture/HighFiveGestureFilter.cpp  (C1083)
+  [276/878] capture-fail src/system/gesture/JointUtl.cpp  (C1083)
+  [277/878] capture-fail src/system/gesture/Skeleton.cpp  (C1083)
+  [278/878] capture-fail src/system/gesture/SkeletonClip.cpp  (C1083)
+  [279/878] capture-fail src/system/gesture/SkeletonDir.cpp  (C1083)
+  [280/878] capture-fail src/system/gesture/SkeletonQualityFilter.cpp  (C1083)
+  [281/878] capture-fail src/system/gesture/SkeletonRecoverer.cpp  (C1083)
+  [282/878] capture-fail src/system/gesture/LiveCameraInput.cpp  (C1083)
+  [283/878] capture-fail src/system/gesture/SkeletonHistory.cpp  (C1083)
+  [284/878] capture-fail src/system/gesture/SkeletonExtentTracker.cpp  (C1083)
+  [285/878] capture-fail src/system/gesture/NavigationSkeletonDir.cpp  (C1083)
+  [286/878] capture-fail src/system/gesture/SkeletonUpdate.cpp  (C1083)
+  [287/878] capture-fail src/system/gesture/SkeletonViz.cpp  (C1083)
+  [288/878] capture-fail src/system/gesture/SpeechMgr.cpp  (C1083)
+  [289/878] capture-fail src/system/gesture/StubCameraInput.cpp  (C1083)
+  [290/878] capture-fail src/system/gesture/StreamRenderer.cpp  (C1083)
+  [291/878] capture-fail src/system/gesture/WaveToTurnOnLight.cpp  (C1083)
+  [292/878] capture-fail src/system/gesture/StreamRecorder.cpp  (C1083)
+  [293/878] capture-fail src/system/gesture/StandingStillGestureFilter.cpp  (C1083)
+  [294/878] capture-fail src/system/hamobj/BustAMoveData.cpp  (C1083)
+  [295/878] capture-fail src/system/hamobj/CamShotCatVO.cpp  (C1083)
+  [296/878] capture-fail src/system/hamobj/CharFeedback.cpp  (C1083)
+  [297/878] capture-fail src/system/hamobj/CharCameraInput.cpp  (C1083)
+  [298/878] capture-fail src/system/hamobj/CrazeHollaback.cpp  (C1083)
+  [299/878] capture-fail src/system/hamobj/ClipPlayer.cpp  (C1083)
+  [300/878] capture-fail src/system/hamobj/DanceRemixer.cpp  (C1083)
+  [301/878] capture-fail src/system/hamobj/DancerSequence.cpp  (C1083)
+  [302/878] capture-fail src/system/hamobj/ErrorNode.cpp  (C1083)
+  [303/878] capture-fail src/system/hamobj/DancerSkeleton.cpp  (C1083)
+  [304/878] capture-fail src/system/hamobj/Difficulty.cpp  (C1083)
+  [305/878] capture-fail src/system/hamobj/DetectFrame.cpp  (C1083)
+  [306/878] capture-fail src/system/hamobj/FreestyleMove.cpp  (C1083)
+  [307/878] capture-fail src/system/hamobj/FilterVersion.cpp  (C1083)
+  [308/878] capture-fail src/system/hamobj/FilterQueue.cpp  (C1083)
+  [309/878] capture-fail src/system/hamobj/FreestyleMoveRecorder.cpp  (C1083)
+  [310/878] capture-fail src/system/hamobj/HamCamShot.cpp  (C1083)
+  [311/878] capture-fail src/system/hamobj/HamAudio.cpp  (C1083)
+  [312/878] capture-fail src/system/hamobj/HamBattleData.cpp  (C1083)
+  [313/878] capture-fail src/system/hamobj/HamCamTransform.cpp  (C1083)
+  [314/878] capture-fail src/system/hamobj/Ham.cpp  (C1083)
+  [315/878] capture-fail src/system/hamobj/HamCharacter.cpp  (C1083)
+  [316/878] capture-fail src/system/hamobj/HamDirector.cpp  (C1083)
+  [317/878] capture-fail src/system/hamobj/HamDriver.cpp  (C1083)
+  [318/878] capture-fail src/system/hamobj/HamGameData.cpp  (C1083)
+  [319/878] capture-fail src/system/hamobj/HamIconMan.cpp  (C1083)
+  [320/878] capture-fail src/system/hamobj/HamIKSkeleton.cpp  (C1083)
+  [321/878] capture-fail src/system/hamobj/HamIKEffector.cpp  (C1083)
+  [322/878] capture-fail src/system/hamobj/HamList.cpp  (C1083)
+  [323/878] capture-fail src/system/hamobj/HamLabel.cpp  (C1083)
+  [324/878] capture-fail src/system/hamobj/HamListRibbon.cpp  (C1083)
+  [325/878] capture-fail src/system/hamobj/HamNavList.cpp  (C1083)
+  [326/878] capture-fail src/system/hamobj/HamMaster.cpp  (C1083)
+  [327/878] capture-fail src/system/hamobj/HamMove.cpp  (C1083)
+  [328/878] capture-fail src/system/hamobj/HamNavProvider.cpp  (C1083)
+  [329/878] capture-fail src/system/hamobj/HamPartyJumpData.cpp  (C1083)
+  [330/878] capture-fail src/system/hamobj/HamPhraseMeter.cpp  (C1083)
+  [331/878] capture-fail src/system/hamobj/HamProviderPrinter.cpp  (C1083)
+  [332/878] capture-fail src/system/hamobj/HamPhotoDisplay.cpp  (C1083)
+  [333/878] capture-fail src/system/hamobj/HamRibbon.cpp  (C1083)
+  [334/878] capture-fail src/system/hamobj/HamPlayerData.cpp  (C1083)
+  [335/878] capture-fail src/system/hamobj/HamScrollBehavior.cpp  (C1083)
+  [336/878] capture-fail src/system/hamobj/HamRegulate.cpp  (C1083)
+  [337/878] capture-fail src/system/hamobj/HamScrollSpeedIndicator.cpp  (C1083)
+  [338/878] capture-fail src/system/hamobj/HamSkeletonConverter.cpp  (C1083)
+  [339/878] capture-fail src/system/hamobj/HamSong.cpp  (C1083)
+  [340/878] capture-fail src/system/hamobj/HamSongData.cpp  (C1083)
+  [341/878] capture-fail src/system/hamobj/HamVisDir.cpp  (C1083)
+  [342/878] capture-fail src/system/hamobj/HamSupereasyData.cpp  (C1083)
+  [343/878] capture-fail src/system/hamobj/MiniGameMgr.cpp  (C1083)
+  [344/878] capture-fail src/system/hamobj/HamWardrobe.cpp  (C1083)
+  [345/878] capture-fail src/system/hamobj/HollaBackMinigame.cpp  (C1083)
+  [346/878] capture-fail src/system/hamobj/MocapSkeletonIterator.cpp  (C1083)
+  [347/878] capture-fail src/system/hamobj/MeterDisplay.cpp  (C1083)
+  [348/878] capture-fail src/system/hamobj/MiniLeaderboardDisplay.cpp  (C1083)
+  [349/878] capture-fail src/system/hamobj/MoveAsyncDetector.cpp  (C1083)
+  [350/878] capture-fail src/system/hamobj/MoveGraph.cpp  (C1083)
+  [351/878] capture-fail src/system/hamobj/MoveMgr.cpp  (C1083)
+  [352/878] capture-fail src/system/hamobj/MoveDir.cpp  (C1083)
+  [353/878] capture-fail src/system/hamobj/MoveParent.cpp  (C1083)
+  [354/878] capture-fail src/system/hamobj/MoveVariant.cpp  (C1083)
+  [355/878] capture-fail src/system/hamobj/OriginalChoreoRemixer.cpp  (C1083)
+  [356/878] capture-fail src/system/hamobj/Pose.cpp  (C1083)
+  [357/878] capture-fail src/system/hamobj/PracticeOptionsProvider.cpp  (C1083)
+  [358/878] capture-fail src/system/hamobj/PhotoSpotlightPositioner.cpp  (C1083)
+  [359/878] capture-fail src/system/hamobj/PoseFatalities.cpp  (C1083)
+  [360/878] capture-fail src/system/hamobj/RhythmBattle.cpp  (C1083)
+  [361/878] capture-fail src/system/hamobj/RhythmDetectorGroup.cpp  (C1083)
+  [362/878] capture-fail src/system/hamobj/RhythmBattlePlayer.cpp  (C1083)
+  [363/878] capture-fail src/system/hamobj/RhythmDetector.cpp  (C1083)
+  [364/878] capture-fail src/system/hamobj/PracticeSection.cpp  (C1083)
+  [365/878] capture-fail src/system/hamobj/ScoreUtl.cpp  (C1083)
+  [366/878] capture-fail src/system/hamobj/SongDifficultyDisplay.cpp  (C1083)
+  [367/878] capture-fail src/system/hamobj/SongLayout.cpp  (C1083)
+  [368/878] capture-fail src/system/hamobj/SongCollision.cpp  (C1083)
+  [369/878] capture-fail src/system/jpeg/Jpeg.cpp  (C1083)
+  [370/878] capture-fail src/system/math/Decibels.cpp  (C1083)
+  [371/878] capture-fail src/system/hamobj/StarsDisplay.cpp  (C1083)
+  [372/878] capture-fail src/system/math/Color.cpp  (C1083)
+  [373/878] capture-fail src/system/hamobj/SongUtl.cpp  (C1083)
+  [374/878] capture-fail src/system/math/DoubleExponentialSmoother.cpp  (C1083)
+  [375/878] capture-fail src/system/math/FileChecksum.cpp  (C1083)
+  [376/878] capture-fail src/system/hamobj/TransConstraint.cpp  (C1083)
+  [377/878] capture-fail src/system/math/Easing.cpp  (C1083)
+  [378/878] capture-fail src/system/math/Geo.cpp  (C1083)
+  [379/878] capture-fail src/system/hamobj/SuperEasyRemixer.cpp  (C1083)
+  [380/878] capture-fail src/system/math/Interp.cpp  (C1083)
+  [381/878] capture-fail src/system/math/mtx.cpp  (C1083)
+  [382/878] capture-fail src/system/math/Rand.cpp  (C1083)
+  [383/878] capture-fail src/system/math/Rand2.cpp  (C1083)
+  [384/878] capture-fail src/system/math/Key.cpp  (C1083)
+  [385/878] capture-fail src/system/math/Primes.cpp  (C1083)
+  [386/878] capture-fail src/system/math/Rot.cpp  (C1083)
+  [387/878] capture-fail src/system/math/SHA1.cpp  (C1083)
+  [388/878] capture-fail src/system/math/Trig.cpp  (C1083)
+  [389/878] capture-fail src/system/math/Sort.cpp  (C1083)
+  [390/878] capture-fail src/system/math/StreamChecksum.cpp  (C1083)
+  [391/878] capture-fail src/system/math/vec.cpp  (C1083)
+  [392/878] capture-fail src/system/meta/Achievements.cpp  (C1083)
+  [393/878] capture-fail src/system/meta/Achievements_Xbox.cpp  (C1083)
+  [394/878] capture-fail src/system/meta/ButtonHolder.cpp  (C1083)
+  [395/878] capture-fail src/system/meta/CreditsPanel.cpp  (C1083)
+  [396/878] capture-fail src/system/meta/DataArraySongInfo.cpp  (C1083)
+  [397/878] capture-fail src/system/meta/ConnectionStatusPanel.cpp  (C1083)
+  [398/878] capture-fail src/system/meta/DeJitterPanel.cpp  (C1083)
+  [399/878] capture-fail src/system/meta/FixedSizeSaveable.cpp  (C1083)
+  [400/878] capture-fail src/system/meta/HAQManager.cpp  (C1083)
+  [401/878] capture-fail src/system/meta/FixedSizeSaveableStream.cpp  (C1083)
+  [402/878] capture-fail src/system/meta/HeldButtonPanel.cpp  (C1083)
+  [403/878] capture-fail src/system/meta/Jukebox.cpp  (C1083)
+  [404/878] capture-fail src/system/meta/MemcardAction.cpp  (C1083)
+  [405/878] capture-fail src/system/meta/MemcardMgr_Xbox.cpp  (C1083)
+  [406/878] capture-fail src/system/meta/MemcardMgr.cpp  (C1083)
+  [407/878] capture-fail src/system/meta/Meta.cpp  (C1083)
+  [408/878] capture-fail src/system/meta/MetaMusicManager.cpp  (C1083)
+  [409/878] capture-fail src/system/meta/PreloadPanel.cpp  (C1083)
+  [410/878] capture-fail src/system/meta/MetaMusicScene.cpp  (C1083)
+  [411/878] capture-fail src/system/meta/MoviePanel.cpp  (C1083)
+  [412/878] capture-fail src/system/meta/SongMgr.cpp  (C1083)
+  [413/878] capture-fail src/system/meta/Profile.cpp  (C1083)
+  [414/878] capture-fail src/system/meta/SongMetadata.cpp  (C1083)
+  [415/878] capture-fail src/system/meta/Sorting.cpp  (C1083)
+  [416/878] capture-fail src/system/meta/SongPreview.cpp  (C1083)
+  [417/878] capture-fail src/system/meta/StoreEnumeration.cpp  (C1083)
+  [418/878] capture-fail src/system/meta/StorePreviewMgr.cpp  (C1083)
+  [419/878] capture-fail src/system/meta/StoreOffer.cpp  (C1083)
+  [420/878] capture-fail src/system/meta/StorePanel.cpp  (C1083)
+  [421/878] capture-fail src/system/midi/MidiParser.cpp  (C1083)
+  [422/878] capture-fail src/system/meta/StreamPlayer.cpp  (C1083)
+  [423/878] capture-fail src/system/midi/DataEventList.cpp  (C1083)
+  [424/878] capture-fail src/system/midi/MidiParserMgr.cpp  (C1083)
+  [425/878] capture-fail src/system/midi/MidiReader.cpp  (C1083)
+  [426/878] capture-fail src/system/midi/DisplayEvents.cpp  (C1083)
+  [427/878] capture-fail src/system/meta/StorePurchaser.cpp  (C1083)
+  [428/878] capture-fail src/system/midi/MidiReceiver.cpp  (C1083)
+  [429/878] capture-fail src/system/moviebink/BinkMovieImpl_Xbox.cpp  (C1083)
+  [430/878] capture-fail src/system/moviebink/BinkMovieImpl.cpp  (C1083)
+  [431/878] capture-fail src/system/midi/MidiVarLen.cpp  (C1083)
+  [432/878] capture-fail src/system/moviebink/BinkMovieSys_Xbox.cpp  (C1083)
+  [433/878] capture-fail src/system/moviebink/BinkMovieSys.cpp  (C1083)
+  [434/878] capture-fail src/system/movie/Movie.cpp  (C1083)
+  [435/878] capture-fail src/system/movie/MovieImpl.cpp  (C1083)
+  [436/878] capture-fail src/system/movie/MovieSys.cpp  (C1083)
+  [437/878] capture-fail src/system/movie/TexMovie.cpp  (C1083)
+  [438/878] capture-fail src/system/movie/Splash.cpp  (C1083)
+  [439/878] capture-fail src/system/net/DingoAuthJob.cpp  (C1083)
+  [440/878] match        src/system/negate_test.cpp
+  [441/878] capture-fail src/system/net/DingoJob.cpp  (C1083)
+  [442/878] capture-fail src/system/net/DingoSvr.cpp  (C1083)
+  [443/878] capture-fail src/system/net/DingoSvr_Xbox.cpp  (C1083)
+  [444/878] capture-fail src/system/net/HttpReq.cpp  (C1083)
+  [445/878] capture-fail src/system/net/HttpGet.cpp  (C1083)
+  [446/878] capture-fail src/system/net/HttpReqCurl.cpp  (C1083)
+  [447/878] capture-fail src/system/net/JsonUtils.cpp  (C1083)
+  [448/878] capture-fail src/system/net/WebSvcMgr.cpp  (C1083)
+  [449/878] capture-fail src/system/net/SessionJobs_Xbox.cpp  (C1083)
+  [450/878] capture-fail src/system/net/JsonMemory.cpp  (C1083)
+  [451/878] capture-fail src/system/net/XLSPConnection.cpp  (C1083)
+  [452/878] capture-fail src/system/net/WebSvcMgrCurl.cpp  (C1083)
+  [453/878] capture-fail src/system/net/WebSvcReq.cpp  (C1083)
+  [454/878] capture-fail src/system/obj/DataFile.cpp  (C1083)
+  [455/878] capture-fail src/system/obj/DataArray.cpp  (C1083)
+  [456/878] capture-fail src/system/obj/DataNode.cpp  (C1083)
+  [457/878] capture-fail src/system/obj/DataFunc.cpp  (C1083)
+  [458/878] capture-fail src/system/obj/DataUtl.cpp  (C1083)
+  [459/878] capture-fail src/system/obj/DirUnloader.cpp  (C1083)
+  [460/878] capture-fail src/system/obj/Dir.cpp  (C1083)
+  [461/878] capture-fail src/system/obj/DirLoader.cpp  (C1083)
+  [462/878] capture-fail src/system/obj/MessageTimer.cpp  (C1083)
+  [463/878] capture-fail src/system/obj/Object.cpp  (C1083)
+  [464/878] capture-fail src/system/obj/Msg.cpp  (C1083)
+  [465/878] capture-fail src/system/obj/PropSync.cpp  (C1083)
+  [466/878] capture-fail src/system/obj/Utl.cpp  (C1083)
+  [467/878] capture-fail src/system/obj/TypeProps.cpp  (C1083)
+  [468/878] capture-fail src/system/os/AppChild.cpp  (C1083)
+  [469/878] capture-fail src/system/obj/Task.cpp  (C1083)
+  [470/878] capture-fail src/system/obj/TextFile.cpp  (C1083)
+  [471/878] capture-fail src/system/oggvorbis/VorbisMem.cpp  (C1083)
+  [472/878] capture-fail src/system/os/Archive.cpp  (C1083)
+  [473/878] capture-fail src/system/os/ArkFile.cpp  (C1083)
+  [474/878] capture-fail src/system/os/AsyncFile_Win.cpp  (C1083)
+  [475/878] capture-fail src/system/os/AsyncFile.cpp  (C1083)
+  [476/878] capture-fail src/system/os/AsyncFileHolmes.cpp  (C1083)
+  [477/878] capture-fail src/system/os/AsyncTask.cpp  (C1083)
+  [478/878] capture-fail src/system/os/BlockMgr.cpp  (C1083)
+  [479/878] capture-fail src/system/os/CDReader.cpp  (C1083)
+  [480/878] capture-fail src/system/os/CritSec.cpp  (C1083)
+  [481/878] capture-fail src/system/os/ContentMgr_Xbox.cpp  (C1083)
+  [482/878] capture-fail src/system/os/DateTime.cpp  (C1083)
+  [483/878] capture-fail src/system/os/ContentMgr.cpp  (C1083)
+  [484/878] capture-fail src/system/os/Debug.cpp  (C1083)
+  [485/878] capture-fail src/system/os/FileCache.cpp  (C1083)
+  [486/878] capture-fail src/system/os/File_Win.cpp  (C1083)
+  [487/878] capture-fail src/system/os/HDCache.cpp  (C1083)
+  [488/878] capture-fail src/system/os/File.cpp  (C1083)
+  [489/878] capture-fail src/system/os/HolmesClient.cpp  (C1083)
+  [490/878] capture-fail src/system/os/HolmesClient_NetSocket.cpp  (C1083)
+  [491/878] capture-fail src/system/os/HolmesKeyboard.cpp  (C1083)
+  [492/878] capture-fail src/system/os/HolmesUtl.cpp  (C1083)
+  [493/878] capture-fail src/system/os/JoypadClient.cpp  (C1083)
+  [494/878] capture-fail src/system/os/JoypadMsgs.cpp  (C1083)
+  [495/878] capture-fail src/system/os/Joypad.cpp  (C1083)
+  [496/878] capture-fail src/system/os/Joypad_Xinput.cpp  (C1083)
+  [497/878] capture-fail src/system/os/Keyboard.cpp  (C1083)
+  [498/878] capture-fail src/system/os/Joypad_Xbox.cpp  (C1083)
+  [499/878] capture-fail src/system/os/Keyboard_Xbox.cpp  (C1083)
+  [500/878] capture-fail src/system/os/KeyboardJoypadAdapter.cpp  (C1083)
+  [501/878] capture-fail src/system/os/NetStream.cpp  (C1083)
+  [502/878] capture-fail src/system/os/Memcard_Xbox.cpp  (C1083)
+  [503/878] capture-fail src/system/os/MapFile_Xbox.cpp  (C1083)
+  [504/878] capture-fail src/system/os/Memcard.cpp  (C1083)
+  [505/878] capture-fail src/system/os/NetworkSocket.cpp  (C1083)
+  [506/878] capture-fail src/system/os/NetworkSocket_Win.cpp  (C1083)
+  [507/878] capture-fail src/system/os/PlatformMgr_Xbox.cpp  (C1083)
+  [508/878] capture-fail src/system/os/OnlineID.cpp  (C1083)
+  [509/878] capture-fail src/system/os/PlatformMgr.cpp  (C1083)
+  [510/878] capture-fail src/system/os/SynchronizationEvent.cpp  (C1083)
+  [511/878] capture-fail src/system/os/System.cpp  (C1083)
+  [512/878] capture-fail src/system/os/UsbMidiKeyboardMsgs.cpp  (C1083)
+  [513/878] capture-fail src/system/os/UsbMidiGuitar.cpp  (C1083)
+  [514/878] capture-fail src/system/os/System_Xbox.cpp  (C1083)
+  [515/878] capture-fail src/system/os/UsbMidiGuitarMsgs.cpp  (C1083)
+  [516/878] capture-fail src/system/os/ThreadCall_Win.cpp  (C1083)
+  [517/878] capture-fail src/system/os/Timer.cpp  (C1083)
+  [518/878] capture-fail src/system/os/UsbMidiKeyboard.cpp  (C1083)
+  [519/878] capture-fail src/system/os/UserMgr.cpp  (C1083)
+  [520/878] capture-fail src/system/os/VirtualKeyboard_Xbox.cpp  (C1083)
+  [521/878] capture-fail src/system/os/User.cpp  (C1083)
+  [522/878] capture-fail src/system/os/VirtualKeyboard.cpp  (C1083)
+  [523/878] capture-fail src/system/rnddx9/Cam.cpp  (C1083)
+  [524/878] capture-fail src/system/rnddx9/CubeTex.cpp  (C1083)
+  [525/878] capture-fail src/system/rnddx9/Mat.cpp  (C1083)
+  [526/878] capture-fail src/system/rnddx9/MultiMesh.cpp  (C1083)
+  [527/878] capture-fail src/system/rnddx9/Env.cpp  (C1083)
+  [528/878] capture-fail src/system/rnddx9/Rnd.cpp  (C1083)
+  [529/878] capture-fail src/system/rnddx9/Lit.cpp  (C1083)
+  [530/878] capture-fail src/system/rnddx9/Part.cpp  (C1083)
+  [531/878] capture-fail src/system/rnddx9/Rnd_Xbox.cpp  (C1083)
+  [532/878] capture-fail src/system/rnddx9/Mesh.cpp  (C1083)
+  [533/878] capture-fail src/system/rnddx9/Movie.cpp  (C1083)
+  [534/878] capture-fail src/system/rnddx9/RenderState.cpp  (C1083)
+  [535/878] capture-fail src/system/rnddx9/ShaderMgr.cpp  (C1083)
+  [536/878] capture-fail src/system/rnddx9/Tex.cpp  (C1083)
+  [537/878] capture-fail src/system/rnddx9/Utl.cpp  (C1083)
+  [538/878] capture-fail src/system/rnddx9/TexMgr.cpp  (C1083)
+  [539/878] capture-fail src/system/rndobj/AmbientOcclusion.cpp  (C1083)
+  [540/878] capture-fail src/system/rndobj/Anim.cpp  (C1083)
+  [541/878] capture-fail src/system/rndobj/BaseMaterial.cpp  (C1083)
+  [542/878] capture-fail src/system/rndobj/AnimFilter.cpp  (C1083)
+  [543/878] capture-fail src/system/rndobj/BoxMap.cpp  (C1083)
+  [544/878] capture-fail src/system/rndobj/Bitmap.cpp  (C1083)
+  [545/878] capture-fail src/system/rndobj/CamAnim.cpp  (C1083)
+  [546/878] capture-fail src/system/rndobj/Cam.cpp  (C1083)
+  [547/878] capture-fail src/system/rndobj/ColorXfm.cpp  (C1083)
+  [548/878] capture-fail src/system/rndobj/Console.cpp  (C1083)
+  [549/878] capture-fail src/system/rndobj/Dir.cpp  (C1083)
+  [550/878] capture-fail src/system/rndobj/CubeTex.cpp  (C1083)
+  [551/878] capture-fail src/system/rndobj/DOFProc_NG.cpp  (C1083)
+  [552/878] capture-fail src/system/rndobj/DOFProc.cpp  (C1083)
+  [553/878] capture-fail src/system/rndobj/Env_NG.cpp  (C1083)
+  [554/878] capture-fail src/system/rndobj/Draw.cpp  (C1083)
+  [555/878] capture-fail src/system/rndobj/Env.cpp  (C1083)
+  [556/878] capture-fail src/system/rndobj/Enter.cpp  (C1083)
+  [557/878] capture-fail src/system/rndobj/Flare.cpp  (C1083)
+  [558/878] capture-fail src/system/rndobj/Font3d.cpp  (C1083)
+  [559/878] capture-fail src/system/rndobj/EventTrigger.cpp  (C1083)
+  [560/878] capture-fail src/system/rndobj/FontBase.cpp  (C1083)
+  [561/878] capture-fail src/system/rndobj/Font.cpp  (C1083)
+  [562/878] capture-fail src/system/rndobj/Fur_NG.cpp  (C1083)
+  [563/878] capture-fail src/system/rndobj/Line.cpp  (C1083)
+  [564/878] capture-fail src/system/rndobj/Gen.cpp  (C1083)
+  [565/878] capture-fail src/system/rndobj/HiResScreen.cpp  (C1083)
+  [566/878] capture-fail src/system/rndobj/Fur.cpp  (C1083)
+  [567/878] capture-fail src/system/rndobj/Graph.cpp  (C1083)
+  [568/878] capture-fail src/system/rndobj/Group.cpp  (C1083)
+  [569/878] capture-fail src/system/rndobj/Lit.cpp  (C1083)
+  [570/878] capture-fail src/system/rndobj/LitAnim.cpp  (C1083)
+  [571/878] capture-fail src/system/rndobj/Lit_NG.cpp  (C1083)
+  [572/878] capture-fail src/system/rndobj/MeshAnim.cpp  (C1083)
+  [573/878] capture-fail src/system/rndobj/Mat.cpp  (C1083)
+  [574/878] capture-fail src/system/rndobj/MetaMaterial.cpp  (C1083)
+  [575/878] capture-fail src/system/rndobj/MeshDeform.cpp  (C1083)
+  [576/878] capture-fail src/system/rndobj/MotionBlur.cpp  (C1083)
+  [577/878] capture-fail src/system/rndobj/Mesh.cpp  (C1083)
+  [578/878] capture-fail src/system/rndobj/Morph.cpp  (C1083)
+  [579/878] capture-fail src/system/rndobj/Mat_NG.cpp  (C1083)
+  [580/878] capture-fail src/system/rndobj/MatAnim.cpp  (C1083)
+  [581/878] capture-fail src/system/rndobj/Movie.cpp  (C1083)
+  [582/878] capture-fail src/system/rndobj/MultiMesh.cpp  (C1083)
+  [583/878] capture-fail src/system/rndobj/MultiMeshProxy.cpp  (C1083)
+  [584/878] capture-fail src/system/rndobj/Overlay.cpp  (C1083)
+  [585/878] capture-fail src/system/rndobj/Part.cpp  (C1083)
+  [586/878] capture-fail src/system/rndobj/PartAnim.cpp  (C1083)
+  [587/878] capture-fail src/system/rndobj/PostProcMgr.cpp  (C1083)
+  [588/878] capture-fail src/system/rndobj/PostProc.cpp  (C1083)
+  [589/878] capture-fail src/system/rndobj/PollAnim.cpp  (C1083)
+  [590/878] capture-fail src/system/rndobj/PartLauncher.cpp  (C1083)
+  [591/878] capture-fail src/system/rndobj/Poll.cpp  (C1083)
+  [592/878] capture-fail src/system/rndobj/PostProc_NG.cpp  (C1083)
+  [593/878] capture-fail src/system/rndobj/PropAnim.cpp  (C1083)
+  [594/878] capture-fail src/system/rndobj/PropKeys.cpp  (C1083)
+  [595/878] capture-fail src/system/rndobj/ScreenMask.cpp  (C1083)
+  [596/878] capture-fail src/system/rndobj/Rnd.cpp  (C1083)
+  [597/878] capture-fail src/system/rndobj/Ribbon.cpp  (C1083)
+  [598/878] capture-fail src/system/rndobj/ShaderProgram.cpp  (C1083)
+  [599/878] capture-fail src/system/rndobj/Rnd_NG.cpp  (C1083)
+  [600/878] capture-fail src/system/rndobj/Set.cpp  (C1083)
+  [601/878] capture-fail src/system/rndobj/ShadowMap.cpp  (C1083)
+  [602/878] capture-fail src/system/rndobj/ShaderMgr.cpp  (C1083)
+  [603/878] capture-fail src/system/rndobj/ShaderOptions.cpp  (C1083)
+  [604/878] capture-fail src/system/rndobj/Shader.cpp  (C1083)
+  [605/878] capture-fail src/system/rndobj/Shockwave.cpp  (C1083)
+  [606/878] capture-fail src/system/rndobj/SIVideo.cpp  (C1083)
+  [607/878] capture-fail src/system/rndobj/SoftParticles.cpp  (C1083)
+  [608/878] capture-fail src/system/rndobj/Spline.cpp  (C1083)
+  [609/878] capture-fail src/system/rndobj/TexBlendController.cpp  (C1083)
+  [610/878] capture-fail src/system/rndobj/SoftParticleBuffer.cpp  (C1083)
+  [611/878] capture-fail src/system/rndobj/TexBlender.cpp  (C1083)
+  [612/878] capture-fail src/system/rndobj/Text.cpp  (C1083)
+  [613/878] capture-fail src/system/rndobj/TexRenderer.cpp  (C1083)
+  [614/878] capture-fail src/system/rndobj/Tex.cpp  (C1083)
+  [615/878] capture-fail src/system/rndobj/TexProc.cpp  (C1083)
+  [616/878] capture-fail src/system/rndobj/TransAnim.cpp  (C1083)
+  [617/878] capture-fail src/system/rndobj/Trans.cpp  (C1083)
+  [618/878] capture-fail src/system/synth/ADSR.cpp  (C1083)
+  [619/878] capture-fail src/system/rndobj/TransProxy.cpp  (C1083)
+  [620/878] capture-fail src/system/synth/AudioDucker.cpp  (C1083)
+  [621/878] capture-fail src/system/rndobj/Watcher.cpp  (C1083)
+  [622/878] capture-fail src/system/synth/BinkReader.cpp  (C1083)
+  [623/878] capture-fail src/system/rndobj/Wind.cpp  (C1083)
+  [624/878] capture-fail src/system/rndobj/VelocityBuffer.cpp  (C1083)
+  [625/878] capture-fail src/system/rndobj/Utl.cpp  (C1083)
+  [626/878] capture-fail src/system/rndobj/wordwrap.cpp  (C1083)
+  [627/878] capture-fail src/system/synth/ByteGrinder.cpp  (C1083)
+  [628/878] vocab-gap    src/system/synth/complex.cpp  (il function decode failed)
+  [629/878] capture-fail src/system/synth/CompressionEffect.cpp  (C1083)
+  [630/878] capture-fail src/system/synth/Faders.cpp  (C1083)
+  [631/878] capture-fail src/system/synth/filterdesign.cpp  (C1083)
+  [632/878] capture-fail src/system/synth/Emitter.cpp  (C1083)
+  [633/878] capture-fail src/system/synth/FxSendDelay.cpp  (C1083)
+  [634/878] capture-fail src/system/synth/FxSendBitCrush.cpp  (C1083)
+  [635/878] capture-fail src/system/synth/FxSendChorus.cpp  (C1083)
+  [636/878] capture-fail src/system/synth/FxSendCompress.cpp  (C1083)
+  [637/878] capture-fail src/system/synth/FxSend.cpp  (C1083)
+  [638/878] capture-fail src/system/synth/FxSendDistortion.cpp  (C1083)
+  [639/878] capture-fail src/system/synth/FxSendEQ.cpp  (C1083)
+  [640/878] capture-fail src/system/synth/FxSendFlanger.cpp  (C1083)
+  [641/878] capture-fail src/system/synth/FxSendPitchShift.cpp  (C1083)
+  [642/878] capture-fail src/system/synth/FxSendMeterEffect.cpp  (C1083)
+  [643/878] capture-fail src/system/synth/FxSendReverb.cpp  (C1083)
+  [644/878] capture-fail src/system/synth/MetaMusic.cpp  (C1083)
+  [645/878] capture-fail src/system/synth/FxSendWah.cpp  (C1083)
+  [646/878] capture-fail src/system/synth/FxSendSynapse.cpp  (C1083)
+  [647/878] capture-fail src/system/synth/MicClientMapper.cpp  (C1083)
+  [648/878] capture-fail src/system/synth/MicNull.cpp  (C1083)
+  [649/878] capture-fail src/system/synth/MeterEffectMonitor.cpp  (C1083)
+  [650/878] capture-fail src/system/synth/MidiChannel.cpp  (C1083)
+  [651/878] capture-fail src/system/synth/Mic.cpp  (C1083)
+  [652/878] capture-fail src/system/synth/MidiInstrument.cpp  (C1083)
+  [653/878] capture-fail src/system/synth/Pollable.cpp  (C1083)
+  [654/878] capture-fail src/system/synth/SampleInst.cpp  (C1083)
+  [655/878] capture-fail src/system/synth/MoggClip.cpp  (C1083)
+  [656/878] capture-fail src/system/synth/OggMap.cpp  (C1083)
+  [657/878] capture-fail src/system/synth/SampleData.cpp  (C1083)
+  [658/878] capture-fail src/system/synth/MidiSynth.cpp  (C1083)
+  [659/878] capture-fail src/system/synth/MoggClipMap.cpp  (C1083)
+  [660/878] capture-fail src/system/synth/Sfx.cpp  (C1083)
+  [661/878] capture-fail src/system/synth/Sound.cpp  (C1083)
+  [662/878] capture-fail src/system/synth/Sequence.cpp  (C1083)
+  [663/878] capture-fail src/system/synth/SfxMap.cpp  (C1083)
+  [664/878] capture-fail src/system/synth/SampleZone.cpp  (C1083)
+  [665/878] capture-fail src/system/synth/StandardStream.cpp  (C1083)
+  [666/878] capture-fail src/system/synth/StreamNull.cpp  (C1083)
+  [667/878] capture-fail src/system/synth/Synth.cpp  (C1083)
+  [668/878] capture-fail src/system/synth/Stream.cpp  (C1083)
+  [669/878] capture-fail src/system/synth/StreamReceiver.cpp  (C1083)
+  [670/878] capture-fail src/system/synth/SynthSample.cpp  (C1083)
+  [671/878] capture-fail src/system/synth/StreamReceiverFile.cpp  (C1083)
+  [672/878] capture-fail src/system/synth/tomcrypt/TomCryptLicense.cpp  (C1083)
+  [673/878] capture-fail src/system/synth/ThreeDSound.cpp  (C1083)
+  [674/878] capture-fail src/system/synth/Utl.cpp  (C1083)
+  [675/878] capture-fail src/system/synth/VorbisReader.cpp  (C1083)
+  [676/878] capture-fail src/system/synth_xbox/EnvelopeGenerator.cpp  (C1083)
+  [677/878] capture-fail src/system/synth/WavReader.cpp  (C1083)
+  [678/878] capture-fail src/system/synth/WavMgr.cpp  (C1083)
+  [679/878] capture-fail src/system/synth_xbox/ExternalMic.cpp  (C1083)
+  [680/878] capture-fail src/system/synth_xbox/Biquad.cpp  (C1083)
+  [681/878] capture-fail src/system/synth_xbox/FftIpp.cpp  (C1083)
+  [682/878] vocab-gap    src/system/synth_xbox/FilterCoeffs.cpp  (il function decode failed)
+  [683/878] capture-fail src/system/synth_xbox/FxSendBitCrush.cpp  (C1083)
+  [684/878] capture-fail src/system/synth_xbox/FxSendChorus.cpp  (C1083)
+  [685/878] capture-fail src/system/synth_xbox/FxSendCompress.cpp  (C1083)
+  [686/878] vocab-gap    src/system/synth_xbox/FFT.cpp  (il function decode failed)
+  [687/878] capture-fail src/system/synth_xbox/FxSendDelay.cpp  (C1083)
+  [688/878] capture-fail src/system/synth_xbox/FxSendDistortion.cpp  (C1083)
+  [689/878] capture-fail src/system/synth_xbox/FxSend.cpp  (C1083)
+  [690/878] capture-fail src/system/synth_xbox/FxSendFlanger.cpp  (C1083)
+  [691/878] capture-fail src/system/synth_xbox/FxSendPitchShift360.cpp  (C1083)
+  [692/878] capture-fail src/system/synth_xbox/FxSendPitchShift.cpp  (C1083)
+  [693/878] capture-fail src/system/synth_xbox/FxSendMeterEffect.cpp  (C1083)
+  [694/878] capture-fail src/system/synth_xbox/FxSendEQ.cpp  (C1083)
+  [695/878] capture-fail src/system/synth_xbox/FxSendReverb.cpp  (C1083)
+  [696/878] capture-fail src/system/synth_xbox/FxSendWah.cpp  (C1083)
+  [697/878] capture-fail src/system/synth_xbox/FxSendSynapse360.cpp  (C1083)
+  [698/878] capture-fail src/system/synth_xbox/FxSendSynapse.cpp  (C1083)
+  [699/878] match        src/system/synth_xbox/GainEffect.cpp
+  [700/878] match        src/system/synth_xbox/HeadsetPlaybackEffect.cpp
+  [701/878] capture-fail src/system/synth_xbox/GranularSynth.cpp  (C1083)
+  [702/878] vocab-gap    src/system/synth_xbox/HeadsetXferEffect.cpp  (il function decode failed)
+  [703/878] capture-fail src/system/synth_xbox/Mic.cpp  (C1083)
+  [704/878] match        src/system/synth_xbox/PeakDetector.cpp
+  [705/878] capture-fail src/system/synth_xbox/MeterEffect.cpp  (C1083)
+  [706/878] capture-fail src/system/synth_xbox/IPP_basicmath_xbox.cpp  (C1083)
+  [707/878] vocab-gap    src/system/synth_xbox/PitchCorrectedVoice.cpp  (il function decode failed)
+  [708/878] capture-fail src/system/synth_xbox/PitchDetector.cpp  (C1083)
+  [709/878] capture-fail src/system/synth_xbox/SampleInst360.cpp  (C1083)
+  [710/878] capture-fail src/system/synth_xbox/PitchShiftEffect.cpp  (C1083)
+  [711/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundTouch/3dnow_win.cpp  (C1189)
+  [712/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundStretch/main.cpp  (C1083)
+  [713/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundStretch/WavFile.cpp  (C1083)
+  [714/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundStretch/RunParameters.cpp  (C1083)
+  [715/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundTouch/BPMDetect.cpp  (C1083)
+  [716/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundTouch/AAFilter.cpp  (C1083)
+  [717/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundTouch/cpu_detect_x86_win.cpp  (C1189)
+  [718/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundTouch/cpu_detect_x86_gcc.cpp  (C1083)
+  [719/878] match        src/system/synth_xbox/soundtouch/source/SoundTouch/mmx_optimized.cpp
+  [720/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundTouch/FIRFilter.cpp  (C1083)
+  [721/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundTouchDLL/SoundTouchDLL.cpp  (C1083)
+  [722/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundTouch/FIFOSampleBuffer.cpp  (C1083)
+  [723/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundTouch/SoundTouch.cpp  (C1083)
+  [724/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundTouch/RateTransposer.cpp  (C1083)
+  [725/878] vocab-gap    src/system/synth_xbox/soundtouch/source/SoundTouch/PeakFinder.cpp  (il function decode failed)
+  [726/878] capture-fail src/system/synth_xbox/StreamReceiver.cpp  (C1083)
+  [727/878] capture-fail src/system/synth_xbox/SpectralAnalysis.cpp  (C1083)
+  [728/878] capture-fail src/system/synth_xbox/StreamReceiver360.cpp  (C1083)
+  [729/878] capture-fail src/system/synth_xbox/soundtouch/source/SoundTouch/TDStretch.cpp  (C1083)
+  [730/878] match        src/system/synth_xbox/soundtouch/source/SoundTouch/sse_optimized.cpp
+  [731/878] capture-fail src/system/synth_xbox/Synth.cpp  (C1083)
+  [732/878] capture-fail src/system/synth_xbox/Synapse_dsp.cpp  (C1083)
+  [733/878] capture-fail src/system/synth_xbox/SynapseAPO.cpp  (C1083)
+  [734/878] capture-fail src/system/synth_xbox/SynthSample.cpp  (C1083)
+  [735/878] capture-fail src/system/synth_xbox/Voice.cpp  (C1083)
+  [736/878] capture-fail src/system/ui/LabelNumberTicker.cpp  (C1083)
+  [737/878] capture-fail src/system/ui/InlineHelp.cpp  (C1083)
+  [738/878] capture-fail src/system/ui/LabelShrinkWrapper.cpp  (C1083)
+  [739/878] capture-fail src/system/ui/PanelDir.cpp  (C1083)
+  [740/878] capture-fail src/system/ui/LocalePanel.cpp  (C1083)
+  [741/878] capture-fail src/system/ui/CheatProvider.cpp  (C1083)
+  [742/878] capture-fail src/system/ui/ResourceDirPtr.cpp  (C1083)
+  [743/878] capture-fail src/system/ui/Screenshot.cpp  (C1083)
+  [744/878] capture-fail src/system/ui/UIColor.cpp  (C1083)
+  [745/878] capture-fail src/system/ui/UIButton.cpp  (C1083)
+  [746/878] capture-fail src/system/ui/UIComponent.cpp  (C1083)
+  [747/878] capture-fail src/system/ui/UIGuide.cpp  (C1083)
+  [748/878] capture-fail src/system/ui/UI.cpp  (C1083)
+  [749/878] capture-fail src/system/ui/UIFontImporter.cpp  (C1083)
+  [750/878] capture-fail src/system/ui/UILabel.cpp  (C1083)
+  [751/878] capture-fail src/system/ui/ScrollSelect.cpp  (C1083)
+  [752/878] capture-fail src/system/ui/UILabelDir.cpp  (C1083)
+  [753/878] capture-fail src/system/ui/UIListArrow.cpp  (C1083)
+  [754/878] capture-fail src/system/ui/UIList.cpp  (C1083)
+  [755/878] capture-fail src/system/ui/UIListCustom.cpp  (C1083)
+  [756/878] capture-fail src/system/ui/UIListDir.cpp  (C1083)
+  [757/878] capture-fail src/system/ui/UIListLabel.cpp  (C1083)
+  [758/878] capture-fail src/system/ui/UIListMesh.cpp  (C1083)
+  [759/878] capture-fail src/system/ui/UIListHighlight.cpp  (C1083)
+  [760/878] capture-fail src/system/ui/UIListSlot.cpp  (C1083)
+  [761/878] capture-fail src/system/ui/UIListProvider.cpp  (C1083)
+  [762/878] capture-fail src/system/ui/UIListWidget.cpp  (C1083)
+  [763/878] capture-fail src/system/ui/UIListSubList.cpp  (C1083)
+  [764/878] capture-fail src/system/ui/UIPanel.cpp  (C1083)
+  [765/878] capture-fail src/system/ui/UIListState.cpp  (C1083)
+  [766/878] capture-fail src/system/ui/UIScreen.cpp  (C1083)
+  [767/878] capture-fail src/system/ui/UISlider.cpp  (C1083)
+  [768/878] capture-fail src/system/ui/UITransitionHandler.cpp  (C1083)
+  [769/878] capture-fail src/system/ui/UIPicture.cpp  (C1083)
+  [770/878] capture-fail src/system/ui/Utl.cpp  (C1083)
+  [771/878] capture-fail src/system/utl/AllocInfo.cpp  (C1083)
+  [772/878] capture-fail src/system/ui/UITrigger.cpp  (C1083)
+  [773/878] capture-fail src/system/utl/BeatMap.cpp  (C1083)
+  [774/878] capture-fail src/system/utl/BinStream.cpp  (C1083)
+  [775/878] capture-fail src/system/utl/BufStream.cpp  (C1083)
+  [776/878] capture-fail src/system/utl/BinkIntegration.cpp  (C1083)
+  [777/878] capture-fail src/system/utl/Cache.cpp  (C1083)
+  [778/878] capture-fail src/system/utl/CacheMgr.cpp  (C1083)
+  [779/878] capture-fail src/system/utl/Cache_Xbox.cpp  (C1083)
+  [780/878] capture-fail src/system/utl/CacheMgr_Xbox.cpp  (C1083)
+  [781/878] capture-fail src/system/utl/ChunkIDs.cpp  (C1083)
+  [782/878] capture-fail src/system/utl/Cheats.cpp  (C1083)
+  [783/878] capture-fail src/system/utl/Chunks.cpp  (C1083)
+  [784/878] capture-fail src/system/utl/ChunkStream.cpp  (C1083)
+  [785/878] capture-fail src/system/utl/Compress.cpp  (C1083)
+  [786/878] capture-fail src/system/utl/DebugMeter.cpp  (C1083)
+  [787/878] capture-fail src/system/utl/DebugGraph.cpp  (C1083)
+  [788/878] capture-fail src/system/utl/Crc.cpp  (C1083)
+  [789/878] capture-fail src/system/utl/DataPointMgr.cpp  (C1083)
+  [790/878] capture-fail src/system/utl/DeJitter.cpp  (C1083)
+  [791/878] capture-fail src/system/utl/FileStream.cpp  (C1083)
+  [792/878] capture-fail src/system/utl/FakeSongMgr.cpp  (C1083)
+  [793/878] capture-fail src/system/utl/FilePath.cpp  (C1083)
+  [794/878] capture-fail src/system/utl/EncryptXTEA.cpp  (C1083)
+  [795/878] capture-fail src/system/utl/GlitchFinder.cpp  (C1083)
+  [796/878] capture-fail src/system/utl/HxGuid.cpp  (C1083)
+  [797/878] capture-fail src/system/utl/JobMgr.cpp  (C1083)
+  [798/878] capture-fail src/system/utl/KnownIssues.cpp  (C1083)
+  [799/878] capture-fail src/system/utl/Licenses.cpp  (C1083)
+  [800/878] capture-fail src/system/utl/JsonEncode.cpp  (C1083)
+  [801/878] capture-fail src/system/utl/Magnu.cpp  (C1083)
+  [802/878] capture-fail src/system/utl/Loader.cpp  (C1083)
+  [803/878] capture-fail src/system/utl/MeasureMap.cpp  (C1083)
+  [804/878] capture-fail src/system/utl/MakeString.cpp  (C1083)
+  [805/878] capture-fail src/system/utl/Locale.cpp  (C1083)
+  [806/878] capture-fail src/system/utl/LocaleOrdinal.cpp  (C1083)
+  [807/878] capture-fail src/system/utl/MBT.cpp  (C1083)
+  [808/878] capture-fail src/system/utl/MemStats.cpp  (C1083)
+  [809/878] capture-fail src/system/utl/MemHeap.cpp  (C1083)
+  [810/878] capture-fail src/system/utl/MemMgr.cpp  (C1083)
+  [811/878] capture-fail src/system/utl/MemPoint.cpp  (C1083)
+  [812/878] capture-fail src/system/utl/MemTrack.cpp  (C1083)
+  [813/878] capture-fail src/system/utl/MemTracker.cpp  (C1083)
+  [814/878] capture-fail src/system/utl/MemStream.cpp  (C1083)
+  [815/878] capture-fail src/system/utl/NetCacheMgr_Xbox.cpp  (C1083)
+  [816/878] capture-fail src/system/utl/NetCacheMgr.cpp  (C1083)
+  [817/878] capture-fail src/system/utl/NetCacheLoader.cpp  (C1083)
+  [818/878] capture-fail src/system/utl/MultiTempoTempoMap.cpp  (C1083)
+  [819/878] capture-fail src/system/utl/NetLoader.cpp  (C1083)
+  [820/878] capture-fail src/system/utl/NetLoader_Xbox.cpp  (C1083)
+  [821/878] match        src/system/utl/Pool.cpp
+  [822/878] capture-fail src/system/utl/PoolAlloc.cpp  (C1083)
+  [823/878] capture-fail src/system/utl/Option.cpp  (C1083)
+  [824/878] capture-fail src/system/utl/OSCMessenger.cpp  (C1083)
+  [825/878] capture-fail src/system/utl/Song.cpp  (C1083)
+  [826/878] capture-fail src/system/utl/Profiler.cpp  (C1083)
+  [827/878] capture-fail src/system/utl/SongInfoCopy.cpp  (C1083)
+  [828/878] capture-fail src/system/utl/SongInfoAudioType.cpp  (C1083)
+  [829/878] capture-fail src/system/utl/StringTable.cpp  (C1083)
+  [830/878] capture-fail src/system/utl/Spew.cpp  (C1083)
+  [831/878] capture-fail src/system/utl/Str.cpp  (C1083)
+  [832/878] capture-fail src/system/utl/SuperFormatString.cpp  (C1083)
+  [833/878] capture-fail src/system/utl/TextStream.cpp  (C1083)
+  [834/878] capture-fail src/system/utl/TimeConversion.cpp  (C1083)
+  [835/878] capture-fail src/system/utl/TextFileStream.cpp  (C1083)
+  [836/878] capture-fail src/system/utl/Symbol.cpp  (C1083)
+  [837/878] capture-fail src/system/utl/TempoMap.cpp  (C1083)
+  [838/878] capture-fail src/system/utl/UrlEncode.cpp  (C1083)
+  [839/878] capture-fail src/system/utl/trie.cpp  (C1083)
+  [840/878] capture-fail src/system/utl/UTF8.cpp  (C1083)
+  [841/878] capture-fail src/system/utl/VarTimer.cpp  (C1083)
+  [842/878] capture-fail src/system/utl/WaveFile.cpp  (C1083)
+  [843/878] capture-fail src/system/world/BeatClock.cpp  (C1083)
+  [844/878] capture-fail src/system/world/CameraManager.cpp  (C1083)
+  [845/878] capture-fail src/system/world/Crowd.cpp  (C1083)
+  [846/878] capture-fail src/system/world/CameraShot.cpp  (C1083)
+  [847/878] capture-fail src/system/world/ColorPalette.cpp  (C1083)
+  [848/878] capture-fail src/system/world/Crowd3DCharHandle.cpp  (C1083)
+  [849/878] capture-fail src/system/world/DefaultPhysicsManager.cpp  (C1083)
+  [850/878] capture-fail src/system/world/Dir.cpp  (C1083)
+  [851/878] capture-fail src/system/world/FreeCamera.cpp  (C1083)
+  [852/878] capture-fail src/system/world/LightHue.cpp  (C1083)
+  [853/878] capture-fail src/system/world/LightPreset.cpp  (C1083)
+  [854/878] capture-fail src/system/world/Instance.cpp  (C1083)
+  [855/878] capture-fail src/system/world/LightPresetManager.cpp  (C1083)
+  [856/878] capture-fail src/system/world/PhysicsVolume.cpp  (C1083)
+  [857/878] capture-fail src/system/world/PhysicsManager.cpp  (C1083)
+  [858/878] capture-fail src/system/world/Spotlight.cpp  (C1083)
+  [859/878] capture-fail src/system/world/Reflection.cpp  (C1083)
+  [860/878] capture-fail src/system/world/PostProcer.cpp  (C1083)
+  [861/878] capture-fail src/system/world/SpotlightDrawer.cpp  (C1083)
+  [862/878] capture-fail src/system/zlib/ZlibLicense.cpp  (C1083)
+  [863/878] capture-fail src/system/world/World.cpp  (C1083)
+  [864/878] match        src/xdk/LIBCMT/osfinfo.cpp
+  [865/878] capture-fail src/system/world/SpotlightDrawer_NG.cpp  (C1083)
+  [866/878] capture-fail src/system/world/ThreeDSoundManager.cpp  (C1083)
+  [867/878] capture-fail src/system/world/SpotlightEnder.cpp  (C1083)
+  [868/878] vocab-gap    src/xdk/LIBCMT/rtti.cpp  (il function decode failed)
+  [869/878] match        src/xdk/LIBCMT/undname.cpp
+  [870/878] match        src/xdk/LIBCMT/vsnprnc.cpp
+  [871/878] vocab-gap    src/xdk/nuiapi/nuidetroit.cpp  (il function decode failed)
+  [872/878] match        src/xdk/LIBCMT/vswprnc.cpp
+  [873/878] match        src/xdk/nuispeech/xboxheap.cpp
+  [874/878] vocab-gap    src/xdk/nuiapi/headtracker.cpp  (il function decode failed)
+  [875/878] match        src/xdk/xlrc/xlrcimpl.cpp
+  [876/878] match        src/xdk/xjson/jsonwriter.cpp
+  [877/878] match        src/xdk/nuispeech/xboxmem.cpp
+  [878/878] match        src/xdk/nuispeech/mmio.cpp
+
+SPLITTER ANCHORS (ROADMAP §10.11/§10.12) — the census splits `.ex` on `4C 4F 11`, the port on `4F 1F`
+  gate-side segment count KNOWN for 27 of 27 captured TUs; UNKNOWN for 0 (no `.ex` at all). Read through `IlBundle::ex_segment_count`, a PURE reader of the `4F 1F` split — not `functions()`, which is an acceptance decision and returns None for every vocab-gap TU, leaving this knowable for only the 6 that already match.
+  of the 27 known: 26 agree with `fn_total`, 1 disagree (1 where the gate sees MORE segments, 0 where the census does)
+  emit-set ceiling, LO-anchored, over ALL graded TUs: 18
+  emit-set ceiling, GATE-anchored (`4F 1F`, what the port consumes), over the 27 known: 18 (+0 entering, -0 leaving vs the LO-anchored set)
+  gate-anchored control on matching TUs: 0 violations over 17 matching TUs whose gate count is known
+
+PHASE 7 FACTORS (ROADMAP §10.19/§10.21, boards #160/#179) — the model is A and B and C and (D or E), over 27 graded TUs
+  A  emit set reachable   `.ex` segments == obj `.text` COMDATs      18  (gate-anchored `4F 1F`; 18 on the census's `4C 4F 11` anchor)
+  B  binding complete     every emitted symbol binds                 26
+  C  section shape        obj sections subset of the writer's 10      25
+  D  per-fn acceptance    every emitted COMDAT in class              16  (5 of them emit nothing at all)
+  E  whole-TU acceptance  a REGISTERED whole-TU recognizer takes it   1  (4 in the registry)
+    D and E are the two readings of ONE question — does the port have an accepted route to this TU's contents. Neither is necessary alone (measured: D fails on the whole-TU matches, E on the per-function ones); the DISJUNCTION is the term.
+  B and C jointly (the near-term ceiling, measured per TU — NOT a product of marginals, §8.6): 25
+  A and B and C: 18   |   A and B and C and D (§10.19's original, refuted): 16   |   A and B and C and (D or E): 17   |   TUs the differential graded `match`: 17
+  section headers: 27 objs read, 0 did not decode (outside C, fail-closed)
+    whole-TU recognizer `dyninit-??__E` accepts 0 graded TU(s)
+    whole-TU recognizer `data-only-tu` accepts 0 graded TU(s)
+    whole-TU recognizer `provide-data-tu` accepts 0 graded TU(s)
+    whole-TU recognizer `ehscope-/EHsc-local` accepts 1 graded TU(s)
+  the fifth term accounts for 1 TU(s) that A and B and C and D misses: ["src/Main.cpp"]
+  the joint is EXACTLY the match set (17 TUs, by name): src/Main.cpp, src/system/negate_test.cpp, src/system/synth_xbox/GainEffect.cpp, src/system/synth_xbox/HeadsetPlaybackEffect.cpp, src/system/synth_xbox/PeakDetector.cpp, src/system/synth_xbox/soundtouch/source/SoundTouch/mmx_optimized.cpp, src/system/synth_xbox/soundtouch/source/SoundTouch/sse_optimized.cpp, src/system/utl/Pool.cpp, src/xdk/LIBCMT/osfinfo.cpp, src/xdk/LIBCMT/undname.cpp, src/xdk/LIBCMT/vsnprnc.cpp, src/xdk/LIBCMT/vswprnc.cpp, src/xdk/nuispeech/mmio.cpp, src/xdk/nuispeech/xboxheap.cpp, src/xdk/nuispeech/xboxmem.cpp, src/xdk/xjson/jsonwriter.cpp, src/xdk/xlrc/xlrcimpl.cpp
+  known-answer control — matching TUs failing each NECESSARY term (all must be 0, over 17 matching TUs): A 0 B 0 C 0 D-or-E 0
+    diagnostics, NOT required to be 0 (neither disjunct is necessary alone): D 1 E 16
+    D 1 — the per-function census does not model the whole-TU emit path, so §10.19's A∧B∧C∧D conjunction stays refuted by these TU(s). That is the finding board #179 repairs with E, not a defect E hides.
+  SECTION VOCABULARY — 9 distinct names across the workload (objs carrying each):
+       27 objs  [writer]  .XBLD$W
+       27 objs  [writer]  .debug$S
+       27 objs  [writer]  .drectve
+       22 objs  [writer]  .text
+       20 objs  [writer]  .pdata
+       11 objs  [writer]  .rdata
+        3 objs  [writer]  .data
+        2 objs  [writer]  .bss
+        2 objs  [  ---]  .rdata$r
+  FRONTIER — 1 graded TUs satisfy A and B and C, are NOT a match, and are outside BOTH acceptance paths (not D, not E), so per-function codegen breadth is the whole remaining distance (blocked emitted | emitted | src):
+      19 |   20 | src/keygen_xbox.cpp
+  FRONTIER BY `.text` BYTE FRACTION (board #500) — how much of each TU's `.text` the port already produces a body for, BY BYTE. Board #465 counted FUNCTIONS and was refuted by the TU registered to confirm it (mmio: 72.7% by function, 16.8% by byte, DECLINED; xboxmem: 50.0% by function, 54.5% by byte, CONVERTED). n = 2 outcomes — this ranks, it does not license. `exact` is the oracle-graded floor under `accepted`; a TU with no `.text` bytes prints n/a, NEVER 100%. 0 of 1 frontier TUs have NO denominator, and 0 are at EXACTLY 0% — TUs where codegen breadth has not begun:
+     accepted/total bytes    frac   exact  remain | src   (REMAIN = total - accepted = the PowerPC still to write. A FOURTH unit, printed and NOT chosen between: it agrees with `frac` on both outcome cells and DISAGREES with it at this frontier's head.)
+           8/1440     bytes    0.6%      8    1432 | src/keygen_xbox.cpp
+  BYTE-FRACTION CONTROL (board #501) — a `match` TU is byte-identical to c2's obj, so the port produced a body for every `.text` byte in it and its fraction MUST read 100%. 11 of 17 matched TUs do; 1 fall short; 5 have no `.text` denominator (a TU that defines data and no functions — board #276's shape — which is a 100%-free zero, not a failure).
+    SHORTFALL, by name, each classified — 1 explained by factor E (whole-TU emitter, per-function path blind by construction), 0 UNEXPLAINED. **The unexplained count is the one to watch; it must be 0.** Compare the SET across trees, not its size. The FRONTIER is unaffected either way: it is defined as `A and B and C and not (D or E)`, so no factor-E TU can appear in the ranking above.
+      src/Main.cpp (0/124 bytes, 0.0%)  [factor E — a WHOLE-TU recognizer emitted this; the per-function path cannot see it. EXPECTED.]
+  FRONTIER BY CFG REACHABILITY (board #720) — CAN THE EMITTER EXPRESS THIS TU AT ALL? `Selected` covers FOUR control-flow shapes: straight-line, ONE two-arm conditional, — since lane `w-hash`, board #761 — ONE loop, the pointer-walk accumulate of `codegen::ptr_walk_loop`, and — since lane `w-cfgclass`, board #1630 — ONE `if`/`else` with a join whose arms are calls, `codegen::if_call_join`. **The last two are each a transcription of a single function class, not a lowering of its CFG class**: twenty words, two immediate fields, `/O1` only. Every other loop shape and every other `cflow-if-n` shape still has no representation at all — the `if`/`else` class takes 2 of the frontier's 11 `cflow-if-n` functions and the loop 1 of its 21 `cflow-loop` ones. This line read `no variant encodes a backward branch, so NO loop of any kind has a representation` until `Sort.cpp` converted, and `THREE ... shapes` until `negate_test.cpp` did; each correction is here rather than beside the old claim. **A shape being in this list does NOT put its class in `PORT_CFG_CLASSES`** — the two converted TUs left the frontier by MATCHING, so neither appears in the count below, which is why that count can stand still while this sentence grows. This is not a quantity of progress like #269/#465/#500 — a TU can be one 8-byte function from matching and be unreachable because those 8 bytes are a loop. INSTRUMENT, never a gate. 0 of 1 frontier TUs are reachable:
+     19 blocked | src/keygen_xbox.cpp                                | labels 15  | needs a CFG class the port lacks: cflow-if-n, cflow-loop
+    LABEL CHANNEL (board #742) — `$M`/`$T` are the ONLY way the value of c2's compiler-label counter reaches an obj, and `coff::plan_labels` mints them for a FRAMED function and nothing else. A leaf loop charges that counter +1..+4 while `plan_labels` charges 0 (17 seed-free cells, docs/LABEL_COUNTER.md §4.2), which is the whole stated justification for `codegen::labels` invariant 4 refusing every BACKWARD branch. On a `label-free` obj that error has nowhere to land — and that is SHIPPED rather than observed: `IlFunction::label_slots` returns `None` for THREE of the five loop shapes the port emits, so a TU pairing one of THOSE with a framed function still refuses. **Two are lifted, both at a charge of 2 and both spelled `for`** (board #746's fence B): the pointer-walk loop, measured against `fixtures/cpp/whash_loop_then_framed.cpp`'s own obj (lane `w-fenceb`, the first time this counter was PAID rather than refused, boards #746/#747/#3091, control `whash_ptr_walk_loop.cpp`), and the float array-walk loop, measured against `fixtures/cpp/wblockir_float_walk_then_framed_neg.cpp`'s (lane `w-slots`, control `wblockir_float_walk.cpp`). Both TUs are `match` at `/O1`. The three that remain are the `while`-spelled chain walk, the `do/while` free-list constructor, and the counted accumulate — whose charge moves across modes on a class accepting BOTH, so it is the one arm that must NOT be taken. 0 of 1 frontier TUs are label-free; of the 1 blocked on `cflow-loop`, 0 are. NOT a licence — every one is still gated on codegen that does not exist, and the counter is only the FIRST of that TU's refusals.
+    CONTROL src/xdk/nuispeech/xboxmem.cpp: PASS — the one TU ever converted from codegen breadth carries only port CFG classes (measured: cflow-if-1 x3 + cflow-straight x1).
+    SUB-CLASS NARROWING (board #778) — the screen can now hold a PARTIAL claim (`CfgClass{class, Whole | Keys(&[..])}`), and this is the bracket that keeps a restriction NARROWER OR EQUAL rather than wider. `admits` is `class == class && <sub>`, so `Keys` only ever CONJOINS: a restriction can remove an admitted (class,key) pair and never add one. That is algebra; these four numbers are the measurement, re-derived from this scan's own frontier. BOTTOM 0 ⊆ ENUMERATED 0 == SHIPPED 0 ⊆ TOP 1, of 1 frontier TUs (5 classes in TOP, 12 (class,key) pairs enumerated).
+      BOTTOM=every entry restricted to NO keys (must be 0 — it is the live exercise of the `Keys` path and the detector for a matcher that ignores its key); ENUMERATED=every entry rewritten as the exact key set this scan observed (must equal SHIPPED); TOP=every class the frontier mentions, wholesale — a HYPOTHETICAL the port has no claim to, printed so the refusal has a size: 1 of the 1 frontier TUs are held back by CFG class alone.
+      SHIPPED reachable: []
+      NESTING: PASS — 0 violations over the 3 checks (BOTTOM⊆SHIPPED⊆TOP, ENUMERATED==SHIPPED), taken as SETS by name.
+      LEDGER — 4 entries, 0 of them RESTRICTED. A restricted entry is a claim about named census keys, and two ways it goes quietly wrong are counted here: a listed key no scan witnesses (a claim doing nothing — trap 5 with the claim still on the page) and a key `admits` accepts that the entry does not list (the matcher and the declaration disagreeing, which is what an exact→prefix slip looks like). unwitnessed 0, intruders 0.
+        cflow-straight                   | WHOLE    |   35 keys observed,   35 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+        cflow-straight+expr-modeled      | WHOLE    |    9 keys observed,    9 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+        cflow-if-1                       | WHOLE    |    6 keys observed,    6 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+        cflow-if-1+expr-modeled          | WHOLE    |    2 keys observed,    2 admitted | cross-check n/a (whole class — no declaration to compare) | unwitnessed 0
+      NOT A LICENCE, and #778 is closed as a MECHANISM only: `cflow-loop` did NOT enter the list in the lane that built this. The list is still a hand-maintained mirror of a `c2-core` enum; what changed is that a lane which has measured part of a class can now write down which part, and the reachability figure it produces is bracketed above.
+  FRONTIER BY CODEGEN (board #1474) — THE COLUMN #1463 PRINTED AS `NO COLUMN`, read off the judge's own per-function predicate (FBM) instead of off a reader ladder. `wrong` is the reader accepting a body, the emitter LOWERING it, and the bytes or relocations DIFFERING: the only positive codegen price this project can measure per function. `cg-ref` is the reader accepting and the emitter DECLINING — read `fnbytes::Decline`'s doc before sizing anything off it, because three of its four stages are ZERO BY CONSTRUCTION while acceptance lives in the IL parser. **`reader` is the hole**: the IL parser refused, so no codegen question was asked and none CAN be — there is no IlFunction to hand to `select_function`. A TU's true codegen distance is `wrong + cg-ref` PLUS an unknown amount hiding in `reader`, so every positive number below is a LOWER BOUND OF UNKNOWN TIGHTNESS and never a price. 1 frontier TUs, 20 emitted functions: 19 behind the reader (95%), 0 measurable, 1 already byte-exact.
+     den exact wrong cg-ref reader ungrade | src
+      20     1     0      0     19       0 | src/keygen_xbox.cpp
+    TOTAL 20 = exact 1 + wrong 0 + cg-ref 0 + reader 19 + ungraded 0;  partition-broken 0 (target 0).
+    **THE MEASURABLE CODEGEN PRICE OF THIS FRONTIER IS ZERO, AND THAT IS NOT `THE CODEGEN WORK IS DONE`.** Every frontier function the reader accepts, the port already emits correctly; all of the remaining distance is behind a reader refusal, where this instrument cannot follow. Board #1464's finding, in the affirmative: the codegen column exists and on this population it is EMPTY.
+  A PERFECT EMIT PREDICATE (board #213) — reachability, NOT conversions: every TU below is still gated on codegen that does not exist.
+    as REACH:    B and C 25 less A and B and C 18 = +7
+    as FRONTIER: frontier-if-A 8 less FRONTIER 1 = +7
+    the two agree (7). They are still different questions — they coincide only while no TU inside B and C fails A with an acceptance path already covering it, which is a fact about this corpus.
+  GREEDY LADDER — next section name to teach the writer, and the resulting C (1 steps from 25 to 27):
+    +.rdata$r     C =    27   (+2)
+
+  PROGRESS MASS — a PROGRESS metric, NEVER a correctness signal (docs/PROGRESS_METRIC.md).
+    The byte-exact differential is the SOLE judge; `match` below is the only correctness count.
+    No term rewards emitted bytes: P counts proven preconditions (A, B, C against the reference obj)
+    and honest acceptance (the emitted census). A TU graded `mismatch` contributes 0 to every
+    numerator, so a wrong emit always scores below the refusal it replaced.
+    P = mean(a, b, c, f) over 27 graded TUs = 0.71627
+      a  emit-set reachable (A)          18/27  = 0.66667
+      b  binding complete (B)            26/27  = 0.96296
+      c  section shape (C)               25/27  = 0.92593
+      f  emitted fns in class       39/126  = 0.30952
+    mismatch-zeroed TUs: 0
+
+  FUNCTION BYTE MATCH (FBM) — a PROGRESS instrument, NEVER a gate (docs/FUNCTION_BYTE_MATCH.md).
+    The judge's own predicate — byte-identical to real c2 — asked per EMITTED FUNCTION instead of
+    per TU. No partial credit: a wrong body scores exactly what a refusal scores, which is 0.
+    The denominator is counted off c2's obj, so refusing more never shrinks it.
+    FBM = (39 + 1)/126 emitted functions byte-exact = 0.31746
+      exact             39  (30.95%)   CREDITED — per-function route, bytes identical to c2's
+      whole-TU           1  ( 0.79%)   CREDITED — on a TU the differential graded `match`; the judge certified the whole obj
+      differs            0  ( 0.00%)   complete port body, bytes differ
+      reloc-diff         0  ( 0.00%)   bytes IDENTICAL, RELOCATIONS DIFFER — two bodies branching to two different functions (board #884)
+      reloc-unk          0  ( 0.00%)   bytes identical, reference relocation table did not decode — UNGRADED, never credited
+      partial            0  ( 0.00%)   selected; the PORT's own /Gy composition declined the body (board #322 closed the harness's half)
+      refused           84  (66.67%)   the port declines the function
+      unbound            3  ( 2.38%)   no census row claims the symbol
+      no-bytes           0  ( 0.00%)   COMDAT raw data did not decode
+    objs unreadable (contribute NO denominator): 0   partition breaks (known answer 0): 0
+    KNOWN-ANSWER CONTROL — per-function bodies that DIFFER on a TU the oracle graded `match` (must be 0): 0
+    FIVE-ALARM CONTROL — byte-exact bodies whose RELOCATIONS differ on a `match` TU (must be 0): 0
+    census/gate disagreement on EMITTED fns (the error term on the emitted census): 0 TOTAL, of which 0 are PARSER-EXPRESSIBLE (target 0 — board #139) and the rest are the post-lowering stages no parser clause can reach (`gy-shape`, `data-ref`, `inlined-callee`; see `gap-metric fnbyte-census-disagree-*`). The residue is the measured size of the emitted census's OVER-CLAIM, not an accounting convenience
+    NOTE: the buckets partition the denominator by the PER-FUNCTION route alone; on a `match` TU the whole-obj verdict supersedes them.
+    RELOC-EQ (lane w-relo, board #884 — `exact` now means bytes AND relocations):
+      bytes-exact       39   the OLD `exact`, i.e. what this instrument credited before relocations were graded
+      graded            39   of those, how many got a relocation verdict; residue (ungraded) 0   reach breaks (known answer 0): 0
+      of the CREDITED, 17 carry at least one relocation — every one compared by offset, packed type and TARGET SYMBOL NAME.
+    reloc-differ families: NONE — 39 byte-exact functions graded, 17 of them relocating
+    partial by shape: NONE — every selected shape was reconstructed and graded (126 emitted functions)
+    graded by shape × verdict: parse-refused/refused 84 · plain/exact 22 · cond-pair/exact 4 · unbound/unbound 3 · guard-chain-shared-tail/exact 2 · guard-ret-chain/exact 2 · if-call-join/exact 2 · alloc-init-or-fail/exact 1 · close-call-chain/exact 1 · json-utf8-copy/exact 1 · osf-handle-guard/exact 1 · seq/exact 1 · tail/exact 1 · xlrc-create-guard/exact 1
+    CALL TARGETS (name, not bytes): 39 graded · 39 agree · 0 disagree (0 of them EXACT-and-wrong, 0 differs) · 0 by count, 0 by name · 0 ungraded
+    per-TU FBM over 22 TUs with emitted functions — ≥100%: 12, ≥90%: 12, ≥50%: 13, ≥10%: 15
+
+  FENCE-BLOCKS-EXACT (w-fencecount) — TUs held out of `match` per decode-gate fence. `sole` = the TU's ONLY firing cause; `exact` = sole AND every emitted body FnByte-exact (`bodies` counts them); `first` = first blocker of a multi-cause TU. TWO CAVEATS, standing: a first-blocker count is NOT a distance (the port stops at its first refusal, so every held TU names one blocker however many it has); and the `locally-defined-callee` row is `decode_causes`' BROAD re-ask of the inline fence, which can fire where the narrowed gate exempts (see `GapReport::fence_blocks`). Machine keys: `gap-metric fence-*`, all causes, zeros included.
+    bind-record-count-ne-segments      sole    0  exact    0  bodies     0  first-of-multi    5
+    body-out-of-class                  sole    0  exact    0  bodies     0  first-of-multi    1
+    drectve-not-boilerplate            sole    0  exact    0  bodies     0  first-of-multi    1
+    gl-stop-26-introduced              sole    0  exact    0  bodies     0  first-of-multi    3
+    controls: held 10 = attributed 10 + arity-broken 0 (accounting-broken 0); cause-firings 28 over 10 held TUs (arity); residue-no-cause 0 (known 0); decodes-not-match 0 (codegen-gap/mismatch/port-error — outside the fence family); class-disagree 0 (known 0); match TUs checked 17, 0 carrying a cause (known 0)
+
+  GAP-METRICS — stable `key value` pairs for scripts/status.sh; keys are an interface, do not rename. The projection `emit-predicate-worth` = `b-and-c` − `a-and-b-and-c` is derived HERE on purpose (board #213):
+    gap-metric tu-total 878
+    gap-metric graded 27
+    gap-metric match 17
+    gap-metric mismatch 0
+    gap-metric codegen-gap 0
+    gap-metric vocab-gap 10
+    gap-metric port-error 0
+    gap-metric capture-fail 851
+    gap-metric factor-a 18
+    gap-metric factor-a-lo 18
+    gap-metric factor-b 26
+    gap-metric factor-c 25
+    gap-metric factor-d 16
+    gap-metric factor-e 1
+    gap-metric b-and-c 25
+    gap-metric a-and-b-and-c 18
+    gap-metric a-and-b-and-c-and-d 16
+    gap-metric a-and-b-and-c-and-d-or-e 17
+    gap-metric frontier 1
+    gap-metric frontier-if-a 8
+    gap-metric emit-predicate-worth 7
+    gap-metric writer-sections 10
+    gap-metric cfg-reach-bottom 0
+    gap-metric cfg-reach-enumerated 0
+    gap-metric cfg-reach-shipped 0
+    gap-metric cfg-reach-top 1
+    gap-metric cfg-bounds-violations 0
+    gap-metric cfg-subclass-entries 4
+    gap-metric cfg-subclass-restricted 0
+    gap-metric cfg-subclass-unwitnessed 0
+    gap-metric cfg-subclass-intruders 0
+    gap-metric selbind-one-to-one-tus 13
+    gap-metric selbind-selective-tus 6
+    gap-metric selbind-total-tus 0
+    gap-metric selbind-blocked-mangled-tus 3
+    gap-metric selbind-blocked-inline-fit-tus 5
+    gap-metric selbind-emitted 126
+    gap-metric selbind-emitted-named-gate 89
+    gap-metric selbind-emitted-named-wide 126
+    gap-metric selbind-emit-tus 22
+    gap-metric selbind-emit-subset-gate-tus 19
+    gap-metric selbind-emit-subset-wide-tus 22
+    gap-metric selbind-emitted-named-scan-narrow 126
+    gap-metric selbind-emitted-named-scan-precise 126
+    gap-metric selbind-emit-subset-scan-narrow-tus 22
+    gap-metric selbind-emit-subset-scan-precise-tus 22
+    gap-metric workload-sections 9
+    gap-metric ladder-steps 1
+    gap-metric cflow-emitted-branchy 34
+    gap-metric cflow-emitted-modeled 1
+    gap-metric cflow-residue-inclass-modeled 16
+    gap-metric cflow-residue-inclass-offclass 384
+    gap-metric cflow-residue-straight-modeled-blocked 5
+    gap-metric cflow-offclass-accounted 384
+    gap-metric step5-consistency-alarms 0
+    gap-metric step5-accounted 1075
+    gap-metric step5-refuse-unmodeled-operand-BLOCKED 637
+    gap-metric step5-refuse-unmodeled-operand-IN-CLASS 382
+    gap-metric step5-refuse-back-edge-BLOCKED 18
+    gap-metric step5-admit-straight-IN-CLASS 16
+    gap-metric step5-refuse-undecoded-BLOCKED 14
+    gap-metric step5-admit-straight-BLOCKED 5
+    gap-metric step5-refuse-back-edge-IN-CLASS 2
+    gap-metric step5-admit-forward-BLOCKED 1
+    gap-metric emit-cflow-shape-accounted 84
+    gap-metric emit-cflow-shape-straight-expr 35
+    gap-metric emit-cflow-shape-loop-expr 18
+    gap-metric emit-cflow-shape-undecoded-- 13
+    gap-metric emit-cflow-shape-if-1-expr 10
+    gap-metric emit-cflow-shape-if-n-expr 4
+    gap-metric emit-cflow-shape-straight-modeled 2
+    gap-metric emit-cflow-shape-if-1-modeled 1
+    gap-metric emit-cflow-shape-if-2-expr 1
+    gap-metric cflow-offclass-load-type-inclass 357
+    gap-metric cflow-offclass-load-type-blocked 521
+    gap-metric cflow-offclass-compare-inclass 12
+    gap-metric cflow-offclass-compare-blocked 5
+    gap-metric cflow-offclass-off-add-inclass 10
+    gap-metric cflow-offclass-off-add-blocked 28
+    gap-metric cflow-offclass-store-type-inclass 3
+    gap-metric cflow-offclass-store-type-blocked 10
+    gap-metric cflow-offclass-bind-inclass 1
+    gap-metric cflow-offclass-bind-blocked 18
+    gap-metric cflow-offclass-deref-inclass 1
+    gap-metric cflow-offclass-deref-blocked 3
+    gap-metric cflow-offclass-convert-out-of-class-inclass 0
+    gap-metric cflow-offclass-convert-out-of-class-blocked 10
+    gap-metric cflow-offclass-intrinsic-inclass 0
+    gap-metric cflow-offclass-intrinsic-blocked 43
+    gap-metric cflow-offclass-lit-type-inclass 0
+    gap-metric cflow-offclass-lit-type-blocked 2
+    gap-metric cflow-offclass-rmw-inclass 0
+    gap-metric cflow-offclass-rmw-blocked 10
+    gap-metric cflow-offclass-subscript-inclass 0
+    gap-metric cflow-offclass-subscript-blocked 3
+    gap-metric cflow-offclass-temp-inclass 0
+    gap-metric cflow-offclass-temp-blocked 2
+    gap-metric ladder-head .rdata$r
+    gap-metric ladder-head-c 27
+    gap-metric progress-mass 0.71627
+    gap-metric progress-emitted-in-class 39
+    gap-metric progress-emitted-total 126
+    gap-metric progress-mismatch-zeroed 0
+    gap-metric fnbyte-match 0.31746
+    gap-metric fnbyte-exact 39
+    gap-metric fnbyte-denominator 126
+    gap-metric fnbyte-differs 0
+    gap-metric fnbyte-partial 0
+    gap-metric fnbyte-refused 84
+    gap-metric fnbyte-unbound 3
+    gap-metric fnbyte-partition-broken 0
+    gap-metric fnbyte-census-disagree 0
+    gap-metric fnbyte-census-disagree-expressible 0
+    gap-metric fnbyte-exact-relocated 17
+    gap-metric fnbyte-reloc-differs 0
+    gap-metric fnbyte-reloc-unknown 0
+    gap-metric fnbyte-reloc-graded 39
+    gap-metric fnbyte-exact-bytes 39
+    gap-metric fnbyte-reloc-partition-broken 0
+    gap-metric fnbyte-match-tu-reloc-differs 0
+    gap-metric fnbyte-reloc-table-unreadable 0
+    gap-metric fnbyte-reloc-index-desync 0
+    gap-metric fnbyte-reloc-graded-relocated 17
+    gap-metric fnbyte-reloc-differs-count 0
+    gap-metric fnbyte-reloc-differs-offset 0
+    gap-metric fnbyte-reloc-differs-type 0
+    gap-metric fnbyte-reloc-differs-target 0
+    gap-metric fnbyte-reloc-differs-section-target 0
+    gap-metric fnbyte-reloc-witnesses 0
+    gap-metric fnbyte-match-tu-differs 0
+    gap-metric fnbyte-whole-tu 1
+    gap-metric fnbyte-tus-full 12
+    gap-metric fnbyte-tus 22
+    gap-metric fnbyte-elided 0
+    gap-metric fnbyte-elided-exact 0
+    gap-metric fnbyte-elided-ref-reloc 0
+    gap-metric fnbyte-name-disagree 6
+    gap-metric fnbyte-calltarget-graded 39
+    gap-metric fnbyte-calltarget-agree 39
+    gap-metric fnbyte-calltarget-disagree 0
+    gap-metric fnbyte-calltarget-disagree-exact 0
+    gap-metric fnbyte-calltarget-disagree-differs 0
+    gap-metric fnbyte-calltarget-disagree-name 0
+    gap-metric fnbyte-calltarget-disagree-count 0
+    gap-metric fnbyte-calltarget-ungraded 0
+    gap-metric fnbyte-call-targets-unreadable 0
+    gap-metric fnbyte-reloc-vs-calltarget-both 0
+    gap-metric fnbyte-reloc-vs-calltarget-reloc-only 0
+    gap-metric fnbyte-reloc-vs-calltarget-calltarget-only 0
+    gap-metric fnbyte-noeffect-rows 0
+    gap-metric fnbyte-noeffect-admitted 0
+    gap-metric fnbyte-noeffect-ref-blr 0
+    gap-metric fnbyte-noeffect-ref-other 0
+    gap-metric fnbyte-noeffect-ref-absent 0
+    gap-metric fnbyte-noeffect-callee-unbound 0
+    gap-metric fnbyte-noeffect-callee-parsed-live 0
+    gap-metric fnbyte-noeffect-callee-refused 0
+    gap-metric fnbyte-nothing-rows 0
+    gap-metric fnbyte-nothing-ref-blr 0
+    gap-metric fnbyte-nothing-ref-other 0
+    gap-metric fnbyte-nothing-ref-absent 0
+    gap-metric fnbyte-nothing-not-admitted 0
+    gap-metric fnbyte-nothing-unnamed 0
+    gap-metric fnbyte-shape-parse-refused-refused 84
+    gap-metric fnbyte-shape-plain-exact 22
+    gap-metric fnbyte-shape-cond-pair-exact 4
+    gap-metric fnbyte-shape-unbound-unbound 3
+    gap-metric fnbyte-shape-guard-chain-shared-tail-exact 2
+    gap-metric fnbyte-shape-guard-ret-chain-exact 2
+    gap-metric fnbyte-shape-if-call-join-exact 2
+    gap-metric fnbyte-shape-alloc-init-or-fail-exact 1
+    gap-metric fnbyte-shape-close-call-chain-exact 1
+    gap-metric fnbyte-shape-json-utf8-copy-exact 1
+    gap-metric fnbyte-shape-osf-handle-guard-exact 1
+    gap-metric fnbyte-shape-seq-exact 1
+    gap-metric fnbyte-shape-tail-exact 1
+    gap-metric fnbyte-shape-xlrc-create-guard-exact 1
+    gap-metric fnbyte-decline-parse 84
+    gap-metric fnbyte-decline-opt-mode 0
+    gap-metric fnbyte-decline-selector 0
+    gap-metric fnbyte-decline-gy-shape 0
+    gap-metric fnbyte-decline-data-ref 0
+    gap-metric fnbyte-decline-inlined-callee 0
+    gap-metric fnbyte-refused-parse 84
+    gap-metric fnbyte-refused-codegen 0
+    gap-metric fnbyte-refused-split-broken 0
+    gap-metric fnbyte-differs-witnesses 0
+    gap-metric frontier-bytefrac-top-tu src/keygen_xbox.cpp
+    gap-metric frontier-bytefrac-top-accepted 8
+    gap-metric frontier-bytefrac-top-denominator 1440
+    gap-metric frontier-bytefrac-zero 0
+    gap-metric frontier-bytefrac-no-denominator 0
+    gap-metric frontier-codegen-denominator 20
+    gap-metric frontier-codegen-exact 1
+    gap-metric frontier-codegen-wrong 0
+    gap-metric frontier-codegen-refused 0
+    gap-metric frontier-codegen-reader 19
+    gap-metric frontier-codegen-ungraded 0
+    gap-metric frontier-codegen-measured 0
+    gap-metric frontier-codegen-partition-broken 0
+    gap-metric bytefrac-control-full 11
+    gap-metric bytefrac-control-no-denominator 5
+    gap-metric bytefrac-control-shortfall-explained 1
+    gap-metric bytefrac-control-unexplained 0
+    gap-metric alias-runs 982
+    gap-metric alias-tag10 13
+    gap-metric alias-head-fail 0
+    gap-metric alias-rt-fail 0
+    gap-metric alias-unbound-target 0
+    gap-metric alias-self 0
+    gap-metric alias-dup 0
+    gap-metric alias-bound 13
+    gap-metric alias-shape-e-to-g 13
+    gap-metric alias-dom-with-body 0
+    gap-metric alias-null-m1-bound 0
+    gap-metric alias-null-m1-shape 0
+    gap-metric alias-null-p1-bound 5
+    gap-metric alias-null-p1-shape 0
+    gap-metric alias-dom-emitted 0
+    gap-metric alias-dom-emitted-tus 0
+    gap-metric alias-target-emitted 8
+    gap-metric alias-inref-total 159
+    gap-metric alias-inref-unbound 0
+    gap-metric alias-inref-alias 13
+    gap-metric alias-inref-records 13
+    gap-metric alias-inref-tus 3
+    gap-metric alias-datatu-relocs 0
+    gap-metric alias-datatu-relocs-alias 0
+    gap-metric alias-emit-names 0
+    gap-metric alias-obj-relocs 934
+    gap-metric alias-obj-reloc-alias 10
+    gap-metric alias-obj-reloc-alias-tus 2
+    gap-metric alias-obj-reloc-target 8
+    gap-metric alias-obj-reloc-unreadable 0
+    gap-metric alias-weak-records 8
+    gap-metric alias-weak-predicted 8
+    gap-metric alias-weak-default-disagree 0
+    gap-metric alias-weak-unpredicted 0
+    gap-metric alias-weak-not-search-library 0
+    gap-metric alias-weak-unreadable 0
+    gap-metric alias-weak-tus 2
+    gap-metric alias-weak-exact-tus 0
+    gap-metric alias-unrealized 5
+    gap-metric alias-rule-predicted 8
+    gap-metric alias-rule-miss 0
+    gap-metric alias-rule-extra 0
+    gap-metric alias-rule-exact-tus 27
+    gap-metric alias-weak-needed-tus 2
+    gap-metric alias-weak-needed-in-b-and-c 0
+    gap-metric alias-weak-needed-in-frontier 0
+    gap-metric fence-held-tus 10
+    gap-metric fence-cause-firings 28
+    gap-metric fence-residue-no-cause 0
+    gap-metric fence-decodes-not-match 0
+    gap-metric fence-class-disagree 0
+    gap-metric fence-on-match-tu 0
+    gap-metric fence-match-tus-checked 17
+    gap-metric fence-arity-broken 0
+    gap-metric fence-accounting-broken 0
+    gap-metric fence-blocks-sole:no-gl 0
+    gap-metric fence-blocks-exact:no-gl 0
+    gap-metric fence-blocks-exact-bodies:no-gl 0
+    gap-metric fence-blocks-first:no-gl 0
+    gap-metric fence-blocks-sole:no-ex 0
+    gap-metric fence-blocks-exact:no-ex 0
+    gap-metric fence-blocks-exact-bodies:no-ex 0
+    gap-metric fence-blocks-first:no-ex 0
+    gap-metric fence-blocks-sole:drectve-not-boilerplate 0
+    gap-metric fence-blocks-exact:drectve-not-boilerplate 0
+    gap-metric fence-blocks-exact-bodies:drectve-not-boilerplate 0
+    gap-metric fence-blocks-first:drectve-not-boilerplate 1
+    gap-metric fence-blocks-sole:split-empty-with-lo 0
+    gap-metric fence-blocks-exact:split-empty-with-lo 0
+    gap-metric fence-blocks-exact-bodies:split-empty-with-lo 0
+    gap-metric fence-blocks-first:split-empty-with-lo 0
+    gap-metric fence-blocks-sole:gl-stop-name-too-far 0
+    gap-metric fence-blocks-exact:gl-stop-name-too-far 0
+    gap-metric fence-blocks-exact-bodies:gl-stop-name-too-far 0
+    gap-metric fence-blocks-first:gl-stop-name-too-far 0
+    gap-metric fence-blocks-sole:gl-stop-name-not-mangled 0
+    gap-metric fence-blocks-exact:gl-stop-name-not-mangled 0
+    gap-metric fence-blocks-exact-bodies:gl-stop-name-not-mangled 0
+    gap-metric fence-blocks-first:gl-stop-name-not-mangled 0
+    gap-metric fence-blocks-sole:gl-stop-run-ends-26 0
+    gap-metric fence-blocks-exact:gl-stop-run-ends-26 0
+    gap-metric fence-blocks-exact-bodies:gl-stop-run-ends-26 0
+    gap-metric fence-blocks-first:gl-stop-run-ends-26 0
+    gap-metric fence-blocks-sole:gl-stop-dllexport 0
+    gap-metric fence-blocks-exact:gl-stop-dllexport 0
+    gap-metric fence-blocks-exact-bodies:gl-stop-dllexport 0
+    gap-metric fence-blocks-first:gl-stop-dllexport 0
+    gap-metric fence-blocks-sole:gl-stop-26-introduced 0
+    gap-metric fence-blocks-exact:gl-stop-26-introduced 0
+    gap-metric fence-blocks-exact-bodies:gl-stop-26-introduced 0
+    gap-metric fence-blocks-first:gl-stop-26-introduced 3
+    gap-metric fence-blocks-sole:gl-stop-varargs-record 0
+    gap-metric fence-blocks-exact:gl-stop-varargs-record 0
+    gap-metric fence-blocks-exact-bodies:gl-stop-varargs-record 0
+    gap-metric fence-blocks-first:gl-stop-varargs-record 0
+    gap-metric fence-blocks-sole:bind-record-count-ne-segments 0
+    gap-metric fence-blocks-exact:bind-record-count-ne-segments 0
+    gap-metric fence-blocks-exact-bodies:bind-record-count-ne-segments 0
+    gap-metric fence-blocks-first:bind-record-count-ne-segments 5
+    gap-metric fence-blocks-sole:bind-offset-ne-segment-start 0
+    gap-metric fence-blocks-exact:bind-offset-ne-segment-start 0
+    gap-metric fence-blocks-exact-bodies:bind-offset-ne-segment-start 0
+    gap-metric fence-blocks-first:bind-offset-ne-segment-start 0
+    gap-metric fence-blocks-sole:selective-unaccounted-emitted-body 0
+    gap-metric fence-blocks-exact:selective-unaccounted-emitted-body 0
+    gap-metric fence-blocks-exact-bodies:selective-unaccounted-emitted-body 0
+    gap-metric fence-blocks-first:selective-unaccounted-emitted-body 0
+    gap-metric fence-blocks-sole:selective-emit-set-unknown 0
+    gap-metric fence-blocks-exact:selective-emit-set-unknown 0
+    gap-metric fence-blocks-exact-bodies:selective-emit-set-unknown 0
+    gap-metric fence-blocks-first:selective-emit-set-unknown 0
+    gap-metric fence-blocks-sole:varargs 0
+    gap-metric fence-blocks-exact:varargs 0
+    gap-metric fence-blocks-exact-bodies:varargs 0
+    gap-metric fence-blocks-first:varargs 0
+    gap-metric fence-blocks-sole:body-out-of-class 0
+    gap-metric fence-blocks-exact:body-out-of-class 0
+    gap-metric fence-blocks-exact-bodies:body-out-of-class 0
+    gap-metric fence-blocks-first:body-out-of-class 1
+    gap-metric fence-blocks-sole:shape-token-unresolved 0
+    gap-metric fence-blocks-exact:shape-token-unresolved 0
+    gap-metric fence-blocks-exact-bodies:shape-token-unresolved 0
+    gap-metric fence-blocks-first:shape-token-unresolved 0
+    gap-metric fence-blocks-sole:label-stride-mismatch 0
+    gap-metric fence-blocks-exact:label-stride-mismatch 0
+    gap-metric fence-blocks-exact-bodies:label-stride-mismatch 0
+    gap-metric fence-blocks-first:label-stride-mismatch 0
+    gap-metric fence-blocks-sole:label-counter-unreadable 0
+    gap-metric fence-blocks-exact:label-counter-unreadable 0
+    gap-metric fence-blocks-exact-bodies:label-counter-unreadable 0
+    gap-metric fence-blocks-first:label-counter-unreadable 0
+    gap-metric fence-blocks-sole:unclaimed-gl-symbol 0
+    gap-metric fence-blocks-exact:unclaimed-gl-symbol 0
+    gap-metric fence-blocks-exact-bodies:unclaimed-gl-symbol 0
+    gap-metric fence-blocks-first:unclaimed-gl-symbol 0
+    gap-metric fence-blocks-sole:locally-defined-callee 0
+    gap-metric fence-blocks-exact:locally-defined-callee 0
+    gap-metric fence-blocks-exact-bodies:locally-defined-callee 0
+    gap-metric fence-blocks-first:locally-defined-callee 0
+  GAP-FACTOR-TUS: NOT REQUESTED — pass `--factors-tsv PATH` for the per-TU A/B/C/D/E membership. The joints above are counts; `|{some per-TU set} and B and C|` cannot be got from one, and multiplying a rate by a joint count is how `B and C` stayed published at 107 after C moved.
+
+GAP REPORT (878 TUs in 12.0s)
+  match            17    1.9%
+  mismatch          0    0.0%
+  codegen-gap       0    0.0%
+  vocab-gap        10    1.1%
+  port-error        0    0.0%
+  capture-fail    851   96.9%
+  capture cache: 0 hit, 878 miss, 0 uncacheable  |  validator: 0 re-captured and agreed (0 of them only after zeroing the COFF TimeDateStamp), 0 POISONED
+  cache entries REFUSED on provenance: 0 (expected 0 — an entry whose recorded capture path is not where it is being served from is re-captured, never served)
+
+  FUNCTION CENSUS (P2b): 400/1075 functions in class (37.21%)
+  census/gate disagreement: 0  (the port accepts every function above)
+  .gl binding invariants: 0 violations (every generated destructor resolves to a destructor)
+        126  selbind-emitted
+        126  selbind-emitted-named-scan-narrow
+        126  selbind-emitted-named-scan-precise
+        126  selbind-emitted-named-wide
+         89  selbind-emitted-named-gate
+         22  selbind-emit-subset-scan-narrow-tus
+         22  selbind-emit-subset-scan-precise-tus
+         22  selbind-emit-subset-wide-tus
+
+  EMITTED CENSUS (§8): 39/126 emitted functions in class (30.95%)
+    bound 123  |  residue 3: 2 compiler-generated (no IL body), 1 unexplained  (2.38% of the denominator)
+    ceiling if every residue symbol were in class: 42 (33.33%)
+    ground truth VIOLATED: 1 emitted symbols on the 17 byte-exact TUs did not bind to an in-class row — the BINDING is wrong, not the port
+    binding: 477 records, 0 nameless, 0 before the first row, 4 row-conflicts, 0 name-conflicts, 0 accounting breaks, 0 unreadable objs
+    binding arity (#144 — residue 0 is not a control): 477 record offsets against 477 records, 0 arity breaks (known answer 0)
+    .in initializers: 1093 records = 1086 accepted + 7 residue, 1928 elements (ARITY), 1086 values (TOKENS, not records), 0 duplicate records, 0 conflicts, 0 accounting breaks (known answer 0)
+    .in symbol addresses (element tag 02, board #931): 159 elements over 85 records
+    .in UNANCHORED (the denominator, board #961): 13 records whose first element is a tag-03 blob or a tag-08 fill, 1 `00 02` candidates dropped by the fail-closed arm, 0 anchors with no token — none of these is in `records` OR in the residue
+      .in residue symbol-address              0
+      .in residue floating-point              5
+      .in residue unknown-type                2
+      .in residue unknown-width               0
+      .in residue value-did-not-frame         0
+      .in residue pointer-width               0
+      .in residue zero-fill                   0
+      .in residue inline-bytes                0
+      .in residue truncated                   0
+      residue ctor                       1 (100.0% of the unexplained)
+    TU distance to matching (blocked functions) — ≤0: 11, ≤1: 12, ≤10: 13, ≤100: 17, ≤1000: 22
+    TU distance to matching (blocked EMITTED functions) — ≤0: 11, ≤1: 13, ≤10: 18, ≤100: 22, ≤1000: 22
+    emit-set ceiling: 18 of 27 graded TUs have `.ex` segments == obj `.text` COMDATs — the most TU match can reach before ROADMAP §8.3 Phase 7 (violations among matching TUs, must be 0: 0)
+    emit-set MODEL ceiling: 26 of 27 TUs bind every emitted symbol today; 27 would if `bind.rs` lost none; 0 carry an emitted symbol with NO `.gl` body record and are a wall for any segment-driven model
+      unbound emitted symbols: 3 have a body record (instrument defect), 0 have none (wall) — nesting invariant, must hold: today <= repaired (true), repaired + wall == graded (true)
+    the widening order OVER EMITTED CODE (84 blocked):
+           14 ( 16.7%)  expr-op-0x27
+            9 ( 10.7%)  expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+            8 (  9.5%)  expr-jump
+            5 (  6.0%)  expr-intrinsic-base-member-addr
+            4 (  4.8%)  expr-intrinsic-this-adjust
+            3 (  3.6%)  assign-store-type-8643
+            2 (  2.4%)  expr-call-in-expr-op-0x9B
+            2 (  2.4%)  expr-cmp-eq
+            2 (  2.4%)  expr-cmp-lt
+            2 (  2.4%)  expr-lit-type-864A
+            2 (  2.4%)  expr-load-type-8645
+            2 (  2.4%)  expr-op-0x28
+            2 (  2.4%)  expr-op-0x30
+            1 (  1.2%)  call-arg-outer-formal:eof
+            1 (  1.2%)  call-bound-store-0x2C
+            1 (  1.2%)  call-bound-store-0x86
+            1 (  1.2%)  callee-defined-in-tu:eof
+            1 (  1.2%)  expr-brfalse
+            1 (  1.2%)  expr-call-in-expr-data-addr-then-plain-call-and-op-more
+            1 (  1.2%)  expr-call-in-expr-data-read-then-plain-call-and-type-real-more
+      … and 20 more distinct features
+    TUs within 100 blocked functions of matching: 17 (blocked | emitted in-class/emitted | src)
+          0 |    2/2    | src/system/negate_test.cpp [match]
+          0 |    3/3    | src/system/utl/Pool.cpp [match]
+          0 |    1/1    | src/xdk/LIBCMT/osfinfo.cpp [match]
+          0 |    1/1    | src/xdk/LIBCMT/undname.cpp [match]
+          0 |    2/2    | src/xdk/LIBCMT/vsnprnc.cpp [match]
+          0 |    1/1    | src/xdk/LIBCMT/vswprnc.cpp [match]
+          0 |   11/11   | src/xdk/nuispeech/mmio.cpp [match]
+          0 |    1/1    | src/xdk/nuispeech/xboxheap.cpp [match]
+          0 |    4/4    | src/xdk/nuispeech/xboxmem.cpp [match]
+          0 |    1/1    | src/xdk/xjson/jsonwriter.cpp [match]
+          0 |    1/1    | src/xdk/xlrc/xlrcimpl.cpp [match]
+          1 |    0/1    | src/Main.cpp [match]
+          3 |    0/1    | src/xdk/nuiapi/nuidetroit.cpp [vocab-gap]
+         12 |    1/14   | src/system/synth_xbox/HeadsetXferEffect.cpp [vocab-gap]
+         19 |    1/20   | src/keygen_xbox.cpp [vocab-gap]
+         22 |    0/14   | src/xdk/LIBCMT/rtti.cpp [vocab-gap]
+         26 |    2/9    | src/xdk/nuiapi/headtracker.cpp [vocab-gap]
+  blocking features (the widening order):
+        265 ( 39.3%)  expr-load-type-8885
+        253 ( 37.5%)  expr-load-type-8645
+         27 (  4.0%)  expr-op-0x27
+         14 (  2.1%)  expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+         13 (  1.9%)  expr-intrinsic-fabs
+         10 (  1.5%)  call-postop-0x2C
+         10 (  1.5%)  expr-intrinsic-sqrt
+          8 (  1.2%)  expr-intrinsic-base-member-addr
+          8 (  1.2%)  expr-intrinsic-this-adjust
+          8 (  1.2%)  expr-jump
+          4 (  0.6%)  expr-cmp-ne
+          4 (  0.6%)  param-multi-reg:mid
+          3 (  0.4%)  assign-store-type-8643
+          3 (  0.4%)  expr-call-in-expr-op-0x9B
+          3 (  0.4%)  expr-load-type-8906
+          3 (  0.4%)  expr-ptr-arith:mid
+          2 (  0.3%)  body-0x9B
+          2 (  0.3%)  expr-call-in-expr-data-read-then-plain-call-and-type-real-more
+          2 (  0.3%)  expr-cmp-eq
+          2 (  0.3%)  expr-cmp-lt
+    … and 27 more distinct features
+  frame class (CALL tokens per body — decode-only, §18):
+         90 (  8.4%)  calls-0
+        912 ( 84.8%)  calls-1
+         73 (  6.8%)  calls-2plus
+         14           calls-2plus|expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+          8           calls-2plus|expr-intrinsic-this-adjust
+          7           calls-2plus|expr-jump
+          5           calls-2plus|expr-op-0x27
+          4           calls-2plus|cond-tail-pair
+          4           calls-2plus|expr-cmp-ne
+          2           calls-2plus|expr-call-in-expr-op-0x9B
+          2           calls-2plus|expr-cmp-eq
+          2           calls-2plus|expr-cmp-lt
+          2           calls-2plus|expr-load-type-8645
+  control-flow class (statement layer, decode-only): 1061 of 1075 bodies decoded end to end (98.7%)
+        979 ( 91.1%)  cflow-straight
+         22 (  2.0%)  cflow-if-1
+         21 (  2.0%)  cflow-straight+expr-modeled
+         20 (  1.9%)  cflow-loop
+         15 (  1.4%)  cflow-if-n
+         10 (  0.9%)  cf-expr-0x59
+          4 (  0.4%)  cf-expr-0x08
+          3 (  0.3%)  cflow-if-2
+          1 (  0.1%)  cflow-if-1+expr-modeled
+         14           cflow-if-1|expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+          8           cflow-loop|expr-jump
+          4           cflow-if-1|cond-tail-pair
+          2           cflow-if-1|expr-op-0x27
+          2           cflow-if-1|pool-free-list
+          2           cflow-if-2|expr-cmp-ne
+          2           cflow-if-n|expr-cmp-ne
+          2           cflow-if-n|expr-op-0x27
+          2           cflow-if-n|guard-chain-shared-tail
+          2           cflow-if-n|if-call-join
+          2           cflow-loop|assign-store-type-8643
+          2           cflow-loop|expr-op-0x28
+    CONTROL-FLOW COUNTERFACTUAL (board #1343) — what a block IR would convert BY ITSELF: 1 bodies, 1 of the 34 blocked EMITTED functions a block IR must serve. Neither is a bound — both are a PROXY whose two-sided error the next two lines measure. Never quote one without them.
+    RESIDUE CONTROL (board #1344) — `CfResidue::Modeled` is a hand-written mirror of the port's class and NOTHING checked it against the port. It calls 384 of the 400 bodies the port ACCEPTS off-class (96.0%), recognising only 16. NOT a gate and NOT an error: a residue LOOSER than the emitter would over-claim, which is worse. What it IS is the counterfactual's error term, and it was assumed rather than measured for eight days.
+    …and it errs BOTH WAYS, so `lower bound` is the wrong word for the line above: 5 straight-line bodies are `+expr-modeled` and the port REFUSES them anyway. `Modeled` neither contains nor is contained in the class — it is a different predicate, and the counterfactual inherits both differences.
+  EH class (maxState, decode-only): 11 of 1075 bodies have maxState >= 1 and need the whole EH record (1.0%)
+       1042 ( 96.9%)  eh-none       blocked     642
+         14 (  1.3%)  eh-unknown    blocked      14
+         11 (  1.0%)  eh-state1     blocked      11
+          8 (  0.7%)  eh-state0     blocked       8
+    blocked residue, by census key (accepted shapes excluded):
+          8           eh-state1|BLOCKED|expr-intrinsic-this-adjust
+          7           eh-state0|BLOCKED|expr-intrinsic-base-member-addr
+          3           eh-unknown|BLOCKED|expr-op-0x27
+          2           eh-unknown|BLOCKED|expr-cmp-eq
+          2           eh-unknown|BLOCKED|expr-cmp-lt
+          2           eh-unknown|BLOCKED|expr-load-type-8645
+          1           eh-state0|BLOCKED|expr-call-in-expr-recv-intrinsic-this-adjust-then-plumbing-0x3A
+          1           eh-state1|BLOCKED|call-bound-store-0x2C
+          1           eh-state1|BLOCKED|expr-call-in-expr-recv-object-then-op-0x5C
+          1           eh-state1|BLOCKED|expr-intrinsic-base-member-addr
+          1           eh-unknown|BLOCKED|assign-store-type-8643
+          1           eh-unknown|BLOCKED|expr-call-in-expr-op-0x59
+          1           eh-unknown|BLOCKED|expr-call-in-expr-recv-load-then-off-add-and-deref-load-more
+          1           eh-unknown|BLOCKED|expr-call-in-expr-recv-object-then-call-nested-call-and-type-real-more
+          1           eh-unknown|BLOCKED|expr-load-type-8906
+    in-class control group (ACCEPTED functions, never a rung):
+    maxState x statement-count (the refuted predicate, for reconciliation):
+         14           eh-migrate|eh-unknown|eh-unknown
+         10           eh-migrate|eh-state1|eh-plus-stmt
+          7           eh-migrate|eh-state0|eh-plus-stmt
+          1           eh-migrate|eh-state0|eh-bare
+          1           eh-migrate|eh-state1|eh-multi
+  grammar completeness (decode-only): 1075 of 1075 bodies read
+        636 ( 59.2%)  complete-none                   blocked     636
+        400 ( 37.2%)  complete-in-class               blocked       0
+         20 (  1.9%)  complete-more:grammar           blocked      20
+          9 (  0.8%)  complete-unmeasured:grammar     blocked       9
+          7 (  0.7%)  complete-partial:segment-end    blocked       7
+          3 (  0.3%)  complete-whole:segment-end      blocked       3
+    grammar-COMPLETE and blocked, both producers summed: 3
+  body dispatch (which recognizer claimed the body, decode-only): 1075 of 1075 bodies tagged on the dispatch axis, 1075 on the production axis
+        536 ( 49.9%)  disp-plain-call                   blocked     535
+        357 ( 33.2%)  disp-fp-tail-call                 blocked       0
+         66 (  6.1%)  disp-assign                       blocked      66
+         36 (  3.3%)  disp-expr-lit                     blocked      36
+         31 (  2.9%)  disp-expr-load                    blocked      31
+          9 (  0.8%)  disp-straight-line                blocked       0
+          5 (  0.5%)  disp-empty-body                   blocked       1
+          4 (  0.4%)  disp-cond-tail-pair               blocked       0
+          4 (  0.4%)  disp-formals-width                blocked       4
+          4 (  0.4%)  disp-store-leaf                   blocked       0
+          2 (  0.2%)  disp-body-byte                    blocked       2
+          2 (  0.2%)  disp-guard-chain-shared-tail      blocked       0
+          2 (  0.2%)  disp-guard-ret-chain              blocked       0
+          2 (  0.2%)  disp-if-call-join                 blocked       0
+          2 (  0.2%)  disp-pool-free-list               blocked       0
+          2 (  0.2%)  disp-ptr-identity-leaf            blocked       0
+          2 (  0.2%)  disp-store-run                    blocked       0
+          1 (  0.1%)  disp-alloc-init-or-fail           blocked       0
+          1 (  0.1%)  disp-close-call-chain             blocked       0
+          1 (  0.1%)  disp-cmp-shift-or                 blocked       0
+          1 (  0.1%)  disp-json-utf8-copy               blocked       0
+          1 (  0.1%)  disp-member-call                  blocked       0
+          1 (  0.1%)  disp-osf-handle-guard             blocked       0
+          1 (  0.1%)  disp-pool-ctor-chain              blocked       0
+          1 (  0.1%)  disp-store-run-bind               blocked       0
+          1 (  0.1%)  disp-xlrc-create-guard            blocked       0
+    blocked residue of the arms that never enter a member-call production:
+        264           disp-plain-call|BLOCKED|expr-load-type-8885
+        251           disp-plain-call|BLOCKED|expr-load-type-8645
+         18           disp-expr-load|BLOCKED|expr-op-0x27
+         13           disp-expr-lit|BLOCKED|expr-intrinsic-fabs
+         10           disp-expr-lit|BLOCKED|expr-intrinsic-sqrt
+         10           disp-plain-call|BLOCKED|call-postop-0x2C
+          8           disp-expr-lit|BLOCKED|expr-intrinsic-base-member-addr
+          4           disp-expr-load|BLOCKED|expr-cmp-ne
+          4           disp-formals-width|BLOCKED|param-multi-reg:mid
+          2           disp-body-byte|BLOCKED|body-0x9B
+          2           disp-expr-load|BLOCKED|expr-cmp-lt
+          2           disp-expr-load|BLOCKED|expr-load-type-8645
+          2           disp-plain-call|BLOCKED|expr-call-in-expr-data-read-then-plain-call-and-type-real-more
+          2           disp-plain-call|BLOCKED|expr-call-in-expr-op-0x9B
+          2           disp-plain-call|BLOCKED|expr-load-type-8906
+          1           disp-empty-body|BLOCKED|module-end:eof
+          1           disp-expr-lit|BLOCKED|expr-call-in-expr-recv-intrinsic-this-adjust-then-plumbing-0x3A
+          1           disp-expr-lit|BLOCKED|expr-intrinsic-0xDD
+          1           disp-expr-lit|BLOCKED|expr-intrinsic-_abs64
+          1           disp-expr-lit|BLOCKED|expr-intrinsic-abs
+          1           disp-expr-lit|BLOCKED|expr-load-type-8211
+          1           disp-expr-load|BLOCKED|expr-brfalse
+          1           disp-expr-load|BLOCKED|expr-call-in-expr-op-0x9B
+          1           disp-expr-load|BLOCKED|expr-cmp-le
+  member-call production first blocker (decode-only): 0 bodies entered a production, declined, and reached NO tagged bail — the tag-coverage residue (target 0)
+       1003 ( 93.3%)  prod-not-entered                  blocked     609
+         21 (  2.0%)  tail-recv-not-a-plain-b9-load/no-b9-literal  blocked      17
+         15 (  1.4%)  tail-void-body-does-not-end-at-the-call  blocked      15
+          8 (  0.7%)  tail-recv-not-a-plain-b9-load/no-b9-this-adjust  blocked       8
+          5 (  0.5%)  chain-recv-not-a-plain-b9-load/no-b9-plain-call  blocked       5
+          5 (  0.5%)  tail-recv-not-a-plain-b9-load/no-b9-off-add  blocked       5
+          4 (  0.4%)  tail-recv-not-a-plain-b9-load/then-operand-load  blocked       4
+          3 (  0.3%)  tail-recv-not-a-plain-b9-load/then-store  blocked       3
+          2 (  0.2%)  tail-argument-not-in-the-operand-vocabulary  blocked       2
+          2 (  0.2%)  tail-recv-not-a-plain-b9-load/no-b9-convert  blocked       2
+          1 (  0.1%)  chain-link-does-not-bind-the-previous-result  blocked       1
+          1 (  0.1%)  chain-recv-not-a-plain-b9-load/no-b9-convert  blocked       1
+          1 (  0.1%)  chain-recv-not-a-plain-b9-load/no-b9-off-add  blocked       1
+          1 (  0.1%)  prod-accepted                     blocked       0
+          1 (  0.1%)  tail-object-receiver-is-not-a-tail-call  blocked       1
+          1 (  0.1%)  tail-recv-not-a-plain-b9-load/then-deref-load  blocked       1
+          1 (  0.1%)  tail-recv-not-a-plain-b9-load/then-off-add  blocked       0
+         14           tail-void-body-does-not-end-at-the-call|BLOCKED|expr-call-in-expr-recv-load-then-bit-and-and-branch-more
+          8           tail-recv-not-a-plain-b9-load/no-b9-literal|BLOCKED|expr-jump
+          8           tail-recv-not-a-plain-b9-load/no-b9-this-adjust|BLOCKED|expr-intrinsic-this-adjust
+          5           tail-recv-not-a-plain-b9-load/no-b9-off-add|BLOCKED|expr-op-0x27
+          3           tail-recv-not-a-plain-b9-load/then-operand-load|BLOCKED|expr-ptr-arith:mid
+          3           tail-recv-not-a-plain-b9-load/then-store|BLOCKED|assign-store-type-8643
+          2           chain-recv-not-a-plain-b9-load/no-b9-plain-call|BLOCKED|expr-op-0x27
+          2           tail-recv-not-a-plain-b9-load/no-b9-convert|BLOCKED|expr-convert-no-value-0x2C
+          2           tail-recv-not-a-plain-b9-load/no-b9-literal|BLOCKED|expr-cmp-eq
+          2           tail-recv-not-a-plain-b9-load/no-b9-literal|BLOCKED|expr-lit-type-864A
+          1           chain-link-does-not-bind-the-previous-result|BLOCKED|expr-call-in-expr-recv-load-then-off-add-and-deref-load-more
+          1           chain-recv-not-a-plain-b9-load/no-b9-convert|BLOCKED|expr-call-in-expr-recv-object-then-convert
+          1           chain-recv-not-a-plain-b9-load/no-b9-off-add|BLOCKED|expr-call-in-expr-op-0x59
+          1           chain-recv-not-a-plain-b9-load/no-b9-plain-call|BLOCKED|call-bound-store-0x2C
+          1           chain-recv-not-a-plain-b9-load/no-b9-plain-call|BLOCKED|call-bound-store-0x86
+          1           chain-recv-not-a-plain-b9-load/no-b9-plain-call|BLOCKED|expr-load-type-8906
+          1           tail-argument-not-in-the-operand-vocabulary|BLOCKED|expr-call-in-expr-recv-load-then-call-nested-call-and-type-real-more
+          1           tail-argument-not-in-the-operand-vocabulary|BLOCKED|expr-call-in-expr-recv-load-then-call-other
+          1           tail-object-receiver-is-not-a-tail-call|BLOCKED|expr-call-in-expr-recv-object-then-op-0x5C
+          1           tail-recv-not-a-plain-b9-load/no-b9-literal|BLOCKED|expr-call-in-expr-op-0x1F
+
+  top capture-fail reasons:
+      849 x C1083
+        2 x C1189
+
+  top vocab gaps:
+       10 x il function decode failed
+
+  gate FIRST refusal, over the 10 TUs `IlBundle::decodes()` rejects (c2_il::func::diag; a first cause is what a repair is guaranteed to move, the ALSO column is what it would still owe):
+        5 x bind-record-count-ne-segments      (also fires on 6 TUs total)
+        3 x gl-stop-26-introduced              (also fires on 3 TUs total)
+        1 x body-out-of-class                  (also fires on 10 TUs total)
+        1 x drectve-not-boilerplate            (also fires on 1 TUs total)
+
+  `.gl` BODY-START COVERAGE — can `Bindings::per_record` bind this TU at all?
+       19 TUs where `.gl` spells a body-start for EVERY `.ex` segment
+        8 TUs where it does not — 599 segments across them can bind to NO record, whatever the framing
+      851 TUs with no `.ex` or no `.gl` (the field is null, which is not zero)
+         124 of 249    src/system/synth/complex.cpp
+         120 of 241    src/system/synth_xbox/FFT.cpp
+         112 of 229    src/system/synth_xbox/FilterCoeffs.cpp
+           7 of 118    src/system/synth_xbox/soundtouch/source/SoundTouch/PeakFinder.cpp
+          10 of 120    src/system/synth_xbox/PitchCorrectedVoice.cpp
+          21 of 30     src/xdk/nuiapi/headtracker.cpp
+          19 of 23     src/xdk/LIBCMT/rtti.cpp
+           1 of 3      src/xdk/nuiapi/nuidetroit.cpp
+
+  SELECTIVE BINDING (`Bindings::selective`) — how many TUs can bind a SUBSET, and is the subset SOUND?
+       13 TUs whose records are 1:1 with the segments (the incumbent contract; `per_record` is this case)
+        6 TUs where a record NAMES some but not all segments — the selective population
+        0 of those pass the TOTALITY clause (every `.gl` run that could be a COFF symbol name is claimed), i.e. MAY bind today
+        3 blocked by an unclaimed MANGLED run ·     5 blocked by an unclaimed run that FITS the 8-byte inline name field (board #1721's hole, and the shape
+          `work/w-small/probe/l1_counterexample.cpp` measured as `Port=Mismatch @ offset 8`)
+    IS `emitted ⊆ named`?  89 of 126 emitted symbols carry a `.gl` record the GATE BINDS (126 named by a walk-free scan at the same framing, 126 at the window-free one).
+      TUs with any emitted symbol whose emit set is ENTIRELY named, 22 in the denominator — the CEILING on a selective binding, decomposed:
+           22  scan, INCUMBENT framing  (`codec::gl_offset_framed`, no walk)
+           22  scan, SHIPPED framing    (#2783 relaxed + the 16 MB offset bound, no walk)
+           22  scan, window-free framing (board #2783 as filed — includes 551 offsets that are not `.ex` split points)
+           19  the GATE's own binding walk, at the shipped framing — six stop clauses, any one of which empties the whole TU
+      Read the last two rows against each other: what separates the gate from the instrument is the WALK, not the framing (board #2860).

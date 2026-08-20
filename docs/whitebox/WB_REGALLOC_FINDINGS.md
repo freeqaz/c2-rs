@@ -79,7 +79,7 @@ zero readers in the image** — it is a dead switch in this build.
 > statements about a **scheduled** tuple list.
 
 The per-function phase pipeline is `FUN_10b7d85e` @ `0x10b7d85e` (each phase
-bracketed by the timer `FUN_10bec297`), driven from `compile-one-function`
+preceded by `FUN_10bec297` — **the abort/cancellation poll, not a timer**; corrected 2026-08-20, `P_DAG.md` §2), driven from `compile-one-function`
 `0x10b7ef55`.
 
 ---

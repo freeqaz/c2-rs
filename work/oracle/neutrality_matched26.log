@@ -1,0 +1,37 @@
+stage neutrality: 26 fixtures, payload=on, flags /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I src/system/stlport /I src/xdk/LIBCMT /I src/system /I src/lazer /I src/system/oggvorbis /I src/system/synth/tomcrypt /I src/system/net/curl/include /I src
+  [1/26] SAME   Main.cpp  hits=14 regions=8 tuples=89
+  [2/26] SAME   decomp_pch.cpp  hits=0 regions=0 tuples=0
+  [3/26] SAME   Primes.cpp  hits=45 regions=39 tuples=695
+  [4/26] SAME   Sort.cpp  hits=30 regions=24 tuples=379
+  [5/26] SAME   negate_test.cpp  hits=92 regions=80 tuples=1440
+  [6/26] SAME   TomCryptLicense.cpp  hits=14 regions=8 tuples=54
+  [7/26] SAME   Biquad.cpp  hits=44 regions=32 tuples=644
+  [8/26] SAME   GainEffect.cpp  hits=0 regions=0 tuples=0
+  [9/26] SAME   HeadsetPlaybackEffect.cpp  hits=0 regions=0 tuples=0
+  [10/26] SAME   IPP_basicmath_xbox.cpp  hits=116 regions=92 tuples=1294
+  [11/26] SAME   PeakDetector.cpp  hits=0 regions=0 tuples=0
+  [12/26] SAME   mmx_optimized.cpp  hits=0 regions=0 tuples=0
+  [13/26] SAME   sse_optimized.cpp  hits=0 regions=0 tuples=0
+  [14/26] SAME   EncryptXTEA.cpp  hits=85 regions=55 tuples=698
+  [15/26] SAME   Pool.cpp  hits=73 regions=55 tuples=651
+  [16/26] SAME   Spew.cpp  hits=20 regions=8 tuples=32
+  [17/26] SAME   ZlibLicense.cpp  hits=14 regions=8 tuples=54
+  [18/26] SAME   osfinfo.cpp  hits=39 regions=33 tuples=859
+  [19/26] SAME   undname.cpp  hits=34 regions=28 tuples=523
+  [20/26] SAME   vsnprnc.cpp  hits=70 regions=58 tuples=1458
+  [21/26] SAME   vswprnc.cpp  hits=53 regions=47 tuples=1391
+  [22/26] SAME   mmio.cpp  hits=242 regions=176 tuples=2777
+  [23/26] SAME   xboxheap.cpp  hits=14 regions=8 tuples=90
+  [24/26] SAME   xboxmem.cpp  hits=92 regions=68 tuples=798
+  [25/26] SAME   jsonwriter.cpp  hits=107 regions=101 tuples=5491
+  [26/26] SAME   xlrcimpl.cpp  hits=54 regions=48 tuples=1072
+
+  gap-metric stage-tap-obj-differs 0
+  gap-metric stage-tap-graded 26
+  gap-metric stage-tap-errors 0
+  gap-metric stage-sites-armed 182
+  gap-metric stage-sites-refused 0
+
+  G1 HOLDS over 26 graded fixtures: the armed obj is byte-identical to the
+  disarmed one. A required-zero over an EMPTY population would be free, which is why
+  the denominator is printed beside it.

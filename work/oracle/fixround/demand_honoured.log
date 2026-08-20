@@ -1,0 +1,10 @@
+=== The converted call site, both ways. C2RS_MINGW points at a nonexistent binary, so the
+=== run is PARTIALLY provisioned — the exact case the funnel's demand mode exists for.
+
+--- (1) no demand: one SKIP line, exit 0 (CLAUDE.md's degrade-cleanly rule) ---
+SKIP: strace / i686-w64-mingw32-gcc absent (needed to keep the IL bundle and build c2host)
+exit=0
+
+--- (2) C2RS_REQUIRE_TOOLCHAIN=1: REFUSED on stderr, nonzero, and the word SKIP does NOT appear ---
+c2rs: REFUSED — C2RS_REQUIRE_TOOLCHAIN="1" is set, so this run CLAIMS to grade against real `c2.dll`, and it cannot: strace / i686-w64-mingw32-gcc absent (needed to keep the IL bundle and build c2host). Skipping here would exit 0 over a run that graded nothing — the defect the variable exists to close (boards #3219 / #3226 / #3247). Unset the variable, or run `scripts/partest.sh --portable`, to allow the skip.
+exit=1

@@ -1,0 +1,46 @@
+=== MUTATION: ARENA_BYTES 4 MiB -> 8 KiB, so il_call_perm.cpp's 329-row payload overruns
+=== the arena. Fixture, flags and every other guard held fixed.
+
+--- BEFORE (pre-fix c2host + pre-fix parser, same 8 KiB arena) ---
+  gap-metric stage-snap-tuples 265
+  gap-metric stage-snap-regions 46
+  gap-metric stage-snap-walk-refusals 0
+  gap-metric stage-color-pairs 6
+  gap-metric stage-color-pairs-differing 1
+  (zero REFUSE lines and zero ARENA lines: the truncation is SILENT, the tuple count is a
+   floor presented as a measurement, and stage-color-pairs-differing 1 is a COLOR difference
+   MANUFACTURED by the truncation — the unmutated run reads 0 of 7.)
+
+--- AFTER (fixed c2host reserve + ARENA full=1 parsed as a refusal, same 8 KiB arena) ---
+TU 7 REFUSE region arena-full
+REFUSE region arena-full
+ARENA bytes=8191 full=1
+  gap-metric stage-snap-tuples 265
+  gap-metric stage-snap-regions 45
+  gap-metric stage-snap-walk-refusals 2
+  gap-metric stage-color-pairs 6
+  gap-metric stage-color-pairs-differing 1
+
+--- AND THE STANDING TEST under the same mutation (the assertion that exists to catch it) ---
+   Compiling c2-reference v0.1.0 (/home/free/code/milohax/c2-rs-wt-w-stageoracle/crates/c2-reference)
+    Finished `release` profile [optimized] target(s) in 0.54s
+     Running tests/stage.rs (target/release/deps/stage-3481f785e5cd6992)
+
+running 1 test
+test the_snapshot_is_nonempty_and_agrees_with_a_second_derivation ... FAILED
+
+failures:
+
+---- the_snapshot_is_nonempty_and_agrees_with_a_second_derivation stdout ----
+
+thread 'the_snapshot_is_nonempty_and_agrees_with_a_second_derivation' (2360105) panicked at crates/c2-reference/tests/stage.rs:396:5:
+the bounded walk was TRUNCATED, so the tuple count below is a floor and not a measurement: ["REFUSE region arena-full", "ARENA bytes=8191 full=1"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    the_snapshot_is_nonempty_and_agrees_with_a_second_derivation
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.11s
+
+error: test failed, to rerun pass `-p c2-reference --test stage`
