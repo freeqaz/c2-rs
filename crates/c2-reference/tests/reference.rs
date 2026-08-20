@@ -289,11 +289,34 @@ fn concurrent_host_stub_builds_never_publish_a_partial_exe() {
         return;
     }
     let w = work("stubrace");
-    let src = w.join("c2host.c");
-    std::fs::copy(&tc.c2host_src, &src).expect("copy the stub source");
+    // Copy EVERY source the stub links from, not just `c2host.c`. The stub
+    // grew a second source (`stagetap.c`) on 2026-08-20 and this test broke
+    // with `c2host source missing: <scratch>/stagetap.c` — a clean failure,
+    // and the right one: a race test that exercised a different source set
+    // than production would be testing a link that does not exist.
+    // `Toolchain::c2host_sources` is the single definition; enumerate it here
+    // so the next source added needs no edit.
+    for src in tc.c2host_sources() {
+        let name = src.file_name().expect("stub source has a file name");
+        std::fs::copy(&src, w.join(name))
+            .unwrap_or_else(|e| panic!("copy the stub source {}: {e}", src.display()));
+    }
+    // …and the headers beside them: gcc resolves `#include "stagetap.h"`
+    // relative to the .c it is compiling, so a scratch dir with the sources and
+    // no headers fails to COMPILE rather than to publish — which would make
+    // this test red for a reason that has nothing to do with atomic publish.
+    let src_dir = tc.c2host_src.parent().expect("stub source has a parent").to_path_buf();
+    for e in std::fs::read_dir(&src_dir).expect("read the stub source dir").flatten() {
+        let p = e.path();
+        if p.extension().and_then(|s| s.to_str()) == Some("h") {
+            let name = p.file_name().expect("header has a file name");
+            std::fs::copy(&p, w.join(name))
+                .unwrap_or_else(|err| panic!("copy the stub header {}: {err}", p.display()));
+        }
+    }
 
     let mut scratch = tc.clone();
-    scratch.c2host_src = src;
+    scratch.c2host_src = w.join("c2host.c");
     scratch.c2host_exe = w.join("build/c2host.exe");
     // `ensure_clui_beside` wants a `1033` next to the exe; give the scratch
     // build the real toolchain's, so this test exercises that path too.
