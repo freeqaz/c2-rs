@@ -213,8 +213,18 @@ extern void c2rs_stage_thunk(void);
  * block: "deterministic and vacuous" passes every other criterion in this
  * lane trivially, and absence-read-as-success is this project's own signature
  * defect (twelve recorded instances).
+ *
+ * FIX-ROUND DEFECT (review finding, 2026-08-20): the first version of this
+ * arena could NEVER emit its own `REFUSE region arena-full` line. `ap` drops
+ * silently once the arena is full, so the very call meant to announce the
+ * truncation was itself dropped — the fail-loud path was unreachable, and a
+ * truncated payload would have looked exactly like a complete one. The fix is
+ * a RESERVE at the tail that only `ap_reserved` may write into, so the refusal
+ * always has room. Mutation-demonstrated at ARENA_BYTES 8192 (rung §9).
  * ------------------------------------------------------------------------- */
-#define ARENA_BYTES (4u * 1024u * 1024u)
+#define ARENA_BYTES   (4u * 1024u * 1024u)
+/* Room for the refusal line and the trailing newline, and nothing else. */
+#define ARENA_RESERVE 64u
 static char         g_arena[ARENA_BYTES];
 static unsigned int g_arena_len = 0;
 static int          g_arena_full = 0;
@@ -222,7 +232,17 @@ static int          g_arena_full = 0;
 static void ap(const char *s)
 {
     while (*s) {
-        if (g_arena_len >= ARENA_BYTES - 1) { g_arena_full = 1; return; }
+        if (g_arena_len >= ARENA_BYTES - 1u - ARENA_RESERVE) { g_arena_full = 1; return; }
+        g_arena[g_arena_len++] = *s++;
+    }
+}
+
+/* The ONLY writer allowed into the reserve. Used for the arena-full refusal
+ * itself: an announcement that cannot be written is not an announcement. */
+static void ap_reserved(const char *s)
+{
+    while (*s) {
+        if (g_arena_len >= ARENA_BYTES - 1u) return;
         g_arena[g_arena_len++] = *s++;
     }
 }
@@ -292,7 +312,7 @@ static void tap_walk_tuples(unsigned int t)
     unsigned int i = 0;
     unsigned int first = t;
     if (!plausible(t)) {
-        ap("REFUSE region walk-implausible-head\n");
+        ap_reserved("REFUSE region walk-implausible-head\n");
         return;
     }
     while (i < WALK_MAX) {
@@ -300,7 +320,7 @@ static void tap_walk_tuples(unsigned int t)
         unsigned int opcode;
         unsigned int next;
         unsigned int d = (t > first) ? (t - first) : (first - t);
-        if (d > WALK_SPAN) { ap("REFUSE region walk-span\n"); return; }
+        if (d > WALK_SPAN) { ap_reserved("REFUSE region walk-span\n"); return; }
 
         memcpy(&opcode, b + 4, 4);
         memcpy(&next, b + 0, 4);
@@ -317,14 +337,14 @@ static void tap_walk_tuples(unsigned int t)
             for (k = 0; k < g_raw; k++) ap_hex(b[k], 2);
             ap("\n");
         }
-        if (g_arena_full) { ap("REFUSE region arena-full\n"); return; }
+        if (g_arena_full) { ap_reserved("REFUSE region arena-full\n"); return; }
 
         i++;
         if (next == 0) return;               /* end of list: a real terminus */
-        if (!plausible(next)) { ap("REFUSE region walk-implausible-next\n"); return; }
+        if (!plausible(next)) { ap_reserved("REFUSE region walk-implausible-next\n"); return; }
         t = next;
     }
-    ap("REFUSE region walk-overrun\n");
+    ap_reserved("REFUSE region walk-overrun\n");
 }
 
 /* Called from the thunk. Returns the real call target for this site.
@@ -434,6 +454,36 @@ int tap_arm(HMODULE h, void *invoke_fn)
         }
     }
     g_slide = slide_export;
+    /* C2RS_STAGE_FORCE_SLIDE=<hex> — THE FAIL-CLOSED CHECK'S OWN TEST LEVER.
+     *
+     * Review finding (2026-08-20): the `+ slide` half of the fail-closed check
+     * — the half the first plan defect was about — had never executed at a
+     * nonzero slide, because c2.dll loads at its preferred base on every run on
+     * this box. A guard nobody has watched fire is a guard nobody has tested.
+     * Setting this variable displaces every site address by the given amount so
+     * `crates/c2-reference/tests/stage.rs::a_wrong_slide_arms_nothing_and_never_
+     * moves_the_obj` can watch all seven sites refuse AGAINST A LIVE IMAGE and
+     * the obj come out byte-identical anyway.
+     *
+     * It is a testing lever and never a production path: unset, this block does
+     * nothing, and when set the ONLY reachable outcome is refusal (the displaced
+     * bytes are not this table's `e8 rel32`). */
+    {
+        const char *fs = getenv("C2RS_STAGE_FORCE_SLIDE");
+        if (fs && *fs) {
+            unsigned int v = 0;
+            while (*fs) {
+                char c = *fs++;
+                if (c >= '0' && c <= '9')      v = v * 16u + (unsigned int)(c - '0');
+                else if (c >= 'a' && c <= 'f') v = v * 16u + (unsigned int)(c - 'a' + 10);
+                else if (c >= 'A' && c <= 'F') v = v * 16u + (unsigned int)(c - 'A' + 10);
+                else break;
+            }
+            g_slide = slide_export + v;
+            fprintf(stderr, "[stagetap] FORCED-SLIDE +%08x on top of the measured "
+                            "%08x — every site MUST refuse\n", v, slide_export);
+        }
+    }
     g_slide_known = 1;
     fprintf(stderr, "[stagetap] hmodule=%08x invoke=%08x slide=%08x "
                     "slide-virtualquery=%s%08x\n",
@@ -454,6 +504,24 @@ int tap_arm(HMODULE h, void *invoke_fn)
         int            newrel;
 
         if (!wanted(list, g_sites[i].name)) continue;
+
+        /* FAIL-CLOSED CHECK 0 — the address is MAPPED before it is read.
+         * Checks 1 and 2 both dereference the site; at a nonzero slide (a
+         * relocated image, or the forced slide the fail-closed test uses) the
+         * displaced address need not be inside any committed region, and a
+         * fault there would be a crash instead of a refusal. */
+        {
+            MEMORY_BASIC_INFORMATION sm;
+            memset(&sm, 0, sizeof(sm));
+            if (VirtualQuery(p, &sm, sizeof(sm)) == sizeof(sm)
+                && (sm.State != MEM_COMMIT || (sm.Protect & PAGE_NOACCESS))) {
+                fprintf(stderr, "[stagetap] REFUSE %s site=%08x unmapped "
+                                "(state=%lx protect=%lx) — never read a guess\n",
+                        g_sites[i].name, (unsigned int)(uintptr_t)p,
+                        (unsigned long)sm.State, (unsigned long)sm.Protect);
+                continue;
+            }
+        }
 
         /* FAIL-CLOSED CHECK 1 — the site still starts with a direct call. */
         if (p[0] != 0xE8) {
