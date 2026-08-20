@@ -1,0 +1,28 @@
+=== MUTATION: fail-closed CHECK 2 (decoded target == recorded target + measured slide)
+=== disabled in c2host/stagetap.c; the opcode check left in place — i.e. exactly the
+=== 'an e8 is enough' guard the plan's HMODULE-as-base defect would have met.
+=== Every other guard held fixed: the control leg still arms 7 and fires 98 hits, and the
+=== other six tests in the file still pass.
+
+test the_tuple_walk_sees_the_scheduler_move_the_list ... ok
+test the_tapped_run_actually_armed ... ok
+test a_wrong_slide_arms_nothing_and_never_moves_the_obj ... FAILED
+test the_snapshot_is_nonempty_and_agrees_with_a_second_derivation ... ok
+test scheduler_taps_are_silent_at_od_and_loud_at_o1 ... ok
+test taps_are_inert_unarmed_and_never_move_the_obj ... ok
+
+failures:
+
+---- a_wrong_slide_arms_nothing_and_never_moves_the_obj stdout ----
+
+thread 'a_wrong_slide_arms_nothing_and_never_moves_the_obj' (2404928) panicked at crates/c2-reference/tests/stage.rs:381:5:
+A WRONG SLIDE PATCHED 5 SITE(S). The fail-closed check is the only thing standing between a relocated image and five patched addresses in the middle of c2's phase driver: ["sched1", "globregs", "sched2", "color", "sched0"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_wrong_slide_arms_nothing_and_never_moves_the_obj
+
+test result: FAILED. 6 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+error: test failed, to rerun pass `-p c2-reference --test stage`

@@ -1,0 +1,22 @@
+=== SAME MUTATION, AFTER the fix: the tip binary, --force-slide 18.
+=== The verdict word changes from 'G1 HOLDS' to 'G1 IS VACUOUS' and names the reason.
+
+stage neutrality: 1 fixtures, payload=on, flags /O1 /Oi /EHsc /GS- /c
+  --force-slide 18: THE SITE ADDRESSES ARE DELIBERATELY WRONG. Every site must refuse
+  and the verdict must read VACUOUS — this is the mutation, not a measurement.
+  [1/1] UNARMED il_call_perm.cpp  armed=[] refused=[("sched1", "REFUSE sched1 site=10b7dcb7 target=10b57633 expected=10be639a — never patch a guess"), ("globregs", "REFUSE globregs site=10b7dccf target=10bec297 expected=10b5764b — never patch a guess"), ("sched2", "REFUSE sched2 site=10b7dcf6 target=10b31c9a expected=10be639a — never patch a guess"), ("color", "REFUSE color site=10b7dd0e target=10bec297 expected=10b31cb2 — never patch a guess"), ("sched3", "REFUSE sched3 site=10b7dd35 opcode=33 (expected e8) — image not the one this table was read from"), ("sched0", "REFUSE sched0 site=10b7e024 target=10c0a034 expected=10be639a — never patch a guess"), ("region", "REFUSE region site=10be6456 opcode=00 (expected e8) — image not the one this table was read from")]
+
+  gap-metric stage-tap-obj-differs 0
+  gap-metric stage-tap-armed-and-fired 0
+  gap-metric stage-tap-armed-nofire 0
+  gap-metric stage-tap-unarmed 1
+  gap-metric stage-tap-graded 0
+  gap-metric stage-tap-errors 0
+  gap-metric stage-tap-hits 0
+  gap-metric stage-sites-armed 0
+  gap-metric stage-sites-refused 7
+  gap-metric stage-tap-walk-refusals 0
+
+  G1 IS VACUOUS — THE TAP DID NOT ARM AND FIRE. This is NOT a pass, and the
+  obj identity above is free: 1 unarmed runs, 7 site refusals,
+  0 sites armed, 0 detour hits, 0 objs armed-and-fired.

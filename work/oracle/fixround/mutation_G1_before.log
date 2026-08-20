@@ -1,0 +1,18 @@
+=== MUTATION: every site address displaced by 0x18, so every fail-closed check refuses and NOTHING is patched.
+=== il_call_perm.cpp, payload on, /O1 /Oi /EHsc /GS- /c.
+=== BEFORE-binary: built from the pre-fix-round tip c6e0fa9b7 with the new c2host/stagetap.{c,h}
+===   (the lever has to exist for the population to exist); the pre-fix Rust does not remove
+===   C2RS_STAGE_FORCE_SLIDE from the child env, so the ambient variable reaches c2host.
+
+stage neutrality: 1 fixtures, payload=on, flags /O1 /Oi /EHsc /GS- /c
+  [1/1] SAME   il_call_perm.cpp  hits=0 regions=0 tuples=0
+
+  gap-metric stage-tap-obj-differs 0
+  gap-metric stage-tap-graded 1
+  gap-metric stage-tap-errors 0
+  gap-metric stage-sites-armed 0
+  gap-metric stage-sites-refused 7
+
+  G1 HOLDS over 1 graded fixtures: the armed obj is byte-identical to the
+  disarmed one. A required-zero over an EMPTY population would be free, which is why
+  the denominator is printed beside it.

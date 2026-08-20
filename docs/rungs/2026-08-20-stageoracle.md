@@ -77,10 +77,16 @@ equals the recorded target **plus the measured load slide**.
 
 ### G1 — NEUTRALITY (required zero; the sole judge's own criterion)
 
-| population | graded | `stage-tap-obj-differs` | errors | sites armed / refused |
-|---|---:|---:|---:|---|
-| `fixtures/cpp/*.cpp` | **384** | **0** | 2 | 2688 / 0 |
-| the 26 matched workload TUs, at the workload's own flags | **26** | **0** | 0 | 182 / 0 |
+**The denominator is `armed-and-fired`, and the fix round is why** (§9, review
+major 3). An obj on which the tap armed but never executed is byte-identical
+for free — c2 runs no per-function phase on a TU with no function body — so it
+is reported and excluded, never counted as evidence.
+
+| population | ARMED AND FIRED | armed, never fired | `stage-tap-obj-differs` | errors | detour hits | sites armed / refused | walk refusals |
+|---|---:|---:|---:|---:|---:|---|---:|
+| `fixtures/cpp/*.cpp` (384 graded) | **355** | 29 | **0** | 2 | 47,979 | 2688 / 0 | **0** |
+| the 26 matched workload TUs, at the workload's own flags | **20** | 6 | **0** | 0 | 1,252 | 182 / 0 | **0** |
+| **campaign** | **375** | 35 | **0** | 2 | **49,231** | 2870 / 0 | **0** |
 
 Measured with the **payload ON**, never extrapolated from a counts-only run —
 the payload is the half that touches c2's own memory (plan unknown 8).
@@ -89,8 +95,22 @@ gives `SAME 384 / DIFFERS 0 / ERR 2`, equal to the accumulated counters.
 The two errors are `wmain_no_return{,_neg}.cpp` and they fail on the
 **disarmed** leg — the untapped replay itself produces no obj — so they are
 pre-existing and are classified as errors rather than folded into either side
-of the required zero. Logs: `work/oracle/neutrality_all.log`,
-`work/oracle/neutrality_matched26.log`.
+of the required zero.
+
+Logs: `work/oracle/neutrality_all_fixround.log`,
+`work/oracle/neutrality_matched26_fixround.log` (the fix round's re-run, which
+is what the table above reads; every per-fixture count reproduces the original
+digit for digit). The originals stay at `work/oracle/neutrality_all.log` and
+`work/oracle/neutrality_matched26.log` — they are the logs whose verdict line
+the review's major 1 is about, and deleting them would delete the evidence.
+
+**The matched-26 population is the same population**, and that is checked
+rather than assumed: `dc3-decomp` moved AGAIN between the lane and its fix
+round (`b25928dfb2a6` → `6f3a818e9893`, **a sixth stamp value**, 107 commits),
+so all 26 source blobs plus `config/373307D9/config.json` and
+`tools/defines_common.py` were compared per file across the two stamps —
+**0 of 26 moved, and neither flag input moved**. The flags file is
+byte-identical to the one in the original run's header.
 
 The comparison is made through **one function**: `replay_tapped` with an empty
 tap list *is* the disarmed leg. Each leg asserts its own state first — the
@@ -100,14 +120,27 @@ measurement.
 
 ### G2 / G2b — DETERMINISM and CANONICALITY
 
-`work/oracle/determinism.log`, payload on, 4 fixtures × (5 same-config runs +
-5 runs from a fresh working directory with a different `/Fo` path):
+`work/oracle/determinism_fixround.log`, payload on, 4 fixtures × (5 runs in ONE
+fixed scratch directory + 5 runs each in a freshly minted one, with a different
+`/Fo` path):
 
     stage-snap-runs 10 · stage-snap-distinct-max 1 · stage-snap-unstable-tus 0
     stage-snap-graded 4 · stage-snap-empty-payload 0
     add3 309 tuples · il_call_perm 329 · il_call_return 662 · mvp_add3 36
 
 **One digest per fixture over all ten runs.** It held at the *first* schema.
+
+> **CORRECTED IN THE FIX ROUND (review minor).** As originally published, *"5
+> same-config runs"* did not run: both loops were byte-identical calls and
+> every call minted its own `pid+nanos+counter` scratch dir, so there was no
+> same-config leg and no contrast between the halves. The conclusion is
+> unaffected — ten varied runs at `distinct-max 1` is strictly stronger than
+> five plus five — but the experiment described was not the experiment that
+> ran, which is exactly the thing this rung is not allowed to do. The first leg
+> now pins one directory for all N runs, the numbers above are from the re-run,
+> and each run additionally has to pass `armed_and_fired` before its digest is
+> recorded (an unarmed run's empty stream hashes the same every time, so
+> `distinct = 1` over unarmed runs is a vacuous green).
 The schema forbids addresses, pointers, paths, PIDs, timestamps and allocation
 counts by construction — the slide is recorded as `0`-or-`nonzero`, never as a
 value, and the raw window is excluded from `canonical_bytes()` entirely.
@@ -129,12 +162,33 @@ family.
     sched1 7 · globregs 7 · sched2 7 · color 7 · sched3 7 · sched0 7
     region 56 · tuples 329 · walk refusals 0
 
-**And zero walk refusals over the whole campaign** — no `walk-overrun`,
-`walk-span`, `walk-implausible-*` or `arena-full` line appears in either
-neutrality log, over 410 objs including `jsonwriter.cpp` at 5,491 tuple rows.
-That matters because a truncated payload would make every tuple count a floor
-rather than a measurement, and the refusal lines are kept in a list of their
-own precisely so truncation can never be read as a terminus.
+`work/oracle/snap_il_call_perm.log`.
+
+**And zero walk refusals over the whole campaign** — `stage-tap-walk-refusals`
+reads **0** on both fix-round neutrality logs, over 410 objs including
+`jsonwriter.cpp` at 5,491 tuple rows. That matters because a truncated payload
+would make every tuple count a floor rather than a measurement.
+
+> **CORRECTED IN THE FIX ROUND (review major 2), and it was worse than the
+> review found.** This zero was originally read out of the two neutrality logs
+> — which **structurally could not contain the line**: `cmd_neutrality` printed
+> no walk-refusal key at all, and the nine `grep` hits that looked like
+> corroboration were eight fixture names containing the string *refuse* plus
+> one `stage-sites-refused 0`, which counts ARMING refusals. The command now
+> prints `stage-tap-walk-refusals` and one `TRUNCATED` line per occurrence, and
+> the campaign was **re-run** to derive the zero from a log that could have
+> carried a one.
+>
+> The second half is not in the review: **the payload's own fail-loud path was
+> unreachable.** `REFUSE region arena-full` was appended with the same `ap`
+> that had just stopped appending because the arena was full, so the
+> announcement of truncation was itself dropped. Mutated to an 8 KiB arena, the
+> pre-fix instrument reports `265 tuples · 0 walk refusals` **and a COLOR pair
+> `DIFFERING 1 of 6`** — a phase difference manufactured by truncation, on the
+> fixture whose whole finding is that the COLOR pair is identical 7 of 7. Fixed
+> with a reserved tail that only `ap_reserved` may write, plus `ARENA … full=1`
+> parsed as a refusal so truncation has no unwatched spelling.
+> `work/oracle/fixround/mutation_arena_full.log`.
 
 | derivation | how it is built | answer |
 |---|---|---|
@@ -146,10 +200,26 @@ Three paths with no shared step after c2's front end. This also **re-derives
 `P_DAG.md` §1's "four scheduler runs per function"** as an equality between
 four separately-patched sites rather than as a reading.
 
-The opcodes are self-consistent with the region finder's own control flow:
-`0x30f` appears at category `0x17`, which is exactly the pair `0x10be5d8b`
-tests, and the categories observed (`0x0d 0x0f 0x12 0x15 0x17 0x19 0x1a`) are
-the set that function branches on.
+The opcodes are self-consistent with the region finder's own control flow, in
+the one way that is actually a cross-derivation: **opcode `0x30f` occurs at
+category `0x17` and nowhere else** (re-derived at the fix round over all 329
+rows — 56 of them are `17`, and every `0000030f` is one of those), and
+`0x10be5d8b` — the arm reached only when the category is `0x17` — is
+`cmp DWORD PTR [esi+0x4],ebx` with `ebx = 0x30f` set at `0x10be5d4c`. The code
+predicts that pairing and the payload shows it.
+
+> **CORRECTED IN THE FIX ROUND (review major 5).** This paragraph used to add
+> *"and the categories observed (`0x0d 0x0f 0x12 0x15 0x17 0x19 0x1a`) are the
+> set that function branches on."* **That is a category error and it is false.**
+> The observed set is every category appearing in a region **body**; the
+> finder's dispatch at `0x10be5d6f` (`sub edi,0x12` / `dec dec` / `sub edi,3` /
+> `dec dec` / `dec dec`) branches on region **terminators**, and its set is
+> `{0x12, 0x14, 0x17, 0x19, 0x1b}`. Four observed values (`0x0d 0x0f 0x15
+> 0x1a`) are not branched on at all, and two branch values (`0x14`, `0x1b`)
+> never appear in this fixture. The two sets have no reason to be equal, so
+> their agreeing would have been the surprise. Offered as corroboration in the
+> section that exists to stop an inspected green — the sharpest possible place
+> to be wrong.
 
 ### The finding: COLOR does not write the tuple
 
@@ -163,6 +233,15 @@ pre/post pair at **every** boundary for free. All 7 functions of
 | `sched2` → `sched3` (**COLOR**) | **IDENTICAL on 7 of 7**, 83 tuples |
 | `sched3` → `sched0` (the lowering band) | **DIFFERS on 7 of 7** |
 | raw window, 128 bytes/tuple, 83 aligned pairs across COLOR | **offsets COLOR writes: NONE** |
+
+Log, committed at the fix round: **`work/oracle/snap_il_call_perm.log`**
+(`c2rs stage snap --fixtures il_call_perm.cpp --raw 128`, 377 lines, carrying
+all 329 `TU` rows, the 21 phase-pair verdicts above and the raw-window result).
+The lane's own results-table rule — *"every published number is DERIVED FROM A
+LOG committed under `work/oracle/`"* (PREREG, #3231 F2) — was met by every G1,
+G2 and G4 number and **not** by G5's, which was the review's minor; the rule
+does not bend for numbers that happen to reproduce, and they do: the review
+re-derived them independently and so did this re-run.
 
 **The null is about COLOR's write set, not about the instrument**, and the two
 neighbouring pairs are the control that says so: the same five fields, read by
@@ -185,8 +264,19 @@ that rules the tuple out.
 per-function sites. Not a tap failure — c2 runs no per-function phase because
 those TUs emit no function bodies. Reported rather than averaged away, because
 "empty and deterministic" is the outcome this lane registered as most likely to
-be misreported (P16). The two dyninit TUs that *do* have bodies —
-`TomCryptLicense`, `ZlibLicense` — read `hits=14` = 2 functions × 7 sites.
+be misreported (P16). **They are the reason G1's denominator moved in the fix
+round**: with nothing firing, armed-vs-disarmed byte-identity on those objs is
+free (§9).
+
+The two dyninit TUs that *do* have bodies — `TomCryptLicense`, `ZlibLicense` —
+read `hits=14 regions=8`, which is **one** function, not two: with all seven
+sites armed, `total_hits = 6 × functions + regions`, so `(14 − 8) / 6 = 1`.
+Re-derived directly at the fix round (`c2rs stage counts` on both TUs reads
+`sched1=1 … sched0=1 region=8`) and corroborated by the repo's own record —
+board **#2241**, *"their one emitted function is `??__EsLicense@@YAXXZ`"*. The
+original *"= 2 functions × 7 sites"* arithmetic was wrong twice over (it also
+counted `region`, which is per-region) and propagated verbatim into the lane's
+hand-off summary; review minor, fixed here and in `work/merge-oracle.txt`.
 
 ## 4. Estimate vs outcome — every registered prediction scored
 
@@ -195,7 +285,7 @@ be misreported (P16). The two dyninit TUs that *do* have bodies —
 | P1 | slide 0 on ≥ 9/10 runs | 0.93 | **HIT** — slide 0 on every run, two derivations agreeing |
 | P2 | `VirtualProtect(PAGE_EXECUTE_READWRITE)` succeeds under wibo | 0.85 | **HIT** — 7/7 sites, every run |
 | P3 | the detour at `0x10b7dc9f` fires ≥ 1× at `/O1` | 0.88 | **HIT** — 7× on `il_call_perm.cpp` |
-| P4 | G1 over the fixtures + the matched TUs | 0.80 | **HIT** — 0 of 410 |
+| P4 | G1 over the fixtures + the matched TUs | 0.80 | **HIT** — 0 of 375 armed-and-fired (of 410 graded; the denominator is corrected in §3/§9) |
 | P5 | G2 at the first schema | 0.75 | **HIT** at the first schema; no canonicalization iteration needed |
 | P6 | G2b, no path/PID/pointer leak | 0.85 | **HIT** |
 | P7 | G3 discriminates | 0.90 | **HIT** |
@@ -209,6 +299,7 @@ be misreported (P16). The two dyninit TUs that *do* have bodies —
 | P15 | armed + deterministic + obj-neutral tuple snapshot **with a pre/post-COLOR diff** | 0.45 | **PARTIAL** — everything but the COLOR diff, and the COLOR diff is refuted rather than missing |
 | P16 | counts-only, neutral and deterministic, payload empty/unverifiable | 0.25 | **NO** — 329 tuples on the control fixture, cross-derived three ways |
 | P17 | cost within 1.5–3× a construct rung | 0.5 | **roughly**; not published in seconds (§7) |
+| **G4** | *(a registered gate, not a P-number: every pre-existing `gap-metric` key byte-identical between base and tip)* | required | **MEASURED AND HELD, at the fix round — and it had no row here at all, which was the review's minor.** As first run it read **105 of 395 keys moved** and was confounded: the two scans were at *different workload stamps* (`3df8fd5412c2` vs `b25928dfb2a6`), so nothing separated the lane's code from `dc3-decomp`'s merge. Re-run properly — **master's code and this branch's code, both at one stamp `6f3a818e9893`** — the two 878-TU scans agree on **all 395 keys, every value, byte for byte** (`diff` of the key lines is empty). The lane moves nothing. Logs `work/oracle/fixround/g4_{master,tip}_code.log`; the binaries differ (`8cf63d0d1c9c6458` vs `11d148626c3c10b2`), which is the evidence that two builds really ran, because both trees resolve their `c2-rs` provenance line through this worktree's `.git`. **Bound:** a gap scan runs at `replay-every=0`, so it never executes `c2host` — G4's identity is about the harness's analysis code and says nothing about the tap binary. The control for *that* is below |
 
 **Calibration note.** Seven mechanism/determinism predictions in [0.70, 0.93]
 all hit, which is consistent but is only seven draws. The two refutations
@@ -409,7 +500,7 @@ Prereg invalidation rule 1 says a stamp inequality **voids the results table**
 and the response is to **re-read the base at the current stamp**, not to explain
 the delta. Done:
 
-| | base scan (`3df8fd5412c2`) | re-read at tip (`b25928dfb2a6`) |
+| | base scan (`3df8fd5412c2`) | **tip CODE** re-read at (`b25928dfb2a6`) |
 |---|---|---|
 | `match` / `mismatch` | 26 / 0 | **26 / 0** |
 | `codegen-gap` / `vocab-gap` / `capture-fail` | 0 / 844 / 8 | **0 / 844 / 8** |
@@ -423,12 +514,50 @@ sharpest instance of #3306/#3311 on record (the previous was 82 of 394), and
 this time it happened *inside* one lane rather than between a dispatch and a
 measurement. Logs: `work/oracle/base_gap.log`, `work/oracle/tip_gap.log`.
 
+> **CORRECTED IN THE FIX ROUND (review minor), and the correction changes the
+> claim.** The second column above is the **tip code at the new stamp**, not
+> the **base code** at the new stamp — so *"re-read the base at the current
+> stamp"*, which is what the lane's own invalidation rule demands and what this
+> section said it did, was **not** what ran, and the 105-key delta is
+> confounded between `dc3-decomp`'s merge and the lane's own code. The lane
+> then argued the confound away (*"the `crates/` diff is instrument-only"*),
+> which is precisely the substitution rule 1 exists to forbid.
+>
+> **Measured instead.** Two 878-TU scans at ONE stamp (`6f3a818e9893`, the
+> sixth value — `dc3-decomp` moved a further 107 commits between the lane and
+> its fix round), one with **master's** code and one with **this branch's**:
+> all **395 keys identical, every value** (`diff` empty), `match 26 ·
+> mismatch 0 · vocab-gap 844 · capture-fail 8` on both, `fnbyte-exact 35,894`
+> and `factor-c 170` on both. **G4 HOLDS; the lane moves nothing**, and the 105
+> was the workload, entirely. Logs `work/oracle/fixround/g4_master_code.log`
+> and `work/oracle/fixround/g4_tip_code.log`.
+>
+> A further **43 keys** moved between the lane's own tip scan and this one
+> (`fnbyte-exact 35,893 → 35,894`), which is #3306/#3311 taking another
+> instance in the four hours between a lane and its fix round.
+
 **And the re-read is what licenses §3's matched-TU row rather than voiding it.**
 The 26 matched TUs are identical **by name** at both stamps, and — checked per
 file, which is the part a name compare does not give — **all 26 source blobs are
 byte-identical across the merge** (`git rev-parse <stamp>:<path>` per file; 79
 other files changed). So `stage-tap-obj-differs 0 / graded 26` stands at both
 ends. Had one of the 26 moved, that row would have been re-run, not annotated.
+
+### 7.3 The closing control the rung did not name: `c2host.exe` CHANGED SHAPE
+
+Review note, and it is a real gap in §6's *"no `crates/` behaviour changed"*:
+the payload arena is a 4 MiB static, so `c2host.exe`'s `.bss` grew to
+`0x004008f8` — and **every replay in this repo runs through that binary**. G1's
+design (armed vs disarmed through the *same* exe) structurally cannot see it.
+
+Measured at the fix round, at scale: `c2rs replay <cpp>` compares the **cl.exe
+pipeline obj** (no `c2host` in the picture at all) against the **`c2host`
+replay obj**, and over `fixtures/cpp` it reads **384 of 384
+`normalized_identical=true`, 0 false**. The 2 non-graded are
+`wmain_no_return{,_neg}.cpp`, the pre-existing C4716-promoted-to-error pair —
+**asserted rather than assumed**: master's binary fails them identically, with
+the same two `error C4716` lines and no obj.
+`work/oracle/fixround/replay_pipeline_control.log`.
 
 **Wall-clock seconds are not published.** The box carried an unrelated external
 load of 32 → 150 on 32 cores across this lane; a timing taken there is a
@@ -443,3 +572,124 @@ COFF `TimeDateStamp` zeroed, remains the sole judge. And a metric delta of zero
 is evidence about **reach**, never about correctness (#3270–#3275): G1's zero
 says the tap does not perturb c2 on the 410 objs it was run against, and
 nothing more.
+
+---
+
+## 9. FIX ROUND — the review's five majors and fourteen findings, dispositioned
+
+Review verdict `land-with-fixes` (`work/reviews/oracle-review.json`), read at
+tip `8b338b39e`. This branch was rebased onto master `826ba1e41` **first**, so
+one gate run covers the rebase and the fixes together. Outcome word is
+unchanged: **`instrument`**.
+
+**Nothing here was fixed by reading.** Every new assertion has a mutation
+demonstration — the defect it exists to catch is planted, the assertion is
+watched failing with a message distinct from every other failure in the file,
+and the earlier guards' quantities are held fixed so the assertion is actually
+reached. One of those mutations forced an API change on its own (below).
+
+### 9.1 Disposition
+
+| # | severity | finding | disposition |
+|---|---|---|---|
+| 1 | **major** | `c2rs stage neutrality` never asserted the tap armed; its required-zero could print `G1 HOLDS` over a population where no byte of c2.dll was patched | **FIXED** at `3a840fbb9`. Verdict now conditioned on a POSITIVE `TapReport::armed_and_fired` (every requested site armed, none refused, ≥1 detour executed) and prints `G1 IS VACUOUS` otherwise. **Mutation** §9.2 (a) |
+| 2 | **major** | *"zero walk refusals over the whole campaign"* read from a log that structurally could not contain the line | **FIXED** at `3a840fbb9` + campaign **re-run**. `cmd_neutrality` prints `stage-tap-walk-refusals` and one `TRUNCATED` line per occurrence; the zero is now read off `work/oracle/neutrality_{all,matched26}_fixround.log`. §3 |
+| 3 | **major** | G1's denominator counted 35 objs on which the tap fired zero times; board #3322's headline said *"over 410 graded objs with the payload armed"* | **FIXED** at `3a840fbb9` (code), and #3322's headline now reads **375 armed-and-fired of 410 graded**, naming the 35 as free. **Mutation** §9.2 (b) |
+| 4 | **major** | *"the four scheduler runs are gated ONLY by `DAT_10c2e2fc`"* is refuted by the disassembly; a lane delivering whitebox corrections shipped a new wrong record claim | **FIXED** at `7a5a84954`, in five places: `P_DAG.md` §1 (with the bytes), `WB_DAGORDER_FINDINGS.md` §1, `OPT_GATED_SITES`' doc (which also said *"six sites"* over a four-element array), the G3 test's doc and the G5 test's comment. `DISCLOSURE` W-STAGETAP-1 gains the omitted gate addresses. `/Od` ⇒ 0 is kept and is unaffected; `hits == functions` is relabelled EMPIRICAL |
+| 5 | **major** | the observed-categories cross-derivation is a category error: region **bodies** vs region **terminators** | **FIXED** at this commit — the false half is retracted in §3 with the two sets printed, the true half (`0x30f` ⇔ category `0x17`, the pair `0x10be5d8b` tests) is kept and re-derived over all 329 rows |
+| 6 | minor | `TomCryptLicense`/`ZlibLicense` *"`hits=14` = 2 functions × 7 sites"* — wrong decomposition | **FIXED** in §3. `total_hits = 6×functions + regions` ⇒ **1** function, re-derived by `stage counts` (`sched1=1 … region=8`) and matching board #2241 |
+| 7 | minor | G2's *"5 same-config runs"* did not exist — both loops minted fresh dirs | **FIXED** at `3a840fbb9`; the first leg pins one scratch dir. Re-run: `work/oracle/determinism_fixround.log`, `distinct-max 1`, same tuple counts |
+| 8 | minor | G4 registered, measured failing, unscored; and the *"re-read the base at the current stamp"* was not done | **FIXED, AND G4 NOW HOLDS.** Two 878-TU scans at ONE stamp — master's code vs this branch's — agree on all 395 keys, every value. G4 has a row in §4 and the correction is in §7.2 |
+| 9 | minor | G5's numbers backed by no committed log, against the lane's own results-table rule | **FIXED** — `work/oracle/snap_il_call_perm.log` (377 lines, all 329 `TU` rows, the 21 phase verdicts, the raw-window result) |
+| 10 | minor | the two `DISCLOSURE` rows land four commits after the adoptions they cover | **DECLINED, priced** — §9.3 (i). Partially served: each row now names its adopting commit |
+| 11 | note | `c2host.exe` changed shape (4 MiB `.bss`); G1 cannot see it and the rung did not name the closing control | **FIXED** — §7.3, and the control is measured at scale rather than named: 384/384 pipeline-obj vs c2host-replay-obj identical |
+| 12 | note | `OPT_GATED_SITES`' doc says *"six sites"* over four, and is wrong about membership | **FIXED** at `7a5a84954` (folded into 4) |
+| 13 | note | the fail-closed arming path has no standing test against a live image; the `+ slide` half never ran | **FIXED** at `f237a5822` — `a_wrong_slide_arms_nothing_and_never_moves_the_obj`. **Mutation** §9.2 (c) |
+| 14 | note | `c2host/README.md`'s build command is the old single-source one | **FIXED** at `7a5a84954` |
+
+**Found while fixing, and not in the review** — the payload's fail-loud path was
+**unreachable**: `REFUSE region arena-full` was appended with the same `ap` that
+had just stopped appending, so a full arena announced nothing and `ARENA …
+full=1` was not parsed. **Mutation** §9.2 (d), and it is the sharpest of the
+four: under it the instrument reports a COLOR pair `DIFFERING 1 of 6` on the
+fixture whose entire finding is `IDENTICAL 7 of 7`.
+
+### 9.2 The four mutations
+
+Each ran with everything but the planted defect held fixed.
+
+**(a) `G1 HOLDS` over a run that patched nothing.** `--force-slide 18`
+displaces every site address; all seven fail-closed checks refuse. The
+**pre-fix binary** (built from `c6e0fa9b7`) prints, in the same output:
+
+    gap-metric stage-sites-refused 7
+    G1 HOLDS over 1 graded fixtures
+
+The refusal count was in its own output and the verdict ignored it. The fixed
+binary prints `G1 IS VACUOUS — THE TAP DID NOT ARM AND FIRE` and names the
+zeros. `work/oracle/fixround/mutation_G1_{before,after}.log`.
+
+**(b) The free denominator.** `mvp_empty.cpp` emits no function body, so the
+seven sites arm and never fire. Fixed binary: `NOFIRE`, excluded from the
+denominator, and the verdict says so in one sentence.
+`work/oracle/fixround/nofire_demo.log`.
+
+**(c) The fail-closed check, disabled.** With check 2 (`target + slide`)
+commented out and the opcode check left standing, a `+0x18` slide **arms five
+of seven sites** — five real `e8 rel32` bytes at the displaced addresses — and
+c2 SIGSEGVs. The new test fails with `A WRONG SLIDE PATCHED 5 SITE(S)`; the
+other six tests in the file still pass, so the control leg still armed and
+fired. `work/oracle/fixround/mutation_failclosed.log`.
+
+> **THIS MUTATION CHANGED THE CODE, WHICH IS THE POINT OF RUNNING IT.** The
+> first version of the test read the crash as `forced-slide replay failed` — a
+> true sentence naming the wrong defect, and an **earlier guard tripping before
+> the assertion the test exists for**. `replay_tapped_forced_slide` now returns
+> `Option<ObjImage>`, so a missing obj is data and the arming assertion is
+> reached. *"I saw the test fail"* was not evidence, and here is the instance.
+
+**(d) The arena at 8 KiB.** `il_call_perm.cpp`'s 329-row payload overruns it.
+Pre-fix: `265 tuples · 0 walk refusals · COLOR pair DIFFERING 1 of 6` —
+silent truncation manufacturing a phase difference. Fixed: two refusals
+reported, `stage snap` prints `TRUNCATED` and withholds the COLOR finding, and
+`the_snapshot_is_nonempty_and_agrees_with_a_second_derivation` fails with *"the
+bounded walk was TRUNCATED, so the tuple count below is a floor and not a
+measurement"* — reached with the earlier guards intact (armed 7/7, 265 tuples
+non-empty). `work/oracle/fixround/mutation_arena_full.log`.
+
+### 9.3 Priced declines
+
+**(i) Finding 10 — the `DISCLOSURE` rows land four commits after the code that
+adopts the addresses.** DECLINED.
+
+* **Cost of fixing:** rewriting 15 commits of already-reviewed history to move
+  a documentation hunk earlier. The branch is on the critical path (proposal §5
+  step 5 sits behind it), the review's own re-derivations are pinned to those
+  commits, and this box's standing rule is that intermediate history is the
+  valuable part — a fix here trades a real record for a formal one.
+* **Cost of the hole:** at four commits in the middle of one unmerged branch,
+  the tree carries seven disassembly-derived addresses without a provenance
+  row. The letter of `CLAUDE.md` scopes the rule to `crates/`, and `crates/`
+  holds names only — the addresses are in `c2host/`. At the tip, and therefore
+  at every commit a reader will ever `git log`, both rows are present.
+* **Partial fix taken instead:** each row now names its adopting commit
+  (`2bfc70caf`, `a09f33704`), which is the property a reader actually wants —
+  *"which change adopted this address"* — and which the same-commit rule was a
+  proxy for.
+
+**(ii) The review's `mostLikelyRemainingDefect` — completeness of the
+observable — is NOT addressed here, deliberately.** It is open question 2 in
+§6.1 with its deciding probe already named (does the `sched0` region walk equal
+what the `.cod` prints?), and it is a *measurement lane*, not a fix: `P_DAG.md`
+§6's second author of tuple order (`factor.c`'s block merger, not a DAG client)
+is a claim about c2, not about this instrument. Fixing it inside a fix round
+would mean shipping an unreviewed characterization result under a review's
+cover. **The standing bound already forbids the failure it leads to** (§8: no
+`crates/` rule enters on snapshot equality), and the rung says in §6.1 that a
+ported pass must not be graded against a stage snapshot until that probe lands.
+
+### 9.4 What the fix round did not change
+
+The verdict. **GO** stands, on a denominator that is now 375 rather than 410,
+with the same zero, the same seven armed sites, the same 49,231 detour hits,
+and the COLOR null intact at 7 of 7 with `offsets COLOR writes: NONE`.
