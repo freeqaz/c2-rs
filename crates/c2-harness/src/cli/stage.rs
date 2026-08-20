@@ -35,6 +35,8 @@ use c2_obj::{ObjDiff, ObjImage};
 use c2_reference::stage::{TapReport, OPT_GATED_SITES, STAGE_SITES};
 use c2_reference::Toolchain;
 
+use c2_harness::toolchain_gate::{toolchain_ready, Cap};
+
 use crate::cli::util::Scratch;
 use crate::{Args, Arity, Spec};
 
@@ -293,13 +295,19 @@ pub(crate) fn cmd_stage(rest: &[String]) -> ExitCode {
     let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
-    if !tc.has_strace() {
-        println!("SKIP: strace absent (needed to keep the IL bundle)");
-        return ExitCode::SUCCESS;
-    }
-    if !tc.has_mingw() {
-        println!("SKIP: i686-w64-mingw32-gcc absent (needed to build c2host)");
-        return ExitCode::SUCCESS;
+    // THE FUNNEL, not a sixteenth copy. `w-refrev` landed
+    // `toolchain_gate::toolchain_ready` on master while this branch was in
+    // review, converting fifteen hand-rolled skip blocks; this command was
+    // written in parallel and would have re-opened the hole the funnel exists
+    // to close — a demand honoured at fourteen sites and not the fifteenth is a
+    // demand with a hole in it. Under `C2RS_REQUIRE_TOOLCHAIN` a partially
+    // provisioned run now REFUSES here instead of printing SKIP and exiting 0.
+    if let Some(code) = toolchain_ready(
+        &tc,
+        &[Cap::Strace, Cap::Mingw],
+        "needed to keep the IL bundle and build c2host",
+    ) {
+        return code;
     }
     let fixtures = fixture_list(&args, limit);
     // The workload's `/I src/...` roots are RELATIVE, so a --list run without
