@@ -9,7 +9,9 @@
 //! determinism note, offset 4-7. Verified empirically: identical source →
 //! byte-identical `.obj` apart from those four bytes.)
 
+mod plan;
 mod reloc;
+pub use plan::*;
 pub use reloc::*;
 
 /// A COFF `.obj` image: just its raw bytes.
