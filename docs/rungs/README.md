@@ -147,10 +147,16 @@ unmeasured).
   states this mechanism, and a coordinator who had just read it still wrote the
   vacuous form into four lane briefs and quoted its 0 as evidence on three
   merges — so the wrong check is named here explicitly rather than left as an
-  inference. **Assert a DURATION instead** (`census_gate` takes ~90-125 s with a
-  toolchain and 0.00 s without), or run with `--nocapture` and count. The
-  general rule the brief got right: **assert the environment, never the exit
-  code.**
+  inference. **Assert a DURATION instead** — `census_gate` reads **0.00 s**
+  without a toolchain and **tens of seconds** with one — or run with
+  `--nocapture` and count, which is the form that actually distinguishes the
+  two (a provisioned run emits **0** SKIP lines because nothing skips; an
+  unprovisioned one emits one per skipping test). **Do NOT hardcode a duration
+  BAND**: the "~90-125 s" first written here was measured on a box under
+  external load of 88-153, and the same target read **74.62 s** at load 15 two
+  days later. The signal is `0.00` vs `not 0.00`, and a band tight enough to
+  look rigorous will red a quiet box. The general rule the brief got right:
+  **assert the environment, never the exit code.**
 * **Count `gap-metric` keys with `grep -cE '^ *gap-metric \S+ \S+$'`.** Never
   `grep -c 'gap-metric'`, which over-counts: prose lines merely *mention* keys.
   **Three consecutive lanes hit this**, and the third *explained* the +2 by
