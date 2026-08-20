@@ -64,12 +64,19 @@ Measured at this tree before anything below was written:
 ### 1.2 What is wrong, in order of what it costs
 
 1. **Parse == accept: there is no lossless decode layer.**
-   `IlBundle::functions()` (`crates/c2-il/src/func/bundle.rs:699`) couples
+   `IlBundle::functions()` (`crates/c2-il/src/func/bundle.rs:1939`) couples
    framing, name binding, semantic understanding and *admission* into one
    verdict. Consequences: (a) the whole recognized function is the only unit
    that can exist downstream, so every new capability is a new whole-function
-   grammar; (b) `vocab-gap 844` means 97% of the workload produces **no IR at
-   all**, so no middle stage can even be built against real data; (c) the
+   grammar; (b) the admission verdict is **all-or-nothing per TU** — one
+   unrecognized body refuses the whole translation unit, which is what
+   `vocab-gap 844` counts, so no middle stage can be built against a *whole*
+   TU's data. **`vocab-gap 844` is a TU-level admission count and NOT a claim
+   that 97% of bodies fail to decode** — the per-function census decodes a
+   `BodyShape` for a large minority of bodies workload-wide, and an earlier
+   draft of this document misread the TU figure as a per-body one. Any
+   per-body denominator quoted downstream must come from a census run, cited
+   with its workload stamp, never from this key; (c) the
    refusal boundary is structurally pinned in the parser —
    `frontier-codegen-refused` is 0 *by construction* (#1475). Cost evidence:
    113,612 of the 126,315 additionally-needed emitted functions are blocked at
@@ -273,7 +280,7 @@ non-decreasing — byte-identical or explicitly accounted, per step.
 | # | step | kind | graded by | what it unblocks |
 |---|---|---|---|---|
 | 0 | **Stage oracle** (§4) | characterization lanes | snapshot determinism + one end-to-end instrumented TU per family | everything in step 5; divergence localization forever after |
-| 1 | **IR0 under the current reader**: build the lossless framer; re-express `IlBundle::functions()` and the census splitters as *views* over it | construct | identity protocol + new totality/opaque denominators printed both sides of the change (trap-0/#961 discipline) | the substrate; kills "97% of the workload produces no IR"; makes every later reader claim checkable |
+| 1 | **IR0 under the current reader**: build the lossless framer; re-express `IlBundle::functions()` and the census splitters as *views* over it | construct | identity protocol + new totality/opaque denominators printed both sides of the change (trap-0/#961 discipline) | the substrate; makes a body decodable without its TU being admitted (§1.2.1b), so a middle stage has real data to build against; makes every later reader claim checkable |
 | 2 | **The W8 sum type**: `IlFunction.body: BodyShape`; delete the parallel `Option`s and `select_function`'s re-derivation | construct (the long-deferred SEAMS step 5; needs its quiesce window) | identity protocol; census/gate disagreement stays 0 | new classes stop costing a field + an arm + a pair of files |
 | 3 | **IR2 ObjPlan + the manifest instrument**: consolidate `plan/`; add the structural-manifest grade over all 870 TUs as a gap-metric family (`plan-exact`, per-component) | construct + instrument | manifest identity on the 26 matched TUs (required-exact); the other 844 become a *measured curve* | un-conjuncts A∧B∧C: emit-set closure, weak externals (675), COMDAT synthesis (450), the 3-name section ladder each become independently gradeable lanes with an honest denominator |
 | 4 | **IR1 consolidation**: one binding, `bind.rs`'s pinned-apart seam closed on purpose (the numerator move recorded, not absorbed) | construct | binding counters + JSONL identity; the numerator move published as its own row | claim 2 of the ledger |
